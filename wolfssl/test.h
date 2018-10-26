@@ -2146,6 +2146,12 @@ typedef struct PkCbInfo {
 #endif
 } PkCbInfo;
 
+#if defined(DEBUG_PK_CB) || defined(TEST_PK_PRIVKEY)
+    #define WOLFSSL_PKMSG(_f_, ...) printf(_f_, ##__VA_ARGS__)
+#else
+    #define WOLFSSL_PKMSG(_f_, ...)
+#endif
+
 #ifdef HAVE_ECC
 
 static WC_INLINE int myEccKeyGen(WOLFSSL* ssl, ecc_key* key, word32 keySz,
@@ -2163,6 +2169,8 @@ static WC_INLINE int myEccKeyGen(WOLFSSL* ssl, ecc_key* key, word32 keySz,
 
     (void)ssl;
     (void)cbInfo;
+
+    WOLFSSL_PKMSG("PK ECC KeyGen: keySz %d, Curve ID %d\n", keySz, ecc_curve);
 
     ret = wc_InitRng(&rng);
     if (ret != 0)
@@ -2187,6 +2195,8 @@ static WC_INLINE int myEccKeyGen(WOLFSSL* ssl, ecc_key* key, word32 keySz,
     #endif
     }
 
+    WOLFSSL_PKMSG("PK ECC KeyGen: ret %d\n", ret);
+
     wc_FreeRng(&rng);
 
     return ret;
@@ -2205,6 +2215,8 @@ static WC_INLINE int myEccSign(WOLFSSL* ssl, const byte* in, word32 inSz,
     (void)ssl;
     (void)cbInfo;
 
+    WOLFSSL_PKMSG("PK ECC Sign: inSz %d, keySz %d\n", inSz, keySz);
+
 #ifdef TEST_PK_PRIVKEY
     ret = load_key_file(cbInfo->ourKey, &keyBuf, &keySz);
     if (ret != 0)
@@ -2218,8 +2230,10 @@ static WC_INLINE int myEccSign(WOLFSSL* ssl, const byte* in, word32 inSz,
     ret = wc_ecc_init(&myKey);
     if (ret == 0) {
         ret = wc_EccPrivateKeyDecode(keyBuf, &idx, &myKey, keySz);
-        if (ret == 0)
+        if (ret == 0) {
+            WOLFSSL_PKMSG("PK ECC Sign: Curve ID %d\n", myKey.dp->id);
             ret = wc_ecc_sign_hash(in, inSz, out, outSz, &rng, &myKey);
+        }
         wc_ecc_free(&myKey);
     }
     wc_FreeRng(&rng);
@@ -2227,6 +2241,8 @@ static WC_INLINE int myEccSign(WOLFSSL* ssl, const byte* in, word32 inSz,
 #ifdef TEST_PK_PRIVKEY
     free(keyBuf);
 #endif
+
+    WOLFSSL_PKMSG("PK ECC Sign: ret %d outSz %d\n", ret, *outSz);
 
     return ret;
 }
@@ -2244,6 +2260,8 @@ static WC_INLINE int myEccVerify(WOLFSSL* ssl, const byte* sig, word32 sigSz,
     (void)ssl;
     (void)cbInfo;
 
+    WOLFSSL_PKMSG("PK ECC Verify: sigSz %d, hashSz %d, keySz %d\n", sigSz, hashSz, keySz);
+
     ret = wc_ecc_init(&myKey);
     if (ret == 0) {
         ret = wc_EccPublicKeyDecode(key, &idx, &myKey, keySz);
@@ -2251,6 +2269,8 @@ static WC_INLINE int myEccVerify(WOLFSSL* ssl, const byte* sig, word32 sigSz,
             ret = wc_ecc_verify_hash(sig, sigSz, hash, hashSz, result, &myKey);
         wc_ecc_free(&myKey);
     }
+
+    WOLFSSL_PKMSG("PK ECC Verify: ret %d, result %d\n", ret, *result);
 
     return ret;
 }
@@ -2268,6 +2288,9 @@ static WC_INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
 
     (void)ssl;
     (void)cbInfo;
+
+    WOLFSSL_PKMSG("PK ECC PMS: Side %s, Peer Curve %d\n",
+        side == WOLFSSL_CLIENT_END ? "client" : "server", otherKey->dp->id);
 
     ret = wc_ecc_init(&tmpKey);
     if (ret != 0) {
@@ -2330,6 +2353,8 @@ static WC_INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
 
     wc_ecc_free(&tmpKey);
 
+    WOLFSSL_PKMSG("PK ECC PMS: ret %d, PubKeySz %d, OutLen %d\n", ret, *pubKeySz, *outlen);
+
     return ret;
 }
 
@@ -2345,6 +2370,8 @@ static WC_INLINE int myEd25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
 
     (void)ssl;
     (void)cbInfo;
+
+    WOLFSSL_PKMSG("PK 25519 Sign: inSz %d, keySz %d\n", inSz, keySz);
 
 #ifdef TEST_PK_PRIVKEY
     ret = load_key_file(cbInfo->ourKey, &keyBuf, &keySz);
@@ -2364,6 +2391,8 @@ static WC_INLINE int myEd25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
     free(keyBuf);
 #endif
 
+    WOLFSSL_PKMSG("PK 25519 Sign: ret %d, outSz %d\n", ret, *outSz);
+
     return ret;
 }
 
@@ -2379,6 +2408,8 @@ static WC_INLINE int myEd25519Verify(WOLFSSL* ssl, const byte* sig, word32 sigSz
     (void)ssl;
     (void)cbInfo;
 
+    WOLFSSL_PKMSG("PK 25519 Verify: sigSz %d, msgSz %d, keySz %d\n", sigSz, msgSz, keySz);
+
     ret = wc_ed25519_init(&myKey);
     if (ret == 0) {
         ret = wc_ed25519_import_public(key, keySz, &myKey);
@@ -2387,6 +2418,8 @@ static WC_INLINE int myEd25519Verify(WOLFSSL* ssl, const byte* sig, word32 sigSz
         }
         wc_ed25519_free(&myKey);
     }
+
+    WOLFSSL_PKMSG("PK 25519 Verify: ret %d, result %d\n", ret, *result);
 
     return ret;
 }
@@ -2403,6 +2436,8 @@ static WC_INLINE int myX25519KeyGen(WOLFSSL* ssl, curve25519_key* key,
     (void)ssl;
     (void)cbInfo;
 
+    WOLFSSL_PKMSG("PK 25519 KeyGen: keySz %d\n", keySz);
+
     ret = wc_InitRng(&rng);
     if (ret != 0)
         return ret;
@@ -2410,6 +2445,8 @@ static WC_INLINE int myX25519KeyGen(WOLFSSL* ssl, curve25519_key* key,
     ret = wc_curve25519_make_key(&rng, keySz, key);
 
     wc_FreeRng(&rng);
+
+    WOLFSSL_PKMSG("PK 25519 KeyGen: ret %d\n", ret);
 
     return ret;
 }
@@ -2427,6 +2464,9 @@ static WC_INLINE int myX25519SharedSecret(WOLFSSL* ssl, curve25519_key* otherKey
 
     (void)ssl;
     (void)cbInfo;
+
+    WOLFSSL_PKMSG("PK 25519 PMS: side %s\n",
+        side == WOLFSSL_CLIENT_END ? "client" : "server");
 
     ret = wc_curve25519_init(&tmpKey);
     if (ret != 0) {
@@ -2471,6 +2511,9 @@ static WC_INLINE int myX25519SharedSecret(WOLFSSL* ssl, curve25519_key* otherKey
 
     wc_curve25519_free(&tmpKey);
 
+    WOLFSSL_PKMSG("PK 25519 PMS: ret %d, pubKeySz %d, outLen %d\n",
+        ret, *pubKeySz, *outlen);
+
     return ret;
 }
 #endif /* HAVE_CURVE25519 */
@@ -2484,13 +2527,19 @@ static WC_INLINE int myDhCallback(WOLFSSL* ssl, struct DhKey* key,
         unsigned char* out, unsigned int* outlen,
         void* ctx)
 {
+    int ret;
     PkCbInfo* cbInfo = (PkCbInfo*)ctx;
 
     (void)ssl;
     (void)cbInfo;
 
     /* return 0 on success */
-    return wc_DhAgree(key, out, outlen, priv, privSz, pubKeyDer, pubKeySz);
+    ret = wc_DhAgree(key, out, outlen, priv, privSz, pubKeyDer, pubKeySz);
+
+    WOLFSSL_PKMSG("PK ED Agree: ret %d, privSz %d, pubKeySz %d, outlen %d\n",
+        ret, privSz, pubKeySz, *outlen);
+
+    return ret;
 };
 
 #endif /* !NO_DH */
@@ -2509,6 +2558,8 @@ static WC_INLINE int myRsaSign(WOLFSSL* ssl, const byte* in, word32 inSz,
 
     (void)ssl;
     (void)cbInfo;
+
+    WOLFSSL_PKMSG("PK RSA Sign: inSz %d, keySz %d\n", inSz, keySz);
 
 #ifdef TEST_PK_PRIVKEY
     ret = load_key_file(cbInfo->ourKey, &keyBuf, &keySz);
@@ -2537,6 +2588,8 @@ static WC_INLINE int myRsaSign(WOLFSSL* ssl, const byte* in, word32 inSz,
     free(keyBuf);
 #endif
 
+    WOLFSSL_PKMSG("PK RSA Sign: ret %d, outSz %d\n", ret, *outSz);
+
     return ret;
 }
 
@@ -2552,6 +2605,8 @@ static WC_INLINE int myRsaVerify(WOLFSSL* ssl, byte* sig, word32 sigSz,
     (void)ssl;
     (void)cbInfo;
 
+    WOLFSSL_PKMSG("PK RSA Verify: sigSz %d, keySz %d\n", sigSz, keySz);
+
     ret = wc_InitRsaKey(&myKey, NULL);
     if (ret == 0) {
         ret = wc_RsaPublicKeyDecode(key, &idx, &myKey, keySz);
@@ -2559,6 +2614,8 @@ static WC_INLINE int myRsaVerify(WOLFSSL* ssl, byte* sig, word32 sigSz,
             ret = wc_RsaSSL_VerifyInline(sig, sigSz, out, &myKey);
         wc_FreeRsaKey(&myKey);
     }
+
+    WOLFSSL_PKMSG("PK RSA Verify: ret %d\n", ret);
 
     return ret;
 }
@@ -2574,6 +2631,8 @@ static WC_INLINE int myRsaSignCheck(WOLFSSL* ssl, byte* sig, word32 sigSz,
 
     (void)ssl;
     (void)cbInfo;
+
+    WOLFSSL_PKMSG("PK RSA SignCheck: sigSz %d, keySz %d\n", sigSz, keySz);
 
 #ifdef TEST_PK_PRIVKEY
     ret = load_key_file(cbInfo->ourKey, &keyBuf, &keySz);
@@ -2591,6 +2650,8 @@ static WC_INLINE int myRsaSignCheck(WOLFSSL* ssl, byte* sig, word32 sigSz,
 #ifdef TEST_PK_PRIVKEY
     free(keyBuf);
 #endif
+
+    WOLFSSL_PKMSG("PK RSA SignCheck: ret %d\n", ret);
 
     return ret;
 }
@@ -2610,6 +2671,9 @@ static WC_INLINE int myRsaPssSign(WOLFSSL* ssl, const byte* in, word32 inSz,
 
     (void)ssl;
     (void)cbInfo;
+
+    WOLFSSL_PKMSG("PK RSA PSS Sign: inSz %d, hash %d, mgf %d, keySz %d\n",
+        inSz, hash, mgf, keySz);
 
 #ifdef TEST_PK_PRIVKEY
     ret = load_key_file(cbInfo->ourKey, &keyBuf, &keySz);
@@ -2658,6 +2722,8 @@ static WC_INLINE int myRsaPssSign(WOLFSSL* ssl, const byte* in, word32 inSz,
     free(keyBuf);
 #endif
 
+    WOLFSSL_PKMSG("PK RSA PSS Sign: ret %d, outSz %d\n", ret, *outSz);
+
     return ret;
 }
 
@@ -2673,6 +2739,9 @@ static WC_INLINE int myRsaPssVerify(WOLFSSL* ssl, byte* sig, word32 sigSz,
 
     (void)ssl;
     (void)cbInfo;
+
+    WOLFSSL_PKMSG("PK RSA PSS Verify: sigSz %d, hash %d, mgf %d, keySz %d\n",
+        sigSz, hash, mgf, keySz);
 
     switch (hash) {
 #ifndef NO_SHA256
@@ -2702,6 +2771,8 @@ static WC_INLINE int myRsaPssVerify(WOLFSSL* ssl, byte* sig, word32 sigSz,
         wc_FreeRsaKey(&myKey);
     }
 
+    WOLFSSL_PKMSG("PK RSA PSS Verify: ret %d\n", ret);
+
     return ret;
 }
 
@@ -2717,6 +2788,9 @@ static WC_INLINE int myRsaPssSignCheck(WOLFSSL* ssl, byte* sig, word32 sigSz,
 
     (void)ssl;
     (void)cbInfo;
+
+    WOLFSSL_PKMSG("PK RSA PSS SignCheck: sigSz %d, hash %d, mgf %d, keySz %d\n",
+        sigSz, hash, mgf, keySz);
 
 #ifdef TEST_PK_PRIVKEY
     ret = load_key_file(cbInfo->ourKey, &keyBuf, &keySz);
@@ -2756,6 +2830,8 @@ static WC_INLINE int myRsaPssSignCheck(WOLFSSL* ssl, byte* sig, word32 sigSz,
     free(keyBuf);
 #endif
 
+    WOLFSSL_PKMSG("PK RSA PSS SignCheck: ret %d\n", ret);
+
     return ret;
 }
 #endif
@@ -2773,6 +2849,8 @@ static WC_INLINE int myRsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz,
 
     (void)ssl;
     (void)cbInfo;
+
+    WOLFSSL_PKMSG("PK RSA Enc: inSz %d, keySz %d\n", inSz, keySz);
 
     ret = wc_InitRng(&rng);
     if (ret != 0)
@@ -2792,6 +2870,8 @@ static WC_INLINE int myRsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz,
     }
     wc_FreeRng(&rng);
 
+    WOLFSSL_PKMSG("PK RSA Enc: ret %d, outSz %d\n", ret, *outSz);
+
     return ret;
 }
 
@@ -2807,6 +2887,8 @@ static WC_INLINE int myRsaDec(WOLFSSL* ssl, byte* in, word32 inSz,
 
     (void)ssl;
     (void)cbInfo;
+
+    WOLFSSL_PKMSG("PK RSA Dec: inSz %d, keySz %d\n", inSz, keySz);
 
 #ifdef TEST_PK_PRIVKEY
     ret = load_key_file(cbInfo->ourKey, &keyBuf, &keySz);
@@ -2833,6 +2915,8 @@ static WC_INLINE int myRsaDec(WOLFSSL* ssl, byte* in, word32 inSz,
 #ifdef TEST_PK_PRIVKEY
     free(keyBuf);
 #endif
+
+    WOLFSSL_PKMSG("PK RSA Dec: ret %d\n", ret);
 
     return ret;
 }

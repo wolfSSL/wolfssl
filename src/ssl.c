@@ -4468,6 +4468,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     int           resetSuites = 0;
     void*         heap = wolfSSL_CTX_GetHeap(ctx, ssl);
     int           devId = wolfSSL_CTX_GetDevId(ctx, ssl);
+    word32        idx;
+    int           keySz = 0;
 #ifdef WOLFSSL_SMALL_STACK
     EncryptedInfo* info = NULL;
 #else
@@ -4476,6 +4478,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
     (void)rsaKey;
     (void)devId;
+    (void)idx;
+    (void)keySz;
 
     if (used)
         *used = sz;     /* used bytes default to sz, PEM chain may shorten*/
@@ -4676,7 +4680,6 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     #ifndef NO_RSA
         if (!eccKey && !ed25519Key) {
             /* make sure RSA key can be used */
-            word32 idx = 0;
         #ifdef WOLFSSL_SMALL_STACK
             RsaKey* key = NULL;
         #else
@@ -4691,6 +4694,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
             ret = wc_InitRsaKey_ex(key, heap, devId);
             if (ret == 0) {
+                idx = 0;
                 if (wc_RsaPrivateKeyDecode(der->buffer, &idx, key, der->length)
                     != 0) {
                 #ifdef HAVE_ECC
@@ -4705,22 +4709,21 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 }
                 else {
                     /* check that the size of the RSA key is enough */
-                    int rsaSz = wc_RsaEncryptSize((RsaKey*)key);
-                    int minRsaSz;
-
-                    minRsaSz = ssl ? ssl->options.minRsaKeySz : ctx->minRsaKeySz;
-                    if (rsaSz < minRsaSz) {
+                    int minRsaSz = ssl ? ssl->options.minRsaKeySz :
+                        ctx->minRsaKeySz;
+                    keySz = wc_RsaEncryptSize((RsaKey*)key);
+                    if (keySz < minRsaSz) {
                         ret = RSA_KEY_SIZE_E;
                         WOLFSSL_MSG("Private Key size too small");
                     }
 
                     if (ssl) {
                         ssl->buffers.keyType = rsa_sa_algo;
-                        ssl->buffers.keySz = rsaSz;
+                        ssl->buffers.keySz = keySz;
                     }
                     else if(ctx) {
                         ctx->privateKeyType = rsa_sa_algo;
-                        ctx->privateKeySz = rsaSz;
+                        ctx->privateKeySz = keySz;
                     }
 
                     rsaKey = 1;
@@ -4746,7 +4749,6 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     #ifdef HAVE_ECC
         if (!rsaKey && !ed25519Key) {
             /* make sure ECC key can be used */
-            word32   idx = 0;
         #ifdef WOLFSSL_SMALL_STACK
             ecc_key* key = NULL;
         #else
@@ -4760,17 +4762,16 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #endif
 
             if (wc_ecc_init_ex(key, heap, devId) == 0) {
+                idx = 0;
                 if (wc_EccPrivateKeyDecode(der->buffer, &idx, key,
                                                             der->length) == 0) {
-                    int keySz = wc_ecc_size(key);
-                    int minKeySz;
-
                     /* check for minimum ECC key size and then free */
-                    minKeySz = ssl ? ssl->options.minEccKeySz : ctx->minEccKeySz;
+                    int minKeySz = ssl ? ssl->options.minEccKeySz :
+                                                            ctx->minEccKeySz;
+                    keySz = wc_ecc_size(key);
                     if (keySz < minKeySz) {
-                        wc_ecc_free(key);
                         WOLFSSL_MSG("ECC private key too small");
-                        return ECC_KEY_SIZE_E;
+                        ret = ECC_KEY_SIZE_E;
                     }
 
                     eccKey = 1;
@@ -4798,12 +4799,14 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(key, heap, DYNAMIC_TYPE_ECC);
         #endif
+
+            if (ret != 0)
+                return ret;
         }
     #endif /* HAVE_ECC */
     #ifdef HAVE_ED25519
         if (!rsaKey && !eccKey) {
             /* make sure Ed25519 key can be used */
-            word32       idx = 0;
         #ifdef WOLFSSL_SMALL_STACK
             ed25519_key* key = NULL;
         #else
@@ -4819,6 +4822,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
             ret = wc_ed25519_init(key);
             if (ret == 0) {
+                idx = 0;
                 if (wc_Ed25519PrivateKeyDecode(der->buffer, &idx, key,
                                                             der->length) != 0) {
                     ret = WOLFSSL_BAD_FILE;
@@ -4828,7 +4832,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     /* check for minimum key size and then free */
                     int minKeySz = ssl ? ssl->options.minEccKeySz :
                                                                ctx->minEccKeySz;
-                    if (ED25519_KEY_SIZE < minKeySz) {
+                    keySz = ED25519_KEY_SIZE;
+                    if (keySz < minKeySz) {
                         WOLFSSL_MSG("ED25519 private key too small");
                         ret = ECC_KEY_SIZE_E;
                     }
@@ -4836,11 +4841,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 if (ret == 0) {
                     if (ssl) {
                         ssl->buffers.keyType = ed25519_sa_algo;
-                        ssl->buffers.keySz = ED25519_KEY_SIZE;
+                        ssl->buffers.keySz = keySz;
                     }
                     else if (ctx) {
                         ctx->privateKeyType = ed25519_sa_algo;
-                        ctx->privateKeySz = ED25519_KEY_SIZE;
+                        ctx->privateKeySz = keySz;
                     }
 
                     ed25519Key = 1;
@@ -4872,7 +4877,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         DecodedCert  cert[1];
     #endif
     #ifdef HAVE_PK_CALLBACKS
-        int keyType = 0, keySz = 0;
+        int keyType = 0;
     #endif
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -4962,71 +4967,78 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         switch (cert->keyOID) {
         #ifndef NO_RSA
             case RSAk:
+            #ifdef HAVE_PK_CALLBACKS
+                keyType = rsa_sa_algo;
+            #endif
+                /* Determine RSA key size by parsing public key */
+                idx = 0;
+                ret = wc_RsaPublicKeyDecode_ex(cert->publicKey, &idx,
+                    cert->pubKeySize, NULL, (word32*)&keySz, NULL, NULL);
+                if (ret < 0)
+                    break;
+
                 if (ssl && !ssl->options.verifyNone) {
                     if (ssl->options.minRsaKeySz < 0 ||
-                          cert->pubKeySize < (word16)ssl->options.minRsaKeySz) {
+                          keySz < (int)ssl->options.minRsaKeySz) {
                         ret = RSA_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate RSA key size too small");
                     }
                 }
                 else if (ctx && !ctx->verifyNone) {
                     if (ctx->minRsaKeySz < 0 ||
-                                  cert->pubKeySize < (word16)ctx->minRsaKeySz) {
+                                  keySz < (int)ctx->minRsaKeySz) {
                         ret = RSA_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate RSA key size too small");
                     }
                 }
-            #ifdef HAVE_PK_CALLBACKS
-                keyType = rsa_sa_algo;
-                /* pubKeySize is the encoded public key */
-                /* mask lsb 5-bits to round by 16 to get actual key size */
-                keySz = cert->pubKeySize & ~0x1FL;
-            #endif
                 break;
         #endif /* !NO_RSA */
         #ifdef HAVE_ECC
             case ECDSAk:
+            #ifdef HAVE_PK_CALLBACKS
+                keyType = ecc_dsa_sa_algo;
+            #endif
+                /* Determine ECC key size based on curve */
+                keySz = wc_ecc_get_curve_size_from_id(
+                    wc_ecc_get_oid(cert->pkCurveOID, NULL, NULL));
+
                 if (ssl && !ssl->options.verifyNone) {
                     if (ssl->options.minEccKeySz < 0 ||
-                          cert->pubKeySize < (word16)ssl->options.minEccKeySz) {
+                          keySz < (int)ssl->options.minEccKeySz) {
                         ret = ECC_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate ECC key size error");
                     }
                 }
                 else if (ctx && !ctx->verifyNone) {
                     if (ctx->minEccKeySz < 0 ||
-                                  cert->pubKeySize < (word16)ctx->minEccKeySz) {
+                                  keySz < (int)ctx->minEccKeySz) {
                         ret = ECC_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate ECC key size error");
                     }
                 }
-            #ifdef HAVE_PK_CALLBACKS
-                keyType = ecc_dsa_sa_algo;
-                /* pubKeySize is encByte + x + y */
-                keySz = (cert->pubKeySize - 1) / 2;
-            #endif
                 break;
         #endif /* HAVE_ECC */
         #ifdef HAVE_ED25519
             case ED25519k:
+            #ifdef HAVE_PK_CALLBACKS
+                keyType = ed25519_sa_algo;
+            #endif
+                /* ED25519 is fixed key size */
+                keySz = ED25519_KEY_SIZE;
                 if (ssl && !ssl->options.verifyNone) {
                     if (ssl->options.minEccKeySz < 0 ||
-                          ED25519_KEY_SIZE < (word16)ssl->options.minEccKeySz) {
+                          keySz < (int)ssl->options.minEccKeySz) {
                         ret = ECC_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate Ed key size error");
                     }
                 }
                 else if (ctx && !ctx->verifyNone) {
                     if (ctx->minEccKeySz < 0 ||
-                                  ED25519_KEY_SIZE < (word16)ctx->minEccKeySz) {
+                                  keySz < (int)ctx->minEccKeySz) {
                         ret = ECC_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate ECC key size error");
                     }
                 }
-            #ifdef HAVE_PK_CALLBACKS
-                keyType = ed25519_sa_algo;
-                keySz = ED25519_KEY_SIZE;
-            #endif
                 break;
         #endif /* HAVE_ED25519 */
 
@@ -5059,7 +5071,6 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     if (ssl && resetSuites) {
         word16 havePSK = 0;
         word16 haveRSA = 0;
-        int    keySz   = 0;
 
         #ifndef NO_PSK
         if (ssl->options.havePSK) {
@@ -7455,7 +7466,24 @@ int wolfSSL_use_certificate_chain_file_format(WOLFSSL* ssl, const char* file,
 /* Set Temp CTX EC-DHE size in octets, should be 20 - 66 for 160 - 521 bit */
 int wolfSSL_CTX_SetTmpEC_DHE_Sz(WOLFSSL_CTX* ctx, word16 sz)
 {
-    if (ctx == NULL || sz < ECC_MINSIZE || sz > ECC_MAXSIZE)
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    if (sz == 0) {
+        /* applies only to ECDSA */
+        if (ctx->privateKeyType != ecc_dsa_sa_algo)
+            return WOLFSSL_SUCCESS;
+
+        if (ctx->privateKeySz == 0) {
+            WOLFSSL_MSG("Must set private key/cert first");
+            return BAD_FUNC_ARG;
+        }
+
+        sz = (word16)ctx->privateKeySz;
+    }
+
+    /* check size */
+    if (sz < ECC_MINSIZE || sz > ECC_MAXSIZE)
         return BAD_FUNC_ARG;
 
     ctx->eccTempKeySz = sz;

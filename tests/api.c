@@ -10237,6 +10237,8 @@ static int test_wc_RsaPublicKeyDecode (void)
     byte*   tmp;
     word32  idx = 0;
     int     bytes = 0;
+    word32  keySz = 0;
+    word32  tstKeySz = 0;
 
     tmp = (byte*)XMALLOC(GEN_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
@@ -10249,9 +10251,11 @@ static int test_wc_RsaPublicKeyDecode (void)
         #ifdef USE_CERT_BUFFERS_1024
             XMEMCPY(tmp, client_keypub_der_1024, sizeof_client_keypub_der_1024);
             bytes = sizeof_client_keypub_der_1024;
+            keySz = 1024;
         #else
             XMEMCPY(tmp, client_keypub_der_2048, sizeof_client_keypub_der_2048);
             bytes = sizeof_client_keypub_der_2048;
+            keySz = 2048;
         #endif
 
         printf(testingFmt, "wc_RsaPublicKeyDecode()");
@@ -10292,11 +10296,20 @@ static int test_wc_RsaPublicKeyDecode (void)
         }
     #endif
 
-    if (tmp != NULL) {
-        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
     if (wc_FreeRsaKey(&keyPub) || ret != 0) {
         ret = WOLFSSL_FATAL_ERROR;
+    }
+
+    if (ret == 0) {
+        /* Test for getting modulus key size */
+        idx = 0;
+        ret = wc_RsaPublicKeyDecode_ex(tmp, &idx, (word32)bytes, NULL,
+            &tstKeySz, NULL, NULL);
+        ret = (ret == 0 && tstKeySz == keySz/8) ? 0 : WOLFSSL_FATAL_ERROR;
+    }
+
+    if (tmp != NULL) {
+        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
@@ -22076,6 +22089,23 @@ static void test_wolfSSL_CTX_LoadCRL()
 #endif
 }
 
+static void test_SetTmpEC_DHE_Sz(void)
+{
+#if defined(HAVE_ECC) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX *ctx;
+    WOLFSSL *ssl;
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetTmpEC_DHE_Sz(ctx, 32));
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_SetTmpEC_DHE_Sz(ssl, 32));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+}
+
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -22110,6 +22140,7 @@ void ApiTest(void)
     test_wolfSSL_SetTmpDH_file();
     test_wolfSSL_SetTmpDH_buffer();
     test_wolfSSL_SetMinMaxDhKey_Sz();
+    test_SetTmpEC_DHE_Sz();
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     test_wolfSSL_read_write();
 #endif
