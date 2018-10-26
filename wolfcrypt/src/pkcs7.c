@@ -9006,6 +9006,11 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
             }
             wc_PKCS7_StreamGetVar(pkcs7, 0, 0, &length);
             tmpIv = pkcs7->stream->tmpIv;
+            if (tmpIv == NULL) {
+                /* check added to help out static analysis tool */
+                ret = MEMORY_E;
+                break;
+            }
         #endif
 
             XMEMCPY(tmpIv, &pkiMsg[idx], length);
