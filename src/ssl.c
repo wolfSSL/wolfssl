@@ -21706,28 +21706,37 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
 #if defined(WOLFSSL_QT) && !defined(NO_DH)
 int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
 {
-    int ret, isPrime = 0;
+    int codeTmp = 0, isPrime = MP_NO;
 
     WC_RNG rng;
 
+    WOLFSSL_ENTER("wolfSSL_DH_check");
     if (dh == NULL)
         return BAD_FUNC_ARG;
 
-    if (dh->q == NULL || dh->q->internal == NULL) {
-        *codes = DH_CHECK_INVALID_Q_VALUE;
+    if (dh->p == NULL || dh->p->internal == NULL)
         return BAD_FUNC_ARG;
-    }
 
-    ret = wc_InitRng(&rng);
-    if (ret == 0 && *codes != DH_CHECK_INVALID_Q_VALUE)
-        ret = mp_prime_is_prime_ex((mp_int*)dh->q->internal, 8, &isPrime, &rng);
+    if (dh->g == NULL || dh->g->internal == NULL)
+        codeTmp = DH_NOT_SUITABLE_GENERATOR;
 
-    if (!isPrime) {
-        *codes = DH_CHECK_Q_NOT_PRIME;
-        return BAD_FUNC_ARG;
-    }
+    if (wc_InitRng(&rng) == 0)
+         mp_prime_is_prime_ex((mp_int*)dh->p->internal, 8, &isPrime, &rng);
+
+    if (isPrime != MP_YES)
+        codeTmp = DH_CHECK_P_NOT_PRIME;
 
     wc_FreeRng(&rng);
+
+    if (codes != NULL) {
+        if (codeTmp) {
+            *codes = codeTmp;
+            return BAD_FUNC_ARG;
+        }
+        else
+            *codes = 0;
+    }
+
     return WOLFSSL_SUCCESS;
 }
 #endif
@@ -26272,6 +26281,8 @@ WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
 int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
 {
     int ret;
+
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_assign");
     switch(type) {
     #ifndef NO_RSA
         case EVP_PKEY_RSA:
@@ -32153,14 +32164,45 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
-    int wolfSSL_OBJ_ln2nid(const char *s)
+#if defined(WOLFSSL_QT)
+    int wolfSSL_OBJ_ln2nid(const char *ln)
     {
-        (void)s;
-        WOLFSSL_ENTER("wolfSSL_OBJ_ln2nid");
-        WOLFSSL_STUB("OBJ_ln2nid");
+        static const struct {
+            const char *ln;
+            int  nid;
+        } ln2nid[] = {
+            {WOLFSSL_LN_COMMON_NAME, NID_commonName},
+            {WOLFSSL_LN_COUNTRY_NAME, NID_countryName},
+            {WOLFSSL_LN_LOCALITY_NAME, NID_localityName},
+            {WOLFSSL_LN_STATE_NAME, NID_stateOrProvinceName},
+            {WOLFSSL_LN_ORG_NAME, NID_organizationName},
+            {WOLFSSL_LN_ORGUNIT_NAME, NID_organizationalUnitName},
+            {WOLFSSL_EMAIL_ADDR, NID_emailAddress},
+            {NULL, -1}};
 
-        return 0;
+        int i;
+        WOLFSSL_ENTER("wolfSSL_OBJ_ln2nid");
+#ifdef HAVE_ECC
+        /* Nginx uses this OpenSSL string. */
+        if (XSTRNCMP(ln, "prime256v1", 10) == 0)
+            ln = "SECP256R1";
+        if (XSTRNCMP(ln, "secp384r1", 10) == 0)
+            ln = "SECP384R1";
+        /* find based on name and return NID */
+        for (i = 0; i < ecc_sets[i].size; i++) {
+            if (XSTRNCMP(ln, ecc_sets[i].name, ECC_MAXNAME) == 0) {
+                return ecc_sets[i].id;
+            }
+        }
+#endif
+
+        for(i=0; ln2nid[i].ln != NULL; i++) {
+            if(XSTRNCMP(ln, ln2nid[i].ln, XSTRLEN(ln2nid[i].ln)) == 0) {
+                return ln2nid[i].nid;
+            }
+        }
+
+        return NID_undef;
     }
 #endif
 
