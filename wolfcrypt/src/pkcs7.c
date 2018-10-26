@@ -1416,12 +1416,12 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
                     const byte* signingTimeOid, word32 signingTimeOidSz,
                     byte* signingTime, word32 signingTimeSz)
 {
-    int hashSz, timeSz;
-    time_t tm;
-
+    int hashSz;
 #ifdef NO_ASN_TIME
     PKCS7Attrib cannedAttribs[2];
 #else
+    time_t tm;
+    int timeSz;
     PKCS7Attrib cannedAttribs[3];
 #endif
     word32 cannedAttribsCount;
@@ -1474,6 +1474,12 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
 #else
     esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[3], 4,
                               pkcs7->signedAttribs, pkcs7->signedAttribsSz);
+#endif
+
+#ifdef NO_ASN_TIME
+    (void)signingTimeOidSz;
+    (void)signingTime;
+    (void)signingTimeSz;
 #endif
 
     return 0;
@@ -6472,7 +6478,9 @@ int wc_PKCS7_AddRecipient_KEKRI(PKCS7* pkcs7, int keyWrapOID, byte* kek,
     word32 encryptedKeySz;
 
     int timeSz = 0;
+#ifndef NO_ASN_TIME
     time_t* tm = NULL;
+#endif
 
     if (pkcs7 == NULL || kek == NULL || keyId == NULL)
         return BAD_FUNC_ARG;
@@ -6539,6 +6547,7 @@ int wc_PKCS7_AddRecipient_KEKRI(PKCS7* pkcs7, int keyWrapOID, byte* kek,
     totalSz += (kekIdOctetStrSz + keyIdSz);
 
     /* KEKIdentifier: GeneralizedTime (OPTIONAL) */
+#ifndef NO_ASN_TIME
     if (timePtr != NULL) {
         tm = (time_t*)timePtr;
         timeSz = GetAsnTimeString(tm, genTime, sizeof(genTime));
@@ -6551,6 +6560,7 @@ int wc_PKCS7_AddRecipient_KEKRI(PKCS7* pkcs7, int keyWrapOID, byte* kek,
         }
         totalSz += timeSz;
     }
+#endif
 
     /* KEKIdentifier: OtherKeyAttribute SEQ (OPTIONAL) */
     if (other != NULL && otherSz > 0) {
