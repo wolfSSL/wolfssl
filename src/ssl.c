@@ -22527,7 +22527,7 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
 #if defined(WOLFSSL_QT) && !defined(NO_DH)
 int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
 {
-    int ret, isPrime = 0;
+    int codeTmp = 0, isPrime = MP_NO;
 
     WC_RNG rng;
 
@@ -22535,21 +22535,29 @@ int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
     if (dh == NULL)
         return BAD_FUNC_ARG;
 
-    if (dh->q == NULL || dh->q->internal == NULL) {
-        *codes = DH_CHECK_INVALID_Q_VALUE;
+    if (dh->p == NULL || dh->p->internal == NULL)
         return BAD_FUNC_ARG;
-    }
 
-    ret = wc_InitRng(&rng);
-    if (ret == 0 && *codes != DH_CHECK_INVALID_Q_VALUE)
-        ret = mp_prime_is_prime_ex((mp_int*)dh->q->internal, 8, &isPrime, &rng);
+    if (dh->g == NULL || dh->g->internal == NULL)
+        codeTmp = DH_NOT_SUITABLE_GENERATOR;
 
-    if (!isPrime) {
-        *codes = DH_CHECK_Q_NOT_PRIME;
-        return BAD_FUNC_ARG;
-    }
+    if (wc_InitRng(&rng) == 0)
+         mp_prime_is_prime_ex((mp_int*)dh->p->internal, 8, &isPrime, &rng);
+
+    if (isPrime != MP_YES)
+        codeTmp = DH_CHECK_P_NOT_PRIME;
 
     wc_FreeRng(&rng);
+
+    if (codes != NULL) {
+        if (codeTmp) {
+            *codes = codeTmp;
+            return BAD_FUNC_ARG;
+        }
+        else
+            *codes = 0;
+    }
+
     return WOLFSSL_SUCCESS;
 }
 #endif
