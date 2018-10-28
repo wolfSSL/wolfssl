@@ -4482,7 +4482,7 @@ fi
 # Expose HAVE___UINT128_T to options flags"
 if test "$ac_cv_type___uint128_t" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE___UINT128_T"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE___UINT128_T=1"
 fi
 
 

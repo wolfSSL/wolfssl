@@ -27,6 +27,8 @@
 #ifndef WOLF_CRYPT_SETTINGS_H
 #define WOLF_CRYPT_SETTINGS_H
 
+#include <wolfssl/options.h>
+
 #ifdef __cplusplus
     extern "C" {
 #endif
