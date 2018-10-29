@@ -210,7 +210,9 @@ void WOLFSSL_TIME(int count)
     /* Declare sprintf for ocall */
     int sprintf(char* buf, const char *fmt, ...);
 #elif defined(MICRIUM)
-    #include <bsp_ser.h>
+    #if (BSP_SER_COMM_EN  == DEF_ENABLED)
+        #include <bsp_ser.h>
+    #endif
 #elif defined(WOLFSSL_USER_LOG)
     /* user includes their own headers */
 #else
@@ -234,7 +236,11 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
 #elif defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
         dc_log_printf("%s\n", logMessage);
 #elif defined(MICRIUM)
-        BSP_Ser_Printf("%s\r\n", logMessage);
+        #if (BSP_SER_COMM_EN  == DEF_ENABLED)
+            BSP_Ser_Printf("%s\r\n", logMessage);
+        #else
+            printf("%s\r\n", logMessage);
+        #endif
 #elif defined(WOLFSSL_MDK_ARM)
         fflush(stdout) ;
         printf("%s\n", logMessage);

@@ -202,10 +202,12 @@
 
 
 #ifdef MICRIUM
+#if (BSP_SER_COMM_EN  == DEF_ENABLED)
     #include <bsp_ser.h>
     void BSP_Ser_Printf (CPU_CHAR* format, ...);
     #undef printf
     #define printf BSP_Ser_Printf
+#endif
 #elif defined(WOLFSSL_PB)
     #include <stdarg.h>
     int wolfssl_pb_print(const char*, ...);
