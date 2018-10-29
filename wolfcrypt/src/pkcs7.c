@@ -502,7 +502,7 @@ static int wc_SetContentType(int pkcs7TypeOID, byte* output, word32 outputSz)
                                         0x01, 0x09, 0x10, 0x01, 0x09 };
 #endif
 
-#ifndef NO_PWDBASED
+#if !defined(NO_PWDBASED) && !defined(NO_SHA)
     const byte pwriKek[]            = { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
                                         0x01, 0x09, 0x10, 0x03, 0x09 };
     const byte pbkdf2[]             = { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
@@ -567,7 +567,7 @@ static int wc_SetContentType(int pkcs7TypeOID, byte* output, word32 outputSz)
             typeName = firmwarePkgData;
             break;
 
-#ifndef NO_PWDBASED
+#if !defined(NO_PWDBASED) && !defined(NO_SHA)
         case PWRI_KEK_WRAP:
             typeSz = sizeof(pwriKek);
             typeName = pwriKek;
@@ -5938,7 +5938,7 @@ int wc_PKCS7_AddRecipient_ORI(PKCS7* pkcs7, CallbackOriEncrypt oriEncryptCb,
     return idx;
 }
 
-#ifndef NO_PWDBASED
+#if !defined(NO_PWDBASED) && !defined(NO_SHA)
 
 
 static int wc_PKCS7_GenerateKEK_PWRI(PKCS7* pkcs7, byte* passwd, word32 pLen,
@@ -7743,7 +7743,7 @@ static int wc_PKCS7_DecryptOri(PKCS7* pkcs7, byte* in, word32 inSz,
     return ret;
 }
 
-#ifndef NO_PWDBASED
+#if !defined(NO_PWDBASED) && !defined(NO_SHA)
 
 /* decode ASN.1 PasswordRecipientInfo (pwri), return 0 on success,
  * < 0 on error */
@@ -7960,7 +7960,7 @@ static int wc_PKCS7_DecryptPwri(PKCS7* pkcs7, byte* in, word32 inSz,
     return ret;
 }
 
-#endif /* NO_PWDBASED */
+#endif /* NO_PWDBASED | NO_SHA */
 
 /* decode ASN.1 KEKRecipientInfo (kekri), return 0 on success,
  * < 0 on error */
@@ -8339,7 +8339,7 @@ static int wc_PKCS7_DecryptRecipientInfos(PKCS7* pkcs7, byte* in,
                 break;
 
         case WC_PKCS7_DECRYPT_PWRI:
-        #ifndef NO_PWDBASED
+        #if !defined(NO_PWDBASED) && !defined(NO_SHA)
                 ret = wc_PKCS7_DecryptPwri(pkcs7, in, inSz, idx,
                                       decryptedKey, decryptedKeySz, recipFound);
         #else
@@ -8461,7 +8461,7 @@ static int wc_PKCS7_DecryptRecipientInfos(PKCS7* pkcs7, byte* in,
             /* pwri is IMPLICIT[3] */
             } else if (pkiMsg[*idx] == (ASN_CONSTRUCTED |
                                         ASN_CONTEXT_SPECIFIC | 3)) {
-        #ifndef NO_PWDBASED
+        #if !defined(NO_PWDBASED) && !defined(NO_SHA)
                 (*idx)++;
 
                 if (GetLength(pkiMsg, idx, &version, pkiMsgSz) < 0)
@@ -9174,7 +9174,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     byte authTag[AES_BLOCK_SIZE];
     byte nonce[GCM_NONCE_MID_SZ];   /* GCM nonce is larger than CCM */
     byte macInt[MAX_VERSION_SZ];
-    word32 nonceSz, macIntSz;
+    word32 nonceSz = 0, macIntSz = 0;
 
     /* authAttribs */
     byte* flatAuthAttribs = NULL;
@@ -9209,14 +9209,38 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     if (output == NULL || outputSz == 0)
         return BAD_FUNC_ARG;
 
-    if (pkcs7->encryptOID != AES128GCMb &&
-        pkcs7->encryptOID != AES192GCMb &&
-        pkcs7->encryptOID != AES256GCMb &&
-        pkcs7->encryptOID != AES128CCMb &&
-        pkcs7->encryptOID != AES192CCMb &&
-        pkcs7->encryptOID != AES256CCMb) {
-        WOLFSSL_MSG("CMS AuthEnvelopedData must use AES-GCM or AES-CCM");
-        return BAD_FUNC_ARG;
+    switch (pkcs7->encryptOID) {
+#ifdef HAVE_AESGCM
+    #ifdef WOLFSSL_AES_128
+        case AES128GCMb:
+            break;
+    #endif
+    #ifdef WOLFSSL_AES_192
+        case AES192GCMb:
+            break;
+    #endif
+    #ifdef WOLFSSL_AES_256
+        case AES256GCMb:
+            break;
+    #endif
+#endif
+#ifdef HAVE_AESCCM
+    #ifdef WOLFSSL_AES_128
+        case AES128CCMb:
+            break;
+    #endif
+    #ifdef WOLFSSL_AES_192
+        case AES192CCMb:
+            break;
+    #endif
+    #ifdef WOLFSSL_AES_256
+        case AES256CCMb:
+            break;
+    #endif
+#endif
+        default:
+            WOLFSSL_MSG("CMS AuthEnvelopedData must use AES-GCM or AES-CCM");
+            return BAD_FUNC_ARG;
     }
 
     blockKeySz = wc_PKCS7_GetOIDKeySize(pkcs7->encryptOID);
@@ -9285,14 +9309,45 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     recipSetSz = SetSet(recipSz, recipSet);
 
     /* generate random nonce and IV for encryption */
-    if (pkcs7->encryptOID == AES128GCMb ||
-        pkcs7->encryptOID == AES192GCMb ||
-        pkcs7->encryptOID == AES256GCMb) {
-        /* GCM nonce is GCM_NONCE_MID_SZ (12) */
-        nonceSz = GCM_NONCE_MID_SZ;
-    } else {
-        /* CCM nonce is CCM_NONCE_MIN_SZ (7) */
-        nonceSz = CCM_NONCE_MIN_SZ;
+    switch (pkcs7->encryptOID) {
+#ifdef HAVE_AESGCM
+    #ifdef WOLFSSL_AES_128
+        case AES128GCMb:
+            FALL_THROUGH;
+    #endif
+    #ifdef WOLFSSL_AES_192
+        case AES192GCMb:
+            FALL_THROUGH;
+    #endif
+    #ifdef WOLFSSL_AES_256
+        case AES256GCMb:
+    #endif
+    #if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_192) || \
+        defined(WOLFSSL_AES_256)
+            /* GCM nonce is GCM_NONCE_MID_SZ (12) */
+            nonceSz = GCM_NONCE_MID_SZ;
+            break;
+    #endif
+#endif /* HAVE_AESGCM */
+#ifdef HAVE_AESCCM
+    #ifdef WOLFSSL_AES_128
+        case AES128CCMb:
+            FALL_THROUGH;
+    #endif
+    #ifdef WOLFSSL_AES_192
+        case AES192CCMb:
+            FALL_THROUGH;
+    #endif
+    #ifdef WOLFSSL_AES_256
+        case AES256CCMb:
+    #endif
+    #if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_192) || \
+        defined(WOLFSSL_AES_256)
+            /* CCM nonce is CCM_NONCE_MIN_SZ (7) */
+            nonceSz = CCM_NONCE_MIN_SZ;
+            break;
+    #endif
+#endif /* HAVE_AESCCM */
     }
 
     ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
