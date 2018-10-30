@@ -1275,9 +1275,11 @@ enum Misc {
 #endif
 
 #ifdef HAVE_SELFTEST
-    AES_256_KEY_SIZE    = 32,
+    #define WOLFSSL_AES_KEY_SIZE_ENUM
     AES_IV_SIZE         = 16,
     AES_128_KEY_SIZE    = 16,
+    AES_192_KEY_SIZE    = 24,
+    AES_256_KEY_SIZE    = 32,
 #endif
 
     MAX_IV_SZ           = AES_BLOCK_SIZE,

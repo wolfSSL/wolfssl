@@ -12697,29 +12697,29 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         const char *name;
     } md_tbl[] = {
     #ifndef NO_MD4
-         {MD4, "MD4"},
+         {WC_HASH_TYPE_MD4, "MD4"},
     #endif /* NO_MD4 */
 
     #ifndef NO_MD5
-        {WC_MD5, "MD5"},
+        {WC_HASH_TYPE_MD5, "MD5"},
     #endif /* NO_MD5 */
 
     #ifndef NO_SHA
-        {WC_SHA, "SHA"},
+        {WC_HASH_TYPE_SHA, "SHA"},
     #endif /* NO_SHA */
 
     #ifdef WOLFSSL_SHA224
-        {WC_SHA224, "SHA224"},
+        {WC_HASH_TYPE_SHA224, "SHA224"},
     #endif /* WOLFSSL_SHA224 */
     #ifndef NO_SHA256
-        {WC_SHA256, "SHA256"},
+        {WC_HASH_TYPE_SHA256, "SHA256"},
     #endif
 
     #ifdef WOLFSSL_SHA384
-        {WC_SHA384, "SHA384"},
+        {WC_HASH_TYPE_SHA384, "SHA384"},
     #endif /* WOLFSSL_SHA384 */
     #ifdef WOLFSSL_SHA512
-        {WC_SHA512, "SHA512"},
+        {WC_HASH_TYPE_SHA512, "SHA512"},
     #endif /* WOLFSSL_SHA512 */
         {0, NULL}
     };
@@ -13774,43 +13774,43 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     #endif
 
         if (XSTRNCMP(type, "SHA256", 6) == 0) {
-             ctx->macType = WC_SHA256;
+             ctx->macType = WC_HASH_TYPE_SHA256;
              ret = wolfSSL_SHA256_Init(&(ctx->hash.digest.sha256));
         }
     #ifdef WOLFSSL_SHA224
         else if (XSTRNCMP(type, "SHA224", 6) == 0) {
-             ctx->macType = WC_SHA224;
+             ctx->macType = WC_HASH_TYPE_SHA224;
              ret = wolfSSL_SHA224_Init(&(ctx->hash.digest.sha224));
         }
     #endif
     #ifdef WOLFSSL_SHA384
         else if (XSTRNCMP(type, "SHA384", 6) == 0) {
-             ctx->macType = WC_SHA384;
+             ctx->macType = WC_HASH_TYPE_SHA384;
              ret = wolfSSL_SHA384_Init(&(ctx->hash.digest.sha384));
         }
     #endif
     #ifdef WOLFSSL_SHA512
         else if (XSTRNCMP(type, "SHA512", 6) == 0) {
-             ctx->macType = WC_SHA512;
+             ctx->macType = WC_HASH_TYPE_SHA512;
              ret = wolfSSL_SHA512_Init(&(ctx->hash.digest.sha512));
         }
     #endif
     #ifndef NO_MD4
         else if (XSTRNCMP(type, "MD4", 3) == 0) {
-            ctx->macType = MD4;
+            ctx->macType = WC_HASH_TYPE_MD4;
             wolfSSL_MD4_Init(&(ctx->hash.digest.md4));
         }
     #endif
     #ifndef NO_MD5
         else if (XSTRNCMP(type, "MD5", 3) == 0) {
-            ctx->macType = WC_MD5;
+            ctx->macType = WC_HASH_TYPE_MD5;
             ret = wolfSSL_MD5_Init(&(ctx->hash.digest.md5));
         }
     #endif
     #ifndef NO_SHA
         /* has to be last since would pick or 224, 256, 384, or 512 too */
         else if (XSTRNCMP(type, "SHA", 3) == 0) {
-             ctx->macType = WC_SHA;
+             ctx->macType = WC_HASH_TYPE_SHA;
              ret = wolfSSL_SHA_Init(&(ctx->hash.digest.sha));
         }
     #endif /* NO_SHA */
@@ -13829,43 +13829,43 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
         switch (ctx->macType) {
 #ifndef NO_MD4
-            case MD4:
+            case WC_HASH_TYPE_MD4:
                 wolfSSL_MD4_Update((MD4_CTX*)&ctx->hash, data,
                                   (unsigned long)sz);
                 break;
 #endif
 #ifndef NO_MD5
-            case WC_MD5:
+            case WC_HASH_TYPE_MD5:
                 wolfSSL_MD5_Update((MD5_CTX*)&ctx->hash, data,
                                   (unsigned long)sz);
                 break;
 #endif
 #ifndef NO_SHA
-            case WC_SHA:
+            case WC_HASH_TYPE_SHA:
                 wolfSSL_SHA_Update((SHA_CTX*)&ctx->hash, data,
                                   (unsigned long)sz);
                 break;
 #endif
 #ifdef WOLFSSL_SHA224
-            case WC_SHA224:
+            case WC_HASH_TYPE_SHA224:
                 wolfSSL_SHA224_Update((SHA224_CTX*)&ctx->hash, data,
                                      (unsigned long)sz);
                 break;
 #endif
 #ifndef NO_SHA256
-            case WC_SHA256:
+            case WC_HASH_TYPE_SHA256:
                 wolfSSL_SHA256_Update((SHA256_CTX*)&ctx->hash, data,
                                      (unsigned long)sz);
                 break;
 #endif /* !NO_SHA256 */
 #ifdef WOLFSSL_SHA384
-            case WC_SHA384:
+            case WC_HASH_TYPE_SHA384:
                 wolfSSL_SHA384_Update((SHA384_CTX*)&ctx->hash, data,
                                      (unsigned long)sz);
                 break;
 #endif
 #ifdef WOLFSSL_SHA512
-            case WC_SHA512:
+            case WC_HASH_TYPE_SHA512:
                 wolfSSL_SHA512_Update((SHA512_CTX*)&ctx->hash, data,
                                      (unsigned long)sz);
                 break;
@@ -13885,43 +13885,43 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         WOLFSSL_ENTER("EVP_DigestFinal");
         switch (ctx->macType) {
 #ifndef NO_MD4
-            case MD4:
+            case WC_HASH_TYPE_MD4:
                 wolfSSL_MD4_Final(md, (MD4_CTX*)&ctx->hash);
                 if (s) *s = MD4_DIGEST_SIZE;
                 break;
 #endif
 #ifndef NO_MD5
-            case WC_MD5:
+            case WC_HASH_TYPE_MD5:
                 wolfSSL_MD5_Final(md, (MD5_CTX*)&ctx->hash);
                 if (s) *s = WC_MD5_DIGEST_SIZE;
                 break;
 #endif
 #ifndef NO_SHA
-            case WC_SHA:
+            case WC_HASH_TYPE_SHA:
                 wolfSSL_SHA_Final(md, (SHA_CTX*)&ctx->hash);
                 if (s) *s = WC_SHA_DIGEST_SIZE;
                 break;
 #endif
 #ifdef WOLFSSL_SHA224
-            case WC_SHA224:
+            case WC_HASH_TYPE_SHA224:
                 wolfSSL_SHA224_Final(md, (SHA224_CTX*)&ctx->hash);
                 if (s) *s = WC_SHA224_DIGEST_SIZE;
                 break;
 #endif
 #ifndef NO_SHA256
-            case WC_SHA256:
+            case WC_HASH_TYPE_SHA256:
                 wolfSSL_SHA256_Final(md, (SHA256_CTX*)&ctx->hash);
                 if (s) *s = WC_SHA256_DIGEST_SIZE;
                 break;
 #endif /* !NO_SHA256 */
 #ifdef WOLFSSL_SHA384
-            case WC_SHA384:
+            case WC_HASH_TYPE_SHA384:
                 wolfSSL_SHA384_Final(md, (SHA384_CTX*)&ctx->hash);
                 if (s) *s = WC_SHA384_DIGEST_SIZE;
                 break;
 #endif
 #ifdef WOLFSSL_SHA512
-            case WC_SHA512:
+            case WC_HASH_TYPE_SHA512:
                 wolfSSL_SHA512_Final(md, (SHA512_CTX*)&ctx->hash);
                 if (s) *s = WC_SHA512_DIGEST_SIZE;
                 break;
