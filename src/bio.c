@@ -498,17 +498,35 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
     return ret;
 }
 
-
-WOLFSSL_API long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bio, int cmd, long larg, void *parg)
+/* Wrapper for other BIO type funcions, expected to grow as OpenSSL compatability
+ * layer grows.
+ * 
+ * return info. specific to the cmd that is passed in.
+ */
+#if defined(OPENSSL_ALL)
+long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bio, int cmd, long larg, void *parg)
 {
-    (void)bio;
-    (void)cmd;
-    (void)larg;
-    (void)parg;
+    long ret;
 
-    WOLFSSL_STUB("BIO_ctrl");
-    return 0;
+    (void)larg; /* not currently used */
+
+    WOLFSSL_ENTER("wolfSSL_BIO_ctrl");
+
+    switch(cmd) {
+        case BIO_CTRL_WPENDING:
+            ret = wolfSSL_BIO_ctrl_pending(bio);
+            break;
+        case BIO_CTRL_INFO:
+            ret = wolfSSL_BIO_get_mem_data(bio, parg);
+            break;
+        default:
+            WOLFSSL_MSG("CMD not yet implemented");
+            ret = WOLFSSL_FAILURE;
+            break;
+    }
+    return ret;
 }
+#endif
 
 
 /* helper function for wolfSSL_BIO_gets
