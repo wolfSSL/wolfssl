@@ -3193,15 +3193,11 @@ int mp_prime_is_prime(mp_int* a, int t, int* result)
  * Randomly the chance of error is no more than 1/4 and often
  * very much lower.
  */
-static int fp_prime_miller_rabin (fp_int * a, fp_int * b, int *result)
+static int fp_prime_miller_rabin_ex(fp_int * a, fp_int * b, int *result,
+  fp_int *n1, fp_int *y, fp_int *r)
 {
-#ifndef WOLFSSL_SMALL_STACK
-  fp_int  n1[1], y[1], r[1];
-#else
-  fp_int  *n1, *y, *r;
-#endif
-  int     s, j;
-  int     err;
+  int s, j;
+  int err;
 
   /* default */
   *result = FP_NO;
@@ -3211,26 +3207,15 @@ static int fp_prime_miller_rabin (fp_int * a, fp_int * b, int *result)
      return FP_OKAY;
   }
 
-#ifdef WOLFSSL_SMALL_STACK
-  n1 = (fp_int*)XMALLOC(sizeof(fp_int) * 3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-  if (n1 == NULL) {
-      return FP_MEM;
-  }
-  y = &n1[1]; r = &n1[2];
-#endif
-
   /* get n1 = a - 1 */
-  fp_init_copy(n1, a);
+  fp_copy(a, n1);
   err = fp_sub_d(n1, 1, n1);
   if (err != FP_OKAY) {
-  #ifdef WOLFSSL_SMALL_STACK
-     XFREE(n1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-  #endif
      return err;
   }
 
   /* set 2**s * r = n1 */
-  fp_init_copy(r, n1);
+  fp_copy(n1, r);
 
   /* count the number of least significant bits
    * which are zero
@@ -3241,7 +3226,7 @@ static int fp_prime_miller_rabin (fp_int * a, fp_int * b, int *result)
   fp_div_2d (r, s, r, NULL);
 
   /* compute y = b**r mod a */
-  fp_init(y);
+  fp_zero(y);
   fp_exptmod(b, r, a, y);
 
   /* if y != 1 and y != n1 do */
@@ -3253,9 +3238,6 @@ static int fp_prime_miller_rabin (fp_int * a, fp_int * b, int *result)
 
       /* if y == 1 then composite */
       if (fp_cmp_d (y, 1) == FP_EQ) {
-      #ifdef WOLFSSL_SMALL_STACK
-         XFREE(n1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-      #endif
          return FP_OKAY;
       }
       ++j;
@@ -3263,9 +3245,6 @@ static int fp_prime_miller_rabin (fp_int * a, fp_int * b, int *result)
 
     /* if y != n1 then composite */
     if (fp_cmp (y, n1) != FP_EQ) {
-    #ifdef WOLFSSL_SMALL_STACK
-       XFREE(n1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
        return FP_OKAY;
     }
   }
@@ -3273,10 +3252,41 @@ static int fp_prime_miller_rabin (fp_int * a, fp_int * b, int *result)
   /* probably prime now */
   *result = FP_YES;
 
+  return FP_OKAY;
+}
+
+static int fp_prime_miller_rabin(fp_int * a, fp_int * b, int *result)
+{
+  int err;
+#ifndef WOLFSSL_SMALL_STACK
+  fp_int  n1[1], y[1], r[1];
+#else
+  fp_int *n1, *y, *r;
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+  n1 = (fp_int*)XMALLOC(sizeof(fp_int) * 3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  if (n1 == NULL) {
+      return FP_MEM;
+  }
+  y = &n1[1]; r = &n1[2];
+#endif
+
+  fp_init(n1);
+  fp_init(y);
+  fp_init(r);
+
+  err = fp_prime_miller_rabin_ex(a, b, result, n1, y, r);
+
+  fp_clear(n1);
+  fp_clear(y);
+  fp_clear(r);
+
 #ifdef WOLFSSL_SMALL_STACK
   XFREE(n1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-  return FP_OKAY;
+
+  return err;
 }
 
 
@@ -3333,6 +3343,7 @@ int fp_isprime_ex(fp_int *a, int t, int* result)
      return FP_NO;
    }
 
+   /* check against primes table */
    for (r = 0; r < FP_PRIME_SIZE; r++) {
        if (fp_cmp_d(a, primes[r]) == FP_EQ) {
            *result = FP_YES;
@@ -3382,11 +3393,11 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
     if (a == NULL || result == NULL || rng == NULL)
         return FP_VAL;
 
-    /* do trial division */
     if (ret == FP_YES) {
         fp_digit d;
         int r;
 
+        /* check against primes table */
         for (r = 0; r < FP_PRIME_SIZE; r++) {
             if (fp_cmp_d(a, primes[r]) == FP_EQ) {
                 *result = FP_YES;
@@ -3394,6 +3405,7 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
             }
         }
 
+        /* do trial division */
         for (r = 0; r < FP_PRIME_SIZE; r++) {
             if (fp_mod_d(a, primes[r], &d) == MP_OKAY) {
                 if (d == 0)
@@ -3409,10 +3421,10 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
      * give a (1/4)^t chance of a false prime. */
     if (ret == FP_YES) {
     #ifndef WOLFSSL_SMALL_STACK
-        fp_int b[1], c[1];
+        fp_int b[1], c[1], n1[1], y[1], r[1];
         byte   base[FP_MAX_PRIME_SIZE];
     #else
-        fp_int *b, *c;
+        fp_int *b, *c, *n1, *y, *r;
         byte*  base;
     #endif
         word32 baseSz;
@@ -3431,15 +3443,19 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
         if (base == NULL)
             return FP_MEM;
 
-        b = (fp_int*)XMALLOC(sizeof(fp_int) * 2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        b = (fp_int*)XMALLOC(sizeof(fp_int) * 5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (b == NULL) {
             return FP_MEM;
         }
-        c = &b[1];
+        c = &b[1]; n1 = &b[2]; y= &b[3]; r = &b[4];
     #endif
 
         fp_init(b);
         fp_init(c);
+        fp_init(n1);
+        fp_init(y);
+        fp_init(r);
+
         err = fp_sub_d(a, 2, c);
         if (err != FP_OKAY) {
         #ifdef WOLFSSL_SMALL_STACK
@@ -3449,16 +3465,29 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
            return err;
         }
         while (t > 0) {
-            wc_RNG_GenerateBlock(rng, base, baseSz);
+            if ((err = wc_RNG_GenerateBlock(rng, base, baseSz)) != 0) {
+            #ifdef WOLFSSL_SMALL_STACK
+               XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+               XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+               return err;
+            }
+
             fp_read_unsigned_bin(b, base, baseSz);
-            if (fp_cmp_d(b, 2) != FP_GT || fp_cmp(b, c) != FP_LT)
+            if (fp_cmp_d(b, 2) != FP_GT || fp_cmp(b, c) != FP_LT) {
                 continue;
-            fp_prime_miller_rabin(a, b, &ret);
+            }
+
+            fp_prime_miller_rabin_ex(a, b, &ret, n1, y, r);
             if (ret == FP_NO)
                 break;
             fp_zero(b);
             t--;
         }
+
+        fp_clear(n1);
+        fp_clear(y);
+        fp_clear(r);
         fp_clear(b);
         fp_clear(c);
      #ifdef WOLFSSL_SMALL_STACK
