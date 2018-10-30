@@ -21429,7 +21429,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             goto exit_sske;
                         }
 
-                        /* this is the loaded server side DH key (trusted) */
                         ret = wc_DhSetKey(ssl->buffers.serverDH_Key,
                             ssl->buffers.serverDH_P.buffer,
                             ssl->buffers.serverDH_P.length,
@@ -24961,21 +24960,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             goto exit_dcke;
                         }
 
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
-    !defined(WOLFSSL_OLD_PRIME_CHECK)
-                        ret = wc_DhSetCheckKey(ssl->buffers.serverDH_Key,
-                            ssl->buffers.serverDH_P.buffer,
-                            ssl->buffers.serverDH_P.length,
-                            ssl->buffers.serverDH_G.buffer,
-                            ssl->buffers.serverDH_G.length,
-                            NULL, 0, 0, ssl->rng);
-#else
                         ret = wc_DhSetKey(ssl->buffers.serverDH_Key,
                             ssl->buffers.serverDH_P.buffer,
                             ssl->buffers.serverDH_P.length,
                             ssl->buffers.serverDH_G.buffer,
                             ssl->buffers.serverDH_G.length);
-#endif
 
                         /* set the max agree result size */
                         ssl->arrays->preMasterSz = ENCRYPT_LEN;
@@ -25027,21 +25016,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             goto exit_dcke;
                         }
 
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
-    !defined(WOLFSSL_OLD_PRIME_CHECK)
-                        ret = wc_DhSetCheckKey(ssl->buffers.serverDH_Key,
-                            ssl->buffers.serverDH_P.buffer,
-                            ssl->buffers.serverDH_P.length,
-                            ssl->buffers.serverDH_G.buffer,
-                            ssl->buffers.serverDH_G.length,
-                            NULL, 0, 0, ssl->rng);
-#else
                         ret = wc_DhSetKey(ssl->buffers.serverDH_Key,
                             ssl->buffers.serverDH_P.buffer,
                             ssl->buffers.serverDH_P.length,
                             ssl->buffers.serverDH_G.buffer,
                             ssl->buffers.serverDH_G.length);
-#endif
 
                         break;
                     }
