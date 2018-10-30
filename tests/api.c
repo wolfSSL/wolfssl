@@ -15908,11 +15908,13 @@ static void test_wc_PKCS7_Degenerate(void)
     XFILE  f;
     byte   der[4096];
     word32 derSz;
+    int    ret;
 
     printf(testingFmt, "wc_PKCS7_Degenerate()");
 
     AssertNotNull(f = XFOPEN(fName, "rb"));
-    AssertIntGT((derSz = fread(der, 1, sizeof(der), f)), 0);
+    AssertIntGT((ret = (int)fread(der, 1, sizeof(der), f)), 0);
+    derSz = (word32)ret;
     XFCLOSE(f);
 
     /* test degenerate success */
