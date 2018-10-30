@@ -36,6 +36,12 @@
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
 #endif
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 #define MAX_EC_PARAM_LEN   16
 
@@ -73,7 +79,7 @@ static CK_OBJECT_CLASS secretKeyClass  = CKO_SECRET_KEY;
  *          WC_HW_E when unable to get PKCS#11 function list.
  *          0 on success.
  */
-int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library)
+int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
 {
     int                  ret = 0;
     void*                func;
@@ -83,6 +89,7 @@ int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library)
         ret = BAD_FUNC_ARG;
 
     if (ret == 0) {
+        dev->heap = heap;
         dev->dlHandle = dlopen(library, RTLD_NOW | RTLD_LOCAL);
         if (dev->dlHandle == NULL) {
             WOLFSSL_MSG(dlerror());
@@ -165,7 +172,7 @@ int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
             if (rv != CKR_OK)
                 ret = WC_HW_E;
             if (ret == 0) {
-                slot = XMALLOC(slotCnt * sizeof(*slot), NULL,
+                slot = (CK_SLOT_ID*)XMALLOC(slotCnt * sizeof(*slot), dev->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
                 if (slot == NULL)
                     ret = MEMORY_E;
@@ -192,7 +199,7 @@ int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
     }
 
     if (slot != NULL)
-        XFREE(slot, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(slot, dev->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -208,6 +215,7 @@ void wc_Pkcs11Token_Final(Pkcs11Token* token)
     if (token != NULL && token->func != NULL) {
         token->func->C_CloseAllSessions(token->slotId);
         token->handle = NULL_PTR;
+        ForceZero(token->userPin, token->userPinSz);
     }
 }
 
@@ -963,7 +971,7 @@ static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
         { CKA_VERIFY,          &ckTrue,  sizeof(ckTrue)  },
         { CKA_PUBLIC_EXPONENT, &pub_exp, sizeof(pub_exp) }
     };
-    int               pubTmplCnt = sizeof(pubKeyTmpl)/sizeof(*pubKeyTmpl);
+    CK_ULONG          pubTmplCnt = sizeof(pubKeyTmpl)/sizeof(*pubKeyTmpl);
     CK_ATTRIBUTE      privKeyTmpl[] = {
         {CKA_DECRYPT,  &ckTrue, sizeof(ckTrue) },
         {CKA_SIGN,     &ckTrue, sizeof(ckTrue) },
