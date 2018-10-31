@@ -22503,14 +22503,32 @@ int wolfSSL_sk_push(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, const void *data)
     return WOLFSSL_FAILURE;
 }
 
-#ifndef NO_WOLFSSL_STUB
+#if defined(HAVE_ECC) && defined(WOLFSSL_QT)
 size_t wolfSSL_EC_get_builtin_curves(wolfSSL_EC_builtin_curve *r, size_t nitems)
 {
-    (void)r;
-    (void)nitems;
+    size_t x;
+    size_t ecc_set_cnt = 0;
+
     WOLFSSL_ENTER("wolfSSL_EC_get_builtin_curves");
-    WOLFSSL_STUB("EC_get_builtin_curves");
-    return WOLFSSL_FAILURE;
+
+    for (x = 0; ecc_sets[x].size != 0; x++) {
+        ecc_set_cnt++;
+    }
+
+    if (r == NULL || nitems == 0) {
+        return ecc_set_cnt;
+    }
+
+    for (x = 0; x < nitems; x++) {
+        if (x < ecc_set_cnt) {
+            r[x].nid = ecc_sets[x].id;
+            r[x].comment = ecc_sets[x].name;
+        }
+        else
+            break;
+    }
+
+    return ecc_set_cnt;
 }
 #endif
 
