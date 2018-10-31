@@ -2074,7 +2074,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
         if (keepContent) {
             /* Create a buffer to hold content of OCTET_STRINGs. */
-            pkcs7->contentDynamic = XMALLOC(contentLen, pkcs7->heap,
+            pkcs7->contentDynamic = (byte*)XMALLOC(contentLen, pkcs7->heap,
                                                             DYNAMIC_TYPE_PKCS7);
             if (pkcs7->contentDynamic == NULL)
                 ret = MEMORY_E;

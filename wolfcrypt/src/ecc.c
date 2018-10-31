@@ -3208,8 +3208,13 @@ static int wc_ecc_cmp_param(const char* curveParam,
     }
 #endif
 
-    if ((err = mp_init_multi(a, b, NULL, NULL, NULL, NULL)) != MP_OKAY)
+    if ((err = mp_init_multi(a, b, NULL, NULL, NULL, NULL)) != MP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(a, NULL, DYNAMIC_TYPE_ECC);
+        XFREE(b, NULL, DYNAMIC_TYPE_ECC);
+    #endif
         return err;
+    }
 
     if (err == MP_OKAY)
         err = mp_read_unsigned_bin(a, param, paramSz);
@@ -5167,6 +5172,8 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(s, key->heap, DYNAMIC_TYPE_ECC);
             XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
+            r = NULL;
+            s = NULL;
         #endif
         #endif
 
@@ -5195,6 +5202,15 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     wc_ecc_free_async(key);
 #endif
     key->state = ECC_STATE_NONE;
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (err != WC_PENDING_E) {
+            XFREE(s, key->heap, DYNAMIC_TYPE_ECC);
+            XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
+            r = NULL;
+            s = NULL;
+    }
+#endif
 
     return err;
 }

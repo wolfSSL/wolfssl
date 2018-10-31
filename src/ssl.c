@@ -5741,8 +5741,10 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
 
     file = XFOPEN(fname, "rb");
     if (file == XBADFILE) return WOLFSSL_BAD_FILE;
-    if (XFSEEK(file, 0, XSEEK_END) != 0)
+    if (XFSEEK(file, 0, XSEEK_END) != 0) {
+        XFCLOSE(file);
         return WOLFSSL_BAD_FILE;
+    }
     sz = XFTELL(file);
     XREWIND(file);
 
@@ -5919,8 +5921,10 @@ int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* fname,
     WOLFSSL_ENTER("wolfSSL_CertManagerVerify");
 
     if (file == XBADFILE) return WOLFSSL_BAD_FILE;
-    if(XFSEEK(file, 0, XSEEK_END) != 0)
+    if(XFSEEK(file, 0, XSEEK_END) != 0) {
+        XFCLOSE(file);
         return WOLFSSL_BAD_FILE;
+    }
     sz = XFTELL(file);
     XREWIND(file);
 
@@ -6374,8 +6378,10 @@ static int wolfSSL_SetTmpDH_file_wrapper(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 
     file = XFOPEN(fname, "rb");
     if (file == XBADFILE) return WOLFSSL_BAD_FILE;
-    if(XFSEEK(file, 0, XSEEK_END) != 0)
+    if(XFSEEK(file, 0, XSEEK_END) != 0) {
+        XFCLOSE(file);
         return WOLFSSL_BAD_FILE;
+    }
     sz = XFTELL(file);
     XREWIND(file);
 
@@ -8456,8 +8462,10 @@ int CM_RestoreCertCache(WOLFSSL_CERT_MANAGER* cm, const char* fname)
        return WOLFSSL_BAD_FILE;
     }
 
-    if(XFSEEK(file, 0, XSEEK_END) != 0)
+    if(XFSEEK(file, 0, XSEEK_END) != 0) {
+        XFCLOSE(file);
         return WOLFSSL_BAD_FILE;
+    }
     memSz = (int)XFTELL(file);
     XREWIND(file);
 
@@ -17657,8 +17665,10 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
     if (fp == XBADFILE)
         return BAD_FUNC_ARG;
 
-    if(XFSEEK(fp, 0, XSEEK_END) != 0)
+    if(XFSEEK(fp, 0, XSEEK_END) != 0) {
+        XFCLOSE(fp);
         return WOLFSSL_BAD_FILE;
+    }
     sz = XFTELL(fp);
     XREWIND(fp);
 
@@ -21718,8 +21728,10 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
         if (file == XBADFILE)
             return WOLFSSL_BAD_FILE;
 
-        if(XFSEEK(file, 0, XSEEK_END) != 0)
+        if(XFSEEK(file, 0, XSEEK_END) != 0) {
+            XFCLOSE(file);
             return WOLFSSL_BAD_FILE;
+        }
         sz = XFTELL(file);
         XREWIND(file);
 
@@ -28169,6 +28181,7 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
             if (mem == NULL) {
                 WOLFSSL_MSG("Memory error");
                 XFREE(tmp, bio->heap, DYNAMIC_TYPE_OPENSSL);
+                tmp = NULL;
                 ret = MEMORY_E;
                 break;
             }
@@ -28182,6 +28195,7 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
             WOLFSSL_MSG("No data to read from bio");
             if (mem != NULL) {
                 XFREE(mem, bio->heap, DYNAMIC_TYPE_OPENSSL);
+                mem = NULL;
             }
             ret = BUFFER_E;
         }
@@ -28198,6 +28212,7 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
         if (info == NULL) {
             WOLFSSL_MSG("Error getting memory for EncryptedInfo structure");
             XFREE(mem, bio->heap, DYNAMIC_TYPE_OPENSSL);
+            mem = NULL;
             ret = MEMORY_E;
         }
     }
@@ -32005,7 +32020,8 @@ WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
 
     bufPtr = maxKeyBuf;
     if (wolfSSL_BIO_read(bio, (unsigned char*)bioMem, (int)bioMemSz) == bioMemSz) {
-        if ((key = wolfSSL_d2i_RSAPrivateKey(NULL, &bioMem, bioMemSz)) == NULL) {
+        const byte* bioMemPt = bioMem; /* leave bioMem pointer unaltered */
+        if ((key = wolfSSL_d2i_RSAPrivateKey(NULL, &bioMemPt, bioMemSz)) == NULL) {
             XFREE((unsigned char*)bioMem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
             return NULL;
         }
