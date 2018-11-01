@@ -19942,7 +19942,7 @@ static void test_wolfSSL_msg_callback(void)
 
 static void test_wolfSSL_SHA(void)
 {
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST)
     printf(testingFmt, "wolfSSL_SHA()");
 
     #if !defined(NO_SHA)
@@ -20104,7 +20104,7 @@ static void test_wolfSSL_AES_ecb_encrypt(void)
 static void test_wolfSSL_SHA256(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && \
-    defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS)
+    defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     unsigned char input[] =
         "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
     unsigned char output[] =

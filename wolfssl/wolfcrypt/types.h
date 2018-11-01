@@ -528,6 +528,27 @@
 
     /* hash types */
     enum wc_HashType {
+    #ifdef HAVE_SELFTEST
+        /* In selftest build, WC_* types are not mapped to WC_HASH_TYPE types.
+         * Values here are based on old selftest hmac.h enum, with additions */
+        WC_HASH_TYPE_NONE = 15,
+        WC_HASH_TYPE_MD2 = 16,
+        WC_HASH_TYPE_MD4 = 17,
+        WC_HASH_TYPE_MD5 = 0,
+        WC_HASH_TYPE_SHA = 1, /* SHA-1 (not old SHA-0) */
+        WC_HASH_TYPE_SHA224 = 8,
+        WC_HASH_TYPE_SHA256 = 2,
+        WC_HASH_TYPE_SHA384 = 5,
+        WC_HASH_TYPE_SHA512 = 4,
+        WC_HASH_TYPE_MD5_SHA = 18,
+        WC_HASH_TYPE_SHA3_224 = 10,
+        WC_HASH_TYPE_SHA3_256 = 11,
+        WC_HASH_TYPE_SHA3_384 = 12,
+        WC_HASH_TYPE_SHA3_512 = 13,
+        WC_HASH_TYPE_BLAKE2B = 14,
+
+        WC_HASH_TYPE_MAX = WC_HASH_TYPE_MD5_SHA
+    #else
         WC_HASH_TYPE_NONE = 0,
         WC_HASH_TYPE_MD2 = 1,
         WC_HASH_TYPE_MD4 = 2,
@@ -545,6 +566,7 @@
         WC_HASH_TYPE_BLAKE2B = 14,
 
         WC_HASH_TYPE_MAX = WC_HASH_TYPE_BLAKE2B
+    #endif /* HAVE_SELFTEST */
     };
 
     /* cipher types */
