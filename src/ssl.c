@@ -1477,7 +1477,8 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
     if (ssl->options.side == WOLFSSL_CLIENT_END)
         return SIDE_ERROR;
 
-    #ifndef WOLFSSL_OLD_PRIME_CHECK
+    #if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
+        !defined(HAVE_SELFTEST)
     {
         DhKey checkKey;
         int error, freeKey = 0;
@@ -1563,7 +1564,8 @@ int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
     if (pSz > ctx->maxDhKeySz)
         return DH_KEY_SIZE_E;
 
-    #ifndef WOLFSSL_OLD_PRIME_CHECK
+    #if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
+        !defined(HAVE_SELFTEST)
     {
         DhKey checkKey;
         WC_RNG rng;
