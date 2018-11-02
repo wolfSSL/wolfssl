@@ -1477,6 +1477,24 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
     if (ssl->options.side == WOLFSSL_CLIENT_END)
         return SIDE_ERROR;
 
+    #ifndef WOLFSSL_OLD_PRIME_CHECK
+    {
+        DhKey checkKey;
+        int error, freeKey = 0;
+
+        error = wc_InitDhKey(&checkKey);
+        if (!error) {
+            freeKey = 1;
+            error = wc_DhSetCheckKey(&checkKey,
+                                 p, pSz, g, gSz, NULL, 0, 0, ssl->rng);
+        }
+        if (freeKey)
+            wc_FreeDhKey(&checkKey);
+        if (error)
+            return error;
+    }
+    #endif
+
     if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH) {
         XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         ssl->buffers.serverDH_P.buffer = NULL;
@@ -1544,6 +1562,28 @@ int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
         return DH_KEY_SIZE_E;
     if (pSz > ctx->maxDhKeySz)
         return DH_KEY_SIZE_E;
+
+    #ifndef WOLFSSL_OLD_PRIME_CHECK
+    {
+        DhKey checkKey;
+        WC_RNG rng;
+        int error, freeKey = 0;
+
+        error = wc_InitRng(&rng);
+        if (!error)
+            error = wc_InitDhKey(&checkKey);
+        if (!error) {
+            freeKey = 1;
+            error = wc_DhSetCheckKey(&checkKey,
+                                 p, pSz, g, gSz, NULL, 0, 0, &rng);
+        }
+        if (freeKey)
+            wc_FreeDhKey(&checkKey);
+        wc_FreeRng(&rng);
+        if (error)
+            return error;
+    }
+    #endif
 
     XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     ctx->serverDH_P.buffer = NULL;
