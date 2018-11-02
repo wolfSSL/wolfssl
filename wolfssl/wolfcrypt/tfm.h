@@ -294,6 +294,7 @@
 #define FP_VAL      -1
 #define FP_MEM      -2
 #define FP_NOT_INF	-3
+#define FP_WOULDBLOCK -4
 
 /* equalities */
 #define FP_LT        -1   /* less than */
@@ -537,6 +538,42 @@ int fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
 
 /* d = a**b (mod c) */
 int fp_exptmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
+
+#ifdef WC_RSA_NONBLOCK
+
+enum tfmExptModNbState {
+  TFM_EXPTMOD_NB_INIT = 0,
+  TFM_EXPTMOD_NB_MONT,
+  TFM_EXPTMOD_NB_MONT_RED,
+  TFM_EXPTMOD_NB_MONT_MUL,
+  TFM_EXPTMOD_NB_MONT_MOD,
+  TFM_EXPTMOD_NB_MONT_MODCHK,
+  TFM_EXPTMOD_NB_NEXT,
+  TFM_EXPTMOD_NB_MUL,
+  TFM_EXPTMOD_NB_MUL_RED,
+  TFM_EXPTMOD_NB_SQR,
+  TFM_EXPTMOD_NB_SQR_RED,
+  TFM_EXPTMOD_NB_RED,
+};
+
+typedef struct {
+#ifndef WC_NO_CACHE_RESISTANT
+  fp_int   R[3];
+#else
+  fp_int   R[2];
+#endif
+  fp_digit buf, mp;
+  int bitcnt;
+  int digidx;
+  int y;
+  int state; /* tfmExptModNbState */
+} exptModNb_t;
+
+/* non-blocking version of timing resistant fp_exptmod function */
+/* supports cache resistance */
+int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y);
+
+#endif /* WC_RSA_NONBLOCK */
 
 /* primality stuff */
 

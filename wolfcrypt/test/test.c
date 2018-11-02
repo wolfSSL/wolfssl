@@ -9260,6 +9260,86 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
 }
 #endif /* !NO_SIG_WRAPPER */
 
+#ifdef WC_RSA_NONBLOCK
+static int rsa_nb_test(RsaKey* key, const byte* in, word32 inLen, byte* out,
+    word32 outSz, byte* plain, word32 plainSz, WC_RNG* rng)
+{
+    int ret = 0, count;
+    int signSz = 0;
+    RsaNb nb;
+    byte* inlinePlain = NULL;
+
+    /* Enable non-blocking RSA mode - provide context */
+    ret = wc_RsaSetNonBlock(key, &nb);
+    if (ret != 0)
+        return ret;
+
+    count = 0;
+    do {
+        ret = wc_RsaSSL_Sign(in, inLen, out, outSz, key, rng);
+        count++; /* track number of would blocks */
+        if (ret == FP_WOULDBLOCK) {
+            /* do "other" work here */
+        }
+    } while (ret == FP_WOULDBLOCK);
+    if (ret < 0) {
+        return ret;
+    }
+#ifdef DEBUG_WOLFSSL
+    printf("RSA non-block sign: %d times\n", count);
+#endif
+    signSz = ret;
+
+    /* Test non-blocking verify */
+    XMEMSET(plain, 0, plainSz);
+    count = 0;
+    do {
+        ret = wc_RsaSSL_Verify(out, (word32)signSz, plain, plainSz, key);
+        count++; /* track number of would blocks */
+        if (ret == FP_WOULDBLOCK) {
+            /* do "other" work here */
+        }
+    } while (ret == FP_WOULDBLOCK);
+    if (ret < 0) {
+        return ret;
+    }
+#ifdef DEBUG_WOLFSSL
+    printf("RSA non-block verify: %d times\n", count);
+#endif
+
+    if (signSz == ret && XMEMCMP(plain, in, (size_t)ret)) {
+        return SIG_VERIFY_E;
+    }
+
+    /* Test inline non-blocking verify */
+    count = 0;
+    do {
+        ret = wc_RsaSSL_VerifyInline(out, (word32)signSz, &inlinePlain, key);
+        count++; /* track number of would blocks */
+        if (ret == FP_WOULDBLOCK) {
+            /* do "other" work here */
+        }
+    } while (ret == FP_WOULDBLOCK);
+    if (ret < 0) {
+        return ret;
+    }
+#ifdef DEBUG_WOLFSSL
+    printf("RSA non-block inline verify: %d times\n", count);
+#endif
+
+    if (signSz == ret && XMEMCMP(inlinePlain, in, (size_t)ret)) {
+        return SIG_VERIFY_E;
+    }
+
+    /* Disabling non-block RSA mode */
+    ret = wc_RsaSetNonBlock(key, NULL);
+
+    (void)count;
+
+    return 0;
+}
+#endif
+
 #ifndef HAVE_USER_RSA
 static int rsa_decode_test(RsaKey* keyPub)
 {
@@ -10671,6 +10751,12 @@ int rsa_test(void)
         goto exit_rsa;
 #endif
 
+#ifdef WC_RSA_NONBLOCK
+    ret = rsa_nb_test(&key, in, inLen, out, outSz, plain, plainSz, &rng);
+    if (ret != 0)
+        goto exit_rsa;
+#endif
+
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11444,7 +11530,7 @@ exit_rsa:
     }
 }
 
-#endif
+#endif /* !NO_RSA */
 
 
 #ifndef NO_DH
