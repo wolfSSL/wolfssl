@@ -9384,10 +9384,11 @@ static int rsa_decode_test(RsaKey* keyPub)
     inSz = sizeof(goodAlgId);
     ret = wc_RsaPublicKeyDecode(goodAlgId, &inOutIdx, keyPub, inSz);
 #ifndef WOLFSSL_NO_DECODE_EXTRA
-    if (ret != ASN_PARSE_E) {
+    if (ret != ASN_PARSE_E)
 #else
-    if (ret != ASN_RSA_KEY_E) {
+    if (ret != ASN_RSA_KEY_E)
 #endif
+    {
         ret = -6797;
         goto done;
     }
