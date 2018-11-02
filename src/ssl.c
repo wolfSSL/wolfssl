@@ -22481,14 +22481,23 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
     wolfSSL_sk_ASN1_OBJECT_pop_free(sk, (void*)func);
 }
 
-#ifndef NO_WOLFSSL_STUB
-WOLFSSL_STACK *wolfSSL_sk_new_null(void)
+/* Creates and returns a new null stack. */
+WOLFSSL_STACK* wolfSSL_sk_new_null(void)
 {
     WOLFSSL_ENTER("wolfSSL_sk_new_null");
-    WOLFSSL_STUB("OPENSSL_sk_new_null");
-    return NULL;
+
+    WOLFSSL_STACK* sk = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
+                                       DYNAMIC_TYPE_OPENSSL);
+    if (sk == NULL) {
+        WOLFSSL_MSG("WOLFSSL_STACK memory error");
+        return NULL;
+    }
+
+    XMEMSET(sk, 0, sizeof(WOLFSSL_STACK));
+    sk->next = NULL;
+
+    return sk;
 }
-#endif
 
 
 /* return 1 on success 0 on fail */
@@ -22587,7 +22596,7 @@ WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh, const unsigned char **pp,
     WOLFSSL_ENTER("wolfSSL_d2i_DHparams");
 
     WOLFSSL_DH *newDH = NULL;
-    int ret; 
+    int ret;
     word32 idx = 0;
 
     if (pp == NULL || length <= 0) {
@@ -22598,7 +22607,7 @@ WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh, const unsigned char **pp,
     if ((newDH = wolfSSL_DH_new()) == NULL) {
         WOLFSSL_MSG("wolfSSL_DH_new() failed");
         return NULL;
-    }    
+    }
 
     ret = wc_DhKeyDecode(*pp, &idx, (DhKey*)newDH->internal, (word32)length);
     if (ret != 0) {
@@ -22619,18 +22628,42 @@ WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh, const unsigned char **pp,
 
     return newDH;
 }
-#endif /* NO_DH */
 
-#ifndef NO_WOLFSSL_STUB
-int wolfSSL_i2d_DHparams(const WOLFSSL_DH *a, unsigned char **pp)
+int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out)
 {
-    (void)a;
-    (void)pp;
-    WOLFSSL_ENTER("wolfSSL_i2d_DHparams");
-    WOLFSSL_STUB("i2d_DHparams");
-    return WOLFSSL_FAILURE;
+    WOLFSSL_ENTER("Enter wolfSSL_i2d_DHparams");
+    word32 len;
+    int ret;
+
+    if (dh == NULL) {
+        WOLFSSL_MSG("Bad parameters");
+        return 0;
+    }
+
+    /* Get total length */
+    len = 2 + mp_leading_bit((mp_int*)dh->p->internal) +
+              mp_unsigned_bin_size((mp_int*)dh->p->internal) +
+          2 + mp_leading_bit((mp_int*)dh->g->internal) +
+              mp_unsigned_bin_size((mp_int*)dh->g->internal);
+
+    /* Two bytes required for length if ASN.1 SEQ data greater than 127 bytes
+     * and less than 256 bytes.
+     */
+    len = ((len > 127) ? 2 : 1) + len;
+
+    if (out != NULL && *out != NULL) {
+        ret = StoreDHparams(*out, &len, (mp_int*)dh->p->internal,
+                                        (mp_int*)dh->g->internal);
+        if (ret != MP_OKAY) {
+            WOLFSSL_MSG("StoreDHparams error");
+            len = 0;
+        }
+        else
+            *out += len;
+    }
+    return (int)len;
 }
-#endif
+#endif /* NO_DH */
 
 void wolfSSL_BIO_clear_flags(WOLFSSL_BIO *bio, int flags)
 {

@@ -13444,6 +13444,71 @@ int wc_SetDatesBuffer(Cert* cert, const byte* der, int derSz)
 
 #endif /* !NO_CERTS */
 
+#if defined(WOLFSSL_QT) && !defined(NO_DH)
+/* Helper function for wolfSSL_i2d_DHparams */
+int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
+{
+    word32 idx = 0;
+    int pSz;
+    int gSz;
+    word32 seqSz;
+    unsigned int tmp;
+
+    /* If the leading bit on the INTEGER is a 1, add a leading zero */
+    int pLeadingZero = mp_leading_bit(p);
+    int gLeadingZero = mp_leading_bit(g);
+    int pLen = mp_unsigned_bin_size(p);
+    int gLen = mp_unsigned_bin_size(g);
+    byte seq[MAX_SEQ_SZ];
+    byte pOut[pLen];
+    byte gOut[gLen];
+
+    WOLFSSL_ENTER("StoreDHparams");
+    if (out == NULL) {
+        WOLFSSL_MSG("Null buffer error");
+        return BUFFER_E;
+    }
+
+    tmp = pLeadingZero + gLeadingZero + pLen + gLen;
+    if (*outLen < tmp) {
+        return BUFFER_E;
+    }
+
+    /* Encode p */
+    pSz = SetASNIntMP(p, -1, pOut);
+    if (pSz < 0) {
+        WOLFSSL_MSG("SetASNIntMP failed");
+        return pSz;
+    }
+
+    /* Encode g */
+    gSz = SetASNIntMP(g, -1, gOut);
+    if (gSz < 0) {
+        WOLFSSL_MSG("SetASNIntMP failed");
+        return gSz;
+    }
+
+    seqSz = SetSequence(pSz + gSz, seq);
+
+    /* Write to out buffer */
+    /* sequence*/
+    XMEMCPY(out + idx, seq, seqSz);
+    idx = seqSz;
+
+    /* p parameter */
+    XMEMCPY(out + idx, pOut, pSz);
+    idx += pSz;
+
+    /* g parameter */
+    XMEMCPY(out + idx, gOut, gSz);
+    idx += gSz;
+
+    *outLen = idx;
+
+    return 0;
+}
+#endif /* WOLFSSL_QT && !NO_DH */
+
 #ifdef HAVE_ECC
 
 /* Der Encode r & s ints into out, outLen is (in/out) size */
