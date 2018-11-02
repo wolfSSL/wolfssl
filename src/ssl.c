@@ -21599,14 +21599,23 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
     wolfSSL_sk_ASN1_OBJECT_pop_free(sk, (void*)func);
 }
 
-#ifndef NO_WOLFSSL_STUB
-WOLFSSL_STACK *wolfSSL_sk_new_null(void)
+/* Creates and returns a new null stack. */
+WOLFSSL_STACK* wolfSSL_sk_new_null(void)
 {
     WOLFSSL_ENTER("wolfSSL_sk_new_null");
-    WOLFSSL_STUB("OPENSSL_sk_new_null");
-    return NULL;
+
+    WOLFSSL_STACK* sk = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
+                                       DYNAMIC_TYPE_OPENSSL);
+    if (sk == NULL) {
+        WOLFSSL_MSG("WOLFSSL_STACK memory error");
+        return NULL;
+    }
+
+    XMEMSET(sk, 0, sizeof(WOLFSSL_STACK));
+    sk->next = NULL;
+
+    return sk;
 }
-#endif
 
 
 /* return 1 on success 0 on fail */
