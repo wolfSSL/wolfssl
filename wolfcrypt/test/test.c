@@ -3005,7 +3005,7 @@ int hash_test(void)
         return -3094;
 
 #ifndef NO_ASN
-#ifdef WOLFSSL_MD2
+#if defined(WOLFSSL_MD2) && !defined(HAVE_SELFTEST)
     ret = wc_GetCTC_HashOID(MD2);
     if (ret == 0)
         return -3095;
