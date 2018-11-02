@@ -2563,6 +2563,9 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
             } else if (ssl->options.closeNotify) {
                 ssl->error = WOLFSSL_ERROR_SYSCALL;   /* simulate OpenSSL behavior */
                 ret = WOLFSSL_SUCCESS;
+            } else if ((ssl->error == WOLFSSL_ERROR_NONE) &&
+                       (ret < WOLFSSL_SUCCESS)) {
+                ret = WOLFSSL_SHUTDOWN_NOT_DONE;
             }
         }
     }
