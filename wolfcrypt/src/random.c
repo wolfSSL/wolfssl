@@ -2060,6 +2060,22 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
+#elif defined(WOLFSSL_ESPIDF)
+    #if defined(WOLFSSL_ESPWROOM32)
+        #include <esp_system.h>
+        
+        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+            int i;
+            
+            for (i = 0; i< sz; i++) {
+               output[i] =  esp_random( );
+            }
+        
+            return 0;
+        }
+    #endif /* end WOLFSSL_ESPWROOM32 */
+ 
 #elif defined(CUSTOM_RAND_GENERATE_BLOCK)
     /* #define CUSTOM_RAND_GENERATE_BLOCK myRngFunc
      * extern int myRngFunc(byte* output, word32 sz);

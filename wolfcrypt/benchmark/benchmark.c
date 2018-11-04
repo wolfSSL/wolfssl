@@ -4986,10 +4986,14 @@ exit_ed_verify:
     /* declared above at line 239 */
     /* extern   double current_time(int reset); */
 
-#elif defined FREERTOS
+#elif defined(FREERTOS)
 
     #include "task.h"
-
+#if defined(WOLFSSL_ESPIDF)
+    /* proto type definition */
+    int construct_argv();
+    extern char* __argv[22];
+#endif
     double current_time(int reset)
     {
         portTickType tickCount;
@@ -5166,11 +5170,18 @@ static int string_matches(const char* arg, const char* str)
     int len = (int)XSTRLEN(str) + 1;
     return XSTRNCMP(arg, str, len) == 0;
 }
-
+#ifdef WOLFSSL_ESPIDF
+int app_main( )
+#else
 int main(int argc, char** argv)
+#endif
 {
     int ret = 0;
     int optMatched;
+#ifdef WOLFSSL_ESPIDF
+    int argc = construct_argv();
+    char** argv = (char**)__argv;
+#endif
 #ifndef WOLFSSL_BENCHMARK_ALL
     int i;
 #endif

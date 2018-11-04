@@ -184,6 +184,9 @@
     #include "mcu/mcu_sim.h"
     #endif
     #include "os/os_time.h"
+#elif defined(WOLFSSL_ESPIDF)
+    #include <time.h>
+    #include <sys/time.h>
 #else
     #include <stdio.h>
 #endif
@@ -1064,11 +1067,24 @@ initDefaultName();
 #ifndef NO_MAIN_DRIVER
 
     /* so overall tests can pull in test function */
+#ifdef WOLFSSL_ESPIDF
+    void app_main( )
+#else
     int main(int argc, char** argv)
+#endif
     {
         int ret;
         func_args args;
-
+#ifdef WOLFSSL_ESPIDF
+        /* set dummy wallclock time. */
+        struct timeval utctime;
+        struct timezone tz;
+        utctime.tv_sec = 1521725159; /* dummy time: 2018-03-22T13:25:59+00:00 */
+        utctime.tv_usec = 0;
+        tz.tz_minuteswest = 0;
+        tz.tz_dsttime = 0;
+        settimeofday(&utctime, &tz);
+#endif
 #ifdef WOLFSSL_APACHE_MYNEWT
         #ifdef ARCH_sim
         mcu_sim_parse_args(argc, argv);
@@ -1091,10 +1107,10 @@ initDefaultName();
             return -1001;
         }
 #endif
-
+#ifndef WOLFSSL_ESPIDF
         args.argc = argc;
         args.argv = argv;
-
+#endif
         if ((ret = wolfCrypt_Init()) != 0) {
             printf("wolfCrypt_Init failed %d\n", ret);
             err_sys("Error with wolfCrypt_Init!\n", -1003);
@@ -1115,8 +1131,9 @@ initDefaultName();
         if (wc_FreeNetRandom() < 0)
             err_sys("Failed to free netRandom context", -1005);
 #endif /* HAVE_WNR */
-
+#ifndef WOLFSSL_ESPIDF
         return args.return_code;
+#endif
     }
 
 #endif /* NO_MAIN_DRIVER */
