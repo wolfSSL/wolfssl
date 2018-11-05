@@ -142,6 +142,7 @@
 #include <stdlib.h>
 #include <wolfssl/ssl.h>  /* compatibility layer */
  #include <wolfssl/test.h>
+
 #include <tests/unit.h>
 #include "examples/server/server.h"
      /* for testing compatibility layer callbacks */
@@ -3503,7 +3504,6 @@ static void test_wolfSSL_PKCS12(void)
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA */
 }
-
 
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
         !defined(NO_DES3) && !defined(NO_FILESYSTEM) && \
@@ -20535,6 +20535,32 @@ static void test_wolfSSL_AES_cbc_encrypt()
 #endif
 }
 
+/*wolfSSL with QT unit tests*/
+#if defined(WOLFSSL_QT)
+
+static void test_wolfSSL_X509_get_ext_count()
+{
+    FILE* f;
+    X509* x509;
+    int num_ext;
+
+    f = fopen("./certs/ca-ecc384-key.pem", "rb");
+    if (f == NULL) {
+        printf("unable to open file \n");
+    }
+    x509 = PEM_read_X509(f, NULL, NULL, NULL);
+    if (x509 == NULL) {
+        printf("unable to load in x509\n");
+    }
+    num_ext = wolfSSL_X509_get_ext_count(x509);
+    printf("\n\n\n\n***********************************");
+        printf("The number of extensions found is: %d\n", num_ext);
+    printf("***********************************\n\n\n\n");
+}
+
+
+#endif
+/*end of QT unit tests*/
 
 static void test_no_op_functions(void)
 {
@@ -22189,6 +22215,9 @@ void ApiTest(void)
     test_wolfSSL_X509_check_ca();
     test_wolfSSL_DES_ncbc();
     test_wolfSSL_AES_cbc_encrypt();
+#if defined(WOLFSSL_QT)
+    test_wolfSSL_X509_get_ext_count();
+#endif /* (defined(WOLFSSL_QT)  */
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_ASN1(), WOLFSSL_SUCCESS);
