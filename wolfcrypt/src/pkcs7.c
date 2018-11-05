@@ -3356,7 +3356,8 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             }
 
             /* Get the contentInfo sequence */
-            if (ret == 0 && GetSequence(pkiMsg, &idx, &length, totalSz) < 0)
+            if (ret == 0 && GetSequence_ex(pkiMsg, &idx, &length, totalSz,
+                        NO_USER_CHECK) < 0)
                 ret = ASN_PARSE_E;
 
             if (ret == 0 && length == 0 && pkiMsg[idx-1] == 0x80) {
@@ -3389,6 +3390,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                         pkiMsgSz) < 0)
                 ret = ASN_PARSE_E;
 
+
             if (ret == 0 && outerContentType != SIGNED_DATA) {
                 WOLFSSL_MSG("PKCS#7 input not of type SignedData");
                 ret = PKCS7_OID_E;
@@ -3399,11 +3401,13 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                     (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
                 ret = ASN_PARSE_E;
 
-            if (ret == 0 && GetLength(pkiMsg, &idx, &length, totalSz) < 0)
+            if (ret == 0 && GetLength_ex(pkiMsg, &idx, &length, totalSz,
+                        NO_USER_CHECK) < 0)
                 ret = ASN_PARSE_E;
 
             /* Get the signedData sequence */
-            if (ret == 0 && GetSequence(pkiMsg, &idx, &length, totalSz) < 0)
+            if (ret == 0 && GetSequence_ex(pkiMsg, &idx, &length, totalSz,
+                        NO_USER_CHECK) < 0)
                 ret = ASN_PARSE_E;
 
             /* Get the version */
@@ -3433,7 +3437,9 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &stateIdx, &idx)) != 0) {
                 break;
             }
-            pkcs7->stream->maxLen = totalSz;
+            if (pkiMsg2 && pkiMsg2Sz > 0) {
+                pkcs7->stream->maxLen += pkiMsg2Sz + pkcs7->contentSz;
+            }
             wc_PKCS7_StreamStoreVar(pkcs7, totalSz, 0, 0);
         #endif
 
@@ -3529,6 +3535,13 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 }
                 idx = localIdx;
             }
+            else {
+                if (!degenerate && ret != 0)
+                    break;
+                length = 0; /* no content to read */
+                pkiMsg2   = pkiMsg;
+                pkiMsg2Sz = pkiMsgSz;
+            }
 
         #ifndef NO_PKCS7_STREAM
             /* save contentType */
@@ -3543,11 +3556,6 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 XMEMCPY(pkcs7->stream->nonce, contentType, contentTypeSz);
             }
 
-            if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &stateIdx, &idx)) != 0) {
-                break;
-            }
-            wc_PKCS7_StreamStoreVar(pkcs7, pkiMsg2Sz, localIdx, length);
-
             /* content expected? */
             if ((ret == 0 && length > 0) &&
                 !(pkiMsg2 && pkiMsg2Sz > 0 && hashBuf && hashSz > 0)) {
@@ -3556,6 +3564,11 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             else {
                 pkcs7->stream->expected = 0;
             }
+
+            if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &stateIdx, &idx)) != 0) {
+                break;
+            }
+            wc_PKCS7_StreamStoreVar(pkcs7, pkiMsg2Sz, localIdx, length);
 
             /* content length is in multiple parts */
             if (multiPart) {
@@ -3713,7 +3726,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 }
             }
 
-            if (pkcs7->stream->flagOne) {
+            if (content != NULL && pkcs7->stream->flagOne) {
                 stateIdx = idx; /* case where all data was read from in2 */
             }
 
