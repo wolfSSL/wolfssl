@@ -91,6 +91,7 @@ EXTRA_DIST+= INSTALL
 EXTRA_DIST+= IPP
 EXTRA_DIST+= .cproject
 EXTRA_DIST+= .project
+EXTRA_DIST+= resource.h wolfssl.rc
 
 include wrapper/include.am
 include cyassl/include.am
