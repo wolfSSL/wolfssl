@@ -11658,10 +11658,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
     void wolfSSL_set_accept_state(WOLFSSL* ssl)
     {
-        word16 haveRSA = 1;
-        word16 havePSK = 0;
-
-        WOLFSSL_ENTER("SSL_set_accept_state");
+        WOLFSSL_ENTER("wolfSSL_set_accept_state");
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
     #ifdef HAVE_ECC
             ecc_key key;
@@ -11687,19 +11684,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             }
     #endif
         }
-        ssl->options.side = WOLFSSL_SERVER_END;
-        /* reset suites in case user switched */
 
-        #ifdef NO_RSA
-            haveRSA = 0;
-        #endif
-        #ifndef NO_PSK
-            havePSK = ssl->options.havePSK;
-        #endif
-        InitSuites(ssl->suites, ssl->version, ssl->buffers.keySz, haveRSA,
-                   havePSK, ssl->options.haveDH, ssl->options.haveNTRU,
-                   ssl->options.haveECDSAsig, ssl->options.haveECC,
-                   ssl->options.haveStaticECC, ssl->options.side);
+        if (InitSSL_Side(ssl, WOLFSSL_SERVER_END) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Error initializing server side");
+        }
     }
 
 #endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA */
@@ -15647,9 +15635,6 @@ int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, WOLFSSL_ASN1_STRING *in)
 
 void wolfSSL_set_connect_state(WOLFSSL* ssl)
 {
-    word16 haveRSA = 1;
-    word16 havePSK = 0;
-
     if (ssl == NULL) {
         WOLFSSL_MSG("WOLFSSL struct pointer passed in was null");
         return;
@@ -15669,19 +15654,9 @@ void wolfSSL_set_connect_state(WOLFSSL* ssl)
     ssl->buffers.serverDH_G.buffer = NULL;
     #endif
 
-    if (ssl->options.side == WOLFSSL_SERVER_END) {
-        #ifdef NO_RSA
-            haveRSA = 0;
-        #endif
-        #ifndef NO_PSK
-            havePSK = ssl->options.havePSK;
-        #endif
-        InitSuites(ssl->suites, ssl->version, ssl->buffers.keySz, haveRSA,
-                   havePSK, ssl->options.haveDH, ssl->options.haveNTRU,
-                   ssl->options.haveECDSAsig, ssl->options.haveECC,
-                   ssl->options.haveStaticECC, WOLFSSL_CLIENT_END);
+    if (InitSSL_Side(ssl, WOLFSSL_CLIENT_END) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("Error initializing client side");
     }
-    ssl->options.side = WOLFSSL_CLIENT_END;
 }
 #endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA */
 
