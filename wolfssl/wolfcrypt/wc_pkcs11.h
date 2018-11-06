@@ -30,22 +30,23 @@
 #include <wolfssl/wolfcrypt/pkcs11.h>
 
 typedef struct Pkcs11Dev {
-    void*             dlHandle;
-    CK_FUNCTION_LIST* func;                    /* Array of functions */
+    void*             dlHandle;         /* Handle to library  */
+    CK_FUNCTION_LIST* func;             /* Array of functions */
+    void*             heap;
 } Pkcs11Dev;
 
 typedef struct Pkcs11Token {
-    CK_FUNCTION_LIST* func;
-    CK_SLOT_ID        slotId;
-    CK_SESSION_HANDLE handle;
-    CK_UTF8CHAR_PTR   userPin;
-    CK_ULONG          userPinSz;
+    CK_FUNCTION_LIST* func;             /* Table of PKCS#11 function from lib */
+    CK_SLOT_ID        slotId;           /* Id of slot to use                  */
+    CK_SESSION_HANDLE handle;           /* Handle to active session           */
+    CK_UTF8CHAR_PTR   userPin;          /* User's PIN to login with           */
+    CK_ULONG          userPinSz;        /* Size of user's PIN in bytes        */
 } Pkcs11Token;
 
 typedef struct Pkcs11Session {
-    CK_FUNCTION_LIST* func;
-    CK_SLOT_ID        slotId;
-    CK_SESSION_HANDLE handle;
+    CK_FUNCTION_LIST* func;             /* Table of PKCS#11 function from lib */
+    CK_SLOT_ID        slotId;           /* Id of slot to use                  */
+    CK_SESSION_HANDLE handle;           /* Handle to active session           */
 } Pkcs11Session;
 
 #ifdef __cplusplus
@@ -60,7 +61,8 @@ enum Pkcs11KeyType {
 };
 
 
-WOLFSSL_API int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library);
+WOLFSSL_API int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library,
+                                     void* heap);
 WOLFSSL_API void wc_Pkcs11_Finalize(Pkcs11Dev* dev);
 
 WOLFSSL_API int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev,

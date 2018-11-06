@@ -124,6 +124,17 @@ ASN Options:
 
 #define ERROR_OUT(err, eLabel) { ret = (err); goto eLabel; }
 
+#ifdef HAVE_SELFTEST
+    #ifndef WOLFSSL_AES_KEY_SIZE_ENUM
+    enum Asn_Misc {
+        AES_IV_SIZE         = 16,
+        AES_128_KEY_SIZE    = 16,
+        AES_192_KEY_SIZE    = 24,
+        AES_256_KEY_SIZE    = 32
+    };
+    #endif
+#endif
+
 WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx)
 {
@@ -3438,22 +3449,20 @@ exit_dc:
 #ifndef NO_RSA
 
 #ifndef HAVE_USER_RSA
-int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
-                       word32 inSz)
+int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
+    const byte** n, word32* nSz, const byte** e, word32* eSz)
 {
-    int  length;
+    int ret = 0;
+    int length;
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
     byte b;
 #endif
-    int ret;
 
-    if (input == NULL || inOutIdx == NULL || key == NULL)
+    if (input == NULL || inOutIdx == NULL)
         return BAD_FUNC_ARG;
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
-
-    key->type = RSA_PUBLIC;
 
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
     if ((*inOutIdx + 1) > inSz)
@@ -3488,20 +3497,47 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     }
 #endif /* OPENSSL_EXTRA */
 
-    if (GetInt(&key->n,  input, inOutIdx, inSz) < 0)
-        return ASN_RSA_KEY_E;
-    if (GetInt(&key->e,  input, inOutIdx, inSz) < 0) {
-        mp_clear(&key->n);
+    /* Get modulus */
+    ret = GetASNInt(input, inOutIdx, &length, inSz);
+    if (ret < 0) {
         return ASN_RSA_KEY_E;
     }
+    if (nSz)
+        *nSz = length;
+    if (n)
+        *n = &input[*inOutIdx];
+    *inOutIdx += length;
 
-#ifdef WOLFSSL_XILINX_CRYPT
-    if (wc_InitRsaHw(key) != 0) {
-        return BAD_STATE_E;
+    /* Get exponent */
+    ret = GetASNInt(input, inOutIdx, &length, inSz);
+    if (ret < 0) {
+        return ASN_RSA_KEY_E;
     }
-#endif
+    if (eSz)
+        *eSz = length;
+    if (e)
+        *e = &input[*inOutIdx];
+    *inOutIdx += length;
 
-    return 0;
+    return ret;
+}
+
+int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
+                       word32 inSz)
+{
+    int ret;
+    const byte *n = NULL, *e = NULL;
+    word32 nSz = 0, eSz = 0;
+
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    ret = wc_RsaPublicKeyDecode_ex(input, inOutIdx, inSz, &n, &nSz, &e, &eSz);
+    if (ret == 0) {
+        ret = wc_RsaPublicKeyDecodeRaw(n, nSz, e, eSz, key);
+    }
+
+    return ret;
 }
 
 /* import RSA public key elements (n, e) into RsaKey structure (key) */
@@ -3554,7 +3590,7 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
     return 0;
 }
 #endif /* HAVE_USER_RSA */
-#endif
+#endif /* !NO_RSA */
 
 #ifndef NO_DH
 
@@ -4114,7 +4150,7 @@ WOLFSSL_LOCAL int OBJ_sn2nid(const char *sn)
         }
     }
     #endif
-    
+
     for(i=0; sn2nid[i].sn != NULL; i++) {
         if(XSTRNCMP(sn, sn2nid[i].sn, XSTRLEN(sn2nid[i].sn)) == 0) {
             return sn2nid[i].nid;
@@ -8512,12 +8548,20 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                       der->buffer, &der->length) < 0)
         return BUFFER_E;
 
-    if (header == BEGIN_PRIV_KEY && !encrypted_key) {
+    if ((header == BEGIN_PRIV_KEY
+#ifdef HAVE_ECC
+         || header == BEGIN_EC_PRIV
+#endif
+        ) && !encrypted_key)
+    {
         /* pkcs8 key, convert and adjust length */
-        if ((ret = ToTraditional(der->buffer, der->length)) < 0)
-            return ret;
+        if ((ret = ToTraditional(der->buffer, der->length)) > 0) {
+            der->length = ret;
+        }
+        else {
+            /* ignore failure here and assume key is not pkcs8 wrapped */
+        }
 
-        der->length = ret;
         return 0;
     }
 
@@ -9111,7 +9155,6 @@ int RsaPublicKeyDerSize(RsaKey* key, int with_header)
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
 
-
 static mp_int* GetRsaInt(RsaKey* key, int idx)
 {
     if (idx == 0)
@@ -9227,7 +9270,7 @@ int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
     return SetRsaPublicKey(output, key, inLen, 1);
 }
 
-#endif /* WOLFSSL_KEY_GEN && !NO_RSA && !HAVE_USER_RSA */
+#endif /* (WOLFSSL_KEY_GEN || OPENSSL_EXTRA) && !NO_RSA && !HAVE_USER_RSA */
 
 
 #ifdef WOLFSSL_CERT_GEN
@@ -9359,6 +9402,7 @@ static word32 SetUTF8String(word32 len, byte* output)
 #endif /* WOLFSSL_CERT_REQ */
 
 #endif /* WOLFSSL_CERT_GEN */
+
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
 
@@ -11975,7 +12019,7 @@ int wc_SetAuthKeyId(Cert *cert, const char* file)
     return ret;
 }
 
-#endif /* NO_FILESYSTEM */
+#endif /* !NO_FILESYSTEM */
 
 /* Set KeyUsage from human readable string */
 int wc_SetKeyUsage(Cert *cert, const char *value)
@@ -12568,7 +12612,7 @@ int wc_SetAltNames(Cert* cert, const char* file)
 
 #endif /* WOLFSSL_ALT_NAMES */
 
-#endif /* NO_FILESYSTEM */
+#endif /* !NO_FILESYSTEM */
 
 /* Set cert issuer from DER buffer */
 int wc_SetIssuerBuffer(Cert* cert, const byte* der, int derSz)
@@ -12927,7 +12971,7 @@ static int ASNToHexString(const byte* input, word32* inOutIdx, char** out,
 
     return 0;
 }
-#endif
+#endif /* WOLFSSL_CUSTOM_CURVES */
 
 int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                           ecc_key* key, word32 inSz)
@@ -13059,7 +13103,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             return ret;
 #else
         return ASN_PARSE_E;
-#endif
+#endif /* WOLFSSL_CUSTOM_CURVES */
     }
     else {
         /* ecc params information */
@@ -13207,7 +13251,6 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
     return totalSz;
 }
 
-#ifndef NO_ASN_CRYPT
 /* Write a Private ecc key, including public to DER format,
  * length on success else < 0 */
 int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
@@ -13222,7 +13265,6 @@ int wc_EccPrivateKeyToDer(ecc_key* key, byte* output, word32 inLen)
 {
     return wc_BuildEccKeyDer(key, output, inLen, 0);
 }
-#endif /* !NO_ASN_CRYPT */
 
 /* Write only private ecc key to unencrypted PKCS#8 format.
  *
@@ -13293,8 +13335,8 @@ int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output, word32* outLen)
     return ret;
 }
 
-#endif /* HAVE_ECC_KEY_EXPORT */
-#endif  /* HAVE_ECC */
+#endif /* HAVE_ECC_KEY_EXPORT && !NO_ASN_CRYPT */
+#endif /* HAVE_ECC */
 
 
 #ifdef HAVE_ED25519
@@ -13471,7 +13513,7 @@ int wc_Ed25519PrivateKeyToDer(ed25519_key* key, byte* output, word32 inLen)
 
 #endif /* WOLFSSL_KEY_GEN */
 
-#endif  /* HAVE_ED25519 */
+#endif /* HAVE_ED25519 */
 
 
 #if defined(HAVE_OCSP) || defined(HAVE_CRL)
@@ -13494,7 +13536,7 @@ static int GetBasicDate(const byte* source, word32* idx, byte* date,
     return 0;
 }
 
-#endif
+#endif /* HAVE_OCSP || HAVE_CRL */
 
 
 #ifdef HAVE_OCSP
@@ -14252,7 +14294,7 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
     return 0;
 }
 
-#endif
+#endif /* HAVE_OCSP */
 
 
 /* store WC_SHA hash of NAME */

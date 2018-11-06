@@ -376,6 +376,8 @@ void wc_PKCS7_Free(PKCS7* pkcs7)
     if (pkcs7->der != NULL)
         XFREE(pkcs7->der, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 #endif
+    if (pkcs7->contentDynamic != NULL)
+        XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 
     if (pkcs7->isDynamic) {
         pkcs7->isDynamic = 0;
@@ -1895,7 +1897,33 @@ static int wc_PKCS7_ParseAttribs(PKCS7* pkcs7, byte* in, int inSz)
     return found;
 }
 
-/* Finds the certificates in the message and saves it. */
+
+/* option to turn off support for degenerate cases
+ * flag 0 turns off support
+ * flag 1 turns on support
+ *
+ * by default support for SignedData degenerate cases is on
+ */
+void wc_PKCS7_AllowDegenerate(PKCS7* pkcs7, word16 flag)
+{
+    if (pkcs7) {
+        if (flag) { /* flag of 1 turns on support for degenerate */
+            pkcs7->noDegenerate = 0;
+        }
+        else { /* flag of 0 turns off support */
+            pkcs7->noDegenerate = 1;
+        }
+    }
+}
+
+/* Finds the certificates in the message and saves it. By default allows
+ * degenerate cases which can have no signer.
+ *
+ * By default expects type SIGNED_DATA (SignedData) which can have any number of
+ * elements in signerInfos collection, inluding zero. (RFC2315 section 9.1)
+ * When adding support for the case of SignedAndEnvelopedData content types a
+ * signer is required. In this case the PKCS7 flag noDegenerate could be set.
+ */
 static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
     word32 hashSz, byte* pkiMsg, word32 pkiMsgSz,
     byte* pkiMsg2, word32 pkiMsg2Sz)
@@ -1903,15 +1931,18 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
     word32 idx, contentType, hashOID, sigOID, totalSz;
     int length, version, ret;
     byte* content = NULL;
+    byte* contentDynamic = NULL;
     byte* sig = NULL;
     byte* cert = NULL;
     byte* signedAttrib = NULL;
     int contentSz = 0, sigSz = 0, certSz = 0, signedAttribSz = 0;
-    word32 localIdx;
+    word32 localIdx, start;
     byte degenerate;
 #ifdef ASN_BER_TO_DER
     byte* der;
 #endif
+    int multiPart = 0, keepContent;
+    int contentLen;
 
     if (pkcs7 == NULL || pkiMsg == NULL || pkiMsgSz == 0)
         return BAD_FUNC_ARG;
@@ -1988,6 +2019,9 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
     /* Skip the set. */
     idx += length;
     degenerate = (length == 0)? 1 : 0;
+    if (pkcs7->noDegenerate == 1 && degenerate == 1) {
+        return PKCS7_NO_SIGNER_E;
+    }
 
     /* Get the inner ContentInfo sequence */
     if (GetSequence(pkiMsg, &idx, &length, totalSz) < 0)
@@ -2011,42 +2045,128 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
     if (ret == 0 && GetLength(pkiMsg, &localIdx, &length, totalSz) <= 0)
         ret = ASN_PARSE_E;
 
-    if (ret == 0 && pkiMsg[localIdx++] != ASN_OCTET_STRING)
-        ret = ASN_PARSE_E;
+    if (ret == 0 && pkiMsg[localIdx] == (ASN_OCTET_STRING | ASN_CONSTRUCTED)) {
+        multiPart = 1;
 
-    if (ret == 0 && GetLength(pkiMsg, &localIdx, &length, totalSz) < 0)
-        ret = ASN_PARSE_E;
+        localIdx++;
+        /* Get length of all OCTET_STRINGs. */
+        if (GetLength(pkiMsg, &localIdx, &contentLen, totalSz) < 0)
+            ret = ASN_PARSE_E;
 
-    /* Save the inner data as the content. */
-    if (ret == 0 && length > 0) {
-        contentSz = length;
+        /* Check whether there is one OCTET_STRING inside. */
+        start = localIdx;
+        if (ret == 0 && pkiMsg[localIdx++] != ASN_OCTET_STRING)
+            ret = ASN_PARSE_E;
 
-        /* support using header and footer without content */
-        if (pkiMsg2 && pkiMsg2Sz > 0 && hashBuf && hashSz > 0) {
-            /* Content not provided, use provided pkiMsg2 footer */
-            content = NULL;
-            localIdx = 0;
-            if (contentSz != (int)pkcs7->contentSz) {
-                WOLFSSL_MSG("Data signed does not match contentSz provided");
-                return BUFFER_E;
+        if (ret == 0 && GetLength(pkiMsg, &localIdx, &length, totalSz) < 0)
+            ret = ASN_PARSE_E;
+
+        if (ret == 0) {
+            /* Use single OCTET_STRING directly. */
+            if (localIdx - start + length == (word32)contentLen)
+                multiPart = 0;
+            localIdx = start;
+        }
+    }
+    if (ret == 0 && multiPart) {
+        int i = 0;
+        keepContent = !(pkiMsg2 && pkiMsg2Sz > 0 && hashBuf && hashSz > 0);
+
+        if (keepContent) {
+            /* Create a buffer to hold content of OCTET_STRINGs. */
+            pkcs7->contentDynamic = (byte*)XMALLOC(contentLen, pkcs7->heap,
+                                                            DYNAMIC_TYPE_PKCS7);
+            if (pkcs7->contentDynamic == NULL)
+                ret = MEMORY_E;
+        }
+
+        start = localIdx;
+        /* Use the data from each OCTET_STRING. */
+        while (ret == 0 && localIdx < start + contentLen) {
+            if (pkiMsg[localIdx++] != ASN_OCTET_STRING)
+                ret = ASN_PARSE_E;
+
+            if (ret == 0 && GetLength(pkiMsg, &localIdx, &length, totalSz) < 0)
+                ret = ASN_PARSE_E;
+            if (ret == 0 && length + localIdx > start + contentLen)
+                ret = ASN_PARSE_E;
+
+            if (ret == 0) {
+                if (keepContent) {
+                    XMEMCPY(pkcs7->contentDynamic + i, pkiMsg + localIdx,
+                                                                        length);
+                }
+                i += length;
+                localIdx += length;
+            }
+        }
+
+        length = i;
+        if (ret == 0 && length > 0) {
+            contentSz = length;
+
+            /* support using header and footer without content */
+            if (pkiMsg2 && pkiMsg2Sz > 0 && hashBuf && hashSz > 0) {
+                /* Content not provided, use provided pkiMsg2 footer */
+                content = NULL;
+                localIdx = 0;
+                if (contentSz != (int)pkcs7->contentSz) {
+                    WOLFSSL_MSG("Data signed does not match contentSz provided");
+                    return BUFFER_E;
+                }
+            }
+            else {
+                /* Content pointer for calculating hashes later */
+                content   = pkcs7->contentDynamic;
+                pkiMsg2   = pkiMsg;
+                pkiMsg2Sz = pkiMsgSz;
             }
         }
         else {
-            /* Content pointer for calculating hashes later */
-            content   = &pkiMsg[localIdx];
-            localIdx += length;
-
             pkiMsg2 = pkiMsg;
-            pkiMsg2Sz = pkiMsgSz;
         }
     }
-    else {
-        pkiMsg2 = pkiMsg;
+    if (ret == 0 && !multiPart) {
+        if (pkiMsg[localIdx++] != ASN_OCTET_STRING)
+            ret = ASN_PARSE_E;
+
+        if (ret == 0 && GetLength(pkiMsg, &localIdx, &length, totalSz) < 0)
+            ret = ASN_PARSE_E;
+
+        /* Save the inner data as the content. */
+        if (ret == 0 && length > 0) {
+            contentSz = length;
+
+            /* support using header and footer without content */
+            if (pkiMsg2 && pkiMsg2Sz > 0 && hashBuf && hashSz > 0) {
+                /* Content not provided, use provided pkiMsg2 footer */
+                content = NULL;
+                localIdx = 0;
+                if (contentSz != (int)pkcs7->contentSz) {
+                    WOLFSSL_MSG("Data signed does not match contentSz provided");
+                    return BUFFER_E;
+                }
+            }
+            else {
+                /* Content pointer for calculating hashes later */
+                content   = &pkiMsg[localIdx];
+                localIdx += length;
+
+                pkiMsg2 = pkiMsg;
+                pkiMsg2Sz = pkiMsgSz;
+            }
+        }
+        else {
+            pkiMsg2 = pkiMsg;
+        }
     }
 
     /* update idx if successful */
-    if (ret == 0) {
+    if (ret == 0)
         idx = localIdx;
+    else {
+         pkiMsg2   = pkiMsg;
+         pkiMsg2Sz = pkiMsgSz;
     }
 
     /* If getting the content info failed with non degenerate then return the
@@ -2082,8 +2202,10 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 #ifdef ASN_BER_TO_DER
             der = pkcs7->der;
 #endif
+            contentDynamic = pkcs7->contentDynamic;
             /* This will reset PKCS7 structure and then set the certificate */
             wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+            pkcs7->contentDynamic = contentDynamic;
 #ifdef ASN_BER_TO_DER
             pkcs7->der = der;
 #endif
@@ -2132,7 +2254,16 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
     if (GetSet(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
         return ASN_PARSE_E;
 
-    if (length > 0) {
+    /* require a signer if degenerate case not allowed */
+    if (length == 0 && pkcs7->noDegenerate == 1)
+        return PKCS7_NO_SIGNER_E;
+
+    if (degenerate == 0 && length == 0) {
+        WOLFSSL_MSG("PKCS7 signers expected");
+        return PKCS7_NO_SIGNER_E;
+    }
+
+    if (length > 0 && degenerate == 0) {
         /* Get the sequence of the first signerInfo */
         if (GetSequence(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
             return ASN_PARSE_E;
@@ -2208,8 +2339,8 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
         pkcs7->contentSz = contentSz;
 
         ret = wc_PKCS7_SignedDataVerifySignature(pkcs7, sig, sigSz,
-                                                 signedAttrib, signedAttribSz,
-                                                 hashBuf, hashSz);
+                                             signedAttrib, signedAttribSz,
+                                             hashBuf, hashSz);
         if (ret < 0)
             return ret;
     }

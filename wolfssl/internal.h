@@ -670,7 +670,7 @@
                                                           defined(HAVE_ED25519))
             #define BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256
         #endif
-        #ifndef NO_RSA
+        #if !defined(NO_RSA) && defined(HAVE_ECC)
             #define BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
         #endif
         #if !defined(NO_DH) && !defined(NO_RSA)
@@ -1275,9 +1275,11 @@ enum Misc {
 #endif
 
 #ifdef HAVE_SELFTEST
-    AES_256_KEY_SIZE    = 32,
+    #define WOLFSSL_AES_KEY_SIZE_ENUM
     AES_IV_SIZE         = 16,
     AES_128_KEY_SIZE    = 16,
+    AES_192_KEY_SIZE    = 24,
+    AES_256_KEY_SIZE    = 32,
 #endif
 
     MAX_IV_SZ           = AES_BLOCK_SIZE,
@@ -1323,7 +1325,9 @@ enum Misc {
 
     EVP_SALT_SIZE       =  8,  /* evp salt size 64 bits   */
 
+#ifndef ECDHE_SIZE /* allow this to be overriden at compile-time */
     ECDHE_SIZE          = 32,  /* ECHDE server size defaults to 256 bit */
+#endif
     MAX_EXPORT_ECC_SZ   = 256, /* Export ANS X9.62 max future size */
     MAX_CURVE_NAME_SZ   = 16,  /* Maximum size of curve name string */
 

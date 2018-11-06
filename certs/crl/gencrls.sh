@@ -17,25 +17,23 @@ setup_files() {
     mkdir demoCA || exit 1
     touch ./demoCA/index.txt || exit 1
     touch ./index.txt || exit 1
-    touch ../ecc/index.txt || exit 1
+    touch ../crl/index.txt || exit 1
     touch ./crlnumber || exit 1
-    touch ../ecc/crlnumber || exit 1
+    touch ../crl/crlnumber || exit 1
     echo "01" >> crlnumber || exit 1
-    echo "01" >> ../ecc/crlnumber || exit 1
+    echo "01" >> ../crl/crlnumber || exit 1
     touch ./blank.index.txt || exit 1
     touch ./demoCA/index.txt.attr || exit 1
-    touch ../ecc/index.txt.attr || exit 1
+    touch ../crl/index.txt.attr || exit 1
 }
 
 cleanup_files() {
     rm blank.index.txt || exit 1
     rm index.* || exit 1
     rm crlnumber* || exit 1
-    rm ../ecc/crlnumber* || exit 1
-    rm ../ecc/index.* || exit 1
-    rm -r demoCA || exit 1
+    rm -rf demoCA || exit 1
     echo "Removed ../wolfssl.cnf, blank.index.txt, index.*, crlnumber*, demoCA/"
-    echo "        ../ecc/index.txt"
+    echo "        ../crl/index.txt"
     echo ""
     exit 0
 }
@@ -171,12 +169,12 @@ mv tmp eccSrvCRL.pem
 
 # caEccCrl
 echo "Step 21"
-openssl ca -config ../ecc/wolfssl.cnf -gencrl -crldays 1000 -out caEccCrl.pem -keyfile ../ca-ecc-key.pem -cert ../ca-ecc-cert.pem
+openssl ca -config ./wolfssl.cnf -gencrl -crldays 1000 -out caEccCrl.pem -keyfile ../ca-ecc-key.pem -cert ../ca-ecc-cert.pem
 check_result $?
 
 # ca-ecc384-cert
 echo "Step 22"
-openssl ca -config ../ecc/wolfssl.cnf -gencrl -crldays 1000 -out caEcc384Crl.pem -keyfile ../ca-ecc384-key.pem -cert ../ca-ecc384-cert.pem
+openssl ca -config ./wolfssl.cnf -gencrl -crldays 1000 -out caEcc384Crl.pem -keyfile ../ca-ecc384-key.pem -cert ../ca-ecc384-cert.pem
 check_result $?
 
 exit 0
