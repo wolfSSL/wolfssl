@@ -1826,17 +1826,17 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             err = SSL_get_error(ssl, 0);
             printf("SSL_accept error %d, %s\n", err,
                                                 ERR_error_string(err, buffer));
-            /* cleanup */
-            SSL_free(ssl); ssl = NULL;
-            SSL_CTX_free(ctx); ctx = NULL;
-            CloseSocket(clientfd);
-            CloseSocket(sockfd);
-
-            if (!exitWithRet)
+            if (!exitWithRet) {
                 err_sys_ex(runWithErrors, "SSL_accept failed");
-
-            ((func_args*)args)->return_code = err;
-            goto exit;
+            } else {
+                /* cleanup */
+                SSL_free(ssl); ssl = NULL;
+                SSL_CTX_free(ctx); ctx = NULL;
+                CloseSocket(clientfd);
+                CloseSocket(sockfd);
+                ((func_args*)args)->return_code = err;
+                goto exit;
+            }
         }
 
         showPeerEx(ssl, lng_index);
