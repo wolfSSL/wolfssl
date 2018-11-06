@@ -3296,6 +3296,34 @@ int wc_ecc_get_curve_id_from_params(int fieldSize,
     return ecc_sets[idx].id;
 }
 
+/* Returns the curve id that corresponds to a given OID,
+ * as listed in ecc_sets[] of ecc.c.
+ *
+ * oid   OID, from ecc_sets[].name in ecc.c
+ * len   OID len, from ecc_sets[].name in ecc.c
+ * return curve id, from ecc_sets[] on success, negative on error
+ */
+int wc_ecc_get_curve_id_from_oid(const byte* oid, word32 len)
+{
+    int curve_idx;
+
+    if (oid == NULL)
+        return BAD_FUNC_ARG;
+
+    for (curve_idx = 0; ecc_sets[curve_idx].size != 0; curve_idx++) {
+        if (ecc_sets[curve_idx].oid && ecc_sets[curve_idx].oidSz == len &&
+                              XMEMCMP(ecc_sets[curve_idx].oid, oid, len) == 0) {
+            break;
+        }
+    }
+    if (ecc_sets[curve_idx].size == 0) {
+        WOLFSSL_MSG("ecc_set curve name not found");
+        return ECC_CURVE_INVALID;
+    }
+
+    return ecc_sets[curve_idx].id;
+}
+
 
 #ifdef WOLFSSL_ASYNC_CRYPT
 static WC_INLINE int wc_ecc_alloc_mpint(ecc_key* key, mp_int** mp)
@@ -4007,6 +4035,17 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
         FREE_CURVE_SPECS();
 #endif /* WOLFSSL_SP_MATH */
     }
+
+#ifdef HAVE_WOLF_BIGINT
+    if (err == MP_OKAY)
+         err = wc_mp_to_bigint(&key->k, &key->k.raw);
+    if (err == MP_OKAY)
+         err = wc_mp_to_bigint(key->pubkey.x, &key->pubkey.x->raw);
+    if (err == MP_OKAY)
+         err = wc_mp_to_bigint(key->pubkey.y, &key->pubkey.y->raw);
+    if (err == MP_OKAY)
+         err = wc_mp_to_bigint(key->pubkey.z, &key->pubkey.z->raw);
+#endif
 
 #endif /* WOLFSSL_ATECC508A */
 
