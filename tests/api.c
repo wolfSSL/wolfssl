@@ -1420,9 +1420,8 @@ static void test_wolfSSL_EC(void)
     EC_POINT *Gxy, *new_point;
     BIGNUM *k = NULL, *Gx = NULL, *Gy = NULL, *Gz = NULL;
     BIGNUM *X, *Y;
-#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(DEBUG_WOLFSSL)
     char* hexStr;
-#endif
+
     const char* kTest = "F4F8338AFCC562C5C3F3E1E46A7EFECD17AF381913FF7A96314EA47055EA0FD0";
     /* NISTP256R1 Gx/Gy */
     const char* kGx   = "6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296";
@@ -1459,19 +1458,29 @@ static void test_wolfSSL_EC(void)
     AssertIntEQ(BN_is_zero(X), WOLFSSL_FAILURE);
 
     /* check bx2hex */
-#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(DEBUG_WOLFSSL)
     hexStr = BN_bn2hex(k);
     AssertStrEQ(hexStr, kTest);
+#ifndef NO_FILESYSTEM
+    BN_print_fp(stdout, k);
+    printf("\n");
+#endif
     XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
 
     hexStr = BN_bn2hex(Gx);
     AssertStrEQ(hexStr, kGx);
+#ifndef NO_FILESYSTEM
+    BN_print_fp(stdout, Gx);
+    printf("\n");
+#endif
     XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
 
     hexStr = BN_bn2hex(Gy);
     AssertStrEQ(hexStr, kGy);
-    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+#ifndef NO_FILESYSTEM
+    BN_print_fp(stdout, Gy);
+    printf("\n");
 #endif
+    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
 
     /* cleanup */
     BN_free(X);
@@ -20132,7 +20141,7 @@ static void test_wolfSSL_X509_get_serialNumber(void)
     ASN1_INTEGER* a;
     BIGNUM* bn;
     X509*   x509;
-
+    char *serialHex;
 
     printf(testingFmt, "wolfSSL_X509_get_serialNumber()");
 
@@ -20143,6 +20152,11 @@ static void test_wolfSSL_X509_get_serialNumber(void)
 
     /* check on value of ASN1 Integer */
     AssertNotNull(bn = ASN1_INTEGER_to_BN(a, NULL));
+
+    AssertNotNull(serialHex = BN_bn2hex(bn));
+    AssertStrEQ(serialHex, "1");
+    OPENSSL_free(serialHex);
+
     AssertIntEQ(BN_get_word(bn), 1);
 
     BN_free(bn);

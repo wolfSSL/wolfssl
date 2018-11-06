@@ -23100,7 +23100,6 @@ WOLFSSL_BN_ULONG wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM *bn,
 
 char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM *bn)
 {
-#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(DEBUG_WOLFSSL)
     int len = 0;
     char *buf;
 
@@ -23115,24 +23114,20 @@ char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM *bn)
         WOLFSSL_MSG("mp_radix_size failure");
         return NULL;
     }
+    len += 1; /* add one for null terminator */
 
-    buf = (char*) XMALLOC(len, NULL, DYNAMIC_TYPE_ECC);
+    buf = (char*)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
     if (buf == NULL) {
         WOLFSSL_MSG("BN_bn2hex malloc buffer failure");
         return NULL;
     }
 
     if (mp_tohex((mp_int*)bn->internal, buf) != MP_OKAY) {
-        XFREE(buf, NULL, DYNAMIC_TYPE_ECC);
+        XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
         return NULL;
     }
 
     return buf;
-#else
-    (void)bn;
-    WOLFSSL_MSG("wolfSSL_BN_bn2hex not compiled in");
-    return (char*)"";
-#endif
 }
 
 #ifndef NO_FILESYSTEM
@@ -23141,7 +23136,6 @@ char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM *bn)
  */
 int wolfSSL_BN_print_fp(XFILE fp, const WOLFSSL_BIGNUM *bn)
 {
-#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(DEBUG_WOLFSSL)
     char *buf;
 
     WOLFSSL_ENTER("wolfSSL_BN_print_fp");
@@ -23158,17 +23152,9 @@ int wolfSSL_BN_print_fp(XFILE fp, const WOLFSSL_BIGNUM *bn)
     }
 
     fprintf(fp, "%s", buf);
-    XFREE(buf, NULL, DYNAMIC_TYPE_ECC);
+    XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
 
     return WOLFSSL_SUCCESS;
-#else
-    (void)fp;
-    (void)bn;
-
-    WOLFSSL_MSG("wolfSSL_BN_print_fp not compiled in");
-
-    return WOLFSSL_SUCCESS;
-#endif
 }
 #endif /* !NO_FILESYSTEM */
 
