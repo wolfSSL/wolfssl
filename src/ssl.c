@@ -22567,7 +22567,7 @@ int wolfSSL_sk_push(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, const void *data)
     return WOLFSSL_FAILURE;
 }
 
-#if defined(HAVE_ECC) && defined(WOLFSSL_QT)
+#if defined(HAVE_ECC)
 size_t wolfSSL_EC_get_builtin_curves(wolfSSL_EC_builtin_curve *r, size_t nitems)
 {
     size_t x;
@@ -22594,19 +22594,45 @@ size_t wolfSSL_EC_get_builtin_curves(wolfSSL_EC_builtin_curve *r, size_t nitems)
 
     return ecc_set_cnt;
 }
-#endif
 
-#ifndef NO_WOLFSSL_STUB
+/* Copies ecc_key into new WOLFSSL_EC_KEY object */
 WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
 {
-    (void)src;
     WOLFSSL_ENTER("wolfSSL_EC_KEY_dup");
-    WOLFSSL_STUB("EC_KEY_dup");
-    return NULL;
-}
-#endif
 
-#if defined(WOLFSSL_QT) && !defined(NO_DH)
+    WOLFSSL_EC_KEY *dup;
+    ecc_key *key;
+    int ret;
+
+    if (src == NULL || src->internal == NULL) {
+        WOLFSSL_MSG("src NULL error");
+        return NULL;
+    }
+    
+    dup = wolfSSL_EC_KEY_new();
+    if (dup == NULL) {
+        WOLFSSL_MSG("wolfSSL_EC_KEY_new error");
+        return NULL;
+    }
+    
+    key = (ecc_key*)dup->internal;
+    if (key == NULL) {
+        WOLFSSL_MSG("ecc_key NULL error");
+        return NULL;
+    }
+
+    ret = mp_copy((mp_int*)src->internal, (mp_int*)dup->internal);
+    if (ret != MP_OKAY) {
+        WOLFSSL_MSG("mp_copy error");
+        wolfSSL_EC_KEY_free(dup);
+        return NULL;
+    }
+
+    return dup;
+}
+#endif /* HAVE_ECC */
+
+#if !defined(NO_DH)
 int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
 {
     int codeTmp = 0, isPrime = MP_NO;
@@ -22642,9 +22668,7 @@ int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
 
     return WOLFSSL_SUCCESS;
 }
-#endif
 
-#ifndef NO_DH
 WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh, const unsigned char **pp,
                                                                     long length)
 {
