@@ -29250,7 +29250,7 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
     int ret;
 
     if ((ret = wolfSSL_BIO_pending(bio)) > 0) {
-        printf("\n\n ret1 is: %d \n\n", ret);
+        printf("\n\n wolfssl_bio_pending is >0, ret is %d \n\n", ret);
         memSz = ret;
         mem = (char*)XMALLOC(memSz, bio->heap, DYNAMIC_TYPE_OPENSSL);
         if (mem == NULL) {
@@ -29276,6 +29276,7 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
         while (ret >= 0 && (sz = wolfSSL_BIO_read(bio, tmp, sz)) > 0) {
             if (memSz + sz < 0) {
                 /* sanity check */
+                printf("shoot\n\n\n\n\n");
                 break;
             }
             mem = (char*)XREALLOC(mem, memSz + sz, bio->heap,
@@ -29417,6 +29418,7 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_bio_PUBKEY(WOLFSSL_BIO* bio,
     if (pem_read_bio_key(bio, cb, pass, PUBLICKEY_TYPE, &eccFlag, &der) >= 0) {
         unsigned char* ptr = der->buffer;
         /* handle case where reuse is attempted */
+            printf(" pem_read_bio_key is returning >=0 \n\n");
         if (key != NULL && *key != NULL){
             pkey = *key;
         }

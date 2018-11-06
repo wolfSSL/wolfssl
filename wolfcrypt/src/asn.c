@@ -775,6 +775,7 @@ static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
     int    length;
     byte   b;
 
+
     if ((idx + 1) > maxIdx)
         return BUFFER_E;
 
@@ -796,13 +797,21 @@ static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
     }
 
     b = input[idx];
-    if (zeroBits && b != 0x00)
+    printf("\n\nBitstring b is %hhx\n\n",b);
+    if (zeroBits && b != 0x00){
+        printf("\n\n****ONLY ONEEEE*****\n\n");
         return ASN_EXPECT_0_E;
-    if (b >= 0x08)
+    }
+    if (b >= 0x08){
+        printf("\n\n****ONLY TWOOOO*****\n\n");
         return ASN_PARSE_E;
+    }
     if (b != 0) {
-        if ((byte)(input[idx + length - 1] << (8 - b)) != 0)
+        printf("\n\n****ONLY THREEEE*****\n\n");
+        if ((byte)(input[idx + length - 1] << (8 - b)) != 0){
+            printf("\n\n****ONLY 4*****\n\n");
             return ASN_PARSE_E;
+        }
     }
     idx++;
     length--; /* length has been checked for greater than 0 */
@@ -3621,9 +3630,28 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
                         word32 inSz)
 {
     int    length;
+    int ret;
+    word32 oid;
 
     if (input == NULL || inOutIdx == NULL || key == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    printf("inSz is: %d  inOutIdx is: %d\n\n", inSz, *inOutIdx);
+
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+        return ASN_PARSE_E;
+
+    {
+        int i;
+        printf("\n\nSequence 1:");
+printf("inSz is: %d  length is: %d  inOutIdx is: %d\n", inSz, length, *inOutIdx);
+        for (i = *inOutIdx; i<length; i++)
+            printf("%02x", input[i]);
+        printf("\n");
+        for (i = *inOutIdx; i<length; i++)
+            printf("[%d]", i);
+        printf("\n");
     }
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
@@ -3631,20 +3659,103 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
 
     {
         int i;
-        for (i = 0; i<(int)inSz; i++)
+        printf("\n\nSequence 2:");
+printf("inSz is: %d  length is: %d  inOutIdx is: %d\n", inSz, length, *inOutIdx);
+        for (i = *inOutIdx; i<length; i++)
             printf("%02x", input[i]);
+        printf("\n");
+        for (i = *inOutIdx; i<length; i++)
+            printf("[%d]", i);
         printf("\n");
     }
 
 
+    //asn.1 syntax 
+    //#ifdef OPENSSL_EXTRA
+    //maybe getsequence
+    // ret = GetSequence(input, inOutIdx, &length, sz);
+    // printf("ret_seq is %d\n", ret);
+    // printf("length is %d\n", length);
+    // {
+    //     int i;
+    //     for (i = 0; i<length; i++)
+    //         printf("%02x", inOutIdx[i]);
+    //     printf("\n");
+    // }
+
+// * Certificate SEQUENCE */
+//     if (GetSequence(cert, &idx, &len, certSz) < 0)
+    // ret = GetObjectId(input, inOutIdx, &oidSum, oidIgnoreType,
+    //                               inSz);
+
+    ret = GetObjectId(input, inOutIdx, &oid, oidIgnoreType, inSz);
+        if (ret != 0)
+            return ret;
+
+    printf("length is %d\n", length);
+    printf("ret_obj is %d\n", ret);
+    {
+        int i;
+        printf("\n\nObject 1:");
+        printf("inSz is: %d  length is: %d  inOutIdx is: %d\n\n", inSz, length, *inOutIdx);
+        for (i = *inOutIdx; i<length; i++)
+            printf("%02x", input[i]);
+        printf("\n");
+        for (i = *inOutIdx; i<length; i++)
+            printf("[%d]", i);
+        printf("\n");
+    }
+
+
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+        return ASN_PARSE_E;
+    //#endif //OPENSSL_EXTRA
+    {
+        int i;
+        printf("\n\nSequence 3:");
+        printf("inSz is: %d  length is: %d  inOutIdx is: %d\n\n", inSz, length, *inOutIdx);
+        for (i = *inOutIdx; i<length; i++)
+            printf("%02x", input[i]);
+        printf("\n");
+        for (i = *inOutIdx; i<length; i++)
+            printf("[%d]", i);
+        printf("\n");
+    }
+
+
+
+
+
+
+printf("input is: %02x  length is: %d  inOutIdx is: %d\n\n", input[*inOutIdx], length, *inOutIdx);
+
+
     if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->q,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->g,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->y,  input, inOutIdx, inSz) < 0 )
-    {
+        GetInt(&key->g,  input, inOutIdx, inSz) < 0)
         return ASN_DH_KEY_E;
-        
-    }
+printf("input is: %02x  length is: %d  inOutIdx is: %d\n\n", input[*inOutIdx], length, *inOutIdx);
+
+
+printf("input is: %02x  length is: %d  inOutIdx is: %d\n\n", input[*inOutIdx], length, *inOutIdx);
+        if (CheckBitString(input, inOutIdx, &length, inSz, 0, NULL) < 0)
+            ret = ASN_PARSE_E;
+
+
+printf("pooinput is: %02x  length is: %d  inOutIdx is: %d\n\n", input[*inOutIdx], length, *inOutIdx);
+
+        // check for 03(asn_bit) then get length
+        // increase index by 1
+        // get length
+        // tahts the length of string
+        // openssl_extra
+        // //check bitstring
+        // end openssl_extra
+
+    if (GetInt(&key->y,  input, inOutIdx, inSz) < 0 )
+        return ASN_DH_KEY_E;
+
+
     key->type = DSA_PUBLIC;
     return 0;
 }
