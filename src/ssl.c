@@ -21049,17 +21049,30 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
         return OUTPUT_STR[state][protocol][cbmode];
 }
 
-#ifndef NO_WOLFSSL_STUB
+/*
+ * Sets default PEM callback password if null is passed into
+ * the callback parameter of a PEM_read_bio_* function.
+ * 
+ * Returns callback phrase size on success or WOLFSSL_FAILURE otherwise.
+ */
 int wolfSSL_PEM_def_callback(char* name, int num, int w, void* key)
 {
-    (void)name;
-    (void)num;
+    int Sz;
     (void)w;
-    (void)key;
-    WOLFSSL_STUB("PEM_def_callback");
-    return 0;
+    WOLFSSL_ENTER("wolfSSL_PEM_def_callback");
+
+    /* We assume that the user passes a default password as userdata */
+    if (key) {
+        Sz = strlen(key);
+        Sz = (Sz > num) ? num : Sz;
+        memcpy(name, key, Sz);
+        return Sz;
+    } else {
+        WOLFSSL_MSG("Error, default password cannot be created.");
+        return WOLFSSL_FAILURE;
+    }
+
 }
-#endif
 
 #endif
 
@@ -27800,9 +27813,9 @@ int wolfSSL_PEM_write_bio_RSA_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa)
     }
 
     /* Key to DER */
-    derSz = wc_RsaKeyToDer((RsaKey*)rsa->internal, derBuf, derMax);
+    derSz = wc_RsaKeyToPublicDer((RsaKey*)rsa->internal, derBuf, derMax);
     if (derSz < 0) {
-        WOLFSSL_MSG("wc_RsaKeyToDer failed");
+        WOLFSSL_MSG("wc_RsaKeyToPublicDer failed");
         XFREE(derBuf, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
         wolfSSL_EVP_PKEY_free(pkey);
         return WOLFSSL_FAILURE;
@@ -30346,7 +30359,14 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
 #else
     EncryptedInfo info[1];
 #endif /* WOLFSSL_SMALL_STACK */
-    pem_password_cb* localCb = cb;
+    pem_password_cb* localCb = NULL;
+    if(cb) {
+        localCb = cb;
+    } else {
+        if(pass) {
+            localCb = wolfSSL_PEM_def_callback;
+        }
+    }
 
     char* mem = NULL;
     int memSz = 0;
