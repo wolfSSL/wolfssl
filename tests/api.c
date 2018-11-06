@@ -15960,7 +15960,7 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
 static void test_wc_PKCS7_Degenerate(void)
 {
 #if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM)
-    PKCS7  pkcs7;
+    PKCS7* pkcs7;
     char   fName[] = "./certs/test-degenerate.p7b";
     XFILE  f;
     byte   der[4096];
@@ -15975,17 +15975,19 @@ static void test_wc_PKCS7_Degenerate(void)
     XFCLOSE(f);
 
     /* test degenerate success */
-    AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, INVALID_DEVID), 0);
-    AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, NULL, 0), 0);
-    AssertIntEQ(wc_PKCS7_VerifySignedData(&pkcs7, der, derSz), 0);
-    wc_PKCS7_Free(&pkcs7);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+    wc_PKCS7_Free(pkcs7);
 
     /* test with turning off degenerate cases */
-    AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, INVALID_DEVID), 0);
-    AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, NULL, 0), 0);
-    wc_PKCS7_AllowDegenerate(&pkcs7, 0); /* override allowing degenerate case */
-    AssertIntEQ(wc_PKCS7_VerifySignedData(&pkcs7, der, derSz), PKCS7_NO_SIGNER_E);
-    wc_PKCS7_Free(&pkcs7);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    wc_PKCS7_AllowDegenerate(pkcs7, 0); /* override allowing degenerate case */
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), PKCS7_NO_SIGNER_E);
+    wc_PKCS7_Free(pkcs7);
 
     printf(resultFmt, passed);
 #endif
