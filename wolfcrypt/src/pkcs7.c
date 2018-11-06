@@ -3559,10 +3559,10 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             /* content expected? */
             if ((ret == 0 && length > 0) &&
                 !(pkiMsg2 && pkiMsg2Sz > 0 && hashBuf && hashSz > 0)) {
-                pkcs7->stream->expected = length;
+                pkcs7->stream->expected = length + ASN_TAG_SZ;
             }
             else {
-                pkcs7->stream->expected = 0;
+                pkcs7->stream->expected = ASN_TAG_SZ;
             }
 
             if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &stateIdx, &idx)) != 0) {
@@ -3572,7 +3572,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
             /* content length is in multiple parts */
             if (multiPart) {
-                pkcs7->stream->expected = contentLen;
+                pkcs7->stream->expected = contentLen + ASN_TAG_SZ;
             }
             pkcs7->stream->multi = multiPart;
 
@@ -3686,6 +3686,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             }
             else {
                 pkiMsg2 = pkiMsg;
+                pkiMsg2Sz = pkiMsgSz;
             #ifndef NO_PKCS7_STREAM
                 pkcs7->stream->flagOne = 1;
             #endif
@@ -3702,14 +3703,18 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             }
 
             /* Get the implicit[0] set of certificates */
-            if (pkiMsg2[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
+            if (ret == 0 && idx >= pkiMsg2Sz)
+                ret = BUFFER_E;
+
+            if (ret == 0 && pkiMsg2[idx] ==
+                    (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
                 idx++;
                 if (GetLength(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
                     ret = ASN_PARSE_E;
 
-            if (ret != 0) {
-                break;
-            }
+                if (ret != 0) {
+                    break;
+                }
         #ifndef NO_PKCS7_STREAM
             /* save content */
             if (content != NULL) {
@@ -3921,7 +3926,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 ret = ASN_PARSE_E;
 
             /* Get the implicit[1] set of crls */
-            if (ret == 0 && idx > pkiMsg2Sz)
+            if (ret == 0 && idx >= pkiMsg2Sz)
                 ret = BUFFER_E;
 
             if (ret == 0 && pkiMsg2[idx] ==
