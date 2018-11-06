@@ -3005,7 +3005,7 @@ int hash_test(void)
         return -3094;
 
 #ifndef NO_ASN
-#ifdef WOLFSSL_MD2
+#if defined(WOLFSSL_MD2) && !defined(HAVE_SELFTEST)
     ret = wc_GetCTC_HashOID(MD2);
     if (ret == 0)
         return -3095;
@@ -10504,7 +10504,8 @@ static int rsa_keygen_test(WC_RNG* rng)
     /* If not using old FIPS, or not using FAST or USER RSA... */
     #if !defined(HAVE_FAST_RSA) && !defined(HAVE_USER_RSA) && \
         (!defined(HAVE_FIPS) || \
-         (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
+         (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))) && \
+        !defined(HAVE_SELFTEST)
     ret = wc_CheckRsaKey(&genKey);
     if (ret != 0) {
         ERROR_OUT(-8228, exit_rsa);
@@ -11620,7 +11621,6 @@ static int dh_fips_generate_test(WC_RNG *rng)
     if (ret != MP_CMP_E) {
         ERROR_OUT(-8230, exit_gen_test);
     }
-#endif /* HAVE_SELFTEST */
 
 #ifdef WOLFSSL_KEY_GEN
     wc_FreeDhKey(&key);
@@ -11645,6 +11645,7 @@ static int dh_fips_generate_test(WC_RNG *rng)
     }
 
 #endif /* WOLFSSL_KEY_GEN */
+#endif /* HAVE_SELFTEST */
 
     ret = 0;
 

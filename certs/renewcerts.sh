@@ -30,6 +30,9 @@
 #                       crl/crl.revoked
 #                       crl/eccCliCRL.pem
 #                       crl/eccSrvCRL.pem
+#
+#                       pkcs7:
+#                       test-degenerate.p7b
 # if HAVE_NTRU
 #                       ntru-cert.pem
 #                       ntru-key.raw
@@ -569,6 +572,19 @@ run_renewcerts(){
     check_result $? "gencrls.sh"
     echo "ran ./gencrls.sh"
     echo ""
+
+    ############################################################
+    ########## generate PKCS7 bundles ##########################
+    ############################################################
+    echo "Changing directory to wolfssl certs..."
+    echo ""
+    cd ../ || exit 1
+    echo "Creating test-degenerate.p7b..."
+    echo ""
+    openssl crl2pkcs7 -nocrl -certfile ./client-cert.pem -out test-degenerate.p7b -outform DER
+    check_result $? ""
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
 
     #cleanup the file system now that we're done
     echo "Performing final steps, cleaning up the file system..."

@@ -660,7 +660,7 @@ int atcatls_sign_certificate_cb(WOLFSSL* ssl, const byte* in, word32 inSz,
     byte* out, word32* outSz, const byte* key, word32 keySz, void* ctx)
 {
     int ret;
-    byte sigRs[ATECC_SIG_SIZE*2];
+    byte sigRs[ATECC_SIG_SIZE];
     int slotId;
 
     (void)ssl;
@@ -690,8 +690,8 @@ int atcatls_sign_certificate_cb(WOLFSSL* ssl, const byte* in, word32 inSz,
 
     /* Encode with ECDSA signature */
     ret = wc_ecc_rs_raw_to_sig(
-        &sigRs[0], ATECC_SIG_SIZE,
-        &sigRs[ATECC_SIG_SIZE], ATECC_SIG_SIZE,
+        &sigRs[0], ATECC_SIG_SIZE/2,
+        &sigRs[ATECC_SIG_SIZE/2], ATECC_SIG_SIZE/2,
         out, outSz);
     if (ret != 0) {
         goto exit;
@@ -724,9 +724,9 @@ int atcatls_verify_signature_cb(WOLFSSL* ssl, const byte* sig, word32 sigSz,
     uint8_t* qx = &peerKey[0];
     uint8_t* qy = &peerKey[ATECC_PUBKEY_SIZE/2];
     word32 qxLen = ATECC_PUBKEY_SIZE/2, qyLen = ATECC_PUBKEY_SIZE/2;
-    byte sigRs[ATECC_SIG_SIZE*2];
-    word32 rSz = ATECC_SIG_SIZE;
-    word32 sSz = ATECC_SIG_SIZE;
+    byte sigRs[ATECC_SIG_SIZE];
+    word32 rSz = ATECC_SIG_SIZE/2;
+    word32 sSz = ATECC_SIG_SIZE/2;
 
     (void)sigSz;
     (void)hashSz;
@@ -753,7 +753,7 @@ int atcatls_verify_signature_cb(WOLFSSL* ssl, const byte* sig, word32 sigSz,
         /* decode the ECDSA signature */
         ret = wc_ecc_sig_to_rs(sig, sigSz,
             &sigRs[0], &rSz,
-            &sigRs[ATECC_SIG_SIZE], &sSz);
+            &sigRs[ATECC_SIG_SIZE/2], &sSz);
         if (ret != 0) {
             goto exit;
         }

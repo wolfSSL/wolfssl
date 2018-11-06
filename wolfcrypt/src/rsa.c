@@ -3109,6 +3109,25 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (err == MP_OKAY)
         key->type = RSA_PRIVATE;
 
+#ifdef HAVE_WOLF_BIGINT
+    if (err == MP_OKAY)
+         err = wc_mp_to_bigint(&key->n, &key->n.raw);
+    if (err == MP_OKAY)
+         err = wc_mp_to_bigint(&key->e, &key->e.raw);
+    if (err == MP_OKAY)
+         err = wc_mp_to_bigint(&key->d, &key->d.raw);
+    if (err == MP_OKAY)
+         err = wc_mp_to_bigint(&key->p, &key->p.raw);
+    if (err == MP_OKAY)
+         err = wc_mp_to_bigint(&key->q, &key->q.raw);
+    if (err == MP_OKAY)
+         err = wc_mp_to_bigint(&key->dP, &key->dP.raw);
+    if (err == MP_OKAY)
+         err = wc_mp_to_bigint(&key->dQ, &key->dQ.raw);
+    if (err == MP_OKAY)
+         err = wc_mp_to_bigint(&key->u, &key->u.raw);
+#endif
+
     mp_clear(&tmp1);
     mp_clear(&tmp2);
     mp_clear(&tmp3);

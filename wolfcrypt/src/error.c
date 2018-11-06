@@ -497,6 +497,9 @@ const char* wc_GetErrorString(int error)
     case ZLIB_DECOMPRESS_ERROR:
         return "zlib decompress error";
 
+    case PKCS7_NO_SIGNER_E:
+        return "No signer in PKCS#7 signed data";
+
     default:
         return "unknown error number";
 

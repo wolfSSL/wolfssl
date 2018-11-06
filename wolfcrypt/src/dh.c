@@ -1246,8 +1246,13 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
         return MEMORY_E;
     }
 #endif
-    if (mp_init_multi(x, y, 0, 0, 0, 0) != MP_OKAY)
+    if (mp_init_multi(x, y, 0, 0, 0, 0) != MP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(y, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(x, key->heap, DYNAMIC_TYPE_DH);
+    #endif
         return MP_INIT_E;
+    }
 
     if (mp_read_unsigned_bin(x, priv, privSz) != MP_OKAY)
         ret = MP_READ_E;
@@ -1397,6 +1402,11 @@ int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
 #endif
 
     if (mp_init_multi(y, p, q, NULL, NULL, NULL) != MP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(q, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(p, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(y, key->heap, DYNAMIC_TYPE_DH);
+    #endif
         return MP_INIT_E;
     }
 
@@ -1541,6 +1551,10 @@ int wc_DhCheckPrivKey_ex(DhKey* key, const byte* priv, word32 privSz,
 #endif
 
     if (mp_init_multi(x, q, NULL, NULL, NULL, NULL) != MP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(q, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(x, key->heap, DYNAMIC_TYPE_DH);
+    #endif
         return MP_INIT_E;
     }
 
@@ -1657,6 +1671,11 @@ int wc_DhCheckKeyPair(DhKey* key, const byte* pub, word32 pubSz,
     if (mp_init_multi(publicKey, privateKey, checkKey,
                       NULL, NULL, NULL) != MP_OKAY) {
 
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(privateKey, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(publicKey, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(checkKey, key->heap, DYNAMIC_TYPE_DH);
+    #endif
         return MP_INIT_E;
     }
 
@@ -1838,8 +1857,14 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 #endif
 
 #ifndef WOLFSSL_SP_MATH
-    if (mp_init_multi(x, y, z, 0, 0, 0) != MP_OKAY)
+    if (mp_init_multi(x, y, z, 0, 0, 0) != MP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(z, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(x, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(y, key->heap, DYNAMIC_TYPE_DH);
+    #endif
         return MP_INIT_E;
+    }
 
     if (mp_read_unsigned_bin(x, priv, privSz) != MP_OKAY)
         ret = MP_READ_E;

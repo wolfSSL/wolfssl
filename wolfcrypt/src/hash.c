@@ -178,11 +178,11 @@ enum wc_HashType wc_OidGetHash(int oid)
     enum wc_HashType hash_type = WC_HASH_TYPE_NONE;
     switch (oid)
     {
+    #ifdef WOLFSSL_MD2
         case MD2h:
-        #ifdef WOLFSSL_MD2
             hash_type = WC_HASH_TYPE_MD2;
-        #endif
             break;
+    #endif
         case MD5h:
         #ifndef NO_MD5
             hash_type = WC_HASH_TYPE_MD5;

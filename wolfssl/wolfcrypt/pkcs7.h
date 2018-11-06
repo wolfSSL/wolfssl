@@ -102,6 +102,7 @@ typedef struct PKCS7 {
     WC_RNG* rng;
     PKCS7Attrib* signedAttribs;
     byte*  content;               /* inner content, not owner             */
+    byte*  contentDynamic;        /* content if constructed OCTET_STRING  */
     byte*  singleCert;            /* recipient cert, DER, not owner       */
     const byte* issuer;           /* issuer name of singleCert            */
     byte*  privateKey;            /* private key, DER, not owner          */
@@ -144,6 +145,7 @@ typedef struct PKCS7 {
     
      /* flags - up to 16-bits */
     word16 isDynamic:1;
+    word16 noDegenerate:1; /* allow degenerate case in verify function */
 
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 } PKCS7;
@@ -163,6 +165,7 @@ WOLFSSL_API int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
 WOLFSSL_API int  wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf, 
     word32 hashSz, byte* outputHead, word32* outputHeadSz, byte* outputFoot, 
     word32* outputFootSz);
+WOLFSSL_API void wc_PKCS7_AllowDegenerate(PKCS7* pkcs7, word16 flag);
 WOLFSSL_API int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
                                        byte* pkiMsg, word32 pkiMsgSz);
 WOLFSSL_API int  wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf, 

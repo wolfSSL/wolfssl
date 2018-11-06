@@ -44,7 +44,10 @@
 #include <wolfssl/openssl/dh.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/settings.h>
+#endif
 
+#if defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY)
+#include <wolfssl/wolfcrypt/asn.h>
 #endif
 
 #ifdef __cplusplus
@@ -895,6 +898,10 @@ typedef WOLFSSL_ASN1_BIT_STRING          ASN1_BIT_STRING;
 #define SSL_R_UNKNOWN_PROTOCOL                     VERSION_ERROR
 #define SSL_R_WRONG_VERSION_NUMBER                 VERSION_ERROR
 #define SSL_R_DECRYPTION_FAILED_OR_BAD_RECORD_MAC  ENCRYPT_ERROR
+#define SSL_R_HTTPS_PROXY_REQUEST                  PARSE_ERROR
+#define SSL_R_HTTP_REQUEST                         PARSE_ERROR
+#define SSL_R_UNSUPPORTED_PROTOCOL                 VERSION_ERROR
+
 
 #ifdef HAVE_SESSION_TICKET
 #define SSL_OP_NO_TICKET                  SSL_OP_NO_TICKET
@@ -952,8 +959,9 @@ typedef WOLFSSL_ASN1_BIT_STRING          ASN1_BIT_STRING;
 #define X509_NAME_ENTRY_get_object        wolfSSL_X509_NAME_ENTRY_get_object
 #define SSL_get_SSL_CTX                   wolfSSL_get_SSL_CTX
 #define ERR_peek_last_error               wolfSSL_ERR_peek_last_error
+#ifndef WOLFSSL_HAPROXY
 #define X509_get_version                  wolfSSL_X509_get_version
-
+#endif
 
 #define ERR_NUM_ERRORS                  16
 #define EVP_PKEY_RSA                    6 

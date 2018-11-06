@@ -36,6 +36,12 @@
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
 #endif
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
 
 #define MAX_EC_PARAM_LEN   16
 
@@ -73,7 +79,7 @@ static CK_OBJECT_CLASS secretKeyClass  = CKO_SECRET_KEY;
  *          WC_HW_E when unable to get PKCS#11 function list.
  *          0 on success.
  */
-int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library)
+int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library, void* heap)
 {
     int                  ret = 0;
     void*                func;
@@ -83,9 +89,12 @@ int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library)
         ret = BAD_FUNC_ARG;
 
     if (ret == 0) {
+        dev->heap = heap;
         dev->dlHandle = dlopen(library, RTLD_NOW | RTLD_LOCAL);
-        if (dev->dlHandle == NULL)
+        if (dev->dlHandle == NULL) {
+            WOLFSSL_MSG(dlerror());
             ret = BAD_PATH_ERROR;
+        }
     }
 
     if (ret == 0) {
@@ -148,10 +157,10 @@ void wc_Pkcs11_Finalize(Pkcs11Dev* dev)
 int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
     const char* tokenName, const unsigned char* userPin, int userPinSz)
 {
-    int        ret = 0;
-    CK_RV      rv;
-    CK_SLOT_ID slot;
-    CK_ULONG   slotCnt = 1;
+    int         ret = 0;
+    CK_RV       rv;
+    CK_SLOT_ID* slot = NULL;
+    CK_ULONG    slotCnt = 0;
 
     if (token == NULL || dev == NULL || tokenName == NULL)
         ret = BAD_FUNC_ARG;
@@ -159,14 +168,25 @@ int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
     if (ret == 0) {
         if (slotId < 0) {
             /* Use first available slot with a token. */
-            rv = dev->func->C_GetSlotList(CK_TRUE, &slot, &slotCnt);
+            rv = dev->func->C_GetSlotList(CK_TRUE, NULL, &slotCnt);
             if (rv != CKR_OK)
                 ret = WC_HW_E;
             if (ret == 0) {
+                slot = (CK_SLOT_ID*)XMALLOC(slotCnt * sizeof(*slot), dev->heap,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                if (slot == NULL)
+                    ret = MEMORY_E;
+            }
+            if (ret == 0) {
+                rv = dev->func->C_GetSlotList(CK_TRUE, slot, &slotCnt);
+                if (rv != CKR_OK)
+                    ret = WC_HW_E;
+            }
+            if (ret == 0) {
                 if (slotCnt > 0)
-                    slotId = (int)slot;
+                    slotId = (int)slot[0];
                 else
-                    ret = -1;
+                    ret = WC_HW_E;
             }
         }
     }
@@ -177,6 +197,9 @@ int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
         token->userPin = (CK_UTF8CHAR_PTR)userPin;
         token->userPinSz = (CK_ULONG)userPinSz;
     }
+
+    if (slot != NULL)
+        XFREE(slot, dev->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -192,6 +215,7 @@ void wc_Pkcs11Token_Final(Pkcs11Token* token)
     if (token != NULL && token->func != NULL) {
         token->func->C_CloseAllSessions(token->slotId);
         token->handle = NULL_PTR;
+        ForceZero(token->userPin, token->userPinSz);
     }
 }
 
@@ -947,6 +971,7 @@ static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
         { CKA_VERIFY,          &ckTrue,  sizeof(ckTrue)  },
         { CKA_PUBLIC_EXPONENT, &pub_exp, sizeof(pub_exp) }
     };
+    CK_ULONG          pubTmplCnt = sizeof(pubKeyTmpl)/sizeof(*pubKeyTmpl);
     CK_ATTRIBUTE      privKeyTmpl[] = {
         {CKA_DECRYPT,  &ckTrue, sizeof(ckTrue) },
         {CKA_SIGN,     &ckTrue, sizeof(ckTrue) },
@@ -979,8 +1004,9 @@ static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
         mech.pParameter     = NULL;
 
         rv = session->func->C_GenerateKeyPair(session->handle, &mech,
-                                                pubKeyTmpl, 4, privKeyTmpl,
-                                                privTmplCnt, &pubKey, &privKey);
+                                                       pubKeyTmpl, pubTmplCnt,
+                                                       privKeyTmpl, privTmplCnt,
+                                                       &pubKey, &privKey);
         if (rv != CKR_OK)
             ret = -1;
     }
@@ -1216,7 +1242,7 @@ static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
  * @return  WC_HW_E when a PKCS#11 library call fails.
  *          0 on success.
  */
-static int Pkcs11EC_KeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
+static int Pkcs11EcKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
 {
     int               ret = 0;
     ecc_key*          key = info->pk.eckg.key;
@@ -1229,6 +1255,7 @@ static int Pkcs11EC_KeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
         { CKA_ENCRYPT,         &ckTrue,  sizeof(ckTrue)  },
         { CKA_VERIFY,          &ckTrue,  sizeof(ckTrue)  },
     };
+    int               pubTmplCnt = sizeof(pubKeyTmpl)/sizeof(*pubKeyTmpl);
     CK_ATTRIBUTE      privKeyTmpl[] = {
         { CKA_DECRYPT,  &ckTrue, sizeof(ckTrue) },
         { CKA_SIGN,     &ckTrue, sizeof(ckTrue) },
@@ -1255,8 +1282,9 @@ static int Pkcs11EC_KeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
         mech.pParameter     = NULL;
 
         rv = session->func->C_GenerateKeyPair(session->handle, &mech,
-                                              pubKeyTmpl, 2, privKeyTmpl,
-                                              privTmplCnt, &pubKey, &privKey);
+                                                       pubKeyTmpl, pubTmplCnt,
+                                                       privKeyTmpl, privTmplCnt,
+                                                       &pubKey, &privKey);
         if (rv != CKR_OK)
             ret = -1;
     }
@@ -1931,7 +1959,7 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     #endif
     #ifdef HAVE_ECC
                     case WC_PK_TYPE_EC_KEYGEN:
-                        ret = Pkcs11EC_KeyGen(&session, info);
+                        ret = Pkcs11EcKeyGen(&session, info);
                         break;
                     case WC_PK_TYPE_ECDH:
                         ret = Pkcs11ECDH(&session, info);

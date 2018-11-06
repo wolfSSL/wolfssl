@@ -2569,6 +2569,9 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
             } else if (ssl->options.closeNotify) {
                 ssl->error = WOLFSSL_ERROR_SYSCALL;   /* simulate OpenSSL behavior */
                 ret = WOLFSSL_SUCCESS;
+            } else if ((ssl->error == WOLFSSL_ERROR_NONE) &&
+                       (ret < WOLFSSL_SUCCESS)) {
+                ret = WOLFSSL_SHUTDOWN_NOT_DONE;
             }
         }
     }
@@ -4474,6 +4477,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     int           resetSuites = 0;
     void*         heap = wolfSSL_CTX_GetHeap(ctx, ssl);
     int           devId = wolfSSL_CTX_GetDevId(ctx, ssl);
+    word32        idx;
+    int           keySz = 0;
 #ifdef WOLFSSL_SMALL_STACK
     EncryptedInfo* info = NULL;
 #else
@@ -4482,6 +4487,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
     (void)rsaKey;
     (void)devId;
+    (void)idx;
+    (void)keySz;
 
     if (used)
         *used = sz;     /* used bytes default to sz, PEM chain may shorten*/
@@ -4682,7 +4689,6 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     #ifndef NO_RSA
         if (!eccKey && !ed25519Key) {
             /* make sure RSA key can be used */
-            word32 idx = 0;
         #ifdef WOLFSSL_SMALL_STACK
             RsaKey* key = NULL;
         #else
@@ -4697,6 +4703,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
             ret = wc_InitRsaKey_ex(key, heap, devId);
             if (ret == 0) {
+                idx = 0;
                 if (wc_RsaPrivateKeyDecode(der->buffer, &idx, key, der->length)
                     != 0) {
                 #ifdef HAVE_ECC
@@ -4711,22 +4718,21 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 }
                 else {
                     /* check that the size of the RSA key is enough */
-                    int rsaSz = wc_RsaEncryptSize((RsaKey*)key);
-                    int minRsaSz;
-
-                    minRsaSz = ssl ? ssl->options.minRsaKeySz : ctx->minRsaKeySz;
-                    if (rsaSz < minRsaSz) {
+                    int minRsaSz = ssl ? ssl->options.minRsaKeySz :
+                        ctx->minRsaKeySz;
+                    keySz = wc_RsaEncryptSize((RsaKey*)key);
+                    if (keySz < minRsaSz) {
                         ret = RSA_KEY_SIZE_E;
                         WOLFSSL_MSG("Private Key size too small");
                     }
 
                     if (ssl) {
                         ssl->buffers.keyType = rsa_sa_algo;
-                        ssl->buffers.keySz = rsaSz;
+                        ssl->buffers.keySz = keySz;
                     }
                     else if(ctx) {
                         ctx->privateKeyType = rsa_sa_algo;
-                        ctx->privateKeySz = rsaSz;
+                        ctx->privateKeySz = keySz;
                     }
 
                     rsaKey = 1;
@@ -4752,7 +4758,6 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     #ifdef HAVE_ECC
         if (!rsaKey && !ed25519Key) {
             /* make sure ECC key can be used */
-            word32   idx = 0;
         #ifdef WOLFSSL_SMALL_STACK
             ecc_key* key = NULL;
         #else
@@ -4766,17 +4771,16 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #endif
 
             if (wc_ecc_init_ex(key, heap, devId) == 0) {
+                idx = 0;
                 if (wc_EccPrivateKeyDecode(der->buffer, &idx, key,
                                                             der->length) == 0) {
-                    int keySz = wc_ecc_size(key);
-                    int minKeySz;
-
                     /* check for minimum ECC key size and then free */
-                    minKeySz = ssl ? ssl->options.minEccKeySz : ctx->minEccKeySz;
+                    int minKeySz = ssl ? ssl->options.minEccKeySz :
+                                                            ctx->minEccKeySz;
+                    keySz = wc_ecc_size(key);
                     if (keySz < minKeySz) {
-                        wc_ecc_free(key);
                         WOLFSSL_MSG("ECC private key too small");
-                        return ECC_KEY_SIZE_E;
+                        ret = ECC_KEY_SIZE_E;
                     }
 
                     eccKey = 1;
@@ -4804,12 +4808,14 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(key, heap, DYNAMIC_TYPE_ECC);
         #endif
+
+            if (ret != 0)
+                return ret;
         }
     #endif /* HAVE_ECC */
     #ifdef HAVE_ED25519
         if (!rsaKey && !eccKey) {
             /* make sure Ed25519 key can be used */
-            word32       idx = 0;
         #ifdef WOLFSSL_SMALL_STACK
             ed25519_key* key = NULL;
         #else
@@ -4825,6 +4831,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
             ret = wc_ed25519_init(key);
             if (ret == 0) {
+                idx = 0;
                 if (wc_Ed25519PrivateKeyDecode(der->buffer, &idx, key,
                                                             der->length) != 0) {
                     ret = WOLFSSL_BAD_FILE;
@@ -4834,7 +4841,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     /* check for minimum key size and then free */
                     int minKeySz = ssl ? ssl->options.minEccKeySz :
                                                                ctx->minEccKeySz;
-                    if (ED25519_KEY_SIZE < minKeySz) {
+                    keySz = ED25519_KEY_SIZE;
+                    if (keySz < minKeySz) {
                         WOLFSSL_MSG("ED25519 private key too small");
                         ret = ECC_KEY_SIZE_E;
                     }
@@ -4842,11 +4850,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 if (ret == 0) {
                     if (ssl) {
                         ssl->buffers.keyType = ed25519_sa_algo;
-                        ssl->buffers.keySz = ED25519_KEY_SIZE;
+                        ssl->buffers.keySz = keySz;
                     }
                     else if (ctx) {
                         ctx->privateKeyType = ed25519_sa_algo;
-                        ctx->privateKeySz = ED25519_KEY_SIZE;
+                        ctx->privateKeySz = keySz;
                     }
 
                     ed25519Key = 1;
@@ -4878,7 +4886,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         DecodedCert  cert[1];
     #endif
     #ifdef HAVE_PK_CALLBACKS
-        int keyType = 0, keySz = 0;
+        int keyType = 0;
     #endif
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -4968,71 +4976,78 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         switch (cert->keyOID) {
         #ifndef NO_RSA
             case RSAk:
+            #ifdef HAVE_PK_CALLBACKS
+                keyType = rsa_sa_algo;
+            #endif
+                /* Determine RSA key size by parsing public key */
+                idx = 0;
+                ret = wc_RsaPublicKeyDecode_ex(cert->publicKey, &idx,
+                    cert->pubKeySize, NULL, (word32*)&keySz, NULL, NULL);
+                if (ret < 0)
+                    break;
+
                 if (ssl && !ssl->options.verifyNone) {
                     if (ssl->options.minRsaKeySz < 0 ||
-                          cert->pubKeySize < (word16)ssl->options.minRsaKeySz) {
+                          keySz < (int)ssl->options.minRsaKeySz) {
                         ret = RSA_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate RSA key size too small");
                     }
                 }
                 else if (ctx && !ctx->verifyNone) {
                     if (ctx->minRsaKeySz < 0 ||
-                                  cert->pubKeySize < (word16)ctx->minRsaKeySz) {
+                                  keySz < (int)ctx->minRsaKeySz) {
                         ret = RSA_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate RSA key size too small");
                     }
                 }
-            #ifdef HAVE_PK_CALLBACKS
-                keyType = rsa_sa_algo;
-                /* pubKeySize is the encoded public key */
-                /* mask lsb 5-bits to round by 16 to get actual key size */
-                keySz = cert->pubKeySize & ~0x1FL;
-            #endif
                 break;
         #endif /* !NO_RSA */
         #ifdef HAVE_ECC
             case ECDSAk:
+            #ifdef HAVE_PK_CALLBACKS
+                keyType = ecc_dsa_sa_algo;
+            #endif
+                /* Determine ECC key size based on curve */
+                keySz = wc_ecc_get_curve_size_from_id(
+                    wc_ecc_get_oid(cert->pkCurveOID, NULL, NULL));
+
                 if (ssl && !ssl->options.verifyNone) {
                     if (ssl->options.minEccKeySz < 0 ||
-                          cert->pubKeySize < (word16)ssl->options.minEccKeySz) {
+                          keySz < (int)ssl->options.minEccKeySz) {
                         ret = ECC_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate ECC key size error");
                     }
                 }
                 else if (ctx && !ctx->verifyNone) {
                     if (ctx->minEccKeySz < 0 ||
-                                  cert->pubKeySize < (word16)ctx->minEccKeySz) {
+                                  keySz < (int)ctx->minEccKeySz) {
                         ret = ECC_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate ECC key size error");
                     }
                 }
-            #ifdef HAVE_PK_CALLBACKS
-                keyType = ecc_dsa_sa_algo;
-                /* pubKeySize is encByte + x + y */
-                keySz = (cert->pubKeySize - 1) / 2;
-            #endif
                 break;
         #endif /* HAVE_ECC */
         #ifdef HAVE_ED25519
             case ED25519k:
+            #ifdef HAVE_PK_CALLBACKS
+                keyType = ed25519_sa_algo;
+            #endif
+                /* ED25519 is fixed key size */
+                keySz = ED25519_KEY_SIZE;
                 if (ssl && !ssl->options.verifyNone) {
                     if (ssl->options.minEccKeySz < 0 ||
-                          ED25519_KEY_SIZE < (word16)ssl->options.minEccKeySz) {
+                          keySz < (int)ssl->options.minEccKeySz) {
                         ret = ECC_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate Ed key size error");
                     }
                 }
                 else if (ctx && !ctx->verifyNone) {
                     if (ctx->minEccKeySz < 0 ||
-                                  ED25519_KEY_SIZE < (word16)ctx->minEccKeySz) {
+                                  keySz < (int)ctx->minEccKeySz) {
                         ret = ECC_KEY_SIZE_E;
                         WOLFSSL_MSG("Certificate ECC key size error");
                     }
                 }
-            #ifdef HAVE_PK_CALLBACKS
-                keyType = ed25519_sa_algo;
-                keySz = ED25519_KEY_SIZE;
-            #endif
                 break;
         #endif /* HAVE_ED25519 */
 
@@ -5065,7 +5080,6 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     if (ssl && resetSuites) {
         word16 havePSK = 0;
         word16 haveRSA = 0;
-        int    keySz   = 0;
 
         #ifndef NO_PSK
         if (ssl->options.havePSK) {
@@ -5736,8 +5750,10 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
 
     file = XFOPEN(fname, "rb");
     if (file == XBADFILE) return WOLFSSL_BAD_FILE;
-    if (XFSEEK(file, 0, XSEEK_END) != 0)
+    if (XFSEEK(file, 0, XSEEK_END) != 0) {
+        XFCLOSE(file);
         return WOLFSSL_BAD_FILE;
+    }
     sz = XFTELL(file);
     XREWIND(file);
 
@@ -5914,8 +5930,10 @@ int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* fname,
     WOLFSSL_ENTER("wolfSSL_CertManagerVerify");
 
     if (file == XBADFILE) return WOLFSSL_BAD_FILE;
-    if(XFSEEK(file, 0, XSEEK_END) != 0)
+    if(XFSEEK(file, 0, XSEEK_END) != 0) {
+        XFCLOSE(file);
         return WOLFSSL_BAD_FILE;
+    }
     sz = XFTELL(file);
     XREWIND(file);
 
@@ -6369,8 +6387,10 @@ static int wolfSSL_SetTmpDH_file_wrapper(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 
     file = XFOPEN(fname, "rb");
     if (file == XBADFILE) return WOLFSSL_BAD_FILE;
-    if(XFSEEK(file, 0, XSEEK_END) != 0)
+    if(XFSEEK(file, 0, XSEEK_END) != 0) {
+        XFCLOSE(file);
         return WOLFSSL_BAD_FILE;
+    }
     sz = XFTELL(file);
     XREWIND(file);
 
@@ -7579,7 +7599,24 @@ int wolfSSL_use_certificate_chain_file_format(WOLFSSL* ssl, const char* file,
 /* Set Temp CTX EC-DHE size in octets, should be 20 - 66 for 160 - 521 bit */
 int wolfSSL_CTX_SetTmpEC_DHE_Sz(WOLFSSL_CTX* ctx, word16 sz)
 {
-    if (ctx == NULL || sz < ECC_MINSIZE || sz > ECC_MAXSIZE)
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    if (sz == 0) {
+        /* applies only to ECDSA */
+        if (ctx->privateKeyType != ecc_dsa_sa_algo)
+            return WOLFSSL_SUCCESS;
+
+        if (ctx->privateKeySz == 0) {
+            WOLFSSL_MSG("Must set private key/cert first");
+            return BAD_FUNC_ARG;
+        }
+
+        sz = (word16)ctx->privateKeySz;
+    }
+
+    /* check size */
+    if (sz < ECC_MINSIZE || sz > ECC_MAXSIZE)
         return BAD_FUNC_ARG;
 
     ctx->eccTempKeySz = sz;
@@ -8552,8 +8589,10 @@ int CM_RestoreCertCache(WOLFSSL_CERT_MANAGER* cm, const char* fname)
        return WOLFSSL_BAD_FILE;
     }
 
-    if(XFSEEK(file, 0, XSEEK_END) != 0)
+    if(XFSEEK(file, 0, XSEEK_END) != 0) {
+        XFCLOSE(file);
         return WOLFSSL_BAD_FILE;
+    }
     memSz = (int)XFTELL(file);
     XREWIND(file);
 
@@ -12830,29 +12869,29 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         const char *name;
     } md_tbl[] = {
     #ifndef NO_MD4
-         {MD4, "MD4"},
+         {WC_HASH_TYPE_MD4, "MD4"},
     #endif /* NO_MD4 */
 
     #ifndef NO_MD5
-        {WC_MD5, "MD5"},
+        {WC_HASH_TYPE_MD5, "MD5"},
     #endif /* NO_MD5 */
 
     #ifndef NO_SHA
-        {WC_SHA, "SHA"},
+        {WC_HASH_TYPE_SHA, "SHA"},
     #endif /* NO_SHA */
 
     #ifdef WOLFSSL_SHA224
-        {WC_SHA224, "SHA224"},
+        {WC_HASH_TYPE_SHA224, "SHA224"},
     #endif /* WOLFSSL_SHA224 */
     #ifndef NO_SHA256
-        {WC_SHA256, "SHA256"},
+        {WC_HASH_TYPE_SHA256, "SHA256"},
     #endif
 
     #ifdef WOLFSSL_SHA384
-        {WC_SHA384, "SHA384"},
+        {WC_HASH_TYPE_SHA384, "SHA384"},
     #endif /* WOLFSSL_SHA384 */
     #ifdef WOLFSSL_SHA512
-        {WC_SHA512, "SHA512"},
+        {WC_HASH_TYPE_SHA512, "SHA512"},
     #endif /* WOLFSSL_SHA512 */
         {0, NULL}
     };
@@ -13935,43 +13974,43 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     #endif
 
         if (XSTRNCMP(type, "SHA256", 6) == 0) {
-             ctx->macType = WC_SHA256;
+             ctx->macType = WC_HASH_TYPE_SHA256;
              ret = wolfSSL_SHA256_Init(&(ctx->hash.digest.sha256));
         }
     #ifdef WOLFSSL_SHA224
         else if (XSTRNCMP(type, "SHA224", 6) == 0) {
-             ctx->macType = WC_SHA224;
+             ctx->macType = WC_HASH_TYPE_SHA224;
              ret = wolfSSL_SHA224_Init(&(ctx->hash.digest.sha224));
         }
     #endif
     #ifdef WOLFSSL_SHA384
         else if (XSTRNCMP(type, "SHA384", 6) == 0) {
-             ctx->macType = WC_SHA384;
+             ctx->macType = WC_HASH_TYPE_SHA384;
              ret = wolfSSL_SHA384_Init(&(ctx->hash.digest.sha384));
         }
     #endif
     #ifdef WOLFSSL_SHA512
         else if (XSTRNCMP(type, "SHA512", 6) == 0) {
-             ctx->macType = WC_SHA512;
+             ctx->macType = WC_HASH_TYPE_SHA512;
              ret = wolfSSL_SHA512_Init(&(ctx->hash.digest.sha512));
         }
     #endif
     #ifndef NO_MD4
         else if (XSTRNCMP(type, "MD4", 3) == 0) {
-            ctx->macType = MD4;
+            ctx->macType = WC_HASH_TYPE_MD4;
             wolfSSL_MD4_Init(&(ctx->hash.digest.md4));
         }
     #endif
     #ifndef NO_MD5
         else if (XSTRNCMP(type, "MD5", 3) == 0) {
-            ctx->macType = WC_MD5;
+            ctx->macType = WC_HASH_TYPE_MD5;
             ret = wolfSSL_MD5_Init(&(ctx->hash.digest.md5));
         }
     #endif
     #ifndef NO_SHA
         /* has to be last since would pick or 224, 256, 384, or 512 too */
         else if (XSTRNCMP(type, "SHA", 3) == 0) {
-             ctx->macType = WC_SHA;
+             ctx->macType = WC_HASH_TYPE_SHA;
              ret = wolfSSL_SHA_Init(&(ctx->hash.digest.sha));
         }
     #endif /* NO_SHA */
@@ -13990,43 +14029,43 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
         switch (ctx->macType) {
 #ifndef NO_MD4
-            case MD4:
+            case WC_HASH_TYPE_MD4:
                 wolfSSL_MD4_Update((MD4_CTX*)&ctx->hash, data,
                                   (unsigned long)sz);
                 break;
 #endif
 #ifndef NO_MD5
-            case WC_MD5:
+            case WC_HASH_TYPE_MD5:
                 wolfSSL_MD5_Update((MD5_CTX*)&ctx->hash, data,
                                   (unsigned long)sz);
                 break;
 #endif
 #ifndef NO_SHA
-            case WC_SHA:
+            case WC_HASH_TYPE_SHA:
                 wolfSSL_SHA_Update((SHA_CTX*)&ctx->hash, data,
                                   (unsigned long)sz);
                 break;
 #endif
 #ifdef WOLFSSL_SHA224
-            case WC_SHA224:
+            case WC_HASH_TYPE_SHA224:
                 wolfSSL_SHA224_Update((SHA224_CTX*)&ctx->hash, data,
                                      (unsigned long)sz);
                 break;
 #endif
 #ifndef NO_SHA256
-            case WC_SHA256:
+            case WC_HASH_TYPE_SHA256:
                 wolfSSL_SHA256_Update((SHA256_CTX*)&ctx->hash, data,
                                      (unsigned long)sz);
                 break;
 #endif /* !NO_SHA256 */
 #ifdef WOLFSSL_SHA384
-            case WC_SHA384:
+            case WC_HASH_TYPE_SHA384:
                 wolfSSL_SHA384_Update((SHA384_CTX*)&ctx->hash, data,
                                      (unsigned long)sz);
                 break;
 #endif
 #ifdef WOLFSSL_SHA512
-            case WC_SHA512:
+            case WC_HASH_TYPE_SHA512:
                 wolfSSL_SHA512_Update((SHA512_CTX*)&ctx->hash, data,
                                      (unsigned long)sz);
                 break;
@@ -14046,43 +14085,43 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         WOLFSSL_ENTER("EVP_DigestFinal");
         switch (ctx->macType) {
 #ifndef NO_MD4
-            case MD4:
+            case WC_HASH_TYPE_MD4:
                 wolfSSL_MD4_Final(md, (MD4_CTX*)&ctx->hash);
                 if (s) *s = MD4_DIGEST_SIZE;
                 break;
 #endif
 #ifndef NO_MD5
-            case WC_MD5:
+            case WC_HASH_TYPE_MD5:
                 wolfSSL_MD5_Final(md, (MD5_CTX*)&ctx->hash);
                 if (s) *s = WC_MD5_DIGEST_SIZE;
                 break;
 #endif
 #ifndef NO_SHA
-            case WC_SHA:
+            case WC_HASH_TYPE_SHA:
                 wolfSSL_SHA_Final(md, (SHA_CTX*)&ctx->hash);
                 if (s) *s = WC_SHA_DIGEST_SIZE;
                 break;
 #endif
 #ifdef WOLFSSL_SHA224
-            case WC_SHA224:
+            case WC_HASH_TYPE_SHA224:
                 wolfSSL_SHA224_Final(md, (SHA224_CTX*)&ctx->hash);
                 if (s) *s = WC_SHA224_DIGEST_SIZE;
                 break;
 #endif
 #ifndef NO_SHA256
-            case WC_SHA256:
+            case WC_HASH_TYPE_SHA256:
                 wolfSSL_SHA256_Final(md, (SHA256_CTX*)&ctx->hash);
                 if (s) *s = WC_SHA256_DIGEST_SIZE;
                 break;
 #endif /* !NO_SHA256 */
 #ifdef WOLFSSL_SHA384
-            case WC_SHA384:
+            case WC_HASH_TYPE_SHA384:
                 wolfSSL_SHA384_Final(md, (SHA384_CTX*)&ctx->hash);
                 if (s) *s = WC_SHA384_DIGEST_SIZE;
                 break;
 #endif
 #ifdef WOLFSSL_SHA512
-            case WC_SHA512:
+            case WC_HASH_TYPE_SHA512:
                 wolfSSL_SHA512_Final(md, (SHA512_CTX*)&ctx->hash);
                 if (s) *s = WC_SHA512_DIGEST_SIZE;
                 break;
@@ -17929,8 +17968,10 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
     if (fp == XBADFILE)
         return BAD_FUNC_ARG;
 
-    if(XFSEEK(fp, 0, XSEEK_END) != 0)
+    if(XFSEEK(fp, 0, XSEEK_END) != 0) {
+        XFCLOSE(fp);
         return WOLFSSL_BAD_FILE;
+    }
     sz = XFTELL(fp);
     XREWIND(fp);
 
@@ -21698,7 +21739,7 @@ int wolfSSL_sk_push(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, const void *data)
     return WOLFSSL_FAILURE;
 }
 
-#if defined(HAVE_ECC) && defined(WOLFSSL_QT)
+#if defined(HAVE_ECC)
 size_t wolfSSL_EC_get_builtin_curves(wolfSSL_EC_builtin_curve *r, size_t nitems)
 {
     size_t x;
@@ -21725,19 +21766,45 @@ size_t wolfSSL_EC_get_builtin_curves(wolfSSL_EC_builtin_curve *r, size_t nitems)
 
     return ecc_set_cnt;
 }
-#endif
 
-#ifndef NO_WOLFSSL_STUB
+/* Copies ecc_key into new WOLFSSL_EC_KEY object */
 WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
 {
-    (void)src;
     WOLFSSL_ENTER("wolfSSL_EC_KEY_dup");
-    WOLFSSL_STUB("EC_KEY_dup");
-    return NULL;
-}
-#endif
 
-#if defined(WOLFSSL_QT) && !defined(NO_DH)
+    WOLFSSL_EC_KEY *dup;
+    ecc_key *key;
+    int ret;
+
+    if (src == NULL || src->internal == NULL) {
+        WOLFSSL_MSG("src NULL error");
+        return NULL;
+    }
+    
+    dup = wolfSSL_EC_KEY_new();
+    if (dup == NULL) {
+        WOLFSSL_MSG("wolfSSL_EC_KEY_new error");
+        return NULL;
+    }
+    
+    key = (ecc_key*)dup->internal;
+    if (key == NULL) {
+        WOLFSSL_MSG("ecc_key NULL error");
+        return NULL;
+    }
+
+    ret = mp_copy((mp_int*)src->internal, (mp_int*)dup->internal);
+    if (ret != MP_OKAY) {
+        WOLFSSL_MSG("mp_copy error");
+        wolfSSL_EC_KEY_free(dup);
+        return NULL;
+    }
+
+    return dup;
+}
+#endif /* HAVE_ECC */
+
+#if !defined(NO_DH)
 int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
 {
     int codeTmp = 0, isPrime = MP_NO;
@@ -21773,9 +21840,7 @@ int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
 
     return WOLFSSL_SUCCESS;
 }
-#endif
 
-#ifndef NO_DH
 WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh, const unsigned char **pp,
                                                                     long length)
 {
@@ -22303,8 +22368,10 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
         if (file == XBADFILE)
             return WOLFSSL_BAD_FILE;
 
-        if(XFSEEK(file, 0, XSEEK_END) != 0)
+        if(XFSEEK(file, 0, XSEEK_END) != 0) {
+            XFCLOSE(file);
             return WOLFSSL_BAD_FILE;
+        }
         sz = XFTELL(file);
         XREWIND(file);
 
@@ -29259,6 +29326,7 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
             if (mem == NULL) {
                 WOLFSSL_MSG("Memory error");
                 XFREE(tmp, bio->heap, DYNAMIC_TYPE_OPENSSL);
+                tmp = NULL;
                 ret = MEMORY_E;
                 break;
             }
@@ -29272,6 +29340,7 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
             WOLFSSL_MSG("No data to read from bio");
             if (mem != NULL) {
                 XFREE(mem, bio->heap, DYNAMIC_TYPE_OPENSSL);
+                mem = NULL;
             }
             ret = BUFFER_E;
         }
@@ -29288,6 +29357,7 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
         if (info == NULL) {
             WOLFSSL_MSG("Error getting memory for EncryptedInfo structure");
             XFREE(mem, bio->heap, DYNAMIC_TYPE_OPENSSL);
+            mem = NULL;
             ret = MEMORY_E;
         }
     }
@@ -33173,7 +33243,8 @@ WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
 
     bufPtr = maxKeyBuf;
     if (wolfSSL_BIO_read(bio, (unsigned char*)bioMem, (int)bioMemSz) == bioMemSz) {
-        if ((key = wolfSSL_d2i_RSAPrivateKey(NULL, &bioMem, bioMemSz)) == NULL) {
+        const byte* bioMemPt = bioMem; /* leave bioMem pointer unaltered */
+        if ((key = wolfSSL_d2i_RSAPrivateKey(NULL, &bioMemPt, bioMemSz)) == NULL) {
             XFREE((unsigned char*)bioMem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
             return NULL;
         }
