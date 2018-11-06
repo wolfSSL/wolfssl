@@ -20540,6 +20540,7 @@ static void test_wolfSSL_AES_cbc_encrypt()
 
 static void test_wolfSSL_X509_get_ext_count()
 {
+#if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
     FILE* f;
     X509* x509;
     int num_ext;
@@ -20556,6 +20557,7 @@ static void test_wolfSSL_X509_get_ext_count()
     printf("\n\n\n\n***********************************");
         printf("The number of extensions found is: %d\n", num_ext);
     printf("***********************************\n\n\n\n");
+#endif
 }
 
 
