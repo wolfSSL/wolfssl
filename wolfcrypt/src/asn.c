@@ -4982,7 +4982,7 @@ int GetAsnTimeString(void* currTime, byte* buf, word32 len)
     if (buf == NULL || len == 0)
         return BAD_FUNC_ARG;
 
-    ts = (struct tm *)XGMTIME(currTime, tmpTime);
+    ts = (struct tm *)XGMTIME((time_t*)currTime, tmpTime);
     if (ts == NULL){
         WOLFSSL_MSG("failed to get time data.");
         return ASN_TIME_E;

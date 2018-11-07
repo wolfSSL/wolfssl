@@ -832,7 +832,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     (void)updateKeysIVs;
     (void)postHandAuth;
     (void)mcastID;
-    (void)useX25519;
     (void)loadCertKeyIntoSSLObj;
 
 #ifdef WOLFSSL_TIRTOS
@@ -2052,6 +2051,7 @@ exit:
     (void) useNtruKey;
     (void) ourDhParam;
     (void) ourCert;
+    (void) useX25519;
 #ifndef WOLFSSL_TIRTOS
     return 0;
 #endif
