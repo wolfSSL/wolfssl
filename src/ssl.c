@@ -1483,6 +1483,25 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
     if (ssl->options.side == WOLFSSL_CLIENT_END)
         return SIDE_ERROR;
 
+    #if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
+        !defined(HAVE_SELFTEST)
+    {
+        DhKey checkKey;
+        int error, freeKey = 0;
+
+        error = wc_InitDhKey(&checkKey);
+        if (!error) {
+            freeKey = 1;
+            error = wc_DhSetCheckKey(&checkKey,
+                                 p, pSz, g, gSz, NULL, 0, 0, ssl->rng);
+        }
+        if (freeKey)
+            wc_FreeDhKey(&checkKey);
+        if (error)
+            return error;
+    }
+    #endif
+
     if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH) {
         XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         ssl->buffers.serverDH_P.buffer = NULL;
@@ -1550,6 +1569,29 @@ int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
         return DH_KEY_SIZE_E;
     if (pSz > ctx->maxDhKeySz)
         return DH_KEY_SIZE_E;
+
+    #if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
+        !defined(HAVE_SELFTEST)
+    {
+        DhKey checkKey;
+        WC_RNG rng;
+        int error, freeKey = 0;
+
+        error = wc_InitRng(&rng);
+        if (!error)
+            error = wc_InitDhKey(&checkKey);
+        if (!error) {
+            freeKey = 1;
+            error = wc_DhSetCheckKey(&checkKey,
+                                 p, pSz, g, gSz, NULL, 0, 0, &rng);
+        }
+        if (freeKey)
+            wc_FreeDhKey(&checkKey);
+        wc_FreeRng(&rng);
+        if (error)
+            return error;
+    }
+    #endif
 
     XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     ctx->serverDH_P.buffer = NULL;
@@ -11794,10 +11836,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
     void wolfSSL_set_accept_state(WOLFSSL* ssl)
     {
-        word16 haveRSA = 1;
-        word16 havePSK = 0;
-
-        WOLFSSL_ENTER("SSL_set_accept_state");
+        WOLFSSL_ENTER("wolfSSL_set_accept_state");
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
     #ifdef HAVE_ECC
             ecc_key key;
@@ -11823,19 +11862,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             }
     #endif
         }
-        ssl->options.side = WOLFSSL_SERVER_END;
-        /* reset suites in case user switched */
 
-        #ifdef NO_RSA
-            haveRSA = 0;
-        #endif
-        #ifndef NO_PSK
-            havePSK = ssl->options.havePSK;
-        #endif
-        InitSuites(ssl->suites, ssl->version, ssl->buffers.keySz, haveRSA,
-                   havePSK, ssl->options.haveDH, ssl->options.haveNTRU,
-                   ssl->options.haveECDSAsig, ssl->options.haveECC,
-                   ssl->options.haveStaticECC, ssl->options.side);
+        if (InitSSL_Side(ssl, WOLFSSL_SERVER_END) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Error initializing server side");
+        }
     }
 
 #endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA */
@@ -15892,9 +15922,6 @@ int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, WOLFSSL_ASN1_STRING *in)
 
 void wolfSSL_set_connect_state(WOLFSSL* ssl)
 {
-    word16 haveRSA = 1;
-    word16 havePSK = 0;
-
     if (ssl == NULL) {
         WOLFSSL_MSG("WOLFSSL struct pointer passed in was null");
         return;
@@ -15914,19 +15941,9 @@ void wolfSSL_set_connect_state(WOLFSSL* ssl)
     ssl->buffers.serverDH_G.buffer = NULL;
     #endif
 
-    if (ssl->options.side == WOLFSSL_SERVER_END) {
-        #ifdef NO_RSA
-            haveRSA = 0;
-        #endif
-        #ifndef NO_PSK
-            havePSK = ssl->options.havePSK;
-        #endif
-        InitSuites(ssl->suites, ssl->version, ssl->buffers.keySz, haveRSA,
-                   havePSK, ssl->options.haveDH, ssl->options.haveNTRU,
-                   ssl->options.haveECDSAsig, ssl->options.haveECC,
-                   ssl->options.haveStaticECC, WOLFSSL_CLIENT_END);
+    if (InitSSL_Side(ssl, WOLFSSL_CLIENT_END) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("Error initializing client side");
     }
-    ssl->options.side = WOLFSSL_CLIENT_END;
 }
 #endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA */
 
@@ -23771,7 +23788,6 @@ WOLFSSL_BN_ULONG wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM *bn,
 
 char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM *bn)
 {
-#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(DEBUG_WOLFSSL)
     int len = 0;
     char *buf;
 
@@ -23786,24 +23802,20 @@ char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM *bn)
         WOLFSSL_MSG("mp_radix_size failure");
         return NULL;
     }
+    len += 1; /* add one for null terminator */
 
-    buf = (char*) XMALLOC(len, NULL, DYNAMIC_TYPE_ECC);
+    buf = (char*)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
     if (buf == NULL) {
         WOLFSSL_MSG("BN_bn2hex malloc buffer failure");
         return NULL;
     }
 
     if (mp_tohex((mp_int*)bn->internal, buf) != MP_OKAY) {
-        XFREE(buf, NULL, DYNAMIC_TYPE_ECC);
+        XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
         return NULL;
     }
 
     return buf;
-#else
-    (void)bn;
-    WOLFSSL_MSG("wolfSSL_BN_bn2hex not compiled in");
-    return (char*)"";
-#endif
 }
 
 #ifndef NO_FILESYSTEM
@@ -23812,7 +23824,6 @@ char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM *bn)
  */
 int wolfSSL_BN_print_fp(XFILE fp, const WOLFSSL_BIGNUM *bn)
 {
-#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(DEBUG_WOLFSSL)
     char *buf;
 
     WOLFSSL_ENTER("wolfSSL_BN_print_fp");
@@ -23829,17 +23840,9 @@ int wolfSSL_BN_print_fp(XFILE fp, const WOLFSSL_BIGNUM *bn)
     }
 
     fprintf(fp, "%s", buf);
-    XFREE(buf, NULL, DYNAMIC_TYPE_ECC);
+    XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
 
     return WOLFSSL_SUCCESS;
-#else
-    (void)fp;
-    (void)bn;
-
-    WOLFSSL_MSG("wolfSSL_BN_print_fp not compiled in");
-
-    return WOLFSSL_SUCCESS;
-#endif
 }
 #endif /* !NO_FILESYSTEM */
 

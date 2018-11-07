@@ -138,6 +138,14 @@ ASN Options:
 WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx)
 {
+    return GetLength_ex(input, inOutIdx, len, maxIdx, 1);
+}
+
+
+/* give option to check length value found against index. 1 to check 0 to not */
+WOLFSSL_LOCAL int GetLength_ex(const byte* input, word32* inOutIdx, int* len,
+                           word32 maxIdx, int check)
+{
     int     length = 0;
     word32  idx = *inOutIdx;
     byte    b;
@@ -166,7 +174,7 @@ WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
     else
         length = b;
 
-    if ((idx + length) > maxIdx) {   /* for user of length */
+    if (check && (idx + length) > maxIdx) {   /* for user of length */
         WOLFSSL_MSG("GetLength value exceeds buffer length");
         return BUFFER_E;
     }
@@ -175,6 +183,29 @@ WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
     if (length > 0)
         *len = length;
 
+    return length;
+}
+
+
+static int GetASNHeader_ex(const byte* input, byte tag, word32* inOutIdx, int* len,
+                        word32 maxIdx, int check)
+{
+    word32 idx = *inOutIdx;
+    byte   b;
+    int    length;
+
+    if ((idx + 1) > maxIdx)
+        return BUFFER_E;
+
+    b = input[idx++];
+    if (b != tag)
+        return ASN_PARSE_E;
+
+    if (GetLength_ex(input, &idx, &length, maxIdx, check) < 0)
+        return ASN_PARSE_E;
+
+    *len      = length;
+    *inOutIdx = idx;
     return length;
 }
 
@@ -193,30 +224,23 @@ WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
 static int GetASNHeader(const byte* input, byte tag, word32* inOutIdx, int* len,
                         word32 maxIdx)
 {
-    word32 idx = *inOutIdx;
-    byte   b;
-    int    length;
-
-    if ((idx + 1) > maxIdx)
-        return BUFFER_E;
-
-    b = input[idx++];
-    if (b != tag)
-        return ASN_PARSE_E;
-
-    if (GetLength(input, &idx, &length, maxIdx) < 0)
-        return ASN_PARSE_E;
-
-    *len      = length;
-    *inOutIdx = idx;
-    return length;
+    return GetASNHeader_ex(input, tag, inOutIdx, len, maxIdx, 1);
 }
+
 
 WOLFSSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx)
 {
     return GetASNHeader(input, ASN_SEQUENCE | ASN_CONSTRUCTED, inOutIdx, len,
                         maxIdx);
+}
+
+
+WOLFSSL_LOCAL int GetSequence_ex(const byte* input, word32* inOutIdx, int* len,
+                           word32 maxIdx, int check)
+{
+    return GetASNHeader_ex(input, ASN_SEQUENCE | ASN_CONSTRUCTED, inOutIdx, len,
+                        maxIdx, check);
 }
 
 
@@ -1226,6 +1250,28 @@ static word32 SetBitString16Bit(word16 val, byte* output)
     static const byte blkAes256CbcOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 42};
     #endif
 #endif /* HAVE_AES_CBC */
+#ifdef HAVE_AESGCM
+    #ifdef WOLFSSL_AES_128
+    static const byte blkAes128GcmOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 6};
+    #endif
+    #ifdef WOLFSSL_AES_192
+    static const byte blkAes192GcmOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 26};
+    #endif
+    #ifdef WOLFSSL_AES_256
+    static const byte blkAes256GcmOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 46};
+    #endif
+#endif /* HAVE_AESGCM */
+#ifdef HAVE_AESCCM
+    #ifdef WOLFSSL_AES_128
+    static const byte blkAes128CcmOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 7};
+    #endif
+    #ifdef WOLFSSL_AES_192
+    static const byte blkAes192CcmOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 27};
+    #endif
+    #ifdef WOLFSSL_AES_256
+    static const byte blkAes256CcmOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 47};
+    #endif
+#endif /* HAVE_AESCCM */
 
 #ifndef NO_DES3
     static const byte blkDesCbcOid[]  = {43, 14, 3, 2, 7};
@@ -1241,6 +1287,10 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 #endif
 #ifdef WOLFSSL_AES_256
     static const byte wrapAes256Oid[] = {96, 134, 72, 1, 101, 3, 4, 1, 45};
+#endif
+#ifdef HAVE_PKCS7
+/* From RFC 3211 */
+static const byte wrapPwriKekOid[] = {42, 134, 72, 134, 247, 13, 1, 9, 16, 3,9};
 #endif
 
 /* cmsKeyAgreeType */
@@ -1317,6 +1367,11 @@ static const byte pbeSha1RC4128[] = {42, 134, 72, 134, 247, 13, 1, 12, 1, 1};
 #endif
 #if !defined(NO_DES3) && !defined(NO_SHA)
 static const byte pbeSha1Des3[] = {42, 134, 72, 134, 247, 13, 1, 12, 1, 3};
+#endif
+
+#ifdef HAVE_LIBZ
+/* zlib compression */
+static const byte zlibCompress[] = {42, 134, 72, 134, 247, 13, 1, 9, 16, 3, 8};
 #endif
 
 
@@ -1538,6 +1593,46 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     break;
         #endif
     #endif /* HAVE_AES_CBC */
+    #ifdef HAVE_AESGCM
+        #ifdef WOLFSSL_AES_128
+                case AES128GCMb:
+                    oid = blkAes128GcmOid;
+                    *oidSz = sizeof(blkAes128GcmOid);
+                    break;
+        #endif
+        #ifdef WOLFSSL_AES_192
+                case AES192GCMb:
+                    oid = blkAes192GcmOid;
+                    *oidSz = sizeof(blkAes192GcmOid);
+                    break;
+        #endif
+        #ifdef WOLFSSL_AES_256
+                case AES256GCMb:
+                    oid = blkAes256GcmOid;
+                    *oidSz = sizeof(blkAes256GcmOid);
+                    break;
+        #endif
+    #endif /* HAVE_AESGCM */
+    #ifdef HAVE_AESCCM
+        #ifdef WOLFSSL_AES_128
+                case AES128CCMb:
+                    oid = blkAes128CcmOid;
+                    *oidSz = sizeof(blkAes128CcmOid);
+                    break;
+        #endif
+        #ifdef WOLFSSL_AES_192
+                case AES192CCMb:
+                    oid = blkAes192CcmOid;
+                    *oidSz = sizeof(blkAes192CcmOid);
+                    break;
+        #endif
+        #ifdef WOLFSSL_AES_256
+                case AES256CCMb:
+                    oid = blkAes256CcmOid;
+                    *oidSz = sizeof(blkAes256CcmOid);
+                    break;
+        #endif
+    #endif /* HAVE_AESCCM */
     #ifndef NO_DES3
                 case DESb:
                     oid = blkDesCbcOid;
@@ -1736,6 +1831,12 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(wrapAes256Oid);
                     break;
             #endif
+            #ifdef HAVE_PKCS7
+                case PWRI_KEK_WRAP:
+                    oid = wrapPwriKekOid;
+                    *oidSz = sizeof(wrapPwriKekOid);
+                    break;
+            #endif
             }
             break;
 
@@ -1804,6 +1905,17 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
             }
             break;
 #endif /* !NO_HMAC */
+
+#ifdef HAVE_LIBZ
+        case oidCompressType:
+            switch (id) {
+                case ZLIBc:
+                    oid = zlibCompress;
+                    *oidSz = sizeof(zlibCompress);
+                    break;
+            }
+            break;
+#endif /* HAVE_LIBZ */
 
         case oidIgnoreType:
         default:
@@ -1938,7 +2050,7 @@ int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
  *         ASN_PARSE_E when length is invalid.
  *         Otherwise, 0 to indicate success.
  */
-static int GetASNObjectId(const byte* input, word32* inOutIdx, int* len,
+int GetASNObjectId(const byte* input, word32* inOutIdx, int* len,
                           word32 maxIdx)
 {
     word32 idx = *inOutIdx;
@@ -1966,7 +2078,7 @@ static int GetASNObjectId(const byte* input, word32* inOutIdx, int* len,
  * output      Buffer to write into.
  * returns the number of bytes added to the buffer.
  */
-static int SetObjectId(int len, byte* output)
+int SetObjectId(int len, byte* output)
 {
     int idx = 0;
 
@@ -4843,6 +4955,97 @@ int GetTimeString(byte* date, int format, char* buf, int len)
     return 1;
 }
 #endif /* OPENSSL_ALL || WOLFSSL_MYSQL_COMPATIBLE || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
+
+
+#if !defined(NO_ASN_TIME) && defined(HAVE_PKCS7)
+
+/* Set current time string, either UTC or GeneralizedTime.
+ * (void*) tm should be a pointer to time_t, output is placed in buf.
+ *
+ * Return time string length placed in buf on success, negative on error */
+int GetAsnTimeString(void* currTime, byte* buf, word32 len)
+{
+    struct tm* ts      = NULL;
+    struct tm* tmpTime = NULL;
+#if defined(NEED_TMP_TIME)
+    struct tm tmpTimeStorage;
+    tmpTime = &tmpTimeStorage;
+#else
+    (void)tmpTime;
+#endif
+    byte* data_ptr  = buf;
+    word32 data_len = 0;
+    int year, mon, day, hour, min, sec;
+
+    WOLFSSL_ENTER("SetAsnTimeString");
+
+    if (buf == NULL || len == 0)
+        return BAD_FUNC_ARG;
+
+    ts = (struct tm *)XGMTIME(currTime, tmpTime);
+    if (ts == NULL){
+        WOLFSSL_MSG("failed to get time data.");
+        return ASN_TIME_E;
+    }
+
+    /* Note ASN_UTC_TIME_SIZE and ASN_GENERALIZED_TIME_SIZE include space for
+     * the null terminator. ASN encoded values leave off the terminator. */
+
+    if (ts->tm_year >= 50 && ts->tm_year < 150) {
+        /* UTC Time */
+        char utc_str[ASN_UTC_TIME_SIZE];
+        data_len = ASN_UTC_TIME_SIZE - 1 + 2;
+
+        if (len < data_len)
+            return BUFFER_E;
+
+        if (ts->tm_year >= 50 && ts->tm_year < 100) {
+            year = ts->tm_year;
+        } else if (ts->tm_year >= 100 && ts->tm_year < 150) {
+            year = ts->tm_year - 100;
+        }
+        else {
+            WOLFSSL_MSG("unsupported year range");
+            return BAD_FUNC_ARG;
+        }
+        mon  = ts->tm_mon + 1;
+        day  = ts->tm_mday;
+        hour = ts->tm_hour;
+        min  = ts->tm_min;
+        sec  = ts->tm_sec;
+        XSNPRINTF((char *)utc_str, ASN_UTC_TIME_SIZE,
+                  "%02d%02d%02d%02d%02d%02dZ", year, mon, day, hour, min, sec);
+        *data_ptr = (byte) ASN_UTC_TIME; data_ptr++;
+        /* -1 below excludes null terminator */
+        *data_ptr = (byte) ASN_UTC_TIME_SIZE - 1; data_ptr++;
+        XMEMCPY(data_ptr,(byte *)utc_str, ASN_UTC_TIME_SIZE - 1);
+
+    } else {
+        /* GeneralizedTime */
+        char gt_str[ASN_GENERALIZED_TIME_SIZE];
+        data_len = ASN_GENERALIZED_TIME_SIZE - 1 + 2;
+
+        if (len < data_len)
+            return BUFFER_E;
+
+        year = ts->tm_year + 1900;
+        mon  = ts->tm_mon + 1;
+        day  = ts->tm_mday;
+        hour = ts->tm_hour;
+        min  = ts->tm_min;
+        sec  = ts->tm_sec;
+        XSNPRINTF((char *)gt_str, ASN_GENERALIZED_TIME_SIZE,
+                  "%4d%02d%02d%02d%02d%02dZ", year, mon, day, hour, min, sec);
+        *data_ptr = (byte) ASN_GENERALIZED_TIME; data_ptr++;
+        /* -1 below excludes null terminator */
+        *data_ptr = (byte) ASN_GENERALIZED_TIME_SIZE - 1; data_ptr++;
+        XMEMCPY(data_ptr,(byte *)gt_str, ASN_GENERALIZED_TIME_SIZE - 1);
+    }
+
+    return data_len;
+}
+
+#endif /* !NO_ASN_TIME && HAVE_PKCS7 */
 
 
 #if defined(USE_WOLF_VALIDDATE)
