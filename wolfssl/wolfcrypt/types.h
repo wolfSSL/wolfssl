@@ -753,7 +753,7 @@
 
     #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
         defined(WOLFSSL_DEBUG_MATH) || defined(DEBUG_WOLFSSL) || \
-        defined(WOLFSSL_PUBLIC_MP) || \
+        defined(WOLFSSL_PUBLIC_MP) || defined(OPENSSL_EXTRA) || \
             (defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT))
         #undef  WC_MP_TO_RADIX
         #define WC_MP_TO_RADIX
