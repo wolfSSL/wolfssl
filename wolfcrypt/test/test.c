@@ -7013,7 +7013,7 @@ int aesgcm_test(void)
         return -5709;
 #endif /* HAVE_AES_DECRYPT */
 #endif /* BENCH_AESGCM_LARGE */
-#ifdef ENABLE_NON_12BYTE_IV_TEST
+#if defined(ENABLE_NON_12BYTE_IV_TEST) && defined(WOLFSSL_AES_256)
     /* Variable IV length test */
     for (ivlen=0; ivlen<(int)sizeof(k1); ivlen++) {
          /* AES-GCM encrypt and decrypt both use AES encrypt internally */
@@ -7206,7 +7206,7 @@ int aesgcm_test(void)
 #if !defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
     /* Test encrypt with internally generated IV */
-#if !(defined(WC_NO_RNG) || defined(HAVE_SELFTEST))
+#if defined(WOLFSSL_AES_256) && !(defined(WC_NO_RNG) || defined(HAVE_SELFTEST))
     {
         WC_RNG rng;
         byte randIV[12];
@@ -9489,7 +9489,12 @@ static int rsa_decode_test(RsaKey* keyPub)
     inOutIdx = 2;
     inSz = sizeof(goodAlgId);
     ret = wc_RsaPublicKeyDecode(goodAlgId, &inOutIdx, keyPub, inSz);
-    if (ret != ASN_PARSE_E) {
+#ifndef WOLFSSL_NO_DECODE_EXTRA
+    if (ret != ASN_PARSE_E)
+#else
+    if (ret != ASN_RSA_KEY_E)
+#endif
+    {
         ret = -6797;
         goto done;
     }
