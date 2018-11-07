@@ -26903,9 +26903,9 @@ int wolfSSL_PEM_write_bio_RSA_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa)
     }
 
     /* Key to DER */
-    derSz = wc_RsaKeyToDer((RsaKey*)rsa->internal, derBuf, derMax);
+    derSz = wc_RsaKeyToPublicDer((RsaKey*)rsa->internal, derBuf, derMax);
     if (derSz < 0) {
-        WOLFSSL_MSG("wc_RsaKeyToDer failed");
+        WOLFSSL_MSG("wc_RsaKeyToPublicDer failed");
         XFREE(derBuf, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
         wolfSSL_EVP_PKEY_free(pkey);
         return WOLFSSL_FAILURE;
