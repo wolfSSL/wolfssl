@@ -1194,6 +1194,159 @@ int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 
 #ifdef TFM_TIMING_RESISTANT
 
+#ifdef WC_RSA_NONBLOCK
+
+/* non-blocking version of timing resistant fp_exptmod function */
+/* supports cache resistance */
+int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
+{
+  int err;
+
+  if (nb == NULL)
+    return FP_VAL;
+
+  switch (nb->state) {
+  case TFM_EXPTMOD_NB_INIT:
+    /* now setup montgomery */
+    if ((err = fp_montgomery_setup(P, &nb->mp)) != FP_OKAY) {
+      nb->state = TFM_EXPTMOD_NB_INIT;
+      return err;
+    }
+
+    /* init ints */
+    fp_init(&nb->R[0]);
+    fp_init(&nb->R[1]);
+  #ifndef WC_NO_CACHE_RESISTANT
+    fp_init(&nb->R[2]);
+  #endif
+    nb->state = TFM_EXPTMOD_NB_MONT;
+    break;
+
+  case TFM_EXPTMOD_NB_MONT:
+    /* mod m -> R[0] */
+    fp_montgomery_calc_normalization (&nb->R[0], P);
+
+    nb->state = TFM_EXPTMOD_NB_MONT_RED;
+    break;
+
+  case TFM_EXPTMOD_NB_MONT_RED:
+    /* reduce G -> R[1] */
+    if (fp_cmp_mag(P, G) != FP_GT) {
+       /* G > P so we reduce it first */
+       fp_mod(G, P, &nb->R[1]);
+    } else {
+       fp_copy(G, &nb->R[1]);
+    }
+
+    nb->state = TFM_EXPTMOD_NB_MONT_MUL;
+    break;
+
+  case TFM_EXPTMOD_NB_MONT_MUL:
+    /* G (R[1]) * m (R[0]) */
+    err = fp_mul(&nb->R[1], &nb->R[0], &nb->R[1]);
+    if (err != FP_OKAY) {
+      nb->state = TFM_EXPTMOD_NB_INIT;
+      return err;
+    }
+
+    nb->state = TFM_EXPTMOD_NB_MONT_MOD;
+    break;
+
+  case TFM_EXPTMOD_NB_MONT_MOD:
+    /* mod m */
+    err = fp_div(&nb->R[1], P, NULL, &nb->R[1]);
+    if (err != FP_OKAY) {
+      nb->state = TFM_EXPTMOD_NB_INIT;
+      return err;
+    }
+
+    nb->state = TFM_EXPTMOD_NB_MONT_MODCHK;
+    break;
+
+  case TFM_EXPTMOD_NB_MONT_MODCHK:
+    /* m matches sign of (G * R mod m) */
+    if (nb->R[1].sign != P->sign) {
+       fp_add(&nb->R[1], P, &nb->R[1]);
+    }
+
+    /* set initial mode and bit cnt */
+    nb->bitcnt = 1;
+    nb->buf    = 0;
+    nb->digidx = X->used - 1;
+
+    nb->state = TFM_EXPTMOD_NB_NEXT;
+    break;
+
+  case TFM_EXPTMOD_NB_NEXT:
+    /* grab next digit as required */
+    if (--nb->bitcnt == 0) {
+      /* if nb->digidx == -1 we are out of digits so break */
+      if (nb->digidx == -1) {
+        nb->state = TFM_EXPTMOD_NB_RED;
+        break;
+      }
+      /* read next digit and reset nb->bitcnt */
+      nb->buf    = X->dp[nb->digidx--];
+      nb->bitcnt = (int)DIGIT_BIT;
+    }
+
+    /* grab the next msb from the exponent */
+    nb->y     = (int)(nb->buf >> (DIGIT_BIT - 1)) & 1;
+    nb->buf <<= (fp_digit)1;
+    nb->state = TFM_EXPTMOD_NB_MUL;
+    FALL_THROUGH;
+
+  case TFM_EXPTMOD_NB_MUL:
+    fp_mul(&nb->R[0], &nb->R[1], &nb->R[nb->y^1]);
+    nb->state = TFM_EXPTMOD_NB_MUL_RED;
+    break;
+
+  case TFM_EXPTMOD_NB_MUL_RED:
+    fp_montgomery_reduce(&nb->R[nb->y^1], P, nb->mp);
+    nb->state = TFM_EXPTMOD_NB_SQR;
+    break;
+
+  case TFM_EXPTMOD_NB_SQR:
+  #ifdef WC_NO_CACHE_RESISTANT
+    fp_sqr(&nb->R[nb->y], &nb->R[nb->y]);
+  #else
+    fp_copy((fp_int*) ( ((wolfssl_word)&nb->R[0] & wc_off_on_addr[nb->y^1]) +
+                        ((wolfssl_word)&nb->R[1] & wc_off_on_addr[nb->y]) ),
+            &nb->R[2]);
+    fp_sqr(&nb->R[2], &nb->R[2]);
+  #endif /* WC_NO_CACHE_RESISTANT */
+
+    nb->state = TFM_EXPTMOD_NB_SQR_RED;
+    break;
+
+  case TFM_EXPTMOD_NB_SQR_RED:
+  #ifdef WC_NO_CACHE_RESISTANT
+    fp_montgomery_reduce(&nb->R[nb->y], P, nb->mp);
+  #else
+    fp_montgomery_reduce(&nb->R[2], P, nb->mp);
+    fp_copy(&nb->R[2],
+            (fp_int*) ( ((wolfssl_word)&nb->R[0] & wc_off_on_addr[nb->y^1]) +
+                        ((wolfssl_word)&nb->R[1] & wc_off_on_addr[nb->y]) ) );
+  #endif /* WC_NO_CACHE_RESISTANT */
+
+    nb->state = TFM_EXPTMOD_NB_NEXT;
+    break;
+
+  case TFM_EXPTMOD_NB_RED:
+    /* final reduce */
+    fp_montgomery_reduce(&nb->R[0], P, nb->mp);
+    fp_copy(&nb->R[0], Y);
+
+    nb->state = TFM_EXPTMOD_NB_INIT;
+    return FP_OKAY;
+  } /* switch */
+
+  return FP_WOULDBLOCK;
+}
+
+#endif /* WC_RSA_NONBLOCK */
+
+
 /* timing resistant montgomery ladder based exptmod
    Based on work by Marc Joye, Sung-Ming Yen, "The Montgomery Powering Ladder",
    Cryptographic Hardware and Embedded Systems, CHES 2002
