@@ -14863,18 +14863,21 @@ static void test_wc_PKCS7_New (void)
 static void test_wc_PKCS7_Init (void)
 {
 #if defined(HAVE_PKCS7)
-    PKCS7       pkcs7;
+    PKCS7*      pkcs7;
     void*       heap = NULL;
 
     printf(testingFmt, "wc_PKCS7_Init()");
 
-    AssertIntEQ(wc_PKCS7_Init(&pkcs7, heap, devId), 0);
+    pkcs7 = wc_PKCS7_New(heap, devId);
+    AssertNotNull(pkcs7);
+
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, heap, devId), 0);
 
     /* Pass in bad args. */
     AssertIntEQ(wc_PKCS7_Init(NULL, heap, devId), BAD_FUNC_ARG);
 
     printf(resultFmt, passed);
-    wc_PKCS7_Free(&pkcs7);
+    wc_PKCS7_Free(pkcs7);
 #endif
 } /* END test-wc_PKCS7_Init */
 
@@ -14885,7 +14888,7 @@ static void test_wc_PKCS7_Init (void)
 static void test_wc_PKCS7_InitWithCert (void)
 {
 #if defined(HAVE_PKCS7)
-    PKCS7       pkcs7;
+    PKCS7*       pkcs7;
 
 #ifndef NO_RSA
     #if defined(USE_CERT_BUFFERS_2048)
@@ -14929,24 +14932,26 @@ static void test_wc_PKCS7_InitWithCert (void)
         #error PKCS7 requires ECC or RSA
 #endif
     printf(testingFmt, "wc_PKCS7_InitWithCert()");
-    /* If initialization is not successful, it's free'd in init func. */
-    pkcs7.isDynamic = 0;
-    AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, (byte*)cert, (word32)certSz), 0);
 
-    wc_PKCS7_Free(&pkcs7);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    /* If initialization is not successful, it's free'd in init func. */
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)cert, (word32)certSz), 0);
+
+    wc_PKCS7_Free(pkcs7);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
 
     /* Valid initialization usage. */
-    AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, NULL, 0), 0);
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
 
     /* Pass in bad args. No need free for null checks, free at end.*/
     AssertIntEQ(wc_PKCS7_InitWithCert(NULL, (byte*)cert, (word32)certSz),
                                                            BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, NULL, (word32)certSz),
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, (word32)certSz),
                                                       BAD_FUNC_ARG);
 
     printf(resultFmt, passed);
 
-    wc_PKCS7_Free(&pkcs7);
+    wc_PKCS7_Free(pkcs7);
 #endif
 } /* END test_wc_PKCS7_InitWithCert */
 
@@ -14957,7 +14962,7 @@ static void test_wc_PKCS7_InitWithCert (void)
 static void test_wc_PKCS7_EncodeData (void)
 {
 #if defined(HAVE_PKCS7)
-    PKCS7       pkcs7;
+    PKCS7*      pkcs7;
     byte        output[FOURK_BUF];
     byte        data[] = "My encoded DER cert.";
 
@@ -15028,28 +15033,29 @@ static void test_wc_PKCS7_EncodeData (void)
 
     XMEMSET(output, 0, sizeof(output));
 
-    AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
 
-    AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, (byte*)cert, certSz), 0);
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)cert, certSz), 0);
 
     printf(testingFmt, "wc_PKCS7_EncodeData()");
 
-    pkcs7.content = data;
-    pkcs7.contentSz = sizeof(data);
-    pkcs7.privateKey = key;
-    pkcs7.privateKeySz = keySz;
-    AssertIntGT(wc_PKCS7_EncodeData(&pkcs7, output, (word32)sizeof(output)), 0);
+    pkcs7->content = data;
+    pkcs7->contentSz = sizeof(data);
+    pkcs7->privateKey = key;
+    pkcs7->privateKeySz = keySz;
+    AssertIntGT(wc_PKCS7_EncodeData(pkcs7, output, (word32)sizeof(output)), 0);
 
     /* Test bad args. */
     AssertIntEQ(wc_PKCS7_EncodeData(NULL, output, (word32)sizeof(output)),
                                                             BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_EncodeData(&pkcs7, NULL, (word32)sizeof(output)),
+    AssertIntEQ(wc_PKCS7_EncodeData(pkcs7, NULL, (word32)sizeof(output)),
                                                             BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_EncodeData(&pkcs7, output, 5), BUFFER_E);
+    AssertIntEQ(wc_PKCS7_EncodeData(pkcs7, output, 5), BUFFER_E);
 
     printf(resultFmt, passed);
 
-    wc_PKCS7_Free(&pkcs7);
+    wc_PKCS7_Free(pkcs7);
 #endif
 }  /* END test_wc_PKCS7_EncodeData */
 
@@ -15060,7 +15066,7 @@ static void test_wc_PKCS7_EncodeData (void)
 static void test_wc_PKCS7_EncodeSignedData(void)
 {
 #if defined(HAVE_PKCS7)
-    PKCS7       pkcs7;
+    PKCS7*      pkcs7;
     WC_RNG      rng;
     byte        output[FOURK_BUF];
     byte        badOut[0];
@@ -15135,37 +15141,39 @@ static void test_wc_PKCS7_EncodeSignedData(void)
     XMEMSET(output, 0, outputSz);
     AssertIntEQ(wc_InitRng(&rng), 0);
 
-    AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
 
-    AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, cert, certSz), 0);
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
 
     printf(testingFmt, "wc_PKCS7_EncodeSignedData()");
 
-    pkcs7.content = data;
-    pkcs7.contentSz = (word32)sizeof(data);
-    pkcs7.privateKey = key;
-    pkcs7.privateKeySz = (word32)sizeof(key);
-    pkcs7.encryptOID = RSAk;
-    pkcs7.hashOID = SHAh;
-    pkcs7.rng = &rng;
+    pkcs7->content = data;
+    pkcs7->contentSz = (word32)sizeof(data);
+    pkcs7->privateKey = key;
+    pkcs7->privateKeySz = (word32)sizeof(key);
+    pkcs7->encryptOID = RSAk;
+    pkcs7->hashOID = SHAh;
+    pkcs7->rng = &rng;
 
-    AssertIntGT(wc_PKCS7_EncodeSignedData(&pkcs7, output, outputSz), 0);
+    AssertIntGT(wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz), 0);
 
-    wc_PKCS7_Free(&pkcs7);
-    AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, NULL, 0), 0);
-    AssertIntEQ(wc_PKCS7_VerifySignedData(&pkcs7, output, outputSz), 0);
+    wc_PKCS7_Free(pkcs7);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
 
     /* Pass in bad args. */
     AssertIntEQ(wc_PKCS7_EncodeSignedData(NULL, output, outputSz), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_EncodeSignedData(&pkcs7, NULL, outputSz), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_EncodeSignedData(&pkcs7, badOut,
+    AssertIntEQ(wc_PKCS7_EncodeSignedData(pkcs7, NULL, outputSz), BAD_FUNC_ARG);
+    AssertIntEQ(wc_PKCS7_EncodeSignedData(pkcs7, badOut,
                                 badOutSz), BAD_FUNC_ARG);
-    pkcs7.hashOID = 0; /* bad hashOID */
-    AssertIntEQ(wc_PKCS7_EncodeSignedData(&pkcs7, output, outputSz), BAD_FUNC_ARG);
+    pkcs7->hashOID = 0; /* bad hashOID */
+    AssertIntEQ(wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz), BAD_FUNC_ARG);
 
     printf(resultFmt, passed);
 
-    wc_PKCS7_Free(&pkcs7);
+    wc_PKCS7_Free(pkcs7);
     wc_FreeRng(&rng);
 
 #endif
@@ -15178,7 +15186,7 @@ static void test_wc_PKCS7_EncodeSignedData_ex(void)
 {
 #if defined(HAVE_PKCS7)
     int         ret, i;
-    PKCS7       pkcs7;
+    PKCS7*      pkcs7;
     WC_RNG      rng;
     byte        outputHead[FOURK_BUF/2];
     byte        outputFoot[FOURK_BUF/2];
@@ -15262,19 +15270,20 @@ static void test_wc_PKCS7_EncodeSignedData_ex(void)
     XMEMSET(outputFoot, 0, outputFootSz);
     AssertIntEQ(wc_InitRng(&rng), 0);
 
-    AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
 
-    AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, cert, certSz), 0);
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
 
     printf(testingFmt, "wc_PKCS7_EncodeSignedData()");
 
-    pkcs7.content = NULL; /* not used for ex */
-    pkcs7.contentSz = (word32)sizeof(data);
-    pkcs7.privateKey = key;
-    pkcs7.privateKeySz = (word32)sizeof(key);
-    pkcs7.encryptOID = RSAk;
-    pkcs7.hashOID = SHAh;
-    pkcs7.rng = &rng;
+    pkcs7->content = NULL; /* not used for ex */
+    pkcs7->contentSz = (word32)sizeof(data);
+    pkcs7->privateKey = key;
+    pkcs7->privateKeySz = (word32)sizeof(key);
+    pkcs7->encryptOID = RSAk;
+    pkcs7->hashOID = SHAh;
+    pkcs7->rng = &rng;
 
     /* calculate hash for content */
     ret = wc_HashInit(&hash, hashType);
@@ -15288,20 +15297,21 @@ static void test_wc_PKCS7_EncodeSignedData_ex(void)
     AssertIntEQ(ret, 0);
 
     /* Perform PKCS7 sign using hash directly */
-    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(&pkcs7, hashBuf, hashSz,
+    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(pkcs7, hashBuf, hashSz,
         outputHead, &outputHeadSz, outputFoot, &outputFootSz), 0);
     AssertIntGT(outputHeadSz, 0);
     AssertIntGT(outputFootSz, 0);
 
-    wc_PKCS7_Free(&pkcs7);
-    AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, NULL, 0), 0);
+    wc_PKCS7_Free(pkcs7);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
 
     /* required parameter even on verify when using _ex */
-    pkcs7.contentSz = (word32)sizeof(data);
-    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(&pkcs7, hashBuf, hashSz,
+    pkcs7->contentSz = (word32)sizeof(data);
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
         outputHead, outputHeadSz, outputFoot, outputFootSz), 0);
 
-    wc_PKCS7_Free(&pkcs7);
+    wc_PKCS7_Free(pkcs7);
 
     /* assembly complete PKCS7 sign and use normal verify */
     {
@@ -15315,48 +15325,66 @@ static void test_wc_PKCS7_EncodeSignedData_ex(void)
         XMEMCPY(&output[outputSz], outputFoot, outputFootSz);
         outputSz += outputFootSz;
 
-        AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, NULL, 0), 0);
-        AssertIntEQ(wc_PKCS7_VerifySignedData(&pkcs7, output, outputSz), 0);
+        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+        AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+        AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
         XFREE(output, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     /* Pass in bad args. */
     AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(NULL, hashBuf, hashSz, outputHead,
         &outputHeadSz, outputFoot, &outputFootSz), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(&pkcs7, NULL, hashSz, outputHead,
+    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(pkcs7, NULL, hashSz, outputHead,
         &outputHeadSz, outputFoot, &outputFootSz), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(&pkcs7, hashBuf, 0, outputHead,
+    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(pkcs7, hashBuf, 0, outputHead,
         &outputHeadSz, outputFoot, &outputFootSz), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(&pkcs7, hashBuf, hashSz, NULL,
+    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(pkcs7, hashBuf, hashSz, NULL,
         &outputHeadSz, outputFoot, &outputFootSz), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(&pkcs7, hashBuf, hashSz,
+    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(pkcs7, hashBuf, hashSz,
         outputHead, NULL, outputFoot, &outputFootSz), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(&pkcs7, hashBuf, hashSz,
+    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(pkcs7, hashBuf, hashSz,
         outputHead, &outputHeadSz, NULL, &outputFootSz), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(&pkcs7, hashBuf, hashSz,
+    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(pkcs7, hashBuf, hashSz,
         outputHead, &outputHeadSz, outputFoot, NULL), BAD_FUNC_ARG);
-    pkcs7.hashOID = 0; /* bad hashOID */
-    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(&pkcs7, hashBuf, hashSz,
+    pkcs7->hashOID = 0; /* bad hashOID */
+    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(pkcs7, hashBuf, hashSz,
         outputHead, &outputHeadSz, outputFoot, &outputFootSz), BAD_FUNC_ARG);
 
     AssertIntEQ(wc_PKCS7_VerifySignedData_ex(NULL, hashBuf, hashSz, outputHead,
         outputHeadSz, outputFoot, outputFootSz), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(&pkcs7, NULL, hashSz, outputHead,
-        outputHeadSz, outputFoot, outputFootSz), ASN_PARSE_E);
-    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(&pkcs7, hashBuf, 0, outputHead,
-        outputHeadSz, outputFoot, outputFootSz), ASN_PARSE_E);
-    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(&pkcs7, hashBuf, hashSz, NULL,
+
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, NULL, hashSz, outputHead,
         outputHeadSz, outputFoot, outputFootSz), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(&pkcs7, hashBuf, hashSz,
+#ifndef NO_PKCS7_STREAM
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, 0, outputHead,
+        outputHeadSz, outputFoot, outputFootSz), WC_PKCS7_WANT_READ_E);
+#else
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, 0, outputHead,
+        outputHeadSz, outputFoot, outputFootSz), BUFFER_E);
+#endif
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz, NULL,
+        outputHeadSz, outputFoot, outputFootSz), BAD_FUNC_ARG);
+#ifndef NO_PKCS7_STREAM
+    /* can pass in 0 buffer length with streaming API */
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
+        outputHead, 0, outputFoot, outputFootSz), WC_PKCS7_WANT_READ_E);
+#else
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
         outputHead, 0, outputFoot, outputFootSz), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(&pkcs7, hashBuf, hashSz,
-        outputHead, outputHeadSz, NULL, outputFootSz), ASN_PARSE_E);
-    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(&pkcs7, hashBuf, hashSz,
+#endif
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
+        outputHead, outputHeadSz, NULL, outputFootSz), BAD_FUNC_ARG);
+#ifndef NO_PKCS7_STREAM
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
+        outputHead, outputHeadSz, outputFoot, 0), WC_PKCS7_WANT_READ_E);
+#else
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
         outputHead, outputHeadSz, outputFoot, 0), ASN_PARSE_E);
+#endif
 
     printf(resultFmt, passed);
 
-    wc_PKCS7_Free(&pkcs7);
+    wc_PKCS7_Free(pkcs7);
     wc_FreeRng(&rng);
 
 #endif
@@ -15369,7 +15397,7 @@ static void test_wc_PKCS7_EncodeSignedData_ex(void)
 static void test_wc_PKCS7_VerifySignedData(void)
 {
 #if defined(HAVE_PKCS7)
-    PKCS7       pkcs7;
+    PKCS7*      pkcs7;
     WC_RNG      rng;
     byte        output[FOURK_BUF];
     byte        badOut[0];
@@ -15444,34 +15472,42 @@ static void test_wc_PKCS7_VerifySignedData(void)
     XMEMSET(output, 0, outputSz);
     AssertIntEQ(wc_InitRng(&rng), 0);
 
-    AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
 
-    AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, cert, certSz), 0);
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
 
     printf(testingFmt, "wc_PKCS7_VerifySignedData()");
 
-    pkcs7.content = data;
-    pkcs7.contentSz = (word32)sizeof(data);
-    pkcs7.privateKey = key;
-    pkcs7.privateKeySz = (word32)sizeof(key);
-    pkcs7.encryptOID = RSAk;
-    pkcs7.hashOID = SHAh;
-    pkcs7.rng = &rng;
+    pkcs7->content = data;
+    pkcs7->contentSz = (word32)sizeof(data);
+    pkcs7->privateKey = key;
+    pkcs7->privateKeySz = (word32)sizeof(key);
+    pkcs7->encryptOID = RSAk;
+    pkcs7->hashOID = SHAh;
+    pkcs7->rng = &rng;
 
-    AssertIntGT(wc_PKCS7_EncodeSignedData(&pkcs7, output, outputSz), 0);
-    wc_PKCS7_Free(&pkcs7);
-    AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, NULL, 0), 0);
-    AssertIntEQ(wc_PKCS7_VerifySignedData(&pkcs7, output, outputSz), 0);
+    AssertIntGT(wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz), 0);
+    wc_PKCS7_Free(pkcs7);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
 
     /* Test bad args. */
     AssertIntEQ(wc_PKCS7_VerifySignedData(NULL, output, outputSz), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_VerifySignedData(&pkcs7, NULL, outputSz), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_VerifySignedData(&pkcs7, badOut,
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, NULL, outputSz), BAD_FUNC_ARG);
+#ifndef NO_PKCS7_STREAM
+    /* can pass in 0 buffer length with streaming API */
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, badOut,
+                                badOutSz), WC_PKCS7_WANT_READ_E);
+#else
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, badOut,
                                 badOutSz), BAD_FUNC_ARG);
+#endif
 
     printf(resultFmt, passed);
 
-    wc_PKCS7_Free(&pkcs7);
+    wc_PKCS7_Free(pkcs7);
     wc_FreeRng(&rng);
 #endif
 } /* END test_wc_PKCS7_VerifySignedData() */
@@ -15483,7 +15519,7 @@ static void test_wc_PKCS7_VerifySignedData(void)
 static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
 {
 #if defined(HAVE_PKCS7)
-    PKCS7       pkcs7;
+    PKCS7*      pkcs7;
     word32      tempWrd32   = 0;
     byte*       tmpBytePtr = NULL;
     const char  input[] = "Test data to encode.";
@@ -15615,28 +15651,34 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
             rsaCert, rsaCertSz, rsaPrivKey, rsaPrivKeySz},
     #endif /* NO_DES3 */
     #ifndef NO_AES
+        #ifndef NO_AES_128
         {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, AES128CBCb,
             0, 0, rsaCert, rsaCertSz, rsaPrivKey, rsaPrivKeySz},
+        #endif
+        #ifndef NO_AES_192
         {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, AES192CBCb,
             0, 0, rsaCert, rsaCertSz, rsaPrivKey, rsaPrivKeySz},
+        #endif
+        #ifndef NO_AES_256
         {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, AES256CBCb,
             0, 0, rsaCert, rsaCertSz, rsaPrivKey, rsaPrivKeySz},
+        #endif
     #endif /* NO_AES */
 
 #endif /* NO_RSA */
 #if defined(HAVE_ECC)
     #ifndef NO_AES
-        #ifndef NO_SHA
+        #if !defined(NO_SHA) && !defined(NO_AES_128)
             {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, AES128CBCb,
                 AES128_WRAP, dhSinglePass_stdDH_sha1kdf_scheme, eccCert,
                 eccCertSz, eccPrivKey, eccPrivKeySz},
         #endif
-        #ifndef NO_SHA256
+        #if !defined(NO_SHA256) && !defined(NO_AES_256)
             {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, AES256CBCb,
                 AES256_WRAP, dhSinglePass_stdDH_sha256kdf_scheme, eccCert,
                 eccCertSz, eccPrivKey, eccPrivKeySz},
         #endif
-        #ifdef WOLFSSL_SHA512
+        #if !defined(WOLFSSL_SHA512) && !defined(NO_AES_256)
             {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, AES256CBCb,
                 AES256_WRAP, dhSinglePass_stdDH_sha512kdf_scheme, eccCert,
                 eccCertSz, eccPrivKey, eccPrivKeySz},
@@ -15647,42 +15689,44 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
 
     printf(testingFmt, "wc_PKCS7_EncodeEnvelopedData()");
 
-    AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, devId), 0);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, devId), 0);
 
     testSz = (int)sizeof(testVectors)/(int)sizeof(pkcs7EnvelopedVector);
     for (i = 0; i < testSz; i++) {
-        AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, (testVectors + i)->cert,
+        AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, (testVectors + i)->cert,
                                     (word32)(testVectors + i)->certSz), 0);
 
-        pkcs7.content       = (byte*)(testVectors + i)->content;
-        pkcs7.contentSz     = (testVectors + i)->contentSz;
-        pkcs7.contentOID    = (testVectors + i)->contentOID;
-        pkcs7.encryptOID    = (testVectors + i)->encryptOID;
-        pkcs7.keyWrapOID    = (testVectors + i)->keyWrapOID;
-        pkcs7.keyAgreeOID   = (testVectors + i)->keyAgreeOID;
-        pkcs7.privateKey    = (testVectors + i)->privateKey;
-        pkcs7.privateKeySz  = (testVectors + i)->privateKeySz;
+        pkcs7->content       = (byte*)(testVectors + i)->content;
+        pkcs7->contentSz     = (testVectors + i)->contentSz;
+        pkcs7->contentOID    = (testVectors + i)->contentOID;
+        pkcs7->encryptOID    = (testVectors + i)->encryptOID;
+        pkcs7->keyWrapOID    = (testVectors + i)->keyWrapOID;
+        pkcs7->keyAgreeOID   = (testVectors + i)->keyAgreeOID;
+        pkcs7->privateKey    = (testVectors + i)->privateKey;
+        pkcs7->privateKeySz  = (testVectors + i)->privateKeySz;
 
-        AssertIntGE(wc_PKCS7_EncodeEnvelopedData(&pkcs7, output,
+        AssertIntGE(wc_PKCS7_EncodeEnvelopedData(pkcs7, output,
                             (word32)sizeof(output)), 0);
 
-        decodedSz = wc_PKCS7_DecodeEnvelopedData(&pkcs7, output,
+        decodedSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
                 (word32)sizeof(output), decoded, (word32)sizeof(decoded));
         AssertIntGE(decodedSz, 0);
         /* Verify the size of each buffer. */
         AssertIntEQ((word32)sizeof(input)/sizeof(char), decodedSz);
         /* Don't free the last time through the loop. */
         if (i < testSz - 1 ){
-            wc_PKCS7_Free(&pkcs7);
+            wc_PKCS7_Free(pkcs7);
+            AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
         }
     }  /* END test loop. */
 
     /* Test bad args. */
     AssertIntEQ(wc_PKCS7_EncodeEnvelopedData(NULL, output,
                     (word32)sizeof(output)), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_EncodeEnvelopedData(&pkcs7, NULL,
+    AssertIntEQ(wc_PKCS7_EncodeEnvelopedData(pkcs7, NULL,
                     (word32)sizeof(output)), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_EncodeEnvelopedData(&pkcs7, output, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wc_PKCS7_EncodeEnvelopedData(pkcs7, output, 0), BAD_FUNC_ARG);
     printf(resultFmt, passed);
 
     /* Decode.  */
@@ -15690,39 +15734,39 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
 
     AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(NULL, output,
         (word32)sizeof(output), decoded, (word32)sizeof(decoded)), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(&pkcs7, output,
+    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output), NULL, (word32)sizeof(decoded)), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(&pkcs7, output,
+    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output), decoded, 0), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(&pkcs7, NULL,
+    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, NULL,
         (word32)sizeof(output), decoded, (word32)sizeof(decoded)), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(&pkcs7, output, 0, decoded,
+    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output, 0, decoded,
         (word32)sizeof(decoded)), BAD_FUNC_ARG);
     /* Should get a return of BAD_FUNC_ARG with structure data. Order matters.*/
-    tempWrd32 = pkcs7.singleCertSz;
-    pkcs7.singleCertSz = 0;
-    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(&pkcs7, output,
+    tempWrd32 = pkcs7->singleCertSz;
+    pkcs7->singleCertSz = 0;
+    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output), decoded, (word32)sizeof(decoded)), BAD_FUNC_ARG);
-    pkcs7.singleCertSz = tempWrd32;
-    tempWrd32 = pkcs7.privateKeySz;
-    pkcs7.privateKeySz = 0;
-    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(&pkcs7, output,
+    pkcs7->singleCertSz = tempWrd32;
+    tempWrd32 = pkcs7->privateKeySz;
+    pkcs7->privateKeySz = 0;
+    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output), decoded, (word32)sizeof(decoded)), BAD_FUNC_ARG);
-    pkcs7.privateKeySz = tempWrd32;
-    tmpBytePtr = pkcs7.singleCert;
-    pkcs7.singleCert = NULL;
-    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(&pkcs7, output,
+    pkcs7->privateKeySz = tempWrd32;
+    tmpBytePtr = pkcs7->singleCert;
+    pkcs7->singleCert = NULL;
+    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output), decoded, (word32)sizeof(decoded)), BAD_FUNC_ARG);
-    pkcs7.singleCert = tmpBytePtr;
-    tmpBytePtr = pkcs7.privateKey;
-    pkcs7.privateKey = NULL;
-    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(&pkcs7, output,
+    pkcs7->singleCert = tmpBytePtr;
+    tmpBytePtr = pkcs7->privateKey;
+    pkcs7->privateKey = NULL;
+    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output), decoded, (word32)sizeof(decoded)), BAD_FUNC_ARG);
-    pkcs7.privateKey = tmpBytePtr;
+    pkcs7->privateKey = tmpBytePtr;
 
     printf(resultFmt, passed);
 
-    wc_PKCS7_Free(&pkcs7);
+    wc_PKCS7_Free(pkcs7);
 #ifndef NO_RSA
     if (rsaCert) {
         XFREE(rsaCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -15750,7 +15794,7 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
 static void test_wc_PKCS7_EncodeEncryptedData (void)
 {
 #if defined(HAVE_PKCS7) && !defined(NO_PKCS7_ENCRYPTED_DATA)
-    PKCS7       pkcs7;
+    PKCS7*      pkcs7;
     byte*       tmpBytePtr = NULL;
     byte        encrypted[TWOK_BUF];
     byte        decoded[TWOK_BUF];
@@ -15778,21 +15822,27 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
     #endif
 
     #ifndef NO_AES
+        #ifndef NO_AES_128
         byte aes128Key[] = {
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
         };
+        #endif
+        #ifndef NO_AES_192
         byte aes192Key[] = {
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
         };
+        #endif
+        #ifndef NO_AES_256
         byte aes256Key[] = {
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
         };
+        #endif
     #endif
     const pkcs7EncryptedVector testVectors[] =
     {
@@ -15802,14 +15852,20 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
         {data, (word32)sizeof(data), DATA, DESb, desKey, sizeof(desKey)},
     #endif /* NO_DES3 */
     #ifndef NO_AES
+        #ifndef NO_AES_128
         {data, (word32)sizeof(data), DATA, AES128CBCb, aes128Key,
          sizeof(aes128Key)},
+        #endif
 
+        #ifndef NO_AES_192
         {data, (word32)sizeof(data), DATA, AES192CBCb, aes192Key,
          sizeof(aes192Key)},
+        #endif
 
+        #ifndef NO_AES_256
         {data, (word32)sizeof(data), DATA, AES256CBCb, aes256Key,
          sizeof(aes256Key)},
+        #endif
 
     #endif /* NO_AES */
     };
@@ -15817,64 +15873,65 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
     testSz = sizeof(testVectors) / sizeof(pkcs7EncryptedVector);
 
     for (i = 0; i < testSz; i++) {
-        AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, devId), 0);
-        pkcs7.content              = (byte*)testVectors[i].content;
-        pkcs7.contentSz            = testVectors[i].contentSz;
-        pkcs7.contentOID           = testVectors[i].contentOID;
-        pkcs7.encryptOID           = testVectors[i].encryptOID;
-        pkcs7.encryptionKey        = testVectors[i].encryptionKey;
-        pkcs7.encryptionKeySz      = testVectors[i].encryptionKeySz;
-        pkcs7.heap                 = HEAP_HINT;
+        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+        AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, devId), 0);
+        pkcs7->content              = (byte*)testVectors[i].content;
+        pkcs7->contentSz            = testVectors[i].contentSz;
+        pkcs7->contentOID           = testVectors[i].contentOID;
+        pkcs7->encryptOID           = testVectors[i].encryptOID;
+        pkcs7->encryptionKey        = testVectors[i].encryptionKey;
+        pkcs7->encryptionKeySz      = testVectors[i].encryptionKeySz;
+        pkcs7->heap                 = HEAP_HINT;
 
         /* encode encryptedData */
-        encryptedSz = wc_PKCS7_EncodeEncryptedData(&pkcs7, encrypted,
+        encryptedSz = wc_PKCS7_EncodeEncryptedData(pkcs7, encrypted,
                                                    sizeof(encrypted));
         AssertIntGT(encryptedSz, 0);
 
        /* Decode encryptedData */
-        decodedSz = wc_PKCS7_DecodeEncryptedData(&pkcs7, encrypted, encryptedSz,
+        decodedSz = wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, encryptedSz,
                                                     decoded, sizeof(decoded));
 
         AssertIntEQ(XMEMCMP(decoded, data, decodedSz), 0);
         /* Keep values for last itr. */
         if (i < testSz - 1) {
-            wc_PKCS7_Free(&pkcs7);
+            wc_PKCS7_Free(pkcs7);
         }
     }
 
     printf(testingFmt, "wc_PKCS7_EncodeEncryptedData()");
     AssertIntEQ(wc_PKCS7_EncodeEncryptedData(NULL, encrypted,
                      sizeof(encrypted)),BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(&pkcs7, NULL,
+    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(pkcs7, NULL,
                      sizeof(encrypted)), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(&pkcs7, encrypted,
+    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(pkcs7, encrypted,
                      0), BAD_FUNC_ARG);
     /* Testing the struct. */
-    tmpBytePtr = pkcs7.content;
-    pkcs7.content = NULL;
-    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(&pkcs7, encrypted,
+    tmpBytePtr = pkcs7->content;
+    pkcs7->content = NULL;
+    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(pkcs7, encrypted,
                              sizeof(encrypted)), BAD_FUNC_ARG);
-    pkcs7.content = tmpBytePtr;
-    tmpWrd32 = pkcs7.contentSz;
-    pkcs7.contentSz = 0;
-    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(&pkcs7, encrypted,
+    pkcs7->content = tmpBytePtr;
+    tmpWrd32 = pkcs7->contentSz;
+    pkcs7->contentSz = 0;
+    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(pkcs7, encrypted,
                              sizeof(encrypted)), BAD_FUNC_ARG);
-    pkcs7.contentSz = tmpWrd32;
-    tmpInt = pkcs7.encryptOID;
-    pkcs7.encryptOID = 0;
-    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(&pkcs7, encrypted,
+    pkcs7->contentSz = tmpWrd32;
+    tmpInt = pkcs7->encryptOID;
+    pkcs7->encryptOID = 0;
+    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(pkcs7, encrypted,
                              sizeof(encrypted)), BAD_FUNC_ARG);
-    pkcs7.encryptOID = tmpInt;
-    tmpBytePtr = pkcs7.encryptionKey;
-    pkcs7.encryptionKey = NULL;
-    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(&pkcs7, encrypted,
+    pkcs7->encryptOID = tmpInt;
+    tmpBytePtr = pkcs7->encryptionKey;
+    pkcs7->encryptionKey = NULL;
+    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(pkcs7, encrypted,
                              sizeof(encrypted)), BAD_FUNC_ARG);
-    pkcs7.encryptionKey = tmpBytePtr;
-    tmpWrd32 = pkcs7.encryptionKeySz;
-    pkcs7.encryptionKeySz = 0;
-    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(&pkcs7, encrypted,
+    pkcs7->encryptionKey = tmpBytePtr;
+    tmpWrd32 = pkcs7->encryptionKeySz;
+    pkcs7->encryptionKeySz = 0;
+    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(pkcs7, encrypted,
                              sizeof(encrypted)), BAD_FUNC_ARG);
-    pkcs7.encryptionKeySz = tmpWrd32;
+    pkcs7->encryptionKeySz = tmpWrd32;
 
     printf(resultFmt, passed);
 
@@ -15882,27 +15939,27 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
 
     AssertIntEQ(wc_PKCS7_DecodeEncryptedData(NULL, encrypted, encryptedSz,
                 decoded, sizeof(decoded)), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(&pkcs7, NULL, encryptedSz,
+    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, NULL, encryptedSz,
                 decoded, sizeof(decoded)), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(&pkcs7, encrypted, 0,
+    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, 0,
                 decoded, sizeof(decoded)), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(&pkcs7, encrypted, encryptedSz,
+    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, encryptedSz,
                 NULL, sizeof(decoded)), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(&pkcs7, encrypted, encryptedSz,
+    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, encryptedSz,
                 decoded, 0), BAD_FUNC_ARG);
     /* Test struct fields */
 
-    tmpBytePtr = pkcs7.encryptionKey;
-    pkcs7.encryptionKey = NULL;
-    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(&pkcs7, encrypted, encryptedSz,
+    tmpBytePtr = pkcs7->encryptionKey;
+    pkcs7->encryptionKey = NULL;
+    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, encryptedSz,
                                    decoded, sizeof(decoded)), BAD_FUNC_ARG);
-    pkcs7.encryptionKey = tmpBytePtr;
-    pkcs7.encryptionKeySz = 0;
-    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(&pkcs7, encrypted, encryptedSz,
+    pkcs7->encryptionKey = tmpBytePtr;
+    pkcs7->encryptionKeySz = 0;
+    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, encryptedSz,
                                    decoded, sizeof(decoded)), BAD_FUNC_ARG);
 
     printf(resultFmt, passed);
-    wc_PKCS7_Free(&pkcs7);
+    wc_PKCS7_Free(pkcs7);
 #endif
 } /* END test_wc_PKCS7_EncodeEncryptedData() */
 
@@ -15912,7 +15969,7 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
 static void test_wc_PKCS7_Degenerate(void)
 {
 #if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM)
-    PKCS7  pkcs7;
+    PKCS7* pkcs7;
     char   fName[] = "./certs/test-degenerate.p7b";
     XFILE  f;
     byte   der[4096];
@@ -15927,17 +15984,19 @@ static void test_wc_PKCS7_Degenerate(void)
     XFCLOSE(f);
 
     /* test degenerate success */
-    AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, INVALID_DEVID), 0);
-    AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, NULL, 0), 0);
-    AssertIntEQ(wc_PKCS7_VerifySignedData(&pkcs7, der, derSz), 0);
-    wc_PKCS7_Free(&pkcs7);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+    wc_PKCS7_Free(pkcs7);
 
     /* test with turning off degenerate cases */
-    AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, INVALID_DEVID), 0);
-    AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, NULL, 0), 0);
-    wc_PKCS7_AllowDegenerate(&pkcs7, 0); /* override allowing degenerate case */
-    AssertIntEQ(wc_PKCS7_VerifySignedData(&pkcs7, der, derSz), PKCS7_NO_SIGNER_E);
-    wc_PKCS7_Free(&pkcs7);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    wc_PKCS7_AllowDegenerate(pkcs7, 0); /* override allowing degenerate case */
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), PKCS7_NO_SIGNER_E);
+    wc_PKCS7_Free(pkcs7);
 
     printf(resultFmt, passed);
 #endif

@@ -276,7 +276,7 @@ enum Misc_ASN {
     #endif
                                    /* Max total extensions, id + len + others */
 #endif
-#if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA)
+#if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || defined(HAVE_PKCS7)
     MAX_OID_SZ          = 32,      /* Max DER length of OID*/
     MAX_OID_STRING_SZ   = 64,      /* Max string length representation of OID*/
 #endif
@@ -285,7 +285,8 @@ enum Misc_ASN {
     MAX_KEYUSAGE_SZ     = 18,      /* Max encoded Key Usage length */
     MAX_EXTKEYUSAGE_SZ  = 12 + (6 * (8 + 2)) +
                           CTC_MAX_EKU_OID_SZ, /* Max encoded ExtKeyUsage
-                        (SEQ/LEN + OBJID + OCTSTR/LEN + SEQ + (6 * (SEQ + OID))) */
+                          (SEQ/LEN + OBJID + OCTSTR/LEN + SEQ +
+                          (6 * (SEQ + OID))) */
     MAX_CERTPOL_NB      = CTC_MAX_CERTPOL_NB,/* Max number of Cert Policy */
     MAX_CERTPOL_SZ      = CTC_MAX_CERTPOL_SZ,
 #endif
@@ -302,9 +303,11 @@ enum Misc_ASN {
     HEADER_ENCRYPTED_KEY_SIZE = 0,
 #endif
     TRAILING_ZERO       = 1,       /* Used for size of zero pad */
+    ASN_TAG_SZ          = 1,       /* single byte ASN.1 tag */
     MIN_VERSION_SZ      = 3,       /* Min bytes needed for GetMyVersion */
-#if defined(OPENSSL_ALL)  || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_ALL)  || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+    defined(OPENSSL_EXTRA) || defined(HAVE_PKCS7)
     MAX_TIME_STRING_SZ  = 25,      /* Max length of formatted time string */
 #endif
 
@@ -331,6 +334,7 @@ enum Oid_Types {
     oidCmsKeyAgreeType  = 13,
     oidPBEType          = 14,
     oidHmacType         = 15,
+    oidCompressType     = 16,
     oidIgnoreType
 };
 
@@ -350,12 +354,18 @@ enum Hash_Sum  {
 enum Block_Sum {
 #ifdef WOLFSSL_AES_128
     AES128CBCb = 414,
+    AES128GCMb = 418,
+    AES128CCMb = 419,
 #endif
 #ifdef WOLFSSL_AES_192
     AES192CBCb = 434,
+    AES192GCMb = 438,
+    AES192CCMb = 439,
 #endif
 #ifdef WOLFSSL_AES_256
     AES256CBCb = 454,
+    AES256GCMb = 458,
+    AES256CCMb = 459,
 #endif
 #ifndef NO_DES3
     DESb       = 69,
@@ -374,19 +384,22 @@ enum Key_Sum {
 };
 
 
-#ifndef NO_AES
+#if !defined(NO_AES) || defined(HAVE_PKCS7)
 enum KeyWrap_Sum {
 #ifdef WOLFSSL_AES_128
-    AES128_WRAP = 417,
+    AES128_WRAP  = 417,
 #endif
 #ifdef WOLFSSL_AES_192
-    AES192_WRAP = 437,
+    AES192_WRAP  = 437,
 #endif
 #ifdef WOLFSSL_AES_256
-    AES256_WRAP = 457
+    AES256_WRAP  = 457,
+#endif
+#ifdef HAVE_PKCS7
+    PWRI_KEK_WRAP = 680  /*id-alg-PWRI-KEK, 1.2.840.113549.1.9.16.3.9 */
 #endif
 };
-#endif /* !NO_AES */
+#endif /* !NO_AES || PKCS7 */
 
 enum Key_Agree {
     dhSinglePass_stdDH_sha1kdf_scheme   = 464,
@@ -486,6 +499,11 @@ enum ExtKeyUsage_Sum { /* From RFC 5280 */
     EKU_OCSP_SIGN_OID   = 79   /* 1.3.6.1.5.5.7.3.9, id-kp-OCSPSigning     */
 };
 
+#ifdef HAVE_LIBZ
+enum CompressAlg_Sum {
+    ZLIBc = 679  /* 1.2.840.113549.1.9.16.3.8, id-alg-zlibCompress */
+};
+#endif
 
 enum VerifyType {
     NO_VERIFY   = 0,
@@ -982,6 +1000,9 @@ typedef struct tm wolfssl_tm;
     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len);
 #endif
+#if !defined(NO_ASN_TIME) && defined(HAVE_PKCS7)
+WOLFSSL_LOCAL int GetAsnTimeString(void* currTime, byte* buf, word32 len);
+#endif
 WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
                                                  wolfssl_tm* certTime, int* idx);
 WOLFSSL_LOCAL int ValidateDate(const byte* date, byte format, int dateType);
@@ -996,8 +1017,12 @@ WOLFSSL_LOCAL int GetShortInt(const byte* input, word32* inOutIdx, int* number,
 WOLFSSL_LOCAL char* GetSigName(int oid);
 WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx);
+WOLFSSL_LOCAL int GetLength_ex(const byte* input, word32* inOutIdx, int* len,
+                           word32 maxIdx, int check);
 WOLFSSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
                              word32 maxIdx);
+WOLFSSL_LOCAL int GetSequence_ex(const byte* input, word32* inOutIdx, int* len,
+                           word32 maxIdx, int check);
 WOLFSSL_LOCAL int GetSet(const byte* input, word32* inOutIdx, int* len,
                         word32 maxIdx);
 WOLFSSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
@@ -1012,6 +1037,9 @@ WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
     WOLFSSL_LOCAL int DecodeObjectId(const byte* in, word32 inSz,
         word16* out, word32* outSz);
 #endif
+WOLFSSL_LOCAL int GetASNObjectId(const byte* input, word32* inOutIdx, int* len,
+                                 word32 maxIdx);
+WOLFSSL_LOCAL int SetObjectId(int len, byte* output);
 WOLFSSL_LOCAL int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
                               word32 oidType, word32 maxIdx);
 WOLFSSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
