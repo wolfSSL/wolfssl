@@ -11859,6 +11859,16 @@ int dh_test(void)
     if (ret == 0)
         ret = dh_fips_generate_test(&rng);
 
+
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_OLD_PRIME_CHECK)
+    if (ret == 0) {
+        /* Test Check Key */
+        ret = wc_DhSetCheckKey(&key, dh_p, sizeof(dh_p), dh_g, sizeof(dh_g),
+            NULL, 0, 0, &rng);
+    }
+#endif
+
 done:
 
     wc_FreeDhKey(&key);

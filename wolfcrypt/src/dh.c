@@ -56,6 +56,17 @@
 #endif
 
 
+/*
+Possible DH enable options:
+ * NO_RSA:              Overall control of DH                 default: on (not defined)
+ * WOLFSSL_OLD_PRIME_CHECK: Disables the new prime number check. It does not
+                        directly effect this file, but it does speed up DH
+                        removing the testing. It is not recommended to
+                        disable the prime checking.           default: off
+
+*/
+
+
 #if !defined(USER_MATH_LIB) && !defined(WOLFSSL_DH_CONST)
     #include <math.h>
     #define XPOW(x,y) pow((x),(y))
