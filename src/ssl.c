@@ -13179,6 +13179,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->lastUsed = 0;
             ctx->flags   = 0;
         }
+
+        XMEMSET(&ctx->cipher, 0, sizeof(ctx->cipher));
+
 #ifndef NO_AES
     #ifdef HAVE_AES_CBC
         #ifdef WOLFSSL_AES_128
@@ -14251,6 +14254,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         XMEMCPY(&key[DES_BLOCK_SIZE * 2], *ks3, DES_BLOCK_SIZE);
         lb_sz = sz%DES_BLOCK_SIZE;
         blk   = sz/DES_BLOCK_SIZE;
+
+        /* OpenSSL compat, no ret */
+        wc_Des3Init(&des, NULL, INVALID_DEVID);
+
         if (enc) {
             wc_Des3_SetKey(&des, key, (const byte*)ivec, DES_ENCRYPTION);
             wc_Des3_CbcEncrypt(&des, output, input, (word32)blk*DES_BLOCK_SIZE);
@@ -14269,6 +14276,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 XMEMCPY(output+sz-lb_sz, lastblock, lb_sz);
             }
         }
+        wc_Des3Free(&des);
     }
 
 
