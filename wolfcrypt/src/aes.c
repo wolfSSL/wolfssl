@@ -8779,7 +8779,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                      const byte* authIn, word32 authInSz)
 {
 #ifdef WOLFSSL_AESNI
-    int res;
+    int res = AES_GCM_AUTH_E;
 #endif
 
     /* argument checks */

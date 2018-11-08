@@ -51,6 +51,11 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#ifdef HAVE_SELFTEST
+enum {
+    GCM_NONCE_MID_SZ = 12, /* The usual default nonce size for AES-GCM. */
+};
+#endif
 
 /* direction for processing, encoding or decoding */
 typedef enum {
