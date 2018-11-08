@@ -5165,10 +5165,10 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     r = key->r;
     s = key->s;
 #else
-#ifndef WOLFSSL_SMALL_STACK
+    #ifndef WOLFSSL_SMALL_STACK
     r = r_lcl;
     s = s_lcl;
-#else
+    #else
     r = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_ECC);
     if (r == NULL)
         return MEMORY_E;
@@ -5177,8 +5177,10 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
         XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
         return MEMORY_E;
     }
-#endif
-#endif
+    #endif
+    XMEMSET(r, 0, sizeof(mp_int));
+    XMEMSET(s, 0, sizeof(mp_int));
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
     switch(key->state) {
         case ECC_STATE_NONE:
