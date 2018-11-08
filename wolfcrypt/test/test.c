@@ -11871,6 +11871,7 @@ int dh_test(void)
     DhKey  key;
     DhKey  key2;
     WC_RNG rng;
+    int keyInit = 0;
 
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, dh_key_der_1024, (size_t)sizeof_dh_key_der_1024);
@@ -11907,6 +11908,7 @@ int dh_test(void)
     if (ret != 0) {
         ERROR_OUT(-7103, done);
     }
+    keyInit = 1;
     ret = wc_InitDhKey_ex(&key2, HEAP_HINT, devId);
     if (ret != 0) {
         ERROR_OUT(-7104, done);
@@ -11985,6 +11987,9 @@ int dh_test(void)
         ret = dh_fips_generate_test(&rng);
 
 
+    wc_FreeDhKey(&key);
+    keyInit = 0;
+
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
     !defined(WOLFSSL_OLD_PRIME_CHECK)
     if (ret == 0) {
@@ -11996,7 +12001,8 @@ int dh_test(void)
 
 done:
 
-    wc_FreeDhKey(&key);
+    if (keyInit)
+        wc_FreeDhKey(&key);
     wc_FreeDhKey(&key2);
     wc_FreeRng(&rng);
 
