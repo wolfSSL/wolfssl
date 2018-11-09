@@ -233,11 +233,14 @@
         #endif /* HAVE_AES_DECRYPT */
     #endif /* HAVE_AESCCM && HAVE_FIPS_VERSION 2 */
 
-    int  wc_AesInit(Aes* aes, void* h, int i)
+    int wc_AesInit(Aes* aes, void* h, int i)
     {
-        (void)aes;
+        if (aes == NULL)
+            return BAD_FUNC_ARG;
+
         (void)h;
         (void)i;
+
         /* FIPS doesn't support:
             return AesInit(aes, h, i); */
         return 0;
