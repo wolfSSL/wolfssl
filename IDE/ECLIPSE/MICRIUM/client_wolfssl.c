@@ -73,181 +73,184 @@ TBj0/VLZjmmx6BEP3ojY+x1J96relc8geMJgEtslQIxq/H5COEBkEveegeGTLg==\n\
 ";
 
 int wolfssl_client_test(void) {
-	NET_ERR err;
-	NET_SOCK_ID sock;
-	NET_IPv4_ADDR server_ip_addr;
-	NET_SOCK_ADDR_IPv4 server_addr;
-	CPU_CHAR rx_buf[RX_BUF_SIZE];
-	CPU_CHAR tx_buf[TX_BUF_SIZE];
-	OS_ERR os_err;
-	int ret = 0, error = 0;
+    NET_ERR err;
+    NET_SOCK_ID sock;
+    NET_IPv4_ADDR server_ip_addr;
+    NET_SOCK_ADDR_IPv4 server_addr;
+    CPU_CHAR rx_buf[RX_BUF_SIZE];
+    CPU_CHAR tx_buf[TX_BUF_SIZE];
+    OS_ERR os_err;
+    int ret = 0, error = 0;
 
-	WOLFSSL* ssl;
-	WOLFSSL_CTX* ctx;
+    WOLFSSL* ssl;
+    WOLFSSL_CTX* ctx;
 
-	/* wolfSSL INIT and CTX SETUP */
+    #ifdef DEBUG_WOLFSSL
+        wolfSSL_Debugging_ON();
+    #endif
 
-	wolfSSL_Init();
-	wolfSSL_Debugging_ON();
+    /* wolfSSL INIT and CTX SETUP */
 
-	/* SET UP NETWORK SOCKET */
+    wolfSSL_Init();
 
-	APP_TRACE_INFO(("Opening a network socket...\r\n"));
+    /* SET UP NETWORK SOCKET */
 
-	sock = NetSock_Open(NET_SOCK_ADDR_FAMILY_IP_V4,
-						NET_SOCK_TYPE_STREAM,
-						NET_SOCK_PROTOCOL_TCP,
-						&err);
-	if (err != NET_SOCK_ERR_NONE) {
-		APP_TRACE_INFO(("ERROR: NetSock_Open, err = %d\r\n", (int) err));
-		return -1;
-	}
+    APP_TRACE_INFO(("Opening a network socket...\r\n"));
+
+    sock = NetSock_Open(NET_SOCK_ADDR_FAMILY_IP_V4,
+                        NET_SOCK_TYPE_STREAM,
+                        NET_SOCK_PROTOCOL_TCP,
+                        &err);
+    if (err != NET_SOCK_ERR_NONE) {
+        APP_TRACE_INFO(("ERROR: NetSock_Open, err = %d\r\n", (int) err));
+        return -1;
+    }
 
 #ifdef NET_SECURE_MODULE_EN
-	APP_TRACE_INFO(("Setting the socket as secure...\r\n"));
+    APP_TRACE_INFO(("Setting the socket as secure...\r\n"));
 
-	(void)NetSock_CfgSecure(sock,
-	                        DEF_YES,
-	                        &err);
-	if (err != NET_SOCK_ERR_NONE) {
-		APP_TRACE_INFO(("ERROR: NetSock_CfgSecure, err = %d\r\n", (int) err));
-		NetSock_Close(sock, &err);
-		return -1;
-	}
+    (void)NetSock_CfgSecure(sock,
+                            DEF_YES,
+                            &err);
+    if (err != NET_SOCK_ERR_NONE) {
+        APP_TRACE_INFO(("ERROR: NetSock_CfgSecure, err = %d\r\n", (int) err));
+        NetSock_Close(sock, &err);
+        return -1;
+    }
 
-	APP_TRACE_INFO(("Configure the common name of the server...\r\n"));
-	(void)NetSock_CfgSecureClientCommonName(sock,
-	                                       TCP_SERVER_DOMAIN_NAME,
-	                                       &err);
-	if (err != NET_SOCK_ERR_NONE) {
-		APP_TRACE_INFO(("ERROR: NetSock_CfgSecureClientCommonName, err = %d\r\n", (int) err));
-		NetSock_Close(sock, &err);
-		return -1;
-	}
-
+    APP_TRACE_INFO(("Configure the common name of the server...\r\n"));
+    (void)NetSock_CfgSecureClientCommonName(sock,
+                                           TCP_SERVER_DOMAIN_NAME,
+                                           &err);
+    if (err != NET_SOCK_ERR_NONE) {
+        APP_TRACE_INFO(("ERROR: NetSock_CfgSecureClientCommonName, \
+                        err = %d\r\n", (int) err));
+        NetSock_Close(sock, &err);
+        return -1;
+    }
 #endif /* NET_SECURE_MODULE_EN */
 
-	APP_TRACE_INFO(("Calling NetASCII_Str_to_IPv4...\r\n"));
-	server_ip_addr = NetASCII_Str_to_IPv4(TCP_SERVER_IP_ADDR, &err);
-	if (err != NET_ASCII_ERR_NONE) {
-		APP_TRACE_INFO(("ERROR: NetASCII_Str_to_IPv4, err = %d\r\n", (int) err));
-		NetSock_Close(sock, &err);
-		return -1;
-	}
+    APP_TRACE_INFO(("Calling NetASCII_Str_to_IPv4...\r\n"));
+    server_ip_addr = NetASCII_Str_to_IPv4(TCP_SERVER_IP_ADDR, &err);
+    if (err != NET_ASCII_ERR_NONE) {
+        APP_TRACE_INFO(("ERROR: NetASCII_Str_to_IPv4, err = %d\r\n", (int) err));
+        NetSock_Close(sock, &err);
+        return -1;
+    }
 
-	APP_TRACE_INFO(("Clearing memory for server_addr struct\r\n"));
+    APP_TRACE_INFO(("Clearing memory for server_addr struct\r\n"));
 
-	Mem_Clr((void *) &server_addr, (CPU_SIZE_T) sizeof(server_addr));
+    Mem_Clr((void *) &server_addr, (CPU_SIZE_T) sizeof(server_addr));
 
-	APP_TRACE_INFO(("Setting server IP address: %s, port: %d\r\n",
-					TCP_SERVER_IP_ADDR, TCP_SERVER_PORT));
+    APP_TRACE_INFO(("Setting server IP address: %s, port: %d\r\n",
+                    TCP_SERVER_IP_ADDR, TCP_SERVER_PORT));
 
-	server_addr.AddrFamily = NET_SOCK_ADDR_FAMILY_IP_V4;
-	server_addr.Addr = NET_UTIL_HOST_TO_NET_32(server_ip_addr);
-	server_addr.Port = NET_UTIL_HOST_TO_NET_16(TCP_SERVER_PORT);
+    server_addr.AddrFamily = NET_SOCK_ADDR_FAMILY_IP_V4;
+    server_addr.Addr = NET_UTIL_HOST_TO_NET_32(server_ip_addr);
+    server_addr.Port = NET_UTIL_HOST_TO_NET_16(TCP_SERVER_PORT);
 
-	/* CONNECT SOCKET */
+    /* CONNECT SOCKET */
 
-	APP_TRACE_INFO(("Calling NetSock_Conn on socket\r\n"));
-	NetSock_Conn((NET_SOCK_ID) sock,
-				(NET_SOCK_ADDR *) &server_addr,
-				(NET_SOCK_ADDR_LEN) sizeof(server_addr),
-				(NET_ERR*) &err);
-	if (err != NET_SOCK_ERR_NONE) {
-		APP_TRACE_INFO(("ERROR: NetSock_Conn, err = %d\r\n", (int) err));
-		NetSock_Close(sock, &err);
-		return -1;
-	}
+    APP_TRACE_INFO(("Calling NetSock_Conn on socket\r\n"));
+    NetSock_Conn((NET_SOCK_ID) sock,
+                (NET_SOCK_ADDR *) &server_addr,
+                (NET_SOCK_ADDR_LEN) sizeof(server_addr),
+                (NET_ERR*) &err);
+    if (err != NET_SOCK_ERR_NONE) {
+        APP_TRACE_INFO(("ERROR: NetSock_Conn, err = %d\r\n", (int) err));
+        NetSock_Close(sock, &err);
+        return -1;
+    }
 
-	ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
-	if (ctx == 0) {
-		APP_TRACE_INFO(("ERROR: wolfSSL_CTX_new failed\r\n"));
-		NetSock_Close(sock, &err);
-		return -1;
-	}
+    ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    if (ctx == 0) {
+        APP_TRACE_INFO(("ERROR: wolfSSL_CTX_new failed\r\n"));
+        NetSock_Close(sock, &err);
+        return -1;
+    }
 
-	APP_TRACE_INFO(("wolfSSL_CTX_new done\r\n"));
+    APP_TRACE_INFO(("wolfSSL_CTX_new done\r\n"));
 
-	wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
+    wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
 
-	ret = wolfSSL_CTX_load_verify_buffer(ctx,
+    ret = wolfSSL_CTX_load_verify_buffer(ctx,
                                          google_certs_ca,
                                          sizeof(google_certs_ca),
                                          SSL_FILETYPE_PEM);
 
-	if (ret != SSL_SUCCESS) {
-		APP_TRACE_INFO(("ERROR: wolfSSL_CTX_load_verify_buffer() failed\r\n"));
-		NetSock_Close(sock, &err);
-		wolfSSL_CTX_free(ctx);
-		return -1;
-	}
+    if (ret != SSL_SUCCESS) {
+        APP_TRACE_INFO(("ERROR: wolfSSL_CTX_load_verify_buffer() failed\r\n"));
+        NetSock_Close(sock, &err);
+        wolfSSL_CTX_free(ctx);
+        return -1;
+    }
 
-	if ((ssl = wolfSSL_new(ctx)) == NULL) {
-		APP_TRACE_INFO(("ERROR: wolfSSL_new() failed\r\n"));
-		NetSock_Close(sock, &err);
-		wolfSSL_CTX_free(ctx);
-		return -1;
-	}
+    if ((ssl = wolfSSL_new(ctx)) == NULL) {
+        APP_TRACE_INFO(("ERROR: wolfSSL_new() failed\r\n"));
+        NetSock_Close(sock, &err);
+        wolfSSL_CTX_free(ctx);
+        return -1;
+    }
 
-	APP_TRACE_INFO(("wolfSSL_new done\r\n"));
-	ret = wolfSSL_set_fd(ssl, sock);
-	if (ret != SSL_SUCCESS) {
-		APP_TRACE_INFO(("ERROR: wolfSSL_set_fd() failed\r\n"));
-		NetSock_Close(sock, &err);
-		wolfSSL_free(ssl);
-		wolfSSL_CTX_free(ctx);
-		return -1;
-	}
-	APP_TRACE_INFO(("wolfSSL_set_fd done\r\n"));
-	do {
-		error = 0; /* reset error */
-		ret = wolfSSL_connect(ssl);
-		if (ret != SSL_SUCCESS) {
-			error = wolfSSL_get_error(ssl, 0);
-			APP_TRACE_INFO(
-					("ERROR: wolfSSL_connect() failed, err = %d\r\n", error));
-			if (error != SSL_ERROR_WANT_READ) {
-				NetSock_Close(sock, &err);
-				wolfSSL_free(ssl);
-				wolfSSL_CTX_free(ctx);
-				return -1;
-			}
-			OSTimeDlyHMSM(0u, 0u, 1u, 0u, OS_OPT_TIME_HMSM_STRICT, &os_err);
-		}
-	} while ((ret != SSL_SUCCESS) && (error == SSL_ERROR_WANT_READ));
+    APP_TRACE_INFO(("wolfSSL_new done\r\n"));
+    ret = wolfSSL_set_fd(ssl, sock);
+    if (ret != SSL_SUCCESS) {
+        APP_TRACE_INFO(("ERROR: wolfSSL_set_fd() failed\r\n"));
+        NetSock_Close(sock, &err);
+        wolfSSL_free(ssl);
+        wolfSSL_CTX_free(ctx);
+        return -1;
+    }
+    APP_TRACE_INFO(("wolfSSL_set_fd done\r\n"));
+    do {
+        error = 0; /* reset error */
+        ret = wolfSSL_connect(ssl);
+        if (ret != SSL_SUCCESS) {
+            error = wolfSSL_get_error(ssl, 0);
+            APP_TRACE_INFO(
+                    ("ERROR: wolfSSL_connect() failed, err = %d\r\n", error));
+            if (error != SSL_ERROR_WANT_READ) {
+                NetSock_Close(sock, &err);
+                wolfSSL_free(ssl);
+                wolfSSL_CTX_free(ctx);
+                return -1;
+            }
+            OSTimeDlyHMSM(0u, 0u, 1u, 0u, OS_OPT_TIME_HMSM_STRICT, &os_err);
+        }
+    } while ((ret != SSL_SUCCESS) && (error == SSL_ERROR_WANT_READ));
 
-	APP_TRACE_INFO(("wolfSSL_connect() ok... sending GET\r\n"));
-	Str_Copy_N(tx_buf, TX_MSG, TX_MSG_SIZE);
-	if (wolfSSL_write(ssl, tx_buf, TX_MSG_SIZE) != TX_MSG_SIZE) {
-		error = wolfSSL_get_error(ssl, 0);
-		APP_TRACE_INFO(("ERROR: wolfSSL_write() failed, err = %d\r\n", error));
-		NetSock_Close(sock, &err);
-		wolfSSL_free(ssl);
-		wolfSSL_CTX_free(ctx);
-		return -1;
-	}
-	do {
-		error = 0; /* reset error */
-		ret = wolfSSL_read(ssl, rx_buf, RX_BUF_SIZE - 1);
-		if (ret < 0) {
-			error = wolfSSL_get_error(ssl, 0);
-			if (error != SSL_ERROR_WANT_READ) {
-				APP_TRACE_INFO(("wolfSSL_read failed, error = %d\r\n", error));
-				NetSock_Close(sock, &err);
-				wolfSSL_free(ssl);
-				wolfSSL_CTX_free(ctx);
-				return -1;
-			}
-			OSTimeDlyHMSM(0u, 0u, 1u, 0u, OS_OPT_TIME_HMSM_STRICT, &os_err);
-		} else if (ret > 0) {
-			rx_buf[ret] = 0;
-			APP_TRACE_INFO(("%s\r\n", rx_buf));
-		}
-	} while (error == SSL_ERROR_WANT_READ);
-	wolfSSL_shutdown(ssl);
-	wolfSSL_free(ssl);
-	wolfSSL_CTX_free(ctx);
-	wolfSSL_Cleanup();
-	NetSock_Close(sock, &err);
-	return 0;
+    APP_TRACE_INFO(("wolfSSL_connect() ok... sending GET\r\n"));
+    Str_Copy_N(tx_buf, TX_MSG, TX_MSG_SIZE);
+    if (wolfSSL_write(ssl, tx_buf, TX_MSG_SIZE) != TX_MSG_SIZE) {
+        error = wolfSSL_get_error(ssl, 0);
+        APP_TRACE_INFO(("ERROR: wolfSSL_write() failed, err = %d\r\n", error));
+        NetSock_Close(sock, &err);
+        wolfSSL_free(ssl);
+        wolfSSL_CTX_free(ctx);
+        return -1;
+    }
+    do {
+        error = 0; /* reset error */
+        ret = wolfSSL_read(ssl, rx_buf, RX_BUF_SIZE - 1);
+        if (ret < 0) {
+            error = wolfSSL_get_error(ssl, 0);
+            if (error != SSL_ERROR_WANT_READ) {
+                APP_TRACE_INFO(("wolfSSL_read failed, error = %d\r\n", error));
+                NetSock_Close(sock, &err);
+                wolfSSL_free(ssl);
+                wolfSSL_CTX_free(ctx);
+                return -1;
+            }
+            OSTimeDlyHMSM(0u, 0u, 1u, 0u, OS_OPT_TIME_HMSM_STRICT, &os_err);
+        } else if (ret > 0) {
+            rx_buf[ret] = 0;
+            APP_TRACE_INFO(("%s\r\n", rx_buf));
+        }
+    } while (error == SSL_ERROR_WANT_READ);
+    wolfSSL_shutdown(ssl);
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+    wolfSSL_Cleanup();
+    NetSock_Close(sock, &err);
+    return 0;
 }
