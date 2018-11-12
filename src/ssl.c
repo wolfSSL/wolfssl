@@ -7293,12 +7293,10 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 #if defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB)
     WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* passed_cert, int loc)
     {
-        //should be moved to .. #include <openssl/x509.h>
-        (void)passed_cert;
-        (void)loc;
-        WOLFSSL_STUB("wolfSSL_X509_get_ext");
-
-        return 0;
+     (void)passed_cert;
+     (void)loc;
+     WOLFSSL_STUB("wolfSSL_X509_get_ext");
+     return 0;
     }
 
     WOLFSSL_ASN1_OBJECT* wolfSSL_X509_EXTENSION_get_object(WOLFSSL_X509_EXTENSION* ex)
@@ -12435,17 +12433,20 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         ctx->verify_cb = verify_cb;
     }
 
-    /* stub for Qt */
-    #ifndef NO_WOLFSSL_STUB
-    void wolfSSL_X509_STORE_set_verify_cb_func(WOLFSSL_X509_STORE *st,
+    #ifdef WOLFSSL_QT
+    void wolfSSL_X509_STORE_set_verify_cb(WOLFSSL_X509_STORE *st,
                                      WOLFSSL_X509_STORE_CTX_verify_cb verify_cb)
     {
-        WOLFSSL_ENTER("WOLFSSL_X509_STORE_set_verify_cb_fun");
-        (void)st;
-        (void)verify_cb;
-        WOLFSSL_STUB("X509_STORE_set_verify_cb_func");
+        //WOLFSSL_X509_STORE struct located wolfssl/ssl.h +336
+        WOLFSSL_ENTER("WOLFSSL_X509_STORE_set_verify_cb");
+        if(st==NULL){
+            WOLFSSL_MSG("passed WOLFSSL_X509_STORE is NULL");
+            return;
+        }
+        st->verify_cb = verify_cb;
+        WOLFSSL_LEAVE("wolfSSL_X509_STORE_set_verify_cb()", WOLFSSL_SUCCESS);
     }
-    #endif
+    #endif /* ifdef WOLFSSL_QT */
 
     #ifndef NO_WOLFSSL_STUB
     void wolfSSL_X509_STORE_CTX_set_verify_cb_func(WOLFSSL_X509_STORE *st,
