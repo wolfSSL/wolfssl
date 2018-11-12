@@ -233,11 +233,14 @@
         #endif /* HAVE_AES_DECRYPT */
     #endif /* HAVE_AESCCM && HAVE_FIPS_VERSION 2 */
 
-    int  wc_AesInit(Aes* aes, void* h, int i)
+    int wc_AesInit(Aes* aes, void* h, int i)
     {
-        (void)aes;
+        if (aes == NULL)
+            return BAD_FUNC_ARG;
+
         (void)h;
         (void)i;
+
         /* FIPS doesn't support:
             return AesInit(aes, h, i); */
         return 0;
@@ -9008,22 +9011,24 @@ int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
             byte* authTag, word32 authTagSz, WC_RNG* rng)
 {
     Aes aes;
-    int ret = 0;
+    int ret;
 
     if (key == NULL || iv == NULL || (authIn == NULL && authInSz != 0) ||
         authTag == NULL || authTagSz == 0 || rng == NULL) {
 
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
     }
 
-    if (ret == 0)
+    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    if (ret == 0) {
         ret = wc_AesGcmSetKey(&aes, key, keySz);
-    if (ret == 0)
-        ret = wc_AesGcmSetIV(&aes, ivSz, NULL, 0, rng);
-    if (ret == 0)
-        ret = wc_AesGcmEncrypt_ex(&aes, NULL, NULL, 0, iv, ivSz,
+        if (ret == 0)
+            ret = wc_AesGcmSetIV(&aes, ivSz, NULL, 0, rng);
+        if (ret == 0)
+            ret = wc_AesGcmEncrypt_ex(&aes, NULL, NULL, 0, iv, ivSz,
                                   authTag, authTagSz, authIn, authInSz);
-    wc_AesFree(&aes);
+        wc_AesFree(&aes);
+    }
     ForceZero(&aes, sizeof(aes));
 
     return ret;
@@ -9035,20 +9040,22 @@ int wc_GmacVerify(const byte* key, word32 keySz,
                   const byte* authTag, word32 authTagSz)
 {
     Aes aes;
-    int ret = 0;
+    int ret;
 
     if (key == NULL || iv == NULL || (authIn == NULL && authInSz != 0) ||
         authTag == NULL || authTagSz == 0 || authTagSz > AES_BLOCK_SIZE) {
 
-        ret = BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
     }
 
-    if (ret == 0)
+    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    if (ret == 0) {
         ret = wc_AesGcmSetKey(&aes, key, keySz);
-    if (ret == 0)
-        ret = wc_AesGcmDecrypt(&aes, NULL, NULL, 0, iv, ivSz,
+        if (ret == 0)
+            ret = wc_AesGcmDecrypt(&aes, NULL, NULL, 0, iv, ivSz,
                                   authTag, authTagSz, authIn, authInSz);
-    wc_AesFree(&aes);
+        wc_AesFree(&aes);
+    }
     ForceZero(&aes, sizeof(aes));
 
     return ret;

@@ -1980,7 +1980,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 
 #ifndef WOLFSSL_NO_TLS12
 
-#ifndef NO_WOLFSSL_SERVER
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_RSA)
     if (side == WOLFSSL_SERVER_END && haveStaticECC) {
         haveRSA = 0;   /* can't do RSA with ECDSA key */
     }

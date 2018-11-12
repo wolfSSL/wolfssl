@@ -5165,10 +5165,10 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     r = key->r;
     s = key->s;
 #else
-#ifndef WOLFSSL_SMALL_STACK
+    #ifndef WOLFSSL_SMALL_STACK
     r = r_lcl;
     s = s_lcl;
-#else
+    #else
     r = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_ECC);
     if (r == NULL)
         return MEMORY_E;
@@ -5177,8 +5177,10 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
         XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
         return MEMORY_E;
     }
-#endif
-#endif
+    #endif
+    XMEMSET(r, 0, sizeof(mp_int));
+    XMEMSET(s, 0, sizeof(mp_int));
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
     switch(key->state) {
         case ECC_STATE_NONE:
@@ -8874,14 +8876,21 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
            case ecAES_128_CBC:
                {
                    Aes aes;
-                   ret = wc_AesSetKey(&aes, encKey, KEY_SIZE_128, encIv,
+                   ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+                   if (ret == 0) {
+                       ret = wc_AesSetKey(&aes, encKey, KEY_SIZE_128, encIv,
                                                                 AES_ENCRYPTION);
+                       if (ret == 0) {
+                           ret = wc_AesCbcEncrypt(&aes, out, msg, msgSz);
+                       #if defined(WOLFSSL_ASYNC_CRYPT)
+                           ret = wc_AsyncWait(ret, &aes.asyncDev,
+                                              WC_ASYNC_FLAG_NONE);
+                       #endif
+                       }
+                       wc_AesFree(&aes);
+                   }
                    if (ret != 0)
-                       break;
-                   ret = wc_AesCbcEncrypt(&aes, out, msg, msgSz);
-                #if defined(WOLFSSL_ASYNC_CRYPT)
-                   ret = wc_AsyncWait(ret, &aes.asyncDev, WC_ASYNC_FLAG_NONE);
-                #endif
+                      break;
                }
                break;
 
