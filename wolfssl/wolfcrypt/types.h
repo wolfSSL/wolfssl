@@ -314,6 +314,17 @@
         #define FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP)  /* nothing to free, its stack */
     #endif
 
+    #define DECLARE_DYNAMIC_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
+        VAR_TYPE* VAR_NAME[VAR_ITEMS]; \
+        int idx##VAR_NAME; \
+        for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
+            VAR_NAME[idx##VAR_NAME] = (VAR_TYPE*)XMALLOC(VAR_SIZE, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
+        }
+    #define FREE_DYNAMIC_ARRAY(VAR_NAME, VAR_ITEMS, HEAP) \
+        for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
+            XFREE(VAR_NAME[idx##VAR_NAME], (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
+        }
+
     #if !defined(USE_WOLF_STRTOK) && \
             ((defined(__MINGW32__) && !defined(__MINGW64_VERSION_MAJOR)) || \
              defined(WOLFSSL_TIRTOS) || defined(WOLF_C99))

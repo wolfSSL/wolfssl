@@ -3856,8 +3856,8 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
     const char**desc = bench_desc_words[lng_index];
 
     DECLARE_VAR_INIT(message, byte, len, messageStr, HEAP_HINT);
-    DECLARE_ARRAY(enc, byte, BENCH_MAX_PENDING, rsaKeySz/8, HEAP_HINT);
-    DECLARE_ARRAY(out, byte, BENCH_MAX_PENDING, rsaKeySz/8, HEAP_HINT);
+    DECLARE_DYNAMIC_ARRAY(enc, byte, BENCH_MAX_PENDING, rsaKeySz/8, HEAP_HINT);
+    DECLARE_DYNAMIC_ARRAY(out, byte, BENCH_MAX_PENDING, rsaKeySz/8, HEAP_HINT);
 
     if (!rsa_sign_verify) {
         /* begin public RSA */
@@ -3980,8 +3980,8 @@ exit_rsa_verify:
                                                                     start, ret);
     }
 
-    FREE_ARRAY(enc, BENCH_MAX_PENDING, HEAP_HINT);
-    FREE_ARRAY(out, BENCH_MAX_PENDING, HEAP_HINT);
+    FREE_DYNAMIC_ARRAY(enc, BENCH_MAX_PENDING, HEAP_HINT);
+    FREE_DYNAMIC_ARRAY(out, BENCH_MAX_PENDING, HEAP_HINT);
     FREE_VAR(message, HEAP_HINT);
 }
 
