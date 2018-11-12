@@ -478,6 +478,12 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
 #endif
 
+#ifdef SIZEOF_TIME_T
+    #if SIZEOF_TIME_T < 8
+        #undef  TIME_T_NOT_LONG
+        #define TIME_T_NOT_LONG
+    #endif
+#endif
 
 /* Map default time functions */
 #if !defined(XTIME) && !defined(TIME_OVERRIDES) && !defined(USER_TIME)

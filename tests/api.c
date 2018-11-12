@@ -911,7 +911,7 @@ static int test_cm_load_ca_file(const char* ca_cert_file)
         if (ret == 0) {
             /* test loading DER */
             ret = wc_PemToDer(cert_buf, cert_sz, CA_TYPE, &pDer, NULL, NULL, NULL);
-            if (ret == 0) {
+            if (ret == 0 && pDer != NULL) {
                 ret = test_cm_load_ca_buffer(pDer->buffer, pDer->length,
                     WOLFSSL_FILETYPE_ASN1);
 

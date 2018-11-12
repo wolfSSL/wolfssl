@@ -66,6 +66,7 @@ AS_IF([ test -n "$CFLAG_VISIBILITY" ], [
 # checks to fail.
 AC_CHECK_SIZEOF([long long])
 AC_CHECK_SIZEOF([long])
+AC_CHECK_SIZEOF([time_t])
 AC_CHECK_TYPES([__uint128_t])
 AC_CHECK_FUNCS([gethostbyname getaddrinfo gettimeofday gmtime_r inet_ntoa memset socket])
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h sys/ioctl.h sys/socket.h sys/time.h errno.h])
