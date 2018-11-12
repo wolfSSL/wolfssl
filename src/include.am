@@ -183,6 +183,9 @@ endif
 if BUILD_SP_ARM32
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_arm32.c
 endif
+if BUILD_SP_ARM_THUMB
+src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_armthumb.c
+endif
 if BUILD_SP_ARM64
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_arm64.c
 endif

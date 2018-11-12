@@ -3376,7 +3376,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], r9]\n\t"
         "mov	r3, r4\n\t"
         "mov	r4, r5\n\t"
@@ -3403,7 +3403,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #4]\n\t"
         "# A[2] * B\n\t"
         "ldr	r8, [%[a], #8]\n\t"
@@ -3411,7 +3411,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #8]\n\t"
         "# A[3] * B\n\t"
         "ldr	r8, [%[a], #12]\n\t"
@@ -3419,7 +3419,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #12]\n\t"
         "# A[4] * B\n\t"
         "ldr	r8, [%[a], #16]\n\t"
@@ -3427,7 +3427,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #16]\n\t"
         "# A[5] * B\n\t"
         "ldr	r8, [%[a], #20]\n\t"
@@ -3435,7 +3435,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #20]\n\t"
         "# A[6] * B\n\t"
         "ldr	r8, [%[a], #24]\n\t"
@@ -3443,7 +3443,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #24]\n\t"
         "# A[7] * B\n\t"
         "ldr	r8, [%[a], #28]\n\t"
@@ -3451,7 +3451,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #28]\n\t"
         "# A[8] * B\n\t"
         "ldr	r8, [%[a], #32]\n\t"
@@ -3459,7 +3459,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #32]\n\t"
         "# A[9] * B\n\t"
         "ldr	r8, [%[a], #36]\n\t"
@@ -3467,7 +3467,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #36]\n\t"
         "# A[10] * B\n\t"
         "ldr	r8, [%[a], #40]\n\t"
@@ -3475,7 +3475,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #40]\n\t"
         "# A[11] * B\n\t"
         "ldr	r8, [%[a], #44]\n\t"
@@ -3483,7 +3483,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #44]\n\t"
         "# A[12] * B\n\t"
         "ldr	r8, [%[a], #48]\n\t"
@@ -3491,7 +3491,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #48]\n\t"
         "# A[13] * B\n\t"
         "ldr	r8, [%[a], #52]\n\t"
@@ -3499,7 +3499,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #52]\n\t"
         "# A[14] * B\n\t"
         "ldr	r8, [%[a], #56]\n\t"
@@ -3507,7 +3507,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #56]\n\t"
         "# A[15] * B\n\t"
         "ldr	r8, [%[a], #60]\n\t"
@@ -3515,7 +3515,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #60]\n\t"
         "# A[16] * B\n\t"
         "ldr	r8, [%[a], #64]\n\t"
@@ -3523,7 +3523,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #64]\n\t"
         "# A[17] * B\n\t"
         "ldr	r8, [%[a], #68]\n\t"
@@ -3531,7 +3531,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #68]\n\t"
         "# A[18] * B\n\t"
         "ldr	r8, [%[a], #72]\n\t"
@@ -3539,7 +3539,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #72]\n\t"
         "# A[19] * B\n\t"
         "ldr	r8, [%[a], #76]\n\t"
@@ -3547,7 +3547,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #76]\n\t"
         "# A[20] * B\n\t"
         "ldr	r8, [%[a], #80]\n\t"
@@ -3555,7 +3555,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #80]\n\t"
         "# A[21] * B\n\t"
         "ldr	r8, [%[a], #84]\n\t"
@@ -3563,7 +3563,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #84]\n\t"
         "# A[22] * B\n\t"
         "ldr	r8, [%[a], #88]\n\t"
@@ -3571,7 +3571,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #88]\n\t"
         "# A[23] * B\n\t"
         "ldr	r8, [%[a], #92]\n\t"
@@ -3579,7 +3579,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #92]\n\t"
         "# A[24] * B\n\t"
         "ldr	r8, [%[a], #96]\n\t"
@@ -3587,7 +3587,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #96]\n\t"
         "# A[25] * B\n\t"
         "ldr	r8, [%[a], #100]\n\t"
@@ -3595,7 +3595,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #100]\n\t"
         "# A[26] * B\n\t"
         "ldr	r8, [%[a], #104]\n\t"
@@ -3603,7 +3603,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #104]\n\t"
         "# A[27] * B\n\t"
         "ldr	r8, [%[a], #108]\n\t"
@@ -3611,7 +3611,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #108]\n\t"
         "# A[28] * B\n\t"
         "ldr	r8, [%[a], #112]\n\t"
@@ -3619,7 +3619,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #112]\n\t"
         "# A[29] * B\n\t"
         "ldr	r8, [%[a], #116]\n\t"
@@ -3627,7 +3627,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #116]\n\t"
         "# A[30] * B\n\t"
         "ldr	r8, [%[a], #120]\n\t"
@@ -3635,7 +3635,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #120]\n\t"
         "# A[31] * B\n\t"
         "ldr	r8, [%[a], #124]\n\t"
@@ -3740,7 +3740,7 @@ static int32_t sp_2048_cmp_32(sp_digit* a, sp_digit* b)
         "eor	%[r], %[r], r3\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b), [one] "r" (one)
-        : "r2", "r3", "r4", "r5", "r6", "r7"
+        : "r3", "r4", "r5", "r6", "r7"
     );
 #else
     __asm__ __volatile__ (
@@ -4005,7 +4005,7 @@ static int32_t sp_2048_cmp_32(sp_digit* a, sp_digit* b)
         "eor	%[r], %[r], r3\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b), [one] "r" (one)
-        : "r2", "r3", "r4", "r5", "r6", "r7"
+        : "r3", "r4", "r5", "r6", "r7"
     );
 #endif
 
@@ -4045,7 +4045,7 @@ static WC_INLINE int sp_2048_div_32(sp_digit* a, sp_digit* d, sp_digit* m,
     }
 
     r1 = sp_2048_cmp_32(t1, d) >= 0;
-    sp_2048_cond_sub_32(r, t1, t2, (sp_digit)0 - r1);
+    sp_2048_cond_sub_32(r, t1, d, (sp_digit)0 - r1);
 
     return MP_OKAY;
 }
@@ -5383,7 +5383,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], r9]\n\t"
         "mov	r3, r4\n\t"
         "mov	r4, r5\n\t"
@@ -5410,7 +5410,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #4]\n\t"
         "# A[2] * B\n\t"
         "ldr	r8, [%[a], #8]\n\t"
@@ -5418,7 +5418,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #8]\n\t"
         "# A[3] * B\n\t"
         "ldr	r8, [%[a], #12]\n\t"
@@ -5426,7 +5426,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #12]\n\t"
         "# A[4] * B\n\t"
         "ldr	r8, [%[a], #16]\n\t"
@@ -5434,7 +5434,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #16]\n\t"
         "# A[5] * B\n\t"
         "ldr	r8, [%[a], #20]\n\t"
@@ -5442,7 +5442,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #20]\n\t"
         "# A[6] * B\n\t"
         "ldr	r8, [%[a], #24]\n\t"
@@ -5450,7 +5450,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #24]\n\t"
         "# A[7] * B\n\t"
         "ldr	r8, [%[a], #28]\n\t"
@@ -5458,7 +5458,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #28]\n\t"
         "# A[8] * B\n\t"
         "ldr	r8, [%[a], #32]\n\t"
@@ -5466,7 +5466,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #32]\n\t"
         "# A[9] * B\n\t"
         "ldr	r8, [%[a], #36]\n\t"
@@ -5474,7 +5474,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #36]\n\t"
         "# A[10] * B\n\t"
         "ldr	r8, [%[a], #40]\n\t"
@@ -5482,7 +5482,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #40]\n\t"
         "# A[11] * B\n\t"
         "ldr	r8, [%[a], #44]\n\t"
@@ -5490,7 +5490,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #44]\n\t"
         "# A[12] * B\n\t"
         "ldr	r8, [%[a], #48]\n\t"
@@ -5498,7 +5498,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #48]\n\t"
         "# A[13] * B\n\t"
         "ldr	r8, [%[a], #52]\n\t"
@@ -5506,7 +5506,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #52]\n\t"
         "# A[14] * B\n\t"
         "ldr	r8, [%[a], #56]\n\t"
@@ -5514,7 +5514,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #56]\n\t"
         "# A[15] * B\n\t"
         "ldr	r8, [%[a], #60]\n\t"
@@ -5522,7 +5522,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #60]\n\t"
         "# A[16] * B\n\t"
         "ldr	r8, [%[a], #64]\n\t"
@@ -5530,7 +5530,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #64]\n\t"
         "# A[17] * B\n\t"
         "ldr	r8, [%[a], #68]\n\t"
@@ -5538,7 +5538,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #68]\n\t"
         "# A[18] * B\n\t"
         "ldr	r8, [%[a], #72]\n\t"
@@ -5546,7 +5546,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #72]\n\t"
         "# A[19] * B\n\t"
         "ldr	r8, [%[a], #76]\n\t"
@@ -5554,7 +5554,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #76]\n\t"
         "# A[20] * B\n\t"
         "ldr	r8, [%[a], #80]\n\t"
@@ -5562,7 +5562,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #80]\n\t"
         "# A[21] * B\n\t"
         "ldr	r8, [%[a], #84]\n\t"
@@ -5570,7 +5570,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #84]\n\t"
         "# A[22] * B\n\t"
         "ldr	r8, [%[a], #88]\n\t"
@@ -5578,7 +5578,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #88]\n\t"
         "# A[23] * B\n\t"
         "ldr	r8, [%[a], #92]\n\t"
@@ -5586,7 +5586,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #92]\n\t"
         "# A[24] * B\n\t"
         "ldr	r8, [%[a], #96]\n\t"
@@ -5594,7 +5594,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #96]\n\t"
         "# A[25] * B\n\t"
         "ldr	r8, [%[a], #100]\n\t"
@@ -5602,7 +5602,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #100]\n\t"
         "# A[26] * B\n\t"
         "ldr	r8, [%[a], #104]\n\t"
@@ -5610,7 +5610,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #104]\n\t"
         "# A[27] * B\n\t"
         "ldr	r8, [%[a], #108]\n\t"
@@ -5618,7 +5618,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #108]\n\t"
         "# A[28] * B\n\t"
         "ldr	r8, [%[a], #112]\n\t"
@@ -5626,7 +5626,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #112]\n\t"
         "# A[29] * B\n\t"
         "ldr	r8, [%[a], #116]\n\t"
@@ -5634,7 +5634,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #116]\n\t"
         "# A[30] * B\n\t"
         "ldr	r8, [%[a], #120]\n\t"
@@ -5642,7 +5642,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #120]\n\t"
         "# A[31] * B\n\t"
         "ldr	r8, [%[a], #124]\n\t"
@@ -5650,7 +5650,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #124]\n\t"
         "# A[32] * B\n\t"
         "ldr	r8, [%[a], #128]\n\t"
@@ -5658,7 +5658,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #128]\n\t"
         "# A[33] * B\n\t"
         "ldr	r8, [%[a], #132]\n\t"
@@ -5666,7 +5666,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #132]\n\t"
         "# A[34] * B\n\t"
         "ldr	r8, [%[a], #136]\n\t"
@@ -5674,7 +5674,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #136]\n\t"
         "# A[35] * B\n\t"
         "ldr	r8, [%[a], #140]\n\t"
@@ -5682,7 +5682,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #140]\n\t"
         "# A[36] * B\n\t"
         "ldr	r8, [%[a], #144]\n\t"
@@ -5690,7 +5690,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #144]\n\t"
         "# A[37] * B\n\t"
         "ldr	r8, [%[a], #148]\n\t"
@@ -5698,7 +5698,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #148]\n\t"
         "# A[38] * B\n\t"
         "ldr	r8, [%[a], #152]\n\t"
@@ -5706,7 +5706,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #152]\n\t"
         "# A[39] * B\n\t"
         "ldr	r8, [%[a], #156]\n\t"
@@ -5714,7 +5714,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #156]\n\t"
         "# A[40] * B\n\t"
         "ldr	r8, [%[a], #160]\n\t"
@@ -5722,7 +5722,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #160]\n\t"
         "# A[41] * B\n\t"
         "ldr	r8, [%[a], #164]\n\t"
@@ -5730,7 +5730,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #164]\n\t"
         "# A[42] * B\n\t"
         "ldr	r8, [%[a], #168]\n\t"
@@ -5738,7 +5738,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #168]\n\t"
         "# A[43] * B\n\t"
         "ldr	r8, [%[a], #172]\n\t"
@@ -5746,7 +5746,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #172]\n\t"
         "# A[44] * B\n\t"
         "ldr	r8, [%[a], #176]\n\t"
@@ -5754,7 +5754,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #176]\n\t"
         "# A[45] * B\n\t"
         "ldr	r8, [%[a], #180]\n\t"
@@ -5762,7 +5762,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #180]\n\t"
         "# A[46] * B\n\t"
         "ldr	r8, [%[a], #184]\n\t"
@@ -5770,7 +5770,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #184]\n\t"
         "# A[47] * B\n\t"
         "ldr	r8, [%[a], #188]\n\t"
@@ -5778,7 +5778,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #188]\n\t"
         "# A[48] * B\n\t"
         "ldr	r8, [%[a], #192]\n\t"
@@ -5786,7 +5786,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #192]\n\t"
         "# A[49] * B\n\t"
         "ldr	r8, [%[a], #196]\n\t"
@@ -5794,7 +5794,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #196]\n\t"
         "# A[50] * B\n\t"
         "ldr	r8, [%[a], #200]\n\t"
@@ -5802,7 +5802,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #200]\n\t"
         "# A[51] * B\n\t"
         "ldr	r8, [%[a], #204]\n\t"
@@ -5810,7 +5810,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #204]\n\t"
         "# A[52] * B\n\t"
         "ldr	r8, [%[a], #208]\n\t"
@@ -5818,7 +5818,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #208]\n\t"
         "# A[53] * B\n\t"
         "ldr	r8, [%[a], #212]\n\t"
@@ -5826,7 +5826,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #212]\n\t"
         "# A[54] * B\n\t"
         "ldr	r8, [%[a], #216]\n\t"
@@ -5834,7 +5834,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #216]\n\t"
         "# A[55] * B\n\t"
         "ldr	r8, [%[a], #220]\n\t"
@@ -5842,7 +5842,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #220]\n\t"
         "# A[56] * B\n\t"
         "ldr	r8, [%[a], #224]\n\t"
@@ -5850,7 +5850,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #224]\n\t"
         "# A[57] * B\n\t"
         "ldr	r8, [%[a], #228]\n\t"
@@ -5858,7 +5858,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #228]\n\t"
         "# A[58] * B\n\t"
         "ldr	r8, [%[a], #232]\n\t"
@@ -5866,7 +5866,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #232]\n\t"
         "# A[59] * B\n\t"
         "ldr	r8, [%[a], #236]\n\t"
@@ -5874,7 +5874,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #236]\n\t"
         "# A[60] * B\n\t"
         "ldr	r8, [%[a], #240]\n\t"
@@ -5882,7 +5882,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #240]\n\t"
         "# A[61] * B\n\t"
         "ldr	r8, [%[a], #244]\n\t"
@@ -5890,7 +5890,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #244]\n\t"
         "# A[62] * B\n\t"
         "ldr	r8, [%[a], #248]\n\t"
@@ -5898,7 +5898,7 @@ static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #248]\n\t"
         "# A[63] * B\n\t"
         "ldr	r8, [%[a], #252]\n\t"
@@ -6032,7 +6032,7 @@ static int32_t sp_2048_cmp_64(sp_digit* a, sp_digit* b)
         "eor	%[r], %[r], r3\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b), [one] "r" (one)
-        : "r2", "r3", "r4", "r5", "r6", "r7"
+        : "r3", "r4", "r5", "r6", "r7"
     );
 #else
     __asm__ __volatile__ (
@@ -6553,7 +6553,7 @@ static int32_t sp_2048_cmp_64(sp_digit* a, sp_digit* b)
         "eor	%[r], %[r], r3\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b), [one] "r" (one)
-        : "r2", "r3", "r4", "r5", "r6", "r7"
+        : "r3", "r4", "r5", "r6", "r7"
     );
 #endif
 
@@ -6593,7 +6593,7 @@ static WC_INLINE int sp_2048_div_64(sp_digit* a, sp_digit* d, sp_digit* m,
     }
 
     r1 = sp_2048_cmp_64(t1, d) >= 0;
-    sp_2048_cond_sub_64(r, t1, t2, (sp_digit)0 - r1);
+    sp_2048_cond_sub_64(r, t1, d, (sp_digit)0 - r1);
 
     return MP_OKAY;
 }
@@ -6644,7 +6644,7 @@ static WC_INLINE int sp_2048_div_64_cond(sp_digit* a, sp_digit* d, sp_digit* m,
     }
 
     r1 = sp_2048_cmp_64(t1, d) >= 0;
-    sp_2048_cond_sub_64(r, t1, t2, (sp_digit)0 - r1);
+    sp_2048_cond_sub_64(r, t1, d, (sp_digit)0 - r1);
 
     return MP_OKAY;
 }
@@ -11574,7 +11574,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], r9]\n\t"
         "mov	r3, r4\n\t"
         "mov	r4, r5\n\t"
@@ -11601,7 +11601,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #4]\n\t"
         "# A[2] * B\n\t"
         "ldr	r8, [%[a], #8]\n\t"
@@ -11609,7 +11609,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #8]\n\t"
         "# A[3] * B\n\t"
         "ldr	r8, [%[a], #12]\n\t"
@@ -11617,7 +11617,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #12]\n\t"
         "# A[4] * B\n\t"
         "ldr	r8, [%[a], #16]\n\t"
@@ -11625,7 +11625,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #16]\n\t"
         "# A[5] * B\n\t"
         "ldr	r8, [%[a], #20]\n\t"
@@ -11633,7 +11633,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #20]\n\t"
         "# A[6] * B\n\t"
         "ldr	r8, [%[a], #24]\n\t"
@@ -11641,7 +11641,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #24]\n\t"
         "# A[7] * B\n\t"
         "ldr	r8, [%[a], #28]\n\t"
@@ -11649,7 +11649,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #28]\n\t"
         "# A[8] * B\n\t"
         "ldr	r8, [%[a], #32]\n\t"
@@ -11657,7 +11657,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #32]\n\t"
         "# A[9] * B\n\t"
         "ldr	r8, [%[a], #36]\n\t"
@@ -11665,7 +11665,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #36]\n\t"
         "# A[10] * B\n\t"
         "ldr	r8, [%[a], #40]\n\t"
@@ -11673,7 +11673,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #40]\n\t"
         "# A[11] * B\n\t"
         "ldr	r8, [%[a], #44]\n\t"
@@ -11681,7 +11681,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #44]\n\t"
         "# A[12] * B\n\t"
         "ldr	r8, [%[a], #48]\n\t"
@@ -11689,7 +11689,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #48]\n\t"
         "# A[13] * B\n\t"
         "ldr	r8, [%[a], #52]\n\t"
@@ -11697,7 +11697,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #52]\n\t"
         "# A[14] * B\n\t"
         "ldr	r8, [%[a], #56]\n\t"
@@ -11705,7 +11705,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #56]\n\t"
         "# A[15] * B\n\t"
         "ldr	r8, [%[a], #60]\n\t"
@@ -11713,7 +11713,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #60]\n\t"
         "# A[16] * B\n\t"
         "ldr	r8, [%[a], #64]\n\t"
@@ -11721,7 +11721,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #64]\n\t"
         "# A[17] * B\n\t"
         "ldr	r8, [%[a], #68]\n\t"
@@ -11729,7 +11729,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #68]\n\t"
         "# A[18] * B\n\t"
         "ldr	r8, [%[a], #72]\n\t"
@@ -11737,7 +11737,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #72]\n\t"
         "# A[19] * B\n\t"
         "ldr	r8, [%[a], #76]\n\t"
@@ -11745,7 +11745,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #76]\n\t"
         "# A[20] * B\n\t"
         "ldr	r8, [%[a], #80]\n\t"
@@ -11753,7 +11753,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #80]\n\t"
         "# A[21] * B\n\t"
         "ldr	r8, [%[a], #84]\n\t"
@@ -11761,7 +11761,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #84]\n\t"
         "# A[22] * B\n\t"
         "ldr	r8, [%[a], #88]\n\t"
@@ -11769,7 +11769,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #88]\n\t"
         "# A[23] * B\n\t"
         "ldr	r8, [%[a], #92]\n\t"
@@ -11777,7 +11777,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #92]\n\t"
         "# A[24] * B\n\t"
         "ldr	r8, [%[a], #96]\n\t"
@@ -11785,7 +11785,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #96]\n\t"
         "# A[25] * B\n\t"
         "ldr	r8, [%[a], #100]\n\t"
@@ -11793,7 +11793,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #100]\n\t"
         "# A[26] * B\n\t"
         "ldr	r8, [%[a], #104]\n\t"
@@ -11801,7 +11801,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #104]\n\t"
         "# A[27] * B\n\t"
         "ldr	r8, [%[a], #108]\n\t"
@@ -11809,7 +11809,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #108]\n\t"
         "# A[28] * B\n\t"
         "ldr	r8, [%[a], #112]\n\t"
@@ -11817,7 +11817,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #112]\n\t"
         "# A[29] * B\n\t"
         "ldr	r8, [%[a], #116]\n\t"
@@ -11825,7 +11825,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #116]\n\t"
         "# A[30] * B\n\t"
         "ldr	r8, [%[a], #120]\n\t"
@@ -11833,7 +11833,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #120]\n\t"
         "# A[31] * B\n\t"
         "ldr	r8, [%[a], #124]\n\t"
@@ -11841,7 +11841,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #124]\n\t"
         "# A[32] * B\n\t"
         "ldr	r8, [%[a], #128]\n\t"
@@ -11849,7 +11849,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #128]\n\t"
         "# A[33] * B\n\t"
         "ldr	r8, [%[a], #132]\n\t"
@@ -11857,7 +11857,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #132]\n\t"
         "# A[34] * B\n\t"
         "ldr	r8, [%[a], #136]\n\t"
@@ -11865,7 +11865,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #136]\n\t"
         "# A[35] * B\n\t"
         "ldr	r8, [%[a], #140]\n\t"
@@ -11873,7 +11873,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #140]\n\t"
         "# A[36] * B\n\t"
         "ldr	r8, [%[a], #144]\n\t"
@@ -11881,7 +11881,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #144]\n\t"
         "# A[37] * B\n\t"
         "ldr	r8, [%[a], #148]\n\t"
@@ -11889,7 +11889,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #148]\n\t"
         "# A[38] * B\n\t"
         "ldr	r8, [%[a], #152]\n\t"
@@ -11897,7 +11897,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #152]\n\t"
         "# A[39] * B\n\t"
         "ldr	r8, [%[a], #156]\n\t"
@@ -11905,7 +11905,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #156]\n\t"
         "# A[40] * B\n\t"
         "ldr	r8, [%[a], #160]\n\t"
@@ -11913,7 +11913,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #160]\n\t"
         "# A[41] * B\n\t"
         "ldr	r8, [%[a], #164]\n\t"
@@ -11921,7 +11921,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #164]\n\t"
         "# A[42] * B\n\t"
         "ldr	r8, [%[a], #168]\n\t"
@@ -11929,7 +11929,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #168]\n\t"
         "# A[43] * B\n\t"
         "ldr	r8, [%[a], #172]\n\t"
@@ -11937,7 +11937,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #172]\n\t"
         "# A[44] * B\n\t"
         "ldr	r8, [%[a], #176]\n\t"
@@ -11945,7 +11945,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #176]\n\t"
         "# A[45] * B\n\t"
         "ldr	r8, [%[a], #180]\n\t"
@@ -11953,7 +11953,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #180]\n\t"
         "# A[46] * B\n\t"
         "ldr	r8, [%[a], #184]\n\t"
@@ -11961,7 +11961,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #184]\n\t"
         "# A[47] * B\n\t"
         "ldr	r8, [%[a], #188]\n\t"
@@ -12066,7 +12066,7 @@ static int32_t sp_3072_cmp_48(sp_digit* a, sp_digit* b)
         "eor	%[r], %[r], r3\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b), [one] "r" (one)
-        : "r2", "r3", "r4", "r5", "r6", "r7"
+        : "r3", "r4", "r5", "r6", "r7"
     );
 #else
     __asm__ __volatile__ (
@@ -12459,7 +12459,7 @@ static int32_t sp_3072_cmp_48(sp_digit* a, sp_digit* b)
         "eor	%[r], %[r], r3\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b), [one] "r" (one)
-        : "r2", "r3", "r4", "r5", "r6", "r7"
+        : "r3", "r4", "r5", "r6", "r7"
     );
 #endif
 
@@ -12499,7 +12499,7 @@ static WC_INLINE int sp_3072_div_48(sp_digit* a, sp_digit* d, sp_digit* m,
     }
 
     r1 = sp_3072_cmp_48(t1, d) >= 0;
-    sp_3072_cond_sub_48(r, t1, t2, (sp_digit)0 - r1);
+    sp_3072_cond_sub_48(r, t1, d, (sp_digit)0 - r1);
 
     return MP_OKAY;
 }
@@ -14285,7 +14285,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], r9]\n\t"
         "mov	r3, r4\n\t"
         "mov	r4, r5\n\t"
@@ -14312,7 +14312,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #4]\n\t"
         "# A[2] * B\n\t"
         "ldr	r8, [%[a], #8]\n\t"
@@ -14320,7 +14320,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #8]\n\t"
         "# A[3] * B\n\t"
         "ldr	r8, [%[a], #12]\n\t"
@@ -14328,7 +14328,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #12]\n\t"
         "# A[4] * B\n\t"
         "ldr	r8, [%[a], #16]\n\t"
@@ -14336,7 +14336,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #16]\n\t"
         "# A[5] * B\n\t"
         "ldr	r8, [%[a], #20]\n\t"
@@ -14344,7 +14344,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #20]\n\t"
         "# A[6] * B\n\t"
         "ldr	r8, [%[a], #24]\n\t"
@@ -14352,7 +14352,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #24]\n\t"
         "# A[7] * B\n\t"
         "ldr	r8, [%[a], #28]\n\t"
@@ -14360,7 +14360,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #28]\n\t"
         "# A[8] * B\n\t"
         "ldr	r8, [%[a], #32]\n\t"
@@ -14368,7 +14368,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #32]\n\t"
         "# A[9] * B\n\t"
         "ldr	r8, [%[a], #36]\n\t"
@@ -14376,7 +14376,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #36]\n\t"
         "# A[10] * B\n\t"
         "ldr	r8, [%[a], #40]\n\t"
@@ -14384,7 +14384,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #40]\n\t"
         "# A[11] * B\n\t"
         "ldr	r8, [%[a], #44]\n\t"
@@ -14392,7 +14392,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #44]\n\t"
         "# A[12] * B\n\t"
         "ldr	r8, [%[a], #48]\n\t"
@@ -14400,7 +14400,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #48]\n\t"
         "# A[13] * B\n\t"
         "ldr	r8, [%[a], #52]\n\t"
@@ -14408,7 +14408,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #52]\n\t"
         "# A[14] * B\n\t"
         "ldr	r8, [%[a], #56]\n\t"
@@ -14416,7 +14416,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #56]\n\t"
         "# A[15] * B\n\t"
         "ldr	r8, [%[a], #60]\n\t"
@@ -14424,7 +14424,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #60]\n\t"
         "# A[16] * B\n\t"
         "ldr	r8, [%[a], #64]\n\t"
@@ -14432,7 +14432,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #64]\n\t"
         "# A[17] * B\n\t"
         "ldr	r8, [%[a], #68]\n\t"
@@ -14440,7 +14440,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #68]\n\t"
         "# A[18] * B\n\t"
         "ldr	r8, [%[a], #72]\n\t"
@@ -14448,7 +14448,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #72]\n\t"
         "# A[19] * B\n\t"
         "ldr	r8, [%[a], #76]\n\t"
@@ -14456,7 +14456,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #76]\n\t"
         "# A[20] * B\n\t"
         "ldr	r8, [%[a], #80]\n\t"
@@ -14464,7 +14464,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #80]\n\t"
         "# A[21] * B\n\t"
         "ldr	r8, [%[a], #84]\n\t"
@@ -14472,7 +14472,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #84]\n\t"
         "# A[22] * B\n\t"
         "ldr	r8, [%[a], #88]\n\t"
@@ -14480,7 +14480,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #88]\n\t"
         "# A[23] * B\n\t"
         "ldr	r8, [%[a], #92]\n\t"
@@ -14488,7 +14488,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #92]\n\t"
         "# A[24] * B\n\t"
         "ldr	r8, [%[a], #96]\n\t"
@@ -14496,7 +14496,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #96]\n\t"
         "# A[25] * B\n\t"
         "ldr	r8, [%[a], #100]\n\t"
@@ -14504,7 +14504,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #100]\n\t"
         "# A[26] * B\n\t"
         "ldr	r8, [%[a], #104]\n\t"
@@ -14512,7 +14512,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #104]\n\t"
         "# A[27] * B\n\t"
         "ldr	r8, [%[a], #108]\n\t"
@@ -14520,7 +14520,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #108]\n\t"
         "# A[28] * B\n\t"
         "ldr	r8, [%[a], #112]\n\t"
@@ -14528,7 +14528,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #112]\n\t"
         "# A[29] * B\n\t"
         "ldr	r8, [%[a], #116]\n\t"
@@ -14536,7 +14536,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #116]\n\t"
         "# A[30] * B\n\t"
         "ldr	r8, [%[a], #120]\n\t"
@@ -14544,7 +14544,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #120]\n\t"
         "# A[31] * B\n\t"
         "ldr	r8, [%[a], #124]\n\t"
@@ -14552,7 +14552,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #124]\n\t"
         "# A[32] * B\n\t"
         "ldr	r8, [%[a], #128]\n\t"
@@ -14560,7 +14560,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #128]\n\t"
         "# A[33] * B\n\t"
         "ldr	r8, [%[a], #132]\n\t"
@@ -14568,7 +14568,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #132]\n\t"
         "# A[34] * B\n\t"
         "ldr	r8, [%[a], #136]\n\t"
@@ -14576,7 +14576,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #136]\n\t"
         "# A[35] * B\n\t"
         "ldr	r8, [%[a], #140]\n\t"
@@ -14584,7 +14584,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #140]\n\t"
         "# A[36] * B\n\t"
         "ldr	r8, [%[a], #144]\n\t"
@@ -14592,7 +14592,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #144]\n\t"
         "# A[37] * B\n\t"
         "ldr	r8, [%[a], #148]\n\t"
@@ -14600,7 +14600,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #148]\n\t"
         "# A[38] * B\n\t"
         "ldr	r8, [%[a], #152]\n\t"
@@ -14608,7 +14608,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #152]\n\t"
         "# A[39] * B\n\t"
         "ldr	r8, [%[a], #156]\n\t"
@@ -14616,7 +14616,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #156]\n\t"
         "# A[40] * B\n\t"
         "ldr	r8, [%[a], #160]\n\t"
@@ -14624,7 +14624,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #160]\n\t"
         "# A[41] * B\n\t"
         "ldr	r8, [%[a], #164]\n\t"
@@ -14632,7 +14632,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #164]\n\t"
         "# A[42] * B\n\t"
         "ldr	r8, [%[a], #168]\n\t"
@@ -14640,7 +14640,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #168]\n\t"
         "# A[43] * B\n\t"
         "ldr	r8, [%[a], #172]\n\t"
@@ -14648,7 +14648,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #172]\n\t"
         "# A[44] * B\n\t"
         "ldr	r8, [%[a], #176]\n\t"
@@ -14656,7 +14656,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #176]\n\t"
         "# A[45] * B\n\t"
         "ldr	r8, [%[a], #180]\n\t"
@@ -14664,7 +14664,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #180]\n\t"
         "# A[46] * B\n\t"
         "ldr	r8, [%[a], #184]\n\t"
@@ -14672,7 +14672,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #184]\n\t"
         "# A[47] * B\n\t"
         "ldr	r8, [%[a], #188]\n\t"
@@ -14680,7 +14680,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #188]\n\t"
         "# A[48] * B\n\t"
         "ldr	r8, [%[a], #192]\n\t"
@@ -14688,7 +14688,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #192]\n\t"
         "# A[49] * B\n\t"
         "ldr	r8, [%[a], #196]\n\t"
@@ -14696,7 +14696,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #196]\n\t"
         "# A[50] * B\n\t"
         "ldr	r8, [%[a], #200]\n\t"
@@ -14704,7 +14704,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #200]\n\t"
         "# A[51] * B\n\t"
         "ldr	r8, [%[a], #204]\n\t"
@@ -14712,7 +14712,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #204]\n\t"
         "# A[52] * B\n\t"
         "ldr	r8, [%[a], #208]\n\t"
@@ -14720,7 +14720,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #208]\n\t"
         "# A[53] * B\n\t"
         "ldr	r8, [%[a], #212]\n\t"
@@ -14728,7 +14728,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #212]\n\t"
         "# A[54] * B\n\t"
         "ldr	r8, [%[a], #216]\n\t"
@@ -14736,7 +14736,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #216]\n\t"
         "# A[55] * B\n\t"
         "ldr	r8, [%[a], #220]\n\t"
@@ -14744,7 +14744,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #220]\n\t"
         "# A[56] * B\n\t"
         "ldr	r8, [%[a], #224]\n\t"
@@ -14752,7 +14752,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #224]\n\t"
         "# A[57] * B\n\t"
         "ldr	r8, [%[a], #228]\n\t"
@@ -14760,7 +14760,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #228]\n\t"
         "# A[58] * B\n\t"
         "ldr	r8, [%[a], #232]\n\t"
@@ -14768,7 +14768,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #232]\n\t"
         "# A[59] * B\n\t"
         "ldr	r8, [%[a], #236]\n\t"
@@ -14776,7 +14776,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #236]\n\t"
         "# A[60] * B\n\t"
         "ldr	r8, [%[a], #240]\n\t"
@@ -14784,7 +14784,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #240]\n\t"
         "# A[61] * B\n\t"
         "ldr	r8, [%[a], #244]\n\t"
@@ -14792,7 +14792,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #244]\n\t"
         "# A[62] * B\n\t"
         "ldr	r8, [%[a], #248]\n\t"
@@ -14800,7 +14800,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #248]\n\t"
         "# A[63] * B\n\t"
         "ldr	r8, [%[a], #252]\n\t"
@@ -14808,7 +14808,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #252]\n\t"
         "# A[64] * B\n\t"
         "ldr	r8, [%[a], #256]\n\t"
@@ -14816,7 +14816,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #256]\n\t"
         "# A[65] * B\n\t"
         "ldr	r8, [%[a], #260]\n\t"
@@ -14824,7 +14824,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #260]\n\t"
         "# A[66] * B\n\t"
         "ldr	r8, [%[a], #264]\n\t"
@@ -14832,7 +14832,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #264]\n\t"
         "# A[67] * B\n\t"
         "ldr	r8, [%[a], #268]\n\t"
@@ -14840,7 +14840,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #268]\n\t"
         "# A[68] * B\n\t"
         "ldr	r8, [%[a], #272]\n\t"
@@ -14848,7 +14848,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #272]\n\t"
         "# A[69] * B\n\t"
         "ldr	r8, [%[a], #276]\n\t"
@@ -14856,7 +14856,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #276]\n\t"
         "# A[70] * B\n\t"
         "ldr	r8, [%[a], #280]\n\t"
@@ -14864,7 +14864,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #280]\n\t"
         "# A[71] * B\n\t"
         "ldr	r8, [%[a], #284]\n\t"
@@ -14872,7 +14872,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #284]\n\t"
         "# A[72] * B\n\t"
         "ldr	r8, [%[a], #288]\n\t"
@@ -14880,7 +14880,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #288]\n\t"
         "# A[73] * B\n\t"
         "ldr	r8, [%[a], #292]\n\t"
@@ -14888,7 +14888,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #292]\n\t"
         "# A[74] * B\n\t"
         "ldr	r8, [%[a], #296]\n\t"
@@ -14896,7 +14896,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #296]\n\t"
         "# A[75] * B\n\t"
         "ldr	r8, [%[a], #300]\n\t"
@@ -14904,7 +14904,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #300]\n\t"
         "# A[76] * B\n\t"
         "ldr	r8, [%[a], #304]\n\t"
@@ -14912,7 +14912,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #304]\n\t"
         "# A[77] * B\n\t"
         "ldr	r8, [%[a], #308]\n\t"
@@ -14920,7 +14920,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #308]\n\t"
         "# A[78] * B\n\t"
         "ldr	r8, [%[a], #312]\n\t"
@@ -14928,7 +14928,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #312]\n\t"
         "# A[79] * B\n\t"
         "ldr	r8, [%[a], #316]\n\t"
@@ -14936,7 +14936,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #316]\n\t"
         "# A[80] * B\n\t"
         "ldr	r8, [%[a], #320]\n\t"
@@ -14944,7 +14944,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #320]\n\t"
         "# A[81] * B\n\t"
         "ldr	r8, [%[a], #324]\n\t"
@@ -14952,7 +14952,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #324]\n\t"
         "# A[82] * B\n\t"
         "ldr	r8, [%[a], #328]\n\t"
@@ -14960,7 +14960,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #328]\n\t"
         "# A[83] * B\n\t"
         "ldr	r8, [%[a], #332]\n\t"
@@ -14968,7 +14968,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #332]\n\t"
         "# A[84] * B\n\t"
         "ldr	r8, [%[a], #336]\n\t"
@@ -14976,7 +14976,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #336]\n\t"
         "# A[85] * B\n\t"
         "ldr	r8, [%[a], #340]\n\t"
@@ -14984,7 +14984,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #340]\n\t"
         "# A[86] * B\n\t"
         "ldr	r8, [%[a], #344]\n\t"
@@ -14992,7 +14992,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #344]\n\t"
         "# A[87] * B\n\t"
         "ldr	r8, [%[a], #348]\n\t"
@@ -15000,7 +15000,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #348]\n\t"
         "# A[88] * B\n\t"
         "ldr	r8, [%[a], #352]\n\t"
@@ -15008,7 +15008,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #352]\n\t"
         "# A[89] * B\n\t"
         "ldr	r8, [%[a], #356]\n\t"
@@ -15016,7 +15016,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #356]\n\t"
         "# A[90] * B\n\t"
         "ldr	r8, [%[a], #360]\n\t"
@@ -15024,7 +15024,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #360]\n\t"
         "# A[91] * B\n\t"
         "ldr	r8, [%[a], #364]\n\t"
@@ -15032,7 +15032,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #364]\n\t"
         "# A[92] * B\n\t"
         "ldr	r8, [%[a], #368]\n\t"
@@ -15040,7 +15040,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #368]\n\t"
         "# A[93] * B\n\t"
         "ldr	r8, [%[a], #372]\n\t"
@@ -15048,7 +15048,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #372]\n\t"
         "# A[94] * B\n\t"
         "ldr	r8, [%[a], #376]\n\t"
@@ -15056,7 +15056,7 @@ static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #376]\n\t"
         "# A[95] * B\n\t"
         "ldr	r8, [%[a], #380]\n\t"
@@ -15190,7 +15190,7 @@ static int32_t sp_3072_cmp_96(sp_digit* a, sp_digit* b)
         "eor	%[r], %[r], r3\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b), [one] "r" (one)
-        : "r2", "r3", "r4", "r5", "r6", "r7"
+        : "r3", "r4", "r5", "r6", "r7"
     );
 #else
     __asm__ __volatile__ (
@@ -15967,7 +15967,7 @@ static int32_t sp_3072_cmp_96(sp_digit* a, sp_digit* b)
         "eor	%[r], %[r], r3\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b), [one] "r" (one)
-        : "r2", "r3", "r4", "r5", "r6", "r7"
+        : "r3", "r4", "r5", "r6", "r7"
     );
 #endif
 
@@ -16007,7 +16007,7 @@ static WC_INLINE int sp_3072_div_96(sp_digit* a, sp_digit* d, sp_digit* m,
     }
 
     r1 = sp_3072_cmp_96(t1, d) >= 0;
-    sp_3072_cond_sub_96(r, t1, t2, (sp_digit)0 - r1);
+    sp_3072_cond_sub_96(r, t1, d, (sp_digit)0 - r1);
 
     return MP_OKAY;
 }
@@ -16058,7 +16058,7 @@ static WC_INLINE int sp_3072_div_96_cond(sp_digit* a, sp_digit* d, sp_digit* m,
     }
 
     r1 = sp_3072_cmp_96(t1, d) >= 0;
-    sp_3072_cond_sub_96(r, t1, t2, (sp_digit)0 - r1);
+    sp_3072_cond_sub_96(r, t1, d, (sp_digit)0 - r1);
 
     return MP_OKAY;
 }
@@ -17122,7 +17122,7 @@ static int32_t sp_256_cmp_8(sp_digit* a, sp_digit* b)
         "eor	%[r], %[r], r3\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b), [one] "r" (one)
-        : "r2", "r3", "r4", "r5", "r6", "r7"
+        : "r3", "r4", "r5", "r6", "r7"
     );
 #else
     __asm__ __volatile__ (
@@ -17195,7 +17195,7 @@ static int32_t sp_256_cmp_8(sp_digit* a, sp_digit* b)
         "eor	%[r], %[r], r3\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b), [one] "r" (one)
-        : "r2", "r3", "r4", "r5", "r6", "r7"
+        : "r3", "r4", "r5", "r6", "r7"
     );
 #endif
 
@@ -17293,6 +17293,8 @@ static sp_digit sp_256_cond_sub_8(sp_digit* r, sp_digit* a, sp_digit* b,
 
     return c;
 }
+
+#define sp_256_mont_reduce_order_8    sp_256_mont_reduce_8
 
 /* Reduce the number back to 256 bits using Montgomery reduction.
  *
@@ -19883,7 +19885,7 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point* r, sp_point* g,
         XMEMCPY(rt->z, p256_norm_mod, sizeof(p256_norm_mod));
 
         y = 0;
-        for (j=0,x=63; j<4; j++,x+=32)
+        for (j=0,x=63; j<4; j++,x+=64)
             y |= ((k[x / 32] >> (x % 32)) & 1) << j;
         XMEMCPY(rt->x, table[y].x, sizeof(table[y].x));
         XMEMCPY(rt->y, table[y].y, sizeof(table[y].y));
@@ -20355,9 +20357,6 @@ int sp_ecc_mulmod_256(mp_int* km, ecc_point* gm, ecc_point* r, int map,
     sp_point* point;
     sp_digit* k = NULL;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
-    word32 cpuid_flags = cpuid_get_flags();
-#endif
 
     err = sp_ecc_point_new(heap, p, point);
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
@@ -20373,11 +20372,6 @@ int sp_ecc_mulmod_256(mp_int* km, ecc_point* gm, ecc_point* r, int map,
         sp_256_from_mp(k, 8, km);
         sp_256_point_from_ecc_point_8(point, gm);
 
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-            err = sp_256_ecc_mulmod_avx2_8(point, point, k, map, heap);
-        else
-#endif
             err = sp_256_ecc_mulmod_8(point, point, k, map, heap);
     }
     if (err == MP_OKAY)
@@ -22080,9 +22074,6 @@ int sp_ecc_mulmod_base_256(mp_int* km, ecc_point* r, int map, void* heap)
     sp_point* point;
     sp_digit* k = NULL;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
-    word32 cpuid_flags = cpuid_get_flags();
-#endif
 
     err = sp_ecc_point_new(heap, p, point);
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
@@ -22097,11 +22088,6 @@ int sp_ecc_mulmod_base_256(mp_int* km, ecc_point* r, int map, void* heap)
     if (err == MP_OKAY) {
         sp_256_from_mp(k, 8, km);
 
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-            err = sp_256_ecc_mulmod_base_avx2_8(point, k, map, heap);
-        else
-#endif
             err = sp_256_ecc_mulmod_base_8(point, k, map, heap);
     }
     if (err == MP_OKAY)
@@ -22131,7 +22117,6 @@ static int sp_256_iszero_8(const sp_digit* a)
 #endif /* WOLFSSL_VALIDATE_ECC_KEYGEN || HAVE_ECC_SIGN */
 /* Add 1 to a. (a = a + 1)
  *
- * r  A single precision integer.
  * a  A single precision integer.
  */
 static void sp_256_add_one_8(sp_digit* a)
@@ -22247,9 +22232,6 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
     sp_point* infinity;
 #endif
     int err;
-#ifdef HAVE_INTEL_AVX2
-    word32 cpuid_flags = cpuid_get_flags();
-#endif
 
     (void)heap;
 
@@ -22271,23 +22253,11 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
     if (err == MP_OKAY)
         err = sp_256_ecc_gen_k_8(rng, k);
     if (err == MP_OKAY) {
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-            err = sp_256_ecc_mulmod_base_avx2_8(point, k, 1, NULL);
-        else
-#endif
             err = sp_256_ecc_mulmod_base_8(point, k, 1, NULL);
     }
 
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     if (err == MP_OKAY) {
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
-            err = sp_256_ecc_mulmod_avx2_8(infinity, point, p256_order, 1,
-                                                                          NULL);
-        }
-        else
-#endif
             err = sp_256_ecc_mulmod_8(infinity, point, p256_order, 1, NULL);
     }
     if (err == MP_OKAY) {
@@ -22366,9 +22336,6 @@ int sp_ecc_secret_gen_256(mp_int* priv, ecc_point* pub, byte* out,
     sp_point* point = NULL;
     sp_digit* k = NULL;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
-    word32 cpuid_flags = cpuid_get_flags();
-#endif
 
     if (*outLen < 32)
         err = BUFFER_E;
@@ -22388,11 +22355,6 @@ int sp_ecc_secret_gen_256(mp_int* priv, ecc_point* pub, byte* out,
     if (err == MP_OKAY) {
         sp_256_from_mp(k, 8, priv);
         sp_256_point_from_ecc_point_8(point, pub);
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-            err = sp_256_ecc_mulmod_avx2_8(point, point, k, 1, heap);
-        else
-#endif
             err = sp_256_ecc_mulmod_8(point, point, k, 1, heap);
     }
     if (err == MP_OKAY) {
@@ -22944,8 +22906,6 @@ static void sp_256_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#ifdef HAVE_INTEL_AVX2
-#endif /* HAVE_INTEL_AVX2 */
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 #ifdef WOLFSSL_SP_SMALL
@@ -23067,7 +23027,7 @@ static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], r9]\n\t"
         "mov	r3, r4\n\t"
         "mov	r4, r5\n\t"
@@ -23094,7 +23054,7 @@ static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #4]\n\t"
         "# A[2] * B\n\t"
         "ldr	r8, [%[a], #8]\n\t"
@@ -23102,7 +23062,7 @@ static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #8]\n\t"
         "# A[3] * B\n\t"
         "ldr	r8, [%[a], #12]\n\t"
@@ -23110,7 +23070,7 @@ static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #12]\n\t"
         "# A[4] * B\n\t"
         "ldr	r8, [%[a], #16]\n\t"
@@ -23118,7 +23078,7 @@ static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r4, r4, r6\n\t"
         "adcs	r5, r5, r7\n\t"
-        "adc	r3, r10, r10\n\t"
+        "adc	r3, r3, r10\n\t"
         "str	r4, [%[r], #16]\n\t"
         "# A[5] * B\n\t"
         "ldr	r8, [%[a], #20]\n\t"
@@ -23126,7 +23086,7 @@ static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r5, r5, r6\n\t"
         "adcs	r3, r3, r7\n\t"
-        "adc	r4, r10, r10\n\t"
+        "adc	r4, r4, r10\n\t"
         "str	r5, [%[r], #20]\n\t"
         "# A[6] * B\n\t"
         "ldr	r8, [%[a], #24]\n\t"
@@ -23134,7 +23094,7 @@ static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a,
         "umull	r6, r7, %[b], r8\n\t"
         "adds	r3, r3, r6\n\t"
         "adcs	r4, r4, r7\n\t"
-        "adc	r5, r10, r10\n\t"
+        "adc	r5, r5, r10\n\t"
         "str	r3, [%[r], #24]\n\t"
         "# A[7] * B\n\t"
         "ldr	r8, [%[a], #28]\n\t"
@@ -23266,7 +23226,7 @@ static WC_INLINE int sp_256_div_8(sp_digit* a, sp_digit* d, sp_digit* m,
     }
 
     r1 = sp_256_cmp_8(t1, d) >= 0;
-    sp_256_cond_sub_8(r, t1, t2, (sp_digit)0 - r1);
+    sp_256_cond_sub_8(r, t1, d, (sp_digit)0 - r1);
 
     return MP_OKAY;
 }
@@ -23711,7 +23671,7 @@ static const uint32_t p256_order_low[4] = {
 static void sp_256_mont_mul_order_8(sp_digit* r, sp_digit* a, sp_digit* b)
 {
     sp_256_mul_8(r, a, b);
-    sp_256_mont_reduce_8(r, p256_order, p256_mp_order);
+    sp_256_mont_reduce_order_8(r, p256_order, p256_mp_order);
 }
 
 /* Square number mod the order of P256 curve. (r = a * a mod order)
@@ -23722,7 +23682,7 @@ static void sp_256_mont_mul_order_8(sp_digit* r, sp_digit* a, sp_digit* b)
 static void sp_256_mont_sqr_order_8(sp_digit* r, sp_digit* a)
 {
     sp_256_sqr_8(r, a);
-    sp_256_mont_reduce_8(r, p256_order, p256_mp_order);
+    sp_256_mont_reduce_order_8(r, p256_order, p256_mp_order);
 }
 
 #ifndef WOLFSSL_SP_SMALL
@@ -23837,143 +23797,6 @@ static void sp_256_mont_inv_order_8(sp_digit* r, sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
-#ifdef HAVE_INTEL_AVX2
-/* Multiply two number mod the order of P256 curve. (r = a * b mod order)
- *
- * r  Result of the multiplication.
- * a  First operand of the multiplication.
- * b  Second operand of the multiplication.
- */
-static void sp_256_mont_mul_order_avx2_8(sp_digit* r, sp_digit* a, sp_digit* b)
-{
-    sp_256_mul_avx2_8(r, a, b);
-    sp_256_mont_reduce_avx2_8(r, p256_order, p256_mp_order);
-}
-
-/* Square number mod the order of P256 curve. (r = a * a mod order)
- *
- * r  Result of the squaring.
- * a  Number to square.
- */
-static void sp_256_mont_sqr_order_avx2_8(sp_digit* r, sp_digit* a)
-{
-    sp_256_sqr_avx2_8(r, a);
-    sp_256_mont_reduce_avx2_8(r, p256_order, p256_mp_order);
-}
-
-#ifndef WOLFSSL_SP_SMALL
-/* Square number mod the order of P256 curve a number of times.
- * (r = a ^ n mod order)
- *
- * r  Result of the squaring.
- * a  Number to square.
- */
-static void sp_256_mont_sqr_n_order_avx2_8(sp_digit* r, sp_digit* a, int n)
-{
-    int i;
-
-    sp_256_mont_sqr_order_avx2_8(r, a);
-    for (i=1; i<n; i++)
-        sp_256_mont_sqr_order_avx2_8(r, r);
-}
-#endif /* !WOLFSSL_SP_SMALL */
-
-/* Invert the number, in Montgomery form, modulo the order of the P256 curve.
- * (r = 1 / a mod order)
- *
- * r   Inverse result.
- * a   Number to invert.
- * td  Temporary data.
- */
-static void sp_256_mont_inv_order_avx2_8(sp_digit* r, sp_digit* a,
-        sp_digit* td)
-{
-#ifdef WOLFSSL_SP_SMALL
-    sp_digit* t = td;
-    int i;
-
-    XMEMCPY(t, a, sizeof(sp_digit) * 8);
-    for (i=254; i>=0; i--) {
-        sp_256_mont_sqr_order_avx2_8(t, t);
-        if (p256_order_2[i / 32] & ((sp_digit)1 << (i % 32)))
-            sp_256_mont_mul_order_avx2_8(t, t, a);
-    }
-    XMEMCPY(r, t, sizeof(sp_digit) * 8);
-#else
-    sp_digit* t = td;
-    sp_digit* t2 = td + 2 * 8;
-    sp_digit* t3 = td + 4 * 8;
-    int i;
-
-    /* t = a^2 */
-    sp_256_mont_sqr_order_avx2_8(t, a);
-    /* t = a^3 = t * a */
-    sp_256_mont_mul_order_avx2_8(t, t, a);
-    /* t2= a^c = t ^ 2 ^ 2 */
-    sp_256_mont_sqr_n_order_avx2_8(t2, t, 2);
-    /* t3= a^f = t2 * t */
-    sp_256_mont_mul_order_avx2_8(t3, t2, t);
-    /* t2= a^f0 = t3 ^ 2 ^ 4 */
-    sp_256_mont_sqr_n_order_avx2_8(t2, t3, 4);
-    /* t = a^ff = t2 * t3 */
-    sp_256_mont_mul_order_avx2_8(t, t2, t3);
-    /* t3= a^ff00 = t ^ 2 ^ 8 */
-    sp_256_mont_sqr_n_order_avx2_8(t2, t, 8);
-    /* t = a^ffff = t2 * t */
-    sp_256_mont_mul_order_avx2_8(t, t2, t);
-    /* t2= a^ffff0000 = t ^ 2 ^ 16 */
-    sp_256_mont_sqr_n_order_avx2_8(t2, t, 16);
-    /* t = a^ffffffff = t2 * t */
-    sp_256_mont_mul_order_avx2_8(t, t2, t);
-    /* t2= a^ffffffff0000000000000000 = t ^ 2 ^ 64  */
-    sp_256_mont_sqr_n_order_avx2_8(t2, t, 64);
-    /* t2= a^ffffffff00000000ffffffff = t2 * t */
-    sp_256_mont_mul_order_avx2_8(t2, t2, t);
-    /* t2= a^ffffffff00000000ffffffff00000000 = t2 ^ 2 ^ 32  */
-    sp_256_mont_sqr_n_order_avx2_8(t2, t2, 32);
-    /* t2= a^ffffffff00000000ffffffffffffffff = t2 * t */
-    sp_256_mont_mul_order_avx2_8(t2, t2, t);
-    /* t2= a^ffffffff00000000ffffffffffffffffbce6 */
-    for (i=127; i>=112; i--) {
-        sp_256_mont_sqr_order_avx2_8(t2, t2);
-        if (p256_order_low[i / 32] & ((sp_digit)1 << (i % 32)))
-            sp_256_mont_mul_order_avx2_8(t2, t2, a);
-    }
-    /* t2= a^ffffffff00000000ffffffffffffffffbce6f */
-    sp_256_mont_sqr_n_order_avx2_8(t2, t2, 4);
-    sp_256_mont_mul_order_avx2_8(t2, t2, t3);
-    /* t2= a^ffffffff00000000ffffffffffffffffbce6faada7179e84 */
-    for (i=107; i>=64; i--) {
-        sp_256_mont_sqr_order_avx2_8(t2, t2);
-        if (p256_order_low[i / 32] & ((sp_digit)1 << (i % 32)))
-            sp_256_mont_mul_order_avx2_8(t2, t2, a);
-    }
-    /* t2= a^ffffffff00000000ffffffffffffffffbce6faada7179e84f */
-    sp_256_mont_sqr_n_order_avx2_8(t2, t2, 4);
-    sp_256_mont_mul_order_avx2_8(t2, t2, t3);
-    /* t2= a^ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2 */
-    for (i=59; i>=32; i--) {
-        sp_256_mont_sqr_order_avx2_8(t2, t2);
-        if (p256_order_low[i / 32] & ((sp_digit)1 << (i % 32)))
-            sp_256_mont_mul_order_avx2_8(t2, t2, a);
-    }
-    /* t2= a^ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2f */
-    sp_256_mont_sqr_n_order_avx2_8(t2, t2, 4);
-    sp_256_mont_mul_order_avx2_8(t2, t2, t3);
-    /* t2= a^ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc63254 */
-    for (i=27; i>=0; i--) {
-        sp_256_mont_sqr_order_avx2_8(t2, t2);
-        if (p256_order_low[i / 32] & ((sp_digit)1 << (i % 32)))
-            sp_256_mont_mul_order_avx2_8(t2, t2, a);
-    }
-    /* t2= a^ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632540 */
-    sp_256_mont_sqr_n_order_avx2_8(t2, t2, 4);
-    /* r = a^ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc63254f */
-    sp_256_mont_mul_order_avx2_8(r, t2, t3);
-#endif /* WOLFSSL_SP_SMALL */
-}
-
-#endif /* HAVE_INTEL_AVX2 */
 #endif /* HAVE_ECC_SIGN || HAVE_ECC_VERIFY */
 #ifdef HAVE_ECC_SIGN
 #ifndef SP_ECC_MAX_SIG_GEN
@@ -24021,9 +23844,6 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
     int err = MP_OKAY;
     int32_t c;
     int i;
-#ifdef HAVE_INTEL_AVX2
-    word32 cpuid_flags = cpuid_get_flags();
-#endif
 
     (void)heap;
 
@@ -24063,11 +23883,6 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
         /* New random point. */
         err = sp_256_ecc_gen_k_8(rng, k);
         if (err == MP_OKAY) {
-#ifdef HAVE_INTEL_AVX2
-            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-                err = sp_256_ecc_mulmod_base_avx2_8(point, k, 1, heap);
-            else
-#endif
                 err = sp_256_ecc_mulmod_base_8(point, k, 1, NULL);
         }
 
@@ -24080,31 +23895,16 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
             sp_256_norm_8(r);
 
             /* Conv k to Montgomery form (mod order) */
-#ifdef HAVE_INTEL_AVX2
-            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-                sp_256_mul_avx2_8(k, k, p256_norm_order);
-            else
-#endif
                 sp_256_mul_8(k, k, p256_norm_order);
             err = sp_256_mod_8(k, k, p256_order);
         }
         if (err == MP_OKAY) {
             sp_256_norm_8(k);
             /* kInv = 1/k mod order */
-#ifdef HAVE_INTEL_AVX2
-            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-                sp_256_mont_inv_order_avx2_8(kInv, k, tmp);
-            else
-#endif
                 sp_256_mont_inv_order_8(kInv, k, tmp);
             sp_256_norm_8(kInv);
 
             /* s = r * x + e */
-#ifdef HAVE_INTEL_AVX2
-            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-                sp_256_mul_avx2_8(x, x, r);
-            else
-#endif
                 sp_256_mul_8(x, x, r);
             err = sp_256_mod_8(x, x, p256_order);
         }
@@ -24118,11 +23918,6 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
             sp_256_norm_8(s);
 
             /* s = s * k^-1 mod order */
-#ifdef HAVE_INTEL_AVX2
-            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-                sp_256_mont_mul_order_avx2_8(s, s, kInv);
-            else
-#endif
                 sp_256_mont_mul_order_8(s, s, kInv);
             sp_256_norm_8(s);
 
@@ -24202,9 +23997,6 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
     sp_digit carry;
     int32_t c;
     int err;
-#ifdef HAVE_INTEL_AVX2
-    word32 cpuid_flags = cpuid_get_flags();
-#endif
 
     err = sp_ecc_point_new(heap, p1d, p1);
     if (err == MP_OKAY)
@@ -24239,52 +24031,24 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
         sp_256_from_mp(p2->y, 8, pY);
         sp_256_from_mp(p2->z, 8, pZ);
 
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-            sp_256_mul_avx2_8(s, s, p256_norm_order);
-        else
-#endif
             sp_256_mul_8(s, s, p256_norm_order);
         err = sp_256_mod_8(s, s, p256_order);
     }
     if (err == MP_OKAY) {
         sp_256_norm_8(s);
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
-            sp_256_mont_inv_order_avx2_8(s, s, tmp);
-            sp_256_mont_mul_order_avx2_8(u1, u1, s);
-            sp_256_mont_mul_order_avx2_8(u2, u2, s);
-        }
-        else
-#endif
         {
             sp_256_mont_inv_order_8(s, s, tmp);
             sp_256_mont_mul_order_8(u1, u1, s);
             sp_256_mont_mul_order_8(u2, u2, s);
         }
 
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-            err = sp_256_ecc_mulmod_base_avx2_8(p1, u1, 0, heap);
-        else
-#endif
             err = sp_256_ecc_mulmod_base_8(p1, u1, 0, heap);
     }
     if (err == MP_OKAY) {
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-            err = sp_256_ecc_mulmod_avx2_8(p2, p2, u2, 0, heap);
-        else
-#endif
             err = sp_256_ecc_mulmod_8(p2, p2, u2, 0, heap);
     }
 
     if (err == MP_OKAY) {
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-            sp_256_proj_point_add_avx2_8(p1, p1, p2, tmp);
-        else
-#endif
             sp_256_proj_point_add_8(p1, p1, p2, tmp);
 
         /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
@@ -24447,9 +24211,6 @@ int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
     sp_point* p = NULL;
     byte one[1] = { 1 };
     int err;
-#ifdef HAVE_INTEL_AVX2
-    word32 cpuid_flags = cpuid_get_flags();
-#endif
 
     err = sp_ecc_point_new(heap, pubd, pub);
     if (err == MP_OKAY)
@@ -24490,11 +24251,6 @@ int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
 
     if (err == MP_OKAY) {
         /* Point * order = infinity */
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-            err = sp_256_ecc_mulmod_avx2_8(p, pub, p256_order, 1, heap);
-        else
-#endif
             err = sp_256_ecc_mulmod_8(p, pub, p256_order, 1, heap);
     }
     if (err == MP_OKAY) {
@@ -24507,11 +24263,6 @@ int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
 
     if (err == MP_OKAY) {
         /* Base * private = point */
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-            err = sp_256_ecc_mulmod_base_avx2_8(p, priv, 1, heap);
-        else
-#endif
             err = sp_256_ecc_mulmod_base_8(p, priv, 1, heap);
     }
     if (err == MP_OKAY) {
@@ -24560,9 +24311,6 @@ int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
     sp_point* p;
     sp_point* q = NULL;
     int err;
-#ifdef HAVE_INTEL_AVX2
-    word32 cpuid_flags = cpuid_get_flags();
-#endif
 
     err = sp_ecc_point_new(NULL, pd, p);
     if (err == MP_OKAY)
@@ -24585,11 +24333,6 @@ int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
         sp_256_from_mp(q->y, 8, qY);
         sp_256_from_mp(q->z, 8, qZ);
 
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-            sp_256_proj_point_add_avx2_8(p, p, q, tmp);
-        else
-#endif
             sp_256_proj_point_add_8(p, p, q, tmp);
     }
 
@@ -24631,9 +24374,6 @@ int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
     sp_digit* tmp;
     sp_point* p;
     int err;
-#ifdef HAVE_INTEL_AVX2
-    word32 cpuid_flags = cpuid_get_flags();
-#endif
 
     err = sp_ecc_point_new(NULL, pd, p);
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
@@ -24651,11 +24391,6 @@ int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
         sp_256_from_mp(p->y, 8, pY);
         sp_256_from_mp(p->z, 8, pZ);
 
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-            sp_256_proj_point_dbl_avx2_8(p, p, tmp);
-        else
-#endif
             sp_256_proj_point_dbl_8(p, p, tmp);
     }
 
@@ -24744,9 +24479,6 @@ static int sp_256_mont_sqrt_8(sp_digit* y)
     sp_digit* t1;
     sp_digit* t2;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
-    word32 cpuid_flags = cpuid_get_flags();
-#endif
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     d = XMALLOC(sizeof(sp_digit) * 4 * 8, NULL, DYNAMIC_TYPE_ECC);
@@ -24762,40 +24494,6 @@ static int sp_256_mont_sqrt_8(sp_digit* y)
 #endif
 
     if (err == MP_OKAY) {
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
-            /* t2 = y ^ 0x2 */
-            sp_256_mont_sqr_avx2_8(t2, y, p256_mod, p256_mp_mod);
-            /* t1 = y ^ 0x3 */
-            sp_256_mont_mul_avx2_8(t1, t2, y, p256_mod, p256_mp_mod);
-            /* t2 = y ^ 0xc */
-            sp_256_mont_sqr_n_avx2_8(t2, t1, 2, p256_mod, p256_mp_mod);
-            /* t1 = y ^ 0xf */
-            sp_256_mont_mul_avx2_8(t1, t1, t2, p256_mod, p256_mp_mod);
-            /* t2 = y ^ 0xf0 */
-            sp_256_mont_sqr_n_avx2_8(t2, t1, 4, p256_mod, p256_mp_mod);
-            /* t1 = y ^ 0xff */
-            sp_256_mont_mul_avx2_8(t1, t1, t2, p256_mod, p256_mp_mod);
-            /* t2 = y ^ 0xff00 */
-            sp_256_mont_sqr_n_avx2_8(t2, t1, 8, p256_mod, p256_mp_mod);
-            /* t1 = y ^ 0xffff */
-            sp_256_mont_mul_avx2_8(t1, t1, t2, p256_mod, p256_mp_mod);
-            /* t2 = y ^ 0xffff0000 */
-            sp_256_mont_sqr_n_avx2_8(t2, t1, 16, p256_mod, p256_mp_mod);
-            /* t1 = y ^ 0xffffffff */
-            sp_256_mont_mul_avx2_8(t1, t1, t2, p256_mod, p256_mp_mod);
-            /* t1 = y ^ 0xffffffff00000000 */
-            sp_256_mont_sqr_n_avx2_8(t1, t1, 32, p256_mod, p256_mp_mod);
-            /* t1 = y ^ 0xffffffff00000001 */
-            sp_256_mont_mul_avx2_8(t1, t1, y, p256_mod, p256_mp_mod);
-            /* t1 = y ^ 0xffffffff00000001000000000000000000000000 */
-            sp_256_mont_sqr_n_avx2_8(t1, t1, 96, p256_mod, p256_mp_mod);
-            /* t1 = y ^ 0xffffffff00000001000000000000000000000001 */
-            sp_256_mont_mul_avx2_8(t1, t1, y, p256_mod, p256_mp_mod);
-            sp_256_mont_sqr_n_avx2_8(y, t1, 94, p256_mod, p256_mp_mod);
-        }
-        else
-#endif
         {
             /* t2 = y ^ 0x2 */
             sp_256_mont_sqr_8(t2, y, p256_mod, p256_mp_mod);
@@ -24855,9 +24553,6 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
     sp_digit* x;
     sp_digit* y;
     int err = MP_OKAY;
-#ifdef HAVE_INTEL_AVX2
-    word32 cpuid_flags = cpuid_get_flags();
-#endif
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     d = XMALLOC(sizeof(sp_digit) * 4 * 8, NULL, DYNAMIC_TYPE_ECC);
@@ -24880,13 +24575,6 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
 
     if (err == MP_OKAY) {
         /* y = x^3 */
-#ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
-            sp_256_mont_sqr_avx2_8(y, x, p256_mod, p256_mp_mod);
-            sp_256_mont_mul_avx2_8(y, y, x, p256_mod, p256_mp_mod);
-        }
-        else
-#endif
         {
             sp_256_mont_sqr_8(y, x, p256_mod, p256_mp_mod);
             sp_256_mont_mul_8(y, y, x, p256_mod, p256_mp_mod);
