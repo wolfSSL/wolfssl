@@ -51,6 +51,11 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#ifdef HAVE_SELFTEST
+enum {
+    GCM_NONCE_MID_SZ = 12, /* The usual default nonce size for AES-GCM. */
+};
+#endif
 
 /* direction for processing, encoding or decoding */
 typedef enum {
@@ -5520,10 +5525,13 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
                     (ivSz  != AES_BLOCK_SIZE) )
                 return BAD_FUNC_ARG;
 
-            ret = wc_AesSetKey(&aes, key, keySz, iv, AES_ENCRYPTION);
-            if (ret == 0)
-                ret = wc_AesCbcEncrypt(&aes, out, in, inSz);
-
+            ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+            if (ret == 0) {
+                ret = wc_AesSetKey(&aes, key, keySz, iv, AES_ENCRYPTION);
+                if (ret == 0)
+                    ret = wc_AesCbcEncrypt(&aes, out, in, inSz);
+                wc_AesFree(&aes);
+            }
             break;
     #ifdef HAVE_AESGCM
         #ifdef WOLFSSL_AES_128
@@ -5540,10 +5548,14 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
             if (authTag == NULL)
                 return BAD_FUNC_ARG;
 
-            ret = wc_AesGcmSetKey(&aes, key, keySz);
-            if (ret == 0)
-                ret = wc_AesGcmEncrypt(&aes, out, in, inSz, iv, ivSz,
-                                       authTag, authTagSz, aad, aadSz);
+            ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+            if (ret == 0) {
+                ret = wc_AesGcmSetKey(&aes, key, keySz);
+                if (ret == 0)
+                    ret = wc_AesGcmEncrypt(&aes, out, in, inSz, iv, ivSz,
+                                           authTag, authTagSz, aad, aadSz);
+                wc_AesFree(&aes);
+            }
             break;
         #endif
     #endif /* HAVE_AESGCM */
@@ -5562,10 +5574,14 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
             if (authTag == NULL)
                 return BAD_FUNC_ARG;
 
-            ret = wc_AesCcmSetKey(&aes, key, keySz);
-            if (ret == 0)
-                ret = wc_AesCcmEncrypt(&aes, out, in, inSz, iv, ivSz,
-                                       authTag, authTagSz, aad, aadSz);
+            ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+            if (ret == 0) {
+                ret = wc_AesCcmSetKey(&aes, key, keySz);
+                if (ret == 0)
+                    ret = wc_AesCcmEncrypt(&aes, out, in, inSz, iv, ivSz,
+                                           authTag, authTagSz, aad, aadSz);
+                wc_AesFree(&aes);
+            }
             break;
         #endif
     #endif /* HAVE_AESCCM */
@@ -5585,10 +5601,13 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
             if (keySz != DES3_KEYLEN || ivSz != DES_BLOCK_SIZE)
                 return BAD_FUNC_ARG;
 
-            ret = wc_Des3_SetKey(&des3, key, iv, DES_ENCRYPTION);
-            if (ret == 0)
-                ret = wc_Des3_CbcEncrypt(&des3, out, in, inSz);
-
+            ret = wc_Des3Init(&des3, NULL, INVALID_DEVID);
+            if (ret == 0) {
+                ret = wc_Des3_SetKey(&des3, key, iv, DES_ENCRYPTION);
+                if (ret == 0)
+                    ret = wc_Des3_CbcEncrypt(&des3, out, in, inSz);
+                wc_Des3Free(&des3);
+            }
             break;
 #endif
         default:
@@ -5647,11 +5666,13 @@ static int wc_PKCS7_DecryptContent(int encryptOID, byte* key, int keySz,
                 #endif
                     (ivSz  != AES_BLOCK_SIZE) )
                 return BAD_FUNC_ARG;
-
-            ret = wc_AesSetKey(&aes, key, keySz, iv, AES_DECRYPTION);
-            if (ret == 0)
-                ret = wc_AesCbcDecrypt(&aes, out, in, inSz);
-
+            ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+            if (ret == 0) {
+                ret = wc_AesSetKey(&aes, key, keySz, iv, AES_DECRYPTION);
+                if (ret == 0)
+                    ret = wc_AesCbcDecrypt(&aes, out, in, inSz);
+                wc_AesFree(&aes);
+            }
             break;
     #ifdef HAVE_AESGCM
         #ifdef WOLFSSL_AES_128
@@ -5668,10 +5689,14 @@ static int wc_PKCS7_DecryptContent(int encryptOID, byte* key, int keySz,
             if (authTag == NULL)
                 return BAD_FUNC_ARG;
 
-            ret = wc_AesGcmSetKey(&aes, key, keySz);
-            if (ret == 0)
-                ret = wc_AesGcmDecrypt(&aes, out, in, inSz, iv, ivSz,
-                                       authTag, authTagSz, aad, aadSz);
+            ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+            if (ret == 0) {
+                ret = wc_AesGcmSetKey(&aes, key, keySz);
+                if (ret == 0)
+                    ret = wc_AesGcmDecrypt(&aes, out, in, inSz, iv, ivSz,
+                                           authTag, authTagSz, aad, aadSz);
+                wc_AesFree(&aes);
+            }
             break;
         #endif
     #endif /* HAVE_AESGCM */
@@ -5690,10 +5715,14 @@ static int wc_PKCS7_DecryptContent(int encryptOID, byte* key, int keySz,
             if (authTag == NULL)
                 return BAD_FUNC_ARG;
 
-            ret = wc_AesCcmSetKey(&aes, key, keySz);
-            if (ret == 0)
-                ret = wc_AesCcmDecrypt(&aes, out, in, inSz, iv, ivSz,
-                                       authTag, authTagSz, aad, aadSz);
+            ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+            if (ret == 0) {
+                ret = wc_AesCcmSetKey(&aes, key, keySz);
+                if (ret == 0)
+                    ret = wc_AesCcmDecrypt(&aes, out, in, inSz, iv, ivSz,
+                                           authTag, authTagSz, aad, aadSz);
+                wc_AesFree(&aes);
+            }
             break;
         #endif
     #endif /* HAVE_AESCCM */
@@ -5712,9 +5741,13 @@ static int wc_PKCS7_DecryptContent(int encryptOID, byte* key, int keySz,
             if (keySz != DES3_KEYLEN || ivSz != DES_BLOCK_SIZE)
                 return BAD_FUNC_ARG;
 
-            ret = wc_Des3_SetKey(&des3, key, iv, DES_DECRYPTION);
-            if (ret == 0)
-                ret = wc_Des3_CbcDecrypt(&des3, out, in, inSz);
+            ret = wc_Des3Init(&des3, NULL, INVALID_DEVID);
+            if (ret == 0) {
+                ret = wc_Des3_SetKey(&des3, key, iv, DES_DECRYPTION);
+                if (ret == 0)
+                    ret = wc_Des3_CbcDecrypt(&des3, out, in, inSz);
+                wc_Des3Free(&des3);
+            }
 
             break;
 #endif

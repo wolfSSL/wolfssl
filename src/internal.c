@@ -1980,7 +1980,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 
 #ifndef WOLFSSL_NO_TLS12
 
-#ifndef NO_WOLFSSL_SERVER
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_RSA)
     if (side == WOLFSSL_SERVER_END && haveStaticECC) {
         haveRSA = 0;   /* can't do RSA with ECDSA key */
     }
@@ -12417,8 +12417,8 @@ static byte MaskMac(const byte* data, int sz, int macSz, byte* expMac)
     unsigned char started, notEnded;
     unsigned char good = 0;
 
-    if (scanStart < 0)
-        scanStart = 0;
+    scanStart &= (~scanStart) >> (sizeof(int) * 8 - 1);
+    macStart &= (~macStart) >> (sizeof(int) * 8 - 1);
 
     /* Div on Intel has different speeds depending on value.
      * Use a bitwise AND or mod a specific value (converted to mul). */

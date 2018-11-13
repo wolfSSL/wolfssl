@@ -206,7 +206,7 @@ pushd $TEST_DIR || exit 2
 if [ "x$FIPS_OPTION" == "xv1" ];
 then
     # make a clone of the last FIPS release tag
-    if ! $GIT clone -b $CRYPT_VERSION $CRYPT_REPO old-tree; then
+    if ! $GIT clone --depth 1 -b $CRYPT_VERSION $CRYPT_REPO old-tree; then
         echo "fips-check: Couldn't checkout the FIPS release."
         exit 1
     fi
@@ -239,7 +239,7 @@ else
 fi
 
 # clone the FIPS repository
-if ! $GIT clone -b $FIPS_VERSION $FIPS_REPO fips; then
+if ! $GIT clone --depth 1 -b $FIPS_VERSION $FIPS_REPO fips; then
     echo "fips-check: Couldn't checkout the FIPS repository."
     exit 1
 fi

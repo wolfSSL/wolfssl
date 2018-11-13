@@ -1310,7 +1310,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int   doSTARTTLS    = 0;
     char* starttlsProt = NULL;
     int   useVerifyCb = 0;
+#ifdef HAVE_ECC
     int   useSupCurve = 0;
+#endif
 
 #ifdef WOLFSSL_TRUST_PEER_CERT
     const char* trustCert  = NULL;
@@ -1410,7 +1412,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)useX25519;
     (void)helloRetry;
     (void)onlyKeyShare;
+#ifdef HAVE_ECC
     (void)useSupCurve;
+#endif
     (void)loadCertKeyIntoSSLObj;
 
     StackTrap();
@@ -1557,10 +1561,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     printf("Verify should fail\n");
                     myVerifyFail = 1;
                 }
+            #ifdef HAVE_ECC
                 else if (XSTRNCMP(myoptarg, "useSupCurve", 11) == 0) {
                     printf("Test use supported curve\n");
                     useSupCurve = 1;
                 }
+            #endif
                 else if (XSTRNCMP(myoptarg, "loadSSL", 7) == 0) {
                     printf("Load cert/key into wolfSSL object\n");
                     loadCertKeyIntoSSLObj = 1;
@@ -1785,9 +1791,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case 't' :
                 #ifdef HAVE_CURVE25519
                     useX25519 = 1;
+                    #ifdef HAVE_ECC
                     useSupCurve = 1;
-                    #if defined(WOLFSSL_TLS13) && defined(HAVE_ECC)
+                        #ifdef WOLFSSL_TLS13
                         onlyKeyShare = 2;
+                        #endif
                     #endif
                 #endif
                 break;

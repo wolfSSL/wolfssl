@@ -5081,6 +5081,14 @@ int des3_test(void)
         };
 #endif /* WOLFSSL_AES_256 */
 
+
+    if (wc_AesInit(&enc, HEAP_HINT, devId) != 0)
+        return -4750;
+#ifdef HAVE_AES_DECRYPT
+    if (wc_AesInit(&dec, HEAP_HINT, devId) != 0)
+        return -4751;
+#endif
+
 #ifdef WOLFSSL_AES_128
         /* 128 key tests */
         ret = wc_AesSetKey(&enc, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
@@ -5238,14 +5246,12 @@ static int aes_key_size_test(void)
     word32 keySize;
 #endif
 
-#ifdef WC_INITAES_H
-    ret = wc_InitAes_h(NULL, NULL);
+    ret = wc_AesInit(NULL, HEAP_HINT, devId);
     if (ret != BAD_FUNC_ARG)
         return -4800;
-    ret = wc_InitAes_h(&aes, NULL);
+    ret = wc_AesInit(&aes, HEAP_HINT, devId);
     if (ret != 0)
         return -4801;
-#endif
 
 #ifndef HAVE_FIPS
     /* Parameter Validation testing. */
@@ -5909,12 +5915,10 @@ int aes_test(void)
     byte key[] = "0123456789abcdef   ";  /* align */
     byte iv[]  = "1234567890abcdef   ";  /* align */
 
-#ifdef WOLFSSL_ASYNC_CRYPT
     if (wc_AesInit(&enc, HEAP_HINT, devId) != 0)
         return -5400;
     if (wc_AesInit(&dec, HEAP_HINT, devId) != 0)
         return -5401;
-#endif
 
     ret = wc_AesSetKey(&enc, key, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
     if (ret != 0)
@@ -6621,7 +6625,10 @@ Aes dec;
     XMEMSET(resultP, 0, sizeof(resultP));
 
     if (wc_AesInit(&enc, HEAP_HINT, devId) != 0) {
-        return -5700;
+        return -4700;
+    }
+    if (wc_AesInit(&dec, HEAP_HINT, devId) != 0) {
+        return -4700;
     }
 
     result = wc_AesGcmSetKey(&enc, key, keySz);
@@ -9880,6 +9887,7 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
 
     ret = 0;
 exit_rsa_pss:
+    FREE_VAR(sig, HEAP_HINT);
     FREE_VAR(in, HEAP_HINT);
     FREE_VAR(out, HEAP_HINT);
 
@@ -11863,6 +11871,7 @@ int dh_test(void)
     DhKey  key;
     DhKey  key2;
     WC_RNG rng;
+    int keyInit = 0;
 
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, dh_key_der_1024, (size_t)sizeof_dh_key_der_1024);
@@ -11899,6 +11908,7 @@ int dh_test(void)
     if (ret != 0) {
         ERROR_OUT(-7103, done);
     }
+    keyInit = 1;
     ret = wc_InitDhKey_ex(&key2, HEAP_HINT, devId);
     if (ret != 0) {
         ERROR_OUT(-7104, done);
@@ -11977,6 +11987,9 @@ int dh_test(void)
         ret = dh_fips_generate_test(&rng);
 
 
+    wc_FreeDhKey(&key);
+    keyInit = 0;
+
 #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
     !defined(WOLFSSL_OLD_PRIME_CHECK)
     if (ret == 0) {
@@ -11988,7 +12001,8 @@ int dh_test(void)
 
 done:
 
-    wc_FreeDhKey(&key);
+    if (keyInit)
+        wc_FreeDhKey(&key);
     wc_FreeDhKey(&key2);
     wc_FreeRng(&rng);
 
@@ -19342,6 +19356,11 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 
         } else {
             /* KTRI or KARI recipient types */
+
+            ret = wc_PKCS7_Init(pkcs7, pkcs7->heap, pkcs7->devId);
+            if (ret != 0) {
+                return -9321;
+            }
 
             ret = wc_PKCS7_InitWithCert(pkcs7, testVectors[i].cert,
                                         (word32)testVectors[i].certSz);
