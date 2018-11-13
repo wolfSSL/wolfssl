@@ -20250,7 +20250,7 @@ int wolfSSL_PEM_def_callback(char* name, int num, int w, void* key)
 
     /* We assume that the user passes a default password as userdata */
     if (key) {
-        Sz = strlen(key);
+        Sz = (int) strlen(key);
         Sz = (Sz > num) ? num : Sz;
         memcpy(name, key, Sz);
         return Sz;
