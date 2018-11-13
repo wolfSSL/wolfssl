@@ -224,7 +224,8 @@ then
        [ "x$PLATFORM" != "xnetos-7.6" ];
     then
         pushd old-tree || exit 2
-        $GIT checkout v3.6.0
+        $GIT fetch origin v3.6.0
+        $GIT checkout FETCH_HEAD
         popd || exit 2
         cp "old-tree/$CRYPT_SRC_PATH/random.c" $CRYPT_SRC_PATH
         cp "old-tree/$CRYPT_INC_PATH/random.h" $CRYPT_INC_PATH
