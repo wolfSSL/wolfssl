@@ -7288,9 +7288,8 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         FreeDecodedCert(&cert);
         return ext_count;
     }
-#endif /* end ifdef WOLFSSL_QT */
 
-#if defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB)
+#if !defined(NO_WOLFSSL_STUB)
     WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* passed_cert, int loc)
     {
      (void)passed_cert;
@@ -7298,6 +7297,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
      WOLFSSL_STUB("wolfSSL_X509_get_ext");
      return 0;
     }
+#endif
 
     WOLFSSL_ASN1_OBJECT* wolfSSL_X509_EXTENSION_get_object(WOLFSSL_X509_EXTENSION* ex)
     {
@@ -7311,7 +7311,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 
     int wolfSSL_X509_EXTENSION_get_critical(const WOLFSSL_X509_EXTENSION* ex)
     {
-        WOLFSSL_STUB("wolfSSL_X509_EXTENSION_get_critical");
+        WOLFSSL_ENTER("wolfSSL_X509_EXTENSION_get_critical");
         if (ex == NULL)
             return BAD_FUNC_ARG;
         return ex->crit;
@@ -7319,25 +7319,31 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 
     WOLFSSL_ASN1_STRING* wolfSSL_X509_EXTENSION_get_data(WOLFSSL_X509_EXTENSION* ex)
     {
-        WOLFSSL_STUB("wolfSSL_X509_EXTENSION_get_data");
+        WOLFSSL_ENTER("wolfSSL_X509_EXTENSION_get_data");
         if (ex == NULL)
             return NULL;
         return &ex->value;
     }
 
+#if !defined(NO_WOLFSSL_STUB)
     const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
     {
         (void)ex;
-        WOLFSSL_STUB("wolfSSL_X509V3_EXT_get");
-        return 0;
+        WOLFSSL_ENTER("wolfSSL_X509V3_EXT_get");
+        return NULL;
     }
+#endif
+
+#if !defined(NO_WOLFSSL_STUB)
     void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ex)
     {
         (void)ex;
         WOLFSSL_STUB("wolfSSL_X509_EXT_d2i");
         return 0;
     }
+#endif
 
+#if !defined(NO_WOLFSSL_STUB)
     int wolfSSL_X509_STORE_CTX_set_purpose(WOLFSSL_X509_STORE_CTX *ctx, int purpose)
     {
         (void)ctx;
@@ -7345,15 +7351,18 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         WOLFSSL_STUB("wolfSSL_X509_STORE_CTX_set_purpose");
         return 0;
     }
+#endif
 
+#if !defined(NO_WOLFSSL_STUB)
     char* wolfSSL_CONF_get1_default_config_file(void)
     {
         WOLFSSL_ENTER("wolfSSL_CONF_get1_default_config_file");
         WOLFSSL_STUB("CONF_get1_default_config_file");
         return NULL;
     }
+#endif
 
-#endif /* defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB) */
+#endif /* defined(WOLFSSL_QT) */
 
 
 /* Looks for the extension matching the passed in nid
