@@ -375,6 +375,7 @@ then
     test "$enable_fallback_scsv" = "" && enable_fallback_scsv=yes
     test "$enable_anon" = "" && enable_anon=yes
     test "$enable_mcast" = "" && enable_mcast=yes
+    test "$enable_pkwrap" = "" && enable_pkwrap=yes
 
     if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
     then
@@ -1190,6 +1191,20 @@ AC_ARG_WITH([cryptoauthlib],
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ATECC508A"
     ]
 )
+
+
+# Public Key Wrapper
+AC_ARG_ENABLE([pkwrap],
+    [AS_HELP_STRING([--enable-pkwrap],[Enable Public Key Wrapper (default: enabled)])],
+    [ ENABLED_PKWRAP=$enableval ],
+    [ ENABLED_PKWRAP=yes ]
+    )
+
+if test "x$ENABLED_PKWRAP" = "xno"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_PK_WRAPPER"
+fi
+AM_CONDITIONAL([BUILD_PK_WRAP],   [ test "x$ENABLED_PKWRAP" = "xyes" ])
 
 
 # sniffer doesn't work in maxstrength mode
