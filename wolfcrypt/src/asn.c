@@ -162,6 +162,8 @@ WOLFSSL_LOCAL int GetLength_ex(const byte* input, word32* inOutIdx, int* len,
     word32  idx = *inOutIdx;
     byte    b;
 
+    WOLFSSL_ENTER("GetLength_ex");
+
     *len = 0;    /* default length */
 
     if ((idx + 1) > maxIdx) {   /* for first read */
@@ -205,6 +207,8 @@ static int GetASNHeader_ex(const byte* input, byte tag, word32* inOutIdx, int* l
     word32 idx = *inOutIdx;
     byte   b;
     int    length;
+
+    WOLFSSL_ENTER("GetASNHeader_ex");
 
     if ((idx + 1) > maxIdx)
         return BUFFER_E;
@@ -394,6 +398,7 @@ static int SetBoolean(int val, byte* output)
 static int GetOctetString(const byte* input, word32* inOutIdx, int* len,
                           word32 maxIdx)
 {
+    WOLFSSL_ENTER("GetOctetString");
     return GetASNHeader(input, ASN_OCTET_STRING, inOutIdx, len, maxIdx);
 }
 
@@ -674,6 +679,8 @@ WOLFSSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
                                int* version, word32 maxIdx)
 {
     word32 idx = *inOutIdx;
+
+    WOLFSSL_ENTER("GetMyVersion");
 
     if ((idx + MIN_VERSION_SZ) > maxIdx)
         return ASN_PARSE_E;
@@ -2101,6 +2108,8 @@ int GetASNObjectId(const byte* input, word32* inOutIdx, int* len,
     byte   b;
     int    length;
 
+    WOLFSSL_ENTER("GetASNObjectId");
+
     if ((idx + 1) > maxIdx)
         return BUFFER_E;
 
@@ -2324,6 +2333,8 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
     int    version, length;
     int    ret;
 
+    WOLFSSL_ENTER("ToTraditionalInLine");
+
     if (input == NULL || inOutIdx == NULL)
         return BAD_FUNC_ARG;
 
@@ -2364,6 +2375,8 @@ int ToTraditional_ex(byte* input, word32 sz, word32* algId)
 {
     word32 inOutIdx = 0;
     int    length;
+
+    WOLFSSL_ENTER("ToTraditional");
 
     if (input == NULL)
         return BAD_FUNC_ARG;
@@ -2728,6 +2741,9 @@ static int CheckAlgo(int first, int second, int* id, int* version, int* blockSz)
 {
     *id      = ALGO_ID_E;
     *version = PKCS5;   /* default */
+
+    WOLFSSL_ENTER("CheckAlgo");
+
     if (blockSz) *blockSz = 8; /* default */
 
     if (first == 1) {
@@ -3370,6 +3386,8 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,
     byte   cbcIv[MAX_IV_SIZE];
 #endif
 
+    WOLFSSL_ENTER("ToTraditionalENC");
+
     if (passwordSz < 0) {
         WOLFSSL_MSG("Bad password size");
         return BAD_FUNC_ARG;
@@ -3732,6 +3750,8 @@ int DecryptContent(byte* input, word32 sz,const char* password, int passwordSz)
     byte   salt[MAX_SALT_SIZE];
     byte   cbcIv[MAX_IV_SIZE];
 #endif
+
+    WOLFSSL_ENTER("DecryptContent");
 
     if (GetAlgoId(input, &inOutIdx, &oid, oidIgnoreType, sz) < 0) {
         ERROR_OUT(ASN_PARSE_E, exit_dc);
@@ -13592,6 +13612,9 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     byte   b;
     int    ret = 0;
     int    curve_id = ECC_CURVE_DEF;
+
+    WOLFSSL_ENTER("wc_EccPrivateKeyDecode");
+
 #ifdef WOLFSSL_SMALL_STACK
     byte* priv;
     byte* pub;

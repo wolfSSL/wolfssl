@@ -21064,7 +21064,7 @@ int wolfSSL_PEM_def_callback(char* name, int num, int w, void* key)
 
     /* We assume that the user passes a default password as userdata */
     if (key) {
-        Sz = strlen(key);
+        Sz = (int) strlen(key);
         Sz = (Sz > num) ? num : Sz;
         memcpy(name, key, Sz);
         return Sz;
@@ -27739,7 +27739,7 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
         /* 5 > size of n, d, p, q, d%(p-1), d(q-1), 1/q%p, e + ASN.1 additional
          *  informations
          */
-        derMax = 5 * wolfSSL_RSA_size(key) + AES_BLOCK_SIZE;
+        derMax = 5 * wolfSSL_RSA_size(key) + (2 * AES_BLOCK_SIZE);
 
         derBuf = (byte*)XMALLOC(derMax, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (derBuf == NULL) {
@@ -29729,9 +29729,9 @@ int wolfSSL_PEM_write_bio_EC_PUBKEY(WOLFSSL_BIO* bio,
     }
 
     /* convert key to der format */
-    derSz = wc_EccKeyToDer((ecc_key*)ec->internal, derBuf, der_max_len);
+    derSz = wc_EccPublicKeyToDer((ecc_key*)ec->internal, derBuf, der_max_len, 1);
     if (derSz < 0) {
-        WOLFSSL_MSG("wc_EccKeyToDer failed");
+        WOLFSSL_MSG("wc_EccPublicKeyToDer failed");
         XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
         wolfSSL_EVP_PKEY_free(pkey);
         return WOLFSSL_FAILURE;
@@ -30033,6 +30033,7 @@ WOLFSSL_DSA* wolfSSL_PEM_read_bio_DSAPrivateKey(WOLFSSL_BIO* bio,
 {
     WOLFSSL_EVP_PKEY* pkey;
     WOLFSSL_DSA* local;
+    WOLFSSL_ENTER("wolfSSL_PEM_read_bio_DSAPrivateKey");
 
     pkey = wolfSSL_PEM_read_bio_PrivateKey(bio, NULL, cb, pass);
     if (pkey == NULL) {
