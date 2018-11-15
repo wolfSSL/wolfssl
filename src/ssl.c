@@ -7334,14 +7334,35 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
     }
 #endif
 
-#if !defined(NO_WOLFSSL_STUB)
-    void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ex)
+    /* returns an an x509v3 extension internal structure */
+    void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
     {
-        (void)ex;
-        WOLFSSL_STUB("wolfSSL_X509_EXT_d2i");
-        return 0;
+        const X509V3_EXT_METHOD *method;
+        const unsigned char *ASN1stringData = NULL;
+        WOLFSSL_ASN1_STRING *extvalue = NULL;
+        int extlen;
+
+        WOLFSSL_ENTER("wolfSSL_X509V3_EXT_d2i");
+
+        if(ext == NULL) {
+            WOLFSSL_MSG("Bad function Argument");
+            return NULL;
+        }
+
+        /* extract extension info */
+        method = X509V3_EXT_get(ext);
+        extvalue = wolfSSL_X509_EXTENSION_get_data(ext);
+        ASN1stringData = wolfSSL_ASN1_STRING_data(extvalue);
+        extlen = wolfSSL_ASN1_STRING_length(extvalue);
+
+        if (method == NULL || extvalue == NULL || extlen <= 0
+                                                    || ASN1stringData == NULL) {
+            WOLFSSL_MSG("wolfSSL_X509V3_EXT_d2i Error");
+            return NULL;
+        } else {
+            return method->d2i(NULL, &ASN1stringData, extlen);
+        }
     }
-#endif
 
 #if !defined(NO_WOLFSSL_STUB)
     int wolfSSL_X509_STORE_CTX_set_purpose(WOLFSSL_X509_STORE_CTX *ctx, int purpose)
@@ -7354,6 +7375,8 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 #endif
 
 #if !defined(NO_WOLFSSL_STUB)
+    /* Returns default file name and path of config file. However
+       a wolfssl.cnf file is not currently supported */
     char* wolfSSL_CONF_get1_default_config_file(void)
     {
         WOLFSSL_ENTER("wolfSSL_CONF_get1_default_config_file");
@@ -16135,7 +16158,7 @@ void wolfSSL_sk_X509_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
 
 #endif /* NO_CERTS && OPENSSL_EXTRA */
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined (OPENSSL_ALL)
 
 /* Returns the general name at index i from the stack
  *
@@ -16191,7 +16214,7 @@ int wolfSSL_sk_GENERAL_NAME_num(WOLFSSL_STACK* sk)
  * f  free function to use, not called with wolfSSL
  */
 void wolfSSL_sk_GENERAL_NAME_pop_free(WOLFSSL_STACK* sk,
-        void f (WOLFSSL_ASN1_OBJECT*))
+        void f (WOLFSSL_GENERAL_NAME*))
 {
     WOLFSSL_STACK* node;
 
@@ -16222,16 +16245,16 @@ void wolfSSL_sk_GENERAL_NAME_pop_free(WOLFSSL_STACK* sk,
 
 }
 /* Frees GENERAL_NAME objects.
-   WOLFSSL_ASN1_OBJECT type is a placeholder until GENERAL_NAME is implemented.
 */
-#ifndef NO_WOLFSSL_STUB
-void wolfSSL_GENERAL_NAME_free(WOLFSSL_ASN1_OBJECT* name)
+void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name)
 {
     WOLFSSL_ENTER("wolfSSL_GENERAL_NAME_Free");
-    (void)name;
-    WOLFSSL_STUB("GENERAL_NAME_FREE");
+    if(name == NULL) {
+        WOLFSSL_MSG("Argument is NULL");
+        return;
+    }
+    XFREE(name, NULL, DYNAMIC_TYPE_OPENSSL);
 }
-#endif
 
 #endif /* OPENSSL_EXTRA */
 

@@ -100,11 +100,7 @@ typedef WOLFSSL_ASN1_OBJECT    ASN1_OBJECT;
 typedef WOLFSSL_ASN1_STRING    ASN1_STRING;
 typedef WOLFSSL_dynlock_value  CRYPTO_dynlock_value;
 typedef WOLFSSL_BUF_MEM        BUF_MEM;
-
-
-/* GENERAL_NAME struct may need implemented as
- * compatibility layer expands. For now treating as an ASN1_OBJECT */
-typedef WOLFSSL_ASN1_OBJECT GENERAL_NAME;
+typedef WOLFSSL_GENERAL_NAME   GENERAL_NAME;
 
 #define ASN1_UTCTIME         WOLFSSL_ASN1_TIME
 #define ASN1_GENERALIZEDTIME WOLFSSL_ASN1_TIME
@@ -726,7 +722,7 @@ enum {
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
 #include <wolfssl/openssl/pem.h>
 
-typedef STACK_OF(WOLFSSL_ASN1_OBJECT) GENERAL_NAMES;
+typedef STACK_OF(GENERAL_NAME) GENERAL_NAMES;
 #define SSL_CTRL_CHAIN       88
 #define BIO_CTRL_WPENDING    13
 #define GEN_IPADD            7

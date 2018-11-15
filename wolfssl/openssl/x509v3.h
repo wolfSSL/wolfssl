@@ -34,6 +34,7 @@
 /* Forward reference */
 struct WOLFSSL_v3_ext_method;
 
+typedef void *(*X509V3_EXT_D2I)(void *, const unsigned char **, long);
 typedef STACK_OF(CONF_VALUE) *(*X509V3_EXT_I2V) (struct WOLFSSL_v3_ext_method *method, 
                                       void *ext, STACK_OF(CONF_VALUE) *extlist);
 typedef char *(*X509V3_EXT_I2S)(struct WOLFSSL_v3_ext_method *method, void *ext);
@@ -44,6 +45,7 @@ struct WOLFSSL_v3_ext_method {
     int ext_nid;
     int ext_flags;
     void *usr_data;
+    X509V3_EXT_D2I d2i;
     X509V3_EXT_I2V i2v;
     X509V3_EXT_I2S i2s;
     X509V3_EXT_I2R i2r;

@@ -180,9 +180,22 @@ typedef struct WOLFSSL_dynlock_value    WOLFSSL_dynlock_value;
 typedef struct WOLFSSL_DH               WOLFSSL_DH;
 typedef struct WOLFSSL_ASN1_BIT_STRING  WOLFSSL_ASN1_BIT_STRING;
 
+typedef struct WOLFSSL_GENERAL_NAME WOLFSSL_GENERAL_NAME;
 typedef struct WOLFSSL_AUTHORITY_KEYID  WOLFSSL_AUTHORITY_KEYID;
 typedef struct WOLFSSL_BASIC_CONSTRAINTS WOLFSSL_BASIC_CONSTRAINTS;
 
+#if defined(OPENSSL_ALL) || defined (WOLFSSL_QT)
+
+struct WOLFSSL_GENERAL_NAME {
+    int type;
+    struct { /* derefrenced */
+        WOLFSSL_ASN1_STRING* rfc822Name;
+        WOLFSSL_ASN1_STRING* dNSName;
+        WOLFSSL_ASN1_STRING* uniformResourceIdentifier;
+        WOLFSSL_ASN1_STRING* iPAddress;
+        WOLFSSL_ASN1_OBJECT* registeredID;
+    } d;
+};
 struct WOLFSSL_AUTHORITY_KEYID {
     WOLFSSL_ASN1_STRING *keyid;
     WOLFSSL_ASN1_OBJECT *issuer;
@@ -193,6 +206,8 @@ struct WOLFSSL_BASIC_CONSTRAINTS {
     int ca;
     WOLFSSL_ASN1_INTEGER *pathlen;
 };
+
+#endif /* OPENSSL_ALL || WOLFSSL_QT */
 
 #define WOLFSSL_ASN1_UTCTIME          WOLFSSL_ASN1_TIME
 #define WOLFSSL_ASN1_GENERALIZEDTIME  WOLFSSL_ASN1_TIME
@@ -850,8 +865,8 @@ WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_sk_GENERAL_NAME_value(
         WOLFSSL_STACK* sk, int i);
 WOLFSSL_API int wolfSSL_sk_GENERAL_NAME_num(WOLFSSL_STACK* sk);
 WOLFSSL_API void wolfSSL_sk_GENERAL_NAME_pop_free(WOLFSSL_STACK* sk,
-        void f (WOLFSSL_ASN1_OBJECT*));
-WOLFSSL_API void wolfSSL_GENERAL_NAME_free(WOLFSSL_ASN1_OBJECT* name);
+        void f (WOLFSSL_GENERAL_NAME*));
+WOLFSSL_API void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name);
 WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void);
 WOLFSSL_API void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj);
 WOLFSSL_API int wolfSSL_sk_ASN1_OBJECT_push(WOLF_STACK_OF(WOLFSSL_ASN1_OBJEXT)* sk,
