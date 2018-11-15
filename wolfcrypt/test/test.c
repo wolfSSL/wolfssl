@@ -20826,12 +20826,10 @@ static int pkcs7signed_run_vectors(
     }
 
     for (i = 0; i < testSz; i++) {
-        pkcs7 = wc_PKCS7_New(HEAP_HINT, INVALID_DEVID);
+        pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
         if (pkcs7 == NULL)
             return -9513;
 
-        pkcs7->heap = HEAP_HINT;
-        pkcs7->devId = INVALID_DEVID;
         ret = wc_PKCS7_InitWithCert(pkcs7, testVectors[i].cert,
                                     (word32)testVectors[i].certSz);
 
@@ -20976,7 +20974,7 @@ static int pkcs7signed_run_vectors(
 
         wc_PKCS7_Free(pkcs7);
 
-        pkcs7 = wc_PKCS7_New(HEAP_HINT, INVALID_DEVID);
+        pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
         if (pkcs7 == NULL)
             return -9525;
         wc_PKCS7_InitWithCert(pkcs7, NULL, 0);
@@ -21328,12 +21326,10 @@ static int pkcs7signed_run_SingleShotVectors(
     }
 
     for (i = 0; i < testSz; i++) {
-        pkcs7 = wc_PKCS7_New(HEAP_HINT, INVALID_DEVID);
+        pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
         if (pkcs7 == NULL)
             return -9553;
 
-        pkcs7->heap = HEAP_HINT;
-        pkcs7->devId = INVALID_DEVID;
         ret = wc_PKCS7_InitWithCert(pkcs7, testVectors[i].cert,
                                     (word32)testVectors[i].certSz);
 
@@ -21469,7 +21465,7 @@ static int pkcs7signed_run_SingleShotVectors(
 
         wc_PKCS7_Free(pkcs7);
 
-        pkcs7 = wc_PKCS7_New(HEAP_HINT, INVALID_DEVID);
+        pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
         if (pkcs7 == NULL)
             return -9564;
         wc_PKCS7_InitWithCert(pkcs7, NULL, 0);
