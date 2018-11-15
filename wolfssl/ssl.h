@@ -187,15 +187,15 @@ typedef struct WOLFSSL_BASIC_CONSTRAINTS WOLFSSL_BASIC_CONSTRAINTS;
 
 #if defined(OPENSSL_ALL) || defined (WOLFSSL_QT)
 
-typedef struct WOLFSSL_GENERAL_NAME {
+struct WOLFSSL_GENERAL_NAME {
     int type;
-    struct d { /* derefrenced */
+    struct { /* derefrenced */
         WOLFSSL_ASN1_STRING* rfc822Name;
         WOLFSSL_ASN1_STRING* dNSName;
         WOLFSSL_ASN1_STRING* uniformResourceIdentifier;
         WOLFSSL_ASN1_STRING* iPAddress;
         WOLFSSL_ASN1_OBJECT* registeredID;
-    };
+    } d;
 };
 struct WOLFSSL_AUTHORITY_KEYID {
     WOLFSSL_ASN1_STRING *keyid;
