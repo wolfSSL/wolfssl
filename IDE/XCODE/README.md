@@ -54,6 +54,13 @@ device build. Both are debug builds.
 
 You can make an archive for a device, as well. That is a release build.
 
+## Known issues:
+
+When building for older iPhone models that support the i386 architecture some
+inline assembly in the fast math library assumes 64-bit registers and must be
+disabled. This inline assembly can be disabled with `#define TFM_NO_ASM` when
+using the setting `#define USE_FAST_MATH` on i386 targets.
+
 # Installing libwolfssl.a
 
 Simply drag the file libwolfssl_XXX_.a and the directory `include` and drop it into
