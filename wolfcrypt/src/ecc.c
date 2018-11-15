@@ -282,7 +282,7 @@ enum {
     #ifdef HAVE_ECC_SECPR2
         #ifdef HAVE_OID_ENCODING
             #define CODED_SECP160R2    {1,3,132,0,30}
-            #define CODED_SECP160R1_SZ 5
+            #define CODED_SECP160R2_SZ 5
         #else
             #define CODED_SECP160R2    {0x2B,0x81,0x04,0x00,0x1E}
             #define CODED_SECP160R2_SZ 5
