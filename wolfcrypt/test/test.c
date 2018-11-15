@@ -13043,7 +13043,7 @@ int openssl_test(void)
         if (openssl_aes_test() != 0)
             return -7412;
 
-#ifdef WOLFSSL_AES_128
+#if defined(WOLFSSL_AES_128) && defined(HAVE_AES_CBC)
     {  /* evp_cipher test: EVP_aes_128_cbc */
         EVP_CIPHER_CTX ctx;
         int idx, cipherSz, plainSz;
@@ -13480,7 +13480,7 @@ int openssl_test(void)
 }
 #endif /* HAVE_AES_COUNTER */
 
-#ifdef WOLFSSL_AES_128
+#if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
 {
       /* EVP_CipherUpdate test */
 
