@@ -25487,7 +25487,7 @@ WOLFSSL_DH *wolfSSL_DSA_dup_DH(const WOLFSSL_DSA *dsa)
 #endif /* OPENSSL_EXTRA */
 #endif /* !NO_RSA && !NO_DSA */
 
-#ifdef WOLFSSL_QT
+#if defined(WOLFSSL_QT) && !defined(NO_DH)
 int setDhExternal(WOLFSSL_DH *dh) {
     DhKey *key;
     WOLFSSL_MSG("Entering setDhExternal");
@@ -29682,6 +29682,9 @@ WOLFSSL_EC_KEY* wolfSSL_PEM_read_bio_ECPrivateKey(WOLFSSL_BIO* bio,
 {
     WOLFSSL_EVP_PKEY* pkey;
     WOLFSSL_EC_KEY* local;
+
+
+    WOLFSSL_ENTER("wolfSSL_PEM_read_bio_ECPrivateKey");
 
     pkey = wolfSSL_PEM_read_bio_PrivateKey(bio, NULL, cb, pass);
     if (pkey == NULL) {
@@ -37461,17 +37464,39 @@ err_exit:
     return WOLFSSL_FAILURE;
 }
 
- /* stub for Qt */
-#ifndef NO_WOLFSSL_STUB
-int wolfSSL_ASN1_STRING_print(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str){
-    (void)out;
-    (void)str;
-    //openssl docs state "ASN1_STRING_print() is a legacy function
-    //which should be avoided in new applications"
+#if defined(WOLFSSL_QT) && !defined(NO_ASN)
+static int unprintable_char(char c)
+{
+    const unsigned char last_unprintable = 31;
+    const unsigned char LF = 10;
+    const unsigned char CR = 13;
 
+    if (c <= last_unprintable && c != LF && c != CR) {
+        return 1;
+    }
     return 0;
 }
-#endif
+
+int wolfSSL_ASN1_STRING_print(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str)
+{
+    int i;
+
+    WOLFSSL_ENTER("wolfSSL_ASN1_STRING_print");
+    if (out == NULL || str == NULL)
+           return WOLFSSL_FAILURE;
+
+    for (i=0; i < str->length; i++) {
+        if (unprintable_char(str->data[i])) {
+            str->data[i] = '.';
+        }
+    }
+
+    if (wolfSSL_BIO_write(out, str->data, str->length) != str->length)
+        return WOLFSSL_FAILURE;
+
+    return str->length;
+}
+#endif /* WOLFSSL_QT */
 
 #ifndef NO_ASN_TIME
 int wolfSSL_ASN1_TIME_get_length(WOLFSSL_ASN1_TIME *t)

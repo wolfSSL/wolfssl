@@ -22372,6 +22372,63 @@ static void test_wolfSSL_ASN1_STRING_print_ex(void){
 #endif
 }
 
+static void test_wolfSSL_ASN1_STRING_print(void){
+#if defined(WOLFSSL_QT) && !defined(NO_ASN)
+
+    ASN1_STRING* asn_str = NULL;
+    const char data[]={'H','e','l','l','o',' ','w','o','l','f','S','S','L','!'};
+    const unsigned int max_unprintable_char = 32;
+    const unsigned int MAX_BUF = 255;
+    const int LF = 10, CR = 13;
+    unsigned char unprintable_data[max_unprintable_char + sizeof(data)];
+    unsigned char expected[sizeof(unprintable_data)+1];
+    unsigned char rbuf[MAX_BUF];
+
+    BIO *bio;
+    int p_len, i;
+
+    printf(testingFmt, "wolfSSL_ASN1_STRING_print()");
+
+    /* setup */
+
+    for (i = 0; i < (int)sizeof(data); i++) {
+        unprintable_data[i] = data[i];
+        expected[i]         = data[i];
+    }
+
+    for (i = 0; i < (int)max_unprintable_char; i++) {
+        unprintable_data[sizeof(data)+i] = i;
+
+        if (i == LF || i == CR)
+            expected[sizeof(data)+i] = i;
+        else
+            expected[sizeof(data)+i] = '.';
+    }
+
+    unprintable_data[sizeof(unprintable_data)-1] = '\0';
+    expected[sizeof(expected)-1] = '\0';
+
+    XMEMSET(rbuf, 0, MAX_BUF);
+    bio = BIO_new(BIO_s_mem());
+    BIO_set_write_buf_size(bio, MAX_BUF);
+
+    asn_str = ASN1_STRING_type_new(V_ASN1_OCTET_STRING);
+    ASN1_STRING_set(asn_str,(const void*)unprintable_data,
+                                                    sizeof(unprintable_data));
+    /* test */
+    p_len = wolfSSL_ASN1_STRING_print(bio, asn_str);
+    AssertIntEQ(p_len, 46);
+    BIO_read(bio, (void*)rbuf, 46);
+
+    AssertStrEQ((char*)rbuf, (const char*)expected);
+
+    BIO_free(bio);
+    ASN1_STRING_free(asn_str);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN1_TIME)
     WOLFSSL_ASN1_TIME *t;
@@ -25041,6 +25098,7 @@ void ApiTest(void)
     test_wolfSSL_X509_NAME_ENTRY_get_object();
     test_wolfSSL_OpenSSL_add_all_algorithms();
     test_wolfSSL_ASN1_STRING_print_ex();
+    test_wolfSSL_ASN1_STRING_print();
     test_wolfSSL_ASN1_TIME_to_generalizedtime();
     test_wolfSSL_i2c_ASN1_INTEGER();
     test_wolfSSL_X509_check_ca();
