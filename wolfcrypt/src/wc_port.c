@@ -315,7 +315,7 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
         XSTRNCPY(ctx->name, path, pathLen + 1);
         ctx->name[pathLen] = '/';
         XSTRNCPY(ctx->name + pathLen + 1,
-                 ctx->entry->d_name, MAX_FILENAME_SZ - pathLen - 1);
+                 ctx->entry->d_name, MAX_FILENAME_SZ - pathLen);
 
         if (stat(ctx->name, &ctx->s) != 0) {
             WOLFSSL_MSG("stat on name failed");
@@ -379,7 +379,7 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
         XSTRNCPY(ctx->name, path, pathLen + 1);
         ctx->name[pathLen] = '/';
         XSTRNCPY(ctx->name + pathLen + 1,
-                 ctx->entry->d_name, MAX_FILENAME_SZ - pathLen - 1);
+                 ctx->entry->d_name, MAX_FILENAME_SZ - pathLen);
 
         if (stat(ctx->name, &ctx->s) != 0) {
             WOLFSSL_MSG("stat on name failed");
