@@ -20334,7 +20334,7 @@ static void test_wolfSSL_ASN1_STRING_print(void){
     const unsigned int MAX_BUF = 255;
     const int LF = 10, CR = 13;
     unsigned char unprintable_data[max_unprintable_char + sizeof(data)];
-    unsigned char expected[sizeof(unprintable_data)];
+    unsigned char expected[sizeof(unprintable_data)+1];
     unsigned char rbuf[MAX_BUF];
 
     BIO *bio;
@@ -20358,8 +20358,8 @@ static void test_wolfSSL_ASN1_STRING_print(void){
             expected[sizeof(data)+i] = '.';
     }
 
-    unprintable_data[sizeof(unprintable_data)] = '\0';
-    expected[sizeof(expected)] = '\0';
+    unprintable_data[sizeof(unprintable_data)-1] = '\0';
+    expected[sizeof(expected)-1] = '\0';
 
     XMEMSET(rbuf, 0, MAX_BUF);
     bio = BIO_new(BIO_s_mem());

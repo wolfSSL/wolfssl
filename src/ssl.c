@@ -35561,8 +35561,6 @@ int wolfSSL_ASN1_STRING_print(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str)
     if (out == NULL || str == NULL)
            return WOLFSSL_FAILURE;
 
-    printf("str->length == %d\n", str->length);
-
     for (i=0; i < str->length; i++) {
         if (unprintable_char(str->data[i])) {
             str->data[i] = '.';
