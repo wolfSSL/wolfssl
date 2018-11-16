@@ -28703,6 +28703,9 @@ WOLFSSL_EC_KEY* wolfSSL_PEM_read_bio_ECPrivateKey(WOLFSSL_BIO* bio,
     WOLFSSL_EVP_PKEY* pkey;
     WOLFSSL_EC_KEY* local;
 
+
+    WOLFSSL_ENTER("wolfSSL_PEM_read_bio_ECPrivateKey");
+
     pkey = wolfSSL_PEM_read_bio_PrivateKey(bio, NULL, cb, pass);
     if (pkey == NULL) {
         return NULL;
