@@ -3467,7 +3467,8 @@ static int RemoveFatalSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
 
 /* Passes in an IP/TCP packet for decoding (ethernet/localhost frame) removed */
 /* returns Number of bytes on success, 0 for no data yet, and -1 on error */
-int ssl_DecodePacket(const byte* packet, int length, byte** data, char* error)
+static int ssl_DecodePacketInternal(const byte* packet, int length,
+                                    byte** data, SSLInfo* sslInfo, char* error)
 {
     TcpInfo           tcpInfo;
     IpInfo            ipInfo;
@@ -3476,6 +3477,9 @@ int ssl_DecodePacket(const byte* packet, int length, byte** data, char* error)
     int               sslBytes;                /* ssl bytes unconsumed */
     int               ret;
     SnifferSession*   session = 0;
+
+    if (NULL != sslInfo)
+        XMEMSET(sslInfo, 0, sizeof(SSLInfo));
 
     if (CheckHeaders(&ipInfo, &tcpInfo, packet, length, &sslFrame, &sslBytes,
                      error) != 0)
@@ -3500,7 +3504,39 @@ int ssl_DecodePacket(const byte* packet, int length, byte** data, char* error)
     ret = ProcessMessage(sslFrame, session, sslBytes, data, end, error);
     if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
     CheckFinCapture(&ipInfo, &tcpInfo, session);
+
+    /* Pass back Session Info after we have processed the Server Hello. */
+    if ((NULL != sslInfo) && (0 != session->sslServer->options.cipherSuite)) {
+        sslInfo->isValid = 1;
+        sslInfo->protocolVersionMajor = session->sslServer->version.major;
+        sslInfo->protocolVersionMinor = session->sslServer->version.minor;
+        sslInfo->serverCipherSuite0 = session->sslServer->options.cipherSuite0;
+        sslInfo->serverCipherSuite = session->sslServer->options.cipherSuite;
+
+        const char* pCipher = wolfSSL_get_cipher(session->sslServer);
+        if (pCipher)
+            XMEMCPY(sslInfo->serverCipherSuiteName, pCipher,
+                    sizeof(sslInfo->serverCipherSuiteName) - 1);
+    }
     return ret;
+}
+
+
+/* Passes in an IP/TCP packet for decoding (ethernet/localhost frame) removed */
+/* returns Number of bytes on success, 0 for no data yet, and -1 on error */
+/* Also returns Session Info if available */
+int ssl_DecodePacketWithSessionInfo(const unsigned char* packet, int length,
+    unsigned char** data, SSLInfo* sslInfo, char* error)
+{
+    return ssl_DecodePacketInternal(packet, length, data, sslInfo, error);
+}
+
+
+/* Passes in an IP/TCP packet for decoding (ethernet/localhost frame) removed */
+/* returns Number of bytes on success, 0 for no data yet, and -1 on error */
+int ssl_DecodePacket(const byte* packet, int length, byte** data, char* error)
+{
+    return ssl_DecodePacketInternal(packet, length, data, NULL, error);
 }
 
 
