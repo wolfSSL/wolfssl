@@ -245,7 +245,8 @@ static const char* const msgTable[] =
 
     /* 81 */
     "Bad Decrypt Size",
-    "Extended Master Secret Hash Error"
+    "Extended Master Secret Hash Error",
+    "Handshake Message Split Across TLS Records"
 };
 
 
@@ -2060,8 +2061,9 @@ static int DoHandShake(const byte* input, int* sslBytes,
     startBytes = *sslBytes;
 
     if (*sslBytes < size) {
-        SetError(HANDSHAKE_INPUT_STR, error, session, FATAL_ERROR_STATE);
-        return -1;
+        Trace(SPLIT_HANDSHAKE_MSG_STR);
+        *sslBytes = 0;
+        return ret;
     }
 
     /* A session's arrays are released when the handshake is completed. */
