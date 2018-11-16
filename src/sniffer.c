@@ -3507,14 +3507,16 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
 
     /* Pass back Session Info after we have processed the Server Hello. */
     if ((NULL != sslInfo) && (0 != session->sslServer->options.cipherSuite)) {
+        const char* pCipher;
+
         sslInfo->isValid = 1;
         sslInfo->protocolVersionMajor = session->sslServer->version.major;
         sslInfo->protocolVersionMinor = session->sslServer->version.minor;
         sslInfo->serverCipherSuite0 = session->sslServer->options.cipherSuite0;
         sslInfo->serverCipherSuite = session->sslServer->options.cipherSuite;
 
-        const char* pCipher = wolfSSL_get_cipher(session->sslServer);
-        if (pCipher)
+        pCipher = wolfSSL_get_cipher(session->sslServer);
+        if (NULL != pCipher)
             XMEMCPY(sslInfo->serverCipherSuiteName, pCipher,
                     sizeof(sslInfo->serverCipherSuiteName) - 1);
     }
