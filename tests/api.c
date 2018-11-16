@@ -18578,7 +18578,7 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
     const int hour = 60*60;
     const int mini = 60;
     const byte asn_utc_time = ASN_UTC_TIME;
-#if !defined(TIME_T_NOT_LONG) && !defined(NO_64BIT)
+#if !defined(TIME_T_NOT_64BIT) && !defined(NO_64BIT)
     const byte asn_gen_time = ASN_GENERALIZED_TIME;
 #endif
     WOLFSSL_ASN1_TIME *asn_time, *s;
@@ -18613,7 +18613,7 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
     XMEMSET(date_str, 0, sizeof(date_str));
 
     /* Generalized time will overflow time_t if not long */
-#if !defined(TIME_T_NOT_LONG) && !defined(NO_64BIT)
+#if !defined(TIME_T_NOT_64BIT) && !defined(NO_64BIT)
     s = (WOLFSSL_ASN1_TIME*)XMALLOC(sizeof(WOLFSSL_ASN1_TIME), NULL,
                                     DYNAMIC_TYPE_OPENSSL);
     /* GeneralizedTime notation test */
@@ -18628,7 +18628,7 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
 
     XFREE(s,NULL,DYNAMIC_TYPE_OPENSSL);
     XMEMSET(date_str, 0, sizeof(date_str));
-#endif /* !TIME_T_NOT_LONG && !NO_64BIT */
+#endif /* !TIME_T_NOT_64BIT && !NO_64BIT */
 
     /* if WOLFSSL_ASN1_TIME struct is not allocated */
     s = NULL;

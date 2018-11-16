@@ -81,7 +81,7 @@ $ make
 $ make install
 ```
 
-If you are building for a 32-bit architecture, add `-DTIME_T_NOT_LONG` to the
+If you are building for a 32-bit architecture, add `-DTIME_T_NOT_64BIT` to the
 list of CFLAGS.
 
 ## Example Build Output
