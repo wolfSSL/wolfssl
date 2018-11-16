@@ -16910,7 +16910,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     #ifndef WOLFSSL_NO_TLS12
         AssertNotNull(ctx = SSL_CTX_new(TLSv1_2_server_method()));
     #else
-        AssertNotNull(ctx = SSL_CTX_new(TLSv1_3_server_method()));
+        AssertNotNull(ctx = SSL_CTX_new(wolfTLSv1_3_server_method()));
     #endif
 
         AssertNotNull(bio = BIO_new_file("./certs/server-keyEnc.pem", "rb"));
@@ -16953,7 +16953,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     #ifndef WOLFSSL_NO_TLS12
         AssertNotNull(ctx = SSL_CTX_new(TLSv1_2_server_method()));
     #else
-        AssertNotNull(ctx = SSL_CTX_new(TLSv1_3_server_method()));
+        AssertNotNull(ctx = SSL_CTX_new(wolfTLSv1_3_server_method()));
     #endif
 
         f = XFOPEN("./certs/ecc-key.der", "rb");

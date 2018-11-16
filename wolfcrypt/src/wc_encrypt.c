@@ -343,7 +343,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
     if (info->cipherType == WC_CIPHER_DES3)
         ret = wc_Des3_CbcEncryptWithKey(der, der, derSz, key, info->iv);
 #endif /* NO_DES3 */
-#ifndef NO_AES
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
     if (info->cipherType == WC_CIPHER_AES_CBC)
         ret = wc_AesCbcEncryptWithKey(der, der, derSz, key, info->keySz,
             info->iv);
@@ -564,7 +564,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             break;
         }
 #endif
-#ifndef NO_AES
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
     #ifdef WOLFSSL_AES_256
         case PBE_AES256_CBC:
         {

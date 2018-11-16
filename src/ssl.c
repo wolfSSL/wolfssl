@@ -21184,7 +21184,7 @@ void wolfSSL_AES_ecb_encrypt(const unsigned char *in, unsigned char* out,
 }
 #endif /* HAVE_AES_ECB */
 
-
+#if defined(HAVE_AES_CBC)
 /* Encrypt data using key and iv passed in. iv gets updated to most recent iv
  * state after encryptiond/decryption.
  *
@@ -21227,6 +21227,7 @@ void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
     /* to be compatible copy iv to iv buffer after completing operation */
     XMEMCPY(iv, (byte*)(aes->reg), AES_BLOCK_SIZE);
 }
+#endif /* HAVE_AES_CBC */
 
 
 /* Encrypt data using CFB mode with key and iv passed in. iv gets updated to
@@ -25890,6 +25891,7 @@ int wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER* cipher)
     WOLFSSL_MSG("wolfSSL_EVP_CIPHER_iv_length");
 
 #ifndef NO_AES
+#ifdef HAVE_AES_CBC
     #ifdef WOLFSSL_AES_128
     if (XSTRNCMP(name, EVP_AES_128_CBC, XSTRLEN(EVP_AES_128_CBC)) == 0)
         return AES_BLOCK_SIZE;
@@ -25902,6 +25904,7 @@ int wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER* cipher)
     if (XSTRNCMP(name, EVP_AES_256_CBC, XSTRLEN(EVP_AES_256_CBC)) == 0)
         return AES_BLOCK_SIZE;
     #endif
+#endif /* HAVE_AES_CBC */
 #ifdef WOLFSSL_AES_COUNTER
     #ifdef WOLFSSL_AES_128
     if (XSTRNCMP(name, EVP_AES_128_CTR, XSTRLEN(EVP_AES_128_CTR)) == 0)
