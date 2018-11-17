@@ -1161,13 +1161,6 @@ extern void uITRON4_free(void *p) ;
         #define CUSTOM_RAND_TYPE     RAND_NBR
         #define CUSTOM_RAND_GENERATE Math_Rand
     #endif
-    #ifndef WOLFSSL_MICRIUM_3_0
-        #define WOLFSSL_TYPES
-    #endif
-    typedef CPU_INT08U byte;
-    typedef CPU_INT16U word16;
-    typedef CPU_INT32U word32;
-
     #define STRING_USER
     #define XSTRLEN(pstr) ((CPU_SIZE_T)Str_Len((CPU_CHAR *)(pstr)))
     #define XSTRNCPY(pstr_dest, pstr_src, len_max) \
