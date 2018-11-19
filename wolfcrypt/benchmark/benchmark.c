@@ -3858,8 +3858,19 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
     double      start = 0.0f;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_VAR_INIT(message, byte, len, messageStr, HEAP_HINT);
-    DECLARE_ARRAY(enc, byte, BENCH_MAX_PENDING, rsaKeySz/8, HEAP_HINT);
-    DECLARE_ARRAY(out, byte, BENCH_MAX_PENDING, rsaKeySz/8, HEAP_HINT);
+
+    #ifdef USE_CERT_BUFFERS_1024
+        DECLARE_ARRAY(enc, byte, BENCH_MAX_PENDING, 128, HEAP_HINT);
+        DECLARE_ARRAY(out, byte, BENCH_MAX_PENDING, 128, HEAP_HINT);
+    #elif defined(USE_CERT_BUFFERS_2048)
+        DECLARE_ARRAY(enc, byte, BENCH_MAX_PENDING, 256, HEAP_HINT);
+        DECLARE_ARRAY(out, byte, BENCH_MAX_PENDING, 256, HEAP_HINT);
+    #elif defined(USE_CERT_BUFFERS_3072)
+       DECLARE_ARRAY(enc, byte, BENCH_MAX_PENDING, 384, HEAP_HINT);
+       DECLARE_ARRAY(out, byte, BENCH_MAX_PENDING, 384, HEAP_HINT);
+    #else
+        #error "need a cert buffer size"
+    #endif /* USE_CERT_BUFFERS */
 
     if (!rsa_sign_verify) {
         /* begin public RSA */
