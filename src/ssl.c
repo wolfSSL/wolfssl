@@ -16655,18 +16655,22 @@ void wolfSSL_sk_ASN1_OBJECT_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
     XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
 }
 
-int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, WOLFSSL_ASN1_STRING *in)
+int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, const WOLFSSL_ASN1_STRING *in)
 {
-    /*
-       ASN1_STRING_to_UTF8() converts the string in to UTF8 format,
-       the converted data is allocated in a buffer in *out.
-       The length of out is returned or a negative error code.
-       The buffer *out should be free using OPENSSL_free().
-       */
-    (void)out;
-    (void)in;
-    WOLFSSL_STUB("ASN1_STRING_to_UTF8");
-    return -1;
+    int i;
+    WOLFSSL_ENTER("wolfSSL_ASN1_STRING_to_UTF8");
+    if (out == NULL || in == NULL)
+        return WOLFSSL_FAILURE;
+
+    *out = (unsigned char*)XMALLOC(in->length, NULL, DYNAMIC_TYPE_TMP_BUFFER);//make room for out
+
+    for (i=0; i < in->length; i++){
+        *out[i] = in->data[i];
+        printf("%c", in->data[i]);//use to test function
+    }
+
+    //checked return value and found that it is returning the length of the UTF8 string
+    return in->length;
 }
 #endif /* NO_ASN */
 
