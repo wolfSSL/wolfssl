@@ -40,7 +40,7 @@
 #define TX_MSG "GET /index.html HTTP/1.0\r\n\r\n"
 #define TX_MSG_SIZE sizeof(TX_MSG)
 
-const CPU_INT08U google_certs_ca[]="\n\
+static const CPU_INT08U google_certs_ca[]="\n\
 ## Google Internet Authority G3 \n\
 -----BEGIN CERTIFICATE-----\n\
 MIIEXDCCA0SgAwIBAgINAeOpMBz8cgY4P5pTHTANBgkqhkiG9w0BAQsFADBMMSAw\n\
