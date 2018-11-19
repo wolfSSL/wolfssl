@@ -9607,8 +9607,10 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
     #endif
 
 #ifdef HAVE_EXTENDED_MASTER
-    if (ssl->options.haveEMS && msgType == server_hello)
+    if (ssl->options.haveEMS && msgType == server_hello &&
+                                              !IsAtLeastTLSv1_3(ssl->version)) {
         length += HELLO_EXT_SZ;
+    }
 #endif
 
     if (TLSX_SupportExtensions(ssl))
@@ -9724,7 +9726,8 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
 #endif
 
 #ifdef HAVE_EXTENDED_MASTER
-        if (ssl->options.haveEMS && msgType == server_hello) {
+        if (ssl->options.haveEMS && msgType == server_hello &&
+                                              !IsAtLeastTLSv1_3(ssl->version)) {
             c16toa(HELLO_EXT_EXTMS, output + offset);
             offset += HELLO_EXT_TYPE_SZ;
             c16toa(0, output + offset);
