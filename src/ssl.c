@@ -15954,10 +15954,20 @@ int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, WOLFSSL_ASN1_STRING *in)
        The length of out is returned or a negative error code.
        The buffer *out should be free using OPENSSL_free().
        */
-    (void)out;
-    (void)in;
-    WOLFSSL_STUB("ASN1_STRING_to_UTF8");
-    return -1;
+    int i;
+
+    WOLFSSL_ENTER("wolfSSL_ASN1_STRING_to_UTF8");
+    if(out == NULL || in == NULL){
+        return WOLFSSL_FAILURE;
+    }
+
+    for (i=0; i < in->length; i++){
+        *out[i] = in->data[i];
+        printf("%c", in->data[i]);//use to test function
+    }
+
+    //checked return value and found that it is returning the length of the UTF8 string
+    return in->length;
 }
 #endif /* NO_ASN */
 
