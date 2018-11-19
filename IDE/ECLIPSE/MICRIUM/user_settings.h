@@ -6,19 +6,21 @@
 #endif
 
 #define MICRIUM
-#define WOLFSSL_MICRIUM_3_0
 
+/* You can select one or all of the following tests */
+#define WOLFSSL_WOLFCRYPT_TEST
 #define WOLFSSL_BENCHMARK_TEST
-/*
-#define WOLFSSL_MICRIUM_CRYPTO_TEST
-#define WOLFSSL_MICRIUM_CLIENT_TEST
-#define WOLFSSL_MICRIUM_SERVER_TEST
-*/
+#define WOLFSSL_CLIENT_TEST
+#define WOLFSSL_SERVER_TEST
 
-/* test.h includes platform dependent header files.
-When using Windows simulator, you must define USE_WINDOWS_API */
+/* adjust x to seconds since Jan 01 1970. (UTC) 
+https://www.unixtimestamp.com/
+*/
+#define CURRENT_UNIX_TS 1542605837
+
+/* When using Windows simulator, you must define USE_WINDOWS_API for test.h to build */
 #ifdef _WIN32
-define USE_WINDOWS_API
+#define USE_WINDOWS_API
 #endif
 
 #define NO_FILESYSTEM
@@ -39,11 +41,17 @@ define USE_WINDOWS_API
 #define NO_WRITE_TEMP_FILES
 
 /* no pow, no math.h */
-#define WOLFSSL_DH_CONST
+//#define WOLFSSL_DH_CONST
 
 #define XSNPRINTF snprintf
 
 //#define NO_ASN_TIME
+#define HAVE_AESGCM
+#define WOLFSSL_SHA512
+#define HAVE_ECC
+#define HAVE_CURVE25519
+#define CURVE25519_SMALL
+#define HAVE_ED25519
 
 #ifdef __cplusplus
     }   /* extern "C" */
