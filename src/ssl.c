@@ -26435,14 +26435,42 @@ WOLFSSL_DSA* wolfSSL_EVP_PKEY_get1_DSA(WOLFSSL_EVP_PKEY* key)
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
+#if defined(HAVE_ECC) && defined(WOLFSSL_QT)
 WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
 {
-    (void)key;
-    WOLFSSL_STUB("EVP_PKEY_get1_EC_KEY");
-    WOLFSSL_MSG("wolfSSL_EVP_PKEY_get1_EC_KEY not implemented");
+    WOLFSSL_EC_KEY* local;
 
-    return NULL;
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_get1_EC_KEY");
+
+    if (key == NULL) {
+        return NULL;
+    }
+
+    local = wolfSSL_EC_KEY_new();
+    if (local == NULL) {
+        WOLFSSL_MSG("Error creating a new WOLFSSL_EC_KEY structure");
+        return NULL;
+    }
+
+    if (key->type == EVP_PKEY_EC) {
+        if (wolfSSL_EC_KEY_LoadDer(local, (const unsigned char*)key->pkey.ptr,
+                    key->pkey_sz) != SSL_SUCCESS) {
+            /* now try public key */
+            if (wolfSSL_EC_KEY_LoadDer_ex(local,
+                    (const unsigned char*)key->pkey.ptr,
+                    key->pkey_sz, WOLFSSL_EC_KEY_LOAD_PUBLIC) != SSL_SUCCESS) {
+
+                wolfSSL_EC_KEY_free(local);
+                local = NULL;
+            }
+        }
+    }
+    else {
+        WOLFSSL_MSG("WOLFSSL_EVP_PKEY does not hold an EC key");
+        wolfSSL_EC_KEY_free(local);
+        local = NULL;
+    }
+    return local;
 }
 #endif
 
