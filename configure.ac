@@ -2083,7 +2083,6 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_IDEA"
 fi
 
-
 # ARC4
 AC_ARG_ENABLE([arc4],
     [AS_HELP_STRING([--enable-arc4],[Enable ARC4 (default: disabled)])],
@@ -2107,6 +2106,7 @@ else
         ENABLED_ARC4=no
     fi
 fi
+AM_CONDITIONAL([BUILD_IDEA], [test "x$ENABLED_IDEA" = "xyes"])
 
 
 # MD5
@@ -3320,11 +3320,17 @@ then
     then
        ENABLED_PSK="yes"
     fi
-    
+
     # Requires DES3 make sure on
     if test "x$ENABLED_DES3" = "xno"
     then
        ENABLED_DES3="yes"
+    fi
+
+    # Requires DES3 make sure on
+    if test "x$ENABLED_ARC4" = "xno"
+    then
+       ENABLED_ARC4="yes"
     fi
 
     # requires oldnames disabled
@@ -3350,6 +3356,31 @@ fi
 
 AM_CONDITIONAL([BUILD_DSA], [test "x$ENABLED_DSA" = "xyes"])
 
+# ARC4
+AC_ARG_ENABLE([arc4],
+    [AS_HELP_STRING([--enable-arc4],[Enable ARC4 (default: disabled)])],
+    [ ENABLED_ARC4=$enableval ],
+    [ ENABLED_ARC4=no ]
+    )
+
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT"
+then
+    ENABLED_ARC4="yes"
+fi
+
+if test "$ENABLED_ARC4" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_RC4"
+else
+    # turn off ARC4 if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_RC4"
+        ENABLED_ARC4=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_RC4], [test "x$ENABLED_ARC4" = "xyes"])
 
 # Asio Support
 AC_ARG_ENABLE([asio],
