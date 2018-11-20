@@ -10273,7 +10273,7 @@ static int DoHelloRequest(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     (void)input;
 
     WOLFSSL_START(WC_FUNC_HELLO_REQUEST_DO);
-    WOLFSSL_ENTER("DoFinished");
+    WOLFSSL_ENTER("DoHelloRequest");
 
     if (size) /* must be 0 */
         return BUFFER_ERROR;
@@ -10722,7 +10722,7 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ssl->options.serverState = NULL_STATE;
         ssl->options.clientState = NULL_STATE;
         ssl->options.connectState = CONNECT_BEGIN;
-        ssl->options.acceptState = ACCEPT_BEGIN;
+        ssl->options.acceptState = ACCEPT_FIRST_REPLY_DONE;
         ssl->options.handShakeState = NULL_STATE;
         ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
 

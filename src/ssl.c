@@ -2364,42 +2364,47 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl)
         return SECURE_RENEGOTIATION_E;
     }
 
-    if (ssl->options.handShakeState != HANDSHAKE_DONE) {
-        WOLFSSL_MSG("Can't renegotiate until previous handshake complete");
-        return SECURE_RENEGOTIATION_E;
-    }
+    /* If the client started the renegotiation, the server will already
+     * have processed the client's hello. */
+    if (ssl->options.side != WOLFSSL_SERVER_END ||
+        ssl->options.acceptState != ACCEPT_FIRST_REPLY_DONE) {
+
+        if (ssl->options.handShakeState != HANDSHAKE_DONE) {
+            WOLFSSL_MSG("Can't renegotiate until previous handshake complete");
+            return SECURE_RENEGOTIATION_E;
+        }
 
 #ifndef NO_FORCE_SCR_SAME_SUITE
-    /* force same suite */
-    if (ssl->suites) {
-        ssl->suites->suiteSz = SUITE_LEN;
-        ssl->suites->suites[0] = ssl->options.cipherSuite0;
-        ssl->suites->suites[1] = ssl->options.cipherSuite;
-    }
+        /* force same suite */
+        if (ssl->suites) {
+            ssl->suites->suiteSz = SUITE_LEN;
+            ssl->suites->suites[0] = ssl->options.cipherSuite0;
+            ssl->suites->suites[1] = ssl->options.cipherSuite;
+        }
 #endif
 
-    /* reset handshake states */
-    ssl->options.serverState = NULL_STATE;
-    ssl->options.clientState = NULL_STATE;
-    ssl->options.connectState  = CONNECT_BEGIN;
-    ssl->options.acceptState   = ACCEPT_BEGIN;
-    ssl->options.handShakeState = NULL_STATE;
-    ssl->options.processReply  = 0;  /* TODO, move states in internal.h */
+        /* reset handshake states */
+        ssl->options.serverState = NULL_STATE;
+        ssl->options.clientState = NULL_STATE;
+        ssl->options.connectState  = CONNECT_BEGIN;
+        ssl->options.acceptState   = ACCEPT_BEGIN;
+        ssl->options.handShakeState = NULL_STATE;
+        ssl->options.processReply  = 0;  /* TODO, move states in internal.h */
 
-    XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
+        XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
 
-    ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
+        ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
 
-    if (ssl->options.side == WOLFSSL_SERVER_END) {
-        ret = SendHelloRequest(ssl);
-        if (ret != 0)
+        if (ssl->options.side == WOLFSSL_SERVER_END) {
+            ret = SendHelloRequest(ssl);
+            if (ret != 0)
+                return ret;
+        }
+
+        ret = InitHandshakeHashes(ssl);
+        if (ret !=0)
             return ret;
     }
-
-    ret = InitHandshakeHashes(ssl);
-    if (ret !=0)
-        return ret;
-
     ret = wolfSSL_negotiate(ssl);
     return ret;
 }
