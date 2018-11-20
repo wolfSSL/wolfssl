@@ -114,6 +114,8 @@ int atmel_get_random_block(unsigned char* output, unsigned int sz)
 }
 
 #if defined(WOLFSSL_ATMEL) && defined(WOLFSSL_ATMEL_TIME)
+#include "asf.h"
+#include "rtc_calendar.h"
 extern struct rtc_module *_rtc_instance[RTC_INST_NUM];
 
 long atmel_get_curr_time_and_date(long* tm)
