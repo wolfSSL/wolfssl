@@ -7246,7 +7246,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 
         int ext_count=0;//used to return total num extensions
         int length;
-        int outSz;
+        int outSz = 0;
         const byte* rawCert;
         rawCert = wolfSSL_X509_get_der((WOLFSSL_X509*)passed_cert, &outSz);
 
@@ -16658,18 +16658,23 @@ void wolfSSL_sk_ASN1_OBJECT_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
 int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, const WOLFSSL_ASN1_STRING *in)
 {
     int i;
+
     WOLFSSL_ENTER("wolfSSL_ASN1_STRING_to_UTF8");
-    if (out == NULL || in == NULL)
+    if (out == NULL || in == NULL){
+        WOLFSSL_MSG("NULL argument passed to function");
         return WOLFSSL_FAILURE;
-
-    *out = (unsigned char*)XMALLOC(in->length, NULL, DYNAMIC_TYPE_TMP_BUFFER);//make room for out
-
-    for (i=0; i < in->length; i++){
-        *out[i] = in->data[i];
-        printf("%c", in->data[i]);//use to test function
     }
 
-    //checked return value and found that it is returning the length of the UTF8 string
+    *out = (unsigned char*)XMALLOC(in->length, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (*out == NULL){
+         WOLFSSL_MSG("'out' is NULL after XMALLOC");
+         return WOLFSSL_FAILURE;
+    }
+
+    for (i=0; i < in->length; i++){
+        *(*(out)+i) = in->data[i];
+    }
+
     return in->length;
 }
 #endif /* NO_ASN */
@@ -17203,8 +17208,8 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
         const byte* derB;//pointer to the der buffer of b
         int retHashA;//return val of hash a
         int retHashB;//return val of hash b
-        int outSzA;//the length of der buffer a
-        int outSzB;//the length of der buffer b
+        int outSzA = 0;//the length of der buffer a
+        int outSzB = 0;//the length of der buffer b
         #ifdef WOLFSSL_PIC32MZ_HASH
             byte digestA[PIC32_DIGEST_SIZE];
             byte digestB[PIC32_DIGEST_SIZE];
