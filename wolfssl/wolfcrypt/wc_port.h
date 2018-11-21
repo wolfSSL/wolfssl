@@ -474,10 +474,23 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 
     /* PowerPC time_t is int */
     #ifdef __PPC__
-        #define TIME_T_NOT_LONG
+        #define TIME_T_NOT_64BIT
     #endif
 #endif
 
+#ifdef SIZEOF_TIME_T
+    /* check if size of time_t from autoconf is less than 8 bytes (64bits) */
+    #if SIZEOF_TIME_T < 8
+        #undef  TIME_T_NOT_64BIT
+        #define TIME_T_NOT_64BIT
+    #endif
+#endif
+#ifdef TIME_T_NOT_LONG
+    /* one old reference to TIME_T_NOT_LONG in GCC-ARM example README
+     * this keeps support for the old macro name */
+    #undef TIME_T_NOT_64BIT
+    #define TIME_T_NOT_64BIT
+#endif
 
 /* Map default time functions */
 #if !defined(XTIME) && !defined(TIME_OVERRIDES) && !defined(USER_TIME)

@@ -10253,7 +10253,8 @@ static int rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, byte* tmp)
         fclose(file3);
     #endif /* USE_CERT_BUFFERS */
 
-    #ifndef NO_FILESYSTEM
+    #if !defined(NO_FILESYSTEM) && !defined(USE_CERT_BUFFERS_1024) && \
+        !defined(USE_CERT_BUFFERS_2048) && !defined(NO_ASN)
         ret = wc_SetAltNames(myCert, rsaCaCertFile);
         if (ret != 0) {
             ERROR_OUT(-6931, exit_rsa);

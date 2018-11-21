@@ -4206,7 +4206,7 @@ int InitSSL_Suites(WOLFSSL* ssl)
     haveRSA = 1;
 #endif
 #ifndef NO_PSK
-    havePSK = ssl->options.havePSK;
+    havePSK = (byte)ssl->options.havePSK;
 #endif /* NO_PSK */
 #ifdef HAVE_ANON
     haveAnon = ssl->options.haveAnon;
