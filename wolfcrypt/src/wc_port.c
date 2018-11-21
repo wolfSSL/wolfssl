@@ -1517,6 +1517,9 @@ time_t micrium_time(time_t* timer)
 
     Clk_GetTS_Unix(&sec);
 
+    if (timer != NULL)
+        *timer = sec;
+
     return (time_t) sec;
 }
 

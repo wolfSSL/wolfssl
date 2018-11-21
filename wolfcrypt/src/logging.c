@@ -210,7 +210,9 @@ void WOLFSSL_TIME(int count)
     /* Declare sprintf for ocall */
     int sprintf(char* buf, const char *fmt, ...);
 #elif defined(MICRIUM)
-    #include <bsp_ser.h>
+    #if (BSP_SER_COMM_EN  == DEF_ENABLED)
+        #include <bsp_ser.h>
+    #endif
 #elif defined(WOLFSSL_USER_LOG)
     /* user includes their own headers */
 #elif defined(WOLFSSL_ESPIDF)

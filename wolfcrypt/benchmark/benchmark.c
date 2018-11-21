@@ -60,6 +60,11 @@
 
     #undef printf
     #define printf PRINTF
+#elif defined(MICRIUM)
+      #include <bsp_ser.h>
+      void BSP_Ser_Printf (CPU_CHAR* format, ...);
+      #undef printf
+      #define printf BSP_Ser_Printf
 #else
     #include <stdio.h>
 #endif
@@ -439,7 +444,7 @@ static const char* bench_Usage_msg1[][10] = {
         "-<alg>      アルゴリズムのベンチマークを実施します。\n            利用可能なアルゴリズムは下記を含みます:\n",
         "-lng <num>  指定された言語でベンチマーク結果を表示します。\n            0: 英語、 1: 日本語\n",
         "<num>       ブロックサイズをバイト単位で指定します。\n",
-    }, 
+    },
 };
 
 static const char* bench_result_words1[][4] = {
@@ -455,7 +460,7 @@ static const char* bench_result_words1[][4] = {
 static const char* bench_desc_words[][9] = {
     /* 0           1          2         3        4        5         6            7            8 */
     {"public", "private", "key gen", "agree" , "sign", "verify", "encryption", "decryption", NULL}, /* 0 English */
-    {"公開鍵", "秘密鍵" ,"鍵生成" , "鍵共有" , "署名", "検証"  , "暗号化"    , "復号化"    , NULL}, /* 1 Japanese */     
+    {"公開鍵", "秘密鍵" ,"鍵生成" , "鍵共有" , "署名", "検証"  , "暗号化"    , "復号化"    , NULL}, /* 1 Japanese */
 };
 
 #endif
@@ -977,7 +982,7 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
         SHOW_INTEL_CYCLES_CSV(msg, sizeof(msg), countSz);
     } else {
         XSNPRINTF(msg, sizeof(msg), "%-16s%s %5.0f %s %s %5.3f %s, %8.3f %s/s",
-        desc, BENCH_ASYNC_GET_NAME(doAsync), blocks, blockType, word[0], total, word[1], 
+        desc, BENCH_ASYNC_GET_NAME(doAsync), blocks, blockType, word[0], total, word[1],
         persec, blockType);
         SHOW_INTEL_CYCLES(msg, sizeof(msg), countSz);
     }
@@ -1637,11 +1642,9 @@ int benchmark_test(void *args)
 
     (void)args;
 
-    printf(
-"------------------------------------------------------------------------------"
-"\n wolfSSL version %s\n"
-"------------------------------------------------------------------------------"
-"\n", LIBWOLFSSL_VERSION_STRING);
+    printf("------------------------------------------------------------------------------\n");
+    printf(" wolfSSL version %s\n", LIBWOLFSSL_VERSION_STRING);
+    printf("------------------------------------------------------------------------------\n");
 
     ret = benchmark_init();
     if (ret != 0)
@@ -3854,10 +3857,20 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
     const int   len = (int)XSTRLEN((char*)messageStr);
     double      start = 0.0f;
     const char**desc = bench_desc_words[lng_index];
-
     DECLARE_VAR_INIT(message, byte, len, messageStr, HEAP_HINT);
-    DECLARE_ARRAY(enc, byte, BENCH_MAX_PENDING, rsaKeySz/8, HEAP_HINT);
-    DECLARE_ARRAY(out, byte, BENCH_MAX_PENDING, rsaKeySz/8, HEAP_HINT);
+
+    #ifdef USE_CERT_BUFFERS_1024
+        DECLARE_ARRAY(enc, byte, BENCH_MAX_PENDING, 128, HEAP_HINT);
+        DECLARE_ARRAY(out, byte, BENCH_MAX_PENDING, 128, HEAP_HINT);
+    #elif defined(USE_CERT_BUFFERS_2048)
+        DECLARE_ARRAY(enc, byte, BENCH_MAX_PENDING, 256, HEAP_HINT);
+        DECLARE_ARRAY(out, byte, BENCH_MAX_PENDING, 256, HEAP_HINT);
+    #elif defined(USE_CERT_BUFFERS_3072)
+       DECLARE_ARRAY(enc, byte, BENCH_MAX_PENDING, 384, HEAP_HINT);
+       DECLARE_ARRAY(out, byte, BENCH_MAX_PENDING, 384, HEAP_HINT);
+    #else
+        #error "need a cert buffer size"
+    #endif /* USE_CERT_BUFFERS */
 
     if (!rsa_sign_verify) {
         /* begin public RSA */
@@ -5044,6 +5057,14 @@ exit_ed_verify:
 #elif defined(WOLFSSL_SGX)
     double current_time(int reset);
 
+#elif defined(MICRIUM)
+    double current_time(int reset)
+    {
+        CPU_ERR err;
+
+        (void)reset;
+        return (double) CPU_TS_Get32()/CPU_TS_TmrFreqGet(&err);
+    }
 #else
 
     #include <sys/time.h>
