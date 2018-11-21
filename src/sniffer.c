@@ -1017,6 +1017,23 @@ static void TraceRemovedSession(void)
 }
 
 
+/* Show SSLInfo if provided and is valid. */
+static void TraceSessionInfo(SSLInfo* sslInfo)
+{
+    if (TraceOn) {
+        if (sslInfo != NULL && sslInfo->isValid) {
+            fprintf(TraceFile,
+                    "\tver:(%u %u) suiteId:(%02x %02x) suiteName:(%s)\n",
+                    sslInfo->protocolVersionMajor,
+                    sslInfo->protocolVersionMinor,
+                    sslInfo->serverCipherSuite0,
+                    sslInfo->serverCipherSuite,
+                    sslInfo->serverCipherSuiteName);
+        }
+    }
+}
+
+
 /* Set user error string */
 static void SetError(int idx, char* error, SnifferSession* session, int fatal)
 {
@@ -3465,6 +3482,38 @@ static int RemoveFatalSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
 }
 
 
+/* Copies the session's infomation to the provided sslInfo. Skip copy if
+ * SSLInfo is not provided. */
+static void CopySessionInfo(SnifferSession* session, SSLInfo* sslInfo)
+{
+    if (NULL != sslInfo) {
+        XMEMSET(sslInfo, 0, sizeof(SSLInfo));
+
+        /* Pass back Session Info after we have processed the Server Hello. */
+        if (0 != session->sslServer->options.cipherSuite) {
+            const char* pCipher;
+
+            sslInfo->isValid = 1;
+            sslInfo->protocolVersionMajor = session->sslServer->version.major;
+            sslInfo->protocolVersionMinor = session->sslServer->version.minor;
+            sslInfo->serverCipherSuite0 =
+                        session->sslServer->options.cipherSuite0;
+            sslInfo->serverCipherSuite =
+                        session->sslServer->options.cipherSuite;
+
+            pCipher = wolfSSL_get_cipher(session->sslServer);
+            if (NULL != pCipher) {
+                XSTRNCPY((char*)sslInfo->serverCipherSuiteName, pCipher,
+                         sizeof(sslInfo->serverCipherSuiteName));
+                sslInfo->serverCipherSuiteName
+                         [sizeof(sslInfo->serverCipherSuiteName) - 1] = '\0';
+            }
+            TraceSessionInfo(sslInfo);
+        }
+    }
+}
+
+
 /* Passes in an IP/TCP packet for decoding (ethernet/localhost frame) removed */
 /* returns Number of bytes on success, 0 for no data yet, and -1 on error */
 static int ssl_DecodePacketInternal(const byte* packet, int length,
@@ -3477,9 +3526,6 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
     int               sslBytes;                /* ssl bytes unconsumed */
     int               ret;
     SnifferSession*   session = 0;
-
-    if (NULL != sslInfo)
-        XMEMSET(sslInfo, 0, sizeof(SSLInfo));
 
     if (CheckHeaders(&ipInfo, &tcpInfo, packet, length, &sslFrame, &sslBytes,
                      error) != 0)
@@ -3505,21 +3551,8 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
     if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
     CheckFinCapture(&ipInfo, &tcpInfo, session);
 
-    /* Pass back Session Info after we have processed the Server Hello. */
-    if ((NULL != sslInfo) && (0 != session->sslServer->options.cipherSuite)) {
-        const char* pCipher;
+    CopySessionInfo(session, sslInfo);
 
-        sslInfo->isValid = 1;
-        sslInfo->protocolVersionMajor = session->sslServer->version.major;
-        sslInfo->protocolVersionMinor = session->sslServer->version.minor;
-        sslInfo->serverCipherSuite0 = session->sslServer->options.cipherSuite0;
-        sslInfo->serverCipherSuite = session->sslServer->options.cipherSuite;
-
-        pCipher = wolfSSL_get_cipher(session->sslServer);
-        if (NULL != pCipher)
-            XMEMCPY(sslInfo->serverCipherSuiteName, pCipher,
-                    sizeof(sslInfo->serverCipherSuiteName) - 1);
-    }
     return ret;
 }
 
