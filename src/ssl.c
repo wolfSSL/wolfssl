@@ -1954,6 +1954,7 @@ int wolfSSL_UseMaxFragment(WOLFSSL* ssl, byte mfl)
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
+#ifdef WOLFSSL_ALLOW_MAX_FRAGMENT_ADJUST
     /* The following is a non-standard way to reconfigure the max packet size
         post-handshake for wolfSSL_write/woflSSL_read */
     if (ssl->options.handShakeState == HANDSHAKE_DONE) {
@@ -1968,6 +1969,7 @@ int wolfSSL_UseMaxFragment(WOLFSSL* ssl, byte mfl)
         }
         return WOLFSSL_SUCCESS;
     }
+#endif /* WOLFSSL_MAX_FRAGMENT_ADJUST */
 
     /* This call sets the max fragment TLS extension, which gets sent to server.
         The server_hello response is what sets the `ssl->max_fragment` in
