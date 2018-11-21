@@ -236,11 +236,7 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
 #elif defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
         dc_log_printf("%s\n", logMessage);
 #elif defined(MICRIUM)
-        #if (BSP_SER_COMM_EN  == DEF_ENABLED)
-            BSP_Ser_Printf("%s\r\n", logMessage);
-        #else
-            printf("%s\r\n", logMessage);
-        #endif
+        BSP_Ser_Printf("%s\r\n", logMessage);
 #elif defined(WOLFSSL_MDK_ARM)
         fflush(stdout) ;
         printf("%s\n", logMessage);

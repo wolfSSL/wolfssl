@@ -61,12 +61,8 @@ https://www.unixtimestamp.com/
 #define NO_ECC_VECTOR_TEST
 #define NO_WRITE_TEMP_FILES
 
-/* no pow, no math.h */
-//#define WOLFSSL_DH_CONST
-
 #define XSNPRINTF snprintf
 
-//#define NO_ASN_TIME
 #define HAVE_AESGCM
 #define WOLFSSL_SHA512
 #define HAVE_ECC
