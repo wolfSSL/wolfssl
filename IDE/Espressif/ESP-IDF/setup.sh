@@ -38,6 +38,7 @@ ${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/
 ${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/src
 ${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/wolfcrypt
 ${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/wolfssl
+${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/test
 
 popd > /dev/null             # $WOLFSSL_ESPIDFDIR
 pushd ${BASEDIR} > /dev/null # WOLFSSL TOP DIR
@@ -51,6 +52,8 @@ ${CPDCMD} -r ./wolfcrypt/benchmark ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/
 
 ${CPDCMD} -r ./wolfssl/*.h ${WOLFSSLLIB_TRG_DIR}/wolfssl/
 ${CPDCMD} -r ./wolfssl/wolfcrypt ${WOLFSSLLIB_TRG_DIR}/wolfssl/
+# unit test app
+${CPDCMD} -r ${WOLFSSL_ESPIDFDIR}/test/* ${WOLFSSLLIB_TRG_DIR}/test/
 
 popd > /dev/null # 
 

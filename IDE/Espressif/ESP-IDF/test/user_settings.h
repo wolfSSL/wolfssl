@@ -31,13 +31,12 @@
 #define HAVE_AEAD
 #define HAVE_SUPPORTED_CURVES
 
-/* when you want to use SINGLE THREAD */
-/* #define SINGLE_THREADED */
+// #define SINGLE_THREADED/* or define RTOS  option */
 #define NO_FILESYSTEM
 
 #define HAVE_AESGCM
 /* when you want to use SHA384 */
-/* #define WOLFSSL_SHA384 */
+#define WOLFSSL_SHA384
 #define WOLFSSL_SHA512
 #define HAVE_ECC
 #define HAVE_CURVE25519

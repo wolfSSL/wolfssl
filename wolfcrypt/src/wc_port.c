@@ -614,8 +614,13 @@ int wolfSSL_CryptHwMutexUnLock(void) {
         (void)m;
         return 0;
     }
-
-
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT)
+    int wc_LockMutex_ex(wolfSSL_Mutex *m, TickType_t xBlockTime)
+    {
+        (void)m;
+        return 0;
+    }
+#endif
     int wc_UnLockMutex(wolfSSL_Mutex *m)
     {
         (void)m;
@@ -650,7 +655,12 @@ int wolfSSL_CryptHwMutexUnLock(void) {
         xSemaphoreTake( *m, portMAX_DELAY );
         return 0;
     }
-
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT)
+    int wc_LockMutex_ex(wolfSSL_Mutex* m, TickType_t xBlockTime)
+    {
+        return ((xSemaphoreTake( *m, xBlockTime ) == pdTRUE) ? 0 : BAD_MUTEX_E);
+    }
+#endif
     int wc_UnLockMutex(wolfSSL_Mutex* m)
     {
         xSemaphoreGive( *m );
