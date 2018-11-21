@@ -1360,6 +1360,7 @@ static const byte pbkdf2Oid[] = {42, 134, 72, 134, 247, 13, 1, 5, 12};
 #if !defined(NO_DES3) && !defined(NO_SHA)
 static const byte pbeSha1Des[] = {42, 134, 72, 134, 247, 13, 1, 5, 10};
 #endif
+static const byte pbes2[] = {42, 134, 72, 134, 247, 13, 1, 5, 13};
 
 /* PKCS12 */
 #if !defined(NO_RC4) && !defined(NO_SHA)
@@ -1808,6 +1809,10 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(pbeSha1Des3);
                     break;
         #endif
+                case PBES2:
+                    oid = pbes2;
+                    *oidSz = sizeof(pbes2);
+                    break;
             }
             break;
 
@@ -2262,9 +2267,10 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 
 /* Remove PKCS8 header, place inOutIdx at beginning of traditional,
  * return traditional length on success, negative on error */
-int ToTraditionalInline(const byte* input, word32* inOutIdx, word32 sz)
+int ToTraditionalInline(const byte* input, word32* inOutIdx, word32 sz,
+                        word32* algId)
 {
-    word32 idx, oid;
+    word32 idx;
     int    version, length;
     int    ret;
 
@@ -2279,7 +2285,7 @@ int ToTraditionalInline(const byte* input, word32* inOutIdx, word32 sz)
     if (GetMyVersion(input, &idx, &version, sz) < 0)
         return ASN_PARSE_E;
 
-    if (GetAlgoId(input, &idx, &oid, oidKeyType, sz) < 0)
+    if (GetAlgoId(input, &idx, algId, oidKeyType, sz) < 0)
         return ASN_PARSE_E;
 
     if (input[idx] == ASN_OBJECT_ID) {
@@ -2297,7 +2303,7 @@ int ToTraditionalInline(const byte* input, word32* inOutIdx, word32 sz)
 }
 
 /* Remove PKCS8 header, move beginning of traditional to beginning of input */
-int ToTraditional(byte* input, word32 sz)
+int ToTraditional(byte* input, word32 sz, word32* algId)
 {
     word32 inOutIdx = 0;
     int    length;
@@ -2305,7 +2311,7 @@ int ToTraditional(byte* input, word32 sz)
     if (input == NULL)
         return BAD_FUNC_ARG;
 
-    length = ToTraditionalInline(input, &inOutIdx, sz);
+    length = ToTraditionalInline(input, &inOutIdx, sz, algId);
     if (length < 0)
         return length;
 
@@ -2322,11 +2328,12 @@ int ToTraditional(byte* input, word32 sz)
 int wc_GetPkcs8TraditionalOffset(byte* input, word32* inOutIdx, word32 sz)
 {
     int length;
+    word32 algId;
 
     if (input == NULL || inOutIdx == NULL || (*inOutIdx > sz))
         return BAD_FUNC_ARG;
 
-    length = ToTraditionalInline(input, inOutIdx, sz);
+    length = ToTraditionalInline(input, inOutIdx, sz, &algId);
 
     return length;
 }
@@ -2849,7 +2856,7 @@ static int Pkcs8Pad(byte* buf, int sz, int blockSz)
  * returns the size of encrypted data on success
  */
 int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
-        const char* password,int passwordSz, int vPKCS, int vAlgo,
+        const char* password, int passwordSz, int vPKCS, int vAlgo,
         byte* salt, word32 saltSz, int itt, WC_RNG* rng, void* heap)
 {
     int algoID = 0;
@@ -3058,10 +3065,231 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
     return totalSz + sz;
 }
 
+static int GetAlgoV2(int encAlgId, const byte** oid, int *len, int* id,
+                     int *blkSz)
+{
+    int ret = 0;
+
+    switch (encAlgId) {
+#if !defined(NO_DES3) && !defined(NO_SHA)
+    case DESb:
+        *len = sizeof(blkDesCbcOid);
+        *oid = blkDesCbcOid;
+        *id = PBE_SHA1_DES;
+        *blkSz = 8;
+        break;
+    case DES3b:
+        *len = sizeof(blkDes3CbcOid);
+        *oid = blkDes3CbcOid;
+        *id = PBE_SHA1_DES3;
+        *blkSz = 8;
+        break;
+#endif
+#if defined(WOLFSSL_AES_256) && defined(HAVE_AES_CBC)
+    case AES256CBCb:
+        *len = sizeof(blkAes256CbcOid);
+        *oid = blkAes256CbcOid;
+        *id = PBE_AES256_CBC;
+        *blkSz = 16;
+        break;
+#endif
+    default:
+        (void)len;
+        (void)oid;
+        (void)id;
+        (void)blkSz;
+        ret = ALGO_ID_E;
+    }
+
+    return ret;
+}
+
+/* Converts Encrypted PKCS#8 to 'traditional' (i.e. PKCS#8 removed from
+ * decrypted key.)
+ */
+int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
+        const char* password, int passwordSz, int vPKCS, int vAlgo,
+        int encAlgId, byte* salt, word32 saltSz, int itt, WC_RNG* rng,
+        void* heap)
+{
+    int ret = 0;
+    int version, blockSz, id;
+    word32 idx = 0, encIdx;
+#ifdef WOLFSSL_SMALL_STACK
+    byte* saltTmp = NULL;
+#else
+    byte saltTmp[MAX_SALT_SIZE];
+#endif
+    byte cbcIv[MAX_IV_SIZE];
+    byte *pkcs8Key = NULL;
+    word32 pkcs8KeySz, padSz;
+    int algId;
+    const byte* curveOid = NULL;
+    word32 curveOidSz = 0;
+    const byte* pbeOid;
+    word32 pbeOidSz;
+    const byte* encOid = NULL;
+    int encOidSz = 0;
+    word32 pbeLen, kdfLen = 0, encLen = 0;
+    word32 innerLen, outerLen;
+
+    ret = CheckAlgo(vPKCS, vAlgo, &id, &version, &blockSz);
+    /* create random salt if one not provided */
+    if (ret == 0 && (salt == NULL || saltSz <= 0)) {
+        saltSz = 8;
+    #ifdef WOLFSSL_SMALL_STACK
+        saltTmp = (byte*)XMALLOC(saltSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (saltTmp == NULL)
+            return MEMORY_E;
+    #endif
+        salt = saltTmp;
+
+        if ((ret = wc_RNG_GenerateBlock(rng, saltTmp, saltSz)) != 0) {
+            WOLFSSL_MSG("Error generating random salt");
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+            return ret;
+        }
+    }
+
+    if (ret == 0) {
+        /* check key type and get OID if ECC */
+        ret = wc_GetKeyOID(key, keySz, &curveOid, &curveOidSz, &algId, heap);
+        if (ret == 1)
+            ret = 0;
+    }
+    if (ret == 0) {
+        ret = wc_CreatePKCS8Key(NULL, &pkcs8KeySz, key, keySz, algId, curveOid,
+                                                                    curveOidSz);
+        if (ret == LENGTH_ONLY_E)
+            ret = 0;
+    }
+    if (ret == 0) {
+        pkcs8Key = (byte*)XMALLOC(pkcs8KeySz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (pkcs8Key == NULL)
+            ret = MEMORY_E;
+    }
+    if (ret == 0) {
+        ret = wc_CreatePKCS8Key(pkcs8Key, &pkcs8KeySz, key, keySz, algId,
+                                                          curveOid, curveOidSz);
+        if (ret >= 0) {
+            pkcs8KeySz = ret;
+            ret = 0;
+        }
+    }
+
+    if (ret == 0 && version == PKCS5v2)
+        ret = GetAlgoV2(encAlgId, &encOid, &encOidSz, &id, &blockSz);
+
+    if (ret == 0) {
+        padSz = (blockSz - (pkcs8KeySz & (blockSz - 1))) & (blockSz - 1);
+        /* inner = OCT salt INT itt */
+        innerLen = 2 + saltSz + 2 + (itt < 256 ? 1 : 2);
+
+        if (version != PKCS5v2) {
+            pbeOid = OidFromId(id, oidPBEType, &pbeOidSz);
+            /* pbe = OBJ pbse1 SEQ [ inner ] */
+            pbeLen = 2 + pbeOidSz + 2 + innerLen;
+        }
+        else {
+            pbeOid = pbes2;
+            pbeOidSz = sizeof(pbes2);
+            /* kdf = OBJ pbkdf2 [ SEQ innerLen ] */
+            kdfLen = 2 + sizeof(pbkdf2Oid) + 2 + innerLen;
+            /* enc = OBJ enc_alg OCT iv */
+            encLen = 2 + encOidSz + 2 + blockSz;
+            /* pbe = OBJ pbse2 SEQ [ SEQ [ kdf ] SEQ [ enc ] ] */
+            pbeLen = 2 + sizeof(pbes2) + 2 + 2 + kdfLen + 2 + encLen;
+
+            ret = wc_RNG_GenerateBlock(rng, cbcIv, blockSz);
+        }
+    }
+    if (ret == 0) {
+        /* outer = SEQ [ pbe ] OCT encrypted_PKCS#8_key */
+        outerLen = 2 + pbeLen;
+        outerLen += SetOctetString(pkcs8KeySz + padSz, out);
+        outerLen += pkcs8KeySz + padSz;
+
+        idx += SetSequence(outerLen, out + idx);
+
+        encIdx = idx + outerLen - pkcs8KeySz - padSz;
+        /* Put Encrypted content in place. */
+        XMEMCPY(out + encIdx, pkcs8Key, pkcs8KeySz);
+        if (padSz > 0) {
+            XMEMSET(out + encIdx + pkcs8KeySz, padSz, padSz);
+            pkcs8KeySz += padSz;
+        }
+        ret = wc_CryptKey(password, passwordSz, salt, saltSz, itt, id,
+                                   out + encIdx, pkcs8KeySz, version, cbcIv, 1);
+    }
+    if (ret == 0) {
+        if (version != PKCS5v2) {
+            /* PBE algorithm */
+            idx += SetSequence(pbeLen, out + idx);
+            idx += SetObjectId(pbeOidSz, out + idx);
+            XMEMCPY(out + idx, pbeOid, pbeOidSz);
+            idx += pbeOidSz;
+        }
+        else {
+            /* PBES2 algorithm identifier */
+            idx += SetSequence(pbeLen, out + idx);
+            idx += SetObjectId(pbeOidSz, out + idx);
+            XMEMCPY(out + idx, pbeOid, pbeOidSz);
+            idx += pbeOidSz;
+            /* PBES2 Parameters: SEQ [ kdf ] SEQ [ enc ] */
+            idx += SetSequence(2 + kdfLen + 2 + encLen, out + idx);
+            /* KDF Algorithm Identifier */
+            idx += SetSequence(kdfLen, out + idx);
+            idx += SetObjectId(sizeof(pbkdf2Oid), out + idx);
+            XMEMCPY(out + idx, pbkdf2Oid, sizeof(pbkdf2Oid));
+            idx += sizeof(pbkdf2Oid);
+        }
+        idx += SetSequence(innerLen, out + idx);
+        idx += SetOctetString(saltSz, out + idx);
+        XMEMCPY(out + idx, salt, saltSz); idx += saltSz;
+        ret = SetShortInt(out, &idx, itt, *outSz);
+        if (ret > 0)
+            ret = 0;
+    }
+    if (ret == 0) {
+        if (version == PKCS5v2) {
+            /* Encryption Algorithm Identifier */
+            idx += SetSequence(encLen, out + idx);
+            idx += SetObjectId(encOidSz, out + idx);
+            XMEMCPY(out + idx, encOid, encOidSz);
+            idx += encOidSz;
+            /* Encryption Algorithm Parameter: CBC IV */
+            idx += SetOctetString(blockSz, out + idx);
+            XMEMCPY(out + idx, cbcIv, blockSz);
+            idx += blockSz;
+        }
+        idx += SetOctetString(pkcs8KeySz, out + idx);
+        /* Default PRF - no need to write out OID */
+        idx += pkcs8KeySz;
+
+        ret = idx;
+    }
+
+    if (pkcs8Key != NULL) {
+        ForceZero(pkcs8Key, pkcs8KeySz);
+        XFREE(pkcs8Key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#ifdef WOLFSSL_SMALL_STACK
+    if (saltTmp != NULL) {
+        XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+
+    (void)rng;
+
+    return ret;
+}
 
 /* Remove Encrypted PKCS8 header, move beginning of traditional to beginning
    of input */
-int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
+int ToTraditionalEnc(byte* input, word32 sz,const char* password,
+                     int passwordSz, word32* algId)
 {
     word32 inOutIdx = 0, seqEnd, oid;
     int    ret = 0, first, second, length = 0, version, saltSz, id;
@@ -3195,7 +3423,7 @@ exit_tte:
 
     if (ret == 0) {
         XMEMMOVE(input, input + inOutIdx, length);
-        ret = ToTraditional(input, length);
+        ret = ToTraditional(input, length, algId);
     }
 
     return ret;
@@ -3373,7 +3601,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     if (inOutIdx + 1 + MAX_LENGTH_SZ + inputSz > *outSz)
         return BUFFER_E;
 
-    out[inOutIdx++] = ASN_LONG_LENGTH; totalSz++;
+    out[inOutIdx++] = ASN_CONTEXT_SPECIFIC | 0; totalSz++;
     sz = SetLength(inputSz, out + inOutIdx);
     inOutIdx += sz; totalSz += sz;
 
@@ -3420,7 +3648,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
  *
  * returns the total size of decrypted content on success.
  */
-int DecryptContent(byte* input, word32 sz,const char* password,int passwordSz)
+int DecryptContent(byte* input, word32 sz,const char* password, int passwordSz)
 {
     word32 inOutIdx = 0, seqEnd, oid;
     int    ret = 0;
@@ -8275,6 +8503,16 @@ int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
             if (footer) *footer = END_PUB_KEY;
             ret = 0;
             break;
+        case PKCS8_PRIVATEKEY_TYPE:
+            if (header) *header = BEGIN_PRIV_KEY;
+            if (footer) *footer = END_PRIV_KEY;
+            ret = 0;
+            break;
+        case PKCS8_ENC_PRIVATEKEY_TYPE:
+            if (header) *header = BEGIN_ENC_PRIV_KEY;
+            if (footer) *footer = END_ENC_PRIV_KEY;
+            ret = 0;
+            break;
         default:
             break;
     }
@@ -8352,8 +8590,7 @@ int wc_EncryptedInfoGet(EncryptedInfo* info, const char* cipherInfo)
     return ret;
 }
 
-static int wc_EncryptedInfoParse(EncryptedInfo* info,
-    char** pBuffer, size_t bufSz)
+int wc_EncryptedInfoParse(EncryptedInfo* info, char** pBuffer, size_t bufSz)
 {
     int err = 0;
     char*  bufferStart;
@@ -8419,17 +8656,23 @@ static int wc_EncryptedInfoParse(EncryptedInfo* info,
                 return BUFFER_E;
             info->name[finish - start] = '\0'; /* null term */
 
+            /* populate info */
+            err = wc_EncryptedInfoGet(info, info->name);
+            if (err != 0)
+                return err;
+
             /* get IV */
-            if (finishSz < sizeof(info->iv) + 1)
-                return BUFFER_E;
-            if (XMEMCPY(info->iv, finish + 1, sizeof(info->iv)) == NULL)
+            if (finishSz < info->ivSz + 1)
                 return BUFFER_E;
 
-            if (newline == NULL)
+            if (newline == NULL) {
                 newline = XSTRNSTR(finish, "\n", min(finishSz,
                                                      PEM_LINE_LEN));
+            }
             if ((newline != NULL) && (newline > finish)) {
                 info->ivSz = (word32)(newline - (finish + 1));
+                if (XMEMCPY(info->iv, finish + 1, info->ivSz) == NULL)
+                    return BUFFER_E;
                 info->set = 1;
             }
             else
@@ -8444,9 +8687,6 @@ static int wc_EncryptedInfoParse(EncryptedInfo* info,
         /* return new headerEnd */
         if (pBuffer)
             *pBuffer = newline;
-
-        /* populate info */
-        err = wc_EncryptedInfoGet(info, info->name);
     }
 
     return err;
@@ -8636,6 +8876,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     int         sz          = (int)longSz;
     int         encrypted_key = 0;
     DerBuffer*  der;
+    word32      algId = 0;
 
     WOLFSSL_ENTER("PemToDer");
 
@@ -8758,7 +8999,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         ) && !encrypted_key)
     {
         /* pkcs8 key, convert and adjust length */
-        if ((ret = ToTraditional(der->buffer, der->length)) > 0) {
+        if ((ret = ToTraditional(der->buffer, der->length, &algId)) > 0) {
             der->length = ret;
         }
         else {
@@ -8798,10 +9039,13 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             if (header == BEGIN_ENC_PRIV_KEY) {
             #ifndef NO_PWDBASED
                 ret = ToTraditionalEnc(der->buffer, der->length,
-                                       password, passwordSz);
+                                       password, passwordSz, &algId);
 
                 if (ret >= 0) {
                     der->length = ret;
+                    if (algId == ECDSAk)
+                        *eccKey = 1;
+                    ret = 0;
                 }
             #else
                 ret = NOT_COMPILED_IN;

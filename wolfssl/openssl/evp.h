@@ -355,6 +355,10 @@ WOLFSSL_API int  wolfSSL_EVP_Cipher(WOLFSSL_EVP_CIPHER_CTX* ctx,
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_get_cipherbynid(int);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int);
 
+WOLFSSL_API int wolfSSL_EVP_PKEY_assign_RSA(WOLFSSL_EVP_PKEY* pkey,
+                                            WOLFSSL_RSA* key);
+WOLFSSL_API int wolfSSL_EVP_PKEY_assign_EC_KEY(WOLFSSL_EVP_PKEY* pkey,
+                                               WOLFSSL_EC_KEY* key);
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_EVP_PKEY_get1_RSA(WOLFSSL_EVP_PKEY*);
 WOLFSSL_API WOLFSSL_DSA* wolfSSL_EVP_PKEY_get1_DSA(WOLFSSL_EVP_PKEY*);
 WOLFSSL_API WOLFSSL_EC_KEY *wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY *key);
@@ -545,34 +549,37 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_get_cipherbyname          wolfSSL_EVP_get_cipherbyname
 #define EVP_get_digestbyname          wolfSSL_EVP_get_digestbyname
 
-#define EVP_PKEY_get1_RSA   wolfSSL_EVP_PKEY_get1_RSA
-#define EVP_PKEY_get1_DSA   wolfSSL_EVP_PKEY_get1_DSA
-#define EVP_PKEY_set1_RSA   wolfSSL_EVP_PKEY_set1_RSA
-#define EVP_PKEY_get1_EC_KEY wolfSSL_EVP_PKEY_get1_EC_KEY
-#define EVP_PKEY_get0_hmac   wolfSSL_EVP_PKEY_get0_hmac
-#define EVP_PKEY_new_mac_key wolfSSL_EVP_PKEY_new_mac_key
-#define EVP_MD_CTX_copy     wolfSSL_EVP_MD_CTX_copy
-#define EVP_MD_CTX_copy_ex  wolfSSL_EVP_MD_CTX_copy_ex
-#define EVP_PKEY_bits       wolfSSL_EVP_PKEY_bits
-#define EVP_PKEY_CTX_free   wolfSSL_EVP_PKEY_CTX_free
-#define EVP_PKEY_CTX_new    wolfSSL_EVP_PKEY_CTX_new
-#define EVP_PKEY_CTX_set_rsa_padding wolfSSL_EVP_PKEY_CTX_set_rsa_padding
-#define EVP_PKEY_decrypt    wolfSSL_EVP_PKEY_decrypt
-#define EVP_PKEY_decrypt_init wolfSSL_EVP_PKEY_decrypt_init
-#define EVP_PKEY_encrypt    wolfSSL_EVP_PKEY_encrypt
-#define EVP_PKEY_encrypt_init wolfSSL_EVP_PKEY_encrypt_init
-#define EVP_PKEY_new        wolfSSL_PKEY_new
-#define EVP_PKEY_free       wolfSSL_EVP_PKEY_free
-#define EVP_PKEY_size       wolfSSL_EVP_PKEY_size
-#define EVP_PKEY_type       wolfSSL_EVP_PKEY_type
-#define EVP_PKEY_base_id    wolfSSL_EVP_PKEY_base_id
-#define EVP_PKEY_id         wolfSSL_EVP_PKEY_id
-#define EVP_SignFinal       wolfSSL_EVP_SignFinal
-#define EVP_SignInit        wolfSSL_EVP_SignInit
-#define EVP_SignUpdate      wolfSSL_EVP_SignUpdate
-#define EVP_VerifyFinal     wolfSSL_EVP_VerifyFinal
-#define EVP_VerifyInit      wolfSSL_EVP_VerifyInit
-#define EVP_VerifyUpdate    wolfSSL_EVP_VerifyUpdate
+#define EVP_PKEY_asign_RSA             wolfSSL_EVP_PKEY_assign_RSA
+#define EVP_PKEY_asign_EC_KEY          wolfSSL_EVP_PKEY_assign_EC_KEY
+#define EVP_PKEY_get1_DSA              wolfSSL_EVP_PKEY_get1_DSA
+#define EVP_PKEY_get1_RSA              wolfSSL_EVP_PKEY_get1_RSA
+#define EVP_PKEY_get1_DSA              wolfSSL_EVP_PKEY_get1_DSA
+#define EVP_PKEY_set1_RSA              wolfSSL_EVP_PKEY_set1_RSA
+#define EVP_PKEY_get1_EC_KEY           wolfSSL_EVP_PKEY_get1_EC_KEY
+#define EVP_PKEY_get0_hmac             wolfSSL_EVP_PKEY_get0_hmac
+#define EVP_PKEY_new_mac_key           wolfSSL_EVP_PKEY_new_mac_key
+#define EVP_MD_CTX_copy                wolfSSL_EVP_MD_CTX_copy
+#define EVP_MD_CTX_copy_ex             wolfSSL_EVP_MD_CTX_copy_ex
+#define EVP_PKEY_bits                  wolfSSL_EVP_PKEY_bits
+#define EVP_PKEY_CTX_free              wolfSSL_EVP_PKEY_CTX_free
+#define EVP_PKEY_CTX_new               wolfSSL_EVP_PKEY_CTX_new
+#define EVP_PKEY_CTX_set_rsa_padding   wolfSSL_EVP_PKEY_CTX_set_rsa_padding
+#define EVP_PKEY_decrypt               wolfSSL_EVP_PKEY_decrypt
+#define EVP_PKEY_decrypt_init          wolfSSL_EVP_PKEY_decrypt_init
+#define EVP_PKEY_encrypt               wolfSSL_EVP_PKEY_encrypt
+#define EVP_PKEY_encrypt_init          wolfSSL_EVP_PKEY_encrypt_init
+#define EVP_PKEY_new                   wolfSSL_PKEY_new
+#define EVP_PKEY_free                  wolfSSL_EVP_PKEY_free
+#define EVP_PKEY_size                  wolfSSL_EVP_PKEY_size
+#define EVP_PKEY_type                  wolfSSL_EVP_PKEY_type
+#define EVP_PKEY_base_id               wolfSSL_EVP_PKEY_base_id
+#define EVP_PKEY_id                    wolfSSL_EVP_PKEY_id
+#define EVP_SignFinal                  wolfSSL_EVP_SignFinal
+#define EVP_SignInit                   wolfSSL_EVP_SignInit
+#define EVP_SignUpdate                 wolfSSL_EVP_SignUpdate
+#define EVP_VerifyFinal                wolfSSL_EVP_VerifyFinal
+#define EVP_VerifyInit                 wolfSSL_EVP_VerifyInit
+#define EVP_VerifyUpdate               wolfSSL_EVP_VerifyUpdate
 
 #define EVP_CIPHER_CTX_block_size  wolfSSL_EVP_CIPHER_CTX_block_size
 #define EVP_CIPHER_block_size      wolfSSL_EVP_CIPHER_block_size

@@ -905,9 +905,11 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
 
     heap = pkcs7->heap;
     devId = pkcs7->devId;
+    cert = pkcs7->certList;
     ret = wc_PKCS7_Init(pkcs7, heap, devId);
     if (ret != 0)
         return ret;
+    pkcs7->certList = cert;
 
     if (derCert != NULL && derCertSz > 0) {
 #ifdef WOLFSSL_SMALL_STACK
@@ -3462,7 +3464,6 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             wc_PKCS7_StreamGetVar(pkcs7, &totalSz, 0, 0);
             pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length :inSz;
         #endif
-
             /* Get the inner ContentInfo sequence */
             if (GetSequence_ex(pkiMsg, &idx, &length, pkiMsgSz,
                         NO_USER_CHECK) < 0)
