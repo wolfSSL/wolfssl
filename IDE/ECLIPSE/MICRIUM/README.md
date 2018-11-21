@@ -5,11 +5,11 @@ You can enable the wolfSSL support for Micrium μC/OS-III RTOS available [here](
 
 ## Usage
 
-You can start with your IDE-based project for Micrium uC/OS-III and uC/TCP stack. You must include the uC-Clk module into your project because wolfSSL uses Micrium’s Clk_GetTS_Unix () function from <clk.h> in order to authenticate certificate date ranges.
+You can start with your IDE-based example project for Micrium uC/OS-III and uC/TCPIP stack. You must include the uC-Clk module into your project because wolfSSL uses Micrium’s Clk_GetTS_Unix () function from <clk.h> in order to authenticate the start and end dates of certificates.
 
 wolfSSL supports a compile-time user configurable options in the `IDE/ECLIPSE/MICRIUM/user_settings.h` file.
 
-The `wolfsslRunTests.c` example application provides a simple function to run the selected examples at compile time through the following four #defines (see user_settings.h).
+The `wolfsslRunTests.c` example application provides a simple function to run the selected examples at compile time through the following four #defines in user_settings.h.
 
 ```
        1. #define WOLFSSL_WOLFCRYPT_TEST
@@ -17,10 +17,11 @@ The `wolfsslRunTests.c` example application provides a simple function to run th
        3. #define WOLFSSL_CLIENT_TEST
        4. #define WOLFSSL_SERVER_TEST
 
-Please define one or all of the above options.
+You can define one or all of the above options.
 ```
-In your IDE, create the following folder and subfolders structures.
-The folder hierarcy is the same as the wolfSSL folders with an exception of the exampleTLS folder.
+1. Open your IDE-based example project for Micrium uC/OS-III (with the uC-Clk module) and uC/TCPIP stack.
+
+2. Create the following folder and sub-folders structures in your project.
 ```
 wolfssl
    |src
@@ -33,25 +34,25 @@ wolfssl
           |wolfcrypt
    |exampleTLS
 ```
-In your project, select the exampleTLS folder, add or link all of the header and source files in `IDE/ECLIPSE/MICRIUM/` folder into the exampleTLS folder.
+The folder hierarchy is the same as the wolfSSL folders with an exception of the exampleTLS folder.
 
-For each of the other folders, add or link all the source code in the corresponding folder.
+3. Right click on the exampleTLS folder, add or link all of the header and source files in `IDE/ECLIPSE/MICRIUM/` folder into the exampleTLS folder.
 
-Remove non-C platform dependent files from your build. At the moment, only aes_asm.asm and aes_asm.s must be removed from your wolfssl/wolfcrypt/src folder.
+4. Right click on each folders, add or link all the source code in the corresponding folder in wolfSSL.
 
-In your C/C++ compiler preprocessor settings, add the wolfSSL directory and sub dir to your include paths.
+5. Remove non-C platform dependent files from your build. At the moment, only aes_asm.asm and aes_asm.s must be removed from your wolfssl/wolfcrypt/src folder.
+
+6. In your C/C++ compiler preprocessor settings, add the wolfSSL directories to your include paths.
 Here's an example of the paths that must be added.
 ```
-$PROJ_DIR$\...\..
-$PROJ_DIR$\...\src
+$PROJ_DIR$\...
 $PROJ_DIR$\...\wolfcrypt
 $PROJ_DIR$\...\wolfssl
-$PROJ_DIR$\...\wolfssl\wolfcrypt
 $PROJ_DIR$\...\IDE\ECLIPSE\MICRIUM
 ```
-In your C/C++ compiler preprocessor settings, define the WOLFSSL_USER_SETTINGS symbol to enable the addition of user_settings.h file in your projects.
+7. In your C/C++ compiler preprocessor settings, define the WOLFSSL_USER_SETTINGS symbol to add user_settings.h file in your project.
 
-Add a call to `wolfsslRunTests()` from your startup task. Here's an example:
+8. Add a call to `wolfsslRunTests()` from your startup task. Here's an example:
 ```
 static  void  App_TaskStart (void *p_arg)
 {
@@ -63,8 +64,17 @@ static  void  App_TaskStart (void *p_arg)
         }
 }
 ```
-The starting project is based on an IAR EWARM project from Micrium download center at [micrium_twr-k70f120m-os3/](https://www.micrium.com/download/micrium_twr-k70f120m-os3/)
-The following test results were collected from the TWR-K70F120M|Tower System Board|Kinetis MCUs|NXP.
+9. Rebuild all your project.
+
+10. Now you are ready to download and debug your image on the board.
+
+The test results below were collected from the NXP Kinetis K70 (Freescale TWR-K70F120M MCU) tower system board with the following software and tool chains:
+
+- IAR Embedded Workbench IDE - ARM 8.32.1 (IAR ELF Linker V8.32.1.169/W32 for ARM)
+
+- The starting project is based on an IAR EWARM project from Micrium download center at [micrium_twr-k70f120m-os3/](https://www.micrium.com/download/micrium_twr-k70f120m-os3/)
+
+- wolfssl [latest version](https://github.com/wolfSSL/wolfssl)
 
 ### `WOLFSSL_WOLFCRYPT_TEST` output of wolfcrypt_test()
 ```
@@ -106,7 +116,7 @@ memcb    test passed!
 ### `WOLFSSL_BENCHMARK_TEST` output of benchmark_test()
 ```
 ---------------------------------------------------------------------------
- wolfSSL version 3.5.5
+ wolfSSL version 3.15.5
 ----------------------------------------------------------------------------
 wolCrypt Bencmark (bloc byte 1024 min 1.0 se each
 RNG              20 KB tooks 1.108 seconds,  225.701 KB/s
@@ -140,7 +150,7 @@ You can modify the `TCP_SERVER_IP_ADDR` and `TCP_SERVER_PORT` macros at top of t
 
 ### `WOLFSSL_SERVER_TEST` wolfssl_server_test()
 
-You can modify the `TLS_SERVER_PORT` at top of `server_wolfssl.c` to configure the port number to listen on localhost.
+You can modify the `TLS_SERVER_PORT` at top of `server_wolfssl.c` to configure the port number to listen on local-host.
 
 ## References
 
