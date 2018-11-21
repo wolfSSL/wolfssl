@@ -102,6 +102,7 @@ struct PKCS7State {
 #endif
     byte   multi:1;  /* flag for if content is in multiple parts */
     byte   flagOne:1;
+    byte   detached:1; /* flag to indicate detached signature is present */
 };
 
 
@@ -177,6 +178,7 @@ static void wc_PKCS7_ResetStream(PKCS7* pkcs7)
 
         pkcs7->stream->multi    = 0;
         pkcs7->stream->flagOne  = 0;
+        pkcs7->stream->detached = 0;
         pkcs7->stream->varOne   = 0;
         pkcs7->stream->varTwo   = 0;
         pkcs7->stream->varThree = 0;
@@ -3599,6 +3601,9 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             }
 
         #ifndef NO_PKCS7_STREAM
+            /* save detached flag value */
+            pkcs7->stream->detached = detached;
+
             /* save contentType */
             pkcs7->stream->nonce = (byte*)XMALLOC(contentTypeSz, pkcs7->heap,
                     DYNAMIC_TYPE_PKCS7);
@@ -3657,11 +3662,12 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 localIdx = 0;
             }
             multiPart = pkcs7->stream->multi;
+            detached  = pkcs7->stream->detached;
         #endif
 
             /* Break out before content because it can be optional in degenerate
              * cases. */
-            if (ret != 0)
+            if (ret != 0 && !detached)
                 break;
 
             /* get parts of content */
@@ -3825,6 +3831,9 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             /* restore content */
             content   = pkcs7->stream->content;
             contentSz = pkcs7->stream->contentSz;
+
+            /* restore detached flag */
+            detached = pkcs7->stream->detached;
 
             /* store certificate if needed */
             if (length > 0 && in2Sz == 0) {
@@ -8959,7 +8968,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
     byte* pkiMsg    = in;
     word32 pkiMsgSz = inSz;
     byte* decryptedKey = NULL;
-    int encryptedContentSz;
+    int encryptedContentSz = 0;
     byte padLen;
     byte* encryptedContent = NULL;
     int explicitOctet;
@@ -9798,7 +9807,7 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
 #else
     byte  decryptedKey[MAX_ENCRYPTED_KEY_SZ];
 #endif
-    int encryptedContentSz;
+    int encryptedContentSz = 0;
     byte* encryptedContent = NULL;
     int explicitOctet = 0;
 
@@ -10643,7 +10652,7 @@ static int wc_PKCS7_DecodeUnprotectedAttributes(PKCS7* pkcs7, byte* pkiMsg,
 int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
                                  byte* output, word32 outputSz)
 {
-    int ret = 0, version, length, haveAttribs = 0;
+    int ret = 0, version, length = 0, haveAttribs = 0;
     word32 idx = 0;
 
 #ifndef NO_PKCS7_STREAM
