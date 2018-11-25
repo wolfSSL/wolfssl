@@ -433,6 +433,7 @@ static const char* bench_Usage_msg1[][10] = {
         "-lng <num>  Display benchmark result by specified language.\n            0: English, 1: Japanese\n",
         "<num>       Size of block in bytes\n",
     },
+#ifndef NO_MULTIBYTE
     /* 1 Japanese */
     {   "-? <num>    ヘルプ, 使い方を表示します。\n            0: 英語、 1: 日本語\n",
         "-csv        csv 形式で端末に出力します。\n",
@@ -445,11 +446,14 @@ static const char* bench_Usage_msg1[][10] = {
         "-lng <num>  指定された言語でベンチマーク結果を表示します。\n            0: 英語、 1: 日本語\n",
         "<num>       ブロックサイズをバイト単位で指定します。\n",
     },
+#endif
 };
 
 static const char* bench_result_words1[][4] = {
     { "tooks", "seconds" , "Cycles per byte", NULL },               /* 0 English  */
+#ifndef NO_MULTIBYTE
     { "を"   , "秒で処理", "1バイトあたりのサイクル数", NULL },     /* 1 Japanese */
+#endif
 };
 
 #if !defined(NO_RSA)  ||defined(WOLFSSL_KEY_GEN) || defined(HAVE_NTRU) || \
@@ -460,7 +464,9 @@ static const char* bench_result_words1[][4] = {
 static const char* bench_desc_words[][9] = {
     /* 0           1          2         3        4        5         6            7            8 */
     {"public", "private", "key gen", "agree" , "sign", "verify", "encryption", "decryption", NULL}, /* 0 English */
+#ifndef NO_MULTIBYTE
     {"公開鍵", "秘密鍵" ,"鍵生成" , "鍵共有" , "署名", "検証"  , "暗号化"    , "復号化"    , NULL}, /* 1 Japanese */
+#endif
 };
 
 #endif
@@ -577,7 +583,9 @@ static const char* bench_desc_words[][9] = {
 #if defined(BENCH_ASYM)
 static const char* bench_result_words2[][5] = {
     { "ops took", "sec"     , "avg" , "ops/sec", NULL },            /* 0 English  */
+#ifndef NO_MULTIBYTE
     { "回処理を", "秒で実施", "平均", "処理/秒", NULL },            /* 1 Japanese */
+#endif
 };
 #endif
 

@@ -447,129 +447,131 @@ static const char* server_usage_msg[][49] = {
 #endif
 #endif /* WOLFSSL_TLS13 */ 
 #ifdef WOLFSSL_EARLY_DATA
-        "-0          Early data read from client (0-RTT handshake)\n",  /* 46 */
+        "-0          Early data read from client (0-RTT handshake)\n", /* 46 */
 #endif
 #ifdef WOLFSSL_MULTICAST
-        "-3 <grpid>  Multicast, grpid < 256\n",                         /* 47 */
+        "-3 <grpid>  Multicast, grpid < 256\n", /* 47 */
 #endif
         "-1 <num>    Display a result by specified language."
-                             "\n            0: English, 1: Japanese\n", /* 48 */
+        "\n            0: English, 1: Japanese\n", /* 48 */
         NULL,
     },
+#ifndef NO_MULTIBYTE
     /* Japanese */
     {
         " 注意 : 全てのファイルは"
-        " wolfSSL ホーム・ディレクトリからの相対です。\n",               /* 0 */
+        " wolfSSL ホーム・ディレクトリからの相対です。\n", /* 0 */
         "-? <num>    ヘルプ, 使い方を表示\n"
-        "            0: 英語、 1: 日本語\n",                             /* 1 */
-        "-p <num>    接続先ポート, 0は無効, 既定値",                     /* 2 */
+        "            0: 英語、 1: 日本語\n",         /* 1 */
+        "-p <num>    接続先ポート, 0は無効, 既定値", /* 2 */
 #ifndef WOLFSSL_TLS13
         "-v <num>    SSL バージョン [0-3], SSLv3(0) - TLS1.2(3)),"
-                                                            " 既定値",   /* 3 */
+        " 既定値", /* 3 */
 #else
         "-v <num>    SSL バージョン [0-4], SSLv3(0) - TLS1.3(4)),"
-                                                            " 既定値",   /* 3 */
+        " 既定値",                                           /* 3 */
 #endif
-        "-l <str>    暗号スイートリスト (区切り文字 :)\n",               /* 4 */
-        "-c <file>   証明書ファイル,  既定値",                           /* 5 */
-        "-k <file>   鍵ファイル,      既定値",                           /* 6 */
-        "-A <file>   認証局ファイル,  既定値",                           /* 7 */
+        "-l <str>    暗号スイートリスト (区切り文字 :)\n", /* 4 */
+        "-c <file>   証明書ファイル,  既定値",             /* 5 */
+        "-k <file>   鍵ファイル,      既定値",             /* 6 */
+        "-A <file>   認証局ファイル,  既定値",             /* 7 */
         "-R <file>   外部モニタ用の準備完了ファイルを作成する。"
-                                                      "既定値  なし\n",  /* 8 */
+        "既定値  なし\n", /* 8 */
 #ifndef NO_DH
         "-D <file>   ディフィー・ヘルマンのパラメータファイル,"
-                                                     " 既定値",          /* 9 */
-        "-Z <num>    最小 DH 鍵 ビット, 既定値",                        /* 10 */
+        " 既定値",                               /* 9 */
+        "-Z <num>    最小 DH 鍵 ビット, 既定値", /* 10 */
 #endif
 #ifdef HAVE_ALPN
         "-L <str>    アプリケーション層プロトコルネゴシエーションを行う"
-                                                  " ({C,F}:<list>)\n",  /* 11 */
+        " ({C,F}:<list>)\n", /* 11 */
 #endif
-        "-d          クライアント認証を無効とする\n",                   /* 12 */
+        "-d          クライアント認証を無効とする\n", /* 12 */
         "-b          ローカルホスト以外のインターフェースへも"
-                                                "バインドする\n",       /* 13 */
-        "-s          事前共有鍵を使用する\n",                           /* 14 */
+        "バインドする\n",                     /* 13 */
+        "-s          事前共有鍵を使用する\n", /* 14 */
         "-u          UDP DTLSを使用する。-v 2 を追加指定すると"
-             " DTLSv1, -v 3 を追加指定すると DTLSv1.2 (既定値)\n",      /* 15 */
+        " DTLSv1, -v 3 を追加指定すると DTLSv1.2 (既定値)\n", /* 15 */
 #ifdef WOLFSSL_SCTP
         "-G          SCTP DTLSを使用する。-v 2 を追加指定すると"
-              " DTLSv1, -v 3 を追加指定すると DTLSv1.2 (既定値)\n",     /* 16 */
+        " DTLSv1, -v 3 を追加指定すると DTLSv1.2 (既定値)\n", /* 16 */
 #endif
-        "-f          より少ないパケット/グループメッセージを使用する\n",/* 17 */
-        "-r          クライアントの再開を許可する\n",                   /* 18 */
-        "-N          ノンブロッキング・ソケットを使用する\n",           /* 19 */
-        "-S <str>    ホスト名表示を使用する\n",                         /* 20 */
-        "-w          双方向シャットダウンを待つ\n",                     /* 21 */
+        "-f          より少ないパケット/グループメッセージを使用する\n", /* 17 */
+        "-r          クライアントの再開を許可する\n",                    /* 18 */
+        "-N          ノンブロッキング・ソケットを使用する\n",            /* 19 */
+        "-S <str>    ホスト名表示を使用する\n",                          /* 20 */
+        "-w          双方向シャットダウンを待つ\n",                      /* 21 */
 #ifdef HAVE_OCSP
-        "-o          OCSPルックアップをピア証明書で実施する\n",         /* 22 */
+        "-o          OCSPルックアップをピア証明書で実施する\n", /* 22 */
         "-O <url>    OCSPルックアップを、"
-                        "<url>を使用し応答者として実施する\n",          /* 23 */
+        "<url>を使用し応答者として実施する\n", /* 23 */
 #endif
 #ifdef HAVE_PK_CALLBACKS
-        "-P          公開鍵コールバック\n",                             /* 24 */
+        "-P          公開鍵コールバック\n", /* 24 */
 #endif
 #ifdef HAVE_ANON
-        "-a          匿名サーバー\n",                                   /* 25 */
+        "-a          匿名サーバー\n", /* 25 */
 #endif
 #ifndef NO_PSK
-        "-I          PSKアイデンティティのヒントを送信しない\n",        /* 26 */
+        "-I          PSKアイデンティティのヒントを送信しない\n", /* 26 */
 #endif
-        "-x          サーバーエラーを出力するが接続を切断しない\n",     /* 27 */
-        "-i          無期限にループする(繰り返し接続を許可)\n",         /* 28 */
+        "-x          サーバーエラーを出力するが接続を切断しない\n", /* 27 */
+        "-i          無期限にループする(繰り返し接続を許可)\n",     /* 28 */
         "-e          エコー・データモード"
-                                   "(受け取ったバイトデータを返す)\n",  /* 29 */
+        "(受け取ったバイトデータを返す)\n", /* 29 */
 #ifdef HAVE_NTRU
-        "-n          NTRU鍵を使用する(NTRUスイートに必要)\n",           /* 30 */
+        "-n          NTRU鍵を使用する(NTRUスイートに必要)\n", /* 30 */
 #endif
         "-B <num>    <num> バイトを用いてのベンチマーク・スループット"
-                                          "測定と結果を出力する\n",     /* 31 */
+        "測定と結果を出力する\n", /* 31 */
 #ifdef HAVE_CRL
-        "-V          CRLを無効とする\n",                                /* 32 */
+        "-V          CRLを無効とする\n", /* 32 */
 #endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
-        "-E <file>   信頼出来るピアの証明書ロードの為のパス\n\n",       /* 33 */
+        "-E <file>   信頼出来るピアの証明書ロードの為のパス\n\n", /* 33 */
 #endif
 #ifdef HAVE_WNR
-        "-q <file>   Whitewood コンフィグファイル,      既定値",        /* 34 */
+        "-q <file>   Whitewood コンフィグファイル,      既定値", /* 34 */
 #endif
-        "-g          基本的な Web ページを返す\n",                      /* 35 */
-        "-C <num>    アクセプト可能な接続数を指定する。既定値: 1\n",    /* 36 */
+        "-g          基本的な Web ページを返す\n",                   /* 35 */
+        "-C <num>    アクセプト可能な接続数を指定する。既定値: 1\n", /* 36 */
         "-H <arg>    内部テスト"
-                      " [defCipherList, exitWithRet, verifyFail]\n",    /* 37 */
+        " [defCipherList, exitWithRet, verifyFail]\n", /* 37 */
 #ifdef WOLFSSL_TLS13
-        "-U          データ送信前に、鍵とIVを更新する\n",               /* 38 */
-        "-K          鍵交換にPSKを使用、(EC)DHEは使用しない\n",         /* 39 */
+        "-U          データ送信前に、鍵とIVを更新する\n",       /* 38 */
+        "-K          鍵交換にPSKを使用、(EC)DHEは使用しない\n", /* 39 */
 #ifndef NO_DH
-        "-y          FFDHE_2048のみを使用して鍵共有を事前生成する\n",   /* 40 */
+        "-y          FFDHE_2048のみを使用して鍵共有を事前生成する\n", /* 40 */
 #endif
 #ifdef HAVE_ECC
-        "-Y          P-256のみを使用したキー共有の事前生成\n",          /* 41 */
+        "-Y          P-256のみを使用したキー共有の事前生成\n", /* 41 */
 #endif
 #ifdef HAVE_CURVE25519
-        "-t          Curve25519のみを使用して鍵共有を事前生成する\n",   /* 42 */
+        "-t          Curve25519のみを使用して鍵共有を事前生成する\n", /* 42 */
 #endif
 #ifdef HAVE_SESSION_TICKET
-        "-T         セッションチケットを生成しない\n",                  /* 43 */
+        "-T         セッションチケットを生成しない\n", /* 43 */
 #endif
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
         "-Q          クライアントのポストハンドシェイクから"
-                                              "証明書を要求する\n",     /* 44 */
+        "証明書を要求する\n", /* 44 */
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
-        "-J          サーバーの状態を含むTLS Cookie 拡張を送信する\n",  /* 45 */
+        "-J          サーバーの状態を含むTLS Cookie 拡張を送信する\n", /* 45 */
 #endif
 #endif /* WOLFSSL_TLS13 */ 
 #ifdef WOLFSSL_EARLY_DATA
         "-0          クライアントからの Early Data 読み取り"
-                                      "（0-RTTハンドシェイク）\n",      /* 46 */
+        "（0-RTTハンドシェイク）\n", /* 46 */
 #endif
 #ifdef WOLFSSL_MULTICAST
-        "-3 <grpid>  マルチキャスト, grpid < 256\n",                    /* 47 */
+        "-3 <grpid>  マルチキャスト, grpid < 256\n", /* 47 */
 #endif
         "-1 <num>    指定された言語で結果を表示します。"
-                                 "\n            0: 英語、 1: 日本語\n", /* 48 */
+        "\n            0: 英語、 1: 日本語\n", /* 48 */
         NULL,
     },
+#endif
 
 };
 
