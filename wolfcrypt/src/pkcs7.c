@@ -102,6 +102,7 @@ struct PKCS7State {
 #endif
     byte   multi:1;  /* flag for if content is in multiple parts */
     byte   flagOne:1;
+    byte   detached:1; /* flag to indicate detached signature is present */
 };
 
 
@@ -177,6 +178,7 @@ static void wc_PKCS7_ResetStream(PKCS7* pkcs7)
 
         pkcs7->stream->multi    = 0;
         pkcs7->stream->flagOne  = 0;
+        pkcs7->stream->detached = 0;
         pkcs7->stream->varOne   = 0;
         pkcs7->stream->varTwo   = 0;
         pkcs7->stream->varThree = 0;
@@ -1860,12 +1862,20 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     esd->contentDigest[1] = (byte)hashSz;
     XMEMCPY(&esd->contentDigest[2], hashBuf, hashSz);
 
-    esd->innerOctetsSz = SetOctetString(pkcs7->contentSz, esd->innerOctets);
-    esd->innerContSeqSz = SetExplicit(0, esd->innerOctetsSz + pkcs7->contentSz,
-                                esd->innerContSeq);
-    esd->contentInfoSeqSz = SetSequence(pkcs7->contentSz + esd->innerOctetsSz +
-                                     pkcs7->contentTypeSz + esd->innerContSeqSz,
-                                     esd->contentInfoSeq);
+    if (pkcs7->detached == 1) {
+        /* do not include content if generating detached signature */
+        esd->innerOctetsSz = 0;
+        esd->innerContSeqSz = 0;
+        esd->contentInfoSeqSz = SetSequence(pkcs7->contentTypeSz,
+                                            esd->contentInfoSeq);
+    } else {
+        esd->innerOctetsSz = SetOctetString(pkcs7->contentSz, esd->innerOctets);
+        esd->innerContSeqSz = SetExplicit(0, esd->innerOctetsSz +
+                                    pkcs7->contentSz, esd->innerContSeq);
+        esd->contentInfoSeqSz = SetSequence(pkcs7->contentSz +
+                                    esd->innerOctetsSz + pkcs7->contentTypeSz +
+                                    esd->innerContSeqSz, esd->contentInfoSeq);
+    }
 
     /* SignerIdentifier */
     if (pkcs7->sidType == CMS_ISSUER_AND_SERIAL_NUMBER) {
@@ -1994,6 +2004,10 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
               esd->innerContSeqSz + esd->innerOctetsSz + pkcs7->contentSz;
     total2Sz = esd->certsSetSz + certSetSz + signerInfoSz;
 
+    if (pkcs7->detached) {
+        totalSz -= pkcs7->contentSz;
+    }
+
     esd->innerSeqSz = SetSequence(totalSz + total2Sz, esd->innerSeq);
     totalSz += esd->innerSeqSz;
     esd->outerContentSz = SetExplicit(0, totalSz + total2Sz, esd->outerContent);
@@ -2011,7 +2025,10 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         #endif
             return BUFFER_E;
         }
-        totalSz -= pkcs7->contentSz;
+
+        if (!pkcs7->detached) {
+            totalSz -= pkcs7->contentSz;
+        }
     }
 
     if (totalSz > *outputSz) {
@@ -2053,8 +2070,10 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         idx = 0;
     }
     else {
-        XMEMCPY(output + idx, pkcs7->content, pkcs7->contentSz);
-        idx += pkcs7->contentSz;
+        if (!pkcs7->detached) {
+            XMEMCPY(output + idx, pkcs7->content, pkcs7->contentSz);
+            idx += pkcs7->contentSz;
+        }
         output2 = output;
     }
 
@@ -2172,6 +2191,29 @@ int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf, word32 hashS
 #endif
 
     return ret;
+}
+
+/* Toggle detached signature mode on/off for PKCS#7/CMS SignedData content type.
+ * By default wolfCrypt includes the data to be signed in the SignedData
+ * bundle. This data can be ommited in the case when a detached signature is
+ * being created. To enable generation of detached signatures, set flag to "1",
+ * otherwise set to "0":
+ *
+ *     flag 1 turns on support
+ *     flag 0 turns off support
+ *
+ * pkcs7 - pointer to initialized PKCS7 structure
+ * flag  - turn on/off detached signature generation (1 or 0)
+ *
+ * Returns 0 on success, negative upon error. */
+int wc_PKCS7_SetDetached(PKCS7* pkcs7, word16 flag)
+{
+    if (pkcs7 == NULL || (flag != 0 && flag != 1))
+        return BAD_FUNC_ARG;
+
+    pkcs7->detached = flag;
+
+    return 0;
 }
 
 /* return codes: >0: Size of signed PKCS7 output buffer, negative: error */
@@ -3293,6 +3335,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
     int contentSz = 0, sigSz = 0, certSz = 0, signedAttribSz = 0;
     word32 localIdx, start;
     byte degenerate = 0;
+    byte detached = 0;
 #ifdef ASN_BER_TO_DER
     byte* der;
 #endif
@@ -3528,8 +3571,8 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 if (pkiMsg[localIdx++] != ASN_OCTET_STRING)
                     ret = ASN_PARSE_E;
 
-                if (ret == 0 && GetLength_ex(pkiMsg, &localIdx, &length, pkiMsgSz,
-                            NO_USER_CHECK) < 0)
+                if (ret == 0 && GetLength_ex(pkiMsg, &localIdx,
+                            &length, pkiMsgSz, NO_USER_CHECK) < 0)
                     ret = ASN_PARSE_E;
             }
 
@@ -3542,14 +3585,26 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 idx = localIdx;
             }
             else {
-                if (!degenerate && ret != 0)
+
+                /* if pkcs7->content and pkcs7->contentSz are set, try to
+                   process as a detached signature */
+                if (!degenerate &&
+                    (pkcs7->content != NULL && pkcs7->contentSz != 0)) {
+                    detached = 1;
+                }
+
+                if (!degenerate && !detached && ret != 0)
                     break;
+
                 length = 0; /* no content to read */
                 pkiMsg2   = pkiMsg;
                 pkiMsg2Sz = pkiMsgSz;
             }
 
         #ifndef NO_PKCS7_STREAM
+            /* save detached flag value */
+            pkcs7->stream->detached = detached;
+
             /* save contentType */
             pkcs7->stream->nonce = (byte*)XMALLOC(contentTypeSz, pkcs7->heap,
                     DYNAMIC_TYPE_PKCS7);
@@ -3608,11 +3663,12 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 localIdx = 0;
             }
             multiPart = pkcs7->stream->multi;
+            detached  = pkcs7->stream->detached;
         #endif
 
             /* Break out before content because it can be optional in degenerate
              * cases. */
-            if (ret != 0)
+            if (ret != 0 && !detached)
                 break;
 
             /* get parts of content */
@@ -3701,7 +3757,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             /* If getting the content info failed with non degenerate then return the
              * error case. Otherwise with a degenerate it is ok if the content
              * info was omitted */
-            if (!degenerate && ret != 0) {
+            if (!degenerate && !detached && ret != 0) {
                 break;
             }
             else {
@@ -3723,6 +3779,12 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 }
         #ifndef NO_PKCS7_STREAM
             /* save content */
+            if (detached == 1) {
+                /* if detached, use content from user in pkcs7 struct */
+                content = pkcs7->content;
+                contentSz = pkcs7->contentSz;
+            }
+
             if (content != NULL) {
                 XFREE(pkcs7->stream->content, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 pkcs7->stream->content = (byte*)XMALLOC(contentSz, pkcs7->heap,
@@ -3770,6 +3832,9 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             /* restore content */
             content   = pkcs7->stream->content;
             contentSz = pkcs7->stream->contentSz;
+
+            /* restore detached flag */
+            detached = pkcs7->stream->detached;
 
             /* store certificate if needed */
             if (length > 0 && in2Sz == 0) {
@@ -3867,9 +3932,32 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 idx += length;
             }
 
-            /* set content and size after init of PKCS7 structure */
-            pkcs7->content   = content;
-            pkcs7->contentSz = contentSz;
+            if (!detached) {
+                /* set content and size after init of PKCS7 structure */
+                pkcs7->content   = content;
+                pkcs7->contentSz = contentSz;
+            }
+        #ifndef NO_PKCS7_STREAM
+            else {
+                /* save content if detached and using streaming API */
+                if (pkcs7->content != NULL) {
+                    XFREE(pkcs7->stream->content, pkcs7->heap,
+                          DYNAMIC_TYPE_PKCS7);
+                    pkcs7->stream->content = (byte*)XMALLOC(pkcs7->contentSz,
+                                                            pkcs7->heap,
+                                                            DYNAMIC_TYPE_PKCS7);
+                    if (pkcs7->stream->content == NULL) {
+                        ret = MEMORY_E;
+                        break;
+                    }
+                    else {
+                        XMEMCPY(pkcs7->stream->content, pkcs7->content,
+                                contentSz);
+                        pkcs7->stream->contentSz = pkcs7->contentSz;
+                    }
+                }
+            }
+        #endif
 
             if (ret != 0) {
                 break;
@@ -8881,7 +8969,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
     byte* pkiMsg    = in;
     word32 pkiMsgSz = inSz;
     byte* decryptedKey = NULL;
-    int encryptedContentSz;
+    int encryptedContentSz = 0;
     byte padLen;
     byte* encryptedContent = NULL;
     int explicitOctet;
@@ -9720,7 +9808,7 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
 #else
     byte  decryptedKey[MAX_ENCRYPTED_KEY_SZ];
 #endif
-    int encryptedContentSz;
+    int encryptedContentSz = 0;
     byte* encryptedContent = NULL;
     int explicitOctet = 0;
 
@@ -10565,7 +10653,7 @@ static int wc_PKCS7_DecodeUnprotectedAttributes(PKCS7* pkcs7, byte* pkiMsg,
 int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
                                  byte* output, word32 outputSz)
 {
-    int ret = 0, version, length, haveAttribs = 0;
+    int ret = 0, version, length = 0, haveAttribs = 0;
     word32 idx = 0;
 
 #ifndef NO_PKCS7_STREAM

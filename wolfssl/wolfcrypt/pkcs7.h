@@ -251,6 +251,7 @@ struct PKCS7 {
      /* flags - up to 16-bits */
     word16 isDynamic:1;
     word16 noDegenerate:1; /* allow degenerate case in verify function */
+    word16 detached:1;     /* generate detached SignedData signature bundles */
 
     byte contentType[MAX_OID_SZ]; /* custom contentType byte array */
     word32 contentTypeSz;         /* size of contentType, bytes */
@@ -307,6 +308,7 @@ WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
                                        word32 outputSz);
 
 /* CMS/PKCS#7 SignedData */
+WOLFSSL_API int  wc_PKCS7_SetDetached(PKCS7* pkcs7, word16 flag);
 WOLFSSL_API int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
                                           byte* output, word32 outputSz);
 WOLFSSL_API int  wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf, 
