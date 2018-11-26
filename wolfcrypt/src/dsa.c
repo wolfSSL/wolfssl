@@ -777,6 +777,18 @@ int wc_DsaVerify(const byte* digest, const byte* sig, DsaKey* key, int* answer)
     if (ret == 0) {
         if (mp_iszero(&r) == MP_YES || mp_iszero(&s) == MP_YES ||
                 mp_cmp(&r, &key->q) != MP_LT || mp_cmp(&s, &key->q) != MP_LT) {
+            //%%%%%
+            // printf("WRONG!!!\n\n");
+            // printf("MP_LT is %d\n", MP_LT);
+            // printf("mp_cmp(&s, &key->q) is %d\n",mp_cmp(&s, &key->q));
+            // int thing = mp_unsigned_bin_size(&s);
+            // printf("thing is :%d\n", thing);
+            // byte thing2[20];
+            // mp_to_unsigned_bin(&s, thing2);
+            // for (int i; i < 20; i++)
+            //     printf("%02x", thing2[i]);
+            // //printf("s is %d\n",fp_int.s);
+            // //printf("key->q is %d\n",key->q);
             ret = MP_ZERO_E;
         }
     }
@@ -823,6 +835,8 @@ int wc_DsaVerify(const byte* digest, const byte* sig, DsaKey* key, int* answer)
     mp_clear(&w);
     mp_clear(&v);
 
+    //%%%%%%
+    // printf("ret is: %d\n\n", ret);
     return ret;
 }
 
