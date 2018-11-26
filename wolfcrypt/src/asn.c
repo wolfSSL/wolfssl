@@ -188,8 +188,11 @@ static int GetASNHeader(const byte* input, byte tag, word32* inOutIdx, int* len,
 
     if ((idx + 1) > maxIdx)
         return BUFFER_E;
-
+    //%%%%%%
+    // printf("idx is: %d\n\n", idx);
+    // printf("input is %p\n\n", input);
     b = input[idx++];
+    // printf("%d", b);
     if (b != tag)
         return ASN_PARSE_E;
 
@@ -797,19 +800,16 @@ static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
     }
 
     b = input[idx];
-    printf("\n\nBitstring b is %hhx\n\n",b);
+    //%%%%%
+   // printf("\n\nBitstring b is %hhx\n\n",b);
     if (zeroBits && b != 0x00){
-        printf("\n\n****ONLY ONEEEE*****\n\n");
         return ASN_EXPECT_0_E;
     }
     if (b >= 0x08){
-        printf("\n\n****ONLY TWOOOO*****\n\n");
         return ASN_PARSE_E;
     }
     if (b != 0) {
-        printf("\n\n****ONLY THREEEE*****\n\n");
         if ((byte)(input[idx + length - 1] << (8 - b)) != 0){
-            printf("\n\n****ONLY 4*****\n\n");
             return ASN_PARSE_E;
         }
     }
@@ -3630,119 +3630,106 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
                         word32 inSz)
 {
     int    length;
+    #ifdef WOLFSSL_QT
     int ret;
     word32 oid;
+    #endif //WOLFSSL_QT
 
     if (input == NULL || inOutIdx == NULL || key == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    printf("inSz is: %d  inOutIdx is: %d\n\n", inSz, *inOutIdx);
+    //printf("inSz is: %d  inOutIdx is: %d\n\n", inSz, *inOutIdx);
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    {
-        int i;
-        printf("\n\nSequence 1:");
-printf("inSz is: %d  length is: %d  inOutIdx is: %d\n", inSz, length, *inOutIdx);
-        for (i = *inOutIdx; i<length; i++)
-            printf("%02x", input[i]);
-        printf("\n");
-        for (i = *inOutIdx; i<length; i++)
-            printf("[%d]", i);
-        printf("\n");
-    }
-
+//     {
+//         int i;
+//         printf("\n\nSequence 1:");
+// printf("inSz is: %d  length is: %d  inOutIdx is: %d\n", inSz, length, *inOutIdx);
+//         for (i = *inOutIdx; i<length; i++)
+//             printf("%02x", input[i]);
+//         printf("\n");
+//         for (i = *inOutIdx; i<length; i++)
+//             printf("[%d]", i);
+//         printf("\n");
+//     }
+    #ifdef WOLFSSL_QT
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    {
-        int i;
-        printf("\n\nSequence 2:");
-printf("inSz is: %d  length is: %d  inOutIdx is: %d\n", inSz, length, *inOutIdx);
-        for (i = *inOutIdx; i<length; i++)
-            printf("%02x", input[i]);
-        printf("\n");
-        for (i = *inOutIdx; i<length; i++)
-            printf("[%d]", i);
-        printf("\n");
-    }
 
-
-    //asn.1 syntax 
-    //#ifdef OPENSSL_EXTRA
-    //maybe getsequence
-    // ret = GetSequence(input, inOutIdx, &length, sz);
-    // printf("ret_seq is %d\n", ret);
-    // printf("length is %d\n", length);
-    // {
-    //     int i;
-    //     for (i = 0; i<length; i++)
-    //         printf("%02x", inOutIdx[i]);
-    //     printf("\n");
-    // }
-
-// * Certificate SEQUENCE */
-//     if (GetSequence(cert, &idx, &len, certSz) < 0)
-    // ret = GetObjectId(input, inOutIdx, &oidSum, oidIgnoreType,
-    //                               inSz);
+//     {
+//         int i;
+//         printf("\n\nSequence 2:");
+// printf("inSz is: %d  length is: %d  inOutIdx is: %d\n", inSz, length, *inOutIdx);
+//         for (i = *inOutIdx; i<length; i++)
+//             printf("%02x", input[i]);
+//         printf("\n");
+//         for (i = *inOutIdx; i<length; i++)
+//             printf("[%d]", i);
+//         printf("\n");
+//     }
 
     ret = GetObjectId(input, inOutIdx, &oid, oidIgnoreType, inSz);
         if (ret != 0)
             return ret;
 
-    printf("length is %d\n", length);
-    printf("ret_obj is %d\n", ret);
-    {
-        int i;
-        printf("\n\nObject 1:");
-        printf("inSz is: %d  length is: %d  inOutIdx is: %d\n\n", inSz, length, *inOutIdx);
-        for (i = *inOutIdx; i<length; i++)
-            printf("%02x", input[i]);
-        printf("\n");
-        for (i = *inOutIdx; i<length; i++)
-            printf("[%d]", i);
-        printf("\n");
-    }
+    // printf("length is %d\n", length);
+    // printf("ret_obj is %d\n", ret);
+    // {
+    //     int i;
+    //     printf("\n\nObject 1:");
+    //     printf("inSz is: %d  length is: %d  inOutIdx is: %d\n\n", inSz, length, *inOutIdx);
+    //     for (i = *inOutIdx; i<length; i++)
+    //         printf("%02x", input[i]);
+    //     printf("\n");
+    //     for (i = *inOutIdx; i<length; i++)
+    //         printf("[%d]", i);
+    //     printf("\n");
+    // }
 
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
+    #endif //WOLFSSL_QT
     //#endif //OPENSSL_EXTRA
-    {
-        int i;
-        printf("\n\nSequence 3:");
-        printf("inSz is: %d  length is: %d  inOutIdx is: %d\n\n", inSz, length, *inOutIdx);
-        for (i = *inOutIdx; i<length; i++)
-            printf("%02x", input[i]);
-        printf("\n");
-        for (i = *inOutIdx; i<length; i++)
-            printf("[%d]", i);
-        printf("\n");
-    }
+    // {
+    //     int i;
+    //     printf("\n\nSequence 3:");
+    //     printf("inSz is: %d  length is: %d  inOutIdx is: %d\n\n", inSz, length, *inOutIdx);
+    //     for (i = *inOutIdx; i<length; i++)
+    //         printf("%02x", input[i]);
+    //     printf("\n");
+    //     for (i = *inOutIdx; i<length; i++)
+    //         printf("[%d]", i);
+    //     printf("\n");
+    // }
 
 
 
 
 
 
-printf("input is: %02x  length is: %d  inOutIdx is: %d\n\n", input[*inOutIdx], length, *inOutIdx);
+//printf("input is: %02x  length is: %d  inOutIdx is: %d\n\n", input[*inOutIdx], length, *inOutIdx);
 
 
     if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->q,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->g,  input, inOutIdx, inSz) < 0)
         return ASN_DH_KEY_E;
-printf("input is: %02x  length is: %d  inOutIdx is: %d\n\n", input[*inOutIdx], length, *inOutIdx);
+//printf("input is: %02x  length is: %d  inOutIdx is: %d\n\n", input[*inOutIdx], length, *inOutIdx);
 
 
-printf("input is: %02x  length is: %d  inOutIdx is: %d\n\n", input[*inOutIdx], length, *inOutIdx);
+//printf("input is: %02x  length is: %d  inOutIdx is: %d\n\n", input[*inOutIdx], length, *inOutIdx);
+    #ifdef WOLFSSL_QT
         if (CheckBitString(input, inOutIdx, &length, inSz, 0, NULL) < 0)
             ret = ASN_PARSE_E;
+    #endif //WOLFSSL_QT
 
 
-printf("pooinput is: %02x  length is: %d  inOutIdx is: %d\n\n", input[*inOutIdx], length, *inOutIdx);
+//printf("pooinput is: %02x  length is: %d  inOutIdx is: %d\n\n", input[*inOutIdx], length, *inOutIdx);
 
         // check for 03(asn_bit) then get length
         // increase index by 1
@@ -3754,6 +3741,16 @@ printf("pooinput is: %02x  length is: %d  inOutIdx is: %d\n\n", input[*inOutIdx]
 
     if (GetInt(&key->y,  input, inOutIdx, inSz) < 0 )
         return ASN_DH_KEY_E;
+
+            //%%%%%%
+            // int thing = mp_unsigned_bin_size(&key->p);
+            // printf("decode_length_q is :%d\n decode_q is  ", thing);
+            // byte thing3[128];
+            // mp_to_unsigned_bin(&key->p, thing3);
+            // for (int i; i < 128; i++)
+            //     printf("%02x", thing3[i]);
+            // printf("\n");
+            //  printf("\nsizeof thing3 is: %ld", sizeof(thing3));
 
 
     key->type = DSA_PUBLIC;

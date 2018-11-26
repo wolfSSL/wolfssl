@@ -6732,7 +6732,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out, unsigned char** in,
             wc_DsaPublicKeyDecode(mem, &keyIdx, &dsa, (word32)memSz) == 0) {
             wc_FreeDsaKey(&dsa);
             pkey = wolfSSL_PKEY_new();
-            printf("woo!!!!!!!!!!!!!\n\n");
+            //%%%%
+           // printf("woo!!!!!!!!!!!!!\n\n");
             if (pkey != NULL) {
                 pkey->pkey_sz = keyIdx;
                 pkey->pkey.ptr = (char*)XMALLOC(memSz, NULL,
@@ -29023,10 +29024,12 @@ WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSA_PUBKEY(WOLFSSL_BIO* bio,WOLFSSL_DSA** dsa,
 
     pkey = wolfSSL_PEM_read_bio_PUBKEY(bio, NULL, cb, u);
     if (pkey == NULL) {
-        printf("NOOOOOOOOOOoo\n\n");
+        //%%%%%%
+       // printf("NOOOOOOOOOOoo\n\n");
         return NULL;
     }
-printf("ok I think i got it\n\n");
+//%%%%%%
+//printf("ok I think i got it\n\n");
 
     pkey->ownDsa = 0;
     local = pkey->dsa;
@@ -29237,7 +29240,8 @@ int wolfSSL_PEM_write_DSA_PUBKEY(XFILE fp, WOLFSSL_DSA *x)
 static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
                             int keyType, int* eccFlag, DerBuffer** der)
 {
-    printf("Step1\n\n");
+    //%%%%
+   // printf("Step1\n\n");
 #ifdef WOLFSSL_SMALL_STACK
     EncryptedInfo* info = NULL;
 #else
@@ -29250,7 +29254,8 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
     int ret;
 
     if ((ret = wolfSSL_BIO_pending(bio)) > 0) {
-        printf("\n\n wolfssl_bio_pending is >0, ret is %d \n\n", ret);
+        //%%%%%
+       // printf("\n\n wolfssl_bio_pending is >0, ret is %d \n\n", ret);
         memSz = ret;
         mem = (char*)XMALLOC(memSz, bio->heap, DYNAMIC_TYPE_OPENSSL);
         if (mem == NULL) {
@@ -29276,7 +29281,8 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
         while (ret >= 0 && (sz = wolfSSL_BIO_read(bio, tmp, sz)) > 0) {
             if (memSz + sz < 0) {
                 /* sanity check */
-                printf("shoot\n\n\n\n\n");
+                //%%%%%
+               // printf("shoot\n\n\n\n\n");
                 break;
             }
             mem = (char*)XREALLOC(mem, memSz + sz, bio->heap,
@@ -29317,22 +29323,25 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
         }
     }
 #endif
-printf("Step5\n\n");
+//%%%%%
+//printf("Step5\n\n");
     if (ret >= 0) {
         XMEMSET(info, 0, sizeof(EncryptedInfo));
         info->passwd_cb       = localCb;
         info->passwd_userdata = pass;
         ret = PemToDer((const unsigned char*)mem, memSz, keyType, der,
             NULL, info, eccFlag);
-printf("\n\npemtoder ret is %d\n\n", ret);
-
-    {
-        DerBuffer* tmp = *der;
-        int i;
-        for (i = 0; i<(int)tmp->length; i++)
-            printf("%02x", tmp->buffer[i]);
-        printf("\n");
-    }
+//%%%%%
+//printf("\n\npemtoder ret is %d\n\n", ret);
+    //%%%%%
+    //{
+        //DerBuffer* tmp = *der;
+        //int i;
+        //for (i = 0; i<(int)tmp->length; i++)
+            //%%%%%%
+           // printf("%02x", tmp->buffer[i]);
+       // printf("\n");
+    //}
 
         if (ret < 0) {
             WOLFSSL_MSG("Bad Pem To Der");
@@ -29341,13 +29350,15 @@ printf("\n\npemtoder ret is %d\n\n", ret);
             /* write left over data back to bio */
             if ((memSz - (int)info->consumed) > 0 &&
                     bio->type != WOLFSSL_BIO_FILE) {
-                printf("Step6\n\n");
+                //%%%%%%%
+               // printf("Step6\n\n");
                 if (wolfSSL_BIO_write(bio, mem + (int)info->consumed,
                                        memSz - (int)info->consumed) <= 0) {
                     WOLFSSL_MSG("Unable to advance bio read pointer");
                 }
             }
-            printf("Step8\n\n");
+            //%%%%%
+           // printf("Step8\n\n");
         }
     }
 
@@ -29355,8 +29366,8 @@ printf("\n\npemtoder ret is %d\n\n", ret);
     XFREE(info, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     XFREE(mem, bio->heap, DYNAMIC_TYPE_OPENSSL);
-
-    printf("\n\n retfinal is: %d \n\n", ret);
+    //%%%%%
+   // printf("\n\n retfinal is: %d \n\n", ret);
     return ret;
 }
 
@@ -29418,7 +29429,8 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_bio_PUBKEY(WOLFSSL_BIO* bio,
     if (pem_read_bio_key(bio, cb, pass, PUBLICKEY_TYPE, &eccFlag, &der) >= 0) {
         unsigned char* ptr = der->buffer;
         /* handle case where reuse is attempted */
-            printf(" pem_read_bio_key is returning >=0 \n\n");
+            //%%%%%
+           // printf(" pem_read_bio_key is returning >=0 \n\n");
         if (key != NULL && *key != NULL){
             pkey = *key;
         }
@@ -29434,7 +29446,8 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_bio_PUBKEY(WOLFSSL_BIO* bio,
 
 
         if (pkey == NULL) {
-            printf("pkey is null :( \n\n");
+            //%%%%%
+           // printf("pkey is null :( \n\n");
             WOLFSSL_MSG("Error loading DER buffer into WOLFSSL_EVP_PKEY");
         }
     }
