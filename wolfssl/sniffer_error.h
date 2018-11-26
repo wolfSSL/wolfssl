@@ -118,6 +118,7 @@
 
 #define BAD_DECRYPT_SIZE 81
 #define EXTENDED_MASTER_HASH_STR 82
+#define SPLIT_HANDSHAKE_MSG_STR 83
 /* !!!! also add to msgTable in sniffer.c and .rc file !!!! */
 
 

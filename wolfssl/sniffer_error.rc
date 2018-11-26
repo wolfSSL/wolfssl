@@ -99,5 +99,6 @@ STRINGTABLE
 
     81, "Bad Decrypt Size"
     82, "Extended Master Secret Hash Error"
+    83, "Handshake Message Split Across TLS Records"
 }
 
