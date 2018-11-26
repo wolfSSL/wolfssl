@@ -285,7 +285,7 @@ enum {
     #ifdef HAVE_ECC_SECPR2
         #ifdef HAVE_OID_ENCODING
             #define CODED_SECP160R2    {1,3,132,0,30}
-            #define CODED_SECP160R1_SZ 5
+            #define CODED_SECP160R2_SZ 5
         #else
             #define CODED_SECP160R2    {0x2B,0x81,0x04,0x00,0x1E}
             #define CODED_SECP160R2_SZ 5
@@ -3208,8 +3208,13 @@ static int wc_ecc_cmp_param(const char* curveParam,
     }
 #endif
 
-    if ((err = mp_init_multi(a, b, NULL, NULL, NULL, NULL)) != MP_OKAY)
+    if ((err = mp_init_multi(a, b, NULL, NULL, NULL, NULL)) != MP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(a, NULL, DYNAMIC_TYPE_ECC);
+        XFREE(b, NULL, DYNAMIC_TYPE_ECC);
+    #endif
         return err;
+    }
 
     if (err == MP_OKAY)
         err = mp_read_unsigned_bin(a, param, paramSz);
@@ -3289,6 +3294,34 @@ int wc_ecc_get_curve_id_from_params(int fieldSize,
         return ECC_CURVE_INVALID;
 
     return ecc_sets[idx].id;
+}
+
+/* Returns the curve id that corresponds to a given OID,
+ * as listed in ecc_sets[] of ecc.c.
+ *
+ * oid   OID, from ecc_sets[].name in ecc.c
+ * len   OID len, from ecc_sets[].name in ecc.c
+ * return curve id, from ecc_sets[] on success, negative on error
+ */
+int wc_ecc_get_curve_id_from_oid(const byte* oid, word32 len)
+{
+    int curve_idx;
+
+    if (oid == NULL)
+        return BAD_FUNC_ARG;
+
+    for (curve_idx = 0; ecc_sets[curve_idx].size != 0; curve_idx++) {
+        if (ecc_sets[curve_idx].oid && ecc_sets[curve_idx].oidSz == len &&
+                              XMEMCMP(ecc_sets[curve_idx].oid, oid, len) == 0) {
+            break;
+        }
+    }
+    if (ecc_sets[curve_idx].size == 0) {
+        WOLFSSL_MSG("ecc_set curve name not found");
+        return ECC_CURVE_INVALID;
+    }
+
+    return ecc_sets[curve_idx].id;
 }
 
 
@@ -4002,6 +4035,17 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
         FREE_CURVE_SPECS();
 #endif /* WOLFSSL_SP_MATH */
     }
+
+#ifdef HAVE_WOLF_BIGINT
+    if (err == MP_OKAY)
+         err = wc_mp_to_bigint(&key->k, &key->k.raw);
+    if (err == MP_OKAY)
+         err = wc_mp_to_bigint(key->pubkey.x, &key->pubkey.x->raw);
+    if (err == MP_OKAY)
+         err = wc_mp_to_bigint(key->pubkey.y, &key->pubkey.y->raw);
+    if (err == MP_OKAY)
+         err = wc_mp_to_bigint(key->pubkey.z, &key->pubkey.z->raw);
+#endif
 
 #endif /* WOLFSSL_ATECC508A */
 
@@ -5121,10 +5165,10 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     r = key->r;
     s = key->s;
 #else
-#ifndef WOLFSSL_SMALL_STACK
+    #ifndef WOLFSSL_SMALL_STACK
     r = r_lcl;
     s = s_lcl;
-#else
+    #else
     r = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_ECC);
     if (r == NULL)
         return MEMORY_E;
@@ -5133,8 +5177,10 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
         XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
         return MEMORY_E;
     }
-#endif
-#endif
+    #endif
+    XMEMSET(r, 0, sizeof(mp_int));
+    XMEMSET(s, 0, sizeof(mp_int));
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
     switch(key->state) {
         case ECC_STATE_NONE:
@@ -5167,6 +5213,8 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(s, key->heap, DYNAMIC_TYPE_ECC);
             XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
+            r = NULL;
+            s = NULL;
         #endif
         #endif
 
@@ -5195,6 +5243,15 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     wc_ecc_free_async(key);
 #endif
     key->state = ECC_STATE_NONE;
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (err != WC_PENDING_E) {
+            XFREE(s, key->heap, DYNAMIC_TYPE_ECC);
+            XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
+            r = NULL;
+            s = NULL;
+    }
+#endif
 
     return err;
 }
@@ -8819,14 +8876,21 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
            case ecAES_128_CBC:
                {
                    Aes aes;
-                   ret = wc_AesSetKey(&aes, encKey, KEY_SIZE_128, encIv,
+                   ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+                   if (ret == 0) {
+                       ret = wc_AesSetKey(&aes, encKey, KEY_SIZE_128, encIv,
                                                                 AES_ENCRYPTION);
+                       if (ret == 0) {
+                           ret = wc_AesCbcEncrypt(&aes, out, msg, msgSz);
+                       #if defined(WOLFSSL_ASYNC_CRYPT)
+                           ret = wc_AsyncWait(ret, &aes.asyncDev,
+                                              WC_ASYNC_FLAG_NONE);
+                       #endif
+                       }
+                       wc_AesFree(&aes);
+                   }
                    if (ret != 0)
-                       break;
-                   ret = wc_AesCbcEncrypt(&aes, out, msg, msgSz);
-                #if defined(WOLFSSL_ASYNC_CRYPT)
-                   ret = wc_AsyncWait(ret, &aes.asyncDev, WC_ASYNC_FLAG_NONE);
-                #endif
+                      break;
                }
                break;
 

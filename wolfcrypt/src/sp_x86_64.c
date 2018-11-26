@@ -6943,7 +6943,7 @@ static WC_INLINE int sp_2048_div_16(sp_digit* a, sp_digit* d, sp_digit* m,
     }
 
     r1 = sp_2048_cmp_16(t1, d) >= 0;
-    sp_2048_cond_sub_16(r, t1, t2, (sp_digit)0 - r1);
+    sp_2048_cond_sub_16(r, t1, d, (sp_digit)0 - r1);
 
     return MP_OKAY;
 }
@@ -8923,7 +8923,7 @@ static WC_INLINE int sp_2048_div_32(sp_digit* a, sp_digit* d, sp_digit* m,
     }
 
     r1 = sp_2048_cmp_32(t1, d) >= 0;
-    sp_2048_cond_sub_32(r, t1, t2, (sp_digit)0 - r1);
+    sp_2048_cond_sub_32(r, t1, d, (sp_digit)0 - r1);
 
     return MP_OKAY;
 }
@@ -8982,7 +8982,7 @@ static WC_INLINE int sp_2048_div_32_cond(sp_digit* a, sp_digit* d, sp_digit* m,
     }
 
     r1 = sp_2048_cmp_32(t1, d) >= 0;
-    sp_2048_cond_sub_32(r, t1, t2, (sp_digit)0 - r1);
+    sp_2048_cond_sub_32(r, t1, d, (sp_digit)0 - r1);
 
     return MP_OKAY;
 }
@@ -23504,7 +23504,7 @@ static WC_INLINE int sp_3072_div_24(sp_digit* a, sp_digit* d, sp_digit* m,
     }
 
     r1 = sp_3072_cmp_24(t1, d) >= 0;
-    sp_3072_cond_sub_24(r, t1, t2, (sp_digit)0 - r1);
+    sp_3072_cond_sub_24(r, t1, d, (sp_digit)0 - r1);
 
     return MP_OKAY;
 }
@@ -26156,7 +26156,7 @@ static WC_INLINE int sp_3072_div_48(sp_digit* a, sp_digit* d, sp_digit* m,
     }
 
     r1 = sp_3072_cmp_48(t1, d) >= 0;
-    sp_3072_cond_sub_48(r, t1, t2, (sp_digit)0 - r1);
+    sp_3072_cond_sub_48(r, t1, d, (sp_digit)0 - r1);
 
     return MP_OKAY;
 }
@@ -26215,7 +26215,7 @@ static WC_INLINE int sp_3072_div_48_cond(sp_digit* a, sp_digit* d, sp_digit* m,
     }
 
     r1 = sp_3072_cmp_48(t1, d) >= 0;
-    sp_3072_cond_sub_48(r, t1, t2, (sp_digit)0 - r1);
+    sp_3072_cond_sub_48(r, t1, d, (sp_digit)0 - r1);
 
     return MP_OKAY;
 }
@@ -27879,6 +27879,8 @@ SP_NOINLINE static sp_digit sp_256_sub_4(sp_digit* r, const sp_digit* a,
 
     return c;
 }
+
+#define sp_256_mont_reduce_order_4         sp_256_mont_reduce_4
 
 /* Reduce the number back to 256 bits using Montgomery reduction.
  *
@@ -44202,8 +44204,10 @@ static int sp_256_ecc_mulmod_base_4(sp_point* r, sp_digit* k, int map,
         }
 
         i = 32;
-        XMEMCPY(t[v[i].mul].x, p256_table[i][v[i].i].x, sizeof(p256_table[i]->x));
-        XMEMCPY(t[v[i].mul].y, p256_table[i][v[i].i].y, sizeof(p256_table[i]->y));
+        XMEMCPY(t[v[i].mul].x, p256_table[i][v[i].i].x,
+                sizeof(p256_table[i]->x));
+        XMEMCPY(t[v[i].mul].y, p256_table[i][v[i].i].y,
+                sizeof(p256_table[i]->y));
         t[v[i].mul].infinity = p256_table[i][v[i].i].infinity;
         for (--i; i>=0; i--) {
             XMEMCPY(p->x, p256_table[i][v[i].i].x, sizeof(p256_table[i]->x));
@@ -44211,7 +44215,8 @@ static int sp_256_ecc_mulmod_base_4(sp_point* r, sp_digit* k, int map,
             p->infinity = p256_table[i][v[i].i].infinity;
             sp_256_sub_4(negy, p256_mod, p->y);
             sp_256_cond_copy_4(p->y, negy, (sp_digit)0 - v[i].neg);
-            sp_256_proj_point_add_qz1_4(&t[v[i].mul], &t[v[i].mul], p, tmp);
+            sp_256_proj_point_add_qz1_4(&t[v[i].mul], &t[v[i].mul], p,
+                    tmp);
         }
         sp_256_proj_point_add_4(&t[2], &t[2], &t[3], tmp);
         sp_256_proj_point_add_4(&t[1], &t[1], &t[3], tmp);
@@ -44296,8 +44301,10 @@ static int sp_256_ecc_mulmod_base_avx2_4(sp_point* r, sp_digit* k, int map,
         }
 
         i = 32;
-        XMEMCPY(t[v[i].mul].x, p256_table[i][v[i].i].x, sizeof(p256_table[i]->x));
-        XMEMCPY(t[v[i].mul].y, p256_table[i][v[i].i].y, sizeof(p256_table[i]->y));
+        XMEMCPY(t[v[i].mul].x, p256_table[i][v[i].i].x,
+                sizeof(p256_table[i]->x));
+        XMEMCPY(t[v[i].mul].y, p256_table[i][v[i].i].y,
+                sizeof(p256_table[i]->y));
         t[v[i].mul].infinity = p256_table[i][v[i].i].infinity;
         for (--i; i>=0; i--) {
             XMEMCPY(p->x, p256_table[i][v[i].i].x, sizeof(p256_table[i]->x));
@@ -44305,7 +44312,8 @@ static int sp_256_ecc_mulmod_base_avx2_4(sp_point* r, sp_digit* k, int map,
             p->infinity = p256_table[i][v[i].i].infinity;
             sp_256_sub_4(negy, p256_mod, p->y);
             sp_256_cond_copy_4(p->y, negy, (sp_digit)0 - v[i].neg);
-            sp_256_proj_point_add_qz1_avx2_4(&t[v[i].mul], &t[v[i].mul], p, tmp);
+            sp_256_proj_point_add_qz1_avx2_4(&t[v[i].mul], &t[v[i].mul], p,
+                    tmp);
         }
         sp_256_proj_point_add_avx2_4(&t[2], &t[2], &t[3], tmp);
         sp_256_proj_point_add_avx2_4(&t[1], &t[1], &t[3], tmp);
@@ -44407,7 +44415,6 @@ static int sp_256_iszero_4(const sp_digit* a)
 #endif /* WOLFSSL_VALIDATE_ECC_KEYGEN || HAVE_ECC_SIGN */
 /* Add 1 to a. (a = a + 1)
  *
- * r  A single precision integer.
  * a  A single precision integer.
  */
 static void sp_256_add_one_4(sp_digit* a)
@@ -45146,7 +45153,7 @@ static WC_INLINE int sp_256_div_4(sp_digit* a, sp_digit* d, sp_digit* m,
     }
 
     r1 = sp_256_cmp_4(t1, d) >= 0;
-    sp_256_cond_sub_4(r, t1, t2, (sp_digit)0 - r1);
+    sp_256_cond_sub_4(r, t1, d, (sp_digit)0 - r1);
 
     return MP_OKAY;
 }
@@ -45294,7 +45301,7 @@ static const uint64_t p256_order_low[2] = {
 static void sp_256_mont_mul_order_4(sp_digit* r, sp_digit* a, sp_digit* b)
 {
     sp_256_mul_4(r, a, b);
-    sp_256_mont_reduce_4(r, p256_order, p256_mp_order);
+    sp_256_mont_reduce_order_4(r, p256_order, p256_mp_order);
 }
 
 /* Square number mod the order of P256 curve. (r = a * a mod order)
@@ -45305,7 +45312,7 @@ static void sp_256_mont_mul_order_4(sp_digit* r, sp_digit* a, sp_digit* b)
 static void sp_256_mont_sqr_order_4(sp_digit* r, sp_digit* a)
 {
     sp_256_sqr_4(r, a);
-    sp_256_mont_reduce_4(r, p256_order, p256_mp_order);
+    sp_256_mont_reduce_order_4(r, p256_order, p256_mp_order);
 }
 
 #ifndef WOLFSSL_SP_SMALL
@@ -45497,6 +45504,8 @@ SP_NOINLINE static void sp_256_sqr_avx2_4(sp_digit* r, const sp_digit* a)
     );
 }
 
+#define sp_256_mont_reduce_order_avx2_4    sp_256_mont_reduce_avx2_4
+
 /* Reduce the number back to 256 bits using Montgomery reduction.
  *
  * a   A single precision number to reduce in place.
@@ -45646,7 +45655,7 @@ SP_NOINLINE static void sp_256_mont_reduce_avx2_4(sp_digit* a, sp_digit* m,
 static void sp_256_mont_mul_order_avx2_4(sp_digit* r, sp_digit* a, sp_digit* b)
 {
     sp_256_mul_avx2_4(r, a, b);
-    sp_256_mont_reduce_avx2_4(r, p256_order, p256_mp_order);
+    sp_256_mont_reduce_order_avx2_4(r, p256_order, p256_mp_order);
 }
 
 /* Square number mod the order of P256 curve. (r = a * a mod order)
@@ -45657,7 +45666,7 @@ static void sp_256_mont_mul_order_avx2_4(sp_digit* r, sp_digit* a, sp_digit* b)
 static void sp_256_mont_sqr_order_avx2_4(sp_digit* r, sp_digit* a)
 {
     sp_256_sqr_avx2_4(r, a);
-    sp_256_mont_reduce_avx2_4(r, p256_order, p256_mp_order);
+    sp_256_mont_reduce_order_avx2_4(r, p256_order, p256_mp_order);
 }
 
 #ifndef WOLFSSL_SP_SMALL

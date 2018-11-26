@@ -7,7 +7,7 @@
 #
 AC_COPYRIGHT([Copyright (C) 2006-2018 wolfSSL Inc.])
 AC_PREREQ([2.63])
-AC_INIT([wolfssl],[3.15.3],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
+AC_INIT([wolfssl],[3.15.5],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
 
 # The following sets CFLAGS and CXXFLAGS to empty if unset on command line.
@@ -34,7 +34,7 @@ LT_PREREQ([2.2])
 LT_INIT([disable-static win32-dll])
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=18:0:0
+WOLFSSL_LIBRARY_VERSION=19:0:0
 #                        | | |
 #                 +------+ | +---+
 #                 |        |     |
@@ -1999,34 +1999,6 @@ fi
 AM_CONDITIONAL([BUILD_IDEA], [test "x$ENABLED_IDEA" = "xyes"])
 
 
-
-# ARC4
-AC_ARG_ENABLE([arc4],
-    [AS_HELP_STRING([--enable-arc4],[Enable ARC4 (default: disabled)])],
-    [ ENABLED_ARC4=$enableval ],
-    [ ENABLED_ARC4=no ]
-    )
-
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_WPAS" = "yes"
-then
-    ENABLED_ARC4="yes"
-fi
-
-if test "$ENABLED_ARC4" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_RC4"
-else
-    # turn off ARC4 if leanpsk or leantls on
-    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
-    then
-        AM_CFLAGS="$AM_CFLAGS -DNO_RC4"
-        ENABLED_ARC4=no
-    fi
-fi
-
-AM_CONDITIONAL([BUILD_RC4], [test "x$ENABLED_ARC4" = "xyes"])
-
-
 # MD5
 AC_ARG_ENABLE([md5],
     [AS_HELP_STRING([--enable-md5],[Enable MD5 (default: enabled)])],
@@ -3215,6 +3187,7 @@ then
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_QT -DWOLFSSL_ALLOW_TLSV10 -DSESSION_CERTS"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_SSLV3 -DWOLFSSL_KEY_GEN"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CUSTOM_CURVES -DHAVE_ECC_SECPR2 -DHAVE_ECC_SECPR3 -DHAVE_ECC_BRAINPOOL -DHAVE_ECC_KOBLITZ"
 
     # Requires OCSP make sure on
     if test "x$ENABLED_OCSP" = "xno"
@@ -3229,11 +3202,17 @@ then
     then
        ENABLED_PSK="yes"
     fi
-    
+
     # Requires DES3 make sure on
     if test "x$ENABLED_DES3" = "xno"
     then
        ENABLED_DES3="yes"
+    fi
+
+    # Requires DES3 make sure on
+    if test "x$ENABLED_ARC4" = "xno"
+    then
+       ENABLED_ARC4="yes"
     fi
 
     # requires oldnames disabled
@@ -3259,6 +3238,31 @@ fi
 
 AM_CONDITIONAL([BUILD_DSA], [test "x$ENABLED_DSA" = "xyes"])
 
+# ARC4
+AC_ARG_ENABLE([arc4],
+    [AS_HELP_STRING([--enable-arc4],[Enable ARC4 (default: disabled)])],
+    [ ENABLED_ARC4=$enableval ],
+    [ ENABLED_ARC4=no ]
+    )
+
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT"
+then
+    ENABLED_ARC4="yes"
+fi
+
+if test "$ENABLED_ARC4" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_RC4"
+else
+    # turn off ARC4 if leanpsk or leantls on
+    if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_RC4"
+        ENABLED_ARC4=no
+    fi
+fi
+
+AM_CONDITIONAL([BUILD_RC4], [test "x$ENABLED_ARC4" = "xyes"])
 
 # Asio Support
 AC_ARG_ENABLE([asio],
@@ -3882,8 +3886,13 @@ if test "$ENABLED_SP_ASM" = "yes"; then
     ENABLED_SP_ARM64_ASM=yes
     ;;
   *arm*)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
-    ENABLED_SP_ARM32_ASM=yes
+    if test $host_alias = "thumb"; then
+      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_THUMB_ASM -mthumb -march=armv6"
+      ENABLED_SP_ARM_THUMB_ASM=yes
+    else
+      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
+      ENABLED_SP_ARM32_ASM=yes
+    fi
     ;;
   *x86_64*)
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86_64_ASM"
@@ -3931,6 +3940,7 @@ AM_CONDITIONAL([BUILD_SP], [test "x$ENABLED_SP" = "xyes"])
 AM_CONDITIONAL([BUILD_SP_C], [test "x$ENABLED_SP" = "xyes" && test "x$ENABLED_SP_ASM" = "xno" ])
 AM_CONDITIONAL([BUILD_SP_ARM64], [test "x$ENABLED_SP_ARM64_ASM" = "xyes" ])
 AM_CONDITIONAL([BUILD_SP_ARM32], [test "x$ENABLED_SP_ARM32_ASM" = "xyes" ])
+AM_CONDITIONAL([BUILD_SP_ARM_THUMB], [test "x$ENABLED_SP_ARM_THUMB_ASM" = "xyes" ])
 AM_CONDITIONAL([BUILD_SP_X86_64], [test "x$ENABLED_SP_X86_64_ASM" = "xyes" ])
 AM_CONDITIONAL([BUILD_SP_INT], [test "x$ENABLED_SP_MATH" = "xyes" ])
 

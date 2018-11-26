@@ -63,7 +63,7 @@ if [ $INSTALL_DOX = true ] && [ ! "$(which doxygen)" ]; then
 mkdir -p build
 cd build
 echo "cloning doxygen 1.8.13..."
-git clone https://github.com/doxygen/doxygen --branch Release_1_8_13
+git clone --depth 1 --branch Release_1_8_13 https://github.com/doxygen/doxygen
 cmake -G "Unix Makefiles" doxygen/
 make
 cd ..

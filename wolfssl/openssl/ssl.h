@@ -44,7 +44,10 @@
 #include <wolfssl/openssl/dh.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/settings.h>
+#endif
 
+#if defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY)
+#include <wolfssl/wolfcrypt/asn.h>
 #endif
 
 #ifdef __cplusplus
@@ -95,11 +98,7 @@ typedef WOLFSSL_ASN1_OBJECT    ASN1_OBJECT;
 typedef WOLFSSL_ASN1_STRING    ASN1_STRING;
 typedef WOLFSSL_dynlock_value  CRYPTO_dynlock_value;
 typedef WOLFSSL_BUF_MEM        BUF_MEM;
-
-
-/* GENERAL_NAME struct may need implemented as
- * compatibility layer expands. For now treating as an ASN1_OBJECT */
-typedef WOLFSSL_ASN1_OBJECT GENERAL_NAME;
+typedef WOLFSSL_GENERAL_NAME   GENERAL_NAME;
 
 #define ASN1_UTCTIME         WOLFSSL_ASN1_TIME
 #define ASN1_GENERALIZEDTIME WOLFSSL_ASN1_TIME
@@ -356,7 +355,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_STORE_set_flags            wolfSSL_X509_STORE_set_flags
 #define X509_STORE_CTX_set_verify_cb    wolfSSL_X509_STORE_CTX_set_verify_cb
 #define X509_STORE_CTX_set_verify_cb_func  wolfSSL_X509_STORE_CTX_set_verify_cb_func
-#define X509_STORE_set_verify_cb_func(s, c)   wolfSSL_X509_STORE_set_verify_cb_func((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_CTX_verify_cb)(c))
+#define X509_STORE_set_verify_cb(s, c)   wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_CTX_verify_cb)(c))
+#define X509_STORE_set_verify_cb_func(s, c)   wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_CTX_verify_cb)(c))
 #define X509_STORE_CTX_free             wolfSSL_X509_STORE_CTX_free
 #define X509_STORE_CTX_new              wolfSSL_X509_STORE_CTX_new
 #define X509_STORE_CTX_get_chain        wolfSSL_X509_STORE_CTX_get_chain
@@ -650,7 +650,7 @@ enum {
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
 #include <wolfssl/openssl/pem.h>
 
-typedef STACK_OF(WOLFSSL_ASN1_OBJECT) GENERAL_NAMES;
+typedef STACK_OF(GENERAL_NAME) GENERAL_NAMES;
 #define SSL_CTRL_CHAIN       88
 #define BIO_CTRL_WPENDING    13
 #define GEN_IPADD            7
@@ -895,6 +895,10 @@ typedef WOLFSSL_ASN1_BIT_STRING          ASN1_BIT_STRING;
 #define SSL_R_UNKNOWN_PROTOCOL                     VERSION_ERROR
 #define SSL_R_WRONG_VERSION_NUMBER                 VERSION_ERROR
 #define SSL_R_DECRYPTION_FAILED_OR_BAD_RECORD_MAC  ENCRYPT_ERROR
+#define SSL_R_HTTPS_PROXY_REQUEST                  PARSE_ERROR
+#define SSL_R_HTTP_REQUEST                         PARSE_ERROR
+#define SSL_R_UNSUPPORTED_PROTOCOL                 VERSION_ERROR
+
 
 #ifdef HAVE_SESSION_TICKET
 #define SSL_OP_NO_TICKET                  SSL_OP_NO_TICKET
@@ -952,8 +956,9 @@ typedef WOLFSSL_ASN1_BIT_STRING          ASN1_BIT_STRING;
 #define X509_NAME_ENTRY_get_object        wolfSSL_X509_NAME_ENTRY_get_object
 #define SSL_get_SSL_CTX                   wolfSSL_get_SSL_CTX
 #define ERR_peek_last_error               wolfSSL_ERR_peek_last_error
+#ifndef WOLFSSL_HAPROXY
 #define X509_get_version                  wolfSSL_X509_get_version
-
+#endif
 
 #define ERR_NUM_ERRORS                  16
 #define EVP_PKEY_RSA                    6 
