@@ -44,7 +44,6 @@
 #include <wolfssl/openssl/dh.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/settings.h>
-
 #endif
 
 /* all NID_* values are in asn.h */

@@ -29037,8 +29037,9 @@ int wolfSSL_EC_GROUP_get_degree(const WOLFSSL_EC_GROUP *group)
         case NID_brainpoolP384r1:
             return 384;
         case NID_secp521r1:
-        case NID_brainpoolP512r1:
             return 521;
+        case NID_brainpoolP512r1:
+            return 512;
         default:
             return WOLFSSL_FAILURE;
     }
@@ -33579,7 +33580,6 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 #endif /* HAVE_ECC */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     int wolfSSL_OBJ_sn2nid(const char *sn) {
-
         WOLFSSL_ENTER("wolfSSL_OBJ_sn2nid");
         return wc_OBJ_sn2nid(sn);
     }
