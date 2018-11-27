@@ -26974,6 +26974,9 @@ int wolfSSL_EC_KEY_set_public_key(WOLFSSL_EC_KEY *key,
 /* End EC_KEY */
 
 
+#ifndef HAVE_SELFTEST
+/* ECC point compression types were not included in selftest ecc.h */
+
 char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
                                  const WOLFSSL_EC_POINT* point, int form,
                                  WOLFSSL_BN_CTX* ctx)
@@ -27030,6 +27033,8 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 
     return hex;
 }
+
+#endif /* HAVE_SELFTEST */
 
 void wolfSSL_EC_POINT_dump(const char *msg, const WOLFSSL_EC_POINT *p)
 {
