@@ -18,9 +18,6 @@
 
     /* fast math */
     #define USE_FAST_MATH
-    #ifdef __i386__
-        #define TFM_NO_ASM
-    #endif
     #define HAVE_ECC
 
     /* ECC speedups */
