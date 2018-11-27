@@ -1474,7 +1474,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 #endif
 #endif
     int    ret = 0;
-    word32 keyLen, len;
+    word32 keyLen = 0, len;
 #endif
 
 #ifdef WOLFSSL_HAVE_SP_RSA
