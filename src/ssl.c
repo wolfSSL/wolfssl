@@ -30186,8 +30186,6 @@ WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSA_PUBKEY(WOLFSSL_BIO* bio,WOLFSSL_DSA** dsa,
 
     pkey = wolfSSL_PEM_read_bio_PUBKEY(bio, NULL, cb, pass);
     if (pkey == NULL) {
-        //%%%%%%
-       // printf("NOOOOOOOOOOoo\n\n");
         return NULL;
     }
     //%%%%%%
