@@ -32700,14 +32700,8 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 #endif /* HAVE_ECC */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     int wolfSSL_OBJ_sn2nid(const char *sn) {
-
         WOLFSSL_ENTER("wolfSSL_OBJ_sn2nid");
-        if(sn) {
-            return OBJ_sn2nid(sn);
-        } else {
-            return WOLFSSL_FAILURE;
-        }
-        
+        return OBJ_sn2nid(sn);
     }
 #endif
 
