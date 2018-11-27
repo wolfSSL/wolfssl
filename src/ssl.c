@@ -28206,8 +28206,9 @@ int wolfSSL_EC_GROUP_get_degree(const WOLFSSL_EC_GROUP *group)
         case NID_brainpoolP384r1:
             return 384;
         case NID_secp521r1:
-        case NID_brainpoolP512r1:
             return 521;
+        case NID_brainpoolP512r1:
+            return 512;
         default:
             return WOLFSSL_FAILURE;
     }
