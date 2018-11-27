@@ -343,11 +343,11 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
     if (info->cipherType == WC_CIPHER_DES3)
         ret = wc_Des3_CbcEncryptWithKey(der, der, derSz, key, info->iv);
 #endif /* NO_DES3 */
-#ifndef NO_AES
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
     if (info->cipherType == WC_CIPHER_AES_CBC)
         ret = wc_AesCbcEncryptWithKey(der, der, derSz, key, info->keySz,
             info->iv);
-#endif /* NO_AES */
+#endif /* !NO_AES && HAVE_AES_CBC */
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
@@ -564,28 +564,39 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             break;
         }
 #endif
-#ifndef NO_AES
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
     #ifdef WOLFSSL_AES_256
         case PBE_AES256_CBC:
         {
-            Aes dec;
-            ret = wc_AesInit(&dec, NULL, INVALID_DEVID);
-            if (ret == 0)
-                ret = wc_AesSetKey(&dec, key, derivedLen,
-                                   cbcIv, AES_DECRYPTION);
-            if (ret == 0)
-                ret = wc_AesCbcDecrypt(&dec, input, input, length);
+            Aes aes;
+            ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+            if (ret == 0) {
+                if (enc) {
+                    ret = wc_AesSetKey(&aes, key, derivedLen, cbcIv,
+                                                                AES_ENCRYPTION);
+                }
+                else {
+                    ret = wc_AesSetKey(&aes, key, derivedLen, cbcIv,
+                                                                AES_DECRYPTION);
+                }
+            }
+            if (ret == 0) {
+                if (enc)
+                    ret = wc_AesCbcEncrypt(&aes, input, input, length);
+                else
+                    ret = wc_AesCbcDecrypt(&aes, input, input, length);
+            }
             if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
                 XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
                 return ret;
             }
-            ForceZero(&dec, sizeof(Aes));
+            ForceZero(&aes, sizeof(Aes));
             break;
         }
     #endif /* WOLFSSL_AES_256 */
-#endif
+#endif /* !NO_AES && HAVE_AES_CBC */
 
         default:
 #ifdef WOLFSSL_SMALL_STACK

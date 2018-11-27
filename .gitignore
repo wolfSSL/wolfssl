@@ -156,6 +156,7 @@ pkcs7signedData_RSA_SHA256.der
 pkcs7signedData_RSA_SHA256_firmwarePkgData.der
 pkcs7signedData_RSA_SHA256_SKID.der
 pkcs7signedData_RSA_SHA256_with_ca_cert.der
+pkcs7signedData_RSA_SHA256_detachedSig.der
 pkcs7signedData_RSA_SHA384.der
 pkcs7signedData_RSA_SHA512.der
 pkcs7signedData_RSA_SHA.der
