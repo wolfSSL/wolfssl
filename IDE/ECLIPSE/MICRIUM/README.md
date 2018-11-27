@@ -5,11 +5,11 @@ You can enable the wolfSSL support for Micrium μC/OS-III RTOS available [here](
 
 ## Usage
 
-You can start with your IDE-based project for Micrium uC/OS-III and uC/TCP stack. You must include the uC-Clk module into your project because wolfSSL uses Micrium’s Clk_GetTS_Unix () function from <clk.h> in order to authenticate certificate date ranges.
+You can start with your IDE-based example project for Micrium uC/OS-III and uC/TCPIP stack. You must include the uC-Clk module into your project because wolfSSL uses Micrium’s Clk_GetTS_Unix () function from <clk.h> in order to authenticate the start and end dates of certificates.
 
 wolfSSL supports a compile-time user configurable options in the `IDE/ECLIPSE/MICRIUM/user_settings.h` file.
 
-The `wolfsslRunTests.c` example application provides a simple function to run the selected examples at compile time through the following four #defines (see user_settings.h).
+The `wolfsslRunTests.c` example application provides a simple function to run the selected examples at compile time through the following four #defines in user_settings.h.
 
 ```
        1. #define WOLFSSL_WOLFCRYPT_TEST
@@ -17,10 +17,11 @@ The `wolfsslRunTests.c` example application provides a simple function to run th
        3. #define WOLFSSL_CLIENT_TEST
        4. #define WOLFSSL_SERVER_TEST
 
-Please define one or all of the above options.
+You can define one or all of the above options.
 ```
-In your IDE, create the following folder and subfolders structures.
-The folder hierarcy is the same as the wolfSSL folders with an exception of the exampleTLS folder.
+1. Open your IDE-based example project for Micrium uC/OS-III (with the uC-Clk module) and uC/TCPIP stack.
+
+2. Create the following folder and sub-folders structures in your project.
 ```
 wolfssl
    |src
@@ -33,25 +34,25 @@ wolfssl
           |wolfcrypt
    |exampleTLS
 ```
-In your project, select the exampleTLS folder, add or link all of the header and source files in `IDE/ECLIPSE/MICRIUM/` folder into the exampleTLS folder.
+The folder hierarchy is the same as the wolfSSL folders with an exception of the exampleTLS folder.
 
-For each of the other folders, add or link all the source code in the corresponding folder.
+3. Right click on the exampleTLS folder, add or link all of the header and source files in `IDE/ECLIPSE/MICRIUM/` folder into the exampleTLS folder.
 
-Remove non-C platform dependent files from your build. At the moment, only aes_asm.asm and aes_asm.s must be removed from your wolfssl/wolfcrypt/src folder.
+4. Right click on each folders, add or link all the source code in the corresponding folder in wolfSSL.
 
-In your C/C++ compiler preprocessor settings, add the wolfSSL directory and sub dir to your include paths.
+5. Remove non-C platform dependent files from your build. At the moment, only aes_asm.asm and aes_asm.s must be removed from your wolfssl/wolfcrypt/src folder.
+
+6. In your C/C++ compiler preprocessor settings, add the wolfSSL directories to your include paths.
 Here's an example of the paths that must be added.
 ```
-$PROJ_DIR$\...\..
-$PROJ_DIR$\...\src
+$PROJ_DIR$\...
 $PROJ_DIR$\...\wolfcrypt
 $PROJ_DIR$\...\wolfssl
-$PROJ_DIR$\...\wolfssl\wolfcrypt
 $PROJ_DIR$\...\IDE\ECLIPSE\MICRIUM
 ```
-In your C/C++ compiler preprocessor settings, define the WOLFSSL_USER_SETTINGS symbol to enable the addition of user_settings.h file in your projects.
+7. In your C/C++ compiler preprocessor settings, define the WOLFSSL_USER_SETTINGS symbol to add user_settings.h file in your project.
 
-Add a call to `wolfsslRunTests()` from your startup task. Here's an example:
+8. Add a call to `wolfsslRunTests()` from your startup task. Here's an example:
 ```
 static  void  App_TaskStart (void *p_arg)
 {
@@ -63,8 +64,18 @@ static  void  App_TaskStart (void *p_arg)
         }
 }
 ```
-The starting project is based on an IAR EWARM project from Micrium download center at [micrium_twr-k70f120m-os3/](https://www.micrium.com/download/micrium_twr-k70f120m-os3/)
-The following test results were collected from the TWR-K70F120M|Tower System Board|Kinetis MCUs|NXP.
+9. Rebuild all your project.
+
+10. Now you are ready to download and debug your image on the board.
+
+The test results below were collected from the NXP Kinetis K70 (Freescale TWR-K70F120M MCU) tower system board with the following software and tool chains:
+
+- IAR Embedded Workbench IDE - ARM 8.32.1 (IAR ELF Linker V8.32.1.169/W32 for ARM)
+
+- The starting project is based on an IAR EWARM project from Micrium download center at [micrium_twr-k70f120m-os3/](https://www.micrium.com/download/micrium_twr-k70f120m-os3/) but the K70X_FLASH.icf linker script file was slightly modified to configure the stack and heap sizes to 16KB and 20KB. The test was run on a 1 MBytes of program flash and 128 KBytes of static RAM.
+
+- wolfssl [latest version](https://github.com/wolfSSL/wolfssl)
+
 
 ### `WOLFSSL_WOLFCRYPT_TEST` output of wolfcrypt_test()
 ```
@@ -89,50 +100,61 @@ DS3     test passed!
 AES      test passed!
 AES192   test passed!
 AES256   test passed!
-AES-GM  test pased!
+AES-GM  test passed!
 RANDOM   test passed!
-RSA      test passe!
-DH       tes passd!
-DSA      test passe!
+RSA      test passed!
+DH       test passed!
+DSA      test passed!
 PWDBASED test passed!
 ECC      test passed!
-ECC buffer test pssed!
-CURVE25519 tst passed!
+ECC buffer test passed!
+CURVE25519 test passed!
 ED25519  test passed!
-logging  tes passd!
-mutex    testpassed!
+logging  test passed!
+mutex    test passed!
 memcb    test passed!
 ```
 ### `WOLFSSL_BENCHMARK_TEST` output of benchmark_test()
 ```
----------------------------------------------------------------------------
- wolfSSL version 3.5.5
-----------------------------------------------------------------------------
-wolCrypt Bencmark (bloc byte 1024 min 1.0 se each
-RNG              20 KB tooks 1.108 seconds,  225.701 KB/s
-AES-128-CBCenc    250 KB tooks 1.056 seconds,  236.759KB/s
-AES-128-CBC-dec    250KB toks 1.51 seonds,  237.817 KB/s
-AES-192-CBC-enc    225 KB toks 1.025 seconds,  219.473 KB/s
-AES-192-CB-dec   225KB tooks 1.016 econd,  22.348 KB/s
-AES256-CBC-enc    225 KB tooks 1.100 seconds,  204.540 KB/s
-AES-256-CBC-dec   225 KB tooks 1.083 seconds,  20.848 KB/s
-AES-128-GCM-enc    125 B toos 1.209 seonds,  103.394 KB/s
-AES-128-GCM-dec    125 B tooks 1.09 seconds,  103.376 KB/s
-AES-192-GCM-dec    100 KB tooks 1.007 seconds,   99.303 KB/s
-AES-256-GM-enc   100 KB tooks 1.043 seconds,   95.885 KB/
-AES-256-GCM-dec    100 KB tooks 1.043 econds,   9.869 B/s
-RABBIT              2 MB tooks 1.001 econd,    2.245 MB/s
-3DES              100 KB tooks 1.112 econds,   89.930 KB/s
-MD5                  3 MB tooks 1.008 seconds,    2.906 MBs
-SHA                1MB tooks 1.004 seconds,    1.313 MB/s
-SHA-256           57 KB tooks 1.034 seconds,  556.254 KB/
-SHA-512           00 KBtooks 1.092 seconds,  183.222 KB/s
-HMAC-M5            3 MB tooks 1.002 seconds,   2.875 M/s
-HMAC-SHA             1 MB tooks 1.03 seconds,    1.302 MBs
-HMA-SHA256       575 KB tooks 1.042seconds,  551.66 KB/s
-HMAC-SHA512        200 KB toks 1.108 seconds,  180.483 KB/s
-RSA     2048 public          8 ps took 1.027 sec, avg 128.425 ms, 7.787 ops/sec
-RSA     2048 private         2 op took 4.988sec, vg 244.240 ms, 0.401 ps/sec
+------------------------------------------------------------------------------
+ wolfSSL version 3.15.5
+------------------------------------------------------------------------------
+wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
+RNG               225 KB tooks 1.026 seconds,  219.313 KB/s
+AES-128-CBC-enc    250 KB toks 1.105 seconds  226.210 KB/s
+AES-128-CBC-dec    225 KB tooks 1.005 seconds,  223.922 KB/s
+AES-192-CBC-enc    225 KB tooks 1.076 seconds, 209.104 KB/s
+AES-192-CBC-dec    225 KB tooks 1.077 seconds,  208.981 K/s
+AES-56-CBC-enc    200 KB tooks 1.029 seconds,  19.396 KB/s
+AES-256-CBC-dec    200 KB toks 1.022 seconds,  195.785 KB/s
+AES-128-GCM-enc    125 KB tooks 1.28 secnds,  101.70 KB/s
+AES-128-GC-dec    125 KB tooks 1.228 seconds  101.756 KB/s
+AES-192-GCM-enc    100 KB tooks 1.026 seconds,   97.493 KB/s
+AES-192-GCM-dec    100 KB tooks 1.026 seconds,   97.480 KB/s
+AES-256-GCM-enc    100 KB tooks 1.065 seconds,   93.909 KB/s
+AES-256-GC-dec    100 KB tooks 1.065 seconds,   93.897 KB/s
+RABBIT               2 MB tooks 1.011 seconds,    2.19 MB/s
+3DES              100 KB tooks 1.007 sconds,   99.312 KB/s
+MD5                  3MB tooks 1.008 seonds,    2.907 MBs
+SHA                  1 MB tooks 1.09 secnds,    1.283 MB/s
+SHA-256            575 KB tooks 1.037 seconds,  554.501 KB/s
+SHA-512            200 KB tooks 1.003 seconds,  199.444 KB/s
+HMAC-MD5            3 B tooks 1.002 seconds,   2.876 MB/s
+HMAC-SHA26        550 KB tooks 1.000 seconds,  549.95 KB//s
+HMAC-SHA512       200 KB toks 1.018 seconds,  196.452 KB/s
+RSA     2048 public          8 ops took 1.025 sec, avg 128.135 ms, 7.804 op/sec
+RSA     2048 private        2 ops took 4.972 ec, avg 2485.951 s, 0.402 ops/sec
+DH      2048 key en         2 ops took 1.927 sec, avg 96.303 ms, 1.038 op/sec
+DH     2048 agree           2ops took 1.937 sc, avg 968.578 ms, 1.032 ops/sec
+ECC      256 key gen         3 ops took 1.185 sec, avg 394.944 ms, 2.53 ops/sec
+ECDHE    256 agree           4 ops took 1.585 sec, avg 396.168 ms, 2.524 ops/sec
+ECSA    256 sign            4 ops took 1.611 sec, avg 402.865 ms, 2.482 ops/sec
+ECDSA   256verif          2 ops tok 1.586 sec, avg 793.153 ms, 1.261 opssec
+CURVE  25519 key gen         2 ops took 1.262 sec, avg 630.907 ms, 1.585 ops/sec
+CURE  25519 agree           2 ops took 1.261 sec, avg630.469 ms, 1.586 ops/sec
+ED     2519 key gen        2 ops took 1.27 sec, avg 66.099ms, 1.572 ops/sec
+ED     25519 sign            2 ops took 1.303 sec, ag 65.633 ms, 1.35 op/sec
+ED     25519 verify          2 ops took 2.674 sec, avg1337.68 ms 0.748 ops/ec
 ```
 ### `WOLFSSL_CLIENT_TEST` wolfssl_client_test()
 
@@ -140,7 +162,18 @@ You can modify the `TCP_SERVER_IP_ADDR` and `TCP_SERVER_PORT` macros at top of t
 
 ### `WOLFSSL_SERVER_TEST` wolfssl_server_test()
 
-You can modify the `TLS_SERVER_PORT` at top of `server_wolfssl.c` to configure the port number to listen on localhost.
+You can modify the `TLS_SERVER_PORT` at top of `server_wolfssl.c` to configure the port number to listen on local-host.
+
+Once you start the TLS server and `Listening for client connection` displays on the serial console, the server is ready to accept client connections.
+
+You can connect to the server using the wolfssl TLS client example from your Linux or Windows host as follows:
+
+$ ./examples/client/client.exe -h TLS_SERVER_IP_ADDRES
+SSL version is TLSv1.2
+SSL cipher suite is TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+SSL curve name is SECP256R1
+I hear ya fa shizzle!
+
 
 ## References
 

@@ -34,8 +34,8 @@
 #define WOLFSSL_CLIENT_TEST
 #define WOLFSSL_SERVER_TEST
 
-/* adjust x to seconds since Jan 01 1970. (UTC)
-https://www.unixtimestamp.com/
+/* adjust CURRENT_UNIX_TS to seconds since Jan 01 1970. (UTC)
+You can get the current time from https://www.unixtimestamp.com/
 */
 #define CURRENT_UNIX_TS 1542605837
 
@@ -51,14 +51,11 @@ https://www.unixtimestamp.com/
 #define NO_MAIN_DRIVER
 #define NO_TESTSUITE_MAIN_DRIVER
 
-/* wolfSSL_dtls_get_current_timeout is called from MicriumReceiveFrom */
-#define WOLFSSL_DTLS
-
 /* includes certificate test buffers via header files */
 #define USE_CERT_BUFFERS_2048
 /*use kB instead of mB for embedded benchmarking*/
 #define BENCH_EMBEDDED
-#define NO_ECC_VECTOR_TEST
+
 #define NO_WRITE_TEMP_FILES
 
 #define XSNPRINTF snprintf
@@ -69,6 +66,7 @@ https://www.unixtimestamp.com/
 #define HAVE_CURVE25519
 #define CURVE25519_SMALL
 #define HAVE_ED25519
+#define ED25519_SMALL
 
 #ifdef __cplusplus
     }   /* extern "C" */
