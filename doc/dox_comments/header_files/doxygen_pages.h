@@ -45,6 +45,7 @@
         <li>\ref MD5</li>
         <li>\ref Password</li>
         <li>\ref PKCS7</li>
+        <li>\ref PKCS11</li>
         <li>\ref Poly1305</li>
         <li>\ref Rabbit</li>
         <li>\ref RIPEMD</li>
