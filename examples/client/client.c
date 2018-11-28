@@ -258,7 +258,7 @@ static const char* client_bench_conmsg[][5] = {
         "wolfSSL_connect avg took:", "milliseconds\n",
         NULL
     },
-    #ifndef NO_MULTIBYTE
+    #ifndef NO_MULTIBYTE_PRINT
     /* Japanese */
     {
         "wolfSSL_resume  平均時間:", "ミリ秒\n",
@@ -942,7 +942,7 @@ static const char* client_usage_msg[][59] = {
                                "            0: English, 1: Japanese\n", /* 58 */
         NULL,
     },
-#ifndef NO_MULTIBYTE
+#ifndef NO_MULTIBYTE_PRINT
     /* Japanese */
         {
         " 注意 : 全てのファイルは wolfSSL ホーム・ディレクトリからの相対です。"

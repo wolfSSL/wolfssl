@@ -35,7 +35,7 @@
 #define WOLFSSL_CURRTIME_OSTICK /* use OS tich for current_time */
 #define WOLFSSL_GMTIME
 
-#define NO_MULTIBYTE
+#define NO_MULTIBYTE_PRINT
 // <<< Use Configuration Wizard in Context Menu >>>
 
 
