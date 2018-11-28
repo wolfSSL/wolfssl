@@ -4346,38 +4346,28 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, byte* input,
     int ret = SECURE_RENEGOTIATION_E;
 
     if (length >= OPAQUE8_LEN) {
-        if (ssl->secure_renegotiation == NULL) {
+        if (isRequest) {
         #ifndef NO_WOLFSSL_SERVER
-            if (isRequest && *input == 0) {
-            #ifdef HAVE_SERVER_RENEGOTIATION_INFO
-                if (length == OPAQUE8_LEN) {
-                    ret = TLSX_UseSecureRenegotiation(&ssl->extensions,
-                            ssl->heap);
-                    if (ret != WOLFSSL_SUCCESS)
-                        return ret;
+            if (ssl->secure_renegotiation == NULL) {
+                if (*input == 0) {
                     ret = 0;
-                    TLSX* extension = TLSX_Find(ssl->extensions, TLSX_RENEGOTIATION_INFO);
-                    if (extension) {
-                        ssl->secure_renegotiation = (SecureRenegotiation*)extension->data;
-                        extension->resp = 1;
-                        ssl->secure_renegotiation->enabled = 1;
-                    }
                 }
-            #else
-                ret = 0;  /* don't reply, user didn't enable */
-            #endif /* HAVE_SERVER_RENEGOTIATION_INFO */
+                else {
+                    /* already in error state */
+                    WOLFSSL_MSG("SCR client verify data present");
+                }
             }
-            #ifdef HAVE_SERVER_RENEGOTIATION_INFO
-            else if (!isRequest) {
-                /* don't do anything on client side */
-                ret = 0;
+            else if (ssl->secure_renegotiation->enabled) {
+
+                if (*input == 0) {
+                    input++; /* get past size */
+
+                    ssl->secure_renegotiation->enabled = 1;
+                    TLSX_SetResponse(ssl, TLSX_RENEGOTIATION_INFO);
+                    ret = 0;
+                }
             }
-            #endif
-        #endif
-        }
-        else if (isRequest) {
-        #ifndef NO_WOLFSSL_SERVER
-            if (*input == TLS_FINISHED_SZ) {
+            else if (*input == TLS_FINISHED_SZ) {
                 input++; /* get past size */
 
                 /* validate client verify data */
@@ -4385,8 +4375,8 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, byte* input,
                             ssl->secure_renegotiation->client_verify_data,
                             TLS_FINISHED_SZ) == 0) {
                     WOLFSSL_MSG("SCR client verify data match");
-                    ret = 0;  /* verified */
                     TLSX_SetResponse(ssl, TLSX_RENEGOTIATION_INFO);
+                    ret = 0;  /* verified */
                 } else {
                     /* already in error state */
                     WOLFSSL_MSG("SCR client verify data Failure");
@@ -4454,14 +4444,8 @@ int TLSX_UseSecureRenegotiation(TLSX** extensions, void* heap)
 
 #ifdef HAVE_SERVER_RENEGOTIATION_INFO
 
-int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap)
+int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions)
 {
-    int ret;
-
-    ret = TLSX_Push(extensions, TLSX_RENEGOTIATION_INFO, NULL, heap);
-    if (ret != 0)
-        return ret;
-
     /* send empty renegotiation_info extension */
     TLSX* ext = TLSX_Find(*extensions, TLSX_RENEGOTIATION_INFO);
     if (ext)

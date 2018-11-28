@@ -1660,7 +1660,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             err_sys("unable to set mcast secret");
 #endif
     }
-#if 0
+
 #ifdef HAVE_SECURE_RENEGOTIATION
         if (scr) {
             if (wolfSSL_UseSecureRenegotiation(ssl) != WOLFSSL_SUCCESS) {
@@ -1668,7 +1668,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             }
         }
 #endif /* HAVE_SECURE_RENEGOTIATION */
-#endif
+
 #ifndef NO_HANDSHAKE_DONE_CB
         wolfSSL_SetHsDoneCb(ssl, myHsDoneCb, NULL);
 #endif
@@ -1991,15 +1991,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         if (scr && forceScr) {
             if (nonBlocking) {
                 printf("not doing secure renegotiation on example with"
-                       " nonblocking yet");
+                       " nonblocking yet\n");
             } else {
                 if (wolfSSL_Rehandshake(ssl) != WOLFSSL_SUCCESS) {
-                    err = wolfSSL_get_error(ssl, 0);
-                    printf("err = %d, %s\n", err,
-                                    wolfSSL_ERR_error_string(err, buffer));
-                    wolfSSL_free(ssl); ssl = NULL;
-                    wolfSSL_CTX_free(ctx); ctx = NULL;
-                    err_sys("wolfSSL_Rehandshake failed");
+                    printf("not doing secure renegotiation\n");
+
                 }
             }
         }

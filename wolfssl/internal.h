@@ -2284,7 +2284,7 @@ typedef struct SecureRenegotiation {
 WOLFSSL_LOCAL int TLSX_UseSecureRenegotiation(TLSX** extensions, void* heap);
 
 #ifdef HAVE_SERVER_RENEGOTIATION_INFO
-WOLFSSL_LOCAL int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap);
+WOLFSSL_LOCAL int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions);
 #endif
 
 #endif /* HAVE_SECURE_RENEGOTIATION */
