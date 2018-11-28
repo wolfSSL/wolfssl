@@ -4349,22 +4349,20 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, byte* input,
         if (isRequest) {
         #ifndef NO_WOLFSSL_SERVER
             if (ssl->secure_renegotiation == NULL) {
-                if (*input == 0) {
-                    ret = 0;
-                }
-                else {
-                    /* already in error state */
-                    WOLFSSL_MSG("SCR client verify data present");
-                }
+                /* already in error state */
+                WOLFSSL_MSG("server SCR not available");
             }
-            else if (ssl->secure_renegotiation->enabled) {
-
+            else if (!ssl->secure_renegotiation->enabled) {
                 if (*input == 0) {
                     input++; /* get past size */
 
                     ssl->secure_renegotiation->enabled = 1;
                     TLSX_SetResponse(ssl, TLSX_RENEGOTIATION_INFO);
                     ret = 0;
+                }
+                else {
+                    /* already in error state */
+                    WOLFSSL_MSG("SCR client verify data present");
                 }
             }
             else if (*input == TLS_FINISHED_SZ) {
