@@ -215,7 +215,7 @@ void wc_Pkcs11Token_Final(Pkcs11Token* token)
     if (token != NULL && token->func != NULL) {
         token->func->C_CloseAllSessions(token->slotId);
         token->handle = NULL_PTR;
-        ForceZero(token->userPin, token->userPinSz);
+        ForceZero(token->userPin, (word32)token->userPinSz);
     }
 }
 
