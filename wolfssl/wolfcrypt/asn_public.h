@@ -71,7 +71,9 @@ enum CertType {
     TRUSTED_PEER_TYPE,
     EDDSA_PRIVATEKEY_TYPE,
     ED25519_TYPE,
-    PKCS12_TYPE
+    PKCS12_TYPE,
+    PKCS8_PRIVATEKEY_TYPE,
+    PKCS8_ENC_PRIVATEKEY_TYPE
 };
 
 
@@ -417,6 +419,11 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
                                 word32 outputSz, byte *cipherIno, int type);
 #endif
 
+#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+    WOLFSSL_API int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx,
+        word32 inSz, const byte** n, word32* nSz, const byte** e, word32* eSz);
+#endif
+
 #ifdef HAVE_ECC
     /* private key helpers */
     WOLFSSL_API int wc_EccPrivateKeyDecode(const byte*, word32*,
@@ -477,6 +484,28 @@ WOLFSSL_API int wc_GetTime(void* timePtr, word32 timeSize);
     WOLFSSL_API int wc_EncryptedInfoGet(EncryptedInfo* info,
         const char* cipherInfo);
 #endif
+
+
+#ifdef WOLFSSL_CERT_PIV
+
+typedef struct _wc_CertPIV {
+    const byte*  cert;
+    word32       certSz;
+    const byte*  certErrDet;
+    word32       certErrDetSz;
+    const byte*  nonce;         /* Identiv Only */
+    word32       nonceSz;       /* Identiv Only */
+    const byte*  signedNonce;   /* Identiv Only */
+    word32       signedNonceSz; /* Identiv Only */
+
+    /* flags */
+    word16       compression:2;
+    word16       isX509:1;
+    word16       isIdentiv:1;
+} wc_CertPIV;
+
+WOLFSSL_API int wc_ParseCertPIV(wc_CertPIV* cert, const byte* buf, word32 totalSz);
+#endif /* WOLFSSL_CERT_PIV */
 
 
 #ifdef __cplusplus

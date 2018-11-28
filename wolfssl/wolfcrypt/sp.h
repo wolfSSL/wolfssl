@@ -40,7 +40,7 @@
 #elif defined(__GNUC__)
     #define SP_NOINLINE __attribute__((noinline))
 #else
-    #define 5P_NOINLINE
+    #define SP_NOINLINE
 #endif
 
 

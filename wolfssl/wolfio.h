@@ -30,10 +30,13 @@
     extern "C" {
 #endif
 
-/* OCSP and CRL_IO require HTTP client */
-#if defined(HAVE_OCSP) || defined(HAVE_CRL_IO)
-    #ifndef HAVE_HTTP_CLIENT
-        #define HAVE_HTTP_CLIENT
+/* Micrium uses NetSock I/O callbacks in wolfio.c */
+#if !defined(WOLFSSL_USER_IO)
+    /* OCSP and CRL_IO require HTTP client */
+    #if defined(HAVE_OCSP) || defined(HAVE_CRL_IO)
+        #ifndef HAVE_HTTP_CLIENT
+            #define HAVE_HTTP_CLIENT
+        #endif
     #endif
 #endif
 
@@ -293,7 +296,7 @@
 /* IO API's */
 #ifdef HAVE_IO_TIMEOUT
     WOLFSSL_API  int wolfIO_SetBlockingMode(SOCKET_T sockfd, int non_blocking);
-    WOLFSSL_API void wolfIO_SetTimeout(int to_sec);;
+    WOLFSSL_API void wolfIO_SetTimeout(int to_sec);
     WOLFSSL_API  int wolfIO_Select(SOCKET_T sockfd, int to_sec);
 #endif
 WOLFSSL_API  int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip,

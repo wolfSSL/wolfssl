@@ -35,7 +35,11 @@
 
 #define MAX_ARGS 40
 #define MAX_COMMAND_SZ 240
-#define MAX_SUITE_SZ 80
+#ifdef WOLFSSL_TLS13
+    #define MAX_SUITE_SZ 200
+#else
+    #define MAX_SUITE_SZ 80
+#endif
 #define NOT_BUILT_IN -123
 #if defined(NO_OLD_TLS) || !defined(WOLFSSL_ALLOW_SSLV3) || \
     !defined(WOLFSSL_ALLOW_TLSV10)
@@ -162,25 +166,20 @@ static int IsValidCert(const char* line)
     int ret = 1;
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     WOLFSSL_CTX* ctx;
-#ifndef WOLFSSL_NO_TLS12
-    wolfSSL_method_func method = wolfTLSv1_2_server_method_ex;
-#else
-    wolfSSL_method_func method = wolfTLSv1_3_server_method_ex;
-#endif
     size_t i;
     const char* begin;
     char cert[80];
 
     begin = XSTRSTR(line, "-c ");
     if (begin == NULL)
-        return 0;
+        return 1;
 
     begin += 3;
     for (i = 0; i < sizeof(cert) - 1 && *begin != ' ' && *begin != '\0'; i++)
         cert[i] = *(begin++);
     cert[i] = '\0';
 
-    ctx = wolfSSL_CTX_new(method(NULL));
+    ctx = wolfSSL_CTX_new(wolfSSLv23_server_method_ex(NULL));
     if (ctx == NULL)
         return 0;
     ret = wolfSSL_CTX_use_certificate_chain_file(ctx, cert) == WOLFSSL_SUCCESS;
@@ -782,6 +781,29 @@ int SuiteTest(void)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
+#endif
+
+#ifdef HAVE_MAX_FRAGMENT
+    /* Max fragment cipher suite tests */
+    strcpy(argv0[1], "tests/test-maxfrag.conf");
+    printf("starting max fragment cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+
+    #ifdef WOLFSSL_DTLS
+    strcpy(argv0[1], "tests/test-maxfrag-dtls.conf");
+    printf("starting dtls max fragment cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    #endif
 #endif
 
     /* failure tests */

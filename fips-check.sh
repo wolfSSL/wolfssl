@@ -161,6 +161,8 @@ linuxv2)
   CRYPT_VERSION=$LINUXV2_CRYPT_VERSION
   CRYPT_INC_PATH=wolfssl/wolfcrypt
   CRYPT_SRC_PATH=wolfcrypt/src
+# Replace the WC_MODS list for now. Do not want to copy over random.c yet.
+  WC_MODS=( aes des3 sha sha256 sha512 rsa hmac )
   WC_MODS+=( cmac dh ecc )
   FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
   FIPS_INCS=( fips.h )
@@ -204,7 +206,7 @@ pushd $TEST_DIR || exit 2
 if [ "x$FIPS_OPTION" == "xv1" ];
 then
     # make a clone of the last FIPS release tag
-    if ! $GIT clone -b $CRYPT_VERSION $CRYPT_REPO old-tree; then
+    if ! $GIT clone --depth 1 -b $CRYPT_VERSION $CRYPT_REPO old-tree; then
         echo "fips-check: Couldn't checkout the FIPS release."
         exit 1
     fi
@@ -222,7 +224,8 @@ then
        [ "x$PLATFORM" != "xnetos-7.6" ];
     then
         pushd old-tree || exit 2
-        $GIT checkout v3.6.0
+        $GIT fetch origin v3.6.0
+        $GIT checkout FETCH_HEAD
         popd || exit 2
         cp "old-tree/$CRYPT_SRC_PATH/random.c" $CRYPT_SRC_PATH
         cp "old-tree/$CRYPT_INC_PATH/random.h" $CRYPT_INC_PATH
@@ -237,7 +240,7 @@ else
 fi
 
 # clone the FIPS repository
-if ! $GIT clone -b $FIPS_VERSION $FIPS_REPO fips; then
+if ! $GIT clone --depth 1 -b $FIPS_VERSION $FIPS_REPO fips; then
     echo "fips-check: Couldn't checkout the FIPS repository."
     exit 1
 fi

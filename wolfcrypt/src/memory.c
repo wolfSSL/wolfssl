@@ -60,6 +60,10 @@ Possible memory options:
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
+#if defined(WOLFSSL_DEBUG_MEMORY) && defined(WOLFSSL_DEBUG_MEMORY_PRINT)
+#include <stdio.h>
+#endif
+
 #ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
     static int gMemFailCountSeed;
     static int gMemFailCount;
@@ -127,7 +131,7 @@ void* wolfSSL_Malloc(size_t size)
     }
 
 #ifdef WOLFSSL_DEBUG_MEMORY
-#ifdef WOLFSSL_DEBUG_MEMORY_PRINT
+#if defined(WOLFSSL_DEBUG_MEMORY_PRINT) && !defined(WOLFSSL_TRACK_MEMORY)
     printf("Alloc: %p -> %u at %s:%d\n", res, (word32)size, func, line);
 #else
     (void)func;
@@ -168,7 +172,7 @@ void wolfSSL_Free(void *ptr)
 #endif
 {
 #ifdef WOLFSSL_DEBUG_MEMORY
-#ifdef WOLFSSL_DEBUG_MEMORY_PRINT
+#if defined(WOLFSSL_DEBUG_MEMORY_PRINT) && !defined(WOLFSSL_TRACK_MEMORY)
     printf("Free: %p at %s:%d\n", ptr, func, line);
 #else
     (void)func;

@@ -175,6 +175,12 @@
 /* Uncomment next line if building for using Apache mynewt */
 /* #define WOLFSSL_APACHE_MYNEWT */
 
+/* Uncomment next line if building for using ESP-IDF */
+/* #define WOLFSSL_ESPIDF */
+
+/* Uncomment next line if using Espressif ESP32-WROOM-32 */
+/* #define WOLFSSL_ESPWROOM32 */
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -215,6 +221,22 @@
     #endif
     #include <nx_api.h>
 #endif
+
+#if defined(WOLFSSL_ESPIDF)
+    #define FREERTOS
+    #define WOLFSSL_LWIP
+    #define NO_WRITEV
+    #define SIZEOF_LONG_LONG 8
+    #define NO_WOLFSSL_DIR
+    #define WOLFSSL_NO_CURRDIR
+
+    #define TFM_TIMING_RESISTANT
+    #define ECC_TIMING_RESISTANT
+    #define WC_RSA_BLINDING
+#if !defined(WOLFSSL_USER_SETTINGS)
+    #define HAVE_ECC
+#endif /* !WOLFSSL_USER_SETTINGS */
+#endif /* WOLFSSL_ESPIDF */
 
 #if defined(HAVE_LWIP_NATIVE) /* using LwIP native TCP socket */
     #define WOLFSSL_LWIP
@@ -564,7 +586,7 @@ extern void uITRON4_free(void *p) ;
     #include "tm/tmonitor.h"
 
     /* static char* gets(char *buff); */
-    static char* fgets(char *buff, int sz, FILE *fp) {
+    static char* fgets(char *buff, int sz, XFILE fp) {
         char * p = buff;
         *p = '\0';
         while (1) {
@@ -609,7 +631,9 @@ extern void uITRON4_free(void *p) ;
         #define XMALLOC(s, h, type)  pvPortMalloc((s))
         #define XFREE(p, h, type)    vPortFree((p))
     #endif
-
+    #if defined(HAVE_ED25519) || defined(WOLFSSL_ESPIDF)
+        #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n))
+    #endif
     #ifndef NO_WRITEV
         #define NO_WRITEV
     #endif
@@ -1023,14 +1047,6 @@ extern void uITRON4_free(void *p) ;
                     #undef  NO_ECC256
                     #define HAVE_ECC384
                 #endif
-
-                /* enable features */
-                #undef  HAVE_CURVE25519
-                #define HAVE_CURVE25519
-                #undef  HAVE_ED25519
-                #define HAVE_ED25519
-                #undef  WOLFSSL_SHA512
-                #define WOLFSSL_SHA512
             #endif
         #endif
     #endif
@@ -1169,12 +1185,6 @@ extern void uITRON4_free(void *p) ;
         #define CUSTOM_RAND_TYPE     RAND_NBR
         #define CUSTOM_RAND_GENERATE Math_Rand
     #endif
-
-    #define WOLFSSL_TYPES
-    typedef CPU_INT08U byte;
-    typedef CPU_INT16U word16;
-    typedef CPU_INT32U word32;
-
     #define STRING_USER
     #define XSTRLEN(pstr) ((CPU_SIZE_T)Str_Len((CPU_CHAR *)(pstr)))
     #define XSTRNCPY(pstr_dest, pstr_src, len_max) \
@@ -1382,7 +1392,7 @@ extern void uITRON4_free(void *p) ;
     #if !defined(HAVE_FIPS) && !defined(NO_RSA)
         #define WC_RSA_BLINDING
     #endif
-	
+
     #define NO_FILESYSTEM
     #define ECC_TIMING_RESISTANT
     #define TFM_TIMING_RESISTANT
@@ -1751,7 +1761,8 @@ extern void uITRON4_free(void *p) ;
 #ifndef WC_NO_HARDEN
     #if (defined(USE_FAST_MATH) && !defined(TFM_TIMING_RESISTANT)) || \
         (defined(HAVE_ECC) && !defined(ECC_TIMING_RESISTANT)) || \
-        (!defined(NO_RSA) && !defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS))
+        (!defined(NO_RSA) && !defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS) && \
+            !defined(WC_NO_RNG))
 
         #ifndef _MSC_VER
             #warning "For timing resistance / side-channel attack prevention consider using harden options"

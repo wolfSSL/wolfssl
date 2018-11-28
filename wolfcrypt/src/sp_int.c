@@ -590,7 +590,7 @@ int sp_lshd(sp_int* a, int s)
     if (a->used + s > a->size)
         a->used = a->size - s;
 
-    XMEMMOVE(a->dp + s, a->dp, a->used * SP_INT_DIGITS);
+    XMEMMOVE(a->dp + s, a->dp, a->used * sizeof(sp_int_digit));
     a->used += s;
     XMEMSET(a->dp, 0, s * sizeof(sp_int_digit));
 

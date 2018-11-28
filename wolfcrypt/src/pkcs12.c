@@ -751,6 +751,7 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
     byte* buf             = NULL;
     word32 i, oid;
     int ret, pswSz;
+    word32 algId;
 
     WOLFSSL_ENTER("wc_PKCS12_parse");
 
@@ -900,7 +901,7 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                             ERROR_OUT(MEMORY_E, exit_pk12par);
                         }
                         XMEMCPY(*pkey, data + idx, size);
-                        *pkeySz =  ToTraditional(*pkey, size);
+                        *pkeySz =  ToTraditional_ex(*pkey, size, &algId);
                     }
 
                 #ifdef WOLFSSL_DEBUG_PKCS12
@@ -937,7 +938,8 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                         XMEMCPY(k, data + idx, size);
 
                         /* overwrites input, be warned */
-                        if ((ret = ToTraditionalEnc(k, size, psw, pswSz)) < 0) {
+                        if ((ret = ToTraditionalEnc(k, size, psw, pswSz,
+                                                                 &algId)) < 0) {
                             XFREE(k, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                             goto exit_pk12par;
                         }

@@ -153,7 +153,11 @@ int wolfCrypt_Init(void)
     #endif
 
     #if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A)
-        atmel_init();
+        ret = atmel_init();
+        if (ret != 0) {
+            WOLFSSL_MSG("CryptoAuthLib init failed");
+            return ret;
+        }
     #endif
 
     #if defined(WOLFSSL_STSAFEA100)
@@ -1512,6 +1516,9 @@ time_t micrium_time(time_t* timer)
     CLK_TS_SEC sec;
 
     Clk_GetTS_Unix(&sec);
+
+    if (timer != NULL)
+        *timer = sec;
 
     return (time_t) sec;
 }

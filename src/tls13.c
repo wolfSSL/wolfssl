@@ -5362,7 +5362,13 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     (RsaKey*)ssl->hsKey,
                     ssl->buffers.key
                 );
-                args->length = (word16)args->sigLen;
+                if (ret == 0) {
+                    args->length = (word16)args->sigLen;
+
+                    XMEMCPY(args->sigData,
+                        args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
+                        args->sigLen);
+                }
             }
         #endif /* !NO_RSA */
 
@@ -5383,10 +5389,6 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
         {
         #ifndef NO_RSA
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
-                XMEMCPY(args->sigData,
-                    args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
-                    args->sigLen);
-
                 /* check for signature faults */
                 ret = VerifyRsaSign(ssl, args->sigData, args->sigLen,
                     sig->buffer, sig->length, args->sigAlgo,
@@ -5823,7 +5825,7 @@ exit_dcv:
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* Handle async operation */
     if (ret == WC_PENDING_E) {
-        /* Mark message as not recevied so it can process again */
+        /* Mark message as not received so it can process again */
         ssl->msgsReceived.got_certificate_verify = 0;
 
         return ret;
@@ -8448,7 +8450,7 @@ int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
     if (ssl->options.handShakeState == NULL_STATE) {
         ssl->earlyData = expecting_early_data;
         ret = wolfSSL_connect_TLSv13(ssl);
-        if (ret <= 0)
+        if (ret != WOLFSSL_SUCCESS)
             return WOLFSSL_FATAL_ERROR;
     }
     if (ssl->options.handShakeState == CLIENT_HELLO_COMPLETE) {

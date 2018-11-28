@@ -19,7 +19,10 @@ extern "C" {
 #define SINGLE_THREADED
 
 #undef  WOLFSSL_SMALL_STACK
-#define WOLFSSL_SMALL_STACK
+//#define WOLFSSL_SMALL_STACK
+
+#undef  WOLFSSL_SMALL_STACK_CACHE
+//#define WOLFSSL_SMALL_STACK_CACHE
 
 
 /* ------------------------------------------------------------------------- */
@@ -58,7 +61,7 @@ extern "C" {
     #define HAVE_ECC224
     #undef NO_ECC256
     #define HAVE_ECC384
-    #ifndef USE_NXP_LTC /* NXP LTC HW supports up to 512 */
+    #ifndef USE_NXP_LTC /* NXP LTC HW supports up to 384 */
         #define HAVE_ECC521
     #endif
 
@@ -221,7 +224,7 @@ extern "C" {
         #endif
         #ifdef USE_NXP_LTC
             #define FREESCALE_USE_LTC
-            #define LTC_MAX_ECC_BITS    (512)
+            #define LTC_MAX_ECC_BITS    (384)
             #define LTC_MAX_INT_BYTES   (256)
 
             //#define FREESCALE_LTC_TFM_RSA_4096_ENABLE

@@ -670,7 +670,7 @@
                                                           defined(HAVE_ED25519))
             #define BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256
         #endif
-        #ifndef NO_RSA
+        #if !defined(NO_RSA) && defined(HAVE_ECC)
             #define BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
         #endif
         #if !defined(NO_DH) && !defined(NO_RSA)
@@ -1275,9 +1275,11 @@ enum Misc {
 #endif
 
 #ifdef HAVE_SELFTEST
-    AES_256_KEY_SIZE    = 32,
+    #define WOLFSSL_AES_KEY_SIZE_ENUM
     AES_IV_SIZE         = 16,
     AES_128_KEY_SIZE    = 16,
+    AES_192_KEY_SIZE    = 24,
+    AES_256_KEY_SIZE    = 32,
 #endif
 
     MAX_IV_SZ           = AES_BLOCK_SIZE,
@@ -1323,7 +1325,9 @@ enum Misc {
 
     EVP_SALT_SIZE       =  8,  /* evp salt size 64 bits   */
 
+#ifndef ECDHE_SIZE /* allow this to be overriden at compile-time */
     ECDHE_SIZE          = 32,  /* ECHDE server size defaults to 256 bit */
+#endif
     MAX_EXPORT_ECC_SZ   = 256, /* Export ANS X9.62 max future size */
     MAX_CURVE_NAME_SZ   = 16,  /* Maximum size of curve name string */
 
@@ -1585,6 +1589,9 @@ typedef struct Suites Suites;
 
 /* defaults to client */
 WOLFSSL_LOCAL void InitSSL_Method(WOLFSSL_METHOD*, ProtocolVersion);
+
+WOLFSSL_LOCAL int InitSSL_Suites(WOLFSSL* ssl);
+WOLFSSL_LOCAL int InitSSL_Side(WOLFSSL* ssl, word16 side);
 
 /* for sniffer */
 WOLFSSL_LOCAL int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
@@ -3394,7 +3401,7 @@ struct WOLFSSL_X509 {
     byte*            authKeyId;
     byte*            subjKeyId;
     byte*            extKeyUsageSrc;
-    byte*            CRLInfo;
+    const byte*      CRLInfo;
     byte*            authInfo;
     word32           pathLength;
     word16           keyUsage;
@@ -3466,7 +3473,7 @@ typedef struct DtlsMsg {
     DtlsFrag*       fragList;
     word32          fragSz;    /* Length of fragments received */
     word32          seq;       /* Handshake sequence number    */
-    word32          sz;        /* Length of whole mesage       */
+    word32          sz;        /* Length of whole message      */
     byte            type;
 } DtlsMsg;
 
@@ -3527,7 +3534,7 @@ typedef struct HS_Hashes {
 #endif
 #if defined(HAVE_ED25519) && !defined(WOLFSSL_NO_CLIENT_AUTH)
     byte*           messages;           /* handshake messages */
-    int             length;             /* length of handhsake messages' data */
+    int             length;             /* length of handshake messages' data */
     int             prevLen;            /* length of messages but last */
 #endif
 } HS_Hashes;

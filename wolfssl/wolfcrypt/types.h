@@ -187,7 +187,7 @@
     /* GCC 7 has new switch() fall-through detection */
     #if defined(__GNUC__)
         #if ((__GNUC__ > 7) || ((__GNUC__ == 7) && (__GNUC_MINOR__ >= 1)))
-            #define FALL_THROUGH __attribute__ ((fallthrough));
+            #define FALL_THROUGH __attribute__ ((fallthrough))
         #endif
     #endif
     #ifndef FALL_THROUGH
@@ -282,10 +282,10 @@
     /* declare/free variable handling for async */
     #ifdef WOLFSSL_ASYNC_CRYPT
         #define DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
-            VAR_TYPE* VAR_NAME = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * VAR_SIZE, HEAP, DYNAMIC_TYPE_WOLF_BIGINT);
+            VAR_TYPE* VAR_NAME = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * VAR_SIZE, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT);
         #define DECLARE_VAR_INIT(VAR_NAME, VAR_TYPE, VAR_SIZE, INIT_VALUE, HEAP) \
             VAR_TYPE* VAR_NAME = ({ \
-                VAR_TYPE* ptr = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * VAR_SIZE, HEAP, DYNAMIC_TYPE_WOLF_BIGINT); \
+                VAR_TYPE* ptr = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * VAR_SIZE, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
                 if (ptr && INIT_VALUE) { \
                     XMEMCPY(ptr, INIT_VALUE, sizeof(VAR_TYPE) * VAR_SIZE); \
                 } \
@@ -295,13 +295,13 @@
             VAR_TYPE* VAR_NAME[VAR_ITEMS]; \
             int idx##VAR_NAME; \
             for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
-                VAR_NAME[idx##VAR_NAME] = (VAR_TYPE*)XMALLOC(VAR_SIZE, HEAP, DYNAMIC_TYPE_WOLF_BIGINT); \
+                VAR_NAME[idx##VAR_NAME] = (VAR_TYPE*)XMALLOC(VAR_SIZE, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
             }
         #define FREE_VAR(VAR_NAME, HEAP) \
-            XFREE(VAR_NAME, HEAP, DYNAMIC_TYPE_WOLF_BIGINT);
+            XFREE(VAR_NAME, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT);
         #define FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP) \
             for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
-                XFREE(VAR_NAME[idx##VAR_NAME], HEAP, DYNAMIC_TYPE_WOLF_BIGINT); \
+                XFREE(VAR_NAME[idx##VAR_NAME], (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
             }
     #else
         #define DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
@@ -528,6 +528,27 @@
 
     /* hash types */
     enum wc_HashType {
+    #ifdef HAVE_SELFTEST
+        /* In selftest build, WC_* types are not mapped to WC_HASH_TYPE types.
+         * Values here are based on old selftest hmac.h enum, with additions */
+        WC_HASH_TYPE_NONE = 15,
+        WC_HASH_TYPE_MD2 = 16,
+        WC_HASH_TYPE_MD4 = 17,
+        WC_HASH_TYPE_MD5 = 0,
+        WC_HASH_TYPE_SHA = 1, /* SHA-1 (not old SHA-0) */
+        WC_HASH_TYPE_SHA224 = 8,
+        WC_HASH_TYPE_SHA256 = 2,
+        WC_HASH_TYPE_SHA384 = 5,
+        WC_HASH_TYPE_SHA512 = 4,
+        WC_HASH_TYPE_MD5_SHA = 18,
+        WC_HASH_TYPE_SHA3_224 = 10,
+        WC_HASH_TYPE_SHA3_256 = 11,
+        WC_HASH_TYPE_SHA3_384 = 12,
+        WC_HASH_TYPE_SHA3_512 = 13,
+        WC_HASH_TYPE_BLAKE2B = 14,
+
+        WC_HASH_TYPE_MAX = WC_HASH_TYPE_MD5_SHA
+    #else
         WC_HASH_TYPE_NONE = 0,
         WC_HASH_TYPE_MD2 = 1,
         WC_HASH_TYPE_MD4 = 2,
@@ -545,6 +566,7 @@
         WC_HASH_TYPE_BLAKE2B = 14,
 
         WC_HASH_TYPE_MAX = WC_HASH_TYPE_BLAKE2B
+    #endif /* HAVE_SELFTEST */
     };
 
     /* cipher types */
@@ -575,8 +597,10 @@
         WC_PK_TYPE_ECDSA_VERIFY = 5,
         WC_PK_TYPE_ED25519 = 6,
         WC_PK_TYPE_CURVE25519 = 7,
+        WC_PK_TYPE_RSA_KEYGEN = 8,
+        WC_PK_TYPE_EC_KEYGEN = 9,
 
-        WC_PK_TYPE_MAX = WC_PK_TYPE_CURVE25519
+        WC_PK_TYPE_MAX = WC_PK_TYPE_EC_KEYGEN
     };
 
 
@@ -729,7 +753,7 @@
 
     #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
         defined(WOLFSSL_DEBUG_MATH) || defined(DEBUG_WOLFSSL) || \
-        defined(WOLFSSL_PUBLIC_MP) || \
+        defined(WOLFSSL_PUBLIC_MP) || defined(OPENSSL_EXTRA) || \
             (defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT))
         #undef  WC_MP_TO_RADIX
         #define WC_MP_TO_RADIX

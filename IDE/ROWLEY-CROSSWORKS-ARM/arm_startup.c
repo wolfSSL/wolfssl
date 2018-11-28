@@ -155,7 +155,7 @@ void HardFault_HandlerC( uint32_t *hardfault_args )
     printf ("BFAR = %x\n", _BFAR);
 
     // Break into the debugger
-	__asm("BKPT #0\n");
+    __asm("BKPT #0\n");
 }
 
 __attribute__( ( naked ) )
