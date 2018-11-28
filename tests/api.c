@@ -1431,8 +1431,11 @@ static void test_wolfSSL_EC(void)
     /* NISTP256R1 Gx/Gy */
     const char* kGx   = "6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296";
     const char* kGy   = "4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5";
+
+#ifndef HAVE_SELFTEST
     const char* uncompG   = "046B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C2964FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5";
     const char* compG   = "036B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296";
+#endif
 
     AssertNotNull(ctx = BN_CTX_new());
     AssertNotNull(group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
@@ -1489,6 +1492,7 @@ static void test_wolfSSL_EC(void)
 #endif
     XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
 
+#ifndef HAVE_SELFTEST
     hexStr = EC_POINT_point2hex(group, Gxy, POINT_CONVERSION_UNCOMPRESSED, ctx);
     AssertStrEQ(hexStr, uncompG);
     XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
@@ -1496,6 +1500,7 @@ static void test_wolfSSL_EC(void)
     hexStr = EC_POINT_point2hex(group, Gxy, POINT_CONVERSION_COMPRESSED, ctx);
     AssertStrEQ(hexStr, compG);
     XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+#endif
 
     /* cleanup */
     BN_free(X);
