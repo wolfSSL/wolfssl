@@ -2267,8 +2267,8 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 
 /* Remove PKCS8 header, place inOutIdx at beginning of traditional,
  * return traditional length on success, negative on error */
-int ToTraditionalInline(const byte* input, word32* inOutIdx, word32 sz,
-                        word32* algId)
+int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
+                           word32* algId)
 {
     word32 idx;
     int    version, length;
@@ -2302,8 +2302,15 @@ int ToTraditionalInline(const byte* input, word32* inOutIdx, word32 sz,
     return length;
 }
 
+int ToTraditionalInline(const byte* input, word32* inOutIdx, word32 sz)
+{
+    word32 oid;
+
+    return ToTraditionalInline_ex(input, inOutIdx, sz, &oid);
+}
+
 /* Remove PKCS8 header, move beginning of traditional to beginning of input */
-int ToTraditional(byte* input, word32 sz, word32* algId)
+int ToTraditional_ex(byte* input, word32 sz, word32* algId)
 {
     word32 inOutIdx = 0;
     int    length;
@@ -2311,7 +2318,7 @@ int ToTraditional(byte* input, word32 sz, word32* algId)
     if (input == NULL)
         return BAD_FUNC_ARG;
 
-    length = ToTraditionalInline(input, &inOutIdx, sz, algId);
+    length = ToTraditionalInline_ex(input, &inOutIdx, sz, algId);
     if (length < 0)
         return length;
 
@@ -2320,6 +2327,12 @@ int ToTraditional(byte* input, word32 sz, word32* algId)
     return length;
 }
 
+int ToTraditional(byte* input, word32 sz)
+{
+    word32 oid;
+
+    return ToTraditional_ex(input, sz, &oid);
+}
 
 /* find beginning of traditional key inside PKCS#8 unencrypted buffer
  * return traditional length on success, with inOutIdx at beginning of
@@ -2333,7 +2346,7 @@ int wc_GetPkcs8TraditionalOffset(byte* input, word32* inOutIdx, word32 sz)
     if (input == NULL || inOutIdx == NULL || (*inOutIdx > sz))
         return BAD_FUNC_ARG;
 
-    length = ToTraditionalInline(input, inOutIdx, sz, &algId);
+    length = ToTraditionalInline_ex(input, inOutIdx, sz, &algId);
 
     return length;
 }
@@ -3423,7 +3436,7 @@ exit_tte:
 
     if (ret == 0) {
         XMEMMOVE(input, input + inOutIdx, length);
-        ret = ToTraditional(input, length, algId);
+        ret = ToTraditional_ex(input, length, algId);
     }
 
     return ret;
@@ -8999,7 +9012,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         ) && !encrypted_key)
     {
         /* pkcs8 key, convert and adjust length */
-        if ((ret = ToTraditional(der->buffer, der->length, &algId)) > 0) {
+        if ((ret = ToTraditional_ex(der->buffer, der->length, &algId)) > 0) {
             der->length = ret;
         }
         else {
