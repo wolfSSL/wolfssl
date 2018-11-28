@@ -271,3 +271,130 @@ WOLFSSL_API int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g
 */
 WOLFSSL_API int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p,
                             word32* pInOutSz, byte* g, word32* gInOutSz);
+
+/*!
+    \ingroup Diffie-Hellman
+
+    \brief This function returns ... and requires that HAVE_FFDHE_2048 be
+    defined.
+
+    \sa wc_Dh_ffdhe3072_Get
+    \sa wc_Dh_ffdhe4096_Get
+    \sa wc_Dh_ffdhe6144_Get
+    \sa wc_Dh_ffdhe8192_Get
+*/
+WOLFSSL_API const DhParams* wc_Dh_ffdhe2048_Get(void);
+
+/*!
+    \ingroup Diffie-Hellman
+
+    \brief This function returns ... and requires that HAVE_FFDHE_3072 be
+    defined.
+
+    \sa wc_Dh_ffdhe2048_Get
+    \sa wc_Dh_ffdhe4096_Get
+    \sa wc_Dh_ffdhe6144_Get
+    \sa wc_Dh_ffdhe8192_Get
+*/
+WOLFSSL_API const DhParams* wc_Dh_ffdhe3072_Get(void);
+
+/*!
+    \ingroup Diffie-Hellman
+
+    \brief This function returns ... and requires that HAVE_FFDHE_4096 be
+    defined.
+
+    \sa wc_Dh_ffdhe2048_Get
+    \sa wc_Dh_ffdhe3072_Get
+    \sa wc_Dh_ffdhe6144_Get
+    \sa wc_Dh_ffdhe8192_Get
+*/
+WOLFSSL_API const DhParams* wc_Dh_ffdhe4096_Get(void);
+
+/*!
+    \ingroup Diffie-Hellman
+
+    \brief This function returns ... and requires that HAVE_FFDHE_6144 be
+    defined.
+
+    \sa wc_Dh_ffdhe2048_Get
+    \sa wc_Dh_ffdhe3072_Get
+    \sa wc_Dh_ffdhe4096_Get
+    \sa wc_Dh_ffdhe8192_Get
+*/
+WOLFSSL_API const DhParams* wc_Dh_ffdhe6144_Get(void);
+
+/*!
+    \ingroup Diffie-Hellman
+
+    \brief This function returns ... and requires that HAVE_FFDHE_8192 be
+    defined.
+
+    \sa wc_Dh_ffdhe2048_Get
+    \sa wc_Dh_ffdhe3072_Get
+    \sa wc_Dh_ffdhe4096_Get
+    \sa wc_Dh_ffdhe6144_Get
+*/
+WOLFSSL_API const DhParams* wc_Dh_ffdhe8192_Get(void);
+
+/*!
+    \ingroup Diffie-Hellman
+
+    \brief Checks DH keys for pair-wise consistency per process in SP 800-56Ar3,
+    section 5.6.2.1.4, method (b) for FFC.
+*/
+WOLFSSL_API int wc_DhCheckKeyPair(DhKey* key, const byte* pub, word32 pubSz,
+                        const byte* priv, word32 privSz);
+
+/*!
+    \ingroup Diffie-Hellman
+
+    \brief Check DH private key for invalid numbers
+*/
+WOLFSSL_API int wc_DhCheckPrivKey(DhKey* key, const byte* priv, word32 pubSz);
+
+/*!
+    \ingroup Diffie-Hellman
+*/
+WOLFSSL_API int wc_DhCheckPrivKey_ex(DhKey* key, const byte* priv, word32 pubSz,
+                            const byte* prime, word32 primeSz);
+
+/*!
+    \ingroup Diffie-Hellman
+*/
+WOLFSSL_API int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz);
+
+/*!
+    \ingroup Diffie-Hellman
+*/
+WOLFSSL_API int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
+                            const byte* prime, word32 primeSz);
+
+/*!
+    \ingroup Diffie-Hellman
+*/
+WOLFSSL_API int wc_DhExportParamsRaw(DhKey* dh, byte* p, word32* pSz,
+                       byte* q, word32* qSz, byte* g, word32* gSz);
+
+/*!
+    \ingroup Diffie-Hellman
+*/
+WOLFSSL_API int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh);
+
+/*!
+    \ingroup Diffie-Hellman
+*/
+WOLFSSL_API int wc_DhSetCheckKey(DhKey* key, const byte* p, word32 pSz,
+                        const byte* g, word32 gSz, const byte* q, word32 qSz,
+                        int trusted, WC_RNG* rng);
+
+/*!
+    \ingroup Diffie-Hellman
+*/
+WOLFSSL_API int wc_DhSetKey_ex(DhKey* key, const byte* p, word32 pSz,
+                        const byte* g, word32 gSz, const byte* q, word32 qSz);
+
+/*!
+    \ingroup Diffie-Hellman
+*/
+WOLFSSL_API int wc_FreeDhKey(DhKey* key);
