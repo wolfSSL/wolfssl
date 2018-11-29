@@ -29952,7 +29952,7 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ecc,
     /* Key to DER */
     derSz = wc_EccKeyToDer((ecc_key*)ecc->internal, derBuf, der_max_len);
     if (derSz < 0) {
-        WOLFSSL_MSG("wc_DsaKeyToDer failed");
+        WOLFSSL_MSG("wc_EccKeyToDer failed");
         XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
         return WOLFSSL_FAILURE;
     }
@@ -30136,7 +30136,7 @@ int wolfSSL_PEM_write_bio_DSA_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_DSA* dsa)
     }
 
     /* Key to DER */
-    derSz = wc_DsaKeyToDer((DsaKey*)dsa->internal, derBuf, derMax);
+    derSz = wc_DsaKeyToPublicDer((DsaKey*)dsa->internal, derBuf, derMax);
     if (derSz < 0) {
         WOLFSSL_MSG("wc_DsaKeyToDer failed");
         XFREE(derBuf, bio->heap, DYNAMIC_TYPE_DER);

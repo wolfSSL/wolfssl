@@ -4299,8 +4299,189 @@ static WC_INLINE void FreeTmpDsas(byte** tmps, void* heap)
     (void)heap;
 }
 
-/* Convert DsaKey key to DER format, write to output (inLen), return bytes
- written */
+/* Write a public DSA key to output */
+int SetDsaPublicKey(byte* output, DsaKey* key,
+                           int outLen, int with_header)
+{
+
+/* p, g, q = DSA params, y = public exponent */
+#ifdef WOLFSSL_SMALL_STACK
+    byte* p = NULL;
+    byte* g = NULL;
+    byte* q = NULL;
+    byte* y = NULL;
+#else
+    byte p[MAX_DSA_INT_SZ];
+    byte g[MAX_DSA_INT_SZ];
+    byte q[MAX_DSA_INT_SZ];
+    byte y[MAX_DSA_INT_SZ];
+#endif
+    byte seq[MAX_SEQ_SZ];
+    byte bitString[1 + MAX_LENGTH_SZ + 1];
+    int  pSz;
+    int  gSz;
+    int  qSz;
+    int  ySz;
+    int  seqSz;
+    int  bitStringSz;
+    int  idx;
+
+    WOLFSSL_ENTER("SetDsaPublicKey");
+
+    if (output == NULL || key == NULL || outLen < MAX_SEQ_SZ) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* p */
+#ifdef WOLFSSL_SMALL_STACK
+    p = (byte*)XMALLOC(MAX_DSA_INT_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (p == NULL)
+        return MEMORY_E;
+#endif
+    if ((pSz = SetASNIntMP(&key->p, MAX_DSA_INT_SZ, p)) < 0) {
+        WOLFSSL_MSG("SetASNIntMP Error with p");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(p, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return pSz;
+    }
+
+    /* g */
+#ifdef WOLFSSL_SMALL_STACK
+    g = (byte*)XMALLOC(MAX_DSA_INT_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (g == NULL)
+        return MEMORY_E;
+#endif
+    if ((gSz = SetASNIntMP(&key->g, MAX_DSA_INT_SZ, g)) < 0) {
+        WOLFSSL_MSG("SetASNIntMP Error with g");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(g, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return gSz;
+    }
+
+    /* q */
+#ifdef WOLFSSL_SMALL_STACK
+    q = (byte*)XMALLOC(MAX_DSA_INT_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (q == NULL)
+        return MEMORY_E;
+#endif
+    if ((qSz = SetASNIntMP(&key->q, MAX_DSA_INT_SZ, q)) < 0) {
+        WOLFSSL_MSG("SetASNIntMP Error with q");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(q, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return qSz;
+    }
+
+    /* y */
+#ifdef WOLFSSL_SMALL_STACK
+    y = (byte*)XMALLOC(MAX_DSA_INT_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (y == NULL)
+        return MEMORY_E;
+#endif
+    if ((ySz = SetASNIntMP(&key->y, MAX_DSA_INT_SZ, y)) < 0) {
+        WOLFSSL_MSG("SetASNIntMP Error with y");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(y, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ySz;
+    }
+
+    seqSz  = SetSequence(pSz + gSz + qSz + ySz, seq);
+
+    /* check output size */
+    if ((seqSz + pSz + gSz + qSz + ySz) > outLen) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(p,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(g,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(q,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(y,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        WOLFSSL_MSG("Error, output size smaller than outlen");
+        return BUFFER_E;
+    }
+
+    if (with_header) {
+        int algoSz;
+#ifdef WOLFSSL_SMALL_STACK
+        byte* algo = NULL;
+
+        algo = (byte*)XMALLOC(MAX_ALGO_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (algo == NULL) {
+            XFREE(p,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(g,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(q,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(y,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return MEMORY_E;
+        }
+#else
+        byte algo[MAX_ALGO_SZ];
+#endif
+        algoSz = SetAlgoID(DSAk, algo, oidKeyType, 0);
+        bitStringSz  = SetBitString(seqSz + pSz + gSz + qSz + ySz, 0, bitString);
+        idx = SetSequence(pSz + gSz + qSz + ySz + seqSz + bitStringSz + algoSz, output);
+
+        /* check output size */
+        if ((idx + algoSz + bitStringSz + seqSz + pSz + gSz + qSz + ySz) > outLen) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(p,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(g,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(q,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(y,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(algo, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+            WOLFSSL_MSG("Error, output size smaller than outlen");
+            return BUFFER_E;
+        }
+
+        /* algo */
+        XMEMCPY(output + idx, algo, algoSz);
+        idx += algoSz;
+        /* bit string */
+        XMEMCPY(output + idx, bitString, bitStringSz);
+        idx += bitStringSz;
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(algo, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    } else {
+        idx = 0;
+    }
+
+    /* seq */
+    XMEMCPY(output + idx, seq, seqSz);
+    idx += seqSz;
+    /* p */
+    XMEMCPY(output + idx, p, pSz);
+    idx += pSz;
+    /* g */
+    XMEMCPY(output + idx, g, gSz);
+    idx += gSz;
+    /* q */
+    XMEMCPY(output + idx, q, qSz);
+    idx += qSz;
+    /* y */
+    XMEMCPY(output + idx, y, ySz);
+    idx += ySz;
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(p,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(g,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(q,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(y,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return idx;
+}
+
+/* Convert DSA Public key to DER format, write to output (inLen), return bytes
+   written */
+int wc_DsaKeyToPublicDer(DsaKey* key, byte* output, word32 inLen)
+{
+    return SetDsaPublicKey(output, key, inLen, 1);
+}
+
+/* Convert private DsaKey key to DER format, write to output (inLen), 
+return bytes written */
 int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
 {
     word32 seqSz, verSz, rawLen, intTotalLen = 0;
