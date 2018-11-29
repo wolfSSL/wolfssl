@@ -2395,13 +2395,13 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl)
 
         ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
 
-#ifndef NO_WOLFSSL_SERVER
+#if !defined(NO_WOLFSSL_SERVER) && defined(HAVE_SERVER_RENEGOTIATION_INFO)
         if (ssl->options.side == WOLFSSL_SERVER_END) {
             ret = SendHelloRequest(ssl);
             if (ret != 0)
                 return ret;
         }
-#endif /* NO_WOLFSSL_SERVER*/
+#endif /* NO_WOLFSSL_SERVER && HAVE_SERVER_RENEGOTIATION_INFO */
 
         ret = InitHandshakeHashes(ssl);
         if (ret !=0)
