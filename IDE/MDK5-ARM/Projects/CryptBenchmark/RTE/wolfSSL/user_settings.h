@@ -34,9 +34,9 @@
 #define WOLFSSL_USER_CURRTIME /* for benchmark */
 #define WOLFSSL_CURRTIME_OSTICK /* use OS tich for current_time */
 #define WOLFSSL_GMTIME
+#define NO_MULTIBYTE_PRINT
 
 // <<< Use Configuration Wizard in Context Menu >>>
-
 
 //  <h>Common options
 //        <o> MPU<0=>Undefined<1=>STM32F2xx<2=>STM32F4xx<3=>STM32F7xx

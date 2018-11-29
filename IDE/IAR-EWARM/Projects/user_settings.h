@@ -10,6 +10,7 @@
 #define NO_WOLFSSL_DIR 
 #define WOLFSSL_NO_CURRDIR
 #define NO_WOLF_C99
+#define NO_MULTIBYTE_PRINT
 
 #define XVALIDATEDATE(d, f,t) (0)
 #define WOLFSSL_USER_CURRTIME /* for benchmark */
