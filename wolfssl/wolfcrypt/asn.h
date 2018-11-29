@@ -1324,6 +1324,7 @@ enum PBESTypes {
     PBE_SHA1_DES     = 2,
     PBE_SHA1_DES3    = 3,
     PBE_AES256_CBC   = 4,
+    PBE_AES128_CBC   = 5,
 
     PBE_SHA1_RC4_128_SUM = 657,
     PBE_SHA1_DES3_SUM    = 659,

@@ -212,11 +212,7 @@ static int GetASNHeader_ex(const byte* input, byte tag, word32* inOutIdx, int* l
 
     if ((idx + 1) > maxIdx)
         return BUFFER_E;
-    //%%%%%%
-    // printf("idx is: %d\n\n", idx);
-    // printf("input is %p\n\n", input);
     b = input[idx++];
-    // printf("%d", b);
     if (b != tag)
         return ASN_PARSE_E;
 
@@ -881,8 +877,6 @@ static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
     }
 
     b = input[idx];
-    //%%%%%
-   // printf("\n\nBitstring b is %hhx\n\n",b);
     if (zeroBits && b != 0x00){
         return ASN_EXPECT_0_E;
     }
@@ -2827,6 +2821,12 @@ static int CheckAlgoV2(int oid, int* id, int* blockSz)
 #ifdef WOLFSSL_AES_256
     case AES256CBCb:
         *id = PBE_AES256_CBC;
+        if (blockSz) *blockSz = AES_BLOCK_SIZE;
+        return 0;
+#endif
+#ifdef WOLFSSL_AES_128
+    case AES128CBCb:
+        *id = PBE_AES128_CBC;
         if (blockSz) *blockSz = AES_BLOCK_SIZE;
         return 0;
 #endif
@@ -9292,6 +9292,11 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                 break;
             }
         } else
+#ifdef NO_DSA
+        if (header == BEGIN_DSA_PRIV) {
+            header = BEGIN_ENC_PRIV_KEY;    footer = END_ENC_PRIV_KEY;
+        }
+#endif
 #ifdef HAVE_CRL
         if ((type == CRL_TYPE) && (header != BEGIN_CRL)) {
             header =  BEGIN_CRL;                footer = END_CRL;
@@ -9414,6 +9419,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             /* convert and adjust length */
             if (header == BEGIN_ENC_PRIV_KEY) {
             #ifndef NO_PWDBASED
+
                 ret = ToTraditionalEnc(der->buffer, der->length,
                                        password, passwordSz, &algId);
 
