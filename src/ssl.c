@@ -12247,21 +12247,31 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     #endif
 
         XMEMSET(info, 0, sizeof(EncryptedInfo));
-        info->ivSz = EVP_SALT_SIZE;
 
-        ret = wolfSSL_EVP_get_hashinfo(md, &hashType, NULL);
-        if (ret == 0)
-            ret = wc_EncryptedInfoGet(info, type);
-        if (ret == 0)
-            ret = wc_PBKDF1_ex(key, info->keySz, iv, info->ivSz, data, sz, salt,
-                               EVP_SALT_SIZE, count, hashType, NULL);
+        ret = wc_EncryptedInfoGet(info, type);
+		if (ret < 0)
+			goto end;
 
+		if (data == NULL) {
+			ret = info->keySz;
+			goto end;
+		}
+
+		ret = wolfSSL_EVP_get_hashinfo(md, &hashType, NULL);
+		if (ret == WOLFSSL_FAILURE)
+			goto end;
+        
+		ret = wc_PBKDF1_ex(key, info->keySz, iv, info->ivSz, data, sz, salt,
+                            EVP_SALT_SIZE, count, hashType, NULL);
+		if (ret == 0)
+			ret = info->keySz;
+
+	end:
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(info, NULL, DYNAMIC_TYPE_ENCRYPTEDINFO);
     #endif
-
-        if (ret <= 0)
-            return 0; /* failure - for compatibility */
+		if (ret < 0)
+			return 0; /* failure - for compatibility */
 
         return ret;
     }
