@@ -243,6 +243,7 @@ int wc_Des3_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
 int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
     const byte* password, int passwordSz, int hashType)
 {
+    WOLFSSL_ENTER("BufferKeyDecrypt");
     int ret = NOT_COMPILED_IN;
 #ifdef WOLFSSL_SMALL_STACK
     byte* key      = NULL;
@@ -416,6 +417,12 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             derivedLen = 32;
             break;
     #endif
+    #ifdef WOLFSSL_AES_128
+        case PBE_AES128_CBC:
+            typeH = WC_SHA;
+            derivedLen = 16;
+            break;
+    #endif
         default:
             WOLFSSL_MSG("Unknown/Unsupported encrypt/decrypt id");
             return ALGO_ID_E;
@@ -567,6 +574,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
 #if !defined(NO_AES) && defined(HAVE_AES_CBC)
     #ifdef WOLFSSL_AES_256
         case PBE_AES256_CBC:
+        case PBE_AES128_CBC:
         {
             Aes aes;
             ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
