@@ -7065,29 +7065,33 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 #if defined(WOLFSSL_QT)
     int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passed_cert)
     {
-        //should be moved to ..  #include <openssl/x509.h>
-
-        int ext_count=0;//used to return total num extensions
+        int ext_count = 0;
         int length;
-        int outSz = 0;
+        int outSz;
         const byte* rawCert;
-        rawCert = wolfSSL_X509_get_der((WOLFSSL_X509*)passed_cert, &outSz);
+        int sz;
 
+        WOLFSSL_ENTER("wolfSSL_X509_get_ext_count()");
+        rawCert = wolfSSL_X509_get_der((WOLFSSL_X509*)passed_cert, &outSz);
         DecodedCert cert;
-        ParseCert(&cert, CA_TYPE, NO_VERIFY, NULL);
         InitDecodedCert( &cert, rawCert, (word32)outSz, 0);
 
-        const byte* input = cert.extensions;
-        int sz = cert.extensionsSz;
-        word32 idx = 0;
-        WOLFSSL_ENTER("wolfSSL_X509_get_ext_count()");
+        if (ParseCert(&cert, CA_TYPE, NO_VERIFY, NULL) < 0){
+            WOLFSSL_MSG("\tCertificate parsing failed");
+            return WOLFSSL_FAILURE;
+        }
 
-        if(passed_cert == NULL){//not passed a cert
+        const byte* input = cert.extensions;
+        sz = cert.extensionsSz;
+        word32 idx = 0;
+
+        if(passed_cert == NULL){
+            WOLFSSL_MSG("\tNot passed a certificate");
             return BAD_FUNC_ARG;
         }
 
         if (input == NULL || sz == 0)
-            return BAD_FUNC_ARG;
+            return WOLFSSL_FAILURE;
 
         if (input[idx++] != ASN_EXTENSIONS) {
             WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
@@ -7104,10 +7108,16 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
             return ASN_PARSE_E;
         }
 
-        while (idx < (word32)sz) {//iterate through total extension size
-            ext_count++;//increment count for num extenstions
+        while (idx < (word32)sz) {
+            if (GetSequence(input, &idx, &length, sz) < 0) {
+                WOLFSSL_MSG("\tfail: should be a SEQUENCE");
+                return ASN_PARSE_E;
+            }
+
             idx += length;
+            ext_count++;
         }
+
         FreeDecodedCert(&cert);
         return ext_count;
     }
@@ -7115,9 +7125,9 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 #if !defined(NO_WOLFSSL_STUB)
     WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* passed_cert, int loc)
     {
-     (void)passed_cert;
-     (void)loc;
-     WOLFSSL_STUB("wolfSSL_X509_get_ext");
+        WOLFSSL_STUB("wolfSSL_X509_get_ext");
+        (void)passed_cert;
+        (void)loc;
      return 0;
     }
 #endif
@@ -28222,8 +28232,9 @@ int wolfSSL_EC_GROUP_get_degree(const WOLFSSL_EC_GROUP *group)
         case NID_brainpoolP384r1:
             return 384;
         case NID_secp521r1:
-        case NID_brainpoolP512r1:
             return 521;
+        case NID_brainpoolP512r1:
+            return 512;
         default:
             return WOLFSSL_FAILURE;
     }
