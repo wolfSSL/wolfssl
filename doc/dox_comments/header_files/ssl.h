@@ -907,6 +907,10 @@ WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX*, const char*, int);
     read, or is corrupted.
     \return MEMORY_E will be returned if an out of memory condition occurs.
     \return ASN_INPUT_E will be returned if Base16 decoding fails on the file.
+    \return ASN_BEFORE_DATE_E will be returned if the current date is before the
+    before date.
+    \return ASN_AFTER_DATE_E will be returned if the current date is after the
+    after date.
     \return BUFFER_E will be returned if a chain buffer is bigger than the
     receiving buffer.
     \return BAD_PATH_ERROR will be returned if opendir() fails when trying
