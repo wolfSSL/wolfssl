@@ -7014,17 +7014,42 @@ long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
 long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
 {
-    WOLFSSL_STUB("SSL_CTX_ctrl");
-    (void)ctx;
-    (void)cmd;
-    (void)opt;
-    (void)pt;
+    WOLFSSL_ENTER("wolfSSL_CTX_ctrl");
+    switch(cmd) {
+        case SSL_CTRL_OPTIONS:
+            WOLFSSL_MSG("Entering Case: SSL_CTRL_OPTIONS\n");
+            return wolfSSL_CTX_set_options(ctx, opt);
+
+        #ifndef NO_DH
+        case SSL_CTRL_SET_TMP_DH:
+            WOLFSSL_MSG("Entering Case: SSL_CTRL_SET_TMP_DH\n");
+            if (pt == NULL) {
+                WOLFSSL_MSG("Passed in DH pointer NULL.\n");
+                break;
+            }
+            return wolfSSL_CTX_set_tmp_dh(ctx, pt);
+        #endif
+
+        #ifdef HAVE_ECC
+        case SSL_CTRL_SET_TMP_ECDH:
+            WOLFSSL_MSG("Entering Case: SSL_CTRL_SET_TMP_ECDH\n");
+            if (pt == NULL) {
+                WOLFSSL_MSG("Passed in ECDH pointer NULL.\n");
+                break;
+            }
+            return wolfSSL_SSL_CTX_set_tmp_ecdh(ctx,pt);
+        #endif
+
+        default:
+            WOLFSSL_MSG("No case found");
+    }
+
     return WOLFSSL_FAILURE;
 }
-#endif
+#endif /* WOLFSSL_QT || OPENSSL_ALL */
 
 #ifndef NO_CERTS
 
