@@ -1820,6 +1820,8 @@ WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
 /* wolfSSL Cipher type just points back to SSL */
 struct WOLFSSL_CIPHER {
     WOLFSSL* ssl;
+    int getCipherAtOffset;
+    unsigned long cipherOffset;
 };
 
 
@@ -3398,19 +3400,27 @@ typedef struct Arrays {
 #define MAX_DATE_SZ 32
 #endif
 
+#define STACK_TYPE_X509    0
+#define STACK_TYPE_NAME    1
+#define STACK_TYPE_BIO     2
+#define STACK_TYPE_OBJ     3
+#define STACK_TYPE_STRING  4
+#define STACK_TYPE_CIPHER  5
+
 struct WOLFSSL_STACK {
+    byte type;     /* Set to STACK_TYPE_*. identifies type stored in data.*/
     unsigned long num; /* number of nodes in stack
                         * (safety measure for freeing and shortcut for count) */
     union {
-        WOLFSSL_X509*        x509;
-        WOLFSSL_X509_NAME*   name;
-        WOLFSSL_BIO*         bio;
-        WOLFSSL_ASN1_OBJECT* obj;
-        char*                string;
+        WOLFSSL_X509*          x509;
+        WOLFSSL_X509_NAME*     name;
+        WOLFSSL_BIO*           bio;
+        WOLFSSL_ASN1_OBJECT*   obj;
+        WOLFSSL_CIPHER*        cipher;
+        char*                  string;
     } data;
     WOLFSSL_STACK* next;
 };
-
 
 struct WOLFSSL_X509_NAME {
     char  *name;
