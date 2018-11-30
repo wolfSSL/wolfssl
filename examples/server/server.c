@@ -1995,7 +1995,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             } else {
                 if (wolfSSL_Rehandshake(ssl) != WOLFSSL_SUCCESS) {
                     printf("not doing secure renegotiation\n");
-
+                }
+                else {
+                    printf("RENEGOTIATION SUCCESSFUL\n");
                 }
             }
         }

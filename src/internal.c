@@ -23667,6 +23667,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ret = TLSX_AddEmptyRenegotiationInfo(&ssl->extensions);
             if (ret != WOLFSSL_SUCCESS)
                 return ret;
+            ssl->secure_renegotiation->enabled = 1;
         }
 #endif /* HAVE_SERVER_RENEGOTIATION_INFO */
 
