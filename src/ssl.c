@@ -16292,6 +16292,90 @@ const char* wolfSSL_get_cipher_name_from_suite(const byte cipherSuite0,
     return GetCipherNameInternal(cipherSuite0, cipherSuite);
 }
 
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+
+/* Creates and returns a new WOLFSSL_CIPHER stack. */
+WOLFSSL_STACK* wolfSSL_sk_new_cipher(void)
+{
+    WOLFSSL_STACK* sk = NULL;
+    WOLFSSL_ENTER("wolfSSL_sk_new_cipher");
+
+    sk = wolfSSL_sk_new_null();
+    sk->type = STACK_TYPE_CIPHER;
+
+    return sk;
+}
+
+/* return 1 on success 0 on fail */
+int wolfSSL_sk_WOLFSSL_CIPHER_push(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk,
+                                                      WOLFSSL_CIPHER* cipher)
+{
+    WOLFSSL_STACK* node;
+
+    WOLFSSL_ENTER("wolfSSL_sk_WOLFSSL_CIPHER_push");
+
+    if (sk == NULL || cipher == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* no previous values in stack */
+    if (sk->data.cipher == NULL) {
+        sk->data.cipher = cipher;
+        sk->num += 1;
+        return WOLFSSL_SUCCESS;
+    }
+
+    /* stack already has value(s) create a new node and add more */
+    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
+                                                             DYNAMIC_TYPE_SSL);
+    if (node == NULL) {
+        WOLFSSL_MSG("Memory error");
+        return WOLFSSL_FAILURE;
+    }
+    XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
+
+    /* push new cipher onto head of stack */
+    node->type        = sk->type;
+    node->data.cipher = sk->data.cipher;
+    node->next        = sk->next;
+    sk->next          = node;
+    sk->data.cipher   = cipher;
+    sk->num          += 1;
+
+    return WOLFSSL_SUCCESS;
+}
+
+
+WOLFSSL_CIPHER* wolfSSL_sk_WOLFSSL_CIPHER_pop(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk)
+{
+    WOLFSSL_STACK* node;
+    WOLFSSL_CIPHER*  cipher;
+
+    if (sk == NULL) {
+        return NULL;
+    }
+
+    node = sk->next;
+    cipher = sk->data.cipher;
+
+    if (node != NULL) { /* update sk and remove node from stack */
+        sk->data.cipher = node->data.cipher;
+        sk->next = node->next;
+        XFREE(node, NULL, DYNAMIC_TYPE_SSL);
+    }
+    else { /* last cipher in stack */
+        sk->data.cipher = NULL;
+    }
+
+    if (sk->num > 0) {
+        sk->num -= 1;
+    }
+
+    return cipher;
+}
+
+#endif /* WOLFSSL_QT || OPENSSL_ALL */
+
 
 #ifdef HAVE_ECC
 /* Return the name of the curve used for key exchange as a printable string.
@@ -17659,8 +17743,49 @@ char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
     const char *keaStr, *authStr, *encStr, *macStr;
     size_t strLen;
 
+    byte cipherByte0, cipherByte1;
+    int totalCipherSz, cipherNameSz, i;
+    unsigned long offset;
+    const CipherSuiteInfo* cipherNames;
+
+    WOLFSSL_ENTER("wolfSSL_CIPHER_description");
+
     if (cipher == NULL || in == NULL)
         return NULL;
+
+    /* returns the cipher at offset
+    *  cipherOffset is set in wolfSSL_sk_value
+    */
+    if (cipher->getCipherAtOffset) {
+
+        offset = 2*(cipher->cipherOffset);
+        totalCipherSz = GetCipherNamesSize();
+        cipherNames = GetCipherNames();
+
+        if (offset > cipher->ssl->suites->suiteSz) {
+            WOLFSSL_ERROR(MEMORY_E);
+            return NULL;
+        }
+
+        cipherByte0 = cipher->ssl->suites->suites[offset];
+        cipherByte1 = cipher->ssl->suites->suites[offset+1];
+
+        for (i = 0; i < totalCipherSz; i++) {
+            if ((cipherByte0 == cipherNames[i].cipherSuite0) &&
+                (cipherByte1 == cipherNames[i].cipherSuite)) {
+
+                cipherNameSz = (int)XSTRLEN(cipherNames[i].name);
+
+                if (cipherNameSz < len) {
+                    XSTRNCPY(in, cipherNames[i].name, cipherNameSz);
+                    in[cipherNameSz] = '\0';
+                }
+                WOLFSSL_MSG(ret);
+                break;
+            }
+        }
+        return ret;
+    }
 
     switch (cipher->ssl->specs.kea) {
         case no_kea:
@@ -21851,6 +21976,7 @@ void wolfSSL_ASN1_GENERALIZEDTIME_free(WOLFSSL_ASN1_TIME* asn1Time)
 
 int  wolfSSL_sk_num(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
 {
+    WOLFSSL_ENTER("wolfSSL_sk_num");
     if (sk == NULL)
         return 0;
     return (int)sk->num;
@@ -21858,11 +21984,22 @@ int  wolfSSL_sk_num(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
 
 void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
 {
+    int offset = i;
+    WOLFSSL_ENTER("wolfSSL_sk_value");
+
     for (; sk != NULL && i > 0; i--)
         sk = sk->next;
     if (sk == NULL)
         return NULL;
-    return (void*)sk->data.obj;
+
+    switch (sk->type) {
+        case STACK_TYPE_CIPHER:
+            if (sk->data.cipher)
+                sk->data.cipher->cipherOffset = offset;
+            return (void*)sk->data.cipher;
+        default:
+            return (void*)sk->data.obj;
+    }
 }
 
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
@@ -35286,12 +35423,36 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 
-#ifndef NO_WOLFSSL_STUB
+#ifdef WOLFSSL_QT
+/* wolfSSL_get_ciphers_compat creates a new stack that contains
+ * "suiteSz" amount of "&ssl->cipher"s.
+ */
 WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
 {
-    (void)ssl;
-    WOLFSSL_STUB("wolfSSL_get_ciphers_compat");
-    return NULL;
+
+    WOLFSSL_STACK* sk = NULL;
+    WOLFSSL_CIPHER* cipher;
+    int suiteSz,i=0;
+
+    WOLFSSL_ENTER("wolfSSL_get_ciphers_compat");
+
+    if (ssl == NULL || ssl->suites == NULL)
+        return NULL;
+
+    sk = wolfSSL_sk_new_cipher();
+
+    cipher = (WOLFSSL_CIPHER*) &ssl->cipher;
+    cipher->getCipherAtOffset = 1;
+
+    suiteSz = ssl->suites->suiteSz/2;
+    /* Pushes the same cipher onto the stack
+     * suiteSz is the amount of ciphers in ssl->suites->suites[]
+     */
+    for (i = 0; i < suiteSz; i++) {
+        wolfSSL_sk_WOLFSSL_CIPHER_push(sk, cipher);
+    }
+
+    return sk;
 }
 #endif
 
