@@ -64,6 +64,8 @@
         #endif
         #include <tx_api.h>
     #endif
+#elif defined(WOLFSSL_DEOS)
+    #include "mutexapi.h"
 #elif defined(MICRIUM)
     /* do nothing, just don't pick Unix */
 #elif defined(FREERTOS) || defined(FREERTOS_TCP) || defined(WOLFSSL_SAFERTOS)
@@ -145,6 +147,8 @@
         typedef pthread_mutex_t wolfSSL_Mutex;
     #elif defined(THREADX)
         typedef TX_MUTEX wolfSSL_Mutex;
+    #elif defined(WOLFSSL_DEOS)
+        typedef mutex_handle_t wolfSSL_Mutex;
     #elif defined(MICRIUM)
         typedef OS_MUTEX wolfSSL_Mutex;
     #elif defined(EBSNET)
@@ -273,6 +277,11 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_END               IO_SEEK_END
     #define XBADFILE                NULL
     #define XFGETS                  fgets
+#elif defined(WOLFSSL_DEOS)
+    #define NO_FILESYSTEM
+    #warning "TODO - DDC-I Certifiable Fast File System for Deos is not integrated"
+    //#define XFILE      bfd *
+
 #elif defined(MICRIUM)
     #include <fs_api.h>
     #define XFILE      FS_FILE*
@@ -414,6 +423,12 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     /* uses parital <time.h> structures */
     #define XTIME(tl)       (0)
     #define XGMTIME(c, t)   rtpsys_gmtime((c))
+
+#elif defined(WOLFSSL_DEOS)
+    #define XTIME(t1)       deos_time((t1))
+    #define WOLFSSL_GMTIME
+    #define USE_WOLF_TM
+    #define USE_WOLF_TIME_T
 
 #elif defined(MICRIUM)
     #include <clk.h>

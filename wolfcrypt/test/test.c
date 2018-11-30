@@ -22669,17 +22669,29 @@ static int free_cnt = 0;
 static void *my_Malloc_cb(size_t size)
 {
     malloc_cnt++;
-    return malloc(size);
+    #ifndef WOLFSSL_NO_MALLOC
+        return malloc(size);
+    #else
+        WOLFSSL_MSG("No malloc available");
+    #endif
 }
 static void my_Free_cb(void *ptr)
 {
     free_cnt++;
-    free(ptr);
+    #ifndef WOLFSSL_NO_MALLOC
+        free(ptr);
+    #else
+        WOLFSSL_MSG("No free available");
+    #endif
 }
 static void *my_Realloc_cb(void *ptr, size_t size)
 {
     realloc_cnt++;
-    return realloc(ptr, size);
+    #ifndef WOLFSSL_NO_MALLOC
+        return realloc(ptr, size);
+    #else
+        WOLFSSL_MSG("No realloc available");
+    #endif
 }
 
 int memcb_test(void)

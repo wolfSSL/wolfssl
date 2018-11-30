@@ -1200,6 +1200,14 @@ end:
     {
         return (word32)rtp_get_system_sec() * 1000;
     }
+#elif defined(WOLFSSL_DEOS)
+    word32 TimeNowInMilliseconds(void)
+    {
+        const uint32_t systemTickTimeInHz = 1000000 / systemTickInMicroseconds();
+        uint32_t *systemTickPtr = systemTickPointer();
+
+        return (word32) (*systemTickPtr/systemTickTimeInHz) * 1000;
+    }
 #elif defined(MICRIUM)
     /* The time in milliseconds.
      * Used for tickets to represent difference between when first seen and when
@@ -3407,7 +3415,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         if ((ssl->options.server_psk_tls13_cb != NULL &&
              (ssl->arrays->psk_keySz = ssl->options.server_psk_tls13_cb(ssl,
                              ssl->arrays->client_identity, ssl->arrays->psk_key,
-                             MAX_PSK_KEY_LEN, &cipherName)) != 0 && 
+                             MAX_PSK_KEY_LEN, &cipherName)) != 0 &&
              GetCipherSuiteFromName(cipherName, &cipherSuite0,
                                                           &cipherSuite) == 0) ||
             (ssl->options.server_psk_cb != NULL &&

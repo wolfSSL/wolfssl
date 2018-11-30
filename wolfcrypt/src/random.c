@@ -144,6 +144,7 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #elif defined(WOLFSSL_IAR_ARM)
 #elif defined(WOLFSSL_ROWLEY_ARM)
 #elif defined(WOLFSSL_EMBOS)
+#elif defined(WOLFSSL_DEOS)
 #elif defined(MICRIUM)
 #elif defined(WOLFSSL_NUCLEUS)
 #elif defined(WOLFSSL_PB)
@@ -1871,6 +1872,26 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     return 0;
 }
+#elif defined(WOLFSSL_DEOS) && !defined(CUSTOM_RAND_GENERATE)
+    #include "stdlib.h"
+
+    #warning "potential for not enough entropy, currently being used for testing Deos"
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int i;
+        int seed = XTIME(0);
+        (void)os;
+
+        for (i = 0; i < sz; i++ ) {
+            output[i] = rand_r(&seed) % 256;
+            if ((i % 8) == 7) {
+                seed = XTIME(0);
+                rand_r(&seed);
+            }
+        }
+
+        return 0;
+    }
 #elif defined(WOLFSSL_VXWORKS)
 
     #include <randomNumGen.h>

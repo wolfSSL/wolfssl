@@ -355,7 +355,11 @@
                 !defined(WOLFSSL_SGX)
                 #include <strings.h>
             #endif
-            #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
+            #if defined(WOLFSSL_DEOS)
+                #define XSTRNCASECMP(s1,s2,n) strnicmp((s1),(s2),(n))
+            #else
+                #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
+            #endif
         #endif
 
         /* snprintf is used in asn.c for GetTimeString, PKCS7 test, and when
