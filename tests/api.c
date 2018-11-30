@@ -12192,6 +12192,75 @@ static int test_wc_DsaImportParamsRaw (void)
 } /* END test_wc_DsaImportParamsRaw */
 
 /*
+ * Testing wc_DsaImportParamsRawCheck()
+ */
+static int test_wc_DsaImportParamsRawCheck (void)
+{
+    int     ret = 0;
+
+#if !defined(NO_DSA) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    DsaKey  key;
+    int     trusted = 0;
+    /* [mod = L=1024, N=160], from CAVP KeyPair */
+    const char* p = "d38311e2cd388c3ed698e82fdf88eb92b5a9a483dc88005d"
+                    "4b725ef341eabb47cf8a7a8a41e792a156b7ce97206c4f9c"
+                    "5ce6fc5ae7912102b6b502e59050b5b21ce263dddb2044b6"
+                    "52236f4d42ab4b5d6aa73189cef1ace778d7845a5c1c1c71"
+                    "47123188f8dc551054ee162b634d60f097f719076640e209"
+                    "80a0093113a8bd73";
+    const char* q = "96c5390a8b612c0e422bb2b0ea194a3ec935a281";
+    const char* g = "06b7861abbd35cc89e79c52f68d20875389b127361ca66822"
+                    "138ce4991d2b862259d6b4548a6495b195aa0e0b6137ca37e"
+                    "b23b94074d3c3d300042bdf15762812b6333ef7b07ceba786"
+                    "07610fcc9ee68491dbc1e34cd12615474e52b18bc934fb00c"
+                    "61d39e7da8902291c4434a4e2224c3f4fd9f93cd6f4f17fc0"
+                    "76341a7e7d9";
+
+    /* invalid p and q parameters */
+    const char* invalidP = "d38311e2cd388c3ed698e82fdf88eb92b5a9a483dc88005d";
+    const char* invalidQ = "96c5390a";
+
+    printf(testingFmt, "wc_DsaImportParamsRawCheck()");
+
+    ret = wc_InitDsaKey(&key);
+    if (ret == 0) {
+        ret = wc_DsaImportParamsRawCheck(&key, p, q, g, trusted, NULL);
+    }
+
+    /* test bad args */
+    if (ret == 0) {
+        /* null key struct */
+        ret = wc_DsaImportParamsRawCheck(NULL, p, q, g, trusted, NULL);
+        if (ret == BAD_FUNC_ARG) {
+            /* null param pointers */
+            ret = wc_DsaImportParamsRawCheck(&key, NULL, NULL, NULL, trusted, NULL);
+        }
+
+        if (ret == BAD_FUNC_ARG) {
+            /* illegal p length */
+            ret = wc_DsaImportParamsRawCheck(&key, invalidP, q, g, trusted, NULL);
+        }
+
+        if (ret == BAD_FUNC_ARG) {
+            /* illegal q length */
+            ret = wc_DsaImportParamsRawCheck(&key, p, invalidQ, g, trusted, NULL);
+            if (ret == BAD_FUNC_ARG)
+                ret = 0;
+        }
+
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_FreeDsaKey(&key);
+
+#endif
+
+    return ret;
+
+} /* END test_wc_DsaImportParamsRawCheck */
+
+/*
  * Testing wc_DsaExportParamsRaw()
  */
 static int test_wc_DsaExportParamsRaw (void)
@@ -13022,6 +13091,70 @@ static int test_wc_ed25519_exportKey (void)
     return ret;
 
 } /* END test_wc_ed25519_exportKey */
+
+/*
+ * Testing wc_Ed25519PublicKeyToDer
+ */
+static int test_wc_Ed25519PublicKeyToDer (void)
+{
+    int ret = 0;
+
+#if defined(HAVE_ED25519) && (defined(WOLFSSL_CERT_GEN) || \
+                              defined(WOLFSSL_KEY_GEN))
+    int tmp;
+    ed25519_key key;
+    byte derBuf[1024];
+
+    printf(testingFmt, "wc_Ed25519PublicKeyToDer()");
+
+    /* Test bad args */
+    tmp = wc_Ed25519PublicKeyToDer(NULL, NULL, 0, 0);
+    if (tmp != BAD_FUNC_ARG) {
+        ret = SSL_FATAL_ERROR;
+    }
+
+    if (ret == 0) {
+        wc_ed25519_init(&key);
+        tmp = wc_Ed25519PublicKeyToDer(&key, derBuf, 0, 0);
+        if (tmp != BUFFER_E) {
+            ret = SSL_FATAL_ERROR;
+        }
+        wc_ed25519_free(&key);
+    }
+
+    /*  Test good args */
+    if (ret == 0) {
+        WC_RNG          rng;
+        ret = wc_InitRng(&rng);
+        if (ret != 0) {
+            return ret;
+        }
+        ret = wc_ed25519_init(&key);
+        if (ret != 0) {
+            wc_FreeRng(&rng);
+            return ret;
+        }
+
+        ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key);
+        if (ret != 0) {
+            wc_FreeRng(&rng);
+            wc_ed25519_free(&key);
+            return ret;
+        }
+
+        tmp = wc_Ed25519PublicKeyToDer(&key, derBuf, 1024, 1);
+        if (tmp <= 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+
+        wc_FreeRng(&rng);
+        wc_ed25519_free(&key);
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+    return ret;
+
+} /* END testing wc_Ed25519PublicKeyToDer */
 
 /*
  * Testing wc_curve25519_init and wc_curve25519_free.
@@ -16483,6 +16616,66 @@ static void test_wc_CertPemToDer(void)
 #endif
 }
 
+static void test_wc_PubKeyPemToDer(void)
+{
+#ifdef WOLFSSL_PEM_TO_DER
+#if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_PUB_PEM_TO_DER)
+    int ret;
+    const char* key = "./certs/ecc-client-keyPub.pem";
+    byte* cert_buf = NULL;
+    size_t cert_sz = 0, cert_dersz = 0;
+    byte* cert_der = NULL;
+
+    printf(testingFmt, "wc_PubKeyPemToDer()");
+
+
+    ret = wc_PubKeyPemToDer(cert_buf, (int)cert_sz,
+        cert_der, (int)cert_dersz);
+    AssertIntGE(ret, BAD_FUNC_ARG);
+
+    ret = load_file(key, &cert_buf, &cert_sz);
+    if (ret == 0) {
+        cert_dersz = cert_sz; /* DER will be smaller than PEM */
+        cert_der = (byte*)malloc(cert_dersz);
+        if (cert_der) {
+            ret = wc_PubKeyPemToDer(cert_buf, (int)cert_sz,
+                cert_der, (int)cert_dersz);
+            AssertIntGE(ret, 0);
+        }
+    }
+
+    if (cert_der)
+        free(cert_der);
+    if (cert_buf)
+        free(cert_buf);
+#endif
+#endif
+}
+
+static void test_wc_PemPubKeyToDer(void)
+{
+#if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_PUB_PEM_TO_DER)
+    int ret;
+    const char* key = "./certs/ecc-client-keyPub.pem";
+    size_t cert_dersz = 1024;
+    byte* cert_der = (byte*)malloc(cert_dersz);
+
+    printf(testingFmt, "wc_PemPubKeyToDer()");
+
+#if 0 /* NULL filename causes valgrind failure */
+    ret = wc_PemPubKeyToDer(NULL, cert_der, (int)cert_dersz);
+    AssertIntGE(ret, BUFFER_E);
+#endif
+
+    if (cert_der) {
+        ret = wc_PemPubKeyToDer(key, cert_der, (int)cert_dersz);
+        AssertIntGE(ret, 0);
+
+        free(cert_der);
+    }
+#endif
+}
+
 
 static void test_wolfSSL_certs(void)
 {
@@ -18305,6 +18498,36 @@ static void test_wolfSSL_DTLS_either_side(void)
 #endif
 }
 
+static void test_generate_cookie(void)
+{
+#if defined(WOLFSSL_DTLS) && defined(OPENSSL_EXTRA)
+    SSL_CTX* ctx;
+    SSL* ssl;
+    byte    buf[FOURK_BUF] = {0};
+
+    printf(testingFmt, "test_generate_cookie");
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfDTLS_method()));
+    AssertNotNull(ssl = SSL_new(ctx));
+
+    /* Test unconnected */
+    AssertIntEQ(EmbedGenerateCookie(ssl, buf, FOURK_BUF, NULL), GEN_COOKIE_E);
+
+    wolfSSL_CTX_SetGenCookie(ctx, EmbedGenerateCookie);
+
+    wolfSSL_SetCookieCtx(ssl, ctx);
+
+    AssertNotNull(wolfSSL_GetCookieCtx(ssl));
+
+    AssertNull(wolfSSL_GetCookieCtx(NULL));
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_set_options(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
@@ -19624,6 +19847,21 @@ static void test_wolfSSL_SESSION(void)
     /* successful set session test */
     AssertNotNull(ssl = wolfSSL_new(ctx));
     AssertIntEQ(wolfSSL_set_session(ssl, sess), SSL_SUCCESS);
+
+#ifdef HAVE_SESSION_TICKET
+    /* Test set/get session ticket */
+    {
+        char ticket[] = "This is a session ticket";
+        char buf[64] = {0};
+        word32 bufSz = (word32)sizeof(buf);
+
+        AssertIntEQ(SSL_SUCCESS,
+            wolfSSL_set_SessionTicket(ssl, (byte *)ticket, (word32)XSTRLEN(ticket)));
+        AssertIntEQ(SSL_SUCCESS,
+            wolfSSL_get_SessionTicket(ssl, (byte *)buf, &bufSz));
+        AssertStrEQ(ticket, buf);
+    }
+#endif
 
     /* fail case with miss match session context IDs (use compatibility API) */
     AssertIntEQ(SSL_set_session_id_context(ssl, context, contextSz),
@@ -21045,6 +21283,77 @@ static void test_wc_SetIssuerRaw(void)
     printf(resultFmt, passed);
 #endif
 }
+
+static void test_wc_SetIssueBuffer(void)
+{
+#if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
+    char joiCertFile[] = "./certs/test/cert-ext-joi.pem";
+    WOLFSSL_X509* x509;
+    int peerCertSz;
+    const byte* peerCertBuf;
+    Cert forgedCert;
+
+    printf(testingFmt, "test_wc_SetIssuerBuffer()");
+
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(joiCertFile, WOLFSSL_FILETYPE_PEM));
+
+    AssertNotNull(peerCertBuf = wolfSSL_X509_get_der(x509, &peerCertSz));
+
+    AssertIntEQ(0, wc_InitCert(&forgedCert));
+
+    AssertIntEQ(0, wc_SetIssuerBuffer(&forgedCert, peerCertBuf, peerCertSz));
+
+    wolfSSL_FreeX509(x509);
+
+    printf(resultFmt, passed);
+#endif
+}
+
+/*
+ * Testing wc_SetSubjectKeyId
+ */
+static void test_wc_SetSubjectKeyId(void)
+{
+#if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
+    Cert cert;
+    char file[] = "certs/ecc-client-keyPub.pem";
+
+    printf(testingFmt, "wc_SetSubjectKeyId()");
+
+    AssertIntEQ(0, wc_InitCert(&cert));
+    AssertIntEQ(0, wc_SetSubjectKeyId(&cert, file));
+
+    AssertIntEQ(BAD_FUNC_ARG, wc_SetSubjectKeyId(NULL, file));
+    AssertIntGT(0, wc_SetSubjectKeyId(&cert, "badfile.name"));
+
+    printf(resultFmt, passed);
+#endif
+} /* END test_wc_SetSubjectKeyId */
+
+/*
+ * Testing wc_SetSubject
+ */
+static void test_wc_SetSubject(void)
+{
+#if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
+    Cert cert;
+    char file[] = "./certs/ca-ecc-cert.pem";
+
+    printf(testingFmt, "wc_SetSubject()");
+
+    AssertIntEQ(0, wc_InitCert(&cert));
+    AssertIntEQ(0, wc_SetSubject(&cert, file));
+
+    AssertIntEQ(BAD_FUNC_ARG, wc_SetSubject(NULL, file));
+    AssertIntGT(0, wc_SetSubject(&cert, "badfile.name"));
+
+    printf(resultFmt, passed);
+#endif
+} /* END test_wc_SetSubject */
+
 
 static void test_CheckCertSignature(void)
 {
@@ -22806,6 +23115,8 @@ void ApiTest(void)
     test_wc_PemToDer();
     test_wc_AllocDer();
     test_wc_CertPemToDer();
+    test_wc_PubKeyPemToDer();
+    test_wc_PemPubKeyToDer();
 
     /*OCSP Stapling. */
     AssertIntEQ(test_wolfSSL_UseOCSPStapling(), WOLFSSL_SUCCESS);
@@ -22839,6 +23150,7 @@ void ApiTest(void)
     test_wolfSSL_msgCb();
     test_wolfSSL_either_side();
     test_wolfSSL_DTLS_either_side();
+    test_generate_cookie();
     test_wolfSSL_X509_STORE_set_flags();
     test_wolfSSL_X509_LOOKUP_load_file();
     test_wolfSSL_X509_NID();
@@ -22922,6 +23234,9 @@ void ApiTest(void)
     test_wc_SetSubjectRaw();
     test_wc_GetSubjectRaw();
     test_wc_SetIssuerRaw();
+    test_wc_SetIssueBuffer();
+    test_wc_SetSubjectKeyId();
+    test_wc_SetSubject();
     test_CheckCertSignature();
 
     /* wolfCrypt ECC tests */
@@ -23064,6 +23379,7 @@ void ApiTest(void)
     AssertIntEQ(test_wc_MakeDsaKey(), 0);
     AssertIntEQ(test_wc_DsaKeyToDer(), 0);
     AssertIntEQ(test_wc_DsaImportParamsRaw(), 0);
+    AssertIntEQ(test_wc_DsaImportParamsRawCheck(), 0);
     AssertIntEQ(test_wc_DsaExportParamsRaw(), 0);
     AssertIntEQ(test_wc_DsaExportKeyRaw(), 0);
     AssertIntEQ(test_wc_SignatureGetSize_ecc(), 0);
@@ -23091,6 +23407,7 @@ void ApiTest(void)
     AssertIntEQ(test_wc_ed25519_export(), 0);
     AssertIntEQ(test_wc_ed25519_size(), 0);
     AssertIntEQ(test_wc_ed25519_exportKey(), 0);
+    AssertIntEQ(test_wc_Ed25519PublicKeyToDer(), 0);
     AssertIntEQ(test_wc_curve25519_init(), 0);
     AssertIntEQ(test_wc_curve25519_size (), 0);
     AssertIntEQ(test_wc_ecc_make_key(), 0);
