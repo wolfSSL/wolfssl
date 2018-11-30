@@ -670,6 +670,7 @@ static void Usage(void)
 #ifdef WOLFSSL_EARLY_DATA
     printf("%s", msg[++msgId]);     /* -0 */
 #endif
+    printf("-X          Disable DH Prime check\n");
 #ifdef WOLFSSL_MULTICAST
     printf("%s", msg[++msgId]);     /* -3 */
 #endif
@@ -732,6 +733,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     short  minEccKeyBits = DEFAULT_MIN_ECCKEY_BITS;
     int    doListen = 1;
     int    crlFlags = 0;
+    int    doDhKeyCheck = 1;
     int    ret;
     int    err = 0;
     char*  serverReadyFile = NULL;
@@ -830,6 +832,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     (void)alpnList;
     (void)alpn_opt;
     (void)crlFlags;
+    (void)doDhKeyCheck;
     (void)readySignal;
     (void)updateKeysIVs;
     (void)postHandAuth;
@@ -843,10 +846,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
-    /* Not Used: h, m, z, F, M, T, V, W, X */
+    /* Not Used: h, m, z, F, M, T, V, W */
     while ((ch = mygetopt(argc, argv, "?:"
                 "abc:defgijk:l:nop:q:rstuv:wxy"
-                "A:B:C:D:E:GH:IJKL:NO:PQR:S:TUVYZ:"
+                "A:B:C:D:E:GH:IJKL:NO:PQR:S:TUVXYZ:"
                 "01:3:")) != -1) {
         switch (ch) {
             case '?' :
@@ -1151,6 +1154,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             #ifdef WOLFSSL_SEND_HRR_COOKIE
                 hrrCookie = 1;
             #endif
+                break;
+
+            case 'X' :
+                doDhKeyCheck = 0;
                 break;
 
             case '0' :
@@ -1765,6 +1772,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             #elif !defined(NO_DH)
                 SetDH(ssl);  /* repick suites with DHE, higher priority than PSK */
             #endif
+#if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+            if (!doDhKeyCheck)
+                wolfSSL_SetEnableDhKeyTest(ssl, 0);
+#endif
         }
 
 #ifndef WOLFSSL_CALLBACKS

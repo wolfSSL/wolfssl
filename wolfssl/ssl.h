@@ -1649,6 +1649,7 @@ WOLFSSL_API int  wolfSSL_SetTmpDH(WOLFSSL*, const unsigned char* p, int pSz,
                                 const unsigned char* g, int gSz);
 WOLFSSL_API int  wolfSSL_SetTmpDH_buffer(WOLFSSL*, const unsigned char* b, long sz,
                                        int format);
+WOLFSSL_API int wolfSSL_SetEnableDhKeyTest(WOLFSSL*, int);
 #ifndef NO_FILESYSTEM
     WOLFSSL_API int  wolfSSL_SetTmpDH_file(WOLFSSL*, const char* f, int format);
 #endif
