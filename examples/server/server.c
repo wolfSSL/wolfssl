@@ -733,7 +733,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     short  minEccKeyBits = DEFAULT_MIN_ECCKEY_BITS;
     int    doListen = 1;
     int    crlFlags = 0;
-    int    doDhKeyCheck = 1;
     int    ret;
     int    err = 0;
     char*  serverReadyFile = NULL;
@@ -782,6 +781,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     int hrrCookie = 0;
 #endif
     byte mcastID = 0;
+#if !defined(NO_DH) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
+    int doDhKeyCheck = 1;
+#endif
 
 #ifdef WOLFSSL_STATIC_MEMORY
     #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) \
@@ -832,7 +835,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     (void)alpnList;
     (void)alpn_opt;
     (void)crlFlags;
-    (void)doDhKeyCheck;
     (void)readySignal;
     (void)updateKeysIVs;
     (void)postHandAuth;
@@ -1157,7 +1159,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 break;
 
             case 'X' :
-                doDhKeyCheck = 0;
+               #if !defined(NO_DH) && !defined(HAVE_FIPS) && \
+                   !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
+                    doDhKeyCheck = 0;
+                #endif
                 break;
 
             case '0' :
@@ -1772,8 +1777,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             #elif !defined(NO_DH)
                 SetDH(ssl);  /* repick suites with DHE, higher priority than PSK */
             #endif
-#if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
-    !defined(HAVE_SELFTEST)
+#if !defined(NO_DH) && !defined(WOLFSSL_OLD_PRIME_CHECK) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
             if (!doDhKeyCheck)
                 wolfSSL_SetEnableDhKeyTest(ssl, 0);
 #endif
