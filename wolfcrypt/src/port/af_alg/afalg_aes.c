@@ -44,6 +44,10 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#ifdef WOLFSSL_AFALG_XILINX_AES
+    #define WOLFSSL_XILINX_ALIGN sizeof(wolfssl_word)
+#endif
+
 static const char WC_TYPE_SYMKEY[] = "skcipher";
 
 static int wc_AesSetup(Aes* aes, const char* type, const char* name, int ivSz, int aadSz)
@@ -582,13 +586,38 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 #ifdef WOLFSSL_AFALG_XILINX_AES
     if (sz > 0) {
-        iov[0].iov_base = (byte*)in;
+    #ifndef NO_WOLFSSL_ALLOC_ALIGN
+        byte* tmp = NULL;
+    #endif
+        if ((wolfssl_word)in % WOLFSSL_XILINX_ALIGN) {
+        #ifndef NO_WOLFSSL_ALLOC_ALIGN
+            byte* tmp_align;
+            tmp = (byte*)XMALLOC(sz + WOLFSSL_XILINX_ALIGN +
+                    AES_BLOCK_SIZE, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (tmp == NULL) {
+                return MEMORY_E;
+            }
+            tmp_align = tmp + (WOLFSSL_XILINX_ALIGN -
+                    ((size_t)tmp % WOLFSSL_XILINX_ALIGN));
+            XMEMCPY(tmp_align, in, sz);
+            iov[0].iov_base = tmp_align;
+        #else
+            WOLFSSL_MSG("Buffer expected to be word aligned");
+            return BAD_ALIGN_E;
+        #endif
+        }
+        else {
+            iov[0].iov_base = (byte*)in;
+        }
         iov[0].iov_len  = sz + AES_BLOCK_SIZE;
 
         msg->msg_iov    = iov;
         msg->msg_iovlen = 1; /* # of iov structures */
 
         ret = (int)sendmsg(aes->rdFd, msg, 0);
+    #ifndef NO_WOLFSSL_ALLOC_ALIGN
+        XFREE(tmp, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         if (ret < 0) {
             return ret;
         }
@@ -601,7 +630,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     /* handle completing tag with using software if additional data added */
-    if (authIn != NULL) {
+    if (authIn != NULL && authInSz > 0) {
         byte initalCounter[AES_BLOCK_SIZE];
         XMEMSET(initalCounter, 0, AES_BLOCK_SIZE);
         XMEMCPY(initalCounter, iv, ivSz);
@@ -676,6 +705,9 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte* tag = (byte*)authTag;
     byte buf[AES_BLOCK_SIZE];
     byte initalCounter[AES_BLOCK_SIZE];
+#ifndef NO_WOLFSSL_ALLOC_ALIGN
+    byte* tmp = NULL;
+#endif
 #endif
 
     /* argument checks */
@@ -748,13 +780,35 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     /* it is assumed that in buffer size is large enough to hold TAG */
     XMEMCPY((byte*)in + sz, tag, AES_BLOCK_SIZE);
-    iov[0].iov_base = (byte*)in;
+    if ((wolfssl_word)in % WOLFSSL_XILINX_ALIGN) {
+    #ifndef NO_WOLFSSL_ALLOC_ALIGN
+        byte* tmp_align;
+        tmp = (byte*)XMALLOC(sz + WOLFSSL_XILINX_ALIGN +
+                AES_BLOCK_SIZE, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmp == NULL) {
+            return MEMORY_E;
+        }
+        tmp_align = tmp + (WOLFSSL_XILINX_ALIGN -
+                ((size_t)tmp % WOLFSSL_XILINX_ALIGN));
+        XMEMCPY(tmp_align, in, sz + AES_BLOCK_SIZE);
+        iov[0].iov_base = tmp_align;
+    #else
+        WOLFSSL_MSG("Buffer expected to be word aligned");
+        return BAD_ALIGN_E;
+    #endif
+    }
+    else {
+        iov[0].iov_base = (byte*)in;
+    }
     iov[0].iov_len = sz + AES_BLOCK_SIZE;
 
     msg->msg_iov = iov;
     msg->msg_iovlen = 1;
 
     ret = sendmsg(aes->rdFd, msg, 0);
+#ifndef NO_WOLFSSL_ALLOC_ALIGN
+    XFREE(tmp, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     if (ret < 0) {
         return ret;
     }

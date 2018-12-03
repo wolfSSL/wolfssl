@@ -26,7 +26,8 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_AFALG_HASH) || defined(WOLFSSL_AFALG_XILINX)
+#if defined(WOLFSSL_AFALG_HASH) || (defined(WOLFSSL_AFALG_XILINX) \
+        && defined(WOLFSSL_SHA3))
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
