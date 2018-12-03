@@ -670,7 +670,10 @@ static void Usage(void)
 #ifdef WOLFSSL_EARLY_DATA
     printf("%s", msg[++msgId]);     /* -0 */
 #endif
-    printf("-X          Disable DH Prime check\n");
+#if !defined(NO_DH) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
+    printf("-2          Disable DH Prime check\n");
+#endif
 #ifdef WOLFSSL_MULTICAST
     printf("%s", msg[++msgId]);     /* -3 */
 #endif
@@ -848,11 +851,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
-    /* Not Used: h, m, z, F, M, T, V, W */
+    /* Not Used: h, m, z, F, M, T, V, W, X */
     while ((ch = mygetopt(argc, argv, "?:"
                 "abc:defgijk:l:nop:q:rstuv:wxy"
-                "A:B:C:D:E:GH:IJKL:NO:PQR:S:TUVXYZ:"
-                "01:3:")) != -1) {
+                "A:B:C:D:E:GH:IJKL:NO:PQR:S:TUVYZ:"
+                "01:23:")) != -1) {
         switch (ch) {
             case '?' :
                 if(myoptarg!=NULL) {
@@ -1158,24 +1161,26 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             #endif
                 break;
 
-            case 'X' :
-               #if !defined(NO_DH) && !defined(HAVE_FIPS) && \
-                   !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
-                    doDhKeyCheck = 0;
-                #endif
-                break;
-
             case '0' :
             #ifdef WOLFSSL_EARLY_DATA
                 earlyData = 1;
             #endif
                 break;
+
             case '1' :
                 lng_index = atoi(myoptarg);
                 if(lng_index<0||lng_index>1){
                     lng_index = 0;
                 }
                 break;
+
+            case '2' :
+               #if !defined(NO_DH) && !defined(HAVE_FIPS) && \
+                   !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
+                    doDhKeyCheck = 0;
+                #endif
+                break;
+
             case '3' :
                 #ifdef WOLFSSL_MULTICAST
                     doMcast = 1;

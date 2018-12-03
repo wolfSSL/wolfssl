@@ -1232,6 +1232,10 @@ static void Usage(void)
 #ifdef WOLFSSL_EARLY_DATA
     printf("%s", msg[++msgid]); /* -0 */
 #endif
+#if !defined(NO_DH) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
+    printf("-2          Disable DH Prime check\n");
+#endif
 #ifdef WOLFSSL_MULTICAST
     printf("%s", msg[++msgid]); /* -3 */
 #endif
@@ -1351,6 +1355,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef WOLFSSL_MULTICAST
     byte mcastID = 0;
 #endif
+#if !defined(NO_DH) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
+    int doDhKeyCheck = 1;
+#endif
 
 #ifdef HAVE_OCSP
     int    useOcsp  = 0;
@@ -1428,7 +1436,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     while ((ch = mygetopt(argc, argv, "?:"
             "ab:c:defgh:ijk:l:mnop:q:rstuv:wxyz"
             "A:B:CDE:F:GH:IJKL:M:NO:PQRS:TUVW:XYZ:"
-            "01:3:")) != -1) {
+            "01:23:")) != -1) {
         switch (ch) {
             case '?' :
                 if(myoptarg!=NULL) {
@@ -1816,12 +1824,21 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 earlyData = 1;
             #endif
                 break;
+
             case '1' :
                 lng_index = atoi(myoptarg);
                 if(lng_index<0||lng_index>1){
                       lng_index = 0;
                 }
                 break;
+
+            case '2' :
+               #if !defined(NO_DH) && !defined(HAVE_FIPS) && \
+                   !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
+                    doDhKeyCheck = 0;
+                #endif
+                break;
+
             case '3' :
                 #ifdef WOLFSSL_MULTICAST
                     doMcast = 1;
@@ -2558,6 +2575,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
+#if !defined(NO_DH) && !defined(WOLFSSL_OLD_PRIME_CHECK) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (!doDhKeyCheck)
+        wolfSSL_SetEnableDhKeyTest(ssl, 0);
+#endif
+
+
     tcp_connect(&sockfd, host, port, dtlsUDP, dtlsSCTP, ssl);
     if (wolfSSL_set_fd(ssl, sockfd) != WOLFSSL_SUCCESS) {
         wolfSSL_free(ssl); ssl = NULL;
@@ -2840,6 +2864,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("unable to get SSL object");
         }
+
+#if !defined(NO_DH) && !defined(WOLFSSL_OLD_PRIME_CHECK) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+        if (!doDhKeyCheck)
+            wolfSSL_SetEnableDhKeyTest(sslResume, 0);
+#endif
 
         if (dtlsUDP) {
 #ifdef USE_WINDOWS_API
