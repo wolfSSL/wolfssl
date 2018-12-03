@@ -6683,6 +6683,10 @@ int wc_PKCS7_AddRecipient_KEKRI(PKCS7* pkcs7, int keyWrapOID, byte* kek,
         return encryptedKeySz;
     }
 
+    if (encryptedKeySz > MAX_ENCRYPTED_KEY_SZ) {
+        return WC_KEY_SIZE_E;
+    }
+
     encKeyOctetStrSz = SetOctetString(encryptedKeySz, encKeyOctetStr);
     totalSz += (encKeyOctetStrSz + encryptedKeySz);
 
