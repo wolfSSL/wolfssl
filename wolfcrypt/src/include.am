@@ -67,7 +67,8 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/af_alg/afalg_hash.c \
               wolfcrypt/src/port/devcrypto/devcrypto_hash.c \
               wolfcrypt/src/port/devcrypto/wc_devcrypto.c \
-              wolfcrypt/src/port/devcrypto/README.md
+              wolfcrypt/src/port/devcrypto/README.md \
+              wolfcrypt/src/port/mynewt/mynewt_port.c
 
 if BUILD_CRYPTODEV
 src_libwolfssl_la_SOURCES += wolfcrypt/src/cryptodev.c
