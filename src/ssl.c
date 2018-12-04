@@ -30813,6 +30813,8 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_bio_PUBKEY(WOLFSSL_BIO* bio,
 WOLFSSL_RSA* wolfSSL_PEM_read_bio_RSAPrivateKey(WOLFSSL_BIO* bio,
         WOLFSSL_RSA** rsa, pem_password_cb* cb, void* pass)
 {
+    WOLFSSL_ENTER("PEM_read_bio_RSAPrivateKey");
+
     WOLFSSL_EVP_PKEY* pkey;
     WOLFSSL_RSA* local;
 

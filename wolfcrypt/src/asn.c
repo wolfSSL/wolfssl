@@ -2831,6 +2831,7 @@ static int CheckAlgoV2(int oid, int* id, int* blockSz)
         return 0;
 #endif
     default:
+        WOLFSSL_MSG("No PKCS v2 algo found");
         return ALGO_ID_E;
 
     }
@@ -3118,7 +3119,7 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
 
     /* encrypt PKCS#8 wrapped key */
     if ((ret = wc_CryptKey(password, passwordSz, salt, saltSz, itt, id,
-               tmp, tmpSz, version, cbcIv, 1)) < 0) {
+               tmp, tmpSz, version, cbcIv, 1, 0)) < 0) {
         XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
         WOLFSSL_MSG("Error encrypting key");
     #ifdef WOLFSSL_SMALL_STACK
@@ -3314,7 +3315,7 @@ int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
             pkcs8KeySz += padSz;
         }
         ret = wc_CryptKey(password, passwordSz, salt, saltSz, itt, id,
-                                   out + encIdx, pkcs8KeySz, version, cbcIv, 1);
+                                   out + encIdx, pkcs8KeySz, version, cbcIv, 1, 0);
     }
     if (ret == 0) {
         if (version != PKCS5v2) {
@@ -3384,7 +3385,7 @@ int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
 int ToTraditionalEnc(byte* input, word32 sz,const char* password,
                      int passwordSz, word32* algId)
 {
-    word32 inOutIdx = 0, seqEnd, oid;
+    word32 inOutIdx = 0, seqEnd, oid, shaOid = 0;
     int    ret = 0, first, second, length = 0, version, saltSz, id;
     int    iterations = 0, keySz = 0;
 #ifdef WOLFSSL_SMALL_STACK
@@ -3472,6 +3473,8 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,
         if (GetAlgoId(input, &inOutIdx, &oid, oidHmacType, sz) < 0) {
             ERROR_OUT(ASN_PARSE_E, exit_tte);
         }
+
+        shaOid = oid;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -3491,6 +3494,9 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,
             ERROR_OUT(ASN_PARSE_E, exit_tte); /* PKCS v2 algo id error */
         }
 
+        if (shaOid == 0)
+            shaOid = oid;
+
         ret = GetOctetString(input, &inOutIdx, &length, sz);
         if (ret < 0)
             goto exit_tte;
@@ -3508,7 +3514,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,
         goto exit_tte;
 
     ret = wc_CryptKey(password, passwordSz, salt, saltSz, iterations, id,
-                   input + inOutIdx, length, version, cbcIv, 0);
+                   input + inOutIdx, length, version, cbcIv, 0, shaOid);
 
 exit_tte:
 #ifdef WOLFSSL_SMALL_STACK
@@ -3715,7 +3721,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
 
     /* encrypt */
     if ((ret = wc_CryptKey(password, passwordSz, salt, saltSz, itt, id,
-                   out + inOutIdx, sz, version, cbcIv, 1)) < 0) {
+                   out + inOutIdx, sz, version, cbcIv, 1, 0)) < 0) {
 
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(cbcIv,   heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3868,7 +3874,7 @@ int DecryptContent(byte* input, word32 sz,const char* password, int passwordSz)
     }
 
     ret = wc_CryptKey(password, passwordSz, salt, saltSz, iterations, id,
-                   input + inOutIdx, length, version, cbcIv, 0);
+                   input + inOutIdx, length, version, cbcIv, 0, 0);
 
 exit_dc:
 
