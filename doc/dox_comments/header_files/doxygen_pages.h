@@ -12,41 +12,45 @@
 */
 /*!
     \page wolfcrypt_API wolfCrypt API Reference
-    - \ref ASN
-    - \ref Base_Encoding
-    - \ref Compression
-    - \ref Error
-    - \ref Keys
-    - \ref Logging
-    - \ref Math
-    - \ref Random
-    - \ref Signature
-    - \ref wolfCrypt
-
-    - \ref DES
-    - \ref AES
-    - \ref ARC4
-    - \ref BLAKE2
-    - \ref Camellia
-    - \ref ChaCha
-    - \ref ChaCha20Poly1305
-    - \ref Curve25519
-    - \ref DSA
-    - \ref Diffie-Hellman
-    - \ref ECC
-    - \ref ED25519
-    - \ref HC128
-    - \ref HMAC
-    - \ref IDEA
-    - \ref MD2
-    - \ref MD4
-    - \ref MD5
-    - \ref Password
-    - \ref PKCS7
-    - \ref Poly1305
-    - \ref Rabbit
-    - \ref RIPEMD
-    - \ref RSA
-    - \ref SHA
-    - \ref SRP
+    <ul>
+        <li>\ref ASN</li>
+        <li>\ref Base_Encoding</li>
+        <li>\ref Compression</li>
+        <li>\ref Error</li>
+        <li>\ref Keys</li>
+        <li>\ref Logging</li>
+        <li>\ref Math</li>
+        <li>\ref Random</li>
+        <li>\ref Signature</li>
+        <li>\ref wolfCrypt</li>
+    </ul>
+    <ul>
+        <li>\ref DES</li>
+        <li>\ref AES</li>
+        <li>\ref ARC4</li>
+        <li>\ref BLAKE2</li>
+        <li>\ref Camellia</li>
+        <li>\ref ChaCha</li>
+        <li>\ref ChaCha20Poly1305</li>
+        <li>\ref Curve25519</li>
+        <li>\ref DSA</li>
+        <li>\ref Diffie-Hellman</li>
+        <li>\ref ECC</li>
+        <li>\ref ED25519</li>
+        <li>\ref HC128</li>
+        <li>\ref HMAC</li>
+        <li>\ref IDEA</li>
+        <li>\ref MD2</li>
+        <li>\ref MD4</li>
+        <li>\ref MD5</li>
+        <li>\ref Password</li>
+        <li>\ref PKCS7</li>
+        <li>\ref PKCS11</li>
+        <li>\ref Poly1305</li>
+        <li>\ref Rabbit</li>
+        <li>\ref RIPEMD</li>
+        <li>\ref RSA</li>
+        <li>\ref SHA</li>
+        <li>\ref SRP</li>
+    </ul>
 */

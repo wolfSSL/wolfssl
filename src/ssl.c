@@ -6620,7 +6620,7 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY_bio(WOLFSSL_BIO* bio,
     if ((keySz = wc_KeyPemToDer(mem, memSz, mem, memSz, NULL)) < 0) {
         WOLFSSL_MSG("Not PEM format");
         keySz = memSz;
-        if ((keySz = ToTraditional((byte*)mem, (word32)keySz, &algId)) < 0) {
+        if ((keySz = ToTraditional_ex((byte*)mem, (word32)keySz, &algId)) < 0) {
             return NULL;
         }
     }
@@ -6892,7 +6892,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
 
     /* Check if input buffer has PKCS8 header. In the case that it does not
      * have a PKCS8 header then do not error out. */
-    if ((ret = ToTraditionalInline((const byte*)(*in), &idx, (word32)inSz,
+    if ((ret = ToTraditionalInline_ex((const byte*)(*in), &idx, (word32)inSz,
                                                                  &algId)) > 0) {
         WOLFSSL_MSG("Found and removed PKCS8 header");
     }
@@ -28171,6 +28171,9 @@ int wolfSSL_EC_KEY_set_public_key(WOLFSSL_EC_KEY *key,
 /* End EC_KEY */
 
 
+#ifndef HAVE_SELFTEST
+/* ECC point compression types were not included in selftest ecc.h */
+
 char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
                                  const WOLFSSL_EC_POINT* point, int form,
                                  WOLFSSL_BN_CTX* ctx)
@@ -28227,6 +28230,8 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 
     return hex;
 }
+
+#endif /* HAVE_SELFTEST */
 
 void wolfSSL_EC_POINT_dump(const char *msg, const WOLFSSL_EC_POINT *p)
 {
@@ -37278,7 +37283,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_AutoPrivateKey(WOLFSSL_EVP_PKEY** pkey,
     word32 keyLen = (word32)length;
 
     /* Take off PKCS#8 wrapper if found. */
-    if ((len = ToTraditionalInline(der, &idx, keyLen, &algId)) >= 0) {
+    if ((len = ToTraditionalInline_ex(der, &idx, keyLen, &algId)) >= 0) {
         der += idx;
         keyLen = len;
     }

@@ -456,6 +456,7 @@ static const char* server_usage_msg[][49] = {
                              "\n            0: English, 1: Japanese\n", /* 48 */
         NULL,
     },
+#ifndef NO_MULTIBYTE_PRINT
     /* Japanese */
     {
         " 注意 : 全てのファイルは"
@@ -570,6 +571,7 @@ static const char* server_usage_msg[][49] = {
                                  "\n            0: 英語、 1: 日本語\n", /* 48 */
         NULL,
     },
+#endif
 
 };
 

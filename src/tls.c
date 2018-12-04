@@ -6837,7 +6837,7 @@ static int TLSX_KeyShare_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                byte msgType)
 {
     int ret;
-    KeyShareEntry *keyShareEntry;
+    KeyShareEntry *keyShareEntry = NULL;
     word16 group;
 
     if (msgType == client_hello) {
@@ -6897,7 +6897,7 @@ static int TLSX_KeyShare_Parse(WOLFSSL* ssl, byte* input, word16 length,
             return BUFFER_ERROR;
 
         /* Not in list sent if there isn't a private key. */
-        if (keyShareEntry->key == NULL)
+        if (keyShareEntry == NULL || keyShareEntry->key == NULL)
             return BAD_KEY_SHARE_DATA;
 
         /* Process the entry to calculate the secret. */
@@ -9792,9 +9792,13 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 WOLFSSL_MSG("SNI extension received");
 
 #ifdef WOLFSSL_TLS13
-                if (IsAtLeastTLSv1_3(ssl->version) &&
+                if (IsAtLeastTLSv1_3(ssl->ctx->method->version) &&
                         msgType != client_hello &&
                         msgType != encrypted_extensions) {
+                    return EXT_NOT_ALLOWED;
+                }
+                else if (!IsAtLeastTLSv1_3(ssl->version) &&
+                         msgType == encrypted_extensions) {
                     return EXT_NOT_ALLOWED;
                 }
 #endif
@@ -9805,9 +9809,13 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 WOLFSSL_MSG("Max Fragment Length extension received");
 
 #ifdef WOLFSSL_TLS13
-                if (IsAtLeastTLSv1_3(ssl->version) &&
+                if (IsAtLeastTLSv1_3(ssl->ctx->method->version) &&
                         msgType != client_hello &&
                         msgType != encrypted_extensions) {
+                    return EXT_NOT_ALLOWED;
+                }
+                else if (!IsAtLeastTLSv1_3(ssl->version) &&
+                         msgType == encrypted_extensions) {
                     return EXT_NOT_ALLOWED;
                 }
 #endif
@@ -9818,8 +9826,10 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 WOLFSSL_MSG("Truncated HMAC extension received");
 
 #ifdef WOLFSSL_TLS13
-                if (IsAtLeastTLSv1_3(ssl->version) && !ssl->options.downgrade)
+                if (IsAtLeastTLSv1_3(ssl->ctx->method->version) &&
+                        !ssl->options.downgrade) {
                     break;
+                }
 #endif
                 ret = THM_PARSE(ssl, input + offset, size, isRequest);
                 break;
@@ -9828,9 +9838,13 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 WOLFSSL_MSG("Supported Groups extension received");
 
 #ifdef WOLFSSL_TLS13
-                if (IsAtLeastTLSv1_3(ssl->version) &&
+                if (IsAtLeastTLSv1_3(ssl->ctx->method->version) &&
                         msgType != client_hello &&
                         msgType != encrypted_extensions) {
+                    return EXT_NOT_ALLOWED;
+                }
+                else if (!IsAtLeastTLSv1_3(ssl->version) &&
+                         msgType == encrypted_extensions) {
                     return EXT_NOT_ALLOWED;
                 }
 #endif
@@ -9841,8 +9855,10 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 WOLFSSL_MSG("Point Formats extension received");
 
 #ifdef WOLFSSL_TLS13
-                if (IsAtLeastTLSv1_3(ssl->version) && !ssl->options.downgrade)
+                if (IsAtLeastTLSv1_3(ssl->ctx->method->version) &&
+                        !ssl->options.downgrade) {
                     break;
+                }
 #endif
                 ret = PF_PARSE(ssl, input + offset, size, isRequest);
                 break;
@@ -9851,8 +9867,10 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 WOLFSSL_MSG("Certificate Status Request extension received");
 
 #ifdef WOLFSSL_TLS13
-                if (IsAtLeastTLSv1_3(ssl->version) && !ssl->options.downgrade)
+                if (IsAtLeastTLSv1_3(ssl->ctx->method->version) &&
+                        !ssl->options.downgrade) {
                     break;
+                }
 #endif
                 ret = CSR_PARSE(ssl, input + offset, size, isRequest);
                 break;
@@ -9861,7 +9879,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 WOLFSSL_MSG("Certificate Status Request v2 extension received");
 
 #ifdef WOLFSSL_TLS13
-                if (IsAtLeastTLSv1_3(ssl->version) &&
+                if (IsAtLeastTLSv1_3(ssl->ctx->method->version) &&
                         msgType != client_hello &&
                         msgType != certificate_request &&
                         msgType != certificate) {
@@ -9876,8 +9894,10 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 WOLFSSL_MSG("Extended Master Secret extension received");
 
 #ifdef WOLFSSL_TLS13
-                if (IsAtLeastTLSv1_3(ssl->version) && !ssl->options.downgrade)
+                if (IsAtLeastTLSv1_3(ssl->ctx->method->version) &&
+                        !ssl->options.downgrade) {
                     break;
+                }
 #endif
 #ifndef NO_WOLFSSL_SERVER
                 if (isRequest)
@@ -9891,8 +9911,10 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 WOLFSSL_MSG("Secure Renegotiation extension received");
 
 #ifdef WOLFSSL_TLS13
-                if (IsAtLeastTLSv1_3(ssl->version) && !ssl->options.downgrade)
+                if (IsAtLeastTLSv1_3(ssl->ctx->method->version) &&
+                        !ssl->options.downgrade) {
                     break;
+                }
 #endif
                 ret = SCR_PARSE(ssl, input + offset, size, isRequest);
                 break;
@@ -9913,8 +9935,10 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 WOLFSSL_MSG("Quantum-Safe-Hybrid extension received");
 
 #ifdef WOLFSSL_TLS13
-                if (IsAtLeastTLSv1_3(ssl->version) && !ssl->options.downgrade)
+                if (IsAtLeastTLSv1_3(ssl->ctx->method->version) &&
+                        !ssl->options.downgrade) {
                     break;
+                }
 #endif
                 ret = QSH_PARSE(ssl, input + offset, size, isRequest);
                 break;
@@ -9923,9 +9947,13 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 WOLFSSL_MSG("ALPN extension received");
 
 #ifdef WOLFSSL_TLS13
-                if (IsAtLeastTLSv1_3(ssl->version) &&
+                if (IsAtLeastTLSv1_3(ssl->ctx->method->version) &&
                         msgType != client_hello &&
                         msgType != encrypted_extensions) {
+                    return EXT_NOT_ALLOWED;
+                }
+                else if (!IsAtLeastTLSv1_3(ssl->version) &&
+                         msgType == encrypted_extensions) {
                     return EXT_NOT_ALLOWED;
                 }
 #endif
@@ -9939,7 +9967,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                     break;
 
 #ifdef WOLFSSL_TLS13
-                if (IsAtLeastTLSv1_3(ssl->version) &&
+                if (IsAtLeastTLSv1_3(ssl->ctx->method->version) &&
                         msgType != client_hello &&
                         msgType != certificate_request) {
                     return EXT_NOT_ALLOWED;
@@ -9955,7 +9983,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 if (!IsAtLeastTLSv1_3(ssl->ctx->method->version))
                     break;
 
-                if (IsAtLeastTLSv1_3(ssl->version) &&
+                if (
     #ifdef WOLFSSL_TLS13_DRAFT_18
                         msgType != client_hello
     #else
@@ -9972,14 +10000,14 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
             case TLSX_COOKIE:
                 WOLFSSL_MSG("Cookie extension received");
 
-                if (!IsAtLeastTLSv1_3(ssl->version))
+                if (!IsAtLeastTLSv1_3(ssl->ctx->method->version))
                     break;
 
-                if (IsAtLeastTLSv1_3(ssl->version) &&
-                        msgType != client_hello &&
+                if (msgType != client_hello &&
                         msgType != hello_retry_request) {
                     return EXT_NOT_ALLOWED;
                 }
+
                 ret = CKE_PARSE(ssl, input + offset, size, msgType);
                 break;
 
@@ -9990,11 +10018,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 if (!IsAtLeastTLSv1_3(ssl->ctx->method->version))
                     break;
 
-                if (IsAtLeastTLSv1_3(ssl->version) &&
-                        msgType != client_hello &&
-                        msgType != server_hello) {
+                if (msgType != client_hello && msgType != server_hello)
                     return EXT_NOT_ALLOWED;
-                }
+
                 ret = PSK_PARSE(ssl, input + offset, size, msgType);
                 pskDone = 1;
                 break;
@@ -10002,13 +10028,12 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
             case TLSX_PSK_KEY_EXCHANGE_MODES:
                 WOLFSSL_MSG("PSK Key Exchange Modes extension received");
 
-                if (!IsAtLeastTLSv1_3(ssl->version))
+                if (!IsAtLeastTLSv1_3(ssl->ctx->method->version))
                     break;
 
-                if (IsAtLeastTLSv1_3(ssl->version) &&
-                        msgType != client_hello) {
+                if (msgType != client_hello)
                     return EXT_NOT_ALLOWED;
-                }
+
                 ret = PKM_PARSE(ssl, input + offset, size, msgType);
                 break;
     #endif
@@ -10017,13 +10042,16 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
             case TLSX_EARLY_DATA:
                 WOLFSSL_MSG("Early Data extension received");
 
-                if (!IsAtLeastTLSv1_3(ssl->version))
+                if (!IsAtLeastTLSv1_3(ssl->ctx->method->version))
                     break;
 
-                if (IsAtLeastTLSv1_3(ssl->version) &&
-                         msgType != client_hello &&
-                         msgType != session_ticket &&
-                         msgType != encrypted_extensions) {
+                if (msgType != client_hello && msgType != session_ticket &&
+                        msgType != encrypted_extensions) {
+                    return EXT_NOT_ALLOWED;
+                }
+                if (!IsAtLeastTLSv1_3(ssl->version) &&
+                        (msgType == session_ticket ||
+                         msgType == encrypted_extensions)) {
                     return EXT_NOT_ALLOWED;
                 }
                 ret = EDI_PARSE(ssl, input + offset, size, msgType);
@@ -10034,13 +10062,12 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
             case TLSX_POST_HANDSHAKE_AUTH:
                 WOLFSSL_MSG("Post Handshake Authentication extension received");
 
-                if (!IsAtLeastTLSv1_3(ssl->version))
+                if (!IsAtLeastTLSv1_3(ssl->ctx->method->version))
                     break;
 
-                if (IsAtLeastTLSv1_3(ssl->version) &&
-                        msgType != client_hello) {
+                if (msgType != client_hello)
                     return EXT_NOT_ALLOWED;
-                }
+
                 ret = PHA_PARSE(ssl, input + offset, size, msgType);
                 break;
     #endif
@@ -10049,12 +10076,15 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
             case TLSX_SIGNATURE_ALGORITHMS_CERT:
                 WOLFSSL_MSG("Signature Algorithms extension received");
 
-                if (!IsAtLeastTLSv1_3(ssl->version))
+                if (!IsAtLeastTLSv1_3(ssl->ctx->method->version))
                     break;
 
-                if (IsAtLeastTLSv1_3(ssl->version) &&
-                        msgType != client_hello &&
+                if (msgType != client_hello &&
                         msgType != certificate_request) {
+                    return EXT_NOT_ALLOWED;
+                }
+                if (!IsAtLeastTLSv1_3(ssl->version) &&
+                        msgType == certificate_request) {
                     return EXT_NOT_ALLOWED;
                 }
 
@@ -10068,9 +10098,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 if (!IsAtLeastTLSv1_3(ssl->ctx->method->version))
                     break;
 
-                if (IsAtLeastTLSv1_3(ssl->ctx->method->version) &&
-                        msgType != client_hello &&
-                        msgType != server_hello &&
+                if (msgType != client_hello && msgType != server_hello &&
                         msgType != hello_retry_request) {
                     return EXT_NOT_ALLOWED;
                 }
