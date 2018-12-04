@@ -3682,35 +3682,55 @@ AM_CONDITIONAL([BUILD_CAVIUM], [test "x$ENABLED_CAVIUM" = "xyes"])
 AM_CONDITIONAL([BUILD_CAVIUM_V], [test "x$ENABLED_CAVIUM_V" = "xyes"])
 
 
-# Intel Quick Assist
-tryqatdir=""
+# Intel QuickAssist
+QAT_DIR=""
+BUILD_INTEL_QAT_VERSION=2
 AC_ARG_WITH([intelqa],
-    [  --with-intelqa=PATH     PATH to Intel QuickAssit (QAT) driver dir ],
+    [  --with-intelqa=PATH     PATH to Intel QuickAssist (QAT) driver dir ],
     [
         AC_MSG_CHECKING([for intelqa])
         CPPFLAGS="$CPPFLAGS -DHAVE_INTEL_QA -DDO_CRYPTO -DUSER_SPACE"
+        OLD_LIBS="$LIBS"
 
         if test "x$withval" == "xyes" ; then
             AC_MSG_ERROR([need a PATH for --with-intelqa])
         fi
         if test "x$withval" != "xno" ; then
-            tryqatdir=$withval
+            QAT_DIR=$withval
         fi
 
-        CPPFLAGS="$CPPFLAGS -I$tryqatdir/quickassist/include -I$tryqatdir/quickassist/include/lac -I$tryqatdir/quickassist/utilities/osal/include -I$tryqatdir/quickassist/utilities/osal/src/linux/user_space/include -I$tryqatdir/quickassist/lookaside/access_layer/include -I$tryqatdir/quickassist/lookaside/access_layer/src/common/include -I$srcdir/wolfssl -I$srcdir/wolfssl/wolfcrypt/port/intel"
-        LDFLAGS="$LDFLAGS -L$tryqatdir/build -Wl,-Map=output.map"
-        LIBS="$LIBS -licp_qa_al_s"
-        LIB_ADD="-ladf_proxy -losal -lrt $LIB_ADD"
+        CPPFLAGS="$CPPFLAGS -I$QAT_DIR/quickassist/include -I$QAT_DIR/quickassist/include/lac -I$QAT_DIR/quickassist/utilities/osal/include \
+            -I$QAT_DIR/quickassist/utilities/osal/src/linux/user_space/include -I$QAT_DIR/quickassist/lookaside/access_layer/include \
+            -I$QAT_DIR/quickassist/lookaside/access_layer/src/common/include -I$srcdir/wolfssl -I$srcdir/wolfssl/wolfcrypt/port/intel \
+            -I$QAT_DIR/quickassist/utilities/libusdm_drv"
 
-        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "cpa_cy_common.h"]], [[ Cpa16U count = 0; cpaCyGetNumInstances(&count); ]])],[ intelqa_linked=yes ],[ intelqa_linked=no ])
+        LDFLAGS="$LDFLAGS -L$QAT_DIR/build -Wl,-Map=output.map"
+        LIBS="$LIBS -lqat_s"
 
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "cpa_cy_common.h"]], [[ Cpa16U count = 0; cpaCyGetNumInstances(&count); ]])],
+            [ intelqa_linked=yes ],[ intelqa_linked=no ])
         if test "x$intelqa_linked" == "xno" ; then
-            AC_MSG_ERROR([Intel QuickAssist not found.
-            If it's already installed, specify its path using --with-intelqa=/dir/])
+            # Try old QAT driver libraries
+            LIBS="$OLD_LIBS -licp_qa_al_s"
+
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "cpa_cy_common.h"]], [[ Cpa16U count = 0; cpaCyGetNumInstances(&count); ]])],
+                [ intelqa_linked=yes ],[ intelqa_linked=no ])
+            if test "x$intelqa_linked" == "xno" ; then
+                AC_MSG_ERROR([Intel QuickAssist not found.
+                If it's already installed, specify its path using --with-intelqa=/dir/])
+            else
+                BUILD_INTEL_QAT_VERSION=1
+            fi
         else
             AM_CFLAGS="$AM_CFLAGS -DHAVE_INTEL_QA -DDO_CRYPTO -DUSER_SPACE"
         fi
         AC_MSG_RESULT([yes])
+
+        if test "x$BUILD_INTEL_QAT_VERSION" == "x1" ; then
+            LIB_ADD="-ladf_proxy -losal -lrt $LIB_ADD"
+        else
+            LIB_ADD="-lusdm_drv_s -losal -lrt $LIB_ADD"
+        fi
 
         ENABLED_INTEL_QA=yes
     ],
@@ -3718,8 +3738,8 @@ AC_ARG_WITH([intelqa],
         ENABLED_INTEL_QA=no
     ]
 )
-
 AM_CONDITIONAL([BUILD_INTEL_QA], [test "x$ENABLED_INTEL_QA" = "xyes"])
+
 
 # Single Precision maths implementation
 AC_ARG_ENABLE([sp],

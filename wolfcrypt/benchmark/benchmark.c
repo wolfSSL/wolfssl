@@ -450,7 +450,7 @@ static const char* bench_Usage_msg1[][10] = {
 };
 
 static const char* bench_result_words1[][4] = {
-    { "tooks", "seconds" , "Cycles per byte", NULL },               /* 0 English  */
+    { "took", "seconds" , "Cycles per byte", NULL },           /* 0 English  */
 #ifndef NO_MULTIBYTE_PRINT
     { "を"   , "秒で処理", "1バイトあたりのサイクル数", NULL },     /* 1 Japanese */
 #endif

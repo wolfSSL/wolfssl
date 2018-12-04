@@ -266,7 +266,7 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
         return BUFFER_E;
 
 #ifdef WOLFSSL_SMALL_STACK
-    key = (byte*)XMALLOC(WC_MAX_SYM_KEY_SIZE, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
+    key = (byte*)XMALLOC(WC_MAX_SYM_KEY_SIZE, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
     if (key == NULL) {
         return MEMORY_E;
     }
@@ -276,7 +276,7 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
     if ((ret = wc_PBKDF1(key, password, passwordSz, info->iv, PKCS5_SALT_SZ, 1,
                                         info->keySz, hashType)) != 0) {
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(key, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
+        XFREE(key, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
 #endif
         return ret;
     }
@@ -295,7 +295,7 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
 #endif /* !NO_AES && HAVE_AES_CBC && HAVE_AES_DECRYPT */
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(key, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
+    XFREE(key, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
 #endif
 
     return ret;
@@ -321,7 +321,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    key = (byte*)XMALLOC(WC_MAX_SYM_KEY_SIZE, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
+    key = (byte*)XMALLOC(WC_MAX_SYM_KEY_SIZE, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
     if (key == NULL) {
         return MEMORY_E;
     }
@@ -331,7 +331,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
     if ((ret = wc_PBKDF1(key, password, passwordSz, info->iv, PKCS5_SALT_SZ, 1,
                                         info->keySz, hashType)) != 0) {
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(key, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
+        XFREE(key, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
 #endif
         return ret;
     }
@@ -350,7 +350,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
 #endif /* !NO_AES && HAVE_AES_CBC */
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(key, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
+    XFREE(key, NULL, DYNAMIC_TYPE_SYMMETRIC_KEY);
 #endif
 
     return ret;
