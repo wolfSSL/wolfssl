@@ -1482,21 +1482,8 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
 
     #if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
         !defined(HAVE_SELFTEST)
-    {
-        DhKey checkKey;
-        int error, freeKey = 0;
-
-        error = wc_InitDhKey(&checkKey);
-        if (!error) {
-            freeKey = 1;
-            error = wc_DhSetCheckKey(&checkKey,
-                                 p, pSz, g, gSz, NULL, 0, 0, ssl->rng);
-        }
-        if (freeKey)
-            wc_FreeDhKey(&checkKey);
-        if (error)
-            return error;
-    }
+        ssl->options.dhKeyTested = 0;
+        ssl->options.dhDoKeyTest = 1;
     #endif
 
     if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH) {
@@ -1555,6 +1542,28 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
     return WOLFSSL_SUCCESS;
 }
 
+
+#if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+/* Enables or disables the session's DH key prime test. */
+int wolfSSL_SetEnableDhKeyTest(WOLFSSL* ssl, int enable)
+{
+    WOLFSSL_ENTER("wolfSSL_SetEnableDhKeyTest");
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    if (!enable)
+        ssl->options.dhDoKeyTest = 0;
+    else
+        ssl->options.dhDoKeyTest = 1;
+
+    WOLFSSL_LEAVE("wolfSSL_SetEnableDhKeyTest", WOLFSSL_SUCCESS);
+    return WOLFSSL_SUCCESS;
+}
+#endif
+
+
 /* server ctx Diffie-Hellman parameters, WOLFSSL_SUCCESS on ok */
 int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
                          const unsigned char* g, int gSz)
@@ -1587,6 +1596,8 @@ int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
         wc_FreeRng(&rng);
         if (error)
             return error;
+
+        ctx->dhKeyTested = 1;
     }
     #endif
 

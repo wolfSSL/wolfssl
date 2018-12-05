@@ -4392,6 +4392,10 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.groupMessages = ctx->groupMessages;
 
 #ifndef NO_DH
+    #if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
+        !defined(HAVE_SELFTEST)
+        ssl->options.dhKeyTested = ctx->dhKeyTested;
+    #endif
     ssl->buffers.serverDH_P = ctx->serverDH_P;
     ssl->buffers.serverDH_G = ctx->serverDH_G;
 #endif
@@ -4689,6 +4693,12 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.buildMsgState = BUILD_MSG_BEGIN;
     ssl->encrypt.state = CIPHER_STATE_BEGIN;
     ssl->decrypt.state = CIPHER_STATE_BEGIN;
+#ifndef NO_DH
+    #if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
+        !defined(HAVE_SELFTEST)
+        ssl->options.dhDoKeyTest = 1;
+    #endif
+#endif
 
 #ifdef WOLFSSL_DTLS
     #ifdef WOLFSSL_SCTP
@@ -19588,23 +19598,33 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         goto exit_scke;
                     }
 
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
-    !defined(WOLFSSL_OLD_PRIME_CHECK)
-                    ret = wc_DhSetCheckKey(ssl->buffers.serverDH_Key,
-                        ssl->buffers.serverDH_P.buffer,
-                        ssl->buffers.serverDH_P.length,
-                        ssl->buffers.serverDH_G.buffer,
-                        ssl->buffers.serverDH_G.length,
-                        NULL, 0, 0, ssl->rng);
-#else
-                    ret = wc_DhSetKey(ssl->buffers.serverDH_Key,
-                        ssl->buffers.serverDH_P.buffer,
-                        ssl->buffers.serverDH_P.length,
-                        ssl->buffers.serverDH_G.buffer,
-                        ssl->buffers.serverDH_G.length);
-#endif
-                    if (ret != 0) {
-                        goto exit_scke;
+                    #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+                        !defined(WOLFSSL_OLD_PRIME_CHECK)
+                    if (ssl->options.dhDoKeyTest &&
+                        !ssl->options.dhKeyTested)
+                    {
+                        ret = wc_DhSetCheckKey(ssl->buffers.serverDH_Key,
+                            ssl->buffers.serverDH_P.buffer,
+                            ssl->buffers.serverDH_P.length,
+                            ssl->buffers.serverDH_G.buffer,
+                            ssl->buffers.serverDH_G.length,
+                            NULL, 0, 0, ssl->rng);
+                        if (ret != 0) {
+                            goto exit_scke;
+                        }
+                        ssl->options.dhKeyTested = 1;
+                    }
+                    else
+                    #endif
+                    {
+                        ret = wc_DhSetKey(ssl->buffers.serverDH_Key,
+                            ssl->buffers.serverDH_P.buffer,
+                            ssl->buffers.serverDH_P.length,
+                            ssl->buffers.serverDH_G.buffer,
+                            ssl->buffers.serverDH_G.length);
+                        if (ret != 0) {
+                            goto exit_scke;
+                        }
                     }
 
                     /* for DH, encSecret is Yc, agree is pre-master */
@@ -19693,23 +19713,33 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         goto exit_scke;
                     }
 
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
-    !defined(WOLFSSL_OLD_PRIME_CHECK)
-                    ret = wc_DhSetCheckKey(ssl->buffers.serverDH_Key,
-                        ssl->buffers.serverDH_P.buffer,
-                        ssl->buffers.serverDH_P.length,
-                        ssl->buffers.serverDH_G.buffer,
-                        ssl->buffers.serverDH_G.length,
-                        NULL, 0, 0, ssl->rng);
-#else
-                    ret = wc_DhSetKey(ssl->buffers.serverDH_Key,
-                        ssl->buffers.serverDH_P.buffer,
-                        ssl->buffers.serverDH_P.length,
-                        ssl->buffers.serverDH_G.buffer,
-                        ssl->buffers.serverDH_G.length);
-#endif
-                    if (ret != 0) {
-                        goto exit_scke;
+                    #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+                        !defined(WOLFSSL_OLD_PRIME_CHECK)
+                    if (ssl->options.dhDoKeyTest &&
+                        !ssl->options.dhKeyTested)
+                    {
+                        ret = wc_DhSetCheckKey(ssl->buffers.serverDH_Key,
+                            ssl->buffers.serverDH_P.buffer,
+                            ssl->buffers.serverDH_P.length,
+                            ssl->buffers.serverDH_G.buffer,
+                            ssl->buffers.serverDH_G.length,
+                            NULL, 0, 0, ssl->rng);
+                        if (ret != 0) {
+                            goto exit_scke;
+                        }
+                        ssl->options.dhKeyTested = 1;
+                    }
+                    else
+                    #endif
+                    {
+                        ret = wc_DhSetKey(ssl->buffers.serverDH_Key,
+                            ssl->buffers.serverDH_P.buffer,
+                            ssl->buffers.serverDH_P.length,
+                            ssl->buffers.serverDH_G.buffer,
+                            ssl->buffers.serverDH_G.length);
+                        if (ret != 0) {
+                            goto exit_scke;
+                        }
                     }
 
                     /* for DH, encSecret is Yc, agree is pre-master */
@@ -21431,13 +21461,35 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             goto exit_sske;
                         }
 
-                        ret = wc_DhSetKey(ssl->buffers.serverDH_Key,
-                            ssl->buffers.serverDH_P.buffer,
-                            ssl->buffers.serverDH_P.length,
-                            ssl->buffers.serverDH_G.buffer,
-                            ssl->buffers.serverDH_G.length);
-                        if (ret != 0) {
-                            goto exit_sske;
+                        #if !defined(WOLFSSL_OLD_PRIME_CHECK) && \
+                            !defined(HAVE_FIPS) && \
+                            !defined(HAVE_SELFTEST)
+                        if (ssl->options.dhDoKeyTest &&
+                            !ssl->options.dhKeyTested)
+                        {
+                            ret = wc_DhSetCheckKey(
+                                ssl->buffers.serverDH_Key,
+                                ssl->buffers.serverDH_P.buffer,
+                                ssl->buffers.serverDH_P.length,
+                                ssl->buffers.serverDH_G.buffer,
+                                ssl->buffers.serverDH_G.length,
+                                NULL, 0, 0, ssl->rng);
+                            if (ret != 0) {
+                                goto exit_sske;
+                            }
+                            ssl->options.dhKeyTested = 1;
+                        }
+                        else
+                        #endif
+                        {
+                            ret = wc_DhSetKey(ssl->buffers.serverDH_Key,
+                                ssl->buffers.serverDH_P.buffer,
+                                ssl->buffers.serverDH_P.length,
+                                ssl->buffers.serverDH_G.buffer,
+                                ssl->buffers.serverDH_G.length);
+                            if (ret != 0) {
+                                goto exit_sske;
+                            }
                         }
 
                         ret = DhGenKeyPair(ssl, ssl->buffers.serverDH_Key,

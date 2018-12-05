@@ -670,6 +670,10 @@ static void Usage(void)
 #ifdef WOLFSSL_EARLY_DATA
     printf("%s", msg[++msgId]);     /* -0 */
 #endif
+#if !defined(NO_DH) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
+    printf("-2          Disable DH Prime check\n");
+#endif
 #ifdef WOLFSSL_MULTICAST
     printf("%s", msg[++msgId]);     /* -3 */
 #endif
@@ -780,6 +784,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     int hrrCookie = 0;
 #endif
     byte mcastID = 0;
+#if !defined(NO_DH) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
+    int doDhKeyCheck = 1;
+#endif
 
 #ifdef WOLFSSL_STATIC_MEMORY
     #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) \
@@ -847,7 +855,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     while ((ch = mygetopt(argc, argv, "?:"
                 "abc:defgijk:l:nop:q:rstuv:wxy"
                 "A:B:C:D:E:GH:IJKL:NO:PQR:S:TUVYZ:"
-                "01:3:")) != -1) {
+                "01:23:")) != -1) {
         switch (ch) {
             case '?' :
                 if(myoptarg!=NULL) {
@@ -1158,12 +1166,21 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 earlyData = 1;
             #endif
                 break;
+
             case '1' :
                 lng_index = atoi(myoptarg);
                 if(lng_index<0||lng_index>1){
                     lng_index = 0;
                 }
                 break;
+
+            case '2' :
+               #if !defined(NO_DH) && !defined(HAVE_FIPS) && \
+                   !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
+                    doDhKeyCheck = 0;
+                #endif
+                break;
+
             case '3' :
                 #ifdef WOLFSSL_MULTICAST
                     doMcast = 1;
@@ -1765,6 +1782,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             #elif !defined(NO_DH)
                 SetDH(ssl);  /* repick suites with DHE, higher priority than PSK */
             #endif
+#if !defined(NO_DH) && !defined(WOLFSSL_OLD_PRIME_CHECK) && \
+    !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+            if (!doDhKeyCheck)
+                wolfSSL_SetEnableDhKeyTest(ssl, 0);
+#endif
         }
 
 #ifndef WOLFSSL_CALLBACKS
