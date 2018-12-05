@@ -10551,10 +10551,17 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 
 #ifndef NO_WOLFSSL_CLIENT
             if (ssl->options.side == WOLFSSL_CLIENT_END) {
-                if (!ssl->options.resuming &&
-                                 ssl->msgsReceived.got_server_hello_done == 0) {
-                    WOLFSSL_MSG("No ServerHelloDone before ChangeCipher");
-                    return OUT_OF_ORDER_E;
+                if (!ssl->options.resuming) {
+                   if (ssl->msgsReceived.got_server_hello_done == 0) {
+                        WOLFSSL_MSG("No ServerHelloDone before ChangeCipher");
+                        return OUT_OF_ORDER_E;
+                   }
+                }
+                else {
+                    if (ssl->msgsReceived.got_server_hello == 0) {
+                        WOLFSSL_MSG("No ServerHello before ChangeCipher on Resume");
+                        return OUT_OF_ORDER_E;
+                    }
                 }
                 #ifdef HAVE_SESSION_TICKET
                     if (ssl->expect_session_ticket) {
@@ -13446,6 +13453,7 @@ int SendChangeCipher(WOLFSSL* ssl)
 
     #ifdef WOLFSSL_DTLS
         if (IsDtlsNotSctpMode(ssl)) {
+            DtlsSEQIncrement(ssl, CUR_ORDER);
             if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
                 return ret;
         }
