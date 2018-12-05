@@ -23488,31 +23488,25 @@ WOLFSSL_BIGNUM* wolfSSL_DH_1536_prime(WOLFSSL_BIGNUM* bn)
 int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
 {
     int            ret    = WOLFSSL_FAILURE;
-    word32         pubSz  = 768;
-    word32         privSz = 768;
+    word32         pubSz  = 0;
+    word32         privSz = 0;
     int            initTmpRng = 0;
     WC_RNG*        rng    = NULL;
 #ifdef WOLFSSL_SMALL_STACK
-    unsigned char* pub    = NULL;
-    unsigned char* priv   = NULL;
     WC_RNG*        tmpRNG = NULL;
 #else
-    unsigned char  pub [768];
-    unsigned char  priv[768];
     WC_RNG         tmpRNG[1];
 #endif
+    unsigned char* pub    = NULL;
+    unsigned char* priv   = NULL;
 
     WOLFSSL_MSG("wolfSSL_DH_generate_key");
 
 #ifdef WOLFSSL_SMALL_STACK
     tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-    pub    = (unsigned char*)XMALLOC(pubSz,   NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-    priv   = (unsigned char*)XMALLOC(privSz,  NULL, DYNAMIC_TYPE_PRIVATE_KEY);
 
     if (tmpRNG == NULL || pub == NULL || priv == NULL) {
         XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
-        XFREE(pub,    NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-        XFREE(priv,   NULL, DYNAMIC_TYPE_PRIVATE_KEY);
         return ret;
     }
 #endif
@@ -23534,10 +23528,16 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
     }
 
     if (rng) {
-       if (wc_DhGenerateKeyPair((DhKey*)dh->internal, rng, priv, &privSz,
+        pubSz = privSz = wolfSSL_BN_num_bytes(dh->p);
+        pub   = (unsigned char*)XMALLOC(pubSz,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        priv  = (unsigned char*)XMALLOC(privSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        if (pub == NULL || priv == NULL) {
+            WOLFSSL_MSG("Unable to malloc memory");
+        }
+        else if (wc_DhGenerateKeyPair((DhKey*)dh->internal, rng, priv, &privSz,
                                                                pub, &pubSz) < 0)
             WOLFSSL_MSG("Bad wc_DhGenerateKeyPair");
-       else {
+        else {
             if (dh->pub_key)
                 wolfSSL_BN_free(dh->pub_key);
 
@@ -23570,9 +23570,9 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
+#endif
     XFREE(pub,    NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     XFREE(priv,   NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-#endif
 
     return ret;
 }
