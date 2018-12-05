@@ -115,10 +115,9 @@
 
 
 #if defined(USE_INTEL_SPEEDUP)
-    #define HAVE_INTEL_AVX1
-
     #if defined(__GNUC__) && ((__GNUC__ < 4) || \
                               (__GNUC__ == 4 && __GNUC_MINOR__ <= 8))
+        #undef  NO_AVX2_SUPPORT
         #define NO_AVX2_SUPPORT
     #endif
     #if defined(__clang__) && ((__clang_major__ < 3) || \
@@ -1192,7 +1191,7 @@ static int InitSha256(wc_Sha256* sha256)
     "xorl	%" #e ", " L1 "\n\t"                                  \
     /* L2 = (f ^ g) & e */                                            \
     "andl	%" #e ", " L2 "\n\t"                                  \
- 
+
 #define RND_STEP_0_4(a,b,c,d,e,f,g,h,i)                               \
     /* L1 = ((e>>>14) ^ e) >>> 5 */                                   \
     "rorl	$5, " L1 "\n\t"                                       \
@@ -1244,7 +1243,7 @@ static int InitSha256(wc_Sha256* sha256)
 #define RND_STEP_1_1(a,b,c,d,e,f,g,h,i)                               \
     /* L1 = e>>>14 */                                                 \
     "rorl	$14, " L1 "\n\t"                                      \
- 
+
 #define RND_STEP_1_2(a,b,c,d,e,f,g,h,i)                               \
     /* L3 = b */                                                      \
     "movl	%" #b ", " L4 "\n\t"                                  \
@@ -1254,13 +1253,13 @@ static int InitSha256(wc_Sha256* sha256)
     "addl	(" #i ")*4(" WK "), %" #h "\n\t"                      \
     /* L2 = f ^ g */                                                  \
     "xorl	%" #g ", " L2 "\n\t"                                  \
- 
+
 #define RND_STEP_1_3(a,b,c,d,e,f,g,h,i)                               \
     /* L1 = (e>>>14) ^ e */                                           \
     "xorl	%" #e ", " L1 "\n\t"                                  \
     /* L2 = (f ^ g) & e */                                            \
     "andl	%" #e ", " L2 "\n\t"                                  \
- 
+
 #define RND_STEP_1_4(a,b,c,d,e,f,g,h,i)                               \
     /* L1 = ((e>>>14) ^ e) >>> 5 */                                   \
     "rorl	$5, " L1 "\n\t"                                       \
