@@ -15781,21 +15781,26 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
     AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output, 0, decoded,
         (word32)sizeof(decoded)), BAD_FUNC_ARG);
     /* Should get a return of BAD_FUNC_ARG with structure data. Order matters.*/
+#if defined(HAVE_ECC) && !defined(NO_AES)
+    /* only a failure for KARI test cases */
     tempWrd32 = pkcs7->singleCertSz;
     pkcs7->singleCertSz = 0;
     AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output), decoded, (word32)sizeof(decoded)), BAD_FUNC_ARG);
     pkcs7->singleCertSz = tempWrd32;
-    tempWrd32 = pkcs7->privateKeySz;
-    pkcs7->privateKeySz = 0;
-    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
-        (word32)sizeof(output), decoded, (word32)sizeof(decoded)), BAD_FUNC_ARG);
-    pkcs7->privateKeySz = tempWrd32;
+
     tmpBytePtr = pkcs7->singleCert;
     pkcs7->singleCert = NULL;
     AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output), decoded, (word32)sizeof(decoded)), BAD_FUNC_ARG);
     pkcs7->singleCert = tmpBytePtr;
+#endif
+    tempWrd32 = pkcs7->privateKeySz;
+    pkcs7->privateKeySz = 0;
+    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
+        (word32)sizeof(output), decoded, (word32)sizeof(decoded)), BAD_FUNC_ARG);
+    pkcs7->privateKeySz = tempWrd32;
+
     tmpBytePtr = pkcs7->privateKey;
     pkcs7->privateKey = NULL;
     AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
