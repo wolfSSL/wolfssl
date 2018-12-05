@@ -837,7 +837,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         /* these are blocking */
     #ifdef HAVE_CAVIUM
         return NitroxRngGenerateBlock(rng, output, sz);
-    #elif defined(HAVE_INTEL_QA)
+    #elif defined(HAVE_INTEL_QA) && defined(QAT_ENABLE_RNG)
         return IntelQaDrbg(&rng->asyncDev, output, sz);
     #else
         /* simulator not supported */
