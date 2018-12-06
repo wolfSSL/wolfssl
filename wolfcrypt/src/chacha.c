@@ -55,10 +55,12 @@
 
     #if defined(__GNUC__) && ((__GNUC__ < 4) || \
                               (__GNUC__ == 4 && __GNUC_MINOR__ <= 8))
+        #undef  NO_AVX2_SUPPORT
         #define NO_AVX2_SUPPORT
     #endif
     #if defined(__clang__) && ((__clang_major__ < 3) || \
                                (__clang_major__ == 3 && __clang_minor__ <= 5))
+        #undef  NO_AVX2_SUPPORT
         #define NO_AVX2_SUPPORT
     #elif defined(__clang__) && defined(NO_AVX2_SUPPORT)
         #undef NO_AVX2_SUPPORT
