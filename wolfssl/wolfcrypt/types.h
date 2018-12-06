@@ -125,11 +125,11 @@
         WOLFSSL_WORD_BITS  = WOLFSSL_WORD_SIZE * WOLFSSL_BIT_SIZE
     };
 
-    #define WOLFSSL_MAX_BYTE   0xffU
     #define WOLFSSL_MAX_16BIT  0xffffU
-    #define WOLFSSL_MAX_32BIT  0xffffffffU
+    #define WOLFSSL_MAX_BYTE   0xff
+    #define WOLFSSL_MAX_32BIT (~((word32)0U))
 #ifdef WORD64_AVAILABLE
-    #define WOLFSSL_MAX_WORD64 0xffffffffffffffffU
+    #define WOLFSSL_MAX_WORD64 W64LIT(0xffffffffffffffff)
 #endif
 
     /* use inlining if compiler allows */
