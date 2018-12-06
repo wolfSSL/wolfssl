@@ -137,9 +137,12 @@ typedef struct RsaNb {
 
 /* RSA */
 struct RsaKey {
-    mp_int n, e, d, p, q;
+    mp_int n, e;
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+    mp_int d, p, q;
 #if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
     mp_int dP, dQ, u;
+#endif
 #endif
     void* heap;                               /* for user memory overrides */
     byte* data;                               /* temp buffer for async RSA */
@@ -167,7 +170,9 @@ struct RsaKey {
     byte id[RSA_MAX_ID_LEN];
     int  idLen;
 #endif
+#if defined(WOLFSSL_ASYNC_CRYPT) || !defined(WOLFSSL_RSA_VERIFY_INLINE)
     byte   dataIsAlloc;
+#endif
 #ifdef WC_RSA_NONBLOCK
     RsaNb* nb;
 #endif

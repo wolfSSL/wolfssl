@@ -356,7 +356,7 @@ int wc_SignatureGenerateHash(
 
         case WC_SIGNATURE_TYPE_RSA_W_ENC:
         case WC_SIGNATURE_TYPE_RSA:
-#ifndef NO_RSA
+#if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
             /* Create signature using provided RSA key */
             do {
             #ifdef WOLFSSL_ASYNC_CRYPT
@@ -420,7 +420,7 @@ int wc_SignatureGenerate(
     }
     hash_enc_len = hash_len = ret;
 
-#ifndef NO_RSA
+#if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     if (sig_type == WC_SIGNATURE_TYPE_RSA_W_ENC) {
         /* For RSA with ASN.1 encoding include room */
         hash_enc_len += MAX_DER_DIGEST_ASN_SZ;
@@ -440,7 +440,8 @@ int wc_SignatureGenerate(
     if (ret == 0) {
         /* Handle RSA with DER encoding */
         if (sig_type == WC_SIGNATURE_TYPE_RSA_W_ENC) {
-        #if defined(NO_RSA) || defined(NO_ASN)
+        #if defined(NO_RSA) || defined(NO_ASN) || \
+                                                defined(WOLFSSL_RSA_PUBLIC_ONLY)
             ret = SIG_TYPE_E;
         #else
             ret = wc_SignatureDerEncode(hash_type, hash_data, hash_len,

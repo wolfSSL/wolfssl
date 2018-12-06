@@ -50,7 +50,7 @@
 
 #ifndef WOLFSSL_SP_ASM
 #if SP_WORD_SIZE == 32
-#if defined(WOLFSSL_SP_CACHE_RESISTANT) || defined(WOLFSSL_SP_SMALL)
+#if (defined(WOLFSSL_SP_CACHE_RESISTANT) || defined(WOLFSSL_SP_SMALL)) &&                                                !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* Mask for address to obfuscate which of the two address will be used. */
 static const size_t addr_mask[2] = { 0, (size_t)-1 };
 #endif
@@ -1032,7 +1032,8 @@ SP_NOINLINE static void sp_2048_sqr_90(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA)
+#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA) && \
+       !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 #ifdef WOLFSSL_SP_SMALL
 /* Add b to a into r. (r = a + b)
  *
@@ -1168,7 +1169,7 @@ SP_NOINLINE static void sp_2048_sqr_45(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA */
+#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 /* Caclulate the bottom digit of -1/a mod 2^n.
  *
@@ -1190,7 +1191,58 @@ static void sp_2048_mont_setup(sp_digit* a, sp_digit* rho)
     *rho = (1L << 23) - x;
 }
 
-#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA)
+/* Multiply a by scalar b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A scalar.
+ */
+SP_NOINLINE static void sp_2048_mul_d_90(sp_digit* r, const sp_digit* a,
+    const sp_digit b)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int64_t tb = b;
+    int64_t t = 0;
+    int i;
+
+    for (i = 0; i < 90; i++) {
+        t += tb * a[i];
+        r[i] = t & 0x7fffff;
+        t >>= 23;
+    }
+    r[90] = (sp_digit)t;
+#else
+    int64_t tb = b;
+    int64_t t[8];
+    int i;
+
+    t[0] = tb * a[0]; r[0] = t[0] & 0x7fffff;
+    for (i = 0; i < 88; i += 8) {
+        t[1] = tb * a[i+1];
+        r[i+1] = (sp_digit)(t[0] >> 23) + (t[1] & 0x7fffff);
+        t[2] = tb * a[i+2];
+        r[i+2] = (sp_digit)(t[1] >> 23) + (t[2] & 0x7fffff);
+        t[3] = tb * a[i+3];
+        r[i+3] = (sp_digit)(t[2] >> 23) + (t[3] & 0x7fffff);
+        t[4] = tb * a[i+4];
+        r[i+4] = (sp_digit)(t[3] >> 23) + (t[4] & 0x7fffff);
+        t[5] = tb * a[i+5];
+        r[i+5] = (sp_digit)(t[4] >> 23) + (t[5] & 0x7fffff);
+        t[6] = tb * a[i+6];
+        r[i+6] = (sp_digit)(t[5] >> 23) + (t[6] & 0x7fffff);
+        t[7] = tb * a[i+7];
+        r[i+7] = (sp_digit)(t[6] >> 23) + (t[7] & 0x7fffff);
+        t[0] = tb * a[i+8];
+        r[i+8] = (sp_digit)(t[7] >> 23) + (t[0] & 0x7fffff);
+    }
+    t[1] = tb * a[89];
+    r[89] = (sp_digit)(t[0] >> 23) + (t[1] & 0x7fffff);
+    r[90] =  (sp_digit)(t[1] >> 23);
+#endif /* WOLFSSL_SP_SMALL */
+}
+
+#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA) && \
+       !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 2048 bits, just need to subtract.
  *
@@ -1556,56 +1608,6 @@ SP_NOINLINE static void sp_2048_mul_d_45(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
-/* Multiply a by scalar b into r. (r = a * b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A scalar.
- */
-SP_NOINLINE static void sp_2048_mul_d_90(sp_digit* r, const sp_digit* a,
-    const sp_digit b)
-{
-#ifdef WOLFSSL_SP_SMALL
-    int64_t tb = b;
-    int64_t t = 0;
-    int i;
-
-    for (i = 0; i < 90; i++) {
-        t += tb * a[i];
-        r[i] = t & 0x7fffff;
-        t >>= 23;
-    }
-    r[90] = (sp_digit)t;
-#else
-    int64_t tb = b;
-    int64_t t[8];
-    int i;
-
-    t[0] = tb * a[0]; r[0] = t[0] & 0x7fffff;
-    for (i = 0; i < 88; i += 8) {
-        t[1] = tb * a[i+1];
-        r[i+1] = (sp_digit)(t[0] >> 23) + (t[1] & 0x7fffff);
-        t[2] = tb * a[i+2];
-        r[i+2] = (sp_digit)(t[1] >> 23) + (t[2] & 0x7fffff);
-        t[3] = tb * a[i+3];
-        r[i+3] = (sp_digit)(t[2] >> 23) + (t[3] & 0x7fffff);
-        t[4] = tb * a[i+4];
-        r[i+4] = (sp_digit)(t[3] >> 23) + (t[4] & 0x7fffff);
-        t[5] = tb * a[i+5];
-        r[i+5] = (sp_digit)(t[4] >> 23) + (t[5] & 0x7fffff);
-        t[6] = tb * a[i+6];
-        r[i+6] = (sp_digit)(t[5] >> 23) + (t[6] & 0x7fffff);
-        t[7] = tb * a[i+7];
-        r[i+7] = (sp_digit)(t[6] >> 23) + (t[7] & 0x7fffff);
-        t[0] = tb * a[i+8];
-        r[i+8] = (sp_digit)(t[7] >> 23) + (t[0] & 0x7fffff);
-    }
-    t[1] = tb * a[89];
-    r[89] = (sp_digit)(t[0] >> 23) + (t[1] & 0x7fffff);
-    r[90] =  (sp_digit)(t[1] >> 23);
-#endif /* WOLFSSL_SP_SMALL */
-}
-
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -1663,52 +1665,22 @@ SP_NOINLINE static int sp_2048_add_45(sp_digit* r, const sp_digit* a,
 #endif
 SP_NOINLINE static void sp_2048_rshift_45(sp_digit* r, sp_digit* a, byte n)
 {
-#ifdef WOLFSSL_SP_SMALL
     int i;
 
+#ifdef WOLFSSL_SP_SMALL
     for (i=0; i<44; i++)
         r[i] = ((a[i] >> n) | (a[i + 1] << (23 - n))) & 0x7fffff;
 #else
-    r[0] = ((a[0] >> n) | (a[1] << (23 - n))) & 0x7fffff;
-    r[1] = ((a[1] >> n) | (a[2] << (23 - n))) & 0x7fffff;
-    r[2] = ((a[2] >> n) | (a[3] << (23 - n))) & 0x7fffff;
-    r[3] = ((a[3] >> n) | (a[4] << (23 - n))) & 0x7fffff;
-    r[4] = ((a[4] >> n) | (a[5] << (23 - n))) & 0x7fffff;
-    r[5] = ((a[5] >> n) | (a[6] << (23 - n))) & 0x7fffff;
-    r[6] = ((a[6] >> n) | (a[7] << (23 - n))) & 0x7fffff;
-    r[7] = ((a[7] >> n) | (a[8] << (23 - n))) & 0x7fffff;
-    r[8] = ((a[8] >> n) | (a[9] << (23 - n))) & 0x7fffff;
-    r[9] = ((a[9] >> n) | (a[10] << (23 - n))) & 0x7fffff;
-    r[10] = ((a[10] >> n) | (a[11] << (23 - n))) & 0x7fffff;
-    r[11] = ((a[11] >> n) | (a[12] << (23 - n))) & 0x7fffff;
-    r[12] = ((a[12] >> n) | (a[13] << (23 - n))) & 0x7fffff;
-    r[13] = ((a[13] >> n) | (a[14] << (23 - n))) & 0x7fffff;
-    r[14] = ((a[14] >> n) | (a[15] << (23 - n))) & 0x7fffff;
-    r[15] = ((a[15] >> n) | (a[16] << (23 - n))) & 0x7fffff;
-    r[16] = ((a[16] >> n) | (a[17] << (23 - n))) & 0x7fffff;
-    r[17] = ((a[17] >> n) | (a[18] << (23 - n))) & 0x7fffff;
-    r[18] = ((a[18] >> n) | (a[19] << (23 - n))) & 0x7fffff;
-    r[19] = ((a[19] >> n) | (a[20] << (23 - n))) & 0x7fffff;
-    r[20] = ((a[20] >> n) | (a[21] << (23 - n))) & 0x7fffff;
-    r[21] = ((a[21] >> n) | (a[22] << (23 - n))) & 0x7fffff;
-    r[22] = ((a[22] >> n) | (a[23] << (23 - n))) & 0x7fffff;
-    r[23] = ((a[23] >> n) | (a[24] << (23 - n))) & 0x7fffff;
-    r[24] = ((a[24] >> n) | (a[25] << (23 - n))) & 0x7fffff;
-    r[25] = ((a[25] >> n) | (a[26] << (23 - n))) & 0x7fffff;
-    r[26] = ((a[26] >> n) | (a[27] << (23 - n))) & 0x7fffff;
-    r[27] = ((a[27] >> n) | (a[28] << (23 - n))) & 0x7fffff;
-    r[28] = ((a[28] >> n) | (a[29] << (23 - n))) & 0x7fffff;
-    r[29] = ((a[29] >> n) | (a[30] << (23 - n))) & 0x7fffff;
-    r[30] = ((a[30] >> n) | (a[31] << (23 - n))) & 0x7fffff;
-    r[31] = ((a[31] >> n) | (a[32] << (23 - n))) & 0x7fffff;
-    r[32] = ((a[32] >> n) | (a[33] << (23 - n))) & 0x7fffff;
-    r[33] = ((a[33] >> n) | (a[34] << (23 - n))) & 0x7fffff;
-    r[34] = ((a[34] >> n) | (a[35] << (23 - n))) & 0x7fffff;
-    r[35] = ((a[35] >> n) | (a[36] << (23 - n))) & 0x7fffff;
-    r[36] = ((a[36] >> n) | (a[37] << (23 - n))) & 0x7fffff;
-    r[37] = ((a[37] >> n) | (a[38] << (23 - n))) & 0x7fffff;
-    r[38] = ((a[38] >> n) | (a[39] << (23 - n))) & 0x7fffff;
-    r[39] = ((a[39] >> n) | (a[40] << (23 - n))) & 0x7fffff;
+    for (i=0; i<40; i += 8) {
+        r[i+0] = ((a[i+0] >> n) | (a[i+1] << (23 - n))) & 0x7fffff;
+        r[i+1] = ((a[i+1] >> n) | (a[i+2] << (23 - n))) & 0x7fffff;
+        r[i+2] = ((a[i+2] >> n) | (a[i+3] << (23 - n))) & 0x7fffff;
+        r[i+3] = ((a[i+3] >> n) | (a[i+4] << (23 - n))) & 0x7fffff;
+        r[i+4] = ((a[i+4] >> n) | (a[i+5] << (23 - n))) & 0x7fffff;
+        r[i+5] = ((a[i+5] >> n) | (a[i+6] << (23 - n))) & 0x7fffff;
+        r[i+6] = ((a[i+6] >> n) | (a[i+7] << (23 - n))) & 0x7fffff;
+        r[i+7] = ((a[i+7] >> n) | (a[i+8] << (23 - n))) & 0x7fffff;
+    }
     r[40] = ((a[40] >> n) | (a[41] << (23 - n))) & 0x7fffff;
     r[41] = ((a[41] >> n) | (a[42] << (23 - n))) & 0x7fffff;
     r[42] = ((a[42] >> n) | (a[43] << (23 - n))) & 0x7fffff;
@@ -2121,7 +2093,7 @@ static int sp_2048_mod_exp_45(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
 #endif
 }
 
-#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA */
+#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 2048 bits, just need to subtract.
@@ -2366,6 +2338,7 @@ static void sp_2048_mont_reduce_90(sp_digit* a, sp_digit* m, sp_digit mp)
     int i;
     sp_digit mu;
 
+#ifdef WOLFSSL_SP_DH
     if (mp != 1) {
         for (i=0; i<89; i++) {
             mu = (a[i] * mp) & 0x7fffff;
@@ -2388,6 +2361,17 @@ static void sp_2048_mont_reduce_90(sp_digit* a, sp_digit* m, sp_digit mp)
         a[i+1] += a[i] >> 23;
         a[i] &= 0x7fffff;
     }
+#else
+    for (i=0; i<89; i++) {
+        mu = (a[i] * mp) & 0x7fffff;
+        sp_2048_mul_add_90(a+i, m, mu);
+        a[i+1] += a[i] >> 23;
+    }
+    mu = (a[i] * mp) & 0x1l;
+    sp_2048_mul_add_90(a+i, m, mu);
+    a[i+1] += a[i] >> 23;
+    a[i] &= 0x7fffff;
+#endif
 
     sp_2048_mont_shift_90(a, a);
     sp_2048_cond_sub_90(a, a, m, 0 - ((a[89] >> 1) > 0));
@@ -2551,100 +2535,22 @@ SP_NOINLINE static int sp_2048_add_90(sp_digit* r, const sp_digit* a,
 #endif
 SP_NOINLINE static void sp_2048_rshift_90(sp_digit* r, sp_digit* a, byte n)
 {
-#ifdef WOLFSSL_SP_SMALL
     int i;
 
+#ifdef WOLFSSL_SP_SMALL
     for (i=0; i<89; i++)
         r[i] = ((a[i] >> n) | (a[i + 1] << (23 - n))) & 0x7fffff;
 #else
-    r[0] = ((a[0] >> n) | (a[1] << (23 - n))) & 0x7fffff;
-    r[1] = ((a[1] >> n) | (a[2] << (23 - n))) & 0x7fffff;
-    r[2] = ((a[2] >> n) | (a[3] << (23 - n))) & 0x7fffff;
-    r[3] = ((a[3] >> n) | (a[4] << (23 - n))) & 0x7fffff;
-    r[4] = ((a[4] >> n) | (a[5] << (23 - n))) & 0x7fffff;
-    r[5] = ((a[5] >> n) | (a[6] << (23 - n))) & 0x7fffff;
-    r[6] = ((a[6] >> n) | (a[7] << (23 - n))) & 0x7fffff;
-    r[7] = ((a[7] >> n) | (a[8] << (23 - n))) & 0x7fffff;
-    r[8] = ((a[8] >> n) | (a[9] << (23 - n))) & 0x7fffff;
-    r[9] = ((a[9] >> n) | (a[10] << (23 - n))) & 0x7fffff;
-    r[10] = ((a[10] >> n) | (a[11] << (23 - n))) & 0x7fffff;
-    r[11] = ((a[11] >> n) | (a[12] << (23 - n))) & 0x7fffff;
-    r[12] = ((a[12] >> n) | (a[13] << (23 - n))) & 0x7fffff;
-    r[13] = ((a[13] >> n) | (a[14] << (23 - n))) & 0x7fffff;
-    r[14] = ((a[14] >> n) | (a[15] << (23 - n))) & 0x7fffff;
-    r[15] = ((a[15] >> n) | (a[16] << (23 - n))) & 0x7fffff;
-    r[16] = ((a[16] >> n) | (a[17] << (23 - n))) & 0x7fffff;
-    r[17] = ((a[17] >> n) | (a[18] << (23 - n))) & 0x7fffff;
-    r[18] = ((a[18] >> n) | (a[19] << (23 - n))) & 0x7fffff;
-    r[19] = ((a[19] >> n) | (a[20] << (23 - n))) & 0x7fffff;
-    r[20] = ((a[20] >> n) | (a[21] << (23 - n))) & 0x7fffff;
-    r[21] = ((a[21] >> n) | (a[22] << (23 - n))) & 0x7fffff;
-    r[22] = ((a[22] >> n) | (a[23] << (23 - n))) & 0x7fffff;
-    r[23] = ((a[23] >> n) | (a[24] << (23 - n))) & 0x7fffff;
-    r[24] = ((a[24] >> n) | (a[25] << (23 - n))) & 0x7fffff;
-    r[25] = ((a[25] >> n) | (a[26] << (23 - n))) & 0x7fffff;
-    r[26] = ((a[26] >> n) | (a[27] << (23 - n))) & 0x7fffff;
-    r[27] = ((a[27] >> n) | (a[28] << (23 - n))) & 0x7fffff;
-    r[28] = ((a[28] >> n) | (a[29] << (23 - n))) & 0x7fffff;
-    r[29] = ((a[29] >> n) | (a[30] << (23 - n))) & 0x7fffff;
-    r[30] = ((a[30] >> n) | (a[31] << (23 - n))) & 0x7fffff;
-    r[31] = ((a[31] >> n) | (a[32] << (23 - n))) & 0x7fffff;
-    r[32] = ((a[32] >> n) | (a[33] << (23 - n))) & 0x7fffff;
-    r[33] = ((a[33] >> n) | (a[34] << (23 - n))) & 0x7fffff;
-    r[34] = ((a[34] >> n) | (a[35] << (23 - n))) & 0x7fffff;
-    r[35] = ((a[35] >> n) | (a[36] << (23 - n))) & 0x7fffff;
-    r[36] = ((a[36] >> n) | (a[37] << (23 - n))) & 0x7fffff;
-    r[37] = ((a[37] >> n) | (a[38] << (23 - n))) & 0x7fffff;
-    r[38] = ((a[38] >> n) | (a[39] << (23 - n))) & 0x7fffff;
-    r[39] = ((a[39] >> n) | (a[40] << (23 - n))) & 0x7fffff;
-    r[40] = ((a[40] >> n) | (a[41] << (23 - n))) & 0x7fffff;
-    r[41] = ((a[41] >> n) | (a[42] << (23 - n))) & 0x7fffff;
-    r[42] = ((a[42] >> n) | (a[43] << (23 - n))) & 0x7fffff;
-    r[43] = ((a[43] >> n) | (a[44] << (23 - n))) & 0x7fffff;
-    r[44] = ((a[44] >> n) | (a[45] << (23 - n))) & 0x7fffff;
-    r[45] = ((a[45] >> n) | (a[46] << (23 - n))) & 0x7fffff;
-    r[46] = ((a[46] >> n) | (a[47] << (23 - n))) & 0x7fffff;
-    r[47] = ((a[47] >> n) | (a[48] << (23 - n))) & 0x7fffff;
-    r[48] = ((a[48] >> n) | (a[49] << (23 - n))) & 0x7fffff;
-    r[49] = ((a[49] >> n) | (a[50] << (23 - n))) & 0x7fffff;
-    r[50] = ((a[50] >> n) | (a[51] << (23 - n))) & 0x7fffff;
-    r[51] = ((a[51] >> n) | (a[52] << (23 - n))) & 0x7fffff;
-    r[52] = ((a[52] >> n) | (a[53] << (23 - n))) & 0x7fffff;
-    r[53] = ((a[53] >> n) | (a[54] << (23 - n))) & 0x7fffff;
-    r[54] = ((a[54] >> n) | (a[55] << (23 - n))) & 0x7fffff;
-    r[55] = ((a[55] >> n) | (a[56] << (23 - n))) & 0x7fffff;
-    r[56] = ((a[56] >> n) | (a[57] << (23 - n))) & 0x7fffff;
-    r[57] = ((a[57] >> n) | (a[58] << (23 - n))) & 0x7fffff;
-    r[58] = ((a[58] >> n) | (a[59] << (23 - n))) & 0x7fffff;
-    r[59] = ((a[59] >> n) | (a[60] << (23 - n))) & 0x7fffff;
-    r[60] = ((a[60] >> n) | (a[61] << (23 - n))) & 0x7fffff;
-    r[61] = ((a[61] >> n) | (a[62] << (23 - n))) & 0x7fffff;
-    r[62] = ((a[62] >> n) | (a[63] << (23 - n))) & 0x7fffff;
-    r[63] = ((a[63] >> n) | (a[64] << (23 - n))) & 0x7fffff;
-    r[64] = ((a[64] >> n) | (a[65] << (23 - n))) & 0x7fffff;
-    r[65] = ((a[65] >> n) | (a[66] << (23 - n))) & 0x7fffff;
-    r[66] = ((a[66] >> n) | (a[67] << (23 - n))) & 0x7fffff;
-    r[67] = ((a[67] >> n) | (a[68] << (23 - n))) & 0x7fffff;
-    r[68] = ((a[68] >> n) | (a[69] << (23 - n))) & 0x7fffff;
-    r[69] = ((a[69] >> n) | (a[70] << (23 - n))) & 0x7fffff;
-    r[70] = ((a[70] >> n) | (a[71] << (23 - n))) & 0x7fffff;
-    r[71] = ((a[71] >> n) | (a[72] << (23 - n))) & 0x7fffff;
-    r[72] = ((a[72] >> n) | (a[73] << (23 - n))) & 0x7fffff;
-    r[73] = ((a[73] >> n) | (a[74] << (23 - n))) & 0x7fffff;
-    r[74] = ((a[74] >> n) | (a[75] << (23 - n))) & 0x7fffff;
-    r[75] = ((a[75] >> n) | (a[76] << (23 - n))) & 0x7fffff;
-    r[76] = ((a[76] >> n) | (a[77] << (23 - n))) & 0x7fffff;
-    r[77] = ((a[77] >> n) | (a[78] << (23 - n))) & 0x7fffff;
-    r[78] = ((a[78] >> n) | (a[79] << (23 - n))) & 0x7fffff;
-    r[79] = ((a[79] >> n) | (a[80] << (23 - n))) & 0x7fffff;
-    r[80] = ((a[80] >> n) | (a[81] << (23 - n))) & 0x7fffff;
-    r[81] = ((a[81] >> n) | (a[82] << (23 - n))) & 0x7fffff;
-    r[82] = ((a[82] >> n) | (a[83] << (23 - n))) & 0x7fffff;
-    r[83] = ((a[83] >> n) | (a[84] << (23 - n))) & 0x7fffff;
-    r[84] = ((a[84] >> n) | (a[85] << (23 - n))) & 0x7fffff;
-    r[85] = ((a[85] >> n) | (a[86] << (23 - n))) & 0x7fffff;
-    r[86] = ((a[86] >> n) | (a[87] << (23 - n))) & 0x7fffff;
-    r[87] = ((a[87] >> n) | (a[88] << (23 - n))) & 0x7fffff;
+    for (i=0; i<88; i += 8) {
+        r[i+0] = ((a[i+0] >> n) | (a[i+1] << (23 - n))) & 0x7fffff;
+        r[i+1] = ((a[i+1] >> n) | (a[i+2] << (23 - n))) & 0x7fffff;
+        r[i+2] = ((a[i+2] >> n) | (a[i+3] << (23 - n))) & 0x7fffff;
+        r[i+3] = ((a[i+3] >> n) | (a[i+4] << (23 - n))) & 0x7fffff;
+        r[i+4] = ((a[i+4] >> n) | (a[i+5] << (23 - n))) & 0x7fffff;
+        r[i+5] = ((a[i+5] >> n) | (a[i+6] << (23 - n))) & 0x7fffff;
+        r[i+6] = ((a[i+6] >> n) | (a[i+7] << (23 - n))) & 0x7fffff;
+        r[i+7] = ((a[i+7] >> n) | (a[i+8] << (23 - n))) & 0x7fffff;
+    }
     r[88] = ((a[88] >> n) | (a[89] << (23 - n))) & 0x7fffff;
 #endif
     r[89] = a[89] >> n;
@@ -3057,7 +2963,7 @@ static int sp_2048_mod_exp_90(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
 #endif /* SP_RSA_PRIVATE_EXP_D || WOLFSSL_HAVE_SP_DH */
 
 #if defined(WOLFSSL_HAVE_SP_RSA) && !defined(SP_RSA_PRIVATE_EXP_D) && \
-                                    !defined(RSA_LOW_MEM)
+           !defined(RSA_LOW_MEM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* AND m into each word of a and store in r.
  *
  * r  A single precision integer.
@@ -3293,6 +3199,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -3527,6 +3434,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 #endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
 }
 
+#endif /* !WOLFSSL_RSA_PUBLIC_ONLY */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #ifdef WOLFSSL_HAVE_SP_DH
 /* Convert an array of sp_digit to an mp_int.
@@ -4437,7 +4345,8 @@ SP_NOINLINE static void sp_3072_sqr_136(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA)
+#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA) && \
+       !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 #ifdef WOLFSSL_SP_SMALL
 /* Add b to a into r. (r = a + b)
  *
@@ -4542,7 +4451,7 @@ SP_NOINLINE static void sp_3072_sqr_68(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA */
+#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 /* Caclulate the bottom digit of -1/a mod 2^n.
  *
@@ -4564,7 +4473,56 @@ static void sp_3072_mont_setup(sp_digit* a, sp_digit* rho)
     *rho = (1L << 23) - x;
 }
 
-#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA)
+/* Multiply a by scalar b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A scalar.
+ */
+SP_NOINLINE static void sp_3072_mul_d_136(sp_digit* r, const sp_digit* a,
+    const sp_digit b)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int64_t tb = b;
+    int64_t t = 0;
+    int i;
+
+    for (i = 0; i < 136; i++) {
+        t += tb * a[i];
+        r[i] = t & 0x7fffff;
+        t >>= 23;
+    }
+    r[136] = (sp_digit)t;
+#else
+    int64_t tb = b;
+    int64_t t[8];
+    int i;
+
+    t[0] = tb * a[0]; r[0] = t[0] & 0x7fffff;
+    for (i = 0; i < 136; i += 8) {
+        t[1] = tb * a[i+1];
+        r[i+1] = (sp_digit)(t[0] >> 23) + (t[1] & 0x7fffff);
+        t[2] = tb * a[i+2];
+        r[i+2] = (sp_digit)(t[1] >> 23) + (t[2] & 0x7fffff);
+        t[3] = tb * a[i+3];
+        r[i+3] = (sp_digit)(t[2] >> 23) + (t[3] & 0x7fffff);
+        t[4] = tb * a[i+4];
+        r[i+4] = (sp_digit)(t[3] >> 23) + (t[4] & 0x7fffff);
+        t[5] = tb * a[i+5];
+        r[i+5] = (sp_digit)(t[4] >> 23) + (t[5] & 0x7fffff);
+        t[6] = tb * a[i+6];
+        r[i+6] = (sp_digit)(t[5] >> 23) + (t[6] & 0x7fffff);
+        t[7] = tb * a[i+7];
+        r[i+7] = (sp_digit)(t[6] >> 23) + (t[7] & 0x7fffff);
+        t[0] = tb * a[i+8];
+        r[i+8] = (sp_digit)(t[7] >> 23) + (t[0] & 0x7fffff);
+    }
+    r[136] =  (sp_digit)(t[7] >> 23);
+#endif /* WOLFSSL_SP_SMALL */
+}
+
+#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA) && \
+       !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 3072 bits, just need to subtract.
  *
@@ -5399,7 +5357,7 @@ static int sp_3072_mod_exp_68(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
 #endif
 }
 
-#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA */
+#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 3072 bits, just need to subtract.
@@ -5649,6 +5607,7 @@ static void sp_3072_mont_reduce_136(sp_digit* a, sp_digit* m, sp_digit mp)
     int i;
     sp_digit mu;
 
+#ifdef WOLFSSL_SP_DH
     if (mp != 1) {
         for (i=0; i<135; i++) {
             mu = (a[i] * mp) & 0x7fffff;
@@ -5671,6 +5630,17 @@ static void sp_3072_mont_reduce_136(sp_digit* a, sp_digit* m, sp_digit mp)
         a[i+1] += a[i] >> 23;
         a[i] &= 0x7fffff;
     }
+#else
+    for (i=0; i<135; i++) {
+        mu = (a[i] * mp) & 0x7fffff;
+        sp_3072_mul_add_136(a+i, m, mu);
+        a[i+1] += a[i] >> 23;
+    }
+    mu = (a[i] * mp) & 0x1fffl;
+    sp_3072_mul_add_136(a+i, m, mu);
+    a[i+1] += a[i] >> 23;
+    a[i] &= 0x7fffff;
+#endif
 
     sp_3072_mont_shift_136(a, a);
     sp_3072_cond_sub_136(a, a, m, 0 - ((a[135] >> 13) > 0));
@@ -5705,54 +5675,6 @@ static void sp_3072_mont_sqr_136(sp_digit* r, sp_digit* a, sp_digit* m,
 {
     sp_3072_sqr_136(r, a);
     sp_3072_mont_reduce_136(r, m, mp);
-}
-
-/* Multiply a by scalar b into r. (r = a * b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A scalar.
- */
-SP_NOINLINE static void sp_3072_mul_d_136(sp_digit* r, const sp_digit* a,
-    const sp_digit b)
-{
-#ifdef WOLFSSL_SP_SMALL
-    int64_t tb = b;
-    int64_t t = 0;
-    int i;
-
-    for (i = 0; i < 136; i++) {
-        t += tb * a[i];
-        r[i] = t & 0x7fffff;
-        t >>= 23;
-    }
-    r[136] = (sp_digit)t;
-#else
-    int64_t tb = b;
-    int64_t t[8];
-    int i;
-
-    t[0] = tb * a[0]; r[0] = t[0] & 0x7fffff;
-    for (i = 0; i < 136; i += 8) {
-        t[1] = tb * a[i+1];
-        r[i+1] = (sp_digit)(t[0] >> 23) + (t[1] & 0x7fffff);
-        t[2] = tb * a[i+2];
-        r[i+2] = (sp_digit)(t[1] >> 23) + (t[2] & 0x7fffff);
-        t[3] = tb * a[i+3];
-        r[i+3] = (sp_digit)(t[2] >> 23) + (t[3] & 0x7fffff);
-        t[4] = tb * a[i+4];
-        r[i+4] = (sp_digit)(t[3] >> 23) + (t[4] & 0x7fffff);
-        t[5] = tb * a[i+5];
-        r[i+5] = (sp_digit)(t[4] >> 23) + (t[5] & 0x7fffff);
-        t[6] = tb * a[i+6];
-        r[i+6] = (sp_digit)(t[5] >> 23) + (t[6] & 0x7fffff);
-        t[7] = tb * a[i+7];
-        r[i+7] = (sp_digit)(t[6] >> 23) + (t[7] & 0x7fffff);
-        t[0] = tb * a[i+8];
-        r[i+8] = (sp_digit)(t[7] >> 23) + (t[0] & 0x7fffff);
-    }
-    r[136] =  (sp_digit)(t[7] >> 23);
-#endif /* WOLFSSL_SP_SMALL */
 }
 
 /* Multiply a by scalar b into r. (r = a * b)
@@ -5874,147 +5796,22 @@ SP_NOINLINE static int sp_3072_add_136(sp_digit* r, const sp_digit* a,
 #endif
 SP_NOINLINE static void sp_3072_rshift_136(sp_digit* r, sp_digit* a, byte n)
 {
-#ifdef WOLFSSL_SP_SMALL
     int i;
 
+#ifdef WOLFSSL_SP_SMALL
     for (i=0; i<135; i++)
         r[i] = ((a[i] >> n) | (a[i + 1] << (23 - n))) & 0x7fffff;
 #else
-    r[0] = ((a[0] >> n) | (a[1] << (23 - n))) & 0x7fffff;
-    r[1] = ((a[1] >> n) | (a[2] << (23 - n))) & 0x7fffff;
-    r[2] = ((a[2] >> n) | (a[3] << (23 - n))) & 0x7fffff;
-    r[3] = ((a[3] >> n) | (a[4] << (23 - n))) & 0x7fffff;
-    r[4] = ((a[4] >> n) | (a[5] << (23 - n))) & 0x7fffff;
-    r[5] = ((a[5] >> n) | (a[6] << (23 - n))) & 0x7fffff;
-    r[6] = ((a[6] >> n) | (a[7] << (23 - n))) & 0x7fffff;
-    r[7] = ((a[7] >> n) | (a[8] << (23 - n))) & 0x7fffff;
-    r[8] = ((a[8] >> n) | (a[9] << (23 - n))) & 0x7fffff;
-    r[9] = ((a[9] >> n) | (a[10] << (23 - n))) & 0x7fffff;
-    r[10] = ((a[10] >> n) | (a[11] << (23 - n))) & 0x7fffff;
-    r[11] = ((a[11] >> n) | (a[12] << (23 - n))) & 0x7fffff;
-    r[12] = ((a[12] >> n) | (a[13] << (23 - n))) & 0x7fffff;
-    r[13] = ((a[13] >> n) | (a[14] << (23 - n))) & 0x7fffff;
-    r[14] = ((a[14] >> n) | (a[15] << (23 - n))) & 0x7fffff;
-    r[15] = ((a[15] >> n) | (a[16] << (23 - n))) & 0x7fffff;
-    r[16] = ((a[16] >> n) | (a[17] << (23 - n))) & 0x7fffff;
-    r[17] = ((a[17] >> n) | (a[18] << (23 - n))) & 0x7fffff;
-    r[18] = ((a[18] >> n) | (a[19] << (23 - n))) & 0x7fffff;
-    r[19] = ((a[19] >> n) | (a[20] << (23 - n))) & 0x7fffff;
-    r[20] = ((a[20] >> n) | (a[21] << (23 - n))) & 0x7fffff;
-    r[21] = ((a[21] >> n) | (a[22] << (23 - n))) & 0x7fffff;
-    r[22] = ((a[22] >> n) | (a[23] << (23 - n))) & 0x7fffff;
-    r[23] = ((a[23] >> n) | (a[24] << (23 - n))) & 0x7fffff;
-    r[24] = ((a[24] >> n) | (a[25] << (23 - n))) & 0x7fffff;
-    r[25] = ((a[25] >> n) | (a[26] << (23 - n))) & 0x7fffff;
-    r[26] = ((a[26] >> n) | (a[27] << (23 - n))) & 0x7fffff;
-    r[27] = ((a[27] >> n) | (a[28] << (23 - n))) & 0x7fffff;
-    r[28] = ((a[28] >> n) | (a[29] << (23 - n))) & 0x7fffff;
-    r[29] = ((a[29] >> n) | (a[30] << (23 - n))) & 0x7fffff;
-    r[30] = ((a[30] >> n) | (a[31] << (23 - n))) & 0x7fffff;
-    r[31] = ((a[31] >> n) | (a[32] << (23 - n))) & 0x7fffff;
-    r[32] = ((a[32] >> n) | (a[33] << (23 - n))) & 0x7fffff;
-    r[33] = ((a[33] >> n) | (a[34] << (23 - n))) & 0x7fffff;
-    r[34] = ((a[34] >> n) | (a[35] << (23 - n))) & 0x7fffff;
-    r[35] = ((a[35] >> n) | (a[36] << (23 - n))) & 0x7fffff;
-    r[36] = ((a[36] >> n) | (a[37] << (23 - n))) & 0x7fffff;
-    r[37] = ((a[37] >> n) | (a[38] << (23 - n))) & 0x7fffff;
-    r[38] = ((a[38] >> n) | (a[39] << (23 - n))) & 0x7fffff;
-    r[39] = ((a[39] >> n) | (a[40] << (23 - n))) & 0x7fffff;
-    r[40] = ((a[40] >> n) | (a[41] << (23 - n))) & 0x7fffff;
-    r[41] = ((a[41] >> n) | (a[42] << (23 - n))) & 0x7fffff;
-    r[42] = ((a[42] >> n) | (a[43] << (23 - n))) & 0x7fffff;
-    r[43] = ((a[43] >> n) | (a[44] << (23 - n))) & 0x7fffff;
-    r[44] = ((a[44] >> n) | (a[45] << (23 - n))) & 0x7fffff;
-    r[45] = ((a[45] >> n) | (a[46] << (23 - n))) & 0x7fffff;
-    r[46] = ((a[46] >> n) | (a[47] << (23 - n))) & 0x7fffff;
-    r[47] = ((a[47] >> n) | (a[48] << (23 - n))) & 0x7fffff;
-    r[48] = ((a[48] >> n) | (a[49] << (23 - n))) & 0x7fffff;
-    r[49] = ((a[49] >> n) | (a[50] << (23 - n))) & 0x7fffff;
-    r[50] = ((a[50] >> n) | (a[51] << (23 - n))) & 0x7fffff;
-    r[51] = ((a[51] >> n) | (a[52] << (23 - n))) & 0x7fffff;
-    r[52] = ((a[52] >> n) | (a[53] << (23 - n))) & 0x7fffff;
-    r[53] = ((a[53] >> n) | (a[54] << (23 - n))) & 0x7fffff;
-    r[54] = ((a[54] >> n) | (a[55] << (23 - n))) & 0x7fffff;
-    r[55] = ((a[55] >> n) | (a[56] << (23 - n))) & 0x7fffff;
-    r[56] = ((a[56] >> n) | (a[57] << (23 - n))) & 0x7fffff;
-    r[57] = ((a[57] >> n) | (a[58] << (23 - n))) & 0x7fffff;
-    r[58] = ((a[58] >> n) | (a[59] << (23 - n))) & 0x7fffff;
-    r[59] = ((a[59] >> n) | (a[60] << (23 - n))) & 0x7fffff;
-    r[60] = ((a[60] >> n) | (a[61] << (23 - n))) & 0x7fffff;
-    r[61] = ((a[61] >> n) | (a[62] << (23 - n))) & 0x7fffff;
-    r[62] = ((a[62] >> n) | (a[63] << (23 - n))) & 0x7fffff;
-    r[63] = ((a[63] >> n) | (a[64] << (23 - n))) & 0x7fffff;
-    r[64] = ((a[64] >> n) | (a[65] << (23 - n))) & 0x7fffff;
-    r[65] = ((a[65] >> n) | (a[66] << (23 - n))) & 0x7fffff;
-    r[66] = ((a[66] >> n) | (a[67] << (23 - n))) & 0x7fffff;
-    r[67] = ((a[67] >> n) | (a[68] << (23 - n))) & 0x7fffff;
-    r[68] = ((a[68] >> n) | (a[69] << (23 - n))) & 0x7fffff;
-    r[69] = ((a[69] >> n) | (a[70] << (23 - n))) & 0x7fffff;
-    r[70] = ((a[70] >> n) | (a[71] << (23 - n))) & 0x7fffff;
-    r[71] = ((a[71] >> n) | (a[72] << (23 - n))) & 0x7fffff;
-    r[72] = ((a[72] >> n) | (a[73] << (23 - n))) & 0x7fffff;
-    r[73] = ((a[73] >> n) | (a[74] << (23 - n))) & 0x7fffff;
-    r[74] = ((a[74] >> n) | (a[75] << (23 - n))) & 0x7fffff;
-    r[75] = ((a[75] >> n) | (a[76] << (23 - n))) & 0x7fffff;
-    r[76] = ((a[76] >> n) | (a[77] << (23 - n))) & 0x7fffff;
-    r[77] = ((a[77] >> n) | (a[78] << (23 - n))) & 0x7fffff;
-    r[78] = ((a[78] >> n) | (a[79] << (23 - n))) & 0x7fffff;
-    r[79] = ((a[79] >> n) | (a[80] << (23 - n))) & 0x7fffff;
-    r[80] = ((a[80] >> n) | (a[81] << (23 - n))) & 0x7fffff;
-    r[81] = ((a[81] >> n) | (a[82] << (23 - n))) & 0x7fffff;
-    r[82] = ((a[82] >> n) | (a[83] << (23 - n))) & 0x7fffff;
-    r[83] = ((a[83] >> n) | (a[84] << (23 - n))) & 0x7fffff;
-    r[84] = ((a[84] >> n) | (a[85] << (23 - n))) & 0x7fffff;
-    r[85] = ((a[85] >> n) | (a[86] << (23 - n))) & 0x7fffff;
-    r[86] = ((a[86] >> n) | (a[87] << (23 - n))) & 0x7fffff;
-    r[87] = ((a[87] >> n) | (a[88] << (23 - n))) & 0x7fffff;
-    r[88] = ((a[88] >> n) | (a[89] << (23 - n))) & 0x7fffff;
-    r[89] = ((a[89] >> n) | (a[90] << (23 - n))) & 0x7fffff;
-    r[90] = ((a[90] >> n) | (a[91] << (23 - n))) & 0x7fffff;
-    r[91] = ((a[91] >> n) | (a[92] << (23 - n))) & 0x7fffff;
-    r[92] = ((a[92] >> n) | (a[93] << (23 - n))) & 0x7fffff;
-    r[93] = ((a[93] >> n) | (a[94] << (23 - n))) & 0x7fffff;
-    r[94] = ((a[94] >> n) | (a[95] << (23 - n))) & 0x7fffff;
-    r[95] = ((a[95] >> n) | (a[96] << (23 - n))) & 0x7fffff;
-    r[96] = ((a[96] >> n) | (a[97] << (23 - n))) & 0x7fffff;
-    r[97] = ((a[97] >> n) | (a[98] << (23 - n))) & 0x7fffff;
-    r[98] = ((a[98] >> n) | (a[99] << (23 - n))) & 0x7fffff;
-    r[99] = ((a[99] >> n) | (a[100] << (23 - n))) & 0x7fffff;
-    r[100] = ((a[100] >> n) | (a[101] << (23 - n))) & 0x7fffff;
-    r[101] = ((a[101] >> n) | (a[102] << (23 - n))) & 0x7fffff;
-    r[102] = ((a[102] >> n) | (a[103] << (23 - n))) & 0x7fffff;
-    r[103] = ((a[103] >> n) | (a[104] << (23 - n))) & 0x7fffff;
-    r[104] = ((a[104] >> n) | (a[105] << (23 - n))) & 0x7fffff;
-    r[105] = ((a[105] >> n) | (a[106] << (23 - n))) & 0x7fffff;
-    r[106] = ((a[106] >> n) | (a[107] << (23 - n))) & 0x7fffff;
-    r[107] = ((a[107] >> n) | (a[108] << (23 - n))) & 0x7fffff;
-    r[108] = ((a[108] >> n) | (a[109] << (23 - n))) & 0x7fffff;
-    r[109] = ((a[109] >> n) | (a[110] << (23 - n))) & 0x7fffff;
-    r[110] = ((a[110] >> n) | (a[111] << (23 - n))) & 0x7fffff;
-    r[111] = ((a[111] >> n) | (a[112] << (23 - n))) & 0x7fffff;
-    r[112] = ((a[112] >> n) | (a[113] << (23 - n))) & 0x7fffff;
-    r[113] = ((a[113] >> n) | (a[114] << (23 - n))) & 0x7fffff;
-    r[114] = ((a[114] >> n) | (a[115] << (23 - n))) & 0x7fffff;
-    r[115] = ((a[115] >> n) | (a[116] << (23 - n))) & 0x7fffff;
-    r[116] = ((a[116] >> n) | (a[117] << (23 - n))) & 0x7fffff;
-    r[117] = ((a[117] >> n) | (a[118] << (23 - n))) & 0x7fffff;
-    r[118] = ((a[118] >> n) | (a[119] << (23 - n))) & 0x7fffff;
-    r[119] = ((a[119] >> n) | (a[120] << (23 - n))) & 0x7fffff;
-    r[120] = ((a[120] >> n) | (a[121] << (23 - n))) & 0x7fffff;
-    r[121] = ((a[121] >> n) | (a[122] << (23 - n))) & 0x7fffff;
-    r[122] = ((a[122] >> n) | (a[123] << (23 - n))) & 0x7fffff;
-    r[123] = ((a[123] >> n) | (a[124] << (23 - n))) & 0x7fffff;
-    r[124] = ((a[124] >> n) | (a[125] << (23 - n))) & 0x7fffff;
-    r[125] = ((a[125] >> n) | (a[126] << (23 - n))) & 0x7fffff;
-    r[126] = ((a[126] >> n) | (a[127] << (23 - n))) & 0x7fffff;
-    r[127] = ((a[127] >> n) | (a[128] << (23 - n))) & 0x7fffff;
-    r[128] = ((a[128] >> n) | (a[129] << (23 - n))) & 0x7fffff;
-    r[129] = ((a[129] >> n) | (a[130] << (23 - n))) & 0x7fffff;
-    r[130] = ((a[130] >> n) | (a[131] << (23 - n))) & 0x7fffff;
-    r[131] = ((a[131] >> n) | (a[132] << (23 - n))) & 0x7fffff;
-    r[132] = ((a[132] >> n) | (a[133] << (23 - n))) & 0x7fffff;
-    r[133] = ((a[133] >> n) | (a[134] << (23 - n))) & 0x7fffff;
-    r[134] = ((a[134] >> n) | (a[135] << (23 - n))) & 0x7fffff;
+    for (i=0; i<128; i += 8) {
+        r[i+0] = ((a[i+0] >> n) | (a[i+1] << (23 - n))) & 0x7fffff;
+        r[i+1] = ((a[i+1] >> n) | (a[i+2] << (23 - n))) & 0x7fffff;
+        r[i+2] = ((a[i+2] >> n) | (a[i+3] << (23 - n))) & 0x7fffff;
+        r[i+3] = ((a[i+3] >> n) | (a[i+4] << (23 - n))) & 0x7fffff;
+        r[i+4] = ((a[i+4] >> n) | (a[i+5] << (23 - n))) & 0x7fffff;
+        r[i+5] = ((a[i+5] >> n) | (a[i+6] << (23 - n))) & 0x7fffff;
+        r[i+6] = ((a[i+6] >> n) | (a[i+7] << (23 - n))) & 0x7fffff;
+        r[i+7] = ((a[i+7] >> n) | (a[i+8] << (23 - n))) & 0x7fffff;
+    }
 #endif
     r[135] = a[135] >> n;
 }
@@ -6426,7 +6223,7 @@ static int sp_3072_mod_exp_136(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
 #endif /* SP_RSA_PRIVATE_EXP_D || WOLFSSL_HAVE_SP_DH */
 
 #if defined(WOLFSSL_HAVE_SP_RSA) && !defined(SP_RSA_PRIVATE_EXP_D) && \
-                                    !defined(RSA_LOW_MEM)
+           !defined(RSA_LOW_MEM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* AND m into each word of a and store in r.
  *
  * r  A single precision integer.
@@ -6661,6 +6458,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -6895,6 +6693,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 #endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
 }
 
+#endif /* !WOLFSSL_RSA_PUBLIC_ONLY */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #ifdef WOLFSSL_HAVE_SP_DH
 /* Convert an array of sp_digit to an mp_int.

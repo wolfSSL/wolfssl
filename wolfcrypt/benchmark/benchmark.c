@@ -458,7 +458,8 @@ static const char* bench_result_words1[][4] = {
 #endif
 };
 
-#if !defined(NO_RSA)  ||defined(WOLFSSL_KEY_GEN) || defined(HAVE_NTRU) || \
+#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) ||\
+    defined(WOLFSSL_KEY_GEN) || defined(HAVE_NTRU) || \
     defined(HAVE_ECC) || !defined(NO_DH) || defined(HAVE_ECC_ENCRYPT) || \
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE25519_SHARED_SECRET)  || \
     defined(HAVE_ED25519)
@@ -568,7 +569,7 @@ static const char* bench_desc_words[][9] = {
 #endif
 #endif
 
-#if !defined(NO_RSA) || !defined(NO_DH) \
+#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || !defined(NO_DH) \
                         || defined(WOLFSSL_KEYGEN) || defined(HAVE_ECC) \
                         || defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
     #define HAVE_LOCAL_RNG
@@ -577,7 +578,8 @@ static const char* bench_desc_words[][9] = {
 
 #if defined(HAVE_ED25519) || defined(HAVE_CURVE25519) || defined(HAVE_ECC) || \
     defined(HAVE_ECC) || defined(HAVE_NTRU) || !defined(NO_DH) || \
-    !defined(NO_RSA) || defined(HAVE_SCRYPT)
+    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    defined(HAVE_SCRYPT)
 
     #define BENCH_ASYM
 #endif
@@ -776,7 +778,9 @@ static int rsa_sign_verify = 0;
 
 /* Don't print out in CSV format by default */
 static int csv_format = 0;
+#ifdef BENCH_ASYM
 static int csv_header_count = 0;
+#endif
 
 /* for compatibility */
 #define BENCH_SIZE bench_size
@@ -3861,28 +3865,43 @@ void bench_rsaKeyGen_size(int doAsync, int keySz)
 static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
         int rsaKeySz)
 {
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
     int         ret = 0, i, times, count = 0, pending = 0;
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     word32      idx = 0;
+#endif
     const char* messageStr = "Everyone gets Friday off.";
     const int   len = (int)XSTRLEN((char*)messageStr);
     double      start = 0.0f;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_VAR_INIT(message, byte, len, messageStr, HEAP_HINT);
+#else
+    (void)doAsync;
+    (void)rsaKey;
+    (void)rsaKeySz;
+#endif
 
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
     #ifdef USE_CERT_BUFFERS_1024
         DECLARE_ARRAY(enc, byte, BENCH_MAX_PENDING, 128, HEAP_HINT);
         DECLARE_ARRAY(out, byte, BENCH_MAX_PENDING, 128, HEAP_HINT);
     #elif defined(USE_CERT_BUFFERS_2048)
         DECLARE_ARRAY(enc, byte, BENCH_MAX_PENDING, 256, HEAP_HINT);
-        DECLARE_ARRAY(out, byte, BENCH_MAX_PENDING, 256, HEAP_HINT);
+        #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+            DECLARE_ARRAY(out, byte, BENCH_MAX_PENDING, 256, HEAP_HINT);
+        #endif
     #elif defined(USE_CERT_BUFFERS_3072)
-       DECLARE_ARRAY(enc, byte, BENCH_MAX_PENDING, 384, HEAP_HINT);
-       DECLARE_ARRAY(out, byte, BENCH_MAX_PENDING, 384, HEAP_HINT);
+        DECLARE_ARRAY(enc, byte, BENCH_MAX_PENDING, 384, HEAP_HINT);
+        #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+            DECLARE_ARRAY(out, byte, BENCH_MAX_PENDING, 384, HEAP_HINT);
+        #endif
     #else
         #error "need a cert buffer size"
     #endif /* USE_CERT_BUFFERS */
+#endif
 
     if (!rsa_sign_verify) {
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
         /* begin public RSA */
         bench_stats_start(&count, &start);
         do {
@@ -3908,7 +3927,9 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
 exit_rsa_pub:
         bench_stats_asym_finish("RSA", rsaKeySz, desc[0], doAsync, count,
                                                                     start, ret);
+#endif
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
         if (ret < 0) {
             goto exit;
         }
@@ -3941,8 +3962,10 @@ exit_rsa_pub:
 exit:
         bench_stats_asym_finish("RSA", rsaKeySz, desc[1], doAsync, count,
                                                                     start, ret);
+#endif
     }
     else {
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
         /* begin RSA sign */
         bench_stats_start(&count, &start);
         do {
@@ -4001,6 +4024,7 @@ exit_rsa_sign:
 exit_rsa_verify:
         bench_stats_asym_finish("RSA", rsaKeySz, desc[5], doAsync, count,
                                                                     start, ret);
+#endif
     }
 
     FREE_ARRAY(enc, BENCH_MAX_PENDING, HEAP_HINT);
@@ -4051,6 +4075,7 @@ void bench_rsa(int doAsync)
             goto exit_bench_rsa;
     #endif
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
         /* decode the private key */
         idx = 0;
         if ((ret = wc_RsaPrivateKeyDecode(tmp, &idx, &rsaKey[i],
@@ -4058,6 +4083,24 @@ void bench_rsa(int doAsync)
             printf("wc_RsaPrivateKeyDecode failed! %d\n", ret);
             goto exit_bench_rsa;
         }
+#else
+    #ifdef USE_CERT_BUFFERS_2048
+        ret = mp_read_unsigned_bin(&rsaKey[i].n, &tmp[13], 256);
+        if (ret != 0) {
+            printf("Setting modulus failed! %d\n", ret);
+            goto exit_bench_rsa;
+        }
+        ret = mp_set_int(&rsaKey[i].e, WC_RSA_EXPONENT);
+        if (ret != 0) {
+            printf("Setting public exponent failed! %d\n", ret);
+            goto exit_bench_rsa;
+        }
+    #else
+        #error Not supported yet!
+    #endif
+    (void)idx;
+    (void)bytes;
+#endif
     }
 
     bench_rsa_helper(doAsync, rsaKey, rsaKeySz);
@@ -5258,10 +5301,12 @@ int main(int argc, char** argv)
         else if (string_matches(argv[1], "-rsa_sign"))
             rsa_sign_verify = 1;
 #endif
+#ifdef BENCH_ASYM
         else if (string_matches(argv[1], "-csv")) {
             csv_format = 1;
             csv_header_count = 1;
         }
+#endif
         else if (argv[1][0] == '-') {
             optMatched = 0;
 #ifndef WOLFSSL_BENCHMARK_ALL
