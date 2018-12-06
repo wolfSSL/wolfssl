@@ -778,17 +778,32 @@ int wc_DsaVerify(const byte* digest, const byte* sig, DsaKey* key, int* answer)
         if (mp_iszero(&r) == MP_YES || mp_iszero(&s) == MP_YES ||
                 mp_cmp(&r, &key->q) != MP_LT || mp_cmp(&s, &key->q) != MP_LT) {
             //%%%%%
-            // printf("WRONG!!!\n\n");
-            // printf("MP_LT is %d\n", MP_LT);
-            // printf("mp_cmp(&s, &key->q) is %d\n",mp_cmp(&s, &key->q));
+            printf("FAIL!!!\n\n");
+            printf("MP_YES (not good) is %d\n", MP_YES);
+            printf("mp_iszero(&r) is %d\n",mp_iszero(&r));
+            printf("mp_iszero(&s) is %d\n",mp_iszero(&s));
+
+            printf("\n\nMP_LT (good) is %d\n", MP_LT);
+            printf("mp_cmp(&r, &key->q) is %d\n",mp_cmp(&r, &key->q));
+            printf("mp_cmp(&s, &key->q) is %d\n",mp_cmp(&s, &key->q));
+
             // int thing = mp_unsigned_bin_size(&s);
-            // printf("thing is :%d\n", thing);
+            // printf("\n\nmp_unsigned_bin_size is :%d\n", thing);
             // byte thing2[20];
             // mp_to_unsigned_bin(&s, thing2);
             // for (int i; i < 20; i++)
             //     printf("%02x", thing2[i]);
-            // //printf("s is %d\n",fp_int.s);
-            // //printf("key->q is %d\n",key->q);
+            // printf("\n");
+            // int length;
+            // mp_radix_size((mp_int*)&s, MP_RADIX_HEX, &length);
+            // //maybe do xfree xmalloc cuz example has it in ssl.c
+            // length += 1;
+            // char outpeet[length];
+            // mp_tohex((mp_int*)&s, outpeet);
+            // printf("\nmp_int s: \n");
+            // printf("%s\n\n\n", outpeet);
+            //printf("s is %d\n",fp_int.s);
+            //printf("key->q is %d\n",key->q);
             ret = MP_ZERO_E;
         }
     }
@@ -825,8 +840,22 @@ int wc_DsaVerify(const byte* digest, const byte* sig, DsaKey* key, int* answer)
     /* do they match */
     if (ret == 0 && mp_cmp(&r, &v) == MP_EQ)
         *answer = 1;
-    else
+    else{
         *answer = 0;
+        printf("\n\nMP_EQ = %d\n\n", MP_EQ);
+        printf("\nmp_cmp(&r, &v) = %d\n", mp_cmp(&r, &v));
+        //printf("\nr = %d\n", r);
+        //printf("\nv = %d\n", v);
+        int length;
+        mp_radix_size(&r, MP_RADIX_HEX, &length);
+        //maybe do xfree xmalloc cuz example has it in ssl.c
+        length += 1;
+        char outpeet[length];
+        mp_tohex((mp_int*)&key->p, outpeet);
+        printf("\nint p: \n");
+        printf("%s\n\n\n", outpeet);
+
+    }
 
     mp_clear(&s);
     mp_clear(&r);
@@ -836,7 +865,9 @@ int wc_DsaVerify(const byte* digest, const byte* sig, DsaKey* key, int* answer)
     mp_clear(&v);
 
     //%%%%%%
-    // printf("ret is: %d\n\n", ret);
+     //printf("ret is: %d\n\n", ret);
+     //printf("*answer is: %d\n\n", *answer);
+
     return ret;
 }
 

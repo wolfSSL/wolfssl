@@ -4117,67 +4117,73 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    {
-        int i;
-        printf("\n\nSequence 1:");
-printf("inSz is: %d  length is: %d  inOutIdx is: %d\n", inSz, length, *inOutIdx);
-        for (i = *inOutIdx; i<length; i++)
-            printf("%02x", input[i]);
-        printf("\n");
-        for (i = *inOutIdx; i<length; i++)
-            printf("[%d]", i);
-        printf("\n");
-    }
+//     {
+//         int i;
+//         printf("\n\nGetSequence 1:");
+// printf("inSz is: %d  length is: %d  inOutIdx is: %d\n", inSz, length, *inOutIdx);
+//         for (i = *inOutIdx; i<length; i++)
+//             printf("%02x", input[i]);
+//         printf("\n");
+//         for (i = *inOutIdx; i<length; i++)
+//             printf("[%d]", i);
+//         printf("\n");
+//     }
     #ifdef WOLFSSL_QT
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
 
-    {
-        int i;
-        printf("\n\nSequence 2:");
-printf("inSz is: %d  length is: %d  inOutIdx is: %d\n", inSz, length, *inOutIdx);
-        for (i = *inOutIdx; i<length; i++)
-            printf("%02x", input[i]);
-        printf("\n");
-        for (i = *inOutIdx; i<length; i++)
-            printf("[%d]", i);
-        printf("\n");
-    }
+//     {
+//         int i;
+//         printf("\n\nGetSequence 2:");
+// printf("inSz is: %d  length is: %d  inOutIdx is: %d\n", inSz, length, *inOutIdx);
+//         for (i = *inOutIdx; i<length; i++)
+//             printf("%02x", input[i]);
+//         printf("\n");
+//         for (i = *inOutIdx; i<length; i++)
+//             printf("[%d]", i);
+//         printf("\n");
+//     }
 
     ret = GetObjectId(input, inOutIdx, &oid, oidIgnoreType, inSz);
         if (ret != 0)
             return ret;
 
-    printf("length is %d\n", length);
-    printf("ret_obj is %d\n", ret);
-    {
-        int i;
-        printf("\n\nObject 1:");
-        printf("inSz is: %d  length is: %d  inOutIdx is: %d\n\n", inSz, length, *inOutIdx);
-        for (i = *inOutIdx; i<length; i++)
-            printf("%02x", input[i]);
-        printf("\n");
-        for (i = *inOutIdx; i<length; i++)
-            printf("[%d]", i);
-        printf("\n");
-    }
+    // printf("length is %d\n", length);
+    // printf("ret_obj is %d\n", ret);
+    // {
+    //     int i;
+    //     printf("\n\nGetObject 1:");
+    //     printf("inSz is: %d  length is: %d  inOutIdx is: %d\n\n", inSz, length, *inOutIdx);
+    //     for (i = *inOutIdx; i<length; i++)
+    //         printf("%02x", input[i]);
+    //     printf("\n");
+    //     for (i = *inOutIdx; i<length; i++)
+    //         printf("[%d]", i);
+    //     printf("\n");
+    // }
+
+        //to make this adaptive to both kinds of keys:
+        //wrap in opensslextra
+        //if firsty getsequence fail, fall back to previous method
+        //example can be found in: wc_RsaPublicKeyDecode_ex in asn.c
+
 
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
     #endif //WOLFSSL_QT
-    {
-        int i;
-        printf("\n\nSequence 3:");
-        printf("inSz is: %d  length is: %d  inOutIdx is: %d\n\n", inSz, length, *inOutIdx);
-        for (i = *inOutIdx; i<length; i++)
-            printf("%02x", input[i]);
-        printf("\n");
-        for (i = *inOutIdx; i<length; i++)
-            printf("[%d]", i);
-        printf("\n");
-    }
+    // {
+    //     int i;
+    //     printf("\n\nGetSequence 3:");
+    //     printf("inSz is: %d  length is: %d  inOutIdx is: %d\n\n", inSz, length, *inOutIdx);
+    //     for (i = *inOutIdx; i<length; i++)
+    //         printf("%02x", input[i]);
+    //     printf("\n");
+    //     for (i = *inOutIdx; i<length; i++)
+    //         printf("[%d]", i);
+    //     printf("\n");
+    // }
 
 
 
@@ -4199,6 +4205,8 @@ printf("inSz is: %d  length is: %d  inOutIdx is: %d\n", inSz, length, *inOutIdx)
         GetInt(&key->q,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->g,  input, inOutIdx, inSz) < 0)
         return ASN_DH_KEY_E;
+
+
 //printf("input is: %02x  length is: %d  inOutIdx is: %d\n\n", input[*inOutIdx], length, *inOutIdx);
 
 
@@ -4206,17 +4214,18 @@ printf("inSz is: %d  length is: %d  inOutIdx is: %d\n", inSz, length, *inOutIdx)
     #ifdef WOLFSSL_QT
         if (CheckBitString(input, inOutIdx, &length, inSz, 0, NULL) < 0)
             ret = ASN_PARSE_E;
-        {
-        int i;
-        printf("\n\nBitString 1 is:");
-        printf("inSz is: %d  length is: %d  inOutIdx is: %d\n\n", inSz, length, *inOutIdx);
-        for (i = *inOutIdx; i<length; i++)
-            printf("%02x", input[i]);
-        printf("\n");
-        for (i = *inOutIdx; i<length; i++)
-            printf("[%d]", i);
-        printf("\n");
-        }   
+        // {
+        // int i;
+        // printf("\n\nBitString 1:");
+        // printf("inSz is: %d  length is: %d  inOutIdx is: %d\n\n", inSz, length, *inOutIdx);
+        // for (i = *inOutIdx; i<length; i++)
+        //     printf("%02x", input[i]);
+        // printf("\n");
+        // for (i = *inOutIdx; i<length; i++)
+        //     printf("[%d]", i);
+        // printf("\n");
+        // } 
+
     #endif //WOLFSSL_QT
 
 
@@ -4230,8 +4239,41 @@ printf("inSz is: %d  length is: %d  inOutIdx is: %d\n", inSz, length, *inOutIdx)
         // //check bitstring
         // end openssl_extra
 
+        //classified as 'pub' in openssl, might also be combo of x and y 
+
     if (GetInt(&key->y,  input, inOutIdx, inSz) < 0 )
         return ASN_DH_KEY_E;
+
+
+    mp_radix_size((mp_int*)&key->p, MP_RADIX_HEX, &length);
+    //maybe do xfree xmalloc cuz example has it in ssl.c
+    length += 1;
+    char outpeet[length];
+    mp_tohex((mp_int*)&key->p, outpeet);
+    printf("\nint p: \n");
+    printf("%s\n\n\n", outpeet);
+
+    mp_radix_size((mp_int*)&key->q, MP_RADIX_HEX, &length);
+    length += 1;
+    char outpeet1[length];
+    mp_tohex((mp_int*)&key->q, outpeet1);
+    printf("\nint q: \n");
+    printf("%s\n\n\n", outpeet1);
+
+    mp_radix_size((mp_int*)&key->g, MP_RADIX_HEX, &length);
+    length += 1;
+    char outpeet2[length];
+    mp_tohex((mp_int*)&key->g, outpeet2);
+    printf("\nint g: \n");
+    printf("%s\n\n\n", outpeet2);
+
+    mp_radix_size((mp_int*)&key->y, MP_RADIX_HEX, &length);
+    length += 1;
+    char outpeet3[length];
+    mp_tohex((mp_int*)&key->y, outpeet3);
+    printf("\nint y: \n");
+    printf("%s\n\n\n", outpeet3);
+
 
             //%%%%%%
             // {

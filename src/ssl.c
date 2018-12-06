@@ -26618,6 +26618,8 @@ int wolfSSL_DSA_do_verify(const unsigned char* d, unsigned char* sig,
     ret = DsaVerify(d, sig, (DsaKey*)dsa->internal, dsacheck);
     if (ret != 0 || *dsacheck != 1) {
         WOLFSSL_MSG("DsaVerify failed");
+        printf("\n\nret is: %d\n", ret);
+        printf("*dsacheck is: %d", *dsacheck);
         return ret;
     }
 
@@ -30629,6 +30631,8 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
             char* newMem;
             if (memSz + sz < 0) {
                 /* sanity check */
+                // %%%%%
+               // printf("shoot\n\n\n\n\n");
                 break;
             }
             newMem = (char*)XREALLOC(mem, memSz + sz, bio->heap,
@@ -30743,7 +30747,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
         *key = pkey;
 
 
-    WOLFSSL_LEAVE("wolfSSL_PEM_read_bio_PrivateKey", 0);
+    WOLFSSL_LEAVE("wolfSSL_PEM_read_bio_PUBKEY", 0);
 
     return pkey;
 }
@@ -30774,7 +30778,7 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_bio_PUBKEY(WOLFSSL_BIO* bio,
         pkey = wolfSSL_d2i_PUBKEY(&pkey, &ptr, der->length);
 
 
-        // printf("pkey is:");
+        //printf("\n\n\n\n\n\n\n-----------------------------GOTIT----------------------------\n\n\n\n\n\n:");
         // for (int i = 0; i < &length; i++){
         //     printf("%02x", pkey[i]);
         // }
