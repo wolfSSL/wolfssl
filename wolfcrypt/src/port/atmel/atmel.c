@@ -52,6 +52,10 @@
 
 #ifdef WOLFSSL_ATECC508A
 
+#ifdef WOLFSSL_ATECC508A_TLS
+    extern ATCA_STATUS device_init_default(void);
+#endif
+
 static int mAtcaInitDone = 0;
 
 /* ATECC slotId handling */
@@ -350,6 +354,11 @@ int atmel_ecc_create_key(int slotId, byte* peerKey)
 {
     int ret;
 
+    /* verify provided slotId */
+    if (slotId == ATECC_INVALID_SLOT) {
+        return WC_HW_WAIT_E;
+    }
+
     /* generate new ephemeral key on device */
     ret = atcab_genkey(slotId, peerKey);
     ret = atmel_ecc_translate_err(ret);
@@ -420,6 +429,14 @@ int atmel_init(void)
             return WC_HW_E;
         }
 
+        /* show revision information */
+        atmel_show_rev_info();
+
+    #ifdef WOLFSSL_ATECC508A_TLS
+        /* Configure the ECC508 for use with TLS API functions */
+        device_init_default();
+    #endif
+
         /* Init the I2C pipe encryption key. */
         /* Value is generated/stored during pair for the ATECC508A and stored
             on micro flash */
@@ -428,9 +445,6 @@ int atmel_init(void)
 			WOLFSSL_MSG("Failed to initialize transport key");
             return WC_HW_E;
 		}
-
-        /* show revision information */
-        atmel_show_rev_info();
 
         mAtcaInitDone = 1;
     }
