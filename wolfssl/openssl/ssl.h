@@ -43,6 +43,7 @@
 #if defined(WOLFSSL_QT)
 #include <wolfssl/openssl/dh.h>
 #include <wolfssl/wolfcrypt/asn.h>
+#include <wolfssl/openssl/objects.h>
 #include <wolfssl/wolfcrypt/settings.h>
 #endif
 

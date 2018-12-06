@@ -33792,13 +33792,31 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return NULL;
     }
 
-#endif /* HAVE_ECC */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+ /*
+ return the corresponding NID for the short name <sn> 
+ or NID_undef if NID can't be found
+ */
     int wolfSSL_OBJ_sn2nid(const char *sn) {
+        int i;
+
         WOLFSSL_ENTER("wolfSSL_OBJ_sn2nid");
-        return wc_OBJ_sn2nid(sn);
+
+        if(sn == NULL) {
+            WOLFSSL_MSG("bad function arguments");
+            return BAD_FUNC_ARG;
+        }
+
+        /* find based on name and return NID */
+        for (i = 0; i < ecc_sets[i].size; i++) {
+            if (XSTRNCMP(sn, ecc_sets[i].name, ECC_MAXNAME) == 0) {
+                return ecc_sets[i].id;
+            }
+        }
+        return NID_undef;
     }
-#endif
+#endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) */
+#endif /* HAVE_ECC */
 
     static int oid2nid(word32 oid, int grp)
     {
