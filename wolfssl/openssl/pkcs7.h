@@ -32,6 +32,10 @@
     extern "C" {
 #endif
 
+#if defined(WOLFSSL_QT)
+    #include <wolfssl/openssl/objects.h>
+#endif
+
 #if defined(OPENSSL_ALL) && defined(HAVE_PKCS7)
 
 #define PKCS7_NOINTERN         0x0010

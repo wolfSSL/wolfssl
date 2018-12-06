@@ -54,6 +54,15 @@ device build. Both are debug builds.
 
 You can make an archive for a device, as well. That is a release build.
 
+## Known issues:
+
+When building for older i386 architectures and using tfm.c there are specific
+CFLAGS required to expose the necessary registers for inline assembly in tfm.c.
+An example script has been provided "build-for-i386.sh" that targets the watchos
+by default. If using SDK iphonesimulator10.1 or older you can change the SDK
+variable in that script however newer versions of the SDK no longer support
+i386 for the iphones.
+
 # Installing libwolfssl.a
 
 Simply drag the file libwolfssl_XXX_.a and the directory `include` and drop it into

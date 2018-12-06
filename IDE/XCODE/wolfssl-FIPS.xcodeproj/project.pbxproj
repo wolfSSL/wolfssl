@@ -1066,12 +1066,12 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 52B1347216F3C9E800C07B32 /* Build configuration list for PBXNativeTarget "wolfssl_fips_ios" */;
 			buildPhases = (
-				52B1344916F3C9E800C07B32 /* Sources */,
 				52B1344A16F3C9E800C07B32 /* Frameworks */,
 				52B1344B16F3C9E800C07B32 /* CopyFiles */,
 				521646C11A8A7B380062516A /* CopyFiles */,
 				521646C21A8A7B3B0062516A /* CopyFiles */,
 				521646C31A8A7B3D0062516A /* CopyFiles */,
+				52B1344916F3C9E800C07B32 /* Sources */,
 			);
 			buildRules = (
 			);
@@ -1313,7 +1313,7 @@
 		52B1347316F3C9E800C07B32 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = YES;
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_LINK_OBJC_RUNTIME = NO;
 				DSTROOT = /tmp/wolfssl_ios.dst;
 				GCC_PRECOMPILE_PREFIX_HEADER = NO;
@@ -1321,6 +1321,7 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
 					HAVE_FIPS,
+					CYASSL_USER_SETTINGS,
 					WOLFSSL_USER_SETTINGS,
 				);
 				HEADER_SEARCH_PATHS = (
@@ -1340,13 +1341,14 @@
 		52B1347416F3C9E800C07B32 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = YES;
+				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_LINK_OBJC_RUNTIME = NO;
 				DSTROOT = /tmp/wolfssl_ios.dst;
 				GCC_PRECOMPILE_PREFIX_HEADER = NO;
 				GCC_PREFIX_HEADER = "";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					HAVE_FIPS,
+					CYASSL_USER_SETTINGS,
 					WOLFSSL_USER_SETTINGS,
 				);
 				HEADER_SEARCH_PATHS = (
@@ -1374,6 +1376,7 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
 					HAVE_FIPS,
+					CYASSL_USER_SETTINGS,
 					WOLFSSL_USER_SETTINGS,
 				);
 				HEADER_SEARCH_PATHS = (
@@ -1401,6 +1404,7 @@
 				GCC_PREFIX_HEADER = "";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					HAVE_FIPS,
+					CYASSL_USER_SETTINGS,
 					WOLFSSL_USER_SETTINGS,
 				);
 				HEADER_SEARCH_PATHS = (

@@ -243,6 +243,7 @@ int wc_Des3_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
 int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
     const byte* password, int passwordSz, int hashType)
 {
+    WOLFSSL_ENTER("BufferKeyDecrypt");
     int ret = NOT_COMPILED_IN;
 #ifdef WOLFSSL_SMALL_STACK
     byte* key      = NULL;
@@ -367,7 +368,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
  */
 int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                       int saltSz, int iterations, int id, byte* input,
-                      int length, int version, byte* cbcIv, int enc)
+                      int length, int version, byte* cbcIv, int enc, int shaOid)
 {
     int typeH;
     int derivedLen;
@@ -399,9 +400,17 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             break;
 
         case PBE_SHA1_DES3:
-            typeH = WC_SHA;
-            derivedLen = 32;           /* may need iv for v1.5 */
-            break;
+            switch(shaOid) {
+                case HMAC_SHA256_OID:
+                    typeH = WC_SHA256;
+                    derivedLen = 32;
+                    break;
+                default:
+                    typeH = WC_SHA;
+                    derivedLen = 32;           /* may need iv for v1.5 */
+                    break;
+            }
+        break;
         #endif /* !NO_SHA */
     #endif /* !NO_DES3 */
     #if !defined(NO_SHA) && !defined(NO_RC4)
@@ -412,8 +421,30 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     #endif
     #ifdef WOLFSSL_AES_256
         case PBE_AES256_CBC:
-            typeH = WC_SHA256;
-            derivedLen = 32;
+            switch(shaOid) {
+                case HMAC_SHA256_OID:
+                    typeH = WC_SHA256;
+                    derivedLen = 32;
+                    break;
+                default:
+                    typeH = WC_SHA;
+                    derivedLen = 32;
+                    break;
+            }
+            break;
+    #endif
+    #ifdef WOLFSSL_AES_128
+        case PBE_AES128_CBC:
+            switch(shaOid) {
+                case HMAC_SHA256_OID:
+                    typeH = WC_SHA256;
+                    derivedLen = 16;
+                    break;
+                default:
+                    typeH = WC_SHA;
+                    derivedLen = 16;
+                    break;
+            }
             break;
     #endif
         default:
@@ -567,6 +598,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
 #if !defined(NO_AES) && defined(HAVE_AES_CBC)
     #ifdef WOLFSSL_AES_256
         case PBE_AES256_CBC:
+        case PBE_AES128_CBC:
         {
             Aes aes;
             ret = wc_AesInit(&aes, NULL, INVALID_DEVID);

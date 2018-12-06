@@ -200,11 +200,7 @@ static int GetASNHeader_ex(const byte* input, byte tag, word32* inOutIdx, int* l
 
     if ((idx + 1) > maxIdx)
         return BUFFER_E;
-    //%%%%%%
-    // printf("idx is: %d\n\n", idx);
-    // printf("input is %p\n\n", input);
     b = input[idx++];
-    // printf("%d", b);
     if (b != tag)
         return ASN_PARSE_E;
 
@@ -842,8 +838,6 @@ static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
     }
 
     b = input[idx];
-    //%%%%%
-   // printf("\n\nBitstring b is %hhx\n\n",b);
     if (zeroBits && b != 0x00){
         return ASN_EXPECT_0_E;
     }
@@ -2285,8 +2279,8 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 
 /* Remove PKCS8 header, place inOutIdx at beginning of traditional,
  * return traditional length on success, negative on error */
-int ToTraditionalInline(const byte* input, word32* inOutIdx, word32 sz,
-                        word32* algId)
+int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
+                           word32* algId)
 {
     word32 idx;
     int    version, length;
@@ -2322,8 +2316,15 @@ int ToTraditionalInline(const byte* input, word32* inOutIdx, word32 sz,
     return length;
 }
 
+int ToTraditionalInline(const byte* input, word32* inOutIdx, word32 sz)
+{
+    word32 oid;
+
+    return ToTraditionalInline_ex(input, inOutIdx, sz, &oid);
+}
+
 /* Remove PKCS8 header, move beginning of traditional to beginning of input */
-int ToTraditional(byte* input, word32 sz, word32* algId)
+int ToTraditional_ex(byte* input, word32 sz, word32* algId)
 {
     word32 inOutIdx = 0;
     int    length;
@@ -2333,7 +2334,7 @@ int ToTraditional(byte* input, word32 sz, word32* algId)
     if (input == NULL)
         return BAD_FUNC_ARG;
 
-    length = ToTraditionalInline(input, &inOutIdx, sz, algId);
+    length = ToTraditionalInline_ex(input, &inOutIdx, sz, algId);
     if (length < 0)
         return length;
 
@@ -2342,6 +2343,12 @@ int ToTraditional(byte* input, word32 sz, word32* algId)
     return length;
 }
 
+int ToTraditional(byte* input, word32 sz)
+{
+    word32 oid;
+
+    return ToTraditional_ex(input, sz, &oid);
+}
 
 /* find beginning of traditional key inside PKCS#8 unencrypted buffer
  * return traditional length on success, with inOutIdx at beginning of
@@ -2355,7 +2362,7 @@ int wc_GetPkcs8TraditionalOffset(byte* input, word32* inOutIdx, word32 sz)
     if (input == NULL || inOutIdx == NULL || (*inOutIdx > sz))
         return BAD_FUNC_ARG;
 
-    length = ToTraditionalInline(input, inOutIdx, sz, &algId);
+    length = ToTraditionalInline_ex(input, inOutIdx, sz, &algId);
 
     return length;
 }
@@ -2762,7 +2769,14 @@ static int CheckAlgoV2(int oid, int* id, int* blockSz)
         if (blockSz) *blockSz = AES_BLOCK_SIZE;
         return 0;
 #endif
+#ifdef WOLFSSL_AES_128
+    case AES128CBCb:
+        *id = PBE_AES128_CBC;
+        if (blockSz) *blockSz = AES_BLOCK_SIZE;
+        return 0;
+#endif
     default:
+        WOLFSSL_MSG("No PKCS v2 algo found");
         return ALGO_ID_E;
 
     }
@@ -3050,7 +3064,7 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
 
     /* encrypt PKCS#8 wrapped key */
     if ((ret = wc_CryptKey(password, passwordSz, salt, saltSz, itt, id,
-               tmp, tmpSz, version, cbcIv, 1)) < 0) {
+               tmp, tmpSz, version, cbcIv, 1, 0)) < 0) {
         XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
         WOLFSSL_MSG("Error encrypting key");
     #ifdef WOLFSSL_SMALL_STACK
@@ -3147,16 +3161,16 @@ int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
 #endif
     byte cbcIv[MAX_IV_SIZE];
     byte *pkcs8Key = NULL;
-    word32 pkcs8KeySz, padSz;
+    word32 pkcs8KeySz, padSz = 0;
     int algId;
     const byte* curveOid = NULL;
     word32 curveOidSz = 0;
-    const byte* pbeOid;
+    const byte* pbeOid = NULL;
     word32 pbeOidSz;
     const byte* encOid = NULL;
     int encOidSz = 0;
-    word32 pbeLen, kdfLen = 0, encLen = 0;
-    word32 innerLen, outerLen;
+    word32 pbeLen = 0, kdfLen = 0, encLen = 0;
+    word32 innerLen = 0, outerLen;
 
     ret = CheckAlgo(vPKCS, vAlgo, &id, &version, &blockSz);
     /* create random salt if one not provided */
@@ -3246,7 +3260,7 @@ int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
             pkcs8KeySz += padSz;
         }
         ret = wc_CryptKey(password, passwordSz, salt, saltSz, itt, id,
-                                   out + encIdx, pkcs8KeySz, version, cbcIv, 1);
+                                   out + encIdx, pkcs8KeySz, version, cbcIv, 1, 0);
     }
     if (ret == 0) {
         if (version != PKCS5v2) {
@@ -3316,7 +3330,7 @@ int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
 int ToTraditionalEnc(byte* input, word32 sz,const char* password,
                      int passwordSz, word32* algId)
 {
-    word32 inOutIdx = 0, seqEnd, oid;
+    word32 inOutIdx = 0, seqEnd, oid, shaOid = 0;
     int    ret = 0, first, second, length = 0, version, saltSz, id;
     int    iterations = 0, keySz = 0;
 #ifdef WOLFSSL_SMALL_STACK
@@ -3404,6 +3418,8 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,
         if (GetAlgoId(input, &inOutIdx, &oid, oidHmacType, sz) < 0) {
             ERROR_OUT(ASN_PARSE_E, exit_tte);
         }
+
+        shaOid = oid;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -3423,6 +3439,9 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,
             ERROR_OUT(ASN_PARSE_E, exit_tte); /* PKCS v2 algo id error */
         }
 
+        if (shaOid == 0)
+            shaOid = oid;
+
         ret = GetOctetString(input, &inOutIdx, &length, sz);
         if (ret < 0)
             goto exit_tte;
@@ -3440,7 +3459,7 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,
         goto exit_tte;
 
     ret = wc_CryptKey(password, passwordSz, salt, saltSz, iterations, id,
-                   input + inOutIdx, length, version, cbcIv, 0);
+                   input + inOutIdx, length, version, cbcIv, 0, shaOid);
 
 exit_tte:
 #ifdef WOLFSSL_SMALL_STACK
@@ -3450,7 +3469,7 @@ exit_tte:
 
     if (ret == 0) {
         XMEMMOVE(input, input + inOutIdx, length);
-        ret = ToTraditional(input, length, algId);
+        ret = ToTraditional_ex(input, length, algId);
     }
 
     return ret;
@@ -3644,7 +3663,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
 
     /* encrypt */
     if ((ret = wc_CryptKey(password, passwordSz, salt, saltSz, itt, id,
-                   out + inOutIdx, sz, version, cbcIv, 1)) < 0) {
+                   out + inOutIdx, sz, version, cbcIv, 1, 0)) < 0) {
 
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(cbcIv,   heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3797,7 +3816,7 @@ int DecryptContent(byte* input, word32 sz,const char* password, int passwordSz)
     }
 
     ret = wc_CryptKey(password, passwordSz, salt, saltSz, iterations, id,
-                   input + inOutIdx, length, version, cbcIv, 0);
+                   input + inOutIdx, length, version, cbcIv, 0, 0);
 
 exit_dc:
 
@@ -4262,8 +4281,189 @@ static WC_INLINE void FreeTmpDsas(byte** tmps, void* heap)
     (void)heap;
 }
 
-/* Convert DsaKey key to DER format, write to output (inLen), return bytes
- written */
+/* Write a public DSA key to output */
+int SetDsaPublicKey(byte* output, DsaKey* key,
+                           int outLen, int with_header)
+{
+
+/* p, g, q = DSA params, y = public exponent */
+#ifdef WOLFSSL_SMALL_STACK
+    byte* p = NULL;
+    byte* g = NULL;
+    byte* q = NULL;
+    byte* y = NULL;
+#else
+    byte p[MAX_DSA_INT_SZ];
+    byte g[MAX_DSA_INT_SZ];
+    byte q[MAX_DSA_INT_SZ];
+    byte y[MAX_DSA_INT_SZ];
+#endif
+    byte seq[MAX_SEQ_SZ];
+    byte bitString[1 + MAX_LENGTH_SZ + 1];
+    int  pSz;
+    int  gSz;
+    int  qSz;
+    int  ySz;
+    int  seqSz;
+    int  bitStringSz;
+    int  idx;
+
+    WOLFSSL_ENTER("SetDsaPublicKey");
+
+    if (output == NULL || key == NULL || outLen < MAX_SEQ_SZ) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* p */
+#ifdef WOLFSSL_SMALL_STACK
+    p = (byte*)XMALLOC(MAX_DSA_INT_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (p == NULL)
+        return MEMORY_E;
+#endif
+    if ((pSz = SetASNIntMP(&key->p, MAX_DSA_INT_SZ, p)) < 0) {
+        WOLFSSL_MSG("SetASNIntMP Error with p");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(p, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return pSz;
+    }
+
+    /* g */
+#ifdef WOLFSSL_SMALL_STACK
+    g = (byte*)XMALLOC(MAX_DSA_INT_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (g == NULL)
+        return MEMORY_E;
+#endif
+    if ((gSz = SetASNIntMP(&key->g, MAX_DSA_INT_SZ, g)) < 0) {
+        WOLFSSL_MSG("SetASNIntMP Error with g");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(g, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return gSz;
+    }
+
+    /* q */
+#ifdef WOLFSSL_SMALL_STACK
+    q = (byte*)XMALLOC(MAX_DSA_INT_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (q == NULL)
+        return MEMORY_E;
+#endif
+    if ((qSz = SetASNIntMP(&key->q, MAX_DSA_INT_SZ, q)) < 0) {
+        WOLFSSL_MSG("SetASNIntMP Error with q");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(q, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return qSz;
+    }
+
+    /* y */
+#ifdef WOLFSSL_SMALL_STACK
+    y = (byte*)XMALLOC(MAX_DSA_INT_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (y == NULL)
+        return MEMORY_E;
+#endif
+    if ((ySz = SetASNIntMP(&key->y, MAX_DSA_INT_SZ, y)) < 0) {
+        WOLFSSL_MSG("SetASNIntMP Error with y");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(y, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ySz;
+    }
+
+    seqSz  = SetSequence(pSz + gSz + qSz + ySz, seq);
+
+    /* check output size */
+    if ((seqSz + pSz + gSz + qSz + ySz) > outLen) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(p,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(g,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(q,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(y,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        WOLFSSL_MSG("Error, output size smaller than outlen");
+        return BUFFER_E;
+    }
+
+    if (with_header) {
+        int algoSz;
+#ifdef WOLFSSL_SMALL_STACK
+        byte* algo = NULL;
+
+        algo = (byte*)XMALLOC(MAX_ALGO_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (algo == NULL) {
+            XFREE(p,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(g,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(q,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(y,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return MEMORY_E;
+        }
+#else
+        byte algo[MAX_ALGO_SZ];
+#endif
+        algoSz = SetAlgoID(DSAk, algo, oidKeyType, 0);
+        bitStringSz  = SetBitString(seqSz + pSz + gSz + qSz + ySz, 0, bitString);
+        idx = SetSequence(pSz + gSz + qSz + ySz + seqSz + bitStringSz + algoSz, output);
+
+        /* check output size */
+        if ((idx + algoSz + bitStringSz + seqSz + pSz + gSz + qSz + ySz) > outLen) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(p,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(g,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(q,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(y,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(algo, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+            WOLFSSL_MSG("Error, output size smaller than outlen");
+            return BUFFER_E;
+        }
+
+        /* algo */
+        XMEMCPY(output + idx, algo, algoSz);
+        idx += algoSz;
+        /* bit string */
+        XMEMCPY(output + idx, bitString, bitStringSz);
+        idx += bitStringSz;
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(algo, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    } else {
+        idx = 0;
+    }
+
+    /* seq */
+    XMEMCPY(output + idx, seq, seqSz);
+    idx += seqSz;
+    /* p */
+    XMEMCPY(output + idx, p, pSz);
+    idx += pSz;
+    /* g */
+    XMEMCPY(output + idx, g, gSz);
+    idx += gSz;
+    /* q */
+    XMEMCPY(output + idx, q, qSz);
+    idx += qSz;
+    /* y */
+    XMEMCPY(output + idx, y, ySz);
+    idx += ySz;
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(p,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(g,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(q,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(y,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return idx;
+}
+
+/* Convert DSA Public key to DER format, write to output (inLen), return bytes
+   written */
+int wc_DsaKeyToPublicDer(DsaKey* key, byte* output, word32 inLen)
+{
+    return SetDsaPublicKey(output, key, inLen, 1);
+}
+
+/* Convert private DsaKey key to DER format, write to output (inLen), 
+return bytes written */
 int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
 {
     word32 seqSz, verSz, rawLen, intTotalLen = 0;
@@ -9108,6 +9308,11 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             header =  BEGIN_EDDSA_PRIV;     footer = END_EDDSA_PRIV;
         } else
 #endif
+#ifdef NO_DSA
+        if (header == BEGIN_DSA_PRIV) {
+            header = BEGIN_ENC_PRIV_KEY;    footer = END_ENC_PRIV_KEY;
+        }
+#endif
 #ifdef HAVE_CRL
         if (type == CRL_TYPE) {
             header =  BEGIN_CRL;        footer = END_CRL;
@@ -9191,7 +9396,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         ) && !encrypted_key)
     {
         /* pkcs8 key, convert and adjust length */
-        if ((ret = ToTraditional(der->buffer, der->length, &algId)) > 0) {
+        if ((ret = ToTraditional_ex(der->buffer, der->length, &algId)) > 0) {
             der->length = ret;
         }
         else {
@@ -9230,6 +9435,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             /* convert and adjust length */
             if (header == BEGIN_ENC_PRIV_KEY) {
             #ifndef NO_PWDBASED
+
                 ret = ToTraditionalEnc(der->buffer, der->length,
                                        password, passwordSz, &algId);
 

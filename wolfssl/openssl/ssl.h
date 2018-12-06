@@ -44,7 +44,6 @@
 #include <wolfssl/openssl/dh.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/openssl/objects.h> //may need to change this location
 #endif
 
 #if defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY)

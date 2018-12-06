@@ -260,6 +260,7 @@ enum Misc_ASN {
     MAX_ENCODED_DIG_ASN_SZ= 9,     /* enum(bit or octet) + length(4) */
     MAX_ENCODED_DIG_SZ  =  64 + MAX_ENCODED_DIG_ASN_SZ, /* asn header + sha512 */
     MAX_RSA_INT_SZ      = 517,     /* RSA raw sz 4096 for bits + tag + len(4) */
+    MAX_DSA_INT_SZ      = 261,     /* DSA raw sz 2048 for bits + tag + len(4) */
     MAX_NTRU_KEY_SZ     = 610,     /* NTRU 112 bit public key */
     MAX_NTRU_ENC_SZ     = 628,     /* NTRU 112 bit DER public encoding */
     MAX_LENGTH_SZ       =   4,     /* Max length size for DER encoding */
@@ -989,9 +990,13 @@ WOLFSSL_LOCAL void    FreeTrustedPeer(TrustedPeerCert*, void*);
 WOLFSSL_LOCAL void    FreeTrustedPeerTable(TrustedPeerCert**, int, void*);
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
-WOLFSSL_ASN_API int ToTraditional(byte* buffer, word32 length, word32* algId);
+WOLFSSL_ASN_API int ToTraditional(byte* buffer, word32 length);
+WOLFSSL_ASN_API int ToTraditional_ex(byte* buffer, word32 length,
+                                     word32* algId);
 WOLFSSL_LOCAL int ToTraditionalInline(const byte* input, word32* inOutIdx,
-                                      word32 length, word32* algId);
+                                      word32 length);
+WOLFSSL_LOCAL int ToTraditionalInline_ex(const byte* input, word32* inOutIdx,
+                                         word32 length, word32* algId);
 WOLFSSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*,int,
                                    word32* algId);
 WOLFSSL_ASN_API int UnTraditionalEnc(byte* key, word32 keySz, byte* out,
@@ -1312,6 +1317,7 @@ enum PBESTypes {
     PBE_SHA1_DES     = 2,
     PBE_SHA1_DES3    = 3,
     PBE_AES256_CBC   = 4,
+    PBE_AES128_CBC   = 5,
 
     PBE_SHA1_RC4_128_SUM = 657,
     PBE_SHA1_DES3_SUM    = 659,

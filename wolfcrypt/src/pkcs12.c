@@ -901,7 +901,7 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                             ERROR_OUT(MEMORY_E, exit_pk12par);
                         }
                         XMEMCPY(*pkey, data + idx, size);
-                        *pkeySz =  ToTraditional(*pkey, size, &algId);
+                        *pkeySz =  ToTraditional_ex(*pkey, size, &algId);
                     }
 
                 #ifdef WOLFSSL_DEBUG_PKCS12
