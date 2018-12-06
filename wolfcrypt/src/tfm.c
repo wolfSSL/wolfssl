@@ -2480,6 +2480,48 @@ int fp_to_unsigned_bin(fp_int *a, unsigned char *b)
   return FP_OKAY;
 }
 
+int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
+{
+#if DIGIT_BIT == 64 || DIGIT_BIT == 32
+  int i, j, x;
+
+  for (x=c-1,j=0,i=0; x >= 0; x--) {
+     b[x] = (unsigned char)(a->dp[i] >> j);
+     j += 8;
+     i += j == DIGIT_BIT;
+     j &= DIGIT_BIT - 1;
+  }
+
+  return FP_OKAY;
+#else
+  int     x;
+#ifndef WOLFSSL_SMALL_STACK
+   fp_int t[1];
+#else
+   fp_int *t;
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   if (t == NULL)
+       return FP_MEM;
+#endif
+
+  fp_init_copy(t, a);
+
+  for (x = 0; x < c; x++) {
+      b[x] = (unsigned char) (t->dp[0] & 255);
+      fp_div_2d (t, 8, t, NULL);
+  }
+  fp_reverse (b, x);
+
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+  return FP_OKAY;
+#endif
+}
+
 int fp_unsigned_bin_size(fp_int *a)
 {
   int     size = fp_count_bits (a);
@@ -2965,6 +3007,10 @@ int mp_to_unsigned_bin (mp_int * a, unsigned char *b)
   return fp_to_unsigned_bin(a,b);
 }
 
+int mp_to_unsigned_bin_len(mp_int * a, unsigned char *b, int c)
+{
+  return fp_to_unsigned_bin_len(a, b, c);
+}
 /* reads a unsigned char array, assumes the msb is stored first [big endian] */
 int mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c)
 {

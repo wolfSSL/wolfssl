@@ -288,7 +288,8 @@ int sp_leading_bit(sp_int* a)
  * The array must be large enough for encoded number - use mp_unsigned_bin_size
  * to calculate the number of bytes required.
  *
- * a  SP integer.
+ * a    SP integer.
+ * out  Array to put encoding into.
  * returns MP_OKAY always.
  */
 int sp_to_unsigned_bin(sp_int* a, byte* out)
@@ -307,6 +308,31 @@ int sp_to_unsigned_bin(sp_int* a, byte* out)
     return MP_OKAY;
 }
 
+/* Convert the big number to an array of bytes in big-endian format.
+ * The array must be large enough for encoded number - use mp_unsigned_bin_size
+ * to calculate the number of bytes required.
+ * Front-pads the output array with zeros make number the size of the array.
+ *
+ * a      SP integer.
+ * out    Array to put encoding into.
+ * outSz  Size of the array.
+ * returns MP_OKAY always.
+ */
+int sp_to_unsigned_bin_len(sp_int* a, byte* out, int outSz)
+{
+    int i, j, b;
+
+    j = outSz - 1;
+    for (i=0; j>=0; i++) {
+        for (b = 0; b < SP_WORD_SIZE; b += 8) {
+            out[j--] = a->dp[i] >> b;
+            if (j < 0)
+                break;
+        }
+    }
+
+    return MP_OKAY;
+}
 /* Ensure the data in the big number is zeroed.
  *
  * a  SP integer.

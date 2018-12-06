@@ -25414,26 +25414,22 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                          * indistinguishable from correctly formatted RSA blocks
                          */
 
-                        ret = args->lastErr;
                         args->lastErr = 0; /* reset */
 
                         /* build PreMasterSecret */
                         ssl->arrays->preMasterSecret[0] = ssl->chVersion.major;
                         ssl->arrays->preMasterSecret[1] = ssl->chVersion.minor;
-                        if (ret == 0 && args->sigSz == SECRET_LEN &&
-                                                         args->output != NULL) {
+                        if (args->output != NULL) {
                             XMEMCPY(&ssl->arrays->preMasterSecret[VERSION_SZ],
-                                &args->output[VERSION_SZ],
-                                SECRET_LEN - VERSION_SZ);
+                                    &args->output[VERSION_SZ],
+                                    SECRET_LEN - VERSION_SZ);
                         }
-                        else {
-                            /* preMasterSecret has RNG and version set */
-                            /* return proper length and ignore error */
-                            /* error will be caught as decryption error */
-                            args->sigSz = SECRET_LEN;
-                            ret = 0;
-                        }
-
+                        /* preMasterSecret has RNG and version set
+                         * return proper length and ignore error
+                         * error will be caught as decryption error
+                         */
+                        args->sigSz = SECRET_LEN;
+                        ret = 0;
                         break;
                     } /* rsa_kea */
                 #endif /* !NO_RSA */
