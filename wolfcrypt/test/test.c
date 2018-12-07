@@ -216,7 +216,11 @@
     #define printf wolfssl_pb_print
 #endif
 
-#include "wolfcrypt/test/test.h"
+#ifdef USE_FLAT_TEST_H
+    #include "test.h"
+#else
+    #include "wolfcrypt/test/test.h"
+#endif
 
 #if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_MULTI_ATTRIB)
 static void initDefaultName(void);
