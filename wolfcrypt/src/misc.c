@@ -356,7 +356,8 @@ STATIC WC_INLINE byte ctMaskSel(byte m, byte a, byte b)
 /* Constant time - select integer a when mask is set and integer b otherwise. */
 STATIC WC_INLINE int ctMaskSelInt(byte m, int a, int b)
 {
-    return (b & (~(int)(char)m)) | (a & ((int)(char)m));
+    return (b & (~(signed int)(signed char)m)) |
+           (a & ( (signed int)(signed char)m));
 }
 
 /* Constant time - bit set when a <= b. */

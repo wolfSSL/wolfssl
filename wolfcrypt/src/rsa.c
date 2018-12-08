@@ -2232,7 +2232,7 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
         if (rsa_type == RSA_PUBLIC_DECRYPT && ret > (int)outLen)
             ret = RSA_BUFFER_E;
         else if (ret >= 0 && pad != NULL) {
-            char c;
+            signed char c;
 
             /* only copy output if not inline */
             if (outPtr == NULL) {
