@@ -5216,7 +5216,7 @@ int GetAsnTimeString(void* currTime, byte* buf, word32 len)
 #endif
     byte* data_ptr  = buf;
     word32 data_len = 0;
-    int year, mon, day, hour, min, sec;
+    int year, mon, day, hour, mini, sec;
 
     WOLFSSL_ENTER("SetAsnTimeString");
 
@@ -5252,10 +5252,10 @@ int GetAsnTimeString(void* currTime, byte* buf, word32 len)
         mon  = ts->tm_mon + 1;
         day  = ts->tm_mday;
         hour = ts->tm_hour;
-        min  = ts->tm_min;
+        mini = ts->tm_min;
         sec  = ts->tm_sec;
         XSNPRINTF((char *)utc_str, ASN_UTC_TIME_SIZE,
-                  "%02d%02d%02d%02d%02d%02dZ", year, mon, day, hour, min, sec);
+                  "%02d%02d%02d%02d%02d%02dZ", year, mon, day, hour, mini, sec);
         *data_ptr = (byte) ASN_UTC_TIME; data_ptr++;
         /* -1 below excludes null terminator */
         *data_ptr = (byte) ASN_UTC_TIME_SIZE - 1; data_ptr++;
@@ -5273,10 +5273,10 @@ int GetAsnTimeString(void* currTime, byte* buf, word32 len)
         mon  = ts->tm_mon + 1;
         day  = ts->tm_mday;
         hour = ts->tm_hour;
-        min  = ts->tm_min;
+        mini = ts->tm_min;
         sec  = ts->tm_sec;
         XSNPRINTF((char *)gt_str, ASN_GENERALIZED_TIME_SIZE,
-                  "%4d%02d%02d%02d%02d%02dZ", year, mon, day, hour, min, sec);
+                  "%4d%02d%02d%02d%02d%02dZ", year, mon, day, hour, mini, sec);
         *data_ptr = (byte) ASN_GENERALIZED_TIME; data_ptr++;
         /* -1 below excludes null terminator */
         *data_ptr = (byte) ASN_GENERALIZED_TIME_SIZE - 1; data_ptr++;
