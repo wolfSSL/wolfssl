@@ -1868,7 +1868,9 @@ static void bench_aesgcm_internal(int doAsync, const byte* key, word32 keySz,
 {
     int    ret = 0, i, count = 0, times, pending = 0;
     Aes    enc[BENCH_MAX_PENDING];
+#ifdef HAVE_AES_DECRYPT
     Aes    dec[BENCH_MAX_PENDING];
+#endif
     double start;
 
     DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
@@ -1876,14 +1878,17 @@ static void bench_aesgcm_internal(int doAsync, const byte* key, word32 keySz,
 
     /* clear for done cleanup */
     XMEMSET(enc, 0, sizeof(enc));
+#ifdef HAVE_AES_DECRYPT
+    XMEMSET(dec, 0, sizeof(dec));
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (bench_additional)
 #endif
-    {   XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ); }
+        XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (bench_tag)
 #endif
-    {   XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ); }
+        XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
 
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -1962,10 +1967,6 @@ exit_aes_gcm:
     } while (bench_stats_sym_check(start));
 exit_aes_gcm_dec:
     bench_stats_sym_finish(decLabel, doAsync, count, bench_size, start, ret);
-
-    for (i = 0; i < BENCH_MAX_PENDING; i++) {
-        wc_AesFree(&dec[i]);
-    }
 #endif /* HAVE_AES_DECRYPT */
 
     (void)decLabel;
@@ -1975,7 +1976,11 @@ exit:
     if (ret < 0) {
         printf("bench_aesgcm failed: %d\n", ret);
     }
-
+#ifdef HAVE_AES_DECRYPT
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        wc_AesFree(&dec[i]);
+    }
+#endif
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
         wc_AesFree(&enc[i]);
     }
