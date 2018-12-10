@@ -30631,8 +30631,6 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
             char* newMem;
             if (memSz + sz < 0) {
                 /* sanity check */
-                // %%%%%
-               // printf("shoot\n\n\n\n\n");
                 break;
             }
             newMem = (char*)XREALLOC(mem, memSz + sz, bio->heap,
