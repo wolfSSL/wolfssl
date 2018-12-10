@@ -8224,7 +8224,7 @@ static WC_INLINE int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in,
     }
     XMEMCPY(outPadded, in, sz);
 
-    if ((authInSz % AES_BLOCK_SIZE) != 0) {
+    if (authInSz == 0 || (authInSz % AES_BLOCK_SIZE) != 0) {
         /* Need to pad the AAD to a full block with zeros. */
         authPadSz = ((authInSz / AES_BLOCK_SIZE) + 1) * AES_BLOCK_SIZE;
         authInPadded = (byte*)XMALLOC(authPadSz, aes->heap,
@@ -8446,8 +8446,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                               defined(WOLFSSL_STM32F7) || \
                               defined(WOLFSSL_STM32L4))
 
-    /* additional argument checks - STM32 HW only supports 12 byte IV */
-    if (ivSz == GCM_NONCE_MID_SZ) {
+    /* STM32 HW only supports 12 byte IV and 16 byte auth */
+    if (ivSz == GCM_NONCE_MID_SZ && authInSz == AES_BLOCK_SIZE) {
         return wc_AesGcmEncrypt_STM32(aes, out, in, sz, iv, ivSz,
                                       authTag, authTagSz, authIn, authInSz);
     }
@@ -8611,7 +8611,7 @@ static WC_INLINE int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     }
     XMEMCPY(outPadded, in, sz);
 
-    if ((authInSz % AES_BLOCK_SIZE) != 0) {
+    if (authInSz == 0 || (authInSz % AES_BLOCK_SIZE) != 0) {
         /* Need to pad the AAD to a full block with zeros. */
         authPadSz = ((authInSz / AES_BLOCK_SIZE) + 1) * AES_BLOCK_SIZE;
         authInPadded = (byte*)XMALLOC(authPadSz, aes->heap,
@@ -8848,8 +8848,8 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                               defined(WOLFSSL_STM32F7) || \
                               defined(WOLFSSL_STM32L4))
 
-    /* additional argument checks - STM32 HW only supports 12 byte IV */
-    if (ivSz == GCM_NONCE_MID_SZ) {
+    /* STM32 HW only supports 12 byte IV and 16 byte auth */
+    if (ivSz == GCM_NONCE_MID_SZ && authInSz == AES_BLOCK_SIZE) {
         return wc_AesGcmDecrypt_STM32(aes, out, in, sz, iv, ivSz,
                                       authTag, authTagSz, authIn, authInSz);
     }

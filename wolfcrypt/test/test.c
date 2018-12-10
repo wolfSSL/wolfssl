@@ -769,7 +769,8 @@ initDefaultName();
         printf( "AES256   test passed!\n");
 #endif
 #ifdef HAVE_AESGCM
-    #if !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_DEVCRYPTO) && !defined(STM32_CRYPTO)
+    #if !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_DEVCRYPTO) && \
+        !defined(STM32_CRYPTO)
     if ( (ret = aesgcm_test()) != 0)
         return err_sys("AES-GCM  test failed!\n", ret);
     else
@@ -6630,8 +6631,8 @@ static int aesgcm_default_test_helper(byte* key, int keySz, byte* iv, int ivSz,
 		byte* plain, int plainSz, byte* cipher, int cipherSz,
 		byte* aad, int aadSz, byte* tag, int tagSz)
 {
-Aes enc;
-Aes dec;
+    Aes enc;
+    Aes dec;
 
     byte resultT[AES_BLOCK_SIZE];
     byte resultP[AES_BLOCK_SIZE * 3];
