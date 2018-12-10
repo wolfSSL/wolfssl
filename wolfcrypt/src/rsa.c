@@ -1253,7 +1253,9 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
 {
     int    ret;
     word32 i;
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
     byte   invalid = 0;
+#endif
 
     if (output == NULL || pkcsBlockLen == 0) {
         return BAD_FUNC_ARG;
@@ -1278,6 +1280,7 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
         *output = (byte *)(pkcsBlock + i);
         ret = pkcsBlockLen - i;
     }
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
     else {
         word32 j;
         byte   pastSep = 0;
@@ -1301,6 +1304,7 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
         *output = (byte *)(pkcsBlock + i);
         ret = ((int)~invalid) & (pkcsBlockLen - i);
     }
+#endif
 
     return ret;
 }
