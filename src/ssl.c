@@ -11421,16 +11421,22 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_WEBSERVER)
     void wolfSSL_CTX_set_client_CA_list(WOLFSSL_CTX* ctx,
                                        WOLF_STACK_OF(WOLFSSL_X509_NAME)* names)
     {
         WOLFSSL_ENTER("wolfSSL_SSL_CTX_set_client_CA_list");
-
+    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
         if (ctx != NULL)
             ctx->ca_names = names;
+    #else
+        (void)ctx;
+        (void)names;
+    #endif
     }
+#endif
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_SSL_CTX_get_client_CA_list(
             const WOLFSSL_CTX *s)
     {
@@ -11443,10 +11449,15 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 #endif
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     #if !defined(NO_RSA) && !defined(NO_CERTS)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_load_client_CA_file(const char* fname)
     {
+        /* The webserver build is using this to load a CA into the server
+         * for client authentication as an option. Have this return NULL in
+         * that case. If OPENSSL_EXTRA is enabled, go ahead and include
+         * the function. */
+    #ifdef OPENSSL_EXTRA
         WOLFSSL_STACK *list = NULL;
         WOLFSSL_STACK *node;
         WOLFSSL_BIO* bio;
@@ -11493,8 +11504,16 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         wolfSSL_X509_free(cert);
         wolfSSL_BIO_free(bio);
         return list;
+    #else
+        (void)fname;
+        return NULL;
+    #endif
     }
+    #endif
+#endif
 
+#ifdef OPENSSL_EXTRA
+    #if !defined(NO_RSA) && !defined(NO_CERTS)
     int wolfSSL_CTX_add_client_CA(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
     {
         WOLFSSL_STACK *node = NULL;
@@ -11815,6 +11834,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return ctx->mask;
     }
 
+#endif
+
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+
     static long wolf_set_options(long old_op, long op);
     long wolfSSL_CTX_set_options(WOLFSSL_CTX* ctx, long opt)
     {
@@ -11827,6 +11850,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         return ctx->mask;
     }
+
+#endif
+
+#ifdef OPENSSL_EXTRA
 
     long wolfSSL_CTX_clear_options(WOLFSSL_CTX* ctx, long opt)
     {
@@ -14451,7 +14478,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return WOLFSSL_SUCCESS;
     }
 
+#endif
 
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     long wolfSSL_CTX_set_mode(WOLFSSL_CTX* ctx, long mode)
     {
         /* WOLFSSL_MODE_ACCEPT_MOVING_WRITE_BUFFER is wolfSSL default mode */
@@ -14462,6 +14491,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
         return mode;
     }
+#endif
+
+#ifdef OPENSSL_EXTRA
 
     #ifndef NO_WOLFSSL_STUB
     long wolfSSL_SSL_get_mode(WOLFSSL* ssl)
@@ -19998,6 +20030,9 @@ int wolfSSL_PEM_def_callback(char* name, int num, int w, void* key)
 }
 #endif
 
+#endif
+
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
 static long wolf_set_options(long old_op, long op)
 {
     /* if SSL_OP_ALL then turn all bug workarounds on */
@@ -20056,7 +20091,9 @@ static long wolf_set_options(long old_op, long op)
 
     return old_op | op;
 }
+#endif
 
+#ifdef OPENSSL_EXTRA
 long wolfSSL_set_options(WOLFSSL* ssl, long op)
 {
     word16 haveRSA = 1;

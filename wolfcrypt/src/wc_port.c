@@ -753,6 +753,47 @@ int wolfSSL_CryptHwMutexUnLock(void) {
             return BAD_MUTEX_E;
     }
 
+#elif defined(WOLFSSL_VXWORKS)
+
+    int wc_InitMutex(wolfSSL_Mutex* m)
+    {
+        if (m) {
+            if ((*m = semMCreate(0)) != SEM_ID_NULL)
+                return 0;
+        }
+        return BAD_MUTEX_E;
+    }
+
+
+    int wc_FreeMutex(wolfSSL_Mutex* m)
+    {
+        if (m) {
+            if (semDelete(*m) == OK)
+                return 0;
+        }
+        return BAD_MUTEX_E;
+    }
+
+
+    int wc_LockMutex(wolfSSL_Mutex* m)
+    {
+        if (m) {
+            if (semTake(*m, WAIT_FOREVER) == OK)
+                return 0;
+        }
+        return BAD_MUTEX_E;
+    }
+
+
+    int wc_UnLockMutex(wolfSSL_Mutex* m)
+    {
+        if (m) {
+            if (semGive(*m) == OK)
+                return 0;
+        }
+        return BAD_MUTEX_E;
+    }
+
 #elif defined(THREADX)
 
     int wc_InitMutex(wolfSSL_Mutex* m)
