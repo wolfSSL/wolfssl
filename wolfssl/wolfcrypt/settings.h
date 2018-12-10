@@ -398,6 +398,8 @@
     #ifdef VXWORKS_SIM
         #define TFM_NO_ASM
     #endif
+    /* For VxWorks pthreads wrappers for mutexes uncomment the next line. */
+    /* #define WOLFSSL_PTHREADS */
     #define WOLFSSL_HAVE_MIN
     #define WOLFSSL_HAVE_MAX
     #define USE_FAST_MATH
