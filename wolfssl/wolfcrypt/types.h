@@ -496,7 +496,7 @@
         DYNAMIC_TYPE_DIRCTX       = 81,
         DYNAMIC_TYPE_HASHCTX      = 82,
         DYNAMIC_TYPE_SEED         = 83,
-        DYNAMIC_TYPE_SYMETRIC_KEY = 84,
+        DYNAMIC_TYPE_SYMMETRIC_KEY= 84,
         DYNAMIC_TYPE_ECC_BUFFER   = 85,
         DYNAMIC_TYPE_QSH          = 86,
         DYNAMIC_TYPE_SALT         = 87,

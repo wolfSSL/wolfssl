@@ -1168,12 +1168,12 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
             else if (k < maxLen)
                 b = in[k - WOLFSSL_TLS_HMAC_INNER_SZ];
 
-            b = ctMaskSel(atEoc, b, 0x80);
+            b = ctMaskSel(atEoc, 0x80, b);
             b &= (unsigned char)~(word32)pastEoc;
             b &= ((unsigned char)~(word32)isOutBlock) | isEocBlock;
 
             if (j >= blockSz - 8) {
-                b = ctMaskSel(isOutBlock, b, lenBytes[j - (blockSz - 8)]);
+                b = ctMaskSel(isOutBlock, lenBytes[j - (blockSz - 8)], b);
             }
 
             hashBlock[j] = b;
@@ -9382,7 +9382,7 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word16* pLength)
 
 #ifdef HAVE_EXTENDED_MASTER
     if (msgType == client_hello && ssl->options.haveEMS &&
-                                              !IsAtLeastTLSv1_3(ssl->version)) {
+                  (!IsAtLeastTLSv1_3(ssl->version) || ssl->options.downgrade)) {
         length += HELLO_EXT_SZ;
     }
 #endif
@@ -9483,7 +9483,8 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
 
 #ifdef HAVE_EXTENDED_MASTER
     if (msgType == client_hello && ssl->options.haveEMS &&
-                                              !IsAtLeastTLSv1_3(ssl->version)) {
+                  (!IsAtLeastTLSv1_3(ssl->version) || ssl->options.downgrade)) {
+        WOLFSSL_MSG("EMS extension to write");
         c16toa(HELLO_EXT_EXTMS, output + offset);
         offset += HELLO_EXT_TYPE_SZ;
         c16toa(0, output + offset);
@@ -9728,6 +9729,7 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
 #ifdef HAVE_EXTENDED_MASTER
         if (ssl->options.haveEMS && msgType == server_hello &&
                                               !IsAtLeastTLSv1_3(ssl->version)) {
+            WOLFSSL_MSG("EMS extension to write");
             c16toa(HELLO_EXT_EXTMS, output + offset);
             offset += HELLO_EXT_TYPE_SZ;
             c16toa(0, output + offset);

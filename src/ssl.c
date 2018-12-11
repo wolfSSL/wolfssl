@@ -1488,21 +1488,8 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
 
     #if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
         !defined(HAVE_SELFTEST)
-    {
-        DhKey checkKey;
-        int error, freeKey = 0;
-
-        error = wc_InitDhKey(&checkKey);
-        if (!error) {
-            freeKey = 1;
-            error = wc_DhSetCheckKey(&checkKey,
-                                 p, pSz, g, gSz, NULL, 0, 0, ssl->rng);
-        }
-        if (freeKey)
-            wc_FreeDhKey(&checkKey);
-        if (error)
-            return error;
-    }
+        ssl->options.dhKeyTested = 0;
+        ssl->options.dhDoKeyTest = 1;
     #endif
 
     if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH) {
@@ -1561,6 +1548,28 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
     return WOLFSSL_SUCCESS;
 }
 
+
+#if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
+/* Enables or disables the session's DH key prime test. */
+int wolfSSL_SetEnableDhKeyTest(WOLFSSL* ssl, int enable)
+{
+    WOLFSSL_ENTER("wolfSSL_SetEnableDhKeyTest");
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    if (!enable)
+        ssl->options.dhDoKeyTest = 0;
+    else
+        ssl->options.dhDoKeyTest = 1;
+
+    WOLFSSL_LEAVE("wolfSSL_SetEnableDhKeyTest", WOLFSSL_SUCCESS);
+    return WOLFSSL_SUCCESS;
+}
+#endif
+
+
 /* server ctx Diffie-Hellman parameters, WOLFSSL_SUCCESS on ok */
 int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
                          const unsigned char* g, int gSz)
@@ -1593,6 +1602,8 @@ int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
         wc_FreeRng(&rng);
         if (error)
             return error;
+
+        ctx->dhKeyTested = 1;
     }
     #endif
 
@@ -11679,16 +11690,22 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(HAVE_WEBSERVER)
     void wolfSSL_CTX_set_client_CA_list(WOLFSSL_CTX* ctx,
                                        WOLF_STACK_OF(WOLFSSL_X509_NAME)* names)
     {
         WOLFSSL_ENTER("wolfSSL_SSL_CTX_set_client_CA_list");
-
+    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
         if (ctx != NULL)
             ctx->ca_names = names;
+    #else
+        (void)ctx;
+        (void)names;
+    #endif
     }
+#endif
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_SSL_CTX_get_client_CA_list(
             const WOLFSSL_CTX *s)
     {
@@ -11701,10 +11718,15 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 #endif
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     #if !defined(NO_RSA) && !defined(NO_CERTS)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_load_client_CA_file(const char* fname)
     {
+        /* The webserver build is using this to load a CA into the server
+         * for client authentication as an option. Have this return NULL in
+         * that case. If OPENSSL_EXTRA is enabled, go ahead and include
+         * the function. */
+    #ifdef OPENSSL_EXTRA
         WOLFSSL_STACK *list = NULL;
         WOLFSSL_STACK *node;
         WOLFSSL_BIO* bio;
@@ -11751,8 +11773,16 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         wolfSSL_X509_free(cert);
         wolfSSL_BIO_free(bio);
         return list;
+    #else
+        (void)fname;
+        return NULL;
+    #endif
     }
+    #endif
+#endif
 
+#ifdef OPENSSL_EXTRA
+    #if !defined(NO_RSA) && !defined(NO_CERTS)
     int wolfSSL_CTX_add_client_CA(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
     {
         WOLFSSL_STACK *node = NULL;
@@ -12073,6 +12103,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return ctx->mask;
     }
 
+#endif
+
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+
     static long wolf_set_options(long old_op, long op);
     long wolfSSL_CTX_set_options(WOLFSSL_CTX* ctx, long opt)
     {
@@ -12085,6 +12119,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         return ctx->mask;
     }
+
+#endif
+
+#ifdef OPENSSL_EXTRA
 
     long wolfSSL_CTX_clear_options(WOLFSSL_CTX* ctx, long opt)
     {
@@ -14765,7 +14803,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return WOLFSSL_SUCCESS;
     }
 
+#endif
 
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     long wolfSSL_CTX_set_mode(WOLFSSL_CTX* ctx, long mode)
     {
         /* WOLFSSL_MODE_ACCEPT_MOVING_WRITE_BUFFER is wolfSSL default mode */
@@ -14776,6 +14816,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
         return mode;
     }
+#endif
+
+#ifdef OPENSSL_EXTRA
 
     #ifndef NO_WOLFSSL_STUB
     long wolfSSL_SSL_get_mode(WOLFSSL* ssl)
@@ -20579,6 +20622,9 @@ int wolfSSL_PEM_def_callback(char* name, int num, int w, void* key)
 
 }
 
+#endif
+
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
 static long wolf_set_options(long old_op, long op)
 {
     /* if SSL_OP_ALL then turn all bug workarounds on */
@@ -20637,7 +20683,9 @@ static long wolf_set_options(long old_op, long op)
 
     return old_op | op;
 }
+#endif
 
+#ifdef OPENSSL_EXTRA
 long wolfSSL_set_options(WOLFSSL* ssl, long op)
 {
     word16 haveRSA = 1;
@@ -24433,31 +24481,25 @@ WOLFSSL_BIGNUM* wolfSSL_DH_1536_prime(WOLFSSL_BIGNUM* bn)
 int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
 {
     int            ret    = WOLFSSL_FAILURE;
-    word32         pubSz  = 768;
-    word32         privSz = 768;
+    word32         pubSz  = 0;
+    word32         privSz = 0;
     int            initTmpRng = 0;
     WC_RNG*        rng    = NULL;
 #ifdef WOLFSSL_SMALL_STACK
-    unsigned char* pub    = NULL;
-    unsigned char* priv   = NULL;
     WC_RNG*        tmpRNG = NULL;
 #else
-    unsigned char  pub [768];
-    unsigned char  priv[768];
     WC_RNG         tmpRNG[1];
 #endif
+    unsigned char* pub    = NULL;
+    unsigned char* priv   = NULL;
 
     WOLFSSL_MSG("wolfSSL_DH_generate_key");
 
 #ifdef WOLFSSL_SMALL_STACK
     tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-    pub    = (unsigned char*)XMALLOC(pubSz,   NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-    priv   = (unsigned char*)XMALLOC(privSz,  NULL, DYNAMIC_TYPE_PRIVATE_KEY);
 
     if (tmpRNG == NULL || pub == NULL || priv == NULL) {
         XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
-        XFREE(pub,    NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-        XFREE(priv,   NULL, DYNAMIC_TYPE_PRIVATE_KEY);
         return ret;
     }
 #endif
@@ -24479,10 +24521,16 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
     }
 
     if (rng) {
-       if (wc_DhGenerateKeyPair((DhKey*)dh->internal, rng, priv, &privSz,
+        pubSz = privSz = wolfSSL_BN_num_bytes(dh->p);
+        pub   = (unsigned char*)XMALLOC(pubSz,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        priv  = (unsigned char*)XMALLOC(privSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        if (pub == NULL || priv == NULL) {
+            WOLFSSL_MSG("Unable to malloc memory");
+        }
+        else if (wc_DhGenerateKeyPair((DhKey*)dh->internal, rng, priv, &privSz,
                                                                pub, &pubSz) < 0)
             WOLFSSL_MSG("Bad wc_DhGenerateKeyPair");
-       else {
+        else {
             if (dh->pub_key)
                 wolfSSL_BN_free(dh->pub_key);
 
@@ -24515,9 +24563,9 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
+#endif
     XFREE(pub,    NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     XFREE(priv,   NULL, DYNAMIC_TYPE_PRIVATE_KEY);
-#endif
 
     return ret;
 }

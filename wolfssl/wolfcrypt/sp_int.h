@@ -121,7 +121,8 @@ MP_API int sp_read_radix(sp_int* a, const char* in, int radix);
 MP_API int sp_cmp(sp_int* a, sp_int* b);
 MP_API int sp_count_bits(sp_int* a);
 MP_API int sp_leading_bit(sp_int* a);
-MP_API int sp_to_unsigned_bin(sp_int* a, byte* in);
+MP_API int sp_to_unsigned_bin(sp_int* a, byte* out);
+MP_API int sp_to_unsigned_bin_len(sp_int* a, byte* out, int outSz);
 MP_API void sp_forcezero(sp_int* a);
 MP_API int sp_copy(sp_int* a, sp_int* b);
 MP_API int sp_set(sp_int* a, sp_int_digit d);
@@ -160,32 +161,33 @@ typedef sp_digit mp_digit;
 
 #define mp_free(a)
 
-#define mp_init                 sp_init
-#define mp_init_multi           sp_init_multi
-#define mp_clear                sp_clear
-#define mp_read_unsigned_bin    sp_read_unsigned_bin
-#define mp_unsigned_bin_size    sp_unsigned_bin_size
-#define mp_read_radix           sp_read_radix
-#define mp_cmp                  sp_cmp
-#define mp_count_bits           sp_count_bits
-#define mp_leading_bit          sp_leading_bit
-#define mp_to_unsigned_bin      sp_to_unsigned_bin
-#define mp_forcezero            sp_forcezero
-#define mp_copy                 sp_copy
-#define mp_set                  sp_set
-#define mp_iszero               sp_iszero
-#define mp_clamp                sp_clamp
-#define mp_grow                 sp_grow
-#define mp_sub_d                sp_sub_d
-#define mp_cmp_d                sp_cmp_d
-#define mp_mod                  sp_mod
-#define mp_zero                 sp_zero
-#define mp_add_d                sp_add_d
-#define mp_lshd                 sp_lshd
-#define mp_add                  sp_add
-#define mp_isodd                sp_isodd
-#define mp_set_int              sp_set_int
-#define mp_tohex                sp_tohex
+#define mp_init                     sp_init
+#define mp_init_multi               sp_init_multi
+#define mp_clear                    sp_clear
+#define mp_read_unsigned_bin        sp_read_unsigned_bin
+#define mp_unsigned_bin_size        sp_unsigned_bin_size
+#define mp_read_radix               sp_read_radix
+#define mp_cmp                      sp_cmp
+#define mp_count_bits               sp_count_bits
+#define mp_leading_bit              sp_leading_bit
+#define mp_to_unsigned_bin          sp_to_unsigned_bin
+#define mp_to_unsigned_bin_len      sp_to_unsigned_bin_len
+#define mp_forcezero                sp_forcezero
+#define mp_copy                     sp_copy
+#define mp_set                      sp_set
+#define mp_iszero                   sp_iszero
+#define mp_clamp                    sp_clamp
+#define mp_grow                     sp_grow
+#define mp_sub_d                    sp_sub_d
+#define mp_cmp_d                    sp_cmp_d
+#define mp_mod                      sp_mod
+#define mp_zero                     sp_zero
+#define mp_add_d                    sp_add_d
+#define mp_lshd                     sp_lshd
+#define mp_add                      sp_add
+#define mp_isodd                    sp_isodd
+#define mp_set_int                  sp_set_int
+#define mp_tohex                    sp_tohex
 
 #define MP_INT_DEFINED
 

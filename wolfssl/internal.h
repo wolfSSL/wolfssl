@@ -2536,6 +2536,12 @@ struct WOLFSSL_CTX {
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     byte        postHandshakeAuth:1;  /* Post-handshake auth supported. */
 #endif
+#ifndef NO_DH
+    #if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
+        !defined(HAVE_SELFTEST)
+    byte        dhKeyTested:1;   /* Set when key has been tested. */
+    #endif
+#endif
 #ifdef WOLFSSL_MULTICAST
     byte        haveMcast;        /* multicast requested */
     byte        mcastID;          /* multicast group ID */
@@ -2554,10 +2560,12 @@ struct WOLFSSL_CTX {
 #if defined(HAVE_ECC) || defined(HAVE_ED25519)
     short       minEccKeySz;      /* minimum ECC key size */
 #endif
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+    unsigned long     mask;             /* store SSL_OP_ flags */
+#endif
 #ifdef OPENSSL_EXTRA
     byte              sessionCtx[ID_LEN]; /* app session context ID */
     word32            disabledCurves;   /* curves disabled by user */
-    unsigned long     mask;             /* store SSL_OP_ flags */
     const unsigned char *alpn_cli_protos;/* ALPN client protocol list */
     unsigned int         alpn_cli_protos_len;
     byte              sessionCtxSz;
@@ -3245,7 +3253,13 @@ typedef struct Options {
                                                 !defined(NO_ED25519_CLIENT_AUTH)
     word16            cacheMessages:1;    /* Cache messages for sign/verify */
 #endif
-
+#ifndef NO_DH
+    #if !defined(WOLFSSL_OLD_PRIME_CHECK) && \
+        !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+        word16        dhDoKeyTest:1;      /* Need to do the DH Key prime test */
+        word16        dhKeyTested:1;      /* Set when key has been tested. */
+    #endif
+#endif
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */
     byte            cipherSuite0;           /* first byte, normally 0 */

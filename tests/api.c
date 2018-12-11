@@ -3316,6 +3316,10 @@ static void test_wolfSSL_X509_NAME_get_entry(void)
 static void test_wolfSSL_PKCS12(void)
 {
     /* .p12 file is encrypted with DES3 */
+#ifndef HAVE_FIPS /* Password used in cert "wolfSSL test" is only 12-bytes
+                   * (96-bit) FIPS mode requires Minimum of 14-byte (112-bit)
+                   * Password Key
+                   */
 #if defined(OPENSSL_EXTRA) && !defined(NO_DES3) && !defined(NO_FILESYSTEM) && \
     !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA)
     byte buffer[5300];
@@ -3532,6 +3536,7 @@ static void test_wolfSSL_PKCS12(void)
 
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA */
+#endif /* HAVE_FIPS */
 }
 
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
@@ -3654,7 +3659,11 @@ static void test_wolfSSL_PKCS8(void)
 static void test_wolfSSL_PKCS5(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_SHA) && !defined(NO_PWDBASED)
+#ifdef HAVE_FIPS /* Password minimum length is 14 (112-bit) in FIPS MODE */
+    const char* passwd = "myfipsPa$$W0rd";
+#else
     const char *passwd = "pass1234";
+#endif
     const unsigned char *salt = (unsigned char *)"salt1234";
     unsigned char *out = (unsigned char *)XMALLOC(WC_SHA_DIGEST_SIZE, NULL,
                                                   DYNAMIC_TYPE_TMP_BUFFER);
@@ -15781,21 +15790,26 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
     AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output, 0, decoded,
         (word32)sizeof(decoded)), BAD_FUNC_ARG);
     /* Should get a return of BAD_FUNC_ARG with structure data. Order matters.*/
+#if defined(HAVE_ECC) && !defined(NO_AES)
+    /* only a failure for KARI test cases */
     tempWrd32 = pkcs7->singleCertSz;
     pkcs7->singleCertSz = 0;
     AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output), decoded, (word32)sizeof(decoded)), BAD_FUNC_ARG);
     pkcs7->singleCertSz = tempWrd32;
-    tempWrd32 = pkcs7->privateKeySz;
-    pkcs7->privateKeySz = 0;
-    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
-        (word32)sizeof(output), decoded, (word32)sizeof(decoded)), BAD_FUNC_ARG);
-    pkcs7->privateKeySz = tempWrd32;
+
     tmpBytePtr = pkcs7->singleCert;
     pkcs7->singleCert = NULL;
     AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output), decoded, (word32)sizeof(decoded)), BAD_FUNC_ARG);
     pkcs7->singleCert = tmpBytePtr;
+#endif
+    tempWrd32 = pkcs7->privateKeySz;
+    pkcs7->privateKeySz = 0;
+    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
+        (word32)sizeof(output), decoded, (word32)sizeof(decoded)), BAD_FUNC_ARG);
+    pkcs7->privateKeySz = tempWrd32;
+
     tmpBytePtr = pkcs7->privateKey;
     pkcs7->privateKey = NULL;
     AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
@@ -19184,7 +19198,11 @@ static void test_wolfSSL_HMAC(void)
 
 static void test_wolfSSL_OBJ(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && !defined(NO_ASN)
+/* Password "wolfSSL test" is only 12 (96-bit) too short for testing in FIPS
+ * mode
+ */
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && !defined(NO_ASN) && \
+    !defined(HAVE_FIPS)
     ASN1_OBJECT *obj = NULL;
     char buf[50];
 
@@ -20232,7 +20250,11 @@ static void test_wolfSSL_SHA(void)
         unsigned char out[WC_SHA256_DIGEST_SIZE];
 
         XMEMSET(out, 0, WC_SHA256_DIGEST_SIZE);
+#if !defined(NO_OLD_NAMES) && !defined(HAVE_FIPS)
         AssertNotNull(SHA256(in, XSTRLEN((char*)in), out));
+#else
+        AssertNotNull(wolfSSL_SHA256(in, XSTRLEN((char*)in), out));
+#endif
         AssertIntEQ(XMEMCMP(out, expected, WC_SHA256_DIGEST_SIZE), 0);
     }
     #endif
@@ -20247,7 +20269,11 @@ static void test_wolfSSL_SHA(void)
         unsigned char out[WC_SHA384_DIGEST_SIZE];
 
         XMEMSET(out, 0, WC_SHA384_DIGEST_SIZE);
+#if !defined(NO_OLD_NAMES) && !defined(HAVE_FIPS)
         AssertNotNull(SHA384(in, XSTRLEN((char*)in), out));
+#else
+        AssertNotNull(wolfSSL_SHA384(in, XSTRLEN((char*)in), out));
+#endif
         AssertIntEQ(XMEMCMP(out, expected, WC_SHA384_DIGEST_SIZE), 0);
     }
     #endif
@@ -20263,7 +20289,11 @@ static void test_wolfSSL_SHA(void)
         unsigned char out[WC_SHA512_DIGEST_SIZE];
 
         XMEMSET(out, 0, WC_SHA512_DIGEST_SIZE);
+#if !defined(NO_OLD_NAMES) && !defined(HAVE_FIPS)
         AssertNotNull(SHA512(in, XSTRLEN((char*)in), out));
+#else
+        AssertNotNull(wolfSSL_SHA512(in, XSTRLEN((char*)in), out));
+#endif
         AssertIntEQ(XMEMCMP(out, expected, WC_SHA512_DIGEST_SIZE), 0);
     }
     #endif

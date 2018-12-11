@@ -341,10 +341,23 @@ STATIC WC_INLINE byte ctMaskEq(int a, int b)
     return 0 - (a == b);
 }
 
-/* Constant time - select b when mask is set and a otherwise. */
+/* Constant time - mask set when a != b. */
+STATIC WC_INLINE byte ctMaskNotEq(int a, int b)
+{
+    return 0 - (a != b);
+}
+
+/* Constant time - select a when mask is set and b otherwise. */
 STATIC WC_INLINE byte ctMaskSel(byte m, byte a, byte b)
 {
-    return (a & ((byte)~(word32)m)) | (b & m);
+    return (b & ((byte)~(word32)m)) | (a & m);
+}
+
+/* Constant time - select integer a when mask is set and integer b otherwise. */
+STATIC WC_INLINE int ctMaskSelInt(byte m, int a, int b)
+{
+    return (b & (~(signed int)(signed char)m)) |
+           (a & ( (signed int)(signed char)m));
 }
 
 /* Constant time - bit set when a <= b. */

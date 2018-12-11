@@ -420,6 +420,7 @@ static const bench_alg bench_other_opt[] = {
 #endif
 
 static int lng_index = 0;
+#ifndef NO_MAIN_DRIVER
 static const char* bench_Usage_msg1[][10] = {
     /* 0 English  */
     {   "-? <num>    Help, print this usage\n            0: English, 1: Japanese\n",
@@ -448,9 +449,10 @@ static const char* bench_Usage_msg1[][10] = {
     },
 #endif
 };
+#endif
 
 static const char* bench_result_words1[][4] = {
-    { "tooks", "seconds" , "Cycles per byte", NULL },               /* 0 English  */
+    { "took", "seconds" , "Cycles per byte", NULL },           /* 0 English  */
 #ifndef NO_MULTIBYTE_PRINT
     { "を"   , "秒で処理", "1バイトあたりのサイクル数", NULL },     /* 1 Japanese */
 #endif
