@@ -175,22 +175,24 @@ WOLFSSL_API int  wolfSSL_EVP_EncryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
 WOLFSSL_API int  wolfSSL_EVP_DecryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
-  if (ctx && ctx->enc)
-      return WOLFSSL_FAILURE;
-  else {
-      WOLFSSL_ENTER("wolfSSL_EVP_DecryptFinal");
-      return wolfSSL_EVP_CipherFinal(ctx, out, outl);
-  }
+    if (ctx && ctx->enc) {
+        WOLFSSL_ENTER("wolfSSL_EVP_DecryptFinal");
+        return wolfSSL_EVP_CipherFinal(ctx, out, outl);
+    }
+    else {
+        return WOLFSSL_FAILURE;
+    }
 }
 
 WOLFSSL_API int  wolfSSL_EVP_DecryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
-    if (ctx && ctx->enc)
-        return WOLFSSL_FAILURE;
-    else {
+    if (ctx && ctx->enc) {
         WOLFSSL_ENTER("wolfSSL_EVP_CipherFinal_ex");
         return wolfSSL_EVP_CipherFinal(ctx, out, outl);
+    }
+    else {
+        return WOLFSSL_FAILURE;
     }
 }
 
@@ -613,7 +615,14 @@ WOLFSSL_API unsigned long WOLFSSL_EVP_CIPHER_mode(const WOLFSSL_EVP_CIPHER *ciph
 WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags)
 {
     if (ctx != NULL) {
-        ctx->flags = flags;
+        ctx->flags |= flags;
+    }
+}
+
+WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_clear_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags)
+{
+    if (ctx != NULL) {
+        ctx->flags &= ~flags;
     }
 }
 

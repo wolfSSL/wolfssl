@@ -4872,6 +4872,38 @@ int des_test(void)
     if (XMEMCMP(cipher, verify, sizeof(cipher)))
         return -4605;
 
+    ret = wc_Des_CbcEncryptWithKey(cipher, vector, sizeof(vector), key, iv);
+    if (ret != 0)
+        return -4606;
+
+#ifdef WOLFSSL_ENCRYPTED_KEYS
+    {
+        EncryptedInfo info;
+        XMEMSET(&info, 0, sizeof(EncryptedInfo));
+        XMEMCPY(info.iv, iv, sizeof(iv));
+        info.ivSz = sizeof(iv);
+        info.keySz = sizeof(key);
+        info.cipherType = WC_CIPHER_DES;
+
+        ret = wc_BufferKeyEncrypt(&info, cipher, sizeof(cipher), key,
+                sizeof(key), WC_HASH_TYPE_SHA);
+        if (ret != 0)
+            return -4607;
+
+        /* Test invalid info ptr */
+        ret = wc_BufferKeyEncrypt(NULL, cipher, sizeof(cipher), key,
+                sizeof(key), WC_HASH_TYPE_SHA);
+        if (ret != BAD_FUNC_ARG)
+            return -4608;
+
+        /* Test invalid hash type */
+        ret = wc_BufferKeyEncrypt(&info, cipher, sizeof(cipher), key,
+                sizeof(key), WC_HASH_TYPE_NONE);
+        if (ret == 0)
+            return -4609;
+    }
+#endif
+
     return 0;
 }
 #endif /* NO_DES3 */
@@ -4977,6 +5009,22 @@ int des3_test(void)
 
     wc_Des3Free(&enc);
     wc_Des3Free(&dec);
+
+#ifdef WOLFSSL_ENCRYPTED_KEYS
+    {
+        EncryptedInfo info;
+        XMEMSET(&info, 0, sizeof(EncryptedInfo));
+        XMEMCPY(info.iv, iv3, sizeof(iv3));
+        info.ivSz = sizeof(iv3);
+        info.keySz = sizeof(key3);
+        info.cipherType = WC_CIPHER_DES3;
+
+        ret = wc_BufferKeyEncrypt(&info, cipher, sizeof(cipher), key3,
+                sizeof(key3), WC_HASH_TYPE_SHA);
+        if (ret != 0)
+            return -4710;
+    }
+#endif
 
     return 0;
 }
@@ -11573,6 +11621,11 @@ int rsa_test(void)
             goto exit_rsa;
         }
 
+        derSz = wc_MakeCertReq_ex(&req, der, FOURK_BUF, RSA_TYPE, &key);
+        if (derSz < 0) {
+            ERROR_OUT(-7074, exit_rsa);
+        }
+
         XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         pem = NULL;
         XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -12025,6 +12078,22 @@ int dh_test(void)
         ERROR_OUT(-7114, done);
     }
 
+#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (wc_DhCheckPrivKey(NULL, NULL, 0) != BAD_FUNC_ARG)
+        return -7115;
+
+    if (wc_DhCheckPrivKey(&key, priv, privSz) != 0)
+        return -7116;
+
+    if (wc_DhExportParamsRaw(NULL, NULL, NULL, NULL, NULL, NULL, NULL) != BAD_FUNC_ARG)
+        return -7117;
+    {
+        word32 pSz, qSz, gSz;
+        if (wc_DhExportParamsRaw(&key, NULL, &pSz, NULL, &qSz, NULL, &gSz) != LENGTH_ONLY_E)
+            return -7118;
+    }
+#endif
+
     ret = dh_generate_test(&rng);
     if (ret == 0)
         ret = dh_fips_generate_test(&rng);
@@ -12188,6 +12257,9 @@ int dsa_test(void)
     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif /* WOLFSSL_KEY_GEN */
+
+    if (wc_InitDsaKey_h(&key, NULL) != 0)
+        return -7216;
 
     wc_FreeRng(&rng);
     return 0;
@@ -13682,6 +13754,77 @@ int openssl_test(void)
         if (XMEMCMP(plain, cbcPlain, 18))
             return -7502;
 
+        if (EVP_CIPHER_key_length(NULL) != 0)
+            return -7503;
+
+        if (EVP_CIPHER_key_length(EVP_aes_128_cbc()) != 16)
+            return -7504;
+
+        if (EVP_CIPHER_CTX_mode(NULL) != 0)
+            return -7505;
+
+        if (EVP_CIPHER_CTX_mode(&en) != (en.flags & WOLFSSL_EVP_CIPH_MODE))
+            return -7506;
+
+        EVP_CIPHER_CTX_init(&en);
+        if (EVP_CipherInit_ex(&en, EVP_aes_128_cbc(), NULL,
+            (unsigned char*)key, (unsigned char*)iv, 0) == 0)
+            return -7507;
+
+        EVP_CIPHER_CTX_init(&en);
+        if (EVP_EncryptInit_ex(&en, EVP_aes_128_cbc(), NULL,
+                (unsigned char*)key, (unsigned char*)iv) == 0)
+            return -7508;
+
+        if (wolfSSL_EVP_EncryptFinal_ex(NULL, NULL, NULL) != WOLFSSL_FAILURE)
+            return -7509;
+
+        if (wolfSSL_EVP_EncryptFinal(NULL, NULL, NULL) != WOLFSSL_FAILURE)
+            return -7510;
+
+        EVP_CIPHER_CTX_init(&de);
+        if (EVP_DecryptInit_ex(&de, EVP_aes_128_cbc(), NULL,
+                (unsigned char*)key, (unsigned char*)iv) == 0)
+            return -7511;
+
+        if (wolfSSL_EVP_DecryptFinal(NULL, NULL, NULL) != WOLFSSL_FAILURE)
+            return -7512;
+
+        if (wolfSSL_EVP_DecryptFinal_ex(NULL, NULL, NULL) != WOLFSSL_FAILURE)
+            return -7513;
+
+        if (EVP_CIPHER_CTX_block_size(NULL) != BAD_FUNC_ARG)
+            return -7514;
+
+        EVP_CIPHER_CTX_init(&en);
+        EVP_EncryptInit_ex(&en, EVP_aes_128_cbc(), NULL,
+                (unsigned char*)key, (unsigned char*)iv);
+        if (EVP_CIPHER_CTX_block_size(&en) != en.block_size)
+            return -7514;
+
+        if (EVP_CIPHER_block_size(NULL) != BAD_FUNC_ARG)
+            return -7515;
+
+        if (EVP_CIPHER_block_size(EVP_aes_128_cbc()) != AES_BLOCK_SIZE)
+            return -7516;
+
+        if (WOLFSSL_EVP_CIPHER_mode(NULL) != 0)
+            return -7517;
+
+        if (EVP_CIPHER_flags(EVP_aes_128_cbc()) != WOLFSSL_EVP_CIPH_CBC_MODE)
+            return -7518;
+
+        EVP_CIPHER_CTX_clear_flags(&en, 0xFFFFFFFF);
+        EVP_CIPHER_CTX_set_flags(&en, 42);
+        if (en.flags != 42)
+            return -7519;
+
+        if (EVP_CIPHER_CTX_set_padding(NULL, 0) != BAD_FUNC_ARG)
+            return -7520;
+        if (EVP_CIPHER_CTX_set_padding(&en, 0) != WOLFSSL_SUCCESS)
+            return -7521;
+        if (EVP_CIPHER_CTX_set_padding(&en, 1) != WOLFSSL_SUCCESS)
+            return -7522;
 
     }
 #endif /* WOLFSSL_AES_128 && HAVE_AES_CBC */
@@ -13740,6 +13883,21 @@ int openSSL_evpMD_test(void)
 
     if (EVP_MD_type(EVP_sha1()) != EVP_MD_CTX_type(ctx2)) {
         ret = -7607;
+        goto openSSL_evpMD_test_done;
+    }
+
+    if (EVP_DigestInit_ex(ctx, EVP_sha1(), NULL) != SSL_SUCCESS) {
+        ret = -7608;
+        goto openSSL_evpMD_test_done;
+    }
+
+    if (EVP_add_digest(NULL) != 0) {
+        ret = -7609;
+        goto openSSL_evpMD_test_done;
+    }
+
+    if (wolfSSL_EVP_add_cipher(NULL) != 0) {
+        ret = -7610;
         goto openSSL_evpMD_test_done;
     }
 
