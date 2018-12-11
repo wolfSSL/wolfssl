@@ -1681,7 +1681,7 @@ if test "$ENABLED_STACKSIZE" = "yes"
 then
     AC_CHECK_FUNC([posix_memalign], [], [AC_MSG_ERROR(stacksize needs posix_memalign)])
     AC_CHECK_FUNC([pthread_attr_setstack], [], AC_CHECK_LIB([pthread],[pthread_attr_setstack]))
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_STACK_SIZE -DWOLFSSL_LOW_MEMORY"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_STACK_SIZE"
 fi
 
 

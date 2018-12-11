@@ -1452,16 +1452,13 @@ static void* benchmarks_do(void* args)
                 bench_rsaKeyGen(0);
             }
         #endif
-        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
-            /* async supported in simulator only */
-            #ifdef WOLFSSL_ASYNC_CRYPT_TEST
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA_KEYGEN)
             if (bench_asym_algs & BENCH_RSA_SZ) {
                 bench_rsaKeyGen_size(1, bench_size);
             }
             else {
                 bench_rsaKeyGen(1);
             }
-            #endif
         #endif
         }
     #endif
