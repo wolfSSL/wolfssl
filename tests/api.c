@@ -19849,7 +19849,7 @@ static void test_wolfSSL_SESSION(void)
 #ifdef HAVE_SESSION_TICKET
     /* Test set/get session ticket */
     {
-        const char ticket[] = "This is a session ticket";
+        const char* ticket = "This is a session ticket";
         char buf[64] = {0};
         word32 bufSz = (word32)sizeof(buf);
 
@@ -21218,7 +21218,7 @@ static void test_wc_SetSubjectRaw(void)
 {
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
-    char joiCertFile[] = "./certs/test/cert-ext-joi.pem";
+    const char* joiCertFile = "./certs/test/cert-ext-joi.pem";
     WOLFSSL_X509* x509;
     int peerCertSz;
     const byte* peerCertBuf;
@@ -21260,7 +21260,7 @@ static void test_wc_SetIssuerRaw(void)
 {
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
-    char joiCertFile[] = "./certs/test/cert-ext-joi.pem";
+    const char* joiCertFile = "./certs/test/cert-ext-joi.pem";
     WOLFSSL_X509* x509;
     int peerCertSz;
     const byte* peerCertBuf;
@@ -21286,7 +21286,7 @@ static void test_wc_SetIssueBuffer(void)
 {
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
-    const char joiCertFile[] = "./certs/test/cert-ext-joi.pem";
+    const char* joiCertFile = "./certs/test/cert-ext-joi.pem";
     WOLFSSL_X509* x509;
     int peerCertSz;
     const byte* peerCertBuf;
@@ -21316,7 +21316,7 @@ static void test_wc_SetSubjectKeyId(void)
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
     Cert cert;
-    const char file[] = "certs/ecc-client-keyPub.pem";
+    const char* file = "certs/ecc-client-keyPub.pem";
 
     printf(testingFmt, "wc_SetSubjectKeyId()");
 
@@ -21338,7 +21338,7 @@ static void test_wc_SetSubject(void)
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
     Cert cert;
-    const char file[] = "./certs/ca-ecc-cert.pem";
+    const char* file = "./certs/ca-ecc-cert.pem";
 
     printf(testingFmt, "wc_SetSubject()");
 
