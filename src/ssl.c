@@ -27477,15 +27477,44 @@ int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_EC_KEY *key)
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
+#ifndef NO_DSA
 WOLFSSL_DSA* wolfSSL_EVP_PKEY_get1_DSA(WOLFSSL_EVP_PKEY* key)
 {
-    (void)key;
-    WOLFSSL_MSG("wolfSSL_EVP_PKEY_get1_DSA not implemented");
-    WOLFSSL_STUB("EVP_PKEY_get1_DSA");
-    return NULL;
+    WOLFSSL_DSA* local;
+
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_get1_DSA");
+
+    if (key == NULL) {
+        WOLFSSL_MSG("Bad function argument");
+        return NULL;
+    }
+
+    local = wolfSSL_DSA_new();
+    if (local == NULL) {
+        WOLFSSL_MSG("Error creating a new WOLFSSL_DSA structure");
+        return NULL;
+    }
+
+    if (key->type == EVP_PKEY_DSA) {
+        if (wolfSSL_DSA_LoadDer(local, (const unsigned char*)key->pkey.ptr,
+                    key->pkey_sz) != SSL_SUCCESS) {
+            /* now try public key */
+            if (wolfSSL_DSA_LoadDer_ex(local,
+                        (const unsigned char*)key->pkey.ptr, key->pkey_sz,
+                        WOLFSSL_DSA_LOAD_PUBLIC) != SSL_SUCCESS) {
+                wolfSSL_DSA_free(local);
+                local = NULL;
+            }
+        }
+    }
+    else {
+        WOLFSSL_MSG("WOLFSSL_EVP_PKEY does not hold an DSA key");
+        wolfSSL_DSA_free(local);
+        local = NULL;
+    }
+    return local;
 }
-#endif
+#endif /* NO_DSA */
 
 #if defined(HAVE_ECC) && defined(WOLFSSL_QT)
 WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
