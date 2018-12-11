@@ -16662,10 +16662,8 @@ static void test_wc_PemPubKeyToDer(void)
 
     printf(testingFmt, "wc_PemPubKeyToDer()");
 
-#if 0 /* NULL filename causes valgrind failure */
     ret = wc_PemPubKeyToDer(NULL, cert_der, (int)cert_dersz);
-    AssertIntGE(ret, BUFFER_E);
-#endif
+    AssertIntGE(ret, BAD_FUNC_ARG);
 
     if (cert_der) {
         ret = wc_PemPubKeyToDer(key, cert_der, (int)cert_dersz);
@@ -19851,7 +19849,7 @@ static void test_wolfSSL_SESSION(void)
 #ifdef HAVE_SESSION_TICKET
     /* Test set/get session ticket */
     {
-        char ticket[] = "This is a session ticket";
+        const char* ticket = "This is a session ticket";
         char buf[64] = {0};
         word32 bufSz = (word32)sizeof(buf);
 
@@ -21288,7 +21286,7 @@ static void test_wc_SetIssueBuffer(void)
 {
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
-    char joiCertFile[] = "./certs/test/cert-ext-joi.pem";
+    const char* joiCertFile = "./certs/test/cert-ext-joi.pem";
     WOLFSSL_X509* x509;
     int peerCertSz;
     const byte* peerCertBuf;
