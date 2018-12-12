@@ -773,7 +773,8 @@ initDefaultName();
         printf( "AES256   test passed!\n");
 #endif
 #ifdef HAVE_AESGCM
-    #if !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_DEVCRYPTO)
+    #if !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_DEVCRYPTO) && \
+        !defined(STM32_CRYPTO)
     if ( (ret = aesgcm_test()) != 0)
         return err_sys("AES-GCM  test failed!\n", ret);
     else
@@ -5986,13 +5987,14 @@ int aes_test(void)
 
     if (wc_AesInit(&enc, HEAP_HINT, devId) != 0)
         return -5400;
+#if defined(HAVE_AES_DECRYPT) || defined(WOLFSSL_AES_COUNTER)
     if (wc_AesInit(&dec, HEAP_HINT, devId) != 0)
         return -5401;
-
+#endif
     ret = wc_AesSetKey(&enc, key, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
     if (ret != 0)
         return -5402;
-#ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_DECRYPT) || defined(WOLFSSL_AES_COUNTER)
     ret = wc_AesSetKey(&dec, key, AES_BLOCK_SIZE, iv, AES_DECRYPTION);
     if (ret != 0)
         return -5403;
@@ -6681,8 +6683,8 @@ static int aesgcm_default_test_helper(byte* key, int keySz, byte* iv, int ivSz,
 		byte* plain, int plainSz, byte* cipher, int cipherSz,
 		byte* aad, int aadSz, byte* tag, int tagSz)
 {
-Aes enc;
-Aes dec;
+    Aes enc;
+    Aes dec;
 
     byte resultT[AES_BLOCK_SIZE];
     byte resultP[AES_BLOCK_SIZE * 3];
@@ -7306,9 +7308,9 @@ int aesgcm_test(void)
                         randIV, sizeof(randIV),
                         resultT, sizeof(resultT),
                         a, sizeof(a));
-#if defined(WOLFSSL_ASYNC_CRYPT)
+    #if defined(WOLFSSL_ASYNC_CRYPT)
         result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
-#endif
+    #endif
         if (result != 0)
             return -8209;
 
@@ -7322,22 +7324,25 @@ int aesgcm_test(void)
                 return -8210;
         }
 
+#ifdef HAVE_AES_DECRYPT
         result = wc_AesGcmDecrypt(&enc,
                           resultP, resultC, sizeof(resultC),
                           randIV, sizeof(randIV),
                           resultT, sizeof(resultT),
                           a, sizeof(a));
-#if defined(WOLFSSL_ASYNC_CRYPT)
+    #if defined(WOLFSSL_ASYNC_CRYPT)
         result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
-#endif
+    #endif
         if (result != 0)
             return -8211;
         if (XMEMCMP(p, resultP, sizeof(resultP)))
             return -8212;
+#endif /* HAVE_AES_DECRYPT */
+
         wc_FreeRng(&rng);
     }
-#endif /* WC_NO_RNG HAVE_SELFTEST */
-#endif
+#endif /* WOLFSSL_AES_256 && !(WC_NO_RNG || HAVE_SELFTEST) */
+#endif /* HAVE_FIPS_VERSION >= 2 */
 
     wc_AesFree(&enc);
 

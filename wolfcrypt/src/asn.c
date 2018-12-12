@@ -6133,7 +6133,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
 
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (sigCtx->devId != INVALID_DEVID && sigCtx->asyncDev && sigCtx->asyncCtx) {
-                /* make sure event is intialized */
+                /* make sure event is initialized */
                 WOLF_EVENT* event = &sigCtx->asyncDev->event;
                 ret = wolfAsync_EventInit(event, WOLF_EVENT_TYPE_ASYNC_WOLFSSL,
                     sigCtx->asyncCtx, WC_ASYNC_FLAG_CALL_AGAIN);
