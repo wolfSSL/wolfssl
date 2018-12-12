@@ -9056,8 +9056,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
                 if (ret >= 0) {
                     der->length = ret;
-                    if (algId == ECDSAk)
+                    if ((algId == ECDSAk) && (eccKey != NULL)) {
                         *eccKey = 1;
+                    }
                     ret = 0;
                 }
             #else
