@@ -548,7 +548,11 @@ static const char* bench_desc_words[][9] = {
     #pragma warning(disable: 4996)
 #endif
 
-#include "wolfcrypt/benchmark/benchmark.h"
+#ifdef USE_FLAT_BENCHMARK_H
+    #include "benchmark.h"
+#else
+    #include "wolfcrypt/benchmark/benchmark.h"
+#endif
 
 #ifdef WOLFSSL_CURRTIME_REMAP
     #define current_time WOLFSSL_CURRTIME_REMAP
