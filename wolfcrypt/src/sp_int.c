@@ -52,6 +52,7 @@ int sp_init(sp_int* a)
     return MP_OKAY;
 }
 
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && (!defined(NO_DH) || defined(HAVE_ECC))
 /* Initialize up to six big numbers to be zero.
  *
  * a  SP integer.
@@ -92,6 +93,7 @@ int sp_init_multi(sp_int* a, sp_int* b, sp_int* c, sp_int* d, sp_int* e,
 
     return MP_OKAY;
 }
+#endif
 
 /* Clear the data from the big number and set to zero.
  *
@@ -158,6 +160,7 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
     return MP_OKAY;
 }
 
+#ifdef HAVE_ECC
 /* Convert a number as string in big-endian format to a big number.
  * Only supports base-16 (hexadecimal).
  * Negative values not supported.
@@ -210,6 +213,7 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
 
     return MP_OKAY;
 }
+#endif
 
 /* Compare two big numbers.
  *
@@ -284,6 +288,7 @@ int sp_leading_bit(sp_int* a)
     return bit;
 }
 
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && (!defined(NO_DH) || defined(HAVE_ECC))
 /* Convert the big number to an array of bytes in big-endian format.
  * The array must be large enough for encoded number - use mp_unsigned_bin_size
  * to calculate the number of bytes required.
@@ -307,6 +312,7 @@ int sp_to_unsigned_bin(sp_int* a, byte* out)
 
     return MP_OKAY;
 }
+#endif
 
 /* Convert the big number to an array of bytes in big-endian format.
  * The array must be large enough for encoded number - use mp_unsigned_bin_size
@@ -333,6 +339,8 @@ int sp_to_unsigned_bin_len(sp_int* a, byte* out, int outSz)
 
     return MP_OKAY;
 }
+
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) && (!defined(NO_DH) || defined(HAVE_ECC))
 /* Ensure the data in the big number is zeroed.
  *
  * a  SP integer.
@@ -357,6 +365,7 @@ int sp_copy(sp_int* a, sp_int* b)
     }
     return MP_OKAY;
 }
+#endif
 
 /* Set the big number to be the value of the digit.
  *
@@ -371,6 +380,7 @@ int sp_set(sp_int* a, sp_int_digit d)
     return MP_OKAY;
 }
 
+#if !defined(NO_DH) || defined(HAVE_ECC)
 /* Checks whether the value of the big number is zero.
  *
  * a  SP integer.
@@ -380,7 +390,9 @@ int sp_iszero(sp_int* a)
 {
     return a->used == 0;
 }
+#endif
 
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && (!defined(NO_DH) || defined(HAVE_ECC))
 /* Recalculate the number of digits used.
  *
  * a  SP integer.
@@ -436,6 +448,7 @@ int sp_sub_d(sp_int* a, sp_int_digit d, sp_int* r)
 
     return MP_OKAY;
 }
+#endif
 
 /* Compare a one digit number with a big number.
  *
@@ -464,6 +477,7 @@ int sp_cmp_d(sp_int *a, sp_int_digit d)
     return MP_EQ;
 }
 
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && (!defined(NO_DH) || defined(HAVE_ECC))
 /* Left shift the number by number of bits.
  * Bits may be larger than the word size.
  *
@@ -561,8 +575,8 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
 
     return MP_OKAY;
 }
+#endif
 
-#if defined(USE_FAST_MATH) || !defined(NO_BIG_INT)
 /* Clear all data in the big number and sets value to zero.
  *
  * a  SP integer.
@@ -604,6 +618,7 @@ int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
     return MP_OKAY;
 }
 
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && (!defined(NO_DH) || defined(HAVE_ECC))
 /* Left shift the big number by a number of digits.
  * WIll chop off digits overflowing maximum size.
  *
@@ -622,7 +637,6 @@ int sp_lshd(sp_int* a, int s)
 
     return MP_OKAY;
 }
-#endif
 
 #ifndef NO_PWDBASED
 /* Add two large numbers into result: r = a + b
@@ -659,6 +673,7 @@ int sp_add(sp_int* a, sp_int* b, sp_int* r)
 
     return MP_OKAY;
 }
+#endif /* NO_PWDBASED */
 #endif
 
 #ifndef NO_RSA

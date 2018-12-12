@@ -50,7 +50,7 @@
 
 #ifndef WOLFSSL_SP_ASM
 #if SP_WORD_SIZE == 64
-#if defined(WOLFSSL_SP_CACHE_RESISTANT) || defined(WOLFSSL_SP_SMALL)
+#if (defined(WOLFSSL_SP_CACHE_RESISTANT) || defined(WOLFSSL_SP_SMALL)) &&                                                !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* Mask for address to obfuscate which of the two address will be used. */
 static const size_t addr_mask[2] = { 0, (size_t)-1 };
 #endif
@@ -701,7 +701,8 @@ SP_NOINLINE static void sp_2048_sqr_36(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA)
+#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA) && \
+       !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 #ifdef WOLFSSL_SP_SMALL
 /* Add b to a into r. (r = a + b)
  *
@@ -806,7 +807,7 @@ SP_NOINLINE static void sp_2048_sqr_18(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA */
+#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 /* Caclulate the bottom digit of -1/a mod 2^n.
  *
@@ -829,7 +830,62 @@ static void sp_2048_mont_setup(sp_digit* a, sp_digit* rho)
     *rho = (1L << 57) - x;
 }
 
-#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA)
+/* Multiply a by scalar b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A scalar.
+ */
+SP_NOINLINE static void sp_2048_mul_d_36(sp_digit* r, const sp_digit* a,
+    const sp_digit b)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int128_t tb = b;
+    int128_t t = 0;
+    int i;
+
+    for (i = 0; i < 36; i++) {
+        t += tb * a[i];
+        r[i] = t & 0x1ffffffffffffffl;
+        t >>= 57;
+    }
+    r[36] = (sp_digit)t;
+#else
+    int128_t tb = b;
+    int128_t t[8];
+    int i;
+
+    t[0] = tb * a[0]; r[0] = t[0] & 0x1ffffffffffffffl;
+    for (i = 0; i < 32; i += 8) {
+        t[1] = tb * a[i+1];
+        r[i+1] = (sp_digit)(t[0] >> 57) + (t[1] & 0x1ffffffffffffffl);
+        t[2] = tb * a[i+2];
+        r[i+2] = (sp_digit)(t[1] >> 57) + (t[2] & 0x1ffffffffffffffl);
+        t[3] = tb * a[i+3];
+        r[i+3] = (sp_digit)(t[2] >> 57) + (t[3] & 0x1ffffffffffffffl);
+        t[4] = tb * a[i+4];
+        r[i+4] = (sp_digit)(t[3] >> 57) + (t[4] & 0x1ffffffffffffffl);
+        t[5] = tb * a[i+5];
+        r[i+5] = (sp_digit)(t[4] >> 57) + (t[5] & 0x1ffffffffffffffl);
+        t[6] = tb * a[i+6];
+        r[i+6] = (sp_digit)(t[5] >> 57) + (t[6] & 0x1ffffffffffffffl);
+        t[7] = tb * a[i+7];
+        r[i+7] = (sp_digit)(t[6] >> 57) + (t[7] & 0x1ffffffffffffffl);
+        t[0] = tb * a[i+8];
+        r[i+8] = (sp_digit)(t[7] >> 57) + (t[0] & 0x1ffffffffffffffl);
+    }
+    t[1] = tb * a[33];
+    r[33] = (sp_digit)(t[0] >> 57) + (t[1] & 0x1ffffffffffffffl);
+    t[2] = tb * a[34];
+    r[34] = (sp_digit)(t[1] >> 57) + (t[2] & 0x1ffffffffffffffl);
+    t[3] = tb * a[35];
+    r[35] = (sp_digit)(t[2] >> 57) + (t[3] & 0x1ffffffffffffffl);
+    r[36] =  (sp_digit)(t[3] >> 57);
+#endif /* WOLFSSL_SP_SMALL */
+}
+
+#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA) && \
+       !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 2048 bits, just need to subtract.
  *
@@ -1631,7 +1687,7 @@ static int sp_2048_mod_exp_18(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
 #endif
 }
 
-#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA */
+#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 2048 bits, just need to subtract.
@@ -1897,6 +1953,7 @@ static void sp_2048_mont_reduce_36(sp_digit* a, sp_digit* m, sp_digit mp)
     int i;
     sp_digit mu;
 
+#ifdef WOLFSSL_SP_DH
     if (mp != 1) {
         for (i=0; i<35; i++) {
             mu = (a[i] * mp) & 0x1ffffffffffffffl;
@@ -1919,6 +1976,17 @@ static void sp_2048_mont_reduce_36(sp_digit* a, sp_digit* m, sp_digit mp)
         a[i+1] += a[i] >> 57;
         a[i] &= 0x1ffffffffffffffl;
     }
+#else
+    for (i=0; i<35; i++) {
+        mu = (a[i] * mp) & 0x1ffffffffffffffl;
+        sp_2048_mul_add_36(a+i, m, mu);
+        a[i+1] += a[i] >> 57;
+    }
+    mu = (a[i] * mp) & 0x1fffffffffffffl;
+    sp_2048_mul_add_36(a+i, m, mu);
+    a[i+1] += a[i] >> 57;
+    a[i] &= 0x1ffffffffffffffl;
+#endif
 
     sp_2048_mont_shift_36(a, a);
     sp_2048_cond_sub_36(a, a, m, 0 - ((a[35] >> 53) > 0));
@@ -1953,60 +2021,6 @@ static void sp_2048_mont_sqr_36(sp_digit* r, sp_digit* a, sp_digit* m,
 {
     sp_2048_sqr_36(r, a);
     sp_2048_mont_reduce_36(r, m, mp);
-}
-
-/* Multiply a by scalar b into r. (r = a * b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A scalar.
- */
-SP_NOINLINE static void sp_2048_mul_d_36(sp_digit* r, const sp_digit* a,
-    const sp_digit b)
-{
-#ifdef WOLFSSL_SP_SMALL
-    int128_t tb = b;
-    int128_t t = 0;
-    int i;
-
-    for (i = 0; i < 36; i++) {
-        t += tb * a[i];
-        r[i] = t & 0x1ffffffffffffffl;
-        t >>= 57;
-    }
-    r[36] = (sp_digit)t;
-#else
-    int128_t tb = b;
-    int128_t t[8];
-    int i;
-
-    t[0] = tb * a[0]; r[0] = t[0] & 0x1ffffffffffffffl;
-    for (i = 0; i < 32; i += 8) {
-        t[1] = tb * a[i+1];
-        r[i+1] = (sp_digit)(t[0] >> 57) + (t[1] & 0x1ffffffffffffffl);
-        t[2] = tb * a[i+2];
-        r[i+2] = (sp_digit)(t[1] >> 57) + (t[2] & 0x1ffffffffffffffl);
-        t[3] = tb * a[i+3];
-        r[i+3] = (sp_digit)(t[2] >> 57) + (t[3] & 0x1ffffffffffffffl);
-        t[4] = tb * a[i+4];
-        r[i+4] = (sp_digit)(t[3] >> 57) + (t[4] & 0x1ffffffffffffffl);
-        t[5] = tb * a[i+5];
-        r[i+5] = (sp_digit)(t[4] >> 57) + (t[5] & 0x1ffffffffffffffl);
-        t[6] = tb * a[i+6];
-        r[i+6] = (sp_digit)(t[5] >> 57) + (t[6] & 0x1ffffffffffffffl);
-        t[7] = tb * a[i+7];
-        r[i+7] = (sp_digit)(t[6] >> 57) + (t[7] & 0x1ffffffffffffffl);
-        t[0] = tb * a[i+8];
-        r[i+8] = (sp_digit)(t[7] >> 57) + (t[0] & 0x1ffffffffffffffl);
-    }
-    t[1] = tb * a[33];
-    r[33] = (sp_digit)(t[0] >> 57) + (t[1] & 0x1ffffffffffffffl);
-    t[2] = tb * a[34];
-    r[34] = (sp_digit)(t[1] >> 57) + (t[2] & 0x1ffffffffffffffl);
-    t[3] = tb * a[35];
-    r[35] = (sp_digit)(t[2] >> 57) + (t[3] & 0x1ffffffffffffffl);
-    r[36] =  (sp_digit)(t[3] >> 57);
-#endif /* WOLFSSL_SP_SMALL */
 }
 
 /* Conditionally add a and b using the mask m.
@@ -2483,7 +2497,7 @@ static int sp_2048_mod_exp_36(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
 #endif /* SP_RSA_PRIVATE_EXP_D || WOLFSSL_HAVE_SP_DH */
 
 #if defined(WOLFSSL_HAVE_SP_RSA) && !defined(SP_RSA_PRIVATE_EXP_D) && \
-                                    !defined(RSA_LOW_MEM)
+           !defined(RSA_LOW_MEM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* AND m into each word of a and store in r.
  *
  * r  A single precision integer.
@@ -2716,6 +2730,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -2950,6 +2965,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 #endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
 }
 
+#endif /* !WOLFSSL_RSA_PUBLIC_ONLY */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #ifdef WOLFSSL_HAVE_SP_DH
 /* Convert an array of sp_digit to an mp_int.
@@ -4011,7 +4027,8 @@ SP_NOINLINE static void sp_3072_sqr_54(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA)
+#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA) && \
+       !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 #ifdef WOLFSSL_SP_SMALL
 /* Add b to a into r. (r = a + b)
  *
@@ -4225,7 +4242,7 @@ SP_NOINLINE static void sp_3072_sqr_27(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA */
+#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 /* Caclulate the bottom digit of -1/a mod 2^n.
  *
@@ -4248,7 +4265,66 @@ static void sp_3072_mont_setup(sp_digit* a, sp_digit* rho)
     *rho = (1L << 57) - x;
 }
 
-#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA)
+/* Multiply a by scalar b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A scalar.
+ */
+SP_NOINLINE static void sp_3072_mul_d_54(sp_digit* r, const sp_digit* a,
+    const sp_digit b)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int128_t tb = b;
+    int128_t t = 0;
+    int i;
+
+    for (i = 0; i < 54; i++) {
+        t += tb * a[i];
+        r[i] = t & 0x1ffffffffffffffl;
+        t >>= 57;
+    }
+    r[54] = (sp_digit)t;
+#else
+    int128_t tb = b;
+    int128_t t[8];
+    int i;
+
+    t[0] = tb * a[0]; r[0] = t[0] & 0x1ffffffffffffffl;
+    for (i = 0; i < 48; i += 8) {
+        t[1] = tb * a[i+1];
+        r[i+1] = (sp_digit)(t[0] >> 57) + (t[1] & 0x1ffffffffffffffl);
+        t[2] = tb * a[i+2];
+        r[i+2] = (sp_digit)(t[1] >> 57) + (t[2] & 0x1ffffffffffffffl);
+        t[3] = tb * a[i+3];
+        r[i+3] = (sp_digit)(t[2] >> 57) + (t[3] & 0x1ffffffffffffffl);
+        t[4] = tb * a[i+4];
+        r[i+4] = (sp_digit)(t[3] >> 57) + (t[4] & 0x1ffffffffffffffl);
+        t[5] = tb * a[i+5];
+        r[i+5] = (sp_digit)(t[4] >> 57) + (t[5] & 0x1ffffffffffffffl);
+        t[6] = tb * a[i+6];
+        r[i+6] = (sp_digit)(t[5] >> 57) + (t[6] & 0x1ffffffffffffffl);
+        t[7] = tb * a[i+7];
+        r[i+7] = (sp_digit)(t[6] >> 57) + (t[7] & 0x1ffffffffffffffl);
+        t[0] = tb * a[i+8];
+        r[i+8] = (sp_digit)(t[7] >> 57) + (t[0] & 0x1ffffffffffffffl);
+    }
+    t[1] = tb * a[49];
+    r[49] = (sp_digit)(t[0] >> 57) + (t[1] & 0x1ffffffffffffffl);
+    t[2] = tb * a[50];
+    r[50] = (sp_digit)(t[1] >> 57) + (t[2] & 0x1ffffffffffffffl);
+    t[3] = tb * a[51];
+    r[51] = (sp_digit)(t[2] >> 57) + (t[3] & 0x1ffffffffffffffl);
+    t[4] = tb * a[52];
+    r[52] = (sp_digit)(t[3] >> 57) + (t[4] & 0x1ffffffffffffffl);
+    t[5] = tb * a[53];
+    r[53] = (sp_digit)(t[4] >> 57) + (t[5] & 0x1ffffffffffffffl);
+    r[54] =  (sp_digit)(t[5] >> 57);
+#endif /* WOLFSSL_SP_SMALL */
+}
+
+#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA) && \
+       !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 3072 bits, just need to subtract.
  *
@@ -5035,7 +5111,7 @@ static int sp_3072_mod_exp_27(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
 #endif
 }
 
-#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA */
+#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 3072 bits, just need to subtract.
@@ -5308,6 +5384,7 @@ static void sp_3072_mont_reduce_54(sp_digit* a, sp_digit* m, sp_digit mp)
     int i;
     sp_digit mu;
 
+#ifdef WOLFSSL_SP_DH
     if (mp != 1) {
         for (i=0; i<53; i++) {
             mu = (a[i] * mp) & 0x1ffffffffffffffl;
@@ -5330,6 +5407,17 @@ static void sp_3072_mont_reduce_54(sp_digit* a, sp_digit* m, sp_digit mp)
         a[i+1] += a[i] >> 57;
         a[i] &= 0x1ffffffffffffffl;
     }
+#else
+    for (i=0; i<53; i++) {
+        mu = (a[i] * mp) & 0x1ffffffffffffffl;
+        sp_3072_mul_add_54(a+i, m, mu);
+        a[i+1] += a[i] >> 57;
+    }
+    mu = (a[i] * mp) & 0x7ffffffffffffl;
+    sp_3072_mul_add_54(a+i, m, mu);
+    a[i+1] += a[i] >> 57;
+    a[i] &= 0x1ffffffffffffffl;
+#endif
 
     sp_3072_mont_shift_54(a, a);
     sp_3072_cond_sub_54(a, a, m, 0 - ((a[53] >> 51) > 0));
@@ -5364,64 +5452,6 @@ static void sp_3072_mont_sqr_54(sp_digit* r, sp_digit* a, sp_digit* m,
 {
     sp_3072_sqr_54(r, a);
     sp_3072_mont_reduce_54(r, m, mp);
-}
-
-/* Multiply a by scalar b into r. (r = a * b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A scalar.
- */
-SP_NOINLINE static void sp_3072_mul_d_54(sp_digit* r, const sp_digit* a,
-    const sp_digit b)
-{
-#ifdef WOLFSSL_SP_SMALL
-    int128_t tb = b;
-    int128_t t = 0;
-    int i;
-
-    for (i = 0; i < 54; i++) {
-        t += tb * a[i];
-        r[i] = t & 0x1ffffffffffffffl;
-        t >>= 57;
-    }
-    r[54] = (sp_digit)t;
-#else
-    int128_t tb = b;
-    int128_t t[8];
-    int i;
-
-    t[0] = tb * a[0]; r[0] = t[0] & 0x1ffffffffffffffl;
-    for (i = 0; i < 48; i += 8) {
-        t[1] = tb * a[i+1];
-        r[i+1] = (sp_digit)(t[0] >> 57) + (t[1] & 0x1ffffffffffffffl);
-        t[2] = tb * a[i+2];
-        r[i+2] = (sp_digit)(t[1] >> 57) + (t[2] & 0x1ffffffffffffffl);
-        t[3] = tb * a[i+3];
-        r[i+3] = (sp_digit)(t[2] >> 57) + (t[3] & 0x1ffffffffffffffl);
-        t[4] = tb * a[i+4];
-        r[i+4] = (sp_digit)(t[3] >> 57) + (t[4] & 0x1ffffffffffffffl);
-        t[5] = tb * a[i+5];
-        r[i+5] = (sp_digit)(t[4] >> 57) + (t[5] & 0x1ffffffffffffffl);
-        t[6] = tb * a[i+6];
-        r[i+6] = (sp_digit)(t[5] >> 57) + (t[6] & 0x1ffffffffffffffl);
-        t[7] = tb * a[i+7];
-        r[i+7] = (sp_digit)(t[6] >> 57) + (t[7] & 0x1ffffffffffffffl);
-        t[0] = tb * a[i+8];
-        r[i+8] = (sp_digit)(t[7] >> 57) + (t[0] & 0x1ffffffffffffffl);
-    }
-    t[1] = tb * a[49];
-    r[49] = (sp_digit)(t[0] >> 57) + (t[1] & 0x1ffffffffffffffl);
-    t[2] = tb * a[50];
-    r[50] = (sp_digit)(t[1] >> 57) + (t[2] & 0x1ffffffffffffffl);
-    t[3] = tb * a[51];
-    r[51] = (sp_digit)(t[2] >> 57) + (t[3] & 0x1ffffffffffffffl);
-    t[4] = tb * a[52];
-    r[52] = (sp_digit)(t[3] >> 57) + (t[4] & 0x1ffffffffffffffl);
-    t[5] = tb * a[53];
-    r[53] = (sp_digit)(t[4] >> 57) + (t[5] & 0x1ffffffffffffffl);
-    r[54] =  (sp_digit)(t[5] >> 57);
-#endif /* WOLFSSL_SP_SMALL */
 }
 
 /* Conditionally add a and b using the mask m.
@@ -5863,7 +5893,7 @@ static int sp_3072_mod_exp_54(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
 #endif /* SP_RSA_PRIVATE_EXP_D || WOLFSSL_HAVE_SP_DH */
 
 #if defined(WOLFSSL_HAVE_SP_RSA) && !defined(SP_RSA_PRIVATE_EXP_D) && \
-                                    !defined(RSA_LOW_MEM)
+           !defined(RSA_LOW_MEM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* AND m into each word of a and store in r.
  *
  * r  A single precision integer.
@@ -6097,6 +6127,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -6331,6 +6362,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 #endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
 }
 
+#endif /* !WOLFSSL_RSA_PUBLIC_ONLY */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #ifdef WOLFSSL_HAVE_SP_DH
 /* Convert an array of sp_digit to an mp_int.

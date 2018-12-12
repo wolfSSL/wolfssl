@@ -1820,6 +1820,43 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_NO_HASH_RAW
 #endif
 
+#if !defined(WOLFSSL_SHA384) && !defined(WOLFSSL_SHA512) && defined(NO_AES) && \
+                                                          !defined(WOLFSSL_SHA3)
+    #undef  WOLFSSL_NO_WORD64_OPS
+    #define WOLFSSL_NO_WORD64_OPS
+#endif
+
+#if defined(NO_AES) && defined(NO_DES3) && !defined(HAVE_CAMELLIA) && \
+                                     defined(NO_PWDBASED) && !defined(HAVE_IDEA)
+    #undef  WOLFSSL_NO_XOR_OPS
+    #define WOLFSSL_NO_XOR_OPS
+#endif
+
+#if defined(NO_ASN) && defined(WOLFCRYPT_ONLY)
+    #undef  WOLFSSL_NO_INT_ENCODE
+    #define WOLFSSL_NO_INT_ENCODE
+    #undef  WOLFSSL_NO_INT_DECODE
+    #define WOLFSSL_NO_INT_DECODE
+#endif
+
+#if defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_RSA_VERIFY_ONLY)
+    #undef  WOLFSSL_NO_CT_OPS
+    #define WOLFSSL_NO_CT_OPS
+#endif
+
+#if defined(WOLFCRYPT_ONLY) && defined(NO_AES) && !defined(HAVE_CURVE25519) && \
+                                   defined(WC_NO_RNG) && defined(WC_NO_RSA_OAEP)
+    #undef  WOLFSSL_NO_CONST_CMP
+    #define WOLFSSL_NO_CONST_CMP
+#endif
+
+#if defined(WOLFCRYPT_ONLY) && defined(NO_AES) && !defined(WOLFSSL_SHA384) && \
+    !defined(WOLFSSL_SHA512) && defined(WC_NO_RNG) && \
+                    defined(WOLFSSL_SP_MATH) && defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    #undef  WOLFSSL_NO_FORCE_ZERO
+    #define WOLFSSL_NO_FORCE_ZERO
+#endif
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif

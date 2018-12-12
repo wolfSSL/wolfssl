@@ -127,7 +127,7 @@ STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
 }
 
 
-#ifdef WORD64_AVAILABLE
+#if defined(WORD64_AVAILABLE) && !defined(WOLFSSL_NO_WORD64_OPS)
 
 
 STATIC WC_INLINE word64 rotlFixed64(word64 x, word64 y)
@@ -169,9 +169,9 @@ STATIC WC_INLINE void ByteReverseWords64(word64* out, const word64* in,
 
 }
 
-#endif /* WORD64_AVAILABLE */
+#endif /* WORD64_AVAILABLE && !WOLFSSL_NO_WORD64_OPS */
 
-
+#ifndef WOLFSSL_NO_XOR_OPS
 STATIC WC_INLINE void XorWords(wolfssl_word* r, const wolfssl_word* a, word32 n)
 {
     word32 i;
@@ -193,8 +193,9 @@ STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
         for (i = 0; i < count; i++) b[i] ^= m[i];
     }
 }
+#endif
 
-
+#ifndef WOLFSSL_NO_FORCE_ZERO
 /* Make sure compiler doesn't skip */
 STATIC WC_INLINE void ForceZero(const void* mem, word32 len)
 {
@@ -217,8 +218,10 @@ STATIC WC_INLINE void ForceZero(const void* mem, word32 len)
 
     while (len--) *z++ = 0;
 }
+#endif
 
 
+#ifndef WOLFSSL_NO_CONST_CMP
 /* check all length bytes for equality, return 0 on success */
 STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b, int length)
 {
@@ -231,6 +234,7 @@ STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b, int length)
 
     return compareSum;
 }
+#endif
 
 
 #ifndef WOLFSSL_HAVE_MIN
@@ -255,6 +259,7 @@ STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b, int length)
     }
 #endif /* !WOLFSSL_HAVE_MAX */
 
+#ifndef WOLFSSL_NO_INT_ENCODE
 /* converts a 32 bit integer to 24 bit */
 STATIC WC_INLINE void c32to24(word32 in, word24 out)
 {
@@ -278,7 +283,9 @@ STATIC WC_INLINE void c32toa(word32 wc_u32, byte* c)
     c[2] = (wc_u32 >>  8) & 0xff;
     c[3] =  wc_u32 & 0xff;
 }
+#endif
 
+#ifndef WOLFSSL_NO_INT_DECODE
 /* convert a 24 bit integer into a 32 bit one */
 STATIC WC_INLINE void c24to32(const word24 wc_u24, word32* wc_u32)
 {
@@ -309,8 +316,10 @@ STATIC WC_INLINE word32 btoi(byte b)
 {
     return (word32)(b - 0x30);
 }
+#endif
 
 
+#ifndef WOLFSSL_NO_CT_OPS
 /* Constant time - mask set when a > b. */
 STATIC WC_INLINE byte ctMaskGT(int a, int b)
 {
@@ -365,6 +374,7 @@ STATIC WC_INLINE byte ctSetLTE(int a, int b)
 {
     return ((word32)a - b - 1) >> 31;
 }
+#endif
 
 
 #undef STATIC
