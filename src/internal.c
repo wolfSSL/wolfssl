@@ -10252,8 +10252,11 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     if (ret != 0)
         SendAlert(ssl, alert_fatal, bad_certificate_status_response);
 
-    if (IsEncryptionOn(ssl, 0))
+    if (IsEncryptionOn(ssl, 0)) {
+        if (*inOutIdx + ssl->keys.padSz > size)
+            return BUFFER_E;
         *inOutIdx += ssl->keys.padSz;
+    }
 
     WOLFSSL_LEAVE("DoCertificateStatus", ret);
     WOLFSSL_END(WC_FUNC_CERTIFICATE_STATUS_DO);
