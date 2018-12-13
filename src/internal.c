@@ -17495,8 +17495,8 @@ exit_dpk:
                 if ((i - begin) + totalExtSz > helloSz)
                     return BUFFER_ERROR;
 
-                if ((ret = TLSX_Parse(ssl, (byte *) input + i,
-                                                          totalExtSz, 0, NULL)))
+                if ((ret = TLSX_Parse(ssl, (byte *) input + i, totalExtSz,
+                                                           server_hello, NULL)))
                     return ret;
 
                 i += totalExtSz;
