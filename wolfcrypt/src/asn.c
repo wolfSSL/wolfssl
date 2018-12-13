@@ -9428,6 +9428,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             der->length = ret;
             if (algId == DSAk)
                 *keyFormat = 2;
+            else if (algId == ECDSAk)
+                *keyFormat = 1;
         }
         else {
             /* ignore failure here and assume key is not pkcs8 wrapped */
