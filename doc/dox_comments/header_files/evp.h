@@ -377,6 +377,28 @@ WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, i
 /*!
     \ingroup openSSL
 
+    \brief Clearing function for WOLFSSL_EVP_CIPHER_CTX structure.
+
+    \return none No returns.
+
+    \param ctx structure to clear flag.
+    \param flag flag value to clear in structure.
+
+    _Example_
+    \code
+    WOLFSSL_EVP_CIPHER_CTX* ctx;
+    int flag;
+    // create ctx
+    wolfSSL_EVP_CIPHER_CTX_clear_flags(ctx, flag);
+    \endcode
+
+    \sa wolfSSL_EVP_CIPHER_flags
+*/
+WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_clear_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags);
+
+/*!
+    \ingroup openSSL
+
     \brief Setter function for WOLFSSL_EVP_CIPHER_CTX structure to use padding.
 
     \return SSL_SUCCESS If successfully set.

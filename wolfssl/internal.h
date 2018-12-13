@@ -1197,7 +1197,7 @@ enum Misc {
     SESSION_ADD_SZ = 4,        /* session age add */
     TICKET_NONCE_LEN_SZ = 1,   /* Ticket nonce length size */
     DEF_TICKET_NONCE_SZ = 1,   /* Default ticket nonce size */
-    MAX_TICKET_NONCE_SZ = 4,   /* maximum ticket nonce size */
+    MAX_TICKET_NONCE_SZ = 8,   /* maximum ticket nonce size */
     MAX_LIFETIME   = 604800,   /* maximum ticket lifetime */
     MAX_EARLY_DATA_SZ = 4096,  /* maximum early data size */
 

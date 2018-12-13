@@ -54,7 +54,21 @@
     Please see the README in IDE/VS-ARM.
     Use the Visual Studio solution IDE/VS-ARM/wolfssl.sln.
 
-11. Porting to a new platform
+11. Building for Yocto Project or OpenEmbedded
+
+    Please see the README in the "meta-wolfssl" repository. This repository
+    holds wolfSSL's Yocto and OpenEmbedded layer, which contains recipes
+    for wolfSSL, wolfSSH, wolfMQTT, wolfTPM, wolfCrypt examples, and OSS
+    project bbappend files.
+
+    https://github.com/wolfssl/meta-wolfssl
+
+    The wolfSSL recipe can also be found in the OpenEmbedded
+    "meta-openembedded/meta-networking/recipes-connectivity" layer:
+
+    https://github.com/openembedded/meta-openembedded
+
+12. Porting to a new platform
 
     Please see section 2.4 in the manual:
     http://www.wolfssl.com/yaSSL/Docs-cyassl-manual-2-building-cyassl.html

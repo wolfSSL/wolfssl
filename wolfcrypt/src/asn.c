@@ -6512,7 +6512,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
 
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (sigCtx->devId != INVALID_DEVID && sigCtx->asyncDev && sigCtx->asyncCtx) {
-                /* make sure event is intialized */
+                /* make sure event is initialized */
                 WOLF_EVENT* event = &sigCtx->asyncDev->event;
                 ret = wolfAsync_EventInit(event, WOLF_EVENT_TYPE_ASYNC_WOLFSSL,
                     sigCtx->asyncCtx, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -9441,8 +9441,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
                 if (ret >= 0) {
                     der->length = ret;
-                    if (algId == ECDSAk)
+                    if ((algId == ECDSAk) && (eccKey != NULL)) {
                         *eccKey = 1;
+                    }
                     ret = 0;
                 }
             #else
@@ -9637,15 +9638,22 @@ int wc_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
     int    dynamic = 0;
     int    ret     = 0;
     long   sz      = 0;
-    XFILE  file    = XFOPEN(fileName, "rb");
+    XFILE  file;
     DerBuffer* converted = NULL;
 
     WOLFSSL_ENTER("wc_PemCertToDer");
 
-    if (file == XBADFILE) {
-        ret = BUFFER_E;
+    if (fileName == NULL) {
+        ret = BAD_FUNC_ARG;
     }
     else {
+        file = XFOPEN(fileName, "rb");
+        if (file == XBADFILE) {
+            ret = BUFFER_E;
+        }
+    }
+
+    if (ret == 0) {
         if(XFSEEK(file, 0, XSEEK_END) != 0)
             ret = BUFFER_E;
         sz = XFTELL(file);
@@ -9711,15 +9719,22 @@ int wc_PemPubKeyToDer(const char* fileName,
     int    dynamic = 0;
     int    ret     = 0;
     long   sz      = 0;
-    XFILE  file    = XFOPEN(fileName, "rb");
+    XFILE  file;
     DerBuffer* converted = NULL;
 
     WOLFSSL_ENTER("wc_PemPubKeyToDer");
 
-    if (file == XBADFILE) {
-        ret = BUFFER_E;
+    if (fileName == NULL) {
+        ret = BAD_FUNC_ARG;
     }
     else {
+        file = XFOPEN(fileName, "rb");
+        if (file == XBADFILE) {
+            ret = BUFFER_E;
+        }
+    }
+
+    if (ret == 0) {
         if(XFSEEK(file, 0, XSEEK_END) != 0)
             ret = BUFFER_E;
         sz = XFTELL(file);
@@ -13402,8 +13417,13 @@ int wc_SetIssuer(Cert* cert, const char* issuerFile)
 {
     int         ret;
     int         derSz;
-    byte*       der = (byte*)XMALLOC(EIGHTK_BUF, cert->heap, DYNAMIC_TYPE_CERT);
+    byte*       der;
 
+    if (cert == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    der = (byte*)XMALLOC(EIGHTK_BUF, cert->heap, DYNAMIC_TYPE_CERT);
     if (der == NULL) {
         WOLFSSL_MSG("wc_SetIssuer OOF Problem");
         return MEMORY_E;
@@ -13422,12 +13442,18 @@ int wc_SetSubject(Cert* cert, const char* subjectFile)
 {
     int         ret;
     int         derSz;
-    byte*       der = (byte*)XMALLOC(EIGHTK_BUF, cert->heap, DYNAMIC_TYPE_CERT);
+    byte*       der;
 
+    if (cert == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    der = (byte*)XMALLOC(EIGHTK_BUF, cert->heap, DYNAMIC_TYPE_CERT);
     if (der == NULL) {
         WOLFSSL_MSG("wc_SetSubject OOF Problem");
         return MEMORY_E;
     }
+
     derSz = wc_PemCertToDer(subjectFile, der, EIGHTK_BUF);
     ret = SetNameFromCert(&cert->subject, der, derSz);
     XFREE(der, cert->heap, DYNAMIC_TYPE_CERT);
@@ -13442,8 +13468,13 @@ int wc_SetAltNames(Cert* cert, const char* file)
 {
     int         ret;
     int         derSz;
-    byte*       der = (byte*)XMALLOC(EIGHTK_BUF, cert->heap, DYNAMIC_TYPE_CERT);
+    byte*       der;
 
+    if (cert == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    der = (byte*)XMALLOC(EIGHTK_BUF, cert->heap, DYNAMIC_TYPE_CERT);
     if (der == NULL) {
         WOLFSSL_MSG("wc_SetAltNames OOF Problem");
         return MEMORY_E;
@@ -13462,6 +13493,10 @@ int wc_SetAltNames(Cert* cert, const char* file)
 /* Set cert issuer from DER buffer */
 int wc_SetIssuerBuffer(Cert* cert, const byte* der, int derSz)
 {
+    if (cert == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     cert->selfSigned = 0;
     return SetNameFromCert(&cert->issuer, der, derSz);
 }
@@ -13469,6 +13504,10 @@ int wc_SetIssuerBuffer(Cert* cert, const byte* der, int derSz)
 /* Set cert subject from DER buffer */
 int wc_SetSubjectBuffer(Cert* cert, const byte* der, int derSz)
 {
+    if (cert == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     return SetNameFromCert(&cert->subject, der, derSz);
 }
 #ifdef WOLFSSL_CERT_EXT

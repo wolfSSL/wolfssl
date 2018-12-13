@@ -2303,7 +2303,8 @@ SP_NOINLINE static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA)
+#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA) && \
+       !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 #ifdef WOLFSSL_SP_SMALL
 /* AND m into each word of a and store in r.
  *
@@ -2738,7 +2739,7 @@ SP_NOINLINE static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA */
+#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 /* Caclulate the bottom digit of -1/a mod 2^n.
  *
@@ -2759,7 +2760,84 @@ static void sp_2048_mont_setup(sp_digit* a, sp_digit* rho)
     *rho = -x;
 }
 
-#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA)
+/* Mul a by digit b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision digit.
+ */
+SP_NOINLINE static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
+        const sp_digit b)
+{
+    __asm__ __volatile__ (
+        "mov	r6, #1\n\t"
+        "lsl	r6, r6, #8\n\t"
+        "add	r6, %[a]\n\t"
+        "mov	r8, %[r]\n\t"
+        "mov	r9, r6\n\t"
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r5, #0\n\t"
+        "# A[] * B\n\t"
+#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
+        "ldr	r6, [%[a]]\n\t"
+        "umull	r6, r7, r6, %[b]\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+#else
+        "ldr	r6, [%[a]]\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "lsl	r7, %[b], #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r3, r7\n\t"
+        "adc	r4, %[r]\n\t"
+        "adc	r5, %[r]\n\t"
+        "lsr	r7, %[b], #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, %[b], #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "lsl	r7, %[b], #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+#endif
+        "# A[] * B - Done\n\t"
+        "mov	%[r], r8\n\t"
+        "str	r3, [%[r]]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "add	%[r], #4\n\t"
+        "add	%[a], #4\n\t"
+        "mov	r8, %[r]\n\t"
+        "cmp	%[a], r9\n\t"
+        "blt	1b\n\t"
+        "str	r3, [%[r]]\n\t"
+        : [r] "+r" (r), [a] "+r" (a)
+        : [b] "r" (b)
+        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
+    );
+}
+
+#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA) && \
+       !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 2048 bits, just need to subtract.
  *
@@ -3598,7 +3676,7 @@ static int sp_2048_mod_exp_32(sp_digit* r, sp_digit* a, sp_digit* e,
 }
 #endif /* WOLFSSL_SP_SMALL */
 
-#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA */
+#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 #ifdef WOLFSSL_HAVE_SP_DH
 /* r = 2^n mod m where n is the number of bits to reduce by.
@@ -3841,82 +3919,6 @@ static void sp_2048_mont_sqr_64(sp_digit* r, sp_digit* a, sp_digit* m,
 {
     sp_2048_sqr_64(r, a);
     sp_2048_mont_reduce_64(r, m, mp);
-}
-
-/* Mul a by digit b into r. (r = a * b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
- */
-SP_NOINLINE static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
-        const sp_digit b)
-{
-    __asm__ __volatile__ (
-        "mov	r6, #1\n\t"
-        "lsl	r6, r6, #8\n\t"
-        "add	r6, %[a]\n\t"
-        "mov	r8, %[r]\n\t"
-        "mov	r9, r6\n\t"
-        "mov	r3, #0\n\t"
-        "mov	r4, #0\n\t"
-        "1:\n\t"
-        "mov	%[r], #0\n\t"
-        "mov	r5, #0\n\t"
-        "# A[] * B\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "umull	r6, r7, r6, %[b]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
-        "ldr	r6, [%[a]]\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "lsl	r7, %[b], #16\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "lsr	r7, %[b], #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r6, [%[a]]\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, %[b], #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "lsl	r7, %[b], #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#endif
-        "# A[] * B - Done\n\t"
-        "mov	%[r], r8\n\t"
-        "str	r3, [%[r]]\n\t"
-        "mov	r3, r4\n\t"
-        "mov	r4, r5\n\t"
-        "add	%[r], #4\n\t"
-        "add	%[a], #4\n\t"
-        "mov	r8, %[r]\n\t"
-        "cmp	%[a], r9\n\t"
-        "blt	1b\n\t"
-        "str	r3, [%[r]]\n\t"
-        : [r] "+r" (r), [a] "+r" (a)
-        : [b] "r" (b)
-        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
-    );
 }
 
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
@@ -7679,7 +7681,8 @@ SP_NOINLINE static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA)
+#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA) && \
+       !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 #ifdef WOLFSSL_SP_SMALL
 /* AND m into each word of a and store in r.
  *
@@ -8084,7 +8087,7 @@ SP_NOINLINE static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA */
+#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 /* Caclulate the bottom digit of -1/a mod 2^n.
  *
@@ -8105,7 +8108,85 @@ static void sp_3072_mont_setup(sp_digit* a, sp_digit* rho)
     *rho = -x;
 }
 
-#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA)
+/* Mul a by digit b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision digit.
+ */
+SP_NOINLINE static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
+        const sp_digit b)
+{
+    __asm__ __volatile__ (
+        "mov	r6, #1\n\t"
+        "lsl	r6, r6, #8\n\t"
+        "add	r6, #128\n\t"
+        "add	r6, %[a]\n\t"
+        "mov	r8, %[r]\n\t"
+        "mov	r9, r6\n\t"
+        "mov	r3, #0\n\t"
+        "mov	r4, #0\n\t"
+        "1:\n\t"
+        "mov	%[r], #0\n\t"
+        "mov	r5, #0\n\t"
+        "# A[] * B\n\t"
+#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
+        "ldr	r6, [%[a]]\n\t"
+        "umull	r6, r7, r6, %[b]\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+#else
+        "ldr	r6, [%[a]]\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "lsl	r7, %[b], #16\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r3, r7\n\t"
+        "adc	r4, %[r]\n\t"
+        "adc	r5, %[r]\n\t"
+        "lsr	r7, %[b], #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "ldr	r6, [%[a]]\n\t"
+        "lsr	r6, r6, #16\n\t"
+        "lsr	r7, %[b], #16\n\t"
+        "mul	r7, r6\n\t"
+        "add	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+        "lsl	r7, %[b], #16\n\t"
+        "lsr	r7, r7, #16\n\t"
+        "mul	r6, r7\n\t"
+        "lsr	r7, r6, #16\n\t"
+        "lsl	r6, r6, #16\n\t"
+        "add	r3, r6\n\t"
+        "adc	r4, r7\n\t"
+        "adc	r5, %[r]\n\t"
+#endif
+        "# A[] * B - Done\n\t"
+        "mov	%[r], r8\n\t"
+        "str	r3, [%[r]]\n\t"
+        "mov	r3, r4\n\t"
+        "mov	r4, r5\n\t"
+        "add	%[r], #4\n\t"
+        "add	%[a], #4\n\t"
+        "mov	r8, %[r]\n\t"
+        "cmp	%[a], r9\n\t"
+        "blt	1b\n\t"
+        "str	r3, [%[r]]\n\t"
+        : [r] "+r" (r), [a] "+r" (a)
+        : [b] "r" (b)
+        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
+    );
+}
+
+#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA) && \
+       !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 #ifdef WOLFSSL_SP_SMALL
 /* Sub b from a into a. (a -= b)
  *
@@ -9201,7 +9282,7 @@ static int sp_3072_mod_exp_48(sp_digit* r, sp_digit* a, sp_digit* e,
 }
 #endif /* WOLFSSL_SP_SMALL */
 
-#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA */
+#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 #ifdef WOLFSSL_HAVE_SP_DH
 /* r = 2^n mod m where n is the number of bits to reduce by.
@@ -9448,83 +9529,6 @@ static void sp_3072_mont_sqr_96(sp_digit* r, sp_digit* a, sp_digit* m,
 {
     sp_3072_sqr_96(r, a);
     sp_3072_mont_reduce_96(r, m, mp);
-}
-
-/* Mul a by digit b into r. (r = a * b)
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * b  A single precision digit.
- */
-SP_NOINLINE static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
-        const sp_digit b)
-{
-    __asm__ __volatile__ (
-        "mov	r6, #1\n\t"
-        "lsl	r6, r6, #8\n\t"
-        "add	r6, #128\n\t"
-        "add	r6, %[a]\n\t"
-        "mov	r8, %[r]\n\t"
-        "mov	r9, r6\n\t"
-        "mov	r3, #0\n\t"
-        "mov	r4, #0\n\t"
-        "1:\n\t"
-        "mov	%[r], #0\n\t"
-        "mov	r5, #0\n\t"
-        "# A[] * B\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "umull	r6, r7, r6, %[b]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
-        "ldr	r6, [%[a]]\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "lsl	r7, %[b], #16\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "lsr	r7, %[b], #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r6, [%[a]]\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, %[b], #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "lsl	r7, %[b], #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#endif
-        "# A[] * B - Done\n\t"
-        "mov	%[r], r8\n\t"
-        "str	r3, [%[r]]\n\t"
-        "mov	r3, r4\n\t"
-        "mov	r4, r5\n\t"
-        "add	%[r], #4\n\t"
-        "add	%[a], #4\n\t"
-        "mov	r8, %[r]\n\t"
-        "cmp	%[a], r9\n\t"
-        "blt	1b\n\t"
-        "str	r3, [%[r]]\n\t"
-        : [r] "+r" (r), [a] "+r" (a)
-        : [b] "r" (b)
-        : "memory", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
-    );
 }
 
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)

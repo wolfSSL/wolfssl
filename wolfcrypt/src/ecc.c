@@ -3978,15 +3978,19 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
 
 #ifdef WOLFSSL_ATECC508A
    key->type = ECC_PRIVATEKEY;
+   key->slot = atmel_ecc_alloc(ATMEL_SLOT_ECDHE);
    err = atmel_ecc_create_key(key->slot, key->pubkey_raw);
 
    /* populate key->pubkey */
-   err = mp_read_unsigned_bin(key->pubkey.x, key->pubkey_raw,
-                              ECC_MAX_CRYPTO_HW_SIZE);
-   if (err == MP_OKAY)
+   if (err == 0 && key->pubkey.x) {
+       err = mp_read_unsigned_bin(key->pubkey.x, key->pubkey_raw,
+                                  ECC_MAX_CRYPTO_HW_SIZE);
+   }
+   if (err == 0 && key->pubkey.y) {
        err = mp_read_unsigned_bin(key->pubkey.y,
                                   key->pubkey_raw + ECC_MAX_CRYPTO_HW_SIZE,
                                   ECC_MAX_CRYPTO_HW_SIZE);
+   }
 #else
 
 #ifdef WOLFSSL_HAVE_SP_ECC
@@ -4145,7 +4149,7 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 #endif
 
 #ifdef WOLFSSL_ATECC508A
-    key->slot = -1;
+    key->slot = ATECC_INVALID_SLOT;
 #else
 #ifdef ALT_ECC_SIZE
     key->pubkey.x = (mp_int*)&key->pubkey.xyz[0];
@@ -4789,7 +4793,7 @@ int wc_ecc_free(ecc_key* key)
 
 #ifdef WOLFSSL_ATECC508A
     atmel_ecc_free(key->slot);
-    key->slot = -1;
+    key->slot = ATECC_INVALID_SLOT;
 #else
 
     mp_clear(key->pubkey.x);
