@@ -15836,6 +15836,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case EXT_MISSING:
         return "Required TLS extension missing";
 
+    case DTLS_RETX_OVER_TX:
+        return "DTLS interrupting flight transmit with retransmit";
+
     default :
         return "unknown error number";
     }
