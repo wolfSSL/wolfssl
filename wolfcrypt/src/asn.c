@@ -2710,6 +2710,11 @@ static int CheckAlgo(int first, int second, int* id, int* version, int* blockSz)
             if (blockSz) *blockSz = DES_BLOCK_SIZE;
             return 0;
     #endif
+        case PBE_SHA1_DES:
+            *id = PBE_SHA1_DES;
+            *version = PKCS12v1;
+            if (blockSz) *blockSz = DES_BLOCK_SIZE;
+            return 0;
 #endif /* !NO_SHA */
         default:
             return ALGO_ID_E;
@@ -4184,29 +4189,29 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
     length += 1;
     char outpeet[length];
     mp_tohex((mp_int*)&key->p, outpeet);
-    printf("\nint p: \n");
-    printf("%s\n\n\n", outpeet);
+    //printf("\nint p: \n");
+    //printf("%s\n\n\n", outpeet);
 
     mp_radix_size((mp_int*)&key->q, MP_RADIX_HEX, &length);
     length += 1;
     char outpeet1[length];
     mp_tohex((mp_int*)&key->q, outpeet1);
-    printf("\nint q: \n");
-    printf("%s\n\n\n", outpeet1);
+    //printf("\nint q: \n");
+    //printf("%s\n\n\n", outpeet1);
 
     mp_radix_size((mp_int*)&key->g, MP_RADIX_HEX, &length);
     length += 1;
     char outpeet2[length];
     mp_tohex((mp_int*)&key->g, outpeet2);
-    printf("\nint g: \n");
-    printf("%s\n\n\n", outpeet2);
+    //printf("\nint g: \n");
+    //printf("%s\n\n\n", outpeet2);
 
     mp_radix_size((mp_int*)&key->y, MP_RADIX_HEX, &length);
     length += 1;
     char outpeet3[length];
     mp_tohex((mp_int*)&key->y, outpeet3);
-    printf("\nint y: \n");
-    printf("%s\n\n\n", outpeet3);
+    //printf("\nint y: \n");
+    //printf("%s\n\n\n", outpeet3);
 
 
             //%%%%%%
@@ -9255,7 +9260,7 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
 /* Remove PEM header/footer, convert to ASN1, store any encrypted data
    info->consumed tracks of PEM bytes consumed in case multiple parts */
 int PemToDer(const unsigned char* buff, long longSz, int type,
-              DerBuffer** pDer, void* heap, EncryptedInfo* info, int* eccKey)
+              DerBuffer** pDer, void* heap, EncryptedInfo* info, int* keyFormat)
 {
     const char* header      = NULL;
     const char* footer      = NULL;
@@ -9267,6 +9272,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     int         ret         = 0;
     int         sz          = (int)longSz;
     int         encrypted_key = 0;
+    int         dsaFlag = 0;
     DerBuffer*  der;
     word32      algId = 0;
 
@@ -9328,17 +9334,24 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         return ASN_NO_PEM_HEADER;
     }
 
+    if (header == BEGIN_DSA_PRIV)
+        dsaFlag = 1;
+
     headerEnd += XSTRLEN(header);
 
     /* eat end of line characters */
     headerEnd = SkipEndOfLineChars(headerEnd, bufferEnd);
 
-    if (type == PRIVATEKEY_TYPE) {
-        if (eccKey) {
+     if (type == PRIVATEKEY_TYPE) {
+        if (keyFormat) {
         #ifdef HAVE_ECC
-            *eccKey = (header == BEGIN_EC_PRIV) ? 1 : 0;
+            *keyFormat = (header == BEGIN_EC_PRIV) ? 1 : 0;
         #else
-            *eccKey = 0;
+            *keyFormat = 0;
+        #endif
+        #ifndef NO_DSA
+            if (dsaFlag)
+                *keyFormat = 2;
         #endif
         }
     }
@@ -9398,6 +9411,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         /* pkcs8 key, convert and adjust length */
         if ((ret = ToTraditional_ex(der->buffer, der->length, &algId)) > 0) {
             der->length = ret;
+            if (algId == DSAk)
+                *keyFormat = 2;
         }
         else {
             /* ignore failure here and assume key is not pkcs8 wrapped */
@@ -9441,9 +9456,10 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
                 if (ret >= 0) {
                     der->length = ret;
-                    if ((algId == ECDSAk) && (eccKey != NULL)) {
-                        *eccKey = 1;
-                    }
+                    if ((algId == ECDSAk) && (keyFormat != NULL))
+                        *keyFormat = 1;
+                    else if ((algId == DSAk) && (keyFormat != NULL))
+                        *keyFormat = 2;
                     ret = 0;
                 }
             #else
