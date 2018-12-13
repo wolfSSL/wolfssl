@@ -2308,8 +2308,11 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
     }
 
     ret = GetOctetString(input, &idx, &length, sz);
-    if (ret < 0)
-        return ret;
+    if (ret < 0) {
+        /* Don't error out if return is error - some private keys do not expect
+           octet string here. */
+        WOLFSSL_MSG("Couldn't find Octet string");
+    }
 
     *inOutIdx = idx;
 
@@ -4235,7 +4238,7 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
 int DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
                         word32 inSz)
 {
-    int    length, version;
+    int    length, version, ret = 0, temp = 0;
 
     /* Sanity checks on input */
     if (input == NULL || inOutIdx == NULL || key == NULL) {
@@ -4245,15 +4248,27 @@ int DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    if (GetMyVersion(input, inOutIdx, &version, inSz) < 0)
-        return ASN_PARSE_E;
+    temp = (int)*inOutIdx;
 
-    if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->q,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->g,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->y,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->x,  input, inOutIdx, inSz) < 0 )
-        return ASN_DH_KEY_E;
+    if (GetInt(&key->p, input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->q, input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->g, input, inOutIdx, inSz) < 0 ||
+        GetOctetString(input, inOutIdx, &length, inSz) < 0 ||
+        GetInt(&key->y, input, inOutIdx, inSz) < 0) {
+            ret = ASN_PARSE_E;
+    }
+    if (ret == ASN_PARSE_E) {
+        *inOutIdx = temp;
+        if (GetMyVersion(input, inOutIdx, &version, inSz) < 0)
+            return ASN_PARSE_E;
+
+        if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
+            GetInt(&key->q,  input, inOutIdx, inSz) < 0 ||
+            GetInt(&key->g,  input, inOutIdx, inSz) < 0 ||
+            GetInt(&key->y,  input, inOutIdx, inSz) < 0 ||
+            GetInt(&key->x,  input, inOutIdx, inSz) < 0 )
+            return ASN_DH_KEY_E;
+    }
 
     key->type = DSA_PRIVATE;
     return 0;
