@@ -352,56 +352,48 @@ static int InitSha512(wc_Sha512* sha512)
 
         transform_check = 1;
     }
-
-    int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
-    {
-        int ret = InitSha512(sha512);
-
-        (void)heap;
-        (void)devId;
-
-        Sha512_SetTransform();
-
-        return ret;
-    }
-
 #endif /* WOLFSSL_SHA512 */
 
 #else
     #define Transform_Sha512(sha512) _Transform_Sha512(sha512)
 
-    #ifdef WOLFSSL_SHA512
+#endif
 
-    int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
-    {
-        int ret = 0;
+#ifdef WOLFSSL_SHA512
 
-        if (sha512 == NULL)
-            return BAD_FUNC_ARG;
+int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
+{
+    int ret = 0;
 
-        sha512->heap = heap;
+    if (sha512 == NULL)
+        return BAD_FUNC_ARG;
 
-        ret = InitSha512(sha512);
-        if (ret != 0)
-            return ret;
+    sha512->heap = heap;
 
-    #ifdef WOLFSSL_SMALL_STACK_CACHE
-        sha512->W = NULL;
-    #endif
-
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
-        ret = wolfAsync_DevCtxInit(&sha512->asyncDev,
-                            WOLFSSL_ASYNC_MARKER_SHA512, sha512->heap, devId);
-    #else
-        (void)devId;
-    #endif /* WOLFSSL_ASYNC_CRYPT */
-
+    ret = InitSha512(sha512);
+    if (ret != 0)
         return ret;
-    }
 
-    #endif /* WOLFSSL_SHA512 */
+#if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
+    Sha512_SetTransform();
+#endif
 
-#endif /* Hardware Acceleration */
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    sha512->W = NULL;
+#endif
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
+    ret = wolfAsync_DevCtxInit(&sha512->asyncDev,
+                        WOLFSSL_ASYNC_MARKER_SHA512, sha512->heap, devId);
+#else
+    (void)devId;
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
+    return ret;
+}
+
+#endif /* WOLFSSL_SHA512 */
+
 
 static const word64 K512[80] = {
     W64LIT(0x428a2f98d728ae22), W64LIT(0x7137449123ef65cd),
@@ -2713,21 +2705,6 @@ int wc_Sha384Final(wc_Sha384* sha384, byte* hash)
     return InitSha384(sha384);  /* reset state */
 }
 
-
-/* Hardware Acceleration */
-#if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-    int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
-    {
-        int ret = InitSha384(sha384);
-
-        (void)heap;
-        (void)devId;
-
-        Sha512_SetTransform();
-
-        return ret;
-    }
-#else
 int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
 {
     int ret;
@@ -2741,6 +2718,9 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
     if (ret != 0)
         return ret;
 
+#if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
+    Sha512_SetTransform();
+#endif
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     sha384->W = NULL;
 #endif
@@ -2754,7 +2734,7 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
 
     return ret;
 }
-#endif
+
 #endif /* WOLFSSL_IMX6_CAAM */
 
 int wc_InitSha384(wc_Sha384* sha384)
