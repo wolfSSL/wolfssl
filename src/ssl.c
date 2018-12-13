@@ -30742,21 +30742,31 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
 {
     WOLFSSL_EVP_PKEY* pkey = NULL;
     DerBuffer*        der = NULL;
-    int               eccFlag = 0;
+    int               keyFormat = 0;
 
     WOLFSSL_ENTER("wolfSSL_PEM_read_bio_PrivateKey");
 
     if (bio == NULL)
         return pkey;
 
-    if (pem_read_bio_key(bio, cb, pass, PRIVATEKEY_TYPE, &eccFlag, &der) >= 0) {
-        int type;
+    if (pem_read_bio_key(bio, cb, pass, PRIVATEKEY_TYPE, &keyFormat, &der) >= 0) {
+        int type = -1;
         const unsigned char* ptr = der->buffer;
 
-        if (eccFlag)
-            type = EVP_PKEY_EC;
-        else
+        if (keyFormat) {
+            if (keyFormat == 1) {
+                /* ECC key if format is 1 */
+                type = EVP_PKEY_EC;
+            }
+            else if (keyFormat == 2) {
+                /* DSA key if format is 2 */
+                type = EVP_PKEY_DSA;
+            }
+        }
+        else {
+            /* Default to RSA if format is not set */
             type = EVP_PKEY_RSA;
+        }
 
         /* handle case where reuse is attempted */
         if (key != NULL && *key != NULL)
@@ -30884,25 +30894,14 @@ WOLFSSL_DSA* wolfSSL_PEM_read_bio_DSAPrivateKey(WOLFSSL_BIO* bio,
                                                 pem_password_cb* cb,void *pass)
 {
     WOLFSSL_EVP_PKEY* pkey = NULL;
-    DerBuffer*        der = NULL;
-    int               eccFlag = 0;
     WOLFSSL_DSA* local;
-    int ret;
-     WOLFSSL_ENTER("wolfSSL_PEM_read_bio_DSAPrivateKey");
-     if ((ret = pem_read_bio_key(bio, cb, pass, PRIVATEKEY_TYPE, &eccFlag, &der)) >= 0) {
-        const unsigned char* ptr = der->buffer;
+    WOLFSSL_ENTER("wolfSSL_PEM_read_bio_DSAPrivateKey");
 
-        wolfSSL_d2i_PrivateKey(EVP_PKEY_DSA, &pkey, &ptr, der->length);
-        if (pkey == NULL) {
-            WOLFSSL_MSG("Error loading DER buffer into WOLFSSL_EVP_PKEY");
-            return NULL;
-        }
-    }
-    else {
-        WOLFSSL_MSG("Error in pem_read_bio_key");
-        return NULL;
-    }
-    FreeDer(&der);
+    pkey = wolfSSL_PEM_read_bio_PrivateKey(bio, NULL, cb, pass);
+    if (pkey == NULL) {
+        WOLFSSL_MSG("Error in PEM_read_bio_PrivateKey");
+         return NULL;
+     }
      /* Since the WOLFSSL_DSA structure is being taken from WOLFSSL_EVP_PKEY the
      * flag indicating that the WOLFSSL_DSA structure is owned should be FALSE
      * to avoid having it free'd */
