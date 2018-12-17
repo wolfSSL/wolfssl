@@ -4318,14 +4318,16 @@ int SetDsaPublicKey(byte* output, DsaKey* key,
     byte q[MAX_DSA_INT_SZ];
     byte y[MAX_DSA_INT_SZ];
 #endif
-    byte seq[MAX_SEQ_SZ];
+    byte innerSeq[MAX_SEQ_SZ];
+    byte outerSeq[MAX_SEQ_SZ];
     byte bitString[1 + MAX_LENGTH_SZ + 1];
     int  pSz;
     int  gSz;
     int  qSz;
     int  ySz;
-    int  seqSz;
-    int  bitStringSz;
+    int  innerSeqSz;
+    int  outerSeqSz;
+    int  bitStringSz = 0;
     int  idx;
 
     WOLFSSL_ENTER("SetDsaPublicKey");
@@ -4348,20 +4350,6 @@ int SetDsaPublicKey(byte* output, DsaKey* key,
         return pSz;
     }
 
-    /* g */
-#ifdef WOLFSSL_SMALL_STACK
-    g = (byte*)XMALLOC(MAX_DSA_INT_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (g == NULL)
-        return MEMORY_E;
-#endif
-    if ((gSz = SetASNIntMP(&key->g, MAX_DSA_INT_SZ, g)) < 0) {
-        WOLFSSL_MSG("SetASNIntMP Error with g");
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(g, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return gSz;
-    }
-
     /* q */
 #ifdef WOLFSSL_SMALL_STACK
     q = (byte*)XMALLOC(MAX_DSA_INT_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4374,6 +4362,20 @@ int SetDsaPublicKey(byte* output, DsaKey* key,
         XFREE(q, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         return qSz;
+    }
+
+    /* g */
+#ifdef WOLFSSL_SMALL_STACK
+    g = (byte*)XMALLOC(MAX_DSA_INT_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (g == NULL)
+        return MEMORY_E;
+#endif
+    if ((gSz = SetASNIntMP(&key->g, MAX_DSA_INT_SZ, g)) < 0) {
+        WOLFSSL_MSG("SetASNIntMP Error with g");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(g, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return gSz;
     }
 
     /* y */
@@ -4390,14 +4392,14 @@ int SetDsaPublicKey(byte* output, DsaKey* key,
         return ySz;
     }
 
-    seqSz  = SetSequence(pSz + gSz + qSz + ySz, seq);
+    innerSeqSz  = SetSequence(pSz + qSz + gSz, innerSeq);
 
     /* check output size */
-    if ((seqSz + pSz + gSz + qSz + ySz) > outLen) {
+    if ((innerSeqSz + pSz + qSz + gSz) > outLen) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(p,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(g,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(q,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(g,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(y,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         WOLFSSL_MSG("Error, output size smaller than outlen");
@@ -4412,8 +4414,8 @@ int SetDsaPublicKey(byte* output, DsaKey* key,
         algo = (byte*)XMALLOC(MAX_ALGO_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (algo == NULL) {
             XFREE(p,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(g,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(q,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(g,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(y,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
             return MEMORY_E;
         }
@@ -4421,15 +4423,17 @@ int SetDsaPublicKey(byte* output, DsaKey* key,
         byte algo[MAX_ALGO_SZ];
 #endif
         algoSz = SetAlgoID(DSAk, algo, oidKeyType, 0);
-        bitStringSz  = SetBitString(seqSz + pSz + gSz + qSz + ySz, 0, bitString);
-        idx = SetSequence(pSz + gSz + qSz + ySz + seqSz + bitStringSz + algoSz, output);
+        bitStringSz  = SetBitString(ySz, 0, bitString);
+        outerSeqSz = SetSequence(algoSz + innerSeqSz + pSz + qSz + gSz, outerSeq);
+
+        idx = SetSequence(algoSz + innerSeqSz + pSz + qSz + gSz + bitStringSz + ySz + outerSeqSz, output);
 
         /* check output size */
-        if ((idx + algoSz + bitStringSz + seqSz + pSz + gSz + qSz + ySz) > outLen) {
+        if ((idx + algoSz + bitStringSz + innerSeqSz + pSz + qSz + gSz + ySz) > outLen) {
             #ifdef WOLFSSL_SMALL_STACK
                 XFREE(p,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE(g,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 XFREE(q,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(g,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 XFREE(y,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 XFREE(algo, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
             #endif
@@ -4437,12 +4441,12 @@ int SetDsaPublicKey(byte* output, DsaKey* key,
             return BUFFER_E;
         }
 
+        /* outerSeq */
+        XMEMCPY(output + idx, outerSeq, outerSeqSz);
+        idx += outerSeqSz;
         /* algo */
         XMEMCPY(output + idx, algo, algoSz);
         idx += algoSz;
-        /* bit string */
-        XMEMCPY(output + idx, bitString, bitStringSz);
-        idx += bitStringSz;
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(algo, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -4450,26 +4454,29 @@ int SetDsaPublicKey(byte* output, DsaKey* key,
         idx = 0;
     }
 
-    /* seq */
-    XMEMCPY(output + idx, seq, seqSz);
-    idx += seqSz;
+    /* innerSeq */
+    XMEMCPY(output + idx, innerSeq, innerSeqSz);
+    idx += innerSeqSz;
     /* p */
     XMEMCPY(output + idx, p, pSz);
     idx += pSz;
-    /* g */
-    XMEMCPY(output + idx, g, gSz);
-    idx += gSz;
     /* q */
     XMEMCPY(output + idx, q, qSz);
     idx += qSz;
+    /* g */
+    XMEMCPY(output + idx, g, gSz);
+    idx += gSz;
+    /* bit string */
+    XMEMCPY(output + idx, bitString, bitStringSz);
+    idx += bitStringSz;
     /* y */
     XMEMCPY(output + idx, y, ySz);
     idx += ySz;
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(p,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(g,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(q,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(g,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(y,    key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return idx;
@@ -6171,6 +6178,7 @@ WOLFSSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
     const  byte* algoName = 0;
     byte   ID_Length[1 + MAX_LENGTH_SZ];
     byte   seqArray[MAX_SEQ_SZ + 1];  /* add object_id to end */
+    int    length;
 
     tagSz = (type == oidHashType ||
              (type == oidSigType
@@ -6193,14 +6201,23 @@ WOLFSSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
     idSz  = SetObjectId(algoSz, ID_Length);
     seqSz = SetSequence(idSz + algoSz + tagSz + curveSz, seqArray);
 
-    XMEMCPY(output, seqArray, seqSz);
-    XMEMCPY(output + seqSz, ID_Length, idSz);
-    XMEMCPY(output + seqSz + idSz, algoName, algoSz);
+    /* Copy only algo to output for DSA keys */
+    if (algoOID == DSAk) {
+        XMEMCPY(output, ID_Length, idSz);
+        XMEMCPY(output + idSz, algoName, algoSz);
+        length = idSz + algoSz + tagSz;
+    }
+    else {
+        XMEMCPY(output, seqArray, seqSz);
+        XMEMCPY(output + seqSz, ID_Length, idSz);
+        XMEMCPY(output + seqSz + idSz, algoName, algoSz);
+        length = seqSz + idSz + algoSz + tagSz;
+    }
+
     if (tagSz == 2)
         SetASNNull(&output[seqSz + idSz + algoSz]);
 
-    return seqSz + idSz + algoSz + tagSz;
-
+    return length;
 }
 
 
