@@ -2858,7 +2858,7 @@ then
     then
         AC_MSG_ERROR([cannot enable renegotiation-indication and secure-renegotiation.])
     fi
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SECURE_RENEGOTIATION"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SECURE_RENEGOTIATION -DHAVE_SERVER_RENEGOTIATION_INFO"
 fi
 
 # Supported Elliptic Curves Extensions
