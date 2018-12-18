@@ -7341,15 +7341,101 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         return ext_count;
     }
 
-#if !defined(NO_WOLFSSL_STUB)
     WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* passed_cert, int loc)
     {
-        WOLFSSL_STUB("wolfSSL_X509_get_ext");
-        (void)passed_cert;
-        (void)loc;
-     return 0;
+        int ext_count = 0;
+        int length;
+        int outSz;
+        const byte* rawCert;
+        int sz;
+        int tmp_idx;
+        const byte* input;
+        word32 oid;
+        int ret;
+        word32 idx = 0;
+        WOLFSSL_ASN1_OBJECT *tmp_obj;
+        WOLFSSL_X509_EXTENSION* found_extension = NULL;
+        DecodedCert cert;
+
+        found_extension = (WOLFSSL_X509_EXTENSION*)XMALLOC(sizeof(WOLFSSL_X509_EXTENSION), NULL, DYNAMIC_TYPE_X509_EXT);
+        tmp_obj = wolfSSL_ASN1_OBJECT_new();
+
+        WOLFSSL_ENTER("wolfSSL_X509_get_ext_count()");
+        rawCert = wolfSSL_X509_get_der((WOLFSSL_X509*)passed_cert, &outSz);
+        InitDecodedCert( &cert, rawCert, (word32)outSz, 0);
+
+        if (ParseCert(&cert, CA_TYPE, NO_VERIFY, NULL) < 0){
+            WOLFSSL_MSG("\tCertificate parsing failed");
+        }
+
+        input = cert.extensions;
+        sz = cert.extensionsSz;
+
+        if(passed_cert == NULL){
+            WOLFSSL_MSG("\tNot passed a certificate");
+        }
+
+        if (input == NULL || sz == 0){
+            WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
+        }
+
+        if (input[idx++] != ASN_EXTENSIONS) {
+            WOLFSSL_MSG("\tifail: should be an EXTENSIONS");
+        }
+
+        if (GetLength(input, &idx, &length, sz) < 0) {
+            WOLFSSL_MSG("\tfail: invalid length");
+        }
+
+        if (GetSequence(input, &idx, &length, sz) < 0) {
+            WOLFSSL_MSG("\tfail: should be a SEQUENCE (1)");
+        }
+
+        while (idx < (word32)sz) {
+            oid = 0;
+
+            if (GetSequence(input, &idx, &length, sz) < 0) {
+                 WOLFSSL_MSG("\tfail: should be a SEQUENCE");
+            }
+
+            tmp_idx = idx;
+            if ((ret = GetObjectId(input, &idx, &oid, oidCertExtType, sz)) < 0) {
+                WOLFSSL_MSG("\tfail: OBJECT ID");
+            }
+            idx = tmp_idx;
+
+            if (ext_count == loc){
+                WOLFSSL_STACK* sk = wolfSSL_X509_get_ext_d2i(passed_cert, oid, NULL, NULL);
+                if (sk == NULL){
+                    WOLFSSL_MSG("\twolfSSL_X509_get_ext_d2i returned a NULL stack");
+                    return NULL;
+                }
+                else {
+                    tmp_obj = wolfSSL_sk_ASN1_OBJECT_pop(sk);
+                }
+
+                if(tmp_obj->type <= 0){
+                    WOLFSSL_MSG("\tFailed to set object type");
+                }
+
+                found_extension->obj = tmp_obj;
+                found_extension->value.data = (char*)cert.extSubjKeyIdSrc;
+                found_extension->crit = cert.extSubjKeyIdCrit;
+
+                idx+=length;
+
+                return found_extension;
+            }
+            else{
+                idx += length;
+                ext_count++;
+            }
+        }
+        FreeDecodedCert(&cert);
+
+        return found_extension;
     }
-#endif
+
 
     WOLFSSL_ASN1_OBJECT* wolfSSL_X509_EXTENSION_get_object(WOLFSSL_X509_EXTENSION* ex)
     {
@@ -7807,6 +7893,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
     }
 
     if (obj != NULL) {
+        obj->nid = nid;
         if (wolfSSL_sk_ASN1_OBJECT_push(sk, obj) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Error pushing ASN1 object onto stack");
             wolfSSL_ASN1_OBJECT_free(obj);
