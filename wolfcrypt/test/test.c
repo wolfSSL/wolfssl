@@ -10713,7 +10713,7 @@ static int rsa_keygen_test(WC_RNG* rng)
         keySz = 2048;
     #endif /* HAVE_FIPS */
 
-    ret = wc_InitRsaKey(&genKey, HEAP_HINT);
+    ret = wc_InitRsaKey_ex(&genKey, HEAP_HINT, devId);
     if (ret != 0) {
         ERROR_OUT(-6962, exit_rsa);
     }

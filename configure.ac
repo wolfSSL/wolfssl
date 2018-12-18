@@ -1681,7 +1681,7 @@ if test "$ENABLED_STACKSIZE" = "yes"
 then
     AC_CHECK_FUNC([posix_memalign], [], [AC_MSG_ERROR(stacksize needs posix_memalign)])
     AC_CHECK_FUNC([pthread_attr_setstack], [], AC_CHECK_LIB([pthread],[pthread_attr_setstack]))
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_STACK_SIZE -DWOLFSSL_LOW_MEMORY"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_STACK_SIZE"
 fi
 
 
@@ -4175,7 +4175,7 @@ AC_ARG_ENABLE([asynccrypt],
 
 if test "$ENABLED_ASYNCCRYPT" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT -DHAVE_WOLF_EVENT -DHAVE_WOLF_BIGINT"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT -DHAVE_WOLF_EVENT -DHAVE_WOLF_BIGINT -DWOLFSSL_NO_HASH_RAW"
 
     # if no async hardware then use simulator for testing
     if test "x$ENABLED_CAVIUM" = "xno" && test "x$ENABLED_INTEL_QA" = "xno"

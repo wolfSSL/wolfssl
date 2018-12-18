@@ -3057,7 +3057,7 @@ static int _CheckProbablePrime(mp_int* p, mp_int* q, mp_int* e, int nlen,
     if (ret != MP_EQ) goto exit; /* e divides p-1 */
 
     /* 4.5.1,5.6.1 - Check primality of p with 8 rounds of M-R.
-     * mp_prime_is_prime_ex() performs test divisons against the first 256
+     * mp_prime_is_prime_ex() performs test divisions against the first 256
      * prime numbers. After that it performs 8 rounds of M-R using random
      * bases between 2 and n-2.
      * mp_prime_is_prime() performs the same test divisions and then does
@@ -3162,12 +3162,13 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     }
 #endif
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA) && \
+    defined(WC_ASYNC_ENABLE_RSA_KEYGEN)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA) {
     #ifdef HAVE_CAVIUM
         /* TODO: Not implemented */
     #elif defined(HAVE_INTEL_QA)
-        /* TODO: Not implemented */
+        return IntelQaRsaKeyGen(&key->asyncDev, key, size, e, rng);
     #else
         if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_RSA_MAKE)) {
             WC_ASYNC_TEST* testDev = &key->asyncDev.test;
@@ -3210,7 +3211,6 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #endif
             /* generate value */
             err = wc_RNG_GenerateBlock(rng, buf, primeSz);
-
             if (err == 0) {
                 /* prime lower bound has the MSB set, set it in candidate */
                 buf[0] |= 0x80;
@@ -3246,7 +3246,6 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #endif
             /* generate value */
             err = wc_RNG_GenerateBlock(rng, buf, primeSz);
-
             if (err == 0) {
                 /* prime lower bound has the MSB set, set it in candidate */
                 buf[0] |= 0x80;
@@ -3276,50 +3275,40 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         XFREE(buf, key->heap, DYNAMIC_TYPE_RSA);
     }
 
+
+    /* Setup RsaKey buffers */
     if (err == MP_OKAY)
         err = mp_init_multi(&key->n, &key->e, &key->d, &key->p, &key->q, NULL);
-
     if (err == MP_OKAY)
         err = mp_init_multi(&key->dP, &key->dQ, &key->u, NULL, NULL, NULL);
 
-    if (err == MP_OKAY)
-        err = mp_sub_d(&p, 1, &tmp1);  /* tmp1 = p-1 */
-
-    if (err == MP_OKAY)
-        err = mp_sub_d(&q, 1, &tmp2);  /* tmp2 = q-1 */
-
-    if (err == MP_OKAY)
-        err = mp_lcm(&tmp1, &tmp2, &tmp3);  /* tmp3 = lcm(p-1, q-1),last loop */
-
+    /* Software Key Calculation */
+    if (err == MP_OKAY)                /* tmp1 = p-1 */
+        err = mp_sub_d(&p, 1, &tmp1);
+    if (err == MP_OKAY)                /* tmp2 = q-1 */
+        err = mp_sub_d(&q, 1, &tmp2);
+    if (err == MP_OKAY)                /* tmp3 = lcm(p-1, q-1), last loop */
+        err = mp_lcm(&tmp1, &tmp2, &tmp3);
     /* make key */
-    if (err == MP_OKAY)
-        err = mp_set_int(&key->e, (mp_digit)e);  /* key->e = e */
-
+    if (err == MP_OKAY)                /* key->e = e */
+        err = mp_set_int(&key->e, (mp_digit)e);
     if (err == MP_OKAY)                /* key->d = 1/e mod lcm(p-1, q-1) */
         err = mp_invmod(&key->e, &tmp3, &key->d);
-
-    if (err == MP_OKAY)
-        err = mp_mul(&p, &q, &key->n);  /* key->n = pq */
-
-    if (err == MP_OKAY)
-        err = mp_mod(&key->d, &tmp1, &key->dP); /* key->dP = d mod(p-1) */
-
-    if (err == MP_OKAY)
-        err = mp_mod(&key->d, &tmp2, &key->dQ); /* key->dQ = d mod(q-1) */
-
-    if (err == MP_OKAY)
-        err = mp_invmod(&q, &p, &key->u); /* key->u = 1/q mod p */
-
+    if (err == MP_OKAY)                /* key->n = pq */
+        err = mp_mul(&p, &q, &key->n);
+    if (err == MP_OKAY)                /* key->dP = d mod(p-1) */
+        err = mp_mod(&key->d, &tmp1, &key->dP);
+    if (err == MP_OKAY)                /* key->dQ = d mod(q-1) */
+        err = mp_mod(&key->d, &tmp2, &key->dQ);
+    if (err == MP_OKAY)                /* key->u = 1/q mod p */
+        err = mp_invmod(&q, &p, &key->u);
     if (err == MP_OKAY)
         err = mp_copy(&p, &key->p);
-
     if (err == MP_OKAY)
         err = mp_copy(&q, &key->q);
 
-    if (err == MP_OKAY)
-        key->type = RSA_PRIVATE;
-
 #ifdef HAVE_WOLF_BIGINT
+    /* make sure raw unsigned bin version is available */
     if (err == MP_OKAY)
          err = wc_mp_to_bigint(&key->n, &key->n.raw);
     if (err == MP_OKAY)
@@ -3337,6 +3326,9 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (err == MP_OKAY)
          err = wc_mp_to_bigint(&key->u, &key->u.raw);
 #endif
+
+    if (err == MP_OKAY)
+        key->type = RSA_PRIVATE;
 
     mp_clear(&tmp1);
     mp_clear(&tmp2);
