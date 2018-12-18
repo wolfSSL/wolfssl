@@ -968,8 +968,24 @@ then
     *)
         case $host_cpu in
         *aarch64*)
-	    #+crypto needed for hardware acceleration
+            # +crypto needed for hardware acceleration
             AM_CPPFLAGS="$AM_CPPFLAGS -mcpu=generic+crypto"
+
+            # Check for and set -mstrict-align compiler flag
+            # Used to set assumption that Aarch64 systems will not handle
+            #   unaligned memory references. The flag -mstrict-align is needed
+            #   on some compiler versions to avoid an invalid addressing mode
+            #   error with  "m" constraint variables in the inline assembly AES
+            #   code. Even though unaligned load/store access is permitted on
+            #   normal memory with Cortex-A series boards with the exception
+            #   being exclusive and ordered access.
+            case $CPPFLAGS in
+                *mstrict-align*)
+                    break;; # already set by user
+                *)
+                    AM_CPPFLAGS="$AM_CPPFLAGS -mstrict-align"
+                    AC_MSG_NOTICE([64bit ARMv8, setting -mstrict-align]);;
+            esac
             AC_MSG_NOTICE([64bit ARMv8 found, setting mcpu to generic+crypto]);;
         *)
             AM_CPPFLAGS="$AM_CPPFLAGS -mfpu=crypto-neon-fp-armv8"
