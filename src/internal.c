@@ -8610,13 +8610,13 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
     if (use_cb && ssl->verifyCallback) {
     #ifdef WOLFSSL_SMALL_STACK
         WOLFSSL_X509_STORE_CTX* store;
-        #ifdef OPENSSL_EXTRA
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         WOLFSSL_X509* x509;
         #endif
         char* domain = NULL;
     #else
         WOLFSSL_X509_STORE_CTX store[1];
-        #ifdef OPENSSL_EXTRA
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         WOLFSSL_X509           x509[1];
         #endif
         char domain[ASN_NAME_MAX];
@@ -8628,7 +8628,7 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         if (store == NULL) {
             return MEMORY_E;
         }
-        #ifdef OPENSSL_EXTRA
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), ssl->heap,
             DYNAMIC_TYPE_X509);
         if (x509 == NULL) {
@@ -8639,7 +8639,7 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         domain = (char*)XMALLOC(ASN_NAME_MAX, ssl->heap, DYNAMIC_TYPE_STRING);
         if (domain == NULL) {
             XFREE(store, ssl->heap, DYNAMIC_TYPE_X509);
-            #ifdef OPENSSL_EXTRA
+            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
             XFREE(x509, ssl->heap, DYNAMIC_TYPE_X509);
             #endif
             return MEMORY_E;
@@ -8647,7 +8647,7 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
     #endif /* WOLFSSL_SMALL_STACK */
 
         XMEMSET(store, 0, sizeof(WOLFSSL_X509_STORE_CTX));
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         XMEMSET(x509, 0, sizeof(WOLFSSL_X509));
     #endif
         domain[0] = '\0';
@@ -8680,11 +8680,14 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
             store->store = &ssl->ctx->x509_store;
         }
     #endif
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        #ifdef KEEP_PEER_CERT
         if (args->certIdx == 0) {
             store->current_cert = &ssl->peerCert; /* use existing X509 */
         }
-        else {
+        else
+        #endif
+        {
             InitX509(x509, 0, ssl->heap);
             if (CopyDecodedToX509(x509, args->dCert) == 0) {
                 store->current_cert = x509;
@@ -8710,7 +8713,7 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
             /* mark as verify error */
             args->verifyErr = 1;
         }
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         if (args->certIdx > 0)
             FreeX509(x509);
     #endif
@@ -8729,7 +8732,7 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
     #endif /* SESSION_CERTS */
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(domain, ssl->heap, DYNAMIC_TYPE_STRING);
-        #ifdef OPENSSL_EXTRA
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         XFREE(x509, ssl->heap, DYNAMIC_TYPE_X509);
         #endif
         XFREE(store, ssl->heap, DYNAMIC_TYPE_X509_STORE);
