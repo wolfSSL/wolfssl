@@ -55,7 +55,9 @@ Possible RSA enable options:
  * WOLFSSL_KEY_GEN:     Allows Private Key Generation               default: off
  * RSA_LOW_MEM:         NON CRT Private Operations, less memory     default: off
  * WC_NO_RSA_OAEP:      Disables RSA OAEP padding                   default: on (not defined)
-
+ * WC_RSA_NONBLOCK:     Enables support for RSA non-blocking        default: off
+ * WC_RSA_NONBLOCK_TIME:Enables support for time based blocking     default: off
+ *                      time calculation.
 */
 
 /*
@@ -2813,7 +2815,7 @@ int wc_RsaEncryptSize(RsaKey* key)
         return BAD_FUNC_ARG;
     }
 
-    ret =  mp_unsigned_bin_size(&key->n);
+    ret = mp_unsigned_bin_size(&key->n);
 
 #ifdef WOLF_CRYPTO_DEV
     if (ret == 0 && key->devId != INVALID_DEVID) {
@@ -3386,6 +3388,19 @@ int wc_RsaSetNonBlock(RsaKey* key, RsaNb* nb)
 
     return 0;
 }
+#ifdef WC_RSA_NONBLOCK_TIME
+int wc_RsaSetNonBlockTime(RsaKey* key, word32 maxBlockUs, word32 cpuMHz)
+{
+    if (key == NULL || key->nb == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* calculate maximum number of instructions to block */
+    key->nb->exptmod.maxBlockInst = cpuMHz * maxBlockUs;
+
+    return 0;
+}
+#endif /* WC_RSA_NONBLOCK_TIME */
 #endif /* WC_RSA_NONBLOCK */
 
 #endif /* NO_RSA */

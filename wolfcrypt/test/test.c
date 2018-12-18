@@ -9383,6 +9383,13 @@ static int rsa_nb_test(RsaKey* key, const byte* in, word32 inLen, byte* out,
     if (ret != 0)
         return ret;
 
+#ifdef WC_RSA_NONBLOCK_TIME
+    /* Enable time based RSA blocking. 8 microseconds max (3.1GHz) */
+    ret = wc_RsaSetNonBlockTime(key, 8, 3100);
+    if (ret != 0)
+        return ret;
+#endif
+
     count = 0;
     do {
         ret = wc_RsaSSL_Sign(in, inLen, out, outSz, key, rng);
