@@ -16192,6 +16192,7 @@ static void test_wc_PKCS7_Degenerate(void)
 static int test_wc_SignatureGetSize_ecc(void)
 {
     int ret = 0;
+    #ifndef NO_SIG_WRAPPER
     #if defined(HAVE_ECC) && !defined(NO_ECC256)
         enum wc_SignatureType sig_type;
         word32 key_len;
@@ -16248,6 +16249,7 @@ static int test_wc_SignatureGetSize_ecc(void)
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
+    #endif /* NO_SIG_WRAPPER */
     return ret;
 }/* END test_wc_SignatureGetSize_ecc() */
 
@@ -16255,6 +16257,7 @@ static int test_wc_SignatureGetSize_ecc(void)
 static int test_wc_SignatureGetSize_rsa(void)
 {
     int ret = 0;
+    #ifndef NO_SIG_WRAPPER
     #ifndef NO_RSA
         enum wc_SignatureType sig_type;
         word32 key_len;
@@ -16351,6 +16354,7 @@ static int test_wc_SignatureGetSize_rsa(void)
     }
 
    printf(resultFmt, ret == 0 ? passed : failed);
+   #endif /* NO_SIG_WRAPPER */
    return ret;
 }/* END test_wc_SignatureGetSize_rsa(void) */
 
