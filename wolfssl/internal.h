@@ -3741,6 +3741,7 @@ struct WOLFSSL {
     word32          dtls_tx_msg_list_sz;
     word32          dtls_rx_msg_list_sz;
     DtlsMsg*        dtls_tx_msg_list;
+    DtlsMsg*        dtls_tx_msg;
     DtlsMsg*        dtls_rx_msg_list;
     void*           IOCB_CookieCtx;     /* gen cookie ctx */
     word32          dtls_expected_rx;

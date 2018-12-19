@@ -6057,6 +6057,7 @@ void DtlsMsgPoolReset(WOLFSSL* ssl)
     if (ssl->dtls_tx_msg_list) {
         DtlsMsgListDelete(ssl->dtls_tx_msg_list, ssl->heap);
         ssl->dtls_tx_msg_list = NULL;
+        ssl->dtls_tx_msg = NULL;
         ssl->dtls_tx_msg_list_sz = 0;
         ssl->dtls_timeout = ssl->dtls_timeout_init;
     }
@@ -6085,9 +6086,11 @@ int VerifyForDtlsMsgPoolSend(WOLFSSL* ssl, byte type, word32 fragOffset)
 int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
 {
     int ret = 0;
-    DtlsMsg* pool = ssl->dtls_tx_msg_list;
+    DtlsMsg* pool;
 
     WOLFSSL_ENTER("DtlsMsgPoolSend()");
+
+    pool = ssl->dtls_tx_msg == NULL ? ssl->dtls_tx_msg_list : ssl->dtls_tx_msg;
 
     if (pool != NULL) {
         if ((ssl->options.side == WOLFSSL_SERVER_END &&
@@ -6176,6 +6179,7 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
             }
             else
                 pool = pool->next;
+            ssl->dtls_tx_msg = pool;
         }
     }
 
