@@ -194,6 +194,7 @@ struct WOLFSSL_GENERAL_NAME {
         WOLFSSL_ASN1_STRING* uniformResourceIdentifier;
         WOLFSSL_ASN1_STRING* iPAddress;
         WOLFSSL_ASN1_OBJECT* registeredID;
+        WOLFSSL_ASN1_STRING* ia5;
     } d;
 };
 struct WOLFSSL_AUTHORITY_KEYID {
