@@ -4587,6 +4587,7 @@ void bench_ntruKeyGen(void)
     word16 ntruBits = 128;
     word16 type     = 0;
     word32 ret;
+    const char**desc = bench_desc_words[lng_index];
 
     DRBG_HANDLE drbg;
     static uint8_t const pers_str[] = {

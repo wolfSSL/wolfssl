@@ -2122,6 +2122,9 @@ exit:
     (void) ourDhParam;
     (void) ourCert;
     (void) useX25519;
+#ifdef HAVE_SECURE_RENEGOTIATION
+    (void) forceScr;
+#endif
 #ifndef WOLFSSL_TIRTOS
     return 0;
 #endif
