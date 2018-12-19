@@ -24,7 +24,7 @@ Including the following examples:
     Uncomment out #define WOLFSSL_ESPWROOM32 in /path/to/wolfssl/wolfssl/wolfcrypt/settings.h
 
 ## Configuration
- 1. The *user_settings.h* for each example can be found in /path/to/examples/protocols/wolfssl_xxx/main/include/user_settings.h
+ 1. The *user_settings.h* can be found in /path/to/esp-idf/components/wolfssl/include/user_settings.h
 
 ## Build examples
  1. See README in each example folder
