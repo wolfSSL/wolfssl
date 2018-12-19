@@ -21952,13 +21952,12 @@ int pkcs7signed_test(void)
     rsaClientCertBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                                       DYNAMIC_TYPE_TMP_BUFFER);
     if (rsaClientCertBuf == NULL)
-        return -9500;
+        ret = -9500;
 
     rsaClientPrivKeyBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                                          DYNAMIC_TYPE_TMP_BUFFER);
-    if (rsaClientPrivKeyBuf == NULL) {
-        XFREE(rsaClientCertBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -9501;
+    if (ret == 0 && rsaClientPrivKeyBuf == NULL) {
+        ret = -9501;
     }
 
     rsaClientCertBufSz = FOURK_BUF;
@@ -21967,14 +21966,13 @@ int pkcs7signed_test(void)
     /* read server RSA cert and key in DER format */
     rsaServerCertBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                                       DYNAMIC_TYPE_TMP_BUFFER);
-    if (rsaServerCertBuf == NULL)
-        return -9502;
+    if (ret == 0 && rsaServerCertBuf == NULL)
+        ret = -9502;
 
     rsaServerPrivKeyBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                                          DYNAMIC_TYPE_TMP_BUFFER);
-    if (rsaServerPrivKeyBuf == NULL) {
-        XFREE(rsaServerCertBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -9503;
+    if (ret == 0 && rsaServerPrivKeyBuf == NULL) {
+        ret = -9503;
     }
 
     rsaServerCertBufSz = FOURK_BUF;
@@ -21983,14 +21981,13 @@ int pkcs7signed_test(void)
     /* read CA RSA cert and key in DER format, for use with server cert */
     rsaCaCertBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                                   DYNAMIC_TYPE_TMP_BUFFER);
-    if (rsaCaCertBuf == NULL)
-        return -9504;
+    if (ret == 0 && rsaCaCertBuf == NULL)
+        ret = -9504;
 
     rsaCaPrivKeyBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                                      DYNAMIC_TYPE_TMP_BUFFER);
-    if (rsaCaPrivKeyBuf == NULL) {
-        XFREE(rsaCaCertBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -9505;
+    if (ret == 0 && rsaCaPrivKeyBuf == NULL) {
+        ret = -9505;
     }
 
     rsaCaCertBufSz = FOURK_BUF;
@@ -22001,26 +21998,22 @@ int pkcs7signed_test(void)
     /* read client ECC cert and key in DER format */
     eccClientCertBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                                       DYNAMIC_TYPE_TMP_BUFFER);
-    if (eccClientCertBuf == NULL) {
-        XFREE(rsaClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(rsaClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -9506;
+    if (ret == 0 && eccClientCertBuf == NULL) {
+        ret = -9506;
     }
 
     eccClientPrivKeyBuf =(byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                                         DYNAMIC_TYPE_TMP_BUFFER);
-    if (eccClientPrivKeyBuf == NULL) {
-        XFREE(rsaClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(rsaClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(eccClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -9507;
+    if (ret == 0 && eccClientPrivKeyBuf == NULL) {
+        ret = -9507;
     }
 
     eccClientCertBufSz = FOURK_BUF;
     eccClientPrivKeyBufSz = FOURK_BUF;
 #endif /* HAVE_ECC */
 
-    ret = pkcs7_load_certs_keys(rsaClientCertBuf, &rsaClientCertBufSz,
+    if (ret >= 0)
+        ret = pkcs7_load_certs_keys(rsaClientCertBuf, &rsaClientCertBufSz,
                                 rsaClientPrivKeyBuf, &rsaClientPrivKeyBufSz,
                                 rsaServerCertBuf, &rsaServerCertBufSz,
                                 rsaServerPrivKeyBuf, &rsaServerPrivKeyBufSz,
@@ -22029,14 +22022,11 @@ int pkcs7signed_test(void)
                                 eccClientCertBuf, &eccClientCertBufSz,
                                 eccClientPrivKeyBuf, &eccClientPrivKeyBufSz);
     if (ret < 0) {
-        XFREE(rsaClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(rsaClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(eccClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(eccClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -9508;
+        ret = -9508;
     }
 
-    ret = pkcs7signed_run_vectors(rsaClientCertBuf, (word32)rsaClientCertBufSz,
+    if (ret >= 0)
+        ret = pkcs7signed_run_vectors(rsaClientCertBuf, (word32)rsaClientCertBufSz,
                             rsaClientPrivKeyBuf, (word32)rsaClientPrivKeyBufSz,
                             rsaServerCertBuf, (word32)rsaServerCertBufSz,
                             rsaServerPrivKeyBuf, (word32)rsaServerPrivKeyBufSz,
@@ -22044,15 +22034,9 @@ int pkcs7signed_test(void)
                             rsaCaPrivKeyBuf, (word32)rsaCaPrivKeyBufSz,
                             eccClientCertBuf, (word32)eccClientCertBufSz,
                             eccClientPrivKeyBuf, (word32)eccClientPrivKeyBufSz);
-    if (ret < 0) {
-        XFREE(rsaClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(rsaClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(eccClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(eccClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return ret;
-    }
 
-    ret = pkcs7signed_run_SingleShotVectors(
+    if (ret >= 0)
+        ret = pkcs7signed_run_SingleShotVectors(
                             rsaClientCertBuf, (word32)rsaClientCertBufSz,
                             rsaClientPrivKeyBuf, (word32)rsaClientPrivKeyBufSz,
                             rsaServerCertBuf, (word32)rsaServerCertBufSz,

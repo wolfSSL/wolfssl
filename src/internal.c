@@ -17057,7 +17057,10 @@ exit_dpk:
             if (ticket == NULL) return MEMORY_E;
 
             ret = TLSX_UseSessionTicket(&ssl->extensions, ticket, ssl->heap);
-            if (ret != WOLFSSL_SUCCESS) return ret;
+            if (ret != WOLFSSL_SUCCESS) {
+                TLSX_SessionTicket_Free(ticket, ssl->heap);
+                return ret;
+            }
 
             idSz = 0;
         }

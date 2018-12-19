@@ -30967,9 +30967,11 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
          }
     #endif /* HAVE_ECC */
 
-        if (XSTRLEN(sName) > WOLFSSL_MAX_SNAME - 1) {
-            WOLFSSL_MSG("Attempted short name is too large");
-            return NULL;
+        if (sName != NULL) {
+            if (XSTRLEN(sName) > WOLFSSL_MAX_SNAME - 1) {
+                WOLFSSL_MSG("Attempted short name is too large");
+                return NULL;
+            }
         }
 
         oid = OidFromId(id, type, &oidSz);
@@ -30988,7 +30990,10 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         obj->type    = id;
         obj->grp     = type;
 
-        XMEMCPY(obj->sName, (char*)sName, XSTRLEN((char*)sName));
+        obj->sName[0] = '\0';
+        if (sName != NULL) {
+            XMEMCPY(obj->sName, (char*)sName, XSTRLEN((char*)sName));
+        }
 
         objBuf[0] = ASN_OBJECT_ID; objSz++;
         objSz += SetLength(oidSz, objBuf + 1);

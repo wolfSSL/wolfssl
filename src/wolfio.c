@@ -1432,19 +1432,23 @@ int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz)
 
 WOLFSSL_API void wolfSSL_CTX_SetIORecv(WOLFSSL_CTX *ctx, CallbackIORecv CBIORecv)
 {
-    ctx->CBIORecv = CBIORecv;
-    #ifdef OPENSSL_EXTRA
-    ctx->cbioFlag |= WOLFSSL_CBIO_RECV;
-    #endif
+    if (ctx != NULL) {
+        ctx->CBIORecv = CBIORecv;
+        #ifdef OPENSSL_EXTRA
+        ctx->cbioFlag |= WOLFSSL_CBIO_RECV;
+        #endif
+    }
 }
 
 
 WOLFSSL_API void wolfSSL_CTX_SetIOSend(WOLFSSL_CTX *ctx, CallbackIOSend CBIOSend)
 {
-    ctx->CBIOSend = CBIOSend;
-    #ifdef OPENSSL_EXTRA
-    ctx->cbioFlag |= WOLFSSL_CBIO_SEND;
-    #endif
+    if (ctx != NULL) {
+        ctx->CBIOSend = CBIOSend;
+        #ifdef OPENSSL_EXTRA
+        ctx->cbioFlag |= WOLFSSL_CBIO_SEND;
+        #endif
+    }
 }
 
 
