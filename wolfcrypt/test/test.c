@@ -9175,6 +9175,7 @@ static int rsa_export_key_test(RsaKey* key)
     ret = wc_RsaExportKey(key, e, &eSz, n, &zero, d, &dSz, p, &pSz, q, &qSz);
     if (ret != RSA_BUFFER_E)
         return -6749;
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     ret = wc_RsaExportKey(key, e, &eSz, n, &nSz, d, &zero, p, &pSz, q, &qSz);
     if (ret != RSA_BUFFER_E)
         return -6750;
@@ -9184,6 +9185,7 @@ static int rsa_export_key_test(RsaKey* key)
     ret = wc_RsaExportKey(key, e, &eSz, n, &nSz, d, &dSz, p, &pSz, q, &zero);
     if (ret != RSA_BUFFER_E)
         return -6752;
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 
     ret = wc_RsaExportKey(key, e, &eSz, n, &nSz, d, &dSz, p, &pSz, q, &qSz);
     if (ret != 0)
@@ -9265,6 +9267,8 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
      !defined(WC_RSA_BLINDING)
     /* FIPS140 implementation does not do blinding */
     if (ret != 0)
+#elif defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    if (ret != SIG_TYPE_E)
 #else
     if (ret != MISSING_RNG_E)
 #endif
@@ -9315,6 +9319,7 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
         return -6772;
 
     sigSz = (word32)ret;
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                                inLen, out, &sigSz, key, keyLen, rng);
     if (ret != 0)
@@ -9365,6 +9370,10 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
         hashEnc, (int)sizeof(hashEnc), out, (word32)modLen, key, keyLen);
     if (ret != 0)
         return -6781;
+#else
+    (void)hash;
+    (void)hashEnc;
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 
     return 0;
 }
@@ -10921,7 +10930,7 @@ int rsa_test(void)
         goto exit_rsa;
 #endif
 
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
