@@ -13001,6 +13001,65 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     }
 
 
+    /* Deep copy of EVP_MD hasher
+     * return WOLFSSL_SUCCESS on success */
+    static int wolfSSL_EVP_MD_Copy_Hasher(WOLFSSL_EVP_MD_CTX* des,
+            const WOLFSSL_EVP_MD_CTX* src)
+    {
+        if (src->macType == (NID_hmac & 0xFF)) {
+            wolfSSL_HmacCopy(&des->hash.hmac, (Hmac*)&src->hash.hmac);
+        }
+        else {
+            switch (src->macType) {
+            #ifndef NO_MD5
+                case WC_MD5:
+                    wc_Md5Copy((wc_Md5*)&src->hash.digest,
+                            (wc_Md5*)&des->hash.digest);
+                    break;
+            #endif /* !NO_MD5 */
+
+            #ifndef NO_SHA
+                case WC_SHA:
+                    wc_ShaCopy((wc_Sha*)&src->hash.digest,
+                            (wc_Sha*)&des->hash.digest);
+                    break;
+            #endif /* !NO_SHA */
+
+            #ifdef WOLFSSL_SHA224
+                case WC_SHA224:
+                    wc_Sha224Copy((wc_Sha224*)&src->hash.digest,
+                            (wc_Sha224*)&des->hash.digest);
+                    break;
+            #endif /* WOLFSSL_SHA224 */
+
+            #ifndef NO_SHA256
+                case WC_SHA256:
+                    wc_Sha256Copy((wc_Sha256*)&src->hash.digest,
+                            (wc_Sha256*)&des->hash.digest);
+                    break;
+            #endif /* !NO_SHA256 */
+
+            #ifdef WOLFSSL_SHA384
+                case WC_SHA384:
+                    wc_Sha384Copy((wc_Sha384*)&src->hash.digest,
+                            (wc_Sha384*)&des->hash.digest);
+                    break;
+            #endif /* WOLFSSL_SHA384 */
+            #ifdef WOLFSSL_SHA512
+                case WC_SHA512:
+                    wc_Sha512Copy((wc_Sha512*)&src->hash.digest,
+                        (wc_Sha512*)&des->hash.digest);
+                    break;
+            #endif /* WOLFSSL_SHA512 */
+
+                default:
+                    return WOLFSSL_FAILURE;
+            }
+        }
+        return WOLFSSL_SUCCESS;
+    }
+
+
     /* copies structure in to the structure out
      *
      * returns WOLFSSL_SUCCESS on success */
@@ -13014,7 +13073,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if (out->pctx == NULL)
                 return WOLFSSL_FAILURE;
         }
-        return WOLFSSL_SUCCESS;
+        return wolfSSL_EVP_MD_Copy_Hasher(out, (WOLFSSL_EVP_MD_CTX*)in);
     }
 
     void wolfSSL_EVP_MD_CTX_init(WOLFSSL_EVP_MD_CTX* ctx)
@@ -13199,6 +13258,51 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         WOLFSSL_ENTER("EVP_MD_CTX_cleanup");
         if (ctx->pctx != NULL)
             wolfSSL_EVP_PKEY_CTX_free(ctx->pctx);
+
+        if (ctx->macType == (NID_hmac & 0xFF)) {
+            wc_HmacFree(&ctx->hash.hmac);
+        }
+        else {
+            switch (ctx->macType) {
+            #ifndef NO_MD5
+                case WC_HASH_TYPE_MD5:
+                    wc_Md5Free((wc_Md5*)&ctx->hash.digest);
+                    break;
+            #endif /* !NO_MD5 */
+
+            #ifndef NO_SHA
+                case WC_HASH_TYPE_SHA:
+                    wc_ShaFree((wc_Sha*)&ctx->hash.digest);
+                    break;
+            #endif /* !NO_SHA */
+
+            #ifdef WOLFSSL_SHA224
+                case WC_HASH_TYPE_SHA224:
+                    wc_Sha224Free((wc_Sha224*)&ctx->hash.digest);
+                    break;
+            #endif /* WOLFSSL_SHA224 */
+
+            #ifndef NO_SHA256
+                case WC_HASH_TYPE_SHA256:
+                    wc_Sha256Free((wc_Sha256*)&ctx->hash.digest);
+                    break;
+            #endif /* !NO_SHA256 */
+
+            #ifdef WOLFSSL_SHA384
+                case WC_HASH_TYPE_SHA384:
+                    wc_Sha384Free((wc_Sha384*)&ctx->hash.digest);
+                    break;
+            #endif /* WOLFSSL_SHA384 */
+            #ifdef WOLFSSL_SHA512
+                case WC_HASH_TYPE_SHA512:
+                    wc_Sha512Free((wc_Sha512*)&ctx->hash.digest);
+                    break;
+            #endif /* WOLFSSL_SHA512 */
+
+                default:
+                    return WOLFSSL_FAILURE;
+            }
+        }
         ForceZero(ctx, sizeof(*ctx));
         ctx->macType = 0xFF;
         return 1;
@@ -25292,105 +25396,111 @@ int wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key,
 }
 
 
-/* Deep copy of information from src to des structure
- *
- * des destination to copy information to
- * src structure to get infromation from
- *
- * Returns SSL_SUCCESS on success and SSL_FAILURE on error
- */
-int wolfSSL_HMAC_CTX_copy(WOLFSSL_HMAC_CTX* des, WOLFSSL_HMAC_CTX* src)
+/* helper function for Deep copy of internal wolfSSL hmac structure
+ * returns WOLFSSL_SUCCESS on success */
+int wolfSSL_HmacCopy(Hmac* des, Hmac* src)
 {
+    int ret    = 0;
     void* heap = NULL;
 
-    WOLFSSL_ENTER("wolfSSL_HMAC_CTX_copy");
-
-    if (des == NULL || src == NULL) {
-        return SSL_FAILURE;
-    }
-
 #ifndef HAVE_FIPS
-    heap = src->hmac.heap;
+    heap = src->heap;
 #endif
-
-    if (wc_HmacInit(&des->hmac, heap, 0) != 0) {
-        WOLFSSL_MSG("Error initializing HMAC");
-        return SSL_FAILURE;
+    if ((ret = wc_HmacInit(des, heap, 0)) != 0) {
+        return WOLFSSL_FAILURE;
     }
-
-    des->type = src->type;
 
     /* requires that hash structures have no dynamic parts to them */
-    switch (src->hmac.macType) {
+    switch (src->macType) {
     #ifndef NO_MD5
         case WC_MD5:
-            wc_Md5Copy(&src->hmac.hash.md5, &des->hmac.hash.md5);
+            wc_Md5Copy(&src->hash.md5, &des->hash.md5);
             break;
     #endif /* !NO_MD5 */
 
     #ifndef NO_SHA
         case WC_SHA:
-            wc_ShaCopy(&src->hmac.hash.sha, &des->hmac.hash.sha);
+            wc_ShaCopy(&src->hash.sha, &des->hash.sha);
             break;
     #endif /* !NO_SHA */
 
     #ifdef WOLFSSL_SHA224
         case WC_SHA224:
-            wc_Sha224Copy(&src->hmac.hash.sha224, &des->hmac.hash.sha224);
+            wc_Sha224Copy(&src->hash.sha224, &des->hash.sha224);
             break;
     #endif /* WOLFSSL_SHA224 */
 
     #ifndef NO_SHA256
         case WC_SHA256:
-            wc_Sha256Copy(&src->hmac.hash.sha256, &des->hmac.hash.sha256);
+            wc_Sha256Copy(&src->hash.sha256, &des->hash.sha256);
             break;
     #endif /* !NO_SHA256 */
 
     #ifdef WOLFSSL_SHA384
         case WC_SHA384:
-            wc_Sha384Copy(&src->hmac.hash.sha384, &des->hmac.hash.sha384);
+            wc_Sha384Copy(&src->hash.sha384, &des->hash.sha384);
             break;
     #endif /* WOLFSSL_SHA384 */
     #ifdef WOLFSSL_SHA512
         case WC_SHA512:
-            wc_Sha512Copy(&src->hmac.hash.sha512, &des->hmac.hash.sha512);
+            wc_Sha512Copy(&src->hash.sha512, &des->hash.sha512);
             break;
     #endif /* WOLFSSL_SHA512 */
 
         default:
-            WOLFSSL_MSG("Unknown or unsupported hash type");
             return WOLFSSL_FAILURE;
     }
 
-    XMEMCPY((byte*)des->hmac.ipad, (byte*)src->hmac.ipad, WC_HMAC_BLOCK_SIZE);
-    XMEMCPY((byte*)des->hmac.opad, (byte*)src->hmac.opad, WC_HMAC_BLOCK_SIZE);
-    XMEMCPY((byte*)des->hmac.innerHash, (byte*)src->hmac.innerHash,
-                                                            WC_MAX_DIGEST_SIZE);
+    XMEMCPY((byte*)des->ipad, (byte*)src->ipad, WC_HMAC_BLOCK_SIZE);
+    XMEMCPY((byte*)des->opad, (byte*)src->opad, WC_HMAC_BLOCK_SIZE);
+    XMEMCPY((byte*)des->innerHash, (byte*)src->innerHash, WC_MAX_DIGEST_SIZE);
 #ifndef HAVE_FIPS
-    des->hmac.heap    = heap;
+    des->heap    = heap;
 #endif
-    des->hmac.macType = src->hmac.macType;
-    des->hmac.innerHashKeyed = src->hmac.innerHashKeyed;
+    des->macType = src->macType;
+    des->innerHashKeyed = src->innerHashKeyed;
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    XMEMCPY(&des->asyncDev, &src->asyncDev, sizeof(WC_ASYNC_DEV));
+    des->keyLen = src->keyLen;
+    #ifdef HAVE_CAVIUM
+        des->data = (byte*)XMALLOC(src->dataLen, des->heap,
+                DYNAMIC_TYPE_HMAC);
+        if (des->data == NULL) {
+            return BUFFER_E;
+        }
+        XMEMCPY(des->data, src->data, src->dataLen);
+        des->dataLen = src->dataLen;
+    #endif /* HAVE_CAVIUM */
+#endif /* WOLFSSL_ASYNC_CRYPT */
+        return WOLFSSL_SUCCESS;
+}
+
+
+/* Deep copy of information from src to des structure
+ *
+ * des destination to copy information to
+ * src structure to get infromation from
+ *
+ * Returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on error
+ */
+int wolfSSL_HMAC_CTX_copy(WOLFSSL_HMAC_CTX* des, WOLFSSL_HMAC_CTX* src)
+{
+    WOLFSSL_ENTER("wolfSSL_HMAC_CTX_copy");
+
+    if (des == NULL || src == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    des->type = src->type;
     XMEMCPY((byte *)&des->save_ipad, (byte *)&src->hmac.ipad,
                                         WC_HMAC_BLOCK_SIZE);
     XMEMCPY((byte *)&des->save_opad, (byte *)&src->hmac.opad,
                                         WC_HMAC_BLOCK_SIZE);
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    XMEMCPY(&des->hmac.asyncDev, &src->hmac.asyncDev, sizeof(WC_ASYNC_DEV));
-    des->hmac.keyLen = src->hmac.keyLen;
-    #ifdef HAVE_CAVIUM
-        des->hmac.data = (byte*)XMALLOC(src->hmac.dataLen, des->hmac.heap,
-                DYNAMIC_TYPE_HMAC);
-        if (des->hmac.data == NULL) {
-            return BUFFER_E;
-        }
-        XMEMCPY(des->hmac.data, src->hmac.data, src->hmac.dataLen);
-        des->hmac.dataLen = src->hmac.dataLen;
-    #endif /* HAVE_CAVIUM */
-#endif /* WOLFSSL_ASYNC_CRYPT */
-        return WOLFSSL_SUCCESS;
+    return wolfSSL_HmacCopy(&des->hmac, &src->hmac);
 }
+
 
 #if defined(HAVE_FIPS) && \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
@@ -25559,6 +25669,7 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
         /* OpenSSL compat, no error */
     } else if(ctx->type >= 0) { /* MD5 == 0 */
         WOLFSSL_MSG("recover hmac");
+        wc_HmacFree(&ctx->hmac);
         if (wc_HmacInit(&ctx->hmac, NULL, INVALID_DEVID) == 0) {
             ctx->hmac.macType = (byte)ctx->type;
             ctx->hmac.innerHashKeyed = 0;
