@@ -35518,7 +35518,7 @@ int wolfSSL_PEM_write_bio_PKCS8PrivateKey(WOLFSSL_BIO* bio,
     int encAlgId;
 
     if (bio == NULL || pkey == NULL)
-        ret = -1;
+        return -1;
 
     keySz = pkey->pkey_sz + 128;
     key = (byte*)XMALLOC(keySz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
