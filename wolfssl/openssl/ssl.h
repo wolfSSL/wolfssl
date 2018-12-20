@@ -398,7 +398,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_STORE_set_verify_cb(s, c) \
 wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_CTX_verify_cb)(c))
 #define X509_STORE_set_verify_cb_func(s, c) \
-wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_CTX_verify_cb)(c)
+wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_CTX_verify_cb)(c))
  
 #define X509_STORE_new                  wolfSSL_X509_STORE_new
 #define X509_STORE_free                 wolfSSL_X509_STORE_free
