@@ -361,8 +361,8 @@
         /* snprintf is used in asn.c for GetTimeString, PKCS7 test, and when
            debugging is turned on */
         #ifndef USE_WINDOWS_API
-            #if defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
-               !defined(NO_STDIO_FILESYSTEM)
+            #if defined(NO_FILESYSTEM) && (defined(OPENSSL_EXTRA) || \
+                   defined(HAVE_PKCS7)) && !defined(NO_STDIO_FILESYSTEM)
                 /* case where stdio is not included else where but is needed for
                  * snprintf */
                 #include <stdio.h>
