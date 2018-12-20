@@ -4235,7 +4235,11 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
 #endif
 
+#ifdef WOLFSSL_TLS13_DRAFT_18
     if (!ssl->options.groupMessages)
+#else
+    if (!ssl->options.groupMessages || extMsgType != server_hello)
+#endif
         ret = SendBuffered(ssl);
 
     WOLFSSL_LEAVE("SendTls13ServerHello", ret);
