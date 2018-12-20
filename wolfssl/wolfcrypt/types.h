@@ -528,7 +528,7 @@
 
     /* hash types */
     enum wc_HashType {
-    #ifdef HAVE_SELFTEST
+    #if defined(HAVE_SELFTEST) || defined(HAVE_FIPS)
         /* In selftest build, WC_* types are not mapped to WC_HASH_TYPE types.
          * Values here are based on old selftest hmac.h enum, with additions */
         WC_HASH_TYPE_NONE = 15,

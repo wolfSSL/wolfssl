@@ -13012,41 +13012,41 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         else {
             switch (src->macType) {
             #ifndef NO_MD5
-                case WC_MD5:
+                case WC_HASH_TYPE_MD5:
                     wc_Md5Copy((wc_Md5*)&src->hash.digest,
                             (wc_Md5*)&des->hash.digest);
                     break;
             #endif /* !NO_MD5 */
 
             #ifndef NO_SHA
-                case WC_SHA:
+                case WC_HASH_TYPE_SHA:
                     wc_ShaCopy((wc_Sha*)&src->hash.digest,
                             (wc_Sha*)&des->hash.digest);
                     break;
             #endif /* !NO_SHA */
 
             #ifdef WOLFSSL_SHA224
-                case WC_SHA224:
+                case WC_HASH_TYPE_SHA224:
                     wc_Sha224Copy((wc_Sha224*)&src->hash.digest,
                             (wc_Sha224*)&des->hash.digest);
                     break;
             #endif /* WOLFSSL_SHA224 */
 
             #ifndef NO_SHA256
-                case WC_SHA256:
+                case WC_HASH_TYPE_SHA256:
                     wc_Sha256Copy((wc_Sha256*)&src->hash.digest,
                             (wc_Sha256*)&des->hash.digest);
                     break;
             #endif /* !NO_SHA256 */
 
             #ifdef WOLFSSL_SHA384
-                case WC_SHA384:
+                case WC_HASH_TYPE_SHA384:
                     wc_Sha384Copy((wc_Sha384*)&src->hash.digest,
                             (wc_Sha384*)&des->hash.digest);
                     break;
             #endif /* WOLFSSL_SHA384 */
             #ifdef WOLFSSL_SHA512
-                case WC_SHA512:
+                case WC_HASH_TYPE_SHA512:
                     wc_Sha512Copy((wc_Sha512*)&src->hash.digest,
                         (wc_Sha512*)&des->hash.digest);
                     break;
