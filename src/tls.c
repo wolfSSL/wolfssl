@@ -4307,7 +4307,7 @@ static byte TLSX_SecureRenegotiation_GetSize(SecureRenegotiation* data,
     byte length = OPAQUE8_LEN; /* empty info length */
 
     /* data will be NULL for HAVE_SERVER_RENEGOTIATION_INFO only */
-    if (data && data->enabled) {
+    if (data && data->enabled && data->verifySet) {
         /* client sends client_verify_data only */
         length += TLS_FINISHED_SZ;
 
@@ -4323,8 +4323,7 @@ static word16 TLSX_SecureRenegotiation_Write(SecureRenegotiation* data,
                                                     byte* output, int isRequest)
 {
     word16 offset = OPAQUE8_LEN; /* RenegotiationInfo length */
-
-    if (data && data->enabled) {
+    if (data && data->enabled && data->verifySet) {
         /* client sends client_verify_data only */
         XMEMCPY(output + offset, data->client_verify_data, TLS_FINISHED_SZ);
         offset += TLS_FINISHED_SZ;
@@ -4347,39 +4346,39 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, byte* input,
     int ret = SECURE_RENEGOTIATION_E;
 
     if (length >= OPAQUE8_LEN) {
-        if (ssl->secure_renegotiation == NULL) {
+        if (isRequest) {
         #ifndef NO_WOLFSSL_SERVER
-            if (isRequest && *input == 0) {
-            #ifdef HAVE_SERVER_RENEGOTIATION_INFO
-                if (length == OPAQUE8_LEN) {
-                    if (TLSX_Find(ssl->extensions,
-                                  TLSX_RENEGOTIATION_INFO) == NULL) {
-                        ret = TLSX_AddEmptyRenegotiationInfo(&ssl->extensions,
-                                                             ssl->heap);
-                        if (ret == WOLFSSL_SUCCESS)
-                            ret = 0;
+            if (ssl->secure_renegotiation == NULL) {
+                /* already in error state */
+                WOLFSSL_MSG("server SCR not available");
+            }
+            else if (!ssl->secure_renegotiation->enabled) {
+                if (*input == 0) {
+                    input++; /* get past size */
 
-                    } else {
-                        ret = 0;
-                    }
+                    ssl->secure_renegotiation->enabled = 1;
+                    TLSX_SetResponse(ssl, TLSX_RENEGOTIATION_INFO);
+                    ret = 0;
                 }
-            #else
-                ret = 0;  /* don't reply, user didn't enable */
-            #endif /* HAVE_SERVER_RENEGOTIATION_INFO */
+                else {
+                    /* already in error state */
+                    WOLFSSL_MSG("SCR client verify data present");
+                }
             }
-            #ifdef HAVE_SERVER_RENEGOTIATION_INFO
-            else if (!isRequest) {
-                /* don't do anything on client side */
-                ret = 0;
-            }
-            #endif
-        #endif
-        }
-        else if (isRequest) {
-        #ifndef NO_WOLFSSL_SERVER
-            if (*input == TLS_FINISHED_SZ) {
-                /* TODO compare client_verify_data */
-                ret = 0;
+            else if (*input == TLS_FINISHED_SZ) {
+                input++; /* get past size */
+
+                /* validate client verify data */
+                if (XMEMCMP(input,
+                            ssl->secure_renegotiation->client_verify_data,
+                            TLS_FINISHED_SZ) == 0) {
+                    WOLFSSL_MSG("SCR client verify data match");
+                    TLSX_SetResponse(ssl, TLSX_RENEGOTIATION_INFO);
+                    ret = 0;  /* verified */
+                } else {
+                    /* already in error state */
+                    WOLFSSL_MSG("SCR client verify data Failure");
+                }
             }
         #endif
         }
@@ -4443,14 +4442,8 @@ int TLSX_UseSecureRenegotiation(TLSX** extensions, void* heap)
 
 #ifdef HAVE_SERVER_RENEGOTIATION_INFO
 
-int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap)
+int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions)
 {
-    int ret;
-
-    ret = TLSX_Push(extensions, TLSX_RENEGOTIATION_INFO, NULL, heap);
-    if (ret != 0)
-        return ret;
-
     /* send empty renegotiation_info extension */
     TLSX* ext = TLSX_Find(*extensions, TLSX_RENEGOTIATION_INFO);
     if (ext)

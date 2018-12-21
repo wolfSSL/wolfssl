@@ -53,6 +53,9 @@ typedef struct WOLFSSL_AES_KEY {
     /* large enough for additional devcrypto information */
     void* devKey[288 / sizeof(void*)];
     #endif
+    #ifdef WOLFSSL_AFALG
+    void* afalg_holder[288 / sizeof(void*)];
+    #endif
 } WOLFSSL_AES_KEY;
 typedef WOLFSSL_AES_KEY AES_KEY;
 

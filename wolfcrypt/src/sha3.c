@@ -692,7 +692,7 @@ static int wc_InitSha3(wc_Sha3* sha3, void* heap, int devId)
  */
 static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
 {
-    int ret = 0;
+    int ret;
 
     if (sha3 == NULL || (data == NULL && len > 0)) {
         return BAD_FUNC_ARG;
@@ -700,13 +700,18 @@ static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
     if (sha3->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA3) {
-    #if defined(HAVE_INTEL_QA)
-        return IntelQaSymSha3(&sha3->asyncDev, NULL, data, len);
+    #if defined(HAVE_INTEL_QA) && defined(QAT_V2)
+        /* QAT only supports SHA3_256 */
+        if (p == WC_SHA3_256_COUNT) {
+            ret = IntelQaSymSha3(&sha3->asyncDev, NULL, data, len);
+            if (ret != NOT_COMPILED_IN)
+                return ret;
+        }
     #endif
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-    Sha3Update(sha3, data, len, p);
+    ret = Sha3Update(sha3, data, len, p);
 
     return ret;
 }
@@ -729,9 +734,14 @@ static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, byte p, byte len)
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
     if (sha3->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA3) {
-    #if defined(HAVE_INTEL_QA)
-        return IntelQaSymSha3(&sha3->asyncDev, hash, NULL,
-                              SHA3_DIGEST_SIZE);
+    #if defined(HAVE_INTEL_QA) && defined(QAT_V2)
+        /* QAT only supports SHA3_256 */
+        /* QAT SHA-3 only supported on v2 (8970 or later cards) */
+        if (len == WC_SHA3_256_DIGEST_SIZE) {
+            ret = IntelQaSymSha3(&sha3->asyncDev, hash, NULL, len);
+            if (ret != NOT_COMPILED_IN)
+                return ret;
+        }
     #endif
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */

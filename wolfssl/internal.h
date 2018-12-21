@@ -1508,6 +1508,7 @@ enum states {
 	SERVER_CHANGECIPHERSPEC_COMPLETE,
     SERVER_FINISHED_COMPLETE,
 
+    CLIENT_HELLO_RETRY,
     CLIENT_HELLO_COMPLETE,
     CLIENT_KEYEXCHANGE_COMPLETE,
 	CLIENT_CHANGECIPHERSPEC_COMPLETE,
@@ -2277,6 +2278,7 @@ enum key_cache_state {
 /* Additional Connection State according to rfc5746 section 3.1 */
 typedef struct SecureRenegotiation {
    byte                 enabled;  /* secure_renegotiation flag in rfc */
+   byte                 verifySet;
    byte                 startScr; /* server requested client to start scr */
    enum key_cache_state cache_status;  /* track key cache state */
    byte                 client_verify_data[TLS_FINISHED_SZ];  /* cached */
@@ -2288,7 +2290,7 @@ typedef struct SecureRenegotiation {
 WOLFSSL_LOCAL int TLSX_UseSecureRenegotiation(TLSX** extensions, void* heap);
 
 #ifdef HAVE_SERVER_RENEGOTIATION_INFO
-WOLFSSL_LOCAL int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap);
+WOLFSSL_LOCAL int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions);
 #endif
 
 #endif /* HAVE_SECURE_RENEGOTIATION */
@@ -2516,7 +2518,7 @@ struct WOLFSSL_CTX {
 #ifdef HAVE_EXT_CACHE
     byte        internalCacheOff:1;
 #endif
-    byte        sendVerify;       /* for client side (can not be single bit) */
+    byte        sendVerify:2;     /* for client side (can not be single bit) */
     byte        haveRSA:1;        /* RSA available */
     byte        haveECC:1;        /* ECC available */
     byte        haveDH:1;         /* server DH parms set by user */
@@ -4045,6 +4047,10 @@ WOLFSSL_LOCAL int SendCertificateRequest(WOLFSSL*);
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
 WOLFSSL_LOCAL int CreateOcspResponse(WOLFSSL*, OcspRequest**, buffer*);
+#endif
+#if defined(HAVE_SECURE_RENEGOTIATION) && \
+    defined(HAVE_SERVER_RENEGOTIATION_INFO)
+WOLFSSL_LOCAL int SendHelloRequest(WOLFSSL*);
 #endif
 WOLFSSL_LOCAL int SendCertificateStatus(WOLFSSL*);
 WOLFSSL_LOCAL int SendServerKeyExchange(WOLFSSL*);

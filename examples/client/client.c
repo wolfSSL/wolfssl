@@ -2780,6 +2780,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 wolfSSL_CTX_free(ctx); ctx = NULL;
                 err_sys("wolfSSL_Rehandshake failed");
             }
+            else {
+                printf("RENEGOTIATION SUCCESSFUL\n");
+            }
         }
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */

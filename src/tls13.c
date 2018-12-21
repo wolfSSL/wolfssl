@@ -4235,7 +4235,11 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
 #endif
 
+#ifdef WOLFSSL_TLS13_DRAFT_18
     if (!ssl->options.groupMessages)
+#else
+    if (!ssl->options.groupMessages || extMsgType != server_hello)
+#endif
         ret = SendBuffered(ssl);
 
     WOLFSSL_LEAVE("SendTls13ServerHello", ret);
@@ -8194,7 +8198,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
         case TLS13_ACCEPT_FIRST_REPLY_DONE :
             if (ssl->options.serverState ==
                                           SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
-                ssl->options.clientState = NULL_STATE;
+                ssl->options.clientState = CLIENT_HELLO_RETRY;
                 while (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
                     if ((ssl->error = ProcessReply(ssl)) < 0) {
                         WOLFSSL_ERROR(ssl->error);

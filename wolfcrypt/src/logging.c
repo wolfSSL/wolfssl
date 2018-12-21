@@ -64,6 +64,8 @@ static struct wc_error_queue* wc_last_node;
 static double wc_func_start[WC_FUNC_COUNT];
 static double wc_func_time[WC_FUNC_COUNT] = { 0, };
 static const char* wc_func_name[WC_FUNC_COUNT] = {
+    "SendHelloRequest",
+    "DoHelloRequest",
     "SendClientHello",
     "DoClientHello",
     "SendServerHello",
