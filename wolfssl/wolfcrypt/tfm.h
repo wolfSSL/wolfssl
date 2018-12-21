@@ -414,7 +414,7 @@ MP_API void fp_clear(fp_int *a); /* uses ForceZero to clear sensitive memory */
 MP_API void fp_forcezero (fp_int * a);
 MP_API void fp_free(fp_int* a);
 
-/* zero/even/odd ? */
+/* zero/one/even/odd/neg/word ? */
 #define fp_iszero(a) (((a)->used == 0) ? FP_YES : FP_NO)
 #define fp_isone(a) \
     ((((a)->used == 1) && ((a)->dp[0] == 1)) ? FP_YES : FP_NO)
@@ -824,4 +824,5 @@ WOLFSSL_API word32 CheckRunTimeFastMath(void);
 #endif
 
 #endif  /* WOLF_CRYPT_TFM_H */
+
 

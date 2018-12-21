@@ -4111,10 +4111,10 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
                         word32 inSz)
 {
     int    length;
-    #ifdef WOLFSSL_QT
+    #ifdef OPENSSL_EXTRA
     int ret;
     word32 oid;
-    #endif //WOLFSSL_QT
+    #endif 
 
     if (input == NULL || inOutIdx == NULL || key == NULL) {
         return BAD_FUNC_ARG;
@@ -4136,7 +4136,7 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
 //             printf("[%d]", i);
 //         printf("\n");
 //     }
-    #ifdef WOLFSSL_QT
+    #ifdef OPENSSL_EXTRA
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
@@ -4180,7 +4180,7 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
-    #endif //WOLFSSL_QT
+    #endif
     // {
     //     int i;
     //     printf("\n\nGetSequence 3:");
@@ -4219,7 +4219,7 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
 
 
 //printf("input is: %02x  length is: %d  inOutIdx is: %d\n\n", input[*inOutIdx], length, *inOutIdx);
-    #ifdef WOLFSSL_QT
+    #ifdef OPENSSL_EXTRA
         if (CheckBitString(input, inOutIdx, &length, inSz, 0, NULL) < 0)
             ret = ASN_PARSE_E;
         // {
