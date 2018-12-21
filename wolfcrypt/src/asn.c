@@ -14665,9 +14665,11 @@ void FreeOcspRequest(OcspRequest* req)
     if (req) {
         if (req->serial)
             XFREE(req->serial, req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+        req->serial = NULL;
 
         if (req->url)
             XFREE(req->url, req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+        req->url = NULL;
     }
 }
 
