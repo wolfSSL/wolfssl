@@ -74,7 +74,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
 %{_libdir}/libwolfssl.so.19
-%{_libdir}/libwolfssl.so.19.0.0
+%{_libdir}/libwolfssl.so.19.1.0
 
 %files devel
 %defattr(-,root,root,-)
@@ -198,7 +198,6 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/ed25519.h
 %{_includedir}/wolfssl/wolfcrypt/error-crypt.h
 %{_includedir}/wolfssl/wolfcrypt/fe_operations.h
-%{_includedir}/wolfssl/wolfcrypt/fips.h
 %{_includedir}/wolfssl/wolfcrypt/fips_test.h
 %{_includedir}/wolfssl/wolfcrypt/ge_operations.h
 %{_includedir}/wolfssl/wolfcrypt/hash.h
@@ -267,6 +266,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/openssl/opensslv.h
 %{_includedir}/wolfssl/openssl/ossl_typ.h
 %{_includedir}/wolfssl/openssl/pem.h
+%{_includedir}/wolfssl/openssl/pkcs7.h
 %{_includedir}/wolfssl/openssl/pkcs12.h
 %{_includedir}/wolfssl/openssl/rand.h
 %{_includedir}/wolfssl/openssl/rc4.h
@@ -288,6 +288,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Thu Dec 20 2018 Jacob Barthelmeh <jacob@wolfssl.com>
+- Remove wolfssl/wolfcrypt/fips.h, add wolfssl/openssl/pkcs7.h
 * Wed Jun 20 2018 Jacob Barthelmeh <jacob@wolfssl.com>
 - Remove NEWS, update ChangeLog to ChangeLog.md, remove wolfssl/wolfcrypt/fips.h, add wolfssl/wolfcrypt/cryptodev.h
 * Thu May 31 2018 John Safranek <john@wolfssl.com>

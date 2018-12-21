@@ -1,3 +1,41 @@
+# wolfSSL Release 3.15.7 (12/26/2018)
+
+Release 3.15.7 of wolfSSL embedded TLS has bug fixes and new features including:
+
+* Support for Espressif ESP-IDF development framework
+* Fix for XCode build with iPhone simulator on i386
+* PKCS7 support for generating and verify bundles using a detached signature
+* Fix for build disabling AES-CBC and enabling opensslextra compatibility layer
+* Updates to sniffer for showing session information and handling split messages across records
+* Port update for Micrium uC/OS-III
+* Feature to adjust max fragment size post handshake when compiled with the macro WOLFSSL_ALLOW_MAX_FRAGMENT_ADJUST
+* Adding the macro NO_MULTIBYTE_PRINT for compiling out special characters that embedded devices may have problems with
+* Updates for Doxygen documentation, including PKCS #11 API and more
+* Adding Intel QuickAssist v1.7 driver support for asynchronous crypto
+* Adding Intel QuickAssist RSA key generation and SHA-3 support
+* RSA verify only (--enable-rsavfy) and RSA public only (--enable-rsapub) builds added
+* Enhancements to test cases for increased code coverage
+* Updates to VxWorks port for use with Mongoose, including updates to the OpenSSL compatibility layer
+* Yocto Project ease of use improvements along with many updates and build instructions added to the INSTALL file
+* Maximum ticket nonce size was increased to 8
+* Updating --enable-armasm build for ease of use with autotools
+* Updates to internal code checking TLS 1.3 version with a connection
+* Removing unnecessary extended master secret from ServerHello if using TLS 1.3
+* Fix for TLS v1.3 HelloRetryRequest to be sent immediately and not grouped
+
+
+
+This release of wolfSSL includes a fix for 1 security vulnerability.
+
+Medium level fix for potential cache attack with a variant of Bleichenbacher’s attack. Earlier versions of wolfSSL leaked PKCS #1 v1.5 padding information during private key decryption that could lead to a potential padding oracle attack. It is recommended that users update to the latest version of wolfSSL if they have RSA cipher suites enabled and have the potential for malicious software to be ran on the same system that is performing RSA operations. Users that have only ECC cipher suites enabled and are not performing RSA PKCS #1 v1.5 Decryption operations are not vulnerable. Also users with TLS 1.3 only connections are not vulnerable to this attack. Thanks to Eyal Ronen (Weizmann Institute), Robert Gillham (University of Adelaide), Daniel Genkin (University of Michigan), Adi Shamir (Weizmann Institute), David Wong (NCC Group), and Yuval Yarom (University of Adelaide and Data61) for the report.
+
+The paper for further reading on the attack details can be found at http://cat.eyalro.net/cat.pdf.
+
+
+See INSTALL file for build instructions.
+More info can be found on-line at http://wolfssl.com/wolfSSL/Docs.html
+
+
 # wolfSSL Release 3.15.5 (11/07/2018)
 
 Release 3.15.5 of wolfSSL embedded TLS has bug fixes and new features including:
