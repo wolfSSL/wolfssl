@@ -17227,9 +17227,9 @@ static void test_wolfSSL_PEM_PrivateKey(void)
 }
 
 
-static void test_wolfSSL_PEM_RSAPrivateKey(void)
+static void test_wolfSSL_PEM_read_bio_RSAKey(void)
 {
-    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
        !defined(NO_FILESYSTEM) && !defined(NO_RSA)
     RSA* rsa = NULL;
     BIO* bio = NULL;
@@ -17239,16 +17239,20 @@ static void test_wolfSSL_PEM_RSAPrivateKey(void)
     AssertNotNull(bio = BIO_new_file(svrKeyFile, "rb"));
     AssertNotNull((rsa = PEM_read_bio_RSAPrivateKey(bio, NULL, NULL, NULL)));
     AssertIntEQ(RSA_size(rsa), 256);
+    AssertNotNull(bio = BIO_new_file("./certs/rsa-pub-2048.pem", "rb"));
+    AssertNotNull((rsa = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL)));
+    AssertIntEQ(RSA_size(rsa), 256);
 
     BIO_free(bio);
     RSA_free(rsa);
 
-#ifdef HAVE_ECC
+    #ifdef HAVE_ECC
     AssertNotNull(bio = BIO_new_file(eccKeyFile, "rb"));
     AssertNull((rsa = PEM_read_bio_RSAPrivateKey(bio, NULL, NULL, NULL)));
-
+    AssertNull((rsa = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL)));
     BIO_free(bio);
-#endif /* HAVE_ECC */
+    RSA_free(rsa);
+    #endif /* HAVE_ECC */
 
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) */
@@ -23216,7 +23220,7 @@ void ApiTest(void)
     test_wolfSSL_ASN1_GENERALIZEDTIME_free();
     test_wolfSSL_private_keys();
     test_wolfSSL_PEM_PrivateKey();
-    test_wolfSSL_PEM_RSAPrivateKey();
+    test_wolfSSL_PEM_read_bio_RSAKey();
     test_wolfSSL_PEM_PUBKEY();
     test_wolfSSL_tmp_dh();
     test_wolfSSL_ctrl();

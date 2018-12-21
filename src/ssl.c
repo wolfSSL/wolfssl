@@ -27398,7 +27398,7 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
     return ret;
 }
 
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+#if defined(WOLFSSL_QT) || defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 
 /* return WOLFSSL_SUCCESS or WOLFSSL_FAILURE */
 int wolfSSL_PEM_write_bio_RSA_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa)
@@ -30097,36 +30097,22 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_bio_PUBKEY(WOLFSSL_BIO* bio,
 {
     WOLFSSL_EVP_PKEY* pkey = NULL;
     DerBuffer*        der = NULL;
-    int               eccFlag = 0;
-
+    int               keyFormat = 0;
 
     WOLFSSL_ENTER("wolfSSL_PEM_read_bio_PUBKEY");
 
     if (bio == NULL)
         return pkey;
 
-    if (pem_read_bio_key(bio, cb, pass, PUBLICKEY_TYPE, &eccFlag, &der) >= 0) {
+    if (pem_read_bio_key(bio, cb, pass, PUBLICKEY_TYPE, &keyFormat, &der) >= 0) {
         unsigned char* ptr = der->buffer;
+
         /* handle case where reuse is attempted */
-            //%%%%%
-           // printf(" pem_read_bio_key is returning >=0 \n\n");
-        if (key != NULL && *key != NULL){
+        if (key != NULL && *key != NULL)
             pkey = *key;
-        }
 
         wolfSSL_d2i_PUBKEY(&pkey, &ptr, der->length);
-
-
-        //printf("\n\n\n\n\n\n\n-----------------------------GOTIT----------------------------\n\n\n\n\n\n:");
-        // for (int i = 0; i < &length; i++){
-        //     printf("%02x", pkey[i]);
-        // }
-
-
-
         if (pkey == NULL) {
-            //%%%%%
-           // printf("pkey is null :( \n\n");
             WOLFSSL_MSG("Error loading DER buffer into WOLFSSL_EVP_PKEY");
         }
     }
@@ -30135,7 +30121,6 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_bio_PUBKEY(WOLFSSL_BIO* bio,
 
     if (key != NULL && pkey != NULL)
         *key = pkey;
-
 
     WOLFSSL_LEAVE("wolfSSL_PEM_read_bio_PUBKEY", 0);
 
