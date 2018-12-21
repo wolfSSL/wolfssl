@@ -14327,6 +14327,7 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
         }
 
         if (request != NULL && ret != 0) {
+            FreeOcspRequest(request);
             XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
             request = NULL;
         }
@@ -14983,6 +14984,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
 
                         i++;
+                        FreeOcspRequest(request);
                     }
                 }
 
