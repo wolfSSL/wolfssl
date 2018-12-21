@@ -554,6 +554,7 @@ enum tfmExptModNbState {
   TFM_EXPTMOD_NB_SQR,
   TFM_EXPTMOD_NB_SQR_RED,
   TFM_EXPTMOD_NB_RED,
+  TFM_EXPTMOD_NB_COUNT /* last item for total state count only */
 };
 
 typedef struct {
@@ -562,12 +563,24 @@ typedef struct {
 #else
   fp_int   R[2];
 #endif
-  fp_digit buf, mp;
+  fp_digit buf;
+  fp_digit mp;
   int bitcnt;
   int digidx;
   int y;
   int state; /* tfmExptModNbState */
+#ifdef WC_RSA_NONBLOCK_TIME
+  word32 maxBlockInst; /* maximum instructions to block */
+  word32 totalInst;    /* tracks total instructions */
+#endif
 } exptModNb_t;
+
+#ifdef WC_RSA_NONBLOCK_TIME
+enum {
+  TFM_EXPTMOD_NB_STOP = 0,     /* stop and return FP_WOULDBLOCK */
+  TFM_EXPTMOD_NB_CONTINUE = 1, /* keep blocking */
+};
+#endif
 
 /* non-blocking version of timing resistant fp_exptmod function */
 /* supports cache resistance */
