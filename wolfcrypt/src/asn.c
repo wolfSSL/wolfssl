@@ -44,8 +44,6 @@ ASN Options:
     Only enabled for OCSP.
  * WOLFSSL_NO_OCSP_ISSUER_CHECK: Can be defined for backwards compatibility to
     disable checking of OCSP subject hash with issuer hash.
- * WOLFSSL_ALT_CERT_CHAINS: Allows matching multiple CA's to validate
-    chain based on issuer and public key (includes signature confirmation)
  * WOLFSSL_SMALL_CERT_VERIFY: Verify the certificate signature without using
     DecodedCert. Doubles up on some code but allows smaller dynamic memory
     usage.
@@ -4223,6 +4221,8 @@ void FreeNameSubtrees(Base_entry* names, void* heap)
 
 void FreeDecodedCert(DecodedCert* cert)
 {
+    if (cert == NULL)
+        return;
     if (cert->subjectCNStored == 1)
         XFREE(cert->subjectCN, cert->heap, DYNAMIC_TYPE_SUBJECT_CN);
     if (cert->pubKeyStored == 1)
@@ -5385,7 +5385,7 @@ int ValidateDate(const byte* date, byte format, int dateType)
         GetTime(&diffMM, date, &i);
         timeDiff = diffSign * (diffHH*60 + diffMM) * 60 ;
     } else if (date[i] != 'Z') {
-        WOLFSSL_MSG("UTCtime, niether Zulu or time differential") ;
+        WOLFSSL_MSG("UTCtime, neither Zulu or time differential") ;
         return 0;
     }
 
@@ -5613,6 +5613,11 @@ int DecodeToKey(DecodedCert* cert, int verify)
         return ret;
 
     WOLFSSL_MSG("Got Subject Name");
+
+    /* Determine if self signed */
+    cert->selfSigned = XMEMCMP(cert->issuerHash,
+                               cert->subjectHash,
+                               KEYID_SIZE) == 0 ? 1 : 0;
 
     if ( (ret = GetKey(cert)) < 0)
         return ret;
@@ -7664,8 +7669,7 @@ Signer* GetCAByName(void* signers, byte* hash)
 
 #endif /* WOLFCRYPT_ONLY || NO_CERTS */
 
-#if (defined(WOLFSSL_ALT_CERT_CHAINS) || \
-    defined(WOLFSSL_NO_TRUSTED_CERTS_VERIFY)) && !defined(NO_SKID)
+#if defined(WOLFSSL_NO_TRUSTED_CERTS_VERIFY) && !defined(NO_SKID)
 static Signer* GetCABySubjectAndPubKey(DecodedCert* cert, void* cm)
 {
     Signer* ca = NULL;
@@ -7955,7 +7959,6 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     int    badDate = 0;
     int    criticalExt = 0;
     word32 confirmOID;
-    int    selfSigned = 0;
 
     if (cert == NULL) {
         return BAD_FUNC_ARG;
@@ -8033,34 +8036,29 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                 }
             }
         #endif /* WOLFSSL_NO_TRUSTED_CERTS_VERIFY */
-
-            /* alt lookup using subject and public key */
-        #ifdef WOLFSSL_ALT_CERT_CHAINS
-            if (cert->ca == NULL)
-                cert->ca = GetCABySubjectAndPubKey(cert, cm);
-        #endif
     #else
             cert->ca = GetCA(cm, cert->issuerHash);
-            if (XMEMCMP(cert->issuerHash, cert->subjectHash, KEYID_SIZE) == 0)
-                selfSigned = 1;
     #endif /* !NO_SKID */
 
             WOLFSSL_MSG("About to verify certificate signature");
+
             if (cert->ca) {
+                /* Check if cert is CA type and has path length set */
                 if (cert->isCA && cert->ca->pathLengthSet) {
-                    if (selfSigned) {
+                    /* Check root CA (self-signed) has path length > 0 */
+                    if (cert->selfSigned) {
                         if (cert->ca->pathLength != 0) {
                            WOLFSSL_MSG("Root CA with path length > 0");
                            return ASN_PATHLEN_INV_E;
                         }
                     }
                     else {
+                        /* Check path lengths are valid between two CA's */
                         if (cert->ca->pathLength == 0) {
                             WOLFSSL_MSG("CA with path length 0 signing a CA");
                             return ASN_PATHLEN_INV_E;
                         }
                         else if (cert->pathLength >= cert->ca->pathLength) {
-
                             WOLFSSL_MSG("CA signing CA with longer path length");
                             return ASN_PATHLEN_INV_E;
                         }
