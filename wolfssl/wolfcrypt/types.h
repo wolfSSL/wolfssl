@@ -361,8 +361,8 @@
         /* snprintf is used in asn.c for GetTimeString, PKCS7 test, and when
            debugging is turned on */
         #ifndef USE_WINDOWS_API
-            #if defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
-               !defined(NO_STDIO_FILESYSTEM)
+            #if defined(NO_FILESYSTEM) && (defined(OPENSSL_EXTRA) || \
+                   defined(HAVE_PKCS7)) && !defined(NO_STDIO_FILESYSTEM)
                 /* case where stdio is not included else where but is needed for
                  * snprintf */
                 #include <stdio.h>
@@ -528,7 +528,7 @@
 
     /* hash types */
     enum wc_HashType {
-    #ifdef HAVE_SELFTEST
+    #if defined(HAVE_SELFTEST) || defined(HAVE_FIPS)
         /* In selftest build, WC_* types are not mapped to WC_HASH_TYPE types.
          * Values here are based on old selftest hmac.h enum, with additions */
         WC_HASH_TYPE_NONE = 15,

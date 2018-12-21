@@ -1839,7 +1839,8 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_NO_INT_DECODE
 #endif
 
-#if defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    defined(WC_NO_RSA_OAEP)
     #undef  WOLFSSL_NO_CT_OPS
     #define WOLFSSL_NO_CT_OPS
 #endif

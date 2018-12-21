@@ -1133,6 +1133,7 @@ const unsigned char* wolfSSL_EVP_PKEY_get0_hmac(const WOLFSSL_EVP_PKEY* pkey,
     return (const unsigned char*)pkey->pkey.ptr;
 }
 
+
 /* Initialize an EVP_DigestSign/Verify operation.
  * Initialize a digest for RSA and ECC keys, or HMAC for HMAC key.
  */
@@ -1240,10 +1241,10 @@ static int wolfssl_evp_digest_pk_final(WOLFSSL_EVP_MD_CTX *ctx,
         if (ctx->macType != (NID_hmac & 0xFF))
             return WOLFSSL_FAILURE;
 
-        XMEMCPY(&hmacCopy, &ctx->hash.hmac, sizeof(hmacCopy));
+        if (wolfSSL_HmacCopy(&hmacCopy, &ctx->hash.hmac) != WOLFSSL_SUCCESS)
+            return WOLFSSL_FAILURE;
         ret = wc_HmacFinal(&hmacCopy, md) == 0;
-
-        ForceZero(&hmacCopy, sizeof(hmacCopy));
+        wc_HmacFree(&hmacCopy);
         return ret;
     }
     else {

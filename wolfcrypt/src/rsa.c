@@ -696,6 +696,7 @@ static int RsaMGF(int type, byte* seed, word32 seedSz, byte* out,
 
 
 /* Padding */
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
 #ifndef WC_NO_RNG
 #ifndef WC_NO_RSA_OAEP
 static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
@@ -993,6 +994,7 @@ static int RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
             if (pkcsBlock[i] == 0) pkcsBlock[i] = 0x01;
         }
 #else
+        (void)rng;
         return RSA_WRONG_TYPE_E;
 #endif
     }
@@ -1004,7 +1006,6 @@ static int RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
 }
 #endif /* !WC_NO_RNG */
 
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
 /* helper function to direct which padding is used */
 static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
     word32 pkcsBlockLen, byte padValue, WC_RNG* rng, int padType,
@@ -1079,6 +1080,7 @@ static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
 
     return ret;
 }
+#endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
 
 /* UnPadding */
@@ -1166,7 +1168,6 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     return pkcsBlockLen - idx;
 }
 #endif /* WC_NO_RSA_OAEP */
-#endif
 
 #ifdef WC_RSA_PSS
 /* 0x00 .. 0x00 0x01 | Salt | Gen Hash | 0xbc
@@ -1251,7 +1252,7 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
 static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
                     byte **output, byte padValue)
 {
-    int    ret;
+    int    ret = BAD_FUNC_ARG;
     word32 i;
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
     byte   invalid = 0;
@@ -2895,12 +2896,25 @@ int wc_RsaExportKey(RsaKey* key,
         ret = RsaGetValue(&key->e, e, eSz);
     if (ret == 0)
         ret = RsaGetValue(&key->n, n, nSz);
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     if (ret == 0)
         ret = RsaGetValue(&key->d, d, dSz);
     if (ret == 0)
         ret = RsaGetValue(&key->p, p, pSz);
     if (ret == 0)
         ret = RsaGetValue(&key->q, q, qSz);
+#else
+    /* no private parts to key */
+    if (d == NULL || p == NULL || q == NULL || dSz == NULL || pSz == NULL
+            || qSz == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        *dSz = 0;
+        *pSz = 0;
+        *qSz = 0;
+    }
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 
     return ret;
 }

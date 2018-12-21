@@ -16192,6 +16192,7 @@ static void test_wc_PKCS7_Degenerate(void)
 static int test_wc_SignatureGetSize_ecc(void)
 {
     int ret = 0;
+    #ifndef NO_SIG_WRAPPER
     #if defined(HAVE_ECC) && !defined(NO_ECC256)
         enum wc_SignatureType sig_type;
         word32 key_len;
@@ -16248,6 +16249,7 @@ static int test_wc_SignatureGetSize_ecc(void)
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
+    #endif /* NO_SIG_WRAPPER */
     return ret;
 }/* END test_wc_SignatureGetSize_ecc() */
 
@@ -16255,6 +16257,7 @@ static int test_wc_SignatureGetSize_ecc(void)
 static int test_wc_SignatureGetSize_rsa(void)
 {
     int ret = 0;
+    #ifndef NO_SIG_WRAPPER
     #ifndef NO_RSA
         enum wc_SignatureType sig_type;
         word32 key_len;
@@ -16351,6 +16354,7 @@ static int test_wc_SignatureGetSize_rsa(void)
     }
 
    printf(resultFmt, ret == 0 ? passed : failed);
+   #endif /* NO_SIG_WRAPPER */
    return ret;
 }/* END test_wc_SignatureGetSize_rsa(void) */
 
@@ -17471,6 +17475,7 @@ static void test_wolfSSL_EVP_MD_hmac_signing(void)
                 1);
     AssertIntEQ(wolfSSL_EVP_DigestVerifyFinal(&mdCtx, testResult, checkSz), 1);
 
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
     AssertIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
                                                                 NULL, key), 1);
@@ -17485,6 +17490,7 @@ static void test_wolfSSL_EVP_MD_hmac_signing(void)
     AssertIntEQ((int)checkSz,(int)sizeof(testResult));
     AssertIntEQ(XMEMCMP(testResult, check, sizeof(testResult)), 0);
 
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
     AssertIntEQ(wolfSSL_EVP_DigestVerifyInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
                                                                  NULL, key), 1);
     AssertIntEQ(wolfSSL_EVP_DigestVerifyUpdate(&mdCtx, testData, 4), 1);
@@ -20351,6 +20357,7 @@ static int test_HMAC_CTX_helper(const EVP_MD* type, unsigned char* digest)
     AssertIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
     AssertIntEQ(HMAC_Final(&ctx2, digest2, &digestSz), SSL_SUCCESS);
 
+    HMAC_CTX_cleanup(&ctx1);
     HMAC_CTX_cleanup(&ctx2);
     AssertIntEQ(digestSz, digestSz2);
     AssertIntEQ(XMEMCMP(digest, digest2, digestSz), 0);

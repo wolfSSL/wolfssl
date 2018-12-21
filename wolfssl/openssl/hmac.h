@@ -61,6 +61,7 @@ typedef struct WOLFSSL_HMAC_CTX {
 WOLFSSL_API int wolfSSL_HMAC_CTX_Init(WOLFSSL_HMAC_CTX* ctx);
 WOLFSSL_API int wolfSSL_HMAC_CTX_copy(WOLFSSL_HMAC_CTX* des,
                                        WOLFSSL_HMAC_CTX* src);
+WOLFSSL_LOCAL int wolfSSL_HmacCopy(Hmac* des, Hmac* src);
 WOLFSSL_API int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key,
                                  int keylen, const EVP_MD* type);
 WOLFSSL_API int wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key,
