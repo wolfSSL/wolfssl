@@ -42,6 +42,8 @@ Setup process:
 wolfssl\IDE\Renesas\cs+\Projects\wolfssl_lib\DefaultBuild\wolfssl_lib.lib
 wolfssl\IDE\Renesas\cs+\Projects\t4_demo\DefaultBuild\t4_demo.lib
 
+   - Set CC-RX(Build Tool)->Library Geberation->Library Configuration to"C99" and enable ctype.h.
+
    - Build the project and start execut. You see message on the console prompting command.
    
 ===
