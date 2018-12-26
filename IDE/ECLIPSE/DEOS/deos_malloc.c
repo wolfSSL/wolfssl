@@ -18,13 +18,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/ssl.h>
 
 #define HEAP_SIZE_MAX   (1*1024*1024)
 
 static size_t allocatedMemory = 0;
 
-size_t getMemAllocatedSize_does(size_t* size){
+size_t getMemAllocatedSize_deos(size_t* size){
 
     if (size)
         *size = allocatedMemory;
@@ -85,7 +86,7 @@ void *malloc_deos(size_t size) {
     }
 
     retAddr = freeAddr;
-    memset(retAddr, 0, size);
+    XMEMSET(retAddr, 0, size);
     freeAddr += size;
     allocatedMemory += size;
 

@@ -28,16 +28,19 @@
 
 #define WOLFSSL_DEOS
 
-/* You can select none or all of the following tests */
-#define WOLFSSL_WOLFCRYPT_TEST
-#define WOLFSSL_BENCHMARK_TEST
-#define WOLFSSL_CLIENT_TEST
-#define WOLFSSL_SERVER_TEST
+/* You can select none or all of the following tests
+using #define instead of #undef.
+By default, all four tests run*/
+
+#undef NO_CRYPT_TEST
+#undef NO_CRYPT_BENCHMARK
+#undef NO_WOLFSSL_CLIENT
+#undef NO_WOLFSSL_SERVER
 
 /* adjust CURRENT_UNIX_TIMESTAMP to seconds since Jan 01 1970. (UTC)
 You can get the current time from https://www.unixtimestamp.com/
 */
-#define CURRENT_UNIX_TIMESTAMP 1544162764
+#define CURRENT_UNIX_TIMESTAMP 1545864916
 
 #define NO_FILESYSTEM
 #define SIZEOF_LONG_LONG 8
@@ -65,12 +68,10 @@ You can get the current time from https://www.unixtimestamp.com/
 /* TLS 1.3 */
 #if 0
     #define WOLFSSL_TLS13
-    #define HAVE_TLS_EXTENSIONS
     #define WC_RSA_PSS
     #define HAVE_HKDF
     #define HAVE_FFDHE_2048
     #define HAVE_AEAD
-    #define HAVE_SUPPORTED_CURVES
 #endif
 
 #if 0

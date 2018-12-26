@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/ssl.h>
 #include <wolfcrypt/test/test.h>
 #include <wolfcrypt/benchmark/benchmark.h>
@@ -59,7 +60,7 @@ int setupTransport(clientConnectionHandleType* connectionHandle,
     return ret;
 }
 
-#if defined(WOLFSSL_CLIENT_TEST)
+#if !defined(NO_WOLFSSL_CLIENT )
 
 /* 172.217.3.174 is the IP address of https://www.google.com */
 #define TCP_SERVER_IP_ADDR "172.217.3.174"
@@ -179,11 +180,9 @@ void wolfssl_client_test(uintData_t statusPtr) {
 
     wolfSSL_Init();
 
-    #ifdef WOLFSSL_TLS13
-        ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
-    #else
-        ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
-    #endif
+    /* chooses the highest possible TLS version */
+
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
 
     /* SET UP NETWORK SOCKET */
     if (ctx == 0) {
@@ -192,7 +191,7 @@ void wolfssl_client_test(uintData_t statusPtr) {
         return;
     }
 
-    WOLFSSL_MSG("wolfSSL_CTX_new done\n");
+    WOLFSSL_MSG("wolfSSL_CTX_new done");
 
     wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
 
@@ -242,7 +241,7 @@ void wolfssl_client_test(uintData_t statusPtr) {
     } while ((ret != SSL_SUCCESS) && (error == SSL_ERROR_WANT_READ));
 
     printf("wolfSSL_connect() ok... sending GET\n");
-    strncpy(tx_buf, TX_MSG, TX_MSG_SIZE);
+    XSTRNCPY(tx_buf, TX_MSG, TX_MSG_SIZE);
     if (wolfSSL_write(ssl, tx_buf, TX_MSG_SIZE) != TX_MSG_SIZE) {
         error = wolfSSL_get_error(ssl, 0);
         printf("ERROR: wolfSSL_write() failed, err = %d\n", error);
@@ -277,10 +276,9 @@ void wolfssl_client_test(uintData_t statusPtr) {
     return;
 }
 
-#endif /* WOLFSSL_CLIENT_TEST */
+#endif /* NO_WOLFSSL_CLIENT */
 
-
-#if defined(WOLFSSL_SERVER_TEST)
+#if !defined(NO_WOLFSSL_SERVER)
 
 #define TLS_SERVER_PORT 11111
 #define TX_BUF_SIZE 64
@@ -426,13 +424,9 @@ void wolfssl_server_test(uintData_t statusPtr)
 
     wolfSSL_Init();
 
-    #if defined(WOLFSSL_TLS13)
-        ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
-        printf("Using TLSv1_3\n");
-    #else
-        ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
-        printf("Using TLSv1_2\n");
-    #endif
+    /* chooses the highest possible TLS version */
+
+    ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
 
     if (ctx == 0) {
         printf("ERROR: wolfSSL_CTX_new failed\n");
@@ -481,6 +475,10 @@ void wolfssl_server_test(uintData_t statusPtr)
 
     printf("Got client connection! Starting TLS negotiation\n");
 
+    #ifdef DEBUG_WOLFSSL
+        wolfSSL_Debugging_ON();
+    #endif
+
     /* set up wolfSSL session */
     ssl = wolfSSL_new(ctx);
     if (ssl == NULL) {
@@ -520,9 +518,7 @@ void wolfssl_server_test(uintData_t statusPtr)
     } while ((ret != SSL_SUCCESS) && (error == SSL_ERROR_WANT_READ));
 
     printf("wolfSSL_accept() ok...\n");
-    #ifdef DEBUG_WOLFSSL
-        wolfSSL_Debugging_ON();
-    #endif
+
     /* read client data */
 
     error = 0;
@@ -548,7 +544,7 @@ void wolfssl_server_test(uintData_t statusPtr)
     /* write response to client */
     XMEMSET(tx_buf, 0u, TX_BUF_SIZE);
     tx_buf_sz = 22;
-    strncpy(tx_buf, "I hear ya fa shizzle!\n", tx_buf_sz);
+    XSTRNCPY(tx_buf, "I hear ya fa shizzle!\n", tx_buf_sz);
     if (wolfSSL_write(ssl, tx_buf, tx_buf_sz) != tx_buf_sz) {
         error = wolfSSL_get_error(ssl, 0);
         printf("ERROR: wolfSSL_write() failed, err = %d\n", error);
@@ -570,7 +566,7 @@ void wolfssl_server_test(uintData_t statusPtr)
     return;
 }
 
-#endif /* WOLFSSL_SERVER_TEST */
+#endif /* NO_WOLFSSL_SERVER */
 
 int  wolfsslRunTests (void)
 {
@@ -578,20 +574,20 @@ int  wolfsslRunTests (void)
     threadStatus ts;
     int ret;
 
-    #if defined(WOLFSSL_WOLFCRYPT_TEST)
+    #if !defined(NO_CRYPT_TEST)
         wolfcrypt_test(NULL);
     #endif
-    #if defined(WOLFSSL_BENCHMARK_TEST)
+    #if !defined(NO_CRYPT_BENCHMARK)
         benchmark_test(NULL);
     #endif
-    #if defined(WOLFSSL_CLIENT_TEST)
+    #if !defined(NO_WOLFSSL_CLIENT)
         ts = createThread("TCPclient", "TCPThreadTemplate", wolfssl_client_test,
                           0, &TCPhandle );
         if (ts != threadSuccess) {
             printf("Unable to create TCP client thread, %i ", (DWORD)ts);
         }
     #endif
-    #if defined(WOLFSSL_SERVER_TEST)
+    #if !defined(NO_WOLFSSL_SERVER)
         ts = createThread("TCPserver", "TCPThreadTemplate", wolfssl_server_test,
                           0, &TCPhandle );
         if (ts != threadSuccess) {

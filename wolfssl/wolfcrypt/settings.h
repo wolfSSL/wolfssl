@@ -1168,13 +1168,19 @@ extern void uITRON4_free(void *p) ;
     /* disable fall-back case, malloc, realloc and free are unavailable */
     #define WOLFSSL_NO_MALLOC
 
+    /* file sytem has not been ported since it is a seperate product. */
+
     #define NO_FILESYSTEM
+
+    #ifdef NO_FILESYSTEM
+        #define NO_WOLFSSL_DIR
+        #define NO_WRITEV
+    #endif
 
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
     #define ECC_TIMING_RESISTANT
     #define WC_RSA_BLINDING
-    #define HAVE_HASHDRBG
 
     #define HAVE_ECC
     #define ALT_ECC_SIZE
@@ -1184,13 +1190,9 @@ extern void uITRON4_free(void *p) ;
     #define TFM_ECC384
     #define TFM_ECC521
 
-    #define NO_RC4
     #define HAVE_TLS_EXTENSIONS
     #define HAVE_SUPPORTED_CURVES
     #define HAVE_EXTENDED_MASTER
-
-    #define NO_WOLFSSL_DIR
-    #define NO_WRITEV
 
     #if (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
         #define BIG_ENDIAN_ORDER

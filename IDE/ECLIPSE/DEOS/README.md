@@ -10,12 +10,12 @@ You can start with your OpenArbor IDE-based example project for Deos with the ne
 
 wolfSSL supports a compile-time user configurable options in the `IDE/ECLIPSE/DEOS/user_settings.h` file.
 
-The `tls_wolfssl.c` example application provides a simple function to run the selected examples at compile time through the following four #defines in user_settings.h. You can define any of these macro options to run a test.
+The `tls_wolfssl.c` example application provides a simple function to run the selected examples at compile time through the following four #defines in user_settings.h. You can undefine any of these macro options to run a test.
 ```
-       1. #define WOLFSSL_WOLFCRYPT_TEST
-       2. #define WOLFSSL_BENCHMARK_TEST
-       3. #define WOLFSSL_CLIENT_TEST
-       4. #define WOLFSSL_SERVER_TEST
+       1. #undef NO_CRYPT_TEST
+       2. #undef NO_CRYPT_BENCHMARK
+       3. #undef NO_WOLFSSL_CLIENT
+       4. #undef NO_WOLFSSL_SERVER
 ```
 Steps for building and running wolfSSL with the Deos kernel examples included in the DDS release are as follows:
 #### Setting up a Deos project with wolfSSL
@@ -56,7 +56,7 @@ wolfsslPort
      mutexQuota = "5"
    >
    <logicalMemoryPools>
-           pagesNeeded = "1000"
+           pagesNeeded = "500"
       ></pool>
    </logicalMemoryPools>
    <mutexTemplates>
@@ -102,7 +102,7 @@ Depending on your configuration, wolfSSL uses upto four mutexes.
  1.  Build your project, then load and run your image on a target platform. Review the test results on the console output.
 
 
-### `WOLFSSL_WOLFCRYPT_TEST` wolfcrypt_test()
+### `wolfcrypt_test()`
 wolfcrypt_test() prints a message on the target console similar to the following output:
 ```
 error    test passed!
@@ -112,8 +112,7 @@ asn      test passed!
 ```
 This example doesn't show the whole output.
 
-The complete ouputs are not displayed here.
-### `WOLFSSL_BENCHMARK_TEST` benchmark_test()
+### `benchmark_test()`
 benchmark_test() prints a message on the target console similar to the following output.
 
 ```
@@ -128,11 +127,11 @@ AES-128-CBC-dec    225 KB tooks 1.005 seconds,  223.922 KB/s
 ```
 This example doesn't show the whole output.
 
-### `WOLFSSL_CLIENT_TEST` wolfssl_client_test()
+### `wolfssl_client_test()`
 
 You can modify the `TCP_SERVER_IP_ADDR` and `TCP_SERVER_PORT` macros in the `tls_wolfssl.c` file to configure the host address and port. You will also need to define the server certificate. The example client uses the GET request to get a web resource from the server at https://google.com.
 
-### `WOLFSSL_SERVER_TEST` wolfssl_server_test()
+### `wolfssl_server_test()`
 
 You can modify the `TLS_SERVER_PORT` in the `tls_wolfssl.c` file to configure the port number to listen on a local-host.
 Once you start the TLS server and `Listening for client connection` displays on the serial console, the server is ready to accept client connections.
