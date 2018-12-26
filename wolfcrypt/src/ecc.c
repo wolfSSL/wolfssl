@@ -5144,10 +5144,8 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 {
     int err;
     mp_int *r = NULL, *s = NULL;
-#ifndef WOLFSSL_ASYNC_CRYPT
-#ifndef WOLFSSL_SMALL_STACK
+#if !defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_SMALL_STACK)
     mp_int r_lcl[1], s_lcl[1];
-#endif
 #endif
 
     if (sig == NULL || hash == NULL || res == NULL || key == NULL) {
@@ -5186,7 +5184,7 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     XMEMSET(s, 0, sizeof(mp_int));
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-    switch(key->state) {
+    switch (key->state) {
         case ECC_STATE_NONE:
         case ECC_STATE_VERIFY_DECODE:
             key->state = ECC_STATE_VERIFY_DECODE;
@@ -5245,17 +5243,14 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     /* cleanup */
 #ifdef WOLFSSL_ASYNC_CRYPT
     wc_ecc_free_async(key);
+#elif defined(WOLFSSL_SMALL_STACK)
+    XFREE(s, key->heap, DYNAMIC_TYPE_ECC);
+    XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
+    r = NULL;
+    s = NULL;
 #endif
-    key->state = ECC_STATE_NONE;
 
-#ifdef WOLFSSL_SMALL_STACK
-    if (err != WC_PENDING_E) {
-            XFREE(s, key->heap, DYNAMIC_TYPE_ECC);
-            XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
-            r = NULL;
-            s = NULL;
-    }
-#endif
+    key->state = ECC_STATE_NONE;
 
     return err;
 }
