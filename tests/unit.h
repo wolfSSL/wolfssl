@@ -91,7 +91,7 @@
 
 
 void ApiTest(void);
-int  SuiteTest(void);
+int  SuiteTest(int argc, char** argv);
 int  HashTest(void);
 void SrpTest(void);
 
