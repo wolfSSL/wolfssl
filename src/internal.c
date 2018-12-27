@@ -10858,7 +10858,13 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             SendAlert(ssl, alert_fatal, decode_error);
         ret = DECODE_E;
     }
-    if (ret == 0 && ssl->buffers.inputBuffer.dynamicFlag) {
+
+    if (ret == 0 && ssl->buffers.inputBuffer.dynamicFlag
+    #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
+        /* do not shrink input for async or non-block */
+        && ssl->error != WC_PENDING_E && ssl->error != OCSP_WANT_READ
+    #endif
+    ) {
         ShrinkInputBuffer(ssl, NO_FORCED_FREE);
     }
 
