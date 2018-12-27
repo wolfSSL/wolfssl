@@ -3488,7 +3488,7 @@ void bench_blake2(void)
     Blake2b b2b;
     byte    digest[64];
     double  start;
-    int     ret, i, count;
+    int     ret = 0, i, count;
 
     if (digest_stream) {
         ret = wc_InitBlake2b(&b2b, 64);

@@ -9789,7 +9789,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     idx += encryptedOutSz;
 
     /* authenticated attributes */
-    if (authAttribsSz > 0) {
+    if (flatAuthAttribs && authAttribsSz > 0) {
         XMEMCPY(output + idx, authAttribSet, authAttribsSetSz);
         idx += authAttribsSetSz;
         XMEMCPY(output + idx, flatAuthAttribs, authAttribsSz);

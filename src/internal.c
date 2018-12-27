@@ -8843,7 +8843,11 @@ static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
 #endif /* WOLFSSL_SMALL_CERT_VERIFY */
 
     /* make sure the decoded cert structure is allocated and initialized */
-    if (!args->dCertInit) {
+    if (!args->dCertInit
+    #ifdef WOLFSSL_SMALL_CERT_VERIFY
+        || args->dCert == NULL
+    #endif
+    ) {
     #ifdef WOLFSSL_SMALL_CERT_VERIFY
         if (args->dCert == NULL) {
             args->dCert = (DecodedCert*)XMALLOC(
