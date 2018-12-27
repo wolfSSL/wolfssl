@@ -1342,9 +1342,19 @@ static int wc_PKCS7_RsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
         }
     }
     if (ret == 0) {
-        ret = wc_RsaSSL_Sign(in, inSz, esd->encContentDigest,
-                             sizeof(esd->encContentDigest),
-                             privKey, pkcs7->rng);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        do {
+            ret = wc_AsyncWait(ret, &privKey->asyncDev,
+                WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+            if (ret >= 0) {
+                ret = wc_RsaSSL_Sign(in, inSz, esd->encContentDigest,
+                                     sizeof(esd->encContentDigest),
+                                     privKey, pkcs7->rng);
+            }
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        } while (ret == WC_PENDING_E);
+    #endif
     }
 
     wc_FreeRsaKey(privKey);
@@ -1395,8 +1405,18 @@ static int wc_PKCS7_EcdsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
     }
     if (ret == 0) {
         outSz = sizeof(esd->encContentDigest);
-        ret = wc_ecc_sign_hash(in, inSz, esd->encContentDigest,
-                               &outSz, pkcs7->rng, privKey);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        do {
+            ret = wc_AsyncWait(ret, &privKey->asyncDev,
+                WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+            if (ret >= 0) {
+                ret = wc_ecc_sign_hash(in, inSz, esd->encContentDigest,
+                                       &outSz, pkcs7->rng, privKey);
+            }
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        } while (ret == WC_PENDING_E);
+    #endif
         if (ret == 0)
             ret = (int)outSz;
     }
@@ -2771,7 +2791,18 @@ static int wc_PKCS7_RsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
             continue;
         }
 
-        ret = wc_RsaSSL_Verify(sig, sigSz, digest, MAX_PKCS7_DIGEST_SZ, key);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        do {
+            ret = wc_AsyncWait(ret, &key->asyncDev,
+                WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+            if (ret >= 0) {
+                ret = wc_RsaSSL_Verify(sig, sigSz, digest, MAX_PKCS7_DIGEST_SZ,
+                    key);
+            }
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        } while (ret == WC_PENDING_E);
+    #endif
         FreeDecodedCert(dCert);
         wc_FreeRsaKey(key);
 
@@ -2884,7 +2915,17 @@ static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
             continue;
         }
 
-        ret = wc_ecc_verify_hash(sig, sigSz, hash, hashSz, &res, key);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        do {
+            ret = wc_AsyncWait(ret, &key->asyncDev,
+                WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+            if (ret >= 0) {
+                ret = wc_ecc_verify_hash(sig, sigSz, hash, hashSz, &res, key);
+            }
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        } while (ret == WC_PENDING_E);
+    #endif
 
         FreeDecodedCert(dCert);
         wc_ecc_free(key);
@@ -9748,7 +9789,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     idx += encryptedOutSz;
 
     /* authenticated attributes */
-    if (authAttribsSz > 0) {
+    if (flatAuthAttribs && authAttribsSz > 0) {
         XMEMCPY(output + idx, authAttribSet, authAttribsSetSz);
         idx += authAttribsSetSz;
         XMEMCPY(output + idx, flatAuthAttribs, authAttribsSz);

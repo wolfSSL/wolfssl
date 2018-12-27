@@ -1541,7 +1541,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
                 else if (myoptarg[0] == 'e') {
                     version = EITHER_DOWNGRADE_VERSION;
+                #ifndef NO_CERTS
                     loadCertKeyIntoSSLObj = 1;
+                #endif
                     break;
                 }
             #endif
@@ -1581,7 +1583,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             #endif
                 else if (XSTRNCMP(myoptarg, "loadSSL", 7) == 0) {
                     printf("Load cert/key into wolfSSL object\n");
+                #ifndef NO_CERTS
                     loadCertKeyIntoSSLObj = 1;
+                #endif
                 }
                 else {
                     Usage();

@@ -3442,9 +3442,11 @@ doPart:
 
 
 /* See if we need to process any pending FIN captures */
-static void CheckFinCapture(IpInfo* ipInfo, TcpInfo* tcpInfo,
+/* Return 0=normal, else = session removed */
+static int CheckFinCapture(IpInfo* ipInfo, TcpInfo* tcpInfo,
                             SnifferSession* session)
 {
+    int ret = 0;
     if (session->finCaputre.cliFinSeq && session->finCaputre.cliFinSeq <=
                                          session->cliExpected) {
         if (session->finCaputre.cliCounted == 0) {
@@ -3463,8 +3465,11 @@ static void CheckFinCapture(IpInfo* ipInfo, TcpInfo* tcpInfo,
         }
     }
 
-    if (session->flags.finCount >= 2)
+    if (session->flags.finCount >= 2) {
         RemoveSession(session, ipInfo, tcpInfo, 0);
+        ret = 1;
+    }
+    return ret;
 }
 
 
@@ -3549,9 +3554,9 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
 
     ret = ProcessMessage(sslFrame, session, sslBytes, data, end, error);
     if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
-    CheckFinCapture(&ipInfo, &tcpInfo, session);
-
-    CopySessionInfo(session, sslInfo);
+    if (CheckFinCapture(&ipInfo, &tcpInfo, session) == 0) {
+        CopySessionInfo(session, sslInfo);
+    }
 
     return ret;
 }
