@@ -37,6 +37,6 @@ EXTRA_DIST += tests/test.conf \
               tests/test-fails.conf \
               tests/test-chains.conf \
               tests/test-altchains.conf \
-              tests/test-trustedpeer.conf \
+              tests/test-trustpeer.conf \
               tests/test-dhprime.conf
 DISTCLEANFILES+= tests/.libs/unit.test
