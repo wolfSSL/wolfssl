@@ -1902,7 +1902,7 @@ enum BulkCipherAlgorithm {
 
 /* for KDF TLS 1.2 mac types */
 enum KDF_MacAlgorithm {
-    wolfssl_sha256 = 4,     /* needs to match internal MACAlgorithm */
+    wolfssl_sha256 = 4,     /* needs to match hash.h wc_MACAlgorithm */
     wolfssl_sha384,
     wolfssl_sha512
 };
