@@ -1,5 +1,5 @@
-/**
- * esp32_util.c
+/* esp32_util.c
+ *
  * Copyright (C) 2006-2018 wolfSSL Inc.
  *
  * This file is part of wolfSSL.

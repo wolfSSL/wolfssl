@@ -1,5 +1,5 @@
-/**
- * aes.c
+/* esp32_aes.c
+ *
  * Copyright (C) 2006-2018 wolfSSL Inc.
  *
  * This file is part of wolfSSL.

@@ -1,5 +1,5 @@
-/**
- * esp32-crypt.h
+/* esp32-crypt.h
+ *
  * Copyright (C) 2006-2018 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
