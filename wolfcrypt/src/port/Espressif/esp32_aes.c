@@ -27,6 +27,8 @@
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifndef NO_AES
+
 #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
     !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_AES)
 
@@ -44,8 +46,9 @@ static int espaes_CryptHwMutexInit = 0;
 */
 static int esp_aes_hw_InUse()
 {
-    ESP_LOGV(TAG, "enter esp_aes_hw_InUse");
     int ret = 0;
+    
+    ESP_LOGV(TAG, "enter esp_aes_hw_InUse");
 
     if(espaes_CryptHwMutexInit == 0) {
         ret = esp_CryptHwMutexInit(&aes_mutex);
@@ -74,7 +77,7 @@ static int esp_aes_hw_InUse()
 */
 static void esp_aes_hw_Leave( void )
 {
-    ESP_LOGV(TAG, "enter esp_aes_hw_InUse");
+    ESP_LOGV(TAG, "enter esp_aes_hw_Leave");
     /* Disable AES hardware */
     periph_module_disable(PERIPH_AES_MODULE);
 
@@ -89,8 +92,10 @@ static void esp_aes_hw_Leave( void )
  */
 static void esp_aes_hw_Set_KeyMode(Aes *ctx, ESP32_AESPROCESS mode)
 {
-    ESP_LOGV(TAG, "enter esp_aes_hw_InUse");
+    int i;
     word32 mode_ = 0;
+    
+    ESP_LOGV(TAG, "enter esp_aes_hw_Set_KeyMode");
 
     /* check mode */
     if(mode == ESP32_AES_UPDATEKEY_ENCRYPT) {
@@ -103,7 +108,7 @@ static void esp_aes_hw_Set_KeyMode(Aes *ctx, ESP32_AESPROCESS mode)
     }
 
     /* update key */
-    for(int i=0;i<(ctx->keylen)/sizeof(word32);i++){
+    for(i=0;i<(ctx->keylen)/sizeof(word32);i++){
         DPORT_REG_WRITE(AES_KEY_BASE + (i*4), *(((word32*)ctx->key) + i));
     }
 
@@ -130,9 +135,10 @@ static void esp_aes_hw_Set_KeyMode(Aes *ctx, ESP32_AESPROCESS mode)
  */
 static void esp_aes_bk(const byte* in, byte* out)
 {
-    ESP_LOGV(TAG, "enter esp_aes_hw_InUse");
     const word32 *inwords = (const word32 *)in;
     word32 *outwords      = (word32 *)out;
+    
+    ESP_LOGV(TAG, "enter esp_aes_bk");
 
     /* copy text for encrypting/decrypting blocks */
     DPORT_REG_WRITE(AES_TEXT_BASE, inwords[0]);
@@ -209,12 +215,13 @@ int wc_esp32AesDecrypt(Aes *aes, const byte* in, byte* out)
 */
 int wc_esp32AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    ESP_LOGV(TAG, "enter wc_esp32AesCbcEncrypt");
     int i;
     int offset = 0;
     word32 blocks = (sz / AES_BLOCK_SIZE);
     byte *iv;
     byte temp_block[AES_BLOCK_SIZE];
+    
+    ESP_LOGV(TAG, "enter wc_esp32AesCbcEncrypt");
 
     iv      = (byte*)aes->reg;
 
@@ -254,13 +261,14 @@ int wc_esp32AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 */
 int wc_esp32AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
-    ESP_LOGV(TAG, "enter wc_esp32AesCbcDecrypt");
     int i;
     int offset = 0;
     word32 blocks = (sz / AES_BLOCK_SIZE);
     byte* iv;
     byte temp_block[AES_BLOCK_SIZE];
 
+    ESP_LOGV(TAG, "enter wc_esp32AesCbcDecrypt");
+    
     iv      = (byte*)aes->reg;
 
     esp_aes_hw_InUse();
@@ -288,3 +296,4 @@ int wc_esp32AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 }
 
 #endif /* WOLFSSL_ESP32WROOM32_CRYPT */
+#endif /* NO_AES */

@@ -33,9 +33,6 @@
 #define LOG_LOCAL_LEVEL ESP_LOG_ERROR
 #endif
 
-#ifndef NO_SHA
-#include "rom/sha.h"
-#endif
 #include <freertos/FreeRTOS.h>
 #include "soc/dport_reg.h"
 #include "soc/hwcrypto_reg.h"
@@ -78,8 +75,11 @@ uint64_t  wc_esp32elapsedTime();
 
 #endif /* WOLFSSL_ESP32WROOM32_CRYPT_DEBUG */
 
-#if !defined(NO_SHA) && \
+#if (!defined(NO_SHA) || !defined(NO_SHA256) || defined(WOLFSSL_SHA384) || \
+      defined(WOLFSSL_SHA512)) && \
     !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+
+#include "rom/sha.h"
 
 typedef enum {
     ESP32_SHA_INIT = 0,

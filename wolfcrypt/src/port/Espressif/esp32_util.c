@@ -1,5 +1,5 @@
 /**
- * util.c
+ * esp32_util.c
  * Copyright (C) 2006-2018 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
@@ -25,13 +25,18 @@
    defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512))
 
 #include <wolfssl/wolfcrypt/wc_port.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 int esp_CryptHwMutexInit(wolfSSL_Mutex* mutex) {
     return wc_InitMutex(mutex);
 }
 
-int esp_CryptHwMutexLock(wolfSSL_Mutex* mutex, TickType_t xBloxkTime) {
-    return wc_LockMutex_ex(mutex, xBloxkTime);
+int esp_CryptHwMutexLock(wolfSSL_Mutex* mutex, TickType_t xBlockTime) {
+#ifdef SINGLE_THREADED
+    return wc_LockMutex(mutex);
+#else
+    return ((xSemaphoreTake( *mutex, xBlockTime ) == pdTRUE) ? 0 : BAD_MUTEX_E);
+#endif
 }
 
 int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex) {
@@ -45,7 +50,7 @@ int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex) {
 #include "esp_timer.h"
 #include "esp_log.h"
 
-uint64_t startTime = 0;
+static uint64_t startTime = 0;
 
 
 void wc_esp32TimerStart()

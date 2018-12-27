@@ -214,9 +214,6 @@
 
 /* Mutex functions */
 WOLFSSL_API int wc_InitMutex(wolfSSL_Mutex*);
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT)
-WOLFSSL_API int wc_LockMutex_ex(wolfSSL_Mutex* m, TickType_t xBlockTime);
-#endif
 WOLFSSL_API wolfSSL_Mutex* wc_InitAndAllocMutex(void);
 WOLFSSL_API int wc_FreeMutex(wolfSSL_Mutex*);
 WOLFSSL_API int wc_LockMutex(wolfSSL_Mutex*);
