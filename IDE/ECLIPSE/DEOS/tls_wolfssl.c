@@ -214,7 +214,7 @@ void wolfssl_client_test(uintData_t statusPtr) {
         return;
     }
 
-    WOLFSSL_MSG("wolfSSL_new done\n");
+    WOLFSSL_MSG("wolfSSL_new done");
     ret = wolfSSL_set_fd(ssl, sock);
     if (ret != SSL_SUCCESS) {
         printf("ERROR: wolfSSL_set_fd() failed\n");
@@ -223,7 +223,7 @@ void wolfssl_client_test(uintData_t statusPtr) {
         wolfSSL_CTX_free(ctx);
         return;
     }
-    WOLFSSL_MSG("wolfSSL_set_fd done\n");
+    WOLFSSL_MSG("wolfSSL_set_fd done");
     do {
         error = 0; /* reset error */
         ret = wolfSSL_connect(ssl);
@@ -433,7 +433,7 @@ void wolfssl_server_test(uintData_t statusPtr)
         closesocket(sock_listen);
         return;
     }
-    WOLFSSL_MSG("wolfSSL_CTX_new done\n");
+    WOLFSSL_MSG("wolfSSL_CTX_new done");
 
     ret = wolfSSL_CTX_use_certificate_buffer(ctx,
                                              server_ecc_der_256,
@@ -489,7 +489,7 @@ void wolfssl_server_test(uintData_t statusPtr)
         return;
     }
 
-    WOLFSSL_MSG("wolfSSL_new done\n");
+    WOLFSSL_MSG("wolfSSL_new done");
     ret = wolfSSL_set_fd(ssl, sock_req);
     if (ret != SSL_SUCCESS) {
         printf("ERROR: wolfSSL_set_fd() failed\n");
@@ -500,7 +500,7 @@ void wolfssl_server_test(uintData_t statusPtr)
         return;
     }
 
-    WOLFSSL_MSG("wolfSSL_set_fd done\n");
+    WOLFSSL_MSG("wolfSSL_set_fd done");
     do {
         error = 0; /* reset error */
         if (ret != SSL_SUCCESS) {
