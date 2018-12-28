@@ -2567,10 +2567,6 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         return ret;
     }
 #endif
-#ifdef HAVE_QSH
-    if (QSH_Init(ssl) != 0)
-        return MEMORY_E;
-#endif
     /* Include length of TLS extensions. */
     ret = TLSX_GetRequestSize(ssl, client_hello, &length);
     if (ret != 0)
@@ -3888,10 +3884,6 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         i += OPAQUE16_LEN;
         if ((i - begin) + totalExtSz > helloSz)
             return BUFFER_ERROR;
-
-    #ifdef HAVE_QSH
-        QSH_Init(ssl);
-    #endif
 
         /* Auto populate extensions supported unless user defined. */
         if ((ret = TLSX_PopulateExtensions(ssl, 1)) != 0)
