@@ -2,11 +2,11 @@
 
 # Deos Port
 ## Overview
-You can enable the wolfSSL support for Deos RTOS available [here](https://www.ddci.com/products_deos_do_178c_arinc_653/) using the `#define DEOS`.
-Deos is a Time & Space Partitioned, Multi-core Enabled, DO-178C DAL A Certifiable RTOS.
+You can enable the wolfSSL support for Deos RTOS available [here](https://www.ddci.com/products_deos_do_178c_arinc_653/) using the `#define WOLFSSL_DEOS`.
+Deos is a time & space partitioned, multi-core enabled, DO-178C DAL A certifiable RTOS.
 ## Usage
 
-You can start with your OpenArbor IDE-based example project for Deos with the network stack (LwIP) to integrate wolfSSL source code.
+You can start with your OpenArbor IDE-based example project for Deos with the network stack (lwip) to integrate wolfSSL source code.
 
 wolfSSL supports a compile-time user configurable options in the `IDE/ECLIPSE/DEOS/user_settings.h` file.
 
@@ -55,10 +55,16 @@ wolfsslPort
 <processTemplate
      mutexQuota = "5"
    >
+
    <logicalMemoryPools>
            pagesNeeded = "500"
       ></pool>
    </logicalMemoryPools>
+
+   <threadTemplate
+      stackSizeInPages = "20"
+    ></threadTemplate>
+
    <mutexTemplates>
       <mutexTemplate
            name = "protectWolfSSLTemp"
@@ -69,13 +75,13 @@ wolfsslPort
 
 </processTemplate>
 ```
-Depending on your configuration, wolfSSL uses upto four mutexes.
+Depending on your configuration, wolfSSL uses upto four mutexes. You also need to configure enough memory for the stack of each threads and the process logical memory pool.
 
 
  2. Right click on the `udp-vs-tcp` project, select properties and add the following macros in the DDC-I Options > C Compile > Preprocessor
       -   DEOS_ALLOW_OBSOLETE_DEFINITIONS
       -   WOLFSSL_USER_SETTINGS
- 3.  Add the following directory paths in the DDC-I Options > C Compile > Directories
+ 3.  Add the following directory paths in the DDC-I Options > C Compile > Directories and in the DDC-I Options > C++ Compile > Directories
       -   $(PROJECT_DIR)/wolfsslPort
       -   $(PROJECT_DIR)/wolfsslPort/wolfssl
       -   $(PROJECT_DIR)/wolfsslPort/IDE/ECLIPSE/DEOS
@@ -88,15 +94,62 @@ Depending on your configuration, wolfSSL uses upto four mutexes.
       -   ansi
       -   printx
           - You must add printx into your workspace, File >DDC-I Deos example project > training > printx
- 6.  Edit $(PROJECT_DIR)/wolfsslPort/IDE/ECLIPSE/DEOS/user_setting.h to customize your configuration. For example, you can comment out the following tests.
-      -   #define WOLFSSL_WOLFCRYPT_TEST
-      -   #define WOLFSSL_BENCHMARK_TEST
-      -   #define WOLFSSL_CLIENT_TEST
-      -   #define WOLFSSL_SERVER_TEST
+ 6.  Edit $(PROJECT_DIR)/wolfsslPort/IDE/ECLIPSE/DEOS/user_setting.h to customize your configuration. For example, you can undef or define these tests.
+      -   #undef NO_CRYPT_TEST
+      -   #undef NO_CRYPT_BENCHMARK
+      -   #undef NO_WOLFSSL_CLIENT
+      -   #undef NO_WOLFSSL_SERVER
  7.  Edit your application source file where main() thread is defined and add the following:
       -   #include "printx.h"
       -   #include "tls_wolfssl.h"
       -   and a call to `wolfsslRunTests()`
+Here's an example:
+```
+#include <deos.h>
+#include <printx.h>
+#include <tls_wolfssl.h>
+#include <user_settings.h>
+
+int main(void)
+{
+  initPrintx("");
+  printf("TLS wolfssl example!\n");
+
+  (void) waitUntilNextPeriod();
+   wolfsslRunTests();
+
+  deleteThread(currentThreadHandle());
+}
+
+```
+ 8.  Review $(PROJECT_DIR)/udp-vs-tcp/mailbox-transport.config configuration.
+```
+transportConfigurationId
+2                              # Client thread quota - for client and server TCP
+2                              # Client connection quota - one for client and one for server
+0                              # Server startup quota
+0                              # Server connection quota
+transportMemoryObject          # Name of memory object used for managing connections
+/
+
+connectionId1                  # TCP client connection
+Network                        # Server process name
+defaultMailbox                 # Server connection request mailbox name
+0                              # Server connection mailbox queue size (unused by Network process)
+userServiceThread              # Server thread template name
+*                              # Error timeout
+1                              # Client connection mailbox queue size
+/
+
+connectionId2                  # TCP connection
+Network                        # Server process name
+defaultMailbox                 # Server connection request mailbox name
+0                              # Server connection mailbox queue size (unused by Network process)
+userServiceThread              # Server thread template name
+*                              # Error timeout
+1                              # Client connection mailbox queue size
+/
+```
 
    #### Building and Running
  1.  Build your project, then load and run your image on a target platform. Review the test results on the console output.
