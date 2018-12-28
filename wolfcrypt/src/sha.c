@@ -266,7 +266,7 @@
         sha->ctx.sha_type = SHA1;
         if(sha->ctx.mode == ESP32_SHA_HW){
             /* release hw engine */
-            esp_sha_hw_Release();
+            esp_sha_hw_unlock();
         }
         /* always set mode as INIT
         *  whether using HW or SW is detemined at first call of update()

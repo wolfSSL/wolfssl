@@ -38,7 +38,6 @@
 #include "soc/hwcrypto_reg.h"
 #include "soc/cpu.h"
 #include "driver/periph_ctrl.h"
-#include <byteswap.h>
 #include <rom/ets_sys.h>
 
 #ifdef __cplusplus
@@ -96,14 +95,13 @@ typedef struct {
 } WC_ESP32SHA;
 
 int esp_sha_try_hw_lock(WC_ESP32SHA* ctx);
-void esp_sha_hw_Release( void );
+void esp_sha_hw_unlock( void );
 
 struct wc_Sha;
 int esp_sha_digest_process(struct wc_Sha* sha, byte bockprocess);
 int esp_sha_process(struct wc_Sha* sha);
-void esp_sha_digest_state(struct wc_Sha* sha);
 
-#ifndef NO_WOLFSSL_SHA256
+#ifndef NO_SHA256
     struct wc_Sha256;
     int esp_sha256_digest_process(struct wc_Sha256* sha, byte bockprocess);
     int esp_sha256_process(struct wc_Sha256* sha);

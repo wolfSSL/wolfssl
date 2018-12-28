@@ -114,10 +114,6 @@ enum {
 #else
 /* wc_Sha512 digest */
 typedef struct wc_Sha512 {
-#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
-    WC_ESP32SHA ctx;
-#endif
     word64  digest[WC_SHA512_DIGEST_SIZE / sizeof(word64)];
     word64  buffer[WC_SHA512_BLOCK_SIZE  / sizeof(word64)];
     word32  buffLen;   /* in bytes          */
@@ -132,6 +128,10 @@ typedef struct wc_Sha512 {
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     word64* W;
+#endif
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
+   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+    WC_ESP32SHA ctx;
 #endif
 } wc_Sha512;
 #endif

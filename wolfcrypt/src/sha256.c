@@ -483,7 +483,7 @@ static int InitSha256(wc_Sha256* sha256)
         sha256->ctx.sha_type = SHA2_256;
         if(sha256->ctx.mode == ESP32_SHA_HW) {
             /* release hw */
-            esp_sha_hw_Release();
+            esp_sha_hw_unlock();
         }
         /* always set mode as INIT
         *  whether using HW or SW is detemined at first call of update()

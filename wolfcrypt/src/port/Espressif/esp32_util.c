@@ -21,7 +21,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
-  (!defined(NO_AES)        || !defined(NO_SHA) || !defined(NO_WOLFSSL_SHA256) ||\
+  (!defined(NO_AES)        || !defined(NO_SHA) || !defined(NO_SHA256) ||\
    defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512))
 
 #include <wolfssl/wolfcrypt/wc_port.h>
