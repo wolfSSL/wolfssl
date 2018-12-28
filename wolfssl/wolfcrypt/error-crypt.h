@@ -28,9 +28,10 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && \
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION < 2)
 	#include <cyassl/ctaocrypt/error-crypt.h>
-#endif /* HAVE_FIPS */
+#endif /* HAVE_FIPS V1 */
 
 #ifdef __cplusplus
     extern "C" {
