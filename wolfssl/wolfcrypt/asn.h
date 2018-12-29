@@ -863,6 +863,7 @@ struct DecodedCert {
     byte extBasicConstSet : 1;
     byte extSubjAltNameSet : 1;
     byte inhibitAnyOidSet : 1;
+    byte selfSigned : 1;           /* Indicates subject and issuer are same */
 #ifdef WOLFSSL_SEP
     byte extCertPolicySet : 1;
 #endif

@@ -2268,6 +2268,11 @@ static int RestartHandshakeHash(WOLFSSL* ssl)
     #endif
     }
     hashSz = ssl->specs.hash_size;
+
+    /* check hash */
+    if (hash == NULL && hashSz > 0)
+        return BAD_FUNC_ARG;
+
     AddTls13HandShakeHeader(header, hashSz, 0, 0, message_hash, ssl);
 
     WOLFSSL_MSG("Restart Hash");
@@ -2281,7 +2286,8 @@ static int RestartHandshakeHash(WOLFSSL* ssl)
 
         /* Cookie Data = Hash Len | Hash | CS | KeyShare Group */
         cookie[idx++] = hashSz;
-        XMEMCPY(cookie + idx, hash, hashSz);
+        if (hash)
+            XMEMCPY(cookie + idx, hash, hashSz);
         idx += hashSz;
         cookie[idx++] = ssl->options.cipherSuite0;
         cookie[idx++] = ssl->options.cipherSuite;
@@ -2327,6 +2333,9 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk)
 {
     int ret;
     byte suite[2];
+
+    if (psk == NULL)
+        return BAD_FUNC_ARG;
 
     if (ssl->options.noPskDheKe && ssl->arrays->preMasterSz != 0)
         return PSK_KEY_ERROR;

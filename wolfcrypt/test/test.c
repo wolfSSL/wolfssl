@@ -9393,6 +9393,13 @@ static int rsa_nb_test(RsaKey* key, const byte* in, word32 inLen, byte* out,
     if (ret != 0)
         return ret;
 
+#ifdef WC_RSA_NONBLOCK_TIME
+    /* Enable time based RSA blocking. 8 microseconds max (3.1GHz) */
+    ret = wc_RsaSetNonBlockTime(key, 8, 3100);
+    if (ret != 0)
+        return ret;
+#endif
+
     count = 0;
     do {
         ret = wc_RsaSSL_Sign(in, inLen, out, outSz, key, rng);
@@ -10731,7 +10738,11 @@ static int rsa_keygen_test(WC_RNG* rng)
     if (ret != 0) {
         ERROR_OUT(-6962, exit_rsa);
     }
+
     ret = wc_MakeRsaKey(&genKey, keySz, WC_RSA_EXPONENT, rng);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &genKey.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         ERROR_OUT(-6963, exit_rsa);
     }
