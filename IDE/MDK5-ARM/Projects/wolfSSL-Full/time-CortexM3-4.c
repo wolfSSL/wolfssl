@@ -27,11 +27,11 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #include <stdint.h>
-#define DWT                 ((DWT_Type       *)     (0xE0001000UL)     )
+#define DWT                 ((DWT_Type       *)     (0xE0001000UL))
 typedef struct
 {
-  uint32_t CTRL;                    /*!< Offset: 0x000 (R/W)  Control Register                          */
-  uint32_t CYCCNT;                  /*!< Offset: 0x004 (R/W)  Cycle Count Register                      */
+  uint32_t CTRL;               /*!< Offset: 0x000 (R/W)  Control Register     */
+  uint32_t CYCCNT;             /*!< Offset: 0x004 (R/W)  Cycle Count Register */
 } DWT_Type;
 
 extern uint32_t SystemCoreClock ;
@@ -41,4 +41,3 @@ double current_time(int reset)
       if(reset) DWT->CYCCNT = 0 ;
       return ((double)DWT->CYCCNT/SystemCoreClock) ;
 }
-

@@ -126,12 +126,12 @@ osThreadDef(net_loop, osPriorityLow, 2, 0);
 extern uint32_t os_time;
 static  time_t epochTime;
 
-uint32_t HAL_GetTick(void) { 
-    return os_time; 
+uint32_t HAL_GetTick(void) {
+    return os_time;
 }
 
 time_t time(time_t *t){
-     return epochTime ;
+     return epochTime;
 }
 
 void setTime(time_t t){
@@ -146,7 +146,7 @@ extern uint32_t os_time;
 
 double current_time(int reset)
 {
-    if(reset) os_time = 0 ;
+    if(reset) os_time = 0;
     return (double)os_time /1000.0;
 }
 
@@ -160,12 +160,12 @@ typedef struct
   uint32_t CYCCNT;     /*!< Offset: 0x004 (R/W)  Cycle Count Register       */
 } DWT_Type;
 
-extern uint32_t SystemCoreClock ;
+extern uint32_t SystemCoreClock;
 
 double current_time(int reset)
 {
-    if(reset) DWT->CYCCNT = 0 ;
-    return ((double)DWT->CYCCNT/SystemCoreClock) ;
+    if(reset) DWT->CYCCNT = 0;
+    return ((double)DWT->CYCCNT/SystemCoreClock);
 }
 #endif
 
@@ -178,7 +178,7 @@ typedef struct func_args {
     char** argv;
 } func_args;
 
-extern void client_test(func_args * args) ;
+extern void client_test(func_args * args);
 
 int myoptind = 0;
 char* myoptarg = NULL;
@@ -186,14 +186,14 @@ char* myoptarg = NULL;
 int main (void) {
     static char *argv[] =
         {   "client",   "-h", REMOTE_IP, "-p", REMOTE_PORT,
-                                   "-v",  " ",  OTHER_OPTIONS } ;
+                                   "-v",  " ",  OTHER_OPTIONS };
     static   func_args args  =
-        {  sizeof(argv)/sizeof(*argv[0]), argv } ;
+        {  sizeof(argv)/sizeof(*argv[0]), argv };
 
     char *verStr[] = { "SSL3", "TLS1.0", "TLS1.1", "TLS1.2", "TLS1.3"};
     #define VERSIZE 2
     char ver[VERSIZE];
-                    
+
     MPU_Config();                             /* Configure the MPU              */
     CPU_CACHE_Enable();                       /* Enable the CPU Cache           */
     HAL_Init();                               /* Initialize the HAL Library     */
@@ -205,21 +205,21 @@ int main (void) {
     net_initialize ();
 
     #if defined(DEBUG_WOLFSSL)
-        printf("Turning ON Debug message\n") ;
-        wolfSSL_Debugging_ON() ;
+        printf("Turning ON Debug message\n");
+        wolfSSL_Debugging_ON();
     #endif
 
     snprintf(ver, VERSIZE, "%d", TLS_VER);
     argv[6] = ver;
 
-    printf("SSL/TLS Client(%d)\n ", sizeof(argv)/sizeof(argv[0])) ;
-    printf("    Remote IP: %s, Port: %s\n    Version: %s\n", argv[2], argv[4],  verStr[TLS_VER]) ;
-    printf("    Other options: %s\n", OTHER_OPTIONS);   
+    printf("SSL/TLS Client(%d)\n ", sizeof(argv)/sizeof(argv[0]));
+    printf("    Remote IP: %s, Port: %s\n    Version: %s\n", argv[2], argv[4],  verStr[TLS_VER]);
+    printf("    Other options: %s\n", OTHER_OPTIONS);
     setTime((time_t)((RTC_YEAR-1970)*365*24*60*60) + RTC_MONTH*30*24*60*60 + RTC_DAY*24*60*60);
 
     osThreadCreate (osThread(net_loop), NULL);
 
-    client_test(&args) ;
+    client_test(&args);
 
     while(1)
         osDelay(1000);

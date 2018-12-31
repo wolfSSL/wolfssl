@@ -122,12 +122,12 @@ osThreadDef(net_loop, osPriorityLow, 2, 0);
 extern uint32_t os_time;
 static  time_t epochTime;
 
-uint32_t HAL_GetTick(void) { 
-    return os_time; 
+uint32_t HAL_GetTick(void) {
+    return os_time;
 }
 
 time_t time(time_t *t){
-     return epochTime ;
+     return epochTime;
 }
 
 void setTime(time_t t){
@@ -143,7 +143,7 @@ extern uint32_t os_time;
 
 double current_time(int reset)
 {
-      if(reset) os_time = 0 ;
+      if(reset) os_time = 0;
       return (double)os_time /1000.0;
 }
 
@@ -157,12 +157,12 @@ typedef struct
   uint32_t CYCCNT;                  /*!< Offset: 0x004 (R/W)  Cycle Count Register                      */
 } DWT_Type;
 
-extern uint32_t SystemCoreClock ;
+extern uint32_t SystemCoreClock;
 
 double current_time(int reset)
 {
-      if(reset) DWT->CYCCNT = 0 ;
-      return ((double)DWT->CYCCNT/SystemCoreClock) ;
+      if(reset) DWT->CYCCNT = 0;
+      return ((double)DWT->CYCCNT/SystemCoreClock);
 }
 #endif
 
@@ -175,15 +175,15 @@ typedef struct func_args {
     char** argv;
 } func_args;
 
-extern void echoserver_test(func_args * args) ;
+extern void echoserver_test(func_args * args);
 
 int myoptind = 0;
 char* myoptarg = NULL;
 
 int main (void) {
      static char *argv[] =
-          {   "server" } ;
-     static   func_args args  = { 1, argv } ;
+          {   "server" };
+     static   func_args args  = { 1, argv };
 
     MPU_Config();                             /* Configure the MPU              */
     CPU_CACHE_Enable();                       /* Enable the CPU Cache           */
@@ -196,16 +196,16 @@ int main (void) {
     net_initialize ();
 
     #if defined(DEBUG_WOLFSSL)
-         printf("Turning ON Debug message\n") ;
-         wolfSSL_Debugging_ON() ;
+         printf("Turning ON Debug message\n");
+         wolfSSL_Debugging_ON();
     #endif
 
     setTime((RTC_YEAR-1970)*365*24*60*60 + RTC_MONTH*30*24*60*60 + RTC_DAY*24*60*60);
 
     osThreadCreate (osThread(net_loop), NULL);
 
-    echoserver_test(&args) ;
-    printf("echoserver: Terminated\n") ;
+    echoserver_test(&args);
+    printf("echoserver: Terminated\n");
     while(1)
         osDelay(1000);
 

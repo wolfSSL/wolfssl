@@ -65,7 +65,7 @@ uint32_t HAL_GetTick(void) {
 }
 
 time_t time(time_t *t){
-     return epochTime ;
+     return epochTime;
 }
 
 void setTime(time_t t){
@@ -80,7 +80,7 @@ extern uint32_t os_time;
 
 double current_time(int reset)
 {
-      if(reset) os_time = 0 ;
+      if(reset) os_time = 0;
       return (double)os_time /1000.0;
 }
 
@@ -94,12 +94,12 @@ typedef struct
   uint32_t CYCCNT;                  /*!< Offset: 0x004 (R/W)  Cycle Count Register                      */
 } DWT_Type;
 
-extern uint32_t SystemCoreClock ;
+extern uint32_t SystemCoreClock;
 
 double current_time(int reset)
 {
-      if(reset) DWT->CYCCNT = 0 ;
-      return ((double)DWT->CYCCNT/SystemCoreClock) ;
+      if(reset) DWT->CYCCNT = 0;
+      return ((double)DWT->CYCCNT/SystemCoreClock);
 }
 #endif
 
@@ -131,13 +131,13 @@ static void init_filesystem (void) {
 /*-----------------------------------------------------------------------------
  *       mian entry
  *----------------------------------------------------------------------------*/
-void benchmark_test(void *arg) ;
+void benchmark_test(void *arg);
 
 int main()
 {
-    void * arg = NULL ;
-    
-    MPU_Config(); 
+    void * arg = NULL;
+
+    MPU_Config();
     CPU_CACHE_Enable();
     HAL_Init();                        /* Initialize the HAL Library     */
     SystemClock_Config();              /* Configure the System Clock     */
@@ -145,12 +145,12 @@ int main()
     #if !defined(NO_FILESYSTEM)
     init_filesystem ();
     #endif
-    
+
     setTime((RTC_YEAR-1970)*365*24*60*60 + RTC_MONTH*30*24*60*60 + RTC_DAY*24*60*60);
 
-    printf("=== Start: Crypt Benchmark ===\n") ;
-    benchmark_test(arg) ;
-    printf("=== End: Crypt Benchmark  ===\n") ;
+    printf("=== Start: Crypt Benchmark ===\n");
+    benchmark_test(arg);
+    printf("=== End: Crypt Benchmark  ===\n");
 
 }
 

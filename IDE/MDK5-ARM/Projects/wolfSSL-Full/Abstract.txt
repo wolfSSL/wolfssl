@@ -1,19 +1,26 @@
 This program gives  wolfCrypt and CyaSSL library demo.
 
-In order to run the demo,
+To build:
+Use Configuration Wizard tab
+Activate SDMCC1 and ETH on Device/RTE_Device.h
+main.c for remote IP address, port or TLS version
+user_settings.h for wolfCrypt or wolfSSL options
+
+
+To run:
 Copy {PACK}\wolfSSL\CyaSSL\{version}\cyassl\certs folder and files to the SD memory.
 For demo configuration, refer config-Crypt.h and config-CyaSSL.h.
 
 After download and start the execution, you can type in commands through the
 Debug(printf) viewer. 
 
-test                                wolfCrypt Simple test suite
+test                           wolfCrypt Simple test suite
 benchmark                      wolfCrypt Simple benchmark
-server&                          simple server in background mode
-client                             simple client
-echoserver&                   echo server in background mode
-echoclient                      echo client
-server/client -h              help for server/client command
+server                         simple server in background mode
+client                         simple client
+echoserver                     echo server in background mode
+echoclient                     echo client
+server/client -?               help for server/client command
 
 
 === Typical Command Usage Scenario ===
@@ -32,8 +39,7 @@ ARC4     25 kB took 0.006 seconds,   3.83 MB/s
 
 DH  2048 key agreement   685.93 milliseconds, avg over 1 iterations
 
->echoserver&
-"echoserver" is running with the background mode.
+>echoserver
 
 >echoclient
 ABCDEFG
@@ -44,8 +50,7 @@ quit
 sending server shutdown command: quit!
 client sent quit command: shutting down!
 
->server&
-"server" is running with the background mode.
+>server
 
 >client
 peer's cert info:
@@ -54,30 +59,18 @@ peer's cert info:
  serial number:02 
 SSL version is TLSv1.2
 SSL cipher suite is TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
-peer's cert info:
- issuer : /C=...
- subject: /C=...
- serial number:... 
-SSL version is TLSv1.2
-SSL cipher suite is TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
-Client message: hello cyassl!
 Server response: I hear you fa shizzle!
 
->client -h 192.168.2.100 -p 443 -g -v 0
+>client -h 192.168.2.100 -p 443 -g
 peer's cert info:
  issuer : /CN=...
  subject: /CN=...
  serial number:44:39:... 
-SSL version is SSLv3
-SSL cipher suite is SSL_RSA_WITH_RC4_128_SHA
+SSL version is TLS1.2
+SSL cipher suite is TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
 SSL connect ok, sending GET...
 ...
 ===
-
-For the hardware crypt on config-Crypt.h, download 
-STSW-STM32062: STM32F2xx standard peripherals library at 
-http://www.st.com/. Copy Libraries\STM32F2xx_StdPeriph_Driver\{inc,src} to 
- {PACK}\cyassl\IDE\MDK5-ARM\STM32F2xx_StdPeriph_Lib
 
 
 Support

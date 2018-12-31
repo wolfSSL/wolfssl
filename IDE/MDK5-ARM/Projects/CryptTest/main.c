@@ -64,7 +64,7 @@ uint32_t HAL_GetTick(void) {
 }
 
 time_t time(time_t *t){
-     return epochTime ;
+     return epochTime;
 }
 
 void setTime(time_t t){
@@ -78,7 +78,7 @@ extern uint32_t os_time;
 
 double current_time(int reset)
 {
-      if(reset) os_time = 0 ;
+      if(reset) os_time = 0;
       return (double)os_time /1000.0;
 }
 
@@ -92,12 +92,12 @@ typedef struct
   uint32_t CYCCNT;                  /*!< Offset: 0x004 (R/W)  Cycle Count Register                      */
 } DWT_Type;
 
-extern uint32_t SystemCoreClock ;
+extern uint32_t SystemCoreClock;
 
 double current_time(int reset)
 {
-      if(reset) DWT->CYCCNT = 0 ;
-      return ((double)DWT->CYCCNT/SystemCoreClock) ;
+      if(reset) DWT->CYCCNT = 0;
+      return ((double)DWT->CYCCNT/SystemCoreClock);
 }
 #endif
 
@@ -130,13 +130,13 @@ static void init_filesystem (void) {
 /*-----------------------------------------------------------------------------
  *       mian entry
  *----------------------------------------------------------------------------*/
-void wolfcrypt_test(void *arg) ;
+void wolfcrypt_test(void *arg);
 
 int main()
 {
-    void * arg = NULL ;
+    void * arg = NULL;
 
-    MPU_Config(); 
+    MPU_Config();
     CPU_CACHE_Enable();
     HAL_Init();                        /* Initialize the HAL Library     */
     SystemClock_Config();              /* Configure the System Clock     */
@@ -147,8 +147,8 @@ int main()
 
     setTime((RTC_YEAR-1970)*365*24*60*60 + RTC_MONTH*30*24*60*60 + RTC_DAY*24*60*60);
 
-    printf("=== Start: Crypt test === \n") ;
-        wolfcrypt_test(arg) ;
-    printf("=== End: Crypt test  ===\n") ;
+    printf("=== Start: Crypt test === \n");
+        wolfcrypt_test(arg);
+    printf("=== End: Crypt test  ===\n");
 
 }
