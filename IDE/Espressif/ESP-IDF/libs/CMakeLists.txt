@@ -74,6 +74,9 @@ set(COMPONENT_SRCS
     "wolfcrypt/src/wolfevent.c"
     "wolfcrypt/src/wolfmath.c"
 )
-set(COMPONENT_REQUIRES lwip)
-set(COMPONENT_ADD_INCLUDEDIRS ../freertos/include/freertos)
+set(COMPONENT_PRIV_REQUIRES lwip)
+set(COMPONENT_ADD_INCLUDEDIRS
+	"../freertos/include/freertos"
+	"${WOLFSSL_ROOT}"
+)
 register_component()
