@@ -33,10 +33,14 @@ size_t getMemAllocatedSize_deos(size_t* size){
     return allocatedMemory;
 }
 
+/* Simply returns without freeing any memory. */
+
 void free_deos(void *ptr) {
     //printf("fake free_deos()\n");
     return;
 }
+
+/* The caller of this function is responsible for copying the old data into new buffer */
 
 void *realloc_deos(void *ptr, size_t size) {
     void *newptr;
