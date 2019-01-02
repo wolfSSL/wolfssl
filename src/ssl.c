@@ -7283,10 +7283,22 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 #if !defined(NO_WOLFSSL_STUB)
     const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
     {
-        (void)ex;
+        int nid;
+        WOLFSSL_v3_ext_method method;
+
         WOLFSSL_ENTER("wolfSSL_X509V3_EXT_get");
-        return NULL;
+        nid = wolfSSL_OBJ_obj2nid(ex->obj);
+        if(nid <= 0){
+            WOLFSSL_MSG("Failed to get nid from passed extension object");
+            return NULL;
+        }
+        else{
+            method.ext_nid = nid;
+            ex->ext_method = method;
+        }
+        return (const WOLFSSL_v3_ext_method*)&ex->ext_method;
     }
+
 #endif
 
     /* returns an an x509v3 extension internal structure */
@@ -12312,7 +12324,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     void wolfSSL_X509_STORE_set_verify_cb(WOLFSSL_X509_STORE *st,
                                      WOLFSSL_X509_STORE_CTX_verify_cb verify_cb)
     {
-        //WOLFSSL_X509_STORE struct located wolfssl/ssl.h +336
         WOLFSSL_ENTER("WOLFSSL_X509_STORE_set_verify_cb");
         if(st==NULL){
             WOLFSSL_MSG("passed WOLFSSL_X509_STORE is NULL");
