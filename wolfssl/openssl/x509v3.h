@@ -1,4 +1,4 @@
-/* x508v3.h
+/* x509v3.h
  *
  * Copyright (C) 2006-2017 wolfSSL Inc.
  *
@@ -21,8 +21,8 @@
 
 /* x509v3.h for openSSL */
 
-#ifndef WOLFSSL_x509v3_H_
-#define WOLFSSL_x509v3_H_
+#ifndef WOLFSSL_x509v3_H
+#define WOLFSSL_x509v3_H
 
 #include <wolfssl/openssl/conf.h>
 #include <wolfssl/openssl/bio.h>
@@ -32,7 +32,7 @@
 #endif
 
 /* Forward reference */
-struct WOLFSSL_v3_ext_method;
+typedef struct WOLFSSL_v3_ext_method WOLFSSL_v3_ext_method;
 
 typedef void *(*X509V3_EXT_D2I)(void *, const unsigned char **, long);
 typedef STACK_OF(CONF_VALUE) *(*X509V3_EXT_I2V) (struct WOLFSSL_v3_ext_method *method, 
@@ -40,6 +40,7 @@ typedef STACK_OF(CONF_VALUE) *(*X509V3_EXT_I2V) (struct WOLFSSL_v3_ext_method *m
 typedef char *(*X509V3_EXT_I2S)(struct WOLFSSL_v3_ext_method *method, void *ext);
 typedef int (*X509V3_EXT_I2R) (struct WOLFSSL_v3_ext_method *method, void *ext,
                                                           BIO *out, int indent);
+typedef struct WOLFSSL_v3_ext_method X509V3_EXT_METHOD;
 
 struct WOLFSSL_v3_ext_method {
     int ext_nid;
@@ -51,6 +52,15 @@ struct WOLFSSL_v3_ext_method {
     X509V3_EXT_I2R i2r;
 };
 
+#define WOLFSSL_ASN1_BOOLEAN                int
+
+struct WOLFSSL_X509_EXTENSION {
+    WOLFSSL_ASN1_OBJECT *obj;
+    WOLFSSL_ASN1_BOOLEAN crit;
+    WOLFSSL_ASN1_STRING value;
+    WOLFSSL_v3_ext_method ext_method;
+};
+
 struct WOLFSSL_ACCESS_DESCRIPTION {
     ASN1_OBJECT *method;
     GENERAL_NAME *location;
@@ -60,9 +70,6 @@ typedef struct WOLFSSL_AUTHORITY_KEYID AUTHORITY_KEYID;
 typedef struct WOLFSSL_BASIC_CONSTRAINTS BASIC_CONSTRAINTS;
 typedef struct WOLFSSL_ACCESS_DESCRIPTION ACCESS_DESCRIPTION;
 typedef STACK_OF(WOLFSSL_ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
-typedef struct WOLFSSL_v3_ext_method WOLFSSL_v3_ext_method;
-typedef struct WOLFSSL_v3_ext_method X509V3_EXT_METHOD;
-
 
 WOLFSSL_API void wolfSSL_BASIC_CONSTRAINTS_free(WOLFSSL_BASIC_CONSTRAINTS *bc);
 WOLFSSL_API void wolfSSL_AUTHORITY_KEYID_free(WOLFSSL_AUTHORITY_KEYID *id);
@@ -76,7 +83,6 @@ WOLFSSL_API void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ex);
 #define ASN1_OCTET_STRING         WOLFSSL_ASN1_STRING
 #define X509V3_EXT_get            wolfSSL_X509V3_EXT_get
 #define X509V3_EXT_d2i            wolfSSL_X509V3_EXT_d2i
-
 #ifdef  __cplusplus
 }
 #endif
