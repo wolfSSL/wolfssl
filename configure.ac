@@ -199,17 +199,14 @@ AM_CONDITIONAL([BUILD_ALL], [test "x$ENABLED_ALL" = "xyes"])
 
 
 # Support for forcing 32-bit mode
+# To force 32-bit instructions use:
+#   ./configure CFLAGS="-m32" LDFLAGS="-m32" && make
+# The checks for sizeof long and long/long are run at the top of configure and require "-m32" to be set directly in the ./configure statement.
 AC_ARG_ENABLE([32bit],
     [AS_HELP_STRING([--enable-32bit],[Enables 32-bit support (default: disabled)])],
     [ ENABLED_32BIT=$enableval ],
     [ ENABLED_32BIT=no ]
     )
-
-if test "$ENABLED_32BIT" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_64BIT -DNO_CURVED25519_128BIT -m32"
-    AM_LDFLAGS="$AM_LDFLAGS -m32"
-fi
 
 
 # Support for disabling all ASM
@@ -1505,7 +1502,7 @@ then
         ENABLED_CURVE25519=yes
     fi
 
-    if test "$ENABLED_CURVE25519" = "no128bit"
+    if test "$ENABLED_CURVE25519" = "no128bit" || test "$ENABLED_32BIT" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_CURVED25519_128BIT"
         ENABLED_CURVE25519=yes
@@ -2407,7 +2404,7 @@ then
     ENABLED_POLY1305=no
 fi
 
-if test "$ENABLED_POLY1305" = "yes" && test "$ENABLED_32BIT" = "no"
+if test "$ENABLED_POLY1305" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_POLY1305 -DHAVE_ONE_TIME_AUTH"
 fi
