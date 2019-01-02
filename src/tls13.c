@@ -2268,6 +2268,11 @@ static int RestartHandshakeHash(WOLFSSL* ssl)
     #endif
     }
     hashSz = ssl->specs.hash_size;
+
+    /* check hash */
+    if (hash == NULL && hashSz > 0)
+        return BAD_FUNC_ARG;
+
     AddTls13HandShakeHeader(header, hashSz, 0, 0, message_hash, ssl);
 
     WOLFSSL_MSG("Restart Hash");
@@ -2281,7 +2286,8 @@ static int RestartHandshakeHash(WOLFSSL* ssl)
 
         /* Cookie Data = Hash Len | Hash | CS | KeyShare Group */
         cookie[idx++] = hashSz;
-        XMEMCPY(cookie + idx, hash, hashSz);
+        if (hash)
+            XMEMCPY(cookie + idx, hash, hashSz);
         idx += hashSz;
         cookie[idx++] = ssl->options.cipherSuite0;
         cookie[idx++] = ssl->options.cipherSuite;
@@ -2327,6 +2333,9 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk)
 {
     int ret;
     byte suite[2];
+
+    if (psk == NULL)
+        return BAD_FUNC_ARG;
 
     if (ssl->options.noPskDheKe && ssl->arrays->preMasterSz != 0)
         return PSK_KEY_ERROR;
@@ -4235,7 +4244,11 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
 #endif
 
+#ifdef WOLFSSL_TLS13_DRAFT_18
     if (!ssl->options.groupMessages)
+#else
+    if (!ssl->options.groupMessages || extMsgType != server_hello)
+#endif
         ret = SendBuffered(ssl);
 
     WOLFSSL_LEAVE("SendTls13ServerHello", ret);
@@ -8194,7 +8207,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
         case TLS13_ACCEPT_FIRST_REPLY_DONE :
             if (ssl->options.serverState ==
                                           SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
-                ssl->options.clientState = NULL_STATE;
+                ssl->options.clientState = CLIENT_HELLO_RETRY;
                 while (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
                     if ((ssl->error = ProcessReply(ssl)) < 0) {
                         WOLFSSL_ERROR(ssl->error);

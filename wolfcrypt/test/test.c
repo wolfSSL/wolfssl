@@ -9024,7 +9024,7 @@ int certext_test(void)
 }
 #endif /* WOLFSSL_CERT_EXT && WOLFSSL_TEST_CERT */
 
-#ifndef NO_ASN
+#if !defined(NO_ASN) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
 static int rsa_flatten_test(RsaKey* key)
 {
     int    ret;
@@ -9118,7 +9118,8 @@ static int rsa_flatten_test(RsaKey* key)
 }
 #endif /* NO_ASN */
 
-#if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(NO_ASN)
+#if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(NO_ASN) \
+    && !defined(WOLFSSL_RSA_VERIFY_ONLY)
 static int rsa_export_key_test(RsaKey* key)
 {
     int ret;
@@ -9174,6 +9175,7 @@ static int rsa_export_key_test(RsaKey* key)
     ret = wc_RsaExportKey(key, e, &eSz, n, &zero, d, &dSz, p, &pSz, q, &qSz);
     if (ret != RSA_BUFFER_E)
         return -6749;
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     ret = wc_RsaExportKey(key, e, &eSz, n, &nSz, d, &zero, p, &pSz, q, &qSz);
     if (ret != RSA_BUFFER_E)
         return -6750;
@@ -9183,6 +9185,7 @@ static int rsa_export_key_test(RsaKey* key)
     ret = wc_RsaExportKey(key, e, &eSz, n, &nSz, d, &dSz, p, &pSz, q, &zero);
     if (ret != RSA_BUFFER_E)
         return -6752;
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 
     ret = wc_RsaExportKey(key, e, &eSz, n, &nSz, d, &dSz, p, &pSz, q, &qSz);
     if (ret != 0)
@@ -9264,6 +9267,8 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
      !defined(WC_RSA_BLINDING)
     /* FIPS140 implementation does not do blinding */
     if (ret != 0)
+#elif defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    if (ret != SIG_TYPE_E)
 #else
     if (ret != MISSING_RNG_E)
 #endif
@@ -9314,6 +9319,7 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
         return -6772;
 
     sigSz = (word32)ret;
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                                inLen, out, &sigSz, key, keyLen, rng);
     if (ret != 0)
@@ -9364,6 +9370,10 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
         hashEnc, (int)sizeof(hashEnc), out, (word32)modLen, key, keyLen);
     if (ret != 0)
         return -6781;
+#else
+    (void)hash;
+    (void)hashEnc;
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 
     return 0;
 }
@@ -9382,6 +9392,13 @@ static int rsa_nb_test(RsaKey* key, const byte* in, word32 inLen, byte* out,
     ret = wc_RsaSetNonBlock(key, &nb);
     if (ret != 0)
         return ret;
+
+#ifdef WC_RSA_NONBLOCK_TIME
+    /* Enable time based RSA blocking. 8 microseconds max (3.1GHz) */
+    ret = wc_RsaSetNonBlockTime(key, 8, 3100);
+    if (ret != 0)
+        return ret;
+#endif
 
     count = 0;
     do {
@@ -10129,6 +10146,7 @@ int rsa_no_pad_test(void)
 #endif
 
     /* test encrypt and decrypt using WC_RSA_NO_PAD */
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -10141,7 +10159,9 @@ int rsa_no_pad_test(void)
     if (ret < 0) {
         ERROR_OUT(-6912, exit_rsa_nopadding);
     }
+#endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -10158,6 +10178,7 @@ int rsa_no_pad_test(void)
     if (XMEMCMP(plain, tmp, inLen) != 0) {
         ERROR_OUT(-6914, exit_rsa_nopadding);
     }
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 
     /* test some bad arguments */
     ret = wc_RsaDirect(out, outSz, plain, &plainSz, &key, -1,
@@ -10713,11 +10734,15 @@ static int rsa_keygen_test(WC_RNG* rng)
         keySz = 2048;
     #endif /* HAVE_FIPS */
 
-    ret = wc_InitRsaKey(&genKey, HEAP_HINT);
+    ret = wc_InitRsaKey_ex(&genKey, HEAP_HINT, devId);
     if (ret != 0) {
         ERROR_OUT(-6962, exit_rsa);
     }
+
     ret = wc_MakeRsaKey(&genKey, keySz, WC_RSA_EXPONENT, rng);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &genKey.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         ERROR_OUT(-6963, exit_rsa);
     }
@@ -10916,7 +10941,7 @@ int rsa_test(void)
         goto exit_rsa;
 #endif
 
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11063,6 +11088,7 @@ int rsa_test(void)
     #ifndef NO_SHA
     XMEMSET(plain, 0, plainSz);
 
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11075,8 +11101,10 @@ int rsa_test(void)
     if (ret < 0) {
         ERROR_OUT(-7016, exit_rsa);
     }
+#endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
     idx = (word32)ret;
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11093,10 +11121,12 @@ int rsa_test(void)
     if (XMEMCMP(plain, in, inLen)) {
         ERROR_OUT(-7018, exit_rsa);
     }
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
     #endif /* NO_SHA */
 
     #ifndef NO_SHA256
     XMEMSET(plain, 0, plainSz);
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11109,8 +11139,10 @@ int rsa_test(void)
     if (ret < 0) {
         ERROR_OUT(-7019, exit_rsa);
     }
+#endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
     idx = (word32)ret;
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11127,7 +11159,9 @@ int rsa_test(void)
     if (XMEMCMP(plain, in, inLen)) {
         ERROR_OUT(-7021, exit_rsa);
     }
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11146,9 +11180,11 @@ int rsa_test(void)
     if (XMEMCMP(res, in, inLen)) {
         ERROR_OUT(-7024, exit_rsa);
     }
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 
     /* check fails if not using the same optional label */
     XMEMSET(plain, 0, plainSz);
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11161,9 +11197,10 @@ int rsa_test(void)
     if (ret < 0) {
         ERROR_OUT(-7025, exit_rsa);
     }
+#endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
 /* TODO: investigate why Cavium Nitrox doesn't detect decrypt error here */
-#ifndef HAVE_CAVIUM
+#if !defined(HAVE_CAVIUM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     idx = (word32)ret;
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -11182,6 +11219,7 @@ int rsa_test(void)
 
     /* check using optional label with encrypt/decrypt */
     XMEMSET(plain, 0, plainSz);
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11194,8 +11232,10 @@ int rsa_test(void)
     if (ret < 0) {
         ERROR_OUT(-7027, exit_rsa);
     }
+#endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
     idx = (word32)ret;
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11212,10 +11252,12 @@ int rsa_test(void)
     if (XMEMCMP(plain, in, inLen)) {
         ERROR_OUT(-7029, exit_rsa);
     }
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 
     #ifndef NO_SHA
         /* check fail using mismatch hash algorithms */
         XMEMSET(plain, 0, plainSz);
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
         do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
             ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11228,9 +11270,10 @@ int rsa_test(void)
         if (ret < 0) {
             ERROR_OUT(-7030, exit_rsa);
         }
+#endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
 /* TODO: investigate why Cavium Nitrox doesn't detect decrypt error here */
-#ifndef HAVE_CAVIUM
+#if !defined(HAVE_CAVIUM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
         idx = (word32)ret;
         do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -11257,6 +11300,7 @@ int rsa_test(void)
        BAD_FUNC_ARG is returned when this case is not met */
     if (wc_RsaEncryptSize(&key) > ((int)WC_SHA512_DIGEST_SIZE * 2) + 2) {
         XMEMSET(plain, 0, plainSz);
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
         do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
             ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11269,8 +11313,10 @@ int rsa_test(void)
         if (ret < 0) {
             ERROR_OUT(-7032, exit_rsa);
         }
+#endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
         idx = ret;
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
         do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
             ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11287,11 +11333,13 @@ int rsa_test(void)
         if (XMEMCMP(plain, in, inLen)) {
             ERROR_OUT(-7034, exit_rsa);
         }
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
     }
     #endif /* WOLFSSL_SHA512 */
 
     /* check using pkcsv15 padding with _ex API */
     XMEMSET(plain, 0, plainSz);
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11304,8 +11352,10 @@ int rsa_test(void)
     if (ret < 0) {
         ERROR_OUT(-7035, exit_rsa);
     }
+#endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
     idx = (word32)ret;
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11322,16 +11372,18 @@ int rsa_test(void)
     if (XMEMCMP(plain, in, inLen)) {
         ERROR_OUT(-7037, exit_rsa);
     }
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
     #endif /* !HAVE_FAST_RSA && !HAVE_FIPS */
     #endif /* WC_NO_RSA_OAEP */
 
-#if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(NO_ASN)
+#if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(NO_ASN) \
+    && !defined(WOLFSSL_RSA_VERIFY_ONLY)
     ret = rsa_export_key_test(&key);
     if (ret != 0)
         return ret;
 #endif
 
-#ifndef NO_ASN
+#if !defined(NO_ASN) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
     ret = rsa_flatten_test(&key);
     if (ret != 0)
         return ret;
@@ -21952,13 +22004,12 @@ int pkcs7signed_test(void)
     rsaClientCertBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                                       DYNAMIC_TYPE_TMP_BUFFER);
     if (rsaClientCertBuf == NULL)
-        return -9500;
+        ret = -9500;
 
     rsaClientPrivKeyBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                                          DYNAMIC_TYPE_TMP_BUFFER);
-    if (rsaClientPrivKeyBuf == NULL) {
-        XFREE(rsaClientCertBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -9501;
+    if (ret == 0 && rsaClientPrivKeyBuf == NULL) {
+        ret = -9501;
     }
 
     rsaClientCertBufSz = FOURK_BUF;
@@ -21967,14 +22018,13 @@ int pkcs7signed_test(void)
     /* read server RSA cert and key in DER format */
     rsaServerCertBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                                       DYNAMIC_TYPE_TMP_BUFFER);
-    if (rsaServerCertBuf == NULL)
-        return -9502;
+    if (ret == 0 && rsaServerCertBuf == NULL)
+        ret = -9502;
 
     rsaServerPrivKeyBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                                          DYNAMIC_TYPE_TMP_BUFFER);
-    if (rsaServerPrivKeyBuf == NULL) {
-        XFREE(rsaServerCertBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -9503;
+    if (ret == 0 && rsaServerPrivKeyBuf == NULL) {
+        ret = -9503;
     }
 
     rsaServerCertBufSz = FOURK_BUF;
@@ -21983,14 +22033,13 @@ int pkcs7signed_test(void)
     /* read CA RSA cert and key in DER format, for use with server cert */
     rsaCaCertBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                                   DYNAMIC_TYPE_TMP_BUFFER);
-    if (rsaCaCertBuf == NULL)
-        return -9504;
+    if (ret == 0 && rsaCaCertBuf == NULL)
+        ret = -9504;
 
     rsaCaPrivKeyBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                                      DYNAMIC_TYPE_TMP_BUFFER);
-    if (rsaCaPrivKeyBuf == NULL) {
-        XFREE(rsaCaCertBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -9505;
+    if (ret == 0 && rsaCaPrivKeyBuf == NULL) {
+        ret = -9505;
     }
 
     rsaCaCertBufSz = FOURK_BUF;
@@ -22001,26 +22050,22 @@ int pkcs7signed_test(void)
     /* read client ECC cert and key in DER format */
     eccClientCertBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                                       DYNAMIC_TYPE_TMP_BUFFER);
-    if (eccClientCertBuf == NULL) {
-        XFREE(rsaClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(rsaClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -9506;
+    if (ret == 0 && eccClientCertBuf == NULL) {
+        ret = -9506;
     }
 
     eccClientPrivKeyBuf =(byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                                         DYNAMIC_TYPE_TMP_BUFFER);
-    if (eccClientPrivKeyBuf == NULL) {
-        XFREE(rsaClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(rsaClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(eccClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -9507;
+    if (ret == 0 && eccClientPrivKeyBuf == NULL) {
+        ret = -9507;
     }
 
     eccClientCertBufSz = FOURK_BUF;
     eccClientPrivKeyBufSz = FOURK_BUF;
 #endif /* HAVE_ECC */
 
-    ret = pkcs7_load_certs_keys(rsaClientCertBuf, &rsaClientCertBufSz,
+    if (ret >= 0)
+        ret = pkcs7_load_certs_keys(rsaClientCertBuf, &rsaClientCertBufSz,
                                 rsaClientPrivKeyBuf, &rsaClientPrivKeyBufSz,
                                 rsaServerCertBuf, &rsaServerCertBufSz,
                                 rsaServerPrivKeyBuf, &rsaServerPrivKeyBufSz,
@@ -22029,14 +22074,11 @@ int pkcs7signed_test(void)
                                 eccClientCertBuf, &eccClientCertBufSz,
                                 eccClientPrivKeyBuf, &eccClientPrivKeyBufSz);
     if (ret < 0) {
-        XFREE(rsaClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(rsaClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(eccClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(eccClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -9508;
+        ret = -9508;
     }
 
-    ret = pkcs7signed_run_vectors(rsaClientCertBuf, (word32)rsaClientCertBufSz,
+    if (ret >= 0)
+        ret = pkcs7signed_run_vectors(rsaClientCertBuf, (word32)rsaClientCertBufSz,
                             rsaClientPrivKeyBuf, (word32)rsaClientPrivKeyBufSz,
                             rsaServerCertBuf, (word32)rsaServerCertBufSz,
                             rsaServerPrivKeyBuf, (word32)rsaServerPrivKeyBufSz,
@@ -22044,15 +22086,9 @@ int pkcs7signed_test(void)
                             rsaCaPrivKeyBuf, (word32)rsaCaPrivKeyBufSz,
                             eccClientCertBuf, (word32)eccClientCertBufSz,
                             eccClientPrivKeyBuf, (word32)eccClientPrivKeyBufSz);
-    if (ret < 0) {
-        XFREE(rsaClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(rsaClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(eccClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(eccClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return ret;
-    }
 
-    ret = pkcs7signed_run_SingleShotVectors(
+    if (ret >= 0)
+        ret = pkcs7signed_run_SingleShotVectors(
                             rsaClientCertBuf, (word32)rsaClientCertBufSz,
                             rsaClientPrivKeyBuf, (word32)rsaClientPrivKeyBufSz,
                             rsaServerCertBuf, (word32)rsaServerCertBufSz,

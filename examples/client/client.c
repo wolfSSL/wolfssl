@@ -1541,7 +1541,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
                 else if (myoptarg[0] == 'e') {
                     version = EITHER_DOWNGRADE_VERSION;
+                #ifndef NO_CERTS
                     loadCertKeyIntoSSLObj = 1;
+                #endif
                     break;
                 }
             #endif
@@ -1581,7 +1583,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             #endif
                 else if (XSTRNCMP(myoptarg, "loadSSL", 7) == 0) {
                     printf("Load cert/key into wolfSSL object\n");
+                #ifndef NO_CERTS
                     loadCertKeyIntoSSLObj = 1;
+                #endif
                 }
                 else {
                     Usage();
@@ -1860,9 +1864,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         int done = 0;
 
         #ifdef NO_RSA
-            done += 1;
+            done += 1; /* require RSA for external tests */
         #endif
 
+        if (!XSTRNCMP(domain, "www.globalsign.com", 14)) {
         /* www.globalsign.com does not respond to ipv6 ocsp requests */
         #if defined(TEST_IPV6) && defined(HAVE_OCSP)
             done += 1;
@@ -1880,9 +1885,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         #if defined(HAVE_OCSP) && !defined(HAVE_ECC)
             done += 1;
         #endif
+        }
 
         #ifndef NO_PSK
-            done += 1;
+        if (usePsk) {
+            done += 1; /* don't perform exernal tests if PSK is enabled */
+        }
         #endif
 
         #ifdef NO_SHA
@@ -1912,7 +1920,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
         #if !defined(HAVE_AESGCM) && defined(NO_AES) && \
             !(defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
-            /* need at least on of these for external tests */
+            /* need at least one of these for external tests */
             done += 1;
         #endif
 
@@ -2779,6 +2787,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 wolfSSL_free(ssl); ssl = NULL;
                 wolfSSL_CTX_free(ctx); ctx = NULL;
                 err_sys("wolfSSL_Rehandshake failed");
+            }
+            else {
+                printf("RENEGOTIATION SUCCESSFUL\n");
             }
         }
     }

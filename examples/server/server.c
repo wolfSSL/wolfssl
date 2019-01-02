@@ -613,6 +613,10 @@ static void Usage(void)
     printf("%s", msg[++msgId]);     /* -N */
     printf("%s", msg[++msgId]);     /* -S */
     printf("%s", msg[++msgId]);     /* -w */
+#ifdef HAVE_SECURE_RENEGOTIATION
+    printf("-M          Allow Secure Renegotiation\n");
+    printf("-m          Force Server Initiated Secure Renegotiation\n");
+#endif /* HAVE_SECURE_RENEGOTIATION */
 #ifdef HAVE_OCSP
     printf("%s", msg[++msgId]);     /* -o */
     printf("%s", msg[++msgId]);     /* -O */
@@ -780,6 +784,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_EARLY_DATA
     int earlyData = 0;
 #endif
+#ifdef HAVE_SECURE_RENEGOTIATION
+    int scr = 0;
+    int forceScr = 0;
+#endif /* HAVE_SECURE_RENEGOTIATION */
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     int hrrCookie = 0;
 #endif
@@ -851,10 +859,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
-    /* Not Used: h, m, z, F, M, T, V, W, X */
-    while ((ch = mygetopt(argc, argv, "?:"
-                "abc:defgijk:l:nop:q:rstuv:wxy"
-                "A:B:C:D:E:GH:IJKL:NO:PQR:S:TUVYZ:"
+    /* Not Used: h, z, F, T, V, W, X */
+    while ((ch = mygetopt(argc, argv, "?"
+                "abc:defgijk:l:mnop:q:rstuv:wxy"
+                "A:B:C:D:E:GH:IJKL:MNO:PQR:S:TUVYZ:"
                 "01:23:")) != -1) {
         switch (ch) {
             case '?' :
@@ -945,7 +953,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
                 else if (myoptarg[0] == 'e') {
                     version = EITHER_DOWNGRADE_VERSION;
+                #ifndef NO_CERTS
                     loadCertKeyIntoSSLObj = 1;
+                #endif
                     break;
                 }
             #endif
@@ -975,7 +985,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 }
                 else if (XSTRNCMP(myoptarg, "loadSSL", 7) == 0) {
                     printf("Load cert/key into wolfSSL object\n");
+                #ifndef NO_CERTS
                     loadCertKeyIntoSSLObj = 1;
+                #endif
                 }
                 else {
                     Usage();
@@ -1159,6 +1171,19 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             #ifdef WOLFSSL_SEND_HRR_COOKIE
                 hrrCookie = 1;
             #endif
+                break;
+
+            case 'M' :
+            #ifdef HAVE_SECURE_RENEGOTIATION
+                scr = 1;
+            #endif /* HAVE_SECURE_RENEGOTIATION */
+                break;
+
+            case 'm' :
+            #ifdef HAVE_SECURE_RENEGOTIATION
+                scr = 1;
+                forceScr = 1;
+            #endif /* HAVE_SECURE_RENEGOTIATION */
                 break;
 
             case '0' :
@@ -1640,6 +1665,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
     }
 
+#ifdef HAVE_SECURE_RENEGOTIATION
+        if (scr) {
+            if (wolfSSL_UseSecureRenegotiation(ssl) != WOLFSSL_SUCCESS) {
+                err_sys_ex(runWithErrors, "can't enable secure renegotiation");
+            }
+        }
+#endif /* HAVE_SECURE_RENEGOTIATION */
+
 #ifndef NO_HANDSHAKE_DONE_CB
         wolfSSL_SetHsDoneCb(ssl, myHsDoneCb, NULL);
 #endif
@@ -1957,6 +1990,23 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             err = SSL_get_error(ssl, 0);
         }
 
+#if defined(HAVE_SECURE_RENEGOTIATION) && \
+    defined(HAVE_SERVER_RENEGOTIATION_INFO)
+        if (scr && forceScr) {
+            if (nonBlocking) {
+                printf("not doing secure renegotiation on example with"
+                       " nonblocking yet\n");
+            } else {
+                if (wolfSSL_Rehandshake(ssl) != WOLFSSL_SUCCESS) {
+                    printf("not doing secure renegotiation\n");
+                }
+                else {
+                    printf("RENEGOTIATION SUCCESSFUL\n");
+                }
+            }
+        }
+#endif /* HAVE_SECURE_RENEGOTIATION */
+
         if (err != WOLFSSL_ERROR_ZERO_RETURN && echoData == 0 &&
                                                               throughput == 0) {
             const char* write_msg;
@@ -2076,6 +2126,9 @@ exit:
     (void) ourDhParam;
     (void) ourCert;
     (void) useX25519;
+#ifdef HAVE_SECURE_RENEGOTIATION
+    (void) forceScr;
+#endif
 #ifndef WOLFSSL_TIRTOS
     return 0;
 #endif

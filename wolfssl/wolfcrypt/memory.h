@@ -110,7 +110,7 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb*,
         #endif
     #endif
     #ifndef WOLFMEM_DIST
-        #define WOLFMEM_DIST    8,4,4,12,4,5,8,1,1
+        #define WOLFMEM_DIST    49,10,6,14,5,6,9,1,1
     #endif
 
     /* flags for loading static memory (one hot bit) */

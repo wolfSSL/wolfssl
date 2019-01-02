@@ -405,7 +405,7 @@ MP_API void fp_clear(fp_int *a); /* uses ForceZero to clear sensitive memory */
 MP_API void fp_forcezero (fp_int * a);
 MP_API void fp_free(fp_int* a);
 
-/* zero/even/odd ? */
+/* zero/one/even/odd/neg/word ? */
 #define fp_iszero(a) (((a)->used == 0) ? FP_YES : FP_NO)
 #define fp_isone(a) \
     ((((a)->used == 1) && ((a)->dp[0] == 1)) ? FP_YES : FP_NO)
@@ -557,6 +557,7 @@ enum tfmExptModNbState {
   TFM_EXPTMOD_NB_SQR,
   TFM_EXPTMOD_NB_SQR_RED,
   TFM_EXPTMOD_NB_RED,
+  TFM_EXPTMOD_NB_COUNT /* last item for total state count only */
 };
 
 typedef struct {
@@ -565,12 +566,24 @@ typedef struct {
 #else
   fp_int   R[2];
 #endif
-  fp_digit buf, mp;
+  fp_digit buf;
+  fp_digit mp;
   int bitcnt;
   int digidx;
   int y;
   int state; /* tfmExptModNbState */
+#ifdef WC_RSA_NONBLOCK_TIME
+  word32 maxBlockInst; /* maximum instructions to block */
+  word32 totalInst;    /* tracks total instructions */
+#endif
 } exptModNb_t;
+
+#ifdef WC_RSA_NONBLOCK_TIME
+enum {
+  TFM_EXPTMOD_NB_STOP = 0,     /* stop and return FP_WOULDBLOCK */
+  TFM_EXPTMOD_NB_CONTINUE = 1, /* keep blocking */
+};
+#endif
 
 /* non-blocking version of timing resistant fp_exptmod function */
 /* supports cache resistance */
@@ -812,4 +825,5 @@ WOLFSSL_API word32 CheckRunTimeFastMath(void);
 #endif
 
 #endif  /* WOLF_CRYPT_TFM_H */
+
 

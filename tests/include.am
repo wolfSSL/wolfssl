@@ -34,5 +34,9 @@ EXTRA_DIST += tests/test.conf \
               tests/test-enckeys.conf \
               tests/test-maxfrag.conf \
               tests/test-maxfrag-dtls.conf \
-              tests/test-fails.conf
+              tests/test-fails.conf \
+              tests/test-chains.conf \
+              tests/test-altchains.conf \
+              tests/test-trustpeer.conf \
+              tests/test-dhprime.conf
 DISTCLEANFILES+= tests/.libs/unit.test

@@ -7,7 +7,7 @@
 #
 AC_COPYRIGHT([Copyright (C) 2006-2018 wolfSSL Inc.])
 AC_PREREQ([2.63])
-AC_INIT([wolfssl],[3.15.6],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
+AC_INIT([wolfssl],[3.15.7],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
 
 # The following sets CFLAGS and CXXFLAGS to empty if unset on command line.
@@ -34,7 +34,7 @@ LT_PREREQ([2.2])
 LT_INIT([disable-static win32-dll])
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=19:0:0
+WOLFSSL_LIBRARY_VERSION=20:0:1
 #                        | | |
 #                 +------+ | +---+
 #                 |        |     |
@@ -970,8 +970,24 @@ then
     *)
         case $host_cpu in
         *aarch64*)
-	    #+crypto needed for hardware acceleration
+            # +crypto needed for hardware acceleration
             AM_CPPFLAGS="$AM_CPPFLAGS -mcpu=generic+crypto"
+
+            # Check for and set -mstrict-align compiler flag
+            # Used to set assumption that Aarch64 systems will not handle
+            #   unaligned memory references. The flag -mstrict-align is needed
+            #   on some compiler versions to avoid an invalid addressing mode
+            #   error with  "m" constraint variables in the inline assembly AES
+            #   code. Even though unaligned load/store access is permitted on
+            #   normal memory with Cortex-A series boards with the exception
+            #   being exclusive and ordered access.
+            case $CPPFLAGS in
+                *mstrict-align*)
+                    break;; # already set by user
+                *)
+                    AM_CPPFLAGS="$AM_CPPFLAGS -mstrict-align"
+                    AC_MSG_NOTICE([64bit ARMv8, setting -mstrict-align]);;
+            esac
             AC_MSG_NOTICE([64bit ARMv8 found, setting mcpu to generic+crypto]);;
         *)
             AM_CPPFLAGS="$AM_CPPFLAGS -mfpu=crypto-neon-fp-armv8"
@@ -1661,7 +1677,7 @@ if test "$ENABLED_STACKSIZE" = "yes"
 then
     AC_CHECK_FUNC([posix_memalign], [], [AC_MSG_ERROR(stacksize needs posix_memalign)])
     AC_CHECK_FUNC([pthread_attr_setstack], [], AC_CHECK_LIB([pthread],[pthread_attr_setstack]))
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_STACK_SIZE -DWOLFSSL_LOW_MEMORY"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_STACK_SIZE"
 fi
 
 
@@ -2810,7 +2826,7 @@ then
     then
         AC_MSG_ERROR([cannot enable renegotiation-indication and secure-renegotiation.])
     fi
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SECURE_RENEGOTIATION"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SECURE_RENEGOTIATION -DHAVE_SERVER_RENEGOTIATION_INFO"
 fi
 
 # Supported Elliptic Curves Extensions
@@ -4221,7 +4237,7 @@ AC_ARG_ENABLE([asynccrypt],
 
 if test "$ENABLED_ASYNCCRYPT" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT -DHAVE_WOLF_EVENT -DHAVE_WOLF_BIGINT"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASYNC_CRYPT -DHAVE_WOLF_EVENT -DHAVE_WOLF_BIGINT -DWOLFSSL_NO_HASH_RAW"
 
     # if no async hardware then use simulator for testing
     if test "x$ENABLED_CAVIUM" = "xno" && test "x$ENABLED_INTEL_QA" = "xno"

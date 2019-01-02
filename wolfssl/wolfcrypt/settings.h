@@ -1647,9 +1647,9 @@ extern void uITRON4_free(void *p) ;
     #define HAVE_WOLF_EVENT
 
     #ifdef WOLFSSL_ASYNC_CRYPT_TEST
-        #define WC_ASYNC_DEV_SIZE 328+24
+        #define WC_ASYNC_DEV_SIZE 168
     #else
-        #define WC_ASYNC_DEV_SIZE 328
+        #define WC_ASYNC_DEV_SIZE 336
     #endif
 
     #if !defined(HAVE_CAVIUM) && !defined(HAVE_INTEL_QA) && \
@@ -1839,7 +1839,8 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_NO_INT_DECODE
 #endif
 
-#if defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if defined(WOLFCRYPT_ONLY) && defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    defined(WC_NO_RSA_OAEP)
     #undef  WOLFSSL_NO_CT_OPS
     #define WOLFSSL_NO_CT_OPS
 #endif

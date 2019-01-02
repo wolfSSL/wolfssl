@@ -216,6 +216,8 @@ int wolfSSL_PEM_write_X509(XFILE fp, WOLFSSL_X509 *x);
 #define PEM_write_RSA_PUBKEY            wolfSSL_PEM_write_RSA_PUBKEY
 #define PEM_write_RSAPublicKey          wolfSSL_PEM_write_RSAPublicKey
 #define PEM_read_RSAPublicKey           wolfSSL_PEM_read_RSAPublicKey
+#define PEM_read_bio_RSA_PUBKEY         wolfSSL_PEM_read_bio_RSA_PUBKEY
+#define PEM_write_bio_RSA_PUBKEY        wolfSSL_PEM_write_bio_RSA_PUBKEY
 
 /* DSA */
 #define PEM_write_bio_DSAPrivateKey     wolfSSL_PEM_write_bio_DSAPrivateKey

@@ -398,7 +398,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_STORE_set_verify_cb(s, c) \
 wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_CTX_verify_cb)(c))
 #define X509_STORE_set_verify_cb_func(s, c) \
-wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_CTX_verify_cb)(c)
+wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_CTX_verify_cb)(c))
  
 #define X509_STORE_new                  wolfSSL_X509_STORE_new
 #define X509_STORE_free                 wolfSSL_X509_STORE_free
@@ -789,6 +789,8 @@ typedef STACK_OF(GENERAL_NAME) GENERAL_NAMES;
 #define SSL_set_tlsext_status_ids       wolfSSL_set_tlsext_status_ids
 #define SSL_get_tlsext_status_ocsp_res  wolfSSL_get_tlsext_status_ocsp_resp
 #define SSL_set_tlsext_status_ocsp_res  wolfSSL_set_tlsext_status_ocsp_resp
+#define SSL_set_tlsext_status_ocsp_resp  wolfSSL_set_tlsext_status_ocsp_resp
+#define SSL_get_tlsext_status_ocsp_resp  wolfSSL_get_tlsext_status_ocsp_resp
  
 #define SSL_CTX_add_extra_chain_cert    wolfSSL_CTX_add_extra_chain_cert
 #define SSL_CTX_get_read_ahead          wolfSSL_CTX_get_read_ahead
