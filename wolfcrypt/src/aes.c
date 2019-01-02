@@ -2904,6 +2904,14 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return BAD_FUNC_ARG;
         }
 
+    #ifdef WOLF_CRYPTO_DEV
+        if (aes->devId != INVALID_DEVID) {
+            int ret = wc_CryptoDev_AesCbcEncrypt(aes, out, in, sz);
+            if (ret != NOT_COMPILED_IN)
+                return ret;
+            ret = 0; /* reset error code and try using software */
+        }
+    #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
         /* if async and byte count above threshold */
         if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES &&
@@ -2995,6 +3003,13 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return BAD_FUNC_ARG;
         }
 
+    #ifdef WOLF_CRYPTO_DEV
+        if (aes->devId != INVALID_DEVID) {
+            int ret = wc_CryptoDev_AesCbcDecrypt(aes, out, in, sz);
+            if (ret != NOT_COMPILED_IN)
+                return ret;
+        }
+    #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
         /* if async and byte count above threshold */
         if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES &&
@@ -8495,7 +8510,6 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             authTag, authTagSz, authIn, authInSz);
         if (ret != NOT_COMPILED_IN)
             return ret;
-        ret = 0; /* reset error code and try using software */
     }
 #endif
 

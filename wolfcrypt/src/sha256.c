@@ -46,6 +46,10 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 
+#ifdef WOLF_CRYPTO_DEV
+    #include <wolfssl/wolfcrypt/cryptodev.h>
+#endif
+
 /* fips wrapper calls, user can call direct */
 #if defined(HAVE_FIPS) && \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
@@ -308,6 +312,9 @@ static int InitSha256(wc_Sha256* sha256)
             return BAD_FUNC_ARG;
 
         sha256->heap = heap;
+    #ifdef WOLF_CRYPTO_DEV
+        sha256->devId = devId;
+    #endif
 
         ret = InitSha256(sha256);
         if (ret != 0)
@@ -675,6 +682,14 @@ static int InitSha256(wc_Sha256* sha256)
             return 0;
         }
 
+    #ifdef WOLF_CRYPTO_DEV
+        if (sha256->devId != INVALID_DEVID) {
+            ret = wc_CryptoDev_Sha256Hash(sha256, data, len, NULL);
+            if (ret != NOT_COMPILED_IN)
+                return ret;
+            ret = 0; /* reset error code and try using software */
+        }
+    #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256)
         if (sha256->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA256) {
         #if defined(HAVE_INTEL_QA)
@@ -938,6 +953,15 @@ static int InitSha256(wc_Sha256* sha256)
         if (sha256 == NULL || hash == NULL) {
             return BAD_FUNC_ARG;
         }
+
+    #ifdef WOLF_CRYPTO_DEV
+        if (sha256->devId != INVALID_DEVID) {
+            ret = wc_CryptoDev_Sha256Hash(sha256, NULL, 0, hash);
+            if (ret != NOT_COMPILED_IN)
+                return ret;
+            ret = 0; /* reset error code and try using software */
+        }
+    #endif
 
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256)
         if (sha256->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA256) {

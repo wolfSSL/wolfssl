@@ -256,7 +256,8 @@ int wc_CryptoDev_EccVerify(const byte* sig, word32 siglen,
 }
 #endif /* HAVE_ECC */
 
-#if !defined(NO_AES) && defined(HAVE_AESGCM)
+#ifndef NO_AES
+#ifdef HAVE_AESGCM
 int wc_CryptoDev_AesGcmEncrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz,
                                const byte* iv, word32 ivSz,
@@ -328,15 +329,119 @@ int wc_CryptoDev_AesGcmDecrypt(Aes* aes, byte* out,
 
     return ret;
 }
-#endif /* !NO_AES && HAVE_AESGCM */
+#endif /* HAVE_AESGCM */
 
-/* call to support callback for entire buffer hash */
-int wc_CryptoDev_Sha256Hash(const byte* data, word32 len, byte* hash)
+#ifdef HAVE_AES_CBC
+int wc_CryptoDev_AesCbcEncrypt(Aes* aes, byte* out,
+                               const byte* in, word32 sz)
 {
-    (void)data;
-    (void)len;
-    (void)hash;
-    return NOT_COMPILED_IN;
+    int ret = NOT_COMPILED_IN;
+    CryptoDev* dev;
+
+    /* locate registered callback */
+    dev = wc_CryptoDev_FindDevice(aes->devId);
+    if (dev) {
+        if (dev->cb) {
+            wc_CryptoInfo cryptoInfo;
+            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+            cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
+            cryptoInfo.cipher.type = WC_CIPHER_AES_CBC;
+            cryptoInfo.cipher.enc = 1;
+            cryptoInfo.cipher.aescbc_enc.aes       = aes;
+            cryptoInfo.cipher.aescbc_enc.out       = out;
+            cryptoInfo.cipher.aescbc_enc.in        = in;
+            cryptoInfo.cipher.aescbc_enc.sz        = sz;
+
+            ret = dev->cb(aes->devId, &cryptoInfo, dev->ctx);
+        }
+    }
+
+    return ret;
 }
+
+int wc_CryptoDev_AesCbcDecrypt(Aes* aes, byte* out,
+                               const byte* in, word32 sz)
+{
+    int ret = NOT_COMPILED_IN;
+    CryptoDev* dev;
+
+    /* locate registered callback */
+    dev = wc_CryptoDev_FindDevice(aes->devId);
+    if (dev) {
+        if (dev->cb) {
+            wc_CryptoInfo cryptoInfo;
+            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+            cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
+            cryptoInfo.cipher.type = WC_CIPHER_AES_CBC;
+            cryptoInfo.cipher.enc = 0;
+            cryptoInfo.cipher.aescbc_dec.aes       = aes;
+            cryptoInfo.cipher.aescbc_dec.out       = out;
+            cryptoInfo.cipher.aescbc_dec.in        = in;
+            cryptoInfo.cipher.aescbc_dec.sz        = sz;
+
+            ret = dev->cb(aes->devId, &cryptoInfo, dev->ctx);
+        }
+    }
+
+    return ret;
+}
+#endif /* HAVE_AES_CBC */
+#endif /* !NO_AES */
+
+#ifndef NO_SHA
+int wc_CryptoDev_ShaHash(wc_Sha* sha, const byte* in,
+    word32 inSz, byte* digest)
+{
+    int ret = NOT_COMPILED_IN;
+    CryptoDev* dev;
+
+    /* locate registered callback */
+    dev = wc_CryptoDev_FindDevice(sha->devId);
+    if (dev) {
+        if (dev->cb) {
+            wc_CryptoInfo cryptoInfo;
+            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+            cryptoInfo.algo_type = WC_ALGO_TYPE_HASH;
+            cryptoInfo.hash.type = WC_HASH_TYPE_SHA;
+            cryptoInfo.hash.sha1 = sha;
+            cryptoInfo.hash.in = in;
+            cryptoInfo.hash.inSz = inSz;
+            cryptoInfo.hash.digest = digest;
+
+            ret = dev->cb(sha->devId, &cryptoInfo, dev->ctx);
+        }
+    }
+
+    return ret;
+}
+#endif /* !NO_SHA */
+
+#ifndef NO_SHA256
+int wc_CryptoDev_Sha256Hash(wc_Sha256* sha256, const byte* in,
+    word32 inSz, byte* digest)
+{
+    int ret = NOT_COMPILED_IN;
+    CryptoDev* dev;
+
+    /* locate registered callback */
+    dev = wc_CryptoDev_FindDevice(sha256->devId);
+    if (dev) {
+        if (dev->cb) {
+            wc_CryptoInfo cryptoInfo;
+            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+            cryptoInfo.algo_type = WC_ALGO_TYPE_HASH;
+            cryptoInfo.hash.type = WC_HASH_TYPE_SHA256;
+            cryptoInfo.hash.sha256 = sha256;
+            cryptoInfo.hash.in = in;
+            cryptoInfo.hash.inSz = inSz;
+            cryptoInfo.hash.digest = digest;
+
+            ret = dev->cb(sha256->devId, &cryptoInfo, dev->ctx);
+        }
+    }
+
+    return ret;
+}
+#endif /* !NO_SHA256 */
 
 #endif /* WOLF_CRYPTO_DEV */
