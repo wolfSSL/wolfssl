@@ -23060,21 +23060,62 @@ static void test_wolfSSL_X509_get_ext_count()
 #if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
     FILE* f;
     X509* x509;
-    int num_ext;
+    int ret;
 
-    f = fopen("./certs/server-cert.pem", "rb");
-    if (f == NULL) {
-        printf("unable to open file \n");
-    }
-    x509 = PEM_read_X509(f, NULL, NULL, NULL);
-    if (x509 == NULL) {
-        printf("unable to load in x509\n");
-    }
-    num_ext = wolfSSL_X509_get_ext_count(x509);
-    printf("\n\n\n\n***********************************");
-    printf("The number of extensions found is: %d\n", num_ext);
-    printf("***********************************\n\n\n\n");
+    AssertNotNull(f = fopen("./certs/server-cert.pem", "rb"));
+    AssertNotNull(x509 = PEM_read_X509(f, NULL, NULL, NULL));
+    AssertIntEQ((ret = wolfSSL_X509_get_ext_count(x509)), 3);
+    AssertIntEQ(wolfSSL_X509_get_ext_count(NULL), BAD_FUNC_ARG);
+    printf(testingFmt, "wolfSSL_X509_get_ext_count()");
+    printf(resultFmt, ret == 3 ? passed : failed);
 #endif
+}
+
+static void test_wolfSSL_X509_cmp(void){
+    FILE* file1;
+    FILE* file2;
+    X509* cert1;
+    X509* cert2;
+    int ret;
+
+    AssertNotNull(file1=fopen("./certs/server-cert.pem", "rb"));
+    AssertNotNull(file2=fopen("./certs/client-cert-3072.pem", "rb"));
+
+    AssertNotNull(cert1 = PEM_read_X509(file1, NULL, NULL, NULL));
+    AssertNotNull(cert2 = PEM_read_X509(file2, NULL, NULL, NULL));
+
+    printf(testingFmt, "wolfSSL_X509_cmp(): testing matching certs");
+    ret = wolfSSL_X509_cmp(cert1, cert1);
+    AssertIntEQ(0, wolfSSL_X509_cmp(cert1, cert1));
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_X509_cmp(): testing mismatched certs");
+    ret = wolfSSL_X509_cmp(cert1, cert2);
+    AssertIntEQ(-1, wolfSSL_X509_cmp(cert1, cert2));
+    printf(resultFmt, ret == -1 ? passed : failed);
+}
+
+static void test_wolfSSL_X509_EXTENSION_get_object(void)
+{
+    WOLFSSL_X509* x509;
+    WOLFSSL_X509_EXTENSION* ext;
+    WOLFSSL_ASN1_OBJECT* o;
+    FILE* file;
+    int nid;
+
+    AssertNotNull(file = fopen("./certs/server-cert.pem", "rb"));
+    AssertNotNull(x509 = wolfSSL_PEM_read_X509(file, NULL, NULL, NULL));
+
+    printf(testingFmt, "wolfSSL_X509_EXTENSION_get_object: testing ext idx 0");
+    AssertNotNull(ext = wolfSSL_X509_get_ext(x509, 0));
+    AssertNotNull(o = wolfSSL_X509_EXTENSION_get_object(ext));
+    AssertIntEQ(o->nid, 128);
+    nid = o->nid;
+    printf(resultFmt, nid == 128 ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_X509_EXTENSION_get_object: NULL argument");
+    AssertNull(o = wolfSSL_X509_EXTENSION_get_object(NULL));
+    printf(resultFmt, passed);
 }
 
 
@@ -25220,7 +25261,10 @@ void ApiTest(void)
     test_wolfSSL_DES_ncbc();
     test_wolfSSL_AES_cbc_encrypt();
 #if defined(WOLFSSL_QT)
+    printf("\n-------------------Qt tests---------------------\n");
     test_wolfSSL_X509_get_ext_count();
+    test_wolfSSL_X509_cmp();
+    test_wolfSSL_X509_EXTENSION_get_object();
 #endif /* (defined(WOLFSSL_QT)  */
 
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)) && !defined(NO_RSA)

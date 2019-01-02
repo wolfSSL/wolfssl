@@ -133,7 +133,6 @@ typedef void  *WOLFSSL_X509_STORE_CTX_verify_cb; /* verify callback */
 
 #include <wolfssl/wolfio.h>
 
-
 #ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
 typedef struct WOLFSSL_RSA            WOLFSSL_RSA;
 #define WOLFSSL_RSA_TYPE_DEFINED
@@ -368,8 +367,7 @@ struct WOLFSSL_X509_STORE {
     #define wolfSSL_SSL_CTRL_SET_TMP_ECDH       4
     #define WOLFSSL_ASN1_BOOLEAN                int
 
-
-   typedef struct WOLFSSL_X509_ALGOR {
+    typedef struct WOLFSSL_X509_ALGOR {
         /* TODO: this  */
     } WOLFSSL_X509_ALGOR;
 
@@ -378,12 +376,6 @@ struct WOLFSSL_X509_STORE {
         WOLFSSL_ASN1_BIT_STRING* public_key;
         WOLFSSL_EVP_PKEY* pkey;
     } WOLFSSL_X509_PUBKEY;
-
-    struct WOLFSSL_X509_EXTENSION {
-        WOLFSSL_ASN1_OBJECT *obj;
-        WOLFSSL_ASN1_BOOLEAN crit;
-        WOLFSSL_ASN1_STRING value;
-    };
 
 #endif
 

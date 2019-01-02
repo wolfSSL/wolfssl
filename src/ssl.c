@@ -7289,10 +7289,17 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         int outSz;
         const byte* rawCert;
         int sz;
+        word32 idx = 0;
+        DecodedCert cert;
+        const byte* input;
 
         WOLFSSL_ENTER("wolfSSL_X509_get_ext_count()");
+        if(passed_cert == NULL){
+            WOLFSSL_MSG("\tNot passed a certificate");
+            return BAD_FUNC_ARG;
+        }
+
         rawCert = wolfSSL_X509_get_der((WOLFSSL_X509*)passed_cert, &outSz);
-        DecodedCert cert;
         InitDecodedCert( &cert, rawCert, (word32)outSz, 0);
 
         if (ParseCert(&cert, CA_TYPE, NO_VERIFY, NULL) < 0){
@@ -7300,14 +7307,8 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
             return WOLFSSL_FAILURE;
         }
 
-        const byte* input = cert.extensions;
+        input = cert.extensions;
         sz = cert.extensionsSz;
-        word32 idx = 0;
-
-        if(passed_cert == NULL){
-            WOLFSSL_MSG("\tNot passed a certificate");
-            return BAD_FUNC_ARG;
-        }
 
         if (input == NULL || sz == 0)
             return WOLFSSL_FAILURE;
@@ -7466,10 +7467,22 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 #if !defined(NO_WOLFSSL_STUB)
     const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
     {
-        (void)ex;
+        int nid;
+        WOLFSSL_v3_ext_method method;
+
         WOLFSSL_ENTER("wolfSSL_X509V3_EXT_get");
-        return NULL;
+        nid = wolfSSL_OBJ_obj2nid(ex->obj);
+        if(nid <= 0){
+            WOLFSSL_MSG("Failed to get nid from passed extension object");
+            return NULL;
+        }
+        else{
+            method.ext_nid = nid;
+            ex->ext_method = method;
+        }
+        return (const WOLFSSL_v3_ext_method*)&ex->ext_method;
     }
+
 #endif
 
     /* returns an an x509v3 extension internal structure */
@@ -12608,7 +12621,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     void wolfSSL_X509_STORE_set_verify_cb(WOLFSSL_X509_STORE *st,
                                      WOLFSSL_X509_STORE_CTX_verify_cb verify_cb)
     {
-        //WOLFSSL_X509_STORE struct located wolfssl/ssl.h +336
         WOLFSSL_ENTER("WOLFSSL_X509_STORE_set_verify_cb");
         if(st==NULL){
             WOLFSSL_MSG("passed WOLFSSL_X509_STORE is NULL");
@@ -17423,15 +17435,16 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
  * size of this subset and its memory usage */
 #endif /* OPENSSL_EXTRA_X509_SMALL */
 
-#if defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB)
+#if defined(WOLFSSL_QT)
 int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 {
-        const byte* derA;//pointer to the der buffer of a
-        const byte* derB;//pointer to the der buffer of b
-        int retHashA;//return val of hash a
-        int retHashB;//return val of hash b
-        int outSzA = 0;//the length of der buffer a
-        int outSzB = 0;//the length of der buffer b
+        const byte* derA;
+        const byte* derB;
+        int retHashA;
+        int retHashB;
+        int outSzA = 0;
+        int outSzB = 0;
+
         #ifdef WOLFSSL_PIC32MZ_HASH
             byte digestA[PIC32_DIGEST_SIZE];
             byte digestB[PIC32_DIGEST_SIZE];
@@ -17440,41 +17453,51 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
             byte digestB[WC_SHA_DIGEST_SIZE];
         #endif
 
-        if (a == NULL || b == NULL){//sanity check
+        if (a == NULL || b == NULL){
             return BAD_FUNC_ARG;
         }
 
-        //get the length of the der buffer from cert a and b
         derA = wolfSSL_X509_get_der((WOLFSSL_X509*)a, &outSzA);
+        if(derA == NULL){
+            WOLFSSL_MSG("wolfSSL_X509_get_der - certificate A has failed");
+            return WOLFSSL_FATAL_ERROR;
+        }
         derB = wolfSSL_X509_get_der((WOLFSSL_X509*)b, &outSzB);
+        if(derB == NULL){
+            WOLFSSL_MSG("wolfSSL_X509_get_der - certificate B has failed");
+            return WOLFSSL_FATAL_ERROR;
+        }
 
         retHashA = wc_ShaHash(derA, (word32)outSzA, digestA);
+        if(retHashA != 0){
+            WOLFSSL_MSG("Hash of certificate A has failed");
+            return WOLFSSL_FATAL_ERROR;
+        }
         retHashB = wc_ShaHash(derB, (word32)outSzB, digestB);
+        if(retHashB != 0){
+            WOLFSSL_MSG("Hash of certificate B has failed");
+            return WOLFSSL_FATAL_ERROR;
+        }
 
-        //check the two hashes to see if they match
-        //use mem check function to compare memory, bit by bit
         if (outSzA == outSzB){
-            if(XMEMCMP(digestA, digestB, outSzA) != 0){
-                return WOLFSSL_FAILURE;
+            #ifdef WOLFSSL_PIC32MZ_HASH
+            if(XMEMCMP(digestA, digestB, PIC32_DIGEST_SIZE) != 0){
+                return WOLFSSL_FATAL_ERROR;
+            }
+            #else
+            if(XMEMCMP(digestA, digestB, WC_SHA_DIGEST_SIZE) != 0){
+                return WOLFSSL_FATAL_ERROR;
+            }
+            #endif
+            else{
+                WOLFSSL_LEAVE("wolfSSL_X509_cmp", 0);
+                return 0;
             }
         }
-        else{//the length of the two buffers is different and so are the certs
-            return WOLFSSL_FAILURE;
+        else{
+            WOLFSSL_LEAVE("wolfSSL_X509_cmp", WOLFSSL_FATAL_ERROR);
+            return WOLFSSL_FATAL_ERROR;
         }
-
-        //check return value of hash a
-        if(retHashA!=WOLFSSL_SUCCESS){
-            WOLFSSL_MSG("Hash of certificate A has failed");
-            return WOLFSSL_FAILURE;
-        }
-        //check return value of hash b
-        if(retHashB!=WOLFSSL_SUCCESS){
-            WOLFSSL_MSG("Hash of certificate B has failed");
-            return WOLFSSL_FAILURE;
-        }
-
-        WOLFSSL_LEAVE("wolfSSL_X509_cmp", WOLFSSL_SUCCESS);
-        return WOLFSSL_SUCCESS;
     }
 #endif
 
