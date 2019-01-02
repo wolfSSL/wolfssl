@@ -7119,10 +7119,17 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         int outSz;
         const byte* rawCert;
         int sz;
+        word32 idx = 0;
+        DecodedCert cert;
+        const byte* input;
 
         WOLFSSL_ENTER("wolfSSL_X509_get_ext_count()");
+        if(passed_cert == NULL){
+            WOLFSSL_MSG("\tNot passed a certificate");
+            return BAD_FUNC_ARG;
+        }
+
         rawCert = wolfSSL_X509_get_der((WOLFSSL_X509*)passed_cert, &outSz);
-        DecodedCert cert;
         InitDecodedCert( &cert, rawCert, (word32)outSz, 0);
 
         if (ParseCert(&cert, CA_TYPE, NO_VERIFY, NULL) < 0){
@@ -7130,14 +7137,8 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
             return WOLFSSL_FAILURE;
         }
 
-        const byte* input = cert.extensions;
+        input = cert.extensions;
         sz = cert.extensionsSz;
-        word32 idx = 0;
-
-        if(passed_cert == NULL){
-            WOLFSSL_MSG("\tNot passed a certificate");
-            return BAD_FUNC_ARG;
-        }
 
         if (input == NULL || sz == 0)
             return WOLFSSL_FAILURE;
@@ -16928,7 +16929,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
  * size of this subset and its memory usage */
 #endif /* OPENSSL_EXTRA_X509_SMALL */
 
-#if defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB)
+#if defined(WOLFSSL_QT)
 int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 {
         const byte* derA;//pointer to the der buffer of a

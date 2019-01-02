@@ -21336,21 +21336,40 @@ static void test_wolfSSL_X509_get_ext_count()
 #if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
     FILE* f;
     X509* x509;
-    int num_ext;
+    int ret;
 
     f = fopen("./certs/server-cert.pem", "rb");
-    if (f == NULL) {
-        printf("unable to open file \n");
-    }
     x509 = PEM_read_X509(f, NULL, NULL, NULL);
-    if (x509 == NULL) {
-        printf("unable to load in x509\n");
-    }
-    num_ext = wolfSSL_X509_get_ext_count(x509);
-    printf("\n\n\n\n***********************************");
-    printf("The number of extensions found is: %d\n", num_ext);
-    printf("***********************************\n\n\n\n");
+    ret = wolfSSL_X509_get_ext_count(x509);
+    AssertIntEQ(wolfSSL_X509_get_ext_count(x509), 3);
+    AssertIntEQ(wolfSSL_X509_get_ext_count(NULL), BAD_FUNC_ARG);
+    printf(testingFmt, "wolfSSL_X509_get_ext_count()");
+    printf(resultFmt, ret == 3 ? passed : failed);
 #endif
+}
+
+static void test_wolfSSL_X509_cmp(void){
+    FILE* file1;
+    FILE* file2;
+    X509* cert1;
+    X509* cert2;
+
+    //test case 1, certs match
+    file1=fopen("./certs/server-cert.pem", "rb");
+    file2=fopen("./certs/server-cert.pem", "rb");
+
+    if(file1 == NULL || file2 == NULL){
+        printf("unable to open file\n");
+    }
+    cert1 = PEM_read_X509(file1, NULL, NULL, NULL);
+    cert2 = PEM_read_X509(file2, NULL, NULL, NULL);
+
+    if(cert1 == NULL || cert2 == NULL){
+        printf("failed to load files into x509 certs\n");
+    }
+//    AssertIntEQ(0, wolfSSL_X509_cmp(cert1, cert2);
+//
+    printf("Hi Batman!!!\n");
 }
 
 
@@ -23411,6 +23430,7 @@ void ApiTest(void)
     test_wolfSSL_AES_cbc_encrypt();
 #if defined(WOLFSSL_QT)
     test_wolfSSL_X509_get_ext_count();
+    test_wolfSSL_X509_cmp();
 #endif /* (defined(WOLFSSL_QT)  */
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
