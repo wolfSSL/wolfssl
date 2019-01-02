@@ -205,6 +205,11 @@ int main()
 #endif
   net_initialize();
 
+  #if defined(DEBUG_WOLFSSL)
+    printf("Turning ON Debug message\n");
+    wolfSSL_Debugging_ON();
+  #endif
+
   osThreadCreate(osThread(net_loop), NULL);
 
   setTime((RTC_YEAR - 1970) * 365 * 24 * 60 * 60 + RTC_MONTH * 30 * 24 * 60 * 60 + RTC_DAY * 24 * 60 * 60);
