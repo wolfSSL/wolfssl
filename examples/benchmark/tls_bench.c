@@ -743,7 +743,7 @@ static int bench_tls_client(info_t* info)
         }
         info->client_stats.txTotal += ret;
 
-        /* read echo of message */
+        /* read echo of message from server */
         XMEMSET(readBuf, 0, readBufSz);
         start = gettime_secs(1);
     #ifndef BENCH_USE_NONBLOCK
@@ -775,7 +775,6 @@ static int bench_tls_client(info_t* info)
 
         wolfSSL_free(cli_ssl);
         cli_ssl = NULL;
-        sleep(0); /* give a bit of time for server to get ready */
     }
 
 exit:
@@ -809,7 +808,7 @@ static void* client_thread(void* args)
     pthread_cond_signal(&info->to_server.cond);
     info->to_client.done = 1;
 
-    (void)ret; /* set in into struct */
+    (void)ret; /* set in info struct */
 
     return NULL;
 }
@@ -895,7 +894,7 @@ static void CloseAndCleanupListenSocket(int* listenFd)
 static int bench_tls_server(info_t* info)
 {
     byte *readBuf = NULL;
-    double start, total = 0;
+    double start;
     int ret, len = 0, readBufSz;
     WOLFSSL_CTX* srv_ctx = NULL;
     WOLFSSL* srv_ssl = NULL;
@@ -1005,12 +1004,7 @@ static int bench_tls_server(info_t* info)
         wolfSSL_SetTmpDH(srv_ssl, p, sizeof(p), g, sizeof(g));
     #endif
 
-        /* start total counter after first wait */
-        if (total == 0.0) {
-            total = gettime_secs(0);
-        }
-
-        /* accept tls connection without tcp sockets */
+        /* accept TLS connection */
         start = gettime_secs(1);
     #ifndef BENCH_USE_NONBLOCK
         ret = wolfSSL_accept(srv_ssl);
@@ -1031,7 +1025,7 @@ static int bench_tls_server(info_t* info)
         info->server_stats.connTime += start;
         info->server_stats.connCount++;
 
-        /* read msg post handshake from client */
+        /* read message from client */
         XMEMSET(readBuf, 0, readBufSz);
         start = gettime_secs(1);
     #ifndef BENCH_USE_NONBLOCK
@@ -1076,7 +1070,7 @@ static int bench_tls_server(info_t* info)
         if (XSTRSTR((const char*)readBuf, kShutdown) != NULL) {
             info->server.shutdown = 1;
             if (info->showVerbose) {
-                printf("Server cipher done\n");
+                printf("Server shutdown done\n");
             }
         }
 
