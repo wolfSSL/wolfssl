@@ -959,7 +959,6 @@ static int InitSha256(wc_Sha256* sha256)
             ret = wc_CryptoDev_Sha256Hash(sha256, NULL, 0, hash);
             if (ret != NOT_COMPILED_IN)
                 return ret;
-            ret = 0; /* reset error code and try using software */
         }
     #endif
 

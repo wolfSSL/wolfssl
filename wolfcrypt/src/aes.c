@@ -2909,7 +2909,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             int ret = wc_CryptoDev_AesCbcEncrypt(aes, out, in, sz);
             if (ret != NOT_COMPILED_IN)
                 return ret;
-            ret = 0; /* reset error code and try using software */
         }
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
