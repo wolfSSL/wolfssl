@@ -809,6 +809,8 @@ static void* client_thread(void* args)
     pthread_cond_signal(&info->to_server.cond);
     info->to_client.done = 1;
 
+    (void)ret; /* set in into struct */
+
     return NULL;
 }
 #endif /* HAVE_PTHREAD */
@@ -1004,7 +1006,7 @@ static int bench_tls_server(info_t* info)
     #endif
 
         /* start total counter after first wait */
-        if (total == 0.0f) {
+        if (total == 0.0) {
             total = gettime_secs(0);
         }
 
