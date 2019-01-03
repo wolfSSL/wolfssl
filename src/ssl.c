@@ -16932,12 +16932,13 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
 #if defined(WOLFSSL_QT)
 int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 {
-        const byte* derA;//pointer to the der buffer of a
-        const byte* derB;//pointer to the der buffer of b
-        int retHashA;//return val of hash a
-        int retHashB;//return val of hash b
-        int outSzA = 0;//the length of der buffer a
-        int outSzB = 0;//the length of der buffer b
+        const byte* derA;
+        const byte* derB;
+        int retHashA;
+        int retHashB;
+        int outSzA = 0;
+        int outSzB = 0;
+
         #ifdef WOLFSSL_PIC32MZ_HASH
             byte digestA[PIC32_DIGEST_SIZE];
             byte digestB[PIC32_DIGEST_SIZE];
@@ -16946,41 +16947,51 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
             byte digestB[WC_SHA_DIGEST_SIZE];
         #endif
 
-        if (a == NULL || b == NULL){//sanity check
+        if (a == NULL || b == NULL){
             return BAD_FUNC_ARG;
         }
 
-        //get the length of the der buffer from cert a and b
         derA = wolfSSL_X509_get_der((WOLFSSL_X509*)a, &outSzA);
+        if(derA == NULL){
+            WOLFSSL_MSG("wolfSSL_X509_get_der - certificate A has failed");
+            return WOLFSSL_FATAL_ERROR;
+        }
         derB = wolfSSL_X509_get_der((WOLFSSL_X509*)b, &outSzB);
+        if(derB == NULL){
+            WOLFSSL_MSG("wolfSSL_X509_get_der - certificate B has failed");
+            return WOLFSSL_FATAL_ERROR;
+        }
 
         retHashA = wc_ShaHash(derA, (word32)outSzA, digestA);
+        if(retHashA != 0){
+            WOLFSSL_MSG("Hash of certificate A has failed");
+            return WOLFSSL_FATAL_ERROR;
+        }
         retHashB = wc_ShaHash(derB, (word32)outSzB, digestB);
+        if(retHashB != 0){
+            WOLFSSL_MSG("Hash of certificate B has failed");
+            return WOLFSSL_FATAL_ERROR;
+        }
 
-        //check the two hashes to see if they match
-        //use mem check function to compare memory, bit by bit
         if (outSzA == outSzB){
-            if(XMEMCMP(digestA, digestB, outSzA) != 0){
-                return WOLFSSL_FAILURE;
+            #ifdef WOLFSSL_PIC32MZ_HASH
+            if(XMEMCMP(digestA, digestB, PIC32_DIGEST_SIZE) != 0){
+                return WOLFSSL_FATAL_ERROR;
+            }
+            #else
+            if(XMEMCMP(digestA, digestB, WC_SHA_DIGEST_SIZE) != 0){
+                return WOLFSSL_FATAL_ERROR;
+            }
+            #endif
+            else{
+                WOLFSSL_LEAVE("wolfSSL_X509_cmp", 0);
+                return 0;
             }
         }
-        else{//the length of the two buffers is different and so are the certs
-            return WOLFSSL_FAILURE;
+        else{
+            WOLFSSL_LEAVE("wolfSSL_X509_cmp", WOLFSSL_FATAL_ERROR);
+            return WOLFSSL_FATAL_ERROR;
         }
-
-        //check return value of hash a
-        if(retHashA!=WOLFSSL_SUCCESS){
-            WOLFSSL_MSG("Hash of certificate A has failed");
-            return WOLFSSL_FAILURE;
-        }
-        //check return value of hash b
-        if(retHashB!=WOLFSSL_SUCCESS){
-            WOLFSSL_MSG("Hash of certificate B has failed");
-            return WOLFSSL_FAILURE;
-        }
-
-        WOLFSSL_LEAVE("wolfSSL_X509_cmp", WOLFSSL_SUCCESS);
-        return WOLFSSL_SUCCESS;
     }
 #endif
 

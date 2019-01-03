@@ -21353,10 +21353,10 @@ static void test_wolfSSL_X509_cmp(void){
     FILE* file2;
     X509* cert1;
     X509* cert2;
+    int ret;
 
-    //test case 1, certs match
     file1=fopen("./certs/server-cert.pem", "rb");
-    file2=fopen("./certs/server-cert.pem", "rb");
+    file2=fopen("./certs/client-cert-3072.pem", "rb");
 
     if(file1 == NULL || file2 == NULL){
         printf("unable to open file\n");
@@ -21365,13 +21365,24 @@ static void test_wolfSSL_X509_cmp(void){
     cert2 = PEM_read_X509(file2, NULL, NULL, NULL);
 
     if(cert1 == NULL || cert2 == NULL){
-        printf("failed to load files into x509 certs\n");
+        printf("test_wolfSSL_X509_cmp(): failed to load files to x509 certs\n");
     }
-//    AssertIntEQ(0, wolfSSL_X509_cmp(cert1, cert2);
-//
-    printf("Hi Batman!!!\n");
+
+    printf(testingFmt, "wolfSSL_X509_cmp(): testing matching certs");
+    ret = wolfSSL_X509_cmp(cert1, cert1);
+    AssertIntEQ(0, wolfSSL_X509_cmp(cert1, cert1));
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_X509_cmp(): testing mismatched certs");
+    ret = wolfSSL_X509_cmp(cert1, cert2);
+    AssertIntEQ(-1, wolfSSL_X509_cmp(cert1, cert2));
+    printf(resultFmt, ret == -1 ? passed : failed);
 }
 
+static void test_wolfSSL_X509_EXTENSION_get_object(void)
+{
+
+}
 
 #endif
 /*end of QT unit tests*/
@@ -23431,6 +23442,7 @@ void ApiTest(void)
 #if defined(WOLFSSL_QT)
     test_wolfSSL_X509_get_ext_count();
     test_wolfSSL_X509_cmp();
+    test_wolfSSL_X509_EXTENSION_get_object();
 #endif /* (defined(WOLFSSL_QT)  */
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
