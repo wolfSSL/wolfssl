@@ -126,11 +126,14 @@
     };
 
     #define WOLFSSL_MAX_16BIT  0xffffU
+
+#ifdef WOLFSSL_OTHER_MAX_TYPES
     #define WOLFSSL_MAX_BYTE   0xff
     #define WOLFSSL_MAX_32BIT (~((word32)0U))
-#ifdef WORD64_AVAILABLE
+  #ifdef WORD64_AVAILABLE
     #define WOLFSSL_MAX_WORD64 W64LIT(0xffffffffffffffff)
-#endif
+  #endif
+#endif /* WOLFSSL_OTHER_MAX_TYPES */
 
     /* use inlining if compiler allows */
     #ifndef WC_INLINE
