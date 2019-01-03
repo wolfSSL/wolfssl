@@ -807,8 +807,7 @@ static void* client_thread(void* args)
 
     pthread_cond_signal(&info->to_server.cond);
     info->to_client.done = 1;
-
-    (void)ret; /* set in info struct */
+    info->client.ret = ret;
 
     return NULL;
 }
@@ -1119,6 +1118,7 @@ static void* server_thread(void* args)
 
     pthread_cond_signal(&info->to_client.cond);
     info->to_server.done = 1;
+    info->server.ret = ret;
 
     return NULL;
 }
