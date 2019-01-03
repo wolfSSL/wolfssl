@@ -21338,10 +21338,9 @@ static void test_wolfSSL_X509_get_ext_count()
     X509* x509;
     int ret;
 
-    f = fopen("./certs/server-cert.pem", "rb");
-    x509 = PEM_read_X509(f, NULL, NULL, NULL);
-    ret = wolfSSL_X509_get_ext_count(x509);
-    AssertIntEQ(wolfSSL_X509_get_ext_count(x509), 3);
+    AssertNotNull(f = fopen("./certs/server-cert.pem", "rb"));
+    AssertNotNull(x509 = PEM_read_X509(f, NULL, NULL, NULL));
+    AssertIntEQ((ret = wolfSSL_X509_get_ext_count(x509)), 3);
     AssertIntEQ(wolfSSL_X509_get_ext_count(NULL), BAD_FUNC_ARG);
     printf(testingFmt, "wolfSSL_X509_get_ext_count()");
     printf(resultFmt, ret == 3 ? passed : failed);
@@ -21355,18 +21354,11 @@ static void test_wolfSSL_X509_cmp(void){
     X509* cert2;
     int ret;
 
-    file1=fopen("./certs/server-cert.pem", "rb");
-    file2=fopen("./certs/client-cert-3072.pem", "rb");
+    AssertNotNull(file1=fopen("./certs/server-cert.pem", "rb"));
+    AssertNotNull(file2=fopen("./certs/client-cert-3072.pem", "rb"));
 
-    if(file1 == NULL || file2 == NULL){
-        printf("unable to open file\n");
-    }
-    cert1 = PEM_read_X509(file1, NULL, NULL, NULL);
-    cert2 = PEM_read_X509(file2, NULL, NULL, NULL);
-
-    if(cert1 == NULL || cert2 == NULL){
-        printf("test_wolfSSL_X509_cmp(): failed to load files to x509 certs\n");
-    }
+    AssertNotNull(cert1 = PEM_read_X509(file1, NULL, NULL, NULL));
+    AssertNotNull(cert2 = PEM_read_X509(file2, NULL, NULL, NULL));
 
     printf(testingFmt, "wolfSSL_X509_cmp(): testing matching certs");
     ret = wolfSSL_X509_cmp(cert1, cert1);
@@ -21381,8 +21373,27 @@ static void test_wolfSSL_X509_cmp(void){
 
 static void test_wolfSSL_X509_EXTENSION_get_object(void)
 {
+    WOLFSSL_X509* x509;
+    WOLFSSL_X509_EXTENSION* ext;
+    WOLFSSL_ASN1_OBJECT* o;
+    FILE* file;
+    int nid;
 
+    AssertNotNull(file = fopen("./certs/server-cert.pem", "rb"));
+    AssertNotNull(x509 = wolfSSL_PEM_read_X509(file, NULL, NULL, NULL));
+
+    printf(testingFmt, "wolfSSL_X509_EXTENSION_get_object: testing ext idx 0");
+    AssertNotNull(ext = wolfSSL_X509_get_ext(x509, 0));
+    AssertNotNull(o = wolfSSL_X509_EXTENSION_get_object(ext));
+    AssertIntEQ(o->nid, 128);
+    nid = o->nid;
+    printf(resultFmt, nid == 128 ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_X509_EXTENSION_get_object: NULL argument");
+    AssertNull(o = wolfSSL_X509_EXTENSION_get_object(NULL));
+    printf(resultFmt, passed);
 }
+
 
 #endif
 /*end of QT unit tests*/
@@ -23440,6 +23451,7 @@ void ApiTest(void)
     test_wolfSSL_DES_ncbc();
     test_wolfSSL_AES_cbc_encrypt();
 #if defined(WOLFSSL_QT)
+    printf("\n-------------------Qt tests---------------------\n");
     test_wolfSSL_X509_get_ext_count();
     test_wolfSSL_X509_cmp();
     test_wolfSSL_X509_EXTENSION_get_object();
