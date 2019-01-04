@@ -14168,6 +14168,9 @@ static int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
 {
     int ret;
 
+    if (request != NULL)
+        XMEMSET(request, 0, sizeof(OcspRequest));
+
     InitDecodedCert(cert, certData, length, ssl->heap);
     /* TODO: Setup async support here */
     ret = ParseCertRelative(cert, CERT_TYPE, VERIFY, ssl->ctx->cm);
