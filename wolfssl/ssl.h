@@ -997,8 +997,6 @@ WOLFSSL_API int   wolfSSL_X509_STORE_CTX_get_error_depth(WOLFSSL_X509_STORE_CTX*
 
 WOLFSSL_API void  wolfSSL_X509_STORE_CTX_set_verify_cb(WOLFSSL_X509_STORE_CTX *ctx,
                                   WOLFSSL_X509_STORE_CTX_verify_cb verify_cb);
-WOLFSSL_API void  wolfSSL_X509_STORE_CTX_set_verify_cb_func(WOLFSSL_X509_STORE *st,
-                                  WOLFSSL_X509_STORE_CTX_verify_cb verify_cb);
 WOLFSSL_API void wolfSSL_X509_STORE_set_verify_cb(WOLFSSL_X509_STORE *st,
                                      WOLFSSL_X509_STORE_CTX_verify_cb verify_cb);
 WOLFSSL_API int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* n,

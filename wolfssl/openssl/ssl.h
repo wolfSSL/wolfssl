@@ -388,7 +388,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define X509_STORE_CTX_get_current_cert wolfSSL_X509_STORE_CTX_get_current_cert
 #define X509_STORE_CTX_set_verify_cb    wolfSSL_X509_STORE_CTX_set_verify_cb
-#define X509_STORE_CTX_set_verify_cb_func wolfSSL_X509_STORE_CTX_set_verify_cb_func
+#define X509_STORE_CTX_set_verify_cb_func wolfSSL_X509_STORE_set_verify_cb
 #define X509_STORE_CTX_new              wolfSSL_X509_STORE_CTX_new
 #define X509_STORE_CTX_free             wolfSSL_X509_STORE_CTX_free
 #define X509_STORE_CTX_get_chain        wolfSSL_X509_STORE_CTX_get_chain
@@ -405,7 +405,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_CTX_verify_cb)(c))
 #define X509_STORE_set_verify_cb_func(s, c) \
 wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_CTX_verify_cb)(c))
- 
+
 #define X509_STORE_new                  wolfSSL_X509_STORE_new
 #define X509_STORE_free                 wolfSSL_X509_STORE_free
 #define X509_STORE_add_lookup           wolfSSL_X509_STORE_add_lookup
