@@ -21339,7 +21339,7 @@ static void test_wolfSSL_X509_get_ext_count()
     int ret;
 
     AssertNotNull(f = fopen("./certs/server-cert.pem", "rb"));
-    AssertNotNull(x509 = PEM_read_X509(f, NULL, NULL, NULL));
+    AssertNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
 
     printf(testingFmt, "wolfSSL_X509_get_ext_count() valid input");
     AssertIntEQ((ret = wolfSSL_X509_get_ext_count(x509)), 3);
@@ -21361,8 +21361,8 @@ static void test_wolfSSL_X509_cmp(void){
     AssertNotNull(file1=fopen("./certs/server-cert.pem", "rb"));
     AssertNotNull(file2=fopen("./certs/client-cert-3072.pem", "rb"));
 
-    AssertNotNull(cert1 = PEM_read_X509(file1, NULL, NULL, NULL));
-    AssertNotNull(cert2 = PEM_read_X509(file2, NULL, NULL, NULL));
+    AssertNotNull(cert1 = wolfSSL_PEM_read_X509(file1, NULL, NULL, NULL));
+    AssertNotNull(cert2 = wolfSSL_PEM_read_X509(file2, NULL, NULL, NULL));
 
     printf(testingFmt, "wolfSSL_X509_cmp() testing matching certs");
     ret = wolfSSL_X509_cmp(cert1, cert1);
