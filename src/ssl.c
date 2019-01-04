@@ -36882,7 +36882,6 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
  */
 WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
 {
-
     WOLFSSL_STACK* sk = NULL;
     WOLFSSL_CIPHER* cipher;
     int suiteSz,i=0;

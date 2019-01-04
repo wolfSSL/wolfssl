@@ -23150,6 +23150,76 @@ static void test_wolfSSL_X509_PUBKEY_get(void){
     printf(resultFmt,ret_evp_pkey == NULL ? passed : failed);
 }
 
+static void test_wolfSSL_CIPHER_description_all(void)
+{
+    #define CERT_LOCATION "/home/user/Qt-Project/wolfssl/certs/client-cert.pem"
+
+    char buf[256];
+    char test_str[9];
+    const char bad_str[] = "unknown\0";
+    const SSL_METHOD *method = NULL;
+    const SSL_CIPHER *cipher = NULL;
+    STACK_OF(SSL_CIPHER) *supportedCiphers = NULL;
+    SSL_CTX *ctx = NULL;
+    SSL *ssl = NULL;
+    const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION;
+    int i,j,k;
+
+    printf(testingFmt, "wolfSSL_CIPHER_description_all");
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    SSL_library_init();
+#else
+    OPENSSL_init_ssl(0, NULL);
+#endif
+
+    AssertNotNull(method = TLSv1_client_method());
+    AssertNotNull(ctx = SSL_CTX_new(method));
+
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, 0);
+    SSL_CTX_set_verify_depth(ctx, 4);
+
+    SSL_CTX_set_options(ctx, flags);
+    SSL_CTX_load_verify_locations(ctx, CERT_LOCATION, NULL);
+
+    AssertNotNull(ssl = SSL_new(ctx));
+    /* SSL_get_ciphers returns a stack of all configured ciphers
+     * A flag, getCipherAtOffset, is set to later have SSL_CIPHER_description
+     * call it's inner function, wolfSSL_CIPHER_description_all, to obtain
+     * a cipher description for each cipher in the stack.
+     */
+    AssertNotNull(supportedCiphers = SSL_get_ciphers(ssl));
+
+    /* loop through the amount of supportedCiphers */
+    for (i = 0; i < sk_num(supportedCiphers); ++i) {
+
+        /* since the stack of supportedCiphers is acctually copies of the same
+         * "cipher object". sk_value increments "sk->data.cipher->cipherOffset"
+         * so that wolfSSL_CIPHER_description_all can return a description for
+         * every configured cipher.
+         */
+
+        if ( (cipher = sk_value(supportedCiphers, i)) ) {
+            SSL_CIPHER_description(cipher, buf, sizeof(buf));
+        }
+
+        /* Search cipher description string for "unknown" descriptor */
+        for (j=0; j < (int)XSTRLEN(buf); j++) {
+            k=0;
+            while ((buf[j] == bad_str[k]) && (k < (int)XSTRLEN(bad_str))) {
+                test_str[k] = bad_str[k];
+                j++,k++;
+            }
+        }
+        /* Fail if test_str == bad_str == "unknown" */
+        AssertStrNE(test_str,bad_str);
+    }
+    SSL_CTX_free(ctx);
+    SSL_free(ssl);
+    wolfSSL_sk_ASN1_OBJECT_free(supportedCiphers);
+
+    printf(resultFmt, passed);
+}
 #endif /*end of QT unit tests*/
 
 static void test_no_op_functions(void)
@@ -25296,7 +25366,9 @@ void ApiTest(void)
     test_wolfSSL_X509_cmp();
     test_wolfSSL_X509_EXTENSION_get_object();
     test_wolfSSL_X509_PUBKEY_get();
+    test_wolfSSL_CIPHER_description_all();
     printf("\n-------------End Of Qt Unit Tests---------------\n");
+
 #endif /* (defined(WOLFSSL_QT)  */
 
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)) && !defined(NO_RSA)
