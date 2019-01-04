@@ -23064,10 +23064,14 @@ static void test_wolfSSL_X509_get_ext_count()
 
     AssertNotNull(f = fopen("./certs/server-cert.pem", "rb"));
     AssertNotNull(x509 = PEM_read_X509(f, NULL, NULL, NULL));
+
+    printf(testingFmt, "wolfSSL_X509_get_ext_count() valid input");
     AssertIntEQ((ret = wolfSSL_X509_get_ext_count(x509)), 3);
-    AssertIntEQ(wolfSSL_X509_get_ext_count(NULL), BAD_FUNC_ARG);
-    printf(testingFmt, "wolfSSL_X509_get_ext_count()");
     printf(resultFmt, ret == 3 ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_X509_get_ext_count() NULL argument");
+    AssertIntEQ((ret = wolfSSL_X509_get_ext_count(NULL)), BAD_FUNC_ARG);
+    printf(resultFmt, ret == BAD_FUNC_ARG ? passed : failed);
 #endif
 }
 
@@ -23084,12 +23088,12 @@ static void test_wolfSSL_X509_cmp(void){
     AssertNotNull(cert1 = PEM_read_X509(file1, NULL, NULL, NULL));
     AssertNotNull(cert2 = PEM_read_X509(file2, NULL, NULL, NULL));
 
-    printf(testingFmt, "wolfSSL_X509_cmp(): testing matching certs");
+    printf(testingFmt, "wolfSSL_X509_cmp() testing matching certs");
     ret = wolfSSL_X509_cmp(cert1, cert1);
     AssertIntEQ(0, wolfSSL_X509_cmp(cert1, cert1));
     printf(resultFmt, ret == 0 ? passed : failed);
 
-    printf(testingFmt, "wolfSSL_X509_cmp(): testing mismatched certs");
+    printf(testingFmt, "wolfSSL_X509_cmp() testing mismatched certs");
     ret = wolfSSL_X509_cmp(cert1, cert2);
     AssertIntEQ(-1, wolfSSL_X509_cmp(cert1, cert2));
     printf(resultFmt, ret == -1 ? passed : failed);
@@ -23106,21 +23110,47 @@ static void test_wolfSSL_X509_EXTENSION_get_object(void)
     AssertNotNull(file = fopen("./certs/server-cert.pem", "rb"));
     AssertNotNull(x509 = wolfSSL_PEM_read_X509(file, NULL, NULL, NULL));
 
-    printf(testingFmt, "wolfSSL_X509_EXTENSION_get_object: testing ext idx 0");
+    printf(testingFmt, "wolfSSL_X509_EXTENSION_get_object() testing ext idx 0");
     AssertNotNull(ext = wolfSSL_X509_get_ext(x509, 0));
     AssertNotNull(o = wolfSSL_X509_EXTENSION_get_object(ext));
     AssertIntEQ(o->nid, 128);
     nid = o->nid;
     printf(resultFmt, nid == 128 ? passed : failed);
 
-    printf(testingFmt, "wolfSSL_X509_EXTENSION_get_object: NULL argument");
+    printf(testingFmt, "wolfSSL_X509_EXTENSION_get_object() NULL argument");
     AssertNull(o = wolfSSL_X509_EXTENSION_get_object(NULL));
     printf(resultFmt, passed);
 }
 
+static void test_wolfSSL_X509_PUBKEY_get(void){
+    WOLFSSL_X509_PUBKEY pubkey;
+    WOLFSSL_X509_PUBKEY* key;
+    WOLFSSL_EVP_PKEY evpkey;
+    WOLFSSL_EVP_PKEY* evp_pkey;
+    WOLFSSL_EVP_PKEY* ret_evp_pkey;
 
-#endif
-/*end of QT unit tests*/
+    key = &pubkey;
+    evp_pkey = &evpkey;
+
+    evp_pkey->type = WOLFSSL_SUCCESS;
+    key->pkey = evp_pkey;
+
+    printf(testingFmt, "wolfSSL_X509_PUBKEY_get() valid input");
+    AssertNotNull(ret_evp_pkey = wolfSSL_X509_PUBKEY_get(key));
+    AssertIntEQ(ret_evp_pkey->type, WOLFSSL_SUCCESS);
+    printf(resultFmt,ret_evp_pkey->type  == WOLFSSL_SUCCESS ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_X509_PUBKEY_get() NULL WOLFSSL_X509_PUBKEY");
+    AssertNull(ret_evp_pkey = wolfSSL_X509_PUBKEY_get(NULL));
+    printf(resultFmt,ret_evp_pkey  == NULL ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_X509_PUBKEY_get() valid PUBKEY, NULL EVP_PKEY");
+    key->pkey = NULL;
+    AssertNull(ret_evp_pkey = wolfSSL_X509_PUBKEY_get(key));
+    printf(resultFmt,ret_evp_pkey == NULL ? passed : failed);
+}
+
+#endif /*end of QT unit tests*/
 
 static void test_no_op_functions(void)
 {
@@ -25261,10 +25291,12 @@ void ApiTest(void)
     test_wolfSSL_DES_ncbc();
     test_wolfSSL_AES_cbc_encrypt();
 #if defined(WOLFSSL_QT)
-    printf("\n-------------------Qt tests---------------------\n");
+    printf("\n----------------Qt Unit Tests-------------------\n");
     test_wolfSSL_X509_get_ext_count();
     test_wolfSSL_X509_cmp();
     test_wolfSSL_X509_EXTENSION_get_object();
+    test_wolfSSL_X509_PUBKEY_get();
+    printf("\n-------------End Of Qt Unit Tests---------------\n");
 #endif /* (defined(WOLFSSL_QT)  */
 
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)) && !defined(NO_RSA)

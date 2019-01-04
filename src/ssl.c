@@ -7358,10 +7358,10 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         WOLFSSL_X509_EXTENSION* found_extension = NULL;
         DecodedCert cert;
 
+        WOLFSSL_ENTER("wolfSSL_X509_get_ext_count()");
         found_extension = (WOLFSSL_X509_EXTENSION*)XMALLOC(sizeof(WOLFSSL_X509_EXTENSION), NULL, DYNAMIC_TYPE_X509_EXT);
         tmp_obj = wolfSSL_ASN1_OBJECT_new();
 
-        WOLFSSL_ENTER("wolfSSL_X509_get_ext_count()");
         rawCert = wolfSSL_X509_get_der((WOLFSSL_X509*)passed_cert, &outSz);
         InitDecodedCert( &cert, rawCert, (word32)outSz, 0);
 
