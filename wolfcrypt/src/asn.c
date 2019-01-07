@@ -4112,7 +4112,7 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
 {
     int    length;
     #ifdef OPENSSL_EXTRA
-    int ret;
+    int    ret;
     word32 oid;
     #endif 
 
@@ -4120,86 +4120,20 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
         return BAD_FUNC_ARG;
     }
 
-    //printf("inSz is: %d  inOutIdx is: %d\n\n", inSz, *inOutIdx);
-
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-//     {
-//         int i;
-//         printf("\n\nGetSequence 1:");
-// printf("inSz is: %d  length is: %d  inOutIdx is: %d\n", inSz, length, *inOutIdx);
-//         for (i = *inOutIdx; i<length; i++)
-//             printf("%02x", input[i]);
-//         printf("\n");
-//         for (i = *inOutIdx; i<length; i++)
-//             printf("[%d]", i);
-//         printf("\n");
-//     }
     #ifdef OPENSSL_EXTRA
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
-
-
-//     {
-//         int i;
-//         printf("\n\nGetSequence 2:");
-// printf("inSz is: %d  length is: %d  inOutIdx is: %d\n", inSz, length, *inOutIdx);
-//         for (i = *inOutIdx; i<length; i++)
-//             printf("%02x", input[i]);
-//         printf("\n");
-//         for (i = *inOutIdx; i<length; i++)
-//             printf("[%d]", i);
-//         printf("\n");
-//     }
 
     ret = GetObjectId(input, inOutIdx, &oid, oidIgnoreType, inSz);
         if (ret != 0)
             return ret;
 
-    // printf("length is %d\n", length);
-    // printf("ret_obj is %d\n", ret);
-    // {
-    //     int i;
-    //     printf("\n\nGetObject 1:");
-    //     printf("inSz is: %d  length is: %d  inOutIdx is: %d\n\n", inSz, length, *inOutIdx);
-    //     for (i = *inOutIdx; i<length; i++)
-    //         printf("%02x", input[i]);
-    //     printf("\n");
-    //     for (i = *inOutIdx; i<length; i++)
-    //         printf("[%d]", i);
-    //     printf("\n");
-    // }
-
-        //to make this adaptive to both kinds of keys:
-        //wrap in opensslextra
-        //if firsty getsequence fail, fall back to previous method
-        //example can be found in: wc_RsaPublicKeyDecode_ex in asn.c
-
-
-
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
     #endif
-    // {
-    //     int i;
-    //     printf("\n\nGetSequence 3:");
-    //     printf("inSz is: %d  length is: %d  inOutIdx is: %d\n\n", inSz, length, *inOutIdx);
-    //     for (i = *inOutIdx; i<length; i++)
-    //         printf("%02x", input[i]);
-    //     printf("\n");
-    //     for (i = *inOutIdx; i<length; i++)
-    //         printf("[%d]", i);
-    //     printf("\n");
-    // }
-
-
-
-
-
-
-//printf("input is: %02x  length is: %d  inOutIdx is: %d\n\n", input[*inOutIdx], length, *inOutIdx);
-
 
     {
         int i;
@@ -4214,87 +4148,35 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
         GetInt(&key->g,  input, inOutIdx, inSz) < 0)
         return ASN_DH_KEY_E;
 
-
-//printf("input is: %02x  length is: %d  inOutIdx is: %d\n\n", input[*inOutIdx], length, *inOutIdx);
-
-
-//printf("input is: %02x  length is: %d  inOutIdx is: %d\n\n", input[*inOutIdx], length, *inOutIdx);
     #ifdef OPENSSL_EXTRA
         if (CheckBitString(input, inOutIdx, &length, inSz, 0, NULL) < 0)
             ret = ASN_PARSE_E;
-        // {
-        // int i;
-        // printf("\n\nBitString 1:");
-        // printf("inSz is: %d  length is: %d  inOutIdx is: %d\n\n", inSz, length, *inOutIdx);
-        // for (i = *inOutIdx; i<length; i++)
-        //     printf("%02x", input[i]);
-        // printf("\n");
-        // for (i = *inOutIdx; i<length; i++)
-        //     printf("[%d]", i);
-        // printf("\n");
-        // } 
-
-    #endif //WOLFSSL_QT
-
-
-//printf("pooinput is: %02x  length is: %d  inOutIdx is: %d\n\n", input[*inOutIdx], length, *inOutIdx);
-
-        // check for 03(asn_bit) then get length
-        // increase index by 1
-        // get length
-        // tahts the length of string
-        // openssl_extra
-        // //check bitstring
-        // end openssl_extra
-
-        //classified as 'pub' in openssl, might also be combo of x and y 
+    #endif 
 
     if (GetInt(&key->y,  input, inOutIdx, inSz) < 0 )
         return ASN_DH_KEY_E;
 
 
     mp_radix_size((mp_int*)&key->p, MP_RADIX_HEX, &length);
-    //maybe do xfree xmalloc cuz example has it in ssl.c
+
     length += 1;
     char outpeet[length];
     mp_tohex((mp_int*)&key->p, outpeet);
-    //printf("\nint p: \n");
-    //printf("%s\n\n\n", outpeet);
 
     mp_radix_size((mp_int*)&key->q, MP_RADIX_HEX, &length);
     length += 1;
     char outpeet1[length];
     mp_tohex((mp_int*)&key->q, outpeet1);
-    //printf("\nint q: \n");
-    //printf("%s\n\n\n", outpeet1);
 
     mp_radix_size((mp_int*)&key->g, MP_RADIX_HEX, &length);
     length += 1;
     char outpeet2[length];
     mp_tohex((mp_int*)&key->g, outpeet2);
-    //printf("\nint g: \n");
-    //printf("%s\n\n\n", outpeet2);
 
     mp_radix_size((mp_int*)&key->y, MP_RADIX_HEX, &length);
     length += 1;
     char outpeet3[length];
     mp_tohex((mp_int*)&key->y, outpeet3);
-    //printf("\nint y: \n");
-    //printf("%s\n\n\n", outpeet3);
-
-
-            //%%%%%%
-            // {
-            // int thing = mp_unsigned_bin_size(&key->p);
-            // printf("decode_length_q is :%d\n decode_q is  ", thing);
-            // byte thing3[128];
-            // mp_to_unsigned_bin(&key->p, thing3);
-            // for (int z; z < 128; z++)
-            //     printf("%02x", thing3[z]);
-            // printf("\n");
-            //  printf("\nsizeof thing3 is: %ld", sizeof(thing3));
-            // }
-
 
     key->type = DSA_PUBLIC;
     return 0;
@@ -15889,3 +15771,4 @@ int wc_ParseCertPIV(wc_CertPIV* piv, const byte* buf, word32 totalSz)
 
 
 #endif /* WOLFSSL_SEP */
+
