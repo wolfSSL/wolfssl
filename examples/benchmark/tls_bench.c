@@ -169,9 +169,12 @@ static const char* kTestStr =
 "bag dolor terry richardson sapiente.\n";
 #endif
 
-#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_DH)
-/* dh2048 p */
+#if !defined(NO_DH)
+
 #define MIN_DHKEY_BITS      1024
+
+#if !defined(NO_WOLFSSL_SERVER)
+/* dh2048 p */
 static const unsigned char p[] =
 {
     0xb0, 0xa1, 0x08, 0x06, 0x9c, 0x08, 0x13, 0xba, 0x59, 0x06, 0x3c, 0xbc, 0x30,
@@ -201,7 +204,8 @@ static const unsigned char g[] =
 {
     0x02,
 };
-#endif /* !NO_WOLFSSL_SERVER && !NO_DH */
+#endif /* !NO_WOLFSSL_SERVER */
+#endif /* !NO_DH */
 
 #ifdef HAVE_PTHREAD
 typedef struct {
@@ -1225,8 +1229,10 @@ int bench_tls(void* args)
 #ifdef HAVE_PTHREAD
     int doShutdown;
 #endif
+#if !defined(NO_WOLFSSL_SERVER) || defined(HAVE_PTHREAD)
     int argLocalMem = 0;
     int listenFd = -1;
+#endif
 
     if (args)
         ((func_args*)args)->return_code = -1; /* error state */
@@ -1379,7 +1385,9 @@ int bench_tls(void* args)
             info->runTimeSec = argRuntimeSec;
             info->showPeerInfo = argShowPeerInfo;
             info->showVerbose = argShowVerbose;
+        #ifndef NO_WOLFSSL_SERVER
             info->listenFd = listenFd;
+        #endif
             info->client.sockFd = -1;
             info->server.sockFd = -1;
 

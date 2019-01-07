@@ -271,7 +271,7 @@
 #define dhParamFile    "certs/dh2048.pem"
 #define cliEccKeyFile  "certs/ecc-client-key.pem"
 #define cliEccCertFile "certs/client-ecc-cert.pem"
-#define caEccCertFile  "certs/ca-ecc-cert/pem"
+#define caEccCertFile  "certs/ca-ecc-cert.pem"
 #define crlPemDir      "certs/crl"
 #define edCertFile     "certs/ed25519/server-ed25519-cert.pem"
 #define edKeyFile      "certs/ed25519/server-ed25519-priv.pem"
@@ -564,7 +564,7 @@ static const char* client_showx509_msg[][5] = {
 
 /* lng_index is to specify the language for displaying message.              */
 /* 0:English, 1:Japanese                                                     */
-static WC_INLINE void ShowX509Ex(WOLFSSL_X509* x509, const char* hdr, 
+static WC_INLINE void ShowX509Ex(WOLFSSL_X509* x509, const char* hdr,
                                                                  int lng_index)
 {
     char* altName;
@@ -1196,7 +1196,6 @@ static WC_INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
         key[2] = 0x3c;
         key[3] = 0x4d;
 
-
         return 4;   /* length of key in octets or 0 for error */
     }
     else {
@@ -1231,7 +1230,6 @@ static WC_INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identit
         key[1] = 0x2b;
         key[2] = 0x3c;
         key[3] = 0x4d;
-
 
         return 4;   /* length of key in octets or 0 for error */
     }
