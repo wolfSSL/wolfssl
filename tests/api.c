@@ -295,6 +295,7 @@
     #endif
 #endif
 #ifdef OPENSSL_EXTRA
+    #include <wolfssl/openssl/x509v3.h>
     #include <wolfssl/openssl/asn1.h>
     #include <wolfssl/openssl/crypto.h>
     #include <wolfssl/openssl/pkcs12.h>
@@ -23122,12 +23123,41 @@ static void test_wolfSSL_AES_cbc_encrypt()
 /*wolfSSL with QT unit tests*/
 #if defined(WOLFSSL_QT)
 
-static void test_wolfSSL_X509_get_ext_count()
-{
+static void test_wolfSSL_X509V3_EXT_get(void){
+    /*currently this function returns a structure without i2s, i2r, and i2v
+    initialized, structure is returned with just nid stored inside it*/
+
+    FILE* f;
+    int num_of_ext =0;
+    int ext_nid = 0;
+    int i = 0;
+    WOLFSSL_X509* x509;
+    WOLFSSL_X509_EXTENSION* ext;
+    const WOLFSSL_v3_ext_method* method;
+
+    AssertNotNull(f = fopen("./certs/server-cert.pem", "rb"));
+    AssertNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
+
+    printf(testingFmt, "wolfSSL_X509V3_EXT_get() return struct and nid test");
+    AssertIntEQ((num_of_ext = wolfSSL_X509_get_ext_count(x509)), 3);
+    for (i = 0; i < num_of_ext; i++){
+        AssertNotNull(ext = wolfSSL_X509_get_ext(x509, i));
+        AssertNotNull(ext_nid = ext->obj->nid);
+        AssertNotNull(method = wolfSSL_X509V3_EXT_get(ext));
+        AssertIntEQ(method->ext_nid, ext_nid);
+    }
+    printf(resultFmt, "passed");
+
+    printf(testingFmt, "wolfSSL_X509V3_EXT_get() NULL argument test");
+    AssertNull(method = wolfSSL_X509V3_EXT_get(NULL));
+    printf(resultFmt, "passed");
+}
+
+static void test_wolfSSL_X509_get_ext_count(){
 #if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
     FILE* f;
     X509* x509;
-    int ret;
+    int ret = 0;
 
     AssertNotNull(f = fopen("./certs/server-cert.pem", "rb"));
     AssertNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
@@ -23147,7 +23177,7 @@ static void test_wolfSSL_X509_cmp(void){
     FILE* file2;
     X509* cert1;
     X509* cert2;
-    int ret;
+    int ret = 0;
 
     AssertNotNull(file1=fopen("./certs/server-cert.pem", "rb"));
     AssertNotNull(file2=fopen("./certs/client-cert-3072.pem", "rb"));
@@ -23164,6 +23194,21 @@ static void test_wolfSSL_X509_cmp(void){
     ret = wolfSSL_X509_cmp(cert1, cert2);
     AssertIntEQ(-1, wolfSSL_X509_cmp(cert1, cert2));
     printf(resultFmt, ret == -1 ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_X509_cmp() testing NULL, valid args");
+    ret = wolfSSL_X509_cmp(NULL, cert2);
+    AssertIntEQ(BAD_FUNC_ARG, wolfSSL_X509_cmp(NULL, cert2));
+    printf(resultFmt, ret == BAD_FUNC_ARG ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_X509_cmp() testing valid, NULL args");
+    ret = wolfSSL_X509_cmp(cert1, NULL);
+    AssertIntEQ(BAD_FUNC_ARG, wolfSSL_X509_cmp(cert1, NULL));
+    printf(resultFmt, ret == BAD_FUNC_ARG ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_X509_cmp() testing NULL, NULL args");
+    ret = wolfSSL_X509_cmp(NULL, NULL);
+    AssertIntEQ(BAD_FUNC_ARG, wolfSSL_X509_cmp(NULL, NULL));
+    printf(resultFmt, ret == BAD_FUNC_ARG ? passed : failed);
 }
 
 static void test_wolfSSL_X509_EXTENSION_get_object(void)
@@ -23172,7 +23217,7 @@ static void test_wolfSSL_X509_EXTENSION_get_object(void)
     WOLFSSL_X509_EXTENSION* ext;
     WOLFSSL_ASN1_OBJECT* o;
     FILE* file;
-    int nid;
+    int nid = 0;
 
     AssertNotNull(file = fopen("./certs/server-cert.pem", "rb"));
     AssertNotNull(x509 = wolfSSL_PEM_read_X509(file, NULL, NULL, NULL));
@@ -23225,6 +23270,90 @@ static void test_wolfSSL_X509_EXTENSION_get_critical(void)
 }
 
 
+
+#if !defined(NO_ASN)
+static void test_wolfSSL_ASN1_STRING_to_UTF8(void){
+    WOLFSSL_X509* x509;
+    WOLFSSL_X509_NAME* subject;
+    WOLFSSL_X509_NAME_ENTRY* e;
+    WOLFSSL_ASN1_STRING* a;
+    FILE* file;
+    int idx = 0;
+    char target_output[15] = "www.wolfssl.com";
+    unsigned char* actual_output;
+    int len = 0;
+    int result = 0;
+
+    AssertNotNull(file = fopen("./certs/server-cert.pem", "rb"));
+    AssertNotNull(x509 = wolfSSL_PEM_read_X509(file, NULL, NULL, NULL));
+
+    printf(testingFmt, "wolfSSL_ASN1_STRING_to_UTF8(): NID_commonName");
+    AssertNotNull(subject = wolfSSL_X509_get_subject_name(x509));
+    AssertIntEQ((idx = wolfSSL_X509_NAME_get_index_by_NID(subject, \
+                    NID_commonName, -1)), 0);
+    AssertNotNull(e = wolfSSL_X509_NAME_get_entry(subject, idx));
+    AssertNotNull(a =wolfSSL_X509_NAME_ENTRY_get_data(e));
+    AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(&actual_output, a)), 15);
+    result = strncmp((const char*)actual_output, target_output, len);
+    AssertIntEQ(result, 0);
+    printf(resultFmt, result == 0 ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_ASN1_STRING_to_UTF8(NULL, valid): ");
+    AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(NULL, a)), WOLFSSL_FAILURE);
+    result = strncmp((const char*)actual_output, target_output, len);
+    AssertIntEQ(result, 0);
+    printf(resultFmt, result == WOLFSSL_FAILURE ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_ASN1_STRING_to_UTF8(valid, NULL): ");
+    AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(&actual_output, NULL)), \
+            WOLFSSL_FAILURE);
+    result = strncmp((const char*)actual_output, target_output, len);
+    AssertIntEQ(result, 0);
+    printf(resultFmt, result == WOLFSSL_FAILURE ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_ASN1_STRING_to_UTF8(NULL, NULL): ");
+    AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(NULL, NULL)), \
+            WOLFSSL_FAILURE);
+    result = strncmp((const char*)actual_output, target_output, len);
+    AssertIntEQ(result, 0);
+    printf(resultFmt, result == WOLFSSL_FAILURE ? passed : failed);
+}
+#endif //!defined(NO_ASN)
+
+static void test_wolfSSL_X509_EXTENSION_get_data(void)
+{
+    WOLFSSL_X509* x509;
+    WOLFSSL_X509_EXTENSION* ext;
+    WOLFSSL_ASN1_STRING* str;
+    FILE* file;
+
+    printf(testingFmt, "wolfSSL_X509_EXTENSION_get_data");
+
+    AssertNotNull(file = fopen("./certs/server-cert.pem", "rb"));
+    AssertNotNull(x509 = wolfSSL_PEM_read_X509(file, NULL, NULL, NULL));
+    AssertNotNull(ext = wolfSSL_X509_get_ext(x509, 0));
+
+    AssertNotNull(str = wolfSSL_X509_EXTENSION_get_data(ext));
+    printf(resultFmt, passed);
+}
+
+static void test_wolfSSL_X509_EXTENSION_get_critical(void)
+{
+    WOLFSSL_X509* x509;
+    WOLFSSL_X509_EXTENSION* ext;
+    FILE* file;
+    int crit = -1;
+
+    printf(testingFmt, "wolfSSL_X509_EXTENSION_get_critical");
+
+    AssertNotNull(file = fopen("./certs/server-cert.pem", "rb"));
+    AssertNotNull(x509 = wolfSSL_PEM_read_X509(file, NULL, NULL, NULL));
+    AssertNotNull(ext = wolfSSL_X509_get_ext(x509, 0));
+
+    crit = wolfSSL_X509_EXTENSION_get_critical(ext);
+    AssertIntEQ(crit, 0);
+    printf(resultFmt, passed);
+}
 
 static void test_wolfSSL_CIPHER_description_all(void)
 {
@@ -23296,7 +23425,7 @@ static void test_wolfSSL_CIPHER_description_all(void)
 
     printf(resultFmt, passed);
 }
-  
+
 static void test_wolfSSL_X509_PUBKEY_get(void){
     WOLFSSL_X509_PUBKEY pubkey;
     WOLFSSL_X509_PUBKEY* key;
@@ -23335,7 +23464,7 @@ static void test_wolfSSL_d2i_DHparams()
     const char* params2 = "./certs/dh3072.der";
     long len;
     WOLFSSL_DH* dh;
-    
+
     /* Test 2048 bit parameters */
     printf(testingFmt, "wolfSSL_d2i_DHparams() 2048-bit");
     f = XFOPEN(params1, "rb");
@@ -23354,10 +23483,10 @@ static void test_wolfSSL_d2i_DHparams()
     AssertNull(wolfSSL_d2i_DHparams(NULL, NULL, len));
     AssertNull(wolfSSL_d2i_DHparams(NULL, &pt, -1));
     AssertNull(wolfSSL_d2i_DHparams(NULL, &pt, 10));
- 
+
     DH_free(dh);
     printf(resultFmt, passed);
-    
+
     *buf = 0;
     pt = buf;
 
@@ -23378,7 +23507,7 @@ static void test_wolfSSL_d2i_DHparams()
     /* Invalid cases */
     AssertNull(wolfSSL_d2i_DHparams(NULL, NULL, len));
     AssertNull(wolfSSL_d2i_DHparams(NULL, &pt, -1));
- 
+
     DH_free(dh);
     printf(resultFmt, passed);
 
@@ -23396,15 +23525,15 @@ static void test_wolfSSL_i2d_DHparams()
     const char* params2 = "./certs/dh3072.der";
     long len;
     WOLFSSL_DH* dh;
-    
+
     /* Test 2048 bit parameters */
     printf(testingFmt, "wolfSSL_i2d_DHparams() 2048-bit");
     f = XFOPEN(params1, "rb");
     AssertTrue(f != XBADFILE);
     len = (long)XFREAD(buf, 1, sizeof(buf), f);
     XFCLOSE(f);
-  
-    /* Valid case */    
+
+    /* Valid case */
     AssertNotNull(dh = wolfSSL_d2i_DHparams(NULL, &pt, len));
     AssertTrue(pt != buf);
     AssertIntEQ(DH_generate_key(dh), 1);
@@ -23417,18 +23546,18 @@ static void test_wolfSSL_i2d_DHparams()
     DH_free(dh);
     printf(resultFmt, passed);
 
-    *buf = 0; 
+    *buf = 0;
     pt = buf;
     pt2 = buf;
 
-    /* Test 3072 bit parameters */   
+    /* Test 3072 bit parameters */
     printf(testingFmt, "wolfSSL_i2d_DHparams() 3072-bit");
     f = XFOPEN(params2, "rb");
     AssertTrue(f != XBADFILE);
     len = (long)XFREAD(buf, 1, sizeof(buf), f);
     XFCLOSE(f);
 
-    /* Valid case */    
+    /* Valid case */
     AssertNotNull(dh = wolfSSL_d2i_DHparams(NULL, &pt, len));
     AssertTrue(pt != buf);
     AssertIntEQ(DH_generate_key(dh), 1);
@@ -25588,13 +25717,15 @@ void ApiTest(void)
     test_wolfSSL_X509_get_ext_count();
     test_wolfSSL_X509_cmp();
     test_wolfSSL_X509_EXTENSION_get_object();
+    test_wolfSSL_X509_PUBKEY_get();
+    test_wolfSSL_X509V3_EXT_get();
+    test_wolfSSL_ASN1_STRING_to_UTF8();
+    test_wolfSSL_CIPHER_description_all();
     test_wolfSSL_X509_EXTENSION_get_data();
     test_wolfSSL_X509_EXTENSION_get_critical();
     test_wolfSSL_CIPHER_description_all();
-    test_wolfSSL_X509_PUBKEY_get();
     test_wolfSSL_d2i_DHparams();
     test_wolfSSL_i2d_DHparams();
-
     printf("\n-------------End Of Qt Unit Tests---------------\n");
 
 #endif /* (defined(WOLFSSL_QT)  */
