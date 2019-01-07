@@ -525,7 +525,6 @@ static const char* client_showpeer_msg[][8] = {
         "peer's cert info:",
         NULL
     },
-#ifndef NO_MULTIBYTE_PRINT
     /* Japanese */
     {
         "SSL バージョンは",
@@ -536,8 +535,7 @@ static const char* client_showpeer_msg[][8] = {
         "代替証明チェーンを使用",
         "相手方証明書情報",
         NULL
-    },
-#endif
+    }
 };
 
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
@@ -550,7 +548,6 @@ static const char* client_showx509_msg[][5] = {
         "serial number",
         NULL
     },
-#ifndef NO_MULTIBYTE_PRINT
     /* Japanese */
     {
         "発行者",
@@ -559,7 +556,6 @@ static const char* client_showx509_msg[][5] = {
         "シリアル番号",
         NULL
     },
-#endif
 };
 
 /* lng_index is to specify the language for displaying message.              */

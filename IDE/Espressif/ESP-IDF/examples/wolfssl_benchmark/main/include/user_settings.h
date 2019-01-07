@@ -31,13 +31,10 @@
 #define HAVE_AEAD
 #define HAVE_SUPPORTED_CURVES
 
-/* when you want to use SINGLE THREAD */
-/* #define SINGLE_THREADED */
+#define SINGLE_THREADED /* or define RTOS  option */
 #define NO_FILESYSTEM
 
 #define HAVE_AESGCM
-/* when you want to use SHA384 */
-/* #define WOLFSSL_SHA384 */
 #define WOLFSSL_SHA512
 #define HAVE_ECC
 #define HAVE_CURVE25519
@@ -46,15 +43,9 @@
 
 /* debug options */
 /* #define DEBUG_WOLFSSL */
-/* #define WOLFSSL_ESP32WROOM32_CRYPT_DEBUG */
 
 /* date/time                               */
 /* if it cannot adjust time in the device, */
 /* enable macro below                      */
 /* #define NO_ASN_TIME */
 /* #define XTIME time */
-
-/* when you want not to use HW acceleration */
-/* #define NO_ESP32WROOM32_CRYPT */
-/* #define NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH*/
-/* #define NO_WOLFSSL_ESP32WROOM32_CRYPT_AES */
