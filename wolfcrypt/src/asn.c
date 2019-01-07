@@ -13884,7 +13884,6 @@ int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
     word32 idx = 0;
     int pSz;
     int gSz;
-    word32 seqSz;
     unsigned int tmp;
 
     /* If the leading bit on the INTEGER is a 1, add a leading zero */
@@ -13892,9 +13891,6 @@ int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
     int gLeadingZero = mp_leading_bit(g);
     int pLen = mp_unsigned_bin_size(p);
     int gLen = mp_unsigned_bin_size(g);
-    byte seq[MAX_SEQ_SZ];
-    byte pOut[pLen];
-    byte gOut[gLen];
 
     WOLFSSL_ENTER("StoreDHparams");
     if (out == NULL) {
@@ -13907,34 +13903,24 @@ int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
         return BUFFER_E;
     }
 
-    /* Encode p */
-    pSz = SetASNIntMP(p, -1, pOut);
-    if (pSz < 0) {
-        WOLFSSL_MSG("SetASNIntMP failed");
-        return pSz;
-    }
-
-    /* Encode g */
-    gSz = SetASNIntMP(g, -1, gOut);
-    if (gSz < 0) {
-        WOLFSSL_MSG("SetASNIntMP failed");
-        return gSz;
-    }
-
-    seqSz = SetSequence(pSz + gSz, seq);
-
-    /* Write to out buffer */
-    /* sequence*/
-    XMEMCPY(out + idx, seq, seqSz);
-    idx = seqSz;
-
-    /* p parameter */
-    XMEMCPY(out + idx, pOut, pSz);
-    idx += pSz;
-
-    /* g parameter */
-    XMEMCPY(out + idx, gOut, gSz);
-    idx += gSz;
+    /* Set sequence */                                                          
+    idx = SetSequence(tmp, out);                                                
+                                                                                
+    /* Encode p */                                                              
+    pSz = SetASNIntMP(p, -1, &out[idx]);                                        
+    if (pSz < 0) {                                                              
+        WOLFSSL_MSG("SetASNIntMP failed");                                      
+        return pSz;                                                             
+    }                                                                           
+    idx += pSz;                                                                 
+                                                                                
+    /* Encode g */                                                              
+    gSz = SetASNIntMP(g, -1, &out[idx]);                                        
+    if (gSz < 0) {                                                              
+        WOLFSSL_MSG("SetASNIntMP failed");                                      
+        return gSz;                                                             
+    }                                                                           
+    idx += gSz; 
 
     *outLen = idx;
 
