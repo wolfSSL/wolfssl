@@ -30909,7 +30909,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         { OCSP_NONCE_OID, OCSP_NONCE_OID, oidOcspType, "OCSP_nonce" },
     #endif /* HAVE_OCSP */
 
-    #ifndef NO_CERT
+    #ifndef NO_CERTS
         /* oidCertExtType */
         { BASIC_CA_OID, BASIC_CA_OID, oidCertExtType, "X509 basic ca" },
         { ALT_NAMES_OID, ALT_NAMES_OID, oidCertExtType, "X509 alt names" },
@@ -35781,7 +35781,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_AutoPrivateKey(WOLFSSL_EVP_PKEY** pkey,
 }
 #endif
 
-#if defined(OPENSSL_ALL) && !defined(NO_CERT) && defined(WOLFSSL_CERT_GEN) && \
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && \
                                                        defined(WOLFSSL_CERT_REQ)
 int wolfSSL_i2d_X509_REQ(WOLFSSL_X509* req, unsigned char** out)
 {
