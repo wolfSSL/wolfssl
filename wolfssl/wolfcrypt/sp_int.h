@@ -26,6 +26,14 @@
 #include <stdint.h>
 #include <limits.h>
 
+/* Make sure WOLFSSL_SP_ASM build option defined when requested */
+#if !defined(WOLFSSL_SP_ASM) && ( \
+      defined(WOLFSSL_SP_X86_64_ASM) || defined(WOLFSSL_SP_ARM32_ASM) || \
+      defined(WOLFSSL_SP_ARM64_ASM)  || defined(WOLFSSL_SP_ARM_THUMB_ASM))
+    #define WOLFSSL_SP_ASM
+#endif
+
+
 #ifdef WOLFSSL_SP_X86_64_ASM
     #define SP_WORD_SIZE 64
 
