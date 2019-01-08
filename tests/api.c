@@ -23357,26 +23357,21 @@ static void test_wolfSSL_X509_EXTENSION_get_critical(void)
 
 static void test_wolfSSL_CIPHER_description_all(void)
 {
-    #define CERT_LOCATION "/home/user/Qt-Project/wolfssl/certs/client-cert.pem"
-
     char buf[256];
     char test_str[9];
     const char bad_str[] = "unknown\0";
+    const char cert_path[] = "./certs/client-cert.pem";
     const SSL_METHOD *method = NULL;
     const SSL_CIPHER *cipher = NULL;
     STACK_OF(SSL_CIPHER) *supportedCiphers = NULL;
     SSL_CTX *ctx = NULL;
     SSL *ssl = NULL;
-    const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION;
+    const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_COMPRESSION;
     int i,j,k;
 
     printf(testingFmt, "wolfSSL_CIPHER_description_all");
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
     SSL_library_init();
-#else
-    OPENSSL_init_ssl(0, NULL);
-#endif
 
     AssertNotNull(method = TLSv1_client_method());
     AssertNotNull(ctx = SSL_CTX_new(method));
@@ -23385,7 +23380,7 @@ static void test_wolfSSL_CIPHER_description_all(void)
     SSL_CTX_set_verify_depth(ctx, 4);
 
     SSL_CTX_set_options(ctx, flags);
-    SSL_CTX_load_verify_locations(ctx, CERT_LOCATION, NULL);
+    AssertIntEQ(SSL_CTX_load_verify_locations(ctx, cert_path, NULL), WOLFSSL_SUCCESS);
 
     AssertNotNull(ssl = SSL_new(ctx));
     /* SSL_get_ciphers returns a stack of all configured ciphers
