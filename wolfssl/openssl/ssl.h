@@ -320,8 +320,16 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_get_issuer_name            wolfSSL_X509_get_issuer_name
 #define X509_get_subject_name           wolfSSL_X509_get_subject_name
 #define X509_get_pubkey                 wolfSSL_X509_get_pubkey
-#define X509_get_notBefore(cert)      (ASN1_TIME*)wolfSSL_X509_notBefore((cert))
-#define X509_get_notAfter(cert)       (ASN1_TIME*)wolfSSL_X509_notAfter((cert))
+#define X509_PUBKEY_get                 wolfSSL_X509_PUBKEY_get
+
+#ifdef WOLFSSL_QT
+    #define X509_getm_notBefore(cert)    wolfSSL_X509_notBefore((cert))
+    #define X509_getm_notAfter(cert)     wolfSSL_X509_notAfter((cert))
+#else
+    #define X509_get_notBefore(cert)    (ASN1_TIME*)wolfSSL_X509_notBefore((cert))
+    #define X509_get_notAfter(cert)     (ASN1_TIME*)wolfSSL_X509_notAfter((cert))
+#endif
+
 #define X509_get_serialNumber           wolfSSL_X509_get_serialNumber
 #define X509_get0_pubkey_bitstr         wolfSSL_X509_get0_pubkey_bitstr
 #define X509_get_ex_new_index           wolfSSL_X509_get_ex_new_index

@@ -1679,8 +1679,15 @@ WOLFSSL_API int  wolfSSL_X509_get_serial_number(WOLFSSL_X509*,unsigned char*,int
 WOLFSSL_API char*  wolfSSL_X509_get_subjectCN(WOLFSSL_X509*);
 WOLFSSL_API const unsigned char* wolfSSL_X509_get_der(WOLFSSL_X509*, int*);
 WOLFSSL_API const unsigned char* wolfSSL_X509_get_tbs(WOLFSSL_X509*, int*);
+
+#ifdef WOLFSSL_QT
+WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_X509_notBefore(WOLFSSL_X509*);
+WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_X509_notAfter(WOLFSSL_X509*);
+#else
 WOLFSSL_API const unsigned char* wolfSSL_X509_notBefore(WOLFSSL_X509*);
 WOLFSSL_API const unsigned char* wolfSSL_X509_notAfter(WOLFSSL_X509*);
+#endif
+
 WOLFSSL_API int wolfSSL_X509_version(WOLFSSL_X509*);
 
 WOLFSSL_API int wolfSSL_cmp_peer_cert_to_file(WOLFSSL*, const char*);

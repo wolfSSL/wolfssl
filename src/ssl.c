@@ -16014,7 +16014,67 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
         return x509->version;
     }
 
+#ifdef WOLFSSL_QT
+    /* Fill ASN1_TIME object with info from x509->notBefore and return */
+    WOLFSSL_ASN1_TIME* wolfSSL_X509_notBefore(WOLFSSL_X509* x509)
+    {
+        WOLFSSL_ASN1_TIME* atime = NULL;
+        int i = 0;
+        int j = 0;
 
+        WOLFSSL_ENTER("wolfSSL_X509_notBeforeNew");
+
+        if (x509 == NULL)
+            return NULL;
+
+        atime = (WOLFSSL_ASN1_TIME*)XMALLOC(sizeof(WOLFSSL_ASN1_TIME), NULL,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+        if (atime == NULL){
+            WOLFSSL_MSG("memory alloc failed.");
+            return NULL;
+        }
+        XMEMSET(atime, 0, sizeof(WOLFSSL_ASN1_TIME));
+
+        atime->type = x509->notBefore[0];
+        atime->length = x509->notBefore[1];
+        for(i = 0; i < atime->length; i++) {
+            atime->data[j] =x509->notBefore[i+2];
+            j++;
+        }
+
+        return atime;
+    }
+
+    /* Fill ASN1_TIME object with info from x509->notAfter and return */
+    WOLFSSL_ASN1_TIME* wolfSSL_X509_notAfter(WOLFSSL_X509* x509)
+    {
+        WOLFSSL_ASN1_TIME* atime = NULL;
+        int i = 0;
+        int j = 0;
+
+        WOLFSSL_ENTER("wolfSSL_X509_notAfterNew");
+
+        if (x509 == NULL)
+            return NULL;
+
+        atime = (WOLFSSL_ASN1_TIME*)XMALLOC(sizeof(WOLFSSL_ASN1_TIME), NULL,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+        if (atime == NULL){
+            WOLFSSL_MSG("memory alloc failed.");
+            return NULL;
+        }
+        XMEMSET(atime, 0, sizeof(WOLFSSL_ASN1_TIME));
+
+        atime->type = x509->notAfter[0];
+        atime->length = x509->notAfter[1];
+        for(i = 0; i < atime->length; i++) {
+            atime->data[j] = x509->notAfter[i+2];
+            j++;
+        }
+
+        return atime;
+    }
+#else
     const byte* wolfSSL_X509_notBefore(WOLFSSL_X509* x509)
     {
         WOLFSSL_ENTER("wolfSSL_X509_notBefore");
@@ -16025,7 +16085,6 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
         return x509->notBefore;
     }
 
-
     const byte* wolfSSL_X509_notAfter(WOLFSSL_X509* x509)
     {
         WOLFSSL_ENTER("wolfSSL_X509_notAfter");
@@ -16035,6 +16094,7 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
 
         return x509->notAfter;
     }
+#endif /* WOLFSSL_QT */
 
 
 #ifdef WOLFSSL_SEP
