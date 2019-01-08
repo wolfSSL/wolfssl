@@ -23,4 +23,6 @@ If building for Intel Galileo platform also uncomment the define for `INTEL_GALI
         `IDE/ARDUNIO/wolfSSL` folder.
     - In `Sketch -> Include Library` choose wolfSSL.
 
-An example wolfSSL client INO sketch exists here: `sketches/wolfssl_client/wolfssl_client.ino`
+2. Open an example Arduino sketch for wolfSSL:
+	- wolfSSL Client INO sketch: `sketches/wolfssl_client/wolfssl_client.ino`
+	- wolfSSL Server INO sketch: `sketches/wolfssl_server/wolfssl_server.ino`
