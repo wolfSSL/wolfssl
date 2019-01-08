@@ -18259,8 +18259,8 @@ static void test_wolfSSL_certs(void)
 
 static void test_wolfSSL_ASN1_TIME_print(void)
 {
-    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA) \
-        && (defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || \
+    #if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_QT) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && (defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || \
             defined(WOLFSSL_HAPROXY)) && defined(USE_CERT_BUFFERS_2048)
     BIO*  bio;
     X509*  x509;

@@ -16029,11 +16029,16 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
         return x509->version;
     }
 
-#ifdef WOLFSSL_QT
-    /* Fill ASN1_TIME object with info from x509->notBefore and return */
-    WOLFSSL_ASN1_TIME* wolfSSL_X509_notBefore(WOLFSSL_X509* x509)
+    const byte* wolfSSL_X509_notBefore(WOLFSSL_X509* x509)
     {
-        WOLFSSL_ASN1_TIME* atime = NULL;
+        WOLFSSL_ENTER("wolfSSL_X509_notBefore");
+
+        if (x509 == NULL)
+            return NULL;
+
+        #ifdef WOLFSSL_QT
+        {
+                    WOLFSSL_ASN1_TIME* atime = NULL;
         int i = 0;
         int j = 0;
 
@@ -16057,12 +16062,22 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
             j++;
         }
 
-        return atime;
+        return (const byte*)atime;
+        }
+        #endif
+
+        return x509->notBefore;
     }
 
-    /* Fill ASN1_TIME object with info from x509->notAfter and return */
-    WOLFSSL_ASN1_TIME* wolfSSL_X509_notAfter(WOLFSSL_X509* x509)
+    const byte* wolfSSL_X509_notAfter(WOLFSSL_X509* x509)
     {
+        WOLFSSL_ENTER("wolfSSL_X509_notAfter");
+
+        if (x509 == NULL)
+            return NULL;
+        
+        #ifdef WOLFSSL_QT
+        {
         WOLFSSL_ASN1_TIME* atime = NULL;
         int i = 0;
         int j = 0;
@@ -16087,29 +16102,13 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
             j++;
         }
 
-        return atime;
-    }
-#else
-    const byte* wolfSSL_X509_notBefore(WOLFSSL_X509* x509)
-    {
-        WOLFSSL_ENTER("wolfSSL_X509_notBefore");
-
-        if (x509 == NULL)
-            return NULL;
-
-        return x509->notBefore;
-    }
-
-    const byte* wolfSSL_X509_notAfter(WOLFSSL_X509* x509)
-    {
-        WOLFSSL_ENTER("wolfSSL_X509_notAfter");
-
-        if (x509 == NULL)
-            return NULL;
+        return (const byte*)atime;
+        }
+        #endif
 
         return x509->notAfter;
     }
-#endif /* WOLFSSL_QT */
+
 
 
 #ifdef WOLFSSL_SEP
