@@ -23153,10 +23153,39 @@ static void test_wolfSSL_X509V3_EXT_get(void){
     printf(resultFmt, "passed");
 }
 
-static void test_wolfSSL_X509_get_ext_count(){
-#if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
+static void test_wolfSSL_X509_get_ext(void){
+    int ret = 0;
     FILE* f;
-    X509* x509;
+    WOLFSSL_X509* x509;
+    WOLFSSL_X509_EXTENSION* found_ext;
+
+    AssertNotNull(f = fopen("./certs/server-cert.pem", "rb"));
+    AssertNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
+    AssertIntEQ((ret = wolfSSL_X509_get_ext_count(x509)), 3);
+
+    printf(testingFmt, "wolfSSL_X509_get_ext() valid input");
+    AssertNotNull(found_ext = wolfSSL_X509_get_ext(x509, 0));
+    printf(resultFmt, "passed");
+
+    printf(testingFmt, "wolfSSL_X509_get_ext() valid x509, idx out of bounds");
+    AssertNull(found_ext = wolfSSL_X509_get_ext(x509, -1));
+    AssertNull(found_ext = wolfSSL_X509_get_ext(x509, 100));
+    printf(resultFmt, "passed");
+
+    printf(testingFmt, "wolfSSL_X509_get_ext() NULL x509, idx out of bounds");
+    AssertNull(found_ext = wolfSSL_X509_get_ext(NULL, -1));
+    AssertNull(found_ext = wolfSSL_X509_get_ext(NULL, 100));
+    printf(resultFmt, "passed");
+
+    printf(testingFmt, "wolfSSL_X509_get_ext() NULL x509, valid idx");
+    AssertNull(found_ext = wolfSSL_X509_get_ext(NULL, 0));
+    printf(resultFmt, "passed");
+}
+
+static void test_wolfSSL_X509_get_ext_count(){
+#if !defined(NO_FILESYSTEM)
+    FILE* f;
+    WOLFSSL_X509* x509;
     int ret = 0;
 
     AssertNotNull(f = fopen("./certs/server-cert.pem", "rb"));
@@ -23175,8 +23204,8 @@ static void test_wolfSSL_X509_get_ext_count(){
 static void test_wolfSSL_X509_cmp(void){
     FILE* file1;
     FILE* file2;
-    X509* cert1;
-    X509* cert2;
+    WOLFSSL_X509* cert1;
+    WOLFSSL_X509* cert2;
     int ret = 0;
 
     AssertNotNull(file1=fopen("./certs/server-cert.pem", "rb"));
@@ -25710,17 +25739,18 @@ void ApiTest(void)
 #if defined(WOLFSSL_QT)
     printf("\n----------------Qt Unit Tests-------------------\n");
     test_wolfSSL_X509_get_ext_count();
+    test_wolfSSL_X509_get_ext();
     test_wolfSSL_X509_cmp();
     test_wolfSSL_X509_EXTENSION_get_object();
-    test_wolfSSL_X509_PUBKEY_get();
     test_wolfSSL_X509V3_EXT_get();
-    test_wolfSSL_ASN1_STRING_to_UTF8();
-    test_wolfSSL_CIPHER_description_all();
+    test_wolfSSL_X509_PUBKEY_get();
     test_wolfSSL_X509_EXTENSION_get_data();
     test_wolfSSL_X509_EXTENSION_get_critical();
     test_wolfSSL_CIPHER_description_all();
     test_wolfSSL_d2i_DHparams();
     test_wolfSSL_i2d_DHparams();
+    test_wolfSSL_ASN1_STRING_to_UTF8();
+
     printf("\n-------------End Of Qt Unit Tests---------------\n");
 
 #endif /* (defined(WOLFSSL_QT)  */
