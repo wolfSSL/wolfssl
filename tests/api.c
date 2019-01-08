@@ -23596,6 +23596,83 @@ static void test_wolfSSL_i2d_DHparams()
 #endif
 }
 
+static void test_wolfSSL_EC_KEY_dup(void)
+{
+#if defined(HAVE_ECC) && (defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL))
+    
+    WOLFSSL_EC_KEY* ecKey;
+    WOLFSSL_EC_KEY* dupKey;
+#if defined(WOLFSSL_PUBLIC_MP)
+    mp_int* src_key;
+    mp_int* dest_key;
+#endif
+
+    printf(testingFmt, "wolfSSL_EC_KEY_dup()");
+
+    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
+
+    /* Valid cases */ 
+    AssertNotNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
+#if defined(WOLFSSL_PUBLIC_MP)
+    src_key = (mp_int*)ecKey->internal;
+    dest_key = (mp_int*)dupKey->internal;
+    AssertIntEQ(mp_cmp(src_key, dest_key), MP_EQ);
+#endif
+
+    /* compare EC_GROUP */
+    AssertIntEQ(wolfSSL_EC_GROUP_cmp(ecKey->group, dupKey->group, NULL), MP_EQ);
+
+    /* compare EC_POINT */
+    AssertIntEQ(wolfSSL_EC_POINT_cmp(ecKey->group, ecKey->pub_key, \
+                dupKey->pub_key, NULL), MP_EQ);
+
+    /* compare BIGNUM */
+    AssertIntEQ(wolfSSL_BN_cmp(ecKey->priv_key, dupKey->priv_key), MP_EQ);
+
+    /* Invalid cases */ 
+    /* NULL key */
+    AssertNull(dupKey = wolfSSL_EC_KEY_dup(NULL));
+    ecKey->internal = NULL;
+    AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
+    wolfSSL_EC_KEY_free(ecKey);
+    
+    /* NULL Group */
+    AssertNotNull(ecKey = wolfSSL_EC_KEY_new()); 
+    ecKey->group = NULL;
+    AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
+    wolfSSL_EC_KEY_free(ecKey);
+
+    /* NULL public key */
+    AssertNotNull(ecKey = wolfSSL_EC_KEY_new()); 
+    ecKey->pub_key->internal = NULL;
+    AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
+    ecKey->pub_key = NULL;
+    AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
+    wolfSSL_EC_KEY_free(ecKey);
+
+    /* NULL private key */
+    AssertNotNull(ecKey = wolfSSL_EC_KEY_new()); 
+    ecKey->priv_key->internal = NULL;
+    AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
+    ecKey->priv_key = NULL;
+    AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
+
+    wolfSSL_EC_KEY_free(ecKey);
+    wolfSSL_EC_KEY_free(dupKey);
+#if defined(WOLFSSL_PUBLIC_MP)
+    mp_free(src_key);
+    mp_free(dest_key);
+#endif
+   
+    printf(resultFmt, passed);
+#endif
+}
+
+
+
+
 #endif /*end of QT unit tests*/
 
 static void test_no_op_functions(void)
@@ -25750,6 +25827,7 @@ void ApiTest(void)
     test_wolfSSL_d2i_DHparams();
     test_wolfSSL_i2d_DHparams();
     test_wolfSSL_ASN1_STRING_to_UTF8();
+    test_wolfSSL_EC_KEY_dup();
 
     printf("\n-------------End Of Qt Unit Tests---------------\n");
 

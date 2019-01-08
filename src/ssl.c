@@ -23113,10 +23113,17 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
     WOLFSSL_ENTER("wolfSSL_EC_KEY_dup");
 
     WOLFSSL_EC_KEY *dup;
+    WOLFSSL_EC_GROUP* group;
+    WOLFSSL_EC_POINT* point_dup;
+    WOLFSSL_EC_POINT* point_src;
+    WOLFSSL_BIGNUM* priv_dup;
+    WOLFSSL_BIGNUM* priv_src;
     ecc_key *key;
     int ret;
 
-    if (src == NULL || src->internal == NULL) {
+    if (src == NULL || src->internal == NULL || src->group == NULL || \
+       src->pub_key == NULL || src->priv_key == NULL) {
+
         WOLFSSL_MSG("src NULL error");
         return NULL;
     }
@@ -23139,6 +23146,46 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
         wolfSSL_EC_KEY_free(dup);
         return NULL;
     }
+    
+    /* Copy group */ 
+    group = wolfSSL_EC_GROUP_new_by_curve_name(src->group->curve_nid);
+    if (group == NULL) {
+        WOLFSSL_MSG("EC_GROUP_new_by_curve_name error");
+        wolfSSL_EC_KEY_free(dup);
+        return NULL;
+    }
+    dup->group = group;
+
+    /* Copy public key */    
+    point_dup = wolfSSL_EC_POINT_new(group);
+    if (point_dup == NULL) {
+        WOLFSSL_MSG("wolfSSL_EC_POINT_new error");
+        wolfSSL_EC_KEY_free(dup);
+        return NULL;
+    }
+    dup->pub_key = point_dup;
+  
+    point_src = src->pub_key->internal; 
+    if (point_src == NULL) {
+        WOLFSSL_MSG("EC_POINT null error");
+        return NULL;
+    }
+    point_dup->internal = point_src; 
+
+    /* Copy private key */
+    priv_dup = wolfSSL_BN_new();
+    if (priv_dup == NULL) {
+        WOLFSSL_MSG("BN_new error");
+        return NULL;
+    }
+    dup->priv_key = priv_dup;
+
+    priv_src = src->priv_key->internal;
+    if (priv_src == NULL) {
+        WOLFSSL_MSG("BN null error");
+        return NULL;
+    }
+    priv_dup->internal = priv_src;
 
     return dup;
 }
