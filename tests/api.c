@@ -12123,6 +12123,73 @@ static int test_wc_DsaKeyToDer (void)
 } /* END test_wc_DsaKeyToDer */
 
 /*
+ *  Testing wc_DsaKeyToPublicDer()
+ *  (indirectly testing setDsaPublicKey())
+ */
+static int test_wc_DsaKeyToPublicDer(void)
+{
+    int         ret = 0;
+#if !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN)
+    DsaKey  genKey;
+    WC_RNG  rng;
+    byte*   der;
+
+    printf(testingFmt, "wc_DsaKeyToPublicDer()");
+
+    der = (byte*)XMALLOC(ONEK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    if (ret == 0) {
+        ret = wc_InitDsaKey(&genKey);
+    }
+    if (ret == 0) {
+        ret = wc_InitRng(&rng);
+    }
+    if (ret == 0) {
+        ret = wc_MakeDsaParameters(&rng, ONEK_BUF, &genKey);
+    }
+    if (ret == 0) {
+        ret = wc_MakeDsaKey(&rng, &genKey);
+    }
+
+    if (ret == 0) {
+        ret = wc_DsaKeyToPublicDer(&genKey, der, ONEK_BUF);
+        if (ret >= 0) {
+            ret = 0;
+        } else {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_DsaKeyToPublicDer(NULL, der, FOURK_BUF);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_DsaKeyToPublicDer(&genKey, NULL, FOURK_BUF);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_FreeDsaKey(&genKey);
+
+#endif
+    return ret;
+
+} /* END test_wc_DsaKeyToPublicDer */
+
+
+/*
  * Testing wc_DsaImportParamsRaw()
  */
 static int test_wc_DsaImportParamsRaw (void)
@@ -21447,6 +21514,40 @@ static void test_wolfSSL_ASN1_STRING_to_UTF8(void){
 }
 #endif //!defined(NO_ASN)
 
+static void test_wolfSSL_X509_EXTENSION_get_data(void) 
+{
+    WOLFSSL_X509* x509;
+    WOLFSSL_X509_EXTENSION* ext;
+    WOLFSSL_ASN1_STRING* str;
+    FILE* file;
+
+    printf(testingFmt, "wolfSSL_X509_EXTENSION_get_data");
+
+    AssertNotNull(file = fopen("./certs/server-cert.pem", "rb"));
+    AssertNotNull(x509 = wolfSSL_PEM_read_X509(file, NULL, NULL, NULL));
+    AssertNotNull(ext = wolfSSL_X509_get_ext(x509, 0));
+    
+    AssertNotNull(str = wolfSSL_X509_EXTENSION_get_data(ext));
+    printf(resultFmt, passed);
+}
+
+static void test_wolfSSL_X509_EXTENSION_get_critical(void) 
+{
+    WOLFSSL_X509* x509;
+    WOLFSSL_X509_EXTENSION* ext;
+    FILE* file;
+    int crit;
+
+    printf(testingFmt, "wolfSSL_X509_EXTENSION_get_critical");
+
+    AssertNotNull(file = fopen("./certs/server-cert.pem", "rb"));
+    AssertNotNull(x509 = wolfSSL_PEM_read_X509(file, NULL, NULL, NULL));
+    AssertNotNull(ext = wolfSSL_X509_get_ext(x509, 0));
+    
+    crit = wolfSSL_X509_EXTENSION_get_critical(ext);
+    AssertIntEQ(crit, 0);
+    printf(resultFmt, passed);
+}
 
 static void test_wolfSSL_CIPHER_description_all(void)
 {
@@ -21545,6 +21646,124 @@ static void test_wolfSSL_X509_PUBKEY_get(void){
     key->pkey = NULL;
     AssertNull(ret_evp_pkey = wolfSSL_X509_PUBKEY_get(key));
     printf(resultFmt,ret_evp_pkey == NULL ? passed : failed);
+}
+
+static void test_wolfSSL_d2i_DHparams()
+{
+#if !defined(NO_DH)
+    FILE* f;
+    unsigned char buf[4096];
+    const unsigned char* pt = buf;
+    const char* params1 = "./certs/dh2048.der";
+    const char* params2 = "./certs/dh3072.der";
+    long len;
+    WOLFSSL_DH* dh;
+    
+    /* Test 2048 bit parameters */
+    printf(testingFmt, "wolfSSL_d2i_DHparams() 2048-bit");
+    f = XFOPEN(params1, "rb");
+    AssertTrue(f != XBADFILE);
+    len = (long)XFREAD(buf, 1, sizeof(buf), f);
+    XFCLOSE(f);
+
+    /* Valid case */
+    AssertNotNull(dh = wolfSSL_d2i_DHparams(NULL, &pt, len));
+    AssertNotNull(dh->p);
+    AssertNotNull(dh->g);
+    AssertTrue(pt != buf);
+    AssertIntEQ(DH_generate_key(dh), 1);
+
+    /* Invalid cases */
+    AssertNull(wolfSSL_d2i_DHparams(NULL, NULL, len));
+    AssertNull(wolfSSL_d2i_DHparams(NULL, &pt, -1));
+    AssertNull(wolfSSL_d2i_DHparams(NULL, &pt, 10));
+ 
+    DH_free(dh);
+    printf(resultFmt, passed);
+    
+    *buf = 0;
+    pt = buf;
+
+    /* Test 3072 bit parameters */
+    printf(testingFmt, "wolfSSL_d2i_DHparams() 3072-bit");
+    f = XFOPEN(params2, "rb");
+    AssertTrue(f != XBADFILE);
+    len = (long)XFREAD(buf, 1, sizeof(buf), f);
+    XFCLOSE(f);
+
+    /* Valid case */
+    AssertNotNull(dh = wolfSSL_d2i_DHparams(NULL, &pt, len));
+    AssertNotNull(dh->p);
+    AssertNotNull(dh->g);
+    AssertTrue(pt != buf);
+    AssertIntEQ(DH_generate_key(dh), 1);
+
+    /* Invalid cases */
+    AssertNull(wolfSSL_d2i_DHparams(NULL, NULL, len));
+    AssertNull(wolfSSL_d2i_DHparams(NULL, &pt, -1));
+ 
+    DH_free(dh);
+    printf(resultFmt, passed);
+
+#endif
+}
+
+static void test_wolfSSL_i2d_DHparams()
+{
+#if !defined(NO_DH)
+    FILE* f;
+    unsigned char buf[4096];
+    const unsigned char* pt = buf;
+    unsigned char* pt2 = buf;
+    const char* params1 = "./certs/dh2048.der";
+    const char* params2 = "./certs/dh3072.der";
+    long len;
+    WOLFSSL_DH* dh;
+    
+    /* Test 2048 bit parameters */
+    printf(testingFmt, "wolfSSL_i2d_DHparams() 2048-bit");
+    f = XFOPEN(params1, "rb");
+    AssertTrue(f != XBADFILE);
+    len = (long)XFREAD(buf, 1, sizeof(buf), f);
+    XFCLOSE(f);
+  
+    /* Valid case */    
+    AssertNotNull(dh = wolfSSL_d2i_DHparams(NULL, &pt, len));
+    AssertTrue(pt != buf);
+    AssertIntEQ(DH_generate_key(dh), 1);
+    AssertIntEQ(wolfSSL_i2d_DHparams(dh, &pt2), 268);
+
+    /* Invalid cases */
+    AssertIntEQ(wolfSSL_i2d_DHparams(NULL, &pt2), 0);
+    AssertIntEQ(wolfSSL_i2d_DHparams(dh, NULL), 264);
+
+    DH_free(dh);
+    printf(resultFmt, passed);
+
+    *buf = 0; 
+    pt = buf;
+    pt2 = buf;
+
+    /* Test 3072 bit parameters */   
+    printf(testingFmt, "wolfSSL_i2d_DHparams() 3072-bit");
+    f = XFOPEN(params2, "rb");
+    AssertTrue(f != XBADFILE);
+    len = (long)XFREAD(buf, 1, sizeof(buf), f);
+    XFCLOSE(f);
+
+    /* Valid case */    
+    AssertNotNull(dh = wolfSSL_d2i_DHparams(NULL, &pt, len));
+    AssertTrue(pt != buf);
+    AssertIntEQ(DH_generate_key(dh), 1);
+    AssertIntEQ(wolfSSL_i2d_DHparams(dh, &pt2), 396);
+
+    /* Invalid cases */
+    AssertIntEQ(wolfSSL_i2d_DHparams(NULL, &pt2), 0);
+    AssertIntEQ(wolfSSL_i2d_DHparams(dh, NULL), 392);
+
+    DH_free(dh);
+    printf(resultFmt, passed);
+#endif
 }
 
 #endif /*end of QT unit tests*/
@@ -23609,6 +23828,13 @@ void ApiTest(void)
     test_wolfSSL_X509_PUBKEY_get();
     test_wolfSSL_ASN1_STRING_to_UTF8();
     test_wolfSSL_CIPHER_description_all();
+    test_wolfSSL_X509_EXTENSION_get_data();
+    test_wolfSSL_X509_EXTENSION_get_critical();
+    test_wolfSSL_CIPHER_description_all();
+    test_wolfSSL_X509_PUBKEY_get();
+    test_wolfSSL_d2i_DHparams();
+    test_wolfSSL_i2d_DHparams();
+
     printf("\n-------------End Of Qt Unit Tests---------------\n");
 
 #endif /* (defined(WOLFSSL_QT)  */
@@ -23786,6 +24012,7 @@ void ApiTest(void)
     AssertIntEQ(test_wc_DsaPublicPrivateKeyDecode(), 0);
     AssertIntEQ(test_wc_MakeDsaKey(), 0);
     AssertIntEQ(test_wc_DsaKeyToDer(), 0);
+    AssertIntEQ(test_wc_DsaKeyToPublicDer(), 0);
     AssertIntEQ(test_wc_DsaImportParamsRaw(), 0);
     AssertIntEQ(test_wc_DsaImportParamsRawCheck(), 0);
     AssertIntEQ(test_wc_DsaExportParamsRaw(), 0);
@@ -23870,4 +24097,5 @@ void ApiTest(void)
     printf(" End API Tests\n");
 
 }
+
 
