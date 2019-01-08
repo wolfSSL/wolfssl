@@ -7297,10 +7297,16 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 #if !defined(NO_WOLFSSL_STUB)
     const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
     {
+    /*currently this function returns a structure without i2s, i2r, and i2v
+    initialized, structure is returned with just nid stored inside it*/
         int nid;
         WOLFSSL_v3_ext_method method;
 
         WOLFSSL_ENTER("wolfSSL_X509V3_EXT_get");
+        if(ex ==NULL){
+            WOLFSSL_MSG("Passed a NULL X509_EXTENSION*");
+            return NULL;
+        }
         nid = wolfSSL_OBJ_obj2nid(ex->obj);
         if(nid <= 0){
             WOLFSSL_MSG("Failed to get nid from passed extension object");
