@@ -21465,6 +21465,55 @@ static void test_wolfSSL_X509_EXTENSION_get_object(void)
     printf(resultFmt, passed);
 }
 
+#if !defined(NO_ASN)
+static void test_wolfSSL_ASN1_STRING_to_UTF8(void){
+    WOLFSSL_X509* x509;
+    WOLFSSL_X509_NAME* subject;
+    WOLFSSL_X509_NAME_ENTRY* e;
+    WOLFSSL_ASN1_STRING* a;
+    FILE* file;
+    int idx = 0;
+    char target_output[15] = "www.wolfssl.com";
+    unsigned char* actual_output;
+    int len = 0;
+    int result = 0;
+
+    AssertNotNull(file = fopen("./certs/server-cert.pem", "rb"));
+    AssertNotNull(x509 = wolfSSL_PEM_read_X509(file, NULL, NULL, NULL));
+
+    printf(testingFmt, "wolfSSL_ASN1_STRING_to_UTF8(): NID_commonName");
+    AssertNotNull(subject = wolfSSL_X509_get_subject_name(x509));
+    AssertIntEQ((idx = wolfSSL_X509_NAME_get_index_by_NID(subject, \
+                    NID_commonName, -1)), 0);
+    AssertNotNull(e = wolfSSL_X509_NAME_get_entry(subject, idx));
+    AssertNotNull(a =wolfSSL_X509_NAME_ENTRY_get_data(e));
+    AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(&actual_output, a)), 15);
+    result = strncmp((const char*)actual_output, target_output, len);
+    AssertIntEQ(result, 0);
+    printf(resultFmt, result == 0 ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_ASN1_STRING_to_UTF8(NULL, valid): ");
+    AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(NULL, a)), WOLFSSL_FAILURE);
+    result = strncmp((const char*)actual_output, target_output, len);
+    AssertIntEQ(result, 0);
+    printf(resultFmt, result == WOLFSSL_FAILURE ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_ASN1_STRING_to_UTF8(valid, NULL): ");
+    AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(&actual_output, NULL)), \
+            WOLFSSL_FAILURE);
+    result = strncmp((const char*)actual_output, target_output, len);
+    AssertIntEQ(result, 0);
+    printf(resultFmt, result == WOLFSSL_FAILURE ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_ASN1_STRING_to_UTF8(NULL, NULL): ");
+    AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(NULL, NULL)), \
+            WOLFSSL_FAILURE);
+    result = strncmp((const char*)actual_output, target_output, len);
+    AssertIntEQ(result, 0);
+    printf(resultFmt, result == WOLFSSL_FAILURE ? passed : failed);
+}
+#endif //!defined(NO_ASN)
+
 static void test_wolfSSL_X509_EXTENSION_get_data(void) 
 {
     WOLFSSL_X509* x509;
@@ -21499,8 +21548,6 @@ static void test_wolfSSL_X509_EXTENSION_get_critical(void)
     AssertIntEQ(crit, 0);
     printf(resultFmt, passed);
 }
-
-
 
 static void test_wolfSSL_CIPHER_description_all(void)
 {
@@ -23778,6 +23825,9 @@ void ApiTest(void)
     test_wolfSSL_X509_get_ext_count();
     test_wolfSSL_X509_cmp();
     test_wolfSSL_X509_EXTENSION_get_object();
+    test_wolfSSL_X509_PUBKEY_get();
+    test_wolfSSL_ASN1_STRING_to_UTF8();
+    test_wolfSSL_CIPHER_description_all();
     test_wolfSSL_X509_EXTENSION_get_data();
     test_wolfSSL_X509_EXTENSION_get_critical();
     test_wolfSSL_CIPHER_description_all();

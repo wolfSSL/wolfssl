@@ -7115,10 +7115,10 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
     int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passed_cert)
     {
         int ext_count = 0;
-        int length;
-        int outSz;
+        int length = 0;
+        int outSz = 0;
         const byte* rawCert;
-        int sz;
+        int sz = 0;
         word32 idx = 0;
         DecodedCert cert;
         const byte* input;
@@ -17170,7 +17170,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
             switch (nid) {
                 case ASN_COMMON_NAME:
                     if (pos != name->fullName.cnIdx)
-                        ret = name->fullName.cnIdx;
+                        ret = 0;//name->fullName.cnIdx;
                     break;
                 case ASN_DOMAIN_COMPONENT:
                     name->fullName.dcMode = 1;
