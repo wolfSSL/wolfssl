@@ -14168,6 +14168,9 @@ static int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
 {
     int ret;
 
+    if (request != NULL)
+        XMEMSET(request, 0, sizeof(OcspRequest));
+
     InitDecodedCert(cert, certData, length, ssl->heap);
     /* TODO: Setup async support here */
     ret = ParseCertRelative(cert, CERT_TYPE, VERIFY, ssl->ctx->cm);
@@ -23591,7 +23594,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ret = TLSX_AddEmptyRenegotiationInfo(&ssl->extensions);
             if (ret != WOLFSSL_SUCCESS)
                 return ret;
-            ssl->secure_renegotiation->enabled = 1;
+            if (ssl->secure_renegotiation)
+                ssl->secure_renegotiation->enabled = 1;
         }
 #endif /* HAVE_SERVER_RENEGOTIATION_INFO */
 
