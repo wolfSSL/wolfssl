@@ -22825,7 +22825,19 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     if (info == NULL)
         return BAD_FUNC_ARG;
 
-    if (info->algo_type == WC_ALGO_TYPE_PK) {
+    if (info->algo_type == WC_ALGO_TYPE_RNG) {
+    #ifndef WC_NO_RNG
+        /* set devId to invalid, so software is used */
+        info->rng.rng->devId = INVALID_DEVID;
+
+        ret = wc_RNG_GenerateBlock(info->rng.rng,
+            info->rng.out, info->rng.sz);
+
+        /* reset devId */
+        info->rng.rng->devId = devIdArg;
+    #endif
+    }
+    else if (info->algo_type == WC_ALGO_TYPE_PK) {
     #ifdef DEBUG_WOLFSSL
         printf("CryptoDevCb: Pk Type %d\n", info->pk.type);
     #endif
@@ -23059,6 +23071,10 @@ int cryptodev_test(void)
     devId = 1;
     ret = wc_CryptoDev_RegisterDevice(devId, myCryptoDevCb, &myCtx);
 
+#ifndef WC_NO_RNG
+    if (ret == 0)
+        ret = random_test();
+#endif /* WC_NO_RNG */
 #ifndef NO_RSA
     if (ret == 0)
         ret = rsa_test();

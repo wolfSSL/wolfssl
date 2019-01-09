@@ -44,6 +44,9 @@
 #ifndef NO_SHA256
     #include <wolfssl/wolfcrypt/sha256.h>
 #endif
+#ifndef WC_NO_RNG
+    #include <wolfssl/wolfcrypt/random.h>
+#endif
 
 /* Crypto Information Structure for callbacks */
 typedef struct wc_CryptoInfo {
@@ -166,15 +169,23 @@ typedef struct wc_CryptoInfo {
         };
     } hash;
 #endif /* !NO_SHA || !NO_SHA256 */
+#ifndef WC_NO_RNG
+    struct {
+        WC_RNG* rng;
+        byte* out;
+        word32 sz;
+    } rng;
+#endif
 } wc_CryptoInfo;
 
 typedef int (*CryptoDevCallbackFunc)(int devId, wc_CryptoInfo* info, void* ctx);
+
+
 
 WOLFSSL_LOCAL void wc_CryptoDev_Init(void);
 
 WOLFSSL_API int  wc_CryptoDev_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx);
 WOLFSSL_API void wc_CryptoDev_UnRegisterDevice(int devId);
-
 
 #ifndef NO_RSA
 WOLFSSL_LOCAL int wc_CryptoDev_Rsa(const byte* in, word32 inLen, byte* out,
@@ -228,6 +239,10 @@ WOLFSSL_LOCAL int wc_CryptoDev_ShaHash(wc_Sha* sha, const byte* in,
 WOLFSSL_LOCAL int wc_CryptoDev_Sha256Hash(wc_Sha256* sha256, const byte* in,
     word32 inSz, byte* digest);
 #endif /* !NO_SHA256 */
+
+#ifndef WC_NO_RNG
+WOLFSSL_LOCAL int wc_CryptoDev_RandomBlock(WC_RNG* rng, byte* out, word32 sz);
+#endif
 
 #endif /* WOLF_CRYPTO_DEV */
 

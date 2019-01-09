@@ -444,4 +444,29 @@ int wc_CryptoDev_Sha256Hash(wc_Sha256* sha256, const byte* in,
 }
 #endif /* !NO_SHA256 */
 
+#ifndef WC_NO_RNG
+int wc_CryptoDev_RandomBlock(WC_RNG* rng, byte* out, word32 sz)
+{
+    int ret = NOT_COMPILED_IN;
+    CryptoDev* dev;
+
+    /* locate registered callback */
+    dev = wc_CryptoDev_FindDevice(rng->devId);
+    if (dev) {
+        if (dev->cb) {
+            wc_CryptoInfo cryptoInfo;
+            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+            cryptoInfo.algo_type = WC_ALGO_TYPE_RNG;
+            cryptoInfo.rng.rng = rng;
+            cryptoInfo.rng.out = out;
+            cryptoInfo.rng.sz = sz;
+
+            ret = dev->cb(rng->devId, &cryptoInfo, dev->ctx);
+        }
+    }
+
+    return ret;
+}
+#endif /* !WC_NO_RNG */
+
 #endif /* WOLF_CRYPTO_DEV */
