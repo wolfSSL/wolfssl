@@ -8,8 +8,4 @@ When you want to run the app
 3. "make menuconfig" to configure unit test app.  
 4. "make TEST_COMPONENTS=wolfssl" to build wolfssl unit test app.  
 
-NOTE:  
- You should remove *user_settings.h* file at wolfssl/ folder after finishing run  
- the unit test app.
-
 See [https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/unit-tests.html] for more information about unit test app.

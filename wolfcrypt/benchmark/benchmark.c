@@ -5367,7 +5367,7 @@ static int string_matches(const char* arg, const char* str)
     return XSTRNCMP(arg, str, len) == 0;
 }
 #ifdef WOLFSSL_ESPIDF
-int app_main( )
+int wolf_benchmark_task( )
 #else
 int main(int argc, char** argv)
 #endif
@@ -5491,7 +5491,9 @@ int main(int argc, char** argv)
 #ifdef HAVE_STACK_SIZE
     ret = StackSizeCheck(NULL, benchmark_test);
 #else
+#ifndef WOLFSSL_ESPIDF
     ret = benchmark_test(NULL);
+#endif
 #endif
 
     return ret;
