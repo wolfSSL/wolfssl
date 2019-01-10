@@ -142,13 +142,7 @@ typedef struct wc_CryptoInfo {
                 byte*       out;
                 const byte* in;
                 word32      sz;
-            } aescbc_enc;
-            struct {
-                Aes*        aes;
-                byte*       out;
-                const byte* in;
-                word32      sz;
-            } aescbc_dec;
+            } aescbc;
         #endif /* HAVE_AES_CBC */
         };
     } cipher;

@@ -2210,6 +2210,11 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
                 XMEMCPY(aes->asyncIv, iv, AES_BLOCK_SIZE);
         }
     #endif /* WOLFSSL_ASYNC_CRYPT */
+    #ifdef WOLF_CRYPTO_DEV
+        if (aes->devId != INVALID_DEVID) {
+            XMEMCPY(aes->devKey, userKey, keylen);
+        }
+    #endif
 
     #ifdef WOLFSSL_AESNI
         if (checkAESNI == 0) {

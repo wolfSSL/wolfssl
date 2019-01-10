@@ -59,8 +59,9 @@ static CryptoDev* wc_CryptoDev_FindDevice(int devId)
 void wc_CryptoDev_Init(void)
 {
     int i;
-    for (i=0; i<MAX_CRYPTO_DEVICES; i++)
+    for (i=0; i<MAX_CRYPTO_DEVICES; i++) {
         gCryptoDev[i].devId = INVALID_DEVID;
+    }
 }
 
 int wc_CryptoDev_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
@@ -347,10 +348,10 @@ int wc_CryptoDev_AesCbcEncrypt(Aes* aes, byte* out,
             cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
             cryptoInfo.cipher.type = WC_CIPHER_AES_CBC;
             cryptoInfo.cipher.enc = 1;
-            cryptoInfo.cipher.aescbc_enc.aes       = aes;
-            cryptoInfo.cipher.aescbc_enc.out       = out;
-            cryptoInfo.cipher.aescbc_enc.in        = in;
-            cryptoInfo.cipher.aescbc_enc.sz        = sz;
+            cryptoInfo.cipher.aescbc.aes       = aes;
+            cryptoInfo.cipher.aescbc.out       = out;
+            cryptoInfo.cipher.aescbc.in        = in;
+            cryptoInfo.cipher.aescbc.sz        = sz;
 
             ret = dev->cb(aes->devId, &cryptoInfo, dev->ctx);
         }
@@ -374,10 +375,10 @@ int wc_CryptoDev_AesCbcDecrypt(Aes* aes, byte* out,
             cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
             cryptoInfo.cipher.type = WC_CIPHER_AES_CBC;
             cryptoInfo.cipher.enc = 0;
-            cryptoInfo.cipher.aescbc_dec.aes       = aes;
-            cryptoInfo.cipher.aescbc_dec.out       = out;
-            cryptoInfo.cipher.aescbc_dec.in        = in;
-            cryptoInfo.cipher.aescbc_dec.sz        = sz;
+            cryptoInfo.cipher.aescbc.aes       = aes;
+            cryptoInfo.cipher.aescbc.out       = out;
+            cryptoInfo.cipher.aescbc.in        = in;
+            cryptoInfo.cipher.aescbc.sz        = sz;
 
             ret = dev->cb(aes->devId, &cryptoInfo, dev->ctx);
         }

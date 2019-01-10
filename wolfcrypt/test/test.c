@@ -22977,29 +22977,29 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         if (info->cipher.type == WC_CIPHER_AES_CBC) {
             if (info->cipher.enc) {
                 /* set devId to invalid, so software is used */
-                info->cipher.aescbc_enc.aes->devId = INVALID_DEVID;
+                info->cipher.aescbc.aes->devId = INVALID_DEVID;
 
                 ret = wc_AesCbcEncrypt(
-                    info->cipher.aescbc_enc.aes,
-                    info->cipher.aescbc_enc.out,
-                    info->cipher.aescbc_enc.in,
-                    info->cipher.aescbc_enc.sz);
+                    info->cipher.aescbc.aes,
+                    info->cipher.aescbc.out,
+                    info->cipher.aescbc.in,
+                    info->cipher.aescbc.sz);
 
                 /* reset devId */
-                info->cipher.aescbc_enc.aes->devId = devIdArg;
+                info->cipher.aescbc.aes->devId = devIdArg;
             }
             else {
                 /* set devId to invalid, so software is used */
-                info->cipher.aescbc_dec.aes->devId = INVALID_DEVID;
+                info->cipher.aescbc.aes->devId = INVALID_DEVID;
 
                 ret = wc_AesCbcDecrypt(
-                    info->cipher.aescbc_dec.aes,
-                    info->cipher.aescbc_dec.out,
-                    info->cipher.aescbc_dec.in,
-                    info->cipher.aescbc_dec.sz);
+                    info->cipher.aescbc.aes,
+                    info->cipher.aescbc.out,
+                    info->cipher.aescbc.in,
+                    info->cipher.aescbc.sz);
 
                 /* reset devId */
-                info->cipher.aescbc_dec.aes->devId = devIdArg;
+                info->cipher.aescbc.aes->devId = devIdArg;
             }
         }
     #endif /* HAVE_AES_CBC */
