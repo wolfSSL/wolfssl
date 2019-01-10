@@ -5747,18 +5747,8 @@ int wolfSSL_CertManagerDisableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
 #endif
     return ret;
 }
-#if defined(SESSION_CERTS)
-WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
-{
-    WOLFSSL_ENTER("wolfSSL_get_peer_cert_chain");
-    if ((ssl == NULL) || (ssl->session.chain.count == 0))
-        return NULL;
-    else
-        return (WOLF_STACK_OF(WOLFSSL_X509)* )&ssl->session.chain;
-}
-#endif
-#ifdef HAVE_OCSP
 
+#ifdef HAVE_OCSP
 /* check CRL if enabled, WOLFSSL_SUCCESS  */
 int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm, byte* der, int sz)
 {
@@ -15694,6 +15684,45 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
 #endif /* KEEP_PEER_CERT */
 
+#if defined(SESSION_CERTS)
+WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_get_peer_cert_chain");
+    WOLFSSL_STACK* sk;
+    WOLFSSL_X509* x509;
+    int i = 0;
+
+    if ((ssl == NULL) || (ssl->session.chain.count == 0)) {
+        return NULL;
+    }
+
+    else {
+#ifdef WOLFSSL_QT
+        sk = (WOLF_STACK_OF(WOLFSSL_X509)* )&ssl->session.chain;
+        if (sk == NULL) {
+            WOLFSSL_MSG("Session chain NULL error");
+        }
+        for (; i < ssl->session.chain.count; i++) {
+            x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
+                                                 DYNAMIC_TYPE_X509);
+            int ret = DecodeToX509(x509, ssl->session.chain.certs[i].buffer,
+                                 ssl->session.chain.certs[i].length);
+            if (ret != 0) {
+                WOLFSSL_MSG("Error decoding cert");
+            }
+
+            wolfSSL_sk_X509_push(sk, x509);
+            wolfSSL_X509_free(x509);
+        }
+        sk->num = ssl->session.chain.count;
+        sk->type = STACK_TYPE_X509;
+        return sk;
+#else
+        return (WOLF_STACK_OF(WOLFSSL_X509)* )&ssl->session.chain;
+#endif
+    }
+}
+#endif
 
 #ifndef NO_CERTS
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
@@ -16208,6 +16237,8 @@ byte* wolfSSL_X509_get_hw_serial_number(WOLFSSL_X509* x509,byte* in,
 int wolfSSL_sk_X509_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk, WOLFSSL_X509* x509)
 {
     WOLFSSL_STACK* node;
+
+    WOLFSSL_ENTER("wolfSSL_sk_X509_push");
 
     if (sk == NULL || x509 == NULL) {
         return WOLFSSL_FAILURE;
@@ -16744,6 +16775,8 @@ int wolfSSL_sk_ASN1_OBJECT_push(WOLF_STACK_OF(WOLFSSL_ASN1_OBJEXT)* sk,
                                                       WOLFSSL_ASN1_OBJECT* obj)
 {
     WOLFSSL_STACK* node;
+
+    WOLFSSL_ENTER("wolfSSL_sk_ASN1_OBJECT_push");
 
     if (sk == NULL || obj == NULL) {
         return WOLFSSL_FAILURE;
@@ -23012,6 +23045,8 @@ void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
         return NULL;
 
     switch (sk->type) {
+        case STACK_TYPE_X509:
+            return (void*)sk->data.x509;
         case STACK_TYPE_CIPHER:
             if (sk->data.cipher)
                 sk->data.cipher->cipherOffset = offset;
