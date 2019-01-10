@@ -18611,8 +18611,8 @@ char* wolfSSL_CIPHER_description_all(const WOLFSSL_CIPHER* cipher, char* in,
     char n0[MAX_SEGMENT_SZ], n1[MAX_SEGMENT_SZ], n2[MAX_SEGMENT_SZ],
          n3[MAX_SEGMENT_SZ], n4[MAX_SEGMENT_SZ];
     byte cipherSuite0, cipherSuite;
-    int nCnt, i, strLen;
-    unsigned long offset;
+    int nCnt, i;
+    unsigned long offset, strLen;
 
     WOLFSSL_ENTER("wolfSSL_CIPHER_description");
 
