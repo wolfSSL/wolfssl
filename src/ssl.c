@@ -13720,7 +13720,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     {
         WOLFSSL_ENTER("EVP_CIPHER_CTX_init");
         if (ctx) {
-            ctx->cipherType = 0xff;   /* no init */
+            ctx->cipherType = WOLFSSL_EVP_CIPH_TYPE_INIT;   /* not yet initialized */
             ctx->keyLen     = 0;
             ctx->enc        = 1;      /* start in encrypt mode */
         }
@@ -13732,7 +13732,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     {
         WOLFSSL_ENTER("EVP_CIPHER_CTX_cleanup");
         if (ctx) {
-            ctx->cipherType = 0xff;  /* no more init */
+            ctx->cipherType = WOLFSSL_EVP_CIPH_TYPE_INIT;  /* not yet initialized  */
             ctx->keyLen     = 0;
         }
 
@@ -13766,9 +13766,24 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     }
     #endif
 
+#ifndef NO_AES
+    static int AesSetKey_ex(Aes* aes, const byte* key, word32 len,
+                              const byte* iv, int dir)
+    {
+        int ret;
+        /* wc_AesSetKey clear aes.reg if iv == NULL.
+           Keep IV for openSSL compatibility */
+        if(iv == NULL)
+            XMEMCPY((byte *)aes->tmp, (byte *)aes->reg, AES_BLOCK_SIZE);
+        ret = wc_AesSetKey(aes, key, len, iv, dir);
+        if(iv == NULL)
+            XMEMCPY((byte *)aes->reg, (byte *)aes->tmp, AES_BLOCK_SIZE);
+        return ret;
+    }
+#endif
 
     /* return WOLFSSL_SUCCESS on ok, 0 on failure to match API compatibility */
-    int  wolfSSL_EVP_CipherInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
+    int wolfSSL_EVP_CipherInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                const WOLFSSL_EVP_CIPHER* type, const byte* key,
                                const byte* iv, int enc)
     {
@@ -13788,12 +13803,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             return 0;   /* failure */
         }
         if (ctx->cipherType == WOLFSSL_EVP_CIPH_TYPE_INIT){
+            /* only first EVP_CipherInit invoke. ctx->cipherType is set below */
+            XMEMSET(&ctx->cipher, 0, sizeof(ctx->cipher));
             ctx->bufUsed = 0;
             ctx->lastUsed = 0;
             ctx->flags   = 0;
         }
-
-        XMEMSET(&ctx->cipher, 0, sizeof(ctx->cipher));
 
 #ifndef NO_AES
     #ifdef HAVE_AES_CBC
@@ -13809,8 +13824,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
-                ret = wc_AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
-                                ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
+                ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                                ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);             
                 if (ret != 0)
                     return ret;
             }
@@ -13833,7 +13848,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
-                ret = wc_AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
                                 ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
                 if (ret != 0)
                     return ret;
@@ -13857,10 +13872,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
-                ret = wc_AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
                                 ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
                 if (ret != 0){
-                    WOLFSSL_MSG("wc_AesSetKey() failed");
+                    WOLFSSL_MSG("AesSetKey() failed");
                     return ret;
                 }
             }
@@ -13887,7 +13902,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
-              ret = wc_AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                ret =  AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
                     AES_ENCRYPTION);
                 if (ret != 0)
                     return ret;
@@ -13911,7 +13926,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
-                ret = wc_AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                ret =  AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
                       AES_ENCRYPTION);
                 if (ret != 0)
                     return ret;
@@ -13935,7 +13950,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
-                ret = wc_AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                ret =  AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
                       AES_ENCRYPTION);
                 if (ret != 0)
                     return ret;
@@ -13960,7 +13975,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
-                ret = wc_AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, NULL,
+                ret =  AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, NULL,
                       ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
             }
             if (ret != 0)
@@ -13979,7 +13994,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
-                ret = wc_AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, NULL,
+                ret =  AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, NULL,
                       ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
             }
             if (ret != 0)
@@ -13998,7 +14013,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
-              ret = wc_AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, NULL,
+                ret =  AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, NULL,
                     ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
             }
             if (ret != 0)

@@ -83,6 +83,9 @@
 #if defined(WOLFSSL_DEVCRYPTO) && defined(WOLFSSL_DEVCRYPTO_HASH)
     #include <wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h>
 #endif
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT)
+    #include "wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h"
+#endif
 
 #if defined(_MSC_VER)
     #define SHA256_NOINLINE __declspec(noinline)
@@ -150,6 +153,10 @@ typedef struct wc_Sha256 {
     byte*  msg;
     word32 used;
     word32 len;
+#endif
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
+   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+    WC_ESP32SHA ctx;
 #endif
 #endif
 } wc_Sha256;

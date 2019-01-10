@@ -72,7 +72,9 @@
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
-
+#ifdef WOLFSSL_ESP32WROOM32_CRYPT
+    #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
+#endif
 #if defined(_MSC_VER)
     #define SHA512_NOINLINE __declspec(noinline)
 #elif defined(__GNUC__)
@@ -126,6 +128,10 @@ typedef struct wc_Sha512 {
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     word64* W;
+#endif
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
+   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+    WC_ESP32SHA ctx;
 #endif
 } wc_Sha512;
 #endif

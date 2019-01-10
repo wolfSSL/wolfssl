@@ -233,6 +233,11 @@
     #define TFM_TIMING_RESISTANT
     #define ECC_TIMING_RESISTANT
     #define WC_RSA_BLINDING
+#if defined(WOLFSSL_ESPWROOM32)
+   #ifndef NO_ESP32WROOM32_CRYPT
+        #define WOLFSSL_ESP32WROOM32_CRYPT
+    #endif
+#endif
 #if !defined(WOLFSSL_USER_SETTINGS)
     #define HAVE_ECC
 #endif /* !WOLFSSL_USER_SETTINGS */

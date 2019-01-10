@@ -76,7 +76,8 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/caam/wolfcaam.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h \
                          wolfssl/wolfcrypt/port/st/stm32.h \
-                         wolfssl/wolfcrypt/port/st/stsafe.h
+                         wolfssl/wolfcrypt/port/st/stsafe.h \
+                         wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h
 
 if BUILD_AFALG
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/af_alg/afalg_hash.h

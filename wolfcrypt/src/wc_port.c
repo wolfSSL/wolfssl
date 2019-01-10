@@ -308,15 +308,17 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
     while ((ctx->entry = readdir(ctx->dir)) != NULL) {
         dnameLen = (int)XSTRLEN(ctx->entry->d_name);
 
-        if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
+        if (pathLen + dnameLen + 2 >= MAX_FILENAME_SZ) {
             ret = BAD_PATH_ERROR;
             break;
         }
         XSTRNCPY(ctx->name, path, pathLen + 1);
         ctx->name[pathLen] = '/';
-        XSTRNCPY(ctx->name + pathLen + 1,
-                 ctx->entry->d_name, MAX_FILENAME_SZ - pathLen - 1);
 
+        /* Use dnameLen + 1 for GCC 8 warnings of truncating d_name. Because
+         * of earlier check it is known that dnameLen is less than
+         * MAX_FILENAME_SZ - (pathLen + 2)  so dnameLen +1 will fit */
+        XSTRNCPY(ctx->name + pathLen + 1, ctx->entry->d_name, dnameLen + 1);
         if (stat(ctx->name, &ctx->s) != 0) {
             WOLFSSL_MSG("stat on name failed");
             ret = BAD_PATH_ERROR;
@@ -372,14 +374,16 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
     while ((ctx->entry = readdir(ctx->dir)) != NULL) {
         dnameLen = (int)XSTRLEN(ctx->entry->d_name);
 
-        if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
+        if (pathLen + dnameLen + 2 >= MAX_FILENAME_SZ) {
             ret = BAD_PATH_ERROR;
             break;
         }
         XSTRNCPY(ctx->name, path, pathLen + 1);
         ctx->name[pathLen] = '/';
-        XSTRNCPY(ctx->name + pathLen + 1,
-                 ctx->entry->d_name, MAX_FILENAME_SZ - pathLen - 1);
+        /* Use dnameLen + 1 for GCC 8 warnings of truncating d_name. Because
+         * of earlier check it is known that dnameLen is less than
+         * MAX_FILENAME_SZ - (pathLen + 2) so that dnameLen +1 will fit */
+        XSTRNCPY(ctx->name + pathLen + 1, ctx->entry->d_name, dnameLen + 1);
 
         if (stat(ctx->name, &ctx->s) != 0) {
             WOLFSSL_MSG("stat on name failed");
