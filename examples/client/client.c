@@ -101,6 +101,8 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
     int error;
     SOCKET_T sockfd;
     int select_ret = 0;
+    const int maxSec = 10;
+    int elapsedSec = 0;
 
 #ifndef WOLFSSL_CALLBACKS
     ret = wolfSSL_connect(ssl);
@@ -151,9 +153,15 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
             ret = wolfSSL_connect_ex(ssl, handShakeCB, timeoutCB, timeout);
         #endif
             error = wolfSSL_get_error(ssl, 0);
+            elapsedSec = 0; /* reset elapsed */
         }
         else if (select_ret == TEST_TIMEOUT && !wolfSSL_dtls(ssl)) {
             error = WOLFSSL_ERROR_WANT_READ;
+
+            elapsedSec += currTimeout;
+            if (elapsedSec > maxSec) {
+                error = WOLFSSL_FATAL_ERROR;
+            }
         }
 #ifdef WOLFSSL_DTLS
         else if (select_ret == TEST_TIMEOUT && wolfSSL_dtls(ssl) &&
@@ -861,7 +869,7 @@ static const char* client_usage_msg[][59] = {
         "-N          Use Non-blocking sockets\n",                       /* 24 */
 #ifndef NO_SESSION_CACHE
         "-r          Resume session\n",                                 /* 25 */
-#endif 
+#endif
         "-w          Wait for bidirectional shutdown\n",                /* 26 */
         "-M <prot>   Use STARTTLS, using <prot> protocol (smtp)\n",     /* 27 */
 #ifdef HAVE_SECURE_RENEGOTIATION
@@ -911,7 +919,7 @@ static const char* client_usage_msg[][59] = {
         "-E <file>   Path to load trusted peer cert\n",                 /* 46 */
 #endif
 #ifdef HAVE_WNR
-        "-q <file>   Whitewood config file,      defaults\n",           /* 47 */      
+        "-q <file>   Whitewood config file,      defaults\n",           /* 47 */
 #endif
         "-H <arg>    Internal tests"
                   " [defCipherList, exitWithRet, verifyFail]\n",        /* 48 */
@@ -1007,7 +1015,7 @@ static const char* client_usage_msg[][59] = {
         "-N          ノンブロッキング・ソケットを使用する\n",           /* 24 */
 #ifndef NO_SESSION_CACHE
         "-r          セッションを継続する\n",                           /* 25 */
-#endif 
+#endif
         "-w          双方向シャットダウンを待つ\n",                     /* 26 */
         "-M <prot>   STARTTLSを使用する, <prot>プロトコル(smtp)を"
                                               "使用する\n",             /* 27 */
@@ -1061,7 +1069,7 @@ static const char* client_usage_msg[][59] = {
         "-E <file>   信頼出来るピアの証明書ロードの為のパス\n",         /* 46 */
 #endif
 #ifdef HAVE_WNR
-        "-q <file>   Whitewood コンフィグファイル,      既定値\n",      /* 47 */      
+        "-q <file>   Whitewood コンフィグファイル,      既定値\n",      /* 47 */
 #endif
         "-H <arg>    内部テスト"
                " [defCipherList, exitWithRet, verifyFail]\n",           /* 48 */
