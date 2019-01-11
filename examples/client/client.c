@@ -54,6 +54,9 @@
 #endif
 
 #define DEFAULT_TIMEOUT_SEC 2
+#ifndef MAX_NON_BLOCK_SEC
+#define MAX_NON_BLOCK_SEC   10
+#endif
 
 #define OCSP_STAPLING 1
 #define OCSP_STAPLINGV2 2
@@ -101,7 +104,6 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
     int error;
     SOCKET_T sockfd;
     int select_ret = 0;
-    const int maxSec = 10;
     int elapsedSec = 0;
 
 #ifndef WOLFSSL_CALLBACKS
@@ -159,7 +161,8 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
             error = WOLFSSL_ERROR_WANT_READ;
 
             elapsedSec += currTimeout;
-            if (elapsedSec > maxSec) {
+            if (elapsedSec > MAX_NON_BLOCK_SEC) {
+                printf("Nonblocking connect timeout\n");
                 error = WOLFSSL_FATAL_ERROR;
             }
         }
@@ -524,7 +527,7 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                     }
 
                     /* Compare TX and RX buffers */
-                    if(XMEMCMP(tx_buffer, rx_buffer, len) != 0) {
+                    if (XMEMCMP(tx_buffer, rx_buffer, len) != 0) {
                         free(tx_buffer);
                         tx_buffer = NULL;
                         free(rx_buffer);
@@ -721,6 +724,7 @@ static void ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead)
 {
     int ret, err;
     char buffer[WOLFSSL_MAX_ERROR_SZ];
+    double start = current_time(1), elapsed;
 
     do {
         err = 0; /* reset error */
@@ -738,6 +742,15 @@ static void ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead)
                 printf("SSL_read reply error %d, %s\n", err,
                                          wolfSSL_ERR_error_string(err, buffer));
                 err_sys("SSL_read failed");
+            }
+        }
+
+        if (mustRead && err == WOLFSSL_ERROR_WANT_READ) {
+            elapsed = current_time(0) - start;
+            if (elapsed > MAX_NON_BLOCK_SEC) {
+                printf("Nonblocking read timeout\n");
+                err = WOLFSSL_FATAL_ERROR;
+                break;
             }
         }
     } while ((mustRead && err == WOLFSSL_ERROR_WANT_READ)
