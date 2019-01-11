@@ -7430,7 +7430,7 @@ word16 TLSX_PreSharedKey_GetSizeBinders(PreSharedKey* list, byte msgType)
     word16 len;
 
     if (msgType != client_hello)
-        return SANITY_MSG_E;
+        return (word16)SANITY_MSG_E;
 
     /* Length of all binders. */
     len = OPAQUE16_LEN;
@@ -7459,7 +7459,7 @@ word16 TLSX_PreSharedKey_WriteBinders(PreSharedKey* list, byte* output,
     word16 len;
 
     if (msgType != client_hello)
-        return SANITY_MSG_E;
+        return (word16)SANITY_MSG_E;
 
     /* Skip length of all binders. */
     lenIdx = idx;
@@ -7535,7 +7535,7 @@ static word16 TLSX_PreSharedKey_Write(PreSharedKey* list, byte* output,
         for (i=0; list != NULL && !list->chosen; i++)
             list = list->next;
         if (list == NULL)
-            return BUILD_MSG_ERROR;
+            return (word16)BUILD_MSG_ERROR;
 
         /* The index of the identity chosen by the server from the list supplied
          * by the client.
@@ -7853,7 +7853,7 @@ static word16 TLSX_PskKeModes_GetSize(byte modes, byte msgType)
         return len;
     }
 
-    return SANITY_MSG_E;
+    return (word16)SANITY_MSG_E;
 }
 
 /* Writes the PSK KE modes extension into the output buffer.
@@ -7882,7 +7882,7 @@ static word16 TLSX_PskKeModes_Write(byte modes, byte* output, byte msgType)
         return idx;
     }
 
-    return SANITY_MSG_E;
+    return (word16)SANITY_MSG_E;
 }
 
 /* Parse the PSK KE modes extension.
