@@ -16067,11 +16067,9 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
 
         #ifdef WOLFSSL_QT
         {
-                    WOLFSSL_ASN1_TIME* atime = NULL;
+        WOLFSSL_ASN1_TIME* atime = NULL;
         int i = 0;
         int j = 0;
-
-        WOLFSSL_ENTER("wolfSSL_X509_notBeforeNew");
 
         if (x509 == NULL)
             return NULL;
@@ -16110,8 +16108,6 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
         WOLFSSL_ASN1_TIME* atime = NULL;
         int i = 0;
         int j = 0;
-
-        WOLFSSL_ENTER("wolfSSL_X509_notAfterNew");
 
         if (x509 == NULL)
             return NULL;
