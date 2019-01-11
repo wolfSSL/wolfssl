@@ -21364,7 +21364,7 @@ static void test_CheckCertSignature(void)
 {
 #if !defined(NO_CERTS) && defined(WOLFSSL_SMALL_CERT_VERIFY)
     WOLFSSL_CERT_MANAGER* cm = NULL;
-#if !defined(NO_FILESYSTEM)
+#if !defined(NO_FILESYSTEM) && (!defined(NO_RSA) || defined(HAVE_ECC))
     FILE* fp;
     byte  cert[4096];
     int   certSz;
