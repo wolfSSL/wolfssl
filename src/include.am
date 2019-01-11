@@ -192,6 +192,9 @@ endif
 if BUILD_SP_INT
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_int.c
 endif
+if BUILD_SP_ARM_CORTEX
+src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_cortexm.c
+endif
 endif
 
 if !BUILD_FIPS_V2

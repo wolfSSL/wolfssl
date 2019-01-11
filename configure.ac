@@ -3645,8 +3645,13 @@ if test "$ENABLED_SP_ASM" = "yes"; then
       AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_THUMB_ASM -mthumb -march=armv6"
       ENABLED_SP_ARM_THUMB_ASM=yes
     else
-      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
-      ENABLED_SP_ARM32_ASM=yes
+      if test $host_alias = "cortex"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_ASM"
+        ENABLED_SP_ARM_CORTEX_ASM=yes
+      else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
+        ENABLED_SP_ARM32_ASM=yes
+      fi
     fi
     ;;
   *x86_64*)
@@ -3696,6 +3701,7 @@ AM_CONDITIONAL([BUILD_SP_C], [test "x$ENABLED_SP" = "xyes" && test "x$ENABLED_SP
 AM_CONDITIONAL([BUILD_SP_ARM64], [test "x$ENABLED_SP_ARM64_ASM" = "xyes" ])
 AM_CONDITIONAL([BUILD_SP_ARM32], [test "x$ENABLED_SP_ARM32_ASM" = "xyes" ])
 AM_CONDITIONAL([BUILD_SP_ARM_THUMB], [test "x$ENABLED_SP_ARM_THUMB_ASM" = "xyes" ])
+AM_CONDITIONAL([BUILD_SP_ARM_CORTEX], [test "x$ENABLED_SP_ARM_CORTEX_ASM" = "xyes" ])
 AM_CONDITIONAL([BUILD_SP_X86_64], [test "x$ENABLED_SP_X86_64_ASM" = "xyes" ])
 AM_CONDITIONAL([BUILD_SP_INT], [test "x$ENABLED_SP_MATH" = "xyes" ])
 
