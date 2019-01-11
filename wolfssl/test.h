@@ -52,18 +52,19 @@
     #include <string.h>
     #include "rl_net.h"
     #define SOCKET_T int
-        typedef int socklen_t ;
-        static unsigned long inet_addr(const char *cp)
+    typedef int socklen_t ;
+    #define inet_addr wolfSSL_inet_addr
+    static unsigned long wolfSSL_inet_addr(const char *cp)
     {
         unsigned int a[4] ; unsigned long ret ;
         sscanf(cp, "%d.%d.%d.%d", &a[0], &a[1], &a[2], &a[3]) ;
         ret = ((a[3]<<24) + (a[2]<<16) + (a[1]<<8) + a[0]) ;
         return(ret) ;
     }
-        #if defined(HAVE_KEIL_RTX)
-        #define sleep(t) os_dly_wait(t/1000+1) ;
-    #elif defined (WOLFSSL_CMSIS_RTOS)
-        #define sleep(t)  osDelay(t/1000+1) ;
+    #if defined(HAVE_KEIL_RTX)
+        #define sleep(t) os_dly_wait(t/1000+1);
+    #elif defined(WOLFSSL_CMSIS_RTOS) || defined(WOLFSSL_CMSIS_RTOSv2)
+        #define sleep(t) osDelay(t/1000+1);
     #endif
 #elif defined(WOLFSSL_TIRTOS)
     #include <string.h>
