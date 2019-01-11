@@ -749,7 +749,7 @@ static void ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead)
             elapsed = current_time(0) - start;
             if (elapsed > MAX_NON_BLOCK_SEC) {
                 printf("Nonblocking read timeout\n");
-                err = WOLFSSL_FATAL_ERROR;
+                ret = WOLFSSL_FATAL_ERROR;
                 break;
             }
         }
