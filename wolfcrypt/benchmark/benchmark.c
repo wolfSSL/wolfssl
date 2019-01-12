@@ -572,7 +572,7 @@ static const char* bench_desc_words[][9] = {
 #endif
 #endif
 
-#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || !defined(NO_DH) \
+#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || !defined(NO_DH) \
                         || defined(WOLFSSL_KEYGEN) || defined(HAVE_ECC) \
                         || defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
     #define HAVE_LOCAL_RNG
@@ -4187,12 +4187,15 @@ void bench_rsa(int doAsync)
             goto exit_bench_rsa;
         }
 
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
     #ifdef WC_RSA_BLINDING
         ret = wc_RsaSetRNG(&rsaKey[i], &rng);
         if (ret != 0)
             goto exit_bench_rsa;
     #endif
+#endif
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
         /* decode the private key */
         idx = 0;
         if ((ret = wc_RsaPrivateKeyDecode(tmp, &idx, &rsaKey[i],
@@ -4200,6 +4203,25 @@ void bench_rsa(int doAsync)
             printf("wc_RsaPrivateKeyDecode failed! %d\n", ret);
             goto exit_bench_rsa;
         }
+#else
+    #ifdef USE_CERT_BUFFERS_2048
+        ret = mp_read_unsigned_bin(&rsaKey[i].n, &tmp[12], 256);
+        if (ret != 0) {
+            printf("wc_RsaPrivateKeyDecode failed! %d\n", ret);
+            goto exit_bench_rsa;
+        }
+        ret = mp_set_int(&rsaKey[i].e, WC_RSA_EXPONENT);
+        if (ret != 0) {
+            printf("wc_RsaPrivateKeyDecode failed! %d\n", ret);
+            goto exit_bench_rsa;
+        }
+    #else
+        #error Not supported yet!
+    #endif
+        (void)idx;
+        (void)bytes;
+#endif
+
     }
 
     bench_rsa_helper(doAsync, rsaKey, rsaKeySz);
