@@ -130,8 +130,6 @@ uint32_t HAL_GetTick(void)
 
 double current_time(int reset)
 {
-      if(reset) os_time = 0 ;
-      return (double)os_time /1000.0;
     #if defined(WOLFSSL_CMSIS_RTOS)
         return (double)os_time / 1000.0;
     #elif defined(WOLFSSL_CMSIS_RTOSv2)
@@ -173,7 +171,11 @@ void setTime(time_t t)
 
 extern void server_test(void const *arg);
 
-void app_main(void const *arg)
+#if defined(WOLFSSL_CMSIS_RTOSv2)
+void app_main(void *arg)
+#else
+void app_main(void const*arg)
+#endif
 {
     if (netInitialize() == netOK)
         server_test(arg);
@@ -181,7 +183,9 @@ void app_main(void const *arg)
         printf("ERROR: netInitialize\n");
 }
 
+#if defined(WOLFSSL_CMSIS_RTOS)
 osThreadDef(app_main, osPriorityLow, 1, 32 * 1024);
+#endif
 
 /*----------------------------------------------------------------------------
   Main Thread 'main': Run Network
