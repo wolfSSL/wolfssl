@@ -325,7 +325,7 @@
 #ifdef MBED
     #define WOLFSSL_USER_IO
     #define NO_FILESYSTEM
-    #define NO_CERT
+    #define NO_CERTS
     #if !defined(USE_CERT_BUFFERS_2048) && !defined(USE_CERT_BUFFERS_4096)
         #define USE_CERT_BUFFERS_1024
     #endif
