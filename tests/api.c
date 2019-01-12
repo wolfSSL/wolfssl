@@ -21427,6 +21427,10 @@ static void test_CheckCertSignature(void)
 #endif
 #endif
 
+    (void)fp;
+    (void)cert;
+    (void)certSz;
+
     wolfSSL_CertManagerFree(cm);
 #endif
 }

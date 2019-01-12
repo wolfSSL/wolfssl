@@ -18153,8 +18153,8 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
 
                     args->idx += length;
                     ssl->peerEccKeyPresent = 1;
-                    break;
                 #endif
+                    break;
                 }
             #endif /* HAVE_ECC || HAVE_CURVE25519 */
             #if !defined(NO_DH) && !defined(NO_PSK)
