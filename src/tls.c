@@ -1216,7 +1216,7 @@ static int Hmac_UpdateFinal(Hmac* hmac, byte* digest, const byte* in,
     byte       dummy[WC_MAX_BLOCK_SIZE] = {0};
     int        ret;
     word32     msgSz, blockSz, macSz, padSz, maxSz, realSz;
-    word32     currSz, offset;
+    word32     currSz, offset = 0;
     int        msgBlocks, blocks, blockBits;
     int        i;
 
