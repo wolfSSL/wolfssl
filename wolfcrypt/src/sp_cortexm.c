@@ -10286,7 +10286,7 @@ static sp_digit p256_b[8] = {
  * a  The number to convert.
  * m  The modulus (prime).
  */
-static int sp_256_mod_mul_norm_8(sp_digit* r, sp_digit* a, sp_digit* m)
+int sp_256_mod_mul_norm_8(sp_digit* r, sp_digit* a, sp_digit* m)
 {
     int64_t t[8];
     int64_t a64[8];
@@ -10356,7 +10356,7 @@ static int sp_256_mod_mul_norm_8(sp_digit* r, sp_digit* a, sp_digit* m)
  * r  A single precision integer.
  * a  A multi-precision integer.
  */
-static void sp_256_from_mp(sp_digit* r, int max, mp_int* a)
+void sp_256_from_mp(sp_digit* r, int max, mp_int* a)
 {
 #if DIGIT_BIT == 32
     int j;
@@ -10425,7 +10425,7 @@ static void sp_256_from_mp(sp_digit* r, int max, mp_int* a)
  * p   Point of type sp_point (result).
  * pm  Point of type ecc_point.
  */
-static void sp_256_point_from_ecc_point_8(sp_point* p, ecc_point* pm)
+void sp_256_point_from_ecc_point_8(sp_point* p, ecc_point* pm)
 {
     XMEMSET(p->x, 0, sizeof(p->x));
     XMEMSET(p->y, 0, sizeof(p->y));
@@ -10441,7 +10441,7 @@ static void sp_256_point_from_ecc_point_8(sp_point* p, ecc_point* pm)
  * a  A single precision integer.
  * r  A multi-precision integer.
  */
-static int sp_256_to_mp(sp_digit* a, mp_int* r)
+int sp_256_to_mp(sp_digit* a, mp_int* r)
 {
     int err;
 
@@ -10501,7 +10501,7 @@ static int sp_256_to_mp(sp_digit* a, mp_int* r)
  * returns MEMORY_E when allocation of memory in ecc_point fails otherwise
  * MP_OKAY.
  */
-static int sp_256_point_to_ecc_point_8(sp_point* p, ecc_point* pm)
+int sp_256_point_to_ecc_point_8(sp_point* p, ecc_point* pm)
 {
     int err;
 
@@ -10521,7 +10521,7 @@ static int sp_256_point_to_ecc_point_8(sp_point* p, ecc_point* pm)
  * return -ve, 0 or +ve if a is less than, equal to or greater than b
  * respectively.
  */
-SP_NOINLINE static int32_t sp_256_cmp_8(sp_digit* a, sp_digit* b)
+int32_t sp_256_cmp_8(sp_digit* a, sp_digit* b)
 {
     sp_digit r = -1;
 
@@ -10574,7 +10574,7 @@ SP_NOINLINE static int32_t sp_256_cmp_8(sp_digit* a, sp_digit* b)
  * b  A single precision number to subtract.
  * m  Mask value to apply.
  */
-SP_NOINLINE static sp_digit sp_256_cond_sub_8(sp_digit* r, sp_digit* a,
+sp_digit sp_256_cond_sub_8(sp_digit* r, sp_digit* a,
         sp_digit* b, sp_digit m)
 {
     sp_digit c = 0;
@@ -10609,7 +10609,7 @@ SP_NOINLINE static sp_digit sp_256_cond_sub_8(sp_digit* r, sp_digit* a,
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
-SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a, sp_digit* m,
+void sp_256_mont_reduce_8(sp_digit* a, sp_digit* m,
         sp_digit mp)
 {
     (void)mp;
@@ -10729,7 +10729,7 @@ SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a, sp_digit* m,
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
-SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a, sp_digit* m,
+void sp_256_mont_reduce_order_8(sp_digit* a, sp_digit* m,
         sp_digit mp)
 {
     sp_digit ca = 0;
@@ -10821,7 +10821,7 @@ SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a, sp_digit* m,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-SP_NOINLINE static void sp_256_mul_8(sp_digit* r, const sp_digit* a,
+void sp_256_mul_8(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit tmp[8];
@@ -11319,6 +11319,7 @@ SP_NOINLINE static void sp_256_mul_8(sp_digit* r, const sp_digit* a,
         "str	r4, [r8, 20]\n\t"
         "str	r5, [r8, 24]\n\t"
         "str	r6, [r8, 28]\n\t"
+        "mov	%[r], r8\n\t"
         :
         : [r] "r" (r), [a] "r" (a), [b] "r" (b), [tmp] "r" (tmp)
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8"
@@ -11334,7 +11335,7 @@ SP_NOINLINE static void sp_256_mul_8(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_256_mont_mul_8(sp_digit* r, sp_digit* a, sp_digit* b,
+void sp_256_mont_mul_8(sp_digit* r, sp_digit* a, sp_digit* b,
         sp_digit* m, sp_digit mp)
 {
     sp_256_mul_8(r, a, b);
@@ -11346,7 +11347,7 @@ static void sp_256_mont_mul_8(sp_digit* r, sp_digit* a, sp_digit* b,
  * r  A single precision integer.
  * a  A single precision integer.
  */
-SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
+void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
 {
     sp_digit tmp[8];
     __asm__ __volatile__ (
@@ -11723,6 +11724,7 @@ SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
         "str	r4, [r8, 20]\n\t"
         "str	r5, [r8, 24]\n\t"
         "str	r6, [r8, 28]\n\t"
+        "mov	%[r], r8\n\t"
         :
         : [r] "r" (r), [a] "r" (a), [tmp] "r" (tmp)
         : "memory", "r3", "r4", "r5", "r6", "r7", "r8"
@@ -11736,7 +11738,7 @@ SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_256_mont_sqr_8(sp_digit* r, sp_digit* a, sp_digit* m,
+void sp_256_mont_sqr_8(sp_digit* r, sp_digit* a, sp_digit* m,
         sp_digit mp)
 {
     sp_256_sqr_8(r, a);
@@ -11752,7 +11754,7 @@ static void sp_256_mont_sqr_8(sp_digit* r, sp_digit* a, sp_digit* m,
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_256_mont_sqr_n_8(sp_digit* r, sp_digit* a, int n,
+void sp_256_mont_sqr_n_8(sp_digit* r, sp_digit* a, int n,
         sp_digit* m, sp_digit mp)
 {
     sp_256_mont_sqr_8(r, a, m, mp);
@@ -11775,7 +11777,7 @@ static const uint32_t p256_mod_2[8] = {
  * a   Number to invert.
  * td  Temporary data.
  */
-static void sp_256_mont_inv_8(sp_digit* r, sp_digit* a, sp_digit* td)
+void sp_256_mont_inv_8(sp_digit* r, sp_digit* a, sp_digit* td)
 {
 #ifdef WOLFSSL_SP_SMALL
     sp_digit* t = td;
@@ -11848,7 +11850,7 @@ static void sp_256_mont_inv_8(sp_digit* r, sp_digit* a, sp_digit* td)
  * p  Montgomery form projective co-ordinate point.
  * t  Temporary ordinate data.
  */
-static void sp_256_map_8(sp_point* r, sp_point* p, sp_digit* t)
+void sp_256_map_8(sp_point* r, sp_point* p, sp_digit* t)
 {
     sp_digit* t1 = t;
     sp_digit* t2 = t + 2*8;
@@ -11927,7 +11929,7 @@ SP_NOINLINE static sp_digit sp_256_add_8(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-SP_NOINLINE static sp_digit sp_256_add_8(sp_digit* r, const sp_digit* a,
+sp_digit sp_256_add_8(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
@@ -11983,7 +11985,7 @@ SP_NOINLINE static sp_digit sp_256_add_8(sp_digit* r, const sp_digit* a,
  * b   Second number to add in Montogmery form.
  * m   Modulus (prime).
  */
-SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r, sp_digit* a, sp_digit* b,
+void sp_256_mont_add_8(sp_digit* r, sp_digit* a, sp_digit* b,
         sp_digit* m)
 {
     (void)m;
@@ -12063,7 +12065,7 @@ SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r, sp_digit* a, sp_digit* b,
  * a   Number to double in Montogmery form.
  * m   Modulus (prime).
  */
-SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r, sp_digit* a, sp_digit* m)
+void sp_256_mont_dbl_8(sp_digit* r, sp_digit* a, sp_digit* m)
 {
     (void)m;
 
@@ -12134,7 +12136,7 @@ SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r, sp_digit* a, sp_digit* m)
  * a   Number to triple in Montogmery form.
  * m   Modulus (prime).
  */
-SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r, sp_digit* a, sp_digit* m)
+void sp_256_mont_tpl_8(sp_digit* r, sp_digit* a, sp_digit* m)
 {
     (void)m;
 
@@ -12256,7 +12258,7 @@ SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r, sp_digit* a, sp_digit* m)
  * b   Number to subtract with in Montogmery form.
  * m   Modulus (prime).
  */
-SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r, sp_digit* a, sp_digit* b,
+void sp_256_mont_sub_8(sp_digit* r, sp_digit* a, sp_digit* b,
         sp_digit* m)
 {
     (void)m;
@@ -12333,7 +12335,7 @@ SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r, sp_digit* a, sp_digit* b,
  * a  Number to divide.
  * m  Modulus (prime).
  */
-SP_NOINLINE static void sp_256_div2_8(sp_digit* r, sp_digit* a, sp_digit* m)
+void sp_256_div2_8(sp_digit* r, sp_digit* a, sp_digit* m)
 {
     __asm__ __volatile__ (
         "ldr	r7, [%[a], #0]\n\t"
@@ -12420,7 +12422,7 @@ SP_NOINLINE static void sp_256_div2_8(sp_digit* r, sp_digit* a, sp_digit* m)
  * p  Point to double.
  * t  Temporary ordinate data.
  */
-static void sp_256_proj_point_dbl_8(sp_point* r, sp_point* p, sp_digit* t)
+void sp_256_proj_point_dbl_8(sp_point* r, sp_point* p, sp_digit* t)
 {
     sp_point* rp[2];
     sp_digit* t1 = t;
@@ -12530,7 +12532,7 @@ SP_NOINLINE static sp_digit sp_256_sub_8(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-SP_NOINLINE static sp_digit sp_256_sub_8(sp_digit* r, const sp_digit* a,
+sp_digit sp_256_sub_8(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
@@ -12598,7 +12600,7 @@ static int sp_256_cmp_equal_8(const sp_digit* a, const sp_digit* b)
  * q  Second point to add.
  * t  Temporary ordinate data.
  */
-static void sp_256_proj_point_add_8(sp_point* r, sp_point* p, sp_point* q,
+void sp_256_proj_point_add_8(sp_point* r, sp_point* p, sp_point* q,
         sp_digit* t)
 {
     sp_point* ap[2];
@@ -12897,7 +12899,7 @@ static void sp_256_proj_point_dbl_n_8(sp_point* r, sp_point* p, int n,
  * q  Second point to add.
  * t  Temporary ordinate data.
  */
-static void sp_256_proj_point_add_qz1_8(sp_point* r, sp_point* p,
+void sp_256_proj_point_add_qz1_8(sp_point* r, sp_point* p,
         sp_point* q, sp_digit* t)
 {
     sp_point* ap[2];
@@ -13368,7 +13370,7 @@ static int sp_256_gen_stripe_table_8(sp_point* a,
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
-static int sp_256_ecc_mulmod_stripe_8(sp_point* r, sp_point* g,
+int sp_256_ecc_mulmod_stripe_8(sp_point* r, sp_point* g,
         sp_table_entry* table, sp_digit* k, int map, void* heap)
 {
 #if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
@@ -13413,15 +13415,15 @@ static int sp_256_ecc_mulmod_stripe_8(sp_point* r, sp_point* g,
             for (j=0,x=i; j<8; j++,x+=32)
                 y |= ((k[x / 32] >> (x % 32)) & 1) << j;
 
-            sp_256_proj_point_dbl_8(rt, rt, t);
+            sp_256_proj_point_dbl_8(rt, rt, td);
             XMEMCPY(p->x, table[y].x, sizeof(table[y].x));
             XMEMCPY(p->y, table[y].y, sizeof(table[y].y));
             p->infinity = table[y].infinity;
-            sp_256_proj_point_add_qz1_8(rt, rt, p, t);
+            sp_256_proj_point_add_qz1_8(rt, rt, p, td);
         }
 
         if (map)
-            sp_256_map_8(r, rt, t);
+            sp_256_map_8(r, rt, td);
         else
             XMEMCPY(r, rt, sizeof(sp_point));
     }
@@ -15276,7 +15278,7 @@ static sp_table_entry p256_table[256] = {
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
-static int sp_256_ecc_mulmod_base_8(sp_point* r, sp_digit* k,
+int sp_256_ecc_mulmod_base_8(sp_point* r, sp_digit* k,
         int map, void* heap)
 {
     return sp_256_ecc_mulmod_stripe_8(r, &p256_base, p256_table,
@@ -15862,7 +15864,7 @@ static WC_INLINE int sp_256_div_8(sp_digit* a, sp_digit* d, sp_digit* m,
  * m  A single precision number that is the modulus to reduce with.
  * returns MP_OKAY indicating success.
  */
-static WC_INLINE int sp_256_mod_8(sp_digit* r, sp_digit* a, sp_digit* m)
+int sp_256_mod_8(sp_digit* r, sp_digit* a, sp_digit* m)
 {
     return sp_256_div_8(a, m, NULL, r);
 }
@@ -15888,7 +15890,7 @@ static const uint32_t p256_order_low[4] = {
  * a  First operand of the multiplication.
  * b  Second operand of the multiplication.
  */
-static void sp_256_mont_mul_order_8(sp_digit* r, sp_digit* a, sp_digit* b)
+void sp_256_mont_mul_order_8(sp_digit* r, sp_digit* a, sp_digit* b)
 {
     sp_256_mul_8(r, a, b);
     sp_256_mont_reduce_order_8(r, p256_order, p256_mp_order);
@@ -15899,7 +15901,7 @@ static void sp_256_mont_mul_order_8(sp_digit* r, sp_digit* a, sp_digit* b)
  * r  Result of the squaring.
  * a  Number to square.
  */
-static void sp_256_mont_sqr_order_8(sp_digit* r, sp_digit* a)
+void sp_256_mont_sqr_order_8(sp_digit* r, sp_digit* a)
 {
     sp_256_sqr_8(r, a);
     sp_256_mont_reduce_order_8(r, p256_order, p256_mp_order);
@@ -15912,7 +15914,7 @@ static void sp_256_mont_sqr_order_8(sp_digit* r, sp_digit* a)
  * r  Result of the squaring.
  * a  Number to square.
  */
-static void sp_256_mont_sqr_n_order_8(sp_digit* r, sp_digit* a, int n)
+void sp_256_mont_sqr_n_order_8(sp_digit* r, sp_digit* a, int n)
 {
     int i;
 
@@ -16096,10 +16098,10 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
             hashLen = 32;
 
         sp_256_from_bin(e, 8, hash, hashLen);
-        sp_256_from_mp(x, 8, priv);
     }
 
     for (i = SP_ECC_MAX_SIG_GEN; err == MP_OKAY && i > 0; i--) {
+        sp_256_from_mp(x, 8, priv);
         /* New random point. */
         err = sp_256_ecc_gen_k_8(rng, k);
         if (err == MP_OKAY) {
