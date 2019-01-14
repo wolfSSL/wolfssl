@@ -427,9 +427,6 @@
     #define HAVE_ECC
     #define NO_DH
     #define NO_SESSION_CACHE
-    #define USE_SLOW_SHA
-    #define NO_WOLFSSL_SERVER
-    #define NO_ERROR_STRINGS
 #endif
 
 

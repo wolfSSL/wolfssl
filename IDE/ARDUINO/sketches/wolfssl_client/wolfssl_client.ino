@@ -33,11 +33,12 @@ int reconnect = 10;
 
 EthernetClient client;
 
-WOLFSSL_CTX* ctx = 0;
-WOLFSSL* ssl = 0;
-WOLFSSL_METHOD* method = 0;
+WOLFSSL_CTX* ctx = NULL;
+WOLFSSL* ssl = NULL;
 
 void setup() {
+  WOLFSSL_METHOD* method;
+
   Serial.begin(9600);
 
   method = wolfTLSv1_2_client_method();

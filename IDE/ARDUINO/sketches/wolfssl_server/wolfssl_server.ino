@@ -24,6 +24,13 @@
 #include <wolfssl/ssl.h>
 #include <Ethernet.h>
 
+#define USE_CERT_BUFFERS_256
+#include <wolfssl/certs_test.h>
+
+#ifdef NO_WOLFSSL_SERVER
+  #error Please undefine NO_WOLFSSL_SERVER for this example
+#endif
+
 const int port = 11111; // port to listen on
 
 int EthernetSend(WOLFSSL* ssl, char* msg, int sz, void* ctx);
@@ -32,11 +39,13 @@ int EthernetReceive(WOLFSSL* ssl, char* reply, int sz, void* ctx);
 EthernetServer server(port);
 EthernetClient client;
 
-WOLFSSL_CTX* ctx = 0;
-WOLFSSL* ssl = 0;
-WOLFSSL_METHOD* method = 0;
+WOLFSSL_CTX* ctx = NULL;
+WOLFSSL* ssl = NULL;
 
 void setup() {
+  int err;
+  WOLFSSL_METHOD* method;
+
   Serial.begin(9600);
 
   method = wolfTLSv1_2_server_method();
@@ -49,10 +58,25 @@ void setup() {
     Serial.println("unable to get ctx");
     return;
   }
+
   // initialize wolfSSL using callback functions
   wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
   wolfSSL_SetIOSend(ctx, EthernetSend);
   wolfSSL_SetIORecv(ctx, EthernetReceive);
+
+  // setup the private key and certificate
+  err = wolfSSL_CTX_use_PrivateKey_buffer(ctx, ecc_key_der_256, 
+    sizeof_ecc_key_der_256, WOLFSSL_FILETYPE_ASN1);
+  if (err != WOLFSSL_SUCCESS) {
+    Serial.println("error setting key");
+    return;
+  }
+  err = wolfSSL_CTX_use_certificate_buffer(ctx, serv_ecc_der_256, 
+    sizeof_serv_ecc_der_256, WOLFSSL_FILETYPE_ASN1);
+  if (err != WOLFSSL_SUCCESS) {
+    Serial.println("error setting certificate");
+    return;
+  }
 
   // Start the server
   server.begin();
