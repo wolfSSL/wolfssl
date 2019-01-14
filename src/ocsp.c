@@ -199,6 +199,10 @@ static int GetOcspEntry(WOLFSSL_OCSP* ocsp, OcspRequest* request,
 }
 
 
+/* Mallocs responseBuffer->buffer and is up to caller to free on success
+ *
+ * Returns OCSP status
+ */
 static int GetOcspStatus(WOLFSSL_OCSP* ocsp, OcspRequest* request,
                   OcspEntry* entry, CertStatus** status, buffer* responseBuffer)
 {
@@ -452,6 +456,10 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
     request = (byte*)XMALLOC(requestSz, ocsp->cm->heap, DYNAMIC_TYPE_OCSP);
     if (request == NULL) {
         WOLFSSL_LEAVE("CheckCertOCSP", MEMORY_ERROR);
+        if (responseBuffer) {
+            XFREE(responseBuffer->buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            responseBuffer->buffer = NULL;
+        }
         return MEMORY_ERROR;
     }
 
@@ -473,6 +481,11 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
 
     if (response != NULL && ocsp->cm->ocspRespFreeCb)
         ocsp->cm->ocspRespFreeCb(ioCtx, response);
+
+    if (responseBuffer && ret != 0 ) {
+        XFREE(responseBuffer->buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        responseBuffer->buffer = NULL;
+    }
 
     WOLFSSL_LEAVE("CheckOcspRequest", ret);
     return ret;

@@ -984,7 +984,13 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                     myVerifyFail = 1;
                 }
                 else if (XSTRNCMP(myoptarg, "loadSSL", 7) == 0) {
-                    printf("Load cert/key into wolfSSL object\n");
+                    printf("Also load cert/key into wolfSSL object\n");
+                #ifndef NO_CERTS
+                    loadCertKeyIntoSSLObj = 2;
+                #endif
+                }
+                else if (XSTRNCMP(myoptarg, "loadSSLOnly", 11) == 0) {
+                    printf("Only load cert/key into wolfSSL object\n");
                 #ifndef NO_CERTS
                     loadCertKeyIntoSSLObj = 1;
                 #endif
@@ -1387,7 +1393,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 
 #if !defined(NO_CERTS)
-    if ((!usePsk || usePskPlus) && !useAnon && !loadCertKeyIntoSSLObj) {
+    if ((!usePsk || usePskPlus) && !useAnon && !(loadCertKeyIntoSSLObj == 1)) {
     #ifndef TEST_LOAD_BUFFER
         if (SSL_CTX_use_certificate_chain_file(ctx, ourCert)
                                          != WOLFSSL_SUCCESS)
@@ -1428,7 +1434,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     #ifdef HAVE_PK_CALLBACKS
         pkCbInfo.ourKey = ourKey;
     #endif
-    if (!useNtruKey && (!usePsk || usePskPlus) && !useAnon && !loadCertKeyIntoSSLObj
+    if (!useNtruKey && (!usePsk || usePskPlus) && !useAnon
+        && !(loadCertKeyIntoSSLObj == 1)
     #if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PRIVKEY)
         && !pkCallbacks
     #endif /* HAVE_PK_CALLBACKS && TEST_PK_PRIVKEY */
