@@ -4349,8 +4349,11 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, byte* input,
         if (isRequest) {
         #ifndef NO_WOLFSSL_SERVER
             if (ssl->secure_renegotiation == NULL) {
-                /* already in error state */
-                WOLFSSL_MSG("server SCR not available");
+                ret = wolfSSL_UseSecureRenegotiation(ssl);
+                if (ret == WOLFSSL_SUCCESS)
+                    ret = 0;
+            }
+            if (ret != 0 && ret != SECURE_RENEGOTIATION_E) {
             }
             else if (!ssl->secure_renegotiation->enabled) {
                 if (*input == 0) {
@@ -4442,10 +4445,19 @@ int TLSX_UseSecureRenegotiation(TLSX** extensions, void* heap)
 
 #ifdef HAVE_SERVER_RENEGOTIATION_INFO
 
-int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions)
+int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap)
 {
+    int ret;
+
     /* send empty renegotiation_info extension */
     TLSX* ext = TLSX_Find(*extensions, TLSX_RENEGOTIATION_INFO);
+    if (ext == NULL) {
+        ret = TLSX_UseSecureRenegotiation(extensions, heap);
+        if (ret != WOLFSSL_SUCCESS)
+            return ret;
+
+        ext = TLSX_Find(*extensions, TLSX_RENEGOTIATION_INFO);
+    }
     if (ext)
         ext->resp = 1;
 
