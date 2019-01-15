@@ -5726,7 +5726,6 @@ static word32 BytePrecision(word32 value)
     return i;
 }
 
-
 WOLFSSL_LOCAL word32 SetLength(word32 length, byte* output)
 {
     word32 i = 0, j;
@@ -5746,6 +5745,7 @@ WOLFSSL_LOCAL word32 SetLength(word32 length, byte* output)
 }
 
 
+/* return value would be 2 - 6 depending on len.      */
 WOLFSSL_LOCAL word32 SetSequence(word32 len, byte* output)
 {
     output[0] = ASN_SEQUENCE | ASN_CONSTRUCTED;
