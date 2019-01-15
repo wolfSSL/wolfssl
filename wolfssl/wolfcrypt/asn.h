@@ -244,7 +244,7 @@ enum Misc_ASN {
     MAX_SIG_SZ          = 256,
     MAX_ALGO_SZ         =  20,
     MAX_SHORT_SZ        =   6,     /* asn int + byte len + 4 byte length */
-    MAX_SEQ_SZ          =   5,     /* enum(seq | con) + length(4) */
+    MAX_SEQ_SZ          =   6,     /* enum(seq | con) + 1 + length(4) */
     MAX_SET_SZ          =   5,     /* enum(set | con) + length(4) */
     MAX_OCTET_STR_SZ    =   5,     /* enum(set | con) + length(4) */
     MAX_EXP_SZ          =   5,     /* enum(contextspec|con|exp) + length(4) */
