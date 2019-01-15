@@ -829,7 +829,7 @@ int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx, word32 maxIdx)
 }
 
 #if (!defined(WOLFSSL_KEY_GEN) && !defined(OPENSSL_EXTRA) && defined(RSA_LOW_MEM)) \
-    || defined(WOLFSSL_RSA_PUBLIC_ONLY)
+    || defined(WOLFSSL_RSA_PUBLIC_ONLY) || (!defined(NO_DSA) && defined(WOLFSSL_QT))
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
 static int SkipInt(const byte* input, word32* inOutIdx, word32 maxIdx)
 {
@@ -4114,7 +4114,7 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
     #ifdef OPENSSL_EXTRA
     int    ret;
     word32 oid;
-    #endif 
+    #endif
 
     if (input == NULL || inOutIdx == NULL || key == NULL) {
         return BAD_FUNC_ARG;
@@ -4128,8 +4128,8 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
         return ASN_PARSE_E;
 
     ret = GetObjectId(input, inOutIdx, &oid, oidIgnoreType, inSz);
-        if (ret != 0)
-            return ret;
+    if (ret != 0)
+        return ret;
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
@@ -4149,36 +4149,14 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
         return ASN_DH_KEY_E;
 
     #ifdef OPENSSL_EXTRA
-        if (CheckBitString(input, inOutIdx, &length, inSz, 0, NULL) < 0)
-            ret = ASN_PARSE_E;
-    #endif 
-
+    if (CheckBitString(input, inOutIdx, &length, inSz, 0, NULL) < 0)
+        ret = ASN_PARSE_E;
+    #endif
     if (GetInt(&key->y,  input, inOutIdx, inSz) < 0 )
         return ASN_DH_KEY_E;
 
-
-    mp_radix_size((mp_int*)&key->p, MP_RADIX_HEX, &length);
-
-    length += 1;
-    char outpeet[length];
-    mp_tohex((mp_int*)&key->p, outpeet);
-
-    mp_radix_size((mp_int*)&key->q, MP_RADIX_HEX, &length);
-    length += 1;
-    char outpeet1[length];
-    mp_tohex((mp_int*)&key->q, outpeet1);
-
-    mp_radix_size((mp_int*)&key->g, MP_RADIX_HEX, &length);
-    length += 1;
-    char outpeet2[length];
-    mp_tohex((mp_int*)&key->g, outpeet2);
-
-    mp_radix_size((mp_int*)&key->y, MP_RADIX_HEX, &length);
-    length += 1;
-    char outpeet3[length];
-    mp_tohex((mp_int*)&key->y, outpeet3);
-
     key->type = DSA_PUBLIC;
+
     return 0;
 }
 
@@ -4672,12 +4650,19 @@ static int StoreRsaKey(DecodedCert* cert, word32 bitStringEnd)
 static int GetKey(DecodedCert* cert)
 {
     int length;
+#if !defined(NO_DSA) && defined(WOLFSSL_QT)
+    int tmpLen;
+#endif
 #if defined(HAVE_ECC) || defined(HAVE_NTRU)
     int tmpIdx = cert->srcIdx;
 #endif
 
     if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
+
+#if !defined(NO_DSA) && defined(WOLFSSL_QT)
+    tmpLen = length + 4;
+#endif
 
     if (GetAlgoId(cert->source, &cert->srcIdx,
                   &cert->keyOID, oidKeyType, cert->maxIdx) < 0)
@@ -4849,6 +4834,41 @@ static int GetKey(DecodedCert* cert)
             return 0;
         }
     #endif /* HAVE_ED25519 */
+    #if !defined(NO_DSA) && defined(WOLFSSL_QT)
+        case DSAk:
+        {
+            int ret;
+
+            ret = GetSequence(cert->source, &cert->srcIdx, &length,
+                           cert->maxIdx);
+            if (ret < 0)
+                return ret;
+
+            ret = SkipInt(cert->source, &cert->srcIdx, cert->maxIdx);
+            if (ret != 0)
+                return ret;
+            ret = SkipInt(cert->source, &cert->srcIdx, cert->maxIdx);
+            if (ret != 0)
+                return ret;
+            ret = SkipInt(cert->source, &cert->srcIdx, cert->maxIdx);
+            if (ret != 0)
+                return ret;
+
+            ret = CheckBitString(cert->source, &cert->srcIdx, &length,
+                                 cert->maxIdx, 1, NULL);
+            if (ret != 0)
+                return ret;
+
+            ret = GetASNInt(cert->source, &cert->srcIdx, &length, cert->maxIdx);
+            if (ret !=0)
+                return ASN_PARSE_E;
+
+            cert->publicKey = cert->source + tmpIdx;
+            cert->pubKeySize = tmpLen;
+            cert->srcIdx += length;
+            return 0;
+        }
+    #endif /* NO_DSA && QT */
         default:
             return ASN_UNKNOWN_OID_E;
     }

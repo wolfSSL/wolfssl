@@ -6997,17 +6997,12 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out, unsigned char** in,
         DsaKey dsa;
         word32 keyIdx = 0;
 
-        //printf("wc_DsaPublicKeyDecode returned %d\n\n",wc_DsaPublicKeyDecode(mem, &keyIdx, &dsa, (word32)memSz));
-        //printf("wc_InitDsaKey returned %d\n\n",wc_InitDsaKey(&dsa));
-
         /* test if DSA key */
-        //offset is zero
         if (wc_InitDsaKey(&dsa) == 0 &&
             wc_DsaPublicKeyDecode(mem, &keyIdx, &dsa, (word32)memSz) == 0) {
             wc_FreeDsaKey(&dsa);
             pkey = wolfSSL_PKEY_new();
-            //%%%%
-           // printf("woo!!!!!!!!!!!!!\n\n");
+
             if (pkey != NULL) {
                 pkey->pkey_sz = keyIdx;
                 pkey->pkey.ptr = (char*)XMALLOC(memSz, NULL,
@@ -16767,7 +16762,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void)
 }
 
 /* return 1 on success 0 on fail */
-int wolfSSL_sk_ASN1_OBJECT_push(WOLF_STACK_OF(WOLFSSL_ASN1_OBJEXT)* sk,
+int wolfSSL_sk_ASN1_OBJECT_push(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
                                                       WOLFSSL_ASN1_OBJECT* obj)
 {
     WOLFSSL_STACK* node;
@@ -17450,6 +17445,9 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
             if (x509->pubKeyOID == RSAk) {
                 key->type = EVP_PKEY_RSA;
             }
+            else if (x509->pubKeyOID == DSAk) {
+                key->type = EVP_PKEY_DSA;
+            }
             else {
                 key->type = EVP_PKEY_EC;
             }
@@ -17523,6 +17521,27 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                 key->ecc->inSet = 1;
             }
             #endif /* HAVE_ECC */
+
+            #ifndef NO_DSA
+            if (key->type == EVP_PKEY_DSA) {
+                key->ownDsa = 1;
+                key->dsa = wolfSSL_DSA_new();
+                if (key->dsa == NULL) {
+                    XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    return NULL;
+                }
+
+                if (wolfSSL_DSA_LoadDer_ex(key->dsa,
+                            (const unsigned char*)key->pkey.ptr, key->pkey_sz,
+                            WOLFSSL_DSA_LOAD_PUBLIC) != SSL_SUCCESS) {
+                    wolfSSL_DSA_free(key->dsa);
+                    key->dsa = NULL;
+                    XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    return NULL;
+                }
+            }
+            #endif /* NO_DSA */
+
         }
     }
     return key;
@@ -31673,8 +31692,12 @@ int wolfSSL_DSA_LoadDer_ex(WOLFSSL_DSA* dsa, const unsigned char* derBuf,
         ret = DsaPublicKeyDecode(derBuf, &idx, (DsaKey*)dsa->internal, derSz);
     }
 
-    if (ret < 0) {
+    if (ret < 0 && opt == WOLFSSL_DSA_LOAD_PRIVATE) {
         WOLFSSL_MSG("DsaPrivateKeyDecode failed");
+        return WOLFSSL_FATAL_ERROR;
+    }
+    else if (ret < 0 && opt == WOLFSSL_DSA_LOAD_PUBLIC) {
+        WOLFSSL_MSG("DsaPublicKeyDecode failed");
         return WOLFSSL_FATAL_ERROR;
     }
 
@@ -38949,6 +38972,8 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
 {
     byte* p;
 
+    WOLFSSL_ENTER("wolfSSL_X509_set_pubkey");
+
     if (cert == NULL || pkey == NULL)
         return WOLFSSL_FAILURE;
 
@@ -39023,6 +39048,8 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
 #endif
     WC_RNG rng;
     word32 idx = 0;
+
+    WOLFSSL_ENTER("wolfSSL_X509_REQ_sign");
 
     if (req == NULL || pkey == NULL || md == NULL)
         return WOLFSSL_FAILURE;
