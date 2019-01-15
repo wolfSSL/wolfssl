@@ -5752,6 +5752,7 @@ WOLFSSL_LOCAL word32 SetSequence(word32 len, byte* output)
     return SetLength(len, output + 1) + 1;
 }
 
+/* return value would be 2 - 6 depending on len.      */
 WOLFSSL_LOCAL word32 SetOctetString(word32 len, byte* output)
 {
     output[0] = ASN_OCTET_STRING;
@@ -5759,12 +5760,14 @@ WOLFSSL_LOCAL word32 SetOctetString(word32 len, byte* output)
 }
 
 /* Write a set header to output */
+/* return value would be 2 - 6 depending on len.      */
 WOLFSSL_LOCAL word32 SetSet(word32 len, byte* output)
 {
     output[0] = ASN_SET | ASN_CONSTRUCTED;
     return SetLength(len, output + 1) + 1;
 }
 
+/* return value would be 2 - 6 depending on len.      */
 WOLFSSL_LOCAL word32 SetImplicit(byte tag, byte number, word32 len, byte* output)
 {
 
@@ -5773,6 +5776,7 @@ WOLFSSL_LOCAL word32 SetImplicit(byte tag, byte number, word32 len, byte* output
     return SetLength(len, output + 1) + 1;
 }
 
+/* return value would be 2 - 6 depending on len.      */
 WOLFSSL_LOCAL word32 SetExplicit(byte number, word32 len, byte* output)
 {
     output[0] = ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | number;

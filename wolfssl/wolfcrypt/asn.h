@@ -245,10 +245,10 @@ enum Misc_ASN {
     MAX_ALGO_SZ         =  20,
     MAX_SHORT_SZ        =   6,     /* asn int + byte len + 4 byte length */
     MAX_SEQ_SZ          =   6,     /* enum(seq | con) + 1 + length(4) */
-    MAX_SET_SZ          =   5,     /* enum(set | con) + length(4) */
-    MAX_OCTET_STR_SZ    =   5,     /* enum(set | con) + length(4) */
-    MAX_EXP_SZ          =   5,     /* enum(contextspec|con|exp) + length(4) */
-    MAX_PRSTR_SZ        =   5,     /* enum(prstr) + length(4) */
+    MAX_SET_SZ          =   6,     /* enum(set | con) + 1 + length(4) */
+    MAX_OCTET_STR_SZ    =   6,     /* enum(set | con) + 1 + length(4) */
+    MAX_EXP_SZ          =   6,     /* enum(contextspec|con|exp) + 1 + length(4) */
+    MAX_PRSTR_SZ        =   6,     /* enum(prstr) + 1 + length(4) */
     MAX_VERSION_SZ      =   5,     /* enum + id + version(byte) + (header(2))*/
     MAX_ENCODED_DIG_ASN_SZ= 9,     /* enum(bit or octet) + length(4) */
     MAX_ENCODED_DIG_SZ  =  64 + MAX_ENCODED_DIG_ASN_SZ, /* asn header + sha512 */
