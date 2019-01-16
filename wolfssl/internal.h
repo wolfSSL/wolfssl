@@ -1601,6 +1601,9 @@ WOLFSSL_LOCAL int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
 /* TLS v1.3 needs these */
 WOLFSSL_LOCAL int  HandleTlsResumption(WOLFSSL* ssl, int bogusID,
                                        Suites* clSuites);
+#ifdef WOLFSSL_TLS13
+WOLFSSL_LOCAL int FindSuite(Suites* suites, byte first, byte second);
+#endif
 WOLFSSL_LOCAL int  DoClientHello(WOLFSSL* ssl, const byte* input, word32*,
                                  word32);
 #ifdef WOLFSSL_TLS13
@@ -2285,7 +2288,7 @@ typedef struct SecureRenegotiation {
 WOLFSSL_LOCAL int TLSX_UseSecureRenegotiation(TLSX** extensions, void* heap);
 
 #ifdef HAVE_SERVER_RENEGOTIATION_INFO
-WOLFSSL_LOCAL int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions);
+WOLFSSL_LOCAL int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap);
 #endif
 
 #endif /* HAVE_SECURE_RENEGOTIATION */

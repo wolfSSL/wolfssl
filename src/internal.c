@@ -22865,7 +22865,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef HAVE_SERVER_RENEGOTIATION_INFO
 
     /* search suites for specific one, idx on success, negative on error */
-    static int FindSuite(Suites* suites, byte first, byte second)
+#ifndef WOLFSSL_TLS13
+    static
+#endif
+    int FindSuite(Suites* suites, byte first, byte second)
     {
         int i;
 
@@ -23632,7 +23635,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef HAVE_SERVER_RENEGOTIATION_INFO
         /* check for TLS_EMPTY_RENEGOTIATION_INFO_SCSV suite */
         if (FindSuite(&clSuites, 0, TLS_EMPTY_RENEGOTIATION_INFO_SCSV) >= 0) {
-            ret = TLSX_AddEmptyRenegotiationInfo(&ssl->extensions);
+            ret = TLSX_AddEmptyRenegotiationInfo(&ssl->extensions, ssl->heap);
             if (ret != WOLFSSL_SUCCESS)
                 return ret;
             if (ssl->secure_renegotiation)
