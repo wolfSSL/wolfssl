@@ -47,7 +47,7 @@ pushd ${BASEDIR} > /dev/null # WOLFSSL TOP DIR
 # copying ... files in src/ into $WOLFSSLLIB_TRG_DIR/src
 ${CPDCMD} ./src/*.c ${WOLFSSLLIB_TRG_DIR}/src/
 
-${CPDCMD} -r ./wolfcrypt/src/ ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/
+${CPDCMD} -r ./wolfcrypt/src  ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/
 ${CPDCMD} -r ./wolfcrypt/test ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/
 ${CPDCMD} -r ./wolfcrypt/benchmark ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/
 
