@@ -22825,7 +22825,19 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     if (info == NULL)
         return BAD_FUNC_ARG;
 
-    if (info->algo_type == WC_ALGO_TYPE_PK) {
+    if (info->algo_type == WC_ALGO_TYPE_RNG) {
+    #ifndef WC_NO_RNG
+        /* set devId to invalid, so software is used */
+        info->rng.rng->devId = INVALID_DEVID;
+
+        ret = wc_RNG_GenerateBlock(info->rng.rng,
+            info->rng.out, info->rng.sz);
+
+        /* reset devId */
+        info->rng.rng->devId = devIdArg;
+    #endif
+    }
+    else if (info->algo_type == WC_ALGO_TYPE_PK) {
     #ifdef DEBUG_WOLFSSL
         printf("CryptoDevCb: Pk Type %d\n", info->pk.type);
     #endif
@@ -22918,9 +22930,9 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif /* HAVE_ECC */
     }
     else if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
-    #if !defined(NO_AES) && defined(HAVE_AESGCM)
+#ifndef NO_AES
+    #ifdef HAVE_AESGCM
         if (info->cipher.type == WC_CIPHER_AES_GCM) {
-
             if (info->cipher.enc) {
                 /* set devId to invalid, so software is used */
                 info->cipher.aesgcm_enc.aes->devId = INVALID_DEVID;
@@ -22960,8 +22972,86 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 info->cipher.aesgcm_dec.aes->devId = devIdArg;
             }
         }
-    #endif /* !NO_AES && HAVE_AESGCM */
+    #endif /* HAVE_AESGCM */
+    #ifdef HAVE_AES_CBC
+        if (info->cipher.type == WC_CIPHER_AES_CBC) {
+            if (info->cipher.enc) {
+                /* set devId to invalid, so software is used */
+                info->cipher.aescbc.aes->devId = INVALID_DEVID;
+
+                ret = wc_AesCbcEncrypt(
+                    info->cipher.aescbc.aes,
+                    info->cipher.aescbc.out,
+                    info->cipher.aescbc.in,
+                    info->cipher.aescbc.sz);
+
+                /* reset devId */
+                info->cipher.aescbc.aes->devId = devIdArg;
+            }
+            else {
+                /* set devId to invalid, so software is used */
+                info->cipher.aescbc.aes->devId = INVALID_DEVID;
+
+                ret = wc_AesCbcDecrypt(
+                    info->cipher.aescbc.aes,
+                    info->cipher.aescbc.out,
+                    info->cipher.aescbc.in,
+                    info->cipher.aescbc.sz);
+
+                /* reset devId */
+                info->cipher.aescbc.aes->devId = devIdArg;
+            }
+        }
+    #endif /* HAVE_AES_CBC */
+#endif /* !NO_AES */
     }
+#if !defined(NO_SHA) || !defined(NO_SHA256)
+    else if (info->algo_type == WC_ALGO_TYPE_HASH) {
+    #if !defined(NO_SHA)
+        if (info->hash.type == WC_HASH_TYPE_SHA) {
+            /* set devId to invalid, so software is used */
+            info->hash.sha1->devId = INVALID_DEVID;
+
+            if (info->hash.in != NULL) {
+                ret = wc_ShaUpdate(
+                    info->hash.sha1,
+                    info->hash.in,
+                    info->hash.inSz);
+            }
+            else if (info->hash.digest != NULL) {
+                ret = wc_ShaFinal(
+                    info->hash.sha1,
+                    info->hash.digest);
+            }
+
+            /* reset devId */
+            info->hash.sha1->devId = devIdArg;
+        }
+        else
+    #endif
+    #if !defined(NO_SHA256)
+        if (info->hash.type == WC_HASH_TYPE_SHA256) {
+            /* set devId to invalid, so software is used */
+            info->hash.sha256->devId = INVALID_DEVID;
+
+            if (info->hash.in != NULL) {
+                ret = wc_Sha256Update(
+                    info->hash.sha256,
+                    info->hash.in,
+                    info->hash.inSz);
+            }
+            else if (info->hash.digest != NULL) {
+                ret = wc_Sha256Final(
+                    info->hash.sha256,
+                    info->hash.digest);
+            }
+
+            /* reset devId */
+            info->hash.sha256->devId = devIdArg;
+        }
+    #endif
+    }
+#endif /* !NO_SHA || !NO_SHA256 */
 
     (void)devIdArg;
     (void)myCtx;
@@ -22981,6 +23071,10 @@ int cryptodev_test(void)
     devId = 1;
     ret = wc_CryptoDev_RegisterDevice(devId, myCryptoDevCb, &myCtx);
 
+#ifndef WC_NO_RNG
+    if (ret == 0)
+        ret = random_test();
+#endif /* WC_NO_RNG */
 #ifndef NO_RSA
     if (ret == 0)
         ret = rsa_test();
@@ -22989,9 +23083,25 @@ int cryptodev_test(void)
     if (ret == 0)
         ret = ecc_test();
 #endif
-#if !defined(NO_AES) && defined(HAVE_AESGCM)
+#ifndef NO_AES
+    #ifdef HAVE_AESGCM
     if (ret == 0)
         ret = aesgcm_test();
+    #endif
+    #ifdef HAVE_AES_CBC
+    if (ret == 0)
+        ret = aes_cbc_test();
+    #endif
+#endif /* !NO_AES */
+#if !defined(NO_SHA) || !defined(NO_SHA256)
+    #ifndef NO_SHA
+    if (ret == 0)
+        ret = sha_test();
+    #endif
+    #ifndef NO_SHA256
+    if (ret == 0)
+        ret = sha256_test();
+    #endif
 #endif
 
     /* reset devId */

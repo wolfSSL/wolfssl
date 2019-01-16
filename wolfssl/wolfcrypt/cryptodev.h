@@ -38,6 +38,15 @@
 #ifndef NO_AES
     #include <wolfssl/wolfcrypt/aes.h>
 #endif
+#ifndef NO_SHA
+    #include <wolfssl/wolfcrypt/sha.h>
+#endif
+#ifndef NO_SHA256
+    #include <wolfssl/wolfcrypt/sha256.h>
+#endif
+#ifndef WC_NO_RNG
+    #include <wolfssl/wolfcrypt/random.h>
+#endif
 
 /* Crypto Information Structure for callbacks */
 typedef struct wc_CryptoInfo {
@@ -96,11 +105,12 @@ typedef struct wc_CryptoInfo {
         #endif
         };
     } pk;
+#ifndef NO_AES
     struct {
         int type; /* enum wc_CipherType */
         int enc;
         union {
-        #if !defined(NO_AES) && defined(HAVE_AESGCM)
+        #ifdef HAVE_AESGCM
             struct {
                 Aes*        aes;
                 byte*       out;
@@ -125,18 +135,51 @@ typedef struct wc_CryptoInfo {
                 const byte* authIn;
                 word32      authInSz;
             } aesgcm_dec;
-        #endif
+        #endif /* HAVE_AESGCM */
+        #ifdef HAVE_AES_CBC
+            struct {
+                Aes*        aes;
+                byte*       out;
+                const byte* in;
+                word32      sz;
+            } aescbc;
+        #endif /* HAVE_AES_CBC */
         };
     } cipher;
+#endif
+#if !defined(NO_SHA) || !defined(NO_SHA256)
+    struct {
+        int type; /* enum wc_HashType */
+        const byte* in;
+        word32 inSz;
+        byte* digest;
+        union {
+        #ifndef NO_SHA
+            wc_Sha* sha1;
+        #endif
+        #ifndef NO_SHA256
+            wc_Sha256* sha256;
+        #endif
+        };
+    } hash;
+#endif /* !NO_SHA || !NO_SHA256 */
+#ifndef WC_NO_RNG
+    struct {
+        WC_RNG* rng;
+        byte* out;
+        word32 sz;
+    } rng;
+#endif
 } wc_CryptoInfo;
 
 typedef int (*CryptoDevCallbackFunc)(int devId, wc_CryptoInfo* info, void* ctx);
+
+
 
 WOLFSSL_LOCAL void wc_CryptoDev_Init(void);
 
 WOLFSSL_API int  wc_CryptoDev_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx);
 WOLFSSL_API void wc_CryptoDev_UnRegisterDevice(int devId);
-
 
 #ifndef NO_RSA
 WOLFSSL_LOCAL int wc_CryptoDev_Rsa(const byte* in, word32 inLen, byte* out,
@@ -162,8 +205,8 @@ WOLFSSL_LOCAL int wc_CryptoDev_EccVerify(const byte* sig, word32 siglen,
     const byte* hash, word32 hashlen, int* res, ecc_key* key);
 #endif /* HAVE_ECC */
 
-#if !defined(NO_AES) && defined(HAVE_AESGCM)
-
+#ifndef NO_AES
+#ifdef HAVE_AESGCM
 WOLFSSL_LOCAL int wc_CryptoDev_AesGcmEncrypt(Aes* aes, byte* out,
      const byte* in, word32 sz, const byte* iv, word32 ivSz,
      byte* authTag, word32 authTagSz, const byte* authIn, word32 authInSz);
@@ -172,10 +215,28 @@ WOLFSSL_LOCAL int wc_CryptoDev_AesGcmDecrypt(Aes* aes, byte* out,
      const byte* in, word32 sz, const byte* iv, word32 ivSz,
      const byte* authTag, word32 authTagSz,
      const byte* authIn, word32 authInSz);
+#endif /* HAVE_AESGCM */
+#ifdef HAVE_AES_CBC
+WOLFSSL_LOCAL int wc_CryptoDev_AesCbcEncrypt(Aes* aes, byte* out,
+                               const byte* in, word32 sz);
+WOLFSSL_LOCAL int wc_CryptoDev_AesCbcDecrypt(Aes* aes, byte* out,
+                               const byte* in, word32 sz);
+#endif /* HAVE_AES_CBC */
+#endif /* !NO_AES */
 
-#endif /* !NO_AES && HAVE_AESGCM */
+#ifndef NO_SHA
+WOLFSSL_LOCAL int wc_CryptoDev_ShaHash(wc_Sha* sha, const byte* in,
+    word32 inSz, byte* digest);
+#endif /* !NO_SHA */
 
-WOLFSSL_LOCAL int wc_CryptoDev_Sha256Hash(const byte* data, word32 len, byte* hash);
+#ifndef NO_SHA256
+WOLFSSL_LOCAL int wc_CryptoDev_Sha256Hash(wc_Sha256* sha256, const byte* in,
+    word32 inSz, byte* digest);
+#endif /* !NO_SHA256 */
+
+#ifndef WC_NO_RNG
+WOLFSSL_LOCAL int wc_CryptoDev_RandomBlock(WC_RNG* rng, byte* out, word32 sz);
+#endif
 
 #endif /* WOLF_CRYPTO_DEV */
 

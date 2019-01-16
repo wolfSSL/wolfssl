@@ -158,6 +158,10 @@ typedef struct wc_Sha256 {
    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
     WC_ESP32SHA ctx;
 #endif
+#ifdef WOLF_CRYPTO_DEV
+    int    devId;
+    void*  devCtx; /* generic crypto callback context */
+#endif
 #endif
 } wc_Sha256;
 
