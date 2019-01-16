@@ -22,7 +22,7 @@ Including the following examples:
  
  3. Uncomment out #define WOLFSSL_ESPWROOM32SE in /path/to/wolfssl/wolfssl/wolfcrypt/settings.h
  
-    Note : Need to enable both WOLFSSL_ESPIDF and WOLFSSL_ESPWROOM32  
+    Note : Need to enable WOLFSSL_ESPIDF  
     Note : crypt test will fail if enabled WOLFSSL_ESPWROOM32SE
  
 ## Configuration

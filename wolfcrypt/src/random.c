@@ -2073,7 +2073,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
 
 #elif defined(WOLFSSL_ESPIDF)
-    #if defined(WOLFSSL_ESPWROOM32)
+    #if defined(WOLFSSL_ESPWROOM32) || defined(WOLFSSL_ESPWROOM32SE)
         #include <esp_system.h>
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
