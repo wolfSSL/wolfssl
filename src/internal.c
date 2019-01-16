@@ -14163,6 +14163,11 @@ int SendFinished(WOLFSSL* ssl)
         (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
          defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))) || \
     (defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST))
+/* Parses and decodes the certificate then initializes "request". In the case
+ * of !ssl->buffers.weOwnCert, ssl->ctx->certOcspRequest gets set to "request".
+ *
+ * Returns 0 on success
+ */
 static int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
                              DecodedCert* cert, byte* certData, word32 length)
 {
@@ -14197,18 +14202,29 @@ static int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
 }
 
 
+/* Creates OCSP response and places it in variable "response". Memory
+ * management for "buffer* response" is up to the caller.
+ *
+ * Also creates an OcspRequest in the case that ocspRequest is null or that
+ * ssl->buffers.weOwnCert is set. In those cases managing ocspRequest free'ing
+ * is up to the caller. NOTE: in OcspCreateRequest ssl->ctx->certOcspRequest can
+ * be set to point to "ocspRequest" and it then should not be free'd since
+ * wolfSSL_CTX_free will take care of it.
+ *
+ * Returns 0 on success
+ */
 int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
                        buffer* response)
 {
     int          ret = 0;
-    OcspRequest* request;
+    OcspRequest* request = NULL;
+    byte createdRequest  = 0;
 
     if (ssl == NULL || ocspRequest == NULL || response == NULL)
         return BAD_FUNC_ARG;
 
-    request = *ocspRequest;
-
     XMEMSET(response, 0, sizeof(*response));
+    request = *ocspRequest;
 
     /* unable to fetch status. skip. */
     if (ssl->ctx->cm == NULL || ssl->ctx->cm->ocspStaplingEnabled == 0)
@@ -14237,16 +14253,17 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
         if (request == NULL)
             ret = MEMORY_E;
 
+        createdRequest = 1;
         if (ret == 0) {
             ret = CreateOcspRequest(ssl, request, cert, der->buffer,
                                                                    der->length);
         }
 
-        if (request != NULL && ret != 0) {
-            FreeOcspRequest(request);
+        if (ret != 0) {
             XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
             request = NULL;
         }
+
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
     #endif
@@ -14264,7 +14281,14 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
         }
     }
 
-    *ocspRequest = request;
+    /* free request up if error case found otherwise return it */
+    if (ret != 0 && createdRequest) {
+        FreeOcspRequest(request);
+        XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+    }
+
+    if (ret == 0)
+        *ocspRequest = request;
 
     return ret;
 }
@@ -14826,13 +14850,21 @@ int SendCertificateStatus(WOLFSSL* ssl)
             buffer response;
 
             ret = CreateOcspResponse(ssl, &request, &response);
+
+            /* if a request was successfully created and not stored in
+             * ssl->ctx then free it */
+            if (ret == 0 && request != ssl->ctx->certOcspRequest) {
+                FreeOcspRequest(request);
+                XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+                request = NULL;
+            }
+
             if (ret == 0 && response.buffer) {
                 ret = BuildCertificateStatus(ssl, status_type, &response, 1);
 
                 XFREE(response.buffer, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
                 response.buffer = NULL;
             }
-
             break;
         }
 
@@ -14849,6 +14881,15 @@ int SendCertificateStatus(WOLFSSL* ssl)
             XMEMSET(responses, 0, sizeof(responses));
 
             ret = CreateOcspResponse(ssl, &request, &responses[0]);
+
+            /* if a request was successfully created and not stored in
+             * ssl->ctx then free it */
+            if (ret == 0 && request != ssl->ctx->certOcspRequest) {
+                FreeOcspRequest(request);
+                XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+                request = NULL;
+            }
+
             if (ret == 0 && (!ssl->ctx->chainOcspRequest[0]
                                               || ssl->buffers.weOwnCertChain)) {
                 buffer der;
