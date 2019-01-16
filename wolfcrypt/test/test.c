@@ -9024,7 +9024,7 @@ int certext_test(void)
 }
 #endif /* WOLFSSL_CERT_EXT && WOLFSSL_TEST_CERT */
 
-#if !defined(NO_ASN) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if !defined(NO_ASN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 static int rsa_flatten_test(RsaKey* key)
 {
     int    ret;
@@ -10903,7 +10903,7 @@ int rsa_test(void)
     if (ret != 0) {
         ERROR_OUT(-7004, exit_rsa);
     }
-#elif defined(WOLFSSL_RSA_VERIFY_ONLY)
+#elif defined(WOLFSSL_RSA_PUBLIC_ONLY)
     #ifdef USE_CERT_BUFFERS_2048
         ret = mp_read_unsigned_bin(&key.n, &tmp[12], 256);
         if (ret != 0) {

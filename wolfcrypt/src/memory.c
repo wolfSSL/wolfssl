@@ -1012,7 +1012,7 @@ void *xmalloc(size_t n, void* heap, int type, const char* func,
     else
         p32 = malloc(n + sizeof(word32) * 4);
 
-    p32[0] = n;
+    p32[0] = (word32)n;
     p = (void*)(p32 + 4);
 
     fprintf(stderr, "Alloc: %p -> %u (%d) at %s:%s:%d\n", p, (word32)n, type,
@@ -1042,7 +1042,7 @@ void *xrealloc(void *p, size_t n, void* heap, int type, const char* func,
         p32 = realloc(oldp32, n + sizeof(word32) * 4);
 
     if (p32 != NULL) {
-        p32[0] = n;
+        p32[0] = (word32)n;
         newp = (void*)(p32 + 4);
 
         fprintf(stderr, "Alloc: %p -> %u (%d) at %s:%s:%d\n", newp, (word32)n,

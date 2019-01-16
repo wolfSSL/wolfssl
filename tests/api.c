@@ -21364,7 +21364,7 @@ static void test_CheckCertSignature(void)
 {
 #if !defined(NO_CERTS) && defined(WOLFSSL_SMALL_CERT_VERIFY)
     WOLFSSL_CERT_MANAGER* cm = NULL;
-#if !defined(NO_FILESYSTEM)
+#if !defined(NO_FILESYSTEM) && (!defined(NO_RSA) || defined(HAVE_ECC))
     FILE* fp;
     byte  cert[4096];
     int   certSz;
@@ -21426,6 +21426,10 @@ static void test_CheckCertSignature(void)
     AssertIntEQ(0, CheckCertSignature(cert, certSz, NULL, cm));
 #endif
 #endif
+
+    (void)fp;
+    (void)cert;
+    (void)certSz;
 
     wolfSSL_CertManagerFree(cm);
 #endif
@@ -21613,7 +21617,7 @@ static void test_EVP_PKEY_ec(void)
 #endif
 }
 
-#if defined(OPENSSL_ALL) && !defined(NO_CERT)
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS)
 static void free_x509(X509* x)
 {
     AssertIntEQ((x == (X509*)1 || x == (X509*)2), 1);
@@ -21622,7 +21626,7 @@ static void free_x509(X509* x)
 
 static void test_sk_X509(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_CERT)
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS)
     STACK_OF(X509)* s;
 
     AssertNotNull(s = sk_X509_new());
@@ -21661,7 +21665,7 @@ static void test_X509_get_signature_nid(void)
 
 static void test_X509_REQ(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_CERT) && defined(WOLFSSL_CERT_GEN) && \
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && \
                                                        defined(WOLFSSL_CERT_REQ)
     X509_NAME* name;
 #if !defined(NO_RSA) || defined(HAVE_ECC)
