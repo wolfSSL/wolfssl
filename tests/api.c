@@ -21427,6 +21427,8 @@ static void test_wolfSSL_X509V3_EXT_get(void){
     printf(testingFmt, "wolfSSL_X509V3_EXT_get() NULL argument test");
     AssertNull(method = wolfSSL_X509V3_EXT_get(NULL));
     printf(resultFmt, "passed");
+
+    XFREE(x509, NULL, DYNAMIC_TYPE_X509);
 }
 
 static void test_wolfSSL_X509_get_ext(void){
@@ -21514,6 +21516,9 @@ static void test_wolfSSL_X509_cmp(void){
     ret = wolfSSL_X509_cmp(NULL, NULL);
     AssertIntEQ(BAD_FUNC_ARG, wolfSSL_X509_cmp(NULL, NULL));
     printf(resultFmt, ret == BAD_FUNC_ARG ? passed : failed);
+
+    XFREE(cert1, NULL, DYNAMIC_TYPE_X509);
+    XFREE(cert2, NULL, DYNAMIC_TYPE_X509);
 }
 
 static void test_wolfSSL_X509_EXTENSION_get_object(void)
@@ -21537,6 +21542,8 @@ static void test_wolfSSL_X509_EXTENSION_get_object(void)
     printf(testingFmt, "wolfSSL_X509_EXTENSION_get_object() NULL argument");
     AssertNull(o = wolfSSL_X509_EXTENSION_get_object(NULL));
     printf(resultFmt, passed);
+
+    XFREE(x509, NULL, DYNAMIC_TYPE_X509);
 }
 
 #if !defined(NO_ASN)
@@ -21580,6 +21587,9 @@ static void test_wolfSSL_ASN1_STRING_to_UTF8(void){
     AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(NULL, NULL)), \
             WOLFSSL_FATAL_ERROR);
     printf(resultFmt, len == WOLFSSL_FATAL_ERROR ? passed : failed);
+
+    XFREE(x509, NULL, DYNAMIC_TYPE_X509);
+    XFREE(actual_output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 }
 #endif //!defined(NO_ASN)
 
@@ -21598,6 +21608,8 @@ static void test_wolfSSL_X509_EXTENSION_get_data(void)
 
     AssertNotNull(str = wolfSSL_X509_EXTENSION_get_data(ext));
     printf(resultFmt, passed);
+
+    XFREE(x509, NULL, DYNAMIC_TYPE_X509);
 }
 
 static void test_wolfSSL_X509_EXTENSION_get_critical(void)
@@ -21616,6 +21628,8 @@ static void test_wolfSSL_X509_EXTENSION_get_critical(void)
     crit = wolfSSL_X509_EXTENSION_get_critical(ext);
     AssertIntEQ(crit, 0);
     printf(resultFmt, passed);
+
+    XFREE(x509, NULL, DYNAMIC_TYPE_X509);
 }
 
 static void test_wolfSSL_CIPHER_description_all(void)
@@ -21834,7 +21848,7 @@ static void test_wolfSSL_EC_KEY_dup(void)
 {
 #if defined(HAVE_ECC) && (defined(OPENSSL_EXTRA) || \
     defined(OPENSSL_EXTRA_X509_SMALL))
-    
+
     WOLFSSL_EC_KEY* ecKey;
     WOLFSSL_EC_KEY* dupKey;
 #if defined(WOLFSSL_PUBLIC_MP)
@@ -21871,7 +21885,7 @@ static void test_wolfSSL_EC_KEY_dup(void)
     ecKey->internal = NULL;
     AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
     wolfSSL_EC_KEY_free(ecKey);
-    
+
     /* NULL Group */
     AssertNotNull(ecKey = wolfSSL_EC_KEY_new()); 
     ecKey->group = NULL;
@@ -21893,18 +21907,18 @@ static void test_wolfSSL_EC_KEY_dup(void)
     ecKey->priv_key = NULL;
     AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
 
-    wolfSSL_EC_KEY_free(ecKey);
-    wolfSSL_EC_KEY_free(dupKey);
+    XFREE(ecKey, NULL, DYNAMIC_TYPE_ECC);
+    XFREE(dupKey, NULL, DYNAMIC_TYPE_ECC);
+//    wolfSSL_EC_KEY_free(ecKey);
+//    wolfSSL_EC_KEY_free(dupKey);
 #if defined(WOLFSSL_PUBLIC_MP)
     mp_free(src_key);
     mp_free(dest_key);
 #endif
-   
+
     printf(resultFmt, passed);
 #endif
 }
-
-
 
 
 #endif /*end of QT unit tests*/
