@@ -198,8 +198,8 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/logging.h>
-#ifdef WOLF_CRYPTO_DEV
-    #include <wolfssl/wolfcrypt/cryptodev.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -266,7 +266,7 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     key->rng = NULL;
 #endif
 
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     key->devId = devId;
 #else
     (void)devId;
@@ -1962,11 +1962,12 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
-        ret = wc_CryptoDev_Rsa(in, inLen, out, outLen, type, key, rng);
+        ret = wc_CryptoCb_Rsa(in, inLen, out, outLen, type, key, rng);
         if (ret != NOT_COMPILED_IN)
             return ret;
+        /* fall-through on not compiled in */
         ret = 0; /* reset error code and try using software */
     }
 #endif
@@ -2818,7 +2819,7 @@ int wc_RsaEncryptSize(RsaKey* key)
 
     ret = mp_unsigned_bin_size(&key->n);
 
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     if (ret == 0 && key->devId != INVALID_DEVID) {
         ret = 2048/8; /* hardware handles, use 2048-bit as default */
     }
@@ -3170,11 +3171,12 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (e < 3 || (e & 1) == 0)
         return BAD_FUNC_ARG;
 
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
-        int ret = wc_CryptoDev_MakeRsaKey(key, size, e, rng);
+        int ret = wc_CryptoCb_MakeRsaKey(key, size, e, rng);
         if (ret != NOT_COMPILED_IN)
             return ret;
+        /* fall-through on not compiled in */
     }
 #endif
 

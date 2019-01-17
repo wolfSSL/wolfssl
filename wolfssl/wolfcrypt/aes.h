@@ -150,7 +150,7 @@ typedef struct Aes {
 #ifdef WOLFSSL_AESNI
     byte use_aesni;
 #endif /* WOLFSSL_AESNI */
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     int    devId;
     word32 devKey[AES_MAX_KEY_SIZE/WOLFSSL_BIT_SIZE/sizeof(word32)]; /* raw key */
 #endif

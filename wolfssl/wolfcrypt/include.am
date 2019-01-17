@@ -62,7 +62,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/wolfmath.h \
                          wolfssl/wolfcrypt/sha3.h \
                          wolfssl/wolfcrypt/cpuid.h \
-                         wolfssl/wolfcrypt/cryptodev.h
+                         wolfssl/wolfcrypt/cryptocb.h
 
 noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h \

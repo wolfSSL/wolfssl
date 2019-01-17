@@ -46,8 +46,8 @@
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 
-#ifdef WOLF_CRYPTO_DEV
-    #include <wolfssl/wolfcrypt/cryptodev.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
 
@@ -2210,7 +2210,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
                 XMEMCPY(aes->asyncIv, iv, AES_BLOCK_SIZE);
         }
     #endif /* WOLFSSL_ASYNC_CRYPT */
-    #ifdef WOLF_CRYPTO_DEV
+    #ifdef WOLF_CRYPTO_CB
         if (aes->devId != INVALID_DEVID) {
             XMEMCPY(aes->devKey, userKey, keylen);
         }
@@ -2909,11 +2909,12 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return BAD_FUNC_ARG;
         }
 
-    #ifdef WOLF_CRYPTO_DEV
+    #ifdef WOLF_CRYPTO_CB
         if (aes->devId != INVALID_DEVID) {
-            int ret = wc_CryptoDev_AesCbcEncrypt(aes, out, in, sz);
+            int ret = wc_CryptoCb_AesCbcEncrypt(aes, out, in, sz);
             if (ret != NOT_COMPILED_IN)
                 return ret;
+            /* fall-through on not compiled in */
         }
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
@@ -3007,11 +3008,12 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return BAD_FUNC_ARG;
         }
 
-    #ifdef WOLF_CRYPTO_DEV
+    #ifdef WOLF_CRYPTO_CB
         if (aes->devId != INVALID_DEVID) {
-            int ret = wc_CryptoDev_AesCbcDecrypt(aes, out, in, sz);
+            int ret = wc_CryptoCb_AesCbcDecrypt(aes, out, in, sz);
             if (ret != NOT_COMPILED_IN)
                 return ret;
+            /* fall-through on not compiled in */
         }
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
@@ -8508,12 +8510,13 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     if (aes->devId != INVALID_DEVID) {
-        int ret = wc_CryptoDev_AesGcmEncrypt(aes, out, in, sz, iv, ivSz,
+        int ret = wc_CryptoCb_AesGcmEncrypt(aes, out, in, sz, iv, ivSz,
             authTag, authTagSz, authIn, authInSz);
         if (ret != NOT_COMPILED_IN)
             return ret;
+        /* fall-through on not compiled in */
     }
 #endif
 
@@ -8910,12 +8913,13 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     if (aes->devId != INVALID_DEVID) {
-        int ret = wc_CryptoDev_AesGcmDecrypt(aes, out, in, sz, iv, ivSz,
+        int ret = wc_CryptoCb_AesGcmDecrypt(aes, out, in, sz, iv, ivSz,
             authTag, authTagSz, authIn, authInSz);
         if (ret != NOT_COMPILED_IN)
             return ret;
+        /* fall-through on not compiled in */
     }
 #endif
 
@@ -9598,7 +9602,7 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
 
     aes->heap = heap;
 
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     aes->devId = devId;
 #else
     (void)devId;

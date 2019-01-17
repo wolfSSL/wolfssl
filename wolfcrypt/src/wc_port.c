@@ -68,8 +68,8 @@
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
 
-#ifdef WOLF_CRYPTO_DEV
-    #include <wolfssl/wolfcrypt/cryptodev.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
 #ifdef _MSC_VER
@@ -101,8 +101,8 @@ int wolfCrypt_Init(void)
         }
     #endif
 
-    #ifdef WOLF_CRYPTO_DEV
-        wc_CryptoDev_Init();
+    #ifdef WOLF_CRYPTO_CB
+        wc_CryptoCb_Init();
     #endif
 
     #ifdef WOLFSSL_ASYNC_CRYPT

@@ -130,9 +130,9 @@
 			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/cpuid.c</locationURI>
 		</link>
 		<link>
-			<name>wolfcrypt/src/cryptodev.c</name>
+			<name>wolfcrypt/src/cryptocb.c</name>
 			<type>1</type>
-			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/cryptodev.c</locationURI>
+			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/src/cryptocb.c</locationURI>
 		</link>
 		<link>
 			<name>wolfcrypt/src/curve25519.c</name>

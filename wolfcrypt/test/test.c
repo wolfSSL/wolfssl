@@ -119,8 +119,8 @@
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
-#ifdef WOLF_CRYPTO_DEV
-    #include <wolfssl/wolfcrypt/cryptodev.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
 /* only for stack size check */
@@ -370,8 +370,8 @@ int memcb_test(void);
 int blob_test(void);
 #endif
 
-#ifdef WOLF_CRYPTO_DEV
-int cryptodev_test(void);
+#ifdef WOLF_CRYPTO_CB
+int cryptocb_test(void);
 #endif
 #ifdef WOLFSSL_CERT_PIV
 int certpiv_test(void);
@@ -1039,11 +1039,11 @@ initDefaultName();
         printf( "blob     test passed!\n");
 #endif
 
-#ifdef WOLF_CRYPTO_DEV
-    if ( (ret = cryptodev_test()) != 0)
-        return err_sys("crypto dev test failed!\n", ret);
+#ifdef WOLF_CRYPTO_CB
+    if ( (ret = cryptocb_test()) != 0)
+        return err_sys("crypto callback test failed!\n", ret);
     else
-        printf( "crypto dev test passed!\n");
+        printf( "crypto callback test passed!\n");
 #endif
 
 #ifdef WOLFSSL_CERT_PIV
@@ -9260,7 +9260,7 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
      *     -101 = USER_CRYPTO_ERROR
      */
     if (ret == 0)
-#elif defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_DEV)
+#elif defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     /* async may not require RNG */
     if (ret != 0 && ret != MISSING_RNG_E)
 #elif defined(HAVE_FIPS) || defined(WOLFSSL_ASYNC_CRYPT) || \
@@ -22808,7 +22808,7 @@ int blob_test(void)
 }
 #endif /* WOLFSSL_IMX6_CAAM_BLOB */
 
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
 
 /* Example custom context for crypto callback */
 typedef struct {
@@ -23059,7 +23059,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     return ret;
 }
 
-int cryptodev_test(void)
+int cryptocb_test(void)
 {
     int ret = 0;
     myCryptoDevCtx myCtx;
@@ -23069,7 +23069,7 @@ int cryptodev_test(void)
 
     /* set devId to something other than INVALID_DEVID */
     devId = 1;
-    ret = wc_CryptoDev_RegisterDevice(devId, myCryptoDevCb, &myCtx);
+    ret = wc_CryptoCb_RegisterDevice(devId, myCryptoDevCb, &myCtx);
 
 #ifndef WC_NO_RNG
     if (ret == 0)
@@ -23109,7 +23109,7 @@ int cryptodev_test(void)
 
     return ret;
 }
-#endif /* WOLF_CRYPTO_DEV */
+#endif /* WOLF_CRYPTO_CB */
 
 #ifdef WOLFSSL_CERT_PIV
 int certpiv_test(void)

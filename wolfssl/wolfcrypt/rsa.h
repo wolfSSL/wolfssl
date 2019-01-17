@@ -155,7 +155,7 @@ struct RsaKey {
 #ifdef WC_RSA_BLINDING
     WC_RNG* rng;                              /* for PrivateDecrypt blinding */
 #endif
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     int   devId;
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT

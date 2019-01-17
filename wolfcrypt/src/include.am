@@ -74,8 +74,8 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/Espressif/esp32_util.c
 
 
-if BUILD_CRYPTODEV
-src_libwolfssl_la_SOURCES += wolfcrypt/src/cryptodev.c
+if BUILD_CRYPTOCB
+src_libwolfssl_la_SOURCES += wolfcrypt/src/cryptocb.c
 endif
 
 if BUILD_PKCS11

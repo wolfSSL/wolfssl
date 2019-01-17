@@ -190,7 +190,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/compress.h
 %{_includedir}/wolfssl/wolfcrypt/cpuid.h
 %{_includedir}/wolfssl/wolfcrypt/curve25519.h
-%{_includedir}/wolfssl/wolfcrypt/cryptodev.h
+%{_includedir}/wolfssl/wolfcrypt/cryptocb.h
 %{_includedir}/wolfssl/wolfcrypt/des3.h
 %{_includedir}/wolfssl/wolfcrypt/dh.h
 %{_includedir}/wolfssl/wolfcrypt/dsa.h
@@ -291,7 +291,7 @@ mkdir -p $RPM_BUILD_ROOT/
 * Thu Dec 20 2018 Jacob Barthelmeh <jacob@wolfssl.com>
 - Remove wolfssl/wolfcrypt/fips.h, add wolfssl/openssl/pkcs7.h
 * Wed Jun 20 2018 Jacob Barthelmeh <jacob@wolfssl.com>
-- Remove NEWS, update ChangeLog to ChangeLog.md, remove wolfssl/wolfcrypt/fips.h, add wolfssl/wolfcrypt/cryptodev.h
+- Remove NEWS, update ChangeLog to ChangeLog.md, remove wolfssl/wolfcrypt/fips.h, add wolfssl/wolfcrypt/cryptocb.h
 * Thu May 31 2018 John Safranek <john@wolfssl.com>
 - Update the version number on the library SO file.
 * Fri Mar 02 2018 Jacob Barthelmeh <jacob@wolfssl.com>

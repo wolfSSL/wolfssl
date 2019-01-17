@@ -43,8 +43,8 @@
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-#ifdef WOLF_CRYPTO_DEV
-    #include <wolfssl/wolfcrypt/cryptodev.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
 /* fips wrapper calls, user can call direct */
@@ -434,7 +434,7 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
         return BAD_FUNC_ARG;
 
     sha->heap = heap;
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     sha->devId = devId;
 #endif
 
@@ -468,11 +468,12 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
     /* do block size increments */
     local = (byte*)sha->buffer;
 
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     if (sha->devId != INVALID_DEVID) {
-        int ret = wc_CryptoDev_ShaHash(sha, data, len, NULL);
+        int ret = wc_CryptoCb_ShaHash(sha, data, len, NULL);
         if (ret != NOT_COMPILED_IN)
             return ret;
+        /* fall-through on not compiled in */
     }
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA)
@@ -550,11 +551,12 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
 
     local = (byte*)sha->buffer;
 
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     if (sha->devId != INVALID_DEVID) {
-        int ret = wc_CryptoDev_ShaHash(sha, NULL, 0, hash);
+        int ret = wc_CryptoCb_ShaHash(sha, NULL, 0, hash);
         if (ret != NOT_COMPILED_IN)
             return ret;
+        /* fall-through on not compiled in */
     }
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA)
