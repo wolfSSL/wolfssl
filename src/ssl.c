@@ -7161,16 +7161,16 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         (const WOLFSSL_X509* passed_cert, int loc)
     {
         int ext_count = 0;
-        int length;
-        int outSz;
+        int length = 0;
+        int outSz = 0;
         const byte* rawCert;
-        int sz;
-        int tmp_idx;
+        int sz = 0;
+        int tmp_idx = 0;
         const byte* input;
         word32 oid;
-        int ret;
+        int ret = 0;
         word32 idx = 0;
-        WOLFSSL_ASN1_OBJECT *tmp_obj;
+        WOLFSSL_ASN1_OBJECT* tmp_obj;
         WOLFSSL_X509_EXTENSION* found_extension = NULL;
         DecodedCert cert;
 
@@ -16454,13 +16454,13 @@ int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, \
     WOLFSSL_ENTER("wolfSSL_ASN1_STRING_to_UTF8");
     if (out == NULL || in == NULL){
         WOLFSSL_MSG("NULL argument passed to function");
-        return WOLFSSL_FAILURE;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     *out = (unsigned char*)XMALLOC(in->length, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (*out == NULL){
          WOLFSSL_MSG("'out' is NULL after XMALLOC");
-         return WOLFSSL_FAILURE;
+         return WOLFSSL_FATAL_ERROR;
     }
 
     for (i=0; i < in->length; i++){

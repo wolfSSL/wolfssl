@@ -21567,24 +21567,19 @@ static void test_wolfSSL_ASN1_STRING_to_UTF8(void){
     printf(resultFmt, result == 0 ? passed : failed);
 
     printf(testingFmt, "wolfSSL_ASN1_STRING_to_UTF8(NULL, valid): ");
-    AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(NULL, a)), WOLFSSL_FAILURE);
-    result = strncmp((const char*)actual_output, target_output, len);
-    AssertIntEQ(result, 0);
-    printf(resultFmt, result == WOLFSSL_FAILURE ? passed : failed);
+    AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(NULL, a)), \
+            WOLFSSL_FATAL_ERROR);
+    printf(resultFmt, len == WOLFSSL_FATAL_ERROR ? passed : failed);
 
     printf(testingFmt, "wolfSSL_ASN1_STRING_to_UTF8(valid, NULL): ");
     AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(&actual_output, NULL)), \
-            WOLFSSL_FAILURE);
-    result = strncmp((const char*)actual_output, target_output, len);
-    AssertIntEQ(result, 0);
-    printf(resultFmt, result == WOLFSSL_FAILURE ? passed : failed);
+            WOLFSSL_FATAL_ERROR);
+    printf(resultFmt, len == WOLFSSL_FATAL_ERROR ? passed : failed);
 
     printf(testingFmt, "wolfSSL_ASN1_STRING_to_UTF8(NULL, NULL): ");
     AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(NULL, NULL)), \
-            WOLFSSL_FAILURE);
-    result = strncmp((const char*)actual_output, target_output, len);
-    AssertIntEQ(result, 0);
-    printf(resultFmt, result == WOLFSSL_FAILURE ? passed : failed);
+            WOLFSSL_FATAL_ERROR);
+    printf(resultFmt, len == WOLFSSL_FATAL_ERROR ? passed : failed);
 }
 #endif //!defined(NO_ASN)
 
