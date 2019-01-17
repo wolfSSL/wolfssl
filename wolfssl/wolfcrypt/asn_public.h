@@ -527,7 +527,7 @@ WOLFSSL_API int wc_CertInfo_GetPublicKey(wc_CertInfo* info, word32* keyOID,
     word32* pkCurveOID, byte** pPubKey, word32* pPubKeySz);
 WOLFSSL_API int wc_CertInfo_GetSubjectRaw(wc_CertInfo* info, byte** pSubject,
     int* pSubjectSz);
-WOLFSSL_API int wc_CertInfo_GetAuthKeyId(wc_CertInfo* info,```
+WOLFSSL_API int wc_CertInfo_GetAuthKeyId(wc_CertInfo* info,
     byte** pAuthKeyId, word32* pAuthKeyIdSz);
 WOLFSSL_API int wc_CertInfo_GetAltNames(wc_CertInfo* info, byte** pAltNames,
     word32* pAltNamesSz);
