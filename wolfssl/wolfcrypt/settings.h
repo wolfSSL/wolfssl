@@ -241,11 +241,6 @@
         #define WOLFSSL_ESP32WROOM32_CRYPT
     #endif
 #endif
-#if defined(WOLFSSL_ESPWROOM32SE)
-    /* esp32-wroom-32se specific definition */
-    #define WOLFSSL_ATECC508A
-    #define HAVE_PK_CALLBACKS
-#endif
 #if !defined(WOLFSSL_USER_SETTINGS)
     #define HAVE_ECC
 #endif /* !WOLFSSL_USER_SETTINGS */

@@ -1,6 +1,6 @@
 /* server-tls-callback.c
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
@@ -42,11 +42,9 @@
     #include <wolfssl/wolfcrypt/mem_track.h>
 #endif
 
-#if defined(WOLFSSL_ESPWROOM32SE)
-static const char* TAG = "tls_server";
-#else
-const char* TAG = "tls_server";
-#endif
+static const char* const TAG = "tls_server";
+
+#if defined(DEBUG_WOLFSSL)
 
 static void ShowCiphers(void)
 {
@@ -57,6 +55,8 @@ static void ShowCiphers(void)
     if (ret == WOLFSSL_SUCCESS)
         printf("%s\n", ciphers);
 }
+
+#endif
 
 #if defined(WOLFSSL_ESPWROOM32SE) && defined(HAVE_PK_CALLBACKS) \
                                   && defined(WOLFSSL_ATECC508A)
@@ -146,8 +146,6 @@ void tls_smp_server_task()
     WOLFSSL_MSG("Debug ON");
     wolfSSL_Debugging_ON();
     ShowCiphers();
-#else
-    (void)ShowCiphers;
 #endif
 
     /* Initialize wolfSSL */

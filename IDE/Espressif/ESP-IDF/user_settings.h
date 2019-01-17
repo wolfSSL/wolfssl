@@ -44,10 +44,16 @@
 #define CURVE25519_SMALL
 #define HAVE_ED25519
 
-/* when you want to use a custom slot allocation for ATECC608A */
-/* unless your configuration is unusual, you can use default   */
-/* implementation.                                             */
-/* #define CUSTOM_SLOT_ALLOCATION */
+/* esp32-wroom-32se specific definition */
+#if defined(WOLFSSL_ESPWROOM32SE)
+    #define WOLFSSL_ATECC508A
+    #define HAVE_PK_CALLBACKS
+    /* when you want to use a custom slot allocation for ATECC608A */
+    /* unless your configuration is unusual, you can use default   */
+    /* implementation.                                             */
+    /* #define CUSTOM_SLOT_ALLOCATION                              */
+#endif
+
 
 /* debug options */
 /* #define DEBUG_WOLFSSL */

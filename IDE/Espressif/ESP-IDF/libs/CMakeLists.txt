@@ -11,6 +11,7 @@ set(INCLUDE_PATH ${WOLFSSL_ROOT})
 set(COMPONENT_SRCDIRS "./src/"
                       "./wolfcrypt/src/"
                       "./wolfcrypt/src/port/Espressif/"
+                      "./wolfcrypt/src/port/atmel/"
                       )
 
 set(COMPONENT_REQUIRES lwip)

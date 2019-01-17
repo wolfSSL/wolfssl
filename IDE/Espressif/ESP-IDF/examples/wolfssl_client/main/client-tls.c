@@ -40,15 +40,13 @@
     #include <wolfssl/wolfcrypt/mem_track.h>
 #endif
 
-#ifdef WOLFSSL_ESPWROOM32SE
-static const char* TAG = "tls_client";
-#else
-const char*  TAG = "tls_client";
-#endif
+static const char* const TAG = "tls_client";
+
+#if defined(DEBUG_WOLFSSL)
 
 static void ShowCiphers(void)
 {
-    static char ciphers[4096];
+    char ciphers[4096];
 
     int ret = wolfSSL_get_ciphers(ciphers, (int)sizeof(ciphers));
 
@@ -56,12 +54,12 @@ static void ShowCiphers(void)
         printf("%s\n", ciphers);
 }
 
+#endif
+
 #if defined(WOLFSSL_ESPWROOM32SE) && defined(HAVE_PK_CALLBACKS) \
                                   && defined(WOLFSSL_ATECC508A)
 
 #include "wolfssl/wolfcrypt/port/atmel/atmel.h"
-
-int atcatls_set_callbacks(struct WOLFSSL_CTX* ctx);
 
 /* when you want to use custome slot allocation */
 /* enable the definition CUSTOM_SLOT_ALLOCATION.*/
@@ -147,8 +145,6 @@ void tls_smp_client_task()
     WOLFSSL_MSG("Debug ON");
     wolfSSL_Debugging_ON();
     ShowCiphers();
-#else
-    (void)ShowCiphers;
 #endif
     /* Initialize wolfSSL */
     wolfSSL_Init();

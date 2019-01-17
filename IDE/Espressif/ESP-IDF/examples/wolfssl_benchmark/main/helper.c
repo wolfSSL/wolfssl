@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfcrypt/benchmark/benchmark.h>
 
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
@@ -36,15 +37,8 @@
 
 /* proto-type */
 extern void wolf_benchmark_task();
-extern int benchmark_init();
-extern int benchmark_test(void *args);
 
-#ifdef WOLFSSL_ESPWROOM32SE
-const static char* TAG = "wolfbenchmark";
-#else
-const char* TAG = "wolfbenchmark";
-#endif
-
+static const char* const TAG = "wolfbenchmark";
 
 char* __argv[22];
 
@@ -53,16 +47,11 @@ char* __argv[22];
 
 #include "wolfssl/wolfcrypt/port/atmel/atmel.h"
 
-int atcatls_set_callbacks(struct WOLFSSL_CTX* ctx);
-
 /* when you need to use a custom slot allocation, */
 /* enable the definition CUSTOM_SLOT_ALLOCAION.   */
-
 #if defined(CUSTOM_SLOT_ALLOCATION)
 
 static byte mSlotList[ATECC_MAX_SLOT];
-
-int atmel_set_slot_allocator(atmel_slot_alloc_cb alloc, atmel_slot_dealloc_cb dealloc);
 
 /* initialize slot array */
 void my_atmel_slotInit()
