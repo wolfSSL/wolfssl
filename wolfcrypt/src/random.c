@@ -1741,30 +1741,47 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(STM32_RNG)
      /* Generate a RNG seed using the hardware random number generator
-      * on the STM32F2/F4/F7. */
+      * on the STM32F2/F4/F7/L4. */
 
     #ifdef WOLFSSL_STM32_CUBEMX
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         RNG_HandleTypeDef hrng;
-        int i;
+        word32 i = 0;
         (void)os;
 
         /* enable RNG clock source */
         __HAL_RCC_RNG_CLK_ENABLE();
 
         /* enable RNG peripheral */
+        XMEMSET(&hrng, 0, sizeof(hrng));
         hrng.Instance = RNG;
         HAL_RNG_Init(&hrng);
 
-        for (i = 0; i < (int)sz; i++) {
-            /* get value */
-            output[i] = (byte)HAL_RNG_GetRandomNumber(&hrng);
-        }
+		while (i < sz) {
+			/* If not aligned or there is odd/remainder */
+			if( (i + sizeof(word32)) > sz ||
+				((wolfssl_word)&output[i] % sizeof(word32)) != 0
+			) {
+				/* Single byte at a time */
+				word32 tmpRng = 0;
+				if (HAL_RNG_GenerateRandomNumber(&hrng, &tmpRng) != HAL_OK) {
+					return RAN_BLOCK_E;
+				}
+				output[i++] = (byte)tmpRng;
+			}
+			else {
+				/* Use native 32 instruction */
+				if (HAL_RNG_GenerateRandomNumber(&hrng, (word32*)&output[i]) != HAL_OK) {
+					return RAN_BLOCK_E;
+				}
+				i += sizeof(word32);
+			}
+		}
 
-        return 0;
+		return 0;
     }
-    #elif defined(WOLFSSL_STM32F427_RNG)
+    #elif defined(WOLFSSL_STM32F427_RNG) || defined(WOLFSSL_STM32_RNG_NOLIB)
 
     /* Generate a RNG seed using the hardware RNG on the STM32F427
      * directly, following steps outlined in STM32F4 Reference
