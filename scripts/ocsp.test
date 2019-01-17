@@ -15,6 +15,7 @@ if [ $? -eq 0 ]; then
     exit 0
 fi
 
+GL_UNREACHABLE=0
 # Global Sign now requires server name indication extension to work, check
 # enabled prior to testing
 OUTPUT=$(eval "./examples/client/client -S check")
