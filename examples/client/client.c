@@ -2122,7 +2122,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_CTX_set_group_messages(ctx);
 
 #ifndef NO_DH
-    wolfSSL_CTX_SetMinDhKey_Sz(ctx, (word16)minDhKeyBits);
+    if (wolfSSL_CTX_SetMinDhKey_Sz(ctx, (word16)minDhKeyBits)
+            != WOLFSSL_SUCCESS) {
+        err_sys("Error setting minimum DH key size");
+    }
 #endif
 
     if (usePsk) {

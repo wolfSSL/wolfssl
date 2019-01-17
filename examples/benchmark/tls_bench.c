@@ -643,7 +643,11 @@ static int bench_tls_client(info_t* info)
     }
 
 #ifndef NO_DH
-    wolfSSL_CTX_SetMinDhKey_Sz(cli_ctx, MIN_DHKEY_BITS);
+    ret = wolfSSL_CTX_SetMinDhKey_Sz(cli_ctx, MIN_DHKEY_BITS);
+    if (ret != WOLFSSL_SUCCESS) {
+        printf("Error setting minimum DH key size\n");
+        goto exit;
+    }
 #endif
 
     /* Allocate and initialize a packet sized buffer */
@@ -960,7 +964,11 @@ static int bench_tls_server(info_t* info)
     }
 
 #ifndef NO_DH
-    wolfSSL_CTX_SetMinDhKey_Sz(srv_ctx, MIN_DHKEY_BITS);
+    ret = wolfSSL_CTX_SetMinDhKey_Sz(srv_ctx, MIN_DHKEY_BITS);
+    if (ret != WOLFSSL_SUCCESS) {
+        printf("Error setting minimum DH key size\n");
+        goto exit;
+    }
 #endif
 
     /* Allocate read buffer */
