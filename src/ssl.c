@@ -16452,19 +16452,21 @@ int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, \
     int i;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_STRING_to_UTF8");
+
     if (out == NULL || in == NULL){
         WOLFSSL_MSG("NULL argument passed to function");
         return WOLFSSL_FAILURE;
     }
 
-    *out = (unsigned char*)XMALLOC(in->length, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    *out = (unsigned char*)XMALLOC(in->length+1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (*out == NULL){
          WOLFSSL_MSG("'out' is NULL after XMALLOC");
          return WOLFSSL_FAILURE;
     }
+    XMEMSET(*out, 0, in->length+1);
 
     for (i=0; i < in->length; i++){
-        *(*(out)+i) = in->data[i];
+       *(*(out)+i) = in->data[i];
     }
 
     return in->length;
@@ -33530,8 +33532,42 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
 #ifdef HAVE_ECC
     const char * wolfSSL_OBJ_nid2sn(int n) {
+        #ifdef WOLFSSL_QT
+        const char* sn;
+        #endif
         int i;
         WOLFSSL_ENTER("wolfSSL_OBJ_nid2sn");
+
+        #ifdef WOLFSSL_QT
+        switch(n)
+        {
+            case NID_commonName :
+                sn = "CN";
+                break;
+            case NID_countryName :
+                sn = "C";
+                break;
+            case NID_localityName :
+                sn = "L";
+                break;
+            case NID_stateOrProvinceName :
+                sn = "ST";
+                break;
+            case NID_organizationName :
+                sn = "O";
+                break;
+            case NID_organizationalUnitName :
+                sn = "OU";
+                break;
+            case NID_emailAddress :
+                sn = "emailAddress";
+                break;
+            default  :
+                WOLFSSL_MSG("nid not in table\n");
+                sn = NULL;
+        }
+        return sn;
+        #endif
 
         /* find based on NID and return name */
         for (i = 0; i < ecc_sets[i].size; i++) {
@@ -33570,6 +33606,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
     static int oid2nid(word32 oid, int grp)
     {
+        WOLFSSL_ENTER("oid2nid");
         /* get OID type */
         switch (grp) {
             /* oidHashType */
@@ -33998,65 +34035,129 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
     static WOLFSSL_X509_NAME *get_nameByLoc( WOLFSSL_X509_NAME *name, int loc)
     {
-        switch (loc)
-        {
-        case 0:
-            name->cnEntry.value->length = name->fullName.cnLen;
-            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.cnIdx];
-            name->cnEntry.nid           = name->fullName.cnNid;
-            break;
-        case 1:
-            name->cnEntry.value->length = name->fullName.cLen;
-            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.cIdx];
-            name->cnEntry.nid           = name->fullName.cNid;
-            break;
-        case 2:
-            name->cnEntry.value->length = name->fullName.lLen;
-            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.lIdx];
-            name->cnEntry.nid           = name->fullName.lNid;
-            break;
-        case 3:
-            name->cnEntry.value->length = name->fullName.stLen;
-            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.stIdx];
-            name->cnEntry.nid           = name->fullName.stNid;
-            break;
-        case 4:
-            name->cnEntry.value->length = name->fullName.oLen;
-            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.oIdx];
-            name->cnEntry.nid           = name->fullName.oNid;
-            break;
-        case 5:
-            name->cnEntry.value->length = name->fullName.ouLen;
-            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.ouIdx];
-            name->cnEntry.nid           = name->fullName.ouNid;
-            break;
-        case 6:
-            name->cnEntry.value->length = name->fullName.emailLen;
-            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.emailIdx];
-            name->cnEntry.nid           = name->fullName.emailNid;
-            break;
-        case 7:
-            name->cnEntry.value->length = name->fullName.snLen;
-            name->cnEntry.value->data = &name->fullName.fullName[name->fullName.snIdx];
-            name->cnEntry.nid           = name->fullName.snNid;
-            break;
-        case 8:
-            name->cnEntry.value->length = name->fullName.uidLen;
-            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.uidIdx];
-            name->cnEntry.nid           = name->fullName.uidNid;
-            break;
-        case 9:
-            name->cnEntry.value->length = name->fullName.serialLen;
-            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.serialIdx];
-            name->cnEntry.nid           = name->fullName.serialNid;
-            break;
-        default:
-            return NULL;
+        int curr = 0;
+
+        if (name->fullName.cnIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.cnLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.cnIdx];
+                name->cnEntry.nid           = name->fullName.cnNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
         }
-        if (name->cnEntry.value->length == 0)
-            return NULL;
-        name->cnEntry.value->type   = CTC_UTF8;
-        return name;
+        if (name->fullName.snIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.snLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.snIdx];
+                name->cnEntry.nid           = name->fullName.snNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
+        }
+        if (name->fullName.cIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.cLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.cIdx];
+                name->cnEntry.nid           = name->fullName.cNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
+        }
+        if (name->fullName.lIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.lLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.lIdx];
+                name->cnEntry.nid           = name->fullName.lNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
+        }
+        if (name->fullName.stIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.stLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.stIdx];
+                name->cnEntry.nid           = name->fullName.stNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
+        }
+        if (name->fullName.oIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.oLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.oIdx];
+                name->cnEntry.nid           = name->fullName.oNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
+        }
+        if (name->fullName.ouIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.ouLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.ouIdx];
+                name->cnEntry.nid           = name->fullName.ouNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
+        }
+        if (name->fullName.emailIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.emailLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.emailIdx];
+                name->cnEntry.nid           = name->fullName.emailNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
+        }
+        if (name->fullName.uidIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.uidLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.uidIdx];
+                name->cnEntry.nid           = name->fullName.uidNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
+        }
+        if (name->fullName.serialIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.serialLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.serialIdx];
+                name->cnEntry.nid           = name->fullName.serialNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
+        }
+        return NULL;
     }
 
 
@@ -34093,9 +34194,8 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 }
             }
             name->cnEntry.data.type = CTC_UTF8;
-            name->cnEntry.set       = 1;
 
-         /* common name index case */
+       /* common name index case */
         } else if (loc == name->fullName.cnIdx && name->x509 != NULL) {
             /* get CN shortcut from x509 since it has null terminator */
             name->cnEntry.data.data   = name->x509->subjectCN;
@@ -38251,5 +38351,3 @@ int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey)
     return wolfSSL_X509_set_pubkey(req, pkey);
 }
 #endif
-
-
