@@ -9,6 +9,11 @@ src_libwolfssl_la_LIBADD = $(LIBM) $(LIB_ADD) $(LIB_STATIC_ADD)
 src_libwolfssl_la_CFLAGS = -DBUILDING_WOLFSSL $(AM_CFLAGS)
 src_libwolfssl_la_CPPFLAGS = -DBUILDING_WOLFSSL $(AM_CPPFLAGS)
 
+if BUILD_DO178
+src_libwolfssl_la_SOURCES += wolfcrypt/src/sha256_cert.c
+
+else
+
 # install the packaged IPP libraries
 if BUILD_FAST_RSA
 
@@ -418,3 +423,5 @@ src_libwolfssl_la_SOURCES += src/sniffer.c
 endif
 
 endif # !BUILD_CRYPTONLY
+
+endif # !BUILD_DO178

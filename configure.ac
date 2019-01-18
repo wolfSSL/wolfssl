@@ -505,7 +505,7 @@ AC_ARG_ENABLE([signal],
     [ ENABLED_SIGNAL=no ]
     )
 
-# OpenSSL Coexist 
+# OpenSSL Coexist
 AC_ARG_ENABLE([opensslcoexist],
     [AS_HELP_STRING([--enable-opensslcoexist],[Enable coexistence of wolfssl/openssl (default: disabled)])],
     [ ENABLED_OPENSSLCOEXIST=$enableval ],
@@ -1065,7 +1065,7 @@ fi
 AM_CONDITIONAL([BUILD_AESNI], [test "x$ENABLED_AESNI" = "xyes"])
 
 
-# Linux af_alg 
+# Linux af_alg
 AC_ARG_ENABLE([afalg],
     [AS_HELP_STRING([--enable-afalg],[Enable Linux af_alg use for crypto (default: disabled)])],
     [ ENABLED_AFALG=$enableval ],
@@ -2268,6 +2268,21 @@ fi
 
 AM_CONDITIONAL([BUILD_RABBIT], [test "x$ENABLED_RABBIT" = "xyes"])
 
+# DO178
+AC_ARG_ENABLE([do178],
+    [AS_HELP_STRING([--enable-do178],[Enable DO-178C (default: disabled)])],
+    [ ENABLED_DO178=$enableval ],
+    [ ENABLED_DO178=no ]
+    )
+
+if test "$ENABLED_DO178" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_DO178"
+else
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_DO178"
+fi
+
+AM_CONDITIONAL([BUILD_DO178], [test "x$ENABLED_DO178" = "xyes"])
 
 # FIPS
 AC_ARG_ENABLE([fips],
@@ -4909,6 +4924,7 @@ echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
 echo "   * Inline Code:                $ENABLED_INLINE"
 echo "   * Linux AF_ALG:               $ENABLED_AFALG"
 echo "   * Linux cryptodev:            $ENABLED_DEVCRYPTO"
+echo "   * DO178:                      $ENABLED_DO178"
 echo ""
 echo "---"
 

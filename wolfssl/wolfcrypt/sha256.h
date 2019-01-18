@@ -113,6 +113,18 @@ enum {
     WC_SHA256_PAD_SIZE     = 56
 };
 
+#ifdef HAVE_DO178
+typedef struct wc_Sha256 {
+    /* alignment on digest and buffer speeds up ARMv8 crypto operations */
+    ALIGN16 word32  digest[WC_SHA256_DIGEST_SIZE / sizeof(word32)];
+    ALIGN16 word32  buffer[WC_SHA256_BLOCK_SIZE  / sizeof(word32)];
+    word32  buffLen;   /* in bytes          */
+    word32  loLen;     /* length in bytes   */
+    word32  hiLen;     /* length in bytes   */
+    void*   heap;
+} wc_Sha256;
+
+#else
 
 #ifdef WOLFSSL_TI_HASH
     #include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
@@ -165,8 +177,18 @@ typedef struct wc_Sha256 {
 } wc_Sha256;
 
 #endif
-
+#endif  /* !HAVE_DO178 */
 #endif /* HAVE_FIPS */
+
+#ifdef HAVE_DO178
+WOLFSSL_API int wc_InitSha256(wc_Sha256*);
+WOLFSSL_API int wc_InitSha256_ex(wc_Sha256*, void*, int);
+WOLFSSL_API int wc_Sha256Update(wc_Sha256*, const byte*, word32);
+WOLFSSL_API int wc_Sha256Final(wc_Sha256*, byte*);
+WOLFSSL_API int wc_Sha256GetHash(wc_Sha256*, byte*);
+WOLFSSL_API int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst);
+
+#else
 
 WOLFSSL_API int wc_InitSha256(wc_Sha256*);
 WOLFSSL_API int wc_InitSha256_ex(wc_Sha256*, void*, int);
@@ -217,6 +239,7 @@ WOLFSSL_API int wc_Sha224GetHash(wc_Sha224*, byte*);
 WOLFSSL_API int wc_Sha224Copy(wc_Sha224* src, wc_Sha224* dst);
 
 #endif /* WOLFSSL_SHA224 */
+#endif /*  !HAVE_DO178 */
 
 #ifdef __cplusplus
     } /* extern "C" */

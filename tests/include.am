@@ -2,6 +2,10 @@
 # included from Top Level Makefile.am
 # All paths should be given relative to the root
 
+if BUILD_DO178
+# none is supported yet
+
+else
 
 if BUILD_TESTS
 check_PROGRAMS += tests/unit.test
@@ -40,3 +44,5 @@ EXTRA_DIST += tests/test.conf \
               tests/test-trustpeer.conf \
               tests/test-dhprime.conf
 DISTCLEANFILES+= tests/.libs/unit.test
+
+endif # !BUILD_DO178
