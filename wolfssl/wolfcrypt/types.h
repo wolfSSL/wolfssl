@@ -303,6 +303,9 @@
             for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
                 XFREE(VAR_NAME[idx##VAR_NAME], (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
             }
+
+        #define DECLARE_ARRAY_DYNAMIC DECLARE_ARRAY
+        #define FREE_ARRAY_DYNAMIC FREE_ARRAY
     #else
         #define DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
             VAR_TYPE VAR_NAME[VAR_SIZE]
@@ -312,6 +315,17 @@
             VAR_TYPE VAR_NAME[VAR_ITEMS][VAR_SIZE]
         #define FREE_VAR(VAR_NAME, HEAP) /* nothing to free, its stack */
         #define FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP)  /* nothing to free, its stack */
+
+        #define DECLARE_ARRAY_DYNAMIC(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
+            VAR_TYPE* VAR_NAME[VAR_ITEMS]; \
+            int idx##VAR_NAME; \
+            for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
+                VAR_NAME[idx##VAR_NAME] = (VAR_TYPE*)XMALLOC(VAR_SIZE, (HEAP), DYNAMIC_TYPE_TMP_BUFFER); \
+            }
+        #define FREE_ARRAY_DYNAMIC(VAR_NAME, VAR_ITEMS, HEAP) \
+            for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
+                XFREE(VAR_NAME[idx##VAR_NAME], (HEAP), DYNAMIC_TYPE_TMP_BUFFER); \
+            }
     #endif
 
     #if !defined(USE_WOLF_STRTOK) && \

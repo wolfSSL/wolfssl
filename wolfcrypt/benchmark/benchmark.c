@@ -3986,33 +3986,13 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
     DECLARE_VAR_INIT(message, byte, len, messageStr, HEAP_HINT);
 #endif
 
-    #ifdef USE_CERT_BUFFERS_1024
-        DECLARE_ARRAY(enc, byte, BENCH_MAX_PENDING, 128, HEAP_HINT);
-        #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
-                        !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-            DECLARE_ARRAY(out, byte, BENCH_MAX_PENDING, 128, HEAP_HINT);
-        #else
-            byte* out[BENCH_MAX_PENDING];
-        #endif
-    #elif defined(USE_CERT_BUFFERS_2048)
-        DECLARE_ARRAY(enc, byte, BENCH_MAX_PENDING, 256, HEAP_HINT);
-        #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
-                        !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-            DECLARE_ARRAY(out, byte, BENCH_MAX_PENDING, 256, HEAP_HINT);
-        #else
-            byte* out[BENCH_MAX_PENDING];
-        #endif
-    #elif defined(USE_CERT_BUFFERS_3072)
-        DECLARE_ARRAY(enc, byte, BENCH_MAX_PENDING, 384, HEAP_HINT);
-        #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
-                        !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-            DECLARE_ARRAY(out, byte, BENCH_MAX_PENDING, 384, HEAP_HINT);
-        #else
-            byte* out[BENCH_MAX_PENDING];
-        #endif
+    DECLARE_ARRAY_DYNAMIC(enc, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
+    #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
+                    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+        DECLARE_ARRAY_DYNAMIC(out, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
     #else
-        #error "need a cert buffer size"
-    #endif /* USE_CERT_BUFFERS */
+        byte* out[BENCH_MAX_PENDING];
+    #endif
 
     if (!rsa_sign_verify) {
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
@@ -4160,8 +4140,8 @@ exit_rsa_verify:
                                                                     start, ret);
     }
 
-    FREE_ARRAY(enc, BENCH_MAX_PENDING, HEAP_HINT);
-    FREE_ARRAY(out, BENCH_MAX_PENDING, HEAP_HINT);
+    FREE_ARRAY_DYNAMIC(enc, BENCH_MAX_PENDING, HEAP_HINT);
+    FREE_ARRAY_DYNAMIC(out, BENCH_MAX_PENDING, HEAP_HINT);
     FREE_VAR(message, HEAP_HINT);
 }
 
