@@ -345,6 +345,7 @@
             #define XSTRSEP(s1,d) strsep((s1),(d))
         #endif
 
+        #ifndef XSTRNCASECMP
         #if defined(MICROCHIP_PIC32) || defined(WOLFSSL_TIRTOS)
             /* XC32 does not support strncasecmp, so use case sensitive one */
             #define XSTRNCASECMP(s1,s2,n) strncmp((s1),(s2),(n))
@@ -357,6 +358,7 @@
             #endif
             #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
         #endif
+        #endif /* !XSTRNCASECMP */
 
         /* snprintf is used in asn.c for GetTimeString, PKCS7 test, and when
            debugging is turned on */

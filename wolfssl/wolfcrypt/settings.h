@@ -784,11 +784,17 @@ extern void uITRON4_free(void *p) ;
     #ifndef SINGLE_THREADED
         #include "SafeRTOS/semphr.h"
     #endif
-
-    #include "SafeRTOS/heap.h"
-    #define XMALLOC(s, h, type)  pvPortMalloc((s))
-    #define XFREE(p, h, type)    vPortFree((p))
-    #define XREALLOC(p, n, h, t) pvPortRealloc((p), (n))
+    #ifndef WOLFSSL_NO_MALLOC
+        #include "SafeRTOS/heap.h"
+    #endif
+    #if !defined(XMALLOC_USER) && !defined(NO_WOLFSSL_MEMORY) && \
+        !defined(WOLFSSL_STATIC_MEMORY)
+        #define XMALLOC(s, h, type)  pvPortMalloc((s))
+        #define XFREE(p, h, type)    vPortFree((p))
+    #endif
+    #if !defined(USE_FAST_MATH) || defined(HAVE_ED25519)
+        #define XREALLOC(p, n, h, t) pvPortRealloc((p), (n))
+    #endif
 #endif
 
 #ifdef WOLFSSL_LOW_MEMORY
