@@ -48,7 +48,7 @@ static const char* const TAG = "tls_server";
 
 static void ShowCiphers(void)
 {
-    static char ciphers[4096];
+    char ciphers[4096];
 
     int ret = wolfSSL_get_ciphers(ciphers, (int)sizeof(ciphers));
 
@@ -62,8 +62,6 @@ static void ShowCiphers(void)
                                   && defined(WOLFSSL_ATECC508A)
 
 #include "wolfssl/wolfcrypt/port/atmel/atmel.h"
-
-int atcatls_set_callbacks(struct WOLFSSL_CTX* ctx);
 
 /* when you want to use a custom slot allocation */
 /* enable the difinition CUSTOM_SLOT_ALLOCATION. */

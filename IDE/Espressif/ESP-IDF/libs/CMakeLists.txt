@@ -23,6 +23,10 @@ set(COMPONENT_ADD_INCLUDEDIRS
     "${WOLFSSL_ROOT}"
     )
 
+if(IS_DIRECTORY ${IDF_PATH}/components/cryptoauthlib)
+    list(APPEND COMPONENT_ADD_INCLUDEDIRS "../cryptoauthlib/lib")
+endif()
+
 set(COMPONENT_SRCEXCLUDE
     "wolfcrypt/src/aes_asm.S"
     "wolfcrypt/src/evp.c"

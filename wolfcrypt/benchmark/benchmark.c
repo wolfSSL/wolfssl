@@ -5491,9 +5491,7 @@ int main(int argc, char** argv)
 #ifdef HAVE_STACK_SIZE
     ret = StackSizeCheck(NULL, benchmark_test);
 #else
-#ifndef WOLFSSL_ESPIDF
     ret = benchmark_test(NULL);
-#endif
 #endif
 
     return ret;

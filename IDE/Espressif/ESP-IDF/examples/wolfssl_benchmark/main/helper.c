@@ -169,10 +169,8 @@ void app_main(void)
 {
     ESP_LOGI(TAG, "Start app_main...");
     ESP_ERROR_CHECK(nvs_flash_init());
-    
 
-    ESP_LOGI(TAG, "Start benchmark..");
-    wolf_benchmark_task( );
+#ifndef NO_CRYPT_BENCHMARK
 
     /* when using atecc608a on esp32-wroom-32se */
 #if defined(WOLFSSL_ESPWROOM32SE) && defined(HAVE_PK_CALLBACKS) \
@@ -185,8 +183,14 @@ void app_main(void)
     atmel_set_slot_allocator(my_atmel_alloc, my_atmel_free);
     #endif
 #endif
+    
+    ESP_LOGI(TAG, "Start benchmark..");
+    wolf_benchmark_task();
 
-    benchmark_test(NULL);
+#else
+    ESP_LOGI(TAG, "no crypt benchmark");
+
+#endif /* NO_CRYPT_BENCHMARK */
 
 }
 
