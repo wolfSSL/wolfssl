@@ -1831,8 +1831,13 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_NO_WORD64_OPS
 #endif
 
+#if !defined(WOLFCRYPT_ONLY) && !defined(WOLFSSL_NO_TLS12)
+    #undef  WOLFSSL_HAVE_PRF
+    #define WOLFSSL_HAVE_PRF
+#endif
+
 #if defined(NO_AES) && defined(NO_DES3) && !defined(HAVE_CAMELLIA) && \
-                                     defined(NO_PWDBASED) && !defined(HAVE_IDEA)
+       !defined(WOLFSSL_HAVE_PRF) && defined(NO_PWDBASED) && !defined(HAVE_IDEA)
     #undef  WOLFSSL_NO_XOR_OPS
     #define WOLFSSL_NO_XOR_OPS
 #endif

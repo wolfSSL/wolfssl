@@ -15775,6 +15775,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case UNSUPPORTED_EXTENSION:
         return "TLS Extension not requested by the client";
 
+    case PRF_MISSING:
+        return "Pseudo-random function is not enabled";
+
     case KEY_SHARE_ERROR:
         return "Key share extension did not contain a valid named group";
 

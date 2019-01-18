@@ -1255,9 +1255,6 @@ enum Misc {
     EXT_MASTER_LABEL_SZ = 22,  /* TLS extended master secret label sz */
     MASTER_LABEL_SZ     = 13,  /* TLS master secret label sz */
     KEY_LABEL_SZ        = 13,  /* TLS key block expansion sz */
-    MAX_PRF_HALF        = 256, /* Maximum half secret len */
-    MAX_PRF_LABSEED     = 128, /* Maximum label + seed len */
-    MAX_PRF_DIG         = 224, /* Maximum digest len      */
     PROTOCOL_LABEL_SZ   = 9,   /* Length of the protocol label */
     MAX_LABEL_SZ        = 34,  /* Maximum length of a label */
     MAX_HKDF_LABEL_SZ   = OPAQUE16_LEN +
@@ -2766,20 +2763,6 @@ typedef struct CipherSpecs {
 
 
 void InitCipherSpecs(CipherSpecs* cs);
-
-
-/* Supported Message Authentication Codes from page 43 */
-enum MACAlgorithm {
-    no_mac,
-    md5_mac,
-    sha_mac,
-    sha224_mac,
-    sha256_mac,     /* needs to match external KDF_MacAlgorithm */
-    sha384_mac,
-    sha512_mac,
-    rmd_mac,
-    blake2b_mac
-};
 
 
 /* Supported Key Exchange Protocols */
