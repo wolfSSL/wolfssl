@@ -2008,22 +2008,20 @@ static void test_client_nofail(void* args, void *cb)
     }
 
     /* test the various get cipher methods */
+    /* Internal cipher suite names */
     cipherSuite = wolfSSL_get_current_cipher_suite(ssl);
     cipherName1 = wolfSSL_get_cipher_name(ssl);
     cipherName2 = wolfSSL_get_cipher_name_from_suite(
         (cipherSuite >> 8), cipherSuite & 0xFF);
     AssertStrEQ(cipherName1, cipherName2);
 
+    /* IANA Cipher Suites Names */
+    /* Unless WOLFSSL_CIPHER_INTERNALNAME or NO_ERROR_STRINGS,
+        then its the internal cipher suite name */
     cipher = wolfSSL_get_current_cipher(ssl);
     cipherName1 = wolfSSL_CIPHER_get_name(cipher);
     cipherName2 = wolfSSL_get_cipher(ssl);
-#ifdef NO_ERROR_STRINGS
-    AssertNull(cipherName1);
-    AssertNull(cipherName2);
-#else
     AssertStrEQ(cipherName1, cipherName2);
-#endif
-
 
     if (cb != NULL)
         ((cbType)cb)(ctx, ssl);
