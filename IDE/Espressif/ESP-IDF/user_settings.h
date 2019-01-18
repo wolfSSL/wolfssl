@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -44,9 +44,21 @@
 #define CURVE25519_SMALL
 #define HAVE_ED25519
 
+/* esp32-wroom-32se specific definition */
+#if defined(WOLFSSL_ESPWROOM32SE)
+    #define WOLFSSL_ATECC508A
+    #define HAVE_PK_CALLBACKS
+    /* when you want to use a custom slot allocation for ATECC608A */
+    /* unless your configuration is unusual, you can use default   */
+    /* implementation.                                             */
+    /* #define CUSTOM_SLOT_ALLOCATION                              */
+#endif
+
+
 /* debug options */
 /* #define DEBUG_WOLFSSL */
 /* #define WOLFSSL_ESP32WROOM32_CRYPT_DEBUG */
+/* #define WOLFSSL_ATECC508A_DEBUG          */
 
 /* date/time                               */
 /* if it cannot adjust time in the device, */

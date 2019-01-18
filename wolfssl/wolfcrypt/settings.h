@@ -1,6 +1,6 @@
 /* settings.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -181,6 +181,9 @@
 /* Uncomment next line if using Espressif ESP32-WROOM-32 */
 /* #define WOLFSSL_ESPWROOM32 */
 
+/* Uncomment next line if using Espressif ESP32-WROOM-32SE */
+/* #define WOLFSSL_ESPWROOM32SE */
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -233,7 +236,7 @@
     #define TFM_TIMING_RESISTANT
     #define ECC_TIMING_RESISTANT
     #define WC_RSA_BLINDING
-#if defined(WOLFSSL_ESPWROOM32)
+#if defined(WOLFSSL_ESPWROOM32) || defined(WOLFSSL_ESPWROOM32SE)
    #ifndef NO_ESP32WROOM32_CRYPT
         #define WOLFSSL_ESP32WROOM32_CRYPT
     #endif

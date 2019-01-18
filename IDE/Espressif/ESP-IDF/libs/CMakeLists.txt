@@ -11,6 +11,7 @@ set(INCLUDE_PATH ${WOLFSSL_ROOT})
 set(COMPONENT_SRCDIRS "./src/"
                       "./wolfcrypt/src/"
                       "./wolfcrypt/src/port/Espressif/"
+                      "./wolfcrypt/src/port/atmel/"
                       )
 
 set(COMPONENT_REQUIRES lwip)
@@ -21,6 +22,10 @@ set(COMPONENT_ADD_INCLUDEDIRS
     "../freertos/include/freertos" 
     "${WOLFSSL_ROOT}"
     )
+
+if(IS_DIRECTORY ${IDF_PATH}/components/cryptoauthlib)
+    list(APPEND COMPONENT_ADD_INCLUDEDIRS "../cryptoauthlib/lib")
+endif()
 
 set(COMPONENT_SRCEXCLUDE
     "wolfcrypt/src/aes_asm.S"

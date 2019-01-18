@@ -5367,7 +5367,7 @@ static int string_matches(const char* arg, const char* str)
     return XSTRNCMP(arg, str, len) == 0;
 }
 #ifdef WOLFSSL_ESPIDF
-int app_main( )
+int wolf_benchmark_task( )
 #else
 int main(int argc, char** argv)
 #endif
