@@ -43,7 +43,7 @@
 
 #include <wolfssl/wolfcrypt/rsa.h>
 
-#ifdef WOLFSSL_AFALG_XILINX
+#ifdef WOLFSSL_AFALG_XILINX_RSA
 #include <wolfssl/wolfcrypt/port/af_alg/wc_afalg.h>
 #endif
 
@@ -322,7 +322,7 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     key->mod    = NULL;
 #endif
 
-#ifdef WOLFSSL_AFALG_XILINX
+#ifdef WOLFSSL_AFALG_XILINX_RSA
     key->alFd = WC_SOCK_NOTSET;
     key->rdFd = WC_SOCK_NOTSET;
 #endif
@@ -479,7 +479,7 @@ int wc_FreeRsaKey(RsaKey* key)
     key->mod = NULL;
 #endif
 
-#ifdef WOLFSSL_AFALG_XILINX
+#ifdef WOLFSSL_AFALG_XILINX_RSA
     /* make sure that sockets are closed on cleanup */
     if (key->alFd > 0) {
         close(key->alFd);
@@ -1530,7 +1530,7 @@ static int wc_RsaFunctionNonBlock(const byte* in, word32 inLen, byte* out,
 }
 #endif /* WC_RSA_NONBLOCK */
 
-#ifdef WOLFSSL_AFALG_XILINX
+#ifdef WOLFSSL_AFALG_XILINX_RSA
 #ifndef ERROR_OUT
 #define ERROR_OUT(x) ret = (x); goto done
 #endif

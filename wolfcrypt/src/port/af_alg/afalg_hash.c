@@ -26,7 +26,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_AFALG_HASH) || (defined(WOLFSSL_AFALG_XILINX) \
+#if defined(WOLFSSL_AFALG_HASH) || (defined(WOLFSSL_AFALG_XILINX_SHA3) \
         && defined(WOLFSSL_SHA3))
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -266,7 +266,7 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 
 
 
-#if defined(WOLFSSL_SHA3) && defined(WOLFSSL_AFALG_XILINX)
+#if defined(WOLFSSL_SHA3) && defined(WOLFSSL_AFALG_XILINX_SHA3)
 #include <wolfssl/wolfcrypt/sha3.h>
 
 static const char WC_NAME_SHA3[] = "xilinx-keccak-384";
@@ -334,6 +334,6 @@ int wc_Sha3_384_Copy(wc_Sha3* src, wc_Sha3* dst)
 {
     return AfalgHashCopy(src, dst);
 }
-#endif /* WOLFSSL_SHA3 && WOLFSSL_AFALG_XILINX */
+#endif /* WOLFSSL_SHA3 && WOLFSSL_AFALG_XILINX_SHA3 */
 
 #endif /* WOLFSSL_AFALG */

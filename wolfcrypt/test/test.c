@@ -223,7 +223,7 @@
 #endif
 
     /* these cases do not have intermediate hashing support */
-#if (defined(WOLFSSL_AFALG_XILINX) && !defined(WOLFSSL_AFALG_HASH_KEEP))
+#if (defined(WOLFSSL_AFALG_XILINX_SHA3) && !defined(WOLFSSL_AFALG_HASH_KEEP))
     #define NO_INTM_HASH_TEST
 #endif
 
@@ -2591,7 +2591,7 @@ static int sha3_384_test(void)
     a.inLen  = XSTRLEN(a.input);
     a.outLen = WC_SHA3_384_DIGEST_SIZE;
 
-#ifdef WOLFSSL_AFALG_XILINX
+#ifdef WOLFSSL_AFALG_XILINX_SHA3
     /* NIST test vector with a length that is a multiple of 4 */
     b.input  = "\x7d\x80\xb1\x60\xc4\xb5\x36\xa3\xbe\xb7\x99\x80\x59\x93\x44"
                "\x04\x7c\x5f\x82\xa1\xdf\xc3\xee\xd4";
@@ -9303,7 +9303,7 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
      *     -101 = USER_CRYPTO_ERROR
      */
     if (ret == 0)
-#elif defined(WOLFSSL_AFALG_XILINX)
+#elif defined(WOLFSSL_AFALG_XILINX_RSA)
     /* blinding / rng handled with hardware acceleration */
     if (ret != 0)
 #elif defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)

@@ -27,7 +27,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_XILINX_CRYPT) && \
-   !defined(WOLFSSL_AFALG_XILINX)
+   !defined(WOLFSSL_AFALG_XILINX_SHA3)
 
 #if defined(HAVE_FIPS) && \
 	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
