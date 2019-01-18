@@ -19625,6 +19625,13 @@ const char* wolfSSL_alert_type_string_long(int alertID)
                 return illegal_parameter_str;
             }
 
+        case unknown_ca:
+            {
+                static const char unknown_ca_str[] =
+                    "unknown_ca";
+                return unknown_ca_str;
+            }
+
         case decode_error:
             {
                 static const char decode_error_str[] =
