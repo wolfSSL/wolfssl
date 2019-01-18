@@ -1,4 +1,4 @@
-/* cryptodev.c
+/* cryptocb.c
  *
  * Copyright (C) 2006-2018 wolfSSL Inc.
  *
@@ -27,49 +27,49 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
 
-#include <wolfssl/wolfcrypt/cryptodev.h>
+#include <wolfssl/wolfcrypt/cryptocb.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
 
 /* TODO: Consider linked list with mutex */
-#ifndef MAX_CRYPTO_DEVICES
-#define MAX_CRYPTO_DEVICES 8
+#ifndef MAX_CRYPTO_DEVID_CALLBACKS
+#define MAX_CRYPTO_DEVID_CALLBACKS 8
 #endif
 
-typedef struct CryptoDev {
+typedef struct CryptoCb {
     int devId;
     CryptoDevCallbackFunc cb;
     void* ctx;
-} CryptoDev;
-static CryptoDev gCryptoDev[MAX_CRYPTO_DEVICES];
+} CryptoCb;
+static CryptoCb gCryptoDev[MAX_CRYPTO_DEVID_CALLBACKS];
 
-static CryptoDev* wc_CryptoDev_FindDevice(int devId)
+static CryptoCb* wc_CryptoCb_FindDevice(int devId)
 {
     int i;
-    for (i=0; i<MAX_CRYPTO_DEVICES; i++) {
+    for (i=0; i<MAX_CRYPTO_DEVID_CALLBACKS; i++) {
         if (gCryptoDev[i].devId == devId)
             return &gCryptoDev[i];
     }
     return NULL;
 }
 
-void wc_CryptoDev_Init(void)
+void wc_CryptoCb_Init(void)
 {
     int i;
-    for (i=0; i<MAX_CRYPTO_DEVICES; i++) {
+    for (i=0; i<MAX_CRYPTO_DEVID_CALLBACKS; i++) {
         gCryptoDev[i].devId = INVALID_DEVID;
     }
 }
 
-int wc_CryptoDev_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
+int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
 {
     /* find existing or new */
-    CryptoDev* dev = wc_CryptoDev_FindDevice(devId);
+    CryptoCb* dev = wc_CryptoCb_FindDevice(devId);
     if (dev == NULL)
-        dev = wc_CryptoDev_FindDevice(INVALID_DEVID);
+        dev = wc_CryptoCb_FindDevice(INVALID_DEVID);
 
     if (dev == NULL)
         return BUFFER_E; /* out of devices */
@@ -81,9 +81,9 @@ int wc_CryptoDev_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
     return 0;
 }
 
-void wc_CryptoDev_UnRegisterDevice(int devId)
+void wc_CryptoCb_UnRegisterDevice(int devId)
 {
-    CryptoDev* dev = wc_CryptoDev_FindDevice(devId);
+    CryptoCb* dev = wc_CryptoCb_FindDevice(devId);
     if (dev) {
         XMEMSET(dev, 0, sizeof(*dev));
         dev->devId = INVALID_DEVID;
@@ -91,14 +91,14 @@ void wc_CryptoDev_UnRegisterDevice(int devId)
 }
 
 #ifndef NO_RSA
-int wc_CryptoDev_Rsa(const byte* in, word32 inLen, byte* out,
+int wc_CryptoCb_Rsa(const byte* in, word32 inLen, byte* out,
     word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
     int ret = NOT_COMPILED_IN;
-    CryptoDev* dev;
+    CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoDev_FindDevice(key->devId);
+    dev = wc_CryptoCb_FindDevice(key->devId);
     if (dev) {
         if (dev->cb) {
             wc_CryptoInfo cryptoInfo;
@@ -121,13 +121,13 @@ int wc_CryptoDev_Rsa(const byte* in, word32 inLen, byte* out,
 }
 
 #ifdef WOLFSSL_KEY_GEN
-int wc_CryptoDev_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
+int wc_CryptoCb_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 {
     int ret = NOT_COMPILED_IN;
-    CryptoDev* dev;
+    CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoDev_FindDevice(key->devId);
+    dev = wc_CryptoCb_FindDevice(key->devId);
     if (dev) {
         if (dev->cb) {
             wc_CryptoInfo cryptoInfo;
@@ -149,13 +149,13 @@ int wc_CryptoDev_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #endif /* !NO_RSA */
 
 #ifdef HAVE_ECC
-int wc_CryptoDev_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId)
+int wc_CryptoCb_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId)
 {
     int ret = NOT_COMPILED_IN;
-    CryptoDev* dev;
+    CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoDev_FindDevice(key->devId);
+    dev = wc_CryptoCb_FindDevice(key->devId);
     if (dev) {
         if (dev->cb) {
             wc_CryptoInfo cryptoInfo;
@@ -174,14 +174,14 @@ int wc_CryptoDev_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId)
     return ret;
 }
 
-int wc_CryptoDev_Ecdh(ecc_key* private_key, ecc_key* public_key,
+int wc_CryptoCb_Ecdh(ecc_key* private_key, ecc_key* public_key,
     byte* out, word32* outlen)
 {
     int ret = NOT_COMPILED_IN;
-    CryptoDev* dev;
+    CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoDev_FindDevice(private_key->devId);
+    dev = wc_CryptoCb_FindDevice(private_key->devId);
     if (dev) {
         if (dev->cb) {
             wc_CryptoInfo cryptoInfo;
@@ -200,14 +200,14 @@ int wc_CryptoDev_Ecdh(ecc_key* private_key, ecc_key* public_key,
     return ret;
 }
 
-int wc_CryptoDev_EccSign(const byte* in, word32 inlen, byte* out,
+int wc_CryptoCb_EccSign(const byte* in, word32 inlen, byte* out,
     word32 *outlen, WC_RNG* rng, ecc_key* key)
 {
     int ret = NOT_COMPILED_IN;
-    CryptoDev* dev;
+    CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoDev_FindDevice(key->devId);
+    dev = wc_CryptoCb_FindDevice(key->devId);
     if (dev) {
         if (dev->cb) {
             wc_CryptoInfo cryptoInfo;
@@ -228,14 +228,14 @@ int wc_CryptoDev_EccSign(const byte* in, word32 inlen, byte* out,
     return ret;
 }
 
-int wc_CryptoDev_EccVerify(const byte* sig, word32 siglen,
+int wc_CryptoCb_EccVerify(const byte* sig, word32 siglen,
     const byte* hash, word32 hashlen, int* res, ecc_key* key)
 {
     int ret = NOT_COMPILED_IN;
-    CryptoDev* dev;
+    CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoDev_FindDevice(key->devId);
+    dev = wc_CryptoCb_FindDevice(key->devId);
     if (dev) {
         if (dev->cb) {
             wc_CryptoInfo cryptoInfo;
@@ -259,17 +259,17 @@ int wc_CryptoDev_EccVerify(const byte* sig, word32 siglen,
 
 #ifndef NO_AES
 #ifdef HAVE_AESGCM
-int wc_CryptoDev_AesGcmEncrypt(Aes* aes, byte* out,
+int wc_CryptoCb_AesGcmEncrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz,
                                const byte* iv, word32 ivSz,
                                byte* authTag, word32 authTagSz,
                                const byte* authIn, word32 authInSz)
 {
     int ret = NOT_COMPILED_IN;
-    CryptoDev* dev;
+    CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoDev_FindDevice(aes->devId);
+    dev = wc_CryptoCb_FindDevice(aes->devId);
     if (dev) {
         if (dev->cb) {
             wc_CryptoInfo cryptoInfo;
@@ -295,17 +295,17 @@ int wc_CryptoDev_AesGcmEncrypt(Aes* aes, byte* out,
     return ret;
 }
 
-int wc_CryptoDev_AesGcmDecrypt(Aes* aes, byte* out,
+int wc_CryptoCb_AesGcmDecrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz,
                                const byte* iv, word32 ivSz,
                                const byte* authTag, word32 authTagSz,
                                const byte* authIn, word32 authInSz)
 {
     int ret = NOT_COMPILED_IN;
-    CryptoDev* dev;
+    CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoDev_FindDevice(aes->devId);
+    dev = wc_CryptoCb_FindDevice(aes->devId);
     if (dev) {
         if (dev->cb) {
             wc_CryptoInfo cryptoInfo;
@@ -333,14 +333,14 @@ int wc_CryptoDev_AesGcmDecrypt(Aes* aes, byte* out,
 #endif /* HAVE_AESGCM */
 
 #ifdef HAVE_AES_CBC
-int wc_CryptoDev_AesCbcEncrypt(Aes* aes, byte* out,
+int wc_CryptoCb_AesCbcEncrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz)
 {
     int ret = NOT_COMPILED_IN;
-    CryptoDev* dev;
+    CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoDev_FindDevice(aes->devId);
+    dev = wc_CryptoCb_FindDevice(aes->devId);
     if (dev) {
         if (dev->cb) {
             wc_CryptoInfo cryptoInfo;
@@ -360,14 +360,14 @@ int wc_CryptoDev_AesCbcEncrypt(Aes* aes, byte* out,
     return ret;
 }
 
-int wc_CryptoDev_AesCbcDecrypt(Aes* aes, byte* out,
+int wc_CryptoCb_AesCbcDecrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz)
 {
     int ret = NOT_COMPILED_IN;
-    CryptoDev* dev;
+    CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoDev_FindDevice(aes->devId);
+    dev = wc_CryptoCb_FindDevice(aes->devId);
     if (dev) {
         if (dev->cb) {
             wc_CryptoInfo cryptoInfo;
@@ -390,14 +390,14 @@ int wc_CryptoDev_AesCbcDecrypt(Aes* aes, byte* out,
 #endif /* !NO_AES */
 
 #ifndef NO_SHA
-int wc_CryptoDev_ShaHash(wc_Sha* sha, const byte* in,
+int wc_CryptoCb_ShaHash(wc_Sha* sha, const byte* in,
     word32 inSz, byte* digest)
 {
     int ret = NOT_COMPILED_IN;
-    CryptoDev* dev;
+    CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoDev_FindDevice(sha->devId);
+    dev = wc_CryptoCb_FindDevice(sha->devId);
     if (dev) {
         if (dev->cb) {
             wc_CryptoInfo cryptoInfo;
@@ -418,14 +418,14 @@ int wc_CryptoDev_ShaHash(wc_Sha* sha, const byte* in,
 #endif /* !NO_SHA */
 
 #ifndef NO_SHA256
-int wc_CryptoDev_Sha256Hash(wc_Sha256* sha256, const byte* in,
+int wc_CryptoCb_Sha256Hash(wc_Sha256* sha256, const byte* in,
     word32 inSz, byte* digest)
 {
     int ret = NOT_COMPILED_IN;
-    CryptoDev* dev;
+    CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoDev_FindDevice(sha256->devId);
+    dev = wc_CryptoCb_FindDevice(sha256->devId);
     if (dev) {
         if (dev->cb) {
             wc_CryptoInfo cryptoInfo;
@@ -446,13 +446,13 @@ int wc_CryptoDev_Sha256Hash(wc_Sha256* sha256, const byte* in,
 #endif /* !NO_SHA256 */
 
 #ifndef WC_NO_RNG
-int wc_CryptoDev_RandomBlock(WC_RNG* rng, byte* out, word32 sz)
+int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz)
 {
     int ret = NOT_COMPILED_IN;
-    CryptoDev* dev;
+    CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoDev_FindDevice(rng->devId);
+    dev = wc_CryptoCb_FindDevice(rng->devId);
     if (dev) {
         if (dev->cb) {
             wc_CryptoInfo cryptoInfo;
@@ -470,4 +470,4 @@ int wc_CryptoDev_RandomBlock(WC_RNG* rng, byte* out, word32 sz)
 }
 #endif /* !WC_NO_RNG */
 
-#endif /* WOLF_CRYPTO_DEV */
+#endif /* WOLF_CRYPTO_CB */

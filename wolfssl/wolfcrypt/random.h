@@ -158,7 +158,7 @@ struct WC_RNG {
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif
-#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_DEV)
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     int devId;
 #endif
 };

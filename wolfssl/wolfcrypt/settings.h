@@ -1865,6 +1865,12 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_NO_FORCE_ZERO
 #endif
 
+/* Detect old cryptodev name */
+#if defined(WOLF_CRYPTO_DEV) && !defined(WOLF_CRYPTO_CB)
+    #define WOLF_CRYPTO_CB
+#endif
+
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif

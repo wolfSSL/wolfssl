@@ -4239,22 +4239,24 @@ else
 fi
 
 
-# Support for crypto device hardware
-AC_ARG_ENABLE([cryptodev],
-    [AS_HELP_STRING([--enable-cryptodev],[Enable crypto hardware support (default: disabled)])],
-    [ ENABLED_CRYPTODEV=$enableval ],
-    [ ENABLED_CRYPTODEV=no ]
+# Support for crypto callbacks
+AC_ARG_ENABLE([cryptocb],
+    [AS_HELP_STRING([--enable-cryptocb],[Enable crypto callbacks (default: disabled)])],
+    [ ENABLED_CRYPTOCB=$enableval ],
+    [ ENABLED_CRYPTOCB=no ]
     )
+# cryptodev is old name, replaced with cryptocb
+AC_ARG_ENABLE([cryptodev],,[ ENABLED_CRYPTOCB=$enableval ],[ ENABLED_CRYPTOCB=no ])
 
 if test "x$ENABLED_PKCS11" = "xyes"
 then
-    ENABLED_CRYPTODEV=yes
+    ENABLED_CRYPTOCB=yes
 fi
-if test "$ENABLED_CRYPTODEV" = "yes"
+if test "$ENABLED_CRYPTOCB" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_DEV"
+    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB"
 fi
-AM_CONDITIONAL([BUILD_CRYPTODEV], [test "x$ENABLED_CRYPTODEV" = "xyes"])
+AM_CONDITIONAL([BUILD_CRYPTOCB], [test "x$ENABLED_CRYPTOCB" = "xyes"])
 
 
 # Session Export

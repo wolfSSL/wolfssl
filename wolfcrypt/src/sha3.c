@@ -706,6 +706,7 @@ static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
             ret = IntelQaSymSha3(&sha3->asyncDev, NULL, data, len);
             if (ret != NOT_COMPILED_IN)
                 return ret;
+            /* fall-through on not compiled in */
         }
     #endif
     }
@@ -741,6 +742,7 @@ static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, byte p, byte len)
             ret = IntelQaSymSha3(&sha3->asyncDev, hash, NULL, len);
             if (ret != NOT_COMPILED_IN)
                 return ret;
+            /* fall-through on not compiled in */
         }
     #endif
     }

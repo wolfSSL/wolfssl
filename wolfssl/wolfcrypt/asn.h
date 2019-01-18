@@ -945,7 +945,7 @@ struct TrustedPeerCert {
 
 /* Macro for calculating hashId */
 #if defined(NO_SHA) && defined(NO_SHA256)
-    #ifdef WOLF_CRYPTO_DEV
+    #ifdef WOLF_CRYPTO_CB
         #define CalcHashId(data, len, hash) wc_CryptoDevSha256Hash(data, len, hash)
     #else
         #define CalcHashId(data, len, hash) NOT_COMPILED_IN

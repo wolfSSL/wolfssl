@@ -122,8 +122,8 @@ ECC Curve Sizes:
     #include <wolfssl/wolfcrypt/hash.h>
 #endif
 
-#ifdef WOLF_CRYPTO_DEV
-    #include <wolfssl/wolfcrypt/cryptodev.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
 #ifdef NO_INLINE
@@ -3388,9 +3388,9 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
        return BAD_FUNC_ARG;
    }
 
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     if (private_key->devId != INVALID_DEVID) {
-        err = wc_CryptoDev_Ecdh(private_key, public_key, out, outlen);
+        err = wc_CryptoCb_Ecdh(private_key, public_key, out, outlen);
         if (err != NOT_COMPILED_IN)
             return err;
     }
@@ -3949,9 +3949,9 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
         return err;
     }
 
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
-        err = wc_CryptoDev_MakeEccKey(rng, keysize, key, curve_id);
+        err = wc_CryptoCb_MakeEccKey(rng, keysize, key, curve_id);
         if (err != NOT_COMPILED_IN)
             return err;
     }
@@ -4142,7 +4142,7 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
     XMEMSET(key, 0, sizeof(ecc_key));
     key->state = ECC_STATE_NONE;
 
-#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_DEV)
+#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
     key->devId = devId;
 #else
     (void)devId;
@@ -4314,9 +4314,9 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
         return ECC_BAD_ARG_E;
     }
 
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
-        err = wc_CryptoDev_EccSign(in, inlen, out, outlen, rng, key);
+        err = wc_CryptoCb_EccSign(in, inlen, out, outlen, rng, key);
         if (err != NOT_COMPILED_IN)
             return err;
     }
@@ -5152,9 +5152,9 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
         return ECC_BAD_ARG_E;
     }
 
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
-        err = wc_CryptoDev_EccVerify(sig, siglen, hash, hashlen, res, key);
+        err = wc_CryptoCb_EccVerify(sig, siglen, hash, hashlen, res, key);
         if (err != NOT_COMPILED_IN)
             return err;
     }
