@@ -172,21 +172,17 @@ typedef struct wc_CryptoInfo {
 #endif
 } wc_CryptoInfo;
 
-/* old naming */
-#ifdef WOLF_CRYPTO_DEV
-    /* old callback function name */
-    typedef int (*CryptoDevCallbackFunc)(int devId, wc_CryptoInfo* info, void* ctx);
-    /* old function names */
-    #define wc_CryptoDev_RegisterDevice   wc_CryptoCb_RegisterDevice
-    #define wc_CryptoDev_UnRegisterDevice wc_CryptoCb_UnRegisterDevice
-#endif
 
-typedef int (*wc_CryptoCallbackFunc)(int devId, wc_CryptoInfo* info, void* ctx);
+typedef int (*CryptoDevCallbackFunc)(int devId, wc_CryptoInfo* info, void* ctx);
 
 WOLFSSL_LOCAL void wc_CryptoCb_Init(void);
 
-WOLFSSL_API int  wc_CryptoCb_RegisterDevice(int devId, wc_CryptoCallbackFunc cb, void* ctx);
+WOLFSSL_API int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx);
 WOLFSSL_API void wc_CryptoCb_UnRegisterDevice(int devId);
+
+/* old function names */
+#define wc_CryptoDev_RegisterDevice   wc_CryptoCb_RegisterDevice
+#define wc_CryptoDev_UnRegisterDevice wc_CryptoCb_UnRegisterDevice
 
 
 #ifndef NO_RSA

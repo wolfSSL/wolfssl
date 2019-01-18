@@ -41,7 +41,7 @@
 
 typedef struct CryptoCb {
     int devId;
-    wc_CryptoCallbackFunc cb;
+    CryptoDevCallbackFunc cb;
     void* ctx;
 } CryptoCb;
 static CryptoCb gCryptoDev[MAX_CRYPTO_DEVID_CALLBACKS];
@@ -64,7 +64,7 @@ void wc_CryptoCb_Init(void)
     }
 }
 
-int wc_CryptoCb_RegisterDevice(int devId, wc_CryptoCallbackFunc cb, void* ctx)
+int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
 {
     /* find existing or new */
     CryptoCb* dev = wc_CryptoCb_FindDevice(devId);
