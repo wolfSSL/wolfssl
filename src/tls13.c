@@ -3300,12 +3300,8 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     WOLFSSL_ENTER("DoPreSharedKeys");
 
     ext = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
-    if (ext == NULL) {
-#ifdef WOLFSSL_EARLY_DATA
-        ssl->earlyData = no_early_data;
-#endif
+    if (ext == NULL)
         return 0;
-    }
 
     /* Extensions pushed on stack/list and PSK must be last. */
     if (ssl->extensions != ext)
@@ -3792,6 +3788,9 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifndef WOLFSSL_NO_TLS12
     int             bogusID = 0;
 #endif
+#ifdef HAVE_SESSION_TICKET
+    int             inputHashed = 0;
+#endif
 
     WOLFSSL_START(WC_FUNC_CLIENT_HELLO_DO);
     WOLFSSL_ENTER("DoTls13ClientHello");
@@ -3822,6 +3821,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if (ssl->options.downgrade) {
        if ((ret = HashInput(ssl, input + begin, helloSz)) != 0)
             return ret;
+       inputHashed = 1;
     }
 #endif
 
@@ -3967,18 +3967,28 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-        if (ssl->options.downgrade) {
-            if ((ret = InitHandshakeHashes(ssl)) != 0)
+        if (TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY) != NULL) {
+            if (ssl->options.downgrade) {
+                if ((ret = InitHandshakeHashes(ssl)) != 0)
+                    return ret;
+    #ifdef HAVE_SESSION_TICKET
+                inputHashed = 0;
+    #endif
+            }
+
+            /* Refine list for PSK processing. */
+            RefineSuites(ssl, &clSuites);
+
+            /* Process the Pre-Shared Key extension if present. */
+            ret = DoPreSharedKeys(ssl, input + begin, helloSz, &usingPSK);
+            if (ret != 0)
                 return ret;
         }
-
-        /* Refine list for PSK processing. */
-        RefineSuites(ssl, &clSuites);
-
-        /* Process the Pre-Shared Key extension if present. */
-        ret = DoPreSharedKeys(ssl, input + begin, helloSz, &usingPSK);
-        if (ret != 0)
-            return ret;
+        else {
+#ifdef WOLFSSL_EARLY_DATA
+            ssl->earlyData = no_early_data;
+#endif
+        }
 #endif
     }
 #ifndef WOLFSSL_NO_TLS12
@@ -4024,11 +4034,12 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             /* May or may not have done any hashing. */
             if ((ret = InitHandshakeHashes(ssl)) != 0)
                 return ret;
+            inputHashed = 0;
         }
 #endif
 
 #ifdef HAVE_SESSION_TICKET
-        if (IsAtLeastTLSv1_3(ssl->version) || !ssl->options.downgrade)
+        if (!inputHashed)
 #endif
         {
             if ((ret = HashInput(ssl, input + begin, helloSz)) != 0)
