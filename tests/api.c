@@ -23288,8 +23288,8 @@ static void test_wolfSSL_ASN1_STRING_to_UTF8(void){
 
     printf(testingFmt, "wolfSSL_ASN1_STRING_to_UTF8(): NID_commonName");
     AssertNotNull(subject = wolfSSL_X509_get_subject_name(x509));
-    AssertIntEQ((idx = wolfSSL_X509_NAME_get_index_by_NID(subject, \
-                    NID_commonName, -1)), 0);
+    AssertIntEQ((idx = wolfSSL_X509_NAME_get_index_by_NID(subject,
+                    NID_commonName, -1)), 5);
     AssertNotNull(e = wolfSSL_X509_NAME_get_entry(subject, idx));
     AssertNotNull(a =wolfSSL_X509_NAME_ENTRY_get_data(e));
     AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(&actual_output, a)), 15);
@@ -23298,17 +23298,17 @@ static void test_wolfSSL_ASN1_STRING_to_UTF8(void){
     printf(resultFmt, result == 0 ? passed : failed);
 
     printf(testingFmt, "wolfSSL_ASN1_STRING_to_UTF8(NULL, valid): ");
-    AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(NULL, a)), \
+    AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(NULL, a)),
             WOLFSSL_FATAL_ERROR);
     printf(resultFmt, len == WOLFSSL_FATAL_ERROR ? passed : failed);
 
     printf(testingFmt, "wolfSSL_ASN1_STRING_to_UTF8(valid, NULL): ");
-    AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(&actual_output, NULL)), \
+    AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(&actual_output, NULL)),
             WOLFSSL_FATAL_ERROR);
     printf(resultFmt, len == WOLFSSL_FATAL_ERROR ? passed : failed);
 
     printf(testingFmt, "wolfSSL_ASN1_STRING_to_UTF8(NULL, NULL): ");
-    AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(NULL, NULL)), \
+    AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(NULL, NULL)),
             WOLFSSL_FATAL_ERROR);
     printf(resultFmt, len == WOLFSSL_FATAL_ERROR ? passed : failed);
 

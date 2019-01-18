@@ -16905,19 +16905,21 @@ int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, \
     int i;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_STRING_to_UTF8");
+
     if (out == NULL || in == NULL){
         WOLFSSL_MSG("NULL argument passed to function");
         return WOLFSSL_FATAL_ERROR;
     }
 
-    *out = (unsigned char*)XMALLOC(in->length, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    *out = (unsigned char*)XMALLOC(in->length+1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (*out == NULL){
          WOLFSSL_MSG("'out' is NULL after XMALLOC");
          return WOLFSSL_FATAL_ERROR;
     }
+    XMEMSET(*out, 0, in->length+1);
 
     for (i=0; i < in->length; i++){
-        *(*(out)+i) = in->data[i];
+       *(*(out)+i) = in->data[i];
     }
 
     return in->length;
@@ -34206,8 +34208,42 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
 #ifdef HAVE_ECC
     const char * wolfSSL_OBJ_nid2sn(int n) {
+        #ifdef WOLFSSL_QT
+        const char* sn;
+        #endif
         int i;
         WOLFSSL_ENTER("wolfSSL_OBJ_nid2sn");
+
+        #ifdef WOLFSSL_QT
+        switch(n)
+        {
+            case NID_commonName :
+                sn = "CN";
+                break;
+            case NID_countryName :
+                sn = "C";
+                break;
+            case NID_localityName :
+                sn = "L";
+                break;
+            case NID_stateOrProvinceName :
+                sn = "ST";
+                break;
+            case NID_organizationName :
+                sn = "O";
+                break;
+            case NID_organizationalUnitName :
+                sn = "OU";
+                break;
+            case NID_emailAddress :
+                sn = "emailAddress";
+                break;
+            default  :
+                WOLFSSL_MSG("nid not in table\n");
+                sn = NULL;
+        }
+        return sn;
+        #endif
 
         /* find based on NID and return name */
         for (i = 0; i < ecc_sets[i].size; i++) {
@@ -34246,6 +34282,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
     static int oid2nid(word32 oid, int grp)
     {
+        WOLFSSL_ENTER("oid2nid");
         /* get OID type */
         switch (grp) {
             /* oidHashType */
@@ -34831,6 +34868,25 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         if (loc <= DN_NAMES_MAX + name->fullName.dcNum) {
             if (wolfSSL_nameByLoc(name, loc) != NULL)
                 return &name->cnEntry;
+        }
+
+        /* DC component */
+        if (name->fullName.dcMode){
+            if (name->fullName.fullName != NULL){
+                if (loc == name->fullName.dcNum){
+                    name->cnEntry.data.data   
+                        = &name->fullName.fullName[name->fullName.cIdx];
+                    name->cnEntry.data.length = name->fullName.cLen;
+                    name->cnEntry.nid         = ASN_COUNTRY_NAME;
+                } else {
+                    name->cnEntry.data.data   
+                        = &name->fullName.fullName[name->fullName.dcIdx[loc]];
+                    name->cnEntry.data.length = name->fullName.dcLen[loc];
+                    name->cnEntry.nid         = ASN_DOMAIN_COMPONENT;
+                }
+            }
+            name->cnEntry.data.type = CTC_UTF8;
+       /* common name index case */
         } else if (loc == name->fullName.cnIdx && name->x509 != NULL) {
             /* get CN shortcut from x509 since it has null terminator */
             name->cnEntry.data.data   = name->x509->subjectCN;
@@ -34838,11 +34894,11 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             name->cnEntry.data.type   = CTC_UTF8;
             name->cnEntry.nid         = ASN_COMMON_NAME;
             name->cnEntry.set         = 1;
-            return &name->cnEntry;
+        } else {
+            WOLFSSL_MSG("loc passed in is not in range of parsed DN's");
+            return NULL;
         }
-        WOLFSSL_MSG("loc passed in is not in range of parsed DN's");
-
-        return NULL;
+        return &name->cnEntry;
     }
 
     #ifndef NO_WOLFSSL_STUB
@@ -39205,5 +39261,3 @@ int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey)
     return wolfSSL_X509_set_pubkey(req, pkey);
 }
 #endif
-
-
