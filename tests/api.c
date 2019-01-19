@@ -21909,8 +21909,98 @@ static void test_wolfSSL_EC_KEY_dup(void)
 #endif
 }
 
+static void test_EVP_PKEY_set1_get1_DSA (void)
+{
+#if !defined(NO_DSA)
+    DSA       *dsa  = NULL;
+    DSA       *setDsa  = NULL;
+    EVP_PKEY  *pkey = NULL;
+    EVP_PKEY  *set1Pkey = NULL;
 
+    SHA_CTX sha;
+    byte    signature[DSA_SIG_SIZE];
+    byte    hash[WC_SHA_DIGEST_SIZE];
+    word32  bytes;
+    int     answer;
+#ifdef USE_CERT_BUFFERS_1024
+    const unsigned char* dsa_key_der = dsa_key_der1024;
+    int dsa_key_sz  = sizeof_dsa_key_der_1024;
+    byte    tmp[ONEK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMCPY(tmp, dsa_key_der, dsa_key_sz);
+    bytes = dsa_key_der_sz;
+#elif defined(USE_CERT_BUFFERS_2048)
+    const unsigned char* dsa_key_der = dsa_key_der_2048;
+    int dsa_key_sz  = sizeof_dsa_key_der_2048;
+    byte    tmp[TWOK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMCPY(tmp, dsa_key_der, dsa_key_sz);
+    bytes = dsa_key_sz;
+#else
+    const unsigned char* dsa_key_der = dsa_key_der_2048;
+    int dsa_key_sz  = sizeof_dsa_key_der_2048;
+    byte    tmp[TWOK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMCPY(tmp, dsa_key_der, dsa_key_sz);
+    XFILE fp = XOPEN("./certs/dsa2048.der", "rb");
+    if (fp == XBADFILE) {
+        return WOLFSSL_BAD_FILE;
+    }
+    bytes = (word32) XFREAD(tmp, 1, sizeof(tmp), fp);
+    XFCLOSE(fp);
+#endif /* END USE_CERT_BUFFERS_1024 */
 
+    printf(testingFmt, "wolfSSL_EVP_PKEY_set1_DSA and wolfSSL_EVP_PKEY_get1_DSA");
+
+    /* Create hash to later Sign and Verify */
+    AssertIntEQ(SHA1_Init(&sha), WOLFSSL_SUCCESS);
+    AssertIntEQ(SHA1_Update(&sha, tmp, bytes), WOLFSSL_SUCCESS);
+    AssertIntEQ(SHA1_Final(hash,&sha), WOLFSSL_SUCCESS);
+
+    /* Initialize pkey with der format dsa key */
+    AssertNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_DSA, &pkey,
+                &dsa_key_der,(long)dsa_key_sz));
+
+    /*
+     * Test wolfSSL_EVP_PKEY_get1_DSA
+     */
+    /* Should Fail: NULL argument */
+    AssertNull(dsa = wolfSSL_EVP_PKEY_get1_DSA(NULL));
+    /* Should Pass: Initialized pkey argument */
+    AssertNotNull(dsa = wolfSSL_EVP_PKEY_get1_DSA(pkey));
+
+    /* Sign */
+    AssertIntEQ(wolfSSL_DSA_do_sign(hash, signature, dsa), WOLFSSL_SUCCESS);
+    /* Verify. */
+    AssertIntEQ(wolfSSL_DSA_do_verify(hash, signature, dsa, &answer),WOLFSSL_SUCCESS);
+
+    /*
+     * Test wolfSSL_EVP_PKEY_set1_DSA
+     */
+
+    /* Should Fail: set1Pkey not initialized */
+    AssertIntNE(wolfSSL_EVP_PKEY_set1_DSA(set1Pkey, dsa), WOLFSSL_SUCCESS);
+
+    /* Initialize set1Pkey */
+    set1Pkey = wolfSSL_PKEY_new();
+
+    /* Should Fail Verify: setDsa not initialized from set1Pkey */
+    AssertIntNE(wolfSSL_DSA_do_verify(hash,signature,setDsa,&answer),WOLFSSL_SUCCESS);
+
+    /* Should Pass: set dsa into set1Pkey */
+    AssertIntEQ(wolfSSL_EVP_PKEY_set1_DSA(set1Pkey, dsa), WOLFSSL_SUCCESS);
+
+    /*
+     * PASSED
+     */
+    printf(resultFmt, passed);
+
+    DSA_free(dsa);
+    DSA_free(setDsa);
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_free(set1Pkey);
+#endif /* NO_DSA */
+} /* END test_EVP_PKEY_set1_get1_DSA */
 
 #endif /*end of QT unit tests*/
 
@@ -23982,6 +24072,7 @@ void ApiTest(void)
     test_wolfSSL_i2d_DHparams();
     test_wolfSSL_ASN1_STRING_to_UTF8();
     test_wolfSSL_EC_KEY_dup();
+    test_EVP_PKEY_set1_get1_DSA();
 
     printf("\n-------------End Of Qt Unit Tests---------------\n");
 
