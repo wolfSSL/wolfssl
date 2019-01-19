@@ -7199,9 +7199,18 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_ctrl");
     switch(cmd) {
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
         case SSL_CTRL_OPTIONS:
             WOLFSSL_MSG("Entering Case: SSL_CTRL_OPTIONS\n");
             return wolfSSL_CTX_set_options(ctx, opt);
+        #endif
+        case SSL_CTRL_EXTRA_CHAIN_CERT:
+            WOLFSSL_MSG("Entering Case: SSL_CTRL_EXTRA_CHAIN_CERT\n");
+            if (pt == NULL) {
+                WOLFSSL_MSG("Passed in x509 pointer NULL.\n");
+                break;
+            }
+            return wolfSSL_CTX_add_extra_chain_cert(ctx,pt);
 
         #ifndef NO_DH
         case SSL_CTRL_SET_TMP_DH:
@@ -7224,7 +7233,7 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
         #endif
 
         default:
-            WOLFSSL_MSG("No case found");
+            WOLFSSL_MSG("No case found for passed in cmd\n");
     }
 
     return WOLFSSL_FAILURE;
@@ -23248,36 +23257,38 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
 #if !defined(NO_DH) && defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
 int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
 {
-    int codeTmp = 0, isPrime = MP_NO;
-
+    int isPrime = MP_NO, codeTmp = 0;
     WC_RNG rng;
 
     WOLFSSL_ENTER("wolfSSL_DH_check");
     if (dh == NULL)
-        return BAD_FUNC_ARG;
-
-    if (dh->p == NULL || dh->p->internal == NULL)
-        return BAD_FUNC_ARG;
+        return WOLFSSL_FAILURE;
 
     if (dh->g == NULL || dh->g->internal == NULL)
         codeTmp = DH_NOT_SUITABLE_GENERATOR;
 
-    if (wc_InitRng(&rng) == 0)
-         mp_prime_is_prime_ex((mp_int*)dh->p->internal, 8, &isPrime, &rng);
-
-    if (isPrime != MP_YES)
+    if (dh->p == NULL || dh->p->internal == NULL)
         codeTmp = DH_CHECK_P_NOT_PRIME;
-
-    wc_FreeRng(&rng);
-
-    if (codes != NULL) {
-        if (codeTmp) {
-            *codes = codeTmp;
-            return BAD_FUNC_ARG;
+    else
+    {
+        /* test if dh->p has prime */
+        if (wc_InitRng(&rng) == 0)
+            mp_prime_is_prime_ex((mp_int*)dh->p->internal,8,&isPrime,&rng);
+        else {
+            WOLFSSL_MSG("Error initializing rng\n");
+            return WOLFSSL_FAILURE;
         }
-        else
-            *codes = 0;
+        wc_FreeRng(&rng);
+        if (isPrime != MP_YES)
+            codeTmp = DH_CHECK_P_NOT_PRIME;
     }
+    /* User may choose to enter NULL for codes if they don't want to check it*/
+    if (codes != NULL)
+        *codes = codeTmp;
+
+    /* if codeTmp was set,some check was flagged invalid */
+    if (codeTmp)
+        return WOLFSSL_FAILURE;
 
     return WOLFSSL_SUCCESS;
 }
