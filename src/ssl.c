@@ -7029,9 +7029,18 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_ctrl");
     switch(cmd) {
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
         case SSL_CTRL_OPTIONS:
             WOLFSSL_MSG("Entering Case: SSL_CTRL_OPTIONS\n");
             return wolfSSL_CTX_set_options(ctx, opt);
+        #endif
+        case SSL_CTRL_EXTRA_CHAIN_CERT:
+            WOLFSSL_MSG("Entering Case: SSL_CTRL_EXTRA_CHAIN_CERT\n");
+            if (pt == NULL) {
+                WOLFSSL_MSG("Passed in x509 pointer NULL.\n");
+                break;
+            }
+            return wolfSSL_CTX_add_extra_chain_cert(ctx,pt);
 
         #ifndef NO_DH
         case SSL_CTRL_SET_TMP_DH:
@@ -7054,7 +7063,7 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
         #endif
 
         default:
-            WOLFSSL_MSG("No case found");
+            WOLFSSL_MSG("No case found for passed in cmd\n");
     }
 
     return WOLFSSL_FAILURE;

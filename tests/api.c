@@ -22002,7 +22002,158 @@ static void test_EVP_PKEY_set1_get1_DSA (void)
 #endif /* NO_DSA */
 } /* END test_EVP_PKEY_set1_get1_DSA */
 
-#endif /*end of QT unit tests*/
+static void test_wolfSSL_CTX_ctrl(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    char caFile[] = "./certs/client-ca.pem";
+    char clientFile[] = "./certs/client-cert.pem";
+    SSL_CTX* ctx;
+    X509* x509 = NULL;
+#ifndef NO_DH
+    byte buffer[5300];
+    char file[] = "./certs/dsaparams.pem";
+    XFILE f;
+    int  bytes;
+    BIO* bio;
+    DSA* dsa;
+    DH*  dh;
+#endif
+#ifdef HAVE_ECC
+    WOLFSSL_EC_KEY* ecKey;
+#endif
+    printf(testingFmt, "wolfSSL_wolfSSL_CTX_ctrl");
+
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+
+    x509 = wolfSSL_X509_load_certificate_file(caFile, WOLFSSL_FILETYPE_PEM);
+    AssertNotNull(x509);
+    AssertIntEQ((int)SSL_CTX_add_extra_chain_cert(ctx, x509), WOLFSSL_SUCCESS);
+
+    x509 = wolfSSL_X509_load_certificate_file(clientFile, WOLFSSL_FILETYPE_PEM);
+    AssertNotNull(x509);
+
+#ifndef NO_DH
+    /* Initialize DH */
+    f = XFOPEN(file, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    XFCLOSE(f);
+
+    bio = BIO_new_mem_buf((void*)buffer, bytes);
+    AssertNotNull(bio);
+
+    dsa = wolfSSL_PEM_read_bio_DSAparams(bio, NULL, NULL, NULL);
+    AssertNotNull(dsa);
+
+    dh = wolfSSL_DSA_dup_DH(dsa);
+    AssertNotNull(dh);
+#endif
+#ifdef HAVE_ECC
+    /* Initialize WOLFSSL_EC_KEY */
+    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey),1);
+#endif
+
+#if !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
+    /* additional test of getting EVP_PKEY key size from X509
+     * Do not run with user RSA because wolfSSL_RSA_size is not currently
+     * allowed with user RSA */
+    {
+        EVP_PKEY* pkey;
+#if defined(HAVE_ECC)
+        X509* ecX509;
+#endif /* HAVE_ECC */
+
+        AssertNotNull(pkey = X509_get_pubkey(x509));
+        /* current RSA key is 2048 bit (256 bytes) */
+        AssertIntEQ(EVP_PKEY_size(pkey), 256);
+
+        EVP_PKEY_free(pkey);
+
+#if defined(HAVE_ECC)
+#if defined(USE_CERT_BUFFERS_256)
+        AssertNotNull(ecX509 = wolfSSL_X509_load_certificate_buffer(
+                    cliecc_cert_der_256, sizeof_cliecc_cert_der_256,
+                    SSL_FILETYPE_ASN1));
+#else
+        AssertNotNull(ecX509 = wolfSSL_X509_load_certificate_file(cliEccCertFile,
+                    SSL_FILETYPE_PEM));
+#endif
+        AssertNotNull(pkey = X509_get_pubkey(ecX509));
+        /* current ECC key is 256 bit (32 bytes) */
+        AssertIntEQ(EVP_PKEY_size(pkey), 32);
+
+        X509_free(ecX509);
+        EVP_PKEY_free(pkey);
+#endif /* HAVE_ECC */
+    }
+#endif /* !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA) */
+
+    /* Tests should fail with passed in NULL pointer */
+    AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_EXTRA_CHAIN_CERT,0,NULL),
+            SSL_FAILURE);
+#ifndef NO_DH
+    AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_DH,0,NULL),
+            SSL_FAILURE);
+#endif
+#ifdef HAVE_ECC
+    AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_ECDH,0,NULL),
+            SSL_FAILURE);
+#endif
+
+    /* Test with SSL_CTRL_EXTRA_CHAIN_CERT
+     * wolfSSL_CTX_ctrl should succesffuly call SSL_CTX_add_extra_chain_cert
+     */
+    AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_EXTRA_CHAIN_CERT,0,x509),
+            SSL_SUCCESS);
+
+    /* Test with SSL_CTRL_OPTIONS
+     * wolfSSL_CTX_ctrl should succesffuly call SSL_CTX_set_options
+     */
+    AssertTrue(wolfSSL_CTX_ctrl(ctx,SSL_CTRL_OPTIONS,SSL_OP_NO_TLSv1,NULL)
+            == SSL_OP_NO_TLSv1);
+    AssertTrue(SSL_CTX_get_options(ctx) == SSL_OP_NO_TLSv1);
+
+    /* Test with SSL_CTRL_SET_TMP_DH
+     * wolfSSL_CTX_ctrl should succesffuly call wolfSSL_SSL_CTX_set_tmp_dh
+     */
+#ifndef NO_DH
+    AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_DH,0,dh),
+            SSL_SUCCESS);
+#endif
+
+    /* Test with SSL_CTRL_SET_TMP_ECDH
+     * wolfSSL_CTX_ctrl should succesffuly call wolfSSL_SSL_CTX_set_tmp_ecdh
+     */
+#ifdef HAVE_ECC
+    AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_ECDH,0,ecKey),
+            SSL_SUCCESS);
+#endif
+
+#ifdef WOLFSSL_ENCRYPTED_KEYS
+    AssertNull(SSL_CTX_get_default_passwd_cb(ctx));
+    AssertNull(SSL_CTX_get_default_passwd_cb_userdata(ctx));
+#endif
+
+    /* Cleanup and Pass */
+#ifndef NO_DH
+    BIO_free(bio);
+    DSA_free(dsa);
+    DH_free(dh);
+#endif
+#ifdef HAVE_ECC
+    wolfSSL_EC_KEY_free(ecKey);
+#endif
+    SSL_CTX_free(ctx);
+    printf(resultFmt, passed);
+#endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+          !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
+}
+
+
+
+#endif /*end of Qt unit tests*/
 
 static void test_no_op_functions(void)
 {
@@ -24073,6 +24224,7 @@ void ApiTest(void)
     test_wolfSSL_ASN1_STRING_to_UTF8();
     test_wolfSSL_EC_KEY_dup();
     test_EVP_PKEY_set1_get1_DSA();
+    test_wolfSSL_CTX_ctrl();
 
     printf("\n-------------End Of Qt Unit Tests---------------\n");
 
