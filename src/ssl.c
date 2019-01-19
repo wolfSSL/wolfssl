@@ -103,8 +103,9 @@
     #endif /* OPENSSL_ALL && HAVE_PKCS7 */
 #endif
 
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+#if defined(WOLFSSL_QT)
     #include <wolfssl/wolfcrypt/sha.h>
+    int isCertTest = 0;
 #endif
 
 #ifdef NO_ASN
@@ -33530,50 +33531,57 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
     #endif
 
-#ifdef HAVE_ECC
+
     const char * wolfSSL_OBJ_nid2sn(int n) {
-        #ifdef WOLFSSL_QT
-        const char* sn;
-        #endif
-        int i;
+        int localIsCertTest;
+
         WOLFSSL_ENTER("wolfSSL_OBJ_nid2sn");
 
         #ifdef WOLFSSL_QT
-        switch(n)
-        {
-            case NID_commonName :
-                sn = "CN";
-                break;
-            case NID_countryName :
-                sn = "C";
-                break;
-            case NID_localityName :
-                sn = "L";
-                break;
-            case NID_stateOrProvinceName :
-                sn = "ST";
-                break;
-            case NID_organizationName :
-                sn = "O";
-                break;
-            case NID_organizationalUnitName :
-                sn = "OU";
-                break;
-            case NID_emailAddress :
-                sn = "emailAddress";
-                break;
-            default  :
-                WOLFSSL_MSG("nid not in table\n");
-                sn = NULL;
-        }
-        return sn;
+            localIsCertTest = isCertTest;
+        #else
+            localIsCertTest = 0;
         #endif
 
-        /* find based on NID and return name */
-        for (i = 0; i < ecc_sets[i].size; i++) {
-            if (n == ecc_sets[i].id) {
-                return ecc_sets[i].name;
+        /* Some cert info NIDs are the same as ECC IDs.
+         Therefore, for now, we only give the option of
+         finding one or the other depending on the circumstance.
+        */
+        if (localIsCertTest) {
+            #ifdef WOLFSSL_QT
+                isCertTest = 0;
+            #endif
+            switch(n)
+            {
+                case NID_commonName :
+                    return "CN";
+                case NID_countryName :
+                    return "C";
+                case NID_localityName :
+                    return "L";
+                case NID_stateOrProvinceName :
+                    return "ST";
+                case NID_organizationName :
+                    return "O";
+                case NID_organizationalUnitName :
+                    return "OU";
+                case NID_emailAddress :
+                    return "emailAddress";
+                default  :
+                    WOLFSSL_MSG("nid not in table\n");
             }
+        } else {
+            #ifdef HAVE_ECC
+            {
+                int i;
+                /* find sn based on NID and return name */
+                for (i = 0; i < ecc_sets[i].size; i++) {
+                    if (n == ecc_sets[i].id) {
+                        return ecc_sets[i].name;
+                    }
+                }
+            }
+            #endif /* HAVE_ECC */
         }
         return NULL;
     }
@@ -33584,7 +33592,6 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
  or NID_undef if NID can't be found
  */
     int wolfSSL_OBJ_sn2nid(const char *sn) {
-        int i;
 
         WOLFSSL_ENTER("wolfSSL_OBJ_sn2nid");
 
@@ -33593,16 +33600,20 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             return BAD_FUNC_ARG;
         }
 
-        /* find based on name and return NID */
-        for (i = 0; i < ecc_sets[i].size; i++) {
-            if (XSTRNCMP(sn, ecc_sets[i].name, ECC_MAXNAME) == 0) {
-                return ecc_sets[i].id;
+        #ifdef HAVE_ECC
+        {
+            int i;
+            /* find based on name and return NID */
+            for (i = 0; i < ecc_sets[i].size; i++) {
+                if (XSTRNCMP(sn, ecc_sets[i].name, ECC_MAXNAME) == 0) {
+                    return ecc_sets[i].id;
+                }
             }
         }
+        #endif /* HAVE_ECC */
         return NID_undef;
     }
 #endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) */
-#endif /* HAVE_ECC */
 
     static int oid2nid(word32 oid, int grp)
     {
@@ -34167,17 +34178,23 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         WOLFSSL_ENTER("wolfSSL_X509_NAME_get_entry");
 
         if (name == NULL) {
+            WOLFSSL_MSG("Bad name argument");
             return NULL;
         }
 
         if (loc < 0 || loc > 9 + name->fullName.dcNum) {
-            WOLFSSL_MSG("Bad argument");
+            WOLFSSL_MSG("Bad location argument");
             return NULL;
         }
 
         if (loc >= 0 && loc <= 9){
-            if (get_nameByLoc(name, loc) != NULL)
+            if (get_nameByLoc(name, loc) != NULL) {
+                /* Needed to find sn cert info in OBJ_nid2sn() */
+                #ifdef WOLFSSL_QT
+                    isCertTest = 1;
+                #endif
                 return &name->cnEntry;
+            }
         }
 
         /* DC component */
