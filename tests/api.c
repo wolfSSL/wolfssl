@@ -22022,7 +22022,7 @@ static void test_wolfSSL_CTX_ctrl(void)
 #ifdef HAVE_ECC
     WOLFSSL_EC_KEY* ecKey;
 #endif
-    printf(testingFmt, "wolfSSL_wolfSSL_CTX_ctrl");
+    printf(testingFmt, "wolfSSL_CTX_ctrl");
 
     AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
 
@@ -22151,7 +22151,72 @@ static void test_wolfSSL_CTX_ctrl(void)
           !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
 }
 
+static void test_wolfSSL_DH_check(void)
+{
+#ifndef NO_DH
+    byte buffer[5300];
+    char file[] = "./certs/dsaparams.pem";
+    XFILE f;
+    int  bytes;
+    BIO* bio;
+    DSA* dsa;
+    DH*  dh = NULL;
+    WOLFSSL_BIGNUM* pTmp = NULL;
+    WOLFSSL_BIGNUM* gTmp = NULL;
+    int codes = -1;
 
+    printf(testingFmt, "wolfSSL_DH_check");
+
+    /* Initialize DH */
+    f = XFOPEN(file, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    XFCLOSE(f);
+
+    bio = BIO_new_mem_buf((void*)buffer, bytes);
+    AssertNotNull(bio);
+
+    dsa = wolfSSL_PEM_read_bio_DSAparams(bio, NULL, NULL, NULL);
+    AssertNotNull(dsa);
+
+    dh = wolfSSL_DSA_dup_DH(dsa);
+    AssertNotNull(dh);
+
+    /* Test assumed to be valid dh.
+     * Should return WOLFSSL_SUCCESS
+     * codes should be 0
+     * Invalid codes = {DH_NOT_SUITABLE_GENERATOR, DH_CHECK_P_NOT_PRIME}
+     */
+    AssertIntEQ(wolfSSL_DH_check(dh, &codes), WOLFSSL_SUCCESS);
+    AssertIntEQ(codes, 0);
+
+    /* Test NULL dh: expected BAD_FUNC_ARG */
+    AssertIntEQ(wolfSSL_DH_check(NULL, &codes), WOLFSSL_FAILURE);
+
+    /* Break dh prime to test if codes = DH_CHECK_P_NOT_PRIME */
+    pTmp = dh->p;
+    dh->p  = NULL;
+    AssertIntEQ(wolfSSL_DH_check(dh, &codes), WOLFSSL_FAILURE);
+    AssertIntEQ(codes, DH_CHECK_P_NOT_PRIME);
+    /* set dh->p back to normal so it wont fail on next tests */
+    dh->p = pTmp;
+    pTmp = NULL;
+
+    /* Break dh generator to test if codes = DH_NOT_SUITABLE_GENERATOR */
+    gTmp = dh->g;
+    dh->g = NULL;
+    AssertIntEQ(wolfSSL_DH_check(dh, &codes), WOLFSSL_FAILURE);
+    AssertIntEQ(codes, DH_NOT_SUITABLE_GENERATOR);
+    dh->g = gTmp;
+    gTmp = NULL;
+
+    /* Cleanup and Pass Test */
+    BIO_free(bio);
+    DSA_free(dsa);
+    DH_free(dh);
+    printf(resultFmt, passed);
+#endif /* NO_DH */
+}
 
 #endif /*end of Qt unit tests*/
 
@@ -24225,6 +24290,7 @@ void ApiTest(void)
     test_wolfSSL_EC_KEY_dup();
     test_EVP_PKEY_set1_get1_DSA();
     test_wolfSSL_CTX_ctrl();
+    test_wolfSSL_DH_check();
 
     printf("\n-------------End Of Qt Unit Tests---------------\n");
 
