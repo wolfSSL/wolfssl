@@ -59,9 +59,9 @@
 static int mAtcaInitDone = 0;
 
 /* ATECC slotId handling */
-static atmel_slot_alloc_cb mSlotAlloc;
-static atmel_slot_dealloc_cb mSlotDealloc;
-static byte mSlotList[ATECC_MAX_SLOT];
+static atmel_slot_alloc_cb mSlotAlloc = NULL;
+static atmel_slot_dealloc_cb mSlotDealloc = NULL;
+static byte mSlotList[ATECC_MAX_SLOT + 1];
 #ifndef SINGLE_THREADED
 static wolfSSL_Mutex mSlotMutex;
 #endif
@@ -223,7 +223,7 @@ int atmel_ecc_alloc(int slotType)
                 slotId = ATECC_SLOT_ENC_PARENT;
                 break;
             case ATMEL_SLOT_ANY:
-                for (i=0; i < ATECC_MAX_SLOT; i++) {
+                for (i=0; i <= ATECC_MAX_SLOT; i++) {
                     /* Find free slotId */
                     if (mSlotList[i] == ATECC_INVALID_SLOT) {
                         slotId = i;
@@ -260,7 +260,7 @@ void atmel_ecc_free(int slotId)
     if (mSlotDealloc) {
         mSlotDealloc(slotId);
     }
-    else if (slotId >= 0 && slotId < ATECC_MAX_SLOT) {
+    else if (slotId >= 0 && slotId <= ATECC_MAX_SLOT) {
         if (slotId != ATECC_SLOT_AUTH_PRIV && slotId != ATECC_SLOT_I2C_ENC) {
             /* Mark slotId free */
             mSlotList[slotId] = ATECC_INVALID_SLOT;
@@ -603,7 +603,7 @@ int atcatls_create_pms_cb(WOLFSSL* ssl, ecc_key* otherKey,
         }
 
         ret = atmel_ecc_create_pms(tmpKey.slot, peerKey, out);
-        *outlen = ATECC_SIG_SIZE;
+        *outlen = ATECC_KEY_SIZE;
 
     #ifndef WOLFSSL_ATECC508A_NOIDLE
         /* put chip into idle to prevent watchdog situation on chip */
