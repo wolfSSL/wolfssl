@@ -543,6 +543,7 @@ static int InitSha256(wc_Sha256* sha256)
         sha256->heap = heap;
     #ifdef WOLF_CRYPTO_CB
         sha256->devId = devId;
+        sha256->devCtx = NULL;
     #endif
 
         ret = InitSha256(sha256);
