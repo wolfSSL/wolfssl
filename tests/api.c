@@ -21691,9 +21691,9 @@ static void test_wolfSSL_CIPHER_description_all(void)
         /* Fail if test_str == bad_str == "unknown" */
         AssertStrNE(test_str,bad_str);
     }
-    SSL_CTX_free(ctx);
-    SSL_free(ssl);
     wolfSSL_sk_ASN1_OBJECT_free(supportedCiphers);
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
 
     printf(resultFmt, passed);
 }
