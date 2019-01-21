@@ -115,6 +115,138 @@ static void err_sys_ex(int out, const char* msg)
     }
 }
 
+
+#ifdef WOLFSSL_DTLS
+
+/* Translates return codes returned from
+ * send() and recv() if need be.
+ */
+static WC_INLINE int TranslateReturnCode(int old, int sd)
+{
+    (void)sd;
+
+#if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
+    if (old == 0) {
+        errno = SOCKET_EWOULDBLOCK;
+        return -1;  /* convert to BSD style wouldblock as error */
+    }
+
+    if (old < 0) {
+        errno = RTCS_geterror(sd);
+        if (errno == RTCSERR_TCP_CONN_CLOSING)
+            return 0;   /* convert to BSD style closing */
+        if (errno == RTCSERR_TCP_CONN_RLSD)
+            errno = SOCKET_ECONNRESET;
+        if (errno == RTCSERR_TCP_TIMED_OUT)
+            errno = SOCKET_EAGAIN;
+    }
+#endif
+
+    return old;
+}
+
+static WC_INLINE int wolfSSL_LastError(void)
+{
+#ifdef USE_WINDOWS_API
+    return WSAGetLastError();
+#elif defined(EBSNET)
+    return xn_getlasterror();
+#else
+    return errno;
+#endif
+}
+
+/* wolfSSL Sock Addr */
+struct WOLFSSL_TEST_SOCKADDR {
+    unsigned int  sz; /* sockaddr size */
+    SOCKADDR_IN_T sa; /* pointer to the sockaddr_in or sockaddr_in6 */
+};
+
+typedef struct WOLFSSL_TEST_DTLS_CTX {
+    struct WOLFSSL_TEST_SOCKADDR peer;
+    int rfd;
+    int wfd;
+    int failOnce;
+    word32 blockSeq;
+} WOLFSSL_TEST_DTLS_CTX;
+
+
+static WC_INLINE int PeekSeq(const char* buf, word32* seq)
+{
+    const char* c = buf + 3;
+
+    if ((c[0] | c[1] | c[2] | c[3]) == 0) {
+        *seq = (c[4] << 24) | (c[5] << 16) | (c[6] << 8) | c[7];
+        return 1;
+    }
+
+    return 0;
+}
+
+
+/* The send embedded callback
+ *  return : nb bytes sent, or error
+ */
+static int TestEmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
+{
+    WOLFSSL_TEST_DTLS_CTX* dtlsCtx = (WOLFSSL_TEST_DTLS_CTX*)ctx;
+    int sd = dtlsCtx->wfd;
+    int sent;
+    int len = sz;
+    int err;
+
+    (void)ssl;
+
+    WOLFSSL_ENTER("TestEmbedSendTo()");
+
+    if (dtlsCtx->failOnce) {
+        word32 seq = 0;
+        
+        if (PeekSeq(buf, &seq) && seq == dtlsCtx->blockSeq) {
+            dtlsCtx->failOnce = 0;
+            WOLFSSL_MSG("Forcing WANT_WRITE");
+            return WOLFSSL_CBIO_ERR_WANT_WRITE;
+        }
+    }
+
+    sent = (int)sendto(sd, &buf[sz - len], len, 0,
+                                (const SOCKADDR*)&dtlsCtx->peer.sa,
+                                dtlsCtx->peer.sz);
+
+    sent = TranslateReturnCode(sent, sd);
+
+    if (sent < 0) {
+        err = wolfSSL_LastError();
+        WOLFSSL_MSG("Embed Send To error");
+
+        if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
+            WOLFSSL_MSG("\tWould Block");
+            return WOLFSSL_CBIO_ERR_WANT_WRITE;
+        }
+        else if (err == SOCKET_ECONNRESET) {
+            WOLFSSL_MSG("\tConnection reset");
+            return WOLFSSL_CBIO_ERR_CONN_RST;
+        }
+        else if (err == SOCKET_EINTR) {
+            WOLFSSL_MSG("\tSocket interrupted");
+            return WOLFSSL_CBIO_ERR_ISR;
+        }
+        else if (err == SOCKET_EPIPE) {
+            WOLFSSL_MSG("\tSocket EPIPE");
+            return WOLFSSL_CBIO_ERR_CONN_CLOSE;
+        }
+        else {
+            WOLFSSL_MSG("\tGeneral error");
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+    }
+
+    return sent;
+}
+
+#endif /* WOLFSSL_DTLS */
+
+
 static int NonBlockingSSL_Accept(SSL* ssl)
 {
 #ifndef WOLFSSL_CALLBACKS
@@ -149,13 +281,16 @@ static int NonBlockingSSL_Accept(SSL* ssl)
         else
     #endif
         {
-        #ifdef WOLFSSL_DTLS
-            currTimeout = wolfSSL_dtls_get_current_timeout(ssl);
-        #endif
-            select_ret = tcp_select(sockfd, currTimeout);
+            if (error != WOLFSSL_ERROR_WANT_WRITE) {
+            #ifdef WOLFSSL_DTLS
+                currTimeout = wolfSSL_dtls_get_current_timeout(ssl);
+            #endif
+                select_ret = tcp_select(sockfd, currTimeout);
+            }
         }
 
-        if ((select_ret == TEST_RECV_READY) || (select_ret == TEST_ERROR_READY)
+        if ((select_ret == TEST_RECV_READY) || (select_ret == TEST_SEND_READY)
+            || (select_ret == TEST_ERROR_READY)
         #ifdef WOLFSSL_ASYNC_CRYPT
             || error == WC_PENDING_E
         #endif
@@ -167,6 +302,12 @@ static int NonBlockingSSL_Accept(SSL* ssl)
                                     srvHandShakeCB, srvTimeoutCB, srvTo);
             #endif
             error = SSL_get_error(ssl, 0);
+            if (error == WOLFSSL_ERROR_WANT_WRITE) {
+                /* Do a select here. */
+                select_ret = tcp_select_tx(sockfd, 1);
+                if (select_ret == TEST_TIMEOUT)
+                    error = WOLFSSL_FATAL_ERROR;
+            }
         }
         else if (select_ret == TEST_TIMEOUT && !wolfSSL_dtls(ssl)) {
             error = WOLFSSL_ERROR_WANT_READ;
@@ -678,6 +819,9 @@ static void Usage(void)
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
     printf("-2          Disable DH Prime check\n");
 #endif
+#ifdef WOLFSSL_DTLS
+    printf("-4 <seq>    DTLS fake would-block for message seq\n");
+#endif
 #ifdef WOLFSSL_MULTICAST
     printf("%s", msg[++msgId]);     /* -3 */
 #endif
@@ -719,6 +863,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     int    dtlsUDP = 0;
     int    dtlsSCTP = 0;
     int    doMcast = 0;
+#ifdef WOLFSSL_DTLS
+    int    doBlockSeq = 0;
+    WOLFSSL_TEST_DTLS_CTX dtlsCtx;
+#endif
     int    needDH = 0;
     int    useNtruKey   = 0;
     int    nonBlocking  = 0;
@@ -863,7 +1011,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     while ((ch = mygetopt(argc, argv, "?"
                 "abc:defgijk:l:mnop:q:rstuv:wxy"
                 "A:B:C:D:E:GH:IJKL:MNO:PQR:S:TUVYZ:"
-                "01:23:")) != -1) {
+                "01:23:4:")) != -1) {
         switch (ch) {
             case '?' :
                 if(myoptarg!=NULL) {
@@ -1216,6 +1364,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 #ifdef WOLFSSL_MULTICAST
                     doMcast = 1;
                     mcastID = (byte)(atoi(myoptarg) & 0xFF);
+                #endif
+                break;
+
+            case '4' :
+                #ifdef WOLFSSL_DTLS
+                    XMEMSET(&dtlsCtx, 0, sizeof(dtlsCtx));
+                    doBlockSeq = 1;
+                    dtlsCtx.blockSeq = atoi(myoptarg);
                 #endif
                 break;
 
@@ -1598,6 +1754,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
     }
 
+    if (doDTLS && dtlsUDP) {
+#ifdef WOLFSSL_DTLS
+        if (doBlockSeq) {
+            wolfSSL_CTX_SetIOSend(ctx, TestEmbedSendTo);
+        }
+#endif
+    }
+
 #ifdef HAVE_PK_CALLBACKS
         if (pkCallbacks)
             SetupPkCallbacks(ctx);
@@ -1807,12 +1971,22 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             /* For DTLS, peek at the next datagram so we can get the client's
              * address and set it into the ssl object later to generate the
              * cookie. */
-            n = (int)recvfrom(sockfd, (char*)b, sizeof(b), MSG_PEEK,
+            n = (int)recvfrom(clientfd, (char*)b, sizeof(b), MSG_PEEK,
                               (struct sockaddr*)&cliaddr, &len);
             if (n <= 0)
                 err_sys_ex(runWithErrors, "recvfrom failed");
 
-            wolfSSL_dtls_set_peer(ssl, &cliaddr, len);
+            if (doBlockSeq) {
+                XMEMCPY(&dtlsCtx.peer.sa, &cliaddr, len);
+                dtlsCtx.peer.sz = len;
+                dtlsCtx.wfd = clientfd;
+                dtlsCtx.failOnce = 1;
+
+                wolfSSL_SetIOWriteCtx(ssl, &dtlsCtx);
+            }
+            else {
+                wolfSSL_dtls_set_peer(ssl, &cliaddr, len);
+            }
         }
 #endif
         if ((usePsk == 0 || usePskPlus) || useAnon == 1 || cipherList != NULL

@@ -138,13 +138,16 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
         else
 #endif
         {
-    #ifdef WOLFSSL_DTLS
-            currTimeout = wolfSSL_dtls_get_current_timeout(ssl);
-    #endif
-            select_ret = tcp_select(sockfd, currTimeout);
+            if (error != WOLFSSL_ERROR_WANT_WRITE) {
+            #ifdef WOLFSSL_DTLS
+                currTimeout = wolfSSL_dtls_get_current_timeout(ssl);
+            #endif
+                select_ret = tcp_select(sockfd, currTimeout);
+            }
         }
 
-        if ((select_ret == TEST_RECV_READY) || (select_ret == TEST_ERROR_READY)
+        if ((select_ret == TEST_RECV_READY) || (select_ret == TEST_SEND_READY)
+            || (select_ret == TEST_ERROR_READY)
         #ifdef WOLFSSL_ASYNC_CRYPT
             || error == WC_PENDING_E
         #endif
@@ -156,6 +159,13 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
         #endif
             error = wolfSSL_get_error(ssl, 0);
             elapsedSec = 0; /* reset elapsed */
+            if (error == WOLFSSL_ERROR_WANT_WRITE) {
+                /* Do a send select here. */
+                select_ret = tcp_select_tx(sockfd, 1);
+                if (select_ret == TEST_TIMEOUT) {
+                    error = WOLFSSL_FATAL_ERROR;
+                }
+            }
         }
         else if (select_ret == TEST_TIMEOUT && !wolfSSL_dtls(ssl)) {
             error = WOLFSSL_ERROR_WANT_READ;

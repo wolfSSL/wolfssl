@@ -723,6 +723,7 @@ WOLFSSL_API int  wolfSSL_dtls_get_current_timeout(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_dtls_set_timeout_init(WOLFSSL* ssl, int);
 WOLFSSL_API int  wolfSSL_dtls_set_timeout_max(WOLFSSL* ssl, int);
 WOLFSSL_API int  wolfSSL_dtls_got_timeout(WOLFSSL* ssl);
+WOLFSSL_API int  wolfSSL_dtls_retransmit(WOLFSSL*);
 WOLFSSL_API int  wolfSSL_dtls(WOLFSSL* ssl);
 
 WOLFSSL_API int  wolfSSL_dtls_set_peer(WOLFSSL*, void*, unsigned int);
