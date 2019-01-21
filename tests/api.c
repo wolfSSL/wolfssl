@@ -23152,7 +23152,7 @@ static void test_wolfSSL_X509V3_EXT_get(void){
     AssertNull(method = wolfSSL_X509V3_EXT_get(NULL));
     printf(resultFmt, "passed");
 
-    XFREE(x509, NULL, DYNAMIC_TYPE_X509);
+    wolfSSL_X509_free(x509);
 }
 
 static void test_wolfSSL_X509_get_ext(void){
@@ -23182,6 +23182,8 @@ static void test_wolfSSL_X509_get_ext(void){
     printf(testingFmt, "wolfSSL_X509_get_ext() NULL x509, valid idx");
     AssertNull(found_ext = wolfSSL_X509_get_ext(NULL, 0));
     printf(resultFmt, "passed");
+
+    wolfSSL_X509_free(x509);
 }
 
 static void test_wolfSSL_X509_get_ext_count(){
@@ -23200,6 +23202,8 @@ static void test_wolfSSL_X509_get_ext_count(){
     printf(testingFmt, "wolfSSL_X509_get_ext_count() NULL argument");
     AssertIntEQ((ret = wolfSSL_X509_get_ext_count(NULL)), BAD_FUNC_ARG);
     printf(resultFmt, ret == BAD_FUNC_ARG ? passed : failed);
+
+    wolfSSL_X509_free(x509);
 #endif
 }
 
@@ -23241,8 +23245,8 @@ static void test_wolfSSL_X509_cmp(void){
     AssertIntEQ(BAD_FUNC_ARG, wolfSSL_X509_cmp(NULL, NULL));
     printf(resultFmt, ret == BAD_FUNC_ARG ? passed : failed);
 
-    XFREE(cert1, NULL, DYNAMIC_TYPE_X509);
-    XFREE(cert2, NULL, DYNAMIC_TYPE_X509);
+    wolfSSL_X509_free(cert1);
+    wolfSSL_X509_free(cert2);
 }
 
 static void test_wolfSSL_X509_EXTENSION_get_object(void)
@@ -23267,7 +23271,7 @@ static void test_wolfSSL_X509_EXTENSION_get_object(void)
     AssertNull(o = wolfSSL_X509_EXTENSION_get_object(NULL));
     printf(resultFmt, passed);
 
-    XFREE(x509, NULL, DYNAMIC_TYPE_X509);
+    wolfSSL_X509_free(x509);
 }
 
 #if !defined(NO_ASN)
@@ -23312,7 +23316,7 @@ static void test_wolfSSL_ASN1_STRING_to_UTF8(void){
             WOLFSSL_FATAL_ERROR);
     printf(resultFmt, len == WOLFSSL_FATAL_ERROR ? passed : failed);
 
-    XFREE(x509, NULL, DYNAMIC_TYPE_X509);
+    wolfSSL_X509_free(x509);
     XFREE(actual_output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 }
 #endif //!defined(NO_ASN)
@@ -23333,7 +23337,7 @@ static void test_wolfSSL_X509_EXTENSION_get_data(void)
     AssertNotNull(str = wolfSSL_X509_EXTENSION_get_data(ext));
     printf(resultFmt, passed);
 
-    XFREE(x509, NULL, DYNAMIC_TYPE_X509);
+    wolfSSL_X509_free(x509);
 }
 
 static void test_wolfSSL_X509_EXTENSION_get_critical(void)
@@ -23353,7 +23357,7 @@ static void test_wolfSSL_X509_EXTENSION_get_critical(void)
     AssertIntEQ(crit, 0);
     printf(resultFmt, passed);
 
-    XFREE(x509, NULL, DYNAMIC_TYPE_X509);
+    wolfSSL_X509_free(x509);
 }
 
 static void test_wolfSSL_CIPHER_description_all(void)
@@ -23415,9 +23419,9 @@ static void test_wolfSSL_CIPHER_description_all(void)
         /* Fail if test_str == bad_str == "unknown" */
         AssertStrNE(test_str,bad_str);
     }
-    SSL_CTX_free(ctx);
-    SSL_free(ssl);
     wolfSSL_sk_ASN1_OBJECT_free(supportedCiphers);
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
 
     printf(resultFmt, passed);
 }
