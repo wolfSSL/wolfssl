@@ -68,7 +68,7 @@ static void ShowCiphers(void)
 
 static byte mSlotList[ATECC_MAX_SLOT];
 
-int atmel_set_slot_allocator(atmel_slot_alloc_cb alloc, 
+int atmel_set_slot_allocator(atmel_slot_alloc_cb alloc,
                                                 atmel_slot_dealloc_cb dealloc);
 /* initialize slot array */
 void my_atmel_slotInit()
@@ -111,7 +111,7 @@ int my_atmel_alloc(int slotType)
 /* free slot array       */
 void my_atmel_free(int slotId)
 {
-    if(slotId >= 0 && slotId <= ATECC_MAX_SLOT){
+    if(slotId >= 0 && slotId < ATECC_MAX_SLOT){
         mSlotList[slotId] = ATECC_INVALID_SLOT;
     }
 }
@@ -163,7 +163,7 @@ void tls_smp_client_task()
          ESP_LOGE(TAG, "Failed to get host name.");
          ip4_addr = NULL;
     } else {
-         
+
          ip4_addr = (struct ip4_addr *)hp->h_addr;
          ESP_LOGI(TAG, IPSTR, IP2STR(ip4_addr));
     }
@@ -187,7 +187,7 @@ void tls_smp_client_task()
             sizeof_client_cert_der_2048, WOLFSSL_FILETYPE_ASN1)) != SSL_SUCCESS) {
             ESP_LOGE(TAG,"ERROR: failed to load chain %d, please check the file.\n",ret);
         }
-    
+
         if ((ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx, client_key_der_2048,
             sizeof_client_key_der_2048, WOLFSSL_FILETYPE_ASN1))  != SSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
@@ -231,7 +231,7 @@ void tls_smp_client_task()
         ESP_LOGE(TAG,"ERROR: failed to create WOLFSSL object\n");
     }
 
-    /* when using atecc608a on esp32-wroom-32se */ 
+    /* when using atecc608a on esp32-wroom-32se */
 #if defined(WOLFSSL_ESPWROOM32SE) && defined(HAVE_PK_CALLBACKS) \
                                   && defined(WOLFSSL_ATECC508A)
     atcatls_set_callbacks(ctx);
@@ -254,7 +254,7 @@ void tls_smp_client_task()
     /* Get a message for the server from stdin */
     WOLFSSL_MSG("Message for server: ");
     memset(buff, 0, sizeof(buff));
-    
+
     if(sendGet){
         printf("SSL connect ok, sending GET...\n");
         len = 28;
@@ -283,7 +283,7 @@ void tls_smp_client_task()
     wolfSSL_CTX_free(ctx); /* Free the wolfSSL context object          */
     wolfSSL_Cleanup();     /* Cleanup the wolfSSL environment          */
     close(sockfd);         /* Close the connection to the server       */
-    
+
     vTaskDelete(NULL);
 
     return;                /* Return reporting a success               */

@@ -115,7 +115,7 @@ int my_atmel_alloc(int slotType)
 /* free slot array       */
 void my_atmel_free(int slotId)
 {
-    if(slotId >= 0 && slotId <= ATECC_MAX_SLOT){
+    if(slotId >= 0 && slotId < ATECC_MAX_SLOT){
         mSlotList[slotId] = ATECC_INVALID_SLOT;
     }
 }
@@ -165,7 +165,7 @@ void tls_smp_server_task()
     }
     WOLFSSL_MSG("Loading certificate...");
     /* Load server certificates into WOLFSSL_CTX */
-    
+
     if ((ret = wolfSSL_CTX_use_certificate_buffer(ctx, server_cert_der_2048,
                         sizeof_server_cert_der_2048,
                         WOLFSSL_FILETYPE_ASN1)) != SSL_SUCCESS) {
@@ -173,7 +173,7 @@ void tls_smp_server_task()
     }
     WOLFSSL_MSG("Loading key info...");
     /* Load server key into WOLFSSL_CTX */
-    
+
     if((ret=wolfSSL_CTX_use_PrivateKey_buffer(ctx,
                             server_key_der_2048, sizeof_server_key_der_2048,
                             WOLFSSL_FILETYPE_ASN1)) != SSL_SUCCESS) {
