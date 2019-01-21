@@ -21458,6 +21458,8 @@ static void test_wolfSSL_X509_get_ext(void){
     printf(testingFmt, "wolfSSL_X509_get_ext() NULL x509, valid idx");
     AssertNull(found_ext = wolfSSL_X509_get_ext(NULL, 0));
     printf(resultFmt, "passed");
+
+    XFREE(x509, NULL, DYNAMIC_TYPE_X509);
 }
 
 static void test_wolfSSL_X509_get_ext_count(){
@@ -21476,6 +21478,8 @@ static void test_wolfSSL_X509_get_ext_count(){
     printf(testingFmt, "wolfSSL_X509_get_ext_count() NULL argument");
     AssertIntEQ((ret = wolfSSL_X509_get_ext_count(NULL)), BAD_FUNC_ARG);
     printf(resultFmt, ret == BAD_FUNC_ARG ? passed : failed);
+
+    XFREE(x509, NULL, DYNAMIC_TYPE_X509);
 #endif
 }
 
