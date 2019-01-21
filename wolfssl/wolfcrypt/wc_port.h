@@ -390,8 +390,12 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
        time_t XTIME(time_t * timer) {}
     */
     #define WOLFSSL_GMTIME
-    #define USE_WOLF_TM
-    #define USE_WOLF_TIME_T
+    #ifndef HAVE_TM_TYPE
+        #define USE_WOLF_TM
+    #endif
+    #ifndef HAVE_TIME_T_TYPE
+        #define USE_WOLF_TIME_T
+    #endif
 
 #elif defined(TIME_OVERRIDES)
     /* Override XTIME() and XGMTIME() functionality.
@@ -491,7 +495,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 #ifdef TIME_T_NOT_LONG
     /* one old reference to TIME_T_NOT_LONG in GCC-ARM example README
      * this keeps support for the old macro name */
-    #undef TIME_T_NOT_64BIT
+    #undef  TIME_T_NOT_64BIT
     #define TIME_T_NOT_64BIT
 #endif
 
