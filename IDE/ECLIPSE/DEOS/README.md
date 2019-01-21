@@ -17,7 +17,22 @@ The `tls_wolfssl.c` example application provides a simple function to run the se
        3. #undef NO_WOLFSSL_CLIENT
        4. #undef NO_WOLFSSL_SERVER
 ```
-Steps for building and running wolfSSL with the Deos kernel examples included in the DDS release are as follows:
+Do one of the following steps for building and running wolfSSL with the Deos kernel examples, which are included in the DDS release:
+If you want to create a project from scratch, skip the Importing the project section and follow the steps in the other sections.
+
+If you want to use an pre-configured example project, go to the Importing the project section, skip the other sections and follow the Building and Running section.
+
+#### Importing the project
+In this section you will import a pre-configured example project.
+1. Launch the OpenArbor IDE as an administrator
+2. In the Workspace Launcher dialog, in the Workspace field, enter your
+workspace
+3. Right-click in the Project Explorer view and select Import
+4. In the Import dialog, select General > Existing Projects into Workspace, then click Next.
+5. In the Import Projects dialog, select Select archive file, then browse to `IDE/ECLIPSE/DEOS/` and double-click `deosWolfssl.zip` file
+6. In the Import Projects dialog, click Finish
+
+
 #### Setting up a Deos project with wolfSSL
  1. Download the wolfSSL source code or a zip file from GitHub. You can remove all of the files except for these folders and its contents. The top folder for this example is wolfsslPort.
 ```

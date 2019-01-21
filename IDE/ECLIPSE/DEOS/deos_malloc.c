@@ -21,6 +21,8 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/ssl.h>
 
+#define ROUND_UP(x, align)  (((int) (x) + (align - 1)) & ~(align - 1))
+
 #define HEAP_SIZE_MAX   (1*1024*1024)
 
 static size_t allocatedMemory = 0;
@@ -40,8 +42,6 @@ void free_deos(void *ptr) {
     return;
 }
 
-/* The caller of this function is responsible for copying the old data into new buffer */
-
 void *realloc_deos(void *ptr, size_t size) {
     void *newptr;
 
@@ -49,7 +49,11 @@ void *realloc_deos(void *ptr, size_t size) {
         return ptr;
 
     newptr = malloc_deos(size);
-    free_deos(ptr);
+
+    if (ptr != NULL && newptr != NULL) {
+        XMEMCPY((char *) newptr, (const char *) ptr, size);
+        free_deos(ptr);
+    }
 
     return newptr;
 }
@@ -81,8 +85,8 @@ void *malloc_deos(size_t size) {
 
         initialized = 1;
     }
-    size = ((size + (sizeof(size_t) - 1)) & ~(sizeof(size_t) - 1));
 
+    size = ROUND_UP(size, sizeof(size_t));
 
     if (size > (HEAP_SIZE_MAX - (freeAddr - heapAddr))){
         printf("ERROR: malloc_deos cannot allocate from heap memory anymore\n");
