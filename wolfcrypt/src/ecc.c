@@ -28,6 +28,9 @@
 /* in case user set HAVE_ECC there */
 #include <wolfssl/wolfcrypt/settings.h>
 
+/* public ASN interface */
+#include <wolfssl/wolfcrypt/asn_public.h>
+
 /*
 Possible ECC enable options:
  * HAVE_ECC:            Overall control of ECC                  default: on
@@ -86,12 +89,6 @@ ECC Curve Sizes:
     !defined(WOLFSSL_CUSTOM_CURVES)
     #error Brainpool and Koblitz curves requires WOLFSSL_CUSTOM_CURVES
 #endif
-
-/* Make sure ASN is enabled for ECC sign/verify */
-#if (defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)) && defined(NO_ASN)
-    #error ASN must be enabled for ECC sign/verify
-#endif
-
 
 #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
@@ -6579,6 +6576,7 @@ int wc_ecc_export_private_raw(ecc_key* key, byte* qx, word32* qxLen,
 
 #endif /* HAVE_ECC_KEY_EXPORT */
 
+#ifndef NO_ASN
 #ifdef HAVE_ECC_KEY_IMPORT
 /* import private key, public part optional if (pub) passed as NULL */
 int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
@@ -6646,7 +6644,6 @@ int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
 }
 #endif /* HAVE_ECC_KEY_IMPORT */
 
-#ifndef NO_ASN
 /**
    Convert ECC R,S to signature
    r       R component of signature
