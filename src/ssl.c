@@ -7171,16 +7171,16 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         (const WOLFSSL_X509* passed_cert, int loc)
     {
         int ext_count = 0;
-        int length;
-        int outSz;
+        int length = 0;
+        int outSz = 0;
         const byte* rawCert;
-        int sz;
-        int tmp_idx;
+        int sz = 0;
+        int tmp_idx = 0;
         const byte* input;
         word32 oid;
-        int ret;
+        int ret = 0;
         word32 idx = 0;
-        WOLFSSL_ASN1_OBJECT *tmp_obj;
+        WOLFSSL_ASN1_OBJECT* tmp_obj;
         WOLFSSL_X509_EXTENSION* found_extension = NULL;
         DecodedCert cert;
 
@@ -7260,6 +7260,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
                 found_extension->crit = cert.extSubjKeyIdCrit;
 
                 idx+=length;
+                wolfSSL_sk_ASN1_OBJECT_free(sk);
 
                 return found_extension;
             }
@@ -16465,13 +16466,13 @@ int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, \
 
     if (out == NULL || in == NULL){
         WOLFSSL_MSG("NULL argument passed to function");
-        return WOLFSSL_FAILURE;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     *out = (unsigned char*)XMALLOC(in->length+1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (*out == NULL){
          WOLFSSL_MSG("'out' is NULL after XMALLOC");
-         return WOLFSSL_FAILURE;
+         return WOLFSSL_FATAL_ERROR;
     }
     XMEMSET(*out, 0, in->length+1);
 
@@ -22652,13 +22653,13 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
         WOLFSSL_MSG("src NULL error");
         return NULL;
     }
-    
+
     dup = wolfSSL_EC_KEY_new();
     if (dup == NULL) {
         WOLFSSL_MSG("wolfSSL_EC_KEY_new error");
         return NULL;
     }
-    
+
     key = (ecc_key*)dup->internal;
     if (key == NULL) {
         WOLFSSL_MSG("ecc_key NULL error");
@@ -22671,8 +22672,8 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
         wolfSSL_EC_KEY_free(dup);
         return NULL;
     }
-    
-    /* Copy group */ 
+
+    /* Copy group */
     group = wolfSSL_EC_GROUP_new_by_curve_name(src->group->curve_nid);
     if (group == NULL) {
         WOLFSSL_MSG("EC_GROUP_new_by_curve_name error");
@@ -22681,7 +22682,7 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
     }
     dup->group = group;
 
-    /* Copy public key */    
+    /* Copy public key */
     point_dup = wolfSSL_EC_POINT_new(group);
     if (point_dup == NULL) {
         WOLFSSL_MSG("wolfSSL_EC_POINT_new error");
@@ -22689,13 +22690,13 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
         return NULL;
     }
     dup->pub_key = point_dup;
-  
-    point_src = src->pub_key->internal; 
+
+    point_src = src->pub_key->internal;
     if (point_src == NULL) {
         WOLFSSL_MSG("EC_POINT null error");
         return NULL;
     }
-    point_dup->internal = point_src; 
+    point_dup->internal = point_src;
 
     /* Copy private key */
     priv_dup = wolfSSL_BN_new();
