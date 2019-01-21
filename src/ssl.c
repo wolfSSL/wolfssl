@@ -103,8 +103,9 @@
     #endif /* OPENSSL_ALL && HAVE_PKCS7 */
 #endif
 
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+#if defined(WOLFSSL_QT)
     #include <wolfssl/wolfcrypt/sha.h>
+    int isCertTest = 0;
 #endif
 
 #ifdef NO_ASN
@@ -7028,9 +7029,18 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_ctrl");
     switch(cmd) {
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
         case SSL_CTRL_OPTIONS:
             WOLFSSL_MSG("Entering Case: SSL_CTRL_OPTIONS\n");
             return wolfSSL_CTX_set_options(ctx, opt);
+        #endif
+        case SSL_CTRL_EXTRA_CHAIN_CERT:
+            WOLFSSL_MSG("Entering Case: SSL_CTRL_EXTRA_CHAIN_CERT\n");
+            if (pt == NULL) {
+                WOLFSSL_MSG("Passed in x509 pointer NULL.\n");
+                break;
+            }
+            return wolfSSL_CTX_add_extra_chain_cert(ctx,pt);
 
         #ifndef NO_DH
         case SSL_CTRL_SET_TMP_DH:
@@ -7053,7 +7063,7 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
         #endif
 
         default:
-            WOLFSSL_MSG("No case found");
+            WOLFSSL_MSG("No case found for passed in cmd\n");
     }
 
     return WOLFSSL_FAILURE;
@@ -15645,7 +15655,7 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
 
         if (x509 == NULL)
             return NULL;
-        
+
         #ifdef WOLFSSL_QT
         {
         WOLFSSL_ASN1_TIME* atime = NULL;
@@ -16453,19 +16463,21 @@ int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, \
     int i;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_STRING_to_UTF8");
+
     if (out == NULL || in == NULL){
         WOLFSSL_MSG("NULL argument passed to function");
         return WOLFSSL_FATAL_ERROR;
     }
 
-    *out = (unsigned char*)XMALLOC(in->length, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    *out = (unsigned char*)XMALLOC(in->length+1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (*out == NULL){
          WOLFSSL_MSG("'out' is NULL after XMALLOC");
          return WOLFSSL_FATAL_ERROR;
     }
+    XMEMSET(*out, 0, in->length+1);
 
     for (i=0; i < in->length; i++){
-        *(*(out)+i) = in->data[i];
+       *(*(out)+i) = in->data[i];
     }
 
     return in->length;
@@ -20130,9 +20142,15 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
         a->isDynamic = 1;
     }
 
+    #ifdef WOLFSSL_QT
+    XMEMCPY(&a->data[i], x509->serial, x509->serialSz);
+    a->length = x509->serialSz;
+    #else
+
     a->data[i++] = ASN_INTEGER;
     i += SetLength(x509->serialSz, a->data + i);
     XMEMCPY(&a->data[i], x509->serial, x509->serialSz);
+    #endif
 
     return a;
 }
@@ -22702,36 +22720,38 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
 #if !defined(NO_DH) && defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
 int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
 {
-    int codeTmp = 0, isPrime = MP_NO;
-
+    int isPrime = MP_NO, codeTmp = 0;
     WC_RNG rng;
 
     WOLFSSL_ENTER("wolfSSL_DH_check");
     if (dh == NULL)
-        return BAD_FUNC_ARG;
-
-    if (dh->p == NULL || dh->p->internal == NULL)
-        return BAD_FUNC_ARG;
+        return WOLFSSL_FAILURE;
 
     if (dh->g == NULL || dh->g->internal == NULL)
         codeTmp = DH_NOT_SUITABLE_GENERATOR;
 
-    if (wc_InitRng(&rng) == 0)
-         mp_prime_is_prime_ex((mp_int*)dh->p->internal, 8, &isPrime, &rng);
-
-    if (isPrime != MP_YES)
+    if (dh->p == NULL || dh->p->internal == NULL)
         codeTmp = DH_CHECK_P_NOT_PRIME;
-
-    wc_FreeRng(&rng);
-
-    if (codes != NULL) {
-        if (codeTmp) {
-            *codes = codeTmp;
-            return BAD_FUNC_ARG;
+    else
+    {
+        /* test if dh->p has prime */
+        if (wc_InitRng(&rng) == 0)
+            mp_prime_is_prime_ex((mp_int*)dh->p->internal,8,&isPrime,&rng);
+        else {
+            WOLFSSL_MSG("Error initializing rng\n");
+            return WOLFSSL_FAILURE;
         }
-        else
-            *codes = 0;
+        wc_FreeRng(&rng);
+        if (isPrime != MP_YES)
+            codeTmp = DH_CHECK_P_NOT_PRIME;
     }
+    /* User may choose to enter NULL for codes if they don't want to check it*/
+    if (codes != NULL)
+        *codes = codeTmp;
+
+    /* if codeTmp was set,some check was flagged invalid */
+    if (codeTmp)
+        return WOLFSSL_FAILURE;
 
     return WOLFSSL_SUCCESS;
 }
@@ -25407,10 +25427,19 @@ WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
         return NULL;
     }
 
-    if ((ret = GetInt(&mpi, ai->data, &idx, ai->dataMax)) != 0) {
+    ret = GetInt(&mpi, ai->data, &idx, ai->dataMax);
+    if (ret != 0) {
+    #ifdef WOLFSSL_QT
+        /* Serial number in QT starts at index 0 of data */
+        if (mp_read_unsigned_bin(&mpi, (byte*)ai->data, ai->length) != 0) {
+                mp_clear(&mpi);
+                return NULL;
+            }
+    #else
         /* expecting ASN1 format for INTEGER */
         WOLFSSL_LEAVE("wolfSSL_ASN1_INTEGER_to_BN", ret);
         return NULL;
+    #endif
     }
 
     /* mp_clear needs called because mpi is copied and causes memory leak with
@@ -25482,7 +25511,7 @@ int setDhExternal(WOLFSSL_DH *dh) {
     if (dh == NULL || dh->internal == NULL) {
         WOLFSSL_MSG("dh key NULL error");
     }
-    
+
     key = (DhKey*)dh->internal;
 
     if (SetIndividualExternal(&dh->p, &key->p) != WOLFSSL_SUCCESS) {
@@ -25495,8 +25524,8 @@ int setDhExternal(WOLFSSL_DH *dh) {
         return WOLFSSL_FATAL_ERROR;
     }
 
-    dh->exSet = 1; 
- 
+    dh->exSet = 1;
+
     return WOLFSSL_SUCCESS;
 }
 #endif /* WOLFSSL_QT */
@@ -33529,16 +33558,57 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
     #endif
 
-#ifdef HAVE_ECC
+
     const char * wolfSSL_OBJ_nid2sn(int n) {
-        int i;
+        int localIsCertTest;
+
         WOLFSSL_ENTER("wolfSSL_OBJ_nid2sn");
 
-        /* find based on NID and return name */
-        for (i = 0; i < ecc_sets[i].size; i++) {
-            if (n == ecc_sets[i].id) {
-                return ecc_sets[i].name;
+        #ifdef WOLFSSL_QT
+            localIsCertTest = isCertTest;
+        #else
+            localIsCertTest = 0;
+        #endif
+
+        /* Some cert info NIDs are the same as ECC IDs.
+         Therefore, for now, we only give the option of
+         finding one or the other depending on the circumstance.
+        */
+        if (localIsCertTest) {
+            #ifdef WOLFSSL_QT
+                isCertTest = 0;
+            #endif
+            switch(n)
+            {
+                case NID_commonName :
+                    return "CN";
+                case NID_countryName :
+                    return "C";
+                case NID_localityName :
+                    return "L";
+                case NID_stateOrProvinceName :
+                    return "ST";
+                case NID_organizationName :
+                    return "O";
+                case NID_organizationalUnitName :
+                    return "OU";
+                case NID_emailAddress :
+                    return "emailAddress";
+                default  :
+                    WOLFSSL_MSG("nid not in table\n");
             }
+        } else {
+            #ifdef HAVE_ECC
+            {
+                int i;
+                /* find sn based on NID and return name */
+                for (i = 0; i < ecc_sets[i].size; i++) {
+                    if (n == ecc_sets[i].id) {
+                        return ecc_sets[i].name;
+                    }
+                }
+            }
+            #endif /* HAVE_ECC */
         }
         return NULL;
     }
@@ -33549,7 +33619,6 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
  or NID_undef if NID can't be found
  */
     int wolfSSL_OBJ_sn2nid(const char *sn) {
-        int i;
 
         WOLFSSL_ENTER("wolfSSL_OBJ_sn2nid");
 
@@ -33558,19 +33627,24 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             return BAD_FUNC_ARG;
         }
 
-        /* find based on name and return NID */
-        for (i = 0; i < ecc_sets[i].size; i++) {
-            if (XSTRNCMP(sn, ecc_sets[i].name, ECC_MAXNAME) == 0) {
-                return ecc_sets[i].id;
+        #ifdef HAVE_ECC
+        {
+            int i;
+            /* find based on name and return NID */
+            for (i = 0; i < ecc_sets[i].size; i++) {
+                if (XSTRNCMP(sn, ecc_sets[i].name, ECC_MAXNAME) == 0) {
+                    return ecc_sets[i].id;
+                }
             }
         }
+        #endif /* HAVE_ECC */
         return NID_undef;
     }
 #endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) */
-#endif /* HAVE_ECC */
 
     static int oid2nid(word32 oid, int grp)
     {
+        WOLFSSL_ENTER("oid2nid");
         /* get OID type */
         switch (grp) {
             /* oidHashType */
@@ -33999,65 +34073,129 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
     static WOLFSSL_X509_NAME *get_nameByLoc( WOLFSSL_X509_NAME *name, int loc)
     {
-        switch (loc)
-        {
-        case 0:
-            name->cnEntry.value->length = name->fullName.cnLen;
-            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.cnIdx];
-            name->cnEntry.nid           = name->fullName.cnNid;
-            break;
-        case 1:
-            name->cnEntry.value->length = name->fullName.cLen;
-            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.cIdx];
-            name->cnEntry.nid           = name->fullName.cNid;
-            break;
-        case 2:
-            name->cnEntry.value->length = name->fullName.lLen;
-            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.lIdx];
-            name->cnEntry.nid           = name->fullName.lNid;
-            break;
-        case 3:
-            name->cnEntry.value->length = name->fullName.stLen;
-            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.stIdx];
-            name->cnEntry.nid           = name->fullName.stNid;
-            break;
-        case 4:
-            name->cnEntry.value->length = name->fullName.oLen;
-            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.oIdx];
-            name->cnEntry.nid           = name->fullName.oNid;
-            break;
-        case 5:
-            name->cnEntry.value->length = name->fullName.ouLen;
-            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.ouIdx];
-            name->cnEntry.nid           = name->fullName.ouNid;
-            break;
-        case 6:
-            name->cnEntry.value->length = name->fullName.emailLen;
-            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.emailIdx];
-            name->cnEntry.nid           = name->fullName.emailNid;
-            break;
-        case 7:
-            name->cnEntry.value->length = name->fullName.snLen;
-            name->cnEntry.value->data = &name->fullName.fullName[name->fullName.snIdx];
-            name->cnEntry.nid           = name->fullName.snNid;
-            break;
-        case 8:
-            name->cnEntry.value->length = name->fullName.uidLen;
-            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.uidIdx];
-            name->cnEntry.nid           = name->fullName.uidNid;
-            break;
-        case 9:
-            name->cnEntry.value->length = name->fullName.serialLen;
-            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.serialIdx];
-            name->cnEntry.nid           = name->fullName.serialNid;
-            break;
-        default:
-            return NULL;
+        int curr = 0;
+
+        if (name->fullName.cnIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.cnLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.cnIdx];
+                name->cnEntry.nid           = name->fullName.cnNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
         }
-        if (name->cnEntry.value->length == 0)
-            return NULL;
-        name->cnEntry.value->type   = CTC_UTF8;
-        return name;
+        if (name->fullName.snIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.snLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.snIdx];
+                name->cnEntry.nid           = name->fullName.snNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
+        }
+        if (name->fullName.cIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.cLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.cIdx];
+                name->cnEntry.nid           = name->fullName.cNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
+        }
+        if (name->fullName.lIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.lLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.lIdx];
+                name->cnEntry.nid           = name->fullName.lNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
+        }
+        if (name->fullName.stIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.stLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.stIdx];
+                name->cnEntry.nid           = name->fullName.stNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
+        }
+        if (name->fullName.oIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.oLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.oIdx];
+                name->cnEntry.nid           = name->fullName.oNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
+        }
+        if (name->fullName.ouIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.ouLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.ouIdx];
+                name->cnEntry.nid           = name->fullName.ouNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
+        }
+        if (name->fullName.emailIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.emailLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.emailIdx];
+                name->cnEntry.nid           = name->fullName.emailNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
+        }
+        if (name->fullName.uidIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.uidLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.uidIdx];
+                name->cnEntry.nid           = name->fullName.uidNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
+        }
+        if (name->fullName.serialIdx != 0) {
+            if (curr == loc) {
+                name->cnEntry.value->length = name->fullName.serialLen;
+                name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.serialIdx];
+                name->cnEntry.nid           = name->fullName.serialNid;
+                name->cnEntry.set           = 1;
+                name->cnEntry.value->type   = CTC_UTF8;
+                return name;
+            }
+            else
+                curr++;
+        }
+        return NULL;
     }
 
 
@@ -34067,17 +34205,23 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         WOLFSSL_ENTER("wolfSSL_X509_NAME_get_entry");
 
         if (name == NULL) {
+            WOLFSSL_MSG("Bad name argument");
             return NULL;
         }
 
         if (loc < 0 || loc > 9 + name->fullName.dcNum) {
-            WOLFSSL_MSG("Bad argument");
+            WOLFSSL_MSG("Bad location argument");
             return NULL;
         }
 
         if (loc >= 0 && loc <= 9){
-            if (get_nameByLoc(name, loc) != NULL)
+            if (get_nameByLoc(name, loc) != NULL) {
+                /* Needed to find sn cert info in OBJ_nid2sn() */
+                #ifdef WOLFSSL_QT
+                    isCertTest = 1;
+                #endif
                 return &name->cnEntry;
+            }
         }
 
         /* DC component */
@@ -34094,9 +34238,8 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 }
             }
             name->cnEntry.data.type = CTC_UTF8;
-            name->cnEntry.set       = 1;
 
-         /* common name index case */
+       /* common name index case */
         } else if (loc == name->fullName.cnIdx && name->x509 != NULL) {
             /* get CN shortcut from x509 since it has null terminator */
             name->cnEntry.data.data   = name->x509->subjectCN;
@@ -38252,5 +38395,3 @@ int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey)
     return wolfSSL_X509_set_pubkey(req, pkey);
 }
 #endif
-
-
