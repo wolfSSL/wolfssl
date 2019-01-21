@@ -23746,7 +23746,7 @@ static void test_wolfSSL_CTX_ctrl(void)
     SSL_CTX* ctx;
     X509* x509 = NULL;
 #ifndef NO_DH
-    byte buffer[5300];
+    byte buf[5300];
     char file[] = "./certs/dsaparams.pem";
     XFILE f;
     int  bytes;
@@ -23772,10 +23772,10 @@ static void test_wolfSSL_CTX_ctrl(void)
     /* Initialize DH */
     f = XFOPEN(file, "rb");
     AssertTrue((f != XBADFILE));
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    bytes = (int)XFREAD(buf, 1, sizeof(buf), f);
     XFCLOSE(f);
 
-    bio = BIO_new_mem_buf((void*)buffer, bytes);
+    bio = BIO_new_mem_buf((void*)buf, bytes);
     AssertNotNull(bio);
 
     dsa = wolfSSL_PEM_read_bio_DSAparams(bio, NULL, NULL, NULL);
@@ -23889,7 +23889,7 @@ static void test_wolfSSL_CTX_ctrl(void)
 static void test_wolfSSL_DH_check(void)
 {
 #ifndef NO_DH
-    byte buffer[5300];
+    byte buf[5300];
     char file[] = "./certs/dsaparams.pem";
     XFILE f;
     int  bytes;
@@ -23905,10 +23905,10 @@ static void test_wolfSSL_DH_check(void)
     /* Initialize DH */
     f = XFOPEN(file, "rb");
     AssertTrue((f != XBADFILE));
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    bytes = (int)XFREAD(buf, 1, sizeof(buf), f);
     XFCLOSE(f);
 
-    bio = BIO_new_mem_buf((void*)buffer, bytes);
+    bio = BIO_new_mem_buf((void*)buf, bytes);
     AssertNotNull(bio);
 
     dsa = wolfSSL_PEM_read_bio_DSAparams(bio, NULL, NULL, NULL);
