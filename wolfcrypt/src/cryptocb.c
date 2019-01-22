@@ -55,6 +55,15 @@ static CryptoCb* wc_CryptoCb_FindDevice(int devId)
     }
     return NULL;
 }
+static CryptoCb* wc_CryptoCb_FindDeviceByIndex(int startIdx)
+{
+    int i;
+    for (i=startIdx; i<MAX_CRYPTO_DEVID_CALLBACKS; i++) {
+        if (gCryptoDev[i].devId != INVALID_DEVID)
+            return &gCryptoDev[i];
+    }
+    return NULL;
+}
 
 void wc_CryptoCb_Init(void)
 {
@@ -97,24 +106,25 @@ int wc_CryptoCb_Rsa(const byte* in, word32 inLen, byte* out,
     int ret = NOT_COMPILED_IN;
     CryptoCb* dev;
 
+    if (key == NULL)
+        return ret;
+
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(key->devId);
-    if (dev) {
-        if (dev->cb) {
-            wc_CryptoInfo cryptoInfo;
-            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-            cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
-            cryptoInfo.pk.type = WC_PK_TYPE_RSA;
-            cryptoInfo.pk.rsa.in = in;
-            cryptoInfo.pk.rsa.inLen = inLen;
-            cryptoInfo.pk.rsa.out = out;
-            cryptoInfo.pk.rsa.outLen = outLen;
-            cryptoInfo.pk.rsa.type = type;
-            cryptoInfo.pk.rsa.key = key;
-            cryptoInfo.pk.rsa.rng = rng;
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_RSA;
+        cryptoInfo.pk.rsa.in = in;
+        cryptoInfo.pk.rsa.inLen = inLen;
+        cryptoInfo.pk.rsa.out = out;
+        cryptoInfo.pk.rsa.outLen = outLen;
+        cryptoInfo.pk.rsa.type = type;
+        cryptoInfo.pk.rsa.key = key;
+        cryptoInfo.pk.rsa.rng = rng;
 
-            ret = dev->cb(key->devId, &cryptoInfo, dev->ctx);
-        }
+        ret = dev->cb(key->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -126,21 +136,22 @@ int wc_CryptoCb_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     int ret = NOT_COMPILED_IN;
     CryptoCb* dev;
 
+    if (key == NULL)
+        return ret;
+
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(key->devId);
-    if (dev) {
-        if (dev->cb) {
-            wc_CryptoInfo cryptoInfo;
-            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-            cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
-            cryptoInfo.pk.type = WC_PK_TYPE_RSA_KEYGEN;
-            cryptoInfo.pk.rsakg.key = key;
-            cryptoInfo.pk.rsakg.size = size;
-            cryptoInfo.pk.rsakg.e = e;
-            cryptoInfo.pk.rsakg.rng = rng;
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_RSA_KEYGEN;
+        cryptoInfo.pk.rsakg.key = key;
+        cryptoInfo.pk.rsakg.size = size;
+        cryptoInfo.pk.rsakg.e = e;
+        cryptoInfo.pk.rsakg.rng = rng;
 
-            ret = dev->cb(key->devId, &cryptoInfo, dev->ctx);
-        }
+        ret = dev->cb(key->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -154,21 +165,22 @@ int wc_CryptoCb_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId)
     int ret = NOT_COMPILED_IN;
     CryptoCb* dev;
 
+    if (key == NULL)
+        return ret;
+
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(key->devId);
-    if (dev) {
-        if (dev->cb) {
-            wc_CryptoInfo cryptoInfo;
-            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-            cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
-            cryptoInfo.pk.type = WC_PK_TYPE_EC_KEYGEN;
-            cryptoInfo.pk.eckg.rng = rng;
-            cryptoInfo.pk.eckg.size = keySize;
-            cryptoInfo.pk.eckg.key = key;
-            cryptoInfo.pk.eckg.curveId = curveId;
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_EC_KEYGEN;
+        cryptoInfo.pk.eckg.rng = rng;
+        cryptoInfo.pk.eckg.size = keySize;
+        cryptoInfo.pk.eckg.key = key;
+        cryptoInfo.pk.eckg.curveId = curveId;
 
-            ret = dev->cb(key->devId, &cryptoInfo, dev->ctx);
-        }
+        ret = dev->cb(key->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -180,21 +192,22 @@ int wc_CryptoCb_Ecdh(ecc_key* private_key, ecc_key* public_key,
     int ret = NOT_COMPILED_IN;
     CryptoCb* dev;
 
+    if (private_key == NULL)
+        return ret;
+
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(private_key->devId);
-    if (dev) {
-        if (dev->cb) {
-            wc_CryptoInfo cryptoInfo;
-            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-            cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
-            cryptoInfo.pk.type = WC_PK_TYPE_ECDH;
-            cryptoInfo.pk.ecdh.private_key = private_key;
-            cryptoInfo.pk.ecdh.public_key = public_key;
-            cryptoInfo.pk.ecdh.out = out;
-            cryptoInfo.pk.ecdh.outlen = outlen;
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_ECDH;
+        cryptoInfo.pk.ecdh.private_key = private_key;
+        cryptoInfo.pk.ecdh.public_key = public_key;
+        cryptoInfo.pk.ecdh.out = out;
+        cryptoInfo.pk.ecdh.outlen = outlen;
 
-            ret = dev->cb(private_key->devId, &cryptoInfo, dev->ctx);
-        }
+        ret = dev->cb(private_key->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -206,23 +219,24 @@ int wc_CryptoCb_EccSign(const byte* in, word32 inlen, byte* out,
     int ret = NOT_COMPILED_IN;
     CryptoCb* dev;
 
+    if (key == NULL)
+        return ret;
+
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(key->devId);
-    if (dev) {
-        if (dev->cb) {
-            wc_CryptoInfo cryptoInfo;
-            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-            cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
-            cryptoInfo.pk.type = WC_PK_TYPE_ECDSA_SIGN;
-            cryptoInfo.pk.eccsign.in = in;
-            cryptoInfo.pk.eccsign.inlen = inlen;
-            cryptoInfo.pk.eccsign.out = out;
-            cryptoInfo.pk.eccsign.outlen = outlen;
-            cryptoInfo.pk.eccsign.rng = rng;
-            cryptoInfo.pk.eccsign.key = key;
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_ECDSA_SIGN;
+        cryptoInfo.pk.eccsign.in = in;
+        cryptoInfo.pk.eccsign.inlen = inlen;
+        cryptoInfo.pk.eccsign.out = out;
+        cryptoInfo.pk.eccsign.outlen = outlen;
+        cryptoInfo.pk.eccsign.rng = rng;
+        cryptoInfo.pk.eccsign.key = key;
 
-            ret = dev->cb(key->devId, &cryptoInfo, dev->ctx);
-        }
+        ret = dev->cb(key->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -234,23 +248,24 @@ int wc_CryptoCb_EccVerify(const byte* sig, word32 siglen,
     int ret = NOT_COMPILED_IN;
     CryptoCb* dev;
 
+    if (key == NULL)
+        return ret;
+
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(key->devId);
-    if (dev) {
-        if (dev->cb) {
-            wc_CryptoInfo cryptoInfo;
-            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-            cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
-            cryptoInfo.pk.type = WC_PK_TYPE_ECDSA_VERIFY;
-            cryptoInfo.pk.eccverify.sig = sig;
-            cryptoInfo.pk.eccverify.siglen = siglen;
-            cryptoInfo.pk.eccverify.hash = hash;
-            cryptoInfo.pk.eccverify.hashlen = hashlen;
-            cryptoInfo.pk.eccverify.res = res;
-            cryptoInfo.pk.eccverify.key = key;
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = WC_PK_TYPE_ECDSA_VERIFY;
+        cryptoInfo.pk.eccverify.sig = sig;
+        cryptoInfo.pk.eccverify.siglen = siglen;
+        cryptoInfo.pk.eccverify.hash = hash;
+        cryptoInfo.pk.eccverify.hashlen = hashlen;
+        cryptoInfo.pk.eccverify.res = res;
+        cryptoInfo.pk.eccverify.key = key;
 
-            ret = dev->cb(key->devId, &cryptoInfo, dev->ctx);
-        }
+        ret = dev->cb(key->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -269,27 +284,32 @@ int wc_CryptoCb_AesGcmEncrypt(Aes* aes, byte* out,
     CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(aes->devId);
-    if (dev) {
-        if (dev->cb) {
-            wc_CryptoInfo cryptoInfo;
-            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-            cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
-            cryptoInfo.cipher.type = WC_CIPHER_AES_GCM;
-            cryptoInfo.cipher.enc = 1;
-            cryptoInfo.cipher.aesgcm_enc.aes       = aes;
-            cryptoInfo.cipher.aesgcm_enc.out       = out;
-            cryptoInfo.cipher.aesgcm_enc.in        = in;
-            cryptoInfo.cipher.aesgcm_enc.sz        = sz;
-            cryptoInfo.cipher.aesgcm_enc.iv        = iv;
-            cryptoInfo.cipher.aesgcm_enc.ivSz      = ivSz;
-            cryptoInfo.cipher.aesgcm_enc.authTag   = authTag;
-            cryptoInfo.cipher.aesgcm_enc.authTagSz = authTagSz;
-            cryptoInfo.cipher.aesgcm_enc.authIn    = authIn;
-            cryptoInfo.cipher.aesgcm_enc.authInSz  = authInSz;
+    if (aes) {
+        dev = wc_CryptoCb_FindDevice(aes->devId);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
 
-            ret = dev->cb(aes->devId, &cryptoInfo, dev->ctx);
-        }
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
+        cryptoInfo.cipher.type = WC_CIPHER_AES_GCM;
+        cryptoInfo.cipher.enc = 1;
+        cryptoInfo.cipher.aesgcm_enc.aes       = aes;
+        cryptoInfo.cipher.aesgcm_enc.out       = out;
+        cryptoInfo.cipher.aesgcm_enc.in        = in;
+        cryptoInfo.cipher.aesgcm_enc.sz        = sz;
+        cryptoInfo.cipher.aesgcm_enc.iv        = iv;
+        cryptoInfo.cipher.aesgcm_enc.ivSz      = ivSz;
+        cryptoInfo.cipher.aesgcm_enc.authTag   = authTag;
+        cryptoInfo.cipher.aesgcm_enc.authTagSz = authTagSz;
+        cryptoInfo.cipher.aesgcm_enc.authIn    = authIn;
+        cryptoInfo.cipher.aesgcm_enc.authInSz  = authInSz;
+
+        ret = dev->cb(aes->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -305,27 +325,32 @@ int wc_CryptoCb_AesGcmDecrypt(Aes* aes, byte* out,
     CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(aes->devId);
-    if (dev) {
-        if (dev->cb) {
-            wc_CryptoInfo cryptoInfo;
-            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-            cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
-            cryptoInfo.cipher.type = WC_CIPHER_AES_GCM;
-            cryptoInfo.cipher.enc = 0;
-            cryptoInfo.cipher.aesgcm_dec.aes       = aes;
-            cryptoInfo.cipher.aesgcm_dec.out       = out;
-            cryptoInfo.cipher.aesgcm_dec.in        = in;
-            cryptoInfo.cipher.aesgcm_dec.sz        = sz;
-            cryptoInfo.cipher.aesgcm_dec.iv        = iv;
-            cryptoInfo.cipher.aesgcm_dec.ivSz      = ivSz;
-            cryptoInfo.cipher.aesgcm_dec.authTag   = authTag;
-            cryptoInfo.cipher.aesgcm_dec.authTagSz = authTagSz;
-            cryptoInfo.cipher.aesgcm_dec.authIn    = authIn;
-            cryptoInfo.cipher.aesgcm_dec.authInSz  = authInSz;
+    if (aes) {
+        dev = wc_CryptoCb_FindDevice(aes->devId);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
 
-            ret = dev->cb(aes->devId, &cryptoInfo, dev->ctx);
-        }
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
+        cryptoInfo.cipher.type = WC_CIPHER_AES_GCM;
+        cryptoInfo.cipher.enc = 0;
+        cryptoInfo.cipher.aesgcm_dec.aes       = aes;
+        cryptoInfo.cipher.aesgcm_dec.out       = out;
+        cryptoInfo.cipher.aesgcm_dec.in        = in;
+        cryptoInfo.cipher.aesgcm_dec.sz        = sz;
+        cryptoInfo.cipher.aesgcm_dec.iv        = iv;
+        cryptoInfo.cipher.aesgcm_dec.ivSz      = ivSz;
+        cryptoInfo.cipher.aesgcm_dec.authTag   = authTag;
+        cryptoInfo.cipher.aesgcm_dec.authTagSz = authTagSz;
+        cryptoInfo.cipher.aesgcm_dec.authIn    = authIn;
+        cryptoInfo.cipher.aesgcm_dec.authInSz  = authInSz;
+
+        ret = dev->cb(aes->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -340,21 +365,27 @@ int wc_CryptoCb_AesCbcEncrypt(Aes* aes, byte* out,
     CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(aes->devId);
-    if (dev) {
-        if (dev->cb) {
-            wc_CryptoInfo cryptoInfo;
-            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-            cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
-            cryptoInfo.cipher.type = WC_CIPHER_AES_CBC;
-            cryptoInfo.cipher.enc = 1;
-            cryptoInfo.cipher.aescbc.aes       = aes;
-            cryptoInfo.cipher.aescbc.out       = out;
-            cryptoInfo.cipher.aescbc.in        = in;
-            cryptoInfo.cipher.aescbc.sz        = sz;
+    if (aes) {
+        dev = wc_CryptoCb_FindDevice(aes->devId);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
 
-            ret = dev->cb(aes->devId, &cryptoInfo, dev->ctx);
-        }
+    dev = wc_CryptoCb_FindDevice(aes->devId);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
+        cryptoInfo.cipher.type = WC_CIPHER_AES_CBC;
+        cryptoInfo.cipher.enc = 1;
+        cryptoInfo.cipher.aescbc.aes = aes;
+        cryptoInfo.cipher.aescbc.out = out;
+        cryptoInfo.cipher.aescbc.in = in;
+        cryptoInfo.cipher.aescbc.sz = sz;
+
+        ret = dev->cb(aes->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -367,21 +398,26 @@ int wc_CryptoCb_AesCbcDecrypt(Aes* aes, byte* out,
     CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(aes->devId);
-    if (dev) {
-        if (dev->cb) {
-            wc_CryptoInfo cryptoInfo;
-            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-            cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
-            cryptoInfo.cipher.type = WC_CIPHER_AES_CBC;
-            cryptoInfo.cipher.enc = 0;
-            cryptoInfo.cipher.aescbc.aes       = aes;
-            cryptoInfo.cipher.aescbc.out       = out;
-            cryptoInfo.cipher.aescbc.in        = in;
-            cryptoInfo.cipher.aescbc.sz        = sz;
+    if (aes) {
+        dev = wc_CryptoCb_FindDevice(aes->devId);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
 
-            ret = dev->cb(aes->devId, &cryptoInfo, dev->ctx);
-        }
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_CIPHER;
+        cryptoInfo.cipher.type = WC_CIPHER_AES_CBC;
+        cryptoInfo.cipher.enc = 0;
+        cryptoInfo.cipher.aescbc.aes = aes;
+        cryptoInfo.cipher.aescbc.out = out;
+        cryptoInfo.cipher.aescbc.in = in;
+        cryptoInfo.cipher.aescbc.sz = sz;
+
+        ret = dev->cb(aes->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -397,20 +433,25 @@ int wc_CryptoCb_ShaHash(wc_Sha* sha, const byte* in,
     CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(sha->devId);
-    if (dev) {
-        if (dev->cb) {
-            wc_CryptoInfo cryptoInfo;
-            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-            cryptoInfo.algo_type = WC_ALGO_TYPE_HASH;
-            cryptoInfo.hash.type = WC_HASH_TYPE_SHA;
-            cryptoInfo.hash.sha1 = sha;
-            cryptoInfo.hash.in = in;
-            cryptoInfo.hash.inSz = inSz;
-            cryptoInfo.hash.digest = digest;
+    if (sha) {
+        dev = wc_CryptoCb_FindDevice(sha->devId);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
 
-            ret = dev->cb(sha->devId, &cryptoInfo, dev->ctx);
-        }
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_HASH;
+        cryptoInfo.hash.type = WC_HASH_TYPE_SHA;
+        cryptoInfo.hash.sha1 = sha;
+        cryptoInfo.hash.in = in;
+        cryptoInfo.hash.inSz = inSz;
+        cryptoInfo.hash.digest = digest;
+
+        ret = dev->cb(sha->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -425,20 +466,25 @@ int wc_CryptoCb_Sha256Hash(wc_Sha256* sha256, const byte* in,
     CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(sha256->devId);
-    if (dev) {
-        if (dev->cb) {
-            wc_CryptoInfo cryptoInfo;
-            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-            cryptoInfo.algo_type = WC_ALGO_TYPE_HASH;
-            cryptoInfo.hash.type = WC_HASH_TYPE_SHA256;
-            cryptoInfo.hash.sha256 = sha256;
-            cryptoInfo.hash.in = in;
-            cryptoInfo.hash.inSz = inSz;
-            cryptoInfo.hash.digest = digest;
+    if (sha256) {
+        dev = wc_CryptoCb_FindDevice(sha256->devId);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
 
-            ret = dev->cb(sha256->devId, &cryptoInfo, dev->ctx);
-        }
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_HASH;
+        cryptoInfo.hash.type = WC_HASH_TYPE_SHA256;
+        cryptoInfo.hash.sha256 = sha256;
+        cryptoInfo.hash.in = in;
+        cryptoInfo.hash.inSz = inSz;
+        cryptoInfo.hash.digest = digest;
+
+        ret = dev->cb(sha256->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -452,18 +498,23 @@ int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz)
     CryptoCb* dev;
 
     /* locate registered callback */
-    dev = wc_CryptoCb_FindDevice(rng->devId);
-    if (dev) {
-        if (dev->cb) {
-            wc_CryptoInfo cryptoInfo;
-            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-            cryptoInfo.algo_type = WC_ALGO_TYPE_RNG;
-            cryptoInfo.rng.rng = rng;
-            cryptoInfo.rng.out = out;
-            cryptoInfo.rng.sz = sz;
+    if (rng) {
+        dev = wc_CryptoCb_FindDevice(rng->devId);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
 
-            ret = dev->cb(rng->devId, &cryptoInfo, dev->ctx);
-        }
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_RNG;
+        cryptoInfo.rng.rng = rng;
+        cryptoInfo.rng.out = out;
+        cryptoInfo.rng.sz = sz;
+
+        ret = dev->cb(rng->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;

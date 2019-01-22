@@ -915,19 +915,7 @@ struct TrustedPeerCert {
     #define WOLFSSL_ASN_API WOLFSSL_LOCAL
 #endif
 
-/* Macro for calculating hashId */
-#if defined(NO_SHA) && defined(NO_SHA256)
-    #ifdef WOLF_CRYPTO_CB
-        #define CalcHashId(data, len, hash) wc_CryptoDevSha256Hash(data, len, hash)
-    #else
-        #define CalcHashId(data, len, hash) NOT_COMPILED_IN
-    #endif
-#elif defined(NO_SHA)
-    #define CalcHashId(data, len, hash)     wc_Sha256Hash(data, len, hash)
-#else
-    #define CalcHashId(data, len, hash)     wc_ShaHash(data, len, hash)
-#endif
-
+WOLFSSL_LOCAL int CalcHashId(const byte* data, word32 len, byte* hash);
 
 WOLFSSL_ASN_API int wc_BerToDer(const byte* ber, word32 berSz, byte* der,
                                 word32* derSz);
