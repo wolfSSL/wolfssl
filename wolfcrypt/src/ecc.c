@@ -3897,6 +3897,7 @@ static int wc_ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
 
 #else
     (void)curveIn;
+    err = NOT_COMPILED_IN;
 #endif /* WOLFSSL_ATECC508A */
 
     /* change key state if public part is cached */
@@ -3927,7 +3928,7 @@ int wc_ecc_make_pub(ecc_key* key, ecc_point* pubOut)
 
 int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
 {
-    int            err;
+    int err;
 #ifndef WOLFSSL_ATECC508A
 #ifndef WOLFSSL_SP_MATH
     DECLARE_CURVE_SPECS(curve, ECC_CURVE_FIELD_COUNT);
@@ -3974,19 +3975,24 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
 #endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_ECC */
 
 #ifdef WOLFSSL_ATECC508A
-   key->type = ECC_PRIVATEKEY;
-   key->slot = atmel_ecc_alloc(ATMEL_SLOT_ECDHE);
-   err = atmel_ecc_create_key(key->slot, key->pubkey_raw);
+   if (curve_id == ECC_SECP256R1) {
+       key->type = ECC_PRIVATEKEY;
+       key->slot = atmel_ecc_alloc(ATMEL_SLOT_ECDHE);
+       err = atmel_ecc_create_key(key->slot, key->pubkey_raw);
 
-   /* populate key->pubkey */
-   if (err == 0 && key->pubkey.x) {
-       err = mp_read_unsigned_bin(key->pubkey.x, key->pubkey_raw,
-                                  ECC_MAX_CRYPTO_HW_SIZE);
+       /* populate key->pubkey */
+       if (err == 0 && key->pubkey.x) {
+           err = mp_read_unsigned_bin(key->pubkey.x, key->pubkey_raw,
+                                      ECC_MAX_CRYPTO_HW_SIZE);
+       }
+       if (err == 0 && key->pubkey.y) {
+           err = mp_read_unsigned_bin(key->pubkey.y,
+                                      key->pubkey_raw + ECC_MAX_CRYPTO_HW_SIZE,
+                                      ECC_MAX_CRYPTO_HW_SIZE);
+       }
    }
-   if (err == 0 && key->pubkey.y) {
-       err = mp_read_unsigned_bin(key->pubkey.y,
-                                  key->pubkey_raw + ECC_MAX_CRYPTO_HW_SIZE,
-                                  ECC_MAX_CRYPTO_HW_SIZE);
+   else {
+      err = NOT_COMPILED_IN;
    }
 #else
 
