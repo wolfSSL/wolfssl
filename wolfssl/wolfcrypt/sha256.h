@@ -24,7 +24,6 @@
 */
 
 
-/* code submitted by raphael.huck@efixo.com */
 
 #ifndef WOLF_CRYPT_SHA256_H
 #define WOLF_CRYPT_SHA256_H
