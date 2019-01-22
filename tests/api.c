@@ -17315,9 +17315,12 @@ static void test_wolfSSL_PEM_bio_RSAKey(void)
     AssertIntEQ(RSA_size(rsa), 256);
     AssertIntEQ(PEM_write_bio_RSAPrivateKey(NULL, NULL, NULL, NULL, 0, NULL, NULL),
             WOLFSSL_FAILURE);
+    BIO_free(bio);
     AssertNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
     AssertIntEQ(PEM_write_bio_RSAPrivateKey(bio, rsa, NULL, NULL, 0, NULL, NULL),
             WOLFSSL_SUCCESS);
+    BIO_free(bio);
+    RSA_free(rsa);
 
     /* PUBKEY */
     AssertNotNull(bio = BIO_new_file("./certs/rsa-pub-2048.pem", "rb"));
@@ -17325,15 +17328,15 @@ static void test_wolfSSL_PEM_bio_RSAKey(void)
     AssertNotNull((rsa = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL)));
     AssertIntEQ(RSA_size(rsa), 256);
     AssertIntEQ(PEM_write_bio_RSA_PUBKEY(NULL, NULL), WOLFSSL_FAILURE);
+    BIO_free(bio);
     AssertNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
     AssertIntEQ(PEM_write_bio_RSA_PUBKEY(bio, rsa), WOLFSSL_SUCCESS);
-
     BIO_free(bio);
     RSA_free(rsa);
 
     #ifdef HAVE_ECC
     /* ensure that non-rsa keys do not work */
-    AssertNotNull(bio = BIO_new_file(eccKeyFile, "rb"));
+    AssertNotNull(bio = BIO_new_file(eccKeyFile, "rb")); /* ecc key */
     AssertNull((rsa = PEM_read_bio_RSAPrivateKey(bio, NULL, NULL, NULL)));
     AssertNull((rsa = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL)));
     BIO_free(bio);
@@ -17361,26 +17364,28 @@ static void test_wolfSSL_PEM_bio_DSAKey(void)
     AssertIntEQ(BN_num_bytes(dsa->g), 128);
     AssertIntEQ(PEM_write_bio_DSAPrivateKey(NULL, NULL, NULL, NULL, 0, NULL, NULL),
             WOLFSSL_FAILURE);
+    BIO_free(bio);
     AssertNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
     AssertIntEQ(PEM_write_bio_DSAPrivateKey(bio, dsa, NULL, NULL, 0, NULL, NULL),
             WOLFSSL_SUCCESS);
+    BIO_free(bio);
+    DSA_free(dsa);
 
     /* PUBKEY */
-     AssertNotNull(bio = BIO_new_file("./certs/1024/dsa-pub-1024.pem", "rb"));
-     AssertNull((dsa = PEM_read_bio_DSA_PUBKEY(NULL, NULL, NULL, NULL)));
-     //TODO: PEM_read_bio_DSA_PUBKEY not working for all cases, make it
-     AssertNotNull((dsa = PEM_read_bio_DSA_PUBKEY(bio, NULL, NULL, NULL)));
-     AssertIntEQ(BN_num_bytes(dsa->g), 128);
-     AssertIntEQ(PEM_write_bio_DSA_PUBKEY(NULL, NULL), WOLFSSL_FAILURE);
-     AssertNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
-     AssertIntEQ(PEM_write_bio_DSA_PUBKEY(bio, dsa), WOLFSSL_SUCCESS);
-
+    AssertNotNull(bio = BIO_new_file("./certs/1024/dsa-pub-1024.pem", "rb"));
+    AssertNull((dsa = PEM_read_bio_DSA_PUBKEY(NULL, NULL, NULL, NULL)));
+    AssertNotNull((dsa = PEM_read_bio_DSA_PUBKEY(bio, NULL, NULL, NULL)));
+    AssertIntEQ(BN_num_bytes(dsa->g), 128);
+    AssertIntEQ(PEM_write_bio_DSA_PUBKEY(NULL, NULL), WOLFSSL_FAILURE);
+    BIO_free(bio);
+    AssertNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    AssertIntEQ(PEM_write_bio_DSA_PUBKEY(bio, dsa), WOLFSSL_SUCCESS);
     BIO_free(bio);
     DSA_free(dsa);
 
     #ifdef HAVE_ECC
     /* ensure that non-dsa keys do not work */
-    AssertNotNull(bio = BIO_new_file(eccKeyFile, "rb"));
+    AssertNotNull(bio = BIO_new_file(eccKeyFile, "rb")); /* ecc key */
     AssertNull((dsa = PEM_read_bio_DSAPrivateKey(bio, NULL, NULL, NULL)));
     AssertNull((dsa = PEM_read_bio_DSA_PUBKEY(bio, NULL, NULL, NULL)));
     BIO_free(bio);
@@ -17408,9 +17413,12 @@ static void test_wolfSSL_PEM_bio_ECKey(void)
     AssertIntEQ(wc_ecc_size((ecc_key*)ec->internal), 32);
     AssertIntEQ(PEM_write_bio_ECPrivateKey(NULL, NULL, NULL, NULL, 0, NULL, NULL),
             WOLFSSL_FAILURE);
+    BIO_free(bio);
     AssertNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
     AssertIntEQ(PEM_write_bio_ECPrivateKey(bio, ec, NULL, NULL, 0, NULL, NULL),
             WOLFSSL_SUCCESS);
+    BIO_free(bio);
+    EC_KEY_free(ec);
 
     /* PUBKEY */
     AssertNotNull(bio = BIO_new_file("./certs/ecc-client-keyPub.pem", "rb"));
@@ -17418,15 +17426,15 @@ static void test_wolfSSL_PEM_bio_ECKey(void)
     AssertNotNull((ec = PEM_read_bio_EC_PUBKEY(bio, NULL, NULL, NULL)));
     AssertIntEQ(wc_ecc_size((ecc_key*)ec->internal), 32);
     AssertIntEQ(PEM_write_bio_EC_PUBKEY(NULL, NULL), WOLFSSL_FAILURE);
+    BIO_free(bio);
     AssertNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
     AssertIntEQ(PEM_write_bio_EC_PUBKEY(bio, ec), WOLFSSL_SUCCESS);
-
     BIO_free(bio);
     EC_KEY_free(ec);
 
     #ifndef NO_RSA
     /* ensure that non-ec keys do not work */
-    AssertNotNull(bio = BIO_new_file(svrKeyFile, "rb"));
+    AssertNotNull(bio = BIO_new_file(svrKeyFile, "rb")); /* rsa key */
     AssertNull((ec = PEM_read_bio_ECPrivateKey(bio, NULL, NULL, NULL)));
     AssertNull((ec = PEM_read_bio_EC_PUBKEY(bio, NULL, NULL, NULL)));
     BIO_free(bio);
