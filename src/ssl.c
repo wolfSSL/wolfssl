@@ -27234,13 +27234,19 @@ WOLFSSL_RSA* wolfSSL_EVP_PKEY_get1_RSA(WOLFSSL_EVP_PKEY* key)
     return local;
 }
 
-
 /* with set1 functions the pkey struct does not own the RSA structure
  *
  * returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure
  */
 int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
 {
+#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)
+    int derMax;
+    int derSz;
+    byte* derBuf;
+    RsaKey* rsa;
+#endif
+
     if((pkey == NULL) || (key ==NULL))return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_RSA");
     if (pkey->rsa != NULL && pkey->ownRsa == 1) {
@@ -27249,6 +27255,53 @@ int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
     pkey->rsa    = key;
     pkey->ownRsa = 0; /* pkey does not own RSA */
     pkey->type = EVP_PKEY_RSA;
+
+#if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)
+    /* 5 > size of n, d, p, q, d%(p-1), d(q-1), 1/q%p, e + ASN.1 additional
+     * information */
+    derMax = 5 * wolfSSL_RSA_size(key) + (2 * AES_BLOCK_SIZE);
+
+    derBuf = (byte*)XMALLOC(derMax, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (derBuf == NULL) {
+        WOLFSSL_MSG("malloc failed");
+        wolfSSL_EVP_PKEY_free(pkey);
+        return WOLFSSL_FAILURE;
+    }
+
+    rsa = (RsaKey*)key->internal;
+    if (rsa->type == RSA_PRIVATE) {
+        /* Private key to DER */
+        derSz = wc_RsaKeyToDer(rsa, derBuf, derMax);
+    }
+    else {
+        /* Public key to DER */
+        derSz = wc_RsaKeyToPublicDer(rsa, derBuf, derMax);
+    }
+
+    if (derSz < 0) {
+        if (rsa->type == RSA_PRIVATE) {
+            WOLFSSL_MSG("wc_RsaKeyToDer failed");
+        }
+        else {
+            WOLFSSL_MSG("wc_RsaKeyToPublicDer failed");
+        }
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        wolfSSL_EVP_PKEY_free(pkey);
+        return WOLFSSL_FAILURE;
+    }
+
+    pkey->pkey.ptr = (char*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pkey->pkey.ptr == NULL) {
+        WOLFSSL_MSG("key malloc failed");
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        wolfSSL_EVP_PKEY_free(pkey);
+        return WOLFSSL_FAILURE;
+    }
+    pkey->pkey_sz = derSz;
+    XMEMCPY(pkey->pkey.ptr, derBuf, derSz);
+    XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* WOLFSSL_KEY_GEN && HAVE_USER_RSA */
+
 #ifdef WC_RSA_BLINDING
     if (key->ownRng == 0) {
         if (wc_RsaSetRNG((RsaKey*)(pkey->rsa->internal), &(pkey->rng)) != 0) {
@@ -27264,6 +27317,11 @@ int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
 #if defined(WOLFSSL_QT) && !defined(NO_DSA)
 int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
 {
+    int derMax;
+    int derSz;
+    byte* derBuf;
+    DsaKey* dsa;
+
     if((pkey == NULL) || (key == NULL))return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_DSA");
     if (pkey->dsa != NULL && pkey->ownDsa == 1) {
@@ -27273,6 +27331,49 @@ int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
     pkey->ownDsa = 0; /* pkey does not own DSA */
     pkey->type = EVP_PKEY_DSA;
 
+    /* 4 > size of pub, priv, p, q, g + ASN.1 additional information */
+    derMax = 4 * wolfSSL_BN_num_bytes(key->g) + AES_BLOCK_SIZE;
+
+    derBuf = (byte*)XMALLOC(derMax, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (derBuf == NULL) {
+        WOLFSSL_MSG("malloc failed");
+        wolfSSL_EVP_PKEY_free(pkey);
+        return WOLFSSL_FAILURE;
+    }
+
+    dsa = (DsaKey*)key->internal;
+    if (dsa->type == DSA_PRIVATE) {
+        /* Private key to DER */
+        derSz = wc_DsaKeyToDer(dsa, derBuf, derMax);
+    }
+    else {
+        /* Public key to DER */
+        derSz = wc_DsaKeyToPublicDer(dsa, derBuf, derMax);
+    }
+
+    if (derSz < 0) {
+        if (dsa->type == DSA_PRIVATE) {
+            WOLFSSL_MSG("wc_DsaKeyToDer failed");
+        }
+        else {
+            WOLFSSL_MSG("wc_DsaKeyToPublicDer failed");
+        }
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        wolfSSL_EVP_PKEY_free(pkey);
+        return WOLFSSL_FAILURE;
+    }
+
+    pkey->pkey.ptr = (char*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pkey->pkey.ptr == NULL) {
+        WOLFSSL_MSG("key malloc failed");
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        wolfSSL_EVP_PKEY_free(pkey);
+        return WOLFSSL_FAILURE;
+    }
+    pkey->pkey_sz = derSz;
+    XMEMCPY(pkey->pkey.ptr, derBuf, derSz);
+    XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
     return WOLFSSL_SUCCESS;
 }
 #endif
@@ -27280,6 +27381,12 @@ int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
 #if defined(WOLFSSL_QT) && defined(HAVE_ECC)
 int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_EC_KEY *key)
 {
+#if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT)
+    int derMax;
+    int derSz;
+    byte* derBuf;
+#endif
+
     if((pkey == NULL) || (key == NULL))return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_EC_KEY");
     if (pkey->ecc != NULL && pkey->ownEcc == 1) {
@@ -27292,7 +27399,38 @@ int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_EC_KEY *key)
     if(key->group != NULL)
         pkey->pkey_curve = key->group->curve_oid;
 
+#if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT)
+    /* 4 > size of pub, priv + ASN.1 additional informations */
+    derMax = 4 * wc_ecc_size((ecc_key*)key->internal) + AES_BLOCK_SIZE;
+
+    derBuf = (byte*)XMALLOC(derMax, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (derBuf == NULL) {
+        WOLFSSL_MSG("malloc failed");
+        wolfSSL_EVP_PKEY_free(pkey);
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Key to DER */
+    derSz = wc_EccKeyToDer((ecc_key*)key->internal, derBuf, derMax);
+    if (derSz < 0) {
+        WOLFSSL_MSG("wc_EccKeyToDer failed");
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        wolfSSL_EVP_PKEY_free(pkey);
+        return WOLFSSL_FAILURE;
+    }
+
+    pkey->pkey.ptr = (char*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pkey->pkey.ptr == NULL) {
+        WOLFSSL_MSG("key malloc failed");
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        wolfSSL_EVP_PKEY_free(pkey);
+        return WOLFSSL_FAILURE;
+    }
+    pkey->pkey_sz = derSz;
+    XMEMCPY(pkey->pkey.ptr, derBuf, derSz);
+    XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return WOLFSSL_SUCCESS;
+#endif /* HAVE_ECC_KEY_EXPORT && NO_ASN_CRYPT */
 }
 #endif
 
