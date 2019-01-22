@@ -2914,7 +2914,7 @@ void wc_Sha256Free(wc_Sha256* sha256)
 #ifdef WOLFSSL_DEVCRYPTO_HASH
     wc_DevCryptoFree(&sha256->ctx);
 #endif /* WOLFSSL_DEVCRYPTO */
-#if defined(WOLFSSL_AFALG_HASH_KEEP) || \
+#if (defined(WOLFSSL_AFALG_HASH) && defined(WOLFSSL_AFALG_HASH_KEEP)) || \
     (defined(WOLFSSL_DEVCRYPTO_HASH) && defined(WOLFSSL_DEVCRYPTO_HASH_KEEP))
     if (sha256->msg != NULL) {
         XFREE(sha256->msg, sha256->heap, DYNAMIC_TYPE_TMP_BUFFER);

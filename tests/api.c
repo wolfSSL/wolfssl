@@ -5544,7 +5544,8 @@ static int testing_wc_Sha3_Update (void)
 {
     int         ret = 0;
 
-#if defined(WOLFSSL_SHA3)
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_XILINX_CRYPT) && \
+   !defined(WOLFSSL_AFALG_XILINX)
     wc_Sha3        sha3;
     byte        msg[] = "Everybody's working for the weekend.";
     byte        msg2[] = "Everybody gets Friday off.";
@@ -6022,7 +6023,8 @@ static int test_wc_Sha3_512_Final (void)
 {
     int         ret = 0;
 
-#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512) && \
+   !defined(WOLFSSL_NOSHA3_384)
     wc_Sha3        sha3;
     const char* msg    = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnom"
                          "nopnopq";

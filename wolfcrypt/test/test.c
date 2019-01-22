@@ -222,6 +222,11 @@
     #include "wolfcrypt/test/test.h"
 #endif
 
+    /* these cases do not have intermediate hashing support */
+#if (defined(WOLFSSL_AFALG_XILINX_SHA3) && !defined(WOLFSSL_AFALG_HASH_KEEP))
+    #define NO_INTM_HASH_TEST
+#endif
+
 #if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_MULTI_ATTRIB)
 static void initDefaultName(void);
 #endif
@@ -668,7 +673,9 @@ initDefaultName();
             printf( "HMAC-BLAKE2 test passed!\n");
     #endif
 
-    #ifdef WOLFSSL_SHA3
+    #if !defined(NO_HMAC) && defined(WOLFSSL_SHA3) && \
+      !defined(WOLFSSL_NOSHA3_224) && !defined(WOLFSSL_NOSHA3_256) && \
+      !defined(WOLFSSL_NOSHA3_384) && !defined(WOLFSSL_NOSHA3_512)
         if ( (ret = hmac_sha3_test()) != 0)
             return err_sys("HMAC-SHA3   test failed!\n", ret);
         else
@@ -690,7 +697,8 @@ initDefaultName();
         printf( "X963-KDF    test passed!\n");
 #endif
 
-#if defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128)
+#if defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && \
+   !defined(WOLFSSL_AFALG_XILINX_AES)
     if ( (ret = gmac_test()) != 0)
         return err_sys("GMAC     test failed!\n", ret);
     else
@@ -777,16 +785,13 @@ initDefaultName();
         !defined(STM32_CRYPTO)
     if ( (ret = aesgcm_test()) != 0)
         return err_sys("AES-GCM  test failed!\n", ret);
-    else
     #endif
-    {
-	if ((ret = aesgcm_default_test()) != 0) {
-        	return err_sys("AES-GCM  test failed!\n", ret);
-	}
-	else {
-        	printf( "AES-GCM  test passed!\n");
-	}
+    #ifndef WOLFSSL_AFALG_XILINX_AES
+    if ((ret = aesgcm_default_test()) != 0) {
+        return err_sys("AES-GCM  test failed!\n", ret);
     }
+    #endif
+    printf( "AES-GCM  test passed!\n");
 #endif
 
 #if defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
@@ -2569,7 +2574,9 @@ static int sha3_384_test(void)
 {
     wc_Sha3  sha;
     byte  hash[WC_SHA3_384_DIGEST_SIZE];
+#ifndef NO_INTM_HASH_TEST
     byte  hashcopy[WC_SHA3_384_DIGEST_SIZE];
+#endif
 
     testVector a, b, c;
     testVector test_sha[3];
@@ -2584,6 +2591,17 @@ static int sha3_384_test(void)
     a.inLen  = XSTRLEN(a.input);
     a.outLen = WC_SHA3_384_DIGEST_SIZE;
 
+#ifdef WOLFSSL_AFALG_XILINX_SHA3
+    /* NIST test vector with a length that is a multiple of 4 */
+    b.input  = "\x7d\x80\xb1\x60\xc4\xb5\x36\xa3\xbe\xb7\x99\x80\x59\x93\x44"
+               "\x04\x7c\x5f\x82\xa1\xdf\xc3\xee\xd4";
+    b.output = "\x04\x1c\xc5\x86\x1b\xa3\x34\x56\x3c\x61\xd4\xef\x97\x10\xd4"
+               "\x89\x6c\x31\x1c\x92\xed\xbe\x0d\x7c\xd5\x3e\x80\x3b\xf2\xf4"
+               "\xeb\x60\x57\x23\x55\x70\x77\x0c\xe8\x7c\x55\x20\xd7\xec\x14"
+               "\x19\x87\x22";
+    b.inLen  = XSTRLEN(b.input);
+    b.outLen = WC_SHA3_384_DIGEST_SIZE;
+#else
     b.input  = "abc";
     b.output = "\xec\x01\x49\x82\x88\x51\x6f\xc9\x26\x45\x9f\x58\xe2\xc6\xad"
                "\x8d\xf9\xb4\x73\xcb\x0f\xc0\x8c\x25\x96\xda\x7c\xf0\xe4\x9b"
@@ -2591,7 +2609,7 @@ static int sha3_384_test(void)
                "\x37\x6d\x25";
     b.inLen  = XSTRLEN(b.input);
     b.outLen = WC_SHA3_384_DIGEST_SIZE;
-
+#endif
     c.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
     c.output = "\x99\x1c\x66\x57\x55\xeb\x3a\x4b\x6b\xbd\xfb\x75\xc7\x8a\x49"
                "\x2e\x8c\x56\xa2\x2c\x5c\x4d\x7e\x42\x9b\xfd\xbc\x32\xb9\xd4"
@@ -2613,17 +2631,21 @@ static int sha3_384_test(void)
             (word32)test_sha[i].inLen);
         if (ret != 0)
             ERROR_OUT(-2701 - i, exit);
+    #ifndef NO_INTM_HASH_TEST
         ret = wc_Sha3_384_GetHash(&sha, hashcopy);
         if (ret != 0)
             ERROR_OUT(-2702 - i, exit);
+    #endif
         ret = wc_Sha3_384_Final(&sha, hash);
         if (ret != 0)
             ERROR_OUT(-2703 - i, exit);
 
         if (XMEMCMP(hash, test_sha[i].output, WC_SHA3_384_DIGEST_SIZE) != 0)
             ERROR_OUT(-2704 - i, exit);
+    #ifndef NO_INTM_HASH_TEST
         if (XMEMCMP(hash, hashcopy, WC_SHA3_384_DIGEST_SIZE) != 0)
             ERROR_OUT(-2705 - i, exit);
+    #endif
     }
 
     /* BEGIN LARGE HASH TEST */ {
@@ -3761,7 +3783,9 @@ int hmac_sha512_test(void)
 #endif
 
 
-#if !defined(NO_HMAC) && defined(WOLFSSL_SHA3)
+#if !defined(NO_HMAC) && defined(WOLFSSL_SHA3) && \
+    !defined(WOLFSSL_NOSHA3_224) && !defined(WOLFSSL_NOSHA3_256) && \
+    !defined(WOLFSSL_NOSHA3_384) && !defined(WOLFSSL_NOSHA3_512)
 int hmac_sha3_test(void)
 {
     Hmac hmac;
@@ -6763,7 +6787,7 @@ int aesgcm_default_test(void)
         0xe4, 0xed, 0x2f, 0x6d
     };
 
-    byte plain1[] = {
+    ALIGN64 byte plain1[] = {
         0xcc, 0x38, 0xbc, 0xcd, 0x6b, 0xc5, 0x36, 0xad,
         0x91, 0x9b, 0x13, 0x95, 0xf5, 0xd6, 0x38, 0x01,
         0xf9, 0x9f, 0x80, 0x68, 0xd6, 0x5c, 0xa5, 0xac,
@@ -6775,7 +6799,7 @@ int aesgcm_default_test(void)
         0xff, 0xe8, 0x02, 0x56, 0xe5, 0xb1, 0xc6, 0xb1
     };
 
-    byte cipher1[] = {
+    ALIGN64 byte cipher1[] = {
         0xdf, 0xce, 0x4e, 0x9c, 0xd2, 0x91, 0x10, 0x3d,
         0x7f, 0xe4, 0xe6, 0x33, 0x51, 0xd9, 0xe7, 0x9d,
         0x3d, 0xfd, 0x39, 0x1e, 0x32, 0x67, 0x10, 0x46,
@@ -6798,12 +6822,12 @@ int aesgcm_default_test(void)
         0xc9, 0x8a, 0xff, 0xe3
     };
 
-    byte plain2[] = {
+    ALIGN64 byte plain2[] = {
         0x4b, 0x34, 0xa9, 0xec, 0x57, 0x63, 0x52, 0x4b,
         0x19, 0x1d, 0x56, 0x16, 0xc5, 0x47, 0xf6, 0xb7
     };
 
-    byte cipher2[] = {
+    ALIGN64 byte cipher2[] = {
         0x60, 0x9a, 0xa3, 0xf4, 0x54, 0x1b, 0xc0, 0xfe,
         0x99, 0x31, 0xda, 0xad, 0x2e, 0xe1, 0x5d, 0x0c
     };
@@ -6855,6 +6879,7 @@ int aesgcm_default_test(void)
 int aesgcm_test(void)
 {
     Aes enc;
+    Aes dec;
 
     /*
      * This is Test Case 16 from the document Galois/
@@ -6918,7 +6943,7 @@ int aesgcm_test(void)
 #if !defined(HAVE_FIPS) && \
         !defined(STM32_CRYPTO) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
         !defined(FREESCALE_LTC) && !defined(FREESCALE_MMCAU) && \
-        !defined(WOLFSSL_XILINX_CRYPT)
+        !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_AFALG_XILINX_AES)
 
     #define ENABLE_NON_12BYTE_IV_TEST
 #ifdef WOLFSSL_AES_192
@@ -7004,11 +7029,14 @@ int aesgcm_test(void)
 #endif
 
     byte resultT[sizeof(t1)];
-    byte resultP[sizeof(p)];
-    byte resultC[sizeof(p)];
+    byte resultP[sizeof(p) + AES_BLOCK_SIZE];
+    byte resultC[sizeof(p) + AES_BLOCK_SIZE];
     int  result;
 #ifdef WOLFSSL_AES_256
-    int  alen, plen;
+    int  alen;
+    #ifndef WOLFSSL_AFALG_XILINX_AES
+    int  plen;
+    #endif
 #endif
 
 #if !defined(BENCH_EMBEDDED)
@@ -7031,6 +7059,9 @@ int aesgcm_test(void)
     if (wc_AesInit(&enc, HEAP_HINT, devId) != 0) {
         return -5700;
     }
+    if (wc_AesInit(&dec, HEAP_HINT, devId) != 0) {
+        return -5700;
+    }
 
 #ifdef WOLFSSL_AES_256
     result = wc_AesGcmSetKey(&enc, k1, sizeof(k1));
@@ -7045,20 +7076,24 @@ int aesgcm_test(void)
 #endif
     if (result != 0)
         return -5702;
-    if (XMEMCMP(c1, resultC, sizeof(resultC)))
+    if (XMEMCMP(c1, resultC, sizeof(c1)))
         return -5703;
     if (XMEMCMP(t1, resultT, sizeof(resultT)))
         return -5704;
 
 #ifdef HAVE_AES_DECRYPT
-    result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC),
+    result = wc_AesGcmSetKey(&dec, k1, sizeof(k1));
+    if (result != 0)
+        return -5701;
+
+    result = wc_AesGcmDecrypt(&dec, resultP, resultC, sizeof(c1),
                       iv1, sizeof(iv1), resultT, sizeof(resultT), a, sizeof(a));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (result != 0)
         return -5705;
-    if (XMEMCMP(p, resultP, sizeof(resultP)))
+    if (XMEMCMP(p, resultP, sizeof(p)))
         return -5706;
 #endif /* HAVE_AES_DECRYPT */
 
@@ -7079,7 +7114,7 @@ int aesgcm_test(void)
         return -5707;
 
 #ifdef HAVE_AES_DECRYPT
-    result = wc_AesGcmDecrypt(&enc, large_outdec, large_output,
+    result = wc_AesGcmDecrypt(&dec, large_outdec, large_output,
                               BENCH_AESGCM_LARGE, iv1, sizeof(iv1), resultT,
                               sizeof(resultT), a, sizeof(a));
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -7103,10 +7138,10 @@ int aesgcm_test(void)
         if (result != 0)
             return -5710;
 #ifdef HAVE_AES_DECRYPT
-        result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC), k1,
+        result = wc_AesGcmDecrypt(&dec, resultP, resultC, sizeof(c1), k1,
                          (word32)ivlen, resultT, sizeof(resultT), a, sizeof(a));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+        result = wc_AsyncWait(result, &dec.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
         if (result != 0)
             return -5711;
@@ -7125,16 +7160,17 @@ int aesgcm_test(void)
         if (result != 0)
             return -5712;
 #ifdef HAVE_AES_DECRYPT
-        result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC), iv1,
+        result = wc_AesGcmDecrypt(&dec, resultP, resultC, sizeof(c1), iv1,
                         sizeof(iv1), resultT, sizeof(resultT), p, (word32)alen);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+        result = wc_AsyncWait(result, &dec.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
         if (result != 0)
             return -5713;
 #endif /* HAVE_AES_DECRYPT */
     }
 
+#ifndef WOLFSSL_AFALG_XILINX_AES
 #ifdef BENCH_AESGCM_LARGE
     /* Variable plain text length test */
     for (plen=1; plen<BENCH_AESGCM_LARGE; plen++) {
@@ -7149,11 +7185,11 @@ int aesgcm_test(void)
             return -5714;
 
 #ifdef HAVE_AES_DECRYPT
-        result = wc_AesGcmDecrypt(&enc, large_outdec, large_output,
+        result = wc_AesGcmDecrypt(&dec, large_outdec, large_output,
                                   plen, iv1, sizeof(iv1), resultT,
                                   sizeof(resultT), a, sizeof(a));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+        result = wc_AsyncWait(result, &dec.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
         if (result != 0)
             return -5715;
@@ -7171,16 +7207,17 @@ int aesgcm_test(void)
         if (result != 0)
             return -5716;
 #ifdef HAVE_AES_DECRYPT
-        result = wc_AesGcmDecrypt(&enc, resultP, resultC, (word32)plen, iv1,
+        result = wc_AesGcmDecrypt(&dec, resultP, resultC, (word32)plen, iv1,
                            sizeof(iv1), resultT, sizeof(resultT), a, sizeof(a));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+        result = wc_AsyncWait(result, &dec.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
         if (result != 0)
             return -5717;
 #endif /* HAVE_AES_DECRYPT */
     }
 #endif /* BENCH_AESGCM_LARGE */
+#endif
 #endif /* WOLFSSL_AES_256 */
 
     /* test with IV != 12 bytes */
@@ -7199,20 +7236,20 @@ int aesgcm_test(void)
 #endif
     if (result != 0)
         return -5718;
-    if (XMEMCMP(c2, resultC, sizeof(resultC)))
+    if (XMEMCMP(c2, resultC, sizeof(c2)))
         return -5719;
     if (XMEMCMP(t2, resultT, sizeof(resultT)))
         return -5720;
 
 #ifdef HAVE_AES_DECRYPT
-    result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC),
+    result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(c1),
                       iv2, sizeof(iv2), resultT, sizeof(resultT), a, sizeof(a));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (result != 0)
         return -5721;
-    if (XMEMCMP(p, resultP, sizeof(resultP)))
+    if (XMEMCMP(p, resultP, sizeof(p)))
         return -5722;
 #endif /* HAVE_AES_DECRYPT */
 
@@ -7249,7 +7286,7 @@ int aesgcm_test(void)
 #endif /* WOLFSSL_AES_128 */
 #endif /* ENABLE_NON_12BYTE_IV_TEST */
 
-#ifdef WOLFSSL_AES_256
+#if defined(WOLFSSL_AES_256) && !defined(WOLFSSL_AFALG_XILINX_AES)
     XMEMSET(resultT, 0, sizeof(resultT));
     XMEMSET(resultC, 0, sizeof(resultC));
     XMEMSET(resultP, 0, sizeof(resultP));
@@ -7263,20 +7300,20 @@ int aesgcm_test(void)
 #endif
     if (result != 0)
         return -5728;
-    if (XMEMCMP(c1, resultC, sizeof(resultC)))
+    if (XMEMCMP(c1, resultC, sizeof(c1)))
         return -5729;
     if (XMEMCMP(t1, resultT + 1, sizeof(resultT) - 1))
         return -5730;
 
 #ifdef HAVE_AES_DECRYPT
-    result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC),
+    result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(p),
               iv1, sizeof(iv1), resultT + 1, sizeof(resultT) - 1, a, sizeof(a));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (result != 0)
         return -5731;
-    if (XMEMCMP(p, resultP, sizeof(resultP)))
+    if (XMEMCMP(p, resultP, sizeof(p)))
         return -5732;
 #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_256 */
@@ -7325,17 +7362,22 @@ int aesgcm_test(void)
         }
 
 #ifdef HAVE_AES_DECRYPT
-        result = wc_AesGcmDecrypt(&enc,
-                          resultP, resultC, sizeof(resultC),
+        wc_AesGcmSetKey(&dec, k1, sizeof(k1));
+        result = wc_AesGcmSetIV(&dec, sizeof(randIV), NULL, 0, &rng);
+        if (result != 0)
+            return -8213;
+
+        result = wc_AesGcmDecrypt(&dec,
+                          resultP, resultC, sizeof(c1),
                           randIV, sizeof(randIV),
                           resultT, sizeof(resultT),
                           a, sizeof(a));
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
-    #endif
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        result = wc_AsyncWait(result, &dec.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
         if (result != 0)
             return -8211;
-        if (XMEMCMP(p, resultP, sizeof(resultP)))
+        if (XMEMCMP(p, resultP, sizeof(p)))
             return -8212;
 #endif /* HAVE_AES_DECRYPT */
 
@@ -7345,6 +7387,7 @@ int aesgcm_test(void)
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
     wc_AesFree(&enc);
+    wc_AesFree(&dec);
 
     return 0;
 }
@@ -9260,6 +9303,9 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
      *     -101 = USER_CRYPTO_ERROR
      */
     if (ret == 0)
+#elif defined(WOLFSSL_AFALG_XILINX_RSA)
+    /* blinding / rng handled with hardware acceleration */
+    if (ret != 0)
 #elif defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     /* async may not require RNG */
     if (ret != 0 && ret != MISSING_RNG_E)
@@ -9320,6 +9366,7 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
 
     sigSz = (word32)ret;
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+    XMEMSET(out, 0, sizeof(out));
     ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA, in,
                                inLen, out, &sigSz, key, keyLen, rng);
     if (ret != 0)

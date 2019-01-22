@@ -303,6 +303,9 @@
             for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
                 XFREE(VAR_NAME[idx##VAR_NAME], (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
             }
+
+        #define DECLARE_ARRAY_DYNAMIC DECLARE_ARRAY
+        #define FREE_ARRAY_DYNAMIC FREE_ARRAY
     #else
         #define DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
             VAR_TYPE VAR_NAME[VAR_SIZE]
@@ -312,6 +315,17 @@
             VAR_TYPE VAR_NAME[VAR_ITEMS][VAR_SIZE]
         #define FREE_VAR(VAR_NAME, HEAP) /* nothing to free, its stack */
         #define FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP)  /* nothing to free, its stack */
+
+        #define DECLARE_ARRAY_DYNAMIC(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
+            VAR_TYPE* VAR_NAME[VAR_ITEMS]; \
+            int idx##VAR_NAME; \
+            for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
+                VAR_NAME[idx##VAR_NAME] = (VAR_TYPE*)XMALLOC(VAR_SIZE, (HEAP), DYNAMIC_TYPE_TMP_BUFFER); \
+            }
+        #define FREE_ARRAY_DYNAMIC(VAR_NAME, VAR_ITEMS, HEAP) \
+            for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
+                XFREE(VAR_NAME[idx##VAR_NAME], (HEAP), DYNAMIC_TYPE_TMP_BUFFER); \
+            }
     #endif
 
     #if !defined(USE_WOLF_STRTOK) && \
@@ -642,8 +656,10 @@
     #define INVALID_DEVID    -2
 
 
-    /* AESNI requires alignment and ARMASM gains some performance from it */
-    #if defined(WOLFSSL_AESNI) || defined(WOLFSSL_ARMASM) || defined(USE_INTEL_SPEEDUP)
+    /* AESNI requires alignment and ARMASM gains some performance from it
+     * Xilinx RSA operations require alignment */
+    #if defined(WOLFSSL_AESNI) || defined(WOLFSSL_ARMASM) || \
+        defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_AFALG_XILINX)
         #if !defined(ALIGN16)
             #if defined(__GNUC__)
                 #define ALIGN16 __attribute__ ( (aligned (16)))
@@ -666,19 +682,19 @@
             #else
                 #define ALIGN32
             #endif
-        #endif
+        #endif /* !ALIGN32 */
 
-        #if !defined(ALIGN32)
+        #if !defined(ALIGN64)
             #if defined(__GNUC__)
-                #define ALIGN32 __attribute__ ( (aligned (32)))
+                #define ALIGN64 __attribute__ ( (aligned (64)))
             #elif defined(_MSC_VER)
                 /* disable align warning, we want alignment ! */
                 #pragma warning(disable: 4324)
-                #define ALIGN32 __declspec (align (32))
+                #define ALIGN64 __declspec (align (64))
             #else
-                #define ALIGN32
+                #define ALIGN64
             #endif
-        #endif /* !ALIGN32 */
+        #endif /* !ALIGN64 */
 
         #if defined(__GNUC__)
             #define ALIGN128 __attribute__ ( (aligned (128)))
@@ -706,6 +722,9 @@
         #endif
         #ifndef ALIGN32
             #define ALIGN32
+        #endif
+        #ifndef ALIGN64
+            #define ALIGN64
         #endif
         #ifndef ALIGN128
             #define ALIGN128

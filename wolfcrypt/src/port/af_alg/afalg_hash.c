@@ -26,83 +26,107 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_AFALG_HASH)
+#if defined(WOLFSSL_AFALG_HASH) || (defined(WOLFSSL_AFALG_XILINX_SHA3) \
+        && defined(WOLFSSL_SHA3))
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/port/af_alg/wc_afalg.h>
+#include <wolfssl/wolfcrypt/port/af_alg/afalg_hash.h>
 
 static const char WC_TYPE_HASH[] = "hash";
 
-#if !defined(NO_SHA256)
-#include <wolfssl/wolfcrypt/sha256.h>
 
-static const char WC_NAME_SHA256[] = "sha256";
-
-
-/* create AF_ALG sockets for SHA256 operation */
-int wc_InitSha256_ex(wc_Sha256* sha, void* heap, int devId)
+/* generic AF_ALG hash free */
+static void AfalgHashFree(wolfssl_AFALG_Hash* hash)
 {
-    if (sha == NULL) {
+    if (hash == NULL)
+        return;
+
+    if (hash->alFd > 0) {
+        close(hash->alFd);
+        hash->alFd = -1; /* avoid possible double close on socket */
+    }
+    if (hash->rdFd > 0) {
+        close(hash->rdFd);
+        hash->rdFd = -1; /* avoid possible double close on socket */
+    }
+
+    #if defined(WOLFSSL_AFALG_HASH_KEEP)
+    if (hash->msg != NULL) {
+        XFREE(hash->msg, hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        hash->msg = NULL;
+    }
+    #endif
+}
+
+
+/* generic hash init for AF_ALG, returns 0 on success */
+static int AfalgHashInit(wolfssl_AFALG_Hash* hash, void* heap, int devId,
+        const char* type)
+{
+    if (hash == NULL) {
         return BAD_FUNC_ARG;
     }
 
     (void)devId; /* no async for now */
-    XMEMSET(sha, 0, sizeof(wc_Sha256));
-    sha->heap = heap;
+    XMEMSET(hash, 0, sizeof(wolfssl_AFALG_Hash));
+    hash->heap = heap;
 
-    sha->len  = 0;
-    sha->used = 0;
-    sha->msg  = NULL;
-    sha->alFd = -1;
-    sha->rdFd = -1;
+    hash->len  = 0;
+    hash->used = 0;
+    hash->msg  = NULL;
+    hash->alFd = -1;
+    hash->rdFd = -1;
 
-    sha->alFd = wc_Afalg_Socket();
-    if (sha->alFd < 0) {
+    hash->alFd = wc_Afalg_Socket();
+    if (hash->alFd < 0) {
         return WC_AFALG_SOCK_E;
     }
 
-    sha->rdFd = wc_Afalg_CreateRead(sha->alFd, WC_TYPE_HASH, WC_NAME_SHA256);
-    if (sha->rdFd < 0) {
-        close(sha->alFd);
+    hash->rdFd = wc_Afalg_CreateRead(hash->alFd, WC_TYPE_HASH, type);
+    if (hash->rdFd < 0) {
+        close(hash->alFd);
         return WC_AFALG_SOCK_E;
     }
 
     return 0;
+
 }
 
 
-int wc_Sha256Update(wc_Sha256* sha, const byte* in, word32 sz)
+/* generic hash update for AF_ALG, returns 0 on success */
+static int AfalgHashUpdate(wolfssl_AFALG_Hash* hash, const byte* in, word32 sz)
 {
-    if (sha == NULL || (sz > 0 && in == NULL)) {
+    if (hash == NULL || (sz > 0 && in == NULL)) {
         return BAD_FUNC_ARG;
     }
 
 #ifdef WOLFSSL_AFALG_HASH_KEEP
     /* keep full message to hash at end instead of incremental updates */
-    if (sha->len < sha->used + sz) {
-        if (sha->msg == NULL) {
-            sha->msg = (byte*)XMALLOC(sha->used + sz, sha->heap,
+    if (hash->len < hash->used + sz) {
+        if (hash->msg == NULL) {
+            hash->msg = (byte*)XMALLOC(hash->used + sz, hash->heap,
                     DYNAMIC_TYPE_TMP_BUFFER);
         } else {
-            byte* pt = (byte*)XREALLOC(sha->msg, sha->used + sz, sha->heap,
+            byte* pt = (byte*)XREALLOC(hash->msg, hash->used + sz, hash->heap,
                     DYNAMIC_TYPE_TMP_BUFFER);
             if (pt == NULL) {
                 return MEMORY_E;
 	    }
-            sha->msg = pt;
+            hash->msg = pt;
         }
-        if (sha->msg == NULL) {
+        if (hash->msg == NULL) {
             return MEMORY_E;
         }
-        sha->len = sha->used + sz;
+        hash->len = hash->used + sz;
     }
-    XMEMCPY(sha->msg + sha->used, in, sz);
-    sha->used += sz;
+    XMEMCPY(hash->msg + hash->used, in, sz);
+    hash->used += sz;
 #else
     int ret;
 
-    if ((ret = (int)send(sha->rdFd, in, sz, MSG_MORE)) < 0) {
+    if ((ret = (int)send(hash->rdFd, in, sz, MSG_MORE)) < 0) {
         return ret;
     }
 #endif
@@ -110,72 +134,78 @@ int wc_Sha256Update(wc_Sha256* sha, const byte* in, word32 sz)
 }
 
 
-int wc_Sha256Final(wc_Sha256* sha, byte* hash)
+/* generic hash final for AF_ALG, return 0 on success */
+static int AfalgHashFinal(wolfssl_AFALG_Hash* hash, byte* out, word32 outSz,
+        const char* type)
 {
-    int ret;
+    int   ret;
+    void* heap;
 
-    if (sha == NULL || hash == NULL) {
+    if (hash == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
 
+    heap = hash->heap; /* keep because AfalgHashInit clears the pointer */
 #ifdef WOLFSSL_AFALG_HASH_KEEP
-    /* keep full message to hash at end instead of incremental updates */
-    if ((ret = (int)send(sha->rdFd, sha->msg, sha->used, 0)) < 0) {
+    /* keep full message to out at end instead of incremental updates */
+    if ((ret = (int)send(hash->rdFd, hash->msg, hash->used, 0)) < 0) {
         return ret;
     }
-    XFREE(sha->msg, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    sha->msg = NULL;
+    XFREE(hash->msg, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    hash->msg = NULL;
 #else
-    if ((ret = (int)send(sha->rdFd, NULL, 0, 0)) < 0) {
+    if ((ret = (int)send(hash->rdFd, NULL, 0, 0)) < 0) {
         return ret;
     }
 #endif
 
-    if ((ret = (int)read(sha->rdFd, hash, WC_SHA256_DIGEST_SIZE)) !=
-            WC_SHA256_DIGEST_SIZE) {
+    if ((ret = (int)read(hash->rdFd, out, outSz)) != (int)outSz) {
         return ret;
     }
 
-    wc_Sha256Free(sha);
-    return wc_InitSha256_ex(sha, sha->heap, 0);
+    AfalgHashFree(hash);
+    return AfalgHashInit(hash, heap, 0, type);
 }
 
 
-int wc_Sha256GetHash(wc_Sha256* sha, byte* hash)
+/* generic function to get intermediate hash */
+static int AfalgHashGet(wolfssl_AFALG_Hash* hash, byte* out, word32 outSz)
 {
     int ret;
 
-    if (sha == NULL || hash == NULL) {
+    if (hash == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
 
     (void)ret;
 #ifdef WOLFSSL_AFALG_HASH_KEEP
-    if ((ret = (int)send(sha->rdFd, sha->msg, sha->used, 0)) < 0) {
+    if ((ret = (int)send(hash->rdFd, hash->msg, hash->used, 0)) < 0) {
         return ret;
     }
 
-    if ((ret = (int)read(sha->rdFd, hash, WC_SHA256_DIGEST_SIZE)) !=
-            WC_SHA256_DIGEST_SIZE) {
+    if ((ret = (int)read(hash->rdFd, out, outSz)) != (int)outSz) {
         return ret;
     }
     return 0;
 #else
-    (void)sha;
     (void)hash;
+    (void)out;
+    (void)outSz;
 
     WOLFSSL_MSG("Compile with WOLFSSL_AFALG_HASH_KEEP for this feature");
     return NOT_COMPILED_IN;
 #endif
 }
 
-int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
+
+/* generic struct copy for AF_ALG, returns 0 on success */
+static int AfalgHashCopy(wolfssl_AFALG_Hash* src, wolfssl_AFALG_Hash* dst)
 {
     if (src == NULL || dst == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    XMEMCPY(dst, src, sizeof(wc_Sha256));
+    XMEMCPY(dst, src, sizeof(wolfssl_AFALG_Hash));
 
 #ifdef WOLFSSL_AFALG_HASH_KEEP
     dst->msg = (byte*)XMALLOC(src->len, dst->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -189,16 +219,121 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     dst->alFd = accept(src->alFd, NULL, 0);
 
     if (dst->rdFd == -1 || dst->alFd == -1) {
-        wc_Sha256Free(dst);
+        AfalgHashFree(dst);
         return -1;
     }
 
     return 0;
 }
 
+
+#if !defined(NO_SHA256) && defined(WOLFSSL_AFALG_HASH)
+#include <wolfssl/wolfcrypt/sha256.h>
+
+static const char WC_NAME_SHA256[] = "sha256";
+
+
+/* create AF_ALG sockets for SHA256 operation */
+int wc_InitSha256_ex(wc_Sha256* sha, void* heap, int devId)
+{
+    return AfalgHashInit(sha, heap, devId, WC_NAME_SHA256);
+}
+
+
+int wc_Sha256Update(wc_Sha256* sha, const byte* in, word32 sz)
+{
+    return AfalgHashUpdate(sha, in, sz);
+}
+
+
+int wc_Sha256Final(wc_Sha256* sha, byte* hash)
+{
+    return AfalgHashFinal(sha, hash, WC_SHA256_DIGEST_SIZE, WC_NAME_SHA256);
+}
+
+
+int wc_Sha256GetHash(wc_Sha256* sha, byte* hash)
+{
+    return AfalgHashGet(sha, hash, WC_SHA256_DIGEST_SIZE);
+}
+
+
+int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
+{
+    return AfalgHashCopy(src, dst);
+}
 #endif /* !NO_SHA256 */
 
 
 
+#if defined(WOLFSSL_SHA3) && defined(WOLFSSL_AFALG_XILINX_SHA3)
+#include <wolfssl/wolfcrypt/sha3.h>
+
+static const char WC_NAME_SHA3[] = "xilinx-keccak-384";
+
+void wc_Sha3_384_Free(wc_Sha3* sha)
+{
+    AfalgHashFree(sha);
+}
+
+
+/* create AF_ALG sockets for SHA256 operation */
+int wc_InitSha3_384(wc_Sha3* sha, void* heap, int devId)
+{
+    return AfalgHashInit(sha, heap, devId, WC_NAME_SHA3);
+}
+
+
+int wc_Sha3_384_Update(wc_Sha3* sha, const byte* in, word32 sz)
+{
+#ifndef WOLFSSL_AFALG_HASH_KEEP
+    if (sz % 4) {
+        WOLFSSL_MSG("Alignment issue. Message size needs to be divisable by 4")
+        return BAD_FUNC_ARG;
+    }
+#endif
+
+    return AfalgHashUpdate(sha, in, sz);
+}
+
+
+int wc_Sha3_384_Final(wc_Sha3* sha, byte* hash)
+{
+    if (sha == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef WOLFSSL_AFALG_HASH_KEEP
+    if (sha->used % 4) {
+        WOLFSSL_MSG("Alignment issue. Message size needs to be divisable by 4");
+        return BAD_FUNC_ARG;
+    }
+#endif
+
+    return AfalgHashFinal(sha, hash, WC_SHA3_384_DIGEST_SIZE, WC_NAME_SHA3);
+}
+
+
+int wc_Sha3_384_GetHash(wc_Sha3* sha, byte* hash)
+{
+    if (sha == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef WOLFSSL_AFALG_HASH_KEEP
+    if (sha->used % 4) {
+        WOLFSSL_MSG("Alignment issue. Message size needs to be divisable by 4");
+        return BAD_FUNC_ARG;
+    }
+#endif
+
+    return AfalgHashGet(sha, hash, WC_SHA3_384_DIGEST_SIZE);
+}
+
+int wc_Sha3_384_Copy(wc_Sha3* src, wc_Sha3* dst)
+{
+    return AfalgHashCopy(src, dst);
+}
+#endif /* WOLFSSL_SHA3 && WOLFSSL_AFALG_XILINX_SHA3 */
 
 #endif /* WOLFSSL_AFALG */

@@ -179,6 +179,10 @@ struct RsaKey {
 #ifdef WC_RSA_NONBLOCK
     RsaNb* nb;
 #endif
+#ifdef WOLFSSL_AFALG_XILINX_RSA
+    int alFd;
+    int rdFd;
+#endif
 };
 
 #ifndef WC_RSAKEY_TYPE_DEFINED
