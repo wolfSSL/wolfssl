@@ -124,7 +124,7 @@ int wc_CryptoCb_Rsa(const byte* in, word32 inLen, byte* out,
         cryptoInfo.pk.rsa.key = key;
         cryptoInfo.pk.rsa.rng = rng;
 
-        ret = dev->cb(key->devId, &cryptoInfo, dev->ctx);
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -151,7 +151,7 @@ int wc_CryptoCb_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         cryptoInfo.pk.rsakg.e = e;
         cryptoInfo.pk.rsakg.rng = rng;
 
-        ret = dev->cb(key->devId, &cryptoInfo, dev->ctx);
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -180,7 +180,7 @@ int wc_CryptoCb_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId)
         cryptoInfo.pk.eckg.key = key;
         cryptoInfo.pk.eckg.curveId = curveId;
 
-        ret = dev->cb(key->devId, &cryptoInfo, dev->ctx);
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -207,7 +207,7 @@ int wc_CryptoCb_Ecdh(ecc_key* private_key, ecc_key* public_key,
         cryptoInfo.pk.ecdh.out = out;
         cryptoInfo.pk.ecdh.outlen = outlen;
 
-        ret = dev->cb(private_key->devId, &cryptoInfo, dev->ctx);
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -236,7 +236,7 @@ int wc_CryptoCb_EccSign(const byte* in, word32 inlen, byte* out,
         cryptoInfo.pk.eccsign.rng = rng;
         cryptoInfo.pk.eccsign.key = key;
 
-        ret = dev->cb(key->devId, &cryptoInfo, dev->ctx);
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -265,7 +265,7 @@ int wc_CryptoCb_EccVerify(const byte* sig, word32 siglen,
         cryptoInfo.pk.eccverify.res = res;
         cryptoInfo.pk.eccverify.key = key;
 
-        ret = dev->cb(key->devId, &cryptoInfo, dev->ctx);
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -309,7 +309,7 @@ int wc_CryptoCb_AesGcmEncrypt(Aes* aes, byte* out,
         cryptoInfo.cipher.aesgcm_enc.authIn    = authIn;
         cryptoInfo.cipher.aesgcm_enc.authInSz  = authInSz;
 
-        ret = dev->cb(aes->devId, &cryptoInfo, dev->ctx);
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -350,7 +350,7 @@ int wc_CryptoCb_AesGcmDecrypt(Aes* aes, byte* out,
         cryptoInfo.cipher.aesgcm_dec.authIn    = authIn;
         cryptoInfo.cipher.aesgcm_dec.authInSz  = authInSz;
 
-        ret = dev->cb(aes->devId, &cryptoInfo, dev->ctx);
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -385,7 +385,7 @@ int wc_CryptoCb_AesCbcEncrypt(Aes* aes, byte* out,
         cryptoInfo.cipher.aescbc.in = in;
         cryptoInfo.cipher.aescbc.sz = sz;
 
-        ret = dev->cb(aes->devId, &cryptoInfo, dev->ctx);
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -417,7 +417,7 @@ int wc_CryptoCb_AesCbcDecrypt(Aes* aes, byte* out,
         cryptoInfo.cipher.aescbc.in = in;
         cryptoInfo.cipher.aescbc.sz = sz;
 
-        ret = dev->cb(aes->devId, &cryptoInfo, dev->ctx);
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -451,7 +451,7 @@ int wc_CryptoCb_ShaHash(wc_Sha* sha, const byte* in,
         cryptoInfo.hash.inSz = inSz;
         cryptoInfo.hash.digest = digest;
 
-        ret = dev->cb(sha->devId, &cryptoInfo, dev->ctx);
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -484,7 +484,7 @@ int wc_CryptoCb_Sha256Hash(wc_Sha256* sha256, const byte* in,
         cryptoInfo.hash.inSz = inSz;
         cryptoInfo.hash.digest = digest;
 
-        ret = dev->cb(sha256->devId, &cryptoInfo, dev->ctx);
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
@@ -514,7 +514,7 @@ int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz)
         cryptoInfo.rng.out = out;
         cryptoInfo.rng.sz = sz;
 
-        ret = dev->cb(rng->devId, &cryptoInfo, dev->ctx);
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
