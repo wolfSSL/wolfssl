@@ -104,6 +104,10 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 
 #include <wolfssl/wolfcrypt/sha256.h>
 
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -272,7 +276,7 @@ typedef struct DRBG {
     word32 lastBlock;
     byte V[DRBG_SEED_LEN];
     byte C[DRBG_SEED_LEN];
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     void* heap;
     int devId;
 #endif
@@ -321,7 +325,7 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
 
     for (i = 0, ctr = 1; i < len; i++, ctr++) {
 #ifndef WOLFSSL_SMALL_STACK_CACHE
-    #ifdef WOLFSSL_ASYNC_CRYPT
+    #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
         ret = wc_InitSha256_ex(sha, drbg->heap, drbg->devId);
     #else
         ret = wc_InitSha256(sha);
@@ -449,7 +453,7 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
     XMEMCPY(data, V, sizeof(data));
     for (i = 0; i < len; i++) {
 #ifndef WOLFSSL_SMALL_STACK_CACHE
-    #ifdef WOLFSSL_ASYNC_CRYPT
+    #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
         ret = wc_InitSha256_ex(sha, drbg->heap, drbg->devId);
     #else
         ret = wc_InitSha256(sha);
@@ -552,7 +556,7 @@ static int Hash_DRBG_Generate(DRBG* drbg, byte* out, word32 outSz)
         ret = Hash_gen(drbg, out, outSz, drbg->V);
         if (ret == DRBG_SUCCESS) {
 #ifndef WOLFSSL_SMALL_STACK_CACHE
-        #ifdef WOLFSSL_ASYNC_CRYPT
+        #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
             ret = wc_InitSha256_ex(sha, drbg->heap, drbg->devId);
         #else
             ret = wc_InitSha256(sha);
@@ -598,7 +602,7 @@ static int Hash_DRBG_Instantiate(DRBG* drbg, const byte* seed, word32 seedSz,
     int ret = DRBG_FAILURE;
 
     XMEMSET(drbg, 0, sizeof(DRBG));
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     drbg->heap = heap;
     drbg->devId = devId;
 #else
@@ -607,7 +611,7 @@ static int Hash_DRBG_Instantiate(DRBG* drbg, const byte* seed, word32 seedSz,
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-    #ifdef WOLFSSL_ASYNC_CRYPT
+    #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
         ret = wc_InitSha256_ex(&drbg->sha256, drbg->heap, drbg->devId);
     #else
         ret = wc_InitSha256(&drbg->sha256);
@@ -697,7 +701,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #else
     rng->heap = heap;
 #endif
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     rng->devId = devId;
 #else
     (void)devId;
@@ -826,6 +830,15 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 
     if (rng == NULL || output == NULL)
         return BAD_FUNC_ARG;
+
+#ifdef WOLF_CRYPTO_CB
+    if (rng->devId != INVALID_DEVID) {
+        ret = wc_CryptoCb_RandomBlock(rng, output, sz);
+        if (ret != NOT_COMPILED_IN)
+            return ret;
+        /* fall-through on not compiled in */
+    }
+#endif
 
 #ifdef HAVE_INTEL_RDRAND
     if (IS_INTEL_RDRAND(intel_flags))
@@ -2061,21 +2074,21 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
 
 #elif defined(WOLFSSL_ESPIDF)
-    #if defined(WOLFSSL_ESPWROOM32)
+    #if defined(WOLFSSL_ESPWROOM32) || defined(WOLFSSL_ESPWROOM32SE)
         #include <esp_system.h>
-        
+
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
             int i;
-            
+
             for (i = 0; i< sz; i++) {
                output[i] =  esp_random( );
             }
-        
+
             return 0;
         }
     #endif /* end WOLFSSL_ESPWROOM32 */
- 
+
 #elif defined(CUSTOM_RAND_GENERATE_BLOCK)
     /* #define CUSTOM_RAND_GENERATE_BLOCK myRngFunc
      * extern int myRngFunc(byte* output, word32 sz);

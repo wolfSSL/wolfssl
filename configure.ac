@@ -1080,6 +1080,39 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_HASH"
 fi
 
+if test "$ENABLED_AFALG" = "xilinx"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_XILINX -DWOLFSSL_AFALG_XILINX_AES"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_XILINX_SHA3 -DWOLFSSL_AFALG_XILINX_RSA"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA3_224 -DWOLFSSL_NOSHA3_256 -DWOLFSSL_NOSHA3_512"
+    ENABLED_AFALG="yes"
+    ENABLED_XILINX="yes"
+fi
+
+if test "$ENABLED_AFALG" = "xilinx-aes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_XILINX -DWOLFSSL_AFALG_XILINX_AES"
+    ENABLED_AFALG="yes"
+    ENABLED_XILINX="yes"
+fi
+
+if test "$ENABLED_AFALG" = "xilinx-sha3"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_XILINX"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_XILINX_SHA3"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA3_224 -DWOLFSSL_NOSHA3_256 -DWOLFSSL_NOSHA3_512"
+    ENABLED_AFALG="yes"
+    ENABLED_XILINX="yes"
+fi
+
+if test "$ENABLED_AFALG" = "xilinx-rsa"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_XILINX"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_XILINX_RSA"
+    ENABLED_AFALG="yes"
+    ENABLED_XILINX="yes"
+fi
+
 AM_CONDITIONAL([BUILD_AFALG], [test "x$ENABLED_AFALG" = "xyes"])
 
 
@@ -3691,8 +3724,13 @@ if test "$ENABLED_SP_ASM" = "yes"; then
       AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_THUMB_ASM -mthumb -march=armv6"
       ENABLED_SP_ARM_THUMB_ASM=yes
     else
-      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
-      ENABLED_SP_ARM32_ASM=yes
+      if test $host_alias = "cortex"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_ASM"
+        ENABLED_SP_ARM_CORTEX_ASM=yes
+      else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
+        ENABLED_SP_ARM32_ASM=yes
+      fi
     fi
     ;;
   *x86_64*)
@@ -3742,6 +3780,7 @@ AM_CONDITIONAL([BUILD_SP_C], [test "x$ENABLED_SP" = "xyes" && test "x$ENABLED_SP
 AM_CONDITIONAL([BUILD_SP_ARM64], [test "x$ENABLED_SP_ARM64_ASM" = "xyes" ])
 AM_CONDITIONAL([BUILD_SP_ARM32], [test "x$ENABLED_SP_ARM32_ASM" = "xyes" ])
 AM_CONDITIONAL([BUILD_SP_ARM_THUMB], [test "x$ENABLED_SP_ARM_THUMB_ASM" = "xyes" ])
+AM_CONDITIONAL([BUILD_SP_ARM_CORTEX], [test "x$ENABLED_SP_ARM_CORTEX_ASM" = "xyes" ])
 AM_CONDITIONAL([BUILD_SP_X86_64], [test "x$ENABLED_SP_X86_64_ASM" = "xyes" ])
 AM_CONDITIONAL([BUILD_SP_INT], [test "x$ENABLED_SP_MATH" = "xyes" ])
 
@@ -4279,22 +4318,24 @@ else
 fi
 
 
-# Support for crypto device hardware
-AC_ARG_ENABLE([cryptodev],
-    [AS_HELP_STRING([--enable-cryptodev],[Enable crypto hardware support (default: disabled)])],
-    [ ENABLED_CRYPTODEV=$enableval ],
-    [ ENABLED_CRYPTODEV=no ]
+# Support for crypto callbacks
+AC_ARG_ENABLE([cryptocb],
+    [AS_HELP_STRING([--enable-cryptocb],[Enable crypto callbacks (default: disabled)])],
+    [ ENABLED_CRYPTOCB=$enableval ],
+    [ ENABLED_CRYPTOCB=no ]
     )
+# cryptodev is old name, replaced with cryptocb
+AC_ARG_ENABLE([cryptodev],,[ ENABLED_CRYPTOCB=$enableval ],[ ENABLED_CRYPTOCB=no ])
 
 if test "x$ENABLED_PKCS11" = "xyes"
 then
-    ENABLED_CRYPTODEV=yes
+    ENABLED_CRYPTOCB=yes
 fi
-if test "$ENABLED_CRYPTODEV" = "yes"
+if test "$ENABLED_CRYPTOCB" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_DEV"
+    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB"
 fi
-AM_CONDITIONAL([BUILD_CRYPTODEV], [test "x$ENABLED_CRYPTODEV" = "xyes"])
+AM_CONDITIONAL([BUILD_CRYPTOCB], [test "x$ENABLED_CRYPTOCB" = "xyes"])
 
 
 # Session Export

@@ -9492,7 +9492,7 @@ int wc_KeyPemToDer(const unsigned char* pem, int pemSz,
     XFREE(info, NULL, DYNAMIC_TYPE_ENCRYPTEDINFO);
 #endif
 
-    if (ret < 0) {
+    if (ret < 0 || der == NULL) {
         WOLFSSL_MSG("Bad Pem To Der");
     }
     else {
@@ -9533,7 +9533,7 @@ int wc_CertPemToDer(const unsigned char* pem, int pemSz,
 
 
     ret = PemToDer(pem, pemSz, type, &der, NULL, NULL, &eccKey);
-    if (ret < 0) {
+    if (ret < 0 || der == NULL) {
         WOLFSSL_MSG("Bad Pem To Der");
     }
     else {
@@ -9572,7 +9572,7 @@ int wc_PubKeyPemToDer(const unsigned char* pem, int pemSz,
     }
 
     ret = PemToDer(pem, pemSz, PUBLICKEY_TYPE, &der, NULL, NULL, NULL);
-    if (ret < 0) {
+    if (ret < 0 || der == NULL) {
         WOLFSSL_MSG("Bad Pem To Der");
     }
     else {

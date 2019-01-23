@@ -1,6 +1,6 @@
 ﻿/* atmel.c
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -338,7 +338,7 @@ int atmel_ecc_create_pms(int slotId, const uint8_t* peerKey, uint8_t* pms)
     int slotIdEnc;
 
     slotIdEnc = atmel_ecc_alloc(ATMEL_SLOT_ECDHE_ENC);
-    if (slotIdEnc != ATECC_INVALID_SLOT)
+    if (slotIdEnc == ATECC_INVALID_SLOT)
         return BAD_FUNC_ARG;
 
     /* get encryption key */

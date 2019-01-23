@@ -1,6 +1,6 @@
 /* logging.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -255,8 +255,7 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
 #elif defined(WOLFSSL_APACHE_MYNEWT)
         LOG_DEBUG(&mynewt_log, LOG_MODULE_DEFAULT, "%s\n", logMessage);
 #elif defined(WOLFSSL_ESPIDF)
-        extern char* TAG;
-        ESP_LOGI(TAG, "%s", logMessage);
+        ESP_LOGI("wolfssl", "%s", logMessage);
 #else
         fprintf(stderr, "%s\n", logMessage);
 #endif

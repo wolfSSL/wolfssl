@@ -1255,9 +1255,6 @@ enum Misc {
     EXT_MASTER_LABEL_SZ = 22,  /* TLS extended master secret label sz */
     MASTER_LABEL_SZ     = 13,  /* TLS master secret label sz */
     KEY_LABEL_SZ        = 13,  /* TLS key block expansion sz */
-    MAX_PRF_HALF        = 256, /* Maximum half secret len */
-    MAX_PRF_LABSEED     = 128, /* Maximum label + seed len */
-    MAX_PRF_DIG         = 224, /* Maximum digest len      */
     PROTOCOL_LABEL_SZ   = 9,   /* Length of the protocol label */
     MAX_LABEL_SZ        = 34,  /* Maximum length of a label */
     MAX_HKDF_LABEL_SZ   = OPAQUE16_LEN +
@@ -1604,6 +1601,9 @@ WOLFSSL_LOCAL int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
 /* TLS v1.3 needs these */
 WOLFSSL_LOCAL int  HandleTlsResumption(WOLFSSL* ssl, int bogusID,
                                        Suites* clSuites);
+#ifdef WOLFSSL_TLS13
+WOLFSSL_LOCAL int FindSuite(Suites* suites, byte first, byte second);
+#endif
 WOLFSSL_LOCAL int  DoClientHello(WOLFSSL* ssl, const byte* input, word32*,
                                  word32);
 #ifdef WOLFSSL_TLS13
@@ -2290,7 +2290,7 @@ typedef struct SecureRenegotiation {
 WOLFSSL_LOCAL int TLSX_UseSecureRenegotiation(TLSX** extensions, void* heap);
 
 #ifdef HAVE_SERVER_RENEGOTIATION_INFO
-WOLFSSL_LOCAL int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions);
+WOLFSSL_LOCAL int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap);
 #endif
 
 #endif /* HAVE_SECURE_RENEGOTIATION */
@@ -2768,20 +2768,6 @@ typedef struct CipherSpecs {
 
 
 void InitCipherSpecs(CipherSpecs* cs);
-
-
-/* Supported Message Authentication Codes from page 43 */
-enum MACAlgorithm {
-    no_mac,
-    md5_mac,
-    sha_mac,
-    sha224_mac,
-    sha256_mac,     /* needs to match external KDF_MacAlgorithm */
-    sha384_mac,
-    sha512_mac,
-    rmd_mac,
-    blake2b_mac
-};
 
 
 /* Supported Key Exchange Protocols */
@@ -3767,6 +3753,7 @@ struct WOLFSSL {
     word32          dtls_tx_msg_list_sz;
     word32          dtls_rx_msg_list_sz;
     DtlsMsg*        dtls_tx_msg_list;
+    DtlsMsg*        dtls_tx_msg;
     DtlsMsg*        dtls_rx_msg_list;
     void*           IOCB_CookieCtx;     /* gen cookie ctx */
     word32          dtls_expected_rx;

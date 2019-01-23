@@ -456,6 +456,7 @@ enum AlertDescription {
     certificate_expired             =  45,
     certificate_unknown             =  46,
     illegal_parameter               =  47,
+    unknown_ca                      =  48,
     decode_error                    =  50,
     decrypt_error                   =  51,
     #ifdef WOLFSSL_MYSQL_COMPATIBLE
@@ -788,6 +789,7 @@ WOLFSSL_API int  wolfSSL_dtls_get_current_timeout(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_dtls_set_timeout_init(WOLFSSL* ssl, int);
 WOLFSSL_API int  wolfSSL_dtls_set_timeout_max(WOLFSSL* ssl, int);
 WOLFSSL_API int  wolfSSL_dtls_got_timeout(WOLFSSL* ssl);
+WOLFSSL_API int  wolfSSL_dtls_retransmit(WOLFSSL*);
 WOLFSSL_API int  wolfSSL_dtls(WOLFSSL* ssl);
 
 WOLFSSL_API int  wolfSSL_dtls_set_peer(WOLFSSL*, void*, unsigned int);
@@ -1981,7 +1983,7 @@ enum BulkCipherAlgorithm {
 
 /* for KDF TLS 1.2 mac types */
 enum KDF_MacAlgorithm {
-    wolfssl_sha256 = 4,     /* needs to match internal MACAlgorithm */
+    wolfssl_sha256 = 4,     /* needs to match hash.h wc_MACAlgorithm */
     wolfssl_sha384,
     wolfssl_sha512
 };

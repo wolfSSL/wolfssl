@@ -1,6 +1,6 @@
 /* server-tls-callback.c
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
@@ -42,7 +42,85 @@
     #include <wolfssl/wolfcrypt/mem_track.h>
 #endif
 
-const char *TAG = "tls_server";
+static const char* const TAG = "tls_server";
+
+#if defined(DEBUG_WOLFSSL)
+
+static void ShowCiphers(void)
+{
+    char ciphers[4096];
+
+    int ret = wolfSSL_get_ciphers(ciphers, (int)sizeof(ciphers));
+
+    if (ret == WOLFSSL_SUCCESS)
+        printf("%s\n", ciphers);
+}
+
+#endif
+
+#if defined(WOLFSSL_ESPWROOM32SE) && defined(HAVE_PK_CALLBACKS) \
+                                  && defined(WOLFSSL_ATECC508A)
+
+#include "wolfssl/wolfcrypt/port/atmel/atmel.h"
+
+/* when you want to use a custom slot allocation */
+/* enable the difinition CUSTOM_SLOT_ALLOCATION. */
+
+#if defined(CUSTOM_SLOT_ALLOCATION)
+
+static byte mSlotList[ATECC_MAX_SLOT];
+
+int atmel_set_slot_allocator(atmel_slot_alloc_cb alloc, atmel_slot_dealloc_cb dealloc);
+
+/* initialize slot array */
+void my_atmel_slotInit()
+{
+    int i;
+
+    for(i=0;i<ATECC_MAX_SLOT; i++) {
+        mSlotList[i] = ATECC_INVALID_SLOT;
+    }
+}
+
+/* allocate slot depending on slotType */
+int my_atmel_alloc(int slotType)
+{
+    int i, slot = -1;
+
+    switch(slotType){
+        case ATMEL_SLOT_ENCKEY:
+            slot = 4;
+            break;
+        case ATMEL_SLOT_DEVICE:
+            slot = 0;
+            break;
+        case ATMEL_SLOT_ECDHE:
+            slot = 0;
+            break;
+        case ATMEL_SLOT_ECDHE_ENC:
+            slot = 4;
+            break;
+        case ATMEL_SLOT_ANY:
+            for(i=0;i<ATECC_MAX_SLOT;i++){
+                if(mSlotList[i] == ATECC_INVALID_SLOT){
+                    slot = i;
+                    break;
+                }
+            }
+    }
+
+    return slot;
+}
+
+/* free slot array       */
+void my_atmel_free(int slotId)
+{
+    if(slotId >= 0 && slotId <= ATECC_MAX_SLOT){
+        mSlotList[slotId] = ATECC_INVALID_SLOT;
+    }
+}
+#endif /* CUSTOM_SLOT_ALLOCATION                                       */
+#endif /* WOLFSSL_ESPWROOM32SE && HAVE_PK_CALLBACK && WOLFSSL_ATECC508A */
 
 void tls_smp_server_task()
 {
@@ -65,7 +143,9 @@ void tls_smp_server_task()
 #ifdef DEBUG_WOLFSSL
     WOLFSSL_MSG("Debug ON");
     wolfSSL_Debugging_ON();
+    ShowCiphers();
 #endif
+
     /* Initialize wolfSSL */
     WOLFSSL_MSG("Start wolfSSL_Init()");
     wolfSSL_Init();
@@ -75,28 +155,33 @@ void tls_smp_server_task()
      * 0 means choose the default protocol. */
     WOLFSSL_MSG( "start socket())");
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-        printf("ERROR: failed to create the socket");
+        ESP_LOGE(TAG, "ERROR: failed to create the socket");
     }
 
     /* Create and initialize WOLFSSL_CTX */
     WOLFSSL_MSG("Create and initialize WOLFSSL_CTX");
     if ((ctx = wolfSSL_CTX_new(wolfSSLv23_server_method())) == NULL) {
-        printf("ERROR: failed to create WOLFSSL_CTX");
+        ESP_LOGE(TAG, "ERROR: failed to create WOLFSSL_CTX");
     }
     WOLFSSL_MSG("Loading certificate...");
     /* Load server certificates into WOLFSSL_CTX */
+    
     if ((ret = wolfSSL_CTX_use_certificate_buffer(ctx, server_cert_der_2048,
                         sizeof_server_cert_der_2048,
                         WOLFSSL_FILETYPE_ASN1)) != SSL_SUCCESS) {
-        printf("ERROR: failed to load cert");
+        ESP_LOGE(TAG, "ERROR: failed to load cert");
     }
     WOLFSSL_MSG("Loading key info...");
     /* Load server key into WOLFSSL_CTX */
+    
     if((ret=wolfSSL_CTX_use_PrivateKey_buffer(ctx,
                             server_key_der_2048, sizeof_server_key_der_2048,
                             WOLFSSL_FILETYPE_ASN1)) != SSL_SUCCESS) {
-        printf("ERROR: failed to load privatekey");
+        ESP_LOGE(TAG, "ERROR: failed to load privatekey");
     }
+
+    /* TO DO when using ECDSA, it loads the provisioned certificate and present it.*/
+    /* TO DO when using ECDSA, it uses the generated key instead of loading key    */
 
     /* Initialize the server address struct with zeros */
     memset(&servAddr, 0, sizeof(servAddr));
@@ -107,37 +192,48 @@ void tls_smp_server_task()
 
     /* Bind the server socket to our port */
     if (bind(sockfd, (struct sockaddr*)&servAddr, sizeof(servAddr)) == -1) {
-         printf("ERROR: failed to bind");
+         ESP_LOGE(TAG, "ERROR: failed to bind");
     }
 
     /* Listen for a new connection, allow 5 pending connections */
     if (listen(sockfd, 5) == -1) {
-         printf("ERROR: failed to listen");
+         ESP_LOGE(TAG, "ERROR: failed to listen");
     }
+
+#if defined(WOLFSSL_ESPWROOM32SE) && defined(HAVE_PK_CALLBACKS) \
+                                  && defined(WOLFSSL_ATECC508A)
+    atcatls_set_callbacks(ctx);
+    /* when using a custom slot allocation */
+    #if defined(CUSTOM_SLOT_ALLOCATION)
+    my_atmel_slotInit();
+    atmel_set_slot_allocator(my_atmel_alloc, my_atmel_free);
+    #endif
+#endif
+
     /* Continue to accept clients until shutdown is issued */
     while (!shutdown) {
          WOLFSSL_MSG("Waiting for a connection...");
         /* Accept client connections */
         if ((connd = accept(sockfd, (struct sockaddr*)&clientAddr, &size))
             == -1) {
-             printf("ERROR: failed to accept the connection");
+             ESP_LOGE(TAG, "ERROR: failed to accept the connection");
         }
         /* Create a WOLFSSL object */
         if ((ssl = wolfSSL_new(ctx)) == NULL) {
-             printf("ERROR: failed to create WOLFSSL object");
+             ESP_LOGE(TAG, "ERROR: failed to create WOLFSSL object");
         }
         /* Attach wolfSSL to the socket */
         wolfSSL_set_fd(ssl, connd);
         /* Establish TLS connection */
         ret = wolfSSL_accept(ssl);
         if (ret != SSL_SUCCESS) {
-            printf("wolfSSL_accept error %d", wolfSSL_get_error(ssl, ret));
+            ESP_LOGE(TAG, "wolfSSL_accept error %d", wolfSSL_get_error(ssl, ret));
         }
         WOLFSSL_MSG("Client connected successfully");
         /* Read the client data into our buff array */
         memset(buff, 0, sizeof(buff));
         if (wolfSSL_read(ssl, buff, sizeof(buff)-1) == -1) {
-            printf("ERROR: failed to read");
+            ESP_LOGE(TAG, "ERROR: failed to read");
         }
         /* Print to stdout any data the client sends */
         WOLFSSL_MSG("Client sends:");
@@ -153,7 +249,7 @@ void tls_smp_server_task()
         len = strnlen(buff, sizeof(buff));
         /* Reply back to the client */
         if (wolfSSL_write(ssl, buff, len) != len) {
-            printf("ERROR: failed to write");
+            ESP_LOGE(TAG, "ERROR: failed to write");
         }
         /* Cleanup after this connection */
         wolfSSL_free(ssl);      /* Free the wolfSSL object              */

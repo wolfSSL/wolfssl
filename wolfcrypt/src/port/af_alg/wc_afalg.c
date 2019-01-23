@@ -27,7 +27,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
-#if !defined(NO_AES) && defined(WOLFSSL_AFALG)
+#if defined(WOLFSSL_AFALG) || defined(WOLFSSL_AFALG_XILINX)
 
 #include <wolfssl/wolfcrypt/port/af_alg/wc_afalg.h>
 #include <linux/if_alg.h>

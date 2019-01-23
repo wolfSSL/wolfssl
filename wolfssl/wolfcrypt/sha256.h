@@ -24,7 +24,6 @@
 */
 
 
-/* code submitted by raphael.huck@efixo.com */
 
 #ifndef WOLF_CRYPT_SHA256_H
 #define WOLF_CRYPT_SHA256_H
@@ -157,6 +156,10 @@ typedef struct wc_Sha256 {
 #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
     WC_ESP32SHA ctx;
+#endif
+#ifdef WOLF_CRYPTO_CB
+    int    devId;
+    void*  devCtx; /* generic crypto callback context */
 #endif
 #endif
 } wc_Sha256;

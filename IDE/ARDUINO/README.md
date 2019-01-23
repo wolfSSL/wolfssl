@@ -16,11 +16,13 @@ wolfssl/IDE/ARDUINO directory:
 Step 2: Edit `<wolfssl-root>/IDE/ARDUINO/wolfSSL/wolfssl/wolfcrypt/settings.h` uncomment the define for `WOLFSSL_ARDUINO`
 If building for Intel Galileo platform also uncomment the define for `INTEL_GALILEO`.
 
-#####Including wolfSSL in Arduino Libraries (for Arduino version 1.6.6)
+##### Including wolfSSL in Arduino Libraries (for Arduino version 1.6.6)
 
 1. In the Arduino IDE:
     - In `Sketch -> Include Library -> Add .ZIP Library...` and choose the
         `IDE/ARDUNIO/wolfSSL` folder.
     - In `Sketch -> Include Library` choose wolfSSL.
 
-An example wolfSSL client INO sketch exists here: `sketches/wolfssl_client/wolfssl_client.ino`
+2. Open an example Arduino sketch for wolfSSL:
+	- wolfSSL Client INO sketch: `sketches/wolfssl_client/wolfssl_client.ino`
+	- wolfSSL Server INO sketch: `sketches/wolfssl_server/wolfssl_server.ino`
