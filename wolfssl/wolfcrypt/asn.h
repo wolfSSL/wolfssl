@@ -244,11 +244,11 @@ enum Misc_ASN {
     MAX_SIG_SZ          = 256,
     MAX_ALGO_SZ         =  20,
     MAX_SHORT_SZ        =   6,     /* asn int + byte len + 4 byte length */
-    MAX_SEQ_SZ          =   6,     /* enum(seq | con) + 1 + length(4) */
-    MAX_SET_SZ          =   6,     /* enum(set | con) + 1 + length(4) */
-    MAX_OCTET_STR_SZ    =   6,     /* enum(set | con) + 1 + length(4) */
-    MAX_EXP_SZ          =   6,     /* enum(contextspec|con|exp) + 1 + length(4) */
-    MAX_PRSTR_SZ        =   6,     /* enum(prstr) + 1 + length(4) */
+    MAX_SEQ_SZ          =   6,     /* enum(seq | con) + length(5) */
+    MAX_SET_SZ          =   6,     /* enum(set | con) + length(5) */
+    MAX_OCTET_STR_SZ    =   6,     /* enum(set | con) + length(5) */
+    MAX_EXP_SZ          =   6,     /* enum(contextspec|con|exp) + length(5) */
+    MAX_PRSTR_SZ        =   6,     /* enum(prstr) + length(5)     */
     MAX_VERSION_SZ      =   5,     /* enum + id + version(byte) + (header(2))*/
     MAX_ENCODED_DIG_ASN_SZ= 9,     /* enum(bit or octet) + length(4) */
     MAX_ENCODED_DIG_SZ  =  64 + MAX_ENCODED_DIG_ASN_SZ, /* asn header + sha512 */
@@ -256,6 +256,7 @@ enum Misc_ASN {
     MAX_NTRU_KEY_SZ     = 610,     /* NTRU 112 bit public key */
     MAX_NTRU_ENC_SZ     = 628,     /* NTRU 112 bit DER public encoding */
     MAX_LENGTH_SZ       =   5,     /* Max length size for DER encoding */
+    MAX_SHORTINT_SZ     =   4,     /* SHORTINT max length size*/
     MAX_RSA_E_SZ        =  16,     /* Max RSA public e size */
     MAX_CA_SZ           =  32,     /* Max encoded CA basic constraint length */
     MAX_SN_SZ           =  35,     /* Max encoded serial number (INT) length */

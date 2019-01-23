@@ -679,7 +679,8 @@ int GetShortInt(const byte* input, word32* inOutIdx, int* number, word32 maxIdx)
         return ASN_PARSE_E;
 
     len = input[idx++];
-    if (len > 4)
+    /* check if len exceeds max size 4 bytes */
+    if (len > MAX_SHORTINT_SZ)
         return ASN_PARSE_E;
 
     if (len + idx > maxIdx)
@@ -703,7 +704,7 @@ static int SetShortInt(byte* input, word32* inOutIdx, word32 number,
     word32 idx = *inOutIdx;
     word32 len = 0;
     int    i;
-    byte ar[MAX_LENGTH_SZ - 1];/* expect size 4 byte */
+    byte ar[MAX_SHORTINT_SZ];/* expect max size 4 bytes */
 
     /* check for room for type and length bytes */
     if ((idx + 2) > maxIdx)
@@ -711,24 +712,25 @@ static int SetShortInt(byte* input, word32* inOutIdx, word32 number,
 
     input[idx++] = ASN_INTEGER;
     idx++; /* place holder for length byte */
-    if (MAX_LENGTH_SZ - 1 + idx > maxIdx)
+    if (MAX_SHORTINT_SZ + idx > maxIdx)
         return ASN_PARSE_E;
 
     /* find first non zero byte */
-    XMEMSET(ar, 0, MAX_LENGTH_SZ - 1);
+    XMEMSET(ar, 0, MAX_SHORTINT_SZ);
+    /* c32toa converts 32 bit integer to 4 bytes array */
     c32toa(number, ar);
-    for (i = 0; i < (MAX_LENGTH_SZ - 1); i++) {
+    for (i = 0; i < MAX_SHORTINT_SZ; i++) {
         if (ar[i] != 0) {
             break;
         }
     }
 
     /* handle case of 0 */
-    if (i == (MAX_LENGTH_SZ - 1)) {
+    if (i == MAX_SHORTINT_SZ) {
         input[idx++] = 0; len++;
     }
 
-    for (; i < (MAX_LENGTH_SZ - 1) && idx < maxIdx; i++) {
+    for (; i < MAX_SHORTINT_SZ && idx < maxIdx; i++) {
         input[idx++] = ar[i]; len++;
     }
 
