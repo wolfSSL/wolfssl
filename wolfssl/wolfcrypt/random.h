@@ -138,6 +138,9 @@ typedef struct OS_Seed {
     #else
         int fd;
     #endif
+    #if defined(WOLF_CRYPTO_CB)
+        int devId;
+    #endif
 } OS_Seed;
 
 

@@ -703,6 +703,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     rng->devId = devId;
+    rng->seed.devId = devId;
 #else
     (void)devId;
 #endif
@@ -1479,6 +1480,16 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
+#ifdef WOLF_CRYPTO_CB
+    int ret;
+
+    if (os != NULL && os->devId != INVALID_DEVID) {
+        ret = wc_CryptoCb_RandomSeed(os, output, sz);
+        if (ret != NOT_COMPILED_IN)
+            return ret;
+    }
+#endif
+
     #ifdef HAVE_INTEL_RDSEED
         if (IS_INTEL_RDSEED(intel_flags)) {
              if (!wc_GenerateSeed_IntelRD(NULL, output, sz)) {
@@ -2126,6 +2137,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int ret = 0;
 
+#ifdef WOLF_CRYPTO_CB
+        if (os != NULL && os->devId != INVALID_DEVID) {
+            ret = wc_CryptoCb_RandomSeed(os, output, sz);
+            if (ret != NOT_COMPILED_IN)
+                return ret;
+        }
+#endif
+
     #ifdef HAVE_INTEL_RDSEED
         if (IS_INTEL_RDSEED(intel_flags)) {
              ret = wc_GenerateSeed_IntelRD(NULL, output, sz);
@@ -2198,6 +2217,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 #endif
+
 
 /* End wc_GenerateSeed */
 #endif /* WC_NO_RNG */

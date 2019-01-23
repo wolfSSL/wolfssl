@@ -1923,6 +1923,50 @@ static int Pkcs11AesGcmDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
 }
 #endif
 
+#ifndef WC_NO_RNG
+#ifndef HAVE_HASHDRBG
+/**
+ * Performs random number generation.
+ *
+ * @param  session  [in]  Session object.
+ * @param  info     [in]  Cryptographic operation data.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ *          0 on success.
+ */
+static int Pkcs11RandomBlock(Pkcs11Session* session, wc_CryptoInfo* info)
+{
+    int                ret = 0;
+    CK_RV              rv;
+
+    rv = session->func->C_GenerateRandom(session->handle, info->rng.out,
+                                                                  info->rng.sz);
+    if (rv != CKR_OK)
+        ret = WC_HW_E;
+    return ret;
+}
+#endif
+
+/**
+ * Generates entropy (seed) data.
+ *
+ * @param  session  [in]  Session object.
+ * @param  info     [in]  Cryptographic operation data.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ *          0 on success.
+ */
+static int Pkcs11RandomSeed(Pkcs11Session* session, wc_CryptoInfo* info)
+{
+    int                ret = 0;
+    CK_RV              rv;
+
+    rv = session->func->C_GenerateRandom(session->handle, info->seed.seed,
+                                                                 info->seed.sz);
+    if (rv != CKR_OK)
+        ret = WC_HW_E;
+    return ret;
+}
+#endif
+
 /**
  * Perform a cryptographic operation using PKCS#11 device.
  *
@@ -1986,8 +2030,25 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                             ret = Pkcs11AesGcmDecrypt(&session, info);
                         break;
     #endif
-                    }
                 }
+            }
+            else if (info->algo_type == WC_ALGO_TYPE_HASH) {
+                ret = NOT_COMPILED_IN;
+            }
+            else if (info->algo_type == WC_ALGO_TYPE_RNG) {
+    #if !defined(WC_NO_RNG) && !defined(HAVE_HASHDRBG)
+                ret = Pkcs11RandomBlock(&session, info);
+    #else
+                ret = NOT_COMPILED_IN;
+    #endif
+            }
+            else if (info->algo_type == WC_ALGO_TYPE_SEED) {
+    #ifndef WC_NO_RNG
+                ret = Pkcs11RandomSeed(&session, info);
+    #else
+                ret = NOT_COMPILED_IN;
+    #endif
+            }
 
             Pkcs11CloseSession(token, &session);
         }
