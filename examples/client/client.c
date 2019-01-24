@@ -260,6 +260,56 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519)
 }
 #endif
 
+#ifdef WOLFSSL_EARLY_DATA
+static void EarlyData(WOLFSSL_CTX* ctx, WOLFSSL* ssl, const char* msg,
+                      int msgSz, char* buffer)
+{
+    int err;
+    int ret;
+
+    do {
+        err = 0; /* reset error */
+        ret = wolfSSL_write_early_data(ssl, msg, msgSz, &msgSz);
+        if (ret <= 0) {
+            err = wolfSSL_get_error(ssl, 0);
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (err == WC_PENDING_E) {
+                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                if (ret < 0) break;
+            }
+        #endif
+        }
+    } while (err == WC_PENDING_E);
+    if (ret != msgSz) {
+        printf("SSL_write_early_data msg error %d, %s\n", err,
+                                         wolfSSL_ERR_error_string(err, buffer));
+        wolfSSL_free(ssl); ssl = NULL;
+        wolfSSL_CTX_free(ctx); ctx = NULL;
+        err_sys("SSL_write_early_data failed");
+    }
+    do {
+        err = 0; /* reset error */
+        ret = wolfSSL_write_early_data(ssl, msg, msgSz, &msgSz);
+        if (ret <= 0) {
+            err = wolfSSL_get_error(ssl, 0);
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (err == WC_PENDING_E) {
+                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                if (ret < 0) break;
+            }
+        #endif
+        }
+    } while (err == WC_PENDING_E);
+    if (ret != msgSz) {
+        printf("SSL_write_early_data msg error %d, %s\n", err,
+                                         wolfSSL_ERR_error_string(err, buffer));
+        wolfSSL_free(ssl); ssl = NULL;
+        wolfSSL_CTX_free(ctx); ctx = NULL;
+        err_sys("SSL_write_early_data failed");
+    }
+}
+#endif
+
 /* Measures average time to create, connect and disconnect a connection (TPS).
 Benchmark = number of connections. */
 static const char* client_bench_conmsg[][5] = {
@@ -280,7 +330,7 @@ static const char* client_bench_conmsg[][5] = {
 
 static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     int dtlsUDP, int dtlsSCTP, int benchmark, int resumeSession, int useX25519,
-    int helloRetry, int onlyKeyShare, int version)
+    int helloRetry, int onlyKeyShare, int version, int earlyData)
 {
     /* time passed in number of connects give average */
     int times = benchmark, skip = times * 0.1;
@@ -292,6 +342,9 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 #ifdef WOLFSSL_TLS13
     byte* reply[80];
     static const char msg[] = "GET /index.html HTTP/1.0\r\n\r\n";
+#ifdef WOLFSSL_EARLY_DATA
+    static const char earlyMsg[] = "A drop of info";
+#endif
 #endif
     const char** words = client_bench_conmsg[lng_index];
 
@@ -300,6 +353,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     (void)helloRetry;
     (void)onlyKeyShare;
     (void)version;
+    (void)earlyData;
 
     while (loops--) {
     #ifndef NO_SESSION_CACHE
@@ -337,6 +391,13 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
                 err_sys("error in setting fd");
             }
 
+    #if defined(WOLFSSL_TLS13) && !defined(NO_SESSION_CACHE) && \
+                                                     defined(WOLFSSL_EARLY_DATA)
+            if (version >= 4 && benchResume && earlyData) {
+                char buffer[WOLFSSL_MAX_ERROR_SZ];
+                EarlyData(ctx, ssl, earlyMsg, sizeof(earlyMsg)-1, buffer);
+            }
+    #endif
             do {
                 err = 0; /* reset error */
                 ret = wolfSSL_connect(ssl);
@@ -764,55 +825,6 @@ static void ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead)
     }
 }
 
-#ifdef WOLFSSL_EARLY_DATA
-static void EarlyData(WOLFSSL_CTX* ctx, WOLFSSL* ssl, char* msg, int msgSz,
-                      char* buffer)
-{
-    int err;
-    int ret;
-
-    do {
-        err = 0; /* reset error */
-        ret = wolfSSL_write_early_data(ssl, msg, msgSz, &msgSz);
-        if (ret <= 0) {
-            err = wolfSSL_get_error(ssl, 0);
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            if (err == WC_PENDING_E) {
-                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                if (ret < 0) break;
-            }
-        #endif
-        }
-    } while (err == WC_PENDING_E);
-    if (ret != msgSz) {
-        printf("SSL_write_early_data msg error %d, %s\n", err,
-                                         wolfSSL_ERR_error_string(err, buffer));
-        wolfSSL_free(ssl); ssl = NULL;
-        wolfSSL_CTX_free(ctx); ctx = NULL;
-        err_sys("SSL_write_early_data failed");
-    }
-    do {
-        err = 0; /* reset error */
-        ret = wolfSSL_write_early_data(ssl, msg, msgSz, &msgSz);
-        if (ret <= 0) {
-            err = wolfSSL_get_error(ssl, 0);
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            if (err == WC_PENDING_E) {
-                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                if (ret < 0) break;
-            }
-        #endif
-        }
-    } while (err == WC_PENDING_E);
-    if (ret != msgSz) {
-        printf("SSL_write_early_data msg error %d, %s\n", err,
-                                         wolfSSL_ERR_error_string(err, buffer));
-        wolfSSL_free(ssl); ssl = NULL;
-        wolfSSL_CTX_free(ctx); ctx = NULL;
-        err_sys("SSL_write_early_data failed");
-    }
-}
-#endif
 
 /* when adding new option, please follow the steps below: */
 /*  1. add new option message in English section          */
@@ -1370,9 +1382,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int postHandAuth = 0;
 #endif
     int updateKeysIVs = 0;
-#ifdef WOLFSSL_EARLY_DATA
     int earlyData = 0;
-#endif
 #ifdef WOLFSSL_MULTICAST
     byte mcastID = 0;
 #endif
@@ -1442,6 +1452,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)alpnList;
     (void)alpn_opt;
     (void)updateKeysIVs;
+    (void)earlyData;
     (void)useX25519;
     (void)helloRetry;
     (void)onlyKeyShare;
@@ -2389,7 +2400,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         ((func_args*)args)->return_code =
             ClientBenchmarkConnections(ctx, host, port, dtlsUDP, dtlsSCTP,
                                        benchmark, resumeSession, useX25519,
-                                       helloRetry, onlyKeyShare, version);
+                                       helloRetry, onlyKeyShare, version,
+                                       earlyData);
         wolfSSL_CTX_free(ctx); ctx = NULL;
         XEXIT_T(EXIT_SUCCESS);
     }
