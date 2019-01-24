@@ -156,8 +156,9 @@ typedef union {
 #ifdef HAVE_IDEA
     Idea idea;
 #endif
-
+#ifdef WOLFSSL_QT
     int (*ctrl) (WOLFSSL_EVP_CIPHER_CTX *, int type, int arg, void *ptr);
+#endif
 } WOLFSSL_Cipher;
 
 enum {
@@ -609,19 +610,23 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_VerifyInit                 wolfSSL_EVP_VerifyInit
 #define EVP_VerifyUpdate               wolfSSL_EVP_VerifyUpdate
 
-#define EVP_CIPHER_CTX_ctrl        wolfSSL_EVP_CIPHER_CTX_ctrl
-#define EVP_CIPHER_CTX_block_size  wolfSSL_EVP_CIPHER_CTX_block_size
-#define EVP_CIPHER_block_size      wolfSSL_EVP_CIPHER_block_size
-#define EVP_CIPHER_flags           wolfSSL_EVP_CIPHER_flags
-#define EVP_CIPHER_CTX_set_flags   wolfSSL_EVP_CIPHER_CTX_set_flags
-#define EVP_CIPHER_CTX_clear_flags wolfSSL_EVP_CIPHER_CTX_clear_flags
-#define EVP_CIPHER_CTX_set_padding wolfSSL_EVP_CIPHER_CTX_set_padding
-#define EVP_CIPHER_CTX_flags       wolfSSL_EVP_CIPHER_CTX_flags
-#define EVP_add_digest             wolfSSL_EVP_add_digest
-#define EVP_add_cipher             wolfSSL_EVP_add_cipher
-#define EVP_cleanup                wolfSSL_EVP_cleanup
-#define EVP_rc2_cbc                wolfSSL_EVP_rc2_cbc
-#define EVP_CTRL_SET_RC2_KEY_BITS  0x3
+#define EVP_CIPHER_CTX_ctrl            wolfSSL_EVP_CIPHER_CTX_ctrl
+#define EVP_CIPHER_CTX_block_size      wolfSSL_EVP_CIPHER_CTX_block_size
+#define EVP_CIPHER_block_size          wolfSSL_EVP_CIPHER_block_size
+#define EVP_CIPHER_flags               wolfSSL_EVP_CIPHER_flags
+#define EVP_CIPHER_CTX_set_flags       wolfSSL_EVP_CIPHER_CTX_set_flags
+#define EVP_CIPHER_CTX_clear_flags     wolfSSL_EVP_CIPHER_CTX_clear_flags
+#define EVP_CIPHER_CTX_set_padding     wolfSSL_EVP_CIPHER_CTX_set_padding
+#define EVP_CIPHER_CTX_flags           wolfSSL_EVP_CIPHER_CTX_flags
+#define EVP_add_digest                 wolfSSL_EVP_add_digest
+#define EVP_add_cipher                 wolfSSL_EVP_add_cipher
+#define EVP_cleanup                    wolfSSL_EVP_cleanup
+#define EVP_rc2_cbc                    wolfSSL_EVP_rc2_cbc
+
+/* OpenSSL compat. ctrl values */
+#define EVP_CTRL_INIT                  0x0
+#define EVP_CTRL_SET_KEY_LENGTH        0x1
+#define EVP_CTRL_SET_RC2_KEY_BITS      0x3  /* needed for qt compilation */
 
 #define OpenSSL_add_all_digests()  wolfCrypt_Init()
 #define OpenSSL_add_all_ciphers()  wolfCrypt_Init()
