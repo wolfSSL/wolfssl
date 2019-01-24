@@ -11760,7 +11760,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     int wolfSSL_OpenSSL_add_all_algorithms_conf(void)
     {
         WOLFSSL_ENTER("wolfSSL_OpenSSL_add_all_algorithms_conf");
-        
+        /* This function is currently the same as 
+        wolfSSL_OpenSSL_add_all_algorithms_noconf since we do not employ
+        the use of a wolfssl.cnf type configuration file and is only used for
+        OpenSSL compatability. */
+
         if (wolfSSL_add_all_algorithms() == WOLFSSL_FATAL_ERROR) {
             return WOLFSSL_FATAL_ERROR;
         }
@@ -13777,15 +13781,29 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                                                              int arg, void *ptr)
     {
         int ret;
+        (void)arg;
+        (void)ptr
 
         WOLFSSL_ENTER("EVP_CIPHER_CTX_ctrl");
 
-        if(ctx && ctx->cipher.ctrl) {
-            if((ret = ctx->cipher.ctrl(ctx, type, arg, ptr)) != -1) {
-                return ret;
-            }
+        switch(type) {
+            case EVP_CTRL_INIT:
+                wolfSSL_EVP_CIPHER_CTX_init(ctx);
+                if(ctx) {
+                    ret = WOLFSSL_SUCCESS;
+                } else {
+                    ret = WOLFSSL_FAILURE;
+                }
+                break;
+            case EVP_CTRL_SET_KEY_LENGTH:
+                ret = wolfSSL_EVP_CIPHER_CTX_set_key_length(ctx, 
+                                                EVP_CIPHER_CTX_key_length(ctx));
+                break;
+            default:
+                WOLFSSL_MSG("EVP_CIPHER_CTX_ctrl operation not yet handled");
+                ret = WOLFSSL_FAILURE;
         }
-        return WOLFSSL_FAILURE;
+        return ret;
     }
 
     /* Permanent stub for Qt compilation. */

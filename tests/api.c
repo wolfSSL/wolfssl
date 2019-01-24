@@ -1659,6 +1659,38 @@ static void test_wolfSSL_EVP_get_cipherbynid(void)
 }
 #endif
 
+#if defined(OPENSSL_EXTRA)
+/* Test function for various EVP_cipher methods.
+ */
+static void test_wolfSSL_EVP_CIPHER_CTX(void)
+{
+    EVP_CIPHER_CTX evpCipherContext;
+    EVP_CIPHER_CTX *ctx = &evpCipherContext;
+    const EVP_CIPHER* type = NULL;
+    int keylen = 0;
+
+    printf(testingFmt, "test_wolfSSL_EVP_CIPHER_CTX");
+
+    /* EVP_AES_128_CBC used as an example */
+    AssertNotNull(type = EVP_aes_128_cbc());
+    /* below test indirectly tests EVP_CIPHER_CTX_init */
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_INIT, 0, NULL), WOLFSSL_SUCCESS);
+    AssertNotNull(ctx);
+    AssertIntEQ(EVP_CipherInit(NULL, NULL, NULL, NULL, 0), WOLFSSL_FAILURE);
+    AssertIntEQ(EVP_CipherInit(ctx, type, NULL, NULL, 0), WOLFSSL_SUCCESS);
+    AssertIntEQ((keylen = EVP_CIPHER_CTX_key_length(ctx)), 16);
+    AssertIntEQ(EVP_CIPHER_CTX_set_key_length(NULL, 0), WOLFSSL_FAILURE);
+    /* below test indirectly tests EVP_CIPHER_CTX_set_key_length */
+    AssertIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_SET_KEY_LENGTH, keylen, NULL),
+                                                         WOLFSSL_SUCCESS);
+
+    EVP_CIPHER_CTX_cleanup(ctx);
+   // EVP_CIPHER_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+}
+#endif
+
 /*----------------------------------------------------------------------------*
  | IO
  *----------------------------------------------------------------------------*/
@@ -20897,7 +20929,13 @@ static void test_wolfSSL_OpenSSL_add_all_algorithms(void){
 #if defined(OPENSSL_EXTRA)
     printf(testingFmt, "wolfSSL_OpenSSL_add_all_algorithms()");
 
+    AssertIntEQ(wolfSSL_add_all_algorithms(),WOLFSSL_SUCCESS);
+    wolfSSL_Cleanup();
+
     AssertIntEQ(wolfSSL_OpenSSL_add_all_algorithms_noconf(),WOLFSSL_SUCCESS);
+    wolfSSL_Cleanup();
+
+    AssertIntEQ(wolfSSL_OpenSSL_add_all_algorithms_conf(),WOLFSSL_SUCCESS);
     wolfSSL_Cleanup();
 
     printf(resultFmt, passed);
@@ -24507,6 +24545,7 @@ void ApiTest(void)
 #ifdef OPENSSL_EXTRA
     /*wolfSSL_EVP_get_cipherbynid test*/
     test_wolfSSL_EVP_get_cipherbynid();
+    test_wolfSSL_EVP_CIPHER_CTX();
     test_wolfSSL_EC();
     test_wolfSSL_ECDSA_SIG();
 #endif

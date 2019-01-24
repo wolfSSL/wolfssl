@@ -156,8 +156,9 @@ typedef union {
 #ifdef HAVE_IDEA
     Idea idea;
 #endif
-
+#ifdef WOLFSSL_QT
     int (*ctrl) (WOLFSSL_EVP_CIPHER_CTX *, int type, int arg, void *ptr);
+#endif
 } WOLFSSL_Cipher;
 
 enum {
@@ -612,7 +613,11 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_add_cipher                 wolfSSL_EVP_add_cipher
 #define EVP_cleanup                    wolfSSL_EVP_cleanup
 #define EVP_rc2_cbc                    wolfSSL_EVP_rc2_cbc
-#define EVP_CTRL_SET_RC2_KEY_BITS      0x3
+
+/* OpenSSL compat. ctrl values */
+#define EVP_CTRL_INIT                  0x0
+#define EVP_CTRL_SET_KEY_LENGTH        0x1
+#define EVP_CTRL_SET_RC2_KEY_BITS      0x3  /* needed for qt compilation */
 
 #define OpenSSL_add_all_digests()  wolfCrypt_Init()
 #define OpenSSL_add_all_ciphers()  wolfCrypt_Init()
