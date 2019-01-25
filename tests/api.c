@@ -23635,7 +23635,7 @@ static void test_wolfSSL_EC_KEY_dup(void)
     AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
     AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
 
-    /* Valid cases */ 
+    /* Valid cases */
     AssertNotNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
 #if defined(WOLFSSL_PUBLIC_MP)
     src_key = (mp_int*)ecKey->internal;
@@ -23653,38 +23653,56 @@ static void test_wolfSSL_EC_KEY_dup(void)
     /* compare BIGNUM */
     AssertIntEQ(wolfSSL_BN_cmp(ecKey->priv_key, dupKey->priv_key), MP_EQ);
 
-    /* Invalid cases */ 
+    /* Invalid cases */
     /* NULL key */
     AssertNull(dupKey = wolfSSL_EC_KEY_dup(NULL));
-    ecKey->internal = NULL;
+    /* NULL ecc_key */
+    wc_ecc_free((ecc_key*)ecKey->internal);
+    XFREE(ecKey->internal, NULL, DYNAMIC_TYPE_ECC);
+    ecKey->internal = NULL; /* Set ecc_key to NULL */
     AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
     wolfSSL_EC_KEY_free(ecKey);
+    wolfSSL_EC_KEY_free(dupKey);
 
     /* NULL Group */
-    AssertNotNull(ecKey = wolfSSL_EC_KEY_new()); 
-    ecKey->group = NULL;
+    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
+    wolfSSL_EC_GROUP_free(ecKey->group);
+    ecKey->group = NULL; /* Set group to NULL */
     AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
     wolfSSL_EC_KEY_free(ecKey);
+    wolfSSL_EC_KEY_free(dupKey);
 
     /* NULL public key */
-    AssertNotNull(ecKey = wolfSSL_EC_KEY_new()); 
-    ecKey->pub_key->internal = NULL;
+    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
+    wc_ecc_del_point((ecc_point*)ecKey->pub_key->internal);
+    ecKey->pub_key->internal = NULL; /* Set ecc_point to NULL */
     AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
-    ecKey->pub_key = NULL;
+
+    wolfSSL_EC_POINT_free(ecKey->pub_key);
+    ecKey->pub_key = NULL; /* Set pub_key to NULL */
     AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
     wolfSSL_EC_KEY_free(ecKey);
+    wolfSSL_EC_KEY_free(dupKey);
 
     /* NULL private key */
-    AssertNotNull(ecKey = wolfSSL_EC_KEY_new()); 
-    ecKey->priv_key->internal = NULL;
+    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
+    AssertIntEQ(wolfSSL_EC_KEY_generate_key(ecKey), 1);
+#if defined(WOLFSSL_PUBLIC_MP)
+    mp_int* mp = (mp_int*)ecKey->priv_key->internal;
+    mp_forcezero(mp);
+    mp_free(mp);
+    XFREE(ecKey->priv_key->internal, NULL, DYNAMIC_TYPE_BIGINT);
+    ecKey->priv_key->internal = NULL; /* Set internal key to NULL */
     AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
-    ecKey->priv_key = NULL;
+#endif
+    wolfSSL_BN_free(ecKey->priv_key);
+    ecKey->priv_key = NULL; /* Set priv_key to NULL */
     AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
+    wolfSSL_EC_KEY_free(ecKey);
+    wolfSSL_EC_KEY_free(dupKey);
 
-    XFREE(ecKey, NULL, DYNAMIC_TYPE_ECC);
-    XFREE(dupKey, NULL, DYNAMIC_TYPE_ECC);
-//    wolfSSL_EC_KEY_free(ecKey);
-//    wolfSSL_EC_KEY_free(dupKey);
 #if defined(WOLFSSL_PUBLIC_MP)
     mp_free(src_key);
     mp_free(dest_key);

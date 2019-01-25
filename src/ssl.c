@@ -23200,11 +23200,6 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
     WOLFSSL_ENTER("wolfSSL_EC_KEY_dup");
 
     WOLFSSL_EC_KEY *dup;
-    WOLFSSL_EC_GROUP* group;
-    WOLFSSL_EC_POINT* point_dup;
-    WOLFSSL_EC_POINT* point_src;
-    WOLFSSL_BIGNUM* priv_dup;
-    WOLFSSL_BIGNUM* priv_src;
     ecc_key *key;
     int ret;
 
@@ -23224,6 +23219,7 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
     key = (ecc_key*)dup->internal;
     if (key == NULL) {
         WOLFSSL_MSG("ecc_key NULL error");
+        wolfSSL_EC_KEY_free(dup);
         return NULL;
     }
 
@@ -23235,46 +23231,47 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
     }
 
     /* Copy group */
-    group = wolfSSL_EC_GROUP_new_by_curve_name(src->group->curve_nid);
-    if (group == NULL) {
+    if (dup->group == NULL) {
         WOLFSSL_MSG("EC_GROUP_new_by_curve_name error");
         wolfSSL_EC_KEY_free(dup);
         return NULL;
     }
-    dup->group = group;
+
+    dup->group->curve_idx = src->group->curve_idx;
+    dup->group->curve_nid = src->group->curve_nid;
+    dup->group->curve_oid = src->group->curve_oid;
 
     /* Copy public key */
-    point_dup = wolfSSL_EC_POINT_new(group);
-    if (point_dup == NULL) {
-        WOLFSSL_MSG("wolfSSL_EC_POINT_new error");
+    if (src->pub_key->internal == NULL || dup->pub_key->internal == NULL) {
+        WOLFSSL_MSG("NULL pub_key error");
         wolfSSL_EC_KEY_free(dup);
         return NULL;
     }
-    dup->pub_key = point_dup;
 
-    point_src = src->pub_key->internal;
-    if (point_src == NULL) {
-        WOLFSSL_MSG("EC_POINT null error");
+    ret = wc_ecc_copy_point((ecc_point*)src->pub_key->internal, (ecc_point*)dup->pub_key->internal);
+    if (ret != MP_OKAY) {
+        WOLFSSL_MSG("ecc_copy_point error");
+        wolfSSL_EC_KEY_free(dup);
         return NULL;
     }
-    point_dup->internal = point_src;
 
     /* Copy private key */
-    priv_dup = wolfSSL_BN_new();
-    if (priv_dup == NULL) {
-        WOLFSSL_MSG("BN_new error");
+    if (src->priv_key->internal == NULL || dup->priv_key->internal == NULL) {
+        WOLFSSL_MSG("NULL priv_key error");
+        wolfSSL_EC_KEY_free(dup);
         return NULL;
     }
-    dup->priv_key = priv_dup;
 
-    priv_src = src->priv_key->internal;
-    if (priv_src == NULL) {
-        WOLFSSL_MSG("BN null error");
+    ret = mp_copy((mp_int*)src->priv_key->internal, (mp_int*)dup->priv_key->internal);
+    if (ret != MP_OKAY) {
+        WOLFSSL_MSG("mp_copy error");
+        wolfSSL_EC_KEY_free(dup);
         return NULL;
     }
-    priv_dup->internal = priv_src;
+    src->priv_key->neg = dup->priv_key->neg;
 
     return dup;
+
 }
 #endif /* HAVE_ECC */
 
