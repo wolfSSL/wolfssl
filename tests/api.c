@@ -23658,6 +23658,7 @@ static void test_wolfSSL_EC_KEY_dup(void)
 
     /* compare BIGNUM */
     AssertIntEQ(wolfSSL_BN_cmp(ecKey->priv_key, dupKey->priv_key), MP_EQ);
+    wolfSSL_EC_KEY_free(dupKey);
 
     /* Invalid cases */
     /* NULL key */
