@@ -19,7 +19,7 @@ set(COMPONENT_REQUIRES lwip)
 set(COMPONENT_ADD_INCLUDEDIRS
     "."
     "./include"
-    "../freertos/include/freertos" 
+    "${IDF_PATH}/components/freertos/include/freertos" 
     "${WOLFSSL_ROOT}"
     )
 
@@ -30,7 +30,6 @@ endif()
 set(COMPONENT_SRCEXCLUDE
     "wolfcrypt/src/aes_asm.S"
     "wolfcrypt/src/evp.c"
-    "wolfcrypt/src/misc.c"
     "src/bio.c"
     )
 
