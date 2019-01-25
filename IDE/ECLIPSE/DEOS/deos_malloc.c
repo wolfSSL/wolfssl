@@ -52,8 +52,8 @@ void *realloc_deos(void *ptr, size_t size) {
 
     if (ptr != NULL && newptr != NULL) {
 
-        if ( *((size_t*)ptr - SIZEOF_HEADER) < *((size_t*)newptr - SIZEOF_HEADER))
-            size = *((size_t*)ptr - SIZEOF_HEADER);
+        if ( *((char *)ptr - SIZEOF_HEADER) < *((char *)newptr - SIZEOF_HEADER))
+            size = *((char *)ptr - SIZEOF_HEADER);
 
         XMEMCPY((char *) newptr, (const char *) ptr, size);
         free_deos(ptr);
