@@ -19025,6 +19025,8 @@ static void test_wolfSSL_BIO(void)
     {
         BIO* bioA = NULL;
         BIO* bioB = NULL;
+        AssertNotNull(bioA = BIO_new(BIO_s_bio()));
+        AssertNotNull(bioB = BIO_new(BIO_s_bio()));
         AssertIntEQ(BIO_new_bio_pair(NULL, 256, NULL, 256), BAD_FUNC_ARG);
         AssertIntEQ(BIO_new_bio_pair(&bioA, 256, &bioB, 256), WOLFSSL_SUCCESS);
         BIO_free(bioA);
@@ -19952,13 +19954,17 @@ static void test_wolfSSL_BIO_write(void)
 
     /* now try encoding with no line ending */
     BIO_set_flags(bio64, BIO_FLAG_BASE64_NO_NL);
+    #ifdef HAVE_EX_DATA
+    BIO_set_ex_data(bio64, 0, (void*) "data");
+    AssertIntEQ(strcmp(BIO_get_ex_data(bio64, 0), "data"), 0);
+    #endif
     AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), 24);
     BIO_flush(bio);
     sz = sizeof(out);
     XMEMSET(out, 0, sz);
     AssertIntEQ((sz = BIO_read(ptr, out, sz)), 24);
     AssertIntEQ(XMEMCMP(out, expected, sz), 0);
-
+    BIO_clear_flags(bio64, ~0);
     BIO_free_all(bio); /* frees bio64 also */
 
     /* test with more than one bio64 in list */

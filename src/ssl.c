@@ -18739,6 +18739,43 @@ void wolfSSL_BIO_set_flags(WOLFSSL_BIO* bio, int flags)
     }
 }
 
+void wolfSSL_BIO_clear_flags(WOLFSSL_BIO *bio, int flags)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_clear_flags");
+    if (bio != NULL) {
+        bio->flags &= ~flags;
+    }
+}
+
+int wolfSSL_BIO_set_ex_data(WOLFSSL_BIO *bio, int idx, void *data)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_set_ex_data");
+    #ifdef HAVE_EX_DATA
+    if (bio != NULL && idx < MAX_EX_DATA) {
+        bio->ex_data[idx] = data; 
+        return WOLFSSL_SUCCESS;
+    }
+    #else
+    (void)bio;
+    (void)idx;
+    (void)data;
+    #endif
+    return WOLFSSL_FAILURE;
+}
+
+void *wolfSSL_BIO_get_ex_data(WOLFSSL_BIO *bio, int idx)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_get_ex_data");
+    #ifdef HAVE_EX_DATA
+    if (bio != NULL && idx < MAX_EX_DATA && idx >= 0) {
+        return bio->ex_data[idx];
+    }
+    #else
+    (void)bio;
+    (void)idx;
+    #endif
+    return NULL;
+}
 
 #ifndef NO_WOLFSSL_STUB
 void wolfSSL_RAND_screen(void)
@@ -22888,42 +22925,6 @@ int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out)
     return (int)len;
 }
 #endif /* !defined(NO_DH) && defined(WOLFSSL_QT) || defined(OPENSSL_ALL) */
-
-void wolfSSL_BIO_clear_flags(WOLFSSL_BIO *bio, int flags)
-{
-    WOLFSSL_ENTER("wolfSSL_BIO_clear_flags");
-    bio->flags &= ~flags;
-}
-
-int wolfSSL_BIO_set_ex_data(WOLFSSL_BIO *bio, int idx, void *data)
-{
-    WOLFSSL_ENTER("wolfSSL_BIO_set_ex_data");
-    #ifdef HAVE_EX_DATA
-    if (bio != NULL && idx < MAX_EX_DATA) {
-        bio->ex_data[idx] = data; 
-        return WOLFSSL_SUCCESS;
-    }
-    #else
-    (void)bio;
-    (void)idx;
-    (void)data;
-    #endif
-    return WOLFSSL_FAILURE;
-}
-
-void *wolfSSL_BIO_get_ex_data(WOLFSSL_BIO *bio, int idx)
-{
-    WOLFSSL_ENTER("wolfSSL_BIO_get_ex_data");
-    #ifdef HAVE_EX_DATA
-    if (bio != NULL && idx < MAX_EX_DATA && idx >= 0) {
-        return bio->ex_data[idx];
-    }
-    #else
-    (void)bio;
-    (void)idx;
-    #endif
-    return NULL;
-}
 
 /* frees the wolfSSL_BASIC_CONSTRAINTS object */
 void wolfSSL_BASIC_CONSTRAINTS_free(WOLFSSL_BASIC_CONSTRAINTS *bc)
