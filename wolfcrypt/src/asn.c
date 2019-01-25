@@ -2720,12 +2720,12 @@ static int CheckAlgo(int first, int second, int* id, int* version, int* blockSz)
             *version = PKCS12v1;
             if (blockSz) *blockSz = DES_BLOCK_SIZE;
             return 0;
-    #endif
         case PBE_SHA1_DES:
             *id = PBE_SHA1_DES;
             *version = PKCS12v1;
             if (blockSz) *blockSz = DES_BLOCK_SIZE;
             return 0;
+    #endif
 #endif /* !NO_SHA */
         default:
             return ALGO_ID_E;
@@ -13531,7 +13531,7 @@ int wc_SetDatesBuffer(Cert* cert, const byte* der, int derSz)
 
 #endif /* WOLFSSL_CERT_GEN */
 
-#if defined(WOLFSSL_QT) && !defined(NO_DH)
+#if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
 /* Helper function for wolfSSL_i2d_DHparams */
 int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
 {

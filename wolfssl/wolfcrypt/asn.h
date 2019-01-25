@@ -1048,9 +1048,7 @@ WOLFSSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
 WOLFSSL_LOCAL int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der);
 WOLFSSL_LOCAL int RsaPublicKeyDerSize(RsaKey* key, int with_header);
 
-#if defined(WOLFSSL_QT) && !defined(NO_DH)
 WOLFSSL_LOCAL int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g);
-#endif
 
 #ifdef HAVE_ECC
     /* ASN sig helpers */

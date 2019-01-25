@@ -25561,7 +25561,7 @@ WOLFSSL_DH *wolfSSL_DSA_dup_DH(const WOLFSSL_DSA *dsa)
 #endif /* OPENSSL_EXTRA */
 #endif /* !NO_RSA && !NO_DSA */
 
-#if defined(WOLFSSL_QT) && !defined(NO_DH)
+#if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
 int setDhExternal(WOLFSSL_DH *dh) {
     DhKey *key;
     WOLFSSL_MSG("Entering setDhExternal");
@@ -25586,7 +25586,7 @@ int setDhExternal(WOLFSSL_DH *dh) {
 
     return WOLFSSL_SUCCESS;
 }
-#endif /* WOLFSSL_QT */
+#endif /* !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))*/
 
 #ifdef OPENSSL_EXTRA
 
@@ -27958,6 +27958,7 @@ static int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
 #endif /* WOLFSSL_KEY_GEN || WOLFSSL_PEM_TO_DER */
 
 #if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA)
 /* Takes a WOLFSSL_RSA key and writes it out to a WOLFSSL_BIO
  *
  * bio    the WOLFSSL_BIO to write to
@@ -28041,8 +28042,6 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
 
     return ret;
 }
-
-#if defined(WOLFSSL_QT) || defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 
 /* Takes an RSA public key and writes it out to a WOLFSSL_BIO
  * Returns WOLFSSL_SUCCESS or WOLFSSL_FAILURE
@@ -28141,7 +28140,7 @@ WOLFSSL_RSA *wolfSSL_PEM_read_bio_RSA_PUBKEY(WOLFSSL_BIO* bio,WOLFSSL_RSA** rsa,
     return local;
 }
 
-#endif /* defined(WOLFSSL_QT) || defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) */
+#endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) && !defined(NO_RSA) */
 
 /* Takes a public key and writes it out to a WOLFSSL_BIO
  * Returns WOLFSSL_SUCCESS or WOLFSSL_FAILURE
