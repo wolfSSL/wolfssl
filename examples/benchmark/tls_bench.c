@@ -55,30 +55,42 @@ bench_tls(args);
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
 #include <unistd.h>
 #include <sys/time.h>
 
+/* For testing no pthread support */
 #if 0
-#define NON_BLOCKING
+    #undef HAVE_PTHREAD
+#endif
+
+/* PTHREAD requires server and client enabled */
+#if defined(HAVE_PTHREAD) && (defined(NO_WOLFSSL_CLIENT) || defined(NO_WOLFSSL_SERVER))
+    #undef HAVE_PTHREAD
+#endif
+
+#ifdef HAVE_PTHREAD
+    #include <pthread.h>
+#endif
+
+#if 0
+#define BENCH_USE_NONBLOCK
 #endif
 
 /* Defaults for configuration parameters */
-#define THREAD_PAIRS    1 /* Thread pairs of server/client */
-#ifndef NON_BLOCKING
-    #define MEM_BUFFER_SZ   (1024 * 16) /* Must be large enough to handle max packet size */
-#else
-    #define MEM_BUFFER_SZ   256
-#endif
-#define MIN_DHKEY_BITS  1024
-#define RUNTIME_SEC     1
-#define TEST_SIZE_BYTES (1024 * 1024)
-#define TEST_PACKET_SIZE 1024
-#define SHOW_VERBOSE 0 /* Default output is tab delimited format */
+#define BENCH_DEFAULT_HOST  "localhost"
+#define BENCH_DEFAULT_PORT  11112
+#define NUM_THREAD_PAIRS    1 /* Thread pairs of server/client */
+#define BENCH_RUNTIME_SEC   1
+#define MEM_BUFFER_SZ       ((16 * 1024) + 38 + 32) /* Must be large enough to handle max packet size plus max TLS header MAX_MSG_EXTRA */
+#define TEST_PACKET_SIZE    (16 * 1024) /* max TLS packet size */
+#define SHOW_VERBOSE        0 /* Default output is tab delimited format */
 
-#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
-static int argShowPeerInfo = 0; /* Show more info about wolfSSL configuration */
+static const char* kShutdown = "shutdown";
 
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+    !defined(WOLFCRYPT_ONLY)
+
+#ifndef NO_WOLFSSL_CLIENT
 static const char* kTestStr =
 "Biodiesel cupidatat marfa, cliche aute put a bird on it incididunt elit\n"
 "polaroid. Sunt tattooed bespoke reprehenderit. Sint twee organic id\n"
@@ -155,32 +167,47 @@ static const char* kTestStr =
 "est, skateboard art party etsy thundercats sed dreamcatcher ut iphone\n"
 "swag consectetur et. Irure skateboard banjo, nulla deserunt messenger\n"
 "bag dolor terry richardson sapiente.\n";
+#endif
 
+#if !defined(NO_DH)
 
-#ifndef NO_DH
-/* dh1024 p */
+#define MIN_DHKEY_BITS      1024
+
+#if !defined(NO_WOLFSSL_SERVER)
+/* dh2048 p */
 static const unsigned char p[] =
 {
-    0xE6, 0x96, 0x9D, 0x3D, 0x49, 0x5B, 0xE3, 0x2C, 0x7C, 0xF1, 0x80, 0xC3,
-    0xBD, 0xD4, 0x79, 0x8E, 0x91, 0xB7, 0x81, 0x82, 0x51, 0xBB, 0x05, 0x5E,
-    0x2A, 0x20, 0x64, 0x90, 0x4A, 0x79, 0xA7, 0x70, 0xFA, 0x15, 0xA2, 0x59,
-    0xCB, 0xD5, 0x23, 0xA6, 0xA6, 0xEF, 0x09, 0xC4, 0x30, 0x48, 0xD5, 0xA2,
-    0x2F, 0x97, 0x1F, 0x3C, 0x20, 0x12, 0x9B, 0x48, 0x00, 0x0E, 0x6E, 0xDD,
-    0x06, 0x1C, 0xBC, 0x05, 0x3E, 0x37, 0x1D, 0x79, 0x4E, 0x53, 0x27, 0xDF,
-    0x61, 0x1E, 0xBB, 0xBE, 0x1B, 0xAC, 0x9B, 0x5C, 0x60, 0x44, 0xCF, 0x02,
-    0x3D, 0x76, 0xE0, 0x5E, 0xEA, 0x9B, 0xAD, 0x99, 0x1B, 0x13, 0xA6, 0x3C,
-    0x97, 0x4E, 0x9E, 0xF1, 0x83, 0x9E, 0xB5, 0xDB, 0x12, 0x51, 0x36, 0xF7,
-    0x26, 0x2E, 0x56, 0xA8, 0x87, 0x15, 0x38, 0xDF, 0xD8, 0x23, 0xC6, 0x50,
-    0x50, 0x85, 0xE2, 0x1F, 0x0D, 0xD5, 0xC8, 0x6B,
+    0xb0, 0xa1, 0x08, 0x06, 0x9c, 0x08, 0x13, 0xba, 0x59, 0x06, 0x3c, 0xbc, 0x30,
+    0xd5, 0xf5, 0x00, 0xc1, 0x4f, 0x44, 0xa7, 0xd6, 0xef, 0x4a, 0xc6, 0x25, 0x27,
+    0x1c, 0xe8, 0xd2, 0x96, 0x53, 0x0a, 0x5c, 0x91, 0xdd, 0xa2, 0xc2, 0x94, 0x84,
+    0xbf, 0x7d, 0xb2, 0x44, 0x9f, 0x9b, 0xd2, 0xc1, 0x8a, 0xc5, 0xbe, 0x72, 0x5c,
+    0xa7, 0xe7, 0x91, 0xe6, 0xd4, 0x9f, 0x73, 0x07, 0x85, 0x5b, 0x66, 0x48, 0xc7,
+    0x70, 0xfa, 0xb4, 0xee, 0x02, 0xc9, 0x3d, 0x9a, 0x4a, 0xda, 0x3d, 0xc1, 0x46,
+    0x3e, 0x19, 0x69, 0xd1, 0x17, 0x46, 0x07, 0xa3, 0x4d, 0x9f, 0x2b, 0x96, 0x17,
+    0x39, 0x6d, 0x30, 0x8d, 0x2a, 0xf3, 0x94, 0xd3, 0x75, 0xcf, 0xa0, 0x75, 0xe6,
+    0xf2, 0x92, 0x1f, 0x1a, 0x70, 0x05, 0xaa, 0x04, 0x83, 0x57, 0x30, 0xfb, 0xda,
+    0x76, 0x93, 0x38, 0x50, 0xe8, 0x27, 0xfd, 0x63, 0xee, 0x3c, 0xe5, 0xb7, 0xc8,
+    0x09, 0xae, 0x6f, 0x50, 0x35, 0x8e, 0x84, 0xce, 0x4a, 0x00, 0xe9, 0x12, 0x7e,
+    0x5a, 0x31, 0xd7, 0x33, 0xfc, 0x21, 0x13, 0x76, 0xcc, 0x16, 0x30, 0xdb, 0x0c,
+    0xfc, 0xc5, 0x62, 0xa7, 0x35, 0xb8, 0xef, 0xb7, 0xb0, 0xac, 0xc0, 0x36, 0xf6,
+    0xd9, 0xc9, 0x46, 0x48, 0xf9, 0x40, 0x90, 0x00, 0x2b, 0x1b, 0xaa, 0x6c, 0xe3,
+    0x1a, 0xc3, 0x0b, 0x03, 0x9e, 0x1b, 0xc2, 0x46, 0xe4, 0x48, 0x4e, 0x22, 0x73,
+    0x6f, 0xc3, 0x5f, 0xd4, 0x9a, 0xd6, 0x30, 0x07, 0x48, 0xd6, 0x8c, 0x90, 0xab,
+    0xd4, 0xf6, 0xf1, 0xe3, 0x48, 0xd3, 0x58, 0x4b, 0xa6, 0xb9, 0xcd, 0x29, 0xbf,
+    0x68, 0x1f, 0x08, 0x4b, 0x63, 0x86, 0x2f, 0x5c, 0x6b, 0xd6, 0xb6, 0x06, 0x65,
+    0xf7, 0xa6, 0xdc, 0x00, 0x67, 0x6b, 0xbb, 0xc3, 0xa9, 0x41, 0x83, 0xfb, 0xc7,
+    0xfa, 0xc8, 0xe2, 0x1e, 0x7e, 0xaf, 0x00, 0x3f, 0x93
 };
 
-/* dh1024 g */
+/* dh2048 g */
 static const unsigned char g[] =
 {
     0x02,
 };
-#endif
+#endif /* !NO_WOLFSSL_SERVER */
+#endif /* !NO_DH */
 
+#ifdef HAVE_PTHREAD
 typedef struct {
     unsigned char buf[MEM_BUFFER_SZ];
     int write_bytes;
@@ -190,9 +217,11 @@ typedef struct {
 
     pthread_t tid;
     pthread_mutex_t mutex;
-    pthread_cond_t  cond;
+    pthread_cond_t cond;
+
     int done;
 } memBuf_t;
+#endif
 
 typedef struct {
     double connTime;
@@ -204,44 +233,68 @@ typedef struct {
 } stats_t;
 
 typedef struct {
+    int shutdown;
+    int sockFd;
+    int ret;
+} side_t;
+
+typedef struct {
     const char* cipher;
+    const char* host;
+    word32 port;
+    int packetSize; /* The data payload size in the packet */
+    int runTimeSec;
+    int showPeerInfo;
+    int showVerbose;
+#ifndef NO_WOLFSSL_SERVER
+    int listenFd;
+#endif
+    side_t client;
+    side_t server;
 
-    /* The total number of bytes to transfer per connection */
-    int numBytes;
-
-    /* The data payload size in the packet. Will be padded if packet size > buffer size. */
-    int packetSize;
+#ifdef HAVE_PTHREAD
+    int useLocalMem;
 
     /* client messages to server in memory */
     memBuf_t to_server;
 
     /* server messages to client in memory */
     memBuf_t to_client;
+#endif
 
     /* server */
     stats_t server_stats;
 
     /* client */
     stats_t client_stats;
-
-    int shutdown;
 } info_t;
 
 /* Global vars for argument parsing */
 int myoptind = 0;
 char* myoptarg = NULL;
 
-/* server send callback */
-static int ServerSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
-{
-    info_t* info = (info_t*)ctx;
 
+static double gettime_secs(int reset)
+{
+    struct timeval tv;
+    gettimeofday(&tv, 0);
+    (void)reset;
+
+    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
+}
+
+
+#ifdef HAVE_PTHREAD
+/* server send callback */
+static int ServerMemSend(info_t* info, char* buf, int sz)
+{
     pthread_mutex_lock(&info->to_client.mutex);
 
-#ifndef NON_BLOCKING
+#ifndef BENCH_USE_NONBLOCK
     /* check for overflow */
     if (info->to_client.write_idx + sz > MEM_BUFFER_SZ) {
         pthread_mutex_unlock(&info->to_client.mutex);
+        printf("ServerMemSend overflow\n");
         return -1;
     }
 #else
@@ -249,31 +302,26 @@ static int ServerSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
         sz = MEM_BUFFER_SZ - info->to_client.write_idx;
 #endif
 
-    memcpy(&info->to_client.buf[info->to_client.write_idx], buf, sz);
+    XMEMCPY(&info->to_client.buf[info->to_client.write_idx], buf, sz);
     info->to_client.write_idx += sz;
     info->to_client.write_bytes += sz;
 
     pthread_cond_signal(&info->to_client.cond);
     pthread_mutex_unlock(&info->to_client.mutex);
 
-    (void)ssl;
-
-#ifdef NON_BLOCKING
+#ifdef BENCH_USE_NONBLOCK
     if (sz == 0)
         return WOLFSSL_CBIO_ERR_WANT_WRITE;
 #endif
     return sz;
 }
 
-
 /* server recv callback */
-static int ServerRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+static int ServerMemRecv(info_t* info, char* buf, int sz)
 {
-    info_t* info = (info_t*)ctx;
-
     pthread_mutex_lock(&info->to_server.mutex);
 
-#ifndef NON_BLOCKING
+#ifndef BENCH_USE_NONBLOCK
     while (info->to_server.write_idx - info->to_server.read_idx < sz && !info->to_client.done)
         pthread_cond_wait(&info->to_server.cond, &info->to_server.mutex);
 #else
@@ -281,7 +329,7 @@ static int ServerRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
         sz = info->to_server.write_idx - info->to_server.read_idx;
 #endif
 
-    memcpy(buf, &info->to_server.buf[info->to_server.read_idx], sz);
+    XMEMCPY(buf, &info->to_server.buf[info->to_server.read_idx], sz);
     info->to_server.read_idx += sz;
     info->to_server.read_bytes += sz;
 
@@ -296,26 +344,22 @@ static int ServerRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
     if (info->to_client.done != 0)
         return -1;
 
-    (void)ssl;
-
-#ifdef NON_BLOCKING
+#ifdef BENCH_USE_NONBLOCK
     if (sz == 0)
         return WOLFSSL_CBIO_ERR_WANT_READ;
 #endif
     return sz;
 }
 
-
 /* client send callback */
-static int ClientSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+static int ClientMemSend(info_t* info, char* buf, int sz)
 {
-    info_t* info = (info_t*)ctx;
-
     pthread_mutex_lock(&info->to_server.mutex);
 
-#ifndef NON_BLOCKING
+#ifndef BENCH_USE_NONBLOCK
     /* check for overflow */
     if (info->to_client.write_idx + sz > MEM_BUFFER_SZ) {
+        printf("ClientMemSend overflow %d %d %d\n", info->to_client.write_idx, sz, MEM_BUFFER_SZ);
         pthread_mutex_unlock(&info->to_server.mutex);
         return -1;
     }
@@ -324,31 +368,26 @@ static int ClientSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
         sz = MEM_BUFFER_SZ - info->to_server.write_idx;
 #endif
 
-    memcpy(&info->to_server.buf[info->to_server.write_idx], buf, sz);
+    XMEMCPY(&info->to_server.buf[info->to_server.write_idx], buf, sz);
     info->to_server.write_idx += sz;
     info->to_server.write_bytes += sz;
 
     pthread_cond_signal(&info->to_server.cond);
     pthread_mutex_unlock(&info->to_server.mutex);
 
-    (void)ssl;
-
-#ifdef NON_BLOCKING
+#ifdef BENCH_USE_NONBLOCK
     if (sz == 0)
         return WOLFSSL_CBIO_ERR_WANT_WRITE;
 #endif
     return sz;
 }
 
-
 /* client recv callback */
-static int ClientRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+static int ClientMemRecv(info_t* info, char* buf, int sz)
 {
-    info_t* info = (info_t*)ctx;
-
     pthread_mutex_lock(&info->to_client.mutex);
 
-#ifndef NON_BLOCKING
+#ifndef BENCH_USE_NONBLOCK
     while (info->to_client.write_idx - info->to_client.read_idx < sz)
         pthread_cond_wait(&info->to_client.cond, &info->to_client.mutex);
 #else
@@ -356,7 +395,7 @@ static int ClientRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
         sz = info->to_client.write_idx - info->to_client.read_idx;
 #endif
 
-    memcpy(buf, &info->to_client.buf[info->to_client.read_idx], sz);
+    XMEMCPY(buf, &info->to_client.buf[info->to_client.read_idx], sz);
     info->to_client.read_idx += sz;
     info->to_client.read_bytes += sz;
 
@@ -368,36 +407,200 @@ static int ClientRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 
     pthread_mutex_unlock(&info->to_client.mutex);
 
-    (void)ssl;
-
-#ifdef NON_BLOCKING
+#ifdef BENCH_USE_NONBLOCK
     if (sz == 0)
         return WOLFSSL_CBIO_ERR_WANT_READ;
 #endif
     return sz;
 }
+#endif /* HAVE_PTHREAD */
 
-
-static double gettime_secs(int reset)
+static int SocketRecv(int sockFd, char* buf, int sz)
 {
-    struct timeval tv;
-    gettimeofday(&tv, 0);
-    (void)reset;
-
-    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
+    int recvd = (int)recv(sockFd, buf, sz, 0);
+    if (recvd == -1) {
+        switch (errno) {
+    #if EAGAIN != EWOULDBLOCK
+        case EAGAIN: /* EAGAIN == EWOULDBLOCK on some systems, but not others */
+    #endif
+        case EWOULDBLOCK:
+            return WOLFSSL_CBIO_ERR_WANT_READ;
+        case ECONNRESET:
+            return WOLFSSL_CBIO_ERR_CONN_RST;
+        case EINTR:
+            return WOLFSSL_CBIO_ERR_ISR;
+        case ECONNREFUSED: /* DTLS case */
+            return WOLFSSL_CBIO_ERR_WANT_READ;
+        case ECONNABORTED:
+            return WOLFSSL_CBIO_ERR_CONN_CLOSE;
+        default:
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+    }
+    else if (recvd == 0) {
+        return WOLFSSL_CBIO_ERR_CONN_CLOSE;
+    }
+    return recvd;
 }
 
-static void* client_thread(void* args)
+static int SocketSend(int sockFd, char* buf, int sz)
 {
-    info_t* info = (info_t*)args;
-    unsigned char* buf;
-    unsigned char *writeBuf;
-    double start;
-    int ret, bufSize;
+    int sent = (int)send(sockFd, buf, sz, 0);
+    if (sent == -1) {
+        switch (errno) {
+    #if EAGAIN != EWOULDBLOCK
+        case EAGAIN: /* EAGAIN == EWOULDBLOCK on some systems, but not others */
+    #endif
+        case EWOULDBLOCK:
+            return WOLFSSL_CBIO_ERR_WANT_READ;
+        case ECONNRESET:
+            return WOLFSSL_CBIO_ERR_CONN_RST;
+        case EINTR:
+            return WOLFSSL_CBIO_ERR_ISR;
+        case EPIPE:
+            return WOLFSSL_CBIO_ERR_CONN_CLOSE;
+        default:
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+    }
+    else if (sent == 0) {
+        return 0;
+    }
+    return sent;
+}
+
+#ifndef NO_WOLFSSL_SERVER
+static int ServerSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    info_t* info = (info_t*)ctx;
+    (void)ssl;
+#ifdef HAVE_PTHREAD
+    if (info->useLocalMem)
+        return ServerMemSend(info, buf, sz);
+#endif
+    return SocketSend(info->server.sockFd, buf, sz);
+}
+static int ServerRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    info_t* info = (info_t*)ctx;
+    (void)ssl;
+#ifdef HAVE_PTHREAD
+    if (info->useLocalMem)
+        return ServerMemRecv(info, buf, sz);
+#endif
+    return SocketRecv(info->server.sockFd, buf, sz);
+}
+#endif /* !NO_WOLFSSL_SERVER */
+
+#ifndef NO_WOLFSSL_CLIENT
+static int ClientSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    info_t* info = (info_t*)ctx;
+    (void)ssl;
+#ifdef HAVE_PTHREAD
+    if (info->useLocalMem)
+        return ClientMemSend(info, buf, sz);
+#endif
+    return SocketSend(info->client.sockFd, buf, sz);
+}
+static int ClientRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    info_t* info = (info_t*)ctx;
+    (void)ssl;
+#ifdef HAVE_PTHREAD
+    if (info->useLocalMem)
+        return ClientMemRecv(info, buf, sz);
+#endif
+    return SocketRecv(info->client.sockFd, buf, sz);
+}
+#endif /* !NO_WOLFSSL_CLIENT */
+
+static void CloseAndCleanupSocket(int* sockFd)
+{
+    if (*sockFd != -1) {
+        close(*sockFd);
+        *sockFd = -1;
+    }
+}
+
+#ifdef BENCH_USE_NONBLOCK
+static int SetSocketNonBlocking(int sockFd)
+{
+    int flags = fcntl(sockFd, F_GETFL, 0);
+    if (flags < 0) {
+        printf("fcntl get failed\n");
+        return -1;
+    }
+    flags = fcntl(sockFd, F_SETFL, flags | O_NONBLOCK);
+    if (flags < 0) {
+        printf("fcntl set failed\n");
+        return -1;
+    }
+    return 0;
+}
+#endif
+
+#ifndef NO_WOLFSSL_CLIENT
+static int SetupSocketAndConnect(info_t* info, const char* host,
+    word32 port)
+{
+    struct sockaddr_in servAddr;
+    struct hostent* entry;
+
+    /* Setup server address */
+    XMEMSET(&servAddr, 0, sizeof(servAddr));
+    servAddr.sin_family = AF_INET;
+    servAddr.sin_port = htons(port);
+
+    /* Resolve host */
+    entry = gethostbyname(host);
+    if (entry) {
+        XMEMCPY(&servAddr.sin_addr.s_addr, entry->h_addr_list[0],
+            entry->h_length);
+    }
+    else {
+        servAddr.sin_addr.s_addr = inet_addr(host);
+    }
+
+    /* Create a socket that uses an Internet IPv4 address,
+     * Sets the socket to be stream based (TCP),
+     * 0 means choose the default protocol. */
+    if ((info->client.sockFd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+        printf("ERROR: failed to create the socket\n");
+        return -1;
+    }
+
+    /* Connect to the server */
+    if (connect(info->client.sockFd, (struct sockaddr*)&servAddr,
+                                                    sizeof(servAddr)) == -1) {
+        printf("ERROR: failed to connect\n");
+        return -1;
+    }
+
+#ifdef BENCH_USE_NONBLOCK
+    if (SetSocketNonBlocking(info->client.sockFd) != 0) {
+        return -1;
+    }
+#endif
+
+    if (info->showVerbose) {
+        printf("Connected to %s on port %d\n", host, port);
+    }
+
+    return 0;
+}
+
+static int bench_tls_client(info_t* info)
+{
+    byte *writeBuf = NULL, *readBuf = NULL;
+    double start, total = 0;
+    int ret, readBufSz;
     WOLFSSL_CTX* cli_ctx = NULL;
-    WOLFSSL* cli_ssl;
+    WOLFSSL* cli_ssl = NULL;
     int haveShownPeerInfo = 0;
     int tls13 = XSTRNCMP(info->cipher, "TLS13", 5) == 0;
+
+    total = gettime_secs(0);
 
     /* set up client */
 #ifdef WOLFSSL_TLS13
@@ -406,19 +609,27 @@ static void* client_thread(void* args)
 #endif
     if (!tls13)
         cli_ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
-    if (cli_ctx == NULL) err_sys("error creating ctx");
+    if (cli_ctx == NULL) {
+        printf("error creating ctx\n");
+        ret = MEMORY_E; goto exit;
+    }
 
 #ifndef NO_CERTS
 #ifdef HAVE_ECC
-    if (strstr(info->cipher, "ECDSA")) {
-        ret = wolfSSL_CTX_load_verify_buffer(cli_ctx, ca_ecc_cert_der_256, sizeof_ca_ecc_cert_der_256, WOLFSSL_FILETYPE_ASN1);
+    if (XSTRSTR(info->cipher, "ECDSA")) {
+        ret = wolfSSL_CTX_load_verify_buffer(cli_ctx, ca_ecc_cert_der_256,
+            sizeof_ca_ecc_cert_der_256, WOLFSSL_FILETYPE_ASN1);
     }
     else
 #endif
     {
-        ret = wolfSSL_CTX_load_verify_buffer(cli_ctx, ca_cert_der_2048, sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1);
+        ret = wolfSSL_CTX_load_verify_buffer(cli_ctx, ca_cert_der_2048,
+            sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1);
     }
-    if (ret != WOLFSSL_SUCCESS) err_sys("error loading CA");
+    if (ret != WOLFSSL_SUCCESS) {
+        printf("error loading CA\n");
+        goto exit;
+    }
 #endif
 
     wolfSSL_CTX_SetIOSend(cli_ctx, ClientSend);
@@ -426,35 +637,78 @@ static void* client_thread(void* args)
 
     /* set cipher suite */
     ret = wolfSSL_CTX_set_cipher_list(cli_ctx, info->cipher);
-    if (ret != WOLFSSL_SUCCESS) err_sys("error setting cipher suite");
+    if (ret != WOLFSSL_SUCCESS) {
+        printf("error setting cipher suite\n");
+        goto exit;
+    }
 
 #ifndef NO_DH
-    wolfSSL_CTX_SetMinDhKey_Sz(cli_ctx, MIN_DHKEY_BITS);
+    ret = wolfSSL_CTX_SetMinDhKey_Sz(cli_ctx, MIN_DHKEY_BITS);
+    if (ret != WOLFSSL_SUCCESS) {
+        printf("Error setting minimum DH key size\n");
+        goto exit;
+    }
 #endif
 
     /* Allocate and initialize a packet sized buffer */
-    writeBuf = (unsigned char*)malloc(info->packetSize);
+    writeBuf = (unsigned char*)XMALLOC(info->packetSize, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
     if (writeBuf != NULL) {
-        strncpy((char*)writeBuf, kTestStr, info->packetSize);
-        *(writeBuf + info->packetSize) = '\0';
+        XMEMSET(writeBuf, 0, info->packetSize);
+        XSTRNCPY((char*)writeBuf, kTestStr, info->packetSize);
     }
     else {
-        err_sys("failed to allocate memory");
+        printf("failed to allocate write memory\n");
+        ret = MEMORY_E; goto exit;
     }
 
-    while (!info->shutdown) {
-    #ifdef NON_BLOCKING
+    /* Allocate read buffer */
+    readBufSz = info->packetSize;
+    readBuf = (unsigned char*)XMALLOC(readBufSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (readBuf == NULL) {
+        printf("failed to allocate read memory\n");
+        ret = MEMORY_E; goto exit;
+    }
+
+    /* BENCHMARK CONNECTIONS LOOP */
+    while (!info->client.shutdown) {
+        int writeSz = info->packetSize;
+    #ifdef BENCH_USE_NONBLOCK
         int err;
     #endif
+
+        /* check for run time completion and issue shutdown */
+        if (gettime_secs(0) - total >= info->runTimeSec) {
+            info->client.shutdown = 1;
+
+            writeSz = (int)XSTRLEN(kShutdown) + 1;
+            XMEMCPY(writeBuf, kShutdown, writeSz); /* include null term */
+            if (info->showVerbose) {
+                printf("Sending shutdown\n");
+            }
+        }
+
+    #ifdef HAVE_PTHREAD
+        if (!info->useLocalMem)
+    #endif
+        {
+            /* Setup socket and connection */
+            ret = SetupSocketAndConnect(info, info->host, info->port);
+            if (ret != 0) goto exit;
+        }
+
         cli_ssl = wolfSSL_new(cli_ctx);
-        if (cli_ssl == NULL) err_sys("error creating client object");
+        if (cli_ssl == NULL) {
+            printf("error creating client object\n");
+            goto exit;
+        }
 
         wolfSSL_SetIOReadCtx(cli_ssl, info);
         wolfSSL_SetIOWriteCtx(cli_ssl, info);
 
         /* perform connect */
         start = gettime_secs(1);
-    #ifndef NON_BLOCKING
+    #ifndef BENCH_USE_NONBLOCK
         ret = wolfSSL_connect(cli_ssl);
     #else
         do
@@ -466,99 +720,191 @@ static void* client_thread(void* args)
     #endif
         start = gettime_secs(0) - start;
         if (ret != WOLFSSL_SUCCESS) {
-            if (info->shutdown)
-                break;
-            err_sys("error connecting client");
+            printf("error connecting client\n");
+            ret = wolfSSL_get_error(cli_ssl, ret);
+            goto exit;
         }
         info->client_stats.connTime += start;
+        info->client_stats.connCount++;
 
-        if ((argShowPeerInfo) && (!haveShownPeerInfo)) {
+        if ((info->showPeerInfo) && (!haveShownPeerInfo)) {
             haveShownPeerInfo = 1;
             showPeer(cli_ssl);
         }
 
-        /* Allocate buf after handshake is complete */
-        bufSize = wolfSSL_GetMaxOutputSize(cli_ssl);
-        if (bufSize > 0) {
-            buf = (unsigned char*)malloc(bufSize);
+        /* write test message to server */
+        start = gettime_secs(1);
+    #ifndef BENCH_USE_NONBLOCK
+        ret = wolfSSL_write(cli_ssl, writeBuf, writeSz);
+    #else
+        do {
+            ret = wolfSSL_write(cli_ssl, writeBuf, writeSz);
+            err = wolfSSL_get_error(cli_ssl, ret);
         }
-        else {
-            buf = NULL;
+        while (err == WOLFSSL_ERROR_WANT_WRITE);
+    #endif
+        info->client_stats.txTime += gettime_secs(0) - start;
+        if (ret < 0) {
+            printf("error on client write\n");
+            ret = wolfSSL_get_error(cli_ssl, ret);
+            goto exit;
         }
+        info->client_stats.txTotal += ret;
 
-        if (buf != NULL) {
-            /* write test message to server */
-            while (info->client_stats.rxTotal < info->numBytes) {
-                start = gettime_secs(1);
-            #ifndef NON_BLOCKING
-                ret = wolfSSL_write(cli_ssl, writeBuf, info->packetSize);
-            #else
-                do
-                {
-                    ret = wolfSSL_write(cli_ssl, writeBuf, info->packetSize);
-                    err = wolfSSL_get_error(cli_ssl, ret);
-                }
-                while (err == WOLFSSL_ERROR_WANT_WRITE);
-            #endif
-                info->client_stats.txTime += gettime_secs(0) - start;
-                if (ret > 0) {
-                    info->client_stats.txTotal += ret;
-                }
-
-                /* read echo of message */
-                start = gettime_secs(1);
-            #ifndef NON_BLOCKING
-                ret = wolfSSL_read(cli_ssl, buf, bufSize-1);
-            #else
-                do
-                {
-                    ret = wolfSSL_read(cli_ssl, buf, bufSize-1);
-                    err = wolfSSL_get_error(cli_ssl, ret);
-                }
-                while (err == WOLFSSL_ERROR_WANT_READ);
-            #endif
-                info->client_stats.rxTime += gettime_secs(0) - start;
-                if (ret > 0) {
-                    info->client_stats.rxTotal += ret;
-                }
-
-                /* validate echo */
-                if (strncmp((char*)writeBuf, (char*)buf, info->packetSize) != 0) {
-                    err_sys("echo check failed!\n");
-                }
-            }
-
-            free(buf);
+        /* read echo of message from server */
+        XMEMSET(readBuf, 0, readBufSz);
+        start = gettime_secs(1);
+    #ifndef BENCH_USE_NONBLOCK
+        ret = wolfSSL_read(cli_ssl, readBuf, readBufSz);
+    #else
+        do {
+            ret = wolfSSL_read(cli_ssl, readBuf, readBufSz);
+            err = wolfSSL_get_error(cli_ssl, ret);
         }
-        else {
-            err_sys("failed to allocate memory");
+        while (err == WOLFSSL_ERROR_WANT_READ);
+    #endif
+        info->client_stats.rxTime += gettime_secs(0) - start;
+        if (ret < 0) {
+            printf("error on client read\n");
+            ret = wolfSSL_get_error(cli_ssl, ret);
+            goto exit;
+        }
+        info->client_stats.rxTotal += ret;
+        ret = 0; /* reset return code */
+
+        /* validate echo */
+        if (XMEMCMP((char*)writeBuf, (char*)readBuf, writeSz) != 0) {
+            printf("echo check failed!\n");
+            ret = wolfSSL_get_error(cli_ssl, ret);
+            goto exit;
         }
 
-
-        info->client_stats.connCount++;
+        CloseAndCleanupSocket(&info->client.sockFd);
 
         wolfSSL_free(cli_ssl);
+        cli_ssl = NULL;
+    }
+
+exit:
+
+    if (ret != 0 && ret != WOLFSSL_SUCCESS) {
+        printf("Client Error: %d (%s)\n", ret,
+            wolfSSL_ERR_reason_error_string(ret));
     }
 
     /* clean up */
-    wolfSSL_CTX_free(cli_ctx);
-    free(writeBuf);
+    CloseAndCleanupSocket(&info->client.sockFd);
+    if (cli_ssl != NULL)
+        wolfSSL_free(cli_ssl);
+    if (cli_ctx != NULL)
+        wolfSSL_CTX_free(cli_ctx);
+    XFREE(readBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(writeBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    info->client.ret = ret;
+
+    return ret;
+}
+
+#ifdef HAVE_PTHREAD
+static void* client_thread(void* args)
+{
+    int ret;
+    info_t* info = (info_t*)args;
+
+    ret = bench_tls_client(info);
 
     pthread_cond_signal(&info->to_server.cond);
     info->to_client.done = 1;
+    info->client.ret = ret;
 
     return NULL;
 }
+#endif /* HAVE_PTHREAD */
+#endif /* !NO_WOLFSSL_CLIENT */
 
 
-static void* server_thread(void* args)
+#ifndef NO_WOLFSSL_SERVER
+static int SetupSocketAndListen(int* listenFd, word32 port)
 {
-    info_t* info = (info_t*)args;
-    unsigned char *buf;
+    struct sockaddr_in servAddr;
+    int optval = 1;
+
+    /* Setup server address */
+    XMEMSET(&servAddr, 0, sizeof(servAddr));
+    servAddr.sin_family = AF_INET;
+    servAddr.sin_port = htons(port);
+    servAddr.sin_addr.s_addr = INADDR_ANY;
+
+    /* Create a socket that uses an Internet IPv4 address,
+     * Sets the socket to be stream based (TCP),
+     * 0 means choose the default protocol. */
+    if ((*listenFd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+        printf("ERROR: failed to create the socket\n");
+        return -1;
+    }
+
+    /* allow reuse */
+    if (setsockopt(*listenFd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1) {
+        printf("setsockopt SO_REUSEADDR failed\n");
+        return -1;
+    }
+
+    /* Connect to the server */
+    if (bind(*listenFd, (struct sockaddr*)&servAddr,
+                                                    sizeof(servAddr)) == -1) {
+        printf("ERROR: failed to bind\n");
+        return -1;
+    }
+
+    if (listen(*listenFd, 5) != 0) {
+        printf("ERROR: failed to listen\n");
+        return -1;
+    }
+
+#ifdef BENCH_USE_NONBLOCK
+    if (SetSocketNonBlocking(*listenFd) != 0) {
+        return -1;
+    }
+#endif
+
+    return 0;
+}
+
+static int SocketWaitClient(info_t* info)
+{
+    int connd;
+    struct sockaddr_in clientAddr;
+    socklen_t size = sizeof(clientAddr);
+
+    if ((connd = accept(info->listenFd, (struct sockaddr*)&clientAddr, &size)) == -1) {
+        if (errno == EWOULDBLOCK)
+            return -2;
+        printf("ERROR: failed to accept the connection\n");
+        return -1;
+    }
+    info->server.sockFd = connd;
+
+    if (info->showVerbose) {
+        printf("Got client %d\n", connd);
+    }
+
+    return 0;
+}
+static void CloseAndCleanupListenSocket(int* listenFd)
+{
+    if (*listenFd != -1) {
+        close(*listenFd);
+        *listenFd = -1;
+    }
+}
+
+static int bench_tls_server(info_t* info)
+{
+    byte *readBuf = NULL;
     double start;
-    int ret, len = 0, bufSize;
+    int ret, len = 0, readBufSz;
     WOLFSSL_CTX* srv_ctx = NULL;
-    WOLFSSL* srv_ssl;
+    WOLFSSL* srv_ssl = NULL;
     int tls13 = XSTRNCMP(info->cipher, "TLS13", 5) == 0;
 
     /* set up server */
@@ -568,61 +914,113 @@ static void* server_thread(void* args)
 #endif
     if (!tls13)
         srv_ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
-    if (srv_ctx == NULL) err_sys("error creating server ctx");
+    if (srv_ctx == NULL) {
+        printf("error creating server ctx\n");
+        ret = MEMORY_E; goto exit;
+    }
 
 #ifndef NO_CERTS
 #ifdef HAVE_ECC
-    if (strstr(info->cipher, "ECDSA")) {
-        ret = wolfSSL_CTX_use_PrivateKey_buffer(srv_ctx, ecc_key_der_256, sizeof_ecc_key_der_256, WOLFSSL_FILETYPE_ASN1);
+    if (XSTRSTR(info->cipher, "ECDSA")) {
+        ret = wolfSSL_CTX_use_PrivateKey_buffer(srv_ctx, ecc_key_der_256,
+            sizeof_ecc_key_der_256, WOLFSSL_FILETYPE_ASN1);
     }
     else
 #endif
     {
-        ret = wolfSSL_CTX_use_PrivateKey_buffer(srv_ctx, server_key_der_2048, sizeof_server_key_der_2048, WOLFSSL_FILETYPE_ASN1);
+        ret = wolfSSL_CTX_use_PrivateKey_buffer(srv_ctx, server_key_der_2048,
+            sizeof_server_key_der_2048, WOLFSSL_FILETYPE_ASN1);
     }
-    if (ret != WOLFSSL_SUCCESS) err_sys("error loading server key");
+    if (ret != WOLFSSL_SUCCESS) {
+        printf("error loading server key\n");
+        goto exit;
+    }
 
 #ifdef HAVE_ECC
-    if (strstr(info->cipher, "ECDSA")) {
-        ret = wolfSSL_CTX_use_certificate_buffer(srv_ctx, serv_ecc_der_256, sizeof_serv_ecc_der_256, WOLFSSL_FILETYPE_ASN1);
+    if (XSTRSTR(info->cipher, "ECDSA")) {
+        ret = wolfSSL_CTX_use_certificate_buffer(srv_ctx, serv_ecc_der_256,
+            sizeof_serv_ecc_der_256, WOLFSSL_FILETYPE_ASN1);
     }
     else
 #endif
     {
-        ret = wolfSSL_CTX_use_certificate_buffer(srv_ctx, server_cert_der_2048, sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1);
+        ret = wolfSSL_CTX_use_certificate_buffer(srv_ctx, server_cert_der_2048,
+            sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1);
     }
-    if (ret != WOLFSSL_SUCCESS) err_sys("error loading server cert");
-#endif
+    if (ret != WOLFSSL_SUCCESS) {
+        printf("error loading server cert\n");
+        goto exit;
+    }
+#endif /* !NO_CERTS */
 
     wolfSSL_CTX_SetIOSend(srv_ctx, ServerSend);
     wolfSSL_CTX_SetIORecv(srv_ctx, ServerRecv);
 
     /* set cipher suite */
     ret = wolfSSL_CTX_set_cipher_list(srv_ctx, info->cipher);
-    if (ret != WOLFSSL_SUCCESS) err_sys("error setting cipher suite");
+    if (ret != WOLFSSL_SUCCESS) {
+        printf("error setting cipher suite\n");
+        goto exit;
+    }
 
 #ifndef NO_DH
-    wolfSSL_CTX_SetMinDhKey_Sz(srv_ctx, MIN_DHKEY_BITS);
-    wolfSSL_CTX_SetTmpDH(srv_ctx, p, sizeof(p), g, sizeof(g));
+    ret = wolfSSL_CTX_SetMinDhKey_Sz(srv_ctx, MIN_DHKEY_BITS);
+    if (ret != WOLFSSL_SUCCESS) {
+        printf("Error setting minimum DH key size\n");
+        goto exit;
+    }
 #endif
 
-    while (!info->shutdown) {
-    #ifdef NON_BLOCKING
+    /* Allocate read buffer */
+    readBufSz = info->packetSize;
+    readBuf = (unsigned char*)XMALLOC(readBufSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (readBuf == NULL) {
+        printf("failed to allocate read memory\n");
+        ret = MEMORY_E; goto exit;
+    }
+
+    /* BENCHMARK CONNECTIONS LOOP */
+    while (!info->server.shutdown) {
+    #ifdef BENCH_USE_NONBLOCK
         int err;
     #endif
+
+    #ifdef HAVE_PTHREAD
+        if (!info->useLocalMem)
+    #endif
+        {
+            /* Accept client connections */
+            ret = SocketWaitClient(info);
+        #ifdef BENCH_USE_NONBLOCK
+            if (ret == -2) {
+                sleep(0);
+                continue;
+            }
+        #endif
+            if (ret != 0) {
+                goto exit;
+            }
+        }
+
         srv_ssl = wolfSSL_new(srv_ctx);
-        if (srv_ssl == NULL) err_sys("error creating server object");
+        if (srv_ssl == NULL) {
+            printf("error creating server object\n");
+            ret = MEMORY_E; goto exit;
+        }
 
         wolfSSL_SetIOReadCtx(srv_ssl, info);
         wolfSSL_SetIOWriteCtx(srv_ssl, info);
 
-        /* accept tls connection without tcp sockets */
+    #ifndef NO_DH
+        wolfSSL_SetTmpDH(srv_ssl, p, sizeof(p), g, sizeof(g));
+    #endif
+
+        /* accept TLS connection */
         start = gettime_secs(1);
-    #ifndef NON_BLOCKING
+    #ifndef BENCH_USE_NONBLOCK
         ret = wolfSSL_accept(srv_ssl);
     #else
-        do
-        {
+        do {
             ret = wolfSSL_accept(srv_ssl);
             err = wolfSSL_get_error(srv_ssl, ret);
         }
@@ -630,79 +1028,115 @@ static void* server_thread(void* args)
     #endif
         start = gettime_secs(0) - start;
         if (ret != WOLFSSL_SUCCESS) {
-            if (info->shutdown)
-                break;
-            err_sys("error on server accept");
+            printf("error on server accept\n");
+            ret = wolfSSL_get_error(srv_ssl, ret);
+            goto exit;
         }
 
         info->server_stats.connTime += start;
-
-        /* Allocate buf after handshake is complete */
-        bufSize = wolfSSL_GetMaxOutputSize(srv_ssl);
-        if (bufSize > 0) {
-            buf = (unsigned char*)malloc(bufSize);
-        }
-        else {
-            buf = NULL;
-        }
-
-        if (buf != NULL) {
-            while (info->server_stats.txTotal < info->numBytes) {
-                /* read msg post handshake from client */
-                memset(buf, 0, bufSize);
-                start = gettime_secs(1);
-            #ifndef NON_BLOCKING
-                ret = wolfSSL_read(srv_ssl, buf, bufSize-1);
-            #else
-                do
-                {
-                    ret = wolfSSL_read(srv_ssl, buf, bufSize-1);
-                    err = wolfSSL_get_error(srv_ssl, ret);
-                }
-                while (err == WOLFSSL_ERROR_WANT_READ);
-            #endif
-                info->server_stats.rxTime += gettime_secs(0) - start;
-                if (ret > 0) {
-                    info->server_stats.rxTotal += ret;
-                    len = ret;
-                }
-
-                /* write message back to client */
-                start = gettime_secs(1);
-            #ifndef NON_BLOCKING
-                ret = wolfSSL_write(srv_ssl, buf, len);
-            #else
-                do
-                {
-                    ret = wolfSSL_write(srv_ssl, buf, len);
-                    err = wolfSSL_get_error(srv_ssl, ret);
-                }
-                while (err == WOLFSSL_ERROR_WANT_WRITE);
-            #endif
-                info->server_stats.txTime += gettime_secs(0) - start;
-                if (ret > 0) {
-                    info->server_stats.txTotal += ret;
-                }
-            }
-            free(buf);
-        }
-        else {
-            err_sys("failed to allocate memory");
-        }
-
         info->server_stats.connCount++;
 
+        /* read message from client */
+        XMEMSET(readBuf, 0, readBufSz);
+        start = gettime_secs(1);
+    #ifndef BENCH_USE_NONBLOCK
+        ret = wolfSSL_read(srv_ssl, readBuf, readBufSz);
+    #else
+        do {
+            ret = wolfSSL_read(srv_ssl, readBuf, readBufSz);
+            err = wolfSSL_get_error(srv_ssl, ret);
+        }
+        while (err == WOLFSSL_ERROR_WANT_READ);
+    #endif
+        info->server_stats.rxTime += gettime_secs(0) - start;
+        if (ret < 0) {
+            printf("error on server read\n");
+            ret = wolfSSL_get_error(srv_ssl, ret);
+            goto exit;
+        }
+        info->server_stats.rxTotal += ret;
+        len = ret;
+
+        /* write message back to client */
+        start = gettime_secs(1);
+    #ifndef BENCH_USE_NONBLOCK
+        ret = wolfSSL_write(srv_ssl, readBuf, len);
+    #else
+        do {
+            ret = wolfSSL_write(srv_ssl, readBuf, len);
+            err = wolfSSL_get_error(srv_ssl, ret);
+        }
+        while (err == WOLFSSL_ERROR_WANT_WRITE);
+    #endif
+        info->server_stats.txTime += gettime_secs(0) - start;
+        if (ret < 0) {
+            printf("error on server write\n");
+            ret = wolfSSL_get_error(srv_ssl, ret);
+            goto exit;
+        }
+        info->server_stats.txTotal += ret;
+        ret = 0; /* reset return code */
+
+        /* shutdown signals, no more connections for this cipher */
+        if (XSTRSTR((const char*)readBuf, kShutdown) != NULL) {
+            info->server.shutdown = 1;
+            if (info->showVerbose) {
+                printf("Server shutdown done\n");
+            }
+        }
+
+        CloseAndCleanupSocket(&info->server.sockFd);
+
         wolfSSL_free(srv_ssl);
+        srv_ssl = NULL;
+    }
+
+exit:
+
+    if (ret != 0 && ret != WOLFSSL_SUCCESS) {
+        printf("Server Error: %d (%s)\n", ret,
+            wolfSSL_ERR_reason_error_string(ret));
     }
 
     /* clean up */
-    wolfSSL_CTX_free(srv_ctx);
+    CloseAndCleanupSocket(&info->server.sockFd);
+    if (srv_ssl != NULL)
+        wolfSSL_free(srv_ssl);
+    if (srv_ctx != NULL)
+        wolfSSL_CTX_free(srv_ctx);
+    XFREE(readBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    info->server.ret = ret;
+
+    return ret;
+}
+
+#ifdef HAVE_PTHREAD
+static void* server_thread(void* args)
+{
+    int ret = 0;
+    info_t* info = (info_t*)args;
+
+    if (!info->useLocalMem) {
+        /* Setup TLS server listener */
+        ret = SetupSocketAndListen(&info->listenFd, info->port);
+    }
+    if (ret == 0) {
+        ret = bench_tls_server(info);
+
+        if (!info->useLocalMem) {
+            CloseAndCleanupListenSocket(&info->listenFd);
+        }
+    }
 
     pthread_cond_signal(&info->to_client.cond);
     info->to_server.done = 1;
+    info->server.ret = ret;
 
     return NULL;
 }
+#endif /* HAVE_PTHREAD */
+#endif /* !NO_WOLFSSL_SERVER */
+
 
 #ifdef __GNUC__
 #pragma GCC diagnostic push
@@ -745,17 +1179,23 @@ static void Usage(void)
     printf("tls_bench "    LIBWOLFSSL_VERSION_STRING
            " NOTE: All files relative to wolfSSL home dir\n");
     printf("-?          Help, print this usage\n");
-    printf("-b <num>    The total <num> bytes transferred per test connection, default %d\n", TEST_SIZE_BYTES);
-#ifdef DEBUG_WOLFSSL
-    printf("-d          Enable debug messages\n");
-#endif
+    printf("-c          Run as client only, no threading and uses sockets\n");
+    printf("-s          Run as server only, no threading and uses sockets\n");
+    printf("-h          Host (default %s)\n", BENCH_DEFAULT_HOST);
+    printf("-P          Port (default %d)\n", BENCH_DEFAULT_PORT);
     printf("-e          List Every cipher suite available\n");
     printf("-i          Show peer info\n");
     printf("-l <str>    Cipher suite list (: delimited)\n");
-    printf("-t <num>    Time <num> (seconds) to run each test, default %d\n", RUNTIME_SEC);
-    printf("-p <num>    The packet size <num> in bytes [1-16kB], default %d\n", TEST_PACKET_SIZE);
+    printf("-t <num>    Time <num> (seconds) to run each test (default %d)\n", BENCH_RUNTIME_SEC);
+    printf("-p <num>    The packet size <num> in bytes [1-16kB] (default %d)\n", TEST_PACKET_SIZE);
     printf("-v          Show verbose output\n");
-    printf("-T <num>    Thread pairs of server/client, default %d\n", THREAD_PAIRS);
+#ifdef DEBUG_WOLFSSL
+    printf("-d          Enable debug messages\n");
+#endif
+#ifdef HAVE_PTHREAD
+    printf("-T <num>    Number of threaded server/client pairs (default %d)\n", NUM_THREAD_PAIRS);
+    printf("-m          Use local memory, not socket\n");
+#endif
 }
 
 static void ShowCiphers(void)
@@ -775,20 +1215,32 @@ static void ShowCiphers(void)
 int bench_tls(void* args)
 {
     int ret = 0;
-    info_t *theadInfo, *info;
-    int i, doShutdown;
-    char *cipher, *next_cipher, ciphers[4096];
+    info_t *theadInfo = NULL, *info;
+    stats_t cli_comb, srv_comb;
+    int i;
+    char *cipher, *next_cipher, *ciphers = NULL;
     int     argc = ((func_args*)args)->argc;
     char**  argv = ((func_args*)args)->argv;
     int    ch;
 
     /* Vars configured by command line arguments */
-    int argRuntimeSec = RUNTIME_SEC;
+    int argRuntimeSec = BENCH_RUNTIME_SEC;
     char *argCipherList = NULL;
-    int argTestSizeBytes = TEST_SIZE_BYTES;
     int argTestPacketSize = TEST_PACKET_SIZE;
-    int argThreadPairs = THREAD_PAIRS;
+    int argThreadPairs = NUM_THREAD_PAIRS;
     int argShowVerbose = SHOW_VERBOSE;
+    int argClientOnly = 0;
+    int argServerOnly = 0;
+    const char* argHost = BENCH_DEFAULT_HOST;
+    int argPort = BENCH_DEFAULT_PORT;
+    int argShowPeerInfo = 0;
+#ifdef HAVE_PTHREAD
+    int doShutdown;
+#endif
+#if !defined(NO_WOLFSSL_SERVER) || defined(HAVE_PTHREAD)
+    int argLocalMem = 0;
+    int listenFd = -1;
+#endif
 
     if (args)
         ((func_args*)args)->return_code = -1; /* error state */
@@ -797,25 +1249,37 @@ int bench_tls(void* args)
     wolfSSL_Init();
 
     /* Parse command line arguments */
-    while ((ch = mygetopt(argc, argv, "?" "b:deil:p:t:vT:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?" "deil:p:t:vT:sch:P:m")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
-                XEXIT(EXIT_SUCCESS);
+                goto exit;
 
-            case 'b' :
-                argTestSizeBytes = atoi(myoptarg);
+            case 's':
+                argServerOnly = 1;
                 break;
 
-#ifdef DEBUG_WOLFSSL
+            case 'c':
+                argClientOnly = 1;
+                break;
+
+            case 'h':
+                argHost = myoptarg;
+                break;
+
+            case 'P':
+                argPort = atoi(myoptarg);
+                break;
+
             case 'd' :
+            #ifdef DEBUG_WOLFSSL
                 wolfSSL_Debugging_ON();
+            #endif
                 break;
-#endif
 
             case 'e' :
                 ShowCiphers();
-                XEXIT(EXIT_SUCCESS);
+                goto exit;
 
             case 'i' :
                 argShowPeerInfo = 1;
@@ -827,6 +1291,11 @@ int bench_tls(void* args)
 
             case 'p' :
                 argTestPacketSize = atoi(myoptarg);
+                if (argTestPacketSize > (16 * 1024)) {
+                    printf("Invalid packet size %d\n", argTestPacketSize);
+                    Usage();
+                    ret = MY_EX_USAGE; goto exit;
+                }
                 break;
 
             case 't' :
@@ -838,12 +1307,20 @@ int bench_tls(void* args)
                 break;
 
             case 'T' :
+            #ifdef HAVE_PTHREAD
                 argThreadPairs = atoi(myoptarg);
+            #endif
+                break;
+
+            case 'm':
+            #ifdef HAVE_PTHREAD
+                argLocalMem = 1;
+            #endif
                 break;
 
             default:
                 Usage();
-                XEXIT(MY_EX_USAGE);
+                ret = MY_EX_USAGE; goto exit;
         }
     }
 
@@ -856,18 +1333,46 @@ int bench_tls(void* args)
     }
     else {
         /* Run for each cipher */
-        wolfSSL_get_ciphers(ciphers, (int)sizeof(ciphers));
+        const int ciphersSz = 4096;
+        ciphers = (char*)XMALLOC(ciphersSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (ciphers == NULL) {
+            goto exit;
+        }
+        wolfSSL_get_ciphers(ciphers, ciphersSz);
         cipher = ciphers;
     }
 
-    /* Allocate test info array */
-    theadInfo = (info_t*)malloc(sizeof(info_t) * argThreadPairs);
-    if (theadInfo != NULL) {
-        memset(theadInfo, 0, sizeof(info_t) * argThreadPairs);
+    /* for server or client side only, only 1 thread is allowed */
+    if (argServerOnly || argClientOnly) {
+        argThreadPairs = 1;
     }
+#ifndef HAVE_PTHREAD
+    else {
+        printf("Threading is not enabled, so please use -s or -c to indicate side\n");
+        Usage();
+        ret = MY_EX_USAGE; goto exit;
+    }
+#endif
+
+    /* Allocate test info array */
+    theadInfo = (info_t*)XMALLOC(sizeof(info_t) * argThreadPairs, NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (theadInfo == NULL) {
+        ret = MEMORY_E; goto exit;
+    }
+    XMEMSET(theadInfo, 0, sizeof(info_t) * argThreadPairs);
+
+#ifndef NO_WOLFSSL_SERVER
+    /* Use same listen socket to avoid timing issues between client and server */
+    if (argServerOnly && !argLocalMem) {
+        /* Setup TLS server listener */
+        ret = SetupSocketAndListen(&listenFd, argPort);
+        if (ret != 0) goto exit;
+    }
+#endif
 
     /* parse by : */
-    while ((cipher != NULL) && (cipher[0] != '\0') && (theadInfo != NULL)) {
+    while ((cipher != NULL) && (cipher[0] != '\0')) {
         next_cipher = strchr(cipher, ':');
         if (next_cipher != NULL) {
             cipher[next_cipher - cipher] = '\0';
@@ -878,66 +1383,92 @@ int bench_tls(void* args)
         }
 
         for (i=0; i<argThreadPairs; i++) {
-            info = (info_t*)memset(&theadInfo[i], 0, sizeof(info_t));
-
-            info->cipher = cipher;
-            info->numBytes = argTestSizeBytes;
-            info->packetSize = argTestPacketSize;
-
-            pthread_mutex_init(&info->to_server.mutex, NULL);
-            pthread_mutex_init(&info->to_client.mutex, NULL);
-            pthread_cond_init(&info->to_server.cond, NULL);
-            pthread_cond_init(&info->to_client.cond, NULL);
-
-            pthread_create(&info->to_server.tid, NULL, server_thread, info);
-            pthread_create(&info->to_client.tid, NULL, client_thread, info);
-
-            /* State that we won't be joining this thread */
-            pthread_detach(info->to_server.tid);
-            pthread_detach(info->to_client.tid);
-        }
-
-        /* run for x time */
-        sleep(argRuntimeSec);
-
-        /* mark threads to quit */
-        for (i = 0; i < argThreadPairs; ++i) {
             info = &theadInfo[i];
-            info->shutdown = 1;
+            XMEMSET(info, 0, sizeof(info_t));
+
+            info->host = argHost;
+            info->port = argPort + i; /* threads must have separate ports */
+            info->cipher = cipher;
+            info->packetSize = argTestPacketSize;
+            info->runTimeSec = argRuntimeSec;
+            info->showPeerInfo = argShowPeerInfo;
+            info->showVerbose = argShowVerbose;
+        #ifndef NO_WOLFSSL_SERVER
+            info->listenFd = listenFd;
+        #endif
+            info->client.sockFd = -1;
+            info->server.sockFd = -1;
+
+            if (argClientOnly) {
+            #ifndef NO_WOLFSSL_CLIENT
+                ret = bench_tls_client(info);
+            #endif
+            }
+            else if (argServerOnly) {
+            #ifndef NO_WOLFSSL_SERVER
+                ret = bench_tls_server(info);
+            #endif
+            }
+            else {
+            #ifdef HAVE_PTHREAD
+                info->useLocalMem = argLocalMem;
+                pthread_mutex_init(&info->to_server.mutex, NULL);
+                pthread_mutex_init(&info->to_client.mutex, NULL);
+                pthread_cond_init(&info->to_server.cond, NULL);
+                pthread_cond_init(&info->to_client.cond, NULL);
+
+                pthread_create(&info->to_server.tid, NULL, server_thread, info);
+                pthread_create(&info->to_client.tid, NULL, client_thread, info);
+
+                /* State that we won't be joining this thread */
+                pthread_detach(info->to_server.tid);
+                pthread_detach(info->to_client.tid);
+            #endif
+            }
         }
 
-        /* Suspend shutdown until all threads are closed */
-        do {
-            doShutdown = 1;
+    #ifdef HAVE_PTHREAD
+        /* For threading, wait for completion */
+        if (!argClientOnly && !argServerOnly) {
+            /* Wait until threads are marked done */
+            do {
+                doShutdown = 1;
 
-            for (i = 0; i < argThreadPairs; ++i) {
-                info = &theadInfo[i];
-                if (!info->to_client.done || !info->to_server.done) {
-                    doShutdown = 0;
-                    sleep(1); /* Allow other threads to run */
+                for (i = 0; i < argThreadPairs; ++i) {
+                    info = &theadInfo[i];
+                    if (!info->to_client.done || !info->to_server.done) {
+                        doShutdown = 0;
+                        sleep(1); /* Allow other threads to run */
+                    }
+
                 }
-
+            } while (!doShutdown);
+            if (argShowVerbose) {
+                printf("Shutdown complete\n");
             }
-        } while (!doShutdown);
+        }
+    #endif /* HAVE_PTHREAD */
 
         if (argShowVerbose) {
-            printf("Shutdown complete\n");
-
             /* print results */
             for (i = 0; i < argThreadPairs; ++i) {
                 info = &theadInfo[i];
 
                 printf("\nThread %d\n", i);
-                print_stats(&info->server_stats, "Server", info->cipher, 1);
-                print_stats(&info->client_stats, "Server", info->cipher, 1);
+            #ifndef NO_WOLFSSL_SERVER
+                if (!argClientOnly)
+                    print_stats(&info->server_stats, "Server", info->cipher, 1);
+            #endif
+            #ifndef NO_WOLFSSL_CLIENT
+                if (!argServerOnly)
+                    print_stats(&info->client_stats, "Client", info->cipher, 1);
+            #endif
             }
         }
 
         /* print combined results for more than one thread */
-        stats_t cli_comb;
-        stats_t srv_comb;
-        memset(&cli_comb, 0, sizeof(cli_comb));
-        memset(&srv_comb, 0, sizeof(srv_comb));
+        XMEMSET(&cli_comb, 0, sizeof(cli_comb));
+        XMEMSET(&srv_comb, 0, sizeof(srv_comb));
 
         for (i = 0; i < argThreadPairs; ++i) {
             info = &theadInfo[i];
@@ -968,19 +1499,37 @@ int bench_tls(void* args)
             printf("%-6s  %-33s  %11s  %9s  %9s  %9s  %9s  %9s  %17s  %15s\n",
                 "Side", "Cipher", "Total Bytes", "Num Conns", "Rx ms", "Tx ms",
                 "Rx MB/s", "Tx MB/s", "Connect Total ms", "Connect Avg ms");
-            print_stats(&srv_comb, "Server", theadInfo[0].cipher, 0);
-            print_stats(&cli_comb, "Client", theadInfo[0].cipher, 0);
+        #ifndef NO_WOLFSSL_SERVER
+            if (!argClientOnly)
+                print_stats(&srv_comb, "Server", theadInfo[0].cipher, 0);
+        #endif
+        #ifndef NO_WOLFSSL_CLIENT
+            if (!argServerOnly)
+                print_stats(&cli_comb, "Client", theadInfo[0].cipher, 0);
+        #endif
         }
 
         /* target next cipher */
         cipher = (next_cipher != NULL) ? (next_cipher + 1) : NULL;
+    } /* while */
+
+exit:
+
+#ifndef NO_WOLFSSL_SERVER
+    if (argServerOnly && !argLocalMem) {
+        /* Close server listener */
+        CloseAndCleanupListenSocket(&listenFd);
     }
+#endif
 
     /* Cleanup the wolfSSL environment */
     wolfSSL_Cleanup();
 
     /* Free theadInfo array */
-    free(theadInfo);
+    XFREE(theadInfo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* Free cipher list */
+    XFREE(ciphers, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     /* Return reporting a success */
     if (args)
@@ -988,7 +1537,7 @@ int bench_tls(void* args)
 
     return ret;
 }
-#endif /* !NO_WOLFSSL_CLIENT && !NO_WOLFSSL_SERVER */
+#endif /* (!NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER) && !WOLFCRYPT_ONLY */
 
 #ifndef NO_MAIN_DRIVER
 
@@ -1000,11 +1549,11 @@ int main(int argc, char** argv)
     args.argv = argv;
     args.return_code = 0;
 
-#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && !defined(WOLFCRYPT_ONLY)
     bench_tls(&args);
 #endif
 
-    return(args.return_code);
+    return args.return_code;
 }
 
-#endif
+#endif /* !NO_MAIN_DRIVER */

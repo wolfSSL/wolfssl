@@ -26,7 +26,8 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_XILINX_CRYPT)
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_XILINX_CRYPT) && \
+   !defined(WOLFSSL_AFALG_XILINX_SHA3)
 
 #if defined(HAVE_FIPS) && \
 	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
@@ -706,6 +707,7 @@ static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
             ret = IntelQaSymSha3(&sha3->asyncDev, NULL, data, len);
             if (ret != NOT_COMPILED_IN)
                 return ret;
+            /* fall-through on not compiled in */
         }
     #endif
     }
@@ -741,6 +743,7 @@ static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, byte p, byte len)
             ret = IntelQaSymSha3(&sha3->asyncDev, hash, NULL, len);
             if (ret != NOT_COMPILED_IN)
                 return ret;
+            /* fall-through on not compiled in */
         }
     #endif
     }

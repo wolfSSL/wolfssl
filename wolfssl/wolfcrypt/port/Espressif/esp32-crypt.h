@@ -78,6 +78,9 @@ uint64_t  wc_esp32elapsedTime();
       defined(WOLFSSL_SHA512)) && \
     !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
 
+/* RAW hash function APIs are not implemented with esp32 hardware acceleration*/
+#define WOLFSSL_NO_HASH_RAW
+
 #include "rom/sha.h"
 
 typedef enum {

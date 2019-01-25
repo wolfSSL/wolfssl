@@ -63,6 +63,20 @@
 #endif
 
 
+/* Supported Message Authentication Codes from page 43 */
+enum wc_MACAlgorithm {
+    no_mac,
+    md5_mac,
+    sha_mac,
+    sha224_mac,
+    sha256_mac,     /* needs to match external KDF_MacAlgorithm */
+    sha384_mac,
+    sha512_mac,
+    rmd_mac,
+    blake2b_mac
+};
+
+
 typedef union {
     #ifndef NO_MD5
         wc_Md5 md5;
@@ -165,6 +179,25 @@ WOLFSSL_API int wc_Sha384Hash(const byte*, word32, byte*);
 #include <wolfssl/wolfcrypt/sha512.h>
 WOLFSSL_API int wc_Sha512Hash(const byte*, word32, byte*);
 #endif /* WOLFSSL_SHA512 */
+
+enum max_prf {
+    MAX_PRF_HALF        = 256, /* Maximum half secret len */
+    MAX_PRF_LABSEED     = 128, /* Maximum label + seed len */
+    MAX_PRF_DIG         = 224  /* Maximum digest len      */
+};
+
+#ifdef WOLFSSL_HAVE_PRF
+WOLFSSL_API int wc_PRF(byte* result, word32 resLen, const byte* secret,
+                    word32 secLen, const byte* seed, word32 seedLen, int hash,
+                    void* heap, int devId);
+WOLFSSL_API int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
+                    word32 secLen, const byte* label, word32 labLen,
+                    const byte* seed, word32 seedLen, void* heap, int devId);
+WOLFSSL_API int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret,
+                    word32 secLen, const byte* label, word32 labLen,
+                    const byte* seed, word32 seedLen, int useAtLeastSha256,
+                    int hash_type, void* heap, int devId);
+#endif /* WOLFSSL_HAVE_PRF */
 
 #ifdef __cplusplus
     } /* extern "C" */

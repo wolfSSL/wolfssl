@@ -81,8 +81,11 @@ enum {
 #endif
 
 
+
 #ifdef WOLFSSL_XILINX_CRYPT
     #include "wolfssl/wolfcrypt/port/xilinx/xil-sha3.h"
+#elif defined(WOLFSSL_AFALG_XILINX_SHA3)
+    #include <wolfssl/wolfcrypt/port/af_alg/afalg_hash.h>
 #else
 /* Sha3 digest */
 typedef struct Sha3 {

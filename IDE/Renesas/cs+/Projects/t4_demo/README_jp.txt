@@ -51,6 +51,9 @@ wolfSSL/AlphaProjectボードデモ　セットアップガイド
 　wolfssl\IDE\Renesas\cs+\Projects\wolfssl_lib\DefaultBuild\wolfssl_lib.lib
 　wolfssl\IDE\Renesas\cs+\Projects\t4_demo\DefaultBuild\t4_demo.lib
 
+- CC-RX(ビルドツール)->ライブラリージェネレーションタブ->ライブラリー構成を「C99」に、
+ctype.hを有効にするを「はい」に設定します。
+
 　- プロジェクトのビルド、ターゲットへのダウンロードをしたのち、表示->デバッグ・コンソール
 　からコンソールを表示させます。実行を開始するとコンソールに以下の表示が出力されます。
 　

@@ -7,6 +7,7 @@ COMPONENT_ADD_INCLUDEDIRS += ../freertos/include/freertos/
 
 COMPONENT_SRCDIRS := src wolfcrypt/src
 COMPONENT_SRCDIRS += wolfcrypt/src/port/Espressif
+COMPONENT_SRCDIRS += wolfcrypt/src/port/atmel
 
 CFLAGS +=-DWOLFSSL_USER_SETTINGS
 

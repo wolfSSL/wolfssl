@@ -271,7 +271,7 @@
 #define dhParamFile    "certs/dh2048.pem"
 #define cliEccKeyFile  "certs/ecc-client-key.pem"
 #define cliEccCertFile "certs/client-ecc-cert.pem"
-#define caEccCertFile  "certs/ca-ecc-cert/pem"
+#define caEccCertFile  "certs/ca-ecc-cert.pem"
 #define crlPemDir      "certs/crl"
 #define edCertFile     "certs/ed25519/server-ed25519-cert.pem"
 #define edKeyFile      "certs/ed25519/server-ed25519-priv.pem"
@@ -564,7 +564,7 @@ static const char* client_showx509_msg[][5] = {
 
 /* lng_index is to specify the language for displaying message.              */
 /* 0:English, 1:Japanese                                                     */
-static WC_INLINE void ShowX509Ex(WOLFSSL_X509* x509, const char* hdr, 
+static WC_INLINE void ShowX509Ex(WOLFSSL_X509* x509, const char* hdr,
                                                                  int lng_index)
 {
     char* altName;
@@ -909,15 +909,18 @@ enum {
     TEST_SELECT_FAIL,
     TEST_TIMEOUT,
     TEST_RECV_READY,
+    TEST_SEND_READY,
     TEST_ERROR_READY
 };
 
 
 #if !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_KEIL_TCP_NET) && \
                                  !defined(WOLFSSL_TIRTOS)
-static WC_INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
+static WC_INLINE int tcp_select_ex(SOCKET_T socketfd, int to_sec, int rx)
 {
-    fd_set recvfds, errfds;
+    fd_set fds, errfds;
+    fd_set* recvfds = NULL;
+    fd_set* sendfds = NULL;
     SOCKET_T nfds = socketfd + 1;
 #if !defined(__INTEGRITY)
     struct timeval timeout = {(to_sec > 0) ? to_sec : 0, 0};
@@ -926,31 +929,55 @@ static WC_INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 #endif
     int result;
 
-    FD_ZERO(&recvfds);
-    FD_SET(socketfd, &recvfds);
+    FD_ZERO(&fds);
+    FD_SET(socketfd, &fds);
     FD_ZERO(&errfds);
     FD_SET(socketfd, &errfds);
+
+    if (rx)
+        recvfds = &fds;
+    else
+        sendfds = &fds;
 
 #if defined(__INTEGRITY)
     timeout.tv_sec = (long long)(to_sec > 0) ? to_sec : 0, 0;
 #endif
-    result = select(nfds, &recvfds, NULL, &errfds, &timeout);
+    result = select(nfds, recvfds, sendfds, &errfds, &timeout);
 
     if (result == 0)
         return TEST_TIMEOUT;
     else if (result > 0) {
-        if (FD_ISSET(socketfd, &recvfds))
-            return TEST_RECV_READY;
+        if (FD_ISSET(socketfd, &fds)) {
+            if (rx)
+                return TEST_RECV_READY;
+            else
+                return TEST_SEND_READY;
+        }
         else if(FD_ISSET(socketfd, &errfds))
             return TEST_ERROR_READY;
     }
 
     return TEST_SELECT_FAIL;
 }
+
+static WC_INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
+{
+    return tcp_select_ex(socketfd, to_sec, 1);
+}
+
+static WC_INLINE int tcp_select_tx(SOCKET_T socketfd, int to_sec)
+{
+    return tcp_select_ex(socketfd, to_sec, 0);
+}
+
 #elif defined(WOLFSSL_TIRTOS) || defined(WOLFSSL_KEIL_TCP_NET)
 static WC_INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 {
     return TEST_RECV_READY;
+}
+static WC_INLINE int tcp_select_tx(SOCKET_T socketfd, int to_sec)
+{
+    return TEST_SEND_READY;
 }
 #endif /* !WOLFSSL_MDK_ARM */
 
@@ -1196,7 +1223,6 @@ static WC_INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
         key[2] = 0x3c;
         key[3] = 0x4d;
 
-
         return 4;   /* length of key in octets or 0 for error */
     }
     else {
@@ -1231,7 +1257,6 @@ static WC_INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identit
         key[1] = 0x2b;
         key[2] = 0x3c;
         key[3] = 0x4d;
-
 
         return 4;   /* length of key in octets or 0 for error */
     }

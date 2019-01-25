@@ -28,6 +28,9 @@
 /* in case user set HAVE_ECC there */
 #include <wolfssl/wolfcrypt/settings.h>
 
+/* public ASN interface */
+#include <wolfssl/wolfcrypt/asn_public.h>
+
 /*
 Possible ECC enable options:
  * HAVE_ECC:            Overall control of ECC                  default: on
@@ -87,12 +90,6 @@ ECC Curve Sizes:
     #error Brainpool and Koblitz curves requires WOLFSSL_CUSTOM_CURVES
 #endif
 
-/* Make sure ASN is enabled for ECC sign/verify */
-#if (defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)) && defined(NO_ASN)
-    #error ASN must be enabled for ECC sign/verify
-#endif
-
-
 #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
@@ -122,8 +119,8 @@ ECC Curve Sizes:
     #include <wolfssl/wolfcrypt/hash.h>
 #endif
 
-#ifdef WOLF_CRYPTO_DEV
-    #include <wolfssl/wolfcrypt/cryptodev.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
 #ifdef NO_INLINE
@@ -3388,9 +3385,9 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
        return BAD_FUNC_ARG;
    }
 
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     if (private_key->devId != INVALID_DEVID) {
-        err = wc_CryptoDev_Ecdh(private_key, public_key, out, outlen);
+        err = wc_CryptoCb_Ecdh(private_key, public_key, out, outlen);
         if (err != NOT_COMPILED_IN)
             return err;
     }
@@ -3949,9 +3946,9 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
         return err;
     }
 
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
-        err = wc_CryptoDev_MakeEccKey(rng, keysize, key, curve_id);
+        err = wc_CryptoCb_MakeEccKey(rng, keysize, key, curve_id);
         if (err != NOT_COMPILED_IN)
             return err;
     }
@@ -4142,7 +4139,7 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
     XMEMSET(key, 0, sizeof(ecc_key));
     key->state = ECC_STATE_NONE;
 
-#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_DEV)
+#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
     key->devId = devId;
 #else
     (void)devId;
@@ -4314,9 +4311,9 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
         return ECC_BAD_ARG_E;
     }
 
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
-        err = wc_CryptoDev_EccSign(in, inlen, out, outlen, rng, key);
+        err = wc_CryptoCb_EccSign(in, inlen, out, outlen, rng, key);
         if (err != NOT_COMPILED_IN)
             return err;
     }
@@ -5152,9 +5149,9 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
         return ECC_BAD_ARG_E;
     }
 
-#ifdef WOLF_CRYPTO_DEV
+#ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
-        err = wc_CryptoDev_EccVerify(sig, siglen, hash, hashlen, res, key);
+        err = wc_CryptoCb_EccVerify(sig, siglen, hash, hashlen, res, key);
         if (err != NOT_COMPILED_IN)
             return err;
     }
@@ -6579,6 +6576,7 @@ int wc_ecc_export_private_raw(ecc_key* key, byte* qx, word32* qxLen,
 
 #endif /* HAVE_ECC_KEY_EXPORT */
 
+#ifndef NO_ASN
 #ifdef HAVE_ECC_KEY_IMPORT
 /* import private key, public part optional if (pub) passed as NULL */
 int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
@@ -6646,7 +6644,6 @@ int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
 }
 #endif /* HAVE_ECC_KEY_IMPORT */
 
-#ifndef NO_ASN
 /**
    Convert ECC R,S to signature
    r       R component of signature

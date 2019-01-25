@@ -411,38 +411,6 @@ enum Key_Agree {
 };
 
 
-enum Ecc_Sum {
-    ECC_SECP112R1_OID = 182,
-    ECC_SECP112R2_OID = 183,
-    ECC_SECP128R1_OID = 204,
-    ECC_SECP128R2_OID = 205,
-    ECC_SECP160R1_OID = 184,
-    ECC_SECP160R2_OID = 206,
-    ECC_SECP160K1_OID = 185,
-    ECC_BRAINPOOLP160R1_OID = 98,
-    ECC_SECP192R1_OID = 520,
-    ECC_PRIME192V2_OID = 521,
-    ECC_PRIME192V3_OID = 522,
-    ECC_SECP192K1_OID = 207,
-    ECC_BRAINPOOLP192R1_OID = 100,
-    ECC_SECP224R1_OID = 209,
-    ECC_SECP224K1_OID = 208,
-    ECC_BRAINPOOLP224R1_OID = 102,
-    ECC_PRIME239V1_OID = 523,
-    ECC_PRIME239V2_OID = 524,
-    ECC_PRIME239V3_OID = 525,
-    ECC_SECP256R1_OID = 526,
-    ECC_SECP256K1_OID = 186,
-    ECC_BRAINPOOLP256R1_OID = 104,
-    ECC_X25519_OID = 365,
-    ECC_ED25519_OID = 256,
-    ECC_BRAINPOOLP320R1_OID = 106,
-    ECC_SECP384R1_OID = 210,
-    ECC_BRAINPOOLP384R1_OID = 108,
-    ECC_BRAINPOOLP512R1_OID = 110,
-    ECC_SECP521R1_OID = 211,
-};
-
 
 enum KDF_Sum {
     PBKDF2_OID = 660
@@ -945,7 +913,7 @@ struct TrustedPeerCert {
 
 /* Macro for calculating hashId */
 #if defined(NO_SHA) && defined(NO_SHA256)
-    #ifdef WOLF_CRYPTO_DEV
+    #ifdef WOLF_CRYPTO_CB
         #define CalcHashId(data, len, hash) wc_CryptoDevSha256Hash(data, len, hash)
     #else
         #define CalcHashId(data, len, hash) NOT_COMPILED_IN

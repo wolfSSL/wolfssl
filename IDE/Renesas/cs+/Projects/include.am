@@ -16,4 +16,5 @@ EXTRA_DIST+= IDE/Renesas/cs+/Projects/t4_demo/wolf_client.c
 EXTRA_DIST+= IDE/Renesas/cs+/Projects/t4_demo/wolf_server.c
 EXTRA_DIST+= IDE/Renesas/cs+/Projects/t4_demo/wolf_main.c
 EXTRA_DIST+= IDE/Renesas/cs+/Projects/t4_demo/wolf_demo.h
+EXTRA_DIST+= IDE/Renesas/cs+/Projects/t4_demo/t4_demo.mtpj
 

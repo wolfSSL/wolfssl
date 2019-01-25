@@ -6738,7 +6738,7 @@ WOLFSSL_API int wolfSSL_SetMinEccKey_Sz(WOLFSSL*, short);
     of the p_hash function.
     \param len an unsigned integer that represents the length of
     the msk variable.
-    \param label a constant char pointer that is copied from in PRF().
+    \param label a constant char pointer that is copied from in wc_PRF().
 
     _Example_
     \code
@@ -6750,9 +6750,7 @@ WOLFSSL_API int wolfSSL_SetMinEccKey_Sz(WOLFSSL*, short);
     return wolfSSL_make_eap_keys(ssl, msk, len, label);
     \endcode
 
-    \sa PRF
-    \sa doPRF
-    \sa p_hash
+    \sa wc_PRF
     \sa wc_HmacFinal
     \sa wc_HmacUpdate
 */
@@ -11085,7 +11083,7 @@ WOLFSSL_API int wolfSSL_get_session_stats(unsigned int* active,
     \ingroup TLS
 
     \brief This function copies the values of cr and sr then passes through to
-    PRF (pseudo random function) and returns that value.
+    wc_PRF (pseudo random function) and returns that value.
 
     \return 0 on success
     \return BUFFER_E returned if there will be an error
@@ -11121,9 +11119,7 @@ WOLFSSL_API int wolfSSL_get_session_stats(unsigned int* active,
     }
     \endcode
 
-    \sa PRF
-    \sadoPRF
-    \sa p_hash
+    \sa wc_PRF
     \sa MakeTlsMasterSecret
 */
 WOLFSSL_API
@@ -11143,7 +11139,7 @@ int wolfSSL_MakeTlsMasterSecret(unsigned char* ms, unsigned int msLen,
     \return MEMORY_E returned if the allocation of memory failed.
 
     \param key_data a byte pointer that is allocateded in DeriveTlsKeys
-    and passed through to PRF to hold the final hash.
+    and passed through to wc_PRF to hold the final hash.
     \param keyLen a word32 type that is derived in DeriveTlsKeys
     from the WOLFSSL structure’s specs member.
     \param ms a constant pointer type holding the master secret
@@ -11169,8 +11165,7 @@ int wolfSSL_MakeTlsMasterSecret(unsigned char* ms, unsigned int msLen,
     }
     \endcode
 
-    \sa PRF
-    \sa doPRF
+    \sa wc_PRF
     \sa DeriveTlsKeys
     \sa IsAtLeastTLSv1_2
 */

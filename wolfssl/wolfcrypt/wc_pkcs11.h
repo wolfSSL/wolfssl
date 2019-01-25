@@ -26,7 +26,11 @@
 
 #ifdef HAVE_PKCS11
 
-#include <wolfssl/wolfcrypt/cryptodev.h>
+#ifndef WOLF_CRYPTO_CB
+    #error PKCS11 support requires ./configure --enable-cryptocb or WOLF_CRYPTO_CB to be defined
+#endif
+
+#include <wolfssl/wolfcrypt/cryptocb.h>
 #include <wolfssl/wolfcrypt/pkcs11.h>
 
 typedef struct Pkcs11Dev {
