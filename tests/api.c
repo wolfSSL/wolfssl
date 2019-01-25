@@ -17435,7 +17435,7 @@ static void test_wolfSSL_EVP_Digest(void)
 
 
     const char* in = "abc";
-    int   inLen = XSTRLEN(in);
+    int   inLen = (int)XSTRLEN(in);
     byte  out[WC_SHA256_DIGEST_SIZE];
     unsigned int outLen;
     const char* expOut = "\xBA\x78\x16\xBF\x8F\x01\xCF\xEA\x41\x41\x40\xDE\x5D\xAE\x22"
