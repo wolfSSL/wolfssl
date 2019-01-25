@@ -13782,7 +13782,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     {
         int ret;
         (void)arg;
-        (void)ptr
+        (void)ptr;
 
         WOLFSSL_ENTER("EVP_CIPHER_CTX_ctrl");
 
