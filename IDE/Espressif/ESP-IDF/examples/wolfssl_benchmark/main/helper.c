@@ -67,7 +67,7 @@ void my_atmel_slotInit()
 int my_atmel_alloc(int slotType)
 {
     int i, slot = -1;
- 
+
     ESP_LOGI(TAG, "Enter my_atmel_alloc");
 
     switch(slotType){
@@ -101,11 +101,11 @@ int my_atmel_alloc(int slotType)
 void my_atmel_free(int slotId)
 {
     ESP_LOGI(TAG, "Enter my_atmel_alloc");
-    
-    if(slotId >= 0 && slotId <= ATECC_MAX_SLOT){
+
+    if(slotId >= 0 && slotId < ATECC_MAX_SLOT){
         mSlotList[slotId] = ATECC_INVALID_SLOT;
     }
-    
+
     ESP_LOGI(TAG, "Leave my_atmel_alloc");
 
 }
@@ -183,7 +183,7 @@ void app_main(void)
     atmel_set_slot_allocator(my_atmel_alloc, my_atmel_free);
     #endif
 #endif
-    
+
     ESP_LOGI(TAG, "Start benchmark..");
     wolf_benchmark_task();
 

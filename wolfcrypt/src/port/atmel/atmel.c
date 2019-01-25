@@ -402,7 +402,7 @@ int atmel_init(void)
     #endif
 
         /* Init the free slotId list */
-        for (i=0; i<=ATECC_MAX_SLOT; i++) {
+        for (i=0; i<ATECC_MAX_SLOT; i++) {
             if (i == ATECC_SLOT_AUTH_PRIV || i == ATECC_SLOT_I2C_ENC) {
                 mSlotList[i] = i;
             }
@@ -603,7 +603,7 @@ int atcatls_create_pms_cb(WOLFSSL* ssl, ecc_key* otherKey,
         }
 
         ret = atmel_ecc_create_pms(tmpKey.slot, peerKey, out);
-        *outlen = ATECC_SIG_SIZE;
+        *outlen = ATECC_KEY_SIZE;
 
     #ifndef WOLFSSL_ATECC508A_NOIDLE
         /* put chip into idle to prevent watchdog situation on chip */
