@@ -18693,8 +18693,8 @@ static void test_wolfSSL_PEM_PrivateKey(void)
 
 static void test_wolfSSL_PEM_bio_RSAKey(void)
 {
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
-       !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && defined(WOLFSSL_CERT_GEN) || \
+    defined(WOLFSSL_KEY_GEN)&& !defined(NO_FILESYSTEM) && !defined(NO_RSA)
     RSA* rsa = NULL;
     BIO* bio = NULL;
 
@@ -18742,8 +18742,8 @@ static void test_wolfSSL_PEM_bio_RSAKey(void)
 
 static void test_wolfSSL_PEM_bio_DSAKey(void)
 {
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
-       !defined(NO_FILESYSTEM) && !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN)
+    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && defined(WOLFSSL_CERT_GEN) || \
+    defined(WOLFSSL_KEY_GEN)&& !defined(NO_FILESYSTEM) && !defined(NO_DSA)
     DSA* dsa = NULL;
     BIO* bio = NULL;
 
@@ -18791,8 +18791,8 @@ static void test_wolfSSL_PEM_bio_DSAKey(void)
 
 static void test_wolfSSL_PEM_bio_ECKey(void)
 {
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
-       !defined(NO_FILESYSTEM) && defined(HAVE_ECC)
+    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && defined(WOLFSSL_CERT_GEN) || \
+    defined(WOLFSSL_KEY_GEN)&& !defined(NO_FILESYSTEM) && defined(HAVE_ECC)
     EC_KEY* ec = NULL;
     BIO* bio = NULL;
 
@@ -20540,6 +20540,8 @@ static void test_wolfSSL_BIO(void)
     {
         BIO* bioA = NULL;
         BIO* bioB = NULL;
+        AssertNotNull(bioA = BIO_new(BIO_s_bio()));
+        AssertNotNull(bioB = BIO_new(BIO_s_bio()));
         AssertIntEQ(BIO_new_bio_pair(NULL, 256, NULL, 256), BAD_FUNC_ARG);
         AssertIntEQ(BIO_new_bio_pair(&bioA, 256, &bioB, 256), WOLFSSL_SUCCESS);
         BIO_free(bioA);
@@ -21475,13 +21477,17 @@ static void test_wolfSSL_BIO_write(void)
 
     /* now try encoding with no line ending */
     BIO_set_flags(bio64, BIO_FLAG_BASE64_NO_NL);
+    #ifdef HAVE_EX_DATA
+    BIO_set_ex_data(bio64, 0, (void*) "data");
+    AssertIntEQ(strcmp(BIO_get_ex_data(bio64, 0), "data"), 0);
+    #endif
     AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), 24);
     BIO_flush(bio);
     sz = sizeof(out);
     XMEMSET(out, 0, sz);
     AssertIntEQ((sz = BIO_read(ptr, out, sz)), 24);
     AssertIntEQ(XMEMCMP(out, expected, sz), 0);
-
+    BIO_clear_flags(bio64, ~0);
     BIO_free_all(bio); /* frees bio64 also */
 
     /* test with more than one bio64 in list */

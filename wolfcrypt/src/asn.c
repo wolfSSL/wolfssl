@@ -2767,12 +2767,12 @@ static int CheckAlgo(int first, int second, int* id, int* version, int* blockSz)
             *version = PKCS12v1;
             if (blockSz) *blockSz = DES_BLOCK_SIZE;
             return 0;
-    #endif
         case PBE_SHA1_DES:
             *id = PBE_SHA1_DES;
             *version = PKCS12v1;
             if (blockSz) *blockSz = DES_BLOCK_SIZE;
             return 0;
+    #endif
 #endif /* !NO_SHA */
         default:
             return ALGO_ID_E;
@@ -13779,7 +13779,7 @@ int wc_SetDatesBuffer(Cert* cert, const byte* der, int derSz)
 
 #endif /* !NO_CERTS */
 
-#if defined(WOLFSSL_QT) && !defined(NO_DH)
+#if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
 /* Helper function for wolfSSL_i2d_DHparams */
 int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
 {
@@ -13805,30 +13805,30 @@ int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
         return BUFFER_E;
     }
 
-    /* Set sequence */                                                          
-    idx = SetSequence(tmp, out);                                                
-                                                                                
-    /* Encode p */                                                              
-    pSz = SetASNIntMP(p, -1, &out[idx]);                                        
-    if (pSz < 0) {                                                              
-        WOLFSSL_MSG("SetASNIntMP failed");                                      
-        return pSz;                                                             
-    }                                                                           
-    idx += pSz;                                                                 
-                                                                                
-    /* Encode g */                                                              
-    gSz = SetASNIntMP(g, -1, &out[idx]);                                        
-    if (gSz < 0) {                                                              
-        WOLFSSL_MSG("SetASNIntMP failed");                                      
-        return gSz;                                                             
-    }                                                                           
+    /* Set sequence */
+    idx = SetSequence(tmp, out);
+
+    /* Encode p */
+    pSz = SetASNIntMP(p, -1, &out[idx]);  
+    if (pSz < 0) {
+        WOLFSSL_MSG("SetASNIntMP failed");
+        return pSz;
+    }
+    idx += pSz;
+
+    /* Encode g */
+    gSz = SetASNIntMP(g, -1, &out[idx]);
+    if (gSz < 0) {
+        WOLFSSL_MSG("SetASNIntMP failed");
+        return gSz;
+    }
     idx += gSz; 
 
     *outLen = idx;
 
     return 0;
 }
-#endif /* WOLFSSL_QT && !NO_DH */
+#endif /* !NO_DH && WOLFSSL_QT || OPENSSL_ALL */
 
 #ifdef HAVE_ECC
 

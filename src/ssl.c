@@ -19190,6 +19190,43 @@ void wolfSSL_BIO_set_flags(WOLFSSL_BIO* bio, int flags)
     }
 }
 
+void wolfSSL_BIO_clear_flags(WOLFSSL_BIO *bio, int flags)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_clear_flags");
+    if (bio != NULL) {
+        bio->flags &= ~flags;
+    }
+}
+
+int wolfSSL_BIO_set_ex_data(WOLFSSL_BIO *bio, int idx, void *data)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_set_ex_data");
+    #ifdef HAVE_EX_DATA
+    if (bio != NULL && idx < MAX_EX_DATA) {
+        bio->ex_data[idx] = data; 
+        return WOLFSSL_SUCCESS;
+    }
+    #else
+    (void)bio;
+    (void)idx;
+    (void)data;
+    #endif
+    return WOLFSSL_FAILURE;
+}
+
+void *wolfSSL_BIO_get_ex_data(WOLFSSL_BIO *bio, int idx)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_get_ex_data");
+    #ifdef HAVE_EX_DATA
+    if (bio != NULL && idx < MAX_EX_DATA && idx >= 0) {
+        return bio->ex_data[idx];
+    }
+    #else
+    (void)bio;
+    (void)idx;
+    #endif
+    return NULL;
+}
 
 #ifndef NO_WOLFSSL_STUB
 void wolfSSL_RAND_screen(void)
@@ -23389,42 +23426,6 @@ int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out)
 }
 #endif /* !defined(NO_DH) && defined(WOLFSSL_QT) || defined(OPENSSL_ALL) */
 
-void wolfSSL_BIO_clear_flags(WOLFSSL_BIO *bio, int flags)
-{
-    WOLFSSL_ENTER("wolfSSL_BIO_clear_flags");
-    bio->flags &= ~flags;
-}
-
-int wolfSSL_BIO_set_ex_data(WOLFSSL_BIO *bio, int idx, void *data)
-{
-    WOLFSSL_ENTER("wolfSSL_BIO_set_ex_data");
-    #ifdef HAVE_EX_DATA
-    if (bio != NULL && idx < MAX_EX_DATA) {
-        bio->ex_data[idx] = data; 
-        return WOLFSSL_SUCCESS;
-    }
-    #else
-    (void)bio;
-    (void)idx;
-    (void)data;
-    #endif
-    return WOLFSSL_FAILURE;
-}
-
-void *wolfSSL_BIO_get_ex_data(WOLFSSL_BIO *bio, int idx)
-{
-    WOLFSSL_ENTER("wolfSSL_BIO_get_ex_data");
-    #ifdef HAVE_EX_DATA
-    if (bio != NULL && idx < MAX_EX_DATA && idx >= 0) {
-        return bio->ex_data[idx];
-    }
-    #else
-    (void)bio;
-    (void)idx;
-    #endif
-    return NULL;
-}
-
 /* frees the wolfSSL_BASIC_CONSTRAINTS object */
 void wolfSSL_BASIC_CONSTRAINTS_free(WOLFSSL_BASIC_CONSTRAINTS *bc)
 {
@@ -26091,7 +26092,7 @@ WOLFSSL_DH *wolfSSL_DSA_dup_DH(const WOLFSSL_DSA *dsa)
 #endif /* OPENSSL_EXTRA */
 #endif /* !NO_RSA && !NO_DSA */
 
-#if defined(WOLFSSL_QT) && !defined(NO_DH)
+#if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
 int setDhExternal(WOLFSSL_DH *dh) {
     DhKey *key;
     WOLFSSL_MSG("Entering setDhExternal");
@@ -26116,7 +26117,7 @@ int setDhExternal(WOLFSSL_DH *dh) {
 
     return WOLFSSL_SUCCESS;
 }
-#endif /* WOLFSSL_QT */
+#endif /* !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))*/
 
 #ifdef OPENSSL_EXTRA
 
@@ -28530,8 +28531,7 @@ static int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
 #endif /* WOLFSSL_KEY_GEN || WOLFSSL_PEM_TO_DER */
 
 #if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)
-
-#ifndef NO_RSA
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA)
 /* Takes a WOLFSSL_RSA key and writes it out to a WOLFSSL_BIO
  *
  * bio    the WOLFSSL_BIO to write to
@@ -28615,8 +28615,6 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
 
     return ret;
 }
-
-#if defined(WOLFSSL_QT) || defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 
 /* Takes an RSA public key and writes it out to a WOLFSSL_BIO
  * Returns WOLFSSL_SUCCESS or WOLFSSL_FAILURE
@@ -28713,22 +28711,9 @@ WOLFSSL_RSA *wolfSSL_PEM_read_bio_RSA_PUBKEY(WOLFSSL_BIO* bio,WOLFSSL_RSA** rsa,
 
     wolfSSL_EVP_PKEY_free(pkey);
     return local;
-
-
-
-    // (void)bio;
-    // (void)rsa;
-    // (void)cb;
-    // (void)u;
-    // WOLFSSL_ENTER("wolfSSL_PEM_read_bio_RSA_PUBKEY");
-    // WOLFSSL_STUB("PEM_read_bio_RSA_PUBKEY");
-
-    // return NULL;
 }
 
-#endif /* defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB) */
-#endif /* NO_RSA */
-
+#endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) && !defined(NO_RSA) */
 
 /* Takes a public key and writes it out to a WOLFSSL_BIO
  * Returns WOLFSSL_SUCCESS or WOLFSSL_FAILURE
