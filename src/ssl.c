@@ -7277,9 +7277,9 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 }
 
 #if defined(WOLFSSL_QT)
-    int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passed_cert)
+    int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
     {
-        int ext_count = 0;
+        int extCount = 0;
         int length = 0;
         int outSz = 0;
         const byte* rawCert;
@@ -7289,12 +7289,12 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         const byte* input;
 
         WOLFSSL_ENTER("wolfSSL_X509_get_ext_count()");
-        if(passed_cert == NULL){
+        if(passedCert == NULL){
             WOLFSSL_MSG("\tNot passed a certificate");
             return BAD_FUNC_ARG;
         }
 
-        rawCert = wolfSSL_X509_get_der((WOLFSSL_X509*)passed_cert, &outSz);
+        rawCert = wolfSSL_X509_get_der((WOLFSSL_X509*)passedCert, &outSz);
         InitDecodedCert( &cert, rawCert, (word32)outSz, 0);
 
         if (ParseCert(&cert, CA_TYPE, NO_VERIFY, NULL) < 0){
@@ -7330,47 +7330,66 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
             }
 
             idx += length;
-            ext_count++;
+            extCount++;
         }
 
         FreeDecodedCert(&cert);
-        return ext_count;
+        return extCount;
     }
 
+
+    WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_new(void){
+        WOLFSSL_X509_EXTENSION* newExt = (WOLFSSL_X509_EXTENSION*)XMALLOC\
+                  (sizeof(WOLFSSL_X509_EXTENSION), NULL, DYNAMIC_TYPE_X509_EXT);
+        return newExt;
+    }
+
+
+    int wolfSSL_X509_EXTENSION_free(WOLFSSL_X509_EXTENSION* extToFree){
+        if (extToFree ==NULL){
+            WOLFSSL_MSG("Passed a NULL pointer to free");
+            return WOLFSSL_FATAL_ERROR;
+        }
+        else if (extToFree->obj != NULL){
+            wolfSSL_ASN1_OBJECT_free(extToFree->obj);
+            XFREE(extToFree, NULL, DYNAMIC_TYPE_X509_EXT);
+        }
+        return WOLFSSL_SUCCESS;
+    }
+
+
+
     WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext\
-        (const WOLFSSL_X509* passed_cert, int loc)
+        (const WOLFSSL_X509* passedCert, int loc)
     {
-        int ext_count = 0;
+        int extCount = 0;
         int length = 0;
         int outSz = 0;
         const byte* rawCert;
         int sz = 0;
-        int tmp_idx = 0;
+        int tmpIdx = 0;
         const byte* input;
         word32 oid;
         int ret = 0;
         word32 idx = 0;
-        WOLFSSL_ASN1_OBJECT* tmp_obj;
-        WOLFSSL_X509_EXTENSION* found_extension = NULL;
+        WOLFSSL_X509_EXTENSION* foundExtension = NULL;
         DecodedCert cert;
 
-        WOLFSSL_ENTER("wolfSSL_X509_get_ext_count()");
+        WOLFSSL_ENTER("wolfSSL_X509_get_ext()");
 
-        if(passed_cert == NULL){
+        if(passedCert == NULL){
             WOLFSSL_MSG("\tNot passed a certificate");
             return NULL;
         }
 
-        if(loc <0 || (loc > wolfSSL_X509_get_ext_count(passed_cert))){
+        if(loc <0 || (loc > wolfSSL_X509_get_ext_count(passedCert))){
             WOLFSSL_MSG("\tBad location argument");
             return NULL;
         }
 
-        found_extension = (WOLFSSL_X509_EXTENSION*)XMALLOC(sizeof\
-                (WOLFSSL_X509_EXTENSION), NULL, DYNAMIC_TYPE_X509_EXT);
-        tmp_obj = wolfSSL_ASN1_OBJECT_new();
+        foundExtension = wolfSSL_X509_EXTENSION_new();
 
-        rawCert = wolfSSL_X509_get_der((WOLFSSL_X509*)passed_cert, &outSz);
+        rawCert = wolfSSL_X509_get_der((WOLFSSL_X509*)passedCert, &outSz);
         InitDecodedCert( &cert, rawCert, (word32)outSz, 0);
 
         if (ParseCert(&cert, CA_TYPE, NO_VERIFY, NULL) < 0){
@@ -7403,45 +7422,45 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
                  WOLFSSL_MSG("\tfail: should be a SEQUENCE");
             }
 
-            tmp_idx = idx;
+            tmpIdx = idx;
             if ((ret = GetObjectId(input, &idx, &oid, oidCertExtType, sz)) < 0)
             {
                 WOLFSSL_MSG("\tfail: OBJECT ID");
             }
-            idx = tmp_idx;
+            idx = tmpIdx;
 
-            if (ext_count == loc){
-                WOLFSSL_STACK* sk = wolfSSL_X509_get_ext_d2i(passed_cert, \
+            if (extCount == loc){
+                WOLFSSL_STACK* sk = wolfSSL_X509_get_ext_d2i(passedCert, \
                         oid, NULL, NULL);
                 if (sk == NULL){
                     WOLFSSL_MSG("\twolfSSL_X509_get_ext_d2i returned NULL stk");
                     return NULL;
                 }
                 else {
-                    tmp_obj = wolfSSL_sk_ASN1_OBJECT_pop(sk);
+                    foundExtension->obj = wolfSSL_sk_ASN1_OBJECT_pop(sk);
                 }
 
-                if(tmp_obj->type <= 0){
+                if(foundExtension->obj->type <= 0){
                     WOLFSSL_MSG("\tFailed to set object type");
                 }
 
-                found_extension->obj = tmp_obj;
-                found_extension->value.data = (char*)cert.extSubjKeyIdSrc;
-                found_extension->crit = cert.extSubjKeyIdCrit;
+                foundExtension->value.data = (char*)cert.extSubjKeyIdSrc;
+                foundExtension->crit = cert.extSubjKeyIdCrit;
 
                 idx+=length;
-                wolfSSL_sk_ASN1_OBJECT_free(sk);
 
-                return found_extension;
+                wolfSSL_sk_ASN1_OBJECT_free(sk);
+                FreeDecodedCert(&cert);
+                return foundExtension;
             }
             else{
                 idx += length;
-                ext_count++;
+                extCount++;
             }
         }
         FreeDecodedCert(&cert);
 
-        return found_extension;
+        return foundExtension;
     }
 
 
@@ -16930,7 +16949,7 @@ void wolfSSL_sk_ASN1_OBJECT_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
 int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, \
         const WOLFSSL_ASN1_STRING *in)
 {
-    int i;
+    int i = 0;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_STRING_to_UTF8");
 
