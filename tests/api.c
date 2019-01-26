@@ -12214,6 +12214,7 @@ static int test_wc_DsaKeyToPublicDer(void)
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     wc_FreeDsaKey(&genKey);
 
 #endif
@@ -21473,6 +21474,7 @@ static void test_wolfSSL_X509V3_EXT_get(void){
         AssertNotNull(ext_nid = ext->obj->nid);
         AssertNotNull(method = wolfSSL_X509V3_EXT_get(ext));
         AssertIntEQ(method->ext_nid, ext_nid);
+        wolfSSL_X509_EXTENSION_free(ext);
     }
     printf(resultFmt, "passed");
 
@@ -21495,22 +21497,28 @@ static void test_wolfSSL_X509_get_ext(void){
 
     printf(testingFmt, "wolfSSL_X509_get_ext() valid input");
     AssertNotNull(found_ext = wolfSSL_X509_get_ext(x509, 0));
+    wolfSSL_X509_EXTENSION_free(found_ext);
     printf(resultFmt, "passed");
 
     printf(testingFmt, "wolfSSL_X509_get_ext() valid x509, idx out of bounds");
     AssertNull(found_ext = wolfSSL_X509_get_ext(x509, -1));
+    wolfSSL_X509_EXTENSION_free(found_ext);
     AssertNull(found_ext = wolfSSL_X509_get_ext(x509, 100));
+    wolfSSL_X509_EXTENSION_free(found_ext);
     printf(resultFmt, "passed");
 
     printf(testingFmt, "wolfSSL_X509_get_ext() NULL x509, idx out of bounds");
     AssertNull(found_ext = wolfSSL_X509_get_ext(NULL, -1));
+    wolfSSL_X509_EXTENSION_free(found_ext);
     AssertNull(found_ext = wolfSSL_X509_get_ext(NULL, 100));
+    wolfSSL_X509_EXTENSION_free(found_ext);
     printf(resultFmt, "passed");
 
     printf(testingFmt, "wolfSSL_X509_get_ext() NULL x509, valid idx");
     AssertNull(found_ext = wolfSSL_X509_get_ext(NULL, 0));
     printf(resultFmt, "passed");
 
+    wolfSSL_X509_EXTENSION_free(found_ext);
     wolfSSL_X509_free(x509);
 }
 
@@ -21599,6 +21607,8 @@ static void test_wolfSSL_X509_EXTENSION_get_object(void)
     AssertNull(o = wolfSSL_X509_EXTENSION_get_object(NULL));
     printf(resultFmt, passed);
 
+    wolfSSL_ASN1_OBJECT_free(o);
+    wolfSSL_X509_EXTENSION_free(ext);
     wolfSSL_X509_free(x509);
 }
 
@@ -21665,6 +21675,7 @@ static void test_wolfSSL_X509_EXTENSION_get_data(void)
     AssertNotNull(str = wolfSSL_X509_EXTENSION_get_data(ext));
     printf(resultFmt, passed);
 
+    wolfSSL_X509_EXTENSION_free(ext);
     wolfSSL_X509_free(x509);
 }
 
@@ -21685,6 +21696,7 @@ static void test_wolfSSL_X509_EXTENSION_get_critical(void)
     AssertIntEQ(crit, 0);
     printf(resultFmt, passed);
 
+    wolfSSL_X509_EXTENSION_free(ext);
     wolfSSL_X509_free(x509);
 }
 
