@@ -21518,7 +21518,6 @@ static void test_wolfSSL_X509_get_ext(void){
     AssertNull(found_ext = wolfSSL_X509_get_ext(NULL, 0));
     printf(resultFmt, "passed");
 
-    wolfSSL_X509_EXTENSION_free(found_ext);
     wolfSSL_X509_free(x509);
 }
 

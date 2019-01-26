@@ -7278,7 +7278,6 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
                 foundExtension->crit = cert.extSubjKeyIdCrit;
 
                 idx+=length;
-                wolfSSL_sk_ASN1_OBJECT_free(sk);
 
                 wolfSSL_sk_ASN1_OBJECT_free(sk);
                 FreeDecodedCert(&cert);
