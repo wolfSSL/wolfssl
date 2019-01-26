@@ -957,6 +957,34 @@ static int test_wolfSSL_CertManagerLoadCABuffer(void)
     return ret;
 }
 
+static void test_wolfSSL_CertManagerCRL(void)
+{
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL)
+
+    const char* ca_cert = "./certs/ca-cert.pem";
+    const char* crl1     = "./certs/crl/crl.pem";
+    const char* crl2     = "./certs/crl/crl2.pem";
+
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    AssertNotNull(cm = wolfSSL_CertManagerNew());
+    AssertIntEQ(WOLFSSL_SUCCESS, 
+        wolfSSL_CertManagerLoadCA(cm, ca_cert, NULL));
+    AssertIntEQ(WOLFSSL_SUCCESS, 
+        wolfSSL_CertManagerLoadCRL(cm, crl1, WOLFSSL_FILETYPE_PEM, 0));
+    AssertIntEQ(WOLFSSL_SUCCESS, 
+        wolfSSL_CertManagerLoadCRL(cm, crl2, WOLFSSL_FILETYPE_PEM, 0));    
+    wolfSSL_CertManagerFreeCRL(cm);
+
+    AssertIntEQ(WOLFSSL_SUCCESS, 
+        wolfSSL_CertManagerLoadCRL(cm, crl1, WOLFSSL_FILETYPE_PEM, 0));
+    AssertIntEQ(WOLFSSL_SUCCESS, 
+        wolfSSL_CertManagerLoadCA(cm, ca_cert, NULL));
+    wolfSSL_CertManagerFree(cm);
+
+#endif
+}
+
 static void test_wolfSSL_CTX_load_verify_chain_buffer_format(void)
 {
 #if !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && \
@@ -23085,6 +23113,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_use_PrivateKey_file();
     test_wolfSSL_CTX_load_verify_locations();
     test_wolfSSL_CertManagerLoadCABuffer();
+    test_wolfSSL_CertManagerCRL();
     test_wolfSSL_CTX_load_verify_chain_buffer_format();
     test_wolfSSL_CTX_use_certificate_chain_file_format();
     test_wolfSSL_CTX_trust_peer_cert();

@@ -5336,6 +5336,17 @@ int wolfSSL_CertManagerLoadCRLBuffer(WOLFSSL_CERT_MANAGER* cm,
     return BufferLoadCRL(cm->crl, buff, sz, type, 0);
 }
 
+int wolfSSL_CertManagerFreeCRL(WOLFSSL_CERT_MANAGER* cm)
+{
+    WOLFSSL_ENTER("wolfSSL_CertManagerFreeCRL");
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+    if (cm->crl != NULL){
+        FreeCRL(cm->crl, 1);
+        cm->crl = NULL;
+    }
+    return WOLFSSL_SUCCESS;
+}
 
 int wolfSSL_CTX_LoadCRLBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                               long sz, int type)
