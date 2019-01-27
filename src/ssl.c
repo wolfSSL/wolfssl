@@ -23234,9 +23234,8 @@ size_t wolfSSL_EC_get_builtin_curves(wolfSSL_EC_builtin_curve *r, size_t nitems)
         ecc_set_cnt++;
     }
 
-    if (r == NULL || nitems == 0) {
+    if (r == NULL || (int)nitems < 1)
         return ecc_set_cnt;
-    }
 
     for (x = 0; x < nitems; x++) {
         if (x < ecc_set_cnt) {

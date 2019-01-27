@@ -22605,62 +22605,6 @@ static void test_wolfSSL_ASN1_STRING_print_ex(void){
 #endif
 }
 
-static void test_wolfSSL_ASN1_STRING_print(void){
-#if defined(WOLFSSL_QT) && !defined(NO_ASN)
-
-    ASN1_STRING* asn_str = NULL;
-    const char data[]={'H','e','l','l','o',' ','w','o','l','f','S','S','L','!'};
-    const unsigned int max_unprintable_char = 32;
-    const unsigned int MAX_BUF = 255;
-    const int LF = 10, CR = 13;
-    unsigned char unprintable_data[max_unprintable_char + sizeof(data)];
-    unsigned char expected[sizeof(unprintable_data)+1];
-    unsigned char rbuf[MAX_BUF];
-
-    BIO *bio;
-    int p_len, i;
-
-    printf(testingFmt, "wolfSSL_ASN1_STRING_print()");
-
-    /* setup */
-
-    for (i = 0; i < (int)sizeof(data); i++) {
-        unprintable_data[i] = data[i];
-        expected[i]         = data[i];
-    }
-
-    for (i = 0; i < (int)max_unprintable_char; i++) {
-        unprintable_data[sizeof(data)+i] = i;
-
-        if (i == LF || i == CR)
-            expected[sizeof(data)+i] = i;
-        else
-            expected[sizeof(data)+i] = '.';
-    }
-
-    unprintable_data[sizeof(unprintable_data)-1] = '\0';
-    expected[sizeof(expected)-1] = '\0';
-
-    XMEMSET(rbuf, 0, MAX_BUF);
-    bio = BIO_new(BIO_s_mem());
-    BIO_set_write_buf_size(bio, MAX_BUF);
-
-    asn_str = ASN1_STRING_type_new(V_ASN1_OCTET_STRING);
-    ASN1_STRING_set(asn_str,(const void*)unprintable_data,
-                                                    sizeof(unprintable_data));
-    /* test */
-    p_len = wolfSSL_ASN1_STRING_print(bio, asn_str);
-    AssertIntEQ(p_len, 46);
-    BIO_read(bio, (void*)rbuf, 46);
-
-    AssertStrEQ((char*)rbuf, (const char*)expected);
-
-    BIO_free(bio);
-    ASN1_STRING_free(asn_str);
-
-    printf(resultFmt, passed);
-#endif
-}
 
 static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN1_TIME)
@@ -24037,6 +23981,105 @@ static void test_wolfSSL_DH_check(void)
     DH_free(dh);
     printf(resultFmt, passed);
 #endif /* NO_DH */
+}
+
+static void test_wolfSSL_ASN1_STRING_print(void){
+#ifndef NO_ASN
+
+    ASN1_STRING* asn_str = NULL;
+    const char data[]={'H','e','l','l','o',' ','w','o','l','f','S','S','L','!'};
+    const unsigned int max_unprintable_char = 32;
+    const unsigned int MAX_BUF = 255;
+    const int LF = 10, CR = 13;
+    unsigned char unprintable_data[max_unprintable_char + sizeof(data)];
+    unsigned char expected[sizeof(unprintable_data)+1];
+    unsigned char rbuf[MAX_BUF];
+
+    BIO *bio;
+    int p_len, i;
+
+    printf(testingFmt, "wolfSSL_ASN1_STRING_print()");
+
+    /* setup */
+
+    for (i = 0; i < (int)sizeof(data); i++) {
+        unprintable_data[i] = data[i];
+        expected[i]         = data[i];
+    }
+
+    for (i = 0; i < (int)max_unprintable_char; i++) {
+        unprintable_data[sizeof(data)+i] = i;
+
+        if (i == LF || i == CR)
+            expected[sizeof(data)+i] = i;
+        else
+            expected[sizeof(data)+i] = '.';
+    }
+
+    unprintable_data[sizeof(unprintable_data)-1] = '\0';
+    expected[sizeof(expected)-1] = '\0';
+
+    XMEMSET(rbuf, 0, MAX_BUF);
+    bio = BIO_new(BIO_s_mem());
+    BIO_set_write_buf_size(bio, MAX_BUF);
+
+    asn_str = ASN1_STRING_type_new(V_ASN1_OCTET_STRING);
+    ASN1_STRING_set(asn_str,(const void*)unprintable_data,
+            sizeof(unprintable_data));
+    /* test */
+    p_len = wolfSSL_ASN1_STRING_print(bio, asn_str);
+    AssertIntEQ(p_len, 46);
+    BIO_read(bio, (void*)rbuf, 46);
+
+    AssertStrEQ((char*)rbuf, (const char*)expected);
+
+    BIO_free(bio);
+    ASN1_STRING_free(asn_str);
+
+    printf(resultFmt, passed);
+#endif /* NO_ASN */
+}
+
+static void test_EC_get_builtin_curves(void)
+{
+#if defined(HAVE_ECC)
+    /* If this test fails then perhaps ecc_sets was updated past 27 */
+    size_t max_items = 27;
+    size_t nitems = 12;
+    size_t numCurves, x;
+    EC_builtin_curve r[max_items];
+
+    SSL_library_init();
+
+    /* Test invalid NULL EC_builtin_curve */
+    numCurves = EC_get_builtin_curves(NULL,nitems);
+    AssertIntEQ(numCurves,max_items);
+
+    /* Test invalid nitems */
+    numCurves = EC_get_builtin_curves(r,-1);
+    fprintf(stderr,"%lu\n",numCurves);
+    AssertIntEQ(numCurves,max_items);
+
+    /* Test very large nitems */
+    numCurves = EC_get_builtin_curves(r,1000);
+    fprintf(stderr,"%lu\n",numCurves);
+    AssertIntEQ(numCurves,max_items);
+
+    /* Test that passed in nitems matches return numCurves */
+    numCurves = EC_get_builtin_curves(r,nitems);
+    AssertIntEQ(numCurves,max_items);
+
+    /* Test if the EC_builtin_curve name and nid match wc_ecc_get_curve_id_from_name */
+    for (x = 0; x < nitems; x++) {
+        if (x < numCurves)
+            AssertIntEQ(r[x].nid,wc_ecc_get_curve_id_from_name(r[x].comment));
+        else
+            break;
+    }
+
+    printf(resultFmt, passed);
+
+#endif /* HAVE_ECC */
 }
 
 #endif /*end of Qt unit tests*/
@@ -26172,7 +26215,6 @@ void ApiTest(void)
     test_wolfSSL_X509_NAME_ENTRY_get_object();
     test_wolfSSL_OpenSSL_add_all_algorithms();
     test_wolfSSL_ASN1_STRING_print_ex();
-    test_wolfSSL_ASN1_STRING_print();
     test_wolfSSL_ASN1_TIME_to_generalizedtime();
     test_wolfSSL_i2c_ASN1_INTEGER();
     test_wolfSSL_X509_check_ca();
@@ -26197,6 +26239,8 @@ void ApiTest(void)
     test_EVP_PKEY_set1_get1_DSA();
     test_wolfSSL_CTX_ctrl();
     test_wolfSSL_DH_check();
+    test_wolfSSL_ASN1_STRING_print();
+    test_EC_get_builtin_curves();
 
     printf("\n-------------End Of Qt Unit Tests---------------\n");
 
