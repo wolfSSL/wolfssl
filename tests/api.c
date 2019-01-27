@@ -21698,7 +21698,44 @@ static void test_wolfSSL_CIPHER_description_all(void)
     printf(resultFmt, passed);
 }
 
-static void test_wolfSSL_X509_PUBKEY_get(void){
+static void test_wolfSSL_get_ciphers_compat(void) {
+    const SSL_METHOD *method = NULL;
+    const char cert_path[] = "./certs/client-cert.pem";
+    STACK_OF(SSL_CIPHER) *supportedCiphers;
+    SSL_CTX *ctx = NULL;
+    WOLFSSL *ssl = NULL;
+    const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_COMPRESSION;
+
+    printf(testingFmt, "wolfSSL_CIPHER_description_all");
+
+    SSL_library_init();
+
+    AssertNotNull(method = TLSv1_client_method());
+    AssertNotNull(ctx = SSL_CTX_new(method));
+
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, 0);
+    SSL_CTX_set_verify_depth(ctx, 4);
+
+    SSL_CTX_set_options(ctx, flags);
+    AssertIntEQ(SSL_CTX_load_verify_locations(ctx, cert_path, NULL), WOLFSSL_SUCCESS);
+
+    AssertNotNull(ssl = SSL_new(ctx));
+
+    /* Test Bad NULL input */
+    AssertNull(supportedCiphers = SSL_get_ciphers(NULL));
+    /* Test for Good input */
+    AssertNotNull(supportedCiphers = SSL_get_ciphers(ssl));
+    /* Further usage of SSL_get_ciphers/wolfSSL_get_ciphers_compat is
+     * tested in test_wolfSSL_CIPHER_description_all according to Qt usage */
+
+    wolfSSL_sk_ASN1_OBJECT_free(supportedCiphers);
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+}
+
+static void test_wolfSSL_X509_PUBKEY_get(void) {
     WOLFSSL_X509_PUBKEY pubkey;
     WOLFSSL_X509_PUBKEY* key;
     WOLFSSL_EVP_PKEY evpkey;
@@ -24416,6 +24453,7 @@ void ApiTest(void)
     test_wolfSSL_X509_EXTENSION_get_data();
     test_wolfSSL_X509_EXTENSION_get_critical();
     test_wolfSSL_CIPHER_description_all();
+    test_wolfSSL_get_ciphers_compat();
     test_wolfSSL_d2i_DHparams();
     test_wolfSSL_i2d_DHparams();
     test_wolfSSL_ASN1_STRING_to_UTF8();
