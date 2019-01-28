@@ -319,6 +319,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_EXTENSION_get_object       wolfSSL_X509_EXTENSION_get_object
 #define X509_EXTENSION_get_critical     wolfSSL_X509_EXTENSION_get_critical
 #define X509_EXTENSION_get_data         wolfSSL_X509_EXTENSION_get_data
+#define X509_EXTENSION_new              wolfSSL_X509_EXTENSION_new
+#define X509_EXTENSION_free             wolfSSL_X509_EXTENSION_free
 #define X509_set_ex_data                wolfSSL_X509_set_ex_data
 #define X509_get1_ocsp                  wolfSSL_X509_get1_ocsp
 #ifndef WOLFSSL_HAPROXY
