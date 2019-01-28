@@ -7353,9 +7353,9 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
     /* returns an an x509v3 extension internal structure */
     void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
     {
-        const X509V3_EXT_METHOD *method;
-        const unsigned char *ASN1stringData = NULL;
-        WOLFSSL_ASN1_STRING *extvalue = NULL;
+        const WOLFSSL_v3_ext_method* method = NULL;
+        const unsigned char* asn1StringData = NULL;
+        WOLFSSL_ASN1_STRING* extvalue = NULL;
         int extlen;
 
         WOLFSSL_ENTER("wolfSSL_X509V3_EXT_d2i");
@@ -7366,17 +7366,17 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         }
 
         /* extract extension info */
-        method = X509V3_EXT_get(ext);
+        method = wolfSSL_X509V3_EXT_get(ext);
         extvalue = wolfSSL_X509_EXTENSION_get_data(ext);
-        ASN1stringData = wolfSSL_ASN1_STRING_data(extvalue);
+        asn1StringData = wolfSSL_ASN1_STRING_data(extvalue);
         extlen = wolfSSL_ASN1_STRING_length(extvalue);
 
         if (method == NULL || extvalue == NULL || extlen <= 0
-                                                    || ASN1stringData == NULL) {
+                                                    || asn1StringData == NULL) {
             WOLFSSL_MSG("wolfSSL_X509V3_EXT_d2i Error");
             return NULL;
         } else {
-            return method->d2i(NULL, &ASN1stringData, extlen);
+            return method->d2i(NULL, &asn1StringData, extlen);
         }
     }
 
@@ -7457,6 +7457,23 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                 obj->type = BASIC_CA_OID;
                 obj->grp  = oidCertExtType;
                 obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
+
+                #ifdef WOLFSSL_QT
+                WOLFSSL_ASN1_OBJECT* tmp;
+                tmp = wolfSSL_OBJ_nid2obj(BASIC_CA_OID);
+
+                obj->obj = (byte*)XREALLOC((byte*)obj->obj, tmp->objSz, NULL, \
+                    DYNAMIC_TYPE_ASN1);
+                XMEMCPY((byte*)obj->obj, tmp->obj, tmp->objSz);
+
+                obj->objSz = tmp->objSz;
+                wolfSSL_ASN1_OBJECT_free(tmp);
+
+                if (obj->obj == NULL) {
+                    WOLFSSL_MSG("Error setting obj");
+                    return NULL;
+                }
+                #endif
             }
             else {
                 WOLFSSL_MSG("No Basic Constraint set");
@@ -33777,6 +33794,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
     const char * wolfSSL_OBJ_nid2sn(int n) {
         int localIsCertTest;
+        int i;
 
         WOLFSSL_ENTER("wolfSSL_OBJ_nid2sn");
 
@@ -33810,13 +33828,23 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                     return "OU";
                 case NID_emailAddress :
                     return "emailAddress";
+                case NID_basic_constraints :
+                    return "basicConstraints";
                 default  :
-                    WOLFSSL_MSG("nid not in table\n");
+                    WOLFSSL_MSG("nid not in table, trying wolfssl_object_info\n");
             }
+
+            /* Check wolfssl_object_info for short name if not found */
+            for (i = 0; i < (int)WOLFSSL_OBJECT_INFO_SZ; i++) {
+                if (n == wolfssl_object_info[i].nid) {
+                    return wolfssl_object_info[i].sName;
+                }
+            }
+            WOLFSSL_MSG("SN not found");
+
         } else {
             #ifdef HAVE_ECC
             {
-                int i;
                 /* find sn based on NID and return name */
                 for (i = 0; i < ecc_sets[i].size; i++) {
                     if (n == ecc_sets[i].id) {
@@ -34145,8 +34173,12 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         if (o == NULL) {
             return -1;
         }
-        if (o->nid > 0)
+        if (o->nid > 0) {
+            #ifdef WOLFSSL_QT
+                isCertTest = 1;
+            #endif
             return o->nid;
+        }
         if ((id = GetObjectId(o->obj, &idx, &oid, o->grp, o->objSz)) < 0) {
             WOLFSSL_MSG("Issue getting OID of object");
             return -1;
