@@ -17457,7 +17457,108 @@ static void test_wolfSSL_EVP_PKEY_new_mac_key(void)
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA */
 }
+static void test_wolfSSL_EVP_Digest(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
 
+
+    const char* in = "abc";
+    int   inLen = (int)XSTRLEN(in);
+    byte  out[WC_SHA256_DIGEST_SIZE];
+    unsigned int outLen;
+    const char* expOut = "\xBA\x78\x16\xBF\x8F\x01\xCF\xEA\x41\x41\x40\xDE\x5D\xAE\x22"
+               "\x23\xB0\x03\x61\xA3\x96\x17\x7A\x9C\xB4\x10\xFF\x61\xF2\x00"
+               "\x15\xAD";
+    printf(testingFmt, "wolfSSL_EVP_Digest()");
+    
+    AssertIntEQ(wolfSSL_EVP_Digest((unsigned char*)in, inLen, out, &outLen, "SHA256", NULL), 1);
+    AssertIntEQ(outLen, WC_SHA256_DIGEST_SIZE);
+    AssertIntEQ(XMEMCMP(out, expOut, WC_SHA256_DIGEST_SIZE), 0);
+    
+    printf(resultFmt, passed);
+    
+#endif /* OPEN_EXTRA && ! NO_SHA256 */
+}
+
+static void test_wolfSSL_EVP_MD_size(void)
+{
+#ifdef OPENSSL_EXTRA
+
+    WOLFSSL_EVP_MD_CTX mdCtx;
+
+    printf(testingFmt, "wolfSSL_EVP_MD_size()");
+    
+#ifndef NO_SHA256    
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+
+    AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA256"), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), WC_SHA256_DIGEST_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA256_BLOCK_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+#endif
+
+#ifndef NO_MD5    
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    
+    AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "MD5"), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_MD5_DIGEST_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_MD5_BLOCK_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+#endif
+
+#ifdef WOLFSSL_SHA224    
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    
+    AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA224"), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA224_DIGEST_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA224_BLOCK_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+#endif
+
+#ifdef WOLFSSL_SHA384    
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    
+    AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA384"), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA384_DIGEST_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA384_BLOCK_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+#endif
+
+#ifdef WOLFSSL_SHA512    
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    
+    AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA512"), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA512_DIGEST_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA512_BLOCK_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+#endif
+
+#ifndef NO_SHA    
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    
+    AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA"), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA_DIGEST_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA_BLOCK_SIZE);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+#endif
+    /* error case */
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    
+    AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, ""), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_EVP_MD_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 0);
+    
+    printf(resultFmt, passed);
+    
+#endif /* OPENSSL_EXTRA */
+}
 
 static void test_wolfSSL_EVP_MD_hmac_signing(void)
 {
@@ -23175,6 +23276,8 @@ void ApiTest(void)
     test_wolfSSL_PEM_PUBKEY();
     test_wolfSSL_tmp_dh();
     test_wolfSSL_ctrl();
+    test_wolfSSL_EVP_MD_size();
+    test_wolfSSL_EVP_Digest();
     test_wolfSSL_EVP_PKEY_new_mac_key();
     test_wolfSSL_EVP_MD_hmac_signing();
     test_wolfSSL_EVP_MD_rsa_signing();
