@@ -7349,13 +7349,14 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 
 #endif
 
-    /* returns an an x509v3 extension internal structure */
+    /* Parses and returns an x509v3 extension internal structure.
+    *  (i.e. if basicConstraints, return pointer to a BASIC_CONSTRAINTS
+    *  structure. See crypto/x509v3 for more info)
+    */
     void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
     {
-        const WOLFSSL_v3_ext_method* method = NULL;
-        const unsigned char* asn1StringData = NULL;
-        WOLFSSL_ASN1_STRING* extvalue = NULL;
-        int extlen;
+        const WOLFSSL_v3_ext_method* method;
+        WOLFSSL_ASN1_OBJECT* object;
 
         WOLFSSL_ENTER("wolfSSL_X509V3_EXT_d2i");
 
@@ -7366,17 +7367,74 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 
         /* extract extension info */
         method = wolfSSL_X509V3_EXT_get(ext);
-        extvalue = wolfSSL_X509_EXTENSION_get_data(ext);
-        asn1StringData = wolfSSL_ASN1_STRING_data(extvalue);
-        extlen = wolfSSL_ASN1_STRING_length(extvalue);
-
-        if (method == NULL || extvalue == NULL || extlen <= 0
-                                                    || asn1StringData == NULL) {
-            WOLFSSL_MSG("wolfSSL_X509V3_EXT_d2i Error");
+        if (method == NULL) {
+            WOLFSSL_MSG("wolfSSL_X509V3_EXT_get error");
             return NULL;
-        } else {
-            return method->d2i(NULL, &asn1StringData, extlen);
         }
+        object = wolfSSL_X509_EXTENSION_get_object(ext);
+        if (object == NULL) {
+            WOLFSSL_MSG("X509_EXTENSION_get_object failed");
+            return NULL;
+        }
+
+        /* Return pointer to proper internal structure based on NID */
+        switch (object->nid) {
+            /* basicConstraints */
+            case (NID_basic_constraints):
+                WOLFSSL_MSG("basicConstraints");
+                WOLFSSL_BASIC_CONSTRAINTS* bc;
+
+                /* Freeing BASIC_CONSTRAINTS is caller's responsibility */
+                bc = (WOLFSSL_BASIC_CONSTRAINTS*)\
+                      XMALLOC(sizeof(WOLFSSL_BASIC_CONSTRAINTS), NULL,
+                      DYNAMIC_TYPE_CA);
+                if (bc == NULL) {
+                    WOLFSSL_MSG("Failed to malloc basic constraints");
+                    return NULL;
+                }
+                bc->ca = object->ca;
+                bc->pathlen = (WOLFSSL_ASN1_INTEGER*)\
+                               XMALLOC(sizeof(WOLFSSL_ASN1_INTEGER), NULL,
+                               DYNAMIC_TYPE_ASN1);
+                if (bc->pathlen == NULL) {
+                    WOLFSSL_MSG("Failed to malloc ASN1_INTEGER");
+                    return NULL;
+                }
+                XMEMCPY((WOLFSSL_ASN1_INTEGER*)bc->pathlen, object->pathlen,
+                         sizeof(WOLFSSL_ASN1_INTEGER));
+
+                /* Only need to return BASIC_CONSTRAINTS struct (?)
+                   method would only need i2v and v2i, which we don't care about
+                   with QT */
+                return bc;
+
+            /* subjectKeyIdentifier */
+            case (NID_subject_key_identifier):
+                WOLFSSL_MSG("subjectKeyIdentifier not implemented yet");
+                return method->d2i(NULL, NULL, -1);
+
+            /* authorityKeyIdentifier */
+            case (NID_authority_key_identifier):
+                WOLFSSL_MSG("AuthorityKeyIdentifier not implemented yet");
+                return method->d2i(NULL, NULL, -1);
+
+            /* keyUsage */
+            case (NID_key_usage):
+                WOLFSSL_MSG("keyUsage not implemented yet");
+                return method->d2i(NULL, NULL, -1);
+
+            /* extKeyUsage */
+            case (NID_ext_key_usage):
+                WOLFSSL_MSG("extKeyUsage not implemented yet");
+                return method->d2i(NULL, NULL, -1);
+
+            default:
+                WOLFSSL_MSG("Extension NID not in table, returning NULL");
+                break;
+        }
+
+        return NULL;
+
     }
 
 #if !defined(NO_WOLFSSL_STUB)
@@ -7457,22 +7515,35 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                 obj->grp  = oidCertExtType;
                 obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
 
-                #ifdef WOLFSSL_QT
+            #ifdef WOLFSSL_QT
+                /* QT makes call to OBJ_obj2txt(), which expects obj to be set,
+                    even with basicConstraints */
                 WOLFSSL_ASN1_OBJECT* tmp;
                 tmp = wolfSSL_OBJ_nid2obj(BASIC_CA_OID);
 
-                obj->obj = (byte*)XREALLOC((byte*)obj->obj, tmp->objSz, NULL, \
-                    DYNAMIC_TYPE_ASN1);
+                obj->obj = (byte*)XREALLOC((byte*)obj->obj, tmp->objSz, NULL,
+                            DYNAMIC_TYPE_ASN1);
                 XMEMCPY((byte*)obj->obj, tmp->obj, tmp->objSz);
 
                 obj->objSz = tmp->objSz;
                 wolfSSL_ASN1_OBJECT_free(tmp);
 
-                if (obj->obj == NULL) {
-                    WOLFSSL_MSG("Error setting obj");
-                    return NULL;
-                }
-                #endif
+                /* Set ca in ASN1_OBJECT */
+                obj->ca = x509->basicConstSet;
+
+                /* Set pathlength */
+                WOLFSSL_ASN1_INTEGER* a;
+                a = wolfSSL_ASN1_INTEGER_new();
+
+                a->length = x509->pathLength;
+                obj->pathlen = (WOLFSSL_ASN1_INTEGER*)\
+                                XMALLOC(sizeof(WOLFSSL_ASN1_INTEGER), NULL,
+                                DYNAMIC_TYPE_ASN1);
+                XMEMCPY((WOLFSSL_ASN1_INTEGER*)obj->pathlen, a,
+                        sizeof(WOLFSSL_ASN1_INTEGER));
+
+                wolfSSL_ASN1_INTEGER_free(a);
+            #endif
             }
             else {
                 WOLFSSL_MSG("No Basic Constraint set");
