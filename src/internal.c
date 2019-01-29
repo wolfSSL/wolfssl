@@ -23701,11 +23701,19 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef HAVE_SERVER_RENEGOTIATION_INFO
         /* check for TLS_EMPTY_RENEGOTIATION_INFO_SCSV suite */
         if (FindSuite(&clSuites, 0, TLS_EMPTY_RENEGOTIATION_INFO_SCSV) >= 0) {
+            TLSX* extension;
+
+            /* check for TLS_EMPTY_RENEGOTIATION_INFO_SCSV suite */
             ret = TLSX_AddEmptyRenegotiationInfo(&ssl->extensions, ssl->heap);
             if (ret != WOLFSSL_SUCCESS)
                 return ret;
-            if (ssl->secure_renegotiation)
+
+            extension = TLSX_Find(ssl->extensions, TLSX_RENEGOTIATION_INFO);
+            if (extension) {
+                ssl->secure_renegotiation =
+                                          (SecureRenegotiation*)extension->data;
                 ssl->secure_renegotiation->enabled = 1;
+            }
         }
 #endif /* HAVE_SERVER_RENEGOTIATION_INFO */
 
