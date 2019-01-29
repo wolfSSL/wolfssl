@@ -7175,16 +7175,16 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
     }
 
 
-    int wolfSSL_X509_EXTENSION_free(WOLFSSL_X509_EXTENSION* extToFree){
+    void wolfSSL_X509_EXTENSION_free(WOLFSSL_X509_EXTENSION* extToFree){
         if (extToFree ==NULL){
             WOLFSSL_MSG("Passed a NULL pointer to free");
-            return WOLFSSL_FATAL_ERROR;
+            return;
         }
         else if (extToFree->obj != NULL){
             wolfSSL_ASN1_OBJECT_free(extToFree->obj);
             XFREE(extToFree, NULL, DYNAMIC_TYPE_X509_EXT);
         }
-        return WOLFSSL_SUCCESS;
+        return;
     }
 
 
@@ -19850,16 +19850,16 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
 void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
 {
     if (ctx != NULL) {
-    #ifndef WOLFSSL_QT
+#ifndef WOLFSSL_QT
         if (ctx->store != NULL)
             wolfSSL_X509_STORE_free(ctx->store);
-        #ifndef WOLFSSL_KEEP_STORE_CERTS
+#ifndef WOLFSSL_KEEP_STORE_CERTS
         if (ctx->current_cert != NULL)
             wolfSSL_FreeX509(ctx->current_cert);
-        #endif
+#endif
         if (ctx->chain != NULL)
             wolfSSL_sk_X509_free(ctx->chain);
-    #endif /* WOLFSSL_QT */
+#endif /* IF NOT DEFINED WOLFSSL_QT */
 #ifdef OPENSSL_EXTRA
         if (ctx->param != NULL){
             XFREE(ctx->param,NULL,DYNAMIC_TYPE_OPENSSL);
