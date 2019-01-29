@@ -21528,6 +21528,20 @@ static void test_wolfSSL_X509_cmp(void){
     wolfSSL_X509_free(cert2);
 }
 
+
+static void test_wolfSSL_X509_EXTENSION_new(void)
+{
+    WOLFSSL_X509_EXTENSION* ext;
+
+    AssertNotNull(ext = wolfSSL_X509_EXTENSION_new());
+    AssertNotNull(ext->obj = wolfSSL_ASN1_OBJECT_new());
+    ext->obj->nid = WOLFSSL_SUCCESS;
+    AssertIntEQ(WOLFSSL_SUCCESS, ext->obj->nid);
+
+    wolfSSL_X509_EXTENSION_free(ext);
+}
+
+
 static void test_wolfSSL_X509_EXTENSION_get_object(void)
 {
     WOLFSSL_X509* x509;
@@ -24457,12 +24471,12 @@ void ApiTest(void)
     test_wolfSSL_X509_get_ext_count();
     test_wolfSSL_X509_get_ext();
     test_wolfSSL_X509_cmp();
+    test_wolfSSL_X509_PUBKEY_get();
+    test_wolfSSL_X509_EXTENSION_new();
     test_wolfSSL_X509_EXTENSION_get_object();
-    test_wolfSSL_X509_PUBKEY_get();
-    test_wolfSSL_X509V3_EXT_get();
-    test_wolfSSL_X509_PUBKEY_get();
     test_wolfSSL_X509_EXTENSION_get_data();
     test_wolfSSL_X509_EXTENSION_get_critical();
+    test_wolfSSL_X509V3_EXT_get();
     test_wolfSSL_CIPHER_description_all();
     test_wolfSSL_get_ciphers_compat();
     test_wolfSSL_d2i_DHparams();

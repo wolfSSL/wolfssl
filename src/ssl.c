@@ -7178,13 +7178,12 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
     void wolfSSL_X509_EXTENSION_free(WOLFSSL_X509_EXTENSION* extToFree){
         if (extToFree ==NULL){
             WOLFSSL_MSG("Passed a NULL pointer to free");
-            return;
         }
         else if (extToFree->obj != NULL){
             wolfSSL_ASN1_OBJECT_free(extToFree->obj);
             XFREE(extToFree, NULL, DYNAMIC_TYPE_X509_EXT);
+            extToFree = NULL;
         }
-        return;
     }
 
 
