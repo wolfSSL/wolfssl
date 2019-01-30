@@ -733,7 +733,6 @@ enum {
 
 typedef STACK_OF(GENERAL_NAME) GENERAL_NAMES;
 #define SSL_CTRL_CHAIN       88
-#define BIO_CTRL_WPENDING    13
 #define GEN_IPADD            7
 #define ERR_LIB_SSL          20
 #define SSL_R_SHORT_READ     10
@@ -821,6 +820,7 @@ typedef STACK_OF(GENERAL_NAME) GENERAL_NAMES;
 
 #define BIO_CTRL_RESET          1
 #define BIO_CTRL_INFO           3
+#define BIO_CTRL_WPENDING       13
 #define BIO_CTRL_FLUSH          11
 #define BIO_CLOSE               0x01
 #define BIO_FP_WRITE            0x04
