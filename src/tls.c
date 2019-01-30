@@ -99,6 +99,15 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
     #endif
 #endif
 
+/* Warn if secrets logging is enabled */
+#if defined(SHOW_SECRETS) || defined(WOLFSSL_SSLKEYLOGFILE)
+    #ifndef _MSC_VER
+        #warning The SHOW_SECRETS and WOLFSSL_SSLKEYLOGFILE options should only be used for debugging and never in a production environment
+    #else
+        #pragma message("Warning: The SHOW_SECRETS and WOLFSSL_SSLKEYLOGFILE options should only be used for debugging and never in a production environment")
+    #endif
+#endif
+
 /* Optional Pre-Master-Secret logging for Wireshark */
 #if !defined(NO_FILESYSTEM) && defined(WOLFSSL_SSLKEYLOGFILE)
 #ifndef WOLFSSL_SSLKEYLOGFILE_OUTPUT
