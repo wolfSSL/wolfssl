@@ -503,7 +503,7 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
  * 
  * return info. specific to the cmd that is passed in.
  */
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
 long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bio, int cmd, long larg, void *parg)
 {
     long ret;

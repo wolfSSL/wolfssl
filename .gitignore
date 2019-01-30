@@ -24,6 +24,8 @@ rpm/spec
 stamp-h
 cyassl/options.h
 wolfssl/options.h
+tmp.options.h
+tmp.status
 libtool.m4
 aclocal.m4
 aminclude.am

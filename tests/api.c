@@ -18078,7 +18078,7 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     X509_STORE_CTX_set_error(NULL, -5);
 
     X509_STORE_CTX_free(ctx);
-    #ifdef WOLFSSL_KEEP_STORE_CERTS
+    #if defined(WOLFSSL_KEEP_STORE_CERTS) || defined(WOLFSSL_QT)
     X509_STORE_free(str);
     X509_free(x509);
     #endif
@@ -18893,6 +18893,7 @@ static void test_wolfSSL_PEM_read_bio(void)
 static void test_wolfSSL_BIO(void)
 {
     #if defined(OPENSSL_EXTRA)
+    const unsigned char* p;
     byte buff[20];
     BIO* bio1;
     BIO* bio2;
@@ -18935,6 +18936,10 @@ static void test_wolfSSL_BIO(void)
     /* try read */
     AssertIntEQ((int)BIO_ctrl_pending(bio1), 8);
     AssertIntEQ((int)BIO_ctrl_pending(bio2), 20);
+
+    /* try read using ctrl function */
+    AssertIntEQ((int)BIO_ctrl(bio1, BIO_CTRL_WPENDING, 0, NULL), 8);
+    AssertIntEQ((int)BIO_ctrl(bio2, BIO_CTRL_WPENDING, 0, NULL), 20);
 
     AssertIntEQ(BIO_nread(bio2, &bufPt, (int)BIO_ctrl_pending(bio2)), 20);
     for (i = 0; i < 20; i++) {
@@ -19003,6 +19008,8 @@ static void test_wolfSSL_BIO(void)
     AssertIntEQ((int)BIO_ctrl_pending(bio3), 0);
     AssertIntEQ(BIO_nread(bio3, &bufPt, 3), WOLFSSL_BIO_ERROR);
     AssertIntEQ(BIO_nwrite(bio1, &bufPt, 20), 20);
+    AssertIntEQ((int)BIO_ctrl(bio1, BIO_CTRL_INFO, 0, &p), 20);
+    AssertNotNull(p);
     XMEMCPY(bufPt, buff, 20);
     AssertIntEQ(BIO_nread(bio3, &bufPt, 6), 6);
     for (i = 0; i < 6; i++) {
@@ -19026,8 +19033,6 @@ static void test_wolfSSL_BIO(void)
     {
         BIO* bioA = NULL;
         BIO* bioB = NULL;
-        AssertNotNull(bioA = BIO_new(BIO_s_bio()));
-        AssertNotNull(bioB = BIO_new(BIO_s_bio()));
         AssertIntEQ(BIO_new_bio_pair(NULL, 256, NULL, 256), BAD_FUNC_ARG);
         AssertIntEQ(BIO_new_bio_pair(&bioA, 256, &bioB, 256), WOLFSSL_SUCCESS);
         BIO_free(bioA);
@@ -19257,7 +19262,7 @@ static void test_wolfSSL_X509(void)
 
 
     X509_STORE_CTX_free(ctx);
-    #ifdef WOLFSSL_KEEP_STORE_CERTS
+    #if defined(WOLFSSL_KEEP_STORE_CERTS) || defined(WOLFSSL_QT)
     X509_STORE_free(store);
     X509_free(x509);
     #endif
