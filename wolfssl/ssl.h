@@ -262,6 +262,7 @@ struct WOLFSSL_ASN1_OBJECT {
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     int ca;
     WOLFSSL_ASN1_INTEGER *pathlen;
+    WOLFSSL_GENERAL_NAME *genName;
 #endif
 
     struct d { /* derefrenced */

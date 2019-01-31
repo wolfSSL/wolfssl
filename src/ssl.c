@@ -7564,6 +7564,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
         case ALT_NAMES_OID:
             {
                 DNS_entry* dns = NULL;
+                sk->type = STACK_TYPE_NAME;
 
                 if (x509->subjAltNameSet && x509->altNames != NULL) {
                     /* alt names are DNS_entry structs */
@@ -7578,6 +7579,9 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
 
                     dns = x509->altNames;
                     while (dns != NULL) {
+                        #ifdef WOLFSSL_QT
+                        WOLFSSL_GENERAL_NAME* gn;
+                        #endif
                         obj = wolfSSL_ASN1_OBJECT_new();
                         if (obj == NULL) {
                             WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
@@ -7593,6 +7597,18 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                         /* set app derefrenced pointers */
                         obj->d.ia5_internal.data   = dns->name;
                         obj->d.ia5_internal.length = (int)XSTRLEN(dns->name);
+
+                        #ifdef WOLFSSL_QT
+                        /* Set General Name */
+                        gn = (WOLFSSL_GENERAL_NAME*)\
+                              XMALLOC(sizeof(WOLFSSL_GENERAL_NAME), NULL,
+                              DYNAMIC_TYPE_X509_EXT);
+                        XMEMSET(gn, 0, sizeof(WOLFSSL_GENERAL_NAME));
+                        gn->d.ia5 = &obj->d.ia5_internal;
+                        gn->type = dns->type;
+                        obj->genName = gn;
+                        #endif
+
                         dns = dns->next;
                         /* last dns in list add at end of function */
                         if (dns != NULL) {
@@ -16528,10 +16544,11 @@ int wolfSSL_sk_ASN1_OBJECT_push(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
     XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
 
     /* push new obj onto head of stack */
-    node->data.obj = sk->data.obj;
+    node->data.obj  = sk->data.obj;
     node->next      = sk->next;
+    node->type      = sk->type;
     sk->next        = node;
-    sk->data.obj   = obj;
+    sk->data.obj    = obj;
     sk->num        += 1;
 
     return WOLFSSL_SUCCESS;
@@ -22767,6 +22784,10 @@ void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
             if (sk->data.cipher)
                 sk->data.cipher->cipherOffset = offset;
             return (void*)sk->data.cipher;
+    #ifdef WOLFSSL_QT
+        case STACK_TYPE_NAME:
+            return (void*)sk->data.obj->genName;
+    #endif
         default:
             return (void*)sk->data.obj;
     }
@@ -33962,6 +33983,8 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                     return "emailAddress";
                 case NID_basic_constraints :
                     return "basicConstraints";
+                case NID_subject_key_identifier :
+                    return "subjectKeyIdentifier";
                 default  :
                     WOLFSSL_MSG("nid not in table, trying wolfssl_object_info\n");
             }
