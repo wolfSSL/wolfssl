@@ -15886,7 +15886,7 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
                 AES256_WRAP, dhSinglePass_stdDH_sha256kdf_scheme, eccCert,
                 eccCertSz, eccPrivKey, eccPrivKeySz},
         #endif
-        #if !defined(WOLFSSL_SHA512) && !defined(NO_AES_256)
+        #if defined(WOLFSSL_SHA512) && !defined(NO_AES_256)
             {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, AES256CBCb,
                 AES256_WRAP, dhSinglePass_stdDH_sha512kdf_scheme, eccCert,
                 eccCertSz, eccPrivKey, eccPrivKeySz},

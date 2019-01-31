@@ -3366,7 +3366,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
     byte* in2, word32 in2Sz)
 {
     word32 idx, outerContentType, hashOID = 0, sigOID, contentTypeSz = 0, totalSz = 0;
-    int length, version, ret = 0;
+    int length = 0, version, ret = 0;
     byte* content = NULL;
     byte* contentDynamic = NULL;
     byte* sig = NULL;
@@ -3430,8 +3430,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             }
 
             {
-                long rc;
-                rc  = wc_PKCS7_GetMaxStream(pkcs7, PKCS7_SEQ_PEEK, in, inSz);
+                long rc = wc_PKCS7_GetMaxStream(pkcs7, PKCS7_SEQ_PEEK, in, inSz);
                 if (rc < 0) {
                     ret = (int)rc;
                     break;
@@ -3471,6 +3470,17 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 if (GetSequence_ex(pkiMsg, &idx, &length, pkiMsgSz,
                             NO_USER_CHECK) < 0)
                     return ASN_PARSE_E;
+
+            #ifndef NO_PKCS7_STREAM
+                {
+                    long rc = wc_PKCS7_GetMaxStream(pkcs7, PKCS7_SEQ_PEEK,
+                        pkiMsg, pkiMsgSz);
+                    if (rc < 0) {
+                        ret = (int)rc;
+                        break;
+                    }
+                }
+            #endif
         #else
                 ret = BER_INDEF_E;
         #endif
@@ -3539,14 +3549,15 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
         case WC_PKCS7_VERIFY_STAGE2:
         #ifndef NO_PKCS7_STREAM
-            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz + in2Sz,
+            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, pkiMsg, inSz + in2Sz,
                            MAX_SEQ_SZ + MAX_OID_SZ + ASN_TAG_SZ + MAX_LENGTH_SZ
                            + ASN_TAG_SZ + MAX_LENGTH_SZ, &pkiMsg, &idx)) != 0) {
                 break;
             }
 
             wc_PKCS7_StreamGetVar(pkcs7, &totalSz, 0, 0);
-            pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length :inSz;
+            if (pkcs7->stream->length > 0)
+                pkiMsgSz = pkcs7->stream->length;
         #endif
             /* Get the inner ContentInfo sequence */
             if (GetSequence_ex(pkiMsg, &idx, &length, pkiMsgSz,
@@ -3684,14 +3695,14 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
         case WC_PKCS7_VERIFY_STAGE3:
         #ifndef NO_PKCS7_STREAM
-            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz + in2Sz,
+            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, pkiMsg, inSz + in2Sz,
                             pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
                 break;
             }
 
             {
                 long rc = wc_PKCS7_GetMaxStream(pkcs7, PKCS7_DEFAULT_PEEK,
-                        in, inSz);
+                        pkiMsg, pkiMsgSz);
                 if (rc < 0) {
                     ret = (int)rc;
                     break;
@@ -3709,7 +3720,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
             /* Break out before content because it can be optional in degenerate
              * cases. */
-            if (ret != 0 && !detached)
+            if (ret != 0 && !degenerate)
                 break;
 
             /* get parts of content */
@@ -3860,7 +3871,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
         case WC_PKCS7_VERIFY_STAGE4:
         #ifndef NO_PKCS7_STREAM
-            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz + in2Sz,
+            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, pkiMsg, inSz + in2Sz,
                             pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
                 break;
             }
@@ -4041,7 +4052,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
         case WC_PKCS7_VERIFY_STAGE5:
         #ifndef NO_PKCS7_STREAM
-            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
+            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, pkiMsg, inSz + in2Sz,
                             pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
                 break;
             }
@@ -4101,7 +4112,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
         case WC_PKCS7_VERIFY_STAGE6:
         #ifndef NO_PKCS7_STREAM
-            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz + in2Sz,
+            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, pkiMsg, inSz + in2Sz,
                             pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
                 break;
             }
@@ -9117,6 +9128,8 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
                 }
                 pkiMsgSz = (word32)rc;
             }
+        #else
+            ret = 0;
         #endif
 
             /* remove EncryptedContentInfo */
@@ -9196,6 +9209,8 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
                 ret = MEMORY_E;
                 break;
             }
+        #else
+            ret = 0;
         #endif
 
             XMEMCPY(tmpIv, &pkiMsg[idx], length);
@@ -9260,6 +9275,8 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
             decryptedKey   = pkcs7->stream->aad;
             decryptedKeySz = pkcs7->stream->aadSz;
             blockKeySz = pkcs7->stream->contentSz;
+        #else
+            ret = 0;
         #endif
             encryptedContent = (byte*)XMALLOC(encryptedContentSz, pkcs7->heap,
                                                        DYNAMIC_TYPE_PKCS7);
@@ -10196,6 +10213,8 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
 
             length = pkcs7->stream->expected;
             encodedAttribs = pkcs7->stream->aad;
+    #else
+            length = 0;
     #endif
 
             /* save pointer and length */
@@ -10990,6 +11009,8 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
             encryptedContentSz = pkcs7->stream->varThree;
             version    = pkcs7->stream->vers;
             tmpIv      = pkcs7->stream->tmpIv;
+#else
+            encOID = 0;
 #endif
             if (ret == 0 && (encryptedContent = (byte*)XMALLOC(
                   encryptedContentSz, pkcs7->heap, DYNAMIC_TYPE_PKCS7)) == NULL)
