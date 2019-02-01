@@ -21720,9 +21720,9 @@ static void test_EVP_PKEY_rsa(void)
 
     AssertNotNull(rsa = wolfSSL_RSA_new());
     AssertNotNull(pkey = wolfSSL_PKEY_new());
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign_RSA(NULL, rsa), WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign_RSA(pkey, NULL), WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign_RSA(pkey, rsa), WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_PKEY_assign_RSA(NULL, rsa), WOLFSSL_FAILURE);
+    AssertIntEQ(EVP_PKEY_assign_RSA(pkey, NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(EVP_PKEY_assign_RSA(pkey, rsa), WOLFSSL_SUCCESS);
     wolfSSL_EVP_PKEY_free(pkey);
 
     printf(resultFmt, passed);
@@ -21737,10 +21737,19 @@ static void test_EVP_PKEY_ec(void)
 
     AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
     AssertNotNull(pkey = wolfSSL_PKEY_new());
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign_EC_KEY(NULL, ecKey), WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign_EC_KEY(pkey, NULL), WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign_EC_KEY(pkey, ecKey), WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_PKEY_assign_EC_KEY(NULL, ecKey), WOLFSSL_FAILURE);
+    AssertIntEQ(EVP_PKEY_assign_EC_KEY(pkey, NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(EVP_PKEY_assign_EC_KEY(pkey, ecKey), WOLFSSL_SUCCESS);
     wolfSSL_EVP_PKEY_free(pkey);
+
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_ERR_load_crypto_strings(void)
+{
+#if defined(OPENSSL_ALL)
+    ERR_load_crypto_strings();
 
     printf(resultFmt, passed);
 #endif
@@ -21867,8 +21876,10 @@ static void test_X509_REQ(void)
     EVP_PKEY_free(pub);
     EVP_PKEY_free(priv);
 
+#ifdef FP_ECC
     wc_ecc_fp_free();
 #endif
+#endif /* HAVE_ECC */
 
     X509_NAME_free(name);
 
@@ -23361,6 +23372,8 @@ void ApiTest(void)
     /* OpenSSL EVP_PKEY API tests */
     test_EVP_PKEY_rsa();
     test_EVP_PKEY_ec();
+    /* OpenSSL error API tests */
+    test_ERR_load_crypto_strings();
     /* OpenSSL sk_X509 API test */
     test_sk_X509();
     /* OpenSSL X509 API test */

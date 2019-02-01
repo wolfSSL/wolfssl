@@ -559,8 +559,8 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_get_cipherbyname          wolfSSL_EVP_get_cipherbyname
 #define EVP_get_digestbyname          wolfSSL_EVP_get_digestbyname
 
-#define EVP_PKEY_asign_RSA             wolfSSL_EVP_PKEY_assign_RSA
-#define EVP_PKEY_asign_EC_KEY          wolfSSL_EVP_PKEY_assign_EC_KEY
+#define EVP_PKEY_assign_RSA            wolfSSL_EVP_PKEY_assign_RSA
+#define EVP_PKEY_assign_EC_KEY         wolfSSL_EVP_PKEY_assign_EC_KEY
 #define EVP_PKEY_get1_DSA              wolfSSL_EVP_PKEY_get1_DSA
 #define EVP_PKEY_get1_RSA              wolfSSL_EVP_PKEY_get1_RSA
 #define EVP_PKEY_get1_DSA              wolfSSL_EVP_PKEY_get1_DSA
