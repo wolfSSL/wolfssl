@@ -4145,7 +4145,9 @@ exit_rsa_verify:
     }
 
     FREE_ARRAY_DYNAMIC(enc, BENCH_MAX_PENDING, HEAP_HINT);
+#if !defined(WOLFSSL_RSA_VERIFY_INLINE) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     FREE_ARRAY_DYNAMIC(out, BENCH_MAX_PENDING, HEAP_HINT);
+#endif
     FREE_VAR(message, HEAP_HINT);
 }
 

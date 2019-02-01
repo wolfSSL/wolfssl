@@ -56,8 +56,8 @@
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/arc4.h>
 
-#if defined(WC_NO_RNG) && defined(USE_FAST_MATH)
-    #include <wolfssl/wolfcrypt/tfm.h>
+#if defined(WC_NO_RNG)
+    #include <wolfssl/wolfcrypt/integer.h>
 #else
     #include <wolfssl/wolfcrypt/random.h>
 #endif

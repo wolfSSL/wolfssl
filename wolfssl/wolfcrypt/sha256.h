@@ -135,9 +135,6 @@ typedef struct wc_Sha256 {
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
     void*   heap;
-#ifdef USE_INTEL_SPEEDUP
-    const byte* data;
-#endif
 #ifdef WOLFSSL_PIC32MZ_HASH
     hashUpdCache cache; /* cache for updates */
 #endif
