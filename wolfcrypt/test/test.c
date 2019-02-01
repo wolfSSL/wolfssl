@@ -22896,6 +22896,26 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         info->rng.rng->devId = devIdArg;
     #endif
     }
+    else if (info->algo_type == WC_ALGO_TYPE_SEED) {
+    #ifndef WC_NO_RNG
+        static byte seed[] = { 0x00, 0x00, 0x00, 0x01 };
+        word32 len;
+        int i;
+
+        /* wc_GenerateSeed is a local symbol so we need to fake the entropy. */
+        while (info->seed.sz > 0) {
+            len = (word32)sizeof(seed);
+            if (info->seed.sz < len)
+                len = info->seed.sz;
+            XMEMCPY(info->seed.seed, seed, sizeof(seed));
+            info->seed.seed += len;
+            info->seed.sz -= len;
+            (*((word32*)seed))++;
+        }
+
+        ret = 0;
+    #endif
+    }
     else if (info->algo_type == WC_ALGO_TYPE_PK) {
     #ifdef DEBUG_WOLFSSL
         printf("CryptoDevCb: Pk Type %d\n", info->pk.type);

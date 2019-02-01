@@ -543,8 +543,9 @@
         WC_ALGO_TYPE_CIPHER = 2,
         WC_ALGO_TYPE_PK = 3,
         WC_ALGO_TYPE_RNG = 4,
+        WC_ALGO_TYPE_SEED = 5,
 
-        WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_RNG
+        WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_SEED
     };
 
     /* hash types */

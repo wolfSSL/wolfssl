@@ -169,6 +169,11 @@ typedef struct wc_CryptoInfo {
         byte* out;
         word32 sz;
     } rng;
+    struct {
+        OS_Seed* os;
+        byte* seed;
+        word32 sz;
+    } seed;
 #endif
 } wc_CryptoInfo;
 
@@ -240,6 +245,7 @@ WOLFSSL_LOCAL int wc_CryptoCb_Sha256Hash(wc_Sha256* sha256, const byte* in,
 
 #ifndef WC_NO_RNG
 WOLFSSL_LOCAL int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz);
+WOLFSSL_LOCAL int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz);
 #endif
 
 #endif /* WOLF_CRYPTO_CB */

@@ -468,6 +468,29 @@ int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz)
 
     return ret;
 }
+
+int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz)
+{
+    int ret = NOT_COMPILED_IN;
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(os->devId);
+    if (dev) {
+        if (dev->cb) {
+            wc_CryptoInfo cryptoInfo;
+            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+            cryptoInfo.algo_type = WC_ALGO_TYPE_SEED;
+            cryptoInfo.seed.os = os;
+            cryptoInfo.seed.seed = seed;
+            cryptoInfo.seed.sz = sz;
+
+            ret = dev->cb(os->devId, &cryptoInfo, dev->ctx);
+        }
+    }
+
+    return ret;
+}
 #endif /* !WC_NO_RNG */
 
 #endif /* WOLF_CRYPTO_CB */
