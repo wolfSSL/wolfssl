@@ -7311,7 +7311,8 @@ static int DecodeSubjKeyId(const byte* input, int sz, DecodedCert* cert)
     if (ret < 0)
         return ret;
 
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+        !defined(WOLFSSL_QT)
         cert->extSubjKeyIdSrc = &input[idx];
         cert->extSubjKeyIdSz = length;
     #endif /* OPENSSL_EXTRA */
@@ -7720,6 +7721,10 @@ static int DecodeCertExtensions(DecodedCert* cert)
     int sz = cert->extensionsSz;
     const byte* input = cert->extensions;
     int length;
+    #ifdef WOLFSSL_QT
+    int tmpIdx;
+    int tmpLen;
+    #endif
     word32 oid;
     byte critical = 0;
     byte criticalFail = 0;
@@ -7749,6 +7754,11 @@ static int DecodeCertExtensions(DecodedCert* cert)
             WOLFSSL_MSG("\tfail: should be a SEQUENCE");
             return ASN_PARSE_E;
         }
+
+        #ifdef WOLFSSL_QT
+        tmpIdx = idx;
+        tmpLen = length;
+        #endif
 
         oid = 0;
         if ((ret = GetObjectId(input, &idx, &oid, oidCertExtType, sz)) < 0) {
@@ -7852,6 +7862,12 @@ static int DecodeCertExtensions(DecodedCert* cert)
 
                 if (DecodeSubjKeyId(&input[idx], length, cert) < 0)
                     return ASN_PARSE_E;
+                #if defined(WOLFSSL_QT)
+                    /* QT calls OBJ_obj2txt(), which expects extensions to begin
+                     * at the Object Identifier */
+                    cert->extSubjKeyIdSrc = &input[tmpIdx];
+                    cert->extSubjKeyIdSz = tmpLen;
+                #endif
                 break;
 
             case CERT_POLICY_OID:

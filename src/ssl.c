@@ -7596,7 +7596,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
 
                         /* set app derefrenced pointers */
                         obj->d.ia5_internal.data   = dns->name;
-                        obj->d.ia5_internal.length = (int)XSTRLEN(dns->name);
+                        obj->d.ia5_internal.length = dns->len;
 
                         #ifdef WOLFSSL_QT
                         /* Set General Name */
