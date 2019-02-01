@@ -40,6 +40,9 @@
 /* Uncomment next line if using Micrium uC/OS-III */
 /* #define MICRIUM */
 
+/* Uncomment next line if using Deos RTOS*/
+/* #define WOLFSSL_DEOS*/
+
 /* Uncomment next line if using Mbed */
 /* #define MBED */
 
@@ -860,12 +863,6 @@ extern void uITRON4_free(void *p) ;
 #endif /* FREESCALE_KSDK_MQX */
 
 #if defined(FREESCALE_FREE_RTOS) || defined(FREESCALE_KSDK_FREERTOS)
-    /* Allows use of DH with fixed points if uncommented and NO_DH is removed */
-    /* WOLFSSL_DH_CONST */
-    /* Allows use of DH with fixed points if uncommented and NO_DH is removed */
-    /* WOLFSSL_DH_CONST */
-    /* Allows use of DH with fixed points if uncommented and NO_DH is removed */
-    /* WOLFSSL_DH_CONST */
     #define NO_FILESYSTEM
     #define WOLFSSL_CRYPT_HW_MUTEX 1
 
@@ -1161,6 +1158,55 @@ extern void uITRON4_free(void *p) ;
         #endif
     #endif /* WOLFSSL_STM32_CUBEMX */
 #endif /* WOLFSSL_STM32F2 || WOLFSSL_STM32F4 || WOLFSSL_STM32L4 || WOLFSSL_STM32F7 */
+#ifdef WOLFSSL_DEOS
+    #include <deos.h>
+    #include <timeout.h>
+    #include <socketapi.h>
+    #include <lwip-socket.h>
+    #include <mem.h>
+    #include <string.h>
+    #include <stdlib.h> /* for rand_r: pseudo-random number generator */
+    #include <stdio.h>  /* for snprintf */
+
+    /* use external memory XMALLOC, XFREE and XREALLOC functions */
+    #define XMALLOC_USER
+
+    /* disable fall-back case, malloc, realloc and free are unavailable */
+    #define WOLFSSL_NO_MALLOC
+
+    /* file sytem has not been ported since it is a seperate product. */
+
+    #define NO_FILESYSTEM
+
+    #ifdef NO_FILESYSTEM
+        #define NO_WOLFSSL_DIR
+        #define NO_WRITEV
+    #endif
+
+    #define USE_FAST_MATH
+    #define TFM_TIMING_RESISTANT
+    #define ECC_TIMING_RESISTANT
+    #define WC_RSA_BLINDING
+
+    #define HAVE_ECC
+    #define ALT_ECC_SIZE
+    #define TFM_ECC192
+    #define TFM_ECC224
+    #define TFM_ECC256
+    #define TFM_ECC384
+    #define TFM_ECC521
+
+    #define HAVE_TLS_EXTENSIONS
+    #define HAVE_SUPPORTED_CURVES
+    #define HAVE_EXTENDED_MASTER
+
+    #if (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+        #define BIG_ENDIAN_ORDER
+    #else
+        #undef  BIG_ENDIAN_ORDER
+        #define LITTLE_ENDIAN_ORDER
+    #endif
+#endif /* WOLFSSL_DEOS*/
 
 #ifdef MICRIUM
     #include <stdlib.h>

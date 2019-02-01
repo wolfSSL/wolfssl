@@ -60,6 +60,10 @@
 
     #undef printf
     #define printf PRINTF
+#elif defined(WOLFSSL_DEOS)
+    #include <deos.h>
+    #undef printf
+    #define printf printx
 #elif defined(MICRIUM)
       #include <bsp_ser.h>
       void BSP_Ser_Printf (CPU_CHAR* format, ...);
@@ -5226,6 +5230,17 @@ exit_ed_verify:
     }
 #elif defined(WOLFSSL_SGX)
     double current_time(int reset);
+
+#elif defined(WOLFSSL_DEOS)
+    double current_time(int reset)
+    {
+        const uint32_t systemTickTimeInHz = 1000000 / systemTickInMicroseconds();
+        uint32_t *systemTickPtr = systemTickPointer();
+
+        (void)reset;
+
+        return (double) *systemTickPtr/systemTickTimeInHz;
+    }
 
 #elif defined(MICRIUM)
     double current_time(int reset)

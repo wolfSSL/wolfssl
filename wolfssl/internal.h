@@ -130,6 +130,9 @@
     #ifndef SINGLE_THREADED
         #include "tx_api.h"
     #endif
+
+#elif defined(WOLFSSL_DEOS)
+    /* do nothing, just don't pick Unix */
 #elif defined(MICRIUM)
     /* do nothing, just don't pick Unix */
 #elif defined(FREERTOS) || defined(FREERTOS_TCP) || defined(WOLFSSL_SAFERTOS)
@@ -2084,7 +2087,7 @@ WOLFSSL_LOCAL int   TLSX_SupportExtensions(WOLFSSL* ssl);
 WOLFSSL_LOCAL int   TLSX_PopulateExtensions(WOLFSSL* ssl, byte isRequest);
 
 #if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_CLIENT)
-WOLFSSL_LOCAL int   TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, 
+WOLFSSL_LOCAL int   TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType,
                                          word16* pLength);
 WOLFSSL_LOCAL int   TLSX_WriteRequest(WOLFSSL* ssl, byte* output,
                                        byte msgType, word16* pOffset);
@@ -2092,9 +2095,9 @@ WOLFSSL_LOCAL int   TLSX_WriteRequest(WOLFSSL* ssl, byte* output,
 
 #if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_SERVER)
 /* TLS 1.3 Certificate messages have extensions. */
-WOLFSSL_LOCAL int   TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, 
+WOLFSSL_LOCAL int   TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType,
                                           word16* pLength);
-WOLFSSL_LOCAL int   TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, 
+WOLFSSL_LOCAL int   TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType,
                                         word16* pOffset);
 #endif
 
@@ -2461,7 +2464,7 @@ enum KeyUpdateRequest {
 enum SetCBIO {
     WOLFSSL_CBIO_NONE = 0,
     WOLFSSL_CBIO_RECV = 0x1,
-    WOLFSSL_CBIO_SEND = 0x2, 
+    WOLFSSL_CBIO_SEND = 0x2,
 };
 #endif
 
@@ -4060,7 +4063,7 @@ WOLFSSL_LOCAL int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment);
         #ifdef WC_RSA_PSS
             WOLFSSL_LOCAL int CheckRsaPssPadding(const byte* plain, word32 plainSz,
                 byte* out, word32 sigSz, enum wc_HashType hashType);
-            WOLFSSL_LOCAL int ConvertHashPss(int hashAlgo, 
+            WOLFSSL_LOCAL int ConvertHashPss(int hashAlgo,
                 enum wc_HashType* hashType, int* mgf);
         #endif
         WOLFSSL_LOCAL int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig,

@@ -6284,6 +6284,15 @@ ProtocolVersion MakeDTLSv1_2(void)
         return (word32)rtp_get_system_sec();
     }
 
+#elif defined(WOLFSSL_DEOS)
+
+    word32 LowResTimer(void)
+    {
+        const uint32_t systemTickTimeInHz = 1000000 / systemTickInMicroseconds();
+        uint32_t *systemTickPtr = systemTickPointer();
+
+        return (word32) *systemTickPtr/systemTickTimeInHz;
+    }
 
 #elif defined(MICRIUM)
 
@@ -10665,8 +10674,10 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif
 
     /* make sure can read the message */
-    if (*inOutIdx + size > totalSz)
+    if (*inOutIdx + size > totalSz) {
+        WOLFSSL_MSG("Incomplete Data");
         return INCOMPLETE_DATA;
+    }
 
     expectedIdx = *inOutIdx + size +
                   (ssl->keys.encryptionOn ? ssl->keys.padSz : 0);
@@ -10753,7 +10764,10 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     #endif
     ) {
         ret = HashInput(ssl, input + *inOutIdx, size);
-        if (ret != 0) return ret;
+        if (ret != 0) {
+            WOLFSSL_MSG("Incomplete handshake hashes");
+            return ret;
+        }
     }
 
 #ifdef OPENSSL_EXTRA
