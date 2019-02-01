@@ -9646,6 +9646,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->ctx->method->version) &&
                         msgType != client_hello &&
+                        msgType != server_hello &&
                         msgType != encrypted_extensions) {
                     return EXT_NOT_ALLOWED;
                 }
