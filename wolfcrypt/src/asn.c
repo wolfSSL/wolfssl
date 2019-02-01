@@ -1,6 +1,6 @@
 /* asn.c
  *
- * Copyright (C) 2006-2019 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -4111,53 +4111,50 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
                         word32 inSz)
 {
     int    length;
-    #ifdef OPENSSL_EXTRA
-    int    ret;
+    int    ret = 0;
+    int    temp = 0;
     word32 oid;
-    #endif
 
-    if (input == NULL || inOutIdx == NULL || key == NULL) {
+    if (input == NULL || inOutIdx == NULL || key == NULL)
         return BAD_FUNC_ARG;
-    }
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
-
-    #ifdef OPENSSL_EXTRA
-    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
-        return ASN_PARSE_E;
-
-    ret = GetObjectId(input, inOutIdx, &oid, oidIgnoreType, inSz);
-    if (ret != 0)
-        return ret;
-
-    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
-        return ASN_PARSE_E;
-    #endif
-
-    {
-        int i;
-        for (i = 0; i<(int)inSz; i++)
-            printf("%02x", input[i]);
-        printf("\n");
-    }
-
 
     if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->q,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->g,  input, inOutIdx, inSz) < 0)
-        return ASN_DH_KEY_E;
+        GetInt(&key->g,  input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->y,  input, inOutIdx, inSz) < 0 )
+        ret = ASN_DH_KEY_E;
 
-    #ifdef OPENSSL_EXTRA
-    if (CheckBitString(input, inOutIdx, &length, inSz, 0, NULL) < 0)
-        ret = ASN_PARSE_E;
-    #endif
-    if (GetInt(&key->y,  input, inOutIdx, inSz) < 0 )
-        return ASN_DH_KEY_E;
+    if (ret != 0){
+        if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+            return ASN_PARSE_E;
 
+        temp = GetObjectId(input, inOutIdx, &oid, oidIgnoreType, inSz);
+        if (temp != 0){
+            ret = temp;
+            return ret;
+        }
+
+        if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+            return ASN_PARSE_E;
+
+        if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
+            GetInt(&key->q,  input, inOutIdx, inSz) < 0 ||
+            GetInt(&key->g,  input, inOutIdx, inSz) < 0)
+            return ASN_DH_KEY_E;
+
+        if (CheckBitString(input, inOutIdx, &length, inSz, 0, NULL) < 0)
+            return ASN_PARSE_E;
+
+        if (GetInt(&key->y,  input, inOutIdx, inSz) < 0 )
+            return ASN_DH_KEY_E;
+
+        ret = 0;
+    }
     key->type = DSA_PUBLIC;
-
-    return 0;
+    return ret;
 }
 
 
