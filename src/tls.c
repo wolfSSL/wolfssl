@@ -6287,6 +6287,8 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         ssl->arrays->preMasterSz = params->p_len;
     }
 
+    ssl->options.dhKeySz = params->p_len;
+
     wc_FreeDhKey(dhKey);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(dhKey, ssl->heap, DYNAMIC_TYPE_DH);
