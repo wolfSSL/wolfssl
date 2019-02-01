@@ -7332,7 +7332,6 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         return &ex->value;
     }
 
-#if !defined(NO_WOLFSSL_STUB)
     const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get\
         (WOLFSSL_X509_EXTENSION* ex)
     {
@@ -7365,8 +7364,6 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 
         return (const WOLFSSL_v3_ext_method*)&ex->ext_method;
     }
-
-#endif
 
     /* Parses and returns an x509v3 extension internal structure.
     *  (i.e. if basicConstraints, return pointer to a BASIC_CONSTRAINTS
@@ -16691,16 +16688,21 @@ int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, \
     return in->length;
 }
 
-
-#ifndef NO_WOLFSSL_STUB
 char* wolfSSL_i2s_ASN1_STRING(WOLFSSL_v3_ext_method *method, const WOLFSSL_ASN1_STRING *s)
 {
+    unsigned char* strData = NULL;
+
     WOLFSSL_STUB("wolfSSL_i2s_ASN1_STRING");
     (void)method;
-    (void)s;
-    return NULL;
+
+    if(!s->data) {
+        WOLFSSL_MSG("Bad Function Argument");
+        return NULL;
+    }
+
+    wolfSSL_ASN1_STRING_to_UTF8(&strData, s);
+    return (char*)strData;
 }
-#endif /* NO_WOLFSSL_STUB */
 #endif /* NO_ASN */
 
 void wolfSSL_set_connect_state(WOLFSSL* ssl)
