@@ -7351,10 +7351,18 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
             WOLFSSL_MSG("Failed to get nid from passed extension object");
             return NULL;
         }
-        else{
-            method.ext_nid = nid;
-            ex->ext_method = method;
+
+        switch (nid) {
+            case NID_basic_constraints:
+                break;
+            case NID_subject_key_identifier:
+                method.i2s = (X509V3_EXT_I2S)wolfSSL_i2s_ASN1_STRING;
+                break;
         }
+
+        method.ext_nid = nid;
+        ex->ext_method = method;
+
         return (const WOLFSSL_v3_ext_method*)&ex->ext_method;
     }
 
@@ -7422,7 +7430,11 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
             /* subjectKeyIdentifier */
             case (NID_subject_key_identifier):
                 WOLFSSL_MSG("subjectKeyIdentifier not implemented yet");
-                return method->d2i(NULL, NULL, -1);
+                WOLFSSL_ASN1_STRING* s;
+                s = wolfSSL_ASN1_STRING_new();
+                if (s == NULL)
+                   WOLFSSL_MSG("Failed to create new ASN1_STRING");
+                return s;
 
             /* authorityKeyIdentifier */
             case (NID_authority_key_identifier):
@@ -16678,6 +16690,17 @@ int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, \
 
     return in->length;
 }
+
+
+#ifndef NO_WOLFSSL_STUB
+char* wolfSSL_i2s_ASN1_STRING(WOLFSSL_v3_ext_method *method, const WOLFSSL_ASN1_STRING *s)
+{
+    WOLFSSL_STUB("wolfSSL_i2s_ASN1_STRING");
+    (void)method;
+    (void)s;
+    return NULL;
+}
+#endif /* NO_WOLFSSL_STUB */
 #endif /* NO_ASN */
 
 void wolfSSL_set_connect_state(WOLFSSL* ssl)
