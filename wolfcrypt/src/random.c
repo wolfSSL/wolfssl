@@ -2176,11 +2176,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         int ret = 0;
 
 #ifdef WOLF_CRYPTO_CB
-        if (os != NULL && os->devId != INVALID_DEVID) {
-            ret = wc_CryptoCb_RandomSeed(os, output, sz);
-            if (ret != NOT_COMPILED_IN)
-                return ret;
-        }
+    if (os != NULL && os->devId != INVALID_DEVID) {
+        ret = wc_CryptoCb_RandomSeed(os, output, sz);
+        if (ret != NOT_COMPILED_IN)
+            return ret;
+        /* fall-through on not compiled in */
+        ret = 0; /* reset error code */
+    }
 #endif
 
     #ifdef HAVE_INTEL_RDSEED
