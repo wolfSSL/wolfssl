@@ -22884,6 +22884,10 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     if (info == NULL)
         return BAD_FUNC_ARG;
 
+#ifdef DEBUG_WOLFSSL
+    printf("CryptoDevCb: Algo Type %d\n", info->algo_type);
+#endif
+
     if (info->algo_type == WC_ALGO_TYPE_RNG) {
     #ifndef WC_NO_RNG
         /* set devId to invalid, so software is used */
@@ -23087,6 +23091,9 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     else if (info->algo_type == WC_ALGO_TYPE_HASH) {
     #if !defined(NO_SHA)
         if (info->hash.type == WC_HASH_TYPE_SHA) {
+            if (info->hash.sha1 == NULL)
+                return NOT_COMPILED_IN;
+
             /* set devId to invalid, so software is used */
             info->hash.sha1->devId = INVALID_DEVID;
 
@@ -23109,6 +23116,9 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif
     #if !defined(NO_SHA256)
         if (info->hash.type == WC_HASH_TYPE_SHA256) {
+            if (info->hash.sha256 == NULL)
+                return NOT_COMPILED_IN;
+
             /* set devId to invalid, so software is used */
             info->hash.sha256->devId = INVALID_DEVID;
 
@@ -23130,6 +23140,30 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif
     }
 #endif /* !NO_SHA || !NO_SHA256 */
+#ifndef NO_HMAC
+    else if (info->algo_type == WC_ALGO_TYPE_HMAC) {
+        if (info->hmac.hmac == NULL)
+            return NOT_COMPILED_IN;
+
+        /* set devId to invalid, so software is used */
+        info->hmac.hmac->devId = INVALID_DEVID;
+
+        if (info->hash.in != NULL) {
+            ret = wc_HmacUpdate(
+                info->hmac.hmac,
+                info->hmac.in,
+                info->hmac.inSz);
+        }
+        else if (info->hash.digest != NULL) {
+            ret = wc_HmacFinal(
+                info->hmac.hmac,
+                info->hmac.digest);
+        }
+
+        /* reset devId */
+        info->hmac.hmac->devId = devIdArg;
+    }
+#endif
 
     (void)devIdArg;
     (void)myCtx;
@@ -23179,6 +23213,16 @@ int cryptocb_test(void)
     #ifndef NO_SHA256
     if (ret == 0)
         ret = sha256_test();
+    #endif
+#endif
+#ifndef NO_HMAC
+    #ifndef NO_SHA
+    if (ret == 0)
+        ret = hmac_sha_test();
+    #endif
+    #ifndef NO_SHA256
+    if (ret == 0)
+        ret = hmac_sha256_test();
     #endif
 #endif
 

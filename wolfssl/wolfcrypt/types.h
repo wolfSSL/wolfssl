@@ -544,8 +544,9 @@
         WC_ALGO_TYPE_PK = 3,
         WC_ALGO_TYPE_RNG = 4,
         WC_ALGO_TYPE_SEED = 5,
+        WC_ALGO_TYPE_HMAC = 6,
 
-        WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_SEED
+        WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_HMAC
     };
 
     /* hash types */

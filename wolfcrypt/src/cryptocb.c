@@ -491,6 +491,38 @@ int wc_CryptoCb_Sha256Hash(wc_Sha256* sha256, const byte* in,
 }
 #endif /* !NO_SHA256 */
 
+#ifndef NO_HMAC
+int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in, word32 inSz, byte* digest)
+{
+    int ret = NOT_COMPILED_IN;
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    if (hmac) {
+        dev = wc_CryptoCb_FindDevice(hmac->devId);
+    }
+    else {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_HMAC;
+        cryptoInfo.hmac.macType = macType;
+        cryptoInfo.hmac.in = in;
+        cryptoInfo.hmac.inSz = inSz;
+        cryptoInfo.hmac.digest = digest;
+        cryptoInfo.hmac.hmac = hmac;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return ret;
+}
+#endif /* !NO_HMAC */
+
 #ifndef WC_NO_RNG
 int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz)
 {
@@ -527,17 +559,15 @@ int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz)
 
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(os->devId);
-    if (dev) {
-        if (dev->cb) {
-            wc_CryptoInfo cryptoInfo;
-            XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
-            cryptoInfo.algo_type = WC_ALGO_TYPE_SEED;
-            cryptoInfo.seed.os = os;
-            cryptoInfo.seed.seed = seed;
-            cryptoInfo.seed.sz = sz;
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_SEED;
+        cryptoInfo.seed.os = os;
+        cryptoInfo.seed.seed = seed;
+        cryptoInfo.seed.sz = sz;
 
-            ret = dev->cb(os->devId, &cryptoInfo, dev->ctx);
-        }
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
     return ret;
