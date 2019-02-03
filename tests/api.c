@@ -23823,6 +23823,36 @@ static void test_EVP_PKEY_set1_get1_DSA (void)
 #endif /* NO_DSA */
 } /* END test_EVP_PKEY_set1_get1_DSA */
 
+static void test_EVP_PKEY_set1_get1_EC_KEY (void)
+{
+#ifdef HAVE_ECC
+    WOLFSSL_EC_KEY  *ecKey  = NULL;
+    WOLFSSL_EC_KEY  *ecGet1  = NULL;
+    EVP_PKEY  *pkey = NULL;
+
+    printf(testingFmt, "wolfSSL_EVP_PKEY_set1_EC_KEY and wolfSSL_EVP_PKEY_get1_EC_KEY");
+    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
+    AssertNotNull(pkey = wolfSSL_PKEY_new());
+
+    /* Test wolfSSL_EVP_PKEY_set1_EC_KEY */
+    AssertIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(NULL, ecKey), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(pkey, NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(pkey, ecKey), WOLFSSL_SUCCESS);
+
+    /* Test wolfSSL_EVP_PKEY_get1_EC_KEY */
+    AssertNull(wolfSSL_EVP_PKEY_get1_EC_KEY(NULL));
+    AssertNotNull(ecGet1 = wolfSSL_EVP_PKEY_get1_EC_KEY(pkey));
+
+    wolfSSL_EC_KEY_free(ecKey);
+    wolfSSL_EC_KEY_free(ecGet1);
+    EVP_PKEY_free(pkey);
+
+    /* PASSED */
+    printf(resultFmt, passed);
+#endif /* HAVE_ECC */
+} /* END test_EVP_PKEY_set1_get1_EC_KEY */
+
+
 static void test_wolfSSL_CTX_ctrl(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
@@ -24105,6 +24135,7 @@ static void test_EC_get_builtin_curves(void)
     size_t numCurves, x;
     EC_builtin_curve r[max_items];
 
+    printf(testingFmt, "wolfSSL_EC_get_builtin_curves");
     SSL_library_init();
 
     /* Test invalid NULL EC_builtin_curve */
@@ -24137,6 +24168,92 @@ static void test_EC_get_builtin_curves(void)
 
 #endif /* HAVE_ECC */
 }
+
+static void test_wolfSSL_EVP_PKEY_assign(void)
+{
+#if defined(OPENSSL_ALL)
+    int type;
+    WOLFSSL_EVP_PKEY* pkey;
+#ifndef NO_RSA
+    WOLFSSL_RSA* rsa;
+#endif
+#ifndef NO_DSA
+    WOLFSSL_DSA* dsa;
+#endif
+#ifdef HAVE_ECC
+    WOLFSSL_EC_KEY* ecKey;
+#endif
+
+    printf(testingFmt, "wolfSSL_EVP_PKEY_assign");
+#ifndef NO_RSA
+    type = EVP_PKEY_RSA;
+    AssertNotNull(pkey = wolfSSL_PKEY_new());
+    AssertNotNull(rsa = wolfSSL_RSA_new());
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(NULL,type,rsa),  WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,-1,rsa),    WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,rsa),  WOLFSSL_SUCCESS);
+    wolfSSL_EVP_PKEY_free(pkey);
+#endif /* NO_RSA */
+
+#ifndef NO_DSA
+    type = EVP_PKEY_DSA;
+    AssertNotNull(pkey = wolfSSL_PKEY_new());
+    AssertNotNull(dsa = wolfSSL_DSA_new());
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(NULL,type,dsa),  WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,-1,dsa),    WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,dsa),  WOLFSSL_SUCCESS);
+    wolfSSL_EVP_PKEY_free(pkey);
+#endif /* NO_DSA */
+
+#ifdef HAVE_ECC
+    type = EVP_PKEY_EC;
+    AssertNotNull(pkey = wolfSSL_PKEY_new());
+    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(NULL,type,ecKey),  WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,-1,rsa),    WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,rsa),    WOLFSSL_SUCCESS);
+#endif /* HAVE_ECC */
+    printf(resultFmt, passed);
+#endif /* OPENSSL_ALL */
+}
+
+static void test_OBJ_ln2nid(void)
+{
+    int i = 0, maxIdx = 7;
+    const int nid_set[] = {NID_commonName,NID_countryName,NID_localityName,
+                           NID_stateOrProvinceName,NID_organizationName,
+                           NID_organizationalUnitName,NID_emailAddress};
+    const char* ln_set[] = {WOLFSSL_LN_COMMON_NAME,WOLFSSL_LN_COUNTRY_NAME,
+                            WOLFSSL_LN_LOCALITY_NAME,WOLFSSL_LN_STATE_NAME,
+                            WOLFSSL_LN_ORG_NAME,WOLFSSL_LN_ORGUNIT_NAME,
+                            WOLFSSL_EMAIL_ADDR};
+#ifdef HAVE_ECC
+    int nCurves = 27;
+    EC_builtin_curve r[nCurves];
+#endif
+
+    printf(testingFmt, "wolfSSL_OBJ_ln2nid");
+
+    /* Test NULL failure case: Failures return NID_undef */
+    AssertIntEQ(wolfSSL_OBJ_ln2nid(NULL), NID_undef);
+
+#ifdef HAVE_ECC
+    EC_get_builtin_curves(r,nCurves);
+
+    for (i = 0; i < nCurves; i++) {
+        AssertIntEQ(wolfSSL_OBJ_ln2nid(r[i].comment), r[i].nid);
+    }
+#endif
+    for (i = 0; i < maxIdx; i++) {
+        AssertIntEQ(wolfSSL_OBJ_ln2nid(ln_set[i]), nid_set[i]);
+    }
+
+    printf(resultFmt, passed);
+}
+
 
 #endif /*end of Qt unit tests*/
 
@@ -26295,10 +26412,13 @@ void ApiTest(void)
     test_wolfSSL_ASN1_STRING_to_UTF8();
     test_wolfSSL_EC_KEY_dup();
     test_EVP_PKEY_set1_get1_DSA();
+    test_EVP_PKEY_set1_get1_EC_KEY();
     test_wolfSSL_CTX_ctrl();
     test_wolfSSL_DH_check();
     test_wolfSSL_ASN1_STRING_print();
     test_EC_get_builtin_curves();
+    test_wolfSSL_EVP_PKEY_assign();
+    test_OBJ_ln2nid();
 
     printf("\n-------------End Of Qt Unit Tests---------------\n");
 
