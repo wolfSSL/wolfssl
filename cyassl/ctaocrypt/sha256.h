@@ -21,7 +21,6 @@
 
 
 
-/* code submitted by raphael.huck@efixo.com */
 
 
 #ifndef NO_SHA256

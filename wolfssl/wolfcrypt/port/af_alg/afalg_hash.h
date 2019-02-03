@@ -39,8 +39,11 @@ typedef struct {
 
 
 
-#if !defined(NO_SHA256)
+#if !defined(NO_SHA256) && defined(WOLFSSL_AFALG_HASH)
     typedef wolfssl_AFALG_Hash wc_Sha256;
+#endif
+#if defined(WOLFSSL_SHA3) && defined(WOLFSSL_AFALG_XILINX_SHA3)
+    typedef wolfssl_AFALG_Hash wc_Sha3;
 #endif
 
 #endif /* WOLF_CRYPT_AFALG_HASH_H  */

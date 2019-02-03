@@ -68,8 +68,8 @@
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
 
-#ifdef WOLF_CRYPTO_DEV
-    #include <wolfssl/wolfcrypt/cryptodev.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
 #ifdef _MSC_VER
@@ -101,8 +101,8 @@ int wolfCrypt_Init(void)
         }
     #endif
 
-    #ifdef WOLF_CRYPTO_DEV
-        wc_CryptoDev_Init();
+    #ifdef WOLF_CRYPTO_CB
+        wc_CryptoCb_Init();
     #endif
 
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -832,6 +832,72 @@ int wolfSSL_CryptHwMutexUnLock(void) {
             return 0;
         else
             return BAD_MUTEX_E;
+    }
+
+#elif defined(WOLFSSL_DEOS)
+
+    int wc_InitMutex(wolfSSL_Mutex* m)
+    {
+        mutexStatus mutStat;
+        /*
+        The empty string "" denotes an anonymous mutex, so objects do not cause name collisions.
+        `protectWolfSSLTemp` in an XML configuration element template describing a mutex.
+        */
+        if (m) {
+            mutStat = createMutex("", "protectWolfSSLTemp", m);
+            if (mutStat == mutexSuccess)
+                return 0;
+            else{
+                WOLFSSL_MSG("wc_InitMutex failed");
+                return mutStat;
+            }
+        }
+        return BAD_MUTEX_E;
+    }
+
+    int wc_FreeMutex(wolfSSL_Mutex* m)
+    {
+        mutexStatus mutStat;
+        if (m) {
+            mutStat = deleteMutex(*m);
+            if (mutStat == mutexSuccess)
+                return 0;
+            else{
+                WOLFSSL_MSG("wc_FreeMutex failed");
+                return mutStat;
+            }
+        }
+        return BAD_MUTEX_E;
+    }
+
+    int wc_LockMutex(wolfSSL_Mutex* m)
+    {
+        mutexStatus mutStat;
+        if (m) {
+            mutStat = lockMutex(*m);
+            if (mutStat == mutexSuccess)
+                return 0;
+            else{
+                WOLFSSL_MSG("wc_LockMutex failed");
+                return mutStat;
+            }
+        }
+        return BAD_MUTEX_E;
+    }
+
+    int wc_UnLockMutex(wolfSSL_Mutex* m)
+    {
+        mutexStatus mutStat;
+        if (m) {
+            mutStat = unlockMutex(*m);
+            if (mutStat== mutexSuccess)
+                return 0;
+            else{
+                WOLFSSL_MSG("wc_UnLockMutex failed");
+                return mutStat;
+            }
+        }
+        return BAD_MUTEX_E;
     }
 
 #elif defined(MICRIUM)
@@ -1590,6 +1656,26 @@ time_t pic32_time(time_t* timer)
 }
 
 #endif /* MICROCHIP_TCPIP || MICROCHIP_TCPIP_V5 */
+
+#if defined(WOLFSSL_DEOS)
+
+time_t deos_time(time_t* timer)
+{
+    const uint32_t systemTickTimeInHz = 1000000 / systemTickInMicroseconds();
+    uint32_t *systemTickPtr = systemTickPointer();
+
+    if (timer != NULL)
+        *timer = *systemTickPtr/systemTickTimeInHz;
+
+    #if defined(CURRENT_UNIX_TIMESTAMP)
+        /* CURRENT_UNIX_TIMESTAMP is seconds since Jan 01 1970. (UTC) */
+        return (time_t) *systemTickPtr/systemTickTimeInHz + CURRENT_UNIX_TIMESTAMP;
+    #else
+        return (time_t) *systemTickPtr/systemTickTimeInHz;
+    #endif
+}
+#endif /* WOLFSSL_DEOS */
+
 
 #if defined(MICRIUM)
 

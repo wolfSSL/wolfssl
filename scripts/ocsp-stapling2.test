@@ -354,6 +354,42 @@ CLI_PORT=`cat $ready_file5`
 RESULT=$?
 [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection suceeded $RESULT" && exit 1
 printf '%s\n\n' "Test successfully REVOKED!"
+printf '%s\n\n' "------------- TEST CASE 7 LOAD CERT IN SSL -------------------"
+remove_single_rF $ready_file5
+./examples/server/server -c certs/ocsp/server1-cert.pem \
+                         -k certs/ocsp/server1-key.pem -R $ready_file5 \
+                         -p $resume_port -H loadSSL &
+wolf_pid=$!
+wait_for_readyFile $ready_file5
+CLI_PORT=`cat $ready_file5`
+echo "test connection" | openssl s_client -status -connect 127.0.0.1:$CLI_PORT -cert ./certs/client-cert.pem -key ./certs/client-key.pem -CAfile ./certs/ocsp/root-ca-cert.pem
+RESULT=$?
+[ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection failed $RESULT" && exit 1
+wait $wolf_pid
+if [ $? -ne 0 ]; then
+    printf '%s\n' "Unexpected server result"
+    exit 1
+fi
+printf '%s\n\n' "Test successful"
+printf '%s\n\n' "------------- TEST CASE 8 SHOULD REVOKE ----------------------"
+remove_single_rF $ready_file5
+./examples/server/server -c certs/ocsp/server4-cert.pem \
+                         -k certs/ocsp/server4-key.pem -R $ready_file5 \
+                         -p $resume_port -H loadSSL &
+wolf_pid=$!
+sleep 1
+CLI_PORT=`cat $ready_file5`
+./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
+                         -p $CLI_PORT
+RESULT=$?
+[ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection suceeded $RESULT" && exit 1
+wait $wolf_pid
+if [ $? -ne 1 ]; then
+    printf '%s\n' "Unexpected server result"
+    exit 1
+fi
+printf '%s\n\n' "Test successfully REVOKED!"
+
 printf '%s\n\n' "------------------- TESTS COMPLETE ---------------------------"
 
 exit 0

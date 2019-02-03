@@ -29,7 +29,8 @@
 /* Make sure WOLFSSL_SP_ASM build option defined when requested */
 #if !defined(WOLFSSL_SP_ASM) && ( \
       defined(WOLFSSL_SP_X86_64_ASM) || defined(WOLFSSL_SP_ARM32_ASM) || \
-      defined(WOLFSSL_SP_ARM64_ASM)  || defined(WOLFSSL_SP_ARM_THUMB_ASM))
+      defined(WOLFSSL_SP_ARM64_ASM)  || defined(WOLFSSL_SP_ARM_THUMB_ASM) || \
+      defined(WOLFSSL_SP_ARM_CORTEX_M_ASM))
     #define WOLFSSL_SP_ASM
 #endif
 

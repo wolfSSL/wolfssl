@@ -123,6 +123,10 @@ typedef struct wc_Sha {
     #ifdef WOLFSSL_ASYNC_CRYPT
         WC_ASYNC_DEV asyncDev;
     #endif /* WOLFSSL_ASYNC_CRYPT */
+    #ifdef WOLF_CRYPTO_CB
+        int    devId;
+        void*  devCtx; /* generic crypto callback context */
+    #endif
 #endif
 #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)

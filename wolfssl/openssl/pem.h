@@ -33,6 +33,7 @@
 #include <wolfssl/openssl/bio.h>
 #include <wolfssl/openssl/rsa.h>
 #include <wolfssl/openssl/dsa.h>
+#include <wolfssl/ssl.h>
 
 #ifdef __cplusplus
     extern "C" {

@@ -1,6 +1,6 @@
 ﻿/* atmel.c
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -338,7 +338,7 @@ int atmel_ecc_create_pms(int slotId, const uint8_t* peerKey, uint8_t* pms)
     int slotIdEnc;
 
     slotIdEnc = atmel_ecc_alloc(ATMEL_SLOT_ECDHE_ENC);
-    if (slotIdEnc != ATECC_INVALID_SLOT)
+    if (slotIdEnc == ATECC_INVALID_SLOT)
         return BAD_FUNC_ARG;
 
     /* get encryption key */
@@ -402,7 +402,7 @@ int atmel_init(void)
     #endif
 
         /* Init the free slotId list */
-        for (i=0; i<=ATECC_MAX_SLOT; i++) {
+        for (i=0; i<ATECC_MAX_SLOT; i++) {
             if (i == ATECC_SLOT_AUTH_PRIV || i == ATECC_SLOT_I2C_ENC) {
                 mSlotList[i] = i;
             }
@@ -603,7 +603,7 @@ int atcatls_create_pms_cb(WOLFSSL* ssl, ecc_key* otherKey,
         }
 
         ret = atmel_ecc_create_pms(tmpKey.slot, peerKey, out);
-        *outlen = ATECC_SIG_SIZE;
+        *outlen = ATECC_KEY_SIZE;
 
     #ifndef WOLFSSL_ATECC508A_NOIDLE
         /* put chip into idle to prevent watchdog situation on chip */

@@ -138,6 +138,9 @@ typedef struct OS_Seed {
     #else
         int fd;
     #endif
+    #if defined(WOLF_CRYPTO_CB)
+        int devId;
+    #endif
 } OS_Seed;
 
 
@@ -157,6 +160,8 @@ struct WC_RNG {
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
+#endif
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     int devId;
 #endif
 };

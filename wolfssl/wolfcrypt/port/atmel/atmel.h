@@ -39,7 +39,7 @@
 #define ATECC_PUBKEY_SIZE   (ATECC_KEY_SIZE*2) /* X and Y */
 #define ATECC_SIG_SIZE      (ATECC_KEY_SIZE*2) /* R and S */
 #ifndef ATECC_MAX_SLOT
-#define ATECC_MAX_SLOT      (0x7) /* Only use 0-7 */
+#define ATECC_MAX_SLOT      (0x8) /* Only use 0-7 */
 #endif
 #define ATECC_INVALID_SLOT  (0xFF)
 
