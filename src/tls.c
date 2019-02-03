@@ -9654,6 +9654,11 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                          msgType == encrypted_extensions) {
                     return EXT_NOT_ALLOWED;
                 }
+                else if (IsAtLeastTLSv1_3(ssl->ctx->method->version) &&
+                        msgType == server_hello &&
+                        !ssl->options.downgrade) {
+                    return EXT_NOT_ALLOWED;
+                }
 #endif
                 ret = EC_PARSE(ssl, input + offset, size, isRequest);
                 break;
