@@ -7721,10 +7721,6 @@ static int DecodeCertExtensions(DecodedCert* cert)
     int sz = cert->extensionsSz;
     const byte* input = cert->extensions;
     int length;
-    #ifdef WOLFSSL_QT
-    int tmpIdx;
-    int tmpLen;
-    #endif
     word32 oid;
     byte critical = 0;
     byte criticalFail = 0;
@@ -7754,11 +7750,6 @@ static int DecodeCertExtensions(DecodedCert* cert)
             WOLFSSL_MSG("\tfail: should be a SEQUENCE");
             return ASN_PARSE_E;
         }
-
-        #ifdef WOLFSSL_QT
-        tmpIdx = idx;
-        tmpLen = length;
-        #endif
 
         oid = 0;
         if ((ret = GetObjectId(input, &idx, &oid, oidCertExtType, sz)) < 0) {
@@ -7865,8 +7856,8 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 #if defined(WOLFSSL_QT)
                     /* QT calls OBJ_obj2txt(), which expects extensions to begin
                      * at the Object Identifier */
-                    cert->extSubjKeyIdSrc = &input[tmpIdx];
-                    cert->extSubjKeyIdSz = tmpLen;
+                    cert->extSubjKeyIdSrc = &input[idx];
+                    cert->extSubjKeyIdSz = length;
                 #endif
                 break;
 

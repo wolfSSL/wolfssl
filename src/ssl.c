@@ -7429,8 +7429,10 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
                 WOLFSSL_MSG("subjectKeyIdentifier not implemented yet");
                 WOLFSSL_ASN1_STRING* s;
                 s = wolfSSL_ASN1_STRING_new();
-                if (s == NULL)
+                if (s == NULL) {
                    WOLFSSL_MSG("Failed to create new ASN1_STRING");
+                   return method->d2i(NULL, NULL, -1);
+                }
                 return s;
 
             /* authorityKeyIdentifier */
