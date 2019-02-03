@@ -27696,6 +27696,8 @@ int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
     int ret;
 
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_assign");
+
+    /* pkey and key checked if NULL in subsequent assign functions */
     switch(type) {
     #ifndef NO_RSA
         case EVP_PKEY_RSA:
@@ -27704,7 +27706,7 @@ int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
     #endif
     #ifndef NO_DSA
         case EVP_PKEY_DSA:
-            ret = wolfSSL_EVP_PKEY_set1_DSA(pkey, key);
+            ret = wolfSSL_EVP_PKEY_assign_DSA(pkey, key);
             break;
     #endif
     #ifdef HAVE_ECC
@@ -27713,13 +27715,13 @@ int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
             break;
     #endif
         default:
-            WOLFSSL_MSG("Unknown EVP_PKEY type in wolfSSL_EVP_PKEY_assign.");
-            ret = BAD_FUNC_ARG;
+            WOLFSSL_MSG("Unknown EVP_PKEY type in wolfSSL_EVP_PKEY_assign.\n");
+            ret = WOLFSSL_FAILURE;
     }
 
     return ret;
 }
-#endif /* #ifdef WOLFSSL_QT */
+#endif /* WOLFSSL_QT */
 
 void* wolfSSL_EVP_X_STATE(const WOLFSSL_EVP_CIPHER_CTX* ctx)
 {
@@ -38100,6 +38102,18 @@ int wolfSSL_EVP_PKEY_assign_RSA(EVP_PKEY* pkey, WOLFSSL_RSA* key)
     pkey->type = EVP_PKEY_RSA;
     pkey->rsa = key;
     pkey->ownRsa = 1;
+
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_EVP_PKEY_assign_DSA(EVP_PKEY* pkey, WOLFSSL_DSA* key)
+{
+    if (pkey == NULL || key == NULL)
+        return WOLFSSL_FAILURE;
+
+    pkey->type = EVP_PKEY_DSA;
+    pkey->dsa = key;
+    pkey->ownDsa = 1;
 
     return WOLFSSL_SUCCESS;
 }

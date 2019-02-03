@@ -22540,6 +22540,7 @@ static void test_EC_get_builtin_curves(void)
     size_t numCurves, x;
     EC_builtin_curve r[max_items];
 
+    printf(testingFmt, "wolfSSL_EC_get_builtin_curves");
     SSL_library_init();
 
     /* Test invalid NULL EC_builtin_curve */
@@ -22572,6 +22573,58 @@ static void test_EC_get_builtin_curves(void)
 
 #endif /* HAVE_ECC */
 }
+
+static void test_wolfSSL_EVP_PKEY_assign(void)
+{
+#if defined(OPENSSL_ALL)
+    int type;
+    WOLFSSL_EVP_PKEY* pkey;
+#ifndef NO_RSA
+    WOLFSSL_RSA* rsa;
+#endif
+#ifndef NO_DSA
+    WOLFSSL_DSA* dsa;
+#endif
+#ifdef HAVE_ECC
+    WOLFSSL_EC_KEY* ecKey;
+#endif
+
+    printf(testingFmt, "wolfSSL_EVP_PKEY_assign");
+#ifndef NO_RSA
+    type = EVP_PKEY_RSA;
+    AssertNotNull(pkey = wolfSSL_PKEY_new());
+    AssertNotNull(rsa = wolfSSL_RSA_new());
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(NULL,type,rsa),  WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,-1,rsa),    WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,rsa),  WOLFSSL_SUCCESS);
+    wolfSSL_EVP_PKEY_free(pkey);
+#endif /* NO_RSA */
+
+#ifndef NO_DSA
+    type = EVP_PKEY_DSA;
+    AssertNotNull(pkey = wolfSSL_PKEY_new());
+    AssertNotNull(dsa = wolfSSL_DSA_new());
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(NULL,type,dsa),  WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,-1,dsa),    WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,dsa),  WOLFSSL_SUCCESS);
+    wolfSSL_EVP_PKEY_free(pkey);
+#endif /* NO_DSA */
+
+#ifdef HAVE_ECC
+    type = EVP_PKEY_EC;
+    AssertNotNull(pkey = wolfSSL_PKEY_new());
+    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(NULL,type,ecKey),  WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,-1,rsa),    WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,rsa),    WOLFSSL_SUCCESS);
+#endif /* HAVE_ECC */
+    printf(resultFmt, passed);
+#endif /* OPENSSL_ALL */
+}
+
 
 #endif /*end of Qt unit tests*/
 
@@ -24656,6 +24709,7 @@ void ApiTest(void)
     test_wolfSSL_DH_check();
     test_wolfSSL_ASN1_STRING_print();
     test_EC_get_builtin_curves();
+    test_wolfSSL_EVP_PKEY_assign();
 
     printf("\n-------------End Of Qt Unit Tests---------------\n");
 
