@@ -717,4 +717,22 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
 }
 #endif /* !WOLFSSL_TI_HASH */
 
+
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+int wc_ShaSetFlags(wc_Sha* sha, word32 flags)
+{
+    if (sha) {
+        sha->flags = flags;
+    }
+    return 0;
+}
+int wc_ShaGetFlags(wc_Sha* sha, word32* flags)
+{
+    if (sha && flags) {
+        *flags = sha->flags;
+    }
+    return 0;
+}
+#endif
+
 #endif /* !NO_SHA */

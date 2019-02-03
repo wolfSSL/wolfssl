@@ -1113,6 +1113,23 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     return ret;
 }
 
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+int wc_Sha512SetFlags(wc_Sha512* sha512, word32 flags)
+{
+    if (sha512) {
+        sha512->flags = flags;
+    }
+    return 0;
+}
+int wc_Sha512GetFlags(wc_Sha512* sha512, word32* flags)
+{
+    if (sha512 && flags) {
+        *flags = sha512->flags;
+    }
+    return 0;
+}
+#endif
+
 #endif /* WOLFSSL_SHA512 */
 
 #ifdef WOLFSSL_SHA384
@@ -1167,6 +1184,23 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
 #endif
     return ret;
 }
+
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+int wc_Sha384SetFlags(wc_Sha384* sha384, word32 flags)
+{
+    if (sha384) {
+        sha384->flags = flags;
+    }
+    return 0;
+}
+int wc_Sha384GetFlags(wc_Sha384* sha384, word32* flags)
+{
+    if (sha384 && flags) {
+        *flags = sha384->flags;
+    }
+    return 0;
+}
+#endif
 
 #endif /* WOLFSSL_SHA384 */
 

@@ -54,6 +54,7 @@
 /* Crypto Information Structure for callbacks */
 typedef struct wc_CryptoInfo {
     int algo_type; /* enum wc_AlgoType */
+#if !defined(NO_RSA) || defined(HAVE_ECC)
     struct {
         int type; /* enum wc_PkType */
         union {
@@ -108,6 +109,7 @@ typedef struct wc_CryptoInfo {
         #endif
         };
     } pk;
+#endif /* !NO_RSA || HAVE_ECC */
 #ifndef NO_AES
     struct {
         int type; /* enum wc_CipherType */
@@ -149,7 +151,7 @@ typedef struct wc_CryptoInfo {
         #endif /* HAVE_AES_CBC */
         };
     } cipher;
-#endif
+#endif /* !NO_AES */
 #if !defined(NO_SHA) || !defined(NO_SHA256)
     struct {
         int type; /* enum wc_HashType */

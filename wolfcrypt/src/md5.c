@@ -440,5 +440,22 @@ int wc_Md5Copy(wc_Md5* src, wc_Md5* dst)
     return ret;
 }
 
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+int wc_Md5SetFlags(wc_Md5* md5, word32 flags)
+{
+    if (md5) {
+        md5->flags = flags;
+    }
+    return 0;
+}
+int wc_Md5GetFlags(wc_Md5* md5, word32* flags)
+{
+    if (md5 && flags) {
+        *flags = md5->flags;
+    }
+    return 0;
+}
+#endif
+
 #endif /* WOLFSSL_TI_HASH */
 #endif /* NO_MD5 */
