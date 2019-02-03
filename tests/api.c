@@ -22228,6 +22228,36 @@ static void test_EVP_PKEY_set1_get1_DSA (void)
 #endif /* NO_DSA */
 } /* END test_EVP_PKEY_set1_get1_DSA */
 
+static void test_EVP_PKEY_set1_get1_EC_KEY (void)
+{
+#ifdef HAVE_ECC
+    WOLFSSL_EC_KEY  *ecKey  = NULL;
+    WOLFSSL_EC_KEY  *ecGet1  = NULL;
+    EVP_PKEY  *pkey = NULL;
+
+    printf(testingFmt, "wolfSSL_EVP_PKEY_set1_EC_KEY and wolfSSL_EVP_PKEY_get1_EC_KEY");
+    AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
+    AssertNotNull(pkey = wolfSSL_PKEY_new());
+
+    /* Test wolfSSL_EVP_PKEY_set1_EC_KEY */
+    AssertIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(NULL, ecKey), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(pkey, NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(pkey, ecKey), WOLFSSL_SUCCESS);
+
+    /* Test wolfSSL_EVP_PKEY_get1_EC_KEY */
+    AssertNull(wolfSSL_EVP_PKEY_get1_EC_KEY(NULL));
+    AssertNotNull(ecGet1 = wolfSSL_EVP_PKEY_get1_EC_KEY(pkey));
+
+    wolfSSL_EC_KEY_free(ecKey);
+    wolfSSL_EC_KEY_free(ecGet1);
+    EVP_PKEY_free(pkey);
+
+    /* PASSED */
+    printf(resultFmt, passed);
+#endif /* HAVE_ECC */
+} /* END test_EVP_PKEY_set1_get1_EC_KEY */
+
+
 static void test_wolfSSL_CTX_ctrl(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
@@ -24621,6 +24651,7 @@ void ApiTest(void)
     test_wolfSSL_ASN1_STRING_to_UTF8();
     test_wolfSSL_EC_KEY_dup();
     test_EVP_PKEY_set1_get1_DSA();
+    test_EVP_PKEY_set1_get1_EC_KEY();
     test_wolfSSL_CTX_ctrl();
     test_wolfSSL_DH_check();
     test_wolfSSL_ASN1_STRING_print();
