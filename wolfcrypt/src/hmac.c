@@ -325,6 +325,11 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         return HMAC_MIN_KEYLEN_E;
 #endif
 
+#ifdef WOLF_CRYPTO_CB
+    hmac->keyRaw = key; /* use buffer directly */
+    hmac->keyLen = length;
+#endif
+
     ip = (byte*)hmac->ipad;
     op = (byte*)hmac->opad;
 
@@ -1056,8 +1061,6 @@ int wc_HmacInit(Hmac* hmac, void* heap, int devId)
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
-    hmac->keyLen = 0;
-
     ret = wolfAsync_DevCtxInit(&hmac->asyncDev, WOLFSSL_ASYNC_MARKER_HMAC,
                                                          hmac->heap, devId);
 #else

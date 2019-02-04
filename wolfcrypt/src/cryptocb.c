@@ -492,20 +492,17 @@ int wc_CryptoCb_Sha256Hash(wc_Sha256* sha256, const byte* in,
 #endif /* !NO_SHA256 */
 
 #ifndef NO_HMAC
-int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in, word32 inSz, byte* digest)
+int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in, word32 inSz,
+    byte* digest)
 {
     int ret = NOT_COMPILED_IN;
     CryptoCb* dev;
 
-    /* locate registered callback */
-    if (hmac) {
-        dev = wc_CryptoCb_FindDevice(hmac->devId);
-    }
-    else {
-        /* locate first callback and try using it */
-        dev = wc_CryptoCb_FindDeviceByIndex(0);
-    }
+    if (hmac == NULL)
+        return ret;
 
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(hmac->devId);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
