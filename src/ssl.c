@@ -16132,7 +16132,7 @@ const char* wolfSSL_SESSION_CIPHER_get_name(WOLFSSL_SESSION* session)
     #if !defined(WOLFSSL_CIPHER_INTERNALNAME) && !defined(NO_ERROR_STRINGS)
         return GetCipherNameIana(session->cipherSuite0, session->cipherSuite);
     #else
-        return GetCipherNameInternal(ession->cipherSuite0, session->cipherSuite);
+        return GetCipherNameInternal(session->cipherSuite0, session->cipherSuite);
     #endif
 #else
     return NULL;
