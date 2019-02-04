@@ -22625,6 +22625,40 @@ static void test_wolfSSL_EVP_PKEY_assign(void)
 #endif /* OPENSSL_ALL */
 }
 
+static void test_OBJ_ln2nid(void)
+{
+    int i = 0, maxIdx = 7;
+    const int nid_set[] = {NID_commonName,NID_countryName,NID_localityName,
+                           NID_stateOrProvinceName,NID_organizationName,
+                           NID_organizationalUnitName,NID_emailAddress};
+    const char* ln_set[] = {WOLFSSL_LN_COMMON_NAME,WOLFSSL_LN_COUNTRY_NAME,
+                            WOLFSSL_LN_LOCALITY_NAME,WOLFSSL_LN_STATE_NAME,
+                            WOLFSSL_LN_ORG_NAME,WOLFSSL_LN_ORGUNIT_NAME,
+                            WOLFSSL_EMAIL_ADDR};
+#ifdef HAVE_ECC
+    int nCurves = 27;
+    EC_builtin_curve r[nCurves];
+#endif
+
+    printf(testingFmt, "wolfSSL_OBJ_ln2nid");
+
+    /* Test NULL failure case: Failures return NID_undef */
+    AssertIntEQ(wolfSSL_OBJ_ln2nid(NULL), NID_undef);
+
+#ifdef HAVE_ECC
+    EC_get_builtin_curves(r,nCurves);
+
+    for (i = 0; i < nCurves; i++) {
+        AssertIntEQ(wolfSSL_OBJ_ln2nid(r[i].comment), r[i].nid);
+    }
+#endif
+    for (i = 0; i < maxIdx; i++) {
+        AssertIntEQ(wolfSSL_OBJ_ln2nid(ln_set[i]), nid_set[i]);
+    }
+
+    printf(resultFmt, passed);
+}
+
 
 #endif /*end of Qt unit tests*/
 
@@ -24710,6 +24744,7 @@ void ApiTest(void)
     test_wolfSSL_ASN1_STRING_print();
     test_EC_get_builtin_curves();
     test_wolfSSL_EVP_PKEY_assign();
+    test_OBJ_ln2nid();
 
     printf("\n-------------End Of Qt Unit Tests---------------\n");
 

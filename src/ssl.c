@@ -34446,6 +34446,9 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         int i;
         WOLFSSL_ENTER("wolfSSL_OBJ_ln2nid");
+
+        if (ln == NULL)
+            return NID_undef;
 #ifdef HAVE_ECC
         /* Nginx uses this OpenSSL string. */
         if (XSTRNCMP(ln, "prime256v1", 10) == 0)
