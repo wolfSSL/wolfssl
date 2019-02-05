@@ -17,7 +17,7 @@
  # You should have received a copy of the GNU General Public License
  # along with this program; if not, write to the Free Software
  # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
- 
+
 
 
 NAME := wolfSSL
@@ -68,7 +68,7 @@ GLOBAL_INCLUDES +=  wolfssl \
 
 
 GLOBAL_DEFINES  +=  WOLFSSL_WICED_PSEUDO_UNIX_EPOCH_TIME=$(shell $(PERL) -e "print time()")  \
-					WOLFSSL_USER_SETTINGS
+                    WOLFSSL_USER_SETTINGS
 
-                    
+
 GLOBAL_CFLAGS   +=  -g1
