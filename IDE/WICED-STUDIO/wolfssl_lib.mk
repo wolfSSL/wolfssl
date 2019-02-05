@@ -1,5 +1,3 @@
- # error-ssl.h
- #
  # Copyright (C) 2006-2017 wolfSSL Inc.
  #
  # This file is part of wolfSSL.
@@ -17,7 +15,7 @@
  # You should have received a copy of the GNU General Public License
  # along with this program; if not, write to the Free Software
  # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
- 
+
 
 
 NAME := wolfSSL
@@ -33,6 +31,7 @@ $(NAME)_SOURCES +=  wolfssl/src/internal.c                    \
                     wolfssl/wolfcrypt/src/chacha20_poly1305.c \
                     wolfssl/wolfcrypt/src/coding.c            \
                     wolfssl/wolfcrypt/src/cpuid.c             \
+                    wolfssl/wolfcrypt/src/cmac.c              \
                     wolfssl/wolfcrypt/src/des3.c              \
                     wolfssl/wolfcrypt/src/dh.c                \
                     wolfssl/wolfcrypt/src/ecc.c               \
@@ -61,14 +60,16 @@ $(NAME)_SOURCES +=  wolfssl/src/internal.c                    \
                     wolfssl/wolfcrypt/src/arc4.c              \
                     wolfssl/wolfcrypt/src/rabbit.c            \
                     wolfssl/wolfcrypt/src/curve25519.c        \
-                    wolfssl/wolfcrypt/src/ed25519.c
+                    wolfssl/wolfcrypt/src/ed25519.c           \
+                    wolfssl/wolfcrypt/benchmark/benchmark.c   \
+                    wolfssl/src/tls13.c
 
 GLOBAL_INCLUDES +=  wolfssl \
 					user_settings_folder \
 
 
 GLOBAL_DEFINES  +=  WOLFSSL_WICED_PSEUDO_UNIX_EPOCH_TIME=$(shell $(PERL) -e "print time()")  \
-					WOLFSSL_USER_SETTINGS
+                    WOLFSSL_USER_SETTINGS
 
-                    
+
 GLOBAL_CFLAGS   +=  -g1

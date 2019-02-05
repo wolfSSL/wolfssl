@@ -2030,10 +2030,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
 
 #elif defined(WOLFSSL_WICED)
-
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-
         (void)os;
         if (output == NULL || UINT16_MAX < sz) {
             return BUFFER_E;

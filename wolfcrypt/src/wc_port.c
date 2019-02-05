@@ -1726,17 +1726,14 @@ time_t XTIME(time_t * timer)
 time_t wiced_pseudo_unix_epoch_time(time_t * timer)
 {
     time_t epoch_time;
-
     /* The time() function return uptime on WICED platform. */
     epoch_time = time(NULL) + WOLFSSL_WICED_PSEUDO_UNIX_EPOCH_TIME;
 
     if (timer != NULL) {
         *timer = epoch_time;
     }
-
     return epoch_time;
 }
-
 #endif /* WOLFSSL_WICED */
 #endif /* !NO_ASN_TIME */
 

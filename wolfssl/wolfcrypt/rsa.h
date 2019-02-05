@@ -100,10 +100,6 @@ enum {
     #endif
 #endif
 
-#if !defined(NO_OLD_WC_NAMES)
-    #define RSA_PUBLIC WC_RSA_PUBLIC
-#endif
-
 enum {
     RSA_PUBLIC   = 0,
     RSA_PRIVATE  = 1,

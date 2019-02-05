@@ -25,7 +25,6 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
-#include <stdio.h>
 
 #ifdef XMALLOC_USER
     #include <stdlib.h>  /* we're using malloc / free direct here */
