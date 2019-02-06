@@ -1112,6 +1112,9 @@ static int Hmac_UpdateFinal(Hmac* hmac, byte* digest, const byte* in,
             if (ret != 0)
                 break;
         }
+        /* call final to cleanup */
+        if (ret == 0)
+            ret = wc_HmacFinal(hmac, dummy);
     }
 
     return ret;
