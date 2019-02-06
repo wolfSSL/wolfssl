@@ -59,7 +59,8 @@ $(NAME)_SOURCES +=  wolfssl/src/internal.c                    \
                     wolfssl/wolfcrypt/src/arc4.c              \
                     wolfssl/wolfcrypt/src/rabbit.c            \
                     wolfssl/wolfcrypt/src/curve25519.c        \
-                    wolfssl/wolfcrypt/src/ed25519.c
+                    wolfssl/wolfcrypt/src/ed25519.c           \
+                    wolfssl/wolfcrypt/benchmark/benchmark.c   
 
 GLOBAL_INCLUDES +=  wolfssl \
 					user_settings_folder \
