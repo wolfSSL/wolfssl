@@ -7311,8 +7311,7 @@ static int DecodeSubjKeyId(const byte* input, int sz, DecodedCert* cert)
     if (ret < 0)
         return ret;
 
-    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
-        !defined(WOLFSSL_QT)
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         cert->extSubjKeyIdSrc = &input[idx];
         cert->extSubjKeyIdSz = length;
     #endif /* OPENSSL_EXTRA */
@@ -7853,12 +7852,6 @@ static int DecodeCertExtensions(DecodedCert* cert)
 
                 if (DecodeSubjKeyId(&input[idx], length, cert) < 0)
                     return ASN_PARSE_E;
-                #if defined(WOLFSSL_QT)
-                    /* QT calls OBJ_obj2txt(), which expects extensions to begin
-                     * at the Object Identifier */
-                    cert->extSubjKeyIdSrc = &input[idx];
-                    cert->extSubjKeyIdSz = length;
-                #endif
                 break;
 
             case CERT_POLICY_OID:
@@ -13569,24 +13562,24 @@ int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
         return BUFFER_E;
     }
 
-    /* Set sequence */                                                          
-    idx = SetSequence(tmp, out);                                                
-                                                                                
-    /* Encode p */                                                              
-    pSz = SetASNIntMP(p, -1, &out[idx]);                                        
-    if (pSz < 0) {                                                              
-        WOLFSSL_MSG("SetASNIntMP failed");                                      
-        return pSz;                                                             
-    }                                                                           
-    idx += pSz;                                                                 
-                                                                                
-    /* Encode g */                                                              
-    gSz = SetASNIntMP(g, -1, &out[idx]);                                        
-    if (gSz < 0) {                                                              
-        WOLFSSL_MSG("SetASNIntMP failed");                                      
-        return gSz;                                                             
-    }                                                                           
-    idx += gSz; 
+    /* Set sequence */
+    idx = SetSequence(tmp, out);
+
+    /* Encode p */
+    pSz = SetASNIntMP(p, -1, &out[idx]);
+    if (pSz < 0) {
+        WOLFSSL_MSG("SetASNIntMP failed");
+        return pSz;
+    }
+    idx += pSz;
+
+    /* Encode g */
+    gSz = SetASNIntMP(g, -1, &out[idx]);
+    if (gSz < 0) {
+        WOLFSSL_MSG("SetASNIntMP failed");
+        return gSz;
+    }
+    idx += gSz;
 
     *outLen = idx;
 

@@ -7200,7 +7200,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 
 
     WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext\
-        (const WOLFSSL_X509* passedCert, int loc)
+        (const WOLFSSL_X509* x509, int loc)
     {
         int extCount = 0;
         int length = 0;
@@ -7211,25 +7211,26 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         const byte* input;
         word32 oid;
         int ret = 0;
+        int isSet = 0;
         word32 idx = 0;
         WOLFSSL_X509_EXTENSION* foundExtension = NULL;
         DecodedCert cert;
 
         WOLFSSL_ENTER("wolfSSL_X509_get_ext()");
 
-        if(passedCert == NULL){
+        if(x509 == NULL){
             WOLFSSL_MSG("\tNot passed a certificate");
             return NULL;
         }
 
-        if(loc <0 || (loc > wolfSSL_X509_get_ext_count(passedCert))){
+        if(loc <0 || (loc > wolfSSL_X509_get_ext_count(x509))){
             WOLFSSL_MSG("\tBad location argument");
             return NULL;
         }
 
         foundExtension = wolfSSL_X509_EXTENSION_new();
 
-        rawCert = wolfSSL_X509_get_der((WOLFSSL_X509*)passedCert, &outSz);
+        rawCert = wolfSSL_X509_get_der((WOLFSSL_X509*)x509, &outSz);
         InitDecodedCert( &cert, rawCert, (word32)outSz, 0);
 
         if (ParseCert(&cert, CA_TYPE, NO_VERIFY, NULL) < 0){
@@ -7269,27 +7270,69 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
             }
             idx = tmpIdx;
 
-            if (extCount == loc){
-                WOLFSSL_STACK* sk = wolfSSL_X509_get_ext_d2i(passedCert, \
-                        oid, NULL, NULL);
-                if (sk == NULL){
-                    WOLFSSL_MSG("\twolfSSL_X509_get_ext_d2i returned NULL stk");
-                    return NULL;
-                }
-                else {
-                    foundExtension->obj = wolfSSL_sk_ASN1_OBJECT_pop(sk);
-                }
+            isSet = wolfSSL_X509_ext_isSet_by_NID((WOLFSSL_X509*)x509, oid);
+            if (extCount == loc && isSet == 1){
+                WOLFSSL_ASN1_INTEGER* a;
+                WOLFSSL_ASN1_STRING* str;
 
-                if(foundExtension->obj->type <= 0){
-                    WOLFSSL_MSG("\tFailed to set object type");
-                }
+                foundExtension->obj = wolfSSL_OBJ_nid2obj(oid);
+                foundExtension->obj->nid = oid;
+                /* TODO: set foundExtension->value (?) */
 
-                foundExtension->value.data = (char*)cert.extSubjKeyIdSrc;
-                foundExtension->crit = cert.extSubjKeyIdCrit;
+                switch (oid) {
+                    case BASIC_CA_OID:
+                        /* Set pathlength */
+                        a = wolfSSL_ASN1_INTEGER_new();
+
+                        a->length = x509->pathLength;
+                        foundExtension->obj->pathlen = (WOLFSSL_ASN1_INTEGER*)\
+                                        XMALLOC(sizeof(WOLFSSL_ASN1_INTEGER), NULL,
+                                        DYNAMIC_TYPE_ASN1);
+                        XMEMCPY((WOLFSSL_ASN1_INTEGER*)foundExtension->obj->pathlen,
+                                 a, sizeof(WOLFSSL_ASN1_INTEGER));
+
+                        wolfSSL_ASN1_INTEGER_free(a);
+
+                        foundExtension->obj->ca = x509->basicConstSet;
+                        foundExtension->crit = x509->basicConstCrit;
+                        break;
+
+                    case AUTH_INFO_OID:
+                        foundExtension->crit = x509->authInfoCrit;
+                        break;
+
+                    case AUTH_KEY_OID:
+                        foundExtension->crit = x509->authKeyIdCrit;
+                        break;
+
+                    case SUBJ_KEY_OID:
+                        str = wolfSSL_ASN1_STRING_new();
+                        str->data = (char*)XMALLOC(x509->subjKeyIdSz, NULL,
+                                     DYNAMIC_TYPE_ASN1);
+                        XMEMCPY((char*)str->data, x509->subjKeyId,
+                                x509->subjKeyIdSz);
+                        foundExtension->value = *str;
+                        foundExtension->value.length = x509->subjKeyIdSz;
+                        foundExtension->crit = x509->subjKeyIdCrit;
+                        break;
+
+                    case CERT_POLICY_OID:
+                        foundExtension->crit = x509->certPolicyCrit;
+                        break;
+
+                    case KEY_USAGE_OID:
+                        foundExtension->crit = x509->keyUsageCrit;
+                        break;
+
+                    case EXT_KEY_USAGE_OID:
+                        foundExtension->crit = x509->keyUsageCrit;
+                        break;
+
+                    default:
+                        WOLFSSL_MSG("Extension type not found in table");
+                }
 
                 idx+=length;
-
-                wolfSSL_sk_ASN1_OBJECT_free(sk);
                 FreeDecodedCert(&cert);
                 return foundExtension;
             }
@@ -7335,8 +7378,8 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
     const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get\
         (WOLFSSL_X509_EXTENSION* ex)
     {
-    /*currently this function returns a structure without i2s, i2r, and i2v
-    initialized, structure is returned with just nid stored inside it*/
+        /* Currently this function returns a structure without i2s, i2r, and i2v
+          initialized, structure is returned with just nid stored inside it*/
         int nid;
         WOLFSSL_v3_ext_method method;
 
@@ -7357,6 +7400,30 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
             case NID_subject_key_identifier:
                 method.i2s = (X509V3_EXT_I2S)wolfSSL_i2s_ASN1_STRING;
                 break;
+            case NID_key_usage:
+                break;
+            case NID_authority_key_identifier:
+                /* TODO: set i2v and v2i members in method 
+                    see openssl crypto/x509v3/v3_akey.c for reference */
+                break;
+            case NID_info_access:
+                /* TODO: set i2v and v2i members in method 
+                    see openssl crypto/x509v3/v3_info.c for reference */
+                break;
+            case NID_ext_key_usage:
+                /* TODO: set i2v and v2i members in method 
+                    see openssl crypto/x509v3/v3_extku.c for reference */
+                break;
+            case NID_certificate_policies:
+                /* TODO: set r2i and i2r members in method
+                    see openssl crypto/x509v3/v3_cpols.c for reference */
+                break;
+            case NID_crl_distribution_points:
+                /* TODO: set v2i and i2r members in method
+                    see openssl crypto/x509v3/v3_crld.c for reference */
+                break;
+            default:
+                WOLFSSL_MSG("X509V3_EXT_get(): NID not in table");
         }
 
         method.ext_nid = nid;
@@ -7373,6 +7440,8 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
     {
         const WOLFSSL_v3_ext_method* method;
         WOLFSSL_ASN1_OBJECT* object;
+        WOLFSSL_BASIC_CONSTRAINTS* bc;
+        WOLFSSL_AUTHORITY_KEYID* a;
 
         WOLFSSL_ENTER("wolfSSL_X509V3_EXT_d2i");
 
@@ -7394,12 +7463,10 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         }
 
         /* Return pointer to proper internal structure based on NID */
-        switch (object->nid) {
+        switch (object->type) {
             /* basicConstraints */
             case (NID_basic_constraints):
                 WOLFSSL_MSG("basicConstraints");
-                WOLFSSL_BASIC_CONSTRAINTS* bc;
-
                 /* Freeing BASIC_CONSTRAINTS is caller's responsibility */
                 bc = (WOLFSSL_BASIC_CONSTRAINTS*)\
                       XMALLOC(sizeof(WOLFSSL_BASIC_CONSTRAINTS), NULL,
@@ -7409,9 +7476,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
                     return NULL;
                 }
                 bc->ca = object->ca;
-                bc->pathlen = (WOLFSSL_ASN1_INTEGER*)\
-                               XMALLOC(sizeof(WOLFSSL_ASN1_INTEGER), NULL,
-                               DYNAMIC_TYPE_ASN1);
+                bc->pathlen = wolfSSL_ASN1_INTEGER_new();
                 if (bc->pathlen == NULL) {
                     WOLFSSL_MSG("Failed to malloc ASN1_INTEGER");
                     return NULL;
@@ -7419,44 +7484,77 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
                 XMEMCPY((WOLFSSL_ASN1_INTEGER*)bc->pathlen, object->pathlen,
                          sizeof(WOLFSSL_ASN1_INTEGER));
 
-                /* Only need to return BASIC_CONSTRAINTS struct (?)
-                   method would only need i2v and v2i, which we don't care about
-                   with QT */
                 return bc;
 
             /* subjectKeyIdentifier */
             case (NID_subject_key_identifier):
-                WOLFSSL_MSG("subjectKeyIdentifier not implemented yet");
-                WOLFSSL_ASN1_STRING* s;
-                s = wolfSSL_ASN1_STRING_new();
-                if (s == NULL) {
-                   WOLFSSL_MSG("Failed to create new ASN1_STRING");
-                   return method->d2i(NULL, NULL, -1);
-                }
-                return s;
+                WOLFSSL_MSG("subjectKeyIdentifier not supported yet");
+                WOLFSSL_ASN1_STRING* asn1String;
+                asn1String = wolfSSL_X509_EXTENSION_get_data(ext);
+                return asn1String;
 
             /* authorityKeyIdentifier */
             case (NID_authority_key_identifier):
-                WOLFSSL_MSG("AuthorityKeyIdentifier not implemented yet");
-                return method->d2i(NULL, NULL, -1);
+                WOLFSSL_MSG("AuthorityKeyIdentifier not supported yet");
+                /* TODO return internal structure for authority key id
+                    QT is expecting return value to be AUTHORITY_KEYID* type */
+                a = (WOLFSSL_AUTHORITY_KEYID*)\
+                     XMALLOC(sizeof(WOLFSSL_AUTHORITY_KEYID), NULL,
+                     DYNAMIC_TYPE_X509_EXT);
+                if (a == NULL) {
+                    WOLFSSL_MSG("Failed to malloc authority key id");
+                    return NULL;
+                }
+
+                a->keyid = wolfSSL_ASN1_STRING_new();
+                if (a == NULL) {
+                    WOLFSSL_MSG("ASN1_STRING_new failed");
+                    return NULL;
+                }
+
+                a->issuer = wolfSSL_ASN1_OBJECT_new();
+                if (a == NULL) {
+                    WOLFSSL_MSG("ASN1_OBJECT_new failed");
+                    return NULL;
+                }
+
+                a->serial = wolfSSL_ASN1_INTEGER_new();
+                if (a == NULL) {
+                    WOLFSSL_MSG("Failed to malloc ASN1_INTEGER");
+                    return NULL;
+                }
+                return a;
 
             /* keyUsage */
             case (NID_key_usage):
-                WOLFSSL_MSG("keyUsage not implemented yet");
-                return method->d2i(NULL, NULL, -1);
+                WOLFSSL_MSG("keyUsage not supported yet");
+                return NULL;
 
             /* extKeyUsage */
             case (NID_ext_key_usage):
-                WOLFSSL_MSG("extKeyUsage not implemented yet");
-                return method->d2i(NULL, NULL, -1);
+                WOLFSSL_MSG("extKeyUsage not supported yet");
+
+                return NULL;
+            /* certificatePolicies */
+            case (NID_certificate_policies):
+                WOLFSSL_MSG("certificatePolicies not supported yet");
+                return NULL;
+
+            /* cRLDistributionPoints */
+            case (NID_crl_distribution_points):
+                WOLFSSL_MSG("cRLDistributionPoints not supported yet");
+                return NULL;
+
+            /* authorityInfoAccess */
+            case (NID_info_access):
+                WOLFSSL_MSG("authorityInfoAccess not supported yet");
+                return NULL;
 
             default:
                 WOLFSSL_MSG("Extension NID not in table, returning NULL");
                 break;
         }
-
         return NULL;
-
     }
 
 #if !defined(NO_WOLFSSL_STUB)
@@ -7536,36 +7634,6 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                 obj->type = BASIC_CA_OID;
                 obj->grp  = oidCertExtType;
                 obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
-
-            #ifdef WOLFSSL_QT
-                /* QT makes call to OBJ_obj2txt(), which expects obj to be set,
-                    even with basicConstraints */
-                WOLFSSL_ASN1_OBJECT* tmp;
-                tmp = wolfSSL_OBJ_nid2obj(BASIC_CA_OID);
-
-                obj->obj = (byte*)XREALLOC((byte*)obj->obj, tmp->objSz, NULL,
-                            DYNAMIC_TYPE_ASN1);
-                XMEMCPY((byte*)obj->obj, tmp->obj, tmp->objSz);
-
-                obj->objSz = tmp->objSz;
-                wolfSSL_ASN1_OBJECT_free(tmp);
-
-                /* Set ca in ASN1_OBJECT */
-                obj->ca = x509->basicConstSet;
-
-                /* Set pathlength */
-                WOLFSSL_ASN1_INTEGER* a;
-                a = wolfSSL_ASN1_INTEGER_new();
-
-                a->length = x509->pathLength;
-                obj->pathlen = (WOLFSSL_ASN1_INTEGER*)\
-                                XMALLOC(sizeof(WOLFSSL_ASN1_INTEGER), NULL,
-                                DYNAMIC_TYPE_ASN1);
-                XMEMCPY((WOLFSSL_ASN1_INTEGER*)obj->pathlen, a,
-                        sizeof(WOLFSSL_ASN1_INTEGER));
-
-                wolfSSL_ASN1_INTEGER_free(a);
-            #endif
             }
             else {
                 WOLFSSL_MSG("No Basic Constraint set");
@@ -16697,7 +16765,7 @@ char* wolfSSL_i2s_ASN1_STRING(WOLFSSL_v3_ext_method *method, const WOLFSSL_ASN1_
     WOLFSSL_STUB("wolfSSL_i2s_ASN1_STRING");
     (void)method;
 
-    if(!s->data) {
+    if(s == NULL || s->data == NULL) {
         WOLFSSL_MSG("Bad Function Argument");
         return NULL;
     }
@@ -17379,9 +17447,15 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
                 case AUTH_KEY_OID: isSet = x509->authKeyIdSet; break;
                 case SUBJ_KEY_OID: isSet = x509->subjKeyIdSet; break;
                 case KEY_USAGE_OID: isSet = x509->keyUsageSet; break;
+                case CRL_DIST_OID: isSet = x509->CRLdistSet; break;
+                case EXT_KEY_USAGE_OID: isSet = ((x509->extKeyUsageSrc) ? 1 : 0);
+                    break;
+                case AUTH_INFO_OID: isSet = x509->authInfoSet; break;
                 #ifdef WOLFSSL_SEP
                     case CERT_POLICY_OID: isSet = x509->certPolicySet; break;
                 #endif /* WOLFSSL_SEP */
+                default:
+                    WOLFSSL_MSG("NID not in table");
             }
         }
 
@@ -34024,7 +34098,19 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                     return "basicConstraints";
                 case NID_subject_key_identifier :
                     return "subjectKeyIdentifier";
-                default  :
+                case NID_authority_key_identifier :
+                    return "authorityKeyIdentifier";
+                case NID_certificate_policies:
+                    return "certificatePolicies";
+                case NID_key_usage :
+                    return "keyUsage";
+                case NID_info_access :
+                    return "authorityInfoAccess";
+                case NID_crl_distribution_points :
+                    return "cRLDistributionPoints";
+                case EXT_KEY_USAGE_OID :
+                    return "extKeyUsage";
+                default :
                     WOLFSSL_MSG("nid not in table, trying wolfssl_object_info\n");
             }
 
@@ -34377,6 +34463,9 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             WOLFSSL_MSG("Issue getting OID of object");
             return -1;
         }
+        #ifdef WOLFSSL_QT
+            isCertTest = 1;
+        #endif
 
         return oid2nid(oid, o->grp);
     }
