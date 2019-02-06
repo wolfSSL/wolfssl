@@ -44,6 +44,7 @@
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
+#include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
@@ -1297,6 +1298,9 @@ void wc_Sha256Free(wc_Sha256* sha256)
     #ifdef WOLFSSL_ASYNC_CRYPT
         ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
     #endif
+    #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+        dst->flags |= WC_HASH_FLAG_ISCOPY;
+    #endif
 
         return ret;
     }
@@ -1380,6 +1384,9 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
      dst->ctx.mode = src->ctx.mode;
      dst->ctx.isfirstblock = src->ctx.isfirstblock;
      dst->ctx.sha_type = src->ctx.sha_type;
+#endif
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+     dst->flags |= WC_HASH_FLAG_ISCOPY;
 #endif
 
     return ret;

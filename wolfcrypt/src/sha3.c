@@ -43,6 +43,7 @@
 
 #include <wolfssl/wolfcrypt/sha3.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -792,6 +793,9 @@ static int wc_Sha3Copy(wc_Sha3* src, wc_Sha3* dst)
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
+#endif
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+     dst->flags |= WC_HASH_FLAG_ISCOPY;
 #endif
 
     return ret;

@@ -43,6 +43,7 @@
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
+#include <wolfssl/wolfcrypt/hash.h>
 
 /* deprecated USE_SLOW_SHA2 (replaced with USE_SLOW_SHA512) */
 #if defined(USE_SLOW_SHA2) && !defined(USE_SLOW_SHA512)
@@ -1110,6 +1111,10 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     dst->ctx.isfirstblock = src->ctx.isfirstblock;
     dst->ctx.sha_type = src->ctx.sha_type;
 #endif
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+     dst->flags |= WC_HASH_FLAG_ISCOPY;
+#endif
+
     return ret;
 }
 
@@ -1182,6 +1187,10 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
     dst->ctx.isfirstblock = src->ctx.isfirstblock;
     dst->ctx.sha_type = src->ctx.sha_type;
 #endif
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+     dst->flags |= WC_HASH_FLAG_ISCOPY;
+#endif
+
     return ret;
 }
 
