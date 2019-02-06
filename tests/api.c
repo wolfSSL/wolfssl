@@ -16215,6 +16215,37 @@ static void test_wc_PKCS7_Degenerate(void)
 #endif
 } /* END test_wc_PKCS7_Degenerate() */
 
+/*
+ * Testing wc_PKCS7_BER()
+ */
+static void test_wc_PKCS7_BER(void)
+{
+#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && \
+    defined(ASN_BER_TO_DER)
+    PKCS7* pkcs7;
+    char   fName[] = "./certs/test-ber-exp02-05-2022.p7b";
+    XFILE  f;
+    byte   der[4096];
+    word32 derSz;
+    int    ret;
+
+    printf(testingFmt, "wc_PKCS7_BER()");
+
+    AssertNotNull(f = XFOPEN(fName, "rb"));
+    AssertIntGT((ret = (int)fread(der, 1, sizeof(der), f)), 0);
+    derSz = (word32)ret;
+    XFCLOSE(f);
+
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+    wc_PKCS7_Free(pkcs7);
+
+    printf(resultFmt, passed);
+#endif
+} /* END test_wc_PKCS7_BER() */
+
 
 /* Testing wc_SignatureGetSize() for signature type ECC */
 static int test_wc_SignatureGetSize_ecc(void)
@@ -23587,6 +23618,7 @@ void ApiTest(void)
     test_wc_PKCS7_EncodeDecodeEnvelopedData();
     test_wc_PKCS7_EncodeEncryptedData();
     test_wc_PKCS7_Degenerate();
+    test_wc_PKCS7_BER();
 
     test_wolfSSL_CTX_LoadCRL();
 

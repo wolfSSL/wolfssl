@@ -214,6 +214,7 @@ struct PKCS7 {
     void*  heap;                  /* heap hint for dynamic memory         */
 #ifdef ASN_BER_TO_DER
     byte*  der;                   /* DER encoded version of message       */
+    word32 derSz;
 #endif
     byte*  cert[MAX_PKCS7_CERTS];
 

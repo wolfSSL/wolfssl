@@ -265,6 +265,11 @@ static int wc_PKCS7_AddDataToStream(PKCS7* pkcs7, byte* in, word32 inSz,
     if (inSz - rdSz > 0 && pkcs7->stream->length < expected) {
         int len = min(inSz - rdSz, expected - pkcs7->stream->length);
 
+        /* sanity check that the input buffer is not internal buffer */
+        if (in == pkcs7->stream->buffer) {
+            return WC_PKCS7_WANT_READ_E;
+        }
+
         /* check if internal buffer size needs to be increased */
         if (len + pkcs7->stream->length > pkcs7->stream->bufferSz) {
             int ret = wc_PKCS7_GrowStream(pkcs7, expected);
@@ -3412,6 +3417,12 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
     }
     idx = 0;
 
+#ifdef ASN_BER_TO_DER
+    if (pkcs7->derSz > 0 && pkcs7->der) {
+        pkiMsg = in = pkcs7->der;
+    }
+#endif
+
 #ifndef NO_PKCS7_STREAM
     if (pkcs7->stream == NULL) {
         if ((ret = wc_PKCS7_CreateStream(pkcs7)) != 0) {
@@ -3463,8 +3474,8 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 if (ret < 0)
                     return ret;
 
-                pkiMsg = pkcs7->der;
-                pkiMsgSz = len;
+                pkiMsg   = in = pkcs7->der;
+                pkiMsgSz = pkcs7->derSz = len;
                 idx = 0;
                 if (GetSequence_ex(pkiMsg, &idx, &length, pkiMsgSz,
                             NO_USER_CHECK) < 0)
@@ -3546,7 +3557,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
         case WC_PKCS7_VERIFY_STAGE2:
         #ifndef NO_PKCS7_STREAM
-            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, pkiMsg, inSz + in2Sz,
+            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz + in2Sz,
                            MAX_SEQ_SZ + MAX_OID_SZ + ASN_TAG_SZ + MAX_LENGTH_SZ
                            + ASN_TAG_SZ + MAX_LENGTH_SZ, &pkiMsg, &idx)) != 0) {
                 break;
@@ -3555,6 +3566,13 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             wc_PKCS7_StreamGetVar(pkcs7, &totalSz, 0, 0);
             if (pkcs7->stream->length > 0)
                 pkiMsgSz = pkcs7->stream->length;
+        #ifdef ASN_BER_TO_DER
+            else if (pkcs7->der)
+                pkiMsgSz = pkcs7->derSz;
+        #endif
+            else
+                pkiMsgSz = inSz;
+
         #endif
             /* Get the inner ContentInfo sequence */
             if (GetSequence_ex(pkiMsg, &idx, &length, pkiMsgSz,
@@ -3692,7 +3710,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
         case WC_PKCS7_VERIFY_STAGE3:
         #ifndef NO_PKCS7_STREAM
-            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, pkiMsg, inSz + in2Sz,
+            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz + in2Sz,
                             pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
                 break;
             }
@@ -3703,7 +3721,11 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 ret = (int)rc;
                 break;
             }
-            if (pkcs7->stream->length > 0)
+        #ifdef ASN_BER_TO_DER
+            if (pkcs7->derSz != 0)
+                pkiMsgSz = pkcs7->derSz;
+            else
+        #endif
                 pkiMsgSz = (word32)rc;
             wc_PKCS7_StreamGetVar(pkcs7, &pkiMsg2Sz, (int*)&localIdx, &length);
 
@@ -3867,7 +3889,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
         case WC_PKCS7_VERIFY_STAGE4:
         #ifndef NO_PKCS7_STREAM
-            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, pkiMsg, inSz + in2Sz,
+            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz + in2Sz,
                             pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
                 break;
             }
@@ -4048,7 +4070,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
         case WC_PKCS7_VERIFY_STAGE5:
         #ifndef NO_PKCS7_STREAM
-            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, pkiMsg, inSz + in2Sz,
+            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz + in2Sz,
                             pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
                 break;
             }
@@ -4108,7 +4130,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
         case WC_PKCS7_VERIFY_STAGE6:
         #ifndef NO_PKCS7_STREAM
-            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, pkiMsg, inSz + in2Sz,
+            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz + in2Sz,
                             pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
                 break;
             }
