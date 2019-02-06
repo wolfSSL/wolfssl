@@ -7311,6 +7311,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
                                      DYNAMIC_TYPE_ASN1);
                         XMEMCPY((char*)str->data, x509->subjKeyId,
                                 x509->subjKeyIdSz);
+
                         foundExtension->value = *str;
                         foundExtension->value.length = x509->subjKeyIdSz;
                         foundExtension->crit = x509->subjKeyIdCrit;
@@ -7442,6 +7443,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         WOLFSSL_ASN1_OBJECT* object;
         WOLFSSL_BASIC_CONSTRAINTS* bc;
         WOLFSSL_AUTHORITY_KEYID* a;
+        WOLFSSL_ASN1_STRING* asn1String;
 
         WOLFSSL_ENTER("wolfSSL_X509V3_EXT_d2i");
 
@@ -7489,7 +7491,6 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
             /* subjectKeyIdentifier */
             case (NID_subject_key_identifier):
                 WOLFSSL_MSG("subjectKeyIdentifier not supported yet");
-                WOLFSSL_ASN1_STRING* asn1String;
                 asn1String = wolfSSL_X509_EXTENSION_get_data(ext);
                 return asn1String;
 
@@ -16758,20 +16759,45 @@ int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, \
     return in->length;
 }
 
+/* Returns string representation of ASN1_STRING */
 char* wolfSSL_i2s_ASN1_STRING(WOLFSSL_v3_ext_method *method, const WOLFSSL_ASN1_STRING *s)
 {
-    unsigned char* strData = NULL;
+    int i;
+    int tmpSz = 100;
+    int valSz = 5;
+    char* tmp;
+    char val[valSz];
+    unsigned char* str;
 
-    WOLFSSL_STUB("wolfSSL_i2s_ASN1_STRING");
+    WOLFSSL_ENTER("wolfSSL_i2s_ASN1_STRING");
     (void)method;
 
     if(s == NULL || s->data == NULL) {
         WOLFSSL_MSG("Bad Function Argument");
         return NULL;
     }
+    str = (unsigned char*)XMALLOC(s->length, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (str == NULL) {
+        WOLFSSL_MSG("Memory Error");
+        return NULL;
+    }
+    XMEMCPY(str, (unsigned char*)s->data, s->length);
 
-    wolfSSL_ASN1_STRING_to_UTF8(&strData, s);
-    return (char*)strData;
+    tmp = (char*)XMALLOC(tmpSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL) {
+        WOLFSSL_MSG("Memory Error");
+        return NULL;
+    }
+    XMEMSET(tmp, 0, tmpSz);
+
+    for (i = 0; i < tmpSz && i < (s->length - 1); i++) {
+        XSNPRINTF(val, valSz - 1, "%02X:", str[i]);
+        XSTRNCAT(tmp, val, valSz);
+    }
+    XSNPRINTF(val, valSz - 1, "%02X", str[i]);
+    XSTRNCAT(tmp, val, valSz);
+
+    return tmp;
 }
 #endif /* NO_ASN */
 
