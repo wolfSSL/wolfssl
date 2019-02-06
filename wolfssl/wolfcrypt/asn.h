@@ -175,6 +175,7 @@ enum
     NID_info_access = 69,
     NID_sinfo_access = 79,      /* id-pe 11 */
     NID_name_constraints = 144, /* 2.5.29.30 */
+    NID_crl_distribution_points = 145, /* 2.5.29.31 */
     NID_certificate_policies = 146,
     NID_policy_mappings = 147,
     NID_policy_constraints = 150,
