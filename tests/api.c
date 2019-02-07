@@ -15886,7 +15886,7 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
                 AES256_WRAP, dhSinglePass_stdDH_sha256kdf_scheme, eccCert,
                 eccCertSz, eccPrivKey, eccPrivKeySz},
         #endif
-        #if !defined(WOLFSSL_SHA512) && !defined(NO_AES_256)
+        #if defined(WOLFSSL_SHA512) && !defined(NO_AES_256)
             {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, AES256CBCb,
                 AES256_WRAP, dhSinglePass_stdDH_sha512kdf_scheme, eccCert,
                 eccCertSz, eccPrivKey, eccPrivKeySz},
@@ -16214,6 +16214,37 @@ static void test_wc_PKCS7_Degenerate(void)
     printf(resultFmt, passed);
 #endif
 } /* END test_wc_PKCS7_Degenerate() */
+
+/*
+ * Testing wc_PKCS7_BER()
+ */
+static void test_wc_PKCS7_BER(void)
+{
+#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && \
+    defined(ASN_BER_TO_DER)
+    PKCS7* pkcs7;
+    char   fName[] = "./certs/test-ber-exp02-05-2022.p7b";
+    XFILE  f;
+    byte   der[4096];
+    word32 derSz;
+    int    ret;
+
+    printf(testingFmt, "wc_PKCS7_BER()");
+
+    AssertNotNull(f = XFOPEN(fName, "rb"));
+    AssertIntGT((ret = (int)fread(der, 1, sizeof(der), f)), 0);
+    derSz = (word32)ret;
+    XFCLOSE(f);
+
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+    wc_PKCS7_Free(pkcs7);
+
+    printf(resultFmt, passed);
+#endif
+} /* END test_wc_PKCS7_BER() */
 
 
 /* Testing wc_SignatureGetSize() for signature type ECC */
@@ -23600,6 +23631,7 @@ void ApiTest(void)
     test_wc_PKCS7_EncodeDecodeEnvelopedData();
     test_wc_PKCS7_EncodeEncryptedData();
     test_wc_PKCS7_Degenerate();
+    test_wc_PKCS7_BER();
 
     test_wolfSSL_CTX_LoadCRL();
 
