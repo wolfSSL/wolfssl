@@ -21,11 +21,10 @@ Once you have installed the WICED software:
                 43xxx_Wi-Fi/WICED/security/BESL/wolfssl_lib.
     3. Drop in or link the wolfSSL library into the wolfssl_lib directory you
        just created.
-    4. The user_settings_folder directory should be placed in wolfSSL's
-       <wolfSSL_root>/wolfssl/. It should be placed at the same level as the openssl
-       directory. This file provides the configure options for compiling
+    4. The user_settings.h file in the IDE/WICED-STUDIO/ directory should be place
+       at <wolfssl_root>. This file provides the configure options for compiling
        wolfSSL with your project. The default values will give you a starting point 
-       and you may configure the library for the needs of the project.
+       and you may further configure the library.
     5. The wolfssl_lib.mk should be placed at the same level as the wolfSSL
         library within wolfssl_lib. The directory structure should be
             WICED/security/BESL/wolfssl_lib/<wolfssl_root>      and
@@ -35,10 +34,10 @@ Once you have installed the WICED software:
     
 You can now build and use the wolfSSL and wolfCrypt snips within the WICED SDK.
 Cypress includes great documentation and getting started videos to learn how to
-build and run the snips as a starting off point for your project.
+build and run the snips.
 
 wolfSSL provides a wolfCrypt test application, a TLS client and server application, 
-and an HTTPS client application. Future development and additions will be added.
+and an HTTPS client application. Future development and additions will be made.
 
 Further instructions and documentation can be found on the wolfSSL website at
 www.wolfssl.com or visit us on our forums at www.wolfssl.com/forums/.
