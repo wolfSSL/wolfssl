@@ -1764,7 +1764,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 				((wolfssl_word)&output[i] % sizeof(word32)) != 0
 			) {
 				/* Single byte at a time */
-				word32 tmpRng = 0;
+				uint32_t tmpRng = 0;
 				if (HAL_RNG_GenerateRandomNumber(&hrng, &tmpRng) != HAL_OK) {
 					return RAN_BLOCK_E;
 				}
@@ -1772,7 +1772,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 			}
 			else {
 				/* Use native 32 instruction */
-				if (HAL_RNG_GenerateRandomNumber(&hrng, (word32*)&output[i]) != HAL_OK) {
+				if (HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&output[i]) != HAL_OK) {
 					return RAN_BLOCK_E;
 				}
 				i += sizeof(word32);
