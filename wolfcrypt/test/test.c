@@ -23103,7 +23103,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     info->hash.in,
                     info->hash.inSz);
             }
-            else if (info->hash.digest != NULL) {
+            if (info->hash.digest != NULL) {
                 ret = wc_ShaFinal(
                     info->hash.sha1,
                     info->hash.digest);
@@ -23128,7 +23128,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     info->hash.in,
                     info->hash.inSz);
             }
-            else if (info->hash.digest != NULL) {
+            if (info->hash.digest != NULL) {
                 ret = wc_Sha256Final(
                     info->hash.sha256,
                     info->hash.digest);
@@ -23202,7 +23202,7 @@ int cryptocb_test(void)
     #endif
     #ifdef HAVE_AES_CBC
     if (ret == 0)
-        ret = aes_cbc_test();
+        ret = aes_test();
     #endif
 #endif /* !NO_AES */
 #if !defined(NO_SHA) || !defined(NO_SHA256)
