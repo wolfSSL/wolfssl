@@ -259,6 +259,8 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
         LOG_DEBUG(&mynewt_log, LOG_MODULE_DEFAULT, "%s\n", logMessage);
 #elif defined(WOLFSSL_ESPIDF)
         ESP_LOGI("wolfssl", "%s", logMessage);
+#elif defined(WOLFSSL_ZEPHYR)
+        printk("%s\n", logMessage);
 #else
         fprintf(stderr, "%s\n", logMessage);
 #endif

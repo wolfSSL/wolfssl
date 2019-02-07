@@ -53,6 +53,19 @@ Possible memory options:
  * WOLFSSL_HEAP_TEST:               Used for internal testing of heap hint
  */
 
+#ifdef WOLFSSL_ZEPHYR
+#undef realloc
+void *z_realloc(void *ptr, size_t size)
+{
+    if (ptr == NULL)
+        ptr = malloc(size);
+    else
+        ptr = realloc(ptr, size);
+
+    return ptr;
+}
+#define realloc z_realloc
+#endif
 
 #ifdef USE_WOLFSSL_MEMORY
 

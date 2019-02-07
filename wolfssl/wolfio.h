@@ -116,6 +116,8 @@
         #include <socketapi.h>
         #include <lwip-socket.h>
         #include <errno.h>
+    #elif defined(WOLFSSL_ZEPHYR)
+        #include <net/socket.h>
     #elif !defined(WOLFSSL_NO_SOCK)
         #include <sys/types.h>
         #include <errno.h>
@@ -257,6 +259,9 @@
 #elif defined(WOLFSSL_NUCLEUS_1_2)
     #define SEND_FUNCTION NU_Send
     #define RECV_FUNCTION NU_Recv
+#elif defined(WOLFSSL_ZEPHYR)
+    #define SEND_FUNCTION zsock_send
+    #define RECV_FUNCTION zsock_recv
 #else
     #define SEND_FUNCTION send
     #define RECV_FUNCTION recv

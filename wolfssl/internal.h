@@ -169,6 +169,10 @@
         void mynewt_ctx_clear(void *ctx);
         void* mynewt_ctx_new();
     #endif
+#elif defined(WOLFSSL_ZEPHYR)
+    #ifndef SINGLE_THREADED
+        #include <kernel.h>
+    #endif
 #else
     #ifndef SINGLE_THREADED
         #define WOLFSSL_PTHREADS
