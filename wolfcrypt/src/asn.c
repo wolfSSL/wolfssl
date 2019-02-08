@@ -4337,10 +4337,18 @@ static int GetKey(DecodedCert* cert)
         case RSAk:
         {
             int ret;
-            ret = CheckBitString(cert->source, &cert->srcIdx, NULL,
+
+            ret = CheckBitString(cert->source, &cert->srcIdx, &length,
                                  cert->maxIdx, 1, NULL);
             if (ret != 0)
                 return ret;
+
+            #ifdef HAVE_OCSP
+                ret = CalcHashId(cert->source + cert->srcIdx, length,
+                        cert->subjectKeyHash);
+                if (ret != 0)
+                    return ret;
+            #endif
 
             return StoreRsaKey(cert);
         }
@@ -4434,6 +4442,12 @@ static int GetKey(DecodedCert* cert)
                                                          cert->maxIdx, 1, NULL);
                 if (ret != 0)
                     return ret;
+            #ifdef HAVE_OCSP
+                ret = CalcHashId(cert->source + cert->srcIdx, length,
+                        cert->subjectKeyHash);
+                if (ret != 0)
+                    return ret;
+            #endif
             }
 
             publicKey = (byte*)XMALLOC(pubLen, cert->heap,
@@ -4462,6 +4476,13 @@ static int GetKey(DecodedCert* cert)
                                  cert->maxIdx, 1, NULL);
             if (ret != 0)
                 return ret;
+
+            #ifdef HAVE_OCSP
+                ret = CalcHashId(cert->source + cert->srcIdx, length,
+                        cert->subjectKeyHash);
+                if (ret != 0)
+                    return ret;
+            #endif
 
             publicKey = (byte*) XMALLOC(length, cert->heap,
                                         DYNAMIC_TYPE_PUBLIC_KEY);
@@ -8076,10 +8097,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 
         #ifdef HAVE_OCSP
             /* Need the CA's public key hash for OCSP */
-            ret = CalcHashId(cert->ca->publicKey, cert->ca->pubKeySize,
-                                                           cert->issuerKeyHash);
-            if (ret != 0)
-                return ret;
+            XMEMCPY(cert->issuerKeyHash, cert->ca->subjectKeyHash, KEYID_SIZE);
         #endif /* HAVE_OCSP */
             }
         }
@@ -8139,21 +8157,7 @@ Signer* MakeSigner(void* heap)
     Signer* signer = (Signer*) XMALLOC(sizeof(Signer), heap,
                                        DYNAMIC_TYPE_SIGNER);
     if (signer) {
-        signer->pubKeySize = 0;
-        signer->keyOID     = 0;
-        signer->publicKey  = NULL;
-        signer->nameLen    = 0;
-        signer->name       = NULL;
-    #ifndef IGNORE_NAME_CONSTRAINTS
-        signer->permittedNames = NULL;
-        signer->excludedNames = NULL;
-    #endif /* IGNORE_NAME_CONSTRAINTS */
-        signer->pathLengthSet = 0;
-        signer->pathLength = 0;
-    #ifdef WOLFSSL_SIGNER_DER_CERT
-        signer->derCert    = NULL;
-    #endif
-        signer->next       = NULL;
+        XMEMSET(signer, 0, sizeof(Signer));
     }
     (void)heap;
 
