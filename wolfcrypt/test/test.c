@@ -22900,7 +22900,6 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #ifndef WC_NO_RNG
         static byte seed[] = { 0x00, 0x00, 0x00, 0x01 };
         word32 len;
-        int i;
 
         /* wc_GenerateSeed is a local symbol so we need to fake the entropy. */
         while (info->seed.sz > 0) {

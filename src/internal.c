@@ -4415,6 +4415,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
     ssl->buffers.key     = ctx->privateKey;
     ssl->buffers.keyType = ctx->privateKeyType;
+    ssl->buffers.keyId   = ctx->privateKeyId;
     ssl->buffers.keySz   = ctx->privateKeySz;
 #endif
 #if !defined(WOLFSSL_NO_CLIENT_AUTH) && defined(HAVE_ED25519) && \
@@ -16927,6 +16928,44 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         ERROR_OUT(NO_PRIVATE_KEY, exit_dpk);
     }
 
+#ifdef HAVE_PKCS11
+    if (ssl->devId != INVALID_DEVID && ssl->buffers.keyId) {
+        ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+        if (ret != 0) {
+            goto exit_dpk;
+        }
+
+        if (ssl->buffers.keyType == rsa_sa_algo) {
+            ret = wc_InitRsaKey_Id((RsaKey*)ssl->hsKey,
+                             ssl->buffers.key->buffer, ssl->buffers.key->length,
+                             ssl->heap, ssl->devId);
+            if (ret == 0) {
+                if (ssl->buffers.keySz < ssl->options.minRsaKeySz) {
+                    WOLFSSL_MSG("RSA key size too small");
+                    ERROR_OUT(RSA_KEY_SIZE_E, exit_dpk);
+                }
+
+                /* Return the maximum signature length. */
+                *length = (word16)ssl->buffers.keySz;
+            }
+        }
+        else if (ssl->buffers.keyType == ecc_dsa_sa_algo) {
+            ret = wc_ecc_init_id((ecc_key*)ssl->hsKey, ssl->buffers.key->buffer,
+                               ssl->buffers.key->length, ssl->heap, ssl->devId);
+            if (ret == 0) {
+                if (ssl->buffers.keySz < ssl->options.minEccKeySz) {
+                    WOLFSSL_MSG("ECC key size too small");
+                    ERROR_OUT(ECC_KEY_SIZE_E, exit_dpk);
+                }
+
+                /* Return the maximum signature length. */
+                *length = (word16)ssl->buffers.keySz;
+            }
+        }
+        goto exit_dpk;
+    }
+#endif
+
 #ifndef NO_RSA
     if (ssl->buffers.keyType == rsa_sa_algo || ssl->buffers.keyType == 0) {
         ssl->hsType = DYNAMIC_TYPE_RSA;
@@ -22012,25 +22051,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         #endif
                             case rsa_sa_algo:
                             {
-                                word32 i = 0;
-                                int keySz;
+                                word16 keySz;
 
                                 ssl->hsType = DYNAMIC_TYPE_RSA;
-                                ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+                                if (ssl->buffers.keyType == 0)
+                                    ssl->buffers.keyType = rsa_sa_algo;
+                                ret = DecodePrivateKey(ssl, &keySz);
                                 if (ret != 0) {
-                                    goto exit_sske;
-                                }
-
-                                ret = wc_RsaPrivateKeyDecode(
-                                    ssl->buffers.key->buffer,
-                                    &i,
-                                    (RsaKey*)ssl->hsKey,
-                                    ssl->buffers.key->length);
-                                if (ret != 0) {
-                                    goto exit_sske;
-                                }
-                                keySz = wc_RsaEncryptSize((RsaKey*)ssl->hsKey);
-                                if (keySz < 0) { /* test if keySz has error */
                                     ERROR_OUT(keySz, exit_sske);
                                 }
 
@@ -22045,29 +22072,20 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         #ifdef HAVE_ECC
                             case ecc_dsa_sa_algo:
                             {
-                                word32 i = 0;
+                                word16 keySz;
 
                                 ssl->hsType = DYNAMIC_TYPE_ECC;
-                                ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+                                if (ssl->buffers.keyType == 0)
+                                    ssl->buffers.keyType = ecc_dsa_sa_algo;
+                                ret = DecodePrivateKey(ssl, &keySz);
                                 if (ret != 0) {
-                                    goto exit_sske;
-                                }
-
-                                ret = wc_EccPrivateKeyDecode(
-                                    ssl->buffers.key->buffer,
-                                    &i,
-                                    (ecc_key*)ssl->hsKey,
-                                    ssl->buffers.key->length);
-                                if (ret != 0) {
-                                    goto exit_sske;
+                                    ERROR_OUT(keySz, exit_sske);
                                 }
                                 /* worst case estimate */
-                                args->tmpSigSz = wc_ecc_sig_size(
-                                    (ecc_key*)ssl->hsKey);
+                                args->tmpSigSz = keySz;
 
                                 /* check the minimum ECC key size */
-                                if (wc_ecc_size((ecc_key*)ssl->hsKey) <
-                                        ssl->options.minEccKeySz) {
+                                if (keySz < ssl->options.minEccKeySz) {
                                     WOLFSSL_MSG("ECC key size too small");
                                     ERROR_OUT(ECC_KEY_SIZE_E, exit_sske);
                                 }
@@ -22077,21 +22095,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         #ifdef HAVE_ED25519
                             case ed25519_sa_algo:
                             {
-                                word32 i = 0;
+                                word16 keySz;
 
                                 ssl->hsType = DYNAMIC_TYPE_ED25519;
-                                ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+                                if (ssl->buffers.keyType == 0)
+                                    ssl->buffers.keyType = ed25519_sa_algo;
+                                ret = DecodePrivateKey(ssl, &keySz);
                                 if (ret != 0) {
-                                    goto exit_sske;
-                                }
-
-                                ret = wc_Ed25519PrivateKeyDecode(
-                                    ssl->buffers.key->buffer,
-                                    &i,
-                                    (ed25519_key*)ssl->hsKey,
-                                    ssl->buffers.key->length);
-                                if (ret != 0) {
-                                    goto exit_sske;
+                                    ERROR_OUT(keySz, exit_sske);
                                 }
 
                                 /* worst case estimate */
@@ -22307,7 +22318,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         preSigSz  = args->length;
 
                         if (!ssl->options.usingAnon_cipher) {
-                            int keySz;
+                            word16 keySz;
 
                             /* sig length */
                             args->length += LENGTH_SZ;
@@ -22322,22 +22333,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             }
                             else
                             {
-                                word32 i = 0;
-
                                 ssl->hsType = DYNAMIC_TYPE_RSA;
-                                ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+                                if (ssl->buffers.keyType == 0)
+                                    ssl->buffers.keyType = rsa_sa_algo;
+                                ret = DecodePrivateKey(ssl, &keySz);
                                 if (ret != 0) {
-                                    goto exit_sske;
+                                    ERROR_OUT(keySz, exit_sske);
                                 }
-
-                                ret = wc_RsaPrivateKeyDecode(
-                                    ssl->buffers.key->buffer, &i,
-                                    (RsaKey*)ssl->hsKey,
-                                    ssl->buffers.key->length);
-                                if (ret != 0) {
-                                    goto exit_sske;
-                                }
-                                keySz = wc_RsaEncryptSize((RsaKey*)ssl->hsKey);
                             }
 
                             if (keySz <= 0) { /* test if keySz has error */
@@ -25014,22 +25016,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 #ifndef NO_RSA
                     case rsa_kea:
                     {
-                        word32 i = 0;
-                        int    keySz;
+                        word16 keySz;
 
                         ssl->hsType = DYNAMIC_TYPE_RSA;
-                        ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+                        if (ssl->buffers.keyType == 0)
+                            ssl->buffers.keyType = rsa_sa_algo;
+                        ret = DecodePrivateKey(ssl, &keySz);
                         if (ret != 0) {
-                            goto exit_dcke;
-                        }
-
-                        ret = wc_RsaPrivateKeyDecode(ssl->buffers.key->buffer,
-                            &i, (RsaKey*)ssl->hsKey, ssl->buffers.key->length);
-                        if (ret != 0) {
-                            goto exit_dcke;
-                        }
-                        keySz = wc_RsaEncryptSize((RsaKey*)ssl->hsKey);
-                        if (keySz < 0) { /* test if keySz has error */
                             ERROR_OUT(keySz, exit_dcke);
                         }
                         args->length = (word32)keySz;
@@ -25172,27 +25165,20 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         /* handle static private key */
                         if (ssl->specs.static_ecdh &&
                                           ssl->ecdhCurveOID != ECC_X25519_OID) {
-                            word32 i = 0;
+                            word16 keySz;
 
                             ssl->hsType = DYNAMIC_TYPE_ECC;
-                            ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+                            if (ssl->buffers.keyType == 0)
+                                ssl->buffers.keyType = rsa_sa_algo;
+                            ret = DecodePrivateKey(ssl, &keySz);
                             if (ret != 0) {
-                                goto exit_dcke;
+                                ERROR_OUT(keySz, exit_dcke);
                             }
-
-                            ret = wc_EccPrivateKeyDecode(
-                                ssl->buffers.key->buffer,
-                                &i,
-                                (ecc_key*)ssl->hsKey,
-                                ssl->buffers.key->length);
-                            if (ret == 0) {
-                                private_key = (ecc_key*)ssl->hsKey;
-                                if (wc_ecc_size(private_key) <
-                                                ssl->options.minEccKeySz) {
-                                    WOLFSSL_MSG("ECC key too small");
-                                    ERROR_OUT(ECC_KEY_SIZE_E, exit_dcke);
-                                }
+                            if (keySz < ssl->options.minEccKeySz) {
+                                WOLFSSL_MSG("ECC key too small");
+                                ERROR_OUT(ECC_KEY_SIZE_E, exit_dcke);
                             }
+                            private_key = (ecc_key*)ssl->hsKey;
                         }
                     #endif
 
