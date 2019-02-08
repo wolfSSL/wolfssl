@@ -7358,21 +7358,18 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 
 
 
-    WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext\
-        (const WOLFSSL_X509* x509, int loc)
+    WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* x509,
+                                                                         int loc)
     {
-        int extCount = 0;
-        int length = 0;
-        int outSz = 0;
+        int extCount = 0, length = 0, outSz = 0, sz = 0, ret = 0;
+        int objSz = 0, isSet = 0, j;
         const byte* rawCert;
-        int sz = 0;
-        int tmpIdx = 0;
         const byte* input;
-        word32 oid;
-        int ret = 0;
-        int isSet = 0;
-        word32 idx = 0;
-        WOLFSSL_X509_EXTENSION* foundExtension = NULL;
+        byte* oidBuf;
+        word32 oid, idx = 0, tmpIdx = 0;
+        WOLFSSL_X509_EXTENSION* ext = NULL;
+        WOLFSSL_ASN1_INTEGER* a;
+        WOLFSSL_ASN1_STRING* str;
         DecodedCert cert;
 
         WOLFSSL_ENTER("wolfSSL_X509_get_ext()");
@@ -7387,7 +7384,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
             return NULL;
         }
 
-        foundExtension = wolfSSL_X509_EXTENSION_new();
+        ext = wolfSSL_X509_EXTENSION_new();
 
         rawCert = wolfSSL_X509_get_der((WOLFSSL_X509*)x509, &outSz);
         InitDecodedCert( &cert, rawCert, (word32)outSz, 0);
@@ -7429,72 +7426,156 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
             }
             idx = tmpIdx;
 
-            isSet = wolfSSL_X509_ext_isSet_by_NID((WOLFSSL_X509*)x509, oid);
-            if (extCount == loc && isSet == 1){
-                WOLFSSL_ASN1_INTEGER* a;
-                WOLFSSL_ASN1_STRING* str;
+            if (extCount == loc){
 
-                foundExtension->obj = wolfSSL_OBJ_nid2obj(oid);
-                foundExtension->obj->nid = oid;
-                /* TODO: set foundExtension->value (?) */
+                /* Check if extension has been set */
+                isSet = wolfSSL_X509_ext_isSet_by_NID((WOLFSSL_X509*)x509, oid);
+                ext->obj = wolfSSL_OBJ_nid2obj(oid);
+                ext->obj->nid = oid;
 
                 switch (oid) {
                     case BASIC_CA_OID:
+                        if (!isSet)
+                            break;
                         /* Set pathlength */
                         a = wolfSSL_ASN1_INTEGER_new();
 
                         a->length = x509->pathLength;
-                        foundExtension->obj->pathlen = (WOLFSSL_ASN1_INTEGER*)\
-                                        XMALLOC(sizeof(WOLFSSL_ASN1_INTEGER), NULL,
-                                        DYNAMIC_TYPE_ASN1);
-                        XMEMCPY((WOLFSSL_ASN1_INTEGER*)foundExtension->obj->pathlen,
+                        ext->obj->pathlen = (WOLFSSL_ASN1_INTEGER*)\
+                                        XMALLOC(sizeof(WOLFSSL_ASN1_INTEGER),
+                                        NULL, DYNAMIC_TYPE_ASN1);
+                        XMEMCPY((WOLFSSL_ASN1_INTEGER*)ext->obj->pathlen,
                                  a, sizeof(WOLFSSL_ASN1_INTEGER));
 
                         wolfSSL_ASN1_INTEGER_free(a);
 
-                        foundExtension->obj->ca = x509->basicConstSet;
-                        foundExtension->crit = x509->basicConstCrit;
+                        ext->obj->ca = x509->isCa;
+                        ext->crit = x509->basicConstCrit;
                         break;
 
                     case AUTH_INFO_OID:
-                        foundExtension->crit = x509->authInfoCrit;
+                        if (!isSet)
+                            break;
+                        ext->crit = x509->authInfoCrit;
                         break;
 
                     case AUTH_KEY_OID:
-                        foundExtension->crit = x509->authKeyIdCrit;
+                        if (!isSet)
+                            break;
+                        str = wolfSSL_ASN1_STRING_new();
+                        str->data = (char*)XMALLOC(x509->authKeyIdSz, NULL,
+                                     DYNAMIC_TYPE_ASN1);
+                        XMEMCPY((char*)str->data, x509->authKeyId,
+                                x509->authKeyIdSz);
+                        ext->value = *str;
+                        ext->value.length = x509->authKeyIdSz;
+                        ext->crit = x509->authKeyIdCrit;
+                        wolfSSL_ASN1_STRING_free(str);
                         break;
 
                     case SUBJ_KEY_OID:
+                        if (!isSet)
+                            break;
                         str = wolfSSL_ASN1_STRING_new();
                         str->data = (char*)XMALLOC(x509->subjKeyIdSz, NULL,
                                      DYNAMIC_TYPE_ASN1);
                         XMEMCPY((char*)str->data, x509->subjKeyId,
                                 x509->subjKeyIdSz);
-
-                        foundExtension->value = *str;
-                        foundExtension->value.length = x509->subjKeyIdSz;
-                        foundExtension->crit = x509->subjKeyIdCrit;
+                        ext->value = *str;
+                        ext->value.length = x509->subjKeyIdSz;
+                        ext->crit = x509->subjKeyIdCrit;
+                        wolfSSL_ASN1_STRING_free(str);
                         break;
 
                     case CERT_POLICY_OID:
-                        foundExtension->crit = x509->certPolicyCrit;
+                        if (!isSet)
+                            break;
+                        ext->crit = x509->certPolicyCrit;
                         break;
 
                     case KEY_USAGE_OID:
-                        foundExtension->crit = x509->keyUsageCrit;
+                        if (!isSet)
+                            break;
+                        ext->crit = x509->keyUsageCrit;
                         break;
 
                     case EXT_KEY_USAGE_OID:
-                        foundExtension->crit = x509->keyUsageCrit;
+                        if (!isSet)
+                            break;
+                        ext->crit = x509->keyUsageCrit;
+                        break;
+
+                    case CRL_DIST_OID:
+                        if (!isSet)
+                            break;
+                        ext->crit = x509->CRLdistCrit;
                         break;
 
                     default:
-                        WOLFSSL_MSG("Extension type not found in table");
+                        WOLFSSL_MSG("Unknown extension type found, parsing OID");
+                        /* If the extension type is not recognized/supported,
+                            set the ASN1_OBJECT in the extension with the
+                            parsed oid for access in later function calls */
+
+                        /* Get OID from input */
+                        GetASNObjectId(input, &idx, &length, sz);
+                        oidBuf = XMALLOC(length+2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                        oidBuf[0] = ASN_OBJECT_ID;
+                        objSz++;
+                        objSz += SetLength(length, oidBuf + 1);
+                        objSz += length;
+
+                        /*Set object size and reallocate space in object buffer*/
+                        ext->obj->objSz = objSz;
+                        if(((ext->obj->dynamic & \
+                             WOLFSSL_ASN1_DYNAMIC_DATA) != 0) ||
+                          (((ext->obj->dynamic & \
+                             WOLFSSL_ASN1_DYNAMIC_DATA) == 0) &&
+                             (ext->obj->obj == NULL))) {
+
+                             ext->obj->obj =(byte*)XREALLOC((byte*)ext->obj->obj,
+                                                     ext->obj->objSz,
+                                                     NULL,DYNAMIC_TYPE_ASN1);
+                            if (ext->obj->obj == NULL) {
+                                wolfSSL_ASN1_OBJECT_free(ext->obj);
+                                return NULL;
+                            }
+                            ext->obj->dynamic |= WOLFSSL_ASN1_DYNAMIC_DATA;
+                        } else {
+                            ext->obj->dynamic &= ~WOLFSSL_ASN1_DYNAMIC_DATA;
+                        }
+                        /* Get OID from input and copy to ASN1_OBJECT buffer */
+                        for (j = 0; j < length; j++) {
+                            *(oidBuf+j+2) = input[idx+j];
+                        }
+                        XMEMCPY((byte*)ext->obj->obj, oidBuf, ext->obj->objSz);
+                        XFREE(oidBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                        oidBuf = NULL;
+                        ext->obj->grp = oidCertExtType;
+                        ext->crit = 0;
+
+                        /* Get extension data and copy as ASN1_STRING */
+                        str = wolfSSL_ASN1_STRING_new();
+                        tmpIdx = idx + length;
+                        if (input[tmpIdx++] != ASN_OCTET_STRING) {
+                            WOLFSSL_MSG("Error decoding unknown extension data");
+                            return NULL;
+                        }
+
+                        GetLength(input, &tmpIdx, &length, sz);
+                        str->data = (char*)XMALLOC(length, NULL,
+                                     DYNAMIC_TYPE_ASN1);
+                        for (j = 0; j < length; j++) {
+                            *(str->data+j) = input[tmpIdx+j];
+                        }
+                        ext->value = *str;
+                        ext->value.length = length;
+                        wolfSSL_ASN1_STRING_free(str);
                 }
 
                 idx+=length;
                 FreeDecodedCert(&cert);
-                return foundExtension;
+                return ext;
             }
             else{
                 idx += length;
@@ -7503,7 +7584,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         }
         FreeDecodedCert(&cert);
 
-        return foundExtension;
+        return ext;
     }
 
 
@@ -7548,7 +7629,8 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
             WOLFSSL_MSG("Passed a NULL X509_EXTENSION*");
             return NULL;
         }
-        nid = wolfSSL_OBJ_obj2nid(ex->obj);
+
+        nid = ex->obj->nid;
         if(nid <= 0){
             WOLFSSL_MSG("Failed to get nid from passed extension object");
             return NULL;
@@ -7583,7 +7665,10 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
                     see openssl crypto/x509v3/v3_crld.c for reference */
                 break;
             default:
+                /* If extension type is unknown, return NULL -- QT makes call to
+                    X509_EXTENSION_get_data() if there is no v3_ext_method */
                 WOLFSSL_MSG("X509V3_EXT_get(): NID not in table");
+                return NULL;
         }
 
         method.ext_nid = nid;
@@ -7601,7 +7686,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         const WOLFSSL_v3_ext_method* method;
         WOLFSSL_ASN1_OBJECT* object;
         WOLFSSL_BASIC_CONSTRAINTS* bc;
-        WOLFSSL_AUTHORITY_KEYID* a;
+        WOLFSSL_AUTHORITY_KEYID* akey;
         WOLFSSL_ASN1_STRING* asn1String;
 
         WOLFSSL_ENTER("wolfSSL_X509V3_EXT_d2i");
@@ -7637,53 +7722,49 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
                     return NULL;
                 }
                 bc->ca = object->ca;
-                bc->pathlen = wolfSSL_ASN1_INTEGER_new();
-                if (bc->pathlen == NULL) {
-                    WOLFSSL_MSG("Failed to malloc ASN1_INTEGER");
-                    return NULL;
+                if (object->pathlen->length > 0) {
+                    bc->pathlen = wolfSSL_ASN1_INTEGER_new();
+                    if (bc->pathlen == NULL) {
+                        WOLFSSL_MSG("Failed to malloc ASN1_INTEGER");
+                        return NULL;
+                    }
+                    XMEMCPY((WOLFSSL_ASN1_INTEGER*)bc->pathlen, object->pathlen,
+                             sizeof(WOLFSSL_ASN1_INTEGER));
                 }
-                XMEMCPY((WOLFSSL_ASN1_INTEGER*)bc->pathlen, object->pathlen,
-                         sizeof(WOLFSSL_ASN1_INTEGER));
-
+                else
+                    bc->pathlen = NULL;
                 return bc;
 
             /* subjectKeyIdentifier */
             case (NID_subject_key_identifier):
-                WOLFSSL_MSG("subjectKeyIdentifier not supported yet");
+                WOLFSSL_MSG("subjectKeyIdentifier");
                 asn1String = wolfSSL_X509_EXTENSION_get_data(ext);
                 return asn1String;
 
             /* authorityKeyIdentifier */
             case (NID_authority_key_identifier):
-                WOLFSSL_MSG("AuthorityKeyIdentifier not supported yet");
-                /* TODO return internal structure for authority key id
-                    QT is expecting return value to be AUTHORITY_KEYID* type */
-                a = (WOLFSSL_AUTHORITY_KEYID*)\
+                WOLFSSL_MSG("AuthorityKeyIdentifier");
+
+                akey = (WOLFSSL_AUTHORITY_KEYID*)\
                      XMALLOC(sizeof(WOLFSSL_AUTHORITY_KEYID), NULL,
                      DYNAMIC_TYPE_X509_EXT);
-                if (a == NULL) {
+                if (akey == NULL) {
                     WOLFSSL_MSG("Failed to malloc authority key id");
                     return NULL;
                 }
+                akey->keyid = wolfSSL_ASN1_STRING_new();
+                asn1String = wolfSSL_X509_EXTENSION_get_data(ext);
 
-                a->keyid = wolfSSL_ASN1_STRING_new();
-                if (a == NULL) {
-                    WOLFSSL_MSG("ASN1_STRING_new failed");
+                XMEMCPY(akey->keyid, asn1String, sizeof(WOLFSSL_ASN1_STRING));
+                if (akey->keyid == NULL) {
+                    WOLFSSL_MSG("Memory error");
                     return NULL;
                 }
 
-                a->issuer = wolfSSL_ASN1_OBJECT_new();
-                if (a == NULL) {
-                    WOLFSSL_MSG("ASN1_OBJECT_new failed");
-                    return NULL;
-                }
+                akey->issuer = NULL;
+                akey->serial = NULL;
 
-                a->serial = wolfSSL_ASN1_INTEGER_new();
-                if (a == NULL) {
-                    WOLFSSL_MSG("Failed to malloc ASN1_INTEGER");
-                    return NULL;
-                }
-                return a;
+                return akey;
 
             /* keyUsage */
             case (NID_key_usage):
@@ -7693,7 +7774,6 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
             /* extKeyUsage */
             case (NID_ext_key_usage):
                 WOLFSSL_MSG("extKeyUsage not supported yet");
-
                 return NULL;
             /* certificatePolicies */
             case (NID_certificate_policies):
@@ -15914,9 +15994,11 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_get_peer_cert_chain");
+#ifdef WOLFSSL_QT
     WOLFSSL_STACK* sk;
     WOLFSSL_X509* x509;
     int i = 0;
+#endif
 
     if ((ssl == NULL) || (ssl->session.chain.count == 0)) {
         return NULL;
@@ -34242,7 +34324,12 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         }
         if (i == (int)WOLFSSL_OBJECT_INFO_SZ) {
             WOLFSSL_MSG("NID not in table");
+        #ifdef WOLFSSL_QT
+            sName = NULL;
+            type = id;
+        #else
             return NULL;
+        #endif
         }
 
     #ifdef HAVE_ECC
@@ -34359,6 +34446,13 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         }
 
         buf[bufSz] = '\0';
+#ifdef WOLFSSL_QT
+        /* For unknown extension types, QT expects the short name to be the text
+            representation of the oid */
+        if (strlen(a->sName) == 0) {
+            XMEMCPY(a->sName, buf, bufSz);
+        }
+#endif
         return bufSz;
     }
 
@@ -34691,7 +34785,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 case EXT_KEY_USAGE_OID :
                     return "extKeyUsage";
                 default :
-                    WOLFSSL_MSG("nid not in table, trying wolfssl_object_info\n");
+                    WOLFSSL_MSG("nid not in table, trying wolfssl_object_info");
             }
 
             /* Check wolfssl_object_info for short name if not found */
@@ -35032,19 +35126,25 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         if (o == NULL) {
             return -1;
         }
-        if (o->nid > 0) {
-            #ifdef WOLFSSL_QT
+
+        #ifdef WOLFSSL_QT
+        if (o->grp == oidCertExtType) {
+            isCertTest = 1;
+            /* If nid is an unknown extension, return NID_undef */
+            if (wolfSSL_OBJ_nid2sn(o->nid) == NULL)
+                return NID_undef;
+            else
                 isCertTest = 1;
-            #endif
+        }
+        #endif
+
+        if (o->nid > 0) {
             return o->nid;
         }
         if (GetObjectId(o->obj, &idx, &oid, o->grp, o->objSz) < 0) {
             WOLFSSL_MSG("Issue getting OID of object");
             return -1;
         }
-        #ifdef WOLFSSL_QT
-            isCertTest = 1;
-        #endif
 
         return oid2nid(oid, o->grp);
     }
