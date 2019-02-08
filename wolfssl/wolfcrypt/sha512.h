@@ -154,8 +154,8 @@ WOLFSSL_API int wc_Sha512GetHash(wc_Sha512*, byte*);
 WOLFSSL_API int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst);
 
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
-    WOLFSSL_API int wc_Sha512SetFlags(wc_Sha512* sha512, word32 flags);
-    WOLFSSL_API int wc_Sha512GetFlags(wc_Sha512* sha512, word32* flags);
+    WOLFSSL_LOCAL int wc_Sha512SetFlags(wc_Sha512* sha512, word32 flags);
+    WOLFSSL_LOCAL int wc_Sha512GetFlags(wc_Sha512* sha512, word32* flags);
 #endif
 
 #endif /* WOLFSSL_SHA512 */
@@ -200,8 +200,8 @@ WOLFSSL_API int wc_Sha384GetHash(wc_Sha384*, byte*);
 WOLFSSL_API int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst);
 
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
-    WOLFSSL_API int wc_Sha384SetFlags(wc_Sha384* sha384, word32 flags);
-    WOLFSSL_API int wc_Sha384GetFlags(wc_Sha384* sha384, word32* flags);
+    WOLFSSL_LOCAL int wc_Sha384SetFlags(wc_Sha384* sha384, word32 flags);
+    WOLFSSL_LOCAL int wc_Sha384GetFlags(wc_Sha384* sha384, word32* flags);
 #endif
 
 #endif /* WOLFSSL_SHA384 */
