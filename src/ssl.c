@@ -7393,6 +7393,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
                         XFREE(oidBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                         oidBuf = NULL;
                         ext->obj->grp = oidCertExtType;
+                        ext->crit = 0;
                 }
 
                 idx+=length;
@@ -33748,7 +33749,6 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         if (i == (int)WOLFSSL_OBJECT_INFO_SZ) {
             WOLFSSL_MSG("NID not in table");
         #ifdef WOLFSSL_QT
-            id = id;
             sName = NULL;
             type = id;
         #else
