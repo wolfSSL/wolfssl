@@ -490,8 +490,12 @@ XFILE z_fs_open(const char* filename, const char* perm)
     XFILE file;
 
     file = XMALLOC(sizeof(file), NULL, DYNAMIC_TYPE_FILE);
-    if (file != NULL)
-        fs_open(file, filename);
+    if (file != NULL) {
+        if (fs_open(file, filename) != 0) {
+            XFREE(file);
+            file = NULL;
+        }
+    }
 
     return file;
 }

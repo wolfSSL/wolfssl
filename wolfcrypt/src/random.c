@@ -2170,24 +2170,15 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
             int ret = 0;
-            struct device* dev;
-
-            dev = device_get_binding(CONFIG_ENTROPY_NAME);
-            if (dev != NULL) {
-                if (entropy_get_entropy(dev, output, sz) != 0)
-                    ret = READ_RAN_E;
-            }
-            else {
-                word32 now;
-                while (sz > 0) {
-                    word32 len = sizeof(now);
-                    if (sz < len)
-                        len = sz;
-                    now = k_cycle_get_32();
-                    XMEMCPY(output, &now, sz);
-                    output += len;
-                    sz -= len;
-                }
+            word32 rand;
+            while (sz > 0) {
+                word32 len = sizeof(rand);
+                if (sz < len)
+                    len = sz;
+                rand = sys_rand32_get();
+                XMEMCPY(output, &rand, sz);
+                output += len;
+                sz -= len;
             }
 
             return ret;
