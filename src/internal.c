@@ -15525,7 +15525,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "error during decryption";
 
     case FATAL_ERROR :
-        return "revcd alert fatal error";
+        return "received alert fatal error";
 
     case ENCRYPT_ERROR :
         return "error during encryption";
