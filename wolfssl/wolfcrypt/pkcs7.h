@@ -284,6 +284,8 @@ struct PKCS7 {
 #endif
     word32 state;
 
+    word16 skipDefaultSignedAttribs:1; /* skip adding default signed attribs */
+
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };
 
@@ -310,6 +312,7 @@ WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
 
 /* CMS/PKCS#7 SignedData */
 WOLFSSL_API int  wc_PKCS7_SetDetached(PKCS7* pkcs7, word16 flag);
+WOLFSSL_API int  wc_PKCS7_NoDefaultSignedAttribs(PKCS7* pkcs7);
 WOLFSSL_API int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
                                           byte* output, word32 outputSz);
 WOLFSSL_API int  wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf, 
