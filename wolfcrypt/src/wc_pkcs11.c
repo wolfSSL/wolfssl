@@ -661,78 +661,6 @@ static int Pkcs11FindKeyById(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
 
 #ifndef NO_RSA
 /**
- * Exponentiate the input with the public part of the RSA key.
- * Used in public encrypt and decrypt.
- *
- * @param  session  [in]  Session object.
- * @param  info     [in]  Cryptographic operation data.
- * @return  WC_HW_E when a PKCS#11 library call fails.
- *          0 on success.
- */
-static int Pkcs11RsaPublic(Pkcs11Session* session, wc_CryptoInfo* info)
-{
-    int              ret = 0;
-    CK_RV            rv;
-    CK_MECHANISM     mech;
-    CK_ULONG         outLen;
-    CK_OBJECT_HANDLE publicKey = NULL_PTR;
-    CK_ATTRIBUTE     keyTemplate[] = {
-        { CKA_CLASS,           &pubKeyClass, sizeof(pubKeyClass) },
-        { CKA_KEY_TYPE,        &rsaKeyType,  sizeof(rsaKeyType)  },
-        { CKA_ENCRYPT,         &ckTrue,      sizeof(ckTrue)      },
-        { CKA_MODULUS,         NULL,         0                   },
-        { CKA_PUBLIC_EXPONENT, NULL,         0                   }
-    };
-    CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate);
-
-    WOLFSSL_MSG("PKCS#11: RSA Public Key Operation");
-
-    if (ret == 0 && info->pk.rsa.outLen == NULL) {
-        ret = BAD_FUNC_ARG;
-    }
-
-    if (ret == 0) {
-        /* Set the modulus and public exponent data. */
-        keyTemplate[3].pValue     = info->pk.rsa.key->n.raw.buf;
-        keyTemplate[3].ulValueLen = info->pk.rsa.key->n.raw.len;
-        keyTemplate[4].pValue     = info->pk.rsa.key->e.raw.buf;
-        keyTemplate[4].ulValueLen = info->pk.rsa.key->e.raw.len;
-
-        /* Create an object containing public key data for device to use. */
-        rv = session->func->C_CreateObject(session->handle, keyTemplate,
-                                                        keyTmplCnt, &publicKey);
-        if (rv != CKR_OK)
-            ret = WC_HW_E;
-    }
-
-    if (ret == 0) {
-        /* Raw RSA encrypt/decrypt operation. */
-        mech.mechanism      = CKM_RSA_X_509;
-        mech.ulParameterLen = 0;
-        mech.pParameter     = NULL;
-
-        rv = session->func->C_EncryptInit(session->handle, &mech, publicKey);
-        if (rv != CKR_OK)
-            ret = WC_HW_E;
-    }
-    if (ret == 0) {
-        outLen = (CK_ULONG)*info->pk.rsa.outLen;
-        rv = session->func->C_Encrypt(session->handle,
-                (CK_BYTE_PTR)info->pk.rsa.in, info->pk.rsa.inLen,
-                info->pk.rsa.out, &outLen);
-        if (rv != CKR_OK)
-            ret = WC_HW_E;
-    }
-    if (ret == 0)
-        *info->pk.rsa.outLen = (word32)outLen;
-
-    if (publicKey != NULL_PTR)
-        session->func->C_DestroyObject(session->handle, publicKey);
-
-    return ret;
-}
-
-/**
  * Find the PKCS#11 object containing the RSA public or private key data with
  * the modulus specified.
  *
@@ -770,6 +698,86 @@ static int Pkcs11FindRsaKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
             ret = WC_HW_E;
         session->func->C_FindObjectsFinal(session->handle);
     }
+
+    return ret;
+}
+
+/**
+ * Exponentiate the input with the public part of the RSA key.
+ * Used in public encrypt and decrypt.
+ *
+ * @param  session  [in]  Session object.
+ * @param  info     [in]  Cryptographic operation data.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ *          0 on success.
+ */
+static int Pkcs11RsaPublic(Pkcs11Session* session, wc_CryptoInfo* info)
+{
+    int              ret = 0;
+    CK_RV            rv;
+    CK_MECHANISM     mech;
+    CK_ULONG         outLen;
+    CK_OBJECT_HANDLE publicKey = NULL_PTR;
+    int              sessionKey = 0;
+    CK_ATTRIBUTE     keyTemplate[] = {
+        { CKA_CLASS,           &pubKeyClass, sizeof(pubKeyClass) },
+        { CKA_KEY_TYPE,        &rsaKeyType,  sizeof(rsaKeyType)  },
+        { CKA_ENCRYPT,         &ckTrue,      sizeof(ckTrue)      },
+        { CKA_MODULUS,         NULL,         0                   },
+        { CKA_PUBLIC_EXPONENT, NULL,         0                   }
+    };
+    CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate);
+
+    WOLFSSL_MSG("PKCS#11: RSA Public Key Operation");
+
+    if (ret == 0 && info->pk.rsa.outLen == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        if ((sessionKey = !mp_iszero(&info->pk.rsa.key->e))) {
+            /* Set the modulus and public exponent data. */
+            keyTemplate[3].pValue     = info->pk.rsa.key->n.raw.buf;
+            keyTemplate[3].ulValueLen = info->pk.rsa.key->n.raw.len;
+            keyTemplate[4].pValue     = info->pk.rsa.key->e.raw.buf;
+            keyTemplate[4].ulValueLen = info->pk.rsa.key->e.raw.len;
+
+            /* Create an object containing public key data for device to use. */
+            rv = session->func->C_CreateObject(session->handle, keyTemplate,
+                                                        keyTmplCnt, &publicKey);
+            if (rv != CKR_OK)
+                ret = WC_HW_E;
+        }
+        else {
+            ret = Pkcs11FindKeyById(&publicKey, CKO_PUBLIC_KEY, CKK_RSA,
+                                    session, info->pk.rsa.key->id,
+                                    info->pk.rsa.key->idLen);
+        }
+    }
+
+    if (ret == 0) {
+        /* Raw RSA encrypt/decrypt operation. */
+        mech.mechanism      = CKM_RSA_X_509;
+        mech.ulParameterLen = 0;
+        mech.pParameter     = NULL;
+
+        rv = session->func->C_EncryptInit(session->handle, &mech, publicKey);
+        if (rv != CKR_OK)
+            ret = WC_HW_E;
+    }
+    if (ret == 0) {
+        outLen = (CK_ULONG)*info->pk.rsa.outLen;
+        rv = session->func->C_Encrypt(session->handle,
+                (CK_BYTE_PTR)info->pk.rsa.in, info->pk.rsa.inLen,
+                info->pk.rsa.out, &outLen);
+        if (rv != CKR_OK)
+            ret = WC_HW_E;
+    }
+    if (ret == 0)
+        *info->pk.rsa.outLen = (word32)outLen;
+
+    if (sessionKey)
+        session->func->C_DestroyObject(session->handle, publicKey);
 
     return ret;
 }

@@ -2500,6 +2500,7 @@ struct WOLFSSL_CTX {
     byte        privateKeyType:7;
     byte        privateKeyId:1;
     int         privateKeySz;
+    int         privateKeyDevId;
     WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
 #endif
 #ifdef KEEP_OUR_CERT
@@ -3082,6 +3083,7 @@ typedef struct Buffers {
     byte            keyType:7;             /* Type of key: RSA, ECC, Ed25519 */
     byte            keyId:1;               /* Key data is an id not data */
     int             keySz;                 /* Size of RSA key */
+    int             keyDevId;              /* Device Id for key */
     DerBuffer*      certChain;             /* WOLFSSL_CTX owns, unless we own */
                  /* chain after self, in DER, with leading size for each cert */
 #ifdef WOLFSSL_TLS13

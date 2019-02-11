@@ -4351,6 +4351,10 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
             key->state = ECC_STATE_SIGN_DO;
 
             if ((err = mp_init_multi(r, s, NULL, NULL, NULL, NULL)) != MP_OKAY){
+            #if !defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_SMALL_STACK)
+                XFREE(s, key->heap, DYNAMIC_TYPE_ECC);
+                XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
+            #endif
                 break;
             }
 
@@ -4361,6 +4365,10 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
             err = wc_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
         #endif
             if (err < 0) {
+            #if !defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_SMALL_STACK)
+                XFREE(s, key->heap, DYNAMIC_TYPE_ECC);
+                XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
+            #endif
                 break;
             }
 

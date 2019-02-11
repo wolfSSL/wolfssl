@@ -11158,7 +11158,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
 #ifdef HAVE_PKCS11
     int wolfSSL_CTX_use_PrivateKey_id(WOLFSSL_CTX* ctx, const unsigned char* id,
-                                      long sz, long keySz)
+                                      long sz, int devId, long keySz)
     {
         int ret = WOLFSSL_FAILURE;
 
@@ -11167,6 +11167,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             XMEMCPY(ctx->privateKey->buffer, id, sz);
             ctx->privateKeyId = 1;
             ctx->privateKeySz = keySz;
+            if (devId != INVALID_DEVID)
+                ctx->privateKeyDevId = devId;
+            else
+                ctx->privateKeyDevId = ctx->devId;
 
             ret = WOLFSSL_SUCCESS;
         }
@@ -11311,7 +11315,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
 #ifdef HAVE_PKCS11
     int wolfSSL_use_PrivateKey_id(WOLFSSL* ssl, const unsigned char* id,
-                                  long sz, long keySz)
+                                  long sz, int devId, long keySz)
     {
         int ret = WOLFSSL_FAILURE;
 
@@ -11321,6 +11325,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             ssl->buffers.weOwnKey = 1;
             ssl->buffers.keyId = 1;
             ssl->buffers.keySz = keySz;
+            if (devId != INVALID_DEVID)
+                ssl->buffers.keyId = devId;
+            else
+                ssl->buffers.keyId = ssl->devId;
 
             ret = WOLFSSL_SUCCESS;
         }

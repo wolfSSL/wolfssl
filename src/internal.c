@@ -4413,10 +4413,11 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef WOLFSSL_TLS13
     ssl->buffers.certChainCnt = ctx->certChainCnt;
 #endif
-    ssl->buffers.key     = ctx->privateKey;
-    ssl->buffers.keyType = ctx->privateKeyType;
-    ssl->buffers.keyId   = ctx->privateKeyId;
-    ssl->buffers.keySz   = ctx->privateKeySz;
+    ssl->buffers.key      = ctx->privateKey;
+    ssl->buffers.keyType  = ctx->privateKeyType;
+    ssl->buffers.keyId    = ctx->privateKeyId;
+    ssl->buffers.keySz    = ctx->privateKeySz;
+    ssl->buffers.keyDevId = ctx->privateKeyDevId;
 #endif
 #if !defined(WOLFSSL_NO_CLIENT_AUTH) && defined(HAVE_ED25519) && \
                                         !defined(NO_ED25519_CLIENT_AUTH)
@@ -16929,7 +16930,11 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
     }
 
 #ifdef HAVE_PKCS11
-    if (ssl->devId != INVALID_DEVID && ssl->buffers.keyId) {
+    if (ssl->buffers.keyDevId != INVALID_DEVID && ssl->buffers.keyId) {
+        if (ssl->buffers.keyType == rsa_sa_algo)
+            ssl->hsType = DYNAMIC_TYPE_RSA;
+        else if (ssl->buffers.keyType == ecc_dsa_sa_algo)
+            ssl->hsType = DYNAMIC_TYPE_ECC;
         ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
         if (ret != 0) {
             goto exit_dpk;
@@ -16938,7 +16943,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         if (ssl->buffers.keyType == rsa_sa_algo) {
             ret = wc_InitRsaKey_Id((RsaKey*)ssl->hsKey,
                              ssl->buffers.key->buffer, ssl->buffers.key->length,
-                             ssl->heap, ssl->devId);
+                             ssl->heap, ssl->buffers.keyDevId);
             if (ret == 0) {
                 if (ssl->buffers.keySz < ssl->options.minRsaKeySz) {
                     WOLFSSL_MSG("RSA key size too small");
@@ -16951,7 +16956,8 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         }
         else if (ssl->buffers.keyType == ecc_dsa_sa_algo) {
             ret = wc_ecc_init_id((ecc_key*)ssl->hsKey, ssl->buffers.key->buffer,
-                               ssl->buffers.key->length, ssl->heap, ssl->devId);
+                                 ssl->buffers.key->length, ssl->heap,
+                                 ssl->buffers.keyDevId);
             if (ret == 0) {
                 if (ssl->buffers.keySz < ssl->options.minEccKeySz) {
                     WOLFSSL_MSG("ECC key size too small");
@@ -22053,19 +22059,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             {
                                 word16 keySz;
 
-                                ssl->hsType = DYNAMIC_TYPE_RSA;
-                                if (ssl->buffers.keyType == 0)
-                                    ssl->buffers.keyType = rsa_sa_algo;
+                                ssl->buffers.keyType = rsa_sa_algo;
                                 ret = DecodePrivateKey(ssl, &keySz);
                                 if (ret != 0) {
-                                    ERROR_OUT(keySz, exit_sske);
+                                    goto exit_sske;
                                 }
 
                                 args->tmpSigSz = (word32)keySz;
-                                if (keySz < ssl->options.minRsaKeySz) {
-                                    WOLFSSL_MSG("RSA signature key size too small");
-                                    ERROR_OUT(RSA_KEY_SIZE_E, exit_sske);
-                                }
                                 break;
                             }
                         #endif /* !NO_RSA */
@@ -22074,21 +22074,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             {
                                 word16 keySz;
 
-                                ssl->hsType = DYNAMIC_TYPE_ECC;
-                                if (ssl->buffers.keyType == 0)
-                                    ssl->buffers.keyType = ecc_dsa_sa_algo;
+                                ssl->buffers.keyType = ecc_dsa_sa_algo;
                                 ret = DecodePrivateKey(ssl, &keySz);
                                 if (ret != 0) {
-                                    ERROR_OUT(keySz, exit_sske);
+                                    goto exit_sske;
                                 }
                                 /* worst case estimate */
                                 args->tmpSigSz = keySz;
-
-                                /* check the minimum ECC key size */
-                                if (keySz < ssl->options.minEccKeySz) {
-                                    WOLFSSL_MSG("ECC key size too small");
-                                    ERROR_OUT(ECC_KEY_SIZE_E, exit_sske);
-                                }
                                 break;
                             }
                         #endif
@@ -22097,23 +22089,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             {
                                 word16 keySz;
 
-                                ssl->hsType = DYNAMIC_TYPE_ED25519;
-                                if (ssl->buffers.keyType == 0)
-                                    ssl->buffers.keyType = ed25519_sa_algo;
+                                ssl->buffers.keyType = ed25519_sa_algo;
                                 ret = DecodePrivateKey(ssl, &keySz);
                                 if (ret != 0) {
-                                    ERROR_OUT(keySz, exit_sske);
+                                    goto exit_sske;
                                 }
 
                                 /* worst case estimate */
                                 args->tmpSigSz = ED25519_SIG_SIZE;
-
-                                /* check the minimum ECC key size */
-                                if (ED25519_KEY_SIZE <
-                                        ssl->options.minEccKeySz) {
-                                    WOLFSSL_MSG("Ed25519 key size too small");
-                                    ERROR_OUT(ECC_KEY_SIZE_E, exit_sske);
-                                }
                                 break;
                             }
                         #endif /* HAVE_ED25519 */
@@ -22333,12 +22316,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             }
                             else
                             {
-                                ssl->hsType = DYNAMIC_TYPE_RSA;
                                 if (ssl->buffers.keyType == 0)
                                     ssl->buffers.keyType = rsa_sa_algo;
                                 ret = DecodePrivateKey(ssl, &keySz);
                                 if (ret != 0) {
-                                    ERROR_OUT(keySz, exit_sske);
+                                    goto exit_sske;
                                 }
                             }
 
@@ -22348,11 +22330,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                             args->tmpSigSz = (word32)keySz;
                             args->length += args->tmpSigSz;
-
-                            if (keySz < ssl->options.minRsaKeySz) {
-                                WOLFSSL_MSG("RSA key size too small");
-                                ERROR_OUT(RSA_KEY_SIZE_E, exit_sske);
-                            }
 
                             if (IsAtLeastTLSv1_2(ssl)) {
                                 args->length += HASH_SIG_SIZE;
@@ -25018,19 +24995,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     {
                         word16 keySz;
 
-                        ssl->hsType = DYNAMIC_TYPE_RSA;
-                        if (ssl->buffers.keyType == 0)
-                            ssl->buffers.keyType = rsa_sa_algo;
+                        ssl->buffers.keyType = rsa_sa_algo;
                         ret = DecodePrivateKey(ssl, &keySz);
                         if (ret != 0) {
-                            ERROR_OUT(keySz, exit_dcke);
+                            goto exit_dcke;
                         }
                         args->length = (word32)keySz;
-
-                        if (keySz < ssl->options.minRsaKeySz) {
-                            WOLFSSL_MSG("Peer RSA key is too small");
-                            ERROR_OUT(RSA_KEY_SIZE_E, exit_dcke);
-                        }
                         ssl->arrays->preMasterSz = SECRET_LEN;
 
                         if (ssl->options.tls) {
@@ -25167,16 +25137,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                           ssl->ecdhCurveOID != ECC_X25519_OID) {
                             word16 keySz;
 
-                            ssl->hsType = DYNAMIC_TYPE_ECC;
-                            if (ssl->buffers.keyType == 0)
-                                ssl->buffers.keyType = rsa_sa_algo;
+                            ssl->buffers.keyType = ecc_dsa_sa_algo;
                             ret = DecodePrivateKey(ssl, &keySz);
                             if (ret != 0) {
-                                ERROR_OUT(keySz, exit_dcke);
-                            }
-                            if (keySz < ssl->options.minEccKeySz) {
-                                WOLFSSL_MSG("ECC key too small");
-                                ERROR_OUT(ECC_KEY_SIZE_E, exit_dcke);
+                                goto exit_dcke;
                             }
                             private_key = (ecc_key*)ssl->hsKey;
                         }
