@@ -650,7 +650,9 @@ static int Pkcs11FindKeyById(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
         rv = session->func->C_FindObjects(session->handle, key, 1, &count);
         if (rv != CKR_OK)
             ret = WC_HW_E;
-        session->func->C_FindObjectsFinal(session->handle);
+        rv = session->func->C_FindObjectsFinal(session->handle);
+        if (rv != CKR_OK)
+            ret = WC_HW_E;
     }
     if (ret == 0 && count == 0)
         ret = WC_HW_E;
@@ -696,7 +698,9 @@ static int Pkcs11FindRsaKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
         rv = session->func->C_FindObjects(session->handle, key, 1, &count);
         if (rv != CKR_OK)
             ret = WC_HW_E;
-        session->func->C_FindObjectsFinal(session->handle);
+        rv = session->func->C_FindObjectsFinal(session->handle);
+        if (rv != CKR_OK)
+            ret = WC_HW_E;
     }
 
     return ret;
@@ -1095,7 +1099,9 @@ static int Pkcs11FindEccKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
         rv = session->func->C_FindObjects(session->handle, key, 1, &count);
         if (rv != CKR_OK)
             ret = WC_HW_E;
-        session->func->C_FindObjectsFinal(session->handle);
+        rv = session->func->C_FindObjectsFinal(session->handle);
+        if (rv != CKR_OK)
+            ret = WC_HW_E;
     }
 
     if (ecPoint != NULL)
