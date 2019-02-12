@@ -696,6 +696,7 @@ struct DecodedCert {
     byte    subjectHash[KEYID_SIZE]; /* hash of all Names                */
     byte    issuerHash[KEYID_SIZE];  /* hash of all Names                */
 #ifdef HAVE_OCSP
+    byte    subjectKeyHash[KEYID_SIZE]; /* hash of the public Key         */
     byte    issuerKeyHash[KEYID_SIZE]; /* hash of the public Key         */
 #endif /* HAVE_OCSP */
     const byte* signature;           /* not owned, points into raw cert  */
@@ -873,6 +874,9 @@ struct Signer {
     #ifndef NO_SKID
         byte    subjectKeyIdHash[SIGNER_DIGEST_SIZE];
                                      /* sha hash of names in certificate */
+    #endif
+    #ifdef HAVE_OCSP
+        byte subjectKeyHash[KEYID_SIZE];
     #endif
 #ifdef WOLFSSL_SIGNER_DER_CERT
     DerBuffer* derCert;
