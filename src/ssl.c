@@ -11156,6 +11156,28 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return ProcessBuffer(ctx, in, sz, format, PRIVATEKEY_TYPE, NULL,NULL,0);
     }
 
+#ifdef HAVE_PKCS11
+    int wolfSSL_CTX_use_PrivateKey_id(WOLFSSL_CTX* ctx, const unsigned char* id,
+                                      long sz, int devId, long keySz)
+    {
+        int ret = WOLFSSL_FAILURE;
+
+        FreeDer(&ctx->privateKey);
+        if (AllocDer(&ctx->privateKey, sz, PRIVATEKEY_TYPE, ctx->heap) == 0) {
+            XMEMCPY(ctx->privateKey->buffer, id, sz);
+            ctx->privateKeyId = 1;
+            ctx->privateKeySz = keySz;
+            if (devId != INVALID_DEVID)
+                ctx->privateKeyDevId = devId;
+            else
+                ctx->privateKeyDevId = ctx->devId;
+
+            ret = WOLFSSL_SUCCESS;
+        }
+
+        return ret;
+    }
+#endif
 
     int wolfSSL_CTX_use_certificate_chain_buffer_format(WOLFSSL_CTX* ctx,
                                  const unsigned char* in, long sz, int format)
@@ -11290,6 +11312,30 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return ProcessBuffer(ssl->ctx, in, sz, format, PRIVATEKEY_TYPE,
                              ssl, NULL, 0);
     }
+
+#ifdef HAVE_PKCS11
+    int wolfSSL_use_PrivateKey_id(WOLFSSL* ssl, const unsigned char* id,
+                                  long sz, int devId, long keySz)
+    {
+        int ret = WOLFSSL_FAILURE;
+
+        FreeDer(&ssl->buffers.key);
+        if (AllocDer(&ssl->buffers.key, sz, PRIVATEKEY_TYPE, ssl->heap) == 0) {
+            XMEMCPY(ssl->buffers.key->buffer, id, sz);
+            ssl->buffers.weOwnKey = 1;
+            ssl->buffers.keyId = 1;
+            ssl->buffers.keySz = keySz;
+            if (devId != INVALID_DEVID)
+                ssl->buffers.keyId = devId;
+            else
+                ssl->buffers.keyId = ssl->devId;
+
+            ret = WOLFSSL_SUCCESS;
+        }
+
+        return ret;
+    }
+#endif
 
     int wolfSSL_use_certificate_chain_buffer_format(WOLFSSL* ssl,
                                  const unsigned char* in, long sz, int format)
@@ -12348,7 +12394,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         ret = wolfSSL_EVP_get_hashinfo(md, &hashType, NULL);
         if (ret == WOLFSSL_FAILURE)
             goto end;
-        
+
         ret = wc_PBKDF1_ex(key, info->keySz, iv, info->ivSz, data, sz, salt,
                            EVP_SALT_SIZE, count, hashType, NULL);
         if (ret == 0)
@@ -13055,7 +13101,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     int wolfSSL_EVP_MD_CTX_block_size(const WOLFSSL_EVP_MD_CTX *ctx) {
         return(wolfSSL_EVP_MD_block_size(wolfSSL_EVP_MD_CTX_md(ctx)));
     }
-    
+
     /* Deep copy of EVP_MD hasher
      * return WOLFSSL_SUCCESS on success */
     static int wolfSSL_EVP_MD_Copy_Hasher(WOLFSSL_EVP_MD_CTX* des,
@@ -13447,7 +13493,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
                 ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
-                                ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);             
+                                ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
                 if (ret != 0)
                     return ret;
             }
