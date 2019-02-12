@@ -21933,8 +21933,18 @@ static void test_wolfssl_PKCS7(void)
     AssertNotNull(pkcs7 = d2i_PKCS7(NULL, &p, len));
     AssertIntEQ(wolfSSL_PKCS7_verify(NULL, NULL, NULL, NULL, NULL,
                                               PKCS7_NOVERIFY), WOLFSSL_FAILURE);
+    PKCS7_free(pkcs7);
+
+    /* fail case, without PKCS7_NOVERIFY */
+    p = data;
+    AssertNotNull(pkcs7 = d2i_PKCS7(NULL, &p, len));
     AssertIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, NULL, NULL,
                                                            0), WOLFSSL_FAILURE);
+    PKCS7_free(pkcs7);
+
+    /* success case, with PKCS7_NOVERIFY */
+    p = data;
+    AssertNotNull(pkcs7 = d2i_PKCS7(NULL, &p, len));
     AssertIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, NULL, NULL,
                                               PKCS7_NOVERIFY), WOLFSSL_SUCCESS);
 
