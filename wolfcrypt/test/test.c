@@ -434,7 +434,7 @@ static void myFipsCb(int ok, int err, const char* hash)
     #elif defined(WOLFSSL_CERT_EXT)
         static byte gTestMemory[140000];
     #elif defined(USE_FAST_MATH) && !defined(ALT_ECC_SIZE)
-        static byte gTestMemory[150000];
+        static byte gTestMemory[160000];
     #else
         static byte gTestMemory[80000];
     #endif

@@ -29,7 +29,7 @@ if [ ! -d $ZEPHYR_CRYPTO_DIR ]; then
 fi
 ZEPHYR_WOLFSSL_DIR=$ZEPHYR_CRYPTO_DIR/wolfssl
 
-echo "wolfSSL directory:"
+echo "wolfSSL directory in Zephyr:"
 echo "  $ZEPHYR_WOLFSSL_DIR"
 rm -rf $ZEPHYR_WOLFSSL_DIR
 mkdir $ZEPHYR_WOLFSSL_DIR
@@ -56,6 +56,7 @@ mkdir $ZEPHYR_WOLFSSL_DIR/include
 cp $ZEPHYR_WOLFSSL_DIR/user_settings.h $ZEPHYR_WOLFSSL_DIR/include/
 cp -rf ${WOLFSSL_SRC_DIR}/wolfssl $ZEPHYR_WOLFSSL_DIR/include/
 rm -f $ZEPHYR_WOLFSSL_DIR/include/wolfssl/options.h
+touch $ZEPHYR_WOLFSSL_DIR/include/wolfssl/options.h
 rm -rf $ZEPHYR_WOLFSSL_DIR/include/wolfssl/wolfcrypt/port
 
 

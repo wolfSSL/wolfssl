@@ -1397,7 +1397,6 @@ extern void uITRON4_free(void *p) ;
     void *z_realloc(void *ptr, size_t size);
     #define realloc   z_realloc
 
-    #define CONFIG_NET_BUF_USER_DATA_SIZE  10
     #define CONFIG_NET_SOCKETS_POSIX_NAMES
 #endif
 

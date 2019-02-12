@@ -260,8 +260,10 @@
     #define SEND_FUNCTION NU_Send
     #define RECV_FUNCTION NU_Recv
 #elif defined(WOLFSSL_ZEPHYR)
-    #define SEND_FUNCTION zsock_send
-    #define RECV_FUNCTION zsock_recv
+    #define MAX_SEND_SZ       256
+
+    #define SEND_FUNCTION send
+    #define RECV_FUNCTION recv
 #else
     #define SEND_FUNCTION send
     #define RECV_FUNCTION recv

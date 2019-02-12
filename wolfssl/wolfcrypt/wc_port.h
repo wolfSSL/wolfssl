@@ -111,10 +111,6 @@
 #elif defined(WOLFSSL_ZEPHYR)
     #ifndef SINGLE_THREADED
         #include <kernel.h>
-
-        #define WOLFSSL_PTHREADS
-        #define HAVE_PTHREAD
-        #include <posix/pthread.h>
     #endif
 #else
     #ifndef SINGLE_THREADED

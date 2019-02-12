@@ -16,7 +16,7 @@ extern "C" {
 #undef  WOLFSSL_ZEPHYR
 #define WOLFSSL_ZEPHYR
 
-#if 1
+#if 0
 #undef  SINGLE_THREADED
 #define SINGLE_THREADED
 #endif

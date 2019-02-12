@@ -228,8 +228,8 @@
         typedef Task_Handle   THREAD_TYPE;
         #define WOLFSSL_THREAD
     #elif defined(WOLFSSL_ZEPHYR)
-        typedef unsigned int  THREAD_RETURN;
-        typedef k_tid_t       THREAD_TYPE;
+        typedef void            THREAD_RETURN;
+        typedef struct k_thread THREAD_TYPE;
         #define WOLFSSL_THREAD
     #else
         typedef unsigned int  THREAD_RETURN;
@@ -399,7 +399,11 @@ typedef struct func_args {
 
 void wait_tcp_ready(func_args*);
 
+#ifdef WOLFSSL_ZEPHYR
+typedef void THREAD_FUNC(void*, void*, void*);
+#else
 typedef THREAD_RETURN WOLFSSL_THREAD THREAD_FUNC(void*);
+#endif
 
 void start_thread(THREAD_FUNC, func_args*, THREAD_TYPE*);
 void join_thread(THREAD_TYPE);

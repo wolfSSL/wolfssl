@@ -2731,8 +2731,6 @@ struct WOLFSSL_CTX {
 };
 
 WOLFSSL_LOCAL
-WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap);
-WOLFSSL_LOCAL
 int InitSSL_Ctx(WOLFSSL_CTX*, WOLFSSL_METHOD*, void* heap);
 WOLFSSL_LOCAL
 void FreeSSL_Ctx(WOLFSSL_CTX*);
