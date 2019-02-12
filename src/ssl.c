@@ -7202,12 +7202,12 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
     WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* x509,
                                                                          int loc)
     {
-        int extCount = 0, length = 0, outSz = 0, sz = 0, tmpIdx = 0, ret = 0;
+        int extCount = 0, length = 0, outSz = 0, sz = 0, ret = 0;
         int objSz = 0, isSet = 0, j;
         const byte* rawCert;
         const byte* input;
         byte* oidBuf;
-        word32 oid, idx = 0;
+        word32 oid, idx = 0, tmpIdx = 0;
         WOLFSSL_X509_EXTENSION* ext = NULL;
         WOLFSSL_ASN1_INTEGER* a;
         WOLFSSL_ASN1_STRING* str;
@@ -7394,6 +7394,24 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
                         oidBuf = NULL;
                         ext->obj->grp = oidCertExtType;
                         ext->crit = 0;
+
+                        /* Get extension data and copy as ASN1_STRING */
+                        str = wolfSSL_ASN1_STRING_new();
+                        tmpIdx = idx + length;
+                        if (input[tmpIdx++] != ASN_OCTET_STRING) {
+                            WOLFSSL_MSG("Error decoding unknown extension data");
+                            return NULL;
+                        }
+
+                        GetLength(input, &tmpIdx, &length, sz);
+                        str->data = (char*)XMALLOC(length, NULL,
+                                     DYNAMIC_TYPE_ASN1);
+                        for (j = 0; j < length; j++) {
+                            *(str->data+j) = input[tmpIdx+j];
+                        }
+                        ext->value = *str;
+                        ext->value.length = length;
+                        wolfSSL_ASN1_STRING_free(str);
                 }
 
                 idx+=length;
@@ -7488,7 +7506,10 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
                     see openssl crypto/x509v3/v3_crld.c for reference */
                 break;
             default:
+                /* If extension type is unknown, return NULL -- QT makes call to
+                    X509_EXTENSION_get_data() if there is no v3_ext_method */
                 WOLFSSL_MSG("X509V3_EXT_get(): NID not in table");
+                return NULL;
         }
 
         method.ext_nid = nid;
@@ -7594,7 +7615,6 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
             /* extKeyUsage */
             case (NID_ext_key_usage):
                 WOLFSSL_MSG("extKeyUsage not supported yet");
-
                 return NULL;
             /* certificatePolicies */
             case (NID_certificate_policies):
@@ -15698,9 +15718,11 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_get_peer_cert_chain");
+#ifdef WOLFSSL_QT
     WOLFSSL_STACK* sk;
     WOLFSSL_X509* x509;
     int i = 0;
+#endif
 
     if ((ssl == NULL) || (ssl->session.chain.count == 0)) {
         return NULL;
