@@ -2212,11 +2212,13 @@ static int SetPrefix(byte* sha_input, int idx)
 
 
 static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
-                   int side, void* heap, int devId)
+                   int side, void* heap, int devId, WC_RNG* rng)
 {
+    (void)rng;
+
 #ifdef BUILD_ARC4
-    word32 sz = specs->key_size;
     if (specs->bulk_cipher_algorithm == wolfssl_rc4) {
+        word32 sz = specs->key_size;
         if (enc && enc->arc4 == NULL)
             enc->arc4 = (Arc4*)XMALLOC(sizeof(Arc4), heap, DYNAMIC_TYPE_CIPHER);
         if (enc && enc->arc4 == NULL)
@@ -2607,14 +2609,17 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
-                        AEAD_MAX_IMP_SZ);
+                        AESGCM_IMP_IV_SZ);
+                gcmRet = wc_AesGcmSetIV(enc->aes, AESGCM_NONCE_SZ,
+                        keys->client_write_IV, AESGCM_IMP_IV_SZ, rng);
+                if (gcmRet != 0) return gcmRet;
             }
             if (dec) {
                 gcmRet = wc_AesGcmSetKey(dec->aes, keys->server_write_key,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
-                        AEAD_MAX_IMP_SZ);
+                        AESGCM_IMP_IV_SZ);
             }
         }
         else {
@@ -2623,14 +2628,17 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
-                        AEAD_MAX_IMP_SZ);
+                        AESGCM_IMP_IV_SZ);
+                gcmRet = wc_AesGcmSetIV(enc->aes, AESGCM_NONCE_SZ,
+                        keys->server_write_IV, AESGCM_IMP_IV_SZ, rng);
+                if (gcmRet != 0) return gcmRet;
             }
             if (dec) {
                 gcmRet = wc_AesGcmSetKey(dec->aes, keys->client_write_key,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
-                        AEAD_MAX_IMP_SZ);
+                        AESGCM_IMP_IV_SZ);
             }
         }
         if (enc)
@@ -2692,6 +2700,11 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                 }
                 XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
                         AEAD_MAX_IMP_SZ);
+                CcmRet = wc_AesCcmSetNonce(enc->aes, keys->client_write_IV,
+                        AEAD_MAX_IMP_SZ);
+                if (CcmRet != 0) {
+                    return CcmRet;
+                }
             }
             if (dec) {
                 CcmRet = wc_AesCcmSetKey(dec->aes, keys->server_write_key,
@@ -2712,6 +2725,11 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                 }
                 XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
                         AEAD_MAX_IMP_SZ);
+                CcmRet = wc_AesCcmSetNonce(enc->aes, keys->server_write_IV,
+                        AEAD_MAX_IMP_SZ);
+                if (CcmRet != 0) {
+                    return CcmRet;
+                }
             }
             if (dec) {
                 CcmRet = wc_AesCcmSetKey(dec->aes, keys->client_write_key,
@@ -3006,7 +3024,7 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 #endif
 
     ret = SetKeys(wc_encrypt, wc_decrypt, keys, &ssl->specs, ssl->options.side,
-                  ssl->heap, ssl->devId);
+                  ssl->heap, ssl->devId, ssl->rng);
 
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (copy) {

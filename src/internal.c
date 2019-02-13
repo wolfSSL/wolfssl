@@ -11468,7 +11468,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #ifndef WOLFSSL_NO_TLS12
 
-#ifdef HAVE_AEAD
+#if defined(HAVE_POLY1305) && defined(HAVE_CHACHA)
 static WC_INLINE void AeadIncrementExpIV(WOLFSSL* ssl)
 {
     int i;
@@ -11825,6 +11825,14 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 #endif /* HAVE_AEAD */
 
 
+/* The following type is used to share code between AES-GCM and AES-CCM. */
+typedef int (*AesAuthEncryptFunc)(Aes* aes, byte* out,
+                                   const byte* in, word32 sz,
+                                   byte* iv, word32 ivSz,
+                                   byte* authTag, word32 authTagSz,
+                                   const byte* authIn, word32 authInSz);
+
+
 static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
     word16 sz, int asyncOkay)
 {
@@ -11889,7 +11897,7 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
         case wolfssl_aes_gcm:
         case wolfssl_aes_ccm:/* GCM AEAD macros use same size as CCM */
         {
-            wc_AesAuthEncryptFunc aes_auth_fn;
+            AesAuthEncryptFunc aes_auth_fn;
             const byte* additionalSrc;
 
         #ifdef WOLFSSL_ASYNC_CRYPT
@@ -11902,11 +11910,11 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
 
         #if defined(BUILD_AESGCM) && defined(HAVE_AESCCM)
             aes_auth_fn = (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm)
-                            ? wc_AesGcmEncrypt : wc_AesCcmEncrypt;
+                            ? wc_AesGcmEncrypt_ex : wc_AesCcmEncrypt_ex;
         #elif defined(BUILD_AESGCM)
-            aes_auth_fn = wc_AesGcmEncrypt;
+            aes_auth_fn = wc_AesGcmEncrypt_ex;
         #else
-            aes_auth_fn = wc_AesCcmEncrypt;
+            aes_auth_fn = wc_AesCcmEncrypt_ex;
         #endif
             additionalSrc = input - 5;
 
@@ -11929,10 +11937,6 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
              * IV length minus the authentication tag size. */
             c16toa(sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
                                 ssl->encrypt.additional + AEAD_LEN_OFFSET);
-            XMEMCPY(ssl->encrypt.nonce,
-                                ssl->keys.aead_enc_imp_IV, AESGCM_IMP_IV_SZ);
-            XMEMCPY(ssl->encrypt.nonce + AESGCM_IMP_IV_SZ,
-                                ssl->keys.aead_exp_IV, AESGCM_EXP_IV_SZ);
             ret = aes_auth_fn(ssl->encrypt.aes,
                     out + AESGCM_EXP_IV_SZ, input + AESGCM_EXP_IV_SZ,
                     sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
@@ -11945,6 +11949,8 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
                 ret = wolfSSL_AsyncPush(ssl, asyncDev);
             }
         #endif
+            XMEMCPY(out,
+                    ssl->encrypt.nonce + AESGCM_IMP_IV_SZ, AESGCM_EXP_IV_SZ);
         }
         break;
     #endif /* BUILD_AESGCM || HAVE_AESCCM */
@@ -12073,8 +12079,6 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 
                 ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm)
             {
                 /* finalize authentication cipher */
-                AeadIncrementExpIV(ssl);
-
                 if (ssl->encrypt.nonce)
                     ForceZero(ssl->encrypt.nonce, AESGCM_NONCE_SZ);
 
@@ -12093,6 +12097,15 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 
 
     return ret;
 }
+
+
+/* The following type is used to share code between AES-GCM and AES-CCM. */
+typedef int (*AesAuthDecryptFunc)(Aes* aes, byte* out,
+                                   const byte* in, word32 sz,
+                                   const byte* iv, word32 ivSz,
+                                   const byte* authTag, word32 authTagSz,
+                                   const byte* authIn, word32 authInSz);
+
 
 static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
                            word16 sz)
@@ -12153,7 +12166,7 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
         case wolfssl_aes_gcm:
         case wolfssl_aes_ccm: /* GCM AEAD macros use same size as CCM */
         {
-            wc_AesAuthDecryptFunc aes_auth_fn;
+            AesAuthDecryptFunc aes_auth_fn;
 
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* initialize event */
@@ -13992,13 +14005,6 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                     goto exit_buildmsg;
 
             }
-
-        #ifdef HAVE_AEAD
-            if (ssl->specs.cipher_type == aead) {
-                if (ssl->specs.bulk_cipher_algorithm != wolfssl_chacha)
-                    XMEMCPY(args->iv, ssl->keys.aead_exp_IV, AESGCM_EXP_IV_SZ);
-            }
-        #endif
 
             args->size = (word16)(args->sz - args->headerSz);    /* include mac and digest */
             AddRecordHeader(output, args->size, (byte)type, ssl);
