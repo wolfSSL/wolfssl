@@ -1076,6 +1076,17 @@ void wc_HmacFree(Hmac* hmac)
     if (hmac == NULL)
         return;
 
+#ifdef WOLF_CRYPTO_CB
+    /* handle cleanup case where final is not called */
+    if (hmac->devId != INVALID_DEVID && hmac->devCtx != NULL) {
+        int  ret;
+        byte finalHash[WC_HMAC_BLOCK_SIZE];
+        ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, finalHash);
+        (void)ret; /* must ignore return code here */
+        (void)finalHash;
+    }
+#endif
+
     switch (hmac->macType) {
     #ifndef NO_MD5
         case WC_MD5:
