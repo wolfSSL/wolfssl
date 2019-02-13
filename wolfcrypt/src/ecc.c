@@ -3975,7 +3975,7 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
 #endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_ECC */
 
 #ifdef WOLFSSL_ATECC508A
-   if (curve_id == ECC_SECP256R1) {
+   if (key->dp->id == ECC_SECP256R1) {
        key->type = ECC_PRIVATEKEY;
        key->slot = atmel_ecc_alloc(ATMEL_SLOT_ECDHE);
        err = atmel_ecc_create_key(key->slot, key->pubkey_raw);
