@@ -11830,6 +11830,8 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 #endif /* HAVE_AEAD */
 
 
+#if defined(BUILD_AESGCM) || defined(HAVE_AESCCM)
+
 #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 /* The following type is used to share code between AES-GCM and AES-CCM. */
@@ -11845,6 +11847,8 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
     #define AES_AUTH_ENCRYPT_FUNC wc_AesAuthEncryptFunc
     #define AES_GCM_ENCRYPT wc_AesGcmEncrypt
     #define AES_CCM_ENCRYPT wc_AesCcmEncrypt
+#endif
+
 #endif
 
 
