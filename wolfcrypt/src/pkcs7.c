@@ -1458,6 +1458,7 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
     int timeSz;
     PKCS7Attrib cannedAttribs[3];
 #endif
+    word32 idx = 0;
     word32 cannedAttribsCount;
 
     if (pkcs7 == NULL || esd == NULL || contentType == NULL ||
@@ -1466,49 +1467,59 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
         return BAD_FUNC_ARG;
     }
 
-    hashSz = wc_HashGetDigestSize(esd->hashType);
-    if (hashSz < 0)
-        return hashSz;
+    if (pkcs7->skipDefaultSignedAttribs == 0) {
+        hashSz = wc_HashGetDigestSize(esd->hashType);
+        if (hashSz < 0)
+            return hashSz;
 
-#ifndef NO_ASN_TIME
-    if (signingTime == NULL || signingTimeSz == 0)
-        return BAD_FUNC_ARG;
+    #ifndef NO_ASN_TIME
+        if (signingTime == NULL || signingTimeSz == 0)
+            return BAD_FUNC_ARG;
 
-    tm = XTIME(0);
-    timeSz = GetAsnTimeString(&tm, signingTime, signingTimeSz);
-    if (timeSz < 0)
-        return timeSz;
-#endif
+        tm = XTIME(0);
+        timeSz = GetAsnTimeString(&tm, signingTime, signingTimeSz);
+        if (timeSz < 0)
+            return timeSz;
+    #endif
 
-    cannedAttribsCount = sizeof(cannedAttribs)/sizeof(PKCS7Attrib);
+        cannedAttribsCount = sizeof(cannedAttribs)/sizeof(PKCS7Attrib);
 
-    cannedAttribs[0].oid     = contentTypeOid;
-    cannedAttribs[0].oidSz   = contentTypeOidSz;
-    cannedAttribs[0].value   = contentType;
-    cannedAttribs[0].valueSz = contentTypeSz;
-    cannedAttribs[1].oid     = messageDigestOid;
-    cannedAttribs[1].oidSz   = messageDigestOidSz;
-    cannedAttribs[1].value   = esd->contentDigest;
-    cannedAttribs[1].valueSz = hashSz + 2;  /* ASN.1 heading */
-#ifndef NO_ASN_TIME
-    cannedAttribs[2].oid     = signingTimeOid;
-    cannedAttribs[2].oidSz   = signingTimeOidSz;
-    cannedAttribs[2].value   = signingTime;
-    cannedAttribs[2].valueSz = timeSz;
-#endif
+        cannedAttribs[idx].oid     = contentTypeOid;
+        cannedAttribs[idx].oidSz   = contentTypeOidSz;
+        cannedAttribs[idx].value   = contentType;
+        cannedAttribs[idx].valueSz = contentTypeSz;
+        idx++;
+    #ifndef NO_ASN_TIME
+        cannedAttribs[idx].oid     = signingTimeOid;
+        cannedAttribs[idx].oidSz   = signingTimeOidSz;
+        cannedAttribs[idx].value   = signingTime;
+        cannedAttribs[idx].valueSz = timeSz;
+        idx++;
+    #endif
+        cannedAttribs[idx].oid     = messageDigestOid;
+        cannedAttribs[idx].oidSz   = messageDigestOidSz;
+        cannedAttribs[idx].value   = esd->contentDigest;
+        cannedAttribs[idx].valueSz = hashSz + 2;  /* ASN.1 heading */
 
-    esd->signedAttribsCount += cannedAttribsCount;
-    esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[0], 3,
-                                         cannedAttribs, cannedAttribsCount);
+        esd->signedAttribsCount += cannedAttribsCount;
+        esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[0], 3,
+                                             cannedAttribs, cannedAttribsCount);
+    } else {
+        esd->signedAttribsCount = 0;
+        esd->signedAttribsSz = 0;
+    }
 
-    esd->signedAttribsCount += pkcs7->signedAttribsSz;
-#ifdef NO_ASN_TIME
-    esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[2], 4,
-                              pkcs7->signedAttribs, pkcs7->signedAttribsSz);
-#else
-    esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[3], 4,
-                              pkcs7->signedAttribs, pkcs7->signedAttribsSz);
-#endif
+    /* add custom signed attributes if set */
+    if (pkcs7->signedAttribsSz > 0 && pkcs7->signedAttribs != NULL) {
+        esd->signedAttribsCount += pkcs7->signedAttribsSz;
+    #ifdef NO_ASN_TIME
+        esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[2], 4,
+                                  pkcs7->signedAttribs, pkcs7->signedAttribsSz);
+    #else
+        esd->signedAttribsSz += EncodeAttributes(&esd->signedAttribs[3], 4,
+                                  pkcs7->signedAttribs, pkcs7->signedAttribsSz);
+    #endif
+    }
 
 #ifdef NO_ASN_TIME
     (void)signingTimeOidSz;
@@ -1648,7 +1659,7 @@ static int wc_PKCS7_BuildDigestInfo(PKCS7* pkcs7, byte* flatSignedAttribs,
     if (hashSz < 0)
         return hashSz;
 
-    if (pkcs7->signedAttribsSz != 0) {
+    if (flatSignedAttribsSz != 0) {
 
         if (flatSignedAttribs == NULL)
             return BAD_FUNC_ARG;
@@ -1951,22 +1962,22 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
                                     digEncAlgoType, 0);
     signerInfoSz += esd->digEncAlgoIdSz;
 
-    if (pkcs7->signedAttribsSz != 0) {
+    /* build up signed attributes, include contentType, signingTime, and
+       messageDigest by default */
+    ret = wc_PKCS7_BuildSignedAttributes(pkcs7, esd, pkcs7->contentType,
+                                 pkcs7->contentTypeSz,
+                                 contentTypeOid, sizeof(contentTypeOid),
+                                 messageDigestOid, sizeof(messageDigestOid),
+                                 signingTimeOid, sizeof(signingTimeOid),
+                                 signingTime, sizeof(signingTime));
+    if (ret < 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        return ret;
+    }
 
-        /* build up signed attributes */
-        ret = wc_PKCS7_BuildSignedAttributes(pkcs7, esd, pkcs7->contentType,
-                                     pkcs7->contentTypeSz,
-                                     contentTypeOid, sizeof(contentTypeOid),
-                                     messageDigestOid, sizeof(messageDigestOid),
-                                     signingTimeOid, sizeof(signingTimeOid),
-                                     signingTime, sizeof(signingTime));
-        if (ret < 0) {
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-            return ret;
-        }
-
+    if (esd->signedAttribsSz > 0) {
         flatSignedAttribs = (byte*)XMALLOC(esd->signedAttribsSz, pkcs7->heap,
                                                          DYNAMIC_TYPE_PKCS7);
         flatSignedAttribsSz = esd->signedAttribsSz;
@@ -1981,6 +1992,8 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
                                    esd->signedAttribs, esd->signedAttribsCount);
         esd->signedAttribSetSz = SetImplicit(ASN_SET, 0, esd->signedAttribsSz,
                                                           esd->signedAttribSet);
+    } else {
+        esd->signedAttribSetSz = 0;
     }
 
     /* Calculate the final hash and encrypt it. */
@@ -2237,6 +2250,27 @@ int wc_PKCS7_SetDetached(PKCS7* pkcs7, word16 flag)
         return BAD_FUNC_ARG;
 
     pkcs7->detached = flag;
+
+    return 0;
+}
+
+/* By default, SignedData bundles have the following signed attributes attached:
+ *     contentType (1.2.840.113549.1.9.3)
+ *     signgingTime (1.2.840.113549.1.9.5)
+ *     messageDigest (1.2.840.113549.1.9.4)
+ *
+ * Calling this API before wc_PKCS7_EncodeSignedData() will disable the
+ * inclusion of those attributes.
+ *
+ * pkcs7 - pointer to initialized PKCS7 structure
+ *
+ * Returns 0 on success, negative upon error. */
+int wc_PKCS7_NoDefaultSignedAttribs(PKCS7* pkcs7)
+{
+    if (pkcs7 == NULL)
+        return BAD_FUNC_ARG;
+
+    pkcs7->skipDefaultSignedAttribs = 1;
 
     return 0;
 }
