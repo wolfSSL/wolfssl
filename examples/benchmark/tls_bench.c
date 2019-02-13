@@ -82,7 +82,8 @@ bench_tls(args);
 #define NUM_THREAD_PAIRS    1 /* Thread pairs of server/client */
 #define BENCH_RUNTIME_SEC   1
 #define MEM_BUFFER_SZ       ((16 * 1024) + 38 + 32) /* Must be large enough to handle max packet size plus max TLS header MAX_MSG_EXTRA */
-#define TEST_PACKET_SIZE    (16 * 1024) /* max TLS packet size */
+#define TEST_PACKET_SIZE    (16 * 1024) /* TLS packet size */
+#define TEST_MAX_SIZE       (16 * 1024) /* Total bytes to benchmark */
 #define SHOW_VERBOSE        0 /* Default output is tab delimited format */
 
 static const char* kShutdown = "shutdown";
@@ -243,6 +244,7 @@ typedef struct {
     const char* host;
     word32 port;
     int packetSize; /* The data payload size in the packet */
+    int maxSize;
     int runTimeSec;
     int showPeerInfo;
     int showVerbose;
@@ -599,6 +601,7 @@ static int bench_tls_client(info_t* info)
     WOLFSSL* cli_ssl = NULL;
     int haveShownPeerInfo = 0;
     int tls13 = XSTRNCMP(info->cipher, "TLS13", 5) == 0;
+    int total_sz;
 
     total = gettime_secs(0);
 
@@ -653,11 +656,7 @@ static int bench_tls_client(info_t* info)
     /* Allocate and initialize a packet sized buffer */
     writeBuf = (unsigned char*)XMALLOC(info->packetSize, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
-    if (writeBuf != NULL) {
-        XMEMSET(writeBuf, 0, info->packetSize);
-        XSTRNCPY((char*)writeBuf, kTestStr, info->packetSize);
-    }
-    else {
+    if (writeBuf == NULL) {
         printf("failed to allocate write memory\n");
         ret = MEMORY_E; goto exit;
     }
@@ -676,17 +675,6 @@ static int bench_tls_client(info_t* info)
     #ifdef BENCH_USE_NONBLOCK
         int err;
     #endif
-
-        /* check for run time completion and issue shutdown */
-        if (gettime_secs(0) - total >= info->runTimeSec) {
-            info->client.shutdown = 1;
-
-            writeSz = (int)XSTRLEN(kShutdown) + 1;
-            XMEMCPY(writeBuf, kShutdown, writeSz); /* include null term */
-            if (info->showVerbose) {
-                printf("Sending shutdown\n");
-            }
-        }
 
     #ifdef HAVE_PTHREAD
         if (!info->useLocalMem)
@@ -732,51 +720,79 @@ static int bench_tls_client(info_t* info)
             showPeer(cli_ssl);
         }
 
-        /* write test message to server */
-        start = gettime_secs(1);
-    #ifndef BENCH_USE_NONBLOCK
-        ret = wolfSSL_write(cli_ssl, writeBuf, writeSz);
-    #else
-        do {
+        /* check for run time completion and issue shutdown */
+        if (gettime_secs(0) - total >= info->runTimeSec) {
+            info->client.shutdown = 1;
+
+            writeSz = (int)XSTRLEN(kShutdown) + 1;
+            XMEMCPY(writeBuf, kShutdown, writeSz); /* include null term */
+            if (info->showVerbose) {
+                printf("Sending shutdown\n");
+            }
+
             ret = wolfSSL_write(cli_ssl, writeBuf, writeSz);
-            err = wolfSSL_get_error(cli_ssl, ret);
+            if (ret < 0) {
+                printf("error on client write\n");
+                ret = wolfSSL_get_error(cli_ssl, ret);
+                goto exit;
+            }
         }
-        while (err == WOLFSSL_ERROR_WANT_WRITE);
-    #endif
-        info->client_stats.txTime += gettime_secs(0) - start;
-        if (ret < 0) {
-            printf("error on client write\n");
-            ret = wolfSSL_get_error(cli_ssl, ret);
-            goto exit;
+        else {
+            XMEMSET(writeBuf, 0, info->packetSize);
+            XSTRNCPY((char*)writeBuf, kTestStr, info->packetSize);
         }
-        info->client_stats.txTotal += ret;
 
-        /* read echo of message from server */
-        XMEMSET(readBuf, 0, readBufSz);
-        start = gettime_secs(1);
-    #ifndef BENCH_USE_NONBLOCK
-        ret = wolfSSL_read(cli_ssl, readBuf, readBufSz);
-    #else
-        do {
+        /* write / read echo loop */
+        ret = 0;
+        total_sz = 0;
+        while (ret == 0 && total_sz < info->maxSize && !info->client.shutdown) {
+            /* write test message to server */
+            start = gettime_secs(1);
+        #ifndef BENCH_USE_NONBLOCK
+            ret = wolfSSL_write(cli_ssl, writeBuf, writeSz);
+        #else
+            do {
+                ret = wolfSSL_write(cli_ssl, writeBuf, writeSz);
+                err = wolfSSL_get_error(cli_ssl, ret);
+            }
+            while (err == WOLFSSL_ERROR_WANT_WRITE);
+        #endif
+            info->client_stats.txTime += gettime_secs(0) - start;
+            if (ret < 0) {
+                printf("error on client write\n");
+                ret = wolfSSL_get_error(cli_ssl, ret);
+                goto exit;
+            }
+            info->client_stats.txTotal += ret;
+            total_sz += ret;
+
+            /* read echo of message from server */
+            XMEMSET(readBuf, 0, readBufSz);
+            start = gettime_secs(1);
+        #ifndef BENCH_USE_NONBLOCK
             ret = wolfSSL_read(cli_ssl, readBuf, readBufSz);
-            err = wolfSSL_get_error(cli_ssl, ret);
-        }
-        while (err == WOLFSSL_ERROR_WANT_READ);
-    #endif
-        info->client_stats.rxTime += gettime_secs(0) - start;
-        if (ret < 0) {
-            printf("error on client read\n");
-            ret = wolfSSL_get_error(cli_ssl, ret);
-            goto exit;
-        }
-        info->client_stats.rxTotal += ret;
-        ret = 0; /* reset return code */
+        #else
+            do {
+                ret = wolfSSL_read(cli_ssl, readBuf, readBufSz);
+                err = wolfSSL_get_error(cli_ssl, ret);
+            }
+            while (err == WOLFSSL_ERROR_WANT_READ);
+        #endif
+            info->client_stats.rxTime += gettime_secs(0) - start;
+            if (ret < 0) {
+                printf("error on client read\n");
+                ret = wolfSSL_get_error(cli_ssl, ret);
+                goto exit;
+            }
+            info->client_stats.rxTotal += ret;
+            ret = 0; /* reset return code */
 
-        /* validate echo */
-        if (XMEMCMP((char*)writeBuf, (char*)readBuf, writeSz) != 0) {
-            printf("echo check failed!\n");
-            ret = wolfSSL_get_error(cli_ssl, ret);
-            goto exit;
+            /* validate echo */
+            if (XMEMCMP((char*)writeBuf, (char*)readBuf, writeSz) != 0) {
+                printf("echo check failed!\n");
+                ret = wolfSSL_get_error(cli_ssl, ret);
+                goto exit;
+            }
         }
 
         CloseAndCleanupSocket(&info->client.sockFd);
@@ -906,6 +922,7 @@ static int bench_tls_server(info_t* info)
     WOLFSSL_CTX* srv_ctx = NULL;
     WOLFSSL* srv_ssl = NULL;
     int tls13 = XSTRNCMP(info->cipher, "TLS13", 5) == 0;
+    int total_sz;
 
     /* set up server */
 #ifdef WOLFSSL_TLS13
@@ -1036,53 +1053,65 @@ static int bench_tls_server(info_t* info)
         info->server_stats.connTime += start;
         info->server_stats.connCount++;
 
-        /* read message from client */
-        XMEMSET(readBuf, 0, readBufSz);
-        start = gettime_secs(1);
-    #ifndef BENCH_USE_NONBLOCK
-        ret = wolfSSL_read(srv_ssl, readBuf, readBufSz);
-    #else
-        do {
+        /* echo loop */
+        ret = 0;
+        total_sz = 0;
+        while (ret == 0 && total_sz < info->maxSize) {
+            double rxTime;
+
+            /* read message from client */
+            XMEMSET(readBuf, 0, readBufSz);
+            start = gettime_secs(1);
+        #ifndef BENCH_USE_NONBLOCK
             ret = wolfSSL_read(srv_ssl, readBuf, readBufSz);
-            err = wolfSSL_get_error(srv_ssl, ret);
-        }
-        while (err == WOLFSSL_ERROR_WANT_READ);
-    #endif
-        info->server_stats.rxTime += gettime_secs(0) - start;
-        if (ret < 0) {
-            printf("error on server read\n");
-            ret = wolfSSL_get_error(srv_ssl, ret);
-            goto exit;
-        }
-        info->server_stats.rxTotal += ret;
-        len = ret;
-
-        /* write message back to client */
-        start = gettime_secs(1);
-    #ifndef BENCH_USE_NONBLOCK
-        ret = wolfSSL_write(srv_ssl, readBuf, len);
-    #else
-        do {
-            ret = wolfSSL_write(srv_ssl, readBuf, len);
-            err = wolfSSL_get_error(srv_ssl, ret);
-        }
-        while (err == WOLFSSL_ERROR_WANT_WRITE);
-    #endif
-        info->server_stats.txTime += gettime_secs(0) - start;
-        if (ret < 0) {
-            printf("error on server write\n");
-            ret = wolfSSL_get_error(srv_ssl, ret);
-            goto exit;
-        }
-        info->server_stats.txTotal += ret;
-        ret = 0; /* reset return code */
-
-        /* shutdown signals, no more connections for this cipher */
-        if (XSTRSTR((const char*)readBuf, kShutdown) != NULL) {
-            info->server.shutdown = 1;
-            if (info->showVerbose) {
-                printf("Server shutdown done\n");
+        #else
+            do {
+                ret = wolfSSL_read(srv_ssl, readBuf, readBufSz);
+                err = wolfSSL_get_error(srv_ssl, ret);
             }
+            while (err == WOLFSSL_ERROR_WANT_READ);
+        #endif
+            rxTime = gettime_secs(0) - start;
+
+            /* shutdown signals, no more connections for this cipher */
+            if (XSTRSTR((const char*)readBuf, kShutdown) != NULL) {
+                info->server.shutdown = 1;
+                if (info->showVerbose) {
+                    printf("Server shutdown done\n");
+                }
+                ret = 0; /* success */
+                break;
+            }
+
+            info->server_stats.rxTime += rxTime;
+            if (ret < 0) {
+                printf("error on server read\n");
+                ret = wolfSSL_get_error(srv_ssl, ret);
+                goto exit;
+            }
+            info->server_stats.rxTotal += ret;
+            len = ret;
+            total_sz += ret;
+
+            /* write message back to client */
+            start = gettime_secs(1);
+        #ifndef BENCH_USE_NONBLOCK
+            ret = wolfSSL_write(srv_ssl, readBuf, len);
+        #else
+            do {
+                ret = wolfSSL_write(srv_ssl, readBuf, len);
+                err = wolfSSL_get_error(srv_ssl, ret);
+            }
+            while (err == WOLFSSL_ERROR_WANT_WRITE);
+        #endif
+            info->server_stats.txTime += gettime_secs(0) - start;
+            if (ret < 0) {
+                printf("error on server write\n");
+                ret = wolfSSL_get_error(srv_ssl, ret);
+                goto exit;
+            }
+            info->server_stats.txTotal += ret;
+            ret = 0; /* reset return code */
         }
 
         CloseAndCleanupSocket(&info->server.sockFd);
@@ -1188,6 +1217,7 @@ static void Usage(void)
     printf("-l <str>    Cipher suite list (: delimited)\n");
     printf("-t <num>    Time <num> (seconds) to run each test (default %d)\n", BENCH_RUNTIME_SEC);
     printf("-p <num>    The packet size <num> in bytes [1-16kB] (default %d)\n", TEST_PACKET_SIZE);
+    printf("-S <num>    The total size <num> in bytes (default %d)\n", TEST_MAX_SIZE);
     printf("-v          Show verbose output\n");
 #ifdef DEBUG_WOLFSSL
     printf("-d          Enable debug messages\n");
@@ -1227,6 +1257,7 @@ int bench_tls(void* args)
     int argRuntimeSec = BENCH_RUNTIME_SEC;
     char *argCipherList = NULL;
     int argTestPacketSize = TEST_PACKET_SIZE;
+    int argTestMaxSize = TEST_MAX_SIZE;
     int argThreadPairs = NUM_THREAD_PAIRS;
     int argShowVerbose = SHOW_VERBOSE;
     int argClientOnly = 0;
@@ -1249,7 +1280,7 @@ int bench_tls(void* args)
     wolfSSL_Init();
 
     /* Parse command line arguments */
-    while ((ch = mygetopt(argc, argv, "?" "deil:p:t:vT:sch:P:m")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?" "deil:p:t:vT:sch:P:mS:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -1296,6 +1327,10 @@ int bench_tls(void* args)
                     Usage();
                     ret = MY_EX_USAGE; goto exit;
                 }
+                break;
+
+            case 'S' :
+                argTestMaxSize = atoi(myoptarg);
                 break;
 
             case 't' :
@@ -1391,6 +1426,7 @@ int bench_tls(void* args)
             info->cipher = cipher;
             info->packetSize = argTestPacketSize;
             info->runTimeSec = argRuntimeSec;
+            info->maxSize = argTestMaxSize;
             info->showPeerInfo = argShowPeerInfo;
             info->showVerbose = argShowVerbose;
         #ifndef NO_WOLFSSL_SERVER

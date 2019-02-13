@@ -691,6 +691,119 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
     return ret;
 }
 
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type, word32 flags)
+{
+    int ret = HASH_TYPE_E; /* Default to hash type error */
+
+    if (hash == NULL)
+        return BAD_FUNC_ARG;
+
+    switch (type) {
+        case WC_HASH_TYPE_MD5:
+#ifndef NO_MD5
+            ret = wc_Md5SetFlags(&hash->md5, flags);
+#endif
+            break;
+        case WC_HASH_TYPE_SHA:
+#ifndef NO_SHA
+            ret = wc_ShaSetFlags(&hash->sha, flags);
+#endif
+            break;
+        case WC_HASH_TYPE_SHA224:
+#ifdef WOLFSSL_SHA224
+            ret = wc_Sha224SetFlags(&hash->sha224, flags);
+#endif
+            break;
+        case WC_HASH_TYPE_SHA256:
+#ifndef NO_SHA256
+            ret = wc_Sha256SetFlags(&hash->sha256, flags);
+#endif
+            break;
+        case WC_HASH_TYPE_SHA384:
+#ifdef WOLFSSL_SHA384
+            ret = wc_Sha384SetFlags(&hash->sha384, flags);
+#endif
+            break;
+        case WC_HASH_TYPE_SHA512:
+#ifdef WOLFSSL_SHA512
+            ret = wc_Sha512SetFlags(&hash->sha512, flags);
+#endif
+            break;
+
+        /* not supported */
+        case WC_HASH_TYPE_MD5_SHA:
+        case WC_HASH_TYPE_MD2:
+        case WC_HASH_TYPE_MD4:
+        case WC_HASH_TYPE_SHA3_224:
+        case WC_HASH_TYPE_SHA3_256:
+        case WC_HASH_TYPE_SHA3_384:
+        case WC_HASH_TYPE_SHA3_512:
+        case WC_HASH_TYPE_BLAKE2B:
+        case WC_HASH_TYPE_NONE:
+        default:
+            ret = BAD_FUNC_ARG;
+    };
+
+    return ret;
+}
+int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
+{
+    int ret = HASH_TYPE_E; /* Default to hash type error */
+
+    if (hash == NULL)
+        return BAD_FUNC_ARG;
+
+    switch (type) {
+        case WC_HASH_TYPE_MD5:
+#ifndef NO_MD5
+            ret = wc_Md5GetFlags(&hash->md5, flags);
+#endif
+            break;
+        case WC_HASH_TYPE_SHA:
+#ifndef NO_SHA
+            ret = wc_ShaGetFlags(&hash->sha, flags);
+#endif
+            break;
+        case WC_HASH_TYPE_SHA224:
+#ifdef WOLFSSL_SHA224
+            ret = wc_Sha224GetFlags(&hash->sha224, flags);
+#endif
+            break;
+        case WC_HASH_TYPE_SHA256:
+#ifndef NO_SHA256
+            ret = wc_Sha256GetFlags(&hash->sha256, flags);
+#endif
+            break;
+        case WC_HASH_TYPE_SHA384:
+#ifdef WOLFSSL_SHA384
+            ret = wc_Sha384GetFlags(&hash->sha384, flags);
+#endif
+            break;
+        case WC_HASH_TYPE_SHA512:
+#ifdef WOLFSSL_SHA512
+            ret = wc_Sha512GetFlags(&hash->sha512, flags);
+#endif
+            break;
+
+        /* not supported */
+        case WC_HASH_TYPE_MD5_SHA:
+        case WC_HASH_TYPE_MD2:
+        case WC_HASH_TYPE_MD4:
+        case WC_HASH_TYPE_SHA3_224:
+        case WC_HASH_TYPE_SHA3_256:
+        case WC_HASH_TYPE_SHA3_384:
+        case WC_HASH_TYPE_SHA3_512:
+        case WC_HASH_TYPE_BLAKE2B:
+        case WC_HASH_TYPE_NONE:
+        default:
+            ret = BAD_FUNC_ARG;
+    };
+
+    return ret;
+}
+#endif
+
 
 #if !defined(WOLFSSL_TI_HASH)
 

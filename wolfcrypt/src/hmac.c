@@ -43,6 +43,10 @@
 
 #include <wolfssl/wolfcrypt/hmac.h>
 
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -319,6 +323,11 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 #ifdef HAVE_FIPS
     if (length < HMAC_FIPS_MIN_KEY)
         return HMAC_MIN_KEYLEN_E;
+#endif
+
+#ifdef WOLF_CRYPTO_CB
+    hmac->keyRaw = key; /* use buffer directly */
+    hmac->keyLen = length;
 #endif
 
     ip = (byte*)hmac->ipad;
@@ -691,6 +700,15 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    if (hmac->devId != INVALID_DEVID) {
+        ret = wc_CryptoCb_Hmac(hmac, hmac->macType, msg, length, NULL);
+        if (ret != NOT_COMPILED_IN)
+            return ret;
+        /* fall-through on not compiled in */
+        ret = 0; /* reset error code */
+    }
+#endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
     #if defined(HAVE_CAVIUM)
@@ -791,6 +809,15 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    if (hmac->devId != INVALID_DEVID) {
+        ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, hash);
+        if (ret != NOT_COMPILED_IN)
+            return ret;
+        /* fall-through on not compiled in */
+        ret = 0; /* reset error code */
+    }
+#endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
         int hashLen = wc_HmacSizeByType(hmac->macType);
@@ -1028,10 +1055,12 @@ int wc_HmacInit(Hmac* hmac, void* heap, int devId)
 
     XMEMSET(hmac, 0, sizeof(Hmac));
     hmac->heap = heap;
+#ifdef WOLF_CRYPTO_CB
+    hmac->devId = devId;
+    hmac->devCtx = NULL;
+#endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
-    hmac->keyLen = 0;
-
     ret = wolfAsync_DevCtxInit(&hmac->asyncDev, WOLFSSL_ASYNC_MARKER_HMAC,
                                                          hmac->heap, devId);
 #else
@@ -1046,6 +1075,17 @@ void wc_HmacFree(Hmac* hmac)
 {
     if (hmac == NULL)
         return;
+
+#ifdef WOLF_CRYPTO_CB
+    /* handle cleanup case where final is not called */
+    if (hmac->devId != INVALID_DEVID && hmac->devCtx != NULL) {
+        int  ret;
+        byte finalHash[WC_HMAC_BLOCK_SIZE];
+        ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, finalHash);
+        (void)ret; /* must ignore return code here */
+        (void)finalHash;
+    }
+#endif
 
     switch (hmac->macType) {
     #ifndef NO_MD5

@@ -1433,7 +1433,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->options.usingPSK_cipher     = 1;
         break;
 #endif
-        
+
 #ifdef BUILD_TLS_DH_anon_WITH_AES_256_GCM_SHA384
     case TLS_DH_anon_WITH_AES_256_GCM_SHA384:
         ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
@@ -2931,16 +2931,12 @@ static void CacheStatusPP(SecureRenegotiation* cache)
  */
 int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 {
-    int devId = INVALID_DEVID, ret, copy = 0;
+    int ret, copy = 0;
     Ciphers* wc_encrypt = NULL;
     Ciphers* wc_decrypt = NULL;
     Keys*    keys    = &ssl->keys;
 
     (void)copy;
-
-#ifdef WOLFSSL_ASYNC_CRYPT
-    devId = ssl->devId;
-#endif
 
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (ssl->secure_renegotiation && ssl->secure_renegotiation->cache_status) {
@@ -3003,14 +2999,14 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 
 #ifdef HAVE_ONE_TIME_AUTH
     if (!ssl->auth.setup && ssl->specs.bulk_cipher_algorithm == wolfssl_chacha){
-        ret = SetAuthKeys(&ssl->auth, keys, &ssl->specs, ssl->heap, devId);
+        ret = SetAuthKeys(&ssl->auth, keys, &ssl->specs, ssl->heap, ssl->devId);
         if (ret != 0)
            return ret;
     }
 #endif
 
     ret = SetKeys(wc_encrypt, wc_decrypt, keys, &ssl->specs, ssl->options.side,
-                  ssl->heap, devId);
+                  ssl->heap, ssl->devId);
 
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (copy) {

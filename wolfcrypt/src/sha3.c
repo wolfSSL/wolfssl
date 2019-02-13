@@ -43,6 +43,7 @@
 
 #include <wolfssl/wolfcrypt/sha3.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -793,6 +794,9 @@ static int wc_Sha3Copy(wc_Sha3* src, wc_Sha3* dst)
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
 #endif
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+     dst->flags |= WC_HASH_FLAG_ISCOPY;
+#endif
 
     return ret;
 }
@@ -830,7 +834,7 @@ static int wc_Sha3GetHash(wc_Sha3* sha3, byte* hash, byte p, byte len)
  * devId  Device identifier for asynchronous operation.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_InitSha3_224(wc_Sha3* sha3, void* heap, int devId)
+int wc_InitSha3_224(wc_Sha3* sha3, void* heap, int devId)
 {
     return wc_InitSha3(sha3, heap, devId);
 }
@@ -842,7 +846,7 @@ WOLFSSL_API int wc_InitSha3_224(wc_Sha3* sha3, void* heap, int devId)
  * len   Length of the message data.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_Sha3_224_Update(wc_Sha3* sha3, const byte* data, word32 len)
+int wc_Sha3_224_Update(wc_Sha3* sha3, const byte* data, word32 len)
 {
     return wc_Sha3Update(sha3, data, len, WC_SHA3_224_COUNT);
 }
@@ -854,7 +858,7 @@ WOLFSSL_API int wc_Sha3_224_Update(wc_Sha3* sha3, const byte* data, word32 len)
  * hash  Buffer to hold the hash result. Must be at least 28 bytes.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_Sha3_224_Final(wc_Sha3* sha3, byte* hash)
+int wc_Sha3_224_Final(wc_Sha3* sha3, byte* hash)
 {
     return wc_Sha3Final(sha3, hash, WC_SHA3_224_COUNT, WC_SHA3_224_DIGEST_SIZE);
 }
@@ -865,7 +869,7 @@ WOLFSSL_API int wc_Sha3_224_Final(wc_Sha3* sha3, byte* hash)
  * sha3  wc_Sha3 object holding state.
  * returns 0 on success.
  */
-WOLFSSL_API void wc_Sha3_224_Free(wc_Sha3* sha3)
+void wc_Sha3_224_Free(wc_Sha3* sha3)
 {
     wc_Sha3Free(sha3);
 }
@@ -878,7 +882,7 @@ WOLFSSL_API void wc_Sha3_224_Free(wc_Sha3* sha3)
  * hash  Buffer to hold the hash result. Must be at least 28 bytes.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_Sha3_224_GetHash(wc_Sha3* sha3, byte* hash)
+int wc_Sha3_224_GetHash(wc_Sha3* sha3, byte* hash)
 {
     return wc_Sha3GetHash(sha3, hash, WC_SHA3_224_COUNT, WC_SHA3_224_DIGEST_SIZE);
 }
@@ -889,7 +893,7 @@ WOLFSSL_API int wc_Sha3_224_GetHash(wc_Sha3* sha3, byte* hash)
  * dst  wc_Sha3 object to copy into.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_Sha3_224_Copy(wc_Sha3* src, wc_Sha3* dst)
+int wc_Sha3_224_Copy(wc_Sha3* src, wc_Sha3* dst)
 {
     return wc_Sha3Copy(src, dst);
 }
@@ -902,7 +906,7 @@ WOLFSSL_API int wc_Sha3_224_Copy(wc_Sha3* src, wc_Sha3* dst)
  * devId  Device identifier for asynchronous operation.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_InitSha3_256(wc_Sha3* sha3, void* heap, int devId)
+int wc_InitSha3_256(wc_Sha3* sha3, void* heap, int devId)
 {
     return wc_InitSha3(sha3, heap, devId);
 }
@@ -914,7 +918,7 @@ WOLFSSL_API int wc_InitSha3_256(wc_Sha3* sha3, void* heap, int devId)
  * len   Length of the message data.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_Sha3_256_Update(wc_Sha3* sha3, const byte* data, word32 len)
+int wc_Sha3_256_Update(wc_Sha3* sha3, const byte* data, word32 len)
 {
     return wc_Sha3Update(sha3, data, len, WC_SHA3_256_COUNT);
 }
@@ -926,7 +930,7 @@ WOLFSSL_API int wc_Sha3_256_Update(wc_Sha3* sha3, const byte* data, word32 len)
  * hash  Buffer to hold the hash result. Must be at least 32 bytes.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_Sha3_256_Final(wc_Sha3* sha3, byte* hash)
+int wc_Sha3_256_Final(wc_Sha3* sha3, byte* hash)
 {
     return wc_Sha3Final(sha3, hash, WC_SHA3_256_COUNT, WC_SHA3_256_DIGEST_SIZE);
 }
@@ -937,7 +941,7 @@ WOLFSSL_API int wc_Sha3_256_Final(wc_Sha3* sha3, byte* hash)
  * sha3  wc_Sha3 object holding state.
  * returns 0 on success.
  */
-WOLFSSL_API void wc_Sha3_256_Free(wc_Sha3* sha3)
+void wc_Sha3_256_Free(wc_Sha3* sha3)
 {
     wc_Sha3Free(sha3);
 }
@@ -950,7 +954,7 @@ WOLFSSL_API void wc_Sha3_256_Free(wc_Sha3* sha3)
  * hash  Buffer to hold the hash result. Must be at least 32 bytes.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_Sha3_256_GetHash(wc_Sha3* sha3, byte* hash)
+int wc_Sha3_256_GetHash(wc_Sha3* sha3, byte* hash)
 {
     return wc_Sha3GetHash(sha3, hash, WC_SHA3_256_COUNT, WC_SHA3_256_DIGEST_SIZE);
 }
@@ -961,7 +965,7 @@ WOLFSSL_API int wc_Sha3_256_GetHash(wc_Sha3* sha3, byte* hash)
  * dst  wc_Sha3 object to copy into.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_Sha3_256_Copy(wc_Sha3* src, wc_Sha3* dst)
+int wc_Sha3_256_Copy(wc_Sha3* src, wc_Sha3* dst)
 {
     return wc_Sha3Copy(src, dst);
 }
@@ -974,7 +978,7 @@ WOLFSSL_API int wc_Sha3_256_Copy(wc_Sha3* src, wc_Sha3* dst)
  * devId  Device identifier for asynchronous operation.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_InitSha3_384(wc_Sha3* sha3, void* heap, int devId)
+int wc_InitSha3_384(wc_Sha3* sha3, void* heap, int devId)
 {
     return wc_InitSha3(sha3, heap, devId);
 }
@@ -986,7 +990,7 @@ WOLFSSL_API int wc_InitSha3_384(wc_Sha3* sha3, void* heap, int devId)
  * len   Length of the message data.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_Sha3_384_Update(wc_Sha3* sha3, const byte* data, word32 len)
+int wc_Sha3_384_Update(wc_Sha3* sha3, const byte* data, word32 len)
 {
     return wc_Sha3Update(sha3, data, len, WC_SHA3_384_COUNT);
 }
@@ -998,7 +1002,7 @@ WOLFSSL_API int wc_Sha3_384_Update(wc_Sha3* sha3, const byte* data, word32 len)
  * hash  Buffer to hold the hash result. Must be at least 48 bytes.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_Sha3_384_Final(wc_Sha3* sha3, byte* hash)
+int wc_Sha3_384_Final(wc_Sha3* sha3, byte* hash)
 {
     return wc_Sha3Final(sha3, hash, WC_SHA3_384_COUNT, WC_SHA3_384_DIGEST_SIZE);
 }
@@ -1009,7 +1013,7 @@ WOLFSSL_API int wc_Sha3_384_Final(wc_Sha3* sha3, byte* hash)
  * sha3  wc_Sha3 object holding state.
  * returns 0 on success.
  */
-WOLFSSL_API void wc_Sha3_384_Free(wc_Sha3* sha3)
+void wc_Sha3_384_Free(wc_Sha3* sha3)
 {
     wc_Sha3Free(sha3);
 }
@@ -1022,7 +1026,7 @@ WOLFSSL_API void wc_Sha3_384_Free(wc_Sha3* sha3)
  * hash  Buffer to hold the hash result. Must be at least 48 bytes.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_Sha3_384_GetHash(wc_Sha3* sha3, byte* hash)
+int wc_Sha3_384_GetHash(wc_Sha3* sha3, byte* hash)
 {
     return wc_Sha3GetHash(sha3, hash, WC_SHA3_384_COUNT, WC_SHA3_384_DIGEST_SIZE);
 }
@@ -1033,7 +1037,7 @@ WOLFSSL_API int wc_Sha3_384_GetHash(wc_Sha3* sha3, byte* hash)
  * dst  wc_Sha3 object to copy into.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_Sha3_384_Copy(wc_Sha3* src, wc_Sha3* dst)
+int wc_Sha3_384_Copy(wc_Sha3* src, wc_Sha3* dst)
 {
     return wc_Sha3Copy(src, dst);
 }
@@ -1046,7 +1050,7 @@ WOLFSSL_API int wc_Sha3_384_Copy(wc_Sha3* src, wc_Sha3* dst)
  * devId  Device identifier for asynchronous operation.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_InitSha3_512(wc_Sha3* sha3, void* heap, int devId)
+int wc_InitSha3_512(wc_Sha3* sha3, void* heap, int devId)
 {
     return wc_InitSha3(sha3, heap, devId);
 }
@@ -1058,7 +1062,7 @@ WOLFSSL_API int wc_InitSha3_512(wc_Sha3* sha3, void* heap, int devId)
  * len   Length of the message data.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_Sha3_512_Update(wc_Sha3* sha3, const byte* data, word32 len)
+int wc_Sha3_512_Update(wc_Sha3* sha3, const byte* data, word32 len)
 {
     return wc_Sha3Update(sha3, data, len, WC_SHA3_512_COUNT);
 }
@@ -1070,7 +1074,7 @@ WOLFSSL_API int wc_Sha3_512_Update(wc_Sha3* sha3, const byte* data, word32 len)
  * hash  Buffer to hold the hash result. Must be at least 64 bytes.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_Sha3_512_Final(wc_Sha3* sha3, byte* hash)
+int wc_Sha3_512_Final(wc_Sha3* sha3, byte* hash)
 {
     return wc_Sha3Final(sha3, hash, WC_SHA3_512_COUNT, WC_SHA3_512_DIGEST_SIZE);
 }
@@ -1081,7 +1085,7 @@ WOLFSSL_API int wc_Sha3_512_Final(wc_Sha3* sha3, byte* hash)
  * sha3  wc_Sha3 object holding state.
  * returns 0 on success.
  */
-WOLFSSL_API void wc_Sha3_512_Free(wc_Sha3* sha3)
+void wc_Sha3_512_Free(wc_Sha3* sha3)
 {
     wc_Sha3Free(sha3);
 }
@@ -1094,7 +1098,7 @@ WOLFSSL_API void wc_Sha3_512_Free(wc_Sha3* sha3)
  * hash  Buffer to hold the hash result. Must be at least 64 bytes.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_Sha3_512_GetHash(wc_Sha3* sha3, byte* hash)
+int wc_Sha3_512_GetHash(wc_Sha3* sha3, byte* hash)
 {
     return wc_Sha3GetHash(sha3, hash, WC_SHA3_512_COUNT, WC_SHA3_512_DIGEST_SIZE);
 }
@@ -1105,9 +1109,26 @@ WOLFSSL_API int wc_Sha3_512_GetHash(wc_Sha3* sha3, byte* hash)
  * dst  wc_Sha3 object to copy into.
  * returns 0 on success.
  */
-WOLFSSL_API int wc_Sha3_512_Copy(wc_Sha3* src, wc_Sha3* dst)
+int wc_Sha3_512_Copy(wc_Sha3* src, wc_Sha3* dst)
 {
     return wc_Sha3Copy(src, dst);
 }
+
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+int wc_Sha3_SetFlags(wc_Sha3* sha3, word32 flags)
+{
+    if (sha3) {
+        sha3->flags = flags;
+    }
+    return 0;
+}
+int wc_Sha3_GetFlags(wc_Sha3* sha3, word32* flags)
+{
+    if (sha3 && flags) {
+        *flags = sha3->flags;
+    }
+    return 0;
+}
+#endif
 
 #endif /* WOLFSSL_SHA3 */

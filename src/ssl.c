@@ -11167,10 +11167,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         int ret = WOLFSSL_FAILURE;
 
         FreeDer(&ctx->privateKey);
-        if (AllocDer(&ctx->privateKey, sz, PRIVATEKEY_TYPE, ctx->heap) == 0) {
+        if (AllocDer(&ctx->privateKey, (word32)sz, PRIVATEKEY_TYPE,
+                                                            ctx->heap) == 0) {
             XMEMCPY(ctx->privateKey->buffer, id, sz);
             ctx->privateKeyId = 1;
-            ctx->privateKeySz = keySz;
+            ctx->privateKeySz = (word32)keySz;
             if (devId != INVALID_DEVID)
                 ctx->privateKeyDevId = devId;
             else
@@ -11324,11 +11325,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         int ret = WOLFSSL_FAILURE;
 
         FreeDer(&ssl->buffers.key);
-        if (AllocDer(&ssl->buffers.key, sz, PRIVATEKEY_TYPE, ssl->heap) == 0) {
+        if (AllocDer(&ssl->buffers.key, (word32)sz, PRIVATEKEY_TYPE,
+                                                            ssl->heap) == 0) {
             XMEMCPY(ssl->buffers.key->buffer, id, sz);
             ssl->buffers.weOwnKey = 1;
             ssl->buffers.keyId = 1;
-            ssl->buffers.keySz = keySz;
+            ssl->buffers.keySz = (word32)keySz;
             if (devId != INVALID_DEVID)
                 ssl->buffers.keyId = devId;
             else
@@ -14671,24 +14673,50 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         if (ssl->hsHashes != NULL) {
 #ifndef NO_OLD_TLS
 #ifndef NO_MD5
-            wc_InitMd5(&ssl->hsHashes->hashMd5);
+            if (wc_InitMd5_ex(&ssl->hsHashes->hashMd5, ssl->heap,
+                    ssl->devId) != 0) {
+                return WOLFSSL_FAILURE;
+            }
+        #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+            wc_Md5SetFlags(&ssl->hsHashes->hashMd5, WC_HASH_FLAG_WILLCOPY);
+        #endif
 #endif
 #ifndef NO_SHA
-            if (wc_InitSha(&ssl->hsHashes->hashSha) != 0)
+            if (wc_InitSha_ex(&ssl->hsHashes->hashSha, ssl->heap,
+                    ssl->devId) != 0) {
                 return WOLFSSL_FAILURE;
+            }
+        #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+            wc_ShaSetFlags(&ssl->hsHashes->hashSha, WC_HASH_FLAG_WILLCOPY);
+        #endif
 #endif
 #endif
 #ifndef NO_SHA256
-            if (wc_InitSha256(&ssl->hsHashes->hashSha256) != 0)
+            if (wc_InitSha256_ex(&ssl->hsHashes->hashSha256, ssl->heap,
+                    ssl->devId) != 0) {
                 return WOLFSSL_FAILURE;
+            }
+        #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+            wc_Sha256SetFlags(&ssl->hsHashes->hashSha256, WC_HASH_FLAG_WILLCOPY);
+        #endif
 #endif
 #ifdef WOLFSSL_SHA384
-            if (wc_InitSha384(&ssl->hsHashes->hashSha384) != 0)
+            if (wc_InitSha384_ex(&ssl->hsHashes->hashSha384, ssl->heap,
+                    ssl->devId) != 0) {
                 return WOLFSSL_FAILURE;
+            }
+        #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+            wc_Sha384SetFlags(&ssl->hsHashes->hashSha384, WC_HASH_FLAG_WILLCOPY);
+        #endif
 #endif
 #ifdef WOLFSSL_SHA512
-            if (wc_InitSha512(&ssl->hsHashes->hashSha512) != 0)
+            if (wc_InitSha512_ex(&ssl->hsHashes->hashSha512, ssl->heap,
+                    ssl->devId) != 0) {
                 return WOLFSSL_FAILURE;
+            }
+        #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+            wc_Sha512SetFlags(&ssl->hsHashes->hashSha512, WC_HASH_FLAG_WILLCOPY);
+        #endif
 #endif
         }
 #ifdef SESSION_CERTS

@@ -152,7 +152,7 @@ typedef struct Aes {
 #endif /* WOLFSSL_AESNI */
 #ifdef WOLF_CRYPTO_CB
     int    devId;
-    word32 devKey[AES_MAX_KEY_SIZE/WOLFSSL_BIT_SIZE/sizeof(word32)]; /* raw key */
+    void*  devCtx;
 #endif
 #ifdef HAVE_PKCS11
     byte id[AES_MAX_ID_LEN];
@@ -182,9 +182,12 @@ typedef struct Aes {
                   GCM_NONCE_MID_SZ)];
 #endif
 #endif
+#if defined(WOLF_CRYPTO_CB) || (defined(WOLFSSL_DEVCRYPTO) && \
+    (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC)))
+    word32 devKey[AES_MAX_KEY_SIZE/WOLFSSL_BIT_SIZE/sizeof(word32)]; /* raw key */
+#endif
 #if defined(WOLFSSL_DEVCRYPTO) && \
     (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
-    word32       devKey[AES_MAX_KEY_SIZE/WOLFSSL_BIT_SIZE/sizeof(word32)]; /* raw key */
     WC_CRYPTODEV ctx;
 #endif
     void*  heap; /* memory hint to use */

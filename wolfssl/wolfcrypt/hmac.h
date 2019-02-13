@@ -142,11 +142,17 @@ typedef struct Hmac {
     void*   heap;                 /* heap hint */
     byte    macType;              /* md5 sha or sha256 */
     byte    innerHashKeyed;       /* keyed flag */
-
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
-    word16       keyLen;          /* hmac key length (key in ipad) */
 #endif /* WOLFSSL_ASYNC_CRYPT */
+#ifdef WOLF_CRYPTO_CB
+    int     devId;
+    void*   devCtx;
+    const byte* keyRaw;
+#endif
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
+    word16  keyLen;          /* hmac key length (key in ipad) */
+#endif
 } Hmac;
 
 #endif /* HAVE_FIPS */

@@ -43,6 +43,7 @@
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
+#include <wolfssl/wolfcrypt/hash.h>
 
 /* deprecated USE_SLOW_SHA2 (replaced with USE_SLOW_SHA512) */
 #if defined(USE_SLOW_SHA2) && !defined(USE_SLOW_SHA512)
@@ -1110,8 +1111,29 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     dst->ctx.isfirstblock = src->ctx.isfirstblock;
     dst->ctx.sha_type = src->ctx.sha_type;
 #endif
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+     dst->flags |= WC_HASH_FLAG_ISCOPY;
+#endif
+
     return ret;
 }
+
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+int wc_Sha512SetFlags(wc_Sha512* sha512, word32 flags)
+{
+    if (sha512) {
+        sha512->flags = flags;
+    }
+    return 0;
+}
+int wc_Sha512GetFlags(wc_Sha512* sha512, word32* flags)
+{
+    if (sha512 && flags) {
+        *flags = sha512->flags;
+    }
+    return 0;
+}
+#endif
 
 #endif /* WOLFSSL_SHA512 */
 
@@ -1165,8 +1187,29 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
     dst->ctx.isfirstblock = src->ctx.isfirstblock;
     dst->ctx.sha_type = src->ctx.sha_type;
 #endif
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+     dst->flags |= WC_HASH_FLAG_ISCOPY;
+#endif
+
     return ret;
 }
+
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+int wc_Sha384SetFlags(wc_Sha384* sha384, word32 flags)
+{
+    if (sha384) {
+        sha384->flags = flags;
+    }
+    return 0;
+}
+int wc_Sha384GetFlags(wc_Sha384* sha384, word32* flags)
+{
+    if (sha384 && flags) {
+        *flags = sha384->flags;
+    }
+    return 0;
+}
+#endif
 
 #endif /* WOLFSSL_SHA384 */
 

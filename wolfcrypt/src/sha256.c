@@ -44,6 +44,7 @@
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
+#include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
@@ -543,6 +544,7 @@ static int InitSha256(wc_Sha256* sha256)
         sha256->heap = heap;
     #ifdef WOLF_CRYPTO_CB
         sha256->devId = devId;
+        sha256->devCtx = NULL;
     #endif
 
         ret = InitSha256(sha256);
@@ -1296,9 +1298,30 @@ void wc_Sha256Free(wc_Sha256* sha256)
     #ifdef WOLFSSL_ASYNC_CRYPT
         ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
     #endif
+    #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+        dst->flags |= WC_HASH_FLAG_ISCOPY;
+    #endif
 
         return ret;
     }
+
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    int wc_Sha224SetFlags(wc_Sha224* sha224, word32 flags)
+    {
+        if (sha224) {
+            sha224->flags = flags;
+        }
+        return 0;
+    }
+    int wc_Sha224GetFlags(wc_Sha224* sha224, word32* flags)
+    {
+        if (sha224 && flags) {
+            *flags = sha224->flags;
+        }
+        return 0;
+    }
+#endif
+
 #endif /* WOLFSSL_SHA224 */
 
 #ifdef WOLFSSL_AFALG_HASH
@@ -1362,9 +1385,30 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
      dst->ctx.isfirstblock = src->ctx.isfirstblock;
      dst->ctx.sha_type = src->ctx.sha_type;
 #endif
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+     dst->flags |= WC_HASH_FLAG_ISCOPY;
+#endif
 
     return ret;
 }
+
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+int wc_Sha256SetFlags(wc_Sha256* sha256, word32 flags)
+{
+    if (sha256) {
+        sha256->flags = flags;
+    }
+    return 0;
+}
+int wc_Sha256GetFlags(wc_Sha256* sha256, word32* flags)
+{
+    if (sha256 && flags) {
+        *flags = sha256->flags;
+    }
+    return 0;
+}
+#endif
+
 #endif
 #endif /* !WOLFSSL_TI_HASH */
 

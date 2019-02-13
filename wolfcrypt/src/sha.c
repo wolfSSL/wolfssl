@@ -42,6 +42,7 @@
 
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
@@ -713,8 +714,30 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
      dst->ctx.isfirstblock = src->ctx.isfirstblock;
      dst->ctx.sha_type = src->ctx.sha_type;
 #endif
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+     dst->flags |= WC_HASH_FLAG_ISCOPY;
+#endif
+
     return ret;
 }
 #endif /* !WOLFSSL_TI_HASH */
+
+
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+int wc_ShaSetFlags(wc_Sha* sha, word32 flags)
+{
+    if (sha) {
+        sha->flags = flags;
+    }
+    return 0;
+}
+int wc_ShaGetFlags(wc_Sha* sha, word32* flags)
+{
+    if (sha && flags) {
+        *flags = sha->flags;
+    }
+    return 0;
+}
+#endif
 
 #endif /* !NO_SHA */
