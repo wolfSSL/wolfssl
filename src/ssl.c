@@ -11167,10 +11167,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         int ret = WOLFSSL_FAILURE;
 
         FreeDer(&ctx->privateKey);
-        if (AllocDer(&ctx->privateKey, sz, PRIVATEKEY_TYPE, ctx->heap) == 0) {
+        if (AllocDer(&ctx->privateKey, (word32)sz, PRIVATEKEY_TYPE,
+                                                            ctx->heap) == 0) {
             XMEMCPY(ctx->privateKey->buffer, id, sz);
             ctx->privateKeyId = 1;
-            ctx->privateKeySz = keySz;
+            ctx->privateKeySz = (word32)keySz;
             if (devId != INVALID_DEVID)
                 ctx->privateKeyDevId = devId;
             else
@@ -11324,11 +11325,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         int ret = WOLFSSL_FAILURE;
 
         FreeDer(&ssl->buffers.key);
-        if (AllocDer(&ssl->buffers.key, sz, PRIVATEKEY_TYPE, ssl->heap) == 0) {
+        if (AllocDer(&ssl->buffers.key, (word32)sz, PRIVATEKEY_TYPE,
+                                                            ssl->heap) == 0) {
             XMEMCPY(ssl->buffers.key->buffer, id, sz);
             ssl->buffers.weOwnKey = 1;
             ssl->buffers.keyId = 1;
-            ssl->buffers.keySz = keySz;
+            ssl->buffers.keySz = (word32)keySz;
             if (devId != INVALID_DEVID)
                 ssl->buffers.keyId = devId;
             else
