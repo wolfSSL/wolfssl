@@ -11468,7 +11468,11 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #ifndef WOLFSSL_NO_TLS12
 
-#if defined(HAVE_POLY1305) && defined(HAVE_CHACHA)
+#ifdef HAVE_AEAD
+
+#if ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) || \
+    (defined(HAVE_POLY1305) && defined(HAVE_CHACHA))
 static WC_INLINE void AeadIncrementExpIV(WOLFSSL* ssl)
 {
     int i;
@@ -11476,6 +11480,7 @@ static WC_INLINE void AeadIncrementExpIV(WOLFSSL* ssl)
         if (++ssl->keys.aead_exp_IV[i]) return;
     }
 }
+#endif
 
 
 #if defined(HAVE_POLY1305) && defined(HAVE_CHACHA)
@@ -11825,12 +11830,22 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 #endif /* HAVE_AEAD */
 
 
+#if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 /* The following type is used to share code between AES-GCM and AES-CCM. */
-typedef int (*AesAuthEncryptFunc)(Aes* aes, byte* out,
-                                   const byte* in, word32 sz,
-                                   byte* iv, word32 ivSz,
-                                   byte* authTag, word32 authTagSz,
-                                   const byte* authIn, word32 authInSz);
+    typedef int (*AesAuthEncryptFunc)(Aes* aes, byte* out,
+                                       const byte* in, word32 sz,
+                                       byte* iv, word32 ivSz,
+                                       byte* authTag, word32 authTagSz,
+                                       const byte* authIn, word32 authInSz);
+    #define AES_AUTH_ENCRYPT_FUNC AesAuthEncryptFunc
+    #define AES_GCM_ENCRYPT wc_AesGcmEncrypt_ex
+    #define AES_CCM_ENCRYPT wc_AesCcmEncrypt_ex
+#else
+    #define AES_AUTH_ENCRYPT_FUNC wc_AesAuthEncryptFunc
+    #define AES_GCM_ENCRYPT wc_AesGcmEncrypt
+    #define AES_CCM_ENCRYPT wc_AesCcmEncrypt
+#endif
 
 
 static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
@@ -11897,7 +11912,7 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
         case wolfssl_aes_gcm:
         case wolfssl_aes_ccm:/* GCM AEAD macros use same size as CCM */
         {
-            AesAuthEncryptFunc aes_auth_fn;
+            AES_AUTH_ENCRYPT_FUNC aes_auth_fn;
             const byte* additionalSrc;
 
         #ifdef WOLFSSL_ASYNC_CRYPT
@@ -11910,11 +11925,11 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
 
         #if defined(BUILD_AESGCM) && defined(HAVE_AESCCM)
             aes_auth_fn = (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm)
-                            ? wc_AesGcmEncrypt_ex : wc_AesCcmEncrypt_ex;
+                            ? AES_GCM_ENCRYPT : AES_CCM_ENCRYPT;
         #elif defined(BUILD_AESGCM)
-            aes_auth_fn = wc_AesGcmEncrypt_ex;
+            aes_auth_fn = AES_GCM_ENCRYPT;
         #else
-            aes_auth_fn = wc_AesCcmEncrypt_ex;
+            aes_auth_fn = AES_CCM_ENCRYPT;
         #endif
             additionalSrc = input - 5;
 
@@ -11937,6 +11952,13 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
              * IV length minus the authentication tag size. */
             c16toa(sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
                                 ssl->encrypt.additional + AEAD_LEN_OFFSET);
+#if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+            XMEMCPY(ssl->encrypt.nonce,
+                                ssl->keys.aead_enc_imp_IV, AESGCM_IMP_IV_SZ);
+            XMEMCPY(ssl->encrypt.nonce + AESGCM_IMP_IV_SZ,
+                                ssl->keys.aead_exp_IV, AESGCM_EXP_IV_SZ);
+#endif
             ret = aes_auth_fn(ssl->encrypt.aes,
                     out + AESGCM_EXP_IV_SZ, input + AESGCM_EXP_IV_SZ,
                     sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
@@ -11949,8 +11971,11 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
                 ret = wolfSSL_AsyncPush(ssl, asyncDev);
             }
         #endif
+#if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
             XMEMCPY(out,
                     ssl->encrypt.nonce + AESGCM_IMP_IV_SZ, AESGCM_EXP_IV_SZ);
+#endif
         }
         break;
     #endif /* BUILD_AESGCM || HAVE_AESCCM */
@@ -12079,6 +12104,10 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 
                 ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm)
             {
                 /* finalize authentication cipher */
+#if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+                AeadIncrementExpIV(ssl);
+#endif
                 if (ssl->encrypt.nonce)
                     ForceZero(ssl->encrypt.nonce, AESGCM_NONCE_SZ);
 
@@ -12097,14 +12126,6 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 
 
     return ret;
 }
-
-
-/* The following type is used to share code between AES-GCM and AES-CCM. */
-typedef int (*AesAuthDecryptFunc)(Aes* aes, byte* out,
-                                   const byte* in, word32 sz,
-                                   const byte* iv, word32 ivSz,
-                                   const byte* authTag, word32 authTagSz,
-                                   const byte* authIn, word32 authInSz);
 
 
 static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
@@ -12166,7 +12187,7 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
         case wolfssl_aes_gcm:
         case wolfssl_aes_ccm: /* GCM AEAD macros use same size as CCM */
         {
-            AesAuthDecryptFunc aes_auth_fn;
+            wc_AesAuthDecryptFunc aes_auth_fn;
 
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* initialize event */
@@ -14005,6 +14026,14 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                     goto exit_buildmsg;
 
             }
+#if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)) && \
+    defined(HAVE_AEAD)
+            if (ssl->specs.cipher_type == aead) {
+                if (ssl->specs.bulk_cipher_algorithm != wolfssl_chacha)
+                    XMEMCPY(args->iv, ssl->keys.aead_exp_IV, AESGCM_EXP_IV_SZ);
+            }
+#endif
 
             args->size = (word16)(args->sz - args->headerSz);    /* include mac and digest */
             AddRecordHeader(output, args->size, (byte)type, ssl);
