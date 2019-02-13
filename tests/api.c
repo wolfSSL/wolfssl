@@ -22618,8 +22618,9 @@ static void test_wolfSSL_EVP_PKEY_assign(void)
     AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
     AssertIntEQ(wolfSSL_EVP_PKEY_assign(NULL,type,ecKey),  WOLFSSL_FAILURE);
     AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,NULL), WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,-1,rsa),    WOLFSSL_FAILURE);
-    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,rsa),    WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,-1,ecKey),    WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,ecKey),    WOLFSSL_SUCCESS);
+    wolfSSL_EVP_PKEY_free(pkey);
 #endif /* HAVE_ECC */
     printf(resultFmt, passed);
 #endif /* OPENSSL_ALL */

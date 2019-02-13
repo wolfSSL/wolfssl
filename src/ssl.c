@@ -7185,6 +7185,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_new(void)
     WOLFSSL_X509_EXTENSION* newExt;
     newExt = (WOLFSSL_X509_EXTENSION*)XMALLOC(sizeof(WOLFSSL_X509_EXTENSION),
               NULL, DYNAMIC_TYPE_X509_EXT);
+    XMEMSET(newExt, 0, sizeof(WOLFSSL_X509_EXTENSION));
     return newExt;
 }
 
@@ -7196,6 +7197,10 @@ void wolfSSL_X509_EXTENSION_free(WOLFSSL_X509_EXTENSION* extToFree)
         if (extToFree->obj != NULL) {
             wolfSSL_ASN1_OBJECT_free(extToFree->obj);
             extToFree->obj = NULL;
+        }
+        if (extToFree->value.data != NULL) {
+            XFREE(extToFree->value.data, NULL, DYNAMIC_TYPE_ASN1);
+            extToFree->value.data = NULL;
         }
         XFREE(extToFree, NULL, DYNAMIC_TYPE_X509_EXT);
         extToFree = NULL;
@@ -7306,29 +7311,19 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* x509, int loc)
                 case AUTH_KEY_OID:
                     if (!isSet)
                         break;
-                    str = wolfSSL_ASN1_STRING_new();
-                    str->data = (char*)XMALLOC(x509->authKeyIdSz, NULL,
-                                 DYNAMIC_TYPE_ASN1);
-                    XMEMCPY((char*)str->data, x509->authKeyId,
-                            x509->authKeyIdSz);
-                    ext->value = *str;
-                    ext->value.length = x509->authKeyIdSz;
+
+                    wolfSSL_ASN1_STRING_set(&ext->value, x509->authKeyId,
+                                            x509->authKeyIdSz);
                     ext->crit = x509->authKeyIdCrit;
-                    wolfSSL_ASN1_STRING_free(str);
                     break;
 
                 case SUBJ_KEY_OID:
                     if (!isSet)
                         break;
-                    str = wolfSSL_ASN1_STRING_new();
-                    str->data = (char*)XMALLOC(x509->subjKeyIdSz, NULL,
-                                 DYNAMIC_TYPE_ASN1);
-                    XMEMCPY((char*)str->data, x509->subjKeyId,
-                            x509->subjKeyIdSz);
-                    ext->value = *str;
-                    ext->value.length = x509->subjKeyIdSz;
+
+                    wolfSSL_ASN1_STRING_set(&ext->value, x509->subjKeyId,
+                                            x509->subjKeyIdSz);
                     ext->crit = x509->subjKeyIdCrit;
-                    wolfSSL_ASN1_STRING_free(str);
                     break;
 
                 case CERT_POLICY_OID:
