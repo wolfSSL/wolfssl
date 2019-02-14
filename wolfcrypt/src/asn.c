@@ -13275,9 +13275,17 @@ int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
         return ASN_ECC_KEY_E;
     }
 
+#ifndef NO_STRICT_ECDSA_LEN
+    /* enable strict length checking for signature */
+    if (sigLen != idx + (word32)len) {
+        return ASN_ECC_KEY_E;
+    }
+#else
+    /* allow extra signature bytes at end */
     if ((word32)len > (sigLen - idx)) {
         return ASN_ECC_KEY_E;
     }
+#endif
 
     if (GetInt(r, sig, &idx, sigLen) < 0) {
         return ASN_ECC_KEY_E;
