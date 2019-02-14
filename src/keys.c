@@ -2212,9 +2212,10 @@ static int SetPrefix(byte* sha_input, int idx)
 
 
 static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
-                   int side, void* heap, int devId, WC_RNG* rng)
+                   int side, void* heap, int devId, WC_RNG* rng, int skipIv)
 {
     (void)rng;
+    (void)skipIv;
 
 #ifdef BUILD_ARC4
     if (specs->bulk_cipher_algorithm == wolfssl_rc4) {
@@ -2609,12 +2610,14 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
-                        AESGCM_IMP_IV_SZ);
+                        AEAD_MAX_IMP_SZ);
 #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
-                gcmRet = wc_AesGcmSetIV(enc->aes, AESGCM_NONCE_SZ,
-                        keys->client_write_IV, AESGCM_IMP_IV_SZ, rng);
-                if (gcmRet != 0) return gcmRet;
+                if (!skipIv) {
+                    gcmRet = wc_AesGcmSetIV(enc->aes, AESGCM_NONCE_SZ,
+                            keys->client_write_IV, AESGCM_IMP_IV_SZ, rng);
+                    if (gcmRet != 0) return gcmRet;
+                }
 #endif
             }
             if (dec) {
@@ -2622,7 +2625,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
-                        AESGCM_IMP_IV_SZ);
+                        AEAD_MAX_IMP_SZ);
             }
         }
         else {
@@ -2631,12 +2634,14 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
-                        AESGCM_IMP_IV_SZ);
+                        AEAD_MAX_IMP_SZ);
 #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
-                gcmRet = wc_AesGcmSetIV(enc->aes, AESGCM_NONCE_SZ,
-                        keys->server_write_IV, AESGCM_IMP_IV_SZ, rng);
-                if (gcmRet != 0) return gcmRet;
+                if (!skipIv) {
+                    gcmRet = wc_AesGcmSetIV(enc->aes, AESGCM_NONCE_SZ,
+                            keys->server_write_IV, AESGCM_IMP_IV_SZ, rng);
+                    if (gcmRet != 0) return gcmRet;
+                }
 #endif
             }
             if (dec) {
@@ -2644,7 +2649,7 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
-                        AESGCM_IMP_IV_SZ);
+                        AEAD_MAX_IMP_SZ);
             }
         }
         if (enc)
@@ -2708,10 +2713,10 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                         AEAD_MAX_IMP_SZ);
 #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
-                CcmRet = wc_AesCcmSetNonce(enc->aes, keys->client_write_IV,
-                        AEAD_MAX_IMP_SZ);
-                if (CcmRet != 0) {
-                    return CcmRet;
+                if (!skipIv) {
+                    CcmRet = wc_AesCcmSetNonce(enc->aes, keys->client_write_IV,
+                            AEAD_MAX_IMP_SZ);
+                    if (CcmRet != 0) return CcmRet;
                 }
 #endif
             }
@@ -2736,10 +2741,10 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                         AEAD_MAX_IMP_SZ);
 #if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
-                CcmRet = wc_AesCcmSetNonce(enc->aes, keys->server_write_IV,
-                        AEAD_MAX_IMP_SZ);
-                if (CcmRet != 0) {
-                    return CcmRet;
+                if (!skipIv) {
+                    CcmRet = wc_AesCcmSetNonce(enc->aes, keys->server_write_IV,
+                            AEAD_MAX_IMP_SZ);
+                    if (CcmRet != 0) return CcmRet;
                 }
 #endif
             }
@@ -3036,7 +3041,7 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 #endif
 
     ret = SetKeys(wc_encrypt, wc_decrypt, keys, &ssl->specs, ssl->options.side,
-                  ssl->heap, ssl->devId, ssl->rng);
+                  ssl->heap, ssl->devId, ssl->rng, ssl->options.tls1_3);
 
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (copy) {
