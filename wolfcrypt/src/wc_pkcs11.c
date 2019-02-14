@@ -541,13 +541,15 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                 ret = Pkcs11MechAvail(&session, CKM_AES_GCM);
                 if (ret == 0) {
                     ret = Pkcs11CreateSecretKey(&privKey, &session, CKK_AES,
-                                                (unsigned char *)aes->key,
+                                                (unsigned char *)aes->devKey,
                                                 aes->keylen,
                                                 (unsigned char *)aes->id,
                                                 aes->idLen);
                 }
-                if (ret == 0 && clear)
+                if (ret == 0 && clear) {
+                    XMEMSET(aes->devKey, 0, aes->keylen);
                     XMEMSET(aes->key, 0, aes->keylen);
+                }
                 break;
             }
     #endif
@@ -1421,6 +1423,8 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
 
     if (ret == 0) {
         secSz = *info->pk.ecdh.outlen;
+        if (secSz > (CK_ULONG)info->pk.ecdh.private_key->dp->size)
+            secSz = info->pk.ecdh.private_key->dp->size;
 
         params.kdf             = CKD_NULL;
         params.pSharedData     = NULL;
@@ -1791,7 +1795,7 @@ static int Pkcs11AesGcmEncrypt(Pkcs11Session* session, wc_CryptoInfo* info)
     /* Create a private key object or find by id. */
     if (ret == 0 && aes->idLen == 0) {
         ret = Pkcs11CreateSecretKey(&key, session, CKK_AES,
-                                    (unsigned char *)aes->key, aes->keylen,
+                                    (unsigned char *)aes->devKey, aes->keylen,
                                     NULL, 0);
 
     }
@@ -1875,7 +1879,7 @@ static int Pkcs11AesGcmDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
     /* Create a private key object or find by id. */
     if (ret == 0 && aes->idLen == 0) {
         ret = Pkcs11CreateSecretKey(&key, session, CKK_AES,
-                                    (unsigned char *)aes->key, aes->keylen,
+                                    (unsigned char *)aes->devKey, aes->keylen,
                                     NULL, 0);
     }
     else if (ret == 0) {
@@ -2046,9 +2050,6 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     #endif
                 }
             }
-            else if (info->algo_type == WC_ALGO_TYPE_HASH) {
-                ret = NOT_COMPILED_IN;
-            }
             else if (info->algo_type == WC_ALGO_TYPE_RNG) {
     #if !defined(WC_NO_RNG) && !defined(HAVE_HASHDRBG)
                 ret = Pkcs11RandomBlock(&session, info);
@@ -2063,6 +2064,8 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                 ret = NOT_COMPILED_IN;
     #endif
             }
+            else
+                ret = NOT_COMPILED_IN;
 
             Pkcs11CloseSession(token, &session);
         }
