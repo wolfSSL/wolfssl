@@ -793,7 +793,7 @@ static WC_INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
         addr->sin6_addr = in6addr_any;
     }
     else {
-        #ifdef HAVE_GETADDRINFO
+        #if defined(HAVE_GETADDRINFO) || defined(WOLF_C99)
             struct addrinfo  hints;
             struct addrinfo* answer = NULL;
             int    ret;
@@ -826,21 +826,6 @@ static WC_INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
 
             XMEMCPY(addr, answer->ai_addr, answer->ai_addrlen);
             freeaddrinfo(answer);
-        #elif defined(WOLF_C99)
-            HOSTENT* entry;
-            SOCKADDR_IN* sin;
-
-            entry = gethostbyname(peer);
-            sin   = (SOCKADDR_IN*)&addr;
-            if (entry) {
-                sin->sin_family = AF_INET;
-                sin->sin_port = XHTONS(port);
-                XMEMCPY(&sin->sin_addr.s_addr, entry->h_addr_list[0],
-                        entry->h_length);
-            }
-            else {
-                err_sys("no addr info for responder");
-            }
         #else
             printf("no ipv6 getaddrinfo, loopback only tests/examples\n");
             addr->sin6_addr = in6addr_loopback;
