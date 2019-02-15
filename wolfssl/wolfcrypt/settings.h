@@ -696,7 +696,8 @@ extern void uITRON4_free(void *p) ;
     #define NO_FILESYSTEM
     #define USE_CERT_BUFFERS_2048
     #define NO_ERROR_STRINGS
-    #define USER_TIME
+    /* Uncomment this setting if your toolchain does not offer time.h header */
+    /* #define USER_TIME */
     #define HAVE_ECC
     #define HAVE_ALPN
     #define USE_WOLF_STRTOK /* use with HAVE_ALPN */
