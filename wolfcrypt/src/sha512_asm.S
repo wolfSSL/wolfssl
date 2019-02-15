@@ -27,7 +27,16 @@
 #endif /* HAVE_INTEL_AVX2 */
 
 #ifdef HAVE_INTEL_AVX1
-.align 16
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_avx1_sha512_k:
 .quad	0x428a2f98d728ae22,0x7137449123ef65cd
 .quad	0xb5c0fbcfec4d3b2f,0xe9b5dba58189dbbc
@@ -69,13 +78,30 @@ L_avx1_sha512_k:
 .quad	0x3c9ebe0a15c9bebc,0x431d67c49c100d4c
 .quad	0x4cc5d4becb3e42b6,0x597f299cfc657e2a
 .quad	0x5fcb6fab3ad6faec,0x6c44198c4a475817
-.align 16
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_avx1_sha512_flip_mask:
 .quad	0x1020304050607, 0x8090a0b0c0d0e0f
+#ifndef __APPLE__
+.text
 .globl	Transform_Sha512_AVX1
 .type	Transform_Sha512_AVX1,@function
 .align	4
 Transform_Sha512_AVX1:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha512_AVX1
+.p2align	2
+_Transform_Sha512_AVX1:
+#endif /* __APPLE__ */
         pushq	%rbx
         pushq	%r12
         pushq	%r13
@@ -1335,11 +1361,21 @@ L_sha256_len_avx1_start:
         popq	%r12
         popq	%rbx
         repz retq
+#ifndef __APPLE__
 .size	Transform_Sha512_AVX1,.-Transform_Sha512_AVX1
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
 .globl	Transform_Sha512_AVX1_Len
 .type	Transform_Sha512_AVX1_Len,@function
 .align	4
 Transform_Sha512_AVX1_Len:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha512_AVX1_Len
+.p2align	2
+_Transform_Sha512_AVX1_Len:
+#endif /* __APPLE__ */
         pushq	%rbx
         pushq	%r12
         pushq	%r13
@@ -2618,8 +2654,19 @@ L_sha512_len_avx1_start:
         popq	%r12
         popq	%rbx
         repz retq
+#ifndef __APPLE__
 .size	Transform_Sha512_AVX1_Len,.-Transform_Sha512_AVX1_Len
-.align 16
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_avx1_rorx_sha512_k:
 .quad	0x428a2f98d728ae22,0x7137449123ef65cd
 .quad	0xb5c0fbcfec4d3b2f,0xe9b5dba58189dbbc
@@ -2661,13 +2708,30 @@ L_avx1_rorx_sha512_k:
 .quad	0x3c9ebe0a15c9bebc,0x431d67c49c100d4c
 .quad	0x4cc5d4becb3e42b6,0x597f299cfc657e2a
 .quad	0x5fcb6fab3ad6faec,0x6c44198c4a475817
-.align 16
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_avx1_rorx_sha512_flip_mask:
 .quad	0x1020304050607, 0x8090a0b0c0d0e0f
+#ifndef __APPLE__
+.text
 .globl	Transform_Sha512_AVX1_RORX
 .type	Transform_Sha512_AVX1_RORX,@function
 .align	4
 Transform_Sha512_AVX1_RORX:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha512_AVX1_RORX
+.p2align	2
+_Transform_Sha512_AVX1_RORX:
+#endif /* __APPLE__ */
         pushq	%rbx
         pushq	%r12
         pushq	%r13
@@ -3856,11 +3920,21 @@ L_sha256_len_avx1_rorx_start:
         popq	%r12
         popq	%rbx
         repz retq
+#ifndef __APPLE__
 .size	Transform_Sha512_AVX1_RORX,.-Transform_Sha512_AVX1_RORX
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
 .globl	Transform_Sha512_AVX1_RORX_Len
 .type	Transform_Sha512_AVX1_RORX_Len,@function
 .align	4
 Transform_Sha512_AVX1_RORX_Len:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha512_AVX1_RORX_Len
+.p2align	2
+_Transform_Sha512_AVX1_RORX_Len:
+#endif /* __APPLE__ */
         pushq	%rbx
         pushq	%r12
         pushq	%r13
@@ -5084,10 +5158,21 @@ L_sha512_len_avx1_rorx_start:
         popq	%r12
         popq	%rbx
         repz retq
+#ifndef __APPLE__
 .size	Transform_Sha512_AVX1_RORX_Len,.-Transform_Sha512_AVX1_RORX_Len
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX1 */
 #ifdef HAVE_INTEL_AVX2
-.align 16
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_avx2_sha512_k:
 .quad	0x428a2f98d728ae22,0x7137449123ef65cd
 .quad	0xb5c0fbcfec4d3b2f,0xe9b5dba58189dbbc
@@ -5129,7 +5214,16 @@ L_avx2_sha512_k:
 .quad	0x3c9ebe0a15c9bebc,0x431d67c49c100d4c
 .quad	0x4cc5d4becb3e42b6,0x597f299cfc657e2a
 .quad	0x5fcb6fab3ad6faec,0x6c44198c4a475817
-.align 16
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_avx2_sha512_k_2:
 .quad	0x428a2f98d728ae22,0x7137449123ef65cd
 .quad	0x428a2f98d728ae22,0x7137449123ef65cd
@@ -5211,17 +5305,43 @@ L_avx2_sha512_k_2:
 .quad	0x4cc5d4becb3e42b6,0x597f299cfc657e2a
 .quad	0x5fcb6fab3ad6faec,0x6c44198c4a475817
 .quad	0x5fcb6fab3ad6faec,0x6c44198c4a475817
-.align 8
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	8
+#else
+.p2align	3
+#endif /* __APPLE__ */
 L_avx2_sha512_k_2_end:
 .quad	1024+L_avx2_sha512_k_2
-.align 32
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
 L_avx2_sha512_flip_mask:
 .quad	0x1020304050607, 0x8090a0b0c0d0e0f
 .quad	0x1020304050607, 0x8090a0b0c0d0e0f
+#ifndef __APPLE__
+.text
 .globl	Transform_Sha512_AVX2
 .type	Transform_Sha512_AVX2,@function
 .align	4
 Transform_Sha512_AVX2:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha512_AVX2
+.p2align	2
+_Transform_Sha512_AVX2:
+#endif /* __APPLE__ */
         pushq	%rbx
         pushq	%r12
         pushq	%r13
@@ -6269,11 +6389,21 @@ L_sha256_avx2_start:
         popq	%r12
         popq	%rbx
         repz retq
+#ifndef __APPLE__
 .size	Transform_Sha512_AVX2,.-Transform_Sha512_AVX2
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
 .globl	Transform_Sha512_AVX2_Len
 .type	Transform_Sha512_AVX2_Len,@function
 .align	4
 Transform_Sha512_AVX2_Len:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha512_AVX2_Len
+.p2align	2
+_Transform_Sha512_AVX2_Len:
+#endif /* __APPLE__ */
         pushq	%rbx
         pushq	%r12
         pushq	%r13
@@ -6292,7 +6422,11 @@ Transform_Sha512_AVX2_Len:
         vmovups	%ymm1, 96(%rdi)
         vmovups	%ymm2, 128(%rdi)
         vmovups	%ymm3, 160(%rdi)
+#ifndef __APPLE__
         call	Transform_Sha512_AVX2@plt
+#else
+        call	_Transform_Sha512_AVX2
+#endif /* __APPLE__ */
         addq	$0x80, 224(%rdi)
         subl	$0x80, %ebp
         jz	L_sha512_len_avx2_done
@@ -7881,8 +8015,19 @@ L_sha512_len_avx2_done:
         popq	%r12
         popq	%rbx
         repz retq
+#ifndef __APPLE__
 .size	Transform_Sha512_AVX2_Len,.-Transform_Sha512_AVX2_Len
-.align 16
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_avx2_rorx_sha512_k:
 .quad	0x428a2f98d728ae22,0x7137449123ef65cd
 .quad	0xb5c0fbcfec4d3b2f,0xe9b5dba58189dbbc
@@ -7924,7 +8069,16 @@ L_avx2_rorx_sha512_k:
 .quad	0x3c9ebe0a15c9bebc,0x431d67c49c100d4c
 .quad	0x4cc5d4becb3e42b6,0x597f299cfc657e2a
 .quad	0x5fcb6fab3ad6faec,0x6c44198c4a475817
-.align 16
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_avx2_rorx_sha512_k_2:
 .quad	0x428a2f98d728ae22,0x7137449123ef65cd
 .quad	0x428a2f98d728ae22,0x7137449123ef65cd
@@ -8006,17 +8160,43 @@ L_avx2_rorx_sha512_k_2:
 .quad	0x4cc5d4becb3e42b6,0x597f299cfc657e2a
 .quad	0x5fcb6fab3ad6faec,0x6c44198c4a475817
 .quad	0x5fcb6fab3ad6faec,0x6c44198c4a475817
-.align 8
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	8
+#else
+.p2align	3
+#endif /* __APPLE__ */
 L_avx2_rorx_sha512_k_2_end:
 .quad	1024+L_avx2_rorx_sha512_k_2
-.align 32
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
 L_avx2_rorx_sha512_flip_mask:
 .quad	0x1020304050607, 0x8090a0b0c0d0e0f
 .quad	0x1020304050607, 0x8090a0b0c0d0e0f
+#ifndef __APPLE__
+.text
 .globl	Transform_Sha512_AVX2_RORX
 .type	Transform_Sha512_AVX2_RORX,@function
 .align	4
 Transform_Sha512_AVX2_RORX:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha512_AVX2_RORX
+.p2align	2
+_Transform_Sha512_AVX2_RORX:
+#endif /* __APPLE__ */
         pushq	%rbx
         pushq	%r12
         pushq	%r13
@@ -9006,11 +9186,21 @@ L_sha256_len_avx2_rorx_start:
         popq	%r12
         popq	%rbx
         repz retq
+#ifndef __APPLE__
 .size	Transform_Sha512_AVX2_RORX,.-Transform_Sha512_AVX2_RORX
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
 .globl	Transform_Sha512_AVX2_RORX_Len
 .type	Transform_Sha512_AVX2_RORX_Len,@function
 .align	4
 Transform_Sha512_AVX2_RORX_Len:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha512_AVX2_RORX_Len
+.p2align	2
+_Transform_Sha512_AVX2_RORX_Len:
+#endif /* __APPLE__ */
         pushq	%rbx
         pushq	%r12
         pushq	%r13
@@ -9029,7 +9219,11 @@ Transform_Sha512_AVX2_RORX_Len:
         vmovups	%ymm1, 96(%rdi)
         vmovups	%ymm2, 128(%rdi)
         vmovups	%ymm3, 160(%rdi)
+#ifndef __APPLE__
         call	Transform_Sha512_AVX2_RORX@plt
+#else
+        call	_Transform_Sha512_AVX2_RORX
+#endif /* __APPLE__ */
         pop	%rsi
         addq	$0x80, 224(%rdi)
         subl	$0x80, %esi
@@ -10541,5 +10735,7 @@ L_sha512_len_avx2_rorx_done:
         popq	%r12
         popq	%rbx
         repz retq
+#ifndef __APPLE__
 .size	Transform_Sha512_AVX2_RORX_Len,.-Transform_Sha512_AVX2_RORX_Len
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */

@@ -26,10 +26,18 @@
 #define HAVE_INTEL_AVX2
 #endif /* HAVE_INTEL_AVX2 */
 
+#ifndef __APPLE__
+.text
 .globl	chacha_encrypt_x64
 .type	chacha_encrypt_x64,@function
 .align	4
 chacha_encrypt_x64:
+#else
+.section	__TEXT,__text
+.globl	_chacha_encrypt_x64
+.p2align	2
+_chacha_encrypt_x64:
+#endif /* __APPLE__ */
         pushq	%rbx
         pushq	%rbp
         pushq	%r12
@@ -440,24 +448,70 @@ L_chacha_x64_done:
         popq	%rbp
         popq	%rbx
         repz retq
+#ifndef __APPLE__
 .size	chacha_encrypt_x64,.-chacha_encrypt_x64
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX1
-.align 16
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_chacha20_avx1_rotl8:
 .quad	0x605040702010003, 0xe0d0c0f0a09080b
-.align 16
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_chacha20_avx1_rotl16:
 .quad	0x504070601000302, 0xd0c0f0e09080b0a
-.align 16
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_chacha20_avx1_add:
 .quad	0x100000000, 0x300000002
-.align 16
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_chacha20_avx1_four:
 .quad	0x400000004, 0x400000004
+#ifndef __APPLE__
+.text
 .globl	chacha_encrypt_avx1
 .type	chacha_encrypt_avx1,@function
 .align	4
 chacha_encrypt_avx1:
+#else
+.section	__TEXT,__text
+.globl	_chacha_encrypt_avx1
+.p2align	2
+_chacha_encrypt_avx1:
+#endif /* __APPLE__ */
         subq	$0x190, %rsp
         movq	%rsp, %r9
         leaq	256(%rsp), %r10
@@ -943,29 +997,75 @@ L_chacha20_avx1_partial_end64:
 L_chacha20_avx1_partial_done:
         addq	$0x190, %rsp
         repz retq
+#ifndef __APPLE__
 .size	chacha_encrypt_avx1,.-chacha_encrypt_avx1
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX1 */
 #ifdef HAVE_INTEL_AVX2
-.align 32
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
 L_chacha20_avx2_rotl8:
 .quad	0x605040702010003, 0xe0d0c0f0a09080b
 .quad	0x605040702010003, 0xe0d0c0f0a09080b
-.align 32
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
 L_chacha20_avx2_rotl16:
 .quad	0x504070601000302, 0xd0c0f0e09080b0a
 .quad	0x504070601000302, 0xd0c0f0e09080b0a
-.align 32
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
 L_chacha20_avx2_add:
 .quad	0x100000000, 0x300000002
 .quad	0x500000004, 0x700000006
-.align 32
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
 L_chacha20_avx2_eight:
 .quad	0x800000008, 0x800000008
 .quad	0x800000008, 0x800000008
+#ifndef __APPLE__
+.text
 .globl	chacha_encrypt_avx2
 .type	chacha_encrypt_avx2,@function
 .align	4
 chacha_encrypt_avx2:
+#else
+.section	__TEXT,__text
+.globl	_chacha_encrypt_avx2
+.p2align	2
+_chacha_encrypt_avx2:
+#endif /* __APPLE__ */
         subq	$0x310, %rsp
         movq	%rsp, %r9
         leaq	512(%rsp), %r10
@@ -1307,8 +1407,14 @@ L_chacha20_avx2_done256:
         shl	$3, %eax
         addl	%eax, 48(%rdi)
 L_chacha20_avx2_end256:
+#ifndef __APPLE__
         callq	chacha_encrypt_avx1@plt
+#else
+        callq	_chacha_encrypt_avx1
+#endif /* __APPLE__ */
         addq	$0x310, %rsp
         repz retq
+#ifndef __APPLE__
 .size	chacha_encrypt_avx2,.-chacha_encrypt_avx2
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */

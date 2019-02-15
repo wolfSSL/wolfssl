@@ -37,10 +37,16 @@
  * a  A single precision integer.
  * b  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_2048_mul_16
 .type	sp_2048_mul_16,@function
 .align	16
 sp_2048_mul_16:
+#else
+.globl	_sp_2048_mul_16
+.p2align	4
+_sp_2048_mul_16:
+#endif /* __APPLE__ */
         movq	%rdx, %rcx
         subq	$128, %rsp
         # A[0] * B[0]
@@ -1672,16 +1678,24 @@ sp_2048_mul_16:
         movq	%r9, 120(%rdi)
         addq	$128, %rsp
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_mul_16,.-sp_2048_mul_16
+#endif /* __APPLE__ */
 /* Square a and put result in r. (r = a * a)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_2048_sqr_16
 .type	sp_2048_sqr_16,@function
 .align	16
 sp_2048_sqr_16:
+#else
+.globl	_sp_2048_sqr_16
+.p2align	4
+_sp_2048_sqr_16:
+#endif /* __APPLE__ */
         push	%r12
         subq	$128, %rsp
         # A[0] * A[0]
@@ -2756,7 +2770,9 @@ sp_2048_sqr_16:
         addq	$128, %rsp
         pop	%r12
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_sqr_16,.-sp_2048_sqr_16
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Multiply a and b into r. (r = a * b)
  *
@@ -2764,10 +2780,16 @@ sp_2048_sqr_16:
  * a   First number to multiply.
  * b   Second number to multiply.
  */
+#ifndef __APPLE__
 .globl	sp_2048_mul_avx2_16
 .type	sp_2048_mul_avx2_16,@function
 .align	16
 sp_2048_mul_avx2_16:
+#else
+.globl	_sp_2048_mul_avx2_16
+.p2align	4
+_sp_2048_mul_avx2_16:
+#endif /* __APPLE__ */
         push	%rbp
         push	%r12
         push	%r13
@@ -4427,7 +4449,9 @@ sp_2048_mul_avx2_16:
         pop	%r12
         pop	%rbp
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_mul_avx2_16,.-sp_2048_mul_avx2_16
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 #ifdef HAVE_INTEL_AVX2
 /* Square a and put result in r. (r = a * a)
@@ -4435,10 +4459,16 @@ sp_2048_mul_avx2_16:
  * r  A single precision integer.
  * a  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_2048_sqr_avx2_16
 .type	sp_2048_sqr_avx2_16,@function
 .align	16
 sp_2048_sqr_avx2_16:
+#else
+.globl	_sp_2048_sqr_avx2_16
+.p2align	4
+_sp_2048_sqr_avx2_16:
+#endif /* __APPLE__ */
         push	%rbp
         push	%r12
         push	%r13
@@ -5461,7 +5491,9 @@ L_end_2048_sqr_avx2_16:
         pop	%r12
         pop	%rbp
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_sqr_avx2_16,.-sp_2048_sqr_avx2_16
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 /* Add b to a into r. (r = a + b)
  *
@@ -5469,10 +5501,16 @@ L_end_2048_sqr_avx2_16:
  * a  A single precision integer.
  * b  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_2048_add_16
 .type	sp_2048_add_16,@function
 .align	16
 sp_2048_add_16:
+#else
+.globl	_sp_2048_add_16
+.p2align	4
+_sp_2048_add_16:
+#endif /* __APPLE__ */
         xorq	%rax, %rax
         movq	(%rsi), %rcx
         addq	(%rdx), %rcx
@@ -5524,16 +5562,24 @@ sp_2048_add_16:
         movq	%rcx, 120(%rdi)
         adcq	$0, %rax
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_add_16,.-sp_2048_add_16
+#endif /* __APPLE__ */
 /* Sub b from a into a. (a -= b)
  *
  * a  A single precision integer and result.
  * b  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_2048_sub_in_place_32
 .type	sp_2048_sub_in_place_32,@function
 .align	16
 sp_2048_sub_in_place_32:
+#else
+.globl	_sp_2048_sub_in_place_32
+.p2align	4
+_sp_2048_sub_in_place_32:
+#endif /* __APPLE__ */
         xorq	%rax, %rax
         movq	(%rdi), %rdx
         movq	8(%rdi), %rcx
@@ -5665,17 +5711,25 @@ sp_2048_sub_in_place_32:
         movq	%rcx, 248(%rdi)
         sbbq	$0, %rax
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_sub_in_place_32,.-sp_2048_sub_in_place_32
+#endif /* __APPLE__ */
 /* Add b to a into r. (r = a + b)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  * b  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_2048_add_32
 .type	sp_2048_add_32,@function
 .align	16
 sp_2048_add_32:
+#else
+.globl	_sp_2048_add_32
+.p2align	4
+_sp_2048_add_32:
+#endif /* __APPLE__ */
         xorq	%rax, %rax
         movq	(%rsi), %rcx
         addq	(%rdx), %rcx
@@ -5775,7 +5829,9 @@ sp_2048_add_32:
         movq	%rcx, 248(%rdi)
         adcq	$0, %rax
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_add_32,.-sp_2048_add_32
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 #endif /* HAVE_INTEL_AVX2 */
 #ifdef HAVE_INTEL_AVX2
@@ -5788,10 +5844,16 @@ sp_2048_add_32:
  * a  A single precision integer and result.
  * b  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_2048_sub_in_place_16
 .type	sp_2048_sub_in_place_16,@function
 .align	16
 sp_2048_sub_in_place_16:
+#else
+.globl	_sp_2048_sub_in_place_16
+.p2align	4
+_sp_2048_sub_in_place_16:
+#endif /* __APPLE__ */
         xorq	%rax, %rax
         movq	(%rdi), %rdx
         movq	8(%rdi), %rcx
@@ -5859,7 +5921,9 @@ sp_2048_sub_in_place_16:
         movq	%rcx, 120(%rdi)
         sbbq	$0, %rax
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_sub_in_place_16,.-sp_2048_sub_in_place_16
+#endif /* __APPLE__ */
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
@@ -5868,10 +5932,16 @@ sp_2048_sub_in_place_16:
  * b  A single precision number to subtract.
  * m  Mask value to apply.
  */
+#ifndef __APPLE__
 .globl	sp_2048_cond_sub_16
 .type	sp_2048_cond_sub_16,@function
 .align	16
 sp_2048_cond_sub_16:
+#else
+.globl	_sp_2048_cond_sub_16
+.p2align	4
+_sp_2048_cond_sub_16:
+#endif /* __APPLE__ */
         subq	$128, %rsp
         movq	$0, %rax
         movq	(%rdx), %r8
@@ -5989,17 +6059,25 @@ sp_2048_cond_sub_16:
         sbbq	$0, %rax
         addq	$128, %rsp
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_cond_sub_16,.-sp_2048_cond_sub_16
+#endif /* __APPLE__ */
 /* Reduce the number back to 2048 bits using Montgomery reduction.
  *
  * a   A single precision number to reduce in place.
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
+#ifndef __APPLE__
 .globl	sp_2048_mont_reduce_16
 .type	sp_2048_mont_reduce_16,@function
 .align	16
 sp_2048_mont_reduce_16:
+#else
+.globl	_sp_2048_mont_reduce_16
+.p2align	4
+_sp_2048_mont_reduce_16:
+#endif /* __APPLE__ */
         push	%r12
         push	%r13
         push	%r14
@@ -6182,23 +6260,35 @@ L_mont_loop_16:
         movq	%rdi, %rsi
         movq	%rdi, %rdi
         subq	$128, %rdi
+#ifndef __APPLE__
         callq	sp_2048_cond_sub_16@plt
+#else
+        callq	_sp_2048_cond_sub_16
+#endif /* __APPLE__ */
         pop	%r15
         pop	%r14
         pop	%r13
         pop	%r12
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_mont_reduce_16,.-sp_2048_mont_reduce_16
+#endif /* __APPLE__ */
 /* Mul a by digit b into r. (r = a * b)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  * b  A single precision digit.
  */
+#ifndef __APPLE__
 .globl	sp_2048_mul_d_16
 .type	sp_2048_mul_d_16,@function
 .align	16
 sp_2048_mul_d_16:
+#else
+.globl	_sp_2048_mul_d_16
+.p2align	4
+_sp_2048_mul_d_16:
+#endif /* __APPLE__ */
         movq	%rdx, %rcx
         # A[0] * B
         movq	%rcx, %rax
@@ -6327,7 +6417,9 @@ sp_2048_mul_d_16:
         movq	%r8, 120(%rdi)
         movq	%r9, 128(%rdi)
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_mul_d_16,.-sp_2048_mul_d_16
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Mul a by digit b into r. (r = a * b)
  *
@@ -6335,10 +6427,16 @@ sp_2048_mul_d_16:
  * a  A single precision integer.
  * b  A single precision digit.
  */
+#ifndef __APPLE__
 .globl	sp_2048_mul_d_avx2_16
 .type	sp_2048_mul_d_avx2_16,@function
 .align	16
 sp_2048_mul_d_avx2_16:
+#else
+.globl	_sp_2048_mul_d_avx2_16
+.p2align	4
+_sp_2048_mul_d_avx2_16:
+#endif /* __APPLE__ */
         movq	%rdx, %rax
         # A[0] * B
         movq	%rax, %rdx
@@ -6438,7 +6536,9 @@ sp_2048_mul_d_avx2_16:
         movq	%r10, 120(%rdi)
         movq	%r9, 128(%rdi)
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_mul_d_avx2_16,.-sp_2048_mul_d_avx2_16
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 /* Compare a with b in constant time.
  *
@@ -6447,10 +6547,16 @@ sp_2048_mul_d_avx2_16:
  * return -ve, 0 or +ve if a is less than, equal to or greater than b
  * respectively.
  */
+#ifndef __APPLE__
 .globl	sp_2048_cmp_16
 .type	sp_2048_cmp_16,@function
 .align	16
 sp_2048_cmp_16:
+#else
+.globl	_sp_2048_cmp_16
+.p2align	4
+_sp_2048_cmp_16:
+#endif /* __APPLE__ */
         xorq	%rcx, %rcx
         movq	$-1, %rdx
         movq	$-1, %rax
@@ -6585,7 +6691,9 @@ sp_2048_cmp_16:
         cmovnz	%rcx, %rdx
         xorq	%rdx, %rax
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_cmp_16,.-sp_2048_cmp_16
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Reduce the number back to 2048 bits using Montgomery reduction.
  *
@@ -6593,10 +6701,16 @@ sp_2048_cmp_16:
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
+#ifndef __APPLE__
 .globl	sp_2048_mont_reduce_avx2_16
 .type	sp_2048_mont_reduce_avx2_16,@function
 .align	16
 sp_2048_mont_reduce_avx2_16:
+#else
+.globl	_sp_2048_mont_reduce_avx2_16
+.p2align	4
+_sp_2048_mont_reduce_avx2_16:
+#endif /* __APPLE__ */
         push	%r12
         push	%r13
         push	%r14
@@ -6721,12 +6835,18 @@ L_mont_loop_avx2_16:
         movq	%rdi, %rsi
         movq	%rdi, %rdi
         subq	$128, %rdi
+#ifndef __APPLE__
         callq	sp_2048_cond_sub_16@plt
+#else
+        callq	_sp_2048_cond_sub_16
+#endif /* __APPLE__ */
         pop	%r14
         pop	%r13
         pop	%r12
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_mont_reduce_avx2_16,.-sp_2048_mont_reduce_avx2_16
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 #ifdef HAVE_INTEL_AVX2
 #endif /* HAVE_INTEL_AVX2 */
@@ -6745,10 +6865,16 @@ L_mont_loop_avx2_16:
  * b  A single precision number to subtract.
  * m  Mask value to apply.
  */
+#ifndef __APPLE__
 .globl	sp_2048_cond_sub_32
 .type	sp_2048_cond_sub_32,@function
 .align	16
 sp_2048_cond_sub_32:
+#else
+.globl	_sp_2048_cond_sub_32
+.p2align	4
+_sp_2048_cond_sub_32:
+#endif /* __APPLE__ */
         subq	$256, %rsp
         movq	$0, %rax
         movq	(%rdx), %r8
@@ -6978,17 +7104,25 @@ sp_2048_cond_sub_32:
         sbbq	$0, %rax
         addq	$256, %rsp
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_cond_sub_32,.-sp_2048_cond_sub_32
+#endif /* __APPLE__ */
 /* Reduce the number back to 2048 bits using Montgomery reduction.
  *
  * a   A single precision number to reduce in place.
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
+#ifndef __APPLE__
 .globl	sp_2048_mont_reduce_32
 .type	sp_2048_mont_reduce_32,@function
 .align	16
 sp_2048_mont_reduce_32:
+#else
+.globl	_sp_2048_mont_reduce_32
+.p2align	4
+_sp_2048_mont_reduce_32:
+#endif /* __APPLE__ */
         push	%r12
         push	%r13
         push	%r14
@@ -7331,23 +7465,35 @@ L_mont_loop_32:
         movq	%rdi, %rsi
         movq	%rdi, %rdi
         subq	$256, %rdi
+#ifndef __APPLE__
         callq	sp_2048_cond_sub_32@plt
+#else
+        callq	_sp_2048_cond_sub_32
+#endif /* __APPLE__ */
         pop	%r15
         pop	%r14
         pop	%r13
         pop	%r12
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_mont_reduce_32,.-sp_2048_mont_reduce_32
+#endif /* __APPLE__ */
 /* Mul a by digit b into r. (r = a * b)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  * b  A single precision digit.
  */
+#ifndef __APPLE__
 .globl	sp_2048_mul_d_32
 .type	sp_2048_mul_d_32,@function
 .align	16
 sp_2048_mul_d_32:
+#else
+.globl	_sp_2048_mul_d_32
+.p2align	4
+_sp_2048_mul_d_32:
+#endif /* __APPLE__ */
         movq	%rdx, %rcx
         # A[0] * B
         movq	%rcx, %rax
@@ -7604,7 +7750,9 @@ sp_2048_mul_d_32:
         movq	%r9, 248(%rdi)
         movq	%r10, 256(%rdi)
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_mul_d_32,.-sp_2048_mul_d_32
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Mul a by digit b into r. (r = a * b)
  *
@@ -7612,10 +7760,16 @@ sp_2048_mul_d_32:
  * a  A single precision integer.
  * b  A single precision digit.
  */
+#ifndef __APPLE__
 .globl	sp_2048_mul_d_avx2_32
 .type	sp_2048_mul_d_avx2_32,@function
 .align	16
 sp_2048_mul_d_avx2_32:
+#else
+.globl	_sp_2048_mul_d_avx2_32
+.p2align	4
+_sp_2048_mul_d_avx2_32:
+#endif /* __APPLE__ */
         movq	%rdx, %rax
         # A[0] * B
         movq	%rax, %rdx
@@ -7811,7 +7965,9 @@ sp_2048_mul_d_avx2_32:
         movq	%r10, 248(%rdi)
         movq	%r9, 256(%rdi)
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_mul_d_avx2_32,.-sp_2048_mul_d_avx2_32
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 /* Compare a with b in constant time.
  *
@@ -7820,10 +7976,16 @@ sp_2048_mul_d_avx2_32:
  * return -ve, 0 or +ve if a is less than, equal to or greater than b
  * respectively.
  */
+#ifndef __APPLE__
 .globl	sp_2048_cmp_32
 .type	sp_2048_cmp_32,@function
 .align	16
 sp_2048_cmp_32:
+#else
+.globl	_sp_2048_cmp_32
+.p2align	4
+_sp_2048_cmp_32:
+#endif /* __APPLE__ */
         xorq	%rcx, %rcx
         movq	$-1, %rdx
         movq	$-1, %rax
@@ -8086,7 +8248,9 @@ sp_2048_cmp_32:
         cmovnz	%rcx, %rdx
         xorq	%rdx, %rax
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_cmp_32,.-sp_2048_cmp_32
+#endif /* __APPLE__ */
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(WOLFSSL_HAVE_SP_DH)
 #endif /* SP_RSA_PRIVATE_EXP_D || WOLFSSL_HAVE_SP_DH */
 #ifdef HAVE_INTEL_AVX2
@@ -8096,10 +8260,16 @@ sp_2048_cmp_32:
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
+#ifndef __APPLE__
 .globl	sp_2048_mont_reduce_avx2_32
 .type	sp_2048_mont_reduce_avx2_32,@function
 .align	16
 sp_2048_mont_reduce_avx2_32:
+#else
+.globl	_sp_2048_mont_reduce_avx2_32
+.p2align	4
+_sp_2048_mont_reduce_avx2_32:
+#endif /* __APPLE__ */
         push	%r12
         push	%r13
         push	%r14
@@ -8320,12 +8490,18 @@ L_mont_loop_avx2_32:
         movq	%rdi, %rsi
         movq	%rdi, %rdi
         subq	$256, %rdi
+#ifndef __APPLE__
         callq	sp_2048_cond_sub_32@plt
+#else
+        callq	_sp_2048_cond_sub_32
+#endif /* __APPLE__ */
         pop	%r14
         pop	%r13
         pop	%r12
         repz retq
+#ifndef __APPLE__
 .size	sp_2048_mont_reduce_avx2_32,.-sp_2048_mont_reduce_avx2_32
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 #ifdef HAVE_INTEL_AVX2
 #endif /* HAVE_INTEL_AVX2 */
@@ -8345,10 +8521,16 @@ L_mont_loop_avx2_32:
  * a  A single precision integer.
  * b  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_3072_mul_24
 .type	sp_3072_mul_24,@function
 .align	16
 sp_3072_mul_24:
+#else
+.globl	_sp_3072_mul_24
+.p2align	4
+_sp_3072_mul_24:
+#endif /* __APPLE__ */
         movq	%rdx, %rcx
         subq	$192, %rsp
         # A[0] * B[0]
@@ -11948,16 +12130,24 @@ sp_3072_mul_24:
         movq	%r9, 184(%rdi)
         addq	$192, %rsp
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_mul_24,.-sp_3072_mul_24
+#endif /* __APPLE__ */
 /* Square a and put result in r. (r = a * a)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_3072_sqr_24
 .type	sp_3072_sqr_24,@function
 .align	16
 sp_3072_sqr_24:
+#else
+.globl	_sp_3072_sqr_24
+.p2align	4
+_sp_3072_sqr_24:
+#endif /* __APPLE__ */
         push	%r12
         subq	$192, %rsp
         # A[0] * A[0]
@@ -14160,7 +14350,9 @@ sp_3072_sqr_24:
         addq	$192, %rsp
         pop	%r12
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_sqr_24,.-sp_3072_sqr_24
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Multiply a and b into r. (r = a * b)
  *
@@ -14168,10 +14360,16 @@ sp_3072_sqr_24:
  * a   First number to multiply.
  * b   Second number to multiply.
  */
+#ifndef __APPLE__
 .globl	sp_3072_mul_avx2_24
 .type	sp_3072_mul_avx2_24,@function
 .align	16
 sp_3072_mul_avx2_24:
+#else
+.globl	_sp_3072_mul_avx2_24
+.p2align	4
+_sp_3072_mul_avx2_24:
+#endif /* __APPLE__ */
         push	%rbp
         push	%r12
         push	%r13
@@ -17807,7 +18005,9 @@ sp_3072_mul_avx2_24:
         pop	%r12
         pop	%rbp
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_mul_avx2_24,.-sp_3072_mul_avx2_24
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 #ifdef HAVE_INTEL_AVX2
 /* Square a and put result in r. (r = a * a)
@@ -17815,10 +18015,16 @@ sp_3072_mul_avx2_24:
  * r  A single precision integer.
  * a  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_3072_sqr_avx2_24
 .type	sp_3072_sqr_avx2_24,@function
 .align	16
 sp_3072_sqr_avx2_24:
+#else
+.globl	_sp_3072_sqr_avx2_24
+.p2align	4
+_sp_3072_sqr_avx2_24:
+#endif /* __APPLE__ */
         push	%rbp
         push	%r12
         push	%r13
@@ -19923,7 +20129,9 @@ L_end_3072_sqr_avx2_24:
         pop	%r12
         pop	%rbp
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_sqr_avx2_24,.-sp_3072_sqr_avx2_24
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 /* Add b to a into r. (r = a + b)
  *
@@ -19931,10 +20139,16 @@ L_end_3072_sqr_avx2_24:
  * a  A single precision integer.
  * b  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_3072_add_24
 .type	sp_3072_add_24,@function
 .align	16
 sp_3072_add_24:
+#else
+.globl	_sp_3072_add_24
+.p2align	4
+_sp_3072_add_24:
+#endif /* __APPLE__ */
         xorq	%rax, %rax
         movq	(%rsi), %rcx
         addq	(%rdx), %rcx
@@ -20010,16 +20224,24 @@ sp_3072_add_24:
         movq	%rcx, 184(%rdi)
         adcq	$0, %rax
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_add_24,.-sp_3072_add_24
+#endif /* __APPLE__ */
 /* Sub b from a into a. (a -= b)
  *
  * a  A single precision integer and result.
  * b  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_3072_sub_in_place_48
 .type	sp_3072_sub_in_place_48,@function
 .align	16
 sp_3072_sub_in_place_48:
+#else
+.globl	_sp_3072_sub_in_place_48
+.p2align	4
+_sp_3072_sub_in_place_48:
+#endif /* __APPLE__ */
         xorq	%rax, %rax
         movq	(%rdi), %rdx
         movq	8(%rdi), %rcx
@@ -20215,17 +20437,25 @@ sp_3072_sub_in_place_48:
         movq	%rcx, 376(%rdi)
         sbbq	$0, %rax
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_sub_in_place_48,.-sp_3072_sub_in_place_48
+#endif /* __APPLE__ */
 /* Add b to a into r. (r = a + b)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  * b  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_3072_add_48
 .type	sp_3072_add_48,@function
 .align	16
 sp_3072_add_48:
+#else
+.globl	_sp_3072_add_48
+.p2align	4
+_sp_3072_add_48:
+#endif /* __APPLE__ */
         xorq	%rax, %rax
         movq	(%rsi), %rcx
         addq	(%rdx), %rcx
@@ -20373,7 +20603,9 @@ sp_3072_add_48:
         movq	%rcx, 376(%rdi)
         adcq	$0, %rax
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_add_48,.-sp_3072_add_48
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 #endif /* HAVE_INTEL_AVX2 */
 #ifdef HAVE_INTEL_AVX2
@@ -20386,10 +20618,16 @@ sp_3072_add_48:
  * a  A single precision integer and result.
  * b  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_3072_sub_in_place_24
 .type	sp_3072_sub_in_place_24,@function
 .align	16
 sp_3072_sub_in_place_24:
+#else
+.globl	_sp_3072_sub_in_place_24
+.p2align	4
+_sp_3072_sub_in_place_24:
+#endif /* __APPLE__ */
         xorq	%rax, %rax
         movq	(%rdi), %rdx
         movq	8(%rdi), %rcx
@@ -20489,7 +20727,9 @@ sp_3072_sub_in_place_24:
         movq	%rcx, 184(%rdi)
         sbbq	$0, %rax
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_sub_in_place_24,.-sp_3072_sub_in_place_24
+#endif /* __APPLE__ */
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
@@ -20498,10 +20738,16 @@ sp_3072_sub_in_place_24:
  * b  A single precision number to subtract.
  * m  Mask value to apply.
  */
+#ifndef __APPLE__
 .globl	sp_3072_cond_sub_24
 .type	sp_3072_cond_sub_24,@function
 .align	16
 sp_3072_cond_sub_24:
+#else
+.globl	_sp_3072_cond_sub_24
+.p2align	4
+_sp_3072_cond_sub_24:
+#endif /* __APPLE__ */
         subq	$192, %rsp
         movq	$0, %rax
         movq	(%rdx), %r8
@@ -20675,17 +20921,25 @@ sp_3072_cond_sub_24:
         sbbq	$0, %rax
         addq	$192, %rsp
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_cond_sub_24,.-sp_3072_cond_sub_24
+#endif /* __APPLE__ */
 /* Reduce the number back to 3072 bits using Montgomery reduction.
  *
  * a   A single precision number to reduce in place.
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
+#ifndef __APPLE__
 .globl	sp_3072_mont_reduce_24
 .type	sp_3072_mont_reduce_24,@function
 .align	16
 sp_3072_mont_reduce_24:
+#else
+.globl	_sp_3072_mont_reduce_24
+.p2align	4
+_sp_3072_mont_reduce_24:
+#endif /* __APPLE__ */
         push	%r12
         push	%r13
         push	%r14
@@ -20948,23 +21202,35 @@ L_mont_loop_24:
         movq	%rdi, %rsi
         movq	%rdi, %rdi
         subq	$192, %rdi
+#ifndef __APPLE__
         callq	sp_3072_cond_sub_24@plt
+#else
+        callq	_sp_3072_cond_sub_24
+#endif /* __APPLE__ */
         pop	%r15
         pop	%r14
         pop	%r13
         pop	%r12
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_mont_reduce_24,.-sp_3072_mont_reduce_24
+#endif /* __APPLE__ */
 /* Mul a by digit b into r. (r = a * b)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  * b  A single precision digit.
  */
+#ifndef __APPLE__
 .globl	sp_3072_mul_d_24
 .type	sp_3072_mul_d_24,@function
 .align	16
 sp_3072_mul_d_24:
+#else
+.globl	_sp_3072_mul_d_24
+.p2align	4
+_sp_3072_mul_d_24:
+#endif /* __APPLE__ */
         movq	%rdx, %rcx
         # A[0] * B
         movq	%rcx, %rax
@@ -21157,7 +21423,9 @@ sp_3072_mul_d_24:
         movq	%r10, 184(%rdi)
         movq	%r8, 192(%rdi)
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_mul_d_24,.-sp_3072_mul_d_24
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Mul a by digit b into r. (r = a * b)
  *
@@ -21165,10 +21433,16 @@ sp_3072_mul_d_24:
  * a  A single precision integer.
  * b  A single precision digit.
  */
+#ifndef __APPLE__
 .globl	sp_3072_mul_d_avx2_24
 .type	sp_3072_mul_d_avx2_24,@function
 .align	16
 sp_3072_mul_d_avx2_24:
+#else
+.globl	_sp_3072_mul_d_avx2_24
+.p2align	4
+_sp_3072_mul_d_avx2_24:
+#endif /* __APPLE__ */
         movq	%rdx, %rax
         # A[0] * B
         movq	%rax, %rdx
@@ -21316,7 +21590,9 @@ sp_3072_mul_d_avx2_24:
         movq	%r10, 184(%rdi)
         movq	%r9, 192(%rdi)
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_mul_d_avx2_24,.-sp_3072_mul_d_avx2_24
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 /* Compare a with b in constant time.
  *
@@ -21325,10 +21601,16 @@ sp_3072_mul_d_avx2_24:
  * return -ve, 0 or +ve if a is less than, equal to or greater than b
  * respectively.
  */
+#ifndef __APPLE__
 .globl	sp_3072_cmp_24
 .type	sp_3072_cmp_24,@function
 .align	16
 sp_3072_cmp_24:
+#else
+.globl	_sp_3072_cmp_24
+.p2align	4
+_sp_3072_cmp_24:
+#endif /* __APPLE__ */
         xorq	%rcx, %rcx
         movq	$-1, %rdx
         movq	$-1, %rax
@@ -21527,7 +21809,9 @@ sp_3072_cmp_24:
         cmovnz	%rcx, %rdx
         xorq	%rdx, %rax
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_cmp_24,.-sp_3072_cmp_24
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Reduce the number back to 3072 bits using Montgomery reduction.
  *
@@ -21535,10 +21819,16 @@ sp_3072_cmp_24:
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
+#ifndef __APPLE__
 .globl	sp_3072_mont_reduce_avx2_24
 .type	sp_3072_mont_reduce_avx2_24,@function
 .align	16
 sp_3072_mont_reduce_avx2_24:
+#else
+.globl	_sp_3072_mont_reduce_avx2_24
+.p2align	4
+_sp_3072_mont_reduce_avx2_24:
+#endif /* __APPLE__ */
         push	%r12
         push	%r13
         push	%r14
@@ -21711,12 +22001,18 @@ L_mont_loop_avx2_24:
         movq	%rdi, %rsi
         movq	%rdi, %rdi
         subq	$192, %rdi
+#ifndef __APPLE__
         callq	sp_3072_cond_sub_24@plt
+#else
+        callq	_sp_3072_cond_sub_24
+#endif /* __APPLE__ */
         pop	%r14
         pop	%r13
         pop	%r12
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_mont_reduce_avx2_24,.-sp_3072_mont_reduce_avx2_24
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 #ifdef HAVE_INTEL_AVX2
 #endif /* HAVE_INTEL_AVX2 */
@@ -21735,10 +22031,16 @@ L_mont_loop_avx2_24:
  * b  A single precision number to subtract.
  * m  Mask value to apply.
  */
+#ifndef __APPLE__
 .globl	sp_3072_cond_sub_48
 .type	sp_3072_cond_sub_48,@function
 .align	16
 sp_3072_cond_sub_48:
+#else
+.globl	_sp_3072_cond_sub_48
+.p2align	4
+_sp_3072_cond_sub_48:
+#endif /* __APPLE__ */
         subq	$384, %rsp
         movq	$0, %rax
         movq	(%rdx), %r8
@@ -22080,17 +22382,25 @@ sp_3072_cond_sub_48:
         sbbq	$0, %rax
         addq	$384, %rsp
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_cond_sub_48,.-sp_3072_cond_sub_48
+#endif /* __APPLE__ */
 /* Reduce the number back to 3072 bits using Montgomery reduction.
  *
  * a   A single precision number to reduce in place.
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
+#ifndef __APPLE__
 .globl	sp_3072_mont_reduce_48
 .type	sp_3072_mont_reduce_48,@function
 .align	16
 sp_3072_mont_reduce_48:
+#else
+.globl	_sp_3072_mont_reduce_48
+.p2align	4
+_sp_3072_mont_reduce_48:
+#endif /* __APPLE__ */
         push	%r12
         push	%r13
         push	%r14
@@ -22593,23 +22903,35 @@ L_mont_loop_48:
         movq	%rdi, %rsi
         movq	%rdi, %rdi
         subq	$384, %rdi
+#ifndef __APPLE__
         callq	sp_3072_cond_sub_48@plt
+#else
+        callq	_sp_3072_cond_sub_48
+#endif /* __APPLE__ */
         pop	%r15
         pop	%r14
         pop	%r13
         pop	%r12
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_mont_reduce_48,.-sp_3072_mont_reduce_48
+#endif /* __APPLE__ */
 /* Mul a by digit b into r. (r = a * b)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  * b  A single precision digit.
  */
+#ifndef __APPLE__
 .globl	sp_3072_mul_d_48
 .type	sp_3072_mul_d_48,@function
 .align	16
 sp_3072_mul_d_48:
+#else
+.globl	_sp_3072_mul_d_48
+.p2align	4
+_sp_3072_mul_d_48:
+#endif /* __APPLE__ */
         movq	%rdx, %rcx
         # A[0] * B
         movq	%rcx, %rax
@@ -22994,7 +23316,9 @@ sp_3072_mul_d_48:
         movq	%r10, 376(%rdi)
         movq	%r8, 384(%rdi)
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_mul_d_48,.-sp_3072_mul_d_48
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Mul a by digit b into r. (r = a * b)
  *
@@ -23002,10 +23326,16 @@ sp_3072_mul_d_48:
  * a  A single precision integer.
  * b  A single precision digit.
  */
+#ifndef __APPLE__
 .globl	sp_3072_mul_d_avx2_48
 .type	sp_3072_mul_d_avx2_48,@function
 .align	16
 sp_3072_mul_d_avx2_48:
+#else
+.globl	_sp_3072_mul_d_avx2_48
+.p2align	4
+_sp_3072_mul_d_avx2_48:
+#endif /* __APPLE__ */
         movq	%rdx, %rax
         # A[0] * B
         movq	%rax, %rdx
@@ -23297,7 +23627,9 @@ sp_3072_mul_d_avx2_48:
         movq	%r10, 376(%rdi)
         movq	%r9, 384(%rdi)
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_mul_d_avx2_48,.-sp_3072_mul_d_avx2_48
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 /* Compare a with b in constant time.
  *
@@ -23306,10 +23638,16 @@ sp_3072_mul_d_avx2_48:
  * return -ve, 0 or +ve if a is less than, equal to or greater than b
  * respectively.
  */
+#ifndef __APPLE__
 .globl	sp_3072_cmp_48
 .type	sp_3072_cmp_48,@function
 .align	16
 sp_3072_cmp_48:
+#else
+.globl	_sp_3072_cmp_48
+.p2align	4
+_sp_3072_cmp_48:
+#endif /* __APPLE__ */
         xorq	%rcx, %rcx
         movq	$-1, %rdx
         movq	$-1, %rax
@@ -23700,7 +24038,9 @@ sp_3072_cmp_48:
         cmovnz	%rcx, %rdx
         xorq	%rdx, %rax
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_cmp_48,.-sp_3072_cmp_48
+#endif /* __APPLE__ */
 #if defined(SP_RSA_PRIVATE_EXP_D) || defined(WOLFSSL_HAVE_SP_DH)
 #endif /* SP_RSA_PRIVATE_EXP_D || WOLFSSL_HAVE_SP_DH */
 #ifdef HAVE_INTEL_AVX2
@@ -23710,10 +24050,16 @@ sp_3072_cmp_48:
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
+#ifndef __APPLE__
 .globl	sp_3072_mont_reduce_avx2_48
 .type	sp_3072_mont_reduce_avx2_48,@function
 .align	16
 sp_3072_mont_reduce_avx2_48:
+#else
+.globl	_sp_3072_mont_reduce_avx2_48
+.p2align	4
+_sp_3072_mont_reduce_avx2_48:
+#endif /* __APPLE__ */
         push	%r12
         push	%r13
         push	%r14
@@ -24030,12 +24376,18 @@ L_mont_loop_avx2_48:
         movq	%rdi, %rsi
         movq	%rdi, %rdi
         subq	$384, %rdi
+#ifndef __APPLE__
         callq	sp_3072_cond_sub_48@plt
+#else
+        callq	_sp_3072_cond_sub_48
+#endif /* __APPLE__ */
         pop	%r14
         pop	%r13
         pop	%r12
         repz retq
+#ifndef __APPLE__
 .size	sp_3072_mont_reduce_avx2_48,.-sp_3072_mont_reduce_avx2_48
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 #ifdef HAVE_INTEL_AVX2
 #endif /* HAVE_INTEL_AVX2 */
@@ -24058,10 +24410,16 @@ L_mont_loop_avx2_48:
  * a  A single precision number to copy.
  * m  Mask value to apply.
  */
+#ifndef __APPLE__
 .globl	sp_256_cond_copy_4
 .type	sp_256_cond_copy_4,@function
 .align	16
 sp_256_cond_copy_4:
+#else
+.globl	_sp_256_cond_copy_4
+.p2align	4
+_sp_256_cond_copy_4:
+#endif /* __APPLE__ */
         movq	(%rdi), %rax
         movq	8(%rdi), %rcx
         movq	16(%rdi), %r8
@@ -24079,7 +24437,9 @@ sp_256_cond_copy_4:
         xorq	%r8, 16(%rdi)
         xorq	%r9, 24(%rdi)
         repz retq
+#ifndef __APPLE__
 .size	sp_256_cond_copy_4,.-sp_256_cond_copy_4
+#endif /* __APPLE__ */
 /* Compare a with b in constant time.
  *
  * a  A single precision integer.
@@ -24087,10 +24447,16 @@ sp_256_cond_copy_4:
  * return -ve, 0 or +ve if a is less than, equal to or greater than b
  * respectively.
  */
+#ifndef __APPLE__
 .globl	sp_256_cmp_4
 .type	sp_256_cmp_4,@function
 .align	16
 sp_256_cmp_4:
+#else
+.globl	_sp_256_cmp_4
+.p2align	4
+_sp_256_cmp_4:
+#endif /* __APPLE__ */
         xorq	%rcx, %rcx
         movq	$-1, %rdx
         movq	$-1, %rax
@@ -24129,7 +24495,9 @@ sp_256_cmp_4:
         cmovnz	%rcx, %rdx
         xorq	%rdx, %rax
         repz retq
+#ifndef __APPLE__
 .size	sp_256_cmp_4,.-sp_256_cmp_4
+#endif /* __APPLE__ */
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
@@ -24138,10 +24506,16 @@ sp_256_cmp_4:
  * b  A single precision number to subtract.
  * m  Mask value to apply.
  */
+#ifndef __APPLE__
 .globl	sp_256_cond_sub_4
 .type	sp_256_cond_sub_4,@function
 .align	16
 sp_256_cond_sub_4:
+#else
+.globl	_sp_256_cond_sub_4
+.p2align	4
+_sp_256_cond_sub_4:
+#endif /* __APPLE__ */
         push	%r12
         push	%r13
         push	%r14
@@ -24173,17 +24547,25 @@ sp_256_cond_sub_4:
         pop	%r13
         pop	%r12
         repz retq
+#ifndef __APPLE__
 .size	sp_256_cond_sub_4,.-sp_256_cond_sub_4
+#endif /* __APPLE__ */
 /* Sub b from a into r. (r = a - b)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  * b  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_256_sub_4
 .type	sp_256_sub_4,@function
 .align	16
 sp_256_sub_4:
+#else
+.globl	_sp_256_sub_4
+.p2align	4
+_sp_256_sub_4:
+#endif /* __APPLE__ */
         push	%r12
         push	%r13
         push	%r14
@@ -24211,17 +24593,25 @@ sp_256_sub_4:
         pop	%r13
         pop	%r12
         repz retq
+#ifndef __APPLE__
 .size	sp_256_sub_4,.-sp_256_sub_4
+#endif /* __APPLE__ */
 /* Reduce the number back to 256 bits using Montgomery reduction.
  *
  * a   A single precision number to reduce in place.
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
+#ifndef __APPLE__
 .globl	sp_256_mont_reduce_4
 .type	sp_256_mont_reduce_4,@function
 .align	16
 sp_256_mont_reduce_4:
+#else
+.globl	_sp_256_mont_reduce_4
+.p2align	4
+_sp_256_mont_reduce_4:
+#endif /* __APPLE__ */
         push	%r12
         push	%r13
         push	%r14
@@ -24309,7 +24699,9 @@ L_mont_loop_4:
         pop	%r13
         pop	%r12
         repz retq
+#ifndef __APPLE__
 .size	sp_256_mont_reduce_4,.-sp_256_mont_reduce_4
+#endif /* __APPLE__ */
 /* Multiply two Montogmery form numbers mod the modulus (prime).
  * (r = a * b mod m)
  *
@@ -24319,10 +24711,16 @@ L_mont_loop_4:
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
+#ifndef __APPLE__
 .globl	sp_256_mont_mul_4
 .type	sp_256_mont_mul_4,@function
 .align	16
 sp_256_mont_mul_4:
+#else
+.globl	_sp_256_mont_mul_4
+.p2align	4
+_sp_256_mont_mul_4:
+#endif /* __APPLE__ */
         push	%r12
         push	%r13
         push	%r14
@@ -24504,7 +24902,9 @@ sp_256_mont_mul_4:
         pop	%r13
         pop	%r12
         repz retq
+#ifndef __APPLE__
 .size	sp_256_mont_mul_4,.-sp_256_mont_mul_4
+#endif /* __APPLE__ */
 /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
  *
  * r   Result of squaring.
@@ -24512,10 +24912,16 @@ sp_256_mont_mul_4:
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
+#ifndef __APPLE__
 .globl	sp_256_mont_sqr_4
 .type	sp_256_mont_sqr_4,@function
 .align	16
 sp_256_mont_sqr_4:
+#else
+.globl	_sp_256_mont_sqr_4
+.p2align	4
+_sp_256_mont_sqr_4:
+#endif /* __APPLE__ */
         push	%r12
         push	%r13
         push	%r14
@@ -24675,7 +25081,9 @@ sp_256_mont_sqr_4:
         pop	%r13
         pop	%r12
         repz retq
+#ifndef __APPLE__
 .size	sp_256_mont_sqr_4,.-sp_256_mont_sqr_4
+#endif /* __APPLE__ */
 /* Add two Montgomery form numbers (r = a + b % m).
  *
  * r   Result of addition.
@@ -24683,10 +25091,16 @@ sp_256_mont_sqr_4:
  * b   Second number to add in Montogmery form.
  * m   Modulus (prime).
  */
+#ifndef __APPLE__
 .globl	sp_256_mont_add_4
 .type	sp_256_mont_add_4,@function
 .align	16
 sp_256_mont_add_4:
+#else
+.globl	_sp_256_mont_add_4
+.p2align	4
+_sp_256_mont_add_4:
+#endif /* __APPLE__ */
         movq	(%rsi), %rax
         movq	8(%rsi), %rcx
         movq	16(%rsi), %r8
@@ -24710,17 +25124,25 @@ sp_256_mont_add_4:
         movq	%r8, 16(%rdi)
         movq	%r9, 24(%rdi)
         repz retq
+#ifndef __APPLE__
 .size	sp_256_mont_add_4,.-sp_256_mont_add_4
+#endif /* __APPLE__ */
 /* Double a Montgomery form number (r = a + a % m).
  *
  * r   Result of doubling.
  * a   Number to double in Montogmery form.
  * m   Modulus (prime).
  */
+#ifndef __APPLE__
 .globl	sp_256_mont_dbl_4
 .type	sp_256_mont_dbl_4,@function
 .align	16
 sp_256_mont_dbl_4:
+#else
+.globl	_sp_256_mont_dbl_4
+.p2align	4
+_sp_256_mont_dbl_4:
+#endif /* __APPLE__ */
         movq	(%rsi), %rdx
         movq	8(%rsi), %rax
         movq	16(%rsi), %rcx
@@ -24744,17 +25166,25 @@ sp_256_mont_dbl_4:
         movq	%rcx, 16(%rdi)
         movq	%r8, 24(%rdi)
         repz retq
+#ifndef __APPLE__
 .size	sp_256_mont_dbl_4,.-sp_256_mont_dbl_4
+#endif /* __APPLE__ */
 /* Triple a Montgomery form number (r = a + a + a % m).
  *
  * r   Result of Tripling.
  * a   Number to triple in Montogmery form.
  * m   Modulus (prime).
  */
+#ifndef __APPLE__
 .globl	sp_256_mont_tpl_4
 .type	sp_256_mont_tpl_4,@function
 .align	16
 sp_256_mont_tpl_4:
+#else
+.globl	_sp_256_mont_tpl_4
+.p2align	4
+_sp_256_mont_tpl_4:
+#endif /* __APPLE__ */
         movq	(%rsi), %rdx
         movq	8(%rsi), %rax
         movq	16(%rsi), %rcx
@@ -24792,7 +25222,9 @@ sp_256_mont_tpl_4:
         movq	%rcx, 16(%rdi)
         movq	%r8, 24(%rdi)
         repz retq
+#ifndef __APPLE__
 .size	sp_256_mont_tpl_4,.-sp_256_mont_tpl_4
+#endif /* __APPLE__ */
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
  * r   Result of subtration.
@@ -24800,10 +25232,16 @@ sp_256_mont_tpl_4:
  * b   Number to subtract with in Montogmery form.
  * m   Modulus (prime).
  */
+#ifndef __APPLE__
 .globl	sp_256_mont_sub_4
 .type	sp_256_mont_sub_4,@function
 .align	16
 sp_256_mont_sub_4:
+#else
+.globl	_sp_256_mont_sub_4
+.p2align	4
+_sp_256_mont_sub_4:
+#endif /* __APPLE__ */
         movq	(%rsi), %rax
         movq	8(%rsi), %rcx
         movq	16(%rsi), %r8
@@ -24827,17 +25265,25 @@ sp_256_mont_sub_4:
         movq	%r8, 16(%rdi)
         movq	%r9, 24(%rdi)
         repz retq
+#ifndef __APPLE__
 .size	sp_256_mont_sub_4,.-sp_256_mont_sub_4
+#endif /* __APPLE__ */
 /* Divide the number by 2 mod the modulus (prime). (r = a / 2 % m)
  *
  * r  Result of division by 2.
  * a  Number to divide.
  * m  Modulus (prime).
  */
+#ifndef __APPLE__
 .globl	sp_256_div2_4
 .type	sp_256_div2_4,@function
 .align	16
 sp_256_div2_4:
+#else
+.globl	_sp_256_div2_4
+.p2align	4
+_sp_256_div2_4:
+#endif /* __APPLE__ */
         movq	(%rsi), %rdx
         movq	8(%rsi), %rax
         movq	16(%rsi), %rcx
@@ -24864,7 +25310,9 @@ sp_256_div2_4:
         movq	%rcx, 16(%rdi)
         movq	%r8, 24(%rdi)
         repz retq
+#ifndef __APPLE__
 .size	sp_256_div2_4,.-sp_256_div2_4
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Multiply two Montogmery form numbers mod the modulus (prime).
  * (r = a * b mod m)
@@ -24875,10 +25323,16 @@ sp_256_div2_4:
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
+#ifndef __APPLE__
 .globl	sp_256_mont_mul_avx2_4
 .type	sp_256_mont_mul_avx2_4,@function
 .align	16
 sp_256_mont_mul_avx2_4:
+#else
+.globl	_sp_256_mont_mul_avx2_4
+.p2align	4
+_sp_256_mont_mul_avx2_4:
+#endif /* __APPLE__ */
         push	%rbx
         push	%rbp
         push	%r12
@@ -25040,7 +25494,9 @@ sp_256_mont_mul_avx2_4:
         pop	%rbp
         pop	%rbx
         repz retq
+#ifndef __APPLE__
 .size	sp_256_mont_mul_avx2_4,.-sp_256_mont_mul_avx2_4
+#endif /* __APPLE__ */
 /* Square the Montgomery form number mod the modulus (prime). (r = a * a mod m)
  *
  * r   Result of squaring.
@@ -25048,10 +25504,16 @@ sp_256_mont_mul_avx2_4:
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
+#ifndef __APPLE__
 .globl	sp_256_mont_sqr_avx2_4
 .type	sp_256_mont_sqr_avx2_4,@function
 .align	16
 sp_256_mont_sqr_avx2_4:
+#else
+.globl	_sp_256_mont_sqr_avx2_4
+.p2align	4
+_sp_256_mont_sqr_avx2_4:
+#endif /* __APPLE__ */
         push	%r12
         push	%r13
         push	%r14
@@ -25186,7 +25648,9 @@ sp_256_mont_sqr_avx2_4:
         pop	%r13
         pop	%r12
         repz retq
+#ifndef __APPLE__
 .size	sp_256_mont_sqr_avx2_4,.-sp_256_mont_sqr_avx2_4
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 #ifdef HAVE_INTEL_AVX2
 #endif /* HAVE_INTEL_AVX2 */
@@ -25201,26 +25665,40 @@ sp_256_mont_sqr_avx2_4:
  *
  * a  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_256_add_one_4
 .type	sp_256_add_one_4,@function
 .align	16
 sp_256_add_one_4:
+#else
+.globl	_sp_256_add_one_4
+.p2align	4
+_sp_256_add_one_4:
+#endif /* __APPLE__ */
         addq	$1, (%rdi)
         adcq	$0, 8(%rdi)
         adcq	$0, 16(%rdi)
         adcq	$0, 24(%rdi)
         repz retq
+#ifndef __APPLE__
 .size	sp_256_add_one_4,.-sp_256_add_one_4
+#endif /* __APPLE__ */
 /* Add b to a into r. (r = a + b)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  * b  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_256_add_4
 .type	sp_256_add_4,@function
 .align	16
 sp_256_add_4:
+#else
+.globl	_sp_256_add_4
+.p2align	4
+_sp_256_add_4:
+#endif /* __APPLE__ */
         xorq	%rax, %rax
         movq	(%rsi), %rcx
         addq	(%rdx), %rcx
@@ -25236,17 +25714,25 @@ sp_256_add_4:
         movq	%rcx, 24(%rdi)
         adcq	$0, %rax
         repz retq
+#ifndef __APPLE__
 .size	sp_256_add_4,.-sp_256_add_4
+#endif /* __APPLE__ */
 /* Multiply a and b into r. (r = a * b)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  * b  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_256_mul_4
 .type	sp_256_mul_4,@function
 .align	16
 sp_256_mul_4:
+#else
+.globl	_sp_256_mul_4
+.p2align	4
+_sp_256_mul_4:
+#endif /* __APPLE__ */
         movq	%rdx, %rcx
         subq	$32, %rsp
         # A[0] * B[0]
@@ -25366,17 +25852,25 @@ sp_256_mul_4:
         movq	%r9, 24(%rdi)
         addq	$32, %rsp
         repz retq
+#ifndef __APPLE__
 .size	sp_256_mul_4,.-sp_256_mul_4
+#endif /* __APPLE__ */
 /* Multiply a and b into r. (r = a * b)
  *
  * r   Result of multiplication.
  * a   First number to multiply.
  * b   Second number to multiply.
  */
+#ifndef __APPLE__
 .globl	sp_256_mul_avx2_4
 .type	sp_256_mul_avx2_4,@function
 .align	16
 sp_256_mul_avx2_4:
+#else
+.globl	_sp_256_mul_avx2_4
+.p2align	4
+_sp_256_mul_avx2_4:
+#endif /* __APPLE__ */
         push	%r12
         push	%r13
         push	%r14
@@ -25474,16 +25968,24 @@ sp_256_mul_avx2_4:
         pop	%r13
         pop	%r12
         repz retq
+#ifndef __APPLE__
 .size	sp_256_mul_avx2_4,.-sp_256_mul_avx2_4
+#endif /* __APPLE__ */
 /* Sub b from a into a. (a -= b)
  *
  * a  A single precision integer and result.
  * b  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_256_sub_in_place_4
 .type	sp_256_sub_in_place_4,@function
 .align	16
 sp_256_sub_in_place_4:
+#else
+.globl	_sp_256_sub_in_place_4
+.p2align	4
+_sp_256_sub_in_place_4:
+#endif /* __APPLE__ */
         xorq	%rax, %rax
         movq	(%rsi), %rdx
         movq	8(%rsi), %rcx
@@ -25495,17 +25997,25 @@ sp_256_sub_in_place_4:
         sbbq	%r9, 24(%rdi)
         sbbq	$0, %rax
         repz retq
+#ifndef __APPLE__
 .size	sp_256_sub_in_place_4,.-sp_256_sub_in_place_4
+#endif /* __APPLE__ */
 /* Mul a by digit b into r. (r = a * b)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  * b  A single precision digit.
  */
+#ifndef __APPLE__
 .globl	sp_256_mul_d_4
 .type	sp_256_mul_d_4,@function
 .align	16
 sp_256_mul_d_4:
+#else
+.globl	_sp_256_mul_d_4
+.p2align	4
+_sp_256_mul_d_4:
+#endif /* __APPLE__ */
         movq	%rdx, %rcx
         # A[0] * B
         movq	%rcx, %rax
@@ -25538,7 +26048,9 @@ sp_256_mul_d_4:
         movq	%r8, 24(%rdi)
         movq	%r9, 32(%rdi)
         repz retq
+#ifndef __APPLE__
 .size	sp_256_mul_d_4,.-sp_256_mul_d_4
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Mul a by digit b into r. (r = a * b)
  *
@@ -25546,10 +26058,16 @@ sp_256_mul_d_4:
  * a  A single precision integer.
  * b  A single precision digit.
  */
+#ifndef __APPLE__
 .globl	sp_256_mul_d_avx2_4
 .type	sp_256_mul_d_avx2_4,@function
 .align	16
 sp_256_mul_d_avx2_4:
+#else
+.globl	_sp_256_mul_d_avx2_4
+.p2align	4
+_sp_256_mul_d_avx2_4:
+#endif /* __APPLE__ */
         movq	%rdx, %rax
         # A[0] * B
         movq	%rax, %rdx
@@ -25577,17 +26095,25 @@ sp_256_mul_d_avx2_4:
         movq	%r10, 24(%rdi)
         movq	%r9, 32(%rdi)
         repz retq
+#ifndef __APPLE__
 .size	sp_256_mul_d_avx2_4,.-sp_256_mul_d_avx2_4
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 /* Square a and put result in r. (r = a * a)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  */
+#ifndef __APPLE__
 .globl	sp_256_sqr_4
 .type	sp_256_sqr_4,@function
 .align	16
 sp_256_sqr_4:
+#else
+.globl	_sp_256_sqr_4
+.p2align	4
+_sp_256_sqr_4:
+#endif /* __APPLE__ */
         push	%r12
         subq	$32, %rsp
         # A[0] * A[0]
@@ -25690,17 +26216,25 @@ sp_256_sqr_4:
         addq	$32, %rsp
         pop	%r12
         repz retq
+#ifndef __APPLE__
 .size	sp_256_sqr_4,.-sp_256_sqr_4
+#endif /* __APPLE__ */
  
 /* Square a and put result in r. (r = a * a)
  *
  * r   Result of squaring.
  * a   Number to square in Montogmery form.
  */
+#ifndef __APPLE__
 .globl	sp_256_sqr_avx2_4
 .type	sp_256_sqr_avx2_4,@function
 .align	16
 sp_256_sqr_avx2_4:
+#else
+.globl	_sp_256_sqr_avx2_4
+.p2align	4
+_sp_256_sqr_avx2_4:
+#endif /* __APPLE__ */
         push	%rbx
         push	%r12
         push	%r13
@@ -25773,7 +26307,9 @@ sp_256_sqr_avx2_4:
         pop	%r12
         pop	%rbx
         repz retq
+#ifndef __APPLE__
 .size	sp_256_sqr_avx2_4,.-sp_256_sqr_avx2_4
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 /* Reduce the number back to 256 bits using Montgomery reduction.
  *
@@ -25781,10 +26317,16 @@ sp_256_sqr_avx2_4:
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
+#ifndef __APPLE__
 .globl	sp_256_mont_reduce_avx2_4
 .type	sp_256_mont_reduce_avx2_4,@function
 .align	16
 sp_256_mont_reduce_avx2_4:
+#else
+.globl	_sp_256_mont_reduce_avx2_4
+.p2align	4
+_sp_256_mont_reduce_avx2_4:
+#endif /* __APPLE__ */
         push	%r12
         push	%r13
         push	%r14
@@ -25927,7 +26469,9 @@ sp_256_mont_reduce_avx2_4:
         pop	%r13
         pop	%r12
         repz retq
+#ifndef __APPLE__
 .size	sp_256_mont_reduce_avx2_4,.-sp_256_mont_reduce_avx2_4
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 #endif /* !WOLFSSL_SP_NO_256 */
 #endif /* WOLFSSL_HAVE_SP_ECC */
