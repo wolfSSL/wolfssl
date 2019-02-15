@@ -6669,7 +6669,7 @@ static int TLSX_KeyShare_Parse(WOLFSSL* ssl, byte* input, word16 length,
         offset += OPAQUE16_LEN;
 
         while (offset < length) {
-            ret = TLSX_KeyShareEntry_Parse(ssl, &input[offset], length,
+            ret = TLSX_KeyShareEntry_Parse(ssl, &input[offset], length - offset,
                                                                 &keyShareEntry);
             if (ret < 0)
                 return ret;
