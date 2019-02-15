@@ -1681,9 +1681,13 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                 #endif
 
                     nonceSz = AESGCM_NONCE_SZ;
-                    ret = wc_AesGcmEncrypt(ssl->encrypt.aes, output, input,
-                        dataSz, ssl->encrypt.nonce, nonceSz,
-                        output + dataSz, macSz, aad, aadSz);
+                    ret = wc_AesGcmSetExtIV(ssl->encrypt.aes,
+                            ssl->encrypt.nonce, nonceSz);
+                    if (ret == 0) {
+                        ret = wc_AesGcmEncrypt_ex(ssl->encrypt.aes, output,
+                                input, dataSz, ssl->encrypt.nonce, nonceSz,
+                                output + dataSz, macSz, aad, aadSz);
+                    }
                     break;
             #endif
 
@@ -1698,9 +1702,13 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                 #endif
 
                     nonceSz = AESCCM_NONCE_SZ;
-                    ret = wc_AesCcmEncrypt(ssl->encrypt.aes, output, input,
-                        dataSz, ssl->encrypt.nonce, nonceSz,
-                        output + dataSz, macSz, aad, aadSz);
+                    ret = wc_AesCcmSetNonce(ssl->encrypt.aes,
+                            ssl->encrypt.nonce, nonceSz);
+                    if (ret == 0) {
+                        ret = wc_AesCcmEncrypt_ex(ssl->encrypt.aes, output,
+                                input, dataSz, ssl->encrypt.nonce, nonceSz,
+                                output + dataSz, macSz, aad, aadSz);
+                    }
                     break;
             #endif
 
