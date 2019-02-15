@@ -5066,19 +5066,34 @@ static int TLSX_SupportedVersions_GetSize(void* data, byte msgType, word16* pSz)
 
     if (msgType == client_hello) {
         /* TLS v1.2 and TLS v1.3  */
-        int cnt = 2;
+        int cnt = 0;
 
-#ifndef NO_OLD_TLS
-        /* TLS v1.1  */
-        cnt++;
-    #ifdef WOLFSSL_ALLOW_TLSV10
-        /* TLS v1.0  */
-        cnt++;
-    #endif
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1_3) == 0)
+        #endif
+                cnt++;
+
+        if (ssl->options.downgrade) {
+#ifndef WOLFSSL_NO_TLS12
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1_2) == 0)
+        #endif
+                cnt++;
 #endif
 
-        if (!ssl->options.downgrade)
-            cnt = 1;
+#ifndef NO_OLD_TLS
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1_1) == 0)
+        #endif
+                cnt++;
+    #ifdef WOLFSSL_ALLOW_TLSV10
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1) == 0)
+        #endif
+                cnt++;
+    #endif
+#endif
+        }
 
         *pSz += (word16)(OPAQUE8_LEN + cnt * OPAQUE16_LEN);
     }
@@ -5103,44 +5118,65 @@ static int TLSX_SupportedVersions_Write(void* data, byte* output,
                                            byte msgType, word16* pSz)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
-    ProtocolVersion pv;
-    int i;
-    int cnt;
+    byte major;
+    byte* cnt;
 
     if (msgType == client_hello) {
-        pv = ssl->ctx->method->version;
-        /* TLS v1.2 and TLS v1.3  */
-        cnt = 2;
+        major = ssl->ctx->method->version.major;
 
-#ifndef NO_OLD_TLS
-        /* TLS v1.1  */
-        cnt++;
-    #ifdef WOLFSSL_ALLOW_TLSV10
-        /* TLS v1.0  */
-        cnt++;
-    #endif
-#endif
 
-        if (!ssl->options.downgrade)
-            cnt = 1;
-
-        *(output++) = (byte)(cnt * OPAQUE16_LEN);
-        for (i = 0; i < cnt; i++) {
+        cnt = output++;
+        *cnt = 0;
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1_3) == 0)
+        #endif
+            {
+                *cnt += OPAQUE16_LEN;
 #ifdef WOLFSSL_TLS13_DRAFT
-            if (pv.minor - i == TLSv1_3_MINOR) {
                 /* The TLS draft major number. */
                 *(output++) = TLS_DRAFT_MAJOR;
                 /* Version of draft supported. */
                 *(output++) = TLS_DRAFT_MINOR;
-                continue;
+#else
+                *(output++) = major;
+                *(output++) = (byte)TLSv1_3_MINOR;
+#endif
+            }
+        if (ssl->options.downgrade) {
+#ifndef WOLFSSL_NO_TLS12
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1_2) == 0)
+        #endif
+            {
+                *cnt += OPAQUE16_LEN;
+                *(output++) = major;
+                *(output++) = (byte)TLSv1_2_MINOR;
             }
 #endif
 
-            *(output++) = pv.major;
-            *(output++) = (byte)(pv.minor - i);
+#ifndef NO_OLD_TLS
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1_1) == 0)
+        #endif
+            {
+                *cnt += OPAQUE16_LEN;
+                *(output++) = major;
+                *(output++) = (byte)TLSv1_1_MINOR;
+            }
+    #ifdef WOLFSSL_ALLOW_TLSV10
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1) == 0)
+        #endif
+            {
+                *cnt += OPAQUE16_LEN;
+                *(output++) = major;
+                *(output++) = (byte)TLSv1_MINOR;
+            }
+    #endif
+#endif
         }
 
-        *pSz += (word16)(OPAQUE8_LEN + cnt * OPAQUE16_LEN);
+        *pSz += (word16)(OPAQUE8_LEN + *cnt);
     }
 #ifndef WOLFSSL_TLS13_DRAFT_18
     else if (msgType == server_hello || msgType == hello_retry_request) {
