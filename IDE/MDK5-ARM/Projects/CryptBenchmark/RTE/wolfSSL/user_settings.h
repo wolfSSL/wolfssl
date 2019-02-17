@@ -59,8 +59,8 @@
 //         <4=>PThread <5=>ThreadX<6=> ThreadX/NetX
 //         <7=>Micrium <8=>EBSnet<9=>MQX 
 //         <10=>T-RTOS <11=>uITRON4<12=>uTKERNEL2 
-//         <13=>Frosted <14=>CMSIS RTOS<15=>Others
-#define MDK_CONF_THREAD 14
+//         <13=>Frosted <14=>CMSIS RTOS<15=>CMSIS RTOSv2<16=>Others
+#define MDK_CONF_THREAD 15
 #if MDK_CONF_THREAD== 0
 #define SINGLE_THREADED
 #elif MDK_CONF_THREAD == 1
@@ -92,6 +92,8 @@
 #elif MDK_CONF_THREAD == 14
 #define WOLFSSL_CMSIS_RTOS
 #elif MDK_CONF_THREAD == 15
+#define WOLFSSL_CMSIS_RTOSv2
+#elif MDK_CONF_THREAD == 16
 #define SINGLE_THREADED
 #endif
 
@@ -151,13 +153,13 @@
 //  <h>Hash/Crypt Algrithm
 
 //      <e>MD2
-#define MDK_CONF_MD2 1
+#define MDK_CONF_MD2 0
 #if MDK_CONF_MD2 == 1
 #define WOLFSSL_MD2
 #endif
 //  </e>
 //      <e>MD4
-#define MDK_CONF_MD4 1
+#define MDK_CONF_MD4 0
 #if MDK_CONF_MD4 == 0
 #define NO_MD4
 #endif
@@ -237,7 +239,7 @@
 //  </e>
 
 //      <e>RC4
-#define MDK_CONF_RC4 1
+#define MDK_CONF_RC4 0
 #if MDK_CONF_RC4 == 0
 #define NO_RC4
 #endif
@@ -376,7 +378,7 @@
 
 //  <h>Hardware Crypt (See document for usage)
 //      <e>Hardware RNG
-#define MDK_CONF_STM32F2_RNG 1
+#define MDK_CONF_STM32F2_RNG 0
 #if MDK_CONF_STM32F2_RNG == 1
 #define WOLFSSL_STM32_CUBEMX
 #define STM32_RNG
@@ -394,7 +396,7 @@
 #endif
 //  </e>
 //      <e>Hardware Crypt
-#define MDK_CONF_STM32F2_CRYPTO 1
+#define MDK_CONF_STM32F2_CRYPTO 0
 #if MDK_CONF_STM32F2_CRYPTO == 1
 #define WOLFSSL_STM32_CUBEMX
 #define STM32_CRYPTO
@@ -412,7 +414,7 @@
 #endif
 //  </e>
 //      <e>Hardware Hash
-#define MDK_CONF_STM32F2_HASH 1
+#define MDK_CONF_STM32F2_HASH 0
 #if MDK_CONF_STM32F2_HASH == 1
 #define WOLFSSL_STM32_CUBEMX
 #define STM32_HASH
@@ -462,7 +464,7 @@
 #endif
 //  </e>
 //      <e>Small Stack
-#define MDK_CONF_SmallStack 0
+#define MDK_CONF_SmallStack 1
 #if MDK_CONF_SmallStack == 0
 #define NO_WOLFSSL_SMALL_STACK
 #endif
@@ -476,10 +478,11 @@
 // <h> wolfSSL Configuration
 
 //      <e>TLS 1.3
-#define MDK_CONF_TLS 0
+#define MDK_CONF_TLS 1
 #if MDK_CONF_TLS == 1
 #define WOLFSSL_TLS13
 #define HAVE_TLS_EXTENSIONS
+#define HAVE_SUPPORTED_CURVES
 #define WC_RSA_PSS
 #define HAVE_HKDF
 #define HAVE_FFDHE_2048
