@@ -10,13 +10,13 @@
       <TargetName>echoServer</TargetName>
       <ToolsetNumber>0x4</ToolsetNumber>
       <ToolsetName>ARM-ADS</ToolsetName>
-      <pCCUsed>5060422::V5.06 update 4 (build 422)::ARMCC</pCCUsed>
+      <pCCUsed>5060528::V5.06 update 5 (build 528)::ARMCC</pCCUsed>
       <uAC6>0</uAC6>
       <TargetOption>
         <TargetCommonOption>
           <Device>STM32F756NGHx</Device>
           <Vendor>STMicroelectronics</Vendor>
-          <PackID>Keil.STM32F7xx_DFP.2.9.0</PackID>
+          <PackID>Keil.STM32F7xx_DFP.2.11.0</PackID>
           <PackURL>http://www.keil.com/pack</PackURL>
           <Cpu>IROM(0x08000000,0x100000) IROM2(0x00200000,0x100000) IRAM(0x20010000,0x40000) IRAM2(0x20000000,0x10000) CPUTYPE("Cortex-M7") FPU3(SFPU) CLOCK(12000000) ELITTLE</Cpu>
           <FlashUtilSpec></FlashUtilSpec>
@@ -763,7 +763,7 @@
       </component>
     </components>
     <files>
-      <file attr="config" category="source" name="CMSIS\RTOS\RTX\Templates\RTX_Conf_CM.c" version="4.74.0">
+      <file attr="config" category="source" name="CMSIS\RTOS\RTX\Templates\RTX_Conf_CM.c" version="4.70.1">
         <instance index="0">RTE\CMSIS\RTX_Conf_CM.c</instance>
         <component Capiversion="1.0.0" Cclass="CMSIS" Cgroup="RTOS" Csub="Keil RTX" Cvendor="ARM" Cversion="4.81.1" condition="RTOS RTX" isDefaultVariant="1"/>
         <package name="CMSIS" schemaVersion="1.3" url="http://www.keil.com/pack/" vendor="ARM" version="5.3.0"/>
@@ -771,50 +771,50 @@
           <targetInfo name="echoServer"/>
         </targetInfos>
       </file>
-      <file attr="config" category="header" name="CMSIS\Driver\Config\RTE_Device.h" version="1.4.0">
+      <file attr="config" category="header" name="CMSIS\Driver\Config\RTE_Device.h" version="1.5.0">
         <instance index="0">RTE\Device\STM32F756NGHx\RTE_Device.h</instance>
-        <component Capiversion="1.0.0" Cclass="Device" Cgroup="STM32Cube Framework" Csub="Classic" Cvendor="Keil" Cversion="1.2.0" condition="STM32F7 Framework Classic"/>
-        <package name="STM32F7xx_DFP" schemaVersion="1.3" url="http://www.keil.com/pack" vendor="Keil" version="2.9.0"/>
+        <component Capiversion="1.0.0" Cclass="Device" Cgroup="STM32Cube Framework" Csub="Classic" Cvendor="Keil" Cversion="1.2.6" condition="STM32F7 Framework Classic"/>
+        <package name="STM32F7xx_DFP" schemaVersion="1.3" url="http://www.keil.com/pack" vendor="Keil" version="2.11.0"/>
         <targetInfos>
           <targetInfo name="echoServer"/>
         </targetInfos>
       </file>
-      <file attr="config" category="source" condition="STM32F756_ARMCC" name="Drivers\CMSIS\Device\ST\STM32F7xx\Source\Templates\arm\startup_stm32f756xx.s" version="1.2.0">
+      <file attr="config" category="source" condition="STM32F756_ARMCC" name="Drivers\CMSIS\Device\ST\STM32F7xx\Source\Templates\arm\startup_stm32f756xx.s" version="1.2.2">
         <instance index="0">RTE\Device\STM32F756NGHx\startup_stm32f756xx.s</instance>
-        <component Cclass="Device" Cgroup="Startup" Cvendor="Keil" Cversion="1.2.0" condition="STM32F7 CMSIS"/>
-        <package name="STM32F7xx_DFP" schemaVersion="1.3" url="http://www.keil.com/pack" vendor="Keil" version="2.9.0"/>
+        <component Cclass="Device" Cgroup="Startup" Cvendor="Keil" Cversion="1.2.2" condition="STM32F7 CMSIS"/>
+        <package name="STM32F7xx_DFP" schemaVersion="1.3" url="http://www.keil.com/pack" vendor="Keil" version="2.11.0"/>
         <targetInfos>
           <targetInfo name="echoServer"/>
         </targetInfos>
       </file>
-      <file attr="config" category="header" name="MDK\Templates\Inc\stm32f7xx_hal_conf.h" version="1.2.0">
+      <file attr="config" category="header" name="MDK\Templates\Inc\stm32f7xx_hal_conf.h" version="1.2.6">
         <instance index="0">RTE\Device\STM32F756NGHx\stm32f7xx_hal_conf.h</instance>
-        <component Capiversion="1.0.0" Cclass="Device" Cgroup="STM32Cube Framework" Csub="Classic" Cvendor="Keil" Cversion="1.2.0" condition="STM32F7 Framework Classic"/>
-        <package name="STM32F7xx_DFP" schemaVersion="1.3" url="http://www.keil.com/pack" vendor="Keil" version="2.9.0"/>
+        <component Capiversion="1.0.0" Cclass="Device" Cgroup="STM32Cube Framework" Csub="Classic" Cvendor="Keil" Cversion="1.2.6" condition="STM32F7 Framework Classic"/>
+        <package name="STM32F7xx_DFP" schemaVersion="1.3" url="http://www.keil.com/pack" vendor="Keil" version="2.11.0"/>
         <targetInfos>
           <targetInfo name="echoServer"/>
         </targetInfos>
       </file>
-      <file attr="config" category="source" name="Drivers\CMSIS\Device\ST\STM32F7xx\Source\Templates\system_stm32f7xx.c" version="1.2.0">
+      <file attr="config" category="source" name="Drivers\CMSIS\Device\ST\STM32F7xx\Source\Templates\system_stm32f7xx.c" version="1.2.2">
         <instance index="0">RTE\Device\STM32F756NGHx\system_stm32f7xx.c</instance>
-        <component Cclass="Device" Cgroup="Startup" Cvendor="Keil" Cversion="1.2.0" condition="STM32F7 CMSIS"/>
-        <package name="STM32F7xx_DFP" schemaVersion="1.3" url="http://www.keil.com/pack" vendor="Keil" version="2.9.0"/>
+        <component Cclass="Device" Cgroup="Startup" Cvendor="Keil" Cversion="1.2.2" condition="STM32F7 CMSIS"/>
+        <package name="STM32F7xx_DFP" schemaVersion="1.3" url="http://www.keil.com/pack" vendor="Keil" version="2.11.0"/>
         <targetInfos>
           <targetInfo name="echoServer"/>
         </targetInfos>
       </file>
       <file attr="config" category="source" name="FileSystem\Config\FS_Config.c" version="6.2.0">
         <instance index="0">RTE\File_System\FS_Config.c</instance>
-        <component Cbundle="MDK-Pro" Cclass="File System" Cgroup="CORE" Cvariant="LFN" Cvendor="Keil" Cversion="6.10.0" condition="CMSIS Core with RTOS and File System I/O"/>
-        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.6.0"/>
+        <component Cbundle="MDK-Pro" Cclass="File System" Cgroup="CORE" Cvariant="LFN" Cvendor="Keil" Cversion="6.10.1" condition="CMSIS Core with RTOS and File System I/O"/>
+        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.7.0"/>
         <targetInfos>
           <targetInfo name="echoServer"/>
         </targetInfos>
       </file>
       <file attr="config" category="source" name="FileSystem\Config\FS_Config_MC.h" version="6.2.0">
         <instance index="0">RTE\File_System\FS_Config_MC_0.h</instance>
-        <component Cbundle="MDK-Pro" Cclass="File System" Cgroup="Drive" Csub="Memory Card" Cvendor="Keil" Cversion="6.10.0" condition="File System and SD/MMC Driver" maxInstances="2"/>
-        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.6.0"/>
+        <component Cbundle="MDK-Pro" Cclass="File System" Cgroup="Drive" Csub="Memory Card" Cvendor="Keil" Cversion="6.10.1" condition="File System and SD/MMC Driver" maxInstances="2"/>
+        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.7.0"/>
         <targetInfos>
           <targetInfo name="echoServer"/>
         </targetInfos>
@@ -822,7 +822,7 @@
       <file attr="config" category="source" name="Network_v6\Config\Net_Config.c" version="5.0.0">
         <instance index="0">RTE\Network\Net_Config.c</instance>
         <component Cbundle="MDK-Pro Net_v6" Cclass="Network" Cgroup="CORE" Cvariant="Release" Cvendor="Keil" Cversion="6.7.5" condition="CMSIS Core with RTOS"/>
-        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.6.0"/>
+        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.7.0"/>
         <targetInfos>
           <targetInfo name="echoServer"/>
         </targetInfos>
@@ -830,15 +830,15 @@
       <file attr="config" category="source" name="Network_v6\Config\Net_Config_BSD.h" version="5.0.0">
         <instance index="0">RTE\Network\Net_Config_BSD.h</instance>
         <component Cbundle="MDK-Pro Net_v6" Cclass="Network" Cgroup="Socket" Csub="BSD" Cvendor="Keil" Cversion="6.7.5" condition="Network UDP/TCP"/>
-        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.6.0"/>
+        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.7.0"/>
         <targetInfos>
           <targetInfo name="echoServer"/>
         </targetInfos>
       </file>
-      <file attr="config" category="source" name="Network_v6\Config\Net_Config_DNS_Client.h" version="0.0.0">
+      <file attr="config" category="source" name="Network_v6\Config\Net_Config_DNS_Client.h" version="5.0.0">
         <instance index="0">RTE\Network\Net_Config_DNS_Client.h</instance>
         <component Cbundle="MDK-Pro Net_v6" Cclass="Network" Cgroup="Service" Csub="DNS Client" Cvendor="Keil" Cversion="6.7.5" condition="Network UDP"/>
-        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.6.0"/>
+        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.7.0"/>
         <targetInfos>
           <targetInfo name="echoServer"/>
         </targetInfos>
@@ -852,7 +852,7 @@
       <file attr="config" category="source" name="Network_v6\Config\Net_Config_ETH.h" version="5.1.0">
         <instance index="0">RTE\Network\Net_Config_ETH_0.h</instance>
         <component Cbundle="MDK-Pro Net_v6" Cclass="Network" Cgroup="Interface" Csub="ETH" Cvendor="Keil" Cversion="6.7.5" condition="Network Driver ETH" maxInstances="1"/>
-        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.6.0"/>
+        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.7.0"/>
         <targetInfos>
           <targetInfo name="echoServer"/>
         </targetInfos>
@@ -860,7 +860,7 @@
       <file attr="config" category="source" name="Network_v6\Config\Net_Config_TCP.h" version="5.0.1">
         <instance index="0">RTE\Network\Net_Config_TCP.h</instance>
         <component Cbundle="MDK-Pro Net_v6" Cclass="Network" Cgroup="Socket" Csub="TCP" Cvendor="Keil" Cversion="6.7.5" condition="Network Interface"/>
-        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.6.0"/>
+        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.7.0"/>
         <targetInfos>
           <targetInfo name="echoServer"/>
         </targetInfos>
@@ -868,7 +868,7 @@
       <file attr="config" category="source" name="Network_v6\Config\Net_Config_UDP.h" version="5.0.0">
         <instance index="0">RTE\Network\Net_Config_UDP.h</instance>
         <component Cbundle="MDK-Pro Net_v6" Cclass="Network" Cgroup="Socket" Csub="UDP" Cvendor="Keil" Cversion="6.7.5" condition="Network Interface"/>
-        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.6.0"/>
+        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.7.0"/>
         <targetInfos>
           <targetInfo name="echoServer"/>
         </targetInfos>
@@ -887,8 +887,8 @@
       </file>
       <file attr="config" category="header" name="wolfssl\IDE\MDK5-ARM\Conf\user_settings.h" version="3.14.0">
         <instance index="0">RTE\wolfSSL\user_settings.h</instance>
-        <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfSSL" Csub="Core" Cvendor="wolfSSL" Cversion="3.14.0" condition="wolfCrypt-Core"/>
-        <package license="wolfssl\IDE\MDK5-ARM\Docs\wolfSSL-License.txt" name="wolfSSL" schemaVersion="1.4" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.14.0"/>
+        <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfSSL" Csub="Core" Cvendor="wolfSSL" Cversion="3.15.7" condition="wolfCrypt-Core"/>
+        <package license="wolfssl\IDE\MDK5-ARM\Docs\wolfSSL-License.txt" name="wolfSSL" schemaVersion="1.4" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.15.7"/>
         <targetInfos>
           <targetInfo name="echoServer"/>
         </targetInfos>
