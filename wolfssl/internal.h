@@ -2106,6 +2106,8 @@ WOLFSSL_LOCAL int   TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType,
                                         word16* pOffset);
 #endif
 
+WOLFSSL_LOCAL int   TLSX_ParseVersion(WOLFSSL* ssl, byte* input, word16 length,
+                                      byte msgType, int* found);
 WOLFSSL_LOCAL int   TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                byte msgType, Suites *suites);
 
@@ -2260,6 +2262,7 @@ WOLFSSL_LOCAL int TLSX_UsePointFormat(TLSX** extensions, byte point,
 WOLFSSL_LOCAL int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first,
                                                                    byte second);
 WOLFSSL_LOCAL int TLSX_SupportedCurve_CheckPriority(WOLFSSL* ssl);
+WOLFSSL_LOCAL int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl);
 #endif
 WOLFSSL_LOCAL int TLSX_SupportedCurve_Preferred(WOLFSSL* ssl,
                                                             int checkSupported);
@@ -3697,8 +3700,10 @@ struct WOLFSSL {
     byte            maxRequest;
     byte            user_set_QSHSchemes;
 #endif
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
     word16          namedGroup;
+#endif
+#ifdef WOLFSSL_TLS13
     word16          group[WOLFSSL_MAX_GROUP_COUNT];
     byte            numGroups;
 #endif

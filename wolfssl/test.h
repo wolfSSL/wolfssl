@@ -670,7 +670,7 @@ static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
     WOLFSSL_CIPHER* cipher;
     const char** words = client_showpeer_msg[lng_index];
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || !defined(NO_DH)
     const char *name;
 #endif
 #ifndef NO_DH
@@ -697,12 +697,12 @@ static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
 #else
     printf("%s %s\n", words[1], wolfSSL_CIPHER_get_name(cipher));
 #endif
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || !defined(NO_DH)
     if ((name = wolfSSL_get_curve_name(ssl)) != NULL)
         printf("%s %s\n", words[2], name);
 #endif
 #ifndef NO_DH
-    if ((bits = wolfSSL_GetDhKey_Sz(ssl)) > 0)
+    else if ((bits = wolfSSL_GetDhKey_Sz(ssl)) > 0)
         printf("%s %d bits\n", words[3], bits);
 #endif
     if (wolfSSL_session_reused(ssl))

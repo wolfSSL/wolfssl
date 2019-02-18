@@ -15886,6 +15886,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case DTLS_RETX_OVER_TX:
         return "DTLS interrupting flight transmit with retransmit";
 
+    case DH_PARAMS_NOT_FFDHE_E:
+        return "Server DH parameters were not from the FFDHE set as required";
+
     default :
         return "unknown error number";
     }
@@ -18041,7 +18044,6 @@ exit_dpk:
 
 #endif /* HAVE_ECC */
 
-
 /* Persistable DoServerKeyExchange arguments */
 typedef struct DskeArgs {
     byte*  output; /* not allocated */
@@ -18072,6 +18074,168 @@ static void FreeDskeArgs(WOLFSSL* ssl, void* pArgs)
     }
 #endif
 }
+
+#ifndef NO_DH
+static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
+                          DskeArgs* args)
+{
+    int             ret = 0;
+    word16          length;
+#ifdef HAVE_FFDHE
+    const DhParams* params = NULL;
+    int             group;
+#endif
+
+    /* p */
+    if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
+        ERROR_OUT(BUFFER_ERROR, exit_gdpk);
+    }
+
+    ato16(input + args->idx, &length);
+    args->idx += OPAQUE16_LEN;
+
+    if ((args->idx - args->begin) + length > size) {
+        ERROR_OUT(BUFFER_ERROR, exit_gdpk);
+    }
+
+    if (length < ssl->options.minDhKeySz) {
+        WOLFSSL_MSG("Server using a DH key that is too small");
+        SendAlert(ssl, alert_fatal, handshake_failure);
+        ERROR_OUT(DH_KEY_SIZE_E, exit_gdpk);
+    }
+    if (length > ssl->options.maxDhKeySz) {
+        WOLFSSL_MSG("Server using a DH key that is too big");
+        SendAlert(ssl, alert_fatal, handshake_failure);
+        ERROR_OUT(DH_KEY_SIZE_E, exit_gdpk);
+    }
+
+    ssl->buffers.serverDH_P.buffer =
+        (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    if (ssl->buffers.serverDH_P.buffer) {
+        ssl->buffers.serverDH_P.length = length;
+    }
+    else {
+        ERROR_OUT(MEMORY_ERROR, exit_gdpk);
+    }
+
+    XMEMCPY(ssl->buffers.serverDH_P.buffer, input + args->idx,
+                                                        length);
+    args->idx += length;
+
+    ssl->options.dhKeySz = length;
+
+    /* g */
+    if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
+        ERROR_OUT(BUFFER_ERROR, exit_gdpk);
+    }
+
+    ato16(input + args->idx, &length);
+    args->idx += OPAQUE16_LEN;
+
+    if ((args->idx - args->begin) + length > size) {
+        ERROR_OUT(BUFFER_ERROR, exit_gdpk);
+    }
+
+    ssl->buffers.serverDH_G.buffer =
+        (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    if (ssl->buffers.serverDH_G.buffer) {
+        ssl->buffers.serverDH_G.length = length;
+    }
+    else {
+        ERROR_OUT(MEMORY_ERROR, exit_gdpk);
+    }
+
+    XMEMCPY(ssl->buffers.serverDH_G.buffer, input + args->idx,
+                                                        length);
+    args->idx += length;
+
+    ssl->buffers.weOwnDH = 1;
+
+    /* pub */
+    if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
+        ERROR_OUT(BUFFER_ERROR, exit_gdpk);
+    }
+
+    ato16(input + args->idx, &length);
+    args->idx += OPAQUE16_LEN;
+
+    if ((args->idx - args->begin) + length > size) {
+        ERROR_OUT(BUFFER_ERROR, exit_gdpk);
+    }
+
+    ssl->buffers.serverDH_Pub.buffer =
+        (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    if (ssl->buffers.serverDH_Pub.buffer) {
+        ssl->buffers.serverDH_Pub.length = length;
+    }
+    else {
+        ERROR_OUT(MEMORY_ERROR, exit_gdpk);
+    }
+
+    XMEMCPY(ssl->buffers.serverDH_Pub.buffer, input + args->idx,
+                                                        length);
+    args->idx += length;
+
+#ifdef HAVE_FFDHE
+    switch (ssl->options.dhKeySz) {
+    #ifdef HAVE_FFDHE_2048
+        case 2048/8:
+            params = wc_Dh_ffdhe2048_Get();
+            group = WOLFSSL_FFDHE_2048;
+            break;
+    #endif
+    #ifdef HAVE_FFDHE_3072
+        case 3072/8:
+            params = wc_Dh_ffdhe3072_Get();
+            group = WOLFSSL_FFDHE_3072;
+            break;
+    #endif
+    #ifdef HAVE_FFDHE_4096
+        case 4096/8:
+            params = wc_Dh_ffdhe4096_Get();
+            group = WOLFSSL_FFDHE_4096;
+            break;
+    #endif
+    #ifdef HAVE_FFDHE_6144
+        case 6144/8:
+            params = wc_Dh_ffdhe6144_Get();
+            group = WOLFSSL_FFDHE_6144;
+            break;
+    #endif
+    #ifdef HAVE_FFDHE_8192
+        case 8192/8:
+            params = wc_Dh_ffdhe8192_Get();
+            group = WOLFSSL_FFDHE_8192;
+            break;
+    #endif
+        default:
+            break;
+    }
+
+    if (params == NULL || params->g_len != ssl->buffers.serverDH_G.length ||
+            (XMEMCMP(ssl->buffers.serverDH_G.buffer, params->g,
+                    params->g_len) != 0) ||
+            (XMEMCMP(ssl->buffers.serverDH_P.buffer, params->p,
+                    params->p_len) != 0)) {
+        WOLFSSL_MSG("Server not using FFDHE parameters");
+    #ifdef WOLFSSL_REQUIRE_FFDHE
+        SendAlert(ssl, alert_fatal, handshake_failure);
+        ERROR_OUT(DH_PARAMS_NOT_FFDHE_E, exit_gdpk);
+    #endif
+    }
+    else {
+        ssl->namedGroup = group;
+    #if !defined(WOLFSSL_OLD_PRIME_CHECK) && !defined(HAVE_FIPS) && \
+        !defined(HAVE_SELFTEST)
+        ssl->options.dhDoKeyTest = 0;
+    #endif
+    }
+#endif /* HAVE_FFDHE */
+
+exit_gdpk:
+    return ret;
+}
+#endif
 
 /* handle processing of server_key_exchange (12) */
 static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
@@ -18157,97 +18321,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
             #ifndef NO_DH
                 case diffie_hellman_kea:
                 {
-                    word16 length;
-
-                    /* p */
-                    if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    ato16(input + args->idx, &length);
-                    args->idx += OPAQUE16_LEN;
-
-                    if ((args->idx - args->begin) + length > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    if (length < ssl->options.minDhKeySz) {
-                        WOLFSSL_MSG("Server using a DH key that is too small");
-                        SendAlert(ssl, alert_fatal, handshake_failure);
-                        ERROR_OUT(DH_KEY_SIZE_E, exit_dske);
-                    }
-                    if (length > ssl->options.maxDhKeySz) {
-                        WOLFSSL_MSG("Server using a DH key that is too big");
-                        SendAlert(ssl, alert_fatal, handshake_failure);
-                        ERROR_OUT(DH_KEY_SIZE_E, exit_dske);
-                    }
-
-                    ssl->buffers.serverDH_P.buffer =
-                        (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-                    if (ssl->buffers.serverDH_P.buffer) {
-                        ssl->buffers.serverDH_P.length = length;
-                    }
-                    else {
-                        ERROR_OUT(MEMORY_ERROR, exit_dske);
-                    }
-
-                    XMEMCPY(ssl->buffers.serverDH_P.buffer, input + args->idx,
-                                                                        length);
-                    args->idx += length;
-
-                    ssl->options.dhKeySz = length;
-
-                    /* g */
-                    if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    ato16(input + args->idx, &length);
-                    args->idx += OPAQUE16_LEN;
-
-                    if ((args->idx - args->begin) + length > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    ssl->buffers.serverDH_G.buffer =
-                        (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-                    if (ssl->buffers.serverDH_G.buffer) {
-                        ssl->buffers.serverDH_G.length = length;
-                    }
-                    else {
-                        ERROR_OUT(MEMORY_ERROR, exit_dske);
-                    }
-
-                    XMEMCPY(ssl->buffers.serverDH_G.buffer, input + args->idx,
-                                                                        length);
-                    args->idx += length;
-
-                    ssl->buffers.weOwnDH = 1;
-
-                    /* pub */
-                    if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    ato16(input + args->idx, &length);
-                    args->idx += OPAQUE16_LEN;
-
-                    if ((args->idx - args->begin) + length > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    ssl->buffers.serverDH_Pub.buffer =
-                        (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-                    if (ssl->buffers.serverDH_Pub.buffer) {
-                        ssl->buffers.serverDH_Pub.length = length;
-                    }
-                    else {
-                        ERROR_OUT(MEMORY_ERROR, exit_dske);
-                    }
-
-                    XMEMCPY(ssl->buffers.serverDH_Pub.buffer, input + args->idx,
-                                                                        length);
-                    args->idx += length;
+                    ret = GetDhPublicKey(ssl, input, size, args);
+                    if (ret != 0)
+                        goto exit_dske;
                     break;
                 }
             #endif /* !NO_DH */
@@ -18362,98 +18438,12 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     ssl->arrays->server_hint[srvHintLen] = '\0'; /* null term */
                     args->idx += length;
 
-                    /* p */
-                    if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    ato16(input + args->idx, &length);
-                    args->idx += OPAQUE16_LEN;
-
-                    if ((args->idx - args->begin) + length > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    if (length < ssl->options.minDhKeySz) {
-                        WOLFSSL_MSG("Server using a DH key that is too small");
-                        SendAlert(ssl, alert_fatal, handshake_failure);
-                        ERROR_OUT(DH_KEY_SIZE_E, exit_dske);
-                    }
-                    if (length > ssl->options.maxDhKeySz) {
-                        WOLFSSL_MSG("Server using a DH key that is too big");
-                        SendAlert(ssl, alert_fatal, handshake_failure);
-                        ERROR_OUT(DH_KEY_SIZE_E, exit_dske);
-                    }
-
-                    ssl->buffers.serverDH_P.buffer = (byte*)XMALLOC(length,
-                                            ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-                    if (ssl->buffers.serverDH_P.buffer) {
-                        ssl->buffers.serverDH_P.length = length;
-                    }
-                    else {
-                        ERROR_OUT(MEMORY_ERROR, exit_dske);
-                    }
-
-                    XMEMCPY(ssl->buffers.serverDH_P.buffer, input + args->idx,
-                                                                        length);
-                    args->idx += length;
-
-                    ssl->options.dhKeySz = length;
-
-                    /* g */
-                    if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    ato16(input + args->idx, &length);
-                    args->idx += OPAQUE16_LEN;
-
-                    if ((args->idx - args->begin) + length > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    ssl->buffers.serverDH_G.buffer = (byte*)XMALLOC(length,
-                                            ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-                    if (ssl->buffers.serverDH_G.buffer) {
-                        ssl->buffers.serverDH_G.length = length;
-                    }
-                    else {
-                        ERROR_OUT(MEMORY_ERROR, exit_dske);
-                    }
-
-                    XMEMCPY(ssl->buffers.serverDH_G.buffer, input + args->idx,
-                                                                        length);
-                    args->idx += length;
-
-                    ssl->buffers.weOwnDH = 1;
-
-                    /* pub */
-                    if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    ato16(input + args->idx, &length);
-                    args->idx += OPAQUE16_LEN;
-
-                    if ((args->idx - args->begin) + length > size) {
-                        ERROR_OUT(BUFFER_ERROR, exit_dske);
-                    }
-
-                    ssl->buffers.serverDH_Pub.buffer = (byte*)XMALLOC(length,
-                                            ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-                    if (ssl->buffers.serverDH_Pub.buffer) {
-                        ssl->buffers.serverDH_Pub.length = length;
-                    }
-                    else {
-                        ERROR_OUT(MEMORY_ERROR, exit_dske);
-                    }
-
-                    XMEMCPY(ssl->buffers.serverDH_Pub.buffer, input + args->idx,
-                                                                        length);
-                    args->idx += length;
+                    ret = GetDhPublicKey(ssl, input, size, args);
+                    if (ret != 0)
+                        goto exit_dske;
                     break;
                 }
-            #endif /* !NO_DH || !NO_PSK */
+            #endif /* !NO_DH && !NO_PSK */
             #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
                                                                 !defined(NO_PSK)
                 case ecdhe_psk_kea:
@@ -23933,6 +23923,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
         }
         ret = MatchSuite(ssl, &clSuites);
+
+#if defined(HAVE_FFDHE) && defined(HAVE_SUPPORTED_CURVES)
+        if (ret == 0 && (ssl->specs.kea == diffie_hellman_kea ||
+                                               ssl->specs.kea == dhe_psk_kea)) {
+            ret = TLSX_SupportedFFDHE_Set(ssl);
+        }
+#endif
 
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled &&

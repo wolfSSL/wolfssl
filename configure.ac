@@ -193,7 +193,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
 
     # Enable DH const table speedups (eliminates `-lm` math lib dependency)
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072 -DHAVE_FFDHE_4096 -DHAVE_FFDHE_6144 -DHAVE_FFDHE_8192"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072 -DFP_MAX_BITS=6144"
 fi
 AM_CONDITIONAL([BUILD_ALL], [test "x$ENABLED_ALL" = "xyes"])
 
@@ -1908,11 +1908,6 @@ else
     fi
 fi
 
-if test "$ENABLED_TLS13" = "yes" && test "$ENABLED_DH" = "yes"
-then
-    AM_CFLAGS="-DHAVE_FFDHE_2048 $AM_CFLAGS"
-fi
-
 AM_CONDITIONAL([BUILD_DH], [test "x$ENABLED_DH" = "xyes"])
 
 
@@ -2919,6 +2914,35 @@ then
     AS_IF([test "x$ENABLED_ECC" = "xno" && test "x$ENABLED_CURVE25519" = "xno"],
           [ENABLED_SUPPORTED_CURVES=no],
           [AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SUPPORTED_CURVES"])
+fi
+
+# Diffie-Hellman
+if test "$ENABLED_DH" = "yes"
+then
+    if test "$ENABLED_TLS13" = "yes" || test "$ENABLED_SUPPORTED_CURVES" = "yes"
+    then
+        AM_CFLAGS="-DHAVE_FFDHE_2048 $AM_CFLAGS"
+    fi
+fi
+
+# FFDHE parameters only
+AC_ARG_ENABLE([ffdhe-only],
+    [AS_HELP_STRING([--enable-ffdhe-only],[Enable using only FFDHE in client (default: disabled)])],
+    [ ENABLED_FFDHE_ONLY=$enableval ],
+    [ ENABLED_FFDHE_ONLY=no ]
+    )
+
+if test "x$ENABLED_FFDHE_ONLY" = "xyes"
+then
+    if test "$ENABLED_DH" = "no"
+    then
+        AC_MSG_ERROR([FFDHE only support requires DH support])
+    fi
+    if test "$ENABLED_SUPPORTED_CURVES" = "no"
+    then
+        AC_MSG_ERROR([FFDHE only support requires Supported Curves extension])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_REQUIRE_FFDHE"
 fi
 
 # Session Ticket Extension
@@ -4904,6 +4928,7 @@ echo "   * ALPN:                       $ENABLED_ALPN"
 echo "   * Maximum Fragment Length:    $ENABLED_MAX_FRAGMENT"
 echo "   * Truncated HMAC:             $ENABLED_TRUNCATED_HMAC"
 echo "   * Supported Elliptic Curves:  $ENABLED_SUPPORTED_CURVES"
+echo "   * FFDHE only in client:       $ENABLED_FFDHE_ONLY"
 echo "   * Session Ticket:             $ENABLED_SESSION_TICKET"
 echo "   * Extended Master Secret:     $ENABLED_EXTENDED_MASTER"
 echo "   * Renegotiation Indication:   $ENABLED_RENEGOTIATION_INDICATION"

@@ -1808,6 +1808,14 @@ extern void uITRON4_free(void *p) ;
     #define SSL_CTRL_SET_TLSEXT_HOSTNAME
 #endif
 
+#if !defined(NO_DH) && !defined(HAVE_FFDHE)
+    #if defined(HAVE_FFDHE_2048) || defined(HAVE_FFDHE_3072) || \
+            defined(HAVE_FFDHE_4096) || defined(HAVE_FFDHE_6144) || \
+            defined(HAVE_FFDHE_8192)
+        #define HAVE_FFDHE
+    #endif
+#endif
+
 /* both CURVE and ED small math should be enabled */
 #ifdef CURVED25519_SMALL
         #define CURVE25519_SMALL

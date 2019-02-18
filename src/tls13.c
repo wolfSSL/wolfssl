@@ -2788,6 +2788,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     byte            sessIdSz;
     const byte*     sessId;
     byte            b;
+    int             foundVersion;
 #endif
     word16          totalExtSz;
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
@@ -2910,9 +2911,24 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return BUFFER_ERROR;
 
 #ifndef WOLFSSL_TLS13_DRAFT_18
-        if (ssl->options.downgrade)
-            ssl->version.minor = TLSv1_2_MINOR;
+        /* Need to negotiate version first. */
+        if ((ret = TLSX_ParseVersion(ssl, (byte*)input + i, totalExtSz,
+                                                 *extMsgType, &foundVersion))) {
+            return ret;
+        }
+        if (!foundVersion) {
+            if (!ssl->options.downgrade) {
+                WOLFSSL_MSG("Server trying to downgrade to version less than "
+                            "TLS v1.3");
+                return VERSION_ERROR;
+            }
+
+            if (pv.minor < ssl->options.minDowngrade)
+                return VERSION_ERROR;
+            ssl->version.minor = pv.minor;
+        }
 #endif
+
         /* Parse and handle extensions. */
         ret = TLSX_Parse(ssl, (byte *) input + i, totalExtSz, *extMsgType,
                                                                           NULL);
@@ -3799,6 +3815,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef HAVE_SESSION_TICKET
     int             inputHashed = 0;
 #endif
+    int             foundVersion;
 
     WOLFSSL_START(WC_FUNC_CLIENT_HELLO_DO);
     WOLFSSL_ENTER("DoTls13ClientHello");
@@ -3923,6 +3940,23 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if ((ret = TLSX_PopulateExtensions(ssl, 1)) != 0)
             return ret;
 
+        /* Need to negotiate version first. */
+        if ((ret = TLSX_ParseVersion(ssl, (byte*)input + i, totalExtSz,
+                                                client_hello, &foundVersion))) {
+            return ret;
+        }
+        if (!foundVersion) {
+            if (!ssl->options.downgrade) {
+                WOLFSSL_MSG("Client trying to connect with lesser version than "
+                            "TLS v1.3");
+                return VERSION_ERROR;
+            }
+
+            if (pv.minor < ssl->options.minDowngrade)
+                return VERSION_ERROR;
+            ssl->version.minor = pv.minor;
+        }
+
         /* Parse extensions */
         if ((ret = TLSX_Parse(ssl, (byte*)input + i, totalExtSz, client_hello,
                                                                   &clSuites))) {
@@ -3940,29 +3974,12 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     i += totalExtSz;
     *inOutIdx = i;
 
-    if (TLSX_Find(ssl->extensions, TLSX_SUPPORTED_VERSIONS) == NULL) {
-        if (!ssl->options.downgrade) {
-            WOLFSSL_MSG("Client trying to connect with lesser version than "
-                        "TLS v1.3");
-            return VERSION_ERROR;
-        }
-
-        if (pv.minor < ssl->options.minDowngrade)
-            return VERSION_ERROR;
-        ssl->version.minor = pv.minor;
-    }
-
     ssl->options.sendVerify = SEND_CERT;
 
     ssl->options.clientState = CLIENT_HELLO_COMPLETE;
     ssl->options.haveSessionId = 1;
 
     if (IsAtLeastTLSv1_3(ssl->version)) {
-#ifdef HAVE_SERVER_RENEGOTIATION_INFO
-        TLSX_Remove(&ssl->extensions, TLSX_RENEGOTIATION_INFO, ssl->heap);
-        ssl->secure_renegotiation = NULL;
-#endif
-
 #if !defined(WOLFSSL_TLS13_DRAFT_18) && defined(WOLFSSL_SEND_HRR_COOKIE)
         if (ssl->options.sendCookie &&
               ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
