@@ -29074,8 +29074,9 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_by_curve_name(int nid)
     WOLFSSL_ENTER("wolfSSL_EC_KEY_new_by_curve_name");
 
     /* If NID passed in is OpenSSL type, convert it to ecc_curve_id enum */
-    if ((eccEnum = NIDToEccEnum(nid)) != -1)
-        nid = eccEnum;
+    eccEnum = NIDToEccEnum(nid);
+    if (eccEnum == -1)
+        eccEnum = nid;
 
     key = wolfSSL_EC_KEY_new();
     if (key == NULL) {
@@ -29084,7 +29085,7 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_by_curve_name(int nid)
     }
 
     /* set the nid of the curve */
-    key->group->curve_nid = nid;
+    key->group->curve_nid = eccEnum;
 
     /* search and set the corresponding internal curve idx */
     for (x = 0; ecc_sets[x].size != 0; x++)
@@ -29570,8 +29571,9 @@ WOLFSSL_EC_GROUP *wolfSSL_EC_GROUP_new_by_curve_name(int nid)
     WOLFSSL_ENTER("wolfSSL_EC_GROUP_new_by_curve_name");
 
     /* If NID passed in is OpenSSL type, convert it to ecc_curve_id enum */
-    if ((eccEnum = NIDToEccEnum(nid)) != -1)
-        nid = eccEnum;
+    eccEnum = NIDToEccEnum(nid);
+    if (eccEnum == -1)
+        eccEnum = nid;
 
     /* curve group */
     g = (WOLFSSL_EC_GROUP*) XMALLOC(sizeof(WOLFSSL_EC_GROUP), NULL,
@@ -29583,7 +29585,7 @@ WOLFSSL_EC_GROUP *wolfSSL_EC_GROUP_new_by_curve_name(int nid)
     XMEMSET(g, 0, sizeof(WOLFSSL_EC_GROUP));
 
     /* set the nid of the curve */
-    g->curve_nid = nid;
+    g->curve_nid = eccEnum;
 
     /* search and set the corresponding internal curve idx */
     for (x = 0; ecc_sets[x].size != 0; x++)

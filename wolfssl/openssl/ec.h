@@ -37,7 +37,7 @@ enum {
     POINT_CONVERSION_UNCOMPRESSED = 4,
 
 #ifdef HAVE_ECC
-    /* Use OpenSSL NIDs. NIDs can be mapped to ecc_curve_type enum values by
+    /* Use OpenSSL NIDs. NIDs can be mapped to ecc_curve_id enum values by
         calling NIDToEccEnum() in ssl.c */
     NID_X9_62_prime192v1 = 409,
     NID_X9_62_prime192v2 = 410,
