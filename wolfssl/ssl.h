@@ -2727,6 +2727,8 @@ enum {
 
 /* Object functions */
 WOLFSSL_API const char *  wolfSSL_OBJ_nid2sn(int n);
+WOLFSSL_API int NIDToEccEnum(int n);
+WOLFSSL_API int EccEnumToNID(int n);
 WOLFSSL_API int wolfSSL_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o);
 WOLFSSL_API int wolfSSL_OBJ_sn2nid(const char *sn);
 

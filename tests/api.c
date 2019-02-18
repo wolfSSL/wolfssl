@@ -13060,7 +13060,6 @@ static int test_wc_DsaKeyToDer (void)
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
-    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     wc_FreeDsaKey(&genKey);
 
 #endif
@@ -24133,6 +24132,7 @@ static void test_EC_get_builtin_curves(void)
     size_t max_items = 27;
     size_t nitems = 12;
     size_t numCurves, x;
+    int eccEnum;
     EC_builtin_curve r[max_items];
 
     printf(testingFmt, "wolfSSL_EC_get_builtin_curves");
@@ -24158,8 +24158,11 @@ static void test_EC_get_builtin_curves(void)
 
     /* Test if the EC_builtin_curve name and nid match wc_ecc_get_curve_id_from_name */
     for (x = 0; x < nitems; x++) {
-        if (x < numCurves)
-            AssertIntEQ(r[x].nid,wc_ecc_get_curve_id_from_name(r[x].comment));
+        if (x < numCurves) {
+            eccEnum = wc_ecc_get_curve_id_from_name(r[x].comment);
+            /* Convert OpenSSL NID back to internal enum value */
+            AssertIntEQ(r[x].nid, EccEnumToNID(eccEnum));
+        }
         else
             break;
     }

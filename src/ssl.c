@@ -105,7 +105,6 @@
 
 #if defined(WOLFSSL_QT)
     #include <wolfssl/wolfcrypt/sha.h>
-    int isCertTest = 0;
 #endif
 
 #ifdef NO_ASN
@@ -7344,26 +7343,33 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_new(void)
     WOLFSSL_X509_EXTENSION* newExt;
     newExt = (WOLFSSL_X509_EXTENSION*)XMALLOC(sizeof(WOLFSSL_X509_EXTENSION),
               NULL, DYNAMIC_TYPE_X509_EXT);
+    if (newExt == NULL)
+        return NULL;
     XMEMSET(newExt, 0, sizeof(WOLFSSL_X509_EXTENSION));
+    newExt->obj = wolfSSL_ASN1_OBJECT_new();
+    if (newExt->obj == NULL) {
+        XFREE(newExt, NULL, DYNAMIC_TYPE_X509_EXT);
+        return NULL;
+    }
+    newExt->ext_method.usr_data = NULL;
     return newExt;
 }
 
-void wolfSSL_X509_EXTENSION_free(WOLFSSL_X509_EXTENSION* extToFree)
+void wolfSSL_X509_EXTENSION_free(WOLFSSL_X509_EXTENSION* x)
 {
+    WOLFSSL_ASN1_STRING asn1;
     WOLFSSL_ENTER("wolfSSL_X509_EXTENSION_free");
+    if (x == NULL)
+        return;
 
-    if (extToFree != NULL) {
-        if (extToFree->obj != NULL) {
-            wolfSSL_ASN1_OBJECT_free(extToFree->obj);
-            extToFree->obj = NULL;
-        }
-        if (extToFree->value.data != NULL) {
-            XFREE(extToFree->value.data, NULL, DYNAMIC_TYPE_ASN1);
-            extToFree->value.data = NULL;
-        }
-        XFREE(extToFree, NULL, DYNAMIC_TYPE_X509_EXT);
-        extToFree = NULL;
-    }
+    if (x->obj != NULL)
+        wolfSSL_ASN1_OBJECT_free(x->obj);
+
+    asn1 = x->value;
+    if (asn1.length > 0 && asn1.data != NULL && asn1.isDynamic)
+        XFREE(asn1.data, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    XFREE(x, NULL, DYNAMIC_TYPE_X509_EXT);
 }
 
 
@@ -23542,6 +23548,7 @@ size_t wolfSSL_EC_get_builtin_curves(wolfSSL_EC_builtin_curve *r, size_t nitems)
 {
     size_t x;
     size_t ecc_set_cnt = 0;
+    int eccEnum;
 
     WOLFSSL_ENTER("wolfSSL_EC_get_builtin_curves");
 
@@ -23554,7 +23561,9 @@ size_t wolfSSL_EC_get_builtin_curves(wolfSSL_EC_builtin_curve *r, size_t nitems)
 
     for (x = 0; x < nitems; x++) {
         if (x < ecc_set_cnt) {
-            r[x].nid = ecc_sets[x].id;
+            eccEnum = ecc_sets[x].id;
+            /* Convert enum value in ecc_curve_id to OpenSSL NID */
+            r[x].nid = EccEnumToNID(eccEnum);
             r[x].comment = ecc_sets[x].name;
         }
         else
@@ -29575,8 +29584,14 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_by_curve_name(int nid)
 {
     WOLFSSL_EC_KEY *key;
     int x;
+    int eccEnum;
 
     WOLFSSL_ENTER("wolfSSL_EC_KEY_new_by_curve_name");
+
+    /* If NID passed in is OpenSSL type, convert it to ecc_curve_id enum */
+    eccEnum = NIDToEccEnum(nid);
+    if (eccEnum == -1)
+        eccEnum = nid;
 
     key = wolfSSL_EC_KEY_new();
     if (key == NULL) {
@@ -29585,7 +29600,7 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_by_curve_name(int nid)
     }
 
     /* set the nid of the curve */
-    key->group->curve_nid = nid;
+    key->group->curve_nid = eccEnum;
 
     /* search and set the corresponding internal curve idx */
     for (x = 0; ecc_sets[x].size != 0; x++)
@@ -30072,8 +30087,14 @@ WOLFSSL_EC_GROUP *wolfSSL_EC_GROUP_new_by_curve_name(int nid)
 {
     WOLFSSL_EC_GROUP *g;
     int x;
+    int eccEnum;
 
     WOLFSSL_ENTER("wolfSSL_EC_GROUP_new_by_curve_name");
+
+    /* If NID passed in is OpenSSL type, convert it to ecc_curve_id enum */
+    eccEnum = NIDToEccEnum(nid);
+    if (eccEnum == -1)
+        eccEnum = nid;
 
     /* curve group */
     g = (WOLFSSL_EC_GROUP*) XMALLOC(sizeof(WOLFSSL_EC_GROUP), NULL,
@@ -30085,7 +30106,7 @@ WOLFSSL_EC_GROUP *wolfSSL_EC_GROUP_new_by_curve_name(int nid)
     XMEMSET(g, 0, sizeof(WOLFSSL_EC_GROUP));
 
     /* set the nid of the curve */
-    g->curve_nid = nid;
+    g->curve_nid = eccEnum;
 
     /* search and set the corresponding internal curve idx */
     for (x = 0; ecc_sets[x].size != 0; x++)
@@ -30118,6 +30139,9 @@ int wolfSSL_EC_GROUP_get_curve_name(const WOLFSSL_EC_GROUP *group)
  */
 int wolfSSL_EC_GROUP_get_degree(const WOLFSSL_EC_GROUP *group)
 {
+    int nid;
+    int tmp;
+
     WOLFSSL_ENTER("wolfSSL_EC_GROUP_get_degree");
 
     if (group == NULL || group->curve_idx < 0) {
@@ -30125,7 +30149,15 @@ int wolfSSL_EC_GROUP_get_degree(const WOLFSSL_EC_GROUP *group)
         return WOLFSSL_FAILURE;
     }
 
-    switch(group->curve_nid) {
+    /* If curve_nid passed in is an ecc_curve_id enum, convert it to the
+        corresponding OpenSSL NID */
+    tmp = EccEnumToNID(group->curve_nid);
+    if (tmp != -1)
+        nid = tmp;
+    else
+        nid = group->curve_nid;
+
+    switch(nid) {
         case NID_secp112r1:
         case NID_secp112r2:
             return 112;
@@ -30162,6 +30194,142 @@ int wolfSSL_EC_GROUP_get_degree(const WOLFSSL_EC_GROUP *group)
             return WOLFSSL_FAILURE;
     }
 }
+
+#ifdef HAVE_ECC
+/* Converts OpenSSL NID value of ECC curves to the associated enum values in
+   ecc_curve_id, used by ecc_sets[].*/
+int NIDToEccEnum(int n)
+{
+    WOLFSSL_ENTER("NIDToEccEnum()");
+
+    switch(n) {
+        case NID_X9_62_prime192v1:
+            return ECC_SECP192R1;
+        case NID_X9_62_prime192v2:
+            return ECC_PRIME192V2;
+        case NID_X9_62_prime192v3:
+            return ECC_PRIME192V3;
+        case NID_X9_62_prime239v1:
+            return ECC_PRIME239V1;
+        case NID_X9_62_prime239v2:
+            return ECC_PRIME239V2;
+        case NID_X9_62_prime239v3:
+            return ECC_PRIME239V3;
+        case NID_X9_62_prime256v1:
+            return ECC_SECP256R1;
+        case NID_secp112r1:
+            return ECC_SECP112R1;
+        case NID_secp112r2:
+            return ECC_SECP112R2;
+        case NID_secp128r1:
+            return ECC_SECP128R1;
+        case NID_secp128r2:
+            return ECC_SECP128R2;
+        case NID_secp160r1:
+            return ECC_SECP160R1;
+        case NID_secp160r2:
+            return ECC_SECP160R2;
+        case NID_secp224r1:
+            return ECC_SECP224R1;
+        case NID_secp384r1:
+            return ECC_SECP384R1;
+        case NID_secp521r1:
+            return ECC_SECP521R1;
+        case NID_secp160k1:
+            return ECC_SECP160K1;
+        case NID_secp192k1:
+            return ECC_SECP192K1;
+        case NID_secp224k1:
+            return ECC_SECP224K1;
+        case NID_secp256k1:
+            return ECC_SECP256K1;
+        case NID_brainpoolP160r1:
+            return ECC_BRAINPOOLP160R1;
+        case NID_brainpoolP192r1:
+            return ECC_BRAINPOOLP192R1;
+        case NID_brainpoolP224r1:
+            return ECC_BRAINPOOLP224R1;
+        case NID_brainpoolP256r1:
+            return ECC_BRAINPOOLP256R1;
+        case NID_brainpoolP320r1:
+            return ECC_BRAINPOOLP320R1;
+        case NID_brainpoolP384r1:
+            return ECC_BRAINPOOLP384R1;
+        case NID_brainpoolP512r1:
+            return ECC_BRAINPOOLP512R1;
+        default:
+            WOLFSSL_MSG("NID not found");
+            return -1;
+    }
+}
+
+/* Converts ECC curve enum values in ecc_curve_id to the associated OpenSSL NID
+    value */
+int EccEnumToNID(int n)
+{
+    WOLFSSL_ENTER("EccEnumToNID()");
+
+    switch(n) {
+        case ECC_SECP192R1:
+            return NID_X9_62_prime192v1;
+        case ECC_PRIME192V2:
+            return NID_X9_62_prime192v2;
+        case ECC_PRIME192V3:
+            return NID_X9_62_prime192v3;
+        case ECC_PRIME239V1:
+            return NID_X9_62_prime239v1;
+        case ECC_PRIME239V2:
+            return NID_X9_62_prime239v2;
+        case ECC_PRIME239V3:
+            return NID_X9_62_prime239v3;
+        case ECC_SECP256R1:
+            return NID_X9_62_prime256v1;
+        case ECC_SECP112R1:
+            return NID_secp112r1;
+        case ECC_SECP112R2:
+            return NID_secp112r2;
+        case ECC_SECP128R1:
+            return NID_secp128r1;
+        case ECC_SECP128R2:
+            return NID_secp128r2;
+        case ECC_SECP160R1:
+            return NID_secp160r1;
+        case ECC_SECP160R2:
+            return NID_secp160r2;
+        case ECC_SECP224R1:
+            return NID_secp224r1;
+        case ECC_SECP384R1:
+            return NID_secp384r1;
+        case ECC_SECP521R1:
+            return NID_secp521r1;
+        case ECC_SECP160K1:
+            return NID_secp160k1;
+        case ECC_SECP192K1:
+            return NID_secp192k1;
+        case ECC_SECP224K1:
+            return NID_secp224k1;
+        case ECC_SECP256K1:
+            return NID_secp256k1;
+        case ECC_BRAINPOOLP160R1:
+            return NID_brainpoolP160r1;
+        case ECC_BRAINPOOLP192R1:
+            return NID_brainpoolP192r1;
+        case ECC_BRAINPOOLP224R1:
+            return NID_brainpoolP224r1;
+        case ECC_BRAINPOOLP256R1:
+            return NID_brainpoolP256r1;
+        case ECC_BRAINPOOLP320R1:
+            return NID_brainpoolP320r1;
+        case ECC_BRAINPOOLP384R1:
+            return NID_brainpoolP384r1;
+        case ECC_BRAINPOOLP512R1:
+            return NID_brainpoolP512r1;
+        default:
+            WOLFSSL_MSG("NID not found");
+            return -1;
+    }
+}
+#endif
 
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
@@ -34728,85 +34896,65 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
     #endif
 
-
     const char * wolfSSL_OBJ_nid2sn(int n) {
-        int localIsCertTest;
+        int eccEnum;
         int i;
 
         WOLFSSL_ENTER("wolfSSL_OBJ_nid2sn");
 
-        #ifdef WOLFSSL_QT
-            localIsCertTest = isCertTest;
-        #else
-            localIsCertTest = 0;
-        #endif
-
-        /* Some cert info NIDs are the same as ECC IDs.
-         Therefore, for now, we only give the option of
-         finding one or the other depending on the circumstance.
-        */
-        if (localIsCertTest) {
-            #ifdef WOLFSSL_QT
-                isCertTest = 0;
-            #endif
-            switch(n)
-            {
-                case NID_commonName :
-                    return "CN";
-                case NID_countryName :
-                    return "C";
-                case NID_localityName :
-                    return "L";
-                case NID_stateOrProvinceName :
-                    return "ST";
-                case NID_organizationName :
-                    return "O";
-                case NID_organizationalUnitName :
-                    return "OU";
-                case NID_emailAddress :
-                    return "emailAddress";
-                case NID_basic_constraints :
-                    return "basicConstraints";
-                case NID_subject_key_identifier :
-                    return "subjectKeyIdentifier";
-                case NID_authority_key_identifier :
-                    return "authorityKeyIdentifier";
-                case NID_certificate_policies:
-                    return "certificatePolicies";
-                case NID_key_usage :
-                    return "keyUsage";
-                case NID_info_access :
-                    return "authorityInfoAccess";
-                case NID_crl_distribution_points :
-                    return "cRLDistributionPoints";
-                case EXT_KEY_USAGE_OID :
-                    return "extKeyUsage";
-                default :
-                    WOLFSSL_MSG("nid not in table, trying wolfssl_object_info");
-            }
-
-            /* Check wolfssl_object_info for short name if not found */
-            for (i = 0; i < (int)WOLFSSL_OBJECT_INFO_SZ; i++) {
-                if (n == wolfssl_object_info[i].nid) {
-                    return wolfssl_object_info[i].sName;
-                }
-            }
-            WOLFSSL_MSG("SN not found");
-
-        } else {
-            #ifdef HAVE_ECC
-            {
-                /* find sn based on NID and return name */
-                for (i = 0; i < ecc_sets[i].size; i++) {
-                    if (n == ecc_sets[i].id) {
-                        return ecc_sets[i].name;
-                    }
-                }
-            }
-            #endif /* HAVE_ECC */
+        switch(n)
+        {
+            case NID_commonName :
+                return "CN";
+            case NID_countryName :
+                return "C";
+            case NID_localityName :
+                return "L";
+            case NID_stateOrProvinceName :
+                return "ST";
+            case NID_organizationName :
+                return "O";
+            case NID_organizationalUnitName :
+                return "OU";
+            case NID_emailAddress :
+                return "emailAddress";
+            case NID_basic_constraints :
+                return "basicConstraints";
+            case NID_subject_key_identifier :
+                return "subjectKeyIdentifier";
+            case NID_authority_key_identifier :
+                return "authorityKeyIdentifier";
+            case NID_certificate_policies:
+                return "certificatePolicies";
+            case NID_key_usage :
+                return "keyUsage";
+            case NID_info_access :
+                return "authorityInfoAccess";
+            case NID_crl_distribution_points :
+                return "cRLDistributionPoints";
+            case EXT_KEY_USAGE_OID :
+                return "extKeyUsage";
+            default :
+                break;
         }
+
+        #ifdef HAVE_ECC
+        /* Convert OpenSSL NID to enum value in ecc_curve_id */
+        if ((eccEnum = NIDToEccEnum(n)) != -1) {
+            /* find sn based on NID and return name */
+            for (i = 0; i < ecc_sets[i].size; i++) {
+                if (eccEnum == ecc_sets[i].id) {
+                    return ecc_sets[i].name;
+                }
+            }
+        }
+        #endif /* HAVE_ECC */
+
+        WOLFSSL_MSG("NID not found");
         return NULL;
     }
+
+
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
  /*
@@ -34825,10 +34973,13 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         #ifdef HAVE_ECC
         {
             int i;
+            int eccEnum;
             /* find based on name and return NID */
             for (i = 0; i < ecc_sets[i].size; i++) {
                 if (XSTRNCMP(sn, ecc_sets[i].name, ECC_MAXNAME) == 0) {
-                    return ecc_sets[i].id;
+                    eccEnum = ecc_sets[i].id;
+                    /* Convert enum value in ecc_curve_id to OpenSSL NID */
+                    return EccEnumToNID(eccEnum);
                 }
             }
         }
@@ -35126,12 +35277,9 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         #ifdef WOLFSSL_QT
         if (o->grp == oidCertExtType) {
-            isCertTest = 1;
             /* If nid is an unknown extension, return NID_undef */
             if (wolfSSL_OBJ_nid2sn(o->nid) == NULL)
                 return NID_undef;
-            else
-                isCertTest = 1;
         }
         #endif
 
@@ -35181,14 +35329,17 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         }
 
 #ifdef HAVE_ECC
+        int eccEnum;
+        /* Convert OpenSSL NID to enum value in ecc_curve_id */
+        if ((eccEnum = NIDToEccEnum(n)) != -1) {
         /* find based on NID and return name */
-        for (i = 0; i < ecc_sets[i].size; i++) {
-            if (n == ecc_sets[i].id) {
-                return ecc_sets[i].name;
+            for (i = 0; i < ecc_sets[i].size; i++) {
+                if (eccEnum == ecc_sets[i].id) {
+                    return ecc_sets[i].name;
+                }
             }
         }
 #endif /* HAVE_ECC */
-
         return ln;
     }
 #endif
@@ -35215,6 +35366,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         if (ln == NULL)
             return NID_undef;
 #ifdef HAVE_ECC
+        int eccEnum;
         /* Nginx uses this OpenSSL string. */
         if (XSTRNCMP(ln, "prime256v1", 10) == 0)
             ln = "SECP256R1";
@@ -35223,7 +35375,9 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         /* find based on name and return NID */
         for (i = 0; i < ecc_sets[i].size; i++) {
             if (XSTRNCMP(ln, ecc_sets[i].name, ECC_MAXNAME) == 0) {
-                return ecc_sets[i].id;
+                eccEnum = ecc_sets[i].id;
+                /* Convert enum value in ecc_curve_id to OpenSSL NID */
+                return EccEnumToNID(eccEnum);
             }
         }
 #endif
