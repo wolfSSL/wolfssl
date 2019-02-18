@@ -15985,6 +15985,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
     WOLFSSL_STACK* sk;
     WOLFSSL_X509* x509;
     int i = 0;
+    int count = 0;
 #endif
 
     if ((ssl == NULL) || (ssl->session.chain.count == 0)) {
@@ -16005,12 +16006,17 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
             if (ret != 0) {
                 WOLFSSL_MSG("Error decoding cert");
             }
-
-            wolfSSL_sk_X509_push(sk, x509);
+            /* For servers, the peer certificate chain does not include the peer
+                certificate, so do not add it to the stack */
+            if ((ssl->options.side == WOLFSSL_SERVER_END && i != 0) ||
+                 ssl->options.side == WOLFSSL_CLIENT_END) {
+                    wolfSSL_sk_X509_push(sk, x509);
+                    count++;
+            }
             wolfSSL_X509_free(x509);
         }
-        sk->num = ssl->session.chain.count;
         sk->type = STACK_TYPE_X509;
+        sk->num = count;
         return sk;
 #else
         return (WOLF_STACK_OF(WOLFSSL_X509)* )&ssl->session.chain;
