@@ -238,9 +238,9 @@ int EmbedSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     int sd = *(int*)ctx;
     int sent;
 
-#ifdef MAX_SEND_SZ
-    if (sz > MAX_SEND_SZ)
-        sz = MAX_SEND_SZ;
+#ifdef WOLFSSL_MAX_SEND_SZ
+    if (sz > WOLFSSL_MAX_SEND_SZ)
+        sz = WOLFSSL_MAX_SEND_SZ;
 #endif
 
     sent = wolfIO_Send(sd, buf, sz, ssl->wflags);
