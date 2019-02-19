@@ -5448,8 +5448,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                               defined(WOLFSSL_STM32F7) || \
                               defined(WOLFSSL_STM32L4))
 
-    /* STM32 HW only supports 12 byte IV and 16 byte auth */
-    if (ivSz == GCM_NONCE_MID_SZ && authInSz == AES_BLOCK_SIZE) {
+    /* STM32 HW only supports 12 byte IV */
+    if (ivSz == GCM_NONCE_MID_SZ) {
         return wc_AesGcmEncrypt_STM32(aes, out, in, sz, iv, ivSz,
                                       authTag, authTagSz, authIn, authInSz);
     }
@@ -5851,8 +5851,8 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                               defined(WOLFSSL_STM32F7) || \
                               defined(WOLFSSL_STM32L4))
 
-    /* STM32 HW only supports 12 byte IV and 16 byte auth */
-    if (ivSz == GCM_NONCE_MID_SZ && authInSz == AES_BLOCK_SIZE) {
+    /* STM32 HW only supports 12 byte IV */
+    if (ivSz == GCM_NONCE_MID_SZ) {
         return wc_AesGcmDecrypt_STM32(aes, out, in, sz, iv, ivSz,
                                       authTag, authTagSz, authIn, authInSz);
     }
