@@ -4813,6 +4813,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         }
         XMEMSET(ssl->arrays, 0, sizeof(Arrays));
 #if defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)
+        ssl->arrays->preMasterSz = ENCRYPT_LEN;
         ssl->arrays->preMasterSecret = (byte*)XMALLOC(ENCRYPT_LEN, ssl->heap,
             DYNAMIC_TYPE_SECRET);
         if (ssl->arrays->preMasterSecret == NULL) {
@@ -19720,6 +19721,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 ERROR_OUT(MEMORY_E, exit_scke);
             }
             if (ssl->arrays->preMasterSecret == NULL) {
+                ssl->arrays->preMasterSz = ENCRYPT_LEN;
                 ssl->arrays->preMasterSecret = (byte*)XMALLOC(ENCRYPT_LEN,
                                                 ssl->heap, DYNAMIC_TYPE_SECRET);
                 if (ssl->arrays->preMasterSecret == NULL) {
@@ -24915,6 +24917,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             #endif
 
                 if (ssl->arrays->preMasterSecret == NULL) {
+                    ssl->arrays->preMasterSz = ENCRYPT_LEN;
                     ssl->arrays->preMasterSecret = (byte*)XMALLOC(ENCRYPT_LEN,
                                                 ssl->heap, DYNAMIC_TYPE_SECRET);
                     if (ssl->arrays->preMasterSecret == NULL) {
@@ -25771,7 +25774,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                         /* Add preMasterSecret */
                         c16toa(clientSz, pms);
-                        ssl->arrays->preMasterSz += OPAQUE16_LEN + clientSz;
+                        ssl->arrays->preMasterSz = OPAQUE16_LEN + clientSz;
                         pms += ssl->arrays->preMasterSz;
 
                         /* Use the PSK hint to look up the PSK and add it to the

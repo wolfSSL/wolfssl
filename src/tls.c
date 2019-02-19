@@ -6392,7 +6392,6 @@ static int TLSX_KeyShare_ProcessX25519(WOLFSSL* ssl,
     }
 
     if (ret == 0) {
-        ssl->arrays->preMasterSz = ENCRYPT_LEN;
         ssl->ecdhCurveOID = ECC_X25519_OID;
 
         ret = wc_curve25519_shared_secret_ex(key, peerX25519Key,
@@ -6490,7 +6489,6 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     }
     ssl->ecdhCurveOID = ssl->peerEccKey->dp->oidSum;
 
-    ssl->arrays->preMasterSz = ENCRYPT_LEN;
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &keyShareKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
