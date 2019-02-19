@@ -60,6 +60,9 @@
 #if defined(NO_PKCS11_AESCBC) && defined(HAVE_AES_CBC)
     #undef HAVE_AES_CBC
 #endif
+#if defined(NO_PKCS11_HMAC) && !defined(NO_HMAC)
+    #define NO_HMAC
+#endif
 #if defined(NO_PKCS11_RNG) && !defined(WC_NO_RNG)
     #define WC_NO_RNG
 #endif
@@ -69,7 +72,7 @@
 static CK_BBOOL ckFalse = CK_FALSE;
 #endif
 #if !defined(NO_RSA) || defined(HAVE_ECC) || (!defined(NO_AES) && \
-                                                           defined(HAVE_AESGCM))
+           (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || !defined(NO_HMAC)
 static CK_BBOOL ckTrue  = CK_TRUE;
 #endif
 
@@ -83,7 +86,8 @@ static CK_KEY_TYPE ecKeyType   = CKK_EC;
 static CK_OBJECT_CLASS pubKeyClass     = CKO_PUBLIC_KEY;
 static CK_OBJECT_CLASS privKeyClass    = CKO_PRIVATE_KEY;
 #endif
-#if (!defined(NO_AES) && defined(HAVE_AESGCM)) || defined(HAVE_ECC)
+#if (!defined(NO_AES) && (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || \
+            !defined(NO_HMAC) || (defined(HAVE_ECC) && !defined(NO_PKCS11_ECDH))
 static CK_OBJECT_CLASS secretKeyClass  = CKO_SECRET_KEY;
 #endif
 
@@ -348,7 +352,8 @@ void wc_Pkcs11Token_Close(Pkcs11Token* token)
 }
 
 
-#if !defined(NO_AES) && (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))
+#if (!defined(NO_AES) && (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || \
+                                                               !defined(NO_HMAC)
 static int Pkcs11CreateSecretKey(CK_OBJECT_HANDLE* key, Pkcs11Session* session,
                                  CK_KEY_TYPE keyType, unsigned char* data,
                                  int len, unsigned char* id, int idLen)
@@ -363,6 +368,8 @@ static int Pkcs11CreateSecretKey(CK_OBJECT_HANDLE* key, Pkcs11Session* session,
         { CKA_ID,       id,              (CK_ULONG)idLen        }
     };
     int              keyTmplCnt = 4;
+
+    WOLFSSL_MSG("PKCS#11: Create Secret Key");
 
     /* Set the modulus and public exponent data. */
     keyTemplate[3].pValue     = data;
@@ -510,7 +517,7 @@ static int Pkcs11CreateEccPrivateKey(CK_OBJECT_HANDLE* privateKey,
 #endif
 
 #if !defined(NO_RSA) || defined(HAVE_ECC) || (!defined(NO_AES) && \
-                                                           defined(HAVE_AESGCM))
+           (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || !defined(NO_HMAC)
 /**
  * Check if mechanism is available in session on token.
  *
@@ -533,6 +540,66 @@ static int Pkcs11MechAvail(Pkcs11Session* session, CK_MECHANISM_TYPE mech)
 }
 #endif
 
+#ifndef NO_HMAC
+/**
+ * Return the mechanism type and key type for the digest type when using HMAC.
+ *
+ * @param  macType   [in]  Digest type - e.g. WC_SHA256.
+ * @param  mechType  [in]  Mechanism type - e.g. CKM_SHA256_HMAC.
+ * @param  keyType   [in]  Key type - e.g. CKK_SHA256_HMAC.
+ * @return  NOT_COMPILED_IN if the digest algorithm isn't recognised.
+ *          0 otherwise.
+ */
+static int Pkcs11HmacTypes(int macType, int* mechType, int* keyType)
+{
+    int ret = 0;
+
+    switch (macType)
+    {
+    #ifndef NO_MD5
+        case WC_MD5:
+            *mechType = CKM_MD5_HMAC;
+            *keyType = CKK_MD5_HMAC;
+            break;
+    #endif
+    #ifndef NO_SHA
+        case WC_SHA:
+            *mechType = CKM_SHA_1_HMAC;
+            *keyType = CKK_SHA_1_HMAC;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHA224
+        case WC_SHA224:
+            *mechType = CKM_SHA224_HMAC;
+            *keyType = CKK_SHA224_HMAC;
+            break;
+    #endif
+    #ifndef NO_SHA256
+        case WC_SHA256:
+            *mechType = CKM_SHA256_HMAC;
+            *keyType = CKK_SHA256_HMAC;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHA384
+        case WC_SHA384:
+            *mechType = CKM_SHA384_HMAC;
+            *keyType = CKK_SHA384_HMAC;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHA512
+        case WC_SHA512:
+            *mechType = CKM_SHA512_HMAC;
+            *keyType = CKK_SHA512_HMAC;
+            break;
+    #endif
+        default:
+            ret = NOT_COMPILED_IN;
+            break;
+    }
+
+    return ret;
+}
+#endif
 
 /**
  * Store the private key on the token in the session.
@@ -560,9 +627,9 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                 ret = Pkcs11MechAvail(&session, CKM_AES_GCM);
                 if (ret == 0) {
                     ret = Pkcs11CreateSecretKey(&privKey, &session, CKK_AES,
-                                                (unsigned char *)aes->devKey,
+                                                (unsigned char*)aes->devKey,
                                                 aes->keylen,
-                                                (unsigned char *)aes->id,
+                                                (unsigned char*)aes->id,
                                                 aes->idLen);
                 }
                 if (ret == 0 && clear)
@@ -577,13 +644,43 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                 ret = Pkcs11MechAvail(&session, CKM_AES_CBC);
                 if (ret == 0) {
                     ret = Pkcs11CreateSecretKey(&privKey, &session, CKK_AES,
-                                                (unsigned char *)aes->devKey,
+                                                (unsigned char*)aes->devKey,
                                                 aes->keylen,
-                                                (unsigned char *)aes->id,
+                                                (unsigned char*)aes->id,
                                                 aes->idLen);
                 }
                 if (ret == 0 && clear)
                     ForceZero(aes->devKey, aes->keylen);
+                break;
+            }
+    #endif
+    #ifndef NO_HMAC
+            case PKCS11_KEY_TYPE_HMAC: {
+                Hmac* hmac = (Hmac*)key;
+                int mechType;
+                int keyType;
+
+                ret = Pkcs11HmacTypes(hmac->macType, &mechType, &keyType);
+                if (ret == NOT_COMPILED_IN)
+                    break;
+
+                if (ret == 0)
+                    ret = Pkcs11MechAvail(&session, mechType);
+                if (ret == 0) {
+                    ret = Pkcs11CreateSecretKey(&privKey, &session, keyType,
+                                                (unsigned char*)hmac->keyRaw,
+                                                hmac->keyLen,
+                                                (unsigned char*)hmac->id,
+                                                hmac->idLen);
+                    if (ret == WC_HW_E) {
+                        ret = Pkcs11CreateSecretKey(&privKey, &session,
+                                                   CKK_GENERIC_SECRET,
+                                                   (unsigned char*)hmac->keyRaw,
+                                                   hmac->keyLen,
+                                                   (unsigned char*)hmac->id,
+                                                   hmac->idLen);
+                    }
+                }
                 break;
             }
     #endif
@@ -650,7 +747,7 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
 }
 
 #if !defined(NO_RSA) || defined(HAVE_ECC) || (!defined(NO_AES) && \
-                                                           defined(HAVE_AESGCM))
+           (defined(HAVE_AESGCM) || defined(HAVE_AES_CBC))) || !defined(NO_HMAC)
 /**
  * Find the PKCS#11 object containing the RSA public or private key data with
  * the modulus specified.
@@ -966,13 +1063,13 @@ static int Pkcs11GetRsaPublicKey(RsaKey* key, Pkcs11Session* session,
     if (ret == 0) {
         modSz = tmpl[0].ulValueLen;
         expSz = tmpl[1].ulValueLen;
-        mod = (unsigned char *)XMALLOC(modSz, key->heap,
+        mod = (unsigned char*)XMALLOC(modSz, key->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
         if (mod == NULL)
             ret = MEMORY_E;
     }
     if (ret == 0) {
-        exp = (unsigned char *)XMALLOC(expSz, key->heap,
+        exp = (unsigned char*)XMALLOC(expSz, key->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
         if (exp == NULL)
             ret = MEMORY_E;
@@ -1246,7 +1343,7 @@ static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
 
     if (ret == 0) {
         pointSz = (int)tmpl[0].ulValueLen;
-        point = (unsigned char *)XMALLOC(pointSz, key->heap, DYNAMIC_TYPE_ECC);
+        point = (unsigned char*)XMALLOC(pointSz, key->heap, DYNAMIC_TYPE_ECC);
         if (point == NULL)
             ret = MEMORY_E;
     }
@@ -1874,7 +1971,7 @@ static int Pkcs11AesGcmEncrypt(Pkcs11Session* session, wc_CryptoInfo* info)
     /* Create a private key object or find by id. */
     if (ret == 0 && aes->idLen == 0) {
         ret = Pkcs11CreateSecretKey(&key, session, CKK_AES,
-                                    (unsigned char *)aes->devKey, aes->keylen,
+                                    (unsigned char*)aes->devKey, aes->keylen,
                                     NULL, 0);
 
     }
@@ -1958,7 +2055,7 @@ static int Pkcs11AesGcmDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
     /* Create a private key object or find by id. */
     if (ret == 0 && aes->idLen == 0) {
         ret = Pkcs11CreateSecretKey(&key, session, CKK_AES,
-                                    (unsigned char *)aes->devKey, aes->keylen,
+                                    (unsigned char*)aes->devKey, aes->keylen,
                                     NULL, 0);
     }
     else if (ret == 0) {
@@ -2053,7 +2150,7 @@ static int Pkcs11AesCbcEncrypt(Pkcs11Session* session, wc_CryptoInfo* info)
     /* Create a private key object or find by id. */
     if (ret == 0 && aes->idLen == 0) {
         ret = Pkcs11CreateSecretKey(&key, session, CKK_AES,
-                                    (unsigned char *)aes->devKey, aes->keylen,
+                                    (unsigned char*)aes->devKey, aes->keylen,
                                     NULL, 0);
 
     }
@@ -2120,7 +2217,7 @@ static int Pkcs11AesCbcDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
     /* Create a private key object or find by id. */
     if (ret == 0 && aes->idLen == 0) {
         ret = Pkcs11CreateSecretKey(&key, session, CKK_AES,
-                                    (unsigned char *)aes->devKey, aes->keylen,
+                                    (unsigned char*)aes->devKey, aes->keylen,
                                     NULL, 0);
     }
     else if (ret == 0) {
@@ -2149,6 +2246,128 @@ static int Pkcs11AesCbcDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
     }
 
     if (aes->idLen == 0 && key != NULL_PTR)
+        session->func->C_DestroyObject(session->handle, key);
+
+    return ret;
+}
+#endif
+
+#ifndef NO_HMAC
+/**
+ * Updates or calculates the HMAC of the data.
+ *
+ * @param  session  [in]  Session object.
+ * @param  info     [in]  Cryptographic operation data.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ *          0 on success.
+ */
+static int Pkcs11Hmac(Pkcs11Session* session, wc_CryptoInfo* info)
+{
+    int                ret = 0;
+    CK_RV              rv;
+    Hmac*              hmac = info->hmac.hmac;
+    CK_MECHANISM_INFO  mechInfo;
+    CK_OBJECT_HANDLE   key = NULL_PTR;
+    CK_MECHANISM       mech;
+    CK_ULONG           outLen;
+    int                mechType;
+    int                keyType;
+
+    if (hmac->innerHashKeyed == WC_HMAC_INNER_HASH_KEYED_SW)
+        ret = NOT_COMPILED_IN;
+
+    if (ret == 0)
+        ret = Pkcs11HmacTypes(info->hmac.macType, &mechType, &keyType);
+    if (ret == 0) {
+        /* Check operation is supported. */
+        rv = session->func->C_GetMechanismInfo(session->slotId, mechType,
+                                                                     &mechInfo);
+        if (rv != CKR_OK || (mechInfo.flags & CKF_SIGN) == 0)
+            ret = NOT_COMPILED_IN;
+    }
+
+    /* Check whether key been used to initialized. */
+    if (ret == 0 && !hmac->innerHashKeyed) {
+        WOLFSSL_MSG("PKCS#11: HMAC Init");
+
+        /* Check device supports key length. */
+        if (mechInfo.ulMaxKeySize > 0 &&
+                                       (hmac->keyLen < mechInfo.ulMinKeySize ||
+                                        hmac->keyLen > mechInfo.ulMaxKeySize)) {
+            WOLFSSL_MSG("PKCS#11: Key Length not supported");
+            ret = NOT_COMPILED_IN;
+        }
+
+        /* Create a private key object or find by id. */
+        if (ret == 0 && hmac->idLen == 0) {
+            ret = Pkcs11CreateSecretKey(&key, session, keyType,
+                                    (unsigned char*)hmac->keyRaw, hmac->keyLen,
+                                    NULL, 0);
+            if (ret == WC_HW_E) {
+                ret = Pkcs11CreateSecretKey(&key, session, CKK_GENERIC_SECRET,
+                                    (unsigned char*)hmac->keyRaw, hmac->keyLen,
+                                    NULL, 0);
+            }
+
+        }
+        else if (ret == 0) {
+            ret = Pkcs11FindKeyById(&key, CKO_SECRET_KEY, keyType, session,
+                                                         hmac->id, hmac->idLen);
+            if (ret == WC_HW_E) {
+                ret = Pkcs11FindKeyById(&key, CKO_SECRET_KEY,
+                                          CKK_GENERIC_SECRET, session, hmac->id,
+                                          hmac->idLen);
+            }
+        }
+
+        /* Initialize HMAC operation */
+        if (ret == 0) {
+            mech.mechanism      = mechType;
+            mech.ulParameterLen = 0;
+            mech.pParameter     = NULL;
+
+            rv = session->func->C_SignInit(session->handle, &mech, key);
+            if (rv != CKR_OK)
+                ret = WC_HW_E;
+        }
+
+        /* Don't imitialize HMAC again if this succeeded */
+        if (ret == 0)
+            hmac->innerHashKeyed = WC_HMAC_INNER_HASH_KEYED_DEV;
+    }
+    /* Update the HMAC if input data passed in. */
+    if (ret == 0 && info->hmac.inSz > 0) {
+        WOLFSSL_MSG("PKCS#11: HMAC Update");
+
+        rv = session->func->C_SignUpdate(session->handle,
+                                         (CK_BYTE_PTR)info->hmac.in,
+                                         info->hmac.inSz);
+        /* Some algorithm implementations only support C_Sign. */
+        if (rv == CKR_MECHANISM_INVALID) {
+            WOLFSSL_MSG("PKCS#11: HMAC Update/Final not supported");
+            ret = NOT_COMPILED_IN;
+            /* Allow software implementation to set key. */
+            hmac->innerHashKeyed = 0;
+        }
+        else if (rv != CKR_OK)
+            ret = WC_HW_E;
+    }
+    /* Calculate the HMAC result if output buffer specified. */
+    if (ret == 0 && info->hmac.digest != NULL) {
+        WOLFSSL_MSG("PKCS#11: HMAC Final");
+
+        outLen = WC_MAX_DIGEST_SIZE;
+        rv = session->func->C_SignFinal(session->handle,
+                                        (CK_BYTE_PTR)info->hmac.digest,
+                                        &outLen);
+        /* Some algorithm implementations only support C_Sign. */
+        if (rv != CKR_OK)
+            ret = WC_HW_E;
+        else
+            hmac->innerHashKeyed = 0;
+    }
+
+    if (hmac->idLen == 0 && key != NULL_PTR)
         session->func->C_DestroyObject(session->handle, key);
 
     return ret;
@@ -2277,6 +2496,13 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
         #endif
     #endif
                 }
+            }
+            else if (info->algo_type == WC_ALGO_TYPE_HMAC) {
+    #ifndef NO_HMAC
+                ret = Pkcs11Hmac(&session, info);
+    #else
+                ret = NOT_COMPILED_IN;
+    #endif
             }
             else if (info->algo_type == WC_ALGO_TYPE_RNG) {
     #if !defined(WC_NO_RNG) && !defined(HAVE_HASHDRBG)

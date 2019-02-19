@@ -686,7 +686,7 @@ static int HmacKeyInnerHash(Hmac* hmac)
     }
 
     if (ret == 0)
-        hmac->innerHashKeyed = 1;
+        hmac->innerHashKeyed = WC_HMAC_INNER_HASH_KEYED_SW;
 
     return ret;
 }
@@ -1069,6 +1069,28 @@ int wc_HmacInit(Hmac* hmac, void* heap, int devId)
 
     return ret;
 }
+
+#ifdef HAVE_PKCS11
+int  wc_HmacInit_Id(Hmac* hmac, unsigned char* id, int len, void* heap,
+                    int devId)
+{
+    int ret = 0;
+
+    if (hmac == NULL)
+        ret = BAD_FUNC_ARG;
+    if (ret == 0 && (len < 0 || len > HMAC_MAX_ID_LEN))
+        ret = BUFFER_E;
+
+    if (ret == 0)
+        ret  = wc_HmacInit(hmac, heap, devId);
+    if (ret == 0) {
+        XMEMCPY(hmac->id, id, len);
+        hmac->idLen = len;
+    }
+
+    return ret;
+}
+#endif
 
 /* Free Hmac from use with async device */
 void wc_HmacFree(Hmac* hmac)
