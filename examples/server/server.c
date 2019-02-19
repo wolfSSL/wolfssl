@@ -1379,6 +1379,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                     doBlockSeq = 1;
                     dtlsCtx.blockSeq = atoi(myoptarg);
                 #endif
+                    break;
 
             case '5' :
             #ifdef HAVE_TRUSTED_CA
