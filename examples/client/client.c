@@ -1208,6 +1208,7 @@ static void Usage(void)
 #ifdef HAVE_SECURE_RENEGOTIATION
     printf("%s", msg[++msgid]); /* -R */
     printf("%s", msg[++msgid]); /* -i */
+    printf("-4          Use resumption for renegotiation\n");
 #endif
     printf("%s", msg[++msgid]); /* -f */
     printf("%s", msg[++msgid]); /* -x */
@@ -1337,6 +1338,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    err           = 0;
     int    scr           = 0;    /* allow secure renegotiation */
     int    forceScr      = 0;    /* force client initiaed scr */
+    int    resumeScr     = 0;    /* use resumption for renegotiation */
 #ifndef WOLFSSL_NO_CLIENT_AUTH
     int    useClientCert = 1;
 #else
@@ -1452,6 +1454,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)atomicUser;
     (void)scr;
     (void)forceScr;
+    (void)resumeScr;
     (void)ourKey;
     (void)ourCert;
     (void)verifyCert;
@@ -1478,7 +1481,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     while ((ch = mygetopt(argc, argv, "?:"
             "ab:c:defgh:ijk:l:mnop:q:rstuv:wxyz"
             "A:B:CDE:F:GH:IJKL:M:NO:PQRS:TUVW:XYZ:"
-            "01:23:")) != -1) {
+            "01:23:4")) != -1) {
         switch (ch) {
             case '?' :
                 if(myoptarg!=NULL) {
@@ -1889,6 +1892,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 #ifdef WOLFSSL_MULTICAST
                     doMcast = 1;
                     mcastID = (byte)(atoi(myoptarg) & 0xFF);
+                #endif
+                break;
+
+            case '4' :
+                #ifdef HAVE_SECURE_RENEGOTIATION
+                    scr       = 1;
+                    forceScr  = 1;
+                    resumeScr = 1;
                 #endif
                 break;
 
@@ -2826,16 +2837,33 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             printf("not doing secure renegotiation on example with"
                    " nonblocking yet");
         } else {
-            if (wolfSSL_Rehandshake(ssl) != WOLFSSL_SUCCESS) {
-                err = wolfSSL_get_error(ssl, 0);
-                printf("err = %d, %s\n", err,
-                                wolfSSL_ERR_error_string(err, buffer));
-                wolfSSL_free(ssl); ssl = NULL;
-                wolfSSL_CTX_free(ctx); ctx = NULL;
-                err_sys("wolfSSL_Rehandshake failed");
+            if (!resumeScr) {
+                printf("Beginning secure rengotiation.\n");
+                if (wolfSSL_Rehandshake(ssl) != WOLFSSL_SUCCESS) {
+                    err = wolfSSL_get_error(ssl, 0);
+                    printf("err = %d, %s\n", err,
+                                    wolfSSL_ERR_error_string(err, buffer));
+                    wolfSSL_free(ssl); ssl = NULL;
+                    wolfSSL_CTX_free(ctx); ctx = NULL;
+                    err_sys("wolfSSL_Rehandshake failed");
+                }
+                else {
+                    printf("RENEGOTIATION SUCCESSFUL\n");
+                }
             }
             else {
-                printf("RENEGOTIATION SUCCESSFUL\n");
+                printf("Beginning secure resumption.\n");
+                if (wolfSSL_SecureResume(ssl) != WOLFSSL_SUCCESS) {
+                    err = wolfSSL_get_error(ssl, 0);
+                    printf("err = %d, %s\n", err,
+                                    wolfSSL_ERR_error_string(err, buffer));
+                    wolfSSL_free(ssl); ssl = NULL;
+                    wolfSSL_CTX_free(ctx); ctx = NULL;
+                    err_sys("wolfSSL_SecureResume failed");
+                }
+                else {
+                    printf("SECURE RESUMPTION SUCCESSFUL\n");
+                }
             }
         }
     }
