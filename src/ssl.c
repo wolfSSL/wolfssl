@@ -2387,7 +2387,7 @@ int wolfSSL_StartSecureRenegotiation(WOLFSSL* ssl, int resume)
 #endif
 
         if (!resume) {
-            XMEMSET(ssl->session.sessionID, 0, ID_LEN);
+            XMEMSET(ssl->session.sessionID, 0, sizeof(ssl->session.sessionID));
             ssl->session.sessionIDSz = 0;
         }
 
