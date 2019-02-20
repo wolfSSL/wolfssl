@@ -27,6 +27,11 @@
 #endif /* HAVE_INTEL_AVX2 */
 
 #ifdef HAVE_INTEL_AVX1
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
 L_avx1_sha256_k:
 .long	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5
 .long	0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5
@@ -44,19 +49,54 @@ L_avx1_sha256_k:
 .long	0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3
 .long	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208
 .long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
-.align 16
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_avx1_sha256_shuf_00BA:
 .quad	0xb0a090803020100, 0xffffffffffffffff
-.align 16
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_avx1_sha256_shuf_DC00:
 .quad	0xffffffffffffffff, 0xb0a090803020100
-.align 16
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_avx1_sha256_flip_mask:
 .quad	0x405060700010203, 0xc0d0e0f08090a0b
+#ifndef __APPLE__
+.text
 .globl	Transform_Sha256_AVX1
 .type	Transform_Sha256_AVX1,@function
 .align	4
 Transform_Sha256_AVX1:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha256_AVX1
+.p2align	2
+_Transform_Sha256_AVX1:
+#endif /* __APPLE__ */
         pushq	%rbx
         pushq	%r12
         pushq	%r13
@@ -2432,11 +2472,21 @@ Transform_Sha256_AVX1:
         popq	%r12
         popq	%rbx
         repz retq
+#ifndef __APPLE__
 .size	Transform_Sha256_AVX1,.-Transform_Sha256_AVX1
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
 .globl	Transform_Sha256_AVX1_Len
 .type	Transform_Sha256_AVX1_Len,@function
 .align	4
 Transform_Sha256_AVX1_Len:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha256_AVX1_Len
+.p2align	2
+_Transform_Sha256_AVX1_Len:
+#endif /* __APPLE__ */
         pushq	%rbx
         pushq	%r12
         pushq	%r13
@@ -4828,7 +4878,14 @@ L_sha256_len_avx1_start:
         popq	%r12
         popq	%rbx
         repz retq
+#ifndef __APPLE__
 .size	Transform_Sha256_AVX1_Len,.-Transform_Sha256_AVX1_Len
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
 L_avx1_rorx_sha256_k:
 .long	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5
 .long	0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5
@@ -4846,19 +4903,54 @@ L_avx1_rorx_sha256_k:
 .long	0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3
 .long	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208
 .long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
-.align 16
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_avx1_rorx_sha256_shuf_00BA:
 .quad	0xb0a090803020100, 0xffffffffffffffff
-.align 16
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_avx1_rorx_sha256_shuf_DC00:
 .quad	0xffffffffffffffff, 0xb0a090803020100
-.align 16
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_avx1_rorx_sha256_flip_mask:
 .quad	0x405060700010203, 0xc0d0e0f08090a0b
+#ifndef __APPLE__
+.text
 .globl	Transform_Sha256_AVX1_RORX
 .type	Transform_Sha256_AVX1_RORX,@function
 .align	4
 Transform_Sha256_AVX1_RORX:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha256_AVX1_RORX
+.p2align	2
+_Transform_Sha256_AVX1_RORX:
+#endif /* __APPLE__ */
         pushq	%rbx
         pushq	%r12
         pushq	%r13
@@ -7192,11 +7284,21 @@ Transform_Sha256_AVX1_RORX:
         popq	%r12
         popq	%rbx
         repz retq
+#ifndef __APPLE__
 .size	Transform_Sha256_AVX1_RORX,.-Transform_Sha256_AVX1_RORX
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
 .globl	Transform_Sha256_AVX1_RORX_Len
 .type	Transform_Sha256_AVX1_RORX_Len,@function
 .align	4
 Transform_Sha256_AVX1_RORX_Len:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha256_AVX1_RORX_Len
+.p2align	2
+_Transform_Sha256_AVX1_RORX_Len:
+#endif /* __APPLE__ */
         pushq	%rbx
         pushq	%r12
         pushq	%r13
@@ -9547,9 +9649,16 @@ L_sha256_len_avx1_len_rorx_start:
         popq	%r12
         popq	%rbx
         repz retq
+#ifndef __APPLE__
 .size	Transform_Sha256_AVX1_RORX_Len,.-Transform_Sha256_AVX1_RORX_Len
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX1 */
 #ifdef HAVE_INTEL_AVX2
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
 L_avx2_sha256_k:
 .long	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5
 .long	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5
@@ -9583,22 +9692,57 @@ L_avx2_sha256_k:
 .long	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208
 .long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 .long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
-.align 32
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
 L_avx2_sha256_shuf_00BA:
 .quad	0xb0a090803020100, 0xffffffffffffffff
 .quad	0xb0a090803020100, 0xffffffffffffffff
-.align 32
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
 L_avx2_sha256_shuf_DC00:
 .quad	0xffffffffffffffff, 0xb0a090803020100
 .quad	0xffffffffffffffff, 0xb0a090803020100
-.align 32
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
 L_avx2_sha256_flip_mask:
 .quad	0x405060700010203, 0xc0d0e0f08090a0b
 .quad	0x405060700010203, 0xc0d0e0f08090a0b
+#ifndef __APPLE__
+.text
 .globl	Transform_Sha256_AVX2
 .type	Transform_Sha256_AVX2,@function
 .align	4
 Transform_Sha256_AVX2:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha256_AVX2
+.p2align	2
+_Transform_Sha256_AVX2:
+#endif /* __APPLE__ */
         pushq	%rbx
         pushq	%r12
         pushq	%r13
@@ -11974,11 +12118,21 @@ Transform_Sha256_AVX2:
         popq	%r12
         popq	%rbx
         repz retq
+#ifndef __APPLE__
 .size	Transform_Sha256_AVX2,.-Transform_Sha256_AVX2
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
 .globl	Transform_Sha256_AVX2_Len
 .type	Transform_Sha256_AVX2_Len,@function
 .align	4
 Transform_Sha256_AVX2_Len:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha256_AVX2_Len
+.p2align	2
+_Transform_Sha256_AVX2_Len:
+#endif /* __APPLE__ */
         pushq	%rbx
         pushq	%r12
         pushq	%r13
@@ -11994,7 +12148,11 @@ Transform_Sha256_AVX2_Len:
         vmovdqu	32(%rbp), %ymm1
         vmovups	%ymm0, 32(%rdi)
         vmovups	%ymm1, 64(%rdi)
+#ifndef __APPLE__
         call	Transform_Sha256_AVX2@plt
+#else
+        call	_Transform_Sha256_AVX2
+#endif /* __APPLE__ */
         addq	$0x40, %rbp
         subl	$0x40, %esi
         jz	L_sha256_len_avx2_done
@@ -16089,7 +16247,14 @@ L_sha256_len_avx2_done:
         popq	%r12
         popq	%rbx
         repz retq
+#ifndef __APPLE__
 .size	Transform_Sha256_AVX2_Len,.-Transform_Sha256_AVX2_Len
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
 L_avx2_rorx_sha256_k:
 .long	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5
 .long	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5
@@ -16123,22 +16288,57 @@ L_avx2_rorx_sha256_k:
 .long	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208
 .long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 .long	0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
-.align 32
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
 L_avx2_rorx_sha256_flip_mask:
 .quad	0x405060700010203, 0xc0d0e0f08090a0b
 .quad	0x405060700010203, 0xc0d0e0f08090a0b
-.align 32
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
 L_avx2_rorx_sha256_shuf_00BA:
 .quad	0xb0a090803020100, 0xffffffffffffffff
 .quad	0xb0a090803020100, 0xffffffffffffffff
-.align 32
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	32
+#else
+.p2align	5
+#endif /* __APPLE__ */
 L_avx2_rorx_sha256_shuf_DC00:
 .quad	0xffffffffffffffff, 0xb0a090803020100
 .quad	0xffffffffffffffff, 0xb0a090803020100
+#ifndef __APPLE__
+.text
 .globl	Transform_Sha256_AVX2_RORX
 .type	Transform_Sha256_AVX2_RORX,@function
 .align	4
 Transform_Sha256_AVX2_RORX:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha256_AVX2_RORX
+.p2align	2
+_Transform_Sha256_AVX2_RORX:
+#endif /* __APPLE__ */
         pushq	%rbx
         pushq	%r12
         pushq	%r13
@@ -18489,11 +18689,21 @@ Transform_Sha256_AVX2_RORX:
         popq	%r12
         popq	%rbx
         repz retq
+#ifndef __APPLE__
 .size	Transform_Sha256_AVX2_RORX,.-Transform_Sha256_AVX2_RORX
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
 .globl	Transform_Sha256_AVX2_RORX_Len
 .type	Transform_Sha256_AVX2_RORX_Len,@function
 .align	4
 Transform_Sha256_AVX2_RORX_Len:
+#else
+.section	__TEXT,__text
+.globl	_Transform_Sha256_AVX2_RORX_Len
+.p2align	2
+_Transform_Sha256_AVX2_RORX_Len:
+#endif /* __APPLE__ */
         pushq	%rbx
         pushq	%r12
         pushq	%r13
@@ -18509,7 +18719,11 @@ Transform_Sha256_AVX2_RORX_Len:
         vmovdqu	32(%rbp), %ymm1
         vmovups	%ymm0, 32(%rdi)
         vmovups	%ymm1, 64(%rdi)
+#ifndef __APPLE__
         call	Transform_Sha256_AVX2_RORX@plt
+#else
+        call	_Transform_Sha256_AVX2_RORX
+#endif /* __APPLE__ */
         addq	$0x40, %rbp
         subl	$0x40, %esi
         jz	L_sha256_len_avx2_rorx_done
@@ -22433,5 +22647,7 @@ L_sha256_len_avx2_rorx_done:
         popq	%r12
         popq	%rbx
         repz retq
+#ifndef __APPLE__
 .size	Transform_Sha256_AVX2_RORX_Len,.-Transform_Sha256_AVX2_RORX_Len
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */

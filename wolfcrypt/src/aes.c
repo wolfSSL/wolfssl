@@ -608,10 +608,12 @@
         #define AESNI_ALIGN 16
     #endif
 
-    #ifndef _MSC_VER
-        #define XASM_LINK(f) asm(f)
-    #else
+    #ifdef _MSC_VER
         #define XASM_LINK(f)
+    #elif defined(__APPLE__)
+        #define XASM_LINK(f) asm("_" f)
+    #else
+        #define XASM_LINK(f) asm(f)
     #endif /* _MSC_VER */
 
     static int checkAESNI = 0;
