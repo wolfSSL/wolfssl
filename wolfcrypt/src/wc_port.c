@@ -298,6 +298,37 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
             return 0;
         }
     } while (FindNextFileA(ctx->hFind, &ctx->FindFileData));
+#elif defined(WOLFSSL_ZEPHYR)
+    if (fs_opendir(&ctx->dir, path) != 0) {
+        WOLFSSL_MSG("opendir path verify locations failed");
+        return BAD_PATH_ERROR;
+    }
+    ctx->dirp = &ctx->dir;
+
+    while ((fs_readdir(&ctx->dir, &ctx->entry)) != 0) {
+        dnameLen = (int)XSTRLEN(ctx->entry.name);
+
+        if (pathLen + dnameLen + 2 >= MAX_FILENAME_SZ) {
+            ret = BAD_PATH_ERROR;
+            break;
+        }
+        XSTRNCPY(ctx->name, path, pathLen + 1);
+        ctx->name[pathLen] = '/';
+
+        /* Use dnameLen + 1 for GCC 8 warnings of truncating d_name. Because
+         * of earlier check it is known that dnameLen is less than
+         * MAX_FILENAME_SZ - (pathLen + 2)  so dnameLen +1 will fit */
+        XSTRNCPY(ctx->name + pathLen + 1, ctx->entry.name, dnameLen + 1);
+        if (fs_stat(ctx->name, &ctx->s) != 0) {
+            WOLFSSL_MSG("stat on name failed");
+            ret = BAD_PATH_ERROR;
+            break;
+        } else if (ctx->s.type == FS_DIR_ENTRY_FILE) {
+            if (name)
+                *name = ctx->name;
+            return 0;
+        }
+    }
 #else
     ctx->dir = opendir(path);
     if (ctx->dir == NULL) {
@@ -370,6 +401,31 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
             return 0;
         }
     }
+#elif defined(WOLFSSL_ZEPHYR)
+    while ((fs_readdir(&ctx->dir, &ctx->entry)) != 0) {
+        dnameLen = (int)XSTRLEN(ctx->entry.name);
+
+        if (pathLen + dnameLen + 2 >= MAX_FILENAME_SZ) {
+            ret = BAD_PATH_ERROR;
+            break;
+        }
+        XSTRNCPY(ctx->name, path, pathLen + 1);
+        ctx->name[pathLen] = '/';
+        /* Use dnameLen + 1 for GCC 8 warnings of truncating d_name. Because
+         * of earlier check it is known that dnameLen is less than
+         * MAX_FILENAME_SZ - (pathLen + 2) so that dnameLen +1 will fit */
+        XSTRNCPY(ctx->name + pathLen + 1, ctx->entry.name, dnameLen + 1);
+
+        if (fs_stat(ctx->name, &ctx->s) != 0) {
+            WOLFSSL_MSG("stat on name failed");
+            ret = BAD_PATH_ERROR;
+            break;
+        } else if (ctx->s.type == FS_DIR_ENTRY_FILE) {
+            if (name)
+                *name = ctx->name;
+            return 0;
+        }
+    }
 #else
     while ((ctx->entry = readdir(ctx->dir)) != NULL) {
         dnameLen = (int)XSTRLEN(ctx->entry->d_name);
@@ -413,12 +469,48 @@ void wc_ReadDirClose(ReadDirCtx* ctx)
         FindClose(ctx->hFind);
         ctx->hFind = INVALID_HANDLE_VALUE;
     }
+#elif defined(WOLFSSL_ZEPHYR)
+    if (ctx->dirp) {
+        fs_closedir(ctx->dirp);
+        ctx->dirp = NULL;
+    }
 #else
     if (ctx->dir) {
         closedir(ctx->dir);
         ctx->dir = NULL;
     }
 #endif
+}
+
+#endif /* !NO_FILESYSTEM && !NO_WOLFSSL_DIR */
+
+#if !defined(NO_FILESYSTEM) && defined(WOLFSSL_ZEPHYR)
+XFILE z_fs_open(const char* filename, const char* perm)
+{
+    XFILE file;
+
+    file = XMALLOC(sizeof(*file), NULL, DYNAMIC_TYPE_FILE);
+    if (file != NULL) {
+        if (fs_open(file, filename) != 0) {
+            XFREE(file);
+            file = NULL;
+        }
+    }
+
+    return file;
+}
+
+int z_fs_close(XFILE file)
+{
+    int ret;
+
+    if (file == NULL)
+        return -1;
+    ret = (fs_close(file) == 0) ? 0 : -1;
+
+    XFREE(file, NULL, DYNAMIC_TYPE_FILE);
+
+    return ret;
 }
 
 #endif /* !NO_FILESYSTEM && !NO_WOLFSSL_DIR */
@@ -1468,6 +1560,37 @@ int wolfSSL_CryptHwMutexUnLock(void) {
         return BAD_MUTEX_E;
     }
 
+#elif defined(WOLFSSL_ZEPHYR)
+
+    int wc_InitMutex(wolfSSL_Mutex* m)
+    {
+        k_mutex_init(m);
+
+        return 0;
+    }
+
+    int wc_FreeMutex(wolfSSL_Mutex* m)
+    {
+        return 0;
+    }
+
+    int wc_LockMutex(wolfSSL_Mutex* m)
+    {
+        int ret = 0;
+
+        if (k_mutex_lock(m, K_FOREVER) != 0)
+            ret = BAD_MUTEX_E;
+
+        return ret;
+    }
+
+    int wc_UnLockMutex(wolfSSL_Mutex* m)
+    {
+        k_mutex_unlock(m);
+
+        return 0;
+    }
+
 #else
     #warning No mutex handling defined
 
@@ -1639,7 +1762,6 @@ time_t deos_time(time_t* timer)
 }
 #endif /* WOLFSSL_DEOS */
 
-
 #if defined(MICRIUM)
 
 time_t micrium_time(time_t* timer)
@@ -1717,6 +1839,22 @@ time_t XTIME(time_t * timer)
 }
 
 #endif /* WOLFSSL_XILINX */
+
+#if defined(WOLFSSL_ZEPHYR)
+
+time_t z_time(time_t * timer)
+{
+    struct timespec ts;
+
+    if (clock_gettime(CLOCK_REALTIME, &ts) == 0)
+        if (timer != NULL)
+            *timer = ts.tv_sec;
+
+    return ts.tv_sec;
+}
+
+#endif /* WOLFSSL_ZEPHYR */
+
 #endif /* !NO_ASN_TIME */
 
 #ifndef WOLFSSL_LEANPSK

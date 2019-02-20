@@ -6436,6 +6436,13 @@ ProtocolVersion MakeDTLSv1_2(void)
         return now;
     }
 
+#elif defined(WOLFSSL_ZEPHYR)
+
+    word32 LowResTimer(void)
+    {
+        return k_uptime_get() / 1000;
+    }
+
 #else
     /* Posix style time */
     #ifndef USER_TIME

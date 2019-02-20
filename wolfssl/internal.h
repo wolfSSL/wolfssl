@@ -169,6 +169,10 @@
         void mynewt_ctx_clear(void *ctx);
         void* mynewt_ctx_new();
     #endif
+#elif defined(WOLFSSL_ZEPHYR)
+    #ifndef SINGLE_THREADED
+        #include <kernel.h>
+    #endif
 #else
     #ifndef SINGLE_THREADED
         #define WOLFSSL_PTHREADS
@@ -2726,8 +2730,6 @@ struct WOLFSSL_CTX {
 #endif
 };
 
-WOLFSSL_LOCAL
-WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap);
 WOLFSSL_LOCAL
 int InitSSL_Ctx(WOLFSSL_CTX*, WOLFSSL_METHOD*, void* heap);
 WOLFSSL_LOCAL

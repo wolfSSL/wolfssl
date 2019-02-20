@@ -148,6 +148,7 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #elif defined(MICRIUM)
 #elif defined(WOLFSSL_NUCLEUS)
 #elif defined(WOLFSSL_PB)
+#elif defined(WOLFSSL_ZEPHYR)
 #else
     /* include headers that may be needed to get good seed */
     #include <fcntl.h>
@@ -2156,6 +2157,32 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
        CUSTOM_RAND_GENERATE_BLOCK */
 
     #define USE_TEST_GENSEED
+
+#elif defined(WOLFSSL_ZEPHYR)
+
+        #include <entropy.h>
+    #ifndef _POSIX_C_SOURCE
+        #include <posix/time.h>
+    #else
+        #include <sys/time.h>
+    #endif
+
+        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+            int ret = 0;
+            word32 rand;
+            while (sz > 0) {
+                word32 len = sizeof(rand);
+                if (sz < len)
+                    len = sz;
+                rand = sys_rand32_get();
+                XMEMCPY(output, &rand, sz);
+                output += len;
+                sz -= len;
+            }
+
+            return ret;
+        }
 
 #elif defined(NO_DEV_RANDOM)
 

@@ -1378,6 +1378,28 @@ extern void uITRON4_free(void *p) ;
 
 #endif /*(WOLFSSL_APACHE_MYNEWT)*/
 
+#ifdef WOLFSSL_ZEPHYR
+    #include <zephyr.h>
+    #include <misc/printk.h>
+    #include <misc/util.h>
+    #include <stdlib.h>
+
+    #define WOLFSSL_DH_CONST
+    #define WOLFSSL_HAVE_MIN
+    #define WOLFSSL_HAVE_MAX
+    #define NO_WRITEV
+
+    #define USE_FLAT_BENCHMARK_H
+    #define USE_FLAT_TEST_H
+    #define EXIT_FAILURE 1
+    #define MAIN_NO_ARGS
+
+    void *z_realloc(void *ptr, size_t size);
+    #define realloc   z_realloc
+
+    #define CONFIG_NET_SOCKETS_POSIX_NAMES
+#endif
+
 #ifdef WOLFSSL_IMX6
     #ifndef SIZEOF_LONG_LONG
         #define SIZEOF_LONG_LONG 8

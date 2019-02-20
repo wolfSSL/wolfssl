@@ -69,6 +69,29 @@
       void BSP_Ser_Printf (CPU_CHAR* format, ...);
       #undef printf
       #define printf BSP_Ser_Printf
+#elif defined(WOLFSSL_ZEPHYR)
+    #include <stdio.h>
+
+    #define BENCH_EMBEDDED
+
+    #define printf printfk
+
+    static int printfk(const char *fmt, ...)
+    {
+        int ret;
+        char line[150];
+        va_list ap;
+
+        va_start(ap, fmt);
+
+        ret = vsnprintf(line, sizeof(line), fmt, ap);
+        line[sizeof(line)-1] = '\0';
+        printk("%s", line);
+
+        va_end(ap);
+
+        return ret;
+    }
 #else
     #include <stdio.h>
 #endif
@@ -228,6 +251,7 @@ typedef struct bench_alg {
     int val;
 } bench_alg;
 
+#ifndef MAIN_NO_ARGS
 /* All recognized cipher algorithm choosing command line options. */
 static const bench_alg bench_cipher_opt[] = {
     { "-cipher",             -1                      },
@@ -410,6 +434,7 @@ static const bench_alg bench_other_opt[] = {
 #endif
     { NULL, 0}
 };
+#endif /* MAIN_NO_ARGS */
 
 #endif /* !WOLFSSL_BENCHMARK_ALL && !NO_MAIN_DRIVER */
 
@@ -424,7 +449,9 @@ static const bench_alg bench_other_opt[] = {
 #endif
 
 static int lng_index = 0;
+
 #ifndef NO_MAIN_DRIVER
+#ifndef MAIN_NO_ARGS
 static const char* bench_Usage_msg1[][10] = {
     /* 0 English  */
     {   "-? <num>    Help, print this usage\n            0: English, 1: Japanese\n",
@@ -453,6 +480,7 @@ static const char* bench_Usage_msg1[][10] = {
     },
 #endif
 };
+#endif /* MAIN_NO_ARGS */
 #endif
 
 static const char* bench_result_words1[][4] = {
@@ -1706,6 +1734,8 @@ int benchmark_test(void *args)
 #else
     benchmarks_do(NULL);
 #endif
+
+    printf("Benchmark complete\n");
 
     ret = benchmark_free();
 
@@ -5252,6 +5282,21 @@ exit_ed_verify:
         (void)reset;
         return (double) CPU_TS_Get32()/CPU_TS_TmrFreqGet(&err);
     }
+#elif defined(WOLFSSL_ZEPHYR)
+
+    #include <time.h>
+
+    double current_time(int reset)
+    {
+        (void)reset;
+
+     #if defined(CONFIG_ARCH_POSIX)
+         k_cpu_idle();
+     #endif
+
+        return (double)k_uptime_get() / 1000;
+    }
+
 #else
 
     #include <sys/time.h>
@@ -5296,6 +5341,8 @@ void benchmark_configure(int block_size)
 }
 
 #ifndef NO_MAIN_DRIVER
+
+#ifndef MAIN_NO_ARGS
 
 #ifndef WOLFSSL_BENCHMARK_ALL
 /* Display the algorithm string and keep to 80 characters per line.
@@ -5378,13 +5425,18 @@ static int string_matches(const char* arg, const char* str)
     int len = (int)XSTRLEN(str) + 1;
     return XSTRNCMP(arg, str, len) == 0;
 }
+#endif /* MAIN_NO_ARGS */
+
 #ifdef WOLFSSL_ESPIDF
 int wolf_benchmark_task( )
+#elif defined(MAIN_NO_ARGS)
+int main()
 #else
 int main(int argc, char** argv)
 #endif
 {
     int ret = 0;
+#ifndef MAIN_NO_ARGS
     int optMatched;
 #ifdef WOLFSSL_ESPIDF
     int argc = construct_argv();
@@ -5393,7 +5445,9 @@ int main(int argc, char** argv)
 #ifndef WOLFSSL_BENCHMARK_ALL
     int i;
 #endif
+#endif
 
+#ifndef MAIN_NO_ARGS
     while (argc > 1) {
         if (string_matches(argv[1], "-?")) {
             if(--argc>1){
@@ -5499,6 +5553,7 @@ int main(int argc, char** argv)
         argc--;
         argv++;
     }
+#endif /* MAIN_NO_ARGS */
 
 #ifdef HAVE_STACK_SIZE
     ret = StackSizeCheck(NULL, benchmark_test);
