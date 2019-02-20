@@ -705,7 +705,9 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     rng->devId = devId;
-    rng->seed.devId = devId;
+    #if defined(WOLF_CRYPTO_CB)
+        rng->seed.devId = devId;
+    #endif
 #else
     (void)devId;
 #endif

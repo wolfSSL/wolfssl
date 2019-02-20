@@ -30,15 +30,15 @@
  * NO_PSK
  *    Do not enable Pre-Shared Keys.
  * TLS13_SUPPORTS_EXPORTERS
- *    Gaurd to compile out any code for exporter keys.
+ *    Guard to compile out any code for exporter keys.
  *    Feature not supported yet.
  * WOLFSSL_ASYNC_CRYPT
- *    Enables the use of asynchornous cryptographic operations.
+ *    Enables the use of asynchronous cryptographic operations.
  *    This is available for ciphers and certificates.
  * HAVE_CHACHA && HAVE_POLY1305
  *    Enables use of CHACHA20-POLY1305 ciphersuites.
  * WOLFSSL_DEBUG_TLS
- *    Writes out details of TLS 1.3 protocol including hanshake message buffers
+ *    Writes out details of TLS 1.3 protocol including handshake message buffers
  *    and key generation input and output.
  * WOLFSSL_EARLY_DATA
  *    Allow 0-RTT Handshake using Early Data extensions and handshake message
@@ -62,7 +62,7 @@
  * WOLFSSL_TLS13_DRAFT_23
  *    Conform with Draft 23 of the TLS v1.3 specification.
  * WOLFSSL_TLS13_MIDDLEBOX_COMPAT
- *    Enable middlebox compatability in the TLS 1.3 handshake.
+ *    Enable middlebox compatibility in the TLS 1.3 handshake.
  *    This includes sending ChangeCipherSpec before encrypted messages and
  *    including a session id.
  * WOLFSSL_TLS13_SHA512
@@ -861,9 +861,9 @@ static int DeriveMasterSecret(WOLFSSL* ssl)
 #if defined(HAVE_SESSION_TICKET)
 /* Length of the resumption label. */
 #define RESUMPTION_LABEL_SZ         10
-/* Resumption label for generating PSK assocated with the ticket. */
+/* Resumption label for generating PSK associated with the ticket. */
 static const byte resumptionLabel[RESUMPTION_LABEL_SZ+1] = "resumption";
-/* Derive the PSK assocated with the ticket.
+/* Derive the PSK associated with the ticket.
  *
  * ssl       The SSL/TLS object.
  * nonce     The nonce to derive with.
@@ -2344,9 +2344,6 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk)
 
     if (psk == NULL)
         return BAD_FUNC_ARG;
-
-    if (ssl->options.noPskDheKe && ssl->arrays->preMasterSz != 0)
-        return PSK_KEY_ERROR;
 
     suite[0] = psk->cipherSuite0;
     suite[1] = psk->cipherSuite;
