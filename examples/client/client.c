@@ -983,6 +983,11 @@ static const char* client_usage_msg[][59] = {
 #endif
         "-1 <num>    Display a result by specified language.\n"
                                "            0: English, 1: Japanese\n", /* 58 */
+#if !defined(NO_DH) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
+        "-2          Disable DH Prime check\n",                         /* 59 */
+#endif
+        "-4          Use resumption for renegotiation\n",               /* 60 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1134,6 +1139,13 @@ static const char* client_usage_msg[][59] = {
 #endif
         "-1 <num>    指定された言語で結果を表示します。\n"
                                    "            0: 英語、 1: 日本語\n", /* 58 */
+#if !defined(NO_DH) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
+        "-2          DHプライム番号チェックを無効にする\n",             /* 59 */
+#endif
+#ifdef HAVE_SECURE_RENEGOTIATION
+        "-4          再交渉に再開を使用\n",                             /* 60 */
+#endif
         NULL,
     },
 #endif
@@ -1208,7 +1220,6 @@ static void Usage(void)
 #ifdef HAVE_SECURE_RENEGOTIATION
     printf("%s", msg[++msgid]); /* -R */
     printf("%s", msg[++msgid]); /* -i */
-    printf("-4          Use resumption for renegotiation\n");
 #endif
     printf("%s", msg[++msgid]); /* -f */
     printf("%s", msg[++msgid]); /* -x */
@@ -1276,14 +1287,17 @@ static void Usage(void)
 #ifdef WOLFSSL_EARLY_DATA
     printf("%s", msg[++msgid]); /* -0 */
 #endif
-#if !defined(NO_DH) && !defined(HAVE_FIPS) && \
-    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
-    printf("-2          Disable DH Prime check\n");
-#endif
 #ifdef WOLFSSL_MULTICAST
     printf("%s", msg[++msgid]); /* -3 */
 #endif
     printf("%s", msg[++msgid]);  /* -1 */
+#if !defined(NO_DH) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
+    printf("%s", msg[++msgid]);  /* -2 */
+#endif
+#ifdef HAVE_SECURE_RENEGOTIATION
+    printf("%s", msg[++msgid]);  /* -4 */
+#endif
 }
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
