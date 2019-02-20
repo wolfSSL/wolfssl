@@ -3185,6 +3185,11 @@ exit:
     wolfAsync_DevClose(&devId);
 #endif
 
+#if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS) \
+                                         && defined(HAVE_STACK_SIZE)
+    wc_ecc_fp_free();  /* free per thread cache */
+#endif
+
     /* There are use cases  when these assignments are not read. To avoid
      * potential confusion those warnings have been handled here.
      */
