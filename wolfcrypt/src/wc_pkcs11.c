@@ -565,10 +565,8 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                                                 (unsigned char *)aes->id,
                                                 aes->idLen);
                 }
-                if (ret == 0 && clear) {
-                    XMEMSET(aes->devKey, 0, aes->keylen);
-                    XMEMSET(aes->key, 0, aes->keylen);
-                }
+                if (ret == 0 && clear)
+                    ForceZero(aes->devKey, 0, aes->keylen);
                 break;
             }
     #endif
@@ -584,10 +582,8 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                                                 (unsigned char *)aes->id,
                                                 aes->idLen);
                 }
-                if (ret == 0 && clear) {
-                    XMEMSET(aes->devKey, 0, aes->keylen);
-                    XMEMSET(aes->key, 0, aes->keylen);
-                }
+                if (ret == 0 && clear)
+                    ForceZero(aes->devKey, 0, aes->keylen);
                 break;
             }
     #endif
