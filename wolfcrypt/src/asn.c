@@ -8559,6 +8559,7 @@ int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
             break;
     #endif
         case PUBLICKEY_TYPE:
+        case ECC_PUBLICKEY_TYPE:
             if (header) *header = BEGIN_PUB_KEY;
             if (footer) *footer = END_PUB_KEY;
             ret = 0;
