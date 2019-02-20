@@ -119,30 +119,26 @@ enum wolfSSL_ErrorCodes {
     SECURE_RENEGOTIATION_E       = -388,   /* Invalid Renegotiation Info */
     SESSION_TICKET_LEN_E         = -389,   /* Session Ticket too large */
     SESSION_TICKET_EXPECT_E      = -390,   /* Session Ticket missing   */
-    SCR_DIFFERENT_CERT_E         = -391,   /* SCR Different cert error  */
+
     SESSION_SECRET_CB_E          = -392,   /* Session secret Cb fcn failure */
     NO_CHANGE_CIPHER_E           = -393,   /* Finished before change cipher */
     SANITY_MSG_E                 = -394,   /* Sanity check on msg order error */
     DUPLICATE_MSG_E              = -395,   /* Duplicate message error */
     SNI_UNSUPPORTED              = -396,   /* SSL 3.0 does not support SNI */
     SOCKET_PEER_CLOSED_E         = -397,   /* Underlying transport closed */
-
     BAD_TICKET_KEY_CB_SZ         = -398,   /* Bad session ticket key cb size */
     BAD_TICKET_MSG_SZ            = -399,   /* Bad session ticket msg size    */
     BAD_TICKET_ENCRYPT           = -400,   /* Bad user ticket encrypt        */
-
     DH_KEY_SIZE_E                = -401,   /* DH Key too small */
     SNI_ABSENT_ERROR             = -402,   /* No SNI request. */
     RSA_SIGN_FAULT               = -403,   /* RSA Sign fault */
     HANDSHAKE_SIZE_ERROR         = -404,   /* Handshake message too large */
-
     UNKNOWN_ALPN_PROTOCOL_NAME_E = -405,   /* Unrecognized protocol name Error*/
     BAD_CERTIFICATE_STATUS_ERROR = -406,   /* Bad certificate status message */
     OCSP_INVALID_STATUS          = -407,   /* Invalid OCSP Status */
     OCSP_WANT_READ               = -408,   /* OCSP callback response WOLFSSL_CBIO_ERR_WANT_READ */
     RSA_KEY_SIZE_E               = -409,   /* RSA key too small */
     ECC_KEY_SIZE_E               = -410,   /* ECC key too small */
-
     DTLS_EXPORT_VER_E            = -411,   /* export version error */
     INPUT_SIZE_E                 = -412,   /* input size too big error */
     CTX_INIT_MUTEX_E             = -413,   /* initialize ctx mutex error */

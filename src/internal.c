@@ -9562,30 +9562,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     #endif
                     }
                 }
-
-            #ifdef HAVE_SECURE_RENEGOTIATION
-                if (args->fatal == 0 && ssl->secure_renegotiation
-                               && ssl->secure_renegotiation->enabled) {
-
-                    if (IsEncryptionOn(ssl, 0)) {
-                        /* compare against previous time */
-                        if (XMEMCMP(args->dCert->subjectHash,
-                                    ssl->secure_renegotiation->subject_hash,
-                                    KEYID_SIZE) != 0) {
-                            WOLFSSL_MSG(
-                                "Peer sent different cert during scr, fatal");
-                            args->fatal = 1;
-                            ret = SCR_DIFFERENT_CERT_E;
-                        }
-                    }
-
-                    /* cache peer's hash */
-                    if (args->fatal == 0) {
-                        XMEMCPY(ssl->secure_renegotiation->subject_hash,
-                                args->dCert->subjectHash, KEYID_SIZE);
-                    }
-                }
-            #endif /* HAVE_SECURE_RENEGOTIATION */
             } /* if (count > 0) */
 
             /* Check for error */
@@ -15756,9 +15732,6 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case SESSION_TICKET_EXPECT_E:
         return "Session Ticket Error";
-
-    case SCR_DIFFERENT_CERT_E:
-        return "Peer sent different cert during SCR";
 
     case SESSION_SECRET_CB_E:
         return "Session Secret Callback Error";
