@@ -2441,6 +2441,7 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
         ret = Pkcs11OpenSession(token, &session, readWrite);
         if (ret == 0) {
             if (info->algo_type == WC_ALGO_TYPE_PK) {
+#if !defined(NO_RSA) || defined(HAVE_ECC)
                 switch (info->pk.type) {
     #ifndef NO_RSA
                     case WC_PK_TYPE_RSA:
@@ -2474,10 +2475,13 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                         ret = NOT_COMPILED_IN;
                         break;
                 }
+#else
+                ret = NOT_COMPILED_IN;
+#endif /* !NO_RSA || HAVE_ECC */
             }
             else if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
-                switch (info->cipher.type) {
     #ifndef NO_AES
+                switch (info->cipher.type) {
         #ifdef HAVE_AESGCM
                     case WC_CIPHER_AES_GCM:
                         if (info->cipher.enc)
@@ -2494,8 +2498,10 @@ int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                             ret = Pkcs11AesCbcDecrypt(&session, info);
                         break;
         #endif
-    #endif
                 }
+    #else
+                ret = NOT_COMPILED_IN;
+    #endif
             }
             else if (info->algo_type == WC_ALGO_TYPE_HMAC) {
     #ifndef NO_HMAC

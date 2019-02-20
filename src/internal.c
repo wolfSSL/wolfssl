@@ -17003,6 +17003,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         }
 
         if (ssl->buffers.keyType == rsa_sa_algo) {
+    #ifndef NO_RSA
             ret = wc_InitRsaKey_Id((RsaKey*)ssl->hsKey,
                              ssl->buffers.key->buffer, ssl->buffers.key->length,
                              ssl->heap, ssl->buffers.keyDevId);
@@ -17015,8 +17016,10 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
                 /* Return the maximum signature length. */
                 *length = (word16)wc_ecc_sig_size_calc(ssl->buffers.keySz);
             }
+    #endif
         }
         else if (ssl->buffers.keyType == ecc_dsa_sa_algo) {
+    #ifdef HAVE_ECC
             ret = wc_ecc_init_id((ecc_key*)ssl->hsKey, ssl->buffers.key->buffer,
                                  ssl->buffers.key->length, ssl->heap,
                                  ssl->buffers.keyDevId);
@@ -17029,6 +17032,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
                 /* Return the maximum signature length. */
                 *length = (word16)wc_ecc_sig_size_calc(ssl->buffers.keySz);
             }
+    #endif
         }
         goto exit_dpk;
     }
