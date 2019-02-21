@@ -1815,6 +1815,29 @@ extern void uITRON4_free(void *p) ;
         #define HAVE_FFDHE
     #endif
 #endif
+#ifdef FP_MAX_BITS
+    #if defined(HAVE_FFDHE_8192) && FP_MAX_BITS < 16384
+        #undef  FP_MAX_BITS
+        #define FP_MAX_BITS     16384
+    #endif
+    #if defined(HAVE_FFDHE_6144) && FP_MAX_BITS < 12288
+        #undef  FP_MAX_BITS
+        #define FP_MAX_BITS     12288
+    #endif
+    #if defined(HAVE_FFDHE_4096) && FP_MAX_BITS < 8192
+        #undef  FP_MAX_BITS
+        #define FP_MAX_BITS     8192
+    #endif
+    #if defined(HAVE_FFDHE_3072) && FP_MAX_BITS < 6144
+        #undef  FP_MAX_BITS
+        #define FP_MAX_BITS     6144
+    #endif
+    #if defined(HAVE_FFDHE_2048) && FP_MAX_BITS < 4096
+        #undef  FP_MAX_BITS
+        #define FP_MAX_BITS     4096
+    #endif
+#endif
+
 
 /* both CURVE and ED small math should be enabled */
 #ifdef CURVED25519_SMALL

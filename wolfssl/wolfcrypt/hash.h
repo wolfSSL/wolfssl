@@ -195,11 +195,11 @@ WOLFSSL_API int wc_Sha512Hash(const byte*, word32, byte*);
 
 enum max_prf {
 #ifdef HAVE_FFDHE_8192
-    MAX_PRF_HALF        = 512, /* Maximum half secret len */
+    MAX_PRF_HALF        = 516, /* Maximum half secret len */
 #elif defined(HAVE_FFDHE_6144)
-    MAX_PRF_HALF        = 384, /* Maximum half secret len */
+    MAX_PRF_HALF        = 388, /* Maximum half secret len */
 #else
-    MAX_PRF_HALF        = 256, /* Maximum half secret len */
+    MAX_PRF_HALF        = 260, /* Maximum half secret len */
 #endif
     MAX_PRF_LABSEED     = 128, /* Maximum label + seed len */
     MAX_PRF_DIG         = 224  /* Maximum digest len      */
