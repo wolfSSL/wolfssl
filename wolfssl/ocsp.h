@@ -54,7 +54,9 @@ WOLFSSL_LOCAL int  CheckCertOCSP_ex(WOLFSSL_OCSP*, DecodedCert*,
                              WOLFSSL_BUFFER_INFO* responseBuffer, WOLFSSL* ssl);
 WOLFSSL_LOCAL int  CheckOcspRequest(WOLFSSL_OCSP* ocsp,
                  OcspRequest* ocspRequest, WOLFSSL_BUFFER_INFO* responseBuffer);
-
+WOLFSSL_API int wolfSSL_CertManagerCheckOCSP_Staple(WOLFSSL_CERT_MANAGER *,
+                byte *response, int responseSz, WOLFSSL_BUFFER_INFO *responseBuffer,
+                CertStatus *status, OcspEntry *entry, OcspRequest *ocspRequest);
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 

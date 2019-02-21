@@ -1791,6 +1791,7 @@ struct WOLFSSL_CIPHER {
 #endif
 
 /* wolfSSL OCSP controller */
+#ifdef HAVE_OCSP
 struct WOLFSSL_OCSP {
     WOLFSSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
     OcspEntry*            ocspList;      /* OCSP response list */
@@ -1800,6 +1801,7 @@ struct WOLFSSL_OCSP {
     int(*statusCb)(WOLFSSL*, void*);
 #endif
 };
+#endif 
 
 #ifndef MAX_DATE_SIZE
 #define MAX_DATE_SIZE 32

@@ -383,6 +383,24 @@ end:
     return ret;
 }
 
+WOLFSSL_API int wolfSSL_CertManagerCheckOCSP_Staple(WOLFSSL_CERT_MANAGER *cm,
+                                                    byte *response, int responseSz, buffer *responseBuffer,
+                                                    CertStatus *status, OcspEntry *entry, OcspRequest *ocspRequest)
+{
+    int ret;
+    
+    WOLFSSL_ENTER("wolfSSL_CertManagerCheckOCSP_Staple");
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+    if (cm->ocspEnabled == 0)
+        return WOLFSSL_SUCCESS;
+
+    ret = CheckResponse(cm->ocsp, response, responseSz, responseBuffer, status,
+                        entry, ocspRequest);
+
+    return ret == 0 ? WOLFSSL_SUCCESS : ret;
+}
+
 /* 0 on success */
 int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
                                                       buffer* responseBuffer)
