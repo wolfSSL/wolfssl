@@ -390,7 +390,7 @@ WOLFSSL_API int wolfSSL_CertManagerCheckOCSP_Staple(WOLFSSL_CERT_MANAGER *cm,
     int ret;
     
     WOLFSSL_ENTER("wolfSSL_CertManagerCheckOCSP_Staple");
-    if (cm == NULL)
+    if (cm == NULL || response == NULL)
         return BAD_FUNC_ARG;
     if (cm->ocspEnabled == 0)
         return WOLFSSL_SUCCESS;
