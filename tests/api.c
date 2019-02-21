@@ -23157,6 +23157,72 @@ static void test_wolfSSL_X509V3_EXT_get(void){
     wolfSSL_X509_free(x509);
 }
 
+static void test_wolfSSL_OBJ_nid2sn(void){
+
+    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_commonName");
+    AssertIntEQ(strcmp("CN", wolfSSL_OBJ_nid2sn(3)), 0);
+    printf(resultFmt, "passed");
+
+    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_countryName");
+    AssertIntEQ(strcmp("C", wolfSSL_OBJ_nid2sn(6)), 0);
+    printf(resultFmt, "passed");
+
+    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_localityName");
+    AssertIntEQ(strcmp("L", wolfSSL_OBJ_nid2sn(7)), 0);
+    printf(resultFmt, "passed");
+
+    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_stateOrProvinceName");
+    AssertIntEQ(strcmp("ST", wolfSSL_OBJ_nid2sn(8)), 0);
+    printf(resultFmt, "passed");
+
+    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_organizationName");
+    AssertIntEQ(strcmp("O", wolfSSL_OBJ_nid2sn(10)), 0);
+    printf(resultFmt, "passed");
+
+    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_organizationalUnitName");
+    AssertIntEQ(strcmp("OU", wolfSSL_OBJ_nid2sn(11)), 0);
+    printf(resultFmt, "passed");
+
+    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_emailAddress");
+    AssertIntEQ(strcmp("emailAddress",  wolfSSL_OBJ_nid2sn(48)), 0);
+    printf(resultFmt, "passed");
+
+    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_basic_constraints");
+    AssertIntEQ(strcmp("basicConstraints", wolfSSL_OBJ_nid2sn(133)), 0);
+    printf(resultFmt, "passed");
+
+    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_subject_key_identifier");
+    AssertIntEQ(strcmp("subjectKeyIdentifier", wolfSSL_OBJ_nid2sn(128)), 0);
+    printf(resultFmt, "passed");
+
+    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_authority_key_identifier");
+    AssertIntEQ(strcmp("authorityKeyIdentifier",  wolfSSL_OBJ_nid2sn(149)), 0);
+    printf(resultFmt, "passed");
+
+    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_certificate_policies");
+    AssertIntEQ(strcmp("certificatePolicies",  wolfSSL_OBJ_nid2sn(146)), 0 );
+    printf(resultFmt, "passed");
+
+    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_key_usage");
+    AssertIntEQ(strcmp("keyUsage",  wolfSSL_OBJ_nid2sn(129)), 0 );
+    printf(resultFmt, "passed");
+
+    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_info_access");
+    AssertIntEQ(strcmp("authorityInfoAccess", wolfSSL_OBJ_nid2sn(69)), 0);
+    printf(resultFmt, "passed");
+
+    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_crl_distribution_points");
+    AssertIntEQ(strcmp("cRLDistributionPoints", wolfSSL_OBJ_nid2sn(145)), 0);
+    printf(resultFmt, "passed");
+
+    printf(testingFmt, "wolfSSL_OBJ_nid2sn: EXT_KEY_USAGE_OID");
+    AssertIntEQ(strcmp("extKeyUsage", wolfSSL_OBJ_nid2sn(151)), 0);
+    printf(resultFmt, "passed");
+
+    //ADD TESTING FOR #ifdef HAVE_ECC
+}
+
+
 static void test_wolfSSL_X509_get_ext(void){
     int ret = 0;
     FILE* f;
@@ -24144,12 +24210,10 @@ static void test_EC_get_builtin_curves(void)
 
     /* Test invalid nitems */
     numCurves = EC_get_builtin_curves(r,-1);
-    fprintf(stderr,"%lu\n",numCurves);
     AssertIntEQ(numCurves,max_items);
 
     /* Test very large nitems */
     numCurves = EC_get_builtin_curves(r,1000);
-    fprintf(stderr,"%lu\n",numCurves);
     AssertIntEQ(numCurves,max_items);
 
     /* Test that passed in nitems matches return numCurves */
@@ -26423,6 +26487,7 @@ void ApiTest(void)
     test_EC_get_builtin_curves();
     test_wolfSSL_EVP_PKEY_assign();
     test_OBJ_ln2nid();
+    test_wolfSSL_OBJ_nid2sn();
 
     printf("\n-------------End Of Qt Unit Tests---------------\n");
 
