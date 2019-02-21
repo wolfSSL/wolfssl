@@ -2324,6 +2324,7 @@ static TCA* TLSX_TCA_New(byte type, const byte* id, word16 idSz, void* heap)
             case WOLFSSL_TRUSTED_CA_PRE_AGREED:
                 break;
 
+            #ifndef NO_SHA
             case WOLFSSL_TRUSTED_CA_KEY_SHA1:
             case WOLFSSL_TRUSTED_CA_CERT_SHA1:
                 if (idSz == SHA_DIGEST_SIZE &&
@@ -2337,6 +2338,7 @@ static TCA* TLSX_TCA_New(byte type, const byte* id, word16 idSz, void* heap)
                     tca = NULL;
                 }
                 break;
+            #endif
 
             case WOLFSSL_TRUSTED_CA_X509_NAME:
                 if (idSz > 0 &&
@@ -2424,17 +2426,37 @@ static word16 TLSX_TCA_Write(TCA* list, byte* output)
         switch (tca->type) {
             case WOLFSSL_TRUSTED_CA_PRE_AGREED:
                 break;
+            #ifndef NO_SHA
             case WOLFSSL_TRUSTED_CA_KEY_SHA1:
             case WOLFSSL_TRUSTED_CA_CERT_SHA1:
-                XMEMCPY(output + offset, tca->id, tca->idSz);
-                offset += tca->idSz;
+                if (tca->id != NULL) {
+                    XMEMCPY(output + offset, tca->id, tca->idSz);
+                    offset += tca->idSz;
+                }
+                else {
+                    /* ID missing. Set to an empty string. */
+                    c16toa(0, output + offset);
+                    offset += OPAQUE16_LEN;
+                }
                 break;
+            #endif
             case WOLFSSL_TRUSTED_CA_X509_NAME:
-                c16toa(tca->idSz, output + offset); /* tca length */
-                offset += OPAQUE16_LEN;
-                XMEMCPY(output + offset, tca->id, tca->idSz);
-                offset += tca->idSz;
+                if (tca->id != NULL) {
+                    c16toa(tca->idSz, output + offset); /* tca length */
+                    offset += OPAQUE16_LEN;
+                    XMEMCPY(output + offset, tca->id, tca->idSz);
+                    offset += tca->idSz;
+                }
+                else {
+                    /* ID missing. Set to an empty string. */
+                    c16toa(0, output + offset);
+                    offset += OPAQUE16_LEN;
+                }
                 break;
+            default:
+                /* ID unknown. Set to an empty string. */
+                c16toa(0, output + offset);
+                offset += OPAQUE16_LEN;
         }
     }
 
@@ -2513,6 +2535,7 @@ static int TLSX_TCA_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         switch (type) {
             case WOLFSSL_TRUSTED_CA_PRE_AGREED:
                 break;
+            #ifndef NO_SHA
             case WOLFSSL_TRUSTED_CA_KEY_SHA1:
             case WOLFSSL_TRUSTED_CA_CERT_SHA1:
                 if (offset + SHA_DIGEST_SIZE > length)
@@ -2521,6 +2544,7 @@ static int TLSX_TCA_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 id = input + offset;
                 offset += idSz;
                 break;
+            #endif
             case WOLFSSL_TRUSTED_CA_X509_NAME:
                 if (offset + OPAQUE16_LEN > length)
                     return BUFFER_ERROR;

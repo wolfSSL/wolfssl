@@ -3044,14 +3044,20 @@ static void test_wolfSSL_UseTrustedCA(void)
                 WOLFSSL_TRUSTED_CA_CERT_SHA1, NULL, 0));
     AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
                 WOLFSSL_TRUSTED_CA_CERT_SHA1, id, 5));
+#ifdef NO_SHA
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
+                WOLFSSL_TRUSTED_CA_KEY_SHA1, id, sizeof(id)));
+#endif
     AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
                 WOLFSSL_TRUSTED_CA_X509_NAME, id, 0));
 
     /* success cases */
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
                 WOLFSSL_TRUSTED_CA_PRE_AGREED, NULL, 0));
+#ifndef NO_SHA
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
                 WOLFSSL_TRUSTED_CA_KEY_SHA1, id, sizeof(id)));
+#endif
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
                 WOLFSSL_TRUSTED_CA_X509_NAME, id, 5));
 

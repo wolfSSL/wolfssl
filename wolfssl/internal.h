@@ -2177,9 +2177,6 @@ typedef struct TCA {
     byte*                      id;      /* TCA identifier      */
     word16                     idSz;    /* TCA identifier size */
     struct TCA*                next;    /* List Behavior       */
-#ifndef NO_WOLFSSL_CLIENT
-    byte                       options; /* Behavior options    */
-#endif /* NO_WOLFSSL_CLIENT */
 } TCA;
 
 WOLFSSL_LOCAL int TLSX_UseTrustedCA(TLSX** extensions, byte type,
