@@ -594,6 +594,9 @@ static const char* server_usage_msg[][49] = {
 #endif
         "-1 <num>    Display a result by specified language."
                              "\n            0: English, 1: Japanese\n", /* 48 */
+#ifdef HAVE_TRUSTED_CA
+        "-5          Use Trusted CA Key Indication\n",                  /* 51 */
+#endif
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -709,10 +712,12 @@ static const char* server_usage_msg[][49] = {
 #endif
         "-1 <num>    指定された言語で結果を表示します。"
                                  "\n            0: 英語、 1: 日本語\n", /* 48 */
+#ifdef HAVE_TRUSTED_CA
+        "-5          信頼できる認証局の鍵表示を使用する\n",             /* 51 */
+#endif
         NULL,
     },
 #endif
-
 };
 
 static void Usage(void)
@@ -826,7 +831,7 @@ static void Usage(void)
 #endif
     printf("%s", msg[++msgId]);     /* -1 */
 #ifdef HAVE_TRUSTED_CA
-    printf("-5          Use Trusted CA Key Indication\n");
+    printf("%s", msg[++msgId]);     /* -5 */
 #endif /* HAVE_TRUSTED_CA */
 }
 

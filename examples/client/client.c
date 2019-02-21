@@ -988,7 +988,12 @@ static const char* client_usage_msg[][59] = {
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
         "-2          Disable DH Prime check\n",                         /* 59 */
 #endif
+#ifdef HAVE_SECURE_RENEGOTIATION
         "-4          Use resumption for renegotiation\n",               /* 60 */
+#endif
+#ifdef HAVE_TRUSTED_CA
+        "-5          Use Trusted CA Key Indication\n",                  /* 61 */
+#endif
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1147,6 +1152,9 @@ static const char* client_usage_msg[][59] = {
 #ifdef HAVE_SECURE_RENEGOTIATION
         "-4          再交渉に再開を使用\n",                             /* 60 */
 #endif
+#ifdef HAVE_TRUSTED_CA
+        "-5          信頼できる認証局の鍵表示を使用する\n",             /* 61 */
+#endif
         NULL,
     },
 #endif
@@ -1291,9 +1299,6 @@ static void Usage(void)
 #ifdef WOLFSSL_MULTICAST
     printf("%s", msg[++msgid]); /* -3 */
 #endif
-#ifdef HAVE_TRUSTED_CA
-    printf("-5          Use Trusted CA Key Indication\n");
-#endif
     printf("%s", msg[++msgid]);  /* -1 */
 #if !defined(NO_DH) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
@@ -1301,6 +1306,9 @@ static void Usage(void)
 #endif
 #ifdef HAVE_SECURE_RENEGOTIATION
     printf("%s", msg[++msgid]);  /* -4 */
+#endif
+#ifdef HAVE_TRUSTED_CA
+    printf("%s", msg[++msgid]);  /* -5 */
 #endif
 }
 
