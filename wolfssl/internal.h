@@ -1781,27 +1781,10 @@ struct WOLFSSL_CIPHER {
 };
 
 
-typedef struct OcspEntry OcspEntry;
-
-#ifdef NO_SHA
-    #define OCSP_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
-#else
-    #define OCSP_DIGEST_SIZE WC_SHA_DIGEST_SIZE
-#endif
-
 #ifdef NO_ASN
     /* no_asn won't have */
     typedef struct CertStatus CertStatus;
 #endif
-
-struct OcspEntry {
-    OcspEntry*  next;                            /* next entry             */
-    byte        issuerHash[OCSP_DIGEST_SIZE];    /* issuer hash            */
-    byte        issuerKeyHash[OCSP_DIGEST_SIZE]; /* issuer public key hash */
-    CertStatus* status;                          /* OCSP response list     */
-    int         totalStatus;                     /* number on list         */
-};
-
 
 #ifndef HAVE_OCSP
     typedef struct WOLFSSL_OCSP WOLFSSL_OCSP;
