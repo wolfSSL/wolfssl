@@ -1701,8 +1701,13 @@ int benchmark_test(void *args)
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
 {
-    int i;
-    int numCpus = wc_AsyncGetNumberOfCpus();
+    int i, numCpus;
+
+#ifdef WC_ASYNC_BENCH_THREAD_COUNT
+    numCpus = WC_ASYNC_BENCH_THREAD_COUNT;
+#else
+    numCpus = wc_AsyncGetNumberOfCpus();
+#endif
 
     printf("CPUs: %d\n", numCpus);
 
