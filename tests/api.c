@@ -968,17 +968,17 @@ static void test_wolfSSL_CertManagerCRL(void)
     WOLFSSL_CERT_MANAGER* cm = NULL;
 
     AssertNotNull(cm = wolfSSL_CertManagerNew());
-    AssertIntEQ(WOLFSSL_SUCCESS, 
+    AssertIntEQ(WOLFSSL_SUCCESS,
         wolfSSL_CertManagerLoadCA(cm, ca_cert, NULL));
-    AssertIntEQ(WOLFSSL_SUCCESS, 
+    AssertIntEQ(WOLFSSL_SUCCESS,
         wolfSSL_CertManagerLoadCRL(cm, crl1, WOLFSSL_FILETYPE_PEM, 0));
-    AssertIntEQ(WOLFSSL_SUCCESS, 
-        wolfSSL_CertManagerLoadCRL(cm, crl2, WOLFSSL_FILETYPE_PEM, 0));    
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CertManagerLoadCRL(cm, crl2, WOLFSSL_FILETYPE_PEM, 0));
     wolfSSL_CertManagerFreeCRL(cm);
 
-    AssertIntEQ(WOLFSSL_SUCCESS, 
+    AssertIntEQ(WOLFSSL_SUCCESS,
         wolfSSL_CertManagerLoadCRL(cm, crl1, WOLFSSL_FILETYPE_PEM, 0));
-    AssertIntEQ(WOLFSSL_SUCCESS, 
+    AssertIntEQ(WOLFSSL_SUCCESS,
         wolfSSL_CertManagerLoadCA(cm, ca_cert, NULL));
     wolfSSL_CertManagerFree(cm);
 
@@ -2683,7 +2683,7 @@ static void verify_SNI_ABSENT_on_server(WOLFSSL* ssl)
 static void verify_SNI_no_matching(WOLFSSL* ssl)
 {
     byte type = WOLFSSL_SNI_HOST_NAME;
-    char* request = (char*) &type; /* to be overwriten */
+    char* request = (char*) &type; /* to be overwritten */
 
     AssertIntEQ(WOLFSSL_SNI_NO_MATCH, wolfSSL_SNI_Status(ssl, type));
     AssertNotNull(request);
@@ -2731,15 +2731,15 @@ static void test_wolfSSL_UseSNI_connection(void)
         {0, 0, use_SNI_at_ssl, verify_SNI_real_matching, 0},
         {0, 0, use_SNI_at_ssl, verify_SNI_real_matching, 0},
 
-        /* default missmatch behavior */
+        /* default mismatch behavior */
         {0, 0, different_SNI_at_ssl, verify_FATAL_ERROR_on_client, 0},
         {0, 0, use_SNI_at_ssl,       verify_UNKNOWN_SNI_on_server, 0},
 
-        /* continue on missmatch */
+        /* continue on mismatch */
         {0, 0, different_SNI_at_ssl,         0, 0},
         {0, 0, use_SNI_WITH_CONTINUE_at_ssl, verify_SNI_no_matching, 0},
 
-        /* fake answer on missmatch */
+        /* fake answer on mismatch */
         {0, 0, different_SNI_at_ssl,            0, 0},
         {0, 0, use_SNI_WITH_FAKE_ANSWER_at_ssl, verify_SNI_fake_matching, 0},
 
@@ -2755,11 +2755,11 @@ static void test_wolfSSL_UseSNI_connection(void)
         {0, 0, 0,                        verify_FATAL_ERROR_on_client, 0},
         {0, 0, use_MANDATORY_SNI_at_ssl, verify_SNI_ABSENT_on_server, 0},
 
-        /* sni abort - success when overwriten */
+        /* sni abort - success when overwritten */
         {0, 0, 0, 0, 0},
         {0, use_MANDATORY_SNI_at_ctx, use_SNI_at_ssl, verify_SNI_no_matching, 0},
 
-        /* sni abort - success when allowing missmatches */
+        /* sni abort - success when allowing mismatches */
         {0, 0, different_SNI_at_ssl, 0, 0},
         {0, use_PSEUDO_MANDATORY_SNI_at_ctx, 0, verify_SNI_fake_matching, 0},
     };
@@ -3153,7 +3153,7 @@ static void test_wolfSSL_UseALPN_connection(void)
         {0, 0, 0, 0, 0},
         {0, 0, use_ALPN_all, 0, 0},
 
-        /* success case missmatch behavior but option 'continue' set */
+        /* success case mismatch behavior but option 'continue' set */
         {0, 0, use_ALPN_all_continue, verify_ALPN_not_matching_continue, 0},
         {0, 0, use_ALPN_unknown_continue, 0, 0},
 
@@ -3161,12 +3161,12 @@ static void test_wolfSSL_UseALPN_connection(void)
         {0, 0, use_ALPN_all, 0, 0},
         {0, 0, use_ALPN_one, verify_ALPN_client_list, 0},
 
-        /* missmatch behavior with same list
+        /* mismatch behavior with same list
          * the first and only this one must be taken */
         {0, 0, use_ALPN_all, 0, 0},
         {0, 0, use_ALPN_all, verify_ALPN_not_matching_spdy3, 0},
 
-        /* default missmatch behavior */
+        /* default mismatch behavior */
         {0, 0, use_ALPN_all, 0, 0},
         {0, 0, use_ALPN_unknown, verify_ALPN_FATAL_ERROR_on_client, 0},
     };
@@ -16999,7 +16999,7 @@ static void test_wolfSSL_private_keys(void)
                 (unsigned char*)client_key_der_2048,
                 sizeof_client_key_der_2048), WOLFSSL_SUCCESS);
 #ifndef HAVE_USER_RSA
-    /* Should missmatch now that a different private key loaded */
+    /* Should mismatch now that a different private key loaded */
     AssertIntNE(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
 #endif
 
@@ -17501,13 +17501,13 @@ static void test_wolfSSL_EVP_Digest(void)
                "\x23\xB0\x03\x61\xA3\x96\x17\x7A\x9C\xB4\x10\xFF\x61\xF2\x00"
                "\x15\xAD";
     printf(testingFmt, "wolfSSL_EVP_Digest()");
-    
+
     AssertIntEQ(wolfSSL_EVP_Digest((unsigned char*)in, inLen, out, &outLen, "SHA256", NULL), 1);
     AssertIntEQ(outLen, WC_SHA256_DIGEST_SIZE);
     AssertIntEQ(XMEMCMP(out, expOut, WC_SHA256_DIGEST_SIZE), 0);
-    
+
     printf(resultFmt, passed);
-    
+
 #endif /* OPEN_EXTRA && ! NO_SHA256 */
 }
 
@@ -17518,8 +17518,8 @@ static void test_wolfSSL_EVP_MD_size(void)
     WOLFSSL_EVP_MD_CTX mdCtx;
 
     printf(testingFmt, "wolfSSL_EVP_MD_size()");
-    
-#ifndef NO_SHA256    
+
+#ifndef NO_SHA256
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
 
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA256"), 1);
@@ -17529,9 +17529,9 @@ static void test_wolfSSL_EVP_MD_size(void)
 
 #endif
 
-#ifndef NO_MD5    
+#ifndef NO_MD5
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
-    
+
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "MD5"), 1);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_MD5_DIGEST_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_MD5_BLOCK_SIZE);
@@ -17539,9 +17539,9 @@ static void test_wolfSSL_EVP_MD_size(void)
 
 #endif
 
-#ifdef WOLFSSL_SHA224    
+#ifdef WOLFSSL_SHA224
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
-    
+
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA224"), 1);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA224_DIGEST_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA224_BLOCK_SIZE);
@@ -17549,9 +17549,9 @@ static void test_wolfSSL_EVP_MD_size(void)
 
 #endif
 
-#ifdef WOLFSSL_SHA384    
+#ifdef WOLFSSL_SHA384
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
-    
+
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA384"), 1);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA384_DIGEST_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA384_BLOCK_SIZE);
@@ -17559,9 +17559,9 @@ static void test_wolfSSL_EVP_MD_size(void)
 
 #endif
 
-#ifdef WOLFSSL_SHA512    
+#ifdef WOLFSSL_SHA512
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
-    
+
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA512"), 1);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA512_DIGEST_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA512_BLOCK_SIZE);
@@ -17569,9 +17569,9 @@ static void test_wolfSSL_EVP_MD_size(void)
 
 #endif
 
-#ifndef NO_SHA    
+#ifndef NO_SHA
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
-    
+
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA"), 1);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA_DIGEST_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA_BLOCK_SIZE);
@@ -17580,14 +17580,14 @@ static void test_wolfSSL_EVP_MD_size(void)
 #endif
     /* error case */
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
-    
+
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, ""), BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_EVP_MD_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 0);
-    
+
     printf(resultFmt, passed);
-    
+
 #endif /* OPENSSL_EXTRA */
 }
 
@@ -20219,7 +20219,7 @@ static void test_wolfSSL_sk_GENERAL_NAME(void)
     for (i = 0; i < sk_GENERAL_NAME_num(sk); i++) {
         GENERAL_NAME* gn = sk_GENERAL_NAME_value(sk, i);
         if (gn == NULL) {
-            printf("massive falure\n");
+            printf("massive failure\n");
             return -1;
         }
 

@@ -2233,7 +2233,7 @@ int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf, word32 hashS
 
 /* Toggle detached signature mode on/off for PKCS#7/CMS SignedData content type.
  * By default wolfCrypt includes the data to be signed in the SignedData
- * bundle. This data can be ommited in the case when a detached signature is
+ * bundle. This data can be omitted in the case when a detached signature is
  * being created. To enable generation of detached signatures, set flag to "1",
  * otherwise set to "0":
  *
@@ -3396,7 +3396,7 @@ void wc_PKCS7_AllowDegenerate(PKCS7* pkcs7, word16 flag)
  * degenerate cases which can have no signer.
  *
  * By default expects type SIGNED_DATA (SignedData) which can have any number of
- * elements in signerInfos collection, inluding zero. (RFC2315 section 9.1)
+ * elements in signerInfos collection, including zero. (RFC2315 section 9.1)
  * When adding support for the case of SignedAndEnvelopedData content types a
  * signer is required. In this case the PKCS7 flag noDegenerate could be set.
  */

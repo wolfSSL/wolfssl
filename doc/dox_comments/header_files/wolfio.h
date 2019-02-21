@@ -137,7 +137,7 @@ WOLFSSL_API int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void*);
     \param buf a char pointer representing the buffer.
     \param sz the size of the buffer.
     \param ctx a void pointer to the user registered context. The default case
-    is a WOLFSSL_DTLS_CTX sructure.
+    is a WOLFSSL_DTLS_CTX structure.
 
     _Example_
     \code

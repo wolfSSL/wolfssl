@@ -288,7 +288,7 @@ int wc_Sha3_384_Update(wc_Sha3* sha, const byte* in, word32 sz)
 {
 #ifndef WOLFSSL_AFALG_HASH_KEEP
     if (sz % 4) {
-        WOLFSSL_MSG("Alignment issue. Message size needs to be divisable by 4")
+        WOLFSSL_MSG("Alignment issue. Message size needs to be divisible by 4")
         return BAD_FUNC_ARG;
     }
 #endif
@@ -305,7 +305,7 @@ int wc_Sha3_384_Final(wc_Sha3* sha, byte* hash)
 
 #ifdef WOLFSSL_AFALG_HASH_KEEP
     if (sha->used % 4) {
-        WOLFSSL_MSG("Alignment issue. Message size needs to be divisable by 4");
+        WOLFSSL_MSG("Alignment issue. Message size needs to be divisible by 4");
         return BAD_FUNC_ARG;
     }
 #endif
@@ -322,7 +322,7 @@ int wc_Sha3_384_GetHash(wc_Sha3* sha, byte* hash)
 
 #ifdef WOLFSSL_AFALG_HASH_KEEP
     if (sha->used % 4) {
-        WOLFSSL_MSG("Alignment issue. Message size needs to be divisable by 4");
+        WOLFSSL_MSG("Alignment issue. Message size needs to be divisible by 4");
         return BAD_FUNC_ARG;
     }
 #endif

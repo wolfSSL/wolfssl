@@ -8511,7 +8511,7 @@ int memory_test(void)
 
     for (i = 0; i < WOLFMEM_MAX_BUCKETS; i++) {
         if ((size[i] % WOLFSSL_STATIC_ALIGN) != 0) {
-            /* each element in array should be divisable by alignment size */
+            /* each element in array should be divisible by alignment size */
             return -6502;
         }
     }
