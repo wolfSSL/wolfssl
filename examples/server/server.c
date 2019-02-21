@@ -1008,7 +1008,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     useAnyAddr = 1;
 #else
     /* Not Used: h, z, F, T, V, W, X */
-    while ((ch = mygetopt(argc, argv, "?"
+    while ((ch = mygetopt(argc, argv, "?:"
                 "abc:defgijk:l:mnop:q:rstuv:wxy"
                 "A:B:C:D:E:GH:IJKL:MNO:PQR:S:TUVYZ:"
                 "01:23:4:")) != -1) {
