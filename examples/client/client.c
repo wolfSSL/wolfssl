@@ -2849,7 +2849,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (scr && forceScr) {
         if (nonBlocking) {
             printf("not doing secure renegotiation on example with"
-                   " nonblocking yet");
+                   " nonblocking yet\n");
         } else {
             if (!resumeScr) {
                 printf("Beginning secure rengotiation.\n");
