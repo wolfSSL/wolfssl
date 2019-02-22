@@ -33,9 +33,15 @@
 #if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
 
-static const char* const TAG = "wolfssl_mp";
-
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
 #include <wolfssl/wolfcrypt/tfm.h>
+
+static const char* const TAG = "wolfssl_mp";
 
 #define ESP_HW_RSAMAX_BIT           4096
 #define ESP_HW_MULTI_RSAMAX_BITS    2048
@@ -230,7 +236,7 @@ int esp_mp_mul(fp_int* X, fp_int* Y, fp_int* Z)
     Zs = Xs + Ys;
 
     /* maximum bits and words for writing to hw */
-    maxWords_sz = bits2words(MAX(Xs, Ys));
+    maxWords_sz = bits2words(max(Xs, Ys));
     hwWords_sz  = words2hwords(maxWords_sz);
 
     /* sanity check */
@@ -307,8 +313,8 @@ int esp_mp_mulmod(fp_int* X, fp_int* Y, fp_int* M, fp_int* Z)
     Ms = mp_count_bits(M);
 
     /* maximum bits and words for writing to hw */
-    maxWords_sz = bits2words(MAX(Xs, MAX(Ys, Ms)));
-    zwords      = bits2words(MIN(Ms, Xs + Ys));
+    maxWords_sz = bits2words(max(Xs, max(Ys, Ms)));
+    zwords      = bits2words(min(Ms, Xs + Ys));
     hwWords_sz  = words2hwords(maxWords_sz);
 
     if((hwWords_sz<<5) > ESP_HW_RSAMAX_BIT) {
@@ -322,16 +328,21 @@ int esp_mp_mulmod(fp_int* X, fp_int* Y, fp_int* M, fp_int* Z)
     ret = mp_init_multi(&tmpZ, &r_inv, NULL, NULL, NULL, NULL);
     if(ret == 0 && (ret = esp_get_rinv(&r_inv, M, (hwWords_sz<<6))) != MP_OKAY) {
         ESP_LOGE(TAG, "calcurate r_inv failed.");
+        mp_clear(&tmpZ);
         mp_clear(&r_inv);
         return ret;
     }
     /* lock hw for use */
-    if((ret = esp_mp_hw_lock()) != MP_OKAY)
+    if((ret = esp_mp_hw_lock()) != MP_OKAY){
+        mp_clear(&tmpZ);
+        mp_clear(&r_inv);
         return ret;
-
+    }
     /* Calculate M' */
     if((ret = esp_calc_Mdash(M, 32/* bits */, &mp)) != MP_OKAY) {
         ESP_LOGE(TAG, "failed to calculate M dash");
+        mp_clear(&tmpZ);
+        mp_clear(&r_inv);
         return -1;
     }
     /*Steps to use hw in the following order:
@@ -386,7 +397,7 @@ int esp_mp_mulmod(fp_int* X, fp_int* Y, fp_int* M, fp_int* Z)
 
     /* additional steps                               */
     /* this needs for known issue when Z is greather than M */
-     if(mp_cmp(&tmpZ, M)==FP_GT) {
+    if(mp_cmp(&tmpZ, M)==FP_GT) {
          /* Z -= M    */
          mp_sub(&tmpZ, M, &tmpZ);
     }
@@ -418,7 +429,7 @@ int esp_mp_exptmod(fp_int* X, fp_int* Y, word32 Ys, fp_int* M, fp_int* Z)
     Xs = mp_count_bits(X);
     Ms = mp_count_bits(M);
     /* maximum bits and words for writing to hw */
-    maxWords_sz = bits2words(MAX(Xs, MAX(Ys, Ms)));
+    maxWords_sz = bits2words(max(Xs, max(Ys, Ms)));
     hwWords_sz  = words2hwords(maxWords_sz);
 
     if((hwWords_sz<<5) > ESP_HW_RSAMAX_BIT) {
@@ -436,13 +447,15 @@ int esp_mp_exptmod(fp_int* X, fp_int* Y, word32 Ys, fp_int* M, fp_int* Z)
         return ret;
     }
     /* lock and init the hw                           */
-    if((ret = esp_mp_hw_lock()) != MP_OKAY)
+    if((ret = esp_mp_hw_lock()) != MP_OKAY) {
+        mp_clear(&r_inv);
         return ret;
-
+    }
     /* calc M' */
     /* if Pm is odd, uses mp_montgomery_setup() */
     if((ret = esp_calc_Mdash(M, 32/* bits */, &mp)) != MP_OKAY) {
         ESP_LOGE(TAG, "failed to calculate M dash");
+        mp_clear(&r_inv);
         return -1;
     }
 

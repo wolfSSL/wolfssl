@@ -23,6 +23,12 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/integer.h>
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
 static const char* const TAG = "wolfssl unit test";
 static xSemaphoreHandle exit_semaph;
 static volatile bool exit_loop=false;
@@ -165,7 +171,7 @@ static void tskAes256_Test(void *pvParam)
 }
 #endif
 
-#if !defined(NO_RAS) || defined(HAVE_ECC)
+#if !defined(NO_RSA) || defined(HAVE_ECC)
 
 int mp_performance_check(int mul, int mulmod, int exptmod)
 {
@@ -329,7 +335,7 @@ int mp_unitest_mul(const char* strZ, const char* strX, const char* strY, int ver
     }
 
     mp_radix_size(&z, 16, &radixZ_size);
-    bufZ = (char*)XMALLOC(radixZ_size + 1, NULL, DYNAMIC_TYPE_IN_BUFFER);
+    bufZ = (char*)XMALLOC(radixZ_size + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if(bufZ != NULL) {
         mp_toradix(&z, bufZ, 16);
         bufZ[radixZ_size] ='\0';
@@ -342,9 +348,9 @@ int mp_unitest_mul(const char* strZ, const char* strX, const char* strY, int ver
 
         mp_radix_size(&x, 16, &radixX_size);
         mp_radix_size(&y, 16, &radixY_size);
-        radixX_size = MAX(radixX_size, radixY_size);
+        radixX_size = max(radixX_size, radixY_size);
 
-        buf = (char*)XMALLOC(radixX_size + 1, NULL, DYNAMIC_TYPE_IN_BUFFER);
+        buf = (char*)XMALLOC(radixX_size + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if(buf != NULL) {
             mp_toradix(&x, buf, 16);
             buf[radixX_size] ='\0';
@@ -404,7 +410,7 @@ int mp_unitest_mulmod(const char* strZ, const char* strX, const char* strY,
     }
 
     mp_radix_size(&z, 16, &radixZ_size);
-    bufZ = (char*)XMALLOC(radixZ_size + 1, NULL, DYNAMIC_TYPE_IN_BUFFER);
+    bufZ = (char*)XMALLOC(radixZ_size + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if(bufZ != NULL) {
         mp_toradix(&z, bufZ, 16);
         bufZ[radixZ_size] ='\0';
@@ -419,9 +425,9 @@ int mp_unitest_mulmod(const char* strZ, const char* strX, const char* strY,
         mp_radix_size(&x, 16, &radixX_size);
         mp_radix_size(&y, 16, &radixY_size);
         mp_radix_size(&m, 16, &radixM_size);
-        radixX_size = MAX(radixX_size, MAX(radixY_size, radixM_size));
+        radixX_size = max(radixX_size, max(radixY_size, radixM_size));
 
-        buf = (char*)XMALLOC(radixX_size + 1, NULL, DYNAMIC_TYPE_IN_BUFFER);
+        buf = (char*)XMALLOC(radixX_size + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if(buf != NULL) {
             mp_toradix(&x, buf, 16);
             buf[radixX_size] ='\0';
@@ -485,7 +491,7 @@ int mp_unitest_exptmod(const char* strZ, const char* strX, const char* strY,
     }
 
     mp_radix_size(&z, 16, &radixZ_size);
-    bufZ = (char*)XMALLOC(radixZ_size + 1, NULL, DYNAMIC_TYPE_IN_BUFFER);
+    bufZ = (char*)XMALLOC(radixZ_size + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if(bufZ != NULL) {
         mp_toradix(&z, bufZ, 16);
         bufZ[radixZ_size] ='\0';
@@ -500,9 +506,9 @@ int mp_unitest_exptmod(const char* strZ, const char* strX, const char* strY,
         mp_radix_size(&x, 16, &radixX_size);
         mp_radix_size(&y, 16, &radixY_size);
         mp_radix_size(&m, 16, &radixM_size);
-        radixX_size = MAX(radixX_size, MAX(radixY_size, radixM_size));
+        radixX_size = max(radixX_size, max(radixY_size, radixM_size));
 
-        buf = (char*)XMALLOC(radixX_size + 1, NULL, DYNAMIC_TYPE_IN_BUFFER);
+        buf = (char*)XMALLOC(radixX_size + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if(buf != NULL) {
             mp_toradix(&x, buf, 16);
             buf[radixX_size] ='\0';
@@ -1110,7 +1116,7 @@ TEST_CASE("wolfssl aes sha256 rsa multi-thread test ", "[wolfssl]")
     xTaskCreate(tskSha256_Test, "sha256_test", SHA_STACK_SIZE, NULL, 3, NULL);
 #endif
 #ifndef NO_RSA
-    xTaskCreate(tskRsa_Test, "rsa_test", SHA_STACK_SIZE, NULL, 3, NULL));
+    xTaskCreate(tskRsa_Test, "rsa_test", SHA_STACK_SIZE, NULL, 3, NULL);
 #endif
 #endif /* CONFIG_FREERTOS_UNICORE */
 
