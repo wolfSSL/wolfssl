@@ -1304,7 +1304,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     char resumeMsg[32] = "resuming wolfssl!\n";
 #endif
 
-    char reply[80];
+    char reply[128];
     int  msgSz = (int)XSTRLEN(msg);
     int  resumeSz = (int)XSTRLEN(resumeMsg);
 
@@ -3181,6 +3181,11 @@ exit:
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     wolfAsync_DevClose(&devId);
+#endif
+
+#if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS) \
+                                         && defined(HAVE_STACK_SIZE)
+    wc_ecc_fp_free();  /* free per thread cache */
 #endif
 
     /* There are use cases  when these assignments are not read. To avoid

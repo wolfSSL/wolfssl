@@ -669,6 +669,12 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
                             mem->ava[i] = pt->next;
                             break;
                         }
+                    #ifdef WOLFSSL_DEBUG_STATIC_MEMORY
+                        else {
+                            printf("Size: %ld, Empty: %d\n", size,
+                                                              mem->sizeList[i]);
+                        }
+                    #endif
                     }
                 }
             }
@@ -863,6 +869,14 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
         WOLFSSL_HEAP_HINT* hint = (WOLFSSL_HEAP_HINT*)heap;
         WOLFSSL_HEAP*      mem  = hint->memory;
         word32 padSz = -(int)sizeof(wc_Memory) & (WOLFSSL_STATIC_ALIGN - 1);
+
+        if (ptr == NULL) {
+        #ifdef WOLFSSL_DEBUG_MEMORY
+            return wolfSSL_Malloc(size, heap, type, func, line);
+        #else
+            return wolfSSL_Malloc(size, heap, type);
+        #endif
+        }
 
         if (wc_LockMutex(&(mem->memory_mutex)) != 0) {
             WOLFSSL_MSG("Bad memory_mutex lock");

@@ -1466,7 +1466,7 @@ fi
 if test "$ENABLED_ECC" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
-    if test "$ENABLED_ECC_SHAMIR" = "yes"
+    if test "$ENABLED_ECC_SHAMIR" = "yes" && test "$ENABLED_LOWRESOURCE" = "no"
     then
         AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
     fi
@@ -4201,6 +4201,10 @@ then
     if test "x$ENABLED_FASTMATH" = "xno"
     then
         AC_MSG_ERROR([please use --enable-fastmath if enabling staticmemory.])
+    fi
+    if test "$ENABLED_LOWRESOURCE" = "yes" && test "$ENABLED_RSA" = "no"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY_SMALL"
     fi
 fi
 
