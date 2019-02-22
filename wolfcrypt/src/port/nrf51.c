@@ -25,6 +25,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef WOLFSSL_NRF51
 
@@ -38,7 +39,6 @@
 #include "nrf_ecb.h"
 
 #ifdef SOFTDEVICE_PRESENT
-    #include "softdevice_handler.h"
     #include "nrf_soc.h"
 #endif /* SOFTDEVICE_PRESENT */
 
@@ -74,18 +74,12 @@ int nrf51_random_generate(byte* output, word32 size)
     }
 
     while (remaining > 0) {
-        err_code = nrf_drv_rng_bytes_available(&available);
-        if (err_code == NRF_SUCCESS) {
-            length = (remaining < available) ? remaining : available;
-            if (length > 0) {
-                err_code = nrf_drv_rng_rand(&output[pos], length);
-                remaining -= length;
-                pos += length;
-            }
-        }
-
-        if (err_code != NRF_SUCCESS) {
-            break;
+        nrf_drv_rng_bytes_available(&available);
+        length = (remaining < available) ? remaining : available;
+        if (length > 0) {
+            err_code = nrf_drv_rng_rand(&output[pos], length);
+            remaining -= length;
+            pos += length;
         }
     }
 
@@ -171,13 +165,16 @@ static void rtc_config(void)
     uint32_t err_code;
 
     // Start the internal LFCLK XTAL oscillator
-    err_code = nrf_drv_clock_init(NULL);
+    err_code = nrf_drv_clock_init();
     APP_ERROR_CHECK(err_code);
 
-    nrf_drv_clock_lfclk_request();
+    nrf_drv_clock_lfclk_request(NULL);
 
     // Initialize RTC instance
-    err_code = nrf_drv_rtc_init(&rtc, NULL, rtc_handler);
+    nrf_drv_rtc_config_t config = NRF_DRV_RTC_DEFAULT_CONFIG;
+    config.prescaler = 4095;
+
+    err_code = nrf_drv_rtc_init(&rtc, &config, rtc_handler);
     APP_ERROR_CHECK(err_code);
 
     // Enable tick event
