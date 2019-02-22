@@ -15318,7 +15318,8 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
                                                  unsigned char* buf, int* bufSz)
     {
         WOLFSSL_ENTER("wolfSSL_X509_get_signature");
-        if (x509 == NULL || bufSz == NULL || *bufSz < (int)x509->sig.length)
+        if (x509 == NULL || bufSz == NULL || (*bufSz < (int)x509->sig.length &&
+                    buf != NULL))
             return WOLFSSL_FATAL_ERROR;
 
         if (buf != NULL)
@@ -15326,6 +15327,35 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
         *bufSz = x509->sig.length;
 
         return WOLFSSL_SUCCESS;
+    }
+
+
+    /* Getter function that copies over the DER public key buffer to "buf" and
+     * sets the size in bufSz. If "buf" is NULL then just bufSz is set to needed
+     * buffer size.
+     * return WOLFSSL_SUCCESS on success
+     */
+    int wolfSSL_X509_get_pubkey_buffer(WOLFSSL_X509* x509,
+                                                unsigned char* buf, int* bufSz)
+    {
+        WOLFSSL_ENTER("wolfSSL_X509_get_pubkey_buffer");
+        if (x509 == NULL || bufSz == NULL || (*bufSz < (int)x509->pubKey.length
+                    && buf != NULL))
+            return WOLFSSL_FATAL_ERROR;
+
+        if (buf != NULL)
+            XMEMCPY(buf, x509->pubKey.buffer, x509->pubKey.length);
+        *bufSz = x509->pubKey.length;
+
+        return WOLFSSL_SUCCESS;
+    }
+
+
+    /* Getter function for the public key OID value
+     * return public key OID stored in WOLFSSL_X509 structure */
+    int wolfSSL_X509_get_pubkey_type(WOLFSSL_X509* x509)
+    {
+        return x509->pubKeyOID;
     }
 
 
