@@ -13399,32 +13399,44 @@ int openssl_test(void)
         if (EVP_CipherInit(&ctx, EVP_aes_128_cbc(), key, iv, 0) == 0)
             return -7417;
 
-        if (EVP_CipherUpdate(&ctx, plain, &idx, cipher, cipherSz) == 0)
+        /* check partial decrypt (not enough padding for full block) */
+        if (EVP_CipherUpdate(&ctx, plain, &idx, cipher, 1) == 0)
             return -7418;
 
         plainSz = idx;
-        if (EVP_CipherFinal(&ctx, plain + plainSz, &idx) == 0)
+        if (EVP_CipherFinal(&ctx, plain + plainSz, &idx) != 0)
             return -7419;
+
+        EVP_CIPHER_CTX_init(&ctx);
+        if (EVP_CipherInit(&ctx, EVP_aes_128_cbc(), key, iv, 0) == 0)
+            return -7420;
+
+        if (EVP_CipherUpdate(&ctx, plain, &idx, cipher, cipherSz) == 0)
+            return -7421;
+
+        plainSz = idx;
+        if (EVP_CipherFinal(&ctx, plain + plainSz, &idx) == 0)
+            return -7422;
         plainSz += idx;
 
         if ((plainSz != sizeof(msg)) || XMEMCMP(plain, msg, sizeof(msg)))
-            return -7420;
+            return -7423;
 
         EVP_CIPHER_CTX_init(&ctx);
         if (EVP_CipherInit(&ctx, EVP_aes_128_cbc(), key, iv, 1) == 0)
-            return -7421;
+            return -7424;
 
         if (EVP_CipherUpdate(&ctx, cipher, &idx, msg, AES_BLOCK_SIZE) == 0)
-            return -7422;
+            return -7425;
 
         cipherSz = idx;
         if (EVP_CipherFinal(&ctx, cipher + cipherSz, &idx) == 0)
-            return -7423;
+            return -7426;
         cipherSz += idx;
 
         if ((cipherSz != (int)sizeof(verify2)) ||
                                             XMEMCMP(cipher, verify2, cipherSz))
-            return -7424;
+            return -7427;
 
     }  /* end evp_cipher test: EVP_aes_128_cbc*/
 #endif /* WOLFSSL_AES_128 && HAVE_AES_CBC */

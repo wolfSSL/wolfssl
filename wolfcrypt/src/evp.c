@@ -430,6 +430,11 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
             *outl = 0;
             return WOLFSSL_SUCCESS;
         }
+        if ((ctx->bufUsed % ctx->block_size) != 0) {
+            *outl = 0;
+            /* not enough padding for decrypt */
+            return WOLFSSL_FAILURE;
+        }
         if (ctx->lastUsed) {
             PRINT_BUF(ctx->lastBlock, ctx->block_size);
             if ((fl = checkPad(ctx, ctx->lastBlock)) >= 0) {
