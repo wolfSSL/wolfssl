@@ -15693,6 +15693,9 @@ static int ecc_test_make_pub(WC_RNG* rng)
 
     x = FOURK_BUF;
     ret = wc_ecc_shared_secret(&key, &pub, exportBuf, &x);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &pub.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
     wc_ecc_free(&pub);
     if (ret != 0) {
         ERROR_OUT(-8332, done);
@@ -16601,6 +16604,9 @@ static int ecc_ssh_test(ecc_key* key)
 
     /* Use API. */
     ret = wc_ecc_shared_secret_ssh(key, &key->pubkey, out, &outLen);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
     if (ret != 0)
         return -8448;
     return 0;
