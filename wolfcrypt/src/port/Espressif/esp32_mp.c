@@ -100,7 +100,7 @@ static void esp_mp_hw_unlock( void )
     /* unlock */
     esp_CryptHwMutexUnLock(&mp_mutex);
 }
-/* this is based on an aricle by Cetin Kaya Koc, A New Algorighm for Inversion*/
+/* this is based on an article by Cetin Kaya Koc, A New Algorithm for Inversion*/
 /* mod p^k, June 28 2017.                                                     */
 static int esp_calc_Mdash(mp_int *M, word32 k, mp_digit* md)
 {
@@ -269,7 +269,7 @@ int esp_mp_mul(fp_int* X, fp_int* Y, fp_int* Z)
     DPORT_REG_WRITE(RSA_MULT_MODE_REG, (hwWords_sz >> 3) - 1 + 8);
     /* step.2 write X, M and r_inv into memory */
     esp_mpint_to_memblock(RSA_MEM_X_BLOCK_BASE, X, Xs, hwWords_sz);
-    /* Y(let-extened)                          */
+    /* Y(let-extend)                          */
     esp_mpint_to_memblock(RSA_MEM_Z_BLOCK_BASE + (hwWords_sz<<2), Y, Ys, hwWords_sz);
     /* step.3 start process                           */
     process_start(RSA_MULT_START_REG);
@@ -373,7 +373,7 @@ int esp_mp_mulmod(fp_int* X, fp_int* Y, fp_int* M, fp_int* Z)
     esp_mpint_to_memblock(RSA_MEM_M_BLOCK_BASE, M, Ms, hwWords_sz);
     esp_mpint_to_memblock(RSA_MEM_Z_BLOCK_BASE, &r_inv, mp_count_bits(&r_inv),
                                                                   hwWords_sz);
-    /* step.3 wirite M' into memory                   */
+    /* step.3 write M' into memory                   */
     DPORT_REG_WRITE(RSA_M_DASH_REG, mp);
     /* step.4 start process                           */
     process_start(RSA_MULT_START_REG);
@@ -438,11 +438,11 @@ int esp_mp_exptmod(fp_int* X, fp_int* Y, word32 Ys, fp_int* M, fp_int* Z)
     }
     /* calculate r_inv = R^2 mode M
     *    where: R = b^n, and b = 2^32
-    *    accordinalry R^2 = 2^(n*32*2)
+    *    accordingly R^2 = 2^(n*32*2)
     */
     ret = mp_init(&r_inv);
     if(ret == 0 && (ret = esp_get_rinv(&r_inv, M, (hwWords_sz<<6))) != MP_OKAY) {
-        ESP_LOGE(TAG, "calcurate r_inv failed.");
+        ESP_LOGE(TAG, "calculate r_inv failed.");
         mp_clear(&r_inv);
         return ret;
     }
@@ -466,7 +466,7 @@ int esp_mp_exptmod(fp_int* X, fp_int* Y, word32 Ys, fp_int* M, fp_int* Z)
     *    of the number.
     * 3. Write M' to M_PRIME_REG
     * 4. Write 1  to MODEXP_START_REG
-    * 5. Wait for the operation to be done. Poll INTERRUPT_REG unitl it reads 1.
+    * 5. Wait for the operation to be done. Poll INTERRUPT_REG until it reads 1.
     *    (Or until the INTER interrupt is generated.)
     * 6. Read the result Z(=Y) from Z_MEM
     * 7. Write 1 to INTERRUPT_REG to clear the interrupt.
@@ -481,7 +481,7 @@ int esp_mp_exptmod(fp_int* X, fp_int* Y, word32 Ys, fp_int* M, fp_int* Z)
     esp_mpint_to_memblock(RSA_MEM_M_BLOCK_BASE, M, Ms, hwWords_sz);
     esp_mpint_to_memblock(RSA_MEM_Z_BLOCK_BASE, &r_inv, mp_count_bits(&r_inv),
                                                                    hwWords_sz);
-    /* step.3 wirite M' into meory                    */
+    /* step.3 write M' into memory                    */
     DPORT_REG_WRITE(RSA_M_DASH_REG, mp);
     /* step.4 start process                           */
     process_start(RSA_START_MODEXP_REG);

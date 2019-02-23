@@ -59,7 +59,7 @@ static void esp32TimerStart()
 
 static uint64_t  esp32elapsedTime()
 {
-    /* retturn elapsed time since wc_esp32AesTimeStart() is called in us */
+    /* return elapsed time since wc_esp32AesTimeStart() is called in us */
     return esp_timer_get_time() - startTime;
 }
 
@@ -367,7 +367,7 @@ int mp_unitest_mul(const char* strZ, const char* strX, const char* strY, int ver
     }
 
     TEST_ASSERT_EQUAL_STRING_MESSAGE(strZ, bufZ,
-                                   "mp_mulmod returns an unexptected result.");
+                                   "mp_mulmod returns an unexpected result.");
     XFREE(bufZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
@@ -448,7 +448,7 @@ int mp_unitest_mulmod(const char* strZ, const char* strX, const char* strY,
     }
 
     TEST_ASSERT_EQUAL_STRING_MESSAGE(strZ, bufZ,
-                                   "mp_mulmod returns an unexptected result.");
+                                   "mp_mulmod returns an unexpected result.");
     XFREE(bufZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
@@ -529,7 +529,7 @@ int mp_unitest_exptmod(const char* strZ, const char* strX, const char* strY,
     }
 
     TEST_ASSERT_EQUAL_STRING_MESSAGE(strZ, bufZ,
-                                   "mp_exptmod returns an unexptected result.");
+                                   "mp_exptmod returns an unexpected result.");
     XFREE(bufZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return 0;
@@ -1124,7 +1124,7 @@ TEST_CASE("wolfssl aes sha256 rsa multi-thread test ", "[wolfssl]")
     vTaskDelay(15000/portTICK_PERIOD_MS);
     exit_loop = true;
 
-    /* wait until ras test finishes */
+    /* wait until rsa test finishes */
     while(rsa_elapsedTime<=0){ vTaskDelay(1); }
 
     ESP_LOGI(TAG, "Waiting another %llu s. rsa test would take more time to finish.",
