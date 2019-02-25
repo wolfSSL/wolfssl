@@ -11168,7 +11168,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         FreeDer(&ctx->privateKey);
         if (AllocDer(&ctx->privateKey, (word32)sz, PRIVATEKEY_TYPE,
-                                                            ctx->heap) == 0) {
+                                                              ctx->heap) == 0) {
             XMEMCPY(ctx->privateKey->buffer, id, sz);
             ctx->privateKeyId = 1;
             ctx->privateKeySz = (word32)keySz;
