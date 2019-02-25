@@ -11324,7 +11324,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         int ret = WOLFSSL_FAILURE;
 
-        FreeDer(&ssl->buffers.key);
+        if (ssl->buffers.weOwnKey)
+            FreeDer(&ssl->buffers.key);
         if (AllocDer(&ssl->buffers.key, (word32)sz, PRIVATEKEY_TYPE,
                                                             ssl->heap) == 0) {
             XMEMCPY(ssl->buffers.key->buffer, id, sz);
