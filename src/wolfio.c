@@ -501,7 +501,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 
     /* get the peer information in human readable form (ip, port, family)
      * default function assumes BSD sockets
-     * can be overriden with wolfSSL_CTX_SetIOGetPeer
+     * can be overridden with wolfSSL_CTX_SetIOGetPeer
      */
     int EmbedGetPeer(WOLFSSL* ssl, char* ip, int* ipSz,
                                                  unsigned short* port, int* fam)
@@ -557,7 +557,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 
     /* set the peer information in human readable form (ip, port, family)
      * default function assumes BSD sockets
-     * can be overriden with wolfSSL_CTX_SetIOSetPeer
+     * can be overridden with wolfSSL_CTX_SetIOSetPeer
      */
     int EmbedSetPeer(WOLFSSL* ssl, char* ip, int ipSz,
                                                    unsigned short port, int fam)

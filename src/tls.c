@@ -7827,11 +7827,11 @@ int TLSX_PskKeModes_Use(WOLFSSL* ssl, byte modes)
 /******************************************************************************/
 
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-/* Get the size of the encoded Post-Hanshake Authentication extension.
+/* Get the size of the encoded Post-Handshake Authentication extension.
  * Only in ClientHello.
  *
  * msgType  The type of the message this extension is being written into.
- * returns the number of bytes of the encoded Post-Hanshake Authentication
+ * returns the number of bytes of the encoded Post-Handshake Authentication
  * extension.
  */
 static word16 TLSX_PostHandAuth_GetSize(byte msgType)

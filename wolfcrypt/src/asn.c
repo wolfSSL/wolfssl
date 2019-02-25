@@ -10026,7 +10026,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int with_header)
 /* returns the size of buffer used, the public ECC key in DER format is stored
    in output buffer
    with_AlgCurve is a flag for when to include a header that has the Algorithm
-   and Curve infromation */
+   and Curve information */
 int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 inLen,
                                                               int with_AlgCurve)
 {

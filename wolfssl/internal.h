@@ -1334,13 +1334,13 @@ enum Misc {
 
     EVP_SALT_SIZE       =  8,  /* evp salt size 64 bits   */
 
-#ifndef ECDHE_SIZE /* allow this to be overriden at compile-time */
+#ifndef ECDHE_SIZE /* allow this to be overridden at compile-time */
     ECDHE_SIZE          = 32,  /* ECHDE server size defaults to 256 bit */
 #endif
     MAX_EXPORT_ECC_SZ   = 256, /* Export ANS X9.62 max future size */
     MAX_CURVE_NAME_SZ   = 16,  /* Maximum size of curve name string */
 
-    NEW_SA_MAJOR        = 8,   /* Most signicant byte used with new sig algos */
+    NEW_SA_MAJOR        = 8,   /* Most significant byte used with new sig algos */
     ED25519_SA_MAJOR    = 8,   /* Most significant byte for ED25519 */
     ED25519_SA_MINOR    = 7,   /* Least significant byte for ED25519 */
     ED448_SA_MAJOR      = 8,   /* Most significant byte for ED448 */
@@ -1437,9 +1437,9 @@ enum Misc {
     #endif
 #endif /* WOLFSSL_MIN_ECC_BITS */
 #if (WOLFSSL_MIN_ECC_BITS % 8)
-    /* Some ECC keys are not divisable by 8 such as prime239v1 or sect131r1.
-       In these cases round down to the nearest value divisable by 8. The
-       restriction of being divisable by 8 is in place to match wc_ecc_size
+    /* Some ECC keys are not divisible by 8 such as prime239v1 or sect131r1.
+       In these cases round down to the nearest value divisible by 8. The
+       restriction of being divisible by 8 is in place to match wc_ecc_size
        function from wolfSSL.
      */
     #error ECC minimum bit size must be a multiple of 8
@@ -1456,7 +1456,7 @@ enum Misc {
 #endif /* WOLFSSL_MIN_RSA_BITS */
 #if (WOLFSSL_MIN_RSA_BITS % 8)
     /* This is to account for the example case of a min size of 2050 bits but
-       still allows 2049 bit key. So we need the measurment to be in bytes. */
+       still allows 2049 bit key. So we need the measurement to be in bytes. */
     #error RSA minimum bit size must be a multiple of 8
 #endif
 #define MIN_RSAKEY_SZ (WOLFSSL_MIN_RSA_BITS / 8)
@@ -2416,7 +2416,7 @@ typedef struct PreSharedKey {
     byte                 cipherSuite0;            /* Cipher Suite       */
     byte                 cipherSuite;             /* Cipher Suite       */
     word32               binderLen;               /* Length of HMAC     */
-    byte                 binder[WC_MAX_DIGEST_SIZE]; /* HMAC of hanshake   */
+    byte                 binder[WC_MAX_DIGEST_SIZE]; /* HMAC of handshake */
     byte                 hmac;                    /* HMAC algorithm     */
     byte                 resumption:1;            /* Resumption PSK     */
     byte                 chosen:1;                /* Server's choice    */
@@ -2650,7 +2650,7 @@ struct WOLFSSL_CTX {
 #if defined(WOLFSSL_MULTICAST) && defined(WOLFSSL_DTLS)
     CallbackMcastHighwater mcastHwCb; /* Sequence number highwater callback */
     word32      mcastFirstSeq;    /* first trigger level */
-    word32      mcastSecondSeq;   /* second tigger level */
+    word32      mcastSecondSeq;   /* second trigger level */
     word32      mcastMaxSeq;      /* max level */
 #endif
 #ifdef HAVE_OCSP
@@ -3235,7 +3235,7 @@ typedef struct Options {
     word16            useClientOrder:1;   /* Use client's cipher order */
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     word16            postHandshakeAuth:1;/* Client send post_handshake_auth
-                                           * extendion. */
+                                           * extension */
 #endif
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
     word16            sendCookie:1;       /* Server creates a Cookie in HRR */
@@ -3334,7 +3334,7 @@ typedef struct Arrays {
 
 struct WOLFSSL_STACK {
     unsigned long num; /* number of nodes in stack
-                        * (saftey measure for freeing and shortcut for count) */
+                        * (safety measure for freeing and shortcut for count) */
     union {
         WOLFSSL_X509*        x509;
         WOLFSSL_X509_NAME*   name;

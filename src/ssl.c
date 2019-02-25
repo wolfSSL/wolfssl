@@ -575,7 +575,7 @@ int wolfSSL_use_old_poly(WOLFSSL* ssl, int value)
 #ifndef WOLFSSL_NO_TLS12
     WOLFSSL_ENTER("SSL_use_old_poly");
     WOLFSSL_MSG("Warning SSL connection auto detects old/new and this function"
-            "is depriciated");
+            "is depreciated");
     ssl->options.oldPoly = (word16)value;
     WOLFSSL_LEAVE("SSL_use_old_poly", 0);
 #endif
@@ -1410,7 +1410,7 @@ int wolfSSL_GetOutputSize(WOLFSSL* ssl, int inSz)
 int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz)
 {
     if (ctx == NULL || keySz < 0 || keySz % 8 != 0) {
-        WOLFSSL_MSG("Key size must be divisable by 8 or ctx was null");
+        WOLFSSL_MSG("Key size must be divisible by 8 or ctx was null");
         return BAD_FUNC_ARG;
     }
 
@@ -1425,7 +1425,7 @@ int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz)
 int wolfSSL_SetMinEccKey_Sz(WOLFSSL* ssl, short keySz)
 {
     if (ssl == NULL || keySz < 0 || keySz % 8 != 0) {
-        WOLFSSL_MSG("Key size must be divisable by 8 or ssl was null");
+        WOLFSSL_MSG("Key size must be divisible by 8 or ssl was null");
         return BAD_FUNC_ARG;
     }
 
@@ -1439,7 +1439,7 @@ int wolfSSL_SetMinEccKey_Sz(WOLFSSL* ssl, short keySz)
 int wolfSSL_CTX_SetMinRsaKey_Sz(WOLFSSL_CTX* ctx, short keySz)
 {
     if (ctx == NULL || keySz < 0 || keySz % 8 != 0) {
-        WOLFSSL_MSG("Key size must be divisable by 8 or ctx was null");
+        WOLFSSL_MSG("Key size must be divisible by 8 or ctx was null");
         return BAD_FUNC_ARG;
     }
 
@@ -1452,7 +1452,7 @@ int wolfSSL_CTX_SetMinRsaKey_Sz(WOLFSSL_CTX* ctx, short keySz)
 int wolfSSL_SetMinRsaKey_Sz(WOLFSSL* ssl, short keySz)
 {
     if (ssl == NULL || keySz < 0 || keySz % 8 != 0) {
-        WOLFSSL_MSG("Key size must be divisable by 8 or ssl was null");
+        WOLFSSL_MSG("Key size must be divisible by 8 or ssl was null");
         return BAD_FUNC_ARG;
     }
 
@@ -2708,7 +2708,7 @@ int wolfSSL_get_error(WOLFSSL* ssl, int ret)
 }
 
 
-/* retrive alert history, WOLFSSL_SUCCESS on ok */
+/* retrieve alert history, WOLFSSL_SUCCESS on ok */
 int wolfSSL_get_alert_history(WOLFSSL* ssl, WOLFSSL_ALERT_HISTORY *h)
 {
     if (ssl && h) {
@@ -7030,7 +7030,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 
 /* Looks for the extension matching the passed in nid
  *
- * c   : if not null then is set to status value -2 if multiple occurances
+ * c   : if not null then is set to status value -2 if multiple occurrences
  *       of the extension are found, -1 if not found, 0 if found and not
  *       critical, and 1 if found and critical.
  * nid : Extension OID to be found.
@@ -10283,7 +10283,7 @@ int AddSession(WOLFSSL* ssl)
     }
 
 #ifdef OPENSSL_EXTRA
-    /* If using compatibilty layer then check for and copy over session context
+    /* If using compatibility layer then check for and copy over session context
      * id. */
     if (ssl->sessionCtxSz > 0 && ssl->sessionCtxSz < ID_LEN) {
         XMEMCPY(session->sessionCtx, ssl->sessionCtx, ssl->sessionCtxSz);
@@ -10539,7 +10539,7 @@ static int get_locked_session_stats(word32* active, word32* total, word32* peak)
                 break;
             }
 
-            /* if not expried then good */
+            /* if not expired then good */
             if (ticks < (SessionCache[i].Sessions[idx].bornOn +
                          SessionCache[i].Sessions[idx].timeout) ) {
                 now++;
@@ -14388,7 +14388,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
     /* frees all nodes in the current threads error queue
      *
-     * id  thread id. ERR_remove_state is depriciated and id is ignored. The
+     * id  thread id. ERR_remove_state is depreciated and id is ignored. The
      *     current threads queue will be free'd.
      */
     void wolfSSL_ERR_remove_state(unsigned long id)
@@ -14949,7 +14949,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
 
     /* Similar to wolfSSL_ERR_get_error_line but takes in a flags argument for
-     * more flexability.
+     * more flexibility.
      *
      * file  output pointer to file where error happened
      * line  output to line number of error
@@ -17183,7 +17183,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                         }
                         XFREE(rawKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-                        /* print out remaning modulus values */
+                        /* print out remaining modulus values */
                         if ((idx > 0) && (((idx - 1 + lbit) % 15) != 0)) {
                             tmp[sizeof(tmp) - 1] = '\0';
                             if (wolfSSL_BIO_write(bio, tmp,
@@ -17306,7 +17306,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                                 XSTRNCAT(tmp, val, valSz);
                             }
 
-                            /* print out remaning modulus values */
+                            /* print out remaining modulus values */
                             if ((i > 0) && (((i - 1) % 15) != 0)) {
                                 tmp[sizeof(tmp) - 1] = '\0';
                                 if (wolfSSL_BIO_write(bio, tmp,
@@ -17520,7 +17520,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
             }
             XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-            /* print out remaning sig values */
+            /* print out remaining sig values */
             if ((i > 0) && (((i - 1) % 18) != 0)) {
                     tmp[sizeof(tmp) - 1] = '\0';
                     if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp))
@@ -17906,7 +17906,7 @@ WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_base64(void)
 
 /* Set the flag for the bio.
  *
- * bio   the structre to set the flag in
+ * bio   the structure to set the flag in
  * flags the flag to use
  */
 void wolfSSL_BIO_set_flags(WOLFSSL_BIO* bio, int flags)
@@ -18313,7 +18313,7 @@ static int wolfSSL_i2d_PrivateKey(WOLFSSL_EVP_PKEY* key, unsigned char** der)
  * cert  certificate to go into PKCS12 bundle
  * ca    extra certificates that can be added to bundle. Can be NULL
  * keyNID  type of encryption to use on the key (-1 means no encryption)
- * certNID type of ecnryption to use on the certificate
+ * certNID type of encryption to use on the certificate
  * itt     number of iterations with encryption
  * macItt  number of iterations with mac creation
  * keyType flag for signature and/or encryption key
@@ -19197,7 +19197,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new_ex(void* heap)
 #endif
         if (ret != 0){
             wolfSSL_EVP_PKEY_free(pkey);
-            WOLFSSL_MSG("memory falure");
+            WOLFSSL_MSG("memory failure");
             return NULL;
         }
     }
@@ -19354,7 +19354,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
 
     /* Make sure there is space for the data, ASN.1 type and length. */
     if (x509->serialSz > (WOLFSSL_ASN1_INTEGER_MAX - 2)) {
-        /* dynamicly create data buffer, +2 for type and length */
+        /* dynamically create data buffer, +2 for type and length */
         a->data = (unsigned char*)XMALLOC(x509->serialSz + 2, NULL,
                 DYNAMIC_TYPE_OPENSSL);
         if (a->data == NULL) {
@@ -19589,7 +19589,7 @@ void wolfSSL_X509_STORE_CTX_set_error(WOLFSSL_X509_STORE_CTX* ctx, int er)
  * WOLFSSL objects that have been created by the WOLFSSL_CTX structure passed
  * in.
  *
- * ctx WOLFSSL_CTX structre to set callback function in
+ * ctx WOLFSSL_CTX structure to set callback function in
  * f   callback function to use
  */
 void wolfSSL_CTX_set_info_callback(WOLFSSL_CTX* ctx,
@@ -21318,7 +21318,7 @@ void wolfSSL_DES_set_odd_parity(WOLFSSL_DES_cblock* myDes)
 
 
 #ifdef WOLFSSL_DES_ECB
-/* Encrpyt or decrypt input message desa with key and get output in desb.
+/* Encrypt or decrypt input message desa with key and get output in desb.
  * if enc is DES_ENCRYPT,input message is encrypted or
  * if enc is DES_DECRYPT,input message is decrypted.
  * */
@@ -21341,7 +21341,7 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
         if (enc){
             if (wc_Des_EcbEncrypt(&myDes, (byte*) desb, (const byte*) desa,
                         sizeof(WOLFSSL_DES_cblock)) != 0){
-                WOLFSSL_MSG("wc_Des_EcbEncrpyt return error.");
+                WOLFSSL_MSG("wc_Des_EcbEncrypt return error.");
             }
         } else {
             if (wc_Des_EcbDecrypt(&myDes, (byte*) desb, (const byte*) desa,
@@ -21502,7 +21502,7 @@ int wolfSSL_AES_set_decrypt_key(const unsigned char *key, const int bits,
 #ifdef HAVE_AES_ECB
 /* Encrypt/decrypt a 16 byte block of data using the key passed in.
  *
- * in  buffer to encrypt/decyrpt
+ * in  buffer to encrypt/decrypt
  * out buffer to hold result of encryption/decryption
  * key AES structure to use with encryption/decryption
  * enc AES_ENCRPT for encryption and AES_DECRYPT for decryption
@@ -21539,9 +21539,9 @@ void wolfSSL_AES_ecb_encrypt(const unsigned char *in, unsigned char* out,
 
 #ifdef HAVE_AES_CBC
 /* Encrypt data using key and iv passed in. iv gets updated to most recent iv
- * state after encryptiond/decryption.
+ * state after encryption/decryption.
  *
- * in  buffer to encrypt/decyrpt
+ * in  buffer to encrypt/decrypt
  * out buffer to hold result of encryption/decryption
  * len length of input buffer
  * key AES structure to use with encryption/decryption
@@ -21584,9 +21584,9 @@ void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
 
 
 /* Encrypt data using CFB mode with key and iv passed in. iv gets updated to
- * most recent iv state after encryptiond/decryption.
+ * most recent iv state after encryption/decryption.
  *
- * in  buffer to encrypt/decyrpt
+ * in  buffer to encrypt/decrypt
  * out buffer to hold result of encryption/decryption
  * len length of input buffer
  * key AES structure to use with encryption/decryption
@@ -22260,7 +22260,7 @@ const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
  *
  * fname name of file to write to
  *
- * Returns the number of bytes writen
+ * Returns the number of bytes written
  */
 int wolfSSL_RAND_write_file(const char* fname)
 {
@@ -25407,7 +25407,7 @@ int wolfSSL_RSA_verify(int type, const unsigned char* m,
         XFREE(sigRet, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
-    /* get non-encrypted signature to be compared with decrypted sugnature*/
+    /* get non-encrypted signature to be compared with decrypted signature */
     ret = wolfSSL_RSA_sign_ex(type, m, mLen, sigRet, &len, rsa, 0);
     if (ret <= 0) {
         WOLFSSL_MSG("Message Digest Error");
@@ -25636,7 +25636,7 @@ int wolfSSL_HmacCopy(Hmac* des, Hmac* src)
 /* Deep copy of information from src to des structure
  *
  * des destination to copy information to
- * src structure to get infromation from
+ * src structure to get information from
  *
  * Returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on error
  */
@@ -28645,7 +28645,7 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
         }
     }
     else if (bio->type == WOLFSSL_BIO_FILE) {
-        int sz  = 100; /* read from file by 100 byte chuncks */
+        int sz  = 100; /* read from file by 100 byte chunks */
         int idx = 0;
         char* tmp = (char*)XMALLOC(sz, bio->heap, DYNAMIC_TYPE_OPENSSL);
 
@@ -28676,7 +28676,7 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
             XMEMCPY(mem + idx, tmp, sz);
             memSz += sz;
             idx   += sz;
-            sz = 100; /* read another 100 byte chunck from file */
+            sz = 100; /* read another 100 byte chunk from file */
         }
         XFREE(tmp, bio->heap, DYNAMIC_TYPE_OPENSSL);
         tmp = NULL;
@@ -30621,7 +30621,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         /* AUX info is; trusted/rejected uses, friendly name, private key id,
          * and potentially a stack of "other" info. wolfSSL does not store
          * friendly name or private key id yet in WOLFSSL_X509 for human
-         * readibility and does not support extra trusted/rejected uses for
+         * readability and does not support extra trusted/rejected uses for
          * root CA. */
         return wolfSSL_PEM_read_bio_X509(bp, x, cb, u);
     }
@@ -32327,7 +32327,7 @@ void* wolfSSL_get_app_data(const WOLFSSL *ssl)
  * ssl WOLFSSL struct to set app data in
  * arg data to be stored
  *
- * Returns SSL_SUCCESS on sucess and SSL_FAILURE on failure
+ * Returns SSL_SUCCESS on success and SSL_FAILURE on failure
  */
 int wolfSSL_set_app_data(WOLFSSL *ssl, void* arg) {
     WOLFSSL_ENTER("wolfSSL_set_app_data");
@@ -34441,7 +34441,7 @@ int wolfSSL_i2a_ASN1_INTEGER(BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
 
     /* Skip ASN.1 INTEGER (type) byte. */
     i = 1;
-    /* When indefinte length, can't determine length with data available. */
+    /* When indefinite length, can't determine length with data available. */
     if (a->data[i] == 0x80)
         return 0;
     /* One length byte if less than 0x80. */
