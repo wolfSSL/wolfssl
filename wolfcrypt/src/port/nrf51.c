@@ -39,6 +39,9 @@
 #include "nrf_ecb.h"
 
 #ifdef SOFTDEVICE_PRESENT
+#ifndef WOLFSSL_NRF_SDK_12
+    #include "softdevice_handler.h"
+#endif
     #include "nrf_soc.h"
 #endif /* SOFTDEVICE_PRESENT */
 
@@ -163,9 +166,9 @@ static void rtc_handler(nrf_drv_rtc_int_type_t int_type)
 static void rtc_config(void)
 {
     uint32_t err_code;
-    #ifdef WOLFSSL_NRF_SDK_12
+#ifdef WOLFSSL_NRF_SDK_12
     nrf_drv_rtc_config_t config = NRF_DRV_RTC_DEFAULT_CONFIG;
-    #endif /* end WOLFSSL_NRF_SDK_12 */
+#endif /* end WOLFSSL_NRF_SDK_12 */
 
     // Start the internal LFCLK XTAL oscillator
     err_code = nrf_drv_clock_init();
@@ -173,11 +176,11 @@ static void rtc_config(void)
 
     nrf_drv_clock_lfclk_request(NULL);
 
-    #ifdef WOLFSSL_NRF_SDK_12
+#ifdef WOLFSSL_NRF_SDK_12
     err_code = nrf_drv_rtc_init(&rtc, &config, rtc_handler);
-    #else
+#else
     err_code = nrf_drv_rtc_init(&rtc, NULL, rtc_handler);
-    #endif /* end WOLFSSL_NRF_SDK_12 */
+#endif /* end WOLFSSL_NRF_SDK_12 */
     APP_ERROR_CHECK(err_code);
 
     // Enable tick event

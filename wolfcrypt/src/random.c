@@ -1962,16 +1962,16 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         /* Make sure RNG is running */
         err_code = nrf_drv_rng_init(NULL);
-        #ifdef WOLFSSL_NRF_SDK_12
+#ifdef WOLFSSL_NRF_SDK_12
         if (err_code != NRF_SUCCESS && err_code != NRF_ERROR_INVALID_STATE && err_code != NRF_ERROR_MODULE_ALREADY_INITIALIZED) {
-        #else
+#else
         if (err_code != NRF_SUCCESS && err_code != NRF_ERROR_INVALID_STATE) {
-        #endif /* end WOLFSSL_NRF_SDK_12 */
+#endif /* end WOLFSSL_NRF_SDK_12 */
             return -1;
         }
 
         while (remaining > 0) {
-            #ifdef WOLFSSL_NRF_SDK_12
+#ifdef WOLFSSL_NRF_SDK_12
             nrf_drv_rng_bytes_available(&available);
             length = (remaining < available) ? remaining : available;
             if (length > 0) {
@@ -1979,7 +1979,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 remaining -= length;
                 pos += length;
             }
-            #else
+#else
             err_code = nrf_drv_rng_bytes_available(&available);
             if (err_code == NRF_SUCCESS) {
                 length = (remaining < available) ? remaining : available;
@@ -1989,7 +1989,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                     pos += length;
                 }
             }
-            #endif /* end WOLFSSL_NRF_SDK_12 */
+#endif /* end WOLFSSL_NRF_SDK_12 */
 
             if (err_code != NRF_SUCCESS) {
                 break;
