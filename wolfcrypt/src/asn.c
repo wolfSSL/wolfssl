@@ -14137,8 +14137,10 @@ static int DecodeSingleResponse(byte* source,
         return ASN_PARSE_E;
 
 #ifndef NO_ASN_TIME
+#ifndef WOLFSSL_NO_OCSP_DATE_BEFORE_CHECK
     if (!XVALIDATE_DATE(cs->thisDate, cs->thisDateFormat, BEFORE))
         return ASN_BEFORE_DATE_E;
+#endif
 #endif
 
     /* The following items are optional. Only check for them if there is more
@@ -14744,7 +14746,11 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 
     /* Nonces are not critical. The responder may not necessarily add
      * the nonce to the response. */
-    if (resp->nonceSz != 0) {
+    if (req->nonceSz
+#ifndef WOLFSSL_FORCE_OCSP_NONCE_CHECK
+            && resp->nonceSz != 0
+#endif
+    ) {
         cmp = req->nonceSz - resp->nonceSz;
         if (cmp != 0)
         {
