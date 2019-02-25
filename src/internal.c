@@ -17013,7 +17013,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
                 }
 
                 /* Return the maximum signature length. */
-                *length = (word16)ssl->buffers.keySz;
+                *length = (word16)wc_ecc_sig_size_calc(ssl->buffers.keySz);
             }
         }
         else if (ssl->buffers.keyType == ecc_dsa_sa_algo) {
@@ -17027,7 +17027,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
                 }
 
                 /* Return the maximum signature length. */
-                *length = (word16)ssl->buffers.keySz;
+                *length = (word16)wc_ecc_sig_size_calc(ssl->buffers.keySz);
             }
         }
         goto exit_dpk;
@@ -25221,8 +25221,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             ERROR_OUT(BUFFER_ERROR, exit_dcke);
                         }
 
-                        ssl->arrays->preMasterSz = ENCRYPT_LEN;
-
                     #ifdef HAVE_CURVE25519
                         if (ssl->ecdhCurveOID == ECC_X25519_OID) {
                         #ifdef HAVE_PK_CALLBACKS
@@ -25253,6 +25251,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     EC25519_LITTLE_ENDIAN)) {
                                 ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
                             }
+
+                            ssl->arrays->preMasterSz = CURVE25519_KEYSIZE;
 
                             ssl->peerX25519KeyPresent = 1;
 
@@ -25296,6 +25296,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                         ssl->peerEccKey, private_key->dp->id)) {
                             ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
                         }
+
+                        ssl->arrays->preMasterSz = private_key->dp->size;
 
                         ssl->peerEccKeyPresent = 1;
                 #endif /* HAVE_ECC */
