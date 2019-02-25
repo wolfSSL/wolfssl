@@ -11332,9 +11332,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             ssl->buffers.keyId = 1;
             ssl->buffers.keySz = (word32)keySz;
             if (devId != INVALID_DEVID)
-                ssl->buffers.keyId = devId;
+                ssl->buffers.keyDevId = devId;
             else
-                ssl->buffers.keyId = ssl->devId;
+                ssl->buffers.keyDevId = ssl->devId;
 
             ret = WOLFSSL_SUCCESS;
         }

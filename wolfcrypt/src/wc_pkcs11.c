@@ -566,7 +566,7 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                                                 aes->idLen);
                 }
                 if (ret == 0 && clear)
-                    ForceZero(aes->devKey, 0, aes->keylen);
+                    ForceZero(aes->devKey, aes->keylen);
                 break;
             }
     #endif
@@ -583,7 +583,7 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                                                 aes->idLen);
                 }
                 if (ret == 0 && clear)
-                    ForceZero(aes->devKey, 0, aes->keylen);
+                    ForceZero(aes->devKey, aes->keylen);
                 break;
             }
     #endif
@@ -1636,6 +1636,43 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
 }
 
 /**
+ * Get the parameters from the private key on the device.
+ *
+ * @param  session  [in]  Session object.
+ * @param  privKey  [in]  PKCS #11 object handle of private key..
+ * @param  key      [in]  Ecc key to set parameters against.
+ * @return  WC_HW_E when a PKCS#11 library call fails.
+ *          0 on success.
+ */
+static int Pkcs11GetEccParams(Pkcs11Session* session, CK_OBJECT_HANDLE privKey,
+                              ecc_key* key)
+{
+    int          ret = 0;
+    int          curveId;
+    CK_RV        rv;
+    byte         oid[16];
+    CK_ATTRIBUTE template[] = {
+        { CKA_EC_PARAMS, (CK_VOID_PTR)oid, sizeof(oid) }
+    };
+
+    rv = session->func->C_GetAttributeValue(session->handle, privKey, template,
+                                                                             1);
+    if (rv != CKR_OK)
+        ret = WC_HW_E;
+    if (ret == 0) {
+        /* PKCS #11 wraps the OID in ASN.1 */
+        curveId = wc_ecc_get_curve_id_from_oid(oid + 2,
+                                                    template[0].ulValueLen - 2);
+        if (curveId == ECC_CURVE_INVALID)
+            ret = WC_HW_E;
+    }
+    if (ret == 0)
+        ret = wc_ecc_set_curve(key, 0, curveId);
+
+    return ret;
+}
+
+/**
  * Performs the ECDSA signing operation.
  *
  * @param  session  [in]  Session object.
@@ -1666,13 +1703,6 @@ static int Pkcs11ECDSA_Sign(Pkcs11Session* session, wc_CryptoInfo* info)
     if (ret == 0) {
         WOLFSSL_MSG("PKCS#11: EC Signing Operation");
 
-        sz = info->pk.eccsign.key->dp->size;
-        /* Maximum encoded size is two ordinates + 8 bytes of ASN.1. */
-        if (*info->pk.eccsign.outlen < sz * 2 + 8)
-            ret = BUFFER_E;
-    }
-
-    if (ret == 0) {
         if ((sessionKey = !mp_iszero(&info->pk.eccsign.key->k)))
             ret = Pkcs11CreateEccPrivateKey(&privateKey, session,
                                                 info->pk.eccsign.key, CKA_SIGN);
@@ -1680,11 +1710,22 @@ static int Pkcs11ECDSA_Sign(Pkcs11Session* session, wc_CryptoInfo* info)
             ret = Pkcs11FindKeyById(&privateKey, CKO_PRIVATE_KEY, CKK_EC,
                                     session, info->pk.eccsign.key->id,
                                     info->pk.eccsign.key->idLen);
+            if (ret == 0 && info->pk.eccsign.key->dp == NULL) {
+                ret = Pkcs11GetEccParams(session, privateKey,
+                                                          info->pk.eccsign.key);
+            }
         }
         else {
             ret = Pkcs11FindEccKey(&privateKey, CKO_PRIVATE_KEY, session,
                                                           info->pk.eccsign.key);
         }
+    }
+
+    if (ret == 0) {
+        sz = info->pk.eccsign.key->dp->size;
+        /* Maximum encoded size is two ordinates + 8 bytes of ASN.1. */
+        if (*info->pk.eccsign.outlen < (word32)wc_ecc_sig_size_calc(sz))
+            ret = BUFFER_E;
     }
 
     if (ret == 0) {
