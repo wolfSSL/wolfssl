@@ -1642,11 +1642,39 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_AEAD_ONLY
 #endif
 
+#if !defined(NO_DH) && !defined(HAVE_FFDHE)
+    #if defined(HAVE_FFDHE_2048) || defined(HAVE_FFDHE_3072) || \
+            defined(HAVE_FFDHE_4096) || defined(HAVE_FFDHE_6144) || \
+            defined(HAVE_FFDHE_8192)
+        #define HAVE_FFDHE
+    #endif
+#endif
+#if defined(HAVE_FFDHE_8192)
+    #define MIN_FFDHE_FP_MAX_BITS 16384
+#elif defined(HAVE_FFDHE_6144)
+    #define MIN_FFDHE_FP_MAX_BITS 12288
+#elif defined(HAVE_FFDHE_4096)
+    #define MIN_FFDHE_FP_MAX_BITS 8192
+#elif defined(HAVE_FFDHE_3072)
+    #define MIN_FFDHE_FP_MAX_BITS 6144
+#elif defined(HAVE_FFDHE_2048)
+    #define MIN_FFDHE_FP_MAX_BITS 4096
+#else
+    #define MIN_FFDHE_FP_MAX_BITS 0
+#endif
+#if defined(HAVE_FFDHE) && defined(FP_MAX_BITS)
+    #if MIN_FFDHE_FP_MAX_BITS > FP_MAX_BITS
+        #error "FFDHE parameters are too large for FP_MAX_BIT as set"
+    #endif
+#endif
+
 /* if desktop type system and fastmath increase default max bits */
 #ifdef WOLFSSL_X86_64_BUILD
-    #ifdef USE_FAST_MATH
-        #ifndef FP_MAX_BITS
+    #if defined(USE_FAST_MATH) && !defined(FP_MAX_BITS)
+        #if MIN_FFDHE_FP_MAX_BITS <= 8192
             #define FP_MAX_BITS 8192
+        #else
+            #define FP_MAX_BITS MIN_FFDHE_FP_MAX_BITS
         #endif
     #endif
 #endif
@@ -1806,36 +1834,6 @@ extern void uITRON4_free(void *p) ;
 
 #if defined(WOLFSSL_NGINX)
     #define SSL_CTRL_SET_TLSEXT_HOSTNAME
-#endif
-
-#if !defined(NO_DH) && !defined(HAVE_FFDHE)
-    #if defined(HAVE_FFDHE_2048) || defined(HAVE_FFDHE_3072) || \
-            defined(HAVE_FFDHE_4096) || defined(HAVE_FFDHE_6144) || \
-            defined(HAVE_FFDHE_8192)
-        #define HAVE_FFDHE
-    #endif
-#endif
-#ifdef FP_MAX_BITS
-    #if defined(HAVE_FFDHE_8192) && FP_MAX_BITS < 16384
-        #undef  FP_MAX_BITS
-        #define FP_MAX_BITS     16384
-    #endif
-    #if defined(HAVE_FFDHE_6144) && FP_MAX_BITS < 12288
-        #undef  FP_MAX_BITS
-        #define FP_MAX_BITS     12288
-    #endif
-    #if defined(HAVE_FFDHE_4096) && FP_MAX_BITS < 8192
-        #undef  FP_MAX_BITS
-        #define FP_MAX_BITS     8192
-    #endif
-    #if defined(HAVE_FFDHE_3072) && FP_MAX_BITS < 6144
-        #undef  FP_MAX_BITS
-        #define FP_MAX_BITS     6144
-    #endif
-    #if defined(HAVE_FFDHE_2048) && FP_MAX_BITS < 4096
-        #undef  FP_MAX_BITS
-        #define FP_MAX_BITS     4096
-    #endif
 #endif
 
 
