@@ -2068,6 +2068,10 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
             totalSz -= pkcs7->contentSz;
         }
     }
+    else {
+        /* if using single output buffer include content and footer */
+        totalSz += total2Sz;
+    }
 
     if (totalSz > *outputSz) {
         if (pkcs7->signedAttribsSz != 0)
