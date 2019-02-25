@@ -5172,15 +5172,16 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     return (status == kStatus_Success) ? 0 : AES_GCM_AUTH_E;
 }
-#else
-#if defined(STM32_CRYPTO) && (defined(WOLFSSL_STM32F4) || \
-                              defined(WOLFSSL_STM32F7) || \
-                              defined(WOLFSSL_STM32L4))
 
-static WC_INLINE int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in,
-                                         word32 sz, const byte* iv, word32 ivSz,
-                                         byte* authTag, word32 authTagSz,
-                                         const byte* authIn, word32 authInSz)
+#else
+
+#ifdef STM32_CRYPTO_AES_GCM
+
+/* this function supports inline encrypt */
+static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz,
+                                  const byte* iv, word32 ivSz,
+                                  byte* authTag, word32 authTagSz,
+                                  const byte* authIn, word32 authInSz)
 {
     int ret;
 #ifdef WOLFSSL_STM32_CUBEMX
@@ -5190,11 +5191,12 @@ static WC_INLINE int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in,
 #endif
     word32 keySize;
     int status = 0;
-    int outPadSz, authPadSz;
+    word32 blocks = sz / AES_BLOCK_SIZE;
+    word32 partial = sz % AES_BLOCK_SIZE;
     word32 tag[AES_BLOCK_SIZE/sizeof(word32)];
-    word32 initialCounter[AES_BLOCK_SIZE/sizeof(word32)];
-    byte* outPadded = NULL;
+    word32 partialBlock[AES_BLOCK_SIZE/sizeof(word32)];
     byte* authInPadded = NULL;
+    int authPadSz;
 
     ret = wc_AesGetKeySize(aes, &keySize);
     if (ret != 0)
@@ -5206,27 +5208,10 @@ static WC_INLINE int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in,
         return ret;
 #endif
 
-    XMEMSET(initialCounter, 0, sizeof(initialCounter));
-    XMEMCPY(initialCounter, iv, ivSz);
-    *((byte*)initialCounter + (AES_BLOCK_SIZE - 1)) = STM32_GCM_IV_START;
-
-    /* Need to pad the AAD and input cipher text to a full block size since
-     * CRYP_AES_GCM will assume these are a multiple of AES_BLOCK_SIZE.
-     * It is okay to pad with zeros because GCM does this before GHASH already.
-     * See NIST SP 800-38D */
-    if ((sz % AES_BLOCK_SIZE) != 0 || sz == 0) {
-        outPadSz = ((sz / AES_BLOCK_SIZE) + 1) * AES_BLOCK_SIZE;
-        outPadded = (byte*)XMALLOC(outPadSz, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (outPadded == NULL) {
-            return MEMORY_E;
-        }
-        XMEMSET(outPadded, 0, outPadSz);
+    XMEMCPY(aes->reg, iv, ivSz);
+    if (ivSz == GCM_NONCE_MID_SZ) {
+        *((byte*)aes->reg + (AES_BLOCK_SIZE - 1)) = STM32_GCM_IV_START;
     }
-    else {
-        outPadSz = sz;
-        outPadded = out;
-    }
-    XMEMCPY(outPadded, in, sz);
 
     if (authInSz == 0 || (authInSz % AES_BLOCK_SIZE) != 0) {
         /* Need to pad the AAD to a full block with zeros. */
@@ -5234,9 +5219,6 @@ static WC_INLINE int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in,
         authInPadded = (byte*)XMALLOC(authPadSz, aes->heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (authInPadded == NULL) {
-            if (outPadded != out) {
-                XFREE(outPadded, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            }
             return MEMORY_E;
         }
         XMEMSET(authInPadded, 0, authPadSz);
@@ -5246,9 +5228,8 @@ static WC_INLINE int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in,
         authInPadded = (byte*)authIn;
     }
 
-
 #ifdef WOLFSSL_STM32_CUBEMX
-    hcryp.Init.pInitVect = (uint8_t*)initialCounter;
+    hcryp.Init.pInitVect = (uint8_t*)aes->reg;
     hcryp.Init.Header = authInPadded;
     hcryp.Init.HeaderSize = authInSz;
 
@@ -5265,26 +5246,42 @@ static WC_INLINE int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in,
         /* GCM header phase */
         hcryp.Init.GCMCMACPhase  = CRYP_HEADER_PHASE;
         status = HAL_CRYPEx_AES_Auth(&hcryp, NULL, 0, NULL, STM32_HAL_TIMEOUT);
-        if (status == HAL_OK) {
-            /* GCM payload phase */
-            hcryp.Init.GCMCMACPhase  = CRYP_PAYLOAD_PHASE;
-            status = HAL_CRYPEx_AES_Auth(&hcryp, outPadded, sz, outPadded,
-                STM32_HAL_TIMEOUT);
-            if (status == HAL_OK) {
-                /* GCM final phase */
-                hcryp.Init.GCMCMACPhase  = CRYP_FINAL_PHASE;
-                status = HAL_CRYPEx_AES_Auth(&hcryp, NULL, sz, (byte*)tag,
-                    STM32_HAL_TIMEOUT);
-            }
-        }
+    }
+    if (status == HAL_OK) {
+        /* GCM payload phase - blocks */
+        hcryp.Init.GCMCMACPhase  = CRYP_PAYLOAD_PHASE;
+        status = HAL_CRYPEx_AES_Auth(&hcryp, in, (blocks * AES_BLOCK_SIZE), out,
+            STM32_HAL_TIMEOUT);
+    }
+    if (status == HAL_OK && partial != 0) {
+        /* GCM payload phase - partial remainder */
+        XMEMSET(partialBlock, 0, sizeof(partialBlock));
+        XMEMCPY(partialBlock, in + (blocks * AES_BLOCK_SIZE), partial);
+        status = HAL_CRYPEx_AES_Auth(&hcryp, (byte*)partialBlock, partial,
+            (byte*)partialBlock, STM32_HAL_TIMEOUT);
+        XMEMCPY(out + (blocks * AES_BLOCK_SIZE), partialBlock, partial);
+    }
+    if (status == HAL_OK) {
+        /* GCM final phase */
+        hcryp.Init.GCMCMACPhase  = CRYP_FINAL_PHASE;
+        status = HAL_CRYPEx_AES_Auth(&hcryp, NULL, sz, (byte*)tag,
+            STM32_HAL_TIMEOUT);
     }
 #else
     HAL_CRYP_Init(&hcryp);
-
-    status = HAL_CRYPEx_AESGCM_Encrypt(&hcryp, outPadded, sz,
-                                       outPadded, STM32_HAL_TIMEOUT);
-    /* Compute the authTag */
+    /* GCM payload phase - blocks */
+    status = HAL_CRYPEx_AESGCM_Encrypt(&hcryp, (byte*)in,
+        (blocks * AES_BLOCK_SIZE), out, STM32_HAL_TIMEOUT);
+    if (status == HAL_OK && partial != 0) {
+        /* GCM payload phase - partial remainder */
+        XMEMSET(partialBlock, 0, sizeof(partialBlock));
+        XMEMCPY(partialBlock, in + (blocks * AES_BLOCK_SIZE), partial);
+        status = HAL_CRYPEx_AESGCM_Encrypt(&hcryp, (byte*)partialBlock, partial,
+            (byte*)partialBlock, STM32_HAL_TIMEOUT);
+        XMEMCPY(out + (blocks * AES_BLOCK_SIZE), partialBlock, partial);
+    }
     if (status == HAL_OK) {
+        /* Compute the authTag */
         status = HAL_CRYPEx_AESGCM_Finish(&hcryp, sz, (byte*)tag,
             STM32_HAL_TIMEOUT);
     }
@@ -5296,36 +5293,49 @@ static WC_INLINE int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in,
 
 #else /* STD_PERI_LIB */
     ByteReverseWords(keyCopy, (word32*)aes->key, keySize);
-    status = CRYP_AES_GCM(MODE_ENCRYPT, (uint8_t*)initialCounter,
+    status = CRYP_AES_GCM(MODE_ENCRYPT, (uint8_t*)aes->reg,
                          (uint8_t*)keyCopy,     keySize * 8,
-                         (uint8_t*)outPadded,   sz,
+                         (uint8_t*)in,   sz,
                          (uint8_t*)authInPadded,authInSz,
-                         (uint8_t*)outPadded,   (byte*)tag);
+                         (uint8_t*)out,   (byte*)tag);
     if (status != SUCCESS)
         ret = AES_GCM_AUTH_E;
 #endif /* WOLFSSL_STM32_CUBEMX */
 
     if (ret == 0) {
         /* return authTag */
-    	XMEMCPY(authTag, tag, authTagSz);
-
-        /* return output if allocated padded used */
-        if (outPadded != out) {
-            XMEMCPY(out, outPadded, sz);
+        if (authTag) {
+            /* for partial blocks tag hardware will not compute tag correctly,
+                so use software to compute tag */
+            if (partial != 0) {
+                byte initialCounter[AES_BLOCK_SIZE];
+                XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
+                if (ivSz == GCM_NONCE_MID_SZ) {
+                    XMEMCPY(initialCounter, iv, ivSz);
+                    initialCounter[AES_BLOCK_SIZE - 1] = 1;
+                }
+                else {
+                    GHASH(aes, NULL, 0, iv, ivSz, initialCounter, AES_BLOCK_SIZE);
+                }
+                GHASH(aes, authIn, authInSz, out, sz, authTag, authTagSz);
+                wc_AesEncrypt(aes, initialCounter, (byte*)tag);
+                xorbuf(authTag, (byte*)tag, authTagSz);
+            }
+            else {
+            	XMEMCPY(authTag, tag, authTagSz);
+            }
         }
     }
 
     /* Free memory if not a multiple of AES_BLOCK_SZ */
-    if (outPadded != out) {
-        XFREE(outPadded, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
     if (authInPadded != authIn) {
         XFREE(authInPadded, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     return ret;
 }
-#endif /* STM32_CRYPTO */
+
+#endif /* STM32_CRYPTO_AES_GCM */
 
 #ifdef WOLFSSL_AESNI
 int AES_GCM_encrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
@@ -5363,7 +5373,7 @@ int AES_GCM_encrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #ifdef WOLFSSL_PIC32MZ_CRYPT
     if (blocks) {
-        /* use initial IV for PIC32 HW, but don't use it below */
+        /* use initial IV for HW, but don't use it below */
         XMEMCPY(aes->reg, ctr, AES_BLOCK_SIZE);
 
         ret = wc_Pic32AesCrypt(
@@ -5393,11 +5403,11 @@ int AES_GCM_encrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
         p += AES_BLOCK_SIZE * blocks;
     }
     else
-#endif /* HAVE_AES_ECB */
+#endif /* HAVE_AES_ECB && !WOLFSSL_PIC32MZ_CRYPT */
 
     while (blocks--) {
         IncrementGcmCounter(ctr);
-    #ifndef WOLFSSL_PIC32MZ_CRYPT
+    #if !defined(WOLFSSL_PIC32MZ_CRYPT)
         wc_AesEncrypt(aes, ctr, scratch);
         xorbuf(scratch, p, AES_BLOCK_SIZE);
         XMEMCPY(c, scratch, AES_BLOCK_SIZE);
@@ -5413,9 +5423,11 @@ int AES_GCM_encrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
         XMEMCPY(c, scratch, partial);
     }
 
-    GHASH(aes, authIn, authInSz, out, sz, authTag, authTagSz);
-    wc_AesEncrypt(aes, initialCounter, scratch);
-    xorbuf(authTag, scratch, authTagSz);
+    if (authTag) {
+        GHASH(aes, authIn, authInSz, out, sz, authTag, authTagSz);
+        wc_AesEncrypt(aes, initialCounter, scratch);
+        xorbuf(authTag, scratch, authTagSz);
+    }
 
     return ret;
 }
@@ -5443,17 +5455,6 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         if (ret != NOT_COMPILED_IN)
             return ret;
         /* fall-through on not compiled in */
-    }
-#endif
-
-#if defined(STM32_CRYPTO) && (defined(WOLFSSL_STM32F4) || \
-                              defined(WOLFSSL_STM32F7) || \
-                              defined(WOLFSSL_STM32L4))
-
-    /* STM32 HW only supports 12 byte IV */
-    if (ivSz == GCM_NONCE_MID_SZ) {
-        return wc_AesGcmEncrypt_STM32(aes, out, in, sz, iv, ivSz,
-                                      authTag, authTagSz, authIn, authInSz);
     }
 #endif
 
@@ -5492,6 +5493,20 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     #endif
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+#ifdef STM32_CRYPTO_AES_GCM
+    /* STM hardware only supports IV of 12 or 16 bytes */
+    /* The STM standard peripheral library API's doesn't support partial blocks */
+    if ((ivSz == 12 || ivSz == 16)
+    #ifdef STD_PERI_LIB
+        && partial == 0
+    #endif
+    ) {
+        return wc_AesGcmEncrypt_STM32(
+            aes, out, in, sz, iv, ivSz,
+            authTag, authTagSz, authIn, authInSz);
+    }
+#endif /* STM32_CRYPTO_AES_GCM */
 
 #ifdef WOLFSSL_AESNI
     #ifdef HAVE_INTEL_AVX2
@@ -5560,14 +5575,13 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #else
 
-#if defined(STM32_CRYPTO) && (defined(WOLFSSL_STM32F4) || \
-                              defined(WOLFSSL_STM32F7) || \
-                              defined(WOLFSSL_STM32L4))
-static WC_INLINE int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
-                    const byte* in, word32 sz,
-                    const byte* iv, word32 ivSz,
-                    const byte* authTag, word32 authTagSz,
-                    const byte* authIn, word32 authInSz)
+#ifdef STM32_CRYPTO_AES_GCM
+/* this function supports inline decrypt */
+static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
+                                  const byte* in, word32 sz,
+                                  const byte* iv, word32 ivSz,
+                                  const byte* authTag, word32 authTagSz,
+                                  const byte* authIn, word32 authInSz)
 {
     int ret;
 #ifdef WOLFSSL_STM32_CUBEMX
@@ -5577,11 +5591,12 @@ static WC_INLINE int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
 #endif
     word32 keySize;
     int status;
-    int outPadSz, authPadSz;
+    word32 blocks = sz / AES_BLOCK_SIZE;
+    word32 partial = sz % AES_BLOCK_SIZE;
     word32 tag[AES_BLOCK_SIZE/sizeof(word32)];
-    word32 initialCounter[AES_BLOCK_SIZE/sizeof(word32)];
-    byte* outPadded = NULL;
+    word32 partialBlock[AES_BLOCK_SIZE/sizeof(word32)];
     byte* authInPadded = NULL;
+    int authPadSz;
 
     ret = wc_AesGetKeySize(aes, &keySize);
     if (ret != 0)
@@ -5593,27 +5608,34 @@ static WC_INLINE int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
         return ret;
 #endif
 
-    XMEMSET(initialCounter, 0, sizeof(initialCounter));
-    XMEMCPY(initialCounter, iv, ivSz);
-    *((byte*)initialCounter + (AES_BLOCK_SIZE - 1)) = STM32_GCM_IV_START;
+    /* if sz is not multiple of block size then hardware computed tag
+        will be incorrect, so use software */
+    if (partial != 0) {
+        byte initialCounter[AES_BLOCK_SIZE];
+        byte Tprime[AES_BLOCK_SIZE];
+        byte EKY0[AES_BLOCK_SIZE];
 
-    /* Need to pad the AAD and input cipher text to a full block size since
-     * CRYP_AES_GCM will assume these are a multiple of AES_BLOCK_SIZE.
-     * It is okay to pad with zeros because GCM does this before GHASH already.
-     * See NIST SP 800-38D */
-    if ((sz % AES_BLOCK_SIZE) != 0 || sz == 0) {
-        outPadSz = ((sz / AES_BLOCK_SIZE) + 1) * AES_BLOCK_SIZE;
-        outPadded = (byte*)XMALLOC(outPadSz, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (outPadded == NULL) {
-            return MEMORY_E;
+        XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
+        if (ivSz == GCM_NONCE_MID_SZ) {
+            XMEMCPY(initialCounter, iv, ivSz);
+            initialCounter[AES_BLOCK_SIZE - 1] = 1;
         }
-        XMEMSET(outPadded, 0, outPadSz);
+        else {
+            GHASH(aes, NULL, 0, iv, ivSz, initialCounter, AES_BLOCK_SIZE);
+        }
+        GHASH(aes, authIn, authInSz, in, sz, Tprime, sizeof(Tprime));
+        wc_AesEncrypt(aes, initialCounter, EKY0);
+        xorbuf(Tprime, EKY0, sizeof(Tprime));
+
+        if (ConstantCompare(authTag, Tprime, authTagSz) != 0) {
+            return AES_GCM_AUTH_E;
+        }
     }
-    else {
-        outPadSz = sz;
-        outPadded = out;
+
+    XMEMCPY(aes->reg, iv, ivSz);
+    if (ivSz == GCM_NONCE_MID_SZ) {
+        *((byte*)aes->reg + (AES_BLOCK_SIZE - 1)) = STM32_GCM_IV_START;
     }
-    XMEMCPY(outPadded, in, sz);
 
     if (authInSz == 0 || (authInSz % AES_BLOCK_SIZE) != 0) {
         /* Need to pad the AAD to a full block with zeros. */
@@ -5621,9 +5643,6 @@ static WC_INLINE int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
         authInPadded = (byte*)XMALLOC(authPadSz, aes->heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (authInPadded == NULL) {
-            if (outPadded != out) {
-                XFREE(outPadded, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            }
             return MEMORY_E;
         }
         XMEMSET(authInPadded, 0, authPadSz);
@@ -5634,7 +5653,7 @@ static WC_INLINE int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     }
 
 #ifdef WOLFSSL_STM32_CUBEMX
-    hcryp.Init.pInitVect = (uint8_t*)initialCounter;
+    hcryp.Init.pInitVect = (uint8_t*)aes->reg;
     hcryp.Init.Header = authInPadded;
     hcryp.Init.HeaderSize = authInSz;
 
@@ -5651,27 +5670,42 @@ static WC_INLINE int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
         /* GCM header phase */
         hcryp.Init.GCMCMACPhase = CRYP_HEADER_PHASE;
         status = HAL_CRYPEx_AES_Auth(&hcryp, NULL, 0, NULL, STM32_HAL_TIMEOUT);
-        if (status == HAL_OK) {
-            /* GCM payload phase */
-            hcryp.Init.GCMCMACPhase = CRYP_PAYLOAD_PHASE;
-            status = HAL_CRYPEx_AES_Auth(&hcryp, outPadded, sz, outPadded,
-                STM32_HAL_TIMEOUT);
-            if (status == HAL_OK) {
-                /* GCM final phase */
-                hcryp.Init.GCMCMACPhase = CRYP_FINAL_PHASE;
-                status = HAL_CRYPEx_AES_Auth(&hcryp, NULL, sz, (byte*)tag,
-                    STM32_HAL_TIMEOUT);
-            }
-        }
+    }
+    if (status == HAL_OK) {
+        /* GCM payload phase - blocks */
+        hcryp.Init.GCMCMACPhase  = CRYP_PAYLOAD_PHASE;
+        status = HAL_CRYPEx_AES_Auth(&hcryp, in, (blocks * AES_BLOCK_SIZE), out,
+            STM32_HAL_TIMEOUT);
+    }
+    if (status == HAL_OK && partial != 0) {
+        /* GCM payload phase - partial remainder */
+        XMEMSET(partialBlock, 0, sizeof(partialBlock));
+        XMEMCPY(partialBlock, in + (blocks * AES_BLOCK_SIZE), partial);
+        status = HAL_CRYPEx_AES_Auth(&hcryp, (byte*)partialBlock, partial,
+            (byte*)partialBlock, STM32_HAL_TIMEOUT);
+        XMEMCPY(out + (blocks * AES_BLOCK_SIZE), partialBlock, partial);
+    }
+    if (status == HAL_OK) {
+        /* GCM final phase */
+        hcryp.Init.GCMCMACPhase = CRYP_FINAL_PHASE;
+        status = HAL_CRYPEx_AES_Auth(&hcryp, NULL, sz, (byte*)tag,
+            STM32_HAL_TIMEOUT);
     }
 #else
     HAL_CRYP_Init(&hcryp);
-    /* Use outPadded for output buffer instead of out so that we don't overflow
-     * our size. */
-    status = HAL_CRYPEx_AESGCM_Decrypt(&hcryp, outPadded, sz, outPadded,
-        STM32_HAL_TIMEOUT);
-    /* Compute the authTag */
+    /* GCM payload phase - blocks */
+    status = HAL_CRYPEx_AESGCM_Decrypt(&hcryp, (byte*)in,
+        (blocks * AES_BLOCK_SIZE), out, STM32_HAL_TIMEOUT);
+    if (status == HAL_OK && partial != 0) {
+        /* GCM payload phase - partial remainder */
+        XMEMSET(partialBlock, 0, sizeof(partialBlock));
+        XMEMCPY(partialBlock, in + (blocks * AES_BLOCK_SIZE), partial);
+        status = HAL_CRYPEx_AESGCM_Decrypt(&hcryp, (byte*)partialBlock, partial,
+            (byte*)partialBlock, STM32_HAL_TIMEOUT);
+        XMEMCPY(out + (blocks * AES_BLOCK_SIZE), partialBlock, partial);
+    }
     if (status == HAL_OK) {
+        /* Compute the authTag */
         status = HAL_CRYPEx_AESGCM_Finish(&hcryp, sz, (byte*)tag,
             STM32_HAL_TIMEOUT);
     }
@@ -5687,39 +5721,30 @@ static WC_INLINE int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
 
     /* Input size and auth size need to be the actual sizes, even though
      * they are not block aligned, because this length (in bits) is used
-     * in the final GHASH. Use outPadded for output buffer instead of
-     * out so that we don't overflow our size.                         */
-    status = CRYP_AES_GCM(MODE_DECRYPT, (uint8_t*)initialCounter,
+     * in the final GHASH. */
+    status = CRYP_AES_GCM(MODE_DECRYPT, (uint8_t*)aes->reg,
                          (uint8_t*)keyCopy,     keySize * 8,
-                         (uint8_t*)outPadded,   sz,
+                         (uint8_t*)in,   sz,
                          (uint8_t*)authInPadded,authInSz,
-                         (uint8_t*)outPadded,   (byte*)tag);
+                         (uint8_t*)out,   (byte*)tag);
     if (status != SUCCESS)
         ret = AES_GCM_AUTH_E;
 #endif /* WOLFSSL_STM32_CUBEMX */
 
-    if (ConstantCompare(authTag, (byte*)tag, authTagSz) != 0) {
+    /* if authTag was not already validated check it */
+    if (partial == 0 && ConstantCompare(authTag, (byte*)tag, authTagSz) != 0) {
         ret = AES_GCM_AUTH_E;
     }
 
-    if (ret == 0) {
-        /* return output if allocated padded used */
-        if (outPadded != out) {
-            XMEMCPY(out, outPadded, sz);
-        }
-    }
-
     /* Free memory if not a multiple of AES_BLOCK_SZ */
-    if (outPadded != out) {
-        XFREE(outPadded, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
     if (authInPadded != authIn) {
         XFREE(authInPadded, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     return ret;
 }
-#endif /* STM32 */
+
+#endif /* STM32_CRYPTO_AES_GCM */
 
 #ifdef WOLFSSL_AESNI
 int AES_GCM_decrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
@@ -5745,8 +5770,8 @@ int AES_GCM_decrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
     byte scratch[AES_BLOCK_SIZE];
     byte Tprime[AES_BLOCK_SIZE];
     byte EKY0[AES_BLOCK_SIZE];
-    ctr = counter;
 
+    ctr = counter;
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
     if (ivSz == GCM_NONCE_MID_SZ) {
         XMEMCPY(initialCounter, iv, ivSz);
@@ -5766,9 +5791,9 @@ int AES_GCM_decrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
         return AES_GCM_AUTH_E;
     }
 
-#ifdef WOLFSSL_PIC32MZ_CRYPT
+#if defined(WOLFSSL_PIC32MZ_CRYPT)
     if (blocks) {
-        /* use initial IV for PIC32 HW, but don't use it below */
+        /* use initial IV for HW, but don't use it below */
         XMEMCPY(aes->reg, ctr, AES_BLOCK_SIZE);
 
         ret = wc_Pic32AesCrypt(
@@ -5798,10 +5823,10 @@ int AES_GCM_decrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
         c += AES_BLOCK_SIZE * blocks;
     }
     else
-#endif /* HAVE_AES_ECB */
+#endif /* HAVE_AES_ECB && !PIC32MZ */
     while (blocks--) {
         IncrementGcmCounter(ctr);
-    #ifndef WOLFSSL_PIC32MZ_CRYPT
+    #if !defined(WOLFSSL_PIC32MZ_CRYPT)
         wc_AesEncrypt(aes, ctr, scratch);
         xorbuf(scratch, c, AES_BLOCK_SIZE);
         XMEMCPY(p, scratch, AES_BLOCK_SIZE);
@@ -5849,17 +5874,6 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 #endif
 
-#if defined(STM32_CRYPTO) && (defined(WOLFSSL_STM32F4) || \
-                              defined(WOLFSSL_STM32F7) || \
-                              defined(WOLFSSL_STM32L4))
-
-    /* STM32 HW only supports 12 byte IV */
-    if (ivSz == GCM_NONCE_MID_SZ) {
-        return wc_AesGcmDecrypt_STM32(aes, out, in, sz, iv, ivSz,
-                                      authTag, authTagSz, authIn, authInSz);
-    }
-#endif
-
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
     /* if async and byte count above threshold */
     /* only 12-byte IV is supported in HW */
@@ -5895,6 +5909,20 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     #endif
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+#ifdef STM32_CRYPTO_AES_GCM
+    /* STM hardware only supports IV of 12 or 16 bytes */
+    /* The STM standard peripheral library API's doesn't support partial blocks */
+    if ((ivSz == 12 || ivSz == 16)
+    #ifdef STD_PERI_LIB
+        && partial == 0
+    #endif
+    ) {
+        return wc_AesGcmDecrypt_STM32(
+            aes, out, in, sz, iv, ivSz,
+            authTag, authTagSz, authIn, authInSz);
+    }
+#endif /* STM32_CRYPTO_AES_GCM */
 
 #ifdef WOLFSSL_AESNI
     #ifdef HAVE_INTEL_AVX2
