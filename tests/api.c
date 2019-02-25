@@ -1284,10 +1284,15 @@ static void test_wolfSSL_SetTmpDH_file(void)
                 WOLFSSL_FILETYPE_PEM));
     AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
                 WOLFSSL_FILETYPE_PEM));
-#else
+#elif defined(HAVE_ECC)
     AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, eccCertFile,
                 WOLFSSL_FILETYPE_PEM));
     AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile,
+                WOLFSSL_FILETYPE_PEM));
+#elif defined(HAVE_ED25519)
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, edCertFile,
+                WOLFSSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, edKeyFile,
                 WOLFSSL_FILETYPE_PEM));
 #endif
     AssertNotNull(ssl = wolfSSL_new(ctx));
@@ -21587,9 +21592,11 @@ static void test_CheckCertSignature(void)
 #endif
 #endif
 
+#if !defined(NO_FILESYSTEM) && (!defined(NO_RSA) || defined(HAVE_ECC))
     (void)fp;
     (void)cert;
     (void)certSz;
+#endif
 
     wolfSSL_CertManagerFree(cm);
 #endif

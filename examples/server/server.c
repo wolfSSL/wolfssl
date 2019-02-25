@@ -2279,8 +2279,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
 exit:
 
-#if defined(NO_MAIN_DRIVER) && defined(HAVE_ECC) && defined(FP_ECC) \
-                            && defined(HAVE_THREAD_LS)
+#if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS) \
+                      && (defined(NO_MAIN_DRIVER) || defined(HAVE_STACK_SIZE))
     wc_ecc_fp_free();  /* free per thread cache */
 #endif
 

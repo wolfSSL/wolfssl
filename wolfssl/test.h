@@ -327,11 +327,11 @@
 #define cliEccCertFile "./certs/client-ecc-cert.pem"
 #define caEccCertFile  "./certs/ca-ecc-cert.pem"
 #define crlPemDir      "./certs/crl"
-#define edCertFile     "./certs/ed25519/server-ed25519.pem"
+#define edCertFile     "./certs/ed25519/server-ed25519-cert.pem"
 #define edKeyFile      "./certs/ed25519/server-ed25519-priv.pem"
 #define cliEdCertFile  "./certs/ed25519/client-ed25519.pem"
 #define cliEdKeyFile   "./certs/ed25519/client-ed25519-priv.pem"
-#define caEdCertFile   "./certs/ed25519/root-ed25519.pem"
+#define caEdCertFile   "./certs/ed25519/ca-ed25519.pem"
 #ifdef HAVE_WNR
     /* Whitewood netRandom default config file */
     #define wnrConfig  "./wnr-example.conf"

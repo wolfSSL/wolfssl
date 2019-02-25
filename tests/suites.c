@@ -193,6 +193,36 @@ static int IsValidCert(const char* line)
     return ret;
 }
 
+static int IsValidCA(const char* line)
+{
+    int ret = 1;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    WOLFSSL_CTX* ctx;
+    size_t i;
+    const char* begin;
+    char cert[80];
+
+    begin = XSTRSTR(line, "-A ");
+    if (begin == NULL)
+        return 1;
+
+    begin += 3;
+    for (i = 0; i < sizeof(cert) - 1 && *begin != ' ' && *begin != '\0'; i++)
+        cert[i] = *(begin++);
+    cert[i] = '\0';
+
+    ctx = wolfSSL_CTX_new(wolfSSLv23_server_method_ex(NULL));
+    if (ctx == NULL)
+        return 0;
+    ret = wolfSSL_CTX_use_certificate_chain_file(ctx, cert) == WOLFSSL_SUCCESS;
+    wolfSSL_CTX_free(ctx);
+#endif /* !NO_FILESYSTEM && !NO_CERTS */
+
+    (void)line;
+
+    return ret;
+}
+
 static int execute_test_case(int svr_argc, char** svr_argv,
                              int cli_argc, char** cli_argv,
                              int addNoVerify, int addNonBlocking,
@@ -391,6 +421,12 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         }
         strcat(commandLine, cli_argv[i]);
         strcat(commandLine, flagSep);
+    }
+    if (!IsValidCA(commandLine)) {
+        #ifdef DEBUG_SUITE_TESTS
+            printf("certificate %s not supported in build\n", commandLine);
+        #endif
+        return NOT_BUILT_IN;
     }
     printf("trying client command line[%d]: %s\n", tests, commandLine);
 
