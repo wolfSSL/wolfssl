@@ -72,11 +72,17 @@ int nrf51_random_generate(byte* output, word32 size)
 
     /* Make sure RNG is running */
     err_code = nrf_drv_rng_init(NULL);
+#ifdef WOLFSSL_NRF_SDK_12
+    if (err_code != NRF_SUCCESS && err_code != NRF_ERROR_INVALID_STATE && err_code != NRF_ERROR_MODULE_ALREADY_INITIALIZED) {
+#else
     if (err_code != NRF_SUCCESS && err_code != NRF_ERROR_INVALID_STATE) {
+#endif /* end WOLFSSL_NRF_SDK_12 */
         return -1;
     }
 
+
     while (remaining > 0) {
+#ifdef WOLFSSL_NRF_SDK_12
         nrf_drv_rng_bytes_available(&available);
         length = (remaining < available) ? remaining : available;
         if (length > 0) {
@@ -84,6 +90,17 @@ int nrf51_random_generate(byte* output, word32 size)
             remaining -= length;
             pos += length;
         }
+#else
+        err_code = nrf_drv_rng_bytes_available(&available);
+        if (err_code == NRF_SUCCESS) {
+            length = (remaining < available) ? remaining : available;
+            if (length > 0) {
+                err_code = nrf_drv_rng_rand(&output[pos], length);
+                remaining -= length;
+                pos += length;
+            }
+        }
+#endif /* end WOLFSSL_NRF_SDK_12 */
     }
 
     return (err_code == NRF_SUCCESS) ? 0 : -1;
