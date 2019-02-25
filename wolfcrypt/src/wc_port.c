@@ -1797,7 +1797,7 @@ time_t mqx_time(time_t* timer)
 #endif /* FREESCALE_MQX || FREESCALE_KSDK_MQX */
 
 
-#if defined(WOLFSSL_TIRTOS)
+#if defined(WOLFSSL_TIRTOS) && defined(USER_TIME)
 
 time_t XTIME(time_t * timer)
 {
