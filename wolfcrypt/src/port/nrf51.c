@@ -41,7 +41,7 @@
 #ifdef SOFTDEVICE_PRESENT
 #ifndef WOLFSSL_NRF_SDK_12
     #include "softdevice_handler.h"
-#endif
+#endif /* end WOLFSSL_NRF_SDK_12 */
     #include "nrf_soc.h"
 #endif /* SOFTDEVICE_PRESENT */
 
