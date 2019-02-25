@@ -163,6 +163,9 @@ static void rtc_handler(nrf_drv_rtc_int_type_t int_type)
 static void rtc_config(void)
 {
     uint32_t err_code;
+    #ifdef WOLFSSL_NRF_SDK_12
+    nrf_drv_rtc_config_t config = NRF_DRV_RTC_DEFAULT_CONFIG;
+    #endif /* end WOLFSSL_NRF_SDK_12 */
 
     // Start the internal LFCLK XTAL oscillator
     err_code = nrf_drv_clock_init();
@@ -170,11 +173,11 @@ static void rtc_config(void)
 
     nrf_drv_clock_lfclk_request(NULL);
 
-    // Initialize RTC instance
-    nrf_drv_rtc_config_t config = NRF_DRV_RTC_DEFAULT_CONFIG;
-    config.prescaler = 4095;
-
+    #ifdef WOLFSSL_NRF_SDK_12
     err_code = nrf_drv_rtc_init(&rtc, &config, rtc_handler);
+    #else
+    err_code = nrf_drv_rtc_init(&rtc, NULL, rtc_handler);
+    #endif /* end WOLFSSL_NRF_SDK_12 */
     APP_ERROR_CHECK(err_code);
 
     // Enable tick event

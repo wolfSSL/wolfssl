@@ -552,6 +552,7 @@
         #define TFM_TIMING_RESISTANT
         #define USE_WOLFSSL_MEMORY
         #define WOLFSSL_NRF51
+        #define WOLFSSL_NRF_SDK_12      /* Is SDK version >= 12 */
         #define WOLFSSL_USER_IO
         #define NO_SESSION_CACHE
 #endif
