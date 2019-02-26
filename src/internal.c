@@ -4833,7 +4833,15 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
                 WOLFSSL_MSG("Suites Memory error");
                 return MEMORY_E;
             }
+#ifdef SINGLE_THREADED
+            ssl->options.ownSuites = 1;
+#endif
         }
+#ifdef SINGLE_THREADED
+        else {
+            ssl->options.ownSuites = 0;
+        }
+#endif
     }
 
     /* Initialize SSL with the appropriate fields from it's ctx */
@@ -5192,9 +5200,13 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
     }
 #ifdef SINGLE_THREADED
-    if (ssl->suites != ssl->ctx->suites)
+    if (ssl->options.ownSuites)
 #endif
+    {
         XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
+    }
+    ssl->suites = NULL;
+
     FreeHandshakeHashes(ssl);
     XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 
@@ -5416,9 +5428,11 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     {
         /* suites */
 #ifdef SINGLE_THREADED
-        if (ssl->suites != ssl->ctx->suites)
+        if (ssl->options.ownSuites)
 #endif
+        {
             XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
+        }
         ssl->suites = NULL;
 
         /* hsHashes */

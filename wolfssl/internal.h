@@ -3257,6 +3257,10 @@ typedef struct Options {
         word16        dhKeyTested:1;      /* Set when key has been tested. */
     #endif
 #endif
+#ifdef SINGLE_THREADED
+    word16            ownSuites:1;        /* if suites are malloced in ssl object */
+#endif
+
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */
     byte            cipherSuite0;           /* first byte, normally 0 */

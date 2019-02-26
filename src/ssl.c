@@ -8728,6 +8728,18 @@ int wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list)
 int wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list)
 {
     WOLFSSL_ENTER("wolfSSL_set_cipher_list");
+#ifdef SINGLE_THREADED
+    if (ssl->ctx->suites == ssl->suites) {
+        ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
+                                       DYNAMIC_TYPE_SUITES);
+        if (ssl->suites == NULL) {
+            WOLFSSL_MSG("Suites Memory error");
+            return MEMORY_E;
+        }
+        ssl->options.ownSuites = 1;
+    }
+#endif
+
     return (SetCipherList(ssl->ctx, ssl->suites, list)) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
 
