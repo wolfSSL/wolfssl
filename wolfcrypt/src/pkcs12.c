@@ -416,7 +416,7 @@ static int GetSignData(WC_PKCS12* pkcs12, const byte* mem, word32* idx,
         ERROR_OUT(ASN_PARSE_E, exit_gsd);
     }
 
-    if ((ret = GetLength(mem, &curIdx, &size, totalSz)) <= 0) {
+    if ((ret = GetLength(mem, &curIdx, &size, totalSz)) < 0) {
         goto exit_gsd;
     }
     mac->saltSz = size;
@@ -1050,7 +1050,7 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                     /* put the new node into the list */
                     if (certList != NULL) {
                         WOLFSSL_MSG("Pushing new cert onto queue");
-                        tailList->next = node;
+                        certList->next = node;
                         tailList = node;
                     }
                     else {
@@ -1108,6 +1108,7 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
         /* free list, not wanted */
         wc_FreeCertList(certList, pkcs12->heap);
     }
+    (void)tailList; /* not used */
 
     ret = 0; /* success */
 
