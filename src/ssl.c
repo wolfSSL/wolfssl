@@ -7330,9 +7330,13 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* x509, int loc)
                         break;
                     ext->crit = x509->certPolicyCrit;
                     break;
+
                 case KEY_USAGE_OID:
                     if (!isSet)
                         break;
+
+                    ret = wolfSSL_ASN1_STRING_set(&ext->value,
+                                       (byte*)&(x509->keyUsage), sizeof(word16));
                     ext->crit = x509->keyUsageCrit;
                     break;
 
@@ -7459,6 +7463,11 @@ const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
         WOLFSSL_MSG("Passed a NULL X509_EXTENSION*");
         return NULL;
     }
+    /* Initialize all methods to NULL */
+    method.d2i = NULL;
+    method.i2v = NULL;
+    method.i2s = NULL;
+    method.i2r = NULL;
 
     nid = ex->obj->nid;
     if(nid <= 0){
@@ -7473,31 +7482,32 @@ const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
             method.i2s = (X509V3_EXT_I2S)wolfSSL_i2s_ASN1_STRING;
             break;
         case NID_key_usage:
+            /* TODO: set i2v in method */
             break;
         case NID_authority_key_identifier:
-            /* TODO: set i2v and v2i members in method 
+            /* TODO: set i2v in method
                 see openssl crypto/x509v3/v3_akey.c for reference */
             break;
         case NID_info_access:
-            /* TODO: set i2v and v2i members in method 
+            /* TODO: set i2v in method
                 see openssl crypto/x509v3/v3_info.c for reference */
             break;
         case NID_ext_key_usage:
-            /* TODO: set i2v and v2i members in method 
+            /* TODO: set i2v in method
                 see openssl crypto/x509v3/v3_extku.c for reference */
             break;
         case NID_certificate_policies:
-            /* TODO: set r2i and i2r members in method
+            /* TODO: set r2i in method
                 see openssl crypto/x509v3/v3_cpols.c for reference */
             break;
         case NID_crl_distribution_points:
-            /* TODO: set v2i and i2r members in method
+            /* TODO: set v2i in method
                 see openssl crypto/x509v3/v3_crld.c for reference */
             break;
         default:
             /* If extension type is unknown, return NULL -- QT makes call to
                 X509_EXTENSION_get_data() if there is no v3_ext_method */
-            WOLFSSL_MSG("X509V3_EXT_get(): NID not in table");
+            WOLFSSL_MSG("X509V3_EXT_get(): Unknown extension type found");
             return NULL;
     }
 
@@ -7598,8 +7608,12 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
 
         /* keyUsage */
         case (NID_key_usage):
-            WOLFSSL_MSG("keyUsage not supported yet");
-            return NULL;
+            WOLFSSL_MSG("keyUsage");
+            /* This may need to be updated for future use. The i2v method for
+                keyUsage is not currently set.
+                For now, return ASN1_STRING representation of KeyUsage bit string */
+            asn1String = wolfSSL_X509_EXTENSION_get_data(ext);
+            return asn1String;
 
         /* extKeyUsage */
         case (NID_ext_key_usage):
