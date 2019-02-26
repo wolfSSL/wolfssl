@@ -19143,6 +19143,53 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     }
     return WOLFSSL_FATAL_ERROR;
 }
+
+
+/* Use the public key to verify the signature. Note: this only verifies
+ * the certificate signature.
+ * returns WOLFSSL_SUCCESS on successful signature verification */
+int wolfSSL_X509_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey)
+{
+    int ret;
+    const byte* der;
+    int derSz = 0;
+    int type;
+
+    if (x509 == NULL || pkey == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    der = wolfSSL_X509_get_der(x509, &derSz);
+    if (der == NULL) {
+        WOLFSSL_MSG("Error getting WOLFSSL_X509 DER");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    switch (pkey->type) {
+        case EVP_PKEY_RSA:
+            type = RSAk;
+            break;
+
+        case EVP_PKEY_EC:
+            type = ECDSAk;
+            break;
+
+        case EVP_PKEY_DSA:
+            type = DSAk;
+            break;
+
+        default:
+            WOLFSSL_MSG("Unknown pkey key type");
+            return WOLFSSL_FATAL_ERROR;
+    }
+
+    ret = CheckCertSignaturePubKey(der, derSz, x509->heap,
+            (unsigned char*)pkey->pkey.ptr, pkey->pkey_sz, type);
+    if (ret == 0) {
+        return WOLFSSL_SUCCESS;
+    }
+    return WOLFSSL_FAILURE;
+}
 #endif /* NO_CERTS */
 
 #if !defined(NO_FILESYSTEM)

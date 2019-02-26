@@ -7749,7 +7749,7 @@ static Signer* GetCABySubjectAndPubKey(DecodedCert* cert, void* cm)
 }
 #endif
 
-#ifdef WOLFSSL_SMALL_CERT_VERIFY
+#if defined(WOLFSSL_SMALL_CERT_VERIFY) || defined(OPENSSL_EXTRA)
 /* Only quick step through the certificate to find fields that are then used
  * in certificate signature verification.
  * Must use the signature OID from the signed part of the certificate.
@@ -7759,7 +7759,8 @@ static Signer* GetCABySubjectAndPubKey(DecodedCert* cert, void* cm)
  * Doesn't support:
  *   OCSP Only: alt lookup using subject and pub key w/o sig check
  */
-int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
+static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
+        void* cm, const byte* pubKey, word32 pubKeySz, int pubKeyOID)
 {
 #ifndef WOLFSSL_SMALL_STACK
     SignatureCtx  sigCtx[1];
@@ -7963,7 +7964,7 @@ int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
         }
     }
 
-    if (ret == 0) {
+    if (ret == 0 && pubKey == NULL) {
         if (extAuthKeyIdSet)
             ca = GetCA(cm, hash);
         if (ca == NULL) {
@@ -7973,13 +7974,13 @@ int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
         }
     }
 #else
-    if (ret == 0) {
+    if (ret == 0 && pubKey == NULL) {
         ret = CalcHashId(cert + issuerIdx, issuerSz, hash);
         if (ret == 0)
             ca = GetCA(cm, hash);
     }
 #endif /* !NO_SKID */
-    if (ca == NULL)
+    if (ca == NULL && pubKey == NULL)
         ret = ASN_NO_SIGNER_E;
 
     if (ret == 0) {
@@ -7999,9 +8000,18 @@ int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
     }
 
     if (ret == 0) {
-        ret = ConfirmSignature(sigCtx, cert + tbsCertIdx, sigIndex - tbsCertIdx,
+        if (pubKey != NULL) {
+            ret = ConfirmSignature(sigCtx, cert + tbsCertIdx,
+                               sigIndex - tbsCertIdx,
+                               pubKey, pubKeySz, pubKeyOID,
+                               cert + idx, len, signatureOID);
+        }
+        else {
+            ret = ConfirmSignature(sigCtx, cert + tbsCertIdx,
+                               sigIndex - tbsCertIdx,
                                ca->publicKey, ca->pubKeySize, ca->keyOID,
                                cert + idx, len, signatureOID);
+        }
         if (ret != 0) {
             WOLFSSL_MSG("Confirm signature failed");
         }
@@ -8014,7 +8024,26 @@ int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
 #endif
     return ret;
 }
+
+#ifdef OPENSSL_EXTRA
+/* Call CheckCertSignature_ex using a public key buffer for verification
+ */
+int CheckCertSignaturePubKey(const byte* cert, word32 certSz, void* heap,
+        const byte* pubKey, word32 pubKeySz, int pubKeyOID)
+{
+    return CheckCertSignature_ex(cert, certSz, heap, NULL,
+            pubKey, pubKeySz, pubKeyOID);
+}
+#endif /* OPENSSL_EXTRA */
+#ifdef WOLFSSL_SMALL_CERT_VERIFY
+/* Call CheckCertSignature_ex using a certificate manager (cm)
+ */
+int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
+{
+    return CheckCertSignature_ex(cert, certSz, heap, cm, NULL, 0, 0);
+}
 #endif /* WOLFSSL_SMALL_CERT_VERIFY */
+#endif /* WOLFSSL_SMALL_CERT_VERIFY || OPENSSL_EXTRA */
 
 int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 {
