@@ -23898,6 +23898,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ret = HandleTlsResumption(ssl, bogusID, &clSuites);
             if (ret != 0)
                 return ret;
+
+            #ifdef HAVE_SECURE_RENEGOTIATION
+            if (ssl->secure_renegotiation &&
+                    ssl->secure_renegotiation->enabled &&
+                    IsEncryptionOn(ssl, 0))
+                ssl->secure_renegotiation->startScr = 1;
+            #endif
+
             if (ssl->options.clientState == CLIENT_KEYEXCHANGE_COMPLETE) {
                 WOLFSSL_LEAVE("DoClientHello", ret);
                 WOLFSSL_END(WC_FUNC_CLIENT_HELLO_DO);

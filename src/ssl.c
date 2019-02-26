@@ -2347,7 +2347,7 @@ int wolfSSL_UseSecureRenegotiation(WOLFSSL* ssl)
 
 
 /* do a secure renegotiation handshake, user forced, we discourage */
-int wolfSSL_StartSecureRenegotiation(WOLFSSL* ssl, int resume)
+int wolfSSL_Rehandshake(WOLFSSL* ssl)
 {
     int ret;
 
@@ -2363,9 +2363,6 @@ int wolfSSL_StartSecureRenegotiation(WOLFSSL* ssl, int resume)
         WOLFSSL_MSG("Secure Renegotiation not enabled at extension level");
         return SECURE_RENEGOTIATION_E;
     }
-
-    if (!resume)
-        ssl->options.resuming = 0;
 
     /* If the client started the renegotiation, the server will already
      * have processed the client's hello. */
@@ -2386,12 +2383,8 @@ int wolfSSL_StartSecureRenegotiation(WOLFSSL* ssl, int resume)
         }
 #endif
 
-        if (!resume) {
-            XMEMSET(ssl->session.sessionID, 0, sizeof(ssl->session.sessionID));
-            ssl->session.sessionIDSz = 0;
-        }
-
         /* reset handshake states */
+        ssl->options.sendVerify = 0;
         ssl->options.serverState = NULL_STATE;
         ssl->options.clientState = NULL_STATE;
         ssl->options.connectState  = CONNECT_BEGIN;
@@ -2406,29 +2399,39 @@ int wolfSSL_StartSecureRenegotiation(WOLFSSL* ssl, int resume)
 #if !defined(NO_WOLFSSL_SERVER) && defined(HAVE_SERVER_RENEGOTIATION_INFO)
         if (ssl->options.side == WOLFSSL_SERVER_END) {
             ret = SendHelloRequest(ssl);
-            if (ret != 0)
-                return ret;
+            if (ret != 0) {
+                ssl->error = ret;
+                return WOLFSSL_FATAL_ERROR;
+            }
         }
 #endif /* NO_WOLFSSL_SERVER && HAVE_SERVER_RENEGOTIATION_INFO */
 
         ret = InitHandshakeHashes(ssl);
-        if (ret !=0)
-            return ret;
+        if (ret != 0) {
+            ssl->error = ret;
+            return WOLFSSL_FATAL_ERROR;
+        }
     }
     ret = wolfSSL_negotiate(ssl);
     return ret;
 }
 
 
-int wolfSSL_Rehandshake(WOLFSSL* ssl) {
-    WOLFSSL_ENTER("wolfSSL_Rehandshake()");
-    return wolfSSL_StartSecureRenegotiation(ssl, 0);
-}
+/* do a secure resumption handshake, user forced, we discourage */
+int wolfSSL_SecureResume(WOLFSSL* ssl)
+{
+    WOLFSSL_SESSION* session;
+    int ret;
 
-
-int wolfSSL_SecureResume(WOLFSSL* ssl) {
     WOLFSSL_ENTER("wolfSSL_SecureResume()");
-    return wolfSSL_StartSecureRenegotiation(ssl, 1);
+
+    session = wolfSSL_get_session(ssl);
+    ret = wolfSSL_set_session(ssl, session);
+    session = NULL;
+    if (ret == WOLFSSL_SUCCESS)
+        ret = wolfSSL_Rehandshake(ssl);
+
+    return ret;
 }
 
 #endif /* HAVE_SECURE_RENEGOTIATION */
