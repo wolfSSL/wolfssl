@@ -733,7 +733,7 @@ size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
     if (bio->type == WOLFSSL_BIO_BIO && bio->pair != NULL) {
         WOLFSSL_BIO* pair = bio->pair;
         if (pair->wrIdx > 0 && pair->wrIdx <= pair->rdIdx) {
-            /* in wrap around state where begining of buffer is being
+            /* in wrap around state where beginning of buffer is being
              * overwritten */
             return pair->wrSz - pair->rdIdx + pair->wrIdx;
         }
@@ -1136,7 +1136,7 @@ int wolfSSL_BIO_seek(WOLFSSL_BIO *bio, int ofs)
           return -1;
       }
 
-      /* offset ofs from begining of file */
+      /* offset ofs from beginning of file */
       if (bio->type == WOLFSSL_BIO_FILE &&
               XFSEEK(bio->file, ofs, SEEK_SET) < 0) {
           return -1;

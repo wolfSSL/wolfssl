@@ -19993,7 +19993,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     /* length is used for public key size */
                     args->length = MAX_ENCRYPT_SZ;
 
-                    /* Create shared ECC key leaving room at the begining
+                    /* Create shared ECC key leaving room at the beginning
                        of buffer for size of shared key. */
                     ssl->arrays->preMasterSz = ENCRYPT_LEN - OPAQUE16_LEN;
 
