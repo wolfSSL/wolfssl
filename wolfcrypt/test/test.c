@@ -12665,6 +12665,75 @@ static int openssl_aes_test(void)
 
         if (XMEMCMP(plain, cbcPlain, 18))
             return -7315;
+
+        /* test with encrypting/decrypting more than 16 bytes at once */
+        total = 0;
+        EVP_CIPHER_CTX_init(&en);
+        if (EVP_CipherInit(&en, EVP_aes_128_cbc(),
+            (unsigned char*)key, (unsigned char*)iv, 1) == 0)
+            return -7316;
+        if (EVP_CipherUpdate(&en, (byte*)cipher, &outlen,
+                    (byte*)cbcPlain, 17) == 0)
+            return -7317;
+        if (outlen != 16)
+            return -7318;
+        total += outlen;
+
+        if (EVP_CipherUpdate(&en, (byte*)&cipher[total], &outlen,
+                    (byte*)&cbcPlain[17]  , 1) == 0)
+            return -7319;
+        if (outlen != 0)
+            return -7320;
+        total += outlen;
+
+        if (EVP_CipherFinal(&en, (byte*)&cipher[total], &outlen) == 0)
+            return -7321;
+        if (outlen != 16)
+            return -7322;
+        total += outlen;
+        if (total != 32)
+            return -7323;
+
+        total = 0;
+        EVP_CIPHER_CTX_init(&de);
+        if (EVP_CipherInit(&de, EVP_aes_128_cbc(),
+            (unsigned char*)key, (unsigned char*)iv, 0) == 0)
+            return -7324;
+
+        if (EVP_CipherUpdate(&de, (byte*)plain, &outlen, (byte*)cipher, 17) == 0)
+            return -7325;
+        if (outlen != 16)
+            return -7326;
+        total += outlen;
+
+        /* final call on non block size should fail */
+        if (EVP_CipherFinal(&de, (byte*)&plain[total], &outlen) != 0)
+            return -7327;
+
+        if (EVP_CipherUpdate(&de, (byte*)&plain[total], &outlen,
+                    (byte*)&cipher[17], 1) == 0)
+            return -7328;
+        if (outlen != 0)
+        total += outlen;
+
+        if (EVP_CipherUpdate(&de, (byte*)&plain[total], &outlen,
+                    (byte*)&cipher[17+1], 14) == 0)
+            return -7329;
+        if (outlen != 0)
+            return -7330;
+        total += outlen;
+
+        if (EVP_CipherFinal(&de, (byte*)&plain[total], &outlen) == 0)
+            return -7331;
+        if (outlen != 2)
+            return -7332;
+        total += outlen;
+
+        if (total != 18)
+            return -7333;
+
+        if (XMEMCMP(plain, cbcPlain, 18))
+            return -7334;
     }
 
     {  /* evp_cipher test: EVP_aes_128_cbc */
@@ -12690,23 +12759,23 @@ static int openssl_aes_test(void)
 
         EVP_CIPHER_CTX_init(&ctx);
         if (EVP_CipherInit(&ctx, EVP_aes_128_cbc(), key, iv, 1) == 0)
-            return -7316;
+            return -7335;
 
         if (EVP_Cipher(&ctx, cipher, (byte*)msg, 16) == 0)
-            return -7317;
+            return -7336;
 
         if (XMEMCMP(cipher, verify, AES_BLOCK_SIZE))
-            return -7318;
+            return -7337;
 
         EVP_CIPHER_CTX_init(&ctx);
         if (EVP_CipherInit(&ctx, EVP_aes_128_cbc(), key, iv, 0) == 0)
-            return -7319;
+            return -7338;
 
         if (EVP_Cipher(&ctx, plain, cipher, 16) == 0)
-            return -7320;
+            return -7339;
 
         if (XMEMCMP(plain, msg, AES_BLOCK_SIZE))
-            return -7321;
+            return -7340;
 
 
     }  /* end evp_cipher test: EVP_aes_128_cbc*/
