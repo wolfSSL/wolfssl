@@ -2286,6 +2286,7 @@ typedef struct SecureRenegotiation {
    enum key_cache_state cache_status;  /* track key cache state */
    byte                 client_verify_data[TLS_FINISHED_SZ];  /* cached */
    byte                 server_verify_data[TLS_FINISHED_SZ];  /* cached */
+   byte                 subject_hash[KEYID_SIZE];  /* peer cert hash */
    Keys                 tmp_keys;  /* can't overwrite real keys yet */
 } SecureRenegotiation;
 

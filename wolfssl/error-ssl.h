@@ -119,7 +119,7 @@ enum wolfSSL_ErrorCodes {
     SECURE_RENEGOTIATION_E       = -388,   /* Invalid Renegotiation Info */
     SESSION_TICKET_LEN_E         = -389,   /* Session Ticket too large */
     SESSION_TICKET_EXPECT_E      = -390,   /* Session Ticket missing   */
-
+    SCR_DIFFERENT_CERT_E         = -391,   /* SCR Different cert error  */
     SESSION_SECRET_CB_E          = -392,   /* Session secret Cb fcn failure */
     NO_CHANGE_CIPHER_E           = -393,   /* Finished before change cipher */
     SANITY_MSG_E                 = -394,   /* Sanity check on msg order error */
