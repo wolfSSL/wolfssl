@@ -934,8 +934,9 @@ static THREAD_LS_T byte* bench_iv = NULL;
             /* print final stat */
             if (isLast) {
                 if (bstat->type == BENCH_STAT_SYM) {
-                    printf("%-12s%s %8.3f MB/s\n", bstat->desc,
-                        BENCH_ASYNC_GET_NAME(bstat->doAsync), bstat->perfsec);
+                    printf("%-16s%s %8.3f %s/s\n", bstat->desc,
+                        BENCH_ASYNC_GET_NAME(bstat->doAsync), bstat->perfsec,
+                        base2 ? "MB" : "mB");
                 }
                 else {
                     printf("%-5s %4d %-9s %s %.3f ops/sec\n",
