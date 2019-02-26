@@ -1050,7 +1050,7 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                     /* put the new node into the list */
                     if (certList != NULL) {
                         WOLFSSL_MSG("Pushing new cert onto queue");
-                        certList->next = node;
+                        tailList->next = node;
                         tailList = node;
                     }
                     else {
