@@ -3026,7 +3026,7 @@ int mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
     int B = fp_count_bits (b);
 
     if( A >= ESP_RSA_MULM_BITS && B >= ESP_RSA_MULM_BITS)
-     return esp_mp_mulmod(a, b, c, d);
+        return esp_mp_mulmod(a, b, c, d);
     else
  #endif
    return fp_mulmod(a, b, c, d);

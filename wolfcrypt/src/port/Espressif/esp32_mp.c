@@ -57,9 +57,16 @@ static int espmp_CryptHwMutexInit = 0;
 /*
 * check if the hw is ready before accessing it
 */
-static void esp_mp_hw_wait_clean()
+static int esp_mp_hw_wait_clean()
 {
-    while(DPORT_REG_READ(RSA_CLEAN_REG) != 1){}
+    int timeout = 0;
+    while(++timeout < ESP_RSA_TIMEOUT && DPORT_REG_READ(RSA_CLEAN_REG) != 1){}
+
+    if(timeout >= ESP_RSA_TIMEOUT) {
+        ESP_LOGE(TAG, "waiting hw ready is time-outed.");
+        return MP_NG;
+    }
+    return MP_OKAY; 
 }
 /*
 * lock hw engine.
@@ -263,7 +270,9 @@ int esp_mp_mul(fp_int* X, fp_int* Y, fp_int* Z)
     if((ret = esp_mp_hw_lock()) != MP_OKAY)
         return ret;
 
-    esp_mp_hw_wait_clean();
+    if((ret = esp_mp_hw_wait_clean()) != MP_OKAY){
+        return ret;
+    }
 
     /* step.1  (2*N/512) => N/256. 512 bits => 16 words */
     DPORT_REG_WRITE(RSA_MULT_MODE_REG, (hwWords_sz >> 3) - 1 + 8);
@@ -364,7 +373,9 @@ int esp_mp_mulmod(fp_int* X, fp_int* Y, fp_int* M, fp_int* Z)
     * 13. Release the hw engine
     */
 
-    esp_mp_hw_wait_clean();
+    if((ret = esp_mp_hw_wait_clean()) != MP_OKAY){
+        return ret;
+    }
     /* step.1                     512 bits => 16 words */
     DPORT_REG_WRITE(RSA_MULT_MODE_REG, (hwWords_sz >> 4) - 1);
 
@@ -471,7 +482,9 @@ int esp_mp_exptmod(fp_int* X, fp_int* Y, word32 Ys, fp_int* M, fp_int* Z)
     * 6. Read the result Z(=Y) from Z_MEM
     * 7. Write 1 to INTERRUPT_REG to clear the interrupt.
     */
-    esp_mp_hw_wait_clean();
+    if((ret = esp_mp_hw_wait_clean()) != MP_OKAY){
+        return ret;
+    }
 
     /* step.1                                         */
     DPORT_REG_WRITE(RSA_MODEXP_MODE_REG, (hwWords_sz >> 4) - 1);
