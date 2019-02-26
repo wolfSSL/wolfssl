@@ -2260,7 +2260,7 @@ enum {
 };
 
 WOLFSSL_API int wolfSSL_UseTrustedCA(WOLFSSL* ssl, unsigned char type,
-            const unsigned char* cert, unsigned int certSz);
+            const unsigned char* certId, unsigned int certIdSz);
 #endif /* HAVE_TRUSTED_CA */
 
 /* Application-Layer Protocol Negotiation */
