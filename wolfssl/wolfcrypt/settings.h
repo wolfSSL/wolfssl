@@ -172,10 +172,9 @@
 /* Uncomment next line if building for using XILINX */
 /* #define WOLFSSL_XILINX */
 
-/* Uncomment the next three lines when using WICED Studio. */
-   /* #ifndef WOLFSSL_WICED
-        #define WOLFSSL_WICED
-    #endif       */
+/* Uncomment next line if building for  WICED Studio. */
+/* #define WOLFSSL_WICED */
+
 /* Uncomment next line if building for Nucleus 1.2 */
 /* #define WOLFSSL_NUCLEUS_1_2 */
 
