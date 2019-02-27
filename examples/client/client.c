@@ -1361,9 +1361,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int   doSTARTTLS    = 0;
     char* starttlsProt = NULL;
     int   useVerifyCb = 0;
-#ifdef HAVE_ECC
     int   useSupCurve = 0;
-#endif
 
 #ifdef WOLFSSL_TRUST_PEER_CERT
     const char* trustCert  = NULL;
@@ -1466,9 +1464,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)useX25519;
     (void)helloRetry;
     (void)onlyKeyShare;
-#ifdef HAVE_ECC
     (void)useSupCurve;
-#endif
     (void)loadCertKeyIntoSSLObj;
 
     StackTrap();
@@ -1617,12 +1613,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     printf("Verify should fail\n");
                     myVerifyFail = 1;
                 }
-            #ifdef HAVE_ECC
                 else if (XSTRNCMP(myoptarg, "useSupCurve", 11) == 0) {
                     printf("Test use supported curve\n");
                     useSupCurve = 1;
                 }
-            #endif
                 else if (XSTRNCMP(myoptarg, "loadSSL", 7) == 0) {
                     printf("Load cert/key into wolfSSL object\n");
                 #ifndef NO_CERTS
@@ -2395,6 +2389,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         #endif
     }
     #endif /* HAVE_ECC */
+    #ifdef HAVE_FFDHE_2048
+    if (useSupCurve) {
+        if (wolfSSL_CTX_UseSupportedCurve(ctx, WOLFSSL_FFDHE_2048)
+                                                           != WOLFSSL_SUCCESS) {
+            err_sys("unable to support FFDHE 2048");
+        }
+    }
+    #endif
 #endif /* HAVE_SUPPORTED_CURVES */
 
 #ifdef WOLFSSL_TLS13

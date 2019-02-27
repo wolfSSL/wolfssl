@@ -1171,11 +1171,20 @@ enum Misc {
     HELLO_EXT_EXTMS = 0x0017,   /* ID for the extended master secret ext */
     SECRET_LEN      = WOLFSSL_MAX_MASTER_KEY_LENGTH,
                                 /* pre RSA and all master */
+    MAX_PSK_ID_LEN     = 128,  /* max psk identity/hint supported */
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) || \
     (defined(USE_FAST_MATH) && defined(FP_MAX_BITS) && FP_MAX_BITS > 8192)
+#ifndef NO_PSK
+    ENCRYPT_LEN     = 1024 + MAX_PSK_ID_LEN + 2,   /* 8192 bit static buffer */
+#else
     ENCRYPT_LEN     = 1024,     /* allow 8192 bit static buffer */
+#endif
+#else
+#ifndef NO_PSK
+    ENCRYPT_LEN     = 512 + MAX_PSK_ID_LEN + 2,    /* 4096 bit static buffer */
 #else
     ENCRYPT_LEN     = 512,      /* allow 4096 bit static buffer */
+#endif
 #endif
     SIZEOF_SENDER   =  4,       /* clnt or srvr           */
     FINISHED_SZ     = 36,       /* WC_MD5_DIGEST_SIZE + WC_SHA_DIGEST_SIZE */
@@ -1365,7 +1374,6 @@ enum Misc {
     DTLS_TIMEOUT_MAX        = 64, /* default max timeout for DTLS receive */
     DTLS_TIMEOUT_MULTIPLIER =  2, /* default timeout multiplier for DTLS recv */
 
-    MAX_PSK_ID_LEN     = 128,  /* max psk identity/hint supported */
     NULL_TERM_LEN      =   1,  /* length of null '\0' termination character */
     MAX_PSK_KEY_LEN    =  64,  /* max psk key supported */
     MIN_PSK_ID_LEN     =   6,  /* min length of identities */
@@ -2110,6 +2118,8 @@ WOLFSSL_LOCAL int   TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType,
                                         word16* pOffset);
 #endif
 
+WOLFSSL_LOCAL int   TLSX_ParseVersion(WOLFSSL* ssl, byte* input, word16 length,
+                                      byte msgType, int* found);
 WOLFSSL_LOCAL int   TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                byte msgType, Suites *suites);
 
@@ -2264,6 +2274,7 @@ WOLFSSL_LOCAL int TLSX_UsePointFormat(TLSX** extensions, byte point,
 WOLFSSL_LOCAL int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first,
                                                                    byte second);
 WOLFSSL_LOCAL int TLSX_SupportedCurve_CheckPriority(WOLFSSL* ssl);
+WOLFSSL_LOCAL int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl);
 #endif
 WOLFSSL_LOCAL int TLSX_SupportedCurve_Preferred(WOLFSSL* ssl,
                                                             int checkSupported);
@@ -3699,8 +3710,10 @@ struct WOLFSSL {
     byte            maxRequest;
     byte            user_set_QSHSchemes;
 #endif
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
     word16          namedGroup;
+#endif
+#ifdef WOLFSSL_TLS13
     word16          group[WOLFSSL_MAX_GROUP_COUNT];
     byte            numGroups;
 #endif

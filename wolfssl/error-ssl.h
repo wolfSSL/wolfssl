@@ -164,6 +164,7 @@ enum wolfSSL_ErrorCodes {
     UNSUPPORTED_EXTENSION        = -429,   /* TLSX not requested by client */
     PRF_MISSING                  = -430,   /* PRF not compiled in */
     DTLS_RETX_OVER_TX            = -431,   /* Retransmit DTLS flight over */
+    DH_PARAMS_NOT_FFDHE_E        = -432,   /* DH params from server not FFDHE */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */
