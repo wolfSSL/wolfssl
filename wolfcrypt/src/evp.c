@@ -361,9 +361,13 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
                 XMEMCPY(ctx->lastBlock, &out[ctx->block_size * blocks], ctx->block_size);
                 *outl+= ctx->block_size * blocks;
             } else {
-                ctx->lastUsed = 1;
-                XMEMCPY(ctx->lastBlock, &out[ctx->block_size * (blocks-1)], ctx->block_size);
-                *outl+= ctx->block_size * (blocks-1);
+                if (inl == 0) {
+                    ctx->lastUsed = 1;
+                    blocks = blocks - 1; /* save last block to check padding in
+                                          * EVP_CipherFinal call */
+                }
+                XMEMCPY(ctx->lastBlock, &out[ctx->block_size * blocks], ctx->block_size);
+                *outl+= ctx->block_size * blocks;
             }
         } else {
             *outl+= ctx->block_size * blocks;
@@ -429,6 +433,11 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
         if (ctx->block_size == 1) {
             *outl = 0;
             return WOLFSSL_SUCCESS;
+        }
+        if ((ctx->bufUsed % ctx->block_size) != 0) {
+            *outl = 0;
+            /* not enough padding for decrypt */
+            return WOLFSSL_FAILURE;
         }
         if (ctx->lastUsed) {
             PRINT_BUF(ctx->lastBlock, ctx->block_size);
