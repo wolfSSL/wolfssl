@@ -4239,12 +4239,26 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
 #endif
     {
         word32 keysize = (word32)key->dp->size;
+        word32 orderBits;
+        DECLARE_CURVE_SPECS(curve, 1);
 
         /* Check args */
-        if (keysize > ECC_MAX_CRYPTO_HW_SIZE || inlen != keysize ||
-                                                *outlen < keysize*2) {
+        if (keysize > ECC_MAX_CRYPTO_HW_SIZE || *outlen < keysize*2) {
             return ECC_BAD_ARG_E;
         }
+
+        /* if the input is larger than curve order, we must truncate */
+        ALLOC_CURVE_SPECS(1);
+        err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
+        if (err != 0) {
+           FREE_CURVE_SPECS();
+           return err;
+        }
+        orderBits = mp_count_bits(curve->order);
+        if ((inlen * WOLFSSL_BIT_SIZE) > orderBits) {
+           inlen = (orderBits + WOLFSSL_BIT_SIZE - 1) / WOLFSSL_BIT_SIZE;
+        }
+        FREE_CURVE_SPECS();
 
     #if defined(WOLFSSL_ATECC508A)
         key->slot = atmel_ecc_alloc(ATMEL_SLOT_DEVICE);
