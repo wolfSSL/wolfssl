@@ -34,29 +34,29 @@ static int my_IORecv(WOLFSSL* ssl, char* buff, int sz, void* ctx)
 {
     int ret;
     ID  cepid;
-    
+
     if(ctx != NULL)cepid = *(ID *)ctx;
     else return WOLFSSL_CBIO_ERR_GENERAL;
-    
+
     ret = tcp_rcv_dat(cepid, buff, sz, TMO_FEVR);
     if(ret > 0)return ret;
-    else         return WOLFSSL_CBIO_ERR_GENERAL;  
+    else         return WOLFSSL_CBIO_ERR_GENERAL;
 }
 
 static int my_IOSend(WOLFSSL* ssl, char* buff, int sz, void* ctx)
 {
     int ret;
     ID  cepid;
-    
+
     if(ctx != NULL)cepid = *(ID *)ctx;
     else return WOLFSSL_CBIO_ERR_GENERAL;
-    
+
     ret = tcp_snd_dat(cepid, buff, sz, TMO_FEVR);
     if(ret == sz)return ret;
-    else         return WOLFSSL_CBIO_ERR_GENERAL;          
+    else         return WOLFSSL_CBIO_ERR_GENERAL;
 }
 
-static int getIPaddr(char *arg) 
+static int getIPaddr(char *arg)
 {
     int a1, a2, a3, a4;
     if(sscanf(arg, "%d.%d.%d.%d", &a1, &a2, &a3, &a4) == 4)
@@ -64,8 +64,8 @@ static int getIPaddr(char *arg)
     else return 0;
 }
 
-static int getPort(char *arg) 
-{   
+static int getPort(char *arg)
+{
     int port;
     if(sscanf(arg, "%d", &port) == 1)
          return port;
@@ -74,7 +74,7 @@ static int getPort(char *arg)
 
 WOLFSSL_CTX *wolfSSL_TLS_client_init()
 {
-    
+
     WOLFSSL_CTX* ctx;
     #ifndef NO_FILESYSTEM
         #ifdef USE_ECC_CERT
@@ -91,18 +91,18 @@ WOLFSSL_CTX *wolfSSL_TLS_client_init()
         #define  SIZEOF_CERT sizeof_ca_cert_der_2048
         #endif
     #endif
-    
+
     wolfSSL_Init();
     #ifdef DEBUG_WOLFSSL
         wolfSSL_Debugging_ON();
     #endif
-    
+
     /* Create and initialize WOLFSSL_CTX */
     if ((ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method_ex((void *)NULL))) == NULL) {
         printf("ERROR: failed to create WOLFSSL_CTX\n");
         return NULL;
     }
- 
+
     #if !defined(NO_FILESYSTEM)
     if (wolfSSL_CTX_load_verify_locations(ctx, cert, 0) != SSL_SUCCESS) {
         printf("ERROR: can't load \"%s\"\n", cert);
@@ -127,7 +127,7 @@ WOLFSSL_CTX *wolfSSL_TLS_client_init()
 void wolfSSL_TLS_client(void *v_ctx, func_args *args)
 {
     ID cepid = 1;
-    ER ercd; 
+    ER ercd;
     int ret;
     WOLFSSL_CTX *ctx = (WOLFSSL_CTX *)v_ctx;
     WOLFSSL *ssl;
@@ -136,7 +136,7 @@ void wolfSSL_TLS_client(void *v_ctx, func_args *args)
     char    rcvBuff[BUFF_SIZE] = {0};
     static T_IPV4EP my_addr = { 0, 0 };
     T_IPV4EP dst_addr;
-    
+
     if(args->argc >= 2){
 	    if((dst_addr.ipaddr = getIPaddr(args->argv[1])) == 0){
 		printf("ERROR: IP address\n");
@@ -147,7 +147,7 @@ void wolfSSL_TLS_client(void *v_ctx, func_args *args)
 	        return;
 	    }
     }
-    
+
     if((ercd = tcp_con_cep(cepid, &my_addr, &dst_addr, TMO_FEVR)) != E_OK) {
         printf("ERROR TCP Connect: %d\n", ercd);
         return;
@@ -157,7 +157,7 @@ void wolfSSL_TLS_client(void *v_ctx, func_args *args)
         printf("ERROR wolfSSL_new: %d\n", wolfSSL_get_error(ssl, 0));
         return;
     }
-    
+
     /* set callback context */
     wolfSSL_SetIOReadCtx(ssl, (void *)&cepid);
     wolfSSL_SetIOWriteCtx(ssl, (void *)&cepid);
@@ -166,7 +166,7 @@ void wolfSSL_TLS_client(void *v_ctx, func_args *args)
         printf("ERROR SSL connect: %d\n",  wolfSSL_get_error(ssl, 0));
         return;
     }
-        
+
     if (wolfSSL_write(ssl, sendBuff, strlen(sendBuff)) != strlen(sendBuff)) {
         printf("ERROR SSL write: %d\n", wolfSSL_get_error(ssl, 0));
         return;
@@ -176,9 +176,9 @@ void wolfSSL_TLS_client(void *v_ctx, func_args *args)
         printf("ERROR SSL read: %d\n", wolfSSL_get_error(ssl, 0));
         return;
     }
-    
+
     rcvBuff[ret] = '\0' ;
-    printf("Recieved: %s\n", rcvBuff);
+    printf("Received: %s\n", rcvBuff);
 
     /* frees all data before client termination */
     wolfSSL_free(ssl);

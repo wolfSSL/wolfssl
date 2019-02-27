@@ -144,9 +144,11 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #elif defined(WOLFSSL_IAR_ARM)
 #elif defined(WOLFSSL_ROWLEY_ARM)
 #elif defined(WOLFSSL_EMBOS)
+#elif defined(WOLFSSL_DEOS)
 #elif defined(MICRIUM)
 #elif defined(WOLFSSL_NUCLEUS)
 #elif defined(WOLFSSL_PB)
+#elif defined(WOLFSSL_ZEPHYR)
 #else
     /* include headers that may be needed to get good seed */
     #include <fcntl.h>
@@ -703,6 +705,9 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     rng->devId = devId;
+    #if defined(WOLF_CRYPTO_CB)
+        rng->seed.devId = devId;
+    #endif
 #else
     (void)devId;
 #endif
@@ -1479,6 +1484,16 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
+#ifdef WOLF_CRYPTO_CB
+    int ret;
+
+    if (os != NULL && os->devId != INVALID_DEVID) {
+        ret = wc_CryptoCb_RandomSeed(os, output, sz);
+        if (ret != NOT_COMPILED_IN)
+            return ret;
+    }
+#endif
+
     #ifdef HAVE_INTEL_RDSEED
         if (IS_INTEL_RDSEED(intel_flags)) {
              if (!wc_GenerateSeed_IntelRD(NULL, output, sz)) {
@@ -1729,30 +1744,47 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(STM32_RNG)
      /* Generate a RNG seed using the hardware random number generator
-      * on the STM32F2/F4/F7. */
+      * on the STM32F2/F4/F7/L4. */
 
     #ifdef WOLFSSL_STM32_CUBEMX
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         RNG_HandleTypeDef hrng;
-        int i;
+        word32 i = 0;
         (void)os;
 
         /* enable RNG clock source */
         __HAL_RCC_RNG_CLK_ENABLE();
 
         /* enable RNG peripheral */
+        XMEMSET(&hrng, 0, sizeof(hrng));
         hrng.Instance = RNG;
         HAL_RNG_Init(&hrng);
 
-        for (i = 0; i < (int)sz; i++) {
-            /* get value */
-            output[i] = (byte)HAL_RNG_GetRandomNumber(&hrng);
-        }
+		while (i < sz) {
+			/* If not aligned or there is odd/remainder */
+			if( (i + sizeof(word32)) > sz ||
+				((wolfssl_word)&output[i] % sizeof(word32)) != 0
+			) {
+				/* Single byte at a time */
+				uint32_t tmpRng = 0;
+				if (HAL_RNG_GenerateRandomNumber(&hrng, &tmpRng) != HAL_OK) {
+					return RAN_BLOCK_E;
+				}
+				output[i++] = (byte)tmpRng;
+			}
+			else {
+				/* Use native 32 instruction */
+				if (HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&output[i]) != HAL_OK) {
+					return RAN_BLOCK_E;
+				}
+				i += sizeof(word32);
+			}
+		}
 
-        return 0;
+		return 0;
     }
-    #elif defined(WOLFSSL_STM32F427_RNG)
+    #elif defined(WOLFSSL_STM32F427_RNG) || defined(WOLFSSL_STM32_RNG_NOLIB)
 
     /* Generate a RNG seed using the hardware RNG on the STM32F427
      * directly, following steps outlined in STM32F4 Reference
@@ -1872,6 +1904,26 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     return 0;
 }
+#elif defined(WOLFSSL_DEOS) && !defined(CUSTOM_RAND_GENERATE)
+    #include "stdlib.h"
+
+    #warning "potential for not enough entropy, currently being used for testing Deos"
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int i;
+        int seed = XTIME(0);
+        (void)os;
+
+        for (i = 0; i < sz; i++ ) {
+            output[i] = rand_r(&seed) % 256;
+            if ((i % 8) == 7) {
+                seed = XTIME(0);
+                rand_r(&seed);
+            }
+        }
+
+        return 0;
+    }
 #elif defined(WOLFSSL_VXWORKS)
 
     #include <randomNumGen.h>
@@ -2108,6 +2160,32 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     #define USE_TEST_GENSEED
 
+#elif defined(WOLFSSL_ZEPHYR)
+
+        #include <entropy.h>
+    #ifndef _POSIX_C_SOURCE
+        #include <posix/time.h>
+    #else
+        #include <sys/time.h>
+    #endif
+
+        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+            int ret = 0;
+            word32 rand;
+            while (sz > 0) {
+                word32 len = sizeof(rand);
+                if (sz < len)
+                    len = sz;
+                rand = sys_rand32_get();
+                XMEMCPY(output, &rand, sz);
+                output += len;
+                sz -= len;
+            }
+
+            return ret;
+        }
+
 #elif defined(NO_DEV_RANDOM)
 
     #error "you need to write an os specific wc_GenerateSeed() here"
@@ -2125,6 +2203,16 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int ret = 0;
+
+#ifdef WOLF_CRYPTO_CB
+    if (os != NULL && os->devId != INVALID_DEVID) {
+        ret = wc_CryptoCb_RandomSeed(os, output, sz);
+        if (ret != NOT_COMPILED_IN)
+            return ret;
+        /* fall-through on not compiled in */
+        ret = 0; /* reset error code */
+    }
+#endif
 
     #ifdef HAVE_INTEL_RDSEED
         if (IS_INTEL_RDSEED(intel_flags)) {
@@ -2198,6 +2286,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 #endif
+
 
 /* End wc_GenerateSeed */
 #endif /* WC_NO_RNG */

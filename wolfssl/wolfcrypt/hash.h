@@ -76,6 +76,12 @@ enum wc_MACAlgorithm {
     blake2b_mac
 };
 
+enum wc_HashFlags {
+    WC_HASH_FLAG_NONE =     0x00000000,
+    WC_HASH_FLAG_WILLCOPY = 0x00000001, /* flag to indicate hash will be copied */
+    WC_HASH_FLAG_ISCOPY =   0x00000002, /* hash is copy */
+};
+
 
 typedef union {
     #ifndef NO_MD5
@@ -149,6 +155,13 @@ WOLFSSL_API int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type,
 WOLFSSL_API int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type,
     byte* out);
 WOLFSSL_API int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type);
+
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    WOLFSSL_LOCAL int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type,
+        word32 flags);
+    WOLFSSL_LOCAL int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type,
+        word32* flags);
+#endif
 
 #ifndef NO_MD5
 #include <wolfssl/wolfcrypt/md5.h>

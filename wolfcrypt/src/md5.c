@@ -37,6 +37,7 @@
 #include <wolfssl/wolfcrypt/md5.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -50,7 +51,7 @@
 #if defined(STM32_HASH)
 
     /* Supports CubeMX HAL or Standard Peripheral Library */
-	#define HAVE_MD5_CUST_API
+    #define HAVE_MD5_CUST_API
 
     int wc_InitMd5_ex(wc_Md5* md5, void* heap, int devId)
     {
@@ -436,9 +437,29 @@ int wc_Md5Copy(wc_Md5* src, wc_Md5* dst)
 #ifdef WOLFSSL_PIC32MZ_HASH
     ret = wc_Pic32HashCopy(&src->cache, &dst->cache);
 #endif
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+     dst->flags |= WC_HASH_FLAG_ISCOPY;
+#endif
 
     return ret;
 }
+
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+int wc_Md5SetFlags(wc_Md5* md5, word32 flags)
+{
+    if (md5) {
+        md5->flags = flags;
+    }
+    return 0;
+}
+int wc_Md5GetFlags(wc_Md5* md5, word32* flags)
+{
+    if (md5 && flags) {
+        *flags = md5->flags;
+    }
+    return 0;
+}
+#endif
 
 #endif /* WOLFSSL_TI_HASH */
 #endif /* NO_MD5 */

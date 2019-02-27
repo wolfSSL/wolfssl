@@ -37,6 +37,7 @@ ${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/
 
 ${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/src
 ${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/wolfcrypt
+${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/src
 ${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/wolfssl
 ${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/test
 ${MKDCMD} ${WOLFSSLLIB_TRG_DIR}/include
@@ -47,7 +48,9 @@ pushd ${BASEDIR} > /dev/null # WOLFSSL TOP DIR
 # copying ... files in src/ into $WOLFSSLLIB_TRG_DIR/src
 ${CPDCMD} ./src/*.c ${WOLFSSLLIB_TRG_DIR}/src/
 
-${CPDCMD} -r ./wolfcrypt/src  ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/
+
+${CPDCMD} -r ./wolfcrypt/src/*.{c,i} ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/src/
+${CPDCMD} -r ./wolfcrypt/src/port  ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/src/port/
 ${CPDCMD} -r ./wolfcrypt/test ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/
 ${CPDCMD} -r ./wolfcrypt/benchmark ${WOLFSSLLIB_TRG_DIR}/wolfcrypt/
 

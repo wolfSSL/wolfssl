@@ -20,7 +20,7 @@
  */
 
 /*!
-    \file wolfssl/wolfio.h   
+    \file wolfssl/wolfio.h
 */
 
 #ifndef WOLFSSL_IO_H
@@ -112,6 +112,12 @@
         #include <errno.h>
     #elif defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
         #include <mn_socket/mn_socket.h>
+    #elif defined(WOLFSSL_DEOS)
+        #include <socketapi.h>
+        #include <lwip-socket.h>
+        #include <errno.h>
+    #elif defined(WOLFSSL_ZEPHYR)
+        #include <net/socket.h>
     #elif !defined(WOLFSSL_NO_SOCK)
         #include <sys/types.h>
         #include <errno.h>
@@ -214,6 +220,14 @@
     #define SOCKET_EPIPE        NU_NOT_CONNECTED
     #define SOCKET_ECONNREFUSED NU_CONNECTION_REFUSED
     #define SOCKET_ECONNABORTED NU_NOT_CONNECTED
+#elif defined(WOLFSSL_DEOS)
+     #define SOCKET_EWOULDBLOCK EAGAIN
+     #define SOCKET_EAGAIN      EAGAIN
+     #define SOCKET_ECONNRESET  EINTR
+     #define SOCKET_EINTR       EINTR
+     #define SOCKET_EPIPE       EPIPE
+     #define SOCKET_ECONNREFUSED SOCKET_ERROR
+     #define SOCKET_ECONNABORTED SOCKET_ERROR
 #else
     #define SOCKET_EWOULDBLOCK EWOULDBLOCK
     #define SOCKET_EAGAIN      EAGAIN
@@ -223,9 +237,6 @@
     #define SOCKET_ECONNREFUSED ECONNREFUSED
     #define SOCKET_ECONNABORTED ECONNABORTED
 #endif /* USE_WINDOWS_API */
-
-
-
 
 #ifdef DEVKITPRO
     /* from network.h */
@@ -248,6 +259,13 @@
 #elif defined(WOLFSSL_NUCLEUS_1_2)
     #define SEND_FUNCTION NU_Send
     #define RECV_FUNCTION NU_Recv
+#elif defined(WOLFSSL_ZEPHYR)
+    #ifndef WOLFSSL_MAX_SEND_SZ
+        #define WOLFSSL_MAX_SEND_SZ       256
+    #endif
+
+    #define SEND_FUNCTION send
+    #define RECV_FUNCTION recv
 #else
     #define SEND_FUNCTION send
     #define RECV_FUNCTION recv

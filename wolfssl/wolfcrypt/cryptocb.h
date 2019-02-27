@@ -44,6 +44,9 @@
 #ifndef NO_SHA256
     #include <wolfssl/wolfcrypt/sha256.h>
 #endif
+#ifndef NO_HMAC
+    #include <wolfssl/wolfcrypt/hmac.h>
+#endif
 #ifndef WC_NO_RNG
     #include <wolfssl/wolfcrypt/random.h>
 #endif
@@ -51,6 +54,7 @@
 /* Crypto Information Structure for callbacks */
 typedef struct wc_CryptoInfo {
     int algo_type; /* enum wc_AlgoType */
+#if !defined(NO_RSA) || defined(HAVE_ECC)
     struct {
         int type; /* enum wc_PkType */
         union {
@@ -105,6 +109,7 @@ typedef struct wc_CryptoInfo {
         #endif
         };
     } pk;
+#endif /* !NO_RSA || HAVE_ECC */
 #ifndef NO_AES
     struct {
         int type; /* enum wc_CipherType */
@@ -146,7 +151,7 @@ typedef struct wc_CryptoInfo {
         #endif /* HAVE_AES_CBC */
         };
     } cipher;
-#endif
+#endif /* !NO_AES */
 #if !defined(NO_SHA) || !defined(NO_SHA256)
     struct {
         int type; /* enum wc_HashType */
@@ -163,12 +168,26 @@ typedef struct wc_CryptoInfo {
         };
     } hash;
 #endif /* !NO_SHA || !NO_SHA256 */
+#ifndef NO_HMAC
+    struct {
+        int macType; /* enum wc_HashType */
+        const byte* in;
+        word32 inSz;
+        byte* digest;
+        Hmac* hmac;
+    } hmac;
+#endif
 #ifndef WC_NO_RNG
     struct {
         WC_RNG* rng;
         byte* out;
         word32 sz;
     } rng;
+    struct {
+        OS_Seed* os;
+        byte* seed;
+        word32 sz;
+    } seed;
 #endif
 } wc_CryptoInfo;
 
@@ -237,9 +256,14 @@ WOLFSSL_LOCAL int wc_CryptoCb_ShaHash(wc_Sha* sha, const byte* in,
 WOLFSSL_LOCAL int wc_CryptoCb_Sha256Hash(wc_Sha256* sha256, const byte* in,
     word32 inSz, byte* digest);
 #endif /* !NO_SHA256 */
+#ifndef NO_HMAC
+WOLFSSL_LOCAL int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in,
+    word32 inSz, byte* digest);
+#endif /* !NO_HMAC */
 
 #ifndef WC_NO_RNG
 WOLFSSL_LOCAL int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz);
+WOLFSSL_LOCAL int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz);
 #endif
 
 #endif /* WOLF_CRYPTO_CB */

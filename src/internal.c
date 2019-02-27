@@ -4413,9 +4413,11 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef WOLFSSL_TLS13
     ssl->buffers.certChainCnt = ctx->certChainCnt;
 #endif
-    ssl->buffers.key     = ctx->privateKey;
-    ssl->buffers.keyType = ctx->privateKeyType;
-    ssl->buffers.keySz   = ctx->privateKeySz;
+    ssl->buffers.key      = ctx->privateKey;
+    ssl->buffers.keyType  = ctx->privateKeyType;
+    ssl->buffers.keyId    = ctx->privateKeyId;
+    ssl->buffers.keySz    = ctx->privateKeySz;
+    ssl->buffers.keyDevId = ctx->privateKeyDevId;
 #endif
 #if !defined(WOLFSSL_NO_CLIENT_AUTH) && defined(HAVE_ED25519) && \
                                         !defined(NO_ED25519_CLIENT_AUTH)
@@ -4493,27 +4495,42 @@ int InitHandshakeHashes(WOLFSSL* ssl)
     ret = wc_InitMd5_ex(&ssl->hsHashes->hashMd5, ssl->heap, ssl->devId);
     if (ret != 0)
         return ret;
+    #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+        wc_Md5SetFlags(&ssl->hsHashes->hashMd5, WC_HASH_FLAG_WILLCOPY);
+    #endif
 #endif
 #ifndef NO_SHA
     ret = wc_InitSha_ex(&ssl->hsHashes->hashSha, ssl->heap, ssl->devId);
     if (ret != 0)
         return ret;
+    #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+        wc_ShaSetFlags(&ssl->hsHashes->hashSha, WC_HASH_FLAG_WILLCOPY);
+    #endif
 #endif
 #endif /* !NO_OLD_TLS */
 #ifndef NO_SHA256
     ret = wc_InitSha256_ex(&ssl->hsHashes->hashSha256, ssl->heap, ssl->devId);
     if (ret != 0)
         return ret;
+    #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+        wc_Sha256SetFlags(&ssl->hsHashes->hashSha256, WC_HASH_FLAG_WILLCOPY);
+    #endif
 #endif
 #ifdef WOLFSSL_SHA384
     ret = wc_InitSha384_ex(&ssl->hsHashes->hashSha384, ssl->heap, ssl->devId);
     if (ret != 0)
         return ret;
+    #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+        wc_Sha384SetFlags(&ssl->hsHashes->hashSha384, WC_HASH_FLAG_WILLCOPY);
+    #endif
 #endif
 #ifdef WOLFSSL_SHA512
     ret = wc_InitSha512_ex(&ssl->hsHashes->hashSha512, ssl->heap, ssl->devId);
     if (ret != 0)
         return ret;
+    #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+        wc_Sha512SetFlags(&ssl->hsHashes->hashSha512, WC_HASH_FLAG_WILLCOPY);
+    #endif
 #endif
 
     return ret;
@@ -4796,6 +4813,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         }
         XMEMSET(ssl->arrays, 0, sizeof(Arrays));
 #if defined(WOLFSSL_TLS13) || defined(WOLFSSL_SNIFFER)
+        ssl->arrays->preMasterSz = ENCRYPT_LEN;
         ssl->arrays->preMasterSecret = (byte*)XMALLOC(ENCRYPT_LEN, ssl->heap,
             DYNAMIC_TYPE_SECRET);
         if (ssl->arrays->preMasterSecret == NULL) {
@@ -6284,6 +6302,15 @@ ProtocolVersion MakeDTLSv1_2(void)
         return (word32)rtp_get_system_sec();
     }
 
+#elif defined(WOLFSSL_DEOS)
+
+    word32 LowResTimer(void)
+    {
+        const uint32_t systemTickTimeInHz = 1000000 / systemTickInMicroseconds();
+        uint32_t *systemTickPtr = systemTickPointer();
+
+        return (word32) *systemTickPtr/systemTickTimeInHz;
+    }
 
 #elif defined(MICRIUM)
 
@@ -6408,6 +6435,13 @@ ProtocolVersion MakeDTLSv1_2(void)
         os_gettimeofday(&tv, NULL);
         now = (word32)tv.tv_sec;
         return now;
+    }
+
+#elif defined(WOLFSSL_ZEPHYR)
+
+    word32 LowResTimer(void)
+    {
+        return k_uptime_get() / 1000;
     }
 
 #else
@@ -10665,8 +10699,10 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif
 
     /* make sure can read the message */
-    if (*inOutIdx + size > totalSz)
+    if (*inOutIdx + size > totalSz) {
+        WOLFSSL_MSG("Incomplete Data");
         return INCOMPLETE_DATA;
+    }
 
     expectedIdx = *inOutIdx + size +
                   (ssl->keys.encryptionOn ? ssl->keys.padSz : 0);
@@ -10753,7 +10789,10 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     #endif
     ) {
         ret = HashInput(ssl, input + *inOutIdx, size);
-        if (ret != 0) return ret;
+        if (ret != 0) {
+            WOLFSSL_MSG("Incomplete handshake hashes");
+            return ret;
+        }
     }
 
 #ifdef OPENSSL_EXTRA
@@ -11438,6 +11477,10 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #ifndef WOLFSSL_NO_TLS12
 
 #ifdef HAVE_AEAD
+
+#if ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))) || \
+    (defined(HAVE_POLY1305) && defined(HAVE_CHACHA))
 static WC_INLINE void AeadIncrementExpIV(WOLFSSL* ssl)
 {
     int i;
@@ -11445,6 +11488,7 @@ static WC_INLINE void AeadIncrementExpIV(WOLFSSL* ssl)
         if (++ssl->keys.aead_exp_IV[i]) return;
     }
 }
+#endif
 
 
 #if defined(HAVE_POLY1305) && defined(HAVE_CHACHA)
@@ -11794,6 +11838,28 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 #endif /* HAVE_AEAD */
 
 
+#if defined(BUILD_AESGCM) || defined(HAVE_AESCCM)
+
+#if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
+/* The following type is used to share code between AES-GCM and AES-CCM. */
+    typedef int (*AesAuthEncryptFunc)(Aes* aes, byte* out,
+                                       const byte* in, word32 sz,
+                                       byte* iv, word32 ivSz,
+                                       byte* authTag, word32 authTagSz,
+                                       const byte* authIn, word32 authInSz);
+    #define AES_AUTH_ENCRYPT_FUNC AesAuthEncryptFunc
+    #define AES_GCM_ENCRYPT wc_AesGcmEncrypt_ex
+    #define AES_CCM_ENCRYPT wc_AesCcmEncrypt_ex
+#else
+    #define AES_AUTH_ENCRYPT_FUNC wc_AesAuthEncryptFunc
+    #define AES_GCM_ENCRYPT wc_AesGcmEncrypt
+    #define AES_CCM_ENCRYPT wc_AesCcmEncrypt
+#endif
+
+#endif
+
+
 static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
     word16 sz, int asyncOkay)
 {
@@ -11858,7 +11924,7 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
         case wolfssl_aes_gcm:
         case wolfssl_aes_ccm:/* GCM AEAD macros use same size as CCM */
         {
-            wc_AesAuthEncryptFunc aes_auth_fn;
+            AES_AUTH_ENCRYPT_FUNC aes_auth_fn;
             const byte* additionalSrc;
 
         #ifdef WOLFSSL_ASYNC_CRYPT
@@ -11871,11 +11937,11 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
 
         #if defined(BUILD_AESGCM) && defined(HAVE_AESCCM)
             aes_auth_fn = (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm)
-                            ? wc_AesGcmEncrypt : wc_AesCcmEncrypt;
+                            ? AES_GCM_ENCRYPT : AES_CCM_ENCRYPT;
         #elif defined(BUILD_AESGCM)
-            aes_auth_fn = wc_AesGcmEncrypt;
+            aes_auth_fn = AES_GCM_ENCRYPT;
         #else
-            aes_auth_fn = wc_AesCcmEncrypt;
+            aes_auth_fn = AES_CCM_ENCRYPT;
         #endif
             additionalSrc = input - 5;
 
@@ -11898,10 +11964,13 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
              * IV length minus the authentication tag size. */
             c16toa(sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
                                 ssl->encrypt.additional + AEAD_LEN_OFFSET);
+#if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
             XMEMCPY(ssl->encrypt.nonce,
                                 ssl->keys.aead_enc_imp_IV, AESGCM_IMP_IV_SZ);
             XMEMCPY(ssl->encrypt.nonce + AESGCM_IMP_IV_SZ,
                                 ssl->keys.aead_exp_IV, AESGCM_EXP_IV_SZ);
+#endif
             ret = aes_auth_fn(ssl->encrypt.aes,
                     out + AESGCM_EXP_IV_SZ, input + AESGCM_EXP_IV_SZ,
                     sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
@@ -11914,6 +11983,11 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
                 ret = wolfSSL_AsyncPush(ssl, asyncDev);
             }
         #endif
+#if (!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
+            XMEMCPY(out,
+                    ssl->encrypt.nonce + AESGCM_IMP_IV_SZ, AESGCM_EXP_IV_SZ);
+#endif
         }
         break;
     #endif /* BUILD_AESGCM || HAVE_AESCCM */
@@ -12042,8 +12116,10 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 
                 ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm)
             {
                 /* finalize authentication cipher */
+#if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
                 AeadIncrementExpIV(ssl);
-
+#endif
                 if (ssl->encrypt.nonce)
                     ForceZero(ssl->encrypt.nonce, AESGCM_NONCE_SZ);
 
@@ -12062,6 +12138,7 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 
 
     return ret;
 }
+
 
 static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
                            word16 sz)
@@ -13961,13 +14038,14 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                     goto exit_buildmsg;
 
             }
-
-        #ifdef HAVE_AEAD
+#if (defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)) && \
+    defined(HAVE_AEAD)
             if (ssl->specs.cipher_type == aead) {
                 if (ssl->specs.bulk_cipher_algorithm != wolfssl_chacha)
                     XMEMCPY(args->iv, ssl->keys.aead_exp_IV, AESGCM_EXP_IV_SZ);
             }
-        #endif
+#endif
 
             args->size = (word16)(args->sz - args->headerSz);    /* include mac and digest */
             AddRecordHeader(output, args->size, (byte)type, ssl);
@@ -15511,7 +15589,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "error during decryption";
 
     case FATAL_ERROR :
-        return "revcd alert fatal error";
+        return "received alert fatal error";
 
     case ENCRYPT_ERROR :
         return "error during encryption";
@@ -17088,6 +17166,49 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         WOLFSSL_MSG("Private key missing!");
         ERROR_OUT(NO_PRIVATE_KEY, exit_dpk);
     }
+
+#ifdef HAVE_PKCS11
+    if (ssl->buffers.keyDevId != INVALID_DEVID && ssl->buffers.keyId) {
+        if (ssl->buffers.keyType == rsa_sa_algo)
+            ssl->hsType = DYNAMIC_TYPE_RSA;
+        else if (ssl->buffers.keyType == ecc_dsa_sa_algo)
+            ssl->hsType = DYNAMIC_TYPE_ECC;
+        ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+        if (ret != 0) {
+            goto exit_dpk;
+        }
+
+        if (ssl->buffers.keyType == rsa_sa_algo) {
+            ret = wc_InitRsaKey_Id((RsaKey*)ssl->hsKey,
+                             ssl->buffers.key->buffer, ssl->buffers.key->length,
+                             ssl->heap, ssl->buffers.keyDevId);
+            if (ret == 0) {
+                if (ssl->buffers.keySz < ssl->options.minRsaKeySz) {
+                    WOLFSSL_MSG("RSA key size too small");
+                    ERROR_OUT(RSA_KEY_SIZE_E, exit_dpk);
+                }
+
+                /* Return the maximum signature length. */
+                *length = (word16)wc_ecc_sig_size_calc(ssl->buffers.keySz);
+            }
+        }
+        else if (ssl->buffers.keyType == ecc_dsa_sa_algo) {
+            ret = wc_ecc_init_id((ecc_key*)ssl->hsKey, ssl->buffers.key->buffer,
+                                 ssl->buffers.key->length, ssl->heap,
+                                 ssl->buffers.keyDevId);
+            if (ret == 0) {
+                if (ssl->buffers.keySz < ssl->options.minEccKeySz) {
+                    WOLFSSL_MSG("ECC key size too small");
+                    ERROR_OUT(ECC_KEY_SIZE_E, exit_dpk);
+                }
+
+                /* Return the maximum signature length. */
+                *length = (word16)wc_ecc_sig_size_calc(ssl->buffers.keySz);
+            }
+        }
+        goto exit_dpk;
+    }
+#endif
 
 #ifndef NO_RSA
     if (ssl->buffers.keyType == rsa_sa_algo || ssl->buffers.keyType == 0) {
@@ -19822,6 +19943,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 ERROR_OUT(MEMORY_E, exit_scke);
             }
             if (ssl->arrays->preMasterSecret == NULL) {
+                ssl->arrays->preMasterSz = ENCRYPT_LEN;
                 ssl->arrays->preMasterSecret = (byte*)XMALLOC(ENCRYPT_LEN,
                                                 ssl->heap, DYNAMIC_TYPE_SECRET);
                 if (ssl->arrays->preMasterSecret == NULL) {
@@ -22174,97 +22296,46 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         #endif
                             case rsa_sa_algo:
                             {
-                                word32 i = 0;
-                                int keySz;
+                                word16 keySz;
 
-                                ssl->hsType = DYNAMIC_TYPE_RSA;
-                                ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+                                ssl->buffers.keyType = rsa_sa_algo;
+                                ret = DecodePrivateKey(ssl, &keySz);
                                 if (ret != 0) {
                                     goto exit_sske;
-                                }
-
-                                ret = wc_RsaPrivateKeyDecode(
-                                    ssl->buffers.key->buffer,
-                                    &i,
-                                    (RsaKey*)ssl->hsKey,
-                                    ssl->buffers.key->length);
-                                if (ret != 0) {
-                                    goto exit_sske;
-                                }
-                                keySz = wc_RsaEncryptSize((RsaKey*)ssl->hsKey);
-                                if (keySz < 0) { /* test if keySz has error */
-                                    ERROR_OUT(keySz, exit_sske);
                                 }
 
                                 args->tmpSigSz = (word32)keySz;
-                                if (keySz < ssl->options.minRsaKeySz) {
-                                    WOLFSSL_MSG("RSA signature key size too small");
-                                    ERROR_OUT(RSA_KEY_SIZE_E, exit_sske);
-                                }
                                 break;
                             }
                         #endif /* !NO_RSA */
                         #ifdef HAVE_ECC
                             case ecc_dsa_sa_algo:
                             {
-                                word32 i = 0;
+                                word16 keySz;
 
-                                ssl->hsType = DYNAMIC_TYPE_ECC;
-                                ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
-                                if (ret != 0) {
-                                    goto exit_sske;
-                                }
-
-                                ret = wc_EccPrivateKeyDecode(
-                                    ssl->buffers.key->buffer,
-                                    &i,
-                                    (ecc_key*)ssl->hsKey,
-                                    ssl->buffers.key->length);
+                                ssl->buffers.keyType = ecc_dsa_sa_algo;
+                                ret = DecodePrivateKey(ssl, &keySz);
                                 if (ret != 0) {
                                     goto exit_sske;
                                 }
                                 /* worst case estimate */
-                                args->tmpSigSz = wc_ecc_sig_size(
-                                    (ecc_key*)ssl->hsKey);
-
-                                /* check the minimum ECC key size */
-                                if (wc_ecc_size((ecc_key*)ssl->hsKey) <
-                                        ssl->options.minEccKeySz) {
-                                    WOLFSSL_MSG("ECC key size too small");
-                                    ERROR_OUT(ECC_KEY_SIZE_E, exit_sske);
-                                }
+                                args->tmpSigSz = keySz;
                                 break;
                             }
                         #endif
                         #ifdef HAVE_ED25519
                             case ed25519_sa_algo:
                             {
-                                word32 i = 0;
+                                word16 keySz;
 
-                                ssl->hsType = DYNAMIC_TYPE_ED25519;
-                                ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
-                                if (ret != 0) {
-                                    goto exit_sske;
-                                }
-
-                                ret = wc_Ed25519PrivateKeyDecode(
-                                    ssl->buffers.key->buffer,
-                                    &i,
-                                    (ed25519_key*)ssl->hsKey,
-                                    ssl->buffers.key->length);
+                                ssl->buffers.keyType = ed25519_sa_algo;
+                                ret = DecodePrivateKey(ssl, &keySz);
                                 if (ret != 0) {
                                     goto exit_sske;
                                 }
 
                                 /* worst case estimate */
                                 args->tmpSigSz = ED25519_SIG_SIZE;
-
-                                /* check the minimum ECC key size */
-                                if (ED25519_KEY_SIZE <
-                                        ssl->options.minEccKeySz) {
-                                    WOLFSSL_MSG("Ed25519 key size too small");
-                                    ERROR_OUT(ECC_KEY_SIZE_E, exit_sske);
-                                }
                                 break;
                             }
                         #endif /* HAVE_ED25519 */
@@ -22469,7 +22540,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         preSigSz  = args->length;
 
                         if (!ssl->options.usingAnon_cipher) {
-                            int keySz;
+                            word16 keySz;
 
                             /* sig length */
                             args->length += LENGTH_SZ;
@@ -22484,22 +22555,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             }
                             else
                             {
-                                word32 i = 0;
-
-                                ssl->hsType = DYNAMIC_TYPE_RSA;
-                                ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+                                if (ssl->buffers.keyType == 0)
+                                    ssl->buffers.keyType = rsa_sa_algo;
+                                ret = DecodePrivateKey(ssl, &keySz);
                                 if (ret != 0) {
                                     goto exit_sske;
                                 }
-
-                                ret = wc_RsaPrivateKeyDecode(
-                                    ssl->buffers.key->buffer, &i,
-                                    (RsaKey*)ssl->hsKey,
-                                    ssl->buffers.key->length);
-                                if (ret != 0) {
-                                    goto exit_sske;
-                                }
-                                keySz = wc_RsaEncryptSize((RsaKey*)ssl->hsKey);
                             }
 
                             if (keySz <= 0) { /* test if keySz has error */
@@ -22508,11 +22569,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                             args->tmpSigSz = (word32)keySz;
                             args->length += args->tmpSigSz;
-
-                            if (keySz < ssl->options.minRsaKeySz) {
-                                WOLFSSL_MSG("RSA key size too small");
-                                ERROR_OUT(RSA_KEY_SIZE_E, exit_sske);
-                            }
 
                             if (IsAtLeastTLSv1_2(ssl)) {
                                 args->length += HASH_SIG_SIZE;
@@ -23877,11 +23933,19 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef HAVE_SERVER_RENEGOTIATION_INFO
         /* check for TLS_EMPTY_RENEGOTIATION_INFO_SCSV suite */
         if (FindSuite(&clSuites, 0, TLS_EMPTY_RENEGOTIATION_INFO_SCSV) >= 0) {
+            TLSX* extension;
+
+            /* check for TLS_EMPTY_RENEGOTIATION_INFO_SCSV suite */
             ret = TLSX_AddEmptyRenegotiationInfo(&ssl->extensions, ssl->heap);
             if (ret != WOLFSSL_SUCCESS)
                 return ret;
-            if (ssl->secure_renegotiation)
+
+            extension = TLSX_Find(ssl->extensions, TLSX_RENEGOTIATION_INFO);
+            if (extension) {
+                ssl->secure_renegotiation =
+                                          (SecureRenegotiation*)extension->data;
                 ssl->secure_renegotiation->enabled = 1;
+            }
         }
 #endif /* HAVE_SERVER_RENEGOTIATION_INFO */
 
@@ -25075,6 +25139,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             #endif
 
                 if (ssl->arrays->preMasterSecret == NULL) {
+                    ssl->arrays->preMasterSz = ENCRYPT_LEN;
                     ssl->arrays->preMasterSecret = (byte*)XMALLOC(ENCRYPT_LEN,
                                                 ssl->heap, DYNAMIC_TYPE_SECRET);
                     if (ssl->arrays->preMasterSecret == NULL) {
@@ -25168,30 +25233,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 #ifndef NO_RSA
                     case rsa_kea:
                     {
-                        word32 i = 0;
-                        int    keySz;
+                        word16 keySz;
 
-                        ssl->hsType = DYNAMIC_TYPE_RSA;
-                        ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+                        ssl->buffers.keyType = rsa_sa_algo;
+                        ret = DecodePrivateKey(ssl, &keySz);
                         if (ret != 0) {
                             goto exit_dcke;
-                        }
-
-                        ret = wc_RsaPrivateKeyDecode(ssl->buffers.key->buffer,
-                            &i, (RsaKey*)ssl->hsKey, ssl->buffers.key->length);
-                        if (ret != 0) {
-                            goto exit_dcke;
-                        }
-                        keySz = wc_RsaEncryptSize((RsaKey*)ssl->hsKey);
-                        if (keySz < 0) { /* test if keySz has error */
-                            ERROR_OUT(keySz, exit_dcke);
                         }
                         args->length = (word32)keySz;
-
-                        if (keySz < ssl->options.minRsaKeySz) {
-                            WOLFSSL_MSG("Peer RSA key is too small");
-                            ERROR_OUT(RSA_KEY_SIZE_E, exit_dcke);
-                        }
                         ssl->arrays->preMasterSz = SECRET_LEN;
 
                         if (ssl->options.tls) {
@@ -25326,27 +25375,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         /* handle static private key */
                         if (ssl->specs.static_ecdh &&
                                           ssl->ecdhCurveOID != ECC_X25519_OID) {
-                            word32 i = 0;
+                            word16 keySz;
 
-                            ssl->hsType = DYNAMIC_TYPE_ECC;
-                            ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+                            ssl->buffers.keyType = ecc_dsa_sa_algo;
+                            ret = DecodePrivateKey(ssl, &keySz);
                             if (ret != 0) {
                                 goto exit_dcke;
                             }
-
-                            ret = wc_EccPrivateKeyDecode(
-                                ssl->buffers.key->buffer,
-                                &i,
-                                (ecc_key*)ssl->hsKey,
-                                ssl->buffers.key->length);
-                            if (ret == 0) {
-                                private_key = (ecc_key*)ssl->hsKey;
-                                if (wc_ecc_size(private_key) <
-                                                ssl->options.minEccKeySz) {
-                                    WOLFSSL_MSG("ECC key too small");
-                                    ERROR_OUT(ECC_KEY_SIZE_E, exit_dcke);
-                                }
-                            }
+                            private_key = (ecc_key*)ssl->hsKey;
                         }
                     #endif
 
@@ -25360,8 +25396,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         if ((args->idx - args->begin) + args->length > size) {
                             ERROR_OUT(BUFFER_ERROR, exit_dcke);
                         }
-
-                        ssl->arrays->preMasterSz = ENCRYPT_LEN;
 
                     #ifdef HAVE_CURVE25519
                         if (ssl->ecdhCurveOID == ECC_X25519_OID) {
@@ -25393,6 +25427,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     EC25519_LITTLE_ENDIAN)) {
                                 ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
                             }
+
+                            ssl->arrays->preMasterSz = CURVE25519_KEYSIZE;
 
                             ssl->peerX25519KeyPresent = 1;
 
@@ -25436,6 +25472,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                         ssl->peerEccKey, private_key->dp->id)) {
                             ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
                         }
+
+                        ssl->arrays->preMasterSz = private_key->dp->size;
 
                         ssl->peerEccKeyPresent = 1;
                 #endif /* HAVE_ECC */
@@ -25960,7 +25998,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                         /* Add preMasterSecret */
                         c16toa(clientSz, pms);
-                        ssl->arrays->preMasterSz += OPAQUE16_LEN + clientSz;
+                        ssl->arrays->preMasterSz = OPAQUE16_LEN + clientSz;
                         pms += ssl->arrays->preMasterSz;
 
                         /* Use the PSK hint to look up the PSK and add it to the

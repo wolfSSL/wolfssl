@@ -41,6 +41,7 @@ EXTRA_DIST += \
 	     certs/server-revoked-key.pem \
 	     certs/wolfssl-website-ca.pem \
 	     certs/test-degenerate.p7b \
+	     certs/test-ber-exp02-05-2022.p7b \
 	     certs/test-servercert.p12 \
 	     certs/ecc-rsa-server.p12 \
 	     certs/dsaparams.pem \

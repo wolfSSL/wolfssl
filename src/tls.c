@@ -5066,19 +5066,34 @@ static int TLSX_SupportedVersions_GetSize(void* data, byte msgType, word16* pSz)
 
     if (msgType == client_hello) {
         /* TLS v1.2 and TLS v1.3  */
-        int cnt = 2;
+        int cnt = 0;
 
-#ifndef NO_OLD_TLS
-        /* TLS v1.1  */
-        cnt++;
-    #ifdef WOLFSSL_ALLOW_TLSV10
-        /* TLS v1.0  */
-        cnt++;
-    #endif
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1_3) == 0)
+        #endif
+                cnt++;
+
+        if (ssl->options.downgrade) {
+#ifndef WOLFSSL_NO_TLS12
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1_2) == 0)
+        #endif
+                cnt++;
 #endif
 
-        if (!ssl->options.downgrade)
-            cnt = 1;
+#ifndef NO_OLD_TLS
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1_1) == 0)
+        #endif
+                cnt++;
+    #ifdef WOLFSSL_ALLOW_TLSV10
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1) == 0)
+        #endif
+                cnt++;
+    #endif
+#endif
+        }
 
         *pSz += (word16)(OPAQUE8_LEN + cnt * OPAQUE16_LEN);
     }
@@ -5103,44 +5118,65 @@ static int TLSX_SupportedVersions_Write(void* data, byte* output,
                                            byte msgType, word16* pSz)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
-    ProtocolVersion pv;
-    int i;
-    int cnt;
+    byte major;
+    byte* cnt;
 
     if (msgType == client_hello) {
-        pv = ssl->ctx->method->version;
-        /* TLS v1.2 and TLS v1.3  */
-        cnt = 2;
+        major = ssl->ctx->method->version.major;
 
-#ifndef NO_OLD_TLS
-        /* TLS v1.1  */
-        cnt++;
-    #ifdef WOLFSSL_ALLOW_TLSV10
-        /* TLS v1.0  */
-        cnt++;
-    #endif
-#endif
 
-        if (!ssl->options.downgrade)
-            cnt = 1;
-
-        *(output++) = (byte)(cnt * OPAQUE16_LEN);
-        for (i = 0; i < cnt; i++) {
+        cnt = output++;
+        *cnt = 0;
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1_3) == 0)
+        #endif
+            {
+                *cnt += OPAQUE16_LEN;
 #ifdef WOLFSSL_TLS13_DRAFT
-            if (pv.minor - i == TLSv1_3_MINOR) {
                 /* The TLS draft major number. */
                 *(output++) = TLS_DRAFT_MAJOR;
                 /* Version of draft supported. */
                 *(output++) = TLS_DRAFT_MINOR;
-                continue;
+#else
+                *(output++) = major;
+                *(output++) = (byte)TLSv1_3_MINOR;
+#endif
+            }
+        if (ssl->options.downgrade) {
+#ifndef WOLFSSL_NO_TLS12
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1_2) == 0)
+        #endif
+            {
+                *cnt += OPAQUE16_LEN;
+                *(output++) = major;
+                *(output++) = (byte)TLSv1_2_MINOR;
             }
 #endif
 
-            *(output++) = pv.major;
-            *(output++) = (byte)(pv.minor - i);
+#ifndef NO_OLD_TLS
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1_1) == 0)
+        #endif
+            {
+                *cnt += OPAQUE16_LEN;
+                *(output++) = major;
+                *(output++) = (byte)TLSv1_1_MINOR;
+            }
+    #ifdef WOLFSSL_ALLOW_TLSV10
+        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+            if ((ssl->options.mask & SSL_OP_NO_TLSv1) == 0)
+        #endif
+            {
+                *cnt += OPAQUE16_LEN;
+                *(output++) = major;
+                *(output++) = (byte)TLSv1_MINOR;
+            }
+    #endif
+#endif
         }
 
-        *pSz += (word16)(OPAQUE8_LEN + cnt * OPAQUE16_LEN);
+        *pSz += (word16)(OPAQUE8_LEN + *cnt);
     }
 #ifndef WOLFSSL_TLS13_DRAFT_18
     else if (msgType == server_hello || msgType == hello_retry_request) {
@@ -6287,6 +6323,8 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         ssl->arrays->preMasterSz = params->p_len;
     }
 
+    ssl->options.dhKeySz = params->p_len;
+
     wc_FreeDhKey(dhKey);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(dhKey, ssl->heap, DYNAMIC_TYPE_DH);
@@ -6354,7 +6392,6 @@ static int TLSX_KeyShare_ProcessX25519(WOLFSSL* ssl,
     }
 
     if (ret == 0) {
-        ssl->arrays->preMasterSz = ENCRYPT_LEN;
         ssl->ecdhCurveOID = ECC_X25519_OID;
 
         ret = wc_curve25519_shared_secret_ex(key, peerX25519Key,
@@ -6452,7 +6489,6 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     }
     ssl->ecdhCurveOID = ssl->peerEccKey->dp->oidSum;
 
-    ssl->arrays->preMasterSz = ENCRYPT_LEN;
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &keyShareKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -6667,7 +6703,7 @@ static int TLSX_KeyShare_Parse(WOLFSSL* ssl, byte* input, word16 length,
         offset += OPAQUE16_LEN;
 
         while (offset < length) {
-            ret = TLSX_KeyShareEntry_Parse(ssl, &input[offset], length,
+            ret = TLSX_KeyShareEntry_Parse(ssl, &input[offset], length - offset,
                                                                 &keyShareEntry);
             if (ret < 0)
                 return ret;
@@ -7791,11 +7827,11 @@ int TLSX_PskKeModes_Use(WOLFSSL* ssl, byte modes)
 /******************************************************************************/
 
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-/* Get the size of the encoded Post-Hanshake Authentication extension.
+/* Get the size of the encoded Post-Handshake Authentication extension.
  * Only in ClientHello.
  *
  * msgType  The type of the message this extension is being written into.
- * returns the number of bytes of the encoded Post-Hanshake Authentication
+ * returns the number of bytes of the encoded Post-Handshake Authentication
  * extension.
  */
 static word16 TLSX_PostHandAuth_GetSize(byte msgType)
@@ -9646,11 +9682,17 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->ctx->method->version) &&
                         msgType != client_hello &&
+                        msgType != server_hello &&
                         msgType != encrypted_extensions) {
                     return EXT_NOT_ALLOWED;
                 }
                 else if (!IsAtLeastTLSv1_3(ssl->version) &&
                          msgType == encrypted_extensions) {
+                    return EXT_NOT_ALLOWED;
+                }
+                else if (IsAtLeastTLSv1_3(ssl->ctx->method->version) &&
+                        msgType == server_hello &&
+                        !ssl->options.downgrade) {
                     return EXT_NOT_ALLOWED;
                 }
 #endif

@@ -60,6 +60,7 @@ typedef struct Pkcs11Session {
 /* Types of keys that can be stored. */
 enum Pkcs11KeyType {
     PKCS11_KEY_TYPE_AES_GCM,
+    PKCS11_KEY_TYPE_AES_CBC,
     PKCS11_KEY_TYPE_RSA,
     PKCS11_KEY_TYPE_EC,
 };

@@ -130,6 +130,9 @@
     #ifndef SINGLE_THREADED
         #include "tx_api.h"
     #endif
+
+#elif defined(WOLFSSL_DEOS)
+    /* do nothing, just don't pick Unix */
 #elif defined(MICRIUM)
     /* do nothing, just don't pick Unix */
 #elif defined(FREERTOS) || defined(FREERTOS_TCP) || defined(WOLFSSL_SAFERTOS)
@@ -165,6 +168,10 @@
     #if !defined(WOLFSSL_LWIP)
         void mynewt_ctx_clear(void *ctx);
         void* mynewt_ctx_new();
+    #endif
+#elif defined(WOLFSSL_ZEPHYR)
+    #ifndef SINGLE_THREADED
+        #include <kernel.h>
     #endif
 #else
     #ifndef SINGLE_THREADED
@@ -1107,7 +1114,11 @@ enum {
 #define MIN_DHKEY_SZ (WOLFSSL_MIN_DHKEY_BITS / 8)
 /* set maximum DH key size allowed */
 #ifndef WOLFSSL_MAX_DHKEY_BITS
-    #define WOLFSSL_MAX_DHKEY_BITS 4096
+    #if (defined(USE_FAST_MATH) && defined(FP_MAX_BITS) && FP_MAX_BITS >= 16384)
+        #define WOLFSSL_MAX_DHKEY_BITS 8192
+    #else
+        #define WOLFSSL_MAX_DHKEY_BITS 4096
+    #endif
 #endif
 #if (WOLFSSL_MAX_DHKEY_BITS % 8)
     #error DH maximum bit size must be multiple of 8
@@ -1160,8 +1171,9 @@ enum Misc {
     HELLO_EXT_EXTMS = 0x0017,   /* ID for the extended master secret ext */
     SECRET_LEN      = WOLFSSL_MAX_MASTER_KEY_LENGTH,
                                 /* pre RSA and all master */
-#if defined(WOLFSSL_MYSQL_COMPATIBLE)
-    ENCRYPT_LEN     = 1024,     /* allow larger static buffer with mysql */
+#if defined(WOLFSSL_MYSQL_COMPATIBLE) || \
+    (defined(USE_FAST_MATH) && defined(FP_MAX_BITS) && FP_MAX_BITS > 8192)
+    ENCRYPT_LEN     = 1024,     /* allow 8192 bit static buffer */
 #else
     ENCRYPT_LEN     = 512,      /* allow 4096 bit static buffer */
 #endif
@@ -1322,13 +1334,13 @@ enum Misc {
 
     EVP_SALT_SIZE       =  8,  /* evp salt size 64 bits   */
 
-#ifndef ECDHE_SIZE /* allow this to be overriden at compile-time */
+#ifndef ECDHE_SIZE /* allow this to be overridden at compile-time */
     ECDHE_SIZE          = 32,  /* ECHDE server size defaults to 256 bit */
 #endif
     MAX_EXPORT_ECC_SZ   = 256, /* Export ANS X9.62 max future size */
     MAX_CURVE_NAME_SZ   = 16,  /* Maximum size of curve name string */
 
-    NEW_SA_MAJOR        = 8,   /* Most signicant byte used with new sig algos */
+    NEW_SA_MAJOR        = 8,   /* Most significant byte used with new sig algos */
     ED25519_SA_MAJOR    = 8,   /* Most significant byte for ED25519 */
     ED25519_SA_MINOR    = 7,   /* Least significant byte for ED25519 */
     ED448_SA_MAJOR      = 8,   /* Most significant byte for ED448 */
@@ -1425,9 +1437,9 @@ enum Misc {
     #endif
 #endif /* WOLFSSL_MIN_ECC_BITS */
 #if (WOLFSSL_MIN_ECC_BITS % 8)
-    /* Some ECC keys are not divisable by 8 such as prime239v1 or sect131r1.
-       In these cases round down to the nearest value divisable by 8. The
-       restriction of being divisable by 8 is in place to match wc_ecc_size
+    /* Some ECC keys are not divisible by 8 such as prime239v1 or sect131r1.
+       In these cases round down to the nearest value divisible by 8. The
+       restriction of being divisible by 8 is in place to match wc_ecc_size
        function from wolfSSL.
      */
     #error ECC minimum bit size must be a multiple of 8
@@ -1444,7 +1456,7 @@ enum Misc {
 #endif /* WOLFSSL_MIN_RSA_BITS */
 #if (WOLFSSL_MIN_RSA_BITS % 8)
     /* This is to account for the example case of a min size of 2050 bits but
-       still allows 2049 bit key. So we need the measurment to be in bytes. */
+       still allows 2049 bit key. So we need the measurement to be in bytes. */
     #error RSA minimum bit size must be a multiple of 8
 #endif
 #define MIN_RSAKEY_SZ (WOLFSSL_MIN_RSA_BITS / 8)
@@ -2089,7 +2101,7 @@ WOLFSSL_LOCAL int   TLSX_SupportExtensions(WOLFSSL* ssl);
 WOLFSSL_LOCAL int   TLSX_PopulateExtensions(WOLFSSL* ssl, byte isRequest);
 
 #if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_CLIENT)
-WOLFSSL_LOCAL int   TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, 
+WOLFSSL_LOCAL int   TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType,
                                          word16* pLength);
 WOLFSSL_LOCAL int   TLSX_WriteRequest(WOLFSSL* ssl, byte* output,
                                        byte msgType, word16* pOffset);
@@ -2097,9 +2109,9 @@ WOLFSSL_LOCAL int   TLSX_WriteRequest(WOLFSSL* ssl, byte* output,
 
 #if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_SERVER)
 /* TLS 1.3 Certificate messages have extensions. */
-WOLFSSL_LOCAL int   TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, 
+WOLFSSL_LOCAL int   TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType,
                                           word16* pLength);
-WOLFSSL_LOCAL int   TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, 
+WOLFSSL_LOCAL int   TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType,
                                         word16* pOffset);
 #endif
 
@@ -2409,7 +2421,7 @@ typedef struct PreSharedKey {
     byte                 cipherSuite0;            /* Cipher Suite       */
     byte                 cipherSuite;             /* Cipher Suite       */
     word32               binderLen;               /* Length of HMAC     */
-    byte                 binder[WC_MAX_DIGEST_SIZE]; /* HMAC of hanshake   */
+    byte                 binder[WC_MAX_DIGEST_SIZE]; /* HMAC of handshake */
     byte                 hmac;                    /* HMAC algorithm     */
     byte                 resumption:1;            /* Resumption PSK     */
     byte                 chosen:1;                /* Server's choice    */
@@ -2466,7 +2478,7 @@ enum KeyUpdateRequest {
 enum SetCBIO {
     WOLFSSL_CBIO_NONE = 0,
     WOLFSSL_CBIO_RECV = 0x1,
-    WOLFSSL_CBIO_SEND = 0x2, 
+    WOLFSSL_CBIO_SEND = 0x2,
 };
 #endif
 
@@ -2498,8 +2510,10 @@ struct WOLFSSL_CTX {
     int         certChainCnt;
 #endif
     DerBuffer*  privateKey;
-    byte        privateKeyType;
+    byte        privateKeyType:7;
+    byte        privateKeyId:1;
     int         privateKeySz;
+    int         privateKeyDevId;
     WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
 #endif
 #ifdef KEEP_OUR_CERT
@@ -2641,7 +2655,7 @@ struct WOLFSSL_CTX {
 #if defined(WOLFSSL_MULTICAST) && defined(WOLFSSL_DTLS)
     CallbackMcastHighwater mcastHwCb; /* Sequence number highwater callback */
     word32      mcastFirstSeq;    /* first trigger level */
-    word32      mcastSecondSeq;   /* second tigger level */
+    word32      mcastSecondSeq;   /* second trigger level */
     word32      mcastMaxSeq;      /* max level */
 #endif
 #ifdef HAVE_OCSP
@@ -2721,8 +2735,6 @@ struct WOLFSSL_CTX {
 #endif
 };
 
-WOLFSSL_LOCAL
-WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap);
 WOLFSSL_LOCAL
 int InitSSL_Ctx(WOLFSSL_CTX*, WOLFSSL_METHOD*, void* heap);
 WOLFSSL_LOCAL
@@ -3079,8 +3091,10 @@ typedef struct Buffers {
 #ifndef NO_CERTS
     DerBuffer*      certificate;           /* WOLFSSL_CTX owns, unless we own */
     DerBuffer*      key;                   /* WOLFSSL_CTX owns, unless we own */
-    byte            keyType;               /* Type of key: RSA, ECC, Ed25519 */
+    byte            keyType:7;             /* Type of key: RSA, ECC, Ed25519 */
+    byte            keyId:1;               /* Key data is an id not data */
     int             keySz;                 /* Size of RSA key */
+    int             keyDevId;              /* Device Id for key */
     DerBuffer*      certChain;             /* WOLFSSL_CTX owns, unless we own */
                  /* chain after self, in DER, with leading size for each cert */
 #ifdef WOLFSSL_TLS13
@@ -3226,7 +3240,7 @@ typedef struct Options {
     word16            useClientOrder:1;   /* Use client's cipher order */
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     word16            postHandshakeAuth:1;/* Client send post_handshake_auth
-                                           * extendion. */
+                                           * extension */
 #endif
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
     word16            sendCookie:1;       /* Server creates a Cookie in HRR */
@@ -3333,7 +3347,7 @@ typedef struct Arrays {
 struct WOLFSSL_STACK {
     byte type;     /* Set to STACK_TYPE_*. identifies type stored in data.*/
     unsigned long num; /* number of nodes in stack
-                        * (saftey measure for freeing and shortcut for count) */
+                        * (safety measure for freeing and shortcut for count) */
     union {
         WOLFSSL_X509*          x509;
         WOLFSSL_X509_NAME*     name;
@@ -4072,7 +4086,7 @@ WOLFSSL_LOCAL int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment);
         #ifdef WC_RSA_PSS
             WOLFSSL_LOCAL int CheckRsaPssPadding(const byte* plain, word32 plainSz,
                 byte* out, word32 sigSz, enum wc_HashType hashType);
-            WOLFSSL_LOCAL int ConvertHashPss(int hashAlgo, 
+            WOLFSSL_LOCAL int ConvertHashPss(int hashAlgo,
                 enum wc_HashType* hashType, int* mgf);
         #endif
         WOLFSSL_LOCAL int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig,

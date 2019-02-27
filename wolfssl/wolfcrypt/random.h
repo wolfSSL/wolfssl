@@ -88,7 +88,7 @@
  *     seeded via wc_GenerateSeed. This is the default source.
  */
 
- /* Seed source can be overriden by defining one of these:
+ /* Seed source can be overridden by defining one of these:
       CUSTOM_RAND_GENERATE_SEED
       CUSTOM_RAND_GENERATE_SEED_OS
       CUSTOM_RAND_GENERATE */
@@ -137,6 +137,9 @@ typedef struct OS_Seed {
         ProviderHandle handle;
     #else
         int fd;
+    #endif
+    #if defined(WOLF_CRYPTO_CB)
+        int devId;
     #endif
 } OS_Seed;
 

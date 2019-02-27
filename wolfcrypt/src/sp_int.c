@@ -413,7 +413,7 @@ void sp_clamp(sp_int* a)
  *
  * a  SP integer.
  * l  Number of digits.
- * retuns MP_MEM if the number of digits requested is more than available and
+ * returns MP_MEM if the number of digits requested is more than available and
  * MP_OKAY otherwise.
  */
 int sp_grow(sp_int* a, int l)

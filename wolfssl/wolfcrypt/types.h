@@ -175,7 +175,8 @@
         #if defined(_MSC_VER)
             #define THREAD_LS_T __declspec(thread)
         /* Thread local storage only in FreeRTOS v8.2.1 and higher */
-        #elif defined(FREERTOS) || defined(FREERTOS_TCP)
+        #elif defined(FREERTOS) || defined(FREERTOS_TCP) || \
+                                                         defined(WOLFSSL_ZEPHYR)
             #define THREAD_LS_T
         #else
             #define THREAD_LS_T __thread
@@ -360,7 +361,8 @@
         #endif
 
         #ifndef XSTRNCASECMP
-        #if defined(MICROCHIP_PIC32) || defined(WOLFSSL_TIRTOS)
+        #if defined(MICROCHIP_PIC32) || defined(WOLFSSL_TIRTOS) || \
+                defined(WOLFSSL_ZEPHYR)
             /* XC32 does not support strncasecmp, so use case sensitive one */
             #define XSTRNCASECMP(s1,s2,n) strncmp((s1),(s2),(n))
         #elif defined(USE_WINDOWS_API) || defined(FREERTOS_TCP_WINSIM)
@@ -370,7 +372,11 @@
                 !defined(WOLFSSL_SGX)
                 #include <strings.h>
             #endif
-            #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
+            #if defined(WOLFSSL_DEOS)
+                #define XSTRNCASECMP(s1,s2,n) strnicmp((s1),(s2),(n))
+            #else
+                #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
+            #endif
         #endif
         #endif /* !XSTRNCASECMP */
 
@@ -539,8 +545,10 @@
         WC_ALGO_TYPE_CIPHER = 2,
         WC_ALGO_TYPE_PK = 3,
         WC_ALGO_TYPE_RNG = 4,
+        WC_ALGO_TYPE_SEED = 5,
+        WC_ALGO_TYPE_HMAC = 6,
 
-        WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_RNG
+        WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_HMAC
     };
 
     /* hash types */

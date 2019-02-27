@@ -1065,6 +1065,7 @@ then
 fi
 
 AM_CONDITIONAL([BUILD_AESNI], [test "x$ENABLED_AESNI" = "xyes"])
+AM_CONDITIONAL([BUILD_INTELASM], [test "x$ENABLED_INTELASM" = "xyes"])
 
 
 # Linux af_alg 
@@ -1445,7 +1446,7 @@ fi
 if test "$ENABLED_ECC" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
-    if test "$ENABLED_ECC_SHAMIR" = "yes"
+    if test "$ENABLED_ECC_SHAMIR" = "yes" && test "$ENABLED_LOWRESOURCE" = "no"
     then
         AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
     fi
@@ -3601,191 +3602,6 @@ then
     fi
 fi
 
-# Single Precision maths implementation
-AC_ARG_ENABLE([sp],
-    [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation (default: disabled)])],
-    [ ENABLED_SP=$enableval ],
-    [ ENABLED_SP=no ],
-    )
-
-ENABLED_SP_RSA=no
-ENABLED_SP_DH=no
-ENABLED_SP_ECC=no
-for v in `echo $ENABLED_SP | tr "," " "`
-do
-  case $v in
-  small)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
-    ENABLED_SP_RSA=yes
-    ENABLED_SP_DH=yes
-    ENABLED_SP_ECC=yes
-    ;;
-  yes)
-    ENABLED_SP_RSA=yes
-    ENABLED_SP_DH=yes
-    ENABLED_SP_ECC=yes
-    ;;
-  no)
-    ;;
-
-  smallec256 | smallp256 | small256)
-    ENABLED_SP_ECC=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
-    ;;
-  ec256 | p256 | 256)
-    ENABLED_SP_ECC=yes
-    ;;
-
-  small2048)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
-    ENABLED_SP_RSA=yes
-    ENABLED_SP_DH=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
-    ;;
-  2048)
-    ENABLED_SP_RSA=yes
-    ENABLED_SP_DH=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
-    ;;
-
-  smallrsa2048)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
-    ENABLED_SP_RSA=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
-    ;;
-  rsa2048)
-    ENABLED_SP_RSA=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
-    ;;
-
-  small3072)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
-    ENABLED_SP_RSA=yes
-    ENABLED_SP_DH=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
-    ;;
-  3072)
-    ENABLED_SP_RSA=yes
-    ENABLED_SP_DH=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
-    ;;
-
-  smallrsa3072)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
-    ENABLED_SP_RSA=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
-    ;;
-  rsa3072)
-    ENABLED_SP_RSA=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
-    ;;
-
-  *)
-    AC_MSG_ERROR([Invalid choice of Single Precision length in bits [256, 2048, 3072]: $ENABLED_SP.])
-    break;;
-  esac
-done
-
-ENABLED_SP=no
-if test "$ENABLED_RSA" = "yes" && test "$ENABLED_SP_RSA" = "yes"; then
-    ENABLED_SP=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_RSA"
-fi
-if test "$ENABLED_DH" = "yes" && test "$ENABLED_SP_DH" = "yes"; then
-    ENABLED_SP=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_DH"
-fi
-if test "$ENABLED_ECC" = "yes" && test "$ENABLED_SP_ECC" = "yes"; then
-    ENABLED_SP=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_ECC"
-fi
-
-
-AC_ARG_ENABLE([sp-asm],
-    [AS_HELP_STRING([--enable-sp-asm],[Enable Single Precision assembly implementation (default: disabled)])],
-    [ ENABLED_SP_ASM=$enableval ],
-    [ ENABLED_SP_ASM=no ],
-    )
-if test "$ENABLED_SP_ASM" = "yes"; then
-  if test "$ENABLED_SP" = "no"; then
-    AC_MSG_ERROR([Must have SP enabled: --enable-sp])
-  fi
-  if test "$ENABLED_ASM" = "no"; then
-    AC_MSG_ERROR([Assembly code turned off])
-  fi
-
-  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ASM"
-  case $host_cpu in
-  *aarch64*)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM64_ASM"
-    ENABLED_SP_ARM64_ASM=yes
-    ;;
-  *arm*)
-    if test $host_alias = "thumb"; then
-      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_THUMB_ASM -mthumb -march=armv6"
-      ENABLED_SP_ARM_THUMB_ASM=yes
-    else
-      if test $host_alias = "cortex"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_ASM"
-        ENABLED_SP_ARM_CORTEX_ASM=yes
-      else
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
-        ENABLED_SP_ARM32_ASM=yes
-      fi
-    fi
-    ;;
-  *x86_64*)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86_64_ASM"
-    ENABLED_SP_X86_64_ASM=yes
-    ;;
-  *)
-    AC_MSG_ERROR([ASM not available for CPU. Supported CPUs: x86_64, aarch64, arm])
-    ;;
-  esac
-fi
-
-AC_ARG_ENABLE([sp-math],
-    [AS_HELP_STRING([--enable-sp-math],[Enable Single Precision math implementation only (default: disabled)])],
-    [ ENABLED_SP_MATH=$enableval ],
-    [ ENABLED_SP_MATH=no ],
-    )
-if test "$ENABLED_SP_MATH" = "yes"; then
-    if test "$ENABLED_SP" = "no"; then
-        AC_MSG_ERROR([Must have SP enabled: --enable-sp])
-    fi
-    if test "$ENABLED_ECCCUSTCURVES" = "yes"; then
-        AC_MSG_ERROR([Cannot use single precision math and custom curves])
-    fi
-    if test "$ENABLED_OPENSSLEXTRA" = "yes"; then
-        AC_MSG_ERROR([Cannot use single precision math and OpenSSL extra])
-    fi
-    if test "$ENABLED_DSA" = "yes"; then
-        AC_MSG_ERROR([Cannot use single precision math and DSA])
-    fi
-    if test "$ENABLED_SRP" = "yes"; then
-        AC_MSG_ERROR([Cannot use single precision math and SRP])
-    fi
-    if test "$ENABLED_SP_RSA" = "no" && test "$ENABLED_RSA" = "yes"; then
-        AC_MSG_ERROR([Cannot use Single Precision maths without RSA with RSA])
-    fi
-    if test "$ENABLED_SP_DH" = "no" && test "$ENABLED_DH" = "yes"; then
-        AC_MSG_ERROR([Cannot use Single Precision maths without DH with DH])
-    fi
-fi
-if test "$ENABLED_SP_MATH" = "yes"; then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_MATH"
-fi
-
-AM_CONDITIONAL([BUILD_SP], [test "x$ENABLED_SP" = "xyes"])
-AM_CONDITIONAL([BUILD_SP_C], [test "x$ENABLED_SP" = "xyes" && test "x$ENABLED_SP_ASM" = "xno" ])
-AM_CONDITIONAL([BUILD_SP_ARM64], [test "x$ENABLED_SP_ARM64_ASM" = "xyes" ])
-AM_CONDITIONAL([BUILD_SP_ARM32], [test "x$ENABLED_SP_ARM32_ASM" = "xyes" ])
-AM_CONDITIONAL([BUILD_SP_ARM_THUMB], [test "x$ENABLED_SP_ARM_THUMB_ASM" = "xyes" ])
-AM_CONDITIONAL([BUILD_SP_ARM_CORTEX], [test "x$ENABLED_SP_ARM_CORTEX_ASM" = "xyes" ])
-AM_CONDITIONAL([BUILD_SP_X86_64], [test "x$ENABLED_SP_X86_64_ASM" = "xyes" ])
-AM_CONDITIONAL([BUILD_SP_INT], [test "x$ENABLED_SP_MATH" = "xyes" ])
-
-
 # set fastmath default
 FASTMATH_DEFAULT=no
 
@@ -4063,6 +3879,212 @@ AC_ARG_WITH([intelqa],
 )
 AM_CONDITIONAL([BUILD_INTEL_QA], [test "x$ENABLED_INTEL_QA" = "xyes"])
 
+# Single Precision maths implementation
+AC_ARG_ENABLE([sp],
+    [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation (default: disabled)])],
+    [ ENABLED_SP=$enableval ],
+    [ ENABLED_SP=no ],
+    )
+
+ENABLED_SP_RSA=no
+ENABLED_SP_DH=no
+ENABLED_SP_ECC=no
+for v in `echo $ENABLED_SP | tr "," " "`
+do
+  case $v in
+  small)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
+    ENABLED_SP_RSA=yes
+    ENABLED_SP_DH=yes
+    ENABLED_SP_ECC=yes
+    ;;
+  yes)
+    ENABLED_SP_RSA=yes
+    ENABLED_SP_DH=yes
+    ENABLED_SP_ECC=yes
+    ;;
+  no)
+    ;;
+
+  smallec256 | smallp256 | small256)
+    ENABLED_SP_ECC=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
+    ;;
+  ec256 | p256 | 256)
+    ENABLED_SP_ECC=yes
+    ;;
+
+  small2048)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
+    ENABLED_SP_RSA=yes
+    ENABLED_SP_DH=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_3072"
+    ;;
+  2048)
+    ENABLED_SP_RSA=yes
+    ENABLED_SP_DH=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_3072"
+    ;;
+
+  smallrsa2048)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
+    ENABLED_SP_RSA=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_3072"
+    ;;
+  rsa2048)
+    ENABLED_SP_RSA=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_3072"
+    ;;
+
+  small3072)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
+    ENABLED_SP_RSA=yes
+    ENABLED_SP_DH=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_2048"
+    ;;
+  3072)
+    ENABLED_SP_RSA=yes
+    ENABLED_SP_DH=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_2048"
+    ;;
+
+  smallrsa3072)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
+    ENABLED_SP_RSA=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_2048"
+    ;;
+  rsa3072)
+    ENABLED_SP_RSA=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_2048"
+    ;;
+
+  *)
+    AC_MSG_ERROR([Invalid choice of Single Precision length in bits [256, 2048, 3072]: $ENABLED_SP.])
+    break;;
+  esac
+done
+
+ENABLED_SP=no
+if test "$ENABLED_RSA" = "yes" && test "$ENABLED_SP_RSA" = "yes"; then
+    ENABLED_SP=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_RSA"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_HAVE_SP_RSA"
+fi
+if test "$ENABLED_DH" = "yes" && test "$ENABLED_SP_DH" = "yes"; then
+    ENABLED_SP=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_DH"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_HAVE_SP_DH"
+fi
+if test "$ENABLED_ECC" = "yes" && test "$ENABLED_SP_ECC" = "yes"; then
+    ENABLED_SP=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_ECC"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_HAVE_SP_ECC"
+fi
+
+
+AC_ARG_ENABLE([sp-asm],
+    [AS_HELP_STRING([--enable-sp-asm],[Enable Single Precision assembly implementation (default: disabled)])],
+    [ ENABLED_SP_ASM=$enableval ],
+    [ ENABLED_SP_ASM=no ],
+    )
+if test "$ENABLED_SP_ASM" = "yes"; then
+  if test "$ENABLED_SP" = "no"; then
+    AC_MSG_ERROR([Must have SP enabled: --enable-sp])
+  fi
+  if test "$ENABLED_ASM" = "no"; then
+    AC_MSG_ERROR([Assembly code turned off])
+  fi
+
+  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ASM"
+  AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ASM"
+  case $host_cpu in
+  *aarch64*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM64_ASM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM64_ASM"
+    ENABLED_SP_ARM64_ASM=yes
+    ;;
+  *arm*)
+    if test $host_alias = "thumb"; then
+      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_THUMB_ASM -mthumb -march=armv6"
+      AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_THUMB_ASM"
+      ENABLED_SP_ARM_THUMB_ASM=yes
+    else
+      if test $host_alias = "cortex"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_ASM"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_CORTEX_ASM"
+        ENABLED_SP_ARM_CORTEX_ASM=yes
+      else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM32_ASM"
+        ENABLED_SP_ARM32_ASM=yes
+      fi
+    fi
+    ;;
+  *x86_64*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86_64_ASM"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_X86_64_ASM"
+    ENABLED_SP_X86_64_ASM=yes
+    ;;
+  *)
+    AC_MSG_ERROR([ASM not available for CPU. Supported CPUs: x86_64, aarch64, arm])
+    ;;
+  esac
+fi
+
+AC_ARG_ENABLE([sp-math],
+    [AS_HELP_STRING([--enable-sp-math],[Enable Single Precision math implementation only (default: disabled)])],
+    [ ENABLED_SP_MATH=$enableval ],
+    [ ENABLED_SP_MATH=no ],
+    )
+if test "$ENABLED_SP_MATH" = "yes"; then
+    if test "$ENABLED_SP" = "no"; then
+        AC_MSG_ERROR([Must have SP enabled: --enable-sp])
+    fi
+    if test "$ENABLED_ECCCUSTCURVES" = "yes"; then
+        AC_MSG_ERROR([Cannot use single precision math and custom curves])
+    fi
+    if test "$ENABLED_OPENSSLEXTRA" = "yes"; then
+        AC_MSG_ERROR([Cannot use single precision math and OpenSSL extra])
+    fi
+    if test "$ENABLED_DSA" = "yes"; then
+        AC_MSG_ERROR([Cannot use single precision math and DSA])
+    fi
+    if test "$ENABLED_SRP" = "yes"; then
+        AC_MSG_ERROR([Cannot use single precision math and SRP])
+    fi
+    if test "$ENABLED_SP_RSA" = "no" && test "$ENABLED_RSA" = "yes"; then
+        AC_MSG_ERROR([Cannot use P256 single precision only math and RSA])
+    fi
+    if test "$ENABLED_SP_DH" = "no" && test "$ENABLED_DH" = "yes"; then
+        AC_MSG_ERROR([Cannot use P256 single precision only math and DH])
+    fi
+fi
+if test "$ENABLED_SP_MATH" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_MATH"
+fi
+
+AM_CONDITIONAL([BUILD_SP], [test "x$ENABLED_SP" = "xyes"])
+AM_CONDITIONAL([BUILD_SP_C], [test "x$ENABLED_SP" = "xyes" && test "x$ENABLED_SP_ASM" = "xno" ])
+AM_CONDITIONAL([BUILD_SP_ARM64], [test "x$ENABLED_SP_ARM64_ASM" = "xyes" ])
+AM_CONDITIONAL([BUILD_SP_ARM32], [test "x$ENABLED_SP_ARM32_ASM" = "xyes" ])
+AM_CONDITIONAL([BUILD_SP_ARM_THUMB], [test "x$ENABLED_SP_ARM_THUMB_ASM" = "xyes" ])
+AM_CONDITIONAL([BUILD_SP_ARM_CORTEX], [test "x$ENABLED_SP_ARM_CORTEX_ASM" = "xyes" ])
+AM_CONDITIONAL([BUILD_SP_X86_64], [test "x$ENABLED_SP_X86_64_ASM" = "xyes" ])
+AM_CONDITIONAL([BUILD_SP_INT], [test "x$ENABLED_SP_MATH" = "xyes" ])
+
 # Fast RSA using Intel IPP
 ippdir="${srcdir}/IPP"
 ipplib="lib" # if autoconf guesses 32bit system changes lib directory
@@ -4226,6 +4248,10 @@ then
     if test "x$ENABLED_FASTMATH" = "xno"
     then
         AC_MSG_ERROR([please use --enable-fastmath if enabling staticmemory.])
+    fi
+    if test "$ENABLED_LOWRESOURCE" = "yes" && test "$ENABLED_RSA" = "no"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY_SMALL"
     fi
 fi
 

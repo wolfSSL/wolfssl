@@ -64,6 +64,8 @@
         #endif
         #include <tx_api.h>
     #endif
+#elif defined(WOLFSSL_DEOS)
+    #include "mutexapi.h"
 #elif defined(MICRIUM)
     /* do nothing, just don't pick Unix */
 #elif defined(FREERTOS) || defined(FREERTOS_TCP) || defined(WOLFSSL_SAFERTOS)
@@ -106,6 +108,10 @@
     #include "nucleus.h"
 #elif defined(WOLFSSL_APACHE_MYNEWT)
     /* do nothing */
+#elif defined(WOLFSSL_ZEPHYR)
+    #ifndef SINGLE_THREADED
+        #include <kernel.h>
+    #endif
 #else
     #ifndef SINGLE_THREADED
         #define WOLFSSL_PTHREADS
@@ -145,6 +151,8 @@
         typedef pthread_mutex_t wolfSSL_Mutex;
     #elif defined(THREADX)
         typedef TX_MUTEX wolfSSL_Mutex;
+    #elif defined(WOLFSSL_DEOS)
+        typedef mutex_handle_t wolfSSL_Mutex;
     #elif defined(MICRIUM)
         typedef OS_MUTEX wolfSSL_Mutex;
     #elif defined(EBSNET)
@@ -181,6 +189,8 @@
         typedef RTHANDLE wolfSSL_Mutex;
     #elif defined(WOLFSSL_NUCLEUS_1_2)
         typedef NU_SEMAPHORE wolfSSL_Mutex;
+    #elif defined(WOLFSSL_ZEPHYR)
+        typedef struct k_mutex wolfSSL_Mutex;
     #else
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */
@@ -273,6 +283,11 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_END               IO_SEEK_END
     #define XBADFILE                NULL
     #define XFGETS                  fgets
+#elif defined(WOLFSSL_DEOS)
+    #define NO_FILESYSTEM
+    #warning "TODO - DDC-I Certifiable Fast File System for Deos is not integrated"
+    //#define XFILE      bfd *
+
 #elif defined(MICRIUM)
     #include <fs_api.h>
     #define XFILE      FS_FILE*
@@ -312,6 +327,27 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_END  2
     #define XBADFILE   NULL
     #define XFGETS(b,s,f) -2 /* Not ported yet */
+#elif defined(WOLFSSL_ZEPHYR)
+    #include <fs.h>
+
+    #define XFILE      struct fs_file_t*
+    #define STAT       struct fs_dirent
+
+    XFILE z_fs_open(const char* filename, const char* perm);
+    int z_fs_close(XFILE file);
+
+    #define XFOPEN              z_fs_open
+    #define XFCLOSE             z_fs_close
+    #define XFSEEK              fs_seek
+    #define XFTELL              fs_tell
+    #define XFREWIND            fs_rewind
+    #define XREWIND(F)          fs_seek(F, 0, FS_SEEK_SET)
+    #define XFREAD(P,S,N,F)     fs_read(F, P, S*N)
+    #define XFWRITE(P,S,N,F)    fs_write(F, P, S*N)
+    #define XSEEK_END           FS_SEEK_END
+    #define XBADFILE            NULL
+    #define XFGETS(b,s,f)       -2 /* Not ported yet */
+
 #elif defined(WOLFSSL_USER_FILESYSTEM)
     /* To be defined in user_settings.h */
 #else
@@ -355,6 +391,11 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #ifdef USE_WINDOWS_API
         WIN32_FIND_DATAA FindFileData;
         HANDLE hFind;
+    #elif defined(WOLFSSL_ZEPHYR)
+        struct fs_dirent entry;
+        struct fs_dir_t  dir;
+        struct fs_dirent s;
+        struct fs_dir_t* dirp;
     #else
         struct dirent* entry;
         DIR*   dir;
@@ -419,6 +460,12 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XTIME(tl)       (0)
     #define XGMTIME(c, t)   rtpsys_gmtime((c))
 
+#elif defined(WOLFSSL_DEOS)
+    #define XTIME(t1)       deos_time((t1))
+    #define WOLFSSL_GMTIME
+    #define USE_WOLF_TM
+    #define USE_WOLF_TIME_T
+
 #elif defined(MICRIUM)
     #include <clk.h>
     #include <time.h>
@@ -471,6 +518,24 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define WOLFSSL_GMTIME
     #define USE_WOLF_TM
     #define USE_WOLF_TIME_T
+
+#elif defined(WOLFSSL_ZEPHYR)
+    #ifndef _POSIX_C_SOURCE
+        #include <posix/time.h>
+    #else
+        #include <sys/time.h>
+    #endif
+
+    typedef signed int time_t;
+
+    time_t z_time(time_t *timer);
+
+    #define XTIME(tl)       z_time((tl))
+    #define XGMTIME(c, t)   gmtime((c))
+    #define WOLFSSL_GMTIME
+
+    #define USE_WOLF_TM
+
 #else
     /* default */
     /* uses complete <time.h> facility */

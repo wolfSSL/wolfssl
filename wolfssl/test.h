@@ -93,6 +93,30 @@
     #include <netdb.h>
     #include <pthread.h>
     #define SOCKET_T int
+#elif defined(WOLFSSL_ZEPHYR)
+    #include <string.h>
+    #include <sys/types.h>
+    #include <net/socket.h>
+    #define SOCKET_T int
+    #define SOL_SOCKET 1
+    #define SO_REUSEADDR 201
+    #define WOLFSSL_USE_GETADDRINFO
+
+    static unsigned long inet_addr(const char *cp)
+    {
+        unsigned int a[4]; unsigned long ret;
+        int i, j;
+        for (i=0, j=0; i<4; i++) {
+            a[i] = 0;
+            while (cp[j] != '.' && cp[j] != '\0') {
+                a[i] *= 10;
+                a[i] += cp[j] - '0';
+                j++;
+            }
+        }
+        ret = ((a[3]<<24) + (a[2]<<16) + (a[1]<<8) + a[0]) ;
+        return(ret) ;
+    }
 #else
     #include <string.h>
     #include <sys/types.h>
@@ -203,6 +227,10 @@
         typedef void          THREAD_RETURN;
         typedef Task_Handle   THREAD_TYPE;
         #define WOLFSSL_THREAD
+    #elif defined(WOLFSSL_ZEPHYR)
+        typedef void            THREAD_RETURN;
+        typedef struct k_thread THREAD_TYPE;
+        #define WOLFSSL_THREAD
     #else
         typedef unsigned int  THREAD_RETURN;
         typedef intptr_t      THREAD_TYPE;
@@ -299,11 +327,11 @@
 #define cliEccCertFile "./certs/client-ecc-cert.pem"
 #define caEccCertFile  "./certs/ca-ecc-cert.pem"
 #define crlPemDir      "./certs/crl"
-#define edCertFile     "./certs/ed25519/server-ed25519.pem"
+#define edCertFile     "./certs/ed25519/server-ed25519-cert.pem"
 #define edKeyFile      "./certs/ed25519/server-ed25519-priv.pem"
 #define cliEdCertFile  "./certs/ed25519/client-ed25519.pem"
 #define cliEdKeyFile   "./certs/ed25519/client-ed25519-priv.pem"
-#define caEdCertFile   "./certs/ed25519/root-ed25519.pem"
+#define caEdCertFile   "./certs/ed25519/ca-ed25519.pem"
 #ifdef HAVE_WNR
     /* Whitewood netRandom default config file */
     #define wnrConfig  "./wnr-example.conf"
@@ -371,7 +399,11 @@ typedef struct func_args {
 
 void wait_tcp_ready(func_args*);
 
+#ifdef WOLFSSL_ZEPHYR
+typedef void THREAD_FUNC(void*, void*, void*);
+#else
 typedef THREAD_RETURN WOLFSSL_THREAD THREAD_FUNC(void*);
+#endif
 
 void start_thread(THREAD_FUNC, func_args*, THREAD_TYPE*);
 void join_thread(THREAD_TYPE);
@@ -394,7 +426,10 @@ static const word16      wolfSSLPort = 11111;
 #define EXIT_FAILURE 1
 #endif
 
-#ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
+#if defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) || defined(WOLFSSL_ZEPHYR)
+    #ifndef EXIT_SUCCESS
+        #define EXIT_SUCCESS   0
+    #endif
     #define XEXIT(rc)   return rc
     #define XEXIT_T(rc) return (THREAD_RETURN)rc
 #else
@@ -404,7 +439,7 @@ static const word16      wolfSSLPort = 11111;
 
 
 static WC_INLINE
-#ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
+#if defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) || defined(WOLFSSL_ZEPHYR)
 THREAD_RETURN
 #else
 WC_NORETURN void
@@ -751,6 +786,7 @@ static WC_INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
 #ifndef TEST_IPV6
     /* peer could be in human readable form */
     if ( ((size_t)peer != INADDR_ANY) && isalpha((int)peer[0])) {
+    #ifndef WOLFSSL_USE_GETADDRINFO
         #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
             int err;
             struct hostent* entry = gethostbyname(peer, &err);
@@ -767,6 +803,19 @@ static WC_INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
                    entry->h_length);
             useLookup = 1;
         }
+    #else
+        struct zsock_addrinfo hints, *addrInfo;
+        char portStr[6];
+        XSNPRINTF(portStr, sizeof(portStr), "%d", port);
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = udp ? SOCK_DGRAM : SOCK_STREAM;
+        hints.ai_protocol = udp ? IPPROTO_UDP : IPPROTO_TCP;
+        if (getaddrinfo((char*)peer, portStr, &hints, &addrInfo) == 0) {
+            XMEMCPY(addr, addrInfo->ai_addr, sizeof(*addr));
+            useLookup = 1;
+        }
+    #endif
         else
             err_sys("no entry for host");
     }
@@ -793,7 +842,7 @@ static WC_INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
         addr->sin6_addr = in6addr_any;
     }
     else {
-        #ifdef HAVE_GETADDRINFO
+        #if defined(HAVE_GETADDRINFO) || defined(WOLF_C99)
             struct addrinfo  hints;
             struct addrinfo* answer = NULL;
             int    ret;
@@ -862,7 +911,7 @@ static WC_INLINE void tcp_socket(SOCKET_T* sockfd, int udp, int sctp)
             err_sys("setsockopt SO_NOSIGPIPE failed\n");
     }
 #elif defined(WOLFSSL_MDK_ARM) || defined (WOLFSSL_TIRTOS) ||\
-                                          defined(WOLFSSL_KEIL_TCP_NET)
+                        defined(WOLFSSL_KEIL_TCP_NET) || defined(WOLFSSL_ZEPHYR)
     /* nothing to define */
 #else  /* no S_NOSIGPIPE */
     signal(SIGPIPE, SIG_IGN);
@@ -993,7 +1042,7 @@ static WC_INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
     tcp_socket(sockfd, udp, sctp);
 
 #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_MDK_ARM)\
-                              && !defined(WOLFSSL_KEIL_TCP_NET)
+                   && !defined(WOLFSSL_KEIL_TCP_NET) && !defined(WOLFSSL_ZEPHYR)
     {
         int       res, on  = 1;
         socklen_t len = sizeof(on);
@@ -1014,7 +1063,8 @@ static WC_INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
         if (listen(*sockfd, SOCK_LISTEN_MAX_QUEUE) != 0)
                 err_sys("tcp listen failed");
     }
-    #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS)
+    #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS) \
+                                                     && !defined(WOLFSSL_ZEPHYR)
         if (*port == 0) {
             socklen_t len = sizeof(addr);
             if (getsockname(*sockfd, (struct sockaddr*)&addr, &len) == 0) {
@@ -1062,7 +1112,7 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
 
 
 #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_MDK_ARM) \
-                              && !defined(WOLFSSL_KEIL_TCP_NET)
+                   && !defined(WOLFSSL_KEIL_TCP_NET) && !defined(WOLFSSL_ZEPHYR)
     {
         int       res, on  = 1;
         socklen_t len = sizeof(on);
@@ -1186,7 +1236,8 @@ static WC_INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
         if (ret == SOCKET_ERROR)
             err_sys("ioctlsocket failed");
     #elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET) \
-        || defined (WOLFSSL_TIRTOS)|| defined(WOLFSSL_VXWORKS)
+        || defined (WOLFSSL_TIRTOS)|| defined(WOLFSSL_VXWORKS) \
+        || defined(WOLFSSL_ZEPHYR)
          /* non blocking not supported, for now */
     #else
         int flags = fcntl(*sockfd, F_GETFL, 0);
@@ -1356,6 +1407,8 @@ static WC_INLINE unsigned int my_psk_server_tls13_cb(WOLFSSL* ssl,
     }
 
 #elif defined(WOLFSSL_TIRTOS)
+    extern double current_time();
+#elif defined(WOLFSSL_ZEPHYR)
     extern double current_time();
 #else
 
