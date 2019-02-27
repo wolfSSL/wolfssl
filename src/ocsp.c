@@ -341,6 +341,7 @@ static int CheckResponse(WOLFSSL_OCSP* ocsp, byte* response, int responseSz,
         }
 
         /* Replace existing certificate entry with updated */
+        newStatus->next = status->next;
         XMEMCPY(status, newStatus, sizeof(CertStatus));
     }
     else {
