@@ -1364,8 +1364,8 @@ int wolfIO_HttpBuildRequestCrl(const char* url, int urlSz,
     const char* domainName, byte* buf, int bufSize)
 {
     const char *cacheCtl = "Cache-Control: no-cache";
-    return wolfIO_HttpBuildRequest("GET", domainName, url, urlSz, cacheCtl, 0, "",
-        buf, bufSize);
+    return wolfIO_HttpBuildRequest("GET", domainName, url, urlSz, 0, "",
+                                   cacheCtl, buf, bufSize);
 }
 
 int wolfIO_HttpProcessResponseCrl(WOLFSSL_CRL* crl, int sfd, byte* httpBuf,
