@@ -349,10 +349,12 @@ int scrypt_test(void);
         int pkcs7authenveloped_test(void);
     #endif
 #endif
-#if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT)
+#if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT) && \
+    !defined(NO_FILESYSTEM)
 int cert_test(void);
 #endif
-#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
+   !defined(NO_FILESYSTEM)
 int  certext_test(void);
 #endif
 #ifdef HAVE_IDEA
@@ -928,14 +930,16 @@ initDefaultName();
     #endif
 #endif
 
-#if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT)
+#if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT) && \
+    !defined(NO_FILESYSTEM)
     if ( (ret = cert_test()) != 0)
         return err_sys("CERT     test failed!\n", ret);
     else
         printf( "CERT     test passed!\n");
 #endif
 
-#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
+   !defined(NO_FILESYSTEM)
     if ( (ret = certext_test()) != 0)
         return err_sys("CERT EXT test failed!\n", ret);
     else
@@ -8830,7 +8834,7 @@ static const CertName certDefaultName = {
 
 #ifndef NO_RSA
 
-#ifdef WOLFSSL_TEST_CERT
+#if defined(WOLFSSL_TEST_CERT) && !defined(NO_FILESYSTEM)
 int cert_test(void)
 {
     DecodedCert cert;
@@ -8884,9 +8888,10 @@ done:
 
     return ret;
 }
-#endif /* WOLFSSL_TEST_CERT */
+#endif /* WOLFSSL_TEST_CERT && !NO_FILESYSTEM */
 
-#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
+   !defined(NO_FILESYSTEM)
 int certext_test(void)
 {
     DecodedCert cert;

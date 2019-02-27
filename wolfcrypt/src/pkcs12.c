@@ -79,7 +79,7 @@ typedef struct ContentInfo {
     struct ContentInfo* next;
     word32 encC;  /* encryptedContent */
     word32 dataSz;
-    int type; /* DATA / encrypted / envelpoed */
+    int type; /* DATA / encrypted / enveloped */
 } ContentInfo;
 
 
@@ -98,7 +98,7 @@ typedef struct MacData {
     word32 oid;
     word32 digestSz;
     word32 saltSz;
-    int itt; /* number of itterations when creating HMAC key */
+    int itt; /* number of iterations when creating HMAC key */
 } MacData;
 
 
@@ -256,7 +256,7 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
     *idx = localIdx;
 
     /* an instance of AuthenticatedSafe is created from
-     * ContentInfo's strung together in a SEQUENCE. Here we itterate
+     * ContentInfo's strung together in a SEQUENCE. Here we iterate
      * through the ContentInfo's and add them to our
      * AuthenticatedSafe struct */
     localIdx = 0;
@@ -416,7 +416,7 @@ static int GetSignData(WC_PKCS12* pkcs12, const byte* mem, word32* idx,
         ERROR_OUT(ASN_PARSE_E, exit_gsd);
     }
 
-    if ((ret = GetLength(mem, &curIdx, &size, totalSz)) <= 0) {
+    if ((ret = GetLength(mem, &curIdx, &size, totalSz)) < 0) {
         goto exit_gsd;
     }
     mac->saltSz = size;
@@ -449,7 +449,7 @@ static int GetSignData(WC_PKCS12* pkcs12, const byte* mem, word32* idx,
     }
 
 #ifdef WOLFSSL_DEBUG_PKCS12
-    printf("\t\tITTERATIONS : %d\n", mac->itt);
+    printf("\t\tITERATIONS : %d\n", mac->itt);
 #endif
 
     *idx = curIdx;
@@ -592,7 +592,7 @@ static int wc_PKCS12_verify(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
 
 
 /* Convert DER format stored in der buffer to WC_PKCS12 struct
- * Puts the raw contents of Content Info into structure without completly
+ * Puts the raw contents of Content Info into structure without completely
  * parsing or decoding.
  * der    : pointer to der buffer holding PKCS12
  * derSz  : size of der buffer
@@ -1108,6 +1108,7 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
         /* free list, not wanted */
         wc_FreeCertList(certList, pkcs12->heap);
     }
+    (void)tailList; /* not used */
 
     ret = 0; /* success */
 
@@ -1306,7 +1307,7 @@ static int wc_PKCS12_create_key_bag(WC_PKCS12* pkcs12, WC_RNG* rng,
     XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
     totalSz += length;
 
-    /* set begining sequence */
+    /* set beginning sequence */
     tmpSz = SetSequence(totalSz, out);
     XMEMMOVE(out + tmpSz, out + MAX_SEQ_SZ, totalSz);
 
