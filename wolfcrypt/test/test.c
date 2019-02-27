@@ -15278,12 +15278,10 @@ static int ecc_test_vector_item(const eccVector* vector)
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
-        if (ret >= 0) {
+        if (ret == 0)
             ret = wc_ecc_verify_hash(sig, sigSz, (byte*)vector->msg,
                                                vector->msgLen, &verify, &userA);
-        }
     } while (ret == WC_PENDING_E);
-
     if (ret != 0)
         goto done;
 
@@ -15581,7 +15579,13 @@ static int ecc_test_cdh_vectors(void)
 
     /* compute ECC Cofactor shared secret */
     x = sizeof(sharedA);
-    ret = wc_ecc_shared_secret(&priv_key, &pub_key, sharedA, &x);
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &priv_key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret == 0)
+            ret = wc_ecc_shared_secret(&priv_key, &pub_key, sharedA, &x);
+    } while (ret == WC_PENDING_E);
     if (ret != 0) {
         goto done;
     }
@@ -15717,14 +15721,28 @@ static int ecc_test_make_pub(WC_RNG* rng)
 
 #ifdef HAVE_ECC_SIGN
     tmpSz = FOURK_BUF;
-    ret = wc_ecc_sign_hash(msg, sizeof(msg), tmp, &tmpSz, rng, &key);
+    ret = 0;
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret == 0)
+            ret = wc_ecc_sign_hash(msg, sizeof(msg), tmp, &tmpSz, rng, &key);
+    } while (ret == WC_PENDING_E);
     if (ret != 0) {
         ERROR_OUT(-8324, done);
     }
 
 #ifdef HAVE_ECC_VERIFY
     /* try verify with private only key */
-    ret = wc_ecc_verify_hash(tmp, tmpSz, msg, sizeof(msg), &verify, &key);
+    ret = 0;
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret == 0)
+            ret = wc_ecc_verify_hash(tmp, tmpSz, msg, sizeof(msg), &verify, &key);
+    } while (ret == WC_PENDING_E);
     if (ret != 0) {
         ERROR_OUT(-8325, done);
     }
@@ -15771,14 +15789,21 @@ static int ecc_test_make_pub(WC_RNG* rng)
     wc_ecc_init_ex(&pub, HEAP_HINT, devId);
     ret = wc_ecc_make_key(rng, 32, &pub);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &pub.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    ret = wc_AsyncWait(ret, &pub.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0) {
         ERROR_OUT(-8331, done);
     }
 
     x = FOURK_BUF;
-    ret = wc_ecc_shared_secret(&key, &pub, exportBuf, &x);
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret == 0) {
+            ret = wc_ecc_shared_secret(&key, &pub, exportBuf, &x);
+        }
+    } while (ret == WC_PENDING_E);
     wc_ecc_free(&pub);
     if (ret != 0) {
         ERROR_OUT(-8332, done);
@@ -15826,7 +15851,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
 
     ret = wc_ecc_make_key(rng, keySize, &userA);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         goto done;
@@ -15939,7 +15964,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 
     ret = wc_ecc_make_key_ex(rng, keySize, &userA, curve_id);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         goto done;
@@ -15958,7 +15983,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 
     ret = wc_ecc_make_key_ex(rng, keySize, &userB, curve_id);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &userB.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    ret = wc_AsyncWait(ret, &userB.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         goto done;
@@ -15976,7 +16001,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
-        if (ret >= 0)
+        if (ret == 0)
             ret = wc_ecc_shared_secret(&userA, &userB, sharedA, &x);
     } while (ret == WC_PENDING_E);
     if (ret != 0) {
@@ -15988,7 +16013,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &userB.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
-        if (ret >= 0)
+        if (ret == 0)
             ret = wc_ecc_shared_secret(&userB, &userA, sharedB, &y);
     } while (ret == WC_PENDING_E);
     if (ret != 0)
@@ -16007,13 +16032,25 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     wc_ecc_set_flags(&userB, WC_ECC_FLAG_COFACTOR);
 
     x = sizeof(sharedA);
-    ret = wc_ecc_shared_secret(&userA, &userB, sharedA, &x);
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret == 0)
+            ret = wc_ecc_shared_secret(&userA, &userB, sharedA, &x);
+    } while (ret == WC_PENDING_E);
     if (ret != 0) {
         goto done;
     }
 
     y = sizeof(sharedB);
-    ret = wc_ecc_shared_secret(&userB, &userA, sharedB, &y);
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &userB.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret == 0)
+            ret = wc_ecc_shared_secret(&userB, &userA, sharedB, &y);
+    } while (ret == WC_PENDING_E);
     if (ret != 0)
         goto done;
 
@@ -16051,7 +16088,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &userB.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
-        if (ret >= 0)
+        if (ret == 0)
             ret = wc_ecc_shared_secret(&userB, &pubKey, sharedB, &y);
     } while (ret == WC_PENDING_E);
     if (ret != 0)
@@ -16088,7 +16125,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         #if defined(WOLFSSL_ASYNC_CRYPT)
             ret = wc_AsyncWait(ret, &userB.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
         #endif
-            if (ret >= 0)
+            if (ret == 0)
                 ret = wc_ecc_shared_secret(&userB, &pubKey, sharedB, &y);
         } while (ret == WC_PENDING_E);
         if (ret != 0)
@@ -16116,7 +16153,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
-        if (ret >= 0)
+        if (ret == 0)
             ret = wc_ecc_sign_hash(digest, ECC_DIGEST_SIZE, sig, &x, rng,
                                                                         &userA);
     } while (ret == WC_PENDING_E);
@@ -16130,7 +16167,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         #if defined(WOLFSSL_ASYNC_CRYPT)
             ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
         #endif
-            if (ret >= 0)
+            if (ret == 0)
                 ret = wc_ecc_verify_hash(sig, x, digest, ECC_DIGEST_SIZE,
                                                                &verify, &userA);
         } while (ret == WC_PENDING_E);
@@ -16152,7 +16189,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
-        if (ret >= 0)
+        if (ret == 0)
             ret = wc_ecc_sign_hash(digest, ECC_DIGEST_SIZE, sig, &x, rng,
                                                                         &userA);
     } while (ret == WC_PENDING_E);
@@ -16166,7 +16203,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         #if defined(WOLFSSL_ASYNC_CRYPT)
             ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
         #endif
-            if (ret >= 0)
+            if (ret == 0)
                 ret = wc_ecc_verify_hash(sig, x, digest, ECC_DIGEST_SIZE,
                                                                &verify, &userA);
         } while (ret == WC_PENDING_E);
@@ -16686,7 +16723,14 @@ static int ecc_ssh_test(ecc_key* key)
         return -8447;
 
     /* Use API. */
-    ret = wc_ecc_shared_secret_ssh(key, &key->pubkey, out, &outLen);
+    ret = 0;
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret == 0)
+            ret = wc_ecc_shared_secret_ssh(key, &key->pubkey, out, &outLen);
+    } while (ret == WC_PENDING_E);
     if (ret != 0)
         return -8448;
     return 0;
@@ -16714,7 +16758,7 @@ static int ecc_def_curve_test(WC_RNG *rng)
 
     ret = wc_ecc_make_key(rng, 32, &key);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0) {
         ret = -8451;
@@ -17080,7 +17124,7 @@ static int ecc_test_cert_gen(WC_RNG* rng)
 
     ret = wc_ecc_make_key(rng, 32, &certPubKey);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &certPubKey.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    ret = wc_AsyncWait(ret, &certPubKey.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0) {
         ERROR_OUT(-8524, exit);
@@ -17557,13 +17601,26 @@ int ecc_test_buffers(void) {
 
 
     x = sizeof(out);
-    ret = wc_ecc_sign_hash(in, inLen, out, &x, &rng, &cliKey);
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &cliKey.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret == 0)
+            ret = wc_ecc_sign_hash(in, inLen, out, &x, &rng, &cliKey);
+    } while (ret == WC_PENDING_E);
     if (ret < 0)
         return -8717;
 
     XMEMSET(plain, 0, sizeof(plain));
 
-    ret = wc_ecc_verify_hash(out, x, plain, sizeof(plain), &verify, &cliKey);
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &cliKey.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret == 0)
+            ret = wc_ecc_verify_hash(out, x, plain, sizeof(plain), &verify,
+                &cliKey);
+    } while (ret == WC_PENDING_E);
     if (ret < 0)
         return -8718;
 
