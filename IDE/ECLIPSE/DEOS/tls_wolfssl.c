@@ -166,7 +166,7 @@ void wolfssl_client_test(uintData_t statusPtr) {
     server_addr.sin_port = htons(TCP_SERVER_PORT);
 
     printf("Calling connect on socket\n");
-    if (connect(sock, (sockaddr *) &server_addr, sizeof(server_addr) < 0 )) {
+    if (connect(sock, (sockaddr *) &server_addr, sizeof(server_addr)) < 0 ) {
         printf("ERROR: connect, err = %d\n", errno);
         closesocket(sock);
         return;
