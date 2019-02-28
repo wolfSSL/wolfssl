@@ -2475,7 +2475,6 @@ enum {
     WOLFSSL_ECC_BRAINPOOLP384R1 = 27,
     WOLFSSL_ECC_BRAINPOOLP512R1 = 28,
     WOLFSSL_ECC_X25519    = 29,
-#ifdef WOLFSSL_TLS13
     /* Not implemented. */
     WOLFSSL_ECC_X448      = 30,
 
@@ -2484,7 +2483,6 @@ enum {
     WOLFSSL_FFDHE_4096    = 258,
     WOLFSSL_FFDHE_6144    = 259,
     WOLFSSL_FFDHE_8192    = 260,
-#endif
 };
 
 enum {

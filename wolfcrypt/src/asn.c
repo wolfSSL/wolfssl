@@ -3861,7 +3861,7 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
     const byte** n, word32* nSz, const byte** e, word32* eSz)
 {
     int ret = 0;
-    int length;
+    int length = 0;
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
     byte b;
 #endif
@@ -12711,10 +12711,11 @@ int wc_SetSubjectKeyId(Cert *cert, const char* file)
         WOLFSSL_MSG("wc_SetSubjectKeyId memory Problem");
         return MEMORY_E;
     }
+    derSz = MAX_PUBLIC_KEY_SZ;
 
-    derSz = wc_PemPubKeyToDer(file, der, MAX_PUBLIC_KEY_SZ);
-    if (derSz <= 0)
-    {
+    XMEMSET(der, 0, derSz);
+    derSz = wc_PemPubKeyToDer(file, der, derSz);
+    if (derSz <= 0) {
         XFREE(der, cert->heap, DYNAMIC_TYPE_CERT);
         return derSz;
     }
