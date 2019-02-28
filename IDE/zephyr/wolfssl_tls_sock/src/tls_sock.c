@@ -84,7 +84,7 @@ static int wolfssl_client_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
         if (wolfSSL_CTX_load_verify_buffer(client_ctx, ca_cert_der_2048,
                 sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1) !=
                 WOLFSSL_SUCCESS) {
-            printf("ERROR: failed to load CA certiifcate\n");
+            printf("ERROR: failed to load CA certificate\n");
             ret = -1;
         }
     }
@@ -152,7 +152,7 @@ static int wolfssl_server_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
         if (wolfSSL_CTX_use_certificate_buffer(server_ctx,
                 server_cert_der_2048, sizeof_server_cert_der_2048,
                 WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
-            printf("ERROR: failed to load server certiifcate\n");
+            printf("ERROR: failed to load server certificate\n");
             ret = -1;
         }
     }
