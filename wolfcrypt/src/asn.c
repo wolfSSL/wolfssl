@@ -14137,7 +14137,7 @@ static int DecodeSingleResponse(byte* source,
         return ASN_PARSE_E;
 
 #ifndef NO_ASN_TIME
-#ifndef WOLFSSL_NO_OCSP_DATE_BEFORE_CHECK
+#ifndef WOLFSSL_NO_OCSP_DATE_CHECK
     if (!XVALIDATE_DATE(cs->thisDate, cs->thisDateFormat, BEFORE))
         return ASN_BEFORE_DATE_E;
 #endif
@@ -14160,8 +14160,10 @@ static int DecodeSingleResponse(byte* source,
             return ASN_PARSE_E;
 
 #ifndef NO_ASN_TIME
+#ifndef WOLFSSL_NO_OCSP_DATE_CHECK
         if (!XVALIDATE_DATE(cs->nextDate, cs->nextDateFormat, AFTER))
             return ASN_AFTER_DATE_E;
+#endif
 #endif
     }
     if (((int)(idx - prevIndex) < wrapperSz) &&
