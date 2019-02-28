@@ -172,7 +172,7 @@
 /* Uncomment next line if building for using XILINX */
 /* #define WOLFSSL_XILINX */
 
-/* Uncomment next line if building for  WICED Studio. */
+/* Uncomment next line if building for WICED Studio. */
 /* #define WOLFSSL_WICED  */
 
 /* Uncomment next line if building for Nucleus 1.2 */

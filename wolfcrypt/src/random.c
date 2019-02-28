@@ -2052,14 +2052,19 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(WOLFSSL_WICED)
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
+        int ret;
         (void)os;
+
         if (output == NULL || UINT16_MAX < sz) {
             return BUFFER_E;
         }
 
-        wiced_crypto_get_random((void*) output, sz);
+        if ((ret = wiced_crypto_get_random((void*) output, sz) )
+                         != WICED_SUCCESS) {
+            return ret;
+        }
 
-        return 0;
+        return ret;
     }
 
 #elif defined(IDIRECT_DEV_RANDOM)
