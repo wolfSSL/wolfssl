@@ -59,19 +59,19 @@
  * by the client. */
 
 static const char webServerMsg[] =
-    "HTTP/1.1 200 OK\n"
-    "Content-Type: text/html\n"
-    "Connection: close\n"
+    "HTTP/1.1 200 OK\r\n"
+    "Content-Type: text/html\r\n"
+    "Connection: close\r\n"
     "Content-Length: 215\r\n"
     "\r\n"
-    "<html>\n"
-    "<head>\n"
-    "<title>Welcome to wolfSSL!</title>\n"
-    "</head>\n"
-    "<body>\n"
-    "<p>wolfSSL has successfully performed handshake!</p>\n"
-    "</body>\n"
-    "</html>\n";
+    "<html>\r\n"
+    "<head>\r\n"
+    "<title>Welcome to wolfSSL!</title>\r\n"
+    "</head>\r\n"
+    "<body>\r\n"
+    "<p>wolfSSL has successfully performed handshake!</p>\r\n"
+    "</body>\r\n"
+    "</html>\r\n";
 
 int runWithErrors = 0; /* Used with -x flag to run err_sys vs. print errors */
 static int lng_index = 0;
