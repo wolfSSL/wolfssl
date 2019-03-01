@@ -46,8 +46,13 @@
         #ifndef byte
             typedef unsigned char  byte;
         #endif
-        typedef unsigned short word16;
-        typedef unsigned int   word32;
+        #ifdef WC_16BIT_CPU
+            typedef unsigned int   word16;
+            typedef unsigned long  word32;
+        #else
+            typedef unsigned short word16;
+            typedef unsigned int   word32;
+        #endif
         typedef byte           word24[3];
     #endif
 
@@ -91,7 +96,7 @@
         typedef unsigned long long word64;
     #endif
 
-#if !defined(NO_64BIT) && defined(WORD64_AVAILABLE)
+#if !defined(NO_64BIT) && defined(WORD64_AVAILABLE) && !defined(WC_16BIT_CPU)
     /* These platforms have 64-bit CPU registers.  */
     #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
          defined(__mips64)  || defined(__x86_64__) || defined(_M_X64)) || \
@@ -112,6 +117,13 @@
             #define WOLFCRYPT_SLOW_WORD64
         #endif
     #endif
+
+#elif defined(WC_16BIT_CPU)
+        #undef WORD64_AVAILABLE
+        typedef unsigned short wolfssl_word;
+        #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as
+                             mp_digit, no 64 bit type so make mp_digit 16 bit */
+
 #else
         #undef WORD64_AVAILABLE
         typedef word32 wolfssl_word;

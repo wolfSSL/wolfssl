@@ -48,9 +48,9 @@
  /* Maximum generate block length */
 #ifndef RNG_MAX_BLOCK_LEN
     #ifdef HAVE_INTEL_QA
-        #define RNG_MAX_BLOCK_LEN (0xFFFF)
+        #define RNG_MAX_BLOCK_LEN (0xFFFFl)
     #else
-        #define RNG_MAX_BLOCK_LEN (0x10000)
+        #define RNG_MAX_BLOCK_LEN (0x10000l)
     #endif
 #endif
 

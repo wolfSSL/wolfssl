@@ -2196,7 +2196,7 @@ exit_buildmsg:
  */
 static int FindSuiteSSL(WOLFSSL* ssl, byte* suite)
 {
-    int i;
+    word16 i;
 
     for (i = 0; i < ssl->suites->suiteSz; i += 2) {
         if (ssl->suites->suites[i+0] == suite[0] &&
@@ -3278,7 +3278,7 @@ static void RefineSuites(WOLFSSL* ssl, Suites* peerSuites)
 {
     byte suites[WOLFSSL_MAX_SUITE_SZ];
     int suiteSz = 0;
-    int i, j;
+    word16 i, j;
 
     for (i = 0; i < ssl->suites->suiteSz; i += 2) {
         for (j = 0; j < peerSuites->suiteSz; j += 2) {
