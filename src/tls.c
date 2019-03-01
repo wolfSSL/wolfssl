@@ -2559,11 +2559,13 @@ static int TLSX_TCA_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 return TCA_INVALID_ID_TYPE;
         }
 
+        /* Find the type/ID in the TCA list. */
         tca = TLSX_TCA_Find((TCA*)extension->data, type, id, idSz);
-        if (!tca)
-            continue;
-
-        TLSX_SetResponse(ssl, TLSX_TRUSTED_CA_KEYS);
+        if (tca != NULL) {
+            /* Found it. Set the response flag and break out of the loop. */
+            TLSX_SetResponse(ssl, TLSX_TRUSTED_CA_KEYS);
+            break;
+        }
     }
 #else
     (void)input;
@@ -2572,6 +2574,7 @@ static int TLSX_TCA_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     return 0;
 }
 
+/* Checks to see if the server sent a response for the TCA. */
 static int TLSX_TCA_VerifyParse(WOLFSSL* ssl, byte isRequest)
 {
     (void)ssl;
