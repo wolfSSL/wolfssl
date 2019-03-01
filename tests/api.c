@@ -23159,67 +23159,74 @@ static void test_wolfSSL_X509V3_EXT_get(void){
 
 static void test_wolfSSL_OBJ_nid2sn(void){
 
-    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_commonName");
-    AssertIntEQ(strcmp("CN", wolfSSL_OBJ_nid2sn(3)), 0);
-    printf(resultFmt, "passed");
+#ifndef HAVE_ECC
+    #define HAVE_ECC
+#endif
 
-    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_countryName");
-    AssertIntEQ(strcmp("C", wolfSSL_OBJ_nid2sn(6)), 0);
-    printf(resultFmt, "passed");
+    int i = 0;
 
-    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_localityName");
-    AssertIntEQ(strcmp("L", wolfSSL_OBJ_nid2sn(7)), 0);
-    printf(resultFmt, "passed");
+    struct test_NID{
+        char testName[40];
+        char returnValue[40];
+        int nid;
+    };
 
-    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_stateOrProvinceName");
-    AssertIntEQ(strcmp("ST", wolfSSL_OBJ_nid2sn(8)), 0);
-    printf(resultFmt, "passed");
+    struct test_NID testSuite[]={
+        //HAVE_ECC tests
+        {"NID_X9_62_prime192v1", "SECP192R1", 409},\
+        {"NID_X9_62_prime192v2", "PRIME192V2", 410},\
+        {"NID_X9_62_prime192v3", "PRIME192V3", 411},\
+        {"NID_X9_62_prime239v1", "PRIME239V1", 412},\
+        {"NID_X9_62_prime239v2", "PRIME239V2", 413},\
+        {"NID_X9_62_prime239v3", "PRIME239V3", 414},\
+        {"NID_secp112r1", "SECP112R1", 704},\
+        {"NID_secp112r2", "SECP112R2", 705},\
+        {"NID_secp128r1", "SECP128R1", 706},\
+        {"NID_secp128r2", "SECP128R2", 707},\
+        {"NID_secp160r1", "SECP160R1", 709},\
+        {"NID_secp160r2", "SECP160R2", 710},\
+        {"NID_secp224r1", "SECP224R1", 713},\
+        {"NID_secp384r1", "SECP384R1", 715},\
+        {"NID_secp521r1", "SECP521R1", 716},\
+        {"NID_secp160k1", "SECP160K1", 708},\
+        {"NID_secp192k1", "SECP192K1", 711},\
+        {"NID_secp224k1", "SECP224K1", 712},\
+        {"NID_secp256k1", "SECP256K1", 714},\
+        {"NID_brainpoolP160r1", "BRAINPOOLP160R1", 921},\
+        {"NID_brainpoolP192r1", "BRAINPOOLP192R1", 923},\
+        {"NID_brainpoolP224r1", "BRAINPOOLP224R1", 925},\
+        {"NID_brainpoolP256r1", "BRAINPOOLP256R1", 927},\
+        {"NID_brainpoolP320r1", "BRAINPOOLP320R1", 929},\
+        {"NID_brainpoolP384r1", "BRAINPOOLP384R1", 931},\
+        {"NID_brainpoolP512r1", "BRAINPOOLP512R1", 933},\
+        //end of HAVE_ECC tests
+        {"NID_commonName", "CN", 3},\
+        {"NID_countryName", "C", 6},\
+        {"NID_localityName", "L", 7},\
+        {"NID_stateOrProvinceName", "ST", 8},\
+        {"NID_organizationName", "O", 10},\
+        {"NID_organizationalUnitName", "OU", 11},\
+        {"NID_emailAddress", "emailAddress", 48},\
+        {"NID_basic_constraints", "basicConstraints", 133},\
+        {"NID_subject_key_identifier", "subjectKeyIdentifier", 128},\
+        {"NID_authority_key_identifier", "authorityKeyIdentifier", 149},\
+        {"NID_certificate_policies", "certificatePolicies", 146},\
+        {"NID_key_usage", "keyUsage", 129},\
+        {"NID_info_access", "authorityInfoAccess", 69},\
+        {"NID_crl_distribution_points", "cRLDistributionPoints", 145},\
+        {"EXT_KEY_USAGE_OID", "extKeyUsage", 151}
+    };
 
-    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_organizationName");
-    AssertIntEQ(strcmp("O", wolfSSL_OBJ_nid2sn(10)), 0);
-    printf(resultFmt, "passed");
+    for (i = 0; i < 41; i++){
+        printf(testingFmt, "wolfSSL_OBJ_nid2sn");
+        printf(" %s:", testSuite[i].testName);
+        AssertIntEQ(strcmp(testSuite[i].returnValue, wolfSSL_OBJ_nid2sn(testSuite[i].nid)), 0);
+        printf(resultFmt, "passed");
+    }
 
-    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_organizationalUnitName");
-    AssertIntEQ(strcmp("OU", wolfSSL_OBJ_nid2sn(11)), 0);
+    printf(testingFmt, "wolfSSL_OBJ_nid2sn: bad argument");
+    AssertNull(wolfSSL_OBJ_nid2sn(0));
     printf(resultFmt, "passed");
-
-    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_emailAddress");
-    AssertIntEQ(strcmp("emailAddress",  wolfSSL_OBJ_nid2sn(48)), 0);
-    printf(resultFmt, "passed");
-
-    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_basic_constraints");
-    AssertIntEQ(strcmp("basicConstraints", wolfSSL_OBJ_nid2sn(133)), 0);
-    printf(resultFmt, "passed");
-
-    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_subject_key_identifier");
-    AssertIntEQ(strcmp("subjectKeyIdentifier", wolfSSL_OBJ_nid2sn(128)), 0);
-    printf(resultFmt, "passed");
-
-    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_authority_key_identifier");
-    AssertIntEQ(strcmp("authorityKeyIdentifier",  wolfSSL_OBJ_nid2sn(149)), 0);
-    printf(resultFmt, "passed");
-
-    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_certificate_policies");
-    AssertIntEQ(strcmp("certificatePolicies",  wolfSSL_OBJ_nid2sn(146)), 0 );
-    printf(resultFmt, "passed");
-
-    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_key_usage");
-    AssertIntEQ(strcmp("keyUsage",  wolfSSL_OBJ_nid2sn(129)), 0 );
-    printf(resultFmt, "passed");
-
-    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_info_access");
-    AssertIntEQ(strcmp("authorityInfoAccess", wolfSSL_OBJ_nid2sn(69)), 0);
-    printf(resultFmt, "passed");
-
-    printf(testingFmt, "wolfSSL_OBJ_nid2sn: NID_crl_distribution_points");
-    AssertIntEQ(strcmp("cRLDistributionPoints", wolfSSL_OBJ_nid2sn(145)), 0);
-    printf(resultFmt, "passed");
-
-    printf(testingFmt, "wolfSSL_OBJ_nid2sn: EXT_KEY_USAGE_OID");
-    AssertIntEQ(strcmp("extKeyUsage", wolfSSL_OBJ_nid2sn(151)), 0);
-    printf(resultFmt, "passed");
-
-    //ADD TESTING FOR #ifdef HAVE_ECC
 }
 
 
