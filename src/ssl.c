@@ -2417,6 +2417,8 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl)
 }
 
 
+#ifndef NO_WOLFSSL_CLIENT
+
 /* do a secure resumption handshake, user forced, we discourage */
 int wolfSSL_SecureResume(WOLFSSL* ssl)
 {
@@ -2424,6 +2426,14 @@ int wolfSSL_SecureResume(WOLFSSL* ssl)
     int ret;
 
     WOLFSSL_ENTER("wolfSSL_SecureResume()");
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+        ssl->error = SIDE_ERROR;
+        return SSL_FATAL_ERROR;
+    }
 
     session = wolfSSL_get_session(ssl);
     ret = wolfSSL_set_session(ssl, session);
@@ -2433,6 +2443,8 @@ int wolfSSL_SecureResume(WOLFSSL* ssl)
 
     return ret;
 }
+
+#endif /* NO_WOLFSSL_CLIENT */
 
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
