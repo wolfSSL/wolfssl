@@ -4920,7 +4920,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     return err;
 }
 #endif /* WOLFSSL_HAVE_SP_RSA */
-#ifdef WOLFSSL_HAVE_SP_DH
+#if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
 /* Convert an array of sp_digit to an mp_int.
  *
  * a  A single precision integer.
@@ -5065,7 +5065,48 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
     return err;
 }
 
-#endif /* WOLFSSL_HAVE_SP_DH */
+/* Perform the modular exponentiation for Diffie-Hellman.
+ *
+ * base  Base. MP integer.
+ * exp   Exponent. MP integer.
+ * mod   Modulus. MP integer.
+ * res   Result. MP integer.
+ * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * and MEMORY_E if memory allocation fails.
+ */
+int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
+{
+    int err = MP_OKAY;
+    sp_digit b[32], e[16], m[16];
+    sp_digit* r = b;
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 1024 || expBits > 1024 ||
+                                                   mp_count_bits(mod) != 1024) {
+        err = MP_READ_E;
+    }
+
+    if (err == MP_OKAY) {
+        sp_2048_from_mp(b, 16, base);
+        sp_2048_from_mp(e, 16, exp);
+        sp_2048_from_mp(m, 16, mod);
+
+        err = sp_2048_mod_exp_16(r, b, e, expBits, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        XMEMSET(r + 16, 0, sizeof(*r) * 16);
+        err = sp_2048_to_mp(r, res);
+        res->used = mod->used;
+        mp_clamp(res);
+    }
+
+    XMEMSET(e, 0, sizeof(e));
+
+    return err;
+}
+
+#endif /* WOLFSSL_HAVE_SP_DH || WOLFSSL_HAVE_SP_RSA */
 
 #endif /* WOLFSSL_SP_NO_2048 */
 
@@ -11913,7 +11954,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     return err;
 }
 #endif /* WOLFSSL_HAVE_SP_RSA */
-#ifdef WOLFSSL_HAVE_SP_DH
+#if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
 /* Convert an array of sp_digit to an mp_int.
  *
  * a  A single precision integer.
@@ -12058,7 +12099,48 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
     return err;
 }
 
-#endif /* WOLFSSL_HAVE_SP_DH */
+/* Perform the modular exponentiation for Diffie-Hellman.
+ *
+ * base  Base. MP integer.
+ * exp   Exponent. MP integer.
+ * mod   Modulus. MP integer.
+ * res   Result. MP integer.
+ * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * and MEMORY_E if memory allocation fails.
+ */
+int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
+{
+    int err = MP_OKAY;
+    sp_digit b[48], e[24], m[24];
+    sp_digit* r = b;
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 1536 || expBits > 1536 ||
+                                                   mp_count_bits(mod) != 1536) {
+        err = MP_READ_E;
+    }
+
+    if (err == MP_OKAY) {
+        sp_3072_from_mp(b, 24, base);
+        sp_3072_from_mp(e, 24, exp);
+        sp_3072_from_mp(m, 24, mod);
+
+        err = sp_3072_mod_exp_24(r, b, e, expBits, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        XMEMSET(r + 24, 0, sizeof(*r) * 24);
+        err = sp_3072_to_mp(r, res);
+        res->used = mod->used;
+        mp_clamp(res);
+    }
+
+    XMEMSET(e, 0, sizeof(e));
+
+    return err;
+}
+
+#endif /* WOLFSSL_HAVE_SP_DH || WOLFSSL_HAVE_SP_RSA */
 
 #endif /* WOLFSSL_SP_NO_3072 */
 
@@ -27739,7 +27821,7 @@ int sp_ecc_mulmod_base_256(mp_int* km, ecc_point* r, int map, void* heap)
     return err;
 }
 
-#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN)
 /* Returns 1 if the number of zero.
  * Implementation is constant time.
  *
@@ -27751,7 +27833,7 @@ static int sp_256_iszero_4(const sp_digit* a)
     return (a[0] | a[1] | a[2] | a[3]) == 0;
 }
 
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN || HAVE_ECC_SIGN || HAVE_ECC_VERIFY */
+#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN || HAVE_ECC_SIGN */
 /* Add 1 to a. (a = a + 1)
  *
  * a  A single precision integer.
@@ -28814,10 +28896,11 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
             hashLen = 32;
 
         sp_256_from_bin(e, 4, hash, hashLen);
-        sp_256_from_mp(x, 4, priv);
     }
 
     for (i = SP_ECC_MAX_SIG_GEN; err == MP_OKAY && i > 0; i--) {
+        sp_256_from_mp(x, 4, priv);
+
         /* New random point. */
         err = sp_256_ecc_gen_k_4(rng, k);
         if (err == MP_OKAY) {

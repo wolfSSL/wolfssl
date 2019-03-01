@@ -2967,7 +2967,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 
 #endif /* !WOLFSSL_RSA_PUBLIC_ONLY */
 #endif /* WOLFSSL_HAVE_SP_RSA */
-#ifdef WOLFSSL_HAVE_SP_DH
+#if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
 /* Convert an array of sp_digit to an mp_int.
  *
  * a  A single precision integer.
@@ -3266,7 +3266,122 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
 #endif
 }
 
-#endif /* WOLFSSL_HAVE_SP_DH */
+/* Perform the modular exponentiation for Diffie-Hellman.
+ *
+ * base  Base. MP integer.
+ * exp   Exponent. MP integer.
+ * mod   Modulus. MP integer.
+ * res   Result. MP integer.
+ * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * and MEMORY_E if memory allocation fails.
+ */
+int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int err = MP_OKAY;
+    sp_digit* d = NULL;
+    sp_digit* b;
+    sp_digit* e;
+    sp_digit* m;
+    sp_digit* r;
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 1024 || expBits > 1024 ||
+                                                   mp_count_bits(mod) != 1024) {
+        err = MP_READ_E;
+    }
+
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(*d) * 18 * 4, NULL, DYNAMIC_TYPE_DH);
+        if (d == NULL)
+            err = MEMORY_E;
+    }
+
+    if (err == MP_OKAY) {
+        b = d;
+        e = b + 18 * 2;
+        m = e + 18;
+        r = b;
+
+        sp_2048_from_mp(b, 18, base);
+        sp_2048_from_mp(e, 18, exp);
+        sp_2048_from_mp(m, 18, mod);
+
+        err = sp_2048_mod_exp_18(r, b, e, mp_count_bits(exp), m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        XMEMSET(r + 18, 0, sizeof(*r) * 18);
+        err = sp_2048_to_mp(r, res);
+    }
+
+    if (d != NULL) {
+        XMEMSET(e, 0, sizeof(sp_digit) * 18);
+        XFREE(d, NULL, DYNAMIC_TYPE_DH);
+    }
+    return err;
+#else
+#ifndef WOLFSSL_SMALL_STACK
+    sp_digit bd[36], ed[18], md[18];
+#else
+    sp_digit* d = NULL;
+#endif
+    sp_digit* b;
+    sp_digit* e;
+    sp_digit* m;
+    sp_digit* r;
+    int err = MP_OKAY;
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 1024 || expBits > 1024 ||
+                                                   mp_count_bits(mod) != 1024) {
+        err = MP_READ_E;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(*d) * 18 * 4, NULL, DYNAMIC_TYPE_DH);
+        if (d == NULL)
+            err = MEMORY_E;
+    }
+
+    if (err == MP_OKAY) {
+        b = d;
+        e = b + 18 * 2;
+        m = e + 18;
+        r = b;
+    }
+#else
+    r = b = bd;
+    e = ed;
+    m = md;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_2048_from_mp(b, 18, base);
+        sp_2048_from_mp(e, 18, exp);
+        sp_2048_from_mp(m, 18, mod);
+
+        err = sp_2048_mod_exp_18(r, b, e, expBits, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        XMEMSET(r + 18, 0, sizeof(*r) * 18);
+        err = sp_2048_to_mp(r, res);
+    }
+
+    XMEMSET(e, 0, sizeof(sp_digit) * 18);
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (d != NULL)
+        XFREE(d, NULL, DYNAMIC_TYPE_DH);
+#endif
+
+    return err;
+#endif
+}
+
+#endif /* WOLFSSL_HAVE_SP_DH || WOLFSSL_HAVE_SP_RSA */
 
 #endif /* WOLFSSL_SP_NO_2048 */
 
@@ -6364,7 +6479,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 
 #endif /* !WOLFSSL_RSA_PUBLIC_ONLY */
 #endif /* WOLFSSL_HAVE_SP_RSA */
-#ifdef WOLFSSL_HAVE_SP_DH
+#if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
 /* Convert an array of sp_digit to an mp_int.
  *
  * a  A single precision integer.
@@ -6663,7 +6778,122 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
 #endif
 }
 
-#endif /* WOLFSSL_HAVE_SP_DH */
+/* Perform the modular exponentiation for Diffie-Hellman.
+ *
+ * base  Base. MP integer.
+ * exp   Exponent. MP integer.
+ * mod   Modulus. MP integer.
+ * res   Result. MP integer.
+ * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * and MEMORY_E if memory allocation fails.
+ */
+int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int err = MP_OKAY;
+    sp_digit* d = NULL;
+    sp_digit* b;
+    sp_digit* e;
+    sp_digit* m;
+    sp_digit* r;
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 1536 || expBits > 1536 ||
+                                                   mp_count_bits(mod) != 1536) {
+        err = MP_READ_E;
+    }
+
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(*d) * 27 * 4, NULL, DYNAMIC_TYPE_DH);
+        if (d == NULL)
+            err = MEMORY_E;
+    }
+
+    if (err == MP_OKAY) {
+        b = d;
+        e = b + 27 * 2;
+        m = e + 27;
+        r = b;
+
+        sp_3072_from_mp(b, 27, base);
+        sp_3072_from_mp(e, 27, exp);
+        sp_3072_from_mp(m, 27, mod);
+
+        err = sp_3072_mod_exp_27(r, b, e, mp_count_bits(exp), m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        XMEMSET(r + 27, 0, sizeof(*r) * 27);
+        err = sp_3072_to_mp(r, res);
+    }
+
+    if (d != NULL) {
+        XMEMSET(e, 0, sizeof(sp_digit) * 27);
+        XFREE(d, NULL, DYNAMIC_TYPE_DH);
+    }
+    return err;
+#else
+#ifndef WOLFSSL_SMALL_STACK
+    sp_digit bd[54], ed[27], md[27];
+#else
+    sp_digit* d = NULL;
+#endif
+    sp_digit* b;
+    sp_digit* e;
+    sp_digit* m;
+    sp_digit* r;
+    int err = MP_OKAY;
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 1536 || expBits > 1536 ||
+                                                   mp_count_bits(mod) != 1536) {
+        err = MP_READ_E;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(*d) * 27 * 4, NULL, DYNAMIC_TYPE_DH);
+        if (d == NULL)
+            err = MEMORY_E;
+    }
+
+    if (err == MP_OKAY) {
+        b = d;
+        e = b + 27 * 2;
+        m = e + 27;
+        r = b;
+    }
+#else
+    r = b = bd;
+    e = ed;
+    m = md;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_3072_from_mp(b, 27, base);
+        sp_3072_from_mp(e, 27, exp);
+        sp_3072_from_mp(m, 27, mod);
+
+        err = sp_3072_mod_exp_27(r, b, e, expBits, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        XMEMSET(r + 27, 0, sizeof(*r) * 27);
+        err = sp_3072_to_mp(r, res);
+    }
+
+    XMEMSET(e, 0, sizeof(sp_digit) * 27);
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (d != NULL)
+        XFREE(d, NULL, DYNAMIC_TYPE_DH);
+#endif
+
+    return err;
+#endif
+}
+
+#endif /* WOLFSSL_HAVE_SP_DH || WOLFSSL_HAVE_SP_RSA */
 
 #endif /* WOLFSSL_SP_NO_3072 */
 
@@ -10395,7 +10625,7 @@ int sp_ecc_mulmod_base_256(mp_int* km, ecc_point* r, int map, void* heap)
     return err;
 }
 
-#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN)
 /* Returns 1 if the number of zero.
  * Implementation is constant time.
  *
@@ -10407,7 +10637,7 @@ static int sp_256_iszero_5(const sp_digit* a)
     return (a[0] | a[1] | a[2] | a[3] | a[4]) == 0;
 }
 
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN || HAVE_ECC_SIGN || HAVE_ECC_VERIFY */
+#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN || HAVE_ECC_SIGN */
 /* Add 1 to a. (a = a + 1)
  *
  * r  A single precision integer.
@@ -11011,10 +11241,11 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
             hashLen = 32;
 
         sp_256_from_bin(e, 5, hash, hashLen);
-        sp_256_from_mp(x, 5, priv);
     }
 
     for (i = SP_ECC_MAX_SIG_GEN; err == MP_OKAY && i > 0; i--) {
+        sp_256_from_mp(x, 5, priv);
+
         /* New random point. */
         err = sp_256_ecc_gen_k_5(rng, k);
         if (err == MP_OKAY) {

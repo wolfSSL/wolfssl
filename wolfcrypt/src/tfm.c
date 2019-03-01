@@ -58,6 +58,18 @@
     #include <stdio.h>
 #endif
 
+#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+WOLFSSL_LOCAL int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+#endif
+
+
 
 /* math settings check */
 word32 CheckRunTimeSettings(void)
@@ -3456,7 +3468,6 @@ int mp_prime_is_prime(mp_int* a, int t, int* result)
     return fp_isprime_ex(a, t, result);
 }
 
-
 /* Miller-Rabin test of "a" to the base of "b" as described in
  * HAC pp. 139 Algorithm 4.24
  *
@@ -3498,7 +3509,14 @@ static int fp_prime_miller_rabin_ex(fp_int * a, fp_int * b, int *result,
 
   /* compute y = b**r mod a */
   fp_zero(y);
-  fp_exptmod(b, r, a, y);
+#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+  if (fp_count_bits(a) == 1024)
+      sp_ModExp_1024(b, r, a, y);
+  else if (fp_count_bits(a) == 2048)
+      sp_ModExp_2048(b, r, a, y);
+  else
+#endif
+      fp_exptmod(b, r, a, y);
 
   /* if y != 1 and y != n1 do */
   if (fp_cmp_d (y, 1) != FP_EQ && fp_cmp (y, n1) != FP_EQ) {
