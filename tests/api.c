@@ -22352,7 +22352,7 @@ static void test_wolfSSL_EC_KEY_dup(void)
 #endif
 }
 
-static void test_EVP_PKEY_set1_get1_DSA (void)
+static void test_wolfSSL_EVP_PKEY_set1_get1_DSA (void)
 {
 #if !defined(NO_DSA)
     DSA       *dsa  = NULL;
@@ -22445,7 +22445,7 @@ static void test_EVP_PKEY_set1_get1_DSA (void)
 #endif /* NO_DSA */
 } /* END test_EVP_PKEY_set1_get1_DSA */
 
-static void test_EVP_PKEY_set1_get1_EC_KEY (void)
+static void test_wolfSSL_EVP_PKEY_set1_get1_EC_KEY (void)
 {
 #ifdef HAVE_ECC
     WOLFSSL_EC_KEY  *ecKey  = NULL;
@@ -22748,7 +22748,7 @@ static void test_wolfSSL_ASN1_STRING_print(void){
 #endif /* NO_ASN */
 }
 
-static void test_EC_get_builtin_curves(void)
+static void test_wolfSSL_EC_get_builtin_curves(void)
 {
 #if defined(HAVE_ECC)
     /* If this test fails then perhaps ecc_sets was updated past 27 */
@@ -22845,7 +22845,7 @@ static void test_wolfSSL_EVP_PKEY_assign(void)
 #endif /* OPENSSL_ALL */
 }
 
-static void test_OBJ_ln2nid(void)
+static void test_wolfSSL_OBJ_ln(void)
 {
     int i = 0, maxIdx = 7;
     const int nid_set[] = {NID_commonName,NID_countryName,NID_localityName,
@@ -22855,25 +22855,63 @@ static void test_OBJ_ln2nid(void)
                             WOLFSSL_LN_LOCALITY_NAME,WOLFSSL_LN_STATE_NAME,
                             WOLFSSL_LN_ORG_NAME,WOLFSSL_LN_ORGUNIT_NAME,
                             WOLFSSL_EMAIL_ADDR};
-#ifdef HAVE_ECC
+
+    printf(testingFmt, "wolfSSL_OBJ_ln");
+
+    AssertIntEQ(OBJ_ln2nid(NULL), BAD_FUNC_ARG);
+
+#ifdef HAVE_ECC 
+{
     int nCurves = 27;
     EC_builtin_curve r[nCurves];
-#endif
-
-    printf(testingFmt, "wolfSSL_OBJ_ln2nid");
-
-    /* Test NULL failure case: Failures return NID_undef */
-    AssertIntEQ(wolfSSL_OBJ_ln2nid(NULL), NID_undef);
-
-#ifdef HAVE_ECC
     EC_get_builtin_curves(r,nCurves);
 
     for (i = 0; i < nCurves; i++) {
-        AssertIntEQ(wolfSSL_OBJ_ln2nid(r[i].comment), r[i].nid);
+        AssertIntEQ(OBJ_ln2nid(r[i].comment), r[i].nid);
+        AssertStrEQ(OBJ_nid2ln(r[i].nid), r[i].comment);
     }
+}
+#endif
+
+    for (i = 0; i < maxIdx; i++) {
+        AssertIntEQ(OBJ_ln2nid(ln_set[i]), nid_set[i]);
+        AssertStrEQ(OBJ_nid2ln(nid_set[i]), ln_set[i]);
+    }
+
+    printf(resultFmt, passed);
+}
+
+static void test_wolfSSL_OBJ_sn(void)
+{
+    int i = 0, maxIdx = 7;
+    const int nid_set[] = {NID_commonName,NID_countryName,NID_localityName,
+                           NID_stateOrProvinceName,NID_organizationName,
+                           NID_organizationalUnitName,NID_emailAddress};
+    const char* sn_open_set[] = {"CN","C","L","ST","O","OU","emailAddress"};
+    const char* sn_wolf_set[] = {WOLFSSL_COMMON_NAME,WOLFSSL_COUNTRY_NAME,
+                                WOLFSSL_LOCALITY_NAME, WOLFSSL_STATE_NAME,
+                                WOLFSSL_ORG_NAME, WOLFSSL_ORGUNIT_NAME,
+                                WOLFSSL_EMAIL_ADDR};
+
+    printf(testingFmt, "wolfSSL_OBJ_sn");
+
+    AssertIntEQ(wolfSSL_OBJ_sn2nid(NULL), BAD_FUNC_ARG);
+
+#ifdef HAVE_ECC 
+{
+    int nCurves = 27;
+    EC_builtin_curve r[nCurves];
+    EC_get_builtin_curves(r,nCurves);
+
+    for (i = 0; i < nCurves; i++) {
+        AssertIntEQ(wolfSSL_OBJ_sn2nid(r[i].comment), r[i].nid);
+        AssertStrEQ(wolfSSL_OBJ_nid2sn(r[i].nid), r[i].comment);
+    }
+}
 #endif
     for (i = 0; i < maxIdx; i++) {
-        AssertIntEQ(wolfSSL_OBJ_ln2nid(ln_set[i]), nid_set[i]);
+        AssertIntEQ(wolfSSL_OBJ_sn2nid(sn_wolf_set[i]), nid_set[i]);
+        AssertStrEQ(wolfSSL_OBJ_nid2sn(nid_set[i]), sn_open_set[i]);
     }
 
     printf(resultFmt, passed);
@@ -24984,14 +25022,15 @@ void ApiTest(void)
     test_wolfSSL_i2d_DHparams();
     test_wolfSSL_ASN1_STRING_to_UTF8();
     test_wolfSSL_EC_KEY_dup();
-    test_EVP_PKEY_set1_get1_DSA();
-    test_EVP_PKEY_set1_get1_EC_KEY();
+    test_wolfSSL_EVP_PKEY_set1_get1_DSA();
+    test_wolfSSL_EVP_PKEY_set1_get1_EC_KEY();
     test_wolfSSL_CTX_ctrl();
     test_wolfSSL_DH_check();
     test_wolfSSL_ASN1_STRING_print();
-    test_EC_get_builtin_curves();
+    test_wolfSSL_EC_get_builtin_curves();
     test_wolfSSL_EVP_PKEY_assign();
-    test_OBJ_ln2nid();
+    test_wolfSSL_OBJ_ln();
+    test_wolfSSL_OBJ_sn();
     test_wolfSSL_OBJ_nid2sn();
 
     printf("\n-------------End Of Qt Unit Tests---------------\n");

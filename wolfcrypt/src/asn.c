@@ -118,6 +118,9 @@ ASN Options:
     #endif
 #endif
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    #include <wolfssl/openssl/objects.h>
+#endif
 
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of XSTRNCPY */
@@ -4819,48 +4822,6 @@ static int GetKey(DecodedCert* cert)
             return ASN_UNKNOWN_OID_E;
     }
 }
-
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-WOLFSSL_LOCAL int OBJ_sn2nid(const char *sn)
-{
-    static const struct {
-        const char *sn;
-        int  nid;
-    } sn2nid[] = {
-        {WOLFSSL_COMMON_NAME, NID_commonName},
-        {WOLFSSL_COUNTRY_NAME, NID_countryName},
-        {WOLFSSL_LOCALITY_NAME, NID_localityName},
-        {WOLFSSL_STATE_NAME, NID_stateOrProvinceName},
-        {WOLFSSL_ORG_NAME, NID_organizationName},
-        {WOLFSSL_ORGUNIT_NAME, NID_organizationalUnitName},
-        {WOLFSSL_EMAIL_ADDR, NID_emailAddress},
-        {NULL, -1}};
-
-    int i;
-    WOLFSSL_ENTER("OBJ_osn2nid");
-    #ifdef HAVE_ECC
-    /* Nginx uses this OpenSSL string. */
-    if (XSTRNCMP(sn, "prime256v1", 10) == 0)
-        sn = "SECP256R1";
-    if (XSTRNCMP(sn, "secp384r1", 10) == 0)
-        sn = "SECP384R1";
-    /* find based on name and return NID */
-    for (i = 0; i < ecc_sets[i].size; i++) {
-        if (XSTRNCMP(sn, ecc_sets[i].name, ECC_MAXNAME) == 0) {
-            return ecc_sets[i].id;
-        }
-    }
-    #endif
-
-    for(i=0; sn2nid[i].sn != NULL; i++) {
-        if(XSTRNCMP(sn, sn2nid[i].sn, XSTRLEN(sn2nid[i].sn)) == 0) {
-            return sn2nid[i].nid;
-        }
-    }
-
-    return NID_undef;
-}
-#endif
 
 /* Routine for calculating hashId */
 int CalcHashId(const byte* data, word32 len, byte* hash)
