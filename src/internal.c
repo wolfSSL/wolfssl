@@ -17013,7 +17013,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
                 }
 
                 /* Return the maximum signature length. */
-                *length = (word16)wc_ecc_sig_size_calc(ssl->buffers.keySz);
+                *length = (word16)ssl->buffers.keySz;
             }
         }
         else if (ssl->buffers.keyType == ecc_dsa_sa_algo) {
