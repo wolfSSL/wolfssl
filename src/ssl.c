@@ -34903,10 +34903,11 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
     #endif
 
-    const char * wolfSSL_OBJ_nid2sn(int n) {
-        int eccEnum;
-        int i;
-
+    /* Return the corresponding short name for the nid <n>.
+     * or NULL if short name can't be found.
+     */
+    const char * wolfSSL_OBJ_nid2sn(int n)
+    {
         WOLFSSL_ENTER("wolfSSL_OBJ_nid2sn");
 
         switch(n)
@@ -34946,52 +34947,79 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         }
 
         #ifdef HAVE_ECC
-        /* Convert OpenSSL NID to enum value in ecc_curve_id */
-        if ((eccEnum = NIDToEccEnum(n)) != -1) {
-            /* find sn based on NID and return name */
-            for (i = 0; i < ecc_sets[i].size; i++) {
-                if (eccEnum == ecc_sets[i].id) {
-                    return ecc_sets[i].name;
+        {
+            int eccEnum;
+            int i;
+            /* Convert OpenSSL NID to enum value in ecc_curve_id */
+            if ((eccEnum = NIDToEccEnum(n)) != -1) {
+                /* find sn based on NID and return name */
+                for (i = 0; i < ecc_sets[i].size; i++) {
+                    if (eccEnum == ecc_sets[i].id) {
+                        return ecc_sets[i].name;
+                    }
                 }
             }
         }
         #endif /* HAVE_ECC */
 
-        WOLFSSL_MSG("NID not found");
+        WOLFSSL_MSG("SN not found");
         return NULL;
     }
 
 
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
- /*
- return the corresponding NID for the short name <sn> 
- or NID_undef if NID can't be found
- */
-    int wolfSSL_OBJ_sn2nid(const char *sn) {
+    /* Return the corresponding NID for the short name <sn>
+     * or NID_undef if NID can't be found.
+     */
+    int wolfSSL_OBJ_sn2nid(const char *sn)
+    {
+    static const struct {
+        const char *sn;
+        int  nid;
+    } sn2nid[] = {
+        {WOLFSSL_COMMON_NAME, NID_commonName},
+        {WOLFSSL_COUNTRY_NAME, NID_countryName},
+        {WOLFSSL_LOCALITY_NAME, NID_localityName},
+        {WOLFSSL_STATE_NAME, NID_stateOrProvinceName},
+        {WOLFSSL_ORG_NAME, NID_organizationName},
+        {WOLFSSL_ORGUNIT_NAME, NID_organizationalUnitName},
+        {WOLFSSL_EMAIL_ADDR, NID_emailAddress},
+        {NULL, -1}};
+    int i;
 
-        WOLFSSL_ENTER("wolfSSL_OBJ_sn2nid");
+    WOLFSSL_ENTER("OBJ_sn2nid");
 
-        if(sn == NULL) {
-            WOLFSSL_MSG("bad function arguments");
-            return BAD_FUNC_ARG;
+    if(sn == NULL) return BAD_FUNC_ARG;
+
+    /* Return certificate info sn */
+    for(i=0; sn2nid[i].sn != NULL; i++) {
+        if(XSTRNCMP(sn, sn2nid[i].sn, XSTRLEN(sn2nid[i].sn)) == 0) {
+            return sn2nid[i].nid;
         }
+    }
 
-        #ifdef HAVE_ECC
-        {
-            int i;
-            int eccEnum;
-            /* find based on name and return NID */
-            for (i = 0; i < ecc_sets[i].size; i++) {
-                if (XSTRNCMP(sn, ecc_sets[i].name, ECC_MAXNAME) == 0) {
-                    eccEnum = ecc_sets[i].id;
-                    /* Convert enum value in ecc_curve_id to OpenSSL NID */
-                    return EccEnumToNID(eccEnum);
-                }
+    /* Return ECC sn */
+    #ifdef HAVE_ECC
+    {
+        int eccEnum;
+        #ifdef WOLFSSL_NGINX
+        /* Nginx uses this OpenSSL string. */
+            if (XSTRNCMP(sn, "prime256v1", 10) == 0) sn = "SECP256R1";
+            if (XSTRNCMP(sn, "secp384r1", 10) == 0) sn = "SECP384R1";
+        #endif
+        /* find based on name and return NID */
+        for (i = 0; i < ecc_sets[i].size; i++) {
+            if (XSTRNCMP(sn, ecc_sets[i].name, ECC_MAXNAME) == 0) {
+                eccEnum = ecc_sets[i].id;
+                /* Convert enum value in ecc_curve_id to OpenSSL NID */
+                return EccEnumToNID(eccEnum);
             }
         }
-        #endif /* HAVE_ECC */
-        return NID_undef;
+    }
+    #endif /* HAVE_ECC */
+
+    return NID_undef;
     }
 #endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) */
 
@@ -35302,56 +35330,58 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
 
 #ifdef WOLFSSL_QT
+   /* Return the corresponding long name for the nid <n>.
+     * or NULL if long name can't be found.
+     */
     const char* wolfSSL_OBJ_nid2ln(int n)
     {
-        const char* ln;
-        int i;
         WOLFSSL_ENTER("wolfSSL_OBJ_nid2ln");
 
         switch(n)
         {
             case NID_commonName :
-                ln = WOLFSSL_LN_COMMON_NAME;
-                break;
+                return WOLFSSL_LN_COMMON_NAME;
             case NID_countryName :
-                ln = WOLFSSL_LN_COUNTRY_NAME;
-                break;
+                return WOLFSSL_LN_COUNTRY_NAME;
             case NID_localityName :
-                ln = WOLFSSL_LN_LOCALITY_NAME;
-                break;
+                return WOLFSSL_LN_LOCALITY_NAME;
             case NID_stateOrProvinceName :
-                ln = WOLFSSL_LN_STATE_NAME;
-                break;
+                return WOLFSSL_LN_STATE_NAME;
             case NID_organizationName :
-                ln = WOLFSSL_LN_ORG_NAME;
-                break;
+                return WOLFSSL_LN_ORG_NAME;
             case NID_organizationalUnitName :
-                ln = WOLFSSL_LN_ORGUNIT_NAME;
-                break;
+                return WOLFSSL_LN_ORGUNIT_NAME;
             case NID_emailAddress :
-                ln = WOLFSSL_EMAIL_ADDR;
+                return WOLFSSL_EMAIL_ADDR;
+            default:
                 break;
-            default  :
-                ln = NULL;
         }
 
-#ifdef HAVE_ECC
-        int eccEnum;
-        /* Convert OpenSSL NID to enum value in ecc_curve_id */
-        if ((eccEnum = NIDToEccEnum(n)) != -1) {
-        /* find based on NID and return name */
-            for (i = 0; i < ecc_sets[i].size; i++) {
-                if (eccEnum == ecc_sets[i].id) {
-                    return ecc_sets[i].name;
+        #ifdef HAVE_ECC
+        {
+            int eccEnum;
+            int i;
+            /* Convert OpenSSL NID to enum value in ecc_curve_id */
+            if ((eccEnum = NIDToEccEnum(n)) != -1) {
+                /* find sn based on NID and return name */
+                for (i = 0; i < ecc_sets[i].size; i++) {
+                    if (eccEnum == ecc_sets[i].id) {
+                        return ecc_sets[i].name;
+                    }
                 }
             }
         }
-#endif /* HAVE_ECC */
-        return ln;
+        #endif /* HAVE_ECC */
+
+        WOLFSSL_MSG("LN not found");
+        return NULL;
     }
 #endif
 
 #if defined(WOLFSSL_QT)
+    /* Return the corresponding NID for the long name <ln>
+     * or NID_undef if NID can't be found.
+     */
     int wolfSSL_OBJ_ln2nid(const char *ln)
     {
         static const struct {
@@ -35370,30 +35400,34 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         int i;
         WOLFSSL_ENTER("wolfSSL_OBJ_ln2nid");
 
-        if (ln == NULL)
-            return NID_undef;
-#ifdef HAVE_ECC
-        int eccEnum;
-        /* Nginx uses this OpenSSL string. */
-        if (XSTRNCMP(ln, "prime256v1", 10) == 0)
-            ln = "SECP256R1";
-        if (XSTRNCMP(ln, "secp384r1", 10) == 0)
-            ln = "SECP384R1";
-        /* find based on name and return NID */
-        for (i = 0; i < ecc_sets[i].size; i++) {
-            if (XSTRNCMP(ln, ecc_sets[i].name, ECC_MAXNAME) == 0) {
-                eccEnum = ecc_sets[i].id;
-                /* Convert enum value in ecc_curve_id to OpenSSL NID */
-                return EccEnumToNID(eccEnum);
-            }
-        }
-#endif
+        if (ln == NULL) return BAD_FUNC_ARG;
 
+        /* Return certificate info ln */
         for(i=0; ln2nid[i].ln != NULL; i++) {
             if(XSTRNCMP(ln, ln2nid[i].ln, XSTRLEN(ln2nid[i].ln)) == 0) {
                 return ln2nid[i].nid;
             }
         }
+
+        /* Return ECC ln */
+        #ifdef HAVE_ECC
+        {
+            int eccEnum;
+            /* Nginx uses this OpenSSL string. */
+            #ifdef WOLFSSL_NGINX
+                if (XSTRNCMP(ln, "prime256v1", 10) == 0) ln = "SECP256R1";
+                if (XSTRNCMP(ln, "secp384r1", 10) == 0) ln = "SECP384R1";
+            #endif
+            /* find based on name and return NID */
+            for (i = 0; i < ecc_sets[i].size; i++) {
+                if (XSTRNCMP(ln, ecc_sets[i].name, ECC_MAXNAME) == 0) {
+                    eccEnum = ecc_sets[i].id;
+                    /* Convert enum value in ecc_curve_id to OpenSSL NID */
+                    return EccEnumToNID(eccEnum);
+                }
+            }
+        }
+        #endif /* HAVE_ECC */
 
         return NID_undef;
     }
