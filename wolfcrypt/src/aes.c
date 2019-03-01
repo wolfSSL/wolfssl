@@ -3887,7 +3887,7 @@ static void AES_GCM_encrypt(const unsigned char *in,
     __m128i tmp3, tmp4, tmp5, tmp6, tmp7, tmp8;
 #endif
 
-    if (ibytes == 12)
+    if (ibytes == GCM_NONCE_MID_SZ)
         aes_gcm_calc_iv_12(KEY, ivec, nr, H, Y, T);
     else
         aes_gcm_calc_iv(KEY, ivec, ibytes, nr, H, Y, T);
@@ -4325,7 +4325,7 @@ static void AES_GCM_decrypt(const unsigned char *in,
     __m128i tmp3, tmp4, tmp5, tmp6, tmp7, tmp8;
 #endif /* AES_GCM_AESNI_NO_UNROLL */
 
-    if (ibytes == 12)
+    if (ibytes == GCM_NONCE_MID_SZ)
         aes_gcm_calc_iv_12(KEY, ivec, nr, H, Y, T);
     else
         aes_gcm_calc_iv(KEY, ivec, ibytes, nr, H, Y, T);
@@ -5495,9 +5495,9 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifdef STM32_CRYPTO_AES_GCM
-    /* STM hardware only supports IV of 12 or 16 bytes */
+    /* STM hardware only supports IV of 12 thru 16 bytes */
     /* The STM standard peripheral library API's doesn't support partial blocks */
-    if ((ivSz == 12 || ivSz == 16)
+    if (ivSz >= GCM_NONCE_MID_SZ && ivSz <= GCM_NONCE_MAX_SZ
     #ifdef STD_PERI_LIB
         && partial == 0
     #endif
@@ -5911,9 +5911,9 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifdef STM32_CRYPTO_AES_GCM
-    /* STM hardware only supports IV of 12 or 16 bytes */
+    /* STM hardware only supports IV of 12 thru 16 bytes */
     /* The STM standard peripheral library API's doesn't support partial blocks */
-    if ((ivSz == 12 || ivSz == 16)
+    if (ivSz >= GCM_NONCE_MID_SZ && ivSz <= GCM_NONCE_MAX_SZ
     #ifdef STD_PERI_LIB
         && partial == 0
     #endif
