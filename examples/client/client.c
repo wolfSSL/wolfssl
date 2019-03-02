@@ -48,6 +48,9 @@
     /* included to inspect the size of FP_MAX_BITS */
     #include <wolfssl/wolfcrypt/tfm.h>
 #endif
+#ifdef HAVE_ECC
+    #include <wolfssl/wolfcrypt/ecc.h>
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     static int devId = INVALID_DEVID;
@@ -1615,7 +1618,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 }
                 else if (XSTRNCMP(myoptarg, "useSupCurve", 11) == 0) {
                     printf("Test use supported curve\n");
+                #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
                     useSupCurve = 1;
+                #endif
                 }
                 else if (XSTRNCMP(myoptarg, "loadSSL", 7) == 0) {
                     printf("Load cert/key into wolfSSL object\n");
