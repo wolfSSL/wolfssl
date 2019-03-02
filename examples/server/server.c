@@ -62,7 +62,7 @@ static const char webServerMsg[] =
     "HTTP/1.1 200 OK\r\n"
     "Content-Type: text/html\r\n"
     "Connection: close\r\n"
-    "Content-Length: 215\r\n"
+    "Content-Length: 225\r\n"
     "\r\n"
     "<html>\r\n"
     "<head>\r\n"
