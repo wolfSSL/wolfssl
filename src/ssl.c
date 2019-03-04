@@ -32250,15 +32250,60 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
+    /* Gets the NID value that is related to the OID string passed in. Example
+     * string would be "2.5.29.14" for subject key ID.
+     *
+     * @TODO does not handle short names yet
+     *
+     * returns NID value on success and NID_undef on error
+     */
     int wolfSSL_OBJ_txt2nid(const char* s)
     {
-        (void)s;
-        WOLFSSL_STUB("OBJ_txt2nid");
+        int ret;
+        unsigned int outSz = 0;
+        unsigned char out[MAX_OID_SZ];
 
-        return 0;
+        WOLFSSL_ENTER("OBJ_txt2nid");
+
+        if (s == NULL) {
+            return NID_undef;
+        }
+
+        ret = EncodePolicyOID(out, &outSz, s, NULL);
+        if (ret == 0) {
+            unsigned int i, sum = 0;
+            int nid, grp = -1;
+
+            /* sum OID */
+            for (i = 0; i < outSz; i++) {
+                sum += out[i];
+            }
+
+            /* get the group that the OID's sum is in
+             * @TODO possible conflict with multiples */
+            for (i = 0; i < WOLFSSL_OBJECT_INFO_SZ; i++) {
+               if (wolfssl_object_info[i].id == (int)sum) {
+                   grp = wolfssl_object_info[i].type;
+               }
+            }
+            if (grp == -1) {
+                WOLFSSL_MSG("OID sum's group was not found");
+                return NID_undef;
+            }
+
+            /* success return nid */
+            nid = oid2nid(sum, grp);
+            if (nid < 0) {
+                WOLFSSL_MSG("OID 2 NID function failed");
+                return NID_undef;
+            }
+            return nid;
+        }
+        else {
+            return 0;
+        }
     }
-#endif
+
 
     /* compatibility function. It's intended use is to remove OID's from an
      * internal table that have been added with OBJ_create. wolfSSL manages it's

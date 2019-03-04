@@ -10847,7 +10847,7 @@ static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
 }
 
 /* Encode OID string representation to ITU-T X.690 format */
-static int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
+int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
 {
     word32 val, idx = 0, nb_val;
     char *token, *str, *ptr;
