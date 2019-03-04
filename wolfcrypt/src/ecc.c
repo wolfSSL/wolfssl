@@ -1150,11 +1150,9 @@ const ecc_set_type ecc_sets[] = {
 static int wc_ecc_export_x963_compressed(ecc_key*, byte* out, word32* outLen);
 #endif
 
-#ifdef WOLFSSL_ATECC508A
-    typedef void* ecc_curve_spec;
-#else
 
-#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || !defined(WOLFSSL_SP_MATH)
+#if (defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || !defined(WOLFSSL_SP_MATH)) && \
+    !defined(WOLFSSL_ATECC508A)
 static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
         mp_int* prime, mp_int* order);
 #endif
@@ -1438,8 +1436,6 @@ void wc_ecc_curve_cache_free(void)
 #endif
 }
 #endif /* ECC_CACHE_CURVE */
-
-#endif /* WOLFSSL_ATECC508A */
 
 
 /* Retrieve the curve name for the ECC curve id.
