@@ -8099,16 +8099,22 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             WOLFSSL_MSG("About to verify certificate signature");
 
             if (cert->ca) {
-                /* Check if cert is CA type and has path length set */
+                /* Check if cert is CA type and signer has path length set */
                 if (cert->isCA && cert->ca->pathLengthSet) {
-                    /* Check root CA (self-signed) has path length > 0 */
-                    if (cert->selfSigned) {
-                        if (cert->ca->pathLength != 0) {
-                           WOLFSSL_MSG("Root CA with path length > 0");
+                    /* Check if signer is root CA (self-signed) */
+                    if (cert->ca->selfSigned) {
+                        /* Root CA as signer:
+                         * Must have path length > 0 to sign another CA
+                         * If path length == 0 can only sign an end entity
+                         *   certificate, not intermediate CA
+                         */
+                        if (cert->ca->pathLength == 0) {
+                           WOLFSSL_MSG("Root CA with path length == 0");
                            return ASN_PATHLEN_INV_E;
                         }
                     }
                     else {
+                        /* Intermediate CA signing Intermediate CA */
                         /* Check path lengths are valid between two CA's */
                         if (cert->ca->pathLength == 0) {
                             WOLFSSL_MSG("CA with path length 0 signing a CA");
