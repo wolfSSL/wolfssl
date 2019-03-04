@@ -32260,7 +32260,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     int wolfSSL_OBJ_txt2nid(const char* s)
     {
         int ret;
-        unsigned int outSz = 0;
+        unsigned int outSz = MAX_OID_SZ;
         unsigned char out[MAX_OID_SZ];
 
         WOLFSSL_ENTER("OBJ_txt2nid");
