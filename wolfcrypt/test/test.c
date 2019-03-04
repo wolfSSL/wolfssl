@@ -200,7 +200,7 @@
 #endif
 
 
-#ifdef THREADX
+#if defined(THREADX) && !defined(WOLFSSL_WICED)
     /* since just testing, use THREADX log printf instead */
     int dc_log_printf(char*, ...);
         #undef printf
