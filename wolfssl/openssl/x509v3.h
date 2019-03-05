@@ -59,6 +59,7 @@ struct WOLFSSL_X509_EXTENSION {
     WOLFSSL_ASN1_BOOLEAN crit;
     WOLFSSL_ASN1_STRING value;
     WOLFSSL_v3_ext_method ext_method;
+    void* ext_data; /* For extension specific data */
 };
 
 struct WOLFSSL_ACCESS_DESCRIPTION {
