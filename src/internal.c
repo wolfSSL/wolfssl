@@ -3819,14 +3819,14 @@ int Ed25519CheckPubKey(WOLFSSL* ssl)
     return ret;
 }
 
-/* Sign the data using EdDSA and key using X25519.
+/* Sign the data using EdDSA and key using Ed25519.
  *
  * ssl    SSL object.
  * in     Data or message to sign.
  * inSz   Length of the data.
  * out    Buffer to hold signature.
  * outSz  On entry, size of the buffer. On exit, the size of the signature.
- * key    The private X25519 key data.
+ * key    The private Ed25519 key data.
  * keySz  The length of the private key data in bytes.
  * ctx    The callback context.
  * returns 0 on success, otherwise the value is an error.
@@ -3881,14 +3881,14 @@ int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
     return ret;
 }
 
-/* Verify the data using EdDSA and key using X25519.
+/* Verify the data using EdDSA and key using Ed25519.
  *
  * ssl    SSL object.
  * in     Signature data.
  * inSz   Length of the signature data in bytes.
  * msg    Message to verify.
  * outSz  Length of message in bytes.
- * key    The public X25519 key data.
+ * key    The public Ed25519 key data.
  * keySz  The length of the private key data in bytes.
  * ctx    The callback context.
  * returns 0 on success, otherwise the value is an error.
