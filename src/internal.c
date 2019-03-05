@@ -2959,8 +2959,11 @@ void FreeX509(WOLFSSL_X509* x509)
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         XFREE(x509->authKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
         XFREE(x509->subjKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
-        if (x509->authInfo != NULL) {
-            XFREE(x509->authInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        if (x509->authInfoOcsp != NULL) {
+            XFREE(x509->authInfoOcsp, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        }
+        if (x509->authInfoCaIssuer != NULL) {
+            XFREE(x509->authInfoCaIssuer, x509->heap, DYNAMIC_TYPE_X509_EXT);
         }
         if (x509->extKeyUsageSrc != NULL) {
             XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
@@ -8406,12 +8409,23 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     x509->CRLInfoSz = dCert->extCrlInfoSz;
     x509->authInfoSet = dCert->extAuthInfoSet;
     x509->authInfoCrit = dCert->extAuthInfoCrit;
-    if (dCert->extAuthInfo != NULL && dCert->extAuthInfoSz > 0) {
-        x509->authInfo = (byte*)XMALLOC(dCert->extAuthInfoSz, x509->heap,
+    if (dCert->extAuthInfoOcsp != NULL && dCert->extAuthInfoOcspSz > 0) {
+        x509->authInfoOcsp = (byte*)XMALLOC(dCert->extAuthInfoOcspSz, x509->heap,
                 DYNAMIC_TYPE_X509_EXT);
-        if (x509->authInfo != NULL) {
-            XMEMCPY(x509->authInfo, dCert->extAuthInfo, dCert->extAuthInfoSz);
-            x509->authInfoSz = dCert->extAuthInfoSz;
+        if (x509->authInfoOcsp != NULL) {
+            XMEMCPY(x509->authInfoOcsp, dCert->extAuthInfoOcsp, dCert->extAuthInfoOcspSz);
+            x509->authInfoOcspSz = dCert->extAuthInfoOcspSz;
+        }
+        else {
+            ret = MEMORY_E;
+        }
+    }
+    if (dCert->extAuthInfoCaIssuer != NULL && dCert->extAuthInfoCaIssuerSz > 0) {
+        x509->authInfoCaIssuer = (byte*)XMALLOC(dCert->extAuthInfoCaIssuerSz, x509->heap,
+                DYNAMIC_TYPE_X509_EXT);
+        if (x509->authInfoCaIssuer != NULL) {
+            XMEMCPY(x509->authInfoCaIssuer, dCert->extAuthInfoCaIssuer, dCert->extAuthInfoCaIssuerSz);
+            x509->authInfoCaIssuerSz = dCert->extAuthInfoCaIssuerSz;
         }
         else {
             ret = MEMORY_E;

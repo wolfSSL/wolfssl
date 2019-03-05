@@ -4370,7 +4370,6 @@ int wc_DsaKeyToPublicDer(DsaKey* key, byte* output, word32 inLen)
 }
 #endif /*end if HAVE_SELFTEST */
 
-
 /* Convert private DsaKey key to DER format, write to output (inLen), 
 return bytes written */
 int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
@@ -7226,12 +7225,13 @@ static int DecodeCrlDist(const byte* input, int sz, DecodedCert* cert)
 
 static int DecodeAuthInfo(const byte* input, int sz, DecodedCert* cert)
 /*
- *  Read the first of the Authority Information Access records. If there are
+ *  Read Authority Information Access records. If there are
  *  any issues, return without saving the record.
  */
 {
     word32 idx = 0;
     int length = 0;
+    int count = 0;
     byte b;
     word32 oid;
 
@@ -7241,7 +7241,7 @@ static int DecodeAuthInfo(const byte* input, int sz, DecodedCert* cert)
     if (GetSequence(input, &idx, &length, sz) < 0)
         return ASN_PARSE_E;
 
-    while (idx < (word32)sz) {
+    while ((idx < (word32)sz) && (count < MAX_AIA_SZ)) {
         /* Unwrap a single AIA */
         if (GetSequence(input, &idx, &length, sz) < 0)
             return ASN_PARSE_E;
@@ -7250,18 +7250,26 @@ static int DecodeAuthInfo(const byte* input, int sz, DecodedCert* cert)
         if (GetObjectId(input, &idx, &oid, oidCertAuthInfoType, sz) < 0)
             return ASN_PARSE_E;
 
-
         /* Only supporting URIs right now. */
         b = input[idx++];
         if (GetLength(input, &idx, &length, sz) < 0)
             return ASN_PARSE_E;
 
-        if (b == (ASN_CONTEXT_SPECIFIC | GENERALNAME_URI) &&
+        /* Set ocsp entry */
+        if ((b == (ASN_CONTEXT_SPECIFIC | GENERALNAME_URI)) &&
             oid == AIA_OCSP_OID)
         {
-            cert->extAuthInfoSz = length;
-            cert->extAuthInfo = input + idx;
-            break;
+            cert->extAuthInfoOcspSz = length;
+            cert->extAuthInfoOcsp = input + idx;
+            count++;
+        }
+        /* Set CaIssuers entry */
+        else if ((b == (ASN_CONTEXT_SPECIFIC | GENERALNAME_URI)) &&
+            oid == AIA_CA_ISSUER_OID)
+        {
+            cert->extAuthInfoCaIssuerSz = length;
+            cert->extAuthInfoCaIssuer = input + idx;
+            count++;
         }
         idx += length;
     }
@@ -15030,16 +15038,16 @@ int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
         XMEMCPY(req->serial, cert->serial, cert->serialSz);
         req->serialSz = cert->serialSz;
 
-        if (cert->extAuthInfoSz != 0 && cert->extAuthInfo != NULL) {
-            req->url = (byte*)XMALLOC(cert->extAuthInfoSz + 1, req->heap,
+        if (cert->extAuthInfoOcspSz != 0 && cert->extAuthInfoOcsp != NULL) {
+            req->url = (byte*)XMALLOC(cert->extAuthInfoOcspSz + 1, req->heap,
                                                      DYNAMIC_TYPE_OCSP_REQUEST);
             if (req->url == NULL) {
                 XFREE(req->serial, req->heap, DYNAMIC_TYPE_OCSP);
                 return MEMORY_E;
             }
 
-            XMEMCPY(req->url, cert->extAuthInfo, cert->extAuthInfoSz);
-            req->urlSz = cert->extAuthInfoSz;
+            XMEMCPY(req->url, cert->extAuthInfoOcsp, cert->extAuthInfoOcspSz);
+            req->urlSz = cert->extAuthInfoOcspSz;
             req->url[req->urlSz] = 0;
         }
     }

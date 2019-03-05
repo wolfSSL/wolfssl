@@ -3450,11 +3450,13 @@ struct WOLFSSL_X509 {
     byte*            subjKeyId;
     byte*            extKeyUsageSrc;
     const byte*      CRLInfo;
-    byte*            authInfo;
+    byte*            authInfoOcsp;
+    byte*            authInfoCaIssuer;
     word32           pathLength;
     word16           keyUsage;
     int              CRLInfoSz;
-    int              authInfoSz;
+    int              authInfoOcspSz;
+    int              authInfoCaIssuerSz;
     word32           authKeyIdSz;
     word32           subjKeyIdSz;
     word32           extKeyUsageSz;

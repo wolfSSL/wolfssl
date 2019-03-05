@@ -299,6 +299,7 @@ enum Misc_ASN {
     MAX_CERTPOL_NB      = CTC_MAX_CERTPOL_NB,/* Max number of Cert Policy */
     MAX_CERTPOL_SZ      = CTC_MAX_CERTPOL_SZ,
 #endif
+    MAX_AIA_SZ          = 2,       /* Max Authority Info Access extension size */
     MAX_NAME_ENTRIES    = 5,       /* extra entries added to x509 name struct */
     OCSP_NONCE_EXT_SZ   = 35,      /* OCSP Nonce Extension size */
     MAX_OCSP_EXT_SZ     = 58,      /* Max OCSP Extension length */
@@ -724,8 +725,12 @@ struct DecodedCert {
     const byte* extensions;          /* not owned, points into raw cert  */
     int     extensionsSz;            /* length of cert extensions */
     word32  extensionsIdx;           /* if want to go back and parse later */
-    const byte* extAuthInfo;         /* Authority Information Access URI */
-    int     extAuthInfoSz;           /* length of the URI                */
+    const byte* extAuthInfoOcsp;     /* Authority Information Access ocsp URI */
+    const byte* extAuthInfoCaIssuer; /* Authority Info Access caIssuer URI */
+    int     extAuthInfoOcspSz;       /* length of the ocsp URI             */
+    int     extAuthInfoCaIssuerSz;   /* length of the caIssuer URI         */
+    int     extAuthInfoNb;
+
     const byte* extCrlInfo;          /* CRL Distribution Points          */
     int     extCrlInfoSz;            /* length of the URI                */
     byte    extSubjKeyId[KEYID_SIZE]; /* Subject Key ID                  */
