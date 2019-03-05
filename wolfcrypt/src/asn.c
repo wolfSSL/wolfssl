@@ -4180,7 +4180,7 @@ static WC_INLINE void FreeTmpDsas(byte** tmps, void* heap)
 
     (void)heap;
 }
-
+#ifndef HAVE_SELFTEST
 /* Write a public DSA key to output */
 int SetDsaPublicKey(byte* output, DsaKey* key,
                            int outLen, int with_header)
@@ -4368,6 +4368,8 @@ int wc_DsaKeyToPublicDer(DsaKey* key, byte* output, word32 inLen)
 {
     return SetDsaPublicKey(output, key, inLen, 1);
 }
+#endif /*end if HAVE_SELFTEST */
+
 
 /* Convert private DsaKey key to DER format, write to output (inLen), 
 return bytes written */
