@@ -709,7 +709,8 @@ typedef WOLFSSL_ASN1_BIT_STRING         ASN1_BIT_STRING;
 enum {
     GEN_DNS   = 0x02, /* ASN_DNS_TYPE */
     GEN_EMAIL = 0x01, /* ASN_RFC822_TYPE */
-    GEN_URI   = 0x06  /* ASN_URI_TYPE */
+    GEN_URI   = 0x06, /* ASN_URI_TYPE */
+    GEN_IPADD = 0x07
 };
 
 #define PEM_read_bio_DHparams           wolfSSL_PEM_read_bio_DHparams
@@ -733,12 +734,11 @@ enum {
 
 typedef STACK_OF(GENERAL_NAME) GENERAL_NAMES;
 #define SSL_CTRL_CHAIN       88
-#define GEN_IPADD            7
 #define ERR_LIB_SSL          20
 #define SSL_R_SHORT_READ     10
 #define ERR_R_PEM_LIB        9
 #define V_ASN1_IA5STRING     22
-#define SSL_CTRL_MODE        33       
+#define SSL_CTRL_MODE        33
 
 #define SSL_CTX_clear_chain_certs(ctx) SSL_CTX_set0_chain(ctx,NULL)
 #define d2i_RSAPrivateKey_bio           wolfSSL_d2i_RSAPrivateKey_bio
@@ -746,7 +746,7 @@ typedef STACK_OF(GENERAL_NAME) GENERAL_NAMES;
 #define d2i_PrivateKey_bio              wolfSSL_d2i_PrivateKey_bio
 #define BIO_new_bio_pair                wolfSSL_BIO_new_bio_pair
 #define SSL_get_verify_callback         wolfSSL_get_verify_callback
-#define GENERAL_NAMES_free(GENERAL_NAMES)NULL
+#define GENERAL_NAMES_free(GENERAL_NAMES) wolfSSL_GENERAL_NAMES_free
 
 #define SSL_set_mode(ssl,op)         wolfSSL_ctrl((ssl),SSL_CTRL_MODE,(op),NULL)
 
@@ -888,6 +888,7 @@ typedef STACK_OF(GENERAL_NAME) GENERAL_NAMES;
 #define SSL_SESSION_get_ex_new_index    wolfSSL_SESSION_get_ex_new_index
 #define SSL_SESSION_get_id              wolfSSL_SESSION_get_id
 #define sk_GENERAL_NAME_pop_free        wolfSSL_sk_GENERAL_NAME_pop_free
+#define GENERAL_NAME_new                wolfSSL_GENERAL_NAME_new
 #define GENERAL_NAME_free               wolfSSL_GENERAL_NAME_free
 
 #define SSL3_AL_FATAL                   2

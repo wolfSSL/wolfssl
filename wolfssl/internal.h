@@ -3406,6 +3406,7 @@ typedef struct Arrays {
 #define STACK_TYPE_OBJ     3
 #define STACK_TYPE_STRING  4
 #define STACK_TYPE_CIPHER  5
+#define STACK_TYPE_ACCESS_DESCRIPTION 6
 
 struct WOLFSSL_STACK {
     byte type;     /* Set to STACK_TYPE_*. identifies type stored in data.*/
@@ -3417,6 +3418,9 @@ struct WOLFSSL_STACK {
         WOLFSSL_BIO*           bio;
         WOLFSSL_ASN1_OBJECT*   obj;
         WOLFSSL_CIPHER*        cipher;
+        #if defined(WOLFSSL_QT) || defined(OPENSSL_EXTRA)
+        WOLFSSL_ACCESS_DESCRIPTION* access;
+        #endif
         char*                  string;
     } data;
     WOLFSSL_STACK* next;
