@@ -85,6 +85,8 @@
     #include "tk/tkernel.h"
 #elif defined(WOLFSSL_CMSIS_RTOS)
     #include "cmsis_os.h"
+#elif defined(WOLFSSL_CMSIS_RTOSv2)
+    #include "cmsis_os2.h"
 #elif defined(WOLFSSL_MDK_ARM)
     #if defined(WOLFSSL_MDK5)
         #include "cmsis_os.h"
@@ -181,6 +183,8 @@
         #endif
     #elif defined(WOLFSSL_CMSIS_RTOS)
         typedef osMutexId wolfSSL_Mutex;
+    #elif defined(WOLFSSL_CMSIS_RTOSv2)
+        typedef osMutexId_t wolfSSL_Mutex;
     #elif defined(WOLFSSL_TIRTOS)
         typedef ti_sysbios_knl_Semaphore_Handle wolfSSL_Mutex;
     #elif defined(WOLFSSL_FROSTED)

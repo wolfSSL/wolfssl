@@ -24,22 +24,12 @@
     #include <config.h>
 #endif
 
-#include <cyassl/ssl.h>
-#include <cyassl/internal.h>
+#include <wolfssl/ssl.h>
+#include <wolfssl/internal.h>
 
 Signer* GetCA(void* vp, byte* hash)
 {
     return NULL  ;
-}
-
-int CyaSSL_dtls(CYASSL* ssl)
-{
-    return NULL ;
-}
-
-int CyaSSL_get_using_nonblock(CYASSL* ssl)
-{
-    return NULL ;
 }
 
 Signer* GetCAByName(void* vp, byte* hash)
@@ -47,7 +37,3 @@ Signer* GetCAByName(void* vp, byte* hash)
     return NULL ;
 }
 
-int CyaSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
-{
-        return NULL ;
-}

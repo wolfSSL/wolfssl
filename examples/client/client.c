@@ -31,10 +31,8 @@
 #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
         #include <stdio.h>
         #include <string.h>
-        #include "cmsis_os.h"
         #include "rl_fs.h"
         #include "rl_net.h"
-        #include "wolfssl_MDK_ARM.h"
 #endif
 
 #include <wolfssl/test.h>

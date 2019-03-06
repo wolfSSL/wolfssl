@@ -1418,6 +1418,43 @@ int wolfSSL_CryptHwMutexUnLock(void) {
         osMutexRelease (*m);
         return 0;
     }
+    
+#elif defined(WOLFSSL_CMSIS_RTOSv2)
+    int wc_InitMutex(wolfSSL_Mutex *m)
+    {
+        static const osMutexAttr_t attr = {
+            "wolfSSL_mutex", osMutexRecursive, NULL, 0};
+
+        if ((*m = osMutexNew(&attr)) != NULL)
+            return 0;
+        else
+            return BAD_MUTEX_E;
+    }
+
+    int wc_FreeMutex(wolfSSL_Mutex *m)
+    {
+        if (osMutexDelete(*m) == osOK)
+            return 0;
+        else
+            return BAD_MUTEX_E;
+    }
+
+
+    int wc_LockMutex(wolfSSL_Mutex *m)
+    {
+        if (osMutexAcquire(*m, osWaitForever) == osOK)
+            return 0;
+        else
+            return BAD_MUTEX_E;
+    }
+
+    int wc_UnLockMutex(wolfSSL_Mutex *m)
+    {
+        if (osMutexRelease(*m) == osOK)
+            return 0;
+        else
+            return BAD_MUTEX_E;
+    }
 
 #elif defined(WOLFSSL_MDK_ARM)
 

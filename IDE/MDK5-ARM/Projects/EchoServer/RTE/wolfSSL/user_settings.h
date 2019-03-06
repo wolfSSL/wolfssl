@@ -60,7 +60,7 @@
 //         <7=>Micrium <8=>EBSnet<9=>MQX 
 //         <10=>T-RTOS <11=>uITRON4<12=>uTKERNEL2 
 //         <13=>Frosted <14=>CMSIS RTOS<15=>CMSIS RTOSv2<16=>Others
-#define MDK_CONF_THREAD 15
+#define MDK_CONF_THREAD 14
 #if MDK_CONF_THREAD== 0
 #define SINGLE_THREADED
 #elif MDK_CONF_THREAD == 1
@@ -109,7 +109,7 @@
 //  </e>
 
 //   <o> Network<0=>None <1=>RLnet <2=>User I/O
-#define MDK_CONF_NETWORK 0
+#define MDK_CONF_NETWORK 1
 #if   MDK_CONF_NETWORK == 0
 #elif MDK_CONF_NETWORK == 1
 #define WOLFSSL_KEIL_TCP_NET

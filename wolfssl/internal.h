@@ -149,14 +149,14 @@
         /* do nothing */
 #elif defined(WOLFSSL_CMSIS_RTOS)
     #include "cmsis_os.h"
+#elif defined(WOLFSSL_CMSIS_RTOSv2)
+    #include "cmsis_os2.h"
 #elif defined(WOLFSSL_MDK_ARM)
     #if defined(WOLFSSL_MDK5)
-         #include "cmsis_os.h"
+        #include "cmsis_os.h"
     #else
         #include <rtl.h>
     #endif
-#elif defined(WOLFSSL_CMSIS_RTOS)
-    #include "cmsis_os.h"
 #elif defined(MBED)
 #elif defined(WOLFSSL_TIRTOS)
     /* do nothing */

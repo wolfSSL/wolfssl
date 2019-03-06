@@ -109,7 +109,7 @@
 //  </e>
 
 //   <o> Network<0=>None <1=>RLnet <2=>User I/O
-#define MDK_CONF_NETWORK 0
+#define MDK_CONF_NETWORK 1
 #if   MDK_CONF_NETWORK == 0
 #elif MDK_CONF_NETWORK == 1
 #define WOLFSSL_KEIL_TCP_NET
