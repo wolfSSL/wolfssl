@@ -1021,6 +1021,9 @@ WOLFSSL_LOCAL word32 SetOctetString(word32 len, byte* output);
 WOLFSSL_LOCAL word32 SetImplicit(byte tag,byte number,word32 len,byte* output);
 WOLFSSL_LOCAL word32 SetExplicit(byte number, word32 len, byte* output);
 WOLFSSL_LOCAL word32 SetSet(word32 len, byte* output);
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
+WOLFSSL_LOCAL int SetCurve(ecc_key* key, byte* output);
+#endif
 WOLFSSL_LOCAL word32 SetAlgoID(int algoOID,byte* output,int type,int curveSz);
 WOLFSSL_LOCAL int SetMyVersion(word32 version, byte* output, int header);
 WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output,

@@ -4955,6 +4955,8 @@ int wc_PKCS7_AddRecipient_KARI(PKCS7* pkcs7, const byte* cert, word32 certSz,
     byte origPubKeySeq[MAX_SEQ_SZ];     /* IMPLICIT [1] */
     int origAlgIdSz = 0;
     byte origAlgId[MAX_ALGO_SZ];
+    int origAlgIdCurveSz = 0;
+    byte origAlgIdCurve[MAX_ALGO_SZ];
     int origPubKeyStrSz = 0;
     byte origPubKeyStr[MAX_OCTET_STR_SZ];
 
@@ -5164,20 +5166,35 @@ int wc_PKCS7_AddRecipient_KARI(PKCS7* pkcs7, const byte* cert, word32 certSz,
                                 origPubKeyStr + 1) + 2;
     totalSz += (origPubKeyStrSz + kari->senderKeyExportSz);
 
+    /* Originator AlgorithmIdentifier ECC curve */
+    origAlgIdCurveSz = SetCurve(kari->senderKey, origAlgIdCurve);
+    if (origAlgIdCurveSz <= 0) {
+        WOLFSSL_MSG("Failed to set Originator AlgoId curve");
+        wc_PKCS7_KariFree(kari);
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        return origAlgIdCurveSz;
+    }
+    totalSz += origAlgIdCurveSz;
+
     /* Originator AlgorithmIdentifier */
-    origAlgIdSz = SetAlgoID(ECDSAk, origAlgId, oidKeyType, 0);
+    origAlgIdSz = SetAlgoID(ECDSAk, origAlgId, oidKeyType, origAlgIdCurveSz);
     totalSz += origAlgIdSz;
 
     /* outer OriginatorPublicKey IMPLICIT [1] */
     origPubKeySeqSz = SetImplicit(ASN_SEQUENCE, 1,
-                                  origAlgIdSz + origPubKeyStrSz +
-                                  kari->senderKeyExportSz, origPubKeySeq);
+                                  origAlgIdSz + origAlgIdCurveSz +
+                                  origPubKeyStrSz + kari->senderKeyExportSz,
+                                  origPubKeySeq);
     totalSz += origPubKeySeqSz;
 
     /* outer OriginatorIdentiferOrKey IMPLICIT [0] */
     origIdOrKeySeqSz = SetImplicit(ASN_SEQUENCE, 0,
                                    origPubKeySeqSz + origAlgIdSz +
-                                   origPubKeyStrSz + kari->senderKeyExportSz,
+                                   origAlgIdCurveSz + origPubKeyStrSz +
+                                   kari->senderKeyExportSz,
                                    origIdOrKeySeq);
     totalSz += origIdOrKeySeqSz;
 
@@ -5211,6 +5228,8 @@ int wc_PKCS7_AddRecipient_KARI(PKCS7* pkcs7, const byte* cert, word32 certSz,
     idx += origPubKeySeqSz;
     XMEMCPY(recip->recip + idx, origAlgId, origAlgIdSz);
     idx += origAlgIdSz;
+    XMEMCPY(recip->recip + idx, origAlgIdCurve, origAlgIdCurveSz);
+    idx += origAlgIdCurveSz;
     XMEMCPY(recip->recip + idx, origPubKeyStr, origPubKeyStrSz);
     idx += origPubKeyStrSz;
     /* ephemeral public key */
@@ -7537,6 +7556,7 @@ static int wc_PKCS7_KariGetOriginatorIdentifierOrKey(WC_PKCS7_KARI* kari,
 {
     int ret, length;
     word32 keyOID;
+    word32 keyCurveOID;
 
     if (kari == NULL || pkiMsg == NULL || idx == NULL)
         return BAD_FUNC_ARG;
@@ -7566,6 +7586,10 @@ static int wc_PKCS7_KariGetOriginatorIdentifierOrKey(WC_PKCS7_KARI* kari,
         return ASN_PARSE_E;
 
     if (keyOID != ECDSAk)
+        return ASN_PARSE_E;
+
+    /* remove AlgorithmIdentifier curve parameter */
+    if (GetObjectId(pkiMsg, idx, &keyCurveOID, oidIgnoreType, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
     /* remove ECPoint BIT STRING */

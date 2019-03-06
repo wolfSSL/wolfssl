@@ -5775,7 +5775,7 @@ WOLFSSL_LOCAL word32 SetExplicit(byte number, word32 len, byte* output)
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
 
-static int SetCurve(ecc_key* key, byte* output)
+WOLFSSL_LOCAL int SetCurve(ecc_key* key, byte* output)
 {
 #ifdef HAVE_OID_ENCODING
     int ret;
