@@ -1808,6 +1808,7 @@ static void test_wolfSSL_EVP_get_cipherbynid(void)
  */
 static void test_wolfSSL_EVP_CIPHER_CTX(void)
 {
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
     EVP_CIPHER_CTX evpCipherContext;
     EVP_CIPHER_CTX *ctx = &evpCipherContext;
     const EVP_CIPHER* type = NULL;
@@ -1829,7 +1830,7 @@ static void test_wolfSSL_EVP_CIPHER_CTX(void)
                                                          WOLFSSL_SUCCESS);
 
     EVP_CIPHER_CTX_cleanup(ctx);
-   // EVP_CIPHER_CTX_free(ctx);
+#endif
 
     printf(resultFmt, passed);
 }
@@ -18693,8 +18694,9 @@ static void test_wolfSSL_PEM_PrivateKey(void)
 
 static void test_wolfSSL_PEM_bio_RSAKey(void)
 {
-    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && defined(WOLFSSL_CERT_GEN) || \
-    defined(WOLFSSL_KEY_GEN)&& !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_CERTS)
     RSA* rsa = NULL;
     BIO* bio = NULL;
 
@@ -18736,14 +18738,16 @@ static void test_wolfSSL_PEM_bio_RSAKey(void)
     #endif /* HAVE_ECC */
 
     printf(resultFmt, passed);
-    #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) */
+#endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+         (defined(WOLFSSL_KEY_GEN) || WOLFSSL_CERT_GEN) && \
+         !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_CERTS) */
 }
 
 
 static void test_wolfSSL_PEM_bio_DSAKey(void)
 {
-    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && defined(WOLFSSL_CERT_GEN) || \
-    defined(WOLFSSL_KEY_GEN)&& !defined(NO_FILESYSTEM) && !defined(NO_DSA)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_CERTS) &&\
+    defined(WOLFSSL_KEY_GEN) && !defined(NO_FILESYSTEM) && !defined(NO_DSA)
     DSA* dsa = NULL;
     BIO* bio = NULL;
 
@@ -18785,14 +18789,16 @@ static void test_wolfSSL_PEM_bio_DSAKey(void)
     #endif /* HAVE_ECC */
 
     printf(resultFmt, passed);
-    #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) */
+#endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+         !defined(NO_CERTS) && defined(WOLFSSL_KEY_GEN) && \
+         !defined(NO_FILESYSTEM) && !defined(NO_DSA) */
 }
 
 
 static void test_wolfSSL_PEM_bio_ECKey(void)
 {
-    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && defined(WOLFSSL_CERT_GEN) || \
-    defined(WOLFSSL_KEY_GEN)&& !defined(NO_FILESYSTEM) && defined(HAVE_ECC)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    defined(WOLFSSL_KEY_GEN) && !defined(NO_FILESYSTEM) && defined(HAVE_ECC)
     EC_KEY* ec = NULL;
     BIO* bio = NULL;
 
@@ -18834,7 +18840,7 @@ static void test_wolfSSL_PEM_bio_ECKey(void)
     #endif /* HAVE_ECC */
 
     printf(resultFmt, passed);
-    #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) */
+#endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) */
 }
 
 static void test_wolfSSL_PEM_PUBKEY(void)
@@ -23461,7 +23467,7 @@ static void test_wolfSSL_X509_EXTENSION_get_critical(void)
 static void test_wolfSSL_CIPHER_description_all(void)
 {
     char buf[256];
-    char test_str[9];
+    char test_str[9] = "0000000\0";
     const char bad_str[] = "unknown\0";
     const char cert_path[] = "./certs/client-cert.pem";
     const SSL_METHOD *method = NULL;
@@ -23471,6 +23477,7 @@ static void test_wolfSSL_CIPHER_description_all(void)
     SSL *ssl = NULL;
     const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_COMPRESSION;
     int i,j,k;
+    XMEMSET(buf, 0, sizeof(buf));
 
     printf(testingFmt, "wolfSSL_CIPHER_description_all");
 
@@ -23502,7 +23509,7 @@ static void test_wolfSSL_CIPHER_description_all(void)
          * every configured cipher.
          */
 
-        if ( (cipher = sk_value(supportedCiphers, i)) ) {
+        if ((cipher = sk_value(supportedCiphers, i))) {
             SSL_CIPHER_description(cipher, buf, sizeof(buf));
         }
 
@@ -23527,7 +23534,7 @@ static void test_wolfSSL_CIPHER_description_all(void)
 static void test_wolfSSL_get_ciphers_compat(void) {
     const SSL_METHOD *method = NULL;
     const char cert_path[] = "./certs/client-cert.pem";
-    STACK_OF(SSL_CIPHER) *supportedCiphers;
+    STACK_OF(SSL_CIPHER) *supportedCiphers = NULL;
     SSL_CTX *ctx = NULL;
     WOLFSSL *ssl = NULL;
     const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_COMPRESSION;
@@ -23592,13 +23599,14 @@ static void test_wolfSSL_X509_PUBKEY_get(void) {
 static void test_wolfSSL_d2i_DHparams()
 {
 #if !defined(NO_DH)
-    FILE* f;
+    FILE* f = NULL;
     unsigned char buf[4096];
     const unsigned char* pt = buf;
     const char* params1 = "./certs/dh2048.der";
     const char* params2 = "./certs/dh3072.der";
-    long len;
-    WOLFSSL_DH* dh;
+    long len = 0;
+    WOLFSSL_DH* dh = NULL;
+    XMEMSET(buf, 0, sizeof(buf));
 
     /* Test 2048 bit parameters */
     printf(testingFmt, "wolfSSL_d2i_DHparams() 2048-bit");

@@ -454,6 +454,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     #endif
         default:
             WOLFSSL_MSG("Unknown/Unsupported encrypt/decrypt id");
+            (void)shaOid;
             return ALGO_ID_E;
     }
 
