@@ -34572,6 +34572,17 @@ long wolfSSL_SSL_CTX_get_timeout(const WOLFSSL_CTX *ctx)
     return ctx->timeout;
 }
 
+
+/* returns the time in seconds of the current timeout */
+long wolfSSL_get_timeout(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_get_timeout");
+
+    if (ssl == NULL)
+        return 0;
+    return ssl->timeout;
+}
+
 #ifdef HAVE_ECC
 int wolfSSL_SSL_CTX_set_tmp_ecdh(WOLFSSL_CTX *ctx, WOLFSSL_EC_KEY *ecdh)
 {

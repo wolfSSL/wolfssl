@@ -2970,6 +2970,7 @@ WOLFSSL_API int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *data,
     const WOLFSSL_EVP_MD *type, unsigned char *md, unsigned int *len);
 
 WOLFSSL_API long wolfSSL_SSL_CTX_get_timeout(const WOLFSSL_CTX *ctx);
+WOLFSSL_API long wolfSSL_get_timeout(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_SSL_CTX_set_tmp_ecdh(WOLFSSL_CTX *ctx,
     WOLFSSL_EC_KEY *ecdh);
 WOLFSSL_API int wolfSSL_SSL_CTX_remove_session(WOLFSSL_CTX *,
