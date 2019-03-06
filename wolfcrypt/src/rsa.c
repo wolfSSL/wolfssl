@@ -2499,7 +2499,7 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
                     c  = ctMaskGTE(j, start);
                     c &= ctMaskLT(i, outLen);
                     /* 0 - no add, -1 add */
-                    i += -c;
+                    i += (word32)((byte)(-c));
                 }
 #else
                 XMEMCPY(out, pad, ret);
