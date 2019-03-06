@@ -1776,6 +1776,69 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STACK_LOG -finstrument-functions"
 fi
 
+#QT Support
+AC_ARG_ENABLE([qt],
+    [AS_HELP_STRING([--enable-qt],[Enable qt (default: disabled)])],
+    [ ENABLED_QT=$enableval ],
+    [ ENABLED_QT=no ]
+    )
+if test "$ENABLED_QT" = "yes"
+then
+    # Requires opensslextra and opensslall
+    if test "x$ENABLED_OPENSSLALL" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+    then
+        ENABLED_OPENSSLALL="yes"
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA -DOPENSSL_ALL -DHAVE_EX_DATA"
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_QT -DWOLFSSL_ALLOW_TLSV10 -DSESSION_CERTS -DOPENSSL_NO_SSL2"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_SSLV3 -DWOLFSSL_KEY_GEN"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CUSTOM_CURVES -DHAVE_ECC_SECPR2 -DHAVE_ECC_SECPR3 -DHAVE_ECC_BRAINPOOL -DHAVE_ECC_KOBLITZ"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SEP"
+
+    # Requires OCSP make sure on
+    if test "x$ENABLED_OCSP" = "xno"
+    then
+        ENABLED_OCSP="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
+        AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
+    fi
+
+    # Requires PSK make sure on
+    if test "x$ENABLED_PSK" = "xno"
+    then
+       ENABLED_PSK="yes"
+    fi
+
+    # Requires RC4 make sure on
+    if test "x$ENABLED_ARC4" = "xno"
+    then
+       ENABLED_ARC4="yes"
+    fi
+
+    # requires oldnames disabled
+    enable_oldnames=no
+fi
+
+
+# DSA
+AC_ARG_ENABLE([dsa],
+    [AS_HELP_STRING([--enable-dsa],[Enable DSA (default: disabled)])],
+    [ ENABLED_DSA=$enableval ],
+    [ ENABLED_DSA=no ]
+    )
+
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes"
+then
+    ENABLED_DSA="yes"
+fi
+
+if test "$ENABLED_DSA" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_DSA"
+fi
+
+AM_CONDITIONAL([BUILD_DSA], [test "x$ENABLED_DSA" = "xyes"])
 
 
 # RSA
@@ -2064,7 +2127,7 @@ AC_ARG_ENABLE([des3],
     [ ENABLED_DES3=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_QT" = "yes"
 then
     ENABLED_DES3="yes"
 fi
@@ -3284,74 +3347,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EXT_CACHE -DHAVE_EX_DATA"
 fi
 
-#QT Support
-AC_ARG_ENABLE([qt],
-    [AS_HELP_STRING([--enable-qt],[Enable qt (default: disabled)])],
-    [ ENABLED_QT=$enableval ],
-    [ ENABLED_QT=no ]
-    )
-if test "$ENABLED_QT" = "yes"
-then
-    # Requires opensslextra and opensslall
-    if test "x$ENABLED_OPENSSLALL" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
-    then
-        ENABLED_OPENSSLALL="yes"
-        ENABLED_OPENSSLEXTRA="yes"
-        AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA -DOPENSSL_ALL -DHAVE_EX_DATA"
-    fi
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_QT -DWOLFSSL_ALLOW_TLSV10 -DSESSION_CERTS -DOPENSSL_NO_SSL2"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_SSLV3 -DWOLFSSL_KEY_GEN"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CUSTOM_CURVES -DHAVE_ECC_SECPR2 -DHAVE_ECC_SECPR3 -DHAVE_ECC_BRAINPOOL -DHAVE_ECC_KOBLITZ"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SEP"
 
-    # Requires OCSP make sure on
-    if test "x$ENABLED_OCSP" = "xno"
-    then
-        ENABLED_OCSP="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
-        AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
-    fi
-
-    # Requires PSK make sure on
-    if test "x$ENABLED_PSK" = "xno"
-    then
-       ENABLED_PSK="yes"
-    fi
-
-    # Requires DES3 make sure on
-    if test "x$ENABLED_DES3" = "xno"
-    then
-       ENABLED_DES3="yes"
-    fi
-
-    # Requires DES3 make sure on
-    if test "x$ENABLED_ARC4" = "xno"
-    then
-       ENABLED_ARC4="yes"
-    fi
-
-    # requires oldnames disabled
-    enable_oldnames=no
-fi
-
-# DSA
-AC_ARG_ENABLE([dsa],
-    [AS_HELP_STRING([--enable-dsa],[Enable DSA (default: disabled)])],
-    [ ENABLED_DSA=$enableval ],
-    [ ENABLED_DSA=no ]
-    )
-
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT"
-then
-    ENABLED_DSA="yes"
-fi
-
-if test "$ENABLED_DSA" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_DSA"
-fi
-
-AM_CONDITIONAL([BUILD_DSA], [test "x$ENABLED_DSA" = "xyes"])
 
 # ARC4
 AC_ARG_ENABLE([arc4],

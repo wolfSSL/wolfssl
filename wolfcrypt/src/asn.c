@@ -872,6 +872,8 @@ static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
         (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA))) || \
     (defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)) || \
     (defined(HAVE_ED25519) && \
+        (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA))) || \
+    (!defined(NO_DSA) && \
         (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)))
 
 /* Set the DER/BER encoding of the ASN.1 BIT_STRING header.
@@ -893,7 +895,7 @@ static word32 SetBitString(word32 len, byte unusedBits, byte* output)
 
     return idx;
 }
-#endif /* !NO_RSA || HAVE_ECC || HAVE_ED25519 */
+#endif /* !NO_RSA || HAVE_ECC || !NO_DSA */
 
 #ifdef ASN_BER_TO_DER
 /* Convert a BER encoding with indefinite length items to DER.
@@ -4180,7 +4182,7 @@ static WC_INLINE void FreeTmpDsas(byte** tmps, void* heap)
 
     (void)heap;
 }
-#ifndef HAVE_SELFTEST
+#if !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)
 /* Write a public DSA key to output */
 int SetDsaPublicKey(byte* output, DsaKey* key,
                            int outLen, int with_header)
@@ -4368,7 +4370,7 @@ int wc_DsaKeyToPublicDer(DsaKey* key, byte* output, word32 inLen)
 {
     return SetDsaPublicKey(output, key, inLen, 1);
 }
-#endif /*end if HAVE_SELFTEST */
+#endif /* !HAVE_SELFTEST && WOLFSSL_KEY_GEN */
 
 /* Convert private DsaKey key to DER format, write to output (inLen), 
 return bytes written */
@@ -9230,7 +9232,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     int         ret         = 0;
     int         sz          = (int)longSz;
     int         encrypted_key = 0;
+    #ifndef NO_DSA
     int         dsaFlag = 0;
+    #endif
     DerBuffer*  der;
     word32      algId = 0;
 
@@ -9272,11 +9276,6 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             header =  BEGIN_EDDSA_PRIV;     footer = END_EDDSA_PRIV;
         } else
 #endif
-#ifdef NO_DSA
-        if (header == BEGIN_DSA_PRIV) {
-            header = BEGIN_ENC_PRIV_KEY;    footer = END_ENC_PRIV_KEY;
-        }
-#endif
 #ifdef HAVE_CRL
         if (type == CRL_TYPE) {
             header =  BEGIN_CRL;        footer = END_CRL;
@@ -9292,8 +9291,10 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         return ASN_NO_PEM_HEADER;
     }
 
+#ifndef NO_DSA
     if (header == BEGIN_DSA_PRIV)
         dsaFlag = 1;
+#endif
 
     headerEnd += XSTRLEN(header);
 
