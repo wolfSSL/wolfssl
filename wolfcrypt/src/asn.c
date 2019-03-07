@@ -4366,7 +4366,7 @@ int SetDsaPublicKey(byte* output, DsaKey* key,
 
 /* Convert DSA Public key to DER format, write to output (inLen), return bytes
    written */
-int wc_DsaKeyToPublicDer(DsaKey* key, byte* output, word32 inLen)
+int DsaKeyToPublicDer(DsaKey* key, byte* output, word32 inLen)
 {
     return SetDsaPublicKey(output, key, inLen, 1);
 }
