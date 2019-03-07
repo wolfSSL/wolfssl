@@ -39,7 +39,7 @@
 
 /* fips declare of RsaPrivateKeyDecode @wc_fips */
 #if defined(HAVE_FIPS) && !defined(NO_RSA) && \
-	(!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
     #include <cyassl/ctaocrypt/rsa.h>
 #endif
 
@@ -204,12 +204,12 @@ enum ECC_TYPES
         ASN_PIV_CERT          = 0x0A,
         ASN_PIV_NONCE         = 0x0B,
         ASN_PIV_SIGNED_NONCE  = 0x0C,
-            
+
         ASN_PIV_TAG_CERT      = 0x70,
         ASN_PIV_TAG_CERT_INFO = 0x71,
         ASN_PIV_TAG_MSCUID    = 0x72,
         ASN_PIV_TAG_ERR_DET   = 0xFE,
-            
+
         /* certificate info masks */
         ASN_PIV_CERT_INFO_COMPRESSED = 0x03,
         ASN_PIV_CERT_INFO_ISX509     = 0x04,
@@ -294,7 +294,7 @@ enum Misc_ASN {
     MAX_OID_STRING_SZ   = 64,      /* Max string length representation of OID*/
 #endif
 #ifdef WOLFSSL_CERT_EXT
-    MAX_KID_SZ			= 45,	   /* Max encoded KID length (SHA-256 case) */
+    MAX_KID_SZ          = 45,      /* Max encoded KID length (SHA-256 case) */
     MAX_KEYUSAGE_SZ     = 18,      /* Max encoded Key Usage length */
     MAX_EXTKEYUSAGE_SZ  = 12 + (6 * (8 + 2)) +
                           CTC_MAX_EKU_OID_SZ, /* Max encoded ExtKeyUsage
@@ -1085,6 +1085,9 @@ WOLFSSL_LOCAL int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
                                       mp_int* s);
     WOLFSSL_LOCAL int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen,
                                        mp_int* r, mp_int* s);
+#endif
+#if defined HAVE_ECC && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+    WOLFSSL_API int EccEnumToNID(int n);
 #endif
 
 WOLFSSL_LOCAL void InitSignatureCtx(SignatureCtx* sigCtx, void* heap, int devId);

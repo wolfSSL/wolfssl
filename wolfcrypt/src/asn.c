@@ -4878,6 +4878,75 @@ static int GetKey(DecodedCert* cert)
 }
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if defined(HAVE_ECC)
+/* Converts ECC curve enum values in ecc_curve_id to the associated OpenSSL NID
+    value */
+WOLFSSL_API int EccEnumToNID(int n)
+{
+    WOLFSSL_ENTER("EccEnumToNID()");
+
+    switch(n) {
+        case ECC_SECP192R1:
+            return NID_X9_62_prime192v1;
+        case ECC_PRIME192V2:
+            return NID_X9_62_prime192v2;
+        case ECC_PRIME192V3:
+            return NID_X9_62_prime192v3;
+        case ECC_PRIME239V1:
+            return NID_X9_62_prime239v1;
+        case ECC_PRIME239V2:
+            return NID_X9_62_prime239v2;
+        case ECC_PRIME239V3:
+            return NID_X9_62_prime239v3;
+        case ECC_SECP256R1:
+            return NID_X9_62_prime256v1;
+        case ECC_SECP112R1:
+            return NID_secp112r1;
+        case ECC_SECP112R2:
+            return NID_secp112r2;
+        case ECC_SECP128R1:
+            return NID_secp128r1;
+        case ECC_SECP128R2:
+            return NID_secp128r2;
+        case ECC_SECP160R1:
+            return NID_secp160r1;
+        case ECC_SECP160R2:
+            return NID_secp160r2;
+        case ECC_SECP224R1:
+            return NID_secp224r1;
+        case ECC_SECP384R1:
+            return NID_secp384r1;
+        case ECC_SECP521R1:
+            return NID_secp521r1;
+        case ECC_SECP160K1:
+            return NID_secp160k1;
+        case ECC_SECP192K1:
+            return NID_secp192k1;
+        case ECC_SECP224K1:
+            return NID_secp224k1;
+        case ECC_SECP256K1:
+            return NID_secp256k1;
+        case ECC_BRAINPOOLP160R1:
+            return NID_brainpoolP160r1;
+        case ECC_BRAINPOOLP192R1:
+            return NID_brainpoolP192r1;
+        case ECC_BRAINPOOLP224R1:
+            return NID_brainpoolP224r1;
+        case ECC_BRAINPOOLP256R1:
+            return NID_brainpoolP256r1;
+        case ECC_BRAINPOOLP320R1:
+            return NID_brainpoolP320r1;
+        case ECC_BRAINPOOLP384R1:
+            return NID_brainpoolP384r1;
+        case ECC_BRAINPOOLP512R1:
+            return NID_brainpoolP512r1;
+        default:
+            WOLFSSL_MSG("NID not found");
+            return -1;
+    }
+}
+#endif /* HAVE_ECC */
+
 WOLFSSL_LOCAL int wc_OBJ_sn2nid(const char *sn)
 {
     static const struct {
@@ -4895,7 +4964,15 @@ WOLFSSL_LOCAL int wc_OBJ_sn2nid(const char *sn)
 
     int i;
     WOLFSSL_ENTER("OBJ_osn2nid");
+
+    for(i=0; sn2nid[i].sn != NULL; i++) {
+        if(XSTRNCMP(sn, sn2nid[i].sn, XSTRLEN(sn2nid[i].sn)) == 0) {
+            return sn2nid[i].nid;
+        }
+    }
+
     #ifdef HAVE_ECC
+    int eccEnum;
     /* Nginx uses this OpenSSL string. */
     if (XSTRNCMP(sn, "prime256v1", 10) == 0)
         sn = "SECP256R1";
@@ -4904,20 +4981,17 @@ WOLFSSL_LOCAL int wc_OBJ_sn2nid(const char *sn)
     /* find based on name and return NID */
     for (i = 0; i < ecc_sets[i].size; i++) {
         if (XSTRNCMP(sn, ecc_sets[i].name, ECC_MAXNAME) == 0) {
-            return ecc_sets[i].id;
+            eccEnum = ecc_sets[i].id;
+            /* Convert enum value in ecc_curve_id to OpenSSL NID */
+            return EccEnumToNID(eccEnum);
         }
     }
     #endif
 
-    for(i=0; sn2nid[i].sn != NULL; i++) {
-        if(XSTRNCMP(sn, sn2nid[i].sn, XSTRLEN(sn2nid[i].sn)) == 0) {
-            return sn2nid[i].nid;
-        }
-    }
 
     return NID_undef;
 }
-#endif
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 /* Routine for calculating hashId */
 int CalcHashId(const byte* data, word32 len, byte* hash)
