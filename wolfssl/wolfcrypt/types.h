@@ -382,13 +382,27 @@
 
         /* snprintf is used in asn.c for GetTimeString, PKCS7 test, and when
            debugging is turned on */
-        #if defined(NO_FILESYSTEM) && (defined(OPENSSL_EXTRA) || \
-               defined(HAVE_PKCS7)) && !defined(NO_STDIO_FILESYSTEM)
-            /* case where stdio is not included else where but is needed for
-             * snprintf */
-            #include <stdio.h>
+        #ifndef USE_WINDOWS_API
+            #if defined(NO_FILESYSTEM) && (defined(OPENSSL_EXTRA) || \
+                   defined(HAVE_PKCS7)) && !defined(NO_STDIO_FILESYSTEM)
+                /* case where stdio is not included else where but is needed
+                   for snprintf */
+                #include <stdio.h>
+            #endif
+            #define XSNPRINTF snprintf
+        #else
+            #if defined(_MSC_VER) && (_MSC_VER >= 1900)
+                /* Beginning with the UCRT in Visual Studio 2015 and
+                   Windows 10, snprintf is no longer identical to
+                   _snprintf. The snprintf function behavior is now
+                   C99 standard compliant. */
+                #define XSNPRINTF snprintf
+            #else
+                /* _snprintf only null terminates the string if return len
+                   is less than count */
+                #define XSNPRINTF _snprintf
+            #endif
         #endif
-        #define XSNPRINTF snprintf
 
         #if defined(WOLFSSL_CERT_EXT) || defined(HAVE_ALPN)
             /* use only Thread Safe version of strtok */
