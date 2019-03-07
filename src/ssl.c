@@ -31722,7 +31722,8 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_bio_PUBKEY(WOLFSSL_BIO* bio,
 }
 
 
-#ifndef NO_RSA
+#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_RSA)
 /* Uses the same format of input as wolfSSL_PEM_read_bio_PrivateKey but expects
  * the results to be an RSA key.
  *
@@ -31758,7 +31759,8 @@ WOLFSSL_RSA* wolfSSL_PEM_read_bio_RSAPrivateKey(WOLFSSL_BIO* bio,
     wolfSSL_EVP_PKEY_free(pkey);
     return local;
 }
-#endif /* !NO_RSA */
+#endif /* WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN */
+#endif /* OPENSSL_EXTRA || OPENSSL_ALL || !NO_RSA */
 
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && (!defined(NO_CERTS) && \
        !defined(NO_FILESYSTEM) && !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN))
