@@ -8080,6 +8080,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             if (cert->extAuthKeyIdSet)
                 cert->ca = GetCA(cm, cert->extAuthKeyId);
             if (cert->ca == NULL)
+                cert->ca = GetCA(cm, cert->extSubjKeyId);
+            if (cert->ca == NULL)
                 cert->ca = GetCAByName(cm, cert->issuerHash);
 
             /* OCSP Only: alt lookup using subject and pub key w/o sig check */
