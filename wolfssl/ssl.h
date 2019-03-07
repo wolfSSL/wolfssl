@@ -2664,8 +2664,10 @@ struct WOLFSSL_X509_NAME_ENTRY {
     int set;
     int size;
 };
-#endif /* OPENSSL_ALL || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
+WOLFSSL_API int wolfSSL_OBJ_sn2nid(const char *sn);
+
+#endif /* OPENSSL_ALL || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 
@@ -2693,7 +2695,6 @@ WOLFSSL_API const char *  wolfSSL_OBJ_nid2sn(int n);
 WOLFSSL_API int NIDToEccEnum(int n);
 WOLFSSL_API int EccEnumToNID(int n);
 WOLFSSL_API int wolfSSL_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o);
-WOLFSSL_API int wolfSSL_OBJ_sn2nid(const char *sn);
 
 WOLFSSL_API const char* wolfSSL_OBJ_nid2ln(int n);
 WOLFSSL_API int wolfSSL_OBJ_ln2nid(const char *s);
@@ -2747,9 +2748,7 @@ WOLFSSL_API int wolfSSL_X509_EXTENSION_get_critical(const WOLFSSL_X509_EXTENSION
 WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_X509_EXTENSION_get_data(WOLFSSL_X509_EXTENSION* ex);
 WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_new(void);
 WOLFSSL_API void wolfSSL_X509_EXTENSION_free(WOLFSSL_X509_EXTENSION* ext_to_free);
-
-
-#endif
+#endif /* WOLFSSL_QT */
 
 #endif /* NO_CERTS */
 

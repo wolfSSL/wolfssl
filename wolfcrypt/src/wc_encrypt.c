@@ -419,7 +419,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             derivedLen = 16;
             break;
     #endif
-    #ifdef WOLFSSL_AES_256
+    #if defined(WOLFSSL_AES_256) && !defined(NO_SHA)
         case PBE_AES256_CBC:
             switch(shaOid) {
                 case HMAC_SHA256_OID:
@@ -432,8 +432,8 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                     break;
             }
             break;
-    #endif
-    #ifdef WOLFSSL_AES_128
+    #endif /* WOLFSSL_AES_256 && !NO_SHA */
+    #if defined(WOLFSSL_AES_128) && !defined(NO_SHA)
         case PBE_AES128_CBC:
             switch(shaOid) {
                 case HMAC_SHA256_OID:
@@ -446,7 +446,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                     break;
             }
             break;
-    #endif
+    #endif /* WOLFSSL_AES_128 && !NO_SHA */
         default:
             WOLFSSL_MSG("Unknown/Unsupported encrypt/decrypt id");
             (void)shaOid;
