@@ -10111,6 +10111,14 @@ int rsa_no_pad_test(void)
         || out == NULL || plain == NULL
     #endif
     ) {
+        /* In non-async case safe to assume tmp failed to malloc, out
+         * and plain are both stack, no need to check. In the event of
+         * async any one may have triggered entry, check all three */
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        if (tmp != NULL) XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (out != NULL) FREE_VAR(out, HEAP_HINT);
+        if (plain != NULL) FREE_VAR(plain, HEAP_HINT);
+    #endif
         return -6900;
     }
 
