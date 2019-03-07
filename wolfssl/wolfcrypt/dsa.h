@@ -18,7 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
-
 /*!
     \file wolfssl/wolfcrypt/dsa.h
 */
@@ -42,6 +41,7 @@
 #define DsaPrivateKeyDecode wc_DsaPrivateKeyDecode
 #define DsaKeyToDer wc_DsaKeyToDer
 #define SetDsaPublicKey wc_SetDsaPublicKey
+#define DsaKeyToPublicDer wc_DsaKeyToPublicDer
 
 #ifdef __cplusplus
     extern "C" {

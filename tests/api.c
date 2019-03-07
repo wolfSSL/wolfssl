@@ -13069,6 +13069,7 @@ static int test_wc_DsaKeyToDer (void)
 
 } /* END test_wc_DsaKeyToDer */
 
+
 /*
  *  Testing wc_DsaKeyToPublicDer()
  *  (indirectly testing setDsaPublicKey())
@@ -13076,6 +13077,7 @@ static int test_wc_DsaKeyToDer (void)
 static int test_wc_DsaKeyToPublicDer(void)
 {
     int         ret = 0;
+#ifndef HAVE_SELFTEST
 #if !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN)
     DsaKey  genKey;
     WC_RNG  rng;
@@ -13130,11 +13132,11 @@ static int test_wc_DsaKeyToPublicDer(void)
 
     wc_FreeDsaKey(&genKey);
 
-#endif
+#endif /* !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN) */
+#endif /* HAVE_SELFTEST */
     return ret;
 
 } /* END test_wc_DsaKeyToPublicDer */
-
 
 /*
  * Testing wc_DsaImportParamsRaw()
@@ -18743,9 +18745,9 @@ static void test_wolfSSL_PEM_bio_RSAKey(void)
          !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_CERTS) */
 }
 
-
 static void test_wolfSSL_PEM_bio_DSAKey(void)
 {
+#ifndef HAVE_SELFTEST
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_CERTS) &&\
     defined(WOLFSSL_KEY_GEN) && !defined(NO_FILESYSTEM) && !defined(NO_DSA)
     DSA* dsa = NULL;
@@ -18792,6 +18794,7 @@ static void test_wolfSSL_PEM_bio_DSAKey(void)
 #endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
          !defined(NO_CERTS) && defined(WOLFSSL_KEY_GEN) && \
          !defined(NO_FILESYSTEM) && !defined(NO_DSA) */
+#endif /* HAVE_SELFTEST */
 }
 
 
