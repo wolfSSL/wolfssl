@@ -124,11 +124,6 @@ static int loggingEnabled = 0;
 static struct log mynewt_log;
 #endif /* WOLFSSL_APACHE_MYNEWT */
 
-#ifdef _MSC_VER
-/* 4996 warning to use MS extensions e.g., sprintf_s instead of XSPRINTF */
-#pragma warning(disable: 4996)
-#endif /* _MSC_VER */
-
 #endif /* DEBUG_WOLFSSL */
 
 
