@@ -10111,7 +10111,7 @@ int rsa_no_pad_test(void)
         || out == NULL || plain == NULL
     #endif
     ) {
-        return -6900;
+        ERROR_OUT(-6900, exit_rsa_nopadding);
     }
 
 #ifdef USE_CERT_BUFFERS_1024
@@ -10268,6 +10268,9 @@ int rsa_no_pad_test(void)
     ret = 0;
 
 exit_rsa_nopadding:
+    XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    FREE_VAR(out, HEAP_HINT);
+    FREE_VAR(plain, HEAP_HINT);
     wc_FreeRsaKey(&key);
     wc_FreeRng(&rng);
 
