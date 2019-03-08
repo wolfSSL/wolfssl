@@ -7124,15 +7124,15 @@ int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
     const byte* input;
 
     WOLFSSL_ENTER("wolfSSL_X509_get_ext_count()");
-    if(passedCert == NULL){
+    if (passedCert == NULL) {
         WOLFSSL_MSG("\tNot passed a certificate");
-        return BAD_FUNC_ARG;
+        return WOLFSSL_FAILURE;
     }
 
     rawCert = wolfSSL_X509_get_der((WOLFSSL_X509*)passedCert, &outSz);
     InitDecodedCert( &cert, rawCert, (word32)outSz, 0);
 
-    if (ParseCert(&cert, CA_TYPE, NO_VERIFY, NULL) < 0){
+    if (ParseCert(&cert, CA_TYPE, NO_VERIFY, NULL) < 0) {
         WOLFSSL_MSG("\tCertificate parsing failed");
         return WOLFSSL_FAILURE;
     }
@@ -7140,34 +7140,38 @@ int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
     input = cert.extensions;
     sz = cert.extensionsSz;
 
-    if (input == NULL || sz == 0)
+    if (input == NULL || sz == 0) {
+        FreeDecodedCert(&cert);
         return WOLFSSL_FAILURE;
+    }
 
     if (input[idx++] != ASN_EXTENSIONS) {
         WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
-        return ASN_PARSE_E;
+        FreeDecodedCert(&cert);
+        return WOLFSSL_FAILURE;
     }
 
     if (GetLength(input, &idx, &length, sz) < 0) {
         WOLFSSL_MSG("\tfail: invalid length");
-        return ASN_PARSE_E;
+        FreeDecodedCert(&cert);
+        return WOLFSSL_FAILURE;
     }
 
     if (GetSequence(input, &idx, &length, sz) < 0) {
         WOLFSSL_MSG("\tfail: should be a SEQUENCE (1)");
-        return ASN_PARSE_E;
+        FreeDecodedCert(&cert);
+        return WOLFSSL_FAILURE;
     }
 
     while (idx < (word32)sz) {
         if (GetSequence(input, &idx, &length, sz) < 0) {
             WOLFSSL_MSG("\tfail: should be a SEQUENCE");
-            return ASN_PARSE_E;
+            FreeDecodedCert(&cert);
+            return WOLFSSL_FAILURE;
         }
-
         idx += length;
         extCount++;
     }
-
     FreeDecodedCert(&cert);
     return extCount;
 }
@@ -7179,7 +7183,10 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_new(void)
     WOLFSSL_X509_EXTENSION* newExt;
     newExt = (WOLFSSL_X509_EXTENSION*)XMALLOC(sizeof(WOLFSSL_X509_EXTENSION),
               NULL, DYNAMIC_TYPE_X509_EXT);
-    XMEMSET(newExt, 0, sizeof(WOLFSSL_X509_EXTENSION));
+    if (newExt) {
+        XMEMSET(newExt, 0, sizeof(WOLFSSL_X509_EXTENSION));
+    }
+
     return newExt;
 }
 
@@ -7229,48 +7236,78 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* x509, int loc)
     }
 
     ext = wolfSSL_X509_EXTENSION_new();
+    if (ext == NULL) {
+        WOLFSSL_MSG("\tX509_EXTENSION_new() failed");
+        return NULL;
+    }
 
     rawCert = wolfSSL_X509_get_der((WOLFSSL_X509*)x509, &outSz);
+    if (rawCert == NULL) {
+        WOLFSSL_MSG("\tX509_get_der() failed");
+        wolfSSL_X509_EXTENSION_free(ext);
+        return NULL;
+    }
+
     InitDecodedCert( &cert, rawCert, (word32)outSz, 0);
 
-    if (ParseCert(&cert, CA_TYPE, NO_VERIFY, NULL) < 0){
+    if (ParseCert(&cert, CA_TYPE, NO_VERIFY, NULL) < 0) {
         WOLFSSL_MSG("\tCertificate parsing failed");
+        wolfSSL_X509_EXTENSION_free(ext);
+        return NULL;
     }
 
     input = cert.extensions;
     sz = cert.extensionsSz;
 
-    if (input == NULL || sz == 0){
+    if (input == NULL || sz == 0) {
         WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
+        wolfSSL_X509_EXTENSION_free(ext);
+        FreeDecodedCert(&cert);
+        return NULL;
     }
 
     if (input[idx++] != ASN_EXTENSIONS) {
         WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
+        wolfSSL_X509_EXTENSION_free(ext);
+        FreeDecodedCert(&cert);
+        return NULL;
     }
 
     if (GetLength(input, &idx, &length, sz) < 0) {
         WOLFSSL_MSG("\tfail: invalid length");
+        wolfSSL_X509_EXTENSION_free(ext);
+        FreeDecodedCert(&cert);
+        return NULL;
     }
 
     if (GetSequence(input, &idx, &length, sz) < 0) {
         WOLFSSL_MSG("\tfail: should be a SEQUENCE (1)");
+        wolfSSL_X509_EXTENSION_free(ext);
+        FreeDecodedCert(&cert);
+        return NULL;
     }
 
     while (idx < (word32)sz) {
         oid = 0;
 
         if (GetSequence(input, &idx, &length, sz) < 0) {
-             WOLFSSL_MSG("\tfail: should be a SEQUENCE");
+            WOLFSSL_MSG("\tfail: should be a SEQUENCE");
+            wolfSSL_X509_EXTENSION_free(ext);
+            FreeDecodedCert(&cert);
+            return NULL;
         }
 
         tmpIdx = idx;
-        if ((ret = GetObjectId(input, &idx, &oid, oidCertExtType, sz)) < 0)
-        {
+        ret = GetObjectId(input, &idx, &oid, oidCertExtType, sz);
+        if (ret < 0) {
             WOLFSSL_MSG("\tfail: OBJECT ID");
+            wolfSSL_X509_EXTENSION_free(ext);
+            FreeDecodedCert(&cert);
+            return NULL;
         }
         idx = tmpIdx;
 
-        if (extCount == loc){
+        if (extCount == loc) {
 
             /* Check if extension has been set */
             isSet = wolfSSL_X509_ext_isSet_by_NID((WOLFSSL_X509*)x509, oid);
@@ -7569,7 +7606,7 @@ const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
     WOLFSSL_v3_ext_method method;
 
     WOLFSSL_ENTER("wolfSSL_X509V3_EXT_get");
-    if(ex ==NULL){
+    if (ex == NULL) {
         WOLFSSL_MSG("Passed a NULL X509_EXTENSION*");
         return NULL;
     }
@@ -7580,7 +7617,7 @@ const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
     method.i2r = NULL;
 
     nid = ex->obj->nid;
-    if(nid <= 0){
+    if (nid <= 0) {
         WOLFSSL_MSG("Failed to get nid from passed extension object");
         return NULL;
     }
@@ -7592,27 +7629,22 @@ const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
             method.i2s = (X509V3_EXT_I2S)wolfSSL_i2s_ASN1_STRING;
             break;
         case NID_key_usage:
-            /* TODO: set i2v in method */
+            WOLFSSL_MSG("i2v function not yet implemented for Key Usage");
             break;
         case NID_authority_key_identifier:
-            /* TODO: set i2v in method
-                see openssl crypto/x509v3/v3_akey.c for reference */
+            WOLFSSL_MSG("i2v function not yet implemented for Auth Key Id");
             break;
         case NID_info_access:
-            /* TODO: set i2v in method
-                see openssl crypto/x509v3/v3_info.c for reference */
+            WOLFSSL_MSG("i2v function not yet implemented for Info Access");
             break;
         case NID_ext_key_usage:
-            /* TODO: set i2v in method
-                see openssl crypto/x509v3/v3_extku.c for reference */
+            WOLFSSL_MSG("i2v function not yet implemented for Ext Key Usage");
             break;
         case NID_certificate_policies:
-            /* TODO: set r2i in method
-                see openssl crypto/x509v3/v3_cpols.c for reference */
+            WOLFSSL_MSG("r2i function not yet implemented for Cert Policies");
             break;
         case NID_crl_distribution_points:
-            /* TODO: set v2i in method
-                see openssl crypto/x509v3/v3_crld.c for reference */
+            WOLFSSL_MSG("r2i function not yet implemented for CRL Dist Points");
             break;
         default:
             /* If extension type is unknown, return NULL -- QT makes call to
@@ -7664,7 +7696,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
         /* basicConstraints */
         case (NID_basic_constraints):
             WOLFSSL_MSG("basicConstraints");
-            /* Freeing BASIC_CONSTRAINTS is caller's responsibility */
+            /* Allocate new BASIC_CONSTRAINTS structure */
             bc = (WOLFSSL_BASIC_CONSTRAINTS*)\
                   XMALLOC(sizeof(WOLFSSL_BASIC_CONSTRAINTS), NULL,
                   DYNAMIC_TYPE_X509_EXT);
@@ -7672,6 +7704,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 WOLFSSL_MSG("Failed to malloc basic constraints");
                 return NULL;
             }
+            /* Copy pathlen and CA into BASIC_CONSTRAINTS from object */
             bc->ca = object->ca;
             if (object->pathlen->length > 0) {
                 bc->pathlen = wolfSSL_ASN1_INTEGER_new();
@@ -35584,7 +35617,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
     #endif
 
-#endif /* OPENSSL_ALL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
+#endif /* OPENSSL_EXTRA || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
 #endif /* OPENSSL_EXTRA */
 
 #ifdef OPENSSL_EXTRA

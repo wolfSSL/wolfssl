@@ -21731,7 +21731,7 @@ static void test_wolfSSL_OBJ_nid2sn(void){
     };
 
     struct test_NID testSuite[]={
-        //HAVE_ECC tests
+        /* HAVE_ECC tests */
         {"NID_X9_62_prime192v1", "SECP192R1", 409},\
         {"NID_X9_62_prime192v2", "PRIME192V2", 410},\
         {"NID_X9_62_prime192v3", "PRIME192V3", 411},\
@@ -21758,7 +21758,7 @@ static void test_wolfSSL_OBJ_nid2sn(void){
         {"NID_brainpoolP320r1", "BRAINPOOLP320R1", 929},\
         {"NID_brainpoolP384r1", "BRAINPOOLP384R1", 931},\
         {"NID_brainpoolP512r1", "BRAINPOOLP512R1", 933},\
-        //end of HAVE_ECC tests
+        /* end of HAVE_ECC tests */
         {"NID_commonName", "CN", 3},\
         {"NID_countryName", "C", 6},\
         {"NID_localityName", "L", 7},\
@@ -21839,8 +21839,8 @@ static void test_wolfSSL_X509_get_ext_count(){
     printf(resultFmt, ret == 3 ? passed : failed);
 
     printf(testingFmt, "wolfSSL_X509_get_ext_count() NULL argument");
-    AssertIntEQ((ret = wolfSSL_X509_get_ext_count(NULL)), BAD_FUNC_ARG);
-    printf(resultFmt, ret == BAD_FUNC_ARG ? passed : failed);
+    AssertIntEQ((ret = wolfSSL_X509_get_ext_count(NULL)), WOLFSSL_FAILURE);
+    printf(resultFmt, ret == WOLFSSL_FAILURE ? passed : failed);
 
     wolfSSL_X509_free(x509);
 #endif
@@ -21974,7 +21974,7 @@ static void test_wolfSSL_ASN1_STRING_to_UTF8(void){
     wolfSSL_X509_free(x509);
     XFREE(actual_output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 }
-#endif //!defined(NO_ASN)
+#endif /* !defined(NO_ASN) */
 
 static void test_wolfSSL_X509_EXTENSION_get_data(void)
 {
