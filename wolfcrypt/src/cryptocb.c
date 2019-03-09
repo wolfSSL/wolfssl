@@ -19,7 +19,7 @@
  */
 
 /* This framework provides a central place for crypto hardware integration
-   using the devId scheme. If not supported return `NOT_COMPILED_IN`. */
+   using the devId scheme. If not supported return `CRYPTOCB_UNAVAILABLE`. */
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -65,6 +65,15 @@ static CryptoCb* wc_CryptoCb_FindDeviceByIndex(int startIdx)
     return NULL;
 }
 
+static WC_INLINE int wc_CryptoCb_TranslateErrorCode(int ret)
+{
+    if (ret == NOT_COMPILED_IN) {
+        /* backwards compatibility for older NOT_COMPILED_IN syntax */
+        ret = CRYPTOCB_UNAVAILABLE;
+    }
+    return ret;
+}
+
 void wc_CryptoCb_Init(void)
 {
     int i;
@@ -103,7 +112,7 @@ void wc_CryptoCb_UnRegisterDevice(int devId)
 int wc_CryptoCb_Rsa(const byte* in, word32 inLen, byte* out,
     word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = CRYPTOCB_UNAVAILABLE;
     CryptoCb* dev;
 
     if (key == NULL)
@@ -127,13 +136,13 @@ int wc_CryptoCb_Rsa(const byte* in, word32 inLen, byte* out,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return ret;
+    return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
 #ifdef WOLFSSL_KEY_GEN
 int wc_CryptoCb_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = CRYPTOCB_UNAVAILABLE;
     CryptoCb* dev;
 
     if (key == NULL)
@@ -154,7 +163,7 @@ int wc_CryptoCb_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return ret;
+    return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif
 #endif /* !NO_RSA */
@@ -162,7 +171,7 @@ int wc_CryptoCb_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #ifdef HAVE_ECC
 int wc_CryptoCb_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = CRYPTOCB_UNAVAILABLE;
     CryptoCb* dev;
 
     if (key == NULL)
@@ -183,13 +192,13 @@ int wc_CryptoCb_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId)
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return ret;
+    return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
 int wc_CryptoCb_Ecdh(ecc_key* private_key, ecc_key* public_key,
     byte* out, word32* outlen)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = CRYPTOCB_UNAVAILABLE;
     CryptoCb* dev;
 
     if (private_key == NULL)
@@ -210,13 +219,13 @@ int wc_CryptoCb_Ecdh(ecc_key* private_key, ecc_key* public_key,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return ret;
+    return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
 int wc_CryptoCb_EccSign(const byte* in, word32 inlen, byte* out,
     word32 *outlen, WC_RNG* rng, ecc_key* key)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = CRYPTOCB_UNAVAILABLE;
     CryptoCb* dev;
 
     if (key == NULL)
@@ -239,13 +248,13 @@ int wc_CryptoCb_EccSign(const byte* in, word32 inlen, byte* out,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return ret;
+    return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
 int wc_CryptoCb_EccVerify(const byte* sig, word32 siglen,
     const byte* hash, word32 hashlen, int* res, ecc_key* key)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = CRYPTOCB_UNAVAILABLE;
     CryptoCb* dev;
 
     if (key == NULL)
@@ -268,7 +277,7 @@ int wc_CryptoCb_EccVerify(const byte* sig, word32 siglen,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return ret;
+    return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* HAVE_ECC */
 
@@ -280,7 +289,7 @@ int wc_CryptoCb_AesGcmEncrypt(Aes* aes, byte* out,
                                byte* authTag, word32 authTagSz,
                                const byte* authIn, word32 authInSz)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = CRYPTOCB_UNAVAILABLE;
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -312,7 +321,7 @@ int wc_CryptoCb_AesGcmEncrypt(Aes* aes, byte* out,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return ret;
+    return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
 int wc_CryptoCb_AesGcmDecrypt(Aes* aes, byte* out,
@@ -321,7 +330,7 @@ int wc_CryptoCb_AesGcmDecrypt(Aes* aes, byte* out,
                                const byte* authTag, word32 authTagSz,
                                const byte* authIn, word32 authInSz)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = CRYPTOCB_UNAVAILABLE;
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -353,7 +362,7 @@ int wc_CryptoCb_AesGcmDecrypt(Aes* aes, byte* out,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return ret;
+    return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* HAVE_AESGCM */
 
@@ -361,7 +370,7 @@ int wc_CryptoCb_AesGcmDecrypt(Aes* aes, byte* out,
 int wc_CryptoCb_AesCbcEncrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = CRYPTOCB_UNAVAILABLE;
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -388,13 +397,13 @@ int wc_CryptoCb_AesCbcEncrypt(Aes* aes, byte* out,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return ret;
+    return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
 int wc_CryptoCb_AesCbcDecrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = CRYPTOCB_UNAVAILABLE;
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -420,7 +429,7 @@ int wc_CryptoCb_AesCbcDecrypt(Aes* aes, byte* out,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return ret;
+    return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* HAVE_AES_CBC */
 #endif /* !NO_AES */
@@ -429,7 +438,7 @@ int wc_CryptoCb_AesCbcDecrypt(Aes* aes, byte* out,
 int wc_CryptoCb_ShaHash(wc_Sha* sha, const byte* in,
     word32 inSz, byte* digest)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = CRYPTOCB_UNAVAILABLE;
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -454,7 +463,7 @@ int wc_CryptoCb_ShaHash(wc_Sha* sha, const byte* in,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return ret;
+    return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* !NO_SHA */
 
@@ -462,7 +471,7 @@ int wc_CryptoCb_ShaHash(wc_Sha* sha, const byte* in,
 int wc_CryptoCb_Sha256Hash(wc_Sha256* sha256, const byte* in,
     word32 inSz, byte* digest)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = CRYPTOCB_UNAVAILABLE;
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -487,7 +496,7 @@ int wc_CryptoCb_Sha256Hash(wc_Sha256* sha256, const byte* in,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return ret;
+    return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* !NO_SHA256 */
 
@@ -495,7 +504,7 @@ int wc_CryptoCb_Sha256Hash(wc_Sha256* sha256, const byte* in,
 int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in, word32 inSz,
     byte* digest)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = CRYPTOCB_UNAVAILABLE;
     CryptoCb* dev;
 
     if (hmac == NULL)
@@ -516,14 +525,14 @@ int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in, word32 inSz,
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return ret;
+    return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* !NO_HMAC */
 
 #ifndef WC_NO_RNG
 int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = CRYPTOCB_UNAVAILABLE;
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -546,12 +555,12 @@ int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz)
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return ret;
+    return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
 int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = CRYPTOCB_UNAVAILABLE;
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -567,7 +576,7 @@ int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz)
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
     }
 
-    return ret;
+    return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* !WC_NO_RNG */
 
