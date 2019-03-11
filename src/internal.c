@@ -9593,7 +9593,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         /* compare against previous time */
                         if (XMEMCMP(args->dCert->subjectHash,
                                     ssl->secure_renegotiation->subject_hash,
-                                    WC_SHA_DIGEST_SIZE) != 0) {
+                                    KEYID_SIZE) != 0) {
                             WOLFSSL_MSG(
                                 "Peer sent different cert during scr, fatal");
                             args->fatal = 1;
@@ -9604,7 +9604,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     /* cache peer's hash */
                     if (args->fatal == 0) {
                         XMEMCPY(ssl->secure_renegotiation->subject_hash,
-                                args->dCert->subjectHash, WC_SHA_DIGEST_SIZE);
+                                args->dCert->subjectHash, KEYID_SIZE);
                     }
                 }
             #endif /* HAVE_SECURE_RENEGOTIATION */
@@ -15817,9 +15817,6 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case SESSION_TICKET_EXPECT_E:
         return "Session Ticket Error";
-
-    case SCR_DIFFERENT_CERT_E:
-        return "Peer sent different cert during SCR";
 
     case SESSION_SECRET_CB_E:
         return "Session Secret Callback Error";
@@ -23985,6 +23982,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ret = HandleTlsResumption(ssl, bogusID, &clSuites);
             if (ret != 0)
                 return ret;
+
+            #ifdef HAVE_SECURE_RENEGOTIATION
+            if (ssl->secure_renegotiation &&
+                    ssl->secure_renegotiation->enabled &&
+                    IsEncryptionOn(ssl, 0))
+                ssl->secure_renegotiation->startScr = 1;
+            #endif
+
             if (ssl->options.clientState == CLIENT_KEYEXCHANGE_COMPLETE) {
                 WOLFSSL_LEAVE("DoClientHello", ret);
                 WOLFSSL_END(WC_FUNC_CLIENT_HELLO_DO);
