@@ -19,8 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -832,9 +830,9 @@ static int InitSha256(wc_Sha256* sha256)
     #ifdef WOLF_CRYPTO_CB
         if (sha256->devId != INVALID_DEVID) {
             int ret = wc_CryptoCb_Sha256Hash(sha256, data, len, NULL);
-            if (ret != NOT_COMPILED_IN)
+            if (ret != CRYPTOCB_UNAVAILABLE)
                 return ret;
-            /* fall-through on not compiled in */
+            /* fall-through when unavailable */
         }
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256)
@@ -979,9 +977,9 @@ static int InitSha256(wc_Sha256* sha256)
     #ifdef WOLF_CRYPTO_CB
         if (sha256->devId != INVALID_DEVID) {
             ret = wc_CryptoCb_Sha256Hash(sha256, NULL, 0, hash);
-            if (ret != NOT_COMPILED_IN)
+            if (ret != CRYPTOCB_UNAVAILABLE)
                 return ret;
-            /* fall-through on not compiled in */
+            /* fall-through when unavailable */
         }
     #endif
 

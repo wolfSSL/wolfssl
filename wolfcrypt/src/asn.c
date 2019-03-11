@@ -4564,9 +4564,9 @@ int CalcHashId(const byte* data, word32 len, byte* hash)
 #ifdef WOLF_CRYPTO_CB
     /* try to use a registered crypto callback */
     ret = wc_CryptoCb_Sha256Hash(NULL, data, len, hash);
-    if (ret != NOT_COMPILED_IN)
+    if (ret != CRYPTOCB_UNAVAILABLE)
         return ret;
-    /* for not compiled in case, use software method below */
+    /* fall-through when unavailable */
 #endif
 
 #if defined(NO_SHA) && !defined(NO_SHA256)

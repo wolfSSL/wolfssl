@@ -840,9 +840,9 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 #ifdef WOLF_CRYPTO_CB
     if (rng->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_RandomBlock(rng, output, sz);
-        if (ret != NOT_COMPILED_IN)
+        if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
-        /* fall-through on not compiled in */
+        /* fall-through when unavailable */
     }
 #endif
 
@@ -1490,8 +1490,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     if (os != NULL && os->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_RandomSeed(os, output, sz);
-        if (ret != NOT_COMPILED_IN)
+        if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
+        /* fall-through when unavailable */
     }
 #endif
 
@@ -2226,9 +2227,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #ifdef WOLF_CRYPTO_CB
     if (os != NULL && os->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_RandomSeed(os, output, sz);
-        if (ret != NOT_COMPILED_IN)
+        if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
-        /* fall-through on not compiled in */
+        /* fall-through when unavailable */
         ret = 0; /* reset error code */
     }
 #endif

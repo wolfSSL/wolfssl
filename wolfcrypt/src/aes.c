@@ -2914,9 +2914,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #ifdef WOLF_CRYPTO_CB
         if (aes->devId != INVALID_DEVID) {
             int ret = wc_CryptoCb_AesCbcEncrypt(aes, out, in, sz);
-            if (ret != NOT_COMPILED_IN)
+            if (ret != CRYPTOCB_UNAVAILABLE)
                 return ret;
-            /* fall-through on not compiled in */
+            /* fall-through when unavailable */
         }
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
@@ -3013,9 +3013,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #ifdef WOLF_CRYPTO_CB
         if (aes->devId != INVALID_DEVID) {
             int ret = wc_CryptoCb_AesCbcDecrypt(aes, out, in, sz);
-            if (ret != NOT_COMPILED_IN)
+            if (ret != CRYPTOCB_UNAVAILABLE)
                 return ret;
-            /* fall-through on not compiled in */
+            /* fall-through when unavailable */
         }
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
@@ -5452,9 +5452,9 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (aes->devId != INVALID_DEVID) {
         int ret = wc_CryptoCb_AesGcmEncrypt(aes, out, in, sz, iv, ivSz,
             authTag, authTagSz, authIn, authInSz);
-        if (ret != NOT_COMPILED_IN)
+        if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
-        /* fall-through on not compiled in */
+        /* fall-through when unavailable */
     }
 #endif
 
@@ -5868,9 +5868,9 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (aes->devId != INVALID_DEVID) {
         int ret = wc_CryptoCb_AesGcmDecrypt(aes, out, in, sz, iv, ivSz,
             authTag, authTagSz, authIn, authInSz);
-        if (ret != NOT_COMPILED_IN)
+        if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
-        /* fall-through on not compiled in */
+        /* fall-through when unavailable */
     }
 #endif
 
