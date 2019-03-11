@@ -8079,7 +8079,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     #ifndef NO_SKID
             if (cert->extAuthKeyIdSet)
                 cert->ca = GetCA(cm, cert->extAuthKeyId);
-            if (cert->ca == NULL)
+            if (cert->ca == NULL && cert->extSubjKeyIdSet)
                 cert->ca = GetCA(cm, cert->extSubjKeyId);
             if (cert->ca == NULL)
                 cert->ca = GetCAByName(cm, cert->issuerHash);
