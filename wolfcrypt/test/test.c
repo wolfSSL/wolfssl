@@ -9110,7 +9110,7 @@ int decodedCertCache_test(void)
         file = XFOPEN(certDerFile, "rb");
         if (file != NULL) {
             derSz = XFREAD(der, 1, FOURK_BUF, file);
-            fclose(file);
+            XFCLOSE(file);
         }
         else
             ret = -1;
