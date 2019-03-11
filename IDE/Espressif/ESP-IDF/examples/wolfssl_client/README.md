@@ -10,11 +10,11 @@ The Example contains of wolfSSL tls client demo.
           Target host ip address : the host that you want to connect to.(default is 127.0.0.1)
     
     Note: the example program uses 11111 port. If you want to use different port  
-        , you need to modifiy DEFAULT_PORT definition in the code.
+        , you need to modify DEFAULT_PORT definition in the code.
 
 When you want to test the wolfSSL client
 
-1. "make falsh monitor" to load the firmware and see the context  
+1. "make flash monitor" to load the firmware and see the context  
 2. You can use <wolfssl>/examples/server/server program for test.  
 
          e.g. Launch ./examples/server/server -v 4 -b -i

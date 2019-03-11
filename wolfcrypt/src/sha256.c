@@ -516,7 +516,6 @@ static int InitSha256(wc_Sha256* sha256)
     }
     int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     {
-        WOLFSSL_ENTER("wc_InitSha256_ex");
         int ret = 0;
 
         if (sha256 == NULL)
@@ -529,7 +528,6 @@ static int InitSha256(wc_Sha256* sha256)
 
         ret = InitSha256(sha256);
 
-        WOLFSSL_LEAVE("wc_InitSha256_ex", ret);
         return ret;
     }
 #else

@@ -242,14 +242,18 @@
     #define TFM_TIMING_RESISTANT
     #define ECC_TIMING_RESISTANT
     #define WC_RSA_BLINDING
+
 #if defined(WOLFSSL_ESPWROOM32) || defined(WOLFSSL_ESPWROOM32SE)
    #ifndef NO_ESP32WROOM32_CRYPT
         #define WOLFSSL_ESP32WROOM32_CRYPT
-    #endif
+        #if defined(ESP32_USE_RSA_PRIMITIVE) && \
+            !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+            #define WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI
+            #define USE_FAST_MATH
+            #define WOLFSSL_SMALL_STACK
+        #endif
+   #endif
 #endif
-#if !defined(WOLFSSL_USER_SETTINGS)
-    #define HAVE_ECC
-#endif /* !WOLFSSL_USER_SETTINGS */
 #endif /* WOLFSSL_ESPIDF */
 
 #if defined(HAVE_LWIP_NATIVE) /* using LwIP native TCP socket */

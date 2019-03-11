@@ -54,6 +54,16 @@
     /* #define CUSTOM_SLOT_ALLOCATION                              */
 #endif
 
+/* rsa primitive specific definition */
+#if defined(WOLFSSL_ESPWROOM32) || defined(WOLFSSL_ESPWROOM32SE)
+    /* Define USE_FAST_MATH and SMALL_STACK                        */
+    #define ESP32_USE_RSA_PRIMITIVE
+    /* threshold for performance adjustment for hw primitive use   */
+    /* X bits of G^X mod P greater than                            */ 
+    #define EPS_RSA_EXPT_XBTIS           36
+    /* X and Y of X * Y mod P greater than                         */
+    #define ESP_RSA_MULM_BITS            2000
+#endif
 
 /* debug options */
 /* #define DEBUG_WOLFSSL */
@@ -70,3 +80,4 @@
 /* #define NO_ESP32WROOM32_CRYPT */
 /* #define NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH*/
 /* #define NO_WOLFSSL_ESP32WROOM32_CRYPT_AES */
+/* #define NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI */

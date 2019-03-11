@@ -31,6 +31,22 @@ Including the following examples:
 ## Build examples
  1. See README in each example folder
 
+## Benchmark
+w/o atecc608a
+```
+ECC      256 key gen         4 ops took 1.092 sec, avg 273.000 ms, 3.663 ops/sec
+ECDHE    256 agree           4 ops took 1.091 sec, avg 272.750 ms, 3.666 ops/sec
+ECDSA    256 sign            4 ops took 1.102 sec, avg 275.500 ms, 3.630 ops/sec
+ECDSA    256 verify          2 ops took 1.091 sec, avg 545.500 ms, 1.833 ops/sec
+```
+w/ atecc608a
+```
+ECC      256 key gen        11 ops took 1.074 sec, avg 97.636 ms, 10.242 ops/sec
+ECDHE    256 agree           6 ops took 1.068 sec, avg 178.000 ms, 5.618 ops/sec
+ECDSA    256 sign            8 ops took 1.009 sec, avg 126.125 ms, 7.929 ops/sec
+ECDSA    256 verify         14 ops took 1.079 sec, avg 77.071 ms, 12.975 ops/sec
+```
+
 ## Support
  For question please email [support@wolfssl.com]
 

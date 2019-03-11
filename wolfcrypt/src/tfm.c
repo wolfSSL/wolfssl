@@ -203,6 +203,12 @@ int fp_mul(fp_int *A, fp_int *B, fp_int *C)
     int   ret = 0;
     int   y, yy, oldused;
 
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
+   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+  ret = esp_mp_mul(A, B, C);
+  if(ret != -2) return ret;
+#endif
+
     oldused = C->used;
 
     y  = MAX(A->used, B->used);
@@ -1824,10 +1830,23 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 
 int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 {
+
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
+   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+   int x = fp_count_bits (X);
+#endif
+
    /* prevent overflows */
    if (P->used > (FP_SIZE/2)) {
       return FP_VAL;
    }
+
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
+   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+   if(x > EPS_RSA_EXPT_XBTIS) {
+      return esp_mp_exptmod(G, X, x, P, Y);
+   }
+#endif
 
    if (X->sign == FP_NEG) {
 #ifndef POSITIVE_EXP_ONLY  /* reduce stack if assume no negatives */
@@ -3001,7 +3020,16 @@ int wolfcrypt_mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
 int mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
 #endif
 {
-  return fp_mulmod(a, b, c, d);
+ #if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
+    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+    int A = fp_count_bits (a);
+    int B = fp_count_bits (b);
+
+    if( A >= ESP_RSA_MULM_BITS && B >= ESP_RSA_MULM_BITS)
+        return esp_mp_mulmod(a, b, c, d);
+    else
+ #endif
+   return fp_mulmod(a, b, c, d);
 }
 
 /* d = a - b (mod c) */
