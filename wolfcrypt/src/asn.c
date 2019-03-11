@@ -47,6 +47,13 @@ ASN Options:
  * WOLFSSL_SMALL_CERT_VERIFY: Verify the certificate signature without using
     DecodedCert. Doubles up on some code but allows smaller dynamic memory
     usage.
+ * WOLFSSL_NO_OCSP_DATE_CHECK: Disable date checks for OCSP responses. This
+    may be required when the system's real-time clock is not very accurate.
+    It is recommended to enforce the nonce check instead if possible.
+ * WOLFSSL_FORCE_OCSP_NONCE_CHECK: Require nonces to be available in OCSP
+    responses. The nonces are optional and may not be supported by all
+    responders. If it can be ensured that the used responder sends nonces this
+    option may improve security.
 */
 
 #ifndef NO_ASN
@@ -14138,8 +14145,10 @@ static int DecodeSingleResponse(byte* source,
         return ASN_PARSE_E;
 
 #ifndef NO_ASN_TIME
+#ifndef WOLFSSL_NO_OCSP_DATE_CHECK
     if (!XVALIDATE_DATE(cs->thisDate, cs->thisDateFormat, BEFORE))
         return ASN_BEFORE_DATE_E;
+#endif
 #endif
 
     /* The following items are optional. Only check for them if there is more
@@ -14159,8 +14168,10 @@ static int DecodeSingleResponse(byte* source,
             return ASN_PARSE_E;
 
 #ifndef NO_ASN_TIME
+#ifndef WOLFSSL_NO_OCSP_DATE_CHECK
         if (!XVALIDATE_DATE(cs->nextDate, cs->nextDateFormat, AFTER))
             return ASN_AFTER_DATE_E;
+#endif
 #endif
     }
     if (((int)(idx - prevIndex) < wrapperSz) &&
@@ -14745,7 +14756,11 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 
     /* Nonces are not critical. The responder may not necessarily add
      * the nonce to the response. */
-    if (resp->nonceSz != 0) {
+    if (req->nonceSz
+#ifndef WOLFSSL_FORCE_OCSP_NONCE_CHECK
+            && resp->nonceSz != 0
+#endif
+    ) {
         cmp = req->nonceSz - resp->nonceSz;
         if (cmp != 0)
         {
