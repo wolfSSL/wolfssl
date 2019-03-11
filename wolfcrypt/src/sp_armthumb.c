@@ -215,14 +215,6 @@ SP_NOINLINE static void sp_2048_mul_8(sp_digit* r, const sp_digit* a,
         "add	%[b], r10\n\t"
         "\n2:\n\t"
         "# Multiply Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [%[b]]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "ldr	r7, [%[b]]\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -257,7 +249,6 @@ SP_NOINLINE static void sp_2048_mul_8(sp_digit* r, const sp_digit* a,
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
         "# Multiply Done\n\t"
         "add	%[a], #4\n\t"
         "sub	%[b], #4\n\t"
@@ -323,18 +314,6 @@ SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r, const sp_digit* a)
         "cmp	r2, %[a]\n\t"
         "beq	4f\n\t"
         "# Multiply * 2: Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "ldr	r7, [r2]\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -380,77 +359,10 @@ SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r, const sp_digit* a)
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
-#else
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#endif
-#endif
         "# Multiply * 2: Done\n\t"
         "bal	5f\n\t"
         "\n4:\n\t"
         "# Square: Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "umull	r6, r7, r6, r6\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "lsr	r7, r6, #16\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -472,7 +384,6 @@ SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r, const sp_digit* a)
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
         "# Square: Done\n\t"
         "\n5:\n\t"
         "add	%[a], #4\n\t"
@@ -1991,14 +1902,6 @@ SP_NOINLINE static void sp_2048_mul_64(sp_digit* r, const sp_digit* a,
         "add	%[b], r10\n\t"
         "\n2:\n\t"
         "# Multiply Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [%[b]]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "ldr	r7, [%[b]]\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -2033,7 +1936,6 @@ SP_NOINLINE static void sp_2048_mul_64(sp_digit* r, const sp_digit* a,
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
         "# Multiply Done\n\t"
         "add	%[a], #4\n\t"
         "sub	%[b], #4\n\t"
@@ -2102,18 +2004,6 @@ SP_NOINLINE static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
         "cmp	r2, %[a]\n\t"
         "beq	4f\n\t"
         "# Multiply * 2: Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "ldr	r7, [r2]\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -2159,77 +2049,10 @@ SP_NOINLINE static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
-#else
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#endif
-#endif
         "# Multiply * 2: Done\n\t"
         "bal	5f\n\t"
         "\n4:\n\t"
         "# Square: Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "umull	r6, r7, r6, r6\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "lsr	r7, r6, #16\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -2251,7 +2074,6 @@ SP_NOINLINE static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
         "# Square: Done\n\t"
         "\n5:\n\t"
         "add	%[a], #4\n\t"
@@ -2434,14 +2256,6 @@ SP_NOINLINE static void sp_2048_mul_32(sp_digit* r, const sp_digit* a,
         "add	%[b], r10\n\t"
         "\n2:\n\t"
         "# Multiply Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [%[b]]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "ldr	r7, [%[b]]\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -2476,7 +2290,6 @@ SP_NOINLINE static void sp_2048_mul_32(sp_digit* r, const sp_digit* a,
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
         "# Multiply Done\n\t"
         "add	%[a], #4\n\t"
         "sub	%[b], #4\n\t"
@@ -2543,18 +2356,6 @@ SP_NOINLINE static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
         "cmp	r2, %[a]\n\t"
         "beq	4f\n\t"
         "# Multiply * 2: Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "ldr	r7, [r2]\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -2600,77 +2401,10 @@ SP_NOINLINE static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
-#else
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#endif
-#endif
         "# Multiply * 2: Done\n\t"
         "bal	5f\n\t"
         "\n4:\n\t"
         "# Square: Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "umull	r6, r7, r6, r6\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "lsr	r7, r6, #16\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -2692,7 +2426,6 @@ SP_NOINLINE static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
         "# Square: Done\n\t"
         "\n5:\n\t"
         "add	%[a], #4\n\t"
@@ -2781,13 +2514,6 @@ SP_NOINLINE static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "mov	%[r], #0\n\t"
         "mov	r5, #0\n\t"
         "# A[] * B\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "umull	r6, r7, r6, %[b]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "lsl	r6, r6, #16\n\t"
         "lsl	r7, %[b], #16\n\t"
@@ -2818,7 +2544,6 @@ SP_NOINLINE static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
         "# A[] * B - Done\n\t"
         "mov	%[r], r8\n\t"
         "str	r3, [%[r]]\n\t"
@@ -2925,12 +2650,6 @@ SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, sp_digit* m,
         "mov	r4, r5\n\t"
         "mov	r5, #0\n\t"
         "# Multiply m[j] and mu - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r7, [%[m]]\n\t"
-        "umull	r6, r7, %[mp], r7\n\t"
-        "add	%[a], r6\n\t"
-        "adc	r5, r7\n\t"
-#else
         "ldr	r7, [%[m]]\n\t"
         "lsl	r6, %[mp], #16\n\t"
         "lsl	r7, r7, #16\n\t"
@@ -2959,7 +2678,6 @@ SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, sp_digit* m,
         "lsl	r6, r6, #16\n\t"
         "add	%[a], r6\n\t"
         "adc	r5, r7\n\t"
-#endif
         "# Multiply m[j] and mu - Done\n\t"
         "add	r4, %[a]\n\t"
         "adc	r5, %[ca]\n\t"
@@ -2977,13 +2695,6 @@ SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, sp_digit* m,
         "mov	r4, r12\n\t"
         "mov	%[a], #0\n\t"
         "# Multiply m[31] and mu - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r7, [%[m]]\n\t"
-        "umull	r6, r7, %[mp], r7\n\t"
-        "add	r5, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	%[a], %[ca]\n\t"
-#else
         "ldr	r7, [%[m]]\n\t"
         "lsl	r6, %[mp], #16\n\t"
         "lsl	r7, r7, #16\n\t"
@@ -3016,7 +2727,6 @@ SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, sp_digit* m,
         "add	r5, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	%[a], %[ca]\n\t"
-#endif
         "# Multiply m[31] and mu - Done\n\t"
         "mov	%[ca], %[a]\n\t"
         "mov	%[a], r10\n\t"
@@ -3097,13 +2807,6 @@ SP_NOINLINE static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "mov	%[r], #0\n\t"
         "mov	r5, #0\n\t"
         "# A[] * B\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "umull	r6, r7, r6, %[b]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "lsl	r6, r6, #16\n\t"
         "lsl	r7, %[b], #16\n\t"
@@ -3134,7 +2837,6 @@ SP_NOINLINE static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
         "# A[] * B - Done\n\t"
         "mov	%[r], r8\n\t"
         "str	r3, [%[r]]\n\t"
@@ -3197,9 +2899,6 @@ SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0,
         "add	%[r], %[r]\n\t"
         "add	%[r], #1\n\t"
         "# r * div - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "umull	r4, r5, %[r], %[div]\n\t"
-#else
         "lsl	%[d1], %[r], #16\n\t"
         "lsl	r4, %[div], #16\n\t"
         "lsr	%[d1], %[d1], #16\n\t"
@@ -3221,7 +2920,6 @@ SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0,
         "lsl	%[d1], %[d1], #16\n\t"
         "add	r4, %[d1]\n\t"
         "adc	r5, r6\n\t"
-#endif
         "# r * div - Done\n\t"
         "mov	%[d1], r8\n\t"
         "sub	%[d1], r4\n\t"
@@ -3231,9 +2929,6 @@ SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0,
         "mov	r5, %[d1]\n\t"
         "add	%[r], r5\n\t"
         "# r * div - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "umull	r4, r5, %[r], %[div]\n\t"
-#else
         "lsl	%[d1], %[r], #16\n\t"
         "lsl	r4, %[div], #16\n\t"
         "lsr	%[d1], %[d1], #16\n\t"
@@ -3255,7 +2950,6 @@ SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0,
         "lsl	%[d1], %[d1], #16\n\t"
         "add	r4, %[d1]\n\t"
         "adc	r5, r6\n\t"
-#endif
         "# r * div - Done\n\t"
         "mov	%[d1], r8\n\t"
         "mov	r6, r9\n\t"
@@ -3264,9 +2958,6 @@ SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0,
         "mov	r5, r6\n\t"
         "add	%[r], r5\n\t"
         "# r * div - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "umull	r4, r5, %[r], %[div]\n\t"
-#else
         "lsl	%[d1], %[r], #16\n\t"
         "lsl	r4, %[div], #16\n\t"
         "lsr	%[d1], %[d1], #16\n\t"
@@ -3288,7 +2979,6 @@ SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0,
         "lsl	%[d1], %[d1], #16\n\t"
         "add	r4, %[d1]\n\t"
         "adc	r5, r6\n\t"
-#endif
         "# r * div - Done\n\t"
         "mov	%[d1], r8\n\t"
         "mov	r6, r9\n\t"
@@ -3316,35 +3006,32 @@ SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0,
  */
 SP_NOINLINE static int32_t sp_2048_cmp_32(sp_digit* a, sp_digit* b)
 {
-    sp_digit r = -1;
+    sp_digit r = 0;
 
 
     __asm__ __volatile__ (
-        "mov	r3, %[r]\n\t"
-        "mov r6, #124\n\t"
+        "mov	r3, #0\n\t"
+        "mvn	r3, r3\n\t"
+        "mov	r6, #124\n\t"
         "1:\n\t"
-        "ldr	r4, [%[a], r6]\n\t"
+        "ldr	r7, [%[a], r6]\n\t"
         "ldr	r5, [%[b], r6]\n\t"
-        "and	r4, r3\n\t"
+        "and	r7, r3\n\t"
         "and	r5, r3\n\t"
-        "sub	r4, r5\n\t"
-        "sbc	r5, r5\n\t"
-        "mov	r7, r3\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "sub	r4, #1\n\t"
-        "sbc	r4, r4\n\t"
-        "orr	r5, r4\n\t"
-        "mvn	r5, r5\n\t"
-        "mov	r7, #1\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "and	r3, r4\n\t"
+        "mov	r4, r7\n\t"
+        "sub	r7, r5\n\t"
+        "sbc	r7, r7\n\t"
+        "add	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
+        "sub	r5, r4\n\t"
+        "sbc	r7, r7\n\t"
+        "sub	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
         "sub	r6, #4\n\t"
-        "bcc	1b\n\t"
-        "eor	%[r], r3\n\t"
+        "cmp	r6, #0\n\t"
+        "bge	1b\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b)
         : "r3", "r4", "r5", "r6", "r7"
@@ -3768,12 +3455,6 @@ SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, sp_digit* m,
         "mov	r4, r5\n\t"
         "mov	r5, #0\n\t"
         "# Multiply m[j] and mu - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r7, [%[m]]\n\t"
-        "umull	r6, r7, %[mp], r7\n\t"
-        "add	%[a], r6\n\t"
-        "adc	r5, r7\n\t"
-#else
         "ldr	r7, [%[m]]\n\t"
         "lsl	r6, %[mp], #16\n\t"
         "lsl	r7, r7, #16\n\t"
@@ -3802,7 +3483,6 @@ SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, sp_digit* m,
         "lsl	r6, r6, #16\n\t"
         "add	%[a], r6\n\t"
         "adc	r5, r7\n\t"
-#endif
         "# Multiply m[j] and mu - Done\n\t"
         "add	r4, %[a]\n\t"
         "adc	r5, %[ca]\n\t"
@@ -3820,13 +3500,6 @@ SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, sp_digit* m,
         "mov	r4, r12\n\t"
         "mov	%[a], #0\n\t"
         "# Multiply m[63] and mu - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r7, [%[m]]\n\t"
-        "umull	r6, r7, %[mp], r7\n\t"
-        "add	r5, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	%[a], %[ca]\n\t"
-#else
         "ldr	r7, [%[m]]\n\t"
         "lsl	r6, %[mp], #16\n\t"
         "lsl	r7, r7, #16\n\t"
@@ -3859,7 +3532,6 @@ SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, sp_digit* m,
         "add	r5, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	%[a], %[ca]\n\t"
-#endif
         "# Multiply m[63] and mu - Done\n\t"
         "mov	%[ca], %[a]\n\t"
         "mov	%[a], r10\n\t"
@@ -3966,9 +3638,6 @@ SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1, sp_digit d0,
         "add	%[r], %[r]\n\t"
         "add	%[r], #1\n\t"
         "# r * div - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "umull	r4, r5, %[r], %[div]\n\t"
-#else
         "lsl	%[d1], %[r], #16\n\t"
         "lsl	r4, %[div], #16\n\t"
         "lsr	%[d1], %[d1], #16\n\t"
@@ -3990,7 +3659,6 @@ SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1, sp_digit d0,
         "lsl	%[d1], %[d1], #16\n\t"
         "add	r4, %[d1]\n\t"
         "adc	r5, r6\n\t"
-#endif
         "# r * div - Done\n\t"
         "mov	%[d1], r8\n\t"
         "sub	%[d1], r4\n\t"
@@ -4000,9 +3668,6 @@ SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1, sp_digit d0,
         "mov	r5, %[d1]\n\t"
         "add	%[r], r5\n\t"
         "# r * div - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "umull	r4, r5, %[r], %[div]\n\t"
-#else
         "lsl	%[d1], %[r], #16\n\t"
         "lsl	r4, %[div], #16\n\t"
         "lsr	%[d1], %[d1], #16\n\t"
@@ -4024,7 +3689,6 @@ SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1, sp_digit d0,
         "lsl	%[d1], %[d1], #16\n\t"
         "add	r4, %[d1]\n\t"
         "adc	r5, r6\n\t"
-#endif
         "# r * div - Done\n\t"
         "mov	%[d1], r8\n\t"
         "mov	r6, r9\n\t"
@@ -4033,9 +3697,6 @@ SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1, sp_digit d0,
         "mov	r5, r6\n\t"
         "add	%[r], r5\n\t"
         "# r * div - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "umull	r4, r5, %[r], %[div]\n\t"
-#else
         "lsl	%[d1], %[r], #16\n\t"
         "lsl	r4, %[div], #16\n\t"
         "lsr	%[d1], %[d1], #16\n\t"
@@ -4057,7 +3718,6 @@ SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1, sp_digit d0,
         "lsl	%[d1], %[d1], #16\n\t"
         "add	r4, %[d1]\n\t"
         "adc	r5, r6\n\t"
-#endif
         "# r * div - Done\n\t"
         "mov	%[d1], r8\n\t"
         "mov	r6, r9\n\t"
@@ -4114,35 +3774,32 @@ static void sp_2048_mask_64(sp_digit* r, sp_digit* a, sp_digit m)
  */
 SP_NOINLINE static int32_t sp_2048_cmp_64(sp_digit* a, sp_digit* b)
 {
-    sp_digit r = -1;
+    sp_digit r = 0;
 
 
     __asm__ __volatile__ (
-        "mov	r3, %[r]\n\t"
-        "mov r6, #252\n\t"
+        "mov	r3, #0\n\t"
+        "mvn	r3, r3\n\t"
+        "mov	r6, #252\n\t"
         "1:\n\t"
-        "ldr	r4, [%[a], r6]\n\t"
+        "ldr	r7, [%[a], r6]\n\t"
         "ldr	r5, [%[b], r6]\n\t"
-        "and	r4, r3\n\t"
+        "and	r7, r3\n\t"
         "and	r5, r3\n\t"
-        "sub	r4, r5\n\t"
-        "sbc	r5, r5\n\t"
-        "mov	r7, r3\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "sub	r4, #1\n\t"
-        "sbc	r4, r4\n\t"
-        "orr	r5, r4\n\t"
-        "mvn	r5, r5\n\t"
-        "mov	r7, #1\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "and	r3, r4\n\t"
+        "mov	r4, r7\n\t"
+        "sub	r7, r5\n\t"
+        "sbc	r7, r7\n\t"
+        "add	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
+        "sub	r5, r4\n\t"
+        "sbc	r7, r7\n\t"
+        "sub	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
         "sub	r6, #4\n\t"
-        "bcc	1b\n\t"
-        "eor	%[r], r3\n\t"
+        "cmp	r6, #0\n\t"
+        "bge	1b\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b)
         : "r3", "r4", "r5", "r6", "r7"
@@ -4779,7 +4436,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     return err;
 }
 #endif /* WOLFSSL_HAVE_SP_RSA */
-#ifdef WOLFSSL_HAVE_SP_DH
+#if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
 /* Convert an array of sp_digit to an mp_int.
  *
  * a  A single precision integer.
@@ -4924,7 +4581,48 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
     return err;
 }
 
-#endif /* WOLFSSL_HAVE_SP_DH */
+/* Perform the modular exponentiation for Diffie-Hellman.
+ *
+ * base  Base. MP integer.
+ * exp   Exponent. MP integer.
+ * mod   Modulus. MP integer.
+ * res   Result. MP integer.
+ * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * and MEMORY_E if memory allocation fails.
+ */
+int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
+{
+    int err = MP_OKAY;
+    sp_digit b[64], e[32], m[32];
+    sp_digit* r = b;
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 1024 || expBits > 1024 ||
+                                                   mp_count_bits(mod) != 1024) {
+        err = MP_READ_E;
+    }
+
+    if (err == MP_OKAY) {
+        sp_2048_from_mp(b, 32, base);
+        sp_2048_from_mp(e, 32, exp);
+        sp_2048_from_mp(m, 32, mod);
+
+        err = sp_2048_mod_exp_32(r, b, e, expBits, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        XMEMSET(r + 32, 0, sizeof(*r) * 32);
+        err = sp_2048_to_mp(r, res);
+        res->used = mod->used;
+        mp_clamp(res);
+    }
+
+    XMEMSET(e, 0, sizeof(e));
+
+    return err;
+}
+
+#endif /* WOLFSSL_HAVE_SP_DH || WOLFSSL_HAVE_SP_RSA */
 
 #endif /* WOLFSSL_SP_NO_2048 */
 
@@ -5093,14 +4791,6 @@ SP_NOINLINE static void sp_3072_mul_8(sp_digit* r, const sp_digit* a,
         "add	%[b], r10\n\t"
         "\n2:\n\t"
         "# Multiply Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [%[b]]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "ldr	r7, [%[b]]\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -5135,7 +4825,6 @@ SP_NOINLINE static void sp_3072_mul_8(sp_digit* r, const sp_digit* a,
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
         "# Multiply Done\n\t"
         "add	%[a], #4\n\t"
         "sub	%[b], #4\n\t"
@@ -5201,18 +4890,6 @@ SP_NOINLINE static void sp_3072_sqr_8(sp_digit* r, const sp_digit* a)
         "cmp	r2, %[a]\n\t"
         "beq	4f\n\t"
         "# Multiply * 2: Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "ldr	r7, [r2]\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -5258,77 +4935,10 @@ SP_NOINLINE static void sp_3072_sqr_8(sp_digit* r, const sp_digit* a)
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
-#else
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#endif
-#endif
         "# Multiply * 2: Done\n\t"
         "bal	5f\n\t"
         "\n4:\n\t"
         "# Square: Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "umull	r6, r7, r6, r6\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "lsr	r7, r6, #16\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -5350,7 +4960,6 @@ SP_NOINLINE static void sp_3072_sqr_8(sp_digit* r, const sp_digit* a)
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
         "# Square: Done\n\t"
         "\n5:\n\t"
         "add	%[a], #4\n\t"
@@ -7366,14 +6975,6 @@ SP_NOINLINE static void sp_3072_mul_96(sp_digit* r, const sp_digit* a,
         "add	%[b], r10\n\t"
         "\n2:\n\t"
         "# Multiply Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [%[b]]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "ldr	r7, [%[b]]\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -7408,7 +7009,6 @@ SP_NOINLINE static void sp_3072_mul_96(sp_digit* r, const sp_digit* a,
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
         "# Multiply Done\n\t"
         "add	%[a], #4\n\t"
         "sub	%[b], #4\n\t"
@@ -7479,18 +7079,6 @@ SP_NOINLINE static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
         "cmp	r2, %[a]\n\t"
         "beq	4f\n\t"
         "# Multiply * 2: Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "ldr	r7, [r2]\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -7536,77 +7124,10 @@ SP_NOINLINE static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
-#else
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#endif
-#endif
         "# Multiply * 2: Done\n\t"
         "bal	5f\n\t"
         "\n4:\n\t"
         "# Square: Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "umull	r6, r7, r6, r6\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "lsr	r7, r6, #16\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -7628,7 +7149,6 @@ SP_NOINLINE static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
         "# Square: Done\n\t"
         "\n5:\n\t"
         "add	%[a], #4\n\t"
@@ -7774,14 +7294,6 @@ SP_NOINLINE static void sp_3072_mul_48(sp_digit* r, const sp_digit* a,
         "add	%[b], r10\n\t"
         "\n2:\n\t"
         "# Multiply Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [%[b]]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "ldr	r7, [%[b]]\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -7816,7 +7328,6 @@ SP_NOINLINE static void sp_3072_mul_48(sp_digit* r, const sp_digit* a,
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
         "# Multiply Done\n\t"
         "add	%[a], #4\n\t"
         "sub	%[b], #4\n\t"
@@ -7886,18 +7397,6 @@ SP_NOINLINE static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
         "cmp	r2, %[a]\n\t"
         "beq	4f\n\t"
         "# Multiply * 2: Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "ldr	r7, [r2]\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -7943,77 +7442,10 @@ SP_NOINLINE static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
-#else
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#endif
-#endif
         "# Multiply * 2: Done\n\t"
         "bal	5f\n\t"
         "\n4:\n\t"
         "# Square: Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "umull	r6, r7, r6, r6\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "lsr	r7, r6, #16\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -8035,7 +7467,6 @@ SP_NOINLINE static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
         "# Square: Done\n\t"
         "\n5:\n\t"
         "add	%[a], #4\n\t"
@@ -8130,13 +7561,6 @@ SP_NOINLINE static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "mov	%[r], #0\n\t"
         "mov	r5, #0\n\t"
         "# A[] * B\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "umull	r6, r7, r6, %[b]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "lsl	r6, r6, #16\n\t"
         "lsl	r7, %[b], #16\n\t"
@@ -8167,7 +7591,6 @@ SP_NOINLINE static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
         "# A[] * B - Done\n\t"
         "mov	%[r], r8\n\t"
         "str	r3, [%[r]]\n\t"
@@ -8531,12 +7954,6 @@ SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, sp_digit* m,
         "mov	r4, r5\n\t"
         "mov	r5, #0\n\t"
         "# Multiply m[j] and mu - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r7, [%[m]]\n\t"
-        "umull	r6, r7, %[mp], r7\n\t"
-        "add	%[a], r6\n\t"
-        "adc	r5, r7\n\t"
-#else
         "ldr	r7, [%[m]]\n\t"
         "lsl	r6, %[mp], #16\n\t"
         "lsl	r7, r7, #16\n\t"
@@ -8565,7 +7982,6 @@ SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, sp_digit* m,
         "lsl	r6, r6, #16\n\t"
         "add	%[a], r6\n\t"
         "adc	r5, r7\n\t"
-#endif
         "# Multiply m[j] and mu - Done\n\t"
         "add	r4, %[a]\n\t"
         "adc	r5, %[ca]\n\t"
@@ -8583,13 +7999,6 @@ SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, sp_digit* m,
         "mov	r4, r12\n\t"
         "mov	%[a], #0\n\t"
         "# Multiply m[47] and mu - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r7, [%[m]]\n\t"
-        "umull	r6, r7, %[mp], r7\n\t"
-        "add	r5, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	%[a], %[ca]\n\t"
-#else
         "ldr	r7, [%[m]]\n\t"
         "lsl	r6, %[mp], #16\n\t"
         "lsl	r7, r7, #16\n\t"
@@ -8622,7 +8031,6 @@ SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, sp_digit* m,
         "add	r5, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	%[a], %[ca]\n\t"
-#endif
         "# Multiply m[47] and mu - Done\n\t"
         "mov	%[ca], %[a]\n\t"
         "mov	%[a], r10\n\t"
@@ -8703,13 +8111,6 @@ SP_NOINLINE static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "mov	%[r], #0\n\t"
         "mov	r5, #0\n\t"
         "# A[] * B\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "umull	r6, r7, r6, %[b]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "lsl	r6, r6, #16\n\t"
         "lsl	r7, %[b], #16\n\t"
@@ -8740,7 +8141,6 @@ SP_NOINLINE static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
         "# A[] * B - Done\n\t"
         "mov	%[r], r8\n\t"
         "str	r3, [%[r]]\n\t"
@@ -8803,9 +8203,6 @@ SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0,
         "add	%[r], %[r]\n\t"
         "add	%[r], #1\n\t"
         "# r * div - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "umull	r4, r5, %[r], %[div]\n\t"
-#else
         "lsl	%[d1], %[r], #16\n\t"
         "lsl	r4, %[div], #16\n\t"
         "lsr	%[d1], %[d1], #16\n\t"
@@ -8827,7 +8224,6 @@ SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0,
         "lsl	%[d1], %[d1], #16\n\t"
         "add	r4, %[d1]\n\t"
         "adc	r5, r6\n\t"
-#endif
         "# r * div - Done\n\t"
         "mov	%[d1], r8\n\t"
         "sub	%[d1], r4\n\t"
@@ -8837,9 +8233,6 @@ SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0,
         "mov	r5, %[d1]\n\t"
         "add	%[r], r5\n\t"
         "# r * div - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "umull	r4, r5, %[r], %[div]\n\t"
-#else
         "lsl	%[d1], %[r], #16\n\t"
         "lsl	r4, %[div], #16\n\t"
         "lsr	%[d1], %[d1], #16\n\t"
@@ -8861,7 +8254,6 @@ SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0,
         "lsl	%[d1], %[d1], #16\n\t"
         "add	r4, %[d1]\n\t"
         "adc	r5, r6\n\t"
-#endif
         "# r * div - Done\n\t"
         "mov	%[d1], r8\n\t"
         "mov	r6, r9\n\t"
@@ -8870,9 +8262,6 @@ SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0,
         "mov	r5, r6\n\t"
         "add	%[r], r5\n\t"
         "# r * div - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "umull	r4, r5, %[r], %[div]\n\t"
-#else
         "lsl	%[d1], %[r], #16\n\t"
         "lsl	r4, %[div], #16\n\t"
         "lsr	%[d1], %[d1], #16\n\t"
@@ -8894,7 +8283,6 @@ SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0,
         "lsl	%[d1], %[d1], #16\n\t"
         "add	r4, %[d1]\n\t"
         "adc	r5, r6\n\t"
-#endif
         "# r * div - Done\n\t"
         "mov	%[d1], r8\n\t"
         "mov	r6, r9\n\t"
@@ -8922,35 +8310,32 @@ SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0,
  */
 SP_NOINLINE static int32_t sp_3072_cmp_48(sp_digit* a, sp_digit* b)
 {
-    sp_digit r = -1;
+    sp_digit r = 0;
 
 
     __asm__ __volatile__ (
-        "mov	r3, %[r]\n\t"
-        "mov r6, #188\n\t"
+        "mov	r3, #0\n\t"
+        "mvn	r3, r3\n\t"
+        "mov	r6, #188\n\t"
         "1:\n\t"
-        "ldr	r4, [%[a], r6]\n\t"
+        "ldr	r7, [%[a], r6]\n\t"
         "ldr	r5, [%[b], r6]\n\t"
-        "and	r4, r3\n\t"
+        "and	r7, r3\n\t"
         "and	r5, r3\n\t"
-        "sub	r4, r5\n\t"
-        "sbc	r5, r5\n\t"
-        "mov	r7, r3\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "sub	r4, #1\n\t"
-        "sbc	r4, r4\n\t"
-        "orr	r5, r4\n\t"
-        "mvn	r5, r5\n\t"
-        "mov	r7, #1\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "and	r3, r4\n\t"
+        "mov	r4, r7\n\t"
+        "sub	r7, r5\n\t"
+        "sbc	r7, r7\n\t"
+        "add	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
+        "sub	r5, r4\n\t"
+        "sbc	r7, r7\n\t"
+        "sub	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
         "sub	r6, #4\n\t"
-        "bcc	1b\n\t"
-        "eor	%[r], r3\n\t"
+        "cmp	r6, #0\n\t"
+        "bge	1b\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b)
         : "r3", "r4", "r5", "r6", "r7"
@@ -9375,12 +8760,6 @@ SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, sp_digit* m,
         "mov	r4, r5\n\t"
         "mov	r5, #0\n\t"
         "# Multiply m[j] and mu - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r7, [%[m]]\n\t"
-        "umull	r6, r7, %[mp], r7\n\t"
-        "add	%[a], r6\n\t"
-        "adc	r5, r7\n\t"
-#else
         "ldr	r7, [%[m]]\n\t"
         "lsl	r6, %[mp], #16\n\t"
         "lsl	r7, r7, #16\n\t"
@@ -9409,7 +8788,6 @@ SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, sp_digit* m,
         "lsl	r6, r6, #16\n\t"
         "add	%[a], r6\n\t"
         "adc	r5, r7\n\t"
-#endif
         "# Multiply m[j] and mu - Done\n\t"
         "add	r4, %[a]\n\t"
         "adc	r5, %[ca]\n\t"
@@ -9429,13 +8807,6 @@ SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, sp_digit* m,
         "mov	r4, r12\n\t"
         "mov	%[a], #0\n\t"
         "# Multiply m[95] and mu - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r7, [%[m]]\n\t"
-        "umull	r6, r7, %[mp], r7\n\t"
-        "add	r5, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	%[a], %[ca]\n\t"
-#else
         "ldr	r7, [%[m]]\n\t"
         "lsl	r6, %[mp], #16\n\t"
         "lsl	r7, r7, #16\n\t"
@@ -9468,7 +8839,6 @@ SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, sp_digit* m,
         "add	r5, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	%[a], %[ca]\n\t"
-#endif
         "# Multiply m[95] and mu - Done\n\t"
         "mov	%[ca], %[a]\n\t"
         "mov	%[a], r10\n\t"
@@ -9576,9 +8946,6 @@ SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1, sp_digit d0,
         "add	%[r], %[r]\n\t"
         "add	%[r], #1\n\t"
         "# r * div - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "umull	r4, r5, %[r], %[div]\n\t"
-#else
         "lsl	%[d1], %[r], #16\n\t"
         "lsl	r4, %[div], #16\n\t"
         "lsr	%[d1], %[d1], #16\n\t"
@@ -9600,7 +8967,6 @@ SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1, sp_digit d0,
         "lsl	%[d1], %[d1], #16\n\t"
         "add	r4, %[d1]\n\t"
         "adc	r5, r6\n\t"
-#endif
         "# r * div - Done\n\t"
         "mov	%[d1], r8\n\t"
         "sub	%[d1], r4\n\t"
@@ -9610,9 +8976,6 @@ SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1, sp_digit d0,
         "mov	r5, %[d1]\n\t"
         "add	%[r], r5\n\t"
         "# r * div - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "umull	r4, r5, %[r], %[div]\n\t"
-#else
         "lsl	%[d1], %[r], #16\n\t"
         "lsl	r4, %[div], #16\n\t"
         "lsr	%[d1], %[d1], #16\n\t"
@@ -9634,7 +8997,6 @@ SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1, sp_digit d0,
         "lsl	%[d1], %[d1], #16\n\t"
         "add	r4, %[d1]\n\t"
         "adc	r5, r6\n\t"
-#endif
         "# r * div - Done\n\t"
         "mov	%[d1], r8\n\t"
         "mov	r6, r9\n\t"
@@ -9643,9 +9005,6 @@ SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1, sp_digit d0,
         "mov	r5, r6\n\t"
         "add	%[r], r5\n\t"
         "# r * div - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "umull	r4, r5, %[r], %[div]\n\t"
-#else
         "lsl	%[d1], %[r], #16\n\t"
         "lsl	r4, %[div], #16\n\t"
         "lsr	%[d1], %[d1], #16\n\t"
@@ -9667,7 +9026,6 @@ SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1, sp_digit d0,
         "lsl	%[d1], %[d1], #16\n\t"
         "add	r4, %[d1]\n\t"
         "adc	r5, r6\n\t"
-#endif
         "# r * div - Done\n\t"
         "mov	%[d1], r8\n\t"
         "mov	r6, r9\n\t"
@@ -9724,37 +9082,34 @@ static void sp_3072_mask_96(sp_digit* r, sp_digit* a, sp_digit m)
  */
 SP_NOINLINE static int32_t sp_3072_cmp_96(sp_digit* a, sp_digit* b)
 {
-    sp_digit r = -1;
+    sp_digit r = 0;
 
 
     __asm__ __volatile__ (
-        "mov	r3, %[r]\n\t"
-        "mov r6, #1\n\t"
-        "lsl r6, r6, #8\n\t"
-        "add r6, #124\n\t"
+        "mov	r3, #0\n\t"
+        "mvn	r3, r3\n\t"
+        "mov	r6, #1\n\t"
+        "lsl	r6, r6, #8\n\t"
+        "add	r6, #124\n\t"
         "1:\n\t"
-        "ldr	r4, [%[a], r6]\n\t"
+        "ldr	r7, [%[a], r6]\n\t"
         "ldr	r5, [%[b], r6]\n\t"
-        "and	r4, r3\n\t"
+        "and	r7, r3\n\t"
         "and	r5, r3\n\t"
-        "sub	r4, r5\n\t"
-        "sbc	r5, r5\n\t"
-        "mov	r7, r3\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "sub	r4, #1\n\t"
-        "sbc	r4, r4\n\t"
-        "orr	r5, r4\n\t"
-        "mvn	r5, r5\n\t"
-        "mov	r7, #1\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "and	r3, r4\n\t"
+        "mov	r4, r7\n\t"
+        "sub	r7, r5\n\t"
+        "sbc	r7, r7\n\t"
+        "add	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
+        "sub	r5, r4\n\t"
+        "sbc	r7, r7\n\t"
+        "sub	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
         "sub	r6, #4\n\t"
-        "bcc	1b\n\t"
-        "eor	%[r], r3\n\t"
+        "cmp	r6, #0\n\t"
+        "bge	1b\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b)
         : "r3", "r4", "r5", "r6", "r7"
@@ -10391,7 +9746,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     return err;
 }
 #endif /* WOLFSSL_HAVE_SP_RSA */
-#ifdef WOLFSSL_HAVE_SP_DH
+#if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
 /* Convert an array of sp_digit to an mp_int.
  *
  * a  A single precision integer.
@@ -10536,7 +9891,48 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
     return err;
 }
 
-#endif /* WOLFSSL_HAVE_SP_DH */
+/* Perform the modular exponentiation for Diffie-Hellman.
+ *
+ * base  Base. MP integer.
+ * exp   Exponent. MP integer.
+ * mod   Modulus. MP integer.
+ * res   Result. MP integer.
+ * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * and MEMORY_E if memory allocation fails.
+ */
+int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
+{
+    int err = MP_OKAY;
+    sp_digit b[96], e[48], m[48];
+    sp_digit* r = b;
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 1536 || expBits > 1536 ||
+                                                   mp_count_bits(mod) != 1536) {
+        err = MP_READ_E;
+    }
+
+    if (err == MP_OKAY) {
+        sp_3072_from_mp(b, 48, base);
+        sp_3072_from_mp(e, 48, exp);
+        sp_3072_from_mp(m, 48, mod);
+
+        err = sp_3072_mod_exp_48(r, b, e, expBits, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        XMEMSET(r + 48, 0, sizeof(*r) * 48);
+        err = sp_3072_to_mp(r, res);
+        res->used = mod->used;
+        mp_clamp(res);
+    }
+
+    XMEMSET(e, 0, sizeof(e));
+
+    return err;
+}
+
+#endif /* WOLFSSL_HAVE_SP_DH || WOLFSSL_HAVE_SP_RSA */
 
 #endif /* WOLFSSL_SP_NO_3072 */
 
@@ -10889,35 +10285,32 @@ static int sp_256_point_to_ecc_point_8(sp_point* p, ecc_point* pm)
  */
 SP_NOINLINE static int32_t sp_256_cmp_8(sp_digit* a, sp_digit* b)
 {
-    sp_digit r = -1;
+    sp_digit r = 0;
 
 
     __asm__ __volatile__ (
-        "mov	r3, %[r]\n\t"
-        "mov r6, #28\n\t"
+        "mov	r3, #0\n\t"
+        "mvn	r3, r3\n\t"
+        "mov	r6, #28\n\t"
         "1:\n\t"
-        "ldr	r4, [%[a], r6]\n\t"
+        "ldr	r7, [%[a], r6]\n\t"
         "ldr	r5, [%[b], r6]\n\t"
-        "and	r4, r3\n\t"
+        "and	r7, r3\n\t"
         "and	r5, r3\n\t"
-        "sub	r4, r5\n\t"
-        "sbc	r5, r5\n\t"
-        "mov	r7, r3\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "sub	r4, #1\n\t"
-        "sbc	r4, r4\n\t"
-        "orr	r5, r4\n\t"
-        "mvn	r5, r5\n\t"
-        "mov	r7, #1\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "and	r3, r4\n\t"
+        "mov	r4, r7\n\t"
+        "sub	r7, r5\n\t"
+        "sbc	r7, r7\n\t"
+        "add	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
+        "sub	r5, r4\n\t"
+        "sbc	r7, r7\n\t"
+        "sub	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
         "sub	r6, #4\n\t"
-        "bcc	1b\n\t"
-        "eor	%[r], r3\n\t"
+        "cmp	r6, #0\n\t"
+        "bge	1b\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b)
         : "r3", "r4", "r5", "r6", "r7"
@@ -11130,12 +10523,6 @@ SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a, sp_digit* m,
         "mov	r4, r5\n\t"
         "mov	r5, #0\n\t"
         "# Multiply m[j] and mu - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r7, [%[m]]\n\t"
-        "umull	r6, r7, %[mp], r7\n\t"
-        "add	%[a], r6\n\t"
-        "adc	r5, r7\n\t"
-#else
         "ldr	r7, [%[m]]\n\t"
         "lsl	r6, %[mp], #16\n\t"
         "lsl	r7, r7, #16\n\t"
@@ -11164,7 +10551,6 @@ SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a, sp_digit* m,
         "lsl	r6, r6, #16\n\t"
         "add	%[a], r6\n\t"
         "adc	r5, r7\n\t"
-#endif
         "# Multiply m[j] and mu - Done\n\t"
         "add	r4, %[a]\n\t"
         "adc	r5, %[ca]\n\t"
@@ -11182,13 +10568,6 @@ SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a, sp_digit* m,
         "mov	r4, r12\n\t"
         "mov	%[a], #0\n\t"
         "# Multiply m[7] and mu - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r7, [%[m]]\n\t"
-        "umull	r6, r7, %[mp], r7\n\t"
-        "add	r5, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	%[a], %[ca]\n\t"
-#else
         "ldr	r7, [%[m]]\n\t"
         "lsl	r6, %[mp], #16\n\t"
         "lsl	r7, r7, #16\n\t"
@@ -11221,7 +10600,6 @@ SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a, sp_digit* m,
         "add	r5, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	%[a], %[ca]\n\t"
-#endif
         "# Multiply m[7] and mu - Done\n\t"
         "mov	%[ca], %[a]\n\t"
         "mov	%[a], r10\n\t"
@@ -11287,14 +10665,6 @@ SP_NOINLINE static void sp_256_mul_8(sp_digit* r, const sp_digit* a,
         "add	%[b], r10\n\t"
         "\n2:\n\t"
         "# Multiply Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [%[b]]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "ldr	r7, [%[b]]\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -11329,7 +10699,6 @@ SP_NOINLINE static void sp_256_mul_8(sp_digit* r, const sp_digit* a,
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
         "# Multiply Done\n\t"
         "add	%[a], #4\n\t"
         "sub	%[b], #4\n\t"
@@ -11411,18 +10780,6 @@ SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
         "cmp	r2, %[a]\n\t"
         "beq	4f\n\t"
         "# Multiply * 2: Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "ldr	r7, [r2]\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -11468,77 +10825,10 @@ SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
-#else
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "umull	r6, r7, r6, r7\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r7\n\t"
-        "adc	r4, %[r]\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r6, [%[a]]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsr	r6, r6, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r7, r6\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "ldr	r7, [r2]\n\t"
-        "lsl	r7, r7, #16\n\t"
-        "lsr	r7, r7, #16\n\t"
-        "mul	r6, r7\n\t"
-        "lsr	r7, r6, #16\n\t"
-        "lsl	r6, r6, #16\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#endif
-#endif
         "# Multiply * 2: Done\n\t"
         "bal	5f\n\t"
         "\n4:\n\t"
         "# Square: Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "umull	r6, r7, r6, r6\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "lsr	r7, r6, #16\n\t"
         "lsl	r6, r6, #16\n\t"
@@ -11560,7 +10850,6 @@ SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
         "# Square: Done\n\t"
         "\n5:\n\t"
         "add	%[a], #4\n\t"
@@ -15207,7 +14496,7 @@ int sp_ecc_mulmod_base_256(mp_int* km, ecc_point* r, int map, void* heap)
     return err;
 }
 
-#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
+#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN)
 /* Returns 1 if the number of zero.
  * Implementation is constant time.
  *
@@ -15219,7 +14508,7 @@ static int sp_256_iszero_8(const sp_digit* a)
     return (a[0] | a[1] | a[2] | a[3] | a[4] | a[5] | a[6] | a[7]) == 0;
 }
 
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN || HAVE_ECC_SIGN || HAVE_ECC_VERIFY */
+#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN || HAVE_ECC_SIGN */
 /* Add 1 to a. (a = a + 1)
  *
  * a  A single precision integer.
@@ -15594,13 +14883,6 @@ SP_NOINLINE static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a,
         "mov	%[r], #0\n\t"
         "mov	r5, #0\n\t"
         "# A[] * B\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "ldr	r6, [%[a]]\n\t"
-        "umull	r6, r7, r6, %[b]\n\t"
-        "add	r3, r6\n\t"
-        "adc	r4, r7\n\t"
-        "adc	r5, %[r]\n\t"
-#else
         "ldr	r6, [%[a]]\n\t"
         "lsl	r6, r6, #16\n\t"
         "lsl	r7, %[b], #16\n\t"
@@ -15631,7 +14913,6 @@ SP_NOINLINE static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a,
         "add	r3, r6\n\t"
         "adc	r4, r7\n\t"
         "adc	r5, %[r]\n\t"
-#endif
         "# A[] * B - Done\n\t"
         "mov	%[r], r8\n\t"
         "str	r3, [%[r]]\n\t"
@@ -15694,9 +14975,6 @@ SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1, sp_digit d0,
         "add	%[r], %[r]\n\t"
         "add	%[r], #1\n\t"
         "# r * div - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "umull	r4, r5, %[r], %[div]\n\t"
-#else
         "lsl	%[d1], %[r], #16\n\t"
         "lsl	r4, %[div], #16\n\t"
         "lsr	%[d1], %[d1], #16\n\t"
@@ -15718,7 +14996,6 @@ SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1, sp_digit d0,
         "lsl	%[d1], %[d1], #16\n\t"
         "add	r4, %[d1]\n\t"
         "adc	r5, r6\n\t"
-#endif
         "# r * div - Done\n\t"
         "mov	%[d1], r8\n\t"
         "sub	%[d1], r4\n\t"
@@ -15728,9 +15005,6 @@ SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1, sp_digit d0,
         "mov	r5, %[d1]\n\t"
         "add	%[r], r5\n\t"
         "# r * div - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "umull	r4, r5, %[r], %[div]\n\t"
-#else
         "lsl	%[d1], %[r], #16\n\t"
         "lsl	r4, %[div], #16\n\t"
         "lsr	%[d1], %[d1], #16\n\t"
@@ -15752,7 +15026,6 @@ SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1, sp_digit d0,
         "lsl	%[d1], %[d1], #16\n\t"
         "add	r4, %[d1]\n\t"
         "adc	r5, r6\n\t"
-#endif
         "# r * div - Done\n\t"
         "mov	%[d1], r8\n\t"
         "mov	r6, r9\n\t"
@@ -15761,9 +15034,6 @@ SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1, sp_digit d0,
         "mov	r5, r6\n\t"
         "add	%[r], r5\n\t"
         "# r * div - Start\n\t"
-#ifdef WOLFSSL_SP_ARM_THUMB_ASM_CORTEX_M
-        "umull	r4, r5, %[r], %[div]\n\t"
-#else
         "lsl	%[d1], %[r], #16\n\t"
         "lsl	r4, %[div], #16\n\t"
         "lsr	%[d1], %[d1], #16\n\t"
@@ -15785,7 +15055,6 @@ SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1, sp_digit d0,
         "lsl	%[d1], %[d1], #16\n\t"
         "add	r4, %[d1]\n\t"
         "adc	r5, r6\n\t"
-#endif
         "# r * div - Done\n\t"
         "mov	%[d1], r8\n\t"
         "mov	r6, r9\n\t"
@@ -16108,10 +15377,11 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
             hashLen = 32;
 
         sp_256_from_bin(e, 8, hash, hashLen);
-        sp_256_from_mp(x, 8, priv);
     }
 
     for (i = SP_ECC_MAX_SIG_GEN; err == MP_OKAY && i > 0; i--) {
+        sp_256_from_mp(x, 8, priv);
+
         /* New random point. */
         err = sp_256_ecc_gen_k_8(rng, k);
         if (err == MP_OKAY) {
