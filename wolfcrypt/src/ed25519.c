@@ -45,16 +45,49 @@
     #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
 #endif
 
+
+int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
+                           word32 pubKeySz)
+{
+    int   ret = 0;
+    byte  az[ED25519_PRV_KEY_SIZE];
+#if !defined(FREESCALE_LTC_ECC)
+    ge_p3 A;
+#endif
+
+    if (key == NULL || pubKeySz != ED25519_PUB_KEY_SIZE)
+        ret = BAD_FUNC_ARG;
+
+    if (ret == 0)
+        ret = wc_Sha512Hash(key->k, ED25519_KEY_SIZE, az);
+    if (ret == 0) {
+        /* apply clamp */
+        az[0]  &= 248;
+        az[31] &= 63; /* same than az[31] &= 127 because of az[31] |= 64 */
+        az[31] |= 64;
+
+    #ifdef FREESCALE_LTC_ECC
+        ltc_pkha_ecc_point_t publicKey = {0};
+        publicKey.X = key->pointX;
+        publicKey.Y = key->pointY;
+        LTC_PKHA_Ed25519_PointMul(LTC_PKHA_Ed25519_BasePoint(), az,
+            ED25519_KEY_SIZE, &publicKey, kLTC_Ed25519 /* result on Ed25519 */);
+        LTC_PKHA_Ed25519_Compress(&publicKey, pubKey);
+    #else
+        ge_scalarmult_base(&A, az);
+        ge_p3_tobytes(pubKey, &A);
+    #endif
+    }
+
+    return ret;
+}
+
 /* generate an ed25519 key pair.
  * returns 0 on success
  */
 int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
 {
-    byte  az[ED25519_PRV_KEY_SIZE];
-    int   ret;
-#if !defined(FREESCALE_LTC_ECC)
-    ge_p3 A;
-#endif
+    int ret;
 
     if (rng == NULL || key == NULL)
         return BAD_FUNC_ARG;
@@ -66,27 +99,13 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
     ret  = wc_RNG_GenerateBlock(rng, key->k, ED25519_KEY_SIZE);
     if (ret != 0)
         return ret;
-    ret = wc_Sha512Hash(key->k, ED25519_KEY_SIZE, az);
+
+    ret = wc_ed25519_make_public(key, key->p, ED25519_PUB_KEY_SIZE);
     if (ret != 0) {
         ForceZero(key->k, ED25519_KEY_SIZE);
         return ret;
     }
 
-    /* apply clamp */
-    az[0]  &= 248;
-    az[31] &= 63; /* same than az[31] &= 127 because of az[31] |= 64 */
-    az[31] |= 64;
-
-#ifdef FREESCALE_LTC_ECC
-    ltc_pkha_ecc_point_t publicKey = {0};
-    publicKey.X = key->pointX;
-    publicKey.Y = key->pointY;
-    LTC_PKHA_Ed25519_PointMul(LTC_PKHA_Ed25519_BasePoint(), az, ED25519_KEY_SIZE, &publicKey, kLTC_Ed25519 /* result on Ed25519 */);
-    LTC_PKHA_Ed25519_Compress(&publicKey, key->p);
-#else
-    ge_scalarmult_base(&A, az);
-    ge_p3_tobytes(key->p, &A);
-#endif
     /* put public key after private key, on the same buffer */
     XMEMMOVE(key->k + ED25519_KEY_SIZE, key->p, ED25519_PUB_KEY_SIZE);
 
@@ -537,10 +556,17 @@ int wc_ed25519_export_key(ed25519_key* key,
 /* check the private and public keys match */
 int wc_ed25519_check_key(ed25519_key* key)
 {
-    /* TODO: Perform check of private and public key */
-    (void)key;
+    int ret = 0;
+    unsigned char pubKey[ED25519_PUB_KEY_SIZE];
 
-    return 0;
+    if (!key->pubKeySet)
+        ret = PUBLIC_KEY_E;
+    if (ret == 0)
+        ret = wc_ed25519_make_public(key, pubKey, sizeof(pubKey));
+    if (ret == 0 && XMEMCMP(pubKey, key->p, ED25519_PUB_KEY_SIZE) != 0)
+        ret = PUBLIC_KEY_E;
+
+    return ret;
 }
 
 /* returns the private key size (secret only) in bytes */
