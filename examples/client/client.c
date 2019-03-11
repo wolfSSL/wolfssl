@@ -1632,15 +1632,19 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     myVerifyFail = 1;
                 }
                 else if (XSTRNCMP(myoptarg, "useSupCurve", 11) == 0) {
-                    printf("Test use supported curve\n");
+                    printf("Attempting to test use supported curve\n");
                 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
                     useSupCurve = 1;
+                #else
+                    printf("Supported curves not compiled in!\n");
                 #endif
                 }
                 else if (XSTRNCMP(myoptarg, "loadSSL", 7) == 0) {
                     printf("Load cert/key into wolfSSL object\n");
                 #ifndef NO_CERTS
                     loadCertKeyIntoSSLObj = 1;
+                #else
+                    printf("Certs turned off with NO_CERTS!\n");
                 #endif
                 }
                 else {
