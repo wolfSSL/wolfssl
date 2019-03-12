@@ -200,7 +200,7 @@
 #endif
 
 
-#ifdef THREADX
+#if defined(THREADX) && !defined(WOLFSSL_WICED)
     /* since just testing, use THREADX log printf instead */
     int dc_log_printf(char*, ...);
         #undef printf
@@ -356,6 +356,10 @@ int cert_test(void);
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
    !defined(NO_FILESYSTEM)
 int  certext_test(void);
+#endif
+#if defined(WOLFSSL_CERT_GEN_CACHE) && defined(WOLFSSL_TEST_CERT) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
+int decodedCertCache_test(void);
 #endif
 #ifdef HAVE_IDEA
 int idea_test(void);
@@ -787,8 +791,7 @@ initDefaultName();
         printf( "AES256   test passed!\n");
 #endif
 #ifdef HAVE_AESGCM
-    #if !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_DEVCRYPTO) && \
-        !defined(STM32_CRYPTO)
+    #if !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_DEVCRYPTO)
     if ( (ret = aesgcm_test()) != 0)
         return err_sys("AES-GCM  test failed!\n", ret);
     #endif
@@ -944,6 +947,14 @@ initDefaultName();
         return err_sys("CERT EXT test failed!\n", ret);
     else
         printf( "CERT EXT test passed!\n");
+#endif
+
+#if defined(WOLFSSL_CERT_GEN_CACHE) && defined(WOLFSSL_TEST_CERT) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
+    if ( (ret = decodedCertCache_test()) != 0)
+        return err_sys("DECODED CERT CACHE test failed!\n", ret);
+    else
+        printf( "DECODED CERT CACHE test passed!\n");
 #endif
 
 #ifdef HAVE_CURVE25519
@@ -6949,9 +6960,9 @@ int aesgcm_test(void)
         0xcd, 0xdf, 0x88, 0x53, 0xbb, 0x2d, 0x55, 0x1b
     };
 
-    /* FIPS, QAT and STM32F2/4 HW Crypto only support 12-byte IV */
+    /* FIPS, QAT and PIC32MZ HW Crypto only support 12-byte IV */
 #if !defined(HAVE_FIPS) && \
-        !defined(STM32_CRYPTO) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
+        !defined(WOLFSSL_PIC32MZ_CRYPT) && \
         !defined(FREESCALE_LTC) && !defined(FREESCALE_MMCAU) && \
         !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_AFALG_XILINX_AES)
 
@@ -7128,7 +7139,7 @@ int aesgcm_test(void)
                               BENCH_AESGCM_LARGE, iv1, sizeof(iv1), resultT,
                               sizeof(resultT), a, sizeof(a));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    result = wc_AsyncWait(result, &dec.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (result != 0)
         return -5708;
@@ -9078,6 +9089,122 @@ int certext_test(void)
 }
 #endif /* WOLFSSL_CERT_EXT && WOLFSSL_TEST_CERT */
 
+#if defined(WOLFSSL_CERT_GEN_CACHE) && defined(WOLFSSL_TEST_CERT) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
+int decodedCertCache_test(void)
+{
+    int ret = 0;
+    Cert cert;
+    FILE* file;
+    byte* der;
+    word32 derSz;
+
+    derSz = FOURK_BUF;
+    der = XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL)
+        ret = -1;
+
+    if (ret == 0) {
+        /* load cert.der */
+        file = XFOPEN(certDerFile, "rb");
+        if (file != NULL) {
+            derSz = XFREAD(der, 1, FOURK_BUF, file);
+            XFCLOSE(file);
+        }
+        else
+            ret = -1;
+    }
+
+    if (ret == 0) {
+        if (wc_InitCert(&cert)) {
+            ret = -1;
+        }
+    }
+
+    if (ret == 0) {
+        ret = wc_SetSubjectBuffer(&cert, der, derSz);
+    }
+
+    if (ret == 0) {
+        if(wc_SetSubjectBuffer(NULL, der, derSz) != BAD_FUNC_ARG)
+            ret = -1;
+    }
+
+    if (ret == 0) {
+        if (wc_SetSubjectRaw(&cert, der, derSz) != 0)
+            ret = -1;
+    }
+
+    if (ret == 0) {
+        if(wc_SetSubjectRaw(NULL, der, derSz) != BAD_FUNC_ARG)
+            ret = -1;
+    }
+
+    if (ret == 0) {
+        if(wc_SetIssuerBuffer(&cert, der, derSz) != 0)
+            ret = -1;
+    }
+
+    if (ret == 0) {
+        if(wc_SetIssuerBuffer(NULL, der, derSz) != BAD_FUNC_ARG)
+            ret = -1;
+    }
+
+    if (ret == 0) {
+        if(wc_SetIssuerRaw(&cert, der, derSz) != 0)
+            ret = -1;
+    }
+
+    if (ret == 0) {
+        if(wc_SetIssuerRaw(NULL, der, derSz) != BAD_FUNC_ARG)
+            ret = -1;
+    }
+
+#ifdef WOLFSSL_ALT_NAMES
+    if (ret == 0) {
+        if(wc_SetAltNamesBuffer(&cert, der, derSz) != 0)
+            ret = -1;
+    }
+
+    if (ret == 0) {
+        if(wc_SetAltNamesBuffer(NULL, der, derSz) != BAD_FUNC_ARG)
+            ret = -1;
+    }
+
+    if (ret == 0) {
+        if(wc_SetDatesBuffer(&cert, der, derSz) != 0)
+            ret = -1;
+    }
+
+    if (ret == 0) {
+        if(wc_SetDatesBuffer(NULL, der, derSz) != BAD_FUNC_ARG)
+            ret = -1;
+    }
+#endif
+
+    if (ret == 0) {
+        if(wc_SetAuthKeyIdFromCert(&cert, der, derSz) != 0)
+            ret = -1;
+    }
+
+    if (ret == 0) {
+        if(wc_SetAuthKeyIdFromCert(NULL, der, derSz) != BAD_FUNC_ARG)
+            ret = -1;
+    }
+
+    wc_SetCert_Free(&cert);
+    if (ret == 0) {
+        if(cert.decodedCert != NULL)
+            ret = -1;
+    }
+
+    XFREE(der, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif /* defined(WOLFSSL_CERT_GEN_CACHE) && defined(WOLFSSL_TEST_CERT) &&
+          defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN) */
+
 #if !defined(NO_ASN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 static int rsa_flatten_test(RsaKey* key)
 {
@@ -10111,7 +10238,7 @@ int rsa_no_pad_test(void)
         || out == NULL || plain == NULL
     #endif
     ) {
-        return -6900;
+        ERROR_OUT(-6900, exit_rsa_nopadding);
     }
 
 #ifdef USE_CERT_BUFFERS_1024
@@ -10268,6 +10395,9 @@ int rsa_no_pad_test(void)
     ret = 0;
 
 exit_rsa_nopadding:
+    XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    FREE_VAR(out, HEAP_HINT);
+    FREE_VAR(plain, HEAP_HINT);
     wc_FreeRsaKey(&key);
     wc_FreeRng(&rng);
 

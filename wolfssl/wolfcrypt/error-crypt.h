@@ -224,7 +224,9 @@ enum {
     PKCS7_NO_SIGNER_E   = -269,  /* No signer in PKCS#7 signed data msg */
     WC_PKCS7_WANT_READ_E= -270,  /* PKCS7 operations wants more input */
 
-    WC_LAST_E           = -270,  /* Update this to indicate last error */
+    CRYPTOCB_UNAVAILABLE= -271, /* Crypto callback unavailable */
+
+    WC_LAST_E           = -271,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

@@ -60,7 +60,7 @@ void wc_esp32TimerStart()
 
 uint64_t  wc_esp32elapsedTime()
 {
-    /* retturn elapsed time since wc_esp32AesTimeStart() is called in us */
+    /* return elapsed time since wc_esp32AesTimeStart() is called in us */
     return esp_timer_get_time() - startTime;
 }
 

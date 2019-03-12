@@ -15,7 +15,7 @@ AC_CONFIG_AUX_DIR([build-aux])
 : ${CFLAGS=""}
 
 # Test ar for the "U" option. Should be checked before the libtool macros.
-xxx_ar_flags=$((ar --help) 2>&1)
+xxx_ar_flags=$(ar --help 2>&1)
 AS_CASE([$xxx_ar_flags],[*'use actual timestamps and uids/gids'*],[: ${AR_FLAGS="Ucru"}])
 
 AC_PROG_CC
@@ -168,6 +168,7 @@ then
     enable_maxfragment=yes
     enable_alpn=yes
     enable_truncatedhmac=yes
+    enable_trusted_ca=yes
     enable_supportedcurves=yes
     enable_session_ticket=yes
     enable_tlsx=yes
@@ -1375,6 +1376,19 @@ AC_ARG_ENABLE([certext],
 if test "$ENABLED_CERTEXT" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"
+fi
+
+
+# DECODED CERT CACHE
+AC_ARG_ENABLE([certgencache],
+    [AS_HELP_STRING([--enable-certgencache],[Enable decoded cert caching (default: disabled)])],
+    [ ENABLED_certgencache=$enableval ],
+    [ ENABLED_certgencache=no ]
+    )
+
+if test "$ENABLED_certgencache" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN_CACHE"
 fi
 
 
@@ -2878,6 +2892,14 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_MAX_FRAGMENT"
 fi
 
+# Trusted CA Indication Extension
+AC_ARG_ENABLE([trustedca],
+    [AS_HELP_STRING([--enable-trustedca],[Enable Trusted CA Indication (default: disabled)])],
+    [ ENABLED_TRUSTED_CA=$enableval ],[ ENABLED_TRUSTED_CA=no ])
+
+AS_IF([test "x$ENABLED_TRUSTED_CA" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_TRUSTED_CA"])
+
 # Truncated HMAC
 AC_ARG_ENABLE([truncatedhmac],
     [AS_HELP_STRING([--enable-truncatedhmac],[Enable Truncated HMAC (default: disabled)])],
@@ -3007,7 +3029,8 @@ then
     ENABLED_MAX_FRAGMENT=yes
     ENABLED_TRUNCATED_HMAC=yes
     ENABLED_ALPN=yes
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_ALPN"
+    ENABLED_TRUSTED_CA=yes
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_ALPN -DHAVE_TRUSTED_CA"
     # Check the ECC supported curves prereq
     AS_IF([test "x$ENABLED_ECC" = "xyes" || test "x$ENABLED_CURVE25519" = "xyes"],
           [ENABLED_SUPPORTED_CURVES=yes
@@ -4907,6 +4930,7 @@ echo "   * keygen:                     $ENABLED_KEYGEN"
 echo "   * certgen:                    $ENABLED_CERTGEN"
 echo "   * certreq:                    $ENABLED_CERTREQ"
 echo "   * certext:                    $ENABLED_CERTEXT"
+echo "   * certgencache:               $ENABLED_certgencache"
 echo "   * HC-128:                     $ENABLED_HC128"
 echo "   * RABBIT:                     $ENABLED_RABBIT"
 echo "   * CHACHA:                     $ENABLED_CHACHA"
@@ -4974,6 +4998,7 @@ echo "   * Whitewood netRandom:        $ENABLED_WNR"
 echo "   * Server Name Indication:     $ENABLED_SNI"
 echo "   * ALPN:                       $ENABLED_ALPN"
 echo "   * Maximum Fragment Length:    $ENABLED_MAX_FRAGMENT"
+echo "   * Trusted CA Indication:      $ENABLED_TRUSTED_CA"
 echo "   * Truncated HMAC:             $ENABLED_TRUNCATED_HMAC"
 echo "   * Supported Elliptic Curves:  $ENABLED_SUPPORTED_CURVES"
 echo "   * FFDHE only in client:       $ENABLED_FFDHE_ONLY"

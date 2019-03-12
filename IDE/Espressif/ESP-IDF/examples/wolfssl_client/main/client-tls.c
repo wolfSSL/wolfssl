@@ -61,7 +61,7 @@ static void ShowCiphers(void)
 
 #include "wolfssl/wolfcrypt/port/atmel/atmel.h"
 
-/* when you want to use custome slot allocation */
+/* when you want to use custom slot allocation */
 /* enable the definition CUSTOM_SLOT_ALLOCATION.*/
 
 #if defined(CUSTOM_SLOT_ALLOCATION)
@@ -235,7 +235,7 @@ void tls_smp_client_task()
 #if defined(WOLFSSL_ESPWROOM32SE) && defined(HAVE_PK_CALLBACKS) \
                                   && defined(WOLFSSL_ATECC508A)
     atcatls_set_callbacks(ctx);
-    /* when using custome slot-allocation */
+    /* when using custom slot-allocation */
     #if defined(CUSTOM_SLOT_ALLOCATION)
     my_atmel_slotInit();
     atmel_set_slot_allocator(my_atmel_alloc, my_atmel_free);

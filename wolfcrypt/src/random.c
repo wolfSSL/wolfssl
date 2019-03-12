@@ -134,7 +134,8 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
     #include "fsl_trng.h"
 #elif defined(FREESCALE_KSDK_2_0_RNGA)
     #include "fsl_rnga.h"
-
+#elif defined(WOLFSSL_WICED)
+    #include "wiced_crypto.h"
 #elif defined(NO_DEV_RANDOM)
 #elif defined(CUSTOM_RAND_GENERATE)
 #elif defined(CUSTOM_RAND_GENERATE_BLOCK)
@@ -839,9 +840,9 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 #ifdef WOLF_CRYPTO_CB
     if (rng->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_RandomBlock(rng, output, sz);
-        if (ret != NOT_COMPILED_IN)
+        if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
-        /* fall-through on not compiled in */
+        /* fall-through when unavailable */
     }
 #endif
 
@@ -1489,8 +1490,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     if (os != NULL && os->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_RandomSeed(os, output, sz);
-        if (ret != NOT_COMPILED_IN)
+        if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
+        /* fall-through when unavailable */
     }
 #endif
 
@@ -2048,6 +2050,24 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return ret;
     }
 
+#elif defined(WOLFSSL_WICED)
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int ret;
+        (void)os;
+
+        if (output == NULL || UINT16_MAX < sz) {
+            return BUFFER_E;
+        }
+
+        if ((ret = wiced_crypto_get_random((void*) output, sz) )
+                         != WICED_SUCCESS) {
+            return ret;
+        }
+
+        return ret;
+    }
+
 #elif defined(IDIRECT_DEV_RANDOM)
 
     extern int getRandom( int sz, unsigned char *output );
@@ -2207,9 +2227,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #ifdef WOLF_CRYPTO_CB
     if (os != NULL && os->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_RandomSeed(os, output, sz);
-        if (ret != NOT_COMPILED_IN)
+        if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
-        /* fall-through on not compiled in */
+        /* fall-through when unavailable */
         ret = 0; /* reset error code */
     }
 #endif

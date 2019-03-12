@@ -21,25 +21,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfcrypt/benchmark/benchmark.h>
 
 #include "sdkconfig.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "esp_log.h"
-#include "nvs_flash.h"
 
 #define WOLFSSL_BENCH_ARGV                 CONFIG_BENCH_ARGV
-#define WOLFSSLBENCHMARK_TASK_NAME         "wolfsslbenchmark_name"
-#define WOLFSSLBENCHMARK_TASK_WORDS        10240
-#define WOLFSSLBENCHMARK_TASK_PRIORITY     8
 
 /* proto-type */
 extern void wolf_benchmark_task();
-
 static const char* const TAG = "wolfbenchmark";
-
 char* __argv[22];
 
 #if defined(WOLFSSL_ESPWROOM32SE) && defined(HAVE_PK_CALLBACKS) \
@@ -57,8 +50,7 @@ static byte mSlotList[ATECC_MAX_SLOT];
 void my_atmel_slotInit()
 {
     int i;
-
-    for(i=0;i<ATECC_MAX_SLOT; i++) {
+    for(i = 0;i < ATECC_MAX_SLOT;i++) {
         mSlotList[i] = ATECC_INVALID_SLOT;
     }
 }
@@ -68,8 +60,6 @@ int my_atmel_alloc(int slotType)
 {
     int i, slot = -1;
 
-    ESP_LOGI(TAG, "Enter my_atmel_alloc");
-
     switch(slotType){
         case ATMEL_SLOT_ENCKEY:
             slot = 4;
@@ -78,13 +68,13 @@ int my_atmel_alloc(int slotType)
             slot = 0;
             break;
         case ATMEL_SLOT_ECDHE:
-            slot = 2;
+            slot = 0;
             break;
         case ATMEL_SLOT_ECDHE_ENC:
             slot = 4;
             break;
         case ATMEL_SLOT_ANY:
-            for(i=0;i<ATECC_MAX_SLOT;i++){
+            for(i = 0;i < ATECC_MAX_SLOT;i++){
                 if(mSlotList[i] == ATECC_INVALID_SLOT){
                     slot = i;
                     break;
@@ -92,22 +82,15 @@ int my_atmel_alloc(int slotType)
             }
     }
 
-    ESP_LOGI(TAG, "Leave my_atmel_alloc\n");
-
     return slot;
 }
 
 /* free slot array       */
 void my_atmel_free(int slotId)
 {
-    ESP_LOGI(TAG, "Enter my_atmel_alloc");
-
     if(slotId >= 0 && slotId < ATECC_MAX_SLOT){
         mSlotList[slotId] = ATECC_INVALID_SLOT;
     }
-
-    ESP_LOGI(TAG, "Leave my_atmel_alloc");
-
 }
 
 #endif /* CUSTOM_SLOT_ALLOCATION                                       */
@@ -167,30 +150,22 @@ int construct_argv()
 /* entry point */
 void app_main(void)
 {
-    ESP_LOGI(TAG, "Start app_main...");
-    ESP_ERROR_CHECK(nvs_flash_init());
-
 #ifndef NO_CRYPT_BENCHMARK
 
-    /* when using atecc608a on esp32-wroom-32se */
+/* when using atecc608a on esp32-wroom-32se */
 #if defined(WOLFSSL_ESPWROOM32SE) && defined(HAVE_PK_CALLBACKS) \
                                   && defined(WOLFSSL_ATECC508A)
     #if defined(CUSTOM_SLOT_ALLOCATION)
-    ESP_LOGI(TAG, "register callback for slot allocation");
     my_atmel_slotInit();
     /* to register the callback, it needs to be initialized. */
-    benchmark_init();
+    if ((wolfCrypt_Init()) != 0) {
+       ESP_LOGE(TAG, "wolfCrypt_Init failed");
+       return;
+    }
     atmel_set_slot_allocator(my_atmel_alloc, my_atmel_free);
     #endif
 #endif
-
-    ESP_LOGI(TAG, "Start benchmark..");
     wolf_benchmark_task();
-
 #else
-    ESP_LOGI(TAG, "no crypt benchmark");
-
 #endif /* NO_CRYPT_BENCHMARK */
-
 }
-

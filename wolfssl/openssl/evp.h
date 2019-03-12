@@ -658,5 +658,6 @@ WOLFSSL_API void printPKEY(WOLFSSL_EVP_PKEY *k);
     } /* extern "C" */
 #endif
 
+#include <wolfssl/openssl/objects.h>
 
 #endif /* WOLFSSL_EVP_H_ */

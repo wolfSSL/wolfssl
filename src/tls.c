@@ -2306,6 +2306,340 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
 #endif /* HAVE_SNI */
 
 /******************************************************************************/
+/* Trusted CA Key Indication                                                  */
+/******************************************************************************/
+
+#ifdef HAVE_TRUSTED_CA
+
+/** Creates a new TCA object. */
+static TCA* TLSX_TCA_New(byte type, const byte* id, word16 idSz, void* heap)
+{
+    TCA* tca = (TCA*)XMALLOC(sizeof(TCA), heap, DYNAMIC_TYPE_TLSX);
+
+    if (tca) {
+        XMEMSET(tca, 0, sizeof(TCA));
+        tca->type = type;
+
+        switch (type) {
+            case WOLFSSL_TRUSTED_CA_PRE_AGREED:
+                break;
+
+            #ifndef NO_SHA
+            case WOLFSSL_TRUSTED_CA_KEY_SHA1:
+            case WOLFSSL_TRUSTED_CA_CERT_SHA1:
+                if (idSz == SHA_DIGEST_SIZE &&
+                        (tca->id =
+                            (byte*)XMALLOC(idSz, heap, DYNAMIC_TYPE_TLSX))) {
+                    XMEMCPY(tca->id, id, idSz);
+                    tca->idSz = idSz;
+                }
+                else {
+                    XFREE(tca, heap, DYNAMIC_TYPE_TLSX);
+                    tca = NULL;
+                }
+                break;
+            #endif
+
+            case WOLFSSL_TRUSTED_CA_X509_NAME:
+                if (idSz > 0 &&
+                        (tca->id =
+                            (byte*)XMALLOC(idSz, heap, DYNAMIC_TYPE_TLSX))) {
+                    XMEMCPY(tca->id, id, idSz);
+                    tca->idSz = idSz;
+                }
+                else {
+                    XFREE(tca, heap, DYNAMIC_TYPE_TLSX);
+                    tca = NULL;
+                }
+                break;
+
+            default: /* invalid type */
+                XFREE(tca, heap, DYNAMIC_TYPE_TLSX);
+                tca = NULL;
+        }
+    }
+
+    return tca;
+}
+
+/** Releases a TCA object. */
+static void TLSX_TCA_Free(TCA* tca, void* heap)
+{
+    (void)heap;
+
+    if (tca) {
+        if (tca->id)
+            XFREE(tca->id, heap, DYNAMIC_TYPE_TLSX);
+        XFREE(tca, heap, DYNAMIC_TYPE_TLSX);
+    }
+}
+
+/** Releases all TCA objects in the provided list. */
+static void TLSX_TCA_FreeAll(TCA* list, void* heap)
+{
+    TCA* tca;
+
+    while ((tca = list)) {
+        list = tca->next;
+        TLSX_TCA_Free(tca, heap);
+    }
+}
+
+/** Tells the buffered size of the TCA objects in a list. */
+static word16 TLSX_TCA_GetSize(TCA* list)
+{
+    TCA* tca;
+    word16 length = OPAQUE16_LEN; /* list length */
+
+    while ((tca = list)) {
+        list = tca->next;
+
+        length += ENUM_LEN; /* tca type */
+
+        switch (tca->type) {
+            case WOLFSSL_TRUSTED_CA_PRE_AGREED:
+                break;
+            case WOLFSSL_TRUSTED_CA_KEY_SHA1:
+            case WOLFSSL_TRUSTED_CA_CERT_SHA1:
+                length += tca->idSz;
+                break;
+            case WOLFSSL_TRUSTED_CA_X509_NAME:
+                length += OPAQUE16_LEN + tca->idSz;
+                break;
+        }
+    }
+
+    return length;
+}
+
+/** Writes the TCA objects of a list in a buffer. */
+static word16 TLSX_TCA_Write(TCA* list, byte* output)
+{
+    TCA* tca;
+    word16 offset = OPAQUE16_LEN; /* list length offset */
+
+    while ((tca = list)) {
+        list = tca->next;
+
+        output[offset++] = tca->type; /* tca type */
+
+        switch (tca->type) {
+            case WOLFSSL_TRUSTED_CA_PRE_AGREED:
+                break;
+            #ifndef NO_SHA
+            case WOLFSSL_TRUSTED_CA_KEY_SHA1:
+            case WOLFSSL_TRUSTED_CA_CERT_SHA1:
+                if (tca->id != NULL) {
+                    XMEMCPY(output + offset, tca->id, tca->idSz);
+                    offset += tca->idSz;
+                }
+                else {
+                    /* ID missing. Set to an empty string. */
+                    c16toa(0, output + offset);
+                    offset += OPAQUE16_LEN;
+                }
+                break;
+            #endif
+            case WOLFSSL_TRUSTED_CA_X509_NAME:
+                if (tca->id != NULL) {
+                    c16toa(tca->idSz, output + offset); /* tca length */
+                    offset += OPAQUE16_LEN;
+                    XMEMCPY(output + offset, tca->id, tca->idSz);
+                    offset += tca->idSz;
+                }
+                else {
+                    /* ID missing. Set to an empty string. */
+                    c16toa(0, output + offset);
+                    offset += OPAQUE16_LEN;
+                }
+                break;
+            default:
+                /* ID unknown. Set to an empty string. */
+                c16toa(0, output + offset);
+                offset += OPAQUE16_LEN;
+        }
+    }
+
+    c16toa(offset - OPAQUE16_LEN, output); /* writing list length */
+
+    return offset;
+}
+
+static TCA* TLSX_TCA_Find(TCA *list, byte type, const byte* id, word16 idSz)
+{
+    TCA* tca = list;
+
+    while (tca && tca->type != type && type != WOLFSSL_TRUSTED_CA_PRE_AGREED &&
+           idSz != tca->idSz && !XMEMCMP(id, tca->id, idSz))
+        tca = tca->next;
+
+    return tca;
+}
+
+/** Parses a buffer of TCA extensions. */
+static int TLSX_TCA_Parse(WOLFSSL* ssl, const byte* input, word16 length,
+                          byte isRequest)
+{
+#ifndef NO_WOLFSSL_SERVER
+    word16 size = 0;
+    word16 offset = 0;
+#endif
+
+    TLSX *extension = TLSX_Find(ssl->extensions, TLSX_TRUSTED_CA_KEYS);
+
+    if (!extension)
+        extension = TLSX_Find(ssl->ctx->extensions, TLSX_TRUSTED_CA_KEYS);
+
+    if (!isRequest) {
+        #ifndef NO_WOLFSSL_CLIENT
+            if (!extension || !extension->data)
+                return TLSX_HandleUnsupportedExtension(ssl);
+
+            if (length > 0)
+                return BUFFER_ERROR; /* TCA response MUST be empty. */
+
+            /* Set the flag that we're good for keys */
+            TLSX_SetResponse(ssl, TLSX_TRUSTED_CA_KEYS);
+
+            return 0;
+        #endif
+    }
+
+#ifndef NO_WOLFSSL_SERVER
+    if (!extension || !extension->data) {
+        /* Skipping, TCA not enabled at server side. */
+        return 0;
+    }
+
+    if (OPAQUE16_LEN > length)
+        return BUFFER_ERROR;
+
+    ato16(input, &size);
+    offset += OPAQUE16_LEN;
+
+    /* validating tca list length */
+    if (length != OPAQUE16_LEN + size)
+        return BUFFER_ERROR;
+
+    for (size = 0; offset < length; offset += size) {
+        TCA *tca = NULL;
+        byte type;
+        const byte* id = NULL;
+        word16 idSz = 0;
+
+        if (offset + ENUM_LEN > length)
+            return BUFFER_ERROR;
+
+        type = input[offset++];
+
+        switch (type) {
+            case WOLFSSL_TRUSTED_CA_PRE_AGREED:
+                break;
+            #ifndef NO_SHA
+            case WOLFSSL_TRUSTED_CA_KEY_SHA1:
+            case WOLFSSL_TRUSTED_CA_CERT_SHA1:
+                if (offset + SHA_DIGEST_SIZE > length)
+                    return BUFFER_ERROR;
+                idSz = SHA_DIGEST_SIZE;
+                id = input + offset;
+                offset += idSz;
+                break;
+            #endif
+            case WOLFSSL_TRUSTED_CA_X509_NAME:
+                if (offset + OPAQUE16_LEN > length)
+                    return BUFFER_ERROR;
+                ato16(input + offset, &idSz);
+                offset += OPAQUE16_LEN;
+                if (offset + idSz > length)
+                    return BUFFER_ERROR;
+                id = input + offset;
+                offset += idSz;
+                break;
+            default:
+                return TCA_INVALID_ID_TYPE;
+        }
+
+        /* Find the type/ID in the TCA list. */
+        tca = TLSX_TCA_Find((TCA*)extension->data, type, id, idSz);
+        if (tca != NULL) {
+            /* Found it. Set the response flag and break out of the loop. */
+            TLSX_SetResponse(ssl, TLSX_TRUSTED_CA_KEYS);
+            break;
+        }
+    }
+#else
+    (void)input;
+#endif
+
+    return 0;
+}
+
+/* Checks to see if the server sent a response for the TCA. */
+static int TLSX_TCA_VerifyParse(WOLFSSL* ssl, byte isRequest)
+{
+    (void)ssl;
+
+    if (!isRequest) {
+    #ifndef NO_WOLFSSL_CLIENT
+        TLSX* extension = TLSX_Find(ssl->extensions, TLSX_TRUSTED_CA_KEYS);
+
+        if (extension && !extension->resp) {
+            SendAlert(ssl, alert_fatal, handshake_failure);
+            return TCA_ABSENT_ERROR;
+        }
+    #endif /* NO_WOLFSSL_CLIENT */
+    }
+
+    return 0;
+}
+
+int TLSX_UseTrustedCA(TLSX** extensions, byte type,
+                    const byte* id, word16 idSz, void* heap)
+{
+    TLSX* extension;
+    TCA* tca = NULL;
+
+    if (extensions == NULL)
+        return BAD_FUNC_ARG;
+
+    if ((tca = TLSX_TCA_New(type, id, idSz, heap)) == NULL)
+        return MEMORY_E;
+
+    extension = TLSX_Find(*extensions, TLSX_TRUSTED_CA_KEYS);
+    if (!extension) {
+        int ret = TLSX_Push(extensions, TLSX_TRUSTED_CA_KEYS, (void*)tca, heap);
+
+        if (ret != 0) {
+            TLSX_TCA_Free(tca, heap);
+            return ret;
+        }
+    }
+    else {
+        /* push new TCA object to extension data. */
+        tca->next = (TCA*)extension->data;
+        extension->data = (void*)tca;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
+#define TCA_FREE_ALL     TLSX_TCA_FreeAll
+#define TCA_GET_SIZE     TLSX_TCA_GetSize
+#define TCA_WRITE        TLSX_TCA_Write
+#define TCA_PARSE        TLSX_TCA_Parse
+#define TCA_VERIFY_PARSE TLSX_TCA_VerifyParse
+
+#else /* HAVE_TRUSTED_CA */
+
+#define TCA_FREE_ALL(list, heap)
+#define TCA_GET_SIZE(list)     0
+#define TCA_WRITE(a, b)        0
+#define TCA_PARSE(a, b, c, d)  0
+#define TCA_VERIFY_PARSE(a, b) 0
+
+#endif /* HAVE_TRUSTED_CA */
+
+/******************************************************************************/
 /* Max Fragment Length Negotiation                                            */
 /******************************************************************************/
 
@@ -7419,7 +7753,7 @@ word16 TLSX_PreSharedKey_GetSizeBinders(PreSharedKey* list, byte msgType)
     word16 len;
 
     if (msgType != client_hello)
-        return SANITY_MSG_E;
+        return (word16)SANITY_MSG_E;
 
     /* Length of all binders. */
     len = OPAQUE16_LEN;
@@ -7448,7 +7782,7 @@ word16 TLSX_PreSharedKey_WriteBinders(PreSharedKey* list, byte* output,
     word16 len;
 
     if (msgType != client_hello)
-        return SANITY_MSG_E;
+        return (word16)SANITY_MSG_E;
 
     /* Skip length of all binders. */
     lenIdx = idx;
@@ -7524,7 +7858,7 @@ static word16 TLSX_PreSharedKey_Write(PreSharedKey* list, byte* output,
         for (i=0; list != NULL && !list->chosen; i++)
             list = list->next;
         if (list == NULL)
-            return BUILD_MSG_ERROR;
+            return (word16)BUILD_MSG_ERROR;
 
         /* The index of the identity chosen by the server from the list supplied
          * by the client.
@@ -7842,7 +8176,7 @@ static word16 TLSX_PskKeModes_GetSize(byte modes, byte msgType)
         return len;
     }
 
-    return SANITY_MSG_E;
+    return (word16)SANITY_MSG_E;
 }
 
 /* Writes the PSK KE modes extension into the output buffer.
@@ -7871,7 +8205,7 @@ static word16 TLSX_PskKeModes_Write(byte modes, byte* output, byte msgType)
         return idx;
     }
 
-    return SANITY_MSG_E;
+    return (word16)SANITY_MSG_E;
 }
 
 /* Parse the PSK KE modes extension.
@@ -8240,6 +8574,10 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 SNI_FREE_ALL((SNI*)extension->data, heap);
                 break;
 
+            case TLSX_TRUSTED_CA_KEYS:
+                TCA_FREE_ALL((TCA*)extension->data, heap);
+                break;
+
             case TLSX_MAX_FRAGMENT_LENGTH:
                 MFL_FREE_ALL(extension->data, heap);
                 break;
@@ -8363,6 +8701,12 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType, word16* pLeng
                 /* SNI only sends the name on the request. */
                 if (isRequest)
                     length += SNI_GET_SIZE((SNI*)extension->data);
+                break;
+
+            case TLSX_TRUSTED_CA_KEYS:
+                /* TCA only sends the list on the request. */
+                if (isRequest)
+                    length += TCA_GET_SIZE((TCA*)extension->data);
                 break;
 
             case TLSX_MAX_FRAGMENT_LENGTH:
@@ -8500,6 +8844,13 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 if (isRequest) {
                     WOLFSSL_MSG("SNI extension to write");
                     offset += SNI_WRITE((SNI*)extension->data, output + offset);
+                }
+                break;
+
+            case TLSX_TRUSTED_CA_KEYS:
+                WOLFSSL_MSG("Trusted CA Indication extension to write");
+                if (isRequest) {
+                    offset += TCA_WRITE((TCA*)extension->data, output + offset);
                 }
                 break;
 
@@ -9840,6 +10191,19 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 ret = SNI_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
+            case TLSX_TRUSTED_CA_KEYS:
+                WOLFSSL_MSG("Trusted CA extension received");
+
+#ifdef WOLFSSL_TLS13
+                if (IsAtLeastTLSv1_3(ssl->version) &&
+                        msgType != client_hello &&
+                        msgType != encrypted_extensions) {
+                    return EXT_NOT_ALLOWED;
+                }
+#endif
+                ret = TCA_PARSE(ssl, input + offset, size, isRequest);
+                break;
+
             case TLSX_MAX_FRAGMENT_LENGTH:
                 WOLFSSL_MSG("Max Fragment Length extension received");
 
@@ -10128,6 +10492,8 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 
     if (ret == 0)
         ret = SNI_VERIFY_PARSE(ssl, isRequest);
+    if (ret == 0)
+        ret = TCA_VERIFY_PARSE(ssl, isRequest);
 
     return ret;
 }

@@ -74,6 +74,17 @@
     #endif
 #endif
 
+#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+WOLFSSL_LOCAL int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+#endif
+
 /* reverse an array, used for radix code */
 static void
 bn_reverse (unsigned char *s, int len)
@@ -4425,9 +4436,16 @@ static int mp_prime_miller_rabin (mp_int * a, mp_int * b, int *result)
   if ((err = mp_init (&y)) != MP_OKAY) {
     goto LBL_R;
   }
-  if ((err = mp_exptmod (b, &r, a, &y)) != MP_OKAY) {
-    goto LBL_Y;
-  }
+#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+  if (mp_count_bits(a) == 1024)
+      err = sp_ModExp_1024(b, &r, a, &y);
+  else if (mp_count_bits(a) == 2048)
+      err = sp_ModExp_2048(b, &r, a, &y);
+  else
+#endif
+      err = mp_exptmod (b, &r, a, &y);
+  if (err != MP_OKAY)
+      goto LBL_Y;
 
   /* if y != 1 and y != n1 do */
   if (mp_cmp_d (&y, 1) != MP_EQ && mp_cmp (&y, &n1) != MP_EQ) {

@@ -30,8 +30,16 @@
 #include <stdio.h>
 #include <time.h>
 
+#if defined(WOLFSSL_CMSIS_RTOS)
+#include "cmsis_os.h"
+#elif defined(WOLFSSL_CMSIS_RTOSv2)
+#include "cmsis_os2.h"
+#endif
+
 /* Dummy definition for test RTC */
-#define RTC_YEAR 2018
+#define RTC_YEAR 2019
+#define RTC_MONTH 1
+#define RTC_DAY 1
 #define RTC_MONTH 1
 #define RTC_DAY 1
 
@@ -56,32 +64,30 @@ static void CPU_CACHE_Enable (void) {
 
 }
 
-#ifdef RTE_CMSIS_RTOS_RTX
+#if defined(WOLFSSL_CMSIS_RTOS) || defined(WOLFSSL_CMSIS_RTOSv2)
+
+#if defined(WOLFSSL_CMSIS_RTOS)
 extern uint32_t os_time;
-static  time_t epochTime;
-
-uint32_t HAL_GetTick(void) {
-    return os_time;
-}
-
-time_t time(time_t *t){
-     return epochTime ;
-}
-
-void setTime(time_t t){
-    epochTime = t;
-}
 #endif
 
-#ifdef WOLFSSL_CURRTIME_OSTICK
-
-#include <stdint.h>
-extern uint32_t os_time;
+uint32_t HAL_GetTick(void)
+{
+    #if defined(WOLFSSL_CMSIS_RTOS)
+        return os_time;
+    #elif defined(WOLFSSL_CMSIS_RTOSv2)
+        return osKernelGetTickCount();
+    #endif
+}
 
 double current_time(int reset)
 {
-      if(reset) os_time = 0 ;
-      return (double)os_time /1000.0;
+    if (reset)
+        return 0;
+    #if defined(WOLFSSL_CMSIS_RTOS)
+        return (double)os_time / 1000.0;
+    #elif defined(WOLFSSL_CMSIS_RTOSv2)
+        return (double)osKernelGetTickCount() / 1000.0;
+    #endif
 }
 
 #else
@@ -102,6 +108,17 @@ double current_time(int reset)
       return ((double)DWT->CYCCNT/SystemCoreClock) ;
 }
 #endif
+
+static time_t epochTime;
+time_t time(time_t *t)
+{
+  return epochTime;
+}
+
+void setTime(time_t t)
+{
+  epochTime = t;
+}
 
 /*-----------------------------------------------------------------------------
  *        Initialize a Flash Memory Card

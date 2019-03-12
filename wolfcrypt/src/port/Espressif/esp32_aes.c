@@ -47,7 +47,7 @@ static int espaes_CryptHwMutexInit = 0;
 static int esp_aes_hw_InUse()
 {
     int ret = 0;
-    
+
     ESP_LOGV(TAG, "enter esp_aes_hw_InUse");
 
     if(espaes_CryptHwMutexInit == 0) {
@@ -94,7 +94,7 @@ static void esp_aes_hw_Set_KeyMode(Aes *ctx, ESP32_AESPROCESS mode)
 {
     int i;
     word32 mode_ = 0;
-    
+
     ESP_LOGV(TAG, "enter esp_aes_hw_Set_KeyMode");
 
     /* check mode */
@@ -131,13 +131,13 @@ static void esp_aes_hw_Set_KeyMode(Aes *ctx, ESP32_AESPROCESS mode)
 }
 
 /*
- * Porcess a one block of AES
+ * Process a one block of AES
  */
 static void esp_aes_bk(const byte* in, byte* out)
 {
     const word32 *inwords = (const word32 *)in;
     word32 *outwords      = (word32 *)out;
-    
+
     ESP_LOGV(TAG, "enter esp_aes_bk");
 
     /* copy text for encrypting/decrypting blocks */
@@ -220,7 +220,7 @@ int wc_esp32AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     word32 blocks = (sz / AES_BLOCK_SIZE);
     byte *iv;
     byte temp_block[AES_BLOCK_SIZE];
-    
+
     ESP_LOGV(TAG, "enter wc_esp32AesCbcEncrypt");
 
     iv      = (byte*)aes->reg;
@@ -268,7 +268,7 @@ int wc_esp32AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     byte temp_block[AES_BLOCK_SIZE];
 
     ESP_LOGV(TAG, "enter wc_esp32AesCbcDecrypt");
-    
+
     iv      = (byte*)aes->reg;
 
     esp_aes_hw_InUse();

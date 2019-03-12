@@ -33,10 +33,8 @@
 #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
         #include <stdio.h>
         #include <string.h>
-        #include "cmsis_os.h"
         #include "rl_fs.h"
         #include "rl_net.h"
-        #include "wolfssl_MDK_ARM.h"
 #endif
 
 #include <wolfssl/openssl/ssl.h>
@@ -59,18 +57,19 @@
  * by the client. */
 
 static const char webServerMsg[] =
-    "HTTP/1.1 200 OK\n"
-    "Content-Type: text/html\n"
-    "Connection: close\n"
-    "\n"
-    "<html>\n"
-    "<head>\n"
-    "<title>Welcome to wolfSSL!</title>\n"
-    "</head>\n"
-    "<body>\n"
-    "<p>wolfSSL has successfully performed handshake!</p>\n"
-    "</body>\n"
-    "</html>\n";
+    "HTTP/1.1 200 OK\r\n"
+    "Content-Type: text/html\r\n"
+    "Connection: close\r\n"
+    "Content-Length: 225\r\n"
+    "\r\n"
+    "<html>\r\n"
+    "<head>\r\n"
+    "<title>Welcome to wolfSSL!</title>\r\n"
+    "</head>\r\n"
+    "<body>\r\n"
+    "<p>wolfSSL has successfully performed handshake!</p>\r\n"
+    "</body>\r\n"
+    "</html>\r\n";
 
 int runWithErrors = 0; /* Used with -x flag to run err_sys vs. print errors */
 static int lng_index = 0;
@@ -595,6 +594,9 @@ static const char* server_usage_msg[][49] = {
 #endif
         "-1 <num>    Display a result by specified language."
                              "\n            0: English, 1: Japanese\n", /* 48 */
+#ifdef HAVE_TRUSTED_CA
+        "-5          Use Trusted CA Key Indication\n",                  /* 51 */
+#endif
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -710,10 +712,12 @@ static const char* server_usage_msg[][49] = {
 #endif
         "-1 <num>    指定された言語で結果を表示します。"
                                  "\n            0: 英語、 1: 日本語\n", /* 48 */
+#ifdef HAVE_TRUSTED_CA
+        "-5          信頼できる認証局の鍵表示を使用する\n",             /* 51 */
+#endif
         NULL,
     },
 #endif
-
 };
 
 static void Usage(void)
@@ -826,6 +830,9 @@ static void Usage(void)
     printf("%s", msg[++msgId]);     /* -3 */
 #endif
     printf("%s", msg[++msgId]);     /* -1 */
+#ifdef HAVE_TRUSTED_CA
+    printf("%s", msg[++msgId]);     /* -5 */
+#endif /* HAVE_TRUSTED_CA */
 }
 
 THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
@@ -914,6 +921,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef HAVE_SNI
     char*  sniHostName = NULL;
 #endif
+
+#ifdef HAVE_TRUSTED_CA
+    int trustedCaKeyId = 0;
+#endif /* HAVE_TRUSTED_CA */
 
 #ifdef HAVE_OCSP
     int    useOcsp  = 0;
@@ -1011,7 +1022,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     while ((ch = mygetopt(argc, argv, "?:"
                 "abc:defgijk:l:mnop:q:rstuv:wxy"
                 "A:B:C:D:E:GH:IJKL:MNO:PQR:S:TUVYZ:"
-                "01:23:4:")) != -1) {
+                "01:23:4:5")) != -1) {
         switch (ch) {
             case '?' :
                 if(myoptarg!=NULL) {
@@ -1373,6 +1384,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                     doBlockSeq = 1;
                     dtlsCtx.blockSeq = atoi(myoptarg);
                 #endif
+                    break;
+
+            case '5' :
+            #ifdef HAVE_TRUSTED_CA
+                trustedCaKeyId = 1;
+            #endif /* HAVE_TRUSTED_CA */
                 break;
 
             default:
@@ -1953,6 +1970,15 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         if (SSL_set_fd(ssl, clientfd) != WOLFSSL_SUCCESS) {
             err_sys_ex(runWithErrors, "error in setting fd");
         }
+
+#ifdef HAVE_TRUSTED_CA
+        if (trustedCaKeyId) {
+            if (wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_PRE_AGREED,
+                        NULL, 0) != WOLFSSL_SUCCESS) {
+                err_sys_ex(runWithErrors, "UseTrustedCA failed");
+            }
+        }
+#endif /* HAVE_TRUSTED_CA */
 
 #ifdef HAVE_ALPN
         if (alpnList != NULL) {

@@ -39,9 +39,7 @@
                                     defined(WOLFSSL_HAVE_SP_ECC)
 
 #ifdef RSA_LOW_MEM
-#ifndef SP_RSA_PRIVATE_EXP_D
 #define SP_RSA_PRIVATE_EXP_D
-#endif
 
 #ifndef WOLFSSL_SP_SMALL
 #define WOLFSSL_SP_SMALL
@@ -341,8 +339,9 @@ SP_NOINLINE static void sp_2048_sqr_avx2_32(sp_digit* r, const sp_digit* a)
 }
 #endif /* HAVE_INTEL_AVX2 */
 
-#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA)
-#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA */
+#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA) && \
+       !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 /* Caclulate the bottom digit of -1/a mod 2^n.
  *
@@ -364,7 +363,9 @@ static void sp_2048_mont_setup(sp_digit* a, sp_digit* rho)
     *rho = -x;
 }
 
-#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA)
+extern void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a, const sp_digit b);
+#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA) && \
+       !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 extern sp_digit sp_2048_sub_in_place_16(sp_digit* a, const sp_digit* b);
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 2048 bits, just need to subtract.
@@ -817,7 +818,7 @@ static int sp_2048_mod_exp_avx2_16(sp_digit* r, sp_digit* a, sp_digit* e,
 }
 #endif /* HAVE_INTEL_AVX2 */
 
-#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA */
+#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 #ifdef WOLFSSL_HAVE_SP_DH
 /* r = 2^n mod m where n is the number of bits to reduce by.
@@ -867,7 +868,7 @@ static void sp_2048_mont_sqr_32(sp_digit* r, sp_digit* a, sp_digit* m,
     sp_2048_mont_reduce_32(r, m, mp);
 }
 
-extern void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a, const sp_digit b);
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
 extern void sp_2048_mul_d_avx2_32(sp_digit* r, const sp_digit* a, const sp_digit b);
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
@@ -976,6 +977,7 @@ static WC_INLINE int sp_2048_mod_32(sp_digit* r, sp_digit* a, sp_digit* m)
     return sp_2048_div_32(a, m, NULL, r);
 }
 
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
@@ -1671,7 +1673,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     return err;
 }
 #endif /* WOLFSSL_HAVE_SP_RSA */
-#ifdef WOLFSSL_HAVE_SP_DH
+#if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
 /* Convert an array of sp_digit to an mp_int.
  *
  * a  A single precision integer.
@@ -1830,9 +1832,56 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
 
     return err;
 }
-#endif /* WOLFSSL_HAVE_SP_DH */
+/* Perform the modular exponentiation for Diffie-Hellman.
+ *
+ * base  Base. MP integer.
+ * exp   Exponent. MP integer.
+ * mod   Modulus. MP integer.
+ * res   Result. MP integer.
+ * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * and MEMORY_E if memory allocation fails.
+ */
+int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
+{
+    int err = MP_OKAY;
+    sp_digit b[32], e[16], m[16];
+    sp_digit* r = b;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+    int expBits = mp_count_bits(exp);
 
-#endif /* !WOLFSSL_SP_NO_2048 */
+    if (mp_count_bits(base) > 1024 || expBits > 1024 ||
+                                                   mp_count_bits(mod) != 1024) {
+        err = MP_READ_E;
+    }
+
+    if (err == MP_OKAY) {
+        sp_2048_from_mp(b, 16, base);
+        sp_2048_from_mp(e, 16, exp);
+        sp_2048_from_mp(m, 16, mod);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+            err = sp_2048_mod_exp_avx2_16(r, b, e, expBits, m, 0);
+        else
+#endif
+            err = sp_2048_mod_exp_16(r, b, e, expBits, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        XMEMSET(r + 16, 0, sizeof(*r) * 16);
+        err = sp_2048_to_mp(r, res);
+    }
+
+    XMEMSET(e, 0, sizeof(e));
+
+    return err;
+}
+
+#endif /* WOLFSSL_HAVE_SP_DH || WOLFSSL_HAVE_SP_RSA */
+
+#endif /* WOLFSSL_SP_NO_2048 */
 
 #ifndef WOLFSSL_SP_NO_3072
 /* Read big endian unsigned byte aray into r.
@@ -2123,8 +2172,9 @@ SP_NOINLINE static void sp_3072_sqr_avx2_48(sp_digit* r, const sp_digit* a)
 }
 #endif /* HAVE_INTEL_AVX2 */
 
-#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA)
-#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA */
+#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA) && \
+       !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 /* Caclulate the bottom digit of -1/a mod 2^n.
  *
@@ -2146,7 +2196,9 @@ static void sp_3072_mont_setup(sp_digit* a, sp_digit* rho)
     *rho = -x;
 }
 
-#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA)
+extern void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a, const sp_digit b);
+#if !defined(SP_RSA_PRIVATE_EXP_D) && defined(WOLFSSL_HAVE_SP_RSA) && \
+       !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 extern sp_digit sp_3072_sub_in_place_24(sp_digit* a, const sp_digit* b);
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 3072 bits, just need to subtract.
@@ -2599,7 +2651,7 @@ static int sp_3072_mod_exp_avx2_24(sp_digit* r, sp_digit* a, sp_digit* e,
 }
 #endif /* HAVE_INTEL_AVX2 */
 
-#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA */
+#endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 #ifdef WOLFSSL_HAVE_SP_DH
 /* r = 2^n mod m where n is the number of bits to reduce by.
@@ -2649,7 +2701,7 @@ static void sp_3072_mont_sqr_48(sp_digit* r, sp_digit* a, sp_digit* m,
     sp_3072_mont_reduce_48(r, m, mp);
 }
 
-extern void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a, const sp_digit b);
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
 extern void sp_3072_mul_d_avx2_48(sp_digit* r, const sp_digit* a, const sp_digit b);
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
@@ -2758,6 +2810,7 @@ static WC_INLINE int sp_3072_mod_48(sp_digit* r, sp_digit* a, sp_digit* m)
     return sp_3072_div_48(a, m, NULL, r);
 }
 
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
@@ -3453,7 +3506,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     return err;
 }
 #endif /* WOLFSSL_HAVE_SP_RSA */
-#ifdef WOLFSSL_HAVE_SP_DH
+#if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
 /* Convert an array of sp_digit to an mp_int.
  *
  * a  A single precision integer.
@@ -3612,9 +3665,56 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
 
     return err;
 }
-#endif /* WOLFSSL_HAVE_SP_DH */
+/* Perform the modular exponentiation for Diffie-Hellman.
+ *
+ * base  Base. MP integer.
+ * exp   Exponent. MP integer.
+ * mod   Modulus. MP integer.
+ * res   Result. MP integer.
+ * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * and MEMORY_E if memory allocation fails.
+ */
+int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
+{
+    int err = MP_OKAY;
+    sp_digit b[48], e[24], m[24];
+    sp_digit* r = b;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+    int expBits = mp_count_bits(exp);
 
-#endif /* !WOLFSSL_SP_NO_3072 */
+    if (mp_count_bits(base) > 1536 || expBits > 1536 ||
+                                                   mp_count_bits(mod) != 1536) {
+        err = MP_READ_E;
+    }
+
+    if (err == MP_OKAY) {
+        sp_3072_from_mp(b, 24, base);
+        sp_3072_from_mp(e, 24, exp);
+        sp_3072_from_mp(m, 24, mod);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+            err = sp_3072_mod_exp_avx2_24(r, b, e, expBits, m, 0);
+        else
+#endif
+            err = sp_3072_mod_exp_24(r, b, e, expBits, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        XMEMSET(r + 24, 0, sizeof(*r) * 24);
+        err = sp_3072_to_mp(r, res);
+    }
+
+    XMEMSET(e, 0, sizeof(e));
+
+    return err;
+}
+
+#endif /* WOLFSSL_HAVE_SP_DH || WOLFSSL_HAVE_SP_RSA */
+
+#endif /* WOLFSSL_SP_NO_3072 */
 
 #endif /* WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_ECC
@@ -20266,10 +20366,11 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
             hashLen = 32;
 
         sp_256_from_bin(e, 4, hash, hashLen);
-        sp_256_from_mp(x, 4, priv);
     }
 
     for (i = SP_ECC_MAX_SIG_GEN; err == MP_OKAY && i > 0; i--) {
+        sp_256_from_mp(x, 4, priv);
+
         /* New random point. */
         err = sp_256_ecc_gen_k_4(rng, k);
         if (err == MP_OKAY) {
@@ -21130,7 +21231,7 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
     return err;
 }
 #endif
-#endif /* !WOLFSSL_SP_NO_256 */
+#endif /* WOLFSSL_SP_NO_256 */
 #endif /* WOLFSSL_HAVE_SP_ECC */
 #endif /* WOLFSSL_SP_X86_64_ASM */
 #endif /* WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH || WOLFSSL_HAVE_SP_ECC */

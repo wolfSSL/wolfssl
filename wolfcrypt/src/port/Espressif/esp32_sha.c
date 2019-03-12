@@ -118,7 +118,7 @@ int esp_sha_try_hw_lock(WC_ESP32SHA* ctx)
     int ret = 0;
 
     ESP_LOGV(TAG, "enter esp_sha_hw_lock");
-    
+
     /* Init mutex */
 #if defined(SINGLE_THREADED)
     if(ctx->mode == ESP32_SHA_INIT) {
@@ -151,7 +151,7 @@ int esp_sha_try_hw_lock(WC_ESP32SHA* ctx)
             ctx->mode = ESP32_SHA_HW;
         } else {
             ESP_LOGI(TAG, "someone used. hw is locked.....");
-            ESP_LOGI(TAG, "the rest of operaion will use sw implementation for this sha");
+            ESP_LOGI(TAG, "the rest of operation will use sw implementation for this sha");
             ctx->mode = ESP32_SHA_SW;
             return 0;
         }
@@ -209,7 +209,7 @@ static void esp_process_block(WC_ESP32SHA* ctx,  word32 address,
                                          const word32* data, word32 len)
 {
     int i;
-    
+
     ESP_LOGV(TAG, "enter esp_process_block");
 
     /* check if there are any busy engine */
@@ -224,7 +224,7 @@ static void esp_process_block(WC_ESP32SHA* ctx,  word32 address,
     ESP_LOGV(TAG, "leave esp_process_block");
 }
 /*
-* retreive sha digest from memory
+* retrieve sha digest from memory
 */
 static void esp_digest_state(WC_ESP32SHA* ctx, byte* hash, enum SHA_TYPE sha_type)
 {
@@ -239,7 +239,7 @@ static void esp_digest_state(WC_ESP32SHA* ctx, byte* hash, enum SHA_TYPE sha_typ
         ESP_LOGE(TAG, "unexpected error. sha_type is invalid.");
         return;
     }
-    
+
     SHA_LOAD_REG += (sha_type << 4);
     SHA_BUSY_REG += (sha_type << 4);
 
@@ -284,9 +284,9 @@ int esp_sha_process(struct wc_Sha* sha)
     int ret = 0;
 
     ESP_LOGV(TAG, "enter esp_sha_process");
-    
+
     word32 SHA_START_REG = SHA_1_START_REG;
-    
+
     esp_process_block(&sha->ctx, SHA_START_REG, sha->buffer,
                                         WC_SHA_BLOCK_SIZE);
 
@@ -299,7 +299,7 @@ int esp_sha_process(struct wc_Sha* sha)
 int esp_sha_digest_process(struct wc_Sha* sha, byte blockproc)
 {
     int ret = 0;
-    
+
     ESP_LOGV(TAG, "enter esp_sha_digest_process");
 
     if(blockproc) {
@@ -326,9 +326,9 @@ int esp_sha256_process(struct wc_Sha256* sha)
 {
     int ret = 0;
     word32 SHA_START_REG = SHA_1_START_REG;
-    
+
     ESP_LOGV(TAG, "enter esp_sha256_process");
-    
+
     /* start register offset */
     SHA_START_REG += (SHA2_256 << 4);
 
@@ -345,7 +345,7 @@ int esp_sha256_process(struct wc_Sha256* sha)
 int esp_sha256_digest_process(struct wc_Sha256* sha, byte blockproc)
 {
     int ret = 0;
-    
+
     ESP_LOGV(TAG, "enter esp_sha256_digest_process");
 
     if(blockproc) {
@@ -398,21 +398,21 @@ void esp_sha512_block(struct wc_Sha512* sha, const word32* data, byte isfinal)
     ESP_LOGV(TAG, "leave esp_sha512_block");
 }
 /*
-* sha512 proess. this is used for sha384 too.
+* sha512 process. this is used for sha384 too.
 */
 int esp_sha512_process(struct wc_Sha512* sha)
 {
     word32 *data = (word32*)sha->buffer;
-    
+
     ESP_LOGV(TAG, "enter esp_sha512_process");
-    
+
     esp_sha512_block(sha, data, 0);
 
     ESP_LOGV(TAG, "leave esp_sha512_process");
     return 0;
 }
 /*
-* retreive sha512 digest. this is used for sha384 too.
+* retrieve sha512 digest. this is used for sha384 too.
 */
 int esp_sha512_digest_process(struct wc_Sha512* sha, byte blockproc)
 {

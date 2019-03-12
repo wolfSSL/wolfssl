@@ -47,9 +47,8 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #endif
 
-#if defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY)
+/* all NID_* values are in asn.h */
 #include <wolfssl/wolfcrypt/asn.h>
-#endif
 
 #ifdef __cplusplus
     extern "C" {
