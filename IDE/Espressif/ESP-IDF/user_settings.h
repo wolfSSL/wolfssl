@@ -27,7 +27,6 @@
 #define HAVE_TLS_EXTENSIONS
 #define WC_RSA_PSS
 #define HAVE_HKDF
-#define HAVE_FFDHE_2048
 #define HAVE_AEAD
 #define HAVE_SUPPORTED_CURVES
 
