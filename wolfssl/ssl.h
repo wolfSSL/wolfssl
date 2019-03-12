@@ -347,7 +347,7 @@ typedef struct WOLFSSL_X509_OBJECT {
 
 typedef struct WOLFSSL_BUFFER_INFO {
     unsigned char* buffer;
-    word32 length;
+    unsigned int length;
 } WOLFSSL_BUFFER_INFO;
 
 typedef struct WOLFSSL_X509_STORE_CTX {

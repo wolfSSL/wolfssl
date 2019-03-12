@@ -118,17 +118,18 @@ extern "C" {
    typedef unsigned long      mp_word;
    /* don't define DIGIT_BIT, so its calculated below */
 #elif defined(NO_64BIT)
-   /* 32-bit */
+   /* 32-bit forced to 16-bit */
    typedef unsigned short     mp_digit;
    typedef unsigned int       mp_word;
    #define DIGIT_BIT          12
 #elif defined(MP_64BIT)
+   /* 64-bit */
    /* for GCC only on supported platforms */
    typedef unsigned long long mp_digit;  /* 64 bit type, 128 uses mode(TI) */
    typedef unsigned long      mp_word __attribute__ ((mode(TI)));
    #define DIGIT_BIT          60
 #else
-   /* this is the default case, 28-bit digits */
+   /* 32-bit default case */
 
    #if defined(_MSC_VER) || defined(__BORLANDC__)
       typedef unsigned __int64   ulong64;
