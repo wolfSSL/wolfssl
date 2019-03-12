@@ -3280,6 +3280,8 @@ static void RefineSuites(WOLFSSL* ssl, Suites* peerSuites)
     int suiteSz = 0;
     word16 i, j;
 
+    XMEMSET(suites, 0, WOLFSSL_MAX_SUITE_SZ);
+
     for (i = 0; i < ssl->suites->suiteSz; i += 2) {
         for (j = 0; j < peerSuites->suiteSz; j += 2) {
             if (ssl->suites->suites[i+0] == peerSuites->suites[j+0] &&
