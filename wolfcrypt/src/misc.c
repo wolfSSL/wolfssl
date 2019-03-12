@@ -289,14 +289,14 @@ STATIC WC_INLINE void c32toa(word32 wc_u32, byte* c)
 /* convert a 24 bit integer into a 32 bit one */
 STATIC WC_INLINE void c24to32(const word24 wc_u24, word32* wc_u32)
 {
-    *wc_u32 = (wc_u24[0] << 16) | (wc_u24[1] << 8) | wc_u24[2];
+    *wc_u32 = ((word32)wc_u24[0] << 16) | (wc_u24[1] << 8) | wc_u24[2];
 }
 
 
 /* convert opaque to 24 bit integer */
 STATIC WC_INLINE void ato24(const byte* c, word32* wc_u24)
 {
-    *wc_u24 = (c[0] << 16) | (c[1] << 8) | c[2];
+    *wc_u24 = ((word32)c[0] << 16) | (c[1] << 8) | c[2];
 }
 
 /* convert opaque to 16 bit integer */
@@ -308,7 +308,7 @@ STATIC WC_INLINE void ato16(const byte* c, word16* wc_u16)
 /* convert opaque to 32 bit integer */
 STATIC WC_INLINE void ato32(const byte* c, word32* wc_u32)
 {
-    *wc_u32 = ((word32)c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3];
+    *wc_u32 = ((word32)c[0] << 24) | ((word32)c[1] << 16) | (c[2] << 8) | c[3];
 }
 
 

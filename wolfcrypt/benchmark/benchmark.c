@@ -992,8 +992,8 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
 
     if (base2) {
         /* determine if we should show as KB or MB */
-        if (blocks > (1024 * 1024)) {
-            blocks /= (1024 * 1024);
+        if (blocks > (1024ul * 1024ul)) {
+            blocks /= (1024ul * 1024ul);
             blockType = "MB";
         }
         else if (blocks > 1024) {
@@ -1006,8 +1006,8 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
     }
     else {
         /* determine if we should show as kB or mB */
-        if (blocks > (1000 * 1000)) {
-            blocks /= (1000 * 1000);
+        if (blocks > (1000ul * 1000ul)) {
+            blocks /= (1000ul * 1000ul);
             blockType = "mB";
         }
         else if (blocks > 1000) {
@@ -1666,13 +1666,13 @@ int benchmark_init(void)
 
     if (csv_format == 1) {
         printf("wolfCrypt Benchmark (block bytes %d, min %.1f sec each)\n",
-        BENCH_SIZE, BENCH_MIN_RUNTIME_SEC);
+        (int)BENCH_SIZE, BENCH_MIN_RUNTIME_SEC);
         printf("This format allows you to easily copy the output to a csv file.");
         printf("\n\nSymmetric Ciphers:\n\n");
         printf("Algorithm,MB/s,Cycles per byte,\n");
     } else {
         printf("wolfCrypt Benchmark (block bytes %d, min %.1f sec each)\n",
-        BENCH_SIZE, BENCH_MIN_RUNTIME_SEC);
+        (int)BENCH_SIZE, BENCH_MIN_RUNTIME_SEC);
     }
 
 #ifdef HAVE_WNR
@@ -1778,7 +1778,7 @@ void bench_rng(void)
 {
     int    ret, i, count;
     double start;
-    int    pos, len, remain;
+    long   pos, len, remain;
     WC_RNG myrng;
 
 #ifndef HAVE_FIPS
@@ -4318,7 +4318,7 @@ void bench_rsa_key(int doAsync, int rsaKeySz)
     int     ret = 0, i, pending = 0;
     RsaKey  rsaKey[BENCH_MAX_PENDING];
     int     isPending[BENCH_MAX_PENDING];
-    int     exp = 65537;
+    long    exp = 65537l;
 
     /* clear for done cleanup */
     XMEMSET(rsaKey, 0, sizeof(rsaKey));

@@ -108,20 +108,28 @@ extern "C" {
  * [any size beyond that is ok provided it doesn't overflow the data type]
  */
 #ifdef MP_8BIT
+   /* 8-bit */
    typedef unsigned char      mp_digit;
    typedef unsigned short     mp_word;
-#elif defined(MP_16BIT) || defined(NO_64BIT)
+   /* don't define DIGIT_BIT, so its calculated below */
+#elif defined(MP_16BIT)
+   /* 16-bit */
+   typedef unsigned int       mp_digit;
+   typedef unsigned long      mp_word;
+   /* don't define DIGIT_BIT, so its calculated below */
+#elif defined(NO_64BIT)
+   /* 32-bit forced to 16-bit */
    typedef unsigned short     mp_digit;
    typedef unsigned int       mp_word;
    #define DIGIT_BIT          12
 #elif defined(MP_64BIT)
+   /* 64-bit */
    /* for GCC only on supported platforms */
    typedef unsigned long long mp_digit;  /* 64 bit type, 128 uses mode(TI) */
    typedef unsigned long      mp_word __attribute__ ((mode(TI)));
-
    #define DIGIT_BIT          60
 #else
-   /* this is the default case, 28-bit digits */
+   /* 32-bit default case */
 
    #if defined(_MSC_VER) || defined(__BORLANDC__)
       typedef unsigned __int64   ulong64;
@@ -132,14 +140,14 @@ extern "C" {
    typedef unsigned int       mp_digit;  /* long could be 64 now, changed TAO */
    typedef ulong64            mp_word;
 
-#ifdef MP_31BIT
-   /* this is an extension that uses 31-bit digits */
-   #define DIGIT_BIT          31
-#else
-   /* default case is 28-bit digits, defines MP_28BIT as a handy test macro */
-   #define DIGIT_BIT          28
-   #define MP_28BIT
-#endif
+   #ifdef MP_31BIT
+      /* this is an extension that uses 31-bit digits */
+      #define DIGIT_BIT          31
+   #else
+      /* default case is 28-bit digits, defines MP_28BIT as a handy test macro */
+      #define DIGIT_BIT          28
+      #define MP_28BIT
+   #endif
 #endif
 
 #endif /* WOLFSSL_BIGINT_TYPES */
@@ -193,7 +201,7 @@ typedef int           mp_err;
 
 /* size of comba arrays, should be at least 2 * 2**(BITS_PER_WORD -
    BITS_PER_DIGIT*2) */
-#define MP_WARRAY  (1 << (sizeof(mp_word) * CHAR_BIT - 2 * DIGIT_BIT + 1))
+#define MP_WARRAY  ((mp_word)1 << (sizeof(mp_word) * CHAR_BIT - 2 * DIGIT_BIT + 1))
 
 #ifdef HAVE_WOLF_BIGINT
     struct WC_BIGINT;

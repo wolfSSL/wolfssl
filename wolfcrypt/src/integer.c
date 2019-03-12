@@ -1961,7 +1961,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
      /* automatically pick the comba one if available (saves quite a few
         calls/ifs) */
 #ifdef BN_FAST_MP_MONTGOMERY_REDUCE_C
-     if (((P->used * 2 + 1) < MP_WARRAY) &&
+     if (((P->used * 2 + 1) < (int)MP_WARRAY) &&
           P->used < (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
         redux = fast_mp_montgomery_reduce;
      } else
@@ -2406,7 +2406,7 @@ int mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
    * are fixed up in the inner loop.
    */
   digs = n->used * 2 + 1;
-  if ((digs < MP_WARRAY) &&
+  if ((digs < (int)MP_WARRAY) &&
       n->used <
       (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
     return fast_mp_montgomery_reduce (x, n, rho);
@@ -2808,7 +2808,7 @@ int mp_sqr (mp_int * a, mp_int * b)
   {
 #ifdef BN_FAST_S_MP_SQR_C
     /* can we use the fast comba multiplier? */
-    if ((a->used * 2 + 1) < MP_WARRAY &&
+    if ((a->used * 2 + 1) < (int)MP_WARRAY &&
          a->used <
          (1 << (sizeof(mp_word) * CHAR_BIT - 2*DIGIT_BIT - 1))) {
       res = fast_s_mp_sqr (a, b);
@@ -2845,7 +2845,7 @@ int mp_mul (mp_int * a, mp_int * b, mp_int * c)
     int     digs = a->used + b->used + 1;
 
 #ifdef BN_FAST_S_MP_MUL_DIGS_C
-    if ((digs < MP_WARRAY) &&
+    if ((digs < (int)MP_WARRAY) &&
         MIN(a->used, b->used) <=
         (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
       res = fast_s_mp_mul_digs (a, b, c, digs);
@@ -3043,7 +3043,7 @@ int fast_s_mp_sqr (mp_int * a, mp_int * b)
     }
   }
 
-  if (pa > MP_WARRAY)
+  if (pa > (int)MP_WARRAY)
     return MP_RANGE;  /* TAO range check */
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -3162,7 +3162,7 @@ int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 
   /* number of output digits to produce */
   pa = MIN(digs, a->used + b->used);
-  if (pa > MP_WARRAY)
+  if (pa > (int)MP_WARRAY)
     return MP_RANGE;  /* TAO range check */
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -3308,7 +3308,7 @@ int s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   mp_digit tmpx, *tmpt, *tmpy;
 
   /* can we use the fast multiplier? */
-  if (((digs) < MP_WARRAY) &&
+  if ((digs < (int)MP_WARRAY) &&
       MIN (a->used, b->used) <
           (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
     return fast_s_mp_mul_digs (a, b, c, digs);
@@ -3816,7 +3816,7 @@ int s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 
   /* can we use the fast multiplier? */
 #ifdef BN_FAST_S_MP_MUL_HIGH_DIGS_C
-  if (((a->used + b->used + 1) < MP_WARRAY)
+  if (((a->used + b->used + 1) < (int)MP_WARRAY)
       && MIN (a->used, b->used) <
       (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
     return fast_s_mp_mul_high_digs (a, b, c, digs);
@@ -3895,7 +3895,7 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
     }
   }
 
-  if (pa > MP_WARRAY)
+  if (pa > (int)MP_WARRAY)
     return MP_RANGE;  /* TAO range check */
 
 #ifdef WOLFSSL_SMALL_STACK

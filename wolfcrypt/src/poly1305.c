@@ -301,7 +301,7 @@ static void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
     ctx->h[2] = h2;
 
 #else /* if not 64 bit then use 32 bit */
-    const word32 hibit = (ctx->finished) ? 0 : (1 << 24); /* 1 << 128 */
+    const word32 hibit = (ctx->finished) ? 0 : ((word32)1 << 24); /* 1 << 128 */
     word32 r0,r1,r2,r3,r4;
     word32 s1,s2,s3,s4;
     word32 h0,h1,h2,h3,h4;
@@ -593,10 +593,10 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
     g1 = h1 + c; c = g1 >> 26; g1 &= 0x3ffffff;
     g2 = h2 + c; c = g2 >> 26; g2 &= 0x3ffffff;
     g3 = h3 + c; c = g3 >> 26; g3 &= 0x3ffffff;
-    g4 = h4 + c - (1 << 26);
+    g4 = h4 + c - ((word32)1 << 26);
 
     /* select h if h < p, or h + -p if h >= p */
-    mask = (g4 >> ((sizeof(word32) * 8) - 1)) - 1;
+    mask = ((word32)g4 >> ((sizeof(word32) * 8) - 1)) - 1;
     g0 &= mask;
     g1 &= mask;
     g2 &= mask;

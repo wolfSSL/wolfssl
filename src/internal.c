@@ -11593,8 +11593,8 @@ static int Poly1305TagOld(WOLFSSL* ssl, byte* additional, const byte* out,
     /* 32 bit size of cipher to 64 bit endian */
     padding[0] =  msglen        & 0xff;
     padding[1] = (msglen >>  8) & 0xff;
-    padding[2] = (msglen >> 16) & 0xff;
-    padding[3] = (msglen >> 24) & 0xff;
+    padding[2] = ((word32)msglen >> 16) & 0xff;
+    padding[3] = ((word32)msglen >> 24) & 0xff;
     if ((ret = wc_Poly1305Update(ssl->auth.poly1305, padding, sizeof(padding)))
         != 0)
         return ret;
@@ -17387,7 +17387,7 @@ exit_dpk:
 
             if (IsAtLeastTLSv1_2(ssl)) {
                 if (ssl->suites->hashSigAlgoSz) {
-                    int i;
+                    word16 i;
                     /* extension type */
                     c16toa(HELLO_EXT_SIG_ALGO, output + idx);
                     idx += HELLO_EXT_TYPE_SZ;
@@ -17398,7 +17398,7 @@ exit_dpk:
                     /* sig algos length */
                     c16toa(ssl->suites->hashSigAlgoSz, output + idx);
                     idx += HELLO_EXT_SIGALGO_SZ;
-                    for (i = 0; i < ssl->suites->hashSigAlgoSz; i++, idx++) {
+                    for (i=0; i < ssl->suites->hashSigAlgoSz; i++, idx++) {
                         output[idx] = ssl->suites->hashSigAlgo[i];
                     }
                 }
@@ -19839,6 +19839,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             #ifndef NO_DH
                 case diffie_hellman_kea:
                 {
+                    word32 sigLen;
                     ssl->buffers.sig.length = ENCRYPT_LEN;
                     ssl->buffers.sig.buffer = (byte*)XMALLOC(ENCRYPT_LEN,
                                             ssl->heap, DYNAMIC_TYPE_SIGNATURE);
@@ -19882,11 +19883,13 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     }
 
                     /* for DH, encSecret is Yc, agree is pre-master */
+                    sigLen = ssl->buffers.sig.length;
                     ret = DhGenKeyPair(ssl, ssl->buffers.serverDH_Key,
-                        ssl->buffers.sig.buffer, &ssl->buffers.sig.length,
+                        ssl->buffers.sig.buffer, &sigLen,
                         args->encSecret, &args->encSz);
 
                     /* set the max agree result size */
+                    ssl->buffers.sig.length = (unsigned int)sigLen;
                     ssl->arrays->preMasterSz = ENCRYPT_LEN;
                     break;
                 }
@@ -20904,10 +20907,11 @@ int SendCertificateVerify(WOLFSSL* ssl)
         #ifdef HAVE_ECC
            if (ssl->hsType == DYNAMIC_TYPE_ECC) {
                 ecc_key* key = (ecc_key*)ssl->hsKey;
+                word32 sigLen = ssl->buffers.sig.length;
 
                 ret = EccSign(ssl,
                     ssl->buffers.digest.buffer, ssl->buffers.digest.length,
-                    ssl->buffers.sig.buffer, &ssl->buffers.sig.length,
+                    ssl->buffers.sig.buffer, &sigLen,
                     key,
             #ifdef HAVE_PK_CALLBACKS
                     ssl->buffers.key
@@ -20915,6 +20919,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                     NULL
             #endif
                 );
+                ssl->buffers.sig.length = (unsigned int)sigLen;
             }
         #endif /* HAVE_ECC */
         #if defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)
@@ -21710,6 +21715,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     case diffie_hellman_kea:
                 #endif
                     {
+                        word32 dhPrivLen, dhPubLen;
+
                         /* Allocate DH key buffers and generate key */
                         if (ssl->buffers.serverDH_P.buffer == NULL ||
                             ssl->buffers.serverDH_G.buffer == NULL) {
@@ -21776,11 +21783,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             }
                         }
 
+                        dhPrivLen = ssl->buffers.serverDH_Priv.length;
+                        dhPubLen = ssl->buffers.serverDH_Pub.length;
                         ret = DhGenKeyPair(ssl, ssl->buffers.serverDH_Key,
-                            ssl->buffers.serverDH_Priv.buffer,
-                            &ssl->buffers.serverDH_Priv.length,
-                            ssl->buffers.serverDH_Pub.buffer,
-                            &ssl->buffers.serverDH_Pub.length);
+                            ssl->buffers.serverDH_Priv.buffer, &dhPrivLen,
+                            ssl->buffers.serverDH_Pub.buffer, &dhPubLen);
+                        ssl->buffers.serverDH_Priv.length = (unsigned int)dhPrivLen;
+                        ssl->buffers.serverDH_Pub.length = (unsigned int)dhPubLen;
                         break;
                     }
                 #endif /* !NO_DH && (!NO_PSK || !NO_RSA) */
@@ -24652,7 +24661,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     et->enc_ticket, inLen, &outLen,
                                     ssl->ctx->ticketEncCtx);
         if (ret == WOLFSSL_TICKET_RET_FATAL || ret < 0) return ret;
-        if (outLen > inLen || outLen < (int)sizeof(InternalTicket)) {
+        if (outLen > (int)inLen || outLen < (int)sizeof(InternalTicket)) {
             WOLFSSL_MSG("Bad user ticket decrypt len");
             return BAD_TICKET_KEY_CB_SZ;
         }
@@ -26129,7 +26138,7 @@ int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment)
     }
 
 #ifdef HAVE_MAX_FRAGMENT
-    if ((ssl->max_fragment != 0) && (maxFragment > ssl->max_fragment)) {
+    if ((ssl->max_fragment != 0) && ((word16)maxFragment > ssl->max_fragment)) {
         maxFragment = ssl->max_fragment;
     }
 #endif /* HAVE_MAX_FRAGMENT */

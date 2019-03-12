@@ -854,11 +854,12 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
     byte lenBytes[8];
     int  i, j, k;
     int  blockBits, blockMask;
-    int  realLen, lastBlockLen, macLen, extraLen, eocIndex;
+    int  lastBlockLen, macLen, extraLen, eocIndex;
     int  blocks, safeBlocks, lenBlock, eocBlock;
     int  maxLen;
     int  blockSz, padSz;
     int  ret;
+    word32 realLen;
     byte extraBlock;
 
     switch (hmac->macType) {
@@ -3717,7 +3718,7 @@ static int TLSX_PointFormat_Append(PointFormat* list, byte format, void* heap)
 
 static void TLSX_SupportedCurve_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
 {
-    int i;
+    word16 i;
 
     for (i = 0; i < ssl->suites->suiteSz; i+= 2) {
         if (ssl->suites->suites[i] == TLS13_BYTE)
@@ -3741,7 +3742,7 @@ static void TLSX_SupportedCurve_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
 
 static void TLSX_PointFormat_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
 {
-    int i;
+    word16 i;
 
     for (i = 0; i < ssl->suites->suiteSz; i+= 2) {
         if (ssl->suites->suites[i] == TLS13_BYTE)
@@ -4121,7 +4122,7 @@ static int TLSX_PointFormat_Parse(WOLFSSL* ssl, byte* input, word16 length,
     int ret;
 
     /* validating formats list length */
-    if (ENUM_LEN > length || length != ENUM_LEN + input[0])
+    if (ENUM_LEN > length || length != (word16)ENUM_LEN + input[0])
         return BUFFER_ERROR;
 
     if (isRequest) {
@@ -5704,7 +5705,7 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, byte* input,
         len = *input;
 
         /* Protocol version array must fill rest of data. */
-        if (length != OPAQUE8_LEN + len)
+        if (length != (word16)OPAQUE8_LEN + len)
             return BUFFER_ERROR;
 
         input++;
@@ -7179,7 +7180,7 @@ static int TLSX_KeyShare_Parse(WOLFSSL* ssl, byte* input, word16 length,
             return BUFFER_ERROR;
         offset += OPAQUE16_LEN;
 
-        while (offset < length) {
+        while (offset < (int)length) {
             ret = TLSX_KeyShareEntry_Parse(ssl, &input[offset], length - offset,
                                                                 &keyShareEntry);
             if (ret < 0)
@@ -7209,7 +7210,7 @@ static int TLSX_KeyShare_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
         /* ServerHello contains one key share entry. */
         len = TLSX_KeyShareEntry_Parse(ssl, input, length, &keyShareEntry);
-        if (len != length)
+        if (len != (int)length)
             return BUFFER_ERROR;
 
         /* Not in list sent if there isn't a private key. */
@@ -7488,7 +7489,7 @@ static int TLSX_KeyShare_GroupRank(WOLFSSL* ssl, int group)
     }
 
     for (i = 0; i < ssl->numGroups; i++)
-        if (ssl->group[i] == group)
+        if (ssl->group[i] == (word16)group)
             return i;
 
     return -1;
@@ -8225,7 +8226,7 @@ static int TLSX_PskKeModes_Parse(WOLFSSL* ssl, byte* input, word16 length,
     if (msgType == client_hello) {
         /* Format: Len | Modes* */
         int   idx = 0;
-        int   len;
+        word16 len;
         byte  modes = 0;
 
         /* Ensure length byte exists. */
@@ -10101,7 +10102,7 @@ int TLSX_ParseVersion(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
     int offset = 0;
 
     *found = 0;
-    while (offset < length) {
+    while (offset < (int)length) {
         word16 type;
         word16 size;
 

@@ -1380,7 +1380,7 @@ enum Misc {
     MIN_PSK_BINDERS_LEN=  33,  /* min length of binders */
     MAX_TICKET_AGE_SECS=  10,  /* maximum ticket age in seconds */
 
-    MAX_WOLFSSL_FILE_SIZE = 1024 * 1024 * 4,  /* 4 mb file size alloc limit */
+    MAX_WOLFSSL_FILE_SIZE = 1024ul * 1024ul * 4,  /* 4 mb file size alloc limit */
 
 #if defined(HAVE_EX_DATA) || defined(FORTRESS)
     MAX_EX_DATA        =   5,  /* allow for five items of ex_data */
