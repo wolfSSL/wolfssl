@@ -1830,7 +1830,7 @@ void InitCipherSpecs(CipherSpecs* cs)
 }
 
 #ifdef USE_ECDSA_KEYSZ_HASH_ALGO
-static word32 GetMacDigestSize(byte macAlgo)
+static int GetMacDigestSize(byte macAlgo)
 {
     switch (macAlgo) {
     #ifndef NO_SHA
@@ -1863,9 +1863,9 @@ static WC_INLINE void AddSuiteHashSigAlgo(Suites* suites, byte macAlgo, byte sig
 
 #ifdef USE_ECDSA_KEYSZ_HASH_ALGO
     if (sigAlgo == ecc_dsa_sa_algo) {
-        word32 digestSz = GetMacDigestSize(macAlgo);
+        int digestSz = GetMacDigestSize(macAlgo);
         /* do not add sig/algos with digest size larger than key size */
-        if (digestSz <= 0 || (keySz > 0 && digestSz > (word32)keySz)) {
+        if (digestSz <= 0 || (keySz > 0 && digestSz > keySz)) {
             addSigAlgo = 0;
         }
     }
@@ -16766,7 +16766,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
      */
     #if defined(HAVE_ECC) && defined(USE_ECDSA_KEYSZ_HASH_ALGO)
         if (sigAlgo == ssl->suites->sigAlgo && sigAlgo == ecc_dsa_sa_algo) {
-            word32 digestSz = GetMacDigestSize(hashAlgo);
+            int digestSz = GetMacDigestSize(hashAlgo);
             if (digestSz <= 0)
                 continue;
 
