@@ -21,6 +21,15 @@
 		1E8BEB86212F4F010063DCC1 /* fe_operations.c in Sources */ = {isa = PBXBuildFile; fileRef = 1E8BEB84212F4F010063DCC1 /* fe_operations.c */; };
 		1E8BEB87212F4F010063DCC1 /* fe_low_mem.c in Sources */ = {isa = PBXBuildFile; fileRef = 1E8BEB85212F4F010063DCC1 /* fe_low_mem.c */; };
 		1E8BEB89212F5E0A0063DCC1 /* sp_c32.c in Sources */ = {isa = PBXBuildFile; fileRef = 1E8BEB88212F5E0A0063DCC1 /* sp_c32.c */; };
+		1EBED290223815BB003E4A01 /* wolfio.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 1EBED28F223815BB003E4A01 /* wolfio.h */; };
+		1EBED292223815E0003E4A01 /* wolfmath.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 1EBED291223815E0003E4A01 /* wolfmath.h */; };
+		1EBED294223815F8003E4A01 /* mem_track.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 1EBED293223815F8003E4A01 /* mem_track.h */; };
+		1EBED29622381642003E4A01 /* wolfio.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 1EBED29522381642003E4A01 /* wolfio.h */; };
+		1EBED2982238165A003E4A01 /* wolfmath.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 1EBED2972238165A003E4A01 /* wolfmath.h */; };
+		1EBED29A22381672003E4A01 /* mem_track.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 1EBED29922381672003E4A01 /* mem_track.h */; };
+		1EBED29C2238168A003E4A01 /* wolfio.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 1EBED29B2238168A003E4A01 /* wolfio.h */; };
+		1EBED29E223816A2003E4A01 /* wolfmath.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 1EBED29D223816A2003E4A01 /* wolfmath.h */; };
+		1EBED2A0223816B3003E4A01 /* mem_track.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = 1EBED29F223816B3003E4A01 /* mem_track.h */; };
 		30B060541C6DDB2B00D46008 /* crl.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646011A89928E0062516A /* crl.c */; };
 		30B060551C6DDB2B00D46008 /* internal.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646021A89928E0062516A /* internal.c */; };
 		30B060561C6DDB2B00D46008 /* wolfio.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646031A89928E0062516A /* wolfio.c */; };
@@ -477,6 +486,7 @@
 			dstPath = include/wolfssl;
 			dstSubfolderSpec = 7;
 			files = (
+				1EBED29C2238168A003E4A01 /* wolfio.h in CopyFiles */,
 				30B0607F1C6DDB4600D46008 /* callbacks.h in CopyFiles */,
 				30B060801C6DDB4600D46008 /* certs_test.h in CopyFiles */,
 				30B060811C6DDB4600D46008 /* crl.h in CopyFiles */,
@@ -495,6 +505,8 @@
 			dstPath = include/wolfssl/wolfcrypt;
 			dstSubfolderSpec = 7;
 			files = (
+				1EBED2A0223816B3003E4A01 /* mem_track.h in CopyFiles */,
+				1EBED29E223816A2003E4A01 /* wolfmath.h in CopyFiles */,
 				30B0608B1C6DDB6200D46008 /* aes.h in CopyFiles */,
 				30B0608C1C6DDB6200D46008 /* arc4.h in CopyFiles */,
 				30B0608D1C6DDB6200D46008 /* asn_public.h in CopyFiles */,
@@ -620,6 +632,8 @@
 			dstPath = include/wolfssl/wolfcrypt;
 			dstSubfolderSpec = 7;
 			files = (
+				1EBED294223815F8003E4A01 /* mem_track.h in CopyFiles */,
+				1EBED292223815E0003E4A01 /* wolfmath.h in CopyFiles */,
 				522DBE0F1B7927A50031F454 /* wc_encrypt.h in CopyFiles */,
 				525BE5361B3869780054BBCD /* hash.h in CopyFiles */,
 				521646CD1A8A7FF30062516A /* aes.h in CopyFiles */,
@@ -745,6 +759,7 @@
 			dstPath = include/wolfssl;
 			dstSubfolderSpec = 7;
 			files = (
+				1EBED290223815BB003E4A01 /* wolfio.h in CopyFiles */,
 				521646C41A8A7FE10062516A /* callbacks.h in CopyFiles */,
 				521646C51A8A7FE10062516A /* certs_test.h in CopyFiles */,
 				521646C61A8A7FE10062516A /* crl.h in CopyFiles */,
@@ -763,6 +778,7 @@
 			dstPath = include/wolfssl;
 			dstSubfolderSpec = 7;
 			files = (
+				1EBED29622381642003E4A01 /* wolfio.h in CopyFiles */,
 				A4F3187D1BC58B1700FDF2BB /* callbacks.h in CopyFiles */,
 				A4F3187E1BC58B1700FDF2BB /* certs_test.h in CopyFiles */,
 				A4F3187F1BC58B1700FDF2BB /* crl.h in CopyFiles */,
@@ -781,6 +797,8 @@
 			dstPath = include/wolfssl/wolfcrypt;
 			dstSubfolderSpec = 7;
 			files = (
+				1EBED29A22381672003E4A01 /* mem_track.h in CopyFiles */,
+				1EBED2982238165A003E4A01 /* wolfmath.h in CopyFiles */,
 				A4F318871BC58B1700FDF2BB /* wc_encrypt.h in CopyFiles */,
 				A4F318881BC58B1700FDF2BB /* hash.h in CopyFiles */,
 				A4F318891BC58B1700FDF2BB /* aes.h in CopyFiles */,
@@ -920,6 +938,15 @@
 		1E8BEB84212F4F010063DCC1 /* fe_operations.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = fe_operations.c; path = ../../wolfcrypt/src/fe_operations.c; sourceTree = "<group>"; };
 		1E8BEB85212F4F010063DCC1 /* fe_low_mem.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = fe_low_mem.c; path = ../../wolfcrypt/src/fe_low_mem.c; sourceTree = "<group>"; };
 		1E8BEB88212F5E0A0063DCC1 /* sp_c32.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = sp_c32.c; path = ../../wolfcrypt/src/sp_c32.c; sourceTree = "<group>"; };
+		1EBED28F223815BB003E4A01 /* wolfio.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = wolfio.h; path = ../../wolfssl/wolfio.h; sourceTree = "<group>"; };
+		1EBED291223815E0003E4A01 /* wolfmath.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = wolfmath.h; path = ../../wolfssl/wolfcrypt/wolfmath.h; sourceTree = "<group>"; };
+		1EBED293223815F8003E4A01 /* mem_track.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = mem_track.h; path = ../../wolfssl/wolfcrypt/mem_track.h; sourceTree = "<group>"; };
+		1EBED29522381642003E4A01 /* wolfio.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = wolfio.h; path = ../../wolfssl/wolfio.h; sourceTree = "<group>"; };
+		1EBED2972238165A003E4A01 /* wolfmath.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = wolfmath.h; path = ../../wolfssl/wolfcrypt/wolfmath.h; sourceTree = "<group>"; };
+		1EBED29922381672003E4A01 /* mem_track.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = mem_track.h; path = ../../wolfssl/wolfcrypt/mem_track.h; sourceTree = "<group>"; };
+		1EBED29B2238168A003E4A01 /* wolfio.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = wolfio.h; path = ../../wolfssl/wolfio.h; sourceTree = "<group>"; };
+		1EBED29D223816A2003E4A01 /* wolfmath.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = wolfmath.h; path = ../../wolfssl/wolfcrypt/wolfmath.h; sourceTree = "<group>"; };
+		1EBED29F223816B3003E4A01 /* mem_track.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = mem_track.h; path = ../../wolfssl/wolfcrypt/mem_track.h; sourceTree = "<group>"; };
 		30B0604B1C6DDAEA00D46008 /* libwolfssl_tvos.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libwolfssl_tvos.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		521646011A89928E0062516A /* crl.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = crl.c; path = ../../src/crl.c; sourceTree = "<group>"; };
 		521646021A89928E0062516A /* internal.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = internal.c; path = ../../src/internal.c; sourceTree = "<group>"; };
@@ -1317,6 +1344,15 @@
 		52B1344416F3C9E800C07B32 = {
 			isa = PBXGroup;
 			children = (
+				1EBED29F223816B3003E4A01 /* mem_track.h */,
+				1EBED29D223816A2003E4A01 /* wolfmath.h */,
+				1EBED29B2238168A003E4A01 /* wolfio.h */,
+				1EBED29922381672003E4A01 /* mem_track.h */,
+				1EBED2972238165A003E4A01 /* wolfmath.h */,
+				1EBED29522381642003E4A01 /* wolfio.h */,
+				1EBED293223815F8003E4A01 /* mem_track.h */,
+				1EBED291223815E0003E4A01 /* wolfmath.h */,
+				1EBED28F223815BB003E4A01 /* wolfio.h */,
 				1E8BEB88212F5E0A0063DCC1 /* sp_c32.c */,
 				1E8BEB85212F4F010063DCC1 /* fe_low_mem.c */,
 				1E8BEB84212F4F010063DCC1 /* fe_operations.c */,
@@ -1357,12 +1393,12 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 30B060531C6DDAEA00D46008 /* Build configuration list for PBXNativeTarget "wolfssl_tvos" */;
 			buildPhases = (
-				30B060471C6DDAEA00D46008 /* Sources */,
 				30B060481C6DDAEA00D46008 /* Frameworks */,
 				30B060491C6DDAEA00D46008 /* CopyFiles */,
 				30B060881C6DDB5200D46008 /* CopyFiles */,
 				30B060891C6DDB5400D46008 /* CopyFiles */,
 				30B0608A1C6DDB5500D46008 /* CopyFiles */,
+				30B060471C6DDAEA00D46008 /* Sources */,
 			);
 			buildRules = (
 			);
@@ -1377,12 +1413,12 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 52B1347216F3C9E800C07B32 /* Build configuration list for PBXNativeTarget "wolfssl_ios" */;
 			buildPhases = (
-				52B1344916F3C9E800C07B32 /* Sources */,
 				52B1344A16F3C9E800C07B32 /* Frameworks */,
 				52B1344B16F3C9E800C07B32 /* CopyFiles */,
 				521646C11A8A7B380062516A /* CopyFiles */,
 				521646C21A8A7B3B0062516A /* CopyFiles */,
 				521646C31A8A7B3D0062516A /* CopyFiles */,
+				52B1344916F3C9E800C07B32 /* Sources */,
 			);
 			buildRules = (
 			);
@@ -1397,12 +1433,12 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = A4F318EB1BC58B1700FDF2BB /* Build configuration list for PBXNativeTarget "wolfssl_osx" */;
 			buildPhases = (
-				A4F3184F1BC58B1700FDF2BB /* Sources */,
 				A4F3187B1BC58B1700FDF2BB /* Frameworks */,
 				A4F3187C1BC58B1700FDF2BB /* CopyFiles */,
 				A4F318861BC58B1700FDF2BB /* CopyFiles */,
 				A4F318B41BC58B1700FDF2BB /* CopyFiles */,
 				A4F318BE1BC58B1700FDF2BB /* CopyFiles */,
+				A4F3184F1BC58B1700FDF2BB /* Sources */,
 			);
 			buildRules = (
 			);
@@ -1419,7 +1455,7 @@
 		52B1344516F3C9E800C07B32 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0820;
+				LastUpgradeCheck = 1010;
 				ORGANIZATIONNAME = "wolfSSL Inc";
 				TargetAttributes = {
 					30B0604A1C6DDAEA00D46008 = {
@@ -1685,12 +1721,20 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
@@ -1726,12 +1770,20 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
@@ -1757,6 +1809,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				CLANG_LINK_OBJC_RUNTIME = NO;
 				DSTROOT = /tmp/wolfssl_ios.dst;
 				GCC_PRECOMPILE_PREFIX_HEADER = NO;
@@ -1785,6 +1838,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				CLANG_LINK_OBJC_RUNTIME = NO;
 				DSTROOT = /tmp/wolfssl_ios.dst;
 				GCC_PRECOMPILE_PREFIX_HEADER = NO;
@@ -1810,6 +1864,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				CLANG_LINK_OBJC_RUNTIME = NO;
 				DSTROOT = /tmp/wolfssl_osx.dst;
 				GCC_PRECOMPILE_PREFIX_HEADER = NO;
@@ -1837,6 +1892,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
 				CLANG_LINK_OBJC_RUNTIME = NO;
 				DSTROOT = /tmp/wolfssl_osx.dst;
 				GCC_PRECOMPILE_PREFIX_HEADER = NO;
