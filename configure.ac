@@ -1377,6 +1377,19 @@ then
 fi
 
 
+# DECODED CERT CACHE
+AC_ARG_ENABLE([certgencache],
+    [AS_HELP_STRING([--enable-certgencache],[Enable decoded cert caching (default: disabled)])],
+    [ ENABLED_certgencache=$enableval ],
+    [ ENABLED_certgencache=no ]
+    )
+
+if test "$ENABLED_certgencache" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN_CACHE"
+fi
+
+
 # SEP
 AC_ARG_ENABLE([sep],
     [AS_HELP_STRING([--enable-sep],[Enable sep extensions (default: disabled)])],
@@ -4874,6 +4887,7 @@ echo "   * keygen:                     $ENABLED_KEYGEN"
 echo "   * certgen:                    $ENABLED_CERTGEN"
 echo "   * certreq:                    $ENABLED_CERTREQ"
 echo "   * certext:                    $ENABLED_CERTEXT"
+echo "   * certgencache:               $ENABLED_certgencache"
 echo "   * HC-128:                     $ENABLED_HC128"
 echo "   * RABBIT:                     $ENABLED_RABBIT"
 echo "   * CHACHA:                     $ENABLED_CHACHA"
