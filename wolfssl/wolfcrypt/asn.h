@@ -861,7 +861,8 @@ struct Signer {
     word32  keyOID;                  /* key type */
     word16  keyUsage;
     byte    pathLength;
-    byte    pathLengthSet;
+    byte    pathLengthSet : 1;
+    byte    selfSigned : 1;
     const byte* publicKey;
     int     nameLen;
     char*   name;                    /* common name */
