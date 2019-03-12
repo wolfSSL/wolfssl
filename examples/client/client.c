@@ -988,7 +988,12 @@ static const char* client_usage_msg[][59] = {
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
         "-2          Disable DH Prime check\n",                         /* 59 */
 #endif
+#ifdef HAVE_SECURE_RENEGOTIATION
         "-4          Use resumption for renegotiation\n",               /* 60 */
+#endif
+#ifdef HAVE_TRUSTED_CA
+        "-5          Use Trusted CA Key Indication\n",                  /* 61 */
+#endif
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1147,6 +1152,9 @@ static const char* client_usage_msg[][59] = {
 #ifdef HAVE_SECURE_RENEGOTIATION
         "-4          再交渉に再開を使用\n",                             /* 60 */
 #endif
+#ifdef HAVE_TRUSTED_CA
+        "-5          信頼できる認証局の鍵表示を使用する\n",             /* 61 */
+#endif
         NULL,
     },
 #endif
@@ -1299,6 +1307,9 @@ static void Usage(void)
 #ifdef HAVE_SECURE_RENEGOTIATION
     printf("%s", msg[++msgid]);  /* -4 */
 #endif
+#ifdef HAVE_TRUSTED_CA
+    printf("%s", msg[++msgid]);  /* -5 */
+#endif
 }
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
@@ -1386,6 +1397,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifdef HAVE_SNI
     char*  sniHostName = NULL;
+#endif
+#ifdef HAVE_TRUSTED_CA
+    int trustedCaKeyId = 0;
 #endif
 #ifdef HAVE_MAX_FRAGMENT
     byte maxFragment = 0;
@@ -1492,7 +1506,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     while ((ch = mygetopt(argc, argv, "?:"
             "ab:c:defgh:ijk:l:mnop:q:rstuv:wxyz"
             "A:B:CDE:F:GH:IJKL:M:NO:PQRS:TUVW:XYZ:"
-            "01:23:4")) != -1) {
+            "01:23:5")) != -1) {
         switch (ch) {
             case '?' :
                 if(myoptarg!=NULL) {
@@ -1916,6 +1930,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     forceScr  = 1;
                     resumeScr = 1;
                 #endif
+
+            case '5' :
+            #ifdef HAVE_TRUSTED_CA
+                trustedCaKeyId = 1;
+            #endif /* HAVE_TRUSTED_CA */
                 break;
 
             default:
@@ -2360,11 +2379,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifdef HAVE_SNI
-    if (sniHostName)
+    if (sniHostName) {
         if (wolfSSL_CTX_UseSNI(ctx, 0, sniHostName,
                     (word16) XSTRLEN(sniHostName)) != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("UseSNI failed");
+        }
     }
 #endif
 #ifdef HAVE_MAX_FRAGMENT
@@ -2605,6 +2625,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     wolfSSL_set_SessionTicket_cb(ssl, sessionTicketCB, (void*)"initial session");
     #endif
 
+#ifdef HAVE_TRUSTED_CA
+    if (trustedCaKeyId) {
+        if (wolfSSL_UseTrustedCA(ssl, WOLFSSL_TRUSTED_CA_PRE_AGREED,
+                    NULL, 0) != WOLFSSL_SUCCESS) {
+            err_sys("UseTrustedCA failed");
+        }
+    }
+#endif
 #ifdef HAVE_ALPN
     if (alpnList != NULL) {
        printf("ALPN accepted protocols list : %s\n", alpnList);
