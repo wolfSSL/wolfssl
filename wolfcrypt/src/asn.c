@@ -8101,6 +8101,16 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             if (cert->ca) {
                 /* Check if cert is CA type and signer has path length set */
                 if (cert->isCA && cert->ca->pathLengthSet) {
+                #if defined(WOLFSSL_WPAS) && !defined(WOLFSSL_NO_ASN_STRICT)
+                    /* WPA Supplicant - has test case that expects self-signed
+                        root CA to have path length == 0 */
+                    if (cert->selfSigned) {
+                        if (cert->ca->pathLength != 0) {
+                            WOLFSSL_MSG("Root CA with path length > 0");
+                            return ASN_PATHLEN_INV_E;
+                        }
+                    }
+                #endif
                     /* Check if signer is root CA (self-signed) */
                     if (cert->ca->selfSigned) {
                         /* Root CA as signer:
@@ -8127,10 +8137,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                     }
                 }
 
-        #ifdef HAVE_OCSP
-            /* Need the CA's public key hash for OCSP */
-            XMEMCPY(cert->issuerKeyHash, cert->ca->subjectKeyHash, KEYID_SIZE);
-        #endif /* HAVE_OCSP */
+            #ifdef HAVE_OCSP
+                /* Need the CA's public key hash for OCSP */
+                XMEMCPY(cert->issuerKeyHash, cert->ca->subjectKeyHash,
+                    KEYID_SIZE);
+            #endif /* HAVE_OCSP */
             }
         }
     }
