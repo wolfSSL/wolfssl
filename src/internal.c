@@ -1829,88 +1829,136 @@ void InitCipherSpecs(CipherSpecs* cs)
     cs->sig_algo              = INVALID_BYTE;
 }
 
+#ifdef USE_ECDSA_KEYSZ_HASH_ALGO
+static int GetMacDigestSize(byte macAlgo)
+{
+    switch (macAlgo) {
+    #ifndef NO_SHA
+        case sha_mac:
+            return WC_SHA_DIGEST_SIZE;
+    #endif
+    #ifndef NO_SHA256
+        case sha256_mac:
+            return WC_SHA256_DIGEST_SIZE;
+    #endif
+    #ifdef WOLFSSL_SHA384
+        case sha384_mac:
+            return WC_SHA384_DIGEST_SIZE;
+    #endif
+    #ifdef WOLFSSL_SHA512
+        case sha512_mac:
+            return WC_SHA512_DIGEST_SIZE;
+    #endif
+        default:
+            break;
+    }
+    return NOT_COMPILED_IN;
+}
+#endif /* USE_ECDSA_KEYSZ_HASH_ALGO */
+
+static WC_INLINE void AddSuiteHashSigAlgo(Suites* suites, byte macAlgo, byte sigAlgo,
+    int keySz, word16* inOutIdx)
+{
+    int addSigAlgo = 1;
+
+#ifdef USE_ECDSA_KEYSZ_HASH_ALGO
+    if (sigAlgo == ecc_dsa_sa_algo) {
+        int digestSz = GetMacDigestSize(macAlgo);
+        /* do not add sig/algos with digest size larger than key size */
+        if (digestSz <= 0 || (keySz > 0 && digestSz > keySz)) {
+            addSigAlgo = 0;
+        }
+    }
+#else
+    (void)keySz;
+#endif /* USE_ECDSA_KEYSZ_HASH_ALGO */
+
+    if (addSigAlgo) {
+        if (sigAlgo == rsa_pss_sa_algo) {
+            /* RSA PSS is sig then mac */
+            suites->hashSigAlgo[*inOutIdx] = sigAlgo;
+            *inOutIdx += 1;
+            suites->hashSigAlgo[*inOutIdx] = macAlgo;
+            *inOutIdx += 1;
+        }
+        else {
+            suites->hashSigAlgo[*inOutIdx] = macAlgo;
+            *inOutIdx += 1;
+            suites->hashSigAlgo[*inOutIdx] = sigAlgo;
+            *inOutIdx += 1;
+        }
+    }
+}
+
 void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
                            int haveAnon, int tls1_2, int keySz)
 {
-    int idx = 0;
+    word16 idx = 0;
 
     (void)tls1_2;
     (void)keySz;
 
 #if defined(HAVE_ECC) || defined(HAVE_ED25519)
     if (haveECDSAsig) {
-    #ifdef HAVE_ECC
-        #ifdef WOLFSSL_SHA512
-            suites->hashSigAlgo[idx++] = sha512_mac;
-            suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
-        #endif
-        #ifdef WOLFSSL_SHA384
-            suites->hashSigAlgo[idx++] = sha384_mac;
-            suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
-        #endif
-        #ifndef NO_SHA256
-            suites->hashSigAlgo[idx++] = sha256_mac;
-            suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
-        #endif
-        #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
-                                                defined(WOLFSSL_ALLOW_TLS_SHA1))
-            suites->hashSigAlgo[idx++] = sha_mac;
-            suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
-        #endif
+#ifdef HAVE_ECC
+    #ifdef WOLFSSL_SHA512
+        AddSuiteHashSigAlgo(suites, sha512_mac, ecc_dsa_sa_algo, keySz, &idx);
     #endif
-        #ifdef HAVE_ED25519
-            suites->hashSigAlgo[idx++] = ED25519_SA_MAJOR;
-            suites->hashSigAlgo[idx++] = ED25519_SA_MINOR;
-        #endif
+    #ifdef WOLFSSL_SHA384
+        AddSuiteHashSigAlgo(suites, sha384_mac, ecc_dsa_sa_algo, keySz, &idx);
+    #endif
+    #ifndef NO_SHA256
+        AddSuiteHashSigAlgo(suites, sha256_mac, ecc_dsa_sa_algo, keySz, &idx);
+    #endif
+    #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+                                            defined(WOLFSSL_ALLOW_TLS_SHA1))
+        AddSuiteHashSigAlgo(suites, sha_mac, ecc_dsa_sa_algo, keySz, &idx);
+    #endif
+#endif
+    #ifdef HAVE_ED25519
+        AddSuiteHashSigAlgo(suites, ED25519_SA_MAJOR, ED25519_SA_MINOR, keySz, &idx);
+    #endif
     }
 #endif /* HAVE_ECC || HAVE_ED25519 */
 
     if (haveRSAsig) {
-        #ifdef WC_RSA_PSS
-            if (tls1_2) {
-            #ifdef WOLFSSL_SHA512
-                suites->hashSigAlgo[idx++] = rsa_pss_sa_algo;
-                suites->hashSigAlgo[idx++] = sha512_mac;
-            #endif
-            #ifdef WOLFSSL_SHA384
-                suites->hashSigAlgo[idx++] = rsa_pss_sa_algo;
-                suites->hashSigAlgo[idx++] = sha384_mac;
-            #endif
-            #ifndef NO_SHA256
-                suites->hashSigAlgo[idx++] = rsa_pss_sa_algo;
-                suites->hashSigAlgo[idx++] = sha256_mac;
-            #endif
-            }
-        #endif
+    #ifdef WC_RSA_PSS
+        if (tls1_2) {
         #ifdef WOLFSSL_SHA512
-            suites->hashSigAlgo[idx++] = sha512_mac;
-            suites->hashSigAlgo[idx++] = rsa_sa_algo;
+            AddSuiteHashSigAlgo(suites, sha512_mac, rsa_pss_sa_algo, keySz, &idx);
         #endif
         #ifdef WOLFSSL_SHA384
-            suites->hashSigAlgo[idx++] = sha384_mac;
-            suites->hashSigAlgo[idx++] = rsa_sa_algo;
+            AddSuiteHashSigAlgo(suites, sha384_mac, rsa_pss_sa_algo, keySz, &idx);
         #endif
         #ifndef NO_SHA256
-            suites->hashSigAlgo[idx++] = sha256_mac;
-            suites->hashSigAlgo[idx++] = rsa_sa_algo;
+            AddSuiteHashSigAlgo(suites, sha256_mac, rsa_pss_sa_algo, keySz, &idx);
         #endif
-        #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
-                                                defined(WOLFSSL_ALLOW_TLS_SHA1))
-            suites->hashSigAlgo[idx++] = sha_mac;
-            suites->hashSigAlgo[idx++] = rsa_sa_algo;
-        #endif
+        }
+    #endif
+    #ifdef WOLFSSL_SHA512
+        AddSuiteHashSigAlgo(suites, sha512_mac, rsa_sa_algo, keySz, &idx);
+    #endif
+    #ifdef WOLFSSL_SHA384
+        AddSuiteHashSigAlgo(suites, sha384_mac, rsa_sa_algo, keySz, &idx);
+    #endif
+    #ifndef NO_SHA256
+        AddSuiteHashSigAlgo(suites, sha256_mac, rsa_sa_algo, keySz, &idx);
+    #endif
+    #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+                                            defined(WOLFSSL_ALLOW_TLS_SHA1))
+        AddSuiteHashSigAlgo(suites, sha_mac, rsa_sa_algo, keySz, &idx);
+    #endif
     }
 
 #ifdef HAVE_ANON
     if (haveAnon) {
-            suites->hashSigAlgo[idx++] = sha_mac;
-            suites->hashSigAlgo[idx++] = anonymous_sa_algo;
+        AddSuiteHashSigAlgo(suites, sha_mac, anonymous_sa_algo, keySz, &idx);
     }
 #endif
 
     (void)haveAnon;
     (void)haveECDSAsig;
-    suites->hashSigAlgoSz = (word16)idx;
+    suites->hashSigAlgoSz = idx;
 }
 
 void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
@@ -16721,31 +16769,9 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
      */
     #if defined(HAVE_ECC) && defined(USE_ECDSA_KEYSZ_HASH_ALGO)
         if (sigAlgo == ssl->suites->sigAlgo && sigAlgo == ecc_dsa_sa_algo) {
-            word32 digestSz = 0;
-            switch (hashAlgo) {
-            #ifndef NO_SHA
-                case sha_mac:
-                    digestSz = WC_SHA_DIGEST_SIZE;
-                    break;
-            #endif
-            #ifndef NO_SHA256
-                case sha256_mac:
-                    digestSz = WC_SHA256_DIGEST_SIZE;
-                    break;
-            #endif
-            #ifdef WOLFSSL_SHA384
-                case sha384_mac:
-                    digestSz = WC_SHA384_DIGEST_SIZE;
-                    break;
-            #endif
-            #ifdef WOLFSSL_SHA512
-                case sha512_mac:
-                    digestSz = WC_SHA512_DIGEST_SIZE;
-                    break;
-            #endif
-                default:
-                    continue;
-            }
+            int digestSz = GetMacDigestSize(hashAlgo);
+            if (digestSz <= 0)
+                continue;
 
             /* For ecc_dsa_sa_algo, pick hash algo that is curve size unless
                 algorithm in not compiled in, then choose next highest */
