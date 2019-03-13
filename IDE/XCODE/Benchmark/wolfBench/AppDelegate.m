@@ -58,7 +58,7 @@ static func_args args = { 0 } ;
 #else
     (void)args;
 #endif
-#if 1
+#if 0
     bench_tls();
 #endif
 
