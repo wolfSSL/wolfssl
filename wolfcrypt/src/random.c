@@ -1546,7 +1546,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(MICROCHIP_PIC32)
 
     #ifdef MICROCHIP_MPLAB_HARMONY
-        #define PIC32_SEED_COUNT _CP0_GET_COUNT
+        #ifdef MICROCHIP_MPLAB_HARMONY_3
+            #include "system/time/sys_time.h"
+            #define PIC32_SEED_COUNT SYS_TIME_CounterGet
+        #else
+            #define PIC32_SEED_COUNT _CP0_GET_COUNT
+        #endif
     #else
         #if !defined(WOLFSSL_MICROCHIP_PIC32MZ)
             #include <peripheral/timer.h>
