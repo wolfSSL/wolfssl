@@ -16329,7 +16329,7 @@ static void test_wc_PKCS7_Degenerate(void)
 } /* END test_wc_PKCS7_Degenerate() */
 
 #if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && \
-    defined(ASN_BER_TO_DER)
+    defined(ASN_BER_TO_DER) && !defined(NO_DES3)
 static byte berContent[] = {
     0x30, 0x80, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86,
     0xF7, 0x0D, 0x01, 0x07, 0x03, 0xA0, 0x80, 0x30,
@@ -16519,7 +16519,7 @@ static byte berContent[] = {
     0x52, 0x19, 0xB1, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00
 };
-#endif /* HAVE_PKCS7 && !NO_FILESYSTEM && ASN_BER_TO_DER */
+#endif /* HAVE_PKCS7 && !NO_FILESYSTEM && ASN_BER_TO_DER && !NO_DES3 */
 
 /*
  * Testing wc_PKCS7_BER()
@@ -16532,7 +16532,9 @@ static void test_wc_PKCS7_BER(void)
     char   fName[] = "./certs/test-ber-exp02-05-2022.p7b";
     XFILE  f;
     byte   der[4096];
+#ifndef NO_DES3
     byte   decoded[1024];
+#endif
     word32 derSz;
     int    ret;
 
@@ -16549,6 +16551,7 @@ static void test_wc_PKCS7_BER(void)
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
     wc_PKCS7_Free(pkcs7);
 
+#ifndef NO_DES3
     /* decode BER content */
     AssertNotNull(f = XFOPEN("./certs/1024/client-cert.der", "rb"));
     AssertIntGT((ret = (int)fread(der, 1, sizeof(der), f)), 0);
@@ -16566,6 +16569,7 @@ static void test_wc_PKCS7_BER(void)
     AssertIntGT(wc_PKCS7_DecodeEnvelopedData(pkcs7, berContent,
         sizeof(berContent), decoded, sizeof(decoded)), 0);
     wc_PKCS7_Free(pkcs7);
+#endif /* !NO_DES3 */
 
     printf(resultFmt, passed);
 #endif
