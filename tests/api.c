@@ -22968,9 +22968,9 @@ static void test_wolfSSL_OBJ_sn(void)
 
     printf(testingFmt, "wolfSSL_OBJ_sn");
 
-    AssertIntEQ(wolfSSL_OBJ_sn2nid(NULL), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_OBJ_sn2nid(NULL), NID_undef);
 
-#ifdef HAVE_ECC 
+#ifdef HAVE_ECC
 {
     int nCurves = 27;
     EC_builtin_curve r[nCurves];

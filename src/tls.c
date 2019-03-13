@@ -2327,7 +2327,7 @@ static TCA* TLSX_TCA_New(byte type, const byte* id, word16 idSz, void* heap)
             #ifndef NO_SHA
             case WOLFSSL_TRUSTED_CA_KEY_SHA1:
             case WOLFSSL_TRUSTED_CA_CERT_SHA1:
-                if (idSz == SHA_DIGEST_SIZE &&
+                if (idSz == WC_SHA_DIGEST_SIZE &&
                         (tca->id =
                             (byte*)XMALLOC(idSz, heap, DYNAMIC_TYPE_TLSX))) {
                     XMEMCPY(tca->id, id, idSz);
@@ -2538,9 +2538,9 @@ static int TLSX_TCA_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             #ifndef NO_SHA
             case WOLFSSL_TRUSTED_CA_KEY_SHA1:
             case WOLFSSL_TRUSTED_CA_CERT_SHA1:
-                if (offset + SHA_DIGEST_SIZE > length)
+                if (offset + WC_SHA_DIGEST_SIZE > length)
                     return BUFFER_ERROR;
-                idSz = SHA_DIGEST_SIZE;
+                idSz = WC_SHA_DIGEST_SIZE;
                 id = input + offset;
                 offset += idSz;
                 break;

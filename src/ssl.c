@@ -1985,7 +1985,7 @@ WOLFSSL_API int wolfSSL_UseTrustedCA(WOLFSSL* ssl, byte type,
     #ifndef NO_SHA
     else if (type == WOLFSSL_TRUSTED_CA_KEY_SHA1 ||
             type == WOLFSSL_TRUSTED_CA_CERT_SHA1) {
-        if (certId == NULL || certIdSz != SHA_DIGEST_SIZE)
+        if (certId == NULL || certIdSz != WC_SHA_DIGEST_SIZE)
             return BAD_FUNC_ARG;
     }
     #endif
@@ -30235,7 +30235,6 @@ int wolfSSL_EC_GROUP_get_degree(const WOLFSSL_EC_GROUP *group)
     }
 }
 
-#ifdef HAVE_ECC
 /* Converts OpenSSL NID value of ECC curves to the associated enum values in
    ecc_curve_id, used by ecc_sets[].*/
 int NIDToEccEnum(int n)
@@ -30302,74 +30301,6 @@ int NIDToEccEnum(int n)
             return -1;
     }
 }
-
-/* Converts ECC curve enum values in ecc_curve_id to the associated OpenSSL NID
-    value */
-int EccEnumToNID(int n)
-{
-    WOLFSSL_ENTER("EccEnumToNID()");
-
-    switch(n) {
-        case ECC_SECP192R1:
-            return NID_X9_62_prime192v1;
-        case ECC_PRIME192V2:
-            return NID_X9_62_prime192v2;
-        case ECC_PRIME192V3:
-            return NID_X9_62_prime192v3;
-        case ECC_PRIME239V1:
-            return NID_X9_62_prime239v1;
-        case ECC_PRIME239V2:
-            return NID_X9_62_prime239v2;
-        case ECC_PRIME239V3:
-            return NID_X9_62_prime239v3;
-        case ECC_SECP256R1:
-            return NID_X9_62_prime256v1;
-        case ECC_SECP112R1:
-            return NID_secp112r1;
-        case ECC_SECP112R2:
-            return NID_secp112r2;
-        case ECC_SECP128R1:
-            return NID_secp128r1;
-        case ECC_SECP128R2:
-            return NID_secp128r2;
-        case ECC_SECP160R1:
-            return NID_secp160r1;
-        case ECC_SECP160R2:
-            return NID_secp160r2;
-        case ECC_SECP224R1:
-            return NID_secp224r1;
-        case ECC_SECP384R1:
-            return NID_secp384r1;
-        case ECC_SECP521R1:
-            return NID_secp521r1;
-        case ECC_SECP160K1:
-            return NID_secp160k1;
-        case ECC_SECP192K1:
-            return NID_secp192k1;
-        case ECC_SECP224K1:
-            return NID_secp224k1;
-        case ECC_SECP256K1:
-            return NID_secp256k1;
-        case ECC_BRAINPOOLP160R1:
-            return NID_brainpoolP160r1;
-        case ECC_BRAINPOOLP192R1:
-            return NID_brainpoolP192r1;
-        case ECC_BRAINPOOLP224R1:
-            return NID_brainpoolP224r1;
-        case ECC_BRAINPOOLP256R1:
-            return NID_brainpoolP256r1;
-        case ECC_BRAINPOOLP320R1:
-            return NID_brainpoolP320r1;
-        case ECC_BRAINPOOLP384R1:
-            return NID_brainpoolP384r1;
-        case ECC_BRAINPOOLP512R1:
-            return NID_brainpoolP512r1;
-        default:
-            WOLFSSL_MSG("NID not found");
-            return -1;
-    }
-}
-#endif
 
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
@@ -34978,6 +34909,8 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     int wolfSSL_OBJ_sn2nid(const char *sn)
     {
         WOLFSSL_ENTER("wolfSSL_OBJ_sn2nid");
+        if (sn == NULL)
+            return NID_undef;
         return wc_OBJ_sn2nid(sn);
     }
 #endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) */
