@@ -9371,6 +9371,12 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
             padLen = encryptedContent[encryptedContentSz-1];
 
             /* copy plaintext to output */
+            if (padLen > encryptedContentSz ||
+                    (word32)(encryptedContentSz - padLen) > outputSz) {
+                XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                ret = BUFFER_E;
+                break;
+            }
             XMEMCPY(output, encryptedContent, encryptedContentSz - padLen);
 
             /* free memory, zero out keys */
