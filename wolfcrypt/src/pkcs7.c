@@ -344,6 +344,16 @@ static long wc_PKCS7_GetMaxStream(PKCS7* pkcs7, byte flag, byte* in,
                                 NO_USER_CHECK)) < 0) {
                     return ret;
                 }
+
+            #ifdef ASN_BER_TO_DER
+                if (length == 0 && ret == 0) {
+                    idx = 0;
+                    if ((ret = wc_BerToDer(pt, defSz, NULL,
+                                    (word32*)&length)) != LENGTH_ONLY_E) {
+                        return ret;
+                    }
+                }
+            #endif /* ASN_BER_TO_DER */
                 pkcs7->stream->maxLen = length + idx;
             }
         }
@@ -8883,9 +8893,10 @@ static int wc_PKCS7_ParseToRecipientInfoSet(PKCS7* pkcs7, byte* in,
                 if (ret < 0)
                     return ret;
 
-                pkiMsg = pkcs7->der;
-                pkiMsgSz = len;
+                pkiMsg = in = pkcs7->der;
+                pkiMsgSz = pkcs7->derSz = len;
                 *idx = 0;
+
                 if (GetSequence(pkiMsg, idx, &length, pkiMsgSz) < 0)
                     return ASN_PARSE_E;
         #else
@@ -9113,6 +9124,12 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
             if (ret < 0) {
                 break;
             }
+
+        #ifdef ASN_BER_TO_DER
+            /* check if content was BER and has been converted to DER */
+            if (pkcs7->derSz > 0)
+                pkiMsg = in = pkcs7->der;
+        #endif
 
             decryptedKey = (byte*)XMALLOC(MAX_ENCRYPTED_KEY_SZ, pkcs7->heap,
                                                        DYNAMIC_TYPE_PKCS7);
