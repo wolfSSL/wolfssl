@@ -16616,6 +16616,80 @@ static void test_wc_PKCS7_BER(void)
 #endif
 } /* END test_wc_PKCS7_BER() */
 
+static void test_PKCS7_signed_enveloped(void)
+{
+#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    XFILE  f;
+    PKCS7* pkcs7;
+    void*  pt;
+    WC_RNG rng;
+    unsigned char key[FOURK_BUF/2];
+    unsigned char cert[FOURK_BUF/2];
+    unsigned char env[FOURK_BUF/2];
+    int envSz  = FOURK_BUF/2;
+    int keySz;
+    int certSz;
+
+    unsigned char sig[FOURK_BUF];
+    int sigSz = FOURK_BUF;
+
+    printf(testingFmt, "PKCS7_signed_enveloped");
+
+    /* load cert */
+    AssertNotNull(f = XFOPEN(cliCertDerFile, "rb"));
+    AssertIntGT((certSz = (int)XFREAD(cert, 1, sizeof(cert), f)), 0);
+    XFCLOSE(f);
+
+    /* load key */
+    AssertNotNull(f = XFOPEN(cliKeyFile, "rb"));
+    AssertIntGT((keySz = (int)XFREAD(key, 1, sizeof(key), f)), 0);
+    XFCLOSE(f);
+    keySz = wolfSSL_KeyPemToDer(key, keySz, key, keySz, NULL);
+
+    /* create envelope */
+    AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    pkcs7->content   = cert;
+    pkcs7->contentSz = certSz;
+    pkcs7->contentOID = DATA;
+    pkcs7->encryptOID = AES256CBCb;
+    pkcs7->privateKey   = key;
+    pkcs7->privateKeySz = keySz;
+    AssertIntGT((envSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, env, envSz)), 0);
+    wc_PKCS7_Free(pkcs7);
+
+    /* create signed enveloped data */
+    AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    AssertIntEQ(wc_InitRng(&rng), 0);
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    pkcs7->content   = env;
+    pkcs7->contentSz = envSz;
+    pkcs7->contentOID = DATA;
+    pkcs7->encryptOID = AES256CBCb;
+    pkcs7->privateKey   = key;
+    pkcs7->privateKeySz = keySz;
+    pkcs7->encryptOID   = RSAk;
+    pkcs7->hashOID      = SHA256h;
+    pkcs7->rng = &rng;
+
+    /* Set no certs in bundle for this test. Hang on to the pointer though to
+     * free it later. */
+    pt = (void*)pkcs7->certList;
+    pkcs7->certList = NULL; /* no certs in bundle */
+    AssertIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, sigSz)), 0);
+    pkcs7->certList = pt; /* restore pointer for PKCS7 free call */
+    wc_PKCS7_Free(pkcs7);
+    wc_FreeRng(&rng);
+
+    /* check verify */
+    AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, sigSz), 0);
+    wc_PKCS7_Free(pkcs7);
+    printf(resultFmt, passed);
+
+#endif
+}
 
 /* Testing wc_SignatureGetSize() for signature type ECC */
 static int test_wc_SignatureGetSize_ecc(void)
@@ -24040,6 +24114,7 @@ void ApiTest(void)
     test_wc_PKCS7_EncodeEncryptedData();
     test_wc_PKCS7_Degenerate();
     test_wc_PKCS7_BER();
+    test_PKCS7_signed_enveloped();
 
     test_wolfSSL_CTX_LoadCRL();
 
