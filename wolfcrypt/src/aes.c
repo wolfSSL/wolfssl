@@ -6061,7 +6061,8 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
                                (byte*)aes->reg, ivOutSz,
                                authTag, authTagSz,
                                authIn, authInSz);
-        IncCtr((byte*)aes->reg, ivOutSz);
+        if (ret == 0)
+            IncCtr((byte*)aes->reg, ivOutSz);
     }
 
     return ret;
@@ -6534,8 +6535,10 @@ int wc_AesCcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
                                (byte*)aes->reg, aes->nonceSz,
                                authTag, authTagSz,
                                authIn, authInSz);
-        XMEMCPY(ivOut, aes->reg, aes->nonceSz);
-        IncCtr((byte*)aes->reg, aes->nonceSz);
+        if (ret == 0) {
+            XMEMCPY(ivOut, aes->reg, aes->nonceSz);
+            IncCtr((byte*)aes->reg, aes->nonceSz);
+        }
     }
 
     return ret;
