@@ -2038,7 +2038,8 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     }
     certPtr = NULL;
 
-    esd->certsSetSz = SetImplicit(ASN_SET, 0, certSetSz, esd->certsSet);
+    if (certSetSz > 0)
+        esd->certsSetSz = SetImplicit(ASN_SET, 0, certSetSz, esd->certsSet);
 
     esd->singleDigAlgoIdSz = SetAlgoID(pkcs7->hashOID, esd->singleDigAlgoId,
                                       oidHashType, 0);
@@ -3418,7 +3419,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
     word32 hashSz, byte* in, word32 inSz,
     byte* in2, word32 in2Sz)
 {
-    word32 idx, outerContentType, hashOID = 0, sigOID, contentTypeSz = 0, totalSz = 0;
+    word32 idx, outerContentType, hashOID = 0, sigOID = 0, contentTypeSz = 0, totalSz = 0;
     int length = 0, version, ret = 0;
     byte* content = NULL;
     byte* contentDynamic = NULL;
@@ -3546,7 +3547,6 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             if (ret == 0 && wc_GetContentType(pkiMsg, &idx, &outerContentType,
                         pkiMsgSz) < 0)
                 ret = ASN_PARSE_E;
-
 
             if (ret == 0 && outerContentType != SIGNED_DATA) {
                 WOLFSSL_MSG("PKCS#7 input not of type SignedData");
@@ -3859,6 +3859,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                         pkiMsg2   = pkiMsg;
                         pkiMsg2Sz = pkiMsgSz;
                     #ifndef NO_PKCS7_STREAM
+                        pkcs7->stream->varOne = pkiMsg2Sz;
                         pkcs7->stream->flagOne = 1;
                     #endif
                     }
@@ -3868,6 +3869,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 pkiMsg2 = pkiMsg;
                 pkiMsg2Sz = pkiMsgSz;
             #ifndef NO_PKCS7_STREAM
+                pkcs7->stream->varOne = pkiMsg2Sz;
                 pkcs7->stream->flagOne = 1;
             #endif
             }
@@ -3886,6 +3888,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             if (ret == 0 && idx >= pkiMsg2Sz)
                 ret = BUFFER_E;
 
+            length = 0; /* set length to 0 to check if reading in any certs */
             if (ret == 0 && pkiMsg2[idx] ==
                     (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
                 idx++;
@@ -4083,7 +4086,8 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
         #ifndef NO_PKCS7_STREAM
             /* factor in that recent idx was in cert buffer. If in2 buffer was
              * used then don't advance idx. */
-            if (pkcs7->stream->flagOne && pkcs7->stream->length == 0) {
+            if (length > 0 && pkcs7->stream->flagOne &&
+                    pkcs7->stream->length == 0) {
                 idx = stateIdx + idx;
                 if (idx > inSz) {
                     /* index is more than input size */
@@ -4283,9 +4287,11 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 }
 
                 /* store public key type based on digestEncryptionAlgorithm */
-                if ((ret = 0) && ((ret = wc_PKCS7_SetPublicKeyOID(pkcs7, sigOID))
-                        <= 0)) {
-                    WOLFSSL_MSG("Failed to set public key OID from signature");
+                if (ret == 0) {
+                    ret = wc_PKCS7_SetPublicKeyOID(pkcs7, sigOID);
+                    if (ret < 0) {
+                        WOLFSSL_MSG("Failed to set public key OID from signature");
+                    }
                 }
 
                 if (idx >= pkiMsg2Sz)
