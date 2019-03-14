@@ -5180,8 +5180,11 @@ int wc_PKCS7_AddRecipient_KARI(PKCS7* pkcs7, const byte* cert, word32 certSz,
                                 origPubKeyStr + 1) + 2;
     totalSz += (origPubKeyStrSz + kari->senderKeyExportSz);
 
-    /* Originator AlgorithmIdentifier */
-    origAlgIdSz = SetAlgoID(ECDSAk, origAlgId, oidKeyType, 0);
+    /* Originator AlgorithmIdentifier, params set to NULL for interop
+       compatibility */
+    origAlgIdSz = SetAlgoID(ECDSAk, origAlgId, oidKeyType, 2);
+    origAlgId[origAlgIdSz++] = ASN_TAG_NULL;
+    origAlgId[origAlgIdSz++] = 0;
     totalSz += origAlgIdSz;
 
     /* outer OriginatorPublicKey IMPLICIT [1] */
@@ -5225,8 +5228,11 @@ int wc_PKCS7_AddRecipient_KARI(PKCS7* pkcs7, const byte* cert, word32 certSz,
     idx += origIdOrKeySeqSz;
     XMEMCPY(recip->recip + idx, origPubKeySeq, origPubKeySeqSz);
     idx += origPubKeySeqSz;
+
+    /* AlgorithmIdentifier with NULL parameter */
     XMEMCPY(recip->recip + idx, origAlgId, origAlgIdSz);
     idx += origAlgIdSz;
+
     XMEMCPY(recip->recip + idx, origPubKeyStr, origPubKeyStrSz);
     idx += origPubKeyStrSz;
     /* ephemeral public key */
