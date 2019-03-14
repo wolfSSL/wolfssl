@@ -73,38 +73,62 @@ should be used for the enum name.
 *** end Notes ***
 
 
-********* wolfSSL Release 3.15.7 (12/26/2018)
+********* wolfSSL Release 4.0.0 (03/15/2019)
 
-Release 3.15.7 of wolfSSL embedded TLS has bug fixes and new features including:
+Release 4.0.0 of wolfSSL embedded TLS has bug fixes and new features including:
 
-- Support for Espressif ESP-IDF development framework
-- Fix for XCode build with iPhone simulator on i386
-- PKCS7 support for generating and verify bundles using a detached signature
-- Fix for build disabling AES-CBC and enabling opensslextra compatibility layer
-- Updates to sniffer for showing session information and handling split messages across records
-- Port update for Micrium uC/OS-III
-- Feature to adjust max fragment size post handshake when compiled with the macro WOLFSSL_ALLOW_MAX_FRAGMENT_ADJUST
-- Adding the macro NO_MULTIBYTE_PRINT for compiling out special characters that embedded devices may have problems with
-- Updates for Doxygen documentation, including PKCS #11 API and more
-- Adding Intel QuickAssist v1.7 driver support for asynchronous crypto
-- Adding Intel QuickAssist RSA key generation and SHA-3 support
-- RSA verify only (--enable-rsavfy) and RSA public only (--enable-rsapub) builds added
-- Enhancements to test cases for increased code coverage
-- Updates to VxWorks port for use with Mongoose, including updates to the OpenSSL compatibility layer
-- Yocto Project ease of use improvements along with many updates and build instructions added to the INSTALL file
-- Maximum ticket nonce size was increased to 8
-- Updating --enable-armasm build for ease of use with autotools
-- Updates to internal code checking TLS 1.3 version with a connection
-- Removing unnecessary extended master secret from ServerHello if using TLS 1.3
-- Fix for TLS v1.3 HelloRetryRequest to be sent immediately and not grouped
-
-
+* Support for wolfCrypt FIPS v4.0.0, certificate #3389
+* FIPS Ready Initiative
+* Compatibility fixes for secure renegotiation with Chrome
+* Better size check for TLS record fragment reassembly
+* Improvements to non-blocking and handshake message retry support for DTLS
+* Improvements to OCSP with ECDSA signers
+* Added TLS server side secure renegotiation
+* Added TLS Trusted CA extension
+* Add support for the Deos Safety Critical RTOS
+* OCSP fixes for memory management and initializations
+* Fixes for EVP Cipher decryption padding checks
+* Removal of null terminators on `wolfSSL_X509_print` substrings
+* `wolfSSL_sk_ASN1_OBJCET_pop` function renamed to `wolfSSL_sk_ASN1_OBJECT_pop`
+* Adjustment to include path in compatibility layer for evp.h and objects.h
+* Fixes for decoding BER encoded PKCS7 contents
+* TLS handshake now supports using PKCS #11 for private keys
+* PKCS #11 support of HMAC, AES-CBC and random seeding/generation
+* Support for named FFDHE parameters in TLS 1.2 (RFC 7919)
+* Port to Zephyr Project
+* Move the TLS PRF to wolfCrypt.
+* Update to CMS KARI support
+* Added ESP32 WROOM support
+* Fixes and additions to the OpenSSL compatibility layer
+* Added WICED Studio Support
+* MDK CMSIS RTOS v2
+* Xcode project file update
+* Fixes for ATECC508A/ATECC608A
+* Fixes issue with CA path length for self signed root CA's
+* Fixes for Single Precision (SP) ASM when building sources directly
+* Fixes for STM32 AES GCM
+* Fixes for ECC sign with hardware to ensure the input is truncated
+* Fixes for proper detection of PKCS7 buffer overflow case
+* Fixes to handle degenerate PKCS 7 with BER encoding
+* Fixes for TLS v1.3 handling of 6144 and 8192 bit keys
+* Fixes for possible build issues with SafeRTOS
+* Added `ECC_PUBLICKEY_TYPE` to the support PEM header types
+* Added strict checking of the ECDSA signature DER encoding length
+* Added ECDSA option to limit sig/algos in client_hello to key size with
+  `USE_ECDSA_KEYSZ_HASH_ALGO`
+* Added Cortex-M support for Single Precision (SP) math
+* Added wolfCrypt RSA non-blocking time support
+* Added 16-bit compiler support using --enable-16bit option
+* Improved Arduino sketch example
+* Improved crypto callback features
+* Improved TLS benchmark tool
+* Added new wrapper for snprintf for use with certain Visual Studio builds,
+  thanks to David Parnell (Cambridge Consultants)
 
 This release of wolfSSL includes a fix for 1 security vulnerability.
 
-Medium level fix for potential cache attack with a variant of Bleichenbacher’s attack. Earlier versions of wolfSSL leaked PKCS #1 v1.5 padding information during private key decryption that could lead to a potential padding oracle attack. It is recommended that users update to the latest version of wolfSSL if they have RSA cipher suites enabled and have the potential for malicious software to be ran on the same system that is performing RSA operations. Users that have only ECC cipher suites enabled and are not performing RSA PKCS #1 v1.5 Decryption operations are not vulnerable. Also users with TLS 1.3 only connections are not vulnerable to this attack. Thanks to Eyal Ronen (Weizmann Institute), Robert Gillham (University of Adelaide), Daniel Genkin (University of Michigan), Adi Shamir (Weizmann Institute), David Wong (NCC Group), and Yuval Yarom (University of Adelaide and Data61) for the report.
-
-The paper for further reading on the attack details can be found at http://cat.eyalro.net/cat.pdf.
+* Fixed a bug in tls_bench.c example test application unrelated to the crypto
+  or TLS portions of the library. (CVE-2019-6439)
 
 
 *** Resources ***

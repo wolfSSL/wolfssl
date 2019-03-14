@@ -1,3 +1,61 @@
+# wolfSSL Release 4.0.0 (03/15/2019)
+
+Release 4.0.0 of wolfSSL embedded TLS has bug fixes and new features including:
+
+* Support for wolfCrypt FIPS v4.0.0, certificate #3389
+* FIPS Ready Initiative
+* Compatibility fixes for secure renegotiation with Chrome
+* Better size check for TLS record fragment reassembly
+* Improvements to non-blocking and handshake message retry support for DTLS
+* Improvements to OCSP with ECDSA signers
+* Added TLS server side secure renegotiation
+* Added TLS Trusted CA extension
+* Add support for the Deos Safety Critical RTOS
+* OCSP fixes for memory management and initializations
+* Fixes for EVP Cipher decryption padding checks
+* Removal of null terminators on `wolfSSL_X509_print` substrings
+* `wolfSSL_sk_ASN1_OBJCET_pop` function renamed to `wolfSSL_sk_ASN1_OBJECT_pop`
+* Adjustment to include path in compatibility layer for evp.h and objects.h
+* Fixes for decoding BER encoded PKCS7 contents
+* TLS handshake now supports using PKCS #11 for private keys
+* PKCS #11 support of HMAC, AES-CBC and random seeding/generation
+* Support for named FFDHE parameters in TLS 1.2 (RFC 7919)
+* Port to Zephyr Project
+* Move the TLS PRF to wolfCrypt.
+* Update to CMS KARI support
+* Added ESP32 WROOM support
+* Fixes and additions to the OpenSSL compatibility layer
+* Added WICED Studio Support
+* MDK CMSIS RTOS v2
+* Xcode project file update
+* Fixes for ATECC508A/ATECC608A
+* Fixes issue with CA path length for self signed root CA's
+* Fixes for Single Precision (SP) ASM when building sources directly
+* Fixes for STM32 AES GCM
+* Fixes for ECC sign with hardware to ensure the input is truncated
+* Fixes for proper detection of PKCS7 buffer overflow case
+* Fixes to handle degenerate PKCS 7 with BER encoding
+* Fixes for TLS v1.3 handling of 6144 and 8192 bit keys
+* Fixes for possible build issues with SafeRTOS
+* Added `ECC_PUBLICKEY_TYPE` to the support PEM header types
+* Added strict checking of the ECDSA signature DER encoding length
+* Added ECDSA option to limit sig/algos in client_hello to key size with
+  `USE_ECDSA_KEYSZ_HASH_ALGO`
+* Added Cortex-M support for Single Precision (SP) math
+* Added wolfCrypt RSA non-blocking time support
+* Added 16-bit compiler support using --enable-16bit option
+* Improved Arduino sketch example
+* Improved crypto callback features
+* Improved TLS benchmark tool
+* Added new wrapper for snprintf for use with certain Visual Studio builds,
+  thanks to David Parnell (Cambridge Consultants)
+
+This release of wolfSSL includes a fix for 1 security vulnerability.
+
+* Fixed a bug in tls_bench.c example test application unrelated to the crypto
+  or TLS portions of the library. (CVE-2019-6439)
+
+
 # wolfSSL Release 3.15.7 (12/26/2018)
 
 Release 3.15.7 of wolfSSL embedded TLS has bug fixes and new features including:
