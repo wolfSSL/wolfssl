@@ -12990,6 +12990,8 @@ static void SetNameFromDcert(CertName* cn, DecodedCert* decoded)
     }
 }
 
+#ifndef NO_FILESYSTEM
+
 /* Set cn name from der buffer, return 0 on success */
 static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
 {
@@ -13028,8 +13030,6 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
 
     return ret < 0 ? ret : 0;
 }
-
-#ifndef NO_FILESYSTEM
 
 /* Set cert issuer from issuerFile in PEM */
 int wc_SetIssuer(Cert* cert, const char* issuerFile)
