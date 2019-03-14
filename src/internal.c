@@ -20931,7 +20931,6 @@ int SendCertificateVerify(WOLFSSL* ssl)
                     NULL
             #endif
                 );
-                ssl->buffers.sig.length = (unsigned int)args->sigSz;
             }
         #endif /* HAVE_ED25519 && !NO_ED25519_CLIENT_AUTH */
         #ifndef NO_RSA
