@@ -20477,7 +20477,9 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
 {
     BIO*      bio = NULL;
     EVP_PKEY* pkey  = NULL;
+#ifndef NO_RSA
     RSA*  rsa  = NULL;
+#endif
     WOLFSSL_CTX* ctx;
 
 #if defined(WOLFSSL_KEY_GEN)
@@ -20550,13 +20552,14 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
     AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
 
+#ifndef NO_RSA
     /* Tests bad parameters */
     AssertNull(d2i_RSAPrivateKey_bio(NULL, NULL));
 
     /* RSA not set yet, expecting to fail*/
     AssertIntEQ(SSL_CTX_use_RSAPrivateKey(ctx, rsa), BAD_FUNC_ARG);
 
-#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)  && defined(WOLFSSL_KEY_GEN)
+#if defined(USE_CERT_BUFFERS_2048) && defined(WOLFSSL_KEY_GEN)
     /* set RSA using bio*/
     AssertIntGT(BIO_write(bio, client_key_der_2048,
                 sizeof_client_key_der_2048), 0);
@@ -20568,13 +20571,13 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
     AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(NULL, NULL), BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, &bufPtr),
                                            sizeof_client_key_der_2048);
+#endif /* USE_CERT_BUFFERS_2048 WOLFSSL_KEY_GEN */
     RSA_free(rsa);
-#endif
+#endif /* NO_RSA */
     SSL_CTX_free(ctx);
     ctx = NULL;
     BIO_free(bio);
     bio = NULL;
-    (void)rsa;
     printf(resultFmt, passed);
 }
 #endif /* OPENSSL_ALL || WOLFSSL_ASIO */
