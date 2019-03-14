@@ -8685,7 +8685,10 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
             static const char* eccKeyDerFile = CERT_ROOT "ecc-key.der";
         #endif
         #ifdef WOLFSSL_CERT_GEN
-            static const char* eccKeyPubFile = CERT_ROOT "ecc-keyPub.der";
+            #ifndef NO_RSA
+                /* eccKeyPubFile is used in a test that requires RSA. */
+                static const char* eccKeyPubFile = CERT_ROOT "ecc-keyPub.der";
+            #endif
             static const char* eccCaKeyFile  = CERT_ROOT "ca-ecc-key.der";
             static const char* eccCaCertFile = CERT_ROOT "ca-ecc-cert.pem";
             #ifdef ENABLE_ECC384_CERT_GEN_TEST
@@ -8836,7 +8839,7 @@ static const CertName certDefaultName = {
     static const char certKeyUsage[] =
         "digitalSignature,nonRepudiation";
     #endif
-    #if defined(WOLFSSL_CERT_REQ) || defined(HAVE_NTRU)
+    #if (defined(WOLFSSL_CERT_REQ) || defined(HAVE_NTRU)) && !defined(NO_RSA)
         static const char certKeyUsage2[] =
         "digitalSignature,nonRepudiation,keyEncipherment,keyAgreement";
     #endif

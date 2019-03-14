@@ -26559,6 +26559,8 @@ static int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
 #endif /* WOLFSSL_KEY_GEN || WOLFSSL_PEM_TO_DER */
 
 #if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)
+
+#ifndef NO_RSA
 /* Takes a WOLFSSL_RSA key and writes it out to a WOLFSSL_BIO
  *
  * bio    the WOLFSSL_BIO to write to
@@ -26639,6 +26641,8 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
     return ret;
 }
 
+#endif /* NO_RSA */
+
 
 int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
                                         const WOLFSSL_EVP_CIPHER* cipher,
@@ -26666,9 +26670,11 @@ int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
     keyDer = (byte*)key->pkey.ptr;
 
     switch (key->type) {
+#ifndef NO_RSA
         case EVP_PKEY_RSA:
             type = PRIVATEKEY_TYPE;
             break;
+#endif
 
 #ifndef NO_DSA
         case EVP_PKEY_DSA:
@@ -29920,8 +29926,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
 
 
-#if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
-/* needed SetName function from asn.c is wrapped by NO_RSA */
+#if defined(WOLFSSL_CERT_GEN)
     /* helper function for CopyX509NameToCertName()
      *
      * returns WOLFSSL_SUCCESS on success
@@ -35598,6 +35603,8 @@ int wolfSSL_X509_get_signature_nid(const WOLFSSL_X509 *x)
 #endif  /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_ALL)
+
+#ifndef NO_RSA
 int wolfSSL_EVP_PKEY_assign_RSA(EVP_PKEY* pkey, WOLFSSL_RSA* key)
 {
     if (pkey == NULL || key == NULL)
@@ -35609,6 +35616,7 @@ int wolfSSL_EVP_PKEY_assign_RSA(EVP_PKEY* pkey, WOLFSSL_RSA* key)
 
     return WOLFSSL_SUCCESS;
 }
+#endif
 
 int wolfSSL_EVP_PKEY_assign_EC_KEY(EVP_PKEY* pkey, WOLFSSL_EC_KEY* key)
 {
@@ -36189,12 +36197,16 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
     Cert cert;
     byte der[2048];
     int derSz = sizeof(der);
-    void* key;
-    int type;
+    void* key = NULL;
+    int type = -1;
     int sigType;
     int hashType;
+#ifndef NO_RSA
     RsaKey rsa;
+#endif
+#ifdef HAVE_ECC
     ecc_key ecc;
+#endif
     WC_RNG rng;
     word32 idx = 0;
 
@@ -36257,6 +36269,7 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
         return WOLFSSL_FAILURE;
 
     /* Create a public key object from requests public key. */
+#ifndef NO_RSA
     if (req->pubKeyOID == RSAk) {
         type = RSA_TYPE;
         ret = wc_InitRsaKey(&rsa, req->heap);
@@ -36270,7 +36283,9 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
         }
         key = (void*)&rsa;
     }
-    else {
+#endif
+#ifdef HAVE_ECC
+    if (req->pubKeyOID == ECDSAk) {
         type = ECC_TYPE;
         ret = wc_ecc_init(&ecc);
         if (ret != 0)
@@ -36283,6 +36298,9 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
         }
         key = (void*)&ecc;
     }
+#endif
+    if (key == NULL)
+        return WOLFSSL_FAILURE;
 
     /* Make the body of the certificate request. */
     ret = wc_MakeCertReq_ex(&cert, der, derSz, type, key);
@@ -36290,21 +36308,29 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
         return WOLFSSL_FAILURE;
 
     /* Dispose of the public key object. */
+#ifndef NO_RSA
     if (req->pubKeyOID == RSAk)
         wc_FreeRsaKey(&rsa);
-    else
+#endif
+#ifdef HAVE_ECC
+    if (req->pubKeyOID == ECDSAk)
         wc_ecc_free(&ecc);
+#endif
 
     idx = 0;
     /* Get the private key object and type from pkey. */
+#ifndef NO_RSA
     if (pkey->type == EVP_PKEY_RSA) {
         type = RSA_TYPE;
         key = pkey->rsa->internal;
     }
-    else {
+#endif
+#ifdef HAVE_ECC
+    if (pkey->type == EVP_PKEY_EC) {
         type = ECC_TYPE;
         key = pkey->ecc->internal;
     }
+#endif
 
     /* Sign the certificate request body. */
     ret = wc_InitRng(&rng);

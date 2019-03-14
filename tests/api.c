@@ -744,7 +744,7 @@ static void test_wolfSSL_CTX_use_certificate_file(void)
 #endif
 }
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)) && !defined(NO_RSA)
 static int test_wolfSSL_CTX_use_certificate_ASN1(void)
 {
 #if !defined(NO_CERTS) && !defined(NO_WOLFSSL_SERVER) && !defined(NO_ASN)
@@ -765,7 +765,7 @@ static int test_wolfSSL_CTX_use_certificate_ASN1(void)
     return WOLFSSL_SUCCESS;
 #endif
 }
-#endif /* OPENSSL_ALL || WOLFSSL_ASIO */
+#endif /* (OPENSSL_ALL || WOLFSSL_ASIO) && !NO_RSA */
 
 /*  Test function for wolfSSL_CTX_use_certificate_buffer. Load cert into
  *  context using buffer.
@@ -880,9 +880,11 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX *ctx;
+#ifndef NO_RSA
     WOLFSSL_CERT_MANAGER* cm;
 #ifdef PERSIST_CERT_CACHE
     int cacheSz;
+#endif
 #endif
 #if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_TIRTOS)
     const char* load_certs_path = "./certs/external";
@@ -908,9 +910,8 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
     /* load ca cert */
 #ifdef NO_RSA
     AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL), ASN_UNKNOWN_OID_E);
-#else
+#else /* Skip the following test without RSA certs. */
     AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL), WOLFSSL_SUCCESS);
-#endif
 
 #ifdef PERSIST_CERT_CACHE
     /* Get cert cache size */
@@ -925,11 +926,7 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
 #endif
 
     /* load ca cert again */
-#ifdef NO_RSA
-    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL), ASN_UNKNOWN_OID_E);
-#else
     AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL), WOLFSSL_SUCCESS);
-#endif
 
     /* Test getting CERT_MANAGER */
     AssertNotNull(cm = wolfSSL_CTX_GetCertManager(ctx));
@@ -940,6 +937,7 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
 #ifdef PERSIST_CERT_CACHE
     /* Verify no certs (result is less than cacheSz) */
     AssertIntGT(cacheSz, wolfSSL_CTX_get_cert_cache_memsize(ctx));
+#endif
 #endif
 
 #if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_TIRTOS)
@@ -1067,7 +1065,8 @@ static int test_wolfSSL_CertManagerLoadCABuffer(void)
 
 static void test_wolfSSL_CertManagerCRL(void)
 {
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_RSA)
 
     const char* ca_cert = "./certs/ca-cert.pem";
     const char* crl1     = "./certs/crl/crl.pem";
@@ -1097,7 +1096,7 @@ static void test_wolfSSL_CTX_load_verify_chain_buffer_format(void)
 {
 #if !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && \
 defined(USE_CERT_BUFFERS_2048) && defined(OPENSSL_EXTRA) && \
-defined(WOLFSSL_CERT_GEN)
+defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
 
     WOLFSSL_CTX* ctx;
 
@@ -1246,9 +1245,11 @@ static void test_wolfSSL_CTX_der_load_verify_locations(void)
     /* Case 5 filePath empty */
     AssertIntEQ(wolfSSL_CTX_der_load_verify_locations(ctx, emptyPath,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_FAILURE);
+#ifndef NO_RSA
     /* Case 6 success case */
     AssertIntEQ(wolfSSL_CTX_der_load_verify_locations(ctx, derCert,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+#endif
 
     wolfSSL_CTX_free(ctx);
 #endif
@@ -16354,7 +16355,11 @@ static void test_wc_PKCS7_Degenerate(void)
     AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
     AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+#ifndef NO_RSA
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+#else
+    AssertIntNE(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+#endif
     wc_PKCS7_Free(pkcs7);
 
     /* test with turning off degenerate cases */
@@ -16589,7 +16594,11 @@ static void test_wc_PKCS7_BER(void)
     AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
     AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+#ifndef NO_RSA
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+#else
+    AssertIntNE(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+#endif
     wc_PKCS7_Free(pkcs7);
 
 #ifndef NO_DES3
@@ -16599,7 +16608,11 @@ static void test_wc_PKCS7_BER(void)
     derSz = (word32)ret;
     XFCLOSE(f);
     AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+#ifndef NO_RSA
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, der, derSz), 0);
+#else
+    AssertIntNE(wc_PKCS7_InitWithCert(pkcs7, der, derSz), 0);
+#endif
 
     AssertNotNull(f = XFOPEN("./certs/1024/client-key.der", "rb"));
     AssertIntGT((ret = (int)fread(der, 1, sizeof(der), f)), 0);
@@ -16607,8 +16620,13 @@ static void test_wc_PKCS7_BER(void)
     XFCLOSE(f);
     pkcs7->privateKey   = der;
     pkcs7->privateKeySz = derSz;
+#ifndef NO_RSA
     AssertIntGT(wc_PKCS7_DecodeEnvelopedData(pkcs7, berContent,
         sizeof(berContent), decoded, sizeof(decoded)), 0);
+#else
+    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, berContent,
+        sizeof(berContent), decoded, sizeof(decoded)), NOT_COMPILED_IN);
+#endif
     wc_PKCS7_Free(pkcs7);
 #endif /* !NO_DES3 */
 
@@ -17671,7 +17689,8 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     #endif
 
     /* key is DES encrypted */
-    #if !defined(NO_DES3) && defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_FILESYSTEM)
+    #if !defined(NO_DES3) && defined(WOLFSSL_ENCRYPTED_KEYS) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
     {
         pem_password_cb* passwd_cb;
         void* passwd_cb_userdata;
@@ -18766,7 +18785,7 @@ static void test_wolfSSL_CTX_set_srp_password(void)
 
 static void test_wolfSSL_X509_STORE(void)
 {
-#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_RSA)
     X509_STORE *store;
     X509_CRL *crl;
     X509 *x509;
@@ -19243,7 +19262,8 @@ static void test_wolfSSL_set_options(void)
  * PRE: OPENSSL and HAVE_CERTIFICATE_STATUS_REQUEST defined.
  */
 static void test_wolfSSL_set_tlsext_status_type(void){
-    #if defined(OPENSSL_EXTRA) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+    #if defined(OPENSSL_EXTRA) && defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
+    !defined(NO_RSA)
     SSL*     ssl;
     SSL_CTX* ctx;
 
@@ -19257,7 +19277,7 @@ static void test_wolfSSL_set_tlsext_status_type(void){
                == SSL_SUCCESS);
     SSL_free(ssl);
     SSL_CTX_free(ctx);
-    #endif  /* OPENSSL_EXTRA && HAVE_CERTIFICATE_STATUS_REQUEST */
+    #endif  /* OPENSSL_EXTRA && HAVE_CERTIFICATE_STATUS_REQUEST && !NO_RSA */
 }
 
 static void test_wolfSSL_PEM_read_bio(void)
@@ -20546,12 +20566,14 @@ static void test_wolfSSL_d2i_PUBKEY(void)
     #endif
 }
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)) && !defined(NO_RSA)
 static void test_wolfSSL_d2i_PrivateKeys_bio(void)
 {
     BIO*      bio = NULL;
     EVP_PKEY* pkey  = NULL;
+#ifndef NO_RSA
     RSA*  rsa  = NULL;
+#endif
     WOLFSSL_CTX* ctx;
 
 #if defined(WOLFSSL_KEY_GEN)
@@ -20624,13 +20646,14 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
     AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
 
+#ifndef NO_RSA
     /* Tests bad parameters */
     AssertNull(d2i_RSAPrivateKey_bio(NULL, NULL));
 
     /* RSA not set yet, expecting to fail*/
     AssertIntEQ(SSL_CTX_use_RSAPrivateKey(ctx, rsa), BAD_FUNC_ARG);
 
-#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)  && defined(WOLFSSL_KEY_GEN)
+#if defined(USE_CERT_BUFFERS_2048) && defined(WOLFSSL_KEY_GEN)
     /* set RSA using bio*/
     AssertIntGT(BIO_write(bio, client_key_der_2048,
                 sizeof_client_key_der_2048), 0);
@@ -20642,13 +20665,13 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
     AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(NULL, NULL), BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, &bufPtr),
                                            sizeof_client_key_der_2048);
+#endif /* USE_CERT_BUFFERS_2048 WOLFSSL_KEY_GEN */
     RSA_free(rsa);
-#endif
+#endif /* NO_RSA */
     SSL_CTX_free(ctx);
     ctx = NULL;
     BIO_free(bio);
     bio = NULL;
-    (void)rsa;
     printf(resultFmt, passed);
 }
 #endif /* OPENSSL_ALL || WOLFSSL_ASIO */
@@ -21849,7 +21872,7 @@ static void test_wc_GetPkcs8TraditionalOffset(void)
 static void test_wc_SetSubjectRaw(void)
 {
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
-    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && !defined(NO_RSA)
     const char* joiCertFile = "./certs/test/cert-ext-joi.pem";
     WOLFSSL_X509* x509;
     int peerCertSz;
@@ -21891,7 +21914,7 @@ static void test_wc_GetSubjectRaw(void)
 static void test_wc_SetIssuerRaw(void)
 {
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
-    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && !defined(NO_RSA)
     const char* joiCertFile = "./certs/test/cert-ext-joi.pem";
     WOLFSSL_X509* x509;
     int peerCertSz;
@@ -21917,7 +21940,7 @@ static void test_wc_SetIssuerRaw(void)
 static void test_wc_SetIssueBuffer(void)
 {
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
-    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && !defined(NO_RSA)
     const char* joiCertFile = "./certs/test/cert-ext-joi.pem";
     WOLFSSL_X509* x509;
     int peerCertSz;
@@ -23253,7 +23276,8 @@ static void test_wolfSSL_X509_CRL(void)
 
 static void test_wolfSSL_PEM_read_X509(void)
 {
-#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA)
     X509 *x509 = NULL;
     XFILE fp;
 
@@ -23870,7 +23894,7 @@ void ApiTest(void)
     test_wolfSSL_DES_ncbc();
     test_wolfSSL_AES_cbc_encrypt();
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)) && !defined(NO_RSA)
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_ASN1(), WOLFSSL_SUCCESS);
     test_wolfSSL_d2i_PrivateKeys_bio();
 #endif /* OPENSSL_ALL || WOLFSSL_ASIO */

@@ -15,6 +15,9 @@ dist_noinst_SCRIPTS+= scripts/resume.test
 EXTRA_DIST+= scripts/benchmark.test
 EXTRA_DIST+= scripts/memtest.sh
 
+# The CRL and OCSP tests use RSA certificates.
+if BUILD_RSA
+
 if BUILD_CRL
 # make revoked test rely on completion of resume test
 dist_noinst_SCRIPTS+= scripts/crl-revoked.test
@@ -42,6 +45,8 @@ scripts/ocsp-stapling2.log: scripts/ocsp-stapling-with-ca-as-responder.log
 else
 scripts/ocsp-stapling2.log: tests/unit.log
 scripts/ocsp-stapling2.log: scripts/ocsp.log
+endif
+
 endif
 
 endif

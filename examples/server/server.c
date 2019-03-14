@@ -1889,6 +1889,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_NO_NONCE);
         }
 #endif
+#ifndef NO_RSA
+/* All the OSCP Stapling test certs are RSA. */
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
         if (wolfSSL_CTX_EnableOCSPStapling(ctx) != WOLFSSL_SUCCESS)
@@ -1899,6 +1901,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             err_sys_ex(runWithErrors, "can't load ca file, Please run from wolfSSL home dir");
         if (SSL_CTX_load_verify_locations(ctx, "certs/ocsp/intermediate3-ca-cert.pem", 0) != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "can't load ca file, Please run from wolfSSL home dir");
+#endif
 #endif
 
 #ifdef HAVE_PK_CALLBACKS
