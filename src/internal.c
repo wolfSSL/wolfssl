@@ -19839,7 +19839,6 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             #ifndef NO_DH
                 case diffie_hellman_kea:
                 {
-                    word32 sigLen;
                     ssl->buffers.sig.length = ENCRYPT_LEN;
                     ssl->buffers.sig.buffer = (byte*)XMALLOC(ENCRYPT_LEN,
                                             ssl->heap, DYNAMIC_TYPE_SIGNATURE);
@@ -19883,13 +19882,11 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     }
 
                     /* for DH, encSecret is Yc, agree is pre-master */
-                    sigLen = ssl->buffers.sig.length;
                     ret = DhGenKeyPair(ssl, ssl->buffers.serverDH_Key,
-                        ssl->buffers.sig.buffer, &sigLen,
+                        ssl->buffers.sig.buffer, (word32*)&ssl->buffers.sig.length,
                         args->encSecret, &args->encSz);
 
                     /* set the max agree result size */
-                    ssl->buffers.sig.length = (unsigned int)sigLen;
                     ssl->arrays->preMasterSz = ENCRYPT_LEN;
                     break;
                 }
@@ -20001,7 +19998,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
                     /* for DH, encSecret is Yc, agree is pre-master */
                     ret = DhGenKeyPair(ssl, ssl->buffers.serverDH_Key,
-                        ssl->buffers.sig.buffer, &ssl->buffers.sig.length,
+                        ssl->buffers.sig.buffer, (word32*)&ssl->buffers.sig.length,
                         args->output + OPAQUE16_LEN, &args->length);
                     break;
                 }
@@ -20907,11 +20904,10 @@ int SendCertificateVerify(WOLFSSL* ssl)
         #ifdef HAVE_ECC
            if (ssl->hsType == DYNAMIC_TYPE_ECC) {
                 ecc_key* key = (ecc_key*)ssl->hsKey;
-                word32 sigLen = ssl->buffers.sig.length;
 
                 ret = EccSign(ssl,
                     ssl->buffers.digest.buffer, ssl->buffers.digest.length,
-                    ssl->buffers.sig.buffer, &sigLen,
+                    ssl->buffers.sig.buffer, (word32*)&ssl->buffers.sig.length,
                     key,
             #ifdef HAVE_PK_CALLBACKS
                     ssl->buffers.key
@@ -20919,7 +20915,6 @@ int SendCertificateVerify(WOLFSSL* ssl)
                     NULL
             #endif
                 );
-                ssl->buffers.sig.length = (unsigned int)sigLen;
             }
         #endif /* HAVE_ECC */
         #if defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)
@@ -20928,7 +20923,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
 
                 ret = Ed25519Sign(ssl,
                     ssl->hsHashes->messages, ssl->hsHashes->length,
-                    ssl->buffers.sig.buffer, &ssl->buffers.sig.length,
+                    ssl->buffers.sig.buffer, (word32*)&ssl->buffers.sig.length,
                     key,
             #ifdef HAVE_PK_CALLBACKS
                     ssl->buffers.key
@@ -20936,6 +20931,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                     NULL
             #endif
                 );
+                ssl->buffers.sig.length = (unsigned int)args->sigSz;
             }
         #endif /* HAVE_ED25519 && !NO_ED25519_CLIENT_AUTH */
         #ifndef NO_RSA
@@ -21715,8 +21711,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     case diffie_hellman_kea:
                 #endif
                     {
-                        word32 dhPrivLen, dhPubLen;
-
                         /* Allocate DH key buffers and generate key */
                         if (ssl->buffers.serverDH_P.buffer == NULL ||
                             ssl->buffers.serverDH_G.buffer == NULL) {
@@ -21783,13 +21777,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             }
                         }
 
-                        dhPrivLen = ssl->buffers.serverDH_Priv.length;
-                        dhPubLen = ssl->buffers.serverDH_Pub.length;
                         ret = DhGenKeyPair(ssl, ssl->buffers.serverDH_Key,
-                            ssl->buffers.serverDH_Priv.buffer, &dhPrivLen,
-                            ssl->buffers.serverDH_Pub.buffer, &dhPubLen);
-                        ssl->buffers.serverDH_Priv.length = (unsigned int)dhPrivLen;
-                        ssl->buffers.serverDH_Pub.length = (unsigned int)dhPubLen;
+                            ssl->buffers.serverDH_Priv.buffer,
+                            (word32*)&ssl->buffers.serverDH_Priv.length,
+                            ssl->buffers.serverDH_Pub.buffer,
+                            (word32*)&ssl->buffers.serverDH_Pub.length);
                         break;
                     }
                 #endif /* !NO_DH && (!NO_PSK || !NO_RSA) */

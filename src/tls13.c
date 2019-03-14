@@ -5395,17 +5395,16 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
         {
         #ifdef HAVE_ECC
            if (ssl->hsType == DYNAMIC_TYPE_ECC) {
-                word32 sigLen = sig->length;
+
                 ret = EccSign(ssl, args->sigData, args->sigDataSz,
                     args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
-                    &sigLen, (ecc_key*)ssl->hsKey,
+                    (word32*)&sig->length, (ecc_key*)ssl->hsKey,
             #ifdef HAVE_PK_CALLBACKS
                     ssl->buffers.key
             #else
                     NULL
             #endif
                 );
-                sig->length = (unsigned int)sigLen;
                 args->length = (word16)sig->length;
             }
         #endif /* HAVE_ECC */
@@ -5413,14 +5412,14 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             if (ssl->hsType == DYNAMIC_TYPE_ED25519) {
                 ret = Ed25519Sign(ssl, args->sigData, args->sigDataSz,
                     args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
-                    &sig->length, (ed25519_key*)ssl->hsKey,
+                    (word32*)&sig->length, (ed25519_key*)ssl->hsKey,
             #ifdef HAVE_PK_CALLBACKS
                     ssl->buffers.key
             #else
                     NULL
             #endif
                 );
-                args->length = sig->length;
+                args->length = (word16)sig->length;
             }
         #endif
         #ifndef NO_RSA
