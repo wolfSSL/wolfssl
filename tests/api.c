@@ -16714,7 +16714,7 @@ static void test_PKCS7_signed_enveloped(void)
     pt = (void*)pkcs7->certList;
     pkcs7->certList = NULL; /* no certs in bundle */
     AssertIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, sigSz)), 0);
-    pkcs7->certList = pt; /* restore pointer for PKCS7 free call */
+    pkcs7->certList = (Pkcs7Cert*)pt; /* restore pointer for PKCS7 free call */
     wc_PKCS7_Free(pkcs7);
     wc_FreeRng(&rng);
 

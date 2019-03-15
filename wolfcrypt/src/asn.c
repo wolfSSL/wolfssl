@@ -12574,7 +12574,7 @@ int wc_SetAuthKeyIdFromCert(Cert *cert, const byte *der, int derSz)
         }
 
         if (ret >= 0) {
-            ret = SetAuthKeyIdFromDcert(cert, cert->decodedCert);
+            ret = SetAuthKeyIdFromDcert(cert, (DecodedCert*)cert->decodedCert);
 #ifndef WOLFSSL_CERT_GEN_CACHE
             wc_SetCert_Free(cert);
 #endif
@@ -13127,7 +13127,7 @@ int wc_SetIssuerBuffer(Cert* cert, const byte* der, int derSz)
         }
 
         if (ret >= 0) {
-            SetNameFromDcert(&cert->issuer, cert->decodedCert);
+            SetNameFromDcert(&cert->issuer, (DecodedCert*)cert->decodedCert);
 #ifndef WOLFSSL_CERT_GEN_CACHE
             wc_SetCert_Free(cert);
 #endif
@@ -13153,7 +13153,7 @@ int wc_SetSubjectBuffer(Cert* cert, const byte* der, int derSz)
         }
 
         if (ret >= 0) {
-            SetNameFromDcert(&cert->subject, cert->decodedCert);
+            SetNameFromDcert(&cert->subject, (DecodedCert*)cert->decodedCert);
 #ifndef WOLFSSL_CERT_GEN_CACHE
             wc_SetCert_Free(cert);
 #endif
@@ -13245,7 +13245,7 @@ int wc_SetAltNamesBuffer(Cert* cert, const byte* der, int derSz)
         }
 
         if (ret >= 0) {
-            ret = SetAltNamesFromDcert(cert, cert->decodedCert);
+            ret = SetAltNamesFromDcert(cert, (DecodedCert*)cert->decodedCert);
 #ifndef WOLFSSL_CERT_GEN_CACHE
             wc_SetCert_Free(cert);
 #endif
@@ -13271,7 +13271,7 @@ int wc_SetDatesBuffer(Cert* cert, const byte* der, int derSz)
         }
 
         if (ret >= 0) {
-            ret = SetDatesFromDcert(cert, cert->decodedCert);
+            ret = SetDatesFromDcert(cert, (DecodedCert*)cert->decodedCert);
 #ifndef WOLFSSL_CERT_GEN_CACHE
             wc_SetCert_Free(cert);
 #endif
