@@ -16639,17 +16639,20 @@ static void test_PKCS7_signed_enveloped(void)
 #if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
     XFILE  f;
     PKCS7* pkcs7;
+    PKCS7* inner;
     void*  pt;
     WC_RNG rng;
     unsigned char key[FOURK_BUF/2];
     unsigned char cert[FOURK_BUF/2];
-    unsigned char env[FOURK_BUF/2];
-    int envSz  = FOURK_BUF/2;
+    unsigned char env[FOURK_BUF];
+    int envSz  = FOURK_BUF;
     int keySz;
     int certSz;
 
-    unsigned char sig[FOURK_BUF];
-    int sigSz = FOURK_BUF;
+    unsigned char sig[FOURK_BUF * 2];
+    int sigSz = FOURK_BUF * 2;
+    unsigned char decoded[FOURK_BUF];
+    int decodedSz = FOURK_BUF;
 
     printf(testingFmt, "PKCS7_signed_enveloped");
 
@@ -16664,11 +16667,27 @@ static void test_PKCS7_signed_enveloped(void)
     XFCLOSE(f);
     keySz = wolfSSL_KeyPemToDer(key, keySz, key, keySz, NULL);
 
+    /* sign cert for envelope */
+    AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    AssertIntEQ(wc_InitRng(&rng), 0);
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    pkcs7->content    = cert;
+    pkcs7->contentSz  = certSz;
+    pkcs7->contentOID = DATA;
+    pkcs7->privateKey   = key;
+    pkcs7->privateKeySz = keySz;
+    pkcs7->encryptOID   = RSAk;
+    pkcs7->hashOID      = SHA256h;
+    pkcs7->rng          = &rng;
+    AssertIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, sigSz)), 0);
+    wc_PKCS7_Free(pkcs7);
+    wc_FreeRng(&rng);
+
     /* create envelope */
     AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
-    pkcs7->content   = cert;
-    pkcs7->contentSz = certSz;
+    pkcs7->content   = sig;
+    pkcs7->contentSz = sigSz;
     pkcs7->contentOID = DATA;
     pkcs7->encryptOID = AES256CBCb;
     pkcs7->privateKey   = key;
@@ -16677,13 +16696,13 @@ static void test_PKCS7_signed_enveloped(void)
     wc_PKCS7_Free(pkcs7);
 
     /* create signed enveloped data */
+    sigSz = FOURK_BUF * 2;
     AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
     AssertIntEQ(wc_InitRng(&rng), 0);
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
-    pkcs7->content   = env;
-    pkcs7->contentSz = envSz;
+    pkcs7->content    = env;
+    pkcs7->contentSz  = envSz;
     pkcs7->contentOID = DATA;
-    pkcs7->encryptOID = AES256CBCb;
     pkcs7->privateKey   = key;
     pkcs7->privateKeySz = keySz;
     pkcs7->encryptOID   = RSAk;
@@ -16703,7 +16722,26 @@ static void test_PKCS7_signed_enveloped(void)
     AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, sigSz), 0);
+    AssertNotNull(pkcs7->content);
+
+    /* check decode */
+    AssertNotNull(inner = wc_PKCS7_New(NULL, 0));
+    AssertIntEQ(wc_PKCS7_InitWithCert(inner, cert, certSz), 0);
+    inner->privateKey   = key;
+    inner->privateKeySz = keySz;
+    AssertIntGT((decodedSz = wc_PKCS7_DecodeEnvelopedData(inner, pkcs7->content,
+                   pkcs7->contentSz, decoded, decodedSz)), 0);
+    wc_PKCS7_Free(inner);
     wc_PKCS7_Free(pkcs7);
+
+    /* check cert set */
+    AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, decoded, decodedSz), 0);
+    AssertNotNull(pkcs7->singleCert);
+    AssertIntNE(pkcs7->singleCertSz, 0);
+    wc_PKCS7_Free(pkcs7);
+
     printf(resultFmt, passed);
 
 #endif

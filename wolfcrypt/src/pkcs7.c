@@ -3884,20 +3884,6 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 ret = 0; /* reset ret state on degenerate case */
             }
 
-            /* Get the implicit[0] set of certificates */
-            if (ret == 0 && idx >= pkiMsg2Sz)
-                ret = BUFFER_E;
-
-            length = 0; /* set length to 0 to check if reading in any certs */
-            if (ret == 0 && pkiMsg2[idx] ==
-                    (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
-                idx++;
-                if (GetLength(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
-                    ret = ASN_PARSE_E;
-
-                if (ret != 0) {
-                    break;
-                }
         #ifndef NO_PKCS7_STREAM
             /* save content */
             if (detached == 1) {
@@ -3919,7 +3905,23 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                     pkcs7->stream->contentSz = contentSz;
                 }
             }
+        #endif /* !NO_PKCS7_STREAM */
 
+            /* Get the implicit[0] set of certificates */
+            if (ret == 0 && idx >= pkiMsg2Sz)
+                ret = BUFFER_E;
+
+            length = 0; /* set length to 0 to check if reading in any certs */
+            if (ret == 0 && pkiMsg2[idx] ==
+                    (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
+                idx++;
+                if (GetLength(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
+                    ret = ASN_PARSE_E;
+
+                if (ret != 0) {
+                    break;
+                }
+        #ifndef NO_PKCS7_STREAM
             if (content != NULL && pkcs7->stream->flagOne) {
                 stateIdx = idx; /* case where all data was read from in2 */
             }
