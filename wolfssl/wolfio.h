@@ -418,6 +418,8 @@ typedef int (*CallbackIORecv)(WOLFSSL *ssl, char *buf, int sz, void *ctx);
 typedef int (*CallbackIOSend)(WOLFSSL *ssl, char *buf, int sz, void *ctx);
 WOLFSSL_API void wolfSSL_CTX_SetIORecv(WOLFSSL_CTX*, CallbackIORecv);
 WOLFSSL_API void wolfSSL_CTX_SetIOSend(WOLFSSL_CTX*, CallbackIOSend);
+WOLFSSL_API void wolfSSL_SSLSetIORecv(WOLFSSL*, CallbackIORecv);
+WOLFSSL_API void wolfSSL_SSLSetIOSend(WOLFSSL*, CallbackIOSend);
 /* deprecated old name */
 #define wolfSSL_SetIORecv wolfSSL_CTX_SetIORecv
 #define wolfSSL_SetIOSend wolfSSL_CTX_SetIOSend
