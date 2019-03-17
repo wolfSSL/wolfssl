@@ -18951,6 +18951,51 @@ static void test_wolfSSL_BN(void)
     BN_free(b);
     BN_free(c);
 
+    #if defined(USE_FAST_MATH) && !defined(HAVE_WOLF_BIGINT)
+    {
+        BIGNUM *ap;
+        BIGNUM bv;
+        BIGNUM cv;
+        BIGNUM dv;
+
+        AssertNotNull(ap = BN_new());
+        BN_init(&bv);
+        BN_init(&cv);
+        BN_init(&dv);
+
+        value[0] = 0x3;
+        AssertNotNull(BN_bin2bn(value, sizeof(value), ap));
+
+        value[0] = 0x02;
+        AssertNotNull(BN_bin2bn(value, sizeof(value), &bv));
+
+        value[0] = 0x05;
+        AssertNotNull(BN_bin2bn(value, sizeof(value), &cv));
+
+        /* a^b mod c = */
+        AssertIntEQ(BN_mod_exp(&dv, NULL, &bv, &cv, NULL), WOLFSSL_FAILURE);
+        AssertIntEQ(BN_mod_exp(&dv, ap, &bv, &cv, NULL), WOLFSSL_SUCCESS);
+
+        /* check result  3^2 mod 5 */
+        value[0] = 0;
+        printf("BN_bn2bin = %d\n", BN_bn2bin(&dv, value));
+        AssertIntEQ(BN_bn2bin(&dv, value), WOLFSSL_SUCCESS);
+        AssertIntEQ(BN_bn2bin(&dv, value), SSL_SUCCESS);
+        AssertIntEQ((int)(value[0]), 4);
+
+        /* a*b mod c = */
+        AssertIntEQ(BN_mod_mul(&dv, NULL, &bv, &cv, NULL), SSL_FAILURE);
+        AssertIntEQ(BN_mod_mul(&dv, ap, &bv, &cv, NULL), SSL_SUCCESS);
+
+        /* check result  3*2 mod 5 */
+        value[0] = 0;
+        AssertIntEQ(BN_bn2bin(&dv, value), SSL_SUCCESS);
+        AssertIntEQ((int)(value[0]), 1);
+
+        BN_free(ap);
+    }
+    #endif
+
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_ASN) */
 }
