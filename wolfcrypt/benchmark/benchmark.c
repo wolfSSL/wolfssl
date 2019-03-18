@@ -4813,8 +4813,8 @@ void bench_ecc(int doAsync)
 #endif
 #if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
     DECLARE_ARRAY(sig, byte, BENCH_MAX_PENDING, ECC_MAX_SIG_SIZE, HEAP_HINT);
-#endif
     DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, BENCH_ECC_SIZE, HEAP_HINT);
+#endif
 
     /* clear for done cleanup */
     XMEMSET(&genKey, 0, sizeof(genKey));
@@ -4956,8 +4956,8 @@ exit:
 #endif
 #if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
     FREE_ARRAY(sig, BENCH_MAX_PENDING, HEAP_HINT);
-#endif
     FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+#endif
 }
 
 

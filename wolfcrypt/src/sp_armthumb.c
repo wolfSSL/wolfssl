@@ -3909,7 +3909,8 @@ static WC_INLINE int sp_2048_mod_64_cond(sp_digit* r, sp_digit* a, sp_digit* m)
     return sp_2048_div_64_cond(a, m, NULL, r);
 }
 
-#if defined(SP_RSA_PRIVATE_EXP_D) || defined(WOLFSSL_HAVE_SP_DH)
+#if (defined(SP_RSA_PRIVATE_EXP_D) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
+                                                     defined(WOLFSSL_HAVE_SP_DH)
 #ifdef WOLFSSL_SP_SMALL
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
@@ -4182,7 +4183,7 @@ static int sp_2048_mod_exp_64(sp_digit* r, sp_digit* a, sp_digit* e,
     return err;
 }
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* SP_RSA_PRIVATE_EXP_D || WOLFSSL_HAVE_SP_DH */
+#endif /* (SP_RSA_PRIVATE_EXP_D && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
@@ -4436,7 +4437,8 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     return err;
 }
 #endif /* WOLFSSL_HAVE_SP_RSA */
-#if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
+#if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
+                                              !defined(WOLFSSL_RSA_PUBLIC_ONLY))
 /* Convert an array of sp_digit to an mp_int.
  *
  * a  A single precision integer.
@@ -4622,7 +4624,7 @@ int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     return err;
 }
 
-#endif /* WOLFSSL_HAVE_SP_DH || WOLFSSL_HAVE_SP_RSA */
+#endif /* WOLFSSL_HAVE_SP_DH || (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) */
 
 #endif /* WOLFSSL_SP_NO_2048 */
 
@@ -9219,7 +9221,8 @@ static WC_INLINE int sp_3072_mod_96_cond(sp_digit* r, sp_digit* a, sp_digit* m)
     return sp_3072_div_96_cond(a, m, NULL, r);
 }
 
-#if defined(SP_RSA_PRIVATE_EXP_D) || defined(WOLFSSL_HAVE_SP_DH)
+#if (defined(SP_RSA_PRIVATE_EXP_D) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
+                                                     defined(WOLFSSL_HAVE_SP_DH)
 #ifdef WOLFSSL_SP_SMALL
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
@@ -9492,7 +9495,7 @@ static int sp_3072_mod_exp_96(sp_digit* r, sp_digit* a, sp_digit* e,
     return err;
 }
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* SP_RSA_PRIVATE_EXP_D || WOLFSSL_HAVE_SP_DH */
+#endif /* (SP_RSA_PRIVATE_EXP_D && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
@@ -9746,7 +9749,8 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     return err;
 }
 #endif /* WOLFSSL_HAVE_SP_RSA */
-#if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
+#if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
+                                              !defined(WOLFSSL_RSA_PUBLIC_ONLY))
 /* Convert an array of sp_digit to an mp_int.
  *
  * a  A single precision integer.
@@ -9932,7 +9936,7 @@ int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     return err;
 }
 
-#endif /* WOLFSSL_HAVE_SP_DH || WOLFSSL_HAVE_SP_RSA */
+#endif /* WOLFSSL_HAVE_SP_DH || (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) */
 
 #endif /* WOLFSSL_SP_NO_3072 */
 

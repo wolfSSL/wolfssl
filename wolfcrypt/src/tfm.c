@@ -3537,7 +3537,8 @@ static int fp_prime_miller_rabin_ex(fp_int * a, fp_int * b, int *result,
 
   /* compute y = b**r mod a */
   fp_zero(y);
-#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
+                                                     defined(WOLFSSL_HAVE_SP_DH)
   if (fp_count_bits(a) == 1024)
       sp_ModExp_1024(b, r, a, y);
   else if (fp_count_bits(a) == 2048)
@@ -4067,7 +4068,7 @@ int mp_add_d(fp_int *a, fp_digit b, fp_int *c)
 
 #if !defined(NO_DSA) || defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN) || \
     defined(HAVE_COMP_KEY) || defined(WOLFSSL_DEBUG_MATH) || \
-    defined(DEBUG_WOLFSSL) || defined(OPENSSL_EXTRA)
+    defined(DEBUG_WOLFSSL) || defined(OPENSSL_EXTRA) || defined(WC_MP_TO_RADIX)
 
 /* chars used in radix conversions */
 static const char* const fp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"

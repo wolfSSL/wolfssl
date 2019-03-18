@@ -3306,35 +3306,32 @@ SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0,
  */
 SP_NOINLINE static int32_t sp_2048_cmp_32(sp_digit* a, sp_digit* b)
 {
-    sp_digit r = -1;
+    sp_digit r = 0;
 
 
     __asm__ __volatile__ (
-        "mov	r3, %[r]\n\t"
-        "mov r6, #124\n\t"
+        "mov	r3, #0\n\t"
+        "mvn	r3, r3\n\t"
+        "mov	r6, #124\n\t"
         "1:\n\t"
-        "ldr	r4, [%[a], r6]\n\t"
+        "ldr	r7, [%[a], r6]\n\t"
         "ldr	r5, [%[b], r6]\n\t"
-        "and	r4, r3\n\t"
+        "and	r7, r3\n\t"
         "and	r5, r3\n\t"
-        "subs	r4, r5\n\t"
-        "sbc	r5, r5\n\t"
-        "mov	r7, r3\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "subs	r4, #1\n\t"
-        "sbc	r4, r4\n\t"
-        "orr	r5, r4\n\t"
-        "mvn	r5, r5\n\t"
-        "mov	r7, #1\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "and	r3, r4\n\t"
-        "subs	r6, #4\n\t"
-        "bcc	1b\n\t"
-        "eor	%[r], r3\n\t"
+        "mov	r4, r7\n\t"
+        "subs	r7, r5\n\t"
+        "sbc	r7, r7\n\t"
+        "add	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
+        "subs	r5, r4\n\t"
+        "sbc	r7, r7\n\t"
+        "sub	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
+        "sub	r6, #4\n\t"
+        "cmp	r6, #0\n\t"
+        "bge	1b\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b)
         : "r3", "r4", "r5", "r6", "r7"
@@ -3935,35 +3932,32 @@ static void sp_2048_mask_64(sp_digit* r, sp_digit* a, sp_digit m)
  */
 SP_NOINLINE static int32_t sp_2048_cmp_64(sp_digit* a, sp_digit* b)
 {
-    sp_digit r = -1;
+    sp_digit r = 0;
 
 
     __asm__ __volatile__ (
-        "mov	r3, %[r]\n\t"
-        "mov r6, #252\n\t"
+        "mov	r3, #0\n\t"
+        "mvn	r3, r3\n\t"
+        "mov	r6, #252\n\t"
         "1:\n\t"
-        "ldr	r4, [%[a], r6]\n\t"
+        "ldr	r7, [%[a], r6]\n\t"
         "ldr	r5, [%[b], r6]\n\t"
-        "and	r4, r3\n\t"
+        "and	r7, r3\n\t"
         "and	r5, r3\n\t"
-        "subs	r4, r5\n\t"
-        "sbc	r5, r5\n\t"
-        "mov	r7, r3\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "subs	r4, #1\n\t"
-        "sbc	r4, r4\n\t"
-        "orr	r5, r4\n\t"
-        "mvn	r5, r5\n\t"
-        "mov	r7, #1\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "and	r3, r4\n\t"
-        "subs	r6, #4\n\t"
-        "bcc	1b\n\t"
-        "eor	%[r], r3\n\t"
+        "mov	r4, r7\n\t"
+        "subs	r7, r5\n\t"
+        "sbc	r7, r7\n\t"
+        "add	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
+        "subs	r5, r4\n\t"
+        "sbc	r7, r7\n\t"
+        "sub	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
+        "sub	r6, #4\n\t"
+        "cmp	r6, #0\n\t"
+        "bge	1b\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b)
         : "r3", "r4", "r5", "r6", "r7"
@@ -4073,7 +4067,8 @@ static WC_INLINE int sp_2048_mod_64_cond(sp_digit* r, sp_digit* a, sp_digit* m)
     return sp_2048_div_64_cond(a, m, NULL, r);
 }
 
-#if defined(SP_RSA_PRIVATE_EXP_D) || defined(WOLFSSL_HAVE_SP_DH)
+#if (defined(SP_RSA_PRIVATE_EXP_D) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
+                                                     defined(WOLFSSL_HAVE_SP_DH)
 #ifdef WOLFSSL_SP_SMALL
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
@@ -4346,7 +4341,7 @@ static int sp_2048_mod_exp_64(sp_digit* r, sp_digit* a, sp_digit* e,
     return err;
 }
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* SP_RSA_PRIVATE_EXP_D || WOLFSSL_HAVE_SP_DH */
+#endif /* (SP_RSA_PRIVATE_EXP_D && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
@@ -4600,7 +4595,8 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     return err;
 }
 #endif /* WOLFSSL_HAVE_SP_RSA */
-#if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
+#if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
+                                              !defined(WOLFSSL_RSA_PUBLIC_ONLY))
 /* Convert an array of sp_digit to an mp_int.
  *
  * a  A single precision integer.
@@ -4786,7 +4782,7 @@ int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     return err;
 }
 
-#endif /* WOLFSSL_HAVE_SP_DH || WOLFSSL_HAVE_SP_RSA */
+#endif /* WOLFSSL_HAVE_SP_DH || (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) */
 
 #endif /* WOLFSSL_SP_NO_2048 */
 
@@ -8774,35 +8770,32 @@ SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0,
  */
 SP_NOINLINE static int32_t sp_3072_cmp_48(sp_digit* a, sp_digit* b)
 {
-    sp_digit r = -1;
+    sp_digit r = 0;
 
 
     __asm__ __volatile__ (
-        "mov	r3, %[r]\n\t"
-        "mov r6, #188\n\t"
+        "mov	r3, #0\n\t"
+        "mvn	r3, r3\n\t"
+        "mov	r6, #188\n\t"
         "1:\n\t"
-        "ldr	r4, [%[a], r6]\n\t"
+        "ldr	r7, [%[a], r6]\n\t"
         "ldr	r5, [%[b], r6]\n\t"
-        "and	r4, r3\n\t"
+        "and	r7, r3\n\t"
         "and	r5, r3\n\t"
-        "subs	r4, r5\n\t"
-        "sbc	r5, r5\n\t"
-        "mov	r7, r3\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "subs	r4, #1\n\t"
-        "sbc	r4, r4\n\t"
-        "orr	r5, r4\n\t"
-        "mvn	r5, r5\n\t"
-        "mov	r7, #1\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "and	r3, r4\n\t"
-        "subs	r6, #4\n\t"
-        "bcc	1b\n\t"
-        "eor	%[r], r3\n\t"
+        "mov	r4, r7\n\t"
+        "subs	r7, r5\n\t"
+        "sbc	r7, r7\n\t"
+        "add	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
+        "subs	r5, r4\n\t"
+        "sbc	r7, r7\n\t"
+        "sub	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
+        "sub	r6, #4\n\t"
+        "cmp	r6, #0\n\t"
+        "bge	1b\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b)
         : "r3", "r4", "r5", "r6", "r7"
@@ -9407,37 +9400,34 @@ static void sp_3072_mask_96(sp_digit* r, sp_digit* a, sp_digit m)
  */
 SP_NOINLINE static int32_t sp_3072_cmp_96(sp_digit* a, sp_digit* b)
 {
-    sp_digit r = -1;
+    sp_digit r = 0;
 
 
     __asm__ __volatile__ (
-        "mov	r3, %[r]\n\t"
-        "mov r6, #1\n\t"
-        "lsl r6, r6, #8\n\t"
-        "add r6, #124\n\t"
+        "mov	r3, #0\n\t"
+        "mvn	r3, r3\n\t"
+        "mov	r6, #1\n\t"
+        "lsl	r6, r6, #8\n\t"
+        "add	r6, #124\n\t"
         "1:\n\t"
-        "ldr	r4, [%[a], r6]\n\t"
+        "ldr	r7, [%[a], r6]\n\t"
         "ldr	r5, [%[b], r6]\n\t"
-        "and	r4, r3\n\t"
+        "and	r7, r3\n\t"
         "and	r5, r3\n\t"
-        "subs	r4, r5\n\t"
-        "sbc	r5, r5\n\t"
-        "mov	r7, r3\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "subs	r4, #1\n\t"
-        "sbc	r4, r4\n\t"
-        "orr	r5, r4\n\t"
-        "mvn	r5, r5\n\t"
-        "mov	r7, #1\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "and	r3, r4\n\t"
-        "subs	r6, #4\n\t"
-        "bcc	1b\n\t"
-        "eor	%[r], r3\n\t"
+        "mov	r4, r7\n\t"
+        "subs	r7, r5\n\t"
+        "sbc	r7, r7\n\t"
+        "add	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
+        "subs	r5, r4\n\t"
+        "sbc	r7, r7\n\t"
+        "sub	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
+        "sub	r6, #4\n\t"
+        "cmp	r6, #0\n\t"
+        "bge	1b\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b)
         : "r3", "r4", "r5", "r6", "r7"
@@ -9547,7 +9537,8 @@ static WC_INLINE int sp_3072_mod_96_cond(sp_digit* r, sp_digit* a, sp_digit* m)
     return sp_3072_div_96_cond(a, m, NULL, r);
 }
 
-#if defined(SP_RSA_PRIVATE_EXP_D) || defined(WOLFSSL_HAVE_SP_DH)
+#if (defined(SP_RSA_PRIVATE_EXP_D) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
+                                                     defined(WOLFSSL_HAVE_SP_DH)
 #ifdef WOLFSSL_SP_SMALL
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
@@ -9820,7 +9811,7 @@ static int sp_3072_mod_exp_96(sp_digit* r, sp_digit* a, sp_digit* e,
     return err;
 }
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* SP_RSA_PRIVATE_EXP_D || WOLFSSL_HAVE_SP_DH */
+#endif /* (SP_RSA_PRIVATE_EXP_D && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
@@ -10074,7 +10065,8 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     return err;
 }
 #endif /* WOLFSSL_HAVE_SP_RSA */
-#if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
+#if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
+                                              !defined(WOLFSSL_RSA_PUBLIC_ONLY))
 /* Convert an array of sp_digit to an mp_int.
  *
  * a  A single precision integer.
@@ -10260,7 +10252,7 @@ int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     return err;
 }
 
-#endif /* WOLFSSL_HAVE_SP_DH || WOLFSSL_HAVE_SP_RSA */
+#endif /* WOLFSSL_HAVE_SP_DH || (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) */
 
 #endif /* WOLFSSL_SP_NO_3072 */
 
@@ -10613,35 +10605,32 @@ static int sp_256_point_to_ecc_point_8(sp_point* p, ecc_point* pm)
  */
 SP_NOINLINE static int32_t sp_256_cmp_8(sp_digit* a, sp_digit* b)
 {
-    sp_digit r = -1;
+    sp_digit r = 0;
 
 
     __asm__ __volatile__ (
-        "mov	r3, %[r]\n\t"
-        "mov r6, #28\n\t"
+        "mov	r3, #0\n\t"
+        "mvn	r3, r3\n\t"
+        "mov	r6, #28\n\t"
         "1:\n\t"
-        "ldr	r4, [%[a], r6]\n\t"
+        "ldr	r7, [%[a], r6]\n\t"
         "ldr	r5, [%[b], r6]\n\t"
-        "and	r4, r3\n\t"
+        "and	r7, r3\n\t"
         "and	r5, r3\n\t"
-        "subs	r4, r5\n\t"
-        "sbc	r5, r5\n\t"
-        "mov	r7, r3\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "subs	r4, #1\n\t"
-        "sbc	r4, r4\n\t"
-        "orr	r5, r4\n\t"
-        "mvn	r5, r5\n\t"
-        "mov	r7, #1\n\t"
-        "and	r7, r5\n\t"
-        "bic	%[r], r5\n\t"
-        "orr	%[r], r7\n\t"
-        "and	r3, r4\n\t"
-        "subs	r6, #4\n\t"
-        "bcc	1b\n\t"
-        "eor	%[r], r3\n\t"
+        "mov	r4, r7\n\t"
+        "subs	r7, r5\n\t"
+        "sbc	r7, r7\n\t"
+        "add	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
+        "subs	r5, r4\n\t"
+        "sbc	r7, r7\n\t"
+        "sub	%[r], r7\n\t"
+        "mvn	r7, r7\n\t"
+        "and	r3, r7\n\t"
+        "sub	r6, #4\n\t"
+        "cmp	r6, #0\n\t"
+        "bge	1b\n\t"
         : [r] "+r" (r)
         : [a] "r" (a), [b] "r" (b)
         : "r3", "r4", "r5", "r6", "r7"
