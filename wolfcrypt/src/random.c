@@ -772,6 +772,11 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 
             if (ret == DRBG_SUCCESS)
                 ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
+
+            if (ret != DRBG_SUCCESS) {
+                XFREE(rng->drbg, rng->heap, DYNAMIC_TYPE_RNG);
+                rng->drbg = NULL;
+            }
         }
 
         ForceZero(seed, seedSz);
