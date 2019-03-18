@@ -627,7 +627,9 @@
         #if !defined(NO_RC4)
             #if !defined(NO_SHA)
                 #if !defined(NO_RSA)
-                    #define BUILD_TLS_ECDHE_RSA_WITH_RC4_128_SHA
+                    #ifndef WOLFSSL_AEAD_ONLY
+                        #define BUILD_TLS_ECDHE_RSA_WITH_RC4_128_SHA
+                    #endif
                     #if defined(WOLFSSL_STATIC_DH) && defined(HAVE_ECC)
                         #define BUILD_TLS_ECDH_RSA_WITH_RC4_128_SHA
                     #endif
@@ -635,7 +637,9 @@
 
                 #if defined(HAVE_ECC) || (defined(HAVE_CURVE25519) && \
                                                           defined(HAVE_ED25519))
-                    #define BUILD_TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
+                    #ifndef WOLFSSL_AEAD_ONLY
+                        #define BUILD_TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
+                    #endif
                 #endif
                 #if defined(WOLFSSL_STATIC_DH) && defined(HAVE_ECC)
                     #define BUILD_TLS_ECDH_ECDSA_WITH_RC4_128_SHA
