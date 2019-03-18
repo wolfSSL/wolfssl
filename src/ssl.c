@@ -28734,7 +28734,7 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
     pem_password_cb* localCb = cb;
 
     char* mem = NULL;
-    int memSz;
+    int memSz = 0;
     int ret;
 
     if ((ret = wolfSSL_BIO_pending(bio)) > 0) {
@@ -30402,7 +30402,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         int headerLen;
         int headerFound = 0;
         unsigned char* der = NULL;
-        word32 derLen;
+        word32 derLen = 0;
 
         if (bio == NULL || name == NULL || header == NULL || data == NULL ||
                                                                   len == NULL) {
