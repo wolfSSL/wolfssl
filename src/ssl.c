@@ -23928,7 +23928,7 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
 #ifdef WOLFSSL_SMALL_STACK
     tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
 
-    if (tmpRNG == NULL || pub == NULL || priv == NULL) {
+    if (tmpRNG == NULL) {
         XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
         return ret;
     }
