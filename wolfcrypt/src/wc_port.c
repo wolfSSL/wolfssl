@@ -1418,6 +1418,43 @@ int wolfSSL_CryptHwMutexUnLock(void) {
         osMutexRelease (*m);
         return 0;
     }
+    
+#elif defined(WOLFSSL_CMSIS_RTOSv2)
+    int wc_InitMutex(wolfSSL_Mutex *m)
+    {
+        static const osMutexAttr_t attr = {
+            "wolfSSL_mutex", osMutexRecursive, NULL, 0};
+
+        if ((*m = osMutexNew(&attr)) != NULL)
+            return 0;
+        else
+            return BAD_MUTEX_E;
+    }
+
+    int wc_FreeMutex(wolfSSL_Mutex *m)
+    {
+        if (osMutexDelete(*m) == osOK)
+            return 0;
+        else
+            return BAD_MUTEX_E;
+    }
+
+
+    int wc_LockMutex(wolfSSL_Mutex *m)
+    {
+        if (osMutexAcquire(*m, osWaitForever) == osOK)
+            return 0;
+        else
+            return BAD_MUTEX_E;
+    }
+
+    int wc_UnLockMutex(wolfSSL_Mutex *m)
+    {
+        if (osMutexRelease(*m) == osOK)
+            return 0;
+        else
+            return BAD_MUTEX_E;
+    }
 
 #elif defined(WOLFSSL_MDK_ARM)
 
@@ -1797,7 +1834,7 @@ time_t mqx_time(time_t* timer)
 #endif /* FREESCALE_MQX || FREESCALE_KSDK_MQX */
 
 
-#if defined(WOLFSSL_TIRTOS)
+#if defined(WOLFSSL_TIRTOS) && defined(USER_TIME)
 
 time_t XTIME(time_t * timer)
 {
@@ -1855,6 +1892,24 @@ time_t z_time(time_t * timer)
 
 #endif /* WOLFSSL_ZEPHYR */
 
+
+#if defined(WOLFSSL_WICED)
+    #ifndef WOLFSSL_WICED_PSEUDO_UNIX_EPOCH_TIME
+        #error Please define WOLFSSL_WICED_PSEUDO_UNIX_EPOCH_TIME at build time.
+    #endif /* WOLFSSL_WICED_PSEUDO_UNIX_EPOCH_TIME */
+
+time_t wiced_pseudo_unix_epoch_time(time_t * timer)
+{
+    time_t epoch_time;
+    /* The time() function return uptime on WICED platform. */
+    epoch_time = time(NULL) + WOLFSSL_WICED_PSEUDO_UNIX_EPOCH_TIME;
+
+    if (timer != NULL) {
+        *timer = epoch_time;
+    }
+    return epoch_time;
+}
+#endif /* WOLFSSL_WICED */
 #endif /* !NO_ASN_TIME */
 
 #ifndef WOLFSSL_LEANPSK

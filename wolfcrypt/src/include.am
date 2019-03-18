@@ -71,7 +71,9 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/mynewt/mynewt_port.c \
               wolfcrypt/src/port/Espressif/esp32_aes.c \
               wolfcrypt/src/port/Espressif/esp32_sha.c \
-              wolfcrypt/src/port/Espressif/esp32_util.c
+              wolfcrypt/src/port/Espressif/esp32_util.c \
+              wolfcrypt/src/port/Espressif/esp32_mp.c \
+              wolfcrypt/src/port/Espressif/README.md
 
 
 if BUILD_CRYPTOCB

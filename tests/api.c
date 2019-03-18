@@ -607,6 +607,114 @@ static void test_wolfSSL_CTX_new(WOLFSSL_METHOD *method)
 }
 #endif
 
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+(!defined(NO_RSA) || defined(HAVE_ECC))
+static void test_for_double_Free(void)
+{
+    WOLFSSL_CTX* ctx;
+    WOLFSSL*     ssl;
+    int skipTest = 0;
+    const char* testCertFile;
+    const char* testKeyFile;
+    char optionsCiphers[] = "RC4-SHA:RC4-MD5:DES-CBC3-SHA:AES128-SHA:AES256-SHA"
+":NULL-SHA:NULL-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA:DHE-PSK-AES256-GCM"
+"-SHA384:DHE-PSK-AES128-GCM-SHA256:PSK-AES256-GCM-SHA384:PSK-AES128-GCM-SHA256:"
+"DHE-PSK-AES256-CBC-SHA384:DHE-PSK-AES128-CBC-SHA256:PSK-AES256-CBC-SHA384:PSK-"
+"AES128-CBC-SHA256:PSK-AES128-CBC-SHA:PSK-AES256-CBC-SHA:DHE-PSK-AES128-CCM:DHE"
+"-PSK-AES256-CCM:PSK-AES128-CCM:PSK-AES256-CCM:PSK-AES128-CCM-8:PSK-AES256-CCM-"
+"8:DHE-PSK-NULL-SHA384:DHE-PSK-NULL-SHA256:PSK-NULL-SHA384:PSK-NULL-SHA256:PSK-"
+"NULL-SHA:HC128-MD5:HC128-SHA:RABBIT-SHA:AES128-CCM-8:AES256-CCM-8:ECDHE-ECDSA-"
+"AES128-CCM:ECDHE-ECDSA-AES128-CCM-8:ECDHE-ECDSA-AES256-CCM-8:ECDHE-RSA-AES128-"
+"SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA:ECDHE-R"
+"SA-RC4-SHA:ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-RC4-SHA:ECDHE-ECDSA-DES-CBC3-SHA"
+":AES128-SHA256:AES256-SHA256:DHE-RSA-AES128-SHA256:DHE-RSA-AES256-SHA256:ECDH-"
+"RSA-AES128-SHA:ECDH-RSA-AES256-SHA:ECDH-ECDSA-AES128-SHA:ECDH-ECDSA-AES256-SHA"
+":ECDH-RSA-RC4-SHA:ECDH-RSA-DES-CBC3-SHA:ECDH-ECDSA-RC4-SHA:ECDH-ECDSA-DES-CBC3"
+"-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES"
+"256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-E"
+"CDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDH-RSA-AES128-GCM-SHA25"
+"6:ECDH-RSA-AES256-GCM-SHA384:ECDH-ECDSA-AES128-GCM-SHA256:ECDH-ECDSA-AES256-GC"
+"M-SHA384:CAMELLIA128-SHA:DHE-RSA-CAMELLIA128-SHA:CAMELLIA256-SHA:DHE-RSA-CAMEL"
+"LIA256-SHA:CAMELLIA128-SHA256:DHE-RSA-CAMELLIA128-SHA256:CAMELLIA256-SHA256:DH"
+"E-RSA-CAMELLIA256-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECD"
+"H-RSA-AES128-SHA256:ECDH-ECDSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:ECDHE-ECD"
+"SA-AES256-SHA384:ECDH-RSA-AES256-SHA384:ECDH-ECDSA-AES256-SHA384:ECDHE-RSA-CHA"
+"CHA20-POLY1305:ECDHE-ECDSA-CHACHA20-POLY1305:DHE-RSA-CHACHA20-POLY1305:ECDHE-R"
+"SA-CHACHA20-POLY1305-OLD:ECDHE-ECDSA-CHACHA20-POLY1305-OLD:DHE-RSA-CHACHA20-PO"
+"LY1305-OLD:IDEA-CBC-SHA:ECDHE-ECDSA-NULL-SHA:ECDHE-PSK-NULL-SHA256:ECDHE-PSK-A"
+"ES128-CBC-SHA256:PSK-CHACHA20-POLY1305:ECDHE-PSK-CHACHA20-POLY1305:DHE-PSK-CHA"
+"CHA20-POLY1305:EDH-RSA-DES-CBC3-SHA:TLS13-AES128-GCM-SHA256:TLS13-AES256-GCM-S"
+"HA384:TLS13-CHACHA20-POLY1305-SHA256:TLS13-AES128-CCM-SHA256:TLS13-AES128-CCM-"
+"8-SHA256";
+#ifndef NO_RSA
+	testCertFile = svrCertFile;
+	testKeyFile = svrKeyFile;
+#elif defined(HAVE_ECC)
+	testCertFile = eccCertFile;
+	testKeyFile = eccKeyFile;
+#else
+    skipTest = 1;
+#endif
+
+    if (skipTest != 1) {
+#ifndef NO_WOLFSSL_SERVER
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#else
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#endif
+        AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, testCertFile, WOLFSSL_FILETYPE_PEM));
+        AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, testKeyFile, WOLFSSL_FILETYPE_PEM));
+
+        AssertNotNull(ssl = wolfSSL_new(ctx));
+
+        /* First test freeing SSL, then CTX */
+        wolfSSL_free(ssl);
+        wolfSSL_CTX_free(ctx);
+        wolfSSL_Cleanup();
+
+#ifndef NO_WOLFSSL_CLIENT
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#else
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#endif
+        AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, testCertFile, WOLFSSL_FILETYPE_PEM));
+        AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, testKeyFile, WOLFSSL_FILETYPE_PEM));
+
+        AssertNotNull(ssl = wolfSSL_new(ctx));
+
+        /* Next test freeing CTX then SSL */
+        wolfSSL_CTX_free(ctx);
+        wolfSSL_free(ssl);
+
+#ifndef NO_WOLFSSL_SERVER
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#else
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#endif
+        /* Test setting ciphers at ctx level */
+        AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, testCertFile, WOLFSSL_FILETYPE_PEM));
+        AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, testKeyFile, WOLFSSL_FILETYPE_PEM));
+        AssertTrue(wolfSSL_CTX_set_cipher_list(ctx, optionsCiphers));
+        AssertNotNull(ssl = wolfSSL_new(ctx));
+        wolfSSL_CTX_free(ctx);
+        wolfSSL_free(ssl);
+
+#ifndef NO_WOLFSSL_CLIENT
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#else
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#endif
+        AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, testCertFile, WOLFSSL_FILETYPE_PEM));
+        AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, testKeyFile, WOLFSSL_FILETYPE_PEM));
+        AssertNotNull(ssl = wolfSSL_new(ctx));
+        /* test setting ciphers at SSL level */
+        AssertTrue(wolfSSL_set_cipher_list(ssl, optionsCiphers));
+        wolfSSL_CTX_free(ctx);
+        wolfSSL_free(ssl);
+    }
+}
+#endif
+
 
 static void test_wolfSSL_CTX_use_certificate_file(void)
 {
@@ -636,7 +744,7 @@ static void test_wolfSSL_CTX_use_certificate_file(void)
 #endif
 }
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)) && !defined(NO_RSA)
 static int test_wolfSSL_CTX_use_certificate_ASN1(void)
 {
 #if !defined(NO_CERTS) && !defined(NO_WOLFSSL_SERVER) && !defined(NO_ASN)
@@ -657,7 +765,7 @@ static int test_wolfSSL_CTX_use_certificate_ASN1(void)
     return WOLFSSL_SUCCESS;
 #endif
 }
-#endif /* OPENSSL_ALL || WOLFSSL_ASIO */
+#endif /* (OPENSSL_ALL || WOLFSSL_ASIO) && !NO_RSA */
 
 /*  Test function for wolfSSL_CTX_use_certificate_buffer. Load cert into
  *  context using buffer.
@@ -772,9 +880,11 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX *ctx;
+#ifndef NO_RSA
     WOLFSSL_CERT_MANAGER* cm;
 #ifdef PERSIST_CERT_CACHE
     int cacheSz;
+#endif
 #endif
 #if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_TIRTOS)
     const char* load_certs_path = "./certs/external";
@@ -800,9 +910,8 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
     /* load ca cert */
 #ifdef NO_RSA
     AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL), ASN_UNKNOWN_OID_E);
-#else
+#else /* Skip the following test without RSA certs. */
     AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL), WOLFSSL_SUCCESS);
-#endif
 
 #ifdef PERSIST_CERT_CACHE
     /* Get cert cache size */
@@ -817,11 +926,7 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
 #endif
 
     /* load ca cert again */
-#ifdef NO_RSA
-    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL), ASN_UNKNOWN_OID_E);
-#else
     AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL), WOLFSSL_SUCCESS);
-#endif
 
     /* Test getting CERT_MANAGER */
     AssertNotNull(cm = wolfSSL_CTX_GetCertManager(ctx));
@@ -832,6 +937,7 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
 #ifdef PERSIST_CERT_CACHE
     /* Verify no certs (result is less than cacheSz) */
     AssertIntGT(cacheSz, wolfSSL_CTX_get_cert_cache_memsize(ctx));
+#endif
 #endif
 
 #if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_TIRTOS)
@@ -959,7 +1065,8 @@ static int test_wolfSSL_CertManagerLoadCABuffer(void)
 
 static void test_wolfSSL_CertManagerCRL(void)
 {
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_RSA)
 
     const char* ca_cert = "./certs/ca-cert.pem";
     const char* crl1     = "./certs/crl/crl.pem";
@@ -968,17 +1075,17 @@ static void test_wolfSSL_CertManagerCRL(void)
     WOLFSSL_CERT_MANAGER* cm = NULL;
 
     AssertNotNull(cm = wolfSSL_CertManagerNew());
-    AssertIntEQ(WOLFSSL_SUCCESS, 
+    AssertIntEQ(WOLFSSL_SUCCESS,
         wolfSSL_CertManagerLoadCA(cm, ca_cert, NULL));
-    AssertIntEQ(WOLFSSL_SUCCESS, 
+    AssertIntEQ(WOLFSSL_SUCCESS,
         wolfSSL_CertManagerLoadCRL(cm, crl1, WOLFSSL_FILETYPE_PEM, 0));
-    AssertIntEQ(WOLFSSL_SUCCESS, 
-        wolfSSL_CertManagerLoadCRL(cm, crl2, WOLFSSL_FILETYPE_PEM, 0));    
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CertManagerLoadCRL(cm, crl2, WOLFSSL_FILETYPE_PEM, 0));
     wolfSSL_CertManagerFreeCRL(cm);
 
-    AssertIntEQ(WOLFSSL_SUCCESS, 
+    AssertIntEQ(WOLFSSL_SUCCESS,
         wolfSSL_CertManagerLoadCRL(cm, crl1, WOLFSSL_FILETYPE_PEM, 0));
-    AssertIntEQ(WOLFSSL_SUCCESS, 
+    AssertIntEQ(WOLFSSL_SUCCESS,
         wolfSSL_CertManagerLoadCA(cm, ca_cert, NULL));
     wolfSSL_CertManagerFree(cm);
 
@@ -989,7 +1096,7 @@ static void test_wolfSSL_CTX_load_verify_chain_buffer_format(void)
 {
 #if !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && \
 defined(USE_CERT_BUFFERS_2048) && defined(OPENSSL_EXTRA) && \
-defined(WOLFSSL_CERT_GEN)
+defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
 
     WOLFSSL_CTX* ctx;
 
@@ -1138,9 +1245,11 @@ static void test_wolfSSL_CTX_der_load_verify_locations(void)
     /* Case 5 filePath empty */
     AssertIntEQ(wolfSSL_CTX_der_load_verify_locations(ctx, emptyPath,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_FAILURE);
+#ifndef NO_RSA
     /* Case 6 success case */
     AssertIntEQ(wolfSSL_CTX_der_load_verify_locations(ctx, derCert,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+#endif
 
     wolfSSL_CTX_free(ctx);
 #endif
@@ -1284,10 +1393,15 @@ static void test_wolfSSL_SetTmpDH_file(void)
                 WOLFSSL_FILETYPE_PEM));
     AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
                 WOLFSSL_FILETYPE_PEM));
-#else
+#elif defined(HAVE_ECC)
     AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, eccCertFile,
                 WOLFSSL_FILETYPE_PEM));
     AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile,
+                WOLFSSL_FILETYPE_PEM));
+#elif defined(HAVE_ED25519)
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, edCertFile,
+                WOLFSSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, edKeyFile,
                 WOLFSSL_FILETYPE_PEM));
 #endif
     AssertNotNull(ssl = wolfSSL_new(ctx));
@@ -2683,7 +2797,7 @@ static void verify_SNI_ABSENT_on_server(WOLFSSL* ssl)
 static void verify_SNI_no_matching(WOLFSSL* ssl)
 {
     byte type = WOLFSSL_SNI_HOST_NAME;
-    char* request = (char*) &type; /* to be overwriten */
+    char* request = (char*) &type; /* to be overwritten */
 
     AssertIntEQ(WOLFSSL_SNI_NO_MATCH, wolfSSL_SNI_Status(ssl, type));
     AssertNotNull(request);
@@ -2731,15 +2845,15 @@ static void test_wolfSSL_UseSNI_connection(void)
         {0, 0, use_SNI_at_ssl, verify_SNI_real_matching, 0},
         {0, 0, use_SNI_at_ssl, verify_SNI_real_matching, 0},
 
-        /* default missmatch behavior */
+        /* default mismatch behavior */
         {0, 0, different_SNI_at_ssl, verify_FATAL_ERROR_on_client, 0},
         {0, 0, use_SNI_at_ssl,       verify_UNKNOWN_SNI_on_server, 0},
 
-        /* continue on missmatch */
+        /* continue on mismatch */
         {0, 0, different_SNI_at_ssl,         0, 0},
         {0, 0, use_SNI_WITH_CONTINUE_at_ssl, verify_SNI_no_matching, 0},
 
-        /* fake answer on missmatch */
+        /* fake answer on mismatch */
         {0, 0, different_SNI_at_ssl,            0, 0},
         {0, 0, use_SNI_WITH_FAKE_ANSWER_at_ssl, verify_SNI_fake_matching, 0},
 
@@ -2755,11 +2869,11 @@ static void test_wolfSSL_UseSNI_connection(void)
         {0, 0, 0,                        verify_FATAL_ERROR_on_client, 0},
         {0, 0, use_MANDATORY_SNI_at_ssl, verify_SNI_ABSENT_on_server, 0},
 
-        /* sni abort - success when overwriten */
+        /* sni abort - success when overwritten */
         {0, 0, 0, 0, 0},
         {0, use_MANDATORY_SNI_at_ctx, use_SNI_at_ssl, verify_SNI_no_matching, 0},
 
-        /* sni abort - success when allowing missmatches */
+        /* sni abort - success when allowing mismatches */
         {0, 0, different_SNI_at_ssl, 0, 0},
         {0, use_PSEUDO_MANDATORY_SNI_at_ctx, 0, verify_SNI_fake_matching, 0},
     };
@@ -2910,6 +3024,47 @@ static void test_wolfSSL_UseSNI(void)
 
     test_wolfSSL_SNI_GetFromBuffer();
 #endif
+}
+
+static void test_wolfSSL_UseTrustedCA(void)
+{
+#ifdef HAVE_TRUSTED_CA
+    WOLFSSL_CTX *ctx;
+    WOLFSSL     *ssl;
+    byte        id[20];
+
+    AssertNotNull((ctx = wolfSSL_CTX_new(wolfSSLv23_client_method())));
+    AssertNotNull((ssl = wolfSSL_new(ctx)));
+    XMEMSET(id, 0, sizeof(id));
+
+    /* error cases */
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(NULL, 0, NULL, 0));
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
+                WOLFSSL_TRUSTED_CA_CERT_SHA1+1, NULL, 0));
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
+                WOLFSSL_TRUSTED_CA_CERT_SHA1, NULL, 0));
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
+                WOLFSSL_TRUSTED_CA_CERT_SHA1, id, 5));
+#ifdef NO_SHA
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
+                WOLFSSL_TRUSTED_CA_KEY_SHA1, id, sizeof(id)));
+#endif
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
+                WOLFSSL_TRUSTED_CA_X509_NAME, id, 0));
+
+    /* success cases */
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
+                WOLFSSL_TRUSTED_CA_PRE_AGREED, NULL, 0));
+#ifndef NO_SHA
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
+                WOLFSSL_TRUSTED_CA_KEY_SHA1, id, sizeof(id)));
+#endif
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
+                WOLFSSL_TRUSTED_CA_X509_NAME, id, 5));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif /* HAVE_TRUSTED_CA */
 }
 
 static void test_wolfSSL_UseMaxFragment(void)
@@ -3153,7 +3308,7 @@ static void test_wolfSSL_UseALPN_connection(void)
         {0, 0, 0, 0, 0},
         {0, 0, use_ALPN_all, 0, 0},
 
-        /* success case missmatch behavior but option 'continue' set */
+        /* success case mismatch behavior but option 'continue' set */
         {0, 0, use_ALPN_all_continue, verify_ALPN_not_matching_continue, 0},
         {0, 0, use_ALPN_unknown_continue, 0, 0},
 
@@ -3161,12 +3316,12 @@ static void test_wolfSSL_UseALPN_connection(void)
         {0, 0, use_ALPN_all, 0, 0},
         {0, 0, use_ALPN_one, verify_ALPN_client_list, 0},
 
-        /* missmatch behavior with same list
+        /* mismatch behavior with same list
          * the first and only this one must be taken */
         {0, 0, use_ALPN_all, 0, 0},
         {0, 0, use_ALPN_all, verify_ALPN_not_matching_spdy3, 0},
 
-        /* default missmatch behavior */
+        /* default mismatch behavior */
         {0, 0, use_ALPN_all, 0, 0},
         {0, 0, use_ALPN_unknown, verify_ALPN_FATAL_ERROR_on_client, 0},
     };
@@ -16200,7 +16355,11 @@ static void test_wc_PKCS7_Degenerate(void)
     AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
     AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+#ifndef NO_RSA
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+#else
+    AssertIntNE(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+#endif
     wc_PKCS7_Free(pkcs7);
 
     /* test with turning off degenerate cases */
@@ -16215,6 +16374,199 @@ static void test_wc_PKCS7_Degenerate(void)
 #endif
 } /* END test_wc_PKCS7_Degenerate() */
 
+#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && \
+    defined(ASN_BER_TO_DER) && !defined(NO_DES3)
+static byte berContent[] = {
+    0x30, 0x80, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86,
+    0xF7, 0x0D, 0x01, 0x07, 0x03, 0xA0, 0x80, 0x30,
+    0x80, 0x02, 0x01, 0x00, 0x31, 0x82, 0x01, 0x48,
+    0x30, 0x82, 0x01, 0x44, 0x02, 0x01, 0x00, 0x30,
+    0x81, 0xAC, 0x30, 0x81, 0x9E, 0x31, 0x0B, 0x30,
+    0x09, 0x06, 0x03, 0x55, 0x04, 0x06, 0x13, 0x02,
+    0x55, 0x53, 0x31, 0x10, 0x30, 0x0E, 0x06, 0x03,
+    0x55, 0x04, 0x08, 0x0C, 0x07, 0x4D, 0x6F, 0x6E,
+    0x74, 0x61, 0x6E, 0x61, 0x31, 0x10, 0x30, 0x0E,
+    0x06, 0x03, 0x55, 0x04, 0x07, 0x0C, 0x07, 0x42,
+    0x6F, 0x7A, 0x65, 0x6D, 0x61, 0x6E, 0x31, 0x15,
+    0x30, 0x13, 0x06, 0x03, 0x55, 0x04, 0x0A, 0x0C,
+    0x0C, 0x77, 0x6F, 0x6C, 0x66, 0x53, 0x53, 0x4C,
+    0x5F, 0x31, 0x30, 0x32, 0x34, 0x31, 0x19, 0x30,
+    0x17, 0x06, 0x03, 0x55, 0x04, 0x0B, 0x0C, 0x10,
+    0x50, 0x72, 0x6F, 0x67, 0x72, 0x61, 0x6D, 0x6D,
+    0x69, 0x6E, 0x67, 0x2D, 0x31, 0x30, 0x32, 0x34,
+    0x31, 0x18, 0x30, 0x16, 0x06, 0x03, 0x55, 0x04,
+    0x03, 0x0C, 0x0F, 0x77, 0x77, 0x77, 0x2E, 0x77,
+    0x6F, 0x6C, 0x66, 0x73, 0x73, 0x6C, 0x2E, 0x63,
+    0x6F, 0x6D, 0x31, 0x1F, 0x30, 0x1D, 0x06, 0x09,
+    0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09,
+    0x01, 0x16, 0x10, 0x69, 0x6E, 0x66, 0x6F, 0x40,
+    0x77, 0x6F, 0x6C, 0x66, 0x73, 0x73, 0x6C, 0x2E,
+    0x63, 0x6F, 0x6D, 0x02, 0x09, 0x00, 0xBB, 0xD3,
+    0x10, 0x03, 0xE6, 0x9D, 0x28, 0x03, 0x30, 0x0D,
+    0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
+    0x01, 0x01, 0x01, 0x05, 0x00, 0x04, 0x81, 0x80,
+    0x2F, 0xF9, 0x77, 0x4F, 0x04, 0x5C, 0x16, 0x62,
+    0xF0, 0x77, 0x8D, 0x95, 0x4C, 0xB1, 0x44, 0x9A,
+    0x8C, 0x3C, 0x8C, 0xE4, 0xD1, 0xC1, 0x14, 0x72,
+    0xD0, 0x4A, 0x1A, 0x94, 0x27, 0x0F, 0xAA, 0xE8,
+    0xD0, 0xA2, 0xE7, 0xED, 0x4C, 0x7F, 0x0F, 0xC7,
+    0x1B, 0xFB, 0x81, 0x0E, 0x76, 0x8F, 0xDD, 0x32,
+    0x11, 0x68, 0xA0, 0x13, 0xD2, 0x8D, 0x95, 0xEF,
+    0x80, 0x53, 0x81, 0x0E, 0x1F, 0xC8, 0xD6, 0x76,
+    0x5C, 0x31, 0xD3, 0x77, 0x33, 0x29, 0xA6, 0x1A,
+    0xD3, 0xC6, 0x14, 0x36, 0xCA, 0x8E, 0x7D, 0x72,
+    0xA0, 0x29, 0x4C, 0xC7, 0x3A, 0xAF, 0xFE, 0xF7,
+    0xFC, 0xD7, 0xE2, 0x8F, 0x6A, 0x20, 0x46, 0x09,
+    0x40, 0x22, 0x2D, 0x79, 0x38, 0x11, 0xB1, 0x4A,
+    0xE3, 0x48, 0xE8, 0x10, 0x37, 0xA0, 0x22, 0xF7,
+    0xB4, 0x79, 0xD1, 0xA9, 0x3D, 0xC2, 0xAB, 0x37,
+    0xAE, 0x82, 0x68, 0x1A, 0x16, 0xEF, 0x33, 0x0C,
+    0x30, 0x80, 0x06, 0x09, 0x2A, 0x86, 0x48, 0x86,
+    0xF7, 0x0D, 0x01, 0x07, 0x01, 0x30, 0x14, 0x06,
+    0x08, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x03,
+    0x07, 0x04, 0x08, 0xAD, 0xD0, 0x38, 0x9B, 0x16,
+    0x4B, 0x7F, 0x99, 0xA0, 0x80, 0x04, 0x82, 0x03,
+    0xE8, 0x6D, 0x48, 0xFB, 0x8A, 0xBD, 0xED, 0x6C,
+    0xCD, 0xC6, 0x48, 0xFD, 0xB7, 0xB0, 0x7C, 0x86,
+    0x2C, 0x8D, 0xF0, 0x23, 0x12, 0xD8, 0xA3, 0x2A,
+    0x21, 0x6F, 0x8B, 0x75, 0xBB, 0x47, 0x7F, 0xC9,
+    0xBA, 0xBA, 0xFF, 0x91, 0x09, 0x01, 0x7A, 0x5C,
+    0x96, 0x02, 0xB8, 0x8E, 0xF8, 0x67, 0x7E, 0x8F,
+    0xF9, 0x51, 0x0E, 0xFF, 0x8E, 0xE2, 0x61, 0xC0,
+    0xDF, 0xFA, 0xE2, 0x4C, 0x50, 0x90, 0xAE, 0xA1,
+    0x15, 0x38, 0x3D, 0xBE, 0x88, 0xD7, 0x57, 0xC0,
+    0x11, 0x44, 0xA2, 0x61, 0x05, 0x49, 0x6A, 0x94,
+    0x04, 0x10, 0xD9, 0xC2, 0x2D, 0x15, 0x20, 0x0D,
+    0xBD, 0xA2, 0xEF, 0xE4, 0x68, 0xFA, 0x39, 0x75,
+    0x7E, 0xD8, 0x64, 0x44, 0xCB, 0xE0, 0x00, 0x6D,
+    0x57, 0x4E, 0x8A, 0x17, 0xA9, 0x83, 0x6C, 0x7F,
+    0xFE, 0x01, 0xEE, 0xDE, 0x99, 0x3A, 0xB2, 0xFF,
+    0xD3, 0x72, 0x78, 0xBA, 0xF1, 0x23, 0x54, 0x48,
+    0x02, 0xD8, 0x38, 0xA9, 0x54, 0xE5, 0x4A, 0x81,
+    0xB9, 0xC0, 0x67, 0xB2, 0x7D, 0x3C, 0x6F, 0xCE,
+    0xA4, 0xDD, 0x34, 0x5F, 0x60, 0xB1, 0xA3, 0x7A,
+    0xE4, 0x43, 0xF2, 0x89, 0x64, 0x35, 0x09, 0x32,
+    0x51, 0xFB, 0x5C, 0x67, 0x0C, 0x3B, 0xFC, 0x36,
+    0x6B, 0x37, 0x43, 0x6C, 0x03, 0xCD, 0x44, 0xC7,
+    0x2B, 0x62, 0xD6, 0xD1, 0xF4, 0x07, 0x7B, 0x19,
+    0x91, 0xF0, 0xD7, 0xF5, 0x54, 0xBC, 0x0F, 0x42,
+    0x6B, 0x69, 0xF7, 0xA3, 0xC8, 0xEE, 0xB9, 0x7A,
+    0x9E, 0x3D, 0xDF, 0x53, 0x47, 0xF7, 0x50, 0x67,
+    0x00, 0xCF, 0x2B, 0x3B, 0xE9, 0x85, 0xEE, 0xBD,
+    0x4C, 0x64, 0x66, 0x0B, 0x77, 0x80, 0x9D, 0xEF,
+    0x11, 0x32, 0x77, 0xA8, 0xA4, 0x5F, 0xEE, 0x2D,
+    0xE0, 0x43, 0x87, 0x76, 0x87, 0x53, 0x4E, 0xD7,
+    0x1A, 0x04, 0x7B, 0xE1, 0xD1, 0xE1, 0xF5, 0x87,
+    0x51, 0x13, 0xE0, 0xC2, 0xAA, 0xA3, 0x4B, 0xAA,
+    0x9E, 0xB4, 0xA6, 0x1D, 0x4E, 0x28, 0x57, 0x0B,
+    0x80, 0x90, 0x81, 0x4E, 0x04, 0xF5, 0x30, 0x8D,
+    0x51, 0xCE, 0x57, 0x2F, 0x88, 0xC5, 0x70, 0xC4,
+    0x06, 0x8F, 0xDD, 0x37, 0xC1, 0x34, 0x1E, 0x0E,
+    0x15, 0x32, 0x23, 0x92, 0xAB, 0x40, 0xEA, 0xF7,
+    0x43, 0xE2, 0x1D, 0xE2, 0x4B, 0xC9, 0x91, 0xF4,
+    0x63, 0x21, 0x34, 0xDB, 0xE9, 0x86, 0x83, 0x1A,
+    0xD2, 0x52, 0xEF, 0x7A, 0xA2, 0xEE, 0xA4, 0x11,
+    0x56, 0xD3, 0x6C, 0xF5, 0x6D, 0xE4, 0xA5, 0x2D,
+    0x99, 0x02, 0x10, 0xDF, 0x29, 0xC5, 0xE3, 0x0B,
+    0xC4, 0xA1, 0xEE, 0x5F, 0x4A, 0x10, 0xEE, 0x85,
+    0x73, 0x2A, 0x92, 0x15, 0x2C, 0xC8, 0xF4, 0x8C,
+    0xD7, 0x3D, 0xBC, 0xAD, 0x18, 0xE0, 0x59, 0xD3,
+    0xEE, 0x75, 0x90, 0x1C, 0xCC, 0x76, 0xC6, 0x64,
+    0x17, 0xD2, 0xD0, 0x91, 0xA6, 0xD0, 0xC1, 0x4A,
+    0xAA, 0x58, 0x22, 0xEC, 0x45, 0x98, 0xF2, 0xCC,
+    0x4C, 0xE4, 0xBF, 0xED, 0xF6, 0x44, 0x72, 0x36,
+    0x65, 0x3F, 0xE3, 0xB5, 0x8B, 0x3E, 0x54, 0x9C,
+    0x82, 0x86, 0x5E, 0xB0, 0xF2, 0x12, 0xE5, 0x69,
+    0xFA, 0x46, 0xA2, 0x54, 0xFC, 0xF5, 0x4B, 0xE0,
+    0x24, 0x3B, 0x99, 0x04, 0x1A, 0x7A, 0xF7, 0xD1,
+    0xFF, 0x68, 0x97, 0xB2, 0x85, 0x82, 0x95, 0x27,
+    0x2B, 0xF4, 0xE7, 0x1A, 0x74, 0x19, 0xEC, 0x8C,
+    0x4E, 0xA7, 0x0F, 0xAD, 0x4F, 0x5A, 0x02, 0x80,
+    0xC1, 0x6A, 0x9E, 0x54, 0xE4, 0x8E, 0xA3, 0x41,
+    0x3F, 0x6F, 0x9C, 0x82, 0x9F, 0x83, 0xB0, 0x44,
+    0x01, 0x5F, 0x10, 0x9D, 0xD3, 0xB6, 0x33, 0x5B,
+    0xAF, 0xAC, 0x6B, 0x57, 0x2A, 0x01, 0xED, 0x0E,
+    0x17, 0xB9, 0x80, 0x76, 0x12, 0x1C, 0x51, 0x56,
+    0xDD, 0x6D, 0x94, 0xAB, 0xD2, 0xE5, 0x15, 0x2D,
+    0x3C, 0xC5, 0xE8, 0x62, 0x05, 0x8B, 0x40, 0xB1,
+    0xC2, 0x83, 0xCA, 0xAC, 0x4B, 0x8B, 0x39, 0xF7,
+    0xA0, 0x08, 0x43, 0x5C, 0xF7, 0xE8, 0xED, 0x40,
+    0x72, 0x73, 0xE3, 0x6B, 0x18, 0x67, 0xA0, 0xB6,
+    0x0F, 0xED, 0x8F, 0x9A, 0xE4, 0x27, 0x62, 0x23,
+    0xAA, 0x6D, 0x6C, 0x31, 0xC9, 0x9D, 0x6B, 0xE0,
+    0xBF, 0x9D, 0x7D, 0x2E, 0x76, 0x71, 0x06, 0x39,
+    0xAC, 0x96, 0x1C, 0xAF, 0x30, 0xF2, 0x62, 0x9C,
+    0x84, 0x3F, 0x43, 0x5E, 0x19, 0xA8, 0xE5, 0x3C,
+    0x9D, 0x43, 0x3C, 0x43, 0x41, 0xE8, 0x82, 0xE7,
+    0x5B, 0xF3, 0xE2, 0x15, 0xE3, 0x52, 0x20, 0xFD,
+    0x0D, 0xB2, 0x4D, 0x48, 0xAD, 0x53, 0x7E, 0x0C,
+    0xF0, 0xB9, 0xBE, 0xC9, 0x58, 0x4B, 0xC8, 0xA8,
+    0xA3, 0x36, 0xF1, 0x2C, 0xD2, 0xE1, 0xC8, 0xC4,
+    0x3C, 0x48, 0x70, 0xC2, 0x6D, 0x6C, 0x3D, 0x99,
+    0xAC, 0x43, 0x19, 0x69, 0xCA, 0x67, 0x1A, 0xC9,
+    0xE1, 0x47, 0xFA, 0x0A, 0xE6, 0x5B, 0x6F, 0x61,
+    0xD0, 0x03, 0xE4, 0x03, 0x4B, 0xFD, 0xE2, 0xA5,
+    0x8D, 0x83, 0x01, 0x7E, 0xC0, 0x7B, 0x2E, 0x0B,
+    0x29, 0xDD, 0xD6, 0xDC, 0x71, 0x46, 0xBD, 0x9A,
+    0x40, 0x46, 0x1E, 0x0A, 0xB1, 0x00, 0xE7, 0x71,
+    0x29, 0x77, 0xFC, 0x9A, 0x76, 0x8A, 0x5F, 0x66,
+    0x9B, 0x63, 0x91, 0x12, 0x78, 0xBF, 0x67, 0xAD,
+    0xA1, 0x72, 0x9E, 0xC5, 0x3E, 0xE5, 0xCB, 0xAF,
+    0xD6, 0x5A, 0x0D, 0xB6, 0x9B, 0xA3, 0x78, 0xE8,
+    0xB0, 0x8F, 0x69, 0xED, 0xC1, 0x73, 0xD5, 0xE5,
+    0x1C, 0x18, 0xA0, 0x58, 0x4C, 0x49, 0xBD, 0x91,
+    0xCE, 0x15, 0x0D, 0xAA, 0x5A, 0x07, 0xEA, 0x1C,
+    0xA7, 0x4B, 0x11, 0x31, 0x80, 0xAF, 0xA1, 0x0A,
+    0xED, 0x6C, 0x70, 0xE4, 0xDB, 0x75, 0x86, 0xAE,
+    0xBF, 0x4A, 0x05, 0x72, 0xDE, 0x84, 0x8C, 0x7B,
+    0x59, 0x81, 0x58, 0xE0, 0xC0, 0x15, 0xB5, 0xF3,
+    0xD5, 0x73, 0x78, 0x83, 0x53, 0xDA, 0x92, 0xC1,
+    0xE6, 0x71, 0x74, 0xC7, 0x7E, 0xAA, 0x36, 0x06,
+    0xF0, 0xDF, 0xBA, 0xFB, 0xEF, 0x54, 0xE8, 0x11,
+    0xB2, 0x33, 0xA3, 0x0B, 0x9E, 0x0C, 0x59, 0x75,
+    0x13, 0xFA, 0x7F, 0x88, 0xB9, 0x86, 0xBD, 0x1A,
+    0xDB, 0x52, 0x12, 0xFB, 0x6D, 0x1A, 0xCB, 0x49,
+    0x94, 0x94, 0xC4, 0xA9, 0x99, 0xC0, 0xA4, 0xB6,
+    0x60, 0x36, 0x09, 0x94, 0x2A, 0xD5, 0xC4, 0x26,
+    0xF4, 0xA3, 0x6A, 0x0E, 0x57, 0x8B, 0x7C, 0xA4,
+    0x1D, 0x75, 0xE8, 0x2A, 0xF3, 0xC4, 0x3C, 0x7D,
+    0x45, 0x6D, 0xD8, 0x24, 0xD1, 0x3B, 0xF7, 0xCF,
+    0xE4, 0x45, 0x2A, 0x55, 0xE5, 0xA9, 0x1F, 0x1C,
+    0x8F, 0x55, 0x8D, 0xC1, 0xF7, 0x74, 0xCC, 0x26,
+    0xC7, 0xBA, 0x2E, 0x5C, 0xC1, 0x71, 0x0A, 0xAA,
+    0xD9, 0x6D, 0x76, 0xA7, 0xF9, 0xD1, 0x18, 0xCB,
+    0x5A, 0x52, 0x98, 0xA8, 0x0D, 0x3F, 0x06, 0xFC,
+    0x49, 0x11, 0x21, 0x5F, 0x86, 0x19, 0x33, 0x81,
+    0xB5, 0x7A, 0xDA, 0xA1, 0x47, 0xBF, 0x7C, 0xD7,
+    0x05, 0x96, 0xC7, 0xF5, 0xC1, 0x61, 0xE5, 0x18,
+    0xA5, 0x38, 0x68, 0xED, 0xB4, 0x17, 0x62, 0x0D,
+    0x01, 0x5E, 0xC3, 0x04, 0xA6, 0xBA, 0xB1, 0x01,
+    0x60, 0x5C, 0xC1, 0x3A, 0x34, 0x97, 0xD6, 0xDB,
+    0x67, 0x73, 0x4D, 0x33, 0x96, 0x01, 0x67, 0x44,
+    0xEA, 0x47, 0x5E, 0x44, 0xB5, 0xE5, 0xD1, 0x6C,
+    0x20, 0xA9, 0x6D, 0x4D, 0xBC, 0x02, 0xF0, 0x70,
+    0xE4, 0xDD, 0xE9, 0xD5, 0x5C, 0x28, 0x29, 0x0B,
+    0xB4, 0x60, 0x2A, 0xF1, 0xF7, 0x1A, 0xF0, 0x36,
+    0xAE, 0x51, 0x3A, 0xAE, 0x6E, 0x48, 0x7D, 0xC7,
+    0x5C, 0xF3, 0xDC, 0xF6, 0xED, 0x27, 0x4E, 0x8E,
+    0x48, 0x18, 0x3E, 0x08, 0xF1, 0xD8, 0x3D, 0x0D,
+    0xE7, 0x2F, 0x65, 0x8A, 0x6F, 0xE2, 0x1E, 0x06,
+    0xC1, 0x04, 0x58, 0x7B, 0x4A, 0x75, 0x60, 0x92,
+    0x13, 0xC6, 0x40, 0x2D, 0x3A, 0x8A, 0xD1, 0x03,
+    0x05, 0x1F, 0x28, 0x66, 0xC2, 0x57, 0x2A, 0x4C,
+    0xE1, 0xA3, 0xCB, 0xA1, 0x95, 0x30, 0x10, 0xED,
+    0xDF, 0xAE, 0x70, 0x49, 0x4E, 0xF6, 0xB4, 0x5A,
+    0xB6, 0x22, 0x56, 0x37, 0x05, 0xE7, 0x3E, 0xB2,
+    0xE3, 0x96, 0x62, 0xEC, 0x09, 0x53, 0xC0, 0x50,
+    0x3D, 0xA7, 0xBC, 0x9B, 0x39, 0x02, 0x26, 0x16,
+    0xB5, 0x34, 0x17, 0xD4, 0xCA, 0xFE, 0x1D, 0xE4,
+    0x5A, 0xDA, 0x4C, 0xC2, 0xCA, 0x8E, 0x79, 0xBF,
+    0xD8, 0x4C, 0xBB, 0xFA, 0x30, 0x7B, 0xA9, 0x3E,
+    0x52, 0x19, 0xB1, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00
+};
+#endif /* HAVE_PKCS7 && !NO_FILESYSTEM && ASN_BER_TO_DER && !NO_DES3 */
+
 /*
  * Testing wc_PKCS7_BER()
  */
@@ -16226,6 +16578,9 @@ static void test_wc_PKCS7_BER(void)
     char   fName[] = "./certs/test-ber-exp02-05-2022.p7b";
     XFILE  f;
     byte   der[4096];
+#ifndef NO_DES3
+    byte   decoded[1024];
+#endif
     word32 derSz;
     int    ret;
 
@@ -16239,13 +16594,158 @@ static void test_wc_PKCS7_BER(void)
     AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
     AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+#ifndef NO_RSA
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+#else
+    AssertIntNE(wc_PKCS7_VerifySignedData(pkcs7, der, derSz), 0);
+#endif
     wc_PKCS7_Free(pkcs7);
+
+#ifndef NO_DES3
+    /* decode BER content */
+    AssertNotNull(f = XFOPEN("./certs/1024/client-cert.der", "rb"));
+    AssertIntGT((ret = (int)fread(der, 1, sizeof(der), f)), 0);
+    derSz = (word32)ret;
+    XFCLOSE(f);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+#ifndef NO_RSA
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, der, derSz), 0);
+#else
+    AssertIntNE(wc_PKCS7_InitWithCert(pkcs7, der, derSz), 0);
+#endif
+
+    AssertNotNull(f = XFOPEN("./certs/1024/client-key.der", "rb"));
+    AssertIntGT((ret = (int)fread(der, 1, sizeof(der), f)), 0);
+    derSz = (word32)ret;
+    XFCLOSE(f);
+    pkcs7->privateKey   = der;
+    pkcs7->privateKeySz = derSz;
+#ifndef NO_RSA
+    AssertIntGT(wc_PKCS7_DecodeEnvelopedData(pkcs7, berContent,
+        sizeof(berContent), decoded, sizeof(decoded)), 0);
+#else
+    AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, berContent,
+        sizeof(berContent), decoded, sizeof(decoded)), NOT_COMPILED_IN);
+#endif
+    wc_PKCS7_Free(pkcs7);
+#endif /* !NO_DES3 */
 
     printf(resultFmt, passed);
 #endif
 } /* END test_wc_PKCS7_BER() */
 
+static void test_PKCS7_signed_enveloped(void)
+{
+#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    XFILE  f;
+    PKCS7* pkcs7;
+    PKCS7* inner;
+    void*  pt;
+    WC_RNG rng;
+    unsigned char key[FOURK_BUF/2];
+    unsigned char cert[FOURK_BUF/2];
+    unsigned char env[FOURK_BUF];
+    int envSz  = FOURK_BUF;
+    int keySz;
+    int certSz;
+
+    unsigned char sig[FOURK_BUF * 2];
+    int sigSz = FOURK_BUF * 2;
+    unsigned char decoded[FOURK_BUF];
+    int decodedSz = FOURK_BUF;
+
+    printf(testingFmt, "PKCS7_signed_enveloped");
+
+    /* load cert */
+    AssertNotNull(f = XFOPEN(cliCertDerFile, "rb"));
+    AssertIntGT((certSz = (int)XFREAD(cert, 1, sizeof(cert), f)), 0);
+    XFCLOSE(f);
+
+    /* load key */
+    AssertNotNull(f = XFOPEN(cliKeyFile, "rb"));
+    AssertIntGT((keySz = (int)XFREAD(key, 1, sizeof(key), f)), 0);
+    XFCLOSE(f);
+    keySz = wolfSSL_KeyPemToDer(key, keySz, key, keySz, NULL);
+
+    /* sign cert for envelope */
+    AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    AssertIntEQ(wc_InitRng(&rng), 0);
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    pkcs7->content    = cert;
+    pkcs7->contentSz  = certSz;
+    pkcs7->contentOID = DATA;
+    pkcs7->privateKey   = key;
+    pkcs7->privateKeySz = keySz;
+    pkcs7->encryptOID   = RSAk;
+    pkcs7->hashOID      = SHA256h;
+    pkcs7->rng          = &rng;
+    AssertIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, sigSz)), 0);
+    wc_PKCS7_Free(pkcs7);
+    wc_FreeRng(&rng);
+
+    /* create envelope */
+    AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    pkcs7->content   = sig;
+    pkcs7->contentSz = sigSz;
+    pkcs7->contentOID = DATA;
+    pkcs7->encryptOID = AES256CBCb;
+    pkcs7->privateKey   = key;
+    pkcs7->privateKeySz = keySz;
+    AssertIntGT((envSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, env, envSz)), 0);
+    wc_PKCS7_Free(pkcs7);
+
+    /* create signed enveloped data */
+    sigSz = FOURK_BUF * 2;
+    AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    AssertIntEQ(wc_InitRng(&rng), 0);
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    pkcs7->content    = env;
+    pkcs7->contentSz  = envSz;
+    pkcs7->contentOID = DATA;
+    pkcs7->privateKey   = key;
+    pkcs7->privateKeySz = keySz;
+    pkcs7->encryptOID   = RSAk;
+    pkcs7->hashOID      = SHA256h;
+    pkcs7->rng = &rng;
+
+    /* Set no certs in bundle for this test. Hang on to the pointer though to
+     * free it later. */
+    pt = (void*)pkcs7->certList;
+    pkcs7->certList = NULL; /* no certs in bundle */
+    AssertIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, sigSz)), 0);
+    pkcs7->certList = pt; /* restore pointer for PKCS7 free call */
+    wc_PKCS7_Free(pkcs7);
+    wc_FreeRng(&rng);
+
+    /* check verify */
+    AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, sigSz), 0);
+    AssertNotNull(pkcs7->content);
+
+    /* check decode */
+    AssertNotNull(inner = wc_PKCS7_New(NULL, 0));
+    AssertIntEQ(wc_PKCS7_InitWithCert(inner, cert, certSz), 0);
+    inner->privateKey   = key;
+    inner->privateKeySz = keySz;
+    AssertIntGT((decodedSz = wc_PKCS7_DecodeEnvelopedData(inner, pkcs7->content,
+                   pkcs7->contentSz, decoded, decodedSz)), 0);
+    wc_PKCS7_Free(inner);
+    wc_PKCS7_Free(pkcs7);
+
+    /* check cert set */
+    AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, decoded, decodedSz), 0);
+    AssertNotNull(pkcs7->singleCert);
+    AssertIntNE(pkcs7->singleCertSz, 0);
+    wc_PKCS7_Free(pkcs7);
+
+    printf(resultFmt, passed);
+
+#endif
+}
 
 /* Testing wc_SignatureGetSize() for signature type ECC */
 static int test_wc_SignatureGetSize_ecc(void)
@@ -16999,7 +17499,7 @@ static void test_wolfSSL_private_keys(void)
                 (unsigned char*)client_key_der_2048,
                 sizeof_client_key_der_2048), WOLFSSL_SUCCESS);
 #ifndef HAVE_USER_RSA
-    /* Should missmatch now that a different private key loaded */
+    /* Should mismatch now that a different private key loaded */
     AssertIntNE(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
 #endif
 
@@ -17065,6 +17565,27 @@ static void test_wolfSSL_private_keys(void)
     SSL_CTX_free(ctx);
 #endif /* end of ECC private key match tests */
 
+#ifdef HAVE_ED25519
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, edCertFile,
+                                                         WOLFSSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, edKeyFile,
+                                                         WOLFSSL_FILETYPE_PEM));
+    AssertNotNull(ssl = SSL_new(ctx));
+
+    AssertIntEQ(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
+    SSL_free(ssl);
+
+
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, cliEdKeyFile,
+                                                         WOLFSSL_FILETYPE_PEM));
+    AssertNotNull(ssl = SSL_new(ctx));
+
+    AssertIntNE(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+#endif /* end of Ed25519 private key match tests */
 
     /* test existence of no-op macros in wolfssl/openssl/ssl.h */
     CONF_modules_free();
@@ -17206,7 +17727,8 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     #endif
 
     /* key is DES encrypted */
-    #if !defined(NO_DES3) && defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_FILESYSTEM)
+    #if !defined(NO_DES3) && defined(WOLFSSL_ENCRYPTED_KEYS) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
     {
         pem_password_cb* passwd_cb;
         void* passwd_cb_userdata;
@@ -17501,13 +18023,13 @@ static void test_wolfSSL_EVP_Digest(void)
                "\x23\xB0\x03\x61\xA3\x96\x17\x7A\x9C\xB4\x10\xFF\x61\xF2\x00"
                "\x15\xAD";
     printf(testingFmt, "wolfSSL_EVP_Digest()");
-    
+
     AssertIntEQ(wolfSSL_EVP_Digest((unsigned char*)in, inLen, out, &outLen, "SHA256", NULL), 1);
     AssertIntEQ(outLen, WC_SHA256_DIGEST_SIZE);
     AssertIntEQ(XMEMCMP(out, expOut, WC_SHA256_DIGEST_SIZE), 0);
-    
+
     printf(resultFmt, passed);
-    
+
 #endif /* OPEN_EXTRA && ! NO_SHA256 */
 }
 
@@ -17518,8 +18040,8 @@ static void test_wolfSSL_EVP_MD_size(void)
     WOLFSSL_EVP_MD_CTX mdCtx;
 
     printf(testingFmt, "wolfSSL_EVP_MD_size()");
-    
-#ifndef NO_SHA256    
+
+#ifndef NO_SHA256
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
 
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA256"), 1);
@@ -17529,9 +18051,9 @@ static void test_wolfSSL_EVP_MD_size(void)
 
 #endif
 
-#ifndef NO_MD5    
+#ifndef NO_MD5
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
-    
+
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "MD5"), 1);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_MD5_DIGEST_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_MD5_BLOCK_SIZE);
@@ -17539,9 +18061,9 @@ static void test_wolfSSL_EVP_MD_size(void)
 
 #endif
 
-#ifdef WOLFSSL_SHA224    
+#ifdef WOLFSSL_SHA224
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
-    
+
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA224"), 1);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA224_DIGEST_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA224_BLOCK_SIZE);
@@ -17549,9 +18071,9 @@ static void test_wolfSSL_EVP_MD_size(void)
 
 #endif
 
-#ifdef WOLFSSL_SHA384    
+#ifdef WOLFSSL_SHA384
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
-    
+
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA384"), 1);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA384_DIGEST_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA384_BLOCK_SIZE);
@@ -17559,9 +18081,9 @@ static void test_wolfSSL_EVP_MD_size(void)
 
 #endif
 
-#ifdef WOLFSSL_SHA512    
+#ifdef WOLFSSL_SHA512
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
-    
+
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA512"), 1);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA512_DIGEST_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA512_BLOCK_SIZE);
@@ -17569,9 +18091,9 @@ static void test_wolfSSL_EVP_MD_size(void)
 
 #endif
 
-#ifndef NO_SHA    
+#ifndef NO_SHA
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
-    
+
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA"), 1);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA_DIGEST_SIZE);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA_BLOCK_SIZE);
@@ -17580,14 +18102,14 @@ static void test_wolfSSL_EVP_MD_size(void)
 #endif
     /* error case */
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
-    
+
     AssertIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, ""), BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_EVP_MD_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 0);
-    
+
     printf(resultFmt, passed);
-    
+
 #endif /* OPENSSL_EXTRA */
 }
 
@@ -18301,7 +18823,7 @@ static void test_wolfSSL_CTX_set_srp_password(void)
 
 static void test_wolfSSL_X509_STORE(void)
 {
-#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_RSA)
     X509_STORE *store;
     X509_CRL *crl;
     X509 *x509;
@@ -18778,7 +19300,8 @@ static void test_wolfSSL_set_options(void)
  * PRE: OPENSSL and HAVE_CERTIFICATE_STATUS_REQUEST defined.
  */
 static void test_wolfSSL_set_tlsext_status_type(void){
-    #if defined(OPENSSL_EXTRA) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+    #if defined(OPENSSL_EXTRA) && defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
+    !defined(NO_RSA)
     SSL*     ssl;
     SSL_CTX* ctx;
 
@@ -18792,7 +19315,7 @@ static void test_wolfSSL_set_tlsext_status_type(void){
                == SSL_SUCCESS);
     SSL_free(ssl);
     SSL_CTX_free(ctx);
-    #endif  /* OPENSSL_EXTRA && HAVE_CERTIFICATE_STATUS_REQUEST */
+    #endif  /* OPENSSL_EXTRA && HAVE_CERTIFICATE_STATUS_REQUEST && !NO_RSA */
 }
 
 static void test_wolfSSL_PEM_read_bio(void)
@@ -20081,12 +20604,14 @@ static void test_wolfSSL_d2i_PUBKEY(void)
     #endif
 }
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)) && !defined(NO_RSA)
 static void test_wolfSSL_d2i_PrivateKeys_bio(void)
 {
     BIO*      bio = NULL;
     EVP_PKEY* pkey  = NULL;
+#ifndef NO_RSA
     RSA*  rsa  = NULL;
+#endif
     WOLFSSL_CTX* ctx;
 
 #if defined(WOLFSSL_KEY_GEN)
@@ -20159,13 +20684,14 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
     AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
 
+#ifndef NO_RSA
     /* Tests bad parameters */
     AssertNull(d2i_RSAPrivateKey_bio(NULL, NULL));
 
     /* RSA not set yet, expecting to fail*/
     AssertIntEQ(SSL_CTX_use_RSAPrivateKey(ctx, rsa), BAD_FUNC_ARG);
 
-#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)  && defined(WOLFSSL_KEY_GEN)
+#if defined(USE_CERT_BUFFERS_2048) && defined(WOLFSSL_KEY_GEN)
     /* set RSA using bio*/
     AssertIntGT(BIO_write(bio, client_key_der_2048,
                 sizeof_client_key_der_2048), 0);
@@ -20177,13 +20703,13 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
     AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(NULL, NULL), BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, &bufPtr),
                                            sizeof_client_key_der_2048);
+#endif /* USE_CERT_BUFFERS_2048 WOLFSSL_KEY_GEN */
     RSA_free(rsa);
-#endif
+#endif /* NO_RSA */
     SSL_CTX_free(ctx);
     ctx = NULL;
     BIO_free(bio);
     bio = NULL;
-    (void)rsa;
     printf(resultFmt, passed);
 }
 #endif /* OPENSSL_ALL || WOLFSSL_ASIO */
@@ -20219,7 +20745,7 @@ static void test_wolfSSL_sk_GENERAL_NAME(void)
     for (i = 0; i < sk_GENERAL_NAME_num(sk); i++) {
         GENERAL_NAME* gn = sk_GENERAL_NAME_value(sk, i);
         if (gn == NULL) {
-            printf("massive falure\n");
+            printf("massive failure\n");
             return -1;
         }
 
@@ -21384,7 +21910,7 @@ static void test_wc_GetPkcs8TraditionalOffset(void)
 static void test_wc_SetSubjectRaw(void)
 {
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
-    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && !defined(NO_RSA)
     const char* joiCertFile = "./certs/test/cert-ext-joi.pem";
     WOLFSSL_X509* x509;
     int peerCertSz;
@@ -21426,7 +21952,7 @@ static void test_wc_GetSubjectRaw(void)
 static void test_wc_SetIssuerRaw(void)
 {
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
-    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && !defined(NO_RSA)
     const char* joiCertFile = "./certs/test/cert-ext-joi.pem";
     WOLFSSL_X509* x509;
     int peerCertSz;
@@ -21452,7 +21978,7 @@ static void test_wc_SetIssuerRaw(void)
 static void test_wc_SetIssueBuffer(void)
 {
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
-    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT) && !defined(NO_RSA)
     const char* joiCertFile = "./certs/test/cert-ext-joi.pem";
     WOLFSSL_X509* x509;
     int peerCertSz;
@@ -21587,9 +22113,11 @@ static void test_CheckCertSignature(void)
 #endif
 #endif
 
+#if !defined(NO_FILESYSTEM) && (!defined(NO_RSA) || defined(HAVE_ECC))
     (void)fp;
     (void)cert;
     (void)certSz;
+#endif
 
     wolfSSL_CertManagerFree(cm);
 #endif
@@ -22786,7 +23314,8 @@ static void test_wolfSSL_X509_CRL(void)
 
 static void test_wolfSSL_PEM_read_X509(void)
 {
-#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_RSA)
     X509 *x509 = NULL;
     XFILE fp;
 
@@ -23261,6 +23790,10 @@ void ApiTest(void)
 #ifndef NO_WOLFSSL_SERVER
     test_wolfSSL_CTX_new(wolfSSLv23_server_method());
 #endif
+#if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+(!defined(NO_RSA) || defined(HAVE_ECC))
+    test_for_double_Free();
+#endif
     test_wolfSSL_CTX_use_certificate_file();
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_buffer(), WOLFSSL_SUCCESS);
     test_wolfSSL_CTX_use_PrivateKey_file();
@@ -23290,6 +23823,7 @@ void ApiTest(void)
 
     /* TLS extensions tests */
     test_wolfSSL_UseSNI();
+    test_wolfSSL_UseTrustedCA();
     test_wolfSSL_UseMaxFragment();
     test_wolfSSL_UseTruncatedHMAC();
     test_wolfSSL_UseSupportedCurve();
@@ -23398,7 +23932,7 @@ void ApiTest(void)
     test_wolfSSL_DES_ncbc();
     test_wolfSSL_AES_cbc_encrypt();
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)) && !defined(NO_RSA)
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_ASN1(), WOLFSSL_SUCCESS);
     test_wolfSSL_d2i_PrivateKeys_bio();
 #endif /* OPENSSL_ALL || WOLFSSL_ASIO */
@@ -23642,6 +24176,7 @@ void ApiTest(void)
     test_wc_PKCS7_EncodeEncryptedData();
     test_wc_PKCS7_Degenerate();
     test_wc_PKCS7_BER();
+    test_PKCS7_signed_enveloped();
 
     test_wolfSSL_CTX_LoadCRL();
 

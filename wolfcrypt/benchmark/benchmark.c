@@ -934,8 +934,9 @@ static THREAD_LS_T byte* bench_iv = NULL;
             /* print final stat */
             if (isLast) {
                 if (bstat->type == BENCH_STAT_SYM) {
-                    printf("%-12s%s %8.3f MB/s\n", bstat->desc,
-                        BENCH_ASYNC_GET_NAME(bstat->doAsync), bstat->perfsec);
+                    printf("%-16s%s %8.3f %s/s\n", bstat->desc,
+                        BENCH_ASYNC_GET_NAME(bstat->doAsync), bstat->perfsec,
+                        base2 ? "MB" : "mB");
                 }
                 else {
                     printf("%-5s %4d %-9s %s %.3f ops/sec\n",
@@ -991,8 +992,8 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
 
     if (base2) {
         /* determine if we should show as KB or MB */
-        if (blocks > (1024 * 1024)) {
-            blocks /= (1024 * 1024);
+        if (blocks > (1024ul * 1024ul)) {
+            blocks /= (1024ul * 1024ul);
             blockType = "MB";
         }
         else if (blocks > 1024) {
@@ -1005,8 +1006,8 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
     }
     else {
         /* determine if we should show as kB or mB */
-        if (blocks > (1000 * 1000)) {
-            blocks /= (1000 * 1000);
+        if (blocks > (1000ul * 1000ul)) {
+            blocks /= (1000ul * 1000ul);
             blockType = "mB";
         }
         else if (blocks > 1000) {
@@ -1203,7 +1204,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_aescbc(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES) && \
+        !defined(NO_HW_BENCH)
         bench_aescbc(1);
     #endif
     }
@@ -1213,7 +1215,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_aesgcm(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES) && \
+        !defined(NO_HW_BENCH)
         bench_aesgcm(1);
     #endif
     }
@@ -1223,7 +1226,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_aesecb(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES) && \
+        !defined(NO_HW_BENCH)
         bench_aesecb(1);
     #endif
     }
@@ -1255,7 +1259,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_arc4(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ARC4)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ARC4) && \
+        !defined(NO_HW_BENCH)
         bench_arc4(1);
     #endif
     }
@@ -1281,7 +1286,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_des(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES) && \
+        !defined(NO_HW_BENCH)
         bench_des(1);
     #endif
     }
@@ -1296,7 +1302,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_md5(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_MD5)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_MD5) && \
+        !defined(NO_HW_BENCH)
         bench_md5(1);
     #endif
     }
@@ -1310,7 +1317,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_sha(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA) && \
+        !defined(NO_HW_BENCH)
         bench_sha(1);
     #endif
     }
@@ -1320,7 +1328,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_sha224(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224) && \
+        !defined(NO_HW_BENCH)
         bench_sha224(1);
     #endif
     }
@@ -1330,7 +1339,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_sha256(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256) && \
+        !defined(NO_HW_BENCH)
         bench_sha256(1);
     #endif
     }
@@ -1340,7 +1350,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_sha384(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA384)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA384) && \
+        !defined(NO_HW_BENCH)
         bench_sha384(1);
     #endif
     }
@@ -1350,7 +1361,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_sha512(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512) && \
+        !defined(NO_HW_BENCH)
         bench_sha512(1);
     #endif
     }
@@ -1361,7 +1373,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_sha3_224(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3) && \
+        !defined(NO_HW_BENCH)
         bench_sha3_224(1);
     #endif
     }
@@ -1371,7 +1384,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_sha3_256(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3) && \
+        !defined(NO_HW_BENCH)
         bench_sha3_256(1);
     #endif
     }
@@ -1381,7 +1395,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_sha3_384(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3) && \
+        !defined(NO_HW_BENCH)
         bench_sha3_384(1);
     #endif
     }
@@ -1391,7 +1406,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_sha3_512(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3) && \
+        !defined(NO_HW_BENCH)
         bench_sha3_512(1);
     #endif
     }
@@ -1416,7 +1432,8 @@ static void* benchmarks_do(void* args)
         #ifndef NO_SW_BENCH
             bench_hmac_md5(0);
         #endif
-        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC) && \
+                defined(WC_ASYNC_ENABLE_MD5) && !defined(NO_HW_BENCH)
             bench_hmac_md5(1);
         #endif
         }
@@ -1426,7 +1443,8 @@ static void* benchmarks_do(void* args)
         #ifndef NO_SW_BENCH
             bench_hmac_sha(0);
         #endif
-        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA)
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC) && \
+                defined(WC_ASYNC_ENABLE_SHA) && !defined(NO_HW_BENCH)
             bench_hmac_sha(1);
         #endif
         }
@@ -1436,7 +1454,8 @@ static void* benchmarks_do(void* args)
         #ifndef NO_SW_BENCH
             bench_hmac_sha224(0);
         #endif
-        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224)
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC) && \
+                defined(WC_ASYNC_ENABLE_SHA224) && !defined(NO_HW_BENCH)
             bench_hmac_sha224(1);
         #endif
         }
@@ -1446,7 +1465,8 @@ static void* benchmarks_do(void* args)
         #ifndef NO_SW_BENCH
             bench_hmac_sha256(0);
         #endif
-        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256)
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC) && \
+                defined(WC_ASYNC_ENABLE_SHA256) && !defined(NO_HW_BENCH)
             bench_hmac_sha256(1);
         #endif
         }
@@ -1456,7 +1476,8 @@ static void* benchmarks_do(void* args)
         #ifndef NO_SW_BENCH
             bench_hmac_sha384(0);
         #endif
-        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA384)
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC) && \
+                defined(WC_ASYNC_ENABLE_SHA384) && !defined(NO_HW_BENCH)
             bench_hmac_sha384(1);
         #endif
         }
@@ -1466,7 +1487,8 @@ static void* benchmarks_do(void* args)
         #ifndef NO_SW_BENCH
             bench_hmac_sha512(0);
         #endif
-        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC) && \
+                defined(WC_ASYNC_ENABLE_SHA512) && !defined(NO_HW_BENCH)
             bench_hmac_sha512(1);
         #endif
         }
@@ -1489,7 +1511,8 @@ static void* benchmarks_do(void* args)
                 bench_rsaKeyGen(0);
             }
         #endif
-        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA_KEYGEN)
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA_KEYGEN) \
+                && !defined(NO_HW_BENCH)
             if (bench_asym_algs & BENCH_RSA_SZ) {
                 bench_rsaKeyGen_size(1, bench_size);
             }
@@ -1503,7 +1526,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_rsa(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA) && \
+        !defined(NO_HW_BENCH)
         bench_rsa(1);
     #endif
     }
@@ -1513,7 +1537,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_rsa_key(0, bench_size);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA) && \
+        !defined(NO_HW_BENCH)
         bench_rsa_key(1, bench_size);
     #endif
     }
@@ -1525,7 +1550,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_dh(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH) && \
+        !defined(NO_HW_BENCH)
         bench_dh(1);
     #endif
     }
@@ -1543,18 +1569,17 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_eccMakeKey(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
-        /* async supported in simulator only */
-        #ifdef WOLFSSL_ASYNC_CRYPT_TEST
-            bench_eccMakeKey(1);
-        #endif
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
+        !defined(NO_HW_BENCH)
+        bench_eccMakeKey(1);
     #endif
     }
     if (bench_all || (bench_asym_algs & BENCH_ECC)) {
     #ifndef NO_SW_BENCH
         bench_ecc(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
+        !defined(NO_HW_BENCH)
         bench_ecc(1);
     #endif
     }
@@ -1641,13 +1666,13 @@ int benchmark_init(void)
 
     if (csv_format == 1) {
         printf("wolfCrypt Benchmark (block bytes %d, min %.1f sec each)\n",
-        BENCH_SIZE, BENCH_MIN_RUNTIME_SEC);
+        (int)BENCH_SIZE, BENCH_MIN_RUNTIME_SEC);
         printf("This format allows you to easily copy the output to a csv file.");
         printf("\n\nSymmetric Ciphers:\n\n");
         printf("Algorithm,MB/s,Cycles per byte,\n");
     } else {
         printf("wolfCrypt Benchmark (block bytes %d, min %.1f sec each)\n",
-        BENCH_SIZE, BENCH_MIN_RUNTIME_SEC);
+        (int)BENCH_SIZE, BENCH_MIN_RUNTIME_SEC);
     }
 
 #ifdef HAVE_WNR
@@ -1701,8 +1726,13 @@ int benchmark_test(void *args)
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
 {
-    int i;
-    int numCpus = wc_AsyncGetNumberOfCpus();
+    int i, numCpus;
+
+#ifdef WC_ASYNC_BENCH_THREAD_COUNT
+    numCpus = WC_ASYNC_BENCH_THREAD_COUNT;
+#else
+    numCpus = wc_AsyncGetNumberOfCpus();
+#endif
 
     printf("CPUs: %d\n", numCpus);
 
@@ -1748,7 +1778,7 @@ void bench_rng(void)
 {
     int    ret, i, count;
     double start;
-    int    pos, len, remain;
+    long   pos, len, remain;
     WC_RNG myrng;
 
 #ifndef HAVE_FIPS
@@ -4019,15 +4049,32 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
     DECLARE_VAR_INIT(message, byte, len, messageStr, HEAP_HINT);
 #endif
-
-    DECLARE_ARRAY_DYNAMIC(enc, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
+    #if !defined(WOLFSSL_MDK5_COMPLv5)
+      /* MDK5 compiler regard this as a executable statement, and does not allow declarations after the line. */
+        DECLARE_ARRAY_DYNAMIC_DEC(enc, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
+      #else
+          byte* enc[BENCH_MAX_PENDING];
+          int idxenc;
+      #endif
     #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
                     !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-        DECLARE_ARRAY_DYNAMIC(out, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
+        #if !defined(WOLFSSL_MDK5_COMPLv5) 
+          /* MDK5 compiler regard this as a executable statement, and does not allow declarations after the line. */
+            DECLARE_ARRAY_DYNAMIC_DEC(out, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
+            #else
+                int idxout;
+              byte* out[BENCH_MAX_PENDING];
+        #endif
     #else
         byte* out[BENCH_MAX_PENDING];
     #endif
 
+    DECLARE_ARRAY_DYNAMIC_EXE(enc, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
+    #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
+                    !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+        DECLARE_ARRAY_DYNAMIC_EXE(out, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
+    #endif
+    
     if (!rsa_sign_verify) {
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
         /* begin public RSA */
@@ -4271,7 +4318,7 @@ void bench_rsa_key(int doAsync, int rsaKeySz)
     int     ret = 0, i, pending = 0;
     RsaKey  rsaKey[BENCH_MAX_PENDING];
     int     isPending[BENCH_MAX_PENDING];
-    int     exp = 65537;
+    long    exp = 65537l;
 
     /* clear for done cleanup */
     XMEMSET(rsaKey, 0, sizeof(rsaKey));

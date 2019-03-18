@@ -52,18 +52,19 @@
     #include <string.h>
     #include "rl_net.h"
     #define SOCKET_T int
-        typedef int socklen_t ;
-        static unsigned long inet_addr(const char *cp)
+    typedef int socklen_t ;
+    #define inet_addr wolfSSL_inet_addr
+    static unsigned long wolfSSL_inet_addr(const char *cp)
     {
         unsigned int a[4] ; unsigned long ret ;
         sscanf(cp, "%d.%d.%d.%d", &a[0], &a[1], &a[2], &a[3]) ;
         ret = ((a[3]<<24) + (a[2]<<16) + (a[1]<<8) + a[0]) ;
         return(ret) ;
     }
-        #if defined(HAVE_KEIL_RTX)
-        #define sleep(t) os_dly_wait(t/1000+1) ;
-    #elif defined (WOLFSSL_CMSIS_RTOS)
-        #define sleep(t)  osDelay(t/1000+1) ;
+    #if defined(HAVE_KEIL_RTX)
+        #define sleep(t) os_dly_wait(t/1000+1);
+    #elif defined(WOLFSSL_CMSIS_RTOS) || defined(WOLFSSL_CMSIS_RTOSv2)
+        #define sleep(t) osDelay(t/1000+1);
     #endif
 #elif defined(WOLFSSL_TIRTOS)
     #include <string.h>
@@ -327,11 +328,11 @@
 #define cliEccCertFile "./certs/client-ecc-cert.pem"
 #define caEccCertFile  "./certs/ca-ecc-cert.pem"
 #define crlPemDir      "./certs/crl"
-#define edCertFile     "./certs/ed25519/server-ed25519.pem"
+#define edCertFile     "./certs/ed25519/server-ed25519-cert.pem"
 #define edKeyFile      "./certs/ed25519/server-ed25519-priv.pem"
 #define cliEdCertFile  "./certs/ed25519/client-ed25519.pem"
 #define cliEdKeyFile   "./certs/ed25519/client-ed25519-priv.pem"
-#define caEdCertFile   "./certs/ed25519/root-ed25519.pem"
+#define caEdCertFile   "./certs/ed25519/ca-ed25519.pem"
 #ifdef HAVE_WNR
     /* Whitewood netRandom default config file */
     #define wnrConfig  "./wnr-example.conf"
@@ -705,7 +706,7 @@ static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
     WOLFSSL_CIPHER* cipher;
     const char** words = client_showpeer_msg[lng_index];
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || !defined(NO_DH)
     const char *name;
 #endif
 #ifndef NO_DH
@@ -732,12 +733,12 @@ static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
 #else
     printf("%s %s\n", words[1], wolfSSL_CIPHER_get_name(cipher));
 #endif
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || !defined(NO_DH)
     if ((name = wolfSSL_get_curve_name(ssl)) != NULL)
         printf("%s %s\n", words[2], name);
 #endif
 #ifndef NO_DH
-    if ((bits = wolfSSL_GetDhKey_Sz(ssl)) > 0)
+    else if ((bits = wolfSSL_GetDhKey_Sz(ssl)) > 0)
         printf("%s %d bits\n", words[3], bits);
 #endif
     if (wolfSSL_session_reused(ssl))

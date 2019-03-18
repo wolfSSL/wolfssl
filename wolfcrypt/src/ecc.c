@@ -1150,11 +1150,9 @@ const ecc_set_type ecc_sets[] = {
 static int wc_ecc_export_x963_compressed(ecc_key*, byte* out, word32* outLen);
 #endif
 
-#ifdef WOLFSSL_ATECC508A
-    typedef void* ecc_curve_spec;
-#else
 
-#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || !defined(WOLFSSL_SP_MATH)
+#if (defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || !defined(WOLFSSL_SP_MATH)) && \
+    !defined(WOLFSSL_ATECC508A)
 static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
         mp_int* prime, mp_int* order);
 #endif
@@ -1438,8 +1436,6 @@ void wc_ecc_curve_cache_free(void)
 #endif
 }
 #endif /* ECC_CACHE_CURVE */
-
-#endif /* WOLFSSL_ATECC508A */
 
 
 /* Retrieve the curve name for the ECC curve id.
@@ -3322,7 +3318,7 @@ int wc_ecc_get_curve_id_from_oid(const byte* oid, word32 len)
 }
 
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
 static WC_INLINE int wc_ecc_alloc_mpint(ecc_key* key, mp_int** mp)
 {
    if (key == NULL || mp == NULL)
@@ -3362,7 +3358,7 @@ static void wc_ecc_free_async(ecc_key* key)
     wc_ecc_free_mpint(key, &key->signK);
 #endif /* HAVE_CAVIUM_V */
 }
-#endif /* WOLFSSL_ASYNC_CRYPT */
+#endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_ECC */
 
 
 #ifdef HAVE_ECC_DHE
@@ -3388,8 +3384,9 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
 #ifdef WOLF_CRYPTO_CB
     if (private_key->devId != INVALID_DEVID) {
         err = wc_CryptoCb_Ecdh(private_key, public_key, out, outlen);
-        if (err != NOT_COMPILED_IN)
+        if (err != CRYPTOCB_UNAVAILABLE)
             return err;
+        /* fall-through when unavailable */
     }
 #endif
 
@@ -3576,7 +3573,7 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
 
     return err;
 }
-#endif /* WOLFSSL_ASYNC_CRYPT */
+#endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_ECC */
 
 int wc_ecc_shared_secret_gen(ecc_key* private_key, ecc_point* point,
                                                     byte* out, word32 *outlen)
@@ -3685,7 +3682,7 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
     }
 
     /* cleanup */
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
     wc_ecc_free_async(private_key);
 #endif
     private_key->state = ECC_STATE_NONE;
@@ -3950,8 +3947,9 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
         err = wc_CryptoCb_MakeEccKey(rng, keysize, key, curve_id);
-        if (err != NOT_COMPILED_IN)
+        if (err != CRYPTOCB_UNAVAILABLE)
             return err;
+        /* fall-through when unavailable */
     }
 #endif
 
@@ -4239,12 +4237,26 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
 #endif
     {
         word32 keysize = (word32)key->dp->size;
+        word32 orderBits;
+        DECLARE_CURVE_SPECS(curve, 1);
 
         /* Check args */
-        if (keysize > ECC_MAX_CRYPTO_HW_SIZE || inlen != keysize ||
-                                                *outlen < keysize*2) {
+        if (keysize > ECC_MAX_CRYPTO_HW_SIZE || *outlen < keysize*2) {
             return ECC_BAD_ARG_E;
         }
+
+        /* if the input is larger than curve order, we must truncate */
+        ALLOC_CURVE_SPECS(1);
+        err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
+        if (err != 0) {
+           FREE_CURVE_SPECS();
+           return err;
+        }
+        orderBits = mp_count_bits(curve->order);
+        if ((inlen * WOLFSSL_BIT_SIZE) > orderBits) {
+           inlen = (orderBits + WOLFSSL_BIT_SIZE - 1) / WOLFSSL_BIT_SIZE;
+        }
+        FREE_CURVE_SPECS();
 
     #if defined(WOLFSSL_ATECC508A)
         key->slot = atmel_ecc_alloc(ATMEL_SLOT_DEVICE);
@@ -4308,7 +4320,8 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 {
     int err;
     mp_int *r = NULL, *s = NULL;
-#if !defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_SMALL_STACK)
+#if (!defined(WOLFSSL_ASYNC_CRYPT) || !defined(WC_ASYNC_ENABLE_ECC)) && \
+    !defined(WOLFSSL_SMALL_STACK)
     mp_int r_lcl, s_lcl;
 #endif
 
@@ -4320,12 +4333,13 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
         err = wc_CryptoCb_EccSign(in, inlen, out, outlen, rng, key);
-        if (err != NOT_COMPILED_IN)
+        if (err != CRYPTOCB_UNAVAILABLE)
             return err;
+        /* fall-through when unavailable */
     }
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
     err = wc_ecc_alloc_async(key);
     if (err != 0)
         return err;
@@ -4343,7 +4357,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
         XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
         return MEMORY_E;
     }
-#endif
+#endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_ECC */
 
     switch(key->state) {
         case ECC_STATE_NONE:
@@ -4415,7 +4429,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     }
 
     /* cleanup */
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
     wc_ecc_free_async(key);
 #endif
     key->state = ECC_STATE_NONE;
@@ -4467,8 +4481,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
         return WC_KEY_SIZE_E;
 #else
 #ifdef WOLFSSL_HAVE_SP_ECC
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
-           defined(WOLFSSL_ASYNC_CRYPT_TEST)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
     if (key->asyncDev.marker != WOLFSSL_ASYNC_MARKER_ECC)
     #endif
     {
@@ -4624,7 +4637,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
            }
        #endif /* HAVE_CAVIUM_V || HAVE_INTEL_QA */
        }
-   #endif /* WOLFSSL_ASYNC_CRYPT */
+   #endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_ECC */
 
    #ifdef WOLFSSL_SMALL_STACK
        pubkey = (ecc_key*)XMALLOC(sizeof(ecc_key), key->heap, DYNAMIC_TYPE_ECC);
@@ -4795,7 +4808,7 @@ int wc_ecc_free(ecc_key* key)
         return 0;
     }
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
     #ifdef WC_ASYNC_ENABLE_ECC
     wolfAsync_DevCtxFree(&key->asyncDev, WOLFSSL_ASYNC_MARKER_ECC);
     #endif
@@ -5155,8 +5168,9 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 {
     int err;
     mp_int *r = NULL, *s = NULL;
-#if !defined(WOLFSSL_ASYNC_CRYPT) && !defined(WOLFSSL_SMALL_STACK)
-    mp_int r_lcl[1], s_lcl[1];
+#if (!defined(WOLFSSL_ASYNC_CRYPT) || !defined(WC_ASYNC_ENABLE_ECC)) && \
+    !defined(WOLFSSL_SMALL_STACK)
+    mp_int r_lcl, s_lcl;
 #endif
 
     if (sig == NULL || hash == NULL || res == NULL || key == NULL) {
@@ -5166,12 +5180,13 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
         err = wc_CryptoCb_EccVerify(sig, siglen, hash, hashlen, res, key);
-        if (err != NOT_COMPILED_IN)
+        if (err != CRYPTOCB_UNAVAILABLE)
             return err;
+        /* fall-through when unavailable */
     }
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
     err = wc_ecc_alloc_async(key);
     if (err != 0)
         return err;
@@ -5179,8 +5194,8 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     s = key->s;
 #else
     #ifndef WOLFSSL_SMALL_STACK
-    r = r_lcl;
-    s = s_lcl;
+    r = &r_lcl;
+    s = &s_lcl;
     #else
     r = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_ECC);
     if (r == NULL)
@@ -5252,7 +5267,7 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     }
 
     /* cleanup */
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
     wc_ecc_free_async(key);
 #elif defined(WOLFSSL_SMALL_STACK)
     XFREE(s, key->heap, DYNAMIC_TYPE_ECC);
@@ -5376,8 +5391,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #else
 #ifdef WOLFSSL_HAVE_SP_ECC
 #ifndef WOLFSSL_SP_NO_256
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
-           defined(WOLFSSL_ASYNC_CRYPT_TEST)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
     if (key->asyncDev.marker != WOLFSSL_ASYNC_MARKER_ECC)
     #endif
     {
@@ -5406,7 +5420,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    }
 #endif
    e = e_lcl;
-#endif
+#endif /* WOLFSSL_ASYNC_CRYPT && HAVE_CAVIUM_V */
 
    err = mp_init(e);
    if (err != MP_OKAY)
@@ -5474,7 +5488,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
       }
    #endif /* HAVE_CAVIUM_V || HAVE_INTEL_QA */
    }
-#endif /* WOLFSSL_ASYNC_CRYPT */
+#endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_ECC */
 
 #ifdef WOLFSSL_SMALL_STACK
    if (err == MP_OKAY) {
@@ -8856,7 +8870,7 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 #endif
 
     do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
         ret = wc_AsyncWait(ret, &privKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
         if (ret != 0)
             break;
@@ -8892,7 +8906,7 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                                                                 AES_ENCRYPTION);
                        if (ret == 0) {
                            ret = wc_AesCbcEncrypt(&aes, out, msg, msgSz);
-                       #if defined(WOLFSSL_ASYNC_CRYPT)
+                       #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
                            ret = wc_AsyncWait(ret, &aes.asyncDev,
                                               WC_ASYNC_FLAG_NONE);
                        #endif
@@ -9025,7 +9039,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 #endif
 
     do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
         ret = wc_AsyncWait(ret, &privKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
         if (ret != 0)
             break;
@@ -9093,7 +9107,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                    if (ret != 0)
                        break;
                    ret = wc_AesCbcDecrypt(&aes, out, msg, msgSz-digestSz);
-                #if defined(WOLFSSL_ASYNC_CRYPT)
+                #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
                    ret = wc_AsyncWait(ret, &aes.asyncDev, WC_ASYNC_FLAG_NONE);
                 #endif
                }

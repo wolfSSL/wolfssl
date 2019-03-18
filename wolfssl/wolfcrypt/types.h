@@ -46,8 +46,13 @@
         #ifndef byte
             typedef unsigned char  byte;
         #endif
-        typedef unsigned short word16;
-        typedef unsigned int   word32;
+        #ifdef WC_16BIT_CPU
+            typedef unsigned int   word16;
+            typedef unsigned long  word32;
+        #else
+            typedef unsigned short word16;
+            typedef unsigned int   word32;
+        #endif
         typedef byte           word24[3];
     #endif
 
@@ -91,7 +96,7 @@
         typedef unsigned long long word64;
     #endif
 
-#if !defined(NO_64BIT) && defined(WORD64_AVAILABLE)
+#if !defined(NO_64BIT) && defined(WORD64_AVAILABLE) && !defined(WC_16BIT_CPU)
     /* These platforms have 64-bit CPU registers.  */
     #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
          defined(__mips64)  || defined(__x86_64__) || defined(_M_X64)) || \
@@ -112,6 +117,13 @@
             #define WOLFCRYPT_SLOW_WORD64
         #endif
     #endif
+
+#elif defined(WC_16BIT_CPU)
+        #undef WORD64_AVAILABLE
+        typedef word16 wolfssl_word;
+        #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as
+                             mp_digit, no 64 bit type so make mp_digit 16 bit */
+
 #else
         #undef WORD64_AVAILABLE
         typedef word32 wolfssl_word;
@@ -305,8 +317,11 @@
                 XFREE(VAR_NAME[idx##VAR_NAME], (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
             }
 
-        #define DECLARE_ARRAY_DYNAMIC DECLARE_ARRAY
-        #define FREE_ARRAY_DYNAMIC FREE_ARRAY
+        #define DECLARE_ARRAY_DYNAMIC_DEC(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
+            DECLARE_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP)
+        #define DECLARE_ARRAY_DYNAMIC_EXE(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP)
+        #define FREE_ARRAY_DYNAMIC(VAR_NAME, VAR_ITEMS, HEAP) \
+            FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP)
     #else
         #define DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
             VAR_TYPE VAR_NAME[VAR_SIZE]
@@ -317,9 +332,10 @@
         #define FREE_VAR(VAR_NAME, HEAP) /* nothing to free, its stack */
         #define FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP)  /* nothing to free, its stack */
 
-        #define DECLARE_ARRAY_DYNAMIC(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
+        #define DECLARE_ARRAY_DYNAMIC_DEC(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
             VAR_TYPE* VAR_NAME[VAR_ITEMS]; \
-            int idx##VAR_NAME; \
+            int idx##VAR_NAME;
+        #define DECLARE_ARRAY_DYNAMIC_EXE(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
             for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
                 VAR_NAME[idx##VAR_NAME] = (VAR_TYPE*)XMALLOC(VAR_SIZE, (HEAP), DYNAMIC_TYPE_TMP_BUFFER); \
             }
@@ -385,14 +401,41 @@
         #ifndef USE_WINDOWS_API
             #if defined(NO_FILESYSTEM) && (defined(OPENSSL_EXTRA) || \
                    defined(HAVE_PKCS7)) && !defined(NO_STDIO_FILESYSTEM)
-                /* case where stdio is not included else where but is needed for
-                 * snprintf */
+                /* case where stdio is not included else where but is needed
+                   for snprintf */
                 #include <stdio.h>
             #endif
             #define XSNPRINTF snprintf
         #else
-            #define XSNPRINTF _snprintf
-        #endif
+            #ifdef _MSC_VER
+                #if (_MSC_VER >= 1900)
+                    /* Beginning with the UCRT in Visual Studio 2015 and
+                       Windows 10, snprintf is no longer identical to
+                       _snprintf. The snprintf function behavior is now
+                       C99 standard compliant. */
+                    #define XSNPRINTF snprintf
+                #else
+                    /* 4996 warning to use MS extensions e.g., _sprintf_s
+                       instead of _snprintf */
+                    #pragma warning(disable: 4996)
+                    static WC_INLINE
+                    int xsnprintf(char *buffer, size_t bufsize,
+                            const char *format, ...) {
+                        va_list ap;
+                        int ret;
+
+                        if ((int)bufsize <= 0) return -1;
+                        va_start(ap, format);
+                        ret = vsnprintf(buffer, bufsize, format, ap);
+                        if (ret >= (int)bufsize)
+                            ret = -1;
+                        va_end(ap);
+                        return ret;
+                    }
+                    #define XSNPRINTF xsnprintf
+                #endif /* (_MSC_VER >= 1900) */
+            #endif /* _MSC_VER */
+        #endif /* USE_WINDOWS_API */
 
         #if defined(WOLFSSL_CERT_EXT) || defined(HAVE_ALPN)
             /* use only Thread Safe version of strtok */

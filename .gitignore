@@ -318,3 +318,6 @@ scripts/memtest.txt
 doc/doxygen_warnings
 doc/html
 doc/pdf
+
+# XCODE Index
+IDE/XCODE/Index

@@ -297,7 +297,9 @@ typedef struct Cert {
 #ifdef WOLFSSL_CERT_REQ
     char     challengePw[CTC_NAME_SIZE];
 #endif
-    void*   heap; /* heap hint */
+    void*   decodedCert;    /* internal DecodedCert allocated from heap */
+    byte*   der;            /* Pointer to buffer of current DecodedCert cache */
+    void*   heap;           /* heap hint */
 } Cert;
 
 
@@ -336,6 +338,11 @@ WOLFSSL_API int wc_SetSubject(Cert*, const char*);
 #ifdef WOLFSSL_ALT_NAMES
     WOLFSSL_API int wc_SetAltNames(Cert*, const char*);
 #endif
+
+#ifdef WOLFSSL_CERT_GEN_CACHE
+WOLFSSL_API void wc_SetCert_Free(Cert* cert);
+#endif
+
 WOLFSSL_API int wc_SetIssuerBuffer(Cert*, const byte*, int);
 WOLFSSL_API int wc_SetSubjectBuffer(Cert*, const byte*, int);
 WOLFSSL_API int wc_SetAltNamesBuffer(Cert*, const byte*, int);
@@ -545,4 +552,3 @@ WOLFSSL_API int wc_ParseCertPIV(wc_CertPIV* cert, const byte* buf, word32 totalS
 #endif
 
 #endif /* WOLF_CRYPT_ASN_PUBLIC_H */
-

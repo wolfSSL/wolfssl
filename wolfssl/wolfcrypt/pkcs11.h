@@ -80,6 +80,12 @@ extern "C" {
 #define CKK_EC                                0x00000003UL
 #define CKK_GENERIC_SECRET                    0x00000010UL
 #define CKK_AES                               0x0000001FUL
+#define CKK_MD5_HMAC                          0x00000027UL
+#define CKK_SHA_1_HMAC                        0x00000028UL
+#define CKK_SHA256_HMAC                       0x0000002bUL
+#define CKK_SHA384_HMAC                       0x0000002cUL
+#define CKK_SHA512_HMAC                       0x0000002dUL
+#define CKK_SHA224_HMAC                       0x0000002eUL
 
 #define CKA_CLASS                             0x00000000UL
 #define CKA_TOKEN                             0x00000001UL
@@ -135,15 +141,23 @@ extern "C" {
 #define CKM_RSA_X_509                         0x00000003UL
 #define CKM_DH_PKCS_KEY_PAIR_GEN              0x00000020UL
 #define CKM_DH_PKCS_DERIVE                    0x00000021UL
+#define CKM_MD5_HMAC                          0x00000211UL
+#define CKM_SHA_1_HMAC                        0x00000221UL
+#define CKM_SHA256_HMAC                       0x00000251UL
+#define CKM_SHA224_HMAC                       0x00000256UL
+#define CKM_SHA384_HMAC                       0x00000261UL
+#define CKM_SHA512_HMAC                       0x00000271UL
 #define CKM_GENERIC_SECRET_KEY_GEN            0x00000350UL
 #define CKM_EC_KEY_PAIR_GEN                   0x00001040UL
 #define CKM_ECDSA                             0x00001041UL
 #define CKM_ECDH1_DERIVE                      0x00001050UL
 #define CKM_ECDH1_COFACTOR_DERIVE             0x00001051UL
 #define CKM_AES_KEY_GEN                       0x00001080UL
+#define CKM_AES_CBC                           0x00001082UL
 #define CKM_AES_GCM                           0x00001087UL
 
 #define CKR_OK                                0x00000000UL
+#define CKR_MECHANISM_INVALID                 0x00000070UL
 #define CKR_SIGNATURE_INVALID                 0x000000C0UL
 
 #define CKD_NULL                              0x00000001UL
@@ -324,7 +338,6 @@ typedef struct CK_GCM_PARAMS {
     CK_ULONG          ulTagBits;
 } CK_GCM_PARAMS;
 typedef CK_GCM_PARAMS* CK_GCM_PARAMS_PTR;
-
 
 /* Function list types. */
 typedef struct CK_FUNCTION_LIST CK_FUNCTION_LIST;

@@ -172,6 +172,9 @@
 /* Uncomment next line if building for using XILINX */
 /* #define WOLFSSL_XILINX */
 
+/* Uncomment next line if building for WICED Studio. */
+/* #define WOLFSSL_WICED  */
+
 /* Uncomment next line if building for Nucleus 1.2 */
 /* #define WOLFSSL_NUCLEUS_1_2 */
 
@@ -239,14 +242,18 @@
     #define TFM_TIMING_RESISTANT
     #define ECC_TIMING_RESISTANT
     #define WC_RSA_BLINDING
+
 #if defined(WOLFSSL_ESPWROOM32) || defined(WOLFSSL_ESPWROOM32SE)
    #ifndef NO_ESP32WROOM32_CRYPT
         #define WOLFSSL_ESP32WROOM32_CRYPT
-    #endif
+        #if defined(ESP32_USE_RSA_PRIMITIVE) && \
+            !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+            #define WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI
+            #define USE_FAST_MATH
+            #define WOLFSSL_SMALL_STACK
+        #endif
+   #endif
 #endif
-#if !defined(WOLFSSL_USER_SETTINGS)
-    #define HAVE_ECC
-#endif /* !WOLFSSL_USER_SETTINGS */
 #endif /* WOLFSSL_ESPIDF */
 
 #if defined(HAVE_LWIP_NATIVE) /* using LwIP native TCP socket */
@@ -615,7 +622,8 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 
-#if defined(WOLFSSL_LEANPSK) && !defined(XMALLOC_USER)
+#if defined(WOLFSSL_LEANPSK) && !defined(XMALLOC_USER) && \
+        !defined(NO_WOLFSSL_MEMORY)
     #include <stdlib.h>
     #define XMALLOC(s, h, type)  malloc((s))
     #define XFREE(p, h, type)    free((p))
@@ -697,7 +705,8 @@ extern void uITRON4_free(void *p) ;
     #define NO_FILESYSTEM
     #define USE_CERT_BUFFERS_2048
     #define NO_ERROR_STRINGS
-    #define USER_TIME
+    /* Uncomment this setting if your toolchain does not offer time.h header */
+    /* #define USER_TIME */
     #define HAVE_ECC
     #define HAVE_ALPN
     #define USE_WOLF_STRTOK /* use with HAVE_ALPN */
@@ -1665,11 +1674,39 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_AEAD_ONLY
 #endif
 
+#if !defined(NO_DH) && !defined(HAVE_FFDHE)
+    #if defined(HAVE_FFDHE_2048) || defined(HAVE_FFDHE_3072) || \
+            defined(HAVE_FFDHE_4096) || defined(HAVE_FFDHE_6144) || \
+            defined(HAVE_FFDHE_8192)
+        #define HAVE_FFDHE
+    #endif
+#endif
+#if defined(HAVE_FFDHE_8192)
+    #define MIN_FFDHE_FP_MAX_BITS 16384
+#elif defined(HAVE_FFDHE_6144)
+    #define MIN_FFDHE_FP_MAX_BITS 12288
+#elif defined(HAVE_FFDHE_4096)
+    #define MIN_FFDHE_FP_MAX_BITS 8192
+#elif defined(HAVE_FFDHE_3072)
+    #define MIN_FFDHE_FP_MAX_BITS 6144
+#elif defined(HAVE_FFDHE_2048)
+    #define MIN_FFDHE_FP_MAX_BITS 4096
+#else
+    #define MIN_FFDHE_FP_MAX_BITS 0
+#endif
+#if defined(HAVE_FFDHE) && defined(FP_MAX_BITS)
+    #if MIN_FFDHE_FP_MAX_BITS > FP_MAX_BITS
+        #error "FFDHE parameters are too large for FP_MAX_BIT as set"
+    #endif
+#endif
+
 /* if desktop type system and fastmath increase default max bits */
 #ifdef WOLFSSL_X86_64_BUILD
-    #ifdef USE_FAST_MATH
-        #ifndef FP_MAX_BITS
+    #if defined(USE_FAST_MATH) && !defined(FP_MAX_BITS)
+        #if MIN_FFDHE_FP_MAX_BITS <= 8192
             #define FP_MAX_BITS 8192
+        #else
+            #define FP_MAX_BITS MIN_FFDHE_FP_MAX_BITS
         #endif
     #endif
 #endif
@@ -1830,6 +1867,7 @@ extern void uITRON4_free(void *p) ;
 #if defined(WOLFSSL_NGINX)
     #define SSL_CTRL_SET_TLSEXT_HOSTNAME
 #endif
+
 
 /* both CURVE and ED small math should be enabled */
 #ifdef CURVED25519_SMALL

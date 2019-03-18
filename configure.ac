@@ -15,7 +15,7 @@ AC_CONFIG_AUX_DIR([build-aux])
 : ${CFLAGS=""}
 
 # Test ar for the "U" option. Should be checked before the libtool macros.
-xxx_ar_flags=$((ar --help) 2>&1)
+xxx_ar_flags=$(ar --help 2>&1)
 AS_CASE([$xxx_ar_flags],[*'use actual timestamps and uids/gids'*],[: ${AR_FLAGS="Ucru"}])
 
 AC_PROG_CC
@@ -168,6 +168,7 @@ then
     enable_maxfragment=yes
     enable_alpn=yes
     enable_truncatedhmac=yes
+    enable_trusted_ca=yes
     enable_supportedcurves=yes
     enable_session_ticket=yes
     enable_tlsx=yes
@@ -193,7 +194,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
 
     # Enable DH const table speedups (eliminates `-lm` math lib dependency)
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072 -DHAVE_FFDHE_4096 -DHAVE_FFDHE_6144 -DHAVE_FFDHE_8192"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072 -DFP_MAX_BITS=8192"
 fi
 AM_CONDITIONAL([BUILD_ALL], [test "x$ENABLED_ALL" = "xyes"])
 
@@ -207,6 +208,18 @@ AC_ARG_ENABLE([32bit],
     [ ENABLED_32BIT=$enableval ],
     [ ENABLED_32BIT=no ]
     )
+
+# 16-bit compiler support
+AC_ARG_ENABLE([16bit],
+    [AS_HELP_STRING([--enable-16bit],[Enables 16-bit support (default: disabled)])],
+    [ ENABLED_16BIT=$enableval ],
+    [ ENABLED_16BIT=no ]
+    )
+if test "$ENABLED_16BIT" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_16BIT_CPU"
+fi
+
 
 
 # Support for disabling all ASM
@@ -798,11 +811,11 @@ AC_ARG_WITH([cryptoauthlib],
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <cryptoauthlib.h>]], [[ atcab_init(0); ]])],[ libatca_linked=yes ],[ libatca_linked=no ])
 
-        if test "x$libatca_linked" == "xno" ; then
+        if test "x$libatca_linked" = "xno" ; then
             if test "x$withval" != "xno" ; then
                 trylibatcadir=$withval
             fi
-            if test "x$withval" == "xyes" ; then
+            if test "x$withval" = "xyes" ; then
                 trylibatcadir="/usr"
             fi
 
@@ -811,7 +824,7 @@ AC_ARG_WITH([cryptoauthlib],
 
             AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <cryptoauthlib.h>]], [[ atcab_init(0); ]])],[ libatca_linked=yes ],[ libatca_linked=no ])
 
-            if test "x$libatca_linked" == "xno" ; then
+            if test "x$libatca_linked" = "xno" ; then
                 AC_MSG_ERROR([cryptoauthlib isn't found.
                 If it's already installed, specify its path using --with-cryptoauthlib=/dir/])
             fi
@@ -1253,9 +1266,9 @@ AC_ARG_ENABLE([sha512],
     )
 
 # options that don't require sha512
-if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
+if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes" || test "$ENABLED_32BIT" = "yes" || test "$ENABLED_16BIT" = "yes"
 then
-    ENABLED_SHA512=no
+    ENABLED_SHA512="no"
 fi
 
 # options that require sha512
@@ -1265,7 +1278,7 @@ then
     ENABLED_SHA384="yes"
 fi
 
-if test "$ENABLED_SHA512" = "yes" && test "$ENABLED_32BIT" = "no"
+if test "$ENABLED_SHA512" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512"
 fi
@@ -1279,10 +1292,10 @@ AC_ARG_ENABLE([sha384],
     [ ENABLED_SHA384=yes ]
     )
 
-# options that don't require sha512
-if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
+# options that don't require sha384
+if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes" || test "$ENABLED_32BIT" = "yes" || test "$ENABLED_16BIT" = "yes"
 then
-    ENABLED_SHA384=no
+    ENABLED_SHA384="no"
 fi
 
 # options that require sha384
@@ -1290,7 +1303,7 @@ if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENA
 then
     ENABLED_SHA384="yes"
 fi
-if test "$ENABLED_SHA384" = "yes" && test "$ENABLED_32BIT" = "no"
+if test "$ENABLED_SHA384" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA384"
 fi
@@ -1373,6 +1386,19 @@ AC_ARG_ENABLE([certext],
 if test "$ENABLED_CERTEXT" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"
+fi
+
+
+# DECODED CERT CACHE
+AC_ARG_ENABLE([certgencache],
+    [AS_HELP_STRING([--enable-certgencache],[Enable decoded cert caching (default: disabled)])],
+    [ ENABLED_certgencache=$enableval ],
+    [ ENABLED_certgencache=no ]
+    )
+
+if test "$ENABLED_certgencache" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN_CACHE"
 fi
 
 
@@ -1466,7 +1492,7 @@ fi
 if test "$ENABLED_ECC" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
-    if test "$ENABLED_ECC_SHAMIR" = "yes"
+    if test "$ENABLED_ECC_SHAMIR" = "yes" && test "$ENABLED_LOWRESOURCE" = "no"
     then
         AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
     fi
@@ -1908,11 +1934,6 @@ else
     fi
 fi
 
-if test "$ENABLED_TLS13" = "yes" && test "$ENABLED_DH" = "yes"
-then
-    AM_CFLAGS="-DHAVE_FFDHE_2048 $AM_CFLAGS"
-fi
-
 AM_CONDITIONAL([BUILD_DH], [test "x$ENABLED_DH" = "xyes"])
 
 
@@ -1949,7 +1970,7 @@ AC_ARG_ENABLE([asn],
 if test "$ENABLED_ASN" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS"
-    if test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" == "no"
+    if test "$ENABLED_DH" = "no" && test "$ENABLED_ECC" = "no"
     then
         # DH and ECC need bigint
         AM_CFLAGS="$AM_CFLAGS -DNO_BIG_INT"
@@ -2353,7 +2374,7 @@ AC_ARG_ENABLE([selftest],
     [ ENABLED_SELFTEST=no ]
     )
 
-if test "x$ENABLED_SELFTEST" == "xyes"
+if test "x$ENABLED_SELFTEST" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_SELFTEST"
 fi
@@ -2684,7 +2705,7 @@ AC_ARG_WITH([user-crypto],
         if test "x$withval" != "xno" ; then
             trycryptodir=$withval
         fi
-        if test "x$withval" == "xyes" ; then
+        if test "x$withval" = "xyes" ; then
             trycryptodir="/usr/local"
         fi
 
@@ -2694,7 +2715,7 @@ AC_ARG_WITH([user-crypto],
         #Look for RSA Init function in usercrypto lib
         AC_CHECK_LIB([usercrypto], [wc_InitRsaKey], [user_rsa_linked=yes], [user_rsa_linked=no])
 
-       if test "x$user_rsa_linked" == "xyes" ; then
+       if test "x$user_rsa_linked" = "xyes" ; then
             AC_MSG_NOTICE([User user_rsa.h being used])
             AM_CFLAGS="$AM_CFLAGS -DHAVE_USER_RSA"
             ENABLED_USER_RSA=yes
@@ -2704,7 +2725,7 @@ AC_ARG_WITH([user-crypto],
 
         #Display check and find result of link attempts
         AC_MSG_CHECKING([for USER_CRYPTO])
-        if test "x$ENABLED_USER_CRYPTO" == "xno" ; then
+        if test "x$ENABLED_USER_CRYPTO" = "xno" ; then
             AC_MSG_RESULT([no])
             AC_MSG_ERROR([USER_CRYPTO not found. Either move to /usr/include and /usr/lib or
                     Specify its path using --with-user-crypto=/dir/])
@@ -2718,7 +2739,7 @@ AC_ARG_WITH([user-crypto],
     ]
 )
 
-AM_CONDITIONAL([BUILD_USER_RSA], [test "x$ENABLED_USER_RSA" == "xyes"] )
+AM_CONDITIONAL([BUILD_USER_RSA], [test "x$ENABLED_USER_RSA" = "xyes"] )
 AM_CONDITIONAL([BUILD_USER_CRYPTO], [test "x$ENABLED_USER_CRYPTO" = "xyes"])
 
 if test "$ENABLED_USER_CRYPTO" = "yes" && test "$ENABLED_FIPS" = "yes"
@@ -2739,11 +2760,11 @@ AC_ARG_WITH([ntru],
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <libntruencrypt/ntru_crypto_drbg.h>]], [[ ntru_crypto_drbg_instantiate(0, 0, 0, 0, 0); ]])], [ ntru_linked=yes ],[ ntru_linked=no ])
 
-        if test "x$ntru_linked" == "xno" ; then
+        if test "x$ntru_linked" = "xno" ; then
             if test "x$withval" != "xno" ; then
                 tryntrudir=$withval
             fi
-            if test "x$withval" == "xyes" ; then
+            if test "x$withval" = "xyes" ; then
                 tryntrudir="/usr"
             fi
 
@@ -2752,7 +2773,7 @@ AC_ARG_WITH([ntru],
 
             AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <libntruencrypt/ntru_crypto_drbg.h>]], [[ ntru_crypto_drbg_instantiate(0, 0, 0, 0, 0); ]])], [ ntru_linked=yes ],[ ntru_linked=no ])
 
-            if test "x$ntru_linked" == "xno" ; then
+            if test "x$ntru_linked" = "xno" ; then
                 AC_MSG_ERROR([NTRU isn't found.
                 If it's already installed, specify its path using --with-ntru=/dir/])
             fi
@@ -2800,11 +2821,11 @@ AC_ARG_WITH([wnr],
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <wnr.h>]], [[ wnr_setup(0, 0); ]])], [ wnr_linked=yes ],[ wnr_linked=no ])
 
-        if test "x$wnr_linked" == "xno" ; then
+        if test "x$wnr_linked" = "xno" ; then
             if test "x$withval" != "xno" ; then
                 trywnrdir=$withval
             fi
-            if test "x$withval" == "xyes" ; then
+            if test "x$withval" = "xyes" ; then
                 trywnrdir="/usr/local"
             fi
 
@@ -2813,7 +2834,7 @@ AC_ARG_WITH([wnr],
 
             AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <wnr.h>]], [[ wnr_setup(0, 0); ]])], [ wnr_linked=yes ],[ wnr_linked=no ])
 
-            if test "x$wnr_linked" == "xno" ; then
+            if test "x$wnr_linked" = "xno" ; then
                 AC_MSG_ERROR([Whitewood netRandom isn't found.
                 If it's already installed, specify its path using --with-wnr=/dir/])
             fi
@@ -2868,6 +2889,14 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_MAX_FRAGMENT"
 fi
 
+# Trusted CA Indication Extension
+AC_ARG_ENABLE([trustedca],
+    [AS_HELP_STRING([--enable-trustedca],[Enable Trusted CA Indication (default: disabled)])],
+    [ ENABLED_TRUSTED_CA=$enableval ],[ ENABLED_TRUSTED_CA=no ])
+
+AS_IF([test "x$ENABLED_TRUSTED_CA" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_TRUSTED_CA"])
+
 # Truncated HMAC
 AC_ARG_ENABLE([truncatedhmac],
     [AS_HELP_STRING([--enable-truncatedhmac],[Enable Truncated HMAC (default: disabled)])],
@@ -2921,6 +2950,35 @@ then
           [AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SUPPORTED_CURVES"])
 fi
 
+# Diffie-Hellman
+if test "$ENABLED_DH" = "yes"
+then
+    if test "$ENABLED_TLS13" = "yes" || test "$ENABLED_SUPPORTED_CURVES" = "yes"
+    then
+        AM_CFLAGS="-DHAVE_FFDHE_2048 $AM_CFLAGS"
+    fi
+fi
+
+# FFDHE parameters only
+AC_ARG_ENABLE([ffdhe-only],
+    [AS_HELP_STRING([--enable-ffdhe-only],[Enable using only FFDHE in client (default: disabled)])],
+    [ ENABLED_FFDHE_ONLY=$enableval ],
+    [ ENABLED_FFDHE_ONLY=no ]
+    )
+
+if test "x$ENABLED_FFDHE_ONLY" = "xyes"
+then
+    if test "$ENABLED_DH" = "no"
+    then
+        AC_MSG_ERROR([FFDHE only support requires DH support])
+    fi
+    if test "$ENABLED_SUPPORTED_CURVES" = "no"
+    then
+        AC_MSG_ERROR([FFDHE only support requires Supported Curves extension])
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_REQUIRE_FFDHE"
+fi
+
 # Session Ticket Extension
 AC_ARG_ENABLE([session-ticket],
     [AS_HELP_STRING([--enable-session-ticket],[Enable Session Ticket (default: disabled)])],
@@ -2968,7 +3026,8 @@ then
     ENABLED_MAX_FRAGMENT=yes
     ENABLED_TRUNCATED_HMAC=yes
     ENABLED_ALPN=yes
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_ALPN"
+    ENABLED_TRUSTED_CA=yes
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_ALPN -DHAVE_TRUSTED_CA"
     # Check the ECC supported curves prereq
     AS_IF([test "x$ENABLED_ECC" = "xyes" || test "x$ENABLED_CURVE25519" = "xyes"],
           [ENABLED_SUPPORTED_CURVES=yes
@@ -3657,11 +3716,11 @@ AC_ARG_WITH([libz],
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <zlib.h>]], [[ deflateInit(0, 8); ]])],[ libz_linked=yes ],[ libz_linked=no ])
 
-        if test "x$libz_linked" == "xno" ; then
+        if test "x$libz_linked" = "xno" ; then
             if test "x$withval" != "xno" ; then
                 trylibzdir=$withval
             fi
-            if test "x$withval" == "xyes" ; then
+            if test "x$withval" = "xyes" ; then
                 trylibzdir="/usr"
             fi
 
@@ -3670,7 +3729,7 @@ AC_ARG_WITH([libz],
 
             AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <zlib.h>]], [[ deflateInit(0, 8); ]])],[ libz_linked=yes ],[ libz_linked=no ])
 
-            if test "x$libz_linked" == "xno" ; then
+            if test "x$libz_linked" = "xno" ; then
                 AC_MSG_ERROR([libz isn't found.
                 If it's already installed, specify its path using --with-libz=/dir/])
             fi
@@ -3708,7 +3767,7 @@ AC_ARG_WITH([cavium],
         CPPFLAGS="$CPPFLAGS -DHAVE_CAVIUM"
         LIB_ADD="-lrt $LIB_ADD"
 
-        if test "x$withval" == "xyes" ; then
+        if test "x$withval" = "xyes" ; then
             AC_MSG_ERROR([need a PATH for --with-cavium])
         fi
         if test "x$withval" != "xno" ; then
@@ -3720,7 +3779,7 @@ AC_ARG_WITH([cavium],
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "cavium_common.h"]], [[ CspShutdown(CAVIUM_DEV_ID); ]])],[ cavium_linked=yes ],[ cavium_linked=no ])
 
-        if test "x$cavium_linked" == "xno" ; then
+        if test "x$cavium_linked" = "xno" ; then
             AC_MSG_ERROR([cavium isn't found.
             If it's already installed, specify its path using --with-cavium=/dir/])
         else
@@ -3743,7 +3802,7 @@ AC_ARG_WITH([cavium-v],
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CAVIUM -DHAVE_CAVIUM_V"
         LIB_ADD="-lrt -lcrypto $LIB_ADD"
 
-        if test "x$withval" == "xyes" ; then
+        if test "x$withval" = "xyes" ; then
             AC_MSG_ERROR([need a PATH for --with-cavium])
         fi
         if test "x$withval" != "xno" ; then
@@ -3784,7 +3843,7 @@ AC_ARG_WITH([intelqa],
         CPPFLAGS="$CPPFLAGS -DHAVE_INTEL_QA -DDO_CRYPTO -DUSER_SPACE"
         OLD_LIBS="$LIBS"
 
-        if test "x$withval" == "xyes" ; then
+        if test "x$withval" = "xyes" ; then
             AC_MSG_ERROR([need a PATH for --with-intelqa])
         fi
         if test "x$withval" != "xno" ; then
@@ -3801,13 +3860,13 @@ AC_ARG_WITH([intelqa],
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "cpa_cy_common.h"]], [[ Cpa16U count = 0; cpaCyGetNumInstances(&count); ]])],
             [ intelqa_linked=yes ],[ intelqa_linked=no ])
-        if test "x$intelqa_linked" == "xno" ; then
+        if test "x$intelqa_linked" = "xno" ; then
             # Try old QAT driver libraries
             LIBS="$OLD_LIBS -licp_qa_al_s"
 
             AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "cpa_cy_common.h"]], [[ Cpa16U count = 0; cpaCyGetNumInstances(&count); ]])],
                 [ intelqa_linked=yes ],[ intelqa_linked=no ])
-            if test "x$intelqa_linked" == "xno" ; then
+            if test "x$intelqa_linked" = "xno" ; then
                 AC_MSG_ERROR([Intel QuickAssist not found.
                 If it's already installed, specify its path using --with-intelqa=/dir/])
             else
@@ -4201,6 +4260,10 @@ then
     if test "x$ENABLED_FASTMATH" = "xno"
     then
         AC_MSG_ERROR([please use --enable-fastmath if enabling staticmemory.])
+    fi
+    if test "$ENABLED_LOWRESOURCE" = "yes" && test "$ENABLED_RSA" = "no"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY_SMALL"
     fi
 fi
 
@@ -4836,6 +4899,7 @@ echo "   * keygen:                     $ENABLED_KEYGEN"
 echo "   * certgen:                    $ENABLED_CERTGEN"
 echo "   * certreq:                    $ENABLED_CERTREQ"
 echo "   * certext:                    $ENABLED_CERTEXT"
+echo "   * certgencache:               $ENABLED_certgencache"
 echo "   * HC-128:                     $ENABLED_HC128"
 echo "   * RABBIT:                     $ENABLED_RABBIT"
 echo "   * CHACHA:                     $ENABLED_CHACHA"
@@ -4902,8 +4966,10 @@ echo "   * Whitewood netRandom:        $ENABLED_WNR"
 echo "   * Server Name Indication:     $ENABLED_SNI"
 echo "   * ALPN:                       $ENABLED_ALPN"
 echo "   * Maximum Fragment Length:    $ENABLED_MAX_FRAGMENT"
+echo "   * Trusted CA Indication:      $ENABLED_TRUSTED_CA"
 echo "   * Truncated HMAC:             $ENABLED_TRUNCATED_HMAC"
 echo "   * Supported Elliptic Curves:  $ENABLED_SUPPORTED_CURVES"
+echo "   * FFDHE only in client:       $ENABLED_FFDHE_ONLY"
 echo "   * Session Ticket:             $ENABLED_SESSION_TICKET"
 echo "   * Extended Master Secret:     $ENABLED_EXTENDED_MASTER"
 echo "   * Renegotiation Indication:   $ENABLED_RENEGOTIATION_INDICATION"

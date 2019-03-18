@@ -472,9 +472,9 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
 #ifdef WOLF_CRYPTO_CB
     if (sha->devId != INVALID_DEVID) {
         int ret = wc_CryptoCb_ShaHash(sha, data, len, NULL);
-        if (ret != NOT_COMPILED_IN)
+        if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
-        /* fall-through on not compiled in */
+        /* fall-through when unavailable */
     }
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA)
@@ -555,9 +555,9 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
 #ifdef WOLF_CRYPTO_CB
     if (sha->devId != INVALID_DEVID) {
         int ret = wc_CryptoCb_ShaHash(sha, NULL, 0, hash);
-        if (ret != NOT_COMPILED_IN)
+        if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
-        /* fall-through on not compiled in */
+        /* fall-through when unavailable */
     }
 #endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA)

@@ -25,9 +25,14 @@
 
 #include "wolfssl/wolfcrypt/settings.h"
 
-#include "cmsis_os.h"                 /* CMSIS RTOS definitions             */
 #include "rl_net.h"                      /* Network definitions                */
 #include <time.h>
+
+#if defined(WOLFSSL_CMSIS_RTOS)
+    #include "cmsis_os.h"
+#elif defined(WOLFSSL_CMSIS_RTOSv2)
+    #include "cmsis_os2.h"
+#endif
 
 #if defined(STM32F7xx)
 #include "stm32f7xx_hal.h"
@@ -64,27 +69,59 @@
 
 //   <h>RTC: for validate certificate date
 //    <o>Year <1970-2099>
-#define RTC_YEAR 2018
-//    <o>Month <1=>Jan<2=>Feb<3=>Mar<4=>Apr<5=>May<6=>Jun<7=>Jul<8=>Aut<9=>Sep<10=>Oct<11=>Nov<12=>Dec
+#define RTC_YEAR 2019
+//    <o>Month <1=>Jan<2=>Feb<3=>Mar<4=>Apr<5=>May<6=>Jun<7=>Jul<8=>Aug<9=>Sep<10=>Oct<11=>Nov<12=>Dec
 #define RTC_MONTH 1
 //    <o>Day <1-31>
 #define RTC_DAY 1
 //    </h>
 
 //------------- <<< end of configuration section >>> -----------------------
+
 #warning "write MPU specific Set ups\n"
-static void SystemClock_Config (void) {
-
+static void SystemClock_Config(void)
+{
 }
 
-static void MPU_Config (void) {
-
+static void MPU_Config(void)
+{
 }
 
-static void CPU_CACHE_Enable (void) {
-
+static void CPU_CACHE_Enable(void)
+{
 }
 
+#if defined(WOLFSSL_CMSIS_RTOS)
+extern uint32_t os_time;
+#endif
+
+uint32_t HAL_GetTick(void) {
+    #if defined(WOLFSSL_CMSIS_RTOS)
+        return os_time;
+    #elif defined(WOLFSSL_CMSIS_RTOSv2)
+        return osKernelGetTickCount();
+    #endif
+}
+
+static  time_t epochTime;
+time_t time(time_t *t){
+     return epochTime ;
+}
+
+void setTime(time_t t){
+    epochTime = t;
+}
+
+double current_time(int reset)
+{
+    if (reset)
+        return 0;
+    #if defined(WOLFSSL_CMSIS_RTOS)
+        return (double)os_time / 1000.0;
+    #elif defined(WOLFSSL_CMSIS_RTOSv2)
+        return (double)osKernelGetTickCount() / 1000.0;
+    #endif
+}
 
 /*-----------------------------------------------------------------------------
  *        Initialize a Flash Memory Card
@@ -111,62 +148,21 @@ static void init_filesystem (void) {
 }
 #endif
 
+extern void client_test(void const*arg);
 
-void net_loop(void const *arg)
-{
-    while(1) {
-        net_main ();
-        osThreadYield ();
-    }
-}
-
-osThreadDef(net_loop, osPriorityLow, 2, 0);
-
-#ifdef RTE_CMSIS_RTOS_RTX
-extern uint32_t os_time;
-static  time_t epochTime;
-
-uint32_t HAL_GetTick(void) { 
-    return os_time; 
-}
-
-time_t time(time_t *t){
-     return epochTime ;
-}
-
-void setTime(time_t t){
-    epochTime = t;
-}
-#endif
-
-#ifdef WOLFSSL_CURRTIME_OSTICK
-
-#include <stdint.h>
-extern uint32_t os_time;
-
-double current_time(int reset)
-{
-    if(reset) os_time = 0 ;
-    return (double)os_time /1000.0;
-}
-
+#if defined(WOLFSSL_CMSIS_RTOSv2)
+void app_main(void *arg)
 #else
-
-#include <stdint.h>
-#define DWT                 ((DWT_Type       *)     (0xE0001000UL)     )
-typedef struct
+void app_main(void const*arg)
+#endif
 {
-  uint32_t CTRL;       /*!< Offset: 0x000 (R/W)  Control Register           */
-  uint32_t CYCCNT;     /*!< Offset: 0x004 (R/W)  Cycle Count Register       */
-} DWT_Type;
-
-extern uint32_t SystemCoreClock ;
-
-double current_time(int reset)
-{
-    if(reset) DWT->CYCCNT = 0 ;
-    return ((double)DWT->CYCCNT/SystemCoreClock) ;
+    if(netInitialize () == netOK)
+	      client_test(arg);
+		else printf("ERROR: netInitialize\n");
 }
+
+#if defined(WOLFSSL_CMSIS_RTOS)
+osThreadDef(app_main, osPriorityLow, 1, 32*1024);
 #endif
 
 /*----------------------------------------------------------------------------
@@ -178,7 +174,6 @@ typedef struct func_args {
     char** argv;
 } func_args;
 
-extern void client_test(func_args * args) ;
 
 int myoptind = 0;
 char* myoptarg = NULL;
@@ -192,17 +187,19 @@ int main (void) {
 
     char *verStr[] = { "SSL3", "TLS1.0", "TLS1.1", "TLS1.2", "TLS1.3"};
     #define VERSIZE 2
-    char ver[VERSIZE];
+    static char ver[VERSIZE];
                     
     MPU_Config();                             /* Configure the MPU              */
     CPU_CACHE_Enable();                       /* Enable the CPU Cache           */
     HAL_Init();                               /* Initialize the HAL Library     */
     SystemClock_Config();                     /* Configure the System Clock     */
-
+    #if defined(WOLFSSL_CMSIS_RTOSv2)
+    osKernelInitialize();
+    #endif
+		
     #if !defined(NO_FILESYSTEM)
     init_filesystem ();
     #endif
-    net_initialize ();
 
     #if defined(DEBUG_WOLFSSL)
         printf("Turning ON Debug message\n") ;
@@ -217,12 +214,12 @@ int main (void) {
     printf("    Other options: %s\n", OTHER_OPTIONS);   
     setTime((time_t)((RTC_YEAR-1970)*365*24*60*60) + RTC_MONTH*30*24*60*60 + RTC_DAY*24*60*60);
 
-    osThreadCreate (osThread(net_loop), NULL);
-
-    client_test(&args) ;
-
-    while(1)
-        osDelay(1000);
+    #if defined(WOLFSSL_CMSIS_RTOS)
+        osThreadCreate (osThread(app_main), (void *)&args);
+    #elif defined(WOLFSSL_CMSIS_RTOSv2)
+        osThreadNew(app_main, (void *)&args, NULL);
+    #endif
+    osKernelStart();     
 
 }
 

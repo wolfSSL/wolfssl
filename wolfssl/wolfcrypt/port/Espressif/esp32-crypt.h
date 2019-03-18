@@ -27,7 +27,7 @@
 
 #ifdef WOLFSSL_ESP32WROOM32_CRYPT_DEBUG
 #undef LOG_LOCAL_LEVEL
-#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
+#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #else
 #undef LOG_LOCAL_LEVEL
 #define LOG_LOCAL_LEVEL ESP_LOG_ERROR
@@ -117,6 +117,22 @@ int esp_sha_process(struct wc_Sha* sha);
 #endif
 
 #endif /* NO_SHA && */
+
+#if !defined(NO_RSA) || defined(HAVE_ECC)
+
+#ifndef ESP_RSA_TIMEOUT
+    #define ESP_RSA_TIMEOUT 0xFFFFF
+#endif
+
+struct fp_int;
+int esp_mp_mul(struct fp_int* X, struct fp_int* Y, struct fp_int* Z);
+int esp_mp_exptmod(struct fp_int* G, struct fp_int* X, word32 Xbits, struct fp_int* P,
+                                     struct fp_int* Y);
+int esp_mp_mulmod(struct fp_int* X, struct fp_int* Y, struct fp_int* M, 
+                                     struct fp_int* Z);
+
+#endif /* NO_RSA || HAVE_ECC*/
+
 #ifdef __cplusplus
 }
 #endif

@@ -69,11 +69,12 @@
     #elif defined(FREESCALE_KSDK_MQX)
         #include <rtcs.h>
     #elif (defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET))
-        #include "cmsis_os.h"
         #include "rl_net.h"
         #include "errno.h"
     #elif defined(WOLFSSL_CMSIS_RTOS)
         #include "cmsis_os.h"
+    #elif defined(WOLFSSL_CMSIS_RTOSv2)
+        #include "cmsis_os2.h"
     #elif defined(WOLFSSL_TIRTOS)
         #include <sys/socket.h>
     #elif defined(FREERTOS_TCP)
@@ -131,7 +132,8 @@
         #elif defined(EBSNET)
             #include "rtipapi.h"  /* errno */
             #include "socket.h"
-        #elif !defined(DEVKITPRO) && !defined(WOLFSSL_PICOTCP) && !defined(WOLFSSL_CONTIKI)
+        #elif !defined(DEVKITPRO) && !defined(WOLFSSL_PICOTCP) \
+                && !defined(WOLFSSL_CONTIKI) && !defined(WOLFSSL_WICED)
             #include <sys/socket.h>
             #include <arpa/inet.h>
             #include <netinet/in.h>
@@ -402,6 +404,9 @@ WOLFSSL_API int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     WOLFSSL_API  int wolfIO_HttpBuildRequest(const char* reqType,
         const char* domainName, const char* path, int pathLen, int reqSz,
         const char* contentType, unsigned char* buf, int bufSize);
+    WOLFSSL_LOCAL int wolfIO_HttpBuildRequest_ex(const char* reqType,
+        const char* domainName, const char* path, int pathLen, int reqSz,
+        const char* contentType, const char *exHdrs, unsigned char* buf, int bufSize);
     WOLFSSL_API  int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
         unsigned char** respBuf, unsigned char* httpBuf, int httpBufSz,
         int dynType, void* heap);

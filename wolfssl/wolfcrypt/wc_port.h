@@ -85,6 +85,8 @@
     #include "tk/tkernel.h"
 #elif defined(WOLFSSL_CMSIS_RTOS)
     #include "cmsis_os.h"
+#elif defined(WOLFSSL_CMSIS_RTOSv2)
+    #include "cmsis_os2.h"
 #elif defined(WOLFSSL_MDK_ARM)
     #if defined(WOLFSSL_MDK5)
         #include "cmsis_os.h"
@@ -181,6 +183,8 @@
         #endif
     #elif defined(WOLFSSL_CMSIS_RTOS)
         typedef osMutexId wolfSSL_Mutex;
+    #elif defined(WOLFSSL_CMSIS_RTOSv2)
+        typedef osMutexId_t wolfSSL_Mutex;
     #elif defined(WOLFSSL_TIRTOS)
         typedef ti_sysbios_knl_Semaphore_Handle wolfSSL_Mutex;
     #elif defined(WOLFSSL_FROSTED)
@@ -499,6 +503,12 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define WOLFSSL_GMTIME
     #define USE_WOLF_TM
     #define USE_WOLF_TIME_T
+
+#elif defined(WOLFSSL_WICED)
+    #include <time.h>
+    time_t wiced_pseudo_unix_epoch_time(time_t * timer);
+    #define XTIME(t1)       wiced_pseudo_unix_epoch_time((t1))
+    #define HAVE_GMTIME_R
 
 #elif defined(IDIRECT_DEV_TIME)
     /*Gets the timestamp from cloak software owned by VT iDirect

@@ -224,7 +224,11 @@
 
 /* some default configurations.
  */
-#if defined(FP_64BIT)
+#if defined(WC_16BIT_CPU)
+   typedef unsigned int    fp_digit;
+   #define SIZEOF_FP_DIGIT 2
+   typedef unsigned long   fp_word;
+#elif defined(FP_64BIT)
    /* for GCC only on supported platforms */
    typedef unsigned long long fp_digit;   /* 64bit, 128 uses mode(TI) below */
    #define SIZEOF_FP_DIGIT 8

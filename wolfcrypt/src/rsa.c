@@ -2149,9 +2149,9 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_Rsa(in, inLen, out, outLen, type, key, rng);
-        if (ret != NOT_COMPILED_IN)
+        if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
-        /* fall-through on not compiled in */
+        /* fall-through when unavailable */
         ret = 0; /* reset error code and try using software */
     }
 #endif
@@ -2499,7 +2499,7 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
                     c  = ctMaskGTE(j, start);
                     c &= ctMaskLT(i, outLen);
                     /* 0 - no add, -1 add */
-                    i += -c;
+                    i += (word32)((byte)(-c));
                 }
 #else
                 XMEMCPY(out, pad, ret);
@@ -3358,9 +3358,9 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
         int ret = wc_CryptoCb_MakeRsaKey(key, size, e, rng);
-        if (ret != NOT_COMPILED_IN)
+        if (ret != CRYPTOCB_UNAVAILABLE)
             return ret;
-        /* fall-through on not compiled in */
+        /* fall-through when unavailable */
     }
 #endif
 

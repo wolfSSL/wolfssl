@@ -1597,3 +1597,35 @@ WOLFSSL_API word32 wc_EncodeSignature(byte* out, const byte* digest,
     \sa none
 */
 WOLFSSL_API int wc_GetCTC_HashOID(int type);
+
+/*!
+    \ingroup ASN
+
+    \brief This function cleans up memory and resources used by the certificate
+     structure's decoded cert cache. When WOLFSSL_CERT_GEN_CACHE is defined the
+     decoded cert structure is cached in the certificate structure. This allows
+     subsequent calls to certificate set functions to avoid parsing the decoded
+     cert on each call.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG Returned if invalid pointer is passed in as argument.
+
+    \param cert pointer to an uninitialized certificate information structure.
+
+    _Example_
+    \code
+    Cert cert; // Initialized certificate structure
+
+    wc_SetCert_Free(&cert);
+    \endcode
+
+    \sa wc_SetAuthKeyIdFromCert
+    \sa wc_SetIssuerBuffer
+    \sa wc_SetSubjectBuffer
+    \sa wc_SetSubjectRaw
+    \sa wc_SetIssuerRaw
+    \sa wc_SetAltNamesBuffer
+    \sa wc_SetDatesBuffer
+*/
+WOLFSSL_API void wc_SetCert_Free(Cert* cert);
+

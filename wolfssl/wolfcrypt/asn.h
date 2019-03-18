@@ -861,7 +861,8 @@ struct Signer {
     word32  keyOID;                  /* key type */
     word16  keyUsage;
     byte    pathLength;
-    byte    pathLengthSet;
+    byte    pathLengthSet : 1;
+    byte    selfSigned : 1;
     const byte* publicKey;
     int     nameLen;
     char*   name;                    /* common name */
@@ -977,7 +978,7 @@ WOLFSSL_LOCAL int GetAsnTimeString(void* currTime, byte* buf, word32 len);
 WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
                                                  wolfssl_tm* certTime, int* idx);
 WOLFSSL_LOCAL int ValidateDate(const byte* date, byte format, int dateType);
-WOLFSSL_LOCAL int OBJ_sn2nid(const char *sn);
+WOLFSSL_LOCAL int wc_OBJ_sn2nid(const char *sn);
 
 /* ASN.1 helper functions */
 #ifdef WOLFSSL_CERT_GEN

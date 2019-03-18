@@ -126,23 +126,19 @@ enum wolfSSL_ErrorCodes {
     DUPLICATE_MSG_E              = -395,   /* Duplicate message error */
     SNI_UNSUPPORTED              = -396,   /* SSL 3.0 does not support SNI */
     SOCKET_PEER_CLOSED_E         = -397,   /* Underlying transport closed */
-
     BAD_TICKET_KEY_CB_SZ         = -398,   /* Bad session ticket key cb size */
     BAD_TICKET_MSG_SZ            = -399,   /* Bad session ticket msg size    */
     BAD_TICKET_ENCRYPT           = -400,   /* Bad user ticket encrypt        */
-
     DH_KEY_SIZE_E                = -401,   /* DH Key too small */
     SNI_ABSENT_ERROR             = -402,   /* No SNI request. */
     RSA_SIGN_FAULT               = -403,   /* RSA Sign fault */
     HANDSHAKE_SIZE_ERROR         = -404,   /* Handshake message too large */
-
     UNKNOWN_ALPN_PROTOCOL_NAME_E = -405,   /* Unrecognized protocol name Error*/
     BAD_CERTIFICATE_STATUS_ERROR = -406,   /* Bad certificate status message */
     OCSP_INVALID_STATUS          = -407,   /* Invalid OCSP Status */
     OCSP_WANT_READ               = -408,   /* OCSP callback response WOLFSSL_CBIO_ERR_WANT_READ */
     RSA_KEY_SIZE_E               = -409,   /* RSA key too small */
     ECC_KEY_SIZE_E               = -410,   /* ECC key too small */
-
     DTLS_EXPORT_VER_E            = -411,   /* export version error */
     INPUT_SIZE_E                 = -412,   /* input size too big error */
     CTX_INIT_MUTEX_E             = -413,   /* initialize ctx mutex error */
@@ -164,6 +160,9 @@ enum wolfSSL_ErrorCodes {
     UNSUPPORTED_EXTENSION        = -429,   /* TLSX not requested by client */
     PRF_MISSING                  = -430,   /* PRF not compiled in */
     DTLS_RETX_OVER_TX            = -431,   /* Retransmit DTLS flight over */
+    DH_PARAMS_NOT_FFDHE_E        = -432,   /* DH params from server not FFDHE */
+    TCA_INVALID_ID_TYPE          = -433,   /* TLSX TCA ID type invalid */
+    TCA_ABSENT_ERROR             = -434,   /* TLSX TCA ID no response */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */
