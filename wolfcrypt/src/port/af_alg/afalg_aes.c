@@ -664,17 +664,25 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return ret;
     }
 
-    /* first 16 bytes was all 0's */
-    iov[0].iov_base = scratch;
-    iov[0].iov_len  = authInSz;
+    {
+        byte* tmp = (byte*)XMALLOC(authInSz, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmp == NULL) {
+            return MEMORY_E;
+        }
+        /* first 16 bytes was all 0's */
+        iov[0].iov_base = tmp;
+        (void)scratch;
+        iov[0].iov_len  = authInSz;
 
-    iov[1].iov_base = out;
-    iov[1].iov_len  = sz;
+        iov[1].iov_base = out;
+        iov[1].iov_len  = sz;
 
-    iov[2].iov_base = authTag;
-    iov[2].iov_len  = authTagSz;
+        iov[2].iov_base = authTag;
+        iov[2].iov_len  = authTagSz;
 
-    ret = (int)readv(aes->rdFd, iov, 3);
+        ret = (int)readv(aes->rdFd, iov, 3);
+        XFREE(tmp, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
     if (ret < 0) {
         return ret;
     }
@@ -852,14 +860,22 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return ret;
     }
 
-    iov[0].iov_base = scratch;
-    iov[0].iov_len  = authInSz;
-    iov[1].iov_base = out;
-    iov[1].iov_len  = sz;
-    ret = (int)readv(aes->rdFd, iov, 2);
+    {
+        byte* tmp = (byte*)XMALLOC(authInSz, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmp == NULL) {
+            return MEMORY_E;
+        }
+        iov[0].iov_base = tmp;
+        iov[0].iov_len  = authInSz;
+        iov[1].iov_base = out;
+        iov[1].iov_len  = sz;
+        ret = (int)readv(aes->rdFd, iov, 2);
+        XFREE(tmp, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
     if (ret < 0) {
         return AES_GCM_AUTH_E;
     }
+    (void)scratch;
 #endif
 
     return 0;

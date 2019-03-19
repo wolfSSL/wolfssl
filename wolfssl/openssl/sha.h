@@ -40,6 +40,9 @@
 typedef struct WOLFSSL_SHA_CTX {
     /* big enough to hold wolfcrypt Sha, but check on init */
     void* holder[(112 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
+    #ifdef WOLF_CRYPTO_CB
+    void* cryptocb_holder[(sizeof(int) + sizeof(void*) + 4) / sizeof(void*)];
+    #endif
 } WOLFSSL_SHA_CTX;
 
 WOLFSSL_API int wolfSSL_SHA_Init(WOLFSSL_SHA_CTX*);

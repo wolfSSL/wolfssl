@@ -3182,7 +3182,7 @@ typedef struct Options {
     wc_psk_server_tls13_callback server_psk_tls13_cb;  /* server callback */
 #endif
 #endif /* NO_PSK */
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     unsigned long     mask; /* store SSL_OP_ flags */
 #endif
 

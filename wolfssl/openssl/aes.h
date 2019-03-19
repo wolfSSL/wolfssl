@@ -56,6 +56,9 @@ typedef struct WOLFSSL_AES_KEY {
     #ifdef WOLFSSL_AFALG
     void* afalg_holder[288 / sizeof(void*)];
     #endif
+    #ifdef HAVE_PKCS11
+    void* pkcs11_holder[(AES_MAX_ID_LEN + sizeof(int)) / sizeof(void*)];
+    #endif
 } WOLFSSL_AES_KEY;
 typedef WOLFSSL_AES_KEY AES_KEY;
 

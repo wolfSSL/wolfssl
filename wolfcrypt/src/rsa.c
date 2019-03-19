@@ -1839,7 +1839,8 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                 int cleara = 0, clearb = 0;
 
             #ifdef WOLFSSL_SMALL_STACK
-                tmpa = XMALLOC(sizeof(mp_int) * 2, key->heap, DYNAMIC_TYPE_RSA);
+                tmpa = (mp_int*)XMALLOC(sizeof(mp_int) * 2,
+                        key->heap, DYNAMIC_TYPE_RSA);
                 if (tmpa != NULL)
                     tmpb = tmpa + 1;
                 else
