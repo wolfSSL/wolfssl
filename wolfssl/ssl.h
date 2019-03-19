@@ -1205,6 +1205,7 @@ enum {
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
 /* seperated out from other enums because of size */
 enum {
+#ifndef WOLFSSL_QT
     SSL_OP_MICROSOFT_SESS_ID_BUG                  = 0x00000001,
     SSL_OP_NETSCAPE_CHALLENGE_BUG                 = 0x00000002,
     SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG       = 0x00000004,
@@ -1232,8 +1233,47 @@ enum {
     SSL_OP_SINGLE_ECDH_USE                        = 0x01000000,
     SSL_OP_CIPHER_SERVER_PREFERENCE               = 0x02000000,
     SSL_OP_NO_TLSv1_1                             = 0x04000000,
-    SSL_OP_NO_TLSv1_2                             = 0x08000000,
     SSL_OP_NO_COMPRESSION                         = 0x10000000,
+#else
+     /* These could possibly be changed to default for simplicity.
+     * Helps fix Qt tests. Qt might not be relying on just the SSL_OP*
+     * value provided by wolfSSL or openSSL. They could be using a hard-coded
+     * Changes for::
+     * Qt qsslsocket test: void tst_QSslSocket::sslOptions()
+    */
+    /* Options removed starting from OpenSSL 1.1.0 */
+    SSL_OP_MICROSOFT_SESS_ID_BUG                  = 0x00000000,
+    SSL_OP_NETSCAPE_CHALLENGE_BUG                 = 0x00000000,
+    SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG       = 0x00000000,
+    SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG            = 0x00000000,
+    SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER             = 0x00000000,
+    SSL_OP_MSIE_SSLV2_RSA_PADDING                 = 0x00000000,
+    SSL_OP_SSLEAY_080_CLIENT_DH_BUG               = 0x00000000,
+    SSL_OP_TLS_D5_BUG                             = 0x00000000,
+    SSL_OP_TLS_BLOCK_PADDING_BUG                  = 0x00000000,
+    SSL_OP_EPHEMERAL_RSA                          = 0x00000000,
+    SSL_OP_PKCS1_CHECK_2                          = 0x00000000,
+    SSL_OP_PKCS1_CHECK_1                          = 0x00000000,
+    SSL_OP_NETSCAPE_CA_DN_BUG                     = 0x00000000,
+    SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG        = 0x00000000,
+    SSL_OP_SINGLE_DH_USE                          = 0x00000000,
+    /* end removed options */
+    SSL_OP_TLS_ROLLBACK_BUG                       = 0x00800000,
+    SSL_OP_ALL                                    = 0x80000000,
+    SSL_OP_NO_SSLv2                               = 0x0,
+    SSL_OP_NO_SSLv3                               = 0x02000000,
+    SSL_OP_NO_TLSv1                               = 0x04000000,
+    SSL_OP_NO_TICKET                              = 0x00004000,
+    SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS            = 0x00000800,
+    SSL_OP_NO_QUERY_MTU                           = 0x00001000,
+    SSL_OP_COOKIE_EXCHANGE                        = 0x00002000,
+    SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION = 0x00010000,
+    SSL_OP_SINGLE_ECDH_USE                        = 0x00000000,
+    SSL_OP_CIPHER_SERVER_PREFERENCE               = 0x00400000,
+    SSL_OP_NO_TLSv1_1                             = 0x10000000,
+    SSL_OP_NO_COMPRESSION                         = 0x00020000,
+#endif
+    SSL_OP_NO_TLSv1_2                             = 0x08000000,
     SSL_OP_NO_TLSv1_3                             = 0x20000000,
 };
 
@@ -1416,7 +1456,10 @@ WOLFSSL_API void wolfSSL_ERR_dump_errors_fp(XFILE fp);
     #define SSL_SENT_SHUTDOWN WOLFSSL_SENT_SHUTDOWN
     #define SSL_RECEIVED_SHUTDOWN WOLFSSL_RECEIVED_SHUTDOWN
     #define SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER WOLFSSL_MODE_ACCEPT_MOVING_WRITE_BUFFER
+
+    #ifndef WOLFSSL_QT
     #define SSL_OP_NO_SSLv2 WOLFSSL_OP_NO_SSLv2
+    #endif
 
     #define SSL_R_SSL_HANDSHAKE_FAILURE WOLFSSL_R_SSL_HANDSHAKE_FAILURE
     #define SSL_R_TLSV1_ALERT_UNKNOWN_CA WOLFSSL_R_TLSV1_ALERT_UNKNOWN_CA
