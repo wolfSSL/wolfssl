@@ -16696,18 +16696,18 @@ const char* GetCipherMacStr(const char n0[],const char n1[],const char n2[],
 
     if ((XSTRNCMP(n4,"SHA256",6) == 0) || (XSTRNCMP(n3,"SHA256",6) == 0) ||
         (XSTRNCMP(n2,"SHA256",6) == 0) || (XSTRNCMP(n1,"SHA256",6) == 0))
-        macStr = "SHA256\n";
+        macStr = "SHA256";
     else if ((XSTRNCMP(n4,"SHA384",6) == 0) || (XSTRNCMP(n3,"SHA384",6) == 0)
         ||  (XSTRNCMP(n2,"SHA384",6) == 0)  || (XSTRNCMP(n1,"SHA384",6) == 0))
-        macStr = "SHA384\n";
+        macStr = "SHA384";
     else if ((XSTRNCMP(n4,"SHA",3) == 0) || (XSTRNCMP(n3,"SHA",3) == 0)
         || (XSTRNCMP(n2,"SHA",3) == 0)   || (XSTRNCMP(n1,"SHA",3) == 0)
         || (XSTRNCMP(n1,"MD5",3) == 0))
-        macStr = "SHA1\n";
+        macStr = "SHA1";
     else if (XSTRNCMP(n3,"GCM",3) == 0)
-        macStr = "AEAD\n";
+        macStr = "AEAD";
     else
-        macStr = "unknown\n";
+        macStr = "unknown";
 
     return macStr;
 }
