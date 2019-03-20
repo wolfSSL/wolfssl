@@ -1,4 +1,4 @@
-# wolfSSL Release 4.0.0 (03/15/2019)
+# wolfSSL Release 4.0.0 (03/20/2019)
 
 Release 4.0.0 of wolfSSL embedded TLS has bug fixes and new features including:
 
