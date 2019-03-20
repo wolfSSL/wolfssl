@@ -16632,7 +16632,11 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
         name[(length == sizeof(name)) ? length - 1 : length] = 0;
 
         for (i = 0; i < suiteSz; i++) {
-            if (XSTRNCMP(name, cipher_names[i].name, sizeof(name)) == 0) {
+            if (XSTRNCMP(name, cipher_names[i].name, sizeof(name)) == 0
+            #ifndef NO_ERROR_STRINGS
+                || XSTRNCMP(name, cipher_names[i].name_iana, sizeof(name)) == 0
+            #endif
+             ) {
             #ifdef WOLFSSL_DTLS
                 /* don't allow stream ciphers with DTLS */
                 if (ctx->method->version.major == DTLS_MAJOR) {

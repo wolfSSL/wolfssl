@@ -720,6 +720,39 @@ int wolfSSL_get_ciphers(char* buf, int len)
     return WOLFSSL_SUCCESS;
 }
 
+
+/* places a list of all supported cipher suites in TLS_* format into "buf"
+ * return WOLFSSL_SUCCESS on success */
+int wolfSSL_get_ciphers_iana(char* buf, int len)
+{
+    const CipherSuiteInfo* ciphers = GetCipherNames();
+    int ciphersSz = GetCipherNamesSize();
+    int i;
+    int cipherNameSz;
+
+    if (buf == NULL || len <= 0)
+        return BAD_FUNC_ARG;
+
+    /* Add each member to the buffer delimited by a : */
+    for (i = 0; i < ciphersSz; i++) {
+        cipherNameSz = (int)XSTRLEN(ciphers[i].name_iana);
+        if (cipherNameSz + 1 < len) {
+            XSTRNCPY(buf, ciphers[i].name_iana, len);
+            buf += cipherNameSz;
+
+            if (i < ciphersSz - 1)
+                *buf++ = ':';
+            *buf = 0;
+
+            len -= cipherNameSz + 1;
+        }
+        else
+            return BUFFER_E;
+    }
+    return WOLFSSL_SUCCESS;
+}
+
+
 const char* wolfSSL_get_shared_ciphers(WOLFSSL* ssl, char* buf, int len)
 {
     const char* cipher;

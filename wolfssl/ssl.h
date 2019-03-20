@@ -579,6 +579,7 @@ WOLFSSL_API int  wolfSSL_set_read_fd (WOLFSSL*, int);
 WOLFSSL_API char* wolfSSL_get_cipher_list(int priority);
 WOLFSSL_API char* wolfSSL_get_cipher_list_ex(WOLFSSL* ssl, int priority);
 WOLFSSL_API int  wolfSSL_get_ciphers(char*, int);
+WOLFSSL_API int wolfSSL_get_ciphers_iana(char*, int);
 WOLFSSL_API const char* wolfSSL_get_cipher_name(WOLFSSL* ssl);
 WOLFSSL_API const char* wolfSSL_get_cipher_name_from_suite(const unsigned char,
     const unsigned char);
