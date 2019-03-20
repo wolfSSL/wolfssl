@@ -249,12 +249,12 @@
         /* prototypes for user heap override functions */
         #include <stddef.h>  /* for size_t */
         #include <stdlib.h>
-        extern void *xmalloc(size_t n, void* heap, int type, const char* func,
-              const char* file, unsigned int line);
-        extern void *xrealloc(void *p, size_t n, void* heap, int type,
-              const char* func, const char* file, unsigned int line);
-        extern void xfree(void *p, void* heap, int type, const char* func,
-              const char* file, unsigned int line);
+        WOLFSSL_API void *xmalloc(size_t n, void* heap, int type,
+                const char* func, const char* file, unsigned int line);
+        WOLFSSL_API void *xrealloc(void *p, size_t n, void* heap, int type,
+                const char* func, const char* file, unsigned int line);
+        WOLFSSL_API void xfree(void *p, void* heap, int type, const char* func,
+                const char* file, unsigned int line);
     #elif defined(XMALLOC_OVERRIDE)
         /* override the XMALLOC, XFREE and XREALLOC macros */
     #elif defined(NO_WOLFSSL_MEMORY)

@@ -4357,14 +4357,17 @@ else
 fi
 
 
+# cryptodev is old name, replaced with cryptocb
+AC_ARG_ENABLE([cryptodev],
+    [AS_HELP_STRING([--enable-cryptodev],[DEPRECATED, use cryptocb instead])],
+    [ ENABLED_CRYPTOCB=$enableval ],[ ENABLED_CRYPTOCB=no ])
+
 # Support for crypto callbacks
 AC_ARG_ENABLE([cryptocb],
     [AS_HELP_STRING([--enable-cryptocb],[Enable crypto callbacks (default: disabled)])],
     [ ENABLED_CRYPTOCB=$enableval ],
     [ ENABLED_CRYPTOCB=no ]
     )
-# cryptodev is old name, replaced with cryptocb
-AC_ARG_ENABLE([cryptodev],,[ ENABLED_CRYPTOCB=$enableval ],[ ENABLED_CRYPTOCB=no ])
 
 if test "x$ENABLED_PKCS11" = "xyes"
 then
@@ -4996,7 +4999,8 @@ echo "   * Intel Quick Assist:         $ENABLED_INTEL_QA"
 echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
 echo "   * Inline Code:                $ENABLED_INLINE"
 echo "   * Linux AF_ALG:               $ENABLED_AFALG"
-echo "   * Linux cryptodev:            $ENABLED_DEVCRYPTO"
+echo "   * Linux devcrypto:            $ENABLED_DEVCRYPTO"
+echo "   * Crypto callback:            $ENABLED_CRYPTOCB"
 echo ""
 echo "---"
 

@@ -10168,12 +10168,12 @@ static int SetEd25519PublicKey(byte* output, ed25519_key* key, int with_header)
         return MEMORY_E;
 #endif
 
-    int ret = wc_ed25519_export_public(key, pub, &pubSz);
-    if (ret != 0) {
+    idx = wc_ed25519_export_public(key, pub, &pubSz);
+    if (idx != 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-        return ret;
+        return idx;
     }
 
     /* headers */
