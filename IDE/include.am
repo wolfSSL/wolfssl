@@ -21,5 +21,6 @@ include IDE/ECLIPSE/MICRIUM/include.am
 include IDE/mynewt/include.am
 include IDE/Renesas/cs+/Projects/include.am
 include IDE/Renesas/e2studio/Projects/include.am
+include IDE/WICED-STUDIO/include.am
 
 EXTRA_DIST+= IDE/IAR-EWARM IDE/MDK-ARM IDE/MDK5-ARM IDE/MYSQL IDE/LPCXPRESSO IDE/HEXIWEAR IDE/Espressif IDE/zephyr
