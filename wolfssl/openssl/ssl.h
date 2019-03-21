@@ -733,6 +733,7 @@ enum {
 #include <wolfssl/openssl/pem.h>
 
 typedef STACK_OF(GENERAL_NAME) GENERAL_NAMES;
+typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_CTRL_CHAIN       88
 #define ERR_LIB_SSL          20
 #define SSL_R_SHORT_READ     10
