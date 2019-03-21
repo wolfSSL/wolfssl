@@ -16576,10 +16576,14 @@ const char* GetCipherProtocol(const byte cipherSuite0, const byte cipherSuite)
      }
     return protocol;
 }
-const char* GetCipherKeaStr(const char n0[],const char n1[],const char n2[],
-                            const char n3[],const char n4[]) {
-
+const char* GetCipherKeaStr(const char n[][MAX_SEGMENT_SZ]) {
     const char* keaStr = NULL;
+    const char *n0,*n1,*n2,*n3,*n4;
+    n0 = n[0];
+    n1 = n[1];
+    n2 = n[2];
+    n3 = n[3];
+    n4 = n[4];
 
     if ((XSTRNCMP(n0,"ECDHE",5) == 0 && XSTRNCMP(n1, "PSK",3) != 0)
         || XSTRNCMP(n0,"ECDH",4) == 0)
@@ -16610,12 +16614,13 @@ const char* GetCipherKeaStr(const char n0[],const char n1[],const char n2[],
     return keaStr;
 }
 
-const char* GetCipherAuthStr(const char n0[],const char n1[],const char n2[],
-                             const char n3[],const char n4[]) {
+const char* GetCipherAuthStr(const char n[][MAX_SEGMENT_SZ]) {
 
     const char* authStr = NULL;
-    (void)n3;
-    (void)n4;
+    const char *n0,*n1,*n2;
+    n0 = n[0];
+    n1 = n[1];
+    n2 = n[2];
 
     if ((XSTRNCMP(n0,"AES128",6) == 0) || (XSTRNCMP(n0,"AES256",6) == 0)
             || (XSTRNCMP(n0,"RSA",3) == 0) || (XSTRNCMP(n1,"RSA",3) == 0)
@@ -16633,11 +16638,13 @@ const char* GetCipherAuthStr(const char n0[],const char n1[],const char n2[],
 
     return authStr;
 }
-const char* GetCipherEncStr(const char n0[],const char n1[],const char n2[],
-                            const char n3[],const char n4[]) {
-
+const char* GetCipherEncStr(const char n[][MAX_SEGMENT_SZ]) {
     const char* encStr = NULL;
-    (void)n4;
+    const char *n0,*n1,*n2,*n3;
+    n0 = n[0];
+    n1 = n[1];
+    n2 = n[2];
+    n3 = n[3];
 
     if ((XSTRNCMP(n0,"AES256",6) == 0 && XSTRNCMP(n1,"GCM",3) == 0)
             || (XSTRNCMP(n1,"AES256",6) == 0 && XSTRNCMP(n2,"GCM",3) == 0)
@@ -16660,10 +16667,10 @@ const char* GetCipherEncStr(const char n0[],const char n1[],const char n2[],
         encStr = "AES(256)";
 
     else if ((XSTRNCMP(n0,"CAMELLIA256",11) == 0) ||
-            (XSTRNCMP(n2,"CAMELLIA256",11) == 0))
+             (XSTRNCMP(n2,"CAMELLIA256",11) == 0))
         encStr = "CAMELLIA(256)";
     else if ((XSTRNCMP(n0,"CAMELLIA128",11) == 0) ||
-            (XSTRNCMP(n2,"CAMELLIA128",11) == 0))
+             (XSTRNCMP(n2,"CAMELLIA128",11) == 0))
         encStr = "CAMELLIA(128)";
     else if ((XSTRNCMP(n0,"RC4",3) == 0) || (XSTRNCMP(n2,"RC4",3) == 0))
         encStr = "RC4";
@@ -16688,11 +16695,14 @@ const char* GetCipherEncStr(const char n0[],const char n1[],const char n2[],
 }
 
 
-const char* GetCipherMacStr(const char n0[],const char n1[],const char n2[],
-                            const char n3[],const char n4[]) {
+const char* GetCipherMacStr(const char n[][MAX_SEGMENT_SZ]) {
 
     const char* macStr = NULL;
-    (void)n0;
+    const char *n1,*n2,*n3,*n4;
+    n1 = n[1];
+    n2 = n[2];
+    n3 = n[3];
+    n4 = n[4];
 
     if ((XSTRNCMP(n4,"SHA256",6) == 0) || (XSTRNCMP(n3,"SHA256",6) == 0) ||
         (XSTRNCMP(n2,"SHA256",6) == 0) || (XSTRNCMP(n1,"SHA256",6) == 0))
@@ -16711,7 +16721,6 @@ const char* GetCipherMacStr(const char n0[],const char n1[],const char n2[],
 
     return macStr;
 }
-
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
 
 const char* GetCipherNameIana(const byte cipherSuite0, const byte cipherSuite)

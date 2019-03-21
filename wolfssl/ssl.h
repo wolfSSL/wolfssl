@@ -885,6 +885,7 @@ WOLFSSL_API WOLFSSL_CIPHER*  wolfSSL_get_current_cipher(WOLFSSL*);
 WOLFSSL_API char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER*, char*, int);
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
 /* used in wolfSSL_CIPHER_description_all */
+#define MAX_SEGMENTS    5
 #define MAX_SEGMENT_SZ 20
 #endif
 WOLFSSL_API char* wolfSSL_CIPHER_description_all(const WOLFSSL_CIPHER*, char*, int);

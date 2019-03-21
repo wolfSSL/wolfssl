@@ -4266,16 +4266,14 @@ typedef struct CipherSuiteInfo {
 WOLFSSL_LOCAL const CipherSuiteInfo* GetCipherNames(void);
 WOLFSSL_LOCAL int GetCipherNamesSize(void);
 WOLFSSL_LOCAL const char* GetCipherNameInternal(const byte cipherSuite0, const byte cipherSuite);
-WOLFSSL_LOCAL const char* GetCipherProtocol(const byte cipherSuite0, const byte cipherSuite);
 
-WOLFSSL_LOCAL const char* GetCipherKeaStr(const char n0[],const char n1[],
-                                          const char n2[],const char n3[],const char n4[]);
-WOLFSSL_LOCAL const char* GetCipherAuthStr(const char n0[],const char n1[],
-                                          const char n2[],const char n3[],const char n4[]);
-WOLFSSL_LOCAL const char* GetCipherEncStr(const char n0[],const char n1[],
-                                          const char n2[],const char n3[],const char n4[]);
-WOLFSSL_LOCAL const char* GetCipherMacStr(const char n0[],const char n1[],
-                                          const char n2[],const char n3[],const char n4[]);
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+WOLFSSL_LOCAL const char* GetCipherProtocol(const byte cipherSuite0, const byte cipherSuite);
+WOLFSSL_LOCAL const char* GetCipherKeaStr(const char n[][MAX_SEGMENT_SZ]);
+WOLFSSL_LOCAL const char* GetCipherAuthStr(const char n[][MAX_SEGMENT_SZ]);
+WOLFSSL_LOCAL const char* GetCipherEncStr(const char n[][MAX_SEGMENT_SZ]);
+WOLFSSL_LOCAL const char* GetCipherMacStr(const char n[][MAX_SEGMENT_SZ]);
+#endif
 WOLFSSL_LOCAL const char* GetCipherNameIana(const byte cipherSuite0, const byte cipherSuite);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_iana(WOLFSSL* ssl);

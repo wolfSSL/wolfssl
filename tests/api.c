@@ -22137,6 +22137,7 @@ static void test_wolfSSL_CIPHER_description_all(void)
             }
         }
         /* Fail if test_str == bad_str == "unknown" */
+        /* TODO: add more explicit check for kx, auth, mac ,enc and protocol */
         AssertStrNE(test_str,bad_str);
     }
     wolfSSL_sk_ASN1_OBJECT_free(supportedCiphers);

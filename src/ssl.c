@@ -19129,11 +19129,11 @@ char* wolfSSL_CIPHER_description_all(const WOLFSSL_CIPHER* cipher, char* in,
     char *ret = in;
     const char* name;
     const char *keaStr, *authStr, *encStr, *macStr, *protocol;
-    char n0[MAX_SEGMENT_SZ], n1[MAX_SEGMENT_SZ], n2[MAX_SEGMENT_SZ],
-         n3[MAX_SEGMENT_SZ], n4[MAX_SEGMENT_SZ];
+    char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {0};
     byte cipherSuite0, cipherSuite;
-    int nCnt, i;
-    unsigned long offset, strLen;
+    int i,j,k;
+    int strLen;
+    unsigned long offset;
 
     WOLFSSL_ENTER("wolfSSL_CIPHER_description");
 
@@ -19151,68 +19151,35 @@ char* wolfSSL_CIPHER_description_all(const WOLFSSL_CIPHER* cipher, char* in,
     if (name == NULL)
         return NULL;
 
-    /* Segment cipher name into n0,n1,n2,n4
+    /* Segment cipher name into n[n0,n1,n2,n4]
      * These are used later for comparisons to create:
      * keaStr, authStr, encStr, macStr
      *
      * If cipher_name = ECDHE-ECDSA-AES256-SHA
-     * then n0 = ECDHE, n1 = ECDSA, n2 = AES256, n3 = SHA
-     * Not all cipher names will be populated up to n4, such as above example
+     * then n0 = "ECDHE", n1 = "ECDSA", n2 = "AES256", n3 = "SHA"
+     * and n = [n0,n1,n2,n3,0]
      */
-    nCnt = 0;
-    strLen = 0;
-    offset = 0;
+    strLen = (int)XSTRLEN(name);
 
-    XMEMSET(n0, 0, MAX_SEGMENT_SZ);
-    XMEMSET(n1, 0, MAX_SEGMENT_SZ);
-    XMEMSET(n2, 0, MAX_SEGMENT_SZ);
-    XMEMSET(n3, 0, MAX_SEGMENT_SZ);
-    XMEMSET(n4, 0, MAX_SEGMENT_SZ);
-
-    for (i = 0; i < (int)XSTRLEN(name); i++) {
-
-        if (name[i] == '-' || i == (int)XSTRLEN(name)-1) {
-
-            if (i == (int)XSTRLEN(name)-1)
-                strLen++;
-
-            switch (nCnt) {
-                case 0 :
-                    XSTRNCPY(n0, name, strLen);
-                    break;
-                case 1 :
-                    XSTRNCPY(n1, name+offset, strLen);
-                    break;
-                case 2 :
-                    XSTRNCPY(n2, name+offset, strLen);
-                    break;
-                case 3 :
-                    XSTRNCPY(n3, name+offset, strLen);
-                    break;
-                case 4 :
-                    XSTRNCPY(n4, name+offset, strLen);
-                    break;
-            }
-            offset += strLen+1;
-            strLen = 0;
-            nCnt++;
+    for(i=0,j=0,k=0; i < strLen; i++) {
+        if(name[i] != '-' && k < MAX_SEGMENTS && j < MAX_SEGMENT_SZ) {
+            n[k][j] = name[i]; /* Fill kth segment string until '-' */
+            j++;
         }
-        else {
-            strLen++;
+        else if(k < MAX_SEGMENTS && j < MAX_SEGMENT_SZ) {
+            n[k][j] = '\0';
+            j = 0;
+            k++;
         }
     }
-
     /* keaStr */
-    keaStr = GetCipherKeaStr(n0,n1,n2,n3,n4);
-
+    keaStr = GetCipherKeaStr(n);
     /* authStr */
-    authStr = GetCipherAuthStr(n0,n1,n2,n3,n4);
-
+    authStr = GetCipherAuthStr(n);
     /* encStr */
-    encStr = GetCipherEncStr(n0,n1,n2,n3,n4);
-
+    encStr = GetCipherEncStr(n);
     /* macStr */
-    macStr = GetCipherMacStr(n0,n1,n2,n3,n4);
+    macStr = GetCipherMacStr(n);
 
 
     /* Build up the string by copying onto the end. */
