@@ -1,6 +1,6 @@
 /* client.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -44,7 +44,8 @@
 
 #ifdef USE_FAST_MATH
     /* included to inspect the size of FP_MAX_BITS */
-    #include <wolfssl/wolfcrypt/tfm.h>
+    /* need integer.h header to make sure right math version used */
+    #include <wolfssl/wolfcrypt/integer.h>
 #endif
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>

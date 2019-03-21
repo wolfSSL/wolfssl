@@ -1,6 +1,6 @@
 /* asn.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -10168,12 +10168,12 @@ static int SetEd25519PublicKey(byte* output, ed25519_key* key, int with_header)
         return MEMORY_E;
 #endif
 
-    int ret = wc_ed25519_export_public(key, pub, &pubSz);
-    if (ret != 0) {
+    idx = wc_ed25519_export_public(key, pub, &pubSz);
+    if (idx != 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-        return ret;
+        return idx;
     }
 
     /* headers */
@@ -12574,7 +12574,7 @@ int wc_SetAuthKeyIdFromCert(Cert *cert, const byte *der, int derSz)
         }
 
         if (ret >= 0) {
-            ret = SetAuthKeyIdFromDcert(cert, cert->decodedCert);
+            ret = SetAuthKeyIdFromDcert(cert, (DecodedCert*)cert->decodedCert);
 #ifndef WOLFSSL_CERT_GEN_CACHE
             wc_SetCert_Free(cert);
 #endif
@@ -13127,7 +13127,7 @@ int wc_SetIssuerBuffer(Cert* cert, const byte* der, int derSz)
         }
 
         if (ret >= 0) {
-            SetNameFromDcert(&cert->issuer, cert->decodedCert);
+            SetNameFromDcert(&cert->issuer, (DecodedCert*)cert->decodedCert);
 #ifndef WOLFSSL_CERT_GEN_CACHE
             wc_SetCert_Free(cert);
 #endif
@@ -13153,7 +13153,7 @@ int wc_SetSubjectBuffer(Cert* cert, const byte* der, int derSz)
         }
 
         if (ret >= 0) {
-            SetNameFromDcert(&cert->subject, cert->decodedCert);
+            SetNameFromDcert(&cert->subject, (DecodedCert*)cert->decodedCert);
 #ifndef WOLFSSL_CERT_GEN_CACHE
             wc_SetCert_Free(cert);
 #endif
@@ -13245,7 +13245,7 @@ int wc_SetAltNamesBuffer(Cert* cert, const byte* der, int derSz)
         }
 
         if (ret >= 0) {
-            ret = SetAltNamesFromDcert(cert, cert->decodedCert);
+            ret = SetAltNamesFromDcert(cert, (DecodedCert*)cert->decodedCert);
 #ifndef WOLFSSL_CERT_GEN_CACHE
             wc_SetCert_Free(cert);
 #endif
@@ -13271,7 +13271,7 @@ int wc_SetDatesBuffer(Cert* cert, const byte* der, int derSz)
         }
 
         if (ret >= 0) {
-            ret = SetDatesFromDcert(cert, cert->decodedCert);
+            ret = SetDatesFromDcert(cert, (DecodedCert*)cert->decodedCert);
 #ifndef WOLFSSL_CERT_GEN_CACHE
             wc_SetCert_Free(cert);
 #endif

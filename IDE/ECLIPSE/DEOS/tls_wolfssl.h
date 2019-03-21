@@ -1,6 +1,6 @@
 /* tls_wolfssl.h
  *
- * Copyright (C) 2018 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *

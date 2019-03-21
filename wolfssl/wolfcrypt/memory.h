@@ -1,6 +1,6 @@
 /* memory.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -196,6 +196,13 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb*,
     WOLFSSL_API int wolfSSL_StaticBufferSz(byte* buffer, word32 sz, int flag);
     WOLFSSL_API int wolfSSL_MemoryPaddingSz(void);
 #endif /* WOLFSSL_STATIC_MEMORY */
+
+#ifdef WOLFSSL_STACK_LOG
+    WOLFSSL_API void __attribute__((no_instrument_function))
+            __cyg_profile_func_enter(void *func,  void *caller);
+    WOLFSSL_API void __attribute__((no_instrument_function))
+            __cyg_profile_func_exit(void *func, void *caller);
+#endif /* WOLFSSL_STACK_LOG */
 
 #ifdef __cplusplus
     }  /* extern "C" */

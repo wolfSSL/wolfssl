@@ -1,6 +1,6 @@
 /* chacha.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -17,13 +17,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
- *
+ */
+
+/*
  *  based from
  *  chacha-ref.c version 20080118
  *  D. J. Bernstein
  *  Public domain.
  */
-
 
 
 #ifdef HAVE_CONFIG_H

@@ -5,9 +5,9 @@
 # This file is part of wolfSSL. (formerly known as CyaSSL)
 #
 #
-AC_COPYRIGHT([Copyright (C) 2006-2018 wolfSSL Inc.])
+AC_COPYRIGHT([Copyright (C) 2006-2019 wolfSSL Inc.])
 AC_PREREQ([2.63])
-AC_INIT([wolfssl],[3.15.7],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
+AC_INIT([wolfssl],[4.0.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
 
 # The following sets CFLAGS and CXXFLAGS to empty if unset on command line.
@@ -34,7 +34,7 @@ LT_PREREQ([2.2])
 LT_INIT([disable-static win32-dll])
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=20:0:1
+WOLFSSL_LIBRARY_VERSION=21:0:2
 #                        | | |
 #                 +------+ | +---+
 #                 |        |     |
@@ -4357,14 +4357,17 @@ else
 fi
 
 
+# cryptodev is old name, replaced with cryptocb
+AC_ARG_ENABLE([cryptodev],
+    [AS_HELP_STRING([--enable-cryptodev],[DEPRECATED, use cryptocb instead])],
+    [ ENABLED_CRYPTOCB=$enableval ],[ ENABLED_CRYPTOCB=no ])
+
 # Support for crypto callbacks
 AC_ARG_ENABLE([cryptocb],
     [AS_HELP_STRING([--enable-cryptocb],[Enable crypto callbacks (default: disabled)])],
     [ ENABLED_CRYPTOCB=$enableval ],
     [ ENABLED_CRYPTOCB=no ]
     )
-# cryptodev is old name, replaced with cryptocb
-AC_ARG_ENABLE([cryptodev],,[ ENABLED_CRYPTOCB=$enableval ],[ ENABLED_CRYPTOCB=no ])
 
 if test "x$ENABLED_PKCS11" = "xyes"
 then
@@ -4996,7 +4999,8 @@ echo "   * Intel Quick Assist:         $ENABLED_INTEL_QA"
 echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
 echo "   * Inline Code:                $ENABLED_INLINE"
 echo "   * Linux AF_ALG:               $ENABLED_AFALG"
-echo "   * Linux cryptodev:            $ENABLED_DEVCRYPTO"
+echo "   * Linux devcrypto:            $ENABLED_DEVCRYPTO"
+echo "   * Crypto callback:            $ENABLED_CRYPTOCB"
 echo ""
 echo "---"
 
