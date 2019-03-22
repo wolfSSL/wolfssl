@@ -37,8 +37,7 @@
     extern "C" {
 #endif
 
-typedef struct WOLFSSL_BIGNUM
-{
+typedef struct WOLFSSL_BIGNUM {
     int neg;        /* openssh deference */
     void *internal; /* our big num */
 #if defined(USE_FAST_MATH) && !defined(HAVE_WOLF_BIGINT)
