@@ -100,7 +100,6 @@
     #endif
 #endif
 
-
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -413,6 +412,11 @@ enum AlertLevel {
     alert_warning = 1,
     alert_fatal   = 2
 };
+
+#if defined(HAVE_OCSP)
+#include "wolfssl/ocsp.h"
+#include "wolfssl/wolfcrypt/asn.h"
+#endif
 
 /* Maximum master key length (SECRET_LEN) */
 #define WOLFSSL_MAX_MASTER_KEY_LENGTH 48
@@ -2113,6 +2117,11 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
 #ifdef HAVE_CRL_IO
     WOLFSSL_API int wolfSSL_CertManagerSetCRL_IOCb(WOLFSSL_CERT_MANAGER*,
                                                                        CbCrlIO);
+#endif
+#if defined(HAVE_OCSP)
+    WOLFSSL_API int wolfSSL_CertManagerCheckOCSPResponse(WOLFSSL_CERT_MANAGER *,
+        byte *response, int responseSz, WOLFSSL_BUFFER_INFO *responseBuffer,
+        CertStatus *status, OcspEntry *entry, OcspRequest *ocspRequest);
 #endif
     WOLFSSL_API int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER*,
                                                         unsigned char*, int sz);

@@ -54,16 +54,16 @@ WOLFSSL_LOCAL int  CheckCertOCSP_ex(WOLFSSL_OCSP*, DecodedCert*,
                              WOLFSSL_BUFFER_INFO* responseBuffer, WOLFSSL* ssl);
 WOLFSSL_LOCAL int  CheckOcspRequest(WOLFSSL_OCSP* ocsp,
                  OcspRequest* ocspRequest, WOLFSSL_BUFFER_INFO* responseBuffer);
-WOLFSSL_API int wolfSSL_CertManagerCheckOCSP_Staple(WOLFSSL_CERT_MANAGER *,
-                byte *response, int responseSz, WOLFSSL_BUFFER_INFO *responseBuffer,
-                CertStatus *status, OcspEntry *entry, OcspRequest *ocspRequest);
+WOLFSSL_LOCAL int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
+                                    WOLFSSL_BUFFER_INFO *responseBuffer, CertStatus *status,
+                                    OcspEntry *entry, OcspRequest *ocspRequest);
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 
-WOLFSSL_API int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
-    WOLFSSL_OCSP_CERTID* id, int* status, int* reason,
-    WOLFSSL_ASN1_TIME** revtime, WOLFSSL_ASN1_TIME** thisupd,
-    WOLFSSL_ASN1_TIME** nextupd);
+    WOLFSSL_API int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
+                                                  WOLFSSL_OCSP_CERTID *id, int *status, int *reason,
+                                                  WOLFSSL_ASN1_TIME **revtime, WOLFSSL_ASN1_TIME **thisupd,
+                                                  WOLFSSL_ASN1_TIME **nextupd);
 WOLFSSL_API const char *wolfSSL_OCSP_cert_status_str(long s);
 WOLFSSL_API int wolfSSL_OCSP_check_validity(WOLFSSL_ASN1_TIME* thisupd,
     WOLFSSL_ASN1_TIME* nextupd, long sec, long maxsec);
