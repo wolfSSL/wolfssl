@@ -413,11 +413,6 @@ enum AlertLevel {
     alert_fatal   = 2
 };
 
-#if defined(HAVE_OCSP)
-#include "wolfssl/ocsp.h"
-#include "wolfssl/wolfcrypt/asn.h"
-#endif
-
 /* Maximum master key length (SECRET_LEN) */
 #define WOLFSSL_MAX_MASTER_KEY_LENGTH 48
 /* Maximum number of groups that can be set */
@@ -773,6 +768,11 @@ WOLFSSL_API const char* wolfSSL_ERR_reason_error_string(unsigned long);
 #endif
 #ifndef DECLARE_STACK_OF
     #define DECLARE_STACK_OF(x) WOLF_STACK_OF(x);
+#endif
+
+#if defined(HAVE_OCSP)
+#include "wolfssl/ocsp.h"
+#include "wolfssl/wolfcrypt/asn.h"
 #endif
 
 WOLFSSL_API int wolfSSL_sk_X509_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
