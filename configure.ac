@@ -3860,7 +3860,7 @@ AC_ARG_WITH([intelqa],
             -I$QAT_DIR/quickassist/utilities/libusdm_drv"
 
         LDFLAGS="$LDFLAGS -L$QAT_DIR/build -Wl,-Map=output.map"
-        LIBS="$LIBS -lqat_s"
+        LIBS="$LIBS -lqat_s -lusdm_drv_s"
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "cpa_cy_common.h"]], [[ Cpa16U count = 0; cpaCyGetNumInstances(&count); ]])],
             [ intelqa_linked=yes ],[ intelqa_linked=no ])
@@ -3884,7 +3884,7 @@ AC_ARG_WITH([intelqa],
         if test "x$BUILD_INTEL_QAT_VERSION" == "x1" ; then
             LIB_ADD="-ladf_proxy -losal -lrt $LIB_ADD"
         else
-            LIB_ADD="-lusdm_drv_s -losal -lrt $LIB_ADD"
+            LIB_ADD="-losal -lrt $LIB_ADD"
         fi
 
         ENABLED_INTEL_QA=yes
