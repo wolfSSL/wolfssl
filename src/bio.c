@@ -1,6 +1,6 @@
 /* bio.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -557,7 +557,7 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
     switch (bio->type) {
 #ifndef NO_FILESYSTEM
         case WOLFSSL_BIO_FILE:
-            if (bio->file == NULL) {
+            if (bio->file == XBADFILE) {
                 return WOLFSSL_BIO_ERROR;
             }
 
@@ -733,7 +733,7 @@ size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
     if (bio->type == WOLFSSL_BIO_BIO && bio->pair != NULL) {
         WOLFSSL_BIO* pair = bio->pair;
         if (pair->wrIdx > 0 && pair->wrIdx <= pair->rdIdx) {
-            /* in wrap around state where begining of buffer is being
+            /* in wrap around state where beginning of buffer is being
              * overwritten */
             return pair->wrSz - pair->rdIdx + pair->wrIdx;
         }
@@ -1068,7 +1068,7 @@ long wolfSSL_BIO_set_fp(WOLFSSL_BIO *bio, XFILE fp, int c)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_set_fp");
 
-    if (bio == NULL || fp == NULL) {
+    if (bio == NULL || fp == XBADFILE) {
         WOLFSSL_LEAVE("wolfSSL_BIO_set_fp", BAD_FUNC_ARG);
         return WOLFSSL_FAILURE;
     }
@@ -1088,7 +1088,7 @@ long wolfSSL_BIO_get_fp(WOLFSSL_BIO *bio, XFILE* fp)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_get_fp");
 
-    if (bio == NULL || fp == NULL) {
+    if (bio == NULL || fp == XBADFILE) {
         return WOLFSSL_FAILURE;
     }
 
@@ -1111,12 +1111,12 @@ int wolfSSL_BIO_write_filename(WOLFSSL_BIO *bio, char *name)
     }
 
     if (bio->type == WOLFSSL_BIO_FILE) {
-        if (bio->file != NULL && bio->close == BIO_CLOSE) {
+        if (bio->file != XBADFILE && bio->close == BIO_CLOSE) {
             XFCLOSE(bio->file);
         }
 
         bio->file = XFOPEN(name, "w");
-        if (bio->file == NULL) {
+        if (bio->file == XBADFILE) {
             return WOLFSSL_FAILURE;
         }
         bio->close = BIO_CLOSE;
@@ -1136,7 +1136,7 @@ int wolfSSL_BIO_seek(WOLFSSL_BIO *bio, int ofs)
           return -1;
       }
 
-      /* offset ofs from begining of file */
+      /* offset ofs from beginning of file */
       if (bio->type == WOLFSSL_BIO_FILE &&
               XFSEEK(bio->file, ofs, SEEK_SET) < 0) {
           return -1;

@@ -1,6 +1,6 @@
 /* sniffer.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -245,7 +245,8 @@ static const char* const msgTable[] =
 
     /* 81 */
     "Bad Decrypt Size",
-    "Extended Master Secret Hash Error"
+    "Extended Master Secret Hash Error",
+    "Handshake Message Split Across TLS Records"
 };
 
 
@@ -1016,6 +1017,23 @@ static void TraceRemovedSession(void)
 }
 
 
+/* Show SSLInfo if provided and is valid. */
+static void TraceSessionInfo(SSLInfo* sslInfo)
+{
+    if (TraceOn) {
+        if (sslInfo != NULL && sslInfo->isValid) {
+            fprintf(TraceFile,
+                    "\tver:(%u %u) suiteId:(%02x %02x) suiteName:(%s)\n",
+                    sslInfo->protocolVersionMajor,
+                    sslInfo->protocolVersionMinor,
+                    sslInfo->serverCipherSuite0,
+                    sslInfo->serverCipherSuite,
+                    sslInfo->serverCipherSuiteName);
+        }
+    }
+}
+
+
 /* Set user error string */
 static void SetError(int idx, char* error, SnifferSession* session, int fatal)
 {
@@ -1166,7 +1184,7 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
 
     file = XFOPEN(keyFile, "rb");
     if (file == XBADFILE) return -1;
-    XFSEEK(file, 0, XSEEK_END);
+    if(XFSEEK(file, 0, XSEEK_END) != 0) return -1;
     fileSz = XFTELL(file);
     XREWIND(file);
 
@@ -2060,8 +2078,9 @@ static int DoHandShake(const byte* input, int* sslBytes,
     startBytes = *sslBytes;
 
     if (*sslBytes < size) {
-        SetError(HANDSHAKE_INPUT_STR, error, session, FATAL_ERROR_STATE);
-        return -1;
+        Trace(SPLIT_HANDSHAKE_MSG_STR);
+        *sslBytes = 0;
+        return ret;
     }
 
     /* A session's arrays are released when the handshake is completed. */
@@ -3423,9 +3442,11 @@ doPart:
 
 
 /* See if we need to process any pending FIN captures */
-static void CheckFinCapture(IpInfo* ipInfo, TcpInfo* tcpInfo,
+/* Return 0=normal, else = session removed */
+static int CheckFinCapture(IpInfo* ipInfo, TcpInfo* tcpInfo,
                             SnifferSession* session)
 {
+    int ret = 0;
     if (session->finCaputre.cliFinSeq && session->finCaputre.cliFinSeq <=
                                          session->cliExpected) {
         if (session->finCaputre.cliCounted == 0) {
@@ -3444,8 +3465,11 @@ static void CheckFinCapture(IpInfo* ipInfo, TcpInfo* tcpInfo,
         }
     }
 
-    if (session->flags.finCount >= 2)
+    if (session->flags.finCount >= 2) {
         RemoveSession(session, ipInfo, tcpInfo, 0);
+        ret = 1;
+    }
+    return ret;
 }
 
 
@@ -3463,9 +3487,42 @@ static int RemoveFatalSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
 }
 
 
+/* Copies the session's infomation to the provided sslInfo. Skip copy if
+ * SSLInfo is not provided. */
+static void CopySessionInfo(SnifferSession* session, SSLInfo* sslInfo)
+{
+    if (NULL != sslInfo) {
+        XMEMSET(sslInfo, 0, sizeof(SSLInfo));
+
+        /* Pass back Session Info after we have processed the Server Hello. */
+        if (0 != session->sslServer->options.cipherSuite) {
+            const char* pCipher;
+
+            sslInfo->isValid = 1;
+            sslInfo->protocolVersionMajor = session->sslServer->version.major;
+            sslInfo->protocolVersionMinor = session->sslServer->version.minor;
+            sslInfo->serverCipherSuite0 =
+                        session->sslServer->options.cipherSuite0;
+            sslInfo->serverCipherSuite =
+                        session->sslServer->options.cipherSuite;
+
+            pCipher = wolfSSL_get_cipher(session->sslServer);
+            if (NULL != pCipher) {
+                XSTRNCPY((char*)sslInfo->serverCipherSuiteName, pCipher,
+                         sizeof(sslInfo->serverCipherSuiteName));
+                sslInfo->serverCipherSuiteName
+                         [sizeof(sslInfo->serverCipherSuiteName) - 1] = '\0';
+            }
+            TraceSessionInfo(sslInfo);
+        }
+    }
+}
+
+
 /* Passes in an IP/TCP packet for decoding (ethernet/localhost frame) removed */
 /* returns Number of bytes on success, 0 for no data yet, and -1 on error */
-int ssl_DecodePacket(const byte* packet, int length, byte** data, char* error)
+static int ssl_DecodePacketInternal(const byte* packet, int length,
+                                    byte** data, SSLInfo* sslInfo, char* error)
 {
     TcpInfo           tcpInfo;
     IpInfo            ipInfo;
@@ -3497,8 +3554,29 @@ int ssl_DecodePacket(const byte* packet, int length, byte** data, char* error)
 
     ret = ProcessMessage(sslFrame, session, sslBytes, data, end, error);
     if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
-    CheckFinCapture(&ipInfo, &tcpInfo, session);
+    if (CheckFinCapture(&ipInfo, &tcpInfo, session) == 0) {
+        CopySessionInfo(session, sslInfo);
+    }
+
     return ret;
+}
+
+
+/* Passes in an IP/TCP packet for decoding (ethernet/localhost frame) removed */
+/* returns Number of bytes on success, 0 for no data yet, and -1 on error */
+/* Also returns Session Info if available */
+int ssl_DecodePacketWithSessionInfo(const unsigned char* packet, int length,
+    unsigned char** data, SSLInfo* sslInfo, char* error)
+{
+    return ssl_DecodePacketInternal(packet, length, data, sslInfo, error);
+}
+
+
+/* Passes in an IP/TCP packet for decoding (ethernet/localhost frame) removed */
+/* returns Number of bytes on success, 0 for no data yet, and -1 on error */
+int ssl_DecodePacket(const byte* packet, int length, byte** data, char* error)
+{
+    return ssl_DecodePacketInternal(packet, length, data, NULL, error);
 }
 
 

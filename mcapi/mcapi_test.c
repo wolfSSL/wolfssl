@@ -1,6 +1,6 @@
 /* mcapi_test.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -404,7 +404,7 @@ static int check_hmac(void)
     byte           mcDigest[CRYPT_SHA512_DIGEST_SIZE];
     byte           defDigest[WC_SHA512_DIGEST_SIZE];
 
-    strncpy((char*)key, "Jefe", 4);
+    memcpy((char*)key, "Jefe", 4);
 
     /* SHA1 */
     CRYPT_HMAC_SetKey(&mcHmac, CRYPT_HMAC_SHA, key, 4);
@@ -684,8 +684,8 @@ static int check_des3(void)
     byte           out1[TDES_TEST_SIZE];
     byte           out2[TDES_TEST_SIZE];
 
-    strncpy((char*)key, "1234567890abcdefghijklmn", 24);
-    strncpy((char*)iv,  "12345678", 8);
+    memcpy((char*)key, "1234567890abcdefghijklmn", 24);
+    memcpy((char*)iv,  "12345678", 8);
 
     /* cbc encrypt */
     ret = CRYPT_TDES_KeySet(&mcDes3, key, iv, CRYPT_TDES_ENCRYPTION);
@@ -765,8 +765,8 @@ static int check_aescbc(void)
     byte          out1[AES_TEST_SIZE];
     byte          out2[AES_TEST_SIZE];
 
-    strncpy((char*)key, "1234567890abcdefghijklmnopqrstuv", 32);
-    strncpy((char*)iv,  "1234567890abcdef", 16);
+    memcpy((char*)key, "1234567890abcdefghijklmnopqrstuv", 32);
+    memcpy((char*)iv,  "1234567890abcdef", 16);
 
     /* 128 cbc encrypt */
     ret = CRYPT_AES_KeySet(&mcAes, key, 16, iv, CRYPT_AES_ENCRYPTION);
@@ -942,8 +942,8 @@ static int check_aesctr(void)
     byte          out1[AES_TEST_SIZE];
     byte          out2[AES_TEST_SIZE];
 
-    strncpy((char*)key, "1234567890abcdefghijklmnopqrstuv", 32);
-    strncpy((char*)iv,  "1234567890abcdef", 16);
+    memcpy((char*)key, "1234567890abcdefghijklmnopqrstuv", 32);
+    memcpy((char*)iv,  "1234567890abcdef", 16);
 
     /* 128 ctr encrypt */
     ret = CRYPT_AES_KeySet(&mcAes, key, 16, iv, CRYPT_AES_ENCRYPTION);
@@ -1110,8 +1110,8 @@ static int check_aesdirect(void)
     byte          out1[CRYPT_AES_BLOCK_SIZE];
     byte          out2[16];  /* one block at a time */
 
-    strncpy((char*)key, "1234567890abcdefghijklmnopqrstuv", 32);
-    strncpy((char*)iv,  "1234567890abcdef", 16);
+    memcpy((char*)key, "1234567890abcdefghijklmnopqrstuv", 32);
+    memcpy((char*)iv,  "1234567890abcdef", 16);
 
     /* 128 direct encrypt */
     ret = CRYPT_AES_KeySet(&mcAes, key, 16, iv, CRYPT_AES_ENCRYPTION);

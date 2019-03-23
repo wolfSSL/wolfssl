@@ -1,6 +1,6 @@
 /* armv8-sha256.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -135,7 +135,7 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
             "LD1 {v24.4s-v27.4s}, [%[k]], #64    \n"
             "LD1 {v28.4s-v31.4s}, [%[k]], #64    \n"
 
-            /* begining of SHA256 block operation */
+            /* beginning of SHA256 block operation */
             "1:\n"
             /* Round 1 */
             "MOV v4.16b, v0.16b        \n"
@@ -694,7 +694,7 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
             "VMOV.32 q14, q12 \n" /* store digest for add at the end */
             "VMOV.32 q15, q13 \n"
 
-            /* begining of SHA256 block operation */
+            /* beginning of SHA256 block operation */
             "1:\n"
 
             /* Round 1 */
@@ -916,7 +916,7 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
         "VMOV.32 q14, q12 \n" /* store digest for add at the end */
         "VMOV.32 q15, q13 \n"
 
-        /* begining of SHA256 block operation */
+        /* beginning of SHA256 block operation */
         /* Round 1 */
         "VLD1.32 {q5}, [%[k]]!    \n"
         "VMOV.32 q4, q0           \n"
@@ -1116,7 +1116,7 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
         "VMOV.32 q14, q12 \n" /* store digest for add at the end */
         "VMOV.32 q15, q13 \n"
 
-        /* begining of SHA256 block operation */
+        /* beginning of SHA256 block operation */
         /* Round 1 */
         "VLD1.32 {q5}, [%[k]]!    \n"
         "VMOV.32 q4, q0           \n"

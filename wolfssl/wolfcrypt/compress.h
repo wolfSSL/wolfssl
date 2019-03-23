@@ -1,6 +1,6 @@
 /* compress.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -38,10 +38,15 @@
 
 #define COMPRESS_FIXED 1
 
+#define LIBZ_WINBITS_GZIP 16
+
 
 WOLFSSL_API int wc_Compress(byte*, word32, const byte*, word32, word32);
+WOLFSSL_API int wc_Compress_ex(byte* out, word32 outSz, const byte* in,
+    word32 inSz, word32 flags, word32 windowBits);
 WOLFSSL_API int wc_DeCompress(byte*, word32, const byte*, word32);
-
+WOLFSSL_API int wc_DeCompress_ex(byte* out, word32 outSz, const byte* in,
+    word32 inSz, int windowBits);
 
 #ifdef __cplusplus
     } /* extern "C" */

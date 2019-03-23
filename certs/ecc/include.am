@@ -4,5 +4,5 @@
 
 EXTRA_DIST += \
 	     certs/ecc/genecc.sh \
-	     certs/ecc/wolfssl.cnf
-
+	     certs/ecc/wolfssl.cnf \
+	     certs/ecc/wolfssl_384.cnf

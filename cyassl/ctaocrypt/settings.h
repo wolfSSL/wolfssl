@@ -1,6 +1,6 @@
 /* settings.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -184,7 +184,7 @@
 #ifdef MBED
     #define CYASSL_USER_IO
     #define NO_FILESYSTEM
-    #define NO_CERT
+    #define NO_CERTS
     #define USE_CERT_BUFFERS_1024
     #define NO_WRITEV
     #define NO_DEV_RANDOM

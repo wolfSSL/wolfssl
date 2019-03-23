@@ -1,6 +1,6 @@
 /* wolfssl_dummy.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -18,8 +18,17 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
- 
-typedef unsigned long time_t;
+
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
+#include <wolfssl/wolfcrypt/settings.h>
+
+#include <wolfssl/ssl.h>
+#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <stdio.h>
 
 #define YEAR 2018
 #define MON  5
@@ -34,8 +43,20 @@ time_t time(time_t *t)
 #include <ctype.h>
 int strncasecmp(const char *s1, const char * s2, unsigned int sz)
 {
-    for( ; sz>0; sz--)
-        if(toupper(s1++) != toupper(s2++))
-	    return 1;
+    for( ; sz>0; sz--, s1++, s2++){
+            if(toupper(*s1) < toupper(*s2)){
+            return -1;
+        }
+        if(toupper(*s1) > toupper(*s2)){
+            return 1;
+        }
+    }
     return 0;	
 }
+    
+void abort(void) 
+{
+    while(1);
+}
+
+

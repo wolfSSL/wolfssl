@@ -1,6 +1,6 @@
 /* main.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -44,7 +44,7 @@
     #define _DISABLE_OPENADC10_CONFIGPORT_WARNING
     #include <plib.h>
     #include <sys/appio.h>
-    #define init_serial()  /* void out init_serial() */
+    #define init_serial(x)  /* void out init_serial() */
     #define SYS_CLK 80000000
 #endif
 

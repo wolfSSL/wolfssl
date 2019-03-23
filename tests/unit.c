@@ -1,6 +1,6 @@
 /* unit.c API unit tests driver
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -82,7 +82,7 @@ int unit_test(int argc, char** argv)
 
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 #ifndef SINGLE_THREADED
-    if ( (ret = SuiteTest()) != 0){
+    if ( (ret = SuiteTest(argc, argv)) != 0){
         printf("suite test failed with %d\n", ret);
         goto exit;
     }

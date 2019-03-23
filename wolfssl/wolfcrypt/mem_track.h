@@ -1,6 +1,6 @@
 /* mem_track.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -104,7 +104,7 @@
     typedef struct memoryList {
         memHint* head;
         memHint* tail;
-        uint32_t count;
+        word32   count;
     } memoryList;
 #endif
 

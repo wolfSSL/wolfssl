@@ -1,6 +1,6 @@
 /* hash.c has unit tests
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -535,7 +535,7 @@ int sha512_test(void)
 #endif
 
 #ifdef WOLFSSL_SHA384
-int sha384_test()
+int sha384_test(void)
 {
     wc_Sha384 sha;
     byte      hash[WC_SHA384_DIGEST_SIZE];

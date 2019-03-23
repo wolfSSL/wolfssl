@@ -1,6 +1,6 @@
 /* misc.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -97,7 +97,9 @@ WOLFSSL_LOCAL byte ctMaskGTE(int a, int b);
 WOLFSSL_LOCAL byte ctMaskLT(int a, int b);
 WOLFSSL_LOCAL byte ctMaskLTE(int a, int b);
 WOLFSSL_LOCAL byte ctMaskEq(int a, int b);
+WOLFSSL_LOCAL byte ctMaskNotEq(int a, int b);
 WOLFSSL_LOCAL byte ctMaskSel(byte m, byte a, byte b);
+WOLFSSL_LOCAL int  ctMaskSelInt(byte m, int a, int b);
 WOLFSSL_LOCAL byte ctSetLTE(int a, int b);
 
 #endif /* NO_INLINE */

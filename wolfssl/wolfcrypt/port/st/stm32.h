@@ -1,6 +1,6 @@
 /* stm32.h
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -87,6 +87,12 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
 #ifdef STM32_CRYPTO
 
 #ifndef NO_AES
+    #if !defined(STM32_CRYPTO_AES_GCM) && (defined(WOLFSSL_STM32F4) || \
+            defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L4))
+        /* Hardware supports AES GCM acceleration */
+        #define STM32_CRYPTO_AES_GCM
+    #endif
+
     #ifdef WOLFSSL_STM32L4
         #define STM32_CRYPTO_AES_ONLY /* crypto engine only supports AES */
         #define CRYP AES

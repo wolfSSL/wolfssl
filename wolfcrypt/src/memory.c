@@ -1,6 +1,6 @@
 /* memory.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -53,12 +53,29 @@ Possible memory options:
  * WOLFSSL_HEAP_TEST:               Used for internal testing of heap hint
  */
 
+#ifdef WOLFSSL_ZEPHYR
+#undef realloc
+void *z_realloc(void *ptr, size_t size)
+{
+    if (ptr == NULL)
+        ptr = malloc(size);
+    else
+        ptr = realloc(ptr, size);
+
+    return ptr;
+}
+#define realloc z_realloc
+#endif
 
 #ifdef USE_WOLFSSL_MEMORY
 
 #include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
+
+#if defined(WOLFSSL_DEBUG_MEMORY) && defined(WOLFSSL_DEBUG_MEMORY_PRINT)
+#include <stdio.h>
+#endif
 
 #ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
     static int gMemFailCountSeed;
@@ -127,7 +144,7 @@ void* wolfSSL_Malloc(size_t size)
     }
 
 #ifdef WOLFSSL_DEBUG_MEMORY
-#ifdef WOLFSSL_DEBUG_MEMORY_PRINT
+#if defined(WOLFSSL_DEBUG_MEMORY_PRINT) && !defined(WOLFSSL_TRACK_MEMORY)
     printf("Alloc: %p -> %u at %s:%d\n", res, (word32)size, func, line);
 #else
     (void)func;
@@ -168,7 +185,7 @@ void wolfSSL_Free(void *ptr)
 #endif
 {
 #ifdef WOLFSSL_DEBUG_MEMORY
-#ifdef WOLFSSL_DEBUG_MEMORY_PRINT
+#if defined(WOLFSSL_DEBUG_MEMORY_PRINT) && !defined(WOLFSSL_TRACK_MEMORY)
     printf("Free: %p at %s:%d\n", ptr, func, line);
 #else
     (void)func;
@@ -652,6 +669,12 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
                             mem->ava[i] = pt->next;
                             break;
                         }
+                    #ifdef WOLFSSL_DEBUG_STATIC_MEMORY
+                        else {
+                            printf("Size: %ld, Empty: %d\n", size,
+                                                              mem->sizeList[i]);
+                        }
+                    #endif
                     }
                 }
             }
@@ -847,6 +870,14 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
         WOLFSSL_HEAP*      mem  = hint->memory;
         word32 padSz = -(int)sizeof(wc_Memory) & (WOLFSSL_STATIC_ALIGN - 1);
 
+        if (ptr == NULL) {
+        #ifdef WOLFSSL_DEBUG_MEMORY
+            return wolfSSL_Malloc(size, heap, type, func, line);
+        #else
+            return wolfSSL_Malloc(size, heap, type);
+        #endif
+        }
+
         if (wc_LockMutex(&(mem->memory_mutex)) != 0) {
             WOLFSSL_MSG("Bad memory_mutex lock");
             return NULL;
@@ -1008,7 +1039,7 @@ void *xmalloc(size_t n, void* heap, int type, const char* func,
     else
         p32 = malloc(n + sizeof(word32) * 4);
 
-    p32[0] = n;
+    p32[0] = (word32)n;
     p = (void*)(p32 + 4);
 
     fprintf(stderr, "Alloc: %p -> %u (%d) at %s:%s:%d\n", p, (word32)n, type,
@@ -1038,7 +1069,7 @@ void *xrealloc(void *p, size_t n, void* heap, int type, const char* func,
         p32 = realloc(oldp32, n + sizeof(word32) * 4);
 
     if (p32 != NULL) {
-        p32[0] = n;
+        p32[0] = (word32)n;
         newp = (void*)(p32 + 4);
 
         fprintf(stderr, "Alloc: %p -> %u (%d) at %s:%s:%d\n", newp, (word32)n,

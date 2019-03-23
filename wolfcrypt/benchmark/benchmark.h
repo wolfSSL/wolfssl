@@ -1,6 +1,6 @@
 /* wolfcrypt/benchmark/benchmark.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -76,7 +76,9 @@ void bench_hmac_sha256(int);
 void bench_hmac_sha384(int);
 void bench_hmac_sha512(int);
 void bench_rsaKeyGen(int);
+void bench_rsaKeyGen_size(int, int);
 void bench_rsa(int);
+void bench_rsa_key(int, int);
 void bench_dh(int);
 void bench_eccMakeKey(int);
 void bench_ecc(int);

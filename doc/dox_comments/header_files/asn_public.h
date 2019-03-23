@@ -560,6 +560,72 @@ WOLFSSL_API int  wc_SetIssuerBuffer(Cert*, const byte*, int);
 /*!
     \ingroup ASN
 
+    \brief This function sets the raw issuer for a certificate from the
+    issuer in the provided der buffer. This method is used to set the raw
+    issuer field prior to signing.
+
+    \return 0 Returned on successfully setting the issuer for the certificate
+    \return MEMORY_E Returned if there is an error allocating memory
+    with XMALLOC
+    \return ASN_PARSE_E Returned if there is an error parsing the cert
+    header file
+    \return ASN_OBJECT_ID_E Returned if there is an error parsing the
+    encryption type from the cert
+    \return ASN_EXPECT_0_E Returned if there is a formatting error in the
+    encryption specification of the cert file
+    \return ASN_BEFORE_DATE_E Returned if the date is before the certificate
+    start date
+    \return ASN_AFTER_DATE_E Returned if the date is after the certificate
+    expiration date
+    \return ASN_BITSTR_E Returned if there is an error parsing a bit string
+    from the certificate
+    \return ASN_NTRU_KEY_E Returned if there is an error parsing the NTRU key
+    from the certificate
+    \return ECC_CURVE_OID_E Returned if there is an error parsing the ECC key
+    from the certificate
+    \return ASN_UNKNOWN_OID_E Returned if the certificate is using an unknown
+    key object id
+    \return ASN_VERSION_E Returned if the ALLOW_V1_EXTENSIONS option is not
+    defined and the certificate is a V1 or V2 certificate
+    \return BAD_FUNC_ARG Returned if there is an error processing the
+    certificate extension
+    \return ASN_CRIT_EXT_E Returned if an unfamiliar critical extension is
+    encountered in processing the certificate
+    \return ASN_SIG_OID_E Returned if the signature encryption type is not
+    the same as the encryption type of the certificate in the provided file
+    \return ASN_SIG_CONFIRM_E Returned if confirming the certification
+    signature fails
+    \return ASN_NAME_INVALID_E Returned if the certificate’s name is not
+    permitted by the CA name constraints
+    \return ASN_NO_SIGNER_E Returned if there is no CA signer to verify the
+    certificate’s authenticity
+
+    \param cert pointer to the cert for which to set the raw issuer
+    \param der pointer to the buffer containing the der formatted certificate
+    from which to grab the subject
+    \param derSz size of the buffer containing the der formatted certificate
+    from which to grab the subject
+
+    _Example_
+    \code
+    Cert myCert;
+    // initialize myCert
+    byte* der;
+    der = (byte*)malloc(FOURK_BUF);
+    // initialize der
+    if(wc_SetIssuerRaw(&myCert, der, FOURK_BUF) != 0) {
+        // error setting subject
+    }
+    \endcode
+
+    \sa wc_InitCert
+    \sa wc_SetIssuer
+*/
+WOLFSSL_API int  wc_SetIssuerRaw(Cert* cert, const byte* der, int derSz);
+
+/*!
+    \ingroup ASN
+
     \brief This function sets the subject for a certificate from the subject in
     the provided der buffer. This method is used to set fields prior to signing.
 
@@ -1531,3 +1597,35 @@ WOLFSSL_API word32 wc_EncodeSignature(byte* out, const byte* digest,
     \sa none
 */
 WOLFSSL_API int wc_GetCTC_HashOID(int type);
+
+/*!
+    \ingroup ASN
+
+    \brief This function cleans up memory and resources used by the certificate
+     structure's decoded cert cache. When WOLFSSL_CERT_GEN_CACHE is defined the
+     decoded cert structure is cached in the certificate structure. This allows
+     subsequent calls to certificate set functions to avoid parsing the decoded
+     cert on each call.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG Returned if invalid pointer is passed in as argument.
+
+    \param cert pointer to an uninitialized certificate information structure.
+
+    _Example_
+    \code
+    Cert cert; // Initialized certificate structure
+
+    wc_SetCert_Free(&cert);
+    \endcode
+
+    \sa wc_SetAuthKeyIdFromCert
+    \sa wc_SetIssuerBuffer
+    \sa wc_SetSubjectBuffer
+    \sa wc_SetSubjectRaw
+    \sa wc_SetIssuerRaw
+    \sa wc_SetAltNamesBuffer
+    \sa wc_SetDatesBuffer
+*/
+WOLFSSL_API void wc_SetCert_Free(Cert* cert);
+

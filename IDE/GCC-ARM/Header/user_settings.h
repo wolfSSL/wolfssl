@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -48,9 +48,6 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 /* Math Configuration */
 /* ------------------------------------------------------------------------- */
-#undef  USE_FAST_MATH
-#define USE_FAST_MATH
-
 #undef  SIZEOF_LONG_LONG
 #define SIZEOF_LONG_LONG 8
 
@@ -69,14 +66,15 @@ extern "C" {
 #undef WOLFSSL_SP
 #if 0
     #define WOLFSSL_SP
-    #define WOLFSSL_SP_SMALL
+    #define WOLFSSL_SP_SMALL      /* use smaller version of code */
     #define WOLFSSL_HAVE_SP_RSA
     #define WOLFSSL_HAVE_SP_DH
     #define WOLFSSL_HAVE_SP_ECC
     #define WOLFSSL_SP_CACHE_RESISTANT
-    //#define WOLFSSL_SP_MATH
+    //#define WOLFSSL_SP_MATH     /* only SP math - eliminates fast math code */
 
     /* 64 or 32 bit version */
+    //#define WOLFSSL_SP_ASM      /* required if using the ASM versions */
     //#define WOLFSSL_SP_ARM32_ASM
     //#define WOLFSSL_SP_ARM64_ASM
 #endif

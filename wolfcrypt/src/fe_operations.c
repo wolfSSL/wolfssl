@@ -1,6 +1,6 @@
 /* fe_operations.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -120,7 +120,7 @@ void fe_0(fe h)
      (defined(HAVE_ED25519) && !defined(ED25519_SMALL))) && \
     !defined(FREESCALE_LTC_ECC)
 /* to be Complementary to fe_low_mem.c */
-void fe_init()
+void fe_init(void)
 {
 }
 #endif

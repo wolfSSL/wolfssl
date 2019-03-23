@@ -1,6 +1,6 @@
 /* hash.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -61,6 +61,26 @@
 #if !defined(HAVE_FIPS) && !defined(NO_OLD_WC_NAMES)
     #define MAX_DIGEST_SIZE WC_MAX_DIGEST_SIZE
 #endif
+
+
+/* Supported Message Authentication Codes from page 43 */
+enum wc_MACAlgorithm {
+    no_mac,
+    md5_mac,
+    sha_mac,
+    sha224_mac,
+    sha256_mac,     /* needs to match external KDF_MacAlgorithm */
+    sha384_mac,
+    sha512_mac,
+    rmd_mac,
+    blake2b_mac
+};
+
+enum wc_HashFlags {
+    WC_HASH_FLAG_NONE =     0x00000000,
+    WC_HASH_FLAG_WILLCOPY = 0x00000001, /* flag to indicate hash will be copied */
+    WC_HASH_FLAG_ISCOPY =   0x00000002, /* hash is copy */
+};
 
 
 typedef union {
@@ -136,6 +156,13 @@ WOLFSSL_API int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type,
     byte* out);
 WOLFSSL_API int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type);
 
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    WOLFSSL_LOCAL int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type,
+        word32 flags);
+    WOLFSSL_LOCAL int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type,
+        word32* flags);
+#endif
+
 #ifndef NO_MD5
 #include <wolfssl/wolfcrypt/md5.h>
 WOLFSSL_API int wc_Md5Hash(const byte* data, word32 len, byte* hash);
@@ -165,6 +192,31 @@ WOLFSSL_API int wc_Sha384Hash(const byte*, word32, byte*);
 #include <wolfssl/wolfcrypt/sha512.h>
 WOLFSSL_API int wc_Sha512Hash(const byte*, word32, byte*);
 #endif /* WOLFSSL_SHA512 */
+
+enum max_prf {
+#ifdef HAVE_FFDHE_8192
+    MAX_PRF_HALF        = 516, /* Maximum half secret len */
+#elif defined(HAVE_FFDHE_6144)
+    MAX_PRF_HALF        = 388, /* Maximum half secret len */
+#else
+    MAX_PRF_HALF        = 260, /* Maximum half secret len */
+#endif
+    MAX_PRF_LABSEED     = 128, /* Maximum label + seed len */
+    MAX_PRF_DIG         = 224  /* Maximum digest len      */
+};
+
+#ifdef WOLFSSL_HAVE_PRF
+WOLFSSL_API int wc_PRF(byte* result, word32 resLen, const byte* secret,
+                    word32 secLen, const byte* seed, word32 seedLen, int hash,
+                    void* heap, int devId);
+WOLFSSL_API int wc_PRF_TLSv1(byte* digest, word32 digLen, const byte* secret,
+                    word32 secLen, const byte* label, word32 labLen,
+                    const byte* seed, word32 seedLen, void* heap, int devId);
+WOLFSSL_API int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret,
+                    word32 secLen, const byte* label, word32 labLen,
+                    const byte* seed, word32 seedLen, int useAtLeastSha256,
+                    int hash_type, void* heap, int devId);
+#endif /* WOLFSSL_HAVE_PRF */
 
 #ifdef __cplusplus
     } /* extern "C" */

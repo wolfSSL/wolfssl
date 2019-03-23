@@ -1,6 +1,6 @@
 /* main.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -28,8 +28,13 @@
 #include <stdio.h>
 #include <time.h>
 
+#if defined(WOLFSSL_CMSIS_RTOS)
+    #include "cmsis_os.h"
+#elif defined(WOLFSSL_CMSIS_RTOSv2)
+    #include "cmsis_os2.h"
+#endif
 /* Dummy definition for test RTC */
-#define RTC_YEAR 2018
+#define RTC_YEAR 2019
 #define RTC_MONTH 1
 #define RTC_DAY 1
 
@@ -55,14 +60,19 @@ static void CPU_CACHE_Enable (void) {
 }
 
 
-#ifdef RTE_CMSIS_RTOS_RTX
+#if defined(WOLFSSL_CMSIS_RTOS)
 extern uint32_t os_time;
-static  time_t epochTime;
+#endif
 
 uint32_t HAL_GetTick(void) {
-    return os_time;
+    #if defined(WOLFSSL_CMSIS_RTOS)
+        return os_time;
+    #elif defined(WOLFSSL_CMSIS_RTOSv2)
+        return osKernelGetTickCount();
+    #endif
 }
 
+static  time_t epochTime;
 time_t time(time_t *t){
      return epochTime ;
 }
@@ -70,36 +80,6 @@ time_t time(time_t *t){
 void setTime(time_t t){
     epochTime = t;
 }
-#endif
-#ifdef WOLFSSL_CURRTIME_OSTICK
-
-#include <stdint.h>
-extern uint32_t os_time;
-
-double current_time(int reset)
-{
-      if(reset) os_time = 0 ;
-      return (double)os_time /1000.0;
-}
-
-#else
-
-#include <stdint.h>
-#define DWT                 ((DWT_Type       *)     (0xE0001000UL)     )
-typedef struct
-{
-  uint32_t CTRL;                    /*!< Offset: 0x000 (R/W)  Control Register                          */
-  uint32_t CYCCNT;                  /*!< Offset: 0x004 (R/W)  Cycle Count Register                      */
-} DWT_Type;
-
-extern uint32_t SystemCoreClock ;
-
-double current_time(int reset)
-{
-      if(reset) DWT->CYCCNT = 0 ;
-      return ((double)DWT->CYCCNT/SystemCoreClock) ;
-}
-#endif
 
 /*-----------------------------------------------------------------------------
  *        Initialize a Flash Memory Card

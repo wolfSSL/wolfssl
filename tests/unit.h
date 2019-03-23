@@ -1,6 +1,6 @@
 /* unit.c API unit tests driver
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -32,12 +32,20 @@
 #define XABORT() abort()
 #endif
 
+#ifndef WOLFSSL_PASSTHRU_ERR
 #define Fail(description, result) do {                                         \
     printf("\nERROR - %s line %d failed with:", __FILE__, __LINE__);           \
     printf("\n    expected: "); printf description;                            \
     printf("\n    result:   "); printf result; printf("\n\n");                 \
     XABORT();                                                                  \
 } while(0)
+#else
+#define Fail(description, result) do {                               \
+    printf("\nERROR - %s line %d failed with:", __FILE__, __LINE__); \
+    printf("\n    expected: ");printf description;                   \
+    printf("\n    result:   "); printf result; printf("\n\n");       \
+} while (0)
+#endif
 
 #define Assert(test, description, result) if (!(test)) Fail(description, result)
 
@@ -83,7 +91,7 @@
 
 
 void ApiTest(void);
-int  SuiteTest(void);
+int  SuiteTest(int argc, char** argv);
 int  HashTest(void);
 void SrpTest(void);
 

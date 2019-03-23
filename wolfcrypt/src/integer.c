@@ -1,6 +1,6 @@
 /* integer.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -72,6 +72,17 @@
     #else
         #include <stdio.h>
     #endif
+#endif
+
+#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+WOLFSSL_LOCAL int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
 #endif
 
 /* reverse an array, used for radix code */
@@ -321,6 +332,17 @@ int mp_to_unsigned_bin (mp_int * a, unsigned char *b)
   return res;
 }
 
+int mp_to_unsigned_bin_len(mp_int * a, unsigned char *b, int c)
+{
+    int i, len;
+
+    len = mp_unsigned_bin_size(a);
+
+    /* pad front w/ zeros to match length */
+    for (i = 0; i < c - len; i++)
+        b[i] = 0x00;
+    return mp_to_unsigned_bin(a, b + i);
+}
 
 /* creates "a" then copies b into it */
 int mp_init_copy (mp_int * a, mp_int * b)
@@ -1939,7 +1961,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
      /* automatically pick the comba one if available (saves quite a few
         calls/ifs) */
 #ifdef BN_FAST_MP_MONTGOMERY_REDUCE_C
-     if (((P->used * 2 + 1) < MP_WARRAY) &&
+     if (((P->used * 2 + 1) < (int)MP_WARRAY) &&
           P->used < (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
         redux = fast_mp_montgomery_reduce;
      } else
@@ -2384,7 +2406,7 @@ int mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
    * are fixed up in the inner loop.
    */
   digs = n->used * 2 + 1;
-  if ((digs < MP_WARRAY) &&
+  if ((digs < (int)MP_WARRAY) &&
       n->used <
       (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
     return fast_mp_montgomery_reduce (x, n, rho);
@@ -2786,7 +2808,7 @@ int mp_sqr (mp_int * a, mp_int * b)
   {
 #ifdef BN_FAST_S_MP_SQR_C
     /* can we use the fast comba multiplier? */
-    if ((a->used * 2 + 1) < MP_WARRAY &&
+    if ((a->used * 2 + 1) < (int)MP_WARRAY &&
          a->used <
          (1 << (sizeof(mp_word) * CHAR_BIT - 2*DIGIT_BIT - 1))) {
       res = fast_s_mp_sqr (a, b);
@@ -2823,7 +2845,7 @@ int mp_mul (mp_int * a, mp_int * b, mp_int * c)
     int     digs = a->used + b->used + 1;
 
 #ifdef BN_FAST_S_MP_MUL_DIGS_C
-    if ((digs < MP_WARRAY) &&
+    if ((digs < (int)MP_WARRAY) &&
         MIN(a->used, b->used) <=
         (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
       res = fast_s_mp_mul_digs (a, b, c, digs);
@@ -3021,7 +3043,7 @@ int fast_s_mp_sqr (mp_int * a, mp_int * b)
     }
   }
 
-  if (pa > MP_WARRAY)
+  if (pa > (int)MP_WARRAY)
     return MP_RANGE;  /* TAO range check */
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -3140,7 +3162,7 @@ int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 
   /* number of output digits to produce */
   pa = MIN(digs, a->used + b->used);
-  if (pa > MP_WARRAY)
+  if (pa > (int)MP_WARRAY)
     return MP_RANGE;  /* TAO range check */
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -3286,7 +3308,7 @@ int s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   mp_digit tmpx, *tmpt, *tmpy;
 
   /* can we use the fast multiplier? */
-  if (((digs) < MP_WARRAY) &&
+  if ((digs < (int)MP_WARRAY) &&
       MIN (a->used, b->used) <
           (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
     return fast_s_mp_mul_digs (a, b, c, digs);
@@ -3794,7 +3816,7 @@ int s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 
   /* can we use the fast multiplier? */
 #ifdef BN_FAST_S_MP_MUL_HIGH_DIGS_C
-  if (((a->used + b->used + 1) < MP_WARRAY)
+  if (((a->used + b->used + 1) < (int)MP_WARRAY)
       && MIN (a->used, b->used) <
       (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
     return fast_s_mp_mul_high_digs (a, b, c, digs);
@@ -3873,7 +3895,7 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
     }
   }
 
-  if (pa > MP_WARRAY)
+  if (pa > (int)MP_WARRAY)
     return MP_RANGE;  /* TAO range check */
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -4005,7 +4027,8 @@ int mp_sqrmod (mp_int * a, mp_int * b, mp_int * c)
 
 #if defined(HAVE_ECC) || !defined(NO_PWDBASED) || defined(WOLFSSL_SNIFFER) || \
     defined(WOLFSSL_HAVE_WOLFSCEP) || defined(WOLFSSL_KEY_GEN) || \
-    defined(OPENSSL_EXTRA) || defined(WC_RSA_BLINDING)
+    defined(OPENSSL_EXTRA) || defined(WC_RSA_BLINDING) || \
+    (!defined(NO_RSA) && !defined(NO_RSA_BOUNDS_CHECK))
 
 /* single digit addition */
 int mp_add_d (mp_int* a, mp_digit b, mp_int* c)
@@ -4413,9 +4436,16 @@ static int mp_prime_miller_rabin (mp_int * a, mp_int * b, int *result)
   if ((err = mp_init (&y)) != MP_OKAY) {
     goto LBL_R;
   }
-  if ((err = mp_exptmod (b, &r, a, &y)) != MP_OKAY) {
-    goto LBL_Y;
-  }
+#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+  if (mp_count_bits(a) == 1024)
+      err = sp_ModExp_1024(b, &r, a, &y);
+  else if (mp_count_bits(a) == 2048)
+      err = sp_ModExp_2048(b, &r, a, &y);
+  else
+#endif
+      err = mp_exptmod (b, &r, a, &y);
+  if (err != MP_OKAY)
+      goto LBL_Y;
 
   /* if y != 1 and y != n1 do */
   if (mp_cmp_d (&y, 1) != MP_EQ && mp_cmp (&y, &n1) != MP_EQ) {
@@ -4834,7 +4864,7 @@ LBL_U:mp_clear (&v);
 
 #if !defined(NO_DSA) || defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN) || \
     defined(HAVE_COMP_KEY) || defined(WOLFSSL_DEBUG_MATH) || \
-    defined(DEBUG_WOLFSSL)
+    defined(DEBUG_WOLFSSL) || defined(OPENSSL_EXTRA)
 
 /* chars used in radix conversions */
 const char *mp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\

@@ -32,6 +32,7 @@ nobase_include_HEADERS+= \
                          wolfssl/openssl/ossl_typ.h \
                          wolfssl/openssl/pem.h \
                          wolfssl/openssl/pkcs12.h \
+                         wolfssl/openssl/pkcs7.h \
                          wolfssl/openssl/rand.h \
                          wolfssl/openssl/rsa.h \
                          wolfssl/openssl/sha.h \

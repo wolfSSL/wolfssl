@@ -8,5 +8,6 @@ EXTRA_DIST+= IDE/XCODE/wolfssl.xcodeproj/project.pbxproj
 EXTRA_DIST+= IDE/XCODE/wolfssl.xcworkspace
 EXTRA_DIST+= IDE/XCODE/wolfssl_testsuite.xcodeproj
 EXTRA_DIST+= IDE/XCODE/user_settings.h
+EXTRA_DIST+= IDE/XCODE/build-for-i386.sh
 
 include IDE/XCODE/Benchmark/include.am

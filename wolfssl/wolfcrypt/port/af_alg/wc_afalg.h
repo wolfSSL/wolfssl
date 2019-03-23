@@ -1,6 +1,6 @@
 /* wc_afalg.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -31,6 +31,15 @@
 
 #define WC_SOCK_NOTSET -1
 
+/* In some cases these flags are not set in AF_ALG header files.
+ * Documentation provided at kernel.org/doc/html/v4.16/crypto/userspace-if.html
+ * suggests using these values if not set */
+#ifndef AF_ALG
+    #define AF_ALG 38
+#endif
+#ifndef SOL_ALG
+    #define SOL_ALG 279
+#endif
 
 WOLFSSL_LOCAL void wc_Afalg_SockAddr(struct sockaddr_alg* in, const char* type, const char* name);
 WOLFSSL_LOCAL int wc_Afalg_Accept(struct sockaddr_alg* in, int inSz, int sock);

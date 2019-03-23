@@ -1,6 +1,6 @@
 /* visibility.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -43,19 +43,19 @@
 */
 
 #if defined(BUILDING_WOLFSSL)
-    #if defined(HAVE_VISIBILITY) && HAVE_VISIBILITY
-        #define WOLFSSL_API   __attribute__ ((visibility("default")))
-        #define WOLFSSL_LOCAL __attribute__ ((visibility("hidden")))
-    #elif defined(__SUNPRO_C) && (__SUNPRO_C >= 0x550)
-        #define WOLFSSL_API   __global
-        #define WOLFSSL_LOCAL __hidden
-    #elif defined(_MSC_VER) || defined(__MINGW32__)
+    #if defined(_MSC_VER) || defined(__MINGW32__)
         #if defined(WOLFSSL_DLL)
             #define WOLFSSL_API __declspec(dllexport)
         #else
             #define WOLFSSL_API
         #endif
         #define WOLFSSL_LOCAL
+    #elif defined(HAVE_VISIBILITY) && HAVE_VISIBILITY
+        #define WOLFSSL_API   __attribute__ ((visibility("default")))
+        #define WOLFSSL_LOCAL __attribute__ ((visibility("hidden")))
+    #elif defined(__SUNPRO_C) && (__SUNPRO_C >= 0x550)
+        #define WOLFSSL_API   __global
+        #define WOLFSSL_LOCAL __hidden
     #else
         #define WOLFSSL_API
         #define WOLFSSL_LOCAL

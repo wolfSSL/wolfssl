@@ -1,6 +1,6 @@
 /* crl.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -303,7 +303,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
 
             if (doNextDate) {
             #ifndef NO_ASN_TIME
-                if (!ValidateDate(crle->nextDate,crle->nextDateFormat, AFTER)) {
+                if (!XVALIDATE_DATE(crle->nextDate,crle->nextDateFormat, AFTER)) {
                     WOLFSSL_MSG("CRL next date is no longer valid");
                     ret = ASN_AFTER_DATE_E;
                 }

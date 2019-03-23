@@ -3,12 +3,13 @@
 default_ca = CA_default
 
 [ CA_default ]
-# Directory and file locations.
+# Directory and file locations relevant to where the script is executing
 dir               = .
 certs             = $dir/certs
 new_certs_dir     = $dir/certs
 database          = $dir/certs/ecc/index.txt
 serial            = $dir/certs/ecc/serial
+# This should come from the system disregard local pathing
 RANDFILE          = $dir/private/.rand
 
 # The root key and root certificate.

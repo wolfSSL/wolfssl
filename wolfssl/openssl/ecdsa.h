@@ -1,6 +1,6 @@
 /* ecdsa.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -53,10 +53,18 @@ WOLFSSL_API int wolfSSL_ECDSA_do_verify(const unsigned char *dgst,
                                         const WOLFSSL_ECDSA_SIG *sig,
                                         WOLFSSL_EC_KEY *eckey);
 
-#define ECDSA_SIG_free wolfSSL_ECDSA_SIG_free
-#define ECDSA_SIG_new wolfSSL_ECDSA_SIG_new
-#define ECDSA_do_sign wolfSSL_ECDSA_do_sign
-#define ECDSA_do_verify wolfSSL_ECDSA_do_verify
+WOLFSSL_API WOLFSSL_ECDSA_SIG *wolfSSL_d2i_ECDSA_SIG(WOLFSSL_ECDSA_SIG **sig,
+                                                     const unsigned char **pp,
+                                                     long len);
+WOLFSSL_API int wolfSSL_i2d_ECDSA_SIG(const WOLFSSL_ECDSA_SIG *sig,
+                                      unsigned char **pp);
+
+#define ECDSA_SIG_free         wolfSSL_ECDSA_SIG_free
+#define ECDSA_SIG_new          wolfSSL_ECDSA_SIG_new
+#define ECDSA_do_sign          wolfSSL_ECDSA_do_sign
+#define ECDSA_do_verify        wolfSSL_ECDSA_do_verify
+#define d2i_ECDSA_SIG          wolfSSL_d2i_ECDSA_SIG
+#define i2d_ECDSA_SIG          wolfSSL_i2d_ECDSA_SIG
 
 #ifdef __cplusplus
 }  /* extern "C" */

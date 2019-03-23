@@ -1,6 +1,6 @@
 /* wc_encrypt.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -51,7 +51,7 @@
 #endif
 
 
-#ifndef NO_AES
+#if !defined(NO_AES) && defined(HAVE_AES_CBC)
 WOLFSSL_API int wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
                                         const byte* key, word32 keySz,
                                         const byte* iv);

@@ -1,6 +1,6 @@
 /* benchmark_main.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -25,6 +25,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfcrypt/benchmark/benchmark.h>
 #include <stdio.h>
 
@@ -42,6 +43,7 @@ void main(void)
 {
     int test_num = 0;
 
+    wolfCrypt_Init(); /* required for ksdk_port_init */
     do
     {
         /* Used for testing, must have a delay so no data is missed while serial is initializing */
@@ -68,6 +70,8 @@ void main(void)
         printf("\n&&&&&&&&&&&&&& done &&&&&&&&&&&&&\n");
         delay_us(1000000);
     #endif
+
+    wolfCrypt_Cleanup();
 }
 
 /*

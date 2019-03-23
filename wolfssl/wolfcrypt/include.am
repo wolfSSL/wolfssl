@@ -20,7 +20,6 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/fe_operations.h \
                          wolfssl/wolfcrypt/ge_operations.h \
                          wolfssl/wolfcrypt/error-crypt.h \
-                         wolfssl/wolfcrypt/fips.h \
                          wolfssl/wolfcrypt/fips_test.h \
                          wolfssl/wolfcrypt/hash.h \
                          wolfssl/wolfcrypt/hc128.h \
@@ -63,7 +62,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/wolfmath.h \
                          wolfssl/wolfcrypt/sha3.h \
                          wolfssl/wolfcrypt/cpuid.h \
-                         wolfssl/wolfcrypt/cryptodev.h
+                         wolfssl/wolfcrypt/cryptocb.h
 
 noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h \
@@ -78,11 +77,24 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h \
                          wolfssl/wolfcrypt/port/st/stm32.h \
                          wolfssl/wolfcrypt/port/st/stsafe.h \
-                         wolfssl/wolfcrypt/port/af_alg/afalg_hash.h \
-                         wolfssl/wolfcrypt/port/af_alg/wc_afalg.h
+                         wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h
+
+if BUILD_AFALG
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/af_alg/afalg_hash.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/af_alg/wc_afalg.h
+endif
+
+if BUILD_DEVCRYPTO
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h
+endif
 
 if BUILD_ASYNCCRYPT
 nobase_include_HEADERS+= wolfssl/wolfcrypt/async.h
+endif
+
+if BUILD_PKCS11
+nobase_include_HEADERS+= wolfssl/wolfcrypt/wc_pkcs11.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/pkcs11.h
 endif
 
 if BUILD_CAVIUM
@@ -103,3 +115,6 @@ if BUILD_SELFTEST
 nobase_include_HEADERS+= wolfssl/wolfcrypt/selftest.h
 endif
 
+if BUILD_FIPS_V2
+nobase_include_HEADERS+= wolfssl/wolfcrypt/fips.h
+endif

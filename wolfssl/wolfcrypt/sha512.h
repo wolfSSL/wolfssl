@@ -1,6 +1,6 @@
 /* sha512.h
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -72,7 +72,9 @@
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
-
+#ifdef WOLFSSL_ESP32WROOM32_CRYPT
+    #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
+#endif
 #if defined(_MSC_VER)
     #define SHA512_NOINLINE __declspec(noinline)
 #elif defined(__GNUC__)
@@ -127,6 +129,13 @@ typedef struct wc_Sha512 {
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     word64* W;
 #endif
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
+   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+    WC_ESP32SHA ctx;
+#endif
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    word32 flags; /* enum wc_HashFlags in hash.h */
+#endif
 } wc_Sha512;
 #endif
 
@@ -143,6 +152,11 @@ WOLFSSL_API void wc_Sha512Free(wc_Sha512*);
 
 WOLFSSL_API int wc_Sha512GetHash(wc_Sha512*, byte*);
 WOLFSSL_API int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst);
+
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    WOLFSSL_LOCAL int wc_Sha512SetFlags(wc_Sha512* sha512, word32 flags);
+    WOLFSSL_LOCAL int wc_Sha512GetFlags(wc_Sha512* sha512, word32* flags);
+#endif
 
 #endif /* WOLFSSL_SHA512 */
 
@@ -184,6 +198,11 @@ WOLFSSL_API void wc_Sha384Free(wc_Sha384*);
 
 WOLFSSL_API int wc_Sha384GetHash(wc_Sha384*, byte*);
 WOLFSSL_API int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst);
+
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    WOLFSSL_LOCAL int wc_Sha384SetFlags(wc_Sha384* sha384, word32 flags);
+    WOLFSSL_LOCAL int wc_Sha384GetFlags(wc_Sha384* sha384, word32* flags);
+#endif
 
 #endif /* WOLFSSL_SHA384 */
 

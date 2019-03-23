@@ -1,6 +1,6 @@
 /* snifftest.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -295,6 +295,7 @@ int main(int argc, char** argv)
         static int packetNumber = 0;
         struct pcap_pkthdr header;
         const unsigned char* packet = pcap_next(pcap, &header);
+        SSLInfo sslInfo;
         packetNumber++;
         if (packet) {
 
@@ -307,7 +308,8 @@ int main(int argc, char** argv)
             else
                 continue;
 
-            ret = ssl_DecodePacket(packet, header.caplen, &data, err);
+            ret = ssl_DecodePacketWithSessionInfo(packet, header.caplen, &data,
+                                                  &sslInfo, err);
             if (ret < 0) {
                 printf("ssl_Decode ret = %d, %s\n", ret, err);
                 hadBadPacket = 1;

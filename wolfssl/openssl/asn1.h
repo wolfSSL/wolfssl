@@ -1,6 +1,6 @@
 /* asn1.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -53,4 +53,7 @@
                                           ASN1_STRFLGS_UTF8_CONVERT | \
                                           ASN1_STRFLGS_DUMP_UNKNOWN | \
                                           ASN1_STRFLGS_DUMP_DER)
+
+#define MBSTRING_UTF8                    0x1000
+
 #endif /* WOLFSSL_ASN1_H_ */

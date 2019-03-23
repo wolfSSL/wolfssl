@@ -3,6 +3,14 @@
 # assemble-chains.sh
 # Create certs and assemble all the certificate CA path test cert chains.
 
+check_result(){
+    if [ $1 -ne 0 ]; then
+        echo "$2 Failed, Abort"
+        exit 1
+    else
+        echo "$2 Succeeded!"
+    fi
+}
 
 ###########################################################
 ########## update server-0-ca.pem          ################
@@ -10,180 +18,216 @@
 echo "Updating server-0-ca.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 0 CA\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -nodes -sha1 > server-0-ca-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 0 CA\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-0-ca-req.pem
+check_result $? "Step 1"
 
 openssl x509 -req -in server-0-ca-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions pathlen_0 -days 1000 -CA ../ca-cert.pem -CAkey ../ca-key.pem -set_serial 100 -sha1 > server-0-ca.pem
+check_result $? "Step 2"
 
 rm server-0-ca-req.pem
 openssl x509 -in server-0-ca.pem -text > ca_tmp.pem
+check_result $? "Step 3"
 mv ca_tmp.pem server-0-ca.pem
-
-
+echo "End of Section"
+echo "-------------------------------------------------------------------------"
 ###########################################################
 ########## update server-0-cert.pem        ################
 ###########################################################
 echo "Updating server-0-cert.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 0\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -nodes -sha1 > server-0-cert-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 0\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-0-cert-req.pem
+check_result $? "Step 1"
 
 openssl x509 -req -in server-0-cert-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions test_pathlen -days 1000 -CA server-0-ca.pem -CAkey ../server-key.pem -set_serial 101 -sha1 > server-0-cert.pem
+check_result $? "Step 2"
 
 rm server-0-cert-req.pem
 openssl x509 -in server-0-cert.pem -text > cert_tmp.pem
+check_result $? "Step 3"
 mv cert_tmp.pem server-0-cert.pem
-
-
+echo "End of Section"
+echo "-------------------------------------------------------------------------"
 ###########################################################
 ########## update server-1-ca.pem          ################
 ###########################################################
 echo "Updating server-1-ca.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 1 CA\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -nodes -sha1 > server-1-ca-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 1 CA\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-1-ca-req.pem
+check_result $? "Step 1"
 
 openssl x509 -req -in server-1-ca-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions pathlen_1 -days 1000 -CA ../ca-cert.pem -CAkey ../ca-key.pem -set_serial 102 -sha1 > server-1-ca.pem
+check_result $? "Step 2"
 
 rm server-1-ca-req.pem
 openssl x509 -in server-1-ca.pem -text > ca_tmp.pem
+check_result $? "Step 3"
 mv ca_tmp.pem server-1-ca.pem
-
-
+echo "End of Section"
+echo "-------------------------------------------------------------------------"
 ###########################################################
 ########## update server-1-cert.pem        ################
 ###########################################################
 echo "Updating server-1-cert.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 1\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -nodes -sha1 > server-1-cert-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 1\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-1-cert-req.pem
+check_result $? "Step 1"
 
 openssl x509 -req -in server-1-cert-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions test_pathlen -days 1000 -CA server-1-ca.pem -CAkey ../server-key.pem -set_serial 105 -sha1 > server-1-cert.pem
+check_result $? "Step 2"
 
 rm server-1-cert-req.pem
 openssl x509 -in server-1-cert.pem -text > cert_tmp.pem
+check_result $? "Step 3"
 mv cert_tmp.pem server-1-cert.pem
-
-
+echo "End of Section"
+echo "-------------------------------------------------------------------------"
 ###########################################################
 ########## update server-0-1-ca.pem        ################
 ###########################################################
 echo "Updating server-0-1-ca.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 0-1 CA\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -nodes -sha1 > server-0-1-ca-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 0-1 CA\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-0-1-ca-req.pem
+check_result $? "Step 1"
 
 openssl x509 -req -in server-0-1-ca-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions pathlen_1 -days 1000 -CA server-0-ca.pem -CAkey ../server-key.pem -set_serial 110 -sha1 > server-0-1-ca.pem
+check_result $? "Step 2"
 
 rm server-0-1-ca-req.pem
 openssl x509 -in server-0-1-ca.pem -text > ca_tmp.pem
+check_result $? "Step 3"
 mv ca_tmp.pem server-0-1-ca.pem
-
-
+echo "End of Section"
+echo "-------------------------------------------------------------------------"
 ###########################################################
 ########## update server-0-1-cert.pem      ################
 ###########################################################
 echo "Updating server-0-1-cert.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 0-1\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -nodes -sha1 > server-0-1-cert-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 0-1\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-0-1-cert-req.pem
+check_result $? "Step 1"
 
 openssl x509 -req -in server-0-1-cert-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions test_pathlen -days 1000 -CA server-0-1-ca.pem -CAkey ../server-key.pem -set_serial 111 -sha1 > server-0-1-cert.pem
+check_result $? "Step 2"
 
 rm server-0-1-cert-req.pem
 openssl x509 -in server-0-1-cert.pem -text > cert_tmp.pem
+check_result $? "Step 3"
 mv cert_tmp.pem server-0-1-cert.pem
-
-
+echo "End of Section"
+echo "-------------------------------------------------------------------------"
 ###########################################################
 ########## update server-1-0-ca.pem        ################
 ###########################################################
 echo "Updating server-1-0-ca.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 1-0 CA\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -nodes -sha1 > server-1-0-ca-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 1-0 CA\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-1-0-ca-req.pem
+check_result $? "Step 1"
 
 openssl x509 -req -in server-1-0-ca-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions pathlen_0 -days 1000 -CA server-1-ca.pem -CAkey ../server-key.pem -set_serial 103 -sha1 > server-1-0-ca.pem
+check_result $? "Step 2"
 
 rm server-1-0-ca-req.pem
 openssl x509 -in server-1-0-ca.pem -text > ca_tmp.pem
+check_result $? "Step 3"
 mv ca_tmp.pem server-1-0-ca.pem
-
-
+echo "End of Section"
+echo "-------------------------------------------------------------------------"
 ###########################################################
 ########## update server-1-0-cert.pem      ################
 ###########################################################
 echo "Updating server-1-0-cert.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 1-0\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -nodes -sha1 > server-1-0-cert-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 1-0\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-1-0-cert-req.pem
+check_result $? "Step 1"
 
 openssl x509 -req -in server-1-0-cert-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions test_pathlen -days 1000 -CA server-1-0-ca.pem -CAkey ../server-key.pem -set_serial 104 -sha1 > server-1-0-cert.pem
+check_result $? "Step 2"
 
 rm server-1-0-cert-req.pem
 openssl x509 -in server-1-0-cert.pem -text > cert_tmp.pem
+check_result $? "Step 3"
 mv cert_tmp.pem server-1-0-cert.pem
-
-
+echo "End of Section"
+echo "-------------------------------------------------------------------------"
 ###########################################################
 ########## update server-127-ca.pem        ################
 ###########################################################
 echo "Updating server-127-ca.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 127 CA\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -nodes -sha1 > server-127-ca-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 127 CA\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-127-ca-req.pem
+check_result $? "Step 1"
 
 openssl x509 -req -in server-127-ca-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions pathlen_127 -days 1000 -CA ../ca-cert.pem -CAkey ../ca-key.pem -set_serial 106 -sha1 > server-127-ca.pem
+check_result $? "Step 2"
 
 rm server-127-ca-req.pem
 openssl x509 -in server-127-ca.pem -text > ca_tmp.pem
+check_result $? "Step 3"
 mv ca_tmp.pem server-127-ca.pem
-
-
+echo "End of Section"
+echo "-------------------------------------------------------------------------"
 ###########################################################
 ########## update server-127-cert.pem      ################
 ###########################################################
 echo "Updating server-127-cert.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 127\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -nodes -sha1 > server-127-cert-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 127\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-127-cert-req.pem
+check_result $? "Step 1"
 
 openssl x509 -req -in server-127-cert-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions test_pathlen -days 1000 -CA server-127-ca.pem -CAkey ../server-key.pem -set_serial 107 -sha1 > server-127-cert.pem
+check_result $? "Step 2"
 
 rm server-127-cert-req.pem
 openssl x509 -in server-127-cert.pem -text > cert_tmp.pem
+check_result $? "Step 3"
 mv cert_tmp.pem server-127-cert.pem
-
-
+echo "End of Section"
+echo "-------------------------------------------------------------------------"
 ###########################################################
 ########## update server-128-ca.pem        ################
 ###########################################################
 echo "Updating server-128-ca.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 128 CA\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -nodes -sha1 > server-128-ca-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 128 CA\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-128-ca-req.pem
+check_result $? "Step 1"
 
 openssl x509 -req -in server-128-ca-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions pathlen_128 -days 1000 -CA ../ca-cert.pem -CAkey ../ca-key.pem -set_serial 106 -sha1 > server-128-ca.pem
+check_result $? "Step 2"
 
 rm server-128-ca-req.pem
 openssl x509 -in server-128-ca.pem -text > ca_tmp.pem
+check_result $? "Step 3"
 mv ca_tmp.pem server-128-ca.pem
-
-
+echo "End of Section"
+echo "-------------------------------------------------------------------------"
 ###########################################################
 ########## update server-128-cert.pem      ################
 ###########################################################
 echo "Updating server-128-cert.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 128\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -nodes -sha1 > server-128-cert-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 128\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-128-cert-req.pem
+check_result $? "Step 1"
 
 openssl x509 -req -in server-128-cert-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions test_pathlen -days 1000 -CA server-128-ca.pem -CAkey ../server-key.pem -set_serial 107 -sha1 > server-128-cert.pem
+check_result $? "Step 2"
 
 rm server-128-cert-req.pem
 openssl x509 -in server-128-cert.pem -text > cert_tmp.pem
+check_result $? "Step 3"
 mv cert_tmp.pem server-128-cert.pem
-
-
+echo "End of Section"
+echo "-------------------------------------------------------------------------"
 ###########################################################
 ########## Assemble Chains                 ################
 ###########################################################

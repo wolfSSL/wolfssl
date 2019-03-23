@@ -1,6 +1,6 @@
 /* sha.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -69,6 +69,9 @@
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
+#ifdef WOLFSSL_ESP32WROOM32_CRYPT
+    #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
+#endif
 
 #if !defined(NO_OLD_SHA_NAMES)
     #define SHA             WC_SHA
@@ -120,6 +123,17 @@ typedef struct wc_Sha {
     #ifdef WOLFSSL_ASYNC_CRYPT
         WC_ASYNC_DEV asyncDev;
     #endif /* WOLFSSL_ASYNC_CRYPT */
+    #ifdef WOLF_CRYPTO_CB
+        int    devId;
+        void*  devCtx; /* generic crypto callback context */
+    #endif
+#endif
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
+   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+    WC_ESP32SHA ctx;
+#endif
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    word32 flags; /* enum wc_HashFlags in hash.h */
 #endif
 } wc_Sha;
 
@@ -140,6 +154,11 @@ WOLFSSL_API int wc_ShaCopy(wc_Sha*, wc_Sha*);
 
 #ifdef WOLFSSL_PIC32MZ_HASH
 WOLFSSL_API void wc_ShaSizeSet(wc_Sha* sha, word32 len);
+#endif
+
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    WOLFSSL_LOCAL int wc_ShaSetFlags(wc_Sha* sha, word32 flags);
+    WOLFSSL_LOCAL int wc_ShaGetFlags(wc_Sha* sha, word32* flags);
 #endif
 
 #ifdef __cplusplus

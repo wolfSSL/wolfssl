@@ -1,6 +1,6 @@
 /* logging.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -51,7 +51,9 @@ enum wc_LogLevels {
  *          Do not use WOLFSSL_FUNC_TIME in production code.
  */
 enum wc_FuncNum {
-    WC_FUNC_CLIENT_HELLO_SEND = 0,
+    WC_FUNC_HELLO_REQUEST_SEND = 0,
+    WC_FUNC_HELLO_REQUEST_DO,
+    WC_FUNC_CLIENT_HELLO_SEND,
     WC_FUNC_CLIENT_HELLO_DO,
     WC_FUNC_SERVER_HELLO_SEND,
     WC_FUNC_SERVER_HELLO_DO,

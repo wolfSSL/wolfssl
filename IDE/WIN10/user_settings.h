@@ -42,6 +42,9 @@
         #define WOLFSSL_VALIDATE_ECC_IMPORT
         #define WOLFSSL_VALIDATE_FFC_IMPORT
         #define HAVE_FFDHE_Q
+        #define WOLFSSL_AESNI
+        #define HAVE_INTEL_RDSEED
+        #define FORCE_FAILURE_RDSEED
     #endif /* FIPS v2 */
 #else
     /* Enables blinding mode, to prevent timing attacks */

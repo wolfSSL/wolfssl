@@ -1,6 +1,6 @@
 /* aes_asm.S
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -36,8 +36,13 @@ AES_CBC_encrypt (const unsigned char *in,
 	const unsigned char *KS,
 	int nr)
 */
+#ifndef __APPLE__
 .globl AES_CBC_encrypt
 AES_CBC_encrypt:
+#else
+.globl _AES_CBC_encrypt
+_AES_CBC_encrypt:
+#endif
 # parameter 1: %rdi
 # parameter 2: %rsi
 # parameter 3: %rdx
@@ -96,8 +101,13 @@ AES_CBC_decrypt_by4 (const unsigned char *in,
   const unsigned char *KS,
   int nr)
 */
+#ifndef __APPLE__
 .globl AES_CBC_decrypt_by4
 AES_CBC_decrypt_by4:
+#else
+.globl _AES_CBC_decrypt_by4
+_AES_CBC_decrypt_by4:
+#endif
 # parameter 1: %rdi
 # parameter 2: %rsi
 # parameter 3: %rdx
@@ -272,8 +282,13 @@ AES_CBC_decrypt_by6 (const unsigned char *in,
   const unsigned char *KS,
   int nr)
 */
+#ifndef __APPLE__
 .globl AES_CBC_decrypt_by6
 AES_CBC_decrypt_by6:
+#else
+.globl _AES_CBC_decrypt_by6
+_AES_CBC_decrypt_by6:
+#endif
 # parameter 1: %rdi - in
 # parameter 2: %rsi - out
 # parameter 3: %rdx - ivec
@@ -495,8 +510,13 @@ AES_CBC_decrypt_by8 (const unsigned char *in,
   const unsigned char *KS,
   int nr)
 */
+#ifndef __APPLE__
 .globl AES_CBC_decrypt_by8
 AES_CBC_decrypt_by8:
+#else
+.globl _AES_CBC_decrypt_by8
+_AES_CBC_decrypt_by8:
+#endif
 # parameter 1: %rdi - in
 # parameter 2: %rsi - out
 # parameter 3: %rdx - ivec
@@ -746,8 +766,13 @@ AES_ECB_encrypt (const unsigned char *in,
 	const unsigned char *KS,
 	int nr)
 */
+#ifndef __APPLE__
 .globl AES_ECB_encrypt
 AES_ECB_encrypt:
+#else
+.globl _AES_ECB_encrypt
+_AES_ECB_encrypt:
+#endif
 # parameter 1: %rdi
 # parameter 2: %rsi
 # parameter 3: %rdx
@@ -905,8 +930,13 @@ AES_ECB_decrypt (const unsigned char *in,
   const unsigned char *KS,
   int nr)
 */
+#ifndef __APPLE__
 .globl AES_ECB_decrypt
 AES_ECB_decrypt:
+#else
+.globl _AES_ECB_decrypt
+_AES_ECB_decrypt:
+#endif
 # parameter 1: %rdi
 # parameter 2: %rsi
 # parameter 3: %rdx
@@ -1065,8 +1095,13 @@ void AES_128_Key_Expansion(const unsigned char* userkey,
    unsigned char* key_schedule);
 */
 .align  16,0x90
+#ifndef __APPLE__
 .globl AES_128_Key_Expansion
 AES_128_Key_Expansion:
+#else
+.globl _AES_128_Key_Expansion
+_AES_128_Key_Expansion:
+#endif
 # parameter 1: %rdi
 # parameter 2: %rsi
 movl    $10, 240(%rsi)
@@ -1125,8 +1160,13 @@ ret
 void AES_192_Key_Expansion (const unsigned char *userkey,
   unsigned char *key)
 */
+#ifndef __APPLE__
 .globl AES_192_Key_Expansion
 AES_192_Key_Expansion:
+#else
+.globl _AES_192_Key_Expansion
+_AES_192_Key_Expansion:
+#endif
 # parameter 1: %rdi
 # parameter 2: %rsi
 
@@ -1211,8 +1251,13 @@ ret
 void AES_256_Key_Expansion (const unsigned char *userkey,
   unsigned char *key)
 */
+#ifndef __APPLE__
 .globl AES_256_Key_Expansion
 AES_256_Key_Expansion:
+#else
+.globl _AES_256_Key_Expansion
+_AES_256_Key_Expansion:
+#endif
 # parameter 1: %rdi
 # parameter 2: %rsi
 

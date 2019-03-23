@@ -31,7 +31,7 @@ then
     echo "\n\nUsing existing async repo\n\n"
 else
     # make a clone of the wolfAsyncCrypt repository
-    git clone $ASYNC_REPO async
+    git clone --depth 1 $ASYNC_REPO async
     [ $? -ne 0 ] && echo "\n\nCouldn't checkout the wolfAsyncCrypt repository\n\n" && exit 1  
 fi
 

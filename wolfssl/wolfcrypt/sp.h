@@ -1,6 +1,6 @@
 /* sp.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -40,7 +40,7 @@
 #elif defined(__GNUC__)
     #define SP_NOINLINE __attribute__((noinline))
 #else
-    #define 5P_NOINLINE
+    #define SP_NOINLINE
 #endif
 
 
@@ -64,12 +64,20 @@ WOLFSSL_LOCAL int sp_RsaPrivate_3072(const byte* in, word32 inLen,
 
 #endif /* WOLFSSL_HAVE_SP_RSA */
 
-#ifdef WOLFSSL_HAVE_SP_DH
+#if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
 
+WOLFSSL_LOCAL int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
 WOLFSSL_LOCAL int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod,
     mp_int* res);
 WOLFSSL_LOCAL int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod,
     mp_int* res);
+
+#endif
+
+#ifdef WOLFSSL_HAVE_SP_DH
 
 WOLFSSL_LOCAL int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
     mp_int* mod, byte* out, word32* outLen);

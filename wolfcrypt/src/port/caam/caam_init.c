@@ -1,6 +1,6 @@
 /* caam_init.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -84,7 +84,7 @@ int wc_caamSetResource(IODevice ioDev)
  *
  * returns 0 on success
  */
-int wc_caamInit()
+int wc_caamInit(void)
 {
     int    ret;
     word32 reg;
@@ -143,7 +143,7 @@ int wc_caamInit()
 }
 
 
-int wc_caamFree()
+int wc_caamFree(void)
 {
     return 0;
 }

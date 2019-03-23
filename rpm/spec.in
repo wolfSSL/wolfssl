@@ -59,7 +59,7 @@ mkdir -p $RPM_BUILD_ROOT/
 
 %files
 %defattr(-,root,root,-)
-%doc AUTHORS ChangeLog.md COPYING README
+%doc AUTHORS ChangeLog.md COPYING README README.md
 %{_docdir}/wolfssl/taoCert.txt
 %{_docdir}/wolfssl/example/echoserver.c
 %{_docdir}/wolfssl/example/server.c
@@ -73,12 +73,12 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/wolfssl/README.txt
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
-%{_libdir}/libwolfssl.so.18
-%{_libdir}/libwolfssl.so.18.0.0
+%{_libdir}/libwolfssl.so.19
+%{_libdir}/libwolfssl.so.19.2.0
 
 %files devel
 %defattr(-,root,root,-)
-%doc AUTHORS ChangeLog.md COPYING README
+%doc AUTHORS ChangeLog.md COPYING README README.md
 %{_bindir}/wolfssl-config
 %{_includedir}/cyassl/callbacks.h
 %{_includedir}/cyassl/certs_test.h
@@ -190,7 +190,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/compress.h
 %{_includedir}/wolfssl/wolfcrypt/cpuid.h
 %{_includedir}/wolfssl/wolfcrypt/curve25519.h
-%{_includedir}/wolfssl/wolfcrypt/cryptodev.h
+%{_includedir}/wolfssl/wolfcrypt/cryptocb.h
 %{_includedir}/wolfssl/wolfcrypt/des3.h
 %{_includedir}/wolfssl/wolfcrypt/dh.h
 %{_includedir}/wolfssl/wolfcrypt/dsa.h
@@ -198,7 +198,6 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/ed25519.h
 %{_includedir}/wolfssl/wolfcrypt/error-crypt.h
 %{_includedir}/wolfssl/wolfcrypt/fe_operations.h
-%{_includedir}/wolfssl/wolfcrypt/fips.h
 %{_includedir}/wolfssl/wolfcrypt/fips_test.h
 %{_includedir}/wolfssl/wolfcrypt/ge_operations.h
 %{_includedir}/wolfssl/wolfcrypt/hash.h
@@ -267,6 +266,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/openssl/opensslv.h
 %{_includedir}/wolfssl/openssl/ossl_typ.h
 %{_includedir}/wolfssl/openssl/pem.h
+%{_includedir}/wolfssl/openssl/pkcs7.h
 %{_includedir}/wolfssl/openssl/pkcs12.h
 %{_includedir}/wolfssl/openssl/rand.h
 %{_includedir}/wolfssl/openssl/rc4.h
@@ -288,8 +288,12 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Fri Mar 15 2019 John Safranek <john@wolfssl.com>
+- Updates for the v4 release.
+* Thu Dec 20 2018 Jacob Barthelmeh <jacob@wolfssl.com>
+- Remove wolfssl/wolfcrypt/fips.h, add wolfssl/openssl/pkcs7.h
 * Wed Jun 20 2018 Jacob Barthelmeh <jacob@wolfssl.com>
-- Remove NEWS, update ChangeLog to ChangeLog.md, remove wolfssl/wolfcrypt/fips.h, add wolfssl/wolfcrypt/cryptodev.h
+- Remove NEWS, update ChangeLog to ChangeLog.md, remove wolfssl/wolfcrypt/fips.h, add wolfssl/wolfcrypt/cryptocb.h
 * Thu May 31 2018 John Safranek <john@wolfssl.com>
 - Update the version number on the library SO file.
 * Fri Mar 02 2018 Jacob Barthelmeh <jacob@wolfssl.com>

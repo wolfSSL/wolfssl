@@ -1,6 +1,6 @@
 /* tfm.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -57,6 +57,18 @@
 #ifdef WOLFSSL_DEBUG_MATH
     #include <stdio.h>
 #endif
+
+#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+WOLFSSL_LOCAL int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+#endif
+
 
 
 /* math settings check */
@@ -198,9 +210,16 @@ void s_fp_sub(fp_int *a, fp_int *b, fp_int *c)
 }
 
 /* c = a * b */
-void fp_mul(fp_int *A, fp_int *B, fp_int *C)
+int fp_mul(fp_int *A, fp_int *B, fp_int *C)
 {
+    int   ret = 0;
     int   y, yy, oldused;
+
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
+   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+  ret = esp_mp_mul(A, B, C);
+  if(ret != -2) return ret;
+#endif
 
     oldused = C->used;
 
@@ -209,7 +228,7 @@ void fp_mul(fp_int *A, fp_int *B, fp_int *C)
 
     /* call generic if we're out of range */
     if (y + yy > FP_SIZE) {
-       fp_mul_comba(A, B, C);
+       ret = fp_mul_comba(A, B, C);
        goto clean;
     }
 
@@ -221,102 +240,104 @@ void fp_mul(fp_int *A, fp_int *B, fp_int *C)
 
 #if defined(TFM_MUL3) && FP_SIZE >= 6
         if (y <= 3) {
-           fp_mul_comba3(A,B,C);
+           ret = fp_mul_comba3(A,B,C);
            goto clean;
         }
 #endif
 #if defined(TFM_MUL4) && FP_SIZE >= 8
         if (y == 4) {
-           fp_mul_comba4(A,B,C);
+           ret = fp_mul_comba4(A,B,C);
            goto clean;
         }
 #endif
 #if defined(TFM_MUL6) && FP_SIZE >= 12
         if (y <= 6) {
-           fp_mul_comba6(A,B,C);
+           ret = fp_mul_comba6(A,B,C);
            goto clean;
         }
 #endif
 #if defined(TFM_MUL7) && FP_SIZE >= 14
         if (y == 7) {
-           fp_mul_comba7(A,B,C);
+           ret = fp_mul_comba7(A,B,C);
            goto clean;
         }
 #endif
 #if defined(TFM_MUL8) && FP_SIZE >= 16
         if (y == 8) {
-           fp_mul_comba8(A,B,C);
+           ret = fp_mul_comba8(A,B,C);
            goto clean;
         }
 #endif
 #if defined(TFM_MUL9) && FP_SIZE >= 18
         if (y == 9) {
-           fp_mul_comba9(A,B,C);
+           ret = fp_mul_comba9(A,B,C);
            goto clean;
         }
 #endif
 #if defined(TFM_MUL12) && FP_SIZE >= 24
         if (y <= 12) {
-           fp_mul_comba12(A,B,C);
+           ret = fp_mul_comba12(A,B,C);
            goto clean;
         }
 #endif
 #if defined(TFM_MUL17) && FP_SIZE >= 34
         if (y <= 17) {
-           fp_mul_comba17(A,B,C);
+           ret = fp_mul_comba17(A,B,C);
            goto clean;
         }
 #endif
 
 #if defined(TFM_SMALL_SET) && FP_SIZE >= 32
         if (y <= 16) {
-           fp_mul_comba_small(A,B,C);
+           ret = fp_mul_comba_small(A,B,C);
            goto clean;
         }
 #endif
 #if defined(TFM_MUL20) && FP_SIZE >= 40
         if (y <= 20) {
-           fp_mul_comba20(A,B,C);
+           ret = fp_mul_comba20(A,B,C);
            goto clean;
         }
 #endif
 #if defined(TFM_MUL24) && FP_SIZE >= 48
         if (yy >= 16 && y <= 24) {
-           fp_mul_comba24(A,B,C);
+           ret = fp_mul_comba24(A,B,C);
            goto clean;
         }
 #endif
 #if defined(TFM_MUL28) && FP_SIZE >= 56
         if (yy >= 20 && y <= 28) {
-           fp_mul_comba28(A,B,C);
+           ret = fp_mul_comba28(A,B,C);
            goto clean;
         }
 #endif
 #if defined(TFM_MUL32) && FP_SIZE >= 64
         if (yy >= 24 && y <= 32) {
-           fp_mul_comba32(A,B,C);
+           ret = fp_mul_comba32(A,B,C);
            goto clean;
         }
 #endif
 #if defined(TFM_MUL48) && FP_SIZE >= 96
         if (yy >= 40 && y <= 48) {
-          fp_mul_comba48(A,B,C);
+          ret = fp_mul_comba48(A,B,C);
           goto clean;
         }
 #endif
 #if defined(TFM_MUL64) && FP_SIZE >= 128
         if (yy >= 56 && y <= 64) {
-           fp_mul_comba64(A,B,C);
+           ret = fp_mul_comba64(A,B,C);
            goto clean;
         }
 #endif
-        fp_mul_comba(A,B,C);
+        ret = fp_mul_comba(A,B,C);
 
 clean:
     /* zero any excess digits on the destination that we didn't write to */
     for (y = C->used; y >= 0 && y < oldused; y++) {
         C->dp[y] = 0;
     }
+
+    return ret;
 }
 
 void fp_mul_2(fp_int * a, fp_int * b)
@@ -431,11 +452,22 @@ void fp_mul_2d(fp_int *a, int b, fp_int *c)
 /* generic PxQ multiplier */
 #if defined(HAVE_INTEL_MULX)
 
-WC_INLINE static void fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
+WC_INLINE static int fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
 
 {
    int       ix, iy, iz, pa;
-   fp_int    tmp, *dst;
+   fp_int    *dst;
+#ifndef WOLFSSL_SMALL_STACK
+   fp_int    tmp[1];
+#else
+   fp_int    *tmp;
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+   tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   if (tmp == NULL)
+       return FP_MEM;
+#endif
 
    /* get size of output and trim */
    pa = A->used + B->used;
@@ -446,8 +478,8 @@ WC_INLINE static void fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
    /* Always take branch to use tmp variable. This avoids a cache attack for
     * determining if C equals A */
    if (1) {
-      fp_init(&tmp);
-      dst = &tmp;
+      fp_init(tmp);
+      dst = tmp;
    }
 
    TFM_INTEL_MUL_COMBA(A, B, dst) ;
@@ -456,16 +488,34 @@ WC_INLINE static void fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
   dst->sign = A->sign ^ B->sign;
   fp_clamp(dst);
   fp_copy(dst, C);
+
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+  return FP_OKAY;
 }
 #endif
 
-void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
+int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
 {
+   int       ret = 0;
    int       ix, iy, iz, tx, ty, pa;
    fp_digit  c0, c1, c2, *tmpx, *tmpy;
-   fp_int    tmp, *dst;
+   fp_int    *dst;
+#ifndef WOLFSSL_SMALL_STACK
+   fp_int    tmp[1];
+#else
+   fp_int    *tmp;
+#endif
 
-   IF_HAVE_INTEL_MULX(fp_mul_comba_mulx(A, B, C), return) ;
+   IF_HAVE_INTEL_MULX(ret = fp_mul_comba_mulx(A, B, C), return ret) ;
+
+#ifdef WOLFSSL_SMALL_STACK
+   tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   if (tmp == NULL)
+       return FP_MEM;
+#endif
 
    COMBA_START;
    COMBA_CLEAR;
@@ -479,8 +529,8 @@ void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
    /* Always take branch to use tmp variable. This avoids a cache attack for
     * determining if C equals A */
    if (1) {
-      fp_init(&tmp);
-      dst = &tmp;
+      fp_init(tmp);
+      dst = tmp;
    }
 
    for (ix = 0; ix < pa; ix++) {
@@ -514,13 +564,22 @@ void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
   dst->sign = A->sign ^ B->sign;
   fp_clamp(dst);
   fp_copy(dst, C);
+
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+  return ret;
 }
 
 /* a/b => cb + d == a */
 int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 {
-  fp_int  q, x, y, t1, t2;
   int     n, t, i, norm, neg;
+#ifndef WOLFSSL_SMALL_STACK
+  fp_int  q[1], x[1], y[1], t1[1], t2[1];
+#else
+  fp_int  *q, *x, *y, *t1, *t2;
+#endif
 
   /* is divisor zero ? */
   if (fp_iszero (b) == FP_YES) {
@@ -538,59 +597,67 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
     return FP_OKAY;
   }
 
-  fp_init(&q);
-  q.used = a->used + 2;
+#ifdef WOLFSSL_SMALL_STACK
+  q = (fp_int*)XMALLOC(sizeof(fp_int) * 5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  if (q == NULL) {
+      return FP_MEM;
+  }
+  x = &q[1]; y = &q[2]; t1 = &q[3]; t2 = &q[4];
+#endif
 
-  fp_init(&t1);
-  fp_init(&t2);
-  fp_init_copy(&x, a);
-  fp_init_copy(&y, b);
+  fp_init(q);
+  q->used = a->used + 2;
+
+  fp_init(t1);
+  fp_init(t2);
+  fp_init_copy(x, a);
+  fp_init_copy(y, b);
 
   /* fix the sign */
   neg = (a->sign == b->sign) ? FP_ZPOS : FP_NEG;
-  x.sign = y.sign = FP_ZPOS;
+  x->sign = y->sign = FP_ZPOS;
 
   /* normalize both x and y, ensure that y >= b/2, [b == 2**DIGIT_BIT] */
-  norm = fp_count_bits(&y) % DIGIT_BIT;
+  norm = fp_count_bits(y) % DIGIT_BIT;
   if (norm < (int)(DIGIT_BIT-1)) {
      norm = (DIGIT_BIT-1) - norm;
-     fp_mul_2d (&x, norm, &x);
-     fp_mul_2d (&y, norm, &y);
+     fp_mul_2d (x, norm, x);
+     fp_mul_2d (y, norm, y);
   } else {
      norm = 0;
   }
 
   /* note hac does 0 based, so if used==5 then its 0,1,2,3,4, e.g. use 4 */
-  n = x.used - 1;
-  t = y.used - 1;
+  n = x->used - 1;
+  t = y->used - 1;
 
   /* while (x >= y*b**n-t) do { q[n-t] += 1; x -= y*b**{n-t} } */
-  fp_lshd (&y, n - t); /* y = y*b**{n-t} */
+  fp_lshd (y, n - t); /* y = y*b**{n-t} */
 
-  while (fp_cmp (&x, &y) != FP_LT) {
-    ++(q.dp[n - t]);
-    fp_sub (&x, &y, &x);
+  while (fp_cmp (x, y) != FP_LT) {
+    ++(q->dp[n - t]);
+    fp_sub (x, y, x);
   }
 
   /* reset y by shifting it back down */
-  fp_rshd (&y, n - t);
+  fp_rshd (y, n - t);
 
   /* step 3. for i from n down to (t + 1) */
   for (i = n; i >= (t + 1); i--) {
-    if (i > x.used) {
+    if (i > x->used) {
       continue;
     }
 
     /* step 3.1 if xi == yt then set q{i-t-1} to b-1,
      * otherwise set q{i-t-1} to (xi*b + x{i-1})/yt */
-    if (x.dp[i] == y.dp[t]) {
-      q.dp[i - t - 1] = (fp_digit) ((((fp_word)1) << DIGIT_BIT) - 1);
+    if (x->dp[i] == y->dp[t]) {
+      q->dp[i - t - 1] = (fp_digit) ((((fp_word)1) << DIGIT_BIT) - 1);
     } else {
       fp_word tmp;
-      tmp = ((fp_word) x.dp[i]) << ((fp_word) DIGIT_BIT);
-      tmp |= ((fp_word) x.dp[i - 1]);
-      tmp /= ((fp_word)y.dp[t]);
-      q.dp[i - t - 1] = (fp_digit) (tmp);
+      tmp = ((fp_word) x->dp[i]) << ((fp_word) DIGIT_BIT);
+      tmp |= ((fp_word) x->dp[i - 1]);
+      tmp /= ((fp_word)y->dp[t]);
+      q->dp[i - t - 1] = (fp_digit) (tmp);
     }
 
     /* while (q{i-t-1} * (yt * b + y{t-1})) >
@@ -598,35 +665,35 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 
        do q{i-t-1} -= 1;
     */
-    q.dp[i - t - 1] = (q.dp[i - t - 1] + 1);
+    q->dp[i - t - 1] = (q->dp[i - t - 1] + 1);
     do {
-      q.dp[i - t - 1] = (q.dp[i - t - 1] - 1);
+      q->dp[i - t - 1] = (q->dp[i - t - 1] - 1);
 
       /* find left hand */
-      fp_zero (&t1);
-      t1.dp[0] = (t - 1 < 0) ? 0 : y.dp[t - 1];
-      t1.dp[1] = y.dp[t];
-      t1.used = 2;
-      fp_mul_d (&t1, q.dp[i - t - 1], &t1);
+      fp_zero (t1);
+      t1->dp[0] = (t - 1 < 0) ? 0 : y->dp[t - 1];
+      t1->dp[1] = y->dp[t];
+      t1->used = 2;
+      fp_mul_d (t1, q->dp[i - t - 1], t1);
 
       /* find right hand */
-      t2.dp[0] = (i - 2 < 0) ? 0 : x.dp[i - 2];
-      t2.dp[1] = (i - 1 < 0) ? 0 : x.dp[i - 1];
-      t2.dp[2] = x.dp[i];
-      t2.used = 3;
-    } while (fp_cmp_mag(&t1, &t2) == FP_GT);
+      t2->dp[0] = (i - 2 < 0) ? 0 : x->dp[i - 2];
+      t2->dp[1] = (i - 1 < 0) ? 0 : x->dp[i - 1];
+      t2->dp[2] = x->dp[i];
+      t2->used = 3;
+    } while (fp_cmp_mag(t1, t2) == FP_GT);
 
     /* step 3.3 x = x - q{i-t-1} * y * b**{i-t-1} */
-    fp_mul_d (&y, q.dp[i - t - 1], &t1);
-    fp_lshd  (&t1, i - t - 1);
-    fp_sub   (&x, &t1, &x);
+    fp_mul_d (y, q->dp[i - t - 1], t1);
+    fp_lshd  (t1, i - t - 1);
+    fp_sub   (x, t1, x);
 
     /* if x < 0 then { x = x + y*b**{i-t-1}; q{i-t-1} -= 1; } */
-    if (x.sign == FP_NEG) {
-      fp_copy (&y, &t1);
-      fp_lshd (&t1, i - t - 1);
-      fp_add (&x, &t1, &x);
-      q.dp[i - t - 1] = q.dp[i - t - 1] - 1;
+    if (x->sign == FP_NEG) {
+      fp_copy (y, t1);
+      fp_lshd (t1, i - t - 1);
+      fp_add (x, t1, x);
+      q->dp[i - t - 1] = q->dp[i - t - 1] - 1;
     }
   }
 
@@ -635,25 +702,28 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
    */
 
   /* get sign before writing to c */
-  x.sign = x.used == 0 ? FP_ZPOS : a->sign;
+  x->sign = x->used == 0 ? FP_ZPOS : a->sign;
 
   if (c != NULL) {
-    fp_clamp (&q);
-    fp_copy (&q, c);
+    fp_clamp (q);
+    fp_copy (q, c);
     c->sign = neg;
   }
 
   if (d != NULL) {
-    fp_div_2d (&x, norm, &x, NULL);
+    fp_div_2d (x, norm, x, NULL);
 
     /* zero any excess digits on the destination that we didn't write to */
-    for (i = b->used; i < x.used; i++) {
-        x.dp[i] = 0;
+    for (i = b->used; i < x->used; i++) {
+        x->dp[i] = 0;
     }
-    fp_clamp(&x);
-    fp_copy (&x, d);
+    fp_clamp(x);
+    fp_copy (x, d);
   }
 
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(q, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
   return FP_OKAY;
 }
 
@@ -700,7 +770,6 @@ void fp_div_2(fp_int * a, fp_int * b)
 void fp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d)
 {
   int      D;
-  fp_int   t;
 
   /* if the shift count is <= 0 then we do no work */
   if (b <= 0) {
@@ -711,11 +780,9 @@ void fp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d)
     return;
   }
 
-  fp_init(&t);
-
-  /* get the remainder */
-  if (d != NULL) {
-    fp_mod_2d (a, b, &t);
+  /* get the remainder before a is changed in calculating c */
+  if (a == c && d != NULL) {
+    fp_mod_2d (a, b, d);
   }
 
   /* copy */
@@ -731,28 +798,45 @@ void fp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d)
   if (D != 0) {
     fp_rshb(c, D);
   }
-  fp_clamp (c);
-  if (d != NULL) {
-    fp_copy (&t, d);
+
+  /* get the remainder if a is not changed in calculating c */
+  if (a != c && d != NULL) {
+    fp_mod_2d (a, b, d);
   }
+
+  fp_clamp (c);
 }
 
 /* c = a mod b, 0 <= c < b  */
 int fp_mod(fp_int *a, fp_int *b, fp_int *c)
 {
-   fp_int t;
+#ifndef WOLFSSL_SMALL_STACK
+   fp_int t[1];
+#else
+   fp_int *t;
+#endif
    int    err;
 
-   fp_init(&t);
-   if ((err = fp_div(a, b, NULL, &t)) != FP_OKAY) {
-      return err;
-   }
-   if (t.sign != b->sign) {
-      fp_add(&t, b, c);
-   } else {
-      fp_copy(&t, c);
+#ifdef WOLFSSL_SMALL_STACK
+   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   if (t == NULL)
+       return FP_MEM;
+#endif
+
+   fp_init(t);
+   err = fp_div(a, b, NULL, t);
+   if (err == FP_OKAY) {
+      if (t->sign != b->sign) {
+         fp_add(t, b, c);
+      } else {
+         fp_copy(t, c);
+     }
   }
-  return FP_OKAY;
+
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+  return err;
 }
 
 /* c = a mod 2**d */
@@ -785,113 +869,141 @@ void fp_mod_2d(fp_int *a, int b, fp_int *c)
 
 static int fp_invmod_slow (fp_int * a, fp_int * b, fp_int * c)
 {
-  fp_int  x, y, u, v, A, B, C, D;
-  int     res;
+#ifndef WOLFSSL_SMALL_STACK
+  fp_int  x[1], y[1], u[1], v[1], A[1], B[1], C[1], D[1];
+#else
+  fp_int  *x, *y, *u, *v, *A, *B, *C, *D;
+#endif
+  int     err;
 
   /* b cannot be negative */
   if (b->sign == FP_NEG || fp_iszero(b) == FP_YES) {
     return FP_VAL;
   }
 
+#ifdef WOLFSSL_SMALL_STACK
+  x = (fp_int*)XMALLOC(sizeof(fp_int) * 8, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  if (x == NULL) {
+      return FP_MEM;
+  }
+  y = &x[1]; u = &x[2]; v = &x[3]; A = &x[4]; B = &x[5]; C = &x[6]; D = &x[7];
+#endif
+
   /* init temps */
-  fp_init(&x);    fp_init(&y);
-  fp_init(&u);    fp_init(&v);
-  fp_init(&A);    fp_init(&B);
-  fp_init(&C);    fp_init(&D);
+  fp_init(x);    fp_init(y);
+  fp_init(u);    fp_init(v);
+  fp_init(A);    fp_init(B);
+  fp_init(C);    fp_init(D);
 
   /* x = a, y = b */
-  if ((res = fp_mod(a, b, &x)) != FP_OKAY) {
-      return res;
+  if ((err = fp_mod(a, b, x)) != FP_OKAY) {
+  #ifdef WOLFSSL_SMALL_STACK
+    XFREE(x, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  #endif
+    return err;
   }
-  fp_copy(b, &y);
+  fp_copy(b, y);
 
   /* 2. [modified] if x,y are both even then return an error! */
-  if (fp_iseven (&x) == FP_YES && fp_iseven (&y) == FP_YES) {
+  if (fp_iseven (x) == FP_YES && fp_iseven (y) == FP_YES) {
+  #ifdef WOLFSSL_SMALL_STACK
+    XFREE(x, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  #endif
     return FP_VAL;
   }
 
   /* 3. u=x, v=y, A=1, B=0, C=0,D=1 */
-  fp_copy (&x, &u);
-  fp_copy (&y, &v);
-  fp_set (&A, 1);
-  fp_set (&D, 1);
+  fp_copy (x, u);
+  fp_copy (y, v);
+  fp_set (A, 1);
+  fp_set (D, 1);
 
 top:
   /* 4.  while u is even do */
-  while (fp_iseven (&u) == FP_YES) {
+  while (fp_iseven (u) == FP_YES) {
     /* 4.1 u = u/2 */
-    fp_div_2 (&u, &u);
+    fp_div_2 (u, u);
 
     /* 4.2 if A or B is odd then */
-    if (fp_isodd (&A) == FP_YES || fp_isodd (&B) == FP_YES) {
+    if (fp_isodd (A) == FP_YES || fp_isodd (B) == FP_YES) {
       /* A = (A+y)/2, B = (B-x)/2 */
-      fp_add (&A, &y, &A);
-      fp_sub (&B, &x, &B);
+      fp_add (A, y, A);
+      fp_sub (B, x, B);
     }
     /* A = A/2, B = B/2 */
-    fp_div_2 (&A, &A);
-    fp_div_2 (&B, &B);
+    fp_div_2 (A, A);
+    fp_div_2 (B, B);
   }
 
   /* 5.  while v is even do */
-  while (fp_iseven (&v) == FP_YES) {
+  while (fp_iseven (v) == FP_YES) {
     /* 5.1 v = v/2 */
-    fp_div_2 (&v, &v);
+    fp_div_2 (v, v);
 
     /* 5.2 if C or D is odd then */
-    if (fp_isodd (&C) == FP_YES || fp_isodd (&D) == FP_YES) {
+    if (fp_isodd (C) == FP_YES || fp_isodd (D) == FP_YES) {
       /* C = (C+y)/2, D = (D-x)/2 */
-      fp_add (&C, &y, &C);
-      fp_sub (&D, &x, &D);
+      fp_add (C, y, C);
+      fp_sub (D, x, D);
     }
     /* C = C/2, D = D/2 */
-    fp_div_2 (&C, &C);
-    fp_div_2 (&D, &D);
+    fp_div_2 (C, C);
+    fp_div_2 (D, D);
   }
 
   /* 6.  if u >= v then */
-  if (fp_cmp (&u, &v) != FP_LT) {
+  if (fp_cmp (u, v) != FP_LT) {
     /* u = u - v, A = A - C, B = B - D */
-    fp_sub (&u, &v, &u);
-    fp_sub (&A, &C, &A);
-    fp_sub (&B, &D, &B);
+    fp_sub (u, v, u);
+    fp_sub (A, C, A);
+    fp_sub (B, D, B);
   } else {
     /* v - v - u, C = C - A, D = D - B */
-    fp_sub (&v, &u, &v);
-    fp_sub (&C, &A, &C);
-    fp_sub (&D, &B, &D);
+    fp_sub (v, u, v);
+    fp_sub (C, A, C);
+    fp_sub (D, B, D);
   }
 
   /* if not zero goto step 4 */
-  if (fp_iszero (&u) == FP_NO)
+  if (fp_iszero (u) == FP_NO)
     goto top;
 
   /* now a = C, b = D, gcd == g*v */
 
   /* if v != 1 then there is no inverse */
-  if (fp_cmp_d (&v, 1) != FP_EQ) {
+  if (fp_cmp_d (v, 1) != FP_EQ) {
+  #ifdef WOLFSSL_SMALL_STACK
+    XFREE(x, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  #endif
     return FP_VAL;
   }
 
   /* if its too low */
-  while (fp_cmp_d(&C, 0) == FP_LT) {
-      fp_add(&C, b, &C);
+  while (fp_cmp_d(C, 0) == FP_LT) {
+      fp_add(C, b, C);
   }
 
   /* too big */
-  while (fp_cmp_mag(&C, b) != FP_LT) {
-      fp_sub(&C, b, &C);
+  while (fp_cmp_mag(C, b) != FP_LT) {
+      fp_sub(C, b, C);
   }
 
   /* C is now the inverse */
-  fp_copy(&C, c);
+  fp_copy(C, c);
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(x, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
   return FP_OKAY;
 }
 
 /* c = 1/a (mod b) for odd b only */
 int fp_invmod(fp_int *a, fp_int *b, fp_int *c)
 {
-  fp_int  x, y, u, v, B, D;
+#ifndef WOLFSSL_SMALL_STACK
+  fp_int  x[1], y[1], u[1], v[1], B[1], D[1];
+#else
+  fp_int  *x, *y, *u, *v, *B, *D;
+#endif
   int     neg;
 
   /* 2. [modified] b must be odd   */
@@ -899,84 +1011,98 @@ int fp_invmod(fp_int *a, fp_int *b, fp_int *c)
     return fp_invmod_slow(a,b,c);
   }
 
+#ifdef WOLFSSL_SMALL_STACK
+  x = (fp_int*)XMALLOC(sizeof(fp_int) * 6, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  if (x == NULL) {
+      return FP_MEM;
+  }
+  y = &x[1]; u = &x[2]; v = &x[3]; B = &x[4]; D = &x[5];
+#endif
+
   /* init all our temps */
-  fp_init(&x);  fp_init(&y);
-  fp_init(&u);  fp_init(&v);
-  fp_init(&B);  fp_init(&D);
+  fp_init(x);  fp_init(y);
+  fp_init(u);  fp_init(v);
+  fp_init(B);  fp_init(D);
 
   /* x == modulus, y == value to invert */
-  fp_copy(b, &x);
+  fp_copy(b, x);
 
   /* we need y = |a| */
-  fp_abs(a, &y);
+  fp_abs(a, y);
 
   /* 3. u=x, v=y, A=1, B=0, C=0,D=1 */
-  fp_copy(&x, &u);
-  fp_copy(&y, &v);
-  fp_set (&D, 1);
+  fp_copy(x, u);
+  fp_copy(y, v);
+  fp_set (D, 1);
 
 top:
   /* 4.  while u is even do */
-  while (fp_iseven (&u) == FP_YES) {
+  while (fp_iseven (u) == FP_YES) {
     /* 4.1 u = u/2 */
-    fp_div_2 (&u, &u);
+    fp_div_2 (u, u);
 
     /* 4.2 if B is odd then */
-    if (fp_isodd (&B) == FP_YES) {
-      fp_sub (&B, &x, &B);
+    if (fp_isodd (B) == FP_YES) {
+      fp_sub (B, x, B);
     }
     /* B = B/2 */
-    fp_div_2 (&B, &B);
+    fp_div_2 (B, B);
   }
 
   /* 5.  while v is even do */
-  while (fp_iseven (&v) == FP_YES) {
+  while (fp_iseven (v) == FP_YES) {
     /* 5.1 v = v/2 */
-    fp_div_2 (&v, &v);
+    fp_div_2 (v, v);
 
     /* 5.2 if D is odd then */
-    if (fp_isodd (&D) == FP_YES) {
+    if (fp_isodd (D) == FP_YES) {
       /* D = (D-x)/2 */
-      fp_sub (&D, &x, &D);
+      fp_sub (D, x, D);
     }
     /* D = D/2 */
-    fp_div_2 (&D, &D);
+    fp_div_2 (D, D);
   }
 
   /* 6.  if u >= v then */
-  if (fp_cmp (&u, &v) != FP_LT) {
+  if (fp_cmp (u, v) != FP_LT) {
     /* u = u - v, B = B - D */
-    fp_sub (&u, &v, &u);
-    fp_sub (&B, &D, &B);
+    fp_sub (u, v, u);
+    fp_sub (B, D, B);
   } else {
     /* v - v - u, D = D - B */
-    fp_sub (&v, &u, &v);
-    fp_sub (&D, &B, &D);
+    fp_sub (v, u, v);
+    fp_sub (D, B, D);
   }
 
   /* if not zero goto step 4 */
-  if (fp_iszero (&u) == FP_NO) {
+  if (fp_iszero (u) == FP_NO) {
     goto top;
   }
 
   /* now a = C, b = D, gcd == g*v */
 
   /* if v != 1 then there is no inverse */
-  if (fp_cmp_d (&v, 1) != FP_EQ) {
+  if (fp_cmp_d (v, 1) != FP_EQ) {
+  #ifdef WOLFSSL_SMALL_STACK
+    XFREE(x, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  #endif
     return FP_VAL;
   }
 
   /* b is now the inverse */
   neg = a->sign;
-  while (D.sign == FP_NEG) {
-    fp_add (&D, b, &D);
+  while (D->sign == FP_NEG) {
+    fp_add (D, b, D);
   }
   /* too big */
-  while (fp_cmp_mag(&D, b) != FP_LT) {
-    fp_sub(&D, b, &D);
+  while (fp_cmp_mag(D, b) != FP_LT) {
+    fp_sub(D, b, D);
   }
-  fp_copy (&D, c);
+  fp_copy (D, c);
   c->sign = neg;
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(x, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
   return FP_OKAY;
 }
 
@@ -984,20 +1110,35 @@ top:
 int fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 {
   int err;
-  fp_int t;
-
-  fp_init(&t);
-  fp_mul(a, b, &t);
-#if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
-  if (d->size < FP_SIZE) {
-    err = fp_mod(&t, c, &t);
-    fp_copy(&t, d);
-  } else
+#ifndef WOLFSSL_SMALL_STACK
+   fp_int t[1];
+#else
+   fp_int *t;
 #endif
-  {
-    err = fp_mod(&t, c, d);
+
+#ifdef WOLFSSL_SMALL_STACK
+   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   if (t == NULL)
+       return FP_MEM;
+#endif
+
+  fp_init(t);
+  err = fp_mul(a, b, t);
+  if (err == FP_OKAY) {
+  #if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
+    if (d->size < FP_SIZE) {
+      err = fp_mod(t, c, t);
+      fp_copy(t, d);
+    } else
+  #endif
+    {
+      err = fp_mod(t, c, d);
+    }
   }
 
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
   return err;
 }
 
@@ -1005,20 +1146,33 @@ int fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 int fp_submod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 {
   int err;
-  fp_int t;
+#ifndef WOLFSSL_SMALL_STACK
+   fp_int t[1];
+#else
+   fp_int *t;
+#endif
 
-  fp_init(&t);
-  fp_sub(a, b, &t);
+#ifdef WOLFSSL_SMALL_STACK
+   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   if (t == NULL)
+       return FP_MEM;
+#endif
+
+  fp_init(t);
+  fp_sub(a, b, t);
 #if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
   if (d->size < FP_SIZE) {
-    err = fp_mod(&t, c, &t);
-    fp_copy(&t, d);
+    err = fp_mod(t, c, t);
+    fp_copy(t, d);
   } else
 #endif
   {
-    err = fp_mod(&t, c, d);
+    err = fp_mod(t, c, d);
   }
 
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
   return err;
 }
 
@@ -1026,24 +1180,262 @@ int fp_submod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 {
   int err;
-  fp_int t;
+#ifndef WOLFSSL_SMALL_STACK
+   fp_int t[1];
+#else
+   fp_int *t;
+#endif
 
-  fp_init(&t);
-  fp_add(a, b, &t);
+#ifdef WOLFSSL_SMALL_STACK
+   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   if (t == NULL)
+       return FP_MEM;
+#endif
+
+  fp_init(t);
+  fp_add(a, b, t);
 #if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
   if (d->size < FP_SIZE) {
-    err = fp_mod(&t, c, &t);
-    fp_copy(&t, d);
+    err = fp_mod(t, c, t);
+    fp_copy(t, d);
   } else
 #endif
   {
-    err = fp_mod(&t, c, d);
+    err = fp_mod(t, c, d);
   }
 
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
   return err;
 }
 
 #ifdef TFM_TIMING_RESISTANT
+
+#ifdef WC_RSA_NONBLOCK
+
+#ifdef WC_RSA_NONBLOCK_TIME
+  /* User can override the check-time at build-time using the
+   * FP_EXPTMOD_NB_CHECKTIME macro to define your own function */
+  #ifndef FP_EXPTMOD_NB_CHECKTIME
+    /* instruction count for each type of operation */
+    /* array lookup is using TFM_EXPTMOD_NB_* states */
+    static const word32 exptModNbInst[TFM_EXPTMOD_NB_COUNT] = {
+    #ifdef TFM_PPC32
+      #ifdef _DEBUG
+        11098, 8701, 3971, 178394, 858093, 1040, 822, 178056, 181574, 90883, 184339, 236813
+      #else
+        7050,  2554, 3187, 43178,  200422, 384,  275, 43024,  43550,  30450, 46270,  61376
+      #endif
+    #elif defined(TFM_X86_64)
+      #ifdef _DEBUG
+        954, 2377, 858, 19027, 90840, 287, 407, 20140, 7874,  11385, 8005,  6151
+      #else
+        765, 1007, 771, 5216,  34993, 248, 193, 4975,  4201,  3947,  4275,  3811
+      #endif
+    #else /* software only fast math */
+      #ifdef _DEBUG
+        798, 2245, 802, 16657, 66920, 352, 186, 16997, 16145, 12789, 16742, 15006
+      #else
+        775, 1084, 783, 4692,  37510, 207, 183, 4374,  4392,  3097,  4442,  4079
+      #endif
+    #endif
+    };
+
+    static int fp_exptmod_nb_checktime(exptModNb_t* nb)
+    {
+      word32 totalInst;
+
+      /* if no max time has been set then stop (do not block) */
+      if (nb->maxBlockInst == 0 || nb->state >= TFM_EXPTMOD_NB_COUNT) {
+        return TFM_EXPTMOD_NB_STOP;
+      }
+
+      /* if instruction table not set then use maxBlockInst as simple counter */
+      if (exptModNbInst[nb->state] == 0) {
+        if (++nb->totalInst < nb->maxBlockInst)
+          return TFM_EXPTMOD_NB_CONTINUE;
+
+        nb->totalInst = 0; /* reset counter */
+        return TFM_EXPTMOD_NB_STOP;
+      }
+
+      /* get total instruction count including next operation */
+      totalInst = nb->totalInst + exptModNbInst[nb->state];
+      /* if the next operation can completed within the maximum then continue */
+      if (totalInst <= nb->maxBlockInst) {
+        return TFM_EXPTMOD_NB_CONTINUE;
+      }
+
+      return TFM_EXPTMOD_NB_STOP;
+    }
+    #define FP_EXPTMOD_NB_CHECKTIME(nb) fp_exptmod_nb_checktime((nb))
+  #endif /* !FP_EXPTMOD_NB_CHECKTIME */
+#endif /* WC_RSA_NONBLOCK_TIME */
+
+/* non-blocking version of timing resistant fp_exptmod function */
+/* supports cache resistance */
+int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
+{
+  int err, ret = FP_WOULDBLOCK;
+
+  if (nb == NULL)
+    return FP_VAL;
+
+#ifdef WC_RSA_NONBLOCK_TIME
+  nb->totalInst = 0;
+  do {
+    nb->totalInst += exptModNbInst[nb->state];
+#endif
+
+  switch (nb->state) {
+  case TFM_EXPTMOD_NB_INIT:
+    /* now setup montgomery */
+    if ((err = fp_montgomery_setup(P, &nb->mp)) != FP_OKAY) {
+      nb->state = TFM_EXPTMOD_NB_INIT;
+      return err;
+    }
+
+    /* init ints */
+    fp_init(&nb->R[0]);
+    fp_init(&nb->R[1]);
+  #ifndef WC_NO_CACHE_RESISTANT
+    fp_init(&nb->R[2]);
+  #endif
+    nb->state = TFM_EXPTMOD_NB_MONT;
+    break;
+
+  case TFM_EXPTMOD_NB_MONT:
+    /* mod m -> R[0] */
+    fp_montgomery_calc_normalization(&nb->R[0], P);
+
+    nb->state = TFM_EXPTMOD_NB_MONT_RED;
+    break;
+
+  case TFM_EXPTMOD_NB_MONT_RED:
+    /* reduce G -> R[1] */
+    if (fp_cmp_mag(P, G) != FP_GT) {
+       /* G > P so we reduce it first */
+       fp_mod(G, P, &nb->R[1]);
+    } else {
+       fp_copy(G, &nb->R[1]);
+    }
+
+    nb->state = TFM_EXPTMOD_NB_MONT_MUL;
+    break;
+
+  case TFM_EXPTMOD_NB_MONT_MUL:
+    /* G (R[1]) * m (R[0]) */
+    err = fp_mul(&nb->R[1], &nb->R[0], &nb->R[1]);
+    if (err != FP_OKAY) {
+      nb->state = TFM_EXPTMOD_NB_INIT;
+      return err;
+    }
+
+    nb->state = TFM_EXPTMOD_NB_MONT_MOD;
+    break;
+
+  case TFM_EXPTMOD_NB_MONT_MOD:
+    /* mod m */
+    err = fp_div(&nb->R[1], P, NULL, &nb->R[1]);
+    if (err != FP_OKAY) {
+      nb->state = TFM_EXPTMOD_NB_INIT;
+      return err;
+    }
+
+    nb->state = TFM_EXPTMOD_NB_MONT_MODCHK;
+    break;
+
+  case TFM_EXPTMOD_NB_MONT_MODCHK:
+    /* m matches sign of (G * R mod m) */
+    if (nb->R[1].sign != P->sign) {
+       fp_add(&nb->R[1], P, &nb->R[1]);
+    }
+
+    /* set initial mode and bit cnt */
+    nb->bitcnt = 1;
+    nb->buf    = 0;
+    nb->digidx = X->used - 1;
+
+    nb->state = TFM_EXPTMOD_NB_NEXT;
+    break;
+
+  case TFM_EXPTMOD_NB_NEXT:
+    /* grab next digit as required */
+    if (--nb->bitcnt == 0) {
+      /* if nb->digidx == -1 we are out of digits so break */
+      if (nb->digidx == -1) {
+        nb->state = TFM_EXPTMOD_NB_RED;
+        break;
+      }
+      /* read next digit and reset nb->bitcnt */
+      nb->buf    = X->dp[nb->digidx--];
+      nb->bitcnt = (int)DIGIT_BIT;
+    }
+
+    /* grab the next msb from the exponent */
+    nb->y     = (int)(nb->buf >> (DIGIT_BIT - 1)) & 1;
+    nb->buf <<= (fp_digit)1;
+    nb->state = TFM_EXPTMOD_NB_MUL;
+    FALL_THROUGH;
+
+  case TFM_EXPTMOD_NB_MUL:
+    fp_mul(&nb->R[0], &nb->R[1], &nb->R[nb->y^1]);
+    nb->state = TFM_EXPTMOD_NB_MUL_RED;
+    break;
+
+  case TFM_EXPTMOD_NB_MUL_RED:
+    fp_montgomery_reduce(&nb->R[nb->y^1], P, nb->mp);
+    nb->state = TFM_EXPTMOD_NB_SQR;
+    break;
+
+  case TFM_EXPTMOD_NB_SQR:
+  #ifdef WC_NO_CACHE_RESISTANT
+    fp_sqr(&nb->R[nb->y], &nb->R[nb->y]);
+  #else
+    fp_copy((fp_int*) ( ((wolfssl_word)&nb->R[0] & wc_off_on_addr[nb->y^1]) +
+                        ((wolfssl_word)&nb->R[1] & wc_off_on_addr[nb->y]) ),
+            &nb->R[2]);
+    fp_sqr(&nb->R[2], &nb->R[2]);
+  #endif /* WC_NO_CACHE_RESISTANT */
+
+    nb->state = TFM_EXPTMOD_NB_SQR_RED;
+    break;
+
+  case TFM_EXPTMOD_NB_SQR_RED:
+  #ifdef WC_NO_CACHE_RESISTANT
+    fp_montgomery_reduce(&nb->R[nb->y], P, nb->mp);
+  #else
+    fp_montgomery_reduce(&nb->R[2], P, nb->mp);
+    fp_copy(&nb->R[2],
+            (fp_int*) ( ((wolfssl_word)&nb->R[0] & wc_off_on_addr[nb->y^1]) +
+                        ((wolfssl_word)&nb->R[1] & wc_off_on_addr[nb->y]) ) );
+  #endif /* WC_NO_CACHE_RESISTANT */
+
+    nb->state = TFM_EXPTMOD_NB_NEXT;
+    break;
+
+  case TFM_EXPTMOD_NB_RED:
+    /* final reduce */
+    fp_montgomery_reduce(&nb->R[0], P, nb->mp);
+    fp_copy(&nb->R[0], Y);
+
+    nb->state = TFM_EXPTMOD_NB_INIT;
+    ret = FP_OKAY;
+    break;
+  } /* switch */
+
+#ifdef WC_RSA_NONBLOCK_TIME
+  /* determine if maximum blocking time has been reached */
+  } while (ret == FP_WOULDBLOCK &&
+    FP_EXPTMOD_NB_CHECKTIME(nb) == TFM_EXPTMOD_NB_CONTINUE);
+#endif
+
+  return ret;
+}
+
+#endif /* WC_RSA_NONBLOCK */
+
 
 /* timing resistant montgomery ladder based exptmod
    Based on work by Marc Joye, Sung-Ming Yen, "The Montgomery Powering Ladder",
@@ -1051,10 +1443,14 @@ int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 */
 static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 {
+#ifndef WOLFSSL_SMALL_STACK
 #ifdef WC_NO_CACHE_RESISTANT
   fp_int   R[2];
 #else
   fp_int   R[3];   /* need a temp for cache resistance */
+#endif
+#else
+   fp_int  *R;
 #endif
   fp_digit buf, mp;
   int      err, bitcnt, digidx, y;
@@ -1064,6 +1460,15 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
      return err;
   }
 
+#ifdef WOLFSSL_SMALL_STACK
+#ifndef WC_NO_CACHE_RESISTANT
+   R = (fp_int*)XMALLOC(sizeof(fp_int) * 3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+   R = (fp_int*)XMALLOC(sizeof(fp_int) * 2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+   if (R == NULL)
+       return FP_MEM;
+#endif
   fp_init(&R[0]);
   fp_init(&R[1]);
 #ifndef WC_NO_CACHE_RESISTANT
@@ -1108,10 +1513,36 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
     buf <<= (fp_digit)1;
 
     /* do ops */
-    fp_mul(&R[0], &R[1], &R[y^1]); fp_montgomery_reduce(&R[y^1], P, mp);
+    err = fp_mul(&R[0], &R[1], &R[y^1]);
+    if (err != FP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+      XFREE(R, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+      return err;
+    }
+    err = fp_montgomery_reduce(&R[y^1], P, mp);
+    if (err != FP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+      XFREE(R, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+      return err;
+    }
 
 #ifdef WC_NO_CACHE_RESISTANT
-    fp_sqr(&R[y], &R[y]);          fp_montgomery_reduce(&R[y], P, mp);
+    err = fp_sqr(&R[y], &R[y]);
+    if (err != FP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+      XFREE(R, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+      return err;
+    }
+    err = fp_montgomery_reduce(&R[y], P, mp);
+    if (err != FP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+      XFREE(R, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+      return err;
+    }
 #else
     /* instead of using R[y] for sqr, which leaks key bit to cache monitor,
      * use R[2] as temp, make sure address calc is constant, keep
@@ -1119,16 +1550,32 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
     fp_copy((fp_int*) ( ((wolfssl_word)&R[0] & wc_off_on_addr[y^1]) +
                         ((wolfssl_word)&R[1] & wc_off_on_addr[y]) ),
             &R[2]);
-    fp_sqr(&R[2], &R[2]);          fp_montgomery_reduce(&R[2], P, mp);
+    err = fp_sqr(&R[2], &R[2]);
+    if (err != FP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+      XFREE(R, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+      return err;
+    }
+    err = fp_montgomery_reduce(&R[2], P, mp);
+    if (err != FP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+      XFREE(R, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+      return err;
+    }
     fp_copy(&R[2],
             (fp_int*) ( ((wolfssl_word)&R[0] & wc_off_on_addr[y^1]) +
                         ((wolfssl_word)&R[1] & wc_off_on_addr[y]) ) );
 #endif /* WC_NO_CACHE_RESISTANT */
   }
 
-   fp_montgomery_reduce(&R[0], P, mp);
+   err = fp_montgomery_reduce(&R[0], P, mp);
    fp_copy(&R[0], Y);
-   return FP_OKAY;
+#ifdef WOLFSSL_SMALL_STACK
+   XFREE(R, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+   return err;
 }
 
 #else /* TFM_TIMING_RESISTANT */
@@ -1138,12 +1585,13 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
  */
 static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 {
-  fp_int   res;
   fp_digit buf, mp;
   int      err, bitbuf, bitcpy, bitcnt, mode, digidx, x, y, winsize;
 #ifdef WOLFSSL_SMALL_STACK
+  fp_int  *res;
   fp_int  *M;
 #else
+  fp_int   res[1];
   fp_int   M[64];
 #endif
 
@@ -1167,11 +1615,12 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  /* only allocate space for what's needed */
-  M = (fp_int*)XMALLOC(sizeof(fp_int)*(1 << winsize), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  /* only allocate space for what's needed for window plus res */
+  M = (fp_int*)XMALLOC(sizeof(fp_int)*((1 << winsize) + 1), NULL, DYNAMIC_TYPE_TMP_BUFFER);
   if (M == NULL) {
      return FP_MEM;
   }
+  res = &M[1 << winsize];
 #endif
 
   /* init M array */
@@ -1179,7 +1628,7 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
     fp_init(&M[x]);
 
   /* setup result */
-  fp_init(&res);
+  fp_init(res);
 
   /* create M table
    *
@@ -1189,7 +1638,7 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
    */
 
    /* now we need R mod m */
-   fp_montgomery_calc_normalization (&res, P);
+   fp_montgomery_calc_normalization (res, P);
 
    /* now set M[1] to G * R mod m */
    if (fp_cmp_mag(P, G) != FP_GT) {
@@ -1198,20 +1647,38 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
    } else {
       fp_copy(G, &M[1]);
    }
-   fp_mulmod (&M[1], &res, P, &M[1]);
+   fp_mulmod (&M[1], res, P, &M[1]);
 
   /* compute the value at M[1<<(winsize-1)] by
    * squaring M[1] (winsize-1) times */
   fp_copy (&M[1], &M[1 << (winsize - 1)]);
   for (x = 0; x < (winsize - 1); x++) {
     fp_sqr (&M[1 << (winsize - 1)], &M[1 << (winsize - 1)]);
-    fp_montgomery_reduce (&M[1 << (winsize - 1)], P, mp);
+    err = fp_montgomery_reduce (&M[1 << (winsize - 1)], P, mp);
+    if (err != FP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+      XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+      return err;
+    }
   }
 
   /* create upper table */
   for (x = (1 << (winsize - 1)) + 1; x < (1 << winsize); x++) {
-    fp_mul(&M[x - 1], &M[1], &M[x]);
-    fp_montgomery_reduce(&M[x], P, mp);
+    err = fp_mul(&M[x - 1], &M[1], &M[x]);
+    if (err != FP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+      XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+      return err;
+    }
+    err = fp_montgomery_reduce(&M[x], P, mp);
+    if (err != FP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+      XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+      return err;
+    }
   }
 
   /* set initial mode and bit cnt */
@@ -1249,8 +1716,20 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 
     /* if the bit is zero and mode == 1 then we square */
     if (mode == 1 && y == 0) {
-      fp_sqr(&res, &res);
-      fp_montgomery_reduce(&res, P, mp);
+      err = fp_sqr(res, res);
+      if (err != FP_OKAY) {
+      #ifdef WOLFSSL_SMALL_STACK
+        XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      #endif
+        return err;
+      }
+      fp_montgomery_reduce(res, P, mp);
+      if (err != FP_OKAY) {
+      #ifdef WOLFSSL_SMALL_STACK
+        XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      #endif
+        return err;
+      }
       continue;
     }
 
@@ -1262,13 +1741,37 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
       /* ok window is filled so square as required and multiply  */
       /* square first */
       for (x = 0; x < winsize; x++) {
-        fp_sqr(&res, &res);
-        fp_montgomery_reduce(&res, P, mp);
+        err = fp_sqr(res, res);
+        if (err != FP_OKAY) {
+        #ifdef WOLFSSL_SMALL_STACK
+          XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+          return err;
+        }
+        err = fp_montgomery_reduce(res, P, mp);
+        if (err != FP_OKAY) {
+        #ifdef WOLFSSL_SMALL_STACK
+          XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+          return err;
+        }
       }
 
       /* then multiply */
-      fp_mul(&res, &M[bitbuf], &res);
-      fp_montgomery_reduce(&res, P, mp);
+      err = fp_mul(res, &M[bitbuf], res);
+      if (err != FP_OKAY) {
+      #ifdef WOLFSSL_SMALL_STACK
+        XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      #endif
+        return err;
+      }
+      err = fp_montgomery_reduce(res, P, mp);
+      if (err != FP_OKAY) {
+      #ifdef WOLFSSL_SMALL_STACK
+        XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      #endif
+        return err;
+      }
 
       /* empty window and reset */
       bitcpy = 0;
@@ -1281,15 +1784,39 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
   if (mode == 2 && bitcpy > 0) {
     /* square then multiply if the bit is set */
     for (x = 0; x < bitcpy; x++) {
-      fp_sqr(&res, &res);
-      fp_montgomery_reduce(&res, P, mp);
+      err = fp_sqr(res, res);
+      if (err != FP_OKAY) {
+      #ifdef WOLFSSL_SMALL_STACK
+        XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      #endif
+        return err;
+      }
+      err = fp_montgomery_reduce(res, P, mp);
+      if (err != FP_OKAY) {
+      #ifdef WOLFSSL_SMALL_STACK
+        XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      #endif
+        return err;
+      }
 
       /* get next bit of the window */
       bitbuf <<= 1;
       if ((bitbuf & (1 << winsize)) != 0) {
         /* then multiply */
-        fp_mul(&res, &M[1], &res);
-        fp_montgomery_reduce(&res, P, mp);
+        err = fp_mul(res, &M[1], res);
+        if (err != FP_OKAY) {
+        #ifdef WOLFSSL_SMALL_STACK
+          XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+          return err;
+        }
+        err = fp_montgomery_reduce(res, P, mp);
+        if (err != FP_OKAY) {
+        #ifdef WOLFSSL_SMALL_STACK
+          XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+          return err;
+        }
       }
     }
   }
@@ -1300,42 +1827,67 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
    * to reduce one more time to cancel out the factor
    * of R.
    */
-  fp_montgomery_reduce(&res, P, mp);
+  err = fp_montgomery_reduce(res, P, mp);
 
   /* swap res with Y */
-  fp_copy (&res, Y);
+  fp_copy (res, Y);
 
 #ifdef WOLFSSL_SMALL_STACK
   XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-
-  return FP_OKAY;
+  return err;
 }
 
 #endif /* TFM_TIMING_RESISTANT */
 
 int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 {
+
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
+   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+   int x = fp_count_bits (X);
+#endif
+
    /* prevent overflows */
    if (P->used > (FP_SIZE/2)) {
       return FP_VAL;
    }
 
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
+   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+   if(x > EPS_RSA_EXPT_XBTIS) {
+      return esp_mp_exptmod(G, X, x, P, Y);
+   }
+#endif
+
    if (X->sign == FP_NEG) {
 #ifndef POSITIVE_EXP_ONLY  /* reduce stack if assume no negatives */
       int    err;
-      fp_int tmp;
+   #ifndef WOLFSSL_SMALL_STACK
+      fp_int tmp[1];
+   #else
+      fp_int *tmp;
+   #endif
+
+   #ifdef WOLFSSL_SMALL_STACK
+      tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      if (tmp == NULL)
+          return FP_MEM;
+   #endif
 
       /* yes, copy G and invmod it */
-      fp_init_copy(&tmp, G);
-      if ((err = fp_invmod(&tmp, P, &tmp)) != FP_OKAY) {
-         return err;
+      fp_init_copy(tmp, G);
+      err = fp_invmod(tmp, P, tmp);
+      if (err == FP_OKAY) {
+         X->sign = FP_ZPOS;
+         err =  _fp_exptmod(tmp, X, P, Y);
+         if (X != Y) {
+            X->sign = FP_NEG;
+         }
       }
-      X->sign = FP_ZPOS;
-      err =  _fp_exptmod(&tmp, X, P, Y);
-      if (X != Y) {
-         X->sign = FP_NEG;
-      }
+   #ifdef WOLFSSL_SMALL_STACK
+      XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   #endif
       return err;
 #else
       return FP_VAL;
@@ -1372,8 +1924,9 @@ void fp_2expt(fp_int *a, int b)
 }
 
 /* b = a*a  */
-void fp_sqr(fp_int *A, fp_int *B)
+int fp_sqr(fp_int *A, fp_int *B)
 {
+    int err;
     int y, oldused;
 
     oldused = B->used;
@@ -1381,117 +1934,130 @@ void fp_sqr(fp_int *A, fp_int *B)
 
     /* call generic if we're out of range */
     if (y + y > FP_SIZE) {
-       fp_sqr_comba(A, B);
+       err = fp_sqr_comba(A, B);
        goto clean;
     }
 
 #if defined(TFM_SQR3) && FP_SIZE >= 6
         if (y <= 3) {
-           fp_sqr_comba3(A,B);
+           err = fp_sqr_comba3(A,B);
            goto clean;
         }
 #endif
 #if defined(TFM_SQR4) && FP_SIZE >= 8
         if (y == 4) {
-           fp_sqr_comba4(A,B);
+           err = fp_sqr_comba4(A,B);
            goto clean;
         }
 #endif
 #if defined(TFM_SQR6) && FP_SIZE >= 12
         if (y <= 6) {
-           fp_sqr_comba6(A,B);
+           err = fp_sqr_comba6(A,B);
            goto clean;
         }
 #endif
 #if defined(TFM_SQR7) && FP_SIZE >= 14
         if (y == 7) {
-           fp_sqr_comba7(A,B);
+           err = fp_sqr_comba7(A,B);
            goto clean;
         }
 #endif
 #if defined(TFM_SQR8) && FP_SIZE >= 16
         if (y == 8) {
-           fp_sqr_comba8(A,B);
+           err = fp_sqr_comba8(A,B);
            goto clean;
         }
 #endif
 #if defined(TFM_SQR9) && FP_SIZE >= 18
         if (y == 9) {
-           fp_sqr_comba9(A,B);
+           err = fp_sqr_comba9(A,B);
            goto clean;
         }
 #endif
 #if defined(TFM_SQR12) && FP_SIZE >= 24
         if (y <= 12) {
-           fp_sqr_comba12(A,B);
+           err = fp_sqr_comba12(A,B);
            goto clean;
         }
 #endif
 #if defined(TFM_SQR17) && FP_SIZE >= 34
         if (y <= 17) {
-           fp_sqr_comba17(A,B);
+           err = fp_sqr_comba17(A,B);
            goto clean;
         }
 #endif
 #if defined(TFM_SMALL_SET)
         if (y <= 16) {
-           fp_sqr_comba_small(A,B);
+           err = fp_sqr_comba_small(A,B);
            goto clean;
         }
 #endif
 #if defined(TFM_SQR20) && FP_SIZE >= 40
         if (y <= 20) {
-           fp_sqr_comba20(A,B);
+           err = fp_sqr_comba20(A,B);
            goto clean;
         }
 #endif
 #if defined(TFM_SQR24) && FP_SIZE >= 48
         if (y <= 24) {
-           fp_sqr_comba24(A,B);
+           err = fp_sqr_comba24(A,B);
            goto clean;
         }
 #endif
 #if defined(TFM_SQR28) && FP_SIZE >= 56
         if (y <= 28) {
-           fp_sqr_comba28(A,B);
+           err = fp_sqr_comba28(A,B);
            goto clean;
         }
 #endif
 #if defined(TFM_SQR32) && FP_SIZE >= 64
         if (y <= 32) {
-           fp_sqr_comba32(A,B);
+           err = fp_sqr_comba32(A,B);
            goto clean;
         }
 #endif
 #if defined(TFM_SQR48) && FP_SIZE >= 96
         if (y <= 48) {
-           fp_sqr_comba48(A,B);
+           err = fp_sqr_comba48(A,B);
            goto clean;
         }
 #endif
 #if defined(TFM_SQR64) && FP_SIZE >= 128
         if (y <= 64) {
-           fp_sqr_comba64(A,B);
+           err = fp_sqr_comba64(A,B);
            goto clean;
         }
 #endif
-       fp_sqr_comba(A, B);
+       err = fp_sqr_comba(A, B);
 
 clean:
   /* zero any excess digits on the destination that we didn't write to */
   for (y = B->used; y >= 0 && y < oldused; y++) {
     B->dp[y] = 0;
   }
+
+  return err;
 }
 
 /* generic comba squarer */
-void fp_sqr_comba(fp_int *A, fp_int *B)
+int fp_sqr_comba(fp_int *A, fp_int *B)
 {
   int       pa, ix, iz;
   fp_digit  c0, c1, c2;
-  fp_int    tmp, *dst;
 #ifdef TFM_ISO
   fp_word   tt;
+#endif
+   fp_int    *dst;
+#ifndef WOLFSSL_SMALL_STACK
+   fp_int    tmp[1];
+#else
+   fp_int    *tmp;
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+   tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   if (tmp == NULL)
+       return FP_MEM;
 #endif
 
   /* get size of output and trim */
@@ -1505,8 +2071,8 @@ void fp_sqr_comba(fp_int *A, fp_int *B)
   COMBA_CLEAR;
 
   if (A == B) {
-     fp_init(&tmp);
-     dst = &tmp;
+     fp_init(tmp);
+     dst = tmp;
   } else {
      fp_zero(B);
      dst = B;
@@ -1562,6 +2128,11 @@ void fp_sqr_comba(fp_int *A, fp_int *B)
   if (dst != B) {
      fp_copy(dst, B);
   }
+
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+  return FP_OKAY;
 }
 
 int fp_cmp(fp_int *a, fp_int *b)
@@ -1704,27 +2275,38 @@ static WC_INLINE void innermul8_mulx(fp_digit *c_mulx, fp_digit *cy_mulx, fp_dig
 }
 
 /* computes x/R == x (mod N) via Montgomery Reduction */
-static void fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp)
+static int fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp)
 {
-   fp_digit c[FP_SIZE+1], *_c, *tmpm, mu = 0;
+#ifndef WOLFSSL_SMALL_STACK
+   fp_digit c[FP_SIZE+1];
+#else
+   fp_digit *c;
+#endif
+   fp_digit *_c, *tmpm, mu = 0;
    int      oldused, x, y, pa;
 
    /* bail if too large */
    if (m->used > (FP_SIZE/2)) {
       (void)mu;                     /* shut up compiler */
-      return;
+      return FP_OKAY;
    }
 
 #ifdef TFM_SMALL_MONT_SET
    if (m->used <= 16) {
-      fp_montgomery_reduce_small(a, m, mp);
-      return;
+      return fp_montgomery_reduce_small(a, m, mp);
    }
 #endif
 
+#ifdef WOLFSSL_SMALL_STACK
+   /* only allocate space for what's needed for window plus res */
+   c = (fp_digit*)XMALLOC(sizeof(fp_digit)*(FP_SIZE + 1), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   if (c == NULL) {
+      return FP_MEM;
+   }
+#endif
 
    /* now zero the buff */
-   XMEMSET(c, 0, sizeof(c));
+   XMEMSET(c, 0, sizeof(fp_digit)*(FP_SIZE + 1));
    pa = m->used;
 
    /* copy the input */
@@ -1778,33 +2360,50 @@ static void fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp)
   if (fp_cmp_mag (a, m) != FP_LT) {
     s_fp_sub (a, m, a);
   }
+
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(c, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+  return FP_OKAY;
 }
 #endif
 
 /* computes x/R == x (mod N) via Montgomery Reduction */
-void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
+int fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
 {
-   fp_digit c[FP_SIZE+1], *_c, *tmpm, mu = 0;
-   int      oldused, x, y, pa;
+#ifndef WOLFSSL_SMALL_STACK
+   fp_digit c[FP_SIZE+1];
+#else
+   fp_digit *c;
+#endif
+   fp_digit *_c, *tmpm, mu = 0;
+   int      oldused, x, y, pa, err;
 
-   IF_HAVE_INTEL_MULX(fp_montgomery_reduce_mulx(a, m, mp), return) ;
+   IF_HAVE_INTEL_MULX(err = fp_montgomery_reduce_mulx(a, m, mp), return err) ;
+   (void)err;
 
    /* bail if too large */
    if (m->used > (FP_SIZE/2)) {
       (void)mu;                     /* shut up compiler */
-      return;
+      return FP_OKAY;
    }
 
 #ifdef TFM_SMALL_MONT_SET
    if (m->used <= 16) {
-      fp_montgomery_reduce_small(a, m, mp);
-      return;
+      return fp_montgomery_reduce_small(a, m, mp);
    }
 #endif
 
+#ifdef WOLFSSL_SMALL_STACK
+   /* only allocate space for what's needed for window plus res */
+   c = (fp_digit*)XMALLOC(sizeof(fp_digit)*(FP_SIZE + 1), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   if (c == NULL) {
+      return FP_MEM;
+   }
+#endif
 
    /* now zero the buff */
-   XMEMSET(c, 0, sizeof(c));
+   XMEMSET(c, 0, sizeof(fp_digit)*(FP_SIZE + 1));
    pa = m->used;
 
    /* copy the input */
@@ -1860,6 +2459,11 @@ void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
   if (fp_cmp_mag (a, m) != FP_LT) {
     s_fp_sub (a, m, a);
   }
+
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(c, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+  return FP_OKAY;
 }
 
 void fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
@@ -1898,10 +2502,10 @@ void fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
        /* Use Duff's device to unroll the loop. */
        int idx = (c - 1) & ~3;
        switch (c % 4) {
-       case 0:    do { pd[idx+0] = *b++;
-       case 3:         pd[idx+1] = *b++;
-       case 2:         pd[idx+2] = *b++;
-       case 1:         pd[idx+3] = *b++;
+       case 0:    do { pd[idx+0] = *b++; // fallthrough
+       case 3:         pd[idx+1] = *b++; // fallthrough
+       case 2:         pd[idx+2] = *b++; // fallthrough
+       case 1:         pd[idx+3] = *b++; // fallthrough
                      idx -= 4;
                  } while ((c -= 4) > 0);
        }
@@ -1953,15 +2557,72 @@ int fp_to_unsigned_bin_at_pos(int x, fp_int *t, unsigned char *b)
 #endif
 }
 
-void fp_to_unsigned_bin(fp_int *a, unsigned char *b)
+int fp_to_unsigned_bin(fp_int *a, unsigned char *b)
 {
   int     x;
-  fp_int  t;
+#ifndef WOLFSSL_SMALL_STACK
+   fp_int t[1];
+#else
+   fp_int *t;
+#endif
 
-  fp_init_copy(&t, a);
+#ifdef WOLFSSL_SMALL_STACK
+   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   if (t == NULL)
+       return FP_MEM;
+#endif
 
-  x = fp_to_unsigned_bin_at_pos(0, &t, b);
+  fp_init_copy(t, a);
+
+  x = fp_to_unsigned_bin_at_pos(0, t, b);
   fp_reverse (b, x);
+
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+  return FP_OKAY;
+}
+
+int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
+{
+#if DIGIT_BIT == 64 || DIGIT_BIT == 32
+  int i, j, x;
+
+  for (x=c-1,j=0,i=0; x >= 0; x--) {
+     b[x] = (unsigned char)(a->dp[i] >> j);
+     j += 8;
+     i += j == DIGIT_BIT;
+     j &= DIGIT_BIT - 1;
+  }
+
+  return FP_OKAY;
+#else
+  int     x;
+#ifndef WOLFSSL_SMALL_STACK
+   fp_int t[1];
+#else
+   fp_int *t;
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   if (t == NULL)
+       return FP_MEM;
+#endif
+
+  fp_init_copy(t, a);
+
+  for (x = 0; x < c; x++) {
+      b[x] = (unsigned char) (t->dp[0] & 255);
+      fp_div_2d (t, 8, t, NULL);
+  }
+  fp_reverse (b, x);
+
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+  return FP_OKAY;
+#endif
 }
 
 int fp_unsigned_bin_size(fp_int *a)
@@ -2194,20 +2855,36 @@ void fp_reverse (unsigned char *s, int len)
 
 
 /* c = a - b */
-void fp_sub_d(fp_int *a, fp_digit b, fp_int *c)
+int fp_sub_d(fp_int *a, fp_digit b, fp_int *c)
 {
-   fp_int tmp;
-   fp_init(&tmp);
-   fp_set(&tmp, b);
+#ifndef WOLFSSL_SMALL_STACK
+   fp_int    tmp[1];
+#else
+   fp_int    *tmp;
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+   tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   if (tmp == NULL)
+       return FP_MEM;
+#endif
+
+   fp_init(tmp);
+   fp_set(tmp, b);
 #if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
    if (c->size < FP_SIZE) {
-     fp_sub(a, &tmp, &tmp);
-     fp_copy(&tmp, c);
+     fp_sub(a, tmp, tmp);
+     fp_copy(tmp, c);
    } else
 #endif
    {
-     fp_sub(a, &tmp, c);
+     fp_sub(a, tmp, c);
    }
+
+#ifdef WOLFSSL_SMALL_STACK
+   XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+   return FP_OKAY;
 }
 
 
@@ -2339,8 +3016,7 @@ int wolfcrypt_mp_mul(mp_int * a, mp_int * b, mp_int * c)
 int mp_mul (mp_int * a, mp_int * b, mp_int * c)
 #endif
 {
-  fp_mul(a, b, c);
-  return MP_OKAY;
+  return fp_mul(a, b, c);
 }
 
 int mp_mul_d (mp_int * a, mp_digit b, mp_int * c)
@@ -2356,7 +3032,16 @@ int wolfcrypt_mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
 int mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
 #endif
 {
-  return fp_mulmod(a, b, c, d);
+ #if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
+    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+    int A = fp_count_bits (a);
+    int B = fp_count_bits (b);
+
+    if( A >= ESP_RSA_MULM_BITS && B >= ESP_RSA_MULM_BITS)
+        return esp_mp_mulmod(a, b, c, d);
+    else
+ #endif
+   return fp_mulmod(a, b, c, d);
 }
 
 /* d = a - b (mod c) */
@@ -2431,10 +3116,13 @@ int mp_to_unsigned_bin_at_pos(int x, fp_int *t, unsigned char *b)
 /* store in unsigned [big endian] format */
 int mp_to_unsigned_bin (mp_int * a, unsigned char *b)
 {
-  fp_to_unsigned_bin(a,b);
-  return MP_OKAY;
+  return fp_to_unsigned_bin(a,b);
 }
 
+int mp_to_unsigned_bin_len(mp_int * a, unsigned char *b, int c)
+{
+  return fp_to_unsigned_bin_len(a, b, c);
+}
 /* reads a unsigned char array, assumes the msb is stored first [big endian] */
 int mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c)
 {
@@ -2445,8 +3133,7 @@ int mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c)
 
 int mp_sub_d(fp_int *a, fp_digit b, fp_int *c)
 {
-    fp_sub_d(a, b, c);
-    return MP_OKAY;
+    return fp_sub_d(a, b, c);
 }
 
 int mp_mul_2d(fp_int *a, int b, fp_int *c)
@@ -2571,22 +3258,36 @@ int mp_set_bit(mp_int *a, mp_digit b)
 int fp_sqrmod(fp_int *a, fp_int *b, fp_int *c)
 {
   int err;
-  fp_int t;
-
-  fp_init(&t);
-  fp_sqr(a, &t);
-
-#if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
-  if (c->size < FP_SIZE) {
-    err = fp_mod(&t, b, &t);
-    fp_copy(&t, c);
-  }
-  else
+#ifndef WOLFSSL_SMALL_STACK
+   fp_int t[1];
+#else
+   fp_int *t;
 #endif
-  {
-    err = fp_mod(&t, b, c);
+
+#ifdef WOLFSSL_SMALL_STACK
+   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   if (t == NULL)
+       return FP_MEM;
+#endif
+
+  fp_init(t);
+  err = fp_sqr(a, t);
+  if (err == FP_OKAY) {
+  #if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
+    if (c->size < FP_SIZE) {
+      err = fp_mod(t, b, t);
+      fp_copy(t, c);
+    }
+    else
+  #endif
+    {
+      err = fp_mod(t, b, c);
+    }
   }
 
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
   return err;
 }
 
@@ -2613,13 +3314,28 @@ int mp_montgomery_calc_normalization(mp_int *a, mp_int *b)
 /* swap the elements of two integers, for cases where you can't simply swap the
  * mp_int pointers around
  */
-static void fp_exch (fp_int * a, fp_int * b)
+static int fp_exch (fp_int * a, fp_int * b)
 {
-    fp_int  t;
+#ifndef WOLFSSL_SMALL_STACK
+    fp_int  t[1];
+#else
+    fp_int *t;
+#endif
 
-    t  = *a;
+#ifdef WOLFSSL_SMALL_STACK
+   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   if (t == NULL)
+       return FP_MEM;
+#endif
+
+    *t = *a;
     *a = *b;
-    *b = t;
+    *b = *t;
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return FP_OKAY;
 }
 #endif
 
@@ -2676,12 +3392,14 @@ static int s_is_power_of_two(fp_digit b, int *p)
 /* a/b => cb + d == a */
 static int fp_div_d(fp_int *a, fp_digit b, fp_int *c, fp_digit *d)
 {
-  fp_int   q;
+#ifndef WOLFSSL_SMALL_STACK
+  fp_int   q[1];
+#else
+  fp_int   *q;
+#endif
   fp_word  w;
   fp_digit t;
   int      ix;
-
-  fp_init(&q);
 
   /* cannot divide by zero */
   if (b == 0) {
@@ -2710,9 +3428,17 @@ static int fp_div_d(fp_int *a, fp_digit b, fp_int *c, fp_digit *d)
      return FP_OKAY;
   }
 
+#ifdef WOLFSSL_SMALL_STACK
+  q = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  if (q == NULL)
+      return FP_MEM;
+#endif
+
+  fp_init(q);
+
   if (c != NULL) {
-    q.used = a->used;
-    q.sign = a->sign;
+    q->used = a->used;
+    q->sign = a->sign;
   }
 
   w = 0;
@@ -2726,7 +3452,7 @@ static int fp_div_d(fp_int *a, fp_digit b, fp_int *c, fp_digit *d)
         t = 0;
       }
       if (c != NULL)
-        q.dp[ix] = (fp_digit)t;
+        q->dp[ix] = (fp_digit)t;
   }
 
   if (d != NULL) {
@@ -2734,10 +3460,13 @@ static int fp_div_d(fp_int *a, fp_digit b, fp_int *c, fp_digit *d)
   }
 
   if (c != NULL) {
-     fp_clamp(&q);
-     fp_copy(&q, c);
+     fp_clamp(q);
+     fp_copy(q, c);
   }
 
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(q, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
   return FP_OKAY;
 }
 
@@ -2759,17 +3488,13 @@ int mp_mod_d(fp_int *a, fp_digit b, fp_digit *c)
 #if !defined(NO_DH) || !defined(NO_DSA) || !defined(NO_RSA) || \
     defined(WOLFSSL_KEY_GEN)
 
-static int  fp_isprime_ex(fp_int *a, int t);
-/* static int  fp_isprime(fp_int *a); */
+static int  fp_isprime_ex(fp_int *a, int t, int* result);
 
 
 int mp_prime_is_prime(mp_int* a, int t, int* result)
 {
-    (void)t;
-    *result = fp_isprime_ex(a, t);
-    return MP_OKAY;
+    return fp_isprime_ex(a, t, result);
 }
-
 
 /* Miller-Rabin test of "a" to the base of "b" as described in
  * HAC pp. 139 Algorithm 4.24
@@ -2778,60 +3503,107 @@ int mp_prime_is_prime(mp_int* a, int t, int* result)
  * Randomly the chance of error is no more than 1/4 and often
  * very much lower.
  */
-static void fp_prime_miller_rabin (fp_int * a, fp_int * b, int *result)
+static int fp_prime_miller_rabin_ex(fp_int * a, fp_int * b, int *result,
+  fp_int *n1, fp_int *y, fp_int *r)
 {
-  fp_int  n1, y, r;
-  int     s, j;
+  int s, j;
+  int err;
 
   /* default */
   *result = FP_NO;
 
   /* ensure b > 1 */
   if (fp_cmp_d(b, 1) != FP_GT) {
-     return;
+     return FP_OKAY;
   }
 
   /* get n1 = a - 1 */
-  fp_init_copy(&n1, a);
-  fp_sub_d(&n1, 1, &n1);
+  fp_copy(a, n1);
+  err = fp_sub_d(n1, 1, n1);
+  if (err != FP_OKAY) {
+     return err;
+  }
 
   /* set 2**s * r = n1 */
-  fp_init_copy(&r, &n1);
+  fp_copy(n1, r);
 
   /* count the number of least significant bits
    * which are zero
    */
-  s = fp_cnt_lsb(&r);
+  s = fp_cnt_lsb(r);
 
   /* now divide n - 1 by 2**s */
-  fp_div_2d (&r, s, &r, NULL);
+  fp_div_2d (r, s, r, NULL);
 
   /* compute y = b**r mod a */
-  fp_init(&y);
-  fp_exptmod(b, &r, a, &y);
+  fp_zero(y);
+#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+  if (fp_count_bits(a) == 1024)
+      sp_ModExp_1024(b, r, a, y);
+  else if (fp_count_bits(a) == 2048)
+      sp_ModExp_2048(b, r, a, y);
+  else
+#endif
+      fp_exptmod(b, r, a, y);
 
   /* if y != 1 and y != n1 do */
-  if (fp_cmp_d (&y, 1) != FP_EQ && fp_cmp (&y, &n1) != FP_EQ) {
+  if (fp_cmp_d (y, 1) != FP_EQ && fp_cmp (y, n1) != FP_EQ) {
     j = 1;
     /* while j <= s-1 and y != n1 */
-    while ((j <= (s - 1)) && fp_cmp (&y, &n1) != FP_EQ) {
-      fp_sqrmod (&y, a, &y);
+    while ((j <= (s - 1)) && fp_cmp (y, n1) != FP_EQ) {
+      fp_sqrmod (y, a, y);
 
       /* if y == 1 then composite */
-      if (fp_cmp_d (&y, 1) == FP_EQ) {
-         return;
+      if (fp_cmp_d (y, 1) == FP_EQ) {
+         return FP_OKAY;
       }
       ++j;
     }
 
     /* if y != n1 then composite */
-    if (fp_cmp (&y, &n1) != FP_EQ) {
-       return;
+    if (fp_cmp (y, n1) != FP_EQ) {
+       return FP_OKAY;
     }
   }
 
   /* probably prime now */
   *result = FP_YES;
+
+  return FP_OKAY;
+}
+
+static int fp_prime_miller_rabin(fp_int * a, fp_int * b, int *result)
+{
+  int err;
+#ifndef WOLFSSL_SMALL_STACK
+  fp_int  n1[1], y[1], r[1];
+#else
+  fp_int *n1, *y, *r;
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+  n1 = (fp_int*)XMALLOC(sizeof(fp_int) * 3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  if (n1 == NULL) {
+      return FP_MEM;
+  }
+  y = &n1[1]; r = &n1[2];
+#endif
+
+  fp_init(n1);
+  fp_init(y);
+  fp_init(r);
+
+  err = fp_prime_miller_rabin_ex(a, b, result, n1, y, r);
+
+  fp_clear(n1);
+  fp_clear(y);
+  fp_clear(r);
+
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(n1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+  return err;
 }
 
 
@@ -2874,9 +3646,13 @@ static const fp_digit primes[FP_PRIME_SIZE] = {
   0x062B, 0x062F, 0x063D, 0x0641, 0x0647, 0x0649, 0x064D, 0x0653
 };
 
-int fp_isprime_ex(fp_int *a, int t)
+int fp_isprime_ex(fp_int *a, int t, int* result)
 {
-   fp_int   b;
+#ifndef WOLFSSL_SMALL_STACK
+   fp_int   b[1];
+#else
+   fp_int   *b;
+#endif
    fp_digit d;
    int      r, res;
 
@@ -2884,9 +3660,11 @@ int fp_isprime_ex(fp_int *a, int t)
      return FP_NO;
    }
 
+   /* check against primes table */
    for (r = 0; r < FP_PRIME_SIZE; r++) {
        if (fp_cmp_d(a, primes[r]) == FP_EQ) {
-           return FP_YES;
+           *result = FP_YES;
+           return FP_OKAY;
        }
    }
 
@@ -2894,29 +3672,36 @@ int fp_isprime_ex(fp_int *a, int t)
    for (r = 0; r < FP_PRIME_SIZE; r++) {
        res = fp_mod_d(a, primes[r], &d);
        if (res != MP_OKAY || d == 0) {
-           return FP_NO;
+           *result = FP_NO;
+           return FP_OKAY;
        }
    }
 
-   /* now do 't' miller rabins */
-   fp_init(&b);
-   for (r = 0; r < t; r++) {
-       fp_set(&b, primes[r]);
-       fp_prime_miller_rabin(a, &b, &res);
-       if (res == FP_NO) {
-          return FP_NO;
-       }
-   }
-   return FP_YES;
-}
-
-#if 0
-/* Removed in favor of fp_isprime_ex(). */
-int fp_isprime(fp_int *a)
-{
-  return fp_isprime_ex(a, 8);
-}
+#ifdef WOLFSSL_SMALL_STACK
+  b = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  if (b == NULL)
+      return FP_MEM;
 #endif
+   /* now do 't' miller rabins */
+   fp_init(b);
+   for (r = 0; r < t; r++) {
+       fp_set(b, primes[r]);
+       fp_prime_miller_rabin(a, b, &res);
+       if (res == FP_NO) {
+          *result = FP_NO;
+       #ifdef WOLFSSL_SMALL_STACK
+          XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+       #endif
+          return FP_OKAY;
+       }
+   }
+   *result = FP_YES;
+#ifdef WOLFSSL_SMALL_STACK
+   XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+   return FP_OKAY;
+}
+
 
 int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
 {
@@ -2925,11 +3710,11 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
     if (a == NULL || result == NULL || rng == NULL)
         return FP_VAL;
 
-    /* do trial division */
     if (ret == FP_YES) {
         fp_digit d;
         int r;
 
+        /* check against primes table */
         for (r = 0; r < FP_PRIME_SIZE; r++) {
             if (fp_cmp_d(a, primes[r]) == FP_EQ) {
                 *result = FP_YES;
@@ -2937,6 +3722,7 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
             }
         }
 
+        /* do trial division */
         for (r = 0; r < FP_PRIME_SIZE; r++) {
             if (fp_mod_d(a, primes[r], &d) == MP_OKAY) {
                 if (d == 0)
@@ -2951,47 +3737,80 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
     /* now do a miller rabin with up to t random numbers, this should
      * give a (1/4)^t chance of a false prime. */
     if (ret == FP_YES) {
-        fp_int b, c;
+    #ifndef WOLFSSL_SMALL_STACK
+        fp_int b[1], c[1], n1[1], y[1], r[1];
+        byte   base[FP_MAX_PRIME_SIZE];
+    #else
+        fp_int *b, *c, *n1, *y, *r;
+        byte*  base;
+    #endif
         word32 baseSz;
-        #ifndef WOLFSSL_SMALL_STACK
-            byte base[FP_MAX_PRIME_SIZE];
-        #else
-            byte* base;
-        #endif
+        int    err;
 
         baseSz = fp_count_bits(a);
         /* The base size is the number of bits / 8. One is added if the number
          * of bits isn't an even 8. */
         baseSz = (baseSz / 8) + ((baseSz % 8) ? 1 : 0);
 
-        #ifndef WOLFSSL_SMALL_STACK
-            if (baseSz > sizeof(base))
-                return FP_MEM;
-        #else
-            base = (byte*)XMALLOC(baseSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            if (base == NULL)
-                return FP_MEM;
-        #endif
+    #ifndef WOLFSSL_SMALL_STACK
+        if (baseSz > sizeof(base))
+            return FP_MEM;
+    #else
+        base = (byte*)XMALLOC(baseSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (base == NULL)
+            return FP_MEM;
 
-        fp_init(&b);
-        fp_init(&c);
-        fp_sub_d(a, 2, &c);
+        b = (fp_int*)XMALLOC(sizeof(fp_int) * 5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (b == NULL) {
+            return FP_MEM;
+        }
+        c = &b[1]; n1 = &b[2]; y= &b[3]; r = &b[4];
+    #endif
+
+        fp_init(b);
+        fp_init(c);
+        fp_init(n1);
+        fp_init(y);
+        fp_init(r);
+
+        err = fp_sub_d(a, 2, c);
+        if (err != FP_OKAY) {
+        #ifdef WOLFSSL_SMALL_STACK
+           XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+           XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+           return err;
+        }
         while (t > 0) {
-            wc_RNG_GenerateBlock(rng, base, baseSz);
-            fp_read_unsigned_bin(&b, base, baseSz);
-            if (fp_cmp_d(&b, 2) != FP_GT || fp_cmp(&b, &c) != FP_LT)
+            if ((err = wc_RNG_GenerateBlock(rng, base, baseSz)) != 0) {
+            #ifdef WOLFSSL_SMALL_STACK
+               XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+               XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+               return err;
+            }
+
+            fp_read_unsigned_bin(b, base, baseSz);
+            if (fp_cmp_d(b, 2) != FP_GT || fp_cmp(b, c) != FP_LT) {
                 continue;
-            fp_prime_miller_rabin(a, &b, &ret);
+            }
+
+            fp_prime_miller_rabin_ex(a, b, &ret, n1, y, r);
             if (ret == FP_NO)
                 break;
-            fp_zero(&b);
+            fp_zero(b);
             t--;
         }
-        fp_clear(&b);
-        fp_clear(&c);
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+
+        fp_clear(n1);
+        fp_clear(y);
+        fp_clear(r);
+        fp_clear(b);
+        fp_clear(c);
+     #ifdef WOLFSSL_SMALL_STACK
+        XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+     #endif
     }
 #else
     (void)t;
@@ -3005,21 +3824,19 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
 
 #ifdef WOLFSSL_KEY_GEN
 
-static void fp_gcd(fp_int *a, fp_int *b, fp_int *c);
-static void fp_lcm(fp_int *a, fp_int *b, fp_int *c);
+static int  fp_gcd(fp_int *a, fp_int *b, fp_int *c);
+static int  fp_lcm(fp_int *a, fp_int *b, fp_int *c);
 static int  fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap);
 
 int mp_gcd(fp_int *a, fp_int *b, fp_int *c)
 {
-    fp_gcd(a, b, c);
-    return MP_OKAY;
+    return fp_gcd(a, b, c);
 }
 
 
 int mp_lcm(fp_int *a, fp_int *b, fp_int *c)
 {
-    fp_lcm(a, b, c);
-    return MP_OKAY;
+    return fp_lcm(a, b, c);
 }
 
 int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap)
@@ -3041,8 +3858,7 @@ int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap)
 
 int mp_exch (mp_int * a, mp_int * b)
 {
-    fp_exch(a, b);
-    return MP_OKAY;
+    return fp_exch(a, b);
 }
 
 
@@ -3110,37 +3926,62 @@ int fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap)
 }
 
 /* c = [a, b] */
-void fp_lcm(fp_int *a, fp_int *b, fp_int *c)
+int fp_lcm(fp_int *a, fp_int *b, fp_int *c)
 {
-   fp_int  t1, t2;
+   int     err;
+#ifndef WOLFSSL_SMALL_STACK
+   fp_int  t[2];
+#else
+   fp_int  *t;
+#endif
 
-   fp_init(&t1);
-   fp_init(&t2);
-   fp_gcd(a, b, &t1);
-   if (fp_cmp_mag(a, b) == FP_GT) {
-      fp_div(a, &t1, &t2, NULL);
-      fp_mul(b, &t2, c);
-   } else {
-      fp_div(b, &t1, &t2, NULL);
-      fp_mul(a, &t2, c);
+#ifdef WOLFSSL_SMALL_STACK
+   t = (fp_int*)XMALLOC(sizeof(fp_int) * 2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   if (t == NULL) {
+       return FP_MEM;
    }
+#endif
+
+   fp_init(&t[0]);
+   fp_init(&t[1]);
+   err = fp_gcd(a, b, &t[0]);
+   if (err == FP_OKAY) {
+      if (fp_cmp_mag(a, b) == FP_GT) {
+        err = fp_div(a, &t[0], &t[1], NULL);
+        if (err == FP_OKAY)
+          err = fp_mul(b, &t[1], c);
+     } else {
+        err = fp_div(b, &t[0], &t[1], NULL);
+        if (err == FP_OKAY)
+          err = fp_mul(a, &t[1], c);
+     }
+   }
+
+#ifdef WOLFSSL_SMALL_STACK
+   XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+   return err;
 }
 
 
 
 /* c = (a, b) */
-void fp_gcd(fp_int *a, fp_int *b, fp_int *c)
+int fp_gcd(fp_int *a, fp_int *b, fp_int *c)
 {
-   fp_int u, v, r;
+#ifndef WOLFSSL_SMALL_STACK
+   fp_int u[1], v[1], r[1];
+#else
+   fp_int *u, *v, *r;
+#endif
 
    /* either zero than gcd is the largest */
    if (fp_iszero (a) == FP_YES && fp_iszero (b) == FP_NO) {
      fp_abs (b, c);
-     return;
+     return FP_OKAY;
    }
    if (fp_iszero (a) == FP_NO && fp_iszero (b) == FP_YES) {
      fp_abs (a, c);
-     return;
+     return FP_OKAY;
    }
 
    /* optimized.  At this point if a == 0 then
@@ -3148,39 +3989,69 @@ void fp_gcd(fp_int *a, fp_int *b, fp_int *c)
     */
    if (fp_iszero (a) == FP_YES) {
      fp_zero(c);
-     return;
+     return FP_OKAY;
    }
+
+#ifdef WOLFSSL_SMALL_STACK
+   u = (fp_int*)XMALLOC(sizeof(fp_int) * 3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   if (u == NULL) {
+       return FP_MEM;
+   }
+   v = &u[1]; r = &u[2];
+#endif
 
    /* sort inputs */
    if (fp_cmp_mag(a, b) != FP_LT) {
-      fp_init_copy(&u, a);
-      fp_init_copy(&v, b);
+      fp_init_copy(u, a);
+      fp_init_copy(v, b);
    } else {
-      fp_init_copy(&u, b);
-      fp_init_copy(&v, a);
+      fp_init_copy(u, b);
+      fp_init_copy(v, a);
    }
 
-   fp_init(&r);
-   while (fp_iszero(&v) == FP_NO) {
-      fp_mod(&u, &v, &r);
-      fp_copy(&v, &u);
-      fp_copy(&r, &v);
+   fp_init(r);
+   while (fp_iszero(v) == FP_NO) {
+      fp_mod(u, v, r);
+      fp_copy(v, u);
+      fp_copy(r, v);
    }
-   fp_copy(&u, c);
+   fp_copy(u, c);
+
+#ifdef WOLFSSL_SMALL_STACK
+   XFREE(u, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+   return FP_OKAY;
 }
 
 #endif /* WOLFSSL_KEY_GEN */
 
 
 #if defined(HAVE_ECC) || !defined(NO_PWDBASED) || defined(OPENSSL_EXTRA) || \
-    defined(WC_RSA_BLINDING)
+    defined(WC_RSA_BLINDING) || !defined(NO_DSA) || \
+    (!defined(NO_RSA) && !defined(NO_RSA_BOUNDS_CHECK))
 /* c = a + b */
 void fp_add_d(fp_int *a, fp_digit b, fp_int *c)
 {
+#ifndef WOLFSSL_SMALL_STACK
    fp_int tmp;
    fp_init(&tmp);
    fp_set(&tmp, b);
    fp_add(a, &tmp, c);
+#else
+   int i;
+   fp_word t = b;
+
+   fp_copy(a, c);
+   for (i = 0; t != 0 && i < FP_SIZE && i < c->used; i++) {
+     t += c->dp[i];
+     c->dp[i] = (fp_digit)t;
+     t >>= DIGIT_BIT;
+   }
+   if (i == c->used && i < FP_SIZE && t != 0) {
+       c->dp[i] = t;
+       c->used++;
+   }
+#endif
 }
 
 /* external compatibility */
@@ -3190,12 +4061,13 @@ int mp_add_d(fp_int *a, fp_digit b, fp_int *c)
     return MP_OKAY;
 }
 
-#endif  /* HAVE_ECC || !NO_PWDBASED */
+#endif  /* HAVE_ECC || !NO_PWDBASED || OPENSSL_EXTRA || WC_RSA_BLINDING ||
+  !NO_DSA || (!NO_RSA && !NO_RSA_BOUNDS_CHECK) */
 
 
 #if !defined(NO_DSA) || defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN) || \
     defined(HAVE_COMP_KEY) || defined(WOLFSSL_DEBUG_MATH) || \
-    defined(DEBUG_WOLFSSL)
+    defined(DEBUG_WOLFSSL) || defined(OPENSSL_EXTRA)
 
 /* chars used in radix conversions */
 static const char* const fp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -3322,15 +4194,13 @@ int mp_read_radix(mp_int *a, const char *str, int radix)
 /* fast math conversion */
 int mp_sqr(fp_int *A, fp_int *B)
 {
-    fp_sqr(A, B);
-    return MP_OKAY;
+    return fp_sqr(A, B);
 }
 
 /* fast math conversion */
 int mp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
 {
-    fp_montgomery_reduce(a, m, mp);
-    return MP_OKAY;
+    return fp_montgomery_reduce(a, m, mp);
 }
 
 
@@ -3364,7 +4234,8 @@ int mp_cnt_lsb(fp_int* a)
 
 #endif /* HAVE_ECC */
 
-#if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DSA)
+#if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DSA) || \
+    defined(WOLFSSL_KEY_GEN)
 /* fast math conversion */
 int mp_set(fp_int *a, fp_digit b)
 {
@@ -3378,9 +4249,13 @@ int mp_set(fp_int *a, fp_digit b)
 /* returns size of ASCII representation */
 int mp_radix_size (mp_int *a, int radix, int *size)
 {
-    int     res, digs;
-    fp_int  t;
+    int      res, digs;
     fp_digit d;
+#ifndef WOLFSSL_SMALL_STACK
+    fp_int   t[1];
+#else
+    fp_int   *t;
+#endif
 
     *size = 0;
 
@@ -3408,34 +4283,50 @@ int mp_radix_size (mp_int *a, int radix, int *size)
         ++digs;
     }
 
+#ifdef WOLFSSL_SMALL_STACK
+    t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (t == NULL)
+        return FP_MEM;
+#endif
+
     /* init a copy of the input */
-    fp_init_copy (&t, a);
+    fp_init_copy (t, a);
 
     /* force temp to positive */
-    t.sign = FP_ZPOS;
+    t->sign = FP_ZPOS;
 
     /* fetch out all of the digits */
-    while (fp_iszero (&t) == FP_NO) {
-        if ((res = fp_div_d (&t, (mp_digit) radix, &t, &d)) != FP_OKAY) {
-            fp_zero (&t);
+    while (fp_iszero (t) == FP_NO) {
+        if ((res = fp_div_d (t, (mp_digit) radix, t, &d)) != FP_OKAY) {
+            fp_zero (t);
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
             return res;
         }
         ++digs;
     }
-    fp_zero (&t);
+    fp_zero (t);
 
     /* return digs + 1, the 1 is for the NULL byte that would be required. */
     *size = digs + 1;
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     return FP_OKAY;
 }
 
 /* stores a bignum as a ASCII string in a given radix (2..64) */
 int mp_toradix (mp_int *a, char *str, int radix)
 {
-    int     res, digs;
-    fp_int  t;
+    int      res, digs;
     fp_digit d;
-    char   *_s = str;
+    char     *_s = str;
+#ifndef WOLFSSL_SMALL_STACK
+    fp_int   t[1];
+#else
+    fp_int   *t;
+#endif
 
     /* check range of the radix */
     if (radix < 2 || radix > 64) {
@@ -3449,20 +4340,29 @@ int mp_toradix (mp_int *a, char *str, int radix)
         return FP_YES;
     }
 
+#ifdef WOLFSSL_SMALL_STACK
+    t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (t == NULL)
+        return FP_MEM;
+#endif
+
     /* init a copy of the input */
-    fp_init_copy (&t, a);
+    fp_init_copy (t, a);
 
     /* if it is negative output a - */
-    if (t.sign == FP_NEG) {
+    if (t->sign == FP_NEG) {
         ++_s;
         *str++ = '-';
-        t.sign = FP_ZPOS;
+        t->sign = FP_ZPOS;
     }
 
     digs = 0;
-    while (fp_iszero (&t) == FP_NO) {
-        if ((res = fp_div_d (&t, (fp_digit) radix, &t, &d)) != FP_OKAY) {
-            fp_zero (&t);
+    while (fp_iszero (t) == FP_NO) {
+        if ((res = fp_div_d (t, (fp_digit) radix, t, &d)) != FP_OKAY) {
+            fp_zero (t);
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
             return res;
         }
         *str++ = fp_s_rmap[d];
@@ -3477,7 +4377,10 @@ int mp_toradix (mp_int *a, char *str, int radix)
     /* append a NULL so the string is properly terminated */
     *str = '\0';
 
-    fp_zero (&t);
+    fp_zero (t);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     return FP_OKAY;
 }
 

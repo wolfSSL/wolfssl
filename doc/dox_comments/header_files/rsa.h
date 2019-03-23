@@ -791,3 +791,81 @@ WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
     \sa none
 */
 WOLFSSL_API int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng);
+
+/*!
+    \ingroup RSA
+
+    \brief This function sets the non-blocking RSA context. When a RsaNb context
+    is set it enables fast math based non-blocking exptmod, which splits the RSA
+    function into many smaller operations.
+    Enabled when WC_RSA_NONBLOCK is defined.
+
+    \return 0 Success
+    \return BAD_FUNC_ARG Returned if key or nb is null.
+
+    \param key The RSA key structure
+    \param nb The RSA non-blocking structure for this RSA key to use.
+
+    _Example_
+    \code
+    int ret, count = 0;
+    RsaKey key;
+    RsaNb  nb;
+
+    wc_RsaInitKey(&key, NULL);
+
+    // Enable non-blocking RSA mode - provide context
+    ret = wc_RsaSetNonBlock(key, &nb);
+    if (ret != 0)
+        return ret;
+
+    do {
+        ret = wc_RsaSSL_Sign(in, inLen, out, outSz, key, rng);
+        count++; // track number of would blocks
+        if (ret == FP_WOULDBLOCK) {
+            // do "other" work here
+        }
+    } while (ret == FP_WOULDBLOCK);
+    if (ret < 0) {
+        return ret;
+    }
+
+    printf("RSA non-block sign: size %d, %d times\n", ret, count);
+    \endcode
+
+    \sa wc_RsaSetNonBlockTime
+*/
+WOLFSSL_API int wc_RsaSetNonBlock(RsaKey* key, RsaNb* nb);
+
+/*!
+    \ingroup RSA
+
+    \brief This function configures the maximum amount of blocking time in
+    microseconds. It uses a pre-computed table (see tfm.c exptModNbInst) along
+    with the CPU speed in megahertz to determine if the next operation can be
+    completed within the maximum blocking time provided.
+    Enabled when WC_RSA_NONBLOCK_TIME is defined.
+
+    \return 0 Success
+    \return BAD_FUNC_ARG Returned if key is null or wc_RsaSetNonBlock was not
+    previously called and key->nb is null.
+
+    \param key The RSA key structure.
+    \param maxBlockUs Maximum time to block microseconds.
+    \param cpuMHz CPU speed in megahertz.
+
+    _Example_
+    \code
+    RsaKey key;
+    RsaNb  nb;
+
+    wc_RsaInitKey(&key, NULL);
+    wc_RsaSetNonBlock(key, &nb);
+    wc_RsaSetNonBlockTime(&key, 4000, 160); // Block Max = 4 ms, CPU = 160MHz
+
+    \endcode
+
+    \sa wc_RsaSetNonBlock
+*/
+WOLFSSL_API int wc_RsaSetNonBlockTime(RsaKey* key, word32 maxBlockUs,
+    word32 cpuMHz);

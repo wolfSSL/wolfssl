@@ -2,13 +2,13 @@
 <Workspace
    version = "1.0">
    <FileRef
+      location = "group:Benchmark/wolfBench.xcodeproj">
+   </FileRef>
+   <FileRef
       location = "group:wolfssl-FIPS.xcodeproj">
    </FileRef>
    <FileRef
       location = "group:wolfssl_testsuite.xcodeproj">
-   </FileRef>
-   <FileRef
-      location = "group:/Users/davidgarske/GitHub/wolfssl/IDE/XCODE/wolfcrypt_testbench.xcodeproj">
    </FileRef>
    <FileRef
       location = "group:wolfssl.xcodeproj">

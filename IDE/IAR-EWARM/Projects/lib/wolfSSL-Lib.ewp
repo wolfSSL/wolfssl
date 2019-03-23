@@ -937,7 +937,7 @@
         </option>
         <option>
           <name>IarchiveOutput</name>
-          <state>C:\wolfSSL\Support\EWARM\wolfssl\IDE\IAR-EWARM\Projects\lib\ewarm\Exe\wolfSSL-Lib.a</state>
+          <state>$PROJ_DIR$\..\lib\ewarm\Exe\wolfSSL-Lib.a</state>
         </option>
       </data>
     </settings>
@@ -1961,9 +1961,6 @@
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\error.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\evp.c</name>
-    </file>
-    <file>
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\fe_low_mem.c</name>
     </file>
     <file>
@@ -2045,7 +2042,19 @@
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\signature.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\sp.c</name>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\sp_arm32.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\sp_arm64.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\sp_c32.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\sp_c64.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\sp_int.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\srp.c</name>
@@ -2068,9 +2077,6 @@
   </group>
   <group>
     <name>wolfSSL</name>
-    <file>
-      <name>$PROJ_DIR$\..\..\..\..\src\bio.c</name>
-    </file>
     <file>
       <name>$PROJ_DIR$\..\..\..\..\src\crl.c</name>
     </file>

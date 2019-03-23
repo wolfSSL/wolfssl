@@ -1,6 +1,6 @@
 /* ecc.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -31,7 +31,8 @@
 
 #ifdef HAVE_ECC
 
-#if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+#if defined(HAVE_FIPS) && \
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
@@ -134,6 +135,10 @@ enum {
 
     /* Shamir's dual add constants */
     SHAMIR_PRECOMP_SZ = 16,
+
+#ifdef HAVE_PKCS11
+    ECC_MAX_ID_LEN    = 32,
+#endif
 };
 
 /* Curve Types */
@@ -352,7 +357,7 @@ struct ecc_key {
     int  slot;        /* Key Slot Number (-1 unknown) */
     byte pubkey_raw[ECC_MAX_CRYPTO_HW_PUBKEY_SIZE];
 #endif
-#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_DEV)
+#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
     int devId;
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -367,6 +372,10 @@ struct ecc_key {
         CertSignCtx certSignCtx; /* context info for cert sign (MakeSignature) */
     #endif
 #endif /* WOLFSSL_ASYNC_CRYPT */
+#ifdef HAVE_PKCS11
+    byte id[ECC_MAX_ID_LEN];
+    int  idLen;
+#endif
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     mp_int* t1;
     mp_int* t2;
@@ -452,6 +461,11 @@ WOLFSSL_API
 int wc_ecc_init(ecc_key* key);
 WOLFSSL_API
 int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
+#ifdef HAVE_PKCS11
+WOLFSSL_API
+int wc_ecc_init_id(ecc_key* key, unsigned char* id, int len, void* heap,
+                   int devId);
+#endif
 #ifdef WOLFSSL_CUSTOM_CURVES
 WOLFSSL_LOCAL
 void wc_ecc_free_curve(const ecc_set_type* curve, void* heap);
@@ -488,6 +502,8 @@ int wc_ecc_get_curve_id_from_params(int fieldSize,
         const byte* Bf, word32 BfSz, const byte* order, word32 orderSz,
         const byte* Gx, word32 GxSz, const byte* Gy, word32 GySz, int cofactor);
 
+WOLFSSL_API
+int wc_ecc_get_curve_id_from_oid(const byte* oid, word32 len);
 
 WOLFSSL_API
 ecc_point* wc_ecc_new_point(void);
@@ -555,9 +571,9 @@ int wc_ecc_import_unsigned(ecc_key* key, byte* qx, byte* qy,
 #endif /* HAVE_ECC_KEY_IMPORT */
 
 #ifdef HAVE_ECC_KEY_EXPORT
-WOLFSSL_API 
+WOLFSSL_API
 int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
-                     byte* qy, word32* qyLen, byte* d, word32* dLen, 
+                     byte* qy, word32* qyLen, byte* d, word32* dLen,
                      int encType);
 WOLFSSL_API
 int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);

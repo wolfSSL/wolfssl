@@ -12,9 +12,12 @@ EXTRA_DIST += \
 	     certs/client-relative-uri.pem \
 	     certs/ecc-key.pem \
 	     certs/ecc-privkey.pem \
+	     certs/ecc-privkeyPkcs8.pem \
 	     certs/ecc-keyPkcs8Enc.pem \
+	     certs/ecc-keyPkcs8Enc.der \
 	     certs/ecc-key-comp.pem \
 	     certs/ecc-keyPkcs8.pem \
+	     certs/ecc-keyPkcs8.der \
 	     certs/ecc-client-key.pem \
 	     certs/ecc-client-keyPub.pem \
 	     certs/client-ecc-cert.pem \
@@ -32,10 +35,13 @@ EXTRA_DIST += \
 	     certs/server-keyPkcs8Enc12.pem \
 	     certs/server-keyPkcs8Enc2.pem \
 	     certs/server-keyPkcs8Enc.pem \
+	     certs/server-keyPkcs8Enc.der \
 	     certs/server-keyPkcs8.pem \
 	     certs/server-revoked-cert.pem \
 	     certs/server-revoked-key.pem \
 	     certs/wolfssl-website-ca.pem \
+	     certs/test-degenerate.p7b \
+	     certs/test-ber-exp02-05-2022.p7b \
 	     certs/test-servercert.p12 \
 	     certs/ecc-rsa-server.p12 \
 	     certs/dsaparams.pem \
@@ -95,3 +101,4 @@ include certs/external/include.am
 include certs/ocsp/include.am
 include certs/test/include.am
 include certs/test-pathlen/include.am
+include certs/intermediate/include.am

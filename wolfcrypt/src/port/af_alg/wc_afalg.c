@@ -1,6 +1,6 @@
 /* wc_afalg.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -27,7 +27,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
-#if !defined(NO_AES) && defined(WOLFSSL_AFALG)
+#if defined(WOLFSSL_AFALG) || defined(WOLFSSL_AFALG_XILINX)
 
 #include <wolfssl/wolfcrypt/port/af_alg/wc_afalg.h>
 #include <linux/if_alg.h>
@@ -75,7 +75,7 @@ int wc_Afalg_Socket(void)
 /* binds and creates the read fd */
 int wc_Afalg_CreateRead(int sock, const char* type, const char* name)
 {
-    struct sockaddr_alg sa = {};
+    struct sockaddr_alg sa = {0};
     wc_Afalg_SockAddr(&sa, type, name);
     return wc_Afalg_Accept(&sa, sizeof(sa), sock);
 }

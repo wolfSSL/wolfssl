@@ -1,6 +1,6 @@
 /* dh.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -54,6 +54,17 @@
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
+
+
+/*
+Possible DH enable options:
+ * NO_RSA:              Overall control of DH                 default: on (not defined)
+ * WOLFSSL_OLD_PRIME_CHECK: Disables the new prime number check. It does not
+                        directly effect this file, but it does speed up DH
+                        removing the testing. It is not recommended to
+                        disable the prime checking.           default: off
+
+*/
 
 
 #if !defined(USER_MATH_LIB) && !defined(WOLFSSL_DH_CONST)
@@ -1246,8 +1257,13 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
         return MEMORY_E;
     }
 #endif
-    if (mp_init_multi(x, y, 0, 0, 0, 0) != MP_OKAY)
+    if (mp_init_multi(x, y, 0, 0, 0, 0) != MP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(y, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(x, key->heap, DYNAMIC_TYPE_DH);
+    #endif
         return MP_INIT_E;
+    }
 
     if (mp_read_unsigned_bin(x, priv, privSz) != MP_OKAY)
         ret = MP_READ_E;
@@ -1296,12 +1312,12 @@ static int wc_DhGenerateKeyPair_Async(DhKey* key, WC_RNG* rng,
     int ret;
 
 #if defined(HAVE_INTEL_QA)
-    word32 sz;
+    word32 pBits;
 
-    /* verify prime is at least 768-bits */
-    /* QAT HW must have prime at least 768-bits */
-    sz = mp_unsigned_bin_size(&key->p);
-    if (sz >= (768/8)) {
+    /* QAT DH sizes: 768, 1024, 1536, 2048, 3072 and 4096 bits */
+    pBits = mp_unsigned_bin_size(&key->p) * 8;
+    if (pBits == 768 ||  pBits == 1024 || pBits == 1536 ||
+        pBits == 2048 || pBits == 3072 || pBits == 4096) {
         mp_int x;
 
         ret = mp_init(&x);
@@ -1397,6 +1413,11 @@ int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
 #endif
 
     if (mp_init_multi(y, p, q, NULL, NULL, NULL) != MP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(q, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(p, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(y, key->heap, DYNAMIC_TYPE_DH);
+    #endif
         return MP_INIT_E;
     }
 
@@ -1541,6 +1562,10 @@ int wc_DhCheckPrivKey_ex(DhKey* key, const byte* priv, word32 privSz,
 #endif
 
     if (mp_init_multi(x, q, NULL, NULL, NULL, NULL) != MP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(q, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(x, key->heap, DYNAMIC_TYPE_DH);
+    #endif
         return MP_INIT_E;
     }
 
@@ -1657,6 +1682,11 @@ int wc_DhCheckKeyPair(DhKey* key, const byte* pub, word32 pubSz,
     if (mp_init_multi(publicKey, privateKey, checkKey,
                       NULL, NULL, NULL) != MP_OKAY) {
 
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(privateKey, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(publicKey, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(checkKey, key->heap, DYNAMIC_TYPE_DH);
+    #endif
         return MP_INIT_E;
     }
 
@@ -1838,8 +1868,14 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 #endif
 
 #ifndef WOLFSSL_SP_MATH
-    if (mp_init_multi(x, y, z, 0, 0, 0) != MP_OKAY)
+    if (mp_init_multi(x, y, z, 0, 0, 0) != MP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(z, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(x, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(y, key->heap, DYNAMIC_TYPE_DH);
+    #endif
         return MP_INIT_E;
+    }
 
     if (mp_read_unsigned_bin(x, priv, privSz) != MP_OKAY)
         ret = MP_READ_E;
@@ -1882,15 +1918,23 @@ static int wc_DhAgree_Async(DhKey* key, byte* agree, word32* agreeSz,
 {
     int ret;
 
-#ifdef HAVE_CAVIUM
-    /* TODO: Not implemented - use software for now */
-    ret = wc_DhAgree_Sync(key, agree, agreeSz, priv, privSz, otherPub, pubSz);
+#if defined(HAVE_INTEL_QA)
+    word32 pBits;
 
-#elif defined(HAVE_INTEL_QA)
-    ret = wc_mp_to_bigint(&key->p, &key->p.raw);
-    if (ret == MP_OKAY)
-        ret = IntelQaDhAgree(&key->asyncDev, &key->p.raw,
-            agree, agreeSz, priv, privSz, otherPub, pubSz);
+    /* QAT DH sizes: 768, 1024, 1536, 2048, 3072 and 4096 bits */
+    pBits = mp_unsigned_bin_size(&key->p) * 8;
+    if (pBits == 768 ||  pBits == 1024 || pBits == 1536 ||
+        pBits == 2048 || pBits == 3072 || pBits == 4096) {
+        ret = wc_mp_to_bigint(&key->p, &key->p.raw);
+        if (ret == MP_OKAY)
+            ret = IntelQaDhAgree(&key->asyncDev, &key->p.raw,
+                agree, agreeSz, priv, privSz, otherPub, pubSz);
+        return ret;
+    }
+
+#elif defined(HAVE_CAVIUM)
+    /* TODO: Not implemented - use software for now */
+
 #else /* WOLFSSL_ASYNC_CRYPT_TEST */
     if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_DH_AGREE)) {
         WC_ASYNC_TEST* testDev = &key->asyncDev.test;
@@ -1903,8 +1947,10 @@ static int wc_DhAgree_Async(DhKey* key, byte* agree, word32* agreeSz,
         testDev->dhAgree.pubSz = pubSz;
         return WC_PENDING_E;
     }
-    ret = wc_DhAgree_Sync(key, agree, agreeSz, priv, privSz, otherPub, pubSz);
 #endif
+
+    /* otherwise use software DH */
+    ret = wc_DhAgree_Sync(key, agree, agreeSz, priv, privSz, otherPub, pubSz);
 
     return ret;
 }

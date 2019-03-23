@@ -1,6 +1,6 @@
 /* wolfio.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -237,6 +237,11 @@ int EmbedSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 {
     int sd = *(int*)ctx;
     int sent;
+
+#ifdef WOLFSSL_MAX_SEND_SZ
+    if (sz > WOLFSSL_MAX_SEND_SZ)
+        sz = WOLFSSL_MAX_SEND_SZ;
+#endif
 
     sent = wolfIO_Send(sd, buf, sz, ssl->wflags);
     if (sent < 0) {
@@ -496,7 +501,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 
     /* get the peer information in human readable form (ip, port, family)
      * default function assumes BSD sockets
-     * can be overriden with wolfSSL_CTX_SetIOGetPeer
+     * can be overridden with wolfSSL_CTX_SetIOGetPeer
      */
     int EmbedGetPeer(WOLFSSL* ssl, char* ip, int* ipSz,
                                                  unsigned short* port, int* fam)
@@ -552,7 +557,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 
     /* set the peer information in human readable form (ip, port, family)
      * default function assumes BSD sockets
-     * can be overriden with wolfSSL_CTX_SetIOSetPeer
+     * can be overridden with wolfSSL_CTX_SetIOSetPeer
      */
     int EmbedSetPeer(WOLFSSL* ssl, char* ip, int ipSz,
                                                    unsigned short port, int fam)
@@ -1139,12 +1144,18 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
 
     return result;
 }
-
-int wolfIO_HttpBuildRequest(const char* reqType, const char* domainName,
-    const char* path, int pathLen, int reqSz, const char* contentType,
-    byte* buf, int bufSize)
+int wolfIO_HttpBuildRequest(const char *reqType, const char *domainName,
+                               const char *path, int pathLen, int reqSz, const char *contentType,
+                               byte *buf, int bufSize)
 {
-    word32 reqTypeLen, domainNameLen, reqSzStrLen, contentTypeLen, maxLen;
+    return wolfIO_HttpBuildRequest_ex(reqType, domainName, path, pathLen, reqSz, contentType, "", buf, bufSize);
+}
+
+    int wolfIO_HttpBuildRequest_ex(const char *reqType, const char *domainName,
+                                const char *path, int pathLen, int reqSz, const char *contentType,
+                                const char *exHdrs, byte *buf, int bufSize)
+    {
+    word32 reqTypeLen, domainNameLen, reqSzStrLen, contentTypeLen, exHdrsLen, maxLen;
     char reqSzStr[6];
     char* req = (char*)buf;
     const char* blankStr = " ";
@@ -1152,9 +1163,10 @@ int wolfIO_HttpBuildRequest(const char* reqType, const char* domainName,
     const char* hostStr = "\r\nHost: ";
     const char* contentLenStr = "\r\nContent-Length: ";
     const char* contentTypeStr = "\r\nContent-Type: ";
+    const char* singleCrLfStr = "\r\n";
     const char* doubleCrLfStr = "\r\n\r\n";
     word32 blankStrLen, http11StrLen, hostStrLen, contentLenStrLen,
-        contentTypeStrLen, doubleCrLfStrLen;
+        contentTypeStrLen, singleCrLfStrLen, doubleCrLfStrLen;
 
     reqTypeLen = (word32)XSTRLEN(reqType);
     domainNameLen = (word32)XSTRLEN(domainName);
@@ -1166,6 +1178,15 @@ int wolfIO_HttpBuildRequest(const char* reqType, const char* domainName,
     hostStrLen = (word32)XSTRLEN(hostStr);
     contentLenStrLen = (word32)XSTRLEN(contentLenStr);
     contentTypeStrLen = (word32)XSTRLEN(contentTypeStr);
+
+    if(exHdrs){
+        singleCrLfStrLen = (word32)XSTRLEN(singleCrLfStr);
+        exHdrsLen = (word32)XSTRLEN(exHdrs);
+    } else {
+        singleCrLfStrLen = 0;
+        exHdrsLen = 0;
+    }
+
     doubleCrLfStrLen = (word32)XSTRLEN(doubleCrLfStr);
 
     /* determine max length and check it */
@@ -1180,6 +1201,8 @@ int wolfIO_HttpBuildRequest(const char* reqType, const char* domainName,
         reqSzStrLen +
         contentTypeStrLen +
         contentTypeLen +
+        singleCrLfStrLen +
+        exHdrsLen +
         doubleCrLfStrLen +
         1 /* null term */;
     if (maxLen > (word32)bufSize)
@@ -1211,6 +1234,15 @@ int wolfIO_HttpBuildRequest(const char* reqType, const char* domainName,
         XSTRNCPY((char*)buf, contentType, bufSize);
         buf += contentTypeLen; bufSize -= contentTypeLen;
     }
+    if (exHdrsLen > 0)
+    {
+        XSTRNCPY((char *)buf, singleCrLfStr, bufSize);
+        buf += singleCrLfStrLen;
+        bufSize -= singleCrLfStrLen;
+        XSTRNCPY((char *)buf, exHdrs, bufSize);
+        buf += exHdrsLen;
+        bufSize -= exHdrsLen;
+    }
     XSTRNCPY((char*)buf, doubleCrLfStr, bufSize);
     buf += doubleCrLfStrLen;
 
@@ -1228,8 +1260,9 @@ int wolfIO_HttpBuildRequest(const char* reqType, const char* domainName,
 int wolfIO_HttpBuildRequestOcsp(const char* domainName, const char* path,
                                     int ocspReqSz, byte* buf, int bufSize)
 {
-    return wolfIO_HttpBuildRequest("POST", domainName, path, (int)XSTRLEN(path),
-        ocspReqSz, "application/ocsp-request", buf, bufSize);
+    const char *cacheCtl = "Cache-Control: no-cache";
+    return wolfIO_HttpBuildRequest_ex("POST", domainName, path, (int)XSTRLEN(path),
+        ocspReqSz, "application/ocsp-request", cacheCtl, buf, bufSize);
 }
 
 /* return: >0 OCSP Response Size
@@ -1296,7 +1329,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                                                             httpBuf, httpBufSz);
 
             ret = wolfIO_TcpConnect(&sfd, domainName, port, io_timeout_sec);
-            if ((ret != 0) || (sfd < 0)) {
+            if ((ret != 0) || ((int)sfd < 0)) {
                 WOLFSSL_MSG("OCSP Responder connection failed");
             }
             else if (wolfIO_Send(sfd, (char*)httpBuf, httpBufSz, 0) !=
@@ -1341,8 +1374,9 @@ void EmbedOcspRespFree(void* ctx, byte *resp)
 int wolfIO_HttpBuildRequestCrl(const char* url, int urlSz,
     const char* domainName, byte* buf, int bufSize)
 {
-    return wolfIO_HttpBuildRequest("GET", domainName, url, urlSz, 0, "",
-        buf, bufSize);
+    const char *cacheCtl = "Cache-Control: no-cache";
+    return wolfIO_HttpBuildRequest_ex("GET", domainName, url, urlSz, 0, "",
+                                   cacheCtl, buf, bufSize);
 }
 
 int wolfIO_HttpProcessResponseCrl(WOLFSSL_CRL* crl, int sfd, byte* httpBuf,
@@ -1432,19 +1466,23 @@ int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz)
 
 WOLFSSL_API void wolfSSL_CTX_SetIORecv(WOLFSSL_CTX *ctx, CallbackIORecv CBIORecv)
 {
-    ctx->CBIORecv = CBIORecv;
-    #ifdef OPENSSL_EXTRA
-    ctx->cbioFlag |= WOLFSSL_CBIO_RECV;
-    #endif
+    if (ctx != NULL) {
+        ctx->CBIORecv = CBIORecv;
+        #ifdef OPENSSL_EXTRA
+        ctx->cbioFlag |= WOLFSSL_CBIO_RECV;
+        #endif
+    }
 }
 
 
 WOLFSSL_API void wolfSSL_CTX_SetIOSend(WOLFSSL_CTX *ctx, CallbackIOSend CBIOSend)
 {
-    ctx->CBIOSend = CBIOSend;
-    #ifdef OPENSSL_EXTRA
-    ctx->cbioFlag |= WOLFSSL_CBIO_SEND;
-    #endif
+    if (ctx != NULL) {
+        ctx->CBIOSend = CBIOSend;
+        #ifdef OPENSSL_EXTRA
+        ctx->cbioFlag |= WOLFSSL_CBIO_SEND;
+        #endif
+    }
 }
 
 
@@ -1896,7 +1934,7 @@ void mynewt_ctx_clear(void *ctx) {
 void* mynewt_ctx_new() {
     int rc = 0;
     Mynewt_Ctx *mynewt_ctx = NULL;
-    int mem_buf_count = MYNEWT_VAL(WOLFSSL_MNSOCK_MEM_BUF_COUNT);;
+    int mem_buf_count = MYNEWT_VAL(WOLFSSL_MNSOCK_MEM_BUF_COUNT);
     int mem_buf_size = MYNEWT_VAL(WOLFSSL_MNSOCK_MEM_BUF_SIZE);
     int mempool_bytes = OS_MEMPOOL_BYTES(mem_buf_count, mem_buf_size);
 

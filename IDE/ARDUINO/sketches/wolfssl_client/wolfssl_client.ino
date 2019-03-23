@@ -1,6 +1,6 @@
 /* wolfssl_client.ino
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -25,7 +25,7 @@
 #include <Ethernet.h>
 
 const char host[] = "192.168.1.148"; // server to connect to
-int port = 11111; // port on server to connect to
+const int port = 11111; // port on server to connect to
 
 int EthernetSend(WOLFSSL* ssl, char* msg, int sz, void* ctx);
 int EthernetReceive(WOLFSSL* ssl, char* reply, int sz, void* ctx);
@@ -33,11 +33,12 @@ int reconnect = 10;
 
 EthernetClient client;
 
-WOLFSSL_CTX* ctx = 0;
-WOLFSSL* ssl = 0;
-WOLFSSL_METHOD* method = 0;
+WOLFSSL_CTX* ctx = NULL;
+WOLFSSL* ssl = NULL;
 
 void setup() {
+  WOLFSSL_METHOD* method;
+
   Serial.begin(9600);
 
   method = wolfTLSv1_2_client_method();
@@ -79,65 +80,76 @@ int EthernetReceive(WOLFSSL* ssl, char* reply, int sz, void* ctx) {
 void loop() {
   int err            = 0;
   int input          = 0;
-  int sent           = 0;
   int total_input    = 0;
   char msg[32]       = "hello wolfssl!";
   int msgSz          = (int)strlen(msg);
   char errBuf[80];
   char reply[80];
-  WOLFSSL_CIPHER* cipher;
+  const char* cipherName;
     
   if (reconnect) {
     reconnect--;
+    
     if (client.connect(host, port)) {
 
       Serial.print("Connected to ");
       Serial.println(host);
+
       ssl = wolfSSL_new(ctx);
       if (ssl == NULL) {
+        Serial.println("Unable to allocate SSL object");
+        return;
+      }
+
+      err = wolfSSL_connect(ssl);
+      if (err != WOLFSSL_SUCCESS) {
         err = wolfSSL_get_error(ssl, 0);
         wolfSSL_ERR_error_string(err, errBuf);
-        Serial.print("Unable to get SSL object. Error = ");
+        Serial.print("TLS Connect Error: ");
         Serial.println(errBuf);
       }
-      
+
       Serial.print("SSL version is ");
       Serial.println(wolfSSL_get_version(ssl));
       
-
-      
-      if ((wolfSSL_write(ssl, msg, strlen(msg))) == msgSz) {
-      cipher = wolfSSL_get_current_cipher(ssl);
+      cipherName = wolfSSL_get_cipher(ssl);
       Serial.print("SSL cipher suite is ");
-      Serial.println(wolfSSL_CIPHER_get_name(cipher));                
+      Serial.println(cipherName);
+
+      if ((wolfSSL_write(ssl, msg, msgSz)) == msgSz) {
+        
         Serial.print("Server response: ");
         while (client.available() || wolfSSL_pending(ssl)) {
           input = wolfSSL_read(ssl, reply, sizeof(reply) - 1);
           total_input += input;
-          if ( input > 0 ) {
-            reply[input] = '\0';
-            Serial.print(reply);
-          } else if (input < 0) {
+          if (input < 0) {
             err = wolfSSL_get_error(ssl, 0);
             wolfSSL_ERR_error_string(err, errBuf);
-            Serial.print("wolfSSL_read failed. Error: ");
+            Serial.print("TLS Read Error: ");
             Serial.println(errBuf);
+            break;
+          } else if (input > 0) {
+            reply[input] = '\0';
+            Serial.print(reply);
           } else {
             Serial.println();
           }
         } 
       } else {
-        Serial.println("SSL_write failed");
+        err = wolfSSL_get_error(ssl, 0);
+        wolfSSL_ERR_error_string(err, errBuf);
+        Serial.print("TLS Write Error: ");
+        Serial.println(errBuf);
       }
       
-      if (ssl != NULL) 
-        wolfSSL_free(ssl);
+      wolfSSL_shutdown(ssl);
+      wolfSSL_free(ssl);
 
       client.stop();
       Serial.println("Connection complete.");
       reconnect = 0;
     } else {
-      Serial.println("Trying to reconnect...");       
+      Serial.println("Trying to reconnect...");
     }
   }
   delay(1000);

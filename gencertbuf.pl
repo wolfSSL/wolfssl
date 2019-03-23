@@ -37,8 +37,11 @@ my @fileList_ecc = (
 # ed25519 keys and certs
 # Used with HAVE_ED25519 define.
 my @fileList_ed = (
-        [ "./certs/ed25519/server-ed25519.der",    "server_ed25519_cert" ],
-        [ "./certs/ed25519/ca-ed25519.der",        "ca_ed25519_cert" ]
+        [ "./certs/ed25519/server-ed25519.der",     "server_ed25519_cert" ],
+        [ "./certs/ed25519/server-ed25519-key.der", "server_ed25519_key" ],
+        [ "./certs/ed25519/ca-ed25519.der",         "ca_ed25519_cert" ],
+        [ "./certs/ed25519/client-ed25519.der",     "client_ed25519_cert" ],
+        [ "./certs/ed25519/client-ed25519-key.der", "client_ed25519_key" ]
         );
 
 # 1024-bit certs/keys to be converted
@@ -69,6 +72,7 @@ my @fileList_2048 = (
         [ "./certs/rsa2048.der", "rsa_key_der_2048" ],
         [ "./certs/ca-key.der", "ca_key_der_2048" ],
         [ "./certs/ca-cert.der", "ca_cert_der_2048" ],
+        [ "./certs/ca-cert-chain.der", "ca_cert_chain_der" ],
         [ "./certs/server-key.der", "server_key_der_2048" ],
         [ "./certs/server-cert.der", "server_cert_der_2048" ]
         );
@@ -222,14 +226,17 @@ sub file_to_hex {
     for (my $i = 0, my $j = 1; $i < $fileLen; $i++, $j++)
     {
         if ($j == 1) {
-            print OUT_FILE "\t";
+            print OUT_FILE "        ";
+        }
+        if ($j != 1) {
+            print OUT_FILE " ";
         }
         read($fp, $byte, 1) or die "Error reading $fileName";
         my $output = sprintf("0x%02X", ord($byte));
         print OUT_FILE $output;
 
         if ($i != ($fileLen - 1)) {
-            print OUT_FILE ", ";
+            print OUT_FILE ",";
         }
 
         if ($j == 10) {

@@ -16,6 +16,9 @@
     #undef NO_MAIN_DRIVER
     #define NO_MAIN_DRIVER
 
+    /* 128-bit type */
+    #define HAVE___UINT128_T
+
     /* fast math */
     #define USE_FAST_MATH
     #define HAVE_ECC

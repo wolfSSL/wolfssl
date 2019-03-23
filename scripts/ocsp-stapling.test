@@ -178,6 +178,33 @@ if [ ! -z "$size" ]; then
     printf 'OK\n'
 fi
 
+# test interop fail case
+ready_file=`pwd`/wolf_ocsp_readyF$$
+printf '%s\n' "ready file:  $ready_file"
+./examples/server/server -o -R $ready_file &
+wolf_pid=$!
+wait_for_readyFile $ready_file
+if [ ! -f $ready_file ]; then
+    printf '%s\n' "Failed to create ready file: \"$ready_file\""
+    exit 1
+else
+    # should fail if ocspstapling is also enabled
+    RPORTSELECTED=`cat $ready_file`
+    echo "hi" | openssl s_client -status -connect 127.0.0.1:${RPORTSELECTED} -cert ./certs/client-cert.pem -key ./certs/client-key.pem -CAfile ./certs/ocsp/root-ca-cert.pem
+    if [ $? -eq 0 ]; then
+        printf '%s\n' "Succeeded when should have failed"
+        remove_single_rF $ready_file
+        exit 1
+    fi
+    remove_single_rF $ready_file
+    wait $wolf_pid
+    if [ $? -ne 1 ]; then
+        printf '%s\n' "wolfSSL server unexpected fail value"
+        exit 1
+    fi
+fi
+
+
 # create a port 0 port to use with openssl ocsp responder
 ./examples/server/server -R $ready_file -p $resume_port &
 wait_for_readyFile $ready_file

@@ -1,6 +1,6 @@
 /* sniffer.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -91,6 +91,37 @@ enum {
     FILETYPE_PEM = 1,
     FILETYPE_DER = 2,
 };
+
+
+/*
+ * New Sniffer API that provides read-only access to the TLS and cipher
+ * information associated with the SSL session.
+ */
+
+#if defined(__GNUC__)
+    #define WOLFSSL_PACK __attribute__ ((packed))
+#else
+    #define WOLFSSL_PACK
+#endif
+
+
+typedef struct SSLInfo
+{
+    unsigned char  isValid;
+            /* indicates if the info in this struct is valid: 0 = no, 1 = yes */
+    unsigned char  protocolVersionMajor;    /* SSL Version: major */
+    unsigned char  protocolVersionMinor;    /* SSL Version: minor */
+    unsigned char  serverCipherSuite0;      /* first byte, normally 0 */
+    unsigned char  serverCipherSuite;       /* second byte, actual suite */
+    unsigned char  serverCipherSuiteName[256];
+            /* cipher name, e.g., "TLS_RSA_..." */
+} WOLFSSL_PACK SSLInfo;
+
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_DecodePacketWithSessionInfo(
+                        const unsigned char* packet, int length,
+                        unsigned char** data, SSLInfo* sslInfo, char* error);
 
 
 #ifdef __cplusplus

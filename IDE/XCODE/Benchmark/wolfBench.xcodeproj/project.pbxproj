@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		52114C8721B5A7320022ADA1 /* sp_c64.c in Sources */ = {isa = PBXBuildFile; fileRef = 52114C8621B5A7320022ADA1 /* sp_c64.c */; };
 		A47546261FD90492005176B9 /* tls_bench.c in Sources */ = {isa = PBXBuildFile; fileRef = A47546251FD90492005176B9 /* tls_bench.c */; };
 		A4ADF82F1FCE0BD300A06E90 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF82E1FCE0BD300A06E90 /* AppDelegate.m */; };
 		A4ADF8321FCE0BD300A06E90 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8311FCE0BD300A06E90 /* ViewController.m */; };
@@ -49,7 +50,6 @@
 		A4ADF8F81FCE0C5600A06E90 /* fe_low_mem.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF89C1FCE0C4F00A06E90 /* fe_low_mem.c */; };
 		A4ADF8FA1FCE0C5600A06E90 /* pkcs12.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF89E1FCE0C4F00A06E90 /* pkcs12.c */; };
 		A4ADF8FC1FCE0C5600A06E90 /* asm.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8A01FCE0C4F00A06E90 /* asm.c */; };
-		A4ADF8FD1FCE0C5600A06E90 /* misc.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8A11FCE0C5000A06E90 /* misc.c */; };
 		A4ADF8FE1FCE0C5600A06E90 /* integer.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8A21FCE0C5000A06E90 /* integer.c */; };
 		A4ADF9001FCE0C5600A06E90 /* poly1305.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8A41FCE0C5000A06E90 /* poly1305.c */; };
 		A4ADF9011FCE0C5600A06E90 /* md2.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8A51FCE0C5000A06E90 /* md2.c */; };
@@ -67,12 +67,10 @@
 		A4ADF9131FCE0C5600A06E90 /* signature.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8B71FCE0C5200A06E90 /* signature.c */; };
 		A4ADF9141FCE0C5600A06E90 /* wolfmath.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8B81FCE0C5200A06E90 /* wolfmath.c */; };
 		A4ADF9161FCE0C5600A06E90 /* fe_operations.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8BA1FCE0C5300A06E90 /* fe_operations.c */; };
-		A4ADF91A1FCE0C5600A06E90 /* sp.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8BE1FCE0C5300A06E90 /* sp.c */; };
 		A4ADF91B1FCE0C5600A06E90 /* srp.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8BF1FCE0C5300A06E90 /* srp.c */; };
 		A4ADF91C1FCE0C5600A06E90 /* pwdbased.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8C01FCE0C5300A06E90 /* pwdbased.c */; };
 		A4ADF91D1FCE0C5600A06E90 /* cpuid.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8C11FCE0C5300A06E90 /* cpuid.c */; };
 		A4ADF91E1FCE0C5600A06E90 /* asn.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8C21FCE0C5300A06E90 /* asn.c */; };
-		A4ADF91F1FCE0C5600A06E90 /* async.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8C31FCE0C5400A06E90 /* async.c */; };
 		A4ADF9231FCE0C5600A06E90 /* camellia.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8C71FCE0C5400A06E90 /* camellia.c */; };
 		A4ADF9261FCE0C5600A06E90 /* chacha.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8CA1FCE0C5500A06E90 /* chacha.c */; };
 		A4ADF9271FCE0C5600A06E90 /* ed25519.c in Sources */ = {isa = PBXBuildFile; fileRef = A4ADF8CB1FCE0C5500A06E90 /* ed25519.c */; };
@@ -86,6 +84,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		52114C8621B5A7320022ADA1 /* sp_c64.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sp_c64.c; path = ../../../wolfcrypt/src/sp_c64.c; sourceTree = "<group>"; };
 		A47546241FD9042D005176B9 /* user_settings.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = user_settings.h; path = ../user_settings.h; sourceTree = "<group>"; };
 		A47546251FD90492005176B9 /* tls_bench.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = tls_bench.c; path = ../../../examples/benchmark/tls_bench.c; sourceTree = "<group>"; };
 		A4ADF82A1FCE0BD300A06E90 /* wolfBench.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = wolfBench.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -133,7 +132,6 @@
 		A4ADF89C1FCE0C4F00A06E90 /* fe_low_mem.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = fe_low_mem.c; path = ../../../wolfcrypt/src/fe_low_mem.c; sourceTree = "<group>"; };
 		A4ADF89E1FCE0C4F00A06E90 /* pkcs12.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = pkcs12.c; path = ../../../wolfcrypt/src/pkcs12.c; sourceTree = "<group>"; };
 		A4ADF8A01FCE0C4F00A06E90 /* asm.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = asm.c; path = ../../../wolfcrypt/src/asm.c; sourceTree = "<group>"; };
-		A4ADF8A11FCE0C5000A06E90 /* misc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = misc.c; path = ../../../wolfcrypt/src/misc.c; sourceTree = "<group>"; };
 		A4ADF8A21FCE0C5000A06E90 /* integer.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = integer.c; path = ../../../wolfcrypt/src/integer.c; sourceTree = "<group>"; };
 		A4ADF8A41FCE0C5000A06E90 /* poly1305.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = poly1305.c; path = ../../../wolfcrypt/src/poly1305.c; sourceTree = "<group>"; };
 		A4ADF8A51FCE0C5000A06E90 /* md2.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = md2.c; path = ../../../wolfcrypt/src/md2.c; sourceTree = "<group>"; };
@@ -151,12 +149,10 @@
 		A4ADF8B71FCE0C5200A06E90 /* signature.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = signature.c; path = ../../../wolfcrypt/src/signature.c; sourceTree = "<group>"; };
 		A4ADF8B81FCE0C5200A06E90 /* wolfmath.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = wolfmath.c; path = ../../../wolfcrypt/src/wolfmath.c; sourceTree = "<group>"; };
 		A4ADF8BA1FCE0C5300A06E90 /* fe_operations.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = fe_operations.c; path = ../../../wolfcrypt/src/fe_operations.c; sourceTree = "<group>"; };
-		A4ADF8BE1FCE0C5300A06E90 /* sp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sp.c; path = ../../../wolfcrypt/src/sp.c; sourceTree = "<group>"; };
 		A4ADF8BF1FCE0C5300A06E90 /* srp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = srp.c; path = ../../../wolfcrypt/src/srp.c; sourceTree = "<group>"; };
 		A4ADF8C01FCE0C5300A06E90 /* pwdbased.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = pwdbased.c; path = ../../../wolfcrypt/src/pwdbased.c; sourceTree = "<group>"; };
 		A4ADF8C11FCE0C5300A06E90 /* cpuid.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = cpuid.c; path = ../../../wolfcrypt/src/cpuid.c; sourceTree = "<group>"; };
 		A4ADF8C21FCE0C5300A06E90 /* asn.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = asn.c; path = ../../../wolfcrypt/src/asn.c; sourceTree = "<group>"; };
-		A4ADF8C31FCE0C5400A06E90 /* async.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = async.c; path = ../../../../wolfAsyncCrypt/wolfcrypt/src/async.c; sourceTree = "<group>"; };
 		A4ADF8C71FCE0C5400A06E90 /* camellia.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = camellia.c; path = ../../../wolfcrypt/src/camellia.c; sourceTree = "<group>"; };
 		A4ADF8CA1FCE0C5500A06E90 /* chacha.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = chacha.c; path = ../../../wolfcrypt/src/chacha.c; sourceTree = "<group>"; };
 		A4ADF8CB1FCE0C5500A06E90 /* ed25519.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ed25519.c; path = ../../../wolfcrypt/src/ed25519.c; sourceTree = "<group>"; };
@@ -243,7 +239,6 @@
 				A4ADF8921FCE0C4E00A06E90 /* arc4.c */,
 				A4ADF8A01FCE0C4F00A06E90 /* asm.c */,
 				A4ADF8C21FCE0C5300A06E90 /* asn.c */,
-				A4ADF8C31FCE0C5400A06E90 /* async.c */,
 				A4ADF8B11FCE0C5100A06E90 /* blake2b.c */,
 				A4ADF8C71FCE0C5400A06E90 /* camellia.c */,
 				A4ADF8CA1FCE0C5500A06E90 /* chacha.c */,
@@ -274,7 +269,6 @@
 				A4ADF87C1FCE0C4D00A06E90 /* md4.c */,
 				A4ADF8791FCE0C4D00A06E90 /* md5.c */,
 				A4ADF8941FCE0C4E00A06E90 /* memory.c */,
-				A4ADF8A11FCE0C5000A06E90 /* misc.c */,
 				A4ADF8981FCE0C4F00A06E90 /* pkcs7.c */,
 				A4ADF89E1FCE0C4F00A06E90 /* pkcs12.c */,
 				A4ADF8A41FCE0C5000A06E90 /* poly1305.c */,
@@ -288,7 +282,7 @@
 				A4ADF8831FCE0C4D00A06E90 /* sha256.c */,
 				A4ADF8AE1FCE0C5100A06E90 /* sha512.c */,
 				A4ADF8B71FCE0C5200A06E90 /* signature.c */,
-				A4ADF8BE1FCE0C5300A06E90 /* sp.c */,
+				52114C8621B5A7320022ADA1 /* sp_c64.c */,
 				A4ADF8BF1FCE0C5300A06E90 /* srp.c */,
 				A4ADF8881FCE0C4D00A06E90 /* tfm.c */,
 				A4ADF8AA1FCE0C5000A06E90 /* wc_encrypt.c */,
@@ -341,8 +335,8 @@
 		A4ADF8221FCE0BD300A06E90 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0910;
-				ORGANIZATIONNAME = "David Garske";
+				LastUpgradeCheck = 1010;
+				ORGANIZATIONNAME = "wolfSSL Inc";
 				TargetAttributes = {
 					A4ADF8291FCE0BD300A06E90 = {
 						CreatedOnToolsVersion = 9.1;
@@ -393,7 +387,6 @@
 				A4ADF9141FCE0C5600A06E90 /* wolfmath.c in Sources */,
 				A4ADF8FC1FCE0C5600A06E90 /* asm.c in Sources */,
 				A4ADF8721FCE0C1C00A06E90 /* crl.c in Sources */,
-				A4ADF91F1FCE0C5600A06E90 /* async.c in Sources */,
 				A4ADF91B1FCE0C5600A06E90 /* srp.c in Sources */,
 				A4ADF9101FCE0C5600A06E90 /* rabbit.c in Sources */,
 				A4ADF9091FCE0C5600A06E90 /* idea.c in Sources */,
@@ -426,7 +419,6 @@
 				A4ADF8D31FCE0C5600A06E90 /* random.c in Sources */,
 				A4ADF9131FCE0C5600A06E90 /* signature.c in Sources */,
 				A4DFEC3C1FD6B9CC00A7BB33 /* test.c in Sources */,
-				A4ADF8FD1FCE0C5600A06E90 /* misc.c in Sources */,
 				A4ADF9261FCE0C5600A06E90 /* chacha.c in Sources */,
 				A4ADF8DD1FCE0C5600A06E90 /* error.c in Sources */,
 				A4ADF90A1FCE0C5600A06E90 /* sha512.c in Sources */,
@@ -435,6 +427,7 @@
 				A4ADF92A1FCE0C5600A06E90 /* coding.c in Sources */,
 				A4ADF8741FCE0C1C00A06E90 /* ssl.c in Sources */,
 				A4ADF9051FCE0C5600A06E90 /* cmac.c in Sources */,
+				52114C8721B5A7320022ADA1 /* sp_c64.c in Sources */,
 				A4ADF8F41FCE0C5600A06E90 /* pkcs7.c in Sources */,
 				A4ADF90B1FCE0C5600A06E90 /* logging.c in Sources */,
 				A4ADF8E01FCE0C5600A06E90 /* ecc_fp.c in Sources */,
@@ -458,7 +451,6 @@
 				A4ADF8D71FCE0C5600A06E90 /* wolfevent.c in Sources */,
 				A4DFEC0D1FD4CAA300A7BB33 /* benchmark.c in Sources */,
 				A4ADF91D1FCE0C5600A06E90 /* cpuid.c in Sources */,
-				A4ADF91A1FCE0C5600A06E90 /* sp.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -498,6 +490,7 @@
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
@@ -505,6 +498,7 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
@@ -558,6 +552,7 @@
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
@@ -565,6 +560,7 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;

@@ -13,21 +13,17 @@ echo 2000 > ./certs/ecc/crlnumber
 
 # generate ECC 256-bit CA
 openssl ecparam -out ./certs/ca-ecc-key.par -name prime256v1
-openssl req -config ./certs/ecc/wolfssl.cnf -extensions v3_ca -x509 -nodes -newkey ec:./certs/ca-ecc-key.par -keyout ./certs/ca-ecc-key.pem -out ./certs/ca-ecc-cert.pem -sha256 -days 7300 -batch -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Development/CN=www.wolfssl.com/emailAddress=info@wolfssl.com"
+openssl req -config ./certs/ecc/wolfssl.cnf -extensions v3_ca -x509 -nodes -newkey ec:./certs/ca-ecc-key.par -keyout ./certs/ca-ecc-key.pem -out ./certs/ca-ecc-cert.pem -sha256 \
+	-days 7300 -batch -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Development/CN=www.wolfssl.com/emailAddress=info@wolfssl.com"
 
 openssl x509 -in ./certs/ca-ecc-cert.pem -inform PEM -out ./certs/ca-ecc-cert.der -outform DER
 openssl ec -in ./certs/ca-ecc-key.pem -inform PEM -out ./certs/ca-ecc-key.der -outform DER
 
 rm ./certs/ca-ecc-key.par
 
-# generate ECC 384-bit CA
-openssl ecparam -out ./certs/ca-ecc384-key.par -name secp384r1
-openssl req -config ./certs/ecc/wolfssl.cnf -extensions v3_ca -x509 -nodes -newkey ec:./certs/ca-ecc384-key.par -keyout ./certs/ca-ecc384-key.pem -out ./certs/ca-ecc384-cert.pem -sha384 -days 7300 -batch -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Development/CN=www.wolfssl.com/emailAddress=info@wolfssl.com"
+# Gen CA CRL
+openssl ca -config ./certs/ecc/wolfssl.cnf -gencrl -crldays 1000 -out ./certs/crl/caEccCrl.pem -keyfile ./certs/ca-ecc-key.pem -cert ./certs/ca-ecc-cert.pem
 
-openssl x509 -in ./certs/ca-ecc384-cert.pem -inform PEM -out ./certs/ca-ecc384-cert.der -outform DER
-openssl ec -in ./certs/ca-ecc384-key.pem -inform PEM -out ./certs/ca-ecc384-key.der -outform DER
-
-rm ./certs/ca-ecc384-key.par
 
 
 # Generate ECC 256-bit server cert
@@ -40,9 +36,53 @@ openssl x509 -in ./certs/server-ecc.pem -outform der -out ./certs/server-ecc.der
 
 rm ./certs/server-ecc-req.pem 
 
-# Gen CRL
-openssl ca -config ./certs/ecc/wolfssl.cnf -gencrl -crldays 1000 -out ./certs/crl/caEccCrl.pem -keyfile ./certs/ca-ecc-key.pem -cert ./certs/ca-ecc-cert.pem
-openssl ca -config ./certs/ecc/wolfssl.cnf -gencrl -crldays 1000 -out ./certs/crl/caEcc384Crl.pem -keyfile ./certs/ca-ecc384-key.pem -cert ./certs/ca-ecc384-cert.pem
+
+
+# generate ECC 384-bit CA
+openssl ecparam -out ./certs/ca-ecc384-key.par -name secp384r1
+openssl req -config ./certs/ecc/wolfssl_384.cnf -extensions v3_ca -x509 -nodes -newkey ec:./certs/ca-ecc384-key.par -keyout ./certs/ca-ecc384-key.pem -out ./certs/ca-ecc384-cert.pem -sha384 \
+	-days 7300 -batch -subj "/C=US/ST=Washington/L=Seattle/O=wolfSSL/OU=Development/CN=www.wolfssl.com/emailAddress=info@wolfssl.com"
+
+openssl x509 -in ./certs/ca-ecc384-cert.pem -inform PEM -out ./certs/ca-ecc384-cert.der -outform DER
+openssl ec -in ./certs/ca-ecc384-key.pem -inform PEM -out ./certs/ca-ecc384-key.der -outform DER
+
+rm ./certs/ca-ecc384-key.par
+
+# Gen CA CRL
+openssl ca -config ./certs/ecc/wolfssl_384.cnf -gencrl -crldays 1000 -out ./certs/crl/caEcc384Crl.pem -keyfile ./certs/ca-ecc384-key.pem -cert ./certs/ca-ecc384-cert.pem
+
+
+
+# Generate ECC 384-bit server cert
+openssl ecparam -out ./certs/server-ecc384-key.par -name secp384r1
+openssl req -config ./certs/ecc/wolfssl_384.cnf -sha384 -x509 -nodes -newkey ec:./certs/server-ecc384-key.par -keyout ./certs/server-ecc384-key.pem -out ./certs/server-ecc384-req.pem \
+	-subj "/C=US/ST=Washington/L=Seattle/O=Eliptic/OU=ECC384Srv/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
+openssl req -config ./certs/ecc/wolfssl_384.cnf -sha384 -new -key ./certs/server-ecc384-key.pem -out ./certs/server-ecc384-req.pem \
+	-subj "/C=US/ST=Washington/L=Seattle/O=Eliptic/OU=ECC384Srv/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
+openssl ec -in ./certs/server-ecc384-key.pem -inform PEM -out ./certs/server-ecc384-key.der -outform DER
+
+# Sign server certificate
+openssl ca -config ./certs/ecc/wolfssl_384.cnf -extensions server_cert -days 10950 -notext -md sha384 -in ./certs/server-ecc384-req.pem -out ./certs/server-ecc384-cert.pem
+openssl x509 -in ./certs/server-ecc384-cert.pem -outform der -out ./certs/server-ecc384-cert.der
+
+rm ./certs/server-ecc384-req.pem 
+rm ./certs/server-ecc384-key.par
+
+# Generate ECC 384-bit client cert
+openssl ecparam -out ./certs/client-ecc384-key.par -name secp384r1
+openssl req -config ./certs/ecc/wolfssl_384.cnf -sha384 -x509 -nodes -newkey ec:./certs/client-ecc384-key.par -keyout ./certs/client-ecc384-key.pem -out ./certs/client-ecc384-req.pem \
+	-subj "/C=US/ST=Washington/L=Seattle/O=Eliptic/OU=ECC384Cli/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
+openssl req -config ./certs/ecc/wolfssl_384.cnf -sha384 -new -key ./certs/client-ecc384-key.pem -out ./certs/client-ecc384-req.pem \
+	-subj "/C=US/ST=Washington/L=Seattle/O=Eliptic/OU=ECC384Clit/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
+openssl ec -in ./certs/client-ecc384-key.pem -inform PEM -out ./certs/client-ecc384-key.der -outform DER
+
+# Sign client certificate
+openssl ca -config ./certs/ecc/wolfssl_384.cnf -extensions usr_cert -days 10950 -notext -md sha384 -in ./certs/client-ecc384-req.pem -out ./certs/client-ecc384-cert.pem
+openssl x509 -in ./certs/client-ecc384-cert.pem -outform der -out ./certs/client-ecc384-cert.der
+
+rm ./certs/client-ecc384-req.pem 
+rm ./certs/client-ecc384-key.par
+
 
 # Also manually need to:
 # 1. Copy ./certs/server-ecc.der into ./certs/test/server-cert-ecc-badsig.der `cp ./certs/server-ecc.der ./certs/test/server-cert-ecc-badsig.der`

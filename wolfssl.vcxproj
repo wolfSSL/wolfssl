@@ -335,6 +335,7 @@
     <ClCompile Include="wolfcrypt\src\wolfevent.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="resource.h" />
     <CustomBuild Include="wolfcrypt\src\aes_asm.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">false</ExcludedFromBuild>
@@ -350,6 +351,14 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">$(IntDir)%(Filename).obj</Outputs>
     </CustomBuild>
     <ClInclude Include="IDE\WIN\user_settings.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="wolfssl.rc">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ResourceCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
