@@ -27825,7 +27825,8 @@ int sp_ecc_mulmod_base_256(mp_int* km, ecc_point* r, int map, void* heap)
     return err;
 }
 
-#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN)
+#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
+                                                        defined(HAVE_ECC_VERIFY)
 /* Returns 1 if the number of zero.
  * Implementation is constant time.
  *
@@ -27837,7 +27838,7 @@ static int sp_256_iszero_4(const sp_digit* a)
     return (a[0] | a[1] | a[2] | a[3]) == 0;
 }
 
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN || HAVE_ECC_SIGN */
+#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN || HAVE_ECC_SIGN || HAVE_ECC_VERIFY */
 /* Add 1 to a. (a = a + 1)
  *
  * a  A single precision integer.

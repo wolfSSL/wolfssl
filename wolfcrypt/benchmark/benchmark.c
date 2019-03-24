@@ -494,6 +494,7 @@ static const char* bench_result_words1[][4] = {
     defined(HAVE_ECC) || !defined(NO_DH) || defined(HAVE_ECC_ENCRYPT) || \
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE25519_SHARED_SECRET)  || \
     defined(HAVE_ED25519)
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
 
 static const char* bench_desc_words[][9] = {
     /* 0           1          2         3        4        5         6            7            8 */
@@ -503,6 +504,7 @@ static const char* bench_desc_words[][9] = {
 #endif
 };
 
+#endif
 #endif
 
 #if defined(__GNUC__) && defined(__x86_64__) && !defined(NO_ASM) && !defined(WOLFSSL_SGX)
@@ -618,12 +620,14 @@ static const char* bench_desc_words[][9] = {
 #endif
 
 #if defined(BENCH_ASYM)
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
 static const char* bench_result_words2[][5] = {
     { "ops took", "sec"     , "avg" , "ops/sec", NULL },            /* 0 English  */
 #ifndef NO_MULTIBYTE_PRINT
     { "回処理を", "秒で実施", "平均", "処理/秒", NULL },            /* 1 Japanese */
 #endif
 };
+#endif
 #endif
 
 /* Asynchronous helper macros */
@@ -1051,6 +1055,7 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
 }
 
 #ifdef BENCH_ASYM
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
 static void bench_stats_asym_finish(const char* algo, int strength,
     const char* desc, int doAsync, int count, double start, int ret)
 {
@@ -1091,6 +1096,7 @@ static void bench_stats_asym_finish(const char* algo, int strength,
     (void)doAsync;
     (void)ret;
 }
+#endif
 #endif /* BENCH_ASYM */
 
 static WC_INLINE void bench_stats_free(void)
@@ -3945,7 +3951,8 @@ void bench_rsaKeyGen_size(int doAsync, int keySz)
 #define RSA_BUF_SIZE 384  /* for up to 3072 bit */
 
 #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-#elif defined(USE_CERT_BUFFERS_2048)
+#elif defined(WOLFSSL_PUBLIC_MP)
+    #if defined(USE_CERT_BUFFERS_2048)
 static unsigned char rsa_2048_sig[] = {
     0x8c, 0x9e, 0x37, 0xbf, 0xc3, 0xa6, 0xba, 0x1c,
     0x53, 0x22, 0x40, 0x4b, 0x8b, 0x0d, 0x3c, 0x0e,
@@ -3980,7 +3987,7 @@ static unsigned char rsa_2048_sig[] = {
     0x4c, 0xef, 0xe8, 0xd4, 0x4d, 0x6a, 0x33, 0x7d,
     0x9e, 0xd2, 0x51, 0xe6, 0x41, 0xbf, 0x4f, 0xa2
 };
-#elif defined(USE_CERT_BUFFERS_3072)
+    #elif defined(USE_CERT_BUFFERS_3072)
 static unsigned char rsa_3072_sig[] = {
     0x1a, 0xd6, 0x0d, 0xfd, 0xe3, 0x41, 0x95, 0x76,
     0x27, 0x16, 0x7d, 0xc7, 0x94, 0x16, 0xca, 0xa8,
@@ -4031,10 +4038,12 @@ static unsigned char rsa_3072_sig[] = {
     0x5e, 0xe9, 0xd0, 0xa7, 0xb4, 0x2a, 0x45, 0xdf,
     0x15, 0x7d, 0x0d, 0x5b, 0xef, 0xc6, 0x23, 0xac
 };
-#else
-    #error Not Supported Yet!
+    #else
+        #error Not Supported Yet!
+    #endif
 #endif
 
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
 static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
         int rsaKeySz)
 {
@@ -4227,12 +4236,13 @@ exit_rsa_verify:
 #endif
     FREE_VAR(message, HEAP_HINT);
 }
-
+#endif
 
 void bench_rsa(int doAsync)
 {
     int         ret = 0, i;
     RsaKey      rsaKey[BENCH_MAX_PENDING];
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
     int         rsaKeySz = RSA_BUF_SIZE * 8; /* used in printf */
     size_t      bytes;
     const byte* tmp;
@@ -4253,6 +4263,7 @@ void bench_rsa(int doAsync)
 #else
     #error "need a cert buffer size"
 #endif /* USE_CERT_BUFFERS */
+#endif
 
     /* clear for done cleanup */
     XMEMSET(rsaKey, 0, sizeof(rsaKey));
@@ -4281,7 +4292,7 @@ void bench_rsa(int doAsync)
             printf("wc_RsaPrivateKeyDecode failed! %d\n", ret);
             goto exit_bench_rsa;
         }
-#else
+#elif defined(WOLFSSL_PUBLIC_MP)
     #ifdef USE_CERT_BUFFERS_2048
         ret = mp_read_unsigned_bin(&rsaKey[i].n, &tmp[12], 256);
         if (ret != 0) {
@@ -4302,7 +4313,9 @@ void bench_rsa(int doAsync)
 
     }
 
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
     bench_rsa_helper(doAsync, rsaKey, rsaKeySz);
+#endif
 exit_bench_rsa:
     /* cleanup */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
