@@ -22711,19 +22711,27 @@ WOLFSSL_BIGNUM* wolfSSL_BN_new(void)
 
     WOLFSSL_MSG("wolfSSL_BN_new");
 
+#if !defined(USE_FAST_MATH) || defined(HAVE_WOLF_BIGINT)
     mpi = (mp_int*) XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
     if (mpi == NULL) {
         WOLFSSL_MSG("wolfSSL_BN_new malloc mpi failure");
         return NULL;
     }
+#endif
 
     external = (WOLFSSL_BIGNUM*) XMALLOC(sizeof(WOLFSSL_BIGNUM), NULL,
                                         DYNAMIC_TYPE_BIGINT);
     if (external == NULL) {
         WOLFSSL_MSG("wolfSSL_BN_new malloc WOLFSSL_BIGNUM failure");
+#if !defined(USE_FAST_MATH) || defined(HAVE_WOLF_BIGINT)
         XFREE(mpi, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
         return NULL;
     }
+
+#if defined(USE_FAST_MATH) && !defined(HAVE_WOLF_BIGINT)
+    mpi = &external->fp;
+#endif
 
     InitwolfSSL_BigNum(external);
     if (mp_init(mpi) != MP_OKAY) {
@@ -22735,6 +22743,18 @@ WOLFSSL_BIGNUM* wolfSSL_BN_new(void)
     return external;
 }
 
+#if defined(USE_FAST_MATH) && !defined(HAVE_WOLF_BIGINT)
+/* This function works without BN_free only with TFM */
+void wolfSSL_BN_init(WOLFSSL_BIGNUM* bn)
+{
+    if(bn == NULL)return;
+    WOLFSSL_MSG("wolfSSL_BN_init");
+    InitwolfSSL_BigNum(bn);
+    if (mp_init(&bn->fp) != MP_OKAY)
+        return;
+    bn->internal = (void *)&bn->fp;
+}
+#endif
 
 void wolfSSL_BN_free(WOLFSSL_BIGNUM* bn)
 {
@@ -22744,7 +22764,9 @@ void wolfSSL_BN_free(WOLFSSL_BIGNUM* bn)
             mp_int* bni = (mp_int*)bn->internal;
             mp_forcezero(bni);
             mp_free(bni);
+#if !defined(USE_FAST_MATH) || defined(HAVE_WOLF_BIGINT)
             XFREE(bn->internal, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
             bn->internal = NULL;
         }
         XFREE(bn, NULL, DYNAMIC_TYPE_BIGINT);
