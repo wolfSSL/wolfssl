@@ -16636,7 +16636,8 @@ static void test_wc_PKCS7_BER(void)
 
 static void test_PKCS7_signed_enveloped(void)
 {
-#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+#if defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) \
+    && !defined(NO_AES)
     XFILE  f;
     PKCS7* pkcs7;
     PKCS7* inner;
