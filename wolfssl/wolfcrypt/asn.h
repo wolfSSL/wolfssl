@@ -1186,6 +1186,22 @@ struct OcspRequest {
     void*  ssl;
 };
 
+typedef struct OcspEntry OcspEntry;
+
+#ifdef NO_SHA
+#define OCSP_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
+#else
+#define OCSP_DIGEST_SIZE WC_SHA_DIGEST_SIZE
+#endif
+
+struct OcspEntry
+{
+    OcspEntry *next;                      /* next entry             */
+    byte issuerHash[OCSP_DIGEST_SIZE];    /* issuer hash            */
+    byte issuerKeyHash[OCSP_DIGEST_SIZE]; /* issuer public key hash */
+    CertStatus *status;                   /* OCSP response list     */
+    int totalStatus;                      /* number on list         */
+};
 
 WOLFSSL_LOCAL void InitOcspResponse(OcspResponse*, CertStatus*, byte*, word32);
 WOLFSSL_LOCAL int  OcspResponseDecode(OcspResponse*, void*, void* heap, int);
