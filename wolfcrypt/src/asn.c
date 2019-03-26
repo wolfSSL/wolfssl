@@ -444,25 +444,25 @@ static char sigSha1wDsaName[] = "SHAwDSA";
 #endif /* NO_DSA */
 #ifndef NO_RSA
 #ifdef WOLFSSL_MD2
-    static char sigMd2wRsaName[] = "MD2wRSA";
+    static char sigMd2wRsaName[] = "md2WithRSAEncryption";
 #endif
 #ifndef NO_MD5
-    static char sigMd5wRsaName[] = "MD5wRSA";
+    static char sigMd5wRsaName[] = "md5WithRSAEncryption";
 #endif
 #ifndef NO_SHA
-    static char sigSha1wRsaName[] = "SHAwRSA";
+    static char sigSha1wRsaName[] = "sha1WithRSAEncryption";
 #endif
 #ifdef WOLFSSL_SHA224
-    static char sigSha224wRsaName[] = "SHA224wRSA";
+    static char sigSha224wRsaName[] = "sha224WithRSAEncryption";
 #endif
 #ifndef NO_SHA256
-    static char sigSha256wRsaName[] = "SHA256wRSA";
+    static char sigSha256wRsaName[] = "sha256WithRSAEncryption";
 #endif
 #ifdef WOLFSSL_SHA384
-    static char sigSha384wRsaName[] = "SHA384wRSA";
+    static char sigSha384wRsaName[] = "sha384WithRSAEncryption";
 #endif
 #ifdef WOLFSSL_SHA512
-    static char sigSha512wRsaName[] = "SHA512wRSA";
+    static char sigSha512wRsaName[] = "sha512WithRSAEncryption";
 #endif
 #endif /* NO_RSA */
 #ifdef HAVE_ECC
