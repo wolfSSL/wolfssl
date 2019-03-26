@@ -272,7 +272,9 @@ struct WOLFSSL_ASN1_OBJECT {
         WOLFSSL_ASN1_STRING* ia5; /* points to ia5_internal */
         WOLFSSL_ASN1_STRING* dNSName;
         WOLFSSL_ASN1_STRING* iPAddress;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         WOLFSSL_ASN1_STRING* uniformResourceIdentifier;
+#endif
     } d;
 };
 
@@ -1010,6 +1012,9 @@ WOLFSSL_API int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* n,
                                                            unsigned char** out);
 WOLFSSL_API int wolfSSL_X509_print(WOLFSSL_BIO* bio, WOLFSSL_X509* x509);
 WOLFSSL_API char*       wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME*, char*, int);
+#if defined(OPENSSL_EXTRA) && defined(XSNPRINTF)
+WOLFSSL_API char* wolfSSL_X509_get_name_oneline(WOLFSSL_X509_NAME*, char*, int);
+#endif
 WOLFSSL_API WOLFSSL_X509_NAME*  wolfSSL_X509_get_issuer_name(WOLFSSL_X509*);
 WOLFSSL_API WOLFSSL_X509_NAME*  wolfSSL_X509_get_subject_name(WOLFSSL_X509*);
 WOLFSSL_API int  wolfSSL_X509_ext_isSet_by_NID(WOLFSSL_X509*, int);

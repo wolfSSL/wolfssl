@@ -211,7 +211,7 @@ enum {
 };
 
 #define WOLFSSL_EVP_BUF_SIZE 16
-typedef struct WOLFSSL_EVP_CIPHER_CTX {
+struct WOLFSSL_EVP_CIPHER_CTX {
     int            keyLen;         /* user may set for variable */
     int            block_size;
     unsigned long  flags;
@@ -229,7 +229,7 @@ typedef struct WOLFSSL_EVP_CIPHER_CTX {
     int  bufUsed;
     ALIGN16 byte lastBlock[WOLFSSL_EVP_BUF_SIZE];
     int  lastUsed;
-} WOLFSSL_EVP_CIPHER_CTX;
+};
 
 struct  WOLFSSL_EVP_PKEY_CTX {
     WOLFSSL_EVP_PKEY *pkey;
