@@ -7825,7 +7825,13 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 XFREE(akey, NULL, DYNAMIC_TYPE_X509_EXT);
                 return NULL;
             }
-            XMEMCPY(akey->keyid, asn1String, sizeof(WOLFSSL_ASN1_STRING));
+
+            /* Copy data to keyid */
+            akey->keyid->length = asn1String->length;
+            akey->keyid->type   = asn1String->type;
+            akey->keyid->data   = (char*)XMALLOC(asn1String->length, NULL,
+                                                              DYNAMIC_TYPE_ASN1);
+            XMEMCPY(akey->keyid->data, asn1String->data, asn1String->length);
 
             /* For now, set issuer and serial to NULL. This may need to be
                 updated for future use */
@@ -7864,7 +7870,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
         case (NID_info_access):
             WOLFSSL_MSG("AuthorityInfoAccess");
 
-            sk = (WOLFSSL_STACK*)ext->ext_data;
+            sk = (WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)*)ext->ext_data;
             if (sk == NULL) {
                 WOLFSSL_MSG("ACCESS_DESCRIPTION stack NULL");
                 return NULL;
@@ -7945,6 +7951,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 }
                 aiaEntry = wolfSSL_sk_ASN1_OBJECT_pop(sk);
             }
+            wolfSSL_sk_ASN1_OBJECT_free(sk);
             return aia;
 
         default:
@@ -17003,6 +17010,24 @@ void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name)
 {
     WOLFSSL_ENTER("wolfSSL_GENERAL_NAME_Free");
     if(name != NULL) {
+        if (name->d.rfc822Name != NULL) {
+            wolfSSL_ASN1_STRING_free(name->d.rfc822Name);
+        }
+        if (name->d.dNSName != NULL) {
+            wolfSSL_ASN1_STRING_free(name->d.dNSName);
+        }
+        if (name->d.uniformResourceIdentifier != NULL) {
+            wolfSSL_ASN1_STRING_free(name->d.uniformResourceIdentifier);
+        }
+        if (name->d.iPAddress != NULL) {
+            wolfSSL_ASN1_STRING_free(name->d.iPAddress);
+        }
+        if (name->d.registeredID != NULL) {
+            wolfSSL_ASN1_OBJECT_free(name->d.registeredID);
+        }
+        if (name->d.ia5 != NULL) {
+            wolfSSL_ASN1_STRING_free(name->d.ia5);
+        }
         XFREE(name, NULL, DYNAMIC_TYPE_OPENSSL);
     }
 }
@@ -17479,6 +17504,7 @@ char* wolfSSL_i2s_ASN1_STRING(WOLFSSL_v3_ext_method *method, const WOLFSSL_ASN1_
     }
     XSNPRINTF(val, valSz - 1, "%02X", str[i]);
     XSTRNCAT(tmp, val, valSz);
+    XFREE(str, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return tmp;
 }

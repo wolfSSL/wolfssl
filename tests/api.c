@@ -21827,6 +21827,7 @@ static void test_wolfSSL_X509V3_EXT_d2i(void) {
     actual = strcmp(str,
                  "73:B0:1C:A4:2F:82:CB:CF:47:A5:38:D7:B0:04:82:3A:7E:72:15:21");
     AssertIntEQ(actual, 0);
+    XFREE(str, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     wolfSSL_X509_EXTENSION_free(ext);
     i++;
 
@@ -21845,6 +21846,8 @@ static void test_wolfSSL_X509V3_EXT_d2i(void) {
     AssertIntEQ(actual, 0);
     /* TODO: check issuer and serial? QT doesn't use issuer name
          -- would need to update X509V3_EXT_d2i */
+    XFREE(str, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_AUTHORITY_KEYID_free(aKeyId);
     wolfSSL_X509_EXTENSION_free(ext);
     i++;
 
@@ -21884,9 +21887,11 @@ static void test_wolfSSL_X509V3_EXT_d2i(void) {
     actual = strcmp(str, "http://127.0.0.1:22220");
     AssertIntEQ(actual, 0);
 
+    wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(aia, NULL);
     XFREE(ad, NULL, DYNAMIC_TYPE_X509_EXT);
     wolfSSL_X509_EXTENSION_free(ext);
 
+    wolfSSL_X509_free(x509);
     printf(resultFmt, "passed");
 }
 
