@@ -18529,6 +18529,9 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     X509_STORE_CTX* ctx;
     X509_STORE* str;
     X509* x509;
+#ifdef OPENSSL_ALL
+    STACK_OF(X509)* sk;
+#endif
 
     printf(testingFmt, "wolfSSL_X509_STORE_CTX()");
     AssertNotNull(ctx = X509_STORE_CTX_new());
@@ -18536,12 +18539,20 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     AssertNotNull((x509 =
                 wolfSSL_X509_load_certificate_file(svrCertFile, SSL_FILETYPE_PEM)));
     AssertIntEQ(X509_STORE_add_cert(str, x509), SSL_SUCCESS);
+#ifdef OPENSSL_ALL
+    AssertNotNull(sk = sk_X509_new());
+    AssertIntEQ(X509_STORE_CTX_init(ctx, str, x509, sk), SSL_SUCCESS);
+#else
     AssertIntEQ(X509_STORE_CTX_init(ctx, str, x509, NULL), SSL_SUCCESS);
+#endif
     AssertIntEQ(SSL_get_ex_data_X509_STORE_CTX_idx(), 0);
     X509_STORE_CTX_set_error(ctx, -5);
     X509_STORE_CTX_set_error(NULL, -5);
 
     X509_STORE_CTX_free(ctx);
+#ifdef OPENSSL_ALL
+    sk_X509_free(sk);
+#endif
     #ifdef WOLFSSL_KEEP_STORE_CERTS
     X509_STORE_free(str);
     X509_free(x509);
