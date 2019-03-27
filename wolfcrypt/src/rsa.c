@@ -2993,7 +2993,8 @@ int wc_RsaPSS_Sign_ex(const byte* in, word32 inLen, byte* out, word32 outLen,
 #endif
 #endif
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || !defined(WOLFSSL_SP_MATH)
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || !defined(WOLFSSL_SP_MATH) || \
+                                                             defined(WC_RSA_PSS)
 int wc_RsaEncryptSize(RsaKey* key)
 {
     int ret;
