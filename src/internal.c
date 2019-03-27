@@ -17869,6 +17869,30 @@ exit_dpk:
         return ret;
     }
 
+#ifdef WOLFSSL_TLS13
+    /* returns 1 if able to do TLS 1.3 otherwise 0 */
+    static int TLSv1_3_Capable(WOLFSSL* ssl)
+    {
+    #ifndef WOLFSSL_TLS13
+        return 0;
+    #else
+        int ret = 0;
+
+        if (IsAtLeastTLSv1_3(ssl->ctx->method->version)) {
+            ret = 1;
+        }
+
+        #ifdef OPENSSL_EXTRA
+        if ((wolfSSL_get_options(ssl) & SSL_OP_NO_TLSv1_3)) {
+            /* option set at run time to disable TLS 1.3 */
+            ret = 0;
+        }
+        #endif
+        return ret;
+    #endif
+    }
+#endif /* WOLFSSL_TLS13 */
+
     int CompleteServerHello(WOLFSSL* ssl)
     {
         int ret;
@@ -17878,7 +17902,7 @@ exit_dpk:
                                                          TLS13_DOWNGRADE_SZ - 1;
             byte  vers = ssl->arrays->serverRandom[RAN_LEN - 1];
     #ifdef WOLFSSL_TLS13
-            if (IsAtLeastTLSv1_3(ssl->ctx->method->version)) {
+            if (TLSv1_3_Capable(ssl)) {
                 /* TLS v1.3 capable client not allowed to downgrade when
                  * connecting to TLS v1.3 capable server unless cipher suite
                  * demands it.
