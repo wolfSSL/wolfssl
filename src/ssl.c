@@ -16282,14 +16282,14 @@ char* wolfSSL_X509_get_name_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
 
         /* Copy sn and name text to buffer */
         if (i != count - 1) {
-            strSz = strlen(sn) + nameSz + 4;
+            strSz = (int)XSTRLEN(sn) + nameSz + 4;
             XSNPRINTF(tmp, strSz, "%s=%s, ", sn, buf);
             XSTRNCAT(tmpBuf, tmp, strSz);
             idx += strSz;
         }
         else {
             /* Copy last name entry */
-            strSz = strlen(sn) + nameSz + 2;
+            strSz = (int)XSTRLEN(sn) + nameSz + 2;
             XSNPRINTF(tmp, strSz, "%s=%s", sn, buf);
             XSTRNCAT(tmpBuf, tmp, strSz);
             idx += strSz;
@@ -19185,7 +19185,7 @@ char* wolfSSL_CIPHER_description_all(const WOLFSSL_CIPHER* cipher, char* in,
     char *ret = in;
     const char* name;
     const char *keaStr, *authStr, *encStr, *macStr, *protocol;
-    char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {0};
+    char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
     byte cipherSuite0, cipherSuite;
     int i,j,k;
     int strLen;
@@ -19240,30 +19240,40 @@ char* wolfSSL_CIPHER_description_all(const WOLFSSL_CIPHER* cipher, char* in,
 
     /* Build up the string by copying onto the end. */
     XSTRNCPY(in, name, len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
+    in[len-1] = '\0'; strLen = (int)XSTRLEN(in);
+    len -= (int)strLen; in += strLen;
 
     XSTRNCPY(in, " ", len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
+    in[len-1] = '\0'; strLen = (int)XSTRLEN(in);
+    len -= (int)strLen; in += strLen;
     XSTRNCPY(in, protocol, len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
+    in[len-1] = '\0'; strLen = (int)XSTRLEN(in);
+    len -= (int)strLen; in += strLen;
 
     XSTRNCPY(in, " Kx=", len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
+    in[len-1] = '\0'; strLen = (int)XSTRLEN(in);
+    len -= (int)strLen; in += strLen;
     XSTRNCPY(in, keaStr, len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
+    in[len-1] = '\0'; strLen = (int)XSTRLEN(in);
+    len -= (int)strLen; in += strLen;
 
     XSTRNCPY(in, " Au=", len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
+    in[len-1] = '\0'; strLen = (int)XSTRLEN(in);
+    len -= (int)strLen; in += strLen;
     XSTRNCPY(in, authStr, len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
+    in[len-1] = '\0'; strLen = (int)XSTRLEN(in);
+    len -= (int)strLen; in += strLen;
 
     XSTRNCPY(in, " Enc=", len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
+    in[len-1] = '\0'; strLen = (int)XSTRLEN(in);
+    len -= (int)strLen; in += strLen;
     XSTRNCPY(in, encStr, len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
+    in[len-1] = '\0'; strLen = (int)XSTRLEN(in);
+    len -= (int)strLen; in += strLen;
 
     XSTRNCPY(in, " Mac=", len);
-    in[len-1] = '\0'; strLen = XSTRLEN(in); len -= (int)strLen; in += strLen;
+    in[len-1] = '\0'; strLen = (int)XSTRLEN(in);
+    len -= (int)strLen; in += strLen;
     XSTRNCPY(in, macStr, len);
     in[len-1] = '\0';
 
@@ -22097,7 +22107,7 @@ int wolfSSL_PEM_def_callback(char* name, int num, int w, void* key)
 
     /* We assume that the user passes a default password as userdata */
     if (key) {
-        Sz = (int) strlen((const char*)key);
+        Sz = (int)XSTRLEN((const char*)key);
         Sz = (Sz > num) ? num : Sz;
         memcpy(name, key, Sz);
         return Sz;
@@ -34575,7 +34585,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 #ifdef WOLFSSL_QT
         /* For unknown extension types, QT expects the short name to be the text
             representation of the oid */
-        if (strlen(a->sName) == 0) {
+        if (XSTRLEN(a->sName) == 0) {
             XMEMCPY(a->sName, buf, bufSz);
         }
 #endif
