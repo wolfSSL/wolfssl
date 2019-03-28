@@ -105,7 +105,9 @@ int atmel_get_random_number(uint32_t count, uint8_t* rand_out)
 		XMEMCPY(&rand_out[i], rng_buffer, copy_count);
 		i += copy_count;
 	}
+    #ifdef ATCAPRINTF
     atcab_printbin_label((const char*)"\r\nRandom Number", rand_out, count);
+    #endif
 #else
     /* TODO: Use on-board TRNG */
 #endif
