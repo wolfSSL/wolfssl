@@ -621,7 +621,8 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 
-#if defined(WOLFSSL_LEANPSK) && !defined(XMALLOC_USER)
+#if defined(WOLFSSL_LEANPSK) && !defined(XMALLOC_USER) && \
+        !defined(NO_WOLFSSL_MEMORY)
     #include <stdlib.h>
     #define XMALLOC(s, h, type)  malloc((s))
     #define XFREE(p, h, type)    free((p))

@@ -1,6 +1,6 @@
 /* test.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1023,7 +1023,7 @@ initDefaultName();
         printf( "mp       test passed!\n");
 #endif
 
-#ifdef WOLFSSL_PUBLIC_MP
+#if defined(WOLFSSL_PUBLIC_MP) && !defined(WOLFSSL_SP_MATH)
     if ( (ret = prime_test()) != 0)
         return err_sys("prime    test failed!\n", ret);
     else
@@ -8685,7 +8685,10 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
             static const char* eccKeyDerFile = CERT_ROOT "ecc-key.der";
         #endif
         #ifdef WOLFSSL_CERT_GEN
-            static const char* eccKeyPubFile = CERT_ROOT "ecc-keyPub.der";
+            #ifndef NO_RSA
+                /* eccKeyPubFile is used in a test that requires RSA. */
+                static const char* eccKeyPubFile = CERT_ROOT "ecc-keyPub.der";
+            #endif
             static const char* eccCaKeyFile  = CERT_ROOT "ca-ecc-key.der";
             static const char* eccCaCertFile = CERT_ROOT "ca-ecc-cert.pem";
             #ifdef ENABLE_ECC384_CERT_GEN_TEST
@@ -8836,7 +8839,7 @@ static const CertName certDefaultName = {
     static const char certKeyUsage[] =
         "digitalSignature,nonRepudiation";
     #endif
-    #if defined(WOLFSSL_CERT_REQ) || defined(HAVE_NTRU)
+    #if (defined(WOLFSSL_CERT_REQ) || defined(HAVE_NTRU)) && !defined(NO_RSA)
         static const char certKeyUsage2[] =
         "digitalSignature,nonRepudiation,keyEncipherment,keyAgreement";
     #endif
@@ -9205,7 +9208,7 @@ int decodedCertCache_test(void)
 #endif /* defined(WOLFSSL_CERT_GEN_CACHE) && defined(WOLFSSL_TEST_CERT) &&
           defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN) */
 
-#if !defined(NO_ASN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#if !defined(NO_ASN) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
 static int rsa_flatten_test(RsaKey* key)
 {
     int    ret;
@@ -10280,6 +10283,7 @@ int rsa_no_pad_test(void)
         ERROR_OUT(-6905, exit_rsa_nopadding);
     }
 
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
     inLen = wc_RsaEncryptSize(&key);
     XMEMSET(tmp, 7, inLen);
     do {
@@ -10317,6 +10321,7 @@ int rsa_no_pad_test(void)
     if (XMEMCMP(plain, tmp, inLen) != 0) {
         ERROR_OUT(-6909, exit_rsa_nopadding);
     }
+#endif
 
 #ifdef WC_RSA_BLINDING
     ret = wc_RsaSetRNG(NULL, &rng);
@@ -11003,12 +11008,17 @@ int rsa_test(void)
 #if defined(HAVE_NTRU)
     RsaKey caKey;
 #endif
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_MP_PUBLIC)
     word32 idx = 0;
-    byte*  res;
     const char* inStr = "Everyone gets Friday off.";
     word32      inLen = (word32)XSTRLEN((char*)inStr);
+    byte*  res;
     const word32 outSz   = RSA_TEST_BYTES;
     const word32 plainSz = RSA_TEST_BYTES;
+#endif
+#ifndef NO_SIG_WRAPPER
+    int modLen;
+#endif
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) \
                                     && !defined(NO_FILESYSTEM)
     XFILE   file;
@@ -11018,9 +11028,11 @@ int rsa_test(void)
     DecodedCert cert;
 #endif
 
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_MP_PUBLIC)
     DECLARE_VAR_INIT(in, byte, inLen, inStr, HEAP_HINT);
     DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (in == NULL)
@@ -11092,7 +11104,10 @@ int rsa_test(void)
     if (ret != 0) {
         ERROR_OUT(-7004, exit_rsa);
     }
-#elif defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#ifndef NO_SIG_WRAPPER
+    modLen = wc_RsaEncryptSize(&key);
+#endif
+#elif defined(WOLFSSL_RSA_PUBLIC_ONLY) && defined(WOLFSSL_MP_PUBLIC)
     #ifdef USE_CERT_BUFFERS_2048
         ret = mp_read_unsigned_bin(&key.n, &tmp[12], 256);
         if (ret != 0) {
@@ -11102,6 +11117,9 @@ int rsa_test(void)
         if (ret != 0) {
             ERROR_OUT(-7004, exit_rsa);
         }
+#ifndef NO_SIG_WRAPPER
+        modLen = 2048;
+#endif
     #else
         #error Not supported yet!
     #endif
@@ -11119,7 +11137,7 @@ int rsa_test(void)
 #endif
 
 #ifndef NO_SIG_WRAPPER
-    ret = rsa_sig_test(&key, sizeof(RsaKey), wc_RsaEncryptSize(&key), &rng);
+    ret = rsa_sig_test(&key, sizeof(RsaKey), modLen, &rng);
     if (ret != 0)
         goto exit_rsa;
 #endif
@@ -11199,7 +11217,7 @@ int rsa_test(void)
     if (ret < 0) {
         ERROR_OUT(-7013, exit_rsa);
     }
-#else
+#elif defined(WOLFSSL_MP_PUBLIC)
     (void)outSz;
     (void)inLen;
     (void)res;
@@ -11243,6 +11261,7 @@ int rsa_test(void)
     }
 #endif
 
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_MP_PUBLIC)
     idx = (word32)ret;
     XMEMSET(plain, 0, plainSz);
     do {
@@ -11268,7 +11287,9 @@ int rsa_test(void)
     if (XMEMCMP(plain, in, (size_t)ret)) {
         ERROR_OUT(-7015, exit_rsa);
     }
+#endif
 
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
     #ifndef WC_NO_RSA_OAEP
     /* OAEP padding testing */
     #if !defined(HAVE_FAST_RSA) && !defined(HAVE_USER_RSA) && \
@@ -11277,7 +11298,6 @@ int rsa_test(void)
     #ifndef NO_SHA
     XMEMSET(plain, 0, plainSz);
 
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11290,10 +11310,8 @@ int rsa_test(void)
     if (ret < 0) {
         ERROR_OUT(-7016, exit_rsa);
     }
-#endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
     idx = (word32)ret;
-#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11310,7 +11328,6 @@ int rsa_test(void)
     if (XMEMCMP(plain, in, inLen)) {
         ERROR_OUT(-7018, exit_rsa);
     }
-#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
     #endif /* NO_SHA */
 
     #ifndef NO_SHA256
@@ -11443,10 +11460,10 @@ int rsa_test(void)
     }
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 
+#ifndef WOLFSSL_RSA_VERIFY_ONLY
     #ifndef NO_SHA
         /* check fail using mismatch hash algorithms */
         XMEMSET(plain, 0, plainSz);
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
         do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
             ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11459,7 +11476,6 @@ int rsa_test(void)
         if (ret < 0) {
             ERROR_OUT(-7030, exit_rsa);
         }
-#endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
 /* TODO: investigate why Cavium Nitrox doesn't detect decrypt error here */
 #if !defined(HAVE_CAVIUM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
@@ -11480,6 +11496,7 @@ int rsa_test(void)
         ret = 0;
 #endif /* !HAVE_CAVIUM */
         #endif /* NO_SHA*/
+#endif /* WOLFSSL_RSA_VERIFY_ONLY */
     #endif /* NO_SHA256 */
 
     #ifdef WOLFSSL_SHA512
@@ -11489,7 +11506,6 @@ int rsa_test(void)
        BAD_FUNC_ARG is returned when this case is not met */
     if (wc_RsaEncryptSize(&key) > ((int)WC_SHA512_DIGEST_SIZE * 2) + 2) {
         XMEMSET(plain, 0, plainSz);
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
         do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
             ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11502,7 +11518,6 @@ int rsa_test(void)
         if (ret < 0) {
             ERROR_OUT(-7032, exit_rsa);
         }
-#endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
         idx = ret;
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
@@ -11528,7 +11543,6 @@ int rsa_test(void)
 
     /* check using pkcsv15 padding with _ex API */
     XMEMSET(plain, 0, plainSz);
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -11541,7 +11555,6 @@ int rsa_test(void)
     if (ret < 0) {
         ERROR_OUT(-7035, exit_rsa);
     }
-#endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
     idx = (word32)ret;
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
@@ -11564,6 +11577,7 @@ int rsa_test(void)
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
     #endif /* !HAVE_FAST_RSA && !HAVE_FIPS */
     #endif /* WC_NO_RSA_OAEP */
+#endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
 #if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(NO_ASN) \
     && !defined(WOLFSSL_RSA_VERIFY_ONLY)
@@ -11572,7 +11586,7 @@ int rsa_test(void)
         return ret;
 #endif
 
-#if !defined(NO_ASN) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if !defined(NO_ASN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     ret = rsa_flatten_test(&key);
     if (ret != 0)
         return ret;
@@ -22595,7 +22609,7 @@ done:
 #endif
 
 
-#ifdef WOLFSSL_PUBLIC_MP
+#if defined(WOLFSSL_PUBLIC_MP) && !defined(WOLFSSL_SP_MATH)
 
 typedef struct pairs_t {
     const unsigned char* coeff;

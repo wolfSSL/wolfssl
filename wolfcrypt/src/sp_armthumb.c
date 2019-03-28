@@ -1,6 +1,6 @@
 /* sp.c
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -3909,7 +3909,8 @@ static WC_INLINE int sp_2048_mod_64_cond(sp_digit* r, sp_digit* a, sp_digit* m)
     return sp_2048_div_64_cond(a, m, NULL, r);
 }
 
-#if defined(SP_RSA_PRIVATE_EXP_D) || defined(WOLFSSL_HAVE_SP_DH)
+#if (defined(SP_RSA_PRIVATE_EXP_D) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
+                                                     defined(WOLFSSL_HAVE_SP_DH)
 #ifdef WOLFSSL_SP_SMALL
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
@@ -4182,7 +4183,7 @@ static int sp_2048_mod_exp_64(sp_digit* r, sp_digit* a, sp_digit* e,
     return err;
 }
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* SP_RSA_PRIVATE_EXP_D || WOLFSSL_HAVE_SP_DH */
+#endif /* (SP_RSA_PRIVATE_EXP_D && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
@@ -4436,7 +4437,8 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     return err;
 }
 #endif /* WOLFSSL_HAVE_SP_RSA */
-#if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
+#if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
+                                              !defined(WOLFSSL_RSA_PUBLIC_ONLY))
 /* Convert an array of sp_digit to an mp_int.
  *
  * a  A single precision integer.
@@ -4622,7 +4624,7 @@ int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     return err;
 }
 
-#endif /* WOLFSSL_HAVE_SP_DH || WOLFSSL_HAVE_SP_RSA */
+#endif /* WOLFSSL_HAVE_SP_DH || (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) */
 
 #endif /* WOLFSSL_SP_NO_2048 */
 
@@ -9219,7 +9221,8 @@ static WC_INLINE int sp_3072_mod_96_cond(sp_digit* r, sp_digit* a, sp_digit* m)
     return sp_3072_div_96_cond(a, m, NULL, r);
 }
 
-#if defined(SP_RSA_PRIVATE_EXP_D) || defined(WOLFSSL_HAVE_SP_DH)
+#if (defined(SP_RSA_PRIVATE_EXP_D) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
+                                                     defined(WOLFSSL_HAVE_SP_DH)
 #ifdef WOLFSSL_SP_SMALL
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
  *
@@ -9492,7 +9495,7 @@ static int sp_3072_mod_exp_96(sp_digit* r, sp_digit* a, sp_digit* e,
     return err;
 }
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* SP_RSA_PRIVATE_EXP_D || WOLFSSL_HAVE_SP_DH */
+#endif /* (SP_RSA_PRIVATE_EXP_D && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
@@ -9746,7 +9749,8 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     return err;
 }
 #endif /* WOLFSSL_HAVE_SP_RSA */
-#if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_HAVE_SP_RSA)
+#if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
+                                              !defined(WOLFSSL_RSA_PUBLIC_ONLY))
 /* Convert an array of sp_digit to an mp_int.
  *
  * a  A single precision integer.
@@ -9932,7 +9936,7 @@ int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     return err;
 }
 
-#endif /* WOLFSSL_HAVE_SP_DH || WOLFSSL_HAVE_SP_RSA */
+#endif /* WOLFSSL_HAVE_SP_DH || (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) */
 
 #endif /* WOLFSSL_SP_NO_3072 */
 
@@ -14496,7 +14500,8 @@ int sp_ecc_mulmod_base_256(mp_int* km, ecc_point* r, int map, void* heap)
     return err;
 }
 
-#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN)
+#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
+                                                        defined(HAVE_ECC_VERIFY)
 /* Returns 1 if the number of zero.
  * Implementation is constant time.
  *
@@ -14508,7 +14513,7 @@ static int sp_256_iszero_8(const sp_digit* a)
     return (a[0] | a[1] | a[2] | a[3] | a[4] | a[5] | a[6] | a[7]) == 0;
 }
 
-#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN || HAVE_ECC_SIGN */
+#endif /* WOLFSSL_VALIDATE_ECC_KEYGEN || HAVE_ECC_SIGN || HAVE_ECC_VERIFY */
 /* Add 1 to a. (a = a + 1)
  *
  * a  A single precision integer.

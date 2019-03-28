@@ -1,6 +1,6 @@
 /* internal.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1384,7 +1384,7 @@ enum Misc {
     MIN_PSK_BINDERS_LEN=  33,  /* min length of binders */
     MAX_TICKET_AGE_SECS=  10,  /* maximum ticket age in seconds */
 
-    MAX_WOLFSSL_FILE_SIZE = 1024 * 1024 * 4,  /* 4 mb file size alloc limit */
+    MAX_WOLFSSL_FILE_SIZE = 1024ul * 1024ul * 4,  /* 4 mb file size alloc limit */
 
 #if defined(HAVE_EX_DATA) || defined(FORTRESS)
     MAX_EX_DATA        =   5,  /* allow for five items of ex_data */
@@ -1802,33 +1802,17 @@ struct WOLFSSL_CIPHER {
 };
 
 
-typedef struct OcspEntry OcspEntry;
-
-#ifdef NO_SHA
-    #define OCSP_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
-#else
-    #define OCSP_DIGEST_SIZE WC_SHA_DIGEST_SIZE
-#endif
-
 #ifdef NO_ASN
     /* no_asn won't have */
     typedef struct CertStatus CertStatus;
 #endif
-
-struct OcspEntry {
-    OcspEntry*  next;                            /* next entry             */
-    byte        issuerHash[OCSP_DIGEST_SIZE];    /* issuer hash            */
-    byte        issuerKeyHash[OCSP_DIGEST_SIZE]; /* issuer public key hash */
-    CertStatus* status;                          /* OCSP response list     */
-    int         totalStatus;                     /* number on list         */
-};
-
 
 #ifndef HAVE_OCSP
     typedef struct WOLFSSL_OCSP WOLFSSL_OCSP;
 #endif
 
 /* wolfSSL OCSP controller */
+#ifdef HAVE_OCSP
 struct WOLFSSL_OCSP {
     WOLFSSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
     OcspEntry*            ocspList;      /* OCSP response list */
@@ -1838,6 +1822,7 @@ struct WOLFSSL_OCSP {
     int(*statusCb)(WOLFSSL*, void*);
 #endif
 };
+#endif 
 
 #ifndef MAX_DATE_SIZE
 #define MAX_DATE_SIZE 32
@@ -3191,7 +3176,7 @@ typedef struct Options {
     wc_psk_server_tls13_callback server_psk_tls13_cb;  /* server callback */
 #endif
 #endif /* NO_PSK */
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     unsigned long     mask; /* store SSL_OP_ flags */
 #endif
 

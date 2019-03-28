@@ -1,6 +1,6 @@
 /* internal.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -11607,8 +11607,8 @@ static int Poly1305TagOld(WOLFSSL* ssl, byte* additional, const byte* out,
     /* 32 bit size of cipher to 64 bit endian */
     padding[0] =  msglen        & 0xff;
     padding[1] = (msglen >>  8) & 0xff;
-    padding[2] = (msglen >> 16) & 0xff;
-    padding[3] = (msglen >> 24) & 0xff;
+    padding[2] = ((word32)msglen >> 16) & 0xff;
+    padding[3] = ((word32)msglen >> 24) & 0xff;
     if ((ret = wc_Poly1305Update(ssl->auth.poly1305, padding, sizeof(padding)))
         != 0)
         return ret;
@@ -17586,7 +17586,7 @@ exit_dpk:
 
             if (IsAtLeastTLSv1_2(ssl)) {
                 if (ssl->suites->hashSigAlgoSz) {
-                    int i;
+                    word16 i;
                     /* extension type */
                     c16toa(HELLO_EXT_SIG_ALGO, output + idx);
                     idx += HELLO_EXT_TYPE_SZ;
@@ -17597,7 +17597,7 @@ exit_dpk:
                     /* sig algos length */
                     c16toa(ssl->suites->hashSigAlgoSz, output + idx);
                     idx += HELLO_EXT_SIGALGO_SZ;
-                    for (i = 0; i < ssl->suites->hashSigAlgoSz; i++, idx++) {
+                    for (i=0; i < ssl->suites->hashSigAlgoSz; i++, idx++) {
                         output[idx] = ssl->suites->hashSigAlgo[i];
                     }
                 }
@@ -20082,7 +20082,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
                     /* for DH, encSecret is Yc, agree is pre-master */
                     ret = DhGenKeyPair(ssl, ssl->buffers.serverDH_Key,
-                        ssl->buffers.sig.buffer, &ssl->buffers.sig.length,
+                        ssl->buffers.sig.buffer, (word32*)&ssl->buffers.sig.length,
                         args->encSecret, &args->encSz);
 
                     /* set the max agree result size */
@@ -20197,7 +20197,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
                     /* for DH, encSecret is Yc, agree is pre-master */
                     ret = DhGenKeyPair(ssl, ssl->buffers.serverDH_Key,
-                        ssl->buffers.sig.buffer, &ssl->buffers.sig.length,
+                        ssl->buffers.sig.buffer, (word32*)&ssl->buffers.sig.length,
                         args->output + OPAQUE16_LEN, &args->length);
                     break;
                 }
@@ -21106,7 +21106,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
 
                 ret = EccSign(ssl,
                     ssl->buffers.digest.buffer, ssl->buffers.digest.length,
-                    ssl->buffers.sig.buffer, &ssl->buffers.sig.length,
+                    ssl->buffers.sig.buffer, (word32*)&ssl->buffers.sig.length,
                     key,
             #ifdef HAVE_PK_CALLBACKS
                     ssl->buffers.key
@@ -21122,7 +21122,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
 
                 ret = Ed25519Sign(ssl,
                     ssl->hsHashes->messages, ssl->hsHashes->length,
-                    ssl->buffers.sig.buffer, &ssl->buffers.sig.length,
+                    ssl->buffers.sig.buffer, (word32*)&ssl->buffers.sig.length,
                     key,
             #ifdef HAVE_PK_CALLBACKS
                     ssl->buffers.key
@@ -21977,9 +21977,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                         ret = DhGenKeyPair(ssl, ssl->buffers.serverDH_Key,
                             ssl->buffers.serverDH_Priv.buffer,
-                            &ssl->buffers.serverDH_Priv.length,
+                            (word32*)&ssl->buffers.serverDH_Priv.length,
                             ssl->buffers.serverDH_Pub.buffer,
-                            &ssl->buffers.serverDH_Pub.length);
+                            (word32*)&ssl->buffers.serverDH_Pub.length);
                         break;
                     }
                 #endif /* !NO_DH && (!NO_PSK || !NO_RSA) */
@@ -24851,7 +24851,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     et->enc_ticket, inLen, &outLen,
                                     ssl->ctx->ticketEncCtx);
         if (ret == WOLFSSL_TICKET_RET_FATAL || ret < 0) return ret;
-        if (outLen > inLen || outLen < (int)sizeof(InternalTicket)) {
+        if (outLen > (int)inLen || outLen < (int)sizeof(InternalTicket)) {
             WOLFSSL_MSG("Bad user ticket decrypt len");
             return BAD_TICKET_KEY_CB_SZ;
         }
@@ -26328,7 +26328,7 @@ int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment)
     }
 
 #ifdef HAVE_MAX_FRAGMENT
-    if ((ssl->max_fragment != 0) && (maxFragment > ssl->max_fragment)) {
+    if ((ssl->max_fragment != 0) && ((word16)maxFragment > ssl->max_fragment)) {
         maxFragment = ssl->max_fragment;
     }
 #endif /* HAVE_MAX_FRAGMENT */

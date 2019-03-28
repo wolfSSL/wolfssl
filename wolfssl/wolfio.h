@@ -1,6 +1,6 @@
 /* io.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -404,6 +404,9 @@ WOLFSSL_API int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     WOLFSSL_API  int wolfIO_HttpBuildRequest(const char* reqType,
         const char* domainName, const char* path, int pathLen, int reqSz,
         const char* contentType, unsigned char* buf, int bufSize);
+    WOLFSSL_LOCAL int wolfIO_HttpBuildRequest_ex(const char* reqType,
+        const char* domainName, const char* path, int pathLen, int reqSz,
+        const char* contentType, const char *exHdrs, unsigned char* buf, int bufSize);
     WOLFSSL_API  int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
         unsigned char** respBuf, unsigned char* httpBuf, int httpBufSz,
         int dynType, void* heap);

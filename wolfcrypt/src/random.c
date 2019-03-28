@@ -1,6 +1,6 @@
 /* random.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -772,6 +772,11 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 
             if (ret == DRBG_SUCCESS)
                 ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
+
+            if (ret != DRBG_SUCCESS) {
+                XFREE(rng->drbg, rng->heap, DYNAMIC_TYPE_RNG);
+                rng->drbg = NULL;
+            }
         }
 
         ForceZero(seed, seedSz);
@@ -1546,7 +1551,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(MICROCHIP_PIC32)
 
     #ifdef MICROCHIP_MPLAB_HARMONY
-        #define PIC32_SEED_COUNT _CP0_GET_COUNT
+        #ifdef MICROCHIP_MPLAB_HARMONY_3
+            #include "system/time/sys_time.h"
+            #define PIC32_SEED_COUNT SYS_TIME_CounterGet
+        #else
+            #define PIC32_SEED_COUNT _CP0_GET_COUNT
+        #endif
     #else
         #if !defined(WOLFSSL_MICROCHIP_PIC32MZ)
             #include <peripheral/timer.h>

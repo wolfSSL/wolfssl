@@ -1,6 +1,6 @@
 /* tls13.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -2196,7 +2196,7 @@ exit_buildmsg:
  */
 static int FindSuiteSSL(WOLFSSL* ssl, byte* suite)
 {
-    int i;
+    word16 i;
 
     for (i = 0; i < ssl->suites->suiteSz; i += 2) {
         if (ssl->suites->suites[i+0] == suite[0] &&
@@ -3278,7 +3278,7 @@ static void RefineSuites(WOLFSSL* ssl, Suites* peerSuites)
 {
     byte suites[WOLFSSL_MAX_SUITE_SZ];
     int suiteSz = 0;
-    int i, j;
+    word16 i, j;
 
     for (i = 0; i < ssl->suites->suiteSz; i += 2) {
         for (j = 0; j < peerSuites->suiteSz; j += 2) {
@@ -5395,9 +5395,10 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
         {
         #ifdef HAVE_ECC
            if (ssl->hsType == DYNAMIC_TYPE_ECC) {
+
                 ret = EccSign(ssl, args->sigData, args->sigDataSz,
                     args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
-                    &sig->length, (ecc_key*)ssl->hsKey,
+                    (word32*)&sig->length, (ecc_key*)ssl->hsKey,
             #ifdef HAVE_PK_CALLBACKS
                     ssl->buffers.key
             #else
@@ -5411,20 +5412,19 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             if (ssl->hsType == DYNAMIC_TYPE_ED25519) {
                 ret = Ed25519Sign(ssl, args->sigData, args->sigDataSz,
                     args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
-                    &sig->length, (ed25519_key*)ssl->hsKey,
+                    (word32*)&sig->length, (ed25519_key*)ssl->hsKey,
             #ifdef HAVE_PK_CALLBACKS
                     ssl->buffers.key
             #else
                     NULL
             #endif
                 );
-                args->length = sig->length;
+                args->length = (word16)sig->length;
             }
         #endif
         #ifndef NO_RSA
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
-
-                ret = RsaSign(ssl, sig->buffer, sig->length,
+                ret = RsaSign(ssl, sig->buffer, (word32)sig->length,
                     args->verify + HASH_SIG_SIZE + VERIFY_HEADER, &args->sigLen,
                     args->sigAlgo, ssl->suites->hashAlgo,
                     (RsaKey*)ssl->hsKey,
@@ -5459,7 +5459,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
                 /* check for signature faults */
                 ret = VerifyRsaSign(ssl, args->sigData, args->sigLen,
-                    sig->buffer, sig->length, args->sigAlgo,
+                    sig->buffer, (word32)sig->length, args->sigAlgo,
                     ssl->suites->hashAlgo, (RsaKey*)ssl->hsKey,
                     ssl->buffers.key
                 );
@@ -5777,7 +5777,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             if (ssl->peerRsaKey != NULL && ssl->peerRsaKeyPresent != 0) {
                 WOLFSSL_MSG("Doing RSA peer cert verify");
 
-                ret = RsaVerify(ssl, sig->buffer, sig->length, &args->output,
+                ret = RsaVerify(ssl, sig->buffer, (word32)sig->length, &args->output,
                     args->sigAlgo, args->hashAlgo, ssl->peerRsaKey,
                 #ifdef HAVE_PK_CALLBACKS
                     &ssl->buffers.peerRsaKey

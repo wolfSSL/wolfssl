@@ -1,6 +1,6 @@
 /* ssl.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -838,6 +838,10 @@ WOLFSSL_API const char* wolfSSL_ERR_reason_error_string(unsigned long);
     #define DECLARE_STACK_OF(x) WOLF_STACK_OF(x);
 #endif
 
+#if defined(HAVE_OCSP)
+#include "wolfssl/ocsp.h"
+#include "wolfssl/wolfcrypt/asn.h"
+#endif
 WOLFSSL_API int wolfSSL_sk_ACCESS_DESCRIPTION_push(WOLF_STACK_OF(ACCESS_DESCRIPTION)* sk,
                                             WOLFSSL_ACCESS_DESCRIPTION* access);
 WOLFSSL_API void wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(WOLFSSL_STACK* sk,
@@ -1676,7 +1680,7 @@ WOLFSSL_API int wolfSSL_Cleanup(void);
 /* which library version do we have */
 WOLFSSL_API const char* wolfSSL_lib_version(void);
 /* which library version do we have in hex */
-WOLFSSL_API unsigned int wolfSSL_lib_version_hex(void);
+WOLFSSL_API word32 wolfSSL_lib_version_hex(void);
 
 /* do accept or connect depedning on side */
 WOLFSSL_API int wolfSSL_negotiate(WOLFSSL* ssl);
@@ -1798,10 +1802,10 @@ WOLFSSL_API int  wolfSSL_CTX_SetTmpDH_buffer(WOLFSSL_CTX*, const unsigned char* 
                                              int format);
 #endif
 
-WOLFSSL_API int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX*, unsigned short);
-WOLFSSL_API int wolfSSL_SetMinDhKey_Sz(WOLFSSL*, unsigned short);
-WOLFSSL_API int wolfSSL_CTX_SetMaxDhKey_Sz(WOLFSSL_CTX*, unsigned short);
-WOLFSSL_API int wolfSSL_SetMaxDhKey_Sz(WOLFSSL*, unsigned short);
+WOLFSSL_API int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX*, word16);
+WOLFSSL_API int wolfSSL_SetMinDhKey_Sz(WOLFSSL*, word16);
+WOLFSSL_API int wolfSSL_CTX_SetMaxDhKey_Sz(WOLFSSL_CTX*, word16);
+WOLFSSL_API int wolfSSL_SetMaxDhKey_Sz(WOLFSSL*, word16);
 WOLFSSL_API int wolfSSL_GetDhKey_Sz(WOLFSSL*);
 #endif /* NO_DH */
 
@@ -1815,8 +1819,8 @@ WOLFSSL_API int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX*, short);
 WOLFSSL_API int wolfSSL_SetMinEccKey_Sz(WOLFSSL*, short);
 #endif /* NO_RSA */
 
-WOLFSSL_API int  wolfSSL_SetTmpEC_DHE_Sz(WOLFSSL*, unsigned short);
-WOLFSSL_API int  wolfSSL_CTX_SetTmpEC_DHE_Sz(WOLFSSL_CTX*, unsigned short);
+WOLFSSL_API int  wolfSSL_SetTmpEC_DHE_Sz(WOLFSSL*, word16);
+WOLFSSL_API int  wolfSSL_CTX_SetTmpEC_DHE_Sz(WOLFSSL_CTX*, word16);
 
 /* keyblock size in bytes or -1 */
 /* need to call wolfSSL_KeepArrays before handshake to save keys */
@@ -2004,7 +2008,7 @@ WOLFSSL_API int                  wolfSSL_GetHmacSize(WOLFSSL*);
 WOLFSSL_API int                  wolfSSL_GetHmacType(WOLFSSL*);
 WOLFSSL_API int                  wolfSSL_GetCipherType(WOLFSSL*);
 WOLFSSL_API int                  wolfSSL_SetTlsHmacInner(WOLFSSL*, unsigned char*,
-                                                       unsigned int, int, int);
+                                                       word32, int, int);
 
 /* Atomic User Needs */
 enum {
@@ -2245,6 +2249,11 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
 #ifdef HAVE_CRL_IO
     WOLFSSL_API int wolfSSL_CertManagerSetCRL_IOCb(WOLFSSL_CERT_MANAGER*,
                                                                        CbCrlIO);
+#endif
+#if defined(HAVE_OCSP)
+    WOLFSSL_API int wolfSSL_CertManagerCheckOCSPResponse(WOLFSSL_CERT_MANAGER *,
+        byte *response, int responseSz, WOLFSSL_BUFFER_INFO *responseBuffer,
+        CertStatus *status, OcspEntry *entry, OcspRequest *ocspRequest);
 #endif
     WOLFSSL_API int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER*,
                                                         unsigned char*, int sz);
@@ -2561,15 +2570,15 @@ enum {
 #ifdef HAVE_SUPPORTED_CURVES
 #ifndef NO_WOLFSSL_CLIENT
 
-WOLFSSL_API int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, unsigned short name);
+WOLFSSL_API int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name);
 WOLFSSL_API int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx,
-                                                           unsigned short name);
+                                                           word16 name);
 
 #endif
 #endif
 
 #ifdef WOLFSSL_TLS13
-WOLFSSL_API int wolfSSL_UseKeyShare(WOLFSSL* ssl, unsigned short group);
+WOLFSSL_API int wolfSSL_UseKeyShare(WOLFSSL* ssl, word16 group);
 WOLFSSL_API int wolfSSL_NoKeyShares(WOLFSSL* ssl);
 #endif
 
@@ -2590,8 +2599,8 @@ WOLFSSL_API int wolfSSL_SecureResume(WOLFSSL* ssl);
 #ifndef NO_WOLFSSL_CLIENT
 WOLFSSL_API int wolfSSL_UseSessionTicket(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_CTX_UseSessionTicket(WOLFSSL_CTX* ctx);
-WOLFSSL_API int wolfSSL_get_SessionTicket(WOLFSSL*, unsigned char*, unsigned int*);
-WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL*, const unsigned char*, unsigned int);
+WOLFSSL_API int wolfSSL_get_SessionTicket(WOLFSSL*, unsigned char*, word32*);
+WOLFSSL_API int wolfSSL_set_SessionTicket(WOLFSSL*, const unsigned char*, word32);
 typedef int (*CallbackSessionTicket)(WOLFSSL*, const unsigned char*, int, void*);
 WOLFSSL_API int wolfSSL_set_SessionTicket_cb(WOLFSSL*,
                                                   CallbackSessionTicket, void*);
@@ -2670,20 +2679,20 @@ WOLFSSL_API int wolfSSL_get_session_stats(unsigned int* active,
                                           unsigned int* maxSessions);
 /* External facing KDF */
 WOLFSSL_API
-int wolfSSL_MakeTlsMasterSecret(unsigned char* ms, unsigned int msLen,
-                               const unsigned char* pms, unsigned int pmsLen,
+int wolfSSL_MakeTlsMasterSecret(unsigned char* ms, word32 msLen,
+                               const unsigned char* pms, word32 pmsLen,
                                const unsigned char* cr, const unsigned char* sr,
                                int tls1_2, int hash_type);
 
 WOLFSSL_API
-int wolfSSL_MakeTlsExtendedMasterSecret(unsigned char* ms, unsigned int msLen,
-                              const unsigned char* pms, unsigned int pmsLen,
-                              const unsigned char* sHash, unsigned int sHashLen,
+int wolfSSL_MakeTlsExtendedMasterSecret(unsigned char* ms, word32 msLen,
+                              const unsigned char* pms, word32 pmsLen,
+                              const unsigned char* sHash, word32 sHashLen,
                               int tls1_2, int hash_type);
 
 WOLFSSL_API
-int wolfSSL_DeriveTlsKeys(unsigned char* key_data, unsigned int keyLen,
-                               const unsigned char* ms, unsigned int msLen,
+int wolfSSL_DeriveTlsKeys(unsigned char* key_data, word32 keyLen,
+                               const unsigned char* ms, word32 msLen,
                                const unsigned char* sr, const unsigned char* cr,
                                int tls1_2, int hash_type);
 

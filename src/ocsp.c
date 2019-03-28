@@ -1,6 +1,6 @@
 /* ocsp.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -266,9 +266,9 @@ static int GetOcspStatus(WOLFSSL_OCSP* ocsp, OcspRequest* request,
  * entry          The OCSP entry for this certificate.
  * returns OCSP_LOOKUP_FAIL when the response is bad and 0 otherwise.
  */
-static int CheckResponse(WOLFSSL_OCSP* ocsp, byte* response, int responseSz,
-                         buffer* responseBuffer, CertStatus* status,
-                         OcspEntry* entry, OcspRequest* ocspRequest)
+WOLFSSL_LOCAL int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
+                                    WOLFSSL_BUFFER_INFO *responseBuffer, CertStatus *status,
+                                    OcspEntry *entry, OcspRequest *ocspRequest)
 {
 #ifdef WOLFSSL_SMALL_STACK
     CertStatus*   newStatus;
@@ -341,6 +341,7 @@ static int CheckResponse(WOLFSSL_OCSP* ocsp, byte* response, int responseSz,
         }
 
         /* Replace existing certificate entry with updated */
+        newStatus->next = status->next;
         XMEMCPY(status, newStatus, sizeof(CertStatus));
     }
     else {
@@ -427,7 +428,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
         ret = ocsp->statusCb(ssl, ioCtx);
         if (ret == 0) {
             ret = wolfSSL_get_ocsp_response(ssl, &response);
-            ret = CheckResponse(ocsp, response, ret, responseBuffer, status,
+            ret = CheckOcspResponse(ocsp, response, ret, responseBuffer, status,
                                 entry, NULL);
             if (response != NULL)
                 XFREE(response, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -475,7 +476,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
     XFREE(request, ocsp->cm->heap, DYNAMIC_TYPE_OCSP);
 
     if (responseSz >= 0 && response) {
-        ret = CheckResponse(ocsp, response, responseSz, responseBuffer, status,
+        ret = CheckOcspResponse(ocsp, response, responseSz, responseBuffer, status,
                             entry, ocspRequest);
     }
 

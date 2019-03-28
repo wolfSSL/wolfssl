@@ -1,6 +1,6 @@
 /* client.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -44,7 +44,8 @@
 
 #ifdef USE_FAST_MATH
     /* included to inspect the size of FP_MAX_BITS */
-    #include <wolfssl/wolfcrypt/tfm.h>
+    /* need integer.h header to make sure right math version used */
+    #include <wolfssl/wolfcrypt/integer.h>
 #endif
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
@@ -1506,7 +1507,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     while ((ch = mygetopt(argc, argv, "?:"
             "ab:c:defgh:ijk:l:mnop:q:rstuv:wxyz"
             "A:B:CDE:F:GH:IJKL:M:NO:PQRS:TUVW:XYZ:"
-            "01:23:5")) != -1) {
+            "01:23:45")) != -1) {
         switch (ch) {
             case '?' :
                 if(myoptarg!=NULL) {
@@ -1930,6 +1931,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     forceScr  = 1;
                     resumeScr = 1;
                 #endif
+                break;
 
             case '5' :
             #ifdef HAVE_TRUSTED_CA

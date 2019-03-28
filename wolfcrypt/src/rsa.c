@@ -1,6 +1,6 @@
 /* rsa.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1839,7 +1839,8 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                 int cleara = 0, clearb = 0;
 
             #ifdef WOLFSSL_SMALL_STACK
-                tmpa = XMALLOC(sizeof(mp_int) * 2, key->heap, DYNAMIC_TYPE_RSA);
+                tmpa = (mp_int*)XMALLOC(sizeof(mp_int) * 2,
+                        key->heap, DYNAMIC_TYPE_RSA);
                 if (tmpa != NULL)
                     tmpb = tmpa + 1;
                 else
@@ -2992,7 +2993,8 @@ int wc_RsaPSS_Sign_ex(const byte* in, word32 inLen, byte* out, word32 outLen,
 #endif
 #endif
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || !defined(WOLFSSL_SP_MATH)
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || !defined(WOLFSSL_SP_MATH) || \
+                                                             defined(WC_RSA_PSS)
 int wc_RsaEncryptSize(RsaKey* key)
 {
     int ret;

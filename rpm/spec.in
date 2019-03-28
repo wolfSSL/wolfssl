@@ -59,7 +59,7 @@ mkdir -p $RPM_BUILD_ROOT/
 
 %files
 %defattr(-,root,root,-)
-%doc AUTHORS ChangeLog.md COPYING README
+%doc AUTHORS ChangeLog.md COPYING README README.md
 %{_docdir}/wolfssl/taoCert.txt
 %{_docdir}/wolfssl/example/echoserver.c
 %{_docdir}/wolfssl/example/server.c
@@ -74,11 +74,11 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
 %{_libdir}/libwolfssl.so.19
-%{_libdir}/libwolfssl.so.19.1.0
+%{_libdir}/libwolfssl.so.19.2.0
 
 %files devel
 %defattr(-,root,root,-)
-%doc AUTHORS ChangeLog.md COPYING README
+%doc AUTHORS ChangeLog.md COPYING README README.md
 %{_bindir}/wolfssl-config
 %{_includedir}/cyassl/callbacks.h
 %{_includedir}/cyassl/certs_test.h
@@ -288,6 +288,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Fri Mar 15 2019 John Safranek <john@wolfssl.com>
+- Updates for the v4 release.
 * Thu Dec 20 2018 Jacob Barthelmeh <jacob@wolfssl.com>
 - Remove wolfssl/wolfcrypt/fips.h, add wolfssl/openssl/pkcs7.h
 * Wed Jun 20 2018 Jacob Barthelmeh <jacob@wolfssl.com>
