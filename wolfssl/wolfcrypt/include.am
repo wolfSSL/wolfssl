@@ -70,7 +70,6 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/ti/ti-ccm.h \
                          wolfssl/wolfcrypt/port/nrf51.h \
                          wolfssl/wolfcrypt/port/nxp/ksdk_port.h \
-                         wolfssl/wolfcrypt/port/atmel/atmel.h \
                          wolfssl/wolfcrypt/port/xilinx/xil-sha3.h \
                          wolfssl/wolfcrypt/port/caam/caam_driver.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam.h \
@@ -78,6 +77,10 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/st/stm32.h \
                          wolfssl/wolfcrypt/port/st/stsafe.h \
                          wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h
+
+if BUILD_CRYPTOAUTHLIB
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/atmel/atmel.h
+endif
 
 if BUILD_AFALG
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/af_alg/afalg_hash.h
