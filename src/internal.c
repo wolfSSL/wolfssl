@@ -16029,6 +16029,27 @@ void SetErrorString(int error, char* str)
 
 static const CipherSuiteInfo cipher_names[] =
 {
+
+#ifdef BUILD_TLS_AES_128_GCM_SHA256
+    SUITE_INFO("TLS13-AES128-GCM-SHA256","TLS_AES_128_GCM_SHA256",TLS13_BYTE,TLS_AES_128_GCM_SHA256),
+#endif
+
+#ifdef BUILD_TLS_AES_256_GCM_SHA384
+    SUITE_INFO("TLS13-AES256-GCM-SHA384","TLS_AES_256_GCM_SHA384",TLS13_BYTE,TLS_AES_256_GCM_SHA384),
+#endif
+
+#ifdef BUILD_TLS_CHACHA20_POLY1305_SHA256
+    SUITE_INFO("TLS13-CHACHA20-POLY1305-SHA256","TLS_CHACHA20_POLY1305_SHA256",TLS13_BYTE,TLS_CHACHA20_POLY1305_SHA256),
+#endif
+
+#ifdef BUILD_TLS_AES_128_CCM_SHA256
+    SUITE_INFO("TLS13-AES128-CCM-SHA256","TLS_AES_128_CCM_SHA256",TLS13_BYTE,TLS_AES_128_CCM_SHA256),
+#endif
+
+#ifdef BUILD_TLS_AES_128_CCM_8_SHA256
+    SUITE_INFO("TLS13-AES128-CCM-8-SHA256","TLS_AES_128_CCM_8_SHA256",TLS13_BYTE,TLS_AES_128_CCM_8_SHA256),
+#endif
+
 #ifndef WOLFSSL_NO_TLS12
 
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA
@@ -16480,26 +16501,6 @@ static const CipherSuiteInfo cipher_names[] =
 #endif
 
 #endif /* WOLFSSL_NO_TLS12 */
-
-#ifdef BUILD_TLS_AES_128_GCM_SHA256
-    SUITE_INFO("TLS13-AES128-GCM-SHA256","TLS_AES_128_GCM_SHA256",TLS13_BYTE,TLS_AES_128_GCM_SHA256),
-#endif
-
-#ifdef BUILD_TLS_AES_256_GCM_SHA384
-    SUITE_INFO("TLS13-AES256-GCM-SHA384","TLS_AES_256_GCM_SHA384",TLS13_BYTE,TLS_AES_256_GCM_SHA384),
-#endif
-
-#ifdef BUILD_TLS_CHACHA20_POLY1305_SHA256
-    SUITE_INFO("TLS13-CHACHA20-POLY1305-SHA256","TLS_CHACHA20_POLY1305_SHA256",TLS13_BYTE,TLS_CHACHA20_POLY1305_SHA256),
-#endif
-
-#ifdef BUILD_TLS_AES_128_CCM_SHA256
-    SUITE_INFO("TLS13-AES128-CCM-SHA256","TLS_AES_128_CCM_SHA256",TLS13_BYTE,TLS_AES_128_CCM_SHA256),
-#endif
-
-#ifdef BUILD_TLS_AES_128_CCM_8_SHA256
-    SUITE_INFO("TLS13-AES128-CCM-8-SHA256","TLS_AES_128_CCM_8_SHA256",TLS13_BYTE,TLS_AES_128_CCM_8_SHA256),
-#endif
 };
 
 
@@ -16656,29 +16657,12 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
                     return 0; /* suites buffer not large enough, error out */
                 }
 
-                suites->suites[idx++] =
-            #ifdef WOLFSSL_TLS13
-                    (XSTRSTR(name, "TLS13"))  ? TLS13_BYTE :
-            #endif
-            #ifdef HAVE_CHACHA
-                    (XSTRSTR(name, "CHACHA")) ? CHACHA_BYTE :
-            #endif
-            #ifdef HAVE_QSH
-                    (XSTRSTR(name, "QSH"))    ? QSH_BYTE :
-            #endif
-            #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
-                    (XSTRSTR(name, "EC"))     ? ECC_BYTE :
-            #endif
-            #ifdef HAVE_AESCCM
-                    (XSTRSTR(name, "CCM"))    ? ECC_BYTE :
-            #endif
-                    CIPHER_BYTE; /* normal */
-
+                suites->suites[idx++] = cipher_names[i].cipherSuite0;
                 suites->suites[idx++] = cipher_names[i].cipherSuite;
                 /* The suites are either ECDSA, RSA, PSK, or Anon. The RSA
                  * suites don't necessarily have RSA in the name. */
             #ifdef WOLFSSL_TLS13
-                if (XSTRSTR(name, "TLS13")) {
+                if (cipher_names[i].cipherSuite0 == TLS13_BYTE) {
                 #ifndef NO_RSA
                     haveRSAsig = 1;
                 #endif
