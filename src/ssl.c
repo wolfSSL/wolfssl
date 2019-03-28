@@ -7948,7 +7948,6 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                 ret = wolfSSL_ASN1_STRING_set(
                                       ad->location->d.uniformResourceIdentifier,
                                       aiaEntry->obj, aiaEntry->objSz);
-                ad->location->d.uniformResourceIdentifier->data[aiaEntry->objSz] = '\0';
                 if (ret != WOLFSSL_SUCCESS) {
                     WOLFSSL_MSG("ASN1_STRING_set() failed");
                     wolfSSL_ASN1_OBJECT_free(ad->method);
@@ -17011,12 +17010,10 @@ WOLFSSL_GENERAL_NAME* wolfSSL_GENERAL_NAME_new(void)
     }
     XMEMSET(name, 0, sizeof(WOLFSSL_GENERAL_NAME));
 
-    name->d.rfc822Name = wolfSSL_ASN1_STRING_new();
     name->d.dNSName = wolfSSL_ASN1_STRING_new();
     name->d.uniformResourceIdentifier = wolfSSL_ASN1_STRING_new();
     name->d.iPAddress = wolfSSL_ASN1_STRING_new();
     name->d.registeredID = wolfSSL_ASN1_OBJECT_new();
-    name->d.ia5 = wolfSSL_ASN1_STRING_new();
 
     return name;
 }
@@ -17027,9 +17024,6 @@ void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name)
 {
     WOLFSSL_ENTER("wolfSSL_GENERAL_NAME_Free");
     if(name != NULL) {
-        if (name->d.rfc822Name != NULL) {
-            wolfSSL_ASN1_STRING_free(name->d.rfc822Name);
-        }
         if (name->d.dNSName != NULL) {
             wolfSSL_ASN1_STRING_free(name->d.dNSName);
         }
@@ -17041,9 +17035,6 @@ void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name)
         }
         if (name->d.registeredID != NULL) {
             wolfSSL_ASN1_OBJECT_free(name->d.registeredID);
-        }
-        if (name->d.ia5 != NULL) {
-            wolfSSL_ASN1_STRING_free(name->d.ia5);
         }
         XFREE(name, NULL, DYNAMIC_TYPE_OPENSSL);
     }
@@ -18531,11 +18522,12 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
         }
 
         /* create new data buffer and copy over */
-        asn1->data = (char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_OPENSSL);
+        asn1->data = (char*)XMALLOC(sz+1, NULL, DYNAMIC_TYPE_OPENSSL);
         if (asn1->data == NULL) {
             return WOLFSSL_FAILURE;
         }
         XMEMCPY(asn1->data, data, sz);
+        asn1->data[sz] = '\0';
         asn1->length = sz;
 
         return WOLFSSL_SUCCESS;

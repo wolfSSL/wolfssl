@@ -22927,8 +22927,6 @@ static void test_wolfSSL_EC_KEY_dup(void)
     mp_int* mp = (mp_int*)ecKey->priv_key->internal;
     mp_forcezero(mp);
     mp_free(mp);
-    XFREE(ecKey->priv_key->internal, NULL, DYNAMIC_TYPE_BIGINT);
-    ecKey->priv_key->internal = NULL; /* Set internal key to NULL */
     AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
 #endif
     wolfSSL_BN_free(ecKey->priv_key);
