@@ -3,6 +3,7 @@
 #
 
 EXTRA_DIST += \
+		 certs/ca-cert-chain.der \
 	     certs/ca-cert.pem \
 	     certs/ca-key.pem \
 	     certs/client-cert.pem \
