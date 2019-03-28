@@ -14748,7 +14748,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         ssl->options.isClosed = 0;
         ssl->options.connReset = 0;
         ssl->options.sentNotify = 0;
-
+        ssl->options.sendVerify = 0;
         ssl->options.serverState = NULL_STATE;
         ssl->options.clientState = NULL_STATE;
         ssl->options.connectState = CONNECT_BEGIN;
