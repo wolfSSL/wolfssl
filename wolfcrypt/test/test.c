@@ -5398,7 +5398,8 @@ static int aes_key_size_test(void)
     ret = wc_AesSetKey(&aes, key32, sizeof(key32) - 1, iv, AES_ENCRYPTION);
     if (ret != BAD_FUNC_ARG)
         return -4807;
-#ifndef HAVE_FIPS
+/* CryptoCell handles rounds internally */
+#if !defined(HAVE_FIPS) && !defined(WOLFSSL_CRYPTOCELL)
     /* Force invalid rounds */
     aes.rounds = 16;
     ret = wc_AesGetKeySize(&aes, &keySize);
@@ -6922,12 +6923,14 @@ int aesgcm_test(void)
         0xba, 0x63, 0x7b, 0x39
     };
 
+#if defined(HAVE_AES_DECRYPT) || defined(WOLFSSL_AES_256)
     const byte a[] =
     {
         0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
         0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
         0xab, 0xad, 0xda, 0xd2
     };
+#endif
 
 #ifdef WOLFSSL_AES_256
     const byte k1[] =
@@ -9522,6 +9525,9 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
     if (ret != 0)
 #elif defined(WOLFSSL_RSA_PUBLIC_ONLY)
     if (ret != SIG_TYPE_E)
+#elif defined(WOLFSSL_CRYPTOCELL)
+    /* RNG is handled with the cryptocell */
+    if (ret != 0)
 #else
     if (ret != MISSING_RNG_E)
 #endif
@@ -9600,7 +9606,6 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
                              inLen, out, (word32)modLen, key, keyLen);
     if (ret == 0)
         return -6777;
-
 
     /* check hash functions */
     sigSz = (word32)sizeof(out);
@@ -11055,11 +11060,13 @@ static int rsa_keygen_test(WC_RNG* rng)
         ERROR_OUT(-6967, exit_rsa);
     }
     idx = 0;
+#if !defined(WOLFSSL_CRYPTOCELL)
+    /* The private key part of the key gen pairs from cryptocell can't be exported */
     ret = wc_RsaPrivateKeyDecode(der, &idx, &genKey, derSz);
     if (ret != 0) {
         ERROR_OUT(-6968, exit_rsa);
     }
-
+#endif /* WOLFSSL_CRYPTOCELL */
     wc_FreeRsaKey(&genKey);
     XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     pem = NULL;
@@ -11355,7 +11362,12 @@ int rsa_test(void)
 #endif
         if (ret >= 0) {
 #ifndef WOLFSSL_RSA_VERIFY_INLINE
-            ret = wc_RsaSSL_Verify(out, idx, plain, plainSz, &key);
+
+#if defined(WOLFSSL_CRYPTOCELL)
+        ret = wc_RsaSSL_Verify(in, inLen, out, outSz, &key);
+#else
+        ret = wc_RsaSSL_Verify(out, idx, plain, plainSz, &key);
+#endif /* WOLFSSL_CRYPTOCELL */
 #else
             byte* dec = NULL;
             ret = wc_RsaSSL_VerifyInline(out, idx, &dec, &key);
@@ -11498,7 +11510,9 @@ int rsa_test(void)
 #endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
 /* TODO: investigate why Cavium Nitrox doesn't detect decrypt error here */
-#if !defined(HAVE_CAVIUM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#if !defined(HAVE_CAVIUM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_CRYPTOCELL)
+/* label is unused in cryptocell so it won't detect decrypt error due to label */
     idx = (word32)ret;
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -11573,8 +11587,9 @@ int rsa_test(void)
         }
         TEST_SLEEP();
 
-    /* TODO: investigate why Cavium Nitrox doesn't detect decrypt error here */
-    #if !defined(HAVE_CAVIUM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+/* TODO: investigate why Cavium Nitrox doesn't detect decrypt error here */
+#if !defined(HAVE_CAVIUM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) && \
+    !defined(WOLFSSL_CRYPTOCELL)
         idx = (word32)ret;
         do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -15957,6 +15972,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
     if (ret != 0) {
         ERROR_OUT(-8322, done);
     }
+
     TEST_SLEEP();
 
 #ifdef HAVE_ECC_KEY_EXPORT
@@ -15967,7 +15983,10 @@ static int ecc_test_make_pub(WC_RNG* rng)
         ERROR_OUT(-8323, done);
     }
 #endif /* HAVE_ECC_KEY_EXPORT */
-
+#if defined(WOLFSSL_CRYPTOCELL)
+    /* create a new key since building private key from public key is unsupported */
+    ret  = wc_ecc_make_key(rng, 32, &key);
+#endif
 #ifdef HAVE_ECC_SIGN
     tmpSz = FOURK_BUF;
     ret = 0;
@@ -16931,7 +16950,7 @@ done:
 }
 #endif /* HAVE_ECC_KEY_IMPORT && HAVE_ECC_KEY_EXPORT */
 
-#ifndef WOLFSSL_ATECC508A
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_CRYPTOCELL)
 #if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT)
 static int ecc_mulmod_test(ecc_key* key1)
 {
@@ -17048,7 +17067,7 @@ static int ecc_def_curve_test(WC_RNG *rng)
     if (ret < 0)
         goto done;
 #endif
-#ifndef WOLFSSL_ATECC508A
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_CRYPTOCELL)
 #if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT)
     ret = ecc_mulmod_test(&key);
     if (ret < 0)
@@ -17623,13 +17642,13 @@ int ecc_test(void)
         goto done;
     }
 #endif
-
+#if !defined(WOLFSSL_ATECC508A)
     ret = ecc_test_make_pub(&rng);
     if (ret != 0) {
         printf("ecc_test_make_pub failed!: %d\n", ret);
         goto done;
     }
-
+#endif
 #ifdef WOLFSSL_CERT_GEN
     ret = ecc_test_cert_gen(&rng);
     if (ret != 0) {
@@ -17873,7 +17892,6 @@ int ecc_test_buffers(void) {
             return -8716;
     }
 #endif
-
 
     x = sizeof(out);
     do {

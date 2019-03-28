@@ -159,7 +159,14 @@ int wolfCrypt_Init(void)
             return ret;
         }
     #endif
-
+    #if defined(WOLFSSL_CRYPTOCELL)
+        /* enable and initialize the ARM CryptoCell 3xx runtime library */
+        ret = cc310_Init();
+        if (ret != 0) {
+            WOLFSSL_MSG("CRYPTOCELL init failed");
+            return ret;
+        }
+    #endif
     #if defined(WOLFSSL_STSAFEA100)
         stsafe_interface_init();
     #endif
@@ -240,7 +247,9 @@ int wolfCrypt_Cleanup(void)
         defined(WOLFSSL_IMX6_CAAM_BLOB)
         wc_caamFree();
     #endif
-
+    #if defined(WOLFSSL_CRYPTOCELL)
+        cc310_Free();
+    #endif
         initRefCount = 0; /* allow re-init */
     }
 
@@ -2185,4 +2194,11 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 #if defined(WOLFSSL_TI_CRYPT) || defined(WOLFSSL_TI_HASH)
     #include <wolfcrypt/src/port/ti/ti-ccm.c>  /* initialize and Mutex for TI Crypt Engine */
     #include <wolfcrypt/src/port/ti/ti-hash.c> /* md5, sha1, sha224, sha256 */
+#endif
+#if defined(WOLFSSL_CRYPTOCELL)
+    #include <wolfcrypt/src/port/arm/cryptoCell.c> /* CC310, RTC and RNG */
+#if !defined(NO_SHA256)
+    #define WOLFSSL_CRYPTOCELL_HASH
+    #include <wolfcrypt/src/port/arm/cryptoCellHash.c> /* sha256 */
+#endif
 #endif

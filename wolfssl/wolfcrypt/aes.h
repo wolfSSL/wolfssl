@@ -81,6 +81,9 @@
     #include <wolfssl/wolfcrypt/random.h>
 #endif
 
+#if defined(WOLFSSL_CRYPTOCELL)
+    #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -189,6 +192,9 @@ typedef struct Aes {
 #if defined(WOLFSSL_DEVCRYPTO) && \
     (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
     WC_CRYPTODEV ctx;
+#endif
+#if defined(WOLFSSL_CRYPTOCELL)
+    aes_context_t ctx;
 #endif
     void*  heap; /* memory hint to use */
 } Aes;

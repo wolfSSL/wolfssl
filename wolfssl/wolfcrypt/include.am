@@ -76,7 +76,8 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h \
                          wolfssl/wolfcrypt/port/st/stm32.h \
                          wolfssl/wolfcrypt/port/st/stsafe.h \
-                         wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h
+                         wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h \
+                         wolfssl/wolfcrypt/port/arm/cryptoCell.h
 
 if BUILD_CRYPTOAUTHLIB
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/atmel/atmel.h

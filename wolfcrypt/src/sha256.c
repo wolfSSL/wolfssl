@@ -99,6 +99,8 @@
 
 #if defined(WOLFSSL_TI_HASH)
     /* #include <wolfcrypt/src/port/ti/ti-hash.c> included by wc_port.c */
+#elif defined(WOLFSSL_CRYPTOCELL)
+    /* wc_port.c includes wolfcrypt/src/port/arm/cryptoCellHash.c */
 #else
 
 #include <wolfssl/wolfcrypt/logging.h>

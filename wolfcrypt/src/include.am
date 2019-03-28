@@ -72,7 +72,9 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/Espressif/esp32_sha.c \
               wolfcrypt/src/port/Espressif/esp32_util.c \
               wolfcrypt/src/port/Espressif/esp32_mp.c \
-              wolfcrypt/src/port/Espressif/README.md
+              wolfcrypt/src/port/Espressif/README.md \
+              wolfcrypt/src/port/arm/cryptoCell.c \
+              wolfcrypt/src/port/arm/cryptoCellHash.c
 
 
 if BUILD_CRYPTOCB

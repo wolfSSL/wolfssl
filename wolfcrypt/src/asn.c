@@ -107,6 +107,9 @@ ASN Options:
 
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
+#if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_CRYPTOCELL)
+extern int wc_InitRsaHw(RsaKey* key);
+#endif
 #endif
 
 #ifdef WOLF_CRYPTO_CB
@@ -2273,7 +2276,7 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
         SkipInt(input, inOutIdx, inSz) < 0 )  return ASN_RSA_KEY_E;
 #endif
 
-#ifdef WOLFSSL_XILINX_CRYPT
+#if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_CRYPTOCELL)
     if (wc_InitRsaHw(key) != 0) {
         return BAD_STATE_E;
     }

@@ -1996,6 +1996,81 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
         return wc_AesSetKey(aes, userKey, keylen, iv, dir);
     }
+#elif defined(WOLFSSL_CRYPTOCELL) && defined(WOLFSSL_CRYPTOCELL_AES)
+
+    int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
+                    int dir)
+    {
+        SaSiError_t ret = SASI_OK;
+        SaSiAesIv_t iv_aes;
+
+        if (aes == NULL ||
+           (keylen != AES_128_KEY_SIZE &&
+            keylen != AES_192_KEY_SIZE &&
+            keylen != AES_256_KEY_SIZE)) {
+            return BAD_FUNC_ARG;
+        }
+    #if defined(AES_MAX_KEY_SIZE)
+        if (keylen > (AES_MAX_KEY_SIZE/8)) {
+            return BAD_FUNC_ARG;
+        }
+    #endif
+        if (dir != AES_ENCRYPTION &&
+            dir != AES_DECRYPTION) {
+            return BAD_FUNC_ARG;
+        }
+
+        if (dir == AES_ENCRYPTION) {
+            aes->ctx.mode = SASI_AES_ENCRYPT;
+            SaSi_AesInit(&aes->ctx.user_ctx,
+                         SASI_AES_ENCRYPT,
+                         SASI_AES_MODE_CBC,
+                         SASI_AES_PADDING_NONE);
+        }
+        else {
+            aes->ctx.mode = SASI_AES_DECRYPT;
+            SaSi_AesInit(&aes->ctx.user_ctx,
+                         SASI_AES_DECRYPT,
+                         SASI_AES_MODE_CBC,
+                         SASI_AES_PADDING_NONE);
+        }
+
+        aes->keylen = keylen;
+        aes->rounds = keylen/4 + 6;
+        XMEMCPY(aes->key, userKey, keylen);
+
+        aes->ctx.key.pKey = (uint8_t*)aes->key;
+        aes->ctx.key.keySize= keylen;
+
+        ret = SaSi_AesSetKey(&aes->ctx.user_ctx,
+                             SASI_AES_USER_KEY,
+                             &aes->ctx.key,
+                             sizeof(aes->ctx.key));
+        if (ret != SASI_OK) {
+            return BAD_FUNC_ARG;
+        }
+
+        ret = wc_AesSetIV(aes, iv);
+
+        if (iv)
+            XMEMCPY(iv_aes, iv, AES_BLOCK_SIZE);
+        else
+            XMEMSET(iv_aes,  0, AES_BLOCK_SIZE);
+
+
+        ret = SaSi_AesSetIv(&aes->ctx.user_ctx, iv_aes);
+        if (ret != SASI_OK) {
+            return ret;
+        }
+       return ret;
+    }
+    #if defined(WOLFSSL_AES_DIRECT)
+        int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
+                            const byte* iv, int dir)
+        {
+            return wc_AesSetKey(aes, userKey, keylen, iv, dir);
+        }
+    #endif
 
 #elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
       /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
@@ -2890,7 +2965,15 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     {
         return wc_esp32AesCbcDecrypt(aes, out, in, sz);
     }
-
+#elif defined(WOLFSSL_CRYPTOCELL) && defined(WOLFSSL_CRYPTOCELL_AES)
+    int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+        return SaSi_AesBlock(&aes->ctx.user_ctx, (uint8_t* )in, sz, out);
+    }
+    int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+    {
+        return SaSi_AesBlock(&aes->ctx.user_ctx, (uint8_t* )in, sz, out);
+    }
 #elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
       /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
 
@@ -6574,7 +6657,9 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
    (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
     aes->ctx.cfd = -1;
 #endif
-
+#if defined(WOLFSSL_CRYPTOCELL) && defined(WOLFSSL_CRYPTOCELL_AES)
+    XMEMSET(&aes->ctx, 0, sizeof(aes->ctx));
+#endif
     return ret;
 }
 
@@ -6634,7 +6719,10 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
     if (aes == NULL || keySize == NULL) {
         return BAD_FUNC_ARG;
     }
-
+#if defined(WOLFSSL_CRYPTOCELL) && defined(WOLFSSL_CRYPTOCELL_AES)
+    *keySize = aes->ctx.key.keySize;
+    return ret;
+#endif
     switch (aes->rounds) {
 #ifdef WOLFSSL_AES_128
     case 10:
