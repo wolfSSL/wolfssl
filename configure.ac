@@ -3859,7 +3859,7 @@ AC_ARG_WITH([intelqa],
             -I$QAT_DIR/quickassist/lookaside/access_layer/src/common/include -I$srcdir/wolfssl -I$srcdir/wolfssl/wolfcrypt/port/intel \
             -I$QAT_DIR/quickassist/utilities/libusdm_drv"
 
-        LDFLAGS="$LDFLAGS -L$QAT_DIR/build -Wl,-Map=output.map"
+        LDFLAGS="$LDFLAGS -L$QAT_DIR/build"
         LIBS="$LIBS -lqat_s -lusdm_drv_s"
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "cpa_cy_common.h"]], [[ Cpa16U count = 0; cpaCyGetNumInstances(&count); ]])],
