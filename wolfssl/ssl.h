@@ -468,6 +468,7 @@ WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_2_method(void);
 WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_2_server_method(void);
 WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_2_client_method(void);
 #ifdef WOLFSSL_TLS13
+    WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_3_method(void);
     WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_3_server_method(void);
     WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_3_client_method(void);
 #endif

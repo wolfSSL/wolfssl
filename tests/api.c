@@ -578,6 +578,9 @@ static void test_wolfSSL_Method_Allocators(void)
     #ifndef WOLFSSL_NO_TLS12
         TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_2_method);
     #endif /* !WOLFSSL_NO_TLS12 */
+    #ifdef WOLFSSL_TLS13
+        TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_3_method);
+    #endif /* WOLFSSL_TLS13 */
     #ifdef WOLFSSL_DTLS
         TEST_VALID_METHOD_ALLOCATOR(wolfDTLS_method);
         #ifndef NO_OLD_TLS
