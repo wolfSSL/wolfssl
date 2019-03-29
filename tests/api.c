@@ -2023,6 +2023,199 @@ done:
 #endif
 }
 
+
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TLS13)
+static THREAD_RETURN WOLFSSL_THREAD test_server_loop(void* args)
+{
+    SOCKET_T sockfd = 0;
+    SOCKET_T clientfd = 0;
+    word16 port;
+
+    callback_functions* cbf = NULL;
+    WOLFSSL_CTX* ctx = 0;
+    WOLFSSL* ssl = 0;
+
+    char msg[] = "I hear you fa shizzle!";
+    char input[1024];
+    int idx;
+    int ret, err = 0;
+    int sharedCtx = 0;
+    int loop_count = ((func_args*)args)->argc;
+    int count = 0;
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    ((func_args*)args)->return_code = TEST_FAIL;
+    cbf = ((func_args*)args)->callbacks;
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+    if (cbf != NULL && cbf->ctx) {
+        ctx = cbf->ctx;
+        sharedCtx = 1;
+    }
+    else
+#endif
+    {
+        WOLFSSL_METHOD* method = NULL;
+        if (cbf != NULL && cbf->method != NULL) {
+            method = cbf->method();
+        }
+        else {
+            method = wolfSSLv23_server_method();
+        }
+        ctx = wolfSSL_CTX_new(method);
+    }
+
+#if defined(USE_WINDOWS_API)
+    port = ((func_args*)args)->signal->port;
+#elif defined(NO_MAIN_DRIVER) && !defined(WOLFSSL_SNIFFER) && \
+     !defined(WOLFSSL_MDK_SHELL) && !defined(WOLFSSL_TIRTOS)
+    /* Let tcp_listen assign port */
+    port = 0;
+#else
+    /* Use default port */
+    port = wolfSSLPort;
+#endif
+
+    wolfSSL_CTX_set_verify(ctx,
+                  WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
+
+#ifdef WOLFSSL_ENCRYPTED_KEYS
+    wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+#endif
+
+    if (wolfSSL_CTX_load_verify_locations(ctx, cliCertFile, 0)
+                                                           != WOLFSSL_SUCCESS) {
+        /*err_sys("can't load ca file, Please run from wolfSSL home dir");*/
+        goto done;
+    }
+    if (!sharedCtx && wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+        /*err_sys("can't load server cert chain file, "
+                "Please run from wolfSSL home dir");*/
+        goto done;
+    }
+    if (!sharedCtx && wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+        /*err_sys("can't load server key file, "
+                "Please run from wolfSSL home dir");*/
+        goto done;
+    }
+    /* call ctx setup callback */
+    if (cbf != NULL && cbf->ctx_ready != NULL) {
+        cbf->ctx_ready(ctx);
+    }
+    
+    while(count != loop_count) {
+        ssl = wolfSSL_new(ctx);
+        if (ssl == NULL) {
+            goto done;
+        }
+        if (sharedCtx && wolfSSL_use_certificate_file(ssl, svrCertFile,
+                                        WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+            /*err_sys("can't load server cert chain file, "
+                    "Please run from wolfSSL home dir");*/
+            goto done;
+        }
+        if (sharedCtx && wolfSSL_use_PrivateKey_file(ssl, svrKeyFile,
+                                        WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+            /*err_sys("can't load server key file, "
+                    "Please run from wolfSSL home dir");*/
+            goto done;
+        }
+   
+#if !defined(NO_FILESYSTEM) && !defined(NO_DH)
+        wolfSSL_SetTmpDH_file(ssl, dhParamFile, WOLFSSL_FILETYPE_PEM);
+#elif !defined(NO_DH)
+        SetDH(ssl);  /* will repick suites with DHE, higher priority than PSK */
+#endif
+        /* call ssl setup callback */
+        if (cbf != NULL && cbf->ssl_ready != NULL) {
+            cbf->ssl_ready(ssl);
+        }
+        /* do it here to detect failure */
+        tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0, 0, 1);
+        CloseSocket(sockfd);
+        if (wolfSSL_set_fd(ssl, clientfd) != WOLFSSL_SUCCESS) {
+            /*err_sys("SSL_set_fd failed");*/
+            goto done;
+        }
+
+        do {
+    #ifdef WOLFSSL_ASYNC_CRYPT
+            if (err == WC_PENDING_E) {
+                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                if (ret < 0) { break; } else if (ret == 0) { continue; }
+            }
+    #endif
+            err = 0; /* Reset error */
+            ret = wolfSSL_accept(ssl);
+            if (ret != WOLFSSL_SUCCESS) {
+                err = wolfSSL_get_error(ssl, 0);
+            }
+        } while (ret != WOLFSSL_SUCCESS && err == WC_PENDING_E);
+
+        if (ret != WOLFSSL_SUCCESS) {
+            char buff[WOLFSSL_MAX_ERROR_SZ];
+            printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buff));
+            /*err_sys("SSL_accept failed");*/
+            goto done;
+        }
+
+        idx = wolfSSL_read(ssl, input, sizeof(input)-1);
+        if (idx > 0) {
+            input[idx] = '\0';
+            printf("Client message: %s\n", input);
+        }
+
+        if (wolfSSL_write(ssl, msg, sizeof(msg)) != sizeof(msg)) {
+            /*err_sys("SSL_write failed");*/
+    #ifdef WOLFSSL_TIRTOS
+            return;
+    #else
+            return 0;
+    #endif
+        }
+        /* free ssl for this connection */
+        wolfSSL_shutdown(ssl);
+        wolfSSL_free(ssl); ssl = NULL;
+        CloseSocket(clientfd);
+
+        count++;
+    }
+#ifdef WOLFSSL_TIRTOS
+    Task_yield();
+#endif
+
+    ((func_args*)args)->return_code = TEST_SUCCESS;
+
+done:
+    if(ssl != NULL) {
+        wolfSSL_shutdown(ssl);
+        wolfSSL_free(ssl);
+    }
+    if (!sharedCtx)
+        wolfSSL_CTX_free(ctx);
+
+    CloseSocket(clientfd);
+
+#ifdef WOLFSSL_TIRTOS
+    fdCloseSession(Task_self());
+#endif
+
+#if defined(NO_MAIN_DRIVER) && defined(HAVE_ECC) && defined(FP_ECC) \
+                            && defined(HAVE_THREAD_LS)
+    wc_ecc_fp_free();  /* free per thread cache */
+#endif
+
+#ifndef WOLFSSL_TIRTOS
+    return 0;
+#endif
+}
+#endif //defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TLS13)
+
 typedef int (*cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);
 
 static void test_client_nofail(void* args, void *cb)
@@ -2194,6 +2387,228 @@ done:
 
     return;
 }
+
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TLS13)
+static void test_client_reuse_WOLFSSLobj(void* args, void *cb, void* server_args)
+{
+    SOCKET_T sockfd = 0;
+    callback_functions* cbf = NULL;
+
+    WOLFSSL_CTX*     ctx     = 0;
+    WOLFSSL*         ssl     = 0;
+    WOLFSSL_SESSION* session = NULL;
+
+    char msg[64] = "hello wolfssl!";
+    char reply[1024];
+    int  input;
+    int  msgSz = (int)XSTRLEN(msg);
+    int  ret, err = 0;
+    int  sharedCtx = 0;
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    ((func_args*)args)->return_code = TEST_FAIL;
+    cbf = ((func_args*)args)->callbacks;
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+    if (cbf != NULL && cbf->ctx) {
+        ctx = cbf->ctx;
+        sharedCtx = 1;
+    }
+    else
+#endif
+    {
+        WOLFSSL_METHOD* method  = NULL;
+        if (cbf != NULL && cbf->method != NULL) {
+            method = cbf->method();
+        }
+        else {
+            method = wolfSSLv23_client_method();
+        }
+        ctx = wolfSSL_CTX_new(method);
+    }
+
+#ifdef WOLFSSL_ENCRYPTED_KEYS
+    wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
+#endif
+
+    /* Do connect here so server detects failures */
+    tcp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port,
+                0, 0, NULL);
+
+    if (wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0) != WOLFSSL_SUCCESS)
+    {
+        /* err_sys("can't load ca file, Please run from wolfSSL home dir");*/
+        goto done;
+    }
+    if (!sharedCtx && wolfSSL_CTX_use_certificate_file(ctx, cliCertFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+        /*err_sys("can't load client cert file, "
+                "Please run from wolfSSL home dir");*/
+        goto done;
+    }
+    if (!sharedCtx && wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+        /*err_sys("can't load client key file, "
+                "Please run from wolfSSL home dir");*/
+        goto done;
+    }
+
+    /* call ctx setup callback */
+    if (cbf != NULL && cbf->ctx_ready != NULL) {
+        cbf->ctx_ready(ctx);
+    }
+
+    ssl = wolfSSL_new(ctx);
+    if (ssl == NULL) {
+        goto done;
+    }
+    /* keep handshakre resources for re-using WOLFSSL obj */
+    wolfSSL_KeepArrays(ssl);
+    if(wolfSSL_KeepHandshakeResources(ssl)) {
+        /* err_sys("SSL_KeepHandshakeResources failed"); */
+        goto done;
+    }  
+    if (sharedCtx && wolfSSL_use_certificate_file(ssl, cliCertFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+        /*err_sys("can't load client cert file, "
+                "Please run from wolfSSL home dir");*/
+        goto done;
+    }
+    if (sharedCtx && wolfSSL_use_PrivateKey_file(ssl, cliKeyFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+        /*err_sys("can't load client key file, "
+                "Please run from wolfSSL home dir");*/
+        goto done;
+    }
+
+    if (wolfSSL_set_fd(ssl, sockfd) != WOLFSSL_SUCCESS) {
+        /*err_sys("SSL_set_fd failed");*/
+        goto done;
+    }
+
+    /* call ssl setup callback */
+    if (cbf != NULL && cbf->ssl_ready != NULL) {
+        cbf->ssl_ready(ssl);
+    }
+
+    do {
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (err == WC_PENDING_E) {
+            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+            if (ret < 0) { break; } else if (ret == 0) { continue; }
+        }
+#endif
+
+        err = 0; /* Reset error */
+        ret = wolfSSL_connect(ssl);
+        if (ret != WOLFSSL_SUCCESS) {
+            err = wolfSSL_get_error(ssl, 0);
+        }
+    } while (ret != WOLFSSL_SUCCESS && err == WC_PENDING_E);
+
+    if (ret != WOLFSSL_SUCCESS) {
+        char buff[WOLFSSL_MAX_ERROR_SZ];
+        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buff));
+        /*err_sys("SSL_connect failed");*/
+        goto done;
+    }
+    /* Build first session */
+    if (cb != NULL)
+        ((cbType)cb)(ctx, ssl);
+
+    if (wolfSSL_write(ssl, msg, msgSz) != msgSz) {
+        /*err_sys("SSL_write failed");*/
+        goto done;
+    }
+
+    input = wolfSSL_read(ssl, reply, sizeof(reply)-1);
+    if (input > 0) {
+        reply[input] = '\0';
+        printf("Server response: %s\n", reply);
+    }
+
+    /* Session Resumption by re-using WOLFSSL object */
+    wolfSSL_set_quiet_shutdown(ssl, 1);
+    if (wolfSSL_shutdown(ssl) != WOLFSSL_SUCCESS) {
+        /* err_sys ("SSL shutdown failed"); */
+        goto done;
+    }
+    session = wolfSSL_get_session(ssl);
+    if (wolfSSL_clear(ssl) != WOLFSSL_SUCCESS) {
+        /* err_sys ("SSL_clear failed"); */
+        goto done;
+    }
+    wolfSSL_set_session(ssl, session);
+    /* close socket onece */
+    CloseSocket(sockfd);
+    sockfd = 0;
+    /* wait until server ready */
+    wait_tcp_ready((func_args*)server_args);
+    printf("session resumption\n");
+    /* Do re-connect  */
+    tcp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port,
+                0, 0, NULL);
+    if (wolfSSL_set_fd(ssl, sockfd) != WOLFSSL_SUCCESS) {
+        /*err_sys("SSL_set_fd failed");*/
+        goto done;
+    }
+
+do {
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (err == WC_PENDING_E) {
+            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+            if (ret < 0) { break; } else if (ret == 0) { continue; }
+        }
+#endif
+
+        err = 0; /* Reset error */
+        ret = wolfSSL_connect(ssl);
+        if (ret != WOLFSSL_SUCCESS) {
+            err = wolfSSL_get_error(ssl, 0);
+        }
+    } while (ret != WOLFSSL_SUCCESS && err == WC_PENDING_E);
+
+    if (ret != WOLFSSL_SUCCESS) {
+        char buff[WOLFSSL_MAX_ERROR_SZ];
+        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buff));
+        /*err_sys("SSL_connect failed");*/
+        goto done;
+    }
+    /* Build first session */
+    if (cb != NULL)
+        ((cbType)cb)(ctx, ssl);
+
+    if (wolfSSL_write(ssl, msg, msgSz) != msgSz) {
+        /*err_sys("SSL_write failed");*/
+        goto done;
+    }
+
+    input = wolfSSL_read(ssl, reply, sizeof(reply)-1);
+    if (input > 0) {
+        reply[input] = '\0';
+        printf("Server response: %s\n", reply);
+    }
+
+    ((func_args*)args)->return_code = TEST_SUCCESS;
+
+done:
+    wolfSSL_free(ssl);
+    if (!sharedCtx)
+        wolfSSL_CTX_free(ctx);
+
+    CloseSocket(sockfd);
+
+#ifdef WOLFSSL_TIRTOS
+    fdCloseSession(Task_self());
+#endif
+
+    return;
+}
+#endif //defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TLS13)
+
 #endif /* !NO_WOLFSSL_CLIENT && !NO_WOLFSSL_SERVER */
 
 /* SNI / ALPN / session export helper functions */
@@ -2512,6 +2927,57 @@ static void test_wolfSSL_read_write(void)
 
 #endif
 }
+
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TLS13)
+static void test_wolfSSL_reuse_WOLFSSLobj(void)
+{
+#ifdef HAVE_IO_TESTS_DEPENDENCIES
+    /* The unit test for session resumption by re-using WOLFSSL object.
+     * WOLFSSL object is not cleared after first session. It re-use the obeject
+     * for second connection.
+    */
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    THREAD_TYPE serverThread;
+
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+#if defined(USE_WINDOWS_API)
+    /* use RNG to get random port if using windows */
+    ready.port = GetRandomPort();
+#endif
+
+    server_args.signal = &ready;
+    client_args.signal = &ready;
+    /* the var is used for loop number */
+    server_args.argc = 2;
+
+    start_thread(test_server_loop, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_reuse_WOLFSSLobj(&client_args, NULL, &server_args);
+    join_thread(serverThread);
+
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+
+    FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+#endif
+}
+#endif //defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TLS13)
+
 #endif /* !NO_WOLFSSL_CLIENT && !NO_WOLFSSL_SERVER */
 
 
@@ -23870,6 +24336,9 @@ void ApiTest(void)
     test_SetTmpEC_DHE_Sz();
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     test_wolfSSL_read_write();
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TLS13)
+    test_wolfSSL_reuse_WOLFSSLobj();
+#endif    
 #endif
     test_wolfSSL_dtls_export();
     AssertIntEQ(test_wolfSSL_SetMinVersion(), WOLFSSL_SUCCESS);
