@@ -22927,6 +22927,7 @@ static void test_wolfSSL_EC_KEY_dup(void)
     mp_int* mp = (mp_int*)ecKey->priv_key->internal;
     mp_forcezero(mp);
     mp_free(mp);
+    ecKey->priv_key->internal = NULL; /* Set internal key to NULL */
     AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
 #endif
     wolfSSL_BN_free(ecKey->priv_key);
@@ -25271,7 +25272,7 @@ static int test_ForceZero(void)
 static void test_wolfSSL_X509_print()
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
-   !defined(NO_RSA) && !defined(HAVE_FAST_RSA)
+   !defined(NO_RSA) && !defined(HAVE_FAST_RSA) && defined(XSNPRINTF)
     X509 *x509;
     BIO *bio;
 

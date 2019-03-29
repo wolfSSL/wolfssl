@@ -7965,6 +7965,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                     XFREE(ad, NULL, DYNAMIC_TYPE_X509_EXT);
                     return NULL;
                 }
+                wolfSSL_ASN1_OBJECT_free(aiaEntry);
                 aiaEntry = wolfSSL_sk_ASN1_OBJECT_pop(sk);
             }
             wolfSSL_sk_ASN1_OBJECT_free(sk);
@@ -16237,62 +16238,48 @@ char* wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
     return in;
 }
 
+#if defined(OPENSSL_EXTRA) && defined(XSNPRINTF)
 /* Copies X509 subject name into a buffer, with comma-separated name entries
    (matching OpenSSL v1.0.0 format) */
 char* wolfSSL_X509_get_name_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
 {
-    char *tmpBuf;
+    char *str;
+    char tmpBuf[256];
     char buf[80];
     const char* sn;
-    int nameSz, copySz, strSz, count, i, idx = 0;
+    int nameSz, strSz, count, i, idx = 0;
+    int totalSz = 0;
     WOLFSSL_X509_NAME_ENTRY* entry;
 
     WOLFSSL_ENTER("wolfSSL_X509_get_name_oneline");
+    (void)sz;
 
-    if (name == NULL || !name->sz) {
+    if (name == NULL) {
         WOLFSSL_MSG("wolfSSL_X509_get_subject_name failed");
         return NULL;
     }
-    copySz = min(sz, name->sz);
-
-    if (!in) {
     #ifdef WOLFSSL_STATIC_MEMORY
+    if (!in) {
         WOLFSSL_MSG("Using static memory -- please pass in a buffer");
         return NULL;
-    #else
-        in = (char*)XMALLOC(name->sz, NULL, DYNAMIC_TYPE_OPENSSL);
-        if (!in) return in;
-        copySz = name->sz;
+    }
     #endif
-    }
 
-    if (copySz <= 0)
-        return in;
-
-    tmpBuf = (char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (tmpBuf == NULL) {
-        WOLFSSL_MSG("Memory error");
-        return NULL;
-    }
-    tmpBuf[0] = '\0';
-
+    tmpBuf[0] = '\0'; /* Make sure tmpBuf is NULL terminated */
     /* Loop through X509 name entries and copy new format to buffer */
     count = wolfSSL_X509_NAME_entry_count(name);
     for (i = 0; i < count; i++) {
-        char tmp[256];
 
+        /* Get name entry and size */
         entry = wolfSSL_X509_NAME_get_entry(name, i);
         if (entry == NULL) {
             WOLFSSL_MSG("X509_NAME_get_entry failed");
-            XFREE(tmpBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return NULL;
         }
-
         nameSz = wolfSSL_X509_NAME_get_text_by_NID(name, entry->nid, buf,
                                                                    sizeof(buf));
         if (nameSz < 0) {
             WOLFSSL_MSG("X509_NAME_get_text_by_NID failed");
-            XFREE(tmpBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return NULL;
         }
 
@@ -16300,31 +16287,51 @@ char* wolfSSL_X509_get_name_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
         sn = wolfSSL_OBJ_nid2sn(entry->nid);
         if (sn == NULL) {
             WOLFSSL_MSG("OBJ_nid2sn failed");
-            XFREE(tmpBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return NULL;
         }
 
         /* Copy sn and name text to buffer */
         if (i != count - 1) {
             strSz = (int)XSTRLEN(sn) + nameSz + 4;
-            XSNPRINTF(tmp, strSz, "%s=%s, ", sn, buf);
-            XSTRNCAT(tmpBuf, tmp, strSz);
-            idx += strSz;
+            totalSz+= strSz;
+            str = (char*)XMALLOC(strSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (str == NULL) {
+                WOLFSSL_MSG("Memory error");
+                return NULL;
+            }
+            XSNPRINTF(str, strSz, "%s=%s, ", sn, buf);
         }
         else {
             /* Copy last name entry */
             strSz = (int)XSTRLEN(sn) + nameSz + 2;
-            XSNPRINTF(tmp, strSz, "%s=%s", sn, buf);
-            XSTRNCAT(tmpBuf, tmp, strSz);
-            idx += strSz;
+            totalSz+= strSz;
+            str = (char*)XMALLOC(strSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (str == NULL) {
+                WOLFSSL_MSG("Memory error");
+                return NULL;
+            }
+            XSNPRINTF(str, strSz, "%s=%s", sn, buf);
+        }
+        /* Copy string to tmpBuf */
+        XSTRNCAT(tmpBuf, str, strSz);
+        idx += strSz;
+        XFREE(str, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    /* Allocate space based on total string size if no buffer was provided */
+    if (!in) {
+        in = (char*)XMALLOC(totalSz+1, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (in == NULL) {
+            WOLFSSL_MSG("Memory error");
+            return in;
         }
     }
-    XMEMCPY(in, tmpBuf, copySz);
-    in[copySz] = '\0';
-    XFREE(tmpBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XMEMCPY(in, tmpBuf, totalSz);
+    in[totalSz] = '\0';
 
     return in;
 }
+#endif
 
 /* Wraps wolfSSL_X509_d2i
  *
@@ -18589,17 +18596,17 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
         /* print version of cert */
         {
             int version;
-            char tmp[17];
+            char tmp[20];
 
             if ((version = wolfSSL_X509_version(x509)) <= 0) {
                 WOLFSSL_MSG("Error getting X509 version");
                 return WOLFSSL_FAILURE;
             }
-            if (wolfSSL_BIO_write(bio, "        Version: ",
-                          (int)XSTRLEN("        Version: ")) <= 0) {
+            if (wolfSSL_BIO_write(bio, "        Version:",
+                          (int)XSTRLEN("        Version:")) <= 0) {
                 return WOLFSSL_FAILURE;
             }
-            XSNPRINTF(tmp, sizeof(tmp), "%d (0x%x)\n", version, version-1);
+            XSNPRINTF(tmp, sizeof(tmp), " %d (0x%x)\n", version,(byte)version-1);
             if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
                 return WOLFSSL_FAILURE;
             }
@@ -19088,6 +19095,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
             word32 i;
             char val[5];
             int valSz = 5;
+            int len = 0;
 
             if (wolfSSL_BIO_write(bio,
                          "            X509v3 Authority Key Identifier: \n",
@@ -19108,7 +19116,8 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
                 XSNPRINTF(val, valSz - 1, ":%02X", x509->authKeyId[i]);
                 XSTRNCAT(tmp, val, valSz);
             }
-            XSTRNCAT(tmp, "\n", sizeof("\n"));
+            len = (int)XSTRLEN("\n");
+            XSTRNCAT(tmp, "\n", len + 1);
             if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
                 return WOLFSSL_FAILURE;
             }
