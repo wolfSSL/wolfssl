@@ -2024,7 +2024,7 @@ done:
 }
 
 
-#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TLS13)
+#if defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_TLS13)
 static THREAD_RETURN WOLFSSL_THREAD test_server_loop(void* args)
 {
     SOCKET_T sockfd = 0;
@@ -2214,7 +2214,7 @@ done:
     return 0;
 #endif
 }
-#endif //defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TLS13)
+#endif //defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_TLS13)
 
 typedef int (*cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);
 
@@ -2388,7 +2388,7 @@ done:
     return;
 }
 
-#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TLS13)
+#if defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_TLS13)
 static void test_client_reuse_WOLFSSLobj(void* args, void *cb, void* server_args)
 {
     SOCKET_T sockfd = 0;
@@ -2607,7 +2607,7 @@ done:
 
     return;
 }
-#endif //defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TLS13)
+#endif //defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_TLS13)
 
 #endif /* !NO_WOLFSSL_CLIENT && !NO_WOLFSSL_SERVER */
 
@@ -2928,7 +2928,7 @@ static void test_wolfSSL_read_write(void)
 #endif
 }
 
-#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TLS13)
+#if defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_TLS13)
 static void test_wolfSSL_reuse_WOLFSSLobj(void)
 {
 #ifdef HAVE_IO_TESTS_DEPENDENCIES
@@ -2976,7 +2976,7 @@ static void test_wolfSSL_reuse_WOLFSSLobj(void)
 
 #endif
 }
-#endif //defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TLS13)
+#endif //defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_TLS13)
 
 #endif /* !NO_WOLFSSL_CLIENT && !NO_WOLFSSL_SERVER */
 
@@ -24336,7 +24336,7 @@ void ApiTest(void)
     test_SetTmpEC_DHE_Sz();
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     test_wolfSSL_read_write();
-#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_TLS13)
+#if defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_TLS13)
     test_wolfSSL_reuse_WOLFSSLobj();
 #endif    
 #endif
