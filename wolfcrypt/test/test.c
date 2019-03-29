@@ -16175,7 +16175,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     wc_ecc_set_flags(&userA, WC_ECC_FLAG_COFACTOR);
     wc_ecc_set_flags(&userB, WC_ECC_FLAG_COFACTOR);
 
-    x = sizeof(sharedA);
+    x = ECC_SHARED_SIZE;
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -16187,7 +16187,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         goto done;
     }
 
-    y = sizeof(sharedB);
+    y = ECC_SHARED_SIZE;
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &userB.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
