@@ -3254,6 +3254,16 @@ static const struct cipher{
     #ifdef WOLFSSL_AES_256
     {AES_256_CBC_TYPE, "AES-256-CBC"},
     #endif
+
+#ifdef WOLFSSL_AES_XTS
+    #ifdef WOLFSSL_AES_128
+    {AES_128_XTS_TYPE, "AES-128-XTS"},
+    #endif
+    #ifdef WOLFSSL_AES_256
+    {AES_256_XTS_TYPE, "AES-256-XTS"},
+    #endif
+#endif /* WOLFSSL_AES_XTS */
+
 #if defined(OPENSSL_EXTRA)
     #ifdef WOLFSSL_AES_128
         {AES_128_CTR_TYPE, "AES-128-CTR"},
@@ -3334,6 +3344,18 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
         {"AES-256-CBC", "aes256-cbc"},
         #endif
     #endif
+
+    #ifdef WOLFSSL_AES_XTS
+        #ifdef WOLFSSL_AES_128
+        {"AES-128-XTS", "AES128-XTS"},
+        {"AES-128-XTS", "aes128-xts"},
+        #endif
+        #ifdef WOLFSSL_AES_256
+        {"AES-256-XTS", "AES256-XTS"},
+        {"AES-256-XTS", "aes256-xts"},
+        #endif
+    #endif
+
     #ifdef WOLFSSL_AES_128
         {"AES-128-ECB", "AES128-ECB"},
         {"AES-128-ECB", "aes128-ecb"},
@@ -3399,6 +3421,16 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
         #ifdef WOLFSSL_AES_256
         case NID_aes_256_cbc:
             return wolfSSL_EVP_aes_256_cbc();
+        #endif
+    #endif
+    #ifdef WOLFSSL_AES_XTS
+        #ifdef WOLFSSL_AES_128
+        case NID_aes_128_xts:
+            return wolfSSL_EVP_aes_128_xts();
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case NID_aes_256_xts:
+            return wolfSSL_EVP_aes_256_xts();
         #endif
     #endif
     #ifdef WOLFSSL_AES_COUNTER
@@ -3471,6 +3503,16 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
         static char *EVP_AES_256_CBC;
     #endif
     #endif /* HAVE_AES_CBC */
+
+    #ifdef WOLFSSL_AES_XTS
+    #ifdef WOLFSSL_AES_128
+        static char *EVP_AES_128_XTS;
+    #endif
+    #ifdef WOLFSSL_AES_256
+        static char *EVP_AES_256_XTS;
+    #endif
+    #endif /* WOLFSSL_AES_XTS */
+
 #if defined(OPENSSL_EXTRA)
     #ifdef WOLFSSL_AES_128
     static char *EVP_AES_128_CTR;
@@ -3530,6 +3572,15 @@ void wolfSSL_EVP_init(void)
         EVP_AES_256_CBC = (char *)EVP_get_cipherbyname("AES-256-CBC");
         #endif
     #endif /* HAVE_AES_CBC */
+    
+    #ifdef WOLFSSL_AES_XTS
+        #ifdef WOLFSSL_AES_128
+        EVP_AES_128_XTS = (char *)EVP_get_cipherbyname("AES-128-XTS");
+        #endif
+        #ifdef WOLFSSL_AES_256
+        EVP_AES_256_XTS = (char *)EVP_get_cipherbyname("AES-256-XTS");
+        #endif
+    #endif /* WOLFSSL_AES_XTS */
 
 #if defined(OPENSSL_EXTRA)
         #ifdef WOLFSSL_AES_128
@@ -13388,6 +13439,26 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_AES_256_ECB;
     }
     #endif /* WOLFSSL_AES_256 */
+
+    #ifdef WOLFSSL_AES_128
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_xts(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_128_xts");
+        if (EVP_AES_128_XTS == NULL)
+            wolfSSL_EVP_init();
+        return EVP_AES_128_XTS;
+    }
+    #endif /* WOLFSSL_AES_128 */
+
+    #ifdef WOLFSSL_AES_256
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_xts(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_256_xts");
+        if (EVP_AES_256_XTS == NULL)
+            wolfSSL_EVP_init();
+        return EVP_AES_256_XTS;
+    }
+    #endif /* WOLFSSL_AES_256 */
     #endif /* NO_AES */
 
 #ifndef NO_DES3
@@ -13576,6 +13647,66 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         }
 
 #ifndef NO_AES
+    #ifdef WOLFSSL_AES_XTS
+        #ifdef WOLFSSL_AES_128
+        if (ctx->cipherType == AES_128_XTS_TYPE ||
+            (type && XSTRNCMP(type, EVP_AES_128_XTS, EVP_AES_SIZE) == 0)) {
+            WOLFSSL_MSG("EVP_AES_128_XTS");
+            ctx->cipherType = AES_128_XTS_TYPE;
+            ctx->flags &= ~WOLFSSL_EVP_CIPH_MODE;
+            ctx->flags |= WOLFSSL_EVP_CIPH_XTS_MODE | WOLFSSL_EVP_CIPH_NO_PADDING;
+            ctx->keyLen = 32;
+            ctx->block_size = AES_BLOCK_SIZE;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key) {
+                ret = wc_AesXtsSetKey(&ctx->cipher.aesXts, key, ctx->keyLen,
+                    ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, NULL, 0);
+                if (ret != 0) {
+                    WOLFSSL_MSG("wc_AesXtsSetKey() failed");
+                    return ret;
+                }
+            }
+            /* Note that the IV is used as the tweak value in XTS mode (same as in OpenSSL) */
+            if (iv) {
+                ret = wc_AesXtsSetInternalTweakValue(&ctx->cipher.aesXts, iv);
+                if (ret != 0) {
+                    WOLFSSL_MSG("wc_AesXtsSetInternalTweakValue() failed");
+                    return ret;
+                }
+            }
+        }
+        #endif /* WOLFSSL_AES_128 */
+        #ifdef WOLFSSL_AES_256
+        if (ctx->cipherType == AES_256_XTS_TYPE ||
+            (type && XSTRNCMP(type, EVP_AES_256_XTS, EVP_AES_SIZE) == 0)) {
+            WOLFSSL_MSG("EVP_AES_256_XTS");
+            ctx->cipherType = AES_256_XTS_TYPE;
+            ctx->flags &= ~WOLFSSL_EVP_CIPH_MODE;
+            ctx->flags |= WOLFSSL_EVP_CIPH_XTS_MODE | WOLFSSL_EVP_CIPH_NO_PADDING;
+            ctx->keyLen = 64;
+            ctx->block_size = AES_BLOCK_SIZE;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key) {
+                ret = wc_AesXtsSetKey(&ctx->cipher.aesXts, key, ctx->keyLen,
+                    ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, NULL, 0);
+                if (ret != 0) {
+                    WOLFSSL_MSG("wc_AesXtsSetKey() failed");
+                    return ret;
+                }
+            }
+            if (iv) {
+                ret = wc_AesXtsSetInternalTweakValue(&ctx->cipher.aesXts, iv);
+                if (ret != 0) {
+                    WOLFSSL_MSG("wc_AesXtsSetInternalTweakValue() failed");
+                    return ret;
+                }
+            }
+        }
+        #endif /* WOLFSSL_AES_256 */
+    #endif /* WOLFSSL_AES_XTS */
+
     #ifdef HAVE_AES_CBC
         #ifdef WOLFSSL_AES_128
         if (ctx->cipherType == AES_128_CBC_TYPE ||
@@ -13976,6 +14107,16 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                     ret = wc_AesCbcDecrypt(&ctx->cipher.aes, dst, src, len);
                 break;
 #endif /* HAVE_AES_CBC */
+#ifdef WOLFSSL_AES_XTS
+            case AES_128_XTS_TYPE :
+            case AES_256_XTS_TYPE :
+                WOLFSSL_MSG("AES XTS");
+                if (ctx->enc)
+                    ret = wc_AesXtsEncrypt(&ctx->cipher.aesXts, dst, src, len, ctx->cipher.aesXts.tweak.tweakValue, AES_BLOCK_SIZE);
+                else
+                    ret = wc_AesXtsDecrypt(&ctx->cipher.aesXts, dst, src, len, ctx->cipher.aesXts.tweak.tweakValue, AES_BLOCK_SIZE);
+                break;
+#endif /* WOLFSSL_AES_XTS */
 #ifdef HAVE_AES_ECB
             case AES_128_ECB_TYPE :
             case AES_192_ECB_TYPE :

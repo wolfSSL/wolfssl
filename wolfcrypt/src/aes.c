@@ -7080,6 +7080,25 @@ int wc_AesXtsSetKey(XtsAes* aes, const byte* key, word32 len, int dir,
     return ret;
 }
 
+/* Sets the internal tweak value that's used with the OpenSSL compatibility layer 
+ *
+ * aes        AES key for encrypt/decrypt process
+ * tweakValue buffer holding tweak value
+ *
+ * return 0 on success
+*/
+int wc_AesXtsSetInternalTweakValue(XtsAes* aes, const byte* tweakValue)
+{ 
+    if (aes == NULL)
+        return BAD_FUNC_ARG;
+
+    if (tweakValue)
+        XMEMCPY(aes->tweak.tweakValue, tweakValue, AES_BLOCK_SIZE);
+    else
+        XMEMSET(aes->tweak.tweakValue, 0, AES_BLOCK_SIZE);
+
+    return 0;
+}
 
 /* This is used to free up resources used by Aes structs
  *

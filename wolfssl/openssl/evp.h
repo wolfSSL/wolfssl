@@ -93,6 +93,10 @@ WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cbc(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_cbc(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_cbc(void);
 #endif
+#ifdef WOLFSSL_AES_XTS
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_xts(void);
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_xts(void);
+#endif
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_ctr(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_ctr(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_ctr(void);
@@ -144,6 +148,9 @@ typedef union {
 #ifndef NO_AES
     Aes  aes;
 #endif
+#ifdef WOLFSSL_AES_XTS
+    XtsAes aesXts;
+#endif
 #ifndef NO_DES3
     Des  des;
     Des3 des3;
@@ -177,6 +184,8 @@ enum {
 #ifdef HAVE_IDEA
     IDEA_CBC_TYPE     = 19,
 #endif
+    AES_128_XTS_TYPE  = 20,
+    AES_256_XTS_TYPE  = 21,
     NID_sha1          = 64,
     NID_sha224        = 65,
     NID_md2           = 77,
@@ -189,6 +198,8 @@ enum {
     NID_aes_128_cbc = 419,
     NID_aes_192_cbc = 423,
     NID_aes_256_cbc = 427,
+    NID_aes_128_xts = 913,
+    NID_aes_256_xts = 914,
     NID_aes_128_ctr = 904,
     NID_aes_192_ctr = 905,
     NID_aes_256_ctr = 906,
@@ -452,6 +463,7 @@ WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char * pass, int passlen,
 #define WOLFSSL_EVP_CIPH_CTR_MODE           0x5
 #define WOLFSSL_EVP_CIPH_GCM_MODE           0x6
 #define WOLFSSL_EVP_CIPH_CCM_MODE           0x7
+#define WOLFSSL_EVP_CIPH_XTS_MODE           0x8
 #define WOLFSSL_EVP_CIPH_NO_PADDING       0x100
 #define WOLFSSL_EVP_CIPH_TYPE_INIT         0xff
 
@@ -485,6 +497,8 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_aes_128_ctr  wolfSSL_EVP_aes_128_ctr
 #define EVP_aes_192_ctr  wolfSSL_EVP_aes_192_ctr
 #define EVP_aes_256_ctr  wolfSSL_EVP_aes_256_ctr
+#define EVP_aes_128_xts  wolfSSL_EVP_aes_128_xts
+#define EVP_aes_256_xts  wolfSSL_EVP_aes_256_xts
 #define EVP_des_cbc      wolfSSL_EVP_des_cbc
 #define EVP_des_ecb      wolfSSL_EVP_des_ecb
 #define EVP_des_ede3_cbc wolfSSL_EVP_des_ede3_cbc

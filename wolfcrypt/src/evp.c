@@ -263,6 +263,15 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
                 ret = wc_AesEcbDecrypt(&ctx->cipher.aes, out, in, inl);
             break;
     #endif
+    #if !defined(NO_AES) && defined(WOLFSSL_AES_XTS)
+        case AES_128_XTS_TYPE:
+        case AES_256_XTS_TYPE:
+            if (ctx->enc)
+                ret = wc_AesXtsEncrypt(&ctx->cipher.aesXts, out, in, inl, ctx->cipher.aesXts.tweak.tweakValue, AES_BLOCK_SIZE);
+            else
+                ret = wc_AesXtsDecrypt(&ctx->cipher.aesXts, out, in, inl, ctx->cipher.aesXts.tweak.tweakValue, AES_BLOCK_SIZE);
+            break;
+    #endif
     #ifndef NO_DES3
         case DES_CBC_TYPE:
             if (ctx->enc)
@@ -317,6 +326,16 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
 
     *outl = 0;
     if (inl == 0) return WOLFSSL_SUCCESS;
+        
+    /* XTS mode does not allow stream-like calls to 'update'. Each call to 'update' stands on
+    its own - meaning that the result of a call to 'update' with a buffer will be different than
+    the result of multiple calls to 'update' with parts of the buffer that sum up to the buffer itself. */
+    if (ctx->flags & WOLFSSL_EVP_CIPH_XTS_MODE) {
+        if (evpCipherBlock(ctx, out, in, inl) == 0) 
+            return WOLFSSL_FAILURE;
+        *outl = inl;
+        return WOLFSSL_SUCCESS;
+    }
 
     if (ctx->bufUsed > 0) { /* concatinate them if there is anything */
         fill = fillBuff(ctx, in, inl);
