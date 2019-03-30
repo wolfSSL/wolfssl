@@ -154,16 +154,19 @@ int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e,
     return res;
 }
 
-
 /* init a new mp_int */
-int mp_init (mp_int * a)
+int mp_init (mp_int * a) {
+  /* defer allocation until mp_grow */
+  return mp_init_ex(a, NULL);
+}
+
+WOLFSSL_LOCAL int mp_init_ex (mp_int * a, mp_digit * dp)
 {
   /* Safeguard against passing in a null pointer */
   if (a == NULL)
     return MP_VAL;
 
-  /* defer allocation until mp_grow */
-  a->dp = NULL;
+  a->dp = dp;
 
   /* set the used to zero, allocated digits to the default precision
    * and sign to positive */
