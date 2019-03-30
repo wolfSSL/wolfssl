@@ -13440,6 +13440,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     }
     #endif /* WOLFSSL_AES_256 */
 
+    #ifdef WOLFSSL_AES_XTS
     #ifdef WOLFSSL_AES_128
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_xts(void)
     {
@@ -13459,6 +13460,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_AES_256_XTS;
     }
     #endif /* WOLFSSL_AES_256 */
+    #endif /* WOLFSSL_AES_XTS */
     #endif /* NO_AES */
 
 #ifndef NO_DES3
