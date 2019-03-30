@@ -283,6 +283,7 @@ extern const char *mp_s_rmap;
 
 /* 6 functions needed by Rsa */
 MP_API int  mp_init (mp_int * a);
+WOLFSSL_LOCAL int  mp_init_ex (mp_int * a, mp_digit *dp);
 MP_API void mp_clear (mp_int * a);
 MP_API void mp_free (mp_int * a);
 MP_API void mp_forcezero(mp_int * a);

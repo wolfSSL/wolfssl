@@ -37,11 +37,18 @@
     extern "C" {
 #endif
 
+#ifndef MP_MAX_BITS
+    #define MP_MAX_BITS 4098
+#endif
+
 typedef struct WOLFSSL_BIGNUM {
     int neg;        /* openssh deference */
     void *internal; /* our big num */
 #if defined(USE_FAST_MATH) && !defined(HAVE_WOLF_BIGINT)
-    fp_int fp;
+    fp_int mp;
+#else
+    mp_int mp;
+    mp_digit dp[MP_MAX_BITS/(sizeof(mp_digit)*8)];
 #endif
 } WOLFSSL_BIGNUM;
 
@@ -56,9 +63,7 @@ WOLFSSL_API void           wolfSSL_BN_CTX_init(WOLFSSL_BN_CTX*);
 WOLFSSL_API void           wolfSSL_BN_CTX_free(WOLFSSL_BN_CTX*);
 
 WOLFSSL_API WOLFSSL_BIGNUM* wolfSSL_BN_new(void);
-#if defined(USE_FAST_MATH) && !defined(HAVE_WOLF_BIGINT)
 WOLFSSL_API void           wolfSSL_BN_init(WOLFSSL_BIGNUM *);
-#endif
 WOLFSSL_API void           wolfSSL_BN_free(WOLFSSL_BIGNUM*);
 WOLFSSL_API void           wolfSSL_BN_clear_free(WOLFSSL_BIGNUM*);
 
