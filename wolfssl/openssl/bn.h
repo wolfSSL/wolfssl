@@ -38,7 +38,7 @@
 #endif
 
 #ifndef MP_MAX_BITS
-    #define MP_MAX_BITS 4098
+    #define MP_MAX_BITS (4098*2)
 #endif
 
 typedef struct WOLFSSL_BIGNUM {
