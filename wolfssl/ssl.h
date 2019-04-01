@@ -270,7 +270,9 @@ struct WOLFSSL_ASN1_OBJECT {
         WOLFSSL_ASN1_STRING* ia5; /* points to ia5_internal */
         WOLFSSL_ASN1_STRING* dNSName;
         WOLFSSL_ASN1_STRING* iPAddress;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         WOLFSSL_ASN1_STRING* uniformResourceIdentifier;
+#endif
     } d;
 };
 
