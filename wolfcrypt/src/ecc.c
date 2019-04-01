@@ -6286,17 +6286,22 @@ int wc_ecc_check_key(ecc_key* key)
     if (err == MP_OKAY)
         err = mp_read_radix(b, key->dp->Bf, MP_RADIX_HEX);
 #else
-    b = curve->Bf;
+    if (err == MP_OKAY)
+        b = curve->Bf;
 #endif
 
     /* SP 800-56Ar3, section 5.6.2.3.3, process step 2 */
     /* Qx must be in the range [0, p-1] */
-    if (mp_cmp(key->pubkey.x, curve->prime) != MP_LT)
-        err = ECC_OUT_OF_RANGE_E;
+    if (err == MP_OKAY) {
+        if (mp_cmp(key->pubkey.x, curve->prime) != MP_LT)
+            err = ECC_OUT_OF_RANGE_E;
+    }
 
     /* Qy must be in the range [0, p-1] */
-    if (mp_cmp(key->pubkey.y, curve->prime) != MP_LT)
-        err = ECC_OUT_OF_RANGE_E;
+    if (err == MP_OKAY) {
+        if (mp_cmp(key->pubkey.y, curve->prime) != MP_LT)
+            err = ECC_OUT_OF_RANGE_E;
+    }
 
     /* SP 800-56Ar3, section 5.6.2.3.3, process steps 3 */
     /* make sure point is actually on curve */
