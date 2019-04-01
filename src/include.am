@@ -332,7 +332,11 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/rabbit.c
 endif
 
 if BUILD_CHACHA
+if BUILD_ARMASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-chacha.c
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/chacha.c
+endif
 if BUILD_INTELASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/chacha_asm.S
 endif

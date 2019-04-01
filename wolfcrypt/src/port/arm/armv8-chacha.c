@@ -1,4 +1,4 @@
-/* chacha.c
+/* armv8-chacha.c
  *
  * Copyright (C) 2006-2017 wolfSSL Inc.
  *
@@ -18,17 +18,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  *
- *  based from
- *  chacha-ref.c version 20080118
- *  D. J. Bernstein
- *  Public domain.
  */
 
 
 #ifdef WOLFSSL_ARMASM
-    /* implementation is located in wolfcrypt/src/port/arm/armv8-chacha.c */
 
-#else
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -50,31 +44,6 @@
 
 #ifdef CHACHA_AEAD_TEST
     #include <stdio.h>
-#endif
-
-#ifdef USE_INTEL_CHACHA_SPEEDUP
-    #include <emmintrin.h>
-    #include <immintrin.h>
-
-    #if defined(__GNUC__) && ((__GNUC__ < 4) || \
-                              (__GNUC__ == 4 && __GNUC_MINOR__ <= 8))
-        #undef  NO_AVX2_SUPPORT
-        #define NO_AVX2_SUPPORT
-    #endif
-    #if defined(__clang__) && ((__clang_major__ < 3) || \
-                               (__clang_major__ == 3 && __clang_minor__ <= 5))
-        #undef  NO_AVX2_SUPPORT
-        #define NO_AVX2_SUPPORT
-    #elif defined(__clang__) && defined(NO_AVX2_SUPPORT)
-        #undef NO_AVX2_SUPPORT
-    #endif
-
-    #ifndef NO_AVX2_SUPPORT
-        #define HAVE_INTEL_AVX2
-    #endif
-
-    static int cpuidFlagsSet = 0;
-    static int cpuidFlags = 0;
 #endif
 
 #ifdef BIG_ENDIAN_ORDER
@@ -101,6 +70,7 @@
   x[a] = PLUS(x[a],x[b]); x[d] = ROTATE(XOR(x[d],x[a]), 8); \
   x[c] = PLUS(x[c],x[d]); x[b] = ROTATE(XOR(x[b],x[c]), 7);
 
+#define ARM_SIMD_LEN_BYTES 16
 
 /**
   * Set up iv(nonce). Earlier versions used 64 bits instead of 96, this version
@@ -235,22 +205,6 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS],
     }
 }
 
-#ifdef __cplusplus
-    extern "C" {
-#endif
-
-extern void chacha_encrypt_x64(ChaCha* ctx, const byte* m, byte* c,
-                               word32 bytes);
-extern void chacha_encrypt_avx1(ChaCha* ctx, const byte* m, byte* c,
-                                word32 bytes);
-extern void chacha_encrypt_avx2(ChaCha* ctx, const byte* m, byte* c,
-                                word32 bytes);
-
-#ifdef __cplusplus
-    }  /* extern "C" */
-#endif
-
-
 /**
   * Encrypt a stream of bytes
   */
@@ -267,14 +221,66 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         wc_Chacha_wordtobyte(temp, ctx->X);
         ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
         if (bytes <= CHACHA_CHUNK_BYTES) {
+
+        	while (bytes >= ARM_SIMD_LEN_BYTES) {
+                __asm__ __volatile__ (
+                		"LD1 { v0.16B }, [%[m]] \n"
+                		"LD1 { v1.16B }, [%[output]] \n"
+                		"EOR v0.16B, v0.16B, v1.16B \n"
+                		"ST1 { v0.16B }, [%[c]] \n"
+                		: [c] "=r" (c)
+    				    : "0" (c), [m] "r" (m), [output] "r" (output)
+    					: "memory", "v0", "v1"
+                );
+
+                bytes -= ARM_SIMD_LEN_BYTES;
+                c += ARM_SIMD_LEN_BYTES;
+                m += ARM_SIMD_LEN_BYTES;
+                output += ARM_SIMD_LEN_BYTES;
+        	}
+
+        	if (bytes >= ARM_SIMD_LEN_BYTES / 2) {
+                __asm__ __volatile__ (
+                		"LD1 { v0.8B }, [%[m]] \n"
+                		"LD1 { v1.8B }, [%[output]] \n"
+                		"EOR v0.8B, v0.8B, v1.8B \n"
+                		"ST1 { v0.8B }, [%[c]] \n"
+                		: [c] "=r" (c)
+    				    : "0" (c), [m] "r" (m), [output] "r" (output)
+    					: "memory", "v0", "v1"
+                );
+
+                bytes -= ARM_SIMD_LEN_BYTES / 2;
+                c += ARM_SIMD_LEN_BYTES / 2;
+                m += ARM_SIMD_LEN_BYTES / 2;
+                output += ARM_SIMD_LEN_BYTES / 2;
+        	}
+
             for (i = 0; i < bytes; ++i) {
-                c[i] = m[i] ^ output[i];
+                __asm__ __volatile__ (
+                		"EOR %[c], %[m], %[output] \n"
+                		: [c] "=r" (c[i])
+    				    : "0" (c[i]), [m] "r" (m[i]), [output] "r" (output[i])
+                );
             }
+
             return;
         }
-        for (i = 0; i < CHACHA_CHUNK_BYTES; ++i) {
-            c[i] = m[i] ^ output[i];
-        }
+
+        // assume CHACHA_CHUNK_BYTES == 64
+        __asm__ __volatile__ (
+        		"LD1 { v0.16B-v3.16B }, [%[m]] \n"
+        		"LD1 { v4.16B-v7.16B }, [%[output]] \n"
+        		"EOR v0.16B, v0.16B, v4.16B \n"
+        		"EOR v1.16B, v1.16B, v5.16B \n"
+        		"EOR v2.16B, v2.16B, v6.16B \n"
+        		"EOR v3.16B, v3.16B, v7.16B \n"
+        		"ST1 { v0.16B-v3.16B }, [%[c]] \n"
+        		: [c] "=r" (c)
+			    : "0" (c), [m] "r" (m), [output] "r" (output)
+				: "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7"
+        );
+
         bytes -= CHACHA_CHUNK_BYTES;
         c += CHACHA_CHUNK_BYTES;
         m += CHACHA_CHUNK_BYTES;
