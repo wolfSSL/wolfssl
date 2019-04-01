@@ -22314,6 +22314,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         if (ssl->suites->sigAlgo != ed25519_sa_algo) {
                             ssl->buffers.sig.length =
                                                  wc_HashGetDigestSize(hashType);
+                            if ((int)ssl->buffers.sig.length < 0) {
+                                ERROR_OUT(HASH_TYPE_E, exit_sske);
+                            }
                             ssl->buffers.sig.buffer = (byte*)XMALLOC(
                                             ssl->buffers.sig.length,
                                             ssl->heap, DYNAMIC_TYPE_SIGNATURE);
@@ -25312,9 +25315,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                             ssl->peerX25519KeyPresent = 1;
 
-                            if (ret != 0) {
-                                goto exit_dcke;
-                            }
                             break;
                         }
                     #endif
@@ -25358,9 +25358,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         ssl->peerEccKeyPresent = 1;
                 #endif /* HAVE_ECC */
 
-                        if (ret != 0) {
-                            goto exit_dcke;
-                        }
                         break;
                     }
                 #endif /* HAVE_ECC || HAVE_CURVE25519 */

@@ -357,12 +357,14 @@ static long wc_PKCS7_GetMaxStream(PKCS7* pkcs7, byte flag, byte* in,
                 pkcs7->stream->maxLen = length + idx;
             }
         }
+
+        if (pkcs7->stream->maxLen == 0) {
+            pkcs7->stream->maxLen = defSz;
+        }
+
         return pkcs7->stream->maxLen;
     }
 
-    if (pkcs7->stream->maxLen == 0) {
-        pkcs7->stream->maxLen = defSz;
-    }
     return defSz;
 }
 
@@ -3435,7 +3437,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
     byte* der;
 #endif
     int multiPart = 0, keepContent;
-    int contentLen;
+    int contentLen = 0;
 
     byte* pkiMsg    = in;
     word32 pkiMsgSz = inSz;
@@ -3877,7 +3879,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             /* If getting the content info failed with non degenerate then return the
              * error case. Otherwise with a degenerate it is ok if the content
              * info was omitted */
-            if (!degenerate && !detached && ret != 0) {
+            if (!degenerate && !detached && (ret != 0)) {
                 break;
             }
             else {
@@ -8560,10 +8562,11 @@ static int wc_PKCS7_DecryptKari(PKCS7* pkcs7, byte* in, word32 inSz,
             ret = BAD_FUNC_ARG;
 
     }
-    return ret;
 
     (void)pkiMsg;
     (void)pkiMsgSz;
+
+    return ret;
 #else
     (void)in;
     (void)inSz;
@@ -8588,7 +8591,7 @@ static int wc_PKCS7_DecryptRecipientInfos(PKCS7* pkcs7, byte* in,
     byte* pkiMsg = in;
     word32 pkiMsgSz = inSz;
 #ifndef NO_PKCS7_STREAM
-    word32 tmpIdx = *idx;
+    word32 tmpIdx;
     long rc;
 #endif
 
@@ -8597,6 +8600,10 @@ static int wc_PKCS7_DecryptRecipientInfos(PKCS7* pkcs7, byte* in,
         recipFound == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#ifndef NO_PKCS7_STREAM
+    tmpIdx = *idx;
+#endif
 
     /* check if in the process of decrypting */
     switch (pkcs7->state) {
@@ -9914,6 +9921,9 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
         idx += unauthAttribsSetSz;
         XMEMCPY(output + idx, flatUnauthAttribs, unauthAttribsSz);
         idx += unauthAttribsSz;
+    }
+
+    if (flatUnauthAttribs != NULL) {
         XFREE(flatUnauthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     }
 

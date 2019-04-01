@@ -5139,7 +5139,7 @@ void bench_ed25519KeyGen(void)
     do {
         for (i = 0; i < genTimes; i++) {
             wc_ed25519_init(&genKey);
-            wc_ed25519_make_key(&rng, 32, &genKey);
+            (void)wc_ed25519_make_key(&rng, 32, &genKey);
             wc_ed25519_free(&genKey);
         }
         count += i;

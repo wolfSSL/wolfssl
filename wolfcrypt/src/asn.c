@@ -8976,36 +8976,41 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     for (;;) {
         headerEnd = XSTRNSTR((char*)buff, header, sz);
 
-        if (headerEnd || type != PRIVATEKEY_TYPE) {
+        if (headerEnd) {
             break;
         } else
-        if (header == BEGIN_RSA_PRIV) {
-            header =  BEGIN_PRIV_KEY;       footer = END_PRIV_KEY;
-        } else
-        if (header == BEGIN_PRIV_KEY) {
-            header =  BEGIN_ENC_PRIV_KEY;   footer = END_ENC_PRIV_KEY;
-        } else
-#ifdef HAVE_ECC
-        if (header == BEGIN_ENC_PRIV_KEY) {
-            header =  BEGIN_EC_PRIV;        footer = END_EC_PRIV;
-        } else
-        if (header == BEGIN_EC_PRIV) {
-            header =  BEGIN_DSA_PRIV;       footer = END_DSA_PRIV;
-        } else
-#endif
-#ifdef HAVE_ED25519
+        if (type == PRIVATEKEY_TYPE) {
+            if (header == BEGIN_RSA_PRIV) {
+                header =  BEGIN_PRIV_KEY;       footer = END_PRIV_KEY;
+            } else
+            if (header == BEGIN_PRIV_KEY) {
+                header =  BEGIN_ENC_PRIV_KEY;   footer = END_ENC_PRIV_KEY;
+            } else
     #ifdef HAVE_ECC
-        if (header == BEGIN_DSA_PRIV)
-    #else
-        if (header == BEGIN_ENC_PRIV_KEY)
+            if (header == BEGIN_ENC_PRIV_KEY) {
+                header =  BEGIN_EC_PRIV;        footer = END_EC_PRIV;
+            } else
+            if (header == BEGIN_EC_PRIV) {
+                header =  BEGIN_DSA_PRIV;       footer = END_DSA_PRIV;
+            } else
     #endif
-        {
-            header =  BEGIN_EDDSA_PRIV;     footer = END_EDDSA_PRIV;
+    #ifdef HAVE_ED25519
+        #ifdef HAVE_ECC
+            if (header == BEGIN_DSA_PRIV)
+        #else
+            if (header == BEGIN_ENC_PRIV_KEY)
+        #endif
+            {
+                header =  BEGIN_EDDSA_PRIV;     footer = END_EDDSA_PRIV;
+            } else
+    #endif
+            {
+                break;
+            }
         } else
-#endif
 #ifdef HAVE_CRL
-        if (type == CRL_TYPE) {
-            header =  BEGIN_CRL;        footer = END_CRL;
+        if ((type == CRL_TYPE) && (header != BEGIN_CRL)) {
+            header =  BEGIN_CRL;                footer = END_CRL;
         } else
 #endif
         {
