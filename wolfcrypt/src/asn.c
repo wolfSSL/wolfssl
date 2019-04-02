@@ -10738,7 +10738,11 @@ static int SetEd25519PublicKey(byte* output, ed25519_key* key, int with_header)
     idx = wc_ed25519_export_public(key, pub, &pubSz);
     if (idx != 0) {
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #ifdef WOLFSSL_QT
+            XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #else
+            XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
 #endif
         return idx;
     }
@@ -10748,7 +10752,11 @@ static int SetEd25519PublicKey(byte* output, ed25519_key* key, int with_header)
 #ifdef WOLFSSL_SMALL_STACK
         algo = (byte*)XMALLOC(MAX_ALGO_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (algo == NULL) {
-            XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #ifdef WOLFSSL_QT
+                XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            #else
+                XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
             return MEMORY_E;
         }
 #endif
