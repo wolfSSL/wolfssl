@@ -2127,15 +2127,15 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                     goto exit_buildmsg;
             }
 
+            /* The real record content type goes at the end of the data. */
+            output[args->idx++] = (byte)type;
+
             ssl->options.buildMsgState = BUILD_MSG_ENCRYPT;
         }
         FALL_THROUGH;
 
         case BUILD_MSG_ENCRYPT:
         {
-            /* The real record content type goes at the end of the data. */
-            output[args->idx++] = (byte)type;
-
         #ifdef ATOMIC_USER
             if (ssl->ctx->MacEncryptCb) {
                 /* User Record Layer Callback handling */
@@ -2183,6 +2183,9 @@ exit_buildmsg:
 
     /* Final cleanup */
     FreeBuildMsg13Args(ssl, args);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ssl->async.freeArgs = NULL;
+#endif
 
     return ret;
 }
@@ -3279,6 +3282,8 @@ static void RefineSuites(WOLFSSL* ssl, Suites* peerSuites)
     byte suites[WOLFSSL_MAX_SUITE_SZ];
     int suiteSz = 0;
     word16 i, j;
+
+    XMEMSET(suites, 0, WOLFSSL_MAX_SUITE_SZ);
 
     for (i = 0; i < ssl->suites->suiteSz; i += 2) {
         for (j = 0; j < peerSuites->suiteSz; j += 2) {

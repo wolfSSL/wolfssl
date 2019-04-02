@@ -823,7 +823,9 @@ static int Hmac_OuterHash(Hmac* hmac, unsigned char* mac)
     int digestSz = wc_HashGetDigestSize(hashType);
     int blockSz = wc_HashGetBlockSize(hashType);
 
-    ret = wc_HashInit(&hash, hashType);
+    if ((digestSz >= 0) && (blockSz >= 0)) {
+        ret = wc_HashInit(&hash, hashType);
+    }
     if (ret == 0) {
         ret = wc_HashUpdate(&hash, hashType, (byte*)hmac->opad,
             blockSz);

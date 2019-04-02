@@ -2201,13 +2201,13 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
     /* tmp2 += (2*loop_check_prime)
      * to have p = (q * tmp2) + 1 prime
      */
-    if (primeCheckCount) {
+    if ((ret == 0) && (primeCheckCount)) {
         if (mp_add_d(&tmp2, 2 * primeCheckCount, &tmp2) != MP_OKAY)
             ret = MP_ADD_E;
     }
 
     /* find a value g for which g^tmp2 != 1 */
-    if (mp_set(&dh->g, 1) != MP_OKAY)
+    if ((ret == 0) && (mp_set(&dh->g, 1) != MP_OKAY))
         ret = MP_ZERO_E;
 
     if (ret == 0) {
@@ -2219,18 +2219,24 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
         } while (ret == 0 && mp_cmp_d(&tmp, 1) == MP_EQ);
     }
 
-    /* at this point tmp generates a group of order q mod p */
-    mp_exch(&tmp, &dh->g);
+    if (ret == 0) {
+        /* at this point tmp generates a group of order q mod p */
+        mp_exch(&tmp, &dh->g);
+    }
 
     /* clear the parameters if there was an error */
-    if (ret != 0) {
+    if ((ret != 0) && (dh != NULL)) {
         mp_clear(&dh->q);
         mp_clear(&dh->p);
         mp_clear(&dh->g);
     }
 
-    ForceZero(buf, bufSz);
-    XFREE(buf, dh->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf != NULL) {
+        ForceZero(buf, bufSz);
+        if (dh != NULL) {
+            XFREE(buf, dh->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+    }
     mp_clear(&tmp);
     mp_clear(&tmp2);
 
