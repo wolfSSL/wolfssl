@@ -181,15 +181,106 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS],
     word32 x[CHACHA_CHUNK_WORDS];
     word32 i;
 
-    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
-        x[i] = input[i];
-    }
+    XMEMCPY(x, input, CHACHA_CHUNK_BYTES);
 
     for (i = (ROUNDS); i > 0; i -= 2) {
-        QUARTERROUND(0, 4,  8, 12)
-        QUARTERROUND(1, 5,  9, 13)
-        QUARTERROUND(2, 6, 10, 14)
-        QUARTERROUND(3, 7, 11, 15)
+//        __asm__ __volatile__ (
+//        		"LDR w0, %[x_in], #16 \n"
+//        		"LDR w1, %[x_in], #16 \n"
+//        		"LDR w2, %[x_in], #16 \n"
+//        		"LDR w3, %[x_in], #16 \n"
+//
+//        		"ADD w0, w0, w1 \n"
+//        		"EOR w3, w3, w0 \n"
+//        		"ROR w3, w3, #16 \n"
+//
+//        		"ADD w2, w2, w3 \n"
+//        		"EOR w1, w1, w2 \n"
+//        		"ROR w1, w1, #20 \n"
+//
+//        		"ADD w0, w0, w1 \n"
+//        		"EOR w3, w3, w0 \n"
+//        		"ROR w3, w3, #24 \n"
+//
+//        		"ADD w2, w2, w3 \n"
+//        		"EOR w1, w1, w2 \n"
+//        		"ROR w1, w1, #25 \n"
+//
+//        		"STR w0, %[x_out], #16 \n"
+//        		"STR w1, %[x_out], #16 \n"
+//        		"STR w2, %[x_out], #16 \n"
+//        		"STR w3, %[x_out], #16 \n"
+//
+//        		: [x_out] "=m" (x)
+//			    : [x_in] "m" (x)
+//				: "memory", "w0", "w1", "w2", "w3"
+//        );
+
+        __asm__ __volatile__ (
+        		// v0  0  1  2  3
+        		// v1  4  5  6  7
+        		// v2  8  9 10 11
+        		// v3 12 13 14 15
+        		// load CHACHA state as shown above
+        		"LD1 { v0.4S-v3.4S }, %[x_in] \n"
+
+        		// ODD ROUND
+
+        		"ADD v0.4S, v0.4S, v1.4S \n"
+        		"EOR v3.16B, v3.16B, v0.16B \n"
+        		// SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+        		"SHL v4.4S, v3.4S, #16 \n"
+        		"USHR v3.4S, v3.4S, #16 \n"
+        		"ORR v3.16B, v3.16B, v4.16B \n"
+
+        		"ADD v2.4S, v2.4S, v3.4S \n"
+        		"EOR v1.16B, v1.16B, v2.16B \n"
+        		// SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+        		"SHL v4.4S, v1.4S, #12 \n"
+        		"USHR v1.4S, v1.4S, #20 \n"
+        		"ORR v1.16B, v1.16B, v4.16B \n"
+
+        		"ADD v0.4S, v0.4S, v1.4S \n"
+        		"EOR v3.16B, v3.16B, v0.16B \n"
+        		// SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+        		"SHL v4.4S, v3.4S, #8 \n"
+        		"USHR v3.4S, v3.4S, #24 \n"
+        		"ORR v3.16B, v3.16B, v4.16B \n"
+
+        		"ADD v2.4S, v2.4S, v3.4S \n"
+        		"EOR v1.16B, v1.16B, v2.16B \n"
+        		// SIMD instructions don't support rotation so we have to cheat using shifts and a help register
+        		"SHL v4.4S, v1.4S, #7 \n"
+        		"USHR v1.4S, v1.4S, #25 \n"
+        		"ORR v1.16B, v1.16B, v4.16B \n"
+
+        		"ST1 { v0.4S-v3.4S }, %[x_out] \n"
+
+        		: [x_out] "=m" (x)
+			    : [x_in] "m" (x)
+				: "memory", "v0", "v1", "v2", "v3", "v4"
+        );
+
+        __asm__ __volatile__ (
+        		// v0  0   1  2  3
+        		// v1  5   6  7  4
+        		// v2  10 11  8  9
+        		// v3  15 12 13 14
+        		// load CHACHA state as shown above
+        		"LD1 { v5.4S-v8.4S }, %[x_in] \n"
+
+        		"MOV "
+
+
+        		: [x_out] "=m" (x)
+			    : [x_in] "m" (x)
+				: "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8"
+		);
+
+//        QUARTERROUND(0, 4,  8, 12)
+//        QUARTERROUND(1, 5,  9, 13)
+//        QUARTERROUND(2, 6, 10, 14)
+//        QUARTERROUND(3, 7, 11, 15)
         QUARTERROUND(0, 5, 10, 15)
         QUARTERROUND(1, 6, 11, 12)
         QUARTERROUND(2, 7,  8, 13)
