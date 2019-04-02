@@ -286,8 +286,12 @@
                 #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n), __func__, __LINE__)
             #else
                 #define XMALLOC(s, h, t)     ((void)h, (void)t, wolfSSL_Malloc((s)))
+            #ifndef WOLFSSL_QT
+                #define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp));}
+            #else
                 #define XFREE(p, h, t)       {(void)h; (void)t; void* xp = (p); if((xp)) wolfSSL_Free((xp));}
-                #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n))
+            #endif
+            #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n))
             #endif /* WOLFSSL_DEBUG_MEMORY */
         #endif /* WOLFSSL_STATIC_MEMORY */
     #endif
