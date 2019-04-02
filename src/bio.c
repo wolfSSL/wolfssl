@@ -514,10 +514,10 @@ long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bio, int cmd, long larg, void *parg)
 
     switch(cmd) {
         case BIO_CTRL_WPENDING:
-            ret = wolfSSL_BIO_ctrl_pending(bio);
+            ret = (long)wolfSSL_BIO_ctrl_pending(bio);
             break;
         case BIO_CTRL_INFO:
-            ret = wolfSSL_BIO_get_mem_data(bio, parg);
+            ret = (long)wolfSSL_BIO_get_mem_data(bio, parg);
             break;
         default:
             WOLFSSL_MSG("CMD not yet implemented");

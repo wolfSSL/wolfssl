@@ -726,9 +726,11 @@ struct DecodedCert {
     int     extensionsSz;            /* length of cert extensions */
     word32  extensionsIdx;           /* if want to go back and parse later */
     const byte* extAuthInfoOcsp;     /* Authority Information Access ocsp URI */
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     const byte* extAuthInfoCaIssuer; /* Authority Info Access caIssuer URI */
-    int     extAuthInfoOcspSz;       /* length of the ocsp URI             */
     int     extAuthInfoCaIssuerSz;   /* length of the caIssuer URI         */
+#endif
+    int     extAuthInfoOcspSz;       /* length of the ocsp URI             */
     int     extAuthInfoNb;
 
     const byte* extCrlInfo;          /* CRL Distribution Points          */

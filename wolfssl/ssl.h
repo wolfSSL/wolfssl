@@ -356,6 +356,8 @@ struct WOLFSSL_X509_STORE {
     WOLFSSL_X509_LOOKUP   lookup;
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_QT)
     int                   isDynamic;
+#endif
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     WOLFSSL_X509_STORE_CTX_verify_cb verify_cb;
 #endif
 #if defined(OPENSSL_EXTRA) && defined(HAVE_CRL)
@@ -363,7 +365,7 @@ struct WOLFSSL_X509_STORE {
 #endif
 };
 
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     #define wolfSSL_SSL_MODE_RELEASE_BUFFERS    0x00000010U
     #define wolfSSL_SSL_CTRL_SET_TMP_ECDH       4
     #define WOLFSSL_ASN1_BOOLEAN                int
@@ -844,10 +846,12 @@ WOLFSSL_API const char* wolfSSL_ERR_reason_error_string(unsigned long);
 #include "wolfssl/ocsp.h"
 #include "wolfssl/wolfcrypt/asn.h"
 #endif
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
 WOLFSSL_API int wolfSSL_sk_ACCESS_DESCRIPTION_push(WOLF_STACK_OF(ACCESS_DESCRIPTION)* sk,
                                             WOLFSSL_ACCESS_DESCRIPTION* access);
 WOLFSSL_API void wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(WOLFSSL_STACK* sk,
                                           void f (WOLFSSL_ACCESS_DESCRIPTION*));
+#endif
 WOLFSSL_API int wolfSSL_sk_X509_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
                                                             WOLFSSL_X509* x509);
 WOLFSSL_API WOLFSSL_X509* wolfSSL_sk_X509_pop(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk);

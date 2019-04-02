@@ -4919,6 +4919,9 @@ WOLFSSL_LOCAL int wc_OBJ_sn2nid(const char *sn)
         {NULL, -1}};
 
     int i;
+    #ifdef HAVE_ECC
+    int eccEnum;
+    #endif
     WOLFSSL_ENTER("OBJ_osn2nid");
 
     for(i=0; sn2nid[i].sn != NULL; i++) {
@@ -4928,7 +4931,6 @@ WOLFSSL_LOCAL int wc_OBJ_sn2nid(const char *sn)
     }
 
     #ifdef HAVE_ECC
-    int eccEnum;
     /* Nginx uses this OpenSSL string. */
     if (XSTRNCMP(sn, "prime256v1", 10) == 0)
         sn = "SECP256R1";
@@ -7387,7 +7389,11 @@ static int DecodeAuthInfo(const byte* input, int sz, DecodedCert* cert)
             cert->extAuthInfoOcspSz = length;
             cert->extAuthInfoOcsp = input + idx;
             count++;
+        #if !defined(OPENSSL_ALL) || !defined(WOLFSSL_QT)
+            break;
+        #endif
         }
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         /* Set CaIssuers entry */
         else if ((b == (ASN_CONTEXT_SPECIFIC | GENERALNAME_URI)) &&
             oid == AIA_CA_ISSUER_OID)
@@ -7396,6 +7402,7 @@ static int DecodeAuthInfo(const byte* input, int sz, DecodedCert* cert)
             cert->extAuthInfoCaIssuer = input + idx;
             count++;
         }
+        #endif
         idx += length;
     }
 
@@ -13863,8 +13870,6 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     int    ret = 0;
     int    curve_id = ECC_CURVE_DEF;
 
-    WOLFSSL_ENTER("wc_EccPrivateKeyDecode");
-
 #ifdef WOLFSSL_SMALL_STACK
     byte* priv;
     byte* pub;
@@ -13873,6 +13878,8 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     byte pub[2*(ECC_MAXSIZE+1)]; /* public key has two parts plus header */
 #endif
     byte* pubData = NULL;
+
+    WOLFSSL_ENTER("wc_EccPrivateKeyDecode");
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
         return BAD_FUNC_ARG;
