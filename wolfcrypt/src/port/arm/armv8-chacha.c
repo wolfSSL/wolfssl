@@ -292,27 +292,6 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
-#ifdef USE_INTEL_CHACHA_SPEEDUP
-    if (!cpuidFlagsSet) {
-        cpuidFlags = cpuid_get_flags();
-        cpuidFlagsSet = 1;
-    }
-
-    #ifdef HAVE_INTEL_AVX2
-    if (IS_INTEL_AVX2(cpuidFlags)) {
-        chacha_encrypt_avx2(ctx, input, output, msglen);
-        return 0;
-    }
-    #endif
-    if (IS_INTEL_AVX1(cpuidFlags)) {
-        chacha_encrypt_avx1(ctx, input, output, msglen);
-        return 0;
-    }
-    else {
-        chacha_encrypt_x64(ctx, input, output, msglen);
-        return 0;
-    }
-#endif
     wc_Chacha_encrypt_bytes(ctx, input, output, msglen);
 
     return 0;
