@@ -257,11 +257,7 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         	}
 
             for (i = 0; i < bytes; ++i) {
-                __asm__ __volatile__ (
-                		"EOR %[c], %[m], %[output] \n"
-                		: [c] "=r" (c[i])
-    				    : "0" (c[i]), [m] "r" (m[i]), [output] "r" (output[i])
-                );
+                c[i] = m[i] ^ output[i];
             }
 
             return;
