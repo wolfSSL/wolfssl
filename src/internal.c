@@ -3189,9 +3189,11 @@ void FreeX509(WOLFSSL_X509* x509)
             XFREE(x509->authInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
             x509->authInfo = NULL;
         }
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         if (x509->authInfoCaIssuer != NULL) {
             XFREE(x509->authInfoCaIssuer, x509->heap, DYNAMIC_TYPE_X509_EXT);
         }
+        #endif
         if (x509->extKeyUsageSrc != NULL) {
             XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
             x509->extKeyUsageSrc= NULL;
@@ -8688,6 +8690,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             ret = MEMORY_E;
         }
     }
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     if (dCert->extAuthInfoCaIssuer != NULL && dCert->extAuthInfoCaIssuerSz > 0) {
         x509->authInfoCaIssuer = (byte*)XMALLOC(dCert->extAuthInfoCaIssuerSz, x509->heap,
                 DYNAMIC_TYPE_X509_EXT);
@@ -8699,6 +8702,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             ret = MEMORY_E;
         }
     }
+    #endif
     x509->basicConstSet = dCert->extBasicConstSet;
     x509->basicConstCrit = dCert->extBasicConstCrit;
     x509->basicConstPlSet = dCert->pathLengthSet;
@@ -16372,13 +16376,13 @@ void SetErrorString(int error, char* str)
 }
 
 #ifndef NO_ERROR_STRINGS
-    #if defined(WOLFSSL_QT) || defined(OPENSSL_EXTRA)
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         #define SUITE_INFO(x,y,z,w,v,u) {(x),(y),(z),(w),(v),(u)}
     #else
         #define SUITE_INFO(x,y,z,w,v,u) {(x),(y),(z),(w)}
     #endif
 #else
-    #if defined(WOLFSSL_QT) || defined(OPENSSL_EXTRA)
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         #define SUITE_INFO(x,y,z,w,v,u) {(x),(z),(w),(v),(u)}
     #else
         #define SUITE_INFO(x,y,z,w,v,u) {(x),(z),(w)}
@@ -16924,7 +16928,8 @@ const char* GetCipherProtocol(const byte cipherSuite0, const byte cipherSuite)
      }
     return protocol;
 }
-const char* GetCipherKeaStr(const char n[][MAX_SEGMENT_SZ]) {
+
+const char* GetCipherKeaStr(char n[][MAX_SEGMENT_SZ]) {
     const char* keaStr = NULL;
     const char *n0,*n1,*n2,*n3,*n4;
     n0 = n[0];
@@ -16962,7 +16967,7 @@ const char* GetCipherKeaStr(const char n[][MAX_SEGMENT_SZ]) {
     return keaStr;
 }
 
-const char* GetCipherAuthStr(const char n[][MAX_SEGMENT_SZ]) {
+const char* GetCipherAuthStr(char n[][MAX_SEGMENT_SZ]) {
 
     const char* authStr = NULL;
     const char *n0,*n1,*n2;
@@ -16986,7 +16991,7 @@ const char* GetCipherAuthStr(const char n[][MAX_SEGMENT_SZ]) {
 
     return authStr;
 }
-const char* GetCipherEncStr(const char n[][MAX_SEGMENT_SZ]) {
+const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]) {
     const char* encStr = NULL;
     const char *n0,*n1,*n2,*n3;
     n0 = n[0];
@@ -17043,7 +17048,7 @@ const char* GetCipherEncStr(const char n[][MAX_SEGMENT_SZ]) {
 }
 
 
-const char* GetCipherMacStr(const char n[][MAX_SEGMENT_SZ]) {
+const char* GetCipherMacStr(char n[][MAX_SEGMENT_SZ]) {
 
     const char* macStr = NULL;
     const char *n1,*n2,*n3,*n4;

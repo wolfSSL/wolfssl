@@ -243,7 +243,6 @@ int wc_Des3_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
 int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
     const byte* password, int passwordSz, int hashType)
 {
-    WOLFSSL_ENTER("BufferKeyDecrypt");
     int ret = NOT_COMPILED_IN;
 #ifdef WOLFSSL_SMALL_STACK
     byte* key      = NULL;

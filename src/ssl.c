@@ -7276,6 +7276,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 }
 
 #if defined(WOLFSSL_QT)
+/* Returns the number of X509V3 extensions in X509 object, or 0 on failure */
 int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
 {
     int extCount = 0;
@@ -7340,6 +7341,7 @@ int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
     return extCount;
 }
 
+/* Creates and returns pointer to a new X509_EXTENSION object */
 WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_new(void)
 {
     WOLFSSL_ENTER("wolfSSL_X509_EXTENSION_new");
@@ -7377,7 +7379,19 @@ void wolfSSL_X509_EXTENSION_free(WOLFSSL_X509_EXTENSION* x)
     XFREE(x, NULL, DYNAMIC_TYPE_X509_EXT);
 }
 
-
+/* Looks for an X509_EXTENSION based on its location
+ *
+ * x509   : The X509 structure to look for the extension
+ * loc    : Location of the extension. If the extension is found at the given
+ * location, a new X509_EXTENSION structure is populated with extension-specific
+ * data based on the extension type.
+ *
+ * Returns NULL on error or pointer to X509_EXTENSION structure containing the
+ * extension.
+ *
+ * NOTE: for unknown extension NIDs, a X509_EXTENSION is populated with the
+ * extension oid as the ASN1_OBJECT (QT compatibility)
+ */
 WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* x509, int loc)
 {
     int extCount = 0, length = 0, outSz = 0, sz = 0, ret = 0;
@@ -7739,7 +7753,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* x509, int loc)
     return ext;
 }
 
-
+/* Returns pointer to ASN1_OBJECT in X509_EXTENSION object */
 WOLFSSL_ASN1_OBJECT* wolfSSL_X509_EXTENSION_get_object\
     (WOLFSSL_X509_EXTENSION* ex)
 {
@@ -7751,6 +7765,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_EXTENSION_get_object\
     return ex->obj;
 }
 
+/* Returns crit flag in X509_EXTENSION object */
 int wolfSSL_X509_EXTENSION_get_critical(const WOLFSSL_X509_EXTENSION* ex)
 {
     WOLFSSL_ENTER("wolfSSL_X509_EXTENSION_get_critical");
@@ -7759,6 +7774,7 @@ int wolfSSL_X509_EXTENSION_get_critical(const WOLFSSL_X509_EXTENSION* ex)
     return ex->crit;
 }
 
+/* Returns pointer to ASN1_STRING in X509_EXTENSION object */
 WOLFSSL_ASN1_STRING* wolfSSL_X509_EXTENSION_get_data(WOLFSSL_X509_EXTENSION* ex)
 {
     WOLFSSL_ENTER("wolfSSL_X509_EXTENSION_get_data");
@@ -7767,10 +7783,22 @@ WOLFSSL_ASN1_STRING* wolfSSL_X509_EXTENSION_get_data(WOLFSSL_X509_EXTENSION* ex)
     return &ex->value;
 }
 
+/* Creates v3_ext_method for a given X509v3 extension
+ *
+ * ex   : The X509_EXTENSION used to create v3_ext_method. If the extension is
+ * not NULL, get the NID of the extension object and populate the
+ * extension type-specific X509V3_EXT_* function(s) in v3_ext_method.
+ *
+ * Returns NULL on error or pointer to the v3_ext_method populated with extension
+ * type-specific X509V3_EXT_* function(s).
+ *
+ * NOTE: NID_subject_key_identifier is currently the only extension implementing
+ * the X509V3_EXT_* functions, as it is the only type called directly by QT. The
+ * other extension types return a pointer to a v3_ext_method struct that contains
+ * only the NID.
+ */
 const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
 {
-    /* Currently this function returns a structure without i2s, i2r, and i2v
-      initialized, structure is returned with just nid stored inside it*/
     int nid;
     WOLFSSL_v3_ext_method method;
 
@@ -7828,7 +7856,15 @@ const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
     return (const WOLFSSL_v3_ext_method*)&ex->ext_method;
 }
 
-/* Parses and returns an x509v3 extension internal structure. */
+/* Parses and returns an x509v3 extension internal structure.
+ *
+ * ext   : The X509_EXTENSION for parsing internal structure. If extension is
+ * not NULL, get the NID of the extension object and create a new
+ * extension-specific internal structure based on the extension type.
+ *
+ * Returns NULL on error or if NID is not found, otherwise returns a pointer to
+ * the extension type-specific X509_EXTENSION internal structure.
+ */
 void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
 {
     const WOLFSSL_v3_ext_method* method;
@@ -17062,8 +17098,7 @@ void wolfSSL_sk_X509_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
 
 #endif /* NO_CERTS && OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA) || defined (OPENSSL_ALL)
-
+#if defined(OPENSSL_ALL) || defined (WOLFSSL_QT)
 /* return 1 on success 0 on fail */
 int wolfSSL_sk_ACCESS_DESCRIPTION_push(WOLF_STACK_OF(ACCESS_DESCRIPTION)* sk,
                                               WOLFSSL_ACCESS_DESCRIPTION* access)
@@ -17147,8 +17182,10 @@ void wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(WOLFSSL_STACK* sk,
     }
     XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
 }
+#endif
 
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
 /* Returns the general name at index i from the stack
  *
  * sk stack to get general name from
@@ -17282,7 +17319,7 @@ void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name)
     }
 }
 
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA || OPENSSL_ALL || WOLFSSL_QT */
 
 #ifndef NO_FILESYSTEM
 
@@ -17723,7 +17760,7 @@ char* wolfSSL_i2s_ASN1_STRING(WOLFSSL_v3_ext_method *method, const WOLFSSL_ASN1_
     int tmpSz = 100;
     int valSz = 5;
     char* tmp;
-    char val[valSz];
+    char val[5];
     unsigned char* str;
 
     WOLFSSL_ENTER("wolfSSL_i2s_ASN1_STRING");
@@ -19957,12 +19994,20 @@ void wolfSSL_BIO_clear_flags(WOLFSSL_BIO *bio, int flags)
     }
 }
 
+/* Set ex_data for WOLFSSL_BIO
+ *
+ * bio  : BIO structure to set ex_data in
+ * idx  : Index of ex_data to set
+ * data : Data to set in ex_data
+ *
+ * Returns WOLFSSL_SUCCESS on success or WOLFSSL_FAILURE on failure
+ */
 int wolfSSL_BIO_set_ex_data(WOLFSSL_BIO *bio, int idx, void *data)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_set_ex_data");
     #ifdef HAVE_EX_DATA
     if (bio != NULL && idx < MAX_EX_DATA) {
-        bio->ex_data[idx] = data; 
+        bio->ex_data[idx] = data;
         return WOLFSSL_SUCCESS;
     }
     #else
@@ -19973,6 +20018,13 @@ int wolfSSL_BIO_set_ex_data(WOLFSSL_BIO *bio, int idx, void *data)
     return WOLFSSL_FAILURE;
 }
 
+/* Get ex_data in WOLFSSL_BIO at given index
+ *
+ * bio  : BIO structure to get ex_data from
+ * idx  : Index of ex_data to get data from
+ *
+ * Returns void pointer to ex_data on success or NULL on failure
+ */
 void *wolfSSL_BIO_get_ex_data(WOLFSSL_BIO *bio, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_get_ex_data");
@@ -21033,7 +21085,7 @@ void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
         if (ctx->current_cert != NULL)
             wolfSSL_FreeX509(ctx->current_cert);
         #endif
-    #endif /* WOLFSSL_QT */
+    #endif /* !WOLFSSL_QT */
 #ifdef OPENSSL_EXTRA
         if (ctx->param != NULL){
             XFREE(ctx->param,NULL,DYNAMIC_TYPE_OPENSSL);
@@ -23886,8 +23938,8 @@ int  wolfSSL_sk_num(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
 
 void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
 {
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     int offset = i;
-    #ifdef WOLFSSL_QT
     WOLFSSL_GENERAL_NAME* gn;
     #endif
     WOLFSSL_ENTER("wolfSSL_sk_value");
@@ -23900,11 +23952,11 @@ void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
     switch (sk->type) {
         case STACK_TYPE_X509:
             return (void*)sk->data.x509;
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         case STACK_TYPE_CIPHER:
             if (sk->data.cipher)
                 sk->data.cipher->cipherOffset = offset;
             return (void*)sk->data.cipher;
-    #ifdef WOLFSSL_QT
         case STACK_TYPE_NAME:
             gn = (WOLFSSL_GENERAL_NAME*)sk->data.obj;
             gn->d.ia5 = sk->data.obj->d.ia5;
@@ -23943,9 +23995,11 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
     }
     type = sk->type;
     switch(type) {
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         case STACK_TYPE_ACCESS_DESCRIPTION:
             wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(sk, NULL);
             break;
+    #endif
         default:
             wolfSSL_sk_ASN1_OBJECT_pop_free(sk,
                                           (void (*)(WOLFSSL_ASN1_OBJECT*))func);
@@ -23956,9 +24010,10 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
 /* Creates and returns a new null stack. */
 WOLFSSL_STACK* wolfSSL_sk_new_null(void)
 {
+    WOLFSSL_STACK* sk;
     WOLFSSL_ENTER("wolfSSL_sk_new_null");
 
-    WOLFSSL_STACK* sk = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
+    sk = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
                                        DYNAMIC_TYPE_OPENSSL);
     if (sk == NULL) {
         WOLFSSL_MSG("WOLFSSL_STACK memory error");
@@ -24014,14 +24069,20 @@ size_t wolfSSL_EC_get_builtin_curves(wolfSSL_EC_builtin_curve *r, size_t nitems)
     return ecc_set_cnt;
 }
 
-/* Copies ecc_key into new WOLFSSL_EC_KEY object */
+/* Copies ecc_key into new WOLFSSL_EC_KEY object
+ *
+ * src  : EC_KEY to duplicate. If EC_KEY is not null, create new EC_KEY and copy
+ * internal ecc_key from src to dup.
+ *
+ * Returns pointer to duplicate EC_KEY.
+ */
 WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
 {
-    WOLFSSL_ENTER("wolfSSL_EC_KEY_dup");
-
     WOLFSSL_EC_KEY *dup;
     ecc_key *key;
     int ret;
+
+    WOLFSSL_ENTER("wolfSSL_EC_KEY_dup");
 
     if (src == NULL || src->internal == NULL || src->group == NULL || \
        src->pub_key == NULL || src->priv_key == NULL) {
@@ -24134,6 +24195,14 @@ int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
     return WOLFSSL_SUCCESS;
 }
 
+/* Converts DER encoded DH parameters to a WOLFSSL_DH structure.
+ *
+ * dh   : structure to copy DH parameters into.
+ * pp   : DER encoded DH parameters
+ * length   : length to copy
+ *
+ * Returns pointer to WOLFSSL_DH structure on success, or NULL on failure
+ */
 WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh, const unsigned char **pp,
                                                                     long length)
 {
@@ -24173,6 +24242,13 @@ WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh, const unsigned char **pp,
     return newDH;
 }
 
+/* Converts internal WOLFSSL_DH structure to DER encoded DH.
+ *
+ * dh   : structure to copy DH parameters from.
+ * out  : DER buffer for DH parameters
+ *
+ * Returns size of DER on success and WOLFSSL_FAILURE if error
+ */
 int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out)
 {
     WOLFSSL_ENTER("Enter wolfSSL_i2d_DHparams");
@@ -32055,6 +32131,10 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
     EncryptedInfo info[1];
 #endif /* WOLFSSL_SMALL_STACK */
     pem_password_cb* localCb = NULL;
+    char* mem = NULL;
+    int memSz = 0;
+    int ret;
+
     if(cb) {
         localCb = cb;
     } else {
@@ -32062,10 +32142,6 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, pem_password_cb* cb, void* pass,
             localCb = wolfSSL_PEM_def_callback;
         }
     }
-
-    char* mem = NULL;
-    int memSz = 0;
-    int ret;
 
     if ((ret = wolfSSL_BIO_pending(bio)) > 0) {
         memSz = ret;
@@ -32277,10 +32353,10 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_bio_PUBKEY(WOLFSSL_BIO* bio,
 WOLFSSL_RSA* wolfSSL_PEM_read_bio_RSAPrivateKey(WOLFSSL_BIO* bio,
         WOLFSSL_RSA** rsa, pem_password_cb* cb, void* pass)
 {
-    WOLFSSL_ENTER("PEM_read_bio_RSAPrivateKey");
-
     WOLFSSL_EVP_PKEY* pkey;
     WOLFSSL_RSA* local;
+
+    WOLFSSL_ENTER("PEM_read_bio_RSAPrivateKey");
 
     pkey = wolfSSL_PEM_read_bio_PrivateKey(bio, NULL, cb, pass);
     if (pkey == NULL) {
