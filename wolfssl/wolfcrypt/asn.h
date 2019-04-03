@@ -230,7 +230,7 @@ enum Misc_ASN {
     KEYID_SIZE          = WC_SHA_DIGEST_SIZE,
 #endif
     RSA_INTS            =   8,     /* RSA ints in private key */
-    DSA_INTS            =   5,     /* DSA ints in private key */
+    DSA_INTS            =   6,     /* DSA ints in private key */
     MIN_DATE_SIZE       =  13,
     MAX_DATE_SIZE       =  32,
     ASN_GEN_TIME_SZ     =  15,     /* 7 numbers * 2 + Zulu tag */
@@ -252,7 +252,7 @@ enum Misc_ASN {
     MAX_VERSION_SZ      =   5,     /* enum + id + version(byte) + (header(2))*/
     MAX_ENCODED_DIG_ASN_SZ= 9,     /* enum(bit or octet) + length(4) */
     MAX_ENCODED_DIG_SZ  =  64 + MAX_ENCODED_DIG_ASN_SZ, /* asn header + sha512 */
-    MAX_RSA_INT_SZ      = 517,     /* RSA raw sz 4096 for bits + tag + len(4) */
+    MAX_RSA_INT_SZ      = 518,     /* RSA raw sz 4096 for bits + tag + len(5) */
     MAX_NTRU_KEY_SZ     = 610,     /* NTRU 112 bit public key */
     MAX_NTRU_ENC_SZ     = 628,     /* NTRU 112 bit DER public encoding */
     MAX_LENGTH_SZ       =   5,     /* Max length size for DER encoding */
