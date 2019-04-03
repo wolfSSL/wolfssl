@@ -261,21 +261,6 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS],
 				: "memory", "v0", "v1", "v2", "v3", "v4"
         );
 
-        __asm__ __volatile__ (
-        		// v0  0   1  2  3
-        		// v1  5   6  7  4
-        		// v2  10 11  8  9
-        		// v3  15 12 13 14
-        		// load CHACHA state as shown above
-        		"LD1 { v5.4S-v8.4S }, %[x_in] \n"
-
-        		"MOV "
-
-
-        		: [x_out] "=m" (x)
-			    : [x_in] "m" (x)
-				: "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8"
-		);
 
 //        QUARTERROUND(0, 4,  8, 12)
 //        QUARTERROUND(1, 5,  9, 13)
