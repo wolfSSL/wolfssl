@@ -3267,6 +3267,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         {
             byte* tmp;
+            byte scratch[AES_BLOCK_SIZE];
 
             if (aes == NULL || out == NULL || in == NULL) {
                 return BAD_FUNC_ARG;
@@ -3285,8 +3286,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             #ifdef XTRANSFORM_AESCTRBLOCK
                 XTRANSFORM_AESCTRBLOCK(aes, out, in);
             #else
-                wc_AesEncrypt(aes, (byte*)aes->reg, out);
-                xorbuf(out, in, AES_BLOCK_SIZE);
+                wc_AesEncrypt(aes, (byte*)aes->reg, scratch);
+                xorbuf(scratch, in, AES_BLOCK_SIZE);
+                XMEMCPY(out, scratch, AES_BLOCK_SIZE);
             #endif
                 IncrementAesCounter((byte*)aes->reg);
 
@@ -3295,6 +3297,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                 sz  -= AES_BLOCK_SIZE;
                 aes->left = 0;
             }
+            ForceZero(scratch, AES_BLOCK_SIZE);
 
             /* handle non block size remaining and store unused byte count in left */
             if (sz) {
