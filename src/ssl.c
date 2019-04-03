@@ -29180,7 +29180,11 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPrivateKey(WOLFSSL_RSA **r,
 
 #if !defined(HAVE_FAST_RSA)
 /* Converts an internal RSA structure to DER format.
-Returns size of DER on success and WOLFSSL_FAILURE if error */
+ * If "pp" is null then buffer size only is returned.
+ * If "*pp" is null then a created buffer is set in *pp and the caller is
+ *  responsible for free'ing it.
+ * Returns size of DER on success and WOLFSSL_FAILURE if error
+ */
 int wolfSSL_i2d_RSAPrivateKey(WOLFSSL_RSA *rsa, unsigned char **pp)
 {
 #if defined(WOLFSSL_KEY_GEN)
@@ -29192,7 +29196,7 @@ int wolfSSL_i2d_RSAPrivateKey(WOLFSSL_RSA *rsa, unsigned char **pp)
     WOLFSSL_ENTER("wolfSSL_i2d_RSAPrivateKey");
 
     /* check for bad functions arguments */
-    if ((rsa == NULL) || (pp == NULL)) {
+    if (rsa == NULL) {
         WOLFSSL_MSG("Bad Function Arguments");
         return BAD_FUNC_ARG;
     }
@@ -29223,12 +29227,23 @@ int wolfSSL_i2d_RSAPrivateKey(WOLFSSL_RSA *rsa, unsigned char **pp)
         return ret;
     }
 
-    /* ret is the size of the DER buffer */
-    for (i = 0; i < ret; i++) {
-        *(*pp + i) = *(der + i);
+    if (pp != NULL) {
+        if (*pp == NULL) {
+            /* create buffer and return it */
+            *pp = (unsigned char*)XMALLOC(ret, NULL, DYNAMIC_TYPE_OPENSSL);
+            if (*pp == NULL) {
+                return WOLFSSL_FATAL_ERROR;
+            }
+            XMEMCPY(*pp, der, ret);
+        }
+        else {
+            /* ret is the size of the DER buffer */
+            for (i = 0; i < ret; i++) {
+                *(*pp + i) = *(der + i);
+            }
+            *pp += ret;
+        }
     }
-    *pp += ret;
-
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret; /* returns size of DER if successful */
 #else

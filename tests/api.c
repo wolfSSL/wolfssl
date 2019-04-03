@@ -21221,8 +21221,14 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
 
     /*i2d RSAprivate key tests */
     AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(NULL, NULL), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, NULL), 1192);
     AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, &bufPtr),
                                            sizeof_client_key_der_2048);
+    bufPtr = NULL;
+    AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, &bufPtr),
+                                           sizeof_client_key_der_2048);
+    AssertNotNull(bufPtr);
+    free(bufPtr);
 #endif /* USE_CERT_BUFFERS_2048 WOLFSSL_KEY_GEN */
     RSA_free(rsa);
 #endif /* NO_RSA */
