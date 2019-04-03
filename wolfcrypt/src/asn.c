@@ -4109,12 +4109,12 @@ static WC_INLINE void FreeTmpDsas(byte** tmps, void* heap)
 int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
 {
     word32 seqSz, verSz, rawLen, intTotalLen = 0;
-    word32 sizes[DSA_INTS];
+    word32 sizes[DSA_INTS_SZ];
     int    i, j, outLen, ret = 0, mpSz;
 
     byte  seq[MAX_SEQ_SZ];
     byte  ver[MAX_VERSION_SZ];
-    byte* tmps[DSA_INTS];
+    byte* tmps[DSA_INTS_SZ];
 
     if (!key || !output)
         return BAD_FUNC_ARG;
