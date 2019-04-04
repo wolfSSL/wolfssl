@@ -24,8 +24,17 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+/* This source is included in wc_port.c */
+/* WOLFSSL_CRYPTOCELL_HASH_C is defined by wc_port.c in case compile tries
+    to include this .c directly */
+#ifdef WOLFSSL_CRYPTOCELL_HASH_C
+#if !defined(NO_SHA256) && defined(WOLFSSL_CRYPTOCELL)
+
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/sha256.h>
+#include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -33,12 +42,6 @@
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
-
-#if !defined(NO_SHA) && defined(WOLFSSL_CRYPTOCELL_HASH)
-#include <wolfssl/wolfcrypt/sha256.h>
-
-#if defined(WOLFSSL_CRYPTOCELL)
-#include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
 
 int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 {
@@ -60,9 +63,9 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     }
 
     return ret;
- }
+}
 
-WOLFSSL_API int wc_InitSha256(Sha256* sha256)
+int wc_InitSha256(Sha256* sha256)
 {
     return wc_InitSha256_ex(sha256, NULL, INVALID_DEVID);
 }
@@ -96,7 +99,7 @@ int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
     } while (ret == CRYS_OK && remaining > 0);
 
     return ret;
- }
+}
 
 int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
 {
@@ -125,13 +128,7 @@ void wc_Sha256Free(wc_Sha256* sha256)
 {
     if (sha256 == NULL)
         return;
-
-#ifdef WOLFSSL_SMALL_STACK_CACHE
-    if (sha256->W != NULL) {
-        XFREE(sha256->W, NULL, DYNAMIC_TYPE_DIGEST);
-        sha256->W = NULL;
-    }
-#endif
 }
-#endif /*WOLFSSL_CRYPTOCELL*/
-#endif /* !NO_SHA256 */
+
+#endif /* !NO_SHA256 && WOLFSSL_CRYPTOCELL */
+#endif /* WOLFSSL_CRYPTOCELL_HASH_C */

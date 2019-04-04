@@ -24,8 +24,18 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+/* This source is included in wc_port.c */
+/* WOLFSSL_CRYPTOCELL_C is defined by wc_port.c in case compile tries to
+    include this .c directly */
+#ifdef WOLFSSL_CRYPTOCELL_C
+
+#ifdef WOLFSSL_CRYPTOCELL
+
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/ecc.h>
+#include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -34,12 +44,7 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifndef WOLFSSL_CRYPTOCELL_C
-#define WOLFSSL_CRYPTOCELL_C
-
-#if defined(WOLFSSL_CRYPTOCELL)
-#include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
-
+/* Global Variables (extern) */
 CRYS_RND_State_t     wc_rndState;
 CRYS_RND_WorkBuff_t  wc_rndWorkBuff;
 SaSiRndGenerateVectWorkFunc_t wc_rndGenVectFunc = CRYS_RND_GenerateVector;
@@ -67,6 +72,7 @@ static void cc310_disable(void)
         NVIC_DisableIRQ(CRYPTOCELL_IRQn);
     }
 }
+
 int cc310_Init(void)
 {
     int ret = 0;
@@ -94,6 +100,7 @@ int cc310_Init(void)
     }
     return ret;
 }
+
 void cc310_Free(void)
 {
     CRYSError_t crys_result;
@@ -172,7 +179,8 @@ CRYS_RSA_HASH_OpMode_t cc310_hashModeRSA(enum wc_HashType hash_type)
             return CRYS_RSA_After_HASH_NOT_KNOWN_mode;
     }
 }
-#endif /* NO_RSA */
+#endif /* !NO_RSA */
+
 #ifdef HAVE_ECC
 CRYS_ECPKI_HASH_OpMode_t cc310_hashModeECC(int hash_size)
 {
@@ -206,8 +214,7 @@ CRYS_ECPKI_HASH_OpMode_t cc310_hashModeECC(int hash_size)
 #if !defined(NO_CRYPT_BENCHMARK) && defined(WOLFSSL_nRF5x_SDK_15_2)
 
 static int mRtcSec = 0;
-
-const nrfx_rtc_t rtc = NRFX_RTC_INSTANCE(0);
+static const nrfx_rtc_t rtc = NRFX_RTC_INSTANCE(0);
 
 static void rtc_handler(nrfx_rtc_int_type_t int_type)
 {
@@ -296,5 +303,5 @@ int nrf_random_generate(byte* output, word32 size)
     return 0;
 }
 #endif /* !NO_CRYPT_BENCHMARK && WOLFSSL_nRF5x_SDK_15_2 */
-#endif /* WOLFSSL_CRYPTOCELL_C */
 
+#endif /* WOLFSSL_CRYPTOCELL_C */

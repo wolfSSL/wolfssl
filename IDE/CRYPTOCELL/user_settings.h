@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* Custom wolfSSL based on GCC ARM example /IDE/GCC-ARM/Header/user_settings.h*/
+/* Example Settings for CryptoCell */
 
 #ifndef WOLFSSL_USER_SETTINGS_H
 #define WOLFSSL_USER_SETTINGS_H
@@ -29,12 +29,12 @@ extern "C" {
 #endif
 
 /* ------------------------------------------------------------------------- */
-/* Platform */
+/* CryptoCell */
 /* ------------------------------------------------------------------------- */
 #if 1
     #define WOLFSSL_CRYPTOCELL
     #define WOLFSSL_nRF5x_SDK_15_2 /* for benchmark timer */
-    //#define WOLFSSL_CRYPTOCELL_AES /* only CBC mode is supported */
+    #define WOLFSSL_CRYPTOCELL_AES /* only CBC mode is supported */
 #else
     /* run without CryptoCell,
     include IDE/GCC-ARM/Source/wolf_main.c for current_time(). */
@@ -44,8 +44,10 @@ extern "C" {
     #define AES_MAX_KEY_SIZE    128
 #endif /* WOLFSSL_CRYPTOCELL*/
 
-/*END */
 
+/* ------------------------------------------------------------------------- */
+/* Platform */
+/* ------------------------------------------------------------------------- */
 
 #undef  WOLFSSL_GENERAL_ALIGNMENT
 #define WOLFSSL_GENERAL_ALIGNMENT   4
@@ -88,28 +90,10 @@ extern "C" {
     #define WOLFSSL_SP_CACHE_RESISTANT
     //#define WOLFSSL_SP_MATH     /* only SP math - eliminates fast math code */
 
-    /* 64 or 32 bit version */
+    /* Assembly */
     //#define WOLFSSL_SP_ASM      /* required if using the ASM versions */
-    //#define WOLFSSL_SP_ARM32_ASM
-    //#define WOLFSSL_SP_ARM64_ASM
+    //#define WOLFSSL_SP_ARM_CORTEX_M_ASM
 #endif
-
-/* ------------------------------------------------------------------------- */
-/* FIPS - Requires eval or license from wolfSSL */
-/* ------------------------------------------------------------------------- */
-#undef  HAVE_FIPS
-#if 0
-    #define HAVE_FIPS
-
-    #undef  HAVE_FIPS_VERSION
-    #define HAVE_FIPS_VERSION 2
-
-    #ifdef SINGLE_THREADED
-        #undef  NO_THREAD_LS
-        #define NO_THREAD_LS
-    #endif
-#endif
-
 
 /* ------------------------------------------------------------------------- */
 /* Crypto */
@@ -162,7 +146,7 @@ extern "C" {
         //#define HAVE_ECC192
         //#define HAVE_ECC224
         #undef NO_ECC256
-        //#define HAVE_ECC384
+        #define HAVE_ECC384
         //#define HAVE_ECC521
     #endif
 
@@ -187,16 +171,12 @@ extern "C" {
     #define ECC_TIMING_RESISTANT
 
     /* Enable cofactor support */
-    #ifdef HAVE_FIPS
-        #undef  HAVE_ECC_CDH
-        #define HAVE_ECC_CDH
-    #endif
+    #undef  HAVE_ECC_CDH
+    //#define HAVE_ECC_CDH
 
     /* Validate import */
-    #ifdef HAVE_FIPS
-        #undef  WOLFSSL_VALIDATE_ECC_IMPORT
-        #define WOLFSSL_VALIDATE_ECC_IMPORT
-    #endif
+    #undef  WOLFSSL_VALIDATE_ECC_IMPORT
+    //#define WOLFSSL_VALIDATE_ECC_IMPORT
 
     /* Compressed Key Support */
     #undef  HAVE_COMP_KEY
@@ -206,9 +186,9 @@ extern "C" {
     #ifdef USE_FAST_MATH
         #ifdef NO_RSA
             /* Custom fastmath size if not using RSA */
-            /* MAX = ROUND32(ECC BITS 256) + SIZE_OF_MP_DIGIT(32) */
+            /* MAX = ROUND32(ECC BITS 384) + SIZE_OF_MP_DIGIT(32) */
             #undef  FP_MAX_BITS
-            #define FP_MAX_BITS     (256 + 32)
+            #define FP_MAX_BITS     (384 + 32)
         #else
             #undef  ALT_ECC_SIZE
             #define ALT_ECC_SIZE
@@ -219,6 +199,10 @@ extern "C" {
             #undef  TFM_ECC256
             #define TFM_ECC256
         #endif
+        #ifndef HAVE_ECC384
+            #undef  TFM_ECC384
+            #define TFM_ECC384
+        #endif
     #endif
 #endif
 
@@ -228,16 +212,12 @@ extern "C" {
     /* Use table for DH instead of -lm (math) lib dependency */
     #if 0
         #define WOLFSSL_DH_CONST
-        #define HAVE_FFDHE_2048
-        #define HAVE_FFDHE_4096
-        //#define HAVE_FFDHE_6144
-        //#define HAVE_FFDHE_8192
     #endif
 
-    #ifdef HAVE_FIPS
-        #define WOLFSSL_VALIDATE_FFC_IMPORT
-        #define HAVE_FFDHE_Q
-    #endif
+    #define HAVE_FFDHE_2048
+    //#define HAVE_FFDHE_4096
+    //#define HAVE_FFDHE_6144
+    //#define HAVE_FFDHE_8192
 #else
     #define NO_DH
 #endif
@@ -246,30 +226,29 @@ extern "C" {
 /* AES */
 #undef NO_AES
 #if 1
-	#undef  HAVE_AES_CBC
-	#define HAVE_AES_CBC
+    #undef  HAVE_AES_CBC
+    #define HAVE_AES_CBC
+
     /* If you need other than AES-CBC mode, you must undefine WOLFSSL_CRYPTOCELL_AES */
-#if !defined(WOLFSSL_CRYPTOCELL_AES)
-	#undef  HAVE_AESGCM
-    #define HAVE_AESGCM
+    #if !defined(WOLFSSL_CRYPTOCELL_AES)
+        #undef  HAVE_AESGCM
+        #define HAVE_AESGCM
 
-    /* GCM Method: GCM_SMALL, GCM_WORD32 or GCM_TABLE */
-    #define GCM_SMALL
+        /* GCM Method: GCM_SMALL, GCM_WORD32 or GCM_TABLE */
+        #define GCM_SMALL
 
+        #undef  WOLFSSL_AES_DIRECT
+        //#define WOLFSSL_AES_DIRECT
 
-    #undef  WOLFSSL_AES_DIRECT
-    #define WOLFSSL_AES_DIRECT
+        #undef  HAVE_AES_ECB
+        //#define HAVE_AES_ECB
 
-    #undef  HAVE_AES_ECB
-    #define HAVE_AES_ECB
+        #undef  WOLFSSL_AES_COUNTER
+        //#define WOLFSSL_AES_COUNTER
 
-    #undef  WOLFSSL_AES_COUNTER
-    #define WOLFSSL_AES_COUNTER
-
-    #undef  HAVE_AESCCM
-    #define HAVE_AESCCM
-#endif
-
+        #undef  HAVE_AESCCM
+        //#define HAVE_AESCCM
+    #endif
 #else
     #define NO_AES
 #endif
@@ -490,43 +469,6 @@ extern "C" {
     #define WOLFSSL_GENSEED_FORTEST
 #endif
 
-/* ------------------------------------------------------------------------- */
-/* Custom Standard Lib */
-/* ------------------------------------------------------------------------- */
-/* Allows override of all standard library functions */
-#undef STRING_USER
-#if 0
-    #define STRING_USER
-
-    #include <string.h>
-
-    #undef  USE_WOLF_STRSEP
-    #define USE_WOLF_STRSEP
-    #define XSTRSEP(s1,d)     wc_strsep((s1),(d))
-
-    #undef  USE_WOLF_STRTOK
-    #define USE_WOLF_STRTOK
-    #define XSTRTOK(s1,d,ptr) wc_strtok((s1),(d),(ptr))
-
-    #define XSTRNSTR(s1,s2,n) mystrnstr((s1),(s2),(n))
-
-    #define XMEMCPY(d,s,l)    memcpy((d),(s),(l))
-    #define XMEMSET(b,c,l)    memset((b),(c),(l))
-    #define XMEMCMP(s1,s2,n)  memcmp((s1),(s2),(n))
-    #define XMEMMOVE(d,s,l)   memmove((d),(s),(l))
-
-    #define XSTRLEN(s1)       strlen((s1))
-    #define XSTRNCPY(s1,s2,n) strncpy((s1),(s2),(n))
-    #define XSTRSTR(s1,s2)    strstr((s1),(s2))
-
-    #define XSTRNCMP(s1,s2,n)     strncmp((s1),(s2),(n))
-    #define XSTRNCAT(s1,s2,n)     strncat((s1),(s2),(n))
-    #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
-
-    #define XSNPRINTF snprintf
-#endif
-
-
 
 /* ------------------------------------------------------------------------- */
 /* Enable Features */
@@ -536,20 +478,13 @@ extern "C" {
     #define WOLFSSL_TLS13
 #endif
 
-
 #undef WOLFSSL_KEY_GEN
-#if 0
+#if 1
     #define WOLFSSL_KEY_GEN
 #endif
 
-#if defined(WOLFSSL_CRYPTOCELL)
-    #define WOLFSSL_KEY_GEN
-    #define WOLFSSL_OLD_PRIME_CHECK /* reduce DH test time */
-#endif
-
-#if defined(HAVE_FIPS) && !defined(WOLFSSL_KEY_GEN)
-    #define WOLFSSL_OLD_PRIME_CHECK
-#endif
+/* reduce DH test time */
+#define WOLFSSL_OLD_PRIME_CHECK
 
 #undef  KEEP_PEER_CERT
 //#define KEEP_PEER_CERT

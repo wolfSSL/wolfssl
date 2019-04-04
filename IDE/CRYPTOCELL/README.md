@@ -17,7 +17,8 @@ The `IDE/CRYPTOCELL/main.c` example application provides a function to run the s
 - #undef NO_CRYPT_TEST
 - #undef NO_CRYPT_BENCHMARK
 ```
-#### Supported features
+
+## Supported features
 - SHA-256
 - AES CBC
 - CryptoCell 310 RNG
@@ -28,29 +29,33 @@ The `IDE/CRYPTOCELL/main.c` example application provides a function to run the s
 - Hardware RNG
 - RTC for benchmark timing source
 
-#### Setting up Nordic SDK with wolfSSL
+## Setup
+### Setting up Nordic SDK with wolfSSL
 1. Download the wolfSSL source code or a zip file from GitHub and place it under your SDK `InstallFolder/external/` directory. You can also copy or simlink to the source.
 ```
   For example,
 
-  $cd nRF5_SDK_15.2.0_9412b96/external
-  $git submodule add https://github.com/wolfSSL/wolfssl.git
+  $cd ~/nRF5_SDK_15.2.0_9412b96/external
+  $git clone --depth=1 https://github.com/wolfSSL/wolfssl.git
 
   Or, assuming you have already cloned the wolfSSL source code under ~/wolfssl.
 
-  $cd nRF5_SDK_15.2.0_9412b96/external
-  $sudo ln -s  ~/wolfssl .
+  $cd ~/nRF5_SDK_15.2.0_9412b96/external
+  $ln -s  ~/wolfssl wolfssl
+```
+2. Copy the example project from [here](https://github.com/tmael/nRF5_SDK/tree/master/examples/crypto/nrf_cc310/wolfcrypt) into your `nRF5_SDK_15.2.0_9412b96/examples/crypto/nrf_cc310/` directory.
+```
+  $git clone https://github.com/tmael/nRF5_SDK.git
+  $cd ~/nRF5_SDK_15.2.0_9412b96/examples/crypto/nrf_cc310
 
-```
-2. Copy the example project from [here](https://github.com/tmael/nRF5_SDK/tree/master/examples/crypto/nrf_cc310/wolfcrypt) into your `nRF5_SDK/examples/crypto/nrf_cc310` directory.
-```
-  $cd /nRF5_SDK_15.2.0_9412b96/examples/crypto/nrf_cc310
-  $cp -rf ~/wolfcrypt .
+  $cp -rf ~/nRF5_SDK/examples/crypto/nrf_cc310/wolfcrypt .
+  OR
+  $ln -s ~/nRF5_SDK/examples/crypto/nrf_cc310/wolfcrypt wolfcrypt
 ```
 3. Launch the SEGGER Embedded Studio IDE
 4. In the main menu, go to File >Open Solutions to open the example solution. Browse to the location containing the wolfcrypt code `/examples/crypto/nrf_cc310/wolfcrypt/pca10056/blank/ses/wolfcrypt_pca10056.emProject` and choose Open.
 
-#### Building and Running
+## Building and Running
 In the main menu, go to Build > Rebuild your project, then load and run your image on your nRF52840 target platform. Review the test results on the console output.
 
 ### `wolfcrypt_test()`
@@ -99,6 +104,7 @@ ECDSA    256 sign           50 ops took 1.004 sec, avg 20.080 ms, 49.801 ops/sec
 ECDSA    256 verify         48 ops took 1.028 sec, avg 21.417 ms, 46.693 ops/sec
 Benchmark Test Completed
 ```
+
 ## References
 The test results were collected from an nRF52840 reference platform target with the following software and tool chains:
 - Nordic nRF52840 development board (PCA10056 1.0.0 2018.49 683529999).

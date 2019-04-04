@@ -50,6 +50,7 @@ int main(void)
     benchmark_test(NULL);
     printf("\nBenchmark Test Completed\n");
 #endif
+
     if ((ret = wolfCrypt_Cleanup()) != 0) {
         printf("wolfCrypt_Cleanup failed %d\n", ret);
         return -1;

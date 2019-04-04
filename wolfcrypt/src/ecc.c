@@ -3878,6 +3878,9 @@ static int wc_ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
         if (err == MP_OKAY) {
             err = wc_ecc_mulmod_ex(&key->k, base, pub, curve->Af, curve->prime,
                                                                   1, key->heap);
+            if (err == MP_MEM) {
+               err = MEMORY_E;
+            }
         }
 
         wc_ecc_del_point_h(base, key->heap);
