@@ -4109,7 +4109,7 @@ static WC_INLINE void FreeTmpDsas(byte** tmps, void* heap)
 int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
 {
     word32 seqSz, verSz, rawLen, intTotalLen = 0;
-    word32 sizes[DSA_INTS_SZ];
+    word32 sizes[DSA_INTS];
     int    i, j, outLen, ret = 0, mpSz;
 
     byte  seq[MAX_SEQ_SZ];
