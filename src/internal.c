@@ -2972,7 +2972,7 @@ void FreeX509(WOLFSSL_X509* x509)
 
 
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
-#if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+#if !defined(WOLFSSL_NO_TLS12)
 /* Encode the signature algorithm into buffer.
  *
  * hashalgo  The hash algorithm.
@@ -3013,7 +3013,9 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
     (void)hashAlgo;
     (void)output;
 }
+#endif
 
+#if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_NO_CLIENT_AUTH)
 static void SetDigest(WOLFSSL* ssl, int hashAlgo)
 {
     switch (hashAlgo) {
@@ -8629,6 +8631,7 @@ int InitSigPkCb(WOLFSSL* ssl, SignatureCtx* sigCtx)
 #endif /* HAVE_PK_CALLBACKS */
 
 
+#if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 typedef struct ProcPeerCertArgs {
     buffer*      certs;
 #ifdef WOLFSSL_TLS13
@@ -10082,8 +10085,10 @@ exit_ppc:
 
     return ret;
 }
+#endif
 
 #ifndef WOLFSSL_NO_TLS12
+#if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 
 /* handle processing of certificate (11) */
 static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
@@ -10262,6 +10267,8 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     return ret;
 }
+
+#endif
 
 #endif /* !WOLFSSL_NO_TLS12 */
 
@@ -10873,7 +10880,8 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif /* HAVE_SESSION_TICKET */
 #endif
 
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
+                                               !defined(WOLFSSL_NO_CLIENT_AUTH))
     case certificate:
         WOLFSSL_MSG("processing certificate");
         ret = DoCertificate(ssl, input, inOutIdx, size);
@@ -16985,8 +16993,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
 
 #endif /* WOLFSSL_CALLBACKS */
 
-#if !defined(NO_CERTS) && (defined(WOLFSSL_TLS13) || \
-                                                    !defined(NO_WOLFSSL_CLIENT))
+#if !defined(NO_CERTS)
 
 /* Decode the private key - RSA, ECC, or Ed25519 - and creates a key object.
  * The signature type is set as well.
