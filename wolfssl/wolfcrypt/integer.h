@@ -218,6 +218,11 @@ typedef struct mp_int {
 } mp_int;
 #define MP_INT_DEFINED
 
+#if defined(WOLFSSL_MP_PREALLOC) && !defined(MP_MAX_BITS)
+    #define MP_MAX_BITS (4098 * 2)
+    #define MP_MAX_BYTES (MP_MAX_BITS / (sizeof(mp_digit) * 8))
+#endif
+
 /* callback for mp_prime_random, should fill dst with random bytes and return
    how many read [up to len] */
 typedef int ltm_prime_callback(unsigned char *dst, int len, void *dat);
@@ -283,7 +288,7 @@ extern const char *mp_s_rmap;
 
 /* 6 functions needed by Rsa */
 MP_API int  mp_init (mp_int * a);
-WOLFSSL_LOCAL int  mp_init_ex (mp_int * a, mp_digit *dp);
+WOLFSSL_LOCAL int  mp_init_ex (mp_int * a, mp_digit *dp, int size);
 MP_API void mp_clear (mp_int * a);
 MP_API void mp_free (mp_int * a);
 MP_API void mp_forcezero(mp_int * a);

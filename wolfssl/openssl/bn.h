@@ -37,18 +37,16 @@
     extern "C" {
 #endif
 
-#ifndef MP_MAX_BITS
-    #define MP_MAX_BITS (4098*2)
-#endif
-
 typedef struct WOLFSSL_BIGNUM {
     int neg;        /* openssh deference */
     void *internal; /* our big num */
 #if defined(USE_FAST_MATH) && !defined(HAVE_WOLF_BIGINT)
     fp_int mp;
+#elif defined(WOLFSSL_MT_PREALLOC)
+    mp_int mp;
+    mp_digit dp[MP_MAX_BYTES];
 #else
     mp_int mp;
-    mp_digit dp[MP_MAX_BITS/(sizeof(mp_digit)*8)];
 #endif
 } WOLFSSL_BIGNUM;
 

@@ -157,10 +157,10 @@ int mp_init_multi(mp_int* a, mp_int* b, mp_int* c, mp_int* d, mp_int* e,
 /* init a new mp_int */
 int mp_init (mp_int * a) {
   /* defer allocation until mp_grow */
-  return mp_init_ex(a, NULL);
+  return mp_init_ex(a, NULL, 0);
 }
 
-WOLFSSL_LOCAL int mp_init_ex (mp_int * a, mp_digit * dp)
+WOLFSSL_LOCAL int mp_init_ex (mp_int * a, mp_digit * dp, int size)
 {
   /* Safeguard against passing in a null pointer */
   if (a == NULL)
@@ -171,7 +171,7 @@ WOLFSSL_LOCAL int mp_init_ex (mp_int * a, mp_digit * dp)
   /* set the used to zero, allocated digits to the default precision
    * and sign to positive */
   a->used  = 0;
-  a->alloc = 0;
+  a->alloc = size;
   a->sign  = MP_ZPOS;
 #ifdef HAVE_WOLF_BIGINT
   wc_bigint_init(&a->raw);
@@ -421,6 +421,10 @@ int mp_grow (mp_int * a, int size)
   int     i;
   mp_digit *tmp;
 
+#ifdef WOLFSSL_MP_PREALLOC
+    if(size > (int)MP_MAX_BYTES)
+        return MP_MEM;
+#endif
   /* if the alloc size is smaller alloc more ram */
   if (a->alloc < size || size == 0) {
     /* ensure there are always at least MP_PREC digits extra on top */

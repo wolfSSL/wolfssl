@@ -22751,10 +22751,10 @@ void wolfSSL_BN_init(WOLFSSL_BIGNUM* bn)
     if(bn == NULL)return;
     WOLFSSL_MSG("wolfSSL_BN_init");
     InitwolfSSL_BigNum(bn);
-#if defined(USE_FAST_MATH) && !defined(HAVE_WOLF_BIGINT)
-    if (mp_init(&bn->mp) != MP_OKAY)
+#if defined(WOLFSSL_MP_PREALLOC)
+    if (mp_init_ex(&bn->mp, bn->dp, MP_MAX_BYTES) != MP_OKAY)
 #else
-    if (mp_init_ex(&bn->mp, bn->dp) != MP_OKAY)
+    if (mp_init(&bn->mp) != MP_OKAY)
 #endif
         return;
     bn->internal = (void *)&bn->mp;
