@@ -194,41 +194,28 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS],
             // The above values are stored in the v5-v7 registers and when used as the index register in TBL it rotates the elements of the vector.
 
             // loading the table vector lookup addresses into v5-v7
-            // v5
             "MOV  x0, 0x0504 \n"
             "MOVK x0, 0x0706, LSL #16 \n"
             "MOVK x0, 0x0908, LSL #32 \n"
             "MOVK x0, 0x0B0A, LSL #48 \n"
             "MOV v5.D[0], x0 \n"
-            "MOV  x0, 0x0D0C \n"
-            "MOVK x0, 0x0F0E, LSL #16 \n"
-            "MOVK x0, 0x0100, LSL #32 \n"
-            "MOVK x0, 0x0302, LSL #48 \n"
-            "MOV v5.D[1], x0 \n"
+            "MOV v7.D[1], x0 \n"
 
-            // v6
-            "MOV  x0, 0x0908 \n"
-            "MOVK x0, 0x0B0A, LSL #16 \n"
-            "MOVK x0, 0x0D0C, LSL #32 \n"
-            "MOVK x0, 0x0F0E, LSL #48 \n"
-            "MOV v6.D[0], x0 \n"
-            "MOV  x0, 0x0100 \n"
+            "ROR  x0, x0, #32 \n"
+            "MOVK x0, 0x0100 \n"
             "MOVK x0, 0x0302, LSL #16 \n"
-            "MOVK x0, 0x0504, LSL #32 \n"
-            "MOVK x0, 0x0706, LSL #48 \n"
             "MOV v6.D[1], x0 \n"
 
-            // v7
-            "MOV  x0, 0x0D0C \n"
+            "ROR  x0, x0, #32 \n"
+            "MOVK x0, 0x0D0C \n"
             "MOVK x0, 0x0F0E, LSL #16 \n"
-            "MOVK x0, 0x0100, LSL #32 \n"
-            "MOVK x0, 0x0302, LSL #48 \n"
+            "MOV v5.D[1], x0 \n"
             "MOV v7.D[0], x0 \n"
-            "MOV  x0, 0x0504 \n"
-            "MOVK x0, 0x0706, LSL #16 \n"
-            "MOVK x0, 0x0908, LSL #32 \n"
-            "MOVK x0, 0x0B0A, LSL #48 \n"
-            "MOV v7.D[1], x0 \n"
+
+            "ROR  x0, x0, #32 \n"
+            "MOVK x0, 0x0908 \n"
+            "MOVK x0, 0x0B0A, LSL #16 \n"
+            "MOV v6.D[0], x0 \n"
 
             // Load counter
             "MOV x0, %[rounds] \n"
