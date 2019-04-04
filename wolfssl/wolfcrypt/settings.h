@@ -1989,6 +1989,9 @@ extern void uITRON4_free(void *p) ;
     #define WOLF_CRYPTO_CB
 #endif
 
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_NO_SIGALG)
+    #error TLS 1.3 requires the Signature Algorithms extension to be enabled
+#endif
 
 #ifdef __cplusplus
     }   /* extern "C" */
