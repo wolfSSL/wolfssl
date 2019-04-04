@@ -184,15 +184,14 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS],
     XMEMCPY(x, input, CHACHA_CHUNK_BYTES);
 
     __asm__ __volatile__ (
-            // shifting chacha state is done using Table vector Lookup (TBL)
+            // rotating vector elements is done using Table vector Lookup (TBL)
             // rotate 32 bit word vector elements left by 1
             // v5: 0x07060504 0x0B0A0908 0x0F0E0D0C 0x03020100
             // rotate 32 bit word vector elements left by 2
             // v6: 0x0B0A0908 0x0F0E0D0C 0x03020100 0x07060504
             // rotate 32 bit word vector elements left by 3
             // v7: 0x0F0E0D0C 0x03020100 0x07060504 0x0B0A0908
-            // The above values are stored in the v5-v7 registers and when used as the index
-            // it rotates the elements of the vector.
+            // The above values are stored in the v5-v7 registers and when used as the index register in TBL it rotates the elements of the vector.
 
             // loading the table vector lookup addresses into v5-v7
             // v5
@@ -320,18 +319,21 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS],
             "SUB x0, x0, #1 \n"
             "CBNZ x0, loop \n"
 
+            "LD1 { v4.4S-v7.4S }, [%[in]] \n"
+
+            "ADD v0.4S, v0.4S, v4.4S \n"
+            "ADD v1.4S, v1.4S, v5.4S \n"
+            "ADD v2.4S, v2.4S, v6.4S \n"
+            "ADD v3.4S, v3.4S, v7.4S \n"
+
             "ST1 { v0.4S-v3.4S }, %[x_out] \n"
 
             : [x_out] "=m" (x)
-            : [x_in] "m" (x), [rounds] "I" (ROUNDS/2)
+            : [x_in] "m" (x), [rounds] "I" (ROUNDS/2), [in] "r" (input)
             : "memory",
               "x0",
               "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7"
     );
-
-    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
-        x[i] = PLUS(x[i], input[i]);
-    }
 
     for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
         output[i] = LITTLE32(x[i]);
