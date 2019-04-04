@@ -9670,8 +9670,8 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word16* pLength)
         PF_VALIDATE_REQUEST(ssl, semaphore);
         QSH_VALIDATE_REQUEST(ssl, semaphore);
         WOLF_STK_VALIDATE_REQUEST(ssl);
-        if (ssl->suites->hashSigAlgoSz == 0)
 #if !defined(WOLFSSL_NO_SIGALG)
+        if (ssl->suites->hashSigAlgoSz == 0)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
 #endif
 #if defined(WOLFSSL_TLS13)
@@ -9713,19 +9713,20 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word16* pLength)
         }
     #endif
     }
-#if !defined(WOLFSSL_NO_SIGALG)
+
 #ifdef WOLFSSL_TLS13
     #ifndef NO_CERTS
     else if (msgType == certificate_request) {
         XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
+#if !defined(WOLFSSL_NO_SIGALG)
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
+#endif
         /* TODO: TLSX_SIGNED_CERTIFICATE_TIMESTAMP,
          *       TLSX_CERTIFICATE_AUTHORITIES, OID_FILTERS
          *       TLSX_STATUS_REQUEST
          */
     }
     #endif
-#endif
 #endif
     if (ssl->extensions)
         ret = TLSX_GetSize(ssl->extensions, semaphore, msgType, &length);
@@ -9764,8 +9765,8 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
         PF_VALIDATE_REQUEST(ssl, semaphore);
         WOLF_STK_VALIDATE_REQUEST(ssl);
         QSH_VALIDATE_REQUEST(ssl, semaphore);
-        if (ssl->suites->hashSigAlgoSz == 0)
 #if !defined(WOLFSSL_NO_SIGALG)
+        if (ssl->suites->hashSigAlgoSz == 0)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
 #endif
 #ifdef WOLFSSL_TLS13
@@ -9813,19 +9814,19 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
         }
     #endif
     }
-#if !defined(WOLFSSL_NO_SIGALG)
 #ifdef WOLFSSL_TLS13
     #ifndef NO_CERTS
     else if (msgType == certificate_request) {
         XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
+#if !defined(WOLFSSL_NO_SIGALG)
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
+#endif
         /* TODO: TLSX_SIGNED_CERTIFICATE_TIMESTAMP,
          *       TLSX_CERTIFICATE_AUTHORITIES, TLSX_OID_FILTERS
          *       TLSX_STATUS_REQUEST
          */
     }
     #endif
-#endif
 #endif
     if (ssl->extensions) {
         ret = TLSX_Write(ssl->extensions, output + offset, semaphore,
