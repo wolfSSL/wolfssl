@@ -165,6 +165,15 @@ WOLFSSL_LOCAL int mp_init_ex (mp_int * a, mp_digit * dp, int size)
   /* Safeguard against passing in a null pointer */
   if (a == NULL)
     return MP_VAL;
+  if(size < 0)
+    return MP_VAL;
+
+#ifdef WOLFSSL_MP_PREALLOC
+  if(size != 0)
+      a->preAlloc = 1;
+  else
+      a->preAlloc = 0;
+#endif
 
   a->dp = dp;
 
@@ -208,7 +217,11 @@ void mp_clear (mp_int * a)
 void mp_free (mp_int * a)
 {
   /* only do anything if a hasn't been freed previously */
-  if (a->dp != NULL) {
+  if ((a->dp != NULL)
+#ifdef WOLFSSL_MP_PREALLOC
+      && (a->preAlloc == 0)
+#endif
+  ) {
     /* free ram */
     XFREE(a->dp, 0, DYNAMIC_TYPE_BIGINT);
     a->dp    = NULL;
@@ -422,7 +435,7 @@ int mp_grow (mp_int * a, int size)
   mp_digit *tmp;
 
 #ifdef WOLFSSL_MP_PREALLOC
-    if(size > (int)MP_MAX_BYTES)
+  if ((a->preAlloc == 1) && (size > (int)MP_MAX_BYTES))
         return MP_MEM;
 #endif
   /* if the alloc size is smaller alloc more ram */

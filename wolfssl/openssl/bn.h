@@ -42,7 +42,7 @@ typedef struct WOLFSSL_BIGNUM {
     void *internal; /* our big num */
 #if defined(USE_FAST_MATH) && !defined(HAVE_WOLF_BIGINT)
     fp_int mp;
-#elif defined(WOLFSSL_MT_PREALLOC)
+#elif defined(WOLFSSL_MP_PREALLOC)
     mp_int mp;
     mp_digit dp[MP_MAX_BYTES];
 #else

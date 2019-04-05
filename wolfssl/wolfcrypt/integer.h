@@ -211,6 +211,9 @@ typedef int           mp_err;
 typedef struct mp_int {
     int used, alloc, sign;
     mp_digit *dp;
+#ifdef WOLFSSL_MP_PREALLOC
+    int preAlloc;
+#endif
 
 #ifdef HAVE_WOLF_BIGINT
     struct WC_BIGINT raw; /* unsigned binary (big endian) */
