@@ -341,13 +341,17 @@ enum Oid_Types {
 
 
 enum Hash_Sum  {
-    MD2h    = 646,
-    MD5h    = 649,
-    SHAh    =  88,
-    SHA224h = 417,
-    SHA256h = 414,
-    SHA384h = 415,
-    SHA512h = 416
+    MD2h      = 646,
+    MD5h      = 649,
+    SHAh      =  88,
+    SHA224h   = 417,
+    SHA256h   = 414,
+    SHA384h   = 415,
+    SHA512h   = 416,
+    SHA3_224h = 420,
+    SHA3_256h = 421,
+    SHA3_384h = 422,
+    SHA3_512h = 423
 };
 
 
@@ -418,10 +422,14 @@ enum KDF_Sum {
 
 
 enum HMAC_Sum {
-    HMAC_SHA224_OID = 652,
-    HMAC_SHA256_OID = 653,
-    HMAC_SHA384_OID = 654,
-    HMAC_SHA512_OID = 655
+    HMAC_SHA224_OID   = 652,
+    HMAC_SHA256_OID   = 653,
+    HMAC_SHA384_OID   = 654,
+    HMAC_SHA512_OID   = 655,
+    HMAC_SHA3_224_OID = 426,
+    HMAC_SHA3_256_OID = 427,
+    HMAC_SHA3_384_OID = 428,
+    HMAC_SHA3_512_OID = 429
 };
 
 
