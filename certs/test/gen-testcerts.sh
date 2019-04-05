@@ -147,7 +147,7 @@ generate_expired_certs() {
     echo "step 4 create cert"
     openssl ca -config ../renewcerts/wolfssl.cnf -selfsign -config "$1".conf \
                -keyfile "$2" -in "$1".csr -out "$1".pem \
-               -startdate 201807310000Z -enddate 201808300000Z -batch
+               -startdate 20180731000000Z -enddate 20180830000000Z -batch
     check_result $?
     rm "$1".conf
     rm "$1".csr
