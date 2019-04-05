@@ -2837,7 +2837,11 @@ int hash_test(void)
 #endif
     enum wc_HashType typesGood[] = { WC_HASH_TYPE_MD5, WC_HASH_TYPE_SHA,
                                      WC_HASH_TYPE_SHA224, WC_HASH_TYPE_SHA256,
-                                     WC_HASH_TYPE_SHA384, WC_HASH_TYPE_SHA512 };
+                                     WC_HASH_TYPE_SHA384, WC_HASH_TYPE_SHA512,
+                                     WC_HASH_TYPE_SHA3_224,
+                                     WC_HASH_TYPE_SHA3_256,
+                                     WC_HASH_TYPE_SHA3_384,
+                                     WC_HASH_TYPE_SHA3_512 };
     enum wc_HashType typesNoImpl[] = {
 #ifdef NO_MD5
                                         WC_HASH_TYPE_MD5,
@@ -2857,19 +2861,17 @@ int hash_test(void)
 #ifndef WOLFSSL_SHA512
                                         WC_HASH_TYPE_SHA512,
 #endif
-                                        WC_HASH_TYPE_NONE
-                                     };
-    enum wc_HashType typesBad[]  = { WC_HASH_TYPE_NONE, WC_HASH_TYPE_MD5_SHA,
-                                     WC_HASH_TYPE_MD2, WC_HASH_TYPE_MD4 };
-    enum wc_HashType typesSha3[] = { WC_HASH_TYPE_SHA3_224,
-                                     WC_HASH_TYPE_SHA3_256,
-                                     WC_HASH_TYPE_SHA3_384,
-                                     WC_HASH_TYPE_SHA3_512 };
-    enum wc_HashType typesHashBad[] = { WC_HASH_TYPE_MD2, WC_HASH_TYPE_MD4,
+#ifndef WOLFSSL_SHA3
                                         WC_HASH_TYPE_SHA3_224,
                                         WC_HASH_TYPE_SHA3_256,
                                         WC_HASH_TYPE_SHA3_384,
                                         WC_HASH_TYPE_SHA3_512,
+#endif
+                                        WC_HASH_TYPE_NONE
+                                     };
+    enum wc_HashType typesBad[]  = { WC_HASH_TYPE_NONE, WC_HASH_TYPE_MD5_SHA,
+                                     WC_HASH_TYPE_MD2, WC_HASH_TYPE_MD4 };
+    enum wc_HashType typesHashBad[] = { WC_HASH_TYPE_MD2, WC_HASH_TYPE_MD4,
                                         WC_HASH_TYPE_BLAKE2B,
                                         WC_HASH_TYPE_NONE };
 
@@ -3053,25 +3055,6 @@ int hash_test(void)
     if (ret != HASH_TYPE_E)
         return -3086;
 #endif
-
-    for (i = 0; i < (int)(sizeof(typesSha3)/sizeof(*typesSha3)); i++) {
-        ret = wc_HashGetBlockSize(typesSha3[i]);
-    #ifdef WOLFSSL_SHA3
-        if (ret == HASH_TYPE_E || ret == BAD_FUNC_ARG)
-            return -3087;
-    #else
-        if (ret != HASH_TYPE_E)
-            return -3088;
-    #endif
-        ret = wc_HashGetDigestSize(typesSha3[i]);
-    #ifdef WOLFSSL_SHA3
-        if (ret == HASH_TYPE_E || ret == BAD_FUNC_ARG)
-            return -3089;
-    #else
-        if (ret != HASH_TYPE_E)
-            return -3090;
-    #endif
-    }
 
     ret = wc_HashGetBlockSize(WC_HASH_TYPE_BLAKE2B);
     if (ret != BAD_FUNC_ARG)
