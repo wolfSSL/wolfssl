@@ -13662,7 +13662,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
-                ret = wc_AesXtsSetKey(&ctx->cipher.aesXts, key, ctx->keyLen,
+                ret = wc_AesXtsSetKey(&ctx->cipher.aesXts.xts, key, ctx->keyLen,
                     ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, NULL, 0);
                 if (ret != 0) {
                     WOLFSSL_MSG("wc_AesXtsSetKey() failed");
@@ -13670,13 +13670,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 }
             }
             /* Note that the IV is used as the tweak value in XTS mode (same as in OpenSSL) */
-            if (iv) {
-                ret = wc_AesXtsSetInternalTweakValue(&ctx->cipher.aesXts, iv);
-                if (ret != 0) {
-                    WOLFSSL_MSG("wc_AesXtsSetInternalTweakValue() failed");
-                    return ret;
-                }
-            }
+            if (iv)
+                XMEMCPY(ctx->cipher.aesXts.tweakValue, iv, AES_BLOCK_SIZE);
+            else
+                XMEMSET(ctx->cipher.aesXts.tweakValue, 0, AES_BLOCK_SIZE);
         }
         #endif /* WOLFSSL_AES_128 */
         #ifdef WOLFSSL_AES_256
@@ -13691,20 +13688,18 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
-                ret = wc_AesXtsSetKey(&ctx->cipher.aesXts, key, ctx->keyLen,
+                ret = wc_AesXtsSetKey(&ctx->cipher.aesXts.xts, key, ctx->keyLen,
                     ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, NULL, 0);
                 if (ret != 0) {
                     WOLFSSL_MSG("wc_AesXtsSetKey() failed");
                     return ret;
                 }
             }
-            if (iv) {
-                ret = wc_AesXtsSetInternalTweakValue(&ctx->cipher.aesXts, iv);
-                if (ret != 0) {
-                    WOLFSSL_MSG("wc_AesXtsSetInternalTweakValue() failed");
-                    return ret;
-                }
-            }
+            /* Note that the IV is used as the tweak value in XTS mode (same as in OpenSSL) */
+            if (iv)
+                XMEMCPY(ctx->cipher.aesXts.tweakValue, iv, AES_BLOCK_SIZE);
+            else
+                XMEMSET(ctx->cipher.aesXts.tweakValue, 0, AES_BLOCK_SIZE);
         }
         #endif /* WOLFSSL_AES_256 */
     #endif /* WOLFSSL_AES_XTS */
@@ -14114,9 +14109,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             case AES_256_XTS_TYPE :
                 WOLFSSL_MSG("AES XTS");
                 if (ctx->enc)
-                    ret = wc_AesXtsEncrypt(&ctx->cipher.aesXts, dst, src, len, ctx->cipher.aesXts.tweak.tweakValue, AES_BLOCK_SIZE);
+                    ret = wc_AesXtsEncrypt(&ctx->cipher.aesXts.xts, dst, src, len, ctx->cipher.aesXts.tweakValue, AES_BLOCK_SIZE);
                 else
-                    ret = wc_AesXtsDecrypt(&ctx->cipher.aesXts, dst, src, len, ctx->cipher.aesXts.tweak.tweakValue, AES_BLOCK_SIZE);
+                    ret = wc_AesXtsDecrypt(&ctx->cipher.aesXts.xts, dst, src, len, ctx->cipher.aesXts.tweakValue, AES_BLOCK_SIZE);
                 break;
 #endif /* WOLFSSL_AES_XTS */
 #ifdef HAVE_AES_ECB

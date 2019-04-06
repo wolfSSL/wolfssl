@@ -132,12 +132,8 @@ typedef struct Aes {
     ALIGN16 word32 key[60];
     word32  rounds;
     int     keylen;
-
-    union {
-        ALIGN16 word32 reg[AES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
-        ALIGN16 byte tweakValue[AES_BLOCK_SIZE];                  /* for XTS mode */
-    };
-
+    
+    ALIGN16 word32 reg[AES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
     ALIGN16 word32 tmp[AES_BLOCK_SIZE / sizeof(word32)];      /* same         */
 
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)

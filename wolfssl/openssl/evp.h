@@ -144,12 +144,19 @@ typedef struct WOLFSSL_EVP_MD_CTX {
 } WOLFSSL_EVP_MD_CTX;
 
 
+#ifdef WOLFSSL_AES_XTS
+typedef struct EvpAesXtsCipher {
+    XtsAes xts;
+    byte tweakValue[AES_BLOCK_SIZE];
+} EvpAesXtsCipher;
+#endif
+
 typedef union {
 #ifndef NO_AES
     Aes  aes;
-#endif
-#ifdef WOLFSSL_AES_XTS
-    XtsAes aesXts;
+    #ifdef WOLFSSL_AES_XTS
+    EvpAesXtsCipher aesXts;
+    #endif
 #endif
 #ifndef NO_DES3
     Des  des;

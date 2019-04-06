@@ -267,9 +267,9 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
         case AES_128_XTS_TYPE:
         case AES_256_XTS_TYPE:
             if (ctx->enc)
-                ret = wc_AesXtsEncrypt(&ctx->cipher.aesXts, out, in, inl, ctx->cipher.aesXts.tweak.tweakValue, AES_BLOCK_SIZE);
+                ret = wc_AesXtsEncrypt(&ctx->cipher.aesXts.xts, out, in, inl, ctx->cipher.aesXts.tweakValue, AES_BLOCK_SIZE);
             else
-                ret = wc_AesXtsDecrypt(&ctx->cipher.aesXts, out, in, inl, ctx->cipher.aesXts.tweak.tweakValue, AES_BLOCK_SIZE);
+                ret = wc_AesXtsDecrypt(&ctx->cipher.aesXts.xts, out, in, inl, ctx->cipher.aesXts.tweakValue, AES_BLOCK_SIZE);
             break;
     #endif
     #ifndef NO_DES3
