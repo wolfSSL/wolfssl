@@ -23349,41 +23349,6 @@ static void test_wolfSSL_ASN1_STRING_to_UTF8(void){
 }
 #endif //!defined(NO_ASN)
 
-static void test_wolfSSL_X509_EXTENSION_get_data(void)
-{
-    WOLFSSL_X509* x509;
-    WOLFSSL_X509_EXTENSION* ext;
-    WOLFSSL_ASN1_STRING* str;
-    FILE* file;
-
-    printf(testingFmt, "wolfSSL_X509_EXTENSION_get_data");
-
-    AssertNotNull(file = fopen("./certs/server-cert.pem", "rb"));
-    AssertNotNull(x509 = wolfSSL_PEM_read_X509(file, NULL, NULL, NULL));
-    AssertNotNull(ext = wolfSSL_X509_get_ext(x509, 0));
-
-    AssertNotNull(str = wolfSSL_X509_EXTENSION_get_data(ext));
-    printf(resultFmt, passed);
-}
-
-static void test_wolfSSL_X509_EXTENSION_get_critical(void)
-{
-    WOLFSSL_X509* x509;
-    WOLFSSL_X509_EXTENSION* ext;
-    FILE* file;
-    int crit = -1;
-
-    printf(testingFmt, "wolfSSL_X509_EXTENSION_get_critical");
-
-    AssertNotNull(file = fopen("./certs/server-cert.pem", "rb"));
-    AssertNotNull(x509 = wolfSSL_PEM_read_X509(file, NULL, NULL, NULL));
-    AssertNotNull(ext = wolfSSL_X509_get_ext(x509, 0));
-
-    crit = wolfSSL_X509_EXTENSION_get_critical(ext);
-    AssertIntEQ(crit, 0);
-    printf(resultFmt, passed);
-}
-
 static void test_wolfSSL_CIPHER_description_all(void)
 {
     char buf[256];
