@@ -184,39 +184,6 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS],
     XMEMCPY(x, input, CHACHA_CHUNK_BYTES);
 
     __asm__ __volatile__ (
-            // rotating vector elements is done using Table vector Lookup (TBL)
-            // rotate 32 bit word vector elements left by 1
-            // v5: 0x07060504 0x0B0A0908 0x0F0E0D0C 0x03020100
-            // rotate 32 bit word vector elements left by 2
-            // v6: 0x0B0A0908 0x0F0E0D0C 0x03020100 0x07060504
-            // rotate 32 bit word vector elements left by 3
-            // v7: 0x0F0E0D0C 0x03020100 0x07060504 0x0B0A0908
-            // The above values are stored in the v5-v7 registers and when used as the index register in TBL it rotates the elements of the vector.
-
-            // loading the table vector lookup addresses into v5-v7
-            "MOV  x0, 0x0504 \n"
-            "MOVK x0, 0x0706, LSL #16 \n"
-            "MOVK x0, 0x0908, LSL #32 \n"
-            "MOVK x0, 0x0B0A, LSL #48 \n"
-            "MOV v5.D[0], x0 \n"
-            "MOV v7.D[1], x0 \n"
-
-            "ROR  x0, x0, #32 \n"
-            "MOVK x0, 0x0100 \n"
-            "MOVK x0, 0x0302, LSL #16 \n"
-            "MOV v6.D[1], x0 \n"
-
-            "ROR  x0, x0, #32 \n"
-            "MOVK x0, 0x0D0C \n"
-            "MOVK x0, 0x0F0E, LSL #16 \n"
-            "MOV v5.D[1], x0 \n"
-            "MOV v7.D[0], x0 \n"
-
-            "ROR  x0, x0, #32 \n"
-            "MOVK x0, 0x0908 \n"
-            "MOVK x0, 0x0B0A, LSL #16 \n"
-            "MOV v6.D[0], x0 \n"
-
             // Load counter
             "MOV x0, %[rounds] \n"
 
@@ -267,9 +234,9 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS],
             // v3  15 12 13 14
             // CHACHA block vector elements shifted as shown above
 
-            "TBL v1.16B, { v1.16B }, v5.16B \n" // shift elements left by one
-            "TBL v2.16B, { v2.16B }, v6.16B \n" // shift elements left by two
-            "TBL v3.16B, { v3.16B }, v7.16B \n" // shift elements left by three
+            "EXT v1.16B, v1.16B, v1.16B, #4 \n" // permute elements left by one
+            "EXT v2.16B, v2.16B, v2.16B, #8 \n" // permute elements left by two
+            "EXT v3.16B, v3.16B, v3.16B, #12 \n" // permute elements left by three
 
             "ADD v0.4S, v0.4S, v1.4S \n"
             "EOR v3.16B, v3.16B, v0.16B \n"
@@ -299,9 +266,9 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS],
             "USHR v1.4S, v1.4S, #25 \n"
             "ORR v1.16B, v1.16B, v4.16B \n"
 
-            "TBL v1.16B, { v1.16B }, v7.16B \n" // shift elements left by three
-            "TBL v2.16B, { v2.16B }, v6.16B \n" // shift elements left by two
-            "TBL v3.16B, { v3.16B }, v5.16B \n" // shift elements left by one
+            "EXT v1.16B, v1.16B, v1.16B, #12 \n" // permute elements left by three
+            "EXT v2.16B, v2.16B, v2.16B, #8 \n" // permute elements left by two
+            "EXT v3.16B, v3.16B, v3.16B, #4 \n" // permute elements left by one
 
             "SUB x0, x0, #1 \n"
             "CBNZ x0, loop \n"
