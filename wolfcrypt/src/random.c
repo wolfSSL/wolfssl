@@ -150,6 +150,7 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #elif defined(WOLFSSL_NUCLEUS)
 #elif defined(WOLFSSL_PB)
 #elif defined(WOLFSSL_ZEPHYR)
+#elif defined(WOLFSSL_TELIT_M2MB)
 #else
     /* include headers that may be needed to get good seed */
     #include <fcntl.h>
@@ -2214,6 +2215,33 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             }
 
             return ret;
+        }
+
+#elif defined(WOLFSSL_TELIT_M2MB)
+
+		#include "stdlib.h"
+        static long get_timestamp(void) {
+            long myTime = 0;
+            INT32 fd = m2mb_rtc_open("/dev/rtc0", 0);
+            if (fd >= 0) {
+                M2MB_RTC_TIMEVAL_T timeval;
+                m2mb_rtc_ioctl(fd, M2MB_RTC_IOCTL_GET_TIMEVAL, &timeval);
+                myTime = timeval.msec;
+                m2mb_rtc_close(fd);
+            }
+            return myTime;
+        }
+        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+            int i;
+            srand(get_timestamp());
+            for (i = 0; i < sz; i++ ) {
+                output[i] = rand() % 256;
+                if ((i % 8) == 7) {
+                    srand(get_timestamp());
+                }
+            }
+            return 0;
         }
 
 #elif defined(NO_DEV_RANDOM)

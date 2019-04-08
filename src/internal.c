@@ -6510,7 +6510,7 @@ ProtocolVersion MakeDTLSv1_2(void)
 
 #else
     /* Posix style time */
-    #ifndef USER_TIME
+    #if !defined(USER_TIME) && !defined(USE_WOLF_TM)
     #include <time.h>
     #endif
 
