@@ -173,6 +173,8 @@
     #ifndef SINGLE_THREADED
         #include <kernel.h>
     #endif
+#elif defined(WOLFSSL_TELIT_M2MB)
+    /* do nothing */
 #else
     #ifndef SINGLE_THREADED
         #define WOLFSSL_PTHREADS

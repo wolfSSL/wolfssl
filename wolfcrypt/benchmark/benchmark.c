@@ -33,20 +33,19 @@
 /* Macro to disable benchmark */
 #ifndef NO_CRYPT_BENCHMARK
 
-#if defined(XMALLOC_USER) || defined(FREESCALE_MQX)
-    /* MQX classic needs for EXIT_FAILURE */
-    #include <stdlib.h>  /* we're using malloc / free direct here */
+/* only for stack size check */
+#ifdef HAVE_STACK_SIZE
+    #include <wolfssl/ssl.h>
+    #include <wolfssl/test.h>
 #endif
 
-#ifdef WOLFSSL_STATIC_MEMORY
-    #include <wolfssl/wolfcrypt/memory.h>
-    static WOLFSSL_HEAP_HINT* HEAP_HINT;
+#ifdef USE_FLAT_BENCHMARK_H
+    #include "benchmark.h"
 #else
-    #define HEAP_HINT NULL
-#endif /* WOLFSSL_STATIC_MEMORY */
+    #include "wolfcrypt/benchmark/benchmark.h"
+#endif
 
-#include <string.h>
-
+/* printf mappings */
 #ifdef FREESCALE_MQX
     #include <mqx.h>
     #if MQX_USE_IO_OLD
@@ -71,11 +70,8 @@
       #define printf BSP_Ser_Printf
 #elif defined(WOLFSSL_ZEPHYR)
     #include <stdio.h>
-
     #define BENCH_EMBEDDED
-
     #define printf printfk
-
     static int printfk(const char *fmt, ...)
     {
         int ret;
@@ -92,10 +88,36 @@
 
         return ret;
     }
+
+#elif defined(WOLFSSL_TELIT_M2MB)
+    #include <stdarg.h>
+    #include <stdio.h>
+    #include <string.h>
+    #include "wolfssl/wolfcrypt/wc_port.h" /* for m2mb headers */
+    #include "m2m_log.h" /* for M2M_LOG_INFO - not standard API */
+    /* remap printf */
+    #undef printf
+    #define printf M2M_LOG_INFO
+    /* OS requires occasional sleep() */
+    #ifndef TEST_SLEEP_MS
+        #define TEST_SLEEP_MS 50
+    #endif
+    #define TEST_SLEEP() m2mb_os_taskSleep(M2MB_OS_MS2TICKS(TEST_SLEEP_MS))
+    /* don't use file system for these tests, since ./certs dir isn't loaded */
+    #undef  NO_FILESYSTEM
+    #define NO_FILESYSTEM
+
 #else
+    #if defined(XMALLOC_USER) || defined(FREESCALE_MQX)
+        /* MQX classic needs for EXIT_FAILURE */
+        #include <stdlib.h>  /* we're using malloc / free direct here */
+    #endif
+
+    #include <string.h>
     #include <stdio.h>
 #endif
 
+#include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/des3.h>
 #include <wolfssl/wolfcrypt/arc4.h>
@@ -142,18 +164,25 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/types.h>
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
+
+
+#ifdef WOLFSSL_STATIC_MEMORY
+    static WOLFSSL_HEAP_HINT* HEAP_HINT;
+#else
+    #define HEAP_HINT NULL
+#endif /* WOLFSSL_STATIC_MEMORY */
+
 #ifndef EXIT_FAILURE
 #define EXIT_FAILURE 1
 #endif
 
-/* only for stack size check */
-#ifdef HAVE_STACK_SIZE
-    #include <wolfssl/ssl.h>
-    #include <wolfssl/test.h>
-#endif
-
-#ifdef WOLFSSL_ASYNC_CRYPT
-    #include <wolfssl/wolfcrypt/async.h>
+/* optional macro to add sleep between tests */
+#ifndef TEST_SLEEP
+    /* stub the sleep macro */
+    #define TEST_SLEEP()
 #endif
 
 
@@ -582,11 +611,6 @@ static const char* bench_desc_words[][9] = {
     #pragma warning(disable: 4996)
 #endif
 
-#ifdef USE_FLAT_BENCHMARK_H
-    #include "benchmark.h"
-#else
-    #include "wolfcrypt/benchmark/benchmark.h"
-#endif
 
 #ifdef WOLFSSL_CURRTIME_REMAP
     #define current_time WOLFSSL_CURRTIME_REMAP
@@ -1052,6 +1076,8 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
 
     (void)doAsync;
     (void)ret;
+
+    TEST_SLEEP();
 }
 
 #ifdef BENCH_ASYM
@@ -1095,6 +1121,8 @@ static void bench_stats_asym_finish(const char* algo, int strength,
 
     (void)doAsync;
     (void)ret;
+
+    TEST_SLEEP();
 }
 #endif
 #endif /* BENCH_ASYM */
@@ -4067,7 +4095,7 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
       #endif
     #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
                     !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-        #if !defined(WOLFSSL_MDK5_COMPLv5) 
+        #if !defined(WOLFSSL_MDK5_COMPLv5)
           /* MDK5 compiler regard this as a executable statement, and does not allow declarations after the line. */
             DECLARE_ARRAY_DYNAMIC_DEC(out, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
             #else
@@ -4083,7 +4111,7 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
                     !defined(WOLFSSL_RSA_PUBLIC_ONLY)
         DECLARE_ARRAY_DYNAMIC_EXE(out, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
     #endif
-    
+
     if (!rsa_sign_verify) {
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
         /* begin public RSA */

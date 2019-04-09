@@ -114,6 +114,32 @@
     #ifndef SINGLE_THREADED
         #include <kernel.h>
     #endif
+#elif defined(WOLFSSL_TELIT_M2MB)
+
+    /* Telit SDK uses C++ compile option (--cpp), which causes link issue
+        to API's if wrapped in extern "C" */
+    #ifdef __cplusplus
+        }  /* extern "C" */
+    #endif
+
+    #include "m2mb_types.h"
+    #include "m2mb_os_types.h"
+    #include "m2mb_os_api.h"
+    #include "m2mb_os.h"
+    #include "m2mb_os_mtx.h"
+    #ifndef NO_ASN_TIME
+    #include "m2mb_rtc.h"
+    #endif
+    #ifndef NO_FILESYSTEM
+    #include "m2mb_fs_posix.h"
+    #endif
+
+    #undef kB /* eliminate conflict in asn.h */
+
+    #ifdef __cplusplus
+        extern "C" {
+    #endif
+
 #else
     #ifndef SINGLE_THREADED
         #define WOLFSSL_PTHREADS
@@ -195,6 +221,8 @@
         typedef NU_SEMAPHORE wolfSSL_Mutex;
     #elif defined(WOLFSSL_ZEPHYR)
         typedef struct k_mutex wolfSSL_Mutex;
+    #elif defined(WOLFSSL_TELIT_M2MB)
+        typedef M2MB_OS_MTX_HANDLE wolfSSL_Mutex;
     #else
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */
@@ -352,6 +380,19 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XBADFILE            NULL
     #define XFGETS(b,s,f)       -2 /* Not ported yet */
 
+#elif defined(WOLFSSL_TELIT_M2MB)
+    #define XFILE                    INT32
+    #define XFOPEN(NAME, MODE)       m2mb_fs_open((NAME), 0, (MODE))
+    #define XFSEEK(F, O, W)          m2mb_fs_lseek((F), (O), (W))
+    #define XFTELL(F)                m2mb_fs_lseek((F), 0, M2MB_SEEK_END)
+    #define XREWIND(F)               (void)F
+    #define XFREAD(BUF, SZ, AMT, F)  m2mb_fs_read((F), (BUF), (SZ)*(AMT))
+    #define XFWRITE(BUF, SZ, AMT, F) m2mb_fs_write((F), (BUF), (SZ)*(AMT))
+    #define XFCLOSE                  m2mb_fs_close
+    #define XSEEK_END                M2MB_SEEK_END
+    #define XBADFILE                 -1
+    #define XFGETS(b,s,f)            -2 /* Not ported yet */
+
 #elif defined(WOLFSSL_USER_FILESYSTEM)
     /* To be defined in user_settings.h */
 #else
@@ -400,6 +441,11 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         struct fs_dir_t  dir;
         struct fs_dirent s;
         struct fs_dir_t* dirp;
+
+    #elif defined(WOLFSSL_TELIT_M2MB)
+        M2MB_DIR_T* dir;
+        struct M2MB_DIRENT* entry;
+        struct M2MB_STAT s;
     #else
         struct dirent* entry;
         DIR*   dir;
@@ -544,6 +590,22 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XGMTIME(c, t)   gmtime((c))
     #define WOLFSSL_GMTIME
 
+    #define USE_WOLF_TM
+
+#elif defined(WOLFSSL_TELIT_M2MB)
+    typedef long time_t;
+    extern time_t m2mb_xtime(time_t * timer);
+    #define XTIME(tl)       m2mb_xtime((tl))
+    #ifdef WOLFSSL_TLS13
+        extern time_t m2mb_xtime_ms(time_t * timer);
+        #define XTIME_MS(tl)    m2mb_xtime_ms((tl))
+    #endif
+    #ifndef NO_CRYPT_BENCHMARK
+        extern double m2mb_xtime_bench(int reset);
+        #define WOLFSSL_CURRTIME_REMAP m2mb_xtime_bench
+    #endif
+    #define XGMTIME(c, t)   gmtime((c))
+    #define WOLFSSL_GMTIME
     #define USE_WOLF_TM
 
 #else

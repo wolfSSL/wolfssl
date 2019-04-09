@@ -257,6 +257,13 @@
                 const char* file, unsigned int line);
     #elif defined(XMALLOC_OVERRIDE)
         /* override the XMALLOC, XFREE and XREALLOC macros */
+    #elif defined(WOLFSSL_TELIT_M2MB)
+        /* Telit M2MB SDK requires use m2mb_os API's, not std malloc/free */
+        /* Use of malloc/free will cause CPU reboot */
+        #define XMALLOC(s, h, t)     ((void)h, (void)t, m2mb_os_malloc((s)))
+        #define XFREE(p, h, t)       {void* xp = (p); if((xp)) m2mb_os_free((xp));}
+        #define XREALLOC(p, n, h, t) m2mb_os_realloc((p), (n))
+
     #elif defined(NO_WOLFSSL_MEMORY)
         /* just use plain C stdlib stuff if desired */
         #include <stdlib.h>
