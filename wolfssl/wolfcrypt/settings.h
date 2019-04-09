@@ -274,7 +274,7 @@
     #define NO_FILESYSTEM
     #define CUSTOM_RAND_TYPE uint16_t
     #define CUSTOM_RAND_GENERATE random_rand
-    static inline unsigned int LowResTimer(void)
+    static inline word32 LowResTimer(void)
     {
         return clock_seconds();
     }
