@@ -4039,8 +4039,8 @@ if test "$ENABLED_SP_ASM" = "yes"; then
       ENABLED_SP_ARM_THUMB_ASM=yes
     else
       if test $host_alias = "cortex"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_ASM"
-        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_CORTEX_ASM"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM -mcpu=cortex-m4"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
         ENABLED_SP_ARM_CORTEX_ASM=yes
       else
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
