@@ -19558,7 +19558,8 @@ static void test_wolfSSL_X509_STORE_CTX(void)
 #ifdef OPENSSL_ALL
     sk_X509_free(sk);
 #endif
-    #ifdef WOLFSSL_KEEP_STORE_CERTS
+    #if defined(WOLFSSL_KEEP_STORE_CERTS) || defined(OPENSSL_ALL) || \
+        defined(WOLFSSL_QT)
     X509_STORE_free(str);
     X509_free(x509);
     #endif
