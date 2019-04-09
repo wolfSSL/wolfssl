@@ -39,7 +39,9 @@
                                     defined(WOLFSSL_HAVE_SP_ECC)
 
 #ifdef RSA_LOW_MEM
+#ifndef SP_RSA_PRIVATE_EXP_D
 #define SP_RSA_PRIVATE_EXP_D
+#endif
 
 #ifndef WOLFSSL_SP_SMALL
 #define WOLFSSL_SP_SMALL
@@ -47,6 +49,11 @@
 #endif
 
 #include <wolfssl/wolfcrypt/sp.h>
+
+#ifdef __IAR_SYSTEMS_ICC__
+#define __asm__        asm
+#define __volatile__   volatile
+#endif /* __IAR_SYSTEMS_ICC__ */
 
 #ifdef WOLFSSL_SP_ARM_CORTEX_M_ASM
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
@@ -190,7 +197,7 @@ SP_NOINLINE static void sp_2048_mul_8(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit tmp[8];
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r8, %[r]\n\t"
         "mov	%[r], #0\n\t"
         /* A[0] * B[0] */
@@ -699,7 +706,7 @@ SP_NOINLINE static void sp_2048_mul_8(sp_digit* r, const sp_digit* a,
 SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r, const sp_digit* a)
 {
     sp_digit tmp[8];
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r8, %[r]\n\t"
         "mov	%[r], #0\n\t"
         /* A[0] * A[0] */
@@ -1091,7 +1098,7 @@ SP_NOINLINE static sp_digit sp_2048_add_8(sp_digit* r, const sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r4, [%[a], #0]\n\t"
         "ldr	r5, [%[b], #0]\n\t"
         "adds	r4, r4, r5\n\t"
@@ -1145,7 +1152,7 @@ SP_NOINLINE static sp_digit sp_2048_sub_in_place_16(sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r3, [%[a], #0]\n\t"
         "ldr	r4, [%[a], #4]\n\t"
         "ldr	r5, [%[b], #0]\n\t"
@@ -1230,7 +1237,7 @@ SP_NOINLINE static sp_digit sp_2048_add_16(sp_digit* r, const sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r4, [%[a], #0]\n\t"
         "ldr	r5, [%[b], #0]\n\t"
         "adds	r4, r4, r5\n\t"
@@ -1401,7 +1408,7 @@ SP_NOINLINE static sp_digit sp_2048_sub_in_place_32(sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r3, [%[a], #0]\n\t"
         "ldr	r4, [%[a], #4]\n\t"
         "ldr	r5, [%[b], #0]\n\t"
@@ -1550,7 +1557,7 @@ SP_NOINLINE static sp_digit sp_2048_add_32(sp_digit* r, const sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r4, [%[a], #0]\n\t"
         "ldr	r5, [%[b], #0]\n\t"
         "adds	r4, r4, r5\n\t"
@@ -1789,7 +1796,7 @@ SP_NOINLINE static sp_digit sp_2048_sub_in_place_64(sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r3, [%[a], #0]\n\t"
         "ldr	r4, [%[a], #4]\n\t"
         "ldr	r5, [%[b], #0]\n\t"
@@ -2071,7 +2078,7 @@ SP_NOINLINE static sp_digit sp_2048_add_64(sp_digit* r, const sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r7, #0\n\t"
         "mvn	r7, r7\n\t"
         "ldr	r4, [%[a], #0]\n\t"
@@ -2435,7 +2442,7 @@ SP_NOINLINE static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
     sp_2048_add_64(r + 64, r + 64, z2);
 }
 
-#endif /* WOLFSSL_SP_SMALL */
+#endif /* !WOLFSSL_SP_SMALL */
 #ifdef WOLFSSL_SP_SMALL
 /* Add b to a into r. (r = a + b)
  *
@@ -2448,7 +2455,7 @@ SP_NOINLINE static sp_digit sp_2048_add_64(sp_digit* r, const sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r6, %[a]\n\t"
         "mov	r7, #0\n\t"
         "mov	r4, #1\n\t"
@@ -2487,7 +2494,7 @@ SP_NOINLINE static sp_digit sp_2048_sub_in_place_64(sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r7, %[a]\n\t"
         "mov	r5, #1\n\t"
         "lsl	r5, r5, #8\n\t"
@@ -2528,7 +2535,7 @@ SP_NOINLINE static void sp_2048_mul_64(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit tmp[64 * 2];
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r3, #0\n\t"
         "mov	r4, #0\n\t"
         "mov	r8, r3\n\t"
@@ -2600,7 +2607,7 @@ SP_NOINLINE static void sp_2048_mul_64(sp_digit* r, const sp_digit* a,
  */
 SP_NOINLINE static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
 {
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r3, #0\n\t"
         "mov	r4, #0\n\t"
         "mov	r5, #0\n\t"
@@ -2697,8 +2704,7 @@ SP_NOINLINE static void sp_2048_sqr_64(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#if (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)) && \
-                                               !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#if (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 #ifdef WOLFSSL_SP_SMALL
 /* AND m into each word of a and store in r.
  *
@@ -2727,7 +2733,7 @@ SP_NOINLINE static sp_digit sp_2048_add_32(sp_digit* r, const sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r6, %[a]\n\t"
         "mov	r7, #0\n\t"
         "add	r6, r6, #128\n\t"
@@ -2764,7 +2770,7 @@ SP_NOINLINE static sp_digit sp_2048_sub_in_place_32(sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r7, %[a]\n\t"
         "add	r7, r7, #128\n\t"
         "\n1:\n\t"
@@ -2803,7 +2809,7 @@ SP_NOINLINE static void sp_2048_mul_32(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit tmp[32 * 2];
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r3, #0\n\t"
         "mov	r4, #0\n\t"
         "mov	r8, r3\n\t"
@@ -2872,7 +2878,7 @@ SP_NOINLINE static void sp_2048_mul_32(sp_digit* r, const sp_digit* a,
  */
 SP_NOINLINE static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
 {
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r3, #0\n\t"
         "mov	r4, #0\n\t"
         "mov	r5, #0\n\t"
@@ -2964,8 +2970,7 @@ SP_NOINLINE static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_SH) && */
-       /* !WOLFSSL_RSA_PUBLIC_ONLY */
+#endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH) && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 /* Caclulate the bottom digit of -1/a mod 2^n.
  *
@@ -2995,7 +3000,7 @@ static void sp_2048_mont_setup(sp_digit* a, sp_digit* rho)
 SP_NOINLINE static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r6, #1\n\t"
         "lsl	r6, r6, #8\n\t"
         "add	r6, r6, %[a]\n\t"
@@ -3029,8 +3034,7 @@ SP_NOINLINE static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
     );
 }
 
-#if (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)) && \
-                                               !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#if (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 2048 bits, just need to subtract.
  *
@@ -3058,7 +3062,7 @@ SP_NOINLINE static sp_digit sp_2048_cond_sub_32(sp_digit* r, sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r5, #128\n\t"
         "mov	r8, r5\n\t"
         "mov	r7, #0\n\t"
@@ -3093,7 +3097,7 @@ SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, sp_digit* m,
 {
     sp_digit ca = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r8, %[mp]\n\t"
         "mov	r12, %[ca]\n\t"
         "mov	r14, %[m]\n\t"
@@ -3213,7 +3217,7 @@ static void sp_2048_mont_sqr_32(sp_digit* r, sp_digit* a, sp_digit* m,
 SP_NOINLINE static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r6, #128\n\t"
         "add	r6, r6, %[a]\n\t"
         "mov	r8, %[r]\n\t"
@@ -3260,7 +3264,7 @@ SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0,
 {
     sp_digit r = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "lsr	r6, %[div], #16\n\t"
         "add	r6, r6, #1\n\t"
         "udiv	r4, %[d1], r6\n\t"
@@ -3310,7 +3314,7 @@ SP_NOINLINE static int32_t sp_2048_cmp_32(sp_digit* a, sp_digit* b)
     sp_digit r = 0;
 
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r3, #0\n\t"
         "mvn	r3, r3\n\t"
         "mov	r6, #124\n\t"
@@ -3664,8 +3668,7 @@ static int sp_2048_mod_exp_32(sp_digit* r, sp_digit* a, sp_digit* e,
 }
 #endif /* WOLFSSL_SP_SMALL */
 
-#endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_SH) && */
-       /* !WOLFSSL_RSA_PUBLIC_ONLY */
+#endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH) && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 #ifdef WOLFSSL_HAVE_SP_DH
 /* r = 2^n mod m where n is the number of bits to reduce by.
@@ -3696,7 +3699,7 @@ SP_NOINLINE static sp_digit sp_2048_cond_sub_64(sp_digit* r, sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r5, #1\n\t"
         "lsl	r5, r5, #8\n\t"
         "mov	r8, r5\n\t"
@@ -3732,7 +3735,7 @@ SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, sp_digit* m,
 {
     sp_digit ca = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r8, %[mp]\n\t"
         "mov	r12, %[ca]\n\t"
         "mov	r14, %[m]\n\t"
@@ -3858,7 +3861,7 @@ SP_NOINLINE static sp_digit div_2048_word_64(sp_digit d1, sp_digit d0,
 {
     sp_digit r = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "lsr	r6, %[div], #16\n\t"
         "add	r6, r6, #1\n\t"
         "udiv	r4, %[d1], r6\n\t"
@@ -3937,7 +3940,7 @@ SP_NOINLINE static int32_t sp_2048_cmp_64(sp_digit* a, sp_digit* b)
     sp_digit r = 0;
 
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r3, #0\n\t"
         "mvn	r3, r3\n\t"
         "mov	r6, #252\n\t"
@@ -4788,7 +4791,7 @@ int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
 
 #endif /* WOLFSSL_HAVE_SP_DH || (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) */
 
-#endif /* WOLFSSL_SP_NO_2048 */
+#endif /* !WOLFSSL_SP_NO_2048 */
 
 #ifndef WOLFSSL_SP_NO_3072
 /* Read big endian unsigned byte aray into r.
@@ -4930,7 +4933,7 @@ SP_NOINLINE static void sp_3072_mul_8(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit tmp[8];
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r8, %[r]\n\t"
         "mov	%[r], #0\n\t"
         /* A[0] * B[0] */
@@ -5439,7 +5442,7 @@ SP_NOINLINE static void sp_3072_mul_8(sp_digit* r, const sp_digit* a,
 SP_NOINLINE static void sp_3072_sqr_8(sp_digit* r, const sp_digit* a)
 {
     sp_digit tmp[8];
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r8, %[r]\n\t"
         "mov	%[r], #0\n\t"
         /* A[0] * A[0] */
@@ -5831,7 +5834,7 @@ SP_NOINLINE static sp_digit sp_3072_add_8(sp_digit* r, const sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r4, [%[a], #0]\n\t"
         "ldr	r5, [%[b], #0]\n\t"
         "adds	r4, r4, r5\n\t"
@@ -5885,7 +5888,7 @@ SP_NOINLINE static sp_digit sp_3072_sub_in_place_16(sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r3, [%[a], #0]\n\t"
         "ldr	r4, [%[a], #4]\n\t"
         "ldr	r5, [%[b], #0]\n\t"
@@ -5970,7 +5973,7 @@ SP_NOINLINE static sp_digit sp_3072_add_16(sp_digit* r, const sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r4, [%[a], #0]\n\t"
         "ldr	r5, [%[b], #0]\n\t"
         "adds	r4, r4, r5\n\t"
@@ -6141,7 +6144,7 @@ SP_NOINLINE static sp_digit sp_3072_sub_32(sp_digit* r, const sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r4, [%[a], #0]\n\t"
         "ldr	r5, [%[a], #4]\n\t"
         "ldr	r6, [%[b], #0]\n\t"
@@ -6290,7 +6293,7 @@ SP_NOINLINE static sp_digit sp_3072_add_32(sp_digit* r, const sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r4, [%[a], #0]\n\t"
         "ldr	r5, [%[b], #0]\n\t"
         "adds	r4, r4, r5\n\t"
@@ -6532,7 +6535,7 @@ SP_NOINLINE static sp_digit sp_3072_add_48(sp_digit* r, const sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r7, #0\n\t"
         "mvn	r7, r7\n\t"
         "ldr	r4, [%[a], #0]\n\t"
@@ -6754,7 +6757,7 @@ SP_NOINLINE static sp_digit sp_3072_sub_in_place_96(sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r3, [%[a], #0]\n\t"
         "ldr	r4, [%[a], #4]\n\t"
         "ldr	r5, [%[b], #0]\n\t"
@@ -7169,7 +7172,7 @@ SP_NOINLINE static sp_digit sp_3072_add_96(sp_digit* r, const sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r7, #0\n\t"
         "mvn	r7, r7\n\t"
         "ldr	r4, [%[a], #0]\n\t"
@@ -7667,7 +7670,7 @@ SP_NOINLINE static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
     sp_3072_add_96(r + 96, r + 96, z2);
 }
 
-#endif /* WOLFSSL_SP_SMALL */
+#endif /* !WOLFSSL_SP_SMALL */
 #ifdef WOLFSSL_SP_SMALL
 /* Add b to a into r. (r = a + b)
  *
@@ -7680,7 +7683,7 @@ SP_NOINLINE static sp_digit sp_3072_add_96(sp_digit* r, const sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r6, %[a]\n\t"
         "mov	r7, #0\n\t"
         "mov	r4, #1\n\t"
@@ -7720,7 +7723,7 @@ SP_NOINLINE static sp_digit sp_3072_sub_in_place_96(sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r7, %[a]\n\t"
         "mov	r5, #1\n\t"
         "lsl	r5, r5, #8\n\t"
@@ -7762,7 +7765,7 @@ SP_NOINLINE static void sp_3072_mul_96(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit tmp[96 * 2];
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r3, #0\n\t"
         "mov	r4, #0\n\t"
         "mov	r8, r3\n\t"
@@ -7837,7 +7840,7 @@ SP_NOINLINE static void sp_3072_mul_96(sp_digit* r, const sp_digit* a,
  */
 SP_NOINLINE static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
 {
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r3, #0\n\t"
         "mov	r4, #0\n\t"
         "mov	r5, #0\n\t"
@@ -7937,8 +7940,7 @@ SP_NOINLINE static void sp_3072_sqr_96(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#if (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)) && \
-                                               !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#if (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 #ifdef WOLFSSL_SP_SMALL
 /* AND m into each word of a and store in r.
  *
@@ -7967,7 +7969,7 @@ SP_NOINLINE static sp_digit sp_3072_add_48(sp_digit* r, const sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r6, %[a]\n\t"
         "mov	r7, #0\n\t"
         "add	r6, r6, #192\n\t"
@@ -8005,7 +8007,7 @@ SP_NOINLINE static void sp_3072_mul_48(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit tmp[48 * 2];
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r3, #0\n\t"
         "mov	r4, #0\n\t"
         "mov	r8, r3\n\t"
@@ -8076,7 +8078,7 @@ SP_NOINLINE static void sp_3072_mul_48(sp_digit* r, const sp_digit* a,
  */
 SP_NOINLINE static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
 {
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r3, #0\n\t"
         "mov	r4, #0\n\t"
         "mov	r5, #0\n\t"
@@ -8174,8 +8176,7 @@ SP_NOINLINE static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_SH) && */
-       /* !WOLFSSL_RSA_PUBLIC_ONLY */
+#endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH) && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 /* Caclulate the bottom digit of -1/a mod 2^n.
  *
@@ -8205,7 +8206,7 @@ static void sp_3072_mont_setup(sp_digit* a, sp_digit* rho)
 SP_NOINLINE static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r6, #1\n\t"
         "lsl	r6, r6, #8\n\t"
         "add	r6, r6, #128\n\t"
@@ -8240,8 +8241,7 @@ SP_NOINLINE static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
     );
 }
 
-#if (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)) && \
-                                               !defined(WOLFSSL_RSA_PUBLIC_ONLY)
+#if (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 #ifdef WOLFSSL_SP_SMALL
 /* Sub b from a into a. (a -= b)
  *
@@ -8252,7 +8252,7 @@ SP_NOINLINE static sp_digit sp_3072_sub_in_place_48(sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r7, %[a]\n\t"
         "add	r7, r7, #192\n\t"
         "\n1:\n\t"
@@ -8291,7 +8291,7 @@ SP_NOINLINE static sp_digit sp_3072_sub_in_place_48(sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r3, [%[a], #0]\n\t"
         "ldr	r4, [%[a], #4]\n\t"
         "ldr	r5, [%[b], #0]\n\t"
@@ -8526,7 +8526,7 @@ SP_NOINLINE static sp_digit sp_3072_cond_sub_48(sp_digit* r, sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r5, #192\n\t"
         "mov	r8, r5\n\t"
         "mov	r7, #0\n\t"
@@ -8561,7 +8561,7 @@ SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, sp_digit* m,
 {
     sp_digit ca = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r8, %[mp]\n\t"
         "mov	r12, %[ca]\n\t"
         "mov	r14, %[m]\n\t"
@@ -8681,7 +8681,7 @@ static void sp_3072_mont_sqr_48(sp_digit* r, sp_digit* a, sp_digit* m,
 SP_NOINLINE static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r6, #192\n\t"
         "add	r6, r6, %[a]\n\t"
         "mov	r8, %[r]\n\t"
@@ -8728,7 +8728,7 @@ SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0,
 {
     sp_digit r = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "lsr	r6, %[div], #16\n\t"
         "add	r6, r6, #1\n\t"
         "udiv	r4, %[d1], r6\n\t"
@@ -8778,7 +8778,7 @@ SP_NOINLINE static int32_t sp_3072_cmp_48(sp_digit* a, sp_digit* b)
     sp_digit r = 0;
 
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r3, #0\n\t"
         "mvn	r3, r3\n\t"
         "mov	r6, #188\n\t"
@@ -9132,8 +9132,7 @@ static int sp_3072_mod_exp_48(sp_digit* r, sp_digit* a, sp_digit* e,
 }
 #endif /* WOLFSSL_SP_SMALL */
 
-#endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_SH) && */
-       /* !WOLFSSL_RSA_PUBLIC_ONLY */
+#endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH) && !WOLFSSL_RSA_PUBLIC_ONLY */
 
 #ifdef WOLFSSL_HAVE_SP_DH
 /* r = 2^n mod m where n is the number of bits to reduce by.
@@ -9164,7 +9163,7 @@ SP_NOINLINE static sp_digit sp_3072_cond_sub_96(sp_digit* r, sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r5, #1\n\t"
         "lsl	r5, r5, #8\n\t"
         "add	r5, r5, #128\n\t"
@@ -9201,7 +9200,7 @@ SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, sp_digit* m,
 {
     sp_digit ca = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r8, %[mp]\n\t"
         "mov	r12, %[ca]\n\t"
         "mov	r14, %[m]\n\t"
@@ -9330,7 +9329,7 @@ SP_NOINLINE static sp_digit div_3072_word_96(sp_digit d1, sp_digit d0,
 {
     sp_digit r = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "lsr	r6, %[div], #16\n\t"
         "add	r6, r6, #1\n\t"
         "udiv	r4, %[d1], r6\n\t"
@@ -9409,7 +9408,7 @@ SP_NOINLINE static int32_t sp_3072_cmp_96(sp_digit* a, sp_digit* b)
     sp_digit r = 0;
 
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r3, #0\n\t"
         "mvn	r3, r3\n\t"
         "mov	r6, #1\n\t"
@@ -10262,7 +10261,7 @@ int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
 
 #endif /* WOLFSSL_HAVE_SP_DH || (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) */
 
-#endif /* WOLFSSL_SP_NO_3072 */
+#endif /* !WOLFSSL_SP_NO_3072 */
 
 #endif /* WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH */
 #ifdef WOLFSSL_HAVE_SP_ECC
@@ -10616,7 +10615,7 @@ SP_NOINLINE static int32_t sp_256_cmp_8(sp_digit* a, sp_digit* b)
     sp_digit r = 0;
 
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r3, #0\n\t"
         "mvn	r3, r3\n\t"
         "mov	r6, #28\n\t"
@@ -10666,7 +10665,7 @@ SP_NOINLINE static sp_digit sp_256_cond_sub_8(sp_digit* r, sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r5, #32\n\t"
         "mov	r8, r5\n\t"
         "mov	r7, #0\n\t"
@@ -10702,7 +10701,7 @@ SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a, sp_digit* m,
     (void)mp;
     (void)m;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r2, #0\n\t"
         "mov	r1, #0\n\t"
         /* i = 0 */
@@ -10821,7 +10820,7 @@ SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a, sp_digit* m,
 {
     sp_digit ca = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r8, %[mp]\n\t"
         "mov	r12, %[ca]\n\t"
         "mov	r14, %[m]\n\t"
@@ -10912,7 +10911,7 @@ SP_NOINLINE static void sp_256_mul_8(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit tmp[8];
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r8, %[r]\n\t"
         "mov	%[r], #0\n\t"
         /* A[0] * B[0] */
@@ -11437,7 +11436,7 @@ static void sp_256_mont_mul_8(sp_digit* r, sp_digit* a, sp_digit* b,
 SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
 {
     sp_digit tmp[8];
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r8, %[r]\n\t"
         "mov	%[r], #0\n\t"
         /* A[0] * A[0] */
@@ -11984,7 +11983,7 @@ SP_NOINLINE static sp_digit sp_256_add_8(sp_digit* r, const sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r6, %[a]\n\t"
         "mov	r7, #0\n\t"
         "add	r6, r6, #32\n\t"
@@ -12022,7 +12021,7 @@ SP_NOINLINE static sp_digit sp_256_add_8(sp_digit* r, const sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r4, [%[a], #0]\n\t"
         "ldr	r5, [%[b], #0]\n\t"
         "adds	r4, r4, r5\n\t"
@@ -12078,7 +12077,7 @@ SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r, sp_digit* a, sp_digit* b,
 {
     (void)m;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r3, #0\n\t"
         "ldr	r4, [%[a],#0]\n\t"
         "ldr	r5, [%[a],#4]\n\t"
@@ -12157,7 +12156,7 @@ SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r, sp_digit* a, sp_digit* m)
 {
     (void)m;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r4, [%[a],#0]\n\t"
         "ldr	r5, [%[a],#4]\n\t"
         "ldr	r6, [%[a],#8]\n\t"
@@ -12228,7 +12227,7 @@ SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r, sp_digit* a, sp_digit* m)
 {
     (void)m;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r6, [%[a],#0]\n\t"
         "ldr	r7, [%[a],#4]\n\t"
         "ldr	r4, [%[a],#8]\n\t"
@@ -12351,7 +12350,7 @@ SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r, sp_digit* a, sp_digit* b,
 {
     (void)m;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r4, [%[a],#0]\n\t"
         "ldr	r5, [%[a],#4]\n\t"
         "ldr	r6, [%[b],#0]\n\t"
@@ -12425,7 +12424,7 @@ SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r, sp_digit* a, sp_digit* b,
  */
 SP_NOINLINE static void sp_256_div2_8(sp_digit* r, sp_digit* a, sp_digit* m)
 {
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r7, [%[a], #0]\n\t"
         "lsl	r7, r7, #31\n\t"
         "lsr	r7, r7, #31\n\t"
@@ -12589,7 +12588,7 @@ SP_NOINLINE static sp_digit sp_256_sub_8(sp_digit* r, const sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r6, %[a]\n\t"
         "add	r6, r6, #32\n\t"
         "\n1:\n\t"
@@ -12625,7 +12624,7 @@ SP_NOINLINE static sp_digit sp_256_sub_8(sp_digit* r, const sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r4, [%[a], #0]\n\t"
         "ldr	r5, [%[a], #4]\n\t"
         "ldr	r6, [%[b], #0]\n\t"
@@ -15443,7 +15442,7 @@ static int sp_256_iszero_8(const sp_digit* a)
  */
 SP_NOINLINE static void sp_256_add_one_8(sp_digit* a)
 {
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r2, #1\n\t"
         "ldr	r1, [%[a], #0]\n\t"
         "adds	r1, r1, r2\n\t"
@@ -15711,7 +15710,7 @@ SP_NOINLINE static sp_digit sp_256_sub_in_place_8(sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r7, %[a]\n\t"
         "add	r7, r7, #32\n\t"
         "\n1:\n\t"
@@ -15750,7 +15749,7 @@ SP_NOINLINE static sp_digit sp_256_sub_in_place_8(sp_digit* a,
 {
     sp_digit c = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "ldr	r3, [%[a], #0]\n\t"
         "ldr	r4, [%[a], #4]\n\t"
         "ldr	r5, [%[b], #0]\n\t"
@@ -15802,7 +15801,7 @@ SP_NOINLINE static sp_digit sp_256_sub_in_place_8(sp_digit* a,
 SP_NOINLINE static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
-    asm volatile (
+    __asm__ __volatile__ (
         "mov	r6, #32\n\t"
         "add	r6, r6, %[a]\n\t"
         "mov	r8, %[r]\n\t"
@@ -15849,7 +15848,7 @@ SP_NOINLINE static sp_digit div_256_word_8(sp_digit d1, sp_digit d0,
 {
     sp_digit r = 0;
 
-    asm volatile (
+    __asm__ __volatile__ (
         "lsr	r6, %[div], #16\n\t"
         "add	r6, r6, #1\n\t"
         "udiv	r4, %[d1], r6\n\t"
@@ -16931,7 +16930,7 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
     return err;
 }
 #endif
-#endif /* WOLFSSL_SP_NO_256 */
+#endif /* !WOLFSSL_SP_NO_256 */
 #endif /* WOLFSSL_HAVE_SP_ECC */
 #endif /* WOLFSSL_SP_ARM_CORTEX_M_ASM */
 #endif /* WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH || WOLFSSL_HAVE_SP_ECC */
