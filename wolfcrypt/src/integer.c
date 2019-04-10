@@ -3007,6 +3007,10 @@ int mp_init_size (mp_int * a, int size)
 {
   int x;
 
+#ifdef WOLFSSL_MP_PREALLOC
+    a->preAlloc = 0;
+#endif
+
   /* pad size so there are always extra digits */
   size += (MP_PREC * 2) - (size % MP_PREC);
 
