@@ -16739,6 +16739,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                 case AUTH_KEY_OID: isSet = x509->authKeyIdSet; break;
                 case SUBJ_KEY_OID: isSet = x509->subjKeyIdSet; break;
                 case KEY_USAGE_OID: isSet = x509->keyUsageSet; break;
+                case CRL_DIST_OID: isSet = x509->CRLdistSet; break;
                 #ifdef WOLFSSL_SEP
                     case CERT_POLICY_OID: isSet = x509->certPolicySet; break;
                 #endif /* WOLFSSL_SEP */
@@ -16764,6 +16765,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                 case AUTH_KEY_OID: crit = x509->authKeyIdCrit; break;
                 case SUBJ_KEY_OID: crit = x509->subjKeyIdCrit; break;
                 case KEY_USAGE_OID: crit = x509->keyUsageCrit; break;
+                case CRL_DIST_OID: crit= x509->CRLdistCrit; break;
                 #ifdef WOLFSSL_SEP
                     case CERT_POLICY_OID: crit = x509->certPolicyCrit; break;
                 #endif /* WOLFSSL_SEP */
@@ -31421,8 +31423,8 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         { KEY_USAGE_OID, KEY_USAGE_OID, oidCertExtType, "X509 key usage" },
         { INHIBIT_ANY_OID, INHIBIT_ANY_OID, oidCertExtType,
                                                            "X509 inhibit any" },
-        { NID_ext_key_usage, KEY_USAGE_OID, oidCertExtType,
-                                                         "X509 ext key usage" },
+        { NID_key_usage, KEY_USAGE_OID, oidCertExtType,
+                                                         "X509 key usage" },
         { NID_name_constraints, NAME_CONS_OID, oidCertExtType,
                                                       "X509 name constraints" },
         { NID_certificate_policies, CERT_POLICY_OID, oidCertExtType,
@@ -32159,7 +32161,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                     case INHIBIT_ANY_OID:
                         return INHIBIT_ANY_OID;
                     case KEY_USAGE_OID:
-                        return NID_ext_key_usage;
+                        return NID_key_usage;
                     case NAME_CONS_OID:
                         return NID_name_constraints;
                     case CERT_POLICY_OID:
