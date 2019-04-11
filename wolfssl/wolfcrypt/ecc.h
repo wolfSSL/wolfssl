@@ -111,12 +111,12 @@ enum {
     ECC_PRIVATEKEY      = 2,
     ECC_PRIVATEKEY_ONLY = 3,
     ECC_MAXNAME     = 16,   /* MAX CURVE NAME LENGTH */
-    SIG_HEADER_SZ   =  6,   /* ECC signature header size */
+    SIG_HEADER_SZ   =  7,   /* ECC signature header size (30 81 87 02 42 [R] 02 42 [S]) */
     ECC_BUFSIZE     = 256,  /* for exported keys temp buffer */
     ECC_MINSIZE     = 20,   /* MIN Private Key size */
     ECC_MAXSIZE     = 66,   /* MAX Private Key size */
     ECC_MAXSIZE_GEN = 74,   /* MAX Buffer size required when generating ECC keys*/
-    ECC_MAX_PAD_SZ  = 4,    /* ECC maximum padding size */
+    ECC_MAX_PAD_SZ  = 2,    /* ECC maximum padding size (when MSB is set extra byte required for R and S) */
     ECC_MAX_OID_LEN = 16,
     ECC_MAX_SIG_SIZE= ((MAX_ECC_BYTES * 2) + ECC_MAX_PAD_SZ + SIG_HEADER_SZ),
 

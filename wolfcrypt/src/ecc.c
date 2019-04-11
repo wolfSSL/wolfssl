@@ -4229,6 +4229,26 @@ int wc_ecc_set_flags(ecc_key* key, word32 flags)
     return 0;
 }
 
+
+static int wc_ecc_get_curve_order_bit_count(const ecc_set_type* dp)
+{
+    int err;
+    word32 orderBits;
+    DECLARE_CURVE_SPECS(curve, 1);
+
+    /* if the input is larger than curve order, we must truncate */
+    ALLOC_CURVE_SPECS(1);
+    err = wc_ecc_curve_load(dp, &curve, ECC_CURVE_FIELD_ORDER);
+    if (err != 0) {
+       FREE_CURVE_SPECS();
+       return err;
+    }
+    orderBits = mp_count_bits(curve->order);
+
+    FREE_CURVE_SPECS();
+    return (int)orderBits;
+}
+
 #ifdef HAVE_ECC_SIGN
 
 #ifndef NO_ASN
@@ -4245,26 +4265,16 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
 #endif
     {
         word32 keysize = (word32)key->dp->size;
-        word32 orderBits;
-        DECLARE_CURVE_SPECS(curve, 1);
+        word32 orderBits = wc_ecc_get_curve_order_bit_count(key->dp);
 
         /* Check args */
         if (keysize > ECC_MAX_CRYPTO_HW_SIZE || *outlen < keysize*2) {
             return ECC_BAD_ARG_E;
         }
 
-        /* if the input is larger than curve order, we must truncate */
-        ALLOC_CURVE_SPECS(1);
-        err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
-        if (err != 0) {
-           FREE_CURVE_SPECS();
-           return err;
-        }
-        orderBits = mp_count_bits(curve->order);
         if ((inlen * WOLFSSL_BIT_SIZE) > orderBits) {
            inlen = (orderBits + WOLFSSL_BIT_SIZE - 1) / WOLFSSL_BIT_SIZE;
         }
-        FREE_CURVE_SPECS();
 
     #if defined(WOLFSSL_ATECC508A)
         key->slot = atmel_ecc_alloc(ATMEL_SLOT_DEVICE);
@@ -7066,25 +7076,53 @@ int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
 /* key size in octets */
 int wc_ecc_size(ecc_key* key)
 {
-    if (key == NULL) return 0;
+    if (key == NULL)
+        return 0;
 
     return key->dp->size;
 }
 
+/* maximum signature size based on key size */
 int wc_ecc_sig_size_calc(int sz)
 {
-    return (sz * 2) + SIG_HEADER_SZ + ECC_MAX_PAD_SZ;
+    int maxSigSz = 0;
+
+    /* calculate based on key bits */
+    maxSigSz = (sz * 2) + (SIG_HEADER_SZ - 1) + ECC_MAX_PAD_SZ;
+
+    /* if total length exceeds 127 then add 1 */
+    if (maxSigSz >= 127)
+        maxSigSz += 1;
+
+    return maxSigSz;
 }
 
-/* worst case estimate, check actual return from wc_ecc_sign_hash for actual
-   value of signature size in octets */
+/* maximum signature size based on actual key curve */
 int wc_ecc_sig_size(ecc_key* key)
 {
-    int sz = wc_ecc_size(key);
-    if (sz <= 0)
-        return sz;
+    int maxSigSz;
+    int orderBits, keySz;
 
-    return wc_ecc_sig_size_calc(sz);
+    if (key == NULL || key->dp == NULL)
+        return 0;
+
+    /* the signature r and s will always be less than order */
+    /* if the order MSB (top bit of byte) is set then ASN encoding needs
+        extra byte for r and s, so add 2 */
+    keySz = key->dp->size;
+    orderBits = wc_ecc_get_curve_order_bit_count(key->dp);
+    /* signature header is minimum of 6 */
+    maxSigSz = (keySz * 2) + (SIG_HEADER_SZ - 1);
+    if ((orderBits % 8) == 0) {
+        /* MSB can be set, so add 2 */
+        maxSigSz += ECC_MAX_PAD_SZ;
+    }
+    /* if total length exceeds 127 then add 1 */
+    if (maxSigSz >= 127) {
+        maxSigSz += 1;
+    }
+
+    return maxSigSz;
 }
 
 
