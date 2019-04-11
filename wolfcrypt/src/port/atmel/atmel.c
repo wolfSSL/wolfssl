@@ -736,7 +736,7 @@ exit:
  * \brief Verify signature received from peers to prove peer's private key.
  */
 int atcatls_verify_signature_cb(WOLFSSL* ssl, const byte* sig, unsigned int sigSz,
-    const byte* hash, word32 unsigned int, const byte* key, unsigned int keySz, int* result,
+    const byte* hash, unsigned int hashSz, const byte* key, unsigned int keySz, int* result,
     void* ctx)
 {
     int ret;
