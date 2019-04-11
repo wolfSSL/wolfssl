@@ -7749,7 +7749,6 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* x509, int loc)
         }
     }
     FreeDecodedCert(&cert);
-
     return ext;
 }
 
@@ -7992,6 +7991,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
         case (NID_ext_key_usage):
             WOLFSSL_MSG("extKeyUsage not supported yet");
             return NULL;
+
         /* certificatePolicies */
         case (NID_certificate_policies):
             WOLFSSL_MSG("certificatePolicies not supported yet");
