@@ -4236,7 +4236,6 @@ static int wc_ecc_get_curve_order_bit_count(const ecc_set_type* dp)
     word32 orderBits;
     DECLARE_CURVE_SPECS(curve, 1);
 
-    /* if the input is larger than curve order, we must truncate */
     ALLOC_CURVE_SPECS(1);
     err = wc_ecc_curve_load(dp, &curve, ECC_CURVE_FIELD_ORDER);
     if (err != 0) {
@@ -4272,6 +4271,7 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
             return ECC_BAD_ARG_E;
         }
 
+        /* if the input is larger than curve order, we must truncate */
         if ((inlen * WOLFSSL_BIT_SIZE) > orderBits) {
            inlen = (orderBits + WOLFSSL_BIT_SIZE - 1) / WOLFSSL_BIT_SIZE;
         }
