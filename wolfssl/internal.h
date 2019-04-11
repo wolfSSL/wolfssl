@@ -3417,6 +3417,11 @@ struct WOLFSSL_X509 {
     DNS_entry*       altNames;                       /* alt names list */
     buffer           pubKey;
     int              pubKeyOID;
+#ifdef OPENSSL_EXTRA
+    const byte*      pubKeyX509;    /* pointer to internal X509 for where X.509
+                                     * format key starts */
+    int              pubKeyX509Sz;
+#endif
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
     #if defined(HAVE_ECC) || defined(HAVE_ED25519)
         word32       pkCurveOID;

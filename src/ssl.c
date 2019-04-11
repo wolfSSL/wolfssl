@@ -15366,19 +15366,63 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
     /* Getter function that copies over the DER public key buffer to "buf" and
      * sets the size in bufSz. If "buf" is NULL then just bufSz is set to needed
      * buffer size.
+     *
+     * Note: this is the X.509 form of key with "header" info.
      * return WOLFSSL_SUCCESS on success
      */
     int wolfSSL_X509_get_pubkey_buffer(WOLFSSL_X509* x509,
                                                 unsigned char* buf, int* bufSz)
     {
         WOLFSSL_ENTER("wolfSSL_X509_get_pubkey_buffer");
-        if (x509 == NULL || bufSz == NULL || (*bufSz < (int)x509->pubKey.length
-                    && buf != NULL))
+        if (x509 == NULL || bufSz == NULL)
             return WOLFSSL_FATAL_ERROR;
 
+        /* get pointer into DER for X.509 public key */
+        if (x509->pubKeyX509 == NULL) {
+        #ifdef WOLFSSL_SMALL_STACK
+            DecodedCert* cert;
+        #else
+            DecodedCert cert[1];
+        #endif
+            word32 idx;
+            const byte*  der;
+            int length = 0;
+            int    ret, derSz = 0;
+            int badDate = 0;
+
+        #ifdef WOLFSSL_SMALL_STACK
+            cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert),
+                                           x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (decoded == NULL)
+                return MEMORY_E;
+        #endif
+
+            der = wolfSSL_X509_get_der(x509, &derSz);
+            InitDecodedCert(cert, der, derSz, NULL);
+            ret = wc_GetPubX509(cert, 0, &badDate);
+            if (ret >= 0) {
+                idx = cert->srcIdx;
+                x509->pubKeyX509 = cert->source + cert->srcIdx;
+                ret = GetSequence(cert->source, &cert->srcIdx, &length,
+                        cert->maxIdx);
+                x509->pubKeyX509Sz = length + (cert->srcIdx - idx);
+            }
+
+            FreeDecodedCert(cert);
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(cert, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+
+            if (ret < 0) {
+                x509->pubKeyX509   = NULL;
+                x509->pubKeyX509Sz = 0;
+                return ret;
+            }
+        }
+
         if (buf != NULL)
-            XMEMCPY(buf, x509->pubKey.buffer, x509->pubKey.length);
-        *bufSz = x509->pubKey.length;
+            XMEMCPY(buf, x509->pubKeyX509, x509->pubKeyX509Sz);
+        *bufSz = x509->pubKeyX509Sz;
 
         return WOLFSSL_SUCCESS;
     }
@@ -15431,7 +15475,7 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
     const unsigned char* wolfSSL_X509_get_tbs(WOLFSSL_X509* x509, int* outSz)
     {
         int sz = 0, len;
-        unsigned int idx = 0;
+        unsigned int idx = 0, tmpIdx;
         const unsigned char* der = NULL;
         const unsigned char* tbs = NULL;
 
@@ -15448,10 +15492,11 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
             return NULL;
         }
         tbs = der + idx;
+        tmpIdx = idx;
         if (GetSequence(der, &idx, &len, sz) < 0) {
             return NULL;
         }
-        *outSz = len;
+        *outSz = len + (idx - tmpIdx);
         return tbs;
     }
 

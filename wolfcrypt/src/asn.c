@@ -5640,12 +5640,20 @@ int wc_GetCertDates(Cert* cert, struct tm* before, struct tm* after)
 #endif /* WOLFSSL_CERT_GEN && WOLFSSL_ALT_NAMES */
 #endif /* !NO_ASN_TIME */
 
-
-int DecodeToKey(DecodedCert* cert, int verify)
+/* parses certificate up to point of X.509 public key
+ *
+ * if cert date is invalid then badDate gets set to error value, otherwise is 0
+ *
+ * returns a negative value on fail case
+ */
+int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate)
 {
-    int badDate = 0;
     int ret;
 
+    if (cert == NULL || badDate == NULL)
+        return BAD_FUNC_ARG;
+
+    *badDate = 0;
     if ( (ret = GetCertHeader(cert)) < 0)
         return ret;
 
@@ -5661,12 +5669,23 @@ int DecodeToKey(DecodedCert* cert, int verify)
         return ret;
 
     if ( (ret = GetValidity(cert, verify)) < 0)
-        badDate = ret;
+        *badDate = ret;
 
     if ( (ret = GetName(cert, SUBJECT)) < 0)
         return ret;
 
     WOLFSSL_MSG("Got Subject Name");
+    return ret;
+}
+
+
+int DecodeToKey(DecodedCert* cert, int verify)
+{
+    int badDate = 0;
+    int ret;
+
+    if ( (ret = wc_GetPubX509(cert, verify, &badDate)) < 0)
+        return ret;
 
     /* Determine if self signed */
     cert->selfSigned = XMEMCMP(cert->issuerHash,
