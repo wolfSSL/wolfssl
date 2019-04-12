@@ -751,7 +751,7 @@ extern void uITRON4_free(void *p) ;
         #undef SIZEOF_LONG
         #define SIZEOF_LONG_LONG 8
     #else
-        #sslpro: settings.h - please implement SIZEOF_LONG and SIZEOF_LONG_LONG
+        #error settings.h - please implement SIZEOF_LONG and SIZEOF_LONG_LONG
     #endif
 
     #define XMALLOC(s, h, type) ((void *)rtp_malloc((s), SSL_PRO_MALLOC))
