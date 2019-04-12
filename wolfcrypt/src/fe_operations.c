@@ -42,7 +42,7 @@
 #endif
 
 #ifdef CURVED25519_X64
-#include "fe_x25519_x64.i"
+/* Assumbly code in fe_x25519_asm.* */
 #elif defined(CURVED25519_128BIT)
 #include "fe_x25519_128.i"
 #else

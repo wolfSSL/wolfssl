@@ -372,6 +372,9 @@ if BUILD_CURVE25519_SMALL
 src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_low_mem.c
 else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_operations.c
+if BUILD_INTELASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_x25519_asm.S
+endif
 endif
 endif
 
@@ -382,6 +385,9 @@ else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/ge_operations.c
 if !BUILD_FEMATH
 src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_operations.c
+if BUILD_INTELASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_x25519_asm.S
+endif
 endif
 endif
 endif
