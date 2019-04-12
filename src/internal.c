@@ -15223,14 +15223,18 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         ssl->error = 0;
     }
 
-#ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls) {
-        /* In DTLS mode, we forgive some errors and allow the session
-         * to continue despite them. */
-        if (ssl->error == VERIFY_MAC_ERROR || ssl->error == DECRYPT_ERROR)
+    /* don't allow write after decrypt or mac error */
+    if (ssl->error == VERIFY_MAC_ERROR || ssl->error == DECRYPT_ERROR) {
+        /* For DTLS allow these possible errors and allow the session
+            to continue despite them */
+        if (ssl->options.dtls) {
             ssl->error = 0;
+        }
+        else {
+            WOLFSSL_MSG("Not allowing write after decrypt or mac error");
+            return WOLFSSL_FATAL_ERROR;
+        }
     }
-#endif /* WOLFSSL_DTLS */
 
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->earlyData != no_early_data) {
