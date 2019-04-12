@@ -202,6 +202,30 @@ fips-ready)
   exit 1
 esac
 
+# The following is used to fix the XASM_LINK for FIPSv2.
+read -r -d '' PATCH_XASM_LINK <<-'EOF'
+diff --git a/wolfcrypt/src/aes.c b/wolfcrypt/src/aes.c
+index b9579c30d..9fc2be405 100644
+--- a/wolfcrypt/src/aes.c
++++ b/wolfcrypt/src/aes.c
+@@ -664,10 +664,12 @@
+         #define AESNI_ALIGN 16
+     #endif
+
+-    #ifndef _MSC_VER
+-        #define XASM_LINK(f) asm(f)
+-    #else
++    #ifdef _MSC_VER
+         #define XASM_LINK(f)
++    #elif defined(__APPLE__)
++        #define XASM_LINK(f) asm("_" f)
++    #else
++        #define XASM_LINK(f) asm(f)
+     #endif /* _MSC_VER */
+
+     static int checkAESNI = 0;
+EOF
+
 if ! $GIT clone . $TEST_DIR; then
     echo "fips-check: Couldn't duplicate current working directory."
     exit 1
@@ -248,6 +272,8 @@ then
     $GIT branch --no-track "my$RNG_VERSION" $RNG_VERSION
     # Checkout the fips versions of the wolfCrypt files from the repo.
     $GIT checkout "my$RNG_VERSION" -- "$CRYPT_SRC_PATH/random.c" "$CRYPT_INC_PATH/random.h"
+
+    echo "$PATCH_XASM_LINK" | patch -p1
 elif [ "x$FIPS_OPTION" == "xready" ]
 then
     echo "Don't need to copy anything in particular for FIPS Ready."
