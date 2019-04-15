@@ -154,6 +154,12 @@
             #define WC_INLINE inline
         #elif defined(THREADX)
             #define WC_INLINE _Inline
+        #elif defined(__ghc__)
+            #ifndef __cplusplus
+                #define WC_INLINE __inline
+            #else
+                #define WC_INLINE inline
+            #endif
         #else
             #define WC_INLINE
         #endif
