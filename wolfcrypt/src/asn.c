@@ -5729,14 +5729,24 @@ static word32 BytePrecision(word32 value)
 
 WOLFSSL_LOCAL word32 SetLength(word32 length, byte* output)
 {
+    word32 precision;
     word32 i = 0, j;
 
     if (length < ASN_LONG_LENGTH)
         output[i++] = (byte)length;
     else {
-        output[i++] = (byte)(BytePrecision(length) | ASN_LONG_LENGTH);
+        precision = BytePrecision(length);
 
-        for (j = BytePrecision(length); j; --j) {
+        /* The following check is to prevent accessing out of boundaries */
+        if(precision >= MAX_LENGTH_SZ) {
+            WOLFSSL_MSG("length is too long");
+            /* truncate if input is too long */
+            precision = MAX_LENGTH_SZ - 1;
+        }
+
+        output[i++] = (byte)(precision | ASN_LONG_LENGTH);
+        
+        for (j = precision; j; --j) {
             output[i] = (byte)(length >> ((j - 1) * WOLFSSL_BIT_SIZE));
             i++;
         }
