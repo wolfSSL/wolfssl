@@ -105,6 +105,10 @@
     #define MAX_ECC_BYTES     ((MAX_ECC_BITS / 8) + 1)
 #endif
 
+#ifndef ECC_MAX_PAD_SZ
+    /* ECC maximum padding size (when MSB is set extra byte required for R and S) */
+    #define ECC_MAX_PAD_SZ 2
+#endif
 
 enum {
     ECC_PUBLICKEY       = 1,
@@ -116,7 +120,6 @@ enum {
     ECC_MINSIZE     = 20,   /* MIN Private Key size */
     ECC_MAXSIZE     = 66,   /* MAX Private Key size */
     ECC_MAXSIZE_GEN = 74,   /* MAX Buffer size required when generating ECC keys*/
-    ECC_MAX_PAD_SZ  = 2,    /* ECC maximum padding size (when MSB is set extra byte required for R and S) */
     ECC_MAX_OID_LEN = 16,
     ECC_MAX_SIG_SIZE= ((MAX_ECC_BYTES * 2) + ECC_MAX_PAD_SZ + SIG_HEADER_SZ),
 
