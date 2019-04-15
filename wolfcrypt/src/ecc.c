@@ -7088,11 +7088,13 @@ int wc_ecc_sig_size_calc(int sz)
     int maxSigSz = 0;
 
     /* calculate based on key bits */
-    maxSigSz = (sz * 2) + (SIG_HEADER_SZ - 1) + ECC_MAX_PAD_SZ;
+    /* maximum possible signature header size is 7 bytes plus 2 bytes padding */
+    maxSigSz = (sz * 2) + SIG_HEADER_SZ + ECC_MAX_PAD_SZ;
 
-    /* if total length exceeds 127 then add 1 */
-    if (maxSigSz >= 127)
-        maxSigSz += 1;
+    /* if total length is less than or equal to 128 then subtract 1 */
+    if (maxSigSz <= 128) {
+        maxSigSz -= 1;
+    }
 
     return maxSigSz;
 }
@@ -7111,15 +7113,15 @@ int wc_ecc_sig_size(ecc_key* key)
         extra byte for r and s, so add 2 */
     keySz = key->dp->size;
     orderBits = wc_ecc_get_curve_order_bit_count(key->dp);
-    /* signature header is minimum of 6 */
-    maxSigSz = (keySz * 2) + (SIG_HEADER_SZ - 1);
+    /* maximum possible signature header size is 7 bytes */
+    maxSigSz = (keySz * 2) + SIG_HEADER_SZ;
     if ((orderBits % 8) == 0) {
         /* MSB can be set, so add 2 */
         maxSigSz += ECC_MAX_PAD_SZ;
     }
-    /* if total length exceeds 127 then add 1 */
-    if (maxSigSz >= 127) {
-        maxSigSz += 1;
+    /* if total length is less than or equal to 128 then subtract 1 */
+    if (maxSigSz <= 128) {
+        maxSigSz -= 1;
     }
 
     return maxSigSz;
