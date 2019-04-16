@@ -2336,8 +2336,7 @@ static TCA* TLSX_TCA_New(byte type, const byte* id, word16 idSz, void* heap)
             #ifndef NO_SHA
             case WOLFSSL_TRUSTED_CA_KEY_SHA1:
             case WOLFSSL_TRUSTED_CA_CERT_SHA1:
-                if (idSz == WC_SHA_DIGEST_SIZE &&
-                        (tca->id =
+                if (idSz == WC_SHA_DIGEST_SIZE && (tca->id = \
                             (byte*)XMALLOC(idSz, heap, DYNAMIC_TYPE_TLSX))) {
                     XMEMCPY(tca->id, id, idSz);
                     tca->idSz = idSz;
@@ -2520,15 +2519,17 @@ static int TLSX_TCA_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         return 0;
     }
 
-    if (OPAQUE16_LEN > length)
+    if (OPAQUE16_LEN > length) {
         return BUFFER_ERROR;
+    }
 
     ato16(input, &size);
     offset += OPAQUE16_LEN;
 
     /* validating tca list length */
-    if (length != OPAQUE16_LEN + size)
+    if (length != OPAQUE16_LEN + size) {
         return BUFFER_ERROR;
+    }
 
     for (size = 0; offset < length; offset += size) {
         TCA *tca = NULL;
@@ -2536,8 +2537,9 @@ static int TLSX_TCA_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         const byte* id = NULL;
         word16 idSz = 0;
 
-        if (offset + ENUM_LEN > length)
+        if (offset + ENUM_LEN > length) {
             return BUFFER_ERROR;
+        }
 
         type = input[offset++];
 
@@ -2547,20 +2549,23 @@ static int TLSX_TCA_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             #ifndef NO_SHA
             case WOLFSSL_TRUSTED_CA_KEY_SHA1:
             case WOLFSSL_TRUSTED_CA_CERT_SHA1:
-                if (offset + WC_SHA_DIGEST_SIZE > length)
+                if (offset + WC_SHA_DIGEST_SIZE > length) {
                     return BUFFER_ERROR;
+                }
                 idSz = WC_SHA_DIGEST_SIZE;
                 id = input + offset;
                 offset += idSz;
                 break;
             #endif
             case WOLFSSL_TRUSTED_CA_X509_NAME:
-                if (offset + OPAQUE16_LEN > length)
+                if (offset + OPAQUE16_LEN > length) {
                     return BUFFER_ERROR;
+                }
                 ato16(input + offset, &idSz);
                 offset += OPAQUE16_LEN;
-                if (offset + idSz > length)
+                if (offset + idSz > length) {
                     return BUFFER_ERROR;
+                }
                 id = input + offset;
                 offset += idSz;
                 break;
