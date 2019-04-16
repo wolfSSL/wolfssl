@@ -25704,13 +25704,12 @@ int wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key,
  * returns WOLFSSL_SUCCESS on success */
 int wolfSSL_HmacCopy(Hmac* des, Hmac* src)
 {
-    int ret    = 0;
     void* heap = NULL;
 
 #ifndef HAVE_FIPS
     heap = src->heap;
 #endif
-    if ((ret = wc_HmacInit(des, heap, 0)) != 0) {
+    if (wc_HmacInit(des, heap, 0) != 0) {
         return WOLFSSL_FAILURE;
     }
 
@@ -32145,7 +32144,6 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     {
         word32 oid = 0;
         word32 idx = 0;
-        int id;
 
         WOLFSSL_ENTER("wolfSSL_OBJ_obj2nid");
 
@@ -32154,7 +32152,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         }
         if (o->nid > 0)
             return o->nid;
-        if ((id = GetObjectId(o->obj, &idx, &oid, o->grp, o->objSz)) < 0) {
+        if (GetObjectId(o->obj, &idx, &oid, o->grp, o->objSz) < 0) {
             WOLFSSL_MSG("Issue getting OID of object");
             return -1;
         }

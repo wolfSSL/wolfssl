@@ -1,6 +1,10 @@
 wolfSSL/AlphaProjectボードデモ　セットアップガイド
 
-このデモはRenesas CS+ v6.01、AP-RX71M-0A, wolfSSL 3.15.3 でテストしています。
+このデモは以下の環境でテストしています。
+
+  Renesas : CS+ v6.01, v8.01
+  Board   : AP-RX71M-0A
+  wolfSSL : 3.15.3, 4.0.0
 
 セットアップ手順：
 
@@ -9,12 +13,16 @@ wolfSSL/AlphaProjectボードデモ　セットアップガイド
 　- 同じフォルダー下にwolfssl一式を解凍します。
 
 ２．wolfSSLのセットアップ
-　- CS+にてwolfssl\IDE\Renesas\cs+\Project下のwolfssl\lib.mtpjを開き
+　- CS+にてwolfssl\IDE\Renesas\cs+\Project下のwolfssl\wolfssl_lib.mtpjを開き
 　　wolfSSLライブラリーのビルドをします。
 　- 同じフォルダの下のt4_demo.mtpjを開き、デモプログラムのビルドをします。
 　このプログラムもライブラリー形式でビルドされます。
-　
+
 ３．AlphaProject側のセットアップ
+  
+  !!** サンプルプログラム v2.0 を使用する場合は、_ether_ => _usbfunc_ **!!
+  !!** と置き換えてください                                           **!!
+
 　デモはap_rx71m_0a_sample_cs\Sample\ap_rx71m_0a_ether_sample_csフォルダ下の
 　ap_rx71m_0a_ether_sample_cs.mtpjプロジェクトを利用します。
 　
@@ -23,31 +31,53 @@ wolfSSL/AlphaProjectボードデモ　セットアップガイド
 　９７行目のecho_srv_init()の下にwolfSSL_init()を挿入します。
 
 ===
-	sci_init();
-	can_init();
-	echo_srv_init();
-	wolfSSL_init(); <- この行を挿入
+        sci_init();
+        can_init();
+        echo_srv_init();
+        wolfSSL_init(); <- この行を挿入
 ===
 
-　- ap_rx71m_0a_sample_cs\Sample\ap_rx71m_0a_ether_sample_cs\src\r_configファイル
+!!** サンプルプログラム v2.0 を使用する場合は、下記                   **!!
+===
+        CanInit();
+        SciInit();
+        EthernetAppInit();
+        UsbfInit();
+        wolfSSL_init(); <- この行を挿入
+===
+!!**********************************************************************!!
+
+　- ap_rx71m_0a_sample_cs\Sample\ap_rx71m_0a_ether_sample_cs\src\smc_gen\r_bsp_config.h
 　を開き、スタックサイズとヒープサイズを以下のように設定します。
 　
 　120行目 #pragma stacksize su=0x2000
 　139行目 #define BSP_CFG_HEAP_BYTES  (0xa000)
 
+!!** サンプルプログラム v2.0 を使用する場合は、下記                   **!!
+　- ap_rx71m_0a_sample_cs\Sample\ap_rx71m_0a_usbfunc_sample_cs\src\smc_gen\r_bsp_config.h
+　を開き、スタックサイズとヒープサイズを以下のように設定します。
+　154行目 #pragma stacksize su=0x2000
+　175行目 #define BSP_CFG_HEAP_BYTES  (0xa000)
+!!**********************************************************************!!
+
 　- IPアドレスのデフォルト値は以下のようになっています。
 　必要があれば、Sample\ap_rx71m_0a_ether_sample_cs\src\r_t4_rx\src\config_tcpudp.c
 　内の139行目からの定義を変更します。
-　
+　!!** サンプルプログラム v2.0 を使用する場合は、下記                   **!!
+  Sample\ap_rx71m_0a_usbfunc_sample_cs\src\tcp_sample\src\config_tcpudp.c
+  内の166行目からの定義を変更します。
+  !!**********************************************************************!!
+
 ===
 #define MY_IP_ADDR0     192,168,1,200           /* Local IP address  */
 #define GATEWAY_ADDR0   192,168,1,254           /* Gateway address (invalid if all 0s) */
 #define SUBNET_MASK0    255,255,255,0           /* Subnet mask  */
 ===
 
+
 　- CS+でap_rx71m_0a_ether_sample_cs.mtpjプロジェクトを開き、wolfSSLとデモライブラリを
-　登録します。CC-RX(ビルドツール)->リンク・オプションタブ->使用する以下の二つのファイル
-　を登録します。
+　登録します。CC-RX(ビルドツール)->リンク・オプションタブ->使用するライブラリに
+　以下の二つのファイルを登録します。
 　wolfssl\IDE\Renesas\cs+\Projects\wolfssl_lib\DefaultBuild\wolfssl_lib.lib
 　wolfssl\IDE\Renesas\cs+\Projects\t4_demo\DefaultBuild\t4_demo.lib
 
