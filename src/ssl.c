@@ -14251,8 +14251,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
              ret = wolfSSL_SHA_Init(&(ctx->hash.digest.sha));
         }
     #endif /* NO_SHA */
-        else
+        else {
+             ctx->macType = WC_HASH_TYPE_NONE;
              return BAD_FUNC_ARG;
+        }
 
         return ret;
     }
