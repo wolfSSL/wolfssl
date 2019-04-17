@@ -509,6 +509,9 @@ const char* wc_GetErrorString(int error)
     case PKCS7_SIGNEEDS_CHECK:
         return "Signature found but no certificate to verify";
 
+    case ASN_SELF_SIGNED_E:
+        return "ASN self-signed certificate error";
+
     default:
         return "unknown error number";
 

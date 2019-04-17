@@ -227,7 +227,9 @@ enum {
     CRYPTOCB_UNAVAILABLE= -271, /* Crypto callback unavailable */
     PKCS7_SIGNEEDS_CHECK= -272, /* signature needs verified by caller */
 
-    WC_LAST_E           = -272,  /* Update this to indicate last error */
+    ASN_SELF_SIGNED_E   = -273,  /* ASN self-signed certificate error */
+
+    WC_LAST_E           = -273,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

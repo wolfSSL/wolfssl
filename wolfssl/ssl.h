@@ -125,8 +125,9 @@ typedef struct WC_PKCS12          WOLFSSL_X509_PKCS12;
 typedef struct WOLFSSL_CERT_MANAGER WOLFSSL_CERT_MANAGER;
 typedef struct WOLFSSL_SOCKADDR     WOLFSSL_SOCKADDR;
 typedef struct WOLFSSL_CRL          WOLFSSL_CRL;
+typedef struct WOLFSSL_X509_STORE_CTX WOLFSSL_X509_STORE_CTX;
 
-typedef void  *WOLFSSL_X509_STORE_CTX_verify_cb; /* verify callback */
+typedef int (*WOLFSSL_X509_STORE_CTX_verify_cb)(int, WOLFSSL_X509_STORE_CTX *);
 
 /* redeclare guard */
 #define WOLFSSL_TYPES_DEFINED
@@ -422,7 +423,7 @@ typedef struct WOLFSSL_BUFFER_INFO {
     unsigned int length;
 } WOLFSSL_BUFFER_INFO;
 
-typedef struct WOLFSSL_X509_STORE_CTX {
+struct WOLFSSL_X509_STORE_CTX {
     WOLFSSL_X509_STORE* store;    /* Store full of a CA cert chain */
     WOLFSSL_X509* current_cert;   /* current X509 (OPENSSL_EXTRA) */
 #ifdef WOLFSSL_ASIO
@@ -442,7 +443,7 @@ typedef struct WOLFSSL_X509_STORE_CTX {
     int   totalCerts;            /* number of peer cert buffers */
     WOLFSSL_BUFFER_INFO* certs;  /* peer certs */
     WOLFSSL_X509_STORE_CTX_verify_cb verify_cb; /* verify callback */
-} WOLFSSL_X509_STORE_CTX;
+};
 
 typedef char* WOLFSSL_STRING;
 
@@ -1050,6 +1051,9 @@ WOLFSSL_API int wolfSSL_ASN1_STRING_set(WOLFSSL_ASN1_STRING* asn1,
                                                   const void* data, int dataSz);
 WOLFSSL_API unsigned char* wolfSSL_ASN1_STRING_data(WOLFSSL_ASN1_STRING*);
 WOLFSSL_API int wolfSSL_ASN1_STRING_length(WOLFSSL_ASN1_STRING*);
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+WOLFSSL_API int         GetX509Error(int e);
+#endif
 WOLFSSL_API int         wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX*);
 WOLFSSL_API const char* wolfSSL_X509_verify_cert_error_string(long);
 WOLFSSL_API int wolfSSL_X509_get_signature_type(WOLFSSL_X509*);
@@ -1139,6 +1143,8 @@ WOLFSSL_API void* wolfSSL_X509_STORE_CTX_get_ex_data(WOLFSSL_X509_STORE_CTX*, in
 WOLFSSL_API int   wolfSSL_get_ex_data_X509_STORE_CTX_idx(void);
 WOLFSSL_API void wolfSSL_X509_STORE_CTX_set_error(
                                            WOLFSSL_X509_STORE_CTX* ctx, int er);
+WOLFSSL_API void wolfSSL_X509_STORE_CTX_set_error_depth(
+                                           WOLFSSL_X509_STORE_CTX* ctx, int depth);
 WOLFSSL_API void* wolfSSL_get_ex_data(const WOLFSSL*, int);
 
 WOLFSSL_API void wolfSSL_CTX_set_default_passwd_cb_userdata(WOLFSSL_CTX*,
