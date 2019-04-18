@@ -50,7 +50,6 @@
 
 #define USER_TIME
 #define XTIME time
-#define HAVE_TIME_T_TYPE
 #define USE_WOLF_SUSECONDS_T
 #define USE_WOLF_TIMEVAL_T
 
