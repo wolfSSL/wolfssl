@@ -368,6 +368,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
                                              err != WOLFSSL_ERROR_ZERO_RETURN) {
                         printf("SSL_read echo error %d\n", err);
                         err_sys_ex(runWithErrors, "SSL_read failed");
+                        break;
                     }
                 }
                 else {
@@ -2217,8 +2218,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
-        if (err != WOLFSSL_ERROR_ZERO_RETURN && echoData == 0 &&
-                                                              throughput == 0) {
+        if (err == 0 && echoData == 0 && throughput == 0) {
             const char* write_msg;
             int write_msg_sz;
 
@@ -2247,7 +2247,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 ServerRead(ssl, input, sizeof(input)-1);
 #endif
         }
-        else {
+        else if (err == 0 || err == WOLFSSL_ERROR_ZERO_RETURN) {
             ServerEchoData(ssl, clientfd, echoData, block, throughput);
         }
 
