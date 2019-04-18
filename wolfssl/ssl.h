@@ -373,12 +373,7 @@ struct WOLFSSL_X509_STORE {
     #define wolfSSL_SSL_CTRL_SET_TMP_ECDH       4
     #define WOLFSSL_ASN1_BOOLEAN                int
 
-    typedef struct WOLFSSL_X509_ALGOR {
-        /* TODO: this  */
-    } WOLFSSL_X509_ALGOR;
-
     typedef struct WOLFSSL_X509_PUBKEY {
-        WOLFSSL_X509_ALGOR* algor;
         WOLFSSL_ASN1_BIT_STRING* public_key;
         WOLFSSL_EVP_PKEY* pkey;
     } WOLFSSL_X509_PUBKEY;
