@@ -15432,6 +15432,8 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
      * return public key OID stored in WOLFSSL_X509 structure */
     int wolfSSL_X509_get_pubkey_type(WOLFSSL_X509* x509)
     {
+        if (x509 == NULL)
+            return WOLFSSL_FAILURE;
         return x509->pubKeyOID;
     }
 
@@ -32385,7 +32387,6 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         ret = EncodePolicyOID(out, &outSz, s, NULL);
         if (ret == 0) {
             unsigned int i, sum = 0;
-            int nid, grp = -1;
 
             /* sum OID */
             for (i = 0; i < outSz; i++) {
@@ -32396,25 +32397,11 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
              * @TODO possible conflict with multiples */
             for (i = 0; i < WOLFSSL_OBJECT_INFO_SZ; i++) {
                if (wolfssl_object_info[i].id == (int)sum) {
-                   grp = wolfssl_object_info[i].type;
+                   return wolfssl_object_info[i].nid;
                }
             }
-            if (grp == -1) {
-                WOLFSSL_MSG("OID sum's group was not found");
-                return NID_undef;
-            }
-
-            /* success return nid */
-            nid = oid2nid(sum, grp);
-            if (nid < 0) {
-                WOLFSSL_MSG("OID 2 NID function failed");
-                return NID_undef;
-            }
-            return nid;
         }
-        else {
-            return 0;
-        }
+        return NID_undef;
     }
 
 

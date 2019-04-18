@@ -4356,6 +4356,85 @@ static void test_wolfSSL_URI(void)
 #endif
 }
 
+
+static void test_wolfSSL_TBS(void)
+{
+#if !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) \
+    && defined(OPENSSL_EXTRA)
+    WOLFSSL_X509* x509;
+    const unsigned char* tbs;
+    int tbsSz;
+
+    printf(testingFmt, "wolfSSL TBS");
+
+    AssertNotNull(x509 =
+          wolfSSL_X509_load_certificate_file(caCertFile, WOLFSSL_FILETYPE_PEM));
+
+    AssertNull(tbs = wolfSSL_X509_get_tbs(NULL, &tbsSz));
+    AssertNull(tbs = wolfSSL_X509_get_tbs(x509, NULL));
+    AssertNotNull(tbs = wolfSSL_X509_get_tbs(x509, &tbsSz));
+    AssertIntEQ(tbsSz, 918);
+
+    wolfSSL_FreeX509(x509);
+
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_X509_verify(void)
+{
+#if !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) \
+    && defined(OPENSSL_EXTRA)
+    WOLFSSL_X509* ca;
+    WOLFSSL_X509* server;
+    WOLFSSL_EVP_PKEY* pkey;
+    unsigned char buf[2048];
+    unsigned char* pt;
+    int bufSz;
+
+    printf(testingFmt, "wolfSSL X509 verify");
+
+    AssertNotNull(ca =
+          wolfSSL_X509_load_certificate_file(caCertFile, WOLFSSL_FILETYPE_PEM));
+
+    AssertIntNE(wolfSSL_X509_get_pubkey_buffer(NULL, buf, &bufSz),
+            WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_X509_get_pubkey_buffer(ca, NULL, &bufSz),
+            WOLFSSL_SUCCESS);
+    AssertIntEQ(bufSz, 294);
+
+    bufSz = 2048;
+    AssertIntEQ(wolfSSL_X509_get_pubkey_buffer(ca, buf, &bufSz),
+            WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_X509_get_pubkey_type(NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_X509_get_pubkey_type(ca), RSAk);
+
+
+    AssertNotNull(server =
+          wolfSSL_X509_load_certificate_file(svrCertFile, WOLFSSL_FILETYPE_PEM));
+
+    /* success case */
+    pt = buf;
+    AssertNotNull(pkey = wolfSSL_d2i_PUBKEY(NULL, &pt, bufSz));
+    AssertIntEQ(wolfSSL_X509_verify(server, pkey), WOLFSSL_SUCCESS);
+
+    /* fail case */
+    bufSz = 2048;
+    AssertIntEQ(wolfSSL_X509_get_pubkey_buffer(server, buf, &bufSz),
+            WOLFSSL_SUCCESS);
+    pt = buf;
+    AssertNotNull(pkey = wolfSSL_d2i_PUBKEY(NULL, &pt, bufSz));
+    AssertIntEQ(wolfSSL_X509_verify(server, pkey), WOLFSSL_FAILURE);
+
+    AssertIntEQ(wolfSSL_X509_verify(NULL, pkey), WOLFSSL_FATAL_ERROR);
+    AssertIntEQ(wolfSSL_X509_verify(server, NULL), WOLFSSL_FATAL_ERROR);
+
+    wolfSSL_FreeX509(ca);
+    wolfSSL_FreeX509(server);
+
+    printf(resultFmt, passed);
+#endif
+}
 /* Testing function  wolfSSL_CTX_SetMinVersion; sets the minimum downgrade
  * version allowed.
  * POST: 1 on success.
@@ -20679,6 +20758,7 @@ static void test_wolfSSL_OBJ(void)
     AssertNotNull(obj = OBJ_nid2obj(NID_sha256));
     AssertIntEQ(OBJ_obj2nid(obj), NID_sha256);
     AssertIntEQ(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 1), 22);
+    AssertIntEQ(OBJ_txt2nid(buf), NID_sha256);
     AssertIntGT(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 0), 0);
     ASN1_OBJECT_free(obj);
 
@@ -24368,6 +24448,8 @@ void ApiTest(void)
     test_wolfSSL_PKCS8();
     test_wolfSSL_PKCS5();
     test_wolfSSL_URI();
+    test_wolfSSL_TBS();
+    test_wolfSSL_X509_verify();
 
     test_wc_PemToDer();
     test_wc_AllocDer();
