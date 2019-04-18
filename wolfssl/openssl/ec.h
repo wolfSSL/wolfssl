@@ -119,12 +119,14 @@ struct wolfSSL_EC_builtin_curve {
 #define WOLFSSL_EC_KEY_LOAD_PUBLIC  2
 
 WOLFSSL_API
-size_t wolfSSL_EC_get_builtin_curves(wolfSSL_EC_builtin_curve *r, size_t nitems);
+size_t wolfSSL_EC_get_builtin_curves(wolfSSL_EC_builtin_curve *r, \
+                                     size_t nitems);
 WOLFSSL_API
 WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src);
+
 WOLFSSL_API
-int wolfSSL_ECPoint_i2d(const WOLFSSL_EC_GROUP *curve,
-                        const WOLFSSL_EC_POINT *p,
+int wolfSSL_ECPoint_i2d(const WOLFSSL_EC_GROUP *curve, \
+                        const WOLFSSL_EC_POINT *p, \
                         unsigned char *out, unsigned int *len);
 WOLFSSL_API
 int wolfSSL_ECPoint_d2i(unsigned char *in, unsigned int len,

@@ -56,23 +56,23 @@ WOLFSSL_API void wolfSSL_DSA_free(WOLFSSL_DSA*);
 WOLFSSL_API int wolfSSL_DSA_generate_key(WOLFSSL_DSA*);
 
 typedef void (*WOLFSSL_BN_CB)(int i, int j, void* exArg);
-WOLFSSL_API WOLFSSL_DSA* wolfSSL_DSA_generate_parameters(int bits,
-                   unsigned char* seed, int seedLen, int* counterRet,
+WOLFSSL_API WOLFSSL_DSA* wolfSSL_DSA_generate_parameters(int bits, \
+                   unsigned char* seed, int seedLen, int* counterRet, \
                    unsigned long* hRet, WOLFSSL_BN_CB cb, void* CBArg);
-WOLFSSL_API int wolfSSL_DSA_generate_parameters_ex(WOLFSSL_DSA*, int bits,
-                   unsigned char* seed, int seedLen, int* counterRet,
+WOLFSSL_API int wolfSSL_DSA_generate_parameters_ex(WOLFSSL_DSA*, int bits, \
+                   unsigned char* seed, int seedLen, int* counterRet, \
                    unsigned long* hRet, void* cb);
 
 WOLFSSL_API int wolfSSL_DSA_LoadDer(WOLFSSL_DSA*, const unsigned char*, int sz);
 
-WOLFSSL_API int wolfSSL_DSA_LoadDer_ex(WOLFSSL_DSA*, const unsigned char*, 
-                                                    int sz, int opt);
+WOLFSSL_API int wolfSSL_DSA_LoadDer_ex(WOLFSSL_DSA*, const unsigned char*, \
+                                       int sz, int opt);
 
-WOLFSSL_API int wolfSSL_DSA_do_sign(const unsigned char* d,
+WOLFSSL_API int wolfSSL_DSA_do_sign(const unsigned char* d, \
                                     unsigned char* sigRet, WOLFSSL_DSA* dsa);
 
-WOLFSSL_API int wolfSSL_DSA_do_verify(const unsigned char* d,
-                                      unsigned char* sig,
+WOLFSSL_API int wolfSSL_DSA_do_verify(const unsigned char* d, \
+                                      unsigned char* sig, \
                                       WOLFSSL_DSA* dsa, int *dsacheck);
 
 #define WOLFSSL_DSA_LOAD_PRIVATE 1
