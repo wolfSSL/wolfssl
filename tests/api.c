@@ -20758,7 +20758,9 @@ static void test_wolfSSL_OBJ(void)
     AssertNotNull(obj = OBJ_nid2obj(NID_sha256));
     AssertIntEQ(OBJ_obj2nid(obj), NID_sha256);
     AssertIntEQ(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 1), 22);
+#ifdef WOLFSSL_CERT_EXT
     AssertIntEQ(OBJ_txt2nid(buf), NID_sha256);
+#endif
     AssertIntGT(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 0), 0);
     ASN1_OBJECT_free(obj);
 

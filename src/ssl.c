@@ -32365,6 +32365,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
 #endif
 
+#ifdef WOLFSSL_CERT_EXT
     /* Gets the NID value that is related to the OID string passed in. Example
      * string would be "2.5.29.14" for subject key ID.
      *
@@ -32403,6 +32404,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         }
         return NID_undef;
     }
+#endif /* WOLFSSL_CERT_EXT */
 
 
     /* compatibility function. It's intended use is to remove OID's from an
