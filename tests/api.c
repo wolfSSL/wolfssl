@@ -20358,6 +20358,10 @@ static void test_wolfSSL_PKCS8_Compat(void)
 
 static void test_wolfSSL_PKCS8_d2i(void)
 {
+#ifndef WOLFSSL_FIPS
+    /* This test ends up using HMAC as a part of PBKDF2, and HMAC
+     * requires a 12 byte password in FIPS mode. This test ends up
+     * trying to use an 8 byte password. */
 #ifdef OPENSSL_ALL
     WOLFSSL_EVP_PKEY* pkey = NULL;
 #ifndef NO_FILESYSTEM
@@ -20511,6 +20515,7 @@ static void test_wolfSSL_PKCS8_d2i(void)
 
     printf(resultFmt, passed);
 #endif
+#endif /* WOLFSSL_FIPS */
 }
 
 static void test_wolfSSL_ERR_put_error(void)
