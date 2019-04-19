@@ -2305,6 +2305,9 @@ AC_ARG_ENABLE([fips],
 if test "x$ENABLED_FIPS" != "xno"
 then
     FIPS_VERSION=$ENABLED_FIPS
+    AS_IF([test "x$FIPS_VERSION" = "xready"],
+          [FIPS_READY="yes"; FIPS_VERSION="v2"],
+          [FIPS_READY="no"])
     ENABLED_FIPS=yes
     # requires thread local storage
     if test "$thread_ls_on" = "no"
@@ -2369,6 +2372,7 @@ fi
 
 AM_CONDITIONAL([BUILD_FIPS], [test "x$ENABLED_FIPS" = "xyes"])
 AM_CONDITIONAL([BUILD_FIPS_V2], [test "x$FIPS_VERSION" = "xv2"])
+AM_CONDITIONAL([BUILD_FIPS_READY], [test "x$FIPS_READY" = "xyes"])
 AM_CONDITIONAL([BUILD_CMAC], [test "x$ENABLED_CMAC" = "xyes"])
 
 # SELFTEST
