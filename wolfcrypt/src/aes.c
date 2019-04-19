@@ -1628,7 +1628,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         #endif
 
         /* if input and output same will overwrite input iv */
-        XMEMCPY(aes->tmp, inBlock, AES_BLOCK_SIZE);
+        if ((const byte*)aes->tmp != inBlock)
+            XMEMCPY(aes->tmp, inBlock, AES_BLOCK_SIZE);
         AES_ECB_decrypt(inBlock, outBlock, AES_BLOCK_SIZE, (byte*)aes->key,
                         aes->rounds);
         return;
