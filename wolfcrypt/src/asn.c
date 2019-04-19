@@ -7790,12 +7790,12 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     Signer*       ca = NULL;
     word32        idx = 0;
     int           len;
-    word32        tbsCertIdx;
-    word32        sigIndex;
+    word32        tbsCertIdx = 0;
+    word32        sigIndex   = 0;
     word32        signatureOID;
     word32        oid;
-    word32        issuerIdx;
-    word32        issuerSz;
+    word32        issuerIdx = 0;
+    word32        issuerSz  = 0;
 #ifndef NO_SKID
     int           extLen;
     word32        extIdx;

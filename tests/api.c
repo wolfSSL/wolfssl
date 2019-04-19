@@ -4417,6 +4417,7 @@ static void test_wolfSSL_X509_verify(void)
     pt = buf;
     AssertNotNull(pkey = wolfSSL_d2i_PUBKEY(NULL, &pt, bufSz));
     AssertIntEQ(wolfSSL_X509_verify(server, pkey), WOLFSSL_SUCCESS);
+    wolfSSL_EVP_PKEY_free(pkey);
 
     /* fail case */
     bufSz = 2048;
@@ -4428,6 +4429,7 @@ static void test_wolfSSL_X509_verify(void)
 
     AssertIntEQ(wolfSSL_X509_verify(NULL, pkey), WOLFSSL_FATAL_ERROR);
     AssertIntEQ(wolfSSL_X509_verify(server, NULL), WOLFSSL_FATAL_ERROR);
+    wolfSSL_EVP_PKEY_free(pkey);
 
     wolfSSL_FreeX509(ca);
     wolfSSL_FreeX509(server);

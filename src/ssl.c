@@ -721,6 +721,7 @@ int wolfSSL_get_ciphers(char* buf, int len)
 }
 
 
+#ifndef NO_ERROR_STRINGS
 /* places a list of all supported cipher suites in TLS_* format into "buf"
  * return WOLFSSL_SUCCESS on success */
 int wolfSSL_get_ciphers_iana(char* buf, int len)
@@ -751,6 +752,7 @@ int wolfSSL_get_ciphers_iana(char* buf, int len)
     }
     return WOLFSSL_SUCCESS;
 }
+#endif /* NO_ERROR_STRINGS */
 
 
 const char* wolfSSL_get_shared_ciphers(WOLFSSL* ssl, char* buf, int len)
