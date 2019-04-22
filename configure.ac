@@ -3348,6 +3348,41 @@ then
     fi
 fi
 
+# Apache HTTPD
+AC_ARG_ENABLE([apachehttpd],
+    [AS_HELP_STRING([--enable-apachehttpd],[Enable Apache httpd (default: disabled)])],
+    [ ENABLED_APACHE_HTTPD=$enableval ],
+    [ ENABLED_APACHE_HTTPD=no ]
+    )
+if test "$ENABLED_APACHE_HTTPD" = "yes"
+then
+    # Requires opensslextra and opensslall
+    if test "x$ENABLED_OPENSSLALL" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+    then
+        ENABLED_OPENSSLALL="yes"
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="-DOPENSSL_EXTRA -DOPENSSL_ALL $AM_CFLAGS"
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_APACHE_HTTPD"
+    AM_CFLAGS="$AM_CFLAGS -DOPENSSL_NO_SSL2 -DOPENSSL_NO_SSL3"
+
+    # Requires OCSP make sure on
+    if test "x$ENABLED_OCSP" = "xno"
+    then
+        ENABLED_OCSP="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
+        AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
+    fi
+
+    # Requires sessioncerts make sure on
+    if test "x$ENABLED_SESSIONCERTS" = "xno"
+    then
+        ENABLED_SESSIONCERTS="yes"
+        AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS"
+    fi
+fi
+
+
 # stunnel Support
 AC_ARG_ENABLE([stunnel],
     [AS_HELP_STRING([--enable-stunnel],[Enable stunnel (default: disabled)])],
@@ -5011,6 +5046,7 @@ echo "   * I/O POOL:                   $ENABLED_IOPOOL"
 echo "   * LIGHTY:                     $ENABLED_LIGHTY"
 echo "   * HAPROXY:                    $ENABLED_HAPROXY"
 echo "   * STUNNEL:                    $ENABLED_STUNNEL"
+echo "   * Apache httpd:               $ENABLED_APACHE_HTTPD"
 echo "   * NGINX:                      $ENABLED_NGINX"
 echo "   * ASIO:                       $ENABLED_ASIO"
 echo "   * SIGNAL:                     $ENABLED_SIGNAL"

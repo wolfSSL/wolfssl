@@ -48,9 +48,20 @@
 #define BIO_TYPE_MEM  WOLFSSL_BIO_MEMORY
 #define BIO_TYPE_BASE64 WOLFSSL_BIO_BASE64
 
+#define BIO_printf wolfSSL_BIO_printf
+#define BIO_dump   wolfSSL_BIO_dump
+
+/* BIO callback */
+#define BIO_CB_FREE         0x01
+#define BIO_CB_READ         0x02
+#define BIO_CB_WRITE        0x03
+#define BIO_CB_PUTS         0x04
+#define BIO_CB_GETS         0x05
+#define BIO_CB_CTRL         0x06
+#define BIO_CB_RETURN       0x80
 
 #ifdef __cplusplus
-    }  /* extern "C" */ 
+    }  /* extern "C" */
 #endif
 
 

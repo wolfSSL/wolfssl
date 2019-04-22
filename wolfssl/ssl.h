@@ -1632,6 +1632,7 @@ WOLFSSL_API int wolfSSL_want_read(WOLFSSL*);
 WOLFSSL_API int wolfSSL_want_write(WOLFSSL*);
 
 WOLFSSL_API int wolfSSL_BIO_printf(WOLFSSL_BIO*, const char*, ...);
+WOLFSSL_API int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const byte* buffer, int length);
 WOLFSSL_API int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO*,
                                          const WOLFSSL_ASN1_UTCTIME*);
 WOLFSSL_API int wolfSSL_ASN1_GENERALIZEDTIME_print(WOLFSSL_BIO*,

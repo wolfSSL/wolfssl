@@ -24496,16 +24496,81 @@ void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
 }
 #endif /* NO_AES */
 
-#ifndef NO_WOLFSSL_STUB
+#ifndef NO_FILESYSTEM
+    #include <stdarg.h> /* var_arg */
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wformat-nonliteral"
+#endif
+
 int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
 {
-    (void)bio;
-    (void)format;
-    WOLFSSL_STUB("BIO_printf");
-
-    return 0;
-}
+    int ret = 0;
+#ifndef NO_FILESYSTEM
+    va_list args;
 #endif
+
+    if (bio == NULL)
+        return 0;
+
+#ifndef NO_FILESYSTEM
+    if (bio->type == WOLFSSL_BIO_FILE) {
+        va_start(args, format);
+        ret = fprintf(bio->file, format, args);
+        va_end(args);
+    }
+#endif
+
+    return ret;
+}
+
+#ifndef NO_FILESYSTEM
+#pragma clang diagnostic pop
+#endif
+
+#undef  LINE_LEN
+#define LINE_LEN 16
+int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const byte *buffer, int length)
+{
+    int ret = 0;
+
+    if (bio == NULL)
+        return 0;
+
+#ifndef NO_FILESYSTEM
+    if (bio->type == WOLFSSL_BIO_FILE) {
+        int i;
+        char line[80];
+
+        if (!buffer) {
+            return fputs("\tNULL", bio->file);
+        }
+
+        sprintf(line, "\t");
+        for (i = 0; i < LINE_LEN; i++) {
+            if (i < length)
+                sprintf(line + 1 + i * 3,"%02x ", buffer[i]);
+            else
+                sprintf(line + 1 + i * 3, "   ");
+        }
+        sprintf(line + 1 + LINE_LEN * 3, "| ");
+        for (i = 0; i < LINE_LEN; i++) {
+            if (i < length) {
+                sprintf(line + 3 + LINE_LEN * 3 + i,
+                     "%c", 31 < buffer[i] && buffer[i] < 127 ? buffer[i] : '.');
+            }
+        }
+        ret += fputs(line, bio->file);
+
+        if (length > LINE_LEN)
+            ret += wolfSSL_BIO_dump(bio, buffer + LINE_LEN, length - LINE_LEN);
+    }
+#else
+    (void)buffer;
+    (void)length;
+#endif
+
+    return ret;
+}
 
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_UTCTIME* a)
