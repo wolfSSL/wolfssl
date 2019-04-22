@@ -15385,8 +15385,8 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
         int length = 0;
         int    ret, derSz = 0;
         int badDate = 0;
-        const byte* pubKeyX509;
-        int   pubKeyX509Sz;
+        const byte* pubKeyX509 = NULL;
+        int   pubKeyX509Sz = 0;
 
         WOLFSSL_ENTER("wolfSSL_X509_get_pubkey_buffer");
         if (x509 == NULL || bufSz == NULL) {
