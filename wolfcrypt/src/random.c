@@ -1762,10 +1762,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #ifdef WOLFSSL_STM32_CUBEMX
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
+        #ifndef WOLFSSL_CUBEMX_USE_LL
         RNG_HandleTypeDef hrng;
+        #endif
         word32 i = 0;
         (void)os;
 
+        #ifndef WOLFSSL_CUBEMX_USE_LL
         /* enable RNG clock source */
         __HAL_RCC_RNG_CLK_ENABLE();
 
@@ -1773,7 +1776,16 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         XMEMSET(&hrng, 0, sizeof(hrng));
         hrng.Instance = RNG;
         HAL_RNG_Init(&hrng);
+        #else
+        LL_RNG_Enable(RNG);
+        while (!LL_RNG_IsActiveFlag_DRDY(RNG)) {};
+        if ((LL_RNG_IsActiveFlag_CECS(RNG)) ||
+            (LL_RNG_IsActiveFlag_SECS(RNG)))
+            return RNG_FAILURE_E;
+        #endif /* !WOLFSSL_CUBEMX_USE_LL */
 
+
+        #ifndef WOLFSSL_CUBEMX_USE_LL
 		while (i < sz) {
 			/* If not aligned or there is odd/remainder */
 			if( (i + sizeof(word32)) > sz ||
@@ -1794,6 +1806,12 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 				i += sizeof(word32);
 			}
 		}
+        #else
+        for (i = 0; i < sz; i++) {
+            /* get value */
+            output[i] = (byte) LL_RNG_ReadRandData32(RNG);
+        }
+        #endif
 
 		return 0;
     }

@@ -199,9 +199,12 @@
 
 /* make sure old RNG name is used with CTaoCrypt FIPS */
 #ifdef HAVE_FIPS
-    #define WC_RNG RNG
-    /* blinding adds API not available yet in FIPS mode */
-    #undef WC_RSA_BLINDING
+    #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION < 2) || \
+        !defined(HAVE_FIPS_VERSION)
+        #define WC_RNG RNG
+        /* blinding adds API not available yet in FIPS mode */
+        #undef WC_RSA_BLINDING
+    #endif
 #endif
 
 
@@ -1092,6 +1095,9 @@ extern void uITRON4_free(void *p) ;
     defined(WOLFSSL_STM32L4)
 
     #define SIZEOF_LONG_LONG 8
+    #ifndef CHAR_BIT
+        #define CHAR_BIT SIZEOF_LONG_LONG
+    #endif
     #define NO_DEV_RANDOM
     #define NO_WOLFSSL_DIR
     #undef  NO_RABBIT
@@ -1130,6 +1136,10 @@ extern void uITRON4_free(void *p) ;
             #include "stm32f7xx_hal.h"
         #elif defined(WOLFSSL_STM32F1)
             #include "stm32f1xx_hal.h"
+        #endif
+        #if defined(WOLFSSL_CUBEMX_USE_LL) && defined(WOLFSSL_STM32L4) && \
+            !defined(WC_NO_RNG)
+            #include "stm32l4xx_ll_rng.h"
         #endif
 
         #ifndef STM32_HAL_TIMEOUT
