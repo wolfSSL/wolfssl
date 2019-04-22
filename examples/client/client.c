@@ -195,7 +195,7 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
 
 static void ShowCiphers(void)
 {
-    static char ciphers[4096];
+    static char ciphers[WOLFSSL_CIPHER_LIST_MAX_SIZE];
 
     int ret = wolfSSL_get_ciphers(ciphers, (int)sizeof(ciphers));
 

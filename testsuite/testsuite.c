@@ -180,7 +180,7 @@ int testsuite_test(int argc, char** argv)
 
     /* show ciphers */
     {
-        char ciphers[1024*2];
+        char ciphers[WOLFSSL_CIPHER_LIST_MAX_SIZE];
         XMEMSET(ciphers, 0, sizeof(ciphers));
         wolfSSL_get_ciphers(ciphers, sizeof(ciphers)-1);
         printf("ciphers = %s\n", ciphers);
