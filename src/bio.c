@@ -1179,6 +1179,14 @@ char* wolfSSL_BIO_get_callback_arg(const WOLFSSL_BIO *bio)
     (void)bio;
     return NULL;
 }
+
+int wolfSSL_BIO_set_nbio(WOLFSSL_BIO *bio, int on)
+{
+    (void)bio;
+    (void)on;
+    return 0;
+}
+
 #endif /* !NO_WOLFSSL_STUB */
 
 #endif /* WOLFSSL_BIO_INCLUDED */
