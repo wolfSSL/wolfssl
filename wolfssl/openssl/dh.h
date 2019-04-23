@@ -64,7 +64,25 @@ typedef WOLFSSL_DH DH;
 #define DH_size         wolfSSL_DH_size
 #define DH_generate_key wolfSSL_DH_generate_key
 #define DH_compute_key  wolfSSL_DH_compute_key
-#define get_rfc3526_prime_1536 wolfSSL_DH_1536_prime
+
+#define BN_get_rfc3526_prime_1536  wolfSSL_DH_1536_prime
+#define BN_get_rfc3526_prime_1536  wolfSSL_DH_1536_prime
+#define BN_get_rfc3526_prime_1536  wolfSSL_DH_1536_prime
+#define BN_get_rfc3526_prime_1536  wolfSSL_DH_1536_prime
+#define BN_get_rfc3526_prime_1536  wolfSSL_DH_1536_prime
+#define BN_get_rfc3526_prime_1536  wolfSSL_DH_1536_prime
+#define BN_get_rfc3526_prime_1536  wolfSSL_DH_1536_prime
+
+/* for pre 1.1.10 */
+#define get_rfc2409_prime_768      wolfSSL_DH_768_prime
+#define get_rfc2409_prime_1024     wolfSSL_DH_1024_prime
+#define get_rfc3526_prime_1536     wolfSSL_DH_1536_prime
+#define get_rfc3526_prime_2048     wolfSSL_DH_2048_prime
+#define get_rfc3526_prime_3072     wolfSSL_DH_3072_prime
+#define get_rfc3526_prime_4096     wolfSSL_DH_4096_prime
+#define get_rfc3526_prime_6144     wolfSSL_DH_6144_prime
+#define get_rfc3526_prime_8192     wolfSSL_DH_8192_prime
+
 
 
 #ifdef __cplusplus
