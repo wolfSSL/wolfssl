@@ -1414,6 +1414,7 @@ WOLFSSL_API void  wolfSSL_ERR_print_errors_fp(XFILE, int err);
 WOLFSSL_API void wolfSSL_ERR_dump_errors_fp(XFILE fp);
 #endif
 #endif
+WOLFSSL_API void wolfSSL_ERR_print_errors(WOLFSSL_BIO *bio);
 
 
 #ifndef NO_OLD_SSL_NAMES

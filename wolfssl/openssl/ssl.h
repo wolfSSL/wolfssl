@@ -603,6 +603,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define ERR_get_error_line_data         wolfSSL_ERR_get_error_line_data
 #define ERR_get_error                   wolfSSL_ERR_get_error
 #define ERR_print_errors_fp(file)       wolfSSL_ERR_dump_errors_fp((file))
+#define ERR_print_errors                wolfSSL_ERR_print_errors
 #define ERR_clear_error                 wolfSSL_ERR_clear_error
 #define ERR_free_strings                wolfSSL_ERR_free_strings
 #define ERR_remove_state                wolfSSL_ERR_remove_state

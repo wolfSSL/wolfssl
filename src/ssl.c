@@ -3803,6 +3803,12 @@ void wolfSSL_ERR_dump_errors_fp(XFILE fp)
 #endif
 #endif
 
+#ifndef NO_WOLFSSL_STUB
+void wolfSSL_ERR_print_errors(WOLFSSL_BIO *bio)
+{
+    (void)bio;
+}
+#endif
 
 int wolfSSL_pending(WOLFSSL* ssl)
 {
