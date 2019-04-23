@@ -129,7 +129,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define CRYPTO_cleanup_all_ex_data      wolfSSL_cleanup_all_ex_data
 
 /* this function was used to set the default malloc, free, and realloc */
-#define CRYPTO_malloc_init() /* CRYPTO_malloc_init is not needed */
+#define CRYPTO_malloc_init() 0 /* CRYPTO_malloc_init is not needed */
 
 #define SSL_get_client_random(ssl,out,outSz) \
                                   wolfSSL_get_client_random((ssl),(out),(outSz))
