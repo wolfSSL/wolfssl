@@ -3065,7 +3065,7 @@ WOLFSSL_API void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX *,
 WOLFSSL_API int wolfSSL_CTX_set_tlsext_servername_callback(WOLFSSL_CTX *,
         CallbackSniRecv);
 
-WOLFSSL_API void wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX *, void*);
+WOLFSSL_API int  wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX *, void*);
 
 WOLFSSL_API void wolfSSL_ERR_remove_thread_state(void*);
 

@@ -37696,11 +37696,12 @@ int wolfSSL_CTX_set_tlsext_servername_callback(WOLFSSL_CTX* ctx,
     return 0;
 }
 
-void wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX* ctx, void* arg)
+int wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX* ctx, void* arg)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_set_servername_arg");
     if (ctx)
         ctx->sniRecvCbArg = arg;
+    return 0;
 }
 
 void wolfSSL_ERR_load_BIO_strings(void) {
