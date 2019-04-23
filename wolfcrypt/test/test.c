@@ -2849,7 +2849,7 @@ int hash_test(void)
     int              ret, exp_ret;
     int              i, j;
     int              digestSz;
-    byte             data[] = "0123456789abcdef0123456789abcdef012345";
+    byte             data[] = "0123456789abcdef0123456789abcdef0123456";
     byte             out[WC_MAX_DIGEST_SIZE];
     byte             hashOut[WC_MAX_DIGEST_SIZE];
 #if !defined(NO_ASN) || !defined(NO_DH) || defined(HAVE_ECC)
@@ -2881,10 +2881,16 @@ int hash_test(void)
 #ifndef WOLFSSL_SHA512
                                         WC_HASH_TYPE_SHA512,
 #endif
-#ifndef WOLFSSL_SHA3
+#if !defined(WOLFSSL_SHA3) || defined(WOLFSSL_NOSHA3_224)
                                         WC_HASH_TYPE_SHA3_224,
+#endif
+#if !defined(WOLFSSL_SHA3) || defined(WOLFSSL_NOSHA3_256)
                                         WC_HASH_TYPE_SHA3_256,
+#endif
+#if !defined(WOLFSSL_SHA3) || defined(WOLFSSL_NOSHA3_384)
                                         WC_HASH_TYPE_SHA3_384,
+#endif
+#if !defined(WOLFSSL_SHA3) || defined(WOLFSSL_NOSHA3_512)
                                         WC_HASH_TYPE_SHA3_512,
 #endif
                                         WC_HASH_TYPE_NONE
@@ -7068,7 +7074,7 @@ int aesgcm_test(void)
         #define BENCH_AESGCM_LARGE 1024
     #endif
     byte large_input[BENCH_AESGCM_LARGE];
-    byte large_output[BENCH_AESGCM_LARGE];
+    byte large_output[BENCH_AESGCM_LARGE + AES_BLOCK_SIZE];
     byte large_outdec[BENCH_AESGCM_LARGE];
 
     XMEMSET(large_input, 0, sizeof(large_input));
