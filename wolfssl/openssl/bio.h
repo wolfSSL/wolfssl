@@ -60,6 +60,11 @@
 #define BIO_CB_CTRL         0x06
 #define BIO_CB_RETURN       0x80
 
+#define BIO_set_callback         wolfSSL_BIO_set_callback
+#define BIO_set_callback_arg     wolfSSL_BIO_set_callback_arg
+#define BIO_get_callback_arg     wolfSSL_BIO_get_callback_arg
+
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

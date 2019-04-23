@@ -1159,5 +1159,27 @@ long wolfSSL_BIO_set_mem_eof_return(WOLFSSL_BIO *bio, int v)
 
       return 0;
 }
+
+#ifndef NO_WOLFSSL_STUB
+void wolfSSL_BIO_set_callback(WOLFSSL_BIO *bio, wolf_bio_info_cb callback_func)
+{
+    (void)bio;
+    (void)callback_func;
+
+}
+
+void wolfSSL_BIO_set_callback_arg(WOLFSSL_BIO *bio, char *arg)
+{
+    (void)bio;
+    (void)arg;
+}
+
+char* wolfSSL_BIO_get_callback_arg(const WOLFSSL_BIO *bio)
+{
+    (void)bio;
+    return NULL;
+}
+#endif /* !NO_WOLFSSL_STUB */
+
 #endif /* WOLFSSL_BIO_INCLUDED */
 
