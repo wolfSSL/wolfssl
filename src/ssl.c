@@ -15367,7 +15367,9 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
 
     /* Getter function that copies over the DER public key buffer to "buf" and
      * sets the size in bufSz. If "buf" is NULL then just bufSz is set to needed
-     * buffer size.
+     * buffer size. "bufSz" passed in should initially be set by the user to be
+     * the size of "buf". This gets checked to make sure the buffer is large
+     * enough to hold the public key.
      *
      * Note: this is the X.509 form of key with "header" info.
      * return WOLFSSL_SUCCESS on success
@@ -15425,8 +15427,13 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
             return WOLFSSL_FATAL_ERROR;
         }
 
-        if (buf != NULL)
+        if (buf != NULL) {
+            if (pubKeyX509Sz > *bufSz) {
+                WOLFSSL_LEAVE("wolfSSL_X509_get_pubkey_buffer", BUFFER_E);
+                return WOLFSSL_FATAL_ERROR;
+            }
             XMEMCPY(buf, pubKeyX509, pubKeyX509Sz);
+        }
         *bufSz = pubKeyX509Sz;
 
         return WOLFSSL_SUCCESS;
