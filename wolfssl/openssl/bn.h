@@ -190,6 +190,16 @@ typedef WOLFSSL_BN_GENCB BN_GENCB;
 
 #define BN_mod_inverse wolfSSL_BN_mod_inverse
 
+
+#define BN_get_rfc3526_prime_768   wolfSSL_DH_768_prime
+#define BN_get_rfc3526_prime_1024  wolfSSL_DH_1024_prime
+#define BN_get_rfc3526_prime_1536  wolfSSL_DH_1536_prime
+#define BN_get_rfc3526_prime_2048  wolfSSL_DH_2048_prime
+#define BN_get_rfc3526_prime_3072  wolfSSL_DH_3072_prime
+#define BN_get_rfc3526_prime_6144  wolfSSL_DH_6144_prime
+#define BN_get_rfc3526_prime_8192  wolfSSL_DH_8192_prime
+
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif
