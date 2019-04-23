@@ -57,4 +57,6 @@
 
 #define MBSTRING_UTF8                    0x1000
 
+#define ASN1_UTCTIME_print              wolfSSL_ASN1_UTCTIME_print
+
 #endif /* WOLFSSL_ASN1_H_ */

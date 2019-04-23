@@ -24583,7 +24583,6 @@ int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char *buffer, int length)
     return ret;
 }
 
-#ifndef NO_WOLFSSL_STUB
 int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_UTCTIME* a)
 {
     (void)bio;
@@ -24591,7 +24590,6 @@ int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_UTCTIME* a)
     WOLFSSL_STUB("ASN1_UTCTIME_print");
     return 0;
 }
-#endif
 
 /* Return the month as a string.
  *
