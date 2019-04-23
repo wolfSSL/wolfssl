@@ -18388,6 +18388,17 @@ const char* wolfSSL_CIPHER_get_name(const WOLFSSL_CIPHER* cipher)
     #endif
 }
 
+const char*  wolfSSL_CIPHER_get_version(const WOLFSSL_CIPHER* cipher)
+{
+    WOLFSSL_ENTER("SSL_CIPHER_get_version");
+
+    if (cipher == NULL || cipher->ssl == NULL) {
+        return NULL;
+    }
+
+    return wolfSSL_get_version(cipher->ssl);
+}
+
 const char* wolfSSL_SESSION_CIPHER_get_name(WOLFSSL_SESSION* session)
 {
     if (session == NULL) {
@@ -24529,7 +24540,7 @@ int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
 
 #undef  LINE_LEN
 #define LINE_LEN 16
-int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const byte *buffer, int length)
+int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char *buffer, int length)
 {
     int ret = 0;
 
@@ -36090,6 +36101,26 @@ WOLFSSL_BIO *wolfSSL_BIO_new_file(const char *filename, const char *mode)
 #endif /* NO_FILESYSTEM */
 }
 
+#ifndef NO_FILESYSTEM
+WOLFSSL_BIO* wolfSSL_BIO_new_fp(XFILE fp, int close_flag)
+{
+    WOLFSSL_BIO* bio;
+
+    WOLFSSL_ENTER("wolfSSL_BIO_new_fp");
+
+    bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
+    if (bio == NULL) {
+        return bio;
+    }
+
+    if (wolfSSL_BIO_set_fp(bio, fp, close_flag) != WOLFSSL_SUCCESS) {
+        wolfSSL_BIO_free(bio);
+        bio = NULL;
+    }
+    return bio;
+}
+#endif
+
 
 #ifndef NO_DH
 WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
@@ -37405,6 +37436,15 @@ const byte* wolfSSL_SESSION_get_id(WOLFSSL_SESSION* sess, unsigned int* idLen)
 }
 #endif
 
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_SESSION_print(WOLFSSL_BIO *bp, const WOLFSSL_SESSION *x)
+{
+    (void)bp;
+    (void)x;
+    return 0;
+}
+#endif /* !NO_WOLFSSL_STUB */
+
 #if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && defined(HAVE_STUNNEL)) \
     || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)
 
@@ -38059,16 +38099,32 @@ int wolfSSL_SSL_do_handshake(WOLFSSL *s)
 #endif
 }
 
-int wolfSSL_SSL_in_init(WOLFSSL *s)
+int wolfSSL_SSL_in_init(WOLFSSL *ssl)
 {
-    WOLFSSL_ENTER("wolfSSL_SSL_in_init");
+    WOLFSSL_ENTER("SSL_in_init");
 
-    if (s == NULL)
+    if (ssl == NULL)
         return WOLFSSL_FAILURE;
 
-    if (s->options.side == WOLFSSL_CLIENT_END)
-        return s->options.connectState < SECOND_REPLY_DONE;
-    return s->options.acceptState < ACCEPT_THIRD_REPLY_DONE;
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        return ssl->options.connectState < SECOND_REPLY_DONE;
+    }
+    return ssl->options.acceptState < ACCEPT_THIRD_REPLY_DONE;
+}
+
+int wolfSSL_SSL_in_connect_init(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("SSL_connect_init");
+
+    if (ssl == NULL)
+        return WOLFSSL_FAILURE;
+
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        return ssl->options.connectState > CONNECT_BEGIN &&
+            ssl->options.connectState < SECOND_REPLY_DONE;
+    }
+    return ssl->options.acceptState > ACCEPT_BEGIN &&
+        ssl->options.acceptState < ACCEPT_THIRD_REPLY_DONE;
 }
 
 #ifndef NO_SESSION_CACHE
