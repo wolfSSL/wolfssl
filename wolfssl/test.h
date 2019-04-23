@@ -155,10 +155,12 @@
     #pragma warning(disable:4244 4996)
 #endif
 
-#define WOLFSSL_CIPHER_LIST_MAX_SIZE 4096
+#ifndef WOLFSSL_CIPHER_LIST_MAX_SIZE
+    #define WOLFSSL_CIPHER_LIST_MAX_SIZE 4096
+#endif
 /* Buffer for benchmark tests */
 #ifndef TEST_BUFFER_SIZE
-#define TEST_BUFFER_SIZE 16384
+    #define TEST_BUFFER_SIZE 16384
 #endif
 
 #ifndef WOLFSSL_HAVE_MIN
