@@ -4050,13 +4050,17 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
     if (err == SA_SILIB_RET_OK && key->pubkey.x && key->pubkey.y) {
         err = mp_read_unsigned_bin(key->pubkey.x,
                                    &ucompressed_key[1], key->dp->size);
-        err = mp_read_unsigned_bin(key->pubkey.y,
+        if (err == MP_OKAY) {
+            err = mp_read_unsigned_bin(key->pubkey.y,
                             &ucompressed_key[1+key->dp->size],key->dp->size);
+        }
     }
     raw_size = key->dp->size;
-    err = CRYS_ECPKI_ExportPrivKey(&key->ctx.privKey,
-                                   ucompressed_key,
-                                   &raw_size);
+    if (err == MP_OKAY) {
+        err = CRYS_ECPKI_ExportPrivKey(&key->ctx.privKey,
+                                       ucompressed_key,
+                                       &raw_size);
+    }
 
     if (err == SA_SILIB_RET_OK) {
         err = mp_read_unsigned_bin(&key->k, ucompressed_key, raw_size);

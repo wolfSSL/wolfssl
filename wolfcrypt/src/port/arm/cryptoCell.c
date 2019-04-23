@@ -56,10 +56,9 @@ static void cc310_enable(void)
     cc310_enableCount++;
 
     /* Enable the CC310 HW/IQ once*/
-    if (cc310_enableCount == 1) {
-        NRF_CRYPTOCELL->ENABLE = 1;
-        NVIC_EnableIRQ(CRYPTOCELL_IRQn);
-    }
+
+    NRF_CRYPTOCELL->ENABLE = 1;
+    NVIC_EnableIRQ(CRYPTOCELL_IRQn);
 }
 
 static void cc310_disable(void)
@@ -76,7 +75,7 @@ static void cc310_disable(void)
 int cc310_Init(void)
 {
     int ret = 0;
-    static bool initialized = false;
+    static int initialized = 0;
 
     if (!initialized) {
         /* Enable the CC310 HW. */
@@ -96,7 +95,7 @@ int cc310_Init(void)
             WOLFSSL_MSG("Error CRYS_RndInit");
             return ret;
         }
-        initialized = true;
+        initialized = 1;
     }
     return ret;
 }
@@ -274,11 +273,11 @@ static int rtc_get_ms(void)
 double current_time(int reset)
 {
     double time;
-    static bool initialized = false;
+    static int initialized = 0;
 
     if (!initialized) {
         rtc_config();
-        initialized = true;
+        initialized = 1;
     }
     time = mRtcSec;
     time += (double)rtc_get_ms() / 1000;
@@ -289,7 +288,7 @@ double current_time(int reset)
 int nrf_random_generate(byte* output, word32 size)
 {
     uint32_t err_code;
-    static bool initialized = false;
+    static int initialized = 0;
 
     /* RNG must be initialized once */
     if (!initialized) {
@@ -297,7 +296,7 @@ int nrf_random_generate(byte* output, word32 size)
         if (err_code != NRF_SUCCESS) {
             return -1;
         }
-        initialized = true;
+        initialized = 1;
     }
     nrf_drv_rng_block_rand(output, size);
     return 0;
