@@ -355,7 +355,8 @@ void WOLFSSL_LEAVE(const char* msg, int ret)
  * name where WOLFSSL_ERROR is called at.
  */
 #if defined(DEBUG_WOLFSSL) || defined(OPENSSL_ALL) || \
-    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+    defined(OPENSSL_EXTRA)
 
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
 void WOLFSSL_ERROR_LINE(int error, const char* func, unsigned int line,
@@ -484,11 +485,6 @@ int wc_PeekErrorNode(int idx, const char **file, const char **reason,
 
     if (idx < 0) {
         err = wc_last_node;
-        if (err == NULL) {
-            WOLFSSL_MSG("No Errors in queue");
-            wc_UnLockMutex(&debug_mutex);
-            return BAD_STATE_E;
-        }
     }
     else {
         int i;
@@ -502,6 +498,12 @@ int wc_PeekErrorNode(int idx, const char **file, const char **reason,
             }
             err = err->next;
         }
+    }
+
+    if (err == NULL) {
+        WOLFSSL_MSG("No Errors in queue");
+        wc_UnLockMutex(&debug_mutex);
+        return BAD_STATE_E;
     }
 
     if (file != NULL) {
@@ -673,6 +675,8 @@ void wc_RemoveErrorNode(int idx)
             wc_last_node = current->prev;
         if (wc_errors == current)
             wc_errors = current->next;
+        if (wc_current_node == current)
+            wc_current_node = current->next;
         XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
     }
 

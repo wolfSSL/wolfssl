@@ -1249,5 +1249,36 @@ char* wolfSSL_BIO_get_callback_arg(const WOLFSSL_BIO *bio)
     return NULL;
 }
 
+/* If flag is 0 then blocking is set, if 1 then non blocking.
+ * Always returns 1
+ */
+long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
+{
+    switch (bio->type) {
+        case WOLFSSL_BIO_SOCKET:
+        #ifdef XFCNTL
+            {
+                int flag = XFCNTL(bio->fd, F_GETFL, 0);
+                if (on)
+                    XFCNTL(bio->fd, F_SETFL, flag | O_NONBLOCK);
+                else
+                    XFCNTL(bio->fd, F_SETFL, flag & ~O_NONBLOCK);
+            }
+        #endif
+            break;
+        case WOLFSSL_BIO_SSL:
+        #ifdef WOLFSSL_DTLS
+            wolfSSL_dtls_set_using_nonblock(bio->ssl, (int)on);
+        #endif
+            break;
+
+        default:
+            WOLFSSL_MSG("Unsupported bio type for non blocking");
+            break;
+    }
+
+    return 1;
+}
+
 #endif /* WOLFSSL_BIO_INCLUDED */
 

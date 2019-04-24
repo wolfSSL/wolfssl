@@ -19139,6 +19139,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     #if !defined(NO_DES3) && defined(WOLFSSL_ENCRYPTED_KEYS) && \
     !defined(NO_RSA) && !defined(NO_FILESYSTEM)
     {
+        XFILE f;
         pem_password_cb* passwd_cb;
         void* passwd_cb_userdata;
         SSL_CTX* ctx;
@@ -19164,7 +19165,9 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         AssertNull(pkey = PEM_read_bio_PrivateKey(bio, NULL, passwd_cb,
                     (void*)passwd));
         BIO_free(bio);
-        AssertNotNull(bio = BIO_new_file("./certs/server-keyEnc.pem", "rb"));
+
+        f = XFOPEN("./certs/server-keyEnc.pem", "rb");
+        AssertNotNull(bio = BIO_new_fp(f, BIO_CLOSE));
 
         /* use callback that works */
         AssertNotNull(pkey = PEM_read_bio_PrivateKey(bio, NULL, passwd_cb,
@@ -20905,6 +20908,7 @@ static void test_wolfSSL_BIO(void)
     AssertIntEQ(BIO_read(bio1, buff, 2),  WOLFSSL_BIO_UNSET);
     AssertIntEQ(BIO_write(bio1, buff, 2), WOLFSSL_BIO_UNSET);
 
+    AssertIntEQ(BIO_set_nbio(bio1, 1), 1);
     AssertIntEQ(BIO_set_write_buf_size(bio1, 20), WOLFSSL_SUCCESS);
     AssertIntEQ(BIO_set_write_buf_size(bio2, 8),  WOLFSSL_SUCCESS);
     AssertIntEQ(BIO_make_bio_pair(bio1, bio2),    WOLFSSL_SUCCESS);
@@ -21669,6 +21673,35 @@ static void test_wolfSSL_ERR_put_error(void)
     ERR_put_error(0,SYS_F_ACCEPT, 0, "this file", 0);
     ERR_clear_error();
     AssertIntEQ(ERR_get_error_line(&file, &line), 0);
+
+    printf(resultFmt, passed);
+    #endif
+}
+
+
+static void test_wolfSSL_ERR_print_errors(void)
+{
+    #if defined(OPENSSL_EXTRA) && defined(DEBUG_WOLFSSL)
+    BIO* bio;
+    char buf[1024];
+
+    printf(testingFmt, "wolfSSL_ERR_print_errors()");
+
+
+    AssertNotNull(bio = BIO_new(BIO_s_mem()));
+    ERR_clear_error(); /* clear out any error nodes */
+    ERR_put_error(0,SYS_F_ACCEPT, -173, "ssl.c", 0);
+    ERR_put_error(0,SYS_F_BIND, -273, "asn.c", 100);
+
+    ERR_print_errors(bio);
+    AssertIntEQ(BIO_gets(bio, buf, sizeof(buf)), 56);
+    AssertIntEQ(XSTRNCMP("error:173:wolfSSL library:Bad function argument:ssl.c:0",
+                buf, 55), 0);
+    AssertIntEQ(BIO_gets(bio, buf, sizeof(buf)), 57);
+    AssertIntEQ(XSTRNCMP("error:273:wolfSSL library:unknown error number:asn.c:100",
+                buf, 56), 0);
+    AssertIntEQ(BIO_gets(bio, buf, sizeof(buf)), 0);
+    AssertIntEQ(ERR_get_error_line(NULL, NULL), 0);
 
     printf(resultFmt, passed);
     #endif
@@ -24100,7 +24133,7 @@ static void test_no_op_functions(void)
     SSL_load_error_strings();
     ENGINE_load_builtin_engines();
     OpenSSL_add_all_ciphers();
-    CRYPTO_malloc_init();
+    AssertIntEQ(CRYPTO_malloc_init(), 0);
 
     printf(resultFmt, passed);
     #endif
@@ -26717,6 +26750,7 @@ void ApiTest(void)
     test_wolfSSL_PKCS8_Compat();
     test_wolfSSL_PKCS8_d2i();
     test_wolfSSL_ERR_put_error();
+    test_wolfSSL_ERR_print_errors();
     test_wolfSSL_HMAC();
     test_wolfSSL_OBJ();
     test_wolfSSL_i2a_ASN1_OBJECT();

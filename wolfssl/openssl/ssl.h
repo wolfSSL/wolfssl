@@ -470,6 +470,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define BIO_s_mem                       wolfSSL_BIO_s_mem
 #define BIO_f_base64                    wolfSSL_BIO_f_base64
 #define BIO_set_flags                   wolfSSL_BIO_set_flags
+#define BIO_set_nbio                    wolfSSL_BIO_set_nbio
 
 #define SSLeay_add_ssl_algorithms       wolfSSL_add_all_algorithms
 #define SSLeay_add_all_algorithms       wolfSSL_add_all_algorithms
@@ -765,6 +766,7 @@ enum {
 
 #define SSL_CTX_set_tmp_dh              wolfSSL_CTX_set_tmp_dh
 
+#define BIO_new_fp                      wolfSSL_BIO_new_fp
 #define BIO_new_file                    wolfSSL_BIO_new_file
 #define BIO_new_fp                      wolfSSL_BIO_new_fp
 #define BIO_ctrl                        wolfSSL_BIO_ctrl

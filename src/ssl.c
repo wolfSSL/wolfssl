@@ -3803,13 +3803,6 @@ void wolfSSL_ERR_dump_errors_fp(XFILE fp)
 #endif
 #endif
 
-#ifndef NO_WOLFSSL_STUB
-void wolfSSL_ERR_print_errors(WOLFSSL_BIO *bio)
-{
-    (void)bio;
-}
-#endif
-
 int wolfSSL_pending(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("SSL_pending");
@@ -14057,6 +14050,32 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #endif
     }
 
+    /* print out and clear all errors */
+    void wolfSSL_ERR_print_errors(WOLFSSL_BIO* bio)
+    {
+        const char* file = NULL;
+        const char* reason = NULL;
+        int ret;
+        int line = 0;
+        char buf[WOLFSSL_MAX_ERROR_SZ * 2];
+
+        if (bio == NULL) {
+            WOLFSSL_MSG("BIO passed in was null");
+            return;
+        }
+
+        do {
+        ret = wc_PeekErrorNode(0, &file, &reason, &line);
+        if (ret >= 0) {
+            const char* r = wolfSSL_ERR_reason_error_string(ret - ret - ret);
+            XSNPRINTF(buf, sizeof(buf), "error:%d:wolfSSL library:%s:%s:%d\n",
+                    ret, r, file, line);
+            wolfSSL_BIO_write(bio, buf, (int)XSTRLEN(buf));
+            wc_RemoveErrorNode(0);
+        }
+        } while (ret >= 0);
+    }
+
 #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
 
 
@@ -16704,7 +16723,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     }
 
 
-#ifdef DEBUG_WOLFSSL
+#if defined(DEBUG_WOLFSSL) || defined(OPENSSL_EXTRA)
     static const char WOLFSSL_SYS_ACCEPT_T[]  = "accept";
     static const char WOLFSSL_SYS_BIND_T[]    = "bind";
     static const char WOLFSSL_SYS_CONNECT_T[] = "connect";
@@ -16755,7 +16774,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     {
         WOLFSSL_ENTER("wolfSSL_ERR_put_error");
 
-        #ifndef DEBUG_WOLFSSL
+        #if !defined(DEBUG_WOLFSSL) && !defined(OPENSSL_EXTRA)
         (void)fun;
         (void)err;
         (void)file;
@@ -24547,7 +24566,7 @@ int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
 
 #undef  LINE_LEN
 #define LINE_LEN 16
-int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char *buffer, int length)
+int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char *buf, int length)
 {
     int ret = 0;
 
@@ -24559,14 +24578,14 @@ int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char *buffer, int length)
         int i;
         char line[80];
 
-        if (!buffer) {
+        if (!buf) {
             return fputs("\tNULL", bio->file);
         }
 
         sprintf(line, "\t");
         for (i = 0; i < LINE_LEN; i++) {
             if (i < length)
-                sprintf(line + 1 + i * 3,"%02x ", buffer[i]);
+                sprintf(line + 1 + i * 3,"%02x ", buf[i]);
             else
                 sprintf(line + 1 + i * 3, "   ");
         }
@@ -24574,16 +24593,16 @@ int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char *buffer, int length)
         for (i = 0; i < LINE_LEN; i++) {
             if (i < length) {
                 sprintf(line + 3 + LINE_LEN * 3 + i,
-                     "%c", 31 < buffer[i] && buffer[i] < 127 ? buffer[i] : '.');
+                     "%c", 31 < buf[i] && buf[i] < 127 ? buf[i] : '.');
             }
         }
         ret += fputs(line, bio->file);
 
         if (length > LINE_LEN)
-            ret += wolfSSL_BIO_dump(bio, buffer + LINE_LEN, length - LINE_LEN);
+            ret += wolfSSL_BIO_dump(bio, buf + LINE_LEN, length - LINE_LEN);
     }
 #else
-    (void)buffer;
+    (void)buf;
     (void)length;
 #endif
 
@@ -36473,6 +36492,8 @@ WOLFSSL_BIO* wolfSSL_BIO_new_fp(XFILE fp, int close_flag)
         wolfSSL_BIO_free(bio);
         bio = NULL;
     }
+
+    /* file is closed when BIO is free'd or by user depending on flag */
     return bio;
 }
 #endif
