@@ -3474,6 +3474,7 @@ struct WOLFSSL_STACK {
     union {
         WOLFSSL_X509*          x509;
         WOLFSSL_X509_NAME*     name;
+        WOLFSSL_X509_INFO*     info;
         WOLFSSL_BIO*           bio;
         WOLFSSL_ASN1_OBJECT*   obj;
         WOLFSSL_CIPHER*        cipher;
@@ -3504,6 +3505,16 @@ struct WOLFSSL_X509_NAME {
     byte  raw[ASN_NAME_MAX];
     int   rawLen;
 #endif
+};
+
+struct WOLFSSL_X509_INFO {
+    WOLFSSL_X509      *x509;
+    WOLFSSL_X509_CRL  *crl;
+    WOLFSSL_EVP_PKEY  *x_pkey;
+    EncryptedInfo     enc_cipher;
+    int               enc_len;
+    char              *enc_data;
+    int               num;
 };
 
 #ifndef EXTERNAL_SERIAL_SIZE

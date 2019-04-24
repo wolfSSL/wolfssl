@@ -66,6 +66,7 @@ typedef WOLFSSL_CTX      SSL_CTX;
 typedef WOLFSSL_X509       X509;
 typedef WOLFSSL_X509       X509_REQ;
 typedef WOLFSSL_X509_NAME  X509_NAME;
+typedef WOLFSSL_X509_INFO  X509_INFO;
 typedef WOLFSSL_X509_CHAIN X509_CHAIN;
 
 typedef WOLFSSL_STACK      EXTENDED_KEY_USAGE;
@@ -337,11 +338,20 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define sk_X509_new                     wolfSSL_sk_X509_new
 #define sk_X509_num                     wolfSSL_sk_X509_num
 #define sk_X509_value                   wolfSSL_sk_X509_value
+#define sk_X509_shift                   wolfSSL_sk_X509_shift
 #define sk_X509_push                    wolfSSL_sk_X509_push
 #define sk_X509_pop                     wolfSSL_sk_X509_pop
 #define sk_X509_pop_free                wolfSSL_sk_X509_pop_free
 #define sk_X509_dup                     wolfSSL_sk_X509_dup
 #define sk_X509_free                    wolfSSL_sk_X509_free
+
+#define X509_INFO_new                   wolfSSL_X509_INFO_new
+#define X509_INFO_free                  wolfSSL_X509_INFO_free
+
+#define sk_X509_INFO_new_null           wolfSSL_sk_X509_INFO_new_null
+#define sk_X509_INFO_num                wolfSSL_sk_X509_INFO_num
+#define sk_X509_INFO_value              wolfSSL_sk_X509_INFO_value
+#define sk_X509_INFO_free               wolfSSL_sk_X509_INFO_free
 
 #define i2d_X509_NAME                   wolfSSL_i2d_X509_NAME
 #define X509_NAME_new                   wolfSSL_X509_NAME_new

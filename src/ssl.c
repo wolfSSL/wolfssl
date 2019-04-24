@@ -17459,6 +17459,11 @@ void* wolfSSL_sk_X509_value(STACK_OF(WOLFSSL_X509)* sk, int i)
     return sk->data.x509;
 }
 
+void* wolfSSL_sk_X509_shift(WOLF_STACK_OF(WOLFSSL_X509)* sk)
+{
+    return wolfSSL_sk_X509_pop(sk);
+}
+
 
 /* Free's all nodes in X509 stack. This is different then wolfSSL_sk_X509_free
  * in that it allows for choosing the function to use when freeing an X509s.
@@ -37565,6 +37570,97 @@ int wolfSSL_sk_X509_num(const WOLF_STACK_OF(WOLFSSL_X509) *s)
         return -1;
     return (int)s->num;
 }
+
+WOLFSSL_X509_INFO* wolfSSL_X509_INFO_new(void)
+{
+    WOLFSSL_X509_INFO* info;
+    info = (WOLFSSL_X509_INFO*)XMALLOC(sizeof(WOLFSSL_X509_INFO), NULL,
+        DYNAMIC_TYPE_X509);
+    if (info) {
+        XMEMSET(info, 0, sizeof(*info));
+    }
+    return info;
+}
+
+int wolfSSL_X509_INFO_free(WOLFSSL_X509_INFO* info)
+{
+    if (info == NULL)
+        return BAD_FUNC_ARG;
+
+    if (info->x509) {
+        wolfSSL_X509_free(info->x509);
+        info->x509 = NULL;
+    }
+    if (info->x_pkey) {
+        EVP_PKEY_free(info->x_pkey);
+        info->x_pkey = NULL;
+    }
+
+    XFREE(info, NULL, DYNAMIC_TYPE_X509);
+
+    return 0;
+}
+
+WOLFSSL_STACK* wolfSSL_sk_X509_INFO_new_null(void)
+{
+    WOLFSSL_STACK* sk = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
+                                                             DYNAMIC_TYPE_X509);
+    if (sk != NULL)
+        XMEMSET(sk, 0, sizeof(*sk));
+
+    return sk;
+}
+
+int wolfSSL_sk_X509_INFO_num(const WOLF_STACK_OF(WOLFSSL_X509_INFO) *sk)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_X509_INFO_num");
+
+    if (sk == NULL)
+        return -1;
+    return (int)sk->num;
+}
+
+WOLFSSL_X509_INFO* wolfSSL_sk_X509_INFO_value(const WOLF_STACK_OF(WOLFSSL_X509_INFO) *sk, int i)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_X509_INFO_value");
+
+    for (; sk != NULL && i > 0; i--)
+        sk = sk->next;
+
+    if (i != 0 || sk == NULL)
+        return NULL;
+    return sk->data.info;
+}
+
+void wolfSSL_sk_X509_INFO_free(WOLF_STACK_OF(WOLFSSL_X509_INFO) *sk)
+{
+    WOLFSSL_STACK* node;
+
+    if (sk == NULL) {
+        return;
+    }
+
+    /* parse through stack freeing each node */
+    node = sk->next;
+    while (sk->num > 1) {
+        WOLFSSL_STACK* tmp = node;
+        node = node->next;
+
+        wolfSSL_X509_INFO_free(tmp->data.info);
+        tmp->data.info = NULL;
+
+        XFREE(tmp, NULL, DYNAMIC_TYPE_X509);
+        sk->num -= 1;
+    }
+
+    /* free head of stack */
+    if (sk->num == 1) {
+        wolfSSL_X509_INFO_free(sk->data.info);
+        sk->data.info = NULL;
+    }
+    XFREE(sk, NULL, DYNAMIC_TYPE_X509);
+}
+
 
 int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
                 int indent, unsigned long flags)
