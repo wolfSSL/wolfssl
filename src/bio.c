@@ -169,6 +169,14 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
 
     WOLFSSL_ENTER("wolfSSL_BIO_read");
 
+    /* info cb, abort if user returns <= 0*/
+    if (front != NULL && front->infoCb != NULL) {
+        ret = (int)front->infoCb(front, WOLFSSL_BIO_CB_READ, buf, len, 0, 1);
+        if (ret <= 0) {
+            return ret;
+        }
+    }
+
     /* start at end of list and work backwards */
     while ((bio != NULL) && (bio->next != NULL)) {
         bio = bio->next;
@@ -210,6 +218,13 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
 
         /* previous WOLFSSL_BIO in list working towards head of list */
         bio = bio->prev;
+    }
+
+    /* info cb, user can override return value */
+    if (front != NULL && front->infoCb != NULL) {
+        ret = (int)front->infoCb(front,
+                                 WOLFSSL_BIO_CB_READ | WOLFSSL_BIO_CB_RETURN,
+                                 buf, len, 0, ret);
     }
 
     return ret;
@@ -410,6 +425,14 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
 
     WOLFSSL_ENTER("wolfSSL_BIO_write");
 
+    /* info cb, abort if user returns <= 0*/
+    if (front != NULL && front->infoCb != NULL) {
+        ret = (int)front->infoCb(front, WOLFSSL_BIO_CB_WRITE, data, len, 0, 1);
+        if (ret <= 0) {
+            return ret;
+        }
+    }
+
     while (bio != NULL && ret >= 0) {
         /* check for formating */
         if (bio && bio->type == WOLFSSL_BIO_BASE64) {
@@ -497,10 +520,18 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
         XFREE(frmt, front->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
+    /* info cb, user can override return value */
+    if (front != NULL && front->infoCb != NULL) {
+        ret = (int)front->infoCb(front,
+                                 WOLFSSL_BIO_CB_WRITE | WOLFSSL_BIO_CB_RETURN,
+                                 data, 0, 0, ret);
+    }
+
     return ret;
 }
 
 
+/* NOTE: add support for bio->infoCb() when implemented */
 WOLFSSL_API long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bio, int cmd, long larg, void *parg)
 {
     (void)bio;
@@ -554,6 +585,14 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
     /* not enough space for character plus terminator */
     if (sz <= 1) {
         return 0;
+    }
+
+    /* info cb, abort if user returns <= 0*/
+    if (bio->infoCb != NULL) {
+        ret = (int)bio->infoCb(bio, WOLFSSL_BIO_CB_GETS, buf, sz, 0, 1);
+        if (ret <= 0) {
+            return ret;
+        }
     }
 
     switch (bio->type) {
@@ -642,6 +681,12 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
 
         default:
             WOLFSSL_MSG("BIO type not supported yet with wolfSSL_BIO_gets");
+    }
+
+    /* info cb, user can override return value */
+    if (bio->infoCb != NULL) {
+        ret = (int)bio->infoCb(bio, WOLFSSL_BIO_CB_GETS | WOLFSSL_BIO_CB_RETURN,
+                               buf, sz, 0, ret);
     }
 
     return ret;
@@ -1160,34 +1205,49 @@ long wolfSSL_BIO_set_mem_eof_return(WOLFSSL_BIO *bio, int v)
       return 0;
 }
 
-#ifndef NO_WOLFSSL_STUB
+
 void wolfSSL_BIO_set_callback(WOLFSSL_BIO *bio, wolf_bio_info_cb callback_func)
 {
-    (void)bio;
-    (void)callback_func;
+    WOLFSSL_ENTER("wolfSSL_BIO_set_callback");
 
+    if (bio != NULL) {
+        bio->infoCb = callback_func;
+    }
 }
 
-void wolfSSL_BIO_set_callback_arg(WOLFSSL_BIO *bio, char *arg)
-{
-    (void)bio;
-    (void)arg;
-}
 
-char* wolfSSL_BIO_get_callback_arg(const WOLFSSL_BIO *bio)
+wolf_bio_info_cb wolfSSL_BIO_get_callback(WOLFSSL_BIO *bio)
 {
-    (void)bio;
+    WOLFSSL_ENTER("wolfSSL_BIO_get_callback");
+
+    if (bio != NULL) {
+        return bio->infoCb;
+    }
+
     return NULL;
 }
 
-int wolfSSL_BIO_set_nbio(WOLFSSL_BIO *bio, int on)
+
+void wolfSSL_BIO_set_callback_arg(WOLFSSL_BIO *bio, char *arg)
 {
-    (void)bio;
-    (void)on;
-    return 0;
+    WOLFSSL_ENTER("wolfSSL_BIO_set_callback_arg");
+
+    if (bio != NULL) {
+        bio->infoArg = arg;
+    }
 }
 
-#endif /* !NO_WOLFSSL_STUB */
+
+char* wolfSSL_BIO_get_callback_arg(const WOLFSSL_BIO *bio)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_get_callback_arg");
+
+    if (bio != NULL) {
+        return bio->infoArg;
+    }
+
+    return NULL;
+}
 
 #endif /* WOLFSSL_BIO_INCLUDED */
 

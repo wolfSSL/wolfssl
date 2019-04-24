@@ -20866,6 +20866,20 @@ static void test_wolfSSL_PEM_read_bio(void)
 }
 
 
+#if defined(OPENSSL_EXTRA)
+static long bioCallback(BIO *bio, int cmd, const char* argp, int argi,
+                 long argl, long ret)
+{
+    (void)bio;
+    (void)cmd;
+    (void)argp;
+    (void)argi;
+    (void)argl;
+    return ret;
+}
+#endif
+
+
 static void test_wolfSSL_BIO(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -21052,6 +21066,24 @@ static void test_wolfSSL_BIO(void)
 
     }
     #endif /* !defined(NO_FILESYSTEM) */
+
+    /* BIO info callback */
+    {
+        const char* testArg = "test";
+        BIO* cb_bio;
+        AssertNotNull(cb_bio = BIO_new(BIO_s_mem()));
+
+        BIO_set_callback(cb_bio, bioCallback);
+        AssertNotNull(BIO_get_callback(cb_bio));
+        BIO_set_callback(cb_bio, NULL);
+        AssertNull(BIO_get_callback(cb_bio));
+
+        BIO_set_callback_arg(cb_bio, (char*)testArg);
+        AssertStrEQ(BIO_get_callback_arg(cb_bio), testArg);
+        AssertNull(BIO_get_callback_arg(NULL));
+
+        BIO_free(cb_bio);
+    }
 
     printf(resultFmt, passed);
     #endif

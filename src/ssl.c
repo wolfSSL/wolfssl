@@ -7344,37 +7344,6 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
     return local;
 }
 
-#ifndef NO_WOLFSSL_STUB
-long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
-{
-    WOLFSSL_STUB("SSL_ctrl");
-    (void)ssl;
-    (void)cmd;
-    (void)opt;
-    (void)pt;
-    return WOLFSSL_FAILURE;
-}
-#endif
-
-#ifndef NO_WOLFSSL_STUB
-long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
-{
-    WOLFSSL_STUB("SSL_CTX_ctrl");
-    (void)ctx;
-    (void)cmd;
-    (void)opt;
-    (void)pt;
-    return WOLFSSL_FAILURE;
-}
-#endif
-
-#ifndef NO_WOLFSSL_STUB
-long wolfSSL_CTX_clear_extra_chain_certs(WOLFSSL_CTX* ctx)
-{
-    return wolfSSL_CTX_ctrl(ctx, SSL_CTRL_CLEAR_EXTRA_CHAIN_CERTS, 0l, NULL);
-}
-#endif
-
 #ifndef NO_CERTS
 
 int wolfSSL_check_private_key(const WOLFSSL* ssl)
@@ -13830,12 +13799,24 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     /*
      * Note : If the flag BIO_NOCLOSE is set then freeing memory buffers is up
      *        to the application.
+     * Returns 1 on success, 0 on failure
      */
     int wolfSSL_BIO_free(WOLFSSL_BIO* bio)
     {
+        int ret;
+
         /* unchain?, doesn't matter in goahead since from free all */
         WOLFSSL_ENTER("wolfSSL_BIO_free");
         if (bio) {
+
+            if (bio->infoCb) {
+                /* info callback is called before free */
+                ret = (int)bio->infoCb(bio, WOLFSSL_BIO_CB_FREE, NULL, 0, 0, 1);
+                if (ret <= 0) {
+                    return ret;
+                }
+            }
+
             /* remove from pair by setting the paired bios pair to NULL */
             if (bio->pair != NULL) {
                 bio->pair->pair = NULL;
@@ -13879,7 +13860,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
             XFREE(bio, 0, DYNAMIC_TYPE_OPENSSL);
         }
-        return 0;
+        return 1;
     }
 
 
@@ -24533,8 +24514,10 @@ void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
 
 #ifndef NO_FILESYSTEM
     #include <stdarg.h> /* var_arg */
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wformat-nonliteral"
+    #ifdef __clang__
+        #pragma clang diagnostic push
+        #pragma clang diagnostic ignored "-Wformat-nonliteral"
+    #endif
 #endif
 
 int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
@@ -24558,7 +24541,7 @@ int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
     return ret;
 }
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && defined(__clang__)
 #pragma clang diagnostic pop
 #endif
 
@@ -37002,6 +36985,37 @@ int wolfSSL_get_state(const WOLFSSL* ssl)
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
 
+#ifndef NO_WOLFSSL_STUB
+long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
+{
+    WOLFSSL_STUB("SSL_ctrl");
+    (void)ssl;
+    (void)cmd;
+    (void)opt;
+    (void)pt;
+    return WOLFSSL_FAILURE;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
+{
+    WOLFSSL_STUB("SSL_CTX_ctrl");
+    (void)ctx;
+    (void)cmd;
+    (void)opt;
+    (void)pt;
+    return WOLFSSL_FAILURE;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+long wolfSSL_CTX_clear_extra_chain_certs(WOLFSSL_CTX* ctx)
+{
+    return wolfSSL_CTX_ctrl(ctx, SSL_CTRL_CLEAR_EXTRA_CHAIN_CERTS, 0l, NULL);
+}
+#endif
+
 /* Returns the verifyCallback from the ssl structure if successful.
 Returns NULL otherwise. */
 VerifyCallback wolfSSL_get_verify_callback(WOLFSSL* ssl)
@@ -37899,7 +37913,6 @@ const byte* wolfSSL_SESSION_get_id(WOLFSSL_SESSION* sess, unsigned int* idLen)
     *idLen = sess->sessionIDSz;
     return sess->sessionID;
 }
-#endif
 
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_SESSION_print(WOLFSSL_BIO *bp, const WOLFSSL_SESSION *x)
@@ -37909,6 +37922,8 @@ int wolfSSL_SESSION_print(WOLFSSL_BIO *bp, const WOLFSSL_SESSION *x)
     return 0;
 }
 #endif /* !NO_WOLFSSL_STUB */
+
+#endif
 
 #if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && defined(HAVE_STUNNEL)) \
     || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)

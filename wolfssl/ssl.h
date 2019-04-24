@@ -329,6 +329,16 @@ enum BIO_FLAGS {
     WOLFSSL_BIO_FLAG_RETRY        = 0x10
 };
 
+enum BIO_CB_OPS {
+    WOLFSSL_BIO_CB_FREE   = 0x01,
+    WOLFSSL_BIO_CB_READ   = 0x02,
+    WOLFSSL_BIO_CB_WRITE  = 0x03,
+    WOLFSSL_BIO_CB_PUTS   = 0x04,
+    WOLFSSL_BIO_CB_GETS   = 0x05,
+    WOLFSSL_BIO_CB_CTRL   = 0x06,
+    WOLFSSL_BIO_CB_RETURN = 0x80
+};
+
 typedef struct WOLFSSL_BUF_MEM {
     char*  data;   /* dereferenced */
     size_t length; /* current length */
@@ -931,9 +941,11 @@ WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_pop(WOLFSSL_BIO*);
 WOLFSSL_API int  wolfSSL_BIO_flush(WOLFSSL_BIO*);
 WOLFSSL_API int  wolfSSL_BIO_pending(WOLFSSL_BIO*);
 
-typedef long (*wolf_bio_info_cb)(WOLFSSL_BIO *bio, int event, const char *parg, int cmd,
-                    long larg, long return_value);
-WOLFSSL_API void  wolfSSL_BIO_set_callback(WOLFSSL_BIO *bio, wolf_bio_info_cb callback_func);
+typedef long (*wolf_bio_info_cb)(WOLFSSL_BIO *bio, int event, const char *parg,
+                                 int iarg, long larg, long return_value);
+WOLFSSL_API void  wolfSSL_BIO_set_callback(WOLFSSL_BIO *bio,
+                                           wolf_bio_info_cb callback_func);
+WOLFSSL_API wolf_bio_info_cb wolfSSL_BIO_get_callback(WOLFSSL_BIO *bio);
 WOLFSSL_API void  wolfSSL_BIO_set_callback_arg(WOLFSSL_BIO *bio, char *arg);
 WOLFSSL_API char* wolfSSL_BIO_get_callback_arg(const WOLFSSL_BIO *bio);
 

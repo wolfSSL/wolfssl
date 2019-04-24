@@ -52,15 +52,16 @@
 #define BIO_dump   wolfSSL_BIO_dump
 
 /* BIO callback */
-#define BIO_CB_FREE         0x01
-#define BIO_CB_READ         0x02
-#define BIO_CB_WRITE        0x03
-#define BIO_CB_PUTS         0x04
-#define BIO_CB_GETS         0x05
-#define BIO_CB_CTRL         0x06
-#define BIO_CB_RETURN       0x80
+#define BIO_CB_FREE   WOLFSSL_BIO_CB_FREE
+#define BIO_CB_READ   WOLFSSL_BIO_CB_READ
+#define BIO_CB_WRITE  WOLFSSL_BIO_CB_WRITE
+#define BIO_CB_PUTS   WOLFSSL_BIO_CB_PUTS
+#define BIO_CB_GETS   WOLFSSL_BIO_CB_GETS
+#define BIO_CB_CTRL   WOLFSSL_BIO_CB_CTRL
+#define BIO_CB_RETURN WOLFSSL_BIO_CB_RETURN
 
 #define BIO_set_callback         wolfSSL_BIO_set_callback
+#define BIO_get_callback         wolfSSL_BIO_get_callback
 #define BIO_set_callback_arg     wolfSSL_BIO_set_callback_arg
 #define BIO_get_callback_arg     wolfSSL_BIO_get_callback_arg
 
