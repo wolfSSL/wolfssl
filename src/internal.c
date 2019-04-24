@@ -16033,6 +16033,27 @@ void SetErrorString(int error, char* str)
 
 static const CipherSuiteInfo cipher_names[] =
 {
+
+#ifdef BUILD_TLS_AES_128_GCM_SHA256
+    SUITE_INFO("TLS13-AES128-GCM-SHA256","TLS_AES_128_GCM_SHA256",TLS13_BYTE,TLS_AES_128_GCM_SHA256),
+#endif
+
+#ifdef BUILD_TLS_AES_256_GCM_SHA384
+    SUITE_INFO("TLS13-AES256-GCM-SHA384","TLS_AES_256_GCM_SHA384",TLS13_BYTE,TLS_AES_256_GCM_SHA384),
+#endif
+
+#ifdef BUILD_TLS_CHACHA20_POLY1305_SHA256
+    SUITE_INFO("TLS13-CHACHA20-POLY1305-SHA256","TLS_CHACHA20_POLY1305_SHA256",TLS13_BYTE,TLS_CHACHA20_POLY1305_SHA256),
+#endif
+
+#ifdef BUILD_TLS_AES_128_CCM_SHA256
+    SUITE_INFO("TLS13-AES128-CCM-SHA256","TLS_AES_128_CCM_SHA256",TLS13_BYTE,TLS_AES_128_CCM_SHA256),
+#endif
+
+#ifdef BUILD_TLS_AES_128_CCM_8_SHA256
+    SUITE_INFO("TLS13-AES128-CCM-8-SHA256","TLS_AES_128_CCM_8_SHA256",TLS13_BYTE,TLS_AES_128_CCM_8_SHA256),
+#endif
+
 #ifndef WOLFSSL_NO_TLS12
 
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA
@@ -16484,26 +16505,6 @@ static const CipherSuiteInfo cipher_names[] =
 #endif
 
 #endif /* WOLFSSL_NO_TLS12 */
-
-#ifdef BUILD_TLS_AES_128_GCM_SHA256
-    SUITE_INFO("TLS13-AES128-GCM-SHA256","TLS_AES_128_GCM_SHA256",TLS13_BYTE,TLS_AES_128_GCM_SHA256),
-#endif
-
-#ifdef BUILD_TLS_AES_256_GCM_SHA384
-    SUITE_INFO("TLS13-AES256-GCM-SHA384","TLS_AES_256_GCM_SHA384",TLS13_BYTE,TLS_AES_256_GCM_SHA384),
-#endif
-
-#ifdef BUILD_TLS_CHACHA20_POLY1305_SHA256
-    SUITE_INFO("TLS13-CHACHA20-POLY1305-SHA256","TLS_CHACHA20_POLY1305_SHA256",TLS13_BYTE,TLS_CHACHA20_POLY1305_SHA256),
-#endif
-
-#ifdef BUILD_TLS_AES_128_CCM_SHA256
-    SUITE_INFO("TLS13-AES128-CCM-SHA256","TLS_AES_128_CCM_SHA256",TLS13_BYTE,TLS_AES_128_CCM_SHA256),
-#endif
-
-#ifdef BUILD_TLS_AES_128_CCM_8_SHA256
-    SUITE_INFO("TLS13-AES128-CCM-8-SHA256","TLS_AES_128_CCM_8_SHA256",TLS13_BYTE,TLS_AES_128_CCM_8_SHA256),
-#endif
 };
 
 
@@ -16636,7 +16637,11 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
         name[(length == sizeof(name)) ? length - 1 : length] = 0;
 
         for (i = 0; i < suiteSz; i++) {
-            if (XSTRNCMP(name, cipher_names[i].name, sizeof(name)) == 0) {
+            if (XSTRNCMP(name, cipher_names[i].name, sizeof(name)) == 0
+            #ifndef NO_ERROR_STRINGS
+                || XSTRNCMP(name, cipher_names[i].name_iana, sizeof(name)) == 0
+            #endif
+             ) {
             #ifdef WOLFSSL_DTLS
                 /* don't allow stream ciphers with DTLS */
                 if (ctx->method->version.major == DTLS_MAJOR) {
@@ -16656,29 +16661,12 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
                     return 0; /* suites buffer not large enough, error out */
                 }
 
-                suites->suites[idx++] =
-            #ifdef WOLFSSL_TLS13
-                    (XSTRSTR(name, "TLS13"))  ? TLS13_BYTE :
-            #endif
-            #ifdef HAVE_CHACHA
-                    (XSTRSTR(name, "CHACHA")) ? CHACHA_BYTE :
-            #endif
-            #ifdef HAVE_QSH
-                    (XSTRSTR(name, "QSH"))    ? QSH_BYTE :
-            #endif
-            #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
-                    (XSTRSTR(name, "EC"))     ? ECC_BYTE :
-            #endif
-            #ifdef HAVE_AESCCM
-                    (XSTRSTR(name, "CCM"))    ? ECC_BYTE :
-            #endif
-                    CIPHER_BYTE; /* normal */
-
+                suites->suites[idx++] = cipher_names[i].cipherSuite0;
                 suites->suites[idx++] = cipher_names[i].cipherSuite;
                 /* The suites are either ECDSA, RSA, PSK, or Anon. The RSA
                  * suites don't necessarily have RSA in the name. */
             #ifdef WOLFSSL_TLS13
-                if (XSTRSTR(name, "TLS13")) {
+                if (cipher_names[i].cipherSuite0 == TLS13_BYTE) {
                 #ifndef NO_RSA
                     haveRSAsig = 1;
                 #endif
@@ -17869,6 +17857,30 @@ exit_dpk:
         return ret;
     }
 
+#ifdef WOLFSSL_TLS13
+    /* returns 1 if able to do TLS 1.3 otherwise 0 */
+    static int TLSv1_3_Capable(WOLFSSL* ssl)
+    {
+    #ifndef WOLFSSL_TLS13
+        return 0;
+    #else
+        int ret = 0;
+
+        if (IsAtLeastTLSv1_3(ssl->ctx->method->version)) {
+            ret = 1;
+        }
+
+        #ifdef OPENSSL_EXTRA
+        if ((wolfSSL_get_options(ssl) & SSL_OP_NO_TLSv1_3)) {
+            /* option set at run time to disable TLS 1.3 */
+            ret = 0;
+        }
+        #endif
+        return ret;
+    #endif
+    }
+#endif /* WOLFSSL_TLS13 */
+
     int CompleteServerHello(WOLFSSL* ssl)
     {
         int ret;
@@ -17878,7 +17890,7 @@ exit_dpk:
                                                          TLS13_DOWNGRADE_SZ - 1;
             byte  vers = ssl->arrays->serverRandom[RAN_LEN - 1];
     #ifdef WOLFSSL_TLS13
-            if (IsAtLeastTLSv1_3(ssl->ctx->method->version)) {
+            if (TLSv1_3_Capable(ssl)) {
                 /* TLS v1.3 capable client not allowed to downgrade when
                  * connecting to TLS v1.3 capable server unless cipher suite
                  * demands it.

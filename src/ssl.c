@@ -720,6 +720,41 @@ int wolfSSL_get_ciphers(char* buf, int len)
     return WOLFSSL_SUCCESS;
 }
 
+
+#ifndef NO_ERROR_STRINGS
+/* places a list of all supported cipher suites in TLS_* format into "buf"
+ * return WOLFSSL_SUCCESS on success */
+int wolfSSL_get_ciphers_iana(char* buf, int len)
+{
+    const CipherSuiteInfo* ciphers = GetCipherNames();
+    int ciphersSz = GetCipherNamesSize();
+    int i;
+    int cipherNameSz;
+
+    if (buf == NULL || len <= 0)
+        return BAD_FUNC_ARG;
+
+    /* Add each member to the buffer delimited by a : */
+    for (i = 0; i < ciphersSz; i++) {
+        cipherNameSz = (int)XSTRLEN(ciphers[i].name_iana);
+        if (cipherNameSz + 1 < len) {
+            XSTRNCPY(buf, ciphers[i].name_iana, len);
+            buf += cipherNameSz;
+
+            if (i < ciphersSz - 1)
+                *buf++ = ':';
+            *buf = 0;
+
+            len -= cipherNameSz + 1;
+        }
+        else
+            return BUFFER_E;
+    }
+    return WOLFSSL_SUCCESS;
+}
+#endif /* NO_ERROR_STRINGS */
+
+
 const char* wolfSSL_get_shared_ciphers(WOLFSSL* ssl, char* buf, int len)
 {
     const char* cipher;
@@ -15318,7 +15353,8 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
                                                  unsigned char* buf, int* bufSz)
     {
         WOLFSSL_ENTER("wolfSSL_X509_get_signature");
-        if (x509 == NULL || bufSz == NULL || *bufSz < (int)x509->sig.length)
+        if (x509 == NULL || bufSz == NULL || (*bufSz < (int)x509->sig.length &&
+                    buf != NULL))
             return WOLFSSL_FATAL_ERROR;
 
         if (buf != NULL)
@@ -15326,6 +15362,91 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
         *bufSz = x509->sig.length;
 
         return WOLFSSL_SUCCESS;
+    }
+
+
+    /* Getter function that copies over the DER public key buffer to "buf" and
+     * sets the size in bufSz. If "buf" is NULL then just bufSz is set to needed
+     * buffer size. "bufSz" passed in should initially be set by the user to be
+     * the size of "buf". This gets checked to make sure the buffer is large
+     * enough to hold the public key.
+     *
+     * Note: this is the X.509 form of key with "header" info.
+     * return WOLFSSL_SUCCESS on success
+     */
+    int wolfSSL_X509_get_pubkey_buffer(WOLFSSL_X509* x509,
+                                                unsigned char* buf, int* bufSz)
+    {
+    #ifdef WOLFSSL_SMALL_STACK
+        DecodedCert* cert;
+    #else
+        DecodedCert cert[1];
+    #endif
+        word32 idx;
+        const byte*  der;
+        int length = 0;
+        int    ret, derSz = 0;
+        int badDate = 0;
+        const byte* pubKeyX509 = NULL;
+        int   pubKeyX509Sz = 0;
+
+        WOLFSSL_ENTER("wolfSSL_X509_get_pubkey_buffer");
+        if (x509 == NULL || bufSz == NULL) {
+            WOLFSSL_LEAVE("wolfSSL_X509_get_pubkey_buffer", BAD_FUNC_ARG);
+            return WOLFSSL_FATAL_ERROR;
+        }
+
+
+    #ifdef WOLFSSL_SMALL_STACK
+        cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert),
+                                       x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (cert == NULL) {
+            WOLFSSL_LEAVE("wolfSSL_X509_get_pubkey_buffer", MEMORY_E);
+            return WOLFSSL_FATAL_ERROR;
+        }
+    #endif
+
+        der = wolfSSL_X509_get_der(x509, &derSz);
+        InitDecodedCert(cert, der, derSz, NULL);
+        ret = wc_GetPubX509(cert, 0, &badDate);
+        if (ret >= 0) {
+            idx = cert->srcIdx;
+            pubKeyX509 = cert->source + cert->srcIdx;
+            ret = GetSequence(cert->source, &cert->srcIdx, &length,
+                    cert->maxIdx);
+            pubKeyX509Sz = length + (cert->srcIdx - idx);
+        }
+
+        FreeDecodedCert(cert);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(cert, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+
+        if (ret < 0) {
+            WOLFSSL_LEAVE("wolfSSL_X509_get_pubkey_buffer", ret);
+            return WOLFSSL_FATAL_ERROR;
+        }
+
+        if (buf != NULL) {
+            if (pubKeyX509Sz > *bufSz) {
+                WOLFSSL_LEAVE("wolfSSL_X509_get_pubkey_buffer", BUFFER_E);
+                return WOLFSSL_FATAL_ERROR;
+            }
+            XMEMCPY(buf, pubKeyX509, pubKeyX509Sz);
+        }
+        *bufSz = pubKeyX509Sz;
+
+        return WOLFSSL_SUCCESS;
+    }
+
+
+    /* Getter function for the public key OID value
+     * return public key OID stored in WOLFSSL_X509 structure */
+    int wolfSSL_X509_get_pubkey_type(WOLFSSL_X509* x509)
+    {
+        if (x509 == NULL)
+            return WOLFSSL_FAILURE;
+        return x509->pubKeyOID;
     }
 
 
@@ -15358,6 +15479,40 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
         return x509->derCert->buffer;
     }
 
+
+    /* get the buffer to be signed (tbs) from the WOLFSSL_X509 certificate
+     *
+     * outSz : gets set to the size of the buffer
+     * returns a pointer to the internal buffer at the location of TBS on
+     *         on success and NULL on failure.
+     */
+    const unsigned char* wolfSSL_X509_get_tbs(WOLFSSL_X509* x509, int* outSz)
+    {
+        int sz = 0, len;
+        unsigned int idx = 0, tmpIdx;
+        const unsigned char* der = NULL;
+        const unsigned char* tbs = NULL;
+
+        if (x509 == NULL || outSz == NULL) {
+            return NULL;
+        }
+
+        der = wolfSSL_X509_get_der(x509, &sz);
+        if (der == NULL) {
+            return NULL;
+        }
+
+        if (GetSequence(der, &idx, &len, sz) < 0) {
+            return NULL;
+        }
+        tbs = der + idx;
+        tmpIdx = idx;
+        if (GetSequence(der, &idx, &len, sz) < 0) {
+            return NULL;
+        }
+        *outSz = len + (idx - tmpIdx);
+        return tbs;
+    }
 
     int wolfSSL_X509_version(WOLFSSL_X509* x509)
     {
@@ -16643,6 +16798,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                 case AUTH_KEY_OID: isSet = x509->authKeyIdSet; break;
                 case SUBJ_KEY_OID: isSet = x509->subjKeyIdSet; break;
                 case KEY_USAGE_OID: isSet = x509->keyUsageSet; break;
+                case CRL_DIST_OID: isSet = x509->CRLdistSet; break;
                 #ifdef WOLFSSL_SEP
                     case CERT_POLICY_OID: isSet = x509->certPolicySet; break;
                 #endif /* WOLFSSL_SEP */
@@ -16668,6 +16824,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                 case AUTH_KEY_OID: crit = x509->authKeyIdCrit; break;
                 case SUBJ_KEY_OID: crit = x509->subjKeyIdCrit; break;
                 case KEY_USAGE_OID: crit = x509->keyUsageCrit; break;
+                case CRL_DIST_OID: crit= x509->CRLdistCrit; break;
                 #ifdef WOLFSSL_SEP
                     case CERT_POLICY_OID: crit = x509->certPolicyCrit; break;
                 #endif /* WOLFSSL_SEP */
@@ -19112,6 +19269,53 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                     WOLFSSL_FILETYPE_ASN1);
     }
     return WOLFSSL_FATAL_ERROR;
+}
+
+
+/* Use the public key to verify the signature. Note: this only verifies
+ * the certificate signature.
+ * returns WOLFSSL_SUCCESS on successful signature verification */
+int wolfSSL_X509_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey)
+{
+    int ret;
+    const byte* der;
+    int derSz = 0;
+    int type;
+
+    if (x509 == NULL || pkey == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    der = wolfSSL_X509_get_der(x509, &derSz);
+    if (der == NULL) {
+        WOLFSSL_MSG("Error getting WOLFSSL_X509 DER");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    switch (pkey->type) {
+        case EVP_PKEY_RSA:
+            type = RSAk;
+            break;
+
+        case EVP_PKEY_EC:
+            type = ECDSAk;
+            break;
+
+        case EVP_PKEY_DSA:
+            type = DSAk;
+            break;
+
+        default:
+            WOLFSSL_MSG("Unknown pkey key type");
+            return WOLFSSL_FATAL_ERROR;
+    }
+
+    ret = CheckCertSignaturePubKey(der, derSz, x509->heap,
+            (unsigned char*)pkey->pkey.ptr, pkey->pkey_sz, type);
+    if (ret == 0) {
+        return WOLFSSL_SUCCESS;
+    }
+    return WOLFSSL_FAILURE;
 }
 #endif /* NO_CERTS */
 
@@ -31278,8 +31482,8 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         { KEY_USAGE_OID, KEY_USAGE_OID, oidCertExtType, "X509 key usage" },
         { INHIBIT_ANY_OID, INHIBIT_ANY_OID, oidCertExtType,
                                                            "X509 inhibit any" },
-        { NID_ext_key_usage, KEY_USAGE_OID, oidCertExtType,
-                                                         "X509 ext key usage" },
+        { NID_key_usage, KEY_USAGE_OID, oidCertExtType,
+                                                         "X509 key usage" },
         { NID_name_constraints, NAME_CONS_OID, oidCertExtType,
                                                       "X509 name constraints" },
         { NID_certificate_policies, CERT_POLICY_OID, oidCertExtType,
@@ -32016,7 +32220,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                     case INHIBIT_ANY_OID:
                         return INHIBIT_ANY_OID;
                     case KEY_USAGE_OID:
-                        return NID_ext_key_usage;
+                        return NID_key_usage;
                     case NAME_CONS_OID:
                         return NID_name_constraints;
                     case CERT_POLICY_OID:
@@ -32173,15 +32377,47 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
+#ifdef WOLFSSL_CERT_EXT
+    /* Gets the NID value that is related to the OID string passed in. Example
+     * string would be "2.5.29.14" for subject key ID.
+     *
+     * @TODO does not handle short names yet
+     *
+     * returns NID value on success and NID_undef on error
+     */
     int wolfSSL_OBJ_txt2nid(const char* s)
     {
-        (void)s;
-        WOLFSSL_STUB("OBJ_txt2nid");
+        int ret;
+        unsigned int outSz = MAX_OID_SZ;
+        unsigned char out[MAX_OID_SZ];
 
-        return 0;
+        WOLFSSL_ENTER("OBJ_txt2nid");
+
+        if (s == NULL) {
+            return NID_undef;
+        }
+
+        ret = EncodePolicyOID(out, &outSz, s, NULL);
+        if (ret == 0) {
+            unsigned int i, sum = 0;
+
+            /* sum OID */
+            for (i = 0; i < outSz; i++) {
+                sum += out[i];
+            }
+
+            /* get the group that the OID's sum is in
+             * @TODO possible conflict with multiples */
+            for (i = 0; i < WOLFSSL_OBJECT_INFO_SZ; i++) {
+               if (wolfssl_object_info[i].id == (int)sum) {
+                   return wolfssl_object_info[i].nid;
+               }
+            }
+        }
+        return NID_undef;
     }
-#endif
+#endif /* WOLFSSL_CERT_EXT */
+
 
     /* compatibility function. It's intended use is to remove OID's from an
      * internal table that have been added with OBJ_create. wolfSSL manages it's
@@ -33878,8 +34114,8 @@ WOLFSSL_CTX* wolfSSL_get_SSL_CTX(WOLFSSL* ssl)
 }
 
 #if defined(OPENSSL_ALL) || \
-    (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || \
-     defined(WOLFSSL_NGINX)) || defined(WOLFSSL_HAPROXY))
+    defined(OPENSSL_EXTRA) || defined(HAVE_STUNNEL) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 
 const byte* wolfSSL_SESSION_get_id(WOLFSSL_SESSION* sess, unsigned int* idLen)
 {
@@ -34448,6 +34684,17 @@ long wolfSSL_SSL_CTX_get_timeout(const WOLFSSL_CTX *ctx)
         return 0;
 
     return ctx->timeout;
+}
+
+
+/* returns the time in seconds of the current timeout */
+long wolfSSL_get_timeout(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_get_timeout");
+
+    if (ssl == NULL)
+        return 0;
+    return ssl->timeout;
 }
 
 #ifdef HAVE_ECC

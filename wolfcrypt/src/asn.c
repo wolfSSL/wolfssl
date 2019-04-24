@@ -5640,12 +5640,20 @@ int wc_GetCertDates(Cert* cert, struct tm* before, struct tm* after)
 #endif /* WOLFSSL_CERT_GEN && WOLFSSL_ALT_NAMES */
 #endif /* !NO_ASN_TIME */
 
-
-int DecodeToKey(DecodedCert* cert, int verify)
+/* parses certificate up to point of X.509 public key
+ *
+ * if cert date is invalid then badDate gets set to error value, otherwise is 0
+ *
+ * returns a negative value on fail case
+ */
+int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate)
 {
-    int badDate = 0;
     int ret;
 
+    if (cert == NULL || badDate == NULL)
+        return BAD_FUNC_ARG;
+
+    *badDate = 0;
     if ( (ret = GetCertHeader(cert)) < 0)
         return ret;
 
@@ -5661,12 +5669,23 @@ int DecodeToKey(DecodedCert* cert, int verify)
         return ret;
 
     if ( (ret = GetValidity(cert, verify)) < 0)
-        badDate = ret;
+        *badDate = ret;
 
     if ( (ret = GetName(cert, SUBJECT)) < 0)
         return ret;
 
     WOLFSSL_MSG("Got Subject Name");
+    return ret;
+}
+
+
+int DecodeToKey(DecodedCert* cert, int verify)
+{
+    int badDate = 0;
+    int ret;
+
+    if ( (ret = wc_GetPubX509(cert, verify, &badDate)) < 0)
+        return ret;
 
     /* Determine if self signed */
     cert->selfSigned = XMEMCMP(cert->issuerHash,
@@ -7749,7 +7768,7 @@ static Signer* GetCABySubjectAndPubKey(DecodedCert* cert, void* cm)
 }
 #endif
 
-#ifdef WOLFSSL_SMALL_CERT_VERIFY
+#if defined(WOLFSSL_SMALL_CERT_VERIFY) || defined(OPENSSL_EXTRA)
 /* Only quick step through the certificate to find fields that are then used
  * in certificate signature verification.
  * Must use the signature OID from the signed part of the certificate.
@@ -7759,7 +7778,8 @@ static Signer* GetCABySubjectAndPubKey(DecodedCert* cert, void* cm)
  * Doesn't support:
  *   OCSP Only: alt lookup using subject and pub key w/o sig check
  */
-int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
+static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
+        void* cm, const byte* pubKey, word32 pubKeySz, int pubKeyOID)
 {
 #ifndef WOLFSSL_SMALL_STACK
     SignatureCtx  sigCtx[1];
@@ -7770,12 +7790,12 @@ int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
     Signer*       ca = NULL;
     word32        idx = 0;
     int           len;
-    word32        tbsCertIdx;
-    word32        sigIndex;
+    word32        tbsCertIdx = 0;
+    word32        sigIndex   = 0;
     word32        signatureOID;
     word32        oid;
-    word32        issuerIdx;
-    word32        issuerSz;
+    word32        issuerIdx = 0;
+    word32        issuerSz  = 0;
 #ifndef NO_SKID
     int           extLen;
     word32        extIdx;
@@ -7963,7 +7983,7 @@ int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
         }
     }
 
-    if (ret == 0) {
+    if (ret == 0 && pubKey == NULL) {
         if (extAuthKeyIdSet)
             ca = GetCA(cm, hash);
         if (ca == NULL) {
@@ -7973,13 +7993,13 @@ int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
         }
     }
 #else
-    if (ret == 0) {
+    if (ret == 0 && pubKey == NULL) {
         ret = CalcHashId(cert + issuerIdx, issuerSz, hash);
         if (ret == 0)
             ca = GetCA(cm, hash);
     }
 #endif /* !NO_SKID */
-    if (ca == NULL)
+    if (ca == NULL && pubKey == NULL)
         ret = ASN_NO_SIGNER_E;
 
     if (ret == 0) {
@@ -7999,9 +8019,18 @@ int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
     }
 
     if (ret == 0) {
-        ret = ConfirmSignature(sigCtx, cert + tbsCertIdx, sigIndex - tbsCertIdx,
+        if (pubKey != NULL) {
+            ret = ConfirmSignature(sigCtx, cert + tbsCertIdx,
+                               sigIndex - tbsCertIdx,
+                               pubKey, pubKeySz, pubKeyOID,
+                               cert + idx, len, signatureOID);
+        }
+        else {
+            ret = ConfirmSignature(sigCtx, cert + tbsCertIdx,
+                               sigIndex - tbsCertIdx,
                                ca->publicKey, ca->pubKeySize, ca->keyOID,
                                cert + idx, len, signatureOID);
+        }
         if (ret != 0) {
             WOLFSSL_MSG("Confirm signature failed");
         }
@@ -8014,7 +8043,26 @@ int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
 #endif
     return ret;
 }
+
+#ifdef OPENSSL_EXTRA
+/* Call CheckCertSignature_ex using a public key buffer for verification
+ */
+int CheckCertSignaturePubKey(const byte* cert, word32 certSz, void* heap,
+        const byte* pubKey, word32 pubKeySz, int pubKeyOID)
+{
+    return CheckCertSignature_ex(cert, certSz, heap, NULL,
+            pubKey, pubKeySz, pubKeyOID);
+}
+#endif /* OPENSSL_EXTRA */
+#ifdef WOLFSSL_SMALL_CERT_VERIFY
+/* Call CheckCertSignature_ex using a certificate manager (cm)
+ */
+int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
+{
+    return CheckCertSignature_ex(cert, certSz, heap, cm, NULL, 0, 0);
+}
 #endif /* WOLFSSL_SMALL_CERT_VERIFY */
+#endif /* WOLFSSL_SMALL_CERT_VERIFY || OPENSSL_EXTRA */
 
 int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 {
@@ -10818,7 +10866,7 @@ static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
 }
 
 /* Encode OID string representation to ITU-T X.690 format */
-static int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
+int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
 {
     word32 val, idx = 0, nb_val;
     char *token, *str, *ptr;

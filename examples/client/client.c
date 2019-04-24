@@ -2815,6 +2815,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     showPeerEx(ssl, lng_index);
 
 #ifdef OPENSSL_EXTRA
+    printf("Session timeout set to %ld seconds\n", wolfSSL_get_timeout(ssl));
     {
         byte*  rnd;
         byte*  pt;

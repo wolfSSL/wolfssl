@@ -939,9 +939,14 @@ WOLFSSL_ASN_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
 
 WOLFSSL_LOCAL int DecodePolicyOID(char *o, word32 oSz,
                                   const byte *in, word32 inSz);
+WOLFSSL_LOCAL int EncodePolicyOID(byte *out, word32 *outSz,
+                                  const char *in, void* heap);
 WOLFSSL_API int CheckCertSignature(const byte*,word32,void*,void* cm);
+WOLFSSL_LOCAL int CheckCertSignaturePubKey(const byte* cert, word32 certSz,
+        void* heap, const byte* pubKey, word32 pubKeySz, int pubKeyOID);
 WOLFSSL_LOCAL int ParseCertRelative(DecodedCert*,int type,int verify,void* cm);
 WOLFSSL_LOCAL int DecodeToKey(DecodedCert*, int verify);
+WOLFSSL_LOCAL int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate);
 
 WOLFSSL_LOCAL const byte* OidFromId(word32 id, word32 type, word32* oidSz);
 WOLFSSL_LOCAL Signer* MakeSigner(void*);
