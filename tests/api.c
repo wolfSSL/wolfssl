@@ -22739,6 +22739,7 @@ static void test_wc_ecc_get_curve_id_from_dp_params(void)
 
     id = wc_ecc_get_curve_id_from_dp_params(NULL);
     AssertIntEQ(id, BAD_FUNC_ARG);
+    wolfSSL_EC_KEY_free(ecKey);
 
     printf(resultFmt, passed);
 }
