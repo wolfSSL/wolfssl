@@ -22701,10 +22701,12 @@ static void test_wc_ecc_get_curve_id_from_name(void)
 #endif /* HAVE_ECC */
 }
 
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && \
+    !defined(HAVE_SELFTEST) && \
+    !(defined(HAVE_FIPS) || defined(HAVE_FIPS_VERSION))
+
 static void test_wc_ecc_get_curve_id_from_dp_params(void)
 {
-#ifdef HAVE_ECC
     int id;
     int curve_id;
     int ret = 0;
@@ -22739,9 +22741,8 @@ static void test_wc_ecc_get_curve_id_from_dp_params(void)
     AssertIntEQ(id, BAD_FUNC_ARG);
 
     printf(resultFmt, passed);
-#endif /* HAVE_ECC */
 }
-#endif /* OPENSSL_EXTRA */
+#endif /* defined(OPENSSL_EXTRA) && defined(HAVE_ECC) */
 
 static void test_wc_ecc_get_curve_id_from_params(void)
 {
@@ -24689,6 +24690,10 @@ void ApiTest(void)
     test_wolfSSL_EVP_get_cipherbynid();
     test_wolfSSL_EC();
     test_wolfSSL_ECDSA_SIG();
+#endif
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && \
+    !defined(HAVE_SELFTEST) && \
+    !(defined(HAVE_FIPS) || defined(HAVE_FIPS_VERSION))
     test_wc_ecc_get_curve_id_from_dp_params();
 #endif
 

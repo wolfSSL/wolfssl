@@ -3296,6 +3296,13 @@ int wc_ecc_get_curve_id_from_params(int fieldSize,
     return ecc_sets[idx].id;
 }
 
+/* Returns the curve id in ecc_sets[] that corresponds
+ * to a given domain parameters pointer.
+ *
+ * dp   domain parameters pointer
+ *
+ * return curve id, from ecc_sets[] on success, negative on error
+ */
 int wc_ecc_get_curve_id_from_dp_params(const ecc_set_type* dp)
 {
     int idx;
