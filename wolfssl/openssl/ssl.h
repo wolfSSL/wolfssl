@@ -183,6 +183,8 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 
 #define X509_FILETYPE_ASN1 SSL_FILETYPE_ASN1
 
+#define X509_F_X509_CHECK_PRIVATE_KEY   128
+
 #ifdef WOLFSSL_DTLS
     #define DTLSv1_client_method        wolfDTLSv1_client_method
     #define DTLSv1_server_method        wolfDTLSv1_server_method
@@ -731,6 +733,8 @@ enum {
 #define V_ASN1_IA5STRING     22
 #define SSL_CTRL_MODE        33
 
+#define SSL_CTRL_CLEAR_EXTRA_CHAIN_CERTS        83
+
 #define SSL_CTX_clear_chain_certs(ctx) SSL_CTX_set0_chain(ctx,NULL)
 #define d2i_RSAPrivateKey_bio           wolfSSL_d2i_RSAPrivateKey_bio
 #define SSL_CTX_use_RSAPrivateKey       wolfSSL_CTX_use_RSAPrivateKey
@@ -906,12 +910,15 @@ enum {
 #define SSL_CTX_set_msg_callback_arg    wolfSSL_CTX_set_msg_callback_arg
 #define SSL_set_msg_callback_arg        wolfSSL_set_msg_callback_arg
 
+#define SSL_CTX_clear_extra_chain_certs wolfSSL_CTX_clear_extra_chain_certs
+
 
 /* Nginx uses this to determine if reached end of certs in file.
  * PEM_read_bio_X509 is called and the return error is lost.
  * The error that needs to be detected is: SSL_NO_PEM_HEADER.
  */
-#define ERR_GET_LIB(l)  (int)((((unsigned long)l)>>24L)&0xffL)
+#define ERR_GET_LIB(l)  (int)((((unsigned long)l) >> 24L) & 0xffL)
+#define ERR_GET_FUNC(l) (int)((((unsigned long)l) >> 12L) & 0xfffL)
 #define PEM_R_NO_START_LINE     108
 #define ERR_LIB_PEM             9
 #define ERR_LIB_X509            10

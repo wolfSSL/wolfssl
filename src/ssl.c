@@ -7368,6 +7368,13 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
 }
 #endif
 
+#ifndef NO_WOLFSSL_STUB
+long wolfSSL_CTX_clear_extra_chain_certs(WOLFSSL_CTX* ctx)
+{
+    return wolfSSL_CTX_ctrl(ctx, SSL_CTRL_CLEAR_EXTRA_CHAIN_CERTS, 0l, NULL);
+}
+#endif
+
 #ifndef NO_CERTS
 
 int wolfSSL_check_private_key(const WOLFSSL* ssl)
