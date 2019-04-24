@@ -21367,6 +21367,31 @@ static void test_wolfSSL_X509(void)
     #endif
 }
 
+static void test_wolfSSL_X509_get_ext_count(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    WOLFSSL_X509* x509;
+    const char ocspRootCaFile[] = "./certs/ocsp/root-ca-cert.pem";
+
+    printf(testingFmt, "wolfSSL_X509_get_ext_count()");
+
+    /* NULL parameter check */
+    AssertIntEQ(X509_get_ext_count(NULL), WOLFSSL_FAILURE);
+
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+                                                             SSL_FILETYPE_PEM));
+    AssertIntEQ(X509_get_ext_count(x509), 3);
+    wolfSSL_X509_free(x509);
+
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(ocspRootCaFile,
+                                                             SSL_FILETYPE_PEM));
+    AssertIntEQ(X509_get_ext_count(x509), 5);
+    wolfSSL_X509_free(x509);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 
 static void test_wolfSSL_X509_VERIFY_PARAM(void)
 {
@@ -23988,29 +24013,6 @@ static void test_wolfSSL_X509_get_ext_by_NID(void)
 
     wolfSSL_X509_free(x509);
 
-#endif
-}
-
-static void test_wolfSSL_X509_get_ext_count(void)
-{
-#if !defined(NO_FILESYSTEM) && defined (OPENSSL_ALL)
-    FILE* f;
-    WOLFSSL_X509* x509;
-    int ret = 0;
-
-    AssertNotNull(f = fopen("./certs/server-cert.pem", "rb"));
-    AssertNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
-    fclose(f);
-
-    printf(testingFmt, "wolfSSL_X509_get_ext_count() valid input");
-    AssertIntEQ((ret = wolfSSL_X509_get_ext_count(x509)), 3);
-    printf(resultFmt, ret == 3 ? passed : failed);
-
-    printf(testingFmt, "wolfSSL_X509_get_ext_count() NULL argument");
-    AssertIntEQ((ret = wolfSSL_X509_get_ext_count(NULL)), WOLFSSL_FAILURE);
-    printf(resultFmt, ret == WOLFSSL_FAILURE ? passed : failed);
-
-    wolfSSL_X509_free(x509);
 #endif
 }
 
