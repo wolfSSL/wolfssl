@@ -25,7 +25,6 @@
 #include <stdint.h>
 
 #include "wolf_demo.h"
-#include "r_cmt_rx_if.h"
 
 static WOLFSSL_CTX *wolfSSL_sv_ctx;
 static WOLFSSL_CTX *wolfSSL_cl_ctx;
