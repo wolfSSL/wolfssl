@@ -13117,6 +13117,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         (void)names;
     #endif
     }
+
+    void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb cb)
+    {
+        (void)ctx;
+        (void)cb;
+    }
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)

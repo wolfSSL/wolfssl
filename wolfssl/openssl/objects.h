@@ -44,6 +44,9 @@
 #define OBJ_cleanup wolfSSL_OBJ_cleanup
 #define ASN1_OBJECT_free wolfSSL_ASN1_OBJECT_free
 
+/* not required for wolfSSL */
+#define OPENSSL_load_builtin_modules()
+
 
 #ifdef __cplusplus
     }  /* extern "C" */
