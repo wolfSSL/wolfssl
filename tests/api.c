@@ -18837,6 +18837,56 @@ static void test_wolfSSL_ASN1_TIME_print(void)
     #endif
 }
 
+static void test_wolfSSL_ASN1_UTCTIME_print(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    BIO*  bio;
+    ASN1_UTCTIME* utc = NULL;
+    unsigned char buf[25];
+    const char* validDate   = "190424111501Z"; /* UTC = YYMMDDHHMMSSZ */
+    const char* invalidDate = "190424111501X"; /* UTC = YYMMDDHHMMSSZ */
+    byte* ptr1;
+    byte* ptr2;
+
+    printf(testingFmt, "ASN1_UTCTIME_print()");
+
+    /* NULL parameter check */
+    AssertNotNull(bio = BIO_new(BIO_s_mem()));
+    AssertIntEQ(ASN1_UTCTIME_print(bio, utc), 0);
+    BIO_free(bio);
+
+    /* Valid date */
+    AssertNotNull(bio = BIO_new(BIO_s_mem()));
+    AssertNotNull(utc = (ASN1_UTCTIME*)XMALLOC(sizeof(ASN1_UTCTIME), NULL,
+                                                           DYNAMIC_TYPE_ASN1));
+    ptr1 = utc->data;
+    *ptr1 = (byte)ASN_UTC_TIME; ptr1++;
+    *ptr1 = (byte)ASN_UTC_TIME_SIZE; ptr1++;
+    XMEMCPY(ptr1, (byte*)validDate, ASN_UTC_TIME_SIZE);
+    AssertIntEQ(ASN1_UTCTIME_print(bio, utc), 1);
+    AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 25);
+    AssertIntEQ(XMEMCMP(buf, "Apr 24 11:15:01 2019 GMT", sizeof(buf)-1), 0);
+
+    XMEMSET(buf, 0, sizeof(buf));
+    BIO_free(bio);
+
+    /* Invalid format */
+    AssertNotNull(bio = BIO_new(BIO_s_mem()));
+    ptr2 = utc->data;
+    *ptr2 = (byte)ASN_UTC_TIME; ptr2++;
+    *ptr2 = (byte)ASN_UTC_TIME_SIZE; ptr2++;
+    XMEMCPY(ptr2, (byte*)invalidDate, ASN_UTC_TIME_SIZE);
+    AssertIntEQ(ASN1_UTCTIME_print(bio, utc), 0);
+    AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 25);
+    AssertIntEQ(XMEMCMP(buf, "Bad time value", 14), 0);
+
+    XFREE(utc, NULL, DYNAMIC_TYPE_ASN1);
+    BIO_free(bio);
+
+    printf(resultFmt, passed);
+    #endif /* OPENSSL_EXTRA */
+}
+
 
 static void test_wolfSSL_ASN1_GENERALIZEDTIME_free(void)
 {
@@ -26701,6 +26751,7 @@ void ApiTest(void)
     test_wolfSSL_DES();
     test_wolfSSL_certs();
     test_wolfSSL_ASN1_TIME_print();
+    test_wolfSSL_ASN1_UTCTIME_print();
     test_wolfSSL_ASN1_GENERALIZEDTIME_free();
     test_wolfSSL_private_keys();
     test_wolfSSL_PEM_PrivateKey();

@@ -22229,7 +22229,7 @@ int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_TIME* asnTime)
         ret = WOLFSSL_FAILURE;
     }
 
-    if (wolfSSL_BIO_write(bio, buf, (int)XSTRLEN(buf)) <= 0) {
+    if (wolfSSL_BIO_write(bio, buf, sizeof(buf)) <= 0) {
         WOLFSSL_MSG("Unable to write to bio");
         return WOLFSSL_FAILURE;
     }
@@ -24611,10 +24611,16 @@ int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char *buf, int length)
 
 int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_UTCTIME* a)
 {
-    (void)bio;
-    (void)a;
-    WOLFSSL_STUB("ASN1_UTCTIME_print");
-    return 0;
+    WOLFSSL_ENTER("ASN1_UTCTIME_print");
+    if (bio == NULL || a == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    if (a->data[0] != ASN_UTC_TIME) {
+        WOLFSSL_MSG("Error, not UTC_TIME");
+        return WOLFSSL_FAILURE;
+    }
+
+    return wolfSSL_ASN1_TIME_print(bio, a);
 }
 
 /* Return the month as a string.
@@ -24633,12 +24639,17 @@ static WC_INLINE const char* MonthStr(const char* n)
 int wolfSSL_ASN1_GENERALIZEDTIME_print(WOLFSSL_BIO* bio,
     const WOLFSSL_ASN1_GENERALIZEDTIME* asnTime)
 {
-    const char* p = (const char *)(asnTime->data + 2);
+    const char* p;
     WOLFSSL_ENTER("wolfSSL_ASN1_GENERALIZEDTIME_print");
 
     if (bio == NULL || asnTime == NULL)
         return BAD_FUNC_ARG;
 
+    if (asnTime->data[0] != ASN_GENERALIZED_TIME) {
+        WOLFSSL_MSG("Error, not GENERALIZED_TIME");
+        return WOLFSSL_FAILURE;
+    }
+    p = (const char *)(asnTime->data + 2);
     /* GetTimeString not always available. */
     wolfSSL_BIO_write(bio, MonthStr(p + 4), 3);
     wolfSSL_BIO_write(bio, " ", 1);
