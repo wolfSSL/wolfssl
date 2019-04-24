@@ -37697,6 +37697,47 @@ void wolfSSL_sk_X509_INFO_free(WOLF_STACK_OF(WOLFSSL_X509_INFO) *sk)
 }
 
 
+/* Adds the WOLFSSL_X509_INFO to the stack "sk". "sk" takes control of "in" and
+ * tries to free it when the stack is free'd.
+ *
+ * return 1 on success 0 on fail
+ */
+int wolfSSL_sk_X509_INFO_push(WOLF_STACK_OF(WOLFSSL_X509_INTO)* sk,
+                                                      WOLFSSL_X509_INFO* in)
+{
+    WOLFSSL_STACK* node;
+
+    if (sk == NULL || in == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* no previous values in stack */
+    if (sk->data.info == NULL) {
+        sk->data.info = in;
+        sk->num += 1;
+        return WOLFSSL_SUCCESS;
+    }
+
+    /* stack already has value(s) create a new node and add more */
+    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
+            DYNAMIC_TYPE_X509);
+    if (node == NULL) {
+        WOLFSSL_MSG("Memory error");
+        return WOLFSSL_FAILURE;
+    }
+    XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
+
+    /* push new obj onto head of stack */
+    node->data.info = sk->data.info;
+    node->next      = sk->next;
+    sk->next        = node;
+    sk->data.info   = in;
+    sk->num        += 1;
+
+    return WOLFSSL_SUCCESS;
+}
+
+
 int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
                 int indent, unsigned long flags)
 {
