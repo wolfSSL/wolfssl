@@ -26098,7 +26098,6 @@ static void test_wolfSSL_PEM_read(void)
 #endif
 }
 
-
 static void test_wolfssl_EVP_aes_gcm(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AESGCM)
@@ -26177,6 +26176,47 @@ static void test_wolfssl_EVP_aes_gcm(void)
     printf(resultFmt, passed);
 
 #endif /* OPENSSL_EXTRA && !NO_AES && HAVE_AESGCM */
+}
+
+static void test_wolfSSL_PEM_X509_INFO_read_bio(void)
+{
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM)
+    BIO* bio;
+    X509_INFO* info;
+    STACK_OF(X509_INFO)* sk;
+    char* subject;
+    char exp1[] = "/C=US/ST=Montana/L=Bozeman/O=Sawtooth/OU=Consulting/CN=www.wolfssl.com/emailAddress=info@wolfssl.com";
+    char exp2[] = "/C=US/ST=Montana/L=Bozeman/O=wolfSSL/OU=Support/CN=www.wolfssl.com/emailAddress=info@wolfssl.com";
+
+    printf(testingFmt, "wolfSSL_PEM_X509_INFO_read_bio");
+    AssertNotNull(bio = BIO_new(BIO_s_file()));
+    AssertIntGT(BIO_read_filename(bio, svrCertFile), 0);
+    AssertNotNull(sk = PEM_X509_INFO_read_bio(bio, NULL, NULL, NULL));
+    AssertIntEQ(sk_X509_INFO_num(sk), 2);
+
+    /* using dereference to maintain testing for Apache port*/
+    AssertNotNull(info = sk_X509_INFO_pop(sk));
+    AssertNotNull(info->x_pkey);
+    AssertNotNull(info->x_pkey->dec_pkey);
+    AssertIntEQ(EVP_PKEY_bits(info->x_pkey->dec_pkey), 2048);
+    AssertNotNull(subject =
+            X509_NAME_oneline(X509_get_subject_name(info->x509), 0, 0));
+
+    AssertIntEQ(0, XSTRNCMP(subject, exp1, sizeof(exp1)));
+    XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
+
+    AssertNotNull(info = sk_X509_INFO_pop(sk));
+    AssertNotNull(subject =
+            X509_NAME_oneline(X509_get_subject_name(info->x509), 0, 0));
+
+    AssertIntEQ(0, XSTRNCMP(subject, exp2, sizeof(exp2)));
+    XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
+    AssertNull(info = sk_X509_INFO_pop(sk));
+
+    sk_X509_INFO_pop_free(sk, X509_INFO_free);
+    BIO_free(bio);
+    printf(resultFmt, passed);
+#endif
 }
 
 static void test_wolfSSL_X509_NAME_ENTRY_get_object()
@@ -26829,6 +26869,7 @@ void ApiTest(void)
     test_wolfSSL_X509_CRL();
     test_wolfSSL_PEM_read_X509();
     test_wolfSSL_PEM_read();
+    test_wolfSSL_PEM_X509_INFO_read_bio();
     test_wolfSSL_X509_NAME_ENTRY_get_object();
     test_wolfSSL_OpenSSL_add_all_algorithms();
     test_wolfSSL_ASN1_STRING_print_ex();

@@ -24607,7 +24607,7 @@ int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
 #ifndef NO_FILESYSTEM
     if (bio->type == WOLFSSL_BIO_FILE) {
         va_start(args, format);
-        ret = fprintf(bio->file, format, args);
+        ret = vfprintf(bio->file, format, args);
         va_end(args);
     }
 #endif
@@ -34647,9 +34647,9 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             localSk = sk;
         }
         else {
-            sk = wolfSSL_sk_X509_INFO_new_null();
+            localSk = wolfSSL_sk_X509_INFO_new_null();
         }
-        if (sk == NULL) {
+        if (localSk == NULL) {
             WOLFSSL_LEAVE("wolfSSL_PEM_X509_INFO_read_bio", MEMORY_E);
             return NULL;
         }
@@ -37843,10 +37843,10 @@ WOLFSSL_X509_INFO* wolfSSL_X509_INFO_new(void)
     return info;
 }
 
-int wolfSSL_X509_INFO_free(WOLFSSL_X509_INFO* info)
+void wolfSSL_X509_INFO_free(WOLFSSL_X509_INFO* info)
 {
     if (info == NULL)
-        return BAD_FUNC_ARG;
+        return;
 
     if (info->x509) {
         wolfSSL_X509_free(info->x509);
@@ -37856,8 +37856,6 @@ int wolfSSL_X509_INFO_free(WOLFSSL_X509_INFO* info)
     info->x_pkey = NULL;
 
     XFREE(info, NULL, DYNAMIC_TYPE_X509);
-
-    return 0;
 }
 
 WOLFSSL_STACK* wolfSSL_sk_X509_INFO_new_null(void)
