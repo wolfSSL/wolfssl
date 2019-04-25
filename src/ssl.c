@@ -37775,6 +37775,16 @@ WOLFSSL_X509_INFO* wolfSSL_sk_X509_INFO_value(const WOLF_STACK_OF(WOLFSSL_X509_I
     return sk->data.info;
 }
 
+void wolfSSL_sk_X509_INFO_pop_free(WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk,
+    void f (WOLFSSL_X509_INFO*))
+{
+    WOLFSSL_ENTER("wolfSSL_sk_X509_INFO_pop_free");
+
+    (void)sk;
+    (void)f;
+}
+
+
 void wolfSSL_sk_X509_INFO_free(WOLF_STACK_OF(WOLFSSL_X509_INFO) *sk)
 {
     WOLFSSL_STACK* node;
@@ -37939,14 +37949,6 @@ int wolfSSL_sk_X509_NAME_num(const WOLF_STACK_OF(WOLFSSL_X509_NAME) *sk)
     return (int)sk->num;
 }
 
-void wolfSSL_sk_X509_NAME_pop_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk, WOLFSSL_X509_NAME* name)
-{
-    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_pop_free");
-
-    (void)sk;
-    (void)name;
-}
-
 /* Getter function for WOLFSSL_X509_NAME pointer
  *
  * sk is the stack to retrieve pointer from
@@ -37967,6 +37969,15 @@ WOLFSSL_X509_NAME* wolfSSL_sk_X509_NAME_value(const STACK_OF(WOLFSSL_X509_NAME)*
         return NULL;
 
     return sk->data.name;
+}
+
+void wolfSSL_sk_X509_NAME_pop_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
+    void f (WOLFSSL_X509_NAME*))
+{
+    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_pop_free");
+
+    (void)sk;
+    (void)f;
 }
 
 void wolfSSL_sk_X509_NAME_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)

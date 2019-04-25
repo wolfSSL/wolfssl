@@ -351,6 +351,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define sk_X509_INFO_new_null           wolfSSL_sk_X509_INFO_new_null
 #define sk_X509_INFO_num                wolfSSL_sk_X509_INFO_num
 #define sk_X509_INFO_value              wolfSSL_sk_X509_INFO_value
+#define sk_X509_INFO_pop_free           wolfSSL_sk_X509_INFO_pop_free
 #define sk_X509_INFO_free               wolfSSL_sk_X509_INFO_free
 
 #define i2d_X509_NAME                   wolfSSL_i2d_X509_NAME
