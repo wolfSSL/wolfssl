@@ -308,6 +308,23 @@ typedef char   WOLFSSL_EVP_MD;
 #define WOLFSSL_EVP_TYPE_DEFINED
 #endif
 
+struct WOLFSSL_X509_PKEY {
+    WOLFSSL_EVP_PKEY* dec_pkey; /* dereferenced by Apache */
+    void* heap;
+};
+typedef struct WOLFSSL_X509_PKEY WOLFSSL_X509_PKEY;
+
+struct WOLFSSL_X509_INFO {
+    WOLFSSL_X509      *x509;
+    WOLFSSL_X509_CRL  *crl;
+    WOLFSSL_X509_PKEY  *x_pkey; /* dereferenced by Apache */
+    EncryptedInfo     enc_cipher;
+    int               enc_len;
+    char              *enc_data;
+    int               num;
+};
+typedef struct WOLFSSL_X509_INFO WOLFSSL_X509_INFO;
+
 #define WOLFSSL_EVP_PKEY_DEFAULT EVP_PKEY_RSA /* default key type */
 
 
@@ -2897,6 +2914,9 @@ WOLFSSL_API int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *p
 WOLFSSL_API WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u);
 WOLFSSL_API WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_AUX
         (WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u);
+WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_INFO)* wolfSSL_PEM_X509_INFO_read_bio(
+        WOLFSSL_BIO* bio, WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk,
+        pem_password_cb* cb, void* u);
 #ifndef NO_FILESYSTEM
 WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_PEM_read_X509_CRL(XFILE fp,
         WOLFSSL_X509_CRL **x, pem_password_cb *cb, void *u);

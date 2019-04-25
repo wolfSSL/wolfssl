@@ -34447,6 +34447,144 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return wolfSSL_PEM_read_bio_X509(bp, x, cb, u);
     }
 
+
+#ifdef OPENSSL_ALL
+    /* create and return a new WOLFSSL_X509_PKEY structure or NULL on failure */
+    static WOLFSSL_X509_PKEY* wolfSSL_X509_PKEY_new(void* heap)
+    {
+        WOLFSSL_X509_PKEY* ret;
+
+        ret = (WOLFSSL_X509_PKEY*)XMALLOC(sizeof(WOLFSSL_X509_PKEY), heap,
+            DYNAMIC_TYPE_KEY);
+        if (ret != NULL) {
+            XMEMSET(ret, 0, sizeof(WOLFSSL_X509_PKEY));
+            ret->heap = heap;
+        }
+        return ret;
+    }
+
+
+    /* sets the values of X509_PKEY based on certificate passed in
+     * return WOLFSSL_SUCCESS on success */
+    static int wolfSSL_X509_PKEY_set(WOLFSSL_X509_PKEY* xPkey,
+            WOLFSSL_X509* x509)
+    {
+        if (xPkey == NULL || x509 == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        wolfSSL_EVP_PKEY_free(xPkey->dec_pkey);
+        xPkey->dec_pkey = wolfSSL_X509_get_pubkey(x509);
+        if (xPkey->dec_pkey == NULL) {
+            return WOLFSSL_FAILURE;
+        }
+        return WOLFSSL_SUCCESS;
+    }
+
+
+    /* free up all memory used by "xPkey" passed in */
+    static void wolfSSL_X509_PKEY_free(WOLFSSL_X509_PKEY* xPkey)
+    {
+        if (xPkey != NULL) {
+            wolfSSL_EVP_PKEY_free(xPkey->dec_pkey);
+        }
+        XFREE(xPkey, xPkey->heap, DYNAMIC_TYPE_KEY);
+    }
+
+
+    /* Takes control of x509 on success
+     * helper function to break out code needed to set WOLFSSL_X509_INFO up
+     * free's "info" passed in if is not defaults
+     *
+     * returns WOLFSSL_SUCCESS on success
+     */
+    static int wolfSSL_X509_INFO_set(WOLFSSL_X509_INFO* info,
+            WOLFSSL_X509* x509)
+    {
+        if (info == NULL || x509 == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        /* check is fresh "info" passed in, if not free it */
+        if (info->x509 != NULL || info->x_pkey != NULL) {
+            WOLFSSL_X509_INFO* tmp;
+
+            tmp = wolfSSL_X509_INFO_new();
+            if (tmp == NULL) {
+                WOLFSSL_MSG("Unable to create new structure");
+                return MEMORY_E;
+            }
+            wolfSSL_X509_INFO_free(info);
+            info = tmp;
+        }
+
+        info->x509 = x509;
+
+        //@TODO info->num
+        //@TODO info->enc_cipher
+        //@TODO info->enc_len
+        //@TODO info->enc_data
+        //@TODO info->crl
+
+        info->x_pkey = wolfSSL_X509_PKEY_new(x509->heap);
+        return wolfSSL_X509_PKEY_set(info->x_pkey, x509);
+    }
+
+
+    /*
+     * bio WOLFSSL_BIO to read certificates from
+     * sk  possible stack to push more X509_INFO structs to. Can be NULL
+     * cb  callback password for encrypted PEM certificates
+     * u   user input such as password
+     *
+     * returns stack on success and NULL or default stack passed in on fail
+     */
+    WOLF_STACK_OF(WOLFSSL_X509_INFO)* wolfSSL_PEM_X509_INFO_read_bio(
+        WOLFSSL_BIO* bio, WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk,
+        pem_password_cb* cb, void* u)
+    {
+        WOLF_STACK_OF(WOLFSSL_X509_INFO)* localSk;
+        WOLFSSL_X509* x509 = NULL;
+        int ret;
+
+        WOLFSSL_ENTER("wolfSSL_PEM_X509_INFO_read_bio");
+
+        /* attempt to used passed in stack or create a new one */
+        if (sk != NULL) {
+            localSk = sk;
+        }
+        else {
+            sk = wolfSSL_sk_X509_INFO_new_null();
+        }
+        if (sk == NULL) {
+            WOLFSSL_LEAVE("wolfSSL_PEM_X509_INFO_read_bio", MEMORY_E);
+            return NULL;
+        }
+
+        /* parse through BIO and push new info's found onto stack */
+        do {
+            x509 = wolfSSL_PEM_read_bio_X509(bio, NULL, cb, u);
+            if (x509 != NULL) {
+                WOLFSSL_X509_INFO* current;
+
+                current = wolfSSL_X509_INFO_new();
+                if (current == NULL) {
+                    WOLFSSL_LEAVE("wolfSSL_PEM_X509_INFO_read_bio", MEMORY_E);
+                    return NULL;
+                }                
+                ret = wolfSSL_X509_INFO_set(current, x509);
+                if (ret  != WOLFSSL_SUCCESS) {
+                    wolfSSL_X509_free(x509);
+                }
+                else {
+                    wolfSSL_sk_X509_INFO_push(localSk, current);
+                }
+            }
+        } while (x509 != NULL && ret == WOLFSSL_SUCCESS);
+        WOLFSSL_LEAVE("wolfSSL_PEM_X509_INFO_read_bio", ret);
+        return localSk;
+    }
+#endif /* OPENSSL_ALL */
+
     void wolfSSL_X509_NAME_ENTRY_free(WOLFSSL_X509_NAME_ENTRY* ne)
     {
         if (ne != NULL) {
@@ -37637,10 +37775,8 @@ int wolfSSL_X509_INFO_free(WOLFSSL_X509_INFO* info)
         wolfSSL_X509_free(info->x509);
         info->x509 = NULL;
     }
-    if (info->x_pkey) {
-        EVP_PKEY_free(info->x_pkey);
-        info->x_pkey = NULL;
-    }
+    wolfSSL_X509_PKEY_free(info->x_pkey);
+    info->x_pkey = NULL;
 
     XFREE(info, NULL, DYNAMIC_TYPE_X509);
 
