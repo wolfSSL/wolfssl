@@ -825,6 +825,7 @@ enum {
 #define SSL_CTX_set_tlsext_opaque_prf_input_callback_arg \
                             wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg
 #define SSL_get_server_random           wolfSSL_get_server_random
+#define SSL_get_server_tmp_key          wolfSSL_get_server_tmp_key
 
 #define SSL_get_tlsext_status_exts      wolfSSL_get_tlsext_status_exts
 
