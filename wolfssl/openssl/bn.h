@@ -191,7 +191,7 @@ typedef WOLFSSL_BN_GENCB BN_GENCB;
 #define BN_mod_inverse wolfSSL_BN_mod_inverse
 
 
-#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER < 0x10001000L
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 #define BN_get_rfc3526_prime_768   wolfSSL_DH_768_prime
 #define BN_get_rfc3526_prime_1024  wolfSSL_DH_1024_prime
 #define BN_get_rfc3526_prime_1536  wolfSSL_DH_1536_prime

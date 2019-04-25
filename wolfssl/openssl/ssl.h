@@ -827,6 +827,9 @@ enum {
 #define SSL_get_server_random           wolfSSL_get_server_random
 #define SSL_get_server_tmp_key          wolfSSL_get_server_tmp_key
 
+#define SSL_CTX_set_min_proto_version   wolfSSL_CTX_set_min_proto_version
+#define SSL_CTX_set_max_proto_version   wolfSSL_CTX_set_max_proto_version
+
 #define SSL_get_tlsext_status_exts      wolfSSL_get_tlsext_status_exts
 
 #define BIO_C_SET_FILE_PTR                      106
@@ -880,7 +883,9 @@ enum {
 #define TLS1_VERSION                     0x0301
 #define TLS1_1_VERSION                   0x0302
 #define TLS1_2_VERSION                   0x0303
+#define TLS1_3_VERSION                   0x0304
 #define DTLS1_VERSION                    0xFEFF
+#define DTLS1_2_VERSION                  0xFEFD
 #define SSL23_ST_SR_CLNT_HELLO_A        (0x210|0x2000)
 #define SSL3_ST_SR_CLNT_HELLO_A         (0x110|0x2000)
 #define ASN1_STRFLGS_ESC_MSB             4

@@ -14127,6 +14127,69 @@ int wolfSSL_get_server_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
 
 #endif /* !NO_WOLFSSL_SERVER */
 
+int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_min_proto_version");
+
+    if (ctx == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    switch (version) {
+#if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
+        case SSL3_VERSION:
+            ctx->minDowngrade = SSLv3_MINOR;
+            break;
+#endif
+#ifndef NO_TLS
+    #ifndef NO_OLD_TLS
+        #ifdef WOLFSSL_ALLOW_TLSV10
+        case TLS1_VERSION:
+            ctx->minDowngrade = TLSv1_MINOR;
+            break;
+        #endif
+        case TLS1_1_VERSION:
+            ctx->minDowngrade = TLSv1_1_MINOR;
+            break;
+    #endif
+    #ifndef WOLFSSL_NO_TLS12
+        case TLS1_2_VERSION:
+            ctx->minDowngrade = TLSv1_2_MINOR;
+            break;
+    #endif
+    #ifdef WOLFSSL_TLS13
+        case TLS1_3_VERSION:
+            ctx->minDowngrade = TLSv1_3_MINOR;
+            break;
+    #endif
+#endif
+#ifdef WOLFSSL_DTLS
+    #ifndef NO_OLD_TLS
+        case DTLS1_VERSION:
+            ctx->minDowngrade = DTLS_MINOR;
+            break;
+    #endif
+        case DTLS1_2_VERSION:
+            ctx->minDowngrade = DTLSv1_2_MINOR;
+            break;
+#endif
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int ver)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_max_proto_version");
+
+    /* supported only at compile-time only */
+    (void)ctx;
+    (void)ver;
+    return WOLFSSL_SUCCESS;
+}
+
 
 #if !defined(NO_WOLFSSL_CLIENT)
 /* Return the amount of random bytes copied over or error case.
@@ -38173,10 +38236,13 @@ int wolfSSL_version(WOLFSSL* ssl)
             case SSLv3_MINOR :
                 return SSL3_VERSION;
             case TLSv1_MINOR :
-            case TLSv1_1_MINOR :
-            case TLSv1_2_MINOR :
-            case TLSv1_3_MINOR :
                 return TLS1_VERSION;
+            case TLSv1_1_MINOR :
+                return TLS1_1_VERSION;
+            case TLSv1_2_MINOR :
+                return TLS1_2_VERSION;
+            case TLSv1_3_MINOR :
+                return TLS1_3_VERSION;
             default:
                 return WOLFSSL_FAILURE;
         }
@@ -38184,8 +38250,9 @@ int wolfSSL_version(WOLFSSL* ssl)
     else if (ssl->version.major == DTLS_MAJOR) {
         switch (ssl->version.minor) {
             case DTLS_MINOR :
-            case DTLSv1_2_MINOR :
                 return DTLS1_VERSION;
+            case DTLSv1_2_MINOR :
+                return DTLS1_2_VERSION;
             default:
                 return WOLFSSL_FAILURE;
         }
