@@ -169,6 +169,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define SSLv2_server_method             wolfSSLv2_server_method
 #define SSLv3_server_method             wolfSSLv3_server_method
 #define SSLv3_client_method             wolfSSLv3_client_method
+#define TLS_client_method               wolfTLS_client_method
 #define TLSv1_method                    wolfTLSv1_method
 #define TLSv1_server_method             wolfTLSv1_server_method
 #define TLSv1_client_method             wolfTLSv1_client_method
@@ -1025,6 +1026,7 @@ enum {
 #define ERR_NUM_ERRORS                  16
 #define EVP_PKEY_RSA                    6
 #define EVP_PKEY_RSA2                   19
+#define EVP_PKEY_DH                     28
 #define SN_pkcs9_emailAddress           "Email"
 #define LN_pkcs9_emailAddress           "emailAddress"
 #define NID_pkcs9_emailAddress          48

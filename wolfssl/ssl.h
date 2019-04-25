@@ -504,6 +504,7 @@ enum AlertLevel {
 typedef WOLFSSL_METHOD* (*wolfSSL_method_func)(void* heap);
 
 /* CTX Method EX Constructor Functions */
+WOLFSSL_API WOLFSSL_METHOD *wolfTLS_client_method_ex(void* heap);
 WOLFSSL_API WOLFSSL_METHOD *wolfSSLv3_server_method_ex(void* heap);
 WOLFSSL_API WOLFSSL_METHOD *wolfSSLv3_client_method_ex(void* heap);
 WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_method_ex(void* heap);
@@ -538,6 +539,7 @@ WOLFSSL_API WOLFSSL_METHOD *wolfSSLv23_client_method_ex(void* heap);
 #endif
 
 /* CTX Method Constructor Functions */
+WOLFSSL_API WOLFSSL_METHOD *wolfTLS_client_method(void);
 WOLFSSL_API WOLFSSL_METHOD *wolfSSLv23_method(void);
 WOLFSSL_API WOLFSSL_METHOD *wolfSSLv3_server_method(void);
 WOLFSSL_API WOLFSSL_METHOD *wolfSSLv3_client_method(void);
