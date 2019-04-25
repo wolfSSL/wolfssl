@@ -9240,6 +9240,20 @@ void wolfSSL_set_verify(WOLFSSL* ssl, int mode, VerifyCallback vc)
     ssl->verifyCallback = vc;
 }
 
+void wolfSSL_set_verify_result(WOLFSSL *ssl, long v)
+{
+    WOLFSSL_ENTER("wolfSSL_set_verify_result");
+
+    if (ssl == NULL)
+        return;
+
+#ifdef OPENSSL_ALL
+    ssl->verifyCallbackResult = v;
+#else
+    (void)v;
+    WOLFSSL_STUB("wolfSSL_set_verify_result");
+#endif
+}
 
 /* store user ctx for verify callback */
 void wolfSSL_SetCertCbCtx(WOLFSSL* ssl, void* ctx)
@@ -27605,6 +27619,20 @@ int wolfSSL_DH_compute_key(unsigned char* key, WOLFSSL_BIGNUM* otherPub,
 
     return ret;
 }
+
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
+    WOLFSSL_BIGNUM *q, WOLFSSL_BIGNUM *g)
+{
+    (void)dh;
+    (void)p;
+    (void)q;
+    (void)g;
+    WOLFSSL_STUB("wolfSSL_DH_set0_pqg");
+    return WOLFSSL_SUCCESS;
+}
+#endif
+
 #endif /* NO_DH */
 
 

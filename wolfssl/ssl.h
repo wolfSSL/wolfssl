@@ -783,6 +783,7 @@ WOLFSSL_API int  wolfSSL_get_ex_new_index(long argValue, void* arg,
 WOLFSSL_API void wolfSSL_CTX_set_verify(WOLFSSL_CTX*, int,
                                       VerifyCallback verify_callback);
 WOLFSSL_API void wolfSSL_set_verify(WOLFSSL*, int, VerifyCallback verify_callback);
+WOLFSSL_API void wolfSSL_set_verify_result(WOLFSSL*, long);
 WOLFSSL_API void wolfSSL_SetCertCbCtx(WOLFSSL*, void*);
 
 WOLFSSL_API int  wolfSSL_pending(WOLFSSL*);
@@ -1293,9 +1294,8 @@ enum {
     SSL_OP_TLS_ROLLBACK_BUG                       = 0x00000200,
     SSL_OP_ALL                                    = 0x00000400,
     SSL_OP_EPHEMERAL_RSA                          = 0x00000800,
-    SSL_OP_NO_SSLv2                               = 0x00000000, /* N/A */
-    SSL_OP_NO_SSLv3                               = 0x00001000,
-    SSL_OP_NO_TLSv1                               = 0x00002000,
+    WOLFSSL_OP_NO_SSLv3                           = 0x00001000,
+    WOLFSSL_OP_NO_TLSv1                           = 0x00002000,
     SSL_OP_PKCS1_CHECK_1                          = 0x00004000,
     SSL_OP_PKCS1_CHECK_2                          = 0x00008000,
     SSL_OP_NETSCAPE_CA_DN_BUG                     = 0x00010000,
@@ -1308,11 +1308,20 @@ enum {
     SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION = 0x00800000,
     SSL_OP_SINGLE_ECDH_USE                        = 0x01000000,
     SSL_OP_CIPHER_SERVER_PREFERENCE               = 0x02000000,
-    SSL_OP_NO_TLSv1_1                             = 0x04000000,
-    SSL_OP_NO_TLSv1_2                             = 0x08000000,
+    WOLFSSL_OP_NO_TLSv1_1                         = 0x04000000,
+    WOLFSSL_OP_NO_TLSv1_2                         = 0x08000000,
     SSL_OP_NO_COMPRESSION                         = 0x10000000,
-    SSL_OP_NO_TLSv1_3                             = 0x20000000,
+    WOLFSSL_OP_NO_TLSv1_3                         = 0x20000000,
+    WOLFSSL_OP_NO_SSLv2                           = 0x40000000,
 };
+
+/* for compatibility these must be macros */
+#define SSL_OP_NO_SSLv2   WOLFSSL_OP_NO_SSLv2
+#define SSL_OP_NO_SSLv3   WOLFSSL_OP_NO_SSLv3
+#define SSL_OP_NO_TLSv1   WOLFSSL_OP_NO_TLSv1
+#define SSL_OP_NO_TLSv1_1 WOLFSSL_OP_NO_TLSv1_1
+#define SSL_OP_NO_TLSv1_2 WOLFSSL_OP_NO_TLSv1_2
+#define SSL_OP_NO_TLSv1_3 WOLFSSL_OP_NO_TLSv1_3
 
 #define SSL_OP_NO_SSL_MASK (SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | \
     SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 | SSL_OP_NO_TLSv1_3)
@@ -1320,7 +1329,6 @@ enum {
 #define SSL_NOTHING 1
 #define SSL_WRITING 2
 #define SSL_READING 3
-
 
 enum {
 #ifdef HAVE_OCSP
@@ -1502,7 +1510,6 @@ WOLFSSL_API void wolfSSL_ERR_print_errors(WOLFSSL_BIO *bio);
     #define SSL_SENT_SHUTDOWN WOLFSSL_SENT_SHUTDOWN
     #define SSL_RECEIVED_SHUTDOWN WOLFSSL_RECEIVED_SHUTDOWN
     #define SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER WOLFSSL_MODE_ACCEPT_MOVING_WRITE_BUFFER
-    #define SSL_OP_NO_SSLv2 WOLFSSL_OP_NO_SSLv2
 
     #define SSL_R_SSL_HANDSHAKE_FAILURE WOLFSSL_R_SSL_HANDSHAKE_FAILURE
     #define SSL_R_TLSV1_ALERT_UNKNOWN_CA WOLFSSL_R_TLSV1_ALERT_UNKNOWN_CA
@@ -1560,7 +1567,6 @@ enum { /* ssl Constants */
     WOLFSSL_SENT_SHUTDOWN     = 1,
     WOLFSSL_RECEIVED_SHUTDOWN = 2,
     WOLFSSL_MODE_ACCEPT_MOVING_WRITE_BUFFER = 4,
-    WOLFSSL_OP_NO_SSLv2       = 8,
 
     WOLFSSL_R_SSL_HANDSHAKE_FAILURE           = 101,
     WOLFSSL_R_TLSV1_ALERT_UNKNOWN_CA          = 102,

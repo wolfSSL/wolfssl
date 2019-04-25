@@ -38,6 +38,6 @@
 #endif
 
 #define OPENSSL_VERSION_TEXT             LIBWOLFSSL_VERSION_STRING
-
+#define OPENSSL_VERSION                  0
 
 #endif /* header */

@@ -192,11 +192,12 @@ typedef WOLFSSL_BN_GENCB BN_GENCB;
 
 
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
-#define BN_get_rfc3526_prime_768   wolfSSL_DH_768_prime
-#define BN_get_rfc3526_prime_1024  wolfSSL_DH_1024_prime
+#define BN_get_rfc2409_prime_768   wolfSSL_DH_768_prime
+#define BN_get_rfc2409_prime_1024  wolfSSL_DH_1024_prime
 #define BN_get_rfc3526_prime_1536  wolfSSL_DH_1536_prime
 #define BN_get_rfc3526_prime_2048  wolfSSL_DH_2048_prime
 #define BN_get_rfc3526_prime_3072  wolfSSL_DH_3072_prime
+#define BN_get_rfc3526_prime_4096  wolfSSL_DH_4096_prime
 #define BN_get_rfc3526_prime_6144  wolfSSL_DH_6144_prime
 #define BN_get_rfc3526_prime_8192  wolfSSL_DH_8192_prime
 #endif

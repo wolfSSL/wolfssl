@@ -55,6 +55,8 @@ WOLFSSL_API int wolfSSL_DH_size(WOLFSSL_DH*);
 WOLFSSL_API int wolfSSL_DH_generate_key(WOLFSSL_DH*);
 WOLFSSL_API int wolfSSL_DH_compute_key(unsigned char* key, WOLFSSL_BIGNUM* pub,
                                      WOLFSSL_DH*);
+WOLFSSL_API int wolfSSL_DH_set0_pqg(WOLFSSL_DH*, WOLFSSL_BIGNUM*,
+    WOLFSSL_BIGNUM*, WOLFSSL_BIGNUM*);
 
 typedef WOLFSSL_DH DH;
 
@@ -64,8 +66,9 @@ typedef WOLFSSL_DH DH;
 #define DH_size         wolfSSL_DH_size
 #define DH_generate_key wolfSSL_DH_generate_key
 #define DH_compute_key  wolfSSL_DH_compute_key
+#define DH_set0_pqg     wolfSSL_DH_set0_pqg
 
-/* for pre 1.1.10 */
+/* for pre 1.1.0 */
 #define get_rfc2409_prime_768      wolfSSL_DH_768_prime
 #define get_rfc2409_prime_1024     wolfSSL_DH_1024_prime
 #define get_rfc3526_prime_1536     wolfSSL_DH_1536_prime
@@ -74,8 +77,6 @@ typedef WOLFSSL_DH DH;
 #define get_rfc3526_prime_4096     wolfSSL_DH_4096_prime
 #define get_rfc3526_prime_6144     wolfSSL_DH_6144_prime
 #define get_rfc3526_prime_8192     wolfSSL_DH_8192_prime
-
-
 
 #ifdef __cplusplus
     }  /* extern "C" */

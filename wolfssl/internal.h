@@ -4084,6 +4084,9 @@ struct WOLFSSL {
     EarlyDataState earlyData;
     word32 earlyDataSz;
 #endif
+#ifdef OPENSSL_ALL
+    long verifyCallbackResult;
+#endif
 };
 
 
