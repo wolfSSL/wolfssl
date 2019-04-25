@@ -351,6 +351,8 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define sk_X509_INFO_new_null           wolfSSL_sk_X509_INFO_new_null
 #define sk_X509_INFO_num                wolfSSL_sk_X509_INFO_num
 #define sk_X509_INFO_value              wolfSSL_sk_X509_INFO_value
+#define sk_X509_INFO_push               wolfSSL_sk_X509_INFO_push
+#define sk_X509_INFO_pop                wolfSSL_sk_X509_INFO_pop
 #define sk_X509_INFO_pop_free           wolfSSL_sk_X509_INFO_pop_free
 #define sk_X509_INFO_free               wolfSSL_sk_X509_INFO_free
 
@@ -374,9 +376,10 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define sk_X509_NAME_push               wolfSSL_sk_X509_NAME_push
 #define sk_X509_NAME_find               wolfSSL_sk_X509_NAME_find
 #define sk_X509_NAME_set_cmp_func       wolfSSL_sk_X509_NAME_set_cmp_func
-#define sk_X509_NAME_pop_free           wolfSSL_sk_X509_NAME_pop_free
 #define sk_X509_NAME_num                wolfSSL_sk_X509_NAME_num
 #define sk_X509_NAME_value              wolfSSL_sk_X509_NAME_value
+#define sk_X509_NAME_pop                wolfSSL_sk_X509_NAME_pop
+#define sk_X509_NAME_pop_free           wolfSSL_sk_X509_NAME_pop_free
 #define sk_X509_NAME_free               wolfSSL_sk_X509_NAME_free
 
 typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
@@ -873,6 +876,8 @@ enum {
 #define SSL2_VERSION                     0x0002
 #define SSL3_VERSION                     0x0300
 #define TLS1_VERSION                     0x0301
+#define TLS1_1_VERSION                   0x0302
+#define TLS1_2_VERSION                   0x0303
 #define DTLS1_VERSION                    0xFEFF
 #define SSL23_ST_SR_CLNT_HELLO_A        (0x210|0x2000)
 #define SSL3_ST_SR_CLNT_HELLO_A         (0x110|0x2000)

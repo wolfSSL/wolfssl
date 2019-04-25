@@ -37747,7 +37747,7 @@ int wolfSSL_X509_INFO_free(WOLFSSL_X509_INFO* info)
 WOLFSSL_STACK* wolfSSL_sk_X509_INFO_new_null(void)
 {
     WOLFSSL_STACK* sk = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
-                                                             DYNAMIC_TYPE_X509);
+                                                             DYNAMIC_TYPE_OPENSSL);
     if (sk != NULL)
         XMEMSET(sk, 0, sizeof(*sk));
 
@@ -37775,15 +37775,48 @@ WOLFSSL_X509_INFO* wolfSSL_sk_X509_INFO_value(const WOLF_STACK_OF(WOLFSSL_X509_I
     return sk->data.info;
 }
 
+WOLFSSL_X509_INFO* wolfSSL_sk_X509_INFO_pop(WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk)
+{
+    WOLFSSL_STACK* node;
+    WOLFSSL_X509_INFO* info;
+
+    if (sk == NULL) {
+        return NULL;
+    }
+
+    node = sk->next;
+    info = sk->data.info;
+
+    if (node != NULL) { /* update sk and remove node from stack */
+        sk->data.info = node->data.info;
+        sk->next = node->next;
+        XFREE(node, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    else { /* last x509 in stack */
+        sk->data.info = NULL;
+    }
+
+    if (sk->num > 0) {
+        sk->num -= 1;
+    }
+
+    return info;
+}
+
 void wolfSSL_sk_X509_INFO_pop_free(WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk,
     void f (WOLFSSL_X509_INFO*))
 {
+    WOLFSSL_X509_INFO* info;
     WOLFSSL_ENTER("wolfSSL_sk_X509_INFO_pop_free");
 
-    (void)sk;
-    (void)f;
+    info = wolfSSL_sk_X509_INFO_pop(sk);
+    if (info) {
+        if (f)
+            f(info);
+        else
+            wolfSSL_X509_INFO_free(info);
+    }
 }
-
 
 void wolfSSL_sk_X509_INFO_free(WOLF_STACK_OF(WOLFSSL_X509_INFO) *sk)
 {
@@ -37802,7 +37835,7 @@ void wolfSSL_sk_X509_INFO_free(WOLF_STACK_OF(WOLFSSL_X509_INFO) *sk)
         wolfSSL_X509_INFO_free(tmp->data.info);
         tmp->data.info = NULL;
 
-        XFREE(tmp, NULL, DYNAMIC_TYPE_X509);
+        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
         sk->num -= 1;
     }
 
@@ -37811,7 +37844,7 @@ void wolfSSL_sk_X509_INFO_free(WOLF_STACK_OF(WOLFSSL_X509_INFO) *sk)
         wolfSSL_X509_INFO_free(sk->data.info);
         sk->data.info = NULL;
     }
-    XFREE(sk, NULL, DYNAMIC_TYPE_X509);
+    XFREE(sk, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
 
@@ -37971,13 +38004,47 @@ WOLFSSL_X509_NAME* wolfSSL_sk_X509_NAME_value(const STACK_OF(WOLFSSL_X509_NAME)*
     return sk->data.name;
 }
 
+WOLFSSL_X509_NAME* wolfSSL_sk_X509_NAME_pop(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
+{
+    WOLFSSL_STACK* node;
+    WOLFSSL_X509_NAME* name;
+
+    if (sk == NULL) {
+        return NULL;
+    }
+
+    node = sk->next;
+    name = sk->data.name;
+
+    if (node != NULL) { /* update sk and remove node from stack */
+        sk->data.name = node->data.name;
+        sk->next = node->next;
+        XFREE(node, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+    else { /* last x509 in stack */
+        sk->data.name = NULL;
+    }
+
+    if (sk->num > 0) {
+        sk->num -= 1;
+    }
+
+    return name;
+}
+
 void wolfSSL_sk_X509_NAME_pop_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
     void f (WOLFSSL_X509_NAME*))
 {
+    WOLFSSL_X509_NAME* name;
     WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_pop_free");
 
-    (void)sk;
-    (void)f;
+    name = wolfSSL_sk_X509_NAME_pop(sk);
+    if (name) {
+        if (f)
+            f(name);
+        else
+            wolfSSL_X509_NAME_free(name);
+    }
 }
 
 void wolfSSL_sk_X509_NAME_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)

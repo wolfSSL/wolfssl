@@ -26,9 +26,10 @@
 
 
 /* api version compatibility */
-#if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(HAVE_LIGHTY) || \
-    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
-    defined(WOLFSSL_APACHE_HTTPD)
+#if defined(WOLFSSL_APACHE_HTTPD)
+     #define OPENSSL_VERSION_NUMBER 0x10100000L
+#elif defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(HAVE_LIGHTY) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
      /* version number can be increased for Lighty after compatibility for ECDH
         is added */
      #define OPENSSL_VERSION_NUMBER 0x10001000L
