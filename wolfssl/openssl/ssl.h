@@ -369,11 +369,16 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define X509_cmp_current_time           wolfSSL_X509_cmp_current_time
 #define X509_cmp_time                   wolfSSL_X509_cmp_time
 
+#define sk_X509_NAME_new                wolfSSL_sk_X509_NAME_new
+#define sk_X509_NAME_push               wolfSSL_sk_X509_NAME_push
+#define sk_X509_NAME_find               wolfSSL_sk_X509_NAME_find
+#define sk_X509_NAME_set_cmp_func       wolfSSL_sk_X509_NAME_set_cmp_func
 #define sk_X509_NAME_pop_free           wolfSSL_sk_X509_NAME_pop_free
 #define sk_X509_NAME_num                wolfSSL_sk_X509_NAME_num
 #define sk_X509_NAME_value              wolfSSL_sk_X509_NAME_value
+#define sk_X509_NAME_free               wolfSSL_sk_X509_NAME_free
 
-    typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
+typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define X509_NAME_entry_count           wolfSSL_X509_NAME_entry_count
 #define X509_NAME_ENTRY_get_object      wolfSSL_X509_NAME_ENTRY_get_object
