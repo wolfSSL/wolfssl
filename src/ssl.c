@@ -24852,7 +24852,6 @@ void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
     return (void*)sk->data.obj;
 }
 
-
 /* Free the structure for ASN1_OBJECT stack */
 void wolfSSL_sk_free(WOLFSSL_STACK* sk)
 {
@@ -25000,6 +24999,14 @@ void wolfSSL_AUTHORITY_KEYID_free(WOLFSSL_AUTHORITY_KEYID *id)
     }
     XFREE(id, NULL, DYNAMIC_TYPE_OPENSSL);
 }
+
+int wolfSSL_sk_SSL_COMP_num(WOLF_STACK_OF(WOLFSSL_COMP)* sk)
+{
+    if (sk == NULL)
+        return 0;
+    return (int)sk->num;
+}
+
 #endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)

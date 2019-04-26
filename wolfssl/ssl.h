@@ -370,6 +370,12 @@ typedef struct WOLFSSL_COMP_METHOD {
     int type;            /* stunnel dereference */
 } WOLFSSL_COMP_METHOD;
 
+typedef struct WOLFSSL_COMP {
+    int id;
+    const char *name;
+    WOLFSSL_COMP_METHOD *method;
+} WOLFSSL_COMP;
+
 struct WOLFSSL_X509_LOOKUP_METHOD {
     int type;
 };
@@ -3377,6 +3383,7 @@ WOLFSSL_API int X509_STORE_load_locations(WOLFSSL_X509_STORE *ctx, const char *f
 WOLFSSL_API int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *ctx, WOLFSSL_X509_CRL *x);
 WOLFSSL_API int wolfSSL_sk_SSL_CIPHER_num(const void * p);
 WOLFSSL_API int wolfSSL_sk_SSL_COMP_zero(WOLFSSL_STACK* st);
+WOLFSSL_API int wolfSSL_sk_SSL_COMP_num(WOLF_STACK_OF(WOLFSSL_COMP)* sk);
 WOLFSSL_API WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_value(void *ciphers, int idx);
 WOLFSSL_API void ERR_load_SSL_strings(void);
 WOLFSSL_API void wolfSSL_EC_POINT_dump(const char *msg, const WOLFSSL_EC_POINT *p);
