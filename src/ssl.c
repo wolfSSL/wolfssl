@@ -4659,7 +4659,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     int           resetSuites = 0;
     void*         heap = wolfSSL_CTX_GetHeap(ctx, ssl);
     int           devId = wolfSSL_CTX_GetDevId(ctx, ssl);
-    word32        idx;
+    word32        idx = 0;
     int           keySz = 0;
 #ifdef WOLFSSL_SMALL_STACK
     EncryptedInfo* info = NULL;
