@@ -4023,7 +4023,8 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 #endif
 
-#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+#if (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
+     defined(HAVE_TLS_EXTENSIONS)
         if (TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY) != NULL) {
             if (ssl->options.downgrade) {
                 if ((ret = InitHandshakeHashes(ssl)) != 0)
