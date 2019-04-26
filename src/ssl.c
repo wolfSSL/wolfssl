@@ -27702,6 +27702,7 @@ int wolfSSL_DH_compute_key(unsigned char* key, WOLFSSL_BIGNUM* otherPub,
 int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
     WOLFSSL_BIGNUM *q, WOLFSSL_BIGNUM *g)
 {
+    int ret;
     WOLFSSL_ENTER("wolfSSL_DH_set0_pqg");
 
     /* q can be NULL */
@@ -27712,7 +27713,7 @@ int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
 
     /* free existing internal DH structure and recreate with new p / g */
     if (dh->inSet) {
-        ret = wc_FreeDhKey((Dhkey*)dh->internal);
+        ret = wc_FreeDhKey((DhKey*)dh->internal);
         if (ret != 0) {
             WOLFSSL_MSG("Unable to free internal DH key");
             return WOLFSSL_FAILURE;
@@ -27722,8 +27723,8 @@ int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
     wolfSSL_BN_free(dh->p);
     wolfSSL_BN_free(dh->q);
     wolfSSL_BN_free(dh->g);
-    wolfSSL_BN_free(pub_key);
-    wolfSSL_BN_free(priv_key);
+    wolfSSL_BN_free(dh->pub_key);
+    wolfSSL_BN_free(dh->priv_key);
 
     dh->p = p;
     dh->q = q;
@@ -35412,6 +35413,18 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             #endif
         #endif
     #endif
+    #if defined(WOLFSSL_APACHE_HTTPD)
+        /* "1.3.6.1.5.5.7.8.7" */
+        { NID_id_on_dnsSRV, NID_id_on_dnsSRV, oidCertExtType,
+            WOLFSSL_SN_DNS_SRV },
+
+        /* "1.3.6.1.4.1.311.20.2.3" */
+        { NID_ms_upn, WOLFSSL_DNS_SRV_SUM, oidCertExtType, WOLFSSL_SN_DNS_SRV },
+
+        /* "1.3.6.1.5.5.7.1.24" */
+        { NID_tlsfeature, WOLFSSL_TLS_FEATURE_SUM, oidCertExtType,
+            WOLFSSL_SN_TLS_FEATURE },
+    #endif
     };
 
     #define WOLFSSL_OBJECT_INFO_SZ \
@@ -36259,15 +36272,24 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
 #endif /* WOLFSSL_CERT_EXT */
 
-
-    /* compatibility function. It's intended use is to remove OID's from an
-     * internal table that have been added with OBJ_create. wolfSSL manages it's
-     * own interenal OID values and does not currently support OBJ_create. */
+    /* compatibility function. Its intended use is to remove OID's from an
+     * internal table that have been added with OBJ_create. wolfSSL manages its
+     * own internal OID values and does not currently support OBJ_create. */
     void wolfSSL_OBJ_cleanup(void)
     {
         WOLFSSL_ENTER("wolfSSL_OBJ_cleanup()");
     }
 
+    #ifndef NO_WOLFSSL_STUB
+    int wolfSSL_OBJ_create(const char *oid, const char *sn, const char *ln)
+    {
+        (void)oid;
+        (void)sn;
+        (void)ln;
+        WOLFSSL_STUB("wolfSSL_OBJ_create");
+        return WOLFSSL_FAILURE;
+    }
+    #endif
 
     #ifndef NO_WOLFSSL_STUB
     void wolfSSL_set_verify_depth(WOLFSSL *ssl, int depth) {

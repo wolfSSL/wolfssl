@@ -144,6 +144,19 @@ enum DN_Tags {
 #define WOLFSSL_JOI_ST           "/jurisdictionST="
 #define WOLFSSL_EMAIL_ADDR       "/emailAddress="
 
+#if defined(WOLFSSL_APACHE_HTTPD)
+    /* otherName strings */
+    #define WOLFSSL_SN_MS_UPN       "msUPN"
+    #define WOLFSSL_LN_MS_UPN       "Microsoft Universal Principal Name"
+    #define WOLFSSL_SN_DNS_SRV      "id-on-dnsSRV"
+    #define WOLFSSL_LN_DNS_SRV      "SRVName otherName form"
+    #define WOLFSSL_DNS_SRV_SUM 265
+    /* TLS features extension strings */
+    #define WOLFSSL_SN_TLS_FEATURE  "tlsfeature"
+    #define WOLFSSL_LN_TLS_FEATURE  "TLS Feature"
+    #define WOLFSSL_TLS_FEATURE_SUM 92
+#endif
+
 /* NIDs */
 enum
 {
@@ -177,7 +190,7 @@ enum
     NID_policy_mappings = 147,
     NID_policy_constraints = 150,
     NID_inhibit_any_policy = 168,      /* 2.5.29.54 */
-    NID_tlsfeature = 92,               /* id-pe 24 */
+    NID_tlsfeature = 1020,             /* id-pe 24 */
     NID_commonName = 0x03,             /* matchs ASN_COMMON_NAME in asn.h */
 
 
@@ -190,6 +203,8 @@ enum
     NID_organizationalUnitName = 0x0b, /* OU */
     NID_domainComponent = 0x19,        /* matchs ASN_DOMAIN_COMPONENT in asn.h */
     NID_emailAddress = 0x30,           /* emailAddress */
+    NID_id_on_dnsSRV = 82,             /* 1.3.6.1.5.5.7.8.7 */
+    NID_ms_upn = 265                   /* 1.3.6.1.4.1.311.20.2.3 */
 };
 
 enum ECC_TYPES

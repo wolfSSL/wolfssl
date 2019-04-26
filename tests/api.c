@@ -21965,6 +21965,41 @@ static void test_wolfSSL_i2a_ASN1_OBJECT(void)
 #endif
 }
 
+static void test_wolfSSL_OBJ_txt2nid(void)
+{
+#if !defined(NO_WOLFSSL_STUB) && defined(WOLFSSL_APACHE_HTTPD)
+    int i;
+    static const struct {
+        const char* sn;
+        const char* ln;
+        const char* oid;
+        int nid;
+    } testVals[] = {
+        { "tlsfeature", "TLS Feature", "1.3.6.1.5.5.7.1.24", NID_tlsfeature },
+        { "id-on-dnsSRV", "SRVName otherName form", "1.3.6.1.5.5.7.8.7",
+                                                             NID_id_on_dnsSRV },
+        { "msUPN", "Microsoft Universal Principal Name",
+                                         "1.3.6.1.4.1.311.20.2.3", NID_ms_upn },
+        { NULL, NULL, NULL, NID_undef }
+    };
+
+    printf(testingFmt, "wolfSSL_OBJ_txt2nid()");
+
+    /* Invalid cases */
+    AssertIntEQ(OBJ_txt2nid(NULL), NID_undef);
+    AssertIntEQ(OBJ_txt2nid("Bad name"), NID_undef);
+
+    /* Valid cases */
+    for (i = 0; testVals[i].sn != NULL; i++) {
+        AssertIntEQ(OBJ_txt2nid(testVals[i].sn), testVals[i].nid);
+        AssertIntEQ(OBJ_txt2nid(testVals[i].ln), testVals[i].nid);
+        AssertIntEQ(OBJ_txt2nid(testVals[i].oid), testVals[i].nid);
+    }
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_X509_NAME_ENTRY(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) \
@@ -26857,6 +26892,7 @@ void ApiTest(void)
     test_wolfSSL_HMAC();
     test_wolfSSL_OBJ();
     test_wolfSSL_i2a_ASN1_OBJECT();
+    test_wolfSSL_OBJ_txt2nid();
     test_wolfSSL_X509_NAME_ENTRY();
     test_wolfSSL_BIO_gets();
     test_wolfSSL_d2i_PUBKEY();

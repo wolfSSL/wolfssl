@@ -3366,6 +3366,12 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_APACHE_HTTPD"
     AM_CFLAGS="$AM_CFLAGS -DOPENSSL_NO_SSL2 -DOPENSSL_NO_SSL3 -DOPENSSL_NO_COMP"
 
+    if test "$ENABLED_CERTGEN" = "no"
+    then
+        ENABLED_CERTGEN="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN"
+    fi
+
     # Requires OCSP make sure on
     if test "x$ENABLED_OCSP" = "xno"
     then
@@ -3379,6 +3385,13 @@ then
     then
         ENABLED_SESSIONCERTS="yes"
         AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS"
+    fi
+
+    # Requires certext
+    if test "$ENABLED_CERTEXT" = "no"
+    then
+        ENABLED_CERTEXT="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"
     fi
 fi
 
