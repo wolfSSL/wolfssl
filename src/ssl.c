@@ -17054,11 +17054,28 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
  * don't */
 static void ExternalFreeX509(WOLFSSL_X509* x509)
 {
+    int doFree = 0;
+
     WOLFSSL_ENTER("ExternalFreeX509");
     if (x509) {
         if (x509->dynamicMemory) {
-            FreeX509(x509);
-            XFREE(x509, x509->heap, DYNAMIC_TYPE_X509);
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+            if (wc_LockMutex(&x509->refMutex) != 0) {
+                WOLFSSL_MSG("Couldn't lock x509 mutex");
+            }
+            /* only free if all references to it are done */
+            x509->refCount--;
+            if (x509->refCount == 0)
+                doFree = 1;
+            wc_UnLockMutex(&x509->refMutex);
+        #else
+            doFree = 1;
+        #endif /* OPENSSL_EXTRA */
+
+            if (doFree) {
+                FreeX509(x509);
+                XFREE(x509, x509->heap, DYNAMIC_TYPE_X509);
+            }
         } else {
             WOLFSSL_MSG("free called on non dynamic object, not freeing");
         }
@@ -21342,7 +21359,6 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
 
     return ctx->chain;
 }
-
 
 /* make shallow copy of the stack, data pointers are copied by reference */
 WOLFSSL_STACK* wolfSSL_sk_X509_dup(WOLFSSL_STACK* sk)

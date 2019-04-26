@@ -3371,6 +3371,10 @@ void InitX509(WOLFSSL_X509* x509, int dynamicFlag, void* heap)
     InitX509Name(&x509->issuer, 0);
     InitX509Name(&x509->subject, 0);
     x509->dynamicMemory  = (byte)dynamicFlag;
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+        x509->refCount = 1;
+        wc_InitMutex(&x509->refMutex);
+    #endif
 }
 
 
