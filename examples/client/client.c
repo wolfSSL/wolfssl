@@ -2874,7 +2874,22 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         for (pt = rnd; pt < rnd + size; pt++) printf("%02X", *pt);
         printf("\n");
         XFREE(rnd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
     }
+
+    #if defined(OPENSSL_ALL)
+    /* print out session to stdout */
+    {
+        WOLFSSL_BIO* bio = wolfSSL_BIO_new_fp(stdout, BIO_NOCLOSE);
+        if (bio != NULL) {
+            if (wolfSSL_SESSION_print(bio, wolfSSL_get_session(ssl)) !=
+                    WOLFSSL_SUCCESS) {
+                wolfSSL_BIO_printf(bio, "ERROR: Unable to print out session\n");
+            }
+        }
+        wolfSSL_BIO_free(bio);
+    }
+    #endif
 #endif
 
     if (doSTARTTLS) {

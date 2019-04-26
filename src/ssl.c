@@ -18445,11 +18445,13 @@ void wolfSSL_SESSION_free(WOLFSSL_SESSION* session)
 }
 #endif
 
-const char* wolfSSL_get_version(WOLFSSL* ssl)
+
+/* helper function that takes in a protocol version struct and returns string */
+static const char* wolfSSL_internal_get_version(ProtocolVersion* version)
 {
-    WOLFSSL_ENTER("SSL_get_version");
-    if (ssl->version.major == SSLv3_MAJOR) {
-        switch (ssl->version.minor) {
+    WOLFSSL_ENTER("wolfSSL_get_version");
+    if (version->major == SSLv3_MAJOR) {
+        switch (version->minor) {
         #ifndef NO_OLD_TLS
             #ifdef WOLFSSL_ALLOW_SSLV3
             case SSLv3_MINOR :
@@ -18487,8 +18489,8 @@ const char* wolfSSL_get_version(WOLFSSL* ssl)
         }
     }
 #ifdef WOLFSSL_DTLS
-    else if (ssl->version.major == DTLS_MAJOR) {
-        switch (ssl->version.minor) {
+    else if (version->major == DTLS_MAJOR) {
+        switch (version->minor) {
             case DTLS_MINOR :
                 return "DTLS";
             case DTLSv1_2_MINOR :
@@ -18499,6 +18501,17 @@ const char* wolfSSL_get_version(WOLFSSL* ssl)
     }
 #endif /* WOLFSSL_DTLS */
     return "unknown";
+}
+
+
+const char* wolfSSL_get_version(WOLFSSL* ssl)
+{
+    if (ssl == NULL) {
+        WOLFSSL_MSG("Bad argument");
+        return "unknown";
+    }
+
+    return wolfSSL_internal_get_version(&ssl->version);
 }
 
 
@@ -24679,6 +24692,7 @@ void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
     #endif
 #endif
 
+/* returns amount printed on success, negative in fail case */
 int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
 {
     int ret = 0;
@@ -38604,14 +38618,174 @@ const byte* wolfSSL_SESSION_get_id(WOLFSSL_SESSION* sess, unsigned int* idLen)
     return sess->sessionID;
 }
 
-#ifndef NO_WOLFSSL_STUB
+
+/* returns true (non 0) if the session has EMS (extended master secret) */
+static int wolfSSL_SESSION_haveEMS(const WOLFSSL_SESSION* in)
+{
+    if (in == NULL)
+        return 0;
+    return in->haveEMS;
+}
+
+
+#if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
+                               defined(HAVE_SESSION_TICKET))
+/* returns a pointer to the protocol used by the session */
+static const char* wolfSSL_SESSION_get_protocol(const WOLFSSL_SESSION* in)
+{
+    return wolfSSL_internal_get_version((ProtocolVersion*)&in->version);
+}
+#endif
+
+
+/* prints out the ticket to bio passed in
+ * return WOLFSSL_SUCCESS on success
+ */
+static int wolfSSL_SESSION_print_ticket(WOLFSSL_BIO* bio,
+        const WOLFSSL_SESSION* in, const char* tab)
+{
+    unsigned short i, j, z, sz;
+    short tag = 0;
+    byte* pt;
+
+
+    if (in == NULL || bio == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    sz = in->ticketLen;
+    pt = in->ticket;
+
+    if (wolfSSL_BIO_printf(bio, "%s\n", (sz == 0)? " NONE": "") <= 0)
+        return WOLFSSL_FAILURE;
+
+    for (i = 0; i < sz;) {
+        char asc[16];
+
+        if (sz - i < 16) {
+            if (wolfSSL_BIO_printf(bio, "%s%04X -", tab, tag + (sz - i)) <= 0)
+                return WOLFSSL_FAILURE;
+        }
+        else {
+            if (wolfSSL_BIO_printf(bio, "%s%04X -", tab, tag) <= 0)
+                return WOLFSSL_FAILURE;
+        }
+        for (j = 0; i < sz && j < 8; j++,i++) {
+            asc[j] =  ((pt[i])&0x6f)>='A'?((pt[i])&0x6f):'.';
+            if (wolfSSL_BIO_printf(bio, " %02X", pt[i]) <= 0)
+                return WOLFSSL_FAILURE;
+        }
+
+        if (i < sz) {
+            asc[j] =  ((pt[i])&0x6f)>='A'?((pt[i])&0x6f):'.';
+            if (wolfSSL_BIO_printf(bio, "-%02X", pt[i]) <= 0)
+                return WOLFSSL_FAILURE;
+            j++;
+            i++;
+        }
+
+        for (; i < sz && j < 16; j++,i++) {
+            asc[j] =  ((pt[i])&0x6f)>='A'?((pt[i])&0x6f):'.';
+            if (wolfSSL_BIO_printf(bio, " %02X", pt[i]) <= 0)
+                return WOLFSSL_FAILURE;
+        }
+
+        /* pad out spacing */
+        for (z = j; z < 17; z++) {
+            if (wolfSSL_BIO_printf(bio, "   ") <= 0)
+                return WOLFSSL_FAILURE;
+        }
+
+        for (z = 0; z < j; z++) {
+            if (wolfSSL_BIO_printf(bio, "%c", asc[z]) <= 0)
+                return WOLFSSL_FAILURE;
+        }
+        if (wolfSSL_BIO_printf(bio, "\n") <= 0)
+            return WOLFSSL_FAILURE;
+
+        tag += 16;
+    }
+    return WOLFSSL_SUCCESS;
+}
+
+
+/* prints out the session information in human readable form
+ * return WOLFSSL_SUCCESS on success
+ */
 int wolfSSL_SESSION_print(WOLFSSL_BIO *bp, const WOLFSSL_SESSION *x)
 {
-    (void)bp;
-    (void)x;
-    return 0;
+    const unsigned char* pt;
+    unsigned char buf[SECRET_LEN];
+    unsigned int sz, i;
+    int ret;
+    WOLFSSL_SESSION* session = (WOLFSSL_SESSION*)x;
+
+    if (wolfSSL_BIO_printf(bp, "%s\n", "SSL-Session:") <= 0)
+        return WOLFSSL_FAILURE;
+
+#if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
+                               defined(HAVE_SESSION_TICKET))
+    if (wolfSSL_BIO_printf(bp, "    Protocol  : %s\n",
+            wolfSSL_SESSION_get_protocol(session)) <= 0)
+        return WOLFSSL_FAILURE;
+#endif
+
+    if (wolfSSL_BIO_printf(bp, "    Cipher    : %s\n",
+            wolfSSL_SESSION_CIPHER_get_name(session)) <= 0)
+        return WOLFSSL_FAILURE;
+
+    pt = wolfSSL_SESSION_get_id(session, &sz);
+    if (wolfSSL_BIO_printf(bp, "    Session-ID: ") <= 0)
+        return WOLFSSL_FAILURE;
+
+    for (i = 0; i < sz; i++) {
+        if (wolfSSL_BIO_printf(bp, "%02X", pt[i]) <= 0)
+            return WOLFSSL_FAILURE;
+    }
+    if (wolfSSL_BIO_printf(bp, "\n") <= 0)
+        return WOLFSSL_FAILURE;
+
+    if (wolfSSL_BIO_printf(bp, "    Session-ID-ctx: \n") <= 0)
+        return WOLFSSL_FAILURE;
+
+    ret = wolfSSL_SESSION_get_master_key(x, buf, sizeof(buf));
+    if (wolfSSL_BIO_printf(bp, "    Master-Key: ") <= 0)
+        return WOLFSSL_FAILURE;
+
+    if (ret > 0) {
+        sz = (unsigned int)ret;
+        for (i = 0; i < sz; i++) {
+            if (wolfSSL_BIO_printf(bp, "%02X", buf[i]) <= 0)
+                return WOLFSSL_FAILURE;
+        }
+    }
+    if (wolfSSL_BIO_printf(bp, "\n") <= 0)
+        return WOLFSSL_FAILURE;
+
+    /* @TODO PSK identity hint and SRP */
+
+    if (wolfSSL_BIO_printf(bp, "    TLS session ticket:") <= 0)
+        return WOLFSSL_FAILURE;
+
+    if (wolfSSL_SESSION_print_ticket(bp, x, "    ") != WOLFSSL_SUCCESS)
+        return WOLFSSL_FAILURE;
+
+    if (wolfSSL_BIO_printf(bp, "    Start Time: %ld\n",
+                wolfSSL_SESSION_get_time(x)) <= 0)
+        return WOLFSSL_FAILURE;
+
+    if (wolfSSL_BIO_printf(bp, "    Timeout   : %ld (sec)\n",
+            wolfSSL_SESSION_get_timeout(x)) <= 0)
+        return WOLFSSL_FAILURE;
+
+    /* @TODO verify return code print */
+
+    if (wolfSSL_BIO_printf(bp, "    Extended master secret: %s\n",
+            (wolfSSL_SESSION_haveEMS(session) == 0)? "no" : "yes") <= 0)
+        return WOLFSSL_FAILURE;
+
+    return WOLFSSL_SUCCESS;
 }
-#endif /* !NO_WOLFSSL_STUB */
 
 #endif
 
