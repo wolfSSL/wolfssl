@@ -13145,12 +13145,18 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #endif /* SESSION_CERTS */
 
 
+    /* registers client cert callback, called during handshake if server
+       requests client auth but user has not loaded client cert/key */
     void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb cb)
     {
-        (void)ctx;
-        (void)cb;
+        WOLFSSL_ENTER("wolfSSL_CTX_set_client_cert_cb");
+
+        if (ctx != NULL) {
+            ctx->CBClientCert = cb;
+        }
     }
-#endif
+
+#endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA || HAVE_WEBSERVER */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_SSL_CTX_get_client_CA_list(

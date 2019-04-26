@@ -17063,6 +17063,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "Invalid MAC size is specified. \
                 TSIP can only handle SHA1 and SHA256 digest size";
 
+    case CLIENT_CERT_CB_ERROR:
+        return "Error importing client cert or key from callback";
+
     default :
         return "unknown error number";
     }
@@ -19119,6 +19122,11 @@ exit_dpk:
     {
         word16 len;
         word32 begin = *inOutIdx;
+    #ifdef OPENSSL_EXTRA
+        int ret;
+        WOLFSSL_X509* x509 = NULL;
+        WOLFSSL_EVP_PKEY* pkey = NULL;
+    #endif
 
         WOLFSSL_START(WC_FUNC_CERTIFICATE_REQUEST_DO);
         WOLFSSL_ENTER("DoCertificateRequest");
@@ -19198,6 +19206,26 @@ exit_dpk:
             *inOutIdx += dnSz;
             len -= OPAQUE16_LEN + dnSz;
         }
+
+    #ifdef OPENSSL_EXTRA
+        /* call client cert callback if no cert has been loaded */
+        if ((ssl->ctx->CBClientCert != NULL) &&
+            (!ssl->buffers.certificate || !ssl->buffers.certificate->buffer)) {
+
+            ret = ssl->ctx->CBClientCert(ssl, &x509, &pkey);
+            if (ret == 1) {
+                if ((wolfSSL_use_certificate(ssl, x509) != WOLFSSL_SUCCESS) ||
+                    (wolfSSL_use_PrivateKey(ssl, pkey) != WOLFSSL_SUCCESS)) {
+                    return CLIENT_CERT_CB_ERROR;
+                }
+                wolfSSL_X509_free(x509);
+                wolfSSL_EVP_PKEY_free(pkey);
+
+            } else if (ret < 0) {
+                return WOLFSSL_ERROR_WANT_X509_LOOKUP;
+            }
+        }
+    #endif
 
         /* don't send client cert or cert verify if user hasn't provided
            cert and private key */

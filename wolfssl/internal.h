@@ -2581,6 +2581,7 @@ struct WOLFSSL_CTX {
     #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
         defined(WOLFSSL_NGINX) || defined (WOLFSSL_HAPROXY)
     WOLF_STACK_OF(WOLFSSL_X509)* x509Chain;
+    client_cert_cb CBClientCert;  /* client certificate callback */
     #endif
 #ifdef WOLFSSL_TLS13
     int         certChainCnt;

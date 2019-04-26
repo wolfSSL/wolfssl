@@ -1219,7 +1219,8 @@ WOLFSSL_API void  wolfSSL_CTX_set_client_CA_list(WOLFSSL_CTX*,
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_get_client_CA_list(
             const WOLFSSL* ssl);
 
-typedef int (*client_cert_cb)(WOLFSSL *ssl, WOLFSSL_X509 **x509, WOLFSSL_EVP_PKEY **pkey);
+typedef int (*client_cert_cb)(WOLFSSL *ssl, WOLFSSL_X509 **x509,
+                              WOLFSSL_EVP_PKEY **pkey);
 WOLFSSL_API void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb);
 
 WOLFSSL_API void* wolfSSL_X509_STORE_CTX_get_ex_data(WOLFSSL_X509_STORE_CTX*, int);
