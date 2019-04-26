@@ -13096,6 +13096,55 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     #endif
     }
 
+
+    /* returns the CA's set on server side or the CA's sent from server when
+     * on client side */
+#if defined(SESSION_CERTS)
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_get_client_CA_list(
+            const WOLFSSL* ssl)
+    {
+        if (ssl == NULL) {
+            WOLFSSL_MSG("Bad argument passed to wolfSSL_get_client_CA_list");
+            return NULL;
+        }
+
+        /* return list of CAs sent from the server */
+        if (ssl->options.side == WOLFSSL_CLIENT_END) {
+            WOLF_STACK_OF(WOLFSSL_X509)* sk;
+
+            sk = wolfSSL_get_peer_cert_chain(ssl);
+            if (sk != NULL) {
+                WOLF_STACK_OF(WOLFSSL_X509_NAME)* ret;
+                WOLFSSL_X509* x509;
+
+                ret = wolfSSL_sk_X509_NAME_new(NULL);
+                do {
+                    x509 = wolfSSL_sk_X509_pop(sk);
+                    if (x509 != NULL) {
+                        if (wolfSSL_X509_get_isCA(x509)) {
+                            if (wolfSSL_sk_X509_NAME_push(ret,
+                                    wolfSSL_X509_get_subject_name(x509)) != 0) {
+                                WOLFSSL_MSG("Error pushing X509 name to stack");
+                                /* continue on to try other certificates and
+                                 * do not fail out here */
+                            }
+                        }
+                        wolfSSL_X509_free(x509);
+                    }
+                } while (x509 != NULL);
+                wolfSSL_sk_X509_free(sk);
+                return ret;
+            }
+            return NULL;
+        }
+        else {
+            /* currently only can be set in the CTX */
+            return ssl->ctx->ca_names;
+        }
+    }
+#endif /* SESSION_CERTS */
+
+
     void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb cb)
     {
         (void)ctx;
