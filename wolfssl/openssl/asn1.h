@@ -26,7 +26,7 @@
 
 #include <wolfssl/openssl/ssl.h>
 
-#define ASN1_STRING_new      wolfSSL_ASN1_STRING_type_new
+#define ASN1_STRING_new      wolfSSL_ASN1_STRING_new
 #define ASN1_STRING_type_new wolfSSL_ASN1_STRING_type_new
 #define ASN1_STRING_type     wolfSSL_ASN1_STRING_type
 #define ASN1_STRING_set      wolfSSL_ASN1_STRING_set
@@ -58,5 +58,9 @@
 #define MBSTRING_UTF8                    0x1000
 
 #define ASN1_UTCTIME_print              wolfSSL_ASN1_UTCTIME_print
+#define ASN1_TIME_check                 wolfSSL_ASN1_TIME_check
+
+#define V_ASN1_UTCTIME                  23
+#define V_ASN1_GENERALIZEDTIME          24
 
 #endif /* WOLFSSL_ASN1_H_ */

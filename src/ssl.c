@@ -3871,9 +3871,11 @@ static int SetMinVersionHelper(byte* minVersion, int version)
 
 #ifndef NO_TLS
     #ifndef NO_OLD_TLS
+        #ifdef WOLFSSL_ALLOW_TLSV10
         case WOLFSSL_TLSV1:
             *minVersion = TLSv1_MINOR;
             break;
+        #endif
 
         case WOLFSSL_TLSV1_1:
             *minVersion = TLSv1_1_MINOR;
@@ -23240,9 +23242,11 @@ static long wolf_set_options(long old_op, long op)
         WOLFSSL_MSG("\tWOLFSSL_OP_NO_SSLv2 : wolfSSL does not support SSLv2");
     }
 
+#ifdef SSL_OP_NO_TLSv1_3
     if ((op & SSL_OP_NO_TLSv1_3) == SSL_OP_NO_TLSv1_3) {
         WOLFSSL_MSG("\tSSL_OP_NO_TLSv1_3");
     }
+#endif
 
     if ((op & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
         WOLFSSL_MSG("\tSSL_OP_NO_TLSv1_2");
@@ -23287,10 +23291,12 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
 
     ssl->options.mask = wolf_set_options(ssl->options.mask, op);
 
+#ifdef SSL_OP_NO_TLSv1_3
     if ((ssl->options.mask & SSL_OP_NO_TLSv1_3) == SSL_OP_NO_TLSv1_3) {
         if (ssl->version.minor == TLSv1_3_MINOR)
             ssl->version.minor = TLSv1_2_MINOR;
     }
+#endif
 
     if ((ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
         if (ssl->version.minor == TLSv1_2_MINOR)
@@ -24690,6 +24696,13 @@ int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_UTCTIME* a)
     }
 
     return wolfSSL_ASN1_TIME_print(bio, a);
+}
+
+int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME* a)
+{
+    WOLFSSL_STUB("wolfSSL_ASN1_TIME_check");
+    (void)a;
+    return 0;
 }
 
 /* Return the month as a string.
@@ -27620,7 +27633,9 @@ int wolfSSL_DH_compute_key(unsigned char* key, WOLFSSL_BIGNUM* otherPub,
     return ret;
 }
 
+
 #ifndef NO_WOLFSSL_STUB
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
     WOLFSSL_BIGNUM *q, WOLFSSL_BIGNUM *g)
 {
@@ -27631,6 +27646,7 @@ int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
     WOLFSSL_STUB("wolfSSL_DH_set0_pqg");
     return WOLFSSL_SUCCESS;
 }
+#endif /* v1.1.0 or later */
 #endif
 
 #endif /* NO_DH */
@@ -40829,6 +40845,108 @@ static int bio_get_data(WOLFSSL_BIO* bio, byte** data)
     *data = mem;
 
     return ret;
+}
+
+void wolfSSL_BIO_set_init(WOLFSSL_BIO* bio, int init)
+{
+    WOLFSSL_STUB("wolfSSL_BIO_set_init");
+    (void)bio;
+    (void)init;
+}
+void wolfSSL_BIO_set_data(WOLFSSL_BIO* bio, void *ptr)
+{
+    WOLFSSL_STUB("wolfSSL_BIO_set_data");
+    (void)bio;
+    (void)ptr;
+}
+void* wolfSSL_BIO_get_data(WOLFSSL_BIO* bio)
+{
+    byte* ptr = NULL;
+    bio_get_data(bio, &ptr);
+    return (void*)ptr;
+}
+void wolfSSL_BIO_set_shutdown(WOLFSSL_BIO* bio, int shut)
+{
+    WOLFSSL_STUB("wolfSSL_BIO_set_shutdown");
+    (void)bio;
+    (void)shut;
+
+}
+int wolfSSL_BIO_get_shutdown(WOLFSSL_BIO* bio)
+{
+    WOLFSSL_STUB("wolfSSL_BIO_get_shutdown");
+    (void)bio;
+    return 0;
+}
+
+int wolfSSL_BIO_clear_retry_flags(WOLFSSL_BIO* bio)
+{
+    WOLFSSL_STUB("wolfSSL_BIO_clear_retry_flags");
+    (void)bio;
+    return 0;
+}
+
+
+WOLFSSL_BIO_METHOD *wolfSSL_BIO_meth_new(int type, const char *name)
+{
+    WOLFSSL_STUB("wolfSSL_BIO_meth_new");
+    (void)type;
+    (void)name;
+    return NULL;
+}
+void wolfSSL_BIO_meth_free(WOLFSSL_BIO_METHOD *biom)
+{
+    WOLFSSL_STUB("wolfSSL_BIO_meth_free");
+    (void)biom;
+}
+int wolfSSL_BIO_meth_set_write(WOLFSSL_BIO_METHOD *biom, wolfSSL_BIO_meth_write_cb biom_write)
+{
+    WOLFSSL_STUB("wolfSSL_BIO_meth_set_write");
+    (void)biom;
+    (void)biom_write;
+    return 0;
+}
+int wolfSSL_BIO_meth_set_read(WOLFSSL_BIO_METHOD *biom, wolfSSL_BIO_meth_read_cb biom_read)
+{
+    WOLFSSL_STUB("wolfSSL_BIO_meth_set_read");
+    (void)biom;
+    (void)biom_read;
+    return 0;
+}
+int wolfSSL_BIO_meth_set_puts(WOLFSSL_BIO_METHOD *biom, wolfSSL_BIO_meth_puts_cb biom_puts)
+{
+    WOLFSSL_STUB("wolfSSL_BIO_meth_set_puts");
+    (void)biom;
+    (void)biom_puts;
+    return 0;
+}
+int wolfSSL_BIO_meth_set_gets(WOLFSSL_BIO_METHOD *biom, wolfSSL_BIO_meth_gets_cb biom_gets)
+{
+    WOLFSSL_STUB("wolfSSL_BIO_meth_set_gets");
+    (void)biom;
+    (void)biom_gets;
+    return 0;
+}
+int wolfSSL_BIO_meth_set_ctrl(WOLFSSL_BIO_METHOD *biom, wolfSSL_BIO_meth_get_ctrl_cb biom_ctrl)
+{
+    WOLFSSL_STUB("wolfSSL_BIO_meth_set_ctrl");
+    (void)biom;
+    (void)biom_ctrl;
+    return 0;
+}
+int wolfSSL_BIO_meth_set_create(WOLFSSL_BIO_METHOD *biom, wolfSSL_BIO_meth_create_cb biom_create)
+{
+    WOLFSSL_STUB("wolfSSL_BIO_meth_set_create");
+    (void)biom;
+    (void)biom_create;
+    return 0;
+}
+int wolfSSL_BIO_meth_set_destroy(WOLFSSL_BIO_METHOD *biom, wolfSSL_BIO_meth_destroy_cb biom_destroy)
+{
+    WOLFSSL_STUB("wolfSSL_BIO_meth_set_destroy");
+    (void)biom;
+    (void)biom_destroy;
+    return 0;
 }
 
 /* DER data is PKCS#8 encrypted. */

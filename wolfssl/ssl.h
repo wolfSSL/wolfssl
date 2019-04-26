@@ -236,6 +236,10 @@ struct WOLFSSL_ASN1_TIME {
     /* MAX_DATA_SIZE is 32 */
     unsigned char data[32 + 2];
     /* ASN_TIME | LENGTH | date bytes */
+
+    /* for compat */
+    word32 length;
+    int type;
 };
 
 struct WOLFSSL_ASN1_STRING {
@@ -980,6 +984,30 @@ WOLFSSL_API void wolfSSL_BIO_set_flags(WOLFSSL_BIO*, int);
 WOLFSSL_API long wolfSSL_BIO_set_nbio(WOLFSSL_BIO*, long);
 
 WOLFSSL_API int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio,void* p);
+
+WOLFSSL_API void wolfSSL_BIO_set_init(WOLFSSL_BIO*, int);
+WOLFSSL_API void wolfSSL_BIO_set_data(WOLFSSL_BIO*, void*);
+WOLFSSL_API void* wolfSSL_BIO_get_data(WOLFSSL_BIO*);
+WOLFSSL_API void wolfSSL_BIO_set_shutdown(WOLFSSL_BIO*, int);
+WOLFSSL_API int wolfSSL_BIO_get_shutdown(WOLFSSL_BIO*);
+WOLFSSL_API int wolfSSL_BIO_clear_retry_flags(WOLFSSL_BIO*);
+
+WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_meth_new(int, const char*);
+WOLFSSL_API void wolfSSL_BIO_meth_free(WOLFSSL_BIO_METHOD*);
+typedef int (*wolfSSL_BIO_meth_write_cb)(WOLFSSL_BIO*, const char*, int);
+WOLFSSL_API int wolfSSL_BIO_meth_set_write(WOLFSSL_BIO_METHOD*, wolfSSL_BIO_meth_write_cb);
+typedef int (*wolfSSL_BIO_meth_read_cb)(WOLFSSL_BIO *, char *, int);
+WOLFSSL_API int wolfSSL_BIO_meth_set_read(WOLFSSL_BIO_METHOD*, wolfSSL_BIO_meth_read_cb);
+typedef int (*wolfSSL_BIO_meth_puts_cb)(WOLFSSL_BIO*, const char*);
+WOLFSSL_API int wolfSSL_BIO_meth_set_puts(WOLFSSL_BIO_METHOD*, wolfSSL_BIO_meth_puts_cb);
+typedef int (*wolfSSL_BIO_meth_gets_cb)(WOLFSSL_BIO*, char*, int);
+WOLFSSL_API int wolfSSL_BIO_meth_set_gets(WOLFSSL_BIO_METHOD*, wolfSSL_BIO_meth_gets_cb);
+typedef long (*wolfSSL_BIO_meth_get_ctrl_cb)(WOLFSSL_BIO*, int, long, void*);
+WOLFSSL_API int wolfSSL_BIO_meth_set_ctrl(WOLFSSL_BIO_METHOD*, wolfSSL_BIO_meth_get_ctrl_cb);
+typedef int (*wolfSSL_BIO_meth_create_cb)(WOLFSSL_BIO*);
+WOLFSSL_API int wolfSSL_BIO_meth_set_create(WOLFSSL_BIO_METHOD*, wolfSSL_BIO_meth_create_cb);
+typedef int (*wolfSSL_BIO_meth_destroy_cb)(WOLFSSL_BIO*);
+WOLFSSL_API int wolfSSL_BIO_meth_set_destroy(WOLFSSL_BIO_METHOD*, wolfSSL_BIO_meth_destroy_cb);
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_mem_buf(void* buf, int len);
 
 
@@ -1321,7 +1349,9 @@ enum {
 #define SSL_OP_NO_TLSv1   WOLFSSL_OP_NO_TLSv1
 #define SSL_OP_NO_TLSv1_1 WOLFSSL_OP_NO_TLSv1_1
 #define SSL_OP_NO_TLSv1_2 WOLFSSL_OP_NO_TLSv1_2
+#if !(!defined(WOLFSSL_TLS13) && defined(WOLFSSL_APACHE_HTTPD)) /* apache uses this to determine if TLS 1.3 is enabled */
 #define SSL_OP_NO_TLSv1_3 WOLFSSL_OP_NO_TLSv1_3
+#endif
 
 #define SSL_OP_NO_SSL_MASK (SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | \
     SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 | SSL_OP_NO_TLSv1_3)
@@ -1434,6 +1464,7 @@ enum {
     X509_V_ERR_INVALID_POLICY_EXTENSION,
     X509_V_ERR_NO_EXPLICIT_POLICY,
     X509_V_ERR_UNNESTED_RESOURCE,
+    X509_V_ERR_APPLICATION_VERIFICATION,
 
     X509_R_CERT_ALREADY_IN_HASH_TABLE,
 
@@ -1689,6 +1720,8 @@ WOLFSSL_API int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO*,
 WOLFSSL_API int wolfSSL_ASN1_GENERALIZEDTIME_print(WOLFSSL_BIO*,
                                          const WOLFSSL_ASN1_GENERALIZEDTIME*);
 WOLFSSL_API void wolfSSL_ASN1_GENERALIZEDTIME_free(WOLFSSL_ASN1_GENERALIZEDTIME*);
+WOLFSSL_API int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME*);
+
 WOLFSSL_API int   wolfSSL_sk_num(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)*);
 WOLFSSL_API void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)*, int);
 

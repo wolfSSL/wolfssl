@@ -66,7 +66,10 @@ typedef WOLFSSL_DH DH;
 #define DH_size         wolfSSL_DH_size
 #define DH_generate_key wolfSSL_DH_generate_key
 #define DH_compute_key  wolfSSL_DH_compute_key
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 #define DH_set0_pqg     wolfSSL_DH_set0_pqg
+#endif
+#define DH_bits(x)      (BN_num_bits(x->p))
 
 /* for pre 1.1.0 */
 #define get_rfc2409_prime_768      wolfSSL_DH_768_prime

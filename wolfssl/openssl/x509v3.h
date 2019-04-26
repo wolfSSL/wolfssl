@@ -54,6 +54,7 @@ struct WOLFSSL_v3_ext_method {
 };
 
 #define WOLFSSL_ASN1_BOOLEAN int
+#define GEN_OTHERNAME 0
 
 struct WOLFSSL_X509_EXTENSION {
     WOLFSSL_ASN1_OBJECT *obj;

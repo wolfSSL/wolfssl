@@ -669,6 +669,10 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
     /* They define this as 32. Using the same value here. */
 #endif
 
+#ifndef EVP_MAX_IV_LENGTH
+    #define EVP_MAX_IV_LENGTH       16
+#endif
+
 WOLFSSL_API void printPKEY(WOLFSSL_EVP_PKEY *k);
 
 #ifdef __cplusplus

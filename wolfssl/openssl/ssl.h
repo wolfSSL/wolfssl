@@ -224,6 +224,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define SSL_CTX_free                    wolfSSL_CTX_free
 #define SSL_free                        wolfSSL_free
 #define SSL_shutdown                    wolfSSL_shutdown
+#define SSL_set_timeout                 wolfSSL_set_timeout
 
 #define SSL_CTX_set_quiet_shutdown      wolfSSL_CTX_set_quiet_shutdown
 #define SSL_set_quiet_shutdown          wolfSSL_set_quiet_shutdown
@@ -296,6 +297,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define PEM_X509_INFO_read_bio          wolfSSL_PEM_X509_INFO_read_bio
 #define PEM_write_bio_X509              wolfSSL_PEM_write_bio_X509
 #define PEM_write_bio_X509_AUX          wolfSSL_PEM_write_bio_X509_AUX
+#define i2d_PrivateKey                  wolfSSL_i2d_PrivateKey
 
 #define i2d_X509_REQ                    wolfSSL_i2d_X509_REQ
 #define X509_REQ_new                    wolfSSL_X509_REQ_new
@@ -953,7 +955,11 @@ enum {
  */
 #define ERR_GET_LIB(l)  (int)((((unsigned long)l) >> 24L) & 0xffL)
 #define ERR_GET_FUNC(l) (int)((((unsigned long)l) >> 12L) & 0xfffL)
+
+#define PEM_F_PEM_DEF_CALLBACK  100
+
 #define PEM_R_NO_START_LINE     108
+#define PEM_R_PROBLEMS_GETTING_PASSWORD 109
 #define ERR_LIB_PEM             9
 #define ERR_LIB_X509            10
 
@@ -1033,6 +1039,7 @@ enum {
 #define SSL_get0_param                  wolfSSL_get0_param
 
 #define ERR_NUM_ERRORS                  16
+#define EVP_PKEY_NONE                   NID_undef
 #define EVP_PKEY_RSA                    6
 #define EVP_PKEY_RSA2                   19
 #define EVP_PKEY_DH                     28

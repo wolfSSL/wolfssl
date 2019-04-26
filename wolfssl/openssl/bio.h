@@ -64,6 +64,39 @@
 #define BIO_set_callback_arg     wolfSSL_BIO_set_callback_arg
 #define BIO_get_callback_arg     wolfSSL_BIO_get_callback_arg
 
+/* BIO for 1.1.0 or later */
+#define BIO_set_init               wolfSSL_BIO_set_init
+#define BIO_get_data               wolfSSL_BIO_get_data
+#define BIO_set_data               wolfSSL_BIO_set_data
+#define BIO_get_shutdown           wolfSSL_BIO_get_shutdown
+#define BIO_set_shutdown           wolfSSL_BIO_set_shutdown
+#define BIO_set_retry_read         wolfSSL_BIO_set_retry_read
+#define BIO_clear_retry_flags      wolfSSL_BIO_clear_retry_flags
+
+#define BIO_meth_new               wolfSSL_BIO_meth_new
+#define BIO_meth_set_write         wolfSSL_BIO_meth_set_write
+#define BIO_meth_free              wolfSSL_BIO_meth_free
+#define BIO_meth_set_write         wolfSSL_BIO_meth_set_write
+#define BIO_meth_set_read          wolfSSL_BIO_meth_set_read
+#define BIO_meth_set_puts          wolfSSL_BIO_meth_set_puts
+#define BIO_meth_set_gets          wolfSSL_BIO_meth_set_gets
+#define BIO_meth_set_ctrl          wolfSSL_BIO_meth_set_ctrl
+#define BIO_meth_set_create        wolfSSL_BIO_meth_set_create
+#define BIO_meth_set_destroy       wolfSSL_BIO_meth_set_destroy
+
+
+/* BIO CTRL */
+#define BIO_CTRL_EOF               2
+#define BIO_CTRL_PUSH              6
+#define BIO_CTRL_POP               7
+#define BIO_CTRL_GET_CLOSE         8
+#define BIO_CTRL_SET_CLOSE         9
+#define BIO_CTRL_PENDING           10
+#define BIO_CTRL_DUP               12
+
+#define BIO_C_SET_BUF_MEM          114
+#define BIO_C_GET_BUF_MEM_PTR      115
+
 
 #ifdef __cplusplus
     }  /* extern "C" */

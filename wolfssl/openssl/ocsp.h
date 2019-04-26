@@ -34,6 +34,8 @@
 #define OCSP_ONEREQ               WOLFSSL_OCSP_ONEREQ
 
 #define OCSP_RESPONSE_STATUS_SUCCESSFUL  0
+#define OCSP_RESPONSE_STATUS_TRYLATER    3
+
 #define V_OCSP_CERTSTATUS_GOOD           0
 
 #define OCSP_resp_find_status     wolfSSL_OCSP_resp_find_status

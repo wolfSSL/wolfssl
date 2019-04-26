@@ -157,6 +157,10 @@ enum
     NID_id_pkix_OCSP_basic = 74,
     NID_any_policy = 75,
     NID_anyExtendedKeyUsage = 76,
+    NID_givenName = 99,
+    NID_initials = 101,
+    NID_title = 106,
+    NID_description = 107,
     NID_basic_constraints = 133,
     NID_key_usage = 129,     /* 2.5.29.15 */
     NID_ext_key_usage = 151, /* 2.5.29.37 */
@@ -175,6 +179,8 @@ enum
     NID_inhibit_any_policy = 168,      /* 2.5.29.54 */
     NID_tlsfeature = 92,               /* id-pe 24 */
     NID_commonName = 0x03,             /* matchs ASN_COMMON_NAME in asn.h */
+
+
     NID_surname = 0x04,                /* SN */
     NID_serialNumber = 0x05,           /* serialNumber */
     NID_countryName = 0x06,            /* C  */
@@ -197,12 +203,12 @@ enum ECC_TYPES
         ASN_PIV_CERT          = 0x0A,
         ASN_PIV_NONCE         = 0x0B,
         ASN_PIV_SIGNED_NONCE  = 0x0C,
-            
+
         ASN_PIV_TAG_CERT      = 0x70,
         ASN_PIV_TAG_CERT_INFO = 0x71,
         ASN_PIV_TAG_MSCUID    = 0x72,
         ASN_PIV_TAG_ERR_DET   = 0xFE,
-            
+
         /* certificate info masks */
         ASN_PIV_CERT_INFO_COMPRESSED = 0x03,
         ASN_PIV_CERT_INFO_ISX509     = 0x04,
