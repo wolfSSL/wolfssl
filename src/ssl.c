@@ -24698,11 +24698,21 @@ int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_UTCTIME* a)
     return wolfSSL_ASN1_TIME_print(bio, a);
 }
 
+
+/* Checks the ASN1 syntax of "a"
+ * returns WOLFSSL_SUCCESS (1)  if correct otherwise WOLFSSL_FAILURE (0) */
 int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME* a)
 {
+    char buf[MAX_TIME_STRING_SZ];
+
     WOLFSSL_STUB("wolfSSL_ASN1_TIME_check");
-    (void)a;
-    return 0;
+
+    /* if can parse the WOLFSSL_ASN1_TIME passed in then consider syntax good */
+    if (wolfSSL_ASN1_TIME_to_string((WOLFSSL_ASN1_TIME*)a, buf,
+                MAX_TIME_STRING_SZ) == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    return WOLFSSL_SUCCESS;
 }
 
 /* Return the month as a string.

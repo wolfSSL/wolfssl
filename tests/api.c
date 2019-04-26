@@ -1599,8 +1599,12 @@ static int test_wolfSSL_SetMinVersion(void)
     int                 itr;
 
     #ifndef NO_OLD_TLS
-        const int versions[]  =  { WOLFSSL_TLSV1, WOLFSSL_TLSV1_1,
-                                  WOLFSSL_TLSV1_2};
+        const int versions[]  =  {
+                            #ifdef WOLFSSL_ALLOW_TLSV10
+                                   WOLFSSL_TLSV1,
+                            #endif
+                                   WOLFSSL_TLSV1_1,
+                                   WOLFSSL_TLSV1_2};
     #elif !defined(WOLFSSL_NO_TLS12)
         const int versions[]  =  { WOLFSSL_TLSV1_2 };
     #else
@@ -4879,7 +4883,11 @@ static int test_wolfSSL_CTX_SetMinVersion(void)
     int                     itr;
 
     #ifndef NO_OLD_TLS
-        const int versions[]  = { WOLFSSL_TLSV1, WOLFSSL_TLSV1_1,
+        const int versions[]  = {
+                            #ifdef WOLFSSL_ALLOW_TLSV10
+                                  WOLFSSL_TLSV1,
+                            #endif
+                                  WOLFSSL_TLSV1_1,
                                   WOLFSSL_TLSV1_2 };
     #elif !defined(WOLFSSL_NO_TLS12)
         const int versions[]  = { WOLFSSL_TLSV1_2 };
@@ -18824,11 +18832,13 @@ static void test_wolfSSL_ASN1_TIME_print(void)
 
     /* create a bad time and test results */
     AssertNotNull(t = X509_get_notAfter(x509));
+    AssertIntEQ(ASN1_TIME_check(t), WOLFSSL_SUCCESS);
     t->data[10] = 0;
     t->data[5]  = 0;
     AssertIntNE(ASN1_TIME_print(bio, t), 1);
     AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 14);
     AssertIntEQ(XMEMCMP(buf, "Bad time value", 14), 0);
+    AssertIntEQ(ASN1_TIME_check(t), WOLFSSL_FAILURE);
 
     BIO_free(bio);
     X509_free(x509);
