@@ -24701,21 +24701,41 @@ void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
 /* returns amount printed on success, negative in fail case */
 int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
 {
-    int ret = 0;
+    int ret = -1;
 #ifndef NO_FILESYSTEM
     va_list args;
 #endif
 
     if (bio == NULL)
-        return 0;
+        return WOLFSSL_FATAL_ERROR;
 
-#ifndef NO_FILESYSTEM
-    if (bio->type == WOLFSSL_BIO_FILE) {
-        va_start(args, format);
-        ret = vfprintf(bio->file, format, args);
-        va_end(args);
+    va_start(args, format);
+    switch (bio->type) {
+    #ifndef NO_FILESYSTEM
+        case WOLFSSL_BIO_FILE:
+            ret = vfprintf(bio->file, format, args);
+            break;
+    #endif
+
+        case WOLFSSL_BIO_MEMORY:
+        case WOLFSSL_BIO_SSL:
+            {
+                char* pt = NULL;
+                ret = vasprintf(&pt, format, args);
+                if (ret > 0 && pt != NULL) {
+                    wolfSSL_BIO_write(bio, pt, ret);
+                }
+                if (pt != NULL) {
+                    free(pt);
+                }
+            }
+            break;
+
+        default:
+            WOLFSSL_MSG("Unsupported WOLFSSL_BIO type for wolfSSL_BIO_printf");
+            break;
     }
-#endif
+    va_end(args);
 
     return ret;
 }

@@ -21810,6 +21810,7 @@ static void test_wolfSSL_ERR_print_errors(void)
     AssertIntEQ(BIO_gets(bio, buf, sizeof(buf)), 0);
     AssertIntEQ(ERR_get_error_line(NULL, NULL), 0);
 
+    BIO_free(bio);
     printf(resultFmt, passed);
     #endif
 }
@@ -22254,6 +22255,30 @@ static void test_wolfSSL_BIO_write(void)
     AssertIntEQ((sz = BIO_read(bio, out, sz)), 16);
     AssertIntEQ(XMEMCMP(out, msg, sz), 0);
     BIO_free_all(bio); /* frees bio64s also */
+
+    printf(resultFmt, passed);
+    #endif
+}
+
+
+static void test_wolfSSL_BIO_printf(void)
+{
+    #if defined(OPENSSL_ALL)
+    BIO* bio;
+    int  sz = 7;
+    char msg[] = "TLS 1.3 for the world";
+    char out[60];
+    char expected[] = "TLS 1.3 for the world : sz = 7";
+
+    printf(testingFmt, "wolfSSL_BIO_printf()");
+
+    XMEMSET(out, 0, sizeof(out));
+    AssertNotNull(bio = BIO_new(BIO_s_mem()));
+    AssertIntEQ(BIO_printf(bio, "%s : sz = %d", msg, sz), 30);
+    AssertIntEQ(BIO_printf(NULL, ""), WOLFSSL_FATAL_ERROR);
+    AssertIntEQ(BIO_read(bio, out, sizeof(out)), 30);
+    AssertIntEQ(XSTRNCMP(out, expected, sizeof(expected)), 0);
+    BIO_free(bio);
 
     printf(resultFmt, passed);
     #endif
@@ -26271,6 +26296,7 @@ static void test_wolfSSL_PEM_X509_INFO_read_bio(void)
 
     AssertIntEQ(0, XSTRNCMP(subject, exp1, sizeof(exp1)));
     XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
+    X509_INFO_free(info);
 
     AssertNotNull(info = sk_X509_INFO_pop(sk));
     AssertNotNull(subject =
@@ -26278,6 +26304,7 @@ static void test_wolfSSL_PEM_X509_INFO_read_bio(void)
 
     AssertIntEQ(0, XSTRNCMP(subject, exp2, sizeof(exp2)));
     XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
+    X509_INFO_free(info);
     AssertNull(info = sk_X509_INFO_pop(sk));
 
     sk_X509_INFO_pop_free(sk, X509_INFO_free);
@@ -26919,6 +26946,7 @@ void ApiTest(void)
     test_wolfSSL_BIO_gets();
     test_wolfSSL_d2i_PUBKEY();
     test_wolfSSL_BIO_write();
+    test_wolfSSL_BIO_printf();
     test_wolfSSL_SESSION();
     test_wolfSSL_DES_ecb_encrypt();
     test_wolfSSL_sk_GENERAL_NAME();
