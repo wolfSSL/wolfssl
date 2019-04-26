@@ -134,6 +134,14 @@
     #error The build option HAVE_HKDF is required for TLS 1.3
 #endif
 
+#ifndef HAVE_TLS_EXTENSIONS
+    #ifndef _MSC_VER
+        #error "The build option HAVE_TLS_EXTENSIONS is required for TLS 1.3"
+    #else
+        #pragma message("error: The build option HAVE_TLS_EXTENSIONS is required for TLS 1.3")
+    #endif
+#endif
+
 
 /* Set ret to error value and jump to label.
  *
