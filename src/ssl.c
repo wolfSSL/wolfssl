@@ -27693,20 +27693,55 @@ int wolfSSL_DH_compute_key(unsigned char* key, WOLFSSL_BIGNUM* otherPub,
 }
 
 
-#ifndef NO_WOLFSSL_STUB
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+/* ownership of p,q,and g get taken over by "dh" on success and should be free'd
+ * with a call to wolfSSL_DH_free -- not individually.
+ *
+ * returns WOLFSSL_SUCCESS on success
+ */
 int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
     WOLFSSL_BIGNUM *q, WOLFSSL_BIGNUM *g)
 {
-    (void)dh;
-    (void)p;
-    (void)q;
-    (void)g;
-    WOLFSSL_STUB("wolfSSL_DH_set0_pqg");
+    WOLFSSL_ENTER("wolfSSL_DH_set0_pqg");
+
+    /* q can be NULL */
+    if (dh == NULL || p == NULL || g == NULL) {
+        WOLFSSL_MSG("Bad function arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* free existing internal DH structure and recreate with new p / g */
+    if (dh->inSet) {
+        ret = wc_FreeDhKey((Dhkey*)dh->internal);
+        if (ret != 0) {
+            WOLFSSL_MSG("Unable to free internal DH key");
+            return WOLFSSL_FAILURE;
+        }
+    }
+
+    wolfSSL_BN_free(dh->p);
+    wolfSSL_BN_free(dh->q);
+    wolfSSL_BN_free(dh->g);
+    wolfSSL_BN_free(pub_key);
+    wolfSSL_BN_free(priv_key);
+
+    dh->p = p;
+    dh->q = q;
+    dh->g = g;
+
+    ret = SetDhInternal(dh);
+    if (ret != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("Unable to set internal DH key");
+        dh->p = NULL;
+        dh->q = NULL;
+        dh->g = NULL;
+        dh->inSet = 0;
+        return WOLFSSL_FAILURE;
+    }
+
     return WOLFSSL_SUCCESS;
 }
 #endif /* v1.1.0 or later */
-#endif
 
 #endif /* NO_DH */
 
