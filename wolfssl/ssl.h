@@ -986,6 +986,7 @@ WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new(WOLFSSL_BIO_METHOD*);
 WOLFSSL_API int  wolfSSL_BIO_free(WOLFSSL_BIO*);
 WOLFSSL_API int  wolfSSL_BIO_free_all(WOLFSSL_BIO*);
 WOLFSSL_API int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz);
+WOLFSSL_API int wolfSSL_BIO_puts(WOLFSSL_BIO* bio, const char* buf);
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_next(WOLFSSL_BIO* bio);
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_find_type(WOLFSSL_BIO* bio, int type);
 WOLFSSL_API int  wolfSSL_BIO_read(WOLFSSL_BIO*, void*, int);

@@ -22084,7 +22084,7 @@ static void test_wolfSSL_BIO_gets(void)
     char bio_buffer[20];
     int bufferSz = 20;
 
-    printf(testingFmt, "wolfSSL_X509_BIO_gets()");
+    printf(testingFmt, "wolfSSL_BIO_gets()");
 
     /* try with bad args */
     AssertNull(bio = BIO_new_mem_buf(NULL, sizeof(msg)));
@@ -22198,6 +22198,34 @@ static void test_wolfSSL_BIO_gets(void)
     #endif
 }
 
+
+static void test_wolfSSL_BIO_puts(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    BIO* bio;
+    char input[] = "hello\0world\n.....ok\n\0";
+    char output[128];
+
+    printf(testingFmt, "wolfSSL_BIO_puts()");
+
+    XMEMSET(output, 0, sizeof(output));
+    AssertNotNull(bio = BIO_new(BIO_s_mem()));
+    AssertIntEQ(BIO_puts(bio, input), 5);
+    AssertIntEQ(BIO_pending(bio), 5);
+    AssertIntEQ(BIO_puts(bio, input + 6), 14);
+    AssertIntEQ(BIO_pending(bio), 19);
+    AssertIntEQ(BIO_gets(bio, output, sizeof(output)), 11);
+    AssertStrEQ(output, "helloworld\n");
+    AssertIntEQ(BIO_pending(bio), 8);
+    AssertIntEQ(BIO_gets(bio, output, sizeof(output)), 8);
+    AssertStrEQ(output, ".....ok\n");
+    AssertIntEQ(BIO_pending(bio), 0);
+    AssertIntEQ(BIO_puts(bio, ""), -1);
+
+    BIO_free(bio);
+    printf(resultFmt, passed);
+    #endif
+}
 
 static void test_wolfSSL_BIO_write(void)
 {
@@ -26944,6 +26972,7 @@ void ApiTest(void)
     test_wolfSSL_OBJ_txt2nid();
     test_wolfSSL_X509_NAME_ENTRY();
     test_wolfSSL_BIO_gets();
+    test_wolfSSL_BIO_puts();
     test_wolfSSL_d2i_PUBKEY();
     test_wolfSSL_BIO_write();
     test_wolfSSL_BIO_printf();

@@ -693,6 +693,32 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
 }
 
 
+/* Writes a null terminated string to bio.
+ *
+ * bio  the structure to write to
+ * buf  buffer to holding input string
+ *
+ * returns the size of the result placed in bio on success and a 0 or negative
+ *         value in an error case. -2 is returned if the implementation is not
+ *         supported for the BIO type.
+ */
+int wolfSSL_BIO_puts(WOLFSSL_BIO* bio, const char* buf)
+{
+    int sz;
+
+    if (bio == NULL || buf == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    sz = (int)XSTRLEN(buf);
+    if (sz <= 0) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    return wolfSSL_BIO_write(bio, buf, sz);
+}
+
+
 /* searches through bio list for a BIO of type "type"
  * returns NULL on failure to find a given type */
 WOLFSSL_BIO* wolfSSL_BIO_find_type(WOLFSSL_BIO* bio, int type)

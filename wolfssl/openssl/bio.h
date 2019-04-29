@@ -41,6 +41,7 @@
 #define BIO_find_type wolfSSL_BIO_find_type
 #define BIO_next      wolfSSL_BIO_next
 #define BIO_gets      wolfSSL_BIO_gets
+#define BIO_puts      wolfSSL_BIO_puts
 
 #define BIO_TYPE_FILE WOLFSSL_BIO_FILE
 #define BIO_TYPE_BIO  WOLFSSL_BIO_BIO
