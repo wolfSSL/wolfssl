@@ -22282,6 +22282,7 @@ static void test_wolfSSL_BIO_write(void)
     XMEMSET(out, 0, sz);
     AssertIntEQ((sz = BIO_read(bio, out, sz)), 16);
     AssertIntEQ(XMEMCMP(out, msg, sz), 0);
+    BIO_set_retry_read(bio);
     BIO_free_all(bio); /* frees bio64s also */
 
     printf(resultFmt, passed);
@@ -24967,6 +24968,10 @@ static void test_sk_X509(void)
     STACK_OF(X509)* s;
 
     AssertNotNull(s = sk_X509_new());
+    AssertIntEQ(sk_X509_num(s), 0);
+    sk_X509_free(s);
+
+    AssertNotNull(s = sk_X509_new_null());
     AssertIntEQ(sk_X509_num(s), 0);
     sk_X509_free(s);
 
