@@ -343,6 +343,9 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define X509_check_issued               wolfSSL_X509_check_issued
 #define X509_dup                        wolfSSL_X509_dup
 
+#define X509_EXTENSION_get_object       wolfSSL_X509_EXTENSION_get_object
+#define X509_EXTENSION_get_data         wolfSSL_X509_EXTENSION_get_data
+
 #define sk_X509_new                     wolfSSL_sk_X509_new
 #define sk_X509_num                     wolfSSL_sk_X509_num
 #define sk_X509_value                   wolfSSL_sk_X509_value
@@ -545,6 +548,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define ASN1_IA5STRING                  WOLFSSL_ASN1_STRING
 
 #define ASN1_OCTET_STRING               WOLFSSL_ASN1_STRING
+#define ASN1_BOOLEAN                    WOLFSSL_ASN1_BOOLEAN
 
 #define SSL_load_client_CA_file         wolfSSL_load_client_CA_file
 
