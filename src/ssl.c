@@ -8552,7 +8552,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                         obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
                         obj->dynamic &= ~WOLFSSL_ASN1_DYNAMIC_DATA ;
 
-                        /* set app dereferenced pointers */
+                        /* set app dereference pointers */
                         obj->d.ia5_internal.data   = dns->name;
                         obj->d.ia5_internal.length = (int)XSTRLEN(dns->name);
                         dns = dns->next;

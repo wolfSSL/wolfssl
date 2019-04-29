@@ -491,7 +491,8 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
     return ret;
 }
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_APACHE_HTTPD)
 
 int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
     WOLFSSL_OCSP_CERTID* id, int* status, int* reason,
@@ -863,6 +864,22 @@ WOLFSSL_OCSP_ONEREQ* wolfSSL_OCSP_request_add0_id(OcspRequest *req,
     wolfSSL_OCSP_REQUEST_free(cid);
 
     return req;
+}
+
+WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_CERTID_dup(WOLFSSL_OCSP_CERTID* id)
+{
+    WOLFSSL_OCSP_CERTID* certId;
+
+    if (id == NULL) {
+        return NULL;
+    }
+
+    certId = (WOLFSSL_OCSP_CERTID*)XMALLOC(sizeof(WOLFSSL_OCSP_CERTID),
+        id->heap, DYNAMIC_TYPE_OPENSSL);
+    if (certId) {
+        XMEMCPY(certId, id, sizeof(WOLFSSL_OCSP_CERTID));
+    }
+    return certId;
 }
 
 #endif

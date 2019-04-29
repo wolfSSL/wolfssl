@@ -86,6 +86,7 @@ typedef WOLFSSL_ASN1_TIME      ASN1_TIME;
 typedef WOLFSSL_ASN1_INTEGER   ASN1_INTEGER;
 typedef WOLFSSL_ASN1_OBJECT    ASN1_OBJECT;
 typedef WOLFSSL_ASN1_STRING    ASN1_STRING;
+typedef WOLFSSL_ASN1_TYPE      ASN1_TYPE;
 typedef WOLFSSL_dynlock_value  CRYPTO_dynlock_value;
 typedef WOLFSSL_BUF_MEM        BUF_MEM;
 typedef WOLFSSL_GENERAL_NAME   GENERAL_NAME;
@@ -731,7 +732,8 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 enum {
     GEN_DNS   = 0x02, /* ASN_DNS_TYPE */
     GEN_EMAIL = 0x01, /* ASN_RFC822_TYPE */
-    GEN_URI   = 0x06  /* ASN_URI_TYPE */
+    GEN_URI   = 0x06, /* ASN_URI_TYPE */
+    GEN_RID   = 0x08, /* Registered ID, not supported */
 };
 
 #define PEM_read_bio_DHparams           wolfSSL_PEM_read_bio_DHparams
@@ -760,6 +762,7 @@ enum {
 #define SSL_R_SHORT_READ     10
 #define ERR_R_PEM_LIB        9
 #define V_ASN1_IA5STRING     22
+#define V_ASN1_UTF8STRING    12
 #define SSL_CTRL_MODE        33
 
 #define SSL_CTRL_CLEAR_EXTRA_CHAIN_CERTS        83

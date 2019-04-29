@@ -179,6 +179,7 @@ typedef struct WOLFSSL_ASN1_STRING      WOLFSSL_ASN1_STRING;
 typedef struct WOLFSSL_dynlock_value    WOLFSSL_dynlock_value;
 typedef struct WOLFSSL_DH               WOLFSSL_DH;
 typedef struct WOLFSSL_ASN1_BIT_STRING  WOLFSSL_ASN1_BIT_STRING;
+typedef struct WOLFSSL_ASN1_TYPE        WOLFSSL_ASN1_TYPE;
 
 typedef struct WOLFSSL_GENERAL_NAME WOLFSSL_GENERAL_NAME;
 typedef struct WOLFSSL_AUTHORITY_KEYID  WOLFSSL_AUTHORITY_KEYID;
@@ -252,6 +253,10 @@ struct WOLFSSL_ASN1_STRING {
 };
 
 #define WOLFSSL_MAX_SNAME 40
+
+#define WOLFSSL_ASN1_DYNAMIC 0x1
+#define WOLFSSL_ASN1_DYNAMIC_DATA 0x2
+
 struct WOLFSSL_ASN1_OBJECT {
     void*  heap;
     const unsigned char* obj;
@@ -279,6 +284,26 @@ struct WOLFSSL_ASN1_OBJECT {
 #endif
         WOLFSSL_ASN1_STRING* iPAddress; /* points to iPAddress_internal */
     } d;
+};
+
+/* wrap ASN1 types */
+struct WOLFSSL_ASN1_TYPE {
+    int type;
+    union {
+        char *ptr;
+        WOLFSSL_ASN1_STRING*     asn1_string;
+        WOLFSSL_ASN1_OBJECT*     object;
+        WOLFSSL_ASN1_INTEGER*    integer;
+        WOLFSSL_ASN1_BIT_STRING* bit_string;
+        WOLFSSL_ASN1_STRING*     octet_string;
+        WOLFSSL_ASN1_STRING*     printablestring;
+        WOLFSSL_ASN1_STRING*     ia5string;
+        WOLFSSL_ASN1_UTCTIME*    utctime;
+        WOLFSSL_ASN1_GENERALIZEDTIME* generalizedtime;
+        WOLFSSL_ASN1_STRING*     utf8string;
+        WOLFSSL_ASN1_STRING*     set;
+        WOLFSSL_ASN1_STRING*     sequence;
+    } value;
 };
 
 struct WOLFSSL_EVP_PKEY {

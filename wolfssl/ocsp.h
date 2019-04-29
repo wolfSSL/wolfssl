@@ -58,7 +58,8 @@ WOLFSSL_LOCAL int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int resp
                                     WOLFSSL_BUFFER_INFO *responseBuffer, CertStatus *status,
                                     OcspEntry *entry, OcspRequest *ocspRequest);
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_APACHE_HTTPD)
 
     WOLFSSL_API int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
                                                   WOLFSSL_OCSP_CERTID *id, int *status, int *reason,
@@ -95,6 +96,7 @@ WOLFSSL_API int wolfSSL_i2d_OCSP_REQUEST(OcspRequest* request,
     unsigned char** data);
 WOLFSSL_API WOLFSSL_OCSP_ONEREQ* wolfSSL_OCSP_request_add0_id(OcspRequest *req,
     WOLFSSL_OCSP_CERTID *cid);
+WOLFSSL_API WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_CERTID_dup(WOLFSSL_OCSP_CERTID*);
 
 #endif
 
