@@ -14183,18 +14183,59 @@ size_t wolfSSL_get_server_random(const WOLFSSL *ssl, unsigned char *out,
     return size;
 }
 
-#ifndef NO_WOLFSSL_STUB
+
+/* Used to get the peer ephemeral public key sent during the connection
+ * NOTE: currently wolfSSL_KeepHandshakeResources(WOLFSSL* ssl) must be called
+ *       before the ephemeral key is stored.
+ * return WOLFSSL_SUCCESS on success */
 int wolfSSL_get_server_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
 {
-    WOLFSSL_STUB("wolfSSL_get_server_tmp_key");
+    WOLFSSL_EVP_PKEY* ret = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_get_server_tmp_key");
 
     if (ssl == NULL || pkey == NULL) {
-        return BAD_FUNC_ARG;
+        WOLFSSL_MSG("Bad argument passed in");
+        return WOLFSSL_FAILURE;
     }
-    *pkey = NULL;
-    return -1;
-}
+
+#ifdef HAVE_ECC
+    if (ssl->peerEccKey != NULL) {
+        unsigned char* der;
+        unsigned char* pt;
+        unsigned int   derSz = 0;
+        int sz;
+
+        if (wc_ecc_export_x963(ssl->peerEccKey, NULL, &derSz) !=
+                LENGTH_ONLY_E) {
+            WOLFSSL_MSG("get ecc der size failed");
+            return WOLFSSL_FAILURE;
+        }
+
+        derSz += MAX_SEQ_SZ + (2 * MAX_ALGO_SZ) + MAX_SEQ_SZ + TRAILING_ZERO;
+        der = (unsigned char*)XMALLOC(derSz, ssl->heap, DYNAMIC_TYPE_KEY);
+        if (der == NULL) {
+            WOLFSSL_MSG("Memory error");
+            return WOLFSSL_FAILURE;
+        }
+
+        if ((sz = wc_EccPublicKeyToDer(ssl->peerEccKey, der, derSz, 1)) <= 0) {
+            WOLFSSL_MSG("get ecc der failed");
+            XFREE(der, ssl->heap, DYNAMIC_TYPE_KEY);
+            return WOLFSSL_FAILURE;
+        }
+        pt = der; /* in case pointer gets advanced */
+        ret = wolfSSL_d2i_PUBKEY(NULL, &pt, sz);
+        XFREE(der, ssl->heap, DYNAMIC_TYPE_KEY);
+    }
 #endif
+
+    *pkey = ret;
+    if (ret == NULL)
+        return WOLFSSL_FAILURE;
+    else
+        return WOLFSSL_SUCCESS;
+}
 
 #endif /* !NO_WOLFSSL_SERVER */
 
@@ -25050,7 +25091,11 @@ int wolfSSL_sk_SSL_COMP_num(WOLF_STACK_OF(WOLFSSL_COMP)* sk)
 #endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)
-/* stunnel 4.28 needs */
+/* stunnel 4.28 needs
+ *
+ * Callback that is called if a session tries to resume but could not find
+ * the session to resume it.
+ */
 void wolfSSL_CTX_sess_set_get_cb(WOLFSSL_CTX* ctx,
                     WOLFSSL_SESSION*(*f)(WOLFSSL*, unsigned char*, int, int*))
 {

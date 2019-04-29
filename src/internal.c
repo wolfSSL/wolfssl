@@ -21567,7 +21567,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 #ifdef WOLFSSL_ASYNC_CRYPT
                         && ret != WC_PENDING_E
                 #endif
-                    ) {
+                     && !ssl->options.keepResources) {
                         FreeKey(ssl, DYNAMIC_TYPE_ECC,
                                                       (void**)&ssl->peerEccKey);
                         ssl->peerEccKeyPresent = 0;
