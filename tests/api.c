@@ -1738,6 +1738,21 @@ static void test_wolfSSL_EC(void)
 }
 #endif
 
+static void test_wolfSSL_PEM_read_bio_ECPKParameters(void)
+{
+#if defined(HAVE_ECC) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA)
+    EC_GROUP *group;
+    BIO* bio;
+
+    AssertNotNull(bio = BIO_new(BIO_s_file()));
+    AssertIntEQ(BIO_read_filename(bio, eccKeyFile), WOLFSSL_SUCCESS);
+    AssertNotNull(group = PEM_read_bio_ECPKParameters(bio, NULL, NULL, NULL));
+    AssertIntEQ(EC_GROUP_get_curve_name(group), NID_X9_62_prime256v1);
+    EC_GROUP_free(group);
+    BIO_free(bio);
+#endif /* HAVE_ECC */
+}
+
 # if defined(OPENSSL_EXTRA)
 static void test_wolfSSL_ECDSA_SIG(void)
 {
@@ -27046,6 +27061,7 @@ void ApiTest(void)
     test_wolfSSL_PEM_read_X509();
     test_wolfSSL_PEM_read();
     test_wolfSSL_PEM_X509_INFO_read_bio();
+    test_wolfSSL_PEM_read_bio_ECPKParameters();
     test_wolfSSL_X509_NAME_ENTRY_get_object();
     test_wolfSSL_OpenSSL_add_all_algorithms();
     test_wolfSSL_ASN1_STRING_print_ex();

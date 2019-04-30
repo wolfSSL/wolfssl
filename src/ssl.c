@@ -32858,6 +32858,34 @@ WOLFSSL_RSA* wolfSSL_PEM_read_bio_RSAPrivateKey(WOLFSSL_BIO* bio,
 #endif /* !NO_RSA */
 
 
+#ifdef HAVE_ECC
+/* returns a new WOLFSSL_EC_GROUP structure on success and NULL on fail */
+WOLFSSL_EC_GROUP* wolfSSL_PEM_read_bio_ECPKParameters(WOLFSSL_BIO* bio,
+        WOLFSSL_EC_GROUP** group, pem_password_cb* cb, void* pass)
+{
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    WOLFSSL_EC_GROUP* ret = NULL;
+
+    /* check on if bio is null is done in wolfSSL_PEM_read_bio_PrivateKey */
+    pkey = wolfSSL_PEM_read_bio_PrivateKey(bio, NULL, cb, pass);
+    if (pkey != NULL) {
+        if (pkey->type != EVP_PKEY_EC) {
+            WOLFSSL_MSG("Unexpected key type");
+        }
+        else {
+            ret = (WOLFSSL_EC_GROUP*)wolfSSL_EC_KEY_get0_group(pkey->ecc);
+
+            /* set ecc group to null so it is not free'd when pkey is free'd */
+            pkey->ecc->group = NULL;
+        }
+    }
+
+    (void)group;
+    wolfSSL_EVP_PKEY_free(pkey);
+    return ret;
+}
+#endif /* HAVE_ECC */
+
 /* return of pkey->type which will be EVP_PKEY_RSA for example.
  *
  * type  type of EVP_PKEY
