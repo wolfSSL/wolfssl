@@ -118,7 +118,6 @@ typedef struct WOLFSSL_CTX      WOLFSSL_CTX;
 typedef struct WOLFSSL_STACK      WOLFSSL_STACK;
 typedef struct WOLFSSL_X509       WOLFSSL_X509;
 typedef struct WOLFSSL_X509_NAME  WOLFSSL_X509_NAME;
-typedef struct WOLFSSL_X509_INFO  WOLFSSL_X509_INFO;
 typedef struct WOLFSSL_X509_NAME_ENTRY  WOLFSSL_X509_NAME_ENTRY;
 typedef struct WOLFSSL_X509_CHAIN WOLFSSL_X509_CHAIN;
 typedef struct WC_PKCS12          WOLFSSL_X509_PKCS12;
@@ -1014,6 +1013,7 @@ WOLFSSL_API WOLFSSL_METHOD* wolfSSLv2_server_method(void);
 
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new(WOLFSSL_BIO_METHOD*);
 WOLFSSL_API int  wolfSSL_BIO_free(WOLFSSL_BIO*);
+WOLFSSL_API void wolfSSL_BIO_vfree(WOLFSSL_BIO*);
 WOLFSSL_API int  wolfSSL_BIO_free_all(WOLFSSL_BIO*);
 WOLFSSL_API int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz);
 WOLFSSL_API int wolfSSL_BIO_puts(WOLFSSL_BIO* bio, const char* buf);

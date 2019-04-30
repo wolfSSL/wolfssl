@@ -469,6 +469,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define BIO_new                         wolfSSL_BIO_new
 #define BIO_free                        wolfSSL_BIO_free
+#define BIO_vfree                       wolfSSL_BIO_vfree
 #define BIO_free_all                    wolfSSL_BIO_free_all
 #define BIO_nread0                      wolfSSL_BIO_nread0
 #define BIO_nread                       wolfSSL_BIO_nread

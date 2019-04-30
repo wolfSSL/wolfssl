@@ -13927,6 +13927,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return 1;
     }
 
+    /* like BIO_free, but no return value */
+    void wolfSSL_BIO_vfree(WOLFSSL_BIO* bio)
+    {
+        wolfSSL_BIO_free(bio);
+    }
+
 
     int wolfSSL_BIO_free_all(WOLFSSL_BIO* bio)
     {

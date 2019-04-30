@@ -21186,6 +21186,11 @@ static void test_wolfSSL_BIO(void)
         BIO_free(cb_bio);
     }
 
+    /* BIO_vfree */
+    AssertNotNull(bio1 = BIO_new(BIO_s_bio()));
+    BIO_vfree(NULL);
+    BIO_vfree(bio1);
+
     printf(resultFmt, passed);
     #endif
 }
