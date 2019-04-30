@@ -160,6 +160,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define d2i_PUBKEY_bio                  wolfSSL_d2i_PUBKEY_bio
 #define d2i_PrivateKey                  wolfSSL_d2i_PrivateKey
 #define d2i_AutoPrivateKey              wolfSSL_d2i_AutoPrivateKey
+#define i2d_PrivateKey                  wolfSSL_i2d_PrivateKey
 #define SSL_use_PrivateKey              wolfSSL_use_PrivateKey
 #define SSL_use_PrivateKey_ASN1         wolfSSL_use_PrivateKey_ASN1
 #define SSL_use_RSAPrivateKey_ASN1      wolfSSL_use_RSAPrivateKey_ASN1

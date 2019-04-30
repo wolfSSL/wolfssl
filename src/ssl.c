@@ -20908,7 +20908,6 @@ WC_PKCS12* wolfSSL_d2i_PKCS12_bio(WOLFSSL_BIO* bio, WC_PKCS12** pkcs12)
     return localPkcs12;
 }
 
-
 /* Converts the PKCS12 to DER format and outputs it into bio.
  *
  * bio is the structure to hold output DER
@@ -20941,15 +20940,42 @@ int wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO *bio, WC_PKCS12 *pkcs12)
     return ret;
 }
 
-
-/* helper function to get DER buffer from WOLFSSL_EVP_PKEY */
-static int wolfSSL_i2d_PrivateKey(WOLFSSL_EVP_PKEY* key, unsigned char** der)
+/* helper function to get raw pointer to DER buffer from WOLFSSL_EVP_PKEY */
+static int wolfSSL_EVP_PKEY_get_der(WOLFSSL_EVP_PKEY* key, unsigned char** der)
 {
     *der = (unsigned char*)key->pkey.ptr;
 
     return key->pkey_sz;
 }
 
+/* Copies unencrypted DER key buffer into "der". If "der" is null then the size
+ * of buffer needed is returned
+ * NOTE: This also advances the "der" pointer to be at the end of buffer.
+ *
+ * Returns size of key buffer on success
+ */
+int wolfSSL_i2d_PrivateKey(WOLFSSL_EVP_PKEY* key, unsigned char** der)
+{
+    unsigned char* pt;
+    int sz;
+
+    if (key == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    sz = wolfSSL_EVP_PKEY_get_der(key, &pt);
+    if (sz <= 0) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (der != NULL) {
+        /* since this function signature has no size value passed in it is
+         * assumed that the user has allocated a large enough buffer */
+        XMEMCPY(*der, pt, sz);
+        *der += sz;
+    }
+    return sz;
+}
 
 /* Creates a new WC_PKCS12 structure
  *
@@ -20989,7 +21015,7 @@ WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name,
     }
     passSz = (word32)XSTRLEN(pass);
 
-    if ((ret = wolfSSL_i2d_PrivateKey(pkey, &keyDer)) < 0) {
+    if ((ret = wolfSSL_EVP_PKEY_get_der(pkey, &keyDer)) < 0) {
         WOLFSSL_LEAVE("wolfSSL_PKCS12_create", ret);
         return NULL;
     }

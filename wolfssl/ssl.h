@@ -1196,6 +1196,8 @@ WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type,
         WOLFSSL_EVP_PKEY** out, const unsigned char **in, long inSz);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_EVP(WOLFSSL_EVP_PKEY** key,
         unsigned char** in, long inSz);
+WOLFSSL_API int wolfSSL_i2d_PrivateKey(WOLFSSL_EVP_PKEY* key,
+        unsigned char** der);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new_ex(void* heap);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new(void);
 WOLFSSL_API int       wolfSSL_X509_cmp_current_time(const WOLFSSL_ASN1_TIME*);

@@ -24296,6 +24296,52 @@ static void test_wolfSSL_X509_cmp(void)
 #endif
 }
 
+static void test_wolfSSL_i2d_PrivateKey()
+{
+#if (!defined(NO_RSA) || defined(HAVE_ECC)) && defined(OPENSSL_EXTRA)
+
+    printf(testingFmt, "wolfSSL_i2d_PrivateKey()");
+#if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+    {
+        EVP_PKEY* pkey;
+        const unsigned char* server_key = (const unsigned char*)server_key_der_2048;
+        unsigned char buf[FOURK_BUF];
+        unsigned char* pt;
+        int bufSz;
+
+        AssertNotNull(pkey = d2i_PrivateKey(EVP_PKEY_RSA, NULL, &server_key,
+                    (long)sizeof_server_key_der_2048));
+        AssertIntEQ(i2d_PrivateKey(pkey, NULL), 1193);
+        pt = buf;
+        AssertIntEQ((bufSz = i2d_PrivateKey(pkey, &pt)), 1193);
+        AssertIntNE((pt - buf), 0);
+        AssertIntEQ(XMEMCMP(buf, server_key_der_2048, bufSz), 0);
+        EVP_PKEY_free(pkey);
+    }
+#endif
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+    {
+        EVP_PKEY* pkey;
+        const unsigned char* client_key =
+            (const unsigned char*)ecc_clikey_der_256;
+        unsigned char buf[FOURK_BUF];
+        unsigned char* pt;
+        int bufSz;
+
+        AssertNotNull((pkey = d2i_PrivateKey(EVP_PKEY_EC, NULL, &client_key,
+                                                   sizeof_ecc_clikey_der_256)));
+        AssertIntEQ(i2d_PrivateKey(pkey, NULL), 121);
+        pt = buf;
+        AssertIntEQ((bufSz = i2d_PrivateKey(pkey, &pt)), 121);
+        AssertIntNE((pt - buf), 0);
+        AssertIntEQ(XMEMCMP(buf, ecc_clikey_der_256, bufSz), 0);
+        EVP_PKEY_free(pkey);
+    }
+#endif
+
+    printf(resultFmt, "passed");
+#endif
+}
 
 static void test_no_op_functions(void)
 {
@@ -27011,6 +27057,7 @@ void ApiTest(void)
     test_wolfSSL_DES_ncbc();
     test_wolfSSL_AES_cbc_encrypt();
     test_wolfssl_EVP_aes_gcm();
+    test_wolfSSL_i2d_PrivateKey();
 
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)) && !defined(NO_RSA)
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_ASN1(), WOLFSSL_SUCCESS);
