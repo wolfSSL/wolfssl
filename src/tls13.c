@@ -134,6 +134,14 @@
     #error The build option HAVE_HKDF is required for TLS 1.3
 #endif
 
+#ifndef HAVE_TLS_EXTENSIONS
+    #ifndef _MSC_VER
+        #error "The build option HAVE_TLS_EXTENSIONS is required for TLS 1.3"
+    #else
+        #pragma message("error: The build option HAVE_TLS_EXTENSIONS is required for TLS 1.3")
+    #endif
+#endif
+
 
 /* Set ret to error value and jump to label.
  *
@@ -4015,7 +4023,8 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 #endif
 
-#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+#if (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
+     defined(HAVE_TLS_EXTENSIONS)
         if (TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY) != NULL) {
             if (ssl->options.downgrade) {
                 if ((ret = InitHandshakeHashes(ssl)) != 0)

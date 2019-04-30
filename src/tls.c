@@ -63,12 +63,13 @@
 static int TLSX_KeyShare_IsSupported(int namedGroup);
 #endif
 
-#if (!defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TLS13) && \
+#if ((!defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TLS13) && \
         !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)) || \
     (defined(WOLFSSL_TLS13) && !defined(HAVE_ECC) && \
         !defined(HAVE_CURVE25519) && defined(HAVE_SUPPORTED_CURVES)) || \
     ((defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
-        defined(HAVE_SUPPORTED_CURVES))
+        defined(HAVE_SUPPORTED_CURVES))) && \
+     defined(HAVE_TLS_EXTENSIONS)
 static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
 #endif
 
@@ -96,6 +97,13 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
     #endif
     #if !defined(NO_RSA) && !defined(WC_RSA_PSS)
         #error The build option WC_RSA_PSS is required for TLS 1.3 with RSA
+    #endif
+    #ifndef HAVE_TLS_EXTENSIONS
+        #ifndef _MSC_VER
+            #error "The build option HAVE_TLS_EXTENSIONS is required for TLS 1.3"
+        #else
+            #pragma message("Error: The build option HAVE_TLS_EXTENSIONS is required for TLS 1.3")
+        #endif
     #endif
 #endif
 
