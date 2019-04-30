@@ -291,7 +291,7 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
     }
 
     do {
-        if (ctx->FindFileData.dwFileAttributes != FILE_ATTRIBUTE_DIRECTORY) {
+        if (!(ctx->FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
             dnameLen = (int)XSTRLEN(ctx->FindFileData.cFileName);
 
             if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
@@ -427,7 +427,7 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
 
 #ifdef USE_WINDOWS_API
     while (FindNextFileA(ctx->hFind, &ctx->FindFileData)) {
-        if (ctx->FindFileData.dwFileAttributes != FILE_ATTRIBUTE_DIRECTORY) {
+        if (!(ctx->FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
             dnameLen = (int)XSTRLEN(ctx->FindFileData.cFileName);
 
             if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
