@@ -56,6 +56,9 @@
                                           ASN1_STRFLGS_DUMP_DER)
 
 #define MBSTRING_UTF8                    0x1000
+#define MBSTRING_ASC                     0x1001
+#define MBSTRING_BMP                     0x1002
+#define MBSTRING_UNIV                    0x1004
 
 #define ASN1_UTCTIME_print              wolfSSL_ASN1_UTCTIME_print
 #define ASN1_TIME_check                 wolfSSL_ASN1_TIME_check

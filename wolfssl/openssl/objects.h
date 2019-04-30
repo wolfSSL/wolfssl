@@ -49,6 +49,10 @@
 #define OPENSSL_load_builtin_modules()
 
 
+#define NID_ad_OCSP                     178
+#define NID_ad_ca_issuers               179
+
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif
