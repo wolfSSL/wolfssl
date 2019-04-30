@@ -7091,8 +7091,8 @@ int wc_ecc_sig_size_calc(int sz)
     /* maximum possible signature header size is 7 bytes plus 2 bytes padding */
     maxSigSz = (sz * 2) + SIG_HEADER_SZ + ECC_MAX_PAD_SZ;
 
-    /* if total length is less than or equal to 128 then subtract 1 */
-    if (maxSigSz <= 128) {
+    /* if total length is less than 128 + SEQ(1)+LEN(1) then subtract 1 */
+    if (maxSigSz < (128 + 2)) {
         maxSigSz -= 1;
     }
 
@@ -7119,8 +7119,8 @@ int wc_ecc_sig_size(ecc_key* key)
         /* MSB can be set, so add 2 */
         maxSigSz += ECC_MAX_PAD_SZ;
     }
-    /* if total length is less than or equal to 128 then subtract 1 */
-    if (maxSigSz <= 128) {
+    /* if total length is less than 128 + SEQ(1)+LEN(1) then subtract 1 */
+    if (maxSigSz < (128 + 2)) {
         maxSigSz -= 1;
     }
 
