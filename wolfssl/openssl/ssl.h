@@ -321,6 +321,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define X509_get_ext_count              wolfSSL_X509_get_ext_count
 #define X509_get_ext_d2i                wolfSSL_X509_get_ext_d2i
 #define X509_get_ext_by_NID             wolfSSL_X509_get_ext_by_NID
+#define X509_get_ext                    wolfSSL_X509_get_ext
 #define X509_get_issuer_name            wolfSSL_X509_get_issuer_name
 #define X509_get_subject_name           wolfSSL_X509_get_subject_name
 #define X509_get_pubkey                 wolfSSL_X509_get_pubkey
@@ -550,6 +551,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define ASN1_STRING_to_UTF8             wolfSSL_ASN1_STRING_to_UTF8
 #define ASN1_STRING_print_ex            wolfSSL_ASN1_STRING_print_ex
 #define ASN1_STRING_print(x, y)         wolfSSL_ASN1_STRING_print ((WOLFSSL_BIO*)(x), (WOLFSSL_ASN1_STRING*)(y))
+#define d2i_DISPLAYTEXT                 wolfSSL_d2i_DISPLAYTEXT
 
 #define ASN1_UTCTIME_pr                 wolfSSL_ASN1_UTCTIME_pr
 

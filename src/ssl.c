@@ -19470,6 +19470,17 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
         }
     }
 
+#ifndef NO_WOLFSSL_STUB
+    WOLFSSL_ASN1_STRING* wolfSSL_d2i_DISPLAYTEXT(WOLFSSL_ASN1_STRING **asn,
+                                                  unsigned char **in, long len)
+    {
+        WOLFSSL_STUB("d2i_DISPLAYTEXT");
+        (void)asn;
+        (void)in;
+        (void)len;
+        return NULL;
+    }
+#endif
 
 #ifdef XSNPRINTF /* a snprintf function needs to be available */
     /* Writes the human readable form of x509 to bio.

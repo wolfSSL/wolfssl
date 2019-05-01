@@ -99,6 +99,7 @@ WOLFSSL_API int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out,
 #define ASN1_OCTET_STRING         WOLFSSL_ASN1_STRING
 #define X509V3_EXT_get            wolfSSL_X509V3_EXT_get
 #define X509V3_EXT_d2i            wolfSSL_X509V3_EXT_d2i
+#define X509V3_EXT_print   wolfSSL_X509V3_EXT_print
 #define i2s_ASN1_OCTET_STRING     wolfSSL_i2s_ASN1_STRING
 #define X509V3_EXT_print          wolfSSL_X509V3_EXT_print
 
