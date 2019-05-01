@@ -343,6 +343,9 @@ struct WOLFSSL_EVP_PKEY {
     int type;         /* openssh dereference */
     int save_type;    /* openssh dereference */
     int pkey_sz;
+    int references;  /*number of times free should be called for complete free*/
+    wolfSSL_Mutex    refMutex; /* ref count mutex */
+
     union {
         char* ptr; /* der format of key / or raw for NTRU */
     } pkey;
@@ -1012,6 +1015,7 @@ WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl);
 WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_new(void);
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 WOLFSSL_API int wolfSSL_X509_up_ref(WOLFSSL_X509* x509);
+WOLFSSL_API int wolfSSL_EVP_PKEY_up_ref(WOLFSSL_EVP_PKEY* pkey);
 #endif
 
 WOLFSSL_API int wolfSSL_OCSP_parse_url(char* url, char** host, char** port,

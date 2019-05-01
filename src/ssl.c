@@ -18952,11 +18952,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
     WOLFSSL_EVP_PKEY* key = NULL;
     WOLFSSL_ENTER("X509_get_pubkey");
     if (x509 != NULL) {
-        key = (WOLFSSL_EVP_PKEY*)XMALLOC(
-                    sizeof(WOLFSSL_EVP_PKEY), x509->heap,
-                                                       DYNAMIC_TYPE_PUBLIC_KEY);
+        key = wolfSSL_PKEY_new_ex(x509->heap);
         if (key != NULL) {
-            XMEMSET(key, 0, sizeof(WOLFSSL_EVP_PKEY));
             if (x509->pubKeyOID == RSAk) {
                 key->type = EVP_PKEY_RSA;
             }
@@ -22013,6 +22010,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new_ex(void* heap)
             WOLFSSL_MSG("memory failure");
             return NULL;
         }
+        pkey->references = 1;
+        wc_InitMutex(&pkey->refMutex);
     }
     else {
         WOLFSSL_MSG("memory failure");
@@ -22024,38 +22023,52 @@ WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new_ex(void* heap)
 
 void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
 {
+    int doFree = 0;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_free");
     if (key != NULL) {
-        wc_FreeRng(&key->rng);
-
-        if (key->pkey.ptr != NULL) {
-            XFREE(key->pkey.ptr, key->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            key->pkey.ptr = NULL;
+        if (wc_LockMutex(&key->refMutex) != 0) {
+            WOLFSSL_MSG("Couldn't lock pkey mutex");
         }
-        switch(key->type)
-        {
-            #ifndef NO_RSA
-            case EVP_PKEY_RSA:
-                if (key->rsa != NULL && key->ownRsa == 1) {
-                    wolfSSL_RSA_free(key->rsa);
-                    key->rsa = NULL;
-                }
-                break;
-            #endif /* NO_RSA */
 
-            #ifdef HAVE_ECC
-            case EVP_PKEY_EC:
-                if (key->ecc != NULL && key->ownEcc == 1) {
-                    wolfSSL_EC_KEY_free(key->ecc);
-                    key->ecc = NULL;
-                }
-                break;
-            #endif /* HAVE_ECC */
-
-            default:
-            break;
+        /* only free if all references to it are done */
+        key->references--;
+        if (key->references == 0) {
+            doFree = 1;
         }
-        XFREE(key, key->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        wc_UnLockMutex(&key->refMutex);
+
+        if (doFree) {
+            wc_FreeRng(&key->rng);
+
+            if (key->pkey.ptr != NULL) {
+                XFREE(key->pkey.ptr, key->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                key->pkey.ptr = NULL;
+            }
+            switch(key->type)
+            {
+                #ifndef NO_RSA
+                case EVP_PKEY_RSA:
+                    if (key->rsa != NULL && key->ownRsa == 1) {
+                        wolfSSL_RSA_free(key->rsa);
+                        key->rsa = NULL;
+                    }
+                    break;
+                #endif /* NO_RSA */
+
+                #ifdef HAVE_ECC
+                case EVP_PKEY_EC:
+                    if (key->ecc != NULL && key->ownEcc == 1) {
+                        wolfSSL_EC_KEY_free(key->ecc);
+                        key->ecc = NULL;
+                    }
+                    break;
+                #endif /* HAVE_ECC */
+
+                default:
+                break;
+            }
+            XFREE(key, key->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        }
     }
 }
 #endif /* OPENSSL_EXTRA_X509_SMALL */
@@ -33524,6 +33537,21 @@ int wolfSSL_X509_up_ref(WOLFSSL_X509* x509)
     return 0;
 }
 
+/* increments ref count of WOLFSSL_EVP_PKEY. Return 1 on success, 0 on error */
+int wolfSSL_EVP_PKEY_up_ref(WOLFSSL_EVP_PKEY* pkey)
+{
+    if (pkey) {
+        if (wc_LockMutex(&pkey->refMutex) != 0) {
+            WOLFSSL_MSG("Failed to lock pkey mutex");
+        }
+        pkey->references++;
+        wc_UnLockMutex(&pkey->refMutex);
+
+        return 1;
+    }
+
+    return 0;
+}
 #endif /* OPENSSL_EXTRA || OPENSSL_ALL */
 
 

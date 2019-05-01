@@ -24347,6 +24347,24 @@ static void test_wolfSSL_X509_cmp(void)
 #endif
 }
 
+static void test_wolfSSL_PKEY_up_ref()
+{
+#if defined(OPENSSL_ALL)
+    EVP_PKEY* pkey;
+    printf(testingFmt, "wolfSSL_PKEY_up_ref()");
+
+    pkey = EVP_PKEY_new();
+    AssertIntEQ(EVP_PKEY_up_ref(NULL), 0);
+    AssertIntEQ(EVP_PKEY_up_ref(pkey), 1);
+    EVP_PKEY_free(pkey);
+    AssertIntEQ(EVP_PKEY_up_ref(pkey), 1);
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_free(pkey);
+
+    printf(resultFmt, "passed");
+#endif
+}
+
 static void test_wolfSSL_i2d_PrivateKey()
 {
 #if (!defined(NO_RSA) || defined(HAVE_ECC)) && defined(OPENSSL_EXTRA)
@@ -27109,6 +27127,7 @@ void ApiTest(void)
     test_wolfSSL_DES_ncbc();
     test_wolfSSL_AES_cbc_encrypt();
     test_wolfssl_EVP_aes_gcm();
+    test_wolfSSL_PKEY_up_ref();
     test_wolfSSL_i2d_PrivateKey();
 
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)) && !defined(NO_RSA)

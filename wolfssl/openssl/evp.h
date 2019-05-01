@@ -616,6 +616,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_PKEY_encrypt_init          wolfSSL_EVP_PKEY_encrypt_init
 #define EVP_PKEY_new                   wolfSSL_PKEY_new
 #define EVP_PKEY_free                  wolfSSL_EVP_PKEY_free
+#define EVP_PKEY_up_ref                wolfSSL_EVP_PKEY_up_ref
 #define EVP_PKEY_size                  wolfSSL_EVP_PKEY_size
 #define EVP_PKEY_type                  wolfSSL_EVP_PKEY_type
 #define EVP_PKEY_base_id               wolfSSL_EVP_PKEY_base_id
