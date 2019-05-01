@@ -1500,6 +1500,7 @@ fi
 
 AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
 
+
 # ECC Custom Curves
 AC_ARG_ENABLE([ecccustcurves],
     [AS_HELP_STRING([--enable-ecccustcurves],[Enable ECC custom curves (default: disabled)])],
@@ -1511,7 +1512,7 @@ if test "$ENABLED_ECCCUSTCURVES" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CUSTOM_CURVES"
 
-    # For distro or all builds, enable all curve types
+    # For distro, all or ecccustcurves=all builds, enable all curve types
     if test "$ENABLED_DISTRO" = "yes" || test "$ENABLED_ALL" = "yes" || test "$ENABLED_ECCCUSTCURVES" = "all"
     then
         # Enable ECC SECPR2, SECPR3, BRAINPOOL and KOBLITZ curves
@@ -1519,6 +1520,12 @@ then
 
         # Enable ECC Cofactor support
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_CDH"
+
+        # If fastmath enabled and on x86 use speedups
+        if test "x$ENABLED_FASTMATH" = "xyes" && test "$host_cpu" = "x86_64"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DTFM_ECC192 -DTFM_ECC224 -DTFM_ECC256 -DTFM_ECC384 -DTFM_ECC521"
+        fi
     fi
 fi
 

@@ -14821,7 +14821,7 @@ static int test_wc_ecc_sig_size (void)
 
     if (ret == 0) {
         ret = wc_ecc_sig_size(&key);
-        if (ret == (2 * keySz + SIG_HEADER_SZ + ECC_MAX_PAD_SZ)) {
+        if (ret <= (2 * keySz + SIG_HEADER_SZ + ECC_MAX_PAD_SZ)) {
             ret = 0;
         }
     }
