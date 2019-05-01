@@ -46,6 +46,12 @@
     extern "C" {
 #endif
 
+#ifndef DSA_HALF_SIZE
+  #define DSA_HALF_SIZE 20    /* r and s size  */
+#endif
+#ifndef DSA_SIG_SIZE          /* signature size */
+  #define DSA_SIG_SIZE  2*DSA_HALF_SIZE
+#endif
 
 enum {
     DSA_PUBLIC   = 0,

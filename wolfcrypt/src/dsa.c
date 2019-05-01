@@ -42,14 +42,6 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-
-enum {
-    DSA_HALF_SIZE = 20,   /* r and s size  */
-    DSA_SIG_SIZE  = 40    /* signature size */
-};
-
-
-
 int wc_InitDsaKey(DsaKey* key)
 {
     if (key == NULL)
