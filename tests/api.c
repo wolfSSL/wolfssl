@@ -11625,7 +11625,7 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
 
     /* Decrypt */
     printf(testingFmt, "wc_RsaPrivateDecrypt()");
-    #if defined(WC_RSA_BLINDING)
+    #if defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS)
         /* Bind rng */
         if (ret == 0) {
             ret = wc_RsaSetRNG(&key, &rng);
@@ -11713,7 +11713,7 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
 
     /* Decrypt */
     printf(testingFmt, "wc_RsaPrivateDecrypt_ex()");
-    #if defined(WC_RSA_BLINDING)
+    #if defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS)
         if (ret == 0) {
             ret = wc_RsaSetRNG(&key, &rng);
         }

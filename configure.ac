@@ -4456,6 +4456,14 @@ then
 fi
 
 
+# User Settings
+AC_ARG_ENABLE([usersettings],
+    [AS_HELP_STRING([--enable-usersettings],[Use your own user_settings.h and do not add Makefile CFLAGS (default: disabled)])],
+    [ ENABLED_USERSETTINGS=$enableval ],
+    [ ENABLED_USERSETTINGS=no ]
+    )
+
+
 # Default optimization CFLAGS enable
 AC_ARG_ENABLE([optflags],
     [AS_HELP_STRING([--enable-optflags],[Enable default optimization CFLAGS for the compiler (default: enabled)])],
@@ -4679,6 +4687,13 @@ AS_IF([test "x$ENABLED_WOLFSSH" = "xyes"],
 
 ################################################################################
 
+# USER SETTINGS
+if test "x$ENABLED_USERSETTINGS" = "xyes"
+then
+    # Replace all options and just use WOLFSSL_USER_SETTINGS
+    AM_CFLAGS="-DWOLFSSL_USER_SETTINGS"
+fi
+
 # OPTIMIZE FLAGS
 # For distro disable custom build options that interfere with symbol generation
 if test "$GCC" = "yes" && test "$ENABLED_DISTRO" = "no"
@@ -4710,7 +4725,7 @@ fi
 # Expose HAVE___UINT128_T to options flags"
 if test "$ac_cv_type___uint128_t" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE___UINT128_T"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE___UINT128_T=1"
 fi
 
 
