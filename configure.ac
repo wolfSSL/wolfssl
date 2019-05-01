@@ -1806,7 +1806,6 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_QT -DWOLFSSL_ALLOW_TLSV10 -DSESSION_CERTS -DOPENSSL_NO_SSL2"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_SSLV3 -DWOLFSSL_KEY_GEN"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CUSTOM_CURVES -DHAVE_ECC_SECPR2 -DHAVE_ECC_SECPR3 -DHAVE_ECC_BRAINPOOL -DHAVE_ECC_KOBLITZ"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SEP"
 
     # Requires OCSP make sure on
     if test "x$ENABLED_OCSP" = "xno"
@@ -1826,6 +1825,18 @@ then
     if test "x$ENABLED_ARC4" = "xno"
     then
        ENABLED_ARC4="yes"
+    fi
+
+    if test "x$ENABLED_CERTEXT" = "xno"
+    then
+        ENABLED_CERTEXT="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"
+    fi
+
+    if test "x$ENABLED_CERTGEN" = "xno"
+    then
+        ENABLED_CERTGEN="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN"
     fi
 
     # requires oldnames disabled

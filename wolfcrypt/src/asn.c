@@ -7821,7 +7821,7 @@ int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
 }
 #endif /* WOLFSSL_CERT_EXT && !WOLFSSL_SEP */
 
-#if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
+#if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_QT)
     /* Reference: https://tools.ietf.org/html/rfc5280#section-4.2.1.4 */
     static int DecodeCertPolicy(const byte* input, int sz, DecodedCert* cert)
     {
@@ -8078,14 +8078,15 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case CERT_POLICY_OID:
-                #ifdef WOLFSSL_SEP
+                #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
                     VERIFY_AND_SET_OID(cert->extCertPolicySet);
                     #if defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)
                         cert->extCertPolicyCrit = critical;
                     #endif
                 #endif
-                #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
+                #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT) || \
+                    defined(WOLFSSL_QT)
                     if (DecodeCertPolicy(&input[idx], length, cert) < 0) {
                         return ASN_PARSE_E;
                     }

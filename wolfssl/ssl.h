@@ -371,7 +371,6 @@ struct WOLFSSL_X509_STORE {
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     #define wolfSSL_SSL_MODE_RELEASE_BUFFERS    0x00000010U
     #define wolfSSL_SSL_CTRL_SET_TMP_ECDH       4
-    #define WOLFSSL_ASN1_BOOLEAN                int
 
     typedef struct WOLFSSL_X509_PUBKEY {
         WOLFSSL_ASN1_BIT_STRING* public_key;

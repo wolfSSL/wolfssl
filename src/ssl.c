@@ -18531,9 +18531,9 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
                 case EXT_KEY_USAGE_OID: isSet = ((x509->extKeyUsageSrc) ? 1 : 0);
                     break;
                 case AUTH_INFO_OID: isSet = x509->authInfoSet; break;
-                #ifdef WOLFSSL_SEP
+                #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
                     case CERT_POLICY_OID: isSet = x509->certPolicySet; break;
-                #endif /* WOLFSSL_SEP */
+                #endif /* WOLFSSL_SEP || WOLFSSL_QT */
                 default:
                     WOLFSSL_MSG("NID not in table");
             }
@@ -18559,9 +18559,9 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
                 case SUBJ_KEY_OID: crit = x509->subjKeyIdCrit; break;
                 case KEY_USAGE_OID: crit = x509->keyUsageCrit; break;
                 case CRL_DIST_OID: crit= x509->CRLdistCrit; break;
-                #ifdef WOLFSSL_SEP
+                #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
                     case CERT_POLICY_OID: crit = x509->certPolicyCrit; break;
-                #endif /* WOLFSSL_SEP */
+                #endif /* WOLFSSL_SEP || WOLFSSL_QT */
             }
         }
 

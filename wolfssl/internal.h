@@ -3468,11 +3468,12 @@ struct WOLFSSL_X509 {
     byte             hwType[EXTERNAL_SERIAL_SIZE];
     int              hwSerialNumSz;
     byte             hwSerialNum[EXTERNAL_SERIAL_SIZE];
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        byte             certPolicySet;
-        byte             certPolicyCrit;
-    #endif /* OPENSSL_EXTRA */
-#endif
+#endif /* WOLFSSL_SEP */
+#if (defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+    byte             certPolicySet;
+    byte             certPolicyCrit;
+#endif /* (WOLFSSL_SEP || WOLFSSL_QT) && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
     int              notBeforeSz;
     int              notAfterSz;
     byte             notBefore[MAX_DATE_SZ];

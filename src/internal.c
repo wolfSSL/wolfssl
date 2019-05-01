@@ -8750,10 +8750,10 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             ret = MEMORY_E;
         }
     }
-    #ifdef WOLFSSL_SEP
+    #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
         x509->certPolicySet = dCert->extCertPolicySet;
         x509->certPolicyCrit = dCert->extCertPolicyCrit;
-    #endif /* WOLFSSL_SEP */
+    #endif /* WOLFSSL_SEP || WOLFSSL_QT */
     #ifdef WOLFSSL_CERT_EXT
         {
             int i;

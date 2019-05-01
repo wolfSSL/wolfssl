@@ -864,7 +864,7 @@ struct DecodedCert {
     byte extSubjAltNameSet : 1;
     byte inhibitAnyOidSet : 1;
     byte selfSigned : 1;           /* Indicates subject and issuer are same */
-#ifdef WOLFSSL_SEP
+#if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
     byte extCertPolicySet : 1;
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -880,7 +880,7 @@ struct DecodedCert {
     byte extKeyUsageCrit : 1;
     byte extExtKeyUsageCrit : 1;
 #endif /* OPENSSL_EXTRA */
-#ifdef WOLFSSL_SEP
+#if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
     byte extCertPolicyCrit : 1;
 #endif
 
