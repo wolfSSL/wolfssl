@@ -32425,7 +32425,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
         *key = pkey;
 
 
-    WOLFSSL_LEAVE("wolfSSL_PEM_read_bio_PUBKEY", 0);
+    WOLFSSL_LEAVE("wolfSSL_PEM_read_bio_PrivateKey", 0);
 
     return pkey;
 }
