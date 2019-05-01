@@ -453,6 +453,7 @@ WOLFSSL_API int  wolfSSL_EVP_add_cipher(const WOLFSSL_EVP_CIPHER *cipher);
 WOLFSSL_API void wolfSSL_EVP_cleanup(void);
 WOLFSSL_API int  wolfSSL_add_all_algorithms(void);
 WOLFSSL_API int  wolfSSL_OpenSSL_add_all_algorithms_noconf(void);
+WOLFSSL_API int wolfSSL_EVP_read_pw_string(char*, int, const char*, int);
 
 WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char * pass, int passlen,
                                                const unsigned char * salt,
@@ -637,6 +638,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_add_digest             wolfSSL_EVP_add_digest
 #define EVP_add_cipher             wolfSSL_EVP_add_cipher
 #define EVP_cleanup                wolfSSL_EVP_cleanup
+#define EVP_read_pw_string         wolfSSL_EVP_read_pw_string
 
 #define OpenSSL_add_all_digests()  wolfCrypt_Init()
 #define OpenSSL_add_all_ciphers()  wolfCrypt_Init()

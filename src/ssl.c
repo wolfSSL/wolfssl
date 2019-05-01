@@ -25,6 +25,11 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#if defined(OPENSSL_ALL)
+    /* turn on GNU extensions for vasprintf with wolfSSL_BIO_printf */
+    #undef  _GNU_SOURCE
+    #define _GNU_SOURCE
+#endif
 
 #ifndef WOLFCRYPT_ONLY
 

@@ -1798,6 +1798,80 @@ int wolfSSL_EVP_DigestVerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
 
     return WOLFSSL_FAILURE;
 }
+
+#ifdef WOLFSSL_APACHE_HTTPD
+#if !defined(USE_WINDOWS_API) && !defined(MICROCHIP_PIC32)
+    #include <termios.h>
+#endif
+
+#ifndef XGETPASSWD
+    static int XGETPASSWD(char* buf, int bufSz) {
+        int ret = WOLFSSL_SUCCESS;
+
+        /* turn off echo for passwords */
+    #ifdef USE_WINDOWS_API
+        DWORD originalTerm;
+        DWORD newTerm;
+        CONSOLE_SCREEN_BUFFER_INFO screenOrig;
+        HANDLE stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
+        if (GetConsoleMode(stdinHandle, &originalTerm) == 0) {
+            WOLFSSL_MSG("Couldn't get the original terminal settings");
+            return WOLFSSL_FAILURE;
+        }
+        newTerm = originalTerm;
+        newTerm &= ~ENABLE_ECHO_INPUT;
+        if (SetConsoleMode(stdinHandle, newTerm) == 0) {
+            WOLFSSL_MSG("Couldn't turn off echo");
+            return WOLFSSL_FAILURE;
+        }
+    #else
+        struct termios originalTerm;
+        struct termios newTerm;
+        if (tcgetattr(STDIN_FILENO, &originalTerm) != 0) {
+            WOLFSSL_MSG("Couldn't get the original terminal settings");
+            return WOLFSSL_FAILURE;
+        }
+        XMEMCPY(&newTerm, &originalTerm, sizeof(struct termios));
+
+        newTerm.c_lflag &= ~ECHO;
+        newTerm.c_lflag |= (ICANON | ECHONL);
+        if (tcsetattr(STDIN_FILENO, TCSANOW, &newTerm) != 0) {
+            WOLFSSL_MSG("Couldn't turn off echo");
+            return WOLFSSL_FAILURE;
+        }
+    #endif
+
+        if (XFGETS(buf, bufSz, stdin) == NULL) {
+            ret = WOLFSSL_FAILURE;
+        }
+
+        /* restore default echo */
+    #ifdef USE_WINDOWS_API
+        if (SetConsoleMode(stdinHandle, originalTerm) == 0) {
+            WOLFSSL_MSG("Couldn't restore the terminal settings");
+            return WOLFSSL_FAILURE;
+        }
+    #else
+        if (tcsetattr(STDIN_FILENO, TCSANOW, &originalTerm) != 0) {
+            WOLFSSL_MSG("Couldn't restore the terminal settings");
+            return WOLFSSL_FAILURE;
+        }
+    #endif
+        return ret;
+    }
+#endif
+
+/* returns 0 on success and -2 or -1 on failure */
+int wolfSSL_EVP_read_pw_string(char* buf, int bufSz, const char* banner, int v)
+{
+    printf("%s", banner);
+    if (XGETPASSWD(buf, bufSz) == WOLFSSL_FAILURE) {
+        return -1;
+    }
+    (void)v; /* fgets always sanity checks size of input vs buffer */
+    return 0;
+}
+#endif /* WOLFSSL_APACHE_HTTPD */
 #endif /* WOLFSSL_EVP_INCLUDED */
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_PWDBASED) && !defined(NO_SHA)
