@@ -338,6 +338,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #endif
 #define X509_get_signature_nid          wolfSSL_X509_get_signature_nid
 #define X509_set_subject_name           wolfSSL_X509_set_subject_name
+#define X509_set_issuer_name            wolfSSL_X509_set_issuer_name
 #define X509_set_pubkey                 wolfSSL_X509_set_pubkey
 #define X509_print                      wolfSSL_X509_print
 #define X509_verify_cert_error_string   wolfSSL_X509_verify_cert_error_string

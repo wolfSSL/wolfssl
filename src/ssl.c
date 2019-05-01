@@ -41581,36 +41581,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_AutoPrivateKey(WOLFSSL_EVP_PKEY** pkey,
 
     return key;
 }
-#endif
 
-#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && \
-                                                       defined(WOLFSSL_CERT_REQ)
-int wolfSSL_i2d_X509_REQ(WOLFSSL_X509* req, unsigned char** out)
-{
-    const unsigned char* der;
-    int derSz = 0;
-
-    if (req == NULL || out == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    der = wolfSSL_X509_get_der(req, &derSz);
-    if (der == NULL) {
-        return MEMORY_E;
-    }
-
-    if (*out == NULL) {
-        *out = (unsigned char*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_OPENSSL);
-        if (*out == NULL) {
-            return MEMORY_E;
-        }
-    }
-
-    XMEMCPY(*out, der, derSz);
-
-    return derSz;
-}
-
+#ifndef NO_CERTS
 int wolfSSL_X509_set_subject_name(WOLFSSL_X509 *cert, WOLFSSL_X509_NAME *name)
 {
     int i;
@@ -41638,6 +41610,67 @@ int wolfSSL_X509_set_subject_name(WOLFSSL_X509 *cert, WOLFSSL_X509_NAME *name)
     cert->subject.x509 = cert;
 
     return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_X509_set_issuer_name(WOLFSSL_X509 *cert, WOLFSSL_X509_NAME *name)
+{
+    int i;
+    WOLFSSL_X509_NAME_ENTRY* ne;
+
+    if (cert == NULL || name == NULL)
+        return WOLFSSL_FAILURE;
+
+    FreeX509Name(&cert->issuer, cert->heap);
+    InitX509Name(&cert->issuer, 0);
+    if (name->dynamicName) {
+        cert->issuer.name = (char*)XMALLOC(name->sz, cert->heap,
+                                                       DYNAMIC_TYPE_SUBJECT_CN);
+        if (cert->issuer.name == NULL)
+            return WOLFSSL_FAILURE;
+    }
+    XMEMCPY(cert->issuer.name, name->name, name->sz);
+    cert->issuer.sz = name->sz;
+
+    for (i = 0; i < 10; i++) {
+        ne = wolfSSL_X509_NAME_get_entry(name, i);
+        if (ne != NULL)
+            wolfSSL_X509_NAME_add_entry(&cert->issuer, ne, i, 1);
+    }
+    cert->issuer.x509 = cert;
+
+    return WOLFSSL_SUCCESS;
+}
+#endif /* NO_CERTS */
+
+#endif /* OPENSSL_ALL */
+
+
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && \
+                                                       defined(WOLFSSL_CERT_REQ)
+int wolfSSL_i2d_X509_REQ(WOLFSSL_X509* req, unsigned char** out)
+{
+    const unsigned char* der;
+    int derSz = 0;
+
+    if (req == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    der = wolfSSL_X509_get_der(req, &derSz);
+    if (der == NULL) {
+        return MEMORY_E;
+    }
+
+    if (*out == NULL) {
+        *out = (unsigned char*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (*out == NULL) {
+            return MEMORY_E;
+        }
+    }
+
+    XMEMCPY(*out, der, derSz);
+
+    return derSz;
 }
 
 int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)

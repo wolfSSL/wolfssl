@@ -22125,6 +22125,41 @@ static void test_wolfSSL_X509_NAME_ENTRY(void)
 }
 
 
+static void test_wolfSSL_X509_set_name(void)
+{
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS)
+    X509* x509;
+    X509_NAME* name;
+
+    printf(testingFmt, "wolfSSL_X509_set_name()");
+
+    AssertNotNull(name = X509_NAME_new());
+    AssertIntEQ(X509_NAME_add_entry_by_txt(name, "commonName", MBSTRING_UTF8,
+                                           (byte*)"wolfssl.com", 11, 0, 1),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(X509_NAME_add_entry_by_txt(name, "emailAddress", MBSTRING_UTF8,
+                                           (byte*)"support@wolfssl.com", 19, -1,
+                                           1), WOLFSSL_SUCCESS);
+    AssertNotNull(x509 = X509_new());
+
+    AssertIntEQ(X509_set_subject_name(NULL, NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(X509_set_subject_name(x509, NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(X509_set_subject_name(NULL, name), WOLFSSL_FAILURE);
+    AssertIntEQ(X509_set_subject_name(x509, name), WOLFSSL_SUCCESS);
+
+    AssertIntEQ(X509_set_issuer_name(NULL, NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(X509_set_issuer_name(x509, NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(X509_set_issuer_name(NULL, name), WOLFSSL_FAILURE);
+    AssertIntEQ(X509_set_issuer_name(x509, name), WOLFSSL_SUCCESS);
+
+    X509_free(x509);
+    X509_NAME_free(name);
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_ALL && !NO_CERTS */
+}
+
+
 static void test_wolfSSL_BIO_gets(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -27091,6 +27126,7 @@ void ApiTest(void)
     test_wolfSSL_i2a_ASN1_OBJECT();
     test_wolfSSL_OBJ_txt2nid();
     test_wolfSSL_X509_NAME_ENTRY();
+    test_wolfSSL_X509_set_name();
     test_wolfSSL_BIO_gets();
     test_wolfSSL_BIO_puts();
     test_wolfSSL_d2i_PUBKEY();
