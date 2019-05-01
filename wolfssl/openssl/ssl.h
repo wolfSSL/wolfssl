@@ -314,6 +314,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define PEM_write_bio_X509_REQ          wolfSSL_PEM_write_bio_X509_REQ
 
 #define X509_new                        wolfSSL_X509_new
+#define X509_up_ref                     wolfSSL_X509_up_ref
 #define X509_free                       wolfSSL_X509_free
 #define X509_load_certificate_file      wolfSSL_X509_load_certificate_file
 #define X509_digest                     wolfSSL_X509_digest

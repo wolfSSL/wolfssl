@@ -21415,6 +21415,15 @@ static void test_wolfSSL_X509(void)
     X509_free(x509);
     XFCLOSE(fp);
 
+    /* X509_up_ref test */
+    AssertIntEQ(X509_up_ref(NULL), 0);
+    AssertNotNull(x509 = X509_new());   /* refCount = 1 */
+    AssertIntEQ(X509_up_ref(x509), 1);  /* refCount = 2 */
+    AssertIntEQ(X509_up_ref(x509), 1);  /* refCount = 3 */
+    X509_free(x509); /* refCount = 2 */
+    X509_free(x509); /* refCount = 1 */
+    X509_free(x509); /* refCount = 0, free */
+
     printf(resultFmt, passed);
     #endif
 }

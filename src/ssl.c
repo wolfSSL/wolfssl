@@ -33475,8 +33475,28 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
 }
 #endif /* HAVE_ECC */
 
-
 #endif /* OPENSSL_EXTRA */
+
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+
+/* increments ref count of WOLFSSL_X509. Return 1 on success, 0 on error */
+int wolfSSL_X509_up_ref(WOLFSSL_X509* x509)
+{
+    if (x509) {
+        if (wc_LockMutex(&x509->refMutex) != 0) {
+            WOLFSSL_MSG("Failed to lock x509 mutex");
+        }
+        x509->refCount++;
+        wc_UnLockMutex(&x509->refMutex);
+
+        return 1;
+    }
+
+    return 0;
+}
+
+#endif /* OPENSSL_EXTRA || OPENSSL_ALL */
 
 
 #ifdef WOLFSSL_ALT_CERT_CHAINS
