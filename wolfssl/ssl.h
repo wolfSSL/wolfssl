@@ -243,6 +243,11 @@ struct WOLFSSL_ASN1_STRING {
 
 #define WOLFSSL_MAX_SNAME 40
 
+#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+    #define MAX_EX_DATA 5  /* allow for five items of ex_data */
+#endif
+
+
 #define WOLFSSL_ASN1_DYNAMIC 0x1
 #define WOLFSSL_ASN1_DYNAMIC_DATA 0x2
 
@@ -506,7 +511,9 @@ typedef struct WOLFSSL_X509_STORE_CTX {
     WOLFSSL_X509_VERIFY_PARAM* param; /* certificate validation parameter */
 #endif
     char* domain;                /* subject CN domain name */
-    void* ex_data;               /* external data, for fortress build */
+#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+    void* ex_data[MAX_EX_DATA];  /* external data */
+#endif
     void* userCtx;               /* user ctx */
     int   error;                 /* current error */
     int   error_depth;           /* index of cert depth for this error */
@@ -1284,8 +1291,11 @@ typedef int (*client_cert_cb)(WOLFSSL *ssl, WOLFSSL_X509 **x509,
                               WOLFSSL_EVP_PKEY **pkey);
 WOLFSSL_API void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb);
 
-WOLFSSL_API void* wolfSSL_X509_STORE_CTX_get_ex_data(WOLFSSL_X509_STORE_CTX*, int);
-WOLFSSL_API int   wolfSSL_get_ex_data_X509_STORE_CTX_idx(void);
+WOLFSSL_API void* wolfSSL_X509_STORE_CTX_get_ex_data(
+        WOLFSSL_X509_STORE_CTX* ctx, int idx);
+WOLFSSL_API int  wolfSSL_X509_STORE_CTX_set_ex_data(WOLFSSL_X509_STORE_CTX* ctx,
+        int idx, void *data);
+WOLFSSL_API int  wolfSSL_get_ex_data_X509_STORE_CTX_idx(void);
 WOLFSSL_API void wolfSSL_X509_STORE_CTX_set_error(
                                            WOLFSSL_X509_STORE_CTX* ctx, int er);
 WOLFSSL_API void* wolfSSL_get_ex_data(const WOLFSSL*, int);

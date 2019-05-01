@@ -426,6 +426,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_STORE_CTX_cleanup          wolfSSL_X509_STORE_CTX_cleanup
 #define X509_STORE_CTX_set_error        wolfSSL_X509_STORE_CTX_set_error
 #define X509_STORE_CTX_get_ex_data      wolfSSL_X509_STORE_CTX_get_ex_data
+#define X509_STORE_CTX_set_ex_data      wolfSSL_X509_STORE_CTX_set_ex_data
 
 #define X509_STORE_new                  wolfSSL_X509_STORE_new
 #define X509_STORE_free                 wolfSSL_X509_STORE_free

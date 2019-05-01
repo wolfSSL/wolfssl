@@ -1433,10 +1433,6 @@ enum Misc {
 
     MAX_WOLFSSL_FILE_SIZE = 1024ul * 1024ul * 4,  /* 4 mb file size alloc limit */
 
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
-    MAX_EX_DATA        =   5,  /* allow for five items of ex_data */
-#endif
-
     MAX_X509_SIZE      = 2048, /* max static x509 buffer size */
     CERT_MIN_SIZE      =  256, /* min PEM cert size with header/footer */
 

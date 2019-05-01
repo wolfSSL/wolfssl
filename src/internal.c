@@ -9354,7 +9354,9 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         store->userCtx = ssl->verifyCbCtx;
         store->certs = args->certs;
         store->totalCerts = args->totalCerts;
-        store->ex_data = ssl;
+    #if defined(HAVE_EX_DATA) || defined(FORTRESS)
+        store->ex_data[0] = ssl;
+    #endif
 
     #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
         if (ssl->ctx->x509_store_pt != NULL) {

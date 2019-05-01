@@ -21697,8 +21697,8 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
 
         ctx->chain  = sk;
         ctx->domain = NULL;
-#ifdef HAVE_EX_DATA
-        ctx->ex_data = NULL;
+#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+        XMEMSET(ctx->ex_data, 0, MAX_EX_DATA * sizeof(void*));
 #endif
         ctx->userCtx = NULL;
         ctx->error = 0;
@@ -22606,17 +22606,40 @@ long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* i)
 }
 #endif
 
+/* get X509_STORE_CTX ex_data, max idx is MAX_EX_DATA */
 void* wolfSSL_X509_STORE_CTX_get_ex_data(WOLFSSL_X509_STORE_CTX* ctx, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get_ex_data");
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
-    if (ctx != NULL && idx == 0)
-        return ctx->ex_data;
-#else
+    #if defined(HAVE_EX_DATA) || defined(FORTRESS)
+    if (ctx != NULL && idx < MAX_EX_DATA && idx >= 0) {
+        return ctx->ex_data[idx];
+    }
+    #else
     (void)ctx;
     (void)idx;
-#endif
-    return 0;
+    #endif
+    return NULL;
+}
+
+
+/* set X509_STORE_CTX ex_data, max idx is MAX_EX_DATA. Return WOLFSSL_SUCCESS
+ * on success, WOLFSSL_FAILURE on error. */
+int wolfSSL_X509_STORE_CTX_set_ex_data(WOLFSSL_X509_STORE_CTX* ctx, int idx,
+                                       void *data)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_set_ex_data");
+    #if defined(HAVE_EX_DATA) || defined(FORTRESS)
+    if (ctx != NULL && idx < MAX_EX_DATA)
+    {
+        ctx->ex_data[idx] = data;
+        return WOLFSSL_SUCCESS;
+    }
+    #else
+    (void)ctx;
+    (void)idx;
+    (void)data;
+    #endif
+    return WOLFSSL_FAILURE;
 }
 
 
@@ -39453,6 +39476,7 @@ void *wolfSSL_X509_get_ex_data(X509 *x509, int idx)
     #endif
     return NULL;
 }
+
 int wolfSSL_X509_set_ex_data(X509 *x509, int idx, void *data)
 {
     WOLFSSL_ENTER("wolfSSL_X509_set_ex_data");
@@ -39469,6 +39493,7 @@ int wolfSSL_X509_set_ex_data(X509 *x509, int idx, void *data)
     #endif
     return WOLFSSL_FAILURE;
 }
+
 int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *name,
         const WOLFSSL_EVP_MD *type, unsigned char *md, unsigned int *len)
 {

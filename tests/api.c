@@ -20070,6 +20070,28 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     sk_X509_free(sk3);
 #endif
 
+    /* test X509_STORE_CTX_get/set_ex_data */
+    {
+        int i = 0, tmpData = 5;
+        int* tmpDataRet;
+        AssertNotNull(ctx = X509_STORE_CTX_new());
+    #if defined(HAVE_EX_DATA) || defined(FORTRESS)
+        for (i = 0; i < MAX_EX_DATA; i++) {
+            AssertIntEQ(X509_STORE_CTX_set_ex_data(ctx, i, &tmpData),
+                        WOLFSSL_SUCCESS);
+            tmpDataRet = X509_STORE_CTX_get_ex_data(ctx, i);
+            AssertNotNull(tmpDataRet);
+            AssertIntEQ(tmpData, *tmpDataRet);
+        }
+    #else
+        AssertIntEQ(X509_STORE_CTX_set_ex_data(ctx, i, &tmpData),
+                    WOLFSSL_FAILURE);
+        tmpDataRet = X509_STORE_CTX_get_ex_data(ctx, i);
+        AssertNull(tmpDataRet);
+    #endif
+        X509_STORE_CTX_free(ctx);
+    }
+
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
              !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
