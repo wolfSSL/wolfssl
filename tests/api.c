@@ -20932,6 +20932,38 @@ static void test_wolfSSL_set_options(void)
              !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
 }
 
+static void test_wolfSSL_sk_SSL_CIPHER(void)
+{
+    #if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+       !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    SSL*     ssl;
+    SSL_CTX* ctx;
+    STACK_OF(SSL_CIPHER) *sk, *dup;
+
+    printf(testingFmt, "wolfSSL_sk_SSL_CIPHER_*()");
+
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+    AssertNotNull(ssl = SSL_new(ctx));
+    AssertNotNull(sk = SSL_get_ciphers(ssl));
+    AssertNotNull(dup = sk_SSL_CIPHER_dup(sk));
+    AssertIntGT(sk_SSL_CIPHER_num(sk), 0);
+    AssertIntEQ(sk_SSL_CIPHER_num(sk), sk_SSL_CIPHER_num(dup));
+
+    /* error case because connection has not been established yet */
+    AssertIntEQ(sk_SSL_CIPHER_find(sk, SSL_get_current_cipher(ssl)), -1);
+    sk_SSL_CIPHER_free(dup);
+
+    /* sk is pointer to internal struct that should be free'd in SSL_free */
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+    #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+             !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
+}
+
 /* Testing  wolfSSL_set_tlsext_status_type funciton.
  * PRE: OPENSSL and HAVE_CERTIFICATE_STATUS_REQUEST defined.
  */
@@ -21824,6 +21856,8 @@ static void test_wolfSSL_ERR_put_error(void)
     AssertNull(file);
     AssertIntEQ(ERR_get_error_line_data(&file, &line, NULL, NULL), 0);
 
+    PEMerr(4,4);
+    AssertIntEQ(ERR_get_error(), -4);
     /* Empty and free up all error nodes */
     ERR_clear_error();
 
@@ -27089,6 +27123,7 @@ void ApiTest(void)
     test_wolfSSL_ERR_peek_last_error_line();
 #endif
     test_wolfSSL_set_options();
+    test_wolfSSL_sk_SSL_CIPHER();
     test_wolfSSL_X509_STORE_CTX();
     test_wolfSSL_msgCb();
     test_wolfSSL_either_side();

@@ -25,7 +25,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_EXTRA)
     /* turn on GNU extensions for vasprintf with wolfSSL_BIO_printf */
     #undef  _GNU_SOURCE
     #define _GNU_SOURCE
@@ -18598,8 +18598,11 @@ int wolfSSL_get_current_cipher_suite(WOLFSSL* ssl)
 WOLFSSL_CIPHER* wolfSSL_get_current_cipher(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("SSL_get_current_cipher");
-    if (ssl)
+    if (ssl) {
+        ssl->cipher.cipherSuite0 = ssl->options.cipherSuite0;
+        ssl->cipher.cipherSuite  = ssl->options.cipherSuite;
         return &ssl->cipher;
+    }
     else
         return NULL;
 }
@@ -18607,16 +18610,17 @@ WOLFSSL_CIPHER* wolfSSL_get_current_cipher(WOLFSSL* ssl)
 
 const char* wolfSSL_CIPHER_get_name(const WOLFSSL_CIPHER* cipher)
 {
-    WOLFSSL_ENTER("SSL_CIPHER_get_name");
+    WOLFSSL_ENTER("wolfSSL_CIPHER_get_name");
 
-    if (cipher == NULL || cipher->ssl == NULL) {
+    if (cipher == NULL) {
         return NULL;
     }
 
     #if !defined(WOLFSSL_CIPHER_INTERNALNAME) && !defined(NO_ERROR_STRINGS)
-        return wolfSSL_get_cipher_name_iana(cipher->ssl);
+        return GetCipherNameIana(cipher->cipherSuite0, cipher->cipherSuite);
     #else
-        return wolfSSL_get_cipher_name_internal(cipher->ssl);
+        return wolfSSL_get_cipher_name_from_suite(cipher->cipherSuite0,
+                cipher->cipherSuite);
     #endif
 }
 
@@ -23904,15 +23908,15 @@ WOLFSSL_API WOLF_STACK_OF(SSL_COMP) *SSL_COMP_get_compression_methods(void)
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
-/*** TBD ***/
-WOLFSSL_API int wolfSSL_sk_SSL_CIPHER_num(const void * p)
+
+int wolfSSL_sk_SSL_CIPHER_num(const WOLF_STACK_OF(WOLFSSL_CIPHER)* p)
 {
-    (void)p;
-    WOLFSSL_STUB("wolfSSL_sk_SSL_CIPHER_num");
-    return -1;
+    WOLFSSL_ENTER("wolfSSL_sk_SSL_CIPHER_num");
+    if (p == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+    return p->num;
 }
-#endif
 
 #if !defined(NO_FILESYSTEM)
 #ifndef NO_WOLFSSL_STUB
@@ -38273,15 +38277,117 @@ void wolfSSL_X509_INFO_free(WOLFSSL_X509_INFO* info)
     XFREE(info, NULL, DYNAMIC_TYPE_X509);
 }
 
-WOLFSSL_STACK* wolfSSL_sk_X509_INFO_new_null(void)
+/* create a generic wolfSSL stack node
+ * returns a new WOLFSSL_STACK structure on success */
+static WOLFSSL_STACK* wolfSSL_sk_new_node(void* heap)
 {
-    WOLFSSL_STACK* sk = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
-                                                             DYNAMIC_TYPE_OPENSSL);
-    if (sk != NULL)
+    WOLFSSL_STACK* sk = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), heap,
+                                                          DYNAMIC_TYPE_OPENSSL);
+    if (sk != NULL) {
         XMEMSET(sk, 0, sizeof(*sk));
+        sk->heap = heap;
+    }
 
     return sk;
 }
+
+
+WOLFSSL_STACK* wolfSSL_sk_X509_INFO_new_null(void)
+{
+    return wolfSSL_sk_new_node(NULL);
+}
+
+
+static void wolfSSL_sk_free_node(WOLFSSL_STACK* in)
+{
+    if (in != NULL) {
+        XFREE(in, in->heap, DYNAMIC_TYPE_OPENSSL);
+    }
+}
+
+
+/* returns value less than 0 on fail to match
+ * On a successful match the priority level found is returned
+ */
+int wolfSSL_sk_SSL_CIPHER_find(
+        WOLF_STACK_OF(WOLFSSL_CIPHER)* sk, const WOLFSSL_CIPHER* toFind)
+{
+    WOLFSSL_STACK* next;
+    int i, sz;
+
+    if (sk == NULL || toFind == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    sz   = wolfSSL_sk_SSL_CIPHER_num(sk);
+    next = sk;
+    for (i = 0; i < sz && next != NULL; i++) {
+        if (next->data.cipher.cipherSuite0 == toFind->cipherSuite0 &&
+                next->data.cipher.cipherSuite == toFind->cipherSuite) {
+            return sz - i; /* reverse because stack pushed highest on first */
+        }
+        next = next->next;
+    }
+    return WOLFSSL_FATAL_ERROR;
+}
+
+
+/* copies over data of "in" to "out" */
+static void wolfSSL_CIPHER_copy(WOLFSSL_CIPHER* in, WOLFSSL_CIPHER* out)
+{
+    if (in == NULL || out == NULL)
+        return;
+
+    out->cipherSuite  = in->cipherSuite;
+    out->cipherSuite0 = in->cipherSuite0;
+}
+
+
+/* create duplicate of stack and return the new stack
+ * returns null on failure */
+WOLF_STACK_OF(WOLFSSL_CIPHER)* wolfSSL_sk_SSL_CIPHER_dup(
+        WOLF_STACK_OF(WOLFSSL_CIPHER)* in)
+{
+    WOLFSSL_STACK* current;
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* ret = NULL;
+    int i, sz;
+
+    sz = wolfSSL_sk_SSL_CIPHER_num(in);
+    current = in;
+    for (i = 0; i < sz && current != NULL; i++) {
+        WOLFSSL_STACK* add = wolfSSL_sk_new_node(in->heap);
+        if (add != NULL) {
+            wolfSSL_CIPHER_copy(&(current->data.cipher), &(add->data.cipher));
+            add->num = i+1;
+            add->next = ret;
+            ret = add;
+            current = current->next;
+        }
+    }
+    return ret;
+}
+
+/* nothing to do yet */
+static void wolfSSL_CIPHER_free(WOLFSSL_CIPHER* in)
+{
+    (void)in;
+}
+
+
+/* free's all nodes in the stack and there data */
+void wolfSSL_sk_SSL_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk)
+{
+    WOLFSSL_STACK* current = sk;
+
+    while (current != NULL) {
+        WOLFSSL_STACK* toFree = current;
+        current = current->next;
+
+        wolfSSL_CIPHER_free(&(toFree->data.cipher));
+        wolfSSL_sk_free_node(toFree);
+    }
+}
+
 
 int wolfSSL_sk_X509_INFO_num(const WOLF_STACK_OF(WOLFSSL_X509_INFO) *sk)
 {
@@ -38420,19 +38526,16 @@ int wolfSSL_sk_X509_INFO_push(WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk,
 
 WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_sk_X509_NAME_new(wolf_sk_compare_cb cb)
 {
-    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_new");
-    (void)cb;
+    WOLFSSL_STACK* sk;
 
-    WOLFSSL_STACK* sk = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
-                                                         DYNAMIC_TYPE_OPENSSL);
+    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_new");
+
+    sk = wolfSSL_sk_new_node(NULL);
     if (sk != NULL) {
-        XMEMSET(sk, 0, sizeof(*sk));
         sk->comp = cb;
     }
 
     return sk;
-
-    return NULL;
 }
 
 int wolfSSL_sk_X509_NAME_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk, WOLFSSL_X509_NAME* name)
@@ -39473,14 +39576,49 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 
-#ifndef NO_WOLFSSL_STUB
+/* returns a pointer to internal cipher suite list. Should not be free'd by
+ * caller.
+ */
 WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
 {
-    (void)ssl;
-    WOLFSSL_STUB("wolfSSL_get_ciphers_compat");
-    return NULL;
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* ret = NULL;
+    Suites* suites;
+
+    WOLFSSL_ENTER("wolfSSL_get_ciphers_compat");
+    if (ssl == NULL || (ssl->suites == NULL && ssl->ctx->suites == NULL)) {
+        return NULL;
+    }
+
+    if (ssl->suites != NULL) {
+        suites = ssl->suites;
+    }
+    else {
+        suites = ssl->ctx->suites;
+    }
+
+    /* check if stack needs populated */
+    if (suites->stack == NULL) {
+        int i;
+        for (i = 0; i < suites->suiteSz; i+=2) {
+            WOLFSSL_STACK* add = wolfSSL_sk_new_node(ssl->heap);
+            if (add != NULL) {
+                add->data.cipher.cipherSuite0 = suites->suites[i];
+                add->data.cipher.cipherSuite  = suites->suites[i+1];
+
+                add->next = ret;
+                if (ret != NULL) {
+                    add->num = ret->num + 1;
+                }
+                else {
+                    add->num = 1;
+                }
+                ret = add;
+            }
+        }
+        suites->stack = ret;
+    }
+    return suites->stack;
 }
-#endif
 
 #ifndef NO_WOLFSSL_STUB
 void wolfSSL_OPENSSL_config(char *config_name)

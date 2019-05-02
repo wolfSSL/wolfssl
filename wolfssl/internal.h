@@ -1694,6 +1694,7 @@ WOLFSSL_LOCAL int GetPrivateKeySigSize(WOLFSSL* ssl);
 #endif
 #endif
 WOLFSSL_LOCAL void FreeKeyExchange(WOLFSSL* ssl);
+WOLFSSL_LOCAL void FreeSuites(WOLFSSL* ssl);
 WOLFSSL_LOCAL int  ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 size);
 WOLFSSL_LOCAL int  MatchDomainName(const char* pattern, int len, const char* str);
 #ifndef NO_CERTS
@@ -1808,6 +1809,9 @@ struct Suites {
     byte   setSuites;               /* user set suites from default */
     byte   hashAlgo;                /* selected hash algorithm */
     byte   sigAlgo;                 /* selected sig algorithm */
+#ifdef OPENSSL_ALL
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* stack; /* stack of available cipher suites */
+#endif
 };
 
 
@@ -1842,6 +1846,8 @@ WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
 
 /* wolfSSL Cipher type just points back to SSL */
 struct WOLFSSL_CIPHER {
+    int cipherSuite0;
+    int cipherSuite;
     WOLFSSL* ssl;
 };
 
@@ -3479,7 +3485,7 @@ struct WOLFSSL_STACK {
         WOLFSSL_X509_INFO*     info;
         WOLFSSL_BIO*           bio;
         WOLFSSL_ASN1_OBJECT*   obj;
-        WOLFSSL_CIPHER*        cipher;
+        WOLFSSL_CIPHER         cipher;
         #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         WOLFSSL_ACCESS_DESCRIPTION* access;
         WOLFSSL_X509_EXTENSION* ext;
@@ -3487,6 +3493,7 @@ struct WOLFSSL_STACK {
         void*                  generic;
         char*                  string;
     } data;
+    void* heap; /* memory heap hint */
     WOLFSSL_STACK* next;
     byte type;     /* Identifies type of stack. */
 };

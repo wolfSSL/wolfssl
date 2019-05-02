@@ -5377,6 +5377,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
                 WOLFSSL_MSG("Suites Memory error");
                 return MEMORY_E;
             }
+        #ifdef OPENSSL_ALL
+            ssl->suites->stack = NULL;
+        #endif
 #ifdef SINGLE_THREADED
             ssl->options.ownSuites = 1;
 #endif
@@ -5731,6 +5734,23 @@ void FreeKeyExchange(WOLFSSL* ssl)
 #endif
 }
 
+
+/* Free up all memory used by Suites structure from WOLFSSL */
+void FreeSuites(WOLFSSL* ssl)
+{
+#ifdef SINGLE_THREADED
+    if (ssl->options.ownSuites)
+#endif
+    {
+    #ifdef OPENSSL_ALL
+        wolfSSL_sk_SSL_CIPHER_free(ssl->suites->stack);
+    #endif
+        XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
+    }
+    ssl->suites = NULL;
+}
+
+
 /* In case holding SSL object in array and don't want to free actual ssl */
 void SSL_ResourceFree(WOLFSSL* ssl)
 {
@@ -5747,14 +5767,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         wc_FreeRng(ssl->rng);
         XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
     }
-#ifdef SINGLE_THREADED
-    if (ssl->options.ownSuites)
-#endif
-    {
-        XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
-    }
-    ssl->suites = NULL;
-
+    FreeSuites(ssl);
     FreeHandshakeHashes(ssl);
     XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 
@@ -5985,15 +5998,10 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     if (!ssl->options.tls1_3)
 #endif
     {
-        /* suites */
-#ifdef SINGLE_THREADED
-        if (ssl->options.ownSuites)
-#endif
-        {
-            XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
-        }
-        ssl->suites = NULL;
-
+    #ifndef OPENSSL_ALL
+        /* free suites unless using compatibility layer */
+        FreeSuites(ssl);
+    #endif
         /* hsHashes */
         FreeHandshakeHashes(ssl);
     }

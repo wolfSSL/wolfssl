@@ -367,7 +367,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define X509_INFO_new                   wolfSSL_X509_INFO_new
 #define X509_INFO_free                  wolfSSL_X509_INFO_free
 
-#define sk_X509_INFO_new_null           wolfSSL_sk_X509_INFO_new_null
+#define sk_X509_INFO_new_null()         wolfSSL_sk_new(NULL)
 #define sk_X509_INFO_num                wolfSSL_sk_X509_INFO_num
 #define sk_X509_INFO_value              wolfSSL_sk_X509_INFO_value
 #define sk_X509_INFO_push               wolfSSL_sk_X509_INFO_push
@@ -660,6 +660,9 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define ERR_reason_error_string         wolfSSL_ERR_reason_error_string
 #define ERR_load_BIO_strings            wolfSSL_ERR_load_BIO_strings
 
+#define PEMerr(func, reason)            wolfSSL_ERR_put_error(ERR_LIB_PEM,\
+                                        (func), (reason), __FILE__, __LINE__)
+
 #define SSLv23_server_method            wolfSSLv23_server_method
 #define SSL_CTX_set_options             wolfSSL_CTX_set_options
 #define SSL_CTX_get_options             wolfSSL_CTX_get_options
@@ -766,6 +769,9 @@ enum {
 #define sk_SSL_COMP_zero                wolfSSL_sk_SSL_COMP_zero
 #define sk_SSL_CIPHER_value             wolfSSL_sk_SSL_CIPHER_value
 #endif /* OPENSSL_ALL || WOLFSSL_HAPROXY */
+#define sk_SSL_CIPHER_dup               wolfSSL_sk_SSL_CIPHER_dup
+#define sk_SSL_CIPHER_free              wolfSSL_sk_SSL_CIPHER_free
+#define sk_SSL_CIPHER_find              wolfSSL_sk_SSL_CIPHER_find
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
 #include <wolfssl/openssl/pem.h>
