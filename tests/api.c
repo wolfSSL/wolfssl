@@ -20016,6 +20016,7 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     X509_STORE* str;
     X509* x509;
 #ifdef OPENSSL_ALL
+    X509* x5092;
     STACK_OF(X509) *sk, *sk2, *sk3;
 #endif
 
@@ -20041,7 +20042,6 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     sk_X509_free(sk);
 #endif
     #ifdef WOLFSSL_KEEP_STORE_CERTS
-    X509_STORE_free(str);
     X509_free(x509);
     #endif
 
@@ -20053,11 +20053,13 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     /* test X509_STORE_CTX_get(1)_chain */
     AssertNotNull((x509 = X509_load_certificate_file(svrCertFile,
                                                      SSL_FILETYPE_PEM)));
+    AssertNotNull((x5092 = X509_load_certificate_file(cliCertFile,
+                                                     SSL_FILETYPE_PEM)));
     AssertNotNull((sk = sk_X509_new()));
     AssertIntEQ(sk_X509_push(sk, x509), 1);
     AssertNotNull((str = X509_STORE_new()));
     AssertNotNull((ctx = X509_STORE_CTX_new()));
-    AssertIntEQ(X509_STORE_CTX_init(ctx, str, x509, sk), 1);
+    AssertIntEQ(X509_STORE_CTX_init(ctx, str, x5092, sk), 1);
     AssertNull((sk2 = X509_STORE_CTX_get_chain(NULL)));
     AssertNotNull((sk2 = X509_STORE_CTX_get_chain(ctx)));
     AssertIntEQ(sk_num(sk2), 1); /* sanity, make sure chain has 1 cert */
@@ -20066,7 +20068,11 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     AssertIntEQ(sk_num(sk3), 1); /* sanity, make sure chain has 1 cert */
     X509_STORE_CTX_free(ctx);
     sk_X509_free(sk);
-    /* sk2 freed as part of X509_STORE_CTX_free() */
+    #ifdef WOLFSSL_KEEP_STORE_CERTS
+    /* CTX certs not freed yet */
+    X509_free(x5092);
+    #endif
+    /* sk2 freed as part of X509_STORE_CTX_free(), sk3 is dup so free here */
     sk_X509_free(sk3);
 #endif
 
