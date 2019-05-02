@@ -17904,7 +17904,7 @@ int wolfSSL_sk_ACCESS_DESCRIPTION_num(WOLFSSL_STACK* sk)
         return WOLFSSL_FATAL_ERROR;
     }
 
-    return sk->num;
+    return (int)sk->num;
 }
 
 /* returns the node at index "idx", NULL if not found */
@@ -17995,7 +17995,7 @@ void wolfSSL_GENERAL_NAMES_free(WOLFSSL_GENERAL_NAMES *gens)
 int wolfSSL_sk_X509_EXTENSION_num(WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* sk)
 {
     if (sk != NULL) {
-        return sk->num;
+        return (int)sk->num;
     }
     return WOLFSSL_FATAL_ERROR;
 }
@@ -23982,7 +23982,7 @@ int wolfSSL_sk_SSL_CIPHER_num(const WOLF_STACK_OF(WOLFSSL_CIPHER)* p)
     if (p == NULL) {
         return WOLFSSL_FATAL_ERROR;
     }
-    return p->num;
+    return (int)p->num;
 }
 
 #if !defined(NO_FILESYSTEM)
