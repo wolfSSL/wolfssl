@@ -17898,6 +17898,50 @@ void wolfSSL_sk_GENERAL_NAME_pop_free(WOLFSSL_STACK* sk,
 
 }
 
+int wolfSSL_sk_ACCESS_DESCRIPTION_num(WOLFSSL_STACK* sk)
+{
+    if (sk == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    return sk->num;
+}
+
+/* returns the node at index "idx", NULL if not found */
+static WOLFSSL_STACK* wolfSSL_sk_get_node(WOLFSSL_STACK* sk, int idx)
+{
+    int i;
+    WOLFSSL_STACK* ret = NULL;
+    WOLFSSL_STACK* current = NULL;
+
+    current = sk;
+    for (i = 0; i < idx && current != NULL; i++) {
+        if (i == idx) {
+            ret = current;
+            break;
+        }
+        current = current->next;
+    }
+    return ret;
+}
+
+
+WOLFSSL_ACCESS_DESCRIPTION* wolfSSL_sk_ACCESS_DESCRIPTION_value(
+        WOLFSSL_STACK* sk, int idx)
+{
+    WOLFSSL_STACK* ret;
+
+    if (sk == NULL) {
+        return NULL;
+    }
+
+    ret = wolfSSL_sk_get_node(sk, idx);
+    if (ret != NULL) {
+        return ret->data.access;
+    }
+    return NULL;
+}
+
 /* Frees GENERAL_NAME objects.
 */
 void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name)
@@ -17948,6 +17992,29 @@ void wolfSSL_GENERAL_NAMES_free(WOLFSSL_GENERAL_NAMES *gens)
     XFREE(gens, NULL, DYNAMIC_TYPE_ASN1);
 }
 
+int wolfSSL_sk_X509_EXTENSION_num(WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* sk)
+{
+    if (sk != NULL) {
+        return sk->num;
+    }
+    return WOLFSSL_FATAL_ERROR;
+}
+
+WOLFSSL_X509_EXTENSION* wolfSSL_sk_X509_EXTENSION_value(
+        WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* sk, int idx)
+{
+    WOLFSSL_STACK* ret;
+
+    if (sk == NULL) {
+        return NULL;
+    }
+
+    ret = wolfSSL_sk_get_node(sk, idx);
+    if (ret != NULL) {
+        //@TODO return value
+    }
+    return NULL;
+}
 #endif /* OPENSSL_EXTRA */
 
 #ifndef NO_FILESYSTEM
