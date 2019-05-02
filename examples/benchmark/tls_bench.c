@@ -1372,7 +1372,7 @@ int bench_tls(void* args)
         if (ciphers == NULL) {
             goto exit;
         }
-        wolfSSL_get_ciphers(ciphers, (int)sizeof(ciphers));
+        wolfSSL_get_ciphers(ciphers, WOLFSSL_CIPHER_LIST_MAX_SIZE);
         cipher = ciphers;
     }
 
