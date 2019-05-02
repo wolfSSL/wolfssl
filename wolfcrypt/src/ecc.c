@@ -3307,9 +3307,6 @@ int wc_ecc_get_curve_id_from_dp_params(const ecc_set_type* dp)
 {
     int idx;
 
-    if (dp == NULL)
-        return BAD_FUNC_ARG;
-
     if (dp == NULL || dp->prime == NULL ||  dp->Af == NULL ||
         dp->Bf == NULL || dp->order == NULL || dp->Gx == NULL || dp->Gy == NULL)
         return BAD_FUNC_ARG;
