@@ -972,11 +972,13 @@ WOLFSSL_API void wolfSSL_sk_GENERAL_NAME_pop_free(WOLFSSL_STACK* sk,
                                        void f (WOLFSSL_GENERAL_NAME*));
 WOLFSSL_API void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name);
 WOLFSSL_API void wolfSSL_GENERAL_NAMES_free(WOLFSSL_GENERAL_NAMES* name);
+WOLFSSL_API int wolfSSL_sk_ACCESS_DESCRIPTION_num(WOLFSSL_STACK* sk);
+WOLFSSL_API void wolfSSL_AUTHORITY_INFO_ACCESS_free(
+        WOLF_STACK_OF(WOLFSSL_ACCESS_DESCRIPTION)* sk);
+WOLFSSL_API WOLFSSL_ACCESS_DESCRIPTION* wolfSSL_sk_ACCESS_DESCRIPTION_value(
+        WOLFSSL_STACK* sk, int idx);
 WOLFSSL_API void wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(WOLFSSL_STACK* sk,
         void f (WOLFSSL_ACCESS_DESCRIPTION*));
-WOLFSSL_API int wolfSSL_sk_ACCESS_DESCRIPTION_num(WOLFSSL_STACK* sk);
-WOLFSSL_ACCESS_DESCRIPTION* wolfSSL_sk_ACCESS_DESCRIPTION_value(
-        WOLFSSL_STACK* sk, int idx);
 WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void);
 WOLFSSL_API void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj);
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_new_asn1_obj(void);
@@ -1307,6 +1309,10 @@ WOLFSSL_API void* wolfSSL_X509_STORE_CTX_get_ex_data(
         WOLFSSL_X509_STORE_CTX* ctx, int idx);
 WOLFSSL_API int  wolfSSL_X509_STORE_CTX_set_ex_data(WOLFSSL_X509_STORE_CTX* ctx,
         int idx, void *data);
+WOLFSSL_API void wolfSSL_X509_STORE_CTX_set_depth(WOLFSSL_X509_STORE_CTX* ctx,
+        int depth);
+WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get0_current_issuer(
+        WOLFSSL_X509_STORE_CTX* ctx);
 WOLFSSL_API int  wolfSSL_get_ex_data_X509_STORE_CTX_idx(void);
 WOLFSSL_API void wolfSSL_X509_STORE_CTX_set_error(
                                            WOLFSSL_X509_STORE_CTX* ctx, int er);
@@ -2958,6 +2964,7 @@ WOLFSSL_API int wolfSSL_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o);
 WOLFSSL_API int wolfSSL_OBJ_sn2nid(const char *sn);
 
 WOLFSSL_API char* wolfSSL_OBJ_nid2ln(int n);
+WOLFSSL_API int wolfSSL_OBJ_cmp(const WOLFSSL_ASN1_OBJECT* asn, int name);
 WOLFSSL_API int wolfSSL_OBJ_txt2nid(const char *sn);
 
 WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_nid2obj(int n);
@@ -3327,6 +3334,8 @@ WOLFSSL_API unsigned long wolfSSL_ERR_peek_error_line_data(const char **file,
     int *line, const char **data, int *flags);
 WOLFSSL_API int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx,
     const unsigned char *protos, unsigned int protos_len);
+WOLFSSL_API int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
+        const unsigned char* protos, unsigned int protos_len);
 WOLFSSL_API void *wolfSSL_OPENSSL_memdup(const void *data,
     size_t siz, const char* file, int line);
 WOLFSSL_API void wolfSSL_ERR_load_BIO_strings(void);

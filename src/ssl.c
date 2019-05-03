@@ -17911,6 +17911,16 @@ int wolfSSL_sk_ACCESS_DESCRIPTION_num(WOLFSSL_STACK* sk)
     return (int)sk->num;
 }
 
+#ifndef NO_WOLFSSL_STUB
+/* similar to call to sk_ACCESS_DESCRIPTION_pop_free */
+void wolfSSL_AUTHORITY_INFO_ACCESS_free(
+        WOLF_STACK_OF(WOLFSSL_ACCESS_DESCRIPTION)* sk)
+{
+    WOLFSSL_STUB("wolfSSL_AUTHORITY_INFO_ACCESS_free");
+    (void)sk;
+}
+#endif
+
 /* returns the node at index "idx", NULL if not found */
 static WOLFSSL_STACK* wolfSSL_sk_get_node(WOLFSSL_STACK* sk, int idx)
 {
@@ -22750,6 +22760,24 @@ int wolfSSL_X509_STORE_CTX_set_ex_data(WOLFSSL_X509_STORE_CTX* ctx, int idx,
     return WOLFSSL_FAILURE;
 }
 
+#ifndef NO_WOLFSSL_STUB
+void wolfSSL_X509_STORE_CTX_set_depth(WOLFSSL_X509_STORE_CTX* ctx, int depth)
+{
+    WOLFSSL_STUB("wolfSSL_X509_STORE_CTX_set_depth");
+    (void)ctx;
+    (void)depth;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get0_current_issuer(
+        WOLFSSL_X509_STORE_CTX* ctx)
+{
+    WOLFSSL_STUB("wolfSSL_X509_STORE_CTX_get0_current_issuer");
+    (void)ctx;
+    return NULL;
+}
+#endif
 
 /* Gets an index to store SSL structure at.
  *
@@ -36583,6 +36611,17 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
 #endif
 
+#ifndef NO_WOLFSSL_STUB
+    int wolfSSL_OBJ_cmp(const WOLFSSL_ASN1_OBJECT* asn, int name)
+    {
+        WOLFSSL_STUB("wolfSSL_OBJ_cmp");
+        (void)asn;
+        (void)name;
+        return WOLFSSL_FATAL_ERROR;
+    }
+#endif
+
+
 #ifdef WOLFSSL_CERT_EXT
     /* Gets the NID value that is related to the OID string passed in. Example
      * string would be "2.5.29.14" for subject key ID.
@@ -40661,6 +40700,17 @@ int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx, const unsigned char *p,
     return SSL_SUCCESS;
 }
 
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
+        const unsigned char* protos, unsigned int protos_len)
+{
+    WOLFSSL_STUB("wolfSSL_set_alpn_protos");
+    (void)ssl;
+    (void)protos;
+    (void)protos_len;
+    return WOLFSSL_FATAL_ERROR;
+}
+#endif
 #endif
 
 #endif /* WOLFCRYPT_ONLY */
