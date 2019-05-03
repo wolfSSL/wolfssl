@@ -7991,18 +7991,6 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
     return rc;
 }
 
-
-/* Returns pointer to ASN1_OBJECT from a X509_EXTENSION object */
-WOLFSSL_ASN1_OBJECT* wolfSSL_X509_EXTENSION_get_object(WOLFSSL_X509_EXTENSION* ex)
-{
-    WOLFSSL_ENTER("wolfSSL_X509_EXTENSION_get_object");
-    if(ex == NULL){
-        return NULL;
-    }
-    WOLFSSL_LEAVE("wolfSSL_X509_EXTENSION_get_object", WOLFSSL_SUCCESS);
-    return ex->obj;
-}
-
 /* Returns crit flag in X509_EXTENSION object */
 int wolfSSL_X509_EXTENSION_get_critical(const WOLFSSL_X509_EXTENSION* ex)
 {
@@ -8010,15 +7998,6 @@ int wolfSSL_X509_EXTENSION_get_critical(const WOLFSSL_X509_EXTENSION* ex)
     if (ex == NULL)
         return BAD_FUNC_ARG;
     return ex->crit;
-}
-
-/* Returns pointer to ASN1_STRING in X509_EXTENSION object */
-WOLFSSL_ASN1_STRING* wolfSSL_X509_EXTENSION_get_data(WOLFSSL_X509_EXTENSION* ex)
-{
-    WOLFSSL_ENTER("wolfSSL_X509_EXTENSION_get_data");
-    if (ex == NULL)
-        return NULL;
-    return &ex->value;
 }
 
 /* Creates v3_ext_method for a given X509v3 extension
@@ -8853,6 +8832,36 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
     (void)idx;
 
     return sk;
+}
+
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int loc)
+{
+    WOLFSSL_STUB("wolfSSL_X509_add_ext");
+    (void)x509;
+    (void)ext;
+    (void)loc;
+    return WOLFSSL_FAILURE;
+}
+#endif /* !NO_WOLFSSL_STUB */
+
+/* Returns pointer to ASN1_OBJECT from an X509_EXTENSION object */
+WOLFSSL_ASN1_OBJECT* wolfSSL_X509_EXTENSION_get_object \
+    (WOLFSSL_X509_EXTENSION* ext)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_EXTENSION_get_object");
+    if(ext == NULL)
+        return NULL;
+    return ext->obj;
+}
+
+/* Returns pointer to ASN1_STRING in X509_EXTENSION object */
+WOLFSSL_ASN1_STRING* wolfSSL_X509_EXTENSION_get_data(WOLFSSL_X509_EXTENSION* ext)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_EXTENSION_get_data");
+    if (ext == NULL)
+        return NULL;
+    return &ext->value;
 }
 
 /* this function makes the assumption that out buffer is big enough for digest*/
@@ -25060,7 +25069,7 @@ int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME* a)
 {
     char buf[MAX_TIME_STRING_SZ];
 
-    WOLFSSL_STUB("wolfSSL_ASN1_TIME_check");
+    WOLFSSL_ENTER("wolfSSL_ASN1_TIME_check");
 
     /* if can parse the WOLFSSL_ASN1_TIME passed in then consider syntax good */
     if (wolfSSL_ASN1_TIME_to_string((WOLFSSL_ASN1_TIME*)a, buf,
@@ -25069,6 +25078,27 @@ int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME* a)
     }
     return WOLFSSL_SUCCESS;
 }
+
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_ASN1_TIME_diff(int *pday, int *psec,
+                   const WOLFSSL_ASN1_TIME *from, const WOLFSSL_ASN1_TIME *to)
+{
+    WOLFSSL_STUB("wolfSSL_ASN1_TIME_diff");
+    (void)pday;
+    (void)psec;
+    (void)from;
+    (void)to;
+    return 0;
+}
+
+WOLFSSL_API WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_set(WOLFSSL_ASN1_TIME *s, time_t t)
+{
+    WOLFSSL_STUB("wolfSSL_ASN1_TIME_set");
+    (void)s;
+    (void)t;
+    return s;
+}
+#endif /* !NO_WOLFSSL_STUB */
 
 /* Return the month as a string.
  *

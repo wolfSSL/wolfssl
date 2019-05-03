@@ -322,6 +322,8 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define X509_get_ext_d2i                wolfSSL_X509_get_ext_d2i
 #define X509_get_ext_by_NID             wolfSSL_X509_get_ext_by_NID
 #define X509_get_ext                    wolfSSL_X509_get_ext
+#define X509_get_ext_by_NID             wolfSSL_X509_get_ext_by_NID
+#define X509_add_ext                    wolfSSL_X509_add_ext
 #define X509_get_issuer_name            wolfSSL_X509_get_issuer_name
 #define X509_get_subject_name           wolfSSL_X509_get_subject_name
 #define X509_get_pubkey                 wolfSSL_X509_get_pubkey
@@ -367,7 +369,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define X509_INFO_new                   wolfSSL_X509_INFO_new
 #define X509_INFO_free                  wolfSSL_X509_INFO_free
 
-#define sk_X509_INFO_new_null()         wolfSSL_sk_new_node(NULL)
+#define sk_X509_INFO_new_null           wolfSSL_sk_X509_INFO_new_null
 #define sk_X509_INFO_num                wolfSSL_sk_X509_INFO_num
 #define sk_X509_INFO_value              wolfSSL_sk_X509_INFO_value
 #define sk_X509_INFO_push               wolfSSL_sk_X509_INFO_push
