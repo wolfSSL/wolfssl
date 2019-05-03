@@ -106,8 +106,11 @@ WOLFSSL_API int wolfSSL_OCSP_REQUEST_add_ext(OcspRequest* req,
 WOLFSSL_API OcspResponse* wolfSSL_OCSP_response_create(int status,
     WOLFSSL_OCSP_BASICRESP* bs);
 WOLFSSL_API const char* wolfSSL_OCSP_crl_reason_str(long s);
-WOLFSSL_API int wolfSSL_OCSP_id_get0_info(WOLFSSL_ASN1_STRING** name,
-        WOLFSSL_ASN1_OBJECT** pmd);
+
+WOLFSSL_API int wolfSSL_OCSP_id_get0_info(WOLFSSL_ASN1_STRING**,
+  WOLFSSL_ASN1_OBJECT**, WOLFSSL_ASN1_STRING**,
+  WOLFSSL_ASN1_INTEGER**, WOLFSSL_OCSP_CERTID*);
+
 WOLFSSL_API int wolfSSL_OCSP_request_add1_nonce(OcspRequest* req,
         unsigned char* val, int sz);
 WOLFSSL_API int wolfSSL_OCSP_check_nonce(OcspRequest* req,

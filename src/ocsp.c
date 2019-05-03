@@ -917,12 +917,16 @@ const char* wolfSSL_OCSP_crl_reason_str(long s)
 #endif
 
 #ifndef NO_WOLFSSL_STUB
-int wolfSSL_OCSP_id_get0_info(WOLFSSL_ASN1_STRING** name,
-        WOLFSSL_ASN1_OBJECT** pmd)
+int wolfSSL_OCSP_id_get0_info(WOLFSSL_ASN1_STRING **name,
+  WOLFSSL_ASN1_OBJECT **pmd, WOLFSSL_ASN1_STRING **keyHash,
+  WOLFSSL_ASN1_INTEGER **serial, WOLFSSL_OCSP_CERTID *cid)
 {
     WOLFSSL_STUB("wolfSSL_OCSP_id_get0_info");
     (void)name;
     (void)pmd;
+    (void)keyHash;
+    (void)serial;
+    (void)cid;
     return WOLFSSL_FATAL_ERROR;
 }
 #endif
