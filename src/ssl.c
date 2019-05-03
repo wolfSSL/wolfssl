@@ -18063,6 +18063,11 @@ void wolfSSL_GENERAL_NAMES_free(WOLFSSL_GENERAL_NAMES *gens)
     XFREE(gens, NULL, DYNAMIC_TYPE_ASN1);
 }
 
+WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* wolfSSL_sk_X509_EXTENSION_new_null(void)
+{
+    return (WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)*)wolfSSL_sk_new_node(NULL);
+}
+
 /* returns the number of nodes on the stack */
 int wolfSSL_sk_X509_EXTENSION_num(WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* sk)
 {
@@ -27435,6 +27440,17 @@ WOLFSSL_BIGNUM *wolfSSL_BN_mod_inverse(WOLFSSL_BIGNUM *r,
 
     return  r;
 }
+
+#ifndef NO_WOLFSSL_STUB
+WOLFSSL_ASN1_INTEGER *wolfSSL_BN_to_ASN1_INTEGER(const WOLFSSL_BIGNUM *bn, WOLFSSL_ASN1_INTEGER *ai)
+{
+    WOLFSSL_STUB("wolfSSL_BN_to_ASN1_INTEGER");
+    (void)bn;
+    (void)ai;
+    return NULL;
+}
+#endif
+
 
 #ifndef NO_DH
 
