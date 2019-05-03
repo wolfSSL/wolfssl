@@ -42,8 +42,13 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#if defined(CURVED25519_X64) || defined(WOLFSSL_ARMASM)
+  #define CURVED25519_ASM_64BIT
+#endif
+
+
 static void ge_p2_0(ge_p2 *);
-#ifndef CURVED25519_X64
+#ifndef CURVED25519_ASM_64BIT
 static void ge_precomp_0(ge_precomp *);
 #endif
 static void ge_p3_to_p2(ge_p2 *,const ge_p3 *);
@@ -927,7 +932,7 @@ r = p + q
 */
 static WC_INLINE void ge_add(ge_p1p1 *r,const ge_p3 *p,const ge_cached *q)
 {
-#ifndef CURVED25519_X64
+#ifndef CURVED25519_ASM_64BIT
     ge t0;
     fe_add(r->X,p->Y,p->X);
     fe_sub(r->Y,p->Y,p->X);
@@ -947,7 +952,7 @@ static WC_INLINE void ge_add(ge_p1p1 *r,const ge_p3 *p,const ge_cached *q)
 }
 
 
-#ifndef CURVED25519_X64
+#ifndef CURVED25519_ASM_64BIT
 /* ge_scalar mult base */
 static unsigned char equal(signed char b,signed char c)
 {
@@ -977,7 +982,7 @@ static WC_INLINE void cmov(ge_precomp *t,const ge_precomp *u,unsigned char b,
 }
 #endif
 
-#ifdef CURVED25519_X64
+#ifdef CURVED25519_ASM_64BIT
 static const ge_precomp base[64][8] = {
 {
     {
@@ -6368,7 +6373,7 @@ static const ge_precomp base[32][8] = {
 
 static void ge_select(ge_precomp *t,int pos,signed char b)
 {
-#ifndef CURVED25519_X64
+#ifndef CURVED25519_ASM_64BIT
   ge_precomp minust;
   unsigned char bnegative = negative(b);
   unsigned char babs = b - (((-bnegative) & b) << 1);
@@ -6390,7 +6395,6 @@ static void ge_select(ge_precomp *t,int pos,signed char b)
 #endif
 }
 
-
 /*
 h = a * B
 where a = a[0]+256*a[1]+...+256^31 a[31]
@@ -6404,7 +6408,7 @@ void ge_scalarmult_base(ge_p3 *h,const unsigned char *a)
   signed char e[64];
   signed char carry;
   ge_p1p1 r;
-#ifndef CURVED25519_X64
+#ifndef CURVED25519_ASM_64BIT
   ge_p2 s;
 #endif
   ge_precomp t;
@@ -6427,7 +6431,7 @@ void ge_scalarmult_base(ge_p3 *h,const unsigned char *a)
   e[63] += carry;
   /* each e[i] is between -8 and 8 */
 
-#ifndef CURVED25519_X64
+#ifndef CURVED25519_ASM_64BIT
   ge_select(&t,0,e[1]);
   fe_sub(h->X, t.yplusx, t.yminusx);
   fe_add(h->Y, t.yplusx, t.yminusx);
@@ -6498,7 +6502,7 @@ static void slide(signed char *r,const unsigned char *a)
     }
 }
 
-#ifdef CURVED25519_X64
+#ifdef CURVED25519_ASM_64BIT
 static const ge_precomp Bi[8] = {
     {
         { 0x2fbc93c6f58c3b85, -0x306cd2390473f1e7, 0x270b4898643d42c2, 0x07cf9d3a33d4ba65,  },
@@ -6691,7 +6695,7 @@ int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
   return 0;
 }
 
-#ifdef CURVED25519_X64
+#ifdef CURVED25519_ASM_64BIT
 static const ge d = {
     0x75eb4dca135978a3, 0x00700a4d4141d8ab, -0x7338bf8688861768, 0x52036cee2b6ffe73,
     };
@@ -6708,7 +6712,7 @@ static const ge d = {
 #endif
 
 
-#ifdef CURVED25519_X64
+#ifdef CURVED25519_ASM_64BIT
 static const ge sqrtm1 = {
     -0x3b11e4d8b5f15f50, 0x2f431806ad2fe478, 0x2b4d00993dfbd7a7, 0x2b8324804fc1df0b,
     };
@@ -6775,7 +6779,7 @@ r = p + q
 
 static WC_INLINE void ge_madd(ge_p1p1 *r,const ge_p3 *p,const ge_precomp *q)
 {
-#ifndef CURVED25519_X64
+#ifndef CURVED25519_ASM_64BIT
     ge t0;
     fe_add(r->X,p->Y,p->X);
     fe_sub(r->Y,p->Y,p->X);
@@ -6802,7 +6806,7 @@ r = p - q
 
 static WC_INLINE void ge_msub(ge_p1p1 *r,const ge_p3 *p,const ge_precomp *q)
 {
-#ifndef CURVED25519_X64
+#ifndef CURVED25519_ASM_64BIT
     ge t0;
     fe_add(r->X,p->Y,p->X);
     fe_sub(r->Y,p->Y,p->X);
@@ -6828,7 +6832,7 @@ r = p
 
 static void ge_p1p1_to_p2(ge_p2 *r,const ge_p1p1 *p)
 {
-#ifndef CURVED25519_X64
+#ifndef CURVED25519_ASM_64BIT
   fe_mul(r->X,p->X,p->T);
   fe_mul(r->Y,p->Y,p->Z);
   fe_mul(r->Z,p->Z,p->T);
@@ -6846,7 +6850,7 @@ r = p
 
 static WC_INLINE void ge_p1p1_to_p3(ge_p3 *r,const ge_p1p1 *p)
 {
-#ifndef CURVED25519_X64
+#ifndef CURVED25519_ASM_64BIT
   fe_mul(r->X,p->X,p->T);
   fe_mul(r->Y,p->Y,p->Z);
   fe_mul(r->Z,p->Z,p->T);
@@ -6875,7 +6879,7 @@ r = 2 * p
 
 static WC_INLINE void ge_p2_dbl(ge_p1p1 *r,const ge_p2 *p)
 {
-#ifndef CURVED25519_X64
+#ifndef CURVED25519_ASM_64BIT
     ge t0;
     fe_sq(r->X,p->X);
     fe_sq(r->Z,p->Y);
@@ -6912,7 +6916,7 @@ static void ge_p3_dbl(ge_p1p1 *r,const ge_p3 *p)
 r = p
 */
 
-#ifdef CURVED25519_X64
+#ifdef CURVED25519_ASM_64BIT
 static const ge d2 = {
     -0x1429646bd94d0ea7, 0x00e0149a8283b156, 0x198e80f2eef3d130, 0x2406d9dc56dffce7,
     };
@@ -6966,7 +6970,7 @@ void ge_p3_tobytes(unsigned char *s,const ge_p3 *h)
 }
 
 
-#ifndef CURVED25519_X64
+#ifndef CURVED25519_ASM_64BIT
 /* ge_precomp_0 */
 static void ge_precomp_0(ge_precomp *h)
 {
@@ -6984,7 +6988,7 @@ r = p - q
 
 static WC_INLINE void ge_sub(ge_p1p1 *r,const ge_p3 *p,const ge_cached *q)
 {
-#ifndef CURVED25519_X64
+#ifndef CURVED25519_ASM_64BIT
     ge t0;
     fe_add(r->X,p->Y,p->X);
     fe_sub(r->Y,p->Y,p->X);
