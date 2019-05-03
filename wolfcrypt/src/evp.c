@@ -408,7 +408,9 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
     int fl;
-    if (ctx == NULL || out == NULL) return BAD_FUNC_ARG;
+    if (ctx == NULL || out == NULL || outl == NULL || (*outl < 0))
+        return BAD_FUNC_ARG;
+
     WOLFSSL_ENTER("wolfSSL_EVP_CipherFinal");
     if (ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING) {
         if (ctx->bufUsed != 0) return WOLFSSL_FAILURE;
@@ -445,6 +447,10 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                 XMEMCPY(out, ctx->lastBlock, fl);
                 *outl = fl;
             } else return 0;
+        }
+       /* return error in cases where the block length is incorrect */
+        if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
+            return WOLFSSL_FAILURE;
         }
     }
     return WOLFSSL_SUCCESS;
