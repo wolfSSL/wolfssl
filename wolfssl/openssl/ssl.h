@@ -841,6 +841,8 @@ typedef STACK_OF(WOLFSSL_GENERAL_NAME) GENERAL_NAMES;
 #define SSL_set_tmp_dh                  wolfSSL_set_tmp_dh
 #define SSL_clear_num_renegotiations    wolfSSL_clear_num_renegotiations
 #define SSL_total_renegotiations        wolfSSL_total_renegotiations
+#define SSL_num_renegotiations          wolfSSL_num_renegotiations
+#define SSL_renegotiate                 wolfSSL_Rehandshake
 #define SSL_set_tlsext_debug_arg        wolfSSL_set_tlsext_debug_arg
 #define SSL_set_tlsext_status_type      wolfSSL_set_tlsext_status_type
 #define SSL_set_tlsext_status_exts      wolfSSL_set_tlsext_status_exts

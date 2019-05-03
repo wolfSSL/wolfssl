@@ -2531,6 +2531,7 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl)
         }
     }
     ret = wolfSSL_negotiate(ssl);
+    ssl->secure_rene_count++;
     return ret;
 }
 
@@ -17898,6 +17899,9 @@ void wolfSSL_sk_GENERAL_NAME_pop_free(WOLFSSL_STACK* sk,
 
 }
 
+
+/* returns the number of nodes in stack on success and WOLFSSL_FATAL_ERROR
+ * on fail */
 int wolfSSL_sk_ACCESS_DESCRIPTION_num(WOLFSSL_STACK* sk)
 {
     if (sk == NULL) {
@@ -17926,6 +17930,7 @@ static WOLFSSL_STACK* wolfSSL_sk_get_node(WOLFSSL_STACK* sk, int idx)
 }
 
 
+/* returns NULL on fail and pointer to internal data on success */
 WOLFSSL_ACCESS_DESCRIPTION* wolfSSL_sk_ACCESS_DESCRIPTION_value(
         WOLFSSL_STACK* sk, int idx)
 {
@@ -17992,6 +17997,7 @@ void wolfSSL_GENERAL_NAMES_free(WOLFSSL_GENERAL_NAMES *gens)
     XFREE(gens, NULL, DYNAMIC_TYPE_ASN1);
 }
 
+/* returns the number of nodes on the stack */
 int wolfSSL_sk_X509_EXTENSION_num(WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* sk)
 {
     if (sk != NULL) {
@@ -18000,6 +18006,8 @@ int wolfSSL_sk_X509_EXTENSION_num(WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* sk)
     return WOLFSSL_FATAL_ERROR;
 }
 
+
+/* returns null on failure and pointer to internal value on success */
 WOLFSSL_X509_EXTENSION* wolfSSL_sk_X509_EXTENSION_value(
         WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* sk, int idx)
 {
@@ -18011,7 +18019,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_sk_X509_EXTENSION_value(
 
     ret = wolfSSL_sk_get_node(sk, idx);
     if (ret != NULL) {
-        //@TODO return value
+        return ret->data.ext;
     }
     return NULL;
 }
@@ -23636,25 +23644,43 @@ long wolfSSL_clear_options(WOLFSSL* ssl, long opt)
     return ssl->options.mask;
 }
 
-/*** TBD ***/
-#ifndef NO_WOLFSSL_STUB
-WOLFSSL_API long wolfSSL_clear_num_renegotiations(WOLFSSL *s)
-{
-    (void)s;
-    WOLFSSL_STUB("SSL_clear_num_renegotiations");
-    return 0;
-}
-#endif
 
-/*** TBD ***/
-#ifndef NO_WOLFSSL_STUB
-WOLFSSL_API long wolfSSL_total_renegotiations(WOLFSSL *s)
+#if defined(HAVE_SECURE_RENEGOTIATION) \
+        || defined(HAVE_SERVER_RENEGOTIATION_INFO)
+/* clears the counter for number of renegotiations done
+ * returns the current count before it is cleared */
+long wolfSSL_clear_num_renegotiations(WOLFSSL *s)
 {
-    (void)s;
-    WOLFSSL_STUB("SSL_total_renegotiations");
-    return 0;
+    long total;
+
+    WOLFSSL_ENTER("wolfSSL_clear_num_renegotiations");
+    if (s == NULL)
+        return 0;
+
+    total = s->secure_rene_count;
+    s->secure_rene_count = 0;
+    return total;
 }
-#endif
+
+
+/* return the number of renegotiations since wolfSSL_new */
+long wolfSSL_total_renegotiations(WOLFSSL *s)
+{
+    WOLFSSL_ENTER("wolfSSL_total_renegotiations");
+    return wolfSSL_num_renegotiations(s);
+}
+
+
+/* return the number of renegotiations since wolfSSL_new */
+long wolfSSL_num_renegotiations(WOLFSSL* s)
+{
+    if (s == NULL) {
+        return 0;
+    }
+
+    return s->secure_rene_count;
+}
+#endif /* HAVE_SECURE_RENEGOTIATION || HAVE_SERVER_RENEGOTIATION_INFO */
 
 #ifndef NO_DH
 long wolfSSL_set_tmp_dh(WOLFSSL *ssl, WOLFSSL_DH *dh)
