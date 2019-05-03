@@ -429,6 +429,9 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_STORE_CTX_set_error        wolfSSL_X509_STORE_CTX_set_error
 #define X509_STORE_CTX_get_ex_data      wolfSSL_X509_STORE_CTX_get_ex_data
 #define X509_STORE_CTX_set_ex_data      wolfSSL_X509_STORE_CTX_set_ex_data
+#define X509_STORE_CTX_set_depth        wolfSSL_X509_STORE_CTX_set_depth
+#define X509_STORE_CTX_get0_current_issuer \
+                                      wolfSSL_X509_STORE_CTX_get0_current_issuer
 
 #define X509_STORE_new                  wolfSSL_X509_STORE_new
 #define X509_STORE_free                 wolfSSL_X509_STORE_free
@@ -949,6 +952,7 @@ typedef STACK_OF(WOLFSSL_GENERAL_NAME) GENERAL_NAMES;
 #define GENERAL_NAME_free               wolfSSL_GENERAL_NAME_free
 #define GENERAL_NAMES_free              wolfSSL_GENERAL_NAMES_free
 
+#define AUTHORITY_INFO_ACCESS_free      wolfSSL_AUTHORITY_INFO_ACCESS_free
 #define sk_ACCESS_DESCRIPTION_pop_free  wolfSSL_sk_ACCESS_DESCRIPTION_pop_free
 #define ACCESS_DESCRIPTION_free         NULL
 
@@ -1057,6 +1061,7 @@ typedef STACK_OF(WOLFSSL_GENERAL_NAME) GENERAL_NAMES;
 #define SSL_CTX_set_alpn_select_cb      wolfSSL_CTX_set_alpn_select_cb
 #define SSL_CTX_set_next_protos_advertised_cb  wolfSSL_CTX_set_next_protos_advertised_cb
 #define SSL_CTX_set_next_proto_select_cb wolfSSL_CTX_set_next_proto_select_cb
+#define SSL_set_alpn_protos             wolfSSL_set_alpn_protos
 #define SSL_get0_next_proto_negotiated  wolfSSL_get0_next_proto_negotiated
 #define SSL_is_server                   wolfSSL_is_server
 #define SSL_CTX_set1_curves_list        wolfSSL_CTX_set1_curves_list

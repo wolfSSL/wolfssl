@@ -883,6 +883,72 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_CERTID_dup(WOLFSSL_OCSP_CERTID* id)
 }
 
 #endif
+#ifdef OPENSSL_EXTRA
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_OCSP_REQUEST_add_ext(OcspRequest* req, WOLFSSL_X509_EXTENSION* ext,
+        int idx)
+{
+    WOLFSSL_STUB("wolfSSL_OCSP_REQUEST_add_ext");
+    (void)req;
+    (void)ext;
+    (void)idx;
+    return WOLFSSL_FATAL_ERROR;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+OcspResponse* wolfSSL_OCSP_response_create(int status,
+    WOLFSSL_OCSP_BASICRESP* bs)
+{
+    WOLFSSL_STUB("wolfSSL_OCSP_response_create");
+    (void)status;
+    (void)bs;
+    return NULL;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+const char* wolfSSL_OCSP_crl_reason_str(long s)
+{
+    WOLFSSL_STUB("wolfSSL_OCSP_crl_reason_str");
+    (void)s;
+    return NULL;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_OCSP_id_get0_info(WOLFSSL_ASN1_STRING** name,
+        WOLFSSL_ASN1_OBJECT** pmd)
+{
+    WOLFSSL_STUB("wolfSSL_OCSP_id_get0_info");
+    (void)name;
+    (void)pmd;
+    return WOLFSSL_FATAL_ERROR;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_OCSP_request_add1_nonce(OcspRequest* req, unsigned char* val,
+        int sz)
+{
+    WOLFSSL_STUB("wolfSSL_OCSP_request_add1_nonce");
+    (void)req;
+    (void)val;
+    (void)sz;
+    return WOLFSSL_FATAL_ERROR;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_OCSP_check_nonce(OcspRequest* req, WOLFSSL_OCSP_BASICRESP* bs)
+{
+    WOLFSSL_STUB("wolfSSL_OCSP_check_nonce");
+    (void)req;
+    (void)bs;
+    return WOLFSSL_FATAL_ERROR;
+}
+#endif
+#endif /* OPENSSL_EXTRA */
 
 #else /* HAVE_OCSP */
 

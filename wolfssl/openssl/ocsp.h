@@ -60,11 +60,17 @@
 #define OCSP_response_status      wolfSSL_OCSP_response_status
 #define OCSP_response_status_str  wolfSSL_OCSP_response_status_str
 #define OCSP_response_get1_basic  wolfSSL_OCSP_response_get1_basic
+#define OSCP_response_create      wolfSSL_OCSP_response_create
 
 #define OCSP_REQUEST_new          wolfSSL_OCSP_REQUEST_new
 #define OCSP_REQUEST_free         wolfSSL_OCSP_REQUEST_free
 #define i2d_OCSP_REQUEST          wolfSSL_i2d_OCSP_REQUEST
 #define OCSP_request_add0_id      wolfSSL_OCSP_request_add0_id
+#define OCSP_request_add1_nonce   wolfSSL_OCSP_request_add1_nonce
+#define OCSP_check_nonce          wolfSSL_OCSP_check_nonce
+#define OCSP_id_get0_info         wolfSSL_OCSP_id_get0_info
+#define OCSP_crl_reason_str       wolfSSL_OCSP_crl_reason_str
+#define OCSP_REQUEST_add_ext      wolfSSL_OCSP_REQUEST_add_ext
 
 #define OCSP_CERTID_dup           wolfSSL_OCSP_CERTID_dup
 
