@@ -17823,6 +17823,53 @@ void wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(WOLFSSL_STACK* sk,
 
 #ifdef OPENSSL_EXTRA
 
+/* create a generic wolfSSL stack node
+ * returns a new WOLFSSL_STACK structure on success */
+WOLFSSL_STACK* wolfSSL_sk_new_node(void* heap)
+{
+    WOLFSSL_STACK* sk = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), heap,
+                                                          DYNAMIC_TYPE_OPENSSL);
+    if (sk != NULL) {
+        XMEMSET(sk, 0, sizeof(*sk));
+        sk->heap = heap;
+    }
+
+    return sk;
+}
+
+
+/* free's node but does not free internal data such as in->data.x509 */
+void wolfSSL_sk_free_node(WOLFSSL_STACK* in)
+{
+    if (in != NULL) {
+        XFREE(in, in->heap, DYNAMIC_TYPE_OPENSSL);
+    }
+}
+
+
+/* pushes node "in" onto "stack" and returns pointer to the new stack on success
+ * also handles internal "num" for number of nodes on stack
+ * return WOLFSSL_SUCCESS on success
+ */
+int wolfSSL_sk_push_node(WOLFSSL_STACK** stack, WOLFSSL_STACK* in)
+{
+    if (stack == NULL || in == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (*stack == NULL) {
+        in->num = 1;
+        *stack = in;
+        return WOLFSSL_SUCCESS;
+    }
+
+    in->num  = (*stack)->num + 1;
+    in->next = *stack;
+    *stack   = in;
+    return WOLFSSL_SUCCESS;
+}
+
+
 /* Returns the general name at index i from the stack
  *
  * sk stack to get general name from
@@ -18042,6 +18089,28 @@ WOLFSSL_X509_EXTENSION* wolfSSL_sk_X509_EXTENSION_value(
     }
     return NULL;
 }
+
+/* frees all of the nodes and the values in stack */
+void wolfSSL_sk_X509_EXTENSION_pop_free(
+        WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* sk,
+        void f (WOLFSSL_X509_EXTENSION*))
+{
+    WOLFSSL_STACK* current;
+
+    if (sk == NULL) {
+        return;
+    }
+
+    current = sk;
+    while (current != NULL) {
+        WOLFSSL_STACK* toFree = current;
+        current = current->next;
+
+        f(toFree->data.ext);
+        wolfSSL_sk_free_node(toFree);
+    }
+}
+
 #endif /* OPENSSL_EXTRA */
 
 #ifndef NO_FILESYSTEM
@@ -38439,32 +38508,9 @@ void wolfSSL_X509_INFO_free(WOLFSSL_X509_INFO* info)
     XFREE(info, NULL, DYNAMIC_TYPE_X509);
 }
 
-/* create a generic wolfSSL stack node
- * returns a new WOLFSSL_STACK structure on success */
-static WOLFSSL_STACK* wolfSSL_sk_new_node(void* heap)
-{
-    WOLFSSL_STACK* sk = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), heap,
-                                                          DYNAMIC_TYPE_OPENSSL);
-    if (sk != NULL) {
-        XMEMSET(sk, 0, sizeof(*sk));
-        sk->heap = heap;
-    }
-
-    return sk;
-}
-
-
 WOLFSSL_STACK* wolfSSL_sk_X509_INFO_new_null(void)
 {
     return wolfSSL_sk_new_node(NULL);
-}
-
-
-static void wolfSSL_sk_free_node(WOLFSSL_STACK* in)
-{
-    if (in != NULL) {
-        XFREE(in, in->heap, DYNAMIC_TYPE_OPENSSL);
-    }
 }
 
 

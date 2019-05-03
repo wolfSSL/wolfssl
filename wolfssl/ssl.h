@@ -947,6 +947,10 @@ WOLFSSL_API const char* wolfSSL_ERR_reason_error_string(unsigned long);
     #define DECLARE_STACK_OF(x) WOLF_STACK_OF(x);
 #endif
 
+WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_new_node(void* heap);
+WOLFSSL_API void wolfSSL_sk_free_node(WOLFSSL_STACK* in);
+WOLFSSL_API int wolfSSL_sk_push_node(WOLFSSL_STACK** stack, WOLFSSL_STACK* in);
+
 #if defined(HAVE_OCSP)
 #include "wolfssl/ocsp.h"
 #include "wolfssl/wolfcrypt/asn.h"
@@ -979,6 +983,9 @@ WOLFSSL_API WOLFSSL_ACCESS_DESCRIPTION* wolfSSL_sk_ACCESS_DESCRIPTION_value(
         WOLFSSL_STACK* sk, int idx);
 WOLFSSL_API void wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(WOLFSSL_STACK* sk,
         void f (WOLFSSL_ACCESS_DESCRIPTION*));
+WOLFSSL_API void wolfSSL_sk_X509_EXTENSION_pop_free(
+        WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* sk,
+        void f (WOLFSSL_X509_EXTENSION*));
 WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void);
 WOLFSSL_API void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj);
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_new_asn1_obj(void);
