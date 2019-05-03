@@ -2796,7 +2796,7 @@ WOLFSSL_API int wolfSSL_use_RSAPrivateKey_ASN1(WOLFSSL* ssl, unsigned char* der,
                                                                 long derSz);
 #endif
 
-#ifdef WOLFSSL_QT
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
 WOLFSSL_API int wolfSSL_X509_cmp(const WOLFSSL_X509* a, const WOLFSSL_X509* b);
 WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* x, int loc);
 WOLFSSL_API int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passed_cert);
@@ -2806,7 +2806,7 @@ WOLFSSL_API int wolfSSL_X509_EXTENSION_get_critical(const WOLFSSL_X509_EXTENSION
 WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_X509_EXTENSION_get_data(WOLFSSL_X509_EXTENSION* ex);
 WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509_EXTENSION_new(void);
 WOLFSSL_API void wolfSSL_X509_EXTENSION_free(WOLFSSL_X509_EXTENSION* ext_to_free);
-#endif /* WOLFSSL_QT */
+#endif /* WOLFSSL_QT || OPENSSL_ALL */
 
 #endif /* NO_CERTS */
 

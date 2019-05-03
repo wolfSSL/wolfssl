@@ -30,7 +30,7 @@
     extern "C" {
 #endif
 
-#ifdef WOLFSSL_QT
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
     WOLFSSL_API int wolfSSL_X509_STORE_CTX_set_purpose(WOLFSSL_X509_STORE_CTX *ctx, int purpose);
 #endif
 

@@ -40,7 +40,7 @@
 #include <wolfssl/openssl/crypto.h>
 #endif
 
-#if defined(WOLFSSL_QT)
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
 #include <wolfssl/openssl/dh.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/openssl/objects.h>

@@ -3469,7 +3469,7 @@ struct WOLFSSL_X509 {
     int              hwSerialNumSz;
     byte             hwSerialNum[EXTERNAL_SERIAL_SIZE];
 #endif /* WOLFSSL_SEP */
-#if (defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)) && \
+#if (defined(WOLFSSL_SEP) || defined(WOLFSSL_QT) || defined (OPENSSL_ALL)) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     byte             certPolicySet;
     byte             certPolicyCrit;

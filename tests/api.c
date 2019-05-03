@@ -514,7 +514,7 @@ static void test_wolfSSL_Method_Allocators(void)
         TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_server_method);
         TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_client_method);
     #endif
-    #ifdef WOLFSL_ALLOW_TLSV10
+    #ifdef WOLFSSL_ALLOW_TLSV10
         TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_server_method);
         TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_client_method);
     #endif
@@ -24056,7 +24056,7 @@ static void test_wolfSSL_CTX_ctrl(void)
     char clientFile[] = "./certs/client-cert.pem";
     SSL_CTX* ctx;
     X509* x509 = NULL;
-#ifndef NO_DH
+#if !defined(NO_DH) && !defined(NO_DSA)
     byte buf[5300];
     char file[] = "./certs/dsaparams.pem";
     XFILE f;
@@ -24079,7 +24079,7 @@ static void test_wolfSSL_CTX_ctrl(void)
     x509 = wolfSSL_X509_load_certificate_file(clientFile, WOLFSSL_FILETYPE_PEM);
     AssertNotNull(x509);
 
-#ifndef NO_DH
+#if !defined(NO_DH) && !defined(NO_DSA)
     /* Initialize DH */
     f = XFOPEN(file, "rb");
     AssertTrue((f != XBADFILE));
@@ -24139,7 +24139,7 @@ static void test_wolfSSL_CTX_ctrl(void)
     /* Tests should fail with passed in NULL pointer */
     AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_EXTRA_CHAIN_CERT,0,NULL), \
                 SSL_FAILURE);
-#ifndef NO_DH
+#if !defined(NO_DH) && !defined(NO_DSA)
     AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_DH,0,NULL), \
                 SSL_FAILURE);
 #endif
@@ -24164,7 +24164,7 @@ static void test_wolfSSL_CTX_ctrl(void)
     /* Test with SSL_CTRL_SET_TMP_DH
      * wolfSSL_CTX_ctrl should succesffuly call wolfSSL_SSL_CTX_set_tmp_dh
      */
-#ifndef NO_DH
+#if !defined(NO_DH) && !defined(NO_DSA)
     AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_DH,0,dh), \
                 SSL_SUCCESS);
 #endif
@@ -24183,7 +24183,7 @@ static void test_wolfSSL_CTX_ctrl(void)
 #endif
 
     /* Cleanup and Pass */
-#ifndef NO_DH
+#if !defined(NO_DH) && !defined(NO_DSA)
     BIO_free(bio);
     DSA_free(dsa);
     DH_free(dh);
@@ -24199,7 +24199,7 @@ static void test_wolfSSL_CTX_ctrl(void)
 
 static void test_wolfSSL_DH_check(void)
 {
-#ifndef NO_DH
+#if !defined(NO_DH) && !defined(NO_DSA)
     byte buf[5300];
     char file[] = "./certs/dsaparams.pem";
     XFILE f;
@@ -24261,7 +24261,7 @@ static void test_wolfSSL_DH_check(void)
     DSA_free(dsa);
     DH_free(dh);
     printf(resultFmt, passed);
-#endif /* NO_DH */
+#endif /* !NO_DH  && !NO_DSA */
 }
 
 static void test_wolfSSL_ASN1_STRING_print(void){
@@ -26652,7 +26652,7 @@ void ApiTest(void)
 
     printf("\n-------------End Of Qt Unit Tests---------------\n");
 
-#endif /* (defined(WOLFSSL_QT)  */
+#endif /* WOLFSSL_QT */
 
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)) && !defined(NO_RSA)
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_ASN1(), WOLFSSL_SUCCESS);
