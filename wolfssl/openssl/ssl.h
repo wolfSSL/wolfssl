@@ -342,6 +342,11 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define X509_set_subject_name           wolfSSL_X509_set_subject_name
 #define X509_set_issuer_name            wolfSSL_X509_set_issuer_name
 #define X509_set_pubkey                 wolfSSL_X509_set_pubkey
+#define X509_set_notAfter               wolfSSL_X509_set_notAfter
+#define X509_set_notBefore              wolfSSL_X509_set_notBefore
+#define X509_set_serialNumber           wolfSSL_X509_set_serialNumber
+#define X509_set_version                wolfSSL_X509_set_version
+#define X509_sign                       wolfSSL_X509_sign
 #define X509_print                      wolfSSL_X509_print
 #define X509_verify_cert_error_string   wolfSSL_X509_verify_cert_error_string
 #define X509_verify_cert                wolfSSL_X509_verify_cert
@@ -368,7 +373,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 
 #define sk_X509_EXTENSION_num           wolfSSL_sk_X509_EXTENSION_num
 #define sk_X509_EXTENSION_value         wolfSSL_sk_X509_EXTESNION_value
-#define sk_X509_EXTENSION_new_null      wolfSSL_sk_new_node
+#define sk_X509_EXTENSION_new_null()    wolfSSL_sk_new_node(NULL)
 #define sk_X509_EXTESNION_pop_free      wolfSSL_sk_X509_EXTENSION_pop_free
 #define sk_X509_EXTENSION_push          wolfSSL_sk_X509_EXTENSION_push
 

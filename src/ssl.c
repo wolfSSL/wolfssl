@@ -42058,6 +42058,59 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
 }
 
 
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_X509_set_notAfter(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME* t)
+{
+    WOLFSSL_STUB("wolfSSL_X509_set_notAfter");
+    (void)x509;
+    (void)t;
+    return WOLFSSL_FAILURE;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_X509_set_notBefore(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME* t)
+{
+    WOLFSSL_STUB("wolfSSL_X509_set_notBefore");
+    (void)x509;
+    (void)t;
+    return WOLFSSL_FAILURE;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_X509_set_serialNumber(WOLFSSL_X509* x509, WOLFSSL_ASN1_INTEGER* s)
+{
+    WOLFSSL_STUB("wolfSSL_X509_set_serialNumber");
+    (void)x509;
+    (void)s;
+    return WOLFSSL_FAILURE;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_X509_set_version(WOLFSSL_X509* x509, long v)
+{
+    WOLFSSL_STUB("wolfSSL_X509_set_version");
+    (void)x509;
+    (void)v;
+    return WOLFSSL_FAILURE;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+/* returns the size of signature on success */
+int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
+        const WOLFSSL_EVP_MD* md)
+{
+    WOLFSSL_STUB("wolfSSL_X509_sign");
+    (void)x509;
+    (void)pkey;
+    (void)md;
+    return WOLFSSL_FATAL_ERROR;
+}
+#endif
+
 WOLFSSL_X509* wolfSSL_X509_REQ_new(void)
 {
     return wolfSSL_X509_new();

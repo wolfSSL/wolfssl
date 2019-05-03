@@ -1187,6 +1187,16 @@ WOLFSSL_API int wolfSSL_X509_set_subject_name(WOLFSSL_X509*,
 WOLFSSL_API int wolfSSL_X509_set_issuer_name(WOLFSSL_X509*,
                                               WOLFSSL_X509_NAME*);
 WOLFSSL_API int wolfSSL_X509_set_pubkey(WOLFSSL_X509*, WOLFSSL_EVP_PKEY*);
+WOLFSSL_API int wolfSSL_X509_set_notAfter(WOLFSSL_X509* x509,
+        const WOLFSSL_ASN1_TIME* t);
+WOLFSSL_API int wolfSSL_X509_set_notBefore(WOLFSSL_X509* x509,
+        const WOLFSSL_ASN1_TIME* t);
+WOLFSSL_API int wolfSSL_X509_set_serialNumber(WOLFSSL_X509* x509,
+        WOLFSSL_ASN1_INTEGER* s);
+WOLFSSL_API int wolfSSL_X509_set_version(WOLFSSL_X509* x509, long v);
+WOLFSSL_API int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
+        const WOLFSSL_EVP_MD* md);
+
 
 WOLFSSL_API int wolfSSL_X509_NAME_entry_count(WOLFSSL_X509_NAME*);
 WOLFSSL_API int wolfSSL_X509_NAME_get_text_by_NID(
