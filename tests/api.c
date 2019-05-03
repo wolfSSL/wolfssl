@@ -20239,6 +20239,31 @@ static void test_wolfSSL_X509_VERIFY_PARAM_set1_host(void)
 #endif /* OPENSSL_EXTRA */
 }
 
+static void test_wolfSSL_X509_STORE_CTX_get0_store(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    X509_STORE* store;
+    X509_STORE_CTX* ctx;
+    X509_STORE_CTX* ctx_no_init;
+
+    printf(testingFmt, "wolfSSL_X509_STORE_CTX_get0_store()");
+    AssertNotNull((store = X509_STORE_new()));
+    AssertNotNull(ctx = X509_STORE_CTX_new());
+    AssertNotNull(ctx_no_init = X509_STORE_CTX_new());
+    AssertIntEQ(X509_STORE_CTX_init(ctx, store, NULL, NULL), SSL_SUCCESS);
+
+    AssertNull(X509_STORE_CTX_get0_store(NULL));
+    /* should return NULL if ctx has not bee initialized */
+    AssertNull(X509_STORE_CTX_get0_store(ctx_no_init));
+    AssertNotNull(X509_STORE_CTX_get0_store(ctx));
+
+    wolfSSL_X509_STORE_CTX_free(ctx);
+    wolfSSL_X509_STORE_CTX_free(ctx_no_init);
+
+    printf(resultFmt, passed);
+    #endif /* OPENSSL_EXTRA */
+}
+
 static void test_wolfSSL_CTX_set_client_CA_list(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_CERTS)
@@ -27141,6 +27166,7 @@ void ApiTest(void)
     test_wolfSSL_X509_STORE_CTX_set_time();
     test_wolfSSL_get0_param();
     test_wolfSSL_X509_VERIFY_PARAM_set1_host();
+    test_wolfSSL_X509_STORE_CTX_get0_store();
     test_wolfSSL_X509_STORE();
     test_wolfSSL_BN();
     test_wolfSSL_PEM_read_bio();

@@ -22254,6 +22254,21 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
 
 #ifdef OPENSSL_EXTRA
 
+/* Gets pointer to X509_STORE that was used to create context.
+ *
+ * Return valid pointer on success, NULL if ctx was NULL or not initialized
+ */
+WOLFSSL_X509_STORE* wolfSSL_X509_STORE_CTX_get0_store(
+        WOLFSSL_X509_STORE_CTX* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get0_store");
+
+    if (ctx == NULL)
+        return NULL;
+
+    return ctx->store;
+}
+
 void wolfSSL_X509_STORE_CTX_set_time(WOLFSSL_X509_STORE_CTX* ctx,
                                     unsigned long flags,
                                     time_t t)
