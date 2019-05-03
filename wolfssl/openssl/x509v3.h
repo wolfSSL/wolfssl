@@ -102,6 +102,9 @@ WOLFSSL_API int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out,
 #define X509V3_EXT_print   wolfSSL_X509V3_EXT_print
 #define i2s_ASN1_OCTET_STRING     wolfSSL_i2s_ASN1_STRING
 #define X509V3_EXT_print          wolfSSL_X509V3_EXT_print
+#define X509V3_EXT_conf_nid wolfSSL_X509V3_EXT_conf_nid
+#define X509V3_set_ctx      wolfSSL_X509V3_set_ctx
+#define X509V3_set_ctx_nodb wolfSSL_X509V3_set_ctx_nodb
 
 #ifdef  __cplusplus
 }

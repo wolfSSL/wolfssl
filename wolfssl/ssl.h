@@ -940,6 +940,13 @@ WOLFSSL_API const char* wolfSSL_ERR_reason_error_string(unsigned long);
 
 /* extras */
 
+
+/* for now LHASH is not implemented */
+typedef int WOLFSSL_LHASH;
+#ifndef WOLF_LHASH_OF
+    #define WOLF_LHASH_OF(x) WOLFSSL_LHASH
+#endif
+
 #ifndef WOLF_STACK_OF
     #define WOLF_STACK_OF(x) WOLFSSL_STACK
 #endif
@@ -3021,6 +3028,13 @@ WOLFSSL_API void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
 WOLFSSL_API int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert);
 WOLFSSL_API int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509 *x, int nid, int lastpos);
 WOLFSSL_API int wolfSSL_X509_add_ext(WOLFSSL_X509 *x, WOLFSSL_X509_EXTENSION *ex, int loc);
+WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_conf_nid(
+        WOLF_LHASH_OF(CONF_VALUE)* conf, WOLFSSL_X509V3_CTX* ctx, int nid,
+        char* value);
+WOLFSSL_API void wolfSSL_X509V3_set_ctx(WOLFSSL_X509V3_CTX* ctx,
+        WOLFSSL_X509* issuer, WOLFSSL_X509* subject, WOLFSSL_X509* req,
+        WOLFSSL_X509_CRL* crl, int flag);
+WOLFSSL_API void wolfSSL_X509V3_set_ctx_nodb(WOLFSSL_X509V3_CTX* ctx);
 WOLFSSL_API int wolfSSL_X509_digest(const WOLFSSL_X509* x509,
         const WOLFSSL_EVP_MD* digest, unsigned char* buf, unsigned int* len);
 WOLFSSL_API int wolfSSL_use_certificate(WOLFSSL* ssl, WOLFSSL_X509* x509);
@@ -3170,6 +3184,8 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_REQ_new(void);
 WOLFSSL_API void wolfSSL_X509_REQ_free(WOLFSSL_X509* req);
 WOLFSSL_API int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
                                       const WOLFSSL_EVP_MD *md);
+WOLFSSL_API int wolfSSL_X509_REQ_add_extensions(WOLFSSL_X509* req,
+        WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* ext);
 WOLFSSL_API int wolfSSL_X509_REQ_set_subject_name(WOLFSSL_X509 *req,
                                                   WOLFSSL_X509_NAME *name);
 WOLFSSL_API int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req,

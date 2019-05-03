@@ -8843,6 +8843,44 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int lo
     (void)loc;
     return WOLFSSL_FAILURE;
 }
+
+/* currently LHASH is not implemented (and not needed for Apache port) */
+WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_conf_nid(
+        WOLF_LHASH_OF(CONF_VALUE)* conf, WOLFSSL_X509V3_CTX* ctx, int nid,
+        char* value)
+{
+    WOLFSSL_STUB("wolfSSL_X509V3_EXT_conf_nid");
+
+    if (conf != NULL) {
+        WOLFSSL_MSG("Handling LHASH not implemented yet");
+        return NULL;
+    }
+
+    (void)conf;
+    (void)ctx;
+    (void)nid;
+    (void)value;
+    return NULL;
+}
+
+void wolfSSL_X509V3_set_ctx(WOLFSSL_X509V3_CTX* ctx, WOLFSSL_X509* issuer,
+        WOLFSSL_X509* subject, WOLFSSL_X509* req, WOLFSSL_X509_CRL* crl,
+        int flag)
+{
+    WOLFSSL_STUB("wolfSSL_X509V3_set_ctx");
+    (void)ctx;
+    (void)issuer;
+    (void)subject;
+    (void)req;
+    (void)crl;
+    (void)flag;
+}
+
+void wolfSSL_X509V3_set_ctx_nodb(WOLFSSL_X509V3_CTX* ctx)
+{
+    WOLFSSL_STUB("wolfSSL_X509V3_set_ctx_nodb");
+    (void)ctx;
+}
 #endif /* !NO_WOLFSSL_STUB */
 
 /* Returns pointer to ASN1_OBJECT from an X509_EXTENSION object */
@@ -42334,6 +42372,17 @@ int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
 
     return WOLFSSL_SUCCESS;
 }
+
+
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_X509_REQ_add_extensions(WOLFSSL_X509* req,
+        WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* ext)
+{
+    (void)req;
+    (void)ext;
+    return WOLFSSL_FATAL_ERROR;
+}
+#endif
 
 int wolfSSL_X509_REQ_set_subject_name(WOLFSSL_X509 *req,
                                       WOLFSSL_X509_NAME *name)
