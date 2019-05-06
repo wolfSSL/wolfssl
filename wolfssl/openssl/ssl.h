@@ -374,10 +374,11 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define sk_X509_free                    wolfSSL_sk_X509_free
 
 #define sk_X509_EXTENSION_num           wolfSSL_sk_X509_EXTENSION_num
-#define sk_X509_EXTENSION_value         wolfSSL_sk_X509_EXTESNION_value
+#define sk_X509_EXTENSION_value         wolfSSL_sk_X509_EXTENSION_value
 #define sk_X509_EXTENSION_new_null      wolfSSL_sk_X509_EXTENSION_new_null
-#define sk_X509_EXTESNION_pop_free      wolfSSL_sk_X509_EXTENSION_pop_free
+#define sk_X509_EXTENSION_pop_free      wolfSSL_sk_X509_EXTENSION_pop_free
 #define sk_X509_EXTENSION_push          wolfSSL_sk_X509_EXTENSION_push
+#define X509_EXTENSION_free             wolfSSL_X509_EXTENSION_free
 
 #define X509_INFO_new                   wolfSSL_X509_INFO_new
 #define X509_INFO_free                  wolfSSL_X509_INFO_free
@@ -405,6 +406,9 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define X509_NAME_digest                wolfSSL_X509_NAME_digest
 #define X509_cmp_current_time           wolfSSL_X509_cmp_current_time
 #define X509_cmp_time                   wolfSSL_X509_cmp_time
+
+#define sk_ACCESS_DESCRIPTION_num       wolfSSL_sk_ACCESS_DESCRIPTION_num
+#define sk_ACCESS_DESCRIPTION_value     wolfSSL_sk_ACCESS_DESCRIPTION_value
 
 #define sk_X509_NAME_new                wolfSSL_sk_X509_NAME_new
 #define sk_X509_NAME_push               wolfSSL_sk_X509_NAME_push
