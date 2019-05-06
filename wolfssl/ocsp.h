@@ -44,6 +44,8 @@ typedef struct OcspResponse WOLFSSL_OCSP_BASICRESP;
 typedef struct OcspRequest WOLFSSL_OCSP_CERTID;
 
 typedef struct OcspRequest WOLFSSL_OCSP_ONEREQ;
+
+typedef struct OcspRequest WOLFSSL_OCSP_REQUEST;
 #endif
 
 WOLFSSL_LOCAL int  InitOCSP(WOLFSSL_OCSP*, WOLFSSL_CERT_MANAGER*);
@@ -98,6 +100,8 @@ WOLFSSL_API int wolfSSL_i2d_OCSP_REQUEST(OcspRequest* request,
 WOLFSSL_API WOLFSSL_OCSP_ONEREQ* wolfSSL_OCSP_request_add0_id(OcspRequest *req,
     WOLFSSL_OCSP_CERTID *cid);
 WOLFSSL_API WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_CERTID_dup(WOLFSSL_OCSP_CERTID*);
+WOLFSSL_API int wolfSSL_i2d_OCSP_REQUEST_bio(WOLFSSL_BIO* out,
+    const WOLFSSL_OCSP_REQUEST *req);
 
 #endif
 #ifdef OPENSSL_EXTRA

@@ -29763,6 +29763,15 @@ int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
     return tlen;
 }
 
+void wolfSSL_RSA_get0_key(const WOLFSSL_RSA *r, const WOLFSSL_BIGNUM **n,
+    const WOLFSSL_BIGNUM **e, const WOLFSSL_BIGNUM **d)
+{
+    WOLFSSL_STUB("wolfSSL_RSA_get0_key");
+    (void)r;
+    (void)n;
+    (void)e;
+    (void)d;
+}
 
 /* generate p-1 and q-1, WOLFSSL_SUCCESS on ok */
 int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
@@ -40970,7 +40979,7 @@ int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
                 wolfSSL_BIO_write(bio, ",", 1);
         }
     }
-    wolfSSL_BIO_write(bio, '\0', 1);
+    wolfSSL_BIO_write(bio, "\0", 1);
 
     /* clears out all current ALPN extensions set */
     TLSX_Remove(&ssl->extensions, TLSX_APPLICATION_LAYER_PROTOCOL, ssl->heap);

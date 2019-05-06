@@ -1275,6 +1275,15 @@ int wolfSSL_EVP_SignInit(WOLFSSL_EVP_MD_CTX *ctx, const WOLFSSL_EVP_MD *type)
     return wolfSSL_EVP_DigestInit(ctx,type);
 }
 
+WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
+                                     const WOLFSSL_EVP_MD* type,
+                                     WOLFSSL_ENGINE *impl)
+{
+    if (ctx == NULL) return WOLFSSL_FAILURE;
+    WOLFSSL_ENTER("EVP_SignInit");
+    return wolfSSL_EVP_DigestInit_ex(ctx,type,impl);
+}
+
 
 /* Update structure with data for signing
  *

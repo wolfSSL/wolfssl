@@ -95,6 +95,9 @@ WOLFSSL_API int wolfSSL_RSA_GenAdd(WOLFSSL_RSA*);
 WOLFSSL_API int wolfSSL_RSA_LoadDer(WOLFSSL_RSA*, const unsigned char*, int sz);
 WOLFSSL_API int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA*, const unsigned char*, int sz, int opt);
 
+WOLFSSL_API void wolfSSL_RSA_get0_key(const WOLFSSL_RSA *r,
+                  const WOLFSSL_BIGNUM **n, const WOLFSSL_BIGNUM **e, const WOLFSSL_BIGNUM **d);
+
 #define WOLFSSL_RSA_LOAD_PRIVATE 1
 #define WOLFSSL_RSA_LOAD_PUBLIC  2
 #define WOLFSSL_RSA_F4           0x10001L
@@ -111,8 +114,10 @@ WOLFSSL_API int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA*, const unsigned char*, int s
 
 #define RSA_size           wolfSSL_RSA_size
 #define RSA_sign           wolfSSL_RSA_sign
-#define RSA_verify          wolfSSL_RSA_verify
+#define RSA_verify         wolfSSL_RSA_verify
 #define RSA_public_decrypt wolfSSL_RSA_public_decrypt
+
+#define RSA_get0_key       wolfSSL_RSA_get0_key
 
 #define RSA_F4             WOLFSSL_RSA_F4
 

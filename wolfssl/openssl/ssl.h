@@ -177,6 +177,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define SSLv3_server_method             wolfSSLv3_server_method
 #define SSLv3_client_method             wolfSSLv3_client_method
 #define TLS_client_method               wolfTLS_client_method
+#define TLS_server_method               wolfTLS_server_method
 #define TLSv1_method                    wolfTLSv1_method
 #define TLSv1_server_method             wolfTLSv1_server_method
 #define TLSv1_client_method             wolfTLSv1_client_method

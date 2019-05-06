@@ -427,6 +427,9 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_base_id(const EVP_PKEY *pkey);
 WOLFSSL_API int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
                   unsigned int *siglen, WOLFSSL_EVP_PKEY *pkey);
 WOLFSSL_API int wolfSSL_EVP_SignInit(WOLFSSL_EVP_MD_CTX *ctx, const WOLFSSL_EVP_MD *type);
+WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
+                                     const WOLFSSL_EVP_MD* type,
+                                     WOLFSSL_ENGINE *impl);
 WOLFSSL_API int wolfSSL_EVP_SignUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t len);
 WOLFSSL_API int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
         unsigned char* sig, unsigned int sig_len, WOLFSSL_EVP_PKEY *pkey);
@@ -634,6 +637,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_PKEY_id                    wolfSSL_EVP_PKEY_id
 #define EVP_SignFinal                  wolfSSL_EVP_SignFinal
 #define EVP_SignInit                   wolfSSL_EVP_SignInit
+#define EVP_SignInit_ex                wolfSSL_EVP_SignInit_ex
 #define EVP_SignUpdate                 wolfSSL_EVP_SignUpdate
 #define EVP_VerifyFinal                wolfSSL_EVP_VerifyFinal
 #define EVP_VerifyInit                 wolfSSL_EVP_VerifyInit

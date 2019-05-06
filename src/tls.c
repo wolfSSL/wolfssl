@@ -11299,6 +11299,36 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 
 #ifndef NO_WOLFSSL_SERVER
 
+    WOLFSSL_METHOD* wolfTLS_server_method(void)
+    {
+        return wolfTLS_client_method_ex(NULL);
+    }
+    WOLFSSL_METHOD* wolfTLS_server_method_ex(void* heap)
+    {
+        WOLFSSL_METHOD* method =
+                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
+                                                     heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
+        WOLFSSL_ENTER("TLS_server_method_ex");
+        if (method) {
+        #if defined(WOLFSSL_TLS13)
+            InitSSL_Method(method, MakeTLSv1_3());
+        #elif !defined(WOLFSSL_NO_TLS12)
+            InitSSL_Method(method, MakeTLSv1_2());
+        #elif !defined(NO_OLD_TLS)
+            InitSSL_Method(method, MakeTLSv1_1());
+        #elif defined(WOLFSSL_ALLOW_TLSV10)
+            InitSSL_Method(method, MakeTLSv1());
+        #else
+            #error No TLS version enabled!
+        #endif
+
+            method->downgrade = 1;
+            method->side      = WOLFSSL_SERVER_END;
+        }
+        return method;
+    }
+
 #ifndef NO_OLD_TLS
     #ifdef WOLFSSL_ALLOW_TLSV10
     WOLFSSL_METHOD* wolfTLSv1_server_method(void)

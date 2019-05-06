@@ -882,6 +882,17 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_CERTID_dup(WOLFSSL_OCSP_CERTID* id)
     return certId;
 }
 
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_i2d_OCSP_REQUEST_bio(WOLFSSL_BIO* out,
+    const WOLFSSL_OCSP_REQUEST *req)
+{
+    WOLFSSL_STUB("wolfSSL_i2d_OCSP_REQUEST_bio");
+    (void)out;
+    (void)req;
+    return WOLFSSL_FAILURE;
+}
+#endif /* !NO_WOLFSSL_STUB */
+
 #endif
 #ifdef OPENSSL_EXTRA
 #ifndef NO_WOLFSSL_STUB
