@@ -40922,17 +40922,66 @@ int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx, const unsigned char *p,
     return SSL_SUCCESS;
 }
 
-#ifndef NO_WOLFSSL_STUB
+
+#ifdef HAVE_ALPN
+/* Sets the ALPN extension protos
+ *
+ * example format is
+ * unsigned char p[] = {
+ *      8, 'h', 't', 't', 'p', '/', '1', '.', '1'
+ * };
+ *
+ * returns WOLFSSL_SUCCESS on success */
 int wolfSSL_set_alpn_protos(WOLFSSL* ssl,
-        const unsigned char* protos, unsigned int protos_len)
+        const unsigned char* p, unsigned int p_len)
 {
-    WOLFSSL_STUB("wolfSSL_set_alpn_protos");
-    (void)ssl;
-    (void)protos;
-    (void)protos_len;
-    return WOLFSSL_FATAL_ERROR;
+    WOLFSSL_BIO* bio;
+    char* pt;
+
+    unsigned int sz;
+    unsigned int idx = 0;
+    int alpn_opt = WOLFSSL_ALPN_CONTINUE_ON_MISMATCH;
+    WOLFSSL_ENTER("wolfSSL_set_alpn_protos");
+
+    if (ssl == NULL || p_len <= 1) {
+        return WOLFSSL_FAILURE;
+    }
+
+    bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    if (bio == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* convert into comma seperated list */
+    while (idx < p_len - 1) {
+        unsigned int i;
+
+        sz = p[idx++];
+        if (idx + sz > p_len) {
+            WOLFSSL_MSG("Bad list format");
+            wolfSSL_BIO_free(bio);
+            return WOLFSSL_FAILURE;
+        }
+        if (sz > 0) {
+            for (i = 0; i < sz; i++) {
+                wolfSSL_BIO_write(bio, &p[idx++], 1);
+            }
+            if (idx < p_len - 1)
+                wolfSSL_BIO_write(bio, ",", 1);
+        }
+    }
+    wolfSSL_BIO_write(bio, '\0', 1);
+
+    /* clears out all current ALPN extensions set */
+    TLSX_Remove(&ssl->extensions, TLSX_APPLICATION_LAYER_PROTOCOL, ssl->heap);
+
+    if ((sz = wolfSSL_BIO_get_mem_data(bio, &pt)) > 0) {
+        wolfSSL_UseALPN(ssl, pt, sz, alpn_opt);
+    }
+    wolfSSL_BIO_free(bio);
+    return WOLFSSL_SUCCESS;
 }
-#endif
+#endif /* HAVE_ALPN */
 #endif
 
 #endif /* WOLFCRYPT_ONLY */
