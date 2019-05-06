@@ -35748,188 +35748,213 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         int id;
         word32 type;
         const char* sName;
+        const char* lName;
     } WOLFSSL_ObjectInfo;
 
     static WOLFSSL_ObjectInfo wolfssl_object_info[] = {
         /* oidHashType */
     #ifdef WOLFSSL_MD2
-        { NID_md2, MD2h, oidHashType, "md2" },
+        { NID_md2, MD2h, oidHashType, "md2", "md2"},
     #endif
     #ifdef WOLFSSL_MD5
-        { NID_md5, MD5h, oidHashType, "md5" },
+        { NID_md5, MD5h, oidHashType, "md5", "md5"},
     #endif
     #ifndef NO_SHA
-        { NID_sha1, SHAh, oidHashType, "sha" },
+        { NID_sha1, SHAh, oidHashType, "sha", "sha1"},
     #endif
     #ifdef WOLFSSL_SHA224
-        { NID_sha224, SHA224h, oidHashType, "sha224" },
+        { NID_sha224, SHA224h, oidHashType, "sha224", "sha224"},
     #endif
     #ifndef NO_SHA256
-        { NID_sha256, SHA256h, oidHashType, "sha256" },
+        { NID_sha256, SHA256h, oidHashType, "sha256", "sha256"},
     #endif
     #ifdef WOLFSSL_SHA384
-        { NID_sha384, SHA384h, oidHashType, "sha384" },
+        { NID_sha384, SHA384h, oidHashType, "sha384", "sha384"},
     #endif
     #ifdef WOLFSSL_SHA512
-        { NID_sha512, SHA512h, oidHashType, "sha512" },
+        { NID_sha512, SHA512h, oidHashType, "sha512", "sha512"},
     #endif
 
         /* oidSigType */
     #ifndef NO_DSA
         #ifndef NO_SHA
-        { CTC_SHAwDSA, CTC_SHAwDSA, oidSigType, "shaWithDSA" },
+        { CTC_SHAwDSA, CTC_SHAwDSA, oidSigType, "shaWithDSA", "dsaWithSHA1"},
         #endif
     #endif /* NO_DSA */
     #ifndef NO_RSA
         #ifdef WOLFSSL_MD2
-        { CTC_MD2wRSA, CTC_MD2wRSA, oidSigType, "md2WithRSA" },
+        { CTC_MD2wRSA, CTC_MD2wRSA, oidSigType, "md2WithRSA",
+                                                        "md2WithRSAEncryption"},
         #endif
         #ifndef NO_MD5
-        { CTC_MD5wRSA, CTC_MD5wRSA, oidSigType, "md5WithRSA" },
+        { CTC_MD5wRSA, CTC_MD5wRSA, oidSigType, "md5WithRSA",
+                                                        "md5WithRSAEncryption"},
         #endif
         #ifndef NO_SHA
-        { CTC_SHAwRSA, CTC_SHAwRSA, oidSigType, "shaWithRSA" },
+        { CTC_SHAwRSA, CTC_SHAwRSA, oidSigType, "shaWithRSA",
+                                                       "sha1WithRSAEncryption"},
         #endif
         #ifdef WOLFSSL_SHA224
-        { CTC_SHA224wRSA, CTC_SHA224wRSA, oidSigType, "sha224WithRSA" },
+        { CTC_SHA224wRSA, CTC_SHA224wRSA, oidSigType, "sha224WithRSA",
+                                                     "sha224WithRSAEncryption"},
         #endif
         #ifndef NO_SHA256
-        { CTC_SHA256wRSA, CTC_SHA256wRSA, oidSigType, "sha256WithRSA" },
+        { CTC_SHA256wRSA, CTC_SHA256wRSA, oidSigType, "sha256WithRSA",
+                                                     "sha256WithRSAEncryption"},
         #endif
         #ifdef WOLFSSL_SHA384
-        { CTC_SHA384wRSA, CTC_SHA384wRSA, oidSigType, "sha384WithRSA" },
+        { CTC_SHA384wRSA, CTC_SHA384wRSA, oidSigType, "sha384WithRSA",
+                                                     "sha384WithRSAEncryption"},
         #endif
         #ifdef WOLFSSL_SHA512
-        { CTC_SHA512wRSA, CTC_SHA512wRSA, oidSigType, "sha512WithRSA" },
+        { CTC_SHA512wRSA, CTC_SHA512wRSA, oidSigType, "sha512WithRSA",
+                                                     "sha512WithRSAEncryption"},
         #endif
     #endif /* NO_RSA */
     #ifdef HAVE_ECC
         #ifndef NO_SHA
-        { CTC_SHAwECDSA, CTC_SHAwECDSA, oidSigType, "shaWithECDSA" },
+        { CTC_SHAwECDSA, CTC_SHAwECDSA, oidSigType, "shaWithECDSA", ""},
         #endif
         #ifdef WOLFSSL_SHA224
-        { CTC_SHA224wECDSA, CTC_SHA224wECDSA, oidSigType, "sha224WithECDSA" },
+        { CTC_SHA224wECDSA, CTC_SHA224wECDSA, oidSigType, "sha224WithECDSA",""},
         #endif
         #ifndef NO_SHA256
-        { CTC_SHA256wECDSA, CTC_SHA256wECDSA, oidSigType, "sha256WithECDSA" },
+        { CTC_SHA256wECDSA, CTC_SHA256wECDSA, oidSigType, "sha256WithECDSA",""},
         #endif
         #ifdef WOLFSSL_SHA384
-        { CTC_SHA384wECDSA, CTC_SHA384wECDSA, oidSigType, "sha384WithECDSA" },
+        { CTC_SHA384wECDSA, CTC_SHA384wECDSA, oidSigType, "sha384WithECDSA",""},
         #endif
         #ifdef WOLFSSL_SHA512
-        { CTC_SHA512wECDSA, CTC_SHA512wECDSA, oidSigType, "sha512WithECDSA" },
+        { CTC_SHA512wECDSA, CTC_SHA512wECDSA, oidSigType, "sha512WithECDSA",""},
         #endif
     #endif /* HAVE_ECC */
 
         /* oidKeyType */
     #ifndef NO_DSA
-        { DSAk, DSAk, oidKeyType, "DSA key" },
+        { DSAk, DSAk, oidKeyType, "DSA key", "dsaEncryption"},
     #endif /* NO_DSA */
     #ifndef NO_RSA
-        { RSAk, RSAk, oidKeyType, "RSA key" },
+        { RSAk, RSAk, oidKeyType, "RSA key", "rsaEncryption"},
     #endif /* NO_RSA */
     #ifdef HAVE_NTRU
-        { NTRUk, NTRUk, oidKeyType, "NTRU key" },
+        { NTRUk, NTRUk, oidKeyType, "NTRU key", "ntruEncryption"},
     #endif /* HAVE_NTRU */
     #ifdef HAVE_ECC
-        { ECDSAk, ECDSAk, oidKeyType, "ECDSA key" },
+        { ECDSAk, ECDSAk, oidKeyType, "ECDSA key", "ecdsaEncryption"},
     #endif /* HAVE_ECC */
 
         /* oidBlkType */
     #ifdef WOLFSSL_AES_128
-        { AES128CBCb, AES128CBCb, oidBlkType, "AES-128-CBC" },
+        { AES128CBCb, AES128CBCb, oidBlkType, "AES-128-CBC", "aes-128-cbc"},
     #endif
     #ifdef WOLFSSL_AES_192
-        { AES192CBCb, AES192CBCb, oidBlkType, "AES-192-CBC" },
+        { AES192CBCb, AES192CBCb, oidBlkType, "AES-192-CBC", "aes-192-cbc"},
     #endif
     #ifdef WOLFSSL_AES_256
-        { AES256CBCb, AES256CBCb, oidBlkType, "AES-256-CBC" },
+        { AES256CBCb, AES256CBCb, oidBlkType, "AES-256-CBC", "aes-256-cbc"},
     #endif
     #ifndef NO_DES3
-        { NID_des, DESb, oidBlkType, "DES-CBC" },
-        { NID_des3, DES3b, oidBlkType, "DES3-CBC" },
+        { NID_des, DESb, oidBlkType, "DES-CBC", "des-cbc"},
+        { NID_des3, DES3b, oidBlkType, "DES3-CBC", "des3-cbc"},
     #endif /* !NO_DES3 */
 
         /* oidOcspType */
     #ifdef HAVE_OCSP
-        { NID_id_pkix_OCSP_basic, OCSP_BASIC_OID, oidOcspType, "OCSP_basic" },
-        { OCSP_NONCE_OID, OCSP_NONCE_OID, oidOcspType, "OCSP_nonce" },
+        { NID_id_pkix_OCSP_basic, OCSP_BASIC_OID, oidOcspType, "OCSP_basic",
+                                                         "Basic OCSP Response"},
+        { OCSP_NONCE_OID, OCSP_NONCE_OID, oidOcspType, "OCSP_nonce",
+                                                                  "OCSP Nonce"},
     #endif /* HAVE_OCSP */
 
     #ifndef NO_CERTS
         /* oidCertExtType */
-        { BASIC_CA_OID, BASIC_CA_OID, oidCertExtType, "X509 basic ca" },
-        { ALT_NAMES_OID, ALT_NAMES_OID, oidCertExtType, "X509 alt names" },
-        { CRL_DIST_OID, CRL_DIST_OID, oidCertExtType, "X509 crl" },
-        { AUTH_INFO_OID, AUTH_INFO_OID, oidCertExtType, "X509 auth info" },
-        { AUTH_KEY_OID, AUTH_KEY_OID, oidCertExtType, "X509 auth key" },
-        { SUBJ_KEY_OID, SUBJ_KEY_OID, oidCertExtType, "X509 subject key" },
-        { KEY_USAGE_OID, KEY_USAGE_OID, oidCertExtType, "X509 key usage" },
-        { INHIBIT_ANY_OID, INHIBIT_ANY_OID, oidCertExtType,
-                                                           "X509 inhibit any" },
-        { NID_key_usage, KEY_USAGE_OID, oidCertExtType,
-                                                         "X509 key usage" },
+        { NID_basic_constraints, BASIC_CA_OID, oidCertExtType, "X509 basic ca",
+                                                    "X509v3 Basic Constraints"},
+        { NID_subject_alt_name, ALT_NAMES_OID, oidCertExtType, "X509 alt names",
+                                             "X509v3 Subject Alternative Name"},
+        { CRL_DIST_OID, CRL_DIST_OID, oidCertExtType, "X509 crl",
+                                              "X509v3 CRL Distribution Points"},
+        { NID_info_access, AUTH_INFO_OID, oidCertExtType, "X509 auth info",
+                                                "Authority Information Access"},
+        { NID_authority_key_identifier, AUTH_KEY_OID, oidCertExtType,
+                            "X509 auth key", "X509v3 Authority Key Identifier"},
+        { NID_subject_key_identifier, SUBJ_KEY_OID, oidCertExtType,
+                           "X509 subject key", "X509v3 Subject Key Identifier"},
+        { NID_key_usage, KEY_USAGE_OID, oidCertExtType, "X509 key usage",
+                                                            "X509v3 Key Usage"},
+        { NID_inhibit_any_policy, INHIBIT_ANY_OID, oidCertExtType,
+                               "X509 inhibit any", "X509v3 Inhibit Any Policy"},
+        { NID_ext_key_usage, KEY_USAGE_OID, oidCertExtType,
+                             "X509 ext key usage", "X509v3 Extended Key Usage"},
         { NID_name_constraints, NAME_CONS_OID, oidCertExtType,
-                                                      "X509 name constraints" },
+                            "X509 name constraints", "X509v3 Name Constraints"},
         { NID_certificate_policies, CERT_POLICY_OID, oidCertExtType,
-                                                  "X509 certificate policies" },
+                    "X509 certificate policies", "X509v3 Certificate Policies"},
 
         /* oidCertAuthInfoType */
-        { AIA_OCSP_OID, AIA_OCSP_OID, oidCertAuthInfoType, "Cert Auth OCSP" },
+        { AIA_OCSP_OID, AIA_OCSP_OID, oidCertAuthInfoType, "Cert Auth OCSP",
+                                                "Authority Information Access"},
         { AIA_CA_ISSUER_OID, AIA_CA_ISSUER_OID, oidCertAuthInfoType,
-                                                        "Cert Auth CA Issuer" },
+                                           "Cert Auth CA Issuer", "CA Issuers"},
 
         /* oidCertPolicyType */
-        { NID_any_policy, CP_ANY_OID, oidCertPolicyType, "Cert any policy" },
+        { NID_any_policy, CP_ANY_OID, oidCertPolicyType, "Cert any policy",
+                                                           "X509v3 Any Policy"},
 
         /* oidCertAltNameType */
-        { NID_hw_name_oid, HW_NAME_OID, oidCertAltNameType, "Hardware name" },
+        { NID_hw_name_oid, HW_NAME_OID, oidCertAltNameType, "Hardware name",""},
 
         /* oidCertKeyUseType */
         { NID_anyExtendedKeyUsage, EKU_ANY_OID, oidCertKeyUseType,
-                                                      "Cert any extended key" },
+                             "Cert any extended key", "Any Extended Key Usage"},
         { EKU_SERVER_AUTH_OID, EKU_SERVER_AUTH_OID, oidCertKeyUseType,
-                                                       "Cert server auth key" },
+                       "Cert server auth key", "TLS Web Server Authentication"},
         { EKU_CLIENT_AUTH_OID, EKU_CLIENT_AUTH_OID, oidCertKeyUseType,
-                                                       "Cert client auth key" },
+                       "Cert client auth key", "TLS Web Client Authentication"},
         { EKU_OCSP_SIGN_OID, EKU_OCSP_SIGN_OID, oidCertKeyUseType,
-                                                         "Cert OCSP sign key" },
+                                          "Cert OCSP sign key", "OCSP Signing"},
 
         /* oidCertNameType */
-        { NID_commonName, NID_commonName, oidCertNameType, "commonName" },
-        { NID_surname, NID_surname, oidCertNameType, "surname" },
-        { NID_serialNumber, NID_serialNumber, oidCertNameType, "serialNumber" },
-        { NID_countryName, NID_countryName, oidCertNameType, "countryName" },
-        { NID_localityName, NID_localityName, oidCertNameType, "localityName" },
+        { NID_commonName, NID_commonName, oidCertNameType, "commonName",
+                                                                  "commonName"},
+        { NID_surname, NID_surname, oidCertNameType, "surname", "surname"},
+        { NID_serialNumber, NID_serialNumber, oidCertNameType, "serialNumber",
+                                                                "serialNumber"},
+        { NID_countryName, NID_countryName, oidCertNameType, "countryName",
+                                                                 "countryName"},
+        { NID_localityName, NID_localityName, oidCertNameType, "localityName",
+                                                                "localityName"},
         { NID_stateOrProvinceName, NID_stateOrProvinceName, oidCertNameType,
-                                                        "stateOrProvinceName" },
+                                  "stateOrProvinceName", "stateOrProvinceName"},
         { NID_organizationName, NID_organizationName, oidCertNameType,
-                                                           "organizationName" },
+                                        "organizationName", "organizationName"},
         { NID_organizationalUnitName, NID_organizationalUnitName,
-                                    oidCertNameType, "organizationalUnitName" },
-        { NID_emailAddress, NID_emailAddress, oidCertNameType, "emailAddress" },
+             oidCertNameType, "organizationalUnitName", "organizationUnitName"},
+        { NID_emailAddress, NID_emailAddress, oidCertNameType, "emailAddress",
+                                                                "emailAddress"},
     #endif
-
     #ifndef NO_PWDBASED
         /* oidKdfType */
-        { PBKDF2_OID, PBKDF2_OID, oidKdfType, "PBKDFv2" },
+        { PBKDF2_OID, PBKDF2_OID, oidKdfType, "PBKDFv2", "PBKDF2"},
 
         /* oidPBEType */
         { PBE_SHA1_RC4_128, PBE_SHA1_RC4_128, oidPBEType,
-                                                         "PBE shaWithRC4-128" },
-        { PBE_SHA1_DES, PBE_SHA1_DES, oidPBEType, "PBE shaWithDES" },
-        { PBE_SHA1_DES3, PBE_SHA1_DES3, oidPBEType, "PBE shaWithDES3" },
+                               "PBE shaWithRC4-128", "pbeWithSHA1And128BitRC4"},
+        { PBE_SHA1_DES, PBE_SHA1_DES, oidPBEType, "PBE shaWithDES",
+                                                       "pbeWithSHA1AndDES-CBC"},
+        { PBE_SHA1_DES3, PBE_SHA1_DES3, oidPBEType, "PBE shaWithDES3",
+                                            "pbeWithSHA1And3-KeyTripleDES-CBC"},
     #endif
 
         /* oidKeyWrapType */
     #ifdef WOLFSSL_AES_128
-        { AES128_WRAP, AES128_WRAP, oidKeyWrapType, "AES-128 wrap" },
+        { AES128_WRAP, AES128_WRAP, oidKeyWrapType, "AES-128 wrap", ""},
     #endif
     #ifdef WOLFSSL_AES_192
-        { AES192_WRAP, AES192_WRAP, oidKeyWrapType, "AES-192 wrap" },
+        { AES192_WRAP, AES192_WRAP, oidKeyWrapType, "AES-192 wrap", ""},
     #endif
     #ifdef WOLFSSL_AES_256
-        { AES256_WRAP, AES256_WRAP, oidKeyWrapType, "AES-256 wrap" },
+        { AES256_WRAP, AES256_WRAP, oidKeyWrapType, "AES-256 wrap", ""},
     #endif
 
     #ifndef NO_PKCS7
@@ -35937,41 +35962,42 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         /* oidCmsKeyAgreeType */
             #ifndef NO_SHA
         { dhSinglePass_stdDH_sha1kdf_scheme, dhSinglePass_stdDH_sha1kdf_scheme,
-                                             oidCmsKeyAgreeType, "DH-SHA kdf" },
+                                          oidCmsKeyAgreeType, "DH-SHA kdf", ""},
             #endif
             #ifdef WOLFSSL_SHA224
         { dhSinglePass_stdDH_sha224kdf_scheme,
                         dhSinglePass_stdDH_sha224kdf_scheme, oidCmsKeyAgreeType,
-                                                              "DH-SHA224 kdf" },
+                                                           "DH-SHA224 kdf", ""},
             #endif
             #ifndef NO_SHA256
         { dhSinglePass_stdDH_sha256kdf_scheme,
                         dhSinglePass_stdDH_sha256kdf_scheme, oidCmsKeyAgreeType,
-                                                              "DH-SHA256 kdf" },
+                                                           "DH-SHA256 kdf", ""},
             #endif
             #ifdef WOLFSSL_SHA384
         { dhSinglePass_stdDH_sha384kdf_scheme,
                         dhSinglePass_stdDH_sha384kdf_scheme, oidCmsKeyAgreeType,
-                                                              "DH-SHA384 kdf" },
+                                                           "DH-SHA384 kdf", ""},
             #endif
             #ifdef WOLFSSL_SHA512
         { dhSinglePass_stdDH_sha512kdf_scheme,
                         dhSinglePass_stdDH_sha512kdf_scheme, oidCmsKeyAgreeType,
-                                                              "DH-SHA512 kdf" },
+                                                           "DH-SHA512 kdf", ""},
             #endif
         #endif
     #endif
     #if defined(WOLFSSL_APACHE_HTTPD)
         /* "1.3.6.1.5.5.7.8.7" */
         { NID_id_on_dnsSRV, NID_id_on_dnsSRV, oidCertExtType,
-            WOLFSSL_SN_DNS_SRV },
+            WOLFSSL_SN_DNS_SRV, WOLFSSL_LN_DNS_SRV },
 
         /* "1.3.6.1.4.1.311.20.2.3" */
-        { NID_ms_upn, WOLFSSL_DNS_SRV_SUM, oidCertExtType, WOLFSSL_SN_DNS_SRV },
+        { NID_ms_upn, WOLFSSL_MS_UPN_SUM, oidCertExtType, WOLFSSL_SN_MS_UPN,
+            WOLFSSL_LN_MS_UPN },
 
         /* "1.3.6.1.5.5.7.1.24" */
         { NID_tlsfeature, WOLFSSL_TLS_FEATURE_SUM, oidCertExtType,
-            WOLFSSL_SN_TLS_FEATURE },
+            WOLFSSL_SN_TLS_FEATURE, WOLFSSL_LN_TLS_FEATURE },
     #endif
     };
 
@@ -36830,6 +36856,57 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return NID_undef;
     }
 #endif /* WOLFSSL_CERT_EXT */
+
+    /* Creates new ASN1_OBJECT from short name, long name, or text
+     * representation of oid. If no_name is 0, then short name, long name, and
+     * numerical value of oid are interpreted. If no_name is 1, then only the
+     * numerical value of the oid is interpreted.
+     *
+     * Returns pointer to ASN1_OBJECT on success, or NULL on error.
+     */
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
+    WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_txt2obj(const char* s, int no_name)
+    {
+        int len, i, ret;
+        int nid = NID_undef;
+        unsigned int outSz = MAX_OID_SZ;
+        unsigned char out[MAX_OID_SZ];
+        unsigned int sum = 0;
+
+        WOLFSSL_ENTER("wolfSSL_OBJ_txt2nid");
+
+        if (s == NULL)
+            return NULL;
+
+        /* If s is numerical value, try to sum oid */
+        ret = EncodePolicyOID(out, &outSz, s, NULL);
+        if (ret == 0) {
+            for (i = 0; i < (int)outSz; i++) {
+                sum += out[i];
+            }
+        }
+
+        len = (int)XSTRLEN(s);
+
+        /* TODO: update short names in wolfssl_object_info and check OID sums
+           are correct */
+        for (i = 0; i < (int)WOLFSSL_OBJECT_INFO_SZ; i++) {
+            /* Short name, long name, and numerical value are interpreted */
+            if (((XSTRNCMP(s, wolfssl_object_info[i].sName, len) == 0) ||
+                 (XSTRNCMP(s, wolfssl_object_info[i].lName, len) == 0) ||
+                 (wolfssl_object_info[i].id == (int)sum)) && no_name == 0)
+                    nid = wolfssl_object_info[i].nid;
+            /* Only numerical value is interpreted */
+            else if (wolfssl_object_info[i].id == (int)sum && no_name == 1)
+                    nid = wolfssl_object_info[i].nid;
+        }
+
+        if (nid != NID_undef)
+            return wolfSSL_OBJ_nid2obj(nid);
+
+        return NULL;
+    }
+#endif
 
     /* compatibility function. Its intended use is to remove OID's from an
      * internal table that have been added with OBJ_create. wolfSSL manages its

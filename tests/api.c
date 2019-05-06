@@ -22139,6 +22139,64 @@ static void test_wolfSSL_OBJ_txt2nid(void)
 #endif
 }
 
+static void test_wolfSSL_OBJ_txt2obj(void)
+{
+#if defined(WOLFSSL_APACHE_HTTPD) || (defined(OPENSSL_EXTRA) && \
+        defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN))
+    int i;
+    char buf[50];
+    ASN1_OBJECT* obj;
+    static const struct {
+        const char* oidStr;
+        const char* sn;
+        const char* ln;
+    } objs_list[] = {
+    #if defined(WOLFSSL_APACHE_HTTPD)
+        { "1.3.6.1.5.5.7.1.24", "tlsfeature", "TLS Feature" },
+        { "1.3.6.1.5.5.7.8.7", "id-on-dnsSRV", "SRVName otherName form" },
+    #endif
+        { "2.5.29.19", "X509 basic ca", "X509v3 Basic Constraints"},
+        { NULL, NULL, NULL }
+    };
+
+    printf(testingFmt, "wolfSSL_OBJ_txt2obj()");
+
+    AssertNull(obj = OBJ_txt2obj("Bad name", 0));
+    AssertNull(obj = OBJ_txt2obj(NULL, 0));
+
+    for (i = 0; objs_list[i].oidStr != NULL; i++) {
+        /* Test numerical value of oid (oidStr) */
+        AssertNotNull(obj = OBJ_txt2obj(objs_list[i].oidStr, 1));
+        /* Convert object back to text to confirm oid is correct */
+        wolfSSL_OBJ_obj2txt(buf, (int)sizeof(buf), obj, 1);
+        AssertIntEQ(XSTRNCMP(buf, objs_list[i].oidStr, (int)XSTRLEN(buf)), 0);
+        ASN1_OBJECT_free(obj);
+        XMEMSET(buf, 0, sizeof(buf));
+
+        /* Test short name (sn) */
+        AssertNull(obj = OBJ_txt2obj(objs_list[i].sn, 1));
+        AssertNotNull(obj = OBJ_txt2obj(objs_list[i].sn, 0));
+        /* Convert object back to text to confirm oid is correct */
+        wolfSSL_OBJ_obj2txt(buf, (int)sizeof(buf), obj, 1);
+        AssertIntEQ(XSTRNCMP(buf, objs_list[i].oidStr, (int)XSTRLEN(buf)), 0);
+        ASN1_OBJECT_free(obj);
+        XMEMSET(buf, 0, sizeof(buf));
+
+        /* Test long name (ln) - should fail when no_name = 1 */
+        AssertNull(obj = OBJ_txt2obj(objs_list[i].ln, 1));
+        AssertNotNull(obj = OBJ_txt2obj(objs_list[i].ln, 0));
+        /* Convert object back to text to confirm oid is correct */
+        wolfSSL_OBJ_obj2txt(buf, (int)sizeof(buf), obj, 1);
+        AssertIntEQ(XSTRNCMP(buf, objs_list[i].oidStr, (int)XSTRLEN(buf)), 0);
+        ASN1_OBJECT_free(obj);
+        XMEMSET(buf, 0, sizeof(buf));
+    }
+
+    printf(resultFmt, passed);
+
+#endif
+}
+
 static void test_wolfSSL_X509_NAME_ENTRY(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) \
@@ -27192,6 +27250,7 @@ void ApiTest(void)
     test_wolfSSL_OBJ();
     test_wolfSSL_i2a_ASN1_OBJECT();
     test_wolfSSL_OBJ_txt2nid();
+    test_wolfSSL_OBJ_txt2obj();
     test_wolfSSL_X509_NAME_ENTRY();
     test_wolfSSL_X509_set_name();
     test_wolfSSL_BIO_gets();

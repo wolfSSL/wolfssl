@@ -1468,6 +1468,12 @@ static const byte pbeSha1Des3[] = {42, 134, 72, 134, 247, 13, 1, 12, 1, 3};
 /* zlib compression */
 static const byte zlibCompress[] = {42, 134, 72, 134, 247, 13, 1, 9, 16, 3, 8};
 #endif
+#ifdef WOLFSSL_APACHE_HTTPD
+/* tlsExtType */
+static const byte tlsFeatureOid[] = {43, 6, 1, 5, 5, 7, 1, 24};
+/* certNameType */
+static const byte dnsSRVOid[] = {43, 6, 1, 5, 5, 7, 8, 7};
+#endif
 
 
 /* returns a pointer to the OID string on success and NULL on fail */
@@ -2015,7 +2021,24 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
             }
             break;
 #endif /* HAVE_LIBZ */
-
+#ifdef WOLFSSL_APACHE_HTTPD
+        case oidCertNameType:
+            switch (id) {
+                 case NID_id_on_dnsSRV:
+                    oid = dnsSRVOid;
+                    *oidSz = sizeof(dnsSRVOid);
+                    break;
+            }
+            break;
+        case oidTlsExtType:
+            switch (id) {
+                case TLS_FEATURE_OID:
+                    oid = tlsFeatureOid;
+                    *oidSz = sizeof(tlsFeatureOid);
+                    break;
+            }
+            break;
+#endif /* WOLFSSL_APACHE_HTTPD */
         case oidIgnoreType:
         default:
             break;
