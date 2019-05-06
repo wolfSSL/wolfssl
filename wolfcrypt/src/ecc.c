@@ -4310,6 +4310,7 @@ static int wc_ecc_get_curve_order_bit_count(const ecc_set_type* dp)
     }
     orderBits = mp_count_bits(curve->order);
 
+    wc_ecc_curve_free(curve);
     FREE_CURVE_SPECS();
     return (int)orderBits;
 }
