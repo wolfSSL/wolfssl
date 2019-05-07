@@ -22905,15 +22905,27 @@ void wolfSSL_X509_STORE_CTX_set_depth(WOLFSSL_X509_STORE_CTX* ctx, int depth)
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
+
 WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get0_current_issuer(
         WOLFSSL_X509_STORE_CTX* ctx)
 {
-    WOLFSSL_STUB("wolfSSL_X509_STORE_CTX_get0_current_issuer");
-    (void)ctx;
+    int ret;
+    WOLFSSL_X509* issuer;
+
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get0_current_issuer");
+
+    if (ctx == NULL) {
+        return NULL;
+    }
+
+    ret = wolfSSL_X509_STORE_CTX_get1_issuer(&issuer, ctx, ctx->current_cert);
+    if (ret == WOLFSSL_SUCCESS) {
+        return issuer;
+    }
+
     return NULL;
 }
-#endif
+
 
 /* Gets an index to store SSL structure at.
  *
@@ -40596,24 +40608,20 @@ int wolfSSL_X509_STORE_CTX_get1_issuer(WOLFSSL_X509 **issuer,
     if (ca == NULL)
         return WOLFSSL_FAILURE;
 
+#ifdef WOLFSSL_SIGNER_DER_CERT
+    /* populate issuer with Signer DER */
+    *issuer = wolfSSL_X509_d2i(issuer, ca->derCert->buffer,
+                               ca->derCert->length);
+    if (*issuer == NULL)
+        return WOLFSSL_FAILURE;
+#else
+    /* Create an empty certificate as CA doesn't have a certificate. */
     *issuer = (WOLFSSL_X509 *)XMALLOC(sizeof(WOLFSSL_X509), 0,
         DYNAMIC_TYPE_OPENSSL);
     if (*issuer == NULL)
         return WOLFSSL_FAILURE;
 
-    /* Create an empty certificate as CA doesn't have a certificate. */
-    XMEMSET(*issuer, 0, sizeof(WOLFSSL_X509));
-    (*issuer)->dynamicMemory = 1;
-#ifdef WOLFSSL_SIGNER_DER_CERT
-    if (AllocDer(&(*issuer)->derCert, ca->derCert->length, ca->derCert->type,
-                                                                   NULL) == 0) {
-        XMEMCPY((*issuer)->derCert->buffer, ca->derCert->buffer,
-                                                           ca->derCert->length);
-    }
-    else {
-        XFREE(*issuer, 0, DYNAMIC_TYPE_OPENSSL);
-        return WOLFSSL_FAILURE;
-    }
+    InitX509((*issuer), 1, NULL);
 #endif
 
     /* Result is ignored when passed to wolfSSL_OCSP_cert_to_id(). */

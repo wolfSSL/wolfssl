@@ -20006,6 +20006,59 @@ static int verify_cb(int ok, X509_STORE_CTX *ctx)
 #endif
 
 
+static void test_wolfSSL_X509_STORE_CTX_get0_current_issuer(void)
+{
+#ifdef OPENSSL_EXTRA
+    #ifdef WOLFSSL_SIGNER_DER_CERT
+    int cmp;
+    #endif
+    X509_STORE_CTX* ctx;
+    X509_STORE* str;
+    X509* x509Ca;
+    X509* x509Svr;
+    X509* issuer;
+    X509_NAME* caName;
+    X509_NAME* issuerName;
+
+    printf(testingFmt, "wolfSSL_X509_STORE_CTX_get0_current_issuer()");
+
+    AssertNotNull(ctx = X509_STORE_CTX_new());
+    AssertNotNull((str = wolfSSL_X509_STORE_new()));
+    AssertNotNull((x509Ca =
+            wolfSSL_X509_load_certificate_file(caCertFile, SSL_FILETYPE_PEM)));
+    AssertIntEQ(X509_STORE_add_cert(str, x509Ca), SSL_SUCCESS);
+    AssertNotNull((x509Svr =
+            wolfSSL_X509_load_certificate_file(svrCertFile, SSL_FILETYPE_PEM)));
+
+    AssertIntEQ(X509_STORE_CTX_init(ctx, str, x509Svr, NULL), SSL_SUCCESS);
+
+    AssertNull(X509_STORE_CTX_get0_current_issuer(NULL));
+    issuer = X509_STORE_CTX_get0_current_issuer(ctx);
+    AssertNotNull(issuer);
+
+    caName = X509_get_subject_name(x509Ca);
+    AssertNotNull(caName);
+    issuerName = X509_get_subject_name(issuer);
+    #ifdef WOLFSSL_SIGNER_DER_CERT
+        AssertNotNull(issuerName);
+        cmp = X509_NAME_cmp(caName, issuerName);
+        AssertIntEQ(cmp, 0);
+    #else
+        /* X509_STORE_CTX_get0_current_issuer() returns empty issuer */
+        AssertNull(issuerName);
+    #endif
+
+    X509_free(issuer);
+    X509_STORE_CTX_free(ctx);
+    #ifdef WOLFSSL_KEEP_STORE_CERTS
+        X509_free(x509Svr);
+    #endif
+    X509_free(x509Ca);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 
 static void test_wolfSSL_X509_STORE_CTX(void)
 {
@@ -27214,6 +27267,7 @@ void ApiTest(void)
     test_wolfSSL_set_options();
     test_wolfSSL_sk_SSL_CIPHER();
     test_wolfSSL_X509_STORE_CTX();
+    test_wolfSSL_X509_STORE_CTX_get0_current_issuer();
     test_wolfSSL_msgCb();
     test_wolfSSL_either_side();
     test_wolfSSL_DTLS_either_side();
