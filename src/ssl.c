@@ -29778,11 +29778,23 @@ int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
 void wolfSSL_RSA_get0_key(const WOLFSSL_RSA *r, const WOLFSSL_BIGNUM **n,
     const WOLFSSL_BIGNUM **e, const WOLFSSL_BIGNUM **d)
 {
-    WOLFSSL_STUB("wolfSSL_RSA_get0_key");
-    (void)r;
-    (void)n;
-    (void)e;
-    (void)d;
+    WOLFSSL_ENTER("wolfSSL_RSA_get0_key");
+
+    if (r != NULL) {
+        if (n != NULL)
+            *n = r->n;
+        if (e != NULL)
+            *e = r->e;
+        if (d != NULL)
+            *d = r->d;
+    } else {
+        if (n != NULL)
+            *n = NULL;
+        if (e != NULL)
+            *e = NULL;
+        if (d != NULL)
+            *d = NULL;
+    }
 }
 
 /* generate p-1 and q-1, WOLFSSL_SUCCESS on ok */
