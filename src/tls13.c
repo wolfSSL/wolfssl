@@ -3896,6 +3896,11 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if (sessIdSz != ID_LEN && sessIdSz != 0)
         return INVALID_PARAMETER;
 #endif
+
+    if (sessIdSz + i > helloSz) {
+        return BUFFER_ERROR;
+    }
+
     ssl->session.sessionIDSz = sessIdSz;
     if (sessIdSz == ID_LEN) {
         XMEMCPY(ssl->session.sessionID, input + i, sessIdSz);
