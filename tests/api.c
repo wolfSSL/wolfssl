@@ -22157,6 +22157,31 @@ static void test_wolfSSL_i2a_ASN1_OBJECT(void)
 #endif
 }
 
+static void test_wolfSSL_OBJ_cmp(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
+    ASN1_OBJECT *obj = NULL;
+    ASN1_OBJECT *obj2 = NULL;
+
+    printf(testingFmt, "wolfSSL_OBJ_cmp()");
+
+    AssertNotNull(obj = OBJ_nid2obj(NID_any_policy));
+    AssertNotNull(obj2 = OBJ_nid2obj(NID_sha256));
+
+    AssertIntEQ(OBJ_cmp(NULL, NULL), WOLFSSL_FATAL_ERROR);
+    AssertIntEQ(OBJ_cmp(obj, NULL), WOLFSSL_FATAL_ERROR);
+    AssertIntEQ(OBJ_cmp(NULL, obj2), WOLFSSL_FATAL_ERROR);
+    AssertIntEQ(OBJ_cmp(obj, obj2), WOLFSSL_FATAL_ERROR);
+    AssertIntEQ(OBJ_cmp(obj, obj), 0);
+    AssertIntEQ(OBJ_cmp(obj2, obj2), 0);
+
+    ASN1_OBJECT_free(obj);
+    ASN1_OBJECT_free(obj2);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_OBJ_txt2nid(void)
 {
 #if !defined(NO_WOLFSSL_STUB) && defined(WOLFSSL_APACHE_HTTPD)
@@ -27303,6 +27328,7 @@ void ApiTest(void)
     test_wolfSSL_HMAC();
     test_wolfSSL_OBJ();
     test_wolfSSL_i2a_ASN1_OBJECT();
+    test_wolfSSL_OBJ_cmp();
     test_wolfSSL_OBJ_txt2nid();
     test_wolfSSL_OBJ_txt2obj();
     test_wolfSSL_X509_NAME_ENTRY();

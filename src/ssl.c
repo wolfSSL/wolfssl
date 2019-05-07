@@ -36826,16 +36826,20 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
-    int wolfSSL_OBJ_cmp(const WOLFSSL_ASN1_OBJECT* asn, int name)
+    /* compares two objects, return 0 if equal */
+    int wolfSSL_OBJ_cmp(const WOLFSSL_ASN1_OBJECT* a,
+                        const WOLFSSL_ASN1_OBJECT* b)
     {
-        WOLFSSL_STUB("wolfSSL_OBJ_cmp");
-        (void)asn;
-        (void)name;
+        WOLFSSL_ENTER("wolfSSL_OBJ_cmp");
+
+        if (a != NULL && b != NULL &&
+            a->obj != NULL && b->obj != NULL &&
+            a->objSz == b->objSz) {
+            return XMEMCMP(a->obj, b->obj, a->objSz);
+        }
+
         return WOLFSSL_FATAL_ERROR;
     }
-#endif
-
 
 #ifdef WOLFSSL_CERT_EXT
     /* Gets the NID value that is related to the OID string passed in. Example
