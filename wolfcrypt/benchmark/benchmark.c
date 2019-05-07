@@ -481,7 +481,7 @@ static int lng_index = 0;
 
 #ifndef NO_MAIN_DRIVER
 #ifndef MAIN_NO_ARGS
-static const char* bench_Usage_msg1[][10] = {
+static const char* bench_Usage_msg1[][11] = {
     /* 0 English  */
     {   "-? <num>    Help, print this usage\n            0: English, 1: Japanese\n",
         "-csv        Print terminal output in csv format\n",
@@ -493,6 +493,7 @@ static const char* bench_Usage_msg1[][10] = {
         "-<alg>      Algorithm to benchmark. Available algorithms include:\n",
         "-lng <num>  Display benchmark result by specified language.\n            0: English, 1: Japanese\n",
         "<num>       Size of block in bytes\n",
+        "-threads <num> Number of threads to run\n"
     },
 #ifndef NO_MULTIBYTE_PRINT
     /* 1 Japanese */
@@ -506,6 +507,7 @@ static const char* bench_Usage_msg1[][10] = {
         "-<alg>      アルゴリズムのベンチマークを実施します。\n            利用可能なアルゴリズムは下記を含みます:\n",
         "-lng <num>  指定された言語でベンチマーク結果を表示します。\n            0: 英語、 1: 日本語\n",
         "<num>       ブロックサイズをバイト単位で指定します。\n",
+        "-threads <num> 実行するスレッド数\n"
     },
 #endif
 };
@@ -1760,26 +1762,27 @@ int benchmark_test(void *args)
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
 {
-    int i, numCpus;
+    int i;
 
-#ifdef WC_ASYNC_BENCH_THREAD_COUNT
-    numCpus = WC_ASYNC_BENCH_THREAD_COUNT;
-#else
-    numCpus = wc_AsyncGetNumberOfCpus();
-#endif
+    if (g_threadCount == 0) {
+    #ifdef WC_ASYNC_BENCH_THREAD_COUNT
+        g_threadCount = WC_ASYNC_BENCH_THREAD_COUNT;
+    #else
+        g_threadCount = wc_AsyncGetNumberOfCpus();
+    #endif
+    }
 
-    printf("CPUs: %d\n", numCpus);
+    printf("CPUs: %d\n", g_threadCount);
 
-    g_threadData = (ThreadData*)XMALLOC(sizeof(ThreadData) * numCpus,
+    g_threadData = (ThreadData*)XMALLOC(sizeof(ThreadData) * g_threadCount,
         HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (g_threadData == NULL) {
         printf("Thread data alloc failed!\n");
         EXIT_TEST(EXIT_FAILURE);
     }
-    g_threadCount = numCpus;
 
     /* Create threads */
-    for (i = 0; i < numCpus; i++) {
+    for (i = 0; i < g_threadCount; i++) {
         ret = wc_AsyncThreadCreate(&g_threadData[i].thread_id,
             benchmarks_do, &g_threadData[i]);
         if (ret != 0) {
@@ -1789,7 +1792,7 @@ int benchmark_test(void *args)
     }
 
     /* Start threads */
-    for (i = 0; i < numCpus; i++) {
+    for (i = 0; i < g_threadCount; i++) {
         wc_AsyncThreadJoin(&g_threadData[i].thread_id);
     }
 
@@ -5500,6 +5503,9 @@ static void Usage(void)
 #endif
     printf("%s", bench_Usage_msg1[lng_index][8]);    /* option -lng */
     printf("%s", bench_Usage_msg1[lng_index][9]);    /* option <num> */
+#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
+    printf("%s", bench_Usage_msg1[lng_index][10]);   /* option -threads <num> */
+#endif
 }
 
 /* Match the command line argument with the string.
@@ -5581,6 +5587,20 @@ int main(int argc, char** argv)
         else if (string_matches(argv[1], "-csv")) {
             csv_format = 1;
             csv_header_count = 1;
+        }
+#endif
+#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
+        else if (string_matches(argv[1], "-threads")) {
+            argc--;
+            argv++;
+            if (argc > 1) {
+                g_threadCount = atoi(argv[1]);
+                if (g_threadCount < 1 || lng_index > 128){
+                    printf("invalid number(%d) is specified. [<num> :1-128]\n",
+                        g_threadCount);
+                    g_threadCount = 0;
+                }
+            }
         }
 #endif
         else if (argv[1][0] == '-') {
