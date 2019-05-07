@@ -3190,6 +3190,9 @@ static int wc_ecc_cmp_param(const char* curveParam,
     if (param == NULL || curveParam == NULL)
         return BAD_FUNC_ARG;
 
+    if (encType == WC_TYPE_HEX_STR)
+        return XSTRNCMP(curveParam, (char*) param, paramSz);
+
 #ifdef WOLFSSL_SMALL_STACK
     a = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
     if (a == NULL)
@@ -3210,10 +3213,7 @@ static int wc_ecc_cmp_param(const char* curveParam,
     }
 
     if (err == MP_OKAY) {
-        if (encType == WC_TYPE_HEX_STR)
-            err = mp_read_radix(a, (char*) param, MP_RADIX_HEX);
-        else
-            err = mp_read_unsigned_bin(a, param, paramSz);
+        err = mp_read_unsigned_bin(a, param, paramSz);
     }
     if (err == MP_OKAY)
         err = mp_read_radix(b, curveParam, MP_RADIX_HEX);
