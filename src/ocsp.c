@@ -954,15 +954,53 @@ int wolfSSL_OCSP_request_add1_nonce(OcspRequest* req, unsigned char* val,
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
+/* Returns result of OCSP nonce comparison. Return values:
+ *  1 - nonces are both present and equal
+ *  2 - both nonces are absent
+ *  3 - nonce only present in response
+ * -1 - nonce only present in request
+ *  0 - both nonces present and equal
+ */
 int wolfSSL_OCSP_check_nonce(OcspRequest* req, WOLFSSL_OCSP_BASICRESP* bs)
 {
-    WOLFSSL_STUB("wolfSSL_OCSP_check_nonce");
-    (void)req;
-    (void)bs;
-    return WOLFSSL_FATAL_ERROR;
+    byte* reqNonce = NULL;
+    byte* rspNonce = NULL;
+    int reqNonceSz = 0;
+    int rspNonceSz = 0;
+
+    WOLFSSL_ENTER("wolfSSL_OCSP_check_nonce");
+
+    if (req != NULL) {
+        reqNonce = req->nonce;
+        reqNonceSz = req->nonceSz;
+    }
+
+    if (bs != NULL) {
+        rspNonce = bs->nonce;
+        rspNonceSz = bs->nonceSz;
+    }
+
+    /* nonce absent in both req and rsp */
+    if (reqNonce == NULL && rspNonce == NULL)
+        return 2;
+
+    /* nonce present in rsp only */
+    if (reqNonce == NULL && rspNonce != NULL)
+        return 3;
+
+    /* nonce present in req only */
+    if (reqNonce != NULL && rspNonce == NULL)
+        return -1;
+
+    /* nonces are present and equal, return 1 */
+    if (reqNonceSz == rspNonceSz) {
+        if (XMEMCMP(reqNonce, rspNonce, reqNonceSz) == 0)
+            return 1;
+    }
+
+    /* nonces are present but not equal */
+    return 0;
 }
-#endif
 #endif /* OPENSSL_EXTRA */
 
 #else /* HAVE_OCSP */
