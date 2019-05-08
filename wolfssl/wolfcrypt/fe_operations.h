@@ -39,8 +39,17 @@
     #define CURVED25519_128BIT
 #endif
 
-#if defined(CURVED25519_X64) || defined(WOLFSSL_ARMASM)
+#if defined(CURVED25519_X64)
     #define CURVED25519_ASM_64BIT
+    #define CURVED25519_ASM
+#endif
+#if defined(WOLFSSL_ARMASM)
+    #ifdef __aarch64__
+        #define CURVED25519_ASM_64BIT
+    #else
+        #define CURVED25519_ASM_32BIT
+    #endif
+    #define CURVED25519_ASM
 #endif
 
 /*
@@ -78,6 +87,8 @@ WOLFSSL_LOCAL int  curve25519(byte * q, byte * n, byte * p);
 
 #ifdef CURVED25519_ASM_64BIT
     typedef int64_t  fe[4];
+#elif defined(CURVED25519_ASM_32BIT)
+    typedef int32_t  fe[8];
 #elif defined(CURVED25519_128BIT)
     typedef int64_t  fe[5];
 #else
@@ -112,7 +123,7 @@ WOLFSSL_LOCAL void fe_pow22523(fe,const fe);
 WOLFSSL_LOCAL uint64_t load_3(const unsigned char *in);
 WOLFSSL_LOCAL uint64_t load_4(const unsigned char *in);
 
-#ifdef CURVED25519_ASM_64BIT
+#ifdef CURVED25519_ASM
 WOLFSSL_LOCAL void fe_ge_to_p2(fe rx, fe ry, fe rz, const fe px, const fe py,
                                const fe pz, const fe pt);
 WOLFSSL_LOCAL void fe_ge_to_p3(fe rx, fe ry, fe rz, fe rt, const fe px,
@@ -136,7 +147,7 @@ WOLFSSL_LOCAL void fe_ge_sub(fe rx, fe ry, fe rz, fe rt, const fe px,
                              const fe qt2d, const fe qyplusx,
                              const fe qyminusx);
 WOLFSSL_LOCAL void fe_cmov_table(fe* r, fe* base, signed char b);
-#endif /* CURVED25519_ASM_64BIT */
+#endif /* CURVED25519_ASM */
 #endif /* !CURVE25519_SMALL || !ED25519_SMALL */
 
 /* Use less memory and only 32bit types or less, but is slower
