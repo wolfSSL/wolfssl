@@ -42222,15 +42222,18 @@ int wolfSSL_X509_set_issuer_name(WOLFSSL_X509 *cert, WOLFSSL_X509_NAME *name)
 int wolfSSL_X509_set_notAfter(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME* t)
 {
     WOLFSSL_ENTER("wolfSSL_X509_set_notAfter");
-    unsigned int i;
-    if (!x509 || !t || t->length >= MAX_DATE_SZ)
+    unsigned int  i;
+    unsigned char d;
+    if (!x509 || !t)
         return WOLFSSL_FAILURE;
 
-    for (i = 0; i < t->length; i++)
-        x509->notAfter[i] = t->data[i];
+    for (i = 0; i < MAX_DATE_SZ && (d = t->data[i]) != '\0'; i++)
+        x509->notAfter[i] = d;
 
-    x509->notAfter[t->length] = 0;
-    x509->notAfterSz = t->length;
+    x509->notAfter[i] = '\0';
+    x509->notAfterSz  = i;
+
+    WOLFSSL_MSG("Return success\n");
 
     return WOLFSSL_SUCCESS;
 }
@@ -42238,15 +42241,16 @@ int wolfSSL_X509_set_notAfter(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME* t)
 int wolfSSL_X509_set_notBefore(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME* t)
 {
     WOLFSSL_ENTER("wolfSSL_X509_set_notBefore");
-    unsigned int i;
-    if (!x509 || !t || t->length >= MAX_DATE_SZ)
+    unsigned int  i;
+    unsigned char d;
+    if (!x509 || !t)
         return WOLFSSL_FAILURE;
 
-    for (i = 0; i < t->length; i++)
-        x509->notBefore[i] = t->data[i];
+    for (i = 0; i < t->length && (d = t->data[i]) != '\0'; i++)
+        x509->notBefore[i] = d;
 
-    x509->notBefore[t->length] = 0;
-    x509->notBeforeSz = t->length;
+    x509->notBefore[i] = '\0';
+    x509->notBeforeSz  = i;
 
     return WOLFSSL_SUCCESS;
 }

@@ -22360,6 +22360,109 @@ static void test_wolfSSL_X509_set_name(void)
 #endif /* OPENSSL_ALL && !NO_CERTS */
 }
 
+static void test_wolfSSL_X509_set_notAfter(void)
+{
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD) \
+    && !defined(NO_ASN1_TIME) && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
+
+    X509* x;
+    BIO*  bio;
+    ASN1_TIME *asn_time, *time_check;
+    const int year = 365*24*60*60;
+    const int day  = 24*60*60;
+    const int hour = 60*60;
+    const int mini = 60;
+    int offset_day;
+    unsigned char buf[25];
+    time_t t;
+
+    printf(testingFmt, "wolfSSL_X509_set_notAfter()");
+    /*
+     * Setup asn_time. APACHE HTTPD uses time(NULL)
+     */
+    t = (time_t)107 * year + 31 * day + 34 * hour + 30 * mini + 7 * day;
+    offset_day = 7;
+    /*
+     * Free these.
+     */
+    asn_time = wolfSSL_ASN1_TIME_adj(NULL, t, offset_day, 0);
+    AssertNotNull(asn_time);
+    AssertNotNull(x = X509_new());
+    AssertNotNull(bio = BIO_new(BIO_s_mem()));
+    /*
+     * Tests
+     */
+    AssertTrue(wolfSSL_X509_set_notAfter(x, asn_time));
+    AssertStrEQ((const char*)x->notAfter,(const char*)asn_time->data);
+    /* time_check is simply (ANS1_TIME*)x->notAfter */
+    AssertNotNull(time_check = X509_get_notAfter(x));
+    /* ANS1_TIME_check validates by checking if arguement can be parsed */
+    AssertIntEQ(ASN1_TIME_check(time_check), WOLFSSL_SUCCESS);
+    /* Convert to human readable format and compare to intended date */
+    AssertIntEQ(ASN1_TIME_print(bio,time_check), 1);
+    AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 25);
+    AssertIntEQ(XMEMCMP(buf, "Jan 20 10:30:00 2077 GMT", sizeof(buf) - 1), 0);
+    /*
+     * Cleanup
+     */
+    XFREE(asn_time,NULL,DYNAMIC_TYPE_OPENSSL);
+    X509_free(x);
+    BIO_free(bio);
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_X509_set_notBefore(void)
+{
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD) \
+    && !defined(NO_ASN1_TIME) && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
+
+    X509* x;
+    BIO*  bio;
+    ASN1_TIME *asn_time, *time_check;
+    const int year = 365*24*60*60;
+    const int day  = 24*60*60;
+    const int hour = 60*60;
+    const int mini = 60;
+    int offset_day;
+    unsigned char buf[25];
+    time_t t;
+
+    printf(testingFmt, "wolfSSL_X509_set_notBefore()");
+    /*
+     * Setup asn_time. APACHE HTTPD uses time(NULL)
+     */
+    t = (time_t)49 * year + 125 * day + 20 * hour + 30 * mini + 7 * day;
+    offset_day = 7;
+    /*
+     * Free these.
+     */
+    asn_time = wolfSSL_ASN1_TIME_adj(NULL, t, offset_day, 0);
+    AssertNotNull(asn_time);
+    AssertNotNull(x = X509_new());
+    AssertNotNull(bio = BIO_new(BIO_s_mem()));
+    /*
+     * Main Tests
+     */
+    AssertTrue(wolfSSL_X509_set_notBefore(x, asn_time));
+    AssertStrEQ((const char*)x->notBefore,(const char*)asn_time->data);
+    /* time_check == (ANS1_TIME*)x->notBefore */
+    AssertNotNull(time_check = X509_get_notBefore(x));
+    /* ANS1_TIME_check validates by checking if arguement can be parsed */
+    AssertIntEQ(ASN1_TIME_check(time_check), WOLFSSL_SUCCESS);
+    /* Convert to human readable format and compare to intended date */
+    AssertIntEQ(ASN1_TIME_print(bio,time_check), 1);
+    AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 25);
+    AssertIntEQ(XMEMCMP(buf, "May  8 20:30:00 2019 GMT", sizeof(buf) - 1), 0);
+    /*
+     * Cleanup
+     */
+    XFREE(asn_time,NULL,DYNAMIC_TYPE_OPENSSL);
+    X509_free(x);
+    BIO_free(bio);
+    printf(resultFmt, passed);
+#endif
+}
 
 static void test_wolfSSL_BIO_gets(void)
 {
@@ -27384,6 +27487,8 @@ void ApiTest(void)
     test_wolfSSL_OBJ_txt2obj();
     test_wolfSSL_X509_NAME_ENTRY();
     test_wolfSSL_X509_set_name();
+    test_wolfSSL_X509_set_notAfter();
+    test_wolfSSL_X509_set_notBefore();
     test_wolfSSL_BIO_gets();
     test_wolfSSL_BIO_puts();
     test_wolfSSL_d2i_PUBKEY();
