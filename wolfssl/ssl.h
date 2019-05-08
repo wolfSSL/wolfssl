@@ -517,6 +517,9 @@ typedef struct WOLFSSL_X509_STORE_CTX {
 #if defined(HAVE_EX_DATA) || defined(FORTRESS)
     void* ex_data[MAX_EX_DATA];  /* external data */
 #endif
+#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL)
+    int depth;                   /* used in X509_STORE_CTX_*_depth */
+#endif
     void* userCtx;               /* user ctx */
     int   error;                 /* current error */
     int   error_depth;           /* index of cert depth for this error */

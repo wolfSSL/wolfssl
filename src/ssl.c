@@ -8863,19 +8863,6 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509V3_EXT_conf_nid(
     return NULL;
 }
 
-void wolfSSL_X509V3_set_ctx(WOLFSSL_X509V3_CTX* ctx, WOLFSSL_X509* issuer,
-        WOLFSSL_X509* subject, WOLFSSL_X509* req, WOLFSSL_X509_CRL* crl,
-        int flag)
-{
-    WOLFSSL_STUB("wolfSSL_X509V3_set_ctx");
-    (void)ctx;
-    (void)issuer;
-    (void)subject;
-    (void)req;
-    (void)crl;
-    (void)flag;
-}
-
 void wolfSSL_X509V3_set_ctx_nodb(WOLFSSL_X509V3_CTX* ctx)
 {
     WOLFSSL_STUB("wolfSSL_X509V3_set_ctx_nodb");
@@ -22896,12 +22883,12 @@ int wolfSSL_X509_STORE_CTX_set_ex_data(WOLFSSL_X509_STORE_CTX* ctx, int idx,
     return WOLFSSL_FAILURE;
 }
 
-#ifndef NO_WOLFSSL_STUB
+#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL)
 void wolfSSL_X509_STORE_CTX_set_depth(WOLFSSL_X509_STORE_CTX* ctx, int depth)
 {
-    WOLFSSL_STUB("wolfSSL_X509_STORE_CTX_set_depth");
-    (void)ctx;
-    (void)depth;
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_set_depth");
+    if (ctx)
+        ctx->depth = depth;
 }
 #endif
 
@@ -42229,6 +42216,103 @@ int wolfSSL_X509_set_issuer_name(WOLFSSL_X509 *cert, WOLFSSL_X509_NAME *name)
 
 #endif /* OPENSSL_ALL */
 
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && \
+    !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
+
+int wolfSSL_X509_set_notAfter(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME* t)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_set_notAfter");
+    unsigned int i;
+    if (!x509 || !t || t->length >= MAX_DATE_SZ)
+        return WOLFSSL_FAILURE;
+
+    for (i = 0; i < t->length; i++)
+        x509->notAfter[i] = t->data[i];
+
+    x509->notAfter[t->length] = 0;
+    x509->notAfterSz = t->length;
+
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_X509_set_notBefore(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME* t)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_set_notBefore");
+    unsigned int i;
+    if (!x509 || !t || t->length >= MAX_DATE_SZ)
+        return WOLFSSL_FAILURE;
+
+    for (i = 0; i < t->length; i++)
+        x509->notBefore[i] = t->data[i];
+
+    x509->notBefore[t->length] = 0;
+    x509->notBeforeSz = t->length;
+
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_X509_set_serialNumber(WOLFSSL_X509* x509, WOLFSSL_ASN1_INTEGER* s)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_set_serialNumber");
+    if (!x509 || !s || s->dataMax >= EXTERNAL_SERIAL_SIZE)
+        return WOLFSSL_FAILURE;
+
+    if (s->isDynamic)
+        XSTRNCPY((char*)x509->serial,(char*)s->data,s->dataMax);
+    else
+        XSTRNCPY((char*)x509->serial,(char*)s->intData,s->dataMax);
+
+    x509->serial[s->dataMax] = 0;
+    x509->serialSz = s->dataMax;
+
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_X509_set_version(WOLFSSL_X509* x509, long v)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_set_version");
+    if (!x509 || v > INT_MAX)
+        return WOLFSSL_FAILURE;
+    x509->version = v;
+
+    return WOLFSSL_SUCCESS;
+}
+
+void wolfSSL_X509V3_set_ctx(WOLFSSL_X509V3_CTX* ctx, WOLFSSL_X509* issuer,
+        WOLFSSL_X509* subject, WOLFSSL_X509* req, WOLFSSL_X509_CRL* crl,
+        int flag)
+{
+    int ret = WOLFSSL_SUCCESS;
+    WOLFSSL_ENTER("wolfSSL_X509V3_set_ctx");
+    if (!ctx || !ctx->x509)
+        return;
+
+    /* Set parameters in ctx as long as ret == WOLFSSL_SUCCESS */
+    if (issuer)
+        ret = wolfSSL_X509_set_issuer_name(ctx->x509,&issuer->issuer);
+
+    if (subject && ret == WOLFSSL_SUCCESS)
+        ret = wolfSSL_X509_set_subject_name(ctx->x509,&subject->subject);
+
+    if (req && ret == WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("req not implemented.");
+    }
+
+    if (crl && ret == WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("crl not implemented.");
+    }
+
+    if (flag && ret == WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("flag not implemented.");
+    }
+
+    if (!ret) {
+        WOLFSSL_MSG("Error setting WOLFSSL_X509V3_CTX parameters.");
+    }
+}
+
+
+#endif /* OPENSSL_ALL || WOLFSSL_APACHE_HTTPD */
 
 #if defined(OPENSSL_ALL) && !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && \
                                                        defined(WOLFSSL_CERT_REQ)
@@ -42284,47 +42368,6 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
 
     return WOLFSSL_SUCCESS;
 }
-
-
-#ifndef NO_WOLFSSL_STUB
-int wolfSSL_X509_set_notAfter(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME* t)
-{
-    WOLFSSL_STUB("wolfSSL_X509_set_notAfter");
-    (void)x509;
-    (void)t;
-    return WOLFSSL_FAILURE;
-}
-#endif
-
-#ifndef NO_WOLFSSL_STUB
-int wolfSSL_X509_set_notBefore(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME* t)
-{
-    WOLFSSL_STUB("wolfSSL_X509_set_notBefore");
-    (void)x509;
-    (void)t;
-    return WOLFSSL_FAILURE;
-}
-#endif
-
-#ifndef NO_WOLFSSL_STUB
-int wolfSSL_X509_set_serialNumber(WOLFSSL_X509* x509, WOLFSSL_ASN1_INTEGER* s)
-{
-    WOLFSSL_STUB("wolfSSL_X509_set_serialNumber");
-    (void)x509;
-    (void)s;
-    return WOLFSSL_FAILURE;
-}
-#endif
-
-#ifndef NO_WOLFSSL_STUB
-int wolfSSL_X509_set_version(WOLFSSL_X509* x509, long v)
-{
-    WOLFSSL_STUB("wolfSSL_X509_set_version");
-    (void)x509;
-    (void)v;
-    return WOLFSSL_FAILURE;
-}
-#endif
 
 #ifndef NO_WOLFSSL_STUB
 /* returns the size of signature on success */
