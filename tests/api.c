@@ -22393,7 +22393,6 @@ static void test_wolfSSL_X509_set_notAfter(void)
      * Tests
      */
     AssertTrue(wolfSSL_X509_set_notAfter(x, asn_time));
-    AssertStrEQ((const char*)x->notAfter,(const char*)asn_time->data);
     /* time_check is simply (ANS1_TIME*)x->notAfter */
     AssertNotNull(time_check = X509_get_notAfter(x));
     /* ANS1_TIME_check validates by checking if arguement can be parsed */
@@ -22445,7 +22444,6 @@ static void test_wolfSSL_X509_set_notBefore(void)
      * Main Tests
      */
     AssertTrue(wolfSSL_X509_set_notBefore(x, asn_time));
-    AssertStrEQ((const char*)x->notBefore,(const char*)asn_time->data);
     /* time_check == (ANS1_TIME*)x->notBefore */
     AssertNotNull(time_check = X509_get_notBefore(x));
     /* ANS1_TIME_check validates by checking if arguement can be parsed */
@@ -22460,6 +22458,25 @@ static void test_wolfSSL_X509_set_notBefore(void)
     XFREE(asn_time,NULL,DYNAMIC_TYPE_OPENSSL);
     X509_free(x);
     BIO_free(bio);
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_X509_set_version(void)
+{
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)
+    X509* x509;
+    long v = 2L;
+
+    AssertNotNull(x509 = X509_new());
+    /* These should pass. */
+    AssertTrue(wolfSSL_X509_set_version(x509, v));
+    AssertIntEQ(v, wolfSSL_X509_get_version(x509));
+    /* Fail Case: When v(long) is greater than x509->version(int). */
+    v = (long) INT_MAX+1;
+    AssertFalse(wolfSSL_X509_set_version(x509, v));
+    /* Cleanup */
+    X509_free(x509);
     printf(resultFmt, passed);
 #endif
 }
@@ -27489,6 +27506,7 @@ void ApiTest(void)
     test_wolfSSL_X509_set_name();
     test_wolfSSL_X509_set_notAfter();
     test_wolfSSL_X509_set_notBefore();
+    test_wolfSSL_X509_set_version();
     test_wolfSSL_BIO_gets();
     test_wolfSSL_BIO_puts();
     test_wolfSSL_d2i_PUBKEY();
