@@ -292,8 +292,11 @@
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_ALL))
     #include <wolfssl/openssl/ssl.h>
     #ifndef NO_ASN
-    /* for ASN_COMMON_NAME DN_tags enum */
-    #include <wolfssl/wolfcrypt/asn.h>
+        /* for ASN_COMMON_NAME DN_tags enum */
+        #include <wolfssl/wolfcrypt/asn.h>
+    #endif
+    #ifdef HAVE_OCSP
+        #include <wolfssl/openssl/ocsp.h>
     #endif
 #endif
 #ifdef OPENSSL_EXTRA
@@ -24819,6 +24822,55 @@ static void test_wolfSSL_i2d_PrivateKey()
 #endif
 }
 
+static void test_wolfSSL_OCSP_get0_info()
+{
+#if defined(OPENSSL_ALL) && defined(HAVE_OCSP) && !defined(NO_FILESYSTEM)
+    X509* cert;
+    X509* issuer;
+    OCSP_CERTID* id;
+
+    ASN1_STRING* name = NULL;
+    ASN1_OBJECT* pmd  = NULL;
+    ASN1_STRING* keyHash = NULL;
+    ASN1_INTEGER* serial = NULL;
+    ASN1_INTEGER* x509Int = NULL;
+
+    printf(testingFmt, "wolfSSL_OCSP_get0_info()");
+
+    AssertNotNull(cert =
+            wolfSSL_X509_load_certificate_file(svrCertFile, SSL_FILETYPE_PEM));
+    AssertNotNull(issuer =
+            wolfSSL_X509_load_certificate_file(caCertFile, SSL_FILETYPE_PEM));
+
+    id = OCSP_cert_to_id(NULL, cert, issuer);
+    AssertNotNull(id);
+
+    AssertIntEQ(OCSP_id_get0_info(NULL, NULL, NULL, NULL, NULL), 0);
+    AssertIntEQ(OCSP_id_get0_info(NULL, NULL, NULL, NULL, id), 1);
+
+    /* name, pmd, keyHash not supported yet, expect failure if not NULL */
+    AssertIntEQ(OCSP_id_get0_info(&name, NULL, NULL, NULL, id), 0);
+    AssertIntEQ(OCSP_id_get0_info(NULL, &pmd, NULL, NULL, id), 0);
+    AssertIntEQ(OCSP_id_get0_info(NULL, NULL, &keyHash, NULL, id), 0);
+
+    AssertIntEQ(OCSP_id_get0_info(NULL, NULL, NULL, &serial, id), 1);
+    AssertNotNull(serial);
+
+    /* compare serial number to one in cert, should be equal */
+    x509Int = X509_get_serialNumber(cert);
+    AssertNotNull(x509Int);
+    AssertIntEQ(x509Int->dataMax, serial->dataMax);
+    AssertIntEQ(XMEMCMP(x509Int->data, serial->data, serial->dataMax), 0);
+
+    ASN1_INTEGER_free(x509Int);
+    OCSP_CERTID_free(id);
+    X509_free(cert);
+    X509_free(issuer);
+
+    printf(resultFmt, "passed");
+#endif /* OPENSSL_EXTRA & HAVE_OCSP */
+}
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -27546,6 +27598,7 @@ void ApiTest(void)
     test_wolfssl_EVP_aes_gcm();
     test_wolfSSL_PKEY_up_ref();
     test_wolfSSL_i2d_PrivateKey();
+    test_wolfSSL_OCSP_get0_info();
 
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)) && !defined(NO_RSA)
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_ASN1(), WOLFSSL_SUCCESS);

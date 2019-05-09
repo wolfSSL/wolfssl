@@ -927,20 +927,63 @@ const char* wolfSSL_OCSP_crl_reason_str(long s)
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
+/* Returns elements of an OCSP_CERTID struct. Currently only supports
+ * returning the serial number, and returns an error if user requests
+ * any of name, pmd, and/or keyHash.
+ * Return 1 on success, 0 on failure */
 int wolfSSL_OCSP_id_get0_info(WOLFSSL_ASN1_STRING **name,
   WOLFSSL_ASN1_OBJECT **pmd, WOLFSSL_ASN1_STRING **keyHash,
   WOLFSSL_ASN1_INTEGER **serial, WOLFSSL_OCSP_CERTID *cid)
 {
-    WOLFSSL_STUB("wolfSSL_OCSP_id_get0_info");
-    (void)name;
-    (void)pmd;
-    (void)keyHash;
-    (void)serial;
-    (void)cid;
-    return WOLFSSL_FATAL_ERROR;
+    int i = 0;
+    WOLFSSL_ASN1_INTEGER* ser;
+
+    WOLFSSL_ENTER("wolfSSL_OCSP_id_get0_info");
+
+    if (cid == NULL)
+        return 0;
+
+    /* build up ASN1_INTEGER for serial */
+    if (serial != NULL) {
+        ser = wolfSSL_ASN1_INTEGER_new();
+        if (ser == NULL)
+            return 0;
+
+        if (cid->serialSz > (WOLFSSL_ASN1_INTEGER_MAX - 2)) {
+            /* allocate data buffer, +2 for type and length */
+            ser->data = (unsigned char*)XMALLOC(cid->serialSz + 2, NULL,
+                DYNAMIC_TYPE_OPENSSL);
+            if (ser->data == NULL) {
+                wolfSSL_ASN1_INTEGER_free(ser);
+                return 0;
+            }
+            ser->dataMax = cid->serialSz + 2;
+            ser->isDynamic = 1;
+        }
+
+        ser->data[i++] = ASN_INTEGER;
+        i += SetLength(cid->serialSz, ser->data + i);
+        XMEMCPY(&ser->data[i], cid->serial, cid->serialSz);
+
+        cid->serialInt = ser;
+        *serial = cid->serialInt;
+    }
+
+    /* Not needed for Apache, return error if user is requesting */
+    if (name != NULL || pmd != NULL || keyHash != NULL) {
+        if (name != NULL)
+            *name = NULL;
+
+        if (pmd != NULL)
+            *pmd = NULL;
+
+        if (keyHash != NULL)
+            *keyHash = NULL;
+        return 0;
+    }
+
+    return 1;
 }
-#endif
 
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_OCSP_request_add1_nonce(OcspRequest* req, unsigned char* val,

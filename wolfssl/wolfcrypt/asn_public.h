@@ -192,6 +192,23 @@ typedef struct EncryptedInfo {
 } EncryptedInfo;
 
 
+#define WOLFSSL_ASN1_INTEGER_MAX 20
+typedef struct WOLFSSL_ASN1_INTEGER {
+    /* size can be increased set at 20 for tag, length then to hold at least 16
+     * byte type */
+    unsigned char  intData[WOLFSSL_ASN1_INTEGER_MAX];
+    /* ASN_INTEGER | LENGTH | hex of number */
+    unsigned char  negative;   /* negative number flag */
+
+    unsigned char* data;
+    unsigned int   dataMax;   /* max size of data buffer */
+    unsigned int   isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+    int length;
+#endif
+} WOLFSSL_ASN1_INTEGER;
+
+
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
 #ifdef WOLFSSL_EKU_OID
     #ifndef CTC_MAX_EKU_NB
@@ -302,7 +319,6 @@ typedef struct Cert {
     byte*   der;            /* Pointer to buffer of current DecodedCert cache */
     void*   heap;           /* heap hint */
 } Cert;
-
 
 
 /* Initialize and Set Certificate defaults:

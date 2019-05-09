@@ -15371,6 +15371,16 @@ void FreeOcspRequest(OcspRequest* req)
             XFREE(req->serial, req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
         req->serial = NULL;
 
+#ifdef OPENSSL_EXTRA
+        if (req->serialInt) {
+            if (req->serialInt->isDynamic) {
+                XFREE(req->serialInt->data, NULL, DYNAMIC_TYPE_OPENSSL);
+            }
+            XFREE(req->serialInt, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
+        req->serialInt = NULL;
+#endif
+
         if (req->url)
             XFREE(req->url, req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
         req->url = NULL;

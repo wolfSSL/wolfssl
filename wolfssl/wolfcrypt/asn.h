@@ -1251,6 +1251,9 @@ struct OcspRequest {
     byte   issuerKeyHash[KEYID_SIZE];
     byte*  serial;   /* copy of the serial number in source cert */
     int    serialSz;
+#ifdef OPENSSL_EXTRA
+    WOLFSSL_ASN1_INTEGER* serialInt;
+#endif
     byte*  url;      /* copy of the extAuthInfo in source cert */
     int    urlSz;
 

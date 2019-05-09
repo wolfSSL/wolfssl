@@ -171,7 +171,6 @@ typedef struct WOLFSSL_BIO            WOLFSSL_BIO;
 typedef struct WOLFSSL_BIO_METHOD     WOLFSSL_BIO_METHOD;
 typedef struct WOLFSSL_X509_EXTENSION WOLFSSL_X509_EXTENSION;
 typedef struct WOLFSSL_ASN1_TIME      WOLFSSL_ASN1_TIME;
-typedef struct WOLFSSL_ASN1_INTEGER   WOLFSSL_ASN1_INTEGER;
 typedef struct WOLFSSL_ASN1_OBJECT    WOLFSSL_ASN1_OBJECT;
 typedef struct WOLFSSL_ASN1_OTHERNAME WOLFSSL_ASN1_OTHERNAME;
 typedef struct WOLFSSL_X509V3_CTX     WOLFSSL_X509V3_CTX;
@@ -204,23 +203,6 @@ struct WOLFSSL_BASIC_CONSTRAINTS {
 
 #define WOLFSSL_ASN1_UTCTIME          WOLFSSL_ASN1_TIME
 #define WOLFSSL_ASN1_GENERALIZEDTIME  WOLFSSL_ASN1_TIME
-
-#define WOLFSSL_ASN1_INTEGER_MAX 20
-struct WOLFSSL_ASN1_INTEGER {
-    /* size can be increased set at 20 for tag, length then to hold at least 16
-     * byte type */
-    unsigned char  intData[WOLFSSL_ASN1_INTEGER_MAX];
-    /* ASN_INTEGER | LENGTH | hex of number */
-    unsigned char  negative;   /* negative number flag */
-
-    unsigned char* data;
-    unsigned int   dataMax;   /* max size of data buffer */
-    unsigned int   isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
-
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-    int length;
-#endif
-};
 
 struct WOLFSSL_ASN1_TIME {
     /* MAX_DATA_SIZE is 32 */
