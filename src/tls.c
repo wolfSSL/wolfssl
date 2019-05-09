@@ -7349,6 +7349,9 @@ int TLSX_KeyShare_Use(WOLFSSL* ssl, word16 group, word16 len, byte* data,
     }
 
     if (data != NULL) {
+        if (keyShareEntry->ke != NULL) {
+            XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        }
         keyShareEntry->ke = data;
         keyShareEntry->keLen = len;
     }
