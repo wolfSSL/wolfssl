@@ -214,11 +214,15 @@ enum ECC_TYPES
 #define ASN_JOI_ST     0x2
 
 #ifndef WC_ASN_NAME_MAX
-    #define WC_ASN_NAME_MAX 256
+    #ifdef OPENSSL_EXTRA
+        #define WC_ASN_NAME_MAX 300
+    #else
+        #define WC_ASN_NAME_MAX 256
+    #endif
 #endif
+#define ASN_NAME_MAX WC_ASN_NAME_MAX
 
 enum Misc_ASN {
-    ASN_NAME_MAX        = WC_ASN_NAME_MAX,
     MAX_SALT_SIZE       =  64,     /* MAX PKCS Salt length */
     MAX_IV_SIZE         =  64,     /* MAX PKCS Iv length */
     ASN_BOOL_SIZE       =   2,     /* including type */
@@ -538,6 +542,7 @@ struct Base_entry {
 };
 
 #define DOMAIN_COMPONENT_MAX 10
+#define DN_NAMES_MAX 9
 
 struct DecodedName {
     char*   fullName;
@@ -585,6 +590,14 @@ struct DecodedName {
     int     dcLen[DOMAIN_COMPONENT_MAX];
     int     dcNum;
     int     dcMode;
+#ifdef OPENSSL_EXTRA
+    /* hold the location / order with which each of the DN tags was found
+     *
+     * example of ASN_DOMAIN_COMPONENT at index 0 if first found and so on.
+     */
+    int     loc[DOMAIN_COMPONENT_MAX + DN_NAMES_MAX];
+    int     locSz;
+#endif
 };
 
 enum SignatureState {

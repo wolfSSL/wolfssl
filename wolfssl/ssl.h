@@ -202,10 +202,12 @@ struct WOLFSSL_ASN1_TIME {
 };
 
 struct WOLFSSL_ASN1_STRING {
+    char strData[CTC_NAME_SIZE];
     int length;
     int type; /* type of string i.e. CTC_UTF8 */
     char* data;
     long flags;
+    unsigned int   isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
 };
 
 #define WOLFSSL_MAX_SNAME 40

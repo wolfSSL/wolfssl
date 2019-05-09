@@ -22205,6 +22205,153 @@ static void test_wolfSSL_X509_check_ca(void){
 #endif
 }
 
+static void test_wolfSSL_DC_cert(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_KEY_GEN) && \
+    defined(WOLFSSL_CERT_EXT)
+    Cert    cert;
+    RsaKey  key;
+    WC_RNG  rng;
+    byte    der[FOURK_BUF];
+    int     certSz;
+    int     ret, idx;
+    const byte  mySerial[8] = {1,2,3,4,5,6,7,8};
+    const unsigned char* pt;
+
+    X509*   x509;
+    X509_NAME* x509name;
+    X509_NAME_ENTRY* entry;
+    ASN1_STRING* entryValue;
+
+    CertName name;
+    printf(testingFmt, "wolfSSL Certs with DC");
+
+    XMEMSET(&name, 0, sizeof(CertName));
+
+    /* set up cert name */
+    XMEMCPY(name.country, "US", sizeof("US"));
+    name.countryEnc = CTC_PRINTABLE;
+    XMEMCPY(name.state, "Oregon", sizeof("Oregon"));
+    name.stateEnc = CTC_UTF8;
+    XMEMCPY(name.locality, "Portland", sizeof("Portland"));
+    name.localityEnc = CTC_UTF8;
+    XMEMCPY(name.sur, "Test", sizeof("Test"));
+    name.surEnc = CTC_UTF8;
+    XMEMCPY(name.org, "wolfSSL", sizeof("wolfSSL"));
+    name.orgEnc = CTC_UTF8;
+    XMEMCPY(name.unit, "Development", sizeof("Development"));
+    name.unitEnc = CTC_UTF8;
+    XMEMCPY(name.commonName, "www.wolfssl.com", sizeof("www.wolfssl.com"));
+    name.commonNameEnc = CTC_UTF8;
+    XMEMCPY(name.serialDev, "wolfSSL12345", sizeof("wolfSSL12345"));
+    name.serialDevEnc = CTC_PRINTABLE;
+#ifdef WOLFSSL_MULTI_ATTRIB
+    #if CTC_MAX_ATTRIB > 2
+    {
+        NameAttrib* n;
+        n = &name.name[0];
+        n->id   = ASN_DOMAIN_COMPONENT;
+        n->type = CTC_UTF8;
+        n->sz   = sizeof("com");
+        XMEMCPY(n->value, "com", sizeof("com"));
+
+        n = &name.name[1];
+        n->id   = ASN_DOMAIN_COMPONENT;
+        n->type = CTC_UTF8;
+        n->sz   = sizeof("wolfssl");
+        XMEMCPY(n->value, "wolfssl", sizeof("wolfssl"));
+    }
+    #endif
+#endif /* WOLFSSL_MULTI_ATTRIB */
+
+    AssertIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+#ifndef HAVE_FIPS
+    AssertIntEQ(wc_InitRng_ex(&rng, HEAP_HINT, devId), 0);
+#else
+    AssertIntEQ(wc_InitRng(&rng), 0);
+#endif
+    AssertIntEQ(wc_MakeRsaKey(&key, 1024, 3, &rng), 0);
+
+
+    XMEMSET(&cert, 0 , sizeof(Cert));
+    AssertIntEQ(wc_InitCert(&cert), 0);
+
+    XMEMCPY(&cert.subject, &name, sizeof(CertName));
+    XMEMCPY(cert.serial, mySerial, sizeof(mySerial));
+    cert.serialSz = (int)sizeof(mySerial);
+    cert.isCA     = 1;
+#ifndef NO_SHA256
+    cert.sigType = CTC_SHA256wRSA;
+#else
+    cert.sigType = CTC_SHAwRSA;
+#endif
+
+    /* add SKID from the Public Key */
+    AssertIntEQ(wc_SetSubjectKeyIdFromPublicKey(&cert, &key, NULL), 0);
+
+    /* add AKID from the Public Key */
+    AssertIntEQ(wc_SetAuthKeyIdFromPublicKey(&cert, &key, NULL), 0);
+
+    ret = 0;
+    do {
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
+        if (ret >= 0) {
+            ret = wc_MakeSelfCert(&cert, der, FOURK_BUF, &key, &rng);
+        }
+    } while (ret == WC_PENDING_E);
+    AssertIntGT(ret, 0);
+    certSz = ret;
+
+    /* der holds a certificate with DC's now check X509 parsing of it */
+    pt = der;
+    AssertNotNull(x509 = d2i_X509(NULL, &pt, certSz));
+    AssertNotNull(x509name = X509_get_subject_name(x509));
+#ifdef WOLFSSL_MULTI_ATTRIB
+    AssertIntEQ((idx = X509_NAME_get_index_by_NID(x509name, NID_domainComponent,
+                    -1)), 5);
+    AssertIntEQ((idx = X509_NAME_get_index_by_NID(x509name, NID_domainComponent,
+                    idx)), 6);
+    AssertIntEQ((idx = X509_NAME_get_index_by_NID(x509name, NID_domainComponent,
+                    idx)), -1);
+#endif /* WOLFSSL_MULTI_ATTRIB */
+
+    /* compare DN at index 0 */
+    AssertNotNull(entry = X509_NAME_get_entry(x509name, 0));
+    AssertNotNull(entryValue = X509_NAME_ENTRY_get_data(entry));
+    AssertIntEQ(ASN1_STRING_length(entryValue), 2);
+    AssertStrEQ((const char*)ASN1_STRING_data(entryValue), "US");
+
+#ifdef WOLFSSL_MULTI_ATTRIB
+    /* get first and second DC and compare result */
+    AssertIntEQ((idx = X509_NAME_get_index_by_NID(x509name, NID_domainComponent,
+                    -1)), 5);
+    AssertNotNull(entry = X509_NAME_get_entry(x509name, idx));
+    AssertNotNull(entryValue = X509_NAME_ENTRY_get_data(entry));
+    AssertStrEQ((const char *)ASN1_STRING_data(entryValue), "com");
+
+    AssertIntEQ((idx = X509_NAME_get_index_by_NID(x509name, NID_domainComponent,
+                   idx)), 6);
+    AssertNotNull(entry = X509_NAME_get_entry(x509name, idx));
+    AssertNotNull(entryValue = X509_NAME_ENTRY_get_data(entry));
+    AssertStrEQ((const char *)ASN1_STRING_data(entryValue), "wolfssl");
+#endif /* WOLFSSL_MULTI_ATTRIB */
+
+    /* try invalid index locations for regression test and sanity check */
+    AssertNull(entry = X509_NAME_get_entry(x509name, 11));
+    AssertNull(entry = X509_NAME_get_entry(x509name, 20));
+
+    (void)idx;
+    X509_free(x509);
+    wc_FreeRsaKey(&key);
+    wc_FreeRng(&rng);
+    printf(resultFmt, passed);
+#endif
+}
+
+
 static void test_wolfSSL_X509_get_version(void){
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
     WOLFSSL_X509 *x509;
@@ -24547,6 +24694,7 @@ void ApiTest(void)
     test_wolfSSL_ASN1_TIME_to_generalizedtime();
     test_wolfSSL_i2c_ASN1_INTEGER();
     test_wolfSSL_X509_check_ca();
+    test_wolfSSL_DC_cert();
     test_wolfSSL_DES_ncbc();
     test_wolfSSL_AES_cbc_encrypt();
 
