@@ -24,6 +24,8 @@
  * and Daniel J. Bernstein
  */
 
+#ifndef WOLFSSL_ARMASM
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -818,4 +820,4 @@ int wc_Poly1305_MAC(Poly1305* ctx, byte* additional, word32 addSz,
 
 }
 #endif /* HAVE_POLY1305 */
-
+#endif /* WOLFSSL_ARMASM */

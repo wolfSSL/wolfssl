@@ -4322,6 +4322,9 @@ int chacha_test(void)
     ChaCha dec;
     byte   cipher[128];
     byte   plain[128];
+    byte   cipher_big[1305] = {0};
+    byte   plain_big[1305] = {0};
+    byte   input_big[1305] = {0};
     byte   sliver[64];
     byte   input[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     word32 keySz = 32;

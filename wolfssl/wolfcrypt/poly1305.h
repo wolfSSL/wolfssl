@@ -82,6 +82,18 @@ typedef struct Poly1305 {
     unsigned char finished;
     unsigned char started;
 #else
+#ifdef WOLFSSL_ARMASM
+    ALIGN128 word32 r[5];
+    ALIGN128 word32 r_2[5]; // r^2
+    ALIGN128 word32 r_4[5]; // r^2
+    ALIGN128 word32 h[5];
+    word32 pad[4];
+#if defined(POLY130564) // use predictable size of leftover
+    word64 leftover;
+#else
+    word32 leftover;
+#endif /* POLY130564 */
+#else
 #if defined(POLY130564)
     word64 r[3];
     word64 h[3];
@@ -92,6 +104,7 @@ typedef struct Poly1305 {
     word32 pad[4];
 #endif
     size_t leftover;
+#endif /* WOLFSSL_ARMASM */
     unsigned char buffer[POLY1305_BLOCK_SIZE];
     unsigned char finished;
 #endif
