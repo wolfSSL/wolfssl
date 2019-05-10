@@ -1630,6 +1630,7 @@ struct WOLFSSL_BIO {
     WOLFSSL_BIO* pair;          /* BIO paired with */
     void*        heap;          /* user heap hint */
     byte*        mem;           /* memory buffer */
+    void*        usrCtx;        /* user set pointer */
     char*        infoArg;       /* BIO callback argument */
     wolf_bio_info_cb infoCb;    /* BIO callback */
     int         wrSz;          /* write buffer size (mem) */

@@ -1275,11 +1275,36 @@ char* wolfSSL_BIO_get_callback_arg(const WOLFSSL_BIO *bio)
     return NULL;
 }
 
+
+/* store a user pointer in the WOLFSSL_BIO structure */
+void wolfSSL_BIO_set_data(WOLFSSL_BIO* bio, void *ptr)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_set_data");
+
+    if (bio != NULL) {
+        bio->usrCtx = ptr;
+    }
+}
+
+
+void* wolfSSL_BIO_get_data(WOLFSSL_BIO* bio)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_get_data");
+
+    if (bio != NULL)
+        return bio->usrCtx;
+
+    WOLFSSL_MSG("WOLFSSL_BIO was null");
+    return NULL;
+}
+
 /* If flag is 0 then blocking is set, if 1 then non blocking.
  * Always returns 1
  */
 long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
 {
+    WOLFSSL_ENTER("wolfSSL_BIO_set_nbio");
+
     switch (bio->type) {
         case WOLFSSL_BIO_SOCKET:
         #ifdef XFCNTL
