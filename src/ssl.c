@@ -54,6 +54,10 @@
                 && !defined(HAVE_ED25519)
         #error "No cipher suites defined because DH disabled, ECC disabled, and no static suites defined. Please see top of README"
     #endif
+    #ifdef WOLFSSL_CERT_GEN
+        /* need access to Cert struct for creating certificate */
+        #include <wolfssl/wolfcrypt/asn_public.h>
+    #endif
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
@@ -17757,6 +17761,7 @@ void wolfSSL_sk_X509_free(WOLF_STACK_OF(WOLFSSL_X509)* sk) {
     XFREE(sk, NULL, DYNAMIC_TYPE_X509);
 }
 
+
 #endif /* NO_CERTS && OPENSSL_EXTRA */
 
 #if defined(OPENSSL_ALL) || defined (WOLFSSL_QT)
@@ -34603,6 +34608,426 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return WOLFSSL_SUCCESS;
     }
 
+#ifdef WOLFSSL_CERT_REQ
+    static int ReqCertFromX509(Cert* cert, WOLFSSL_X509* req)
+    {
+        int ret;
+
+        if (wc_InitCert(cert) != 0)
+            return WOLFSSL_FAILURE;
+
+        ret = CopyX509NameToCertName(&req->subject, &cert->subject);
+        if (ret == WOLFSSL_SUCCESS) {
+            cert->version = req->version;
+            cert->isCA = req->isCa;
+            if (req->subjKeyIdSz != 0) {
+                XMEMCPY(cert->skid, req->subjKeyId, req->subjKeyIdSz);
+                cert->skidSz = req->subjKeyIdSz;
+            }
+            if (req->keyUsageSet)
+                cert->keyUsage = req->keyUsage;
+            /* Extended Key Usage not supported. */
+        }
+
+        return ret;
+    }
+#endif
+
+    /* convert a WOLFSSL_X509 to a Cert structure for writing out */
+    static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
+    {
+        int ret;
+        int i;
+
+        WOLFSSL_ENTER("wolfSSL_X509_to_Cert()");
+
+        if (x509 == NULL || cert == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        wc_InitCert(cert);
+
+        cert->version = wolfSSL_X509_get_version(x509);
+
+        #ifdef WOLFSSL_ALT_NAMES
+        if (x509->notBeforeSz < CTC_DATE_SIZE) {
+            XMEMCPY(cert->beforeDate, x509->notBefore, x509->notBeforeSz);
+            cert->beforeDateSz = x509->notBeforeSz;
+        }
+        else {
+            WOLFSSL_MSG("Not before date too large");
+            return WOLFSSL_FAILURE;
+        }
+
+        if (x509->notAfterSz < CTC_DATE_SIZE) {
+            XMEMCPY(cert->afterDate, x509->notAfter, x509->notAfterSz);
+            cert->afterDateSz = x509->notAfterSz;
+        }
+        else {
+            WOLFSSL_MSG("Not after date too large");
+            return WOLFSSL_FAILURE;
+        }
+
+        /* copy over alt names */
+        {
+            int idx = 0;
+            DNS_entry* dns = x509->altNames;
+
+            while (dns != NULL) {
+                int sz = (int)XSTRLEN(dns->name);
+
+                if (sz < 0 || sz + idx > CTC_MAX_ALT_SIZE) {
+                    WOLFSSL_MSG("Issue with copying over alt names");
+                    return WOLFSSL_FAILURE;
+                }
+                XMEMCPY(cert->altNames, dns->name, sz);
+                idx += sz;
+                dns = dns->next;
+            }
+            cert->altNamesSz = idx;
+        }
+        #endif
+
+        cert->sigType = wolfSSL_X509_get_signature_type(x509);
+        cert->keyType = x509->pubKeyOID;
+        cert->isCA    = wolfSSL_X509_get_isCA(x509);
+
+    #ifdef WOLFSSL_CERT_EXT
+        if (x509->subjKeyIdSz < CTC_MAX_SKID_SIZE) {
+            XMEMCPY(cert->skid, x509->subjKeyId, x509->subjKeyIdSz);
+            cert->skidSz = (int)x509->subjKeyIdSz;
+        }
+        else {
+            WOLFSSL_MSG("Subject Key ID too large");
+            return WOLFSSL_FAILURE;
+        }
+
+        if (x509->authKeyIdSz < CTC_MAX_AKID_SIZE) {
+            XMEMCPY(cert->akid, x509->authKeyId, x509->authKeyIdSz);
+            cert->akidSz = (int)x509->authKeyIdSz;
+        }
+        else {
+            WOLFSSL_MSG("Auth Key ID too large");
+            return WOLFSSL_FAILURE;
+        }
+
+        for (i = 0; i < x509->certPoliciesNb; i++) {
+            /* copy the smaller of MAX macros, by default they are currently equal*/
+            if ((int)CTC_MAX_CERTPOL_SZ <= (int)MAX_CERTPOL_SZ) {
+                XMEMCPY(cert->certPolicies[i], x509->certPolicies[i],
+                        CTC_MAX_CERTPOL_SZ);
+            }
+            else {
+                XMEMCPY(cert->certPolicies[i], x509->certPolicies[i],
+                        MAX_CERTPOL_SZ);
+            }
+        }
+        cert->certPoliciesNb = (word16)x509->certPoliciesNb;
+
+        cert->keyUsage = x509->keyUsage;
+    #endif /* WOLFSSL_CERT_EXT */
+
+    #ifdef WOLFSSL_CERT_REQ
+        /* copy over challenge password for REQ certs */
+        XMEMCPY(cert->challengePw, x509->challengePw, CTC_NAME_SIZE);
+    #endif
+
+        if (x509->serialSz <= CTC_SERIAL_SIZE) {
+            XMEMCPY(cert->serial, x509->serial, x509->serialSz);
+        }
+        else {
+            WOLFSSL_MSG("Serial size error");
+            return WOLFSSL_FAILURE;
+        }
+
+        /* copy over Name structures */
+        if ((ret = CopyX509NameToCertName(&(x509->issuer), &(cert->issuer)))
+            != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Error copying over issuer names");
+            WOLFSSL_LEAVE("wolfSSL_X509_to_Cert()", ret);
+            return WOLFSSL_FAILURE;
+        }
+        if ((ret = CopyX509NameToCertName(&(x509->subject), &(cert->subject)))
+            != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Error copying over subject names");
+            WOLFSSL_LEAVE("wolfSSL_X509_to_Cert()", ret);
+            return WOLFSSL_FAILURE;
+        }
+
+        cert->heap = x509->heap;
+
+        return WOLFSSL_SUCCESS;
+    }
+
+
+    /* returns the sig type to use on success i.e CTC_SHAwRSA and WOLFSSL_FALURE
+     * on fail case */
+    static int wolfSSL_sigTypeFromPKEY(WOLFSSL_EVP_MD* md,
+            WOLFSSL_EVP_PKEY* pkey)
+    {
+        int hashType;
+        int sigType = WOLFSSL_FAILURE;
+
+        /* Convert key type and hash algorithm to a signature algorithm */
+        if (wolfSSL_EVP_get_hashinfo(md, &hashType, NULL) == WOLFSSL_FAILURE)
+            return WOLFSSL_FAILURE;
+
+
+        if (pkey->type == EVP_PKEY_RSA) {
+            switch (hashType) {
+                case WC_HASH_TYPE_SHA:
+                    sigType = CTC_SHAwRSA;
+                    break;
+                case WC_HASH_TYPE_SHA224:
+                    sigType = CTC_SHA224wRSA;
+                    break;
+                case WC_HASH_TYPE_SHA256:
+                    sigType = CTC_SHA256wRSA;
+                    break;
+                case WC_HASH_TYPE_SHA384:
+                    sigType = CTC_SHA384wRSA;
+                    break;
+                case WC_HASH_TYPE_SHA512:
+                    sigType = CTC_SHA512wRSA;
+                    break;
+                default:
+                    return WOLFSSL_FAILURE;
+            }
+        }
+        else if (pkey->type == EVP_PKEY_EC) {
+            switch (hashType) {
+                case WC_HASH_TYPE_SHA:
+                    sigType = CTC_SHAwECDSA;
+                    break;
+                case WC_HASH_TYPE_SHA224:
+                    sigType = CTC_SHA224wECDSA;
+                    break;
+                case WC_HASH_TYPE_SHA256:
+                    sigType = CTC_SHA256wECDSA;
+                    break;
+                case WC_HASH_TYPE_SHA384:
+                    sigType = CTC_SHA384wECDSA;
+                    break;
+                case WC_HASH_TYPE_SHA512:
+                    sigType = CTC_SHA512wECDSA;
+                    break;
+                default:
+                    return WOLFSSL_FAILURE;
+            }
+        }
+        else
+            return WOLFSSL_FAILURE;
+        return sigType;
+    }
+
+
+    /* generates DER buffer from WOLFSSL_X509
+     * If req == 1 then creates a request DER buffer
+     *
+     * updates derSz with certificate body size on success
+     * return WOLFSSL_SUCCESS on success
+     */
+    static int wolfSSL_X509_make_der(WOLFSSL_X509* x509, int req,
+            unsigned char* der, int* derSz)
+    {
+        int ret;
+        Cert cert;
+        void* key = NULL;
+        int type = -1;
+    #ifndef NO_RSA
+        RsaKey rsa;
+    #endif
+    #ifdef HAVE_ECC
+        ecc_key ecc;
+    #endif
+        WC_RNG rng;
+        word32 idx = 0;
+
+        if (x509 == NULL || der == NULL || derSz == NULL)
+            return BAD_FUNC_ARG;
+
+    #ifndef WOLFSSL_CERT_REQ
+        if (req) {
+            WOLFSSL_MSG("WOLFSSL_CERT_REQ needed for certificate request");
+            return WOLFSSL_FAILURE;
+        }
+    #endif
+
+    #ifdef WOLFSSL_CERT_REQ
+        if (req) {
+            if (ReqCertFromX509(&cert, x509) != WOLFSSL_SUCCESS)
+                return WOLFSSL_FAILURE;
+        }
+        else
+    #endif
+        {
+            /* Create a Cert that has the certificate fields. */
+            if (CertFromX509(&cert, x509) != WOLFSSL_SUCCESS)
+                return WOLFSSL_FAILURE;
+        }
+
+        /* Create a public key object from requests public key. */
+    #ifndef NO_RSA
+        if (x509->pubKeyOID == RSAk) {
+            type = RSA_TYPE;
+            ret = wc_InitRsaKey(&rsa, x509->heap);
+            if (ret != 0)
+                return ret;
+            ret = wc_RsaPublicKeyDecode(x509->pubKey.buffer, &idx, &rsa,
+                                                           x509->pubKey.length);
+            if (ret != 0) {
+                wc_FreeRsaKey(&rsa);
+                return ret;
+            }
+            key = (void*)&rsa;
+        }
+    #endif
+    #ifdef HAVE_ECC
+        if (x509->pubKeyOID == ECDSAk) {
+            type = ECC_TYPE;
+            ret = wc_ecc_init(&ecc);
+            if (ret != 0)
+                return ret;
+            ret = wc_EccPublicKeyDecode(x509->pubKey.buffer, &idx, &ecc,
+                                                           x509->pubKey.length);
+            if (ret != 0) {
+                wc_ecc_free(&ecc);
+                return ret;
+            }
+            key = (void*)&ecc;
+        }
+    #endif
+        if (key == NULL)
+            return WOLFSSL_FAILURE;
+
+        /* Make the body of the certificate request. */
+    #ifdef WOLFSSL_CERT_REQ
+        if (req) {
+            ret = wc_MakeCertReq_ex(&cert, der, *derSz, type, key);
+        }
+        else
+    #endif
+        {
+            ret = wc_InitRng(&rng);
+            if (ret != 0)
+                return WOLFSSL_FAILURE;
+
+            ret = wc_MakeCert_ex(&cert, der, *derSz, type, key, &rng);
+            wc_FreeRng(&rng);
+        }
+        if (ret < 0) {
+            return ret;
+        }
+
+        /* Dispose of the public key object. */
+    #ifndef NO_RSA
+        if (x509->pubKeyOID == RSAk)
+            wc_FreeRsaKey(&rsa);
+    #endif
+    #ifdef HAVE_ECC
+        if (x509->pubKeyOID == ECDSAk)
+            wc_ecc_free(&ecc);
+    #endif
+        *derSz = ret;
+
+        return WOLFSSL_SUCCESS;
+    }
+
+
+    /* signs a der buffer for the WOLFSSL_X509 structure using the PKEY and MD
+     * hash passed in
+     *
+     * WARNING: this free's and replaces the existing DER buffer in the
+     *          WOLFSSL_X509 with the newly signed buffer.
+     * returns size of signed buffer on success and negative values on fail
+     */
+    static int wolfSSL_X509_resign_cert(WOLFSSL_X509* x509, int req,
+            unsigned char* der, int derSz, int certBodySz, WOLFSSL_EVP_MD* md,
+            WOLFSSL_EVP_PKEY* pkey)
+    {
+        int ret;
+        void* key = NULL;
+        int type = -1;
+        int sigType;
+        WC_RNG rng;
+
+        sigType = wolfSSL_sigTypeFromPKEY(md, pkey);
+        if (sigType == WOLFSSL_FAILURE)
+            return WOLFSSL_FATAL_ERROR;
+
+
+        /* Get the private key object and type from pkey. */
+    #ifndef NO_RSA
+        if (pkey->type == EVP_PKEY_RSA) {
+            type = RSA_TYPE;
+            key = pkey->rsa->internal;
+        }
+    #endif
+    #ifdef HAVE_ECC
+        if (pkey->type == EVP_PKEY_EC) {
+            type = ECC_TYPE;
+            key = pkey->ecc->internal;
+        }
+    #endif
+
+        /* Sign the certificate request body. */
+        ret = wc_InitRng(&rng);
+        if (ret != 0)
+            return ret;
+        ret = wc_SignCert_ex(certBodySz, sigType, der, derSz, type, key, &rng);
+        wc_FreeRng(&rng);
+        if (ret < 0)
+            return ret;
+
+        /* Put in the new certificate encoding into the x509 object. */
+        FreeDer(&x509->derCert);
+        type = CERT_TYPE;
+    #ifdef WOLFSSL_REQ_CERT
+        if (req) {
+            type = CERTREQ_TYPE;
+        }
+    #endif
+
+        if (AllocDer(&x509->derCert, ret, type, NULL) != 0)
+            return WOLFSSL_FATAL_ERROR;
+        XMEMCPY(x509->derCert->buffer, der, ret);
+        x509->derCert->length = ret;
+
+        (void)req;
+        return ret;
+    }
+
+
+    /* returns the size of signature on success */
+    int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
+            const WOLFSSL_EVP_MD* md)
+    {
+        int  ret;
+        byte der[4096]; /* @TODO dynamic set based on expected cert size */
+        int  derSz = sizeof(der);
+
+        WOLFSSL_ENTER("wolfSSL_X509_sign");
+
+        if (x509 == NULL || pkey == NULL || md == NULL)
+            return WOLFSSL_FAILURE;
+
+        x509->sigOID = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
+        if ((ret = wolfSSL_X509_make_der(x509, 0, der, &derSz)) !=
+                WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Unable to make DER for X509");
+            WOLFSSL_LEAVE("wolfSSL_X509_sign", ret);
+            return WOLFSSL_FAILURE;
+        }
+
+        ret = wolfSSL_X509_resign_cert(x509, 0, der, sizeof(der), derSz,
+                (WOLFSSL_EVP_MD*)md, pkey);
+        if (ret <= 0) {
+            WOLFSSL_LEAVE("wolfSSL_X509_sign", ret);
+            return WOLFSSL_FAILURE;
+        }
+        return ret;
+    }
+
 
     /* Converts the x509 name structure into DER format.
      *
@@ -42373,18 +42798,6 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
     return WOLFSSL_SUCCESS;
 }
 
-#ifndef NO_WOLFSSL_STUB
-/* returns the size of signature on success */
-int wolfSSL_X509_sign(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey,
-        const WOLFSSL_EVP_MD* md)
-{
-    WOLFSSL_STUB("wolfSSL_X509_sign");
-    (void)x509;
-    (void)pkey;
-    (void)md;
-    return WOLFSSL_FATAL_ERROR;
-}
-#endif
 
 WOLFSSL_X509* wolfSSL_X509_REQ_new(void)
 {
@@ -42397,185 +42810,25 @@ void wolfSSL_X509_REQ_free(WOLFSSL_X509* req)
 }
 
 
-static int ReqCertFromX509(Cert* cert, WOLFSSL_X509* req)
-{
-    int ret;
-
-    ret = CopyX509NameToCertName(&req->subject, &cert->subject);
-    if (ret == WOLFSSL_SUCCESS) {
-        cert->version = req->version;
-        cert->isCA = req->isCa;
-        if (req->subjKeyIdSz != 0) {
-            XMEMCPY(cert->skid, req->subjKeyId, req->subjKeyIdSz);
-            cert->skidSz = req->subjKeyIdSz;
-        }
-        if (req->keyUsageSet)
-            cert->keyUsage = req->keyUsage;
-        /* Extended Key Usage not supported. */
-    }
-
-    return ret;
-}
-
 int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
                           const WOLFSSL_EVP_MD *md)
 {
-    int ret;
-    Cert cert;
     byte der[2048];
     int derSz = sizeof(der);
-    void* key = NULL;
-    int type = -1;
-    int sigType;
-    int hashType;
-#ifndef NO_RSA
-    RsaKey rsa;
-#endif
-#ifdef HAVE_ECC
-    ecc_key ecc;
-#endif
-    WC_RNG rng;
-    word32 idx = 0;
 
     if (req == NULL || pkey == NULL || md == NULL)
         return WOLFSSL_FAILURE;
 
     /* Create a Cert that has the certificate request fields. */
-    if (wc_InitCert(&cert) != 0)
+    req->sigOID = wolfSSL_sigTypeFromPKEY((WOLFSSL_EVP_MD*)md, pkey);
+    if (wolfSSL_X509_make_der(req, 1, der, &derSz) != WOLFSSL_SUCCESS) {
         return WOLFSSL_FAILURE;
-    if (ReqCertFromX509(&cert, req) != WOLFSSL_SUCCESS)
-        return WOLFSSL_FAILURE;
-
-    /* Convert key type and hash algorithm to a signature algorithm */
-    if (wolfSSL_EVP_get_hashinfo(md, &hashType, NULL) == WOLFSSL_FAILURE)
-        return WOLFSSL_FAILURE;
-
-    if (pkey->type == EVP_PKEY_RSA) {
-        switch (hashType) {
-            case WC_HASH_TYPE_SHA:
-                sigType = CTC_SHAwRSA;
-                break;
-            case WC_HASH_TYPE_SHA224:
-                sigType = CTC_SHA224wRSA;
-                break;
-            case WC_HASH_TYPE_SHA256:
-                sigType = CTC_SHA256wRSA;
-                break;
-            case WC_HASH_TYPE_SHA384:
-                sigType = CTC_SHA384wRSA;
-                break;
-            case WC_HASH_TYPE_SHA512:
-                sigType = CTC_SHA512wRSA;
-                break;
-            default:
-                return WOLFSSL_FAILURE;
-        }
     }
-    else if (pkey->type == EVP_PKEY_EC) {
-        switch (hashType) {
-            case WC_HASH_TYPE_SHA:
-                sigType = CTC_SHAwECDSA;
-                break;
-            case WC_HASH_TYPE_SHA224:
-                sigType = CTC_SHA224wECDSA;
-                break;
-            case WC_HASH_TYPE_SHA256:
-                sigType = CTC_SHA256wECDSA;
-                break;
-            case WC_HASH_TYPE_SHA384:
-                sigType = CTC_SHA384wECDSA;
-                break;
-            case WC_HASH_TYPE_SHA512:
-                sigType = CTC_SHA512wECDSA;
-                break;
-            default:
-                return WOLFSSL_FAILURE;
-        }
+
+    if (wolfSSL_X509_resign_cert(req, 1, der, sizeof(der), derSz,
+            (WOLFSSL_EVP_MD*)md, pkey) <= 0) {
+        return WOLFSSL_FAILURE;
     }
-    else
-        return WOLFSSL_FAILURE;
-
-    /* Create a public key object from requests public key. */
-#ifndef NO_RSA
-    if (req->pubKeyOID == RSAk) {
-        type = RSA_TYPE;
-        ret = wc_InitRsaKey(&rsa, req->heap);
-        if (ret != 0)
-            return WOLFSSL_FAILURE;
-        ret = wc_RsaPublicKeyDecode(req->pubKey.buffer, &idx, &rsa,
-                                                            req->pubKey.length);
-        if (ret != 0) {
-            wc_FreeRsaKey(&rsa);
-            return WOLFSSL_FAILURE;
-        }
-        key = (void*)&rsa;
-    }
-#endif
-#ifdef HAVE_ECC
-    if (req->pubKeyOID == ECDSAk) {
-        type = ECC_TYPE;
-        ret = wc_ecc_init(&ecc);
-        if (ret != 0)
-            return WOLFSSL_FAILURE;
-        ret = wc_EccPublicKeyDecode(req->pubKey.buffer, &idx, &ecc,
-                                                            req->pubKey.length);
-        if (ret != 0) {
-            wc_ecc_free(&ecc);
-            return WOLFSSL_FAILURE;
-        }
-        key = (void*)&ecc;
-    }
-#endif
-    if (key == NULL)
-        return WOLFSSL_FAILURE;
-
-    /* Make the body of the certificate request. */
-    ret = wc_MakeCertReq_ex(&cert, der, derSz, type, key);
-    if (ret < 0)
-        return WOLFSSL_FAILURE;
-
-    /* Dispose of the public key object. */
-#ifndef NO_RSA
-    if (req->pubKeyOID == RSAk)
-        wc_FreeRsaKey(&rsa);
-#endif
-#ifdef HAVE_ECC
-    if (req->pubKeyOID == ECDSAk)
-        wc_ecc_free(&ecc);
-#endif
-
-    idx = 0;
-    /* Get the private key object and type from pkey. */
-#ifndef NO_RSA
-    if (pkey->type == EVP_PKEY_RSA) {
-        type = RSA_TYPE;
-        key = pkey->rsa->internal;
-    }
-#endif
-#ifdef HAVE_ECC
-    if (pkey->type == EVP_PKEY_EC) {
-        type = ECC_TYPE;
-        key = pkey->ecc->internal;
-    }
-#endif
-
-    /* Sign the certificate request body. */
-    ret = wc_InitRng(&rng);
-    if (ret != 0)
-        return WOLFSSL_FAILURE;
-    ret = wc_SignCert_ex(cert.bodySz, sigType, der, sizeof(der), type, key,
-                                                                          &rng);
-    wc_FreeRng(&rng);
-    if (ret < 0)
-        return WOLFSSL_FAILURE;
-
-    /* Put in the new certificate request encoding into the request object. */
-    FreeDer(&req->derCert);
-    if (AllocDer(&req->derCert, ret, CERTREQ_TYPE, NULL) != 0)
-        return WOLFSSL_FAILURE;
-    XMEMCPY(req->derCert->buffer, der, ret);
-    req->derCert->length = ret;
-
     return WOLFSSL_SUCCESS;
 }
 

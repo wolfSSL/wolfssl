@@ -1199,6 +1199,8 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
                 NULL, NULL);
             if (pkey->rsa) {
                 pkey->ownRsa = 1;
+                pkey->pkey_sz = wolfSSL_i2d_RSAPrivateKey(pkey->rsa,
+                        (unsigned char**)&pkey->pkey.ptr);
                 ret = WOLFSSL_SUCCESS;
             }
             break;
