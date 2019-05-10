@@ -48,6 +48,9 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/ti/ti-ccm.c \
               wolfcrypt/src/port/pic32/pic32mz-crypt.c \
               wolfcrypt/src/port/nrf51.c \
+              wolfcrypt/src/port/arm/armv8-aes.c \
+              wolfcrypt/src/port/arm/armv8-sha256.c \
+              wolfcrypt/src/port/arm/armv8-chacha.c \
               wolfcrypt/src/port/arm/armv8-curve25519.c \
               wolfcrypt/src/port/arm/armv7-curve25519.c \
               wolfcrypt/src/port/arm/armv8-sha512-asm.c \

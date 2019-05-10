@@ -2,15 +2,16 @@
 
 To use, install the NXP LPCXpresso IDE and import the projects in a new workspace.
 
-1. Run LPCXpresso and choose a workspace location.
-2. Right click in the project exporer window and choose Inport.
-3. Under General choose "Existing Projects into Workspace".
-4. Under "Select root directory" click browse and select the wolfSSL root.
-5. Check the "Search for nested projects" box.
-5. Make sure "wolfssl" and "wolfssl_example" are checked under "Projects:".
-6. Click finish.
-7. Download the board and chip LPCOpen package for your platform.
-8. Import the projects. For example "lpc_board_nxp_lpcxpresso_1837" and "lpc_chip_18xx" are the ones for the LPC18S37.
+1. Change names of `LPCExpresso.project` and `LPCExpresso.cproject` files to `.project` and `.cproject`
+2. Run LPCXpresso and choose a workspace location.
+3. Right click in the project explorer window and choose Import.
+4. Under General choose "Existing Projects into Workspace".
+5. Under "Select root directory" click browse and select the wolfSSL root.
+6. Check the "Search for nested projects" box.
+7. Make sure "wolfssl" and "wolfssl_example" are checked under "Projects:".
+8. Click finish.
+9. Download the board and chip LPCOpen package for your platform.
+10. Import the projects. For example "lpc_board_nxp_lpcxpresso_1837" and "lpc_chip_18xx" are the ones for the LPC18S37.
 
 To setup this example to work with different baords/chips you will need to locate the LPCOpen sources for LPCXpresso on the NXP website and import the board and chip projects. Then you will need to update the "wolfssl_example" project properties to reference these projects (C/C++ General -> Paths and Symbols -> References). See the [LPCOpen v2.xx LPCXpresso quickstart guide for all platforms](https://www.lpcware.com/content/project/lpcopen-platform-nxp-lpc-microcontrollers/lpcopen-v200-quickstart-guides/lpcopen-1) for additional information.
 
