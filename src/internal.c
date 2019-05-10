@@ -7257,6 +7257,10 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             WOLFSSL_MSG("DTLS handshake, skip RH version number check");
         else {
             WOLFSSL_MSG("SSL version error");
+            /* send alert per RFC 5246 Section 7.2.1 */
+            if(ssl->options.side == WOLFSSL_CLIENT_END) {
+                SendAlert(ssl, alert_fatal, handshake_failure);
+            }
             return VERSION_ERROR;              /* only use requested version */
         }
     }
