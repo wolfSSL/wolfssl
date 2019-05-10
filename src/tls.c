@@ -10136,6 +10136,11 @@ int TLSX_ParseVersion(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         word16 type;
         word16 size;
 
+        if (offset + (2 * OPAQUE16_LEN) > length) {
+            ret = BUFFER_ERROR;
+            break;
+        }
+
         ato16(input + offset, &type);
         offset += HELLO_EXT_TYPE_SZ;
 
