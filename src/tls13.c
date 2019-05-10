@@ -134,6 +134,14 @@
     #error The build option HAVE_HKDF is required for TLS 1.3
 #endif
 
+#ifndef HAVE_TLS_EXTENSIONS
+    #ifndef _MSC_VER
+        #error "The build option HAVE_TLS_EXTENSIONS is required for TLS 1.3"
+    #else
+        #pragma message("error: The build option HAVE_TLS_EXTENSIONS is required for TLS 1.3")
+    #endif
+#endif
+
 
 /* Set ret to error value and jump to label.
  *
@@ -1164,6 +1172,13 @@ end:
     {
         return (word32) XTIME(0) * 1000;
     }
+
+#elif defined(XTIME_MS)
+    word32 TimeNowInMilliseconds(void)
+    {
+        return (word32)XTIME_MS(0);
+    }
+
 #elif defined(USE_WINDOWS_API)
     /* The time in milliseconds.
      * Used for tickets to represent difference between when first seen and when
@@ -3881,6 +3896,11 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if (sessIdSz != ID_LEN && sessIdSz != 0)
         return INVALID_PARAMETER;
 #endif
+
+    if (sessIdSz + i > helloSz) {
+        return BUFFER_ERROR;
+    }
+
     ssl->session.sessionIDSz = sessIdSz;
     if (sessIdSz == ID_LEN) {
         XMEMCPY(ssl->session.sessionID, input + i, sessIdSz);
@@ -4008,7 +4028,8 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 #endif
 
-#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+#if (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
+     defined(HAVE_TLS_EXTENSIONS)
         if (TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY) != NULL) {
             if (ssl->options.downgrade) {
                 if ((ret = InitHandshakeHashes(ssl)) != 0)

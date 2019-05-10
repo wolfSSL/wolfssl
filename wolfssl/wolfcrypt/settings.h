@@ -190,6 +190,9 @@
 /* Uncomment next line if using Espressif ESP32-WROOM-32SE */
 /* #define WOLFSSL_ESPWROOM32SE */
 
+/* Uncomment next line if using ARM CRYPTOCELL*/
+/* #define WOLFSSL_CRYPTOCELL */
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -274,7 +277,7 @@
     #define NO_FILESYSTEM
     #define CUSTOM_RAND_TYPE uint16_t
     #define CUSTOM_RAND_GENERATE random_rand
-    static inline unsigned int LowResTimer(void)
+    static inline word32 LowResTimer(void)
     {
         return clock_seconds();
     }

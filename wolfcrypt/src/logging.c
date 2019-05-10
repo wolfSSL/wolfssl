@@ -26,8 +26,6 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-/* submitted by eof */
-
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
@@ -221,6 +219,9 @@ void WOLFSSL_TIME(int count)
 #elif defined(WOLFSSL_ESPIDF)
     #include "esp_types.h"
     #include "esp_log.h"
+#elif defined(WOLFSSL_TELIT_M2MB)
+    #include <stdio.h>
+    #include "m2m_log.h"
 #else
     #include <stdio.h>   /* for default printf stuff */
 #endif
@@ -261,6 +262,8 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
         ESP_LOGI("wolfssl", "%s", logMessage);
 #elif defined(WOLFSSL_ZEPHYR)
         printk("%s\n", logMessage);
+#elif defined(WOLFSSL_TELIT_M2MB)
+        M2M_LOG_INFO("%s\n", logMessage);
 #else
         fprintf(stderr, "%s\n", logMessage);
 #endif

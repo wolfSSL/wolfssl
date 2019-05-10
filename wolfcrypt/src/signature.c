@@ -176,6 +176,16 @@ int wc_SignatureVerifyHash(
         case WC_SIGNATURE_TYPE_RSA:
         {
 #ifndef NO_RSA
+#if defined(WOLFSSL_CRYPTOCELL)
+        /* the signature must propagate to the cryptocell to get verfied */
+        ret = wc_RsaSSL_Verify(hash_data, hash_len, (byte*)sig, sig_len, (RsaKey*)key);
+        if (ret != 0) {
+            WOLFSSL_MSG("RSA Signature Verify difference!");
+            ret = SIG_VERIFY_E;
+        }
+
+#else /* WOLFSSL_CRYPTOCELL */
+
             word32 plain_len = hash_len;
             byte *plain_data;
 
@@ -210,6 +220,7 @@ int wc_SignatureVerifyHash(
             else {
                 ret = MEMORY_E;
             }
+#endif /* !WOLFSSL_CRYPTOCELL */
 #else
             ret = SIG_TYPE_E;
 #endif

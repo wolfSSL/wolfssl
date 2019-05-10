@@ -1500,6 +1500,7 @@ fi
 
 AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
 
+
 # ECC Custom Curves
 AC_ARG_ENABLE([ecccustcurves],
     [AS_HELP_STRING([--enable-ecccustcurves],[Enable ECC custom curves (default: disabled)])],
@@ -1511,7 +1512,7 @@ if test "$ENABLED_ECCCUSTCURVES" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CUSTOM_CURVES"
 
-    # For distro or all builds, enable all curve types
+    # For distro, all or ecccustcurves=all builds, enable all curve types
     if test "$ENABLED_DISTRO" = "yes" || test "$ENABLED_ALL" = "yes" || test "$ENABLED_ECCCUSTCURVES" = "all"
     then
         # Enable ECC SECPR2, SECPR3, BRAINPOOL and KOBLITZ curves
@@ -1519,6 +1520,12 @@ then
 
         # Enable ECC Cofactor support
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_CDH"
+
+        # If fastmath enabled and on x86 use speedups
+        if test "x$ENABLED_FASTMATH" = "xyes" && test "$host_cpu" = "x86_64"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DTFM_ECC192 -DTFM_ECC224 -DTFM_ECC256 -DTFM_ECC384 -DTFM_ECC521"
+        fi
     fi
 fi
 
@@ -3317,6 +3324,16 @@ then
     then
         ENABLED_PSK="yes"
     fi
+    if test "x$ENABLED_CERTEXT" = "xno"
+    then
+        ENABLED_CERTEXT="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"
+    fi
+    if test "x$ENABLED_CERTGEN" = "xno"
+    then
+        ENABLED_CERTGEN="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN"
+    fi
 fi
 
 # lighty Support
@@ -4039,8 +4056,8 @@ if test "$ENABLED_SP_ASM" = "yes"; then
       ENABLED_SP_ARM_THUMB_ASM=yes
     else
       if test $host_alias = "cortex"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_ASM"
-        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_CORTEX_ASM"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM -mcpu=cortex-m4"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
         ENABLED_SP_ARM_CORTEX_ASM=yes
       else
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32_ASM"
@@ -4446,6 +4463,14 @@ then
 fi
 
 
+# User Settings
+AC_ARG_ENABLE([usersettings],
+    [AS_HELP_STRING([--enable-usersettings],[Use your own user_settings.h and do not add Makefile CFLAGS (default: disabled)])],
+    [ ENABLED_USERSETTINGS=$enableval ],
+    [ ENABLED_USERSETTINGS=no ]
+    )
+
+
 # Default optimization CFLAGS enable
 AC_ARG_ENABLE([optflags],
     [AS_HELP_STRING([--enable-optflags],[Enable default optimization CFLAGS for the compiler (default: enabled)])],
@@ -4669,6 +4694,13 @@ AS_IF([test "x$ENABLED_WOLFSSH" = "xyes"],
 
 ################################################################################
 
+# USER SETTINGS
+if test "x$ENABLED_USERSETTINGS" = "xyes"
+then
+    # Replace all options and just use WOLFSSL_USER_SETTINGS
+    AM_CFLAGS="-DWOLFSSL_USER_SETTINGS"
+fi
+
 # OPTIMIZE FLAGS
 # For distro disable custom build options that interfere with symbol generation
 if test "$GCC" = "yes" && test "$ENABLED_DISTRO" = "no"
@@ -4700,7 +4732,7 @@ fi
 # Expose HAVE___UINT128_T to options flags"
 if test "$ac_cv_type___uint128_t" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE___UINT128_T"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE___UINT128_T=1"
 fi
 
 

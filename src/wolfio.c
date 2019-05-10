@@ -1486,6 +1486,30 @@ WOLFSSL_API void wolfSSL_CTX_SetIOSend(WOLFSSL_CTX *ctx, CallbackIOSend CBIOSend
 }
 
 
+/* sets the IO callback to use for receives at WOLFSSL level */
+WOLFSSL_API void wolfSSL_SSLSetIORecv(WOLFSSL *ssl, CallbackIORecv CBIORecv)
+{
+    if (ssl != NULL) {
+        ssl->CBIORecv = CBIORecv;
+        #ifdef OPENSSL_EXTRA
+        ssl->cbioFlag |= WOLFSSL_CBIO_RECV;
+        #endif
+    }
+}
+
+
+/* sets the IO callback to use for sends at WOLFSSL level */
+WOLFSSL_API void wolfSSL_SSLSetIOSend(WOLFSSL *ssl, CallbackIOSend CBIOSend)
+{
+    if (ssl != NULL) {
+        ssl->CBIOSend = CBIOSend;
+        #ifdef OPENSSL_EXTRA
+        ssl->cbioFlag |= WOLFSSL_CBIO_SEND;
+        #endif
+    }
+}
+
+
 WOLFSSL_API void wolfSSL_SetIOReadCtx(WOLFSSL* ssl, void *rctx)
 {
     ssl->IOCB_ReadCtx = rctx;

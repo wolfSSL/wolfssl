@@ -39,6 +39,10 @@
     #define CURVED25519_128BIT
 #endif
 
+#if defined(CURVED25519_X64) || defined(WOLFSSL_ARMASM)
+    #define CURVED25519_ASM_64BIT
+#endif
+
 /*
 fe means field element.
 Here the field is \Z/(2^255-19).
@@ -46,6 +50,10 @@ An element t, entries t[0]...t[9], represents the integer
 t[0]+2^26 t[1]+2^51 t[2]+2^77 t[3]+2^102 t[4]+...+2^230 t[9].
 Bounds on each t[i] vary depending on context.
 */
+
+#ifdef __cplusplus
+    extern "C" {
+#endif
 
 #if defined(CURVE25519_SMALL) || defined(ED25519_SMALL)
     #define F25519_SIZE 32
@@ -68,7 +76,7 @@ WOLFSSL_LOCAL int  curve25519(byte * q, byte * n, byte * p);
 /* default to be faster but take more memory */
 #if !defined(CURVE25519_SMALL) || !defined(ED25519_SMALL)
 
-#ifdef CURVED25519_X64
+#ifdef CURVED25519_ASM_64BIT
     typedef int64_t  fe[4];
 #elif defined(CURVED25519_128BIT)
     typedef int64_t  fe[5];
@@ -104,7 +112,7 @@ WOLFSSL_LOCAL void fe_pow22523(fe,const fe);
 WOLFSSL_LOCAL uint64_t load_3(const unsigned char *in);
 WOLFSSL_LOCAL uint64_t load_4(const unsigned char *in);
 
-#ifdef CURVED25519_X64
+#ifdef CURVED25519_ASM_64BIT
 WOLFSSL_LOCAL void fe_ge_to_p2(fe rx, fe ry, fe rz, const fe px, const fe py,
                                const fe pz, const fe pt);
 WOLFSSL_LOCAL void fe_ge_to_p3(fe rx, fe ry, fe rz, fe rt, const fe px,
@@ -128,7 +136,7 @@ WOLFSSL_LOCAL void fe_ge_sub(fe rx, fe ry, fe rz, fe rt, const fe px,
                              const fe qt2d, const fe qyplusx,
                              const fe qyminusx);
 WOLFSSL_LOCAL void fe_cmov_table(fe* r, fe* base, signed char b);
-#endif /* CURVED25519_X64 */
+#endif /* CURVED25519_ASM_64BIT */
 #endif /* !CURVE25519_SMALL || !ED25519_SMALL */
 
 /* Use less memory and only 32bit types or less, but is slower
@@ -181,6 +189,11 @@ WOLFSSL_LOCAL void fprime_mul(byte *r, const byte *a, const byte *b,
 WOLFSSL_LOCAL void fprime_copy(byte *x, const byte *a);
 
 #endif /* CURVE25519_SMALL || ED25519_SMALL */
+
+#ifdef __cplusplus
+    } /* extern "C" */
+#endif
+
 #endif /* HAVE_CURVE25519 || HAVE_ED25519 */
 
 #endif /* WOLF_CRYPT_FE_OPERATIONS_H */

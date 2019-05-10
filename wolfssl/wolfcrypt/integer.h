@@ -85,7 +85,7 @@ extern "C" {
 
 
 /* detect 64-bit mode if possible */
-#if defined(__x86_64__)
+#if defined(__x86_64__) && !(defined (_MSC_VER) && defined(__clang__))
    #if !(defined(MP_64BIT) && defined(MP_16BIT) && defined(MP_8BIT))
       #define MP_64BIT
    #endif

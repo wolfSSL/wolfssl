@@ -50,7 +50,6 @@
 
 #define USER_TIME
 #define XTIME time
-#define HAVE_TIME_T_TYPE
 #define USE_WOLF_SUSECONDS_T
 #define USE_WOLF_TIMEVAL_T
 
@@ -75,22 +74,6 @@
 #define HAVE_OCSP
 #define HAVE_CERTIFICATE_STATUS_REQUEST
 
-//#define WOLFSSL_KEY_GEN
-#define SHOW_GEN
-
-#define WOLFSSL_KEEP_STORE_CERTS
-#define WOLFSSL_CIPHER_INTERNALNAME
-
-#define WOLFSSL_GETENV_RANDFILE  "ABCDEFG"
-#define WOLFSSL_GETENV_HOME "home"
-
-#define CloseSocket(s) {}
-#define StartTCP()
-
 #define NO_FILESYSTEM
-#define XFILE FILE*
-#define XBADFILE NULL
-//#define WOLFSSL_USER_KEYFILES   /* Substitute key and cert files in test.h with user definitions */
 
-int strncasecmp(const char *s1, const char *s2, unsigned int sz);
 

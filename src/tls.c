@@ -63,12 +63,13 @@
 static int TLSX_KeyShare_IsSupported(int namedGroup);
 #endif
 
-#if (!defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TLS13) && \
+#if ((!defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TLS13) && \
         !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)) || \
     (defined(WOLFSSL_TLS13) && !defined(HAVE_ECC) && \
         !defined(HAVE_CURVE25519) && defined(HAVE_SUPPORTED_CURVES)) || \
     ((defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
-        defined(HAVE_SUPPORTED_CURVES))
+        defined(HAVE_SUPPORTED_CURVES))) && \
+     defined(HAVE_TLS_EXTENSIONS)
 static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
 #endif
 
@@ -96,6 +97,13 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
     #endif
     #if !defined(NO_RSA) && !defined(WC_RSA_PSS)
         #error The build option WC_RSA_PSS is required for TLS 1.3 with RSA
+    #endif
+    #ifndef HAVE_TLS_EXTENSIONS
+        #ifndef _MSC_VER
+            #error "The build option HAVE_TLS_EXTENSIONS is required for TLS 1.3"
+        #else
+            #pragma message("Error: The build option HAVE_TLS_EXTENSIONS is required for TLS 1.3")
+        #endif
     #endif
 #endif
 
@@ -3772,6 +3780,10 @@ static void TLSX_PointFormat_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
 
 static void TLSX_PointFormat_ValidateResponse(WOLFSSL* ssl, byte* semaphore)
 {
+#if defined(HAVE_FFDHE) || defined(HAVE_ECC) || defined(HAVE_CURVE25519)
+	(void)semaphore;
+#endif
+
     if (ssl->options.cipherSuite0 == TLS13_BYTE)
         return;
     if (ssl->options.cipherSuite0 == ECC_BYTE ||
@@ -3786,8 +3798,10 @@ static void TLSX_PointFormat_ValidateResponse(WOLFSSL* ssl, byte* semaphore)
 #endif
     }
 
+#if !defined(HAVE_FFDHE) || (!defined(HAVE_ECC) && !defined(HAVE_CURVE25519))
     /* turns semaphore on to avoid sending this extension. */
     TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_EC_POINT_FORMATS));
+#endif
 }
 
 #endif
@@ -7335,6 +7349,9 @@ int TLSX_KeyShare_Use(WOLFSSL* ssl, word16 group, word16 len, byte* data,
     }
 
     if (data != NULL) {
+        if (keyShareEntry->ke != NULL) {
+            XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        }
         keyShareEntry->ke = data;
         keyShareEntry->keLen = len;
     }
@@ -10748,6 +10765,31 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         return m;
     }
     #endif /* !WOLFSSL_NO_TLS12 */
+
+    #ifdef WOLFSSL_TLS13
+    /* Gets a WOLFSL_METHOD type that is not set as client or server
+     *
+     * Returns a pointer to a WOLFSSL_METHOD struct
+     */
+    WOLFSSL_METHOD* wolfTLSv1_3_method(void)
+    {
+        return wolfTLSv1_3_method_ex(NULL);
+    }
+    WOLFSSL_METHOD* wolfTLSv1_3_method_ex(void* heap)
+    {
+        WOLFSSL_METHOD* m;
+        WOLFSSL_ENTER("TLSv1_3_method");
+    #ifndef NO_WOLFSSL_CLIENT
+        m = wolfTLSv1_3_client_method_ex(heap);
+    #else
+        m = wolfTLSv1_3_server_method_ex(heap);
+    #endif
+        if (m != NULL) {
+            m->side = WOLFSSL_NEITHER_END;
+        }
+        return m;
+    }
+    #endif /* WOLFSSL_TLS13 */
 
 #ifdef WOLFSSL_DTLS
     WOLFSSL_METHOD* wolfDTLS_method(void)

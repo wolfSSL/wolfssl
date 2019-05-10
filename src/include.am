@@ -371,7 +371,15 @@ if BUILD_FEMATH
 if BUILD_CURVE25519_SMALL
 src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_low_mem.c
 else
+if BUILD_INTELASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_x25519_asm.S
+else
+if BUILD_ARMASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-curve25519.S
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_operations.c
+endif
+endif
 endif
 endif
 
@@ -381,7 +389,15 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/ge_low_mem.c
 else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/ge_operations.c
 if !BUILD_FEMATH
+if BUILD_INTELASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_x25519_asm.S
+else
+if BUILD_ARMASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-curve25519.S
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_operations.c
+endif
+endif
 endif
 endif
 endif

@@ -1,4 +1,4 @@
-﻿/* atmel.c
+/* atmel.c
  *
  * Copyright (C) 2006-2019 wolfSSL Inc.
  *
@@ -349,6 +349,10 @@ int atmel_ecc_create_pms(int slotId, const uint8_t* peerKey, uint8_t* pms)
     /* send the encrypted version of the ECDH command */
     ret = atcab_ecdh_enc(slotId, peerKey, pms, read_key, slotIdEnc);
     ret = atmel_ecc_translate_err(ret);
+
+    /* free the ECDHE slot */
+    atmel_ecc_free(slotIdEnc);
+
     return ret;
 }
 
@@ -476,7 +480,7 @@ void atmel_finish(void)
 /**
  * \brief Used on the server-side only for creating the ephemeral key for ECDH
  */
-int atcatls_create_key_cb(WOLFSSL* ssl, ecc_key* key, word32 keySz,
+int atcatls_create_key_cb(WOLFSSL* ssl, ecc_key* key, unsigned int keySz,
     int ecc_curve, void* ctx)
 {
     int ret;
@@ -532,8 +536,8 @@ int atcatls_create_key_cb(WOLFSSL* ssl, ecc_key* key, word32 keySz,
  * \brief Creates a shared secret using a peer public key and a device key
  */
 int atcatls_create_pms_cb(WOLFSSL* ssl, ecc_key* otherKey,
-        unsigned char* pubKeyDer, unsigned int* pubKeySz,
-        unsigned char* out, unsigned int* outlen,
+        unsigned char* pubKeyDer, word32* pubKeySz,
+        unsigned char* out, word32* outlen,
         int side, void* ctx)
 {
     int ret;
@@ -674,8 +678,8 @@ exit:
 /**
  * \brief Sign received digest using private key on device
  */
-int atcatls_sign_certificate_cb(WOLFSSL* ssl, const byte* in, word32 inSz,
-    byte* out, word32* outSz, const byte* key, word32 keySz, void* ctx)
+int atcatls_sign_certificate_cb(WOLFSSL* ssl, const byte* in, unsigned int inSz,
+    byte* out, word32* outSz, const byte* key, unsigned int keySz, void* ctx)
 {
     int ret;
     byte sigRs[ATECC_SIG_SIZE];
@@ -731,8 +735,8 @@ exit:
 /**
  * \brief Verify signature received from peers to prove peer's private key.
  */
-int atcatls_verify_signature_cb(WOLFSSL* ssl, const byte* sig, word32 sigSz,
-    const byte* hash, word32 hashSz, const byte* key, word32 keySz, int* result,
+int atcatls_verify_signature_cb(WOLFSSL* ssl, const byte* sig, unsigned int sigSz,
+    const byte* hash, unsigned int hashSz, const byte* key, unsigned int keySz, int* result,
     void* ctx)
 {
     int ret;

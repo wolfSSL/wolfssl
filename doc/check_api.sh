@@ -2,7 +2,7 @@
 
 ls ./dox_comments/header_files/ |
 while read h_file; do
-    grep -P -h -z -o 'WOLFSSL_API(\n|\s|[^;])*;' ./dox_comments/header_files/$h_file |
+    grep -h --null -o 'WOLFSSL_API(\n|\s|[^;])*;' ./dox_comments/header_files/$h_file |
     tr '\n' ' ' |
     sed 's/\\n//g' |
     sed 's/ \+/ /g' |
@@ -11,7 +11,7 @@ while read h_file; do
     find ../ -not -path '../doc/*' -name $h_file |
     while read -r h_file_path; do
         echo "Checking: $h_file_path"
-        grep -P -h -z -o 'WOLFSSL_API(\n|\s|[^;])*;' "$h_file_path" |
+        grep -h --null -o 'WOLFSSL_API(\n|\s|[^;])*;' "$h_file_path" |
         sed 's/#.*/ /g' |
         tr '\n' ' ' |
         sed 's/\\n//g' |

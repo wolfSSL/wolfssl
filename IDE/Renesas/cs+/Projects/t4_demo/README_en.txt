@@ -1,6 +1,10 @@
 wolfSSL/AlphaProject Boad demo setup Guide
 
-This demo is tested with Renesas CS+ v6.01、AP-RX71M-0A, wolfSSL 3.15.3.
+This demo is tested with the following condition.
+
+  Renesas : CS+ v6.01, v8.01
+  Board   : AP-RX71M-0A
+  wolfSSL : 3.15.3, 4.0.0
 
 Setup process:
 1. Download software
@@ -12,25 +16,48 @@ Setup process:
   - open t4_demo.mtpj and build. This create demo program library.
 
 3. Set up AlphaProject
+
+  !!** When you use version 2.0 of a sample program, **!!
+  !!** please replace _ether_ to _usbfunc_           **!!
+
   - The demo uses ap_rx71m_0a_sample_cs\Sample\ap_rx71m_0a_ether_sample_cs\
-        ap_rx71m_0a_ether_sample_cs.mtpj
+    ap_rx71m_0a_ether_sample_cs.mtpj
   - Open and edit ap_rx71m_0a_sample_cs\Sample\ap_rx71m_0a_ether_sample_cs\src\AP_RX71M_0A.c
     insert  wolfSSL_init() in echo_srv_init().
 
 ===
-	sci_init();
-	can_init();
-	echo_srv_init();
-	wolfSSL_init(); <- insert this line
+    sci_init();
+    can_init();
+    echo_srv_init();
+    wolfSSL_init(); <- insert this line
 ===
+!!** when you use version 2.0 **!!
+===
+    CanInit();
+    SciInit();
+    EthernetAppInit();
+    UsbfInit();
+    wolfSSL_init(); <- insert this line
+===
+!!******************************!!
 
   - Modify stack and heap size in ap_rx71m_0a_sample_cs\Sample\ap_rx71m_0a_ether_sample_cs\src\r_config
   Line 120#pragma stacksize su=0x2000
   Line 139 #define BSP_CFG_HEAP_BYTES  (0xa000)
 
-　- Modify IP address ib Sample\ap_rx71m_0a_ether_sample_cs\src\r_t4_rx\src\config_tcpudp.c
-　as needed
-　
+!!** when you use version 2.0 **!!
+  - Modify stack and heap size in ap_rx71m_0a_sample_cs\Sample\ap_rx71m_0a_usbfunc_sample_cs\src\smc_gen\r_bsp_config.h
+  Line 154#pragma stacksize su=0x2000
+  Line 175#define BSP_CFG_HEAP_BYTES  (0xa000)
+!!******************************!!
+
+  - Modify IP address Sample\ap_rx71m_0a_ether_sample_cs\src\r_t4_rx\src\config_tcpudp.c
+  as needed
+!!** when you use version 2.0 **!!
+  - Modify IP address Sample\ap_rx71m_0a_usbfunc_sample_cs\src\tcp_sample\src\config_tcpudp.c
+  as needed
+!!******************************!!
+
 ===
 #define MY_IP_ADDR0     192,168,1,200           /* Local IP address  */
 #define GATEWAY_ADDR0   192,168,1,254           /* Gateway address (invalid if all 0s) */
@@ -66,16 +93,16 @@ c: simple client. Specify IP address and port as following.
    You can use wolfssl/examples/server and client on your PC for TLS peer test.
    
    
-PC side：
+PC side
 $ ./examples/server/server -b -d
 
-Board side：
+Board side
 > c <IP Addr> 11111
 
-Board side：
+Board side
 > s
 
-PC side：
+PC side
 $ ./examples/client/client -h <IP Addr> -p 50000
 
 ---
