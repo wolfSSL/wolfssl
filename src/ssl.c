@@ -29613,7 +29613,7 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
                                     derSz);
     }
     if (ret < 0) {
-        if (opt == WOLFSSL_RSA_LOAD_PRIVATE) {
+        if (opt == WOLFSSL_EC_KEY_LOAD_PRIVATE) {
             WOLFSSL_MSG("wc_EccPrivateKeyDecode failed");
         }
         else {
