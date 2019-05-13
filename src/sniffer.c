@@ -2267,6 +2267,12 @@ static int Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
             break;
          #endif
 
+        #ifdef HAVE_NULL_CIPHER
+        case wolfssl_cipher_null:
+            XMEMCPY(output, input, sz);
+            break;
+        #endif
+
         default:
             Trace(BAD_DECRYPT_TYPE);
             ret = -1;
