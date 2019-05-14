@@ -1815,7 +1815,7 @@ struct WOLFSSL_OCSP {
     int(*statusCb)(WOLFSSL*, void*);
 #endif
 };
-#endif 
+#endif
 
 #ifndef MAX_DATE_SIZE
 #define MAX_DATE_SIZE 32
@@ -3306,7 +3306,7 @@ typedef struct Options {
 #if defined(HAVE_ECC) || defined(HAVE_ED25519)
     short           minEccKeySz;      /* minimum ECC key size */
 #endif
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     byte            verifyDepth;      /* maximum verification depth */
 #endif
 #ifdef WOLFSSL_EARLY_DATA
@@ -3697,7 +3697,11 @@ struct WOLFSSL {
     WOLFSSL_BIO*     biord;              /* socket bio read  to free/close */
     WOLFSSL_BIO*     biowr;              /* socket bio write to free/close */
     byte             sessionCtx[ID_LEN]; /* app session context ID */
+#endif
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     unsigned long    peerVerifyRet;
+#endif
+#ifdef OPENSSL_EXTRA
     byte             readAhead;
     byte             sessionCtxSz;       /* size of sessionCtx stored */
 #ifdef HAVE_PK_CALLBACKS
