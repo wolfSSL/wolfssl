@@ -881,19 +881,39 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_CERTID_dup(WOLFSSL_OCSP_CERTID* id)
     }
     return certId;
 }
+#endif
 
-#ifndef NO_WOLFSSL_STUB
+#if defined(OPENSSL_ALL) || defined(APACHE_HTTPD)
 int wolfSSL_i2d_OCSP_REQUEST_bio(WOLFSSL_BIO* out,
-    const WOLFSSL_OCSP_REQUEST *req)
+        WOLFSSL_OCSP_REQUEST *req)
 {
-    WOLFSSL_STUB("wolfSSL_i2d_OCSP_REQUEST_bio");
-    (void)out;
-    (void)req;
+    int size = -1;
+    unsigned char* data = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_i2d_OCSP_REQUEST_bio");
+    if (out == NULL || req == NULL)
+        return WOLFSSL_FAILURE;
+
+    size = wolfSSL_i2d_OCSP_REQUEST(req, NULL);
+    if (size > 0)
+        data = (unsigned char*) XMALLOC(size,NULL,DYNAMIC_TYPE_TMP_BUFFER);
+    if (data != NULL)
+        size = wolfSSL_i2d_OCSP_REQUEST(req, &data);
+
+    if (size <= 0) {
+        XFREE(data,NULL,DYNAMIC_TYPE_TMP_BUFFER);
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_BIO_write(out,data,size) == (int)size) {
+        XFREE(data,NULL,DYNAMIC_TYPE_TMP_BUFFER);
+        return WOLFSSL_SUCCESS;
+    }
+
     return WOLFSSL_FAILURE;
 }
-#endif /* !NO_WOLFSSL_STUB */
+#endif /* OPENSSL_ALL || APACHE_HTTPD */
 
-#endif
 #ifdef OPENSSL_EXTRA
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_OCSP_REQUEST_add_ext(OcspRequest* req, WOLFSSL_X509_EXTENSION* ext,
