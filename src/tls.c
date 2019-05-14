@@ -11301,8 +11301,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 
     WOLFSSL_METHOD* wolfTLS_server_method(void)
     {
-        return wolfTLS_client_method_ex(NULL);
+        return wolfTLS_server_method_ex(NULL);
     }
+
     WOLFSSL_METHOD* wolfTLS_server_method_ex(void* heap)
     {
         WOLFSSL_METHOD* method =

@@ -13731,6 +13731,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         WOLFSSL_ENTER("BIO_f_buffer");
         meth.type = WOLFSSL_BIO_BUFFER;
+        meth.custom = NULL;
 
         return &meth;
     }
@@ -13752,6 +13753,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         WOLFSSL_ENTER("wolfSSL_BIO_s_bio");
         bio_meth.type = WOLFSSL_BIO_BIO;
+        bio_meth.custom = NULL;
 
         return &bio_meth;
     }
@@ -13764,6 +13766,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         WOLFSSL_ENTER("wolfSSL_BIO_s_file");
         file_meth.type = WOLFSSL_BIO_FILE;
+        file_meth.custom = NULL;
 
         return &file_meth;
     }
@@ -13776,6 +13779,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         WOLFSSL_ENTER("wolfSSL_BIO_f_ssl");
         meth.type = WOLFSSL_BIO_SSL;
+        meth.custom = NULL;
 
         return &meth;
     }
@@ -13857,6 +13861,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 DYNAMIC_TYPE_OPENSSL);
         if (bio) {
             XMEMSET(bio, 0, sizeof(WOLFSSL_BIO));
+            bio->method = method;
             bio->type   = method->type;
             bio->close  = BIO_CLOSE; /* default to close things */
             if (method->type != WOLFSSL_BIO_FILE &&
@@ -13869,6 +13874,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                     return NULL;
                 }
                 bio->mem_buf->data = (char*)bio->mem;
+            }
+
+            /* check if is custom method */
+            if (method->custom) {
+                method->custom->createCb(bio);
             }
         }
         return bio;
@@ -13936,6 +13946,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 if (ret <= 0) {
                     return ret;
                 }
+            }
+
+            /* call custom set free callback */
+            if (bio->method->custom && bio->method->custom->freeCb) {
+                bio->method->custom->freeCb(bio);
             }
 
             /* remove from pair by setting the paired bios pair to NULL */
@@ -20735,6 +20750,7 @@ WOLFSSL_BIO_METHOD* wolfSSL_BIO_s_mem(void)
 
     WOLFSSL_ENTER("wolfSSL_BIO_s_mem");
     meth.type = WOLFSSL_BIO_MEMORY;
+    meth.custom = NULL;
 
     return &meth;
 }
@@ -20746,6 +20762,7 @@ WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_base64(void)
 
     WOLFSSL_ENTER("wolfSSL_BIO_f_base64");
     meth.type = WOLFSSL_BIO_BASE64;
+    meth.custom = NULL;
 
     return &meth;
 }
@@ -42419,70 +42436,6 @@ int wolfSSL_BIO_clear_retry_flags(WOLFSSL_BIO* bio)
     (void)bio;
     return 0;
 }
-
-
-WOLFSSL_BIO_METHOD *wolfSSL_BIO_meth_new(int type, const char *name)
-{
-    WOLFSSL_STUB("wolfSSL_BIO_meth_new");
-    (void)type;
-    (void)name;
-    return NULL;
-}
-void wolfSSL_BIO_meth_free(WOLFSSL_BIO_METHOD *biom)
-{
-    WOLFSSL_STUB("wolfSSL_BIO_meth_free");
-    (void)biom;
-}
-int wolfSSL_BIO_meth_set_write(WOLFSSL_BIO_METHOD *biom, wolfSSL_BIO_meth_write_cb biom_write)
-{
-    WOLFSSL_STUB("wolfSSL_BIO_meth_set_write");
-    (void)biom;
-    (void)biom_write;
-    return 0;
-}
-int wolfSSL_BIO_meth_set_read(WOLFSSL_BIO_METHOD *biom, wolfSSL_BIO_meth_read_cb biom_read)
-{
-    WOLFSSL_STUB("wolfSSL_BIO_meth_set_read");
-    (void)biom;
-    (void)biom_read;
-    return 0;
-}
-int wolfSSL_BIO_meth_set_puts(WOLFSSL_BIO_METHOD *biom, wolfSSL_BIO_meth_puts_cb biom_puts)
-{
-    WOLFSSL_STUB("wolfSSL_BIO_meth_set_puts");
-    (void)biom;
-    (void)biom_puts;
-    return 0;
-}
-int wolfSSL_BIO_meth_set_gets(WOLFSSL_BIO_METHOD *biom, wolfSSL_BIO_meth_gets_cb biom_gets)
-{
-    WOLFSSL_STUB("wolfSSL_BIO_meth_set_gets");
-    (void)biom;
-    (void)biom_gets;
-    return 0;
-}
-int wolfSSL_BIO_meth_set_ctrl(WOLFSSL_BIO_METHOD *biom, wolfSSL_BIO_meth_get_ctrl_cb biom_ctrl)
-{
-    WOLFSSL_STUB("wolfSSL_BIO_meth_set_ctrl");
-    (void)biom;
-    (void)biom_ctrl;
-    return 0;
-}
-int wolfSSL_BIO_meth_set_create(WOLFSSL_BIO_METHOD *biom, wolfSSL_BIO_meth_create_cb biom_create)
-{
-    WOLFSSL_STUB("wolfSSL_BIO_meth_set_create");
-    (void)biom;
-    (void)biom_create;
-    return 0;
-}
-int wolfSSL_BIO_meth_set_destroy(WOLFSSL_BIO_METHOD *biom, wolfSSL_BIO_meth_destroy_cb biom_destroy)
-{
-    WOLFSSL_STUB("wolfSSL_BIO_meth_set_destroy");
-    (void)biom;
-    (void)biom_destroy;
-    return 0;
-}
-
 /* DER data is PKCS#8 encrypted. */
 WOLFSSL_EVP_PKEY* wolfSSL_d2i_PKCS8PrivateKey_bio(WOLFSSL_BIO* bio,
                                                   WOLFSSL_EVP_PKEY** pkey,

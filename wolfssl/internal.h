@@ -1612,15 +1612,35 @@ WOLFSSL_LOCAL ProtocolVersion MakeTLSv1_3(void);
 #endif
 
 
+
+/* custom method with user set callbacks */
+#define MAX_BIO_METHOD_NAME 256
+typedef struct WOLFSSL_BIO_METHOD_CUSTOM {
+    char name[MAX_BIO_METHOD_NAME];
+
+    wolfSSL_BIO_meth_puts_cb putsCb;
+    wolfSSL_BIO_meth_gets_cb getsCb;
+
+    wolfSSL_BIO_meth_read_cb  readCb;
+    wolfSSL_BIO_meth_write_cb writeCb;
+
+    wolfSSL_BIO_meth_destroy_cb freeCb;
+    wolfSSL_BIO_meth_create_cb  createCb;
+
+    wolfSSL_BIO_meth_get_ctrl_cb ctrlCb;
+} WOLFSSL_BIO_METHOD_CUSTOM;
+
 /* wolfSSL BIO_METHOD type */
 struct WOLFSSL_BIO_METHOD {
     byte type;               /* method type */
+    WOLFSSL_BIO_METHOD_CUSTOM* custom;
 };
 
 
 /* wolfSSL BIO type */
 struct WOLFSSL_BIO {
     WOLFSSL_BUF_MEM* mem_buf;
+    WOLFSSL_BIO_METHOD* method;
     WOLFSSL*     ssl;           /* possible associated ssl */
 #ifndef NO_FILESYSTEM
     XFILE        file;
