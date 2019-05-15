@@ -329,8 +329,8 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define X509_get_issuer_name            wolfSSL_X509_get_issuer_name
 #define X509_get_subject_name           wolfSSL_X509_get_subject_name
 #define X509_get_pubkey                 wolfSSL_X509_get_pubkey
-#define X509_get_notBefore(cert)      (ASN1_TIME*)wolfSSL_X509_notBefore((cert))
-#define X509_get_notAfter(cert)       (ASN1_TIME*)wolfSSL_X509_notAfter((cert))
+#define X509_get_notBefore              wolfSSL_X509_get_notBefore
+#define X509_get_notAfter               wolfSSL_X509_get_notAfter
 #define X509_get_serialNumber           wolfSSL_X509_get_serialNumber
 #define X509_get0_pubkey_bitstr         wolfSSL_X509_get0_pubkey_bitstr
 #define X509_get_ex_new_index           wolfSSL_X509_get_ex_new_index

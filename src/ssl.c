@@ -8506,7 +8506,6 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                 obj->grp  = oidCertExtType;
                 obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
             #if defined(WOLFSSL_APACHE_HTTPD)
-                obj->pathlen = x509->pathLength;
                 obj->ca = x509->basicConstSet;
             #endif
             }
@@ -17530,7 +17529,7 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
         if (x509 == NULL)
             return NULL;
 
-        return x509->notBefore;
+        return x509->notBefore.data;
     }
 
 
@@ -17541,7 +17540,7 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
         if (x509 == NULL)
             return NULL;
 
-        return x509->notAfter;
+        return x509->notAfter.data;
     }
 
 
@@ -17638,6 +17637,30 @@ byte* wolfSSL_X509_get_hw_serial_number(WOLFSSL_X509* x509,byte* in,
 
 /* require OPENSSL_EXTRA since wolfSSL_X509_free is wrapped by OPENSSL_EXTRA */
 #if !defined(NO_CERTS) && defined(OPENSSL_EXTRA)
+
+
+WOLFSSL_ASN1_TIME* wolfSSL_X509_get_notBefore(WOLFSSL_X509* x509)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_get_notBefore");
+
+    if (x509 == NULL)
+        return NULL;
+
+    return &(x509->notBefore);
+}
+
+
+WOLFSSL_ASN1_TIME* wolfSSL_X509_get_notAfter(WOLFSSL_X509* x509)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_get_notAfter");
+
+    if (x509 == NULL)
+        return NULL;
+
+    return &(x509->notAfter);
+}
+
+
 /* return 1 on success 0 on fail */
 int wolfSSL_sk_X509_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk, WOLFSSL_X509* x509)
 {
@@ -19879,9 +19902,9 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
                           (int)XSTRLEN("            Not Before: ")) <= 0) {
                 return WOLFSSL_FAILURE;
             }
-            if (GetTimeString(x509->notBefore + 2, ASN_UTC_TIME,
+            if (GetTimeString(x509->notBefore.data + 2, ASN_UTC_TIME,
                 tmp, sizeof(tmp)) != WOLFSSL_SUCCESS) {
-                if (GetTimeString(x509->notBefore + 2, ASN_GENERALIZED_TIME,
+                if (GetTimeString(x509->notBefore.data + 2, ASN_GENERALIZED_TIME,
                 tmp, sizeof(tmp)) != WOLFSSL_SUCCESS) {
                     WOLFSSL_MSG("Error getting not before date");
                     return WOLFSSL_FAILURE;
@@ -19895,9 +19918,9 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
                           (int)XSTRLEN("\n            Not After : ")) <= 0) {
                 return WOLFSSL_FAILURE;
             }
-            if (GetTimeString(x509->notAfter + 2,ASN_UTC_TIME,
+            if (GetTimeString(x509->notAfter.data + 2,ASN_UTC_TIME,
                 tmp, sizeof(tmp)) != WOLFSSL_SUCCESS) {
-                if (GetTimeString(x509->notAfter + 2,ASN_GENERALIZED_TIME,
+                if (GetTimeString(x509->notAfter.data + 2,ASN_GENERALIZED_TIME,
                     tmp, sizeof(tmp)) != WOLFSSL_SUCCESS) {
                     WOLFSSL_MSG("Error getting not before date");
                     return WOLFSSL_FAILURE;
@@ -22746,7 +22769,7 @@ char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* t, char* buf, int len)
 {
     int format;
     int dateLen;
-    byte* date = (byte*)t;
+    byte* date;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_TIME_to_string");
 
@@ -22755,6 +22778,7 @@ char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* t, char* buf, int len)
         return NULL;
     }
 
+    date = t->data;
     format  = *date; date++;
     dateLen = *date; date++;
     if (dateLen > len) {
@@ -22785,6 +22809,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
     struct tm* tmpTime = NULL;
     time_t t_adj = 0;
     time_t offset_day_sec = 0;
+    int    sz = 0;
 
 #if defined(NEED_TMP_TIME)
     struct tm tmpTimeStorage;
@@ -22801,6 +22826,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
         if (s == NULL){
             return NULL;
         }
+        XMEMSET(s, 0, sizeof(WOLFSSL_ASN1_TIME));
     }
 
     /* compute GMT time with offset */
@@ -22837,6 +22863,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
         *data_ptr = (byte) ASN_UTC_TIME; data_ptr++;
         *data_ptr = (byte) ASN_UTC_TIME_SIZE; data_ptr++;
         XMEMCPY(data_ptr,(byte *)utc_str, ASN_UTC_TIME_SIZE);
+        sz = ASN_UTC_TIME_SIZE;
     /* GeneralizedTime */
     } else {
         char gt_str[ASN_GENERALIZED_TIME_MAX];
@@ -22849,15 +22876,18 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
         gt_hour = ts->tm_hour;
         gt_min  = ts->tm_min;
         gt_sec  = ts->tm_sec;
-        XSNPRINTF((char *)gt_str, ASN_GENERALIZED_TIME_MAX,
+        sz = XSNPRINTF((char *)gt_str, ASN_GENERALIZED_TIME_MAX,
                   "%4d%02d%02d%02d%02d%02dZ",
                   gt_year, gt_mon, gt_day, gt_hour, gt_min,gt_sec);
         data_ptr  = s->data;
         *data_ptr = (byte) ASN_GENERALIZED_TIME; data_ptr++;
         *data_ptr = (byte) ASN_GENERALIZED_TIME_SIZE; data_ptr++;
         XMEMCPY(data_ptr,(byte *)gt_str, ASN_GENERALIZED_TIME_SIZE);
+        sz = ASN_GENERALIZED_TIME_SIZE;
     }
 
+    /* +2 for tag and length */
+    s->length = sz + 2;
     return s;
 }
 #endif /* !NO_ASN_TIME && !USER_TIME && !TIME_OVERRIDES && !NO_FILESYSTEM */
@@ -34677,7 +34707,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         wc_InitCert(cert);
 
-        cert->version = wolfSSL_X509_get_version(x509);
+        cert->version = (int)wolfSSL_X509_get_version(x509);
 
         #ifdef WOLFSSL_ALT_NAMES
         if (x509->notBeforeSz < CTC_DATE_SIZE) {
@@ -42603,36 +42633,48 @@ int wolfSSL_X509_set_issuer_name(WOLFSSL_X509 *cert, WOLFSSL_X509_NAME *name)
 
 int wolfSSL_X509_set_notAfter(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME* t)
 {
-    WOLFSSL_ENTER("wolfSSL_X509_set_notAfter");
     unsigned int  i;
     unsigned char d;
+
+    WOLFSSL_ENTER("wolfSSL_X509_set_notAfter");
     if (!x509 || !t)
         return WOLFSSL_FAILURE;
 
+    if (t->length >= MAX_DATE_SZ + 2) {
+        WOLFSSL_MSG("Input was larger than expected");
+        return WOLFSSL_FAILURE;
+    }
+
     for (i = 0; i < MAX_DATE_SZ && (d = t->data[i]) != '\0'; i++)
-        x509->notAfter[i] = d;
+        x509->notAfter.data[i] = d;
 
-    x509->notAfter[i] = '\0';
-    x509->notAfterSz  = i;
+    x509->notAfter.data[i] = '\0';
+    x509->notAfter.length  = i;
 
-    WOLFSSL_MSG("Return success\n");
+    WOLFSSL_LEAVE("wolfSSL_X509_set_notAfter", WOLFSSL_SUCCESS);
 
     return WOLFSSL_SUCCESS;
 }
 
 int wolfSSL_X509_set_notBefore(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME* t)
 {
-    WOLFSSL_ENTER("wolfSSL_X509_set_notBefore");
     unsigned int  i;
     unsigned char d;
+
+    WOLFSSL_ENTER("wolfSSL_X509_set_notBefore");
     if (!x509 || !t)
         return WOLFSSL_FAILURE;
 
-    for (i = 0; i < t->length && (d = t->data[i]) != '\0'; i++)
-        x509->notBefore[i] = d;
+    if (t->length >= MAX_DATE_SZ + 2) {
+        WOLFSSL_MSG("Input was larger than expected");
+        return WOLFSSL_FAILURE;
+    }
 
-    x509->notBefore[i] = '\0';
-    x509->notBeforeSz  = i;
+    for (i = 0; i < t->length && (d = t->data[i]) != '\0'; i++)
+        x509->notBefore.data[i] = d;
+
+    x509->notBefore.data[i] = '\0';
+    x509->notBefore.length = i;
 
     return WOLFSSL_SUCCESS;
 }

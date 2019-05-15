@@ -8895,18 +8895,18 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     {
         int minSz = min(dCert->beforeDateLen, MAX_DATE_SZ);
         if (minSz > 0) {
-            x509->notBeforeSz = minSz;
-            XMEMCPY(x509->notBefore, dCert->beforeDate, minSz);
+            x509->notBefore.length = minSz;
+            XMEMCPY(x509->notBefore.data, dCert->beforeDate, minSz);
         }
         else
-            x509->notBeforeSz = 0;
+            x509->notBefore.length = 0;
         minSz = min(dCert->afterDateLen, MAX_DATE_SZ);
         if (minSz > 0) {
-            x509->notAfterSz = minSz;
-            XMEMCPY(x509->notAfter, dCert->afterDate, minSz);
+            x509->notAfter.length = minSz;
+            XMEMCPY(x509->notAfter.data, dCert->afterDate, minSz);
         }
         else
-            x509->notAfterSz = 0;
+            x509->notAfter.length = 0;
     }
 
     if (dCert->publicKey != NULL && dCert->pubKeySize != 0) {

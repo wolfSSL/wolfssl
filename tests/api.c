@@ -22436,6 +22436,7 @@ static void test_wolfSSL_X509_set_notBefore(void)
      */
     t = (time_t)49 * year + 125 * day + 20 * hour + 30 * mini + 7 * day;
     offset_day = 7;
+
     /*
      * Free these.
      */
@@ -22443,6 +22444,8 @@ static void test_wolfSSL_X509_set_notBefore(void)
     AssertNotNull(asn_time);
     AssertNotNull(x = X509_new());
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
+    AssertIntEQ(ASN1_TIME_check(asn_time), WOLFSSL_SUCCESS);
+
     /*
      * Main Tests
      */

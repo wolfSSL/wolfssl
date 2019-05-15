@@ -3570,8 +3570,8 @@ struct WOLFSSL_X509 {
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
     int              notBeforeSz;
     int              notAfterSz;
-    byte             notBefore[MAX_DATE_SZ];
-    byte             notAfter[MAX_DATE_SZ];
+    WOLFSSL_ASN1_TIME notBefore;
+    WOLFSSL_ASN1_TIME notAfter;
     buffer           sig;
     int              sigOID;
     DNS_entry*       altNames;                       /* alt names list */
