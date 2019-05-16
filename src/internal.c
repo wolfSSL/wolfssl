@@ -17030,6 +17030,15 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
     int      keySz;
     word32   idx;
 
+#ifdef HAVE_PK_CALLBACKS
+    /* allow no private key if using PK callbacks and CB is set */
+    if (wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)) {
+        *length = GetPrivateKeySigSize(ssl);
+        return 0;
+    }
+    else
+#endif
+
     /* make sure private key exists */
     if (ssl->buffers.key == NULL || ssl->buffers.key->buffer == NULL) {
         WOLFSSL_MSG("Private key missing!");
