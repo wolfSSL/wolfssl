@@ -671,6 +671,8 @@ void wc_RemoveErrorNode(int idx)
     if (current != NULL) {
         if (current->prev != NULL)
             current->prev->next = current->next;
+        if (current->next != NULL)
+            current->next->prev = current->prev;
         if (wc_last_node == current)
             wc_last_node = current->prev;
         if (wc_errors == current)

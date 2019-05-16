@@ -8906,18 +8906,24 @@ int wolfSSL_EVP_Digest(unsigned char* in, int inSz, unsigned char* out,
     int hashType = WC_HASH_TYPE_NONE;
     int hashSz;
 
-    (void)eng;
+    WOLFSSL_ENTER("wolfSSL_EVP_Digest");
+    if (in == NULL || out == NULL || evp == NULL) {
+        WOLFSSL_MSG("Null argument passed in");
+        return WOLFSSL_FAILURE;
+    }
 
     err = wolfSSL_EVP_get_hashinfo(evp, &hashType, &hashSz);
     if (err != WOLFSSL_SUCCESS)
         return err;
 
-    *outSz = hashSz;
-
-    if (wc_Hash((enum wc_HashType)hashType, in, inSz, out, *outSz) != 0) {
+    if (wc_Hash((enum wc_HashType)hashType, in, inSz, out, hashSz) != 0) {
         return WOLFSSL_FAILURE;
     }
 
+    if (outSz != NULL)
+        *outSz = hashSz;
+
+    (void)eng;
     return WOLFSSL_SUCCESS;
 }
 
@@ -8925,14 +8931,24 @@ int wolfSSL_EVP_Digest(unsigned char* in, int inSz, unsigned char* out,
 int wolfSSL_X509_digest(const WOLFSSL_X509* x509, const WOLFSSL_EVP_MD* digest,
         unsigned char* buf, unsigned int* len)
 {
+    int ret;
+
     WOLFSSL_ENTER("wolfSSL_X509_digest");
 
     if (x509 == NULL || digest == NULL) {
+        WOLFSSL_MSG("Null argument found");
         return WOLFSSL_FAILURE;
     }
 
-    return wolfSSL_EVP_Digest(x509->derCert->buffer, x509->derCert->length, buf,
+    if (x509->derCert == NULL) {
+        WOLFSSL_MSG("No DER certificate stored in X509");
+        return WOLFSSL_FAILURE;
+    }
+
+    ret = wolfSSL_EVP_Digest(x509->derCert->buffer, x509->derCert->length, buf,
                               len, digest, NULL);
+    WOLFSSL_LEAVE("wolfSSL_X509_digest", ret);
+    return ret;
 }
 
 
@@ -10243,6 +10259,116 @@ int CM_GetCertCacheMemSize(WOLFSSL_CERT_MANAGER* cm)
 #endif /* PERSIST_CERT_CACHE */
 #endif /* NO_CERTS */
 
+#ifdef OPENSSL_EXTRA
+
+
+/* removes all cipher suites from the list that contain "toRemove"
+ * returns the new list size on success
+ */
+static int wolfSSL_remove_ciphers(char* list, int sz, const char* toRemove)
+{
+    int idx = 0;
+    char* next = (char*)list;
+    int totalSz = sz;
+
+    if (list == NULL) {
+        return 0;
+    }
+
+    do {
+        char*  current = next;
+        char   name[MAX_SUITE_NAME + 1];
+        word32 length;
+
+        next   = XSTRSTR(next, ":");
+        length = min(sizeof(name), !next ? (word32)XSTRLEN(current) /* last */
+                                         : (word32)(next - current));
+
+        XSTRNCPY(name, current, length);
+        name[(length == sizeof(name)) ? length - 1 : length] = 0;
+
+        if (XSTRSTR(name, toRemove)) {
+            XMEMMOVE(list + idx, list + idx + length, totalSz - (idx + length));
+            totalSz -= length;
+            list[totalSz] = '\0';
+            next = current;
+        }
+        else {
+            idx += length;
+        }
+    } while (next++); /* ++ needed to skip ':' */
+
+    return totalSz;
+}
+
+/* parse some bulk lists like !eNULL / !aNULL
+ *
+ * returns WOLFSSL_SUCCESS on success and sets the cipher suite list
+ */
+static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
+        const char* list)
+{
+    int       ret          = 0;
+    const int suiteSz      = GetCipherNamesSize();
+    char*     next         = (char*)list;
+    const CipherSuiteInfo* names = GetCipherNames();
+    char*     localList    = NULL;
+    int sz = 0;
+
+    if (suites == NULL || list == NULL) {
+        WOLFSSL_MSG("NULL argument");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* does list contain eNULL or aNULL? */
+    if (XSTRSTR(list, "aNULL") || XSTRSTR(list, "eNULL")) {
+        do {
+            char*  current = next;
+            char   name[MAX_SUITE_NAME + 1];
+            int    i;
+            word32 length;
+
+            next   = XSTRSTR(next, ":");
+            length = min(sizeof(name), !next ? (word32)XSTRLEN(current) /*last*/
+                                             : (word32)(next - current));
+
+            XSTRNCPY(name, current, length);
+            name[(length == sizeof(name)) ? length - 1 : length] = 0;
+
+            /* check for "not" case */
+            if (name[0] == '!') {
+                /* populate list with all suites if not already created */
+                if (localList == NULL) {
+                    for (i = 0; i < suiteSz; i++) {
+                        sz += (int)XSTRLEN(names[i].name) + 2;
+                    }
+                    localList = XMALLOC(sz, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    if (localList == NULL) {
+                        return WOLFSSL_FAILURE;
+                    }
+                    wolfSSL_get_ciphers(localList, sz);
+                    sz = (int)XSTRLEN(localList);
+                }
+
+                if (XSTRSTR(name, "eNULL")) {
+                    wolfSSL_remove_ciphers(localList, sz, "-NULL");
+                }
+            }
+        }
+        while (next++); /* ++ needed to skip ':' */
+
+        ret = SetCipherList(ctx, suites, localList);
+        XFREE(localList, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return (ret)? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+    }
+    else {
+        return (SetCipherList(ctx, suites, list)) ? WOLFSSL_SUCCESS :
+            WOLFSSL_FAILURE;
+    }
+}
+
+#endif
+
 
 int wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list)
 {
@@ -10262,7 +10388,11 @@ int wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX* ctx, const char* list)
         XMEMSET(ctx->suites, 0, sizeof(Suites));
     }
 
+#ifdef OPENSSL_EXTRA
+    return wolfSSL_parse_cipher_list(ctx, ctx->suites, list);
+#else
     return (SetCipherList(ctx, ctx->suites, list)) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+#endif
 }
 
 
@@ -10281,7 +10411,11 @@ int wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list)
     }
 #endif
 
+#ifdef OPENSSL_EXTRA
+    return wolfSSL_parse_cipher_list(ssl->ctx, ssl->suites, list);
+#else
     return (SetCipherList(ssl->ctx, ssl->suites, list)) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+#endif
 }
 
 
@@ -14811,6 +14945,7 @@ const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
 
     const struct alias  *al;
     const struct s_ent *ent;
+
 
     for (al = alias_tbl; al->name != NULL; al++)
         if(XSTRNCMP(name, al->alias, XSTRLEN(al->alias)+1) == 0) {
@@ -34710,18 +34845,20 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         cert->version = (int)wolfSSL_X509_get_version(x509);
 
         #ifdef WOLFSSL_ALT_NAMES
-        if (x509->notBeforeSz < CTC_DATE_SIZE) {
-            XMEMCPY(cert->beforeDate, x509->notBefore, x509->notBeforeSz);
-            cert->beforeDateSz = x509->notBeforeSz;
+        if (x509->notBefore.length < CTC_DATE_SIZE) {
+            XMEMCPY(cert->beforeDate, x509->notBefore.data,
+                    x509->notBefore.length);
+            cert->beforeDateSz = x509->notBefore.length;
         }
         else {
             WOLFSSL_MSG("Not before date too large");
             return WOLFSSL_FAILURE;
         }
 
-        if (x509->notAfterSz < CTC_DATE_SIZE) {
-            XMEMCPY(cert->afterDate, x509->notAfter, x509->notAfterSz);
-            cert->afterDateSz = x509->notAfterSz;
+        if (x509->notAfter.length < CTC_DATE_SIZE) {
+            XMEMCPY(cert->afterDate, x509->notAfter.data,
+                    x509->notAfter.length);
+            cert->afterDateSz = x509->notAfter.length;
         }
         else {
             WOLFSSL_MSG("Not after date too large");
