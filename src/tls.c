@@ -9595,14 +9595,28 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             }
         #endif
         #ifndef NO_PSK
-            if (ssl->options.client_psk_cb != NULL) {
+            if (ssl->options.client_psk_cb != NULL ||
+                                     ssl->options.client_psk_tls13_cb != NULL) {
                 /* Default ciphersuite. */
                 byte cipherSuite0 = TLS13_BYTE;
                 byte cipherSuite = WOLFSSL_DEF_PSK_CIPHER;
+                const char* cipherName = NULL;
 
-                ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
+                if (ssl->options.client_psk_tls13_cb != NULL) {
+                    ssl->arrays->psk_keySz = ssl->options.client_psk_tls13_cb(
+                        ssl, ssl->arrays->server_hint,
+                        ssl->arrays->client_identity, MAX_PSK_ID_LEN,
+                        ssl->arrays->psk_key, MAX_PSK_KEY_LEN, &cipherName);
+                    if (GetCipherSuiteFromName(cipherName, &cipherSuite0,
+                                                           &cipherSuite) != 0) {
+                        return PSK_KEY_ERROR;
+                    }
+                }
+                else {
+                    ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
                         ssl->arrays->server_hint, ssl->arrays->client_identity,
                         MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
+                }
                 if (ssl->arrays->psk_keySz == 0 ||
                                      ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
                     return PSK_KEY_ERROR;

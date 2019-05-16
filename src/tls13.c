@@ -2394,6 +2394,7 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk)
 #endif
 #ifndef NO_PSK
     if (!psk->resumption) {
+    #ifndef WOLFSSL_PSK_ONE_ID
         const char* cipherName = NULL;
         byte cipherSuite0 = TLS13_BYTE, cipherSuite = WOLFSSL_DEF_PSK_CIPHER;
 
@@ -2422,6 +2423,9 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk)
                                               psk->cipherSuite != cipherSuite) {
             return PSK_KEY_ERROR;
         }
+    #else
+        /* PSK information loaded during setting of default TLS extensions. */
+    #endif
     }
 #endif
 
