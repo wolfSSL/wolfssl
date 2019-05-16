@@ -2152,6 +2152,10 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
             ret = MP_INIT_E;
         }
     }
+    else {
+        (void)XMEMSET(&tmp, 0, sizeof(mp_int));
+        (void)XMEMSET(&tmp2, 0, sizeof(mp_int));
+    }
 
     if (ret == 0) {
         if (mp_read_unsigned_bin(&tmp2, buf, bufSz) != MP_OKAY)
