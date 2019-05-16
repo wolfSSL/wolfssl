@@ -10415,7 +10415,7 @@ static int SetValidity(byte* output, int daysValid)
     afterSz  = SetLength(ASN_GEN_TIME_SZ, after + 1) + 1;  /* gen tag */
 
     /* add daysValid of seconds */
-    then = now + (daysValid * 86400);
+    then = now + (daysValid * (time_t)86400);
     expandedTime = XGMTIME(&then, tmpTime);
     if (expandedTime == NULL) {
         WOLFSSL_MSG("XGMTIME failed");
