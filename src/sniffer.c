@@ -406,6 +406,10 @@ static int RecoveryEnabled    = 0;       /* global switch */
 static int MaxRecoveryMemory  = -1;      /* per session max recovery memory */
 static word32 MissedDataSessions = 0;    /* # of sessions with missed data */
 
+/* Connection Info Callback */
+static SSLConnCb ConnectionCb;
+static void* ConnectionCbCtx = NULL;
+
 
 static void UpdateMissedDataSessions(void)
 {
@@ -1490,6 +1494,58 @@ static int GetRecordHeader(const byte* input, RecordLayerHeader* rh, int* size)
 }
 
 
+/* Copies the session's infomation to the provided sslInfo. Skip copy if
+ * SSLInfo is not provided. */
+static void CopySessionInfo(SnifferSession* session, SSLInfo* sslInfo)
+{
+    if (NULL != sslInfo) {
+        XMEMSET(sslInfo, 0, sizeof(SSLInfo));
+
+        /* Pass back Session Info after we have processed the Server Hello. */
+        if (0 != session->sslServer->options.cipherSuite) {
+            const char* pCipher;
+
+            sslInfo->isValid = 1;
+            sslInfo->protocolVersionMajor = session->sslServer->version.major;
+            sslInfo->protocolVersionMinor = session->sslServer->version.minor;
+            sslInfo->serverCipherSuite0 =
+                        session->sslServer->options.cipherSuite0;
+            sslInfo->serverCipherSuite =
+                        session->sslServer->options.cipherSuite;
+
+            pCipher = wolfSSL_get_cipher(session->sslServer);
+            if (NULL != pCipher) {
+                XSTRNCPY((char*)sslInfo->serverCipherSuiteName, pCipher,
+                         sizeof(sslInfo->serverCipherSuiteName));
+                sslInfo->serverCipherSuiteName
+                         [sizeof(sslInfo->serverCipherSuiteName) - 1] = '\0';
+            }
+            sslInfo->keySize = session->keySz;
+            #ifdef HAVE_SNI
+            if (NULL != session->sni) {
+                XSTRNCPY((char*)sslInfo->serverNameIndication,
+                         session->sni, sizeof(sslInfo->serverNameIndication));
+                sslInfo->serverNameIndication
+                         [sizeof(sslInfo->serverNameIndication) - 1] = '\0';
+            }
+            #endif
+            TraceSessionInfo(sslInfo);
+        }
+    }
+}
+
+
+/* Call the session connection start callback. */
+static void CallConnectionCb(SnifferSession* session)
+{
+    if (ConnectionCb != NULL) {
+        SSLInfo info;
+        CopySessionInfo(session, &info);
+        ConnectionCb((const void*)session, &info, ConnectionCbCtx);
+    }
+}
+
+
 /* Process Client Key Exchange, RSA or static ECDH */
 static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
                                     SnifferSession* session, char* error)
@@ -1697,6 +1753,8 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
         printf("client suite = %d\n", session->sslClient->options.cipherSuite);
     }
 #endif
+
+    CallConnectionCb(session);
 
     return ret;
 }
@@ -2521,6 +2579,10 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     session->cliSeqStart = tcpInfo->sequence;
     session->cliExpected = 1;  /* relative */
     session->lastUsed= time(NULL);
+    session->keySz = 0;
+#ifdef HAVE_SNI
+    session->sni = NULL;
+#endif
 
     session->context = GetSnifferServer(ipInfo, tcpInfo);
     if (session->context == NULL) {
@@ -3600,47 +3662,6 @@ static int RemoveFatalSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
 }
 
 
-/* Copies the session's infomation to the provided sslInfo. Skip copy if
- * SSLInfo is not provided. */
-static void CopySessionInfo(SnifferSession* session, SSLInfo* sslInfo)
-{
-    if (NULL != sslInfo) {
-        XMEMSET(sslInfo, 0, sizeof(SSLInfo));
-
-        /* Pass back Session Info after we have processed the Server Hello. */
-        if (0 != session->sslServer->options.cipherSuite) {
-            const char* pCipher;
-
-            sslInfo->isValid = 1;
-            sslInfo->protocolVersionMajor = session->sslServer->version.major;
-            sslInfo->protocolVersionMinor = session->sslServer->version.minor;
-            sslInfo->serverCipherSuite0 =
-                        session->sslServer->options.cipherSuite0;
-            sslInfo->serverCipherSuite =
-                        session->sslServer->options.cipherSuite;
-
-            pCipher = wolfSSL_get_cipher(session->sslServer);
-            if (NULL != pCipher) {
-                XSTRNCPY((char*)sslInfo->serverCipherSuiteName, pCipher,
-                         sizeof(sslInfo->serverCipherSuiteName));
-                sslInfo->serverCipherSuiteName
-                         [sizeof(sslInfo->serverCipherSuiteName) - 1] = '\0';
-            }
-            sslInfo->keySize = session->keySz;
-            #ifdef HAVE_SNI
-            if (NULL != session->sni) {
-                XSTRNCPY((char*)sslInfo->serverNameIndication,
-                         session->sni, sizeof(sslInfo->serverNameIndication));
-                sslInfo->serverNameIndication
-                         [sizeof(sslInfo->serverNameIndication) - 1] = '\0';
-            }
-            #endif
-            TraceSessionInfo(sslInfo);
-        }
-    }
-}
-
-
 /* Passes in an IP/TCP packet for decoding (ethernet/localhost frame) removed */
 /* returns Number of bytes on success, 0 for no data yet, and -1 on error */
 static int ssl_DecodePacketInternal(const byte* packet, int length,
@@ -3804,6 +3825,22 @@ int ssl_GetSessionStats(unsigned int* active,     unsigned int* total,
         SetError(BAD_SESSION_STATS, error, NULL, 0);
         return -1;
     }
+}
+
+
+
+int ssl_SetConnectionCb(SSLConnCb cb)
+{
+    ConnectionCb = cb;
+    return 0;
+}
+
+
+
+int ssl_SetConnectionCtx(void* ctx)
+{
+    ConnectionCbCtx = ctx;
+    return 0;
 }
 
 

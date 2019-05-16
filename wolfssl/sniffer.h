@@ -125,6 +125,14 @@ SSL_SNIFFER_API int ssl_DecodePacketWithSessionInfo(
                         const unsigned char* packet, int length,
                         unsigned char** data, SSLInfo* sslInfo, char* error);
 
+typedef void (*SSLConnCb)(const void* session, SSLInfo* info, void* ctx);
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_SetConnectionCb(SSLConnCb cb);
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_SetConnectionCtx(void* ctx);
+
 
 #ifdef __cplusplus
     }  /* extern "C" */
