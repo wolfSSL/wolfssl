@@ -329,6 +329,8 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
     }
 #endif /* WOLFSSL_SMALL_STACK */
 
+    (void)XMEMSET(key, 0, WC_MAX_SYM_KEY_SIZE);
+
 #ifndef NO_PWDBASED
     if ((ret = wc_PBKDF1(key, password, passwordSz, info->iv, PKCS5_SALT_SZ, 1,
                                         info->keySz, hashType)) != 0) {
