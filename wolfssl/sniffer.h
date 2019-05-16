@@ -115,6 +115,8 @@ typedef struct SSLInfo
     unsigned char  serverCipherSuite;       /* second byte, actual suite */
     unsigned char  serverCipherSuiteName[256];
             /* cipher name, e.g., "TLS_RSA_..." */
+    unsigned char  serverNameIndication[128];
+    unsigned int   keySize;
 } WOLFSSL_PACK SSLInfo;
 
 

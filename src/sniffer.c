@@ -374,12 +374,16 @@ typedef struct SnifferSession {
     FinCaputre     finCaputre;      /* retain out of order FIN s */
     Flags          flags;           /* session flags */
     time_t         lastUsed;          /* last used ticks */
+    word32         keySz;           /* size of the private key */
     PacketBuffer*  cliReassemblyList; /* client out of order packets */
     PacketBuffer*  srvReassemblyList; /* server out of order packets */
     word32         cliReassemblyMemory; /* client packet memory used */
     word32         srvReassemblyMemory; /* server packet memory used */
     struct SnifferSession* next;      /* for hash table list */
     byte*          ticketID;          /* mac ID of session ticket */
+#ifdef HAVE_SNI
+    const char*    sni;             /* server name indication */
+#endif
 #ifdef HAVE_EXTENDED_MASTER
     HsHashes*       hash;
 #endif
@@ -1025,12 +1029,20 @@ static void TraceSessionInfo(SSLInfo* sslInfo)
     if (TraceOn) {
         if (sslInfo != NULL && sslInfo->isValid) {
             fprintf(TraceFile,
-                    "\tver:(%u %u) suiteId:(%02x %02x) suiteName:(%s)\n",
+                    "\tver:(%u %u) suiteId:(%02x %02x) suiteName:(%s) "
+                    #ifdef HAVE_SNI
+                    "sni:(%s) "
+                    #endif
+                    "keySize:(%u)\n",
                     sslInfo->protocolVersionMajor,
                     sslInfo->protocolVersionMinor,
                     sslInfo->serverCipherSuite0,
                     sslInfo->serverCipherSuite,
-                    sslInfo->serverCipherSuiteName);
+                    sslInfo->serverCipherSuiteName,
+                    #ifdef HAVE_SNI
+                    sslInfo->serverNameIndication,
+                    #endif
+                    sslInfo->keySize);
         }
     }
 }
@@ -1537,6 +1549,10 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
         }
 
         if (ret == 0) {
+            session->keySz = length * 8;
+            /* length is the key size in bytes */
+            session->sslServer->arrays->preMasterSz = SECRET_LEN;
+
             do {
             #ifdef WOLFSSL_ASYNC_CRYPT
                 ret = wc_AsyncWait(ret, &key.asyncDev,
@@ -1545,7 +1561,7 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
                 if (ret >= 0) {
                     ret = wc_RsaPrivateDecrypt(input, length,
                           session->sslServer->arrays->preMasterSecret,
-                          SECRET_LEN, &key);
+                          session->sslServer->arrays->preMasterSz, &key);
                 }
             } while (ret == WC_PENDING_E);
 
@@ -1553,8 +1569,6 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
                 SetError(RSA_DECRYPT_STR, error, session, FATAL_ERROR_STATE);
             }
         }
-
-        session->sslServer->arrays->preMasterSz = SECRET_LEN;
 
         wc_FreeRsaKey(&key);
     }
@@ -1604,6 +1618,9 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
         }
 
         if (ret == 0) {
+            session->keySz = (length - 1) * 4;
+            /* The length is the key size in bytes, times 2 for the (x,y)
+             * coordinates, plus 1 for the type. */
             session->sslServer->arrays->preMasterSz = ENCRYPT_LEN;
 
             do {
@@ -1953,6 +1970,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                                                              FATAL_ERROR_STATE);
                         return -1;
                     }
+                    session->sni = namedKey->name;
                     break;
                 }
                 else
@@ -3608,6 +3626,15 @@ static void CopySessionInfo(SnifferSession* session, SSLInfo* sslInfo)
                 sslInfo->serverCipherSuiteName
                          [sizeof(sslInfo->serverCipherSuiteName) - 1] = '\0';
             }
+            sslInfo->keySize = session->keySz;
+            #ifdef HAVE_SNI
+            if (NULL != session->sni) {
+                XSTRNCPY((char*)sslInfo->serverNameIndication,
+                         session->sni, sizeof(sslInfo->serverNameIndication));
+                sslInfo->serverNameIndication
+                         [sizeof(sslInfo->serverNameIndication) - 1] = '\0';
+            }
+            #endif
             TraceSessionInfo(sslInfo);
         }
     }
