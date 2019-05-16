@@ -2057,8 +2057,6 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
     }
 
     if (ret != 0 && key != NULL) {
-        if (keyQ)
-            mp_clear(keyQ);
         if (keyG)
             mp_clear(keyG);
         if (keyP)
