@@ -18892,7 +18892,7 @@ static void test_wolfSSL_ASN1_UTCTIME_print(void)
     *ptr1 = (byte)ASN_UTC_TIME_SIZE; ptr1++;
     XMEMCPY(ptr1, (byte*)validDate, ASN_UTC_TIME_SIZE);
     AssertIntEQ(ASN1_UTCTIME_print(bio, utc), 1);
-    AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 25);
+    AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 24);
     AssertIntEQ(XMEMCMP(buf, "Apr 24 11:15:01 2019 GMT", sizeof(buf)-1), 0);
 
     XMEMSET(buf, 0, sizeof(buf));
@@ -18905,7 +18905,7 @@ static void test_wolfSSL_ASN1_UTCTIME_print(void)
     *ptr2 = (byte)ASN_UTC_TIME_SIZE; ptr2++;
     XMEMCPY(ptr2, (byte*)invalidDate, ASN_UTC_TIME_SIZE);
     AssertIntEQ(ASN1_UTCTIME_print(bio, utc), 0);
-    AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 25);
+    AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 14);
     AssertIntEQ(XMEMCMP(buf, "Bad time value", 14), 0);
 
     XFREE(utc, NULL, DYNAMIC_TYPE_ASN1);
@@ -22402,7 +22402,7 @@ static void test_wolfSSL_X509_set_notAfter(void)
     AssertIntEQ(ASN1_TIME_check(time_check), WOLFSSL_SUCCESS);
     /* Convert to human readable format and compare to intended date */
     AssertIntEQ(ASN1_TIME_print(bio,time_check), 1);
-    AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 25);
+    AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 24);
     AssertIntEQ(XMEMCMP(buf, "Jan 20 10:30:00 2077 GMT", sizeof(buf) - 1), 0);
     /*
      * Cleanup
@@ -22456,7 +22456,7 @@ static void test_wolfSSL_X509_set_notBefore(void)
     AssertIntEQ(ASN1_TIME_check(time_check), WOLFSSL_SUCCESS);
     /* Convert to human readable format and compare to intended date */
     AssertIntEQ(ASN1_TIME_print(bio,time_check), 1);
-    AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 25);
+    AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 24);
     AssertIntEQ(XMEMCMP(buf, "May  8 20:30:00 2019 GMT", sizeof(buf) - 1), 0);
     /*
      * Cleanup

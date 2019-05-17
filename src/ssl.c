@@ -18892,6 +18892,11 @@ void wolfSSL_SESSION_free(WOLFSSL_SESSION* session)
 static const char* wolfSSL_internal_get_version(ProtocolVersion* version)
 {
     WOLFSSL_ENTER("wolfSSL_get_version");
+
+    if (version == NULL) {
+        return "Bad arg";
+    }
+
     if (version->major == SSLv3_MAJOR) {
         switch (version->minor) {
         #ifndef NO_OLD_TLS
@@ -22891,7 +22896,7 @@ int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_TIME* asnTime)
         ret = WOLFSSL_FAILURE;
     }
 
-    if (wolfSSL_BIO_write(bio, buf, sizeof(buf)) <= 0) {
+    if (wolfSSL_BIO_write(bio, buf, (int)XSTRLEN(buf)) <= 0) {
         WOLFSSL_MSG("Unable to write to bio");
         return WOLFSSL_FAILURE;
     }
@@ -40057,6 +40062,11 @@ int wolfSSL_SESSION_print(WOLFSSL_BIO *bp, const WOLFSSL_SESSION *x)
     unsigned int sz = 0, i;
     int ret;
     WOLFSSL_SESSION* session = (WOLFSSL_SESSION*)x;
+
+    if (session == NULL) {
+        WOLFSSL_MSG("Bad NULL argument");
+        return WOLFSSL_FAILURE;
+    }
 
     if (wolfSSL_BIO_printf(bp, "%s\n", "SSL-Session:") <= 0)
         return WOLFSSL_FAILURE;
