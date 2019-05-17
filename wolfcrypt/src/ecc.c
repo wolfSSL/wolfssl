@@ -7043,6 +7043,9 @@ int wc_ecc_sig_to_rs(const byte* sig, word32 sigLen, byte* r, word32* rLen,
     }
 #endif
 
+    (void)XMEMSET(&rtmp, 0, sizeof(mp_int));
+    (void)XMEMSET(&stmp, 0, sizeof(mp_int));
+
     err = DecodeECC_DSA_Sig(sig, sigLen, rtmp, stmp);
 
     /* extract r */
