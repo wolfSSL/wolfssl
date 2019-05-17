@@ -8909,9 +8909,9 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
 
     /* build header and footer based on type */
     XSTRNCPY(header, headerStr, headerLen - 1);
-    header[headerLen - 1] = 0;
+    header[headerLen - 2] = 0;
     XSTRNCPY(footer, footerStr, footerLen - 1);
-    footer[footerLen - 1] = 0;
+    footer[footerLen - 2] = 0;
 
     /* add new line to end */
     XSTRNCAT(header, "\n", 2);
