@@ -36630,7 +36630,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     #endif
     #if defined(WOLFSSL_APACHE_HTTPD)
         /* "1.3.6.1.5.5.7.8.7" */
-        { NID_id_on_dnsSRV, NID_id_on_dnsSRV, oidCertExtType,
+        { NID_id_on_dnsSRV, NID_id_on_dnsSRV, oidCertNameType,
             WOLFSSL_SN_DNS_SRV, WOLFSSL_LN_DNS_SRV },
 
         /* "1.3.6.1.4.1.311.20.2.3" */
@@ -36638,7 +36638,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             WOLFSSL_LN_MS_UPN },
 
         /* "1.3.6.1.5.5.7.1.24" */
-        { NID_tlsfeature, WOLFSSL_TLS_FEATURE_SUM, oidCertExtType,
+        { NID_tlsfeature, WOLFSSL_TLS_FEATURE_SUM, oidTlsExtType,
             WOLFSSL_SN_TLS_FEATURE, WOLFSSL_LN_TLS_FEATURE },
     #endif
     };
@@ -36712,6 +36712,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             if (wolfssl_object_info[i].nid == id) {
                 id = wolfssl_object_info[i].id;
                 sName = wolfssl_object_info[i].sName;
+                printf("sname = %s\n", sName);
                 type = wolfssl_object_info[i].type;
                 break;
             }
@@ -37466,13 +37467,12 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     /* Gets the NID value that is related to the OID string passed in. Example
      * string would be "2.5.29.14" for subject key ID.
      *
-     * @TODO does not handle short names yet
-     *
      * returns NID value on success and NID_undef on error
      */
     int wolfSSL_OBJ_txt2nid(const char* s)
     {
         int ret;
+        unsigned int i, sum = 0;
         unsigned int outSz = MAX_OID_SZ;
         unsigned char out[MAX_OID_SZ];
 
@@ -37484,21 +37484,34 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         ret = EncodePolicyOID(out, &outSz, s, NULL);
         if (ret == 0) {
-            unsigned int i, sum = 0;
-
             /* sum OID */
             for (i = 0; i < outSz; i++) {
                 sum += out[i];
             }
+        }
 
-            /* get the group that the OID's sum is in
-             * @TODO possible conflict with multiples */
-            for (i = 0; i < WOLFSSL_OBJECT_INFO_SZ; i++) {
-               if (wolfssl_object_info[i].id == (int)sum) {
-                   return wolfssl_object_info[i].nid;
-               }
+        /* get the group that the OID's sum is in
+         * @TODO possible conflict with multiples */
+        for (i = 0; i < WOLFSSL_OBJECT_INFO_SZ; i++) {
+            int len;
+            if (ret == 0) {
+                if (wolfssl_object_info[i].id == (int)sum) {
+                    return wolfssl_object_info[i].nid;
+                }
+            }
+
+            /* try as a short name */
+            len = (int)XSTRLEN(s);
+            if (XSTRNCMP(wolfssl_object_info[i].sName, s, len) == 0) {
+                return wolfssl_object_info[i].nid;
+            }
+
+            /* try as a long name */
+            if (XSTRNCMP(wolfssl_object_info[i].lName, s, len) == 0) {
+                return wolfssl_object_info[i].nid;
             }
         }
+
         return NID_undef;
     }
 #endif /* WOLFSSL_CERT_EXT */
@@ -39961,6 +39974,7 @@ static const char* wolfSSL_SESSION_get_protocol(const WOLFSSL_SESSION* in)
 #endif
 
 
+#ifdef HAVE_SESSION_TICKET
 /* prints out the ticket to bio passed in
  * return WOLFSSL_SUCCESS on success
  */
@@ -40030,6 +40044,7 @@ static int wolfSSL_SESSION_print_ticket(WOLFSSL_BIO* bio,
     }
     return WOLFSSL_SUCCESS;
 }
+#endif /* HAVE_SESSION_TICKET */
 
 
 /* prints out the session information in human readable form
@@ -40039,7 +40054,7 @@ int wolfSSL_SESSION_print(WOLFSSL_BIO *bp, const WOLFSSL_SESSION *x)
 {
     const unsigned char* pt;
     unsigned char buf[SECRET_LEN];
-    unsigned int sz, i;
+    unsigned int sz = 0, i;
     int ret;
     WOLFSSL_SESSION* session = (WOLFSSL_SESSION*)x;
 
@@ -40090,8 +40105,10 @@ int wolfSSL_SESSION_print(WOLFSSL_BIO *bp, const WOLFSSL_SESSION *x)
     if (wolfSSL_BIO_printf(bp, "    TLS session ticket:") <= 0)
         return WOLFSSL_FAILURE;
 
+#ifdef HAVE_SESSION_TICKET
     if (wolfSSL_SESSION_print_ticket(bp, x, "    ") != WOLFSSL_SUCCESS)
         return WOLFSSL_FAILURE;
+#endif
 
     if (wolfSSL_BIO_printf(bp, "    Start Time: %ld\n",
                 wolfSSL_SESSION_get_time(x)) <= 0)
