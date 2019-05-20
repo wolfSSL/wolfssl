@@ -134,6 +134,40 @@ WOLFSSL_API
 SSL_SNIFFER_API int ssl_SetConnectionCtx(void* ctx);
 
 
+typedef struct SSLStats
+{
+    unsigned int sslStandardConns;
+    unsigned int sslRehandshakeConns;
+    unsigned int sslClientAuthConns;
+    unsigned int sslResumedConns;
+    unsigned int sslResumedRehandshakeConns;
+    unsigned int sslClientAuthRehandshakeConns;
+    unsigned int sslEphemeralMisses;
+    unsigned int sslResumeMisses;
+    unsigned int sslCiphersUnsupported;
+    unsigned int sslKeysUnmatched;
+    unsigned int sslKeyFails;
+    unsigned int sslDecodeFails;
+    unsigned int sslAlerts;
+    unsigned int sslDecryptedBytes;
+    unsigned int sslEncryptedBytes;
+    unsigned int sslEncryptedPackets;
+    unsigned int sslDecryptedPackets;
+    unsigned int sslEncryptedConns;
+    unsigned int sslKeyMatches;
+    unsigned int sslEncryptedConnsPerSecond;
+    unsigned int sslActiveFlowsPerSecond;
+} SSLStats;
+
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_ResetStatistics(void);
+
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_ReadStatistics(SSLStats* stats);
+
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

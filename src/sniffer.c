@@ -410,6 +410,10 @@ static word32 MissedDataSessions = 0;    /* # of sessions with missed data */
 static SSLConnCb ConnectionCb;
 static void* ConnectionCbCtx = NULL;
 
+/* Sessions Statistics */
+static SSLStats SnifferStats;
+static wolfSSL_Mutex StatsMutex;
+
 
 static void UpdateMissedDataSessions(void)
 {
@@ -419,13 +423,21 @@ static void UpdateMissedDataSessions(void)
 }
 
 
+#define ADD_TO_STAT(x,y) do { wc_LockMutex(&StatsMutex); \
+    x += y; \
+    wc_UnLockMutex(&StatsMutex); } while (0)
+#define INC_STAT(x) ADD_TO_STAT(x,1)
+
+
 /* Initialize overall Sniffer */
 void ssl_InitSniffer(void)
 {
     wolfSSL_Init();
+    XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
     wc_InitMutex(&ServerListMutex);
     wc_InitMutex(&SessionMutex);
     wc_InitMutex(&RecoveryMutex);
+    wc_InitMutex(&StatsMutex);
 }
 
 
@@ -3577,6 +3589,7 @@ doPart:
             break;
         case alert:
             Trace(GOT_ALERT_STR);
+            INC_STAT(SnifferStats.sslAlerts);
             sslFrame += rhSize;
             sslBytes -= rhSize;
             break;
@@ -3844,6 +3857,30 @@ int ssl_SetConnectionCtx(void* ctx)
     return 0;
 }
 
+
+/* Resets the statistics tracking global structure.
+ * returns 0 on success, -1 on error */
+int ssl_ResetStatistics(void)
+{
+    wc_LockMutex(&StatsMutex);
+    XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
+    wc_UnLockMutex(&StatsMutex);
+    return 0;
+}
+
+
+/* Copies the SSL statistics into the provided stats record.
+ * returns 0 on success, -1 on error */
+int ssl_ReadStatistics(SSLStats* stats)
+{
+    if (stats == NULL)
+        return -1;
+
+    wc_LockMutex(&StatsMutex);
+    XMEMCPY(stats, &SnifferStats, sizeof(SSLStats));
+    wc_UnLockMutex(&StatsMutex);
+    return 0;
+}
 
 
 #endif /* WOLFSSL_SNIFFER */
