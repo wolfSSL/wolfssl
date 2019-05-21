@@ -2327,12 +2327,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #endif
 
 #ifdef USE_TEST_GENSEED
+#ifndef WOLFSSL_SIFIVE_RISC_V    
     #ifndef _MSC_VER
         #warning "write a real random seed!!!!, just for testing now"
     #else
         #pragma message("Warning: write a real random seed!!!!, just for testing now")
     #endif
-
+#endif /* !WOLFSSL_SIFIVE_RISC_V*/
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         word32 i;
