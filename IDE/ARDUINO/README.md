@@ -15,15 +15,15 @@ wolfssl/IDE/ARDUINO directory:
 Step 2: Copy the directory wolfSSL that was just created to:
 `~/Documents/Arduino/libraries/` directory so the Arduino IDE can find it.
 
-Step 2: Edit `<arduino-libraries>/wolfSSL/user_settings.h`
+Step 3: Edit `<arduino-libraries>/wolfSSL/user_settings.h`
 If building for Intel Galileo platform add: `#define INTEL_GALILEO`.
 Add any other custom settings, for a good start see the below in wolfssl root.
 (See wolfssl/IDE/ROWLEY-CROSSWORKS-ARM/user_settings.h)
 
-Step 3: If you experience any issues with custom user_settings.h see the wolfssl
+Step 4: If you experience any issues with custom user_settings.h see the wolfssl
 porting guide here for more assistance: https://www.wolfssl.com/docs/porting-guide/
 
-Step 4: If you still have any issues contact support@wolfssl.com for more help.
+Step 5: If you still have any issues contact support@wolfssl.com for more help.
 
 ##### Including wolfSSL in Arduino Libraries (for Arduino version 1.6.6)
 
