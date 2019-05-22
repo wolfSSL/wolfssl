@@ -437,7 +437,15 @@
     #define SINGLE_THREADED
     #define NO_DEV_RANDOM
     #ifndef INTEL_GALILEO /* Galileo has time.h compatibility */
-        #define TIME_OVERRIDES /* must define XTIME and XGMTIME externally */
+        #define TIME_OVERRIDES
+        #ifndef XTIME
+            #error "Must define XTIME externally see porting guide"
+            #error "https://www.wolfssl.com/docs/porting-guide/"
+        #endif
+        #ifndef XGMTIME
+            #error "Must define XGMTIME externally see porting guide"
+            #error "https://www.wolfssl.com/docs/porting-guide/"
+        #endif
     #endif
     #define WOLFSSL_USER_IO
     #define HAVE_ECC
