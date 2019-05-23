@@ -7935,7 +7935,8 @@ static int TLSX_PreSharedKey_Parse(WOLFSSL* ssl, byte* input, word16 length,
             /* Length of identity. */
             ato16(input + idx, &identityLen);
             idx += OPAQUE16_LEN;
-            if (len < OPAQUE16_LEN + identityLen + OPAQUE32_LEN)
+            if (len < OPAQUE16_LEN + identityLen + OPAQUE32_LEN ||
+                    identityLen > MAX_PSK_ID_LEN)
                 return BUFFER_E;
             /* Cache identity pointer. */
             identity = input + idx;
@@ -9584,6 +9585,11 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             if (ssl->options.resuming && ssl->session.ticketLen > 0) {
                 WOLFSSL_SESSION* sess = &ssl->session;
                 word32           milli;
+
+                if (sess->ticketLen > MAX_PSK_ID_LEN) {
+                    WOLFSSL_MSG("Session ticket length for PSK ext is too large");
+                    return BUFFER_ERROR;
+                }
 
                 /* Determine the MAC algorithm for the cipher suite used. */
                 ssl->options.cipherSuite0 = sess->cipherSuite0;

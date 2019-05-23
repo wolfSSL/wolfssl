@@ -1173,7 +1173,12 @@ enum Misc {
     HELLO_EXT_EXTMS = 0x0017,   /* ID for the extended master secret ext */
     SECRET_LEN      = WOLFSSL_MAX_MASTER_KEY_LENGTH,
                                 /* pre RSA and all master */
+
+#if defined(WOLFSSL_TLS13)
+    MAX_PSK_ID_LEN     = 256,  /* max psk identity/hint supported */
+#else
     MAX_PSK_ID_LEN     = 128,  /* max psk identity/hint supported */
+#endif
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) || \
     (defined(USE_FAST_MATH) && defined(FP_MAX_BITS) && FP_MAX_BITS > 8192)
 #ifndef NO_PSK

@@ -3378,6 +3378,9 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     #endif
 
     #ifndef NO_PSK
+        if (current->identityLen > MAX_PSK_ID_LEN) {
+            return BUFFER_ERROR;
+        }
         XMEMCPY(ssl->arrays->client_identity, current->identity,
                 current->identityLen);
         ssl->arrays->client_identity[current->identityLen] = '\0';
