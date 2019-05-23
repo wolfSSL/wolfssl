@@ -738,7 +738,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
                      unsigned char *out, size_t *outlen,
                      const unsigned char *in, size_t inlen)
 {
-    int len;
+    int len = 0;
 
     if (ctx == NULL) return 0;
     WOLFSSL_ENTER("EVP_PKEY_decrypt");
@@ -809,7 +809,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
                      unsigned char *out, size_t *outlen,
                      const unsigned char *in, size_t inlen)
 {
-    int len;
+    int len = 0;
     if (ctx == NULL) return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("EVP_PKEY_encrypt");
     if (ctx->op != EVP_PKEY_OP_ENCRYPT) return WOLFSSL_FAILURE;

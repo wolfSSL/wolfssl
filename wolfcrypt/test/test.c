@@ -13470,9 +13470,13 @@ int openssl_test(void)
     testVector a, b, c, d, e, f;
     byte       hash[WC_SHA256_DIGEST_SIZE*2];  /* max size */
 
+    a.inLen = 0;
+    b = c = d = e = f = a;
+
     (void)a;
     (void)b;
     (void)c;
+    (void)d;
     (void)e;
     (void)f;
 

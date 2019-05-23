@@ -5756,7 +5756,7 @@ WOLFSSL_API int wolfSSL_CertManagerCheckOCSPResponse(WOLFSSL_CERT_MANAGER *cm,
                                                     CertStatus *status, OcspEntry *entry, OcspRequest *ocspRequest)
 {
     int ret;
-    
+
     WOLFSSL_ENTER("wolfSSL_CertManagerCheckOCSP_Staple");
     if (cm == NULL || response == NULL)
         return BAD_FUNC_ARG;
@@ -12383,8 +12383,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             if (bio->close) {
                 if (bio->ssl)
                     wolfSSL_free(bio->ssl);
+            #ifdef CloseSocket
                 if (bio->fd)
                     CloseSocket(bio->fd);
+            #endif
             }
 
         #ifndef NO_FILESYSTEM
@@ -15313,7 +15315,10 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
 #endif /* KEEP_PEER_CERT || SESSION_CERTS || OPENSSL_EXTRA ||
           OPENSSL_EXTRA_X509_SMALL */
 
-#if defined(OPENSSL_ALL) || defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+
+
+#if defined(OPENSSL_ALL) || defined(KEEP_OUR_CERT) || defined(KEEP_PEER_CERT) || \
+    defined(SESSION_CERTS)
     /* return the next, if any, altname from the peer cert */
     char* wolfSSL_X509_get_next_altname(WOLFSSL_X509* cert)
     {
@@ -15333,7 +15338,6 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
 
         return ret;
     }
-
 
     int wolfSSL_X509_get_isCA(WOLFSSL_X509* x509)
     {
@@ -16074,7 +16078,8 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_buffer(
 
 /* OPENSSL_EXTRA is needed for wolfSSL_X509_d21 function
    KEEP_OUR_CERT is to insure ability for returning ssl certificate */
-#if defined(OPENSSL_EXTRA) && defined(KEEP_OUR_CERT)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    defined(KEEP_OUR_CERT)
 WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
 {
     if (ssl == NULL) {
@@ -21142,6 +21147,9 @@ WOLFSSL_API long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *
 }
 #endif /* HAVE_OCSP */
 
+#endif /* OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 long wolfSSL_get_verify_result(const WOLFSSL *ssl)
 {
     if (ssl == NULL) {
@@ -21150,7 +21158,9 @@ long wolfSSL_get_verify_result(const WOLFSSL *ssl)
 
     return ssl->peerVerifyRet;
 }
+#endif
 
+#ifdef OPENSSL_EXTRA
 
 #ifndef NO_WOLFSSL_STUB
 /* shows the number of accepts attempted by CTX in it's lifetime */
