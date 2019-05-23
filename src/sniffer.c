@@ -1605,7 +1605,7 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
         }
 
         if (ret == 0) {
-            session->keySz = length * 8;
+            session->keySz = length * WOLFSSL_BIT_SIZE;
             /* length is the key size in bytes */
             session->sslServer->arrays->preMasterSz = SECRET_LEN;
 
@@ -1674,9 +1674,10 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
         }
 
         if (ret == 0) {
-            session->keySz = (length - 1) * 4;
-            /* The length is the key size in bytes, times 2 for the (x,y)
-             * coordinates, plus 1 for the type. */
+            session->keySz = ((length - 1) / 2) * WOLFSSL_BIT_SIZE;
+            /* Length is in bytes. Subtract 1 for the ECC key type. Divide
+             * by two as the key is in (x,y) coordinates, where x and y are
+             * the same size, the key size. Convert from bytes to bits. */
             session->sslServer->arrays->preMasterSz = ENCRYPT_LEN;
 
             do {
