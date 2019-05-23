@@ -2099,7 +2099,8 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
     int     groupSz = 0, bufSz = 0,
             primeCheckCount = 0,
             primeCheck = MP_NO,
-            ret = 0;
+            ret = 0,
+            tmp_valid = 0;
     unsigned char *buf = NULL;
 
     if (rng == NULL || dh == NULL)
@@ -2149,10 +2150,11 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
                 != MP_OKAY) {
             ret = MP_INIT_E;
         }
-    }
-    else {
-        (void)XMEMSET(&tmp, 0, sizeof(mp_int));
-        (void)XMEMSET(&tmp2, 0, sizeof(mp_int));
+        else
+        {
+            /* tmp and tmp2 are initialized */
+            tmp_valid = 1;
+        }
     }
 
     if (ret == 0) {
@@ -2239,8 +2241,11 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
             XFREE(buf, dh->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
-    mp_clear(&tmp);
-    mp_clear(&tmp2);
+
+    if (tmp_valid) {
+        mp_clear(&tmp);
+        mp_clear(&tmp2);
+    }
 
     return ret;
 }

@@ -7020,6 +7020,7 @@ int wc_ecc_sig_to_rs(const byte* sig, word32 sigLen, byte* r, word32* rLen,
                      byte* s, word32* sLen)
 {
     int err;
+    int tmp_valid = 0;
     word32 x = 0;
 #ifdef WOLFSSL_SMALL_STACK
     mp_int* rtmp = NULL;
@@ -7043,10 +7044,12 @@ int wc_ecc_sig_to_rs(const byte* sig, word32 sigLen, byte* r, word32* rLen,
     }
 #endif
 
-    (void)XMEMSET(&rtmp, 0, sizeof(mp_int));
-    (void)XMEMSET(&stmp, 0, sizeof(mp_int));
-
     err = DecodeECC_DSA_Sig(sig, sigLen, rtmp, stmp);
+
+    /* rtmp and stmp are initialized */
+    if (err == MP_OKAY) {
+        tmp_valid = 1;
+    }
 
     /* extract r */
     if (err == MP_OKAY) {
@@ -7072,8 +7075,10 @@ int wc_ecc_sig_to_rs(const byte* sig, word32 sigLen, byte* r, word32* rLen,
         }
     }
 
-    mp_clear(rtmp);
-    mp_clear(stmp);
+    if (tmp_valid) {
+        mp_clear(rtmp);
+        mp_clear(stmp);
+    }
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(stmp, NULL, DYNAMIC_TYPE_ECC);
     XFREE(rtmp, NULL, DYNAMIC_TYPE_ECC);
