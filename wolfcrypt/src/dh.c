@@ -2150,8 +2150,7 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
                 != MP_OKAY) {
             ret = MP_INIT_E;
         }
-        else
-        {
+        else {
             /* tmp and tmp2 are initialized */
             tmp_valid = 1;
         }
