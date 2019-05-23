@@ -4596,6 +4596,9 @@ static int GetName(DecodedCert* cert, int nameType)
         DecodedName* dName =
                   (nameType == ISSUER) ? &cert->issuerName : &cert->subjectName;
         int dcnum = 0;
+        #ifdef OPENSSL_EXTRA
+        int count = 0;
+        #endif
     #endif /* OPENSSL_EXTRA */
 
     WOLFSSL_MSG("Getting Cert Name");
@@ -4828,6 +4831,10 @@ static int GetName(DecodedCert* cert, int nameType)
             #endif
                 XMEMCPY(&full[idx], &cert->source[cert->srcIdx], strLen);
                 idx += strLen;
+            #if defined(OPENSSL_EXTRA)
+                /* store order that DN was parsed */
+                dName->loc[count++] = id;
+            #endif
             }
 
             cert->srcIdx += strLen;
@@ -4898,6 +4905,10 @@ static int GetName(DecodedCert* cert, int nameType)
             #endif
                 XMEMCPY(&full[idx], &cert->source[cert->srcIdx], strLen);
                 idx += strLen;
+            #if defined(OPENSSL_EXTRA)
+                /* store order that DN was parsed */
+                dName->loc[count++] = id;
+            #endif
             }
 
             cert->srcIdx += strLen;
@@ -4979,6 +4990,10 @@ static int GetName(DecodedCert* cert, int nameType)
                 if (!tooBig) {
                     XMEMCPY(&full[idx], &cert->source[cert->srcIdx], adv);
                     idx += adv;
+                #if defined(OPENSSL_EXTRA)
+                    /* store order that DN was parsed */
+                    dName->loc[count++] = ASN_EMAIL_NAME;
+                #endif
                 }
             }
 
@@ -4996,6 +5011,11 @@ static int GetName(DecodedCert* cert, int nameType)
                             defined(OPENSSL_EXTRA_X509_SMALL)
                             dName->uidIdx = cert->srcIdx;
                             dName->uidLen = adv;
+
+                            #ifdef OPENSSL_EXTRA
+                            /* store order that DN was parsed */
+                            dName->loc[count++] = ASN_USER_ID;
+                            #endif
                         #endif /* OPENSSL_EXTRA */
                             break;
 
@@ -5008,6 +5028,11 @@ static int GetName(DecodedCert* cert, int nameType)
                             dName->dcLen[dcnum] = adv;
                             dName->dcNum = dcnum + 1;
                             dcnum++;
+
+                            #ifdef OPENSSL_EXTRA
+                            /* store order that DN was parsed */
+                            dName->loc[count++] = ASN_DOMAIN_COMPONENT;
+                            #endif
                         #endif /* OPENSSL_EXTRA */
                             break;
 
@@ -5024,6 +5049,10 @@ static int GetName(DecodedCert* cert, int nameType)
         }
     }
     full[idx++] = 0;
+    #if defined(OPENSSL_EXTRA)
+    /* store order that DN was parsed */
+    dName->locSz = count;
+    #endif
 
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     {
