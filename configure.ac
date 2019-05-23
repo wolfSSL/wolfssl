@@ -1672,6 +1672,20 @@ AC_ARG_ENABLE([psk],
     [ ENABLED_PSK=no ]
     )
 
+# Single PSK identity
+AC_ARG_ENABLE([psk-one-id],
+    [AS_HELP_STRING([--enable-psk-one-id],[Enable PSK (default: disabled)])],
+    [ ENABLED_PSK_ONE_ID=$enableval ],
+    [ ENABLED_PSK_ONE_ID=no ]
+    )
+if test "$ENABLED_PSK_ONE_ID" = "yes"
+then
+    if test "$ENABLED_PSK" = "no"
+    then
+        ENABLED_PSK="yes"
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PSK_ONE_ID"
+fi
 
 # ERROR STRINGS
 AC_ARG_ENABLE([errorstrings],
