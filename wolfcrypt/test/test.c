@@ -105,8 +105,15 @@
     #ifdef XMALLOC_USER
         #include <stdlib.h>  /* we're using malloc / free direct here */
     #endif
+    #ifndef STRING_USER
+        #include <stdio.h>
+    #endif
 
-    #include <stdio.h>
+    /* enable way for customer to override test/bench printf */
+    #ifdef XPRINTF
+        #undef  printf
+        #define printf XPRINTF
+    #endif
 #endif
 
 #include <wolfssl/wolfcrypt/memory.h>
