@@ -156,6 +156,10 @@ struct WC_RNG {
 #ifdef HAVE_HASHDRBG
     /* Hash-based Deterministic Random Bit Generator */
     struct DRBG* drbg;
+#if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
+    #define DRBG_STRUCT_SZ ((sizeof(word32)*2) + (DRBG_SEED_LEN*2) + sizeof(byte))
+    byte drbg_data[DRBG_STRUCT_SZ];
+#endif
     byte status;
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
