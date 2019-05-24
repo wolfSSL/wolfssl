@@ -611,7 +611,8 @@
     enum wc_HashType {
     #if defined(HAVE_SELFTEST) || defined(HAVE_FIPS)
         /* In selftest build, WC_* types are not mapped to WC_HASH_TYPE types.
-         * Values here are based on old selftest hmac.h enum, with additions */
+         * Values here are based on old selftest hmac.h enum, with additions.
+         * These values are fixed for backwards FIPS compatibility */
         WC_HASH_TYPE_NONE = 15,
         WC_HASH_TYPE_MD2 = 16,
         WC_HASH_TYPE_MD4 = 17,
@@ -627,8 +628,9 @@
         WC_HASH_TYPE_SHA3_384 = 12,
         WC_HASH_TYPE_SHA3_512 = 13,
         WC_HASH_TYPE_BLAKE2B = 14,
+        WC_HASH_TYPE_BLAKE2S = 19,
 
-        WC_HASH_TYPE_MAX = WC_HASH_TYPE_MD5_SHA
+        WC_HASH_TYPE_MAX = WC_HASH_TYPE_BLAKE2S
     #else
         WC_HASH_TYPE_NONE = 0,
         WC_HASH_TYPE_MD2 = 1,
@@ -645,8 +647,9 @@
         WC_HASH_TYPE_SHA3_384 = 12,
         WC_HASH_TYPE_SHA3_512 = 13,
         WC_HASH_TYPE_BLAKE2B = 14,
+        WC_HASH_TYPE_BLAKE2S = 15,
 
-        WC_HASH_TYPE_MAX = WC_HASH_TYPE_BLAKE2B
+        WC_HASH_TYPE_MAX = WC_HASH_TYPE_BLAKE2S
     #endif /* HAVE_SELFTEST */
     };
 

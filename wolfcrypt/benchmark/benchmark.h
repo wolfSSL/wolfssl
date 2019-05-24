@@ -90,7 +90,8 @@ void bench_ed25519KeySign(void);
 void bench_ntru(void);
 void bench_ntruKeyGen(void);
 void bench_rng(void);
-void bench_blake2(void);
+void bench_blake2b(void);
+void bench_blake2s(void);
 
 
 #ifdef __cplusplus
