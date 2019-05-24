@@ -89,6 +89,14 @@ static void FreeAll(void)
 
 static void sig_handler(const int sig)
 {
+    SSLStats sslStats;
+    ssl_ReadStatistics(&sslStats);
+    printf("SSL Stats (sslStandardConns):%u\n", sslStats.sslStandardConns);
+    printf("SSL Stats (sslClientAuthConns):%u\n", sslStats.sslClientAuthConns);
+    printf("SSL Stats (sslResumedConns):%u\n", sslStats.sslResumedConns);
+    printf("SSL Stats (sslResumeMisses):%u\n", sslStats.sslResumeMisses);
+    printf("SSL Stats (sslAlerts):%u\n", sslStats.sslAlerts);
+
     printf("SIGINT handled = %d.\n", sig);
     FreeAll();
     if (sig)

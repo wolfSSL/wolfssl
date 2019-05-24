@@ -1932,10 +1932,13 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
     }
 #endif
 
-    if (session->sslServer->options.haveSessionId &&
-            XMEMCMP(session->sslServer->arrays->sessionID,
+    if (session->sslServer->options.haveSessionId) {
+        if (XMEMCMP(session->sslServer->arrays->sessionID,
                     session->sslClient->arrays->sessionID, ID_LEN) == 0)
-        doResume = 1;
+            doResume = 1;
+        else if (session->sslClient->options.haveSessionId)
+            INC_STAT(SnifferStats.sslResumeMisses);
+    }
     else if (session->sslClient->options.haveSessionId == 0 &&
              session->sslServer->options.haveSessionId == 0 &&
              session->ticketID)
@@ -1962,6 +1965,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         session->flags.resuming = 1;
 
         Trace(SERVER_DID_RESUMPTION_STR);
+        INC_STAT(SnifferStats.sslResumedConns);
         if (SetCipherSpecs(session->sslServer) != 0) {
             SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
             return -1;
@@ -1987,6 +1991,9 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
             SetError(BAD_DERIVE_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }
+    }
+    else {
+        INC_STAT(SnifferStats.sslStandardConns);
     }
 #ifdef SHOW_SECRETS
     {
@@ -2305,6 +2312,8 @@ static int DoHandShake(const byte* input, int* sslBytes,
             break;
         case certificate:
             Trace(GOT_CERT_STR);
+            if (session->flags.side == WOLFSSL_CLIENT_END)
+                INC_STAT(SnifferStats.sslClientAuthConns);
             break;
         case server_hello_done:
             Trace(GOT_SERVER_HELLO_DONE_STR);
