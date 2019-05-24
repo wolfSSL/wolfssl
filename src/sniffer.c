@@ -374,12 +374,16 @@ typedef struct SnifferSession {
     FinCaputre     finCaputre;      /* retain out of order FIN s */
     Flags          flags;           /* session flags */
     time_t         lastUsed;          /* last used ticks */
+    word32         keySz;           /* size of the private key */
     PacketBuffer*  cliReassemblyList; /* client out of order packets */
     PacketBuffer*  srvReassemblyList; /* server out of order packets */
     word32         cliReassemblyMemory; /* client packet memory used */
     word32         srvReassemblyMemory; /* server packet memory used */
     struct SnifferSession* next;      /* for hash table list */
     byte*          ticketID;          /* mac ID of session ticket */
+#ifdef HAVE_SNI
+    const char*    sni;             /* server name indication */
+#endif
 #ifdef HAVE_EXTENDED_MASTER
     HsHashes*       hash;
 #endif
@@ -401,6 +405,10 @@ static wolfSSL_Mutex RecoveryMutex;      /* for stats */
 static int RecoveryEnabled    = 0;       /* global switch */
 static int MaxRecoveryMemory  = -1;      /* per session max recovery memory */
 static word32 MissedDataSessions = 0;    /* # of sessions with missed data */
+
+/* Connection Info Callback */
+static SSLConnCb ConnectionCb;
+static void* ConnectionCbCtx = NULL;
 
 
 static void UpdateMissedDataSessions(void)
@@ -1025,12 +1033,20 @@ static void TraceSessionInfo(SSLInfo* sslInfo)
     if (TraceOn) {
         if (sslInfo != NULL && sslInfo->isValid) {
             fprintf(TraceFile,
-                    "\tver:(%u %u) suiteId:(%02x %02x) suiteName:(%s)\n",
+                    "\tver:(%u %u) suiteId:(%02x %02x) suiteName:(%s) "
+                    #ifdef HAVE_SNI
+                    "sni:(%s) "
+                    #endif
+                    "keySize:(%u)\n",
                     sslInfo->protocolVersionMajor,
                     sslInfo->protocolVersionMinor,
                     sslInfo->serverCipherSuite0,
                     sslInfo->serverCipherSuite,
-                    sslInfo->serverCipherSuiteName);
+                    sslInfo->serverCipherSuiteName,
+                    #ifdef HAVE_SNI
+                    sslInfo->serverNameIndication,
+                    #endif
+                    sslInfo->keySize);
         }
     }
 }
@@ -1478,6 +1494,58 @@ static int GetRecordHeader(const byte* input, RecordLayerHeader* rh, int* size)
 }
 
 
+/* Copies the session's infomation to the provided sslInfo. Skip copy if
+ * SSLInfo is not provided. */
+static void CopySessionInfo(SnifferSession* session, SSLInfo* sslInfo)
+{
+    if (NULL != sslInfo) {
+        XMEMSET(sslInfo, 0, sizeof(SSLInfo));
+
+        /* Pass back Session Info after we have processed the Server Hello. */
+        if (0 != session->sslServer->options.cipherSuite) {
+            const char* pCipher;
+
+            sslInfo->isValid = 1;
+            sslInfo->protocolVersionMajor = session->sslServer->version.major;
+            sslInfo->protocolVersionMinor = session->sslServer->version.minor;
+            sslInfo->serverCipherSuite0 =
+                        session->sslServer->options.cipherSuite0;
+            sslInfo->serverCipherSuite =
+                        session->sslServer->options.cipherSuite;
+
+            pCipher = wolfSSL_get_cipher(session->sslServer);
+            if (NULL != pCipher) {
+                XSTRNCPY((char*)sslInfo->serverCipherSuiteName, pCipher,
+                         sizeof(sslInfo->serverCipherSuiteName));
+                sslInfo->serverCipherSuiteName
+                         [sizeof(sslInfo->serverCipherSuiteName) - 1] = '\0';
+            }
+            sslInfo->keySize = session->keySz;
+            #ifdef HAVE_SNI
+            if (NULL != session->sni) {
+                XSTRNCPY((char*)sslInfo->serverNameIndication,
+                         session->sni, sizeof(sslInfo->serverNameIndication));
+                sslInfo->serverNameIndication
+                         [sizeof(sslInfo->serverNameIndication) - 1] = '\0';
+            }
+            #endif
+            TraceSessionInfo(sslInfo);
+        }
+    }
+}
+
+
+/* Call the session connection start callback. */
+static void CallConnectionCb(SnifferSession* session)
+{
+    if (ConnectionCb != NULL) {
+        SSLInfo info;
+        CopySessionInfo(session, &info);
+        ConnectionCb((const void*)session, &info, ConnectionCbCtx);
+    }
+}
+
+
 /* Process Client Key Exchange, RSA or static ECDH */
 static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
                                     SnifferSession* session, char* error)
@@ -1537,6 +1605,10 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
         }
 
         if (ret == 0) {
+            session->keySz = length * WOLFSSL_BIT_SIZE;
+            /* length is the key size in bytes */
+            session->sslServer->arrays->preMasterSz = SECRET_LEN;
+
             do {
             #ifdef WOLFSSL_ASYNC_CRYPT
                 ret = wc_AsyncWait(ret, &key.asyncDev,
@@ -1545,7 +1617,7 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
                 if (ret >= 0) {
                     ret = wc_RsaPrivateDecrypt(input, length,
                           session->sslServer->arrays->preMasterSecret,
-                          SECRET_LEN, &key);
+                          session->sslServer->arrays->preMasterSz, &key);
                 }
             } while (ret == WC_PENDING_E);
 
@@ -1553,8 +1625,6 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
                 SetError(RSA_DECRYPT_STR, error, session, FATAL_ERROR_STATE);
             }
         }
-
-        session->sslServer->arrays->preMasterSz = SECRET_LEN;
 
         wc_FreeRsaKey(&key);
     }
@@ -1604,6 +1674,10 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
         }
 
         if (ret == 0) {
+            session->keySz = ((length - 1) / 2) * WOLFSSL_BIT_SIZE;
+            /* Length is in bytes. Subtract 1 for the ECC key type. Divide
+             * by two as the key is in (x,y) coordinates, where x and y are
+             * the same size, the key size. Convert from bytes to bits. */
             session->sslServer->arrays->preMasterSz = ENCRYPT_LEN;
 
             do {
@@ -1680,6 +1754,8 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
         printf("client suite = %d\n", session->sslClient->options.cipherSuite);
     }
 #endif
+
+    CallConnectionCb(session);
 
     return ret;
 }
@@ -1953,6 +2029,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                                                              FATAL_ERROR_STATE);
                         return -1;
                     }
+                    session->sni = namedKey->name;
                     break;
                 }
                 else
@@ -2503,6 +2580,10 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     session->cliSeqStart = tcpInfo->sequence;
     session->cliExpected = 1;  /* relative */
     session->lastUsed= time(NULL);
+    session->keySz = 0;
+#ifdef HAVE_SNI
+    session->sni = NULL;
+#endif
 
     session->context = GetSnifferServer(ipInfo, tcpInfo);
     if (session->context == NULL) {
@@ -3582,38 +3663,6 @@ static int RemoveFatalSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
 }
 
 
-/* Copies the session's infomation to the provided sslInfo. Skip copy if
- * SSLInfo is not provided. */
-static void CopySessionInfo(SnifferSession* session, SSLInfo* sslInfo)
-{
-    if (NULL != sslInfo) {
-        XMEMSET(sslInfo, 0, sizeof(SSLInfo));
-
-        /* Pass back Session Info after we have processed the Server Hello. */
-        if (0 != session->sslServer->options.cipherSuite) {
-            const char* pCipher;
-
-            sslInfo->isValid = 1;
-            sslInfo->protocolVersionMajor = session->sslServer->version.major;
-            sslInfo->protocolVersionMinor = session->sslServer->version.minor;
-            sslInfo->serverCipherSuite0 =
-                        session->sslServer->options.cipherSuite0;
-            sslInfo->serverCipherSuite =
-                        session->sslServer->options.cipherSuite;
-
-            pCipher = wolfSSL_get_cipher(session->sslServer);
-            if (NULL != pCipher) {
-                XSTRNCPY((char*)sslInfo->serverCipherSuiteName, pCipher,
-                         sizeof(sslInfo->serverCipherSuiteName));
-                sslInfo->serverCipherSuiteName
-                         [sizeof(sslInfo->serverCipherSuiteName) - 1] = '\0';
-            }
-            TraceSessionInfo(sslInfo);
-        }
-    }
-}
-
-
 /* Passes in an IP/TCP packet for decoding (ethernet/localhost frame) removed */
 /* returns Number of bytes on success, 0 for no data yet, and -1 on error */
 static int ssl_DecodePacketInternal(const byte* packet, int length,
@@ -3777,6 +3826,22 @@ int ssl_GetSessionStats(unsigned int* active,     unsigned int* total,
         SetError(BAD_SESSION_STATS, error, NULL, 0);
         return -1;
     }
+}
+
+
+
+int ssl_SetConnectionCb(SSLConnCb cb)
+{
+    ConnectionCb = cb;
+    return 0;
+}
+
+
+
+int ssl_SetConnectionCtx(void* ctx)
+{
+    ConnectionCbCtx = ctx;
+    return 0;
 }
 
 
