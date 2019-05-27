@@ -1987,7 +1987,6 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
     int ret = 0;
     mp_int* keyP = NULL;
     mp_int* keyG = NULL;
-    mp_int* keyQ = NULL;
 
     if (key == NULL || p == NULL || g == NULL || pSz == 0 || gSz == 0) {
         ret = BAD_FUNC_ARG;
@@ -2052,8 +2051,6 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
     if (ret == 0 && q != NULL) {
         if (mp_read_unsigned_bin(&key->q, q, qSz) != MP_OKAY)
             ret = MP_INIT_E;
-        else
-            keyQ = &key->q;
     }
 
     if (ret != 0 && key != NULL) {
