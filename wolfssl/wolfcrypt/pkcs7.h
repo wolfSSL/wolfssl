@@ -198,6 +198,7 @@ typedef struct PKCS7State PKCS7State;
 typedef struct Pkcs7Cert Pkcs7Cert;
 typedef struct Pkcs7EncodedRecip Pkcs7EncodedRecip;
 typedef struct PKCS7 PKCS7;
+typedef struct PKCS7SignerInfo PKCS7SignerInfo;
 
 /* OtherRecipientInfo decrypt callback prototype */
 typedef int (*CallbackOriDecrypt)(PKCS7* pkcs7, byte* oriType, word32 oriTypeSz,
@@ -208,6 +209,10 @@ typedef int (*CallbackOriEncrypt)(PKCS7* pkcs7, byte* cek, word32 cekSz,
                                   byte* oriType, word32* oriTypeSz,
                                   byte* oriValue, word32* oriValueSz,
                                   void* ctx);
+typedef int (*CallbackDecryptContent)(PKCS7* pkcs7, int encryptOID,
+                                   byte* iv, int ivSz, byte* aad, word32 aadSz,
+                                   byte* authTag, word32 authTagSz, byte* in,
+                                   int inSz, byte* out);
 
 /* Public Structure Warning:
  * Existing members must not be changed to maintain backwards compatibility! 
@@ -295,6 +300,9 @@ struct PKCS7 {
 
     word16 skipDefaultSignedAttribs:1; /* skip adding default signed attribs */
 
+    byte version; /* 1 for RFC 2315 and 3 for RFC 4108 */
+    PKCS7SignerInfo* signerInfo;
+    CallbackDecryptContent decryptionCb;
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };
 
@@ -336,6 +344,8 @@ WOLFSSL_API int  wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
                                           word32 hashSz, byte* pkiMsgHead,
                                           word32 pkiMsgHeadSz, byte* pkiMsgFoot,
                                           word32 pkiMsgFootSz);
+
+WOLFSSL_API int  wc_PKCS7_GetSignerSID(PKCS7* pkcs7, byte* out, word32* outSz);
 
 /* CMS single-shot API for Signed FirmwarePkgData */
 WOLFSSL_API int  wc_PKCS7_EncodeSignedFPD(PKCS7* pkcs7, byte* privateKey,
