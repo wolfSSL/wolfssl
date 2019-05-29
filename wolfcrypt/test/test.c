@@ -20829,6 +20829,10 @@ static int myDecryptionFunc(PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
         memset(keyIdRaw, 0, sizeof(keyIdRaw));
         ret = wc_PKCS7_GetAttributeValue(pkcs7, OID, sizeof(OID), keyIdRaw,
                 &keyIdSz);
+        if (ret < 0) {
+            return ret;
+        }
+
         if (keyIdSz < 3) {
             printf("keyIdSz is smaller than expected\n");
             return -1;

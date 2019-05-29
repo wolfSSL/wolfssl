@@ -3668,7 +3668,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
     byte* in2, word32 in2Sz)
 {
     word32 idx, outerContentType, contentTypeSz = 0, totalSz = 0;
-    int length = 0, version, ret = 0;
+    int length = 0, version = 0, ret = 0;
     byte* content = NULL;
     byte* contentDynamic = NULL;
     byte* sig = NULL;
@@ -11326,8 +11326,10 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
             encOID = 0;
 #endif
             if (ret == 0 && (encryptedContent = (byte*)XMALLOC(
-                  encryptedContentSz, pkcs7->heap, DYNAMIC_TYPE_PKCS7)) == NULL)
+                encryptedContentSz, pkcs7->heap, DYNAMIC_TYPE_PKCS7)) == NULL) {
                 ret = MEMORY_E;
+                break;
+            }
 
             if (ret == 0) {
                 XMEMCPY(encryptedContent, &pkiMsg[idx], encryptedContentSz);
