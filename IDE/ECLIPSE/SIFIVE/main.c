@@ -33,16 +33,27 @@
 /*-specs=nano.specs doesn’t include support for floating point in printf()*/
 asm (".global _printf_float");
 
-#define RTC_FREQ    32768
+#ifndef RTC_FREQ
+    #define RTC_FREQ    32768
+#endif
+
 #define CLINT_MTIME_ADDR  0x200bff8
 #define WOLFSSL_SIFIVE_RISC_V_DEBUG 0
+
+unsigned long get_cpu_freq(void)
+{
+    /* If clocking up the CPU, you need to add a logic to measure cpu freq */
+
+    return RTC_FREQ;
+}
 
 double current_time(int reset)
 {
     volatile uint64_t * mtime  = (uint64_t*) (CLINT_MTIME_ADDR);
     uint64_t now = *mtime;
     (void)reset;
-    return now/RTC_FREQ;
+    /**/
+    return now/get_cpu_freq();
 }
 #endif
 
@@ -70,7 +81,7 @@ void mtime_sleep( uint64_t ticks) {
 }
 
 void delay(int sec) {
-    uint64_t ticks = sec * RTC_FREQ;
+    uint64_t ticks = sec * get_cpu_freq();
     mtime_sleep(ticks);
 }
 #endif 
@@ -120,7 +131,7 @@ int main(void)
 #if WOLFSSL_SIFIVE_RISC_V_DEBUG
     printf("check stack and heap addresses\n");
     check(8);
-    printf("sleep for 10 seconds to verify timer\n");
+    printf("sleep for 10 seconds to verify timer, measure using a stopwatch\n");
     delay(10);
     printf("awake after sleeping for 10 seconds\n");
 #endif    

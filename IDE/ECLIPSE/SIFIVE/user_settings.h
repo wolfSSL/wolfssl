@@ -117,12 +117,12 @@ extern "C" {
     #define ECC_USER_CURVES
 
     #ifdef ECC_USER_CURVES
-        /* Manual Curve Selection */
-        #define HAVE_ECC192
-        #define HAVE_ECC224
+        /* Manual Curve Selection, FP_MAX_BITS must be adjusted accordingly */
+        // #define HAVE_ECC192
+        // #define HAVE_ECC224
         #undef NO_ECC256
-        #define HAVE_ECC384
-        #define HAVE_ECC521
+        // #define HAVE_ECC384
+        // #define HAVE_ECC521
     #endif
 
     /* Fixed point cache (speeds repeated operations against same private key) */

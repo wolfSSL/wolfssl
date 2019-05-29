@@ -15,12 +15,6 @@ The `IDE/ECLIPSE/SIFIVE/main.c` example application provides a function to run t
 - #undef NO_CRYPT_TEST
 - #undef NO_CRYPT_BENCHMARK
 ```
-## Tested Configurations
-- SHA-1
-- SHA-256
-- AES CBC
-- ECC sign/verify/shared secret with fast math library
-
 ## Setup
 ### Setting up the SDK with wolfSSL
 1. Download the wolfSSL source code or a zip file from GitHub and place it under your SDK `$HOME` directory. You can also copy or simlink to the source.
@@ -178,6 +172,12 @@ ECDSA    256 sign            2 ops took 25.000 sec, avg 12500.000 ms, 0.080 ops/
 ECDSA    256 verify          2 ops took 48.000 sec, avg 24000.000 ms, 0.042 ops/sec
 Benchmark complete
 ```
+## Tested Configurations
+- SHA-1
+- SHA-256
+- AES CBC
+- ECC 256 sign/verify/shared secret with fast math library
+
 ## Known Caveats
 - If you find the wolfcrypt test stuck on early_trap_vector error, it is like related to memory issues
 - Using the `__stack_size` default value of 0x400 will not be enough for the ECC test to pass.
