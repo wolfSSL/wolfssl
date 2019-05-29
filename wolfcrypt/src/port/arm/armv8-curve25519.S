@@ -19,18 +19,22 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* Generated using (from wolfssl):
+ *   cd ../scripts
+ *   ruby ./x25519/x25519.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-curve25519.S
+ */
 #ifdef __aarch64__
-.text
-.globl	fe_init
-.type	fe_init,@function
-.align	4
+	.text
+	.align	2
+	.globl	fe_init
+	.type	fe_init, %function
 fe_init:
 	ret
-.size	fe_init,.-fe_init
-.text
-.globl	fe_frombytes
-.type	fe_frombytes,@function
-.align	4
+	.size	fe_init,.-fe_init
+	.text
+	.align	2
+	.globl	fe_frombytes
+	.type	fe_frombytes, %function
 fe_frombytes:
 	ldp	x2, x3, [x1]
 	ldp	x4, x5, [x1, #16]
@@ -38,11 +42,11 @@ fe_frombytes:
 	stp	x2, x3, [x0]
 	stp	x4, x5, [x0, #16]
 	ret
-.size	fe_frombytes,.-fe_frombytes
-.text
-.globl	fe_tobytes
-.type	fe_tobytes,@function
-.align	4
+	.size	fe_frombytes,.-fe_frombytes
+	.text
+	.align	2
+	.globl	fe_tobytes
+	.type	fe_tobytes, %function
 fe_tobytes:
 	mov	x7, #19
 	ldp	x2, x3, [x1]
@@ -51,8 +55,7 @@ fe_tobytes:
 	adcs	x6, x3, xzr
 	adcs	x6, x4, xzr
 	adc	x6, x5, xzr
-	asr	x6, x6, #63
-	and	x6, x6, x7
+	and	x6, x7, x6, asr 63
 	adds	x2, x2, x6
 	adcs	x3, x3, xzr
 	adcs	x4, x4, xzr
@@ -61,32 +64,32 @@ fe_tobytes:
 	stp	x2, x3, [x0]
 	stp	x4, x5, [x0, #16]
 	ret
-.size	fe_tobytes,.-fe_tobytes
-.text
-.globl	fe_1
-.type	fe_1,@function
-.align	4
+	.size	fe_tobytes,.-fe_tobytes
+	.text
+	.align	2
+	.globl	fe_1
+	.type	fe_1, %function
 fe_1:
 	# Set one
 	mov	x1, #1
 	stp	x1, xzr, [x0]
 	stp	xzr, xzr, [x0, #16]
 	ret
-.size	fe_1,.-fe_1
-.text
-.globl	fe_0
-.type	fe_0,@function
-.align	4
+	.size	fe_1,.-fe_1
+	.text
+	.align	2
+	.globl	fe_0
+	.type	fe_0, %function
 fe_0:
 	# Set zero
 	stp	xzr, xzr, [x0]
 	stp	xzr, xzr, [x0, #16]
 	ret
-.size	fe_0,.-fe_0
-.text
-.globl	fe_copy
-.type	fe_copy,@function
-.align	4
+	.size	fe_0,.-fe_0
+	.text
+	.align	2
+	.globl	fe_copy
+	.type	fe_copy, %function
 fe_copy:
 	# Copy
 	ldp	x2, x3, [x1]
@@ -94,36 +97,11 @@ fe_copy:
 	stp	x2, x3, [x0]
 	stp	x4, x5, [x0, #16]
 	ret
-.size	fe_copy,.-fe_copy
-.text
-.globl	fe_cswap
-.type	fe_cswap,@function
-.align	4
-fe_cswap:
-	# Conditional Swap
-	cmp	x2, #1
-	ldp	x3, x4, [x0]
-	ldp	x5, x6, [x0, #16]
-	ldp	x7, x8, [x1]
-	ldp	x9, x10, [x1, #16]
-	csel	x11, x3, x7, eq
-	csel	x3, x7, x3, eq
-	csel	x12, x4, x8, eq
-	csel	x4, x8, x4, eq
-	csel	x13, x5, x9, eq
-	csel	x5, x9, x5, eq
-	csel	x14, x6, x10, eq
-	csel	x6, x10, x6, eq
-	stp	x3, x4, [x0]
-	stp	x5, x6, [x0, #16]
-	stp	x11, x12, [x1]
-	stp	x13, x14, [x1, #16]
-	ret
-.size	fe_cswap,.-fe_cswap
-.text
-.globl	fe_sub
-.type	fe_sub,@function
-.align	4
+	.size	fe_copy,.-fe_copy
+	.text
+	.align	2
+	.globl	fe_sub
+	.type	fe_sub, %function
 fe_sub:
 	# Sub
 	ldp	x3, x4, [x1]
@@ -147,11 +125,11 @@ fe_sub:
 	stp	x3, x4, [x0]
 	stp	x5, x6, [x0, #16]
 	ret
-.size	fe_sub,.-fe_sub
-.text
-.globl	fe_add
-.type	fe_add,@function
-.align	4
+	.size	fe_sub,.-fe_sub
+	.text
+	.align	2
+	.globl	fe_add
+	.type	fe_add, %function
 fe_add:
 	# Add
 	ldp	x3, x4, [x1]
@@ -175,11 +153,11 @@ fe_add:
 	stp	x3, x4, [x0]
 	stp	x5, x6, [x0, #16]
 	ret
-.size	fe_add,.-fe_add
-.text
-.globl	fe_neg
-.type	fe_neg,@function
-.align	4
+	.size	fe_add,.-fe_add
+	.text
+	.align	2
+	.globl	fe_neg
+	.type	fe_neg, %function
 fe_neg:
 	ldp	x2, x3, [x1]
 	ldp	x4, x5, [x1, #16]
@@ -194,29 +172,11 @@ fe_neg:
 	stp	x6, x7, [x0]
 	stp	x8, x9, [x0, #16]
 	ret
-.size	fe_neg,.-fe_neg
-.text
-.globl	fe_cmov
-.type	fe_cmov,@function
-.align	4
-fe_cmov:
-	ldp	x4, x5, [x0]
-	ldp	x6, x7, [x0, #16]
-	ldp	x8, x9, [x1]
-	ldp	x10, x11, [x1, #16]
-	cmp	x2, #1
-	csel	x4, x4, x8, eq
-	csel	x5, x5, x9, eq
-	csel	x6, x6, x10, eq
-	csel	x7, x7, x11, eq
-	stp	x4, x5, [x0]
-	stp	x6, x7, [x0, #16]
-	ret
-.size	fe_cmov,.-fe_cmov
-.text
-.globl	fe_isnonzero
-.type	fe_isnonzero,@function
-.align	4
+	.size	fe_neg,.-fe_neg
+	.text
+	.align	2
+	.globl	fe_isnonzero
+	.type	fe_isnonzero, %function
 fe_isnonzero:
 	mov	x6, #19
 	ldp	x1, x2, [x0]
@@ -225,8 +185,7 @@ fe_isnonzero:
 	adcs	x5, x2, xzr
 	adcs	x5, x3, xzr
 	adc	x5, x4, xzr
-	asr	x5, x5, #63
-	and	x5, x5, x6
+	and	x5, x6, x5, asr 63
 	adds	x1, x1, x5
 	adcs	x2, x2, xzr
 	adcs	x3, x3, xzr
@@ -236,11 +195,11 @@ fe_isnonzero:
 	orr	x3, x3, x4
 	orr	x0, x0, x3
 	ret
-.size	fe_isnonzero,.-fe_isnonzero
-.text
-.globl	fe_isnegative
-.type	fe_isnegative,@function
-.align	4
+	.size	fe_isnonzero,.-fe_isnonzero
+	.text
+	.align	2
+	.globl	fe_isnegative
+	.type	fe_isnegative, %function
 fe_isnegative:
 	mov	x6, #19
 	ldp	x1, x2, [x0]
@@ -250,28 +209,22 @@ fe_isnegative:
 	adcs	x5, x3, xzr
 	adc	x5, x4, xzr
 	and	x0, x1, #1
-	lsr	x5, x5, #63
-	eor	x0, x0, x5
+	eor	x0, x0, x5, lsr 63
 	ret
-.size	fe_isnegative,.-fe_isnegative
-.text
-.globl	fe_cmov_table
-.type	fe_cmov_table,@function
-.align	4
+	.size	fe_isnegative,.-fe_isnegative
+	.text
+	.align	2
+	.globl	fe_cmov_table
+	.type	fe_cmov_table, %function
 fe_cmov_table:
 	stp	x29, x30, [sp, #-112]!
 	add	x29, sp, #0
 	str	x17, [x29, #16]
-	str	x18, [x29, #24]
-	str	x19, [x29, #32]
-	str	x20, [x29, #40]
-	str	x21, [x29, #48]
-	str	x22, [x29, #56]
-	str	x23, [x29, #64]
-	str	x24, [x29, #72]
-	str	x25, [x29, #80]
-	str	x26, [x29, #88]
-	str	x27, [x29, #96]
+	stp	x18, x19, [x29, #24]
+	stp	x20, x21, [x29, #40]
+	stp	x22, x23, [x29, #56]
+	stp	x24, x25, [x29, #72]
+	stp	x26, x27, [x29, #88]
 	str	x28, [x29, #104]
 	sxtb	x2, w2
 	sbfx	x15, x2, #7, #1
@@ -474,32 +427,25 @@ fe_cmov_table:
 	stp	x11, x12, [x0, #64]
 	stp	x13, x14, [x0, #80]
 	ldr	x17, [x29, #16]
-	ldr	x18, [x29, #24]
-	ldr	x19, [x29, #32]
-	ldr	x20, [x29, #40]
-	ldr	x21, [x29, #48]
-	ldr	x22, [x29, #56]
-	ldr	x23, [x29, #64]
-	ldr	x24, [x29, #72]
-	ldr	x25, [x29, #80]
-	ldr	x26, [x29, #88]
-	ldr	x27, [x29, #96]
+	ldp	x18, x19, [x29, #24]
+	ldp	x20, x21, [x29, #40]
+	ldp	x22, x23, [x29, #56]
+	ldp	x24, x25, [x29, #72]
+	ldp	x26, x27, [x29, #88]
 	ldr	x28, [x29, #104]
 	ldp	x29, x30, [sp], #0x70
 	ret
-.size	fe_cmov_table,.-fe_cmov_table
-.text
-.globl	fe_mul
-.type	fe_mul,@function
-.align	4
+	.size	fe_cmov_table,.-fe_cmov_table
+	.text
+	.align	2
+	.globl	fe_mul
+	.type	fe_mul, %function
 fe_mul:
 	stp	x29, x30, [sp, #-64]!
 	add	x29, sp, #0
 	str	x17, [x29, #24]
-	str	x18, [x29, #32]
-	str	x19, [x29, #40]
-	str	x20, [x29, #48]
-	str	x21, [x29, #56]
+	stp	x18, x19, [x29, #32]
+	stp	x20, x21, [x29, #48]
 	# Multiply
 	ldp	x14, x15, [x1]
 	ldp	x16, x17, [x1, #16]
@@ -631,8 +577,7 @@ fe_mul:
 	adcs	x8, x8, xzr
 	adc	x9, x9, xzr
 	# Reduce if top bit set
-	asr	x5, x9, #63
-	and	x5, x5, x3
+	and	x5, x3, x9, asr 63
 	and	x9, x9, #0x7fffffffffffffff
 	adds	x6, x6, x5
 	adcs	x7, x7, xzr
@@ -642,17 +587,15 @@ fe_mul:
 	stp	x6, x7, [x0]
 	stp	x8, x9, [x0, #16]
 	ldr	x17, [x29, #24]
-	ldr	x18, [x29, #32]
-	ldr	x19, [x29, #40]
-	ldr	x20, [x29, #48]
-	ldr	x21, [x29, #56]
+	ldp	x18, x19, [x29, #32]
+	ldp	x20, x21, [x29, #48]
 	ldp	x29, x30, [sp], #0x40
 	ret
-.size	fe_mul,.-fe_mul
-.text
-.globl	fe_sq
-.type	fe_sq,@function
-.align	4
+	.size	fe_mul,.-fe_mul
+	.text
+	.align	2
+	.globl	fe_sq
+	.type	fe_sq, %function
 fe_sq:
 	# Square
 	ldp	x13, x14, [x1]
@@ -751,8 +694,7 @@ fe_sq:
 	adcs	x7, x7, xzr
 	adc	x8, x8, xzr
 	# Reduce if top bit set
-	asr	x4, x8, #63
-	and	x4, x4, x2
+	and	x4, x2, x8, asr 63
 	and	x8, x8, #0x7fffffffffffffff
 	adds	x5, x5, x4
 	adcs	x6, x6, xzr
@@ -762,177 +704,11 @@ fe_sq:
 	stp	x5, x6, [x0]
 	stp	x7, x8, [x0, #16]
 	ret
-.size	fe_sq,.-fe_sq
-.text
-.globl	fe_mul121666
-.type	fe_mul121666,@function
-.align	4
-fe_mul121666:
-	# Multiply by 121666
-	ldp	x5, x6, [x1]
-	ldp	x7, x8, [x1, #16]
-	mov	x4, #0xdb42
-	movk	x4, #1, lsl 16
-	mul	x9, x5, x4
-	umulh	x10, x5, x4
-	mul	x2, x6, x4
-	umulh	x3, x6, x4
-	adds	x10, x10, x2
-	adc	x11, xzr, x3
-	mul	x2, x7, x4
-	umulh	x3, x7, x4
-	adds	x11, x11, x2
-	adc	x12, xzr, x3
-	mul	x2, x8, x4
-	umulh	x3, x8, x4
-	adds	x12, x12, x2
-	adc	x3, xzr, x3
-	mov	x4, #19
-	extr	x3, x3, x12, #63
-	mul	x3, x3, x4
-	and	x12, x12, #0x7fffffffffffffff
-	adds	x9, x9, x3
-	adcs	x10, x10, xzr
-	adcs	x11, x11, xzr
-	adc	x12, x12, xzr
-	stp	x9, x10, [x0]
-	stp	x11, x12, [x0, #16]
-	ret
-.size	fe_mul121666,.-fe_mul121666
-.text
-.globl	fe_sq2
-.type	fe_sq2,@function
-.align	4
-fe_sq2:
-	stp	x29, x30, [sp, #-32]!
-	add	x29, sp, #0
-	str	x17, [x29, #24]
-	# Square * 2
-	ldp	x5, x6, [x1]
-	ldp	x7, x8, [x1, #16]
-	#  A[0] * A[1]
-	mul	x10, x5, x6
-	umulh	x11, x5, x6
-	#  A[0] * A[2]
-	mul	x2, x5, x7
-	umulh	x12, x5, x7
-	adds	x11, x11, x2
-	adc	x12, x12, xzr
-	#  A[0] * A[3]
-	mul	x2, x5, x8
-	umulh	x13, x5, x8
-	adds	x12, x12, x2
-	adc	x13, x13, xzr
-	#  A[1] * A[2]
-	mul	x2, x6, x7
-	umulh	x3, x6, x7
-	adds	x12, x12, x2
-	adcs	x13, x13, x3
-	adc	x14, xzr, xzr
-	#  A[1] * A[3]
-	mul	x2, x6, x8
-	umulh	x3, x6, x8
-	adds	x13, x13, x2
-	adc	x14, x14, x3
-	#  A[2] * A[3]
-	mul	x2, x7, x8
-	umulh	x15, x7, x8
-	adds	x14, x14, x2
-	adc	x15, x15, xzr
-	# Double
-	adds	x10, x10, x10
-	adcs	x11, x11, x11
-	adcs	x12, x12, x12
-	adcs	x13, x13, x13
-	adcs	x14, x14, x14
-	adcs	x15, x15, x15
-	adc	x16, xzr, xzr
-	#  A[0] * A[0]
-	mul	x9, x5, x5
-	umulh	x17, x5, x5
-	#  A[1] * A[1]
-	mul	x2, x6, x6
-	umulh	x3, x6, x6
-	adds	x10, x10, x17
-	adcs	x11, x11, x2
-	adc	x17, x3, xzr
-	#  A[2] * A[2]
-	mul	x2, x7, x7
-	umulh	x3, x7, x7
-	adds	x12, x12, x17
-	adcs	x13, x13, x2
-	adc	x17, x3, xzr
-	#  A[3] * A[3]
-	mul	x2, x8, x8
-	umulh	x3, x8, x8
-	adds	x14, x14, x17
-	adcs	x15, x15, x2
-	adc	x16, x16, x3
-	# Double and Reduce
-	mov	x2, #0x169
-	#  Move top half into t4-t7 and remove top bit from t3
-	lsr	x17, x16, #61
-	extr	x16, x16, x15, #62
-	extr	x15, x15, x14, #62
-	extr	x14, x14, x13, #62
-	extr	x13, x13, x12, #62
-	extr	x12, x12, x11, #63
-	extr	x11, x11, x10, #63
-	extr	x10, x10, x9, #63
-	lsl	x9, x9, #1
-	and	x12, x12, #0x7fffffffffffffff
-	#  Two left, only one right
-	and	x16, x16, #0x7fffffffffffffff
-	#  Multiply top bits by 19*19
-	mul	x17, x17, x2
-	#  Multiply top half by 19
-	mov	x2, #19
-	mul	x3, x2, x13
-	umulh	x13, x2, x13
-	adds	x9, x9, x3
-	mul	x3, x2, x14
-	umulh	x14, x2, x14
-	adcs	x10, x10, x3
-	mul	x3, x2, x15
-	umulh	x15, x2, x15
-	adcs	x11, x11, x3
-	mul	x3, x2, x16
-	umulh	x4, x2, x16
-	adcs	x12, x12, x3
-	adc	x4, x4, xzr
-	#  Add remaining product results in
-	adds	x9, x9, x17
-	adcs	x10, x10, x13
-	adcs	x11, x11, x14
-	adcs	x12, x12, x15
-	adc	x4, x4, xzr
-	#  Overflow
-	extr	x4, x4, x12, #63
-	mul	x4, x4, x2
-	and	x12, x12, #0x7fffffffffffffff
-	adds	x9, x9, x4
-	adcs	x10, x10, xzr
-	adcs	x11, x11, xzr
-	adc	x12, x12, xzr
-	# Reduce if top bit set
-	asr	x4, x12, #63
-	and	x4, x4, x2
-	and	x12, x12, #0x7fffffffffffffff
-	adds	x9, x9, x4
-	adcs	x10, x10, xzr
-	adcs	x11, x11, xzr
-	adc	x12, x12, xzr
-	# Store
-	stp	x9, x10, [x0]
-	stp	x11, x12, [x0, #16]
-	ldr	x17, [x29, #24]
-	ldp	x29, x30, [sp], #32
-	ret
-.size	fe_sq2,.-fe_sq2
-.text
-.globl	fe_invert
-.type	fe_invert,@function
-.align	4
+	.size	fe_sq,.-fe_sq
+	.text
+	.align	2
+	.globl	fe_invert
+	.type	fe_invert, %function
 fe_invert:
 	stp	x29, x30, [sp, #-176]!
 	add	x29, sp, #0
@@ -954,16 +730,16 @@ fe_invert:
 	add	x1, x29, #16
 	add	x2, x29, #48
 	bl	fe_mul
-	add	x0, x29, #80
+	add	x0, x29, #0x50
 	bl	fe_sq
 	add	x0, x29, #48
 	add	x1, x29, #48
-	add	x2, x29, #80
+	add	x2, x29, #0x50
 	bl	fe_mul
-	add	x0, x29, #80
+	add	x0, x29, #0x50
 	bl	fe_sq
 	mov	x20, #4
-	add	x1, x29, #80
+	add	x1, x29, #0x50
 L_fe_invert1:
 	bl	fe_sq
 	sub	x20, x20, #1
@@ -972,11 +748,11 @@ L_fe_invert1:
 	add	x0, x29, #48
 	add	x2, x29, #48
 	bl	fe_mul
-	add	x0, x29, #80
+	add	x0, x29, #0x50
 	add	x1, x29, #48
 	bl	fe_sq
 	mov	x20, #9
-	add	x1, x29, #80
+	add	x1, x29, #0x50
 L_fe_invert2:
 	bl	fe_sq
 	sub	x20, x20, #1
@@ -984,20 +760,20 @@ L_fe_invert2:
 	bne	L_fe_invert2
 	add	x2, x29, #48
 	bl	fe_mul
-	add	x0, x29, #112
+	add	x0, x29, #0x70
 	bl	fe_sq
 	mov	x20, #19
-	add	x1, x29, #112
+	add	x1, x29, #0x70
 L_fe_invert3:
 	bl	fe_sq
 	sub	x20, x20, #1
 	cmp	x20, #0
 	bne	L_fe_invert3
-	add	x0, x29, #80
-	add	x2, x29, #80
+	add	x0, x29, #0x50
+	add	x2, x29, #0x50
 	bl	fe_mul
 	mov	x20, #10
-	add	x1, x29, #80
+	add	x1, x29, #0x50
 L_fe_invert4:
 	bl	fe_sq
 	sub	x20, x20, #1
@@ -1006,11 +782,11 @@ L_fe_invert4:
 	add	x0, x29, #48
 	add	x2, x29, #48
 	bl	fe_mul
-	add	x0, x29, #80
+	add	x0, x29, #0x50
 	add	x1, x29, #48
 	bl	fe_sq
 	mov	x20, #49
-	add	x1, x29, #80
+	add	x1, x29, #0x50
 L_fe_invert5:
 	bl	fe_sq
 	sub	x20, x20, #1
@@ -1018,20 +794,20 @@ L_fe_invert5:
 	bne	L_fe_invert5
 	add	x2, x29, #48
 	bl	fe_mul
-	add	x0, x29, #112
+	add	x0, x29, #0x70
 	bl	fe_sq
 	mov	x20, #0x63
-	add	x1, x29, #112
+	add	x1, x29, #0x70
 L_fe_invert6:
 	bl	fe_sq
 	sub	x20, x20, #1
 	cmp	x20, #0
 	bne	L_fe_invert6
-	add	x0, x29, #80
-	add	x2, x29, #80
+	add	x0, x29, #0x50
+	add	x2, x29, #0x50
 	bl	fe_mul
 	mov	x20, #50
-	add	x1, x29, #80
+	add	x1, x29, #0x50
 L_fe_invert7:
 	bl	fe_sq
 	sub	x20, x20, #1
@@ -1053,25 +829,20 @@ L_fe_invert8:
 	ldr	x20, [x29, #168]
 	ldp	x29, x30, [sp], #0xb0
 	ret
-.size	fe_invert,.-fe_invert
-.text
-.globl	curve25519
-.type	curve25519,@function
-.align	4
+	.size	fe_invert,.-fe_invert
+	.text
+	.align	2
+	.globl	curve25519
+	.type	curve25519, %function
 curve25519:
 	stp	x29, x30, [sp, #-288]!
 	add	x29, sp, #0
 	str	x17, [x29, #192]
-	str	x18, [x29, #200]
-	str	x19, [x29, #208]
-	str	x20, [x29, #216]
-	str	x21, [x29, #224]
-	str	x22, [x29, #232]
-	str	x23, [x29, #240]
-	str	x24, [x29, #248]
-	str	x25, [x29, #256]
-	str	x26, [x29, #264]
-	str	x27, [x29, #272]
+	stp	x18, x19, [x29, #200]
+	stp	x20, x21, [x29, #216]
+	stp	x22, x23, [x29, #232]
+	stp	x24, x25, [x29, #248]
+	stp	x26, x27, [x29, #264]
 	str	x28, [x29, #280]
 	mov	x22, xzr
 	str	x0, [x29, #176]
@@ -1317,8 +1088,7 @@ L_curve25519_bits:
 	adcs	x20, x20, xzr
 	adc	x21, x21, xzr
 	# Reduce if top bit set
-	asr	x5, x21, #63
-	and	x5, x5, x3
+	and	x5, x3, x21, asr 63
 	and	x21, x21, #0x7fffffffffffffff
 	adds	x18, x18, x5
 	adcs	x19, x19, xzr
@@ -1456,8 +1226,7 @@ L_curve25519_bits:
 	adcs	x20, x20, xzr
 	adc	x21, x21, xzr
 	# Reduce if top bit set
-	asr	x5, x21, #63
-	and	x5, x5, x3
+	and	x5, x3, x21, asr 63
 	and	x21, x21, #0x7fffffffffffffff
 	adds	x18, x18, x5
 	adcs	x19, x19, xzr
@@ -1559,8 +1328,7 @@ L_curve25519_bits:
 	adcs	x12, x12, xzr
 	adc	x13, x13, xzr
 	# Reduce if top bit set
-	asr	x5, x13, #63
-	and	x5, x5, x3
+	and	x5, x3, x13, asr 63
 	and	x13, x13, #0x7fffffffffffffff
 	adds	x10, x10, x5
 	adcs	x11, x11, xzr
@@ -1662,8 +1430,7 @@ L_curve25519_bits:
 	adcs	x16, x16, xzr
 	adc	x17, x17, xzr
 	# Reduce if top bit set
-	asr	x5, x17, #63
-	and	x5, x5, x3
+	and	x5, x3, x17, asr 63
 	and	x17, x17, #0x7fffffffffffffff
 	adds	x14, x14, x5
 	adcs	x15, x15, xzr
@@ -1797,8 +1564,7 @@ L_curve25519_bits:
 	adcs	x8, x8, xzr
 	adc	x9, x9, xzr
 	# Reduce if top bit set
-	asr	x5, x9, #63
-	and	x5, x5, x3
+	and	x5, x3, x9, asr 63
 	and	x9, x9, #0x7fffffffffffffff
 	adds	x6, x6, x5
 	adcs	x7, x7, xzr
@@ -1989,8 +1755,7 @@ L_curve25519_bits:
 	adcs	x8, x8, xzr
 	adc	x9, x9, xzr
 	# Reduce if top bit set
-	asr	x5, x9, #63
-	and	x5, x5, x3
+	and	x5, x3, x9, asr 63
 	and	x9, x9, #0x7fffffffffffffff
 	adds	x6, x6, x5
 	adcs	x7, x7, xzr
@@ -2126,8 +1891,7 @@ L_curve25519_bits:
 	adcs	x8, x8, xzr
 	adc	x9, x9, xzr
 	# Reduce if top bit set
-	asr	x5, x9, #63
-	and	x5, x5, x3
+	and	x5, x3, x9, asr 63
 	and	x9, x9, #0x7fffffffffffffff
 	adds	x6, x6, x5
 	adcs	x7, x7, xzr
@@ -2231,8 +1995,7 @@ L_curve25519_bits:
 	adcs	x8, x8, xzr
 	adc	x9, x9, xzr
 	# Reduce if top bit set
-	asr	x5, x9, #63
-	and	x5, x5, x3
+	and	x5, x3, x9, asr 63
 	and	x9, x9, #0x7fffffffffffffff
 	adds	x6, x6, x5
 	adcs	x7, x7, xzr
@@ -2368,8 +2131,7 @@ L_curve25519_bits:
 	adcs	x12, x12, xzr
 	adc	x13, x13, xzr
 	# Reduce if top bit set
-	asr	x5, x13, #63
-	and	x5, x5, x3
+	and	x5, x3, x13, asr 63
 	and	x13, x13, #0x7fffffffffffffff
 	adds	x10, x10, x5
 	adcs	x11, x11, xzr
@@ -2389,106 +2151,106 @@ L_curve25519_bits:
 	add	x0, x29, #48
 	add	x1, x29, #16
 	bl	fe_sq
-	add	x0, x29, #80
+	add	x0, x29, #0x50
 	add	x1, x29, #48
 	bl	fe_sq
-	add	x1, x29, #80
+	add	x1, x29, #0x50
 	bl	fe_sq
 	add	x1, x29, #16
-	add	x2, x29, #80
+	add	x2, x29, #0x50
 	bl	fe_mul
 	add	x0, x29, #48
 	add	x1, x29, #48
-	add	x2, x29, #80
+	add	x2, x29, #0x50
 	bl	fe_mul
-	add	x0, x29, #112
+	add	x0, x29, #0x70
 	bl	fe_sq
-	add	x0, x29, #80
-	add	x1, x29, #80
-	add	x2, x29, #112
+	add	x0, x29, #0x50
+	add	x1, x29, #0x50
+	add	x2, x29, #0x70
 	bl	fe_mul
-	add	x0, x29, #112
+	add	x0, x29, #0x70
 	bl	fe_sq
 	mov	x24, #4
-	add	x1, x29, #112
+	add	x1, x29, #0x70
 L_curve25519_inv_1:
 	bl	fe_sq
 	sub	x24, x24, #1
 	cmp	x24, #0
 	bne	L_curve25519_inv_1
-	add	x0, x29, #80
-	add	x2, x29, #80
+	add	x0, x29, #0x50
+	add	x2, x29, #0x50
 	bl	fe_mul
-	add	x0, x29, #112
-	add	x1, x29, #80
+	add	x0, x29, #0x70
+	add	x1, x29, #0x50
 	bl	fe_sq
 	mov	x24, #9
-	add	x1, x29, #112
+	add	x1, x29, #0x70
 L_curve25519_inv_2:
 	bl	fe_sq
 	sub	x24, x24, #1
 	cmp	x24, #0
 	bne	L_curve25519_inv_2
-	add	x2, x29, #80
+	add	x2, x29, #0x50
 	bl	fe_mul
-	add	x0, x29, #144
+	add	x0, x29, #0x90
 	bl	fe_sq
 	mov	x24, #19
-	add	x1, x29, #144
+	add	x1, x29, #0x90
 L_curve25519_inv_3:
 	bl	fe_sq
 	sub	x24, x24, #1
 	cmp	x24, #0
 	bne	L_curve25519_inv_3
-	add	x0, x29, #112
-	add	x2, x29, #112
+	add	x0, x29, #0x70
+	add	x2, x29, #0x70
 	bl	fe_mul
 	mov	x24, #10
-	add	x1, x29, #112
+	add	x1, x29, #0x70
 L_curve25519_inv_4:
 	bl	fe_sq
 	sub	x24, x24, #1
 	cmp	x24, #0
 	bne	L_curve25519_inv_4
-	add	x0, x29, #80
-	add	x2, x29, #80
+	add	x0, x29, #0x50
+	add	x2, x29, #0x50
 	bl	fe_mul
-	add	x0, x29, #112
-	add	x1, x29, #80
+	add	x0, x29, #0x70
+	add	x1, x29, #0x50
 	bl	fe_sq
 	mov	x24, #49
-	add	x1, x29, #112
+	add	x1, x29, #0x70
 L_curve25519_inv_5:
 	bl	fe_sq
 	sub	x24, x24, #1
 	cmp	x24, #0
 	bne	L_curve25519_inv_5
-	add	x2, x29, #80
+	add	x2, x29, #0x50
 	bl	fe_mul
-	add	x0, x29, #144
+	add	x0, x29, #0x90
 	bl	fe_sq
 	mov	x24, #0x63
-	add	x1, x29, #144
+	add	x1, x29, #0x90
 L_curve25519_inv_6:
 	bl	fe_sq
 	sub	x24, x24, #1
 	cmp	x24, #0
 	bne	L_curve25519_inv_6
-	add	x0, x29, #112
-	add	x2, x29, #112
+	add	x0, x29, #0x70
+	add	x2, x29, #0x70
 	bl	fe_mul
 	mov	x24, #50
-	add	x1, x29, #112
+	add	x1, x29, #0x70
 L_curve25519_inv_7:
 	bl	fe_sq
 	sub	x24, x24, #1
 	cmp	x24, #0
 	bne	L_curve25519_inv_7
-	add	x0, x29, #80
-	add	x2, x29, #80
+	add	x0, x29, #0x50
+	add	x2, x29, #0x50
 	bl	fe_mul
 	mov	x24, #5
-	add	x1, x29, #80
+	add	x1, x29, #0x50
 L_curve25519_inv_8:
 	bl	fe_sq
 	sub	x24, x24, #1
@@ -2629,8 +2391,7 @@ L_curve25519_inv_8:
 	adcs	x16, x16, xzr
 	adc	x17, x17, xzr
 	# Reduce if top bit set
-	asr	x5, x17, #63
-	and	x5, x5, x3
+	and	x5, x3, x17, asr 63
 	and	x17, x17, #0x7fffffffffffffff
 	adds	x14, x14, x5
 	adcs	x15, x15, xzr
@@ -2641,24 +2402,19 @@ L_curve25519_inv_8:
 	stp	x16, x17, [x0, #16]
 	mov	x0, xzr
 	ldr	x17, [x29, #192]
-	ldr	x18, [x29, #200]
-	ldr	x19, [x29, #208]
-	ldr	x20, [x29, #216]
-	ldr	x21, [x29, #224]
-	ldr	x22, [x29, #232]
-	ldr	x23, [x29, #240]
-	ldr	x24, [x29, #248]
-	ldr	x25, [x29, #256]
-	ldr	x26, [x29, #264]
-	ldr	x27, [x29, #272]
+	ldp	x18, x19, [x29, #200]
+	ldp	x20, x21, [x29, #216]
+	ldp	x22, x23, [x29, #232]
+	ldp	x24, x25, [x29, #248]
+	ldp	x26, x27, [x29, #264]
 	ldr	x28, [x29, #280]
 	ldp	x29, x30, [sp], #0x120
 	ret
-.size	curve25519,.-curve25519
-.text
-.globl	fe_pow22523
-.type	fe_pow22523,@function
-.align	4
+	.size	curve25519,.-curve25519
+	.text
+	.align	2
+	.globl	fe_pow22523
+	.type	fe_pow22523, %function
 fe_pow22523:
 	stp	x29, x30, [sp, #-144]!
 	add	x29, sp, #0
@@ -2709,10 +2465,10 @@ L_fe_pow22523_2:
 	bne	L_fe_pow22523_2
 	add	x2, x29, #16
 	bl	fe_mul
-	add	x0, x29, #80
+	add	x0, x29, #0x50
 	bl	fe_sq
 	mov	x21, #19
-	add	x1, x29, #80
+	add	x1, x29, #0x50
 L_fe_pow22523_3:
 	bl	fe_sq
 	sub	x21, x21, #1
@@ -2743,10 +2499,10 @@ L_fe_pow22523_5:
 	bne	L_fe_pow22523_5
 	add	x2, x29, #16
 	bl	fe_mul
-	add	x0, x29, #80
+	add	x0, x29, #0x50
 	bl	fe_sq
 	mov	x21, #0x63
-	add	x1, x29, #80
+	add	x1, x29, #0x50
 L_fe_pow22523_6:
 	bl	fe_sq
 	sub	x21, x21, #1
@@ -2778,19 +2534,17 @@ L_fe_pow22523_8:
 	ldr	x21, [x29, #136]
 	ldp	x29, x30, [sp], #0x90
 	ret
-.size	fe_pow22523,.-fe_pow22523
-.text
-.globl	fe_ge_to_p2
-.type	fe_ge_to_p2,@function
-.align	4
+	.size	fe_pow22523,.-fe_pow22523
+	.text
+	.align	2
+	.globl	fe_ge_to_p2
+	.type	fe_ge_to_p2, %function
 fe_ge_to_p2:
 	stp	x29, x30, [sp, #-112]!
 	add	x29, sp, #0
 	str	x17, [x29, #72]
-	str	x18, [x29, #80]
-	str	x19, [x29, #88]
-	str	x20, [x29, #96]
-	str	x21, [x29, #104]
+	stp	x18, x19, [x29, #80]
+	stp	x20, x21, [x29, #96]
 	str	x1, [x29, #16]
 	str	x2, [x29, #24]
 	str	x3, [x29, #32]
@@ -2930,8 +2684,7 @@ fe_ge_to_p2:
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
 	# Reduce if top bit set
-	asr	x21, x6, #63
-	and	x21, x21, x19
+	and	x21, x19, x6, asr 63
 	and	x6, x6, #0x7fffffffffffffff
 	adds	x3, x3, x21
 	adcs	x4, x4, xzr
@@ -3074,8 +2827,7 @@ fe_ge_to_p2:
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
 	# Reduce if top bit set
-	asr	x21, x6, #63
-	and	x21, x21, x19
+	and	x21, x19, x6, asr 63
 	and	x6, x6, #0x7fffffffffffffff
 	adds	x3, x3, x21
 	adcs	x4, x4, xzr
@@ -3215,8 +2967,7 @@ fe_ge_to_p2:
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
 	# Reduce if top bit set
-	asr	x21, x6, #63
-	and	x21, x21, x19
+	and	x21, x19, x6, asr 63
 	and	x6, x6, #0x7fffffffffffffff
 	adds	x3, x3, x21
 	adcs	x4, x4, xzr
@@ -3226,29 +2977,23 @@ fe_ge_to_p2:
 	stp	x3, x4, [x0]
 	stp	x5, x6, [x0, #16]
 	ldr	x17, [x29, #72]
-	ldr	x18, [x29, #80]
-	ldr	x19, [x29, #88]
-	ldr	x20, [x29, #96]
-	ldr	x21, [x29, #104]
+	ldp	x18, x19, [x29, #80]
+	ldp	x20, x21, [x29, #96]
 	ldp	x29, x30, [sp], #0x70
 	ret
-.size	fe_ge_to_p2,.-fe_ge_to_p2
-.text
-.globl	fe_ge_to_p3
-.type	fe_ge_to_p3,@function
-.align	4
+	.size	fe_ge_to_p2,.-fe_ge_to_p2
+	.text
+	.align	2
+	.globl	fe_ge_to_p3
+	.type	fe_ge_to_p3, %function
 fe_ge_to_p3:
 	stp	x29, x30, [sp, #-160]!
 	add	x29, sp, #0
 	str	x17, [x29, #88]
-	str	x18, [x29, #96]
-	str	x19, [x29, #104]
-	str	x20, [x29, #112]
-	str	x21, [x29, #120]
-	str	x22, [x29, #128]
-	str	x23, [x29, #136]
-	str	x24, [x29, #144]
-	str	x25, [x29, #152]
+	stp	x18, x19, [x29, #96]
+	stp	x20, x21, [x29, #112]
+	stp	x22, x23, [x29, #128]
+	stp	x24, x25, [x29, #144]
 	str	x1, [x29, #16]
 	str	x2, [x29, #24]
 	str	x3, [x29, #32]
@@ -3389,8 +3134,7 @@ fe_ge_to_p3:
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
 	# Reduce if top bit set
-	asr	x25, x6, #63
-	and	x25, x25, x23
+	and	x25, x23, x6, asr 63
 	and	x6, x6, #0x7fffffffffffffff
 	adds	x3, x3, x25
 	adcs	x4, x4, xzr
@@ -3530,8 +3274,7 @@ fe_ge_to_p3:
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
 	# Reduce if top bit set
-	asr	x25, x6, #63
-	and	x25, x25, x23
+	and	x25, x23, x6, asr 63
 	and	x6, x6, #0x7fffffffffffffff
 	adds	x3, x3, x25
 	adcs	x4, x4, xzr
@@ -3671,8 +3414,7 @@ fe_ge_to_p3:
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
 	# Reduce if top bit set
-	asr	x25, x6, #63
-	and	x25, x25, x23
+	and	x25, x23, x6, asr 63
 	and	x6, x6, #0x7fffffffffffffff
 	adds	x3, x3, x25
 	adcs	x4, x4, xzr
@@ -3809,8 +3551,7 @@ fe_ge_to_p3:
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
 	# Reduce if top bit set
-	asr	x25, x6, #63
-	and	x25, x25, x23
+	and	x25, x23, x6, asr 63
 	and	x6, x6, #0x7fffffffffffffff
 	adds	x3, x3, x25
 	adcs	x4, x4, xzr
@@ -3820,35 +3561,26 @@ fe_ge_to_p3:
 	stp	x3, x4, [x0]
 	stp	x5, x6, [x0, #16]
 	ldr	x17, [x29, #88]
-	ldr	x18, [x29, #96]
-	ldr	x19, [x29, #104]
-	ldr	x20, [x29, #112]
-	ldr	x21, [x29, #120]
-	ldr	x22, [x29, #128]
-	ldr	x23, [x29, #136]
-	ldr	x24, [x29, #144]
-	ldr	x25, [x29, #152]
+	ldp	x18, x19, [x29, #96]
+	ldp	x20, x21, [x29, #112]
+	ldp	x22, x23, [x29, #128]
+	ldp	x24, x25, [x29, #144]
 	ldp	x29, x30, [sp], #0xa0
 	ret
-.size	fe_ge_to_p3,.-fe_ge_to_p3
-.text
-.globl	fe_ge_dbl
-.type	fe_ge_dbl,@function
-.align	4
+	.size	fe_ge_to_p3,.-fe_ge_to_p3
+	.text
+	.align	2
+	.globl	fe_ge_dbl
+	.type	fe_ge_dbl, %function
 fe_ge_dbl:
 	stp	x29, x30, [sp, #-176]!
 	add	x29, sp, #0
 	str	x17, [x29, #88]
-	str	x18, [x29, #96]
-	str	x19, [x29, #104]
-	str	x20, [x29, #112]
-	str	x21, [x29, #120]
-	str	x22, [x29, #128]
-	str	x23, [x29, #136]
-	str	x24, [x29, #144]
-	str	x25, [x29, #152]
-	str	x26, [x29, #160]
-	str	x27, [x29, #168]
+	stp	x18, x19, [x29, #96]
+	stp	x20, x21, [x29, #112]
+	stp	x22, x23, [x29, #128]
+	stp	x24, x25, [x29, #144]
+	stp	x26, x27, [x29, #160]
 	str	x0, [x29, #16]
 	str	x1, [x29, #24]
 	str	x2, [x29, #32]
@@ -3954,8 +3686,7 @@ fe_ge_dbl:
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Reduce if top bit set
-	asr	x26, x7, #63
-	and	x26, x26, x24
+	and	x26, x24, x7, asr 63
 	and	x7, x7, #0x7fffffffffffffff
 	adds	x4, x4, x26
 	adcs	x5, x5, xzr
@@ -4063,8 +3794,7 @@ fe_ge_dbl:
 	adcs	x10, x10, xzr
 	adc	x11, x11, xzr
 	# Reduce if top bit set
-	asr	x26, x11, #63
-	and	x26, x26, x24
+	and	x26, x24, x11, asr 63
 	and	x11, x11, #0x7fffffffffffffff
 	adds	x8, x8, x26
 	adcs	x9, x9, xzr
@@ -4185,8 +3915,7 @@ fe_ge_dbl:
 	adcs	x18, x18, xzr
 	adc	x19, x19, xzr
 	# Reduce if top bit set
-	asr	x26, x19, #63
-	and	x26, x26, x24
+	and	x26, x24, x19, asr 63
 	and	x19, x19, #0x7fffffffffffffff
 	adds	x16, x16, x26
 	adcs	x17, x17, xzr
@@ -4359,8 +4088,7 @@ fe_ge_dbl:
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Reduce if top bit set
-	asr	x26, x7, #63
-	and	x26, x26, x24
+	and	x26, x24, x7, asr 63
 	and	x7, x7, #0x7fffffffffffffff
 	adds	x4, x4, x26
 	adcs	x5, x5, xzr
@@ -4386,37 +4114,27 @@ fe_ge_dbl:
 	stp	x4, x5, [x0]
 	stp	x6, x7, [x0, #16]
 	ldr	x17, [x29, #88]
-	ldr	x18, [x29, #96]
-	ldr	x19, [x29, #104]
-	ldr	x20, [x29, #112]
-	ldr	x21, [x29, #120]
-	ldr	x22, [x29, #128]
-	ldr	x23, [x29, #136]
-	ldr	x24, [x29, #144]
-	ldr	x25, [x29, #152]
-	ldr	x26, [x29, #160]
-	ldr	x27, [x29, #168]
+	ldp	x18, x19, [x29, #96]
+	ldp	x20, x21, [x29, #112]
+	ldp	x22, x23, [x29, #128]
+	ldp	x24, x25, [x29, #144]
+	ldp	x26, x27, [x29, #160]
 	ldp	x29, x30, [sp], #0xb0
 	ret
-.size	fe_ge_dbl,.-fe_ge_dbl
-.text
-.globl	fe_ge_madd
-.type	fe_ge_madd,@function
-.align	4
+	.size	fe_ge_dbl,.-fe_ge_dbl
+	.text
+	.align	2
+	.globl	fe_ge_madd
+	.type	fe_ge_madd, %function
 fe_ge_madd:
 	stp	x29, x30, [sp, #-176]!
 	add	x29, sp, #0
 	str	x17, [x29, #88]
-	str	x18, [x29, #96]
-	str	x19, [x29, #104]
-	str	x20, [x29, #112]
-	str	x21, [x29, #120]
-	str	x22, [x29, #128]
-	str	x23, [x29, #136]
-	str	x24, [x29, #144]
-	str	x25, [x29, #152]
-	str	x26, [x29, #160]
-	str	x27, [x29, #168]
+	stp	x18, x19, [x29, #96]
+	stp	x20, x21, [x29, #112]
+	stp	x22, x23, [x29, #128]
+	stp	x24, x25, [x29, #144]
+	stp	x26, x27, [x29, #160]
 	str	x0, [x29, #16]
 	str	x1, [x29, #24]
 	str	x2, [x29, #32]
@@ -4592,8 +4310,7 @@ fe_ge_madd:
 	adcs	x14, x14, xzr
 	adc	x15, x15, xzr
 	# Reduce if top bit set
-	asr	x26, x15, #63
-	and	x26, x26, x24
+	and	x26, x24, x15, asr 63
 	and	x15, x15, #0x7fffffffffffffff
 	adds	x12, x12, x26
 	adcs	x13, x13, xzr
@@ -4731,8 +4448,7 @@ fe_ge_madd:
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Reduce if top bit set
-	asr	x26, x7, #63
-	and	x26, x26, x24
+	and	x26, x24, x7, asr 63
 	and	x7, x7, #0x7fffffffffffffff
 	adds	x4, x4, x26
 	adcs	x5, x5, xzr
@@ -4909,8 +4625,7 @@ fe_ge_madd:
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Reduce if top bit set
-	asr	x26, x7, #63
-	and	x26, x26, x24
+	and	x26, x24, x7, asr 63
 	and	x7, x7, #0x7fffffffffffffff
 	adds	x4, x4, x26
 	adcs	x5, x5, xzr
@@ -4972,37 +4687,27 @@ fe_ge_madd:
 	stp	x16, x17, [x1]
 	stp	x18, x19, [x1, #16]
 	ldr	x17, [x29, #88]
-	ldr	x18, [x29, #96]
-	ldr	x19, [x29, #104]
-	ldr	x20, [x29, #112]
-	ldr	x21, [x29, #120]
-	ldr	x22, [x29, #128]
-	ldr	x23, [x29, #136]
-	ldr	x24, [x29, #144]
-	ldr	x25, [x29, #152]
-	ldr	x26, [x29, #160]
-	ldr	x27, [x29, #168]
+	ldp	x18, x19, [x29, #96]
+	ldp	x20, x21, [x29, #112]
+	ldp	x22, x23, [x29, #128]
+	ldp	x24, x25, [x29, #144]
+	ldp	x26, x27, [x29, #160]
 	ldp	x29, x30, [sp], #0xb0
 	ret
-.size	fe_ge_madd,.-fe_ge_madd
-.text
-.globl	fe_ge_msub
-.type	fe_ge_msub,@function
-.align	4
+	.size	fe_ge_madd,.-fe_ge_madd
+	.text
+	.align	2
+	.globl	fe_ge_msub
+	.type	fe_ge_msub, %function
 fe_ge_msub:
 	stp	x29, x30, [sp, #-176]!
 	add	x29, sp, #0
 	str	x17, [x29, #88]
-	str	x18, [x29, #96]
-	str	x19, [x29, #104]
-	str	x20, [x29, #112]
-	str	x21, [x29, #120]
-	str	x22, [x29, #128]
-	str	x23, [x29, #136]
-	str	x24, [x29, #144]
-	str	x25, [x29, #152]
-	str	x26, [x29, #160]
-	str	x27, [x29, #168]
+	stp	x18, x19, [x29, #96]
+	stp	x20, x21, [x29, #112]
+	stp	x22, x23, [x29, #128]
+	stp	x24, x25, [x29, #144]
+	stp	x26, x27, [x29, #160]
 	str	x0, [x29, #16]
 	str	x1, [x29, #24]
 	str	x2, [x29, #32]
@@ -5178,8 +4883,7 @@ fe_ge_msub:
 	adcs	x14, x14, xzr
 	adc	x15, x15, xzr
 	# Reduce if top bit set
-	asr	x26, x15, #63
-	and	x26, x26, x24
+	and	x26, x24, x15, asr 63
 	and	x15, x15, #0x7fffffffffffffff
 	adds	x12, x12, x26
 	adcs	x13, x13, xzr
@@ -5317,8 +5021,7 @@ fe_ge_msub:
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Reduce if top bit set
-	asr	x26, x7, #63
-	and	x26, x26, x24
+	and	x26, x24, x7, asr 63
 	and	x7, x7, #0x7fffffffffffffff
 	adds	x4, x4, x26
 	adcs	x5, x5, xzr
@@ -5495,8 +5198,7 @@ fe_ge_msub:
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Reduce if top bit set
-	asr	x26, x7, #63
-	and	x26, x26, x24
+	and	x26, x24, x7, asr 63
 	and	x7, x7, #0x7fffffffffffffff
 	adds	x4, x4, x26
 	adcs	x5, x5, xzr
@@ -5558,37 +5260,27 @@ fe_ge_msub:
 	stp	x16, x17, [x0]
 	stp	x18, x19, [x0, #16]
 	ldr	x17, [x29, #88]
-	ldr	x18, [x29, #96]
-	ldr	x19, [x29, #104]
-	ldr	x20, [x29, #112]
-	ldr	x21, [x29, #120]
-	ldr	x22, [x29, #128]
-	ldr	x23, [x29, #136]
-	ldr	x24, [x29, #144]
-	ldr	x25, [x29, #152]
-	ldr	x26, [x29, #160]
-	ldr	x27, [x29, #168]
+	ldp	x18, x19, [x29, #96]
+	ldp	x20, x21, [x29, #112]
+	ldp	x22, x23, [x29, #128]
+	ldp	x24, x25, [x29, #144]
+	ldp	x26, x27, [x29, #160]
 	ldp	x29, x30, [sp], #0xb0
 	ret
-.size	fe_ge_msub,.-fe_ge_msub
-.text
-.globl	fe_ge_add
-.type	fe_ge_add,@function
-.align	4
+	.size	fe_ge_msub,.-fe_ge_msub
+	.text
+	.align	2
+	.globl	fe_ge_add
+	.type	fe_ge_add, %function
 fe_ge_add:
 	stp	x29, x30, [sp, #-176]!
 	add	x29, sp, #0
 	str	x17, [x29, #88]
-	str	x18, [x29, #96]
-	str	x19, [x29, #104]
-	str	x20, [x29, #112]
-	str	x21, [x29, #120]
-	str	x22, [x29, #128]
-	str	x23, [x29, #136]
-	str	x24, [x29, #144]
-	str	x25, [x29, #152]
-	str	x26, [x29, #160]
-	str	x27, [x29, #168]
+	stp	x18, x19, [x29, #96]
+	stp	x20, x21, [x29, #112]
+	stp	x22, x23, [x29, #128]
+	stp	x24, x25, [x29, #144]
+	stp	x26, x27, [x29, #160]
 	str	x0, [x29, #16]
 	str	x1, [x29, #24]
 	str	x2, [x29, #32]
@@ -5764,8 +5456,7 @@ fe_ge_add:
 	adcs	x14, x14, xzr
 	adc	x15, x15, xzr
 	# Reduce if top bit set
-	asr	x26, x15, #63
-	and	x26, x26, x24
+	and	x26, x24, x15, asr 63
 	and	x15, x15, #0x7fffffffffffffff
 	adds	x12, x12, x26
 	adcs	x13, x13, xzr
@@ -5903,8 +5594,7 @@ fe_ge_add:
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Reduce if top bit set
-	asr	x26, x7, #63
-	and	x26, x26, x24
+	and	x26, x24, x7, asr 63
 	and	x7, x7, #0x7fffffffffffffff
 	adds	x4, x4, x26
 	adcs	x5, x5, xzr
@@ -6081,8 +5771,7 @@ fe_ge_add:
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Reduce if top bit set
-	asr	x26, x7, #63
-	and	x26, x26, x24
+	and	x26, x24, x7, asr 63
 	and	x7, x7, #0x7fffffffffffffff
 	adds	x4, x4, x26
 	adcs	x5, x5, xzr
@@ -6239,8 +5928,7 @@ fe_ge_add:
 	adcs	x10, x10, xzr
 	adc	x11, x11, xzr
 	# Reduce if top bit set
-	asr	x26, x11, #63
-	and	x26, x26, x24
+	and	x26, x24, x11, asr 63
 	and	x11, x11, #0x7fffffffffffffff
 	adds	x8, x8, x26
 	adcs	x9, x9, xzr
@@ -6284,37 +5972,27 @@ fe_ge_add:
 	stp	x16, x17, [x1]
 	stp	x18, x19, [x1, #16]
 	ldr	x17, [x29, #88]
-	ldr	x18, [x29, #96]
-	ldr	x19, [x29, #104]
-	ldr	x20, [x29, #112]
-	ldr	x21, [x29, #120]
-	ldr	x22, [x29, #128]
-	ldr	x23, [x29, #136]
-	ldr	x24, [x29, #144]
-	ldr	x25, [x29, #152]
-	ldr	x26, [x29, #160]
-	ldr	x27, [x29, #168]
+	ldp	x18, x19, [x29, #96]
+	ldp	x20, x21, [x29, #112]
+	ldp	x22, x23, [x29, #128]
+	ldp	x24, x25, [x29, #144]
+	ldp	x26, x27, [x29, #160]
 	ldp	x29, x30, [sp], #0xb0
 	ret
-.size	fe_ge_add,.-fe_ge_add
-.text
-.globl	fe_ge_sub
-.type	fe_ge_sub,@function
-.align	4
+	.size	fe_ge_add,.-fe_ge_add
+	.text
+	.align	2
+	.globl	fe_ge_sub
+	.type	fe_ge_sub, %function
 fe_ge_sub:
 	stp	x29, x30, [sp, #-176]!
 	add	x29, sp, #0
 	str	x17, [x29, #88]
-	str	x18, [x29, #96]
-	str	x19, [x29, #104]
-	str	x20, [x29, #112]
-	str	x21, [x29, #120]
-	str	x22, [x29, #128]
-	str	x23, [x29, #136]
-	str	x24, [x29, #144]
-	str	x25, [x29, #152]
-	str	x26, [x29, #160]
-	str	x27, [x29, #168]
+	stp	x18, x19, [x29, #96]
+	stp	x20, x21, [x29, #112]
+	stp	x22, x23, [x29, #128]
+	stp	x24, x25, [x29, #144]
+	stp	x26, x27, [x29, #160]
 	str	x0, [x29, #16]
 	str	x1, [x29, #24]
 	str	x2, [x29, #32]
@@ -6490,8 +6168,7 @@ fe_ge_sub:
 	adcs	x14, x14, xzr
 	adc	x15, x15, xzr
 	# Reduce if top bit set
-	asr	x26, x15, #63
-	and	x26, x26, x24
+	and	x26, x24, x15, asr 63
 	and	x15, x15, #0x7fffffffffffffff
 	adds	x12, x12, x26
 	adcs	x13, x13, xzr
@@ -6629,8 +6306,7 @@ fe_ge_sub:
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Reduce if top bit set
-	asr	x26, x7, #63
-	and	x26, x26, x24
+	and	x26, x24, x7, asr 63
 	and	x7, x7, #0x7fffffffffffffff
 	adds	x4, x4, x26
 	adcs	x5, x5, xzr
@@ -6807,8 +6483,7 @@ fe_ge_sub:
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Reduce if top bit set
-	asr	x26, x7, #63
-	and	x26, x26, x24
+	and	x26, x24, x7, asr 63
 	and	x7, x7, #0x7fffffffffffffff
 	adds	x4, x4, x26
 	adcs	x5, x5, xzr
@@ -6965,8 +6640,7 @@ fe_ge_sub:
 	adcs	x10, x10, xzr
 	adc	x11, x11, xzr
 	# Reduce if top bit set
-	asr	x26, x11, #63
-	and	x26, x26, x24
+	and	x26, x24, x11, asr 63
 	and	x11, x11, #0x7fffffffffffffff
 	adds	x8, x8, x26
 	adcs	x9, x9, xzr
@@ -7010,17 +6684,12 @@ fe_ge_sub:
 	stp	x16, x17, [x1]
 	stp	x18, x19, [x1, #16]
 	ldr	x17, [x29, #88]
-	ldr	x18, [x29, #96]
-	ldr	x19, [x29, #104]
-	ldr	x20, [x29, #112]
-	ldr	x21, [x29, #120]
-	ldr	x22, [x29, #128]
-	ldr	x23, [x29, #136]
-	ldr	x24, [x29, #144]
-	ldr	x25, [x29, #152]
-	ldr	x26, [x29, #160]
-	ldr	x27, [x29, #168]
+	ldp	x18, x19, [x29, #96]
+	ldp	x20, x21, [x29, #112]
+	ldp	x22, x23, [x29, #128]
+	ldp	x24, x25, [x29, #144]
+	ldp	x26, x27, [x29, #160]
 	ldp	x29, x30, [sp], #0xb0
 	ret
-.size	fe_ge_sub,.-fe_ge_sub
+	.size	fe_ge_sub,.-fe_ge_sub
 #endif /* __aarch64__ */
