@@ -11339,7 +11339,8 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
                 if (pkcs7->decryptionCb != NULL) {
                     ret = pkcs7->decryptionCb(pkcs7, encOID, tmpIv, expBlockSz,
                                       NULL, 0, NULL, 0, encryptedContent,
-                                      encryptedContentSz, encryptedContent);
+                                      encryptedContentSz, encryptedContent,
+                                      pkcs7->decryptionCtx);
                 }
                 else {
                     ret = wc_PKCS7_DecryptContent(encOID, pkcs7->encryptionKey,
@@ -11427,6 +11428,32 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
     return ret;
 }
 
+
+/* Function to set callback during decryption, this overrides the default
+ * decryption function and can be used for choosing a key at run time based
+ * on the parsed bundle so far.
+ * returns 0 on success
+ */
+int wc_PKCS7_SetDecodeEncryptedCb(PKCS7* pkcs7,
+        CallbackDecryptContent decryptionCb)
+{
+    if (pkcs7 != NULL) {
+        pkcs7->decryptionCb = decryptionCb;
+    }
+    return 0;
+}
+
+
+/* Set an optional user context that gets passed to callback
+ * returns 0 on success
+ */
+int wc_PKCS7_SetDecodeEncryptedCtx(PKCS7* pkcs7, void* ctx)
+{
+    if (pkcs7 != NULL) {
+        pkcs7->decryptionCtx = ctx;
+    }
+    return 0;
+}
 #endif /* NO_PKCS7_ENCRYPTED_DATA */
 
 #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)

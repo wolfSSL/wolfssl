@@ -364,6 +364,7 @@ int scrypt_test(void);
     #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
         int pkcs7authenveloped_test(void);
     #endif
+    int pkcs7callback_test(byte* cert, word32 certSz, byte* key, word32 keySz);
 #endif
 #if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT) && \
     !defined(NO_FILESYSTEM)
@@ -20779,6 +20780,113 @@ static int myOriDecryptCb(PKCS7* pkcs7, byte* oriType, word32 oriTypeSz,
 }
 
 
+/* returns 0 on success */
+static int myDecryptionFunc(PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
+        byte* aad, word32 aadSz, byte* authTag, word32 authTagSz,
+        byte* in, int inSz, byte* out, void* usrCtx)
+{
+    int keyId = -1, ret, keySz;
+    word32 keyIdSz = 8;
+    byte*  key;
+    byte   keyIdRaw[8];
+    Aes    aes;
+
+    /* looking for KEY ID
+     * fwDecryptKeyID OID "1.2.840.113549.1.9.16.2.37
+     */
+    unsigned char OID[] = {
+        /* 0x06, 0x0B do not pass in tag and length */
+        0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
+        0x01, 0x09, 0x10, 0x02, 0x25
+    };
+
+    byte defKey[] = {
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
+    };
+
+    byte altKey[] = {
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
+    };
+
+    /* test user context passed in */
+    if (*(int*)usrCtx != 1) {
+        return -1;
+    }
+
+    /* if needing to find keyIdSz can call with NULL */
+    ret = wc_PKCS7_GetAttributeValue(pkcs7, OID, sizeof(OID), NULL,
+            &keyIdSz);
+    if (ret != LENGTH_ONLY_E) {
+        printf("Unexpected error %d when getting keyIdSz\n", ret);
+        printf("Possibly no KEY ID attribute set\n");
+        return -1;
+    }
+    else {
+        memset(keyIdRaw, 0, sizeof(keyIdRaw));
+        ret = wc_PKCS7_GetAttributeValue(pkcs7, OID, sizeof(OID), keyIdRaw,
+                &keyIdSz);
+        if (keyIdSz < 3) {
+            printf("keyIdSz is smaller than expected\n");
+            return -1;
+        }
+        if (keyIdSz > 2 + sizeof(int)) {
+            printf("example case was only expecting a keyId of int size\n");
+            return -1;
+        }
+
+        /* keyIdRaw[0] OCTET TAG */
+        /* keyIdRaw[1] Length */
+        keyId = *(int*)(keyIdRaw + 2);
+    }
+
+
+    /* Use keyID here if found to select key and decrypt in HSM or in this
+     * example just select key and do software decryption */
+    if (keyId == 1) {
+        key = altKey;
+        keySz = sizeof(altKey);
+    }
+    else {
+        key = defKey;
+        keySz = sizeof(defKey);
+    }
+
+    switch (encryptOID) {
+        case AES256CBCb:
+            if ((keySz != 32 ) || (ivSz  != AES_BLOCK_SIZE))
+                return BAD_FUNC_ARG;
+            break;
+
+        case AES128CBCb:
+            if ((keySz != 16 ) || (ivSz  != AES_BLOCK_SIZE))
+                return BAD_FUNC_ARG;
+            break;
+
+        default:
+            printf("Unsupported content cipher type for example");
+            return ALGO_ID_E;
+    };
+
+    ret = wc_AesInit(&aes, HEAP_HINT, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_AesSetKey(&aes, key, keySz, iv, AES_DECRYPTION);
+        if (ret == 0)
+            ret = wc_AesCbcDecrypt(&aes, out, in, inSz);
+        wc_AesFree(&aes);
+    }
+
+    (void)aad;
+    (void)aadSz;
+    (void)authTag;
+    (void)authTagSz;
+    return ret;
+}
+
+
 static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
                                       byte* rsaPrivKey,  word32 rsaPrivKeySz,
                                       byte* eccCert, word32 eccCertSz,
@@ -21901,6 +22009,240 @@ int pkcs7authenveloped_test(void)
 
 #endif /* HAVE_AESGCM || HAVE_AESCCM */
 
+/*
+ * keyHint is the KeyID to be set in the fwDecryptKeyID attribute
+ * returns size of buffer output on success
+ */
+static int generateBundle(byte* out, word32 *outSz, byte* encryptKey,
+        word32 encryptKeySz, byte keyHint, byte* cert, word32 certSz,
+        byte* key, word32 keySz)
+{
+    int ret;
+    PKCS7* pkcs7;
+
+    /* KEY ID
+     * fwDecryptKeyID OID 1.2.840.113549.1.9.16.2.37
+     */
+    unsigned char keyOID[] = {
+        0x06, 0x0B,
+        0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
+        0x01, 0x09, 0x10, 0x02, 0x25
+    };
+    byte keyID[] = { 0x04, 0x01, 0x00 };
+    byte data[] = "Test of wolfSSL PKCS7 decrypt callback";
+
+    PKCS7Attrib attribs[] =
+    {
+        { keyOID, sizeof(keyOID), keyID, sizeof(keyID) }
+    };
+
+    keyID[2] = keyHint;
+
+    /* init PKCS7 */
+    pkcs7 = wc_PKCS7_New(NULL, INVALID_DEVID);
+    if (pkcs7 == NULL)
+        return -1;
+
+    ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+    if (ret != 0) {
+        printf("ERROR: wc_PKCS7_InitWithCert() failed, ret = %d\n", ret);
+        wc_PKCS7_Free(pkcs7);
+        return -1;
+    }
+
+    ret = wc_PKCS7_SetSignerIdentifierType(pkcs7, CMS_SKID);
+    if (ret != 0) {
+        wc_PKCS7_Free(pkcs7);
+        return -1;
+    }
+
+    /* encode Signed Encrypted FirmwarePkgData */
+    if (encryptKeySz == 16) {
+        ret = wc_PKCS7_EncodeSignedEncryptedFPD(pkcs7, encryptKey, encryptKeySz,
+                                            key, keySz,
+                                            AES128CBCb, RSAk, SHA256h,
+                                            (byte*)data, sizeof(data),
+                                            attribs,
+                                            sizeof(attribs)/sizeof(PKCS7Attrib),
+                                            attribs,
+                                            sizeof(attribs)/sizeof(PKCS7Attrib),
+                                            out, *outSz);
+    }
+    else {
+        ret = wc_PKCS7_EncodeSignedEncryptedFPD(pkcs7, encryptKey, encryptKeySz,
+                                            key, keySz,
+                                            AES256CBCb, RSAk, SHA256h,
+                                            (byte*)data, sizeof(data),
+                                            attribs,
+                                            sizeof(attribs)/sizeof(PKCS7Attrib),
+                                            attribs,
+                                            sizeof(attribs)/sizeof(PKCS7Attrib),
+                                            out, *outSz);
+    }
+    if (ret <= 0) {
+        printf("ERROR: wc_PKCS7_EncodeSignedEncryptedFPD() failed, "
+                "ret = %d\n", ret);
+        wc_PKCS7_Free(pkcs7);
+        return -1;
+
+    } else {
+        *outSz = ret;
+    }
+
+    wc_PKCS7_Free(pkcs7);
+
+    return ret;
+}
+
+
+/* test verification and decryption of PKCS7 bundle
+ * return 0 on success
+ */
+static int verifyBundle(byte* derBuf, word32 derSz)
+{
+    int ret = 0;
+    int usrCtx = 1; /* test value to pass as user context to callback */
+    PKCS7 pkcs7;
+    byte*  sid;
+    word32 sidSz;
+
+    byte decoded[FOURK_BUF/2];
+    int  decodedSz = FOURK_BUF/2;
+
+    byte expectedSid[] = {
+        0x33, 0xD8, 0x45, 0x66, 0xD7, 0x68, 0x87, 0x18,
+        0x7E, 0x54, 0x0D, 0x70, 0x27, 0x91, 0xC7, 0x26,
+        0xD7, 0x85, 0x65, 0xC0
+    };
+
+    /* Test verify */
+    ret = wc_PKCS7_Init(&pkcs7, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        wc_PKCS7_Free(&pkcs7);
+        return -10001;
+    }
+    ret = wc_PKCS7_InitWithCert(&pkcs7, NULL, 0);
+    if (ret != 0) {
+        wc_PKCS7_Free(&pkcs7);
+        return -10001;
+    }
+    ret = wc_PKCS7_VerifySignedData(&pkcs7, derBuf, derSz);
+    if (ret != 0) {
+        wc_PKCS7_Free(&pkcs7);
+        return -10001;
+    }
+
+    /* Get size of SID and print it out */
+    ret = wc_PKCS7_GetSignerSID(&pkcs7, NULL, &sidSz);
+    if (ret != LENGTH_ONLY_E) {
+        wc_PKCS7_Free(&pkcs7);
+        return ret;
+    }
+
+    sid = (byte*)XMALLOC(sidSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sid == NULL) {
+        wc_PKCS7_Free(&pkcs7);
+        return ret;
+    }
+
+    ret = wc_PKCS7_GetSignerSID(&pkcs7, sid, &sidSz);
+    if (ret != 0) {
+        wc_PKCS7_Free(&pkcs7);
+        XFREE(sid, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+    ret = XMEMCMP(sid, expectedSid, sidSz);
+    XFREE(sid, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ret != 0) {
+        wc_PKCS7_Free(&pkcs7);
+        return ret;
+    }
+
+    decodedSz = sizeof(decoded);
+    ret = wc_PKCS7_SetDecodeEncryptedCb(&pkcs7, myDecryptionFunc);
+    if (ret != 0) {
+        wc_PKCS7_Free(&pkcs7);
+        return ret;
+    }
+
+    ret = wc_PKCS7_SetDecodeEncryptedCtx(&pkcs7, (void*)&usrCtx);
+    if (ret != 0) {
+        wc_PKCS7_Free(&pkcs7);
+        return ret;
+    }
+
+    decodedSz = wc_PKCS7_DecodeEncryptedData(&pkcs7, pkcs7.content,
+            pkcs7.contentSz, decoded, decodedSz);
+    if (decodedSz < 0) {
+        ret = decodedSz;
+        wc_PKCS7_Free(&pkcs7);
+        return ret;
+    }
+
+    wc_PKCS7_Free(&pkcs7);
+    return 0;
+}
+
+
+int pkcs7callback_test(byte* cert, word32 certSz, byte* key, word32 keySz)
+{
+
+    int ret = 0;
+    byte derBuf[FOURK_BUF/2];
+    word32 derSz = FOURK_BUF/2;
+
+    byte defKey[] = {
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
+    };
+
+    byte altKey[] = {
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
+    };
+
+    /* Doing default generation and verify */
+    ret = generateBundle(derBuf, &derSz, defKey, sizeof(defKey), 0, cert,
+            certSz, key, keySz);
+    if (ret <= 0) {
+        return -10000;
+    }
+
+    ret = verifyBundle(derBuf, derSz);
+    if (ret != 0) {
+        return -10001;
+    }
+
+    /* test choosing other key with keyID */
+    derSz = FOURK_BUF/2;
+    ret = generateBundle(derBuf, &derSz, altKey, sizeof(altKey), 1,
+            cert, certSz, key, keySz);
+    if (ret <= 0) {
+        return -10002;
+    }
+
+    ret = verifyBundle(derBuf, derSz);
+    if (ret != 0) {
+        return -10003;
+    }
+
+    /* test fail case with wrong keyID */
+    derSz = FOURK_BUF/2;
+    ret = generateBundle(derBuf, &derSz, defKey, sizeof(defKey), 1,
+            cert, certSz, key, keySz);
+    if (ret <= 0) {
+        return -10004;
+    }
+
+    ret = verifyBundle(derBuf, derSz);
+    if (ret == 0) {
+        return -10005;
+    }
+
+    return 0;
+}
 
 #ifndef NO_PKCS7_ENCRYPTED_DATA
 
@@ -23462,6 +23804,11 @@ int pkcs7signed_test(void)
                             rsaCaPrivKeyBuf, (word32)rsaCaPrivKeyBufSz,
                             eccClientCertBuf, (word32)eccClientCertBufSz,
                             eccClientPrivKeyBuf, (word32)eccClientPrivKeyBufSz);
+
+    if (ret >= 0)
+        ret = pkcs7callback_test(
+                            rsaClientCertBuf, (word32)rsaClientCertBufSz,
+                            rsaClientPrivKeyBuf, (word32)rsaClientPrivKeyBufSz);
 
     XFREE(rsaClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(rsaClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);

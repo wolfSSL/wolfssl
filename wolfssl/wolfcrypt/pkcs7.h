@@ -212,7 +212,7 @@ typedef int (*CallbackOriEncrypt)(PKCS7* pkcs7, byte* cek, word32 cekSz,
 typedef int (*CallbackDecryptContent)(PKCS7* pkcs7, int encryptOID,
                                    byte* iv, int ivSz, byte* aad, word32 aadSz,
                                    byte* authTag, word32 authTagSz, byte* in,
-                                   int inSz, byte* out);
+                                   int inSz, byte* out, void* ctx);
 
 /* Public Structure Warning:
  * Existing members must not be changed to maintain backwards compatibility! 
@@ -303,6 +303,7 @@ struct PKCS7 {
     byte version; /* 1 for RFC 2315 and 3 for RFC 4108 */
     PKCS7SignerInfo* signerInfo;
     CallbackDecryptContent decryptionCb;
+    void*            decryptionCtx;
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };
 
@@ -444,6 +445,9 @@ WOLFSSL_API int  wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7,
 WOLFSSL_API int  wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* pkiMsg,
                                           word32 pkiMsgSz, byte* output,
                                           word32 outputSz);
+WOLFSSL_API int  wc_PKCS7_SetDecodeEncryptedCb(PKCS7* pkcs7,
+        CallbackDecryptContent decryptionCb);
+WOLFSSL_API int  wc_PKCS7_SetDecodeEncryptedCtx(PKCS7* pkcs7, void* ctx);
 #endif /* NO_PKCS7_ENCRYPTED_DATA */
 
 /* CMS/PKCS#7 CompressedData */
