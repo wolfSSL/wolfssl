@@ -20787,33 +20787,33 @@ static int myDecryptionFunc(PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
 {
     int keyId = -1, ret, keySz;
     word32 keyIdSz = 8;
-    byte*  key;
+    const byte*  key;
     byte   keyIdRaw[8];
     Aes    aes;
 
     /* looking for KEY ID
      * fwDecryptKeyID OID "1.2.840.113549.1.9.16.2.37
      */
-    unsigned char OID[] = {
+    const unsigned char OID[] = {
         /* 0x06, 0x0B do not pass in tag and length */
         0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
         0x01, 0x09, 0x10, 0x02, 0x25
     };
 
-    byte defKey[] = {
+    const byte defKey[] = {
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
     };
 
-    byte altKey[] = {
+    const byte altKey[] = {
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
     };
 
     /* test user context passed in */
-    if (*(int*)usrCtx != 1) {
+    if (usrCtx == NULL || *(int*)usrCtx != 1) {
         return -1;
     }
 
@@ -20826,7 +20826,7 @@ static int myDecryptionFunc(PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
         return -1;
     }
     else {
-        memset(keyIdRaw, 0, sizeof(keyIdRaw));
+        XMEMSET(keyIdRaw, 0, sizeof(keyIdRaw));
         ret = wc_PKCS7_GetAttributeValue(pkcs7, OID, sizeof(OID), keyIdRaw,
                 &keyIdSz);
         if (ret < 0) {
@@ -22017,7 +22017,7 @@ int pkcs7authenveloped_test(void)
  * keyHint is the KeyID to be set in the fwDecryptKeyID attribute
  * returns size of buffer output on success
  */
-static int generateBundle(byte* out, word32 *outSz, byte* encryptKey,
+static int generateBundle(byte* out, word32 *outSz, const byte* encryptKey,
         word32 encryptKeySz, byte keyHint, byte* cert, word32 certSz,
         byte* key, word32 keySz)
 {
@@ -22027,13 +22027,13 @@ static int generateBundle(byte* out, word32 *outSz, byte* encryptKey,
     /* KEY ID
      * fwDecryptKeyID OID 1.2.840.113549.1.9.16.2.37
      */
-    unsigned char keyOID[] = {
+    const unsigned char keyOID[] = {
         0x06, 0x0B,
         0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
         0x01, 0x09, 0x10, 0x02, 0x25
     };
     byte keyID[] = { 0x04, 0x01, 0x00 };
-    byte data[] = "Test of wolfSSL PKCS7 decrypt callback";
+    char data[] = "Test of wolfSSL PKCS7 decrypt callback";
 
     PKCS7Attrib attribs[] =
     {
@@ -22062,26 +22062,18 @@ static int generateBundle(byte* out, word32 *outSz, byte* encryptKey,
 
     /* encode Signed Encrypted FirmwarePkgData */
     if (encryptKeySz == 16) {
-        ret = wc_PKCS7_EncodeSignedEncryptedFPD(pkcs7, encryptKey, encryptKeySz,
-                                            key, keySz,
-                                            AES128CBCb, RSAk, SHA256h,
-                                            (byte*)data, sizeof(data),
-                                            attribs,
-                                            sizeof(attribs)/sizeof(PKCS7Attrib),
-                                            attribs,
-                                            sizeof(attribs)/sizeof(PKCS7Attrib),
-                                            out, *outSz);
+        ret = wc_PKCS7_EncodeSignedEncryptedFPD(pkcs7, (byte*)encryptKey,
+                encryptKeySz, key, keySz, AES128CBCb, RSAk, SHA256h,
+                (byte*)data, sizeof(data), attribs,
+                sizeof(attribs)/sizeof(PKCS7Attrib),
+                attribs, sizeof(attribs)/sizeof(PKCS7Attrib), out, *outSz);
     }
     else {
-        ret = wc_PKCS7_EncodeSignedEncryptedFPD(pkcs7, encryptKey, encryptKeySz,
-                                            key, keySz,
-                                            AES256CBCb, RSAk, SHA256h,
-                                            (byte*)data, sizeof(data),
-                                            attribs,
-                                            sizeof(attribs)/sizeof(PKCS7Attrib),
-                                            attribs,
-                                            sizeof(attribs)/sizeof(PKCS7Attrib),
-                                            out, *outSz);
+        ret = wc_PKCS7_EncodeSignedEncryptedFPD(pkcs7, (byte*)encryptKey,
+                encryptKeySz, key, keySz, AES256CBCb, RSAk, SHA256h,
+                (byte*)data, sizeof(data), attribs,
+                sizeof(attribs)/sizeof(PKCS7Attrib), attribs,
+                sizeof(attribs)/sizeof(PKCS7Attrib), out, *outSz);
     }
     if (ret <= 0) {
         printf("ERROR: wc_PKCS7_EncodeSignedEncryptedFPD() failed, "
@@ -22113,7 +22105,7 @@ static int verifyBundle(byte* derBuf, word32 derSz)
     byte decoded[FOURK_BUF/2];
     int  decodedSz = FOURK_BUF/2;
 
-    byte expectedSid[] = {
+    const byte expectedSid[] = {
         0x33, 0xD8, 0x45, 0x66, 0xD7, 0x68, 0x87, 0x18,
         0x7E, 0x54, 0x0D, 0x70, 0x27, 0x91, 0xC7, 0x26,
         0xD7, 0x85, 0x65, 0xC0
@@ -22195,14 +22187,14 @@ int pkcs7callback_test(byte* cert, word32 certSz, byte* key, word32 keySz)
     byte derBuf[FOURK_BUF/2];
     word32 derSz = FOURK_BUF/2;
 
-    byte defKey[] = {
+    const byte defKey[] = {
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
     };
 
-    byte altKey[] = {
+    const byte altKey[] = {
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
     };
