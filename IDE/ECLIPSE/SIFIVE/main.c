@@ -28,34 +28,33 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#ifndef __METAL_MACHINE_HEADER
+#define __METAL_MACHINE_HEADER "../../../../bsp/sifive-hifive1-revb/metal.h"
+#endif
+#include <metal/machine.h>
+
 #ifndef NO_CRYPT_BENCHMARK
 
 /*-specs=nano.specs doesn’t include support for floating point in printf()*/
 asm (".global _printf_float");
 
 #ifndef RTC_FREQ
-    #define RTC_FREQ    32768
+#define RTC_FREQ    32768UL
 #endif
 
-#define CLINT_MTIME_ADDR  0x200bff8
+/* CLINT Registers (Core Local Interruptor) for time */
+#define CLINT_BASE 0x02000000UL
+#define CLINT_REG_MTIME (*((volatile uint32_t *)(CLINT_BASE + 0xBFF8)))
+
 #define WOLFSSL_SIFIVE_RISC_V_DEBUG 0
-
-unsigned long get_cpu_freq(void)
-{
-    /* If clocking up the CPU, you need to add a logic to measure cpu freq */
-
-    return RTC_FREQ;
-}
 
 double current_time(int reset)
 {
-    volatile uint64_t * mtime  = (uint64_t*) (CLINT_MTIME_ADDR);
-    uint64_t now = *mtime;
+    double now = CLINT_REG_MTIME;
     (void)reset;
-    /**/
-    return now/get_cpu_freq();
+    return now/RTC_FREQ;
 }
-#endif
+#endif /* !NO_CRYPT_BENCHMARK */
 
 #if WOLFSSL_SIFIVE_RISC_V_DEBUG
 void check(int depth) {
@@ -63,28 +62,27 @@ void check(int depth) {
     char *ptr = malloc(1);
 
     printf("stack at %p, heap at %p\n", &ch, ptr);
-    if (depth <= 0) 
+    if (depth <= 0)
         return;
-    
+
     check(depth-1);
     free(ptr);
 }
 
-void mtime_sleep( uint64_t ticks) {
-    volatile uint64_t * mtime  = (uint64_t*) (CLINT_MTIME_ADDR);
-    uint64_t now = *mtime;
+void mtime_sleep(uint64_t ticks) {
+    uint64_t now = CLINT_REG_MTIME;
     uint64_t then = now + ticks;
 
     while((*mtime - now) < ticks) {
-        
+
     }
 }
 
 void delay(int sec) {
-    uint64_t ticks = sec * get_cpu_freq();
+    uint64_t ticks = sec * RTC_FREQ;
     mtime_sleep(ticks);
 }
-#endif 
+#endif /* WOLFSSL_SIFIVE_RISC_V_DEBUG */
 
 /* RNG CODE */
 /* TODO: Implement real RNG */
@@ -124,9 +122,16 @@ int my_rng_gen_block(unsigned char* output, unsigned int sz)
     return 0;
 }
 
-int main(void) 
+
+#if !defined(NO_CLOCK_SPEEDUP) && !defined(USE_CLOCK_HZ)
+    /* 320MHz */
+    #define USE_CLOCK_HZ 320000000UL
+#endif
+
+int main(void)
 {
     int ret;
+    long clkHz = 16000000; /* default */
 
 #if WOLFSSL_SIFIVE_RISC_V_DEBUG
     printf("check stack and heap addresses\n");
@@ -134,11 +139,21 @@ int main(void)
     printf("sleep for 10 seconds to verify timer, measure using a stopwatch\n");
     delay(10);
     printf("awake after sleeping for 10 seconds\n");
-#endif    
-    
-    #ifdef DEBUG_WOLFSSL
-        wolfSSL_Debugging_ON();
-    #endif
+#endif
+
+#ifdef USE_CLOCK_HZ
+    /* Speed up clock */
+    printf("SiFive HiFive1 Demo\n");
+    printf("Setting clock to %dMHz\n", USE_CLOCK_HZ/1000000);
+    clkHz = metal_clock_set_rate_hz(
+        &__METAL_DT_SIFIVE_FE310_G000_PLL_HANDLE->clock, USE_CLOCK_HZ
+    );
+#endif
+    printf("Actual Clock %dMHz\n", clkHz/1000000);
+
+#ifdef DEBUG_WOLFSSL
+    wolfSSL_Debugging_ON();
+#endif
 
     if ((ret = wolfCrypt_Init()) != 0) {
         printf("wolfCrypt_Init failed %d\n", ret);
@@ -156,10 +171,10 @@ int main(void)
     benchmark_test(NULL);
     printf("\nBenchmark Test Completed\n");
 #endif
+
     if ((ret = wolfCrypt_Cleanup()) != 0) {
         printf("wolfCrypt_Cleanup failed %d\n", ret);
         return -1;
     }
     return 0;
 }
-

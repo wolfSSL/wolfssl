@@ -1,4 +1,5 @@
-# SiFive RISC-V HiFive Port
+# SiFive RISC-V HiFive1 Port
+
 ## Overview
 You can enable the wolfSSL support for RISC-V using the `#define WOLFSSL_SIFIVE_RISC_V`.
 
@@ -15,6 +16,7 @@ The `IDE/ECLIPSE/SIFIVE/main.c` example application provides a function to run t
 - #undef NO_CRYPT_TEST
 - #undef NO_CRYPT_BENCHMARK
 ```
+
 ## Setup
 ### Setting up the SDK with wolfSSL
 1. Download the wolfSSL source code or a zip file from GitHub and place it under your SDK `$HOME` directory. You can also copy or simlink to the source.
@@ -87,10 +89,16 @@ $sudo make install
 You can now build and link your software to the wolfSSL libwolfssl.a static library.
 
 ### `wolfcrypt_test()`
+
 wolfcrypt_test() prints a message on the target console similar to the following output:
+
 ```
-wolfCrypt Test Started
+SiFive HiFive1 Demo
+Setting clock to 320MHz
+Actual Clock 320MHz
+
 error    test passed!
+MEMORY   test passed!
 base64   test passed!
 asn      test passed!
 SHA      test passed!
@@ -109,73 +117,46 @@ ECC buffer test passed!
 logging  test passed!
 mutex    test passed!
 Test complete
-...
-wolfCrypt Test Completed
 ```
 ### `benchmark_test()`
+
 benchmark_test() prints a message on the target console similar to the following output.
+
 TARGET=sifive-hifive1-revb:
+
 ```
 ------------------------------------------------------------------------------
  wolfSSL version 4.0.0
 ------------------------------------------------------------------------------
 wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
-RNG                 25 KB took 3.000 seconds,    8.333 KB/s
-AES-128-CBC-enc     25 KB took 16.000 seconds,    1.562 KB/s
-AES-128-CBC-dec     25 KB took 17.000 seconds,    1.471 KB/s
-AES-192-CBC-enc     25 KB took 19.000 seconds,    1.316 KB/s
-AES-192-CBC-dec     25 KB took 18.000 seconds,    1.389 KB/s
-AES-256-CBC-enc     25 KB took 20.000 seconds,    1.250 KB/s
-AES-256-CBC-dec     25 KB took 21.000 seconds,    1.190 KB/s
-AES-128-GCM-enc     25 KB took 30.000 seconds,    0.833 KB/s
-AES-128-GCM-dec     25 KB took 30.000 seconds,    0.833 KB/s
-AES-192-GCM-enc     25 KB took 32.000 seconds,    0.781 KB/s
-AES-192-GCM-dec     25 KB took 32.000 seconds,    0.781 KB/s
-AES-256-GCM-enc     25 KB took 34.000 seconds,    0.735 KB/s
-AES-256-GCM-dec     25 KB took 34.000 seconds,    0.735 KB/s
-SHA                 50 KB took 1.000 seconds,   50.000 KB/s
-SHA-256             25 KB took 1.000 seconds,   25.000 KB/s
-HMAC-SHA            50 KB took 1.000 seconds,   50.000 KB/s
-HMAC-SHA256         25 KB took 1.000 seconds,   25.000 KB/s
-ECC      256 key gen         1 ops took 11.000 sec, avg 11000.000 ms, 0.091 ops/sec
-ECDHE    256 agree           2 ops took 22.000 sec, avg 11000.000 ms, 0.091 ops/sec
-ECDSA    256 sign            2 ops took 23.000 sec, avg 11500.000 ms, 0.087 ops/sec
-ECDSA    256 verify          2 ops took 45.000 sec, avg 22500.000 ms, 0.044 ops/sec
+RNG                 12 MB took 1.000 seconds,   11.666 MB/s
+AES-128-CBC-enc     50 KB took 1.659 seconds,   30.131 KB/s
+AES-128-CBC-dec     50 KB took 1.657 seconds,   30.183 KB/s
+AES-192-CBC-enc     50 KB took 1.839 seconds,   27.189 KB/s
+AES-192-CBC-dec     50 KB took 1.836 seconds,   27.230 KB/s
+AES-256-CBC-enc     25 KB took 1.010 seconds,   24.759 KB/s
+AES-256-CBC-dec     25 KB took 1.008 seconds,   24.791 KB/s
+AES-128-GCM-enc     25 KB took 1.508 seconds,   16.576 KB/s
+AES-128-GCM-dec     25 KB took 1.510 seconds,   16.559 KB/s
+AES-192-GCM-enc     25 KB took 1.605 seconds,   15.573 KB/s
+AES-192-GCM-dec     25 KB took 1.607 seconds,   15.558 KB/s
+AES-256-GCM-enc     25 KB took 1.699 seconds,   14.716 KB/s
+AES-256-GCM-dec     25 KB took 1.700 seconds,   14.702 KB/s
+SHA                  2 MB took 1.014 seconds,    1.589 MB/s
+SHA-256            425 KB took 1.009 seconds,  421.068 KB/s
+HMAC-SHA             1 MB took 1.013 seconds,    1.325 MB/s
+HMAC-SHA256        425 KB took 1.018 seconds,  417.420 KB/s
+ECC      256 key gen         2 ops took 1.393 sec, avg 696.503 ms, 1.436 ops/sec
+ECDHE    256 agree           2 ops took 1.386 sec, avg 692.917 ms, 1.443 ops/sec
+ECDSA    256 sign            2 ops took 1.406 sec, avg 703.064 ms, 1.422 ops/sec
+ECDSA    256 verify          2 ops took 2.773 sec, avg 1386.597 ms, 0.721 ops/sec
 Benchmark complete
 ```
-TARGET=sifive-hifive1
-```
-------------------------------------------------------------------------------
- wolfSSL version 4.0.0
-------------------------------------------------------------------------------
-wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
-RNG                 25 KB took 2.000 seconds,   12.500 KB/s
-AES-128-CBC-enc     25 KB took 17.000 seconds,    1.471 KB/s
-AES-128-CBC-dec     25 KB took 17.000 seconds,    1.471 KB/s
-AES-192-CBC-enc     25 KB took 18.000 seconds,    1.389 KB/s
-AES-192-CBC-dec     25 KB took 18.000 seconds,    1.389 KB/s
-AES-256-CBC-enc     25 KB took 20.000 seconds,    1.250 KB/s
-AES-256-CBC-dec     25 KB took 20.000 seconds,    1.250 KB/s
-AES-128-GCM-enc     25 KB took 31.000 seconds,    0.806 KB/s
-AES-128-GCM-dec     25 KB took 30.000 seconds,    0.833 KB/s
-AES-192-GCM-enc     25 KB took 33.000 seconds,    0.758 KB/s
-AES-192-GCM-dec     25 KB took 33.000 seconds,    0.758 KB/s
-AES-256-GCM-enc     25 KB took 34.000 seconds,    0.735 KB/s
-AES-256-GCM-dec     25 KB took 35.000 seconds,    0.714 KB/s
-SHA                 50 KB took 1.000 seconds,   50.000 KB/s
-SHA-256             25 KB took 1.000 seconds,   25.000 KB/s
-HMAC-SHA            25 KB took 1.000 seconds,   25.000 KB/s
-HMAC-SHA256         25 KB took 1.000 seconds,   25.000 KB/s
-ECC      256 key gen         1 ops took 12.000 sec, avg 12000.000 ms, 0.083 ops/sec
-ECDHE    256 agree           2 ops took 24.000 sec, avg 12000.000 ms, 0.083 ops/sec
-ECDSA    256 sign            2 ops took 25.000 sec, avg 12500.000 ms, 0.080 ops/sec
-ECDSA    256 verify          2 ops took 48.000 sec, avg 24000.000 ms, 0.042 ops/sec
-Benchmark complete
-```
+
 ## Tested Configurations
 - SHA-1
 - SHA-256
-- AES CBC
+- AES CBC/GCM
 - ECC 256 sign/verify/shared secret with fast math library
 
 ## Known Caveats
@@ -185,6 +166,7 @@ The `IDE/ECLIPSE/SIFIVE/Makefile` overwrites the value with 0x1000 (4 KBytes)
 - Enabling RSA will cause the ECC test to fail due to memory shortage
 
 ## References
+
 The test results were collected from a SiFive reference platform target with the following hardware, software and tool chains:
 - HiFive1 Rev A/Rev B: HiFive1 Development Board with the Freedom Everywhere SoC, E300
 - freedom-e-sdk

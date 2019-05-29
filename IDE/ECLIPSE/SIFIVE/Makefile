@@ -3,6 +3,7 @@ PROGRAM ?= wolfcrypt
 # This line must be added in your freedom-e-sdk/scripts/standalone.mk
 # RISCV_CFLAGS   += -I$(WOLFSSL_SRC_DIR) -I$(WOLFSSL_SRC_DIR)/IDE/ECLIPSE/SIFIVE -DWOLFSSL_USER_SETTINGS
 # WOLFSSL_SRC_DIR variable must be set in the environment when GNU make is started.
+# export WOLFSSL_SRC_DIR=~/freedom-e-sdk/software/wolfssl
 
 WOLFSSL_CFLAGS += -I$(WOLFSSL_SRC_DIR) \
 				  -I$(WOLFSSL_SRC_DIR)/IDE/ECLIPSE/SIFIVE \
