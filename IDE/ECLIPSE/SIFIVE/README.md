@@ -15,6 +15,11 @@ The `IDE/ECLIPSE/SIFIVE/main.c` example application provides a function to run t
 - #undef NO_CRYPT_TEST
 - #undef NO_CRYPT_BENCHMARK
 ```
+## Tested Configurations
+- SHA-1
+- SHA-256
+- AES CBC
+- ECC sign/verify/shared secret with fast math library
 
 ## Setup
 ### Setting up the SDK with wolfSSL
@@ -80,7 +85,7 @@ RANLIB=$RISCV_PATH/bin/riscv64-unknown-elf-gcc-ranlib \
 LD=riscv64-unknown-elf-ld \
 CXX=riscv64-unknown-elf-g++ \
 --disable-examples --enable-static --disable-shared \
-CFLAGS="-march=rv32imac -mabi=ilp32 -mcmodel=medlow -ffunction-sections -fdata-sections -I~/freedom-e-sdk/bsp/sifive-hifive1/install/include -O0 -g -DNO_FILESYSTEM -DWOLFSSL_NO_SOCK -DNO_WRITEV -DWOLFCRYPT_ONLY -DWOLFSSL_GENSEED_FORTEST -DWOLFSSL_SIFIVE_RISC_V"
+CFLAGS="-march=rv32imac -mabi=ilp32 -mcmodel=medlow -ffunction-sections -fdata-sections -I~/freedom-e-sdk/bsp/sifive-hifive1/install/include -O0 -g -DNO_FILESYSTEM -DWOLFSSL_NO_SOCK -DNO_WRITEV -DWOLFCRYPT_ONLY -DWOLFSSL_SIFIVE_RISC_V"
 
 $make
 $sudo make install
@@ -143,8 +148,6 @@ ECDHE    256 agree           2 ops took 22.000 sec, avg 11000.000 ms, 0.091 ops/
 ECDSA    256 sign            2 ops took 23.000 sec, avg 11500.000 ms, 0.087 ops/sec
 ECDSA    256 verify          2 ops took 45.000 sec, avg 22500.000 ms, 0.044 ops/sec
 Benchmark complete
-
-
 ```
 TARGET=sifive-hifive1
 ```
@@ -175,6 +178,11 @@ ECDSA    256 sign            2 ops took 25.000 sec, avg 12500.000 ms, 0.080 ops/
 ECDSA    256 verify          2 ops took 48.000 sec, avg 24000.000 ms, 0.042 ops/sec
 Benchmark complete
 ```
+## Known Caveats
+- If you find the wolfcrypt test stuck on early_trap_vector error, it is like related to memory issues
+- Using the `__stack_size` default value of 0x400 will not be enough for the ECC test to pass.
+The `IDE/ECLIPSE/SIFIVE/Makefile` overwrites the value with 0x1000 (4 KBytes)
+- Enabling RSA will cause the ECC test to fail due to memory shortage
 
 ## References
 The test results were collected from a SiFive reference platform target with the following hardware, software and tool chains:

@@ -118,11 +118,11 @@ extern "C" {
 
     #ifdef ECC_USER_CURVES
         /* Manual Curve Selection */
-        //#define HAVE_ECC192
-        //#define HAVE_ECC224
+        #define HAVE_ECC192
+        #define HAVE_ECC224
         #undef NO_ECC256
-        //#define HAVE_ECC384
-        //#define HAVE_ECC521
+        #define HAVE_ECC384
+        #define HAVE_ECC521
     #endif
 
     /* Fixed point cache (speeds repeated operations against same private key) */
@@ -203,29 +203,24 @@ extern "C" {
 #if 1
     #undef  HAVE_AES_CBC
     #define HAVE_AES_CBC
+    
+    #undef  HAVE_AESGCM
+    #define HAVE_AESGCM
 
-    /* If you need other than AES-CBC mode, you must undefine WOLFSSL_CRYPTOCELL_AES */
-    #if !defined(WOLFSSL_CRYPTOCELL_AES)
-        #undef  HAVE_AESGCM
-        #define HAVE_AESGCM
+    /* GCM Method: GCM_SMALL, GCM_WORD32 or GCM_TABLE */
+    #define GCM_SMALL
 
-        /* GCM Method: GCM_SMALL, GCM_WORD32 or GCM_TABLE */
-        #define GCM_SMALL
+    #undef  WOLFSSL_AES_DIRECT
+    //#define WOLFSSL_AES_DIRECT
 
-        #undef  WOLFSSL_AES_DIRECT
-        //#define WOLFSSL_AES_DIRECT
+    #undef  HAVE_AES_ECB
+    //#define HAVE_AES_ECB
 
-        #undef  HAVE_AES_ECB
-        //#define HAVE_AES_ECB
+    #undef  WOLFSSL_AES_COUNTER
+    //#define WOLFSSL_AES_COUNTER
 
-        #undef  WOLFSSL_AES_COUNTER
-        //#define WOLFSSL_AES_COUNTER
-
-        #undef  HAVE_AESCCM
-        //#define HAVE_AESCCM
-    #endif
-#else
-    #define NO_AES
+    #undef  HAVE_AESCCM
+    //#define HAVE_AESCCM
 #endif
 
 
@@ -436,16 +431,22 @@ extern "C" {
 /* RNG */
 /* ------------------------------------------------------------------------- */
 
-#if defined(WOLFSSL_SIFIVE_RISC_V)
-    /* Override P-RNG with HW RNG */
-    //extern int my_random_generate(byte* output, word32 sz);
-    //#undef  CUSTOM_RAND_GENERATE_BLOCK
-    //#define CUSTOM_RAND_GENERATE_BLOCK  my_random_generate
-    #define WOLFSSL_GENSEED_FORTEST /* for software RNG*/
+#if 1
+/* Bypass P-RNG and use only HW RNG */
+#define CUSTOM_RAND_TYPE      unsigned int
+extern int my_rng_gen_block(unsigned char* output, unsigned int sz);
+#undef  CUSTOM_RAND_GENERATE_BLOCK
+#define CUSTOM_RAND_GENERATE_BLOCK  my_rng_gen_block
 #else
-    #define WOLFSSL_GENSEED_FORTEST
-#endif
+    #define HAVE_HASHDRBG
 
+    /* Seed Source */
+    /* Size of returned HW RNG value */
+    #define CUSTOM_RAND_TYPE      unsigned int
+    extern unsigned int my_rng_seed_gen(void);
+    #undef  CUSTOM_RAND_GENERATE
+    #define CUSTOM_RAND_GENERATE  my_rng_seed_gen
+#endif
 
 /* ------------------------------------------------------------------------- */
 /* Enable Features */

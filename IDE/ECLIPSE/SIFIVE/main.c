@@ -46,6 +46,7 @@ double current_time(int reset)
 }
 #endif
 
+#if WOLFSSL_SIFIVE_RISC_V_DEBUG
 void check(int depth) {
     char ch;
     char *ptr = malloc(1);
@@ -55,6 +56,7 @@ void check(int depth) {
         return;
     
     check(depth-1);
+    free(ptr);
 }
 
 void mtime_sleep( uint64_t ticks) {
@@ -71,6 +73,45 @@ void delay(int sec) {
     uint64_t ticks = sec * RTC_FREQ;
     mtime_sleep(ticks);
 }
+#endif 
+
+/* RNG CODE */
+/* TODO: Implement real RNG */
+static unsigned int gCounter;
+unsigned int hw_rand(void)
+{
+    /* #warning Must implement your own random source */
+
+    return ++gCounter;
+}
+
+unsigned int my_rng_seed_gen(void)
+{
+    return hw_rand();
+}
+
+int my_rng_gen_block(unsigned char* output, unsigned int sz)
+{
+    uint32_t i = 0;
+    uint32_t randReturnSize = sizeof(CUSTOM_RAND_TYPE);
+
+    while (i < sz)
+    {
+        /* If not aligned or there is odd/remainder */
+        if((i + randReturnSize) > sz ||
+            ((uint32_t)&output[i] % randReturnSize) != 0 ) {
+            /* Single byte at a time */
+            output[i++] = (unsigned char)my_rng_seed_gen();
+        }
+        else {
+            /* Use native 8, 16, 32 or 64 copy instruction */
+            *((CUSTOM_RAND_TYPE*)&output[i]) = my_rng_seed_gen();
+            i += randReturnSize;
+        }
+    }
+
+    return 0;
+}
 
 int main(void) 
 {
@@ -78,7 +119,7 @@ int main(void)
 
 #if WOLFSSL_SIFIVE_RISC_V_DEBUG
     printf("check stack and heap addresses\n");
-    check(10);
+    check(8);
     printf("sleep for 10 seconds to verify timer\n");
     delay(10);
     printf("awake after sleeping for 10 seconds\n");
@@ -87,9 +128,7 @@ int main(void)
     #ifdef DEBUG_WOLFSSL
         wolfSSL_Debugging_ON();
     #endif
-    #ifdef HAVE_STACK_SIZE
-        StackSizeCheck(&args, server_test);
-    #endif
+
     if ((ret = wolfCrypt_Init()) != 0) {
         printf("wolfCrypt_Init failed %d\n", ret);
         return -1;
