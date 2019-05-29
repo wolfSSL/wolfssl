@@ -170,6 +170,27 @@ static char* iptos(unsigned int addr)
 }
 
 
+#ifdef WOLFSSL_SNIFFER_WATCH
+
+static int myWatchCb(void* vSniffer,
+        const unsigned char* certHash, unsigned int certHashSz,
+        const unsigned char* cert, unsigned int certSz,
+        void* ctx, char* error)
+{
+    (void)certHash;
+    (void)certHashSz;
+    (void)cert;
+    (void)certSz;
+    (void)ctx;
+
+    return ssl_SetWatchKey(vSniffer,
+            "../../certs/server-key.pem",
+            FILETYPE_PEM, NULL, error);
+}
+
+#endif
+
+
 int main(int argc, char** argv)
 {
     int          ret = 0;
@@ -193,6 +214,9 @@ int main(int argc, char** argv)
 #endif
     ssl_Trace("./tracefile.txt", err);
     ssl_EnableRecovery(1, -1, err);
+#ifdef WOLFSSL_SNIFFER_WATCH
+    ssl_SetWatchKeyCallback(myWatchCb, err);
+#endif
 
     if (argc == 1) {
         /* normal case, user chooses device and port */
@@ -275,6 +299,7 @@ int main(int argc, char** argv)
         ret = pcap_setfilter(pcap, &fp);
         if (ret != 0) printf("pcap_setfilter failed %s\n", pcap_geterr(pcap));
 
+#ifndef WOLFSSL_SNIFFER_WATCH
         ret = ssl_SetPrivateKey(server, port, "../../certs/server-key.pem",
                                FILETYPE_PEM, NULL, err);
         if (ret != 0) {
@@ -298,6 +323,7 @@ int main(int argc, char** argv)
                 }
             }
         }
+#endif
 #endif
     }
     else if (argc >= 3) {
