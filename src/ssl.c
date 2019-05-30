@@ -8513,6 +8513,10 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                 WOLFSSL_MSG("No Basic Constraint set");
             }
 
+            /* Stack wasn't used, so free before returning obj */
+            wolfSSL_sk_ASN1_OBJECT_free(sk);
+            sk = NULL;
+
             return obj;
 
         case ALT_NAMES_OID:
@@ -18811,7 +18815,6 @@ char* wolfSSL_i2s_ASN1_STRING(WOLFSSL_v3_ext_method *method, const WOLFSSL_ASN1_
 
     return tmp;
 }
-
 #endif /* NO_ASN */
 
 void wolfSSL_set_connect_state(WOLFSSL* ssl)
@@ -36717,7 +36720,6 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             if (wolfssl_object_info[i].nid == id) {
                 id = wolfssl_object_info[i].id;
                 sName = wolfssl_object_info[i].sName;
-                printf("sname = %s\n", sName);
                 type = wolfssl_object_info[i].type;
                 break;
             }
@@ -39469,6 +39471,7 @@ void wolfSSL_sk_X509_INFO_pop_free(WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk,
         else
             wolfSSL_X509_INFO_free(info);
     }
+    wolfSSL_sk_free_node(sk);
 }
 
 void wolfSSL_sk_X509_INFO_free(WOLF_STACK_OF(WOLFSSL_X509_INFO) *sk)
