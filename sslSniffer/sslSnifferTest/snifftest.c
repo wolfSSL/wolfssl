@@ -172,20 +172,43 @@ static char* iptos(unsigned int addr)
 
 #ifdef WOLFSSL_SNIFFER_WATCH
 
+const byte rsaHash[] = {
+    0xD1, 0xB6, 0x12, 0xAD, 0xB6, 0x50, 0x7B, 0x59,
+    0x97, 0x83, 0x6B, 0xCB, 0x35, 0xF5, 0xB8, 0x67,
+    0xEB, 0x83, 0x75, 0x40, 0x1B, 0x42, 0x61, 0xF1,
+    0x03, 0x72, 0xDC, 0x09, 0x0D, 0x60, 0x83, 0x15
+};
+
+const byte eccHash[] = {
+    0xDA, 0x08, 0x6D, 0xB5, 0x0B, 0xC4, 0x9F, 0x8A,
+    0x9E, 0x61, 0x9E, 0x87, 0x57, 0x5F, 0x00, 0xAA,
+    0x76, 0xE5, 0x1C, 0x9C, 0x74, 0x2A, 0x19, 0xBE,
+    0x22, 0xAE, 0x25, 0x3F, 0xA8, 0xAF, 0x8E, 0x7F
+};
+
+
 static int myWatchCb(void* vSniffer,
         const unsigned char* certHash, unsigned int certHashSz,
         const unsigned char* cert, unsigned int certSz,
         void* ctx, char* error)
 {
-    (void)certHash;
-    (void)certHashSz;
+    const char* certName = NULL;
+
     (void)cert;
     (void)certSz;
     (void)ctx;
 
-    return ssl_SetWatchKey(vSniffer,
-            "../../certs/server-key.pem",
-            FILETYPE_PEM, NULL, error);
+    if (certHashSz == sizeof(rsaHash) &&
+            memcmp(certHash, rsaHash, certHashSz) == 0)
+        certName = "../../certs/server-key.pem";
+    if (certHashSz == sizeof(eccHash) &&
+            memcmp(certHash, eccHash, certHashSz) == 0)
+        certName = "../../certs/ecc-key.pem";
+
+    if (certName == NULL)
+        return -1;
+
+    return ssl_SetWatchKey(vSniffer, certName, FILETYPE_PEM, NULL, error);
 }
 
 #endif
