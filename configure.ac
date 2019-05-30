@@ -1248,17 +1248,31 @@ AM_CONDITIONAL([BUILD_RIPEMD], [test "x$ENABLED_RIPEMD" = "xyes"])
 
 # BLAKE2
 AC_ARG_ENABLE([blake2],
-    [AS_HELP_STRING([--enable-blake2],[Enable wolfSSL BLAKE2 support (default: disabled)])],
+    [AS_HELP_STRING([--enable-blake2],[Enable wolfSSL BLAKE2b support (default: disabled)])],
     [ ENABLED_BLAKE2=$enableval ],
     [ ENABLED_BLAKE2=no ]
     )
 
 if test "$ENABLED_BLAKE2" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_BLAKE2"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_BLAKE2 -DHAVE_BLAKE2B"
 fi
 
 AM_CONDITIONAL([BUILD_BLAKE2], [test "x$ENABLED_BLAKE2" = "xyes"])
+
+AC_ARG_ENABLE([blake2s],
+    [AS_HELP_STRING([--enable-blake2s],[Enable wolfSSL BLAKE2s support (default: disabled)])],
+    [ ENABLED_BLAKE2S=$enableval ],
+    [ ENABLED_BLAKE2S=Sno ]
+    )
+
+if test "$ENABLED_BLAKE2S" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_BLAKE2S"
+    ENABLED_BLAKE2="yes"
+fi
+
+AM_CONDITIONAL([BUILD_BLAKE2S], [test "x$ENABLED_BLAKE2S" = "xyes"])
 
 
 # SHA512

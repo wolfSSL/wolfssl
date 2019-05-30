@@ -160,7 +160,7 @@
 #ifdef HAVE_ED25519
     #include <wolfssl/wolfcrypt/ed25519.h>
 #endif
-#ifdef HAVE_BLAKE2
+#if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
     #include <wolfssl/wolfcrypt/blake2.h>
 #endif
 #ifdef WOLFSSL_SHA3
@@ -338,6 +338,9 @@ int scrypt_test(void);
 #endif
 #ifdef HAVE_BLAKE2
     int  blake2b_test(void);
+#endif
+#ifdef HAVE_BLAKE2S
+    int  blake2s_test(void);
 #endif
 #ifdef HAVE_LIBZ
     int compress_test(void);
@@ -658,6 +661,12 @@ initDefaultName();
         return err_sys("BLAKE2b  test failed!\n", ret);
     else
         test_pass("BLAKE2b  test passed!\n");
+#endif
+#ifdef HAVE_BLAKE2S
+    if ( (ret = blake2s_test()) != 0)
+        return err_sys("BLAKE2s  test failed!\n", ret);
+    else
+        test_pass("BLAKE2s  test passed!\n");
 #endif
 
 #ifndef NO_HMAC
@@ -1969,9 +1978,9 @@ int ripemd_test(void)
 #ifdef HAVE_BLAKE2
 
 
-#define BLAKE2_TESTS 3
+#define BLAKE2B_TESTS 3
 
-static const byte blake2b_vec[BLAKE2_TESTS][BLAKE2B_OUTBYTES] =
+static const byte blake2b_vec[BLAKE2B_TESTS][BLAKE2B_OUTBYTES] =
 {
   {
     0x78, 0x6A, 0x02, 0xF7, 0x42, 0x01, 0x59, 0x03,
@@ -2017,7 +2026,7 @@ int blake2b_test(void)
     for (i = 0; i < (int)sizeof(input); i++)
         input[i] = (byte)i;
 
-    for (i = 0; i < BLAKE2_TESTS; i++) {
+    for (i = 0; i < BLAKE2B_TESTS; i++) {
         ret = wc_InitBlake2b(&b2b, 64);
         if (ret != 0)
             return -2000 - i;
@@ -2038,6 +2047,67 @@ int blake2b_test(void)
     return 0;
 }
 #endif /* HAVE_BLAKE2 */
+
+#ifdef HAVE_BLAKE2S
+
+
+#define BLAKE2S_TESTS 3
+
+static const byte blake2s_vec[BLAKE2S_TESTS][BLAKE2S_OUTBYTES] =
+{
+  {
+    0x69, 0x21, 0x7a, 0x30, 0x79, 0x90, 0x80, 0x94,
+    0xe1, 0x11, 0x21, 0xd0, 0x42, 0x35, 0x4a, 0x7c,
+    0x1f, 0x55, 0xb6, 0x48, 0x2c, 0xa1, 0xa5, 0x1e,
+    0x1b, 0x25, 0x0d, 0xfd, 0x1e, 0xd0, 0xee, 0xf9,
+  },
+  {
+    0xe3, 0x4d, 0x74, 0xdb, 0xaf, 0x4f, 0xf4, 0xc6,
+    0xab, 0xd8, 0x71, 0xcc, 0x22, 0x04, 0x51, 0xd2,
+    0xea, 0x26, 0x48, 0x84, 0x6c, 0x77, 0x57, 0xfb,
+    0xaa, 0xc8, 0x2f, 0xe5, 0x1a, 0xd6, 0x4b, 0xea,
+  },
+  {
+    0xdd, 0xad, 0x9a, 0xb1, 0x5d, 0xac, 0x45, 0x49,
+    0xba, 0x42, 0xf4, 0x9d, 0x26, 0x24, 0x96, 0xbe,
+    0xf6, 0xc0, 0xba, 0xe1, 0xdd, 0x34, 0x2a, 0x88,
+    0x08, 0xf8, 0xea, 0x26, 0x7c, 0x6e, 0x21, 0x0c,
+  }
+};
+
+
+
+int blake2s_test(void)
+{
+    Blake2s b2s;
+    byte    digest[32];
+    byte    input[64];
+    int     i, ret;
+
+    for (i = 0; i < (int)sizeof(input); i++)
+        input[i] = (byte)i;
+
+    for (i = 0; i < BLAKE2S_TESTS; i++) {
+        ret = wc_InitBlake2s(&b2s, 32);
+        if (ret != 0)
+            return -2000 - i;
+
+        ret = wc_Blake2sUpdate(&b2s, input, i);
+        if (ret != 0)
+            return -2010 - 1;
+
+        ret = wc_Blake2sFinal(&b2s, digest, 32);
+        if (ret != 0)
+            return -2020 - i;
+
+        if (XMEMCMP(digest, blake2s_vec[i], 32) != 0) {
+            return -2030 - i;
+        }
+    }
+
+    return 0;
+}
+#endif /* HAVE_BLAKE2S */
 
 
 #ifdef WOLFSSL_SHA224
@@ -3083,11 +3153,21 @@ int hash_test(void)
 #endif
 
     ret = wc_HashGetBlockSize(WC_HASH_TYPE_BLAKE2B);
-    if (ret != BAD_FUNC_ARG)
+#if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
+    if (ret == HASH_TYPE_E || ret == BAD_FUNC_ARG)
         return -3091;
+#else
+    if (ret != HASH_TYPE_E)
+        return -3091;
+#endif
     ret = wc_HashGetDigestSize(WC_HASH_TYPE_BLAKE2B);
-    if (ret != BAD_FUNC_ARG)
+#if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
+    if (ret == HASH_TYPE_E || ret == BAD_FUNC_ARG)
         return -3092;
+#else
+    if (ret != HASH_TYPE_E)
+        return -3092;
+#endif
 
     ret = wc_HashGetBlockSize(WC_HASH_TYPE_NONE);
     if (ret != BAD_FUNC_ARG)
