@@ -39,7 +39,7 @@ int SSL_STSAFE_LoadDeviceCertificate(byte** pRawCertificate,
 
     /* Try reading device certificate from ST-SAFE Zone 0 */
     err = stsafe_interface_read_device_certificate_raw(
-        pRawCertificate, pRawCertificateLen);
+        pRawCertificate, (uint32_t*)pRawCertificateLen);
     if (err == 0) {
     #if 0
         /* example for loading into WOLFSSL_CTX */
@@ -154,7 +154,7 @@ int SSL_STSAFE_VerifyPeerCertCb(WOLFSSL* ssl,
     if (err == 0) {
         /* Verify signature */
         err = stsafe_interface_verify(curve_id, (uint8_t*)hash, sigRS,
-            pubKeyX, pubKeyY, result);
+            pubKeyX, pubKeyY, (int32_t*)result);
     }
 
     wc_ecc_free(&key);
