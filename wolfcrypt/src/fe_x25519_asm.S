@@ -2045,56 +2045,6 @@ L_curve25519_x64_bits:
         xorq	%r11, 56(%rsp)
         movq	%rbp, %rbx
         # Add
-        movq	64(%rsp), %rcx
-        movq	72(%rsp), %r9
-        movq	80(%rsp), %r10
-        movq	88(%rsp), %rbp
-        movq	%rcx, %r12
-        addq	32(%rsp), %rcx
-        movq	%r9, %r13
-        adcq	40(%rsp), %r9
-        movq	%r10, %r14
-        adcq	48(%rsp), %r10
-        movq	%rbp, %r15
-        adcq	56(%rsp), %rbp
-        movq	$-19, %rax
-        movq	%rbp, %r11
-        movq	$0x7fffffffffffffff, %rdx
-        sarq	$63, %rbp
-        #   Mask the modulus
-        andq	%rbp, %rax
-        andq	%rbp, %rdx
-        #   Sub modulus (if overflow)
-        subq	%rax, %rcx
-        sbbq	%rbp, %r9
-        sbbq	%rbp, %r10
-        sbbq	%rdx, %r11
-        # Sub
-        subq	32(%rsp), %r12
-        movq	$0x00, %rbp
-        sbbq	40(%rsp), %r13
-        movq	$-19, %rax
-        sbbq	48(%rsp), %r14
-        movq	$0x7fffffffffffffff, %rdx
-        sbbq	56(%rsp), %r15
-        sbbq	$0x00, %rbp
-        #   Mask the modulus
-        andq	%rbp, %rax
-        andq	%rbp, %rdx
-        #   Add modulus (if underflow)
-        addq	%rax, %r12
-        adcq	%rbp, %r13
-        adcq	%rbp, %r14
-        adcq	%rdx, %r15
-        movq	%rcx, (%rdi)
-        movq	%r9, 8(%rdi)
-        movq	%r10, 16(%rdi)
-        movq	%r11, 24(%rdi)
-        movq	%r12, 96(%rsp)
-        movq	%r13, 104(%rsp)
-        movq	%r14, 112(%rsp)
-        movq	%r15, 120(%rsp)
-        # Add
         movq	(%rdi), %rcx
         movq	8(%rdi), %r9
         movq	16(%rdi), %r10
@@ -2136,14 +2086,64 @@ L_curve25519_x64_bits:
         adcq	%rbp, %r13
         adcq	%rbp, %r14
         adcq	%rdx, %r15
-        movq	%rcx, (%rsp)
-        movq	%r9, 8(%rsp)
-        movq	%r10, 16(%rsp)
-        movq	%r11, 24(%rsp)
+        movq	%rcx, (%rdi)
+        movq	%r9, 8(%rdi)
+        movq	%r10, 16(%rdi)
+        movq	%r11, 24(%rdi)
         movq	%r12, 128(%rsp)
         movq	%r13, 136(%rsp)
         movq	%r14, 144(%rsp)
         movq	%r15, 152(%rsp)
+        # Add
+        movq	64(%rsp), %rcx
+        movq	72(%rsp), %r9
+        movq	80(%rsp), %r10
+        movq	88(%rsp), %rbp
+        movq	%rcx, %r12
+        addq	32(%rsp), %rcx
+        movq	%r9, %r13
+        adcq	40(%rsp), %r9
+        movq	%r10, %r14
+        adcq	48(%rsp), %r10
+        movq	%rbp, %r15
+        adcq	56(%rsp), %rbp
+        movq	$-19, %rax
+        movq	%rbp, %r11
+        movq	$0x7fffffffffffffff, %rdx
+        sarq	$63, %rbp
+        #   Mask the modulus
+        andq	%rbp, %rax
+        andq	%rbp, %rdx
+        #   Sub modulus (if overflow)
+        subq	%rax, %rcx
+        sbbq	%rbp, %r9
+        sbbq	%rbp, %r10
+        sbbq	%rdx, %r11
+        # Sub
+        subq	32(%rsp), %r12
+        movq	$0x00, %rbp
+        sbbq	40(%rsp), %r13
+        movq	$-19, %rax
+        sbbq	48(%rsp), %r14
+        movq	$0x7fffffffffffffff, %rdx
+        sbbq	56(%rsp), %r15
+        sbbq	$0x00, %rbp
+        #   Mask the modulus
+        andq	%rbp, %rax
+        andq	%rbp, %rdx
+        #   Add modulus (if underflow)
+        addq	%rax, %r12
+        adcq	%rbp, %r13
+        adcq	%rbp, %r14
+        adcq	%rdx, %r15
+        movq	%rcx, (%rsp)
+        movq	%r9, 8(%rsp)
+        movq	%r10, 16(%rsp)
+        movq	%r11, 24(%rsp)
+        movq	%r12, 96(%rsp)
+        movq	%r13, 104(%rsp)
+        movq	%r14, 112(%rsp)
+        movq	%r15, 120(%rsp)
         # Multiply
         #  A[0] * B[0]
         movq	(%rdi), %rax
