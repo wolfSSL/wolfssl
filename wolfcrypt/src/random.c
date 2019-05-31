@@ -274,7 +274,7 @@ enum {
     drbgInitV
 };
 
-
+/* NOTE: if DRBG struct is changed please update random.h drbg_data size */
 typedef struct DRBG {
     word32 reseedCtr;
     word32 lastBlock;
@@ -753,9 +753,18 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         byte seed[MAX_SEED_SZ];
     #endif
 
+#if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
         rng->drbg =
                 (struct DRBG*)XMALLOC(sizeof(DRBG), rng->heap,
                                                           DYNAMIC_TYPE_RNG);
+#else
+        /* compile-time validation of drbg_data size */
+        typedef char drbg_data_test[sizeof(rng->drbg_data) >=
+                sizeof(struct DRBG) ? 1 : -1];
+        (void)sizeof(drbg_data_test);
+        rng->drbg = (struct DRBG*)rng->drbg_data;
+#endif
+
         if (rng->drbg == NULL) {
             ret = MEMORY_E;
         }
@@ -775,7 +784,9 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
                 ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
 
             if (ret != DRBG_SUCCESS) {
+            #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
                 XFREE(rng->drbg, rng->heap, DYNAMIC_TYPE_RNG);
+            #endif
                 rng->drbg = NULL;
             }
         }
@@ -953,7 +964,9 @@ int wc_FreeRng(WC_RNG* rng)
         if (Hash_DRBG_Uninstantiate(rng->drbg) != DRBG_SUCCESS)
             ret = RNG_FAILURE_E;
 
+    #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
         XFREE(rng->drbg, rng->heap, DYNAMIC_TYPE_RNG);
+    #endif
         rng->drbg = NULL;
     }
 

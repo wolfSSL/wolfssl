@@ -105,8 +105,15 @@
     #ifdef XMALLOC_USER
         #include <stdlib.h>  /* we're using malloc / free direct here */
     #endif
+    #ifndef STRING_USER
+        #include <stdio.h>
+    #endif
 
-    #include <stdio.h>
+    /* enable way for customer to override test/bench printf */
+    #ifdef XPRINTF
+        #undef  printf
+        #define printf XPRINTF
+    #endif
 #endif
 
 #include <wolfssl/wolfcrypt/memory.h>
@@ -443,7 +450,7 @@ static void myFipsCb(int ok, int err, const char* hash)
 
 #ifdef WOLFSSL_STATIC_MEMORY
     #ifdef BENCH_EMBEDDED
-        static byte gTestMemory[10000];
+        static byte gTestMemory[14000];
     #elif defined(WOLFSSL_CERT_EXT)
         static byte gTestMemory[140000];
     #elif defined(USE_FAST_MATH) && !defined(ALT_ECC_SIZE)
@@ -23469,11 +23476,13 @@ int mutex_test(void)
 #ifdef WOLFSSL_PTHREADS
     wolfSSL_Mutex m;
 #endif
+#ifndef WOLFSSL_NO_MALLOC
     wolfSSL_Mutex *mm = wc_InitAndAllocMutex();
     if (mm == NULL)
         return -9900;
     wc_FreeMutex(mm);
     XFREE(mm, NULL, DYNAMIC_TYPE_MUTEX);
+#endif
 
 #ifdef WOLFSSL_PTHREADS
     if (wc_InitMutex(&m) != 0)
@@ -23507,6 +23516,7 @@ static void *my_Malloc_cb(size_t size)
         return malloc(size);
     #else
         WOLFSSL_MSG("No malloc available");
+        return NULL;
     #endif
 }
 static void my_Free_cb(void *ptr)
@@ -23525,6 +23535,7 @@ static void *my_Realloc_cb(void *ptr, size_t size)
         return realloc(ptr, size);
     #else
         WOLFSSL_MSG("No realloc available");
+        return NULL;
     #endif
 }
 
@@ -23540,6 +23551,7 @@ int memcb_test(void)
     if (wolfSSL_GetAllocators(&mc, &fc, &rc) != 0)
         return -10000;
 
+#ifndef WOLFSSL_NO_MALLOC
     /* test realloc */
     b = (byte*)XREALLOC(b, 1024, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (b == NULL) {
@@ -23565,6 +23577,7 @@ int memcb_test(void)
     if (malloc_cnt != 0 || free_cnt != 0 || realloc_cnt != 0)
 #endif
         ret = -10006;
+#endif /* !WOLFSSL_NO_MALLOC */
 
 exit_memcb:
 

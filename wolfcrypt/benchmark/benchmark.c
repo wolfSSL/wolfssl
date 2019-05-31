@@ -113,8 +113,16 @@
         #include <stdlib.h>  /* we're using malloc / free direct here */
     #endif
 
-    #include <string.h>
-    #include <stdio.h>
+    #ifndef STRING_USER
+        #include <string.h>
+        #include <stdio.h>
+    #endif
+
+    /* enable way for customer to override test/bench printf */
+    #ifdef XPRINTF
+        #undef  printf
+        #define printf XPRINTF
+    #endif
 #endif
 
 #include <wolfssl/wolfcrypt/memory.h>

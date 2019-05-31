@@ -271,11 +271,29 @@
         #define XREALLOC(p, n, h, t) m2mb_os_realloc((p), (n))
 
     #elif defined(NO_WOLFSSL_MEMORY)
+        #ifdef WOLFSSL_NO_MALLOC
+            /* this platform does not support heap use */
+            #ifdef WOLFSSL_MALLOC_CHECK
+                #include <stdio.h>
+                static inline void* malloc_check(size_t sz) {
+                    printf("wolfSSL_malloc failed");
+                    return NULL;
+                };
+                #define XMALLOC(s, h, t)     malloc_check((s))
+                #define XFREE(p, h, t)
+                #define XREALLOC(p, n, h, t) (NULL)
+            #else
+                #define XMALLOC(s, h, t)     (NULL)
+                #define XFREE(p, h, t)
+                #define XREALLOC(p, n, h, t) (NULL)
+            #endif
+        #else
         /* just use plain C stdlib stuff if desired */
         #include <stdlib.h>
         #define XMALLOC(s, h, t)     ((void)h, (void)t, malloc((s)))
         #define XFREE(p, h, t)       {void* xp = (p); if((xp)) free((xp));}
         #define XREALLOC(p, n, h, t) realloc((p), (n))
+        #endif
     #elif !defined(MICRIUM_MALLOC) && !defined(EBSNET) \
             && !defined(WOLFSSL_SAFERTOS) && !defined(FREESCALE_MQX) \
             && !defined(FREESCALE_KSDK_MQX) && !defined(FREESCALE_FREE_RTOS) \
@@ -412,6 +430,7 @@
         /* snprintf is used in asn.c for GetTimeString, PKCS7 test, and when
            debugging is turned on */
         #ifndef USE_WINDOWS_API
+            #ifndef XSNPRINTF
             #if defined(NO_FILESYSTEM) && (defined(OPENSSL_EXTRA) || \
                    defined(HAVE_PKCS7)) && !defined(NO_STDIO_FILESYSTEM)
                 /* case where stdio is not included else where but is needed
@@ -419,6 +438,7 @@
                 #include <stdio.h>
             #endif
             #define XSNPRINTF snprintf
+            #endif
         #else
             #ifdef _MSC_VER
                 #if (_MSC_VER >= 1900)
