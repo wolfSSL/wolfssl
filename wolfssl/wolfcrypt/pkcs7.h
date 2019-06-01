@@ -213,6 +213,9 @@ typedef int (*CallbackDecryptContent)(PKCS7* pkcs7, int encryptOID,
                                    byte* iv, int ivSz, byte* aad, word32 aadSz,
                                    byte* authTag, word32 authTagSz, byte* in,
                                    int inSz, byte* out, void* ctx);
+typedef int (*CallbackWrapCEK)(PKCS7* pkcs7, byte* cek, word32 cekSz,
+                                  byte* keyId, word32 keyIdSz, byte* out,
+                                  word32 outSz, int keyWrapAlgo, int dir);
 
 /* Public Structure Warning:
  * Existing members must not be changed to maintain backwards compatibility! 
@@ -303,6 +306,7 @@ struct PKCS7 {
     byte version; /* 1 for RFC 2315 and 3 for RFC 4108 */
     PKCS7SignerInfo* signerInfo;
     CallbackDecryptContent decryptionCb;
+    CallbackWrapCEK        wrapCEKCb;
     void*            decryptionCtx;
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };
@@ -423,6 +427,8 @@ WOLFSSL_API int  wc_PKCS7_SetOriDecryptCtx(PKCS7* pkcs7, void* ctx);
 WOLFSSL_API int  wc_PKCS7_SetOriDecryptCb(PKCS7* pkcs7, CallbackOriDecrypt cb);
 WOLFSSL_API int  wc_PKCS7_AddRecipient_ORI(PKCS7* pkcs7, CallbackOriEncrypt cb,
                                            int options);
+WOLFSSL_API int  wc_PKCS7_SetWrapCEKCb(PKCS7* pkcs7,
+        CallbackWrapCEK wrapCEKCb);
 
 /* CMS/PKCS#7 EnvelopedData */
 WOLFSSL_API int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,

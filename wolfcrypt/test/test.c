@@ -22012,6 +22012,147 @@ int pkcs7authenveloped_test(void)
 }
 
 #endif /* HAVE_AESGCM || HAVE_AESCCM */
+static const byte defKey[] = {
+    0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+    0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+    0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+    0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
+};
+
+static const byte altKey[] = {
+    0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+    0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
+};
+
+static int myCEKwrapFunc(PKCS7* pkcs7, byte* cek, word32 cekSz, byte* keyId,
+        word32 keyIdSz, byte* out, word32 outSz, int keyWrapAlgo, int direction)
+{
+    int ret;
+
+    if (cek == NULL || out == NULL)
+        return BAD_FUNC_ARG;
+
+    /* test case sanity checks */
+    if (keyIdSz != 1) {
+        return -1;
+    }
+
+    if (keyId[0] != 0x00) {
+        return -1;
+    }
+
+    switch (keyWrapAlgo) {
+        case AES256_WRAP:
+            ret = wc_AesKeyUnWrap(defKey, sizeof(defKey), cek, cekSz,
+                                      out, outSz, NULL);
+            if (ret <= 0)
+                return ret;
+            break;
+
+        default:
+            WOLFSSL_MSG("Unsupported key wrap algorithm in example");
+            return BAD_KEYWRAP_ALG_E;
+    };
+
+    (void)pkcs7;
+    (void)direction;
+    return ret;
+}
+
+
+/* returns key size on success */
+static int getFirmwareKey(PKCS7* pkcs7, byte* key, word32 keySz)
+{
+    int    ret;
+    word32 atrSz;
+    byte   atr[256];
+
+    /* Additionally can look for fwWrappedFirmwareKey
+     * 1.2.840.113529.1.9.16.1.16 */
+    const unsigned char fwWrappedFirmwareKey[] = {
+        /* 0x06, 0x0B */
+        0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
+        0x01, 0x09, 0x10, 0x02, 0x27
+    };
+
+    /* find keyID in fwWrappedFirmwareKey */
+    ret = wc_PKCS7_GetAttributeValue(pkcs7, fwWrappedFirmwareKey,
+            sizeof(fwWrappedFirmwareKey), NULL, &atrSz);
+    if (ret == LENGTH_ONLY_E) {
+        XMEMSET(atr, 0, sizeof(atr));
+        ret = wc_PKCS7_GetAttributeValue(pkcs7, fwWrappedFirmwareKey,
+                sizeof(fwWrappedFirmwareKey), atr, &atrSz);
+
+        /* keyIdRaw[0] OCTET TAG */
+        /* keyIdRaw[1] Length */
+
+        if (ret > 0) {
+            PKCS7* envPkcs7;
+
+            envPkcs7 = wc_PKCS7_New(NULL, 0);
+            if (envPkcs7 == NULL) {
+                return MEMORY_E;
+            }
+
+            wc_PKCS7_Init(envPkcs7, NULL, 0);
+            ret = wc_PKCS7_SetWrapCEKCb(envPkcs7, myCEKwrapFunc);
+            if (ret == 0) {
+                /* expecting FIRMWARE_PKG_DATA content */
+                envPkcs7->contentOID = FIRMWARE_PKG_DATA;
+                ret = wc_PKCS7_DecodeEnvelopedData(envPkcs7, atr, atrSz,
+                    key, keySz);
+            }
+            wc_PKCS7_Free(envPkcs7);
+        }
+    }
+
+    return ret;
+}
+
+/* create a KEKRI enveloped data
+ * return size on success */
+static int envelopedData_encrypt(byte* in, word32 inSz, byte* out,
+        word32 outSz)
+{
+    int ret;
+    PKCS7* pkcs7;
+    const byte keyId[] = { 0x00 };
+
+    pkcs7 = wc_PKCS7_New(NULL, INVALID_DEVID);
+    if (pkcs7 == NULL)
+        return -1;
+
+    pkcs7->content     = in;
+    pkcs7->contentSz   = inSz;
+    pkcs7->contentOID  = FIRMWARE_PKG_DATA;
+    pkcs7->encryptOID  = AES256CBCb;
+    pkcs7->ukm         = NULL;
+    pkcs7->ukmSz       = 0;
+
+    /* add recipient (KEKRI type) */
+    ret = wc_PKCS7_AddRecipient_KEKRI(pkcs7, AES256_WRAP, (byte*)defKey,
+                                      sizeof(defKey), (byte*)keyId,
+                                      sizeof(keyId), NULL, NULL, 0, NULL, 0, 0);
+    if (ret < 0) {
+        printf("wc_PKCS7_AddRecipient_KEKRI() failed, ret = %d\n", ret);
+        wc_PKCS7_Free(pkcs7);
+        return -1;
+    }
+
+    /* encode envelopedData, returns size */
+    ret = wc_PKCS7_EncodeEnvelopedData(pkcs7, out, outSz);
+    if (ret <= 0) {
+        printf("wc_PKCS7_EncodeEnvelopedData() failed, ret = %d\n", ret);
+        wc_PKCS7_Free(pkcs7);
+        return -1;
+
+    }
+
+    wc_PKCS7_Free(pkcs7);
+
+    return ret;
+}
+
 
 /*
  * keyHint is the KeyID to be set in the fwDecryptKeyID attribute
@@ -22021,26 +22162,46 @@ static int generateBundle(byte* out, word32 *outSz, const byte* encryptKey,
         word32 encryptKeySz, byte keyHint, byte* cert, word32 certSz,
         byte* key, word32 keySz)
 {
-    int ret;
+    int ret, attribNum = 1;
     PKCS7* pkcs7;
 
     /* KEY ID
      * fwDecryptKeyID OID 1.2.840.113549.1.9.16.2.37
      */
-    const unsigned char keyOID[] = {
+    const unsigned char fwDecryptKeyID[] = {
         0x06, 0x0B,
         0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
         0x01, 0x09, 0x10, 0x02, 0x25
     };
+
+    /* fwWrappedFirmwareKey 1.2.840.113529.1.9.16.1.16 */
+    const unsigned char fwWrappedFirmwareKey[] = {
+        0x06, 0x0B, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
+        0x01, 0x09, 0x10, 0x02, 0x27
+    };
+
     byte keyID[] = { 0x04, 0x01, 0x00 };
+    byte env[256];
     char data[] = "Test of wolfSSL PKCS7 decrypt callback";
 
     PKCS7Attrib attribs[] =
     {
-        { keyOID, sizeof(keyOID), keyID, sizeof(keyID) }
+        { fwDecryptKeyID, sizeof(fwDecryptKeyID), keyID, sizeof(keyID) },
+        { fwWrappedFirmwareKey, sizeof(fwWrappedFirmwareKey), env, 0 }
     };
 
     keyID[2] = keyHint;
+
+    /* If using keyHint 0 then create a bundle with fwWrappedFirmwareKey */
+    if (keyHint == 0) {
+        ret = envelopedData_encrypt((byte*)defKey, sizeof(defKey), env,
+                sizeof(env));
+        if (ret <= 0) {
+            return ret;
+        }
+        attribs[1].valueSz = ret;
+        attribNum++;
+    }
 
     /* init PKCS7 */
     pkcs7 = wc_PKCS7_New(NULL, INVALID_DEVID);
@@ -22064,16 +22225,14 @@ static int generateBundle(byte* out, word32 *outSz, const byte* encryptKey,
     if (encryptKeySz == 16) {
         ret = wc_PKCS7_EncodeSignedEncryptedFPD(pkcs7, (byte*)encryptKey,
                 encryptKeySz, key, keySz, AES128CBCb, RSAk, SHA256h,
-                (byte*)data, sizeof(data), attribs,
-                sizeof(attribs)/sizeof(PKCS7Attrib),
-                attribs, sizeof(attribs)/sizeof(PKCS7Attrib), out, *outSz);
+                (byte*)data, sizeof(data), NULL, 0,
+                attribs, attribNum, out, *outSz);
     }
     else {
         ret = wc_PKCS7_EncodeSignedEncryptedFPD(pkcs7, (byte*)encryptKey,
                 encryptKeySz, key, keySz, AES256CBCb, RSAk, SHA256h,
-                (byte*)data, sizeof(data), attribs,
-                sizeof(attribs)/sizeof(PKCS7Attrib), attribs,
-                sizeof(attribs)/sizeof(PKCS7Attrib), out, *outSz);
+                (byte*)data, sizeof(data), NULL, 0,
+                attribs, attribNum, out, *outSz);
     }
     if (ret <= 0) {
         printf("ERROR: wc_PKCS7_EncodeSignedEncryptedFPD() failed, "
@@ -22094,13 +22253,15 @@ static int generateBundle(byte* out, word32 *outSz, const byte* encryptKey,
 /* test verification and decryption of PKCS7 bundle
  * return 0 on success
  */
-static int verifyBundle(byte* derBuf, word32 derSz)
+static int verifyBundle(byte* derBuf, word32 derSz, int keyHint)
 {
     int ret = 0;
     int usrCtx = 1; /* test value to pass as user context to callback */
-    PKCS7 pkcs7;
+    PKCS7* pkcs7;
     byte*  sid;
     word32 sidSz;
+    byte key[256];
+    word32 keySz = sizeof(key);
 
     byte decoded[FOURK_BUF/2];
     int  decodedSz = FOURK_BUF/2;
@@ -22111,71 +22272,88 @@ static int verifyBundle(byte* derBuf, word32 derSz)
         0xD7, 0x85, 0x65, 0xC0
     };
 
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, INVALID_DEVID);
+    if (pkcs7 == NULL) {
+        return MEMORY_E;
+    }
+
     /* Test verify */
-    ret = wc_PKCS7_Init(&pkcs7, HEAP_HINT, INVALID_DEVID);
+    ret = wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID);
     if (ret != 0) {
-        wc_PKCS7_Free(&pkcs7);
-        return -10001;
+        wc_PKCS7_Free(pkcs7);
+        return ret;
     }
-    ret = wc_PKCS7_InitWithCert(&pkcs7, NULL, 0);
+    ret = wc_PKCS7_InitWithCert(pkcs7, NULL, 0);
     if (ret != 0) {
-        wc_PKCS7_Free(&pkcs7);
-        return -10001;
+        wc_PKCS7_Free(pkcs7);
+        return ret;
     }
-    ret = wc_PKCS7_VerifySignedData(&pkcs7, derBuf, derSz);
+    ret = wc_PKCS7_VerifySignedData(pkcs7, derBuf, derSz);
     if (ret != 0) {
-        wc_PKCS7_Free(&pkcs7);
-        return -10001;
+        wc_PKCS7_Free(pkcs7);
+        return ret;
     }
 
     /* Get size of SID and print it out */
-    ret = wc_PKCS7_GetSignerSID(&pkcs7, NULL, &sidSz);
+    ret = wc_PKCS7_GetSignerSID(pkcs7, NULL, &sidSz);
     if (ret != LENGTH_ONLY_E) {
-        wc_PKCS7_Free(&pkcs7);
+        wc_PKCS7_Free(pkcs7);
         return ret;
     }
 
     sid = (byte*)XMALLOC(sidSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sid == NULL) {
-        wc_PKCS7_Free(&pkcs7);
+        wc_PKCS7_Free(pkcs7);
         return ret;
     }
 
-    ret = wc_PKCS7_GetSignerSID(&pkcs7, sid, &sidSz);
+    ret = wc_PKCS7_GetSignerSID(pkcs7, sid, &sidSz);
     if (ret != 0) {
-        wc_PKCS7_Free(&pkcs7);
+        wc_PKCS7_Free(pkcs7);
         XFREE(sid, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
     ret = XMEMCMP(sid, expectedSid, sidSz);
     XFREE(sid, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (ret != 0) {
-        wc_PKCS7_Free(&pkcs7);
+        wc_PKCS7_Free(pkcs7);
         return ret;
     }
 
-    decodedSz = sizeof(decoded);
-    ret = wc_PKCS7_SetDecodeEncryptedCb(&pkcs7, myDecryptionFunc);
-    if (ret != 0) {
-        wc_PKCS7_Free(&pkcs7);
-        return ret;
+    /* get expected fwWrappedFirmwareKey */
+    if (keyHint == 0) {
+        ret = getFirmwareKey(pkcs7, key, keySz);
+        if (ret < 0) {
+            wc_PKCS7_Free(pkcs7);
+            return ret;
+        }
+        pkcs7->encryptionKey = key;
+        pkcs7->encryptionKeySz = ret;
+    }
+    else {
+        decodedSz = sizeof(decoded);
+        ret = wc_PKCS7_SetDecodeEncryptedCb(pkcs7, myDecryptionFunc);
+        if (ret != 0) {
+            wc_PKCS7_Free(pkcs7);
+            return ret;
+        }
+
+        ret = wc_PKCS7_SetDecodeEncryptedCtx(pkcs7, (void*)&usrCtx);
+        if (ret != 0) {
+            wc_PKCS7_Free(pkcs7);
+            return ret;
+        }
     }
 
-    ret = wc_PKCS7_SetDecodeEncryptedCtx(&pkcs7, (void*)&usrCtx);
-    if (ret != 0) {
-        wc_PKCS7_Free(&pkcs7);
-        return ret;
-    }
-
-    decodedSz = wc_PKCS7_DecodeEncryptedData(&pkcs7, pkcs7.content,
-            pkcs7.contentSz, decoded, decodedSz);
+    decodedSz = wc_PKCS7_DecodeEncryptedData(pkcs7, pkcs7->content,
+            pkcs7->contentSz, decoded, decodedSz);
     if (decodedSz < 0) {
         ret = decodedSz;
-        wc_PKCS7_Free(&pkcs7);
+        wc_PKCS7_Free(pkcs7);
         return ret;
     }
 
-    wc_PKCS7_Free(&pkcs7);
+    wc_PKCS7_Free(pkcs7);
     return 0;
 }
 
@@ -22187,18 +22365,6 @@ int pkcs7callback_test(byte* cert, word32 certSz, byte* key, word32 keySz)
     byte derBuf[FOURK_BUF/2];
     word32 derSz = FOURK_BUF/2;
 
-    const byte defKey[] = {
-        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
-        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
-        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
-        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
-    };
-
-    const byte altKey[] = {
-        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
-        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
-    };
-
     /* Doing default generation and verify */
     ret = generateBundle(derBuf, &derSz, defKey, sizeof(defKey), 0, cert,
             certSz, key, keySz);
@@ -22206,7 +22372,7 @@ int pkcs7callback_test(byte* cert, word32 certSz, byte* key, word32 keySz)
         return -10000;
     }
 
-    ret = verifyBundle(derBuf, derSz);
+    ret = verifyBundle(derBuf, derSz, 0);
     if (ret != 0) {
         return -10001;
     }
@@ -22219,7 +22385,7 @@ int pkcs7callback_test(byte* cert, word32 certSz, byte* key, word32 keySz)
         return -10002;
     }
 
-    ret = verifyBundle(derBuf, derSz);
+    ret = verifyBundle(derBuf, derSz, 1);
     if (ret != 0) {
         return -10003;
     }
@@ -22232,7 +22398,7 @@ int pkcs7callback_test(byte* cert, word32 certSz, byte* key, word32 keySz)
         return -10004;
     }
 
-    ret = verifyBundle(derBuf, derSz);
+    ret = verifyBundle(derBuf, derSz, 1);
     if (ret == 0) {
         return -10005;
     }

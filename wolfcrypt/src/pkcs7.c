@@ -7203,7 +7203,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     int ret, idx = 0;
     int totalSz, padSz, encryptedOutSz;
 
-    int contentInfoSeqSz, outerContentTypeSz, outerContentSz;
+    int contentInfoSeqSz, outerContentTypeSz = 0, outerContentSz;
     byte contentInfoSeq[MAX_SEQ_SZ];
     byte outerContentType[MAX_ALGO_SZ];
     byte outerContent[MAX_SEQ_SZ];
@@ -7245,13 +7245,15 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     if (blockSz < 0)
         return blockSz;
 
-    /* outer content type */
-    ret = wc_SetContentType(ENVELOPED_DATA, outerContentType,
-                            sizeof(outerContentType));
-    if (ret < 0)
-        return ret;
+    if (pkcs7->contentOID != FIRMWARE_PKG_DATA) {
+        /* outer content type */
+        ret = wc_SetContentType(ENVELOPED_DATA, outerContentType,
+                                sizeof(outerContentType));
+        if (ret < 0)
+            return ret;
 
-    outerContentTypeSz = ret;
+        outerContentTypeSz = ret;
+    }
 
     /* generate random content encryption key */
     ret = PKCS7_GenerateContentEncryptionKey(pkcs7, blockKeySz);
@@ -7398,9 +7400,11 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     totalSz += outerContentTypeSz;
     totalSz += outerContentSz;
 
-    /* ContentInfo */
-    contentInfoSeqSz = SetSequence(totalSz, contentInfoSeq);
-    totalSz += contentInfoSeqSz;
+    if (pkcs7->contentOID != FIRMWARE_PKG_DATA) {
+        /* ContentInfo */
+        contentInfoSeqSz = SetSequence(totalSz, contentInfoSeq);
+        totalSz += contentInfoSeqSz;
+    }
 
     if (totalSz > (int)outputSz) {
         WOLFSSL_MSG("Pkcs7_encrypt output buffer too small");
@@ -7409,12 +7413,14 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return BUFFER_E;
     }
 
-    XMEMCPY(output + idx, contentInfoSeq, contentInfoSeqSz);
-    idx += contentInfoSeqSz;
-    XMEMCPY(output + idx, outerContentType, outerContentTypeSz);
-    idx += outerContentTypeSz;
-    XMEMCPY(output + idx, outerContent, outerContentSz);
-    idx += outerContentSz;
+    if (pkcs7->contentOID != FIRMWARE_PKG_DATA) {
+        XMEMCPY(output + idx, contentInfoSeq, contentInfoSeqSz);
+        idx += contentInfoSeqSz;
+        XMEMCPY(output + idx, outerContentType, outerContentTypeSz);
+        idx += outerContentTypeSz;
+        XMEMCPY(output + idx, outerContent, outerContentSz);
+        idx += outerContentSz;
+    }
     XMEMCPY(output + idx, envDataSeq, envDataSeqSz);
     idx += envDataSeqSz;
     XMEMCPY(output + idx, ver, verSz);
@@ -8137,6 +8143,17 @@ int wc_PKCS7_SetOriDecryptCb(PKCS7* pkcs7, CallbackOriDecrypt cb)
 }
 
 
+/* return 0 on success */
+int wc_PKCS7_SetWrapCEKCb(PKCS7* pkcs7, CallbackWrapCEK cb)
+{
+    if (pkcs7 == NULL)
+        return BAD_FUNC_ARG;
+
+    pkcs7->wrapCEKCb = cb;
+
+    return 0;
+}
+
 /* Decrypt ASN.1 OtherRecipientInfo (ori), as defined by:
  *
  *   OtherRecipientInfo ::= SEQUENCE {
@@ -8513,7 +8530,7 @@ static int wc_PKCS7_DecryptKekri(PKCS7* pkcs7, byte* in, word32 inSz,
                 return ASN_PARSE_E;
 
             /* save keyIdentifier and length */
-            keyId = pkiMsg;
+            keyId = pkiMsg + *idx;
             keyIdSz = length;
             *idx += keyIdSz;
 
@@ -8555,9 +8572,16 @@ static int wc_PKCS7_DecryptKekri(PKCS7* pkcs7, byte* in, word32 inSz,
             #endif
 
             /* decrypt CEK with KEK */
-            keySz = wc_PKCS7_KeyWrap(pkiMsg + *idx, length, pkcs7->privateKey,
+            if (pkcs7->wrapCEKCb) {
+                keySz = pkcs7->wrapCEKCb(pkcs7, pkiMsg + *idx, length, keyId,
+                                     keyIdSz, decryptedKey, *decryptedKeySz,
+                                     keyWrapOID, direction);
+            }
+            else {
+                keySz = wc_PKCS7_KeyWrap(pkiMsg + *idx, length, pkcs7->privateKey,
                                      pkcs7->privateKeySz, decryptedKey, *decryptedKeySz,
                                      keyWrapOID, direction);
+            }
             if (keySz <= 0)
                 return keySz;
 
@@ -9048,7 +9072,8 @@ static int wc_PKCS7_ParseToRecipientInfoSet(PKCS7* pkcs7, byte* in,
     if (pkcs7 == NULL || pkiMsg == NULL || pkiMsgSz == 0 || idx == NULL)
         return BAD_FUNC_ARG;
 
-    if ((type != ENVELOPED_DATA) && (type != AUTH_ENVELOPED_DATA))
+    if ((type != ENVELOPED_DATA) && (type != AUTH_ENVELOPED_DATA) &&
+            pkcs7->contentOID != FIRMWARE_PKG_DATA)
         return BAD_FUNC_ARG;
 
 #ifndef NO_PKCS7_STREAM
@@ -9157,27 +9182,31 @@ static int wc_PKCS7_ParseToRecipientInfoSet(PKCS7* pkcs7, byte* in,
 
             pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length :inSz;
         #endif
-            if (ret == 0 && wc_GetContentType(pkiMsg, idx, &contentType, pkiMsgSz) < 0)
-                ret = ASN_PARSE_E;
+            if (pkcs7->contentOID != FIRMWARE_PKG_DATA ||
+                    type == AUTH_ENVELOPED_DATA) {
+                if (ret == 0 && wc_GetContentType(pkiMsg, idx, &contentType,
+                            pkiMsgSz) < 0)
+                    ret = ASN_PARSE_E;
 
-            if (ret == 0) {
-                if (type == ENVELOPED_DATA && contentType != ENVELOPED_DATA) {
-                    WOLFSSL_MSG("PKCS#7 input not of type EnvelopedData");
-                    ret = PKCS7_OID_E;
-                } else if (type == AUTH_ENVELOPED_DATA &&
-                       contentType != AUTH_ENVELOPED_DATA) {
-                    WOLFSSL_MSG("PKCS#7 input not of type AuthEnvelopedData");
-                    ret = PKCS7_OID_E;
+                if (ret == 0) {
+                    if (type == ENVELOPED_DATA && contentType != ENVELOPED_DATA) {
+                        WOLFSSL_MSG("PKCS#7 input not of type EnvelopedData");
+                        ret = PKCS7_OID_E;
+                    } else if (type == AUTH_ENVELOPED_DATA &&
+                           contentType != AUTH_ENVELOPED_DATA) {
+                        WOLFSSL_MSG("PKCS#7 input not of type AuthEnvelopedData");
+                        ret = PKCS7_OID_E;
+                    }
                 }
+
+                if (ret == 0 && pkiMsg[(*idx)++] !=
+                        (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+                    ret = ASN_PARSE_E;
+
+                if (ret == 0 && GetLength_ex(pkiMsg, idx, &length, pkiMsgSz,
+                            NO_USER_CHECK) < 0)
+                    ret = ASN_PARSE_E;
             }
-
-            if (ret == 0 && pkiMsg[(*idx)++] !=
-                    (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
-                ret = ASN_PARSE_E;
-
-            if (ret == 0 && GetLength_ex(pkiMsg, idx, &length, pkiMsgSz,
-                        NO_USER_CHECK) < 0)
-                ret = ASN_PARSE_E;
 
             if (ret < 0)
                 break;
@@ -9206,8 +9235,11 @@ static int wc_PKCS7_ParseToRecipientInfoSet(PKCS7* pkcs7, byte* in,
             pkiMsgSz = (word32)rc;
         #endif
             /* remove EnvelopedData and version */
-            if (ret == 0 && GetSequence(pkiMsg, idx, &length, pkiMsgSz) < 0)
-                ret = ASN_PARSE_E;
+            if (pkcs7->contentOID != FIRMWARE_PKG_DATA ||
+                    type == AUTH_ENVELOPED_DATA) {
+                if (ret == 0 && GetSequence(pkiMsg, idx, &length, pkiMsgSz) < 0)
+                    ret = ASN_PARSE_E;
+            }
 
             if (ret == 0 && GetMyVersion(pkiMsg, idx, &version, pkiMsgSz) < 0)
                 ret = ASN_PARSE_E;
