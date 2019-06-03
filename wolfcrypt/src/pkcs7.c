@@ -1170,6 +1170,11 @@ void wc_PKCS7_Free(PKCS7* pkcs7)
         pkcs7->plainDigest = NULL;
         pkcs7->plainDigestSz = 0;
     }
+    if (pkcs7->pkcs7Digest) {
+        XFREE(pkcs7->pkcs7Digest, pkcs7->heap, DYNAMIC_TYPE_DIGEST);
+        pkcs7->pkcs7Digest = NULL;
+        pkcs7->pkcs7DigestSz = 0;
+    }
 }
 
 
@@ -3323,7 +3328,7 @@ static int wc_PKCS7_SignedDataVerifySignature(PKCS7* pkcs7, byte* sig,
             XMEMCPY(pkcs7->signature, sig, sigSz);
             pkcs7->signatureSz = sigSz;
 
-            /* store digest */
+            /* store plain digest (CMS and ECC) */
             XFREE(pkcs7->plainDigest, pkcs7->heap, DYNAMIC_TYPE_DIGEST);
             pkcs7->plainDigest = NULL;
             pkcs7->plainDigestSz = 0;
@@ -3337,6 +3342,21 @@ static int wc_PKCS7_SignedDataVerifySignature(PKCS7* pkcs7, byte* sig,
             }
             XMEMCPY(pkcs7->plainDigest, plainDigest, plainDigestSz);
             pkcs7->plainDigestSz = plainDigestSz;
+
+            /* store pkcs7 digest (default RSA) */
+            XFREE(pkcs7->pkcs7Digest, pkcs7->heap, DYNAMIC_TYPE_DIGEST);
+            pkcs7->pkcs7Digest = NULL;
+            pkcs7->pkcs7DigestSz = 0;
+            pkcs7->pkcs7Digest = (byte*)XMALLOC(sigSz, pkcs7->heap,
+                    DYNAMIC_TYPE_DIGEST);
+            if (pkcs7->pkcs7Digest == NULL) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(pkcs7Digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+                return MEMORY_E;
+            }
+            XMEMCPY(pkcs7->pkcs7Digest, pkcs7Digest, pkcs7DigestSz);
+            pkcs7->pkcs7DigestSz = pkcs7DigestSz;
 
             return PKCS7_SIGNEEDS_CHECK;
         }

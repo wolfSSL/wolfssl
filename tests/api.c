@@ -17451,7 +17451,27 @@ static void test_PKCS7_signed_enveloped(void)
     /* check verify fails */
     AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
-    AssertIntNE(wc_PKCS7_VerifySignedData(pkcs7, sig, sigSz), 0);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, sigSz),
+            PKCS7_SIGNEEDS_CHECK);
+
+    /* try verifying the signature manually */
+    {
+        RsaKey rKey;
+        word32 idx = 0;
+        byte digest[MAX_SEQ_SZ + MAX_ALGO_SZ + MAX_OCTET_STR_SZ +
+            WC_MAX_DIGEST_SIZE];
+        int  digestSz;
+
+        AssertIntEQ(wc_InitRsaKey(&rKey, HEAP_HINT), 0);
+        AssertIntEQ(wc_RsaPrivateKeyDecode(key, &idx, &rKey, keySz), 0);
+        digestSz = wc_RsaSSL_Verify(pkcs7->signature, pkcs7->signatureSz,
+                    digest, sizeof(digest), &rKey);
+        AssertIntGT(digestSz, 0);
+        AssertIntEQ(digestSz, pkcs7->pkcs7DigestSz);
+        AssertIntEQ(XMEMCMP(digest, pkcs7->pkcs7Digest, digestSz), 0);
+        /* verify was success */
+    }
+
     wc_PKCS7_Free(pkcs7);
 
     /* create valid degenerate bundle */

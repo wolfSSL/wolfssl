@@ -311,8 +311,10 @@ struct PKCS7 {
 
     byte* signature;
     byte* plainDigest;
+    byte* pkcs7Digest;
     word32 signatureSz;
     word32 plainDigestSz;
+    word32 pkcs7DigestSz;
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };
 
