@@ -198,7 +198,7 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
     if (buffer == NULL)
         return MEMORY_E;
     hmac = (Hmac*)XMALLOC(sizeof(Hmac), NULL, DYNAMIC_TYPE_HMAC);
-    if (buffer == NULL)
+    if (hmac == NULL)
         return MEMORY_E;
 #endif
 
