@@ -2131,7 +2131,6 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     }
     esd->digAlgoIdSetSz = SetSet(esd->singleDigAlgoIdSz, esd->digAlgoIdSet);
 
-
     if (pkcs7->version == 3) {
         /* RFC 4108 version MUST be 3 for firmware package signer */
         esd->versionSz = SetMyVersion(3, esd->version, 0);
@@ -3704,6 +3703,7 @@ static int wc_PKCS7_ParseSignerInfo(PKCS7* pkcs7, byte* in, int inSz,
                 WOLFSSL_MSG("Failed to set public key OID from signature");
             }
             else {
+                /* if previous return was positive then was success */
                 ret = 0;
             }
         }
