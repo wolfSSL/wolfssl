@@ -214,8 +214,10 @@ typedef int (*CallbackDecryptContent)(PKCS7* pkcs7, int encryptOID,
                                    byte* authTag, word32 authTagSz, byte* in,
                                    int inSz, byte* out, void* ctx);
 typedef int (*CallbackWrapCEK)(PKCS7* pkcs7, byte* cek, word32 cekSz,
-                                  byte* keyId, word32 keyIdSz, byte* out,
-                                  word32 outSz, int keyWrapAlgo, int dir);
+                                  byte* keyId, word32 keyIdSz,
+                                  byte* originKey, word32 originKeySz,
+                                  byte* out, word32 outSz,
+                                  int keyWrapAlgo, int type, int dir);
 
 /* Public Structure Warning:
  * Existing members must not be changed to maintain backwards compatibility! 

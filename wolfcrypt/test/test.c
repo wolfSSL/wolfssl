@@ -22025,7 +22025,8 @@ static const byte altKey[] = {
 };
 
 static int myCEKwrapFunc(PKCS7* pkcs7, byte* cek, word32 cekSz, byte* keyId,
-        word32 keyIdSz, byte* out, word32 outSz, int keyWrapAlgo, int direction)
+        word32 keyIdSz, byte* orginKey, word32 orginKeySz,
+        byte* out, word32 outSz, int keyWrapAlgo, int type, int direction)
 {
     int ret;
 
@@ -22038,6 +22039,10 @@ static int myCEKwrapFunc(PKCS7* pkcs7, byte* cek, word32 cekSz, byte* keyId,
     }
 
     if (keyId[0] != 0x00) {
+        return -1;
+    }
+
+    if (type != (int)PKCS7_KEKRI) {
         return -1;
     }
 
@@ -22056,6 +22061,8 @@ static int myCEKwrapFunc(PKCS7* pkcs7, byte* cek, word32 cekSz, byte* keyId,
 
     (void)pkcs7;
     (void)direction;
+    (void)orginKey; /* used with KAKRI */
+    (void)orginKeySz;
     return ret;
 }
 
