@@ -17246,7 +17246,7 @@ static void test_PKCS7_signed_enveloped(void)
     AssertIntGT((envSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, env, envSz)), 0);
     wc_PKCS7_Free(pkcs7);
 
-    /* create signed enveloped data */
+    /* create bad signed enveloped data */
     sigSz = FOURK_BUF * 2;
     AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
     AssertIntEQ(wc_InitRng(&rng), 0);
@@ -17267,11 +17267,31 @@ static void test_PKCS7_signed_enveloped(void)
     AssertIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, sigSz)), 0);
     pkcs7->certList = (Pkcs7Cert*)pt; /* restore pointer for PKCS7 free call */
     wc_PKCS7_Free(pkcs7);
+
+    /* check verify fails */
+    AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    AssertIntNE(wc_PKCS7_VerifySignedData(pkcs7, sig, sigSz), 0);
+    wc_PKCS7_Free(pkcs7);
+
+    /* create valid degenerate bundle */
+    sigSz = FOURK_BUF * 2;
+    AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    pkcs7->content    = env;
+    pkcs7->contentSz  = envSz;
+    pkcs7->contentOID = DATA;
+    pkcs7->privateKey   = key;
+    pkcs7->privateKeySz = keySz;
+    pkcs7->encryptOID   = RSAk;
+    pkcs7->hashOID      = SHA256h;
+    pkcs7->rng = &rng;
+    AssertIntEQ(wc_PKCS7_SetSignerIdentifierType(pkcs7, DEGENERATE_SID), 0);
+    AssertIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, sigSz)), 0);
     wc_FreeRng(&rng);
 
     /* check verify */
     AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
-    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, devId), 0);
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, sigSz), 0);
     AssertNotNull(pkcs7->content);
 
