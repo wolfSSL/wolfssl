@@ -308,6 +308,11 @@ struct PKCS7 {
     CallbackDecryptContent decryptionCb;
     CallbackWrapCEK        wrapCEKCb;
     void*            decryptionCtx;
+
+    byte* signature;
+    byte* plainDigest;
+    word32 signatureSz;
+    word32 plainDigestSz;
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };
 

@@ -1159,6 +1159,17 @@ void wc_PKCS7_Free(PKCS7* pkcs7)
         pkcs7->isDynamic = 0;
         XFREE(pkcs7, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     }
+
+    if (pkcs7->signature) {
+        XFREE(pkcs7->signature, pkcs7->heap, DYNAMIC_TYPE_SIGANTURE);
+        pkcs7->signature = NULL;
+        pkcs7->signatureSz = 0;
+    }
+    if (pkcs7->plainDigest) {
+        XFREE(pkcs7->plainDigest, pkcs7->heap, DYNAMIC_TYPE_DIGEST);
+        pkcs7->plainDigest = NULL;
+        pkcs7->plainDigestSz = 0;
+    }
 }
 
 
@@ -3282,6 +3293,58 @@ static int wc_PKCS7_SignedDataVerifySignature(PKCS7* pkcs7, byte* sig,
         return ret;
     }
 
+    /* If no certificates are available then store the signature and hash for
+     * user to verify. Make sure that different return value than success is
+     * returned because the signature was not verified here. */
+    if (ret == 0) {
+        byte haveCert = 0;
+        int  i;
+
+        for (i = 0; i < MAX_PKCS7_CERTS; i++) {
+            if (pkcs7->certSz[i] == 0)
+                continue;
+            haveCert = 1;
+        }
+
+        if (!haveCert) {
+            WOLFSSL_MSG("No certificates in bundle to verify signature");
+
+            /* store signature */
+            XFREE(pkcs7->signature, pkcs7->heap, DYNAMIC_TYPE_SIGANTURE);
+            pkcs7->signature = NULL;
+            pkcs7->signatureSz = 0;
+            pkcs7->signature = (byte*)XMALLOC(sigSz, pkcs7->heap,
+                    DYNAMIC_TYPE_SIGNATURE);
+            if (pkcs7->signature == NULL) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(pkcs7Digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+                return MEMORY_E;
+            }
+            XMEMCPY(pkcs7->signature, sig, sigSz);
+            pkcs7->signatureSz = sigSz;
+
+            /* store digest */
+            XFREE(pkcs7->plainDigest, pkcs7->heap, DYNAMIC_TYPE_DIGEST);
+            pkcs7->plainDigest = NULL;
+            pkcs7->plainDigestSz = 0;
+            pkcs7->plainDigest = (byte*)XMALLOC(sigSz, pkcs7->heap,
+                    DYNAMIC_TYPE_DIGEST);
+            if (pkcs7->plainDigest == NULL) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(pkcs7Digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+                return MEMORY_E;
+            }
+            XMEMCPY(pkcs7->plainDigest, plainDigest, plainDigestSz);
+            pkcs7->plainDigestSz = plainDigestSz;
+
+            return PKCS7_SIGNEEDS_CHECK;
+        }
+    }
+
+
+
     switch (pkcs7->publicKeyOID) {
 
 #ifndef NO_RSA
@@ -4460,10 +4523,6 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
             ret = wc_PKCS7_ParseSignerInfo(pkcs7, pkiMsg2, pkiMsg2Sz, &idx,
                     degenerate, &signedAttrib, &signedAttribSz);
-
-            /* @TODO if version 3 with RFC 4108 there must be exactly 1
-               SignerInfo*/
-
 
             /* parse out the signature if present and verify it */
             if (ret == 0 && length > 0 && degenerate == 0) {
@@ -7203,7 +7262,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     int ret, idx = 0;
     int totalSz, padSz, encryptedOutSz;
 
-    int contentInfoSeqSz, outerContentTypeSz = 0, outerContentSz;
+    int contentInfoSeqSz = 0, outerContentTypeSz = 0, outerContentSz;
     byte contentInfoSeq[MAX_SEQ_SZ];
     byte outerContentType[MAX_ALGO_SZ];
     byte outerContent[MAX_SEQ_SZ];
