@@ -22719,22 +22719,21 @@ static void test_wc_ecc_get_curve_id_from_dp_params(void)
     #if !defined(NO_ECC256) && !defined(NO_ECC_SECP)
         id = wc_ecc_get_curve_id_from_name("SECP256R1");
         AssertIntEQ(id, ECC_SECP256R1);
+
+        ecKey = wolfSSL_EC_KEY_new_by_curve_name(id);
+        AssertNotNull(ecKey);
+
+        ret = wolfSSL_EC_KEY_generate_key(ecKey);
+
+        if (ret == 0) {
+            /* normal test */
+            key = (ecc_key*)ecKey->internal;
+            params = key->dp;
+
+            curve_id = wc_ecc_get_curve_id_from_dp_params(params);
+            AssertIntEQ(curve_id, id);
+        }
     #endif
-
-    ecKey = wolfSSL_EC_KEY_new_by_curve_name(id);
-    AssertNotNull(ecKey);
-
-    ret = wolfSSL_EC_KEY_generate_key(ecKey);
-
-    if (ret == 0) {
-        /* normal test */
-        key = (ecc_key*)ecKey->internal;
-        params = key->dp;
-
-        curve_id = wc_ecc_get_curve_id_from_dp_params(params);
-        AssertIntEQ(curve_id, id);
-    }
-
     /* invalid case, NULL input*/
 
     id = wc_ecc_get_curve_id_from_dp_params(NULL);
