@@ -141,6 +141,11 @@ typedef struct wc_Sha512 {
 
 #endif /* HAVE_FIPS */
 
+#if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+WOLFSSL_LOCAL int Transform_Sha512_Len(wc_Sha512* sha512, const byte* data,
+                                       word32 len);
+#endif
+
 #ifdef WOLFSSL_SHA512
 
 WOLFSSL_API int wc_InitSha512(wc_Sha512*);

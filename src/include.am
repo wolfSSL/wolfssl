@@ -233,9 +233,14 @@ endif
 
 if !BUILD_FIPS_V2
 if BUILD_SHA512
+if BUILD_ARMASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha512.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha512-asm.S
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha512.c
 if BUILD_INTELASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha512_asm.S
+endif
 endif
 endif
 endif
