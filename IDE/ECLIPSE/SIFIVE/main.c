@@ -69,17 +69,16 @@ void check(int depth) {
     free(ptr);
 }
 
-void mtime_sleep(uint64_t ticks) {
-    uint64_t now = CLINT_REG_MTIME;
-    uint64_t then = now + ticks;
+void mtime_sleep(uint32_t ticks) {
+    uint32_t start = CLINT_REG_MTIME;
 
-    while((*mtime - now) < ticks) {
+    while((CLINT_REG_MTIME - start) < ticks) {
 
     }
 }
 
-void delay(int sec) {
-    uint64_t ticks = sec * RTC_FREQ;
+void delay(uint32_t sec) {
+    uint32_t ticks = sec * RTC_FREQ;
     mtime_sleep(ticks);
 }
 #endif /* WOLFSSL_SIFIVE_RISC_V_DEBUG */
