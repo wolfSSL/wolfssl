@@ -25,6 +25,24 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+/*
+ * SHA256 Build Options:
+ * USE_SLOW_SHA256:            Reduces code size by not partially unrolling
+                                (~2KB smaller and ~25% slower) (default OFF)
+ * WOLFSSL_SHA256_BY_SPEC:     Uses the Ch/Maj based on SHA256 specification
+                                (default ON)
+ * WOLFSSL_SHA256_ALT_CH_MAJ:  Alternate Ch/Maj that is easier for compilers to
+                                optimize and recognize as SHA256 (default OFF)
+ * SHA256_MANY_REGISTERS:      A SHA256 version that keeps all data in registers
+                                and partial unrolled (default OFF)
+ */
+
+/* Default SHA256 to use Ch/Maj based on specification */
+#if !defined(WOLFSSL_SHA256_BY_SPEC) && !defined(WOLFSSL_SHA256_ALT_CH_MAJ)
+    #define WOLFSSL_SHA256_BY_SPEC
+#endif
+
+
 #if !defined(NO_SHA256) && !defined(WOLFSSL_ARMASM)
 
 #if defined(HAVE_FIPS) && \
@@ -582,8 +600,17 @@ static int InitSha256(wc_Sha256* sha256)
         0x90BEFFFAL, 0xA4506CEBL, 0xBEF9A3F7L, 0xC67178F2L
     };
 
+/* Both versions of Ch and Maj are logically the same, but with the second set
+    the compilers can recognize them better for optimization */
+#ifdef WOLFSSL_SHA256_BY_SPEC
+    /* SHA256 math based on specification */
     #define Ch(x,y,z)       ((z) ^ ((x) & ((y) ^ (z))))
     #define Maj(x,y,z)      ((((x) | (y)) & (z)) | ((x) & (y)))
+#else
+    /* SHA256 math reworked for easier compiler optimization */
+    #define Ch(x,y,z)       ((((y) ^ (z)) & (x)) ^ (z))
+    #define Maj(x,y,z)      ((((x) ^ (y)) & ((y) ^ (z))) ^ (y))
+#endif
     #define R(x, n)         (((x) & 0xFFFFFFFFU) >> (n))
 
     #define S(x, n)         rotrFixed(x, n)
@@ -601,6 +628,7 @@ static int InitSha256(wc_Sha256* sha256)
     #define g(i) S[(6-i) & 7]
     #define h(i) S[(7-i) & 7]
 
+#ifndef SHA256_MANY_REGISTERS
     #define RND(j) \
          t0 = h(j) + Sigma1(e(j)) + Ch(e(j), f(j), g(j)) + K[i+j] + W[i+j]; \
          t1 = Sigma0(a(j)) + Maj(a(j), b(j), c(j)); \
@@ -672,6 +700,74 @@ static int InitSha256(wc_Sha256* sha256)
     #endif
         return 0;
     }
+#else
+    /* SHA256 version that keeps all data in registers */
+    #define SCHED1(j) (W[j] = sha256->buffer[j])
+    #define SCHED(j) (               \
+                   W[ j     & 15] += \
+            Gamma1(W[(j-2)  & 15])+  \
+                   W[(j-7)  & 15] +  \
+            Gamma0(W[(j-15) & 15])   \
+        )
+
+    #define RND1(j) \
+         t0 = h(j) + Sigma1(e(j)) + Ch(e(j), f(j), g(j)) + K[i+j] + SCHED1(j); \
+         t1 = Sigma0(a(j)) + Maj(a(j), b(j), c(j)); \
+         d(j) += t0; \
+         h(j)  = t0 + t1
+    #define RNDN(j) \
+         t0 = h(j) + Sigma1(e(j)) + Ch(e(j), f(j), g(j)) + K[i+j] + SCHED(j); \
+         t1 = Sigma0(a(j)) + Maj(a(j), b(j), c(j)); \
+         d(j) += t0; \
+         h(j)  = t0 + t1
+
+    #ifndef XTRANSFORM
+         #define XTRANSFORM(S)            Transform_Sha256((S))
+         #define XTRANSFORM_LEN(S, D, L)  Transform_Sha256_Len((S),(D),(L))
+    #endif
+
+    static int Transform_Sha256(wc_Sha256* sha256)
+    {
+        word32 S[8], t0, t1;
+        int i;
+        word32 W[WC_SHA256_BLOCK_SIZE/sizeof(word32)];
+
+        /* Copy digest to working vars */
+        S[0] = sha256->digest[0];
+        S[1] = sha256->digest[1];
+        S[2] = sha256->digest[2];
+        S[3] = sha256->digest[3];
+        S[4] = sha256->digest[4];
+        S[5] = sha256->digest[5];
+        S[6] = sha256->digest[6];
+        S[7] = sha256->digest[7];
+
+        i = 0;
+        RND1( 0); RND1( 1); RND1( 2); RND1( 3);
+        RND1( 4); RND1( 5); RND1( 6); RND1( 7);
+        RND1( 8); RND1( 9); RND1(10); RND1(11);
+        RND1(12); RND1(13); RND1(14); RND1(15);
+        /* 64 operations, partially loop unrolled */
+        for (i = 16; i < 64; i += 16) {
+            RNDN( 0); RNDN( 1); RNDN( 2); RNDN( 3);
+            RNDN( 4); RNDN( 5); RNDN( 6); RNDN( 7);
+            RNDN( 8); RNDN( 9); RNDN(10); RNDN(11);
+            RNDN(12); RNDN(13); RNDN(14); RNDN(15);
+        }
+
+        /* Add the working vars back into digest */
+        sha256->digest[0] += S[0];
+        sha256->digest[1] += S[1];
+        sha256->digest[2] += S[2];
+        sha256->digest[3] += S[3];
+        sha256->digest[4] += S[4];
+        sha256->digest[5] += S[5];
+        sha256->digest[6] += S[6];
+        sha256->digest[7] += S[7];
+
+        return 0;
+    }
+#endif /* SHA256_MANY_REGISTERS */
 #endif
 /* End wc_ software implementation */
 
