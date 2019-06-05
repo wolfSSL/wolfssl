@@ -3358,6 +3358,9 @@ static int wc_PKCS7_SignedDataVerifySignature(PKCS7* pkcs7, byte* sig,
             XMEMCPY(pkcs7->pkcs7Digest, pkcs7Digest, pkcs7DigestSz);
             pkcs7->pkcs7DigestSz = pkcs7DigestSz;
 
+            #ifdef WOLFSSL_SMALL_STACK
+            XFREE(pkcs7Digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
             return PKCS7_SIGNEEDS_CHECK;
         }
     }
