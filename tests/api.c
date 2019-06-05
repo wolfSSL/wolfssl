@@ -17469,6 +17469,7 @@ static void test_PKCS7_signed_enveloped(void)
         AssertIntGT(digestSz, 0);
         AssertIntEQ(digestSz, pkcs7->pkcs7DigestSz);
         AssertIntEQ(XMEMCMP(digest, pkcs7->pkcs7Digest, digestSz), 0);
+        AssertIntEQ(wc_FreeRsaKey(&rKey), 0);
         /* verify was success */
     }
 
