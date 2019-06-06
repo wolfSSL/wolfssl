@@ -188,7 +188,7 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
     if (ctx && ctx->enc) {
-        WOLFSSL_ENTER("wolfSSL_EVP_CipherFinal_ex");
+        WOLFSSL_ENTER("wolfSSL_EVP_DecryptFinal_ex");
         return wolfSSL_EVP_CipherFinal(ctx, out, outl);
     }
     else {
@@ -408,7 +408,7 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
     int fl;
-    if (ctx == NULL || out == NULL || outl == NULL || (*outl < 0))
+    if (ctx == NULL || out == NULL || outl == NULL)
         return BAD_FUNC_ARG;
 
     WOLFSSL_ENTER("wolfSSL_EVP_CipherFinal");
