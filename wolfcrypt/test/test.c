@@ -23495,10 +23495,12 @@ int mutex_test(void)
         return -9904;
     if (wc_FreeMutex(&m) != 0)
         return -9905;
+#ifndef WOLFSSL_NO_MUTEXLOCK_AFTER_FREE
     if (wc_LockMutex(&m) != BAD_MUTEX_E)
         return -9906;
     if (wc_UnLockMutex(&m) != BAD_MUTEX_E)
         return -9907;
+#endif
 #endif
 
     return 0;
