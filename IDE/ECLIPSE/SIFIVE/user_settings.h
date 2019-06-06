@@ -70,10 +70,25 @@ extern "C" {
     //#define TFM_ARM
 #endif
 
+/* Wolf Single Precision Math */
+/* Optional ECC SECP256R1 acceleration using optimized C code */
+#undef WOLFSSL_SP
+#if 1
+    #define WOLFSSL_SP
+    #define WOLFSSL_SP_SMALL  /* use smaller version of code (requires heap) */
+    #define SP_WORD_SIZE 32   /* force 32-bit type */
+    #define WOLFSSL_SP_MATH   /* only SP math - eliminates fast math code */
+    //#define WOLFSSL_SP_DIV_32 /* do not use 64-bit divides */
+
+    #define WOLFSSL_HAVE_SP_ECC
+    //#define WOLFSSL_HAVE_SP_RSA
+#endif
+
 /* ------------------------------------------------------------------------- */
 /* Crypto */
 /* ------------------------------------------------------------------------- */
 /* RSA */
+/* Not enabled due to memory constraints on HiFive1 */
 #undef NO_RSA
 #if 0
     #ifdef USE_FAST_MATH
@@ -166,17 +181,9 @@ extern "C" {
             #define FP_MAX_BITS     (256 + 32)
         #else
             #undef  ALT_ECC_SIZE
-            #define ALT_ECC_SIZE
-        #endif
-
-        /* Speedups specific to curve */
-        #ifndef NO_ECC256
-            #undef  TFM_ECC256
-            //#define TFM_ECC256
-        #endif
-        #ifndef HAVE_ECC384
-            #undef  TFM_ECC384
-            //#define TFM_ECC384
+            /* Disable alternate ECC size, since it uses HEAP allocations.
+                Heap is limited resource on HiFive1 */
+            //#define ALT_ECC_SIZE
         #endif
     #endif
 #endif
@@ -203,7 +210,7 @@ extern "C" {
 #if 1
     #undef  HAVE_AES_CBC
     #define HAVE_AES_CBC
-    
+
     #undef  HAVE_AESGCM
     #define HAVE_AESGCM
 
@@ -234,7 +241,7 @@ extern "C" {
 /* ChaCha20 / Poly1305 */
 #undef HAVE_CHACHA
 #undef HAVE_POLY1305
-#if 0
+#if 1
     #define HAVE_CHACHA
     #define HAVE_POLY1305
 
@@ -246,12 +253,13 @@ extern "C" {
 /* Ed25519 / Curve25519 */
 #undef HAVE_CURVE25519
 #undef HAVE_ED25519
-#if 0
+#if 1
     #define HAVE_CURVE25519
     #define HAVE_ED25519 /* ED25519 Requires SHA512 */
 
     /* Optionally use small math (less flash usage, but much slower) */
     #if 1
+        /* Curve and Ed 25519 small */
         #define CURVED25519_SMALL
     #endif
 #endif
@@ -285,7 +293,7 @@ extern "C" {
 
 /* Sha512 */
 #undef WOLFSSL_SHA512
-#if 0
+#if 1
     #define WOLFSSL_SHA512
 
     /* Sha384 */
@@ -333,7 +341,7 @@ extern "C" {
 #define BENCH_EMBEDDED
 
 #undef  USE_CERT_BUFFERS_2048
-//#define USE_CERT_BUFFERS_2048
+#define USE_CERT_BUFFERS_2048
 
 #undef  USE_CERT_BUFFERS_1024
 //#define USE_CERT_BUFFERS_1024
@@ -420,23 +428,20 @@ extern "C" {
     #define WOLFSSL_USER_CURRTIME
     #define WOLFSSL_GMTIME
     #define USER_TICKS
-#endif
-
-#if !defined(WOLFSSL_SIFIVE_RISC_V)
-// extern unsigned long my_time(unsigned long* timer);
-// #define XTIME my_time
+#else
+    // extern unsigned long my_time(unsigned long* timer);
+    // #define XTIME my_time
 #endif
 
 /* ------------------------------------------------------------------------- */
 /* RNG */
 /* ------------------------------------------------------------------------- */
-
-#if 1
-/* Bypass P-RNG and use only HW RNG */
-#define CUSTOM_RAND_TYPE      unsigned int
-extern int my_rng_gen_block(unsigned char* output, unsigned int sz);
-#undef  CUSTOM_RAND_GENERATE_BLOCK
-#define CUSTOM_RAND_GENERATE_BLOCK  my_rng_gen_block
+#if 0
+    /* Bypass P-RNG and use only HW RNG */
+    #define CUSTOM_RAND_TYPE      unsigned int
+    extern int my_rng_gen_block(unsigned char* output, unsigned int sz);
+    #undef  CUSTOM_RAND_GENERATE_BLOCK
+    #define CUSTOM_RAND_GENERATE_BLOCK  my_rng_gen_block
 #else
     #define HAVE_HASHDRBG
 
@@ -477,7 +482,7 @@ extern int my_rng_gen_block(unsigned char* output, unsigned int sz);
 #define HAVE_SUPPORTED_CURVES
 
 #undef  WOLFSSL_BASE64_ENCODE
-#define WOLFSSL_BASE64_ENCODE
+//#define WOLFSSL_BASE64_ENCODE
 
 /* TLS Session Cache */
 #if 0

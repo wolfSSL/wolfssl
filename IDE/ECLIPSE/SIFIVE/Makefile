@@ -26,7 +26,8 @@ OPT_CFLAGS = -specs=nano.specs
 # The __stack_size and __heap_size symbols are defined in the linker metal.default.ld 
 # script in the freedom-e-sdk. 
 override CFLAGS += $(OPT_CFLAGS) $(WOLFSSL_CFLAGS) \
-                     -Xlinker --defsym=__stack_size=0x1000
+                     -Xlinker --defsym=__stack_size=0x1200 \
+                     -Xlinker --defsym=__heap_size=0x800
 
 $(PROGRAM): $(SRC)
 	$(CC) $(CFLAGS) $(SRC) $(LDFLAGS) $(LDLIBS) -o $@

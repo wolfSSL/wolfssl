@@ -103,10 +103,15 @@ base64   test passed!
 asn      test passed!
 SHA      test passed!
 SHA-256  test passed!
+SHA-512  test passed!
 Hash     test passed!
 HMAC-SHA test passed!
 HMAC-SHA256 test passed!
+HMAC-SHA512 test passed!
 GMAC     test passed!
+Chacha   test passed!
+POLY1305 test passed!
+ChaCha20-Poly1305 AEAD test passed!
 AES      test passed!
 AES192   test passed!
 AES256   test passed!
@@ -114,6 +119,8 @@ AES-GCM  test passed!
 RANDOM   test passed!
 ECC      test passed!
 ECC buffer test passed!
+CURVE25519 test passed!
+ED25519  test passed!
 logging  test passed!
 mutex    test passed!
 Test complete
@@ -125,45 +132,62 @@ benchmark_test() prints a message on the target console similar to the following
 TARGET=sifive-hifive1-revb:
 
 ```
+SiFive HiFive1 Demo
+Setting clock to 320MHz
+Actual Clock 320MHz
+
 ------------------------------------------------------------------------------
  wolfSSL version 4.0.0
 ------------------------------------------------------------------------------
 wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
-RNG                 12 MB took 1.000 seconds,   11.666 MB/s
-AES-128-CBC-enc     50 KB took 1.659 seconds,   30.131 KB/s
-AES-128-CBC-dec     50 KB took 1.657 seconds,   30.183 KB/s
-AES-192-CBC-enc     50 KB took 1.839 seconds,   27.189 KB/s
-AES-192-CBC-dec     50 KB took 1.836 seconds,   27.230 KB/s
-AES-256-CBC-enc     25 KB took 1.010 seconds,   24.759 KB/s
-AES-256-CBC-dec     25 KB took 1.008 seconds,   24.791 KB/s
-AES-128-GCM-enc     25 KB took 1.508 seconds,   16.576 KB/s
-AES-128-GCM-dec     25 KB took 1.510 seconds,   16.559 KB/s
-AES-192-GCM-enc     25 KB took 1.605 seconds,   15.573 KB/s
-AES-192-GCM-dec     25 KB took 1.607 seconds,   15.558 KB/s
-AES-256-GCM-enc     25 KB took 1.699 seconds,   14.716 KB/s
-AES-256-GCM-dec     25 KB took 1.700 seconds,   14.702 KB/s
-SHA                  2 MB took 1.014 seconds,    1.589 MB/s
-SHA-256            425 KB took 1.009 seconds,  421.068 KB/s
-HMAC-SHA             1 MB took 1.013 seconds,    1.325 MB/s
-HMAC-SHA256        425 KB took 1.018 seconds,  417.420 KB/s
-ECC      256 key gen         2 ops took 1.393 sec, avg 696.503 ms, 1.436 ops/sec
-ECDHE    256 agree           2 ops took 1.386 sec, avg 692.917 ms, 1.443 ops/sec
-ECDSA    256 sign            2 ops took 1.406 sec, avg 703.064 ms, 1.422 ops/sec
-ECDSA    256 verify          2 ops took 2.773 sec, avg 1386.597 ms, 0.721 ops/sec
+RNG                200 KB took 1.044 seconds,  191.519 KB/s
+AES-128-CBC-enc     50 KB took 1.657 seconds,   30.174 KB/s
+AES-128-CBC-dec     50 KB took 1.659 seconds,   30.141 KB/s
+AES-192-CBC-enc     50 KB took 1.837 seconds,   27.220 KB/s
+AES-192-CBC-dec     50 KB took 1.839 seconds,   27.194 KB/s
+AES-256-CBC-enc     25 KB took 1.009 seconds,   24.784 KB/s
+AES-256-CBC-dec     25 KB took 1.010 seconds,   24.761 KB/s
+AES-128-GCM-enc     25 KB took 1.493 seconds,   16.739 KB/s
+AES-128-GCM-dec     25 KB took 1.564 seconds,   15.986 KB/s
+AES-192-GCM-enc     25 KB took 1.591 seconds,   15.716 KB/s
+AES-192-GCM-dec     25 KB took 1.662 seconds,   15.044 KB/s
+AES-256-GCM-enc     25 KB took 1.684 seconds,   14.843 KB/s
+AES-256-GCM-dec     25 KB took 1.755 seconds,   14.245 KB/s
+CHACHA               1 MB took 1.004 seconds,    0.997 MB/s
+CHA-POLY           675 KB took 1.021 seconds,  661.060 KB/s
+POLY1305             2 MB took 1.007 seconds,    2.230 MB/s
+SHA                  1 MB took 1.016 seconds,    1.321 MB/s
+SHA-256            425 KB took 1.005 seconds,  422.909 KB/s
+SHA-512             25 KB took 2.043 seconds,   12.239 KB/s
+HMAC-SHA             1 MB took 1.010 seconds,    1.378 MB/s
+HMAC-SHA256        425 KB took 1.037 seconds,  409.781 KB/s
+HMAC-SHA512         25 KB took 2.075 seconds,   12.050 KB/s
+ECC      256 key gen         2 ops took 1.099 sec, avg 549.271 ms, 1.821 ops/sec
+ECDHE    256 agree           2 ops took 1.093 sec, avg 546.555 ms, 1.830 ops/sec
+ECDSA    256 sign            2 ops took 1.167 sec, avg 583.694 ms, 1.713 ops/sec
+ECDSA    256 verify          2 ops took 2.136 sec, avg 1067.795 ms, 0.937 ops/sec
+CURVE  25519 key gen         2 ops took 1.693 sec, avg 846.451 ms, 1.181 ops/sec
+CURVE  25519 agree           2 ops took 1.689 sec, avg 844.299 ms, 1.184 ops/sec
+ED     25519 key gen         1 ops took 1.702 sec, avg 1702.057 ms, 0.588 ops/sec
+ED     25519 sign            2 ops took 3.650 sec, avg 1824.753 ms, 0.548 ops/sec
+ED     25519 verify          2 ops took 5.788 sec, avg 2894.012 ms, 0.346 ops/sec
 Benchmark complete
 ```
 
 ## Tested Configurations
-- SHA-1
-- SHA-256
-- AES CBC/GCM
-- ECC 256 sign/verify/shared secret with fast math library
+- P-RNG (NIST DRBG) with SHA-256
+- SHA 1/256/512
+- AES 128/192/256 CBC/GCM
+- ECC 256 sign/verify/shared secret with fast math or Single Precision (SP) library
+- ED25519/Curve25519
+- HMAC
+- ChaCha20/Poly1305
 
 ## Known Caveats
 - If you find the wolfcrypt test stuck on early_trap_vector error, it is like related to memory issues
 - Using the `__stack_size` default value of 0x400 will not be enough for the ECC test to pass.
 The `IDE/ECLIPSE/SIFIVE/Makefile` overwrites the value with 0x1000 (4 KBytes)
-- Enabling RSA will cause the ECC test to fail due to memory shortage
+- Enabling RSA will cause the ECC test to fail due to memory shortage.
 
 ## References
 
