@@ -7369,7 +7369,7 @@ static int sp_256_mod_mul_norm_10(sp_digit* r, sp_digit* a, sp_digit* m)
     (void)m;
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    td = (sp_digit*)XMALLOC(sizeof(int64_t) * 2 * 8, NULL, DYNAMIC_TYPE_ECC);
+    td = (int64_t*)XMALLOC(sizeof(int64_t) * 2 * 8, NULL, DYNAMIC_TYPE_ECC);
     if (td != NULL) {
         t = td;
         a32 = td + 8;
