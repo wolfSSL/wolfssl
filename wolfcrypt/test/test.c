@@ -13094,6 +13094,113 @@ static int openssl_aes_test(void)
             return -7334;
     }
 
+    /* set buffers to be exact size to catch potential over read/write */
+    {
+        /* EVP_CipherUpdate test */
+        const byte cbcPlain[] =
+        {
+            0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a,
+            0xae,0x2d,0x8a,0x57,0x1e,0x03,0xac,0x9c,
+            0x9e,0xb7,0x6f,0xac,0x45,0xaf,0x8e,0x51,
+            0x30,0xc8,0x1c,0x46,0xa3,0x5c,0xe4,0x11,
+            0xe5,0xfb,0xc1,0x19,0x1a,0x0a,0x52,0xef,
+            0xf6,0x9f,0x24,0x45,0xdf,0x4f,0x9b,0x17,
+            0xad,0x2b,0x41,0x7b,0xe6,0x6c,0x37,0x10
+        };
+
+        byte key[] = "0123456789abcdef   ";  /* align */
+        byte iv[]  = "1234567890abcdef   ";  /* align */
+
+        #define EVP_TEST_BUF_SZ 18
+        #define EVP_TEST_BUF_PAD 32
+        byte cipher[EVP_TEST_BUF_SZ];
+        byte plain [EVP_TEST_BUF_SZ];
+        byte padded[EVP_TEST_BUF_PAD];
+        EVP_CIPHER_CTX en;
+        EVP_CIPHER_CTX de;
+        int outlen ;
+        int total = 0;
+
+        EVP_CIPHER_CTX_init(&en);
+        if (EVP_CipherInit(&en, EVP_aes_128_cbc(),
+            (unsigned char*)key, (unsigned char*)iv, 1) == 0)
+            return -7370;
+        if (EVP_CIPHER_CTX_set_padding(&en, 0) != 1)
+            return -7372;
+        if (EVP_CipherUpdate(&en, (byte*)cipher, &outlen,
+                    (byte*)cbcPlain, EVP_TEST_BUF_SZ) == 0)
+            return -7372;
+        if (outlen != 16)
+            return -7373;
+        total += outlen;
+
+        /* should fail here */
+        if (EVP_CipherFinal(&en, (byte*)&cipher[total], &outlen) != 0)
+            return -7374;
+
+        /* turn padding back on and do successful encrypt */
+        total = 0;
+        EVP_CIPHER_CTX_init(&en);
+        if (EVP_CipherInit(&en, EVP_aes_128_cbc(),
+            (unsigned char*)key, (unsigned char*)iv, 1) == 0)
+            return -7375;
+        if (EVP_CIPHER_CTX_set_padding(&en, 1) != 1)
+            return -7376;
+        if (EVP_CipherUpdate(&en, (byte*)padded, &outlen,
+                    (byte*)cbcPlain, EVP_TEST_BUF_SZ) == 0)
+            return -7377;
+        if (outlen != 16)
+            return -7378;
+        total += outlen;
+
+        if (EVP_CipherFinal(&en, (byte*)&padded[total], &outlen) == 0)
+            return -7379;
+        total += outlen;
+        if (total != 32)
+            return -7380;
+        XMEMCPY(cipher, padded, EVP_TEST_BUF_SZ);
+
+        /* test out of bounds read on buffers w/o padding during decryption */
+        total = 0;
+        EVP_CIPHER_CTX_init(&de);
+        if (EVP_CipherInit(&de, EVP_aes_128_cbc(),
+            (unsigned char*)key, (unsigned char*)iv, 0) == 0)
+            return -7381;
+
+        if (EVP_CIPHER_CTX_set_padding(&de, 0) != 1)
+            return -7382;
+        if (EVP_CipherUpdate(&de, (byte*)plain, &outlen, (byte*)cipher,
+                    EVP_TEST_BUF_SZ) == 0)
+            return -7383;
+        if (outlen != 16)
+            return -7384;
+        total += outlen;
+
+        /* should fail since not using padding */
+        if (EVP_CipherFinal(&de, (byte*)&plain[total], &outlen) != 0)
+            return -7385;
+
+        total = 0;
+        EVP_CIPHER_CTX_init(&de);
+        if (EVP_CipherInit(&de, EVP_aes_128_cbc(),
+            (unsigned char*)key, (unsigned char*)iv, 0) == 0)
+            return -7386;
+        if (EVP_CIPHER_CTX_set_padding(&de, 1) != 1)
+            return -7387;
+        if (EVP_CipherUpdate(&de, (byte*)padded, &outlen, (byte*)padded,
+                    EVP_TEST_BUF_PAD) == 0)
+            return -7388;
+        if (outlen != 16)
+            return -7389;
+        total += outlen;
+
+        if (EVP_CipherFinal(&de, (byte*)&padded[total], &outlen) == 0)
+            return -7390;
+        if (XMEMCMP(padded, cbcPlain, EVP_TEST_BUF_SZ))
+            return -7391;
+    }
+
     {  /* evp_cipher test: EVP_aes_128_cbc */
         EVP_CIPHER_CTX ctx;
 
@@ -13774,8 +13881,9 @@ int openssl_test(void)
 #endif /* NO_DES3 */
 
 #if !defined(NO_AES) && !defined(WOLFCRYPT_ONLY)
-        if (openssl_aes_test() != 0)
+        if (openssl_aes_test() != 0) {
             return -7412;
+        }
 
 #if defined(WOLFSSL_AES_128) && defined(HAVE_AES_CBC)
     {  /* evp_cipher test: EVP_aes_128_cbc */

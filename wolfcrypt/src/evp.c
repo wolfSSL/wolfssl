@@ -446,7 +446,10 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
             if ((fl = checkPad(ctx, ctx->lastBlock)) >= 0) {
                 XMEMCPY(out, ctx->lastBlock, fl);
                 *outl = fl;
-            } else return 0;
+            }
+            else {
+                return WOLFSSL_FAILURE;
+            }
         }
        /* return error in cases where the block length is incorrect */
         if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
