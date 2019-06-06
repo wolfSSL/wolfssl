@@ -394,6 +394,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define i2d_X509_NAME                   wolfSSL_i2d_X509_NAME
 #define X509_NAME_new                   wolfSSL_X509_NAME_new
 #define X509_NAME_free                  wolfSSL_X509_NAME_free
+#define X509_NAME_dup                   wolfSSL_X509_NAME_dup
 #define X509_NAME_get_text_by_NID       wolfSSL_X509_NAME_get_text_by_NID
 #define X509_NAME_cmp                   wolfSSL_X509_NAME_cmp
 #define X509_NAME_ENTRY_free            wolfSSL_X509_NAME_ENTRY_free

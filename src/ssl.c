@@ -13273,7 +13273,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     void wolfSSL_CTX_set_client_CA_list(WOLFSSL_CTX* ctx,
                                        WOLF_STACK_OF(WOLFSSL_X509_NAME)* names)
     {
-        WOLFSSL_ENTER("wolfSSL_SSL_CTX_set_client_CA_list");
+        WOLFSSL_ENTER("wolfSSL_CTX_set_client_CA_list");
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
         if (ctx != NULL)
             ctx->ca_names = names;
@@ -13391,13 +13391,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 break;
 
             /* Need a persistent copy of the subject name. */
-            node->data.name = (WOLFSSL_X509_NAME*)XMALLOC(
-                    sizeof(WOLFSSL_X509_NAME), NULL, DYNAMIC_TYPE_OPENSSL);
-            if (node->data.name == NULL) {
-                XFREE(node, NULL, DYNAMIC_TYPE_OPENSSL);
-                break;
-            }
-            XMEMCPY(node->data.name, subjectName, sizeof(WOLFSSL_X509_NAME));
+            node->data.name = wolfSSL_X509_NAME_dup(subjectName);
+
             /* Clear pointers so freeing certificate doesn't free memory. */
             XMEMSET(subjectName, 0, sizeof(WOLFSSL_X509_NAME));
 
@@ -34647,6 +34642,47 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return name;
     }
 
+    /* Creates a duplicate of a WOLFSSL_X509_NAME structure.
+       Returns a new WOLFSSL_X509_NAME structure or NULL on failure */
+    WOLFSSL_X509_NAME* wolfSSL_X509_NAME_dup(WOLFSSL_X509_NAME* name)
+    {
+        WOLFSSL_X509_NAME* dup;
+
+        WOLFSSL_ENTER("wolfSSL_X509_NAME_dup");
+
+        if (name == NULL) {
+            WOLFSSL_MSG("NULL parameter");
+            return NULL;
+        }
+
+        dup = (WOLFSSL_X509_NAME*)XMALLOC(sizeof(WOLFSSL_X509_NAME), NULL,
+                DYNAMIC_TYPE_X509);
+        if (dup == NULL) {
+            WOLFSSL_MSG("Malloc error");
+            return NULL;
+        }
+        XMEMCPY(dup, name, sizeof(WOLFSSL_X509_NAME));
+        InitX509Name(dup, 1);
+
+        XMEMCPY(dup->name, name->name, name->sz);
+        dup->sz = name->sz;
+        dup->dynamicName = name->dynamicName;
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        dup->fullName.fullName = (char*)XMALLOC(name->fullName.fullNameLen,
+                                                       NULL, DYNAMIC_TYPE_X509);
+        if (dup->fullName.fullName != NULL)
+                  XMEMCPY(dup->fullName.fullName, name->fullName.fullName,
+                                                    name->fullName.fullNameLen);
+        dup->x509 = name->x509;
+        #endif
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+        dup->rawLen = min(name->rawLen, sizeof(dup->raw));
+        XMEMCPY(dup->raw, name->raw, dup->rawLen);
+        #endif
+
+        return dup;
+    }
+
 
 #if defined(WOLFSSL_CERT_GEN)
     /* helper function for CopyX509NameToCertName()
@@ -39700,6 +39736,7 @@ void wolfSSL_sk_X509_NAME_pop_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
     }
 }
 
+/* Free only the sk structure */
 void wolfSSL_sk_X509_NAME_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
 {
     WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_free");
@@ -39707,14 +39744,7 @@ void wolfSSL_sk_X509_NAME_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
     if (sk == NULL)
         return;
 
-    while (sk != NULL) {
-        wolfSSL_X509_NAME_free(sk->data.name);
-        sk->data.name = NULL;
-
-        sk = sk->next;
-    }
-
-    XFREE(sk, NULL, DYNAMIC_TYPE_OPENSSL);
+    wolfSSL_sk_free(sk);
 }
 
 
