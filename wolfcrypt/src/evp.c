@@ -358,15 +358,15 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
             if ((ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING) ||
                     (ctx->block_size == 1)) {
                 ctx->lastUsed = 0;
-                XMEMCPY(ctx->lastBlock, &out[ctx->block_size * blocks], ctx->block_size);
                 *outl+= ctx->block_size * blocks;
             } else {
                 if (inl == 0) {
                     ctx->lastUsed = 1;
                     blocks = blocks - 1; /* save last block to check padding in
                                           * EVP_CipherFinal call */
+                    XMEMCPY(ctx->lastBlock, &out[ctx->block_size * blocks],
+                            ctx->block_size);
                 }
-                XMEMCPY(ctx->lastBlock, &out[ctx->block_size * blocks], ctx->block_size);
                 *outl+= ctx->block_size * blocks;
             }
         } else {
@@ -446,7 +446,10 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
             if ((fl = checkPad(ctx, ctx->lastBlock)) >= 0) {
                 XMEMCPY(out, ctx->lastBlock, fl);
                 *outl = fl;
-            } else return 0;
+            }
+            else {
+                return WOLFSSL_FAILURE;
+            }
         }
        /* return error in cases where the block length is incorrect */
         if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
