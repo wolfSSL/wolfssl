@@ -5457,10 +5457,17 @@ static int aes_key_size_test(void)
     word32 keySize;
 #endif
 
+#if !defined(HAVE_FIPS) || \
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+    /* w/ FIPS v1 (cert 2425) wc_AesInit just returns 0 always as it's not
+     * supported with that FIPS version */
     ret = wc_AesInit(NULL, HEAP_HINT, devId);
     if (ret != BAD_FUNC_ARG)
         return -4800;
+#endif
+
     ret = wc_AesInit(&aes, HEAP_HINT, devId);
+    /* 0 check OK for FIPSv1 */
     if (ret != 0)
         return -4801;
 
