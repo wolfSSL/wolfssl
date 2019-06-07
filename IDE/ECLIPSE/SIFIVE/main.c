@@ -130,7 +130,7 @@ int my_rng_gen_block(unsigned char* output, unsigned int sz)
 int main(void)
 {
     int ret;
-    long clkHz = 16000000; /* default */
+    long clk_Hz = 16000000; /* default */
 
 #if WOLFSSL_SIFIVE_RISC_V_DEBUG
     printf("check stack and heap addresses\n");
@@ -144,11 +144,11 @@ int main(void)
     /* Speed up clock */
     printf("SiFive HiFive1 Demo\n");
     printf("Setting clock to %dMHz\n", USE_CLOCK_HZ/1000000);
-    clkHz = metal_clock_set_rate_hz(
+    clk_Hz = metal_clock_set_rate_hz(
         &__METAL_DT_SIFIVE_FE310_G000_PLL_HANDLE->clock, USE_CLOCK_HZ
     );
 #endif
-    printf("Actual Clock %dMHz\n", clkHz/1000000);
+    printf("Actual Clock %dMHz\n", clk_Hz/1000000);
 
 #ifdef DEBUG_WOLFSSL
     wolfSSL_Debugging_ON();

@@ -70,22 +70,9 @@ extern "C" {
     //#define TFM_ARM
 #endif
 
-/* Wolf Single Precision Math */
-/* Optional ECC SECP256R1 acceleration using optimized C code */
-#undef WOLFSSL_SP
-#if 1
-    #define WOLFSSL_SP
-    #define WOLFSSL_SP_SMALL  /* use smaller version of code (requires heap) */
-    #define SP_WORD_SIZE 32   /* force 32-bit type */
-    #define WOLFSSL_SP_MATH   /* only SP math - eliminates fast math code */
-    //#define WOLFSSL_SP_DIV_32 /* do not use 64-bit divides */
-
-    #define WOLFSSL_HAVE_SP_ECC
-    //#define WOLFSSL_HAVE_SP_RSA
-#endif
 
 /* ------------------------------------------------------------------------- */
-/* Crypto */
+/* Asymmetric */
 /* ------------------------------------------------------------------------- */
 /* RSA */
 /* Not enabled due to memory constraints on HiFive1 */
@@ -205,6 +192,43 @@ extern "C" {
 #endif
 
 
+/* Wolf Single Precision Math */
+/* Optional ECC SECP256R1 acceleration using optimized C code */
+#undef WOLFSSL_SP
+#if 1
+    #define WOLFSSL_SP
+    #define WOLFSSL_SP_SMALL  /* use smaller version of code (requires heap) */
+    #define SP_WORD_SIZE 32   /* force 32-bit type */
+    #define WOLFSSL_SP_MATH   /* only SP math - eliminates fast math code */
+    //#define WOLFSSL_SP_DIV_32 /* do not use 64-bit divides */
+
+    #ifdef HAVE_ECC
+        #define WOLFSSL_HAVE_SP_ECC
+    #endif
+    #ifndef NO_RSA
+        #define WOLFSSL_HAVE_SP_RSA
+    #endif
+#endif
+
+/* Ed25519 / Curve25519 */
+#undef HAVE_CURVE25519
+#undef HAVE_ED25519
+#if 1
+    #define HAVE_CURVE25519
+    #define HAVE_ED25519 /* ED25519 Requires SHA512 */
+
+    /* Optionally use small math (less flash usage, but much slower) */
+    #if 1
+        /* Curve and Ed 25519 small */
+        #define CURVED25519_SMALL
+    #endif
+#endif
+
+
+/* ------------------------------------------------------------------------- */
+/* Symmetric Ciphers */
+/* ------------------------------------------------------------------------- */
+
 /* AES */
 #undef NO_AES
 #if 1
@@ -230,7 +254,6 @@ extern "C" {
     //#define HAVE_AESCCM
 #endif
 
-
 /* DES3 */
 #undef NO_DES3
 #if 0
@@ -250,23 +273,9 @@ extern "C" {
     #define HAVE_ONE_TIME_AUTH
 #endif
 
-/* Ed25519 / Curve25519 */
-#undef HAVE_CURVE25519
-#undef HAVE_ED25519
-#if 1
-    #define HAVE_CURVE25519
-    #define HAVE_ED25519 /* ED25519 Requires SHA512 */
-
-    /* Optionally use small math (less flash usage, but much slower) */
-    #if 1
-        /* Curve and Ed 25519 small */
-        #define CURVED25519_SMALL
-    #endif
-#endif
-
 
 /* ------------------------------------------------------------------------- */
-/* Hashing */
+/* Symmetric Hashing */
 /* ------------------------------------------------------------------------- */
 /* Sha */
 #undef NO_SHA
@@ -318,6 +327,18 @@ extern "C" {
 
 #else
     #define NO_MD5
+#endif
+
+/* Blake2B */
+#undef HAVE_BLAKE2
+#if 0
+    #define HAVE_BLAKE2
+#endif
+
+/* Blake2S */
+#undef HAVE_BLAKE2S
+#if 0
+    #define HAVE_BLAKE2S
 #endif
 
 /* HKDF */
@@ -386,6 +407,7 @@ extern "C" {
     #define XREALLOC(p, n, h, t) myRealloc(p, n, h, t)
 #endif
 
+/* Static memory */
 #if 0
     /* Static memory requires fast math */
     #define WOLFSSL_STATIC_MEMORY
@@ -423,9 +445,8 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 
 /* Override Current Time */
-/* Allows custom "custom_time()" function to be used for benchmark */
 #if defined(WOLFSSL_SIFIVE_RISC_V)
-    #define WOLFSSL_USER_CURRTIME
+    #define WOLFSSL_USER_CURRTIME /* for benchmarks, uses "custom_time()" function */
     #define WOLFSSL_GMTIME
     #define USER_TICKS
 #else
@@ -569,4 +590,3 @@ extern "C" {
 #endif
 
 #endif /* WOLFSSL_USER_SETTINGS_H */
-

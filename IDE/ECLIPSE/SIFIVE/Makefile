@@ -22,12 +22,14 @@ OPT_CFLAGS = -specs=nano.specs
 #OPT_CFLAGS += -O3 -DTIME -DNOENUM -Wno-implicit -mexplicit-relocs -save-temps
 #OPT_CFLAGS += -fno-inline -fno-builtin-printf -fno-common -falign-functions=4
 
-# ovewrite the __stack_size default value of 0x400 with 0x1000(4 Kbytes).
+# override the __stack_size and __heap_size default values of 0x400 
+# SiFive HiFive1 has 16KB of data SRAM
 # The __stack_size and __heap_size symbols are defined in the linker metal.default.ld 
 # script in the freedom-e-sdk. 
 override CFLAGS += $(OPT_CFLAGS) $(WOLFSSL_CFLAGS) \
                      -Xlinker --defsym=__stack_size=0x1200 \
                      -Xlinker --defsym=__heap_size=0x800
+
 
 $(PROGRAM): $(SRC)
 	$(CC) $(CFLAGS) $(SRC) $(LDFLAGS) $(LDLIBS) -o $@
