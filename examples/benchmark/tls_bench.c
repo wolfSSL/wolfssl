@@ -1195,10 +1195,10 @@ static void print_stats(stats_t* wcStat, const char* desc, const char* cipher, i
            cipher,
            wcStat->txTotal + wcStat->rxTotal,
            wcStat->connCount,
-           wcStat->txTime * 1000,
            wcStat->rxTime * 1000,
-           wcStat->txTotal / wcStat->txTime / 1024 / 1024,
+           wcStat->txTime * 1000,
            wcStat->rxTotal / wcStat->rxTime / 1024 / 1024,
+           wcStat->txTotal / wcStat->txTime / 1024 / 1024,
            wcStat->connTime * 1000,
            wcStat->connTime * 1000 / wcStat->connCount);
 }
