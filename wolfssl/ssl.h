@@ -202,10 +202,12 @@ struct WOLFSSL_ASN1_TIME {
 };
 
 struct WOLFSSL_ASN1_STRING {
+    char strData[CTC_NAME_SIZE];
     int length;
     int type; /* type of string i.e. CTC_UTF8 */
     char* data;
     long flags;
+    unsigned int   isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
 };
 
 #define WOLFSSL_MAX_SNAME 40
@@ -1128,7 +1130,8 @@ enum {
     WOLFSSL_CRL_CHECK    = 27,
 };
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER)
 /* seperated out from other enums because of size */
 enum {
     SSL_OP_MICROSOFT_SESS_ID_BUG                  = 0x00000001,
@@ -1768,7 +1771,8 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL*, void* key, unsigned int len,
                                                const unsigned char*, long);
     WOLFSSL_API int wolfSSL_UnloadCertsKeys(WOLFSSL*);
 
-    #if defined(OPENSSL_EXTRA) && defined(KEEP_OUR_CERT)
+    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+        defined(KEEP_OUR_CERT)
         WOLFSSL_API WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl);
     #endif
 #endif

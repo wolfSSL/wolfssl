@@ -7935,7 +7935,8 @@ static int TLSX_PreSharedKey_Parse(WOLFSSL* ssl, byte* input, word16 length,
             /* Length of identity. */
             ato16(input + idx, &identityLen);
             idx += OPAQUE16_LEN;
-            if (len < OPAQUE16_LEN + identityLen + OPAQUE32_LEN)
+            if (len < OPAQUE16_LEN + identityLen + OPAQUE32_LEN ||
+                    identityLen > MAX_PSK_ID_LEN)
                 return BUFFER_E;
             /* Cache identity pointer. */
             identity = input + idx;
@@ -9585,6 +9586,11 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 WOLFSSL_SESSION* sess = &ssl->session;
                 word32           milli;
 
+                if (sess->ticketLen > MAX_PSK_ID_LEN) {
+                    WOLFSSL_MSG("Session ticket length for PSK ext is too large");
+                    return BUFFER_ERROR;
+                }
+
                 /* Determine the MAC algorithm for the cipher suite used. */
                 ssl->options.cipherSuite0 = sess->cipherSuite0;
                 ssl->options.cipherSuite  = sess->cipherSuite;
@@ -9606,14 +9612,28 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             }
         #endif
         #ifndef NO_PSK
-            if (ssl->options.client_psk_cb != NULL) {
+            if (ssl->options.client_psk_cb != NULL ||
+                                     ssl->options.client_psk_tls13_cb != NULL) {
                 /* Default ciphersuite. */
                 byte cipherSuite0 = TLS13_BYTE;
                 byte cipherSuite = WOLFSSL_DEF_PSK_CIPHER;
+                const char* cipherName = NULL;
 
-                ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
+                if (ssl->options.client_psk_tls13_cb != NULL) {
+                    ssl->arrays->psk_keySz = ssl->options.client_psk_tls13_cb(
+                        ssl, ssl->arrays->server_hint,
+                        ssl->arrays->client_identity, MAX_PSK_ID_LEN,
+                        ssl->arrays->psk_key, MAX_PSK_KEY_LEN, &cipherName);
+                    if (GetCipherSuiteFromName(cipherName, &cipherSuite0,
+                                                           &cipherSuite) != 0) {
+                        return PSK_KEY_ERROR;
+                    }
+                }
+                else {
+                    ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
                         ssl->arrays->server_hint, ssl->arrays->client_identity,
                         MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
+                }
                 if (ssl->arrays->psk_keySz == 0 ||
                                      ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
                     return PSK_KEY_ERROR;
@@ -10135,6 +10155,11 @@ int TLSX_ParseVersion(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
     while (offset < (int)length) {
         word16 type;
         word16 size;
+
+        if (offset + (2 * OPAQUE16_LEN) > length) {
+            ret = BUFFER_ERROR;
+            break;
+        }
 
         ato16(input + offset, &type);
         offset += HELLO_EXT_TYPE_SZ;

@@ -1451,8 +1451,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->minEccKeySz  = MIN_ECCKEY_SZ;
     ctx->eccTempKeySz = ECDHE_SIZE;
 #endif
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     ctx->verifyDepth = MAX_CHAIN_DEPTH;
+#endif
+#ifdef OPENSSL_EXTRA
     ctx->cbioFlag = WOLFSSL_CBIO_NONE;
 #endif
 
@@ -4427,7 +4429,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef HAVE_ECC
     ssl->options.minEccKeySz = ctx->minEccKeySz;
 #endif
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     ssl->options.verifyDepth = ctx->verifyDepth;
 #endif
 
@@ -7257,6 +7259,14 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             WOLFSSL_MSG("DTLS handshake, skip RH version number check");
         else {
             WOLFSSL_MSG("SSL version error");
+            /* send alert per RFC5246 Appendix E. Backward Compatibility */
+            if (ssl->options.side == WOLFSSL_CLIENT_END) {
+#ifdef WOLFSSL_MYSQL_COMPATIBLE
+                SendAlert(ssl, alert_fatal, wc_protocol_version);
+#else
+                SendAlert(ssl, alert_fatal, protocol_version);
+#endif
+            }
             return VERSION_ERROR;              /* only use requested version */
         }
     }
@@ -8695,7 +8705,7 @@ typedef struct ProcPeerCertArgs {
 #ifdef WOLFSSL_TLS13
     byte   ctxSz;
 #endif
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     char   untrustedDepth;
 #endif
     word16 fatal:1;
@@ -9272,7 +9282,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             while (listSz) {
                 word32 certSz;
 
-            #ifdef OPENSSL_EXTRA
+            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                 if (args->totalCerts > ssl->verifyDepth) {
                     ssl->peerVerifyRet = X509_V_ERR_CERT_CHAIN_TOO_LONG;
                     ERROR_OUT(MAX_CHAIN_ERROR, exit_ppc);
@@ -9469,7 +9479,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                     else {
                         WOLFSSL_MSG("Failed to verify CA from chain");
-                    #ifdef OPENSSL_EXTRA
+                    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                         ssl->peerVerifyRet = X509_V_ERR_INVALID_CA;
                     #endif
                     }
@@ -9585,7 +9595,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #endif
                 if (ret == 0) {
                     WOLFSSL_MSG("Verified Peer's cert");
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     ssl->peerVerifyRet = X509_V_OK;
                 #endif
                 #if defined(SESSION_CERTS) && defined(WOLFSSL_ALT_CERT_CHAINS)
@@ -9610,7 +9620,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
                 else if (ret == ASN_PARSE_E || ret == BUFFER_E) {
                     WOLFSSL_MSG("Got Peer cert ASN PARSE or BUFFER ERROR");
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     SendAlert(ssl, alert_fatal, bad_certificate);
                     ssl->peerVerifyRet = X509_V_ERR_CERT_REJECTED;
                 #endif
@@ -9618,7 +9628,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
                 else {
                     WOLFSSL_MSG("Failed to verify Peer's cert");
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     ssl->peerVerifyRet = X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE;
                 #endif
                     if (ssl->verifyCallback) {
@@ -9724,7 +9734,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         if (ret != 0) {
                             WOLFSSL_MSG("\tOCSP Lookup not ok");
                             args->fatal = 0;
-                        #ifdef OPENSSL_EXTRA
+                        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                             ssl->peerVerifyRet = X509_V_ERR_CERT_REJECTED;
                         #endif
                         }
@@ -9743,7 +9753,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         if (ret != 0) {
                             WOLFSSL_MSG("\tCRL check not ok");
                             args->fatal = 0;
-                        #ifdef OPENSSL_EXTRA
+                        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                             ssl->peerVerifyRet = X509_V_ERR_CERT_REJECTED;
                         #endif
                         }
@@ -9820,7 +9830,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                 if (args->fatal) {
                     ssl->error = ret;
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     SendAlert(ssl, alert_fatal, bad_certificate);
                     ssl->peerVerifyRet = X509_V_ERR_CERT_REJECTED;
                 #endif
@@ -10064,7 +10074,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ret = args->lastErr;
             }
 
-        #if defined(OPENSSL_EXTRA)
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
             if (args->untrustedDepth > ssl->options.verifyDepth) {
                 ssl->peerVerifyRet = X509_V_ERR_CERT_CHAIN_TOO_LONG;
                 ret = MAX_CHAIN_ERROR;
@@ -17029,6 +17039,15 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
     int      ret = BAD_FUNC_ARG;
     int      keySz;
     word32   idx;
+
+#ifdef HAVE_PK_CALLBACKS
+    /* allow no private key if using PK callbacks and CB is set */
+    if (wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)) {
+        *length = GetPrivateKeySigSize(ssl);
+        return 0;
+    }
+    else
+#endif
 
     /* make sure private key exists */
     if (ssl->buffers.key == NULL || ssl->buffers.key->buffer == NULL) {

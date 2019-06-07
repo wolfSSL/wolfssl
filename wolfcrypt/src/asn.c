@@ -4156,8 +4156,10 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
     seqSz = SetSequence(verSz + intTotalLen, seq);
 
     outLen = seqSz + verSz + intTotalLen;
-    if (outLen > (int)inLen)
+    if (outLen > (int)inLen) {
+        FreeTmpDsas(tmps, key->heap);
         return BAD_FUNC_ARG;
+    }
 
     /* write to output */
     XMEMCPY(output, seq, seqSz);
@@ -4594,6 +4596,9 @@ static int GetName(DecodedCert* cert, int nameType)
         DecodedName* dName =
                   (nameType == ISSUER) ? &cert->issuerName : &cert->subjectName;
         int dcnum = 0;
+        #ifdef OPENSSL_EXTRA
+        int count = 0;
+        #endif
     #endif /* OPENSSL_EXTRA */
 
     WOLFSSL_MSG("Getting Cert Name");
@@ -4826,6 +4831,10 @@ static int GetName(DecodedCert* cert, int nameType)
             #endif
                 XMEMCPY(&full[idx], &cert->source[cert->srcIdx], strLen);
                 idx += strLen;
+            #if defined(OPENSSL_EXTRA)
+                /* store order that DN was parsed */
+                dName->loc[count++] = id;
+            #endif
             }
 
             cert->srcIdx += strLen;
@@ -4896,6 +4905,10 @@ static int GetName(DecodedCert* cert, int nameType)
             #endif
                 XMEMCPY(&full[idx], &cert->source[cert->srcIdx], strLen);
                 idx += strLen;
+            #if defined(OPENSSL_EXTRA)
+                /* store order that DN was parsed */
+                dName->loc[count++] = id;
+            #endif
             }
 
             cert->srcIdx += strLen;
@@ -4977,6 +4990,10 @@ static int GetName(DecodedCert* cert, int nameType)
                 if (!tooBig) {
                     XMEMCPY(&full[idx], &cert->source[cert->srcIdx], adv);
                     idx += adv;
+                #if defined(OPENSSL_EXTRA)
+                    /* store order that DN was parsed */
+                    dName->loc[count++] = ASN_EMAIL_NAME;
+                #endif
                 }
             }
 
@@ -4994,6 +5011,11 @@ static int GetName(DecodedCert* cert, int nameType)
                             defined(OPENSSL_EXTRA_X509_SMALL)
                             dName->uidIdx = cert->srcIdx;
                             dName->uidLen = adv;
+
+                            #ifdef OPENSSL_EXTRA
+                            /* store order that DN was parsed */
+                            dName->loc[count++] = ASN_USER_ID;
+                            #endif
                         #endif /* OPENSSL_EXTRA */
                             break;
 
@@ -5006,6 +5028,11 @@ static int GetName(DecodedCert* cert, int nameType)
                             dName->dcLen[dcnum] = adv;
                             dName->dcNum = dcnum + 1;
                             dcnum++;
+
+                            #ifdef OPENSSL_EXTRA
+                            /* store order that DN was parsed */
+                            dName->loc[count++] = ASN_DOMAIN_COMPONENT;
+                            #endif
                         #endif /* OPENSSL_EXTRA */
                             break;
 
@@ -5022,6 +5049,10 @@ static int GetName(DecodedCert* cert, int nameType)
         }
     }
     full[idx++] = 0;
+    #if defined(OPENSSL_EXTRA)
+    /* store order that DN was parsed */
+    dName->locSz = count;
+    #endif
 
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     {
@@ -13615,7 +13646,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_CUSTOM_CURVES
         ecc_set_type* curve;
         int len;
-        char* point;
+        char* point = NULL;
 
         ret = 0;
 
@@ -13625,8 +13656,13 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             ret = MEMORY_E;
 
         if (ret == 0) {
+            static char customName[] = "Custom";
             XMEMSET(curve, 0, sizeof(*curve));
-            curve->name = "Custom";
+        #ifndef USE_WINDOWS_API
+            curve->name = customName;
+        #else
+            XMEMCPY((void*)curve->name, customName, sizeof(customName));
+        #endif
             curve->id = ECC_CURVE_CUSTOM;
 
             if (GetSequence(input, inOutIdx, &length, inSz) < 0)
@@ -13677,6 +13713,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             }
         }
         if (ret == 0) {
+        #ifndef USE_WINDOWS_API
             curve->Gx = (const char*)XMALLOC(curve->size * 2 + 2, key->heap,
                                                        DYNAMIC_TYPE_ECC_BUFFER);
             curve->Gy = (const char*)XMALLOC(curve->size * 2 + 2, key->heap,
@@ -13685,6 +13722,12 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                 XFREE(point, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
                 ret = MEMORY_E;
             }
+        #else
+            if (curve->size * 2 + 2 > MAX_ECC_STRING) {
+                WOLFSSL_MSG("curve size is too large to fit in buffer");
+                ret = BUFFER_E;
+            }
+        #endif
         }
         if (ret == 0) {
             XMEMCPY((char*)curve->Gx, point + 2, curve->size * 2);
@@ -13699,14 +13742,20 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         if (ret == 0) {
             curve->cofactor = GetInteger7Bit(input, inOutIdx, inSz);
 
+        #ifndef USE_WINDOWS_API
             curve->oid = NULL;
+        #else
+            XMEMSET((void*)curve->oid, 0, sizeof(curve->oid));
+        #endif
             curve->oidSz = 0;
             curve->oidSum = 0;
 
             if (wc_ecc_set_custom_curve(key, curve) < 0) {
                 ret = ASN_PARSE_E;
             }
+        #ifndef USE_WINDOWS_API
             key->deallocSet = 1;
+        #endif
             curve = NULL;
         }
         if (curve != NULL)

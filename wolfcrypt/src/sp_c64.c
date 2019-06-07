@@ -1289,6 +1289,45 @@ SP_NOINLINE static int sp_2048_add_18(sp_digit* r, const sp_digit* a,
     return 0;
 }
 #endif
+#ifdef WOLFSSL_SP_DIV_64
+static WC_INLINE sp_digit sp_2048_div_word_18(sp_digit d1, sp_digit d0,
+    sp_digit div)
+{
+    sp_digit d, r, t, dv;
+    int128_t t0, t1;
+
+    /* dv has 29 bits. */
+    dv = (div >> 28) + 1;
+    /* All 57 bits from d1 and top 6 bits from d0. */
+    d = (d1 << 6) | (d0 >> 51);
+    r = d / dv;
+    d -= r * dv;
+    /* Up to 34 bits in r */
+    /* Next 23 bits from d0. */
+    d <<= 23;
+    r <<= 23;
+    d |= (d0 >> 28) & ((1 << 23) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 57 bits in r */
+
+    /* Handle rounding error with dv - top part */
+    t0 = ((int128_t)d1 << 57) + d0;
+    t1 = (int128_t)r * div;
+    t1 = t0 - t1;
+    t = (sp_digit)(t1 >> 28) / dv;
+    r += t;
+
+    /* Handle rounding error with dv - bottom 64 bits */
+    t1 = (sp_digit)t0 - (r * div);
+    t = (sp_digit)t1 / div;
+    r += t;
+
+    return r;
+}
+#endif /* WOLFSSL_SP_DIV_64 */
+
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
@@ -1302,7 +1341,9 @@ static int sp_2048_div_18(sp_digit* a, sp_digit* d, sp_digit* m,
         sp_digit* r)
 {
     int i;
+#ifndef WOLFSSL_SP_DIV_64
     int128_t d1;
+#endif
     sp_digit div, r1;
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     sp_digit* td;
@@ -1335,10 +1376,14 @@ static int sp_2048_div_18(sp_digit* a, sp_digit* d, sp_digit* m,
         for (i=17; i>=0; i--) {
             t1[18 + i] += t1[18 + i - 1] >> 57;
             t1[18 + i - 1] &= 0x1ffffffffffffffl;
+#ifndef WOLFSSL_SP_DIV_64
             d1 = t1[18 + i];
             d1 <<= 57;
             d1 += t1[18 + i - 1];
             r1 = (sp_digit)(d1 / div);
+#else
+            r1 = sp_2048_div_word_18(t1[18 + i], t1[18 + i - 1], div);
+#endif
 
             sp_2048_mul_d_18(t2, d, r1);
             sp_2048_sub_18(&t1[i], &t1[i], t2);
@@ -1354,8 +1399,7 @@ static int sp_2048_div_18(sp_digit* a, sp_digit* d, sp_digit* m,
         }
         t1[18 - 1] += t1[18 - 2] >> 57;
         t1[18 - 2] &= 0x1ffffffffffffffl;
-        d1 = t1[18 - 1];
-        r1 = (sp_digit)(d1 / div);
+        r1 = t1[18 - 1] / div;
 
         sp_2048_mul_d_18(t2, d, r1);
         sp_2048_sub_18(t1, t1, t2);
@@ -2096,6 +2140,45 @@ SP_NOINLINE static int sp_2048_add_36(sp_digit* r, const sp_digit* a,
     return 0;
 }
 #endif
+#ifdef WOLFSSL_SP_DIV_64
+static WC_INLINE sp_digit sp_2048_div_word_36(sp_digit d1, sp_digit d0,
+    sp_digit div)
+{
+    sp_digit d, r, t, dv;
+    int128_t t0, t1;
+
+    /* dv has 29 bits. */
+    dv = (div >> 28) + 1;
+    /* All 57 bits from d1 and top 6 bits from d0. */
+    d = (d1 << 6) | (d0 >> 51);
+    r = d / dv;
+    d -= r * dv;
+    /* Up to 34 bits in r */
+    /* Next 23 bits from d0. */
+    d <<= 23;
+    r <<= 23;
+    d |= (d0 >> 28) & ((1 << 23) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 57 bits in r */
+
+    /* Handle rounding error with dv - top part */
+    t0 = ((int128_t)d1 << 57) + d0;
+    t1 = (int128_t)r * div;
+    t1 = t0 - t1;
+    t = (sp_digit)(t1 >> 28) / dv;
+    r += t;
+
+    /* Handle rounding error with dv - bottom 64 bits */
+    t1 = (sp_digit)t0 - (r * div);
+    t = (sp_digit)t1 / div;
+    r += t;
+
+    return r;
+}
+#endif /* WOLFSSL_SP_DIV_64 */
+
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
@@ -2109,7 +2192,9 @@ static int sp_2048_div_36(sp_digit* a, sp_digit* d, sp_digit* m,
         sp_digit* r)
 {
     int i;
+#ifndef WOLFSSL_SP_DIV_64
     int128_t d1;
+#endif
     sp_digit div, r1;
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     sp_digit* td;
@@ -2142,10 +2227,14 @@ static int sp_2048_div_36(sp_digit* a, sp_digit* d, sp_digit* m,
         for (i=35; i>=0; i--) {
             t1[36 + i] += t1[36 + i - 1] >> 57;
             t1[36 + i - 1] &= 0x1ffffffffffffffl;
+#ifndef WOLFSSL_SP_DIV_64
             d1 = t1[36 + i];
             d1 <<= 57;
             d1 += t1[36 + i - 1];
             r1 = (sp_digit)(d1 / div);
+#else
+            r1 = sp_2048_div_word_36(t1[36 + i], t1[36 + i - 1], div);
+#endif
 
             sp_2048_mul_d_36(t2, d, r1);
             sp_2048_sub_36(&t1[i], &t1[i], t2);
@@ -2161,8 +2250,7 @@ static int sp_2048_div_36(sp_digit* a, sp_digit* d, sp_digit* m,
         }
         t1[36 - 1] += t1[36 - 2] >> 57;
         t1[36 - 2] &= 0x1ffffffffffffffl;
-        d1 = t1[36 - 1];
-        r1 = (sp_digit)(d1 / div);
+        r1 = t1[36 - 1] / div;
 
         sp_2048_mul_d_36(t2, d, r1);
         sp_2048_sub_36(t1, t1, t2);
@@ -4831,6 +4919,45 @@ static void sp_3072_cond_add_27(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#ifdef WOLFSSL_SP_DIV_64
+static WC_INLINE sp_digit sp_3072_div_word_27(sp_digit d1, sp_digit d0,
+    sp_digit div)
+{
+    sp_digit d, r, t, dv;
+    int128_t t0, t1;
+
+    /* dv has 29 bits. */
+    dv = (div >> 28) + 1;
+    /* All 57 bits from d1 and top 6 bits from d0. */
+    d = (d1 << 6) | (d0 >> 51);
+    r = d / dv;
+    d -= r * dv;
+    /* Up to 34 bits in r */
+    /* Next 23 bits from d0. */
+    d <<= 23;
+    r <<= 23;
+    d |= (d0 >> 28) & ((1 << 23) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 57 bits in r */
+
+    /* Handle rounding error with dv - top part */
+    t0 = ((int128_t)d1 << 57) + d0;
+    t1 = (int128_t)r * div;
+    t1 = t0 - t1;
+    t = (sp_digit)(t1 >> 28) / dv;
+    r += t;
+
+    /* Handle rounding error with dv - bottom 64 bits */
+    t1 = (sp_digit)t0 - (r * div);
+    t = (sp_digit)t1 / div;
+    r += t;
+
+    return r;
+}
+#endif /* WOLFSSL_SP_DIV_64 */
+
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
@@ -4844,7 +4971,9 @@ static int sp_3072_div_27(sp_digit* a, sp_digit* d, sp_digit* m,
         sp_digit* r)
 {
     int i;
+#ifndef WOLFSSL_SP_DIV_64
     int128_t d1;
+#endif
     sp_digit div, r1;
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     sp_digit* td;
@@ -4877,10 +5006,14 @@ static int sp_3072_div_27(sp_digit* a, sp_digit* d, sp_digit* m,
         for (i=26; i>=0; i--) {
             t1[27 + i] += t1[27 + i - 1] >> 57;
             t1[27 + i - 1] &= 0x1ffffffffffffffl;
+#ifndef WOLFSSL_SP_DIV_64
             d1 = t1[27 + i];
             d1 <<= 57;
             d1 += t1[27 + i - 1];
             r1 = (sp_digit)(d1 / div);
+#else
+            r1 = sp_3072_div_word_27(t1[27 + i], t1[27 + i - 1], div);
+#endif
 
             sp_3072_mul_d_27(t2, d, r1);
             sp_3072_sub_27(&t1[i], &t1[i], t2);
@@ -4896,8 +5029,7 @@ static int sp_3072_div_27(sp_digit* a, sp_digit* d, sp_digit* m,
         }
         t1[27 - 1] += t1[27 - 2] >> 57;
         t1[27 - 2] &= 0x1ffffffffffffffl;
-        d1 = t1[27 - 1];
-        r1 = (sp_digit)(d1 / div);
+        r1 = t1[27 - 1] / div;
 
         sp_3072_mul_d_27(t2, d, r1);
         sp_3072_sub_27(t1, t1, t2);
@@ -5610,6 +5742,45 @@ static void sp_3072_cond_add_54(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#ifdef WOLFSSL_SP_DIV_64
+static WC_INLINE sp_digit sp_3072_div_word_54(sp_digit d1, sp_digit d0,
+    sp_digit div)
+{
+    sp_digit d, r, t, dv;
+    int128_t t0, t1;
+
+    /* dv has 29 bits. */
+    dv = (div >> 28) + 1;
+    /* All 57 bits from d1 and top 6 bits from d0. */
+    d = (d1 << 6) | (d0 >> 51);
+    r = d / dv;
+    d -= r * dv;
+    /* Up to 34 bits in r */
+    /* Next 23 bits from d0. */
+    d <<= 23;
+    r <<= 23;
+    d |= (d0 >> 28) & ((1 << 23) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 57 bits in r */
+
+    /* Handle rounding error with dv - top part */
+    t0 = ((int128_t)d1 << 57) + d0;
+    t1 = (int128_t)r * div;
+    t1 = t0 - t1;
+    t = (sp_digit)(t1 >> 28) / dv;
+    r += t;
+
+    /* Handle rounding error with dv - bottom 64 bits */
+    t1 = (sp_digit)t0 - (r * div);
+    t = (sp_digit)t1 / div;
+    r += t;
+
+    return r;
+}
+#endif /* WOLFSSL_SP_DIV_64 */
+
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
@@ -5623,7 +5794,9 @@ static int sp_3072_div_54(sp_digit* a, sp_digit* d, sp_digit* m,
         sp_digit* r)
 {
     int i;
+#ifndef WOLFSSL_SP_DIV_64
     int128_t d1;
+#endif
     sp_digit div, r1;
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     sp_digit* td;
@@ -5656,10 +5829,14 @@ static int sp_3072_div_54(sp_digit* a, sp_digit* d, sp_digit* m,
         for (i=53; i>=0; i--) {
             t1[54 + i] += t1[54 + i - 1] >> 57;
             t1[54 + i - 1] &= 0x1ffffffffffffffl;
+#ifndef WOLFSSL_SP_DIV_64
             d1 = t1[54 + i];
             d1 <<= 57;
             d1 += t1[54 + i - 1];
             r1 = (sp_digit)(d1 / div);
+#else
+            r1 = sp_3072_div_word_54(t1[54 + i], t1[54 + i - 1], div);
+#endif
 
             sp_3072_mul_d_54(t2, d, r1);
             sp_3072_sub_54(&t1[i], &t1[i], t2);
@@ -5675,8 +5852,7 @@ static int sp_3072_div_54(sp_digit* a, sp_digit* d, sp_digit* m,
         }
         t1[54 - 1] += t1[54 - 2] >> 57;
         t1[54 - 2] &= 0x1ffffffffffffffl;
-        d1 = t1[54 - 1];
-        r1 = (sp_digit)(d1 / div);
+        r1 = t1[54 - 1] / div;
 
         sp_3072_mul_d_54(t2, d, r1);
         sp_3072_sub_54(t1, t1, t2);
@@ -7036,7 +7212,7 @@ static int sp_256_mod_mul_norm_5(sp_digit* r, sp_digit* a, sp_digit* m)
     (void)m;
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    td = (sp_digit*)XMALLOC(sizeof(int64_t) * 2 * 8, NULL, DYNAMIC_TYPE_ECC);
+    td = (int64_t*)XMALLOC(sizeof(int64_t) * 2 * 8, NULL, DYNAMIC_TYPE_ECC);
     if (td != NULL) {
         t = td;
         a32 = td + 8;
@@ -10928,6 +11104,45 @@ SP_NOINLINE static void sp_256_mul_d_5(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#ifdef WOLFSSL_SP_DIV_64
+static WC_INLINE sp_digit sp_256_div_word_5(sp_digit d1, sp_digit d0,
+    sp_digit div)
+{
+    sp_digit d, r, t, dv;
+    int128_t t0, t1;
+
+    /* dv has 27 bits. */
+    dv = (div >> 25) + 1;
+    /* All 52 bits from d1 and top 11 bits from d0. */
+    d = (d1 << 11) | (d0 >> 41);
+    r = d / dv;
+    d -= r * dv;
+    /* Up to 36 bits in r */
+    /* Next 16 bits from d0. */
+    d <<= 16;
+    r <<= 16;
+    d |= (d0 >> 25) & ((1 << 16) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 52 bits in r */
+
+    /* Handle rounding error with dv - top part */
+    t0 = ((int128_t)d1 << 52) + d0;
+    t1 = (int128_t)r * div;
+    t1 = t0 - t1;
+    t = (sp_digit)(t1 >> 25) / dv;
+    r += t;
+
+    /* Handle rounding error with dv - bottom 64 bits */
+    t1 = (sp_digit)t0 - (r * div);
+    t = (sp_digit)t1 / div;
+    r += t;
+
+    return r;
+}
+#endif /* WOLFSSL_SP_DIV_64 */
+
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
@@ -10941,7 +11156,9 @@ static int sp_256_div_5(sp_digit* a, sp_digit* d, sp_digit* m,
         sp_digit* r)
 {
     int i;
+#ifndef WOLFSSL_SP_DIV_64
     int128_t d1;
+#endif
     sp_digit div, r1;
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     sp_digit* td;
@@ -10974,10 +11191,14 @@ static int sp_256_div_5(sp_digit* a, sp_digit* d, sp_digit* m,
         for (i=4; i>=0; i--) {
             t1[5 + i] += t1[5 + i - 1] >> 52;
             t1[5 + i - 1] &= 0xfffffffffffffl;
+#ifndef WOLFSSL_SP_DIV_64
             d1 = t1[5 + i];
             d1 <<= 52;
             d1 += t1[5 + i - 1];
             r1 = (sp_digit)(d1 / div);
+#else
+            r1 = sp_256_div_word_5(t1[5 + i], t1[5 + i - 1], div);
+#endif
 
             sp_256_mul_d_5(t2, d, r1);
             sp_256_sub_5(&t1[i], &t1[i], t2);
@@ -10993,8 +11214,7 @@ static int sp_256_div_5(sp_digit* a, sp_digit* d, sp_digit* m,
         }
         t1[5 - 1] += t1[5 - 2] >> 52;
         t1[5 - 2] &= 0xfffffffffffffl;
-        d1 = t1[5 - 1];
-        r1 = (sp_digit)(d1 / div);
+        r1 = t1[5 - 1] / div;
 
         sp_256_mul_d_5(t2, d, r1);
         sp_256_sub_5(t1, t1, t2);

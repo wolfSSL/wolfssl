@@ -52,6 +52,9 @@
 #ifdef WOLFSSL_MD2
     #include <wolfssl/wolfcrypt/md2.h>
 #endif
+#if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
+    #include <wolfssl/wolfcrypt/blake2.h>
+#endif
 
 
 #ifdef __cplusplus

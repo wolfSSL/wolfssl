@@ -194,6 +194,7 @@ int wc_HashGetOID(enum wc_HashType hash_type)
         /* Not Supported */
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
+        case WC_HASH_TYPE_BLAKE2S:
         case WC_HASH_TYPE_NONE:
         default:
             oid = BAD_FUNC_ARG;
@@ -337,9 +338,14 @@ int wc_HashGetDigestSize(enum wc_HashType hash_type)
             dig_size = WC_SHA3_512_DIGEST_SIZE;
         #endif
             break;
+        case WC_HASH_TYPE_BLAKE2B:
+        case WC_HASH_TYPE_BLAKE2S:
+        #if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
+            dig_size = BLAKE2S_OUTBYTES;
+        #endif
+            break;
 
         /* Not Supported */
-        case WC_HASH_TYPE_BLAKE2B:
         case WC_HASH_TYPE_NONE:
         default:
             dig_size = BAD_FUNC_ARG;
@@ -421,9 +427,14 @@ int wc_HashGetBlockSize(enum wc_HashType hash_type)
             block_size = WC_SHA3_512_BLOCK_SIZE;
         #endif
             break;
+        case WC_HASH_TYPE_BLAKE2B:
+        case WC_HASH_TYPE_BLAKE2S:
+        #if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
+            block_size = BLAKE2S_BLOCKBYTES;
+        #endif
+            break;
 
         /* Not Supported */
-        case WC_HASH_TYPE_BLAKE2B:
         case WC_HASH_TYPE_NONE:
         default:
             block_size = BAD_FUNC_ARG;
@@ -517,6 +528,7 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
         case WC_HASH_TYPE_MD2:
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
+        case WC_HASH_TYPE_BLAKE2S:
         case WC_HASH_TYPE_NONE:
         default:
             ret = BAD_FUNC_ARG;
@@ -590,6 +602,7 @@ int wc_HashInit(wc_HashAlg* hash, enum wc_HashType type)
         case WC_HASH_TYPE_MD2:
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
+        case WC_HASH_TYPE_BLAKE2S:
         case WC_HASH_TYPE_NONE:
         default:
             ret = BAD_FUNC_ARG;
@@ -664,6 +677,7 @@ int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type, const byte* data,
         case WC_HASH_TYPE_MD2:
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
+        case WC_HASH_TYPE_BLAKE2S:
         case WC_HASH_TYPE_NONE:
         default:
             ret = BAD_FUNC_ARG;
@@ -737,6 +751,7 @@ int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out)
         case WC_HASH_TYPE_MD2:
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
+        case WC_HASH_TYPE_BLAKE2S:
         case WC_HASH_TYPE_NONE:
         default:
             ret = BAD_FUNC_ARG;
@@ -820,6 +835,7 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
         case WC_HASH_TYPE_MD2:
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
+        case WC_HASH_TYPE_BLAKE2S:
         case WC_HASH_TYPE_NONE:
         default:
             ret = BAD_FUNC_ARG;
@@ -882,6 +898,7 @@ int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type, word32 flags)
         case WC_HASH_TYPE_MD2:
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
+        case WC_HASH_TYPE_BLAKE2S:
         case WC_HASH_TYPE_NONE:
         default:
             ret = BAD_FUNC_ARG;
@@ -942,6 +959,7 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         case WC_HASH_TYPE_MD2:
         case WC_HASH_TYPE_MD4:
         case WC_HASH_TYPE_BLAKE2B:
+        case WC_HASH_TYPE_BLAKE2S:
         case WC_HASH_TYPE_NONE:
         default:
             ret = BAD_FUNC_ARG;

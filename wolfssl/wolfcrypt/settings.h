@@ -437,7 +437,15 @@
     #define SINGLE_THREADED
     #define NO_DEV_RANDOM
     #ifndef INTEL_GALILEO /* Galileo has time.h compatibility */
-        #define TIME_OVERRIDES /* must define XTIME and XGMTIME externally */
+        #define TIME_OVERRIDES
+        #ifndef XTIME
+            #error "Must define XTIME externally see porting guide"
+            #error "https://www.wolfssl.com/docs/porting-guide/"
+        #endif
+        #ifndef XGMTIME
+            #error "Must define XGMTIME externally see porting guide"
+            #error "https://www.wolfssl.com/docs/porting-guide/"
+        #endif
     #endif
     #define WOLFSSL_USER_IO
     #define HAVE_ECC
@@ -751,7 +759,7 @@ extern void uITRON4_free(void *p) ;
         #undef SIZEOF_LONG
         #define SIZEOF_LONG_LONG 8
     #else
-        #sslpro: settings.h - please implement SIZEOF_LONG and SIZEOF_LONG_LONG
+        #error settings.h - please implement SIZEOF_LONG and SIZEOF_LONG_LONG
     #endif
 
     #define XMALLOC(s, h, type) ((void *)rtp_malloc((s), SSL_PRO_MALLOC))
@@ -1276,12 +1284,14 @@ extern void uITRON4_free(void *p) ;
                     ((CPU_CHAR *)Str_Cat_N((CPU_CHAR *)(pstr_dest), \
                      (const CPU_CHAR *)(pstr_cat),(CPU_SIZE_T)(len_max)))
     #define XMEMSET(pmem, data_val, size) \
-                    ((void)Mem_Set((void *)(pmem), (CPU_INT08U) (data_val), \
+                    ((void)Mem_Set((void *)(pmem), \
+                    (CPU_INT08U) (data_val), \
                     (CPU_SIZE_T)(size)))
     #define XMEMCPY(pdest, psrc, size) ((void)Mem_Copy((void *)(pdest), \
                      (void *)(psrc), (CPU_SIZE_T)(size)))
     #define XMEMCMP(pmem_1, pmem_2, size) \
-                   (((CPU_BOOLEAN)Mem_Cmp((void *)(pmem_1), (void *)(pmem_2), \
+                   (((CPU_BOOLEAN)Mem_Cmp((void *)(pmem_1), \
+                                          (void *)(pmem_2), \
                      (CPU_SIZE_T)(size))) ? DEF_NO : DEF_YES)
     #define XMEMMOVE XMEMCPY
 

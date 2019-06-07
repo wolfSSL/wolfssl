@@ -11,7 +11,8 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/mem_track.h>
-#if defined(OPENSSL_EXTRA) && defined(SHOW_CERTS)
+#if defined(SHOW_CERTS) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     #include <wolfssl/wolfcrypt/asn.h> /* for domain component NID value */
 #endif
 
@@ -576,7 +577,7 @@ static const char* client_showpeer_msg[][8] = {
 #endif
 };
 
-#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+#if defined(KEEP_PEER_CERT) || defined(KEEP_OUR_CERT) || defined(SESSION_CERTS)
 static const char* client_showx509_msg[][5] = {
     /* English */
     {
@@ -643,12 +644,11 @@ static WC_INLINE void ShowX509Ex(WOLFSSL_X509* x509, const char* hdr,
     XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
     XFREE(issuer,  0, DYNAMIC_TYPE_OPENSSL);
 
-#if defined(OPENSSL_EXTRA) && defined(SHOW_CERTS)
+#if defined(SHOW_CERTS) && defined(OPENSSL_EXTRA)
     {
         WOLFSSL_BIO* bio;
         char buf[256]; /* should be size of ASN_NAME_MAX */
         int  textSz;
-
 
         /* print out domain component if certificate has it */
         textSz = wolfSSL_X509_NAME_get_text_by_NID(
@@ -665,7 +665,7 @@ static WC_INLINE void ShowX509Ex(WOLFSSL_X509* x509, const char* hdr,
             wolfSSL_BIO_free(bio);
         }
     }
-#endif
+#endif /* SHOW_CERTS && OPENSSL_EXTRA */
 }
 /* original ShowX509 to maintain compatibility */
 static WC_INLINE void ShowX509(WOLFSSL_X509* x509, const char* hdr)
@@ -673,9 +673,10 @@ static WC_INLINE void ShowX509(WOLFSSL_X509* x509, const char* hdr)
     ShowX509Ex(x509, hdr, 0);
 }
 
-#endif /* KEEP_PEER_CERT || SESSION_CERTS */
+#endif /* KEEP_PEER_CERT || KEEP_OUR_CERT || SESSION_CERTS */
 
-#if defined(SESSION_CERTS) && defined(SHOW_CERTS)
+#if defined(SHOW_CERTS) && defined(SESSION_CERTS) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 static WC_INLINE void ShowX509Chain(WOLFSSL_X509_CHAIN* chain, int count,
     const char* hdr)
 {
@@ -697,7 +698,7 @@ static WC_INLINE void ShowX509Chain(WOLFSSL_X509_CHAIN* chain, int count,
         wolfSSL_FreeX509(chainX509);
     }
 }
-#endif
+#endif /* SHOW_CERTS && SESSION_CERTS */
 
 /* lng_index is to specify the language for displaying message.              */
 /* 0:English, 1:Japanese                                                     */
@@ -720,10 +721,11 @@ static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
         printf("peer has no cert!\n");
     wolfSSL_FreeX509(peer);
 #endif
-#if defined(SHOW_CERTS) && defined(OPENSSL_EXTRA) && defined(KEEP_OUR_CERT)
+#if defined(SHOW_CERTS) && defined(KEEP_OUR_CERT) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     ShowX509(wolfSSL_get_certificate(ssl), "our cert info:");
     printf("Peer verify result = %lu\n", wolfSSL_get_verify_result(ssl));
-#endif /* SHOW_CERTS */
+#endif /* SHOW_CERTS && KEEP_OUR_CERT */
     printf("%s %s\n", words[0], wolfSSL_get_version(ssl));
 
     cipher = wolfSSL_get_current_cipher(ssl);
@@ -748,7 +750,8 @@ static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
         printf("%s\n", words[5]);
 #endif
 
-#if defined(SESSION_CERTS) && defined(SHOW_CERTS)
+#if defined(SHOW_CERTS) && defined(SESSION_CERTS) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     {
         WOLFSSL_X509_CHAIN* chain;
 
@@ -762,7 +765,7 @@ static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
         }
     #endif
     }
-#endif /* SESSION_CERTS && SHOW_CERTS */
+#endif /* SHOW_CERTS && SESSION_CERTS */
   (void)ssl;
 }
 /* original showPeer to maintain compatibility */
@@ -1687,8 +1690,8 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
             printf("\t\tCert %d: Ptr %p, Len %u\n", i, cert->buffer, cert->length);
         }
     }
-    #endif
-#endif
+    #endif /* SHOW_CERTS */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
     printf("\tSubject's domain name at %d is %s\n", store->error_depth, store->domain);
 

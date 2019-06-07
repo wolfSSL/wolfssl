@@ -1696,6 +1696,12 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                 #endif
 
                     nonceSz = AESGCM_NONCE_SZ;
+                #if ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+                    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)))
+                    ret = wc_AesGcmEncrypt(ssl->encrypt.aes, output, input,
+                        dataSz, ssl->encrypt.nonce, nonceSz,
+                        output + dataSz, macSz, aad, aadSz);
+                #else
                     ret = wc_AesGcmSetExtIV(ssl->encrypt.aes,
                             ssl->encrypt.nonce, nonceSz);
                     if (ret == 0) {
@@ -1703,6 +1709,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                                 input, dataSz, ssl->encrypt.nonce, nonceSz,
                                 output + dataSz, macSz, aad, aadSz);
                     }
+                #endif
                     break;
             #endif
 
@@ -1717,6 +1724,12 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                 #endif
 
                     nonceSz = AESCCM_NONCE_SZ;
+                #if ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+                    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)))
+                    ret = wc_AesCcmEncrypt(ssl->encrypt.aes, output, input,
+                        dataSz, ssl->encrypt.nonce, nonceSz,
+                        output + dataSz, macSz, aad, aadSz);
+                #else
                     ret = wc_AesCcmSetNonce(ssl->encrypt.aes,
                             ssl->encrypt.nonce, nonceSz);
                     if (ret == 0) {
@@ -1724,6 +1737,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                                 input, dataSz, ssl->encrypt.nonce, nonceSz,
                                 output + dataSz, macSz, aad, aadSz);
                     }
+                #endif
                     break;
             #endif
 
@@ -2402,6 +2416,7 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk)
 #endif
 #ifndef NO_PSK
     if (!psk->resumption) {
+    #ifndef WOLFSSL_PSK_ONE_ID
         const char* cipherName = NULL;
         byte cipherSuite0 = TLS13_BYTE, cipherSuite = WOLFSSL_DEF_PSK_CIPHER;
 
@@ -2430,6 +2445,9 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk)
                                               psk->cipherSuite != cipherSuite) {
             return PSK_KEY_ERROR;
         }
+    #else
+        /* PSK information loaded during setting of default TLS extensions. */
+    #endif
     }
 #endif
 
@@ -3378,6 +3396,9 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     #endif
 
     #ifndef NO_PSK
+        if (current->identityLen > MAX_PSK_ID_LEN) {
+            return BUFFER_ERROR;
+        }
         XMEMCPY(ssl->arrays->client_identity, current->identity,
                 current->identityLen);
         ssl->arrays->client_identity[current->identityLen] = '\0';

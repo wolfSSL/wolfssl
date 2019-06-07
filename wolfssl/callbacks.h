@@ -52,7 +52,7 @@ typedef struct handShakeInfo_st {
 } HandShakeInfo;
 
 
-#ifdef HAVE_SYS_TIME_H
+#if defined(HAVE_SYS_TIME_H) && !defined(NO_TIMEVAL)
     typedef struct timeval Timeval;
 #else /* HAVE_SYS_TIME_H */
     /* Define the Timeval explicitly. */

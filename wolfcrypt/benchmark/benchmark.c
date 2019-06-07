@@ -113,8 +113,16 @@
         #include <stdlib.h>  /* we're using malloc / free direct here */
     #endif
 
-    #include <string.h>
-    #include <stdio.h>
+    #ifndef STRING_USER
+        #include <string.h>
+        #include <stdio.h>
+    #endif
+
+    /* enable way for customer to override test/bench printf */
+    #ifdef XPRINTF
+        #undef  printf
+        #define printf XPRINTF
+    #endif
 #endif
 
 #include <wolfssl/wolfcrypt/memory.h>
@@ -223,7 +231,9 @@
 #define BENCH_SHA3               (BENCH_SHA3_224 | BENCH_SHA3_256 | \
                                   BENCH_SHA3_384 | BENCH_SHA3_512)
 #define BENCH_RIPEMD             0x00001000
-#define BENCH_BLAKE2             0x00002000
+#define BENCH_BLAKE2B            0x00002000
+#define BENCH_BLAKE2S            0x00004000
+
 /* MAC algorithms. */
 #define BENCH_CMAC               0x00000001
 #define BENCH_HMAC_MD5           0x00000002
@@ -379,7 +389,10 @@ static const bench_alg bench_digest_opt[] = {
     { "-ripemd",             BENCH_RIPEMD            },
 #endif
 #ifdef HAVE_BLAKE2
-    { "-blake2",             BENCH_BLAKE2            },
+    { "-blake2b",            BENCH_BLAKE2B           },
+#endif
+#ifdef HAVE_BLAKE2S
+    { "-blake2s",            BENCH_BLAKE2S           },
 #endif
     { NULL, 0}
 };
@@ -604,7 +617,7 @@ static const char* bench_desc_words[][9] = {
     #include <wolfssl/certs_test.h>
 #endif
 
-#ifdef HAVE_BLAKE2
+#if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
     #include <wolfssl/wolfcrypt/blake2.h>
 #endif
 
@@ -1454,8 +1467,12 @@ static void* benchmarks_do(void* args)
         bench_ripemd();
 #endif
 #ifdef HAVE_BLAKE2
-    if (bench_all || (bench_digest_algs & BENCH_BLAKE2))
-        bench_blake2();
+    if (bench_all || (bench_digest_algs & BENCH_BLAKE2B))
+        bench_blake2b();
+#endif
+#ifdef HAVE_BLAKE2S
+    if (bench_all || (bench_digest_algs & BENCH_BLAKE2S))
+        bench_blake2s();
 #endif
 #ifdef WOLFSSL_CMAC
     if (bench_all || (bench_mac_algs & BENCH_CMAC))
@@ -3589,7 +3606,7 @@ int bench_ripemd(void)
 
 
 #ifdef HAVE_BLAKE2
-void bench_blake2(void)
+void bench_blake2b(void)
 {
     Blake2b b2b;
     byte    digest[64];
@@ -3644,6 +3661,65 @@ void bench_blake2(void)
         } while (bench_stats_sym_check(start));
     }
     bench_stats_sym_finish("BLAKE2b", 0, count, bench_size, start, ret);
+}
+#endif
+
+#if defined(HAVE_BLAKE2S)
+void bench_blake2s(void)
+{
+    Blake2s b2s;
+    byte    digest[32];
+    double  start;
+    int     ret = 0, i, count;
+
+    if (digest_stream) {
+        ret = wc_InitBlake2s(&b2s, 32);
+        if (ret != 0) {
+            printf("InitBlake2s failed, ret = %d\n", ret);
+            return;
+        }
+
+        bench_stats_start(&count, &start);
+        do {
+            for (i = 0; i < numBlocks; i++) {
+                ret = wc_Blake2sUpdate(&b2s, bench_plain, BENCH_SIZE);
+                if (ret != 0) {
+                    printf("Blake2sUpdate failed, ret = %d\n", ret);
+                    return;
+                }
+            }
+            ret = wc_Blake2sFinal(&b2s, digest, 32);
+            if (ret != 0) {
+                printf("Blake2sFinal failed, ret = %d\n", ret);
+                return;
+            }
+            count += i;
+        } while (bench_stats_sym_check(start));
+    }
+    else {
+        bench_stats_start(&count, &start);
+        do {
+            for (i = 0; i < numBlocks; i++) {
+                ret = wc_InitBlake2s(&b2s, 32);
+                if (ret != 0) {
+                    printf("InitBlake2b failed, ret = %d\n", ret);
+                    return;
+                }
+                ret = wc_Blake2sUpdate(&b2s, bench_plain, BENCH_SIZE);
+                if (ret != 0) {
+                    printf("Blake2bUpdate failed, ret = %d\n", ret);
+                    return;
+                }
+                ret = wc_Blake2sFinal(&b2s, digest, 32);
+                if (ret != 0) {
+                    printf("Blake2sFinal failed, ret = %d\n", ret);
+                    return;
+                }
+            }
+            count += i;
+        } while (bench_stats_sym_check(start));
+    }
+    bench_stats_sym_finish("BLAKE2s", 0, count, bench_size, start, ret);
 }
 #endif
 
