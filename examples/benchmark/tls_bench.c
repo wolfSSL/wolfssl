@@ -611,7 +611,12 @@ static int bench_tls_client(info_t* info)
         cli_ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
 #endif
     if (!tls13)
+#if !defined(WOLFSSL_TLS13)
         cli_ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+#elif !defined(WOLFSSL_NO_TLS12)
+        cli_ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+#endif
+
     if (cli_ctx == NULL) {
         printf("error creating ctx\n");
         ret = MEMORY_E; goto exit;
