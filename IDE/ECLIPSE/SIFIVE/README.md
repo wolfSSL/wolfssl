@@ -158,7 +158,7 @@ CHA-POLY           675 KB took 1.021 seconds,  661.060 KB/s
 POLY1305             2 MB took 1.007 seconds,    2.230 MB/s
 SHA                  1 MB took 1.016 seconds,    1.321 MB/s
 SHA-256            425 KB took 1.005 seconds,  422.909 KB/s
-SHA-512             25 KB took 2.043 seconds,   12.239 KB/s
+SHA-512            225 KB took 1.009 seconds,  223.073 KB/s
 HMAC-SHA             1 MB took 1.010 seconds,    1.378 MB/s
 HMAC-SHA256        425 KB took 1.037 seconds,  409.781 KB/s
 HMAC-SHA512         25 KB took 2.075 seconds,   12.050 KB/s

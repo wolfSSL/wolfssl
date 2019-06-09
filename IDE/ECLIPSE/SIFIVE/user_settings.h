@@ -312,7 +312,7 @@ extern "C" {
     #endif
 
     /* over twice as small, but 50% slower */
-    //#define USE_SLOW_SHA512
+    #define USE_SLOW_SHA512
 #endif
 
 /* Sha3 */
