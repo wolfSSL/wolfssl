@@ -140,37 +140,37 @@ Actual Clock 320MHz
  wolfSSL version 4.0.0
 ------------------------------------------------------------------------------
 wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
-RNG                200 KB took 1.044 seconds,  191.519 KB/s
-AES-128-CBC-enc     50 KB took 1.657 seconds,   30.174 KB/s
-AES-128-CBC-dec     50 KB took 1.659 seconds,   30.141 KB/s
-AES-192-CBC-enc     50 KB took 1.837 seconds,   27.220 KB/s
-AES-192-CBC-dec     50 KB took 1.839 seconds,   27.194 KB/s
-AES-256-CBC-enc     25 KB took 1.009 seconds,   24.784 KB/s
-AES-256-CBC-dec     25 KB took 1.010 seconds,   24.761 KB/s
-AES-128-GCM-enc     25 KB took 1.493 seconds,   16.739 KB/s
-AES-128-GCM-dec     25 KB took 1.564 seconds,   15.986 KB/s
-AES-192-GCM-enc     25 KB took 1.591 seconds,   15.716 KB/s
-AES-192-GCM-dec     25 KB took 1.662 seconds,   15.044 KB/s
-AES-256-GCM-enc     25 KB took 1.684 seconds,   14.843 KB/s
-AES-256-GCM-dec     25 KB took 1.755 seconds,   14.245 KB/s
-CHACHA               1 MB took 1.004 seconds,    0.997 MB/s
-CHA-POLY           675 KB took 1.021 seconds,  661.060 KB/s
-POLY1305             2 MB took 1.007 seconds,    2.230 MB/s
-SHA                  1 MB took 1.016 seconds,    1.321 MB/s
-SHA-256            425 KB took 1.005 seconds,  422.909 KB/s
-SHA-512            225 KB took 1.009 seconds,  223.073 KB/s
-HMAC-SHA             1 MB took 1.010 seconds,    1.378 MB/s
-HMAC-SHA256        425 KB took 1.037 seconds,  409.781 KB/s
-HMAC-SHA512         25 KB took 2.075 seconds,   12.050 KB/s
-ECC      256 key gen         2 ops took 1.099 sec, avg 549.271 ms, 1.821 ops/sec
-ECDHE    256 agree           2 ops took 1.093 sec, avg 546.555 ms, 1.830 ops/sec
-ECDSA    256 sign            2 ops took 1.167 sec, avg 583.694 ms, 1.713 ops/sec
-ECDSA    256 verify          2 ops took 2.136 sec, avg 1067.795 ms, 0.937 ops/sec
-CURVE  25519 key gen         2 ops took 1.693 sec, avg 846.451 ms, 1.181 ops/sec
-CURVE  25519 agree           2 ops took 1.689 sec, avg 844.299 ms, 1.184 ops/sec
-ED     25519 key gen         1 ops took 1.702 sec, avg 1702.057 ms, 0.588 ops/sec
-ED     25519 sign            2 ops took 3.650 sec, avg 1824.753 ms, 0.548 ops/sec
-ED     25519 verify          2 ops took 5.788 sec, avg 2894.012 ms, 0.346 ops/sec
+RNG                250 KB took 1.098 seconds,  227.714 KB/s
+AES-128-CBC-enc     50 KB took 1.132 seconds,   44.175 KB/s
+AES-128-CBC-dec     50 KB took 1.142 seconds,   43.778 KB/s
+AES-192-CBC-enc     50 KB took 1.250 seconds,   40.007 KB/s
+AES-192-CBC-dec     50 KB took 1.260 seconds,   39.677 KB/s
+AES-256-CBC-enc     50 KB took 1.368 seconds,   36.552 KB/s
+AES-256-CBC-dec     50 KB took 1.378 seconds,   36.279 KB/s
+AES-128-GCM-enc     25 KB took 1.225 seconds,   20.412 KB/s
+AES-128-GCM-dec     25 KB took 1.225 seconds,   20.402 KB/s
+AES-192-GCM-enc     25 KB took 1.290 seconds,   19.373 KB/s
+AES-192-GCM-dec     25 KB took 1.291 seconds,   19.366 KB/s
+AES-256-GCM-enc     25 KB took 1.352 seconds,   18.487 KB/s
+AES-256-GCM-dec     25 KB took 1.353 seconds,   18.478 KB/s
+CHACHA               1 MB took 1.006 seconds,    1.020 MB/s
+CHA-POLY           700 KB took 1.032 seconds,  678.045 KB/s
+POLY1305             2 MB took 1.007 seconds,    2.255 MB/s
+SHA                  2 MB took 1.002 seconds,    1.511 MB/s
+SHA-256            525 KB took 1.011 seconds,  519.279 KB/s
+SHA-512            275 KB took 1.017 seconds,  270.477 KB/s
+HMAC-SHA             1 MB took 1.013 seconds,    1.399 MB/s
+HMAC-SHA256        525 KB took 1.019 seconds,  515.020 KB/s
+HMAC-SHA512        275 KB took 1.032 seconds,  266.351 KB/s
+ECC      256 key gen         2 ops took 1.104 sec, avg 551.834 ms, 1.812 ops/sec
+ECDHE    256 agree           2 ops took 1.101 sec, avg 550.400 ms, 1.817 ops/sec
+ECDSA    256 sign            2 ops took 1.173 sec, avg 586.502 ms, 1.705 ops/sec
+ECDSA    256 verify          2 ops took 2.153 sec, avg 1076.294 ms, 0.929 ops/sec
+CURVE  25519 key gen         2 ops took 1.629 sec, avg 814.423 ms, 1.228 ops/sec
+CURVE  25519 agree           2 ops took 1.626 sec, avg 813.156 ms, 1.230 ops/sec
+ED     25519 key gen         1 ops took 1.436 sec, avg 1436.096 ms, 0.696 ops/sec
+ED     25519 sign            2 ops took 2.913 sec, avg 1456.421 ms, 0.687 ops/sec
+ED     25519 verify          2 ops took 5.012 sec, avg 2506.012 ms, 0.399 ops/sec
 Benchmark complete
 ```
 

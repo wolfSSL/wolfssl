@@ -150,6 +150,11 @@ int main(void)
 #endif
     printf("Actual Clock %dMHz\n", clk_Hz/1000000);
 
+    /* Reconfigure the SPI Bus for dual mode */
+    #define QSPI0_CTRL       0x10014000UL
+    #define FESPI_REG_FFMT   (*((volatile uint32_t *)(QSPI0_CTRL + 0x64)))
+    FESPI_REG_FFMT = 0xbb1447;
+
 #ifdef DEBUG_WOLFSSL
     wolfSSL_Debugging_ON();
 #endif
