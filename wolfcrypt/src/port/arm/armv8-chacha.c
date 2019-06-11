@@ -974,11 +974,10 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         // The paper NEON crypto by Daniel J. Bernstein and Peter Schwabe was used to optimize for ARM
         // https://cryptojedi.org/papers/neoncrypto-20120320.pdf
 
+        ".align 2 \n\t"
         "LDR r14, %[input] \n\t" // load input address
-        "MOV r11, #1 \n\t"
 
         "LDM r14, { r0-r12 } \n\t"
-        "STRD r10, r11, %[x_10] \n\t"
         // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
         //  0  1  2  3  4  5  6  7  8  9  10  11  12
         "VMOV d0, r0, r1 \n\t"
@@ -986,14 +985,15 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         "VMOV d2, r4, r5 \n\t"
         "VMOV d3, r6, r7 \n\t"
         "VMOV d4, r8, r9 \n\t"
+        "STRD r10, r11, %[x_10] \n\t"
         "VMOV d5, r10, r11 \n\t"
+        "LDRD r11, r10, [r14, #4*14] \n\t"
         "VMOV q4, q0 \n\t"
         "VMOV q5, q1 \n\t"
         "VMOV q6, q2 \n\t"
         "VMOV q8, q0 \n\t"
         "VMOV q9, q1 \n\t"
         "VMOV q10, q2 \n\t"
-        "LDRD r11, r10, [r14, #4*14] \n\t"
         // r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12
         //  0  1  2  3  4  5  6  7  8  9  15  14  12
         "VMOV d7, r11, r10 \n\t"
