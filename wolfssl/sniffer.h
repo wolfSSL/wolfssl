@@ -136,25 +136,25 @@ SSL_SNIFFER_API int ssl_SetConnectionCtx(void* ctx);
 
 typedef struct SSLStats
 {
-    unsigned int sslStandardConns;
+    unsigned int sslStandardConns; /* X */
     unsigned int sslRehandshakeConns; /* unsupported */
-    unsigned int sslClientAuthConns;
-    unsigned int sslResumedConns;
+    unsigned int sslClientAuthConns; /* X */
+    unsigned int sslResumedConns; /* X */
     unsigned int sslResumedRehandshakeConns; /* unsupported */
     unsigned int sslClientAuthRehandshakeConns; /* unsupported */
     unsigned int sslEphemeralMisses;
-    unsigned int sslResumeMisses;
-    unsigned int sslCiphersUnsupported;
-    unsigned int sslKeysUnmatched;
+    unsigned int sslResumeMisses; /* X */
+    unsigned int sslCiphersUnsupported; /* X */
+    unsigned int sslKeysUnmatched; /* X */
     unsigned int sslKeyFails;
     unsigned int sslDecodeFails;
-    unsigned int sslAlerts;
+    unsigned int sslAlerts; /* X */
     unsigned int sslDecryptedBytes;
     unsigned int sslEncryptedBytes;
     unsigned int sslEncryptedPackets;
     unsigned int sslDecryptedPackets;
     unsigned int sslEncryptedConnsPerSecond;
-    unsigned int sslKeyMatches;
+    unsigned int sslKeyMatches; /* X */
     unsigned int sslActiveEncryptedConnsPerSecond;
     unsigned int sslActiveFlowsPerSecond;
 } SSLStats;

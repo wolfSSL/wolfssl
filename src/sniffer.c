@@ -410,9 +410,11 @@ static word32 MissedDataSessions = 0;    /* # of sessions with missed data */
 static SSLConnCb ConnectionCb;
 static void* ConnectionCbCtx = NULL;
 
+#ifdef WOLFSSL_SNIFFER_STATS
 /* Sessions Statistics */
 static SSLStats SnifferStats;
 static wolfSSL_Mutex StatsMutex;
+#endif
 
 
 static void UpdateMissedDataSessions(void)
@@ -423,21 +425,25 @@ static void UpdateMissedDataSessions(void)
 }
 
 
+#ifdef WOLFSSL_SNIFFER_STATS
 #define ADD_TO_STAT(x,y) do { wc_LockMutex(&StatsMutex); \
     x += y; \
     wc_UnLockMutex(&StatsMutex); } while (0)
 #define INC_STAT(x) ADD_TO_STAT(x,1)
+#endif
 
 
 /* Initialize overall Sniffer */
 void ssl_InitSniffer(void)
 {
     wolfSSL_Init();
-    XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
     wc_InitMutex(&ServerListMutex);
     wc_InitMutex(&SessionMutex);
     wc_InitMutex(&RecoveryMutex);
+#ifdef WOLFSSL_SNIFFER_STATS
+    XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
     wc_InitMutex(&StatsMutex);
+#endif
 }
 
 
@@ -1811,7 +1817,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                               SnifferSession* session, char* error)
 {
     ProtocolVersion pv;
-    byte            b;
+    byte            b, b0;
     int             toRead = VERSION_SZ + RAN_LEN + ENUM_LEN;
     int             doResume     = 0;
     int             initialBytes = *sslBytes;
@@ -1859,13 +1865,32 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
     *sslBytes -= b;
 
     /* cipher suite */
-    b = *input++;  /* first byte, ECC or not */
-    session->sslServer->options.cipherSuite0 = b;
-    session->sslClient->options.cipherSuite0 = b;
+    b0 = *input++;  /* first byte, ECC or not */
+    session->sslServer->options.cipherSuite0 = b0;
+    session->sslClient->options.cipherSuite0 = b0;
     b = *input++;
     session->sslServer->options.cipherSuite = b;
     session->sslClient->options.cipherSuite = b;
     *sslBytes -= SUITE_LEN;
+
+#ifdef WOLFSSL_SNIFFER_STATS
+    {
+        const CipherSuiteInfo* suites = GetCipherNames();
+        int suitesSz = GetCipherNamesSize();
+        int match = 0;
+
+        while (suitesSz) {
+            if (b0 == suites->cipherSuite0 && b == suites->cipherSuite) {
+                match = 1;
+                break;
+            }
+            suites++;
+            suitesSz--;
+        }
+        if (!match)
+            INC_STAT(SnifferStats.sslCiphersUnsupported);
+    }
+#endif /* WOLFSSL_SNIFFER_STATS */
 
     /* compression */
     b = *input++;
@@ -1936,8 +1961,11 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         if (XMEMCMP(session->sslServer->arrays->sessionID,
                     session->sslClient->arrays->sessionID, ID_LEN) == 0)
             doResume = 1;
-        else if (session->sslClient->options.haveSessionId)
+        else if (session->sslClient->options.haveSessionId) {
+#ifdef WOLFSSL_SNIFFER_STATS
             INC_STAT(SnifferStats.sslResumeMisses);
+#endif
+        }
     }
     else if (session->sslClient->options.haveSessionId == 0 &&
              session->sslServer->options.haveSessionId == 0 &&
@@ -1965,7 +1993,9 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         session->flags.resuming = 1;
 
         Trace(SERVER_DID_RESUMPTION_STR);
+#ifdef WOLFSSL_SNIFFER_STATS
         INC_STAT(SnifferStats.sslResumedConns);
+#endif
         if (SetCipherSpecs(session->sslServer) != 0) {
             SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
             return -1;
@@ -1993,7 +2023,9 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         }
     }
     else {
+#ifdef WOLFSSL_SNIFFER_STATS
         INC_STAT(SnifferStats.sslStandardConns);
+#endif
     }
 #ifdef SHOW_SECRETS
     {
@@ -2305,6 +2337,9 @@ static int DoHandShake(const byte* input, int* sslBytes,
             Trace(GOT_CERT_REQ_STR);
             break;
         case server_key_exchange:
+#ifdef WOLFSSL_SNIFFER_STATS
+            INC_STAT(SnifferStats.sslKeyFails);
+#endif
             Trace(GOT_SERVER_KEY_EX_STR);
             /* can't know temp key passively */
             SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
@@ -2312,8 +2347,11 @@ static int DoHandShake(const byte* input, int* sslBytes,
             break;
         case certificate:
             Trace(GOT_CERT_STR);
-            if (session->flags.side == WOLFSSL_CLIENT_END)
+            if (session->flags.side == WOLFSSL_SERVER_END) {
+#ifdef WOLFSSL_SNIFFER_STATS
                 INC_STAT(SnifferStats.sslClientAuthConns);
+#endif
+            }
             break;
         case server_hello_done:
             Trace(GOT_SERVER_HELLO_DONE_STR);
@@ -3598,7 +3636,9 @@ doPart:
             break;
         case alert:
             Trace(GOT_ALERT_STR);
+#ifdef WOLFSSL_SNIFFER_STATS
             INC_STAT(SnifferStats.sslAlerts);
+#endif
             sslFrame += rhSize;
             sslBytes -= rhSize;
             break;
@@ -3867,6 +3907,8 @@ int ssl_SetConnectionCtx(void* ctx)
 }
 
 
+#ifdef WOLFSSL_SNIFFER_STATS
+
 /* Resets the statistics tracking global structure.
  * returns 0 on success, -1 on error */
 int ssl_ResetStatistics(void)
@@ -3890,6 +3932,8 @@ int ssl_ReadStatistics(SSLStats* stats)
     wc_UnLockMutex(&StatsMutex);
     return 0;
 }
+
+#endif /* WOLFSSL_SNIFFER_STATS */
 
 
 #endif /* WOLFSSL_SNIFFER */
