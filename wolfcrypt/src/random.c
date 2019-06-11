@@ -2345,7 +2345,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #else
         #pragma message("Warning: write a real random seed!!!!, just for testing now")
     #endif
-
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         word32 i;

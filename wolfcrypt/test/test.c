@@ -16099,6 +16099,19 @@ static int ecc_test_make_pub(WC_RNG* rng)
 
     wc_ecc_init_ex(&key, HEAP_HINT, devId);
 
+#ifdef USE_CERT_BUFFERS_256
+    tmp = (byte*)XMALLOC((size_t)sizeof_ecc_key_der_256, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL) {
+        return -8311;
+    }
+    exportBuf = (byte*)XMALLOC((size_t)sizeof_ecc_key_der_256, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (exportBuf == NULL) {
+        XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return -8312;
+    }
+    XMEMCPY(tmp, ecc_key_der_256, (size_t)sizeof_ecc_key_der_256);
+    tmpSz = (size_t)sizeof_ecc_key_der_256;
+#else
     tmp = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
         return -8311;
@@ -16108,11 +16121,6 @@ static int ecc_test_make_pub(WC_RNG* rng)
         XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -8312;
     }
-
-#ifdef USE_CERT_BUFFERS_256
-    XMEMCPY(tmp, ecc_key_der_256, (size_t)sizeof_ecc_key_der_256);
-    tmpSz = (size_t)sizeof_ecc_key_der_256;
-#else
     file = XFOPEN(eccKeyDerFile, "rb");
     if (!file) {
         ERROR_OUT(-8313, done);
