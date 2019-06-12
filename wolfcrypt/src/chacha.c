@@ -27,6 +27,10 @@
  */
 
 
+#ifdef WOLFSSL_ARMASM
+    /* implementation is located in wolfcrypt/src/port/arm/armv8-chacha.c */
+
+#else
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -316,3 +320,4 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
 
 #endif /* HAVE_CHACHA*/
 
+#endif /* WOLFSSL_ARMASM */
