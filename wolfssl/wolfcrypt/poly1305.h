@@ -118,6 +118,10 @@ WOLFSSL_API int wc_Poly1305Update(Poly1305* poly1305, const byte*, word32);
 WOLFSSL_API int wc_Poly1305Final(Poly1305* poly1305, byte* tag);
 WOLFSSL_API int wc_Poly1305_MAC(Poly1305* ctx, byte* additional, word32 addSz,
                                byte* input, word32 sz, byte* tag, word32 tagSz);
+
+void poly1305_block(Poly1305* ctx, const unsigned char *m);
+void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
+                            size_t bytes);
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

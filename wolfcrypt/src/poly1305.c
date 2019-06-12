@@ -24,7 +24,6 @@
  * and Daniel J. Bernstein
  */
 
-#ifndef WOLFSSL_ARMASM
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -246,8 +245,9 @@ static void U32TO64(word32 v, byte* p)
     p[3] = (v >> 24) & 0xFF;
 }
 
-static void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
-                            size_t bytes)
+#if !defined(WOLFSSL_ARMASM) || !defined(__aarch64__)
+void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
+                     size_t bytes)
 {
 #ifdef USE_INTEL_SPEEDUP
     /* AVX2 is handled in wc_Poly1305Update. */
@@ -370,7 +370,7 @@ static void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
 #endif /* end of 64 bit cpu blocks or 32 bit cpu */
 }
 
-static void poly1305_block(Poly1305* ctx, const unsigned char *m)
+void poly1305_block(Poly1305* ctx, const unsigned char *m)
 {
 #ifdef USE_INTEL_SPEEDUP
     /* No call to poly1305_block when AVX2, AVX2 does 4 blocks at a time. */
@@ -379,8 +379,9 @@ static void poly1305_block(Poly1305* ctx, const unsigned char *m)
     poly1305_blocks(ctx, m, POLY1305_BLOCK_SIZE);
 #endif
 }
+#endif /* !defined(WOLFSSL_ARMASM) || !defined(__aarch64__) */
 
-
+#if !defined(WOLFSSL_ARMASM) || !defined(__aarch64__)
 int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
 {
 #if defined(POLY130564)
@@ -466,7 +467,6 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
 
     return 0;
 }
-
 
 int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 {
@@ -648,6 +648,7 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 
     return 0;
 }
+#endif /* !defined(WOLFSSL_ARMASM) || !defined(__aarch64__) */
 
 
 int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
@@ -820,4 +821,3 @@ int wc_Poly1305_MAC(Poly1305* ctx, byte* additional, word32 addSz,
 
 }
 #endif /* HAVE_POLY1305 */
-#endif /* WOLFSSL_ARMASM */
