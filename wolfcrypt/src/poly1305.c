@@ -191,7 +191,7 @@ extern void poly1305_final_avx2(Poly1305* ctx, byte* mac);
 #endif
 
 #elif defined(POLY130564)
-
+#ifndef WOLFSSL_ARMASM
     static word64 U8TO64(const byte* p)
     {
         return
@@ -215,7 +215,7 @@ extern void poly1305_final_avx2(Poly1305* ctx, byte* mac);
         p[6] = (v >> 48) & 0xff;
         p[7] = (v >> 56) & 0xff;
     }
-
+#endif/* WOLFSSL_ARMASM */
 #else /* if not 64 bit then use 32 bit */
 
     static word32 U8TO32(const byte *p)
