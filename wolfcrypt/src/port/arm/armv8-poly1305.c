@@ -49,7 +49,7 @@
 #endif
 
 static WC_INLINE void poly1305_blocks_16(Poly1305* ctx, const unsigned char *m,
-                               size_t bytes)
+                                         size_t bytes)
 {
     __asm__ __volatile__ (
         "CMP        %[bytes], %[POLY1305_BLOCK_SIZE] \n\t"

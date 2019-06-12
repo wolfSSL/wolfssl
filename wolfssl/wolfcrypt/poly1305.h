@@ -82,17 +82,13 @@ typedef struct Poly1305 {
     unsigned char finished;
     unsigned char started;
 #else
-#ifdef WOLFSSL_ARMASM
+#if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
     ALIGN128 word32 r[5];
     ALIGN128 word32 r_2[5]; // r^2
-    ALIGN128 word32 r_4[5]; // r^2
+    ALIGN128 word32 r_4[5]; // r^4
     ALIGN128 word32 h[5];
     word32 pad[4];
-#if defined(POLY130564) // use predictable size of leftover
     word64 leftover;
-#else
-    word32 leftover;
-#endif /* POLY130564 */
 #else
 #if defined(POLY130564)
     word64 r[3];
