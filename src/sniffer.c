@@ -426,10 +426,16 @@ static void UpdateMissedDataSessions(void)
 
 
 #ifdef WOLFSSL_SNIFFER_STATS
-#define ADD_TO_STAT(x,y) do { wc_LockMutex(&StatsMutex); \
-    x += y; \
-    wc_UnLockMutex(&StatsMutex); } while (0)
-#define INC_STAT(x) ADD_TO_STAT(x,1)
+#define LOCK_STAT() do { wc_LockMutex(&StatsMutex); } while (0)
+#define UNLOCK_STAT() do { wc_UnLockMutex(&StatsMutex); } while (0)
+
+#define NOLOCK_ADD_TO_STAT(x,y) do { TraceStat(#x, y); x += y; } while (0)
+#define NOLOCK_INC_STAT(x) NOLOCK_ADD_TO_STAT(x,1)
+
+#define ADD_TO_STAT(x,y) do { LOCK_STAT(); \
+    NOLOCK_ADD_TO_STAT(x,y); UNLOCK_STAT(); } while (0)
+#define INC_STAT(x) do { LOCK_STAT(); \
+    NOLOCK_INC_STAT(x); UNLOCK_STAT(); } while (0)
 #endif
 
 
@@ -1068,6 +1074,19 @@ static void TraceSessionInfo(SSLInfo* sslInfo)
         }
     }
 }
+
+
+#ifdef WOLFSSL_SNIFFER_STATS
+
+/* Show value added to a named statistic. */
+static void TraceStat(const char* name, int add)
+{
+    if (TraceOn) {
+        fprintf(TraceFile, "\tAdding %d to %s\n", add, name);
+    }
+}
+
+#endif
 
 
 /* Set user error string */
@@ -2862,6 +2881,13 @@ static int CheckSession(IpInfo* ipInfo, TcpInfo* tcpInfo, int sslBytes,
             if (sslBytes == 0 && tcpInfo->ack)
                 return 1;
 
+#ifdef WOLFSSL_SNIFFER_STATS
+            LOCK_STAT();
+            NOLOCK_INC_STAT(SnifferStats.sslDecryptedPackets);
+            NOLOCK_ADD_TO_STAT(SnifferStats.sslDecryptedBytes, sslBytes);
+            UNLOCK_STAT();
+#endif
+
             SetError(BAD_SESSION_STR, error, NULL, 0);
             return -1;
         }
@@ -3745,18 +3771,51 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
     ret = CheckSession(&ipInfo, &tcpInfo, sslBytes, &session, error);
     if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
     else if (ret == -1) return -1;
-    else if (ret ==  1) return  0;   /* done for now */
+    else if (ret ==  1) {
+#ifdef WOLFSSL_SNIFFER_STATS
+        if (sslBytes > 0) {
+            LOCK_STAT();
+            NOLOCK_INC_STAT(SnifferStats.sslEncryptedPackets);
+            NOLOCK_ADD_TO_STAT(SnifferStats.sslEncryptedBytes, sslBytes);
+            UNLOCK_STAT();
+        }
+        else
+            INC_STAT(SnifferStats.sslDecryptedPackets);
+#endif
+         return  0;   /* done for now */
+    }
 
     ret = CheckSequence(&ipInfo, &tcpInfo, session, &sslBytes, &sslFrame,error);
     if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
     else if (ret == -1) return -1;
-    else if (ret ==  1) return  0;   /* done for now */
+    else if (ret ==  1) {
+#ifdef WOLFSSL_SNIFFER_STATS
+        INC_STAT(SnifferStats.sslDecryptedPackets);
+#endif
+        return  0;   /* done for now */
+    }
 
     ret = CheckPreRecord(&ipInfo, &tcpInfo, &sslFrame, &session, &sslBytes,
                          &end, error);
     if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
     else if (ret == -1) return -1;
-    else if (ret ==  1) return  0;   /* done for now */
+    else if (ret ==  1) {
+#ifdef WOLFSSL_SNIFFER_STATS
+        INC_STAT(SnifferStats.sslDecryptedPackets);
+#endif
+        return  0;   /* done for now */
+    }
+
+#ifdef WOLFSSL_SNIFFER_STATS
+    if (sslBytes > 0) {
+        LOCK_STAT();
+        NOLOCK_INC_STAT(SnifferStats.sslEncryptedPackets);
+        NOLOCK_ADD_TO_STAT(SnifferStats.sslEncryptedBytes, sslBytes);
+        UNLOCK_STAT();
+    }
+    else
+        INC_STAT(SnifferStats.sslDecryptedPackets);
+#endif
 
     ret = ProcessMessage(sslFrame, session, sslBytes, data, end, error);
     if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
