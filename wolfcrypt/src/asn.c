@@ -239,6 +239,24 @@ static int GetASNHeader(const byte* input, byte tag, word32* inOutIdx, int* len,
     return GetASNHeader_ex(input, tag, inOutIdx, len, maxIdx, 1);
 }
 
+static int GetHeader(const byte* input, byte* tag, word32* inOutIdx, int* len,
+                     word32 maxIdx, int check)
+{
+    word32 idx = *inOutIdx;
+    int    length;
+
+    if ((idx + 1) > maxIdx)
+        return BUFFER_E;
+
+    *tag = input[idx++];
+
+    if (GetLength_ex(input, &idx, &length, maxIdx, check) < 0)
+        return ASN_PARSE_E;
+
+    *len      = length;
+    *inOutIdx = idx;
+    return length;
+}
 
 WOLFSSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx)
@@ -4293,12 +4311,12 @@ static int GetCertHeader(DecodedCert* cert)
 
 #if !defined(NO_RSA)
 /* Store Rsa Key, may save later, Dsa could use in future */
-static int StoreRsaKey(DecodedCert* cert)
+static int StoreRsaKey(DecodedCert* cert, word32 bitStringEnd)
 {
     int    length;
     word32 recvd = cert->srcIdx;
 
-    if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
+    if (GetSequence(cert->source, &cert->srcIdx, &length, bitStringEnd) < 0)
         return ASN_PARSE_E;
 
     recvd = cert->srcIdx - recvd;
@@ -4366,7 +4384,7 @@ static int GetKey(DecodedCert* cert)
                     return ret;
             #endif
 
-            return StoreRsaKey(cert);
+            return StoreRsaKey(cert, cert->srcIdx + length);
         }
 
     #endif /* NO_RSA */
@@ -4653,8 +4671,8 @@ static int GetName(DecodedCert* cert, int nameType)
 #endif
 
     while (cert->srcIdx < (word32)length) {
-        byte   b;
-        byte   joint[2];
+        byte   b = 0;
+        byte   joint[3];
         byte   tooBig = FALSE;
         int    oidSz;
 
@@ -4678,16 +4696,15 @@ static int GetName(DecodedCert* cert, int nameType)
         /* v1 name types */
         if (joint[0] == 0x55 && joint[1] == 0x04) {
             const char*  copy = NULL;
-            int    strLen;
+            int    strLen = 0;
             byte   id;
 
-            cert->srcIdx += 2;
-            id = cert->source[cert->srcIdx++];
-            b  = cert->source[cert->srcIdx++]; /* encoding */
-
-            if (GetLength(cert->source, &cert->srcIdx, &strLen,
-                          cert->maxIdx) < 0)
+            cert->srcIdx += 3;
+            id = joint[2];
+            if (GetHeader(cert->source, &b, &cert->srcIdx, &strLen,
+                          cert->maxIdx, 1) < 0) {
                 return ASN_PARSE_E;
+            }
 
             if ( (strLen + 14) > (int)(ASN_NAME_MAX - idx)) {
                 /* include biggest pre fix header too 4 = "/serialNumber=" */
