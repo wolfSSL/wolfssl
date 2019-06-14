@@ -22,9 +22,9 @@
 #ifndef HAVE_INTEL_AVX1
 #define HAVE_INTEL_AVX1
 #endif /* HAVE_INTEL_AVX1 */
-#ifndef HAVE_INTEL_AVX2
+#ifndef NO_AVX2_SUPPORT
 #define HAVE_INTEL_AVX2
-#endif /* HAVE_INTEL_AVX2 */
+#endif /* NO_AVX2_SUPPORT */
 
 #ifndef __APPLE__
 .text
@@ -1293,7 +1293,7 @@ L_chacha20_avx2_loop256:
         vperm2i128	$32, %ymm1, %ymm0, %ymm8
         vperm2i128	$32, %ymm3, %ymm2, %ymm9
         vperm2i128	$49, %ymm1, %ymm0, %ymm12
-        vperm2i128	$49, %ymm3, %ymm2, %ymm14
+        vperm2i128	$49, %ymm3, %ymm2, %ymm13
         vperm2i128	$32, %ymm5, %ymm4, %ymm10
         vperm2i128	$32, %ymm7, %ymm6, %ymm11
         vperm2i128	$49, %ymm5, %ymm4, %ymm14
@@ -1349,7 +1349,7 @@ L_chacha20_avx2_loop256:
         vperm2i128	$32, %ymm1, %ymm0, %ymm8
         vperm2i128	$32, %ymm3, %ymm2, %ymm9
         vperm2i128	$49, %ymm1, %ymm0, %ymm12
-        vperm2i128	$49, %ymm3, %ymm2, %ymm14
+        vperm2i128	$49, %ymm3, %ymm2, %ymm13
         vperm2i128	$32, %ymm5, %ymm4, %ymm10
         vperm2i128	$32, %ymm7, %ymm6, %ymm11
         vperm2i128	$49, %ymm5, %ymm4, %ymm14
