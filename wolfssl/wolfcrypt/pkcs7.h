@@ -153,9 +153,11 @@ enum Pkcs7_Misc {
     MAX_RECIP_SZ          = MAX_VERSION_SZ +
                             MAX_SEQ_SZ + ASN_NAME_MAX + MAX_SN_SZ +
                             MAX_SEQ_SZ + MAX_ALGO_SZ + 1 + MAX_ENCRYPTED_KEY_SZ,
-#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
-    /* In the event of fips cert 3389 these enums are not in aes.h for use
-     * with pkcs7 so enumerate it here outside the fips boundary */
+#if (defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+     (HAVE_FIPS_VERSION >= 2)) || defined(HAVE_SELFTEST)
+    /* In the event of fips cert 3389 or CAVP selftest build, these enums are
+     * not in aes.h for use with pkcs7 so enumerate it here outside the fips
+     * boundary */
     GCM_NONCE_MID_SZ = 12, /* The usual default nonce size for AES-GCM. */
     CCM_NONCE_MIN_SZ = 7,
 #endif
