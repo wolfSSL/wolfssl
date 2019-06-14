@@ -2347,8 +2347,16 @@ static int ProcessCertificate(const byte* input, int* sslBytes,
     ret = WatchCb((void*)session, digest, sizeof(digest), input, certSz,
             WatchCbCtx, error);
     if (ret != 0) {
+#ifdef WOLFSSL_SNIFFER_STATS
+        INC_STAT(SnifferStats.sslKeysUnmatched);
+#endif
         SetError(WATCH_FAIL_STR, error, session, FATAL_ERROR_STATE);
         return -1;
+    }
+    else {
+#ifdef WOLFSSL_SNIFFER_STATS
+        INC_STAT(SnifferStats.sslKeyMatches);
+#endif
     }
 
     return 0;
