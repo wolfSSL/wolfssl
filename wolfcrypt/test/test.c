@@ -4510,21 +4510,24 @@ int chacha_test(void)
 
 #ifndef BENCH_EMBEDDED
 #ifdef WOLFSSL_SMALL_STACK
-    cipher_big = (byte*)XMALLOC(CHACHA_BIG_TEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    cipher_big = (byte*)XMALLOC(CHACHA_BIG_TEST_SIZE, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
     if (cipher_big == NULL) {
         return MEMORY_E;
     }
-    plain_big = (byte*)XMALLOC(CHACHA_BIG_TEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    plain_big = (byte*)XMALLOC(CHACHA_BIG_TEST_SIZE, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
     if (plain_big == NULL) {
         return MEMORY_E;
     }
-    input_big = (byte*)XMALLOC(CHACHA_BIG_TEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    input_big = (byte*)XMALLOC(CHACHA_BIG_TEST_SIZE, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
     if (input_big == NULL) {
         return MEMORY_E;
     }
-    XMEMSET(cipher_big, 0, sizeof(CHACHA_BIG_TEST_SIZE));
-    XMEMSET(plain_big, 0, sizeof(CHACHA_BIG_TEST_SIZE));
-    XMEMSET(input_big, 0, sizeof(CHACHA_BIG_TEST_SIZE));
+    XMEMSET(cipher_big, 0, CHACHA_BIG_TEST_SIZE);
+    XMEMSET(plain_big, 0, CHACHA_BIG_TEST_SIZE);
+    XMEMSET(input_big, 0, CHACHA_BIG_TEST_SIZE);
 #endif /* WOLFSSL_SMALL_STACK */
 #endif /* BENCH_EMBEDDED */
 
@@ -4602,12 +4605,13 @@ int chacha_test(void)
     if (ret != 0)
         return ret;
 
-    ret |= wc_Chacha_Process(&enc, cipher_big, plain_big,  CHACHA_BIG_TEST_SIZE);
-    ret |= wc_Chacha_Process(&dec, plain_big,  cipher_big, CHACHA_BIG_TEST_SIZE);
+    ret |= wc_Chacha_Process(&enc, cipher_big, plain_big, CHACHA_BIG_TEST_SIZE);
+    ret |= wc_Chacha_Process(&dec, plain_big,  cipher_big,
+                                                          CHACHA_BIG_TEST_SIZE);
     if (ret != 0)
         return ret;
 
-    if (XMEMCMP(plain_big, input_big, sizeof(input_big)))
+    if (XMEMCMP(plain_big, input_big, CHACHA_BIG_TEST_SIZE))
         return -4330;
 
     if (XMEMCMP(cipher_big, cipher_big_result, CHACHA_BIG_TEST_SIZE))
