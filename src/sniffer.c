@@ -428,10 +428,8 @@ static void UpdateMissedDataSessions(void)
 #ifdef WOLFSSL_SNIFFER_STATS
 #define LOCK_STAT() do { wc_LockMutex(&StatsMutex); } while (0)
 #define UNLOCK_STAT() do { wc_UnLockMutex(&StatsMutex); } while (0)
-
 #define NOLOCK_ADD_TO_STAT(x,y) do { TraceStat(#x, y); x += y; } while (0)
 #define NOLOCK_INC_STAT(x) NOLOCK_ADD_TO_STAT(x,1)
-
 #define ADD_TO_STAT(x,y) do { LOCK_STAT(); \
     NOLOCK_ADD_TO_STAT(x,y); UNLOCK_STAT(); } while (0)
 #define INC_STAT(x) do { LOCK_STAT(); \
@@ -1730,6 +1728,11 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
             } while (ret == WC_PENDING_E);
         }
 
+#ifdef WOLFSSL_SNIFFER_STATS
+        if (ret != 0)
+            INC_STAT(SnifferStats.sslKeyFails);
+#endif
+
         if (keyInit)
             wc_ecc_free(&key);
         if (pubKeyInit)
@@ -2357,7 +2360,7 @@ static int DoHandShake(const byte* input, int* sslBytes,
             break;
         case server_key_exchange:
 #ifdef WOLFSSL_SNIFFER_STATS
-            INC_STAT(SnifferStats.sslKeyFails);
+            INC_STAT(SnifferStats.sslEphemeralMisses);
 #endif
             Trace(GOT_SERVER_KEY_EX_STR);
             /* can't know temp key passively */
@@ -2858,6 +2861,9 @@ static int CheckSession(IpInfo* ipInfo, TcpInfo* tcpInfo, int sslBytes,
     /* create a new SnifferSession on client SYN */
     if (tcpInfo->syn && !tcpInfo->ack) {
         TraceClientSyn(tcpInfo->sequence);
+#ifdef WOLFSSL_SNIFFER_STATS
+        INC_STAT(SnifferStats.sslEncryptedConns);
+#endif
         *session = CreateSession(ipInfo, tcpInfo, error);
         if (*session == NULL) {
             *session = GetSnifferSession(ipInfo, tcpInfo);
@@ -3231,6 +3237,9 @@ static int FindNextRecordInAssembly(SnifferSession* session,
         }
 
         Trace(DROPPING_LOST_FRAG_STR);
+#ifdef WOLFSSL_SNIFFER_STATS
+        INC_STAT(SnifferStats.sslDecodeFails);
+#endif
         prev = curr;
         curr = curr->next;
         *reassemblyMemory -= (prev->end - prev->begin + 1);
@@ -3988,6 +3997,21 @@ int ssl_ReadStatistics(SSLStats* stats)
 
     wc_LockMutex(&StatsMutex);
     XMEMCPY(stats, &SnifferStats, sizeof(SSLStats));
+    wc_UnLockMutex(&StatsMutex);
+    return 0;
+}
+
+/* Copies the SSL statistics into the provided stats record then
+ * resets the statistics tracking global structure.
+ * returns 0 on success, -1 on error */
+int ssl_ReadResetStatistics(SSLStats* stats)
+{
+    if (stats == NULL)
+        return -1;
+
+    wc_LockMutex(&StatsMutex);
+    XMEMCPY(stats, &SnifferStats, sizeof(SSLStats));
+    XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
     wc_UnLockMutex(&StatsMutex);
     return 0;
 }

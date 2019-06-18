@@ -97,16 +97,10 @@ static void DumpStats(void)
 
     printf("SSL Stats (sslStandardConns):%u\n",
             sslStats.sslStandardConns);
-    printf("SSL Stats (sslRehandshakeConns):%u\n",
-            sslStats.sslRehandshakeConns);
     printf("SSL Stats (sslClientAuthConns):%u\n",
             sslStats.sslClientAuthConns);
     printf("SSL Stats (sslResumedConns):%u\n",
             sslStats.sslResumedConns);
-    printf("SSL Stats (sslResumedRehandshakeConns):%u\n",
-            sslStats.sslResumedRehandshakeConns);
-    printf("SSL Stats (sslClientAuthRehandshakeConns):%u\n",
-            sslStats.sslClientAuthRehandshakeConns);
     printf("SSL Stats (sslEphemeralMisses):%u\n",
             sslStats.sslEphemeralMisses);
     printf("SSL Stats (sslResumeMisses):%u\n",
@@ -129,14 +123,10 @@ static void DumpStats(void)
             sslStats.sslEncryptedPackets);
     printf("SSL Stats (sslDecryptedPackets):%u\n",
             sslStats.sslDecryptedPackets);
-    printf("SSL Stats (sslEncryptedConnsPerSecond):%u\n",
-            sslStats.sslEncryptedConnsPerSecond);
     printf("SSL Stats (sslKeyMatches):%u\n",
             sslStats.sslKeyMatches);
-    printf("SSL Stats (sslActiveEncryptedConnsPerSecond):%u\n",
-            sslStats.sslActiveEncryptedConnsPerSecond);
-    printf("SSL Stats (sslActiveFlowsPerSecond):%u\n",
-            sslStats.sslActiveFlowsPerSecond);
+    printf("SSL Stats (sslEncryptedConns):%u\n",
+            sslStats.sslEncryptedConns);
 }
 
 #endif
