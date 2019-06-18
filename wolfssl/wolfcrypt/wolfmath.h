@@ -19,6 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifdef __cplusplus
+    extern "C" {
+#endif
+
+/* This section is included prior to wolfmath.h below */
 #if defined(HAVE_WOLF_BIGINT) && !defined(WOLF_BIGINT_DEFINED)
     /* raw big integer */
     typedef struct WC_BIGINT {
@@ -30,8 +35,8 @@
     #define WOLF_BIGINT_DEFINED
 #endif
 
-
 /* only define functions if mp_int has been declared */
+/* The MP_INT_DEFINED is defined in tfm.h and integer.h after mp_int */
 #ifdef MP_INT_DEFINED
 
 #ifndef __WOLFMATH_H__
@@ -57,7 +62,7 @@
         WC_TYPE_UNSIGNED_BIN = 2,
     };
 
-    WOLFSSL_API int wc_export_int(mp_int* mp, byte* buf, word32* len, 
+    WOLFSSL_API int wc_export_int(mp_int* mp, byte* buf, word32* len,
         word32 keySz, int encType);
 
     #ifdef HAVE_WOLF_BIGINT
@@ -76,3 +81,7 @@
 #endif /* __WOLFMATH_H__ */
 
 #endif /* MP_INT_DEFINED */
+
+#ifdef __cplusplus
+    } /* extern "C" */
+#endif
