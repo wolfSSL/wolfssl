@@ -7841,6 +7841,7 @@ static word16 TLSX_PreSharedKey_Write(PreSharedKey* list, byte* output,
         word16 idx = 0;
         word16 lenIdx;
         word16 len;
+        int ret;
 
         /* Write identites only. Binders after HMACing over this. */
         lenIdx = idx;
@@ -7867,7 +7868,10 @@ static word16 TLSX_PreSharedKey_Write(PreSharedKey* list, byte* output,
          * The binders are based on the hash of all the ClientHello data up to
          * and include the identities written above.
          */
-        idx += TLSX_PreSharedKey_GetSizeBinders(list, msgType);
+        len = ret = TLSX_PreSharedKey_GetSizeBinders(list, msgType);
+        if (ret < 0)
+            return ret;
+        idx += len;
 
         return idx;
     }
@@ -8791,11 +8795,19 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType, word16* pLeng
 
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
             case TLSX_PRE_SHARED_KEY:
-                length += PSK_GET_SIZE((PreSharedKey*)extension->data, msgType);
+                ret = PSK_GET_SIZE((PreSharedKey*)extension->data, msgType);
+                if (ret > 0) {
+                    length += ret;
+                    ret = 0;
+                }
                 break;
 
             case TLSX_PSK_KEY_EXCHANGE_MODES:
-                length += PKM_GET_SIZE(extension->val, msgType);
+                ret = PKM_GET_SIZE(extension->val, msgType);
+                if (ret > 0) {
+                    length += ret;
+                    ret = 0;
+                }
                 break;
     #endif
 
@@ -8957,13 +8969,21 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
             case TLSX_PRE_SHARED_KEY:
                 WOLFSSL_MSG("Pre-Shared Key extension to write");
-                offset += PSK_WRITE((PreSharedKey*)extension->data,
-                                    output + offset, msgType);
+                ret = PSK_WRITE((PreSharedKey*)extension->data,
+                                                      output + offset, msgType);
+                if (ret > 0) {
+                    offset += ret;
+                    ret = 0;
+                }
                 break;
 
             case TLSX_PSK_KEY_EXCHANGE_MODES:
                 WOLFSSL_MSG("PSK Key Exchange Modes extension to write");
-                offset += PKM_WRITE(extension->val, output + offset, msgType);
+                ret = PKM_WRITE(extension->val, output + offset, msgType);
+                if (ret > 0) {
+                    offset += ret;
+                    ret = 0;
+                }
                 break;
     #endif
 
@@ -9767,10 +9787,16 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word16* pLength)
     }
     #endif
 #endif
-    if (ssl->extensions)
+    if (ssl->extensions) {
         ret = TLSX_GetSize(ssl->extensions, semaphore, msgType, &length);
-    if (ssl->ctx && ssl->ctx->extensions)
+        if (ret != 0)
+            return ret;
+    }
+    if (ssl->ctx && ssl->ctx->extensions) {
         ret = TLSX_GetSize(ssl->ctx->extensions, semaphore, msgType, &length);
+        if (ret != 0)
+            return ret;
+    }
 
 #ifdef HAVE_EXTENDED_MASTER
     if (msgType == client_hello && ssl->options.haveEMS &&
@@ -9870,10 +9896,14 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
     if (ssl->extensions) {
         ret = TLSX_Write(ssl->extensions, output + offset, semaphore,
                          msgType, &offset);
+        if (ret != 0)
+            return ret;
     }
     if (ssl->ctx && ssl->ctx->extensions) {
         ret = TLSX_Write(ssl->ctx->extensions, output + offset, semaphore,
                          msgType, &offset);
+        if (ret != 0)
+            return ret;
     }
 
 #ifdef HAVE_EXTENDED_MASTER
@@ -9894,6 +9924,8 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
         ret = TLSX_Write(ssl->extensions, output + offset, semaphore,
                          client_hello, &offset);
+        if (ret != 0)
+            return ret;
     }
     #endif
 #endif
@@ -10009,8 +10041,11 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
     }
 #endif
 
-    if (TLSX_SupportExtensions(ssl))
+    if (TLSX_SupportExtensions(ssl)) {
         ret = TLSX_GetSize(ssl->extensions, semaphore, msgType, &length);
+        if (ret != 0)
+            return ret;
+    }
 
     /* All the response data is set at the ssl object only, so no ctx here. */
 
@@ -10111,6 +10146,8 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
 
         ret = TLSX_Write(ssl->extensions, output + offset, semaphore,
                          msgType, &offset);
+        if (ret != 0)
+            return ret;
 
 #ifdef WOLFSSL_TLS13
         if (msgType == hello_retry_request) {
@@ -10118,6 +10155,8 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
             TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_COOKIE));
             ret = TLSX_Write(ssl->extensions, output + offset, semaphore,
                              msgType, &offset);
+            if (ret != 0)
+                return ret;
         }
 #endif
 
