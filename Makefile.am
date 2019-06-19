@@ -141,8 +141,8 @@ EXTRA_DIST+= ChangeLog.md
 EXTRA_DIST+= LICENSING
 EXTRA_DIST+= INSTALL
 EXTRA_DIST+= IPP
-EXTRA_DIST+= .cproject
-EXTRA_DIST+= .project
+EXTRA_DIST+= LPCExpresso.cproject
+EXTRA_DIST+= LPCExpresso.project
 EXTRA_DIST+= resource.h wolfssl.rc
 
 include wrapper/include.am
