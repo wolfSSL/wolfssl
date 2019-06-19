@@ -2249,7 +2249,38 @@ AC_ARG_ENABLE([fips],
 
 if test "x$ENABLED_FIPS" != "xno"
 then
-    FIPS_VERSION=$ENABLED_FIPS
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
+    AS_CASE([$ENABLED_FIPS],
+            ["v2"],[FIPS_VERSION="v2"
+                AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=2 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q"
+                ENABLED_KEYGEN="yes"
+                ENABLED_SHA224="yes"
+                AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
+                      [ENABLED_AESCCM="yes"
+                       AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
+                AS_IF([test "x$ENABLED_RSAPSS" != "xyes"],
+                      [ENABLED_RSAPSS="yes"
+                       AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"])
+                AS_IF([test "x$ENABLED_ECC" != "xyes"],
+                      [ENABLED_ECC="yes"
+                       AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DWOLFSSL_VALIDATE_ECC_IMPORT"
+                       AS_IF([test "x$ENABLED_ECC_SHAMIR" = "xyes"],
+                             [AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"])],
+                      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"])
+                AS_IF([test "x$ENABLED_AESCTR" != "xyes"],
+                      [ENABLED_AESCTR="yes"
+                       AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER"])
+                AS_IF([test "x$ENABLED_CMAC" != "xyes"],
+                      [ENABLED_CMAC="yes"
+                       AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC"])
+                AS_IF([test "x$ENABLED_HKDF" != "xyes"],
+                      [ENABLED_HKDF="yes"
+                       AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"])
+                AS_IF([test "x$ENABLED_INTELASM" = "xyes"],
+                      [AM_CFLAGS="$AM_CFLAGS -DFORCE_FAILURE_RDSEED"])
+            ],
+            ["rand"],[FIPS_VERSION="rand"],
+            [FIPS_VERSION="v1"])
     ENABLED_FIPS=yes
     # requires thread local storage
     if test "$thread_ls_on" = "no"
@@ -2273,36 +2304,6 @@ then
     then
         ENABLED_DES3="yes"
     fi
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
-    # Add the FIPS flag.
-    AS_IF([test "x$FIPS_VERSION" = "xv2"],
-          [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=2 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q"
-           ENABLED_KEYGEN="yes"
-           ENABLED_SHA224="yes"
-           AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
-                 [ENABLED_AESCCM="yes"
-                  AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
-           AS_IF([test "x$ENABLED_RSAPSS" != "xyes"],
-                 [ENABLED_RSAPSS="yes"
-                  AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"])
-           AS_IF([test "x$ENABLED_ECC" != "xyes"],
-                 [ENABLED_ECC="yes"
-                  AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DWOLFSSL_VALIDATE_ECC_IMPORT"
-                  AS_IF([test "x$ENABLED_ECC_SHAMIR" = "xyes"],
-                        [AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"])],
-                 [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"])
-           AS_IF([test "x$ENABLED_AESCTR" != "xyes"],
-                 [ENABLED_AESCTR="yes"
-                  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER"])
-           AS_IF([test "x$ENABLED_CMAC" != "xyes"],
-                 [ENABLED_CMAC="yes"
-                  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC"])
-           AS_IF([test "x$ENABLED_HKDF" != "xyes"],
-                 [ENABLED_HKDF="yes"
-                  AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"])
-           AS_IF([test "x$ENABLED_INTELASM" = "xyes"],
-                 [AM_CFLAGS="$AM_CFLAGS -DFORCE_FAILURE_RDSEED"])
-          ])
 else
     if test "x$ENABLED_FORTRESS" = "xyes"
     then
