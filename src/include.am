@@ -24,7 +24,8 @@ include_HEADERS+=$(IPPHEADERS)
 endif # BUILD_FAST_RSA
 
 if BUILD_FIPS
-if !BUILD_FIPS_V2
+
+if BUILD_FIPS_V1
 # fips first  file
 src_libwolfssl_la_SOURCES += ctaocrypt/src/wolfcrypt_first.c
 
@@ -58,9 +59,9 @@ src_libwolfssl_la_SOURCES += ctaocrypt/src/fips_test.c
 
 # fips last file
 src_libwolfssl_la_SOURCES += ctaocrypt/src/wolfcrypt_last.c
+endif
 
-else
-
+if BUILD_FIPS_V2
 # FIPSv2 first file
 src_libwolfssl_la_SOURCES += \
 			   wolfcrypt/src/wolfcrypt_first.c
@@ -116,13 +117,28 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/fips.c \
 # fips last file
 src_libwolfssl_la_SOURCES += wolfcrypt/src/wolfcrypt_last.c
 endif
+
+if BUILD_FIPS_RAND
+src_libwolfssl_la_SOURCES += \
+               wolfcrypt/src/wolfcrypt_first.c \
+               wolfcrypt/src/hmac.c \
+               wolfcrypt/src/random.c \
+               wolfcrypt/src/sha256.c \
+               wolfcrypt/src/fips.c \
+               wolfcrypt/src/fips_test.c \
+               wolfcrypt/src/wolfcrypt_last.c
+endif
+
 endif
 
 # For FIPSV2, exclude the wolfCrypt files included above.
+# For wolfRand, exclude just a couple files.
 # For old FIPS, keep the wolfCrypt versions of the
 # CtaoCrypt files included above.
 if !BUILD_FIPS_V2
+if !BUILD_FIPS_RAND
 src_libwolfssl_la_SOURCES += wolfcrypt/src/hmac.c
+endif
 endif
 
 # CAVP self test
@@ -135,18 +151,22 @@ src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/cpuid.c
 
 if !BUILD_FIPS_V2
+if !BUILD_FIPS_RAND
 if BUILD_RNG
 src_libwolfssl_la_SOURCES += wolfcrypt/src/random.c
 endif
 endif
+endif
 
 if !BUILD_FIPS_V2
+if !BUILD_FIPS_RAND
 if BUILD_ARMASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha256.c
 else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha256.c
 if BUILD_INTELASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha256_asm.S
+endif
 endif
 endif
 endif
