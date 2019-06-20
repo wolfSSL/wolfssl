@@ -16524,15 +16524,20 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
 {
     if (ssl == NULL)
         return NULL;
+
 #ifdef HAVE_FFDHE
     if (ssl->namedGroup != 0)
         return wolfssl_ffdhe_name(ssl->namedGroup);
 #endif
+
+#ifdef HAVE_CURVE25519
+    if (ssl->ecdhCurveOID == ECC_X25519_OID)
+        return "X25519";
+#endif
+
 #ifdef HAVE_ECC
     if (ssl->ecdhCurveOID == 0)
         return NULL;
-    if (ssl->ecdhCurveOID == ECC_X25519_OID)
-        return "X25519";
     return wc_ecc_get_name(wc_ecc_get_oid(ssl->ecdhCurveOID, NULL, NULL));
 #else
     return NULL;
