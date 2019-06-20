@@ -2445,10 +2445,11 @@ typedef struct PreSharedKey {
     struct PreSharedKey* next;                    /* List pointer       */
 } PreSharedKey;
 
-WOLFSSL_LOCAL word16 TLSX_PreSharedKey_WriteBinders(PreSharedKey* list,
-                                                    byte* output, byte msgType);
-WOLFSSL_LOCAL word16 TLSX_PreSharedKey_GetSizeBinders(PreSharedKey* list,
-                                                      byte msgType);
+WOLFSSL_LOCAL int TLSX_PreSharedKey_WriteBinders(PreSharedKey* list,
+                                                 byte* output, byte msgType,
+                                                 word16* pSz);
+WOLFSSL_LOCAL int TLSX_PreSharedKey_GetSizeBinders(PreSharedKey* list,
+                                                   byte msgType, word16* pSz);
 WOLFSSL_LOCAL int TLSX_PreSharedKey_Use(WOLFSSL* ssl, byte* identity,
                                         word16 len, word32 age, byte hmac,
                                         byte cipherSuite0, byte cipherSuite,

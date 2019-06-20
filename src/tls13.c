@@ -2478,8 +2478,8 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
         return SANITY_MSG_E;
 
     /* Get the size of the binders to determine where to write binders. */
-    len = ret = TLSX_PreSharedKey_GetSizeBinders((PreSharedKey*)ext->data,
-                                                                  client_hello);
+    ret = TLSX_PreSharedKey_GetSizeBinders((PreSharedKey*)ext->data,
+                                                            client_hello, &len);
     if (ret < 0)
         return ret;
     idx -= len;
@@ -2523,8 +2523,8 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
     }
 
     /* Data entered into extension, now write to message. */
-    len = ret = TLSX_PreSharedKey_WriteBinders((PreSharedKey*)ext->data,
-                                                    output + idx, client_hello);
+    ret = TLSX_PreSharedKey_WriteBinders((PreSharedKey*)ext->data, output + idx,
+                                                            client_hello, &len);
     if (ret < 0)
         return ret;
 
@@ -3385,8 +3385,8 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     /* Find the pre-shared key extension and calculate hash of truncated
      * ClientHello for binders.
      */
-    bindersLen = ret = TLSX_PreSharedKey_GetSizeBinders(
-                                        (PreSharedKey*)ext->data, client_hello);
+    ret = TLSX_PreSharedKey_GetSizeBinders((PreSharedKey*)ext->data,
+                                                     client_hello, &bindersLen);
     if (ret < 0)
         return ret;
 
