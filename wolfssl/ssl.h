@@ -902,12 +902,7 @@ WOLFSSL_API const char*  wolfSSL_get_version(WOLFSSL*);
 WOLFSSL_API int  wolfSSL_get_current_cipher_suite(WOLFSSL* ssl);
 WOLFSSL_API WOLFSSL_CIPHER*  wolfSSL_get_current_cipher(WOLFSSL*);
 WOLFSSL_API char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER*, char*, int);
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-/* used in wolfSSL_CIPHER_description_all */
-#define MAX_SEGMENTS    5
-#define MAX_SEGMENT_SZ 20
-#endif
-WOLFSSL_API char* wolfSSL_CIPHER_description_all(const WOLFSSL_CIPHER*, char*, int);
+WOLFSSL_API void wolfSSL_sk_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk);
 WOLFSSL_API const char*  wolfSSL_CIPHER_get_name(const WOLFSSL_CIPHER* cipher);
 WOLFSSL_API const char*  wolfSSL_SESSION_CIPHER_get_name(WOLFSSL_SESSION* session);
 WOLFSSL_API const char*  wolfSSL_get_cipher(WOLFSSL*);
@@ -1120,6 +1115,9 @@ WOLFSSL_API WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509*);
 WOLFSSL_API void wolfSSL_ASN1_INTEGER_free(WOLFSSL_ASN1_INTEGER*);
 WOLFSSL_API WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_new(void);
 
+WOLFSSL_API WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_dup(
+                                              const WOLFSSL_ASN1_INTEGER* src);
+
 WOLFSSL_API int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO*, const WOLFSSL_ASN1_TIME*);
 
 WOLFSSL_API char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* t,
@@ -1249,7 +1247,6 @@ enum {
     SSL_OP_TLS_D5_BUG                             = 0x00000080,
     SSL_OP_TLS_BLOCK_PADDING_BUG                  = 0x00000100,
     SSL_OP_TLS_ROLLBACK_BUG                       = 0x00000200,
-    SSL_OP_ALL                                    = 0x00000400,
     SSL_OP_EPHEMERAL_RSA                          = 0x00000800,
     SSL_OP_NO_SSLv3                               = 0x00001000,
     SSL_OP_NO_TLSv1                               = 0x00002000,
@@ -1269,6 +1266,18 @@ enum {
     SSL_OP_NO_TLSv1_2                             = 0x08000000,
     SSL_OP_NO_COMPRESSION                         = 0x10000000,
     SSL_OP_NO_TLSv1_3                             = 0x20000000,
+    SSL_OP_ALL   =
+                    (SSL_OP_MICROSOFT_SESS_ID_BUG
+                  | SSL_OP_NETSCAPE_CHALLENGE_BUG
+                  | SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG
+                  | SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG
+                  | SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER
+                  | SSL_OP_MSIE_SSLV2_RSA_PADDING
+                  | SSL_OP_SSLEAY_080_CLIENT_DH_BUG
+                  | SSL_OP_TLS_D5_BUG
+                  | SSL_OP_TLS_BLOCK_PADDING_BUG
+                  | SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS
+                  | SSL_OP_TLS_ROLLBACK_BUG),
 };
 
 enum {

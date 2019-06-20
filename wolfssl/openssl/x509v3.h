@@ -35,11 +35,11 @@
 typedef struct WOLFSSL_v3_ext_method WOLFSSL_v3_ext_method;
 
 typedef void *(*X509V3_EXT_D2I)(void *, const unsigned char **, long);
-typedef STACK_OF(CONF_VALUE) *(*X509V3_EXT_I2V) ( \
-                                struct WOLFSSL_v3_ext_method *method, \
+typedef STACK_OF(CONF_VALUE) *(*X509V3_EXT_I2V) (
+                                struct WOLFSSL_v3_ext_method *method,
                                 void *ext, STACK_OF(CONF_VALUE) *extlist);
 typedef char *(*X509V3_EXT_I2S)(struct WOLFSSL_v3_ext_method *method, void *ext);
-typedef int (*X509V3_EXT_I2R) (struct WOLFSSL_v3_ext_method *method, \
+typedef int (*X509V3_EXT_I2R) (struct WOLFSSL_v3_ext_method *method,
                                void *ext, BIO *out, int indent);
 typedef struct WOLFSSL_v3_ext_method X509V3_EXT_METHOD;
 
@@ -53,7 +53,7 @@ struct WOLFSSL_v3_ext_method {
     X509V3_EXT_I2R i2r;
 };
 
-#define WOLFSSL_ASN1_BOOLEAN                int
+#define WOLFSSL_ASN1_BOOLEAN int
 
 struct WOLFSSL_X509_EXTENSION {
     WOLFSSL_ASN1_OBJECT *obj;
@@ -75,10 +75,10 @@ typedef WOLF_STACK_OF(WOLFSSL_ACCESS_DESCRIPTION) WOLFSSL_AUTHORITY_INFO_ACCESS;
 
 WOLFSSL_API void wolfSSL_BASIC_CONSTRAINTS_free(WOLFSSL_BASIC_CONSTRAINTS *bc);
 WOLFSSL_API void wolfSSL_AUTHORITY_KEYID_free(WOLFSSL_AUTHORITY_KEYID *id);
-WOLFSSL_API const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get( \
+WOLFSSL_API const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(
                                                     WOLFSSL_X509_EXTENSION* ex);
 WOLFSSL_API void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ex);
-WOLFSSL_API char* wolfSSL_i2s_ASN1_STRING(WOLFSSL_v3_ext_method *method, \
+WOLFSSL_API char* wolfSSL_i2s_ASN1_STRING(WOLFSSL_v3_ext_method *method,
                                           const WOLFSSL_ASN1_STRING *s);
 
 #define BASIC_CONSTRAINTS_free    wolfSSL_BASIC_CONSTRAINTS_free

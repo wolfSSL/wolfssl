@@ -2296,7 +2296,6 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
         SkipInt(input, inOutIdx, inSz) < 0 ||
         SkipInt(input, inOutIdx, inSz) < 0 ||
         SkipInt(input, inOutIdx, inSz) < 0 )
-
 #endif
             return ASN_RSA_KEY_E;
 #if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)) \
@@ -2353,8 +2352,9 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
 
     ret = GetOctetString(input, &idx, &length, sz);
     if (ret < 0) {
-        /* Don't error out if return is error - some private keys do not expect
-           octet string here. */
+        if (ret == BUFFER_E)
+            return ASN_PARSE_E;
+        /* Some private keys don't expect an octet string */
         WOLFSSL_MSG("Couldn't find Octet string");
     }
 
@@ -8545,6 +8545,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     int    criticalExt = 0;
     word32 confirmOID;
 
+    WOLFSSL_ENTER("ParseCertRelative");
+
     if (cert == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -8608,7 +8610,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     #ifndef NO_SKID
             if (cert->extAuthKeyIdSet)
                 cert->ca = GetCA(cm, cert->extAuthKeyId);
-            if (cert->ca == NULL && cert->extSubjKeyIdSet \
+            if (cert->ca == NULL && cert->extSubjKeyIdSet
                                  && verify != VERIFY_OCSP) {
                 cert->ca = GetCA(cm, cert->extSubjKeyId);
             }

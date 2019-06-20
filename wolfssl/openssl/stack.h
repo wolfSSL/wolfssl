@@ -36,9 +36,9 @@ WOLFSSL_API WOLFSSL_STACK *wolfSSL_sk_new_null(void);
 WOLFSSL_API int wolfSSL_sk_push(WOLFSSL_STACK *st, const void *data);
 
 WOLFSSL_API
-int wolfSSL_sk_WOLFSSL_CIPHER_push(WOLFSSL_STACK *st,WOLFSSL_CIPHER *cipher);
+int wolfSSL_sk_CIPHER_push(WOLFSSL_STACK *st,WOLFSSL_CIPHER *cipher);
 WOLFSSL_API
-WOLFSSL_CIPHER* wolfSSL_sk_WOLFSSL_CIPHER_pop(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk);
+WOLFSSL_CIPHER* wolfSSL_sk_CIPHER_pop(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk);
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_new_cipher(void);
 
 #define OPENSSL_sk_free       wolfSSL_sk_free

@@ -434,6 +434,7 @@ AC_ARG_ENABLE([mcast],
 # stunnel (--enable-stunnel) HAVE_STUNNEL
 # asio (--enable-asio) WOLFSSL_ASIO
 # qt (--enable-qt) WOLFSSL_QT
+# qt test (--enable-qt-test) WOLFSSL_QT_TEST
 # HAVE_POCO_LIB
 # WOLFSSL_MYSQL_COMPATIBLE
 # web server (--enable-webserver) HAVE_WEBSERVER
@@ -1788,7 +1789,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STACK_LOG -finstrument-functions"
 fi
 
-#QT Support
+#Qt Support
 AC_ARG_ENABLE([qt],
     [AS_HELP_STRING([--enable-qt],[Enable qt (default: disabled)])],
     [ ENABLED_QT=$enableval ],
@@ -1843,6 +1844,17 @@ then
     enable_oldnames=no
 fi
 
+AC_ARG_ENABLE([qt-test],
+    [AS_HELP_STRING([--enable-qt-test],[Enable qt tests (default: disabled)])],
+    [ ENABLED_QT_TEST=$enableval ],
+    [ ENABLED_QT_TEST=no ]
+    )
+
+if test "$ENABLED_QT_TEST" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DOPENSSL_NO_SSL3 -DWOLFSSL_STATIC_RSA"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_PSK"
+fi
 
 # DSA
 AC_ARG_ENABLE([dsa],
@@ -5048,7 +5060,8 @@ echo "   * HAPROXY:                    $ENABLED_HAPROXY"
 echo "   * STUNNEL:                    $ENABLED_STUNNEL"
 echo "   * NGINX:                      $ENABLED_NGINX"
 echo "   * ASIO:                       $ENABLED_ASIO"
-echo "   * QT                          $ENABLED_QT"
+echo "   * Qt                          $ENABLED_QT"
+echo "   * Qt Unit Testing             $ENABLED_QT_TEST"
 echo "   * SIGNAL:                     $ENABLED_SIGNAL"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"

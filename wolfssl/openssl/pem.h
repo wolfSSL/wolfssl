@@ -56,8 +56,8 @@ WOLFSSL_API
 int wolfSSL_PEM_write_bio_RSA_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa);
 
 WOLFSSL_API
-WOLFSSL_RSA *wolfSSL_PEM_read_bio_RSA_PUBKEY(WOLFSSL_BIO* bio, \
-                                             WOLFSSL_RSA** rsa, \
+WOLFSSL_RSA *wolfSSL_PEM_read_bio_RSA_PUBKEY(WOLFSSL_BIO* bio,
+                                             WOLFSSL_RSA** rsa,
                                              pem_password_cb* cb, void *u);
 
 WOLFSSL_API
@@ -83,28 +83,28 @@ int wolfSSL_PEM_write_RSA_PUBKEY(XFILE fp, WOLFSSL_RSA *x);
 
 /* DSA */
 WOLFSSL_API
-int wolfSSL_PEM_write_bio_DSAPrivateKey(WOLFSSL_BIO* bio, \
-                                        WOLFSSL_DSA* dsa, \
-                                        const EVP_CIPHER* cipher, \
-                                        unsigned char* passwd, int len, \
+int wolfSSL_PEM_write_bio_DSAPrivateKey(WOLFSSL_BIO* bio,
+                                        WOLFSSL_DSA* dsa,
+                                        const EVP_CIPHER* cipher,
+                                        unsigned char* passwd, int len,
                                         pem_password_cb* cb, void* arg);
 
 WOLFSSL_API
-WOLFSSL_DSA* wolfSSL_PEM_read_bio_DSAPrivateKey(WOLFSSL_BIO* bio, \
-                                                WOLFSSL_DSA** dsa, \
+WOLFSSL_DSA* wolfSSL_PEM_read_bio_DSAPrivateKey(WOLFSSL_BIO* bio,
+                                                WOLFSSL_DSA** dsa,
                                                 pem_password_cb* cb, void *u);
 WOLFSSL_API
-int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa, \
-                                        const EVP_CIPHER* cipher, \
-                                        unsigned char* passwd, int len, \
+int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
+                                        const EVP_CIPHER* cipher,
+                                        unsigned char* passwd, int len,
                                         unsigned char **pem, int *plen);
 
 WOLFSSL_API
 int wolfSSL_PEM_write_bio_DSA_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_DSA* dsa);
 
 WOLFSSL_API
-WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSA_PUBKEY(WOLFSSL_BIO* bio, \
-                                             WOLFSSL_DSA** dsa, \
+WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSA_PUBKEY(WOLFSSL_BIO* bio,
+                                             WOLFSSL_DSA** dsa,
                                              pem_password_cb* cb, void *u);
 
 #if !defined(NO_FILESYSTEM)
@@ -139,11 +139,11 @@ int wolfSSL_PEM_write_ECPrivateKey(XFILE fp, WOLFSSL_EC_KEY *key,
                                    unsigned char *kstr, int klen,
                                    pem_password_cb *cb, void *u);
 WOLFSSL_API
-WOLFSSL_EC_KEY* wolfSSL_PEM_read_bio_EC_PUBKEY(WOLFSSL_BIO* bio, \
-                                              WOLFSSL_EC_KEY** ec, \
+WOLFSSL_EC_KEY* wolfSSL_PEM_read_bio_EC_PUBKEY(WOLFSSL_BIO* bio,
+                                              WOLFSSL_EC_KEY** ec,
                                               pem_password_cb* cb, void *u);
 WOLFSSL_API
-int wolfSSL_PEM_write_bio_EC_PUBKEY(WOLFSSL_BIO* bio, \
+int wolfSSL_PEM_write_bio_EC_PUBKEY(WOLFSSL_BIO* bio,
                                     WOLFSSL_EC_KEY* ec);
 WOLFSSL_API
 int wolfSSL_PEM_write_EC_PUBKEY(XFILE fp, WOLFSSL_EC_KEY *key);
@@ -151,9 +151,9 @@ int wolfSSL_PEM_write_EC_PUBKEY(XFILE fp, WOLFSSL_EC_KEY *key);
 
 /* EVP_KEY */
 WOLFSSL_API
-WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio, \
-                                                  WOLFSSL_EVP_PKEY**, \
-                                                  pem_password_cb* cb, \
+WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
+                                                  WOLFSSL_EVP_PKEY**,
+                                                  pem_password_cb* cb,
                                                   void* arg);
 WOLFSSL_API
 WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_bio_PUBKEY(WOLFSSL_BIO* bio,

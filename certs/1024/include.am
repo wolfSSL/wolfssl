@@ -9,6 +9,7 @@ EXTRA_DIST += \
          certs/1024/client-key.pem \
          certs/1024/dh1024.pem \
          certs/1024/dsa1024.pem \
+         certs/1024/dsa-pub-1024.pem \
          certs/1024/server-cert.pem \
          certs/1024/server-key.pem
 
@@ -23,4 +24,3 @@ EXTRA_DIST += \
          certs/1024/rsa1024.der \
          certs/1024/server-cert.der \
          certs/1024/server-key.der
-

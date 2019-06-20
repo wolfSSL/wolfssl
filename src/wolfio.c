@@ -620,6 +620,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags)
 {
     int recvd;
+    WOLFSSL_ENTER("wolfIO_Recv");
 
     recvd = (int)RECV_FUNCTION(sd, buf, sz, rdFlags);
     recvd = TranslateReturnCode(recvd, sd);

@@ -20046,10 +20046,40 @@ static int msgCb(SSL_CTX *ctx, SSL *ssl)
 {
     (void) ctx;
     (void) ssl;
+    #ifdef WOLFSSL_QT
+    STACK_OF(X509)* sk;
+    X509* x509;
+    int i, num;
+    BIO* bio;
+    #endif
     printf("\n===== msgcb called ====\n");
     #if defined(SESSION_CERTS) && defined(TEST_PEER_CERT_CHAIN)
     AssertTrue(SSL_get_peer_cert_chain(ssl) != NULL);
     AssertIntEQ(((WOLFSSL_X509_CHAIN *)SSL_get_peer_cert_chain(ssl))->count, 1);
+    #endif
+
+    #ifdef WOLFSSL_QT
+    bio = BIO_new(BIO_s_file());
+    BIO_set_fp(bio, stdout, BIO_NOCLOSE);
+    sk = SSL_get_peer_cert_chain(ssl);
+    AssertNotNull(sk);
+    if (!sk) {
+        BIO_free(bio);
+        return SSL_FAILURE;
+    }
+    num = sk_X509_num(sk);
+    AssertTrue(num > 0);
+    for (i = 0; i < num; i++) {
+        x509 = sk_X509_value(sk,i);
+        AssertNotNull(x509);
+        if (!x509)
+            break;
+        printf("Certificate at index [%d] = :\n",i);
+        X509_print(bio,x509);
+        printf("\n\n");
+    }
+    BIO_free(bio);
+    sk_X509_free(sk);
     #endif
     return SSL_SUCCESS;
 }
@@ -23584,22 +23614,23 @@ static void test_wolfSSL_X509_EXTENSION_get_critical(void)
     wolfSSL_X509_free(x509);
 }
 
-static void test_wolfSSL_CIPHER_description_all(void)
+static void test_wolfSSL_sk_CIPHER_description(void)
 {
-    char buf[256];
-    char test_str[9] = "0000000\0";
-    const char badStr[] = "unknown\0";
-    const char certPath[] = "./certs/client-cert.pem";
+    const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_COMPRESSION;
+    int i,j,k;
+    int numCiphers = 0;
     const SSL_METHOD *method = NULL;
     const SSL_CIPHER *cipher = NULL;
     STACK_OF(SSL_CIPHER) *supportedCiphers = NULL;
     SSL_CTX *ctx = NULL;
     SSL *ssl = NULL;
-    const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_COMPRESSION;
-    int i,j,k;
+    char buf[256];
+    char test_str[9] = "0000000\0";
+    const char badStr[] = "unknown\0";
+    const char certPath[] = "./certs/client-cert.pem";
     XMEMSET(buf, 0, sizeof(buf));
 
-    printf(testingFmt, "wolfSSL_CIPHER_description_all");
+    printf(testingFmt, "wolfSSL_sk_CIPHER_description");
 
     SSL_library_init();
 
@@ -23610,24 +23641,23 @@ static void test_wolfSSL_CIPHER_description_all(void)
     SSL_CTX_set_verify_depth(ctx, 4);
 
     SSL_CTX_set_options(ctx, flags);
-    AssertIntEQ(SSL_CTX_load_verify_locations(ctx, certPath, NULL), \
+    AssertIntEQ(SSL_CTX_load_verify_locations(ctx, certPath, NULL),
                 WOLFSSL_SUCCESS);
 
     AssertNotNull(ssl = SSL_new(ctx));
     /* SSL_get_ciphers returns a stack of all configured ciphers
      * A flag, getCipherAtOffset, is set to later have SSL_CIPHER_description
-     * call it's inner function, wolfSSL_CIPHER_description_all, to obtain
-     * a cipher description for each cipher in the stack.
      */
     AssertNotNull(supportedCiphers = SSL_get_ciphers(ssl));
 
     /* loop through the amount of supportedCiphers */
-    for (i = 0; i < sk_num(supportedCiphers); ++i) {
+    numCiphers = sk_num(supportedCiphers);
+    for (i = 0; i < numCiphers; ++i) {
 
-        /* since the stack of supportedCiphers is acctually copies of the same
-         * "cipher object". sk_value increments "sk->data.cipher->cipherOffset"
-         * so that wolfSSL_CIPHER_description_all can return a description for
-         * every configured cipher.
+        /* sk_value increments "sk->data.cipher->cipherOffset" and then
+         * calls wolfSSL_sk_CIPHER_description which sets the description for
+         * the cipher based on the provided offset. 
+         * SSL_CIPHER_description returns the cipher description
          */
 
         if ((cipher = sk_value(supportedCiphers, i))) {
@@ -23645,7 +23675,7 @@ static void test_wolfSSL_CIPHER_description_all(void)
         /* Fail if test_str == badStr == "unknown" */
         AssertStrNE(test_str,badStr);
     }
-    wolfSSL_sk_ASN1_OBJECT_free(supportedCiphers);
+    wolfSSL_sk_CIPHER_free(supportedCiphers);
     SSL_free(ssl);
     SSL_CTX_free(ctx);
 
@@ -23660,7 +23690,7 @@ static void test_wolfSSL_get_ciphers_compat(void) {
     WOLFSSL *ssl = NULL;
     const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_COMPRESSION;
 
-    printf(testingFmt, "wolfSSL_CIPHER_description_all");
+    printf(testingFmt, "wolfSSL_get_ciphers_compat");
 
     SSL_library_init();
 
@@ -23671,7 +23701,7 @@ static void test_wolfSSL_get_ciphers_compat(void) {
     SSL_CTX_set_verify_depth(ctx, 4);
 
     SSL_CTX_set_options(ctx, flags);
-    AssertIntEQ(SSL_CTX_load_verify_locations(ctx, certPath, NULL), \
+    AssertIntEQ(SSL_CTX_load_verify_locations(ctx, certPath, NULL),
                 WOLFSSL_SUCCESS);
 
     AssertNotNull(ssl = SSL_new(ctx));
@@ -23681,9 +23711,9 @@ static void test_wolfSSL_get_ciphers_compat(void) {
     /* Test for Good input */
     AssertNotNull(supportedCiphers = SSL_get_ciphers(ssl));
     /* Further usage of SSL_get_ciphers/wolfSSL_get_ciphers_compat is
-     * tested in test_wolfSSL_CIPHER_description_all according to Qt usage */
+     * tested in test_wolfSSL_sk_CIPHER_description according to Qt usage */
 
-    wolfSSL_sk_ASN1_OBJECT_free(supportedCiphers);
+    wolfSSL_sk_CIPHER_free(supportedCiphers);
     SSL_free(ssl);
     SSL_CTX_free(ctx);
 
@@ -26633,7 +26663,7 @@ void ApiTest(void)
     test_wolfSSL_X509_EXTENSION_get_critical();
     test_wolfSSL_X509V3_EXT_get();
     test_wolfSSL_X509V3_EXT_d2i();
-    test_wolfSSL_CIPHER_description_all();
+    test_wolfSSL_sk_CIPHER_description();
     test_wolfSSL_get_ciphers_compat();
     test_wolfSSL_d2i_DHparams();
     test_wolfSSL_i2d_DHparams();

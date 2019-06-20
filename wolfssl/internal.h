@@ -1821,12 +1821,17 @@ WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
 #endif /* WOLFSSL_DTLS_EXPORT_TYPES */
 
 
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+#define UINT8_SZ 255
+#endif
 /* wolfSSL Cipher type just points back to SSL */
 struct WOLFSSL_CIPHER {
     WOLFSSL* ssl;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-    int getCipherAtOffset;
-    unsigned long cipherOffset;
+    char description[UINT8_SZ];
+    unsigned long offset;
+    unsigned int in_stack; /* TRUE if added to stack in wolfSSL_get_ciphers_compat */
+    int bits;
 #endif
 };
 
@@ -3415,7 +3420,6 @@ typedef struct Arrays {
 #define STACK_TYPE_ACCESS_DESCRIPTION 6
 
 struct WOLFSSL_STACK {
-    byte type;     /* Set to STACK_TYPE_*. identifies type stored in data.*/
     unsigned long num; /* number of nodes in stack
                         * (safety measure for freeing and shortcut for count) */
     union {
@@ -3430,6 +3434,7 @@ struct WOLFSSL_STACK {
         char*                  string;
     } data;
     WOLFSSL_STACK* next;
+    byte type;     /* Identifies type of stack. */
 };
 
 struct WOLFSSL_X509_NAME {
@@ -3474,6 +3479,10 @@ struct WOLFSSL_X509 {
     byte             certPolicySet;
     byte             certPolicyCrit;
 #endif /* (WOLFSSL_SEP || WOLFSSL_QT) && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
+#ifdef WOLFSSL_QT
+    WOLFSSL_ASN1_TIME* notAfterTime;
+    WOLFSSL_ASN1_TIME* notBeforeTime;
+#endif
     int              notBeforeSz;
     int              notAfterSz;
     byte             notBefore[MAX_DATE_SZ];
@@ -4308,11 +4317,16 @@ WOLFSSL_LOCAL int GetCipherNamesSize(void);
 WOLFSSL_LOCAL const char* GetCipherNameInternal(const byte cipherSuite0, const byte cipherSuite);
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-WOLFSSL_LOCAL const char* GetCipherProtocol(const byte cipherSuite0, const byte cipherSuite);
+/* used in wolfSSL_sk_CIPHER_description */
+#define MAX_SEGMENTS    5
+#define MAX_SEGMENT_SZ 20
+WOLFSSL_LOCAL int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER*);
+WOLFSSL_LOCAL const char* GetCipherProtocol(const byte minor);
 WOLFSSL_LOCAL const char* GetCipherKeaStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherAuthStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]);
 WOLFSSL_LOCAL const char* GetCipherMacStr(char n[][MAX_SEGMENT_SZ]);
+WOLFSSL_LOCAL int SetCipherBits(const char* enc);
 #endif
 WOLFSSL_LOCAL const char* GetCipherNameIana(const byte cipherSuite0, const byte cipherSuite);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl);

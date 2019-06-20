@@ -1516,6 +1516,7 @@ void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv)
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
 int InitSSL_Side(WOLFSSL* ssl, word16 side)
 {
+    WOLFSSL_ENTER("InitSSL_Side");
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
@@ -3193,7 +3194,13 @@ void FreeX509(WOLFSSL_X509* x509)
         if (x509->authInfoCaIssuer != NULL) {
             XFREE(x509->authInfoCaIssuer, x509->heap, DYNAMIC_TYPE_X509_EXT);
         }
-        #endif
+        if (x509->notBeforeTime != NULL) {
+            XFREE(x509->notBeforeTime, x509->heap, DYNAMIC_TYPE_OPENSSL);
+        }
+        if (x509->notAfterTime != NULL) {
+            XFREE(x509->notAfterTime, x509->heap, DYNAMIC_TYPE_OPENSSL);
+        }
+        #endif /* OPENSSL_ALL || WOLFSSL_QT */
         if (x509->extKeyUsageSrc != NULL) {
             XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
             x509->extKeyUsageSrc= NULL;
@@ -3204,7 +3211,6 @@ void FreeX509(WOLFSSL_X509* x509)
         x509->altNames = NULL;
     }
 }
-
 
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
 #if !defined(WOLFSSL_NO_TLS12)
@@ -4547,6 +4553,7 @@ int InitSSL_Suites(WOLFSSL* ssl)
    WOLFSSL_SUCCESS return value on success */
 int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 {
+    WOLFSSL_ENTER("SetSSL_CTX");
     int ret = WOLFSSL_SUCCESS;
     byte newSSL;
 
@@ -9171,7 +9178,6 @@ static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
 #ifdef WOLFSSL_SMALL_CERT_VERIFY
     int sigRet = 0;
 #endif
-
     if (ssl == NULL || args == NULL)
         return BAD_FUNC_ARG;
 
@@ -9284,7 +9290,6 @@ static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
             args->dCert->sigCtx.asyncDev);
     }
 #endif
-
     return ret;
 }
 
@@ -13256,7 +13261,7 @@ int ProcessReply(WOLFSSL* ssl)
 #if defined(WOLFSSL_DTLS)
     int    used;
 #endif
-
+    WOLFSSL_ENTER("ProcessReply");
 #ifdef ATOMIC_USER
     if (ssl->ctx->DecryptVerifyCb)
         atomicUser = 1;
@@ -16406,11 +16411,11 @@ static const CipherSuiteInfo cipher_names[] =
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_SHA
-    SUITE_INFO("AES128-SHA","TLS_RSA_WITH_AES_128_CBC_SHA",CIPHER_BYTE,TLS_RSA_WITH_AES_128_CBC_SHA,TLSv1_MINOR,SSLv3_MAJOR),
+    SUITE_INFO("AES128-SHA","TLS_RSA_WITH_AES_128_CBC_SHA",CIPHER_BYTE,TLS_RSA_WITH_AES_128_CBC_SHA,SSLv3_MINOR,SSLv3_MAJOR),
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_SHA
-    SUITE_INFO("AES256-SHA","TLS_RSA_WITH_AES_256_CBC_SHA",CIPHER_BYTE,TLS_RSA_WITH_AES_256_CBC_SHA,TLSv1_MINOR,SSLv3_MAJOR),
+    SUITE_INFO("AES256-SHA","TLS_RSA_WITH_AES_256_CBC_SHA",CIPHER_BYTE,TLS_RSA_WITH_AES_256_CBC_SHA,SSLv3_MINOR,SSLv3_MAJOR),
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_NULL_MD5
@@ -16826,15 +16831,15 @@ static const CipherSuiteInfo cipher_names[] =
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_CHACHA20_POLY1305_SHA256
-    SUITE_INFO("PSK-CHACHA20-POLY1305","TLS_PSK_WITH_CHACHA20_POLY1305_SHA256",CHACHA_BYTE,TLS_PSK_WITH_CHACHA20_POLY1305_SHA256,TLSv1_MINOR,SSLv3_MAJOR),
+    SUITE_INFO("PSK-CHACHA20-POLY1305","TLS_PSK_WITH_CHACHA20_POLY1305_SHA256",CHACHA_BYTE,TLS_PSK_WITH_CHACHA20_POLY1305_SHA256,TLSv1_2_MINOR,SSLv3_MAJOR),
 #endif
 
 #ifdef BUILD_TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256
-    SUITE_INFO("ECDHE-PSK-CHACHA20-POLY1305","TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256",CHACHA_BYTE,TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256,TLSv1_MINOR,SSLv3_MAJOR),
+    SUITE_INFO("ECDHE-PSK-CHACHA20-POLY1305","TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256",CHACHA_BYTE,TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256,TLSv1_2_MINOR,SSLv3_MAJOR),
 #endif
 
 #ifdef BUILD_TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256
-    SUITE_INFO("DHE-PSK-CHACHA20-POLY1305","TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256",CHACHA_BYTE,TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256,TLSv1_MINOR,SSLv3_MAJOR),
+    SUITE_INFO("DHE-PSK-CHACHA20-POLY1305","TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256",CHACHA_BYTE,TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256,TLSv1_2_MINOR,SSLv3_MAJOR),
 #endif
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA
@@ -16886,7 +16891,7 @@ int GetCipherNamesSize(void)
 const char* GetCipherNameInternal(const byte cipherSuite0, const byte cipherSuite)
 {
     int i;
-    const char* nameInternal = NULL;
+    const char* nameInternal = "None";
 
     for (i = 0; i < GetCipherNamesSize(); i++) {
         if ((cipher_names[i].cipherSuite0 == cipherSuite0) &&
@@ -16898,19 +16903,9 @@ const char* GetCipherNameInternal(const byte cipherSuite0, const byte cipherSuit
     return nameInternal;
 }
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-const char* GetCipherProtocol(const byte cipherSuite0, const byte cipherSuite)
+const char* GetCipherProtocol(const byte minor)
 {
-    int i;
-    const char* protocol = NULL;
-    byte minor = -1;
-
-    for (i = 0; i < GetCipherNamesSize(); i++) {
-        if ((cipher_names[i].cipherSuite0 == cipherSuite0) &&
-            (cipher_names[i].cipherSuite  == cipherSuite)) {
-            minor = cipher_names[i].minor;
-            break;
-        }
-    }
+    const char* protocol;
 
     /* Protocol that matches OpenSSL's protocol version. */
      switch (minor) {
@@ -16919,6 +16914,9 @@ const char* GetCipherProtocol(const byte cipherSuite0, const byte cipherSuite)
              break;
          case TLSv1_2_MINOR :
              protocol = "TLSv1.2";
+             break;
+         case TLSv1_3_MINOR :
+             protocol = "TLSv1.3";
              break;
          case SSLv3_MINOR :
              protocol = "SSLv3";
@@ -16938,16 +16936,15 @@ const char* GetCipherKeaStr(char n[][MAX_SEGMENT_SZ]) {
     n3 = n[3];
     n4 = n[4];
 
-    if ((XSTRNCMP(n0,"ECDHE",5) == 0 && XSTRNCMP(n1, "PSK",3) != 0) || \
-         XSTRNCMP(n0,"ECDH",4) == 0)
-        keaStr = "ECDH";
-    else if (XSTRNCMP(n0,"ECDHE",5) == 0 && XSTRNCMP(n1, "PSK",3) == 0)
+    if (XSTRNCMP(n0,"ECDHE",5) == 0 && XSTRNCMP(n1,"PSK",3) == 0)
         keaStr = "ECDHEPSK";
-    else if (XSTRNCMP(n0,"DHE",3) == 0 && XSTRNCMP(n1, "PSK",3) != 0)
-        keaStr = "DH";
-    else if (XSTRNCMP(n0,"DHE",3) == 0 && XSTRNCMP(n1, "PSK",3) == 0)
+    else if (XSTRNCMP(n0,"ECDH",4) == 0)
+        keaStr = "ECDH";
+    else if (XSTRNCMP(n0,"DHE",3) == 0 && XSTRNCMP(n1,"PSK",3) == 0)
         keaStr = "DHEPSK";
-    else if (XSTRNCMP(n0,"RSA",3) == 0 && XSTRNCMP(n1, "PSK",3) == 0)
+    else if (XSTRNCMP(n0,"DHE",3) == 0)
+        keaStr = "DH";
+   else if (XSTRNCMP(n0,"RSA",3) == 0 && XSTRNCMP(n1,"PSK",3) == 0)
         keaStr = "RSAPSK";
     else if (XSTRNCMP(n0,"SRP",3) == 0)
         keaStr = "SRP";
@@ -16955,10 +16952,10 @@ const char* GetCipherKeaStr(char n[][MAX_SEGMENT_SZ]) {
         keaStr = "PSK";
     else if (XSTRNCMP(n0,"EDH",3) == 0)
         keaStr = "EDH";
-    else if ((XSTRNCMP(n1,"SHA",3) == 0) || (XSTRNCMP(n2,"SHA",3) == 0) || \
-             (XSTRNCMP(n3,"SHA",3) == 0) || (XSTRNCMP(n4,"SHA",3) == 0) || \
-             (XSTRNCMP(n2,"RSA",3) == 0) || (XSTRNCMP(n0,"AES128",6) == 0) || \
-             (XSTRNCMP(n0, "AES256",6) == 0) || (XSTRNCMP(n1,"MD5",3) == 0))
+    else if ((XSTRNCMP(n1,"SHA",3) == 0) || (XSTRNCMP(n2,"SHA",3) == 0) ||
+             (XSTRNCMP(n3,"SHA",3) == 0) || (XSTRNCMP(n4,"SHA",3) == 0) ||
+             (XSTRNCMP(n2,"RSA",3) == 0) || (XSTRNCMP(n0,"AES128",6) == 0) ||
+             (XSTRNCMP(n0,"AES256",6) == 0) || (XSTRNCMP(n1,"MD5",3) == 0))
         keaStr = "RSA";
     else
         keaStr = "unknown";
@@ -16974,9 +16971,11 @@ const char* GetCipherAuthStr(char n[][MAX_SEGMENT_SZ]) {
     n1 = n[1];
     n2 = n[2];
 
-    if ((XSTRNCMP(n0,"AES128",6) == 0) || (XSTRNCMP(n0,"AES256",6) == 0) || \
-        (XSTRNCMP(n0,"RSA",3) == 0) || (XSTRNCMP(n1,"RSA",3) == 0) || \
-        (XSTRNCMP(n1,"SHA",3) == 0) || (XSTRNCMP(n2,"SHA",3) == 0) || \
+    if ((XSTRNCMP(n0,"AES128",6) == 0) || (XSTRNCMP(n0,"AES256",6) == 0)  ||
+        ((XSTRNCMP(n0,"TLS13",5) == 0) && ((XSTRNCMP(n1,"AES128",6) == 0) ||
+         (XSTRNCMP(n1,"AES256",6) == 0) || (XSTRNCMP(n1,"CHACHA20",8) == 0))) ||
+        (XSTRNCMP(n0,"RSA",3) == 0) || (XSTRNCMP(n1,"RSA",3) == 0) ||
+        (XSTRNCMP(n1,"SHA",3) == 0) || (XSTRNCMP(n2,"SHA",3) == 0) ||
         (XSTRNCMP(n1,"MD5",3) == 0))
         authStr = "RSA";
     else if (XSTRNCMP(n0,"PSK",3) == 0 || XSTRNCMP(n1,"PSK",3) == 0)
@@ -16999,42 +16998,50 @@ const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]) {
     n2 = n[2];
     n3 = n[3];
 
-    if ((XSTRNCMP(n0,"AES256",6) == 0 && XSTRNCMP(n1,"GCM",3) == 0) || \
-        (XSTRNCMP(n1,"AES256",6) == 0 && XSTRNCMP(n2,"GCM",3) == 0) || \
+    if ((XSTRNCMP(n0,"AES256",6) == 0 && XSTRNCMP(n1,"GCM",3) == 0) ||
+        (XSTRNCMP(n1,"AES256",6) == 0 && XSTRNCMP(n2,"GCM",3) == 0) ||
         (XSTRNCMP(n2,"AES256",6) == 0 && XSTRNCMP(n3,"GCM",3) == 0))
         encStr = "AESGCM(256)";
 
-    else if ((XSTRNCMP(n0,"AES128",6) == 0 && XSTRNCMP(n1,"GCM",3) == 0) || \
-             (XSTRNCMP(n1,"AES128",6) == 0 && XSTRNCMP(n2,"GCM",3) == 0) || \
+    else if ((XSTRNCMP(n0,"AES128",6) == 0 && XSTRNCMP(n1,"GCM",3) == 0) ||
+             (XSTRNCMP(n1,"AES128",6) == 0 && XSTRNCMP(n2,"GCM",3) == 0) ||
              (XSTRNCMP(n2,"AES128",6) == 0 && XSTRNCMP(n3,"GCM",3) == 0))
         encStr = "AESGCM(128)";
 
-    else if ((XSTRNCMP(n0,"AES128",6) == 0) || \
-             (XSTRNCMP(n2,"AES128",6) == 0) || \
-             (XSTRNCMP(n1,"AES",3) == 0 && XSTRNCMP(n2,"128",3) == 0) || \
+    else if ((XSTRNCMP(n0,"AES128",6) == 0 && XSTRNCMP(n1,"CCM",3) == 0) ||
+             (XSTRNCMP(n1,"AES128",6) == 0 && XSTRNCMP(n2,"CCM",3) == 0) ||
+             (XSTRNCMP(n2,"AES128",6) == 0 && XSTRNCMP(n3,"CCM",3) == 0))
+        encStr = "AESCCM(128)";
+
+    else if ((XSTRNCMP(n0,"AES128",6) == 0) ||
+             (XSTRNCMP(n1,"AES128",6) == 0) ||
+             (XSTRNCMP(n2,"AES128",6) == 0) ||
+             (XSTRNCMP(n1,"AES",3) == 0 && XSTRNCMP(n2,"128",3) == 0) ||
              (XSTRNCMP(n2,"AES",3) == 0 && XSTRNCMP(n3,"128",3) == 0))
         encStr = "AES(128)";
 
-    else if ((XSTRNCMP(n0,"AES256",6) == 0) || \
-             (XSTRNCMP(n2,"AES256",6) == 0) || \
-             (XSTRNCMP(n1,"AES",3) == 0 && XSTRNCMP(n2,"256",3) == 0) || \
+    else if ((XSTRNCMP(n0,"AES256",6) == 0) ||
+             (XSTRNCMP(n1,"AES256",6) == 0) ||
+             (XSTRNCMP(n2,"AES256",6) == 0) ||
+             (XSTRNCMP(n1,"AES",3) == 0 && XSTRNCMP(n2,"256",3) == 0) ||
              (XSTRNCMP(n2,"AES",3) == 0 && XSTRNCMP(n3,"256",3) == 0))
         encStr = "AES(256)";
 
-    else if ((XSTRNCMP(n0,"CAMELLIA256",11) == 0) || \
+    else if ((XSTRNCMP(n0,"CAMELLIA256",11) == 0) ||
              (XSTRNCMP(n2,"CAMELLIA256",11) == 0))
         encStr = "CAMELLIA(256)";
-    else if ((XSTRNCMP(n0,"CAMELLIA128",11) == 0) || \
+    else if ((XSTRNCMP(n0,"CAMELLIA128",11) == 0) ||
              (XSTRNCMP(n2,"CAMELLIA128",11) == 0))
         encStr = "CAMELLIA(128)";
     else if ((XSTRNCMP(n0,"RC4",3) == 0) || (XSTRNCMP(n2,"RC4",3) == 0))
         encStr = "RC4";
-    else if (((XSTRNCMP(n0,"DES",3) == 0) || (XSTRNCMP(n2,"DES",3) == 0)) && \
+    else if (((XSTRNCMP(n0,"DES",3) == 0)  || (XSTRNCMP(n2,"DES",3) == 0)) &&
              ((XSTRNCMP(n1,"CBC3",4) == 0) || (XSTRNCMP(n3,"CBC3",4) == 0)))
         encStr = "3DES";
-    else if (XSTRNCMP(n2,"CHACHA20",8) == 0 && XSTRNCMP(n3,"POLY1305",8) == 0)
+    else if ((XSTRNCMP(n1,"CHACHA20",8) == 0 && XSTRNCMP(n2,"POLY1305",8) == 0) ||
+             (XSTRNCMP(n2,"CHACHA20",8) == 0 && XSTRNCMP(n3,"POLY1305",8) == 0))
         encStr = "CHACHA20/POLY1305(256)";
-    else if ((XSTRNCMP(n0,"NULL",4) == 0) || (XSTRNCMP(n1,"NULL",4) == 0) || \
+    else if ((XSTRNCMP(n0,"NULL",4) == 0) || (XSTRNCMP(n1,"NULL",4) == 0) ||
              (XSTRNCMP(n2,"NULL",4) == 0))
         encStr = "None";
     else if ((XSTRNCMP(n0,"IDEA",4) == 0))
@@ -17058,24 +17065,157 @@ const char* GetCipherMacStr(char n[][MAX_SEGMENT_SZ]) {
     n3 = n[3];
     n4 = n[4];
 
-    if ((XSTRNCMP(n4,"SHA256",6) == 0) || (XSTRNCMP(n3,"SHA256",6) == 0) || \
+    if ((XSTRNCMP(n4,"SHA256",6) == 0) || (XSTRNCMP(n3,"SHA256",6) == 0) ||
         (XSTRNCMP(n2,"SHA256",6) == 0) || (XSTRNCMP(n1,"SHA256",6) == 0))
         macStr = "SHA256";
-    else if ((XSTRNCMP(n4,"SHA384",6) == 0) || \
-             (XSTRNCMP(n3,"SHA384",6) == 0) || \
-             (XSTRNCMP(n2,"SHA384",6) == 0) || \
+    else if ((XSTRNCMP(n4,"SHA384",6) == 0) ||
+             (XSTRNCMP(n3,"SHA384",6) == 0) ||
+             (XSTRNCMP(n2,"SHA384",6) == 0) ||
              (XSTRNCMP(n1,"SHA384",6) == 0))
         macStr = "SHA384";
-    else if ((XSTRNCMP(n4,"SHA",3) == 0) || (XSTRNCMP(n3,"SHA",3) == 0) || \
-             (XSTRNCMP(n2,"SHA",3) == 0)   || (XSTRNCMP(n1,"SHA",3) == 0) || \
+    else if ((XSTRNCMP(n4,"SHA",3) == 0) || (XSTRNCMP(n3,"SHA",3) == 0) ||
+             (XSTRNCMP(n2,"SHA",3) == 0) || (XSTRNCMP(n1,"SHA",3) == 0) ||
              (XSTRNCMP(n1,"MD5",3) == 0))
         macStr = "SHA1";
-    else if (XSTRNCMP(n3,"GCM",3) == 0)
+    else if ((XSTRNCMP(n3,"GCM",3) == 0) ||
+             (XSTRNCMP(n1,"CCM",3) == 0) ||
+             (XSTRNCMP(n2,"CCM",3) == 0) || (XSTRNCMP(n3,"CCM",3) == 0) ||
+             (XSTRNCMP(n1,"CHACHA20",8) == 0 && XSTRNCMP(n2,"POLY1305",8) == 0) ||
+             (XSTRNCMP(n2,"CHACHA20",8) == 0 && XSTRNCMP(n3,"POLY1305",8) == 0))
         macStr = "AEAD";
     else
         macStr = "unknown";
 
     return macStr;
+}
+
+int SetCipherBits(const char* enc) {
+    int ret = WOLFSSL_FAILURE;
+
+    if ((XSTRNCMP(enc,"AESGCM(256)",11) == 0) ||
+        (XSTRNCMP(enc,"AES(256)",8) == 0) ||
+        (XSTRNCMP(enc,"CAMELLIA(256)",13) == 0) ||
+        (XSTRNCMP(enc,"CHACHA20/POLY1305(256)",22) == 0))
+            ret = 256;
+    else if
+        ((XSTRNCMP(enc,"3DES",4) == 0))
+            ret = 168;
+    else if
+        ((XSTRNCMP(enc,"AESGCM(128)",11) == 0) ||
+         (XSTRNCMP(enc,"AES(128)",8) == 0) ||
+         (XSTRNCMP(enc,"CAMELLIA(128)",13) == 0) ||
+         (XSTRNCMP(enc,"IDEA",4) == 0) ||
+         (XSTRNCMP(enc,"RC4",3) == 0))
+            ret = 128;
+   else if
+        ((XSTRNCMP(enc,"DES",3) == 0))
+            ret = 56;
+
+    return ret;
+}
+/* Creates cipher->description based on cipher->offset
+ * cipher->offset is set in wolfSSL_get_ciphers_compat when it is added
+ * to a stack of ciphers.
+ * @param [in] cipher: A cipher from a stack of ciphers.
+ * return WOLFSSL_SUCCESS if cipher->description is set, else WOLFSSL_FAILURE
+ */
+int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
+{
+    int ret = WOLFSSL_FAILURE;
+    int i,j,k;
+    int strLen;
+    unsigned long offset;
+    char *dp = cipher->description;
+    const char* name;
+    const char *keaStr, *authStr, *encStr, *macStr, *protocol;
+    char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
+    uint8_t len = UINT8_SZ;
+    WOLFSSL_ENTER("wolfSSL_CIPHER_sk_description");
+
+    if (cipher == NULL)
+        return WOLFSSL_FAILURE;
+
+    offset = cipher->offset;
+    protocol = GetCipherProtocol(cipher_names[offset].minor);
+    name = cipher_names[offset].name;
+
+    if (name == NULL)
+        return ret;
+
+    /* Segment cipher name into n[n0,n1,n2,n4]
+     * These are used later for comparisons to create:
+     * keaStr, authStr, encStr, macStr
+     *
+     * If cipher_name = ECDHE-ECDSA-AES256-SHA
+     * then n0 = "ECDHE", n1 = "ECDSA", n2 = "AES256", n3 = "SHA"
+     * and n = [n0,n1,n2,n3,0]
+     */
+    strLen = (int)XSTRLEN(name);
+
+    for(i=0,j=0,k=0; i < strLen; i++) {
+        if(name[i] != '-' && k < MAX_SEGMENTS && j < MAX_SEGMENT_SZ) {
+            n[k][j] = name[i]; /* Fill kth segment string until '-' */
+            j++;
+        }
+        else if(k < MAX_SEGMENTS && j < MAX_SEGMENT_SZ) {
+            n[k][j] = '\0';
+            j = 0;
+            k++;
+        }
+    }
+    /* keaStr */
+    keaStr = GetCipherKeaStr(n);
+    /* authStr */
+    authStr = GetCipherAuthStr(n);
+    /* encStr */
+    encStr = GetCipherEncStr(n);
+    if ((cipher->bits = SetCipherBits(encStr)) == WOLFSSL_FAILURE) {
+       WOLFSSL_MSG("Cipher Bits Not Set.");
+    }
+    /* macStr */
+    macStr = GetCipherMacStr(n);
+
+
+    /* Build up the string by copying onto the end. */
+    XSTRNCPY(dp, name, len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+
+    XSTRNCPY(dp, " ", len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+    XSTRNCPY(dp, protocol, len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+
+    XSTRNCPY(dp, " Kx=", len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+    XSTRNCPY(dp, keaStr, len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+
+    XSTRNCPY(dp, " Au=", len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+    XSTRNCPY(dp, authStr, len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+
+    XSTRNCPY(dp, " Enc=", len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+    XSTRNCPY(dp, encStr, len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+
+    XSTRNCPY(dp, " Mac=", len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+    XSTRNCPY(dp, macStr, len);
+    dp[len-1] = '\0';
+
+    return WOLFSSL_SUCCESS;
 }
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
 
@@ -17121,8 +17261,8 @@ const char* wolfSSL_get_cipher_name_iana(WOLFSSL* ssl)
 int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
                            byte* cipherSuite)
 {
-    int           ret = BAD_FUNC_ARG;
-    int           i;
+    int ret = BAD_FUNC_ARG;
+    int i;
     unsigned long len = (unsigned long)XSTRLEN(name);
 
     for (i = 0; i < GetCipherNamesSize(); i++) {

@@ -291,9 +291,9 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
     #define X509_EXTENSION_new          wolfSSL_X509_EXTENSION_new
     #define X509_EXTENSION_free         wolfSSL_X509_EXTENSION_free
 #endif
-        
+
 #define DSA_dup_DH                      wolfSSL_DSA_dup_DH
- 
+
 #define i2d_X509_bio                    wolfSSL_i2d_X509_bio
 #define d2i_X509_bio                    wolfSSL_d2i_X509_bio
 #define d2i_X509_fp                     wolfSSL_d2i_X509_fp
