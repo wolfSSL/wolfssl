@@ -780,9 +780,6 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
                             seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
                             nonce, nonceSz, rng->heap, devId);
 
-            if (ret == DRBG_SUCCESS)
-                ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
-
             if (ret != DRBG_SUCCESS) {
             #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
                 XFREE(rng->drbg, rng->heap, DYNAMIC_TYPE_RNG);
@@ -909,8 +906,6 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
                 ret = Hash_DRBG_Reseed(rng->drbg, newSeed + SEED_BLOCK_SZ,
                                        SEED_SZ);
             if (ret == DRBG_SUCCESS)
-                ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
-            if (ret == DRBG_SUCCESS)
                 ret = Hash_DRBG_Generate(rng->drbg, output, sz);
 
             ForceZero(newSeed, sizeof(newSeed));
@@ -1032,6 +1027,11 @@ int wc_RNG_HealthTest_ex(int reseed, const byte* nonce, word32 nonceSz,
         }
     }
 
+    /* This call to generate is prescribed by the NIST DRBGVS
+     * procedure. The results are thrown away. The known
+     * answer test checks the second block of DRBG out of
+     * the generator to ensure the internal state is updated
+     * as expected. */
     if (Hash_DRBG_Generate(drbg, output, outputSz) != 0) {
         goto exit_rng_ht;
     }
