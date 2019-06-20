@@ -9225,9 +9225,119 @@ static const CertName certDefaultName = {
 
 #ifndef NO_RSA
 
-#if defined(WOLFSSL_TEST_CERT) && !defined(NO_FILESYSTEM)
+#if defined(WOLFSSL_TEST_CERT)
+static byte minSerial[] = { 0x02, 0x01, 0x01 };
+static byte minName[] = { 0x30, 0x00 };
+static byte nameBad[] = {
+    0x30, 0x08,
+          0x31, 0x06,
+                0x30, 0x04,
+                      0x06, 0x02,
+                            0x55, 0x04,
+};
+static byte minDates[] = {
+    0x30, 0x1e,
+          0x17, 0x0d,
+                0x31, 0x38, 0x30, 0x34, 0x31, 0x33, 0x31, 0x35,
+                0x32, 0x33, 0x31, 0x30, 0x5a,
+          0x17, 0x0d,
+                0x32, 0x31, 0x30, 0x31, 0x30, 0x37, 0x31, 0x35,
+                0x32, 0x33, 0x31, 0x30, 0x5a
+};
+static byte minPubKey[] = {
+    0x30, 0x1b,
+          0x30, 0x0d,
+                0x06, 0x09,
+                      0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
+                      0x01,
+                0x05, 0x00,
+          0x03, 0x0b,
+                0x00, 0x30, 0x08,
+                            0x02, 0x01,
+                                  0x03,
+                            0x02, 0x03,
+                                  0x01, 0x00, 0x01
+};
+static byte minSigAlg[] = {
+    0x30, 0x0d,
+          0x06, 0x09,
+                0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
+                0x0b,
+          0x05, 0x00
+};
+static byte minSig[] = {
+    0x03, 0x01,
+          0x00
+};
+
+static int add_seq(byte* certData, int offset, byte* data, byte length)
+{
+    XMEMMOVE(certData + offset + 2, data, length);
+    certData[offset++] = 0x30;
+    certData[offset++] = length;
+    return offset + length;
+}
+static int add_data(byte* certData, int offset, byte* data, byte length)
+{
+    XMEMCPY(certData + offset, data, length);
+    return offset + length;
+}
+
+static int cert_asn1_test(void)
+{
+    int ret;
+    int len[3];
+    DecodedCert cert;
+    byte certData[106];
+    byte* badCert = NULL;
+
+    len[2] = add_data(certData, 0, minSerial, (byte)sizeof(minSerial));
+    len[2] = add_data(certData, len[2], minSigAlg, (byte)sizeof(minSigAlg));
+    len[2] = add_data(certData, len[2], minName, (byte)sizeof(minName));
+    len[2] = add_data(certData, len[2], minDates, (byte)sizeof(minDates));
+    len[2] = add_data(certData, len[2], minName, (byte)sizeof(minName));
+    len[2] = add_data(certData, len[2], minPubKey, (byte)sizeof(minPubKey));
+    len[1] = add_seq(certData, 0, certData, len[2]);
+    len[1] = add_data(certData, len[1], minSigAlg, (byte)sizeof(minSigAlg));
+    len[1] = add_data(certData, len[1], minSig, (byte)sizeof(minSig));
+    len[0] = add_seq(certData, 0, certData, len[1]);
+
+    /* Minimal good certificate */
+    InitDecodedCert(&cert, certData, len[0], 0);
+    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+    FreeDecodedCert(&cert);
+    if (ret != 0) {
+        ERROR_OUT(-6630, done);
+    }
+
+    /* Bad issuer name */
+    len[2] = add_data(certData, 0, minSerial, (byte)sizeof(minSerial));
+    len[2] = add_data(certData, len[2], minSigAlg, (byte)sizeof(minSigAlg));
+    len[2] = add_data(certData, len[2], nameBad, (byte)sizeof(nameBad));
+    len[1] = add_seq(certData, 0, certData, len[2]);
+    len[0] = add_seq(certData, 0, certData, len[1]);
+    /* Put data into allocated buffer to allow access error checking. */
+    badCert = (byte*)XMALLOC(len[0], HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XMEMCPY(badCert, certData, len[0]);
+    InitDecodedCert(&cert, badCert, len[0], 0);
+    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+    FreeDecodedCert(&cert);
+    if (ret != ASN_PARSE_E) {
+        ERROR_OUT(-6631, done);
+    }
+    XFREE(badCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    badCert = NULL;
+    ret = 0;
+
+done:
+    if (badCert != NULL)
+        XFREE(badCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+
 int cert_test(void)
 {
+#if !defined(NO_FILESYSTEM)
     DecodedCert cert;
     byte*       tmp;
     size_t      bytes;
@@ -9276,10 +9386,14 @@ int cert_test(void)
 done:
     FreeDecodedCert(&cert);
     XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* !NO_FILESYSTEM */
+
+    if (ret == 0)
+        ret = cert_asn1_test();
 
     return ret;
 }
-#endif /* WOLFSSL_TEST_CERT && !NO_FILESYSTEM */
+#endif /* WOLFSSL_TEST_CERT */
 
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
    !defined(NO_FILESYSTEM)
