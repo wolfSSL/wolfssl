@@ -1131,6 +1131,64 @@ static int ImportPeerInfo(WOLFSSL* ssl, byte* buf, word32 len, byte ver)
 }
 
 
+/* WOLFSSL_LOCAL function that serializes the current WOLFSSL session state only
+ * buf is used to hold the serialized WOLFSSL struct and sz is the size of buf
+ * passed in.
+ * On success returns the size of serialized session state.*/
+int wolfSSL_dtls_export_state_internal(WOLFSSL* ssl, byte* buf, word32 sz)
+{
+    int ret;
+    word32 idx      = 0;
+    word32 totalLen = 0;
+
+    WOLFSSL_ENTER("wolfSSL_dtls_export_state_internal");
+
+    if (buf == NULL || ssl == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_dtls_export_state_internal", BAD_FUNC_ARG);
+        return BAD_FUNC_ARG;
+    }
+
+    totalLen += DTLS_EXPORT_LEN * 2; /* 2 protocol bytes and 2 length bytes */
+    /* each of the following have a 2 byte length before data */
+    totalLen += DTLS_EXPORT_LEN + DTLS_EXPORT_KEY_SZ;
+    if (totalLen > sz) {
+        WOLFSSL_LEAVE("wolfSSL_dtls_export_state_internal", BUFFER_E);
+        return BUFFER_E;
+    }
+
+    buf[idx++] =  (byte)DTLS_EXPORT_STATE_PRO;
+    buf[idx++] = ((byte)DTLS_EXPORT_STATE_PRO & 0xF0) |
+                 ((byte)DTLS_EXPORT_VERSION & 0X0F);
+    idx += DTLS_EXPORT_LEN; /* leave room for total length */
+
+    /* export keys struct and dtls state -- variable length stored in ret */
+    idx += DTLS_EXPORT_LEN; /* leave room for length */
+    if ((ret = ExportKeyState(ssl, buf + idx, sz - idx,
+                                                    DTLS_EXPORT_VERSION)) < 0) {
+        WOLFSSL_LEAVE("wolfSSL_dtls_export_state_internal", ret);
+        return ret;
+    }
+    c16toa((word16)ret, buf + idx - DTLS_EXPORT_LEN); idx += ret;
+
+    /* place total length of exported buffer minus 2 bytes protocol/version */
+    c16toa((word16)(idx - DTLS_EXPORT_LEN), buf + DTLS_EXPORT_LEN);
+
+#ifdef WOLFSSL_SESSION_EXPORT_DEBUG
+    /* if compiled with debug options then print the version, protocol, size */
+    {
+        char debug[256];
+        XSNPRINTF(debug, sizeof(debug), "Exporting DTLS session state\n"
+                   "\tVersion  : %d\n\tProtocol : %02X%01X\n\tLength of: %d\n\n"
+               , (int)DTLS_EXPORT_VERSION, buf[0], (buf[1] >> 4), idx - 2);
+        WOLFSSL_MSG(debug);
+    }
+#endif /* WOLFSSL_SESSION_EXPORT_DEBUG */
+
+    WOLFSSL_LEAVE("wolfSSL_dtls_export_state_internal", idx);
+    return idx;
+}
+
+
 /* WOLFSSL_LOCAL function that serializes the current WOLFSSL session
  * buf is used to hold the serialized WOLFSSL struct and sz is the size of buf
  * passed in.
@@ -1222,6 +1280,78 @@ int wolfSSL_dtls_export_internal(WOLFSSL* ssl, byte* buf, word32 sz)
 
 
 /* On success return amount of buffer consumed */
+int wolfSSL_dtls_import_state_internal(WOLFSSL* ssl, byte* buf, word32 sz)
+{
+    word32 idx    = 0;
+    word16 length = 0;
+    int version;
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_dtls_import_state_internal");
+    /* check at least enough room for protocol and length */
+    if (sz < DTLS_EXPORT_LEN * 2 || ssl == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_dtls_import_state_internal", BAD_FUNC_ARG);
+        return BAD_FUNC_ARG;
+    }
+
+    if (buf[idx++] !=  (byte)DTLS_EXPORT_STATE_PRO ||
+            (buf[idx] & 0xF0) != ((byte)DTLS_EXPORT_PRO & 0xF0)) {
+        WOLFSSL_MSG("Incorrect protocol");
+        return BAD_FUNC_ARG;
+    }
+    version = buf[idx++] & 0x0F;
+
+    ato16(buf + idx, &length); idx += DTLS_EXPORT_LEN;
+    if (length > sz - DTLS_EXPORT_LEN) { /* subtract 2 for protocol */
+        WOLFSSL_MSG("Buffer size sanity check failed");
+        return BUFFER_E;
+    }
+
+#ifdef WOLFSSL_SESSION_EXPORT_DEBUG
+    /* if compiled with debug options then print the version, protocol, size */
+    {
+        char debug[256];
+        XSNPRINTF(debug, sizeof(debug), "Importing DTLS session state\n"
+                   "\tVersion  : %d\n\tProtocol : %02X%01X\n\tLength of: %d\n\n"
+               , (int)version, buf[0], (buf[1] >> 4), length);
+        WOLFSSL_MSG(debug);
+    }
+#endif /* WOLFSSL_SESSION_EXPORT_DEBUG */
+
+    /* perform sanity checks and extract Options information used */
+    switch (version) {
+        case DTLS_EXPORT_VERSION:
+            break;
+
+        default:
+            WOLFSSL_MSG("Bad export state version");
+            return BAD_FUNC_ARG;
+
+    }
+
+    /* perform sanity checks and extract Keys struct */
+    if (DTLS_EXPORT_LEN + idx > sz) {
+        WOLFSSL_MSG("Import Key struct error");
+        return BUFFER_E;
+    }
+    ato16(buf + idx, &length); idx += DTLS_EXPORT_LEN;
+    if (length > DTLS_EXPORT_KEY_SZ || length + idx > sz) {
+        WOLFSSL_MSG("Import Key struct error");
+        return BUFFER_E;
+    }
+    if ((ret = ImportKeyState(ssl, buf + idx, length, version)) < 0) {
+        WOLFSSL_MSG("Import Key struct error");
+        WOLFSSL_LEAVE("wolfSSL_dtls_import_state_internal", ret);
+        return ret;
+    }
+    idx += ret;
+
+    WOLFSSL_LEAVE("wolfSSL_dtls_import_state_internal", ret);
+    return ret;
+}
+
+
+/* On success return amount of buffer consumed */
 int wolfSSL_dtls_import_internal(WOLFSSL* ssl, byte* buf, word32 sz)
 {
     word32 idx    = 0;
@@ -1240,8 +1370,9 @@ int wolfSSL_dtls_import_internal(WOLFSSL* ssl, byte* buf, word32 sz)
     if (buf[idx++]       !=  (byte)DTLS_EXPORT_PRO ||
        (buf[idx] & 0xF0) != ((byte)DTLS_EXPORT_PRO & 0xF0)) {
         /* don't increment on second idx to next get version */
-        WOLFSSL_MSG("Incorrect protocol");
-        return BAD_FUNC_ARG;
+
+        /* check if importing state only */
+        return wolfSSL_dtls_import_state_internal(ssl, buf, sz);
     }
     version = buf[idx++] & 0x0F;
 
