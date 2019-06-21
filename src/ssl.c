@@ -16533,20 +16533,18 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
     }
 #endif
 
-    if (cName == NULL) {
 #ifdef HAVE_CURVE25519
-        if (ssl->ecdhCurveOID == ECC_X25519_OID) {
-            cName = "X25519";
-        }
+    if (ssl->ecdhCurveOID == ECC_X25519_OID && cName == NULL) {
+        cName = "X25519";
+    }
 #endif
 
 #ifdef HAVE_ECC
-        if (ssl->ecdhCurveOID != 0 && cName == NULL) {
-            cName = wc_ecc_get_name(wc_ecc_get_oid(ssl->ecdhCurveOID, NULL,
-                                    NULL));
-        }
-#endif
+    if (ssl->ecdhCurveOID != 0 && cName == NULL) {
+        cName = wc_ecc_get_name(wc_ecc_get_oid(ssl->ecdhCurveOID, NULL,
+                                NULL));
     }
+#endif
 
     return cName;
 }
