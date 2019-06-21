@@ -6900,17 +6900,18 @@ retry:
                 ssl->options.isClosed = 1;
                 return -1;
 
-            #ifdef WOLFSSL_DTLS
             case WOLFSSL_CBIO_ERR_TIMEOUT:
+            #ifdef WOLFSSL_DTLS
                 if (IsDtlsNotSctpMode(ssl) &&
                     !ssl->options.handShakeDone &&
                     DtlsMsgPoolTimeout(ssl) == 0 &&
                     DtlsMsgPoolSend(ssl, 0) == 0) {
 
+                    /* retry read for DTLS during handshake only */
                     goto retry;
                 }
-                return -1;
             #endif
+                return -1;
 
             default:
                 return recvd;
@@ -12864,11 +12865,11 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
                      ssl->buffers.inputBuffer.buffer +
                      ssl->buffers.inputBuffer.length,
                      inSz);
-        if (in == -1)
-            return SOCKET_ERROR_E;
-
         if (in == WANT_READ)
             return WANT_READ;
+
+        if (in < 0)
+            return SOCKET_ERROR_E;
 
         if (in > inSz)
             return RECV_OVERFLOW_E;
