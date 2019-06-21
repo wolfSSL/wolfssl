@@ -47,23 +47,6 @@
 
 #include <wolfssl/wolfcrypt/mpi_class.h>
 
-/* wolf big int and common functions */
-#include <wolfssl/wolfcrypt/wolfmath.h>
-
-
-#ifdef WOLFSSL_PUBLIC_MP
-    #define MP_API   WOLFSSL_API
-#else
-    #define MP_API
-#endif
-
-#ifndef MIN
-   #define MIN(x,y) ((x)<(y)?(x):(y))
-#endif
-
-#ifndef MAX
-   #define MAX(x,y) ((x)>(y)?(x):(y))
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -204,7 +187,13 @@ typedef int           mp_err;
 #define MP_WARRAY  ((mp_word)1 << (sizeof(mp_word) * CHAR_BIT - 2 * DIGIT_BIT + 1))
 
 #ifdef HAVE_WOLF_BIGINT
-    struct WC_BIGINT;
+    /* raw big integer */
+    typedef struct WC_BIGINT {
+        byte*   buf;
+        word32  len;
+        void*   heap;
+    } WC_BIGINT;
+    #define WOLF_BIGINT_DEFINED
 #endif
 
 /* the mp_int structure */
@@ -216,7 +205,10 @@ typedef struct mp_int {
     struct WC_BIGINT raw; /* unsigned binary (big endian) */
 #endif
 } mp_int;
-#define MP_INT_DEFINED
+
+/* wolf big int and common functions */
+#include <wolfssl/wolfcrypt/wolfmath.h>
+
 
 /* callback for mp_prime_random, should fill dst with random bytes and return
    how many read [up to len] */
@@ -397,10 +389,6 @@ MP_API int mp_radix_size (mp_int * a, int radix, int *size);
 
 MP_API int mp_cnt_lsb(mp_int *a);
 MP_API int mp_mod_d(mp_int* a, mp_digit b, mp_digit* c);
-
-
-/* wolf big int and common functions */
-#include <wolfssl/wolfcrypt/wolfmath.h>
 
 
 #ifdef __cplusplus
