@@ -95,37 +95,37 @@ static void DumpStats(void)
     SSLStats sslStats;
     ssl_ReadStatistics(&sslStats);
 
-    printf("SSL Stats (sslStandardConns):%u\n",
+    printf("SSL Stats (sslStandardConns):%lu\n",
             sslStats.sslStandardConns);
-    printf("SSL Stats (sslClientAuthConns):%u\n",
+    printf("SSL Stats (sslClientAuthConns):%lu\n",
             sslStats.sslClientAuthConns);
-    printf("SSL Stats (sslResumedConns):%u\n",
+    printf("SSL Stats (sslResumedConns):%lu\n",
             sslStats.sslResumedConns);
-    printf("SSL Stats (sslEphemeralMisses):%u\n",
+    printf("SSL Stats (sslEphemeralMisses):%lu\n",
             sslStats.sslEphemeralMisses);
-    printf("SSL Stats (sslResumeMisses):%u\n",
+    printf("SSL Stats (sslResumeMisses):%lu\n",
             sslStats.sslResumeMisses);
-    printf("SSL Stats (sslCiphersUnsupported):%u\n",
+    printf("SSL Stats (sslCiphersUnsupported):%lu\n",
             sslStats.sslCiphersUnsupported);
-    printf("SSL Stats (sslKeysUnmatched):%u\n",
+    printf("SSL Stats (sslKeysUnmatched):%lu\n",
             sslStats.sslKeysUnmatched);
-    printf("SSL Stats (sslKeyFails):%u\n",
+    printf("SSL Stats (sslKeyFails):%lu\n",
             sslStats.sslKeyFails);
-    printf("SSL Stats (sslDecodeFails):%u\n",
+    printf("SSL Stats (sslDecodeFails):%lu\n",
             sslStats.sslDecodeFails);
-    printf("SSL Stats (sslAlerts):%u\n",
+    printf("SSL Stats (sslAlerts):%lu\n",
             sslStats.sslAlerts);
-    printf("SSL Stats (sslDecryptedBytes):%u\n",
+    printf("SSL Stats (sslDecryptedBytes):%lu\n",
             sslStats.sslDecryptedBytes);
-    printf("SSL Stats (sslEncryptedBytes):%u\n",
+    printf("SSL Stats (sslEncryptedBytes):%lu\n",
             sslStats.sslEncryptedBytes);
-    printf("SSL Stats (sslEncryptedPackets):%u\n",
+    printf("SSL Stats (sslEncryptedPackets):%lu\n",
             sslStats.sslEncryptedPackets);
-    printf("SSL Stats (sslDecryptedPackets):%u\n",
+    printf("SSL Stats (sslDecryptedPackets):%lu\n",
             sslStats.sslDecryptedPackets);
-    printf("SSL Stats (sslKeyMatches):%u\n",
+    printf("SSL Stats (sslKeyMatches):%lu\n",
             sslStats.sslKeyMatches);
-    printf("SSL Stats (sslEncryptedConns):%u\n",
+    printf("SSL Stats (sslEncryptedConns):%lu\n",
             sslStats.sslEncryptedConns);
 }
 
