@@ -2182,7 +2182,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                     len = sz;
                 /* Get one random 32-bit word from hw RNG */  
                 rand = esp_random( );
-                XMEMCPY(output, &rand, sz);
+                XMEMCPY(output, &rand, len);
                 output += len;
                 sz -= len;
             }
@@ -2228,7 +2228,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 if (sz < len)
                     len = sz;
                 rand = sys_rand32_get();
-                XMEMCPY(output, &rand, sz);
+                XMEMCPY(output, &rand, len);
                 output += len;
                 sz -= len;
             }
