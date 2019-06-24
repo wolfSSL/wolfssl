@@ -6,6 +6,7 @@ pre-commit.sh - our pre commit hook, saves current state before running commit
 commit-tests.sh - our commit tests, must pass before a commit is accepted, use
                   -n (--no-verify) to disable
 
+fips-hash.sh - updates the verifyCore hash in fips_test.c
 
 fips-check.sh - checks if current wolfSSL version works against FIPS wolfCrypt
                 comment out last line to leave working directory
