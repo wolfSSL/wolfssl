@@ -1522,6 +1522,46 @@ int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz)
 }
 
 
+/**
+ * Quick validity check of public key value agaist prime.
+ * Checks are:
+ *   - Public key not 0 or 1
+ *   - Public key not equal to prime or prime - 1
+ *   - Public key not bigger than prime.
+ *
+ * prime    Big-endian encoding of prime in bytes.
+ * primeSz  Size of prime in bytes.
+ * pub      Big-endian encoding of public key in bytes.
+ * pubSz    Size of public key in bytes.
+ */
+int wc_DhCheckPubValue(const byte* prime, word32 primeSz, const byte* pub,
+                       word32 pubSz)
+{
+    int ret = 0;
+    word32 i;
+
+    for (i = 0; i < pubSz && pub[i] == 0; i++) {
+    }
+    pubSz -= i;
+    pub += i;
+
+    if (pubSz == 0 || (pubSz == 1 && pub[0] == 1))
+        ret = MP_VAL;
+    else if (pubSz == primeSz) {
+        for (i = 0; i < pubSz-1 && pub[i] == prime[i]; i++) {
+        }
+        if (i == pubSz-1 && (pub[i] == prime[i] || pub[i] == prime[i] - 1))
+            ret = MP_VAL;
+        else if (pub[i] > prime[i])
+            ret = MP_VAL;
+    }
+    else if (pubSz > primeSz)
+        ret = MP_VAL;
+
+    return ret;
+}
+
+
 /* Check DH Private Key for invalid numbers, optionally allowing
  * the private key to be checked against the large prime (q).
  * Check per process in SP 800-56Ar3, section 5.6.2.1.2.
@@ -1987,6 +2027,7 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
     int ret = 0;
     mp_int* keyP = NULL;
     mp_int* keyG = NULL;
+    mp_int* keyQ = NULL;
 
     if (key == NULL || p == NULL || g == NULL || pSz == 0 || gSz == 0) {
         ret = BAD_FUNC_ARG;
@@ -2051,9 +2092,13 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
     if (ret == 0 && q != NULL) {
         if (mp_read_unsigned_bin(&key->q, q, qSz) != MP_OKAY)
             ret = MP_INIT_E;
+        else
+            keyQ = &key->q;
     }
 
     if (ret != 0 && key != NULL) {
+        if (keyQ)
+            mp_clear(keyQ);
         if (keyG)
             mp_clear(keyG);
         if (keyP)
@@ -2096,8 +2141,7 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
     int     groupSz = 0, bufSz = 0,
             primeCheckCount = 0,
             primeCheck = MP_NO,
-            ret = 0,
-            tmp_valid = 0;
+            ret = 0;
     unsigned char *buf = NULL;
 
     if (rng == NULL || dh == NULL)
@@ -2146,10 +2190,6 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
         if (mp_init_multi(&tmp, &tmp2, &dh->p, &dh->q, &dh->g, 0)
                 != MP_OKAY) {
             ret = MP_INIT_E;
-        }
-        else {
-            /* tmp and tmp2 are initialized */
-            tmp_valid = 1;
         }
     }
 
@@ -2237,11 +2277,8 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
             XFREE(buf, dh->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
-
-    if (tmp_valid) {
-        mp_clear(&tmp);
-        mp_clear(&tmp2);
-    }
+    mp_clear(&tmp);
+    mp_clear(&tmp2);
 
     return ret;
 }

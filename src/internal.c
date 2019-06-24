@@ -4196,8 +4196,20 @@ int DhAgree(WOLFSSL* ssl, DhKey* dhKey,
     else
 #endif
     {
-        ret = wc_DhAgree(dhKey, agree, agreeSz, priv, privSz, otherPub,
-                otherPubSz);
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+        ret = wc_DhCheckPubValue(ssl->buffers.serverDH_P.buffer,
+                    ssl->buffers.serverDH_P.length, otherPub, otherPubSz);
+        if (ret != 0) {
+    #ifdef OPENSSL_EXTRA
+            SendAlert(ssl, alert_fatal, illegal_parameter);
+    #endif
+        }
+        else
+#endif
+        {
+            ret = wc_DhAgree(dhKey, agree, agreeSz, priv, privSz, otherPub,
+                    otherPubSz);
+        }
     }
 
     /* Handle async pending response */

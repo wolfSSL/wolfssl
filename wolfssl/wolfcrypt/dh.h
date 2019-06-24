@@ -106,6 +106,8 @@ WOLFSSL_API int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p,
 WOLFSSL_API int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz);
 WOLFSSL_API int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
                             const byte* prime, word32 primeSz);
+WOLFSSL_API int wc_DhCheckPubValue(const byte* prime, word32 primeSz,
+                                   const byte* pub, word32 pubSz);
 WOLFSSL_API int wc_DhCheckPrivKey(DhKey* key, const byte* priv, word32 pubSz);
 WOLFSSL_API int wc_DhCheckPrivKey_ex(DhKey* key, const byte* priv, word32 pubSz,
                             const byte* prime, word32 primeSz);
