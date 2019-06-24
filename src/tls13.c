@@ -5842,9 +5842,6 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 if (ret >= 0) {
                     args->sendSz = ret;
                     ret = 0;
-
-                    FreeKey(ssl, DYNAMIC_TYPE_RSA, (void**)&ssl->peerRsaKey);
-                    ssl->peerRsaKeyPresent = 0;
                 }
             }
         #endif /* !NO_RSA */
@@ -5908,6 +5905,9 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                                         args->output, args->sendSz);
                 if (ret != 0)
                     goto exit_dcv;
+
+                FreeKey(ssl, DYNAMIC_TYPE_RSA, (void**)&ssl->peerRsaKey);
+                ssl->peerRsaKeyPresent = 0;
             }
         #endif /* !NO_RSA */
 
