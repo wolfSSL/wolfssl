@@ -1841,6 +1841,75 @@ static int test_export(WOLFSSL* inSsl, byte* buf, word32 sz, void* userCtx)
 #endif
 
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+#ifdef WOLFSSL_SESSION_EXPORT
+/* returns negative value on fail and positive (including 0) on success */
+static int nonblocking_accept_read(void* args, WOLFSSL* ssl, SOCKET_T* sockfd)
+{
+    int ret, err, loop_count, count, timeout = 10;
+    char msg[] = "I hear you fa shizzle!";
+    char input[1024];
+
+    loop_count = ((func_args*)args)->argc;
+    do {
+#ifdef WOLFSSL_ASYNC_CRYPT
+        if (err == WC_PENDING_E) {
+            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+            if (ret < 0) { break; } else if (ret == 0) { continue; }
+        }
+#endif
+
+        err = 0; /* Reset error */
+
+        ret = wolfSSL_accept(ssl);
+        if (ret != WOLFSSL_SUCCESS) {
+            err = wolfSSL_get_error(ssl, 0);
+            if (err == WOLFSSL_ERROR_WANT_READ ||
+                    err == WOLFSSL_ERROR_WANT_WRITE) {
+                int select_ret;
+
+                err = WC_PENDING_E;
+                select_ret = tcp_select(*sockfd, timeout);
+                if (select_ret == TEST_TIMEOUT) {
+                    return WOLFSSL_FATAL_ERROR;
+                }
+            }
+        }
+    } while (ret != WOLFSSL_SUCCESS && err == WC_PENDING_E);
+
+    if (ret != WOLFSSL_SUCCESS) {
+        char buff[WOLFSSL_MAX_ERROR_SZ];
+        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buff));
+        return ret;
+    }
+
+    for (count = 0; count < loop_count; count++) {
+        int select_ret;
+
+        select_ret = tcp_select(*sockfd, timeout);
+        if (select_ret == TEST_TIMEOUT) {
+            ret = WOLFSSL_FATAL_ERROR;
+            break;
+        }
+
+        do {
+            ret = wolfSSL_read(ssl, input, sizeof(input)-1);
+            if (ret > 0) {
+                input[ret] = '\0';
+                printf("Client message: %s\n", input);
+            }
+        } while (err == WOLFSSL_ERROR_WANT_READ && ret != WOLFSSL_SUCCESS);
+
+        do {
+            if ((ret = wolfSSL_write(ssl, msg, sizeof(msg))) != sizeof(msg)) {
+                return WOLFSSL_FATAL_ERROR;
+            }
+            err = wolfSSL_get_error(ssl, ret);
+        } while (err == WOLFSSL_ERROR_WANT_READ && ret != WOLFSSL_SUCCESS);
+    }
+    return ret;
+}
+#endif
+
 static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 {
     SOCKET_T sockfd = 0;
@@ -1932,6 +2001,15 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         goto done;
     }
 
+#ifdef WOLFSSL_SESSION_EXPORT
+    /* only add in more complex nonblocking case with session export tests */
+    if (args && ((func_args*)args)->argc > 0) {
+        /* set as nonblock and time out for waiting on read/write */
+        tcp_set_nonblocking(&clientfd);
+        wolfSSL_dtls_set_using_nonblock(ssl, 1);
+    }
+#endif
+
     if (sharedCtx && wolfSSL_use_certificate_file(ssl, svrCertFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
         /*err_sys("can't load server cert chain file, "
@@ -1960,6 +2038,20 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     if (cbf != NULL && cbf->ssl_ready != NULL) {
         cbf->ssl_ready(ssl);
     }
+
+#ifdef WOLFSSL_SESSION_EXPORT
+    /* only add in more complex nonblocking case with session export tests */
+    if (args && ((func_args*)args)->argc > 0) {
+        ret = nonblocking_accept_read(args, ssl, &clientfd);
+        if (ret >= 0) {
+            ((func_args*)args)->return_code = TEST_SUCCESS;
+        }
+    #ifdef WOLFSSL_TIRTOS
+        Task_yield();
+    #endif
+        goto done;
+    }
+#endif
 
     do {
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -3091,8 +3183,17 @@ static void test_wolfSSL_dtls_export(void)
 #endif
 
     {
+        SOCKET_T sockfd = 0;
         WOLFSSL_CTX* ctx;
         WOLFSSL*     ssl;
+        char msg[64] = "hello wolfssl!";
+        char reply[1024];
+        int  msgSz = (int)XSTRLEN(msg);
+        byte *session, *window;
+        unsigned int sessionSz, windowSz;
+        struct sockaddr_in peerAddr;
+        int i;
+
 
         /* Set ctx to DTLS 1.2 */
         AssertNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_server_method()));
@@ -3108,7 +3209,87 @@ static void test_wolfSSL_dtls_export(void)
         AssertIntLT(wolfSSL_dtls_import(ssl, version_3, sizeof(version_3)), 0);
         wolfSSL_free(ssl);
         wolfSSL_CTX_free(ctx);
+
+
+    /* check storing client state after connection and storing window only */
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    InitTcpReady(&ready);
+
+#if defined(USE_WINDOWS_API)
+    /* use RNG to get random port if using windows */
+    ready.port = GetRandomPort();
+#endif
+
+    /* set using dtls */
+    XMEMSET(&server_args, 0, sizeof(func_args));
+    XMEMSET(&server_cbf, 0, sizeof(callback_functions));
+    server_cbf.method = wolfDTLSv1_2_server_method;
+    server_args.callbacks = &server_cbf;
+    server_args.argc = 3; /* set loop_count to 3 */
+
+
+    server_args.signal = &ready;
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+
+    /* create and connect with client */
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfDTLSv1_2_client_method()));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+          wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+            wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
+    tcp_connect(&sockfd, wolfSSLIP, server_args.signal->port, 0, 0, NULL);
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+    AssertIntEQ(wolfSSL_set_fd(ssl, sockfd), WOLFSSL_SUCCESS);
+
+    /* store server information connected too */
+    XMEMSET(&peerAddr, 0, sizeof(peerAddr));
+    peerAddr.sin_family = AF_INET;
+    peerAddr.sin_port = XHTONS(server_args.signal->port);
+    wolfSSL_dtls_set_peer(ssl, &peerAddr, sizeof(peerAddr));
+
+    AssertIntEQ(wolfSSL_connect(ssl), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_dtls_export(ssl, NULL, &sessionSz), 0);
+    session = (byte*)XMALLOC(sessionSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    AssertIntGT(wolfSSL_dtls_export(ssl, session, &sessionSz), 0);
+    AssertIntEQ(wolfSSL_write(ssl, msg, msgSz), msgSz);
+    AssertIntGT(wolfSSL_read(ssl, reply, sizeof(reply)), 0);
+    AssertIntEQ(wolfSSL_dtls_export_state_only(ssl, NULL, &windowSz), 0);
+    window = (byte*)XMALLOC(windowSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    AssertIntGT(wolfSSL_dtls_export_state_only(ssl, window, &windowSz), 0);
+    wolfSSL_free(ssl);
+
+    for (i = 1; i < server_args.argc; i++) {
+        /* restore state */
+        AssertNotNull(ssl = wolfSSL_new(ctx));
+        AssertIntGT(wolfSSL_dtls_import(ssl, session, sessionSz), 0);
+        AssertIntGT(wolfSSL_dtls_import(ssl, window, windowSz), 0);
+        AssertIntEQ(wolfSSL_set_fd(ssl, sockfd), WOLFSSL_SUCCESS);
+        AssertIntEQ(wolfSSL_write(ssl, msg, msgSz), msgSz);
+        AssertIntGE(wolfSSL_read(ssl, reply, sizeof(reply)), 0);
+        AssertIntGT(wolfSSL_dtls_export_state_only(ssl, window, &windowSz), 0);
+        wolfSSL_free(ssl);
     }
+    XFREE(session, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(window, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_CTX_free(ctx);
+
+    printf("done and waiting for server\n");
+    join_thread(serverThread);
+    AssertIntEQ(server_args.return_code, TEST_SUCCESS);
+
+    FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+    }
+
 
     printf(testingFmt, "wolfSSL_dtls_export()");
     printf(resultFmt, passed);
