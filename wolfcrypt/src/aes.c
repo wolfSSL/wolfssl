@@ -3657,6 +3657,41 @@ void AES_GCM_decrypt_avx2(const unsigned char *in, unsigned char *out,
 #endif /* HAVE_AES_DECRYPT */
 
 #else /* _MSC_VER */
+
+#define S(w,z) ((char)((unsigned long long)(w) >> (8*(7-(z))) & 0xFF))
+#define M128_INIT(x,y) { S((x),7), S((x),6), S((x),5), S((x),4), \
+                         S((x),3), S((x),2), S((x),1), S((x),0), \
+                         S((y),7), S((y),6), S((y),5), S((y),4), \
+                         S((y),3), S((y),2), S((y),1), S((y),0) }
+
+static const __m128i MOD2_128 =
+        M128_INIT(0x1, (long long int)0xc200000000000000UL);
+
+
+/* See Intel® Carry-Less Multiplication Instruction
+ * and its Usage for Computing the GCM Mode White Paper
+ * by Shay Gueron, Intel Mobility Group, Israel Development Center;
+ * and Michael E. Kounavis, Intel Labs, Circuits and Systems Research */
+
+
+/* Figure 9. AES-GCM – Encrypt With Single Block Ghash at a Time */
+
+static const __m128i ONE   = M128_INIT(0x0, 0x1);
+#ifndef AES_GCM_AESNI_NO_UNROLL
+static const __m128i TWO   = M128_INIT(0x0, 0x2);
+static const __m128i THREE = M128_INIT(0x0, 0x3);
+static const __m128i FOUR  = M128_INIT(0x0, 0x4);
+static const __m128i FIVE  = M128_INIT(0x0, 0x5);
+static const __m128i SIX   = M128_INIT(0x0, 0x6);
+static const __m128i SEVEN = M128_INIT(0x0, 0x7);
+static const __m128i EIGHT = M128_INIT(0x0, 0x8);
+#endif
+static const __m128i BSWAP_EPI64 =
+        M128_INIT(0x0001020304050607, 0x08090a0b0c0d0e0f);
+static const __m128i BSWAP_MASK =
+        M128_INIT(0x08090a0b0c0d0e0f, 0x0001020304050607);
+
+
 /* The following are for MSC based builds which do not allow
  * inline assembly. Intrinsic functions are used instead. */
 
