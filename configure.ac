@@ -2250,54 +2250,56 @@ AC_ARG_ENABLE([fips],
     [ENABLED_FIPS="no"])
 
 AS_CASE([$ENABLED_FIPS],
-        ["v2"],[FIPS_VERSION="v2"
-            ENABLED_FIPS=yes
-            AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DHAVE_FIPS_VERSION=2 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q"
-            ENABLED_KEYGEN="yes"
-            ENABLED_SHA224="yes"
-            AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
-                  [ENABLED_AESCCM="yes"
-                   AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
-            AS_IF([test "x$ENABLED_RSAPSS" != "xyes"],
-                  [ENABLED_RSAPSS="yes"
-                   AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"])
-            AS_IF([test "x$ENABLED_ECC" != "xyes"],
-                  [ENABLED_ECC="yes"
-                   AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DWOLFSSL_VALIDATE_ECC_IMPORT"
-                   AS_IF([test "x$ENABLED_ECC_SHAMIR" = "xyes"],
-                         [AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"])],
-                  [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"])
-            AS_IF([test "x$ENABLED_AESCTR" != "xyes"],
-                  [ENABLED_AESCTR="yes"
-                   AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER"])
-            AS_IF([test "x$ENABLED_CMAC" != "xyes"],
-                  [ENABLED_CMAC="yes"
-                   AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC"])
-            AS_IF([test "x$ENABLED_HKDF" != "xyes"],
-                  [ENABLED_HKDF="yes"
-                   AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"])
-            AS_IF([test "x$ENABLED_INTELASM" = "xyes"],
-                  [AM_CFLAGS="$AM_CFLAGS -DFORCE_FAILURE_RDSEED"])
-        ],
-        ["rand"],[
-            ENABLED_FIPS="yes"
-            FIPS_VERSION="rand"
-            AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_FIPS_RAND"
-        ],
-        ["no"],[FIPS_VERSION="none"],
-        [
-            ENABLED_FIPS="yes"
-            FIPS_VERSION="v1"
-            AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
-        ])
+    ["v2"],[FIPS_VERSION="v2"
+        ENABLED_FIPS=yes
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DHAVE_FIPS_VERSION=2 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q"
+        ENABLED_KEYGEN="yes"
+        ENABLED_SHA224="yes"
+        AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
+              [ENABLED_AESCCM="yes"
+               AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
+        AS_IF([test "x$ENABLED_RSAPSS" != "xyes"],
+              [ENABLED_RSAPSS="yes"
+               AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"])
+        AS_IF([test "x$ENABLED_ECC" != "xyes"],
+              [ENABLED_ECC="yes"
+               AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DWOLFSSL_VALIDATE_ECC_IMPORT"
+               AS_IF([test "x$ENABLED_ECC_SHAMIR" = "xyes"],
+                     [AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"])],
+              [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"])
+        AS_IF([test "x$ENABLED_AESCTR" != "xyes"],
+              [ENABLED_AESCTR="yes"
+               AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER"])
+        AS_IF([test "x$ENABLED_CMAC" != "xyes"],
+              [ENABLED_CMAC="yes"
+               AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC"])
+        AS_IF([test "x$ENABLED_HKDF" != "xyes"],
+              [ENABLED_HKDF="yes"
+               AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"])
+        AS_IF([test "x$ENABLED_INTELASM" = "xyes"],
+              [AM_CFLAGS="$AM_CFLAGS -DFORCE_FAILURE_RDSEED"])
+    ],
+    ["rand"],[
+        ENABLED_FIPS="yes"
+        FIPS_VERSION="rand"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_FIPS_RAND -DHAVE_FIPS -DHAVE_FIPS_VERSION=2"
+    ],
+    ["no"],[FIPS_VERSION="none"],
+    [
+        ENABLED_FIPS="yes"
+        FIPS_VERSION="v1"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
+    ])
 
-AS_IF([test "x$ENABLED_FIPS" = "xyes"],
+AS_IF([test "x$ENABLED_FIPS" = "xyes" && test "x$thread_ls_on" = "xno"],
+    [AC_MSG_ERROR([FIPS requires Thread Local Storage])])
+
+AS_IF([test "x$ENABLED_FIPS" = "xyes" && test "x$FIPS_VERSION" != "xrand"],
 [
-    # Check prerequisites, force them on or error out.
-    AS_IF([test "x$thread_ls_on" = "xno"],[AC_MSG_ERROR([FIPS requires Thread Local Storage])])
+    # Force enable the prerequisites.
     AS_IF([test "x$ENABLED_SHA512" = "xno"],
         [ENABLED_SHA512="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512 -DWOLFSSL_SHA384"])
-    AS_IF([test "x$ENABLED_AESGCM" != "xyes"],
+    AS_IF([test "x$ENABLED_AESGCM" = "xno"],
         [ENABLED_AESGCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"])
     AS_IF([test "x$ENABLED_DES3" = "xno"],[ENABLED_DES3="yes"])
 ],
@@ -3484,6 +3486,8 @@ AC_ARG_ENABLE([cryptonly],
     [AS_HELP_STRING([--enable-cryptonly],[Enable wolfCrypt Only build (default: disabled)])],
     [ENABLED_CRYPTONLY=$enableval],
     [ENABLED_CRYPTONLY=no])
+
+AS_IF([test "x$FIPS_VERSION" = "xrand"],[ENABLED_CRYPTONLY="yes"])
 
 if test "$ENABLED_CRYPTONLY" = "yes"
 then

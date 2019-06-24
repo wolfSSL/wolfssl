@@ -124,21 +124,23 @@ src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/hmac.c \
                wolfcrypt/src/random.c \
                wolfcrypt/src/sha256.c \
+               wolfcrypt/src/sha256_asm.S \
                wolfcrypt/src/fips.c \
                wolfcrypt/src/fips_test.c \
                wolfcrypt/src/wolfcrypt_last.c
-endif
+endif BUILD_FIPS_RAND
 
-endif
+endif BUILD_FIPS
+
+# For wolfRand, exclude everything else.
+if !BUILD_FIPS_RAND
 
 # For FIPSV2, exclude the wolfCrypt files included above.
 # For wolfRand, exclude just a couple files.
 # For old FIPS, keep the wolfCrypt versions of the
 # CtaoCrypt files included above.
 if !BUILD_FIPS_V2
-if !BUILD_FIPS_RAND
 src_libwolfssl_la_SOURCES += wolfcrypt/src/hmac.c
-endif
 endif
 
 # CAVP self test
@@ -146,27 +148,27 @@ if BUILD_SELFTEST
 src_libwolfssl_la_SOURCES += wolfcrypt/src/selftest.c
 endif
 
+endif !BUILD_FIPS_RAND
+
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/hash.c \
                wolfcrypt/src/cpuid.c
 
-if !BUILD_FIPS_V2
 if !BUILD_FIPS_RAND
+
+if !BUILD_FIPS_V2
 if BUILD_RNG
 src_libwolfssl_la_SOURCES += wolfcrypt/src/random.c
 endif
 endif
-endif
 
 if !BUILD_FIPS_V2
-if !BUILD_FIPS_RAND
 if BUILD_ARMASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha256.c
 else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha256.c
 if BUILD_INTELASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha256_asm.S
-endif
 endif
 endif
 endif
@@ -272,18 +274,25 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/sha3.c
 endif
 endif
 
+endif !BUILD_FIPS_RAND
+
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/logging.c \
                wolfcrypt/src/wc_encrypt.c \
                wolfcrypt/src/wc_port.c \
-               wolfcrypt/src/error.c \
+               wolfcrypt/src/error.c
+
+if !BUILD_FIPS_RAND
+src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/signature.c \
                wolfcrypt/src/wolfmath.c
+endif !BUILD_FIPS_RAND
 
 if BUILD_MEMORY
 src_libwolfssl_la_SOURCES += wolfcrypt/src/memory.c
 endif
 
+if !BUILD_FIPS_RAND
 if !BUILD_FIPS_V2
 if BUILD_DH
 src_libwolfssl_la_SOURCES += wolfcrypt/src/dh.c
@@ -294,9 +303,13 @@ if BUILD_ASN
 src_libwolfssl_la_SOURCES += wolfcrypt/src/asn.c
 endif
 
+endif !BUILD_FIPS_RAND
+
 if BUILD_CODING
 src_libwolfssl_la_SOURCES += wolfcrypt/src/coding.c
 endif
+
+if !BUILD_FIPS_RAND
 
 if BUILD_POLY1305
 src_libwolfssl_la_SOURCES += wolfcrypt/src/poly1305.c
@@ -481,4 +494,6 @@ if BUILD_SNIFFER
 src_libwolfssl_la_SOURCES += src/sniffer.c
 endif
 
-endif # !BUILD_CRYPTONLY
+endif !BUILD_CRYPTONLY
+
+endif !BUILD_FIPS_RAND
