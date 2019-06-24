@@ -1987,7 +1987,6 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
     int ret = 0;
     mp_int* keyP = NULL;
     mp_int* keyG = NULL;
-    mp_int* keyQ = NULL;
 
     if (key == NULL || p == NULL || g == NULL || pSz == 0 || gSz == 0) {
         ret = BAD_FUNC_ARG;
@@ -2052,13 +2051,9 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
     if (ret == 0 && q != NULL) {
         if (mp_read_unsigned_bin(&key->q, q, qSz) != MP_OKAY)
             ret = MP_INIT_E;
-        else
-            keyQ = &key->q;
     }
 
     if (ret != 0 && key != NULL) {
-        if (keyQ)
-            mp_clear(keyQ);
         if (keyG)
             mp_clear(keyG);
         if (keyP)
@@ -2101,7 +2096,8 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
     int     groupSz = 0, bufSz = 0,
             primeCheckCount = 0,
             primeCheck = MP_NO,
-            ret = 0;
+            ret = 0,
+            tmp_valid = 0;
     unsigned char *buf = NULL;
 
     if (rng == NULL || dh == NULL)
@@ -2150,6 +2146,10 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
         if (mp_init_multi(&tmp, &tmp2, &dh->p, &dh->q, &dh->g, 0)
                 != MP_OKAY) {
             ret = MP_INIT_E;
+        }
+        else {
+            /* tmp and tmp2 are initialized */
+            tmp_valid = 1;
         }
     }
 
@@ -2237,8 +2237,11 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
             XFREE(buf, dh->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     }
-    mp_clear(&tmp);
-    mp_clear(&tmp2);
+
+    if (tmp_valid) {
+        mp_clear(&tmp);
+        mp_clear(&tmp2);
+    }
 
     return ret;
 }

@@ -19385,20 +19385,11 @@ static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
     goto _exit;
 
 err_exit:
-    if(newx509 != NULL){
-        if(type == CERT_TYPE)
-            wolfSSL_X509_free((WOLFSSL_X509*)newx509);
-    #ifdef HAVE_CRL
-        else if(type == CRL_TYPE) {
-            wolfSSL_X509_CRL_free((WOLFSSL_X509_CRL*)newx509);
-        }
-    #endif
     #if !defined(NO_ASN) && !defined(NO_PWDBASED)
-        else if(type == PKCS12_TYPE) {
-            wc_PKCS12_free((WC_PKCS12*)newx509);
-        }
-    #endif
+    if((newx509 != NULL) && (type == PKCS12_TYPE)) {
+        wc_PKCS12_free((WC_PKCS12*)newx509);
     }
+    #endif
 _exit:
     if(fileBuffer != NULL)
         XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
