@@ -380,6 +380,7 @@ then
 fi
 
 
+# RNG
 AC_ARG_ENABLE([rng],
     [AS_HELP_STRING([--enable-rng],[Enable compiling and using RNG (default: enabled)])],
     [ ENABLED_RNG=$enableval ],
@@ -418,19 +419,6 @@ AC_ARG_ENABLE([mcast],
     [AS_HELP_STRING([--enable-mcast],[Enable wolfSSL DTLS multicast support (default: disabled)])],
     [ENABLED_MCAST=$enableval],
     [ENABLED_MCAST=no])
-
-
-# RNG
-AC_ARG_ENABLE([rng],
-    [AS_HELP_STRING([--enable-rng],[Enable compiling and using RNG (default: enabled)])],
-    [ ENABLED_RNG=$enableval ],
-    [ ENABLED_RNG=yes ]
-    )
-
-if test "$ENABLED_RNG" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWC_NO_RNG"
-fi
 
 
 # List of open source project defines using our openssl compatibility layer:
