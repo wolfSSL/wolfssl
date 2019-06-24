@@ -25649,15 +25649,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                          *  indistinguishable:
                          *       RSA_BUFFER_E, RSA_PAD_E and RSA_PRIVATE_ERROR
                          */
-                        if (ret < 0 && ret != BAD_FUNC_ARG) {
-                        #ifdef WOLFSSL_ASYNC_CRYPT
-                            if (ret == WC_PENDING_E)
-                                goto exit_dcke;
-                        #endif
-                            /* store error code for handling below */
-                            args->lastErr = ret;
-                            ret = 0;
-                        }
+                    #ifdef WOLFSSL_ASYNC_CRYPT
+                        if (ret == WC_PENDING_E)
+                            goto exit_dcke;
+                    #endif
+                        if (ret == BAD_FUNC_ARG)
+                            goto exit_dcke;
+
+                        args->lastErr = ret - (SECRET_LEN - args->sigSz);
+                        ret = 0;
                         break;
                     } /* rsa_kea */
                 #endif /* !NO_RSA */
@@ -25808,6 +25808,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 #ifndef NO_RSA
                     case rsa_kea:
                     {
+                        byte mask;
+                        int i;
+
                         /* Add the signature length to idx */
                         args->idx += args->length;
 
@@ -25827,15 +25830,22 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                          * indistinguishable from correctly formatted RSA blocks
                          */
 
+                        ret = args->lastErr;
                         args->lastErr = 0; /* reset */
+                        /* On error 'ret' will be negative - top bit set */
+                        mask = (ret >> ((sizeof(ret) * 8) - 1)) - 1;
 
                         /* build PreMasterSecret */
                         ssl->arrays->preMasterSecret[0] = ssl->chVersion.major;
                         ssl->arrays->preMasterSecret[1] = ssl->chVersion.minor;
+
                         if (args->output != NULL) {
-                            XMEMCPY(&ssl->arrays->preMasterSecret[VERSION_SZ],
-                                    &args->output[VERSION_SZ],
-                                    SECRET_LEN - VERSION_SZ);
+                            /* Use random secret on error */
+                            for (i = VERSION_SZ; i < SECRET_LEN; i++) {
+                                ssl->arrays->preMasterSecret[i] =
+                                     ctMaskSel(mask, args->output[i],
+                                               ssl->arrays->preMasterSecret[i]);
+                            }
                         }
                         /* preMasterSecret has RNG and version set
                          * return proper length and ignore error
