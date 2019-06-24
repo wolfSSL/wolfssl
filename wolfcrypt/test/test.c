@@ -7939,8 +7939,12 @@ int aesccm_test(void)
     XMEMSET(p2, 0, sizeof(p2));
     XMEMSET(iv2, 0, sizeof(iv2));
 
+#ifndef HAVE_SELFTEST
+    /* selftest build does not have wc_AesCcmSetNonce() or
+     * wc_AesCcmEncrypt_ex() */
     if (wc_AesCcmSetKey(&enc, k, sizeof(k)) != 0)
         return -8220;
+
     if (wc_AesCcmSetNonce(&enc, iv, sizeof(iv)) != 0)
         return -8221;
     if (wc_AesCcmEncrypt_ex(&enc, c2, p, sizeof(c2), iv2, sizeof(iv2),
@@ -7952,6 +7956,7 @@ int aesccm_test(void)
         return -8224;
     if (XMEMCMP(t, t2, sizeof(t2)))
         return -8225;
+#endif
 
     return 0;
 }
