@@ -3553,11 +3553,20 @@ static int fp_prime_miller_rabin_ex(fp_int * a, fp_int * b, int *result,
   fp_zero(y);
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
                                                      defined(WOLFSSL_HAVE_SP_DH)
+#ifndef WOLFSSL_SP_NO_2048
   if (fp_count_bits(a) == 1024)
       sp_ModExp_1024(b, r, a, y);
   else if (fp_count_bits(a) == 2048)
       sp_ModExp_2048(b, r, a, y);
   else
+#endif
+#ifndef WOLFSSL_SP_NO_3072
+  if (fp_count_bits(a) == 1536)
+      sp_ModExp_1536(b, r, a, y);
+  else if (fp_count_bits(a) == 3072)
+      sp_ModExp_3072(b, r, a, y);
+  else
+#endif
 #endif
       fp_exptmod(b, r, a, y);
 

@@ -4443,11 +4443,20 @@ static int mp_prime_miller_rabin (mp_int * a, mp_int * b, int *result)
     goto LBL_R;
   }
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+#ifndef WOLFSSL_SP_NO_2048
   if (mp_count_bits(a) == 1024)
       err = sp_ModExp_1024(b, &r, a, &y);
   else if (mp_count_bits(a) == 2048)
       err = sp_ModExp_2048(b, &r, a, &y);
   else
+#endif
+#ifndef WOLFSSL_SP_NO_3072
+  if (mp_count_bits(a) == 1536)
+      err = sp_ModExp_1536(b, &r, a, &y);
+  else if (mp_count_bits(a) == 3072)
+      err = sp_ModExp_3072(b, &r, a, &y);
+  else
+#endif
 #endif
       err = mp_exptmod (b, &r, a, &y);
   if (err != MP_OKAY)
