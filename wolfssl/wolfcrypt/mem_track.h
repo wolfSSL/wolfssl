@@ -184,6 +184,7 @@
             header->next = NULL;
             if (ourMemList.tail == NULL)  {
                 ourMemList.head = header;
+                header->prev = NULL;
             }
             else {
                 ourMemList.tail->next = header;

@@ -673,7 +673,6 @@ static void test_for_double_Free(void)
         /* First test freeing SSL, then CTX */
         wolfSSL_free(ssl);
         wolfSSL_CTX_free(ctx);
-        wolfSSL_Cleanup();
 
 #ifndef NO_WOLFSSL_CLIENT
         AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
