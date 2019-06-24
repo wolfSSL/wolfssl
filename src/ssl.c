@@ -16522,21 +16522,31 @@ static const char* wolfssl_ffdhe_name(word16 group)
  */
 const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
 {
+    const char* cName = NULL;
+
     if (ssl == NULL)
         return NULL;
+
 #ifdef HAVE_FFDHE
-    if (ssl->namedGroup != 0)
-        return wolfssl_ffdhe_name(ssl->namedGroup);
+    if (ssl->namedGroup != 0) {
+        cName = wolfssl_ffdhe_name(ssl->namedGroup);
+    }
 #endif
+
+#ifdef HAVE_CURVE25519
+    if (ssl->ecdhCurveOID == ECC_X25519_OID && cName == NULL) {
+        cName = "X25519";
+    }
+#endif
+
 #ifdef HAVE_ECC
-    if (ssl->ecdhCurveOID == 0)
-        return NULL;
-    if (ssl->ecdhCurveOID == ECC_X25519_OID)
-        return "X25519";
-    return wc_ecc_get_name(wc_ecc_get_oid(ssl->ecdhCurveOID, NULL, NULL));
-#else
-    return NULL;
+    if (ssl->ecdhCurveOID != 0 && cName == NULL) {
+        cName = wc_ecc_get_name(wc_ecc_get_oid(ssl->ecdhCurveOID, NULL,
+                                NULL));
+    }
 #endif
+
+    return cName;
 }
 #endif
 
