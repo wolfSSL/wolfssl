@@ -1856,6 +1856,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 
 #ifdef WOLFSSL_SP_MATH
     (void)rng;
+    WOLFSSL_MSG("SP Key Size Error");
     return WC_KEY_SIZE_E;
 #else
     (void)rng;
