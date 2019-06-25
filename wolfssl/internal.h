@@ -3411,14 +3411,14 @@ typedef struct Arrays {
 #define MAX_DATE_SZ 32
 #endif
 
-#define STACK_TYPE_X509    0
-#define STACK_TYPE_NAME    1
-#define STACK_TYPE_BIO     2
-#define STACK_TYPE_OBJ     3
-#define STACK_TYPE_STRING  4
-#define STACK_TYPE_CIPHER  5
+#define STACK_TYPE_X509               0
+#define STACK_TYPE_NAME               1
+#define STACK_TYPE_BIO                2
+#define STACK_TYPE_OBJ                3
+#define STACK_TYPE_STRING             4
+#define STACK_TYPE_CIPHER             5
 #define STACK_TYPE_ACCESS_DESCRIPTION 6
-
+#define STACK_TYPE_X509_EXT           7
 struct WOLFSSL_STACK {
     unsigned long num; /* number of nodes in stack
                         * (safety measure for freeing and shortcut for count) */
@@ -3430,6 +3430,7 @@ struct WOLFSSL_STACK {
         WOLFSSL_CIPHER*        cipher;
         #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         WOLFSSL_ACCESS_DESCRIPTION* access;
+        WOLFSSL_X509_EXTENSION* ext;
         #endif
         char*                  string;
     } data;
@@ -3479,10 +3480,11 @@ struct WOLFSSL_X509 {
     byte             certPolicySet;
     byte             certPolicyCrit;
 #endif /* (WOLFSSL_SEP || WOLFSSL_QT) && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
-#ifdef WOLFSSL_QT
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
     WOLFSSL_ASN1_TIME* notAfterTime;
     WOLFSSL_ASN1_TIME* notBeforeTime;
-#endif
+    WOLFSSL_STACK* ext_sk; /* Store X509_EXTENSIONS from wolfSSL_X509_get_ext */
+#endif /* WOLFSSL_QT || OPENSSL_ALL */
     int              notBeforeSz;
     int              notAfterSz;
     byte             notBefore[MAX_DATE_SZ];

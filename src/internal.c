@@ -3200,6 +3200,9 @@ void FreeX509(WOLFSSL_X509* x509)
         if (x509->notAfterTime != NULL) {
             XFREE(x509->notAfterTime, x509->heap, DYNAMIC_TYPE_OPENSSL);
         }
+        if (x509->ext_sk != NULL) {
+            wolfSSL_sk_X509_EXTENSION_free(x509->ext_sk);
+        }
         #endif /* OPENSSL_ALL || WOLFSSL_QT */
         if (x509->extKeyUsageSrc != NULL) {
             XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
@@ -4553,7 +4556,6 @@ int InitSSL_Suites(WOLFSSL* ssl)
    WOLFSSL_SUCCESS return value on success */
 int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 {
-    WOLFSSL_ENTER("SetSSL_CTX");
     int ret = WOLFSSL_SUCCESS;
     byte newSSL;
 

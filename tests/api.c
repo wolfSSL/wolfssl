@@ -23180,6 +23180,7 @@ static void test_wolfSSL_X509V3_EXT_get(void) {
 
     AssertNotNull(f = fopen("./certs/server-cert.pem", "rb"));
     AssertNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
+    fclose(f);
 
     printf(testingFmt, "wolfSSL_X509V3_EXT_get() return struct and nid test");
     AssertIntEQ((numOfExt = wolfSSL_X509_get_ext_count(x509)), 3);
@@ -23188,7 +23189,6 @@ static void test_wolfSSL_X509V3_EXT_get(void) {
         AssertNotNull(extNid = ext->obj->nid);
         AssertNotNull(method = wolfSSL_X509V3_EXT_get(ext));
         AssertIntEQ(method->ext_nid, extNid);
-        wolfSSL_X509_EXTENSION_free(ext);
     }
     printf(resultFmt, "passed");
 
@@ -23236,7 +23236,6 @@ static void test_wolfSSL_X509V3_EXT_d2i(void) {
     AssertIntEQ(bc->ca, 1);
     AssertNull(bc->pathlen);
     wolfSSL_BASIC_CONSTRAINTS_free(bc);
-    wolfSSL_X509_EXTENSION_free(ext);
     i++;
 
     /* Subject Key Identifier */
@@ -23248,11 +23247,10 @@ static void test_wolfSSL_X509V3_EXT_d2i(void) {
     AssertNotNull(method = wolfSSL_X509V3_EXT_get(ext));
     AssertNotNull(method->i2s);
     AssertNotNull(str = method->i2s((WOLFSSL_v3_ext_method*)method, asn1str));
-    actual = strcmp(str, \
+    actual = strcmp(str,
                  "73:B0:1C:A4:2F:82:CB:CF:47:A5:38:D7:B0:04:82:3A:7E:72:15:21");
     AssertIntEQ(actual, 0);
     XFREE(str, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    wolfSSL_X509_EXTENSION_free(ext);
     i++;
 
     /* Authority Key Identifier */
@@ -23263,14 +23261,13 @@ static void test_wolfSSL_X509V3_EXT_d2i(void) {
     AssertNotNull(aKeyId = wolfSSL_X509V3_EXT_d2i(ext));
     AssertNotNull(method = wolfSSL_X509V3_EXT_get(ext));
     AssertNotNull(asn1str = aKeyId->keyid);
-    AssertNotNull(str = \
+    AssertNotNull(str =
               wolfSSL_i2s_ASN1_STRING((WOLFSSL_v3_ext_method*)method, asn1str));
-    actual = strcmp(str, \
+    actual = strcmp(str,
                  "73:B0:1C:A4:2F:82:CB:CF:47:A5:38:D7:B0:04:82:3A:7E:72:15:21");
     AssertIntEQ(actual, 0);
     XFREE(str, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     wolfSSL_AUTHORITY_KEYID_free(aKeyId);
-    wolfSSL_X509_EXTENSION_free(ext);
     i++;
 
     /* Key Usage */
@@ -23283,7 +23280,6 @@ static void test_wolfSSL_X509V3_EXT_d2i(void) {
     expected = KEYUSE_KEY_CERT_SIGN | KEYUSE_CRL_SIGN;
     actual = data[0];
     AssertIntEQ(actual, expected);
-    wolfSSL_X509_EXTENSION_free(ext);
     i++;
 
     /* Authority Info Access */
@@ -23310,7 +23306,6 @@ static void test_wolfSSL_X509V3_EXT_d2i(void) {
 
     wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(aia, NULL);
     XFREE(ad, NULL, DYNAMIC_TYPE_X509_EXT);
-    wolfSSL_X509_EXTENSION_free(ext);
 
     wolfSSL_X509_free(x509);
     printf(resultFmt, "passed");
@@ -23332,54 +23327,54 @@ static void test_wolfSSL_OBJ_nid2sn(void){
 
     struct testNID testSuite[]={
         /* HAVE_ECC tests */
-        {"NID_X9_62_prime192v1", "SECP192R1", 409},\
-        {"NID_X9_62_prime192v2", "PRIME192V2", 410},\
-        {"NID_X9_62_prime192v3", "PRIME192V3", 411},\
-        {"NID_X9_62_prime239v1", "PRIME239V1", 412},\
-        {"NID_X9_62_prime239v2", "PRIME239V2", 413},\
-        {"NID_X9_62_prime239v3", "PRIME239V3", 414},\
-        {"NID_secp112r1", "SECP112R1", 704},\
-        {"NID_secp112r2", "SECP112R2", 705},\
-        {"NID_secp128r1", "SECP128R1", 706},\
-        {"NID_secp128r2", "SECP128R2", 707},\
-        {"NID_secp160r1", "SECP160R1", 709},\
-        {"NID_secp160r2", "SECP160R2", 710},\
-        {"NID_secp224r1", "SECP224R1", 713},\
-        {"NID_secp384r1", "SECP384R1", 715},\
-        {"NID_secp521r1", "SECP521R1", 716},\
-        {"NID_secp160k1", "SECP160K1", 708},\
-        {"NID_secp192k1", "SECP192K1", 711},\
-        {"NID_secp224k1", "SECP224K1", 712},\
-        {"NID_secp256k1", "SECP256K1", 714},\
-        {"NID_brainpoolP160r1", "BRAINPOOLP160R1", 921},\
-        {"NID_brainpoolP192r1", "BRAINPOOLP192R1", 923},\
-        {"NID_brainpoolP224r1", "BRAINPOOLP224R1", 925},\
-        {"NID_brainpoolP256r1", "BRAINPOOLP256R1", 927},\
-        {"NID_brainpoolP320r1", "BRAINPOOLP320R1", 929},\
-        {"NID_brainpoolP384r1", "BRAINPOOLP384R1", 931},\
-        {"NID_brainpoolP512r1", "BRAINPOOLP512R1", 933},\
+        {"NID_X9_62_prime192v1", "SECP192R1", 409},
+        {"NID_X9_62_prime192v2", "PRIME192V2", 410},
+        {"NID_X9_62_prime192v3", "PRIME192V3", 411},
+        {"NID_X9_62_prime239v1", "PRIME239V1", 412},
+        {"NID_X9_62_prime239v2", "PRIME239V2", 413},
+        {"NID_X9_62_prime239v3", "PRIME239V3", 414},
+        {"NID_secp112r1", "SECP112R1", 704},
+        {"NID_secp112r2", "SECP112R2", 705},
+        {"NID_secp128r1", "SECP128R1", 706},
+        {"NID_secp128r2", "SECP128R2", 707},
+        {"NID_secp160r1", "SECP160R1", 709},
+        {"NID_secp160r2", "SECP160R2", 710},
+        {"NID_secp224r1", "SECP224R1", 713},
+        {"NID_secp384r1", "SECP384R1", 715},
+        {"NID_secp521r1", "SECP521R1", 716},
+        {"NID_secp160k1", "SECP160K1", 708},
+        {"NID_secp192k1", "SECP192K1", 711},
+        {"NID_secp224k1", "SECP224K1", 712},
+        {"NID_secp256k1", "SECP256K1", 714},
+        {"NID_brainpoolP160r1", "BRAINPOOLP160R1", 921},
+        {"NID_brainpoolP192r1", "BRAINPOOLP192R1", 923},
+        {"NID_brainpoolP224r1", "BRAINPOOLP224R1", 925},
+        {"NID_brainpoolP256r1", "BRAINPOOLP256R1", 927},
+        {"NID_brainpoolP320r1", "BRAINPOOLP320R1", 929},
+        {"NID_brainpoolP384r1", "BRAINPOOLP384R1", 931},
+        {"NID_brainpoolP512r1", "BRAINPOOLP512R1", 933},
         /* end of HAVE_ECC tests */
-        {"NID_commonName", "CN", 3},\
-        {"NID_countryName", "C", 6},\
-        {"NID_localityName", "L", 7},\
-        {"NID_stateOrProvinceName", "ST", 8},\
-        {"NID_organizationName", "O", 10},\
-        {"NID_organizationalUnitName", "OU", 11},\
-        {"NID_emailAddress", "emailAddress", 48},\
-        {"NID_basic_constraints", "basicConstraints", 133},\
-        {"NID_subject_key_identifier", "subjectKeyIdentifier", 128},\
-        {"NID_authority_key_identifier", "authorityKeyIdentifier", 149},\
-        {"NID_certificate_policies", "certificatePolicies", 146},\
-        {"NID_key_usage", "keyUsage", 129},\
-        {"NID_info_access", "authorityInfoAccess", 69},\
-        {"NID_crl_distribution_points", "cRLDistributionPoints", 145},\
+        {"NID_commonName", "CN", 3},
+        {"NID_countryName", "C", 6},
+        {"NID_localityName", "L", 7},
+        {"NID_stateOrProvinceName", "ST", 8},
+        {"NID_organizationName", "O", 10},
+        {"NID_organizationalUnitName", "OU", 11},
+        {"NID_emailAddress", "emailAddress", 48},
+        {"NID_basic_constraints", "basicConstraints", 133},
+        {"NID_subject_key_identifier", "subjectKeyIdentifier", 128},
+        {"NID_authority_key_identifier", "authorityKeyIdentifier", 149},
+        {"NID_certificate_policies", "certificatePolicies", 146},
+        {"NID_key_usage", "keyUsage", 129},
+        {"NID_info_access", "authorityInfoAccess", 69},
+        {"NID_crl_distribution_points", "cRLDistributionPoints", 145},
         {"EXT_KEY_USAGE_OID", "extKeyUsage", 151}
     };
 
     printf(testingFmt, "wolfSSL_OBJ_nid2sn");
 
     for (i = 0; i < 41; i++){
-        AssertIntEQ(strcmp(testSuite[i].returnValue, \
+        AssertIntEQ(strcmp(testSuite[i].returnValue,
                     wolfSSL_OBJ_nid2sn(testSuite[i].nid)), 0);
     }
 
@@ -23396,25 +23391,21 @@ static void test_wolfSSL_X509_get_ext(void){
 
     AssertNotNull(f = fopen("./certs/server-cert.pem", "rb"));
     AssertNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
+    fclose(f);
     AssertIntEQ((ret = wolfSSL_X509_get_ext_count(x509)), 3);
 
     printf(testingFmt, "wolfSSL_X509_get_ext() valid input");
     AssertNotNull(foundExtension = wolfSSL_X509_get_ext(x509, 0));
-    wolfSSL_X509_EXTENSION_free(foundExtension);
     printf(resultFmt, "passed");
 
     printf(testingFmt, "wolfSSL_X509_get_ext() valid x509, idx out of bounds");
     AssertNull(foundExtension = wolfSSL_X509_get_ext(x509, -1));
-    wolfSSL_X509_EXTENSION_free(foundExtension);
     AssertNull(foundExtension = wolfSSL_X509_get_ext(x509, 100));
-    wolfSSL_X509_EXTENSION_free(foundExtension);
     printf(resultFmt, "passed");
 
     printf(testingFmt, "wolfSSL_X509_get_ext() NULL x509, idx out of bounds");
     AssertNull(foundExtension = wolfSSL_X509_get_ext(NULL, -1));
-    wolfSSL_X509_EXTENSION_free(foundExtension);
     AssertNull(foundExtension = wolfSSL_X509_get_ext(NULL, 100));
-    wolfSSL_X509_EXTENSION_free(foundExtension);
     printf(resultFmt, "passed");
 
     printf(testingFmt, "wolfSSL_X509_get_ext() NULL x509, valid idx");
@@ -23424,7 +23415,7 @@ static void test_wolfSSL_X509_get_ext(void){
     wolfSSL_X509_free(x509);
 }
 
-static void test_wolfSSL_X509_get_ext_count(){
+static void test_wolfSSL_X509_get_ext_count(void) {
 #if !defined(NO_FILESYSTEM)
     FILE* f;
     WOLFSSL_X509* x509;
@@ -23432,6 +23423,7 @@ static void test_wolfSSL_X509_get_ext_count(){
 
     AssertNotNull(f = fopen("./certs/server-cert.pem", "rb"));
     AssertNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
+    fclose(f);
 
     printf(testingFmt, "wolfSSL_X509_get_ext_count() valid input");
     AssertIntEQ((ret = wolfSSL_X509_get_ext_count(x509)), 3);
@@ -23457,6 +23449,8 @@ static void test_wolfSSL_X509_cmp(void){
 
     AssertNotNull(cert1 = wolfSSL_PEM_read_X509(file1, NULL, NULL, NULL));
     AssertNotNull(cert2 = wolfSSL_PEM_read_X509(file2, NULL, NULL, NULL));
+    fclose(file1);
+    fclose(file2);
 
     printf(testingFmt, "wolfSSL_X509_cmp() testing matching certs");
     ret = wolfSSL_X509_cmp(cert1, cert1);
@@ -23509,6 +23503,7 @@ static void test_wolfSSL_X509_EXTENSION_get_object(void)
 
     AssertNotNull(file = fopen("./certs/server-cert.pem", "rb"));
     AssertNotNull(x509 = wolfSSL_PEM_read_X509(file, NULL, NULL, NULL));
+    fclose(file);
 
     printf(testingFmt, "wolfSSL_X509_EXTENSION_get_object() testing ext idx 0");
     AssertNotNull(ext = wolfSSL_X509_get_ext(x509, 0));
@@ -23521,8 +23516,6 @@ static void test_wolfSSL_X509_EXTENSION_get_object(void)
     AssertNull(o = wolfSSL_X509_EXTENSION_get_object(NULL));
     printf(resultFmt, passed);
 
-    wolfSSL_ASN1_OBJECT_free(o);
-    wolfSSL_X509_EXTENSION_free(ext);
     wolfSSL_X509_free(x509);
 }
 
@@ -23541,13 +23534,14 @@ static void test_wolfSSL_ASN1_STRING_to_UTF8(void){
 
     AssertNotNull(file = fopen("./certs/server-cert.pem", "rb"));
     AssertNotNull(x509 = wolfSSL_PEM_read_X509(file, NULL, NULL, NULL));
+    fclose(file);
 
     printf(testingFmt, "wolfSSL_ASN1_STRING_to_UTF8(): NID_commonName");
     AssertNotNull(subject = wolfSSL_X509_get_subject_name(x509));
     AssertIntEQ((idx = wolfSSL_X509_NAME_get_index_by_NID(subject,
                     NID_commonName, -1)), 5);
     AssertNotNull(e = wolfSSL_X509_NAME_get_entry(subject, idx));
-    AssertNotNull(a =wolfSSL_X509_NAME_ENTRY_get_data(e));
+    AssertNotNull(a = wolfSSL_X509_NAME_ENTRY_get_data(e));
     AssertIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(&actual_output, a)), 15);
     result = strncmp((const char*)actual_output, targetOutput, len);
     AssertIntEQ(result, 0);
@@ -23584,12 +23578,12 @@ static void test_wolfSSL_X509_EXTENSION_get_data(void)
 
     AssertNotNull(file = fopen("./certs/server-cert.pem", "rb"));
     AssertNotNull(x509 = wolfSSL_PEM_read_X509(file, NULL, NULL, NULL));
+    fclose(file);
     AssertNotNull(ext = wolfSSL_X509_get_ext(x509, 0));
 
     AssertNotNull(str = wolfSSL_X509_EXTENSION_get_data(ext));
     printf(resultFmt, passed);
 
-    wolfSSL_X509_EXTENSION_free(ext);
     wolfSSL_X509_free(x509);
 }
 
@@ -23604,13 +23598,13 @@ static void test_wolfSSL_X509_EXTENSION_get_critical(void)
 
     AssertNotNull(file = fopen("./certs/server-cert.pem", "rb"));
     AssertNotNull(x509 = wolfSSL_PEM_read_X509(file, NULL, NULL, NULL));
+    fclose(file);
     AssertNotNull(ext = wolfSSL_X509_get_ext(x509, 0));
 
     crit = wolfSSL_X509_EXTENSION_get_critical(ext);
     AssertIntEQ(crit, 0);
     printf(resultFmt, passed);
 
-    wolfSSL_X509_EXTENSION_free(ext);
     wolfSSL_X509_free(x509);
 }
 
@@ -23654,10 +23648,9 @@ static void test_wolfSSL_sk_CIPHER_description(void)
     numCiphers = sk_num(supportedCiphers);
     for (i = 0; i < numCiphers; ++i) {
 
-        /* sk_value increments "sk->data.cipher->cipherOffset" and then
-         * calls wolfSSL_sk_CIPHER_description which sets the description for
-         * the cipher based on the provided offset. 
-         * SSL_CIPHER_description returns the cipher description
+        /* sk_value increments "sk->data.cipher->cipherOffset".
+         * wolfSSL_sk_CIPHER_description sets the description for
+         * the cipher based on the provided offset.
          */
 
         if ((cipher = sk_value(supportedCiphers, i))) {
