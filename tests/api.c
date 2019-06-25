@@ -17288,6 +17288,7 @@ static void test_PKCS7_signed_enveloped(void)
     AssertIntEQ(wc_PKCS7_SetSignerIdentifierType(pkcs7, DEGENERATE_SID), 0);
     AssertIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, sigSz)), 0);
     wc_FreeRng(&rng);
+    wc_PKCS7_Free(pkcs7);
 
     /* check verify */
     AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
