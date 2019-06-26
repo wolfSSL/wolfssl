@@ -134,6 +134,7 @@ EXTRA_DIST+= wolfssl-ntru.sln
 EXTRA_DIST+= wolfssl.sln
 EXTRA_DIST+= wolfssl64.sln
 EXTRA_DIST+= valgrind-error.sh
+EXTRA_DIST+= fips-hash.sh
 EXTRA_DIST+= gencertbuf.pl
 EXTRA_DIST+= README.md
 EXTRA_DIST+= README
