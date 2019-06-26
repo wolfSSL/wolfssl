@@ -18718,6 +18718,122 @@ static int curve25519_overflow_test(void)
 
     return 0;
 }
+
+/* Test the wc_curve25519_check_public API.
+ *
+ * returns 0 on success and -ve on failure.
+ */
+static int curve25519_check_public_test(void)
+{
+    /* Little-endian values that will fail */
+    byte fail_le[][CURVE25519_KEYSIZE] = {
+        {
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+        },
+        {
+            0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+        },
+        {
+            0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x81
+        },
+    };
+    /* Big-endian values that will fail */
+    byte fail_be[][CURVE25519_KEYSIZE] = {
+        {
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+        },
+        {
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01
+        },
+        {
+            0x81,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01
+        },
+    };
+    /* Good or valid public value */
+    byte good[CURVE25519_KEYSIZE] = {
+        0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01
+    };
+    int i;
+
+    /* Parameter checks */
+    /* NULL pointer */
+    if (wc_curve25519_check_public(NULL, 0, EC25519_LITTLE_ENDIAN) !=
+                                                                 BAD_FUNC_ARG) {
+        return -10300;
+    }
+    if (wc_curve25519_check_public(NULL, 0, EC25519_BIG_ENDIAN) !=
+                                                                 BAD_FUNC_ARG) {
+        return -10301;
+    }
+    /* Length of 0 treated differntly to other invalid lengths for TLS */
+    if (wc_curve25519_check_public(good, 0, EC25519_LITTLE_ENDIAN) != BUFFER_E)
+        return -10302;
+    if (wc_curve25519_check_public(good, 0, EC25519_BIG_ENDIAN) != BUFFER_E)
+        return -10303;
+
+    /* Length not CURVE25519_KEYSIZE */
+    for (i = 1; i < CURVE25519_KEYSIZE + 2; i++) {
+        if (i == CURVE25519_KEYSIZE)
+            continue;
+        if (wc_curve25519_check_public(good, i, EC25519_LITTLE_ENDIAN) !=
+                                                                ECC_BAD_ARG_E) {
+            return -10310 - i;
+        }
+        if (wc_curve25519_check_public(good, i, EC25519_BIG_ENDIAN) !=
+                                                                ECC_BAD_ARG_E) {
+            return -10350 - i;
+        }
+    }
+
+    /* Little-endian fail cases */
+    for (i = 0; i < (int)(sizeof(fail_le) / sizeof(fail_le)); i++) {
+        if (wc_curve25519_check_public(fail_le[i], CURVE25519_KEYSIZE,
+                                                  EC25519_LITTLE_ENDIAN) == 0) {
+            return -10390 - i;
+        }
+    }
+    /* Big-endian fail cases */
+    for (i = 0; i < (int)(sizeof(fail_be) / sizeof(fail_be)); i++) {
+        if (wc_curve25519_check_public(fail_be[i], CURVE25519_KEYSIZE,
+                                                     EC25519_BIG_ENDIAN) == 0) {
+            return -10394 - i;
+        }
+    }
+
+    /* Check a valid public value works! */
+    if (wc_curve25519_check_public(good, CURVE25519_KEYSIZE,
+                                                  EC25519_LITTLE_ENDIAN) != 0) {
+        return -10398;
+    }
+    if (wc_curve25519_check_public(good, CURVE25519_KEYSIZE,
+                                                     EC25519_BIG_ENDIAN) != 0) {
+        return -10399;
+    }
+
+    return 0;
+}
+
 #endif /* HAVE_CURVE25519_SHARED_SECRET && HAVE_CURVE25519_KEY_IMPORT */
 
 int curve25519_test(void)
@@ -18893,6 +19009,9 @@ int curve25519_test(void)
         return -8822;
 
     ret = curve25519_overflow_test();
+    if (ret != 0)
+        return ret;
+    ret = curve25519_check_public_test();
     if (ret != 0)
         return ret;
 #endif /* HAVE_CURVE25519_SHARED_SECRET && HAVE_CURVE25519_KEY_IMPORT */

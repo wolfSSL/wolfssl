@@ -128,6 +128,8 @@ int wc_curve25519_import_public(const byte* in, word32 inLen,
 WOLFSSL_API
 int wc_curve25519_import_public_ex(const byte* in, word32 inLen,
                                    curve25519_key* key, int endian);
+WOLFSSL_API
+int wc_curve25519_check_public(const byte* pub, word32 pubSz, int endian);
 
 WOLFSSL_API
 int wc_curve25519_export_public(curve25519_key* key, byte* out, word32* outLen);
