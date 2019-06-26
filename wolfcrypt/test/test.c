@@ -12830,6 +12830,71 @@ exit_gen_test:
     return ret;
 }
 
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+typedef struct dh_pubvalue_test {
+    const byte* data;
+    word32 len;
+} dh_pubvalue_test;
+
+static int dh_test_check_pubvalue(void)
+{
+    int ret;
+    word32 i;
+    const byte prime[] = {0x01, 0x00, 0x01};
+    const byte pubValZero[] = { 0x00 };
+    const byte pubValZeroLong[] = { 0x00, 0x00, 0x00 };
+    const byte pubValOne[] = { 0x01 };
+    const byte pubValOneLong[] = { 0x00, 0x00, 0x01 };
+    const byte pubValPrimeMinusOne[] = { 0x01, 0x00, 0x00 };
+    const byte pubValPrimeLong[] = {0x00, 0x01, 0x00, 0x01};
+    const byte pubValPrimePlusOne[] = { 0x01, 0x00, 0x02 };
+    const byte pubValTooBig0[] = { 0x02, 0x00, 0x01 };
+    const byte pubValTooBig1[] = { 0x01, 0x01, 0x01 };
+    const byte pubValTooLong[] = { 0x01, 0x00, 0x00, 0x01 };
+    const dh_pubvalue_test dh_pubval_fail[] = {
+        { prime, sizeof(prime) },
+        { pubValZero, sizeof(pubValZero) },
+        { pubValZeroLong, sizeof(pubValZeroLong) },
+        { pubValOne, sizeof(pubValOne) },
+        { pubValOneLong, sizeof(pubValOneLong) },
+        { pubValPrimeMinusOne, sizeof(pubValPrimeMinusOne) },
+        { pubValPrimeLong, sizeof(pubValPrimeLong) },
+        { pubValPrimePlusOne, sizeof(pubValPrimePlusOne) },
+        { pubValTooBig0, sizeof(pubValTooBig0) },
+        { pubValTooBig1, sizeof(pubValTooBig1) },
+        { pubValTooLong, sizeof(pubValTooLong) },
+    };
+    const byte pubValTwo[] = { 0x02 };
+    const byte pubValTwoLong[] = { 0x00, 0x00, 0x02 };
+    const byte pubValGood[] = { 0x12, 0x34 };
+    const byte pubValGoodLen[] = { 0x00, 0x12, 0x34 };
+    const byte pubValGoodLong[] = { 0x00, 0x00, 0x12, 0x34 };
+    const dh_pubvalue_test dh_pubval_pass[] = {
+        { pubValTwo, sizeof(pubValTwo) },
+        { pubValTwoLong, sizeof(pubValTwoLong) },
+        { pubValGood, sizeof(pubValGood) },
+        { pubValGoodLen, sizeof(pubValGoodLen) },
+        { pubValGoodLong, sizeof(pubValGoodLong) },
+    };
+
+    for (i = 0; i < sizeof(dh_pubval_fail) / sizeof(*dh_pubval_fail); i++) {
+        ret = wc_DhCheckPubValue(prime, sizeof(prime), dh_pubval_fail[i].data,
+                                                         dh_pubval_fail[i].len);
+        if (ret != MP_VAL)
+            return -7150 - i;
+    }
+
+    for (i = 0; i < sizeof(dh_pubval_pass) / sizeof(*dh_pubval_pass); i++) {
+        ret = wc_DhCheckPubValue(prime, sizeof(prime), dh_pubval_pass[i].data,
+                                                         dh_pubval_pass[i].len);
+        if (ret != 0)
+            return -7160 - i;
+    }
+
+    return 0;
+}
+#endif
+
 int dh_test(void)
 {
     int    ret;
@@ -12977,6 +13042,10 @@ int dh_test(void)
     ret = dh_generate_test(&rng);
     if (ret == 0)
         ret = dh_fips_generate_test(&rng);
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (ret == 0)
+        ret = dh_test_check_pubvalue();
+#endif
 
 
     wc_FreeDhKey(&key);
