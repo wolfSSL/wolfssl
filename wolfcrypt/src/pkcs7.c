@@ -6059,8 +6059,11 @@ static int wc_PKCS7_GenerateBlock(PKCS7* pkcs7, WC_RNG* rng, byte* out,
  * IssuerAndSerialNumber unless set with this function or explicitly
  * overriden via options when adding RecipientInfo type.
  *
+ * Using the type DEGENERATE_SID skips over signer information. In degenerate
+ * cases there are no signers.
+ *
  * pkcs7 - pointer to initialized PKCS7 structure
- * type  - either CMS_ISSUER_AND_SERIAL_NUMBER or CMS_SKID
+ * type  - either CMS_ISSUER_AND_SERIAL_NUMBER, CMS_SKID or DEGENERATE_SID
  *
  * return 0 on success, negative upon error */
 int wc_PKCS7_SetSignerIdentifierType(PKCS7* pkcs7, int type)
