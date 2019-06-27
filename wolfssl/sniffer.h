@@ -179,7 +179,12 @@ WOLFSSL_API
 SSL_SNIFFER_API int ssl_SetWatchKeyCtx(void* ctx, char* error);
 
 WOLFSSL_API
-SSL_SNIFFER_API int ssl_SetWatchKey(void* vSniffer,
+SSL_SNIFFER_API int ssl_SetWatchKey_buffer(void* vSniffer,
+                        const unsigned char* key, unsigned int keySz,
+                        int keyType, char* error);
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_SetWatchKey_file(void* vSniffer,
                         const char* keyFile, int keyType,
                         const char* password, char* error);
 

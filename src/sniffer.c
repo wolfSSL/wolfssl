@@ -4148,10 +4148,39 @@ int ssl_SetWatchKeyCtx(void* ctx, char* error)
 }
 
 
-int ssl_SetWatchKey(void* vSniffer, const char* keyFile, int keyType,
-        const char* password, char* error)
+int ssl_SetWatchKey_buffer(void* vSniffer, const byte* key, word32 keySz,
+        int keyType, char* error)
 {
     SnifferSession* sniffer;
+    int ret;
+
+    if (vSniffer == NULL) {
+        return -1;
+    }
+    if (key == NULL || keySz == 0) {
+        return -1;
+    }
+
+    sniffer = (SnifferSession*)vSniffer;
+    /* Remap the keyType from what the user can use to
+     * what wolfSSL_use_PrivateKey_buffer expects. */
+    keyType = (keyType == FILETYPE_PEM) ? WOLFSSL_FILETYPE_PEM :
+                                          WOLFSSL_FILETYPE_ASN1;
+
+    ret = wolfSSL_use_PrivateKey_buffer(sniffer->sslServer,
+            key, keySz, keyType);
+    if (ret != WOLFSSL_SUCCESS) {
+        SetError(KEY_FILE_STR, error, sniffer, FATAL_ERROR_STATE);
+        return -1;
+    }
+
+    return 0;
+}
+
+
+int ssl_SetWatchKey_file(void* vSniffer, const char* keyFile, int keyType,
+        const char* password, char* error)
+{
     byte* keyBuf = NULL;
     word32 keyBufSz = 0;
     int ret;
@@ -4163,7 +4192,6 @@ int ssl_SetWatchKey(void* vSniffer, const char* keyFile, int keyType,
         return -1;
     }
 
-    sniffer = (SnifferSession*)vSniffer;
     /* Remap the keyType from what the user can use to
      * what LoadKeyFile expects. */
     keyType = (keyType == FILETYPE_PEM) ? WOLFSSL_FILETYPE_PEM :
@@ -4176,15 +4204,11 @@ int ssl_SetWatchKey(void* vSniffer, const char* keyFile, int keyType,
         return -1;
     }
 
-    ret = wolfSSL_use_PrivateKey_buffer(sniffer->sslServer,
-            keyBuf, keyBufSz, WOLFSSL_FILETYPE_ASN1);
-    if (ret != WOLFSSL_SUCCESS) {
-        SetError(KEY_FILE_STR, error, sniffer, FATAL_ERROR_STATE);
-        free(keyBuf);
-        return -1;
-    }
+    ret = ssl_SetWatchKey_buffer(vSniffer, keyBuf, keyBufSz, FILETYPE_DER,
+            error);
+    free(keyBuf);
 
-    return 0;
+    return ret;
 }
 
 #endif /* WOLFSSL_SNIFFER_WATCH */

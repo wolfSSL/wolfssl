@@ -208,7 +208,7 @@ static int myWatchCb(void* vSniffer,
     if (certName == NULL)
         return -1;
 
-    return ssl_SetWatchKey(vSniffer, certName, FILETYPE_PEM, NULL, error);
+    return ssl_SetWatchKey_file(vSniffer, certName, FILETYPE_PEM, NULL, error);
 }
 
 #endif
