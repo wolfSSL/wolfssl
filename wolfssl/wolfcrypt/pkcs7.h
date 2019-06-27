@@ -167,6 +167,7 @@ enum Cms_Options {
     CMS_SKID = 1,
     CMS_ISSUER_AND_SERIAL_NUMBER = 2,
 };
+#define DEGENERATE_SID 3
 
 /* CMS/PKCS#7 RecipientInfo types, RFC 5652, Section 6.2 */
 enum Pkcs7_RecipientInfo_Types {
