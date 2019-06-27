@@ -22508,6 +22508,7 @@ static int wolfSSL_RAND_Init(void)
         }
         initGlobalRNG = 1;
     }
+    //wolfSSL_RandMutexUnLock();
 
     return SSL_SUCCESS;
 }
@@ -22842,17 +22843,45 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
 {
     WOLFSSL_ENTER("wolfSSL_RAND_bytes");
 
-    if (initGlobalRNG == 0)
-        if(wolfSSL_RAND_Init() != WOLFSSL_SUCCESS){
-            WOLFSSL_MSG("Error: wolfSSL_RAND_Init");
-            return WOLFSSL_FAILURE;
-        }
+    int     ret = 0;
+    int     initTmpRng = 0;
+    WC_RNG* rng = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    WC_RNG* tmpRNG = NULL;
+#else
+    WC_RNG  tmpRNG[1];
+#endif
 
-    if (wc_RNG_GenerateBlock(&globalRNG, buf, num) != 0){
-        WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");
-        return  WOLFSSL_FAILURE;
-    } else
-        return WOLFSSL_SUCCESS;
+    WOLFSSL_ENTER("wolfSSL_RAND_bytes");
+
+#ifdef WOLFSSL_SMALL_STACK
+    tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+    if (tmpRNG == NULL)
+        return ret;
+#endif
+
+    if (wc_InitRng(tmpRNG) == 0) {
+        rng = tmpRNG;
+        initTmpRng = 1;
+    }
+    else if (initGlobalRNG)
+        rng = &globalRNG;
+
+    if (rng) {
+        if (wc_RNG_GenerateBlock(rng, buf, num) != 0)
+            WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");
+        else
+            ret = WOLFSSL_SUCCESS;
+    }
+
+    if (initTmpRng)
+        wc_FreeRng(tmpRNG);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
+#endif
+
+    return ret;
 }
 
 
