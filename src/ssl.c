@@ -22508,7 +22508,6 @@ static int wolfSSL_RAND_Init(void)
         }
         initGlobalRNG = 1;
     }
-    //wolfSSL_RandMutexUnLock();
 
     return SSL_SUCCESS;
 }
@@ -22860,13 +22859,13 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
         return ret;
 #endif
 
-    if (wc_InitRng(tmpRNG) == 0) {
+    if (initGlobalRNG)
+        rng = &globalRNG;
+    else if(wc_InitRng(tmpRNG) == 0) {
         rng = tmpRNG;
         initTmpRng = 1;
     }
-    else if (initGlobalRNG)
-        rng = &globalRNG;
-
+ 
     if (rng) {
         if (wc_RNG_GenerateBlock(rng, buf, num) != 0)
             WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");
