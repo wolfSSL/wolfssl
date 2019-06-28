@@ -1638,7 +1638,7 @@ WOLFSSL_LOCAL int  DoServerHello(WOLFSSL* ssl, const byte* input, word32*,
                                  word32);
 WOLFSSL_LOCAL int  CompleteServerHello(WOLFSSL *ssl);
 WOLFSSL_LOCAL int  CheckVersion(WOLFSSL *ssl, ProtocolVersion pv);
-WOLFSSL_LOCAL void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
+WOLFSSL_LOCAL int  PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
                                    word32 hashSigAlgoSz);
 WOLFSSL_LOCAL int  DecodePrivateKey(WOLFSSL *ssl, word16* length);
 #ifdef HAVE_PK_CALLBACKS
@@ -2822,7 +2822,20 @@ enum SignatureAlgorithm {
     dsa_sa_algo       = 2,
     ecc_dsa_sa_algo   = 3,
     rsa_pss_sa_algo   = 8,
-    ed25519_sa_algo   = 9
+    ed25519_sa_algo   = 9,
+    rsa_pss_pss_algo  = 10
+};
+
+#define PSS_RSAE_TO_PSS_PSS(macAlgo) \
+    (macAlgo + (pss_sha256 - sha256_mac))
+
+#define PSS_PSS_HASH_TO_MAC(macAlgo) \
+    (macAlgo - (pss_sha256 - sha256_mac))
+
+enum SigAlgRsaPss {
+    pss_sha256  = 0x09,
+    pss_sha384  = 0x0a,
+    pss_sha512  = 0x0b,
 };
 
 

@@ -1882,6 +1882,13 @@ static WC_INLINE void AddSuiteHashSigAlgo(Suites* suites, byte macAlgo, byte sig
             *inOutIdx += 1;
             suites->hashSigAlgo[*inOutIdx] = macAlgo;
             *inOutIdx += 1;
+#ifdef WOLFSSL_TLS13
+            /* Add the certificate algorithm as well */
+            suites->hashSigAlgo[*inOutIdx] = sigAlgo;
+            *inOutIdx += 1;
+            suites->hashSigAlgo[*inOutIdx] = PSS_RSAE_TO_PSS_PSS(macAlgo);
+            *inOutIdx += 1;
+#endif
         }
         else {
             suites->hashSigAlgo[*inOutIdx] = macAlgo;
@@ -2868,13 +2875,6 @@ static WC_INLINE void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsTy
 {
     switch (input[0]) {
         case NEW_SA_MAJOR:
-    #ifdef WC_RSA_PSS
-            /* PSS signatures: 0x080[4-6] */
-            if (input[1] <= sha512_mac) {
-                *hsType   = input[0];
-                *hashAlgo = input[1];
-            }
-    #endif
     #ifdef HAVE_ED25519
             /* ED25519: 0x0807 */
             if (input[1] == ED25519_SA_MINOR) {
@@ -2882,8 +2882,21 @@ static WC_INLINE void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsTy
                 /* Hash performed as part of sign/verify operation. */
                 *hashAlgo = sha512_mac;
             }
+            else
+    #endif
+    #ifdef WC_RSA_PSS
+            /* PSS PSS signatures: 0x080[9-b] */
+            if (input[1] >= pss_sha256 && input[1] <= pss_sha512) {
+                *hsType   = rsa_pss_pss_algo;
+                *hashAlgo = PSS_PSS_HASH_TO_MAC(input[1]);
+            }
+            else
     #endif
             /* ED448: 0x0808 */
+            {
+                *hsType   = input[0];
+                *hashAlgo = input[1];
+            }
             break;
         default:
             *hashAlgo = input[0];
@@ -16742,10 +16755,10 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
 
 
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS)
-void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
-                     word32 hashSigAlgoSz)
+int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
 {
     word32 i;
+    int ret = MATCH_SUITE_ERROR;
 
     ssl->suites->sigAlgo = ssl->specs.sig_algo;
 
@@ -16769,6 +16782,9 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
     }
 #endif
 
+    if (hashSigAlgoSz == 0)
+        return 0;
+
     /* i+1 since peek a byte ahead for type */
     for (i = 0; (i+1) < hashSigAlgoSz; i += HELLO_EXT_SIGALGO_SZ) {
         byte hashAlgo = 0, sigAlgo = 0;
@@ -16782,6 +16798,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
                                       ssl->suites->sigAlgo == ecc_dsa_sa_algo) {
             ssl->suites->sigAlgo = sigAlgo;
             ssl->suites->hashAlgo = sha512_mac;
+            ret = 0;
             break;
         }
     #endif
@@ -16801,7 +16818,8 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
             if (digestSz == ssl->eccTempKeySz) {
                 ssl->suites->hashAlgo = hashAlgo;
                 ssl->suites->sigAlgo = sigAlgo;
-                return; /* done selected sig/hash algorithms */
+                ret = 0;
+                break; /* done selected sig/hash algorithms */
             }
             /* not strong enough, so keep checking hashSigAlso list */
             if (digestSz < ssl->eccTempKeySz)
@@ -16810,6 +16828,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
             /* mark as highest and check remainder of hashSigAlgo list */
             ssl->suites->hashAlgo = hashAlgo;
             ssl->suites->sigAlgo = sigAlgo;
+            ret = 0;
         }
         else
     #endif
@@ -16828,8 +16847,10 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
                 case sha512_mac:
             #endif
                     /* not strong enough, so keep checking hashSigAlso list */
-                    if (hashAlgo < ssl->suites->hashAlgo)
+                    if (hashAlgo < ssl->suites->hashAlgo) {
+                        ret = 0;
                         continue;
+                    }
                     /* mark as highest and check remainder of hashSigAlgo list */
                     ssl->suites->hashAlgo = hashAlgo;
                     ssl->suites->sigAlgo = sigAlgo;
@@ -16837,12 +16858,16 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
                 default:
                     continue;
             }
+            ret = 0;
             break;
         }
-        else if (ssl->specs.sig_algo == 0) {
+        else if (ssl->specs.sig_algo == 0 && !IsAtLeastTLSv1_3(ssl->version)) {
             ssl->suites->hashAlgo = ssl->specs.mac_algorithm;
+            ret = 0;
         }
     }
+
+    return ret;
 }
 #endif /* !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS) */
 
@@ -18056,7 +18081,7 @@ exit_dpk:
             if ((*inOutIdx - begin) + len > size)
                 return BUFFER_ERROR;
 
-            PickHashSigAlgo(ssl, input + *inOutIdx, len);
+            (void)PickHashSigAlgo(ssl, input + *inOutIdx, len);
             *inOutIdx += len;
     #ifdef WC_RSA_PSS
             ssl->pssAlgo = 0;
@@ -23250,9 +23275,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 ssl->options.cipherSuite0 = ssl->suites->suites[i];
                 ssl->options.cipherSuite  = ssl->suites->suites[i+1];
                 result = SetCipherSpecs(ssl);
-                if (result == 0)
-                    PickHashSigAlgo(ssl, peerSuites->hashSigAlgo,
-                                    peerSuites->hashSigAlgoSz);
+                if (result == 0) {
+                    result = PickHashSigAlgo(ssl, peerSuites->hashSigAlgo,
+                                                     peerSuites->hashSigAlgoSz);
+                }
                 return result;
             }
             else {

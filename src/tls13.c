@@ -3233,7 +3233,7 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     *inOutIdx += OPAQUE16_LEN;
     if ((*inOutIdx - begin) + len > size)
         return BUFFER_ERROR;
-    PickHashSigAlgo(ssl, input + *inOutIdx, len);
+    (void)PickHashSigAlgo(ssl, input + *inOutIdx, len);
     *inOutIdx += len;
 
     /* Length of certificate authority data. */
@@ -3288,7 +3288,8 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     }
     *inOutIdx += len;
 
-    PickHashSigAlgo(ssl, peerSuites.hashSigAlgo, peerSuites.hashSigAlgoSz);
+    (void)PickHashSigAlgo(ssl, peerSuites.hashSigAlgo,
+                                                      peerSuites.hashSigAlgoSz);
 #endif
 
     if (ssl->buffers.certificate && ssl->buffers.certificate->buffer &&
