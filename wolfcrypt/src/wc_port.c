@@ -130,14 +130,6 @@ int wolfCrypt_Init(void)
         }
     #endif
 
-    #ifdef OPENSSL_EXTRA
-        ret = wolfSSL_RAND_seed("", 0);
-        if (ret != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("wolfSSL_RAND_Seed failed");
-            return ret;
-        }
-    #endif
-
     /* if defined have fast RSA then initialize Intel IPP */
     #ifdef HAVE_FAST_RSA
         WOLFSSL_MSG("Attempting to use optimized IPP Library");

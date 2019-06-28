@@ -4463,6 +4463,14 @@ int wolfSSL_Init(void)
             WOLFSSL_MSG("Bad wolfCrypt Init");
             return WC_INIT_E;
         }
+
+#ifdef OPENSSL_EXTRA
+        if (wolfSSL_RAND_seed("", 0) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_RAND_Seed failed");
+            return WC_INIT_E;
+        }
+#endif
+
 #ifndef NO_SESSION_CACHE
         if (wc_InitMutex(&session_mutex) != 0) {
             WOLFSSL_MSG("Bad Init Mutex session");
