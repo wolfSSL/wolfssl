@@ -1530,6 +1530,9 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
     ato16(input, &size);
     offset += OPAQUE16_LEN;
 
+    if (size == 0)
+        return BUFFER_ERROR;
+
     extension = TLSX_Find(ssl->extensions, TLSX_APPLICATION_LAYER_PROTOCOL);
     if (extension == NULL)
         extension = TLSX_Find(ssl->ctx->extensions,
@@ -1579,7 +1582,7 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
     for (size = 0; offset < length; offset += size) {
 
         size = input[offset++];
-        if (offset + size > length)
+        if (offset + size > length || size == 0)
             return BUFFER_ERROR;
 
         if (isRequest) {
@@ -1898,6 +1901,10 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
     word16 size = 0;
     word16 offset = 0;
     int cacheOnly = 0;
+    SNI *sni = NULL;
+    byte type;
+    int matchStat;
+    byte matched;
 #endif
 
     TLSX *extension = TLSX_Find(ssl->extensions, TLSX_SERVER_NAME);
@@ -1951,73 +1958,64 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
     offset += OPAQUE16_LEN;
 
     /* validating sni list length */
-    if (length != OPAQUE16_LEN + size)
+    if (length != OPAQUE16_LEN + size || size == 0)
         return BUFFER_ERROR;
 
-    for (size = 0; offset < length; offset += size) {
-        SNI *sni = NULL;
-        byte type = input[offset++];
+    /* SNI was badly specified and only one type is now recognized and allowed.
+     * Only one SNI value per type (RFC6066), so, no loop. */
+    type = input[offset++];
+    if (type != WOLFSSL_SNI_HOST_NAME)
+        return BUFFER_ERROR;
 
-        if (offset + OPAQUE16_LEN > length)
-            return BUFFER_ERROR;
+    if (offset + OPAQUE16_LEN > length)
+        return BUFFER_ERROR;
+    ato16(input + offset, &size);
+    offset += OPAQUE16_LEN;
 
-        ato16(input + offset, &size);
-        offset += OPAQUE16_LEN;
+    if (offset + size != length || size == 0)
+        return BUFFER_ERROR;
 
-        if (offset + size > length)
-            return BUFFER_ERROR;
-
-        if (!cacheOnly && !(sni = TLSX_SNI_Find((SNI*)extension->data, type)))
-            continue; /* not using this type of SNI. */
-
-        switch(type) {
-            case WOLFSSL_SNI_HOST_NAME: {
-                int matchStat;
-                byte matched;
+    if (!cacheOnly && !(sni = TLSX_SNI_Find((SNI*)extension->data, type)))
+        return 0; /* not using this type of SNI. */
 
 #ifdef WOLFSSL_TLS13
-                /* Don't process the second ClientHello SNI extension if there
-                 * was problems with the first.
-                 */
-                if (!cacheOnly && sni->status != 0)
-                    break;
+    /* Don't process the second ClientHello SNI extension if there
+     * was problems with the first.
+     */
+    if (!cacheOnly && sni->status != 0)
+        return 0;
 #endif
-                matched = cacheOnly ||
-                    ((XSTRLEN(sni->data.host_name) == size) &&
-                    (XSTRNCMP(sni->data.host_name,
-                                      (const char*)input + offset, size) == 0));
+    matched = cacheOnly || (XSTRLEN(sni->data.host_name) == size &&
+         XSTRNCMP(sni->data.host_name, (const char*)input + offset, size) == 0);
 
-                if (matched || sni->options & WOLFSSL_SNI_ANSWER_ON_MISMATCH) {
-                    int r = TLSX_UseSNI(&ssl->extensions,
-                                         type, input + offset, size, ssl->heap);
+    if (matched || sni->options & WOLFSSL_SNI_ANSWER_ON_MISMATCH) {
+        int r = TLSX_UseSNI(&ssl->extensions, type, input + offset, size,
+                                                                     ssl->heap);
+        if (r != WOLFSSL_SUCCESS)
+            return r; /* throws error. */
 
-                    if (r != WOLFSSL_SUCCESS)
-                        return r; /* throws error. */
-
-                    if(cacheOnly) {
-                        WOLFSSL_MSG("Forcing storage of SNI, Fake match");
-                        matchStat = WOLFSSL_SNI_FORCE_KEEP;
-                    } else if(matched) {
-                        WOLFSSL_MSG("SNI did match!");
-                        matchStat = WOLFSSL_SNI_REAL_MATCH;
-                    } else {
-                        WOLFSSL_MSG("fake SNI match from ANSWER_ON_MISMATCH");
-                        matchStat = WOLFSSL_SNI_FAKE_MATCH;
-                    }
-
-                    TLSX_SNI_SetStatus(ssl->extensions, type, (byte)matchStat);
-
-                    if(!cacheOnly)
-                        TLSX_SetResponse(ssl, TLSX_SERVER_NAME);
-
-                } else if (!(sni->options & WOLFSSL_SNI_CONTINUE_ON_MISMATCH)) {
-                    SendAlert(ssl, alert_fatal, unrecognized_name);
-
-                    return UNKNOWN_SNI_HOST_NAME_E;
-                }
-                break;
-            }
+        if (cacheOnly) {
+            WOLFSSL_MSG("Forcing storage of SNI, Fake match");
+            matchStat = WOLFSSL_SNI_FORCE_KEEP;
         }
+        else if (matched) {
+            WOLFSSL_MSG("SNI did match!");
+            matchStat = WOLFSSL_SNI_REAL_MATCH;
+        }
+        else {
+            WOLFSSL_MSG("fake SNI match from ANSWER_ON_MISMATCH");
+            matchStat = WOLFSSL_SNI_FAKE_MATCH;
+        }
+
+        TLSX_SNI_SetStatus(ssl->extensions, type, (byte)matchStat);
+
+        if(!cacheOnly)
+            TLSX_SetResponse(ssl, TLSX_SERVER_NAME);
+    }
+    else if (!(sni->options & WOLFSSL_SNI_CONTINUE_ON_MISMATCH)) {
+        SendAlert(ssl, alert_fatal, unrecognized_name);
+
+        return UNKNOWN_SNI_HOST_NAME_E;
     }
 #else
     (void)input;
