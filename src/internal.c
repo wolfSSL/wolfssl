@@ -1946,6 +1946,11 @@ void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
     #ifndef NO_SHA256
         AddSuiteHashSigAlgo(suites, sha256_mac, rsa_sa_algo, keySz, &idx);
     #endif
+#ifdef OPENSSL_ALL
+    #ifdef WOLFSSL_SHA224
+        AddSuiteHashSigAlgo(suites, sha224_mac, rsa_sa_algo, keySz, &idx);
+    #endif
+#endif
     #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
                                             defined(WOLFSSL_ALLOW_TLS_SHA1))
         AddSuiteHashSigAlgo(suites, sha_mac, rsa_sa_algo, keySz, &idx);
@@ -2913,6 +2918,12 @@ static enum wc_HashType HashAlgoToType(int hashAlgo)
         case sha256_mac:
             return WC_HASH_TYPE_SHA256;
     #endif
+#ifdef OPENSSL_ALL
+    #ifdef WOLFSSL_SHA224
+        case sha224_mac:
+            return WC_HASH_TYPE_SHA224;
+    #endif
+#endif
     #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
                              defined(WOLFSSL_ALLOW_TLS_SHA1))
         case sha_mac:
@@ -3117,6 +3128,12 @@ static int TypeHash(int hashAlgo)
         case sha256_mac:
             return SHA256h;
     #endif
+#ifdef OPENSSL_ALL
+    #ifdef WOLFSSL_SHA224
+        case sha224_mac:
+            return SHA224h;
+    #endif
+#endif
     #ifndef NO_SHA
         case sha_mac:
             return SHAh;
@@ -16818,6 +16835,11 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
             /* pick highest available between both server and client */
             switch (hashAlgo) {
                 case sha_mac:
+        #ifdef OPENSSL_ALL
+            #ifdef WOLFSSL_SHA224
+                case sha224_mac:
+            #endif
+        #endif
             #ifndef NO_SHA256
                 case sha256_mac:
             #endif
