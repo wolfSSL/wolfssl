@@ -13163,6 +13163,30 @@ int ProcessReply(WOLFSSL* ssl)
 #endif
             }
 
+            if (IsEncryptionOn(ssl, 0)) {
+                int tooLong = 0;
+
+#ifdef WOLFSSL_TLS13
+                if (IsAtLeastTLSv1_3(ssl->version)) {
+                    tooLong  = ssl->curSize > MAX_TLS13_ENC_SZ;
+                    tooLong |= ssl->curSize - ssl->specs.aead_mac_size >
+                                                             MAX_TLS13_PLAIN_SZ;
+                }
+#endif
+#ifdef WOLFSSL_EXTRA_ALERTS
+                if (!IsAtLeastTLSv1_3(ssl->version))
+                    tooLong = ssl->curSize > MAX_TLS_CIPHER_SZ;
+#endif
+                if (tooLong) {
+                    WOLFSSL_MSG("Encrypted data too long");
+#if defined(WOLFSSL_TLS13) || defined(WOLFSSL_EXTRA_ALERTS)
+                    SendAlert(ssl, alert_fatal, record_overflow);
+#endif
+                    return BUFFER_ERROR;
+                }
+            }
+            ssl->keys.padSz = 0;
+
             ssl->options.processReply = decryptMessage;
             startIdx = ssl->buffers.inputBuffer.idx;  /* in case > 1 msg per */
             FALL_THROUGH;
@@ -13342,6 +13366,15 @@ int ProcessReply(WOLFSSL* ssl)
 
         /* the record layer is here */
         case runProcessingOneMessage:
+
+            if (ssl->buffers.inputBuffer.length - ssl->keys.padSz -
+                              ssl->buffers.inputBuffer.idx > MAX_PLAINTEXT_SZ) {
+                WOLFSSL_MSG("Plaintext too long");
+#if defined(WOLFSSL_TLS13) || defined(WOLFSSL_EXTRA_ALERTS)
+                SendAlert(ssl, alert_fatal, record_overflow);
+#endif
+                return BUFFER_ERROR;
+            }
 
         #ifdef WOLFSSL_DTLS
             if (IsDtlsNotSctpMode(ssl)) {
