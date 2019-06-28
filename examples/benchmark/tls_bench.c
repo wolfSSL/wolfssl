@@ -57,6 +57,7 @@ bench_tls(args);
 #include <string.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <errno.h>
 
 /* For testing no pthread support */
 #if 0
