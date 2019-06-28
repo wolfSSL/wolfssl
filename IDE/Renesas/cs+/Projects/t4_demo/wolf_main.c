@@ -30,7 +30,7 @@ static WOLFSSL_CTX *wolfSSL_sv_ctx;
 static WOLFSSL_CTX *wolfSSL_cl_ctx;
 
 static long tick;
-static void timeTick(void)
+static void timeTick(void *pdata)
 {
     tick++;
 }

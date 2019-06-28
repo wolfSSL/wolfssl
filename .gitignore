@@ -321,3 +321,8 @@ doc/pdf
 
 # XCODE Index
 IDE/XCODE/Index
+
+# ARM DS-5
+\.settings/
+\.cproject
+\.project

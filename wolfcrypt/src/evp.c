@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#include <wolfssl/wolfcrypt/settings.h>
+
 #if !defined(WOLFSSL_EVP_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
         #warning evp.c does not need to be compiled seperatly from ssl.c
@@ -188,7 +190,7 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
     if (ctx && ctx->enc) {
-        WOLFSSL_ENTER("wolfSSL_EVP_CipherFinal_ex");
+        WOLFSSL_ENTER("wolfSSL_EVP_DecryptFinal_ex");
         return wolfSSL_EVP_CipherFinal(ctx, out, outl);
     }
     else {
@@ -358,15 +360,15 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
             if ((ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING) ||
                     (ctx->block_size == 1)) {
                 ctx->lastUsed = 0;
-                XMEMCPY(ctx->lastBlock, &out[ctx->block_size * blocks], ctx->block_size);
                 *outl+= ctx->block_size * blocks;
             } else {
                 if (inl == 0) {
                     ctx->lastUsed = 1;
                     blocks = blocks - 1; /* save last block to check padding in
                                           * EVP_CipherFinal call */
+                    XMEMCPY(ctx->lastBlock, &out[ctx->block_size * blocks],
+                            ctx->block_size);
                 }
-                XMEMCPY(ctx->lastBlock, &out[ctx->block_size * blocks], ctx->block_size);
                 *outl+= ctx->block_size * blocks;
             }
         } else {
@@ -408,7 +410,9 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
     int fl;
-    if (ctx == NULL || out == NULL) return BAD_FUNC_ARG;
+    if (ctx == NULL || out == NULL || outl == NULL)
+        return BAD_FUNC_ARG;
+
     WOLFSSL_ENTER("wolfSSL_EVP_CipherFinal");
     if (ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING) {
         if (ctx->bufUsed != 0) return WOLFSSL_FAILURE;
@@ -444,11 +448,69 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
             if ((fl = checkPad(ctx, ctx->lastBlock)) >= 0) {
                 XMEMCPY(out, ctx->lastBlock, fl);
                 *outl = fl;
-            } else return 0;
+            }
+            else {
+                return WOLFSSL_FAILURE;
+            }
+        }
+       /* return error in cases where the block length is incorrect */
+        if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
+            return WOLFSSL_FAILURE;
         }
     }
     return WOLFSSL_SUCCESS;
 }
+
+
+#ifdef WOLFSSL_EVP_DECRYPT_LEGACY
+/* This is a version of DecryptFinal to work with data encrypted with
+ * wolfSSL_EVP_EncryptFinal() with the broken padding. (pre-v3.12.0)
+ * Only call this after wolfSSL_EVP_CipherFinal() fails on a decrypt.
+ * Note, you don't know if the padding is good or bad with the old
+ * encrypt, but it is likely to be or bad. It will update the output
+ * length with the block_size so the last block is still captured. */
+WOLFSSL_API int  wolfSSL_EVP_DecryptFinal_legacy(WOLFSSL_EVP_CIPHER_CTX *ctx,
+        unsigned char *out, int *outl)
+{
+    int fl;
+    if (ctx == NULL || out == NULL || outl == NULL)
+        return BAD_FUNC_ARG;
+
+    WOLFSSL_ENTER("wolfSSL_EVP_DecryptFinal_legacy");
+    if (ctx->block_size == 1) {
+        *outl = 0;
+        return WOLFSSL_SUCCESS;
+    }
+    if ((ctx->bufUsed % ctx->block_size) != 0) {
+        *outl = 0;
+        /* not enough padding for decrypt */
+        return WOLFSSL_FAILURE;
+    }
+    /* The original behavior of CipherFinal() was like it is now,
+     * but checkPad would return 0 in case of a bad pad. It would
+     * treat the pad as 0, and leave the data in the output buffer,
+     * and not try to copy anything. This converts checkPad's -1 error
+     * code to block_size.
+     */
+    if (ctx->lastUsed) {
+        PRINT_BUF(ctx->lastBlock, ctx->block_size);
+        if ((fl = checkPad(ctx, ctx->lastBlock)) < 0) {
+            fl = ctx->block_size;
+        }
+        else {
+            XMEMCPY(out, ctx->lastBlock, fl);
+        }
+        *outl = fl;
+    }
+    /* return error in cases where the block length is incorrect */
+    if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+#endif
+
 
 WOLFSSL_API int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *ctx)
 {
@@ -732,7 +794,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
                      unsigned char *out, size_t *outlen,
                      const unsigned char *in, size_t inlen)
 {
-    int len;
+    int len = 0;
 
     if (ctx == NULL) return 0;
     WOLFSSL_ENTER("EVP_PKEY_decrypt");
@@ -803,7 +865,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
                      unsigned char *out, size_t *outlen,
                      const unsigned char *in, size_t inlen)
 {
-    int len;
+    int len = 0;
     if (ctx == NULL) return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("EVP_PKEY_encrypt");
     if (ctx->op != EVP_PKEY_OP_ENCRYPT) return WOLFSSL_FAILURE;

@@ -87,10 +87,58 @@ static void FreeAll(void)
 #endif
 }
 
+
+#ifdef WOLFSSL_SNIFFER_STATS
+
+static void DumpStats(void)
+{
+    SSLStats sslStats;
+    ssl_ReadStatistics(&sslStats);
+
+    printf("SSL Stats (sslStandardConns):%lu\n",
+            sslStats.sslStandardConns);
+    printf("SSL Stats (sslClientAuthConns):%lu\n",
+            sslStats.sslClientAuthConns);
+    printf("SSL Stats (sslResumedConns):%lu\n",
+            sslStats.sslResumedConns);
+    printf("SSL Stats (sslEphemeralMisses):%lu\n",
+            sslStats.sslEphemeralMisses);
+    printf("SSL Stats (sslResumeMisses):%lu\n",
+            sslStats.sslResumeMisses);
+    printf("SSL Stats (sslCiphersUnsupported):%lu\n",
+            sslStats.sslCiphersUnsupported);
+    printf("SSL Stats (sslKeysUnmatched):%lu\n",
+            sslStats.sslKeysUnmatched);
+    printf("SSL Stats (sslKeyFails):%lu\n",
+            sslStats.sslKeyFails);
+    printf("SSL Stats (sslDecodeFails):%lu\n",
+            sslStats.sslDecodeFails);
+    printf("SSL Stats (sslAlerts):%lu\n",
+            sslStats.sslAlerts);
+    printf("SSL Stats (sslDecryptedBytes):%lu\n",
+            sslStats.sslDecryptedBytes);
+    printf("SSL Stats (sslEncryptedBytes):%lu\n",
+            sslStats.sslEncryptedBytes);
+    printf("SSL Stats (sslEncryptedPackets):%lu\n",
+            sslStats.sslEncryptedPackets);
+    printf("SSL Stats (sslDecryptedPackets):%lu\n",
+            sslStats.sslDecryptedPackets);
+    printf("SSL Stats (sslKeyMatches):%lu\n",
+            sslStats.sslKeyMatches);
+    printf("SSL Stats (sslEncryptedConns):%lu\n",
+            sslStats.sslEncryptedConns);
+}
+
+#endif
+
+
 static void sig_handler(const int sig)
 {
     printf("SIGINT handled = %d.\n", sig);
     FreeAll();
+#ifdef WOLFSSL_SNIFFER_STATS
+    DumpStats();
+#endif
     if (sig)
         exit(EXIT_SUCCESS);
 }

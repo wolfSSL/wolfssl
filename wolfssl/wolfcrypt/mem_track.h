@@ -121,7 +121,7 @@
 
     /* if defined to not using inline then declare function prototypes */
     #ifdef NO_INLINE
-        #define STATIC
+        #define WC_STATIC
 		#ifdef WOLFSSL_DEBUG_MEMORY
 			WOLFSSL_LOCAL void* TrackMalloc(size_t sz, const char* func, unsigned int line);
 			WOLFSSL_LOCAL void TrackFree(void* ptr, const char* func, unsigned int line);
@@ -134,13 +134,13 @@
         WOLFSSL_LOCAL int InitMemoryTracker(void);
         WOLFSSL_LOCAL void ShowMemoryTracker(void);
     #else
-        #define STATIC static
+        #define WC_STATIC static
     #endif
 
 #ifdef WOLFSSL_DEBUG_MEMORY
-    STATIC WC_INLINE void* TrackMalloc(size_t sz, const char* func, unsigned int line)
+    WC_STATIC WC_INLINE void* TrackMalloc(size_t sz, const char* func, unsigned int line)
 #else
-    STATIC WC_INLINE void* TrackMalloc(size_t sz)
+    WC_STATIC WC_INLINE void* TrackMalloc(size_t sz)
 #endif
     {
         memoryTrack* mt;
@@ -184,6 +184,7 @@
             header->next = NULL;
             if (ourMemList.tail == NULL)  {
                 ourMemList.head = header;
+                header->prev = NULL;
             }
             else {
                 ourMemList.tail->next = header;
@@ -201,9 +202,9 @@
 
 
 #ifdef WOLFSSL_DEBUG_MEMORY
-    STATIC WC_INLINE void TrackFree(void* ptr, const char* func, unsigned int line)
+    WC_STATIC WC_INLINE void TrackFree(void* ptr, const char* func, unsigned int line)
 #else
-    STATIC WC_INLINE void TrackFree(void* ptr)
+    WC_STATIC WC_INLINE void TrackFree(void* ptr)
 #endif
     {
         memoryTrack* mt;
@@ -270,9 +271,9 @@
 
 
 #ifdef WOLFSSL_DEBUG_MEMORY
-    STATIC WC_INLINE void* TrackRealloc(void* ptr, size_t sz, const char* func, unsigned int line)
+    WC_STATIC WC_INLINE void* TrackRealloc(void* ptr, size_t sz, const char* func, unsigned int line)
 #else
-    STATIC WC_INLINE void* TrackRealloc(void* ptr, size_t sz)
+    WC_STATIC WC_INLINE void* TrackRealloc(void* ptr, size_t sz)
 #endif
     {
     #ifdef WOLFSSL_DEBUG_MEMORY
@@ -312,7 +313,7 @@
     static wolfSSL_Free_cb ffDefault = NULL;
     static wolfSSL_Realloc_cb rfDefault = NULL;
 
-    STATIC WC_INLINE int InitMemoryTracker(void)
+    WC_STATIC WC_INLINE int InitMemoryTracker(void)
     {
         int ret;
 
@@ -349,7 +350,7 @@
         return ret;
     }
 
-    STATIC WC_INLINE void ShowMemoryTracker(void)
+    WC_STATIC WC_INLINE void ShowMemoryTracker(void)
     {
     #ifdef DO_MEM_LIST
         if (pthread_mutex_lock(&memLock) == 0)
@@ -387,7 +388,7 @@
     #endif
     }
 
-    STATIC WC_INLINE int CleanupMemoryTracker(void)
+    WC_STATIC WC_INLINE int CleanupMemoryTracker(void)
     {
         /* restore default allocators */
         return wolfSSL_SetAllocators(mfDefault, ffDefault, rfDefault);

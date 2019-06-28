@@ -29,6 +29,8 @@
 
 #ifdef WOLFSSL_STSAFEA100
 
+/* The wolf STSAFE interface layer */
+/* Please contact wolfSSL for the STSAFE port files */
 #include "stsafe_interface.h"
 
 #ifndef STSAFE_MAX_KEY_LEN
@@ -52,11 +54,11 @@ WOLFSSL_API int SSL_STSAFE_VerifyPeerCertCb(WOLFSSL* ssl,
    const unsigned char* hash, unsigned int hashSz,
    const unsigned char* keyDer, unsigned int keySz,
    int* result, void* ctx);
-WOLFSSL_API int SSL_STSAFE_SignCertificateCb(WOLFSSL* ssl, 
+WOLFSSL_API int SSL_STSAFE_SignCertificateCb(WOLFSSL* ssl,
     const byte* in, word32 inSz,
-    byte* out, word32* outSz, 
+    byte* out, word32* outSz,
     const byte* key, word32 keySz, void* ctx);
-WOLFSSL_API int SSL_STSAFE_SharedSecretCb(WOLFSSL* ssl, 
+WOLFSSL_API int SSL_STSAFE_SharedSecretCb(WOLFSSL* ssl,
     ecc_key* otherKey,
     unsigned char* pubKeyDer, unsigned int* pubKeySz,
     unsigned char* out, unsigned int* outlen,
@@ -65,7 +67,27 @@ WOLFSSL_API int SSL_STSAFE_SharedSecretCb(WOLFSSL* ssl,
 /* Helper API's for setting up callbacks */
 WOLFSSL_API int SSL_STSAFE_SetupPkCallbacks(WOLFSSL_CTX* ctx);
 WOLFSSL_API int SSL_STSAFE_SetupPkCallbackCtx(WOLFSSL* ssl, void* user_ctx);
+#endif /* HAVE_PK_CALLBACKS */
+
+
+#ifdef WOLF_CRYPTO_CB
+
+#include <wolfssl/wolfcrypt/cryptocb.h>
+
+/* Device ID that's unique and valid (not INVALID_DEVID -2) */
+#define WOLF_STSAFE_DEVID 0x53545341; /* STSA */
+
+typedef struct wolfSTSAFE_CryptoCb_Ctx {
+#ifdef HAVE_ECC
+    ecc_key wolfEccKey;
 #endif
+    int devId;
+} wolfSTSAFE_CryptoCb_Ctx;
+
+WOLFSSL_API int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info,
+  void* ctx);
+
+#endif /* WOLF_CRYPTO_CB */
 
 #endif /* WOLFSSL_STSAFEA100 */
 

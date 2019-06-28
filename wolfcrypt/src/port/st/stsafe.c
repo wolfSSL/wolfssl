@@ -39,7 +39,7 @@ int SSL_STSAFE_LoadDeviceCertificate(byte** pRawCertificate,
 
     /* Try reading device certificate from ST-SAFE Zone 0 */
     err = stsafe_interface_read_device_certificate_raw(
-        pRawCertificate, pRawCertificateLen);
+        pRawCertificate, (uint32_t*)pRawCertificateLen);
     if (err == 0) {
     #if 0
         /* example for loading into WOLFSSL_CTX */
@@ -154,7 +154,7 @@ int SSL_STSAFE_VerifyPeerCertCb(WOLFSSL* ssl,
     if (err == 0) {
         /* Verify signature */
         err = stsafe_interface_verify(curve_id, (uint8_t*)hash, sigRS,
-            pubKeyX, pubKeyY, result);
+            pubKeyX, pubKeyY, (int32_t*)result);
     }
 
     wc_ecc_free(&key);
@@ -324,5 +324,192 @@ int SSL_STSAFE_SetupPkCallbackCtx(WOLFSSL* ssl, void* user_ctx)
 
 
 #endif /* HAVE_PK_CALLBACKS */
+
+#ifdef WOLF_CRYPTO_CB
+
+int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
+{
+    int rc = CRYPTOCB_UNAVAILABLE;
+    wolfSTSAFE_CryptoCb_Ctx* stsCtx = (wolfSTSAFE_CryptoCb_Ctx*)ctx;
+
+    if (info == NULL || ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    (void)devId;
+    (void)stsCtx;
+
+    if (info->algo_type == WC_ALGO_TYPE_SEED) {
+        /* use the STSAFE hardware for RNG seed */
+    #if !defined(WC_NO_RNG) && defined(USE_STSAFE_RNG_SEED)
+        while (info->seed.sz > 0) {
+            rc = stsafe_interface_getrandom(info->seed.seed, info->seed.sz);
+            if (rc < 0) {
+                return rc;
+            }
+            info->seed.seed += rc;
+            info->seed.sz -= rc;
+        }
+        rc = 0;
+    #else
+        rc = CRYPTOCB_UNAVAILABLE;
+    #endif
+    }
+#ifdef HAVE_ECC
+    else if (info->algo_type == WC_ALGO_TYPE_PK) {
+    #ifdef USE_STSAFE_VERBOSE
+        printf("STSAFE Pk: Type %d\n", info->pk.type);
+    #endif
+
+        if (info->pk.type == WC_PK_TYPE_EC_KEYGEN) {
+            byte pubKeyRaw[STSAFE_MAX_PUBKEY_RAW_LEN];
+            StSafeA_KeySlotNumber slot;
+            StSafeA_CurveId curve_id;
+            int ecc_curve, key_sz;
+
+            WOLFSSL_MSG("STSAFE: ECC KeyGen");
+
+            /* get curve */
+            ecc_curve = info->pk.eckg.curveId;
+            curve_id = stsafe_get_ecc_curve_id(ecc_curve);
+            key_sz = stsafe_get_key_size(curve_id);
+
+            /* generate new ephemeral key on device */
+            rc = stsafe_interface_create_key(&slot, curve_id,
+                (uint8_t*)pubKeyRaw);
+            if (rc != 0) {
+                return rc;
+            }
+
+            /* load generated public key into key, used by wolfSSL */
+            rc = wc_ecc_import_unsigned(info->pk.eckg.key, pubKeyRaw,
+                &pubKeyRaw[key_sz], NULL, ecc_curve);
+        }
+        else if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
+            byte digest[STSAFE_MAX_KEY_LEN];
+            byte sigRS[STSAFE_MAX_SIG_LEN];
+            byte *r, *s;
+            StSafeA_CurveId curve_id;
+            word32 inSz = info->pk.eccsign.inlen;
+            int key_sz;
+
+            WOLFSSL_MSG("STSAFE: ECC Sign");
+
+            curve_id = stsafe_get_curve_mode();
+            key_sz = stsafe_get_key_size(curve_id);
+
+            /* truncate input to match key size */
+            if (inSz > key_sz)
+                inSz = key_sz;
+
+            /* Build input digest */
+            XMEMSET(&digest[0], 0, sizeof(digest));
+            XMEMCPY(&digest[key_sz - inSz], info->pk.eccsign.in, inSz);
+
+            /* Sign using slot 0: Result is R then S */
+            /* Sign will always use the curve type in slot 0
+                (the TLS curve needs to match) */
+            XMEMSET(sigRS, 0, sizeof(sigRS));
+            rc = stsafe_interface_sign(STSAFE_A_SLOT_0, curve_id,
+                (uint8_t*)info->pk.eccsign.in, sigRS);
+            if (rc != 0) {
+                return rc;
+            }
+
+            /* Convert R and S to signature */
+            r = &sigRS[0];
+            s = &sigRS[key_sz];
+            rc = wc_ecc_rs_raw_to_sig((const byte*)r, key_sz, (const byte*)s,
+                key_sz, info->pk.eccsign.out, info->pk.eccsign.outlen);
+            if (rc != 0) {
+                WOLFSSL_MSG("Error converting RS to Signature");
+            }
+        }
+        else if (info->pk.type == WC_PK_TYPE_ECDSA_VERIFY) {
+            byte sigRS[STSAFE_MAX_SIG_LEN];
+            byte *r, *s;
+            word32 r_len = STSAFE_MAX_SIG_LEN/2, s_len = STSAFE_MAX_SIG_LEN/2;
+            byte pubKeyX[STSAFE_MAX_PUBKEY_RAW_LEN/2];
+            byte pubKeyY[STSAFE_MAX_PUBKEY_RAW_LEN/2];
+            word32 pubKeyX_len = sizeof(pubKeyX);
+            word32 pubKeyY_len = sizeof(pubKeyY);
+            StSafeA_CurveId curve_id;
+            int ecc_curve, key_sz;
+
+            WOLFSSL_MSG("STSAFE: ECC Verify");
+
+            if (info->pk.eccverify.key == NULL)
+                return BAD_FUNC_ARG;
+
+            /* determine curve */
+            ecc_curve = info->pk.eccverify.key->dp->id;
+            curve_id = stsafe_get_ecc_curve_id(ecc_curve);
+            key_sz = stsafe_get_key_size(curve_id);
+
+            /* Extract Raw X and Y coordinates of the public key */
+            rc = wc_ecc_export_public_raw(info->pk.eccverify.key,
+                pubKeyX, &pubKeyX_len,
+                pubKeyY, &pubKeyY_len);
+            if (rc == 0) {
+                /* Extract R and S from signature */
+                XMEMSET(sigRS, 0, sizeof(sigRS));
+                r = &sigRS[0];
+                s = &sigRS[key_sz];
+                rc = wc_ecc_sig_to_rs(info->pk.eccverify.sig,
+                    info->pk.eccverify.siglen, r, &r_len, s, &s_len);
+                (void)r_len;
+                (void)s_len;
+            }
+            if (rc == 0) {
+                /* Verify signature */
+                rc = stsafe_interface_verify(curve_id,
+                    (uint8_t*)info->pk.eccverify.hash, sigRS, pubKeyX, pubKeyY,
+                    (int32_t*)info->pk.eccverify.res);
+            }
+        }
+        else if (info->pk.type == WC_PK_TYPE_ECDH) {
+            byte otherKeyX[STSAFE_MAX_KEY_LEN];
+            byte otherKeyY[STSAFE_MAX_KEY_LEN];
+            word32 otherKeyX_len = sizeof(otherKeyX);
+            word32 otherKeyY_len = sizeof(otherKeyY);
+            StSafeA_CurveId curve_id;
+            int ecc_curve;
+
+            WOLFSSL_MSG("STSAFE: PMS");
+
+            if (info->pk.ecdh.public_key == NULL)
+                return BAD_FUNC_ARG;
+
+            /* get curve */
+            ecc_curve = info->pk.ecdh.public_key->dp->id;
+            curve_id = stsafe_get_ecc_curve_id(ecc_curve);
+
+            /* Export otherKey raw X and Y */
+            rc = wc_ecc_export_public_raw(info->pk.ecdh.public_key,
+                &otherKeyX[0], (word32*)&otherKeyX_len,
+                &otherKeyY[0], (word32*)&otherKeyY_len);
+            if (rc == 0) {
+                /* Compute shared secret */
+            	*info->pk.ecdh.outlen = 0;
+                rc = stsafe_interface_shared_secret(curve_id,
+                    otherKeyX, otherKeyY,
+                    info->pk.ecdh.out, (int32_t*)info->pk.ecdh.outlen);
+            }
+        }
+    }
+#endif /* HAVE_ECC */
+
+    /* need to return negative here for error */
+    if (rc != 0 && rc != CRYPTOCB_UNAVAILABLE) {
+        WOLFSSL_MSG("STSAFE: CryptoCb failed");
+    #ifdef USE_STSAFE_VERBOSE
+        printf("STSAFE: CryptoCb failed %d\n", rc);
+    #endif
+        rc = WC_HW_E;
+    }
+
+    return rc;
+}
+
+#endif /* WOLF_CRYPTO_CB */
 
 #endif /* WOLFSSL_STSAFEA100 */

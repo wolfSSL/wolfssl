@@ -22,6 +22,13 @@
       <ParentItem>e38de3e6-e537-43bc-9f7d-3958453b991f</ParentItem>
       <Property>b113ecd1-816e-459a-afa4-fbc8975bfcb1</Property>
     </Instance>
+    <Instance Guid="eabc01da-7e73-45ba-a18b-0a13ec91d158">
+      <Name>user_settings.h</Name>
+      <Type>File</Type>
+      <RelativePath>..\common\user_settings.h</RelativePath>
+      <TreeImageGuid>03cad1e8-2eb3-4cde-a8a3-982423631122</TreeImageGuid>
+      <ParentItem>e38de3e6-e537-43bc-9f7d-3958453b991f</ParentItem>
+    </Instance>
     <Instance Guid="caa2365b-7326-4cbb-bd88-b0ecf296df18">
       <Name>crl.c</Name>
       <Type>File</Type>
@@ -90,13 +97,6 @@
       <Type>Category</Type>
       <ParentItem>78a99f10-6945-4b7b-ab83-895a78962b99</ParentItem>
       <Property>b3a0ee4c-7893-43ab-aa14-cc84267a24b4</Property>
-    </Instance>
-    <Instance Guid="f82110c6-9cf8-4a3f-b96e-6b951ee6b0c8">
-      <Name>user_settings.h</Name>
-      <Type>File</Type>
-      <RelativePath>user_settings.h</RelativePath>
-      <TreeImageGuid>03cad1e8-2eb3-4cde-a8a3-982423631122</TreeImageGuid>
-      <ParentItem>78a99f10-6945-4b7b-ab83-895a78962b99</ParentItem>
     </Instance>
     <Instance Guid="cfc4ddef-2ff8-440d-9135-5e36e230a9d0">
       <Name>aes.c</Name>

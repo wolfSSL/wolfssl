@@ -52,6 +52,9 @@
 #ifdef WOLFSSL_MD2
     #include <wolfssl/wolfcrypt/md2.h>
 #endif
+#if defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
+    #include <wolfssl/wolfcrypt/blake2.h>
+#endif
 
 
 #ifdef __cplusplus
@@ -101,6 +104,9 @@ typedef union {
     #endif
     #ifdef WOLFSSL_SHA512
         wc_Sha512 sha512;
+    #endif
+    #ifdef WOLFSSL_SHA3
+        wc_Sha3 sha3;
     #endif
 } wc_HashAlg;
 
@@ -192,6 +198,14 @@ WOLFSSL_API int wc_Sha384Hash(const byte*, word32, byte*);
 #include <wolfssl/wolfcrypt/sha512.h>
 WOLFSSL_API int wc_Sha512Hash(const byte*, word32, byte*);
 #endif /* WOLFSSL_SHA512 */
+
+#ifdef WOLFSSL_SHA3
+#include <wolfssl/wolfcrypt/sha3.h>
+WOLFSSL_API int wc_Sha3_224Hash(const byte*, word32, byte*);
+WOLFSSL_API int wc_Sha3_256Hash(const byte*, word32, byte*);
+WOLFSSL_API int wc_Sha3_384Hash(const byte*, word32, byte*);
+WOLFSSL_API int wc_Sha3_512Hash(const byte*, word32, byte*);
+#endif /* WOLFSSL_SHA3 */
 
 enum max_prf {
 #ifdef HAVE_FFDHE_8192

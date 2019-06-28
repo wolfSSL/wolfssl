@@ -63,6 +63,12 @@
 #define ED25519_PRV_KEY_SIZE (ED25519_PUB_KEY_SIZE+ED25519_KEY_SIZE)
 
 
+enum {
+    Ed25519    = -1,
+    Ed25519ctx = 0,
+    Ed25519ph  = 1,
+};
+
 #ifndef WC_ED25519KEY_TYPE_DEFINED
     typedef struct ed25519_key ed25519_key;
     #define WC_ED25519KEY_TYPE_DEFINED
@@ -90,11 +96,35 @@ int wc_ed25519_make_public(ed25519_key* key, unsigned char* pubKey,
 WOLFSSL_API
 int wc_ed25519_make_key(WC_RNG* rng, int keysize, ed25519_key* key);
 WOLFSSL_API
-int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
-                        word32 *outlen, ed25519_key* key);
+int wc_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
+                        word32 *outLen, ed25519_key* key);
 WOLFSSL_API
-int wc_ed25519_verify_msg(const byte* sig, word32 siglen, const byte* msg,
-                          word32 msglen, int* stat, ed25519_key* key);
+int wc_ed25519ctx_sign_msg(const byte* in, word32 inLen, byte* out,
+                           word32 *outLen, ed25519_key* key,
+                           const byte* context, byte contextLen);
+WOLFSSL_API
+int wc_ed25519ph_sign_hash(const byte* hash, word32 hashLen, byte* out,
+                           word32 *outLen, ed25519_key* key,
+                           const byte* context, byte contextLen);
+WOLFSSL_API
+int wc_ed25519ph_sign_msg(const byte* in, word32 inLen, byte* out,
+                          word32 *outLen, ed25519_key* key, const byte* context,
+                          byte contextLen);
+WOLFSSL_API
+int wc_ed25519_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
+                          word32 msgLen, int* stat, ed25519_key* key);
+WOLFSSL_API
+int wc_ed25519ctx_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
+                             word32 msgLen, int* stat, ed25519_key* key,
+                             const byte* context, byte contextLen);
+WOLFSSL_API
+int wc_ed25519ph_verify_hash(const byte* sig, word32 sigLen, const byte* hash,
+                             word32 hashLen, int* stat, ed25519_key* key,
+                             const byte* context, byte contextLen);
+WOLFSSL_API
+int wc_ed25519ph_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
+                            word32 msgLen, int* stat, ed25519_key* key,
+                            const byte* context, byte contextLen);
 WOLFSSL_API
 int wc_ed25519_init(ed25519_key* key);
 WOLFSSL_API

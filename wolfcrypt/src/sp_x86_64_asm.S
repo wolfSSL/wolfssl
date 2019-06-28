@@ -26135,7 +26135,6 @@ _sp_256_sqr_4:
 #ifndef __APPLE__
 .size	sp_256_sqr_4,.-sp_256_sqr_4
 #endif /* __APPLE__ */
- 
 /* Square a and put result in r. (r = a * a)
  *
  * r   Result of squaring.

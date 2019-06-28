@@ -233,9 +233,15 @@ endif
 
 if !BUILD_FIPS_V2
 if BUILD_SHA512
+if BUILD_ARMASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha512.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha512-asm.S
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-sha512-asm.S
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha512.c
 if BUILD_INTELASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha512_asm.S
+endif
 endif
 endif
 endif
@@ -273,6 +279,9 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/coding.c
 endif
 
 if BUILD_POLY1305
+if BUILD_ARMASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-poly1305.c
+endif
 src_libwolfssl_la_SOURCES += wolfcrypt/src/poly1305.c
 if BUILD_INTELASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/poly1305_asm.S
@@ -322,6 +331,9 @@ endif
 if BUILD_BLAKE2
 src_libwolfssl_la_SOURCES += wolfcrypt/src/blake2b.c
 endif
+if BUILD_BLAKE2S
+src_libwolfssl_la_SOURCES += wolfcrypt/src/blake2s.c
+endif
 
 if BUILD_HC128
 src_libwolfssl_la_SOURCES += wolfcrypt/src/hc128.c
@@ -332,9 +344,13 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/rabbit.c
 endif
 
 if BUILD_CHACHA
+if BUILD_ARMASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-chacha.c
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/chacha.c
 if BUILD_INTELASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/chacha_asm.S
+endif
 endif
 if BUILD_POLY1305
 src_libwolfssl_la_SOURCES += wolfcrypt/src/chacha20_poly1305.c
@@ -371,7 +387,16 @@ if BUILD_FEMATH
 if BUILD_CURVE25519_SMALL
 src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_low_mem.c
 else
+if BUILD_INTELASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_x25519_asm.S
+else
+if BUILD_ARMASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-curve25519.S
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-curve25519.S
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_operations.c
+endif
+endif
 endif
 endif
 
@@ -381,7 +406,15 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/ge_low_mem.c
 else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/ge_operations.c
 if !BUILD_FEMATH
+if BUILD_INTELASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_x25519_asm.S
+else
+if BUILD_ARMASM
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-curve25519.S
+else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_operations.c
+endif
+endif
 endif
 endif
 endif

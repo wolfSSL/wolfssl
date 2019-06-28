@@ -46,25 +46,8 @@
 
 #include <wolfssl/wolfcrypt/random.h>
 
-/* wolf big int and common functions */
-#include <wolfssl/wolfcrypt/wolfmath.h>
-
 #ifdef __cplusplus
     extern "C" {
-#endif
-
-#ifdef WOLFSSL_PUBLIC_MP
-    #define MP_API   WOLFSSL_API
-#else
-    #define MP_API
-#endif
-
-#ifndef MIN
-   #define MIN(x,y) ((x)<(y)?(x):(y))
-#endif
-
-#ifndef MAX
-   #define MAX(x,y) ((x)>(y)?(x):(y))
 #endif
 
 #ifdef WOLFSSL_NO_ASM
@@ -256,6 +239,7 @@
 
 #endif /* WOLFSSL_BIGINT_TYPES */
 
+
 /* # of digits this is */
 #define DIGIT_BIT   ((CHAR_BIT) * SIZEOF_FP_DIGIT)
 
@@ -310,7 +294,13 @@
 #define FP_NO         0   /* no response */
 
 #ifdef HAVE_WOLF_BIGINT
-    struct WC_BIGINT;
+    /* raw big integer */
+    typedef struct WC_BIGINT {
+        byte*   buf;
+        word32  len;
+        void*   heap;
+    } WC_BIGINT;
+    #define WOLF_BIGINT_DEFINED
 #endif
 
 /* a FP type */
@@ -326,6 +316,16 @@ typedef struct fp_int {
     struct WC_BIGINT raw; /* unsigned binary (big endian) */
 #endif
 } fp_int;
+
+/* Types */
+typedef fp_digit mp_digit;
+typedef fp_word  mp_word;
+typedef fp_int   mp_int;
+
+
+/* wolf big int and common functions */
+#include <wolfssl/wolfcrypt/wolfmath.h>
+
 
 /* externally define this symbol to ignore the default settings, useful for changing the build from the make process */
 #ifndef TFM_ALREADY_SET
@@ -679,12 +679,6 @@ int  fp_sqr_comba64(fp_int *a, fp_int *b);
  * Used by wolfSSL
  */
 
-/* Types */
-typedef fp_digit mp_digit;
-typedef fp_word  mp_word;
-typedef fp_int mp_int;
-#define MP_INT_DEFINED
-
 /* Constants */
 #define MP_LT   FP_LT   /* less than    */
 #define MP_EQ   FP_EQ   /* equal to     */
@@ -814,10 +808,6 @@ WOLFSSL_API word32 CheckRunTimeFastMath(void);
 /* If user uses RSA, DH, DSA, or ECC math lib directly then fast math FP_SIZE
    must match, return 1 if a match otherwise 0 */
 #define CheckFastMathSettings() (FP_SIZE == CheckRunTimeFastMath())
-
-
-/* wolf big int and common functions */
-#include <wolfssl/wolfcrypt/wolfmath.h>
 
 
 #ifdef __cplusplus

@@ -150,6 +150,7 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #elif defined(WOLFSSL_NUCLEUS)
 #elif defined(WOLFSSL_PB)
 #elif defined(WOLFSSL_ZEPHYR)
+#elif defined(WOLFSSL_TELIT_M2MB)
 #else
     /* include headers that may be needed to get good seed */
     #include <fcntl.h>
@@ -273,7 +274,7 @@ enum {
     drbgInitV
 };
 
-
+/* NOTE: if DRBG struct is changed please update random.h drbg_data size */
 typedef struct DRBG {
     word32 reseedCtr;
     word32 lastBlock;
@@ -752,9 +753,18 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         byte seed[MAX_SEED_SZ];
     #endif
 
+#if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
         rng->drbg =
                 (struct DRBG*)XMALLOC(sizeof(DRBG), rng->heap,
                                                           DYNAMIC_TYPE_RNG);
+#else
+        /* compile-time validation of drbg_data size */
+        typedef char drbg_data_test[sizeof(rng->drbg_data) >=
+                sizeof(struct DRBG) ? 1 : -1];
+        (void)sizeof(drbg_data_test);
+        rng->drbg = (struct DRBG*)rng->drbg_data;
+#endif
+
         if (rng->drbg == NULL) {
             ret = MEMORY_E;
         }
@@ -770,11 +780,10 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
                             seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
                             nonce, nonceSz, rng->heap, devId);
 
-            if (ret == DRBG_SUCCESS)
-                ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
-
             if (ret != DRBG_SUCCESS) {
+            #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
                 XFREE(rng->drbg, rng->heap, DYNAMIC_TYPE_RNG);
+            #endif
                 rng->drbg = NULL;
             }
         }
@@ -897,8 +906,6 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
                 ret = Hash_DRBG_Reseed(rng->drbg, newSeed + SEED_BLOCK_SZ,
                                        SEED_SZ);
             if (ret == DRBG_SUCCESS)
-                ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
-            if (ret == DRBG_SUCCESS)
                 ret = Hash_DRBG_Generate(rng->drbg, output, sz);
 
             ForceZero(newSeed, sizeof(newSeed));
@@ -952,7 +959,9 @@ int wc_FreeRng(WC_RNG* rng)
         if (Hash_DRBG_Uninstantiate(rng->drbg) != DRBG_SUCCESS)
             ret = RNG_FAILURE_E;
 
+    #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
         XFREE(rng->drbg, rng->heap, DYNAMIC_TYPE_RNG);
+    #endif
         rng->drbg = NULL;
     }
 
@@ -1018,6 +1027,11 @@ int wc_RNG_HealthTest_ex(int reseed, const byte* nonce, word32 nonceSz,
         }
     }
 
+    /* This call to generate is prescribed by the NIST DRBGVS
+     * procedure. The results are thrown away. The known
+     * answer test checks the second block of DRBG out of
+     * the generator to ensure the internal state is updated
+     * as expected. */
     if (Hash_DRBG_Generate(drbg, output, outputSz) != 0) {
         goto exit_rng_ht;
     }
@@ -2161,10 +2175,16 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
-            int i;
-
-            for (i = 0; i< sz; i++) {
-               output[i] =  esp_random( );
+            word32 rand;
+            while (sz > 0) {
+                word32 len = sizeof(rand);
+                if (sz < len)
+                    len = sz;
+                /* Get one random 32-bit word from hw RNG */  
+                rand = esp_random( );
+                XMEMCPY(output, &rand, len);
+                output += len;
+                sz -= len;
             }
 
             return 0;
@@ -2208,12 +2228,39 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 if (sz < len)
                     len = sz;
                 rand = sys_rand32_get();
-                XMEMCPY(output, &rand, sz);
+                XMEMCPY(output, &rand, len);
                 output += len;
                 sz -= len;
             }
 
             return ret;
+        }
+
+#elif defined(WOLFSSL_TELIT_M2MB)
+
+		#include "stdlib.h"
+        static long get_timestamp(void) {
+            long myTime = 0;
+            INT32 fd = m2mb_rtc_open("/dev/rtc0", 0);
+            if (fd >= 0) {
+                M2MB_RTC_TIMEVAL_T timeval;
+                m2mb_rtc_ioctl(fd, M2MB_RTC_IOCTL_GET_TIMEVAL, &timeval);
+                myTime = timeval.msec;
+                m2mb_rtc_close(fd);
+            }
+            return myTime;
+        }
+        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+            int i;
+            srand(get_timestamp());
+            for (i = 0; i < sz; i++ ) {
+                output[i] = rand() % 256;
+                if ((i % 8) == 7) {
+                    srand(get_timestamp());
+                }
+            }
+            return 0;
         }
 
 #elif defined(NO_DEV_RANDOM)
@@ -2304,7 +2351,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #else
         #pragma message("Warning: write a real random seed!!!!, just for testing now")
     #endif
-
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         word32 i;

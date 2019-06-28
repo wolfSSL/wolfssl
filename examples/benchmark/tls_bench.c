@@ -611,7 +611,12 @@ static int bench_tls_client(info_t* info)
         cli_ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
 #endif
     if (!tls13)
+#if !defined(WOLFSSL_TLS13)
         cli_ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+#elif !defined(WOLFSSL_NO_TLS12)
+        cli_ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+#endif
+
     if (cli_ctx == NULL) {
         printf("error creating ctx\n");
         ret = MEMORY_E; goto exit;
@@ -1195,10 +1200,10 @@ static void print_stats(stats_t* wcStat, const char* desc, const char* cipher, i
            cipher,
            wcStat->txTotal + wcStat->rxTotal,
            wcStat->connCount,
-           wcStat->txTime * 1000,
            wcStat->rxTime * 1000,
-           wcStat->txTotal / wcStat->txTime / 1024 / 1024,
+           wcStat->txTime * 1000,
            wcStat->rxTotal / wcStat->rxTime / 1024 / 1024,
+           wcStat->txTotal / wcStat->txTime / 1024 / 1024,
            wcStat->connTime * 1000,
            wcStat->connTime * 1000 / wcStat->connCount);
 }

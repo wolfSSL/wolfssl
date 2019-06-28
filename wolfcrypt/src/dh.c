@@ -1522,6 +1522,46 @@ int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz)
 }
 
 
+/**
+ * Quick validity check of public key value agaist prime.
+ * Checks are:
+ *   - Public key not 0 or 1
+ *   - Public key not equal to prime or prime - 1
+ *   - Public key not bigger than prime.
+ *
+ * prime    Big-endian encoding of prime in bytes.
+ * primeSz  Size of prime in bytes.
+ * pub      Big-endian encoding of public key in bytes.
+ * pubSz    Size of public key in bytes.
+ */
+int wc_DhCheckPubValue(const byte* prime, word32 primeSz, const byte* pub,
+                       word32 pubSz)
+{
+    int ret = 0;
+    word32 i;
+
+    for (i = 0; i < pubSz && pub[i] == 0; i++) {
+    }
+    pubSz -= i;
+    pub += i;
+
+    if (pubSz == 0 || (pubSz == 1 && pub[0] == 1))
+        ret = MP_VAL;
+    else if (pubSz == primeSz) {
+        for (i = 0; i < pubSz-1 && pub[i] == prime[i]; i++) {
+        }
+        if (i == pubSz-1 && (pub[i] == prime[i] || pub[i] == prime[i] - 1))
+            ret = MP_VAL;
+        else if (pub[i] > prime[i])
+            ret = MP_VAL;
+    }
+    else if (pubSz > primeSz)
+        ret = MP_VAL;
+
+    return ret;
+}
+
+
 /* Check DH Private Key for invalid numbers, optionally allowing
  * the private key to be checked against the large prime (q).
  * Check per process in SP 800-56Ar3, section 5.6.2.1.2.
@@ -2201,13 +2241,13 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
     /* tmp2 += (2*loop_check_prime)
      * to have p = (q * tmp2) + 1 prime
      */
-    if (primeCheckCount) {
+    if ((ret == 0) && (primeCheckCount)) {
         if (mp_add_d(&tmp2, 2 * primeCheckCount, &tmp2) != MP_OKAY)
             ret = MP_ADD_E;
     }
 
     /* find a value g for which g^tmp2 != 1 */
-    if (mp_set(&dh->g, 1) != MP_OKAY)
+    if ((ret == 0) && (mp_set(&dh->g, 1) != MP_OKAY))
         ret = MP_ZERO_E;
 
     if (ret == 0) {
@@ -2219,18 +2259,24 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
         } while (ret == 0 && mp_cmp_d(&tmp, 1) == MP_EQ);
     }
 
-    /* at this point tmp generates a group of order q mod p */
-    mp_exch(&tmp, &dh->g);
+    if (ret == 0) {
+        /* at this point tmp generates a group of order q mod p */
+        mp_exch(&tmp, &dh->g);
+    }
 
     /* clear the parameters if there was an error */
-    if (ret != 0) {
+    if ((ret != 0) && (dh != NULL)) {
         mp_clear(&dh->q);
         mp_clear(&dh->p);
         mp_clear(&dh->g);
     }
 
-    ForceZero(buf, bufSz);
-    XFREE(buf, dh->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (buf != NULL) {
+        ForceZero(buf, bufSz);
+        if (dh != NULL) {
+            XFREE(buf, dh->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+    }
     mp_clear(&tmp);
     mp_clear(&tmp2);
 

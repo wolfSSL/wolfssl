@@ -214,11 +214,15 @@ enum ECC_TYPES
 #define ASN_JOI_ST     0x2
 
 #ifndef WC_ASN_NAME_MAX
-    #define WC_ASN_NAME_MAX 256
+    #ifdef OPENSSL_EXTRA
+        #define WC_ASN_NAME_MAX 300
+    #else
+        #define WC_ASN_NAME_MAX 256
+    #endif
 #endif
+#define ASN_NAME_MAX WC_ASN_NAME_MAX
 
 enum Misc_ASN {
-    ASN_NAME_MAX        = WC_ASN_NAME_MAX,
     MAX_SALT_SIZE       =  64,     /* MAX PKCS Salt length */
     MAX_IV_SIZE         =  64,     /* MAX PKCS Iv length */
     ASN_BOOL_SIZE       =   2,     /* including type */
@@ -341,13 +345,17 @@ enum Oid_Types {
 
 
 enum Hash_Sum  {
-    MD2h    = 646,
-    MD5h    = 649,
-    SHAh    =  88,
-    SHA224h = 417,
-    SHA256h = 414,
-    SHA384h = 415,
-    SHA512h = 416
+    MD2h      = 646,
+    MD5h      = 649,
+    SHAh      =  88,
+    SHA224h   = 417,
+    SHA256h   = 414,
+    SHA384h   = 415,
+    SHA512h   = 416,
+    SHA3_224h = 420,
+    SHA3_256h = 421,
+    SHA3_384h = 422,
+    SHA3_512h = 423
 };
 
 
@@ -418,10 +426,14 @@ enum KDF_Sum {
 
 
 enum HMAC_Sum {
-    HMAC_SHA224_OID = 652,
-    HMAC_SHA256_OID = 653,
-    HMAC_SHA384_OID = 654,
-    HMAC_SHA512_OID = 655
+    HMAC_SHA224_OID   = 652,
+    HMAC_SHA256_OID   = 653,
+    HMAC_SHA384_OID   = 654,
+    HMAC_SHA512_OID   = 655,
+    HMAC_SHA3_224_OID = 426,
+    HMAC_SHA3_256_OID = 427,
+    HMAC_SHA3_384_OID = 428,
+    HMAC_SHA3_512_OID = 429
 };
 
 
@@ -530,6 +542,7 @@ struct Base_entry {
 };
 
 #define DOMAIN_COMPONENT_MAX 10
+#define DN_NAMES_MAX 9
 
 struct DecodedName {
     char*   fullName;
@@ -577,6 +590,14 @@ struct DecodedName {
     int     dcLen[DOMAIN_COMPONENT_MAX];
     int     dcNum;
     int     dcMode;
+#ifdef OPENSSL_EXTRA
+    /* hold the location / order with which each of the DN tags was found
+     *
+     * example of ASN_DOMAIN_COMPONENT at index 0 if first found and so on.
+     */
+    int     loc[DOMAIN_COMPONENT_MAX + DN_NAMES_MAX];
+    int     locSz;
+#endif
 };
 
 enum SignatureState {
@@ -931,9 +952,14 @@ WOLFSSL_ASN_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
 
 WOLFSSL_LOCAL int DecodePolicyOID(char *o, word32 oSz,
                                   const byte *in, word32 inSz);
+WOLFSSL_LOCAL int EncodePolicyOID(byte *out, word32 *outSz,
+                                  const char *in, void* heap);
 WOLFSSL_API int CheckCertSignature(const byte*,word32,void*,void* cm);
+WOLFSSL_LOCAL int CheckCertSignaturePubKey(const byte* cert, word32 certSz,
+        void* heap, const byte* pubKey, word32 pubKeySz, int pubKeyOID);
 WOLFSSL_LOCAL int ParseCertRelative(DecodedCert*,int type,int verify,void* cm);
 WOLFSSL_LOCAL int DecodeToKey(DecodedCert*, int verify);
+WOLFSSL_LOCAL int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate);
 
 WOLFSSL_LOCAL const byte* OidFromId(word32 id, word32 type, word32* oidSz);
 WOLFSSL_LOCAL Signer* MakeSigner(void*);
@@ -1186,6 +1212,22 @@ struct OcspRequest {
     void*  ssl;
 };
 
+typedef struct OcspEntry OcspEntry;
+
+#ifdef NO_SHA
+#define OCSP_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
+#else
+#define OCSP_DIGEST_SIZE WC_SHA_DIGEST_SIZE
+#endif
+
+struct OcspEntry
+{
+    OcspEntry *next;                      /* next entry             */
+    byte issuerHash[OCSP_DIGEST_SIZE];    /* issuer hash            */
+    byte issuerKeyHash[OCSP_DIGEST_SIZE]; /* issuer public key hash */
+    CertStatus *status;                   /* OCSP response list     */
+    int totalStatus;                      /* number on list         */
+};
 
 WOLFSSL_LOCAL void InitOcspResponse(OcspResponse*, CertStatus*, byte*, word32);
 WOLFSSL_LOCAL int  OcspResponseDecode(OcspResponse*, void*, void* heap, int);
