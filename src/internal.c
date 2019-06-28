@@ -24087,13 +24087,25 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return ret;
             }
         }
-        ret = MatchSuite(ssl, &clSuites);
 
-#if defined(HAVE_FFDHE) && defined(HAVE_SUPPORTED_CURVES)
-        if (ret == 0 && (ssl->specs.kea == diffie_hellman_kea ||
-                                               ssl->specs.kea == dhe_psk_kea)) {
+#ifdef HAVE_TLS_EXTENSIONS
+    #if defined(HAVE_FFDHE) && defined(HAVE_SUPPORTED_CURVES)
+        if (TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS) != NULL) {
+            /* Set FFDHE parameters or clear DHE parameters if FFDH parameters
+             * present and no matches in the server's list. */
             ret = TLSX_SupportedFFDHE_Set(ssl);
+            if (ret != 0)
+                return ret;
         }
+    #endif
+#endif
+
+        ret = MatchSuite(ssl, &clSuites);
+#ifdef WOLFSSL_EXTRA_ALERTS
+        if (ret == BUFFER_ERROR)
+            SendAlert(ssl, alert_fatal, decode_error);
+        else if (ret < 0)
+            SendAlert(ssl, alert_fatal, handshake_failure);
 #endif
 
 #ifdef HAVE_SECURE_RENEGOTIATION
