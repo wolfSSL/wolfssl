@@ -23083,7 +23083,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return ret;
     }
 
-#ifdef HAVE_SERVER_RENEGOTIATION_INFO
+#if defined(HAVE_SERVER_RENEGOTIATION_INFO) || defined(HAVE_FALLBACK_SCSV) || \
+                                                            defined(OPENSSL_ALL)
 
     /* search suites for specific one, idx on success, negative on error */
 #ifndef WOLFSSL_TLS13
@@ -23871,6 +23872,17 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
         }
 #endif /* HAVE_SERVER_RENEGOTIATION_INFO */
+#if defined(HAVE_FALLBACK_SCSV) || defined(OPENSSL_ALL)
+        /* check for TLS_FALLBACK_SCSV suite */
+        if (FindSuite(&clSuites, TLS_FALLBACK_SCSV, 0) >= 0) {
+            WOLFSSL_MSG("Found Fallback SCSV");
+            if (ssl->ctx->method->version.minor > pv.minor) {
+                WOLFSSL_MSG("Client trying to connect with lesser version");
+                SendAlert(ssl, alert_fatal, inappropriate_fallback);
+                return VERSION_ERROR;
+            }
+        }
+#endif
 
 #ifdef WOLFSSL_DTLS
         if (IsDtlsNotSctpMode(ssl)) {

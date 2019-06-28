@@ -1066,6 +1066,8 @@ enum {
     TLS_AES_128_CCM_SHA256       = 0x04,
     TLS_AES_128_CCM_8_SHA256     = 0x05,
 
+    /* Fallback SCSV (Signaling Cipher Suite Value) */
+    TLS_FALLBACK_SCSV                        = 0x56,
     /* Renegotiation Indication Extension Special Suite */
     TLS_EMPTY_RENEGOTIATION_INFO_SCSV        = 0xff
 };

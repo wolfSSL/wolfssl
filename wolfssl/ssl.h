@@ -401,6 +401,7 @@ enum AlertDescription {
     #else
     protocol_version                =  70,
     #endif
+    inappropriate_fallback          =  86,
     no_renegotiation                = 100,
     unsupported_extension           = 110, /**< RFC 5246, section 7.2.2 */
     unrecognized_name               = 112, /**< RFC 6066, section 3 */
