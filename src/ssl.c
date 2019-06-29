@@ -4463,6 +4463,14 @@ int wolfSSL_Init(void)
             WOLFSSL_MSG("Bad wolfCrypt Init");
             return WC_INIT_E;
         }
+
+#ifdef OPENSSL_EXTRA
+        if (wolfSSL_RAND_seed("", 0) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_RAND_Seed failed");
+            return WC_INIT_E;
+        }
+#endif
+
 #ifndef NO_SESSION_CACHE
         if (wc_InitMutex(&session_mutex) != 0) {
             WOLFSSL_MSG("Bad Init Mutex session");
@@ -22841,6 +22849,8 @@ int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num)
 /* SSL_SUCCESS on ok */
 int wolfSSL_RAND_bytes(unsigned char* buf, int num)
 {
+    WOLFSSL_ENTER("wolfSSL_RAND_bytes");
+
     int     ret = 0;
     int     initTmpRng = 0;
     WC_RNG* rng = NULL;
@@ -22858,13 +22868,13 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
         return ret;
 #endif
 
-    if (wc_InitRng(tmpRNG) == 0) {
+    if (initGlobalRNG)
+        rng = &globalRNG;
+    else if(wc_InitRng(tmpRNG) == 0) {
         rng = tmpRNG;
         initTmpRng = 1;
     }
-    else if (initGlobalRNG)
-        rng = &globalRNG;
-
+ 
     if (rng) {
         if (wc_RNG_GenerateBlock(rng, buf, num) != 0)
             WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");
