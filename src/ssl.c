@@ -22849,8 +22849,6 @@ int wolfSSL_RAND_pseudo_bytes(unsigned char* buf, int num)
 /* SSL_SUCCESS on ok */
 int wolfSSL_RAND_bytes(unsigned char* buf, int num)
 {
-    WOLFSSL_ENTER("wolfSSL_RAND_bytes");
-
     int     ret = 0;
     int     initTmpRng = 0;
     WC_RNG* rng = NULL;
