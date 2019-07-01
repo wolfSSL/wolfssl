@@ -10391,6 +10391,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 if (IsAtLeastTLSv1_3(ssl->version))
                     break;
 #endif
+                if (size != 0)
+                    return BUFFER_ERROR;
+
 #ifndef NO_WOLFSSL_SERVER
                 if (isRequest)
                     ssl->options.haveEMS = 1;
