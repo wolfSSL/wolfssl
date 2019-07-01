@@ -57,8 +57,9 @@ if [ "$DIR" = "ARDUINO" ]; then
 
     cp wolfSSL/wolfssl/wolfcrypt/settings.h wolfSSL/wolfssl/wolfcrypt/settings.h.bak
     echo " /* wolfSSL Generated ARDUINO settings */" > ./wolfSSL/wolfssl/wolfcrypt/settings.h
-    echo "#define WOLFSSL_ARDUINO" >> ./wolfSSL/wolfssl/wolfcrypt/settings.h
-    echo "#define WOLFSSL_USER_SETTINGS" >> ./wolfSSL/wolfssl/wolfcrypt/settings.h
+    echo "#ifndef WOLFSSL_USER_SETTINGS" >> ./wolfSSL/wolfssl/wolfcrypt/settings.h
+    echo "    #define WOLFSSL_USER_SETTINGS" >> ./wolfSSL/wolfssl/wolfcrypt/settings.h
+    echo "#endif /* WOLFSSL_USER_SETTINGS */" >> ./wolfSSL/wolfssl/wolfcrypt/settings.h
     echo " /* wolfSSL Generated ARDUINO settings: END */" >> ./wolfSSL/wolfssl/wolfcrypt/settings.h
     cat ./wolfSSL/wolfssl/wolfcrypt/settings.h.bak >> ./wolfSSL/wolfssl/wolfcrypt/settings.h
 
