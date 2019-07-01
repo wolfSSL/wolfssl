@@ -5711,6 +5711,7 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, byte* input,
     int len;
     byte major, minor;
     int newMinor = 0;
+    int set = 0;
 
     if (msgType == client_hello) {
         /* Must contain a length and at least one version. */
@@ -5735,6 +5736,9 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, byte* input,
                 major = SSLv3_MAJOR;
                 minor = TLSv1_3_MINOR;
             }
+#else
+            if (major == TLS_DRAFT_MAJOR)
+                continue;
 #endif
 
             if (major != pv.major)
@@ -5773,6 +5777,12 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, byte* input,
             }
             else if (minor > ssl->options.oldMinor)
                 ssl->options.oldMinor = minor;
+
+            set = 1;
+        }
+        if (!set) {
+            SendAlert(ssl, alert_fatal, protocol_version);
+            return VERSION_ERROR;
         }
     }
 #ifndef WOLFSSL_TLS13_DRAFT_18
@@ -6061,6 +6071,12 @@ static int TLSX_SignatureAlgorithms_MapPss(WOLFSSL *ssl, byte* input,
     for (i = 0; i < length; i += 2) {
         if (input[i] == rsa_pss_sa_algo && input[i + 1] <= sha512_mac)
             ssl->pssAlgo |= 1 << input[i + 1];
+    #ifdef WOLFSSL_TLS13
+        if (input[i] == rsa_pss_sa_algo && input[i + 1] >= pss_sha256 &&
+                                                   input[i + 1] <= pss_sha512) {
+            ssl->pssAlgo |= 1 << input[i + 1];
+        }
+    #endif
     }
 
     return 0;
@@ -7076,7 +7092,9 @@ static int TLSX_KeyShareEntry_Parse(WOLFSSL* ssl, byte* input, word16 length,
     /* Key exchange data - public key. */
     ato16(&input[offset], &keLen);
     offset += OPAQUE16_LEN;
-    if (keLen < 1 || keLen > length - offset)
+    if (keLen == 0)
+        return INVALID_PARAMETER;
+    if (keLen > length - offset)
         return BUFFER_ERROR;
 
     /* Store a copy in the key share object. */
@@ -10353,7 +10371,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 WOLFSSL_MSG("Point Formats extension received");
 
 #ifdef WOLFSSL_TLS13
-                if (IsAtLeastTLSv1_3(ssl->ctx->method->version))
+                if (IsAtLeastTLSv1_3(ssl->version))
                     break;
 #endif
                 ret = PF_PARSE(ssl, input + offset, size, isRequest);
