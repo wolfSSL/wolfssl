@@ -402,6 +402,7 @@ enum AlertDescription {
     protocol_version                =  70,
     #endif
     no_renegotiation                = 100,
+    missing_extension               = 109,
     unsupported_extension           = 110, /**< RFC 5246, section 7.2.2 */
     unrecognized_name               = 112, /**< RFC 6066, section 3 */
     bad_certificate_status_response = 113, /**< RFC 6066, section 8 */
