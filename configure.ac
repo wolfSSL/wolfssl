@@ -2844,6 +2844,18 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SECURE_RENEGOTIATION -DHAVE_SERVER_RENEGOTIATION_INFO"
 fi
 
+# Fallback SCSV
+AC_ARG_ENABLE([fallback-scsv],
+    [AS_HELP_STRING([--enable-fallback-scsv],[Enable Fallback SCSV (default: disabled)])],
+    [ ENABLED_FALLBACK_SCSV=$enableval ],
+    [ ENABLED_FALLBACK_SCSV=no ]
+    )
+
+if test "x$ENABLED_FALLBACK_SCSV" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_FALLBACK_SCSV"
+fi
+
 # Supported Elliptic Curves Extensions
 AC_ARG_ENABLE([supportedcurves],
     [AS_HELP_STRING([--enable-supportedcurves],[Enable Supported Elliptic Curves (default: enabled)])],
@@ -4961,6 +4973,7 @@ echo "   * Session Ticket:             $ENABLED_SESSION_TICKET"
 echo "   * Extended Master Secret:     $ENABLED_EXTENDED_MASTER"
 echo "   * Renegotiation Indication:   $ENABLED_RENEGOTIATION_INDICATION"
 echo "   * Secure Renegotiation:       $ENABLED_SECURE_RENEGOTIATION"
+echo "   * Fallback SCSV:              $ENABLED_FALLBACK_SCSV"
 echo "   * All TLS Extensions:         $ENABLED_TLSX"
 echo "   * PKCS#7                      $ENABLED_PKCS7"
 echo "   * wolfSSH                     $ENABLED_WOLFSSH"
