@@ -12941,6 +12941,8 @@ static int SetAltNamesFromDcert(Cert* cert, DecodedCert* decoded)
     return ret;
 }
 
+#ifndef NO_FILESYSTEM
+
 /* Set Alt Names from der cert, return 0 on success */
 static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
 {
@@ -12978,6 +12980,8 @@ static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
 
     return ret < 0 ? ret : 0;
 }
+
+#endif
 
 static int SetDatesFromDcert(Cert* cert, DecodedCert* decoded)
 {
