@@ -10275,6 +10275,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         switch (type) {
             case TLSX_SERVER_NAME:
                 WOLFSSL_MSG("SNI extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
 #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version) &&
@@ -10293,6 +10296,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 
             case TLSX_TRUSTED_CA_KEYS:
                 WOLFSSL_MSG("Trusted CA extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
 #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version) &&
@@ -10306,6 +10312,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 
             case TLSX_MAX_FRAGMENT_LENGTH:
                 WOLFSSL_MSG("Max Fragment Length extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
 #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version) &&
@@ -10323,6 +10332,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 
             case TLSX_TRUNCATED_HMAC:
                 WOLFSSL_MSG("Truncated HMAC extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
 #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version))
@@ -10333,6 +10345,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 
             case TLSX_SUPPORTED_GROUPS:
                 WOLFSSL_MSG("Supported Groups extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
 #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version) &&
@@ -10351,6 +10366,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 
             case TLSX_EC_POINT_FORMATS:
                 WOLFSSL_MSG("Point Formats extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
 #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->ctx->method->version))
@@ -10361,6 +10379,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 
             case TLSX_STATUS_REQUEST:
                 WOLFSSL_MSG("Certificate Status Request extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
 #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version))
@@ -10371,6 +10392,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 
             case TLSX_STATUS_REQUEST_V2:
                 WOLFSSL_MSG("Certificate Status Request v2 extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
 #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version) &&
@@ -10386,6 +10410,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 #ifdef HAVE_EXTENDED_MASTER
             case HELLO_EXT_EXTMS:
                 WOLFSSL_MSG("Extended Master Secret extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
 #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version))
@@ -10401,6 +10428,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 
             case TLSX_RENEGOTIATION_INFO:
                 WOLFSSL_MSG("Secure Renegotiation extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
 #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version))
@@ -10411,6 +10441,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 
             case TLSX_SESSION_TICKET:
                 WOLFSSL_MSG("Session Ticket extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
 #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version) &&
@@ -10423,6 +10456,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 
             case TLSX_QUANTUM_SAFE_HYBRID:
                 WOLFSSL_MSG("Quantum-Safe-Hybrid extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
 #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version))
@@ -10433,6 +10469,10 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 
             case TLSX_APPLICATION_LAYER_PROTOCOL:
                 WOLFSSL_MSG("ALPN extension received");
+
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
 #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version) &&
@@ -10451,6 +10491,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 #if !defined(WOLFSSL_NO_SIGALG)
             case TLSX_SIGNATURE_ALGORITHMS:
                 WOLFSSL_MSG("Signature Algorithms extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
                 if (!IsAtLeastTLSv1_2(ssl))
                     break;
@@ -10467,11 +10510,17 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 #ifdef WOLFSSL_TLS13
             case TLSX_SUPPORTED_VERSIONS:
                 WOLFSSL_MSG("Skipping Supported Versions - already processed");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
                 break;
 
             case TLSX_COOKIE:
                 WOLFSSL_MSG("Cookie extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
                 if (!IsAtLeastTLSv1_3(ssl->version))
                     break;
@@ -10487,6 +10536,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
             case TLSX_PRE_SHARED_KEY:
                 WOLFSSL_MSG("Pre-Shared Key extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
                 if (!IsAtLeastTLSv1_3(ssl->version))
                     break;
@@ -10500,6 +10552,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 
             case TLSX_PSK_KEY_EXCHANGE_MODES:
                 WOLFSSL_MSG("PSK Key Exchange Modes extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
                 if (!IsAtLeastTLSv1_3(ssl->version))
                     break;
@@ -10514,6 +10569,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
     #ifdef WOLFSSL_EARLY_DATA
             case TLSX_EARLY_DATA:
                 WOLFSSL_MSG("Early Data extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
                 if (!IsAtLeastTLSv1_3(ssl->version))
                     break;
@@ -10534,6 +10592,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
     #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
             case TLSX_POST_HANDSHAKE_AUTH:
                 WOLFSSL_MSG("Post Handshake Authentication extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
                 if (!IsAtLeastTLSv1_3(ssl->version))
                     break;
@@ -10548,6 +10609,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
     #if !defined(WOLFSSL_TLS13_DRAFT_18) && !defined(WOLFSSL_TLS13_DRAFT_22)
             case TLSX_SIGNATURE_ALGORITHMS_CERT:
                 WOLFSSL_MSG("Signature Algorithms extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
                 if (!IsAtLeastTLSv1_3(ssl->version))
                     break;
@@ -10567,6 +10631,9 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 
             case TLSX_KEY_SHARE:
                 WOLFSSL_MSG("Key Share extension received");
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_BUFFER(input + offset, size);
+            #endif
 
                 if (!IsAtLeastTLSv1_3(ssl->version))
                     break;
