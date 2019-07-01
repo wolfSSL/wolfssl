@@ -453,6 +453,10 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
                 err_sys_ex(runWithErrors, "SSL_read failed");
             }
         }
+        else if (SSL_get_error(ssl, 0) == 0 &&
+                            tcp_select(SSL_get_fd(ssl), 0) == TEST_RECV_READY) {
+                err = WOLFSSL_ERROR_WANT_READ;
+        }
     } while (err == WC_PENDING_E || err == WOLFSSL_ERROR_WANT_READ);
     if (ret > 0) {
         input[ret] = 0; /* null terminate message */
@@ -464,10 +468,19 @@ static void ServerWrite(WOLFSSL* ssl, const char* output, int outputLen)
 {
     int ret, err;
     char buffer[WOLFSSL_MAX_ERROR_SZ];
+    int len;
+
+#ifdef OPENSSL_ALL
+    /* Fuzz testing expects reply split over two msgs when TLSv1.0 or below */
+    if (wolfSSL_GetVersion(ssl) <= WOLFSSL_TLSV1)
+         len = outputLen / 2;
+    else
+#endif
+        len = outputLen;
 
     do {
         err = 0; /* reset error */
-        ret = SSL_write(ssl, output, outputLen);
+        ret = SSL_write(ssl, output, len);
         if (ret <= 0) {
             err = SSL_get_error(ssl, 0);
 
@@ -477,6 +490,11 @@ static void ServerWrite(WOLFSSL* ssl, const char* output, int outputLen)
                 if (ret < 0) break;
             }
         #endif
+        }
+        else if (ret != outputLen) {
+            output += ret;
+            len = (outputLen -= ret);
+            err = WOLFSSL_ERROR_WANT_WRITE;
         }
     } while (err == WC_PENDING_E || err == WOLFSSL_ERROR_WANT_WRITE);
     if (ret != outputLen) {
