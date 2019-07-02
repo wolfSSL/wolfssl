@@ -26,7 +26,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if !defined(NO_ASN) && !defined(NO_PWDBASED)
+#if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12)
 
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
@@ -2076,4 +2076,4 @@ void* wc_PKCS12_GetHeap(WC_PKCS12* pkcs12)
 
 #undef ERROR_OUT
 
-#endif /* !NO_ASN && !NO_PWDBASED */
+#endif /* !NO_ASN && !NO_PWDBASED && HAVE_PKCS12 */

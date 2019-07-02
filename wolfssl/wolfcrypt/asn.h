@@ -826,7 +826,9 @@ struct DecodedCert {
 #endif /* defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT) */
 
     Signer* ca;
+#ifndef NO_CERTS
     SignatureCtx sigCtx;
+#endif
 
     /* Option Bits */
     byte subjectCNStored : 1;      /* have we saved a copy we own */
