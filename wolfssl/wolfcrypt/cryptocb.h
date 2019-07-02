@@ -55,6 +55,10 @@
 #ifndef WC_NO_RNG
     #include <wolfssl/wolfcrypt/random.h>
 #endif
+#ifndef NO_DES3
+    #include <wolfssl/wolfcrypt/des3.h>
+#endif
+
 
 /* Crypto Information Structure for callbacks */
 typedef struct wc_CryptoInfo {
@@ -115,7 +119,7 @@ typedef struct wc_CryptoInfo {
         };
     } pk;
 #endif /* !NO_RSA || HAVE_ECC */
-#ifndef NO_AES
+#if !defined(NO_AES) || !defined(NO_DES3)
     struct {
         int type; /* enum wc_CipherType */
         int enc;
@@ -154,9 +158,17 @@ typedef struct wc_CryptoInfo {
                 word32      sz;
             } aescbc;
         #endif /* HAVE_AES_CBC */
+        #ifndef NO_DES3
+            struct {
+                Des3*       des;
+                byte*       out;
+                const byte* in;
+                word32      sz;
+            } des3;
+        #endif
         };
     } cipher;
-#endif /* !NO_AES */
+#endif /* !NO_AES || !NO_DES3 */
 #if !defined(NO_SHA) || !defined(NO_SHA256)
     struct {
         int type; /* enum wc_HashType */
@@ -251,6 +263,13 @@ WOLFSSL_LOCAL int wc_CryptoCb_AesCbcDecrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz);
 #endif /* HAVE_AES_CBC */
 #endif /* !NO_AES */
+
+#ifndef NO_DES3
+WOLFSSL_LOCAL int wc_CryptoCb_Des3Encrypt(Des3* des3, byte* out,
+                               const byte* in, word32 sz);
+WOLFSSL_LOCAL int wc_CryptoCb_Des3Decrypt(Des3* des3, byte* out,
+                               const byte* in, word32 sz);
+#endif /* !NO_DES3 */
 
 #ifndef NO_SHA
 WOLFSSL_LOCAL int wc_CryptoCb_ShaHash(wc_Sha* sha, const byte* in,
