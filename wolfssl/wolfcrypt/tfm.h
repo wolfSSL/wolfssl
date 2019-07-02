@@ -55,7 +55,12 @@
    #define TFM_NO_ASM
 #endif
 
-#ifndef NO_64BIT
+#ifdef NO_64BIT
+   #undef  NO_TFM_64BIT
+   #define NO_TFM_64BIT
+#endif
+
+#ifndef NO_TFM_64BIT
 /* autodetect x86-64 and make sure we are using 64-bit digits with x86-64 asm */
 #if defined(__x86_64__)
    #if defined(TFM_X86) || defined(TFM_SSE2) || defined(TFM_ARM)
@@ -79,7 +84,7 @@
     #undef FP_64BIT
     #undef TFM_X86_64
 #endif
-#endif /* NO_64BIT */
+#endif /* NO_TFM_64BIT */
 
 /* try to detect x86-32 */
 #if defined(__i386__) && !defined(TFM_SSE2)
@@ -218,7 +223,7 @@
    typedef unsigned long      fp_word __attribute__ ((mode(TI)));
 #else
 
-   #ifndef NO_64BIT
+   #ifndef NO_TFM_64BIT
       #if defined(_MSC_VER) || defined(__BORLANDC__)
          typedef unsigned __int64   ulong64;
       #else
