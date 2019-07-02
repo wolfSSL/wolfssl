@@ -3233,7 +3233,11 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     *inOutIdx += OPAQUE16_LEN;
     if ((*inOutIdx - begin) + len > size)
         return BUFFER_ERROR;
-    (void)PickHashSigAlgo(ssl, input + *inOutIdx, len);
+    if (PickHashSigAlgo(ssl, input + *inOutIdx, len) != 0 &&
+                 ssl->buffers.certificate && ssl->buffers.certificate->buffer &&
+                 ssl->buffers.key && ssl->buffers.key->buffer) {
+        return INVALID_PARAMETER;
+    }
     *inOutIdx += len;
 
     /* Length of certificate authority data. */
@@ -3287,14 +3291,18 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
         return ret;
     }
     *inOutIdx += len;
-
-    (void)PickHashSigAlgo(ssl, peerSuites.hashSigAlgo,
-                                                      peerSuites.hashSigAlgoSz);
 #endif
 
     if (ssl->buffers.certificate && ssl->buffers.certificate->buffer &&
-        ssl->buffers.key && ssl->buffers.key->buffer)
+        ssl->buffers.key && ssl->buffers.key->buffer) {
+#ifndef WOLFSSL_TLS13_DRAFT_18
+        if (PickHashSigAlgo(ssl, peerSuites.hashSigAlgo,
+                                               peerSuites.hashSigAlgoSz) != 0) {
+            return INVALID_PARAMETER;
+        }
+#endif
         ssl->options.sendVerify = SEND_CERT;
+    }
     else
         ssl->options.sendVerify = SEND_BLANK_CERT;
 

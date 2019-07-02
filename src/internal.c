@@ -2859,7 +2859,8 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 
     suites->suiteSz = idx;
 
-    InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig, 0, tls1_2, keySz);
+    InitSuitesHashSigAlgo(suites, haveECDSAsig | haveECC, haveRSAsig | haveRSA,
+                                                              0, tls1_2, keySz);
 }
 
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS) || \
@@ -18081,7 +18082,19 @@ exit_dpk:
             if ((*inOutIdx - begin) + len > size)
                 return BUFFER_ERROR;
 
-            (void)PickHashSigAlgo(ssl, input + *inOutIdx, len);
+            if (PickHashSigAlgo(ssl, input + *inOutIdx, len) != 0 &&
+                                             ssl->buffers.certificate &&
+                                             ssl->buffers.certificate->buffer) {
+            #ifdef HAVE_PK_CALLBACKS
+                if (wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)) {
+                    WOLFSSL_MSG("Using PK for client private key");
+                    return INVALID_PARAMETER;
+                }
+            #endif
+                if (ssl->buffers.key && ssl->buffers.key->buffer) {
+                    return INVALID_PARAMETER;
+                }
+            }
             *inOutIdx += len;
     #ifdef WC_RSA_PSS
             ssl->pssAlgo = 0;
