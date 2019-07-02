@@ -30539,7 +30539,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return x509;
     }
 
-#if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
+#if !defined(NO_FILESYSTEM)
     static void* wolfSSL_PEM_read_X509_ex(XFILE fp, void **x,
                                                     pem_password_cb *cb, void *u, int type)
     {
@@ -30656,7 +30656,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         return ret;
     }
-#endif
+#endif /* !NO_FILESYSTEM */
 
     #define PEM_BEGIN              "-----BEGIN "
     #define PEM_BEGIN_SZ           11
