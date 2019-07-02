@@ -116,6 +116,7 @@ WOLFSSL_API int wc_DhCheckKeyPair(DhKey* key, const byte* pub, word32 pubSz,
 WOLFSSL_API int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh);
 WOLFSSL_API int wc_DhExportParamsRaw(DhKey* dh, byte* p, word32* pSz,
                        byte* q, word32* qSz, byte* g, word32* gSz);
+WOLFSSL_API int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz);
 
 
 #ifdef __cplusplus

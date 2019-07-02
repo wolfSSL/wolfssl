@@ -33169,6 +33169,85 @@ end:
     return NULL;
 #endif
 }
+
+#ifndef NO_FILESYSTEM
+int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh)
+{
+    int ret;
+    word32 derSz = 0, pemSz = 0;
+    byte *der, *pem;
+    DhKey* key;
+
+    WOLFSSL_ENTER("wolfSSL_PEM_write_DHparams");
+
+    if (dh == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", BAD_FUNC_ARG);
+        return WOLFSSL_FAILURE;
+    }
+
+#if 0
+    if (dh->inSet != 1) {
+        ret = SetDhInternal(dh);
+    }
+#endif
+    key = (DhKey*)dh->internal;
+    ret = wc_DhParamsToDer(key, NULL, &derSz);
+    if (ret != LENGTH_ONLY_E) {
+        WOLFSSL_MSG("Failed to get size of DH params");
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
+        return WOLFSSL_FAILURE;
+    }
+
+    der = (byte*)XMALLOC(derSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", MEMORY_E);
+        return WOLFSSL_FAILURE;
+    }
+    ret = wc_DhParamsToDer(key, der, &derSz);
+    if (ret <= 0) {
+        WOLFSSL_MSG("Failed to export DH params");
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
+        XFREE(der, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return WOLFSSL_FAILURE;
+    }
+
+    /* convert to PEM */
+    ret = wc_DerToPem(der, derSz, NULL, 0, DH_PARAM_TYPE);
+    if (ret < 0) {
+        WOLFSSL_MSG("Failed to convert DH params to PEM");
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
+        XFREE(der, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+    pemSz = (word32)ret;
+
+    pem = (byte*)XMALLOC(pemSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pem == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", MEMORY_E);
+        XFREE(der, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+    ret = wc_DerToPem(der, derSz, pem, pemSz, DH_PARAM_TYPE);
+    XFREE(der, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ret < 0) {
+        WOLFSSL_MSG("Failed to convert DH params to PEM");
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
+        XFREE(pem, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+
+    ret = (int)XFWRITE(pem, 1, pemSz, fp);
+    XFREE(pem, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ret <= 0) {
+        WOLFSSL_MSG("Failed to write to file");
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
+        return WOLFSSL_FAILURE;
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", WOLFSSL_SUCCESS);
+    return WOLFSSL_SUCCESS;
+}
+#endif /* !NO_FILESYSTEM */
 #endif
 
 #ifdef WOLFSSL_CERT_GEN

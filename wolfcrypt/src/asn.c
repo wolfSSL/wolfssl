@@ -4041,6 +4041,70 @@ int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
     return 0;
 }
 
+
+/* Convert DH key parameters to DER format, write to output (outSz)
+ * If output is NULL then max expected size is set to outSz and LENGTH_ONLY_E is
+ * returned.
+ * return bytes written on success */
+int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz)
+{
+    word32 sz = 0, idx = 0;
+    int pSz = 0, qSz = 0, ret;
+    byte scratch[MAX_LENGTH_SZ];
+
+    if (key == NULL || outSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    pSz = mp_unsigned_bin_size(&key->p);
+    if (pSz < 0) {
+        return pSz;
+    }
+
+    qSz = mp_unsigned_bin_size(&key->q);
+    if (qSz < 0) {
+        return qSz;
+    }
+
+    sz  = ASN_TAG_SZ; /* Integer */
+    sz += SetLength(qSz, scratch);
+    sz += ASN_TAG_SZ; /* Integer */
+    sz += SetLength(pSz, scratch);
+    sz += qSz + pSz;
+
+    if (out == NULL) {
+        byte seqScratch[MAX_SEQ_SZ];
+
+        *outSz = sz + SetSequence(sz, seqScratch);
+        return LENGTH_ONLY_E;
+    }
+
+    if (*outSz < MAX_SEQ_SZ || *outSz < sz) {
+        return BUFFER_E;
+    }
+
+    idx += SetSequence(sz, out);
+    if (*outSz < idx + sz) {
+        return BUFFER_E;
+    }
+
+    out[idx++] = ASN_INTEGER;
+    idx += SetLength(pSz, out + idx);
+    ret = mp_to_unsigned_bin(&key->p, out + idx);
+    if (ret != MP_OKAY) {
+        return BUFFER_E;
+    }
+    idx += pSz;
+
+    out[idx++] = ASN_INTEGER;
+    idx += SetLength(qSz, out + idx);
+    ret = mp_to_unsigned_bin(&key->q, out + idx);
+    if (ret != MP_OKAY) {
+        return BUFFER_E;
+    }
+    idx += qSz;
+    return idx;
+}
 #endif /* NO_DH */
 
 
