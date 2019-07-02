@@ -503,6 +503,10 @@ int wolfcrypt_test(void* args)
 {
     int ret;
 
+    printf("------------------------------------------------------------------------------\n");
+    printf(" wolfSSL version %s\n", LIBWOLFSSL_VERSION_STRING);
+    printf("------------------------------------------------------------------------------\n");
+
     if (args)
         ((func_args*)args)->return_code = -1; /* error state */
 
