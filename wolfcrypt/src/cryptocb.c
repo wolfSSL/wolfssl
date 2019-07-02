@@ -382,7 +382,6 @@ int wc_CryptoCb_AesCbcEncrypt(Aes* aes, byte* out,
         dev = wc_CryptoCb_FindDeviceByIndex(0);
     }
 
-    dev = wc_CryptoCb_FindDevice(aes->devId);
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
