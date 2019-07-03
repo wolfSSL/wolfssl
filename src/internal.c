@@ -8555,6 +8555,10 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     x509->pkCurveOID = dCert->pkCurveOID;
 #endif /* HAVE_ECC */
 
+    if (ret != 0) {
+        wolfSSL_X509_free(x509);
+    }
+
     return ret;
 }
 
@@ -9366,6 +9370,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             if (args->dCert == NULL) {
                 ERROR_OUT(MEMORY_E, exit_ppc);
             }
+            XMEMSET(args->dCert, 0, sizeof(DecodedCert));
         #endif
 
             /* Advance state and proceed */
