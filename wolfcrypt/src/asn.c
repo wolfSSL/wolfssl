@@ -4049,7 +4049,7 @@ int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
 int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz)
 {
     word32 sz = 0, idx = 0;
-    int pSz = 0, qSz = 0, ret;
+    int pSz = 0, gSz = 0, ret;
     byte scratch[MAX_LENGTH_SZ];
 
     if (key == NULL || outSz == NULL) {
@@ -4060,17 +4060,23 @@ int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz)
     if (pSz < 0) {
         return pSz;
     }
+    if (mp_leading_bit(&key->p)) {
+        pSz++;
+    }
 
-    qSz = mp_unsigned_bin_size(&key->q);
-    if (qSz < 0) {
-        return qSz;
+    gSz = mp_unsigned_bin_size(&key->g);
+    if (gSz < 0) {
+        return gSz;
+    }
+    if (mp_leading_bit(&key->g)) {
+        gSz++;
     }
 
     sz  = ASN_TAG_SZ; /* Integer */
-    sz += SetLength(qSz, scratch);
-    sz += ASN_TAG_SZ; /* Integer */
     sz += SetLength(pSz, scratch);
-    sz += qSz + pSz;
+    sz += ASN_TAG_SZ; /* Integer */
+    sz += SetLength(gSz, scratch);
+    sz += gSz + pSz;
 
     if (out == NULL) {
         byte seqScratch[MAX_SEQ_SZ];
@@ -4090,6 +4096,10 @@ int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz)
 
     out[idx++] = ASN_INTEGER;
     idx += SetLength(pSz, out + idx);
+    if (mp_leading_bit(&key->p)) {
+        out[idx++] = 0x00;
+        pSz -= 1; /* subtract 1 from size to account for leading 0 */
+    }
     ret = mp_to_unsigned_bin(&key->p, out + idx);
     if (ret != MP_OKAY) {
         return BUFFER_E;
@@ -4097,12 +4107,16 @@ int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz)
     idx += pSz;
 
     out[idx++] = ASN_INTEGER;
-    idx += SetLength(qSz, out + idx);
-    ret = mp_to_unsigned_bin(&key->q, out + idx);
+    idx += SetLength(gSz, out + idx);
+    if (mp_leading_bit(&key->g)) {
+        out[idx++] = 0x00;
+        gSz -= 1; /* subtract 1 from size to account for leading 0 */
+    }
+    ret = mp_to_unsigned_bin(&key->g, out + idx);
     if (ret != MP_OKAY) {
         return BUFFER_E;
     }
-    idx += qSz;
+    idx += gSz;
     return idx;
 }
 #endif /* NO_DH */
