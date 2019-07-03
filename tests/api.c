@@ -21912,11 +21912,10 @@ static void test_wolfSSL_PEM_write_DHparams(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_DH) && !defined(NO_FILESYSTEM)
     DH* dh;
+    BIO* bio;
     XFILE fp;
     byte pem[2048];
     int  pemSz;
-    DerBuffer *der = NULL;
-    word32 idx = 0;
     const char expected[] =
 "-----BEGIN DH PARAMETERS-----\n\
 MIIBCAKCAQEAsKEIBpwIE7pZBjy8MNX1AMFPRKfW70rGJScc6NKWUwpckd2iwpSE\n\
@@ -21929,15 +21928,13 @@ tgZl96bcAGdru8OpQYP7x/rI4h5+rwA/kwIBAg==\n\
     printf(testingFmt, "wolfSSL_PEM_write_DHparams()");
 
     AssertNotNull(fp = XFOPEN(dhParamFile, "rb"));
-    AssertIntGT((pemSz = XFREAD(pem, 1, sizeof(pem), fp)), 0);
+    AssertIntGT((pemSz = (int)XFREAD(pem, 1, sizeof(pem), fp)), 0);
     XFCLOSE(fp);
 
-    wc_PemToDer(pem, pemSz, DH_PARAM_TYPE, &der, NULL, NULL, NULL);
-    AssertNotNull(dh = DH_new());
-    printf("derSz = %d idx = %d\n", der->length, idx);
-    AssertIntEQ(wc_DhKeyDecode(der->buffer, &idx, (DhKey*)dh->internal,
-                der->length), 0);
-    wc_FreeDer(&der);
+    AssertNotNull(bio = BIO_new(BIO_s_mem()));
+    AssertIntEQ(BIO_write(bio, pem, pemSz), pemSz);
+    AssertNotNull(dh = PEM_read_bio_DHparams(bio, NULL, NULL, NULL));
+    BIO_free(bio);
 
     AssertNotNull(fp = XFOPEN("./test-write-dhparams.pem", "wb"));
     AssertIntEQ(PEM_write_DHparams(fp, dh), WOLFSSL_SUCCESS);
@@ -21948,7 +21945,7 @@ tgZl96bcAGdru8OpQYP7x/rI4h5+rwA/kwIBAg==\n\
     /* check results */
     XMEMSET(pem, 0, sizeof(pem));
     AssertNotNull(fp = XFOPEN("./test-write-dhparams.pem", "rb"));
-    AssertIntGT((pemSz = XFREAD(pem, 1, sizeof(pem), fp)), 0);
+    AssertIntGT((pemSz = (int)XFREAD(pem, 1, sizeof(pem), fp)), 0);
     AssertIntEQ(XMEMCMP(pem, expected, pemSz), 0);
     XFCLOSE(fp);
 

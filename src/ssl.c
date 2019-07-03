@@ -33113,11 +33113,9 @@ WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
     if (x != NULL)
         localDh = *x;
     if (localDh == NULL) {
-        localDh = (WOLFSSL_DH*)XMALLOC(sizeof(WOLFSSL_DH), NULL,
-                                       DYNAMIC_TYPE_OPENSSL);
+        localDh = wolfSSL_DH_new();
         if (localDh == NULL)
             goto end;
-        XMEMSET(localDh, 0, sizeof(WOLFSSL_DH));
     }
 
     /* Load data in manually */
@@ -33155,6 +33153,14 @@ WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
         localDh = NULL;
     }
 
+    if (localDh != NULL && localDh->inSet == 0) {
+        if (SetDhInternal(localDh) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Unable to set internal DH structure");
+            wolfSSL_DH_free(localDh);
+            localDh = NULL;
+        }
+    }
+
 end:
     if (memAlloced) XFREE(mem, NULL, DYNAMIC_TYPE_PEM);
     if (der != NULL) FreeDer(&der);
@@ -33185,11 +33191,12 @@ int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh)
         return WOLFSSL_FAILURE;
     }
 
-#if 0
-    if (dh->inSet != 1) {
-        ret = SetDhInternal(dh);
+    if (dh->inSet == 0) {
+        if (SetDhInternal(dh) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Unable to set internal DH structure");
+            return WOLFSSL_FAILURE;
+        }
     }
-#endif
     key = (DhKey*)dh->internal;
     ret = wc_DhParamsToDer(key, NULL, &derSz);
     if (ret != LENGTH_ONLY_E) {
