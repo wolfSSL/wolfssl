@@ -24334,7 +24334,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif /* HAVE_ECC */
     }
     else if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
-#ifndef NO_AES
+#if !defined(NO_AES) || !defined(NO_DES3)
     #ifdef HAVE_AESGCM
         if (info->cipher.type == WC_CIPHER_AES_GCM) {
             if (info->cipher.enc) {
@@ -24407,7 +24407,37 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             }
         }
     #endif /* HAVE_AES_CBC */
-#endif /* !NO_AES */
+    #ifndef NO_DES3
+        if (info->cipher.type == WC_CIPHER_DES3) {
+            if (info->cipher.enc) {
+                /* set devId to invalid, so software is used */
+                info->cipher.des3.des->devId = INVALID_DEVID;
+
+                ret = wc_Des3_CbcEncrypt(
+                    info->cipher.des3.des,
+                    info->cipher.des3.out,
+                    info->cipher.des3.in,
+                    info->cipher.des3.sz);
+
+                /* reset devId */
+                info->cipher.des3.des->devId = devIdArg;
+            }
+            else {
+                /* set devId to invalid, so software is used */
+                info->cipher.des3.des->devId = INVALID_DEVID;
+
+                ret = wc_Des3_CbcDecrypt(
+                    info->cipher.des3.des,
+                    info->cipher.des3.out,
+                    info->cipher.des3.in,
+                    info->cipher.des3.sz);
+
+                /* reset devId */
+                info->cipher.des3.des->devId = devIdArg;
+            }
+        }
+    #endif /* !NO_DES3 */
+#endif /* !NO_AES || !NO_DES3 */
     }
 #if !defined(NO_SHA) || !defined(NO_SHA256)
     else if (info->algo_type == WC_ALGO_TYPE_HASH) {
@@ -24527,6 +24557,10 @@ int cryptocb_test(void)
         ret = aes_test();
     #endif
 #endif /* !NO_AES */
+#ifndef NO_DES3
+    if (ret == 0)
+        ret = des3_test();
+#endif /* !NO_DES3 */
 #if !defined(NO_SHA) || !defined(NO_SHA256)
     #ifndef NO_SHA
     if (ret == 0)

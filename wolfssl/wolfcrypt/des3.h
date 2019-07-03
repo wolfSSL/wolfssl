@@ -104,6 +104,10 @@ typedef struct Des3 {
     const byte* iv_raw;
     WC_ASYNC_DEV asyncDev;
 #endif
+#ifdef WOLF_CRYPTO_CB
+    int    devId;
+    void*  devCtx;
+#endif
     void* heap;
 } Des3;
 #endif /* HAVE_FIPS */
