@@ -4465,7 +4465,7 @@ int wolfSSL_Init(void)
         }
 
 #ifdef OPENSSL_EXTRA
-        if (wolfSSL_RAND_seed("", 0) != WOLFSSL_SUCCESS) {
+        if (wolfSSL_RAND_seed(NULL, 0) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("wolfSSL_RAND_Seed failed");
             return WC_INIT_E;
         }
