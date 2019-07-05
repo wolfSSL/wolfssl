@@ -57,17 +57,13 @@ typedef struct DhParams {
 } DhParams;
 
 /* Diffie-Hellman Key */
-struct DhKey {
+typedef struct DhKey {
     mp_int p, g, q;                         /* group parameters  */
     void* heap;
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif
-};
-#ifndef WC_DHKEY_TYPE_DEFINED
-    typedef struct DhKey DhKey;
-    #define WC_DHKEY_TYPE_DEFINED
-#endif
+} DhKey;
 
 
 #ifdef HAVE_FFDHE_2048

@@ -45,10 +45,6 @@
     typedef struct RsaKey RsaKey;
     #define WC_RSAKEY_TYPE_DEFINED
 #endif
-#ifndef WC_DHKEY_TYPE_DEFINED
-    typedef struct DhKey DhKey;
-    #define WC_DHKEY_TYPE_DEFINED
-#endif
 #ifndef WC_RNG_TYPE_DEFINED
     typedef struct WC_RNG WC_RNG;
     #define WC_RNG_TYPE_DEFINED
@@ -482,10 +478,6 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
                                               ecc_key*, word32);
     WOLFSSL_API int wc_EccPublicKeyToDer(ecc_key*, byte* output,
                                          word32 inLen, int with_AlgCurve);
-#endif
-
-#ifndef NO_DH
-    WOLFSSL_API int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz);
 #endif
 
 #ifdef HAVE_ED25519
