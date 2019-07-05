@@ -39,10 +39,6 @@
                                     defined(WOLFSSL_HAVE_SP_ECC)
 
 #ifdef RSA_LOW_MEM
-#ifndef SP_RSA_PRIVATE_EXP_D
-#define SP_RSA_PRIVATE_EXP_D
-#endif
-
 #ifndef WOLFSSL_SP_SMALL
 #define WOLFSSL_SP_SMALL
 #endif
@@ -3365,7 +3361,7 @@ static int sp_2048_mod_exp_32(sp_digit* r, sp_digit* a, sp_digit* e,
 
 #endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH) && !WOLFSSL_RSA_PUBLIC_ONLY */
 
-#ifdef WOLFSSL_HAVE_SP_DH
+#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 2048 bits, just need to subtract.
  *
@@ -3380,7 +3376,7 @@ static void sp_2048_mont_norm_64(sp_digit* r, sp_digit* m)
     sp_2048_sub_in_place_64(r, m);
 }
 
-#endif /* WOLFSSL_HAVE_SP_DH */
+#endif /* WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH */
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
@@ -3909,7 +3905,7 @@ static WC_INLINE int sp_2048_mod_64_cond(sp_digit* r, sp_digit* a, sp_digit* m)
     return sp_2048_div_64_cond(a, m, NULL, r);
 }
 
-#if (defined(SP_RSA_PRIVATE_EXP_D) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
                                                      defined(WOLFSSL_HAVE_SP_DH)
 #ifdef WOLFSSL_SP_SMALL
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
@@ -4183,7 +4179,7 @@ static int sp_2048_mod_exp_64(sp_digit* r, sp_digit* a, sp_digit* e,
     return err;
 }
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* (SP_RSA_PRIVATE_EXP_D && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
@@ -8671,7 +8667,7 @@ static int sp_3072_mod_exp_48(sp_digit* r, sp_digit* a, sp_digit* e,
 
 #endif /* (WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH) && !WOLFSSL_RSA_PUBLIC_ONLY */
 
-#ifdef WOLFSSL_HAVE_SP_DH
+#if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 3072 bits, just need to subtract.
  *
@@ -8686,7 +8682,7 @@ static void sp_3072_mont_norm_96(sp_digit* r, sp_digit* m)
     sp_3072_sub_in_place_96(r, m);
 }
 
-#endif /* WOLFSSL_HAVE_SP_DH */
+#endif /* WOLFSSL_HAVE_SP_RSA || WOLFSSL_HAVE_SP_DH */
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
@@ -9221,7 +9217,7 @@ static WC_INLINE int sp_3072_mod_96_cond(sp_digit* r, sp_digit* a, sp_digit* m)
     return sp_3072_div_96_cond(a, m, NULL, r);
 }
 
-#if (defined(SP_RSA_PRIVATE_EXP_D) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
+#if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
                                                      defined(WOLFSSL_HAVE_SP_DH)
 #ifdef WOLFSSL_SP_SMALL
 /* Modular exponentiate a to the e mod m. (r = a^e mod m)
@@ -9495,7 +9491,7 @@ static int sp_3072_mod_exp_96(sp_digit* r, sp_digit* a, sp_digit* e,
     return err;
 }
 #endif /* WOLFSSL_SP_SMALL */
-#endif /* (SP_RSA_PRIVATE_EXP_D && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
+#endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || WOLFSSL_HAVE_SP_DH */
 
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
