@@ -8555,10 +8555,6 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     x509->pkCurveOID = dCert->pkCurveOID;
 #endif /* HAVE_ECC */
 
-    if (ret != 0) {
-        wolfSSL_X509_free(x509);
-    }
-
     return ret;
 }
 
@@ -8861,6 +8857,9 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
             InitX509(x509, 0, ssl->heap);
             if (CopyDecodedToX509(x509, args->dCert) == 0) {
                 store->current_cert = x509;
+            }
+            else {
+                FreeX509(x509);
             }
         }
     #endif
