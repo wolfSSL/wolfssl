@@ -195,11 +195,10 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "BLO        L_poly1305_64_done_%= \n\t"
         "MOV        x9, #0x3ffffff       \n\t"
         /* Load h */
-        "LDP        x20, x22, [%[h]], #16 \n\t"
+        "LDP        x20, x22, [%[h]]     \n\t"
         "MOV        v27.D[0], x9         \n\t"
-        "LDR        w24, [%[h]]          \n\t"
+        "LDR        w24, [%[h], #16]     \n\t"
         "MOV        v27.D[1], x9         \n\t"
-        "SUB        %[h], %[h], #16      \n\t"
         "MOV        x9, #5               \n\t"
         "LSR        x21, x20, #32        \n\t"
         "MOV        v28.D[0], x9         \n\t"
@@ -258,26 +257,23 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "MOV        w19, v9.S[0]         \n\t"
         /* Load m */
         /* Load four message blocks to NEON v10, v11, v12, v13, v14 */
-        "LD4        { v10.S-v13.S }[0], [%[m]], #16 \n\t"
-        "LD4        { v10.S-v13.S }[1], [%[m]], #16 \n\t"
-        "LD4        { v10.S-v13.S }[2], [%[m]], #16 \n\t"
-        "LD4        { v10.S-v13.S }[3], [%[m]], #16 \n\t"
+        "LD4        { v10.4S-v13.4S }, [%[m]], #64 \n\t"
         "SUB        %[bytes], %[bytes], #4*%[POLY1305_BLOCK_SIZE] \n\t"
-        "DUP        v27.4S, v27.S[0]     \n\t"
-        "DUP        v26.4S, v26.S[0]     \n\t"
+        "DUP        v29.4S, v27.S[0]     \n\t"
+        "DUP        v30.4S, v26.S[0]     \n\t"
         "USHR       v14.4S, v13.4S, #8   \n\t"
-        "ORR        v14.16B, v14.16B, v26.16B \n\t"
+        "ORR        v14.16B, v14.16B, v30.16B \n\t"
         "SHL        v13.4S, v13.4S, #18  \n\t"
         "SRI        v13.4S, v12.4S, #14  \n\t"
         "SHL        v12.4S, v12.4S, #12  \n\t"
         "SRI        v12.4S, v11.4S, #20  \n\t"
         "SHL        v11.4S, v11.4S, #6   \n\t"
         "SRI        v11.4S, v10.4S, #26  \n\t"
-        "AND        v10.16B, v10.16B, v27.16B \n\t"
-        "AND        v11.16B, v11.16B, v27.16B \n\t"
-        "AND        v12.16B, v12.16B, v27.16B \n\t"
-        "AND        v13.16B, v13.16B, v27.16B \n\t"
-        "AND        v14.16B, v14.16B, v27.16B \n\t"
+        "AND        v10.16B, v10.16B, v29.16B \n\t"
+        "AND        v11.16B, v11.16B, v29.16B \n\t"
+        "AND        v12.16B, v12.16B, v29.16B \n\t"
+        "AND        v13.16B, v13.16B, v29.16B \n\t"
+        "AND        v14.16B, v14.16B, v29.16B \n\t"
         "MOV        v27.S[1], wzr        \n\t"
         "MOV        v27.S[3], wzr        \n\t"
         "MOV        v26.S[1], wzr        \n\t"
@@ -405,30 +401,21 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "BLS        L_poly1305_64_loop_128_final_%= \n\t"
         /* Load m */
         /* Load four message blocks to NEON v10, v11, v12, v13, v14 */
-        "LD4        { v10.S-v13.S }[0], [%[m]], #16 \n\t"
-        "LD4        { v10.S-v13.S }[1], [%[m]], #16 \n\t"
-        "LD4        { v10.S-v13.S }[2], [%[m]], #16 \n\t"
-        "LD4        { v10.S-v13.S }[3], [%[m]], #16 \n\t"
+        "LD4        { v10.4S-v13.4S }, [%[m]], #64 \n\t"
         "SUB        %[bytes], %[bytes], #4*%[POLY1305_BLOCK_SIZE] \n\t"
-        "DUP        v27.4S, v27.S[0]     \n\t"
-        "DUP        v26.4S, v26.S[0]     \n\t"
         "USHR       v14.4S, v13.4S, #8   \n\t"
-        "ORR        v14.16B, v14.16B, v26.16B \n\t"
+        "ORR        v14.16B, v14.16B, v30.16B \n\t"
         "SHL        v13.4S, v13.4S, #18  \n\t"
         "SRI        v13.4S, v12.4S, #14  \n\t"
         "SHL        v12.4S, v12.4S, #12  \n\t"
         "SRI        v12.4S, v11.4S, #20  \n\t"
         "SHL        v11.4S, v11.4S, #6   \n\t"
         "SRI        v11.4S, v10.4S, #26  \n\t"
-        "AND        v10.16B, v10.16B, v27.16B \n\t"
-        "AND        v11.16B, v11.16B, v27.16B \n\t"
-        "AND        v12.16B, v12.16B, v27.16B \n\t"
-        "AND        v13.16B, v13.16B, v27.16B \n\t"
-        "AND        v14.16B, v14.16B, v27.16B \n\t"
-        "MOV        v27.S[1], wzr        \n\t"
-        "MOV        v27.S[3], wzr        \n\t"
-        "MOV        v26.S[1], wzr        \n\t"
-        "MOV        v26.S[3], wzr        \n\t"
+        "AND        v10.16B, v10.16B, v29.16B \n\t"
+        "AND        v11.16B, v11.16B, v29.16B \n\t"
+        "AND        v12.16B, v12.16B, v29.16B \n\t"
+        "AND        v13.16B, v13.16B, v29.16B \n\t"
+        "AND        v14.16B, v14.16B, v29.16B \n\t"
         /* Four message blocks loaded */
         /* Add new message block to accumulator */
         "UADDW      v21.2D, v21.2D, v10.2S \n\t"
@@ -469,10 +456,9 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
     "L_poly1305_64_loop_128_final_%=: \n\t"
         /* Load m */
         /* Load two message blocks to NEON v10, v11, v12, v13, v14 */
-        "LD2        { v10.D-v11.D }[0], [%[m]], #16 \n\t"
+        "LD2        { v10.2D-v11.2D }, [%[m]], #32 \n\t"
         /* Copy r^2 to lower half of registers */
         "MOV        v0.D[0], v0.D[1]     \n\t"
-        "LD2        { v10.D-v11.D }[1], [%[m]], #16 \n\t"
         "MOV        v5.D[0], v5.D[1]     \n\t"
         "SUB        %[bytes], %[bytes], #2*%[POLY1305_BLOCK_SIZE] \n\t"
         "MOV        v1.D[0], v1.D[1]     \n\t"
@@ -572,8 +558,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "MOV        w19, v9.S[0]         \n\t"
         /* Load m */
         /* Load two message blocks to NEON v10, v11, v12, v13, v14 */
-        "LD2        { v10.D-v11.D }[0], [%[m]], #16 \n\t"
-        "LD2        { v10.D-v11.D }[1], [%[m]], #16 \n\t"
+        "LD2        { v10.2D-v11.2D }, [%[m]], #32 \n\t"
         "SUB        %[bytes], %[bytes], #2*%[POLY1305_BLOCK_SIZE] \n\t"
         "USHR       v14.2D, v11.2D, #40  \n\t"
         "ORR        v14.16B, v14.16B, v26.16B \n\t"
@@ -663,10 +648,9 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "MADD       x13, x24, x25, x13   \n\t"
         /* Load m */
         /* Load two message blocks to NEON v10, v11, v12, v13, v14 */
-        "LD2        { v10.D-v11.D }[0], [%[m]], #16 \n\t"
+        "LD2        { v10.2D-v11.2D }, [%[m]], #32 \n\t"
         /* Reduce h % P */
         "MOV        x14, #5              \n\t"
-        "LD2        { v10.D-v11.D }[1], [%[m]], #16 \n\t"
         "ADD        x10, x10, x9, LSR #26 \n\t"
         "SUB        %[bytes], %[bytes], #2*%[POLY1305_BLOCK_SIZE] \n\t"
         "ADD        x13, x13, x12, LSR #26 \n\t"
@@ -885,7 +869,8 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
           "w11", "w12", "w13", "w14", "w15", "w16", "w17", "w18", "w19", "w20",
           "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "w29", "x9",
           "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x18", "x19",
-          "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "x29"
+          "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "x29",
+          "v29", "v30"
     );
     poly1305_blocks_16(ctx, m, bytes);
 }
