@@ -2854,20 +2854,6 @@ enum SigAlgRsaPss {
     pss_sha512  = 0x0b,
 };
 
-#ifdef WOLFSSL_TLS13
-#define PSS_RSAE_TO_PSS_PSS(macAlgo) \
-    (macAlgo + (pss_sha256 - sha256_mac))
-
-#define PSS_PSS_HASH_TO_MAC(macAlgo) \
-    (macAlgo - (pss_sha256 - sha256_mac))
-
-enum SigAlgRsaPss {
-    pss_sha256  = 0x09,
-    pss_sha384  = 0x0a,
-    pss_sha512  = 0x0b,
-};
-#endif
-
 
 /* Supprted ECC Curve Types */
 enum EccCurves {
