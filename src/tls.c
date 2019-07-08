@@ -10360,10 +10360,6 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
             case TLSX_STATUS_REQUEST:
                 WOLFSSL_MSG("Certificate Status Request extension received");
 
-#ifdef WOLFSSL_TLS13
-                if (IsAtLeastTLSv1_3(ssl->version))
-                    break;
-#endif
                 ret = CSR_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
