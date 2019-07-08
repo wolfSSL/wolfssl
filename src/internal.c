@@ -207,7 +207,14 @@ static WC_INLINE int IsEncryptionOn(WOLFSSL* ssl, int isSend)
         return 0;
     #endif /* WOLFSSL_DTLS */
 
+#ifdef WOLFSSL_TLS13
+    if (isSend)
+        return ssl->encrypt.setup;
+    else
+        return ssl->decrypt.setup;
+#else
     return ssl->keys.encryptionOn;
+#endif
 }
 
 
@@ -13310,6 +13317,15 @@ int ProcessReply(WOLFSSL* ssl)
             if (ret != 0)
                 return ret;
 
+#ifdef WOLFSSL_TLS13
+            if (IsAtLeastTLSv1_3(ssl->version) && IsEncryptionOn(ssl, 0) &&
+                                        ssl->curRL.type != application_data &&
+                                        ssl->curRL.type != change_cipher_spec) {
+                SendAlert(ssl, alert_fatal, unexpected_message);
+                return PARSE_ERROR;
+            }
+#endif
+
             ssl->options.processReply = getData;
             FALL_THROUGH;
 
@@ -13627,6 +13643,10 @@ int ProcessReply(WOLFSSL* ssl)
     #else
                     if (IsAtLeastTLSv1_3(ssl->version)) {
                         word32 i = ssl->buffers.inputBuffer.idx;
+                        if (ssl->options.handShakeState == HANDSHAKE_DONE) {
+                            SendAlert(ssl, alert_fatal, unexpected_message);
+                            return UNKNOWN_RECORD_TYPE;
+                        }
                         if (ssl->curSize != 1 ||
                                       ssl->buffers.inputBuffer.buffer[i] != 1) {
                             SendAlert(ssl, alert_fatal, illegal_parameter);
@@ -15782,9 +15802,11 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
 
     /* only send encrypted alert if handshake actually complete, otherwise
        other side may not be able to handle it */
-    if (IsEncryptionOn(ssl, 1) && ssl->options.handShakeDone)
-        sendSz = BuildMessage(ssl, output, outputSz, input, ALERT_SIZE,
-                                                          alert, 0, 0, 0);
+    if (IsEncryptionOn(ssl, 1) && (IsAtLeastTLSv1_3(ssl->version) ||
+                                                  ssl->options.handShakeDone)) {
+        sendSz = BuildMessage(ssl, output, outputSz, input, ALERT_SIZE, alert,
+                                                                       0, 0, 0);
+    }
     else {
 
         AddRecordHeader(output, ALERT_SIZE, alert, ssl);

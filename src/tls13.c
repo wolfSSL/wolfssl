@@ -6012,7 +6012,7 @@ exit_dcv:
     }
     else
 #endif /* WOLFSSL_ASYNC_CRYPT */
-    if (ret != 0)
+    if (ret != 0 && ret != INVALID_PARAMETER)
         SendAlert(ssl, alert_fatal, decrypt_error);
 
     /* Final cleanup */
@@ -7457,8 +7457,11 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         byte   type;
         word32 size;
 
-        if (GetHandshakeHeader(ssl,input,inOutIdx,&type, &size, totalSz) != 0)
+        if (GetHandshakeHeader(ssl, input, inOutIdx, &type, &size,
+                                                                totalSz) != 0) {
+            SendAlert(ssl, alert_fatal, unexpected_message);
             return PARSE_ERROR;
+        }
 
         return DoTls13HandShakeMsgType(ssl, input, inOutIdx, type, size,
                                        totalSz);
