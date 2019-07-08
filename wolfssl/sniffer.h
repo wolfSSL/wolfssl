@@ -167,6 +167,28 @@ WOLFSSL_API
 SSL_SNIFFER_API int ssl_ReadResetStatistics(SSLStats* stats);
 
 
+typedef int (*SSLWatchCb)(void* vSniffer,
+                        const unsigned char* certHash, unsigned int certHashSz,
+                        const unsigned char* cert, unsigned int certSz,
+                        void* ctx, char* error);
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_SetWatchKeyCallback(SSLWatchCb cb, char* error);
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_SetWatchKeyCtx(void* ctx, char* error);
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_SetWatchKey_buffer(void* vSniffer,
+                        const unsigned char* key, unsigned int keySz,
+                        int keyType, char* error);
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_SetWatchKey_file(void* vSniffer,
+                        const char* keyFile, int keyType,
+                        const char* password, char* error);
+
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif
