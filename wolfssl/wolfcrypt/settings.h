@@ -1837,6 +1837,27 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+#ifndef NO_PKCS12
+    #undef  HAVE_PKCS12
+    #define HAVE_PKCS12
+#endif
+
+#ifndef NO_PKCS8
+    #undef  HAVE_PKCS8
+    #define HAVE_PKCS8
+#endif
+
+#if !defined(NO_PBKDF1) || defined(WOLFSSL_ENCRYPTED_KEYS) || defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
+    #undef  HAVE_PBKDF1
+    #define HAVE_PBKDF1
+#endif
+
+#if !defined(NO_PBKDF2) || defined(HAVE_PKCS7) || defined(HAVE_SCRYPT)
+    #undef  HAVE_PBKDF2
+    #define HAVE_PBKDF2
+#endif
+
+
 #if !defined(WOLFCRYPT_ONLY) && !defined(NO_OLD_TLS) && \
         (defined(NO_SHA) || defined(NO_MD5))
     #error old TLS requires MD5 and SHA

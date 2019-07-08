@@ -365,6 +365,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
 
 #ifndef NO_PWDBASED
 
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
 /* Decrypt/Encrypt input in place from parameters based on id
  *
  * returns a negative value on fail case
@@ -617,4 +618,5 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
     return ret;
 }
 
+#endif /* HAVE_PKCS8 || HAVE_PKCS12 */
 #endif /* !NO_PWDBASED */

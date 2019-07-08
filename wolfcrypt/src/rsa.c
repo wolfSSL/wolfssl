@@ -570,6 +570,7 @@ int wc_FreeRsaKey(RsaKey* key)
 }
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_RSA_KEY_CHECK)
 /* Check the pair-wise consistency of the RSA key.
  * From NIST SP 800-56B, section 6.4.1.1.
  * Verify that k = (k^e)^d, for some k: 1 < k < n-1. */
@@ -661,6 +662,7 @@ int wc_CheckRsaKey(RsaKey* key)
 
     return ret;
 }
+#endif
 #endif
 
 
@@ -1856,6 +1858,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 
 #ifdef WOLFSSL_SP_MATH
     (void)rng;
+    WOLFSSL_MSG("SP Key Size Error");
     return WC_KEY_SIZE_E;
 #else
     (void)rng;
@@ -3764,9 +3767,11 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     mp_clear(&p);
     mp_clear(&q);
 
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_RSA_KEY_CHECK)
     /* Perform the pair-wise consistency test on the new key. */
     if (err == 0)
         err = wc_CheckRsaKey(key);
+#endif
 
     if (err != 0) {
         wc_FreeRsaKey(key);

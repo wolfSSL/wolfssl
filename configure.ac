@@ -3658,6 +3658,20 @@ then
 fi
 
 
+# PKCS#12
+AC_ARG_ENABLE([pkcs12],
+    [AS_HELP_STRING([--enable-pkcs12],[Enable pkcs12 (default: enabled)])],
+    [ ENABLED_PKCS12=$enableval ],
+    [ ENABLED_PKCS12=yes ]
+    )
+
+if test "x$ENABLED_PKCS12" = "xno"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_PKCS12"
+fi
+AM_CONDITIONAL([BUILD_PKCS12], [test "x$ENABLED_PKCS12" = "xyes"])
+
+
 # cavium
 trycaviumdir=""
 AC_ARG_WITH([cavium],
@@ -4988,6 +5002,7 @@ echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
 echo "   * Single Precision:           $ENABLED_SP"
 echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
 echo "   * PKCS#11:                    $ENABLED_PKCS11"
+echo "   * PKCS#12:                    $ENABLED_PKCS12"
 echo "   * Cavium:                     $ENABLED_CAVIUM"
 echo "   * ARM ASM:                    $ENABLED_ARMASM"
 echo "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"

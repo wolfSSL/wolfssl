@@ -22,6 +22,10 @@
 #include <wolfssl/wolfcrypt/port/st/stsafe.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
+#ifndef STSAFE_INTERFACE_PRINTF
+#define STSAFE_INTERFACE_PRINTF(...)
+#endif
+
 #ifdef WOLFSSL_STSAFEA100
 
 int SSL_STSAFE_LoadDeviceCertificate(byte** pRawCertificate,
@@ -357,7 +361,7 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
 #ifdef HAVE_ECC
     else if (info->algo_type == WC_ALGO_TYPE_PK) {
     #ifdef USE_STSAFE_VERBOSE
-        printf("STSAFE Pk: Type %d\n", info->pk.type);
+        STSAFE_INTERFACE_PRINTF("STSAFE Pk: Type %d\n", info->pk.type);
     #endif
 
         if (info->pk.type == WC_PK_TYPE_EC_KEYGEN) {
@@ -502,7 +506,7 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     if (rc != 0 && rc != CRYPTOCB_UNAVAILABLE) {
         WOLFSSL_MSG("STSAFE: CryptoCb failed");
     #ifdef USE_STSAFE_VERBOSE
-        printf("STSAFE: CryptoCb failed %d\n", rc);
+        STSAFE_INTERFACE_PRINTF("STSAFE: CryptoCb failed %d\n", rc);
     #endif
         rc = WC_HW_E;
     }

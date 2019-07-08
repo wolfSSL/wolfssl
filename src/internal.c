@@ -7027,7 +7027,7 @@ static int wolfSSLReceive(WOLFSSL* ssl, byte* buf, word32 sz)
 
 retry:
     recvd = ssl->CBIORecv(ssl, (char *)buf, (int)sz, ssl->IOCB_ReadCtx);
-    if (recvd < 0)
+    if (recvd < 0) {
         switch (recvd) {
             case WOLFSSL_CBIO_ERR_GENERAL:        /* general/unknown error */
                 return -1;
@@ -7082,8 +7082,10 @@ retry:
                 return -1;
 
             default:
+                WOLFSSL_MSG("Unexpected recv return code");
                 return recvd;
         }
+    }
 
     return recvd;
 }

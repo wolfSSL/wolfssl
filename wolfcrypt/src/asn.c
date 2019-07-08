@@ -2305,6 +2305,8 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 #endif /* HAVE_USER_RSA */
 #endif /* NO_RSA */
 
+#ifdef HAVE_PKCS8
+
 /* Remove PKCS8 header, place inOutIdx at beginning of traditional,
  * return traditional length on success, negative on error */
 int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
@@ -2502,7 +2504,9 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         return tmpSz + sz;
 }
 
+#endif /* HAVE_PKCS8 */
 
+#ifdef HAVE_PKCS12
 /* check that the private key is a pair for the public key in certificate
  * return 1 (true) on match
  * return 0 or negative value on failure/error
@@ -2705,8 +2709,11 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
     return ret;
 }
 
+#endif /* HAVE_PKCS12 */
+
 #ifndef NO_PWDBASED
 
+#ifdef HAVE_PKCS8
 /* Check To see if PKCS version algo is supported, set id if it is return 0
    < 0 on error */
 static int CheckAlgo(int first, int second, int* id, int* version, int* blockSz)
@@ -3482,6 +3489,9 @@ exit_tte:
     return ret;
 }
 
+#endif /* HAVE_PKCS8 */
+
+#ifdef HAVE_PKCS12
 
 /* encrypt PKCS 12 content
  *
@@ -3837,6 +3847,7 @@ exit_dc:
 
     return ret;
 }
+#endif /* HAVE_PKCS12 */
 #endif /* NO_PWDBASED */
 
 #ifndef NO_RSA
@@ -4195,7 +4206,6 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
 
 #endif /* NO_DSA */
 
-
 void InitDecodedCert(DecodedCert* cert,
                      const byte* source, word32 inSz, void* heap)
 {
@@ -4217,7 +4227,9 @@ void InitDecodedCert(DecodedCert* cert,
         cert->subjectOUEnc    = CTC_UTF8;
     #endif /* WOLFSSL_CERT_GEN */
 
+    #ifndef NO_CERTS
         InitSignatureCtx(&cert->sigCtx, heap, INVALID_DEVID);
+    #endif
     }
 }
 
@@ -4281,7 +4293,9 @@ void FreeDecodedCert(DecodedCert* cert)
     if (cert->subjectName.fullName != NULL)
         XFREE(cert->subjectName.fullName, cert->heap, DYNAMIC_TYPE_X509);
 #endif /* OPENSSL_EXTRA */
+#ifndef NO_CERTS
     FreeSignatureCtx(&cert->sigCtx);
+#endif
 }
 
 static int GetCertHeader(DecodedCert* cert)
@@ -5728,7 +5742,6 @@ int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate)
     return ret;
 }
 
-
 int DecodeToKey(DecodedCert* cert, int verify)
 {
     int badDate = 0;
@@ -5962,6 +5975,8 @@ word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz,
     return encDigSz + algoSz + seqSz;
 }
 
+
+#ifndef NO_CERTS
 
 int wc_GetCTC_HashOID(int type)
 {
@@ -8459,6 +8474,8 @@ WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
     return i;
 }
 
+#endif /* !NO_CERTS */
+
 WOLFSSL_LOCAL int GetSerialNumber(const byte* input, word32* inOutIdx,
     byte* serial, int* serialSz, word32 maxIdx)
 {
@@ -8493,6 +8510,7 @@ WOLFSSL_LOCAL int GetSerialNumber(const byte* input, word32* inOutIdx,
     return result;
 }
 
+#ifndef NO_CERTS
 
 int AllocDer(DerBuffer** pDer, word32 length, int type, void* heap)
 {
@@ -13390,6 +13408,7 @@ int wc_SetDatesBuffer(Cert* cert, const byte* der, int derSz)
 
 #endif /* WOLFSSL_CERT_GEN */
 
+#endif /* !NO_CERTS */
 
 #ifdef HAVE_ECC
 
