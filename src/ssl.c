@@ -160,7 +160,7 @@ int wolfSSL_dtls_set_export(WOLFSSL* ssl, wc_dtls_export func)
 /* This function allows for directly serializing a session rather than using
  * callbacks. It has less overhead by removing a temporary buffer and gives
  * control over when the session gets serialized. When using callbacks the
- * session is always serialized immediatly after the handshake is finished.
+ * session is always serialized immediately after the handshake is finished.
  *
  * buf is the argument to contain the serialized session
  * sz  is the size of the buffer passed in
@@ -188,6 +188,41 @@ int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf, unsigned int* sz)
 
     /* copy over keys, options, and dtls state struct */
     return wolfSSL_dtls_export_internal(ssl, buf, *sz);
+}
+
+
+/* This function is similar to wolfSSL_dtls_export but only exports the portion
+ * of the WOLFSSL structure related to the state of the connection, i.e. peer
+ * sequence number, epoch, AEAD state etc.
+ *
+ * buf is the argument to contain the serialized state, if null then set "sz" to
+ *     buffer size required 
+ * sz  is the size of the buffer passed in
+ * ssl is the WOLFSSL struct to serialize
+ * returns the size of serialized session on success, 0 on no action, and
+ *         negative value on error */
+int wolfSSL_dtls_export_state_only(WOLFSSL* ssl, unsigned char* buf,
+        unsigned int* sz)
+{
+    WOLFSSL_ENTER("wolfSSL_dtls_export_state_only");
+
+    if (ssl == NULL || sz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (buf == NULL) {
+        *sz = MAX_EXPORT_STATE_BUFFER;
+        return 0;
+    }
+
+    /* if not DTLS do nothing */
+    if (!ssl->options.dtls) {
+        WOLFSSL_MSG("Currently only DTLS export state is supported");
+        return 0;
+    }
+
+    /* copy over keys, options, and dtls state struct */
+    return wolfSSL_dtls_export_state_internal(ssl, buf, *sz);
 }
 
 
