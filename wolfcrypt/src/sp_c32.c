@@ -112,14 +112,14 @@ static void sp_2048_from_mp(sp_digit* r, int max, mp_int* a)
         s = 23 - s;
         if (j + 1 >= max)
             break;
-        r[++j] = a->dp[i] >> s;
+        r[++j] = (sp_digit)(a->dp[i] >> s);
         while (s + 23 <= DIGIT_BIT) {
             s += 23;
             r[j] &= 0x7fffff;
             if (j + 1 >= max)
                 break;
             if (s < DIGIT_BIT)
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(a->dp[i] >> s);
             else
                 r[++j] = 0;
         }
@@ -1719,6 +1719,36 @@ static WC_INLINE sp_digit sp_2048_div_word_45(sp_digit d1, sp_digit d0,
 }
 #endif /* WOLFSSL_SP_DIV_32 */
 
+/* Normalize the values in each word to 23.
+ *
+ * a  Array of sp_digit to normalize.
+ */
+static void sp_2048_norm_90(sp_digit* a)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int i;
+    for (i = 0; i < 89; i++) {
+        a[i+1] += a[i] >> 23;
+        a[i] &= 0x7fffff;
+    }
+#else
+    int i;
+    for (i = 0; i < 88; i += 8) {
+        a[i+1] += a[i+0] >> 23; a[i+0] &= 0x7fffff;
+        a[i+2] += a[i+1] >> 23; a[i+1] &= 0x7fffff;
+        a[i+3] += a[i+2] >> 23; a[i+2] &= 0x7fffff;
+        a[i+4] += a[i+3] >> 23; a[i+3] &= 0x7fffff;
+        a[i+5] += a[i+4] >> 23; a[i+4] &= 0x7fffff;
+        a[i+6] += a[i+5] >> 23; a[i+5] &= 0x7fffff;
+        a[i+7] += a[i+6] >> 23; a[i+6] &= 0x7fffff;
+        a[i+8] += a[i+7] >> 23; a[i+7] &= 0x7fffff;
+        a[i+9] += a[i+8] >> 23; a[i+8] &= 0x7fffff;
+    }
+    a[88+1] += a[88] >> 23;
+    a[88] &= 0x7fffff;
+#endif
+}
+
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
@@ -1766,6 +1796,7 @@ static int sp_2048_div_45(sp_digit* a, sp_digit* d, sp_digit* m,
 
     if (err == MP_OKAY) {
         sp_2048_mul_d_45(sd, d, 1 << 11);
+        sp_2048_norm_90(a);
         sp_2048_mul_d_90(t1, a, 1 << 11);
         div = sd[44];
         for (i=45; i>=0; i--) {
@@ -1806,6 +1837,7 @@ static int sp_2048_div_45(sp_digit* a, sp_digit* d, sp_digit* m,
         sp_2048_cond_add_45(r, r, sd, 0 - (r[44] < 0));
     }
 
+    sp_2048_norm_45(r);
     sp_2048_rshift_45(r, r, 11);
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
@@ -2286,36 +2318,6 @@ SP_NOINLINE static void sp_2048_mul_add_90(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
-/* Normalize the values in each word to 23.
- *
- * a  Array of sp_digit to normalize.
- */
-static void sp_2048_norm_90(sp_digit* a)
-{
-#ifdef WOLFSSL_SP_SMALL
-    int i;
-    for (i = 0; i < 89; i++) {
-        a[i+1] += a[i] >> 23;
-        a[i] &= 0x7fffff;
-    }
-#else
-    int i;
-    for (i = 0; i < 88; i += 8) {
-        a[i+1] += a[i+0] >> 23; a[i+0] &= 0x7fffff;
-        a[i+2] += a[i+1] >> 23; a[i+1] &= 0x7fffff;
-        a[i+3] += a[i+2] >> 23; a[i+2] &= 0x7fffff;
-        a[i+4] += a[i+3] >> 23; a[i+3] &= 0x7fffff;
-        a[i+5] += a[i+4] >> 23; a[i+4] &= 0x7fffff;
-        a[i+6] += a[i+5] >> 23; a[i+5] &= 0x7fffff;
-        a[i+7] += a[i+6] >> 23; a[i+6] &= 0x7fffff;
-        a[i+8] += a[i+7] >> 23; a[i+7] &= 0x7fffff;
-        a[i+9] += a[i+8] >> 23; a[i+8] &= 0x7fffff;
-    }
-    a[88+1] += a[88] >> 23;
-    a[88] &= 0x7fffff;
-#endif
-}
-
 /* Shift the result in the high 2048 bits down to the bottom.
  *
  * r  A single precision number.
@@ -2621,6 +2623,40 @@ static WC_INLINE sp_digit sp_2048_div_word_90(sp_digit d1, sp_digit d0,
 }
 #endif /* WOLFSSL_SP_DIV_32 */
 
+/* Normalize the values in each word to 23.
+ *
+ * a  Array of sp_digit to normalize.
+ */
+static void sp_2048_norm_180(sp_digit* a)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int i;
+    for (i = 0; i < 179; i++) {
+        a[i+1] += a[i] >> 23;
+        a[i] &= 0x7fffff;
+    }
+#else
+    int i;
+    for (i = 0; i < 176; i += 8) {
+        a[i+1] += a[i+0] >> 23; a[i+0] &= 0x7fffff;
+        a[i+2] += a[i+1] >> 23; a[i+1] &= 0x7fffff;
+        a[i+3] += a[i+2] >> 23; a[i+2] &= 0x7fffff;
+        a[i+4] += a[i+3] >> 23; a[i+3] &= 0x7fffff;
+        a[i+5] += a[i+4] >> 23; a[i+4] &= 0x7fffff;
+        a[i+6] += a[i+5] >> 23; a[i+5] &= 0x7fffff;
+        a[i+7] += a[i+6] >> 23; a[i+6] &= 0x7fffff;
+        a[i+8] += a[i+7] >> 23; a[i+7] &= 0x7fffff;
+        a[i+9] += a[i+8] >> 23; a[i+8] &= 0x7fffff;
+    }
+    a[176+1] += a[176] >> 23;
+    a[176] &= 0x7fffff;
+    a[177+1] += a[177] >> 23;
+    a[177] &= 0x7fffff;
+    a[178+1] += a[178] >> 23;
+    a[178] &= 0x7fffff;
+#endif
+}
+
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
@@ -2668,6 +2704,7 @@ static int sp_2048_div_90(sp_digit* a, sp_digit* d, sp_digit* m,
 
     if (err == MP_OKAY) {
         sp_2048_mul_d_90(sd, d, 1 << 22);
+        sp_2048_norm_180(a);
         sp_2048_mul_d_180(t1, a, 1 << 22);
         div = sd[89];
         for (i=90; i>=0; i--) {
@@ -2708,6 +2745,7 @@ static int sp_2048_div_90(sp_digit* a, sp_digit* d, sp_digit* m,
         sp_2048_cond_add_90(r, r, sd, 0 - (r[89] < 0));
     }
 
+    sp_2048_norm_90(r);
     sp_2048_rshift_90(r, r, 22);
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
@@ -3119,9 +3157,9 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 
         sp_2048_from_bin(a, 90, in, inLen);
 #if DIGIT_BIT >= 23
-        e[0] = em->dp[0];
+        e[0] = (sp_digit)em->dp[0];
 #else
-        e[0] = em->dp[0];
+        e[0] = (sp_digit)em->dp[0];
         if (em->used > 1)
             e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
 #endif
@@ -3203,9 +3241,9 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     if (err == MP_OKAY) {
         sp_2048_from_bin(a, 90, in, inLen);
 #if DIGIT_BIT >= 23
-        e[0] = em->dp[0];
+        e[0] = (sp_digit)em->dp[0];
 #else
-        e[0] = em->dp[0];
+        e[0] = (sp_digit)em->dp[0];
         if (em->used > 1)
             e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
 #endif
@@ -3550,7 +3588,7 @@ static int sp_2048_to_mp(sp_digit* a, mp_int* r)
         for (i = 0; i < 90; i++) {
             r->dp[j] |= ((mp_digit)a[i]) << s;
             if (s + 23 >= DIGIT_BIT) {
-    #if DIGIT_BIT < 32
+    #if DIGIT_BIT != 32 && DIGIT_BIT != 64
                 r->dp[j] &= (1l << DIGIT_BIT) - 1;
     #endif
                 s = DIGIT_BIT - s;
@@ -3983,14 +4021,14 @@ static void sp_3072_from_mp(sp_digit* r, int max, mp_int* a)
         s = 23 - s;
         if (j + 1 >= max)
             break;
-        r[++j] = a->dp[i] >> s;
+        r[++j] = (sp_digit)(a->dp[i] >> s);
         while (s + 23 <= DIGIT_BIT) {
             s += 23;
             r[j] &= 0x7fffff;
             if (j + 1 >= max)
                 break;
             if (s < DIGIT_BIT)
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(a->dp[i] >> s);
             else
                 r[++j] = 0;
         }
@@ -5932,6 +5970,40 @@ static WC_INLINE sp_digit sp_3072_div_word_134(sp_digit d1, sp_digit d0,
 }
 #endif /* WOLFSSL_SP_DIV_32 */
 
+/* Normalize the values in each word to 23.
+ *
+ * a  Array of sp_digit to normalize.
+ */
+static void sp_3072_norm_268(sp_digit* a)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int i;
+    for (i = 0; i < 267; i++) {
+        a[i+1] += a[i] >> 23;
+        a[i] &= 0x7fffff;
+    }
+#else
+    int i;
+    for (i = 0; i < 264; i += 8) {
+        a[i+1] += a[i+0] >> 23; a[i+0] &= 0x7fffff;
+        a[i+2] += a[i+1] >> 23; a[i+1] &= 0x7fffff;
+        a[i+3] += a[i+2] >> 23; a[i+2] &= 0x7fffff;
+        a[i+4] += a[i+3] >> 23; a[i+3] &= 0x7fffff;
+        a[i+5] += a[i+4] >> 23; a[i+4] &= 0x7fffff;
+        a[i+6] += a[i+5] >> 23; a[i+5] &= 0x7fffff;
+        a[i+7] += a[i+6] >> 23; a[i+6] &= 0x7fffff;
+        a[i+8] += a[i+7] >> 23; a[i+7] &= 0x7fffff;
+        a[i+9] += a[i+8] >> 23; a[i+8] &= 0x7fffff;
+    }
+    a[264+1] += a[264] >> 23;
+    a[264] &= 0x7fffff;
+    a[265+1] += a[265] >> 23;
+    a[265] &= 0x7fffff;
+    a[266+1] += a[266] >> 23;
+    a[266] &= 0x7fffff;
+#endif
+}
+
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
@@ -5979,6 +6051,7 @@ static int sp_3072_div_134(sp_digit* a, sp_digit* d, sp_digit* m,
 
     if (err == MP_OKAY) {
         sp_3072_mul_d_134(sd, d, 1 << 10);
+        sp_3072_norm_268(a);
         sp_3072_mul_d_268(t1, a, 1 << 10);
         div = sd[133];
         for (i=134; i>=0; i--) {
@@ -6019,6 +6092,7 @@ static int sp_3072_div_134(sp_digit* a, sp_digit* d, sp_digit* m,
         sp_3072_cond_add_134(r, r, sd, 0 - (r[133] < 0));
     }
 
+    sp_3072_norm_134(r);
     sp_3072_rshift_134(r, r, 10);
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
@@ -6428,9 +6502,9 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 
         sp_3072_from_bin(a, 134, in, inLen);
 #if DIGIT_BIT >= 23
-        e[0] = em->dp[0];
+        e[0] = (sp_digit)em->dp[0];
 #else
-        e[0] = em->dp[0];
+        e[0] = (sp_digit)em->dp[0];
         if (em->used > 1)
             e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
 #endif
@@ -6512,9 +6586,9 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     if (err == MP_OKAY) {
         sp_3072_from_bin(a, 134, in, inLen);
 #if DIGIT_BIT >= 23
-        e[0] = em->dp[0];
+        e[0] = (sp_digit)em->dp[0];
 #else
-        e[0] = em->dp[0];
+        e[0] = (sp_digit)em->dp[0];
         if (em->used > 1)
             e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
 #endif
@@ -6859,7 +6933,7 @@ static int sp_3072_to_mp(sp_digit* a, mp_int* r)
         for (i = 0; i < 134; i++) {
             r->dp[j] |= ((mp_digit)a[i]) << s;
             if (s + 23 >= DIGIT_BIT) {
-    #if DIGIT_BIT < 32
+    #if DIGIT_BIT != 32 && DIGIT_BIT != 64
                 r->dp[j] &= (1l << DIGIT_BIT) - 1;
     #endif
                 s = DIGIT_BIT - s;
@@ -7503,14 +7577,14 @@ static void sp_256_from_mp(sp_digit* r, int max, mp_int* a)
         s = 26 - s;
         if (j + 1 >= max)
             break;
-        r[++j] = a->dp[i] >> s;
+        r[++j] = (sp_digit)(a->dp[i] >> s);
         while (s + 26 <= DIGIT_BIT) {
             s += 26;
             r[j] &= 0x3ffffff;
             if (j + 1 >= max)
                 break;
             if (s < DIGIT_BIT)
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(a->dp[i] >> s);
             else
                 r[++j] = 0;
         }
@@ -7604,7 +7678,7 @@ static int sp_256_to_mp(sp_digit* a, mp_int* r)
         for (i = 0; i < 10; i++) {
             r->dp[j] |= ((mp_digit)a[i]) << s;
             if (s + 26 >= DIGIT_BIT) {
-    #if DIGIT_BIT < 32
+    #if DIGIT_BIT != 32 && DIGIT_BIT != 64
                 r->dp[j] &= (1l << DIGIT_BIT) - 1;
     #endif
                 s = DIGIT_BIT - s;

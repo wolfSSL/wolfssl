@@ -112,14 +112,14 @@ static void sp_2048_from_mp(sp_digit* r, int max, mp_int* a)
         s = 57 - s;
         if (j + 1 >= max)
             break;
-        r[++j] = a->dp[i] >> s;
+        r[++j] = (sp_digit)(a->dp[i] >> s);
         while (s + 57 <= DIGIT_BIT) {
             s += 57;
             r[j] &= 0x1ffffffffffffffl;
             if (j + 1 >= max)
                 break;
             if (s < DIGIT_BIT)
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(a->dp[i] >> s);
             else
                 r[++j] = 0;
         }
@@ -2668,9 +2668,9 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 
         sp_2048_from_bin(a, 36, in, inLen);
 #if DIGIT_BIT >= 57
-        e[0] = em->dp[0];
+        e[0] = (sp_digit)em->dp[0];
 #else
-        e[0] = em->dp[0];
+        e[0] = (sp_digit)em->dp[0];
         if (em->used > 1)
             e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
 #endif
@@ -2752,9 +2752,9 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     if (err == MP_OKAY) {
         sp_2048_from_bin(a, 36, in, inLen);
 #if DIGIT_BIT >= 57
-        e[0] = em->dp[0];
+        e[0] = (sp_digit)em->dp[0];
 #else
-        e[0] = em->dp[0];
+        e[0] = (sp_digit)em->dp[0];
         if (em->used > 1)
             e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
 #endif
@@ -3099,7 +3099,7 @@ static int sp_2048_to_mp(sp_digit* a, mp_int* r)
         for (i = 0; i < 36; i++) {
             r->dp[j] |= ((mp_digit)a[i]) << s;
             if (s + 57 >= DIGIT_BIT) {
-    #if DIGIT_BIT < 64
+    #if DIGIT_BIT != 32 && DIGIT_BIT != 64
                 r->dp[j] &= (1l << DIGIT_BIT) - 1;
     #endif
                 s = DIGIT_BIT - s;
@@ -3532,14 +3532,14 @@ static void sp_3072_from_mp(sp_digit* r, int max, mp_int* a)
         s = 57 - s;
         if (j + 1 >= max)
             break;
-        r[++j] = a->dp[i] >> s;
+        r[++j] = (sp_digit)(a->dp[i] >> s);
         while (s + 57 <= DIGIT_BIT) {
             s += 57;
             r[j] &= 0x1ffffffffffffffl;
             if (j + 1 >= max)
                 break;
             if (s < DIGIT_BIT)
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(a->dp[i] >> s);
             else
                 r[++j] = 0;
         }
@@ -6271,9 +6271,9 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 
         sp_3072_from_bin(a, 54, in, inLen);
 #if DIGIT_BIT >= 57
-        e[0] = em->dp[0];
+        e[0] = (sp_digit)em->dp[0];
 #else
-        e[0] = em->dp[0];
+        e[0] = (sp_digit)em->dp[0];
         if (em->used > 1)
             e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
 #endif
@@ -6355,9 +6355,9 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     if (err == MP_OKAY) {
         sp_3072_from_bin(a, 54, in, inLen);
 #if DIGIT_BIT >= 57
-        e[0] = em->dp[0];
+        e[0] = (sp_digit)em->dp[0];
 #else
-        e[0] = em->dp[0];
+        e[0] = (sp_digit)em->dp[0];
         if (em->used > 1)
             e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
 #endif
@@ -6702,7 +6702,7 @@ static int sp_3072_to_mp(sp_digit* a, mp_int* r)
         for (i = 0; i < 54; i++) {
             r->dp[j] |= ((mp_digit)a[i]) << s;
             if (s + 57 >= DIGIT_BIT) {
-    #if DIGIT_BIT < 64
+    #if DIGIT_BIT != 32 && DIGIT_BIT != 64
                 r->dp[j] &= (1l << DIGIT_BIT) - 1;
     #endif
                 s = DIGIT_BIT - s;
@@ -7329,14 +7329,14 @@ static void sp_256_from_mp(sp_digit* r, int max, mp_int* a)
         s = 52 - s;
         if (j + 1 >= max)
             break;
-        r[++j] = a->dp[i] >> s;
+        r[++j] = (sp_digit)(a->dp[i] >> s);
         while (s + 52 <= DIGIT_BIT) {
             s += 52;
             r[j] &= 0xfffffffffffffl;
             if (j + 1 >= max)
                 break;
             if (s < DIGIT_BIT)
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(a->dp[i] >> s);
             else
                 r[++j] = 0;
         }
@@ -7430,7 +7430,7 @@ static int sp_256_to_mp(sp_digit* a, mp_int* r)
         for (i = 0; i < 5; i++) {
             r->dp[j] |= ((mp_digit)a[i]) << s;
             if (s + 52 >= DIGIT_BIT) {
-    #if DIGIT_BIT < 64
+    #if DIGIT_BIT != 32 && DIGIT_BIT != 64
                 r->dp[j] &= (1l << DIGIT_BIT) - 1;
     #endif
                 s = DIGIT_BIT - s;
