@@ -4040,7 +4040,6 @@ int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
 
     return 0;
 }
-
 #endif /* NO_DH */
 
 

@@ -33177,11 +33177,9 @@ WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
     if (x != NULL)
         localDh = *x;
     if (localDh == NULL) {
-        localDh = (WOLFSSL_DH*)XMALLOC(sizeof(WOLFSSL_DH), NULL,
-                                       DYNAMIC_TYPE_OPENSSL);
+        localDh = wolfSSL_DH_new();
         if (localDh == NULL)
             goto end;
-        XMEMSET(localDh, 0, sizeof(WOLFSSL_DH));
     }
 
     /* Load data in manually */
@@ -33219,6 +33217,14 @@ WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
         localDh = NULL;
     }
 
+    if (localDh != NULL && localDh->inSet == 0) {
+        if (SetDhInternal(localDh) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Unable to set internal DH structure");
+            wolfSSL_DH_free(localDh);
+            localDh = NULL;
+        }
+    }
+
 end:
     if (memAlloced) XFREE(mem, NULL, DYNAMIC_TYPE_PEM);
     if (der != NULL) FreeDer(&der);
@@ -33233,6 +33239,174 @@ end:
     return NULL;
 #endif
 }
+
+#ifndef NO_FILESYSTEM
+/* Convert DH key parameters to DER format, write to output (outSz)
+ * If output is NULL then max expected size is set to outSz and LENGTH_ONLY_E is
+ * returned.
+ *
+ * Note : static function due to redefinition complications with DhKey and FIPS
+ * version 2 build.
+ *
+ * return bytes written on success */
+static int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz)
+{
+    word32 sz = 0, idx = 0;
+    int pSz = 0, gSz = 0, ret;
+    byte scratch[MAX_LENGTH_SZ];
+
+    if (key == NULL || outSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    pSz = mp_unsigned_bin_size(&key->p);
+    if (pSz < 0) {
+        return pSz;
+    }
+    if (mp_leading_bit(&key->p)) {
+        pSz++;
+    }
+
+    gSz = mp_unsigned_bin_size(&key->g);
+    if (gSz < 0) {
+        return gSz;
+    }
+    if (mp_leading_bit(&key->g)) {
+        gSz++;
+    }
+
+    sz  = ASN_TAG_SZ; /* Integer */
+    sz += SetLength(pSz, scratch);
+    sz += ASN_TAG_SZ; /* Integer */
+    sz += SetLength(gSz, scratch);
+    sz += gSz + pSz;
+
+    if (out == NULL) {
+        byte seqScratch[MAX_SEQ_SZ];
+
+        *outSz = sz + SetSequence(sz, seqScratch);
+        return LENGTH_ONLY_E;
+    }
+
+    if (*outSz < MAX_SEQ_SZ || *outSz < sz) {
+        return BUFFER_E;
+    }
+
+    idx += SetSequence(sz, out);
+    if (*outSz < idx + sz) {
+        return BUFFER_E;
+    }
+
+    out[idx++] = ASN_INTEGER;
+    idx += SetLength(pSz, out + idx);
+    if (mp_leading_bit(&key->p)) {
+        out[idx++] = 0x00;
+        pSz -= 1; /* subtract 1 from size to account for leading 0 */
+    }
+    ret = mp_to_unsigned_bin(&key->p, out + idx);
+    if (ret != MP_OKAY) {
+        return BUFFER_E;
+    }
+    idx += pSz;
+
+    out[idx++] = ASN_INTEGER;
+    idx += SetLength(gSz, out + idx);
+    if (mp_leading_bit(&key->g)) {
+        out[idx++] = 0x00;
+        gSz -= 1; /* subtract 1 from size to account for leading 0 */
+    }
+    ret = mp_to_unsigned_bin(&key->g, out + idx);
+    if (ret != MP_OKAY) {
+        return BUFFER_E;
+    }
+    idx += gSz;
+    return idx;
+}
+
+
+/* Writes the DH parameters in PEM format from "dh" out to the file pointer
+ * passed in.
+ *
+ * returns WOLFSSL_SUCCESS on success
+ */
+int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh)
+{
+    int ret;
+    word32 derSz = 0, pemSz = 0;
+    byte *der, *pem;
+    DhKey* key;
+
+    WOLFSSL_ENTER("wolfSSL_PEM_write_DHparams");
+
+    if (dh == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", BAD_FUNC_ARG);
+        return WOLFSSL_FAILURE;
+    }
+
+    if (dh->inSet == 0) {
+        if (SetDhInternal(dh) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Unable to set internal DH structure");
+            return WOLFSSL_FAILURE;
+        }
+    }
+    key = (DhKey*)dh->internal;
+    ret = wc_DhParamsToDer(key, NULL, &derSz);
+    if (ret != LENGTH_ONLY_E) {
+        WOLFSSL_MSG("Failed to get size of DH params");
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
+        return WOLFSSL_FAILURE;
+    }
+
+    der = (byte*)XMALLOC(derSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", MEMORY_E);
+        return WOLFSSL_FAILURE;
+    }
+    ret = wc_DhParamsToDer(key, der, &derSz);
+    if (ret <= 0) {
+        WOLFSSL_MSG("Failed to export DH params");
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
+        XFREE(der, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return WOLFSSL_FAILURE;
+    }
+
+    /* convert to PEM */
+    ret = wc_DerToPem(der, derSz, NULL, 0, DH_PARAM_TYPE);
+    if (ret < 0) {
+        WOLFSSL_MSG("Failed to convert DH params to PEM");
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
+        XFREE(der, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+    pemSz = (word32)ret;
+
+    pem = (byte*)XMALLOC(pemSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pem == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", MEMORY_E);
+        XFREE(der, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+    ret = wc_DerToPem(der, derSz, pem, pemSz, DH_PARAM_TYPE);
+    XFREE(der, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ret < 0) {
+        WOLFSSL_MSG("Failed to convert DH params to PEM");
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
+        XFREE(pem, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+
+    ret = (int)XFWRITE(pem, 1, pemSz, fp);
+    XFREE(pem, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ret <= 0) {
+        WOLFSSL_MSG("Failed to write to file");
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
+        return WOLFSSL_FAILURE;
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", WOLFSSL_SUCCESS);
+    return WOLFSSL_SUCCESS;
+}
+#endif /* !NO_FILESYSTEM */
 #endif
 
 #ifdef WOLFSSL_CERT_GEN
