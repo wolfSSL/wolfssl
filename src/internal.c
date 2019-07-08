@@ -12919,6 +12919,7 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type,
 {
     byte level;
     byte code;
+    word32 dataSz = totalSz - *inOutIdx;
 
     #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ssl->hsInfoOn)
@@ -12930,14 +12931,16 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type,
                           READ_PROTO, ssl->heap);
     #endif
 
-    if (++ssl->options.alertCount >= WOLFSSL_ALERT_COUNT_MAX) {
-        WOLFSSL_MSG("Alert count exceeded");
-        return ALERT_COUNT_E;
-    }
+    if (IsEncryptionOn(ssl, 0))
+        dataSz -= ssl->keys.padSz;
 
     /* make sure can read the message */
-    if (*inOutIdx + ALERT_SIZE > totalSz)
+    if (dataSz != ALERT_SIZE) {
+#ifdef WOLFSSL_EXTRA_ALERTS
+        SendAlert(ssl, alert_fatal, unexpected_message);
+#endif
         return BUFFER_E;
+    }
 
     level = input[(*inOutIdx)++];
     code  = input[(*inOutIdx)++];
@@ -12948,6 +12951,15 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type,
         ssl->options.isClosed = 1;  /* Don't send close_notify */
     }
 
+    if (++ssl->options.alertCount >= WOLFSSL_ALERT_COUNT_MAX) {
+        WOLFSSL_MSG("Alert count exceeded");
+#ifdef WOLFSSL_EXTRA_ALERTS
+        if (level != alert_warning || code != close_notify)
+            SendAlert(ssl, alert_fatal, unexpected_message);
+#endif
+        return ALERT_COUNT_E;
+    }
+
     WOLFSSL_MSG("Got alert");
     if (*type == close_notify) {
         WOLFSSL_MSG("\tclose notify");
@@ -12955,18 +12967,15 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type,
     }
 #ifdef WOLFSSL_TLS13
     if (*type == decode_error) {
-        WOLFSSL_MSG("    decode error");
+        WOLFSSL_MSG("\tdecode error");
     }
     if (*type == illegal_parameter) {
-        WOLFSSL_MSG("    illegal parameter");
+        WOLFSSL_MSG("\tillegal parameter");
     }
 #endif
     WOLFSSL_ERROR(*type);
-    if (IsEncryptionOn(ssl, 0)) {
-        if (*inOutIdx + ssl->keys.padSz > totalSz)
-            return BUFFER_E;
+    if (IsEncryptionOn(ssl, 0))
         *inOutIdx += ssl->keys.padSz;
-    }
 
     return level;
 }
