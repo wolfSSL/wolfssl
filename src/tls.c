@@ -4005,12 +4005,35 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
     SupportedCurve* clientGroup;
     SupportedCurve* group;
     const DhParams* params;
+    int found = 0;
 
     extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
     /* May be doing PSK with no key exchange. */
     if (extension == NULL)
         return 0;
     clientGroup = (SupportedCurve*)extension->data;
+    for (group = clientGroup; group != NULL; group = group->next) {
+        if (group->name >= MIN_FFHDE_GROUP && group->name <= MAX_FFHDE_GROUP) {
+            found = 1;
+            break;
+        }
+    }
+    if (!found)
+        return 0;
+
+    if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH) {
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap,
+                                                       DYNAMIC_TYPE_PUBLIC_KEY);
+    }
+    if (ssl->buffers.serverDH_G.buffer && ssl->buffers.weOwnDH) {
+        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap,
+                                                       DYNAMIC_TYPE_PUBLIC_KEY);
+    }
+    ssl->buffers.serverDH_P.buffer = NULL;
+    ssl->buffers.serverDH_G.buffer = NULL;
+    ssl->buffers.weOwnDH = 0;
+    ssl->options.haveDH = 0;
+
 
     if ((ret = TLSX_PopulateSupportedGroups(ssl, &priority)) != WOLFSSL_SUCCESS)
         return ret;
@@ -4019,68 +4042,54 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
     ext = TLSX_Find(priority, TLSX_SUPPORTED_GROUPS);
     serverGroup = (SupportedCurve*)ext->data;
 
-    while (serverGroup != NULL) {
-        if ((serverGroup->name & NAMED_DH_MASK) == NAMED_DH_MASK) {
-            group = clientGroup;
-            while (group != NULL) {
-                if (serverGroup->name == group->name) {
-                    switch (serverGroup->name) {
-                    #ifdef HAVE_FFDHE_2048
-                        case WOLFSSL_FFDHE_2048:
-                            params = wc_Dh_ffdhe2048_Get();
-                            break;
-                    #endif
-                    #ifdef HAVE_FFDHE_3072
-                        case WOLFSSL_FFDHE_3072:
-                            params = wc_Dh_ffdhe3072_Get();
-                            break;
-                    #endif
-                    #ifdef HAVE_FFDHE_4096
-                        case WOLFSSL_FFDHE_4096:
-                            params = wc_Dh_ffdhe4096_Get();
-                            break;
-                    #endif
-                    #ifdef HAVE_FFDHE_6144
-                        case WOLFSSL_FFDHE_6144:
-                            params = wc_Dh_ffdhe6144_Get();
-                            break;
-                    #endif
-                    #ifdef HAVE_FFDHE_8192
-                        case WOLFSSL_FFDHE_8192:
-                            params = wc_Dh_ffdhe8192_Get();
-                            break;
-                    #endif
-                        default:
-                            return BAD_FUNC_ARG;
-                    }
-                    if (params->p_len >= ssl->options.minDhKeySz &&
-                                     params->p_len <= ssl->options.maxDhKeySz) {
-                        break;
-                    }
-                }
+    for (; serverGroup != NULL; serverGroup = serverGroup->next) {
+        if ((serverGroup->name & NAMED_DH_MASK) != NAMED_DH_MASK)
+            continue;
 
-                group = group->next;
+        for (group = clientGroup; group != NULL; group = group->next) {
+            if (serverGroup->name != group->name)
+                continue;
+
+            switch (serverGroup->name) {
+            #ifdef HAVE_FFDHE_2048
+                case WOLFSSL_FFDHE_2048:
+                    params = wc_Dh_ffdhe2048_Get();
+                    break;
+            #endif
+            #ifdef HAVE_FFDHE_3072
+                case WOLFSSL_FFDHE_3072:
+                    params = wc_Dh_ffdhe3072_Get();
+                    break;
+            #endif
+            #ifdef HAVE_FFDHE_4096
+                case WOLFSSL_FFDHE_4096:
+                    params = wc_Dh_ffdhe4096_Get();
+                    break;
+            #endif
+            #ifdef HAVE_FFDHE_6144
+                case WOLFSSL_FFDHE_6144:
+                    params = wc_Dh_ffdhe6144_Get();
+                    break;
+            #endif
+            #ifdef HAVE_FFDHE_8192
+                case WOLFSSL_FFDHE_8192:
+                    params = wc_Dh_ffdhe8192_Get();
+                    break;
+            #endif
+                default:
+                    return BAD_FUNC_ARG;
             }
-            if (group != NULL && serverGroup->name == group->name)
+            if (params->p_len >= ssl->options.minDhKeySz &&
+                                     params->p_len <= ssl->options.maxDhKeySz) {
                 break;
+            }
         }
-        serverGroup = serverGroup->next;
+
+        if (group != NULL && serverGroup->name == group->name)
+            break;
     }
 
     if (serverGroup) {
-
-        if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH) {
-            XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap,
-                  DYNAMIC_TYPE_PUBLIC_KEY);
-            ssl->buffers.serverDH_P.buffer = NULL;
-        }
-        if (ssl->buffers.serverDH_G.buffer && ssl->buffers.weOwnDH) {
-            XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap,
-                  DYNAMIC_TYPE_PUBLIC_KEY);
-            ssl->buffers.serverDH_G.buffer = NULL;
-        }
-
-        ssl->buffers.weOwnDH = 0;
         ssl->buffers.serverDH_P.buffer = (unsigned char *)params->p;
         ssl->buffers.serverDH_P.length = params->p_len;
         ssl->buffers.serverDH_G.buffer = (unsigned char *)params->g;
@@ -4090,6 +4099,7 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
         !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
         ssl->options.dhDoKeyTest = 0;
     #endif
+        ssl->options.haveDH = 1;
     }
 
     TLSX_FreeAll(priority, ssl->heap);
