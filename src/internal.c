@@ -9816,8 +9816,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
 
             #ifdef HAVE_SECURE_RENEGOTIATION
-                if (args->fatal == 0 && ssl->secure_renegotiation
-                               && ssl->secure_renegotiation->enabled) {
+                if (args->fatal == 0 && !IsAtLeastTLSv1_3(ssl->version)
+                                     && ssl->secure_renegotiation
+                                     && ssl->secure_renegotiation->enabled) {
 
                     if (IsEncryptionOn(ssl, 0)) {
                         /* compare against previous time */

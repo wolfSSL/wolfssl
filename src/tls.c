@@ -9967,7 +9967,7 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
         case server_hello:
             PF_VALIDATE_RESPONSE(ssl, semaphore);
     #ifdef WOLFSSL_TLS13
-                if (ssl->options.tls1_3) {
+                if (IsAtLeastTLSv1_3(ssl->version)) {
                     XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
         #ifndef WOLFSSL_TLS13_DRAFT_18
                     TURN_OFF(semaphore,
@@ -10011,6 +10011,9 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
         #endif
         #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
+        #endif
+        #if defined(HAVE_SECURE_RENEGOTIATION)
+            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_RENEGOTIATION_INFO));
         #endif
             break;
 
@@ -10084,7 +10087,7 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
             case server_hello:
                 PF_VALIDATE_RESPONSE(ssl, semaphore);
     #ifdef WOLFSSL_TLS13
-                if (ssl->options.tls1_3) {
+                if (IsAtLeastTLSv1_3(ssl->version)) {
                     XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
         #ifndef WOLFSSL_TLS13_DRAFT_18
                     TURN_OFF(semaphore,
@@ -10128,6 +10131,9 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
         #endif
         #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
+        #endif
+        #if defined(HAVE_SECURE_RENEGOTIATION)
+            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_RENEGOTIATION_INFO));
         #endif
                 break;
 
