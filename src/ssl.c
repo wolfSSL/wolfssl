@@ -10085,10 +10085,16 @@ static WC_INLINE void RestoreSession(WOLFSSL* ssl, WOLFSSL_SESSION* session,
     if (restoreSessionCerts) {
         ssl->session.chain        = session->chain;
         ssl->session.version      = session->version;
+    #ifdef NO_RESUME_SUITE_CHECK
         ssl->session.cipherSuite0 = session->cipherSuite0;
         ssl->session.cipherSuite  = session->cipherSuite;
+    #endif
     }
 #endif /* SESSION_CERTS */
+#ifndef NO_RESUME_SUITE_CHECK
+    ssl->session.cipherSuite0 = session->cipherSuite0;
+    ssl->session.cipherSuite  = session->cipherSuite;
+#endif
 }
 
 WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
@@ -10220,6 +10226,11 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
     copyInto->isDynamic = 0;
 #endif
 
+#ifndef NO_RESUME_SUITE_CHECK
+    copyInto->cipherSuite0   = copyFrom->cipherSuite0;
+    copyInto->cipherSuite    = copyFrom->cipherSuite;
+#endif
+
     if (wc_UnLockMutex(&session_mutex) != 0) {
         return BAD_MUTEX_E;
     }
@@ -10231,8 +10242,10 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
         return BAD_MUTEX_E;
     }
 
+#ifdef NO_RESUME_SUITE_CHECK
     copyInto->cipherSuite0   = copyFrom->cipherSuite0;
     copyInto->cipherSuite    = copyFrom->cipherSuite;
+#endif
     copyInto->namedGroup     = copyFrom->namedGroup;
     copyInto->ticketSeen     = copyFrom->ticketSeen;
     copyInto->ticketAdd      = copyFrom->ticketAdd;
@@ -10323,6 +10336,9 @@ int SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
                                defined(HAVE_SESSION_TICKET))
             ssl->version              = session->version;
+#endif
+#if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK) || \
+                        (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET))
             ssl->options.cipherSuite0 = session->cipherSuite0;
             ssl->options.cipherSuite  = session->cipherSuite;
 #endif
@@ -10500,10 +10516,15 @@ int AddSession(WOLFSSL* ssl)
                                defined(HAVE_SESSION_TICKET))
     if (error == 0) {
         session->version      = ssl->version;
+    }
+#endif /* SESSION_CERTS || (WOLFSSL_TLS13 & HAVE_SESSION_TICKET) */
+#if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK) || \
+                        (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET))
+    if (error == 0) {
         session->cipherSuite0 = ssl->options.cipherSuite0;
         session->cipherSuite  = ssl->options.cipherSuite;
     }
-#endif /* SESSION_CERTS || (WOLFSSL_TLS13 & HAVE_SESSION_TICKET) */
+#endif
 #if defined(WOLFSSL_TLS13)
     if (error == 0) {
         session->namedGroup     = ssl->session.namedGroup;
@@ -22177,7 +22198,11 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
     size += OPAQUE8_LEN;
     for (i = 0; i < sess->chain.count; i++)
         size += OPAQUE16_LEN + sess->chain.certs[i].length;
-    /* Protocol version + cipher suite */
+    /* Protocol version */
+    size += OPAQUE16_LEN;
+#endif
+#if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK)
+    /* cipher suite */
     size += OPAQUE16_LEN + OPAQUE16_LEN;
 #endif
 #ifndef NO_CLIENT_CACHE
@@ -22218,6 +22243,8 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
         }
         data[idx++] = sess->version.major;
         data[idx++] = sess->version.minor;
+#endif
+#if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK)
         data[idx++] = sess->cipherSuite0;
         data[idx++] = sess->cipherSuite;
 #endif
@@ -22344,6 +22371,8 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     }
     s->version.major = data[idx++];
     s->version.minor = data[idx++];
+#endif
+#if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK)
     s->cipherSuite0 = data[idx++];
     s->cipherSuite = data[idx++];
 #endif

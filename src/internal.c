@@ -23739,11 +23739,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     int HandleTlsResumption(WOLFSSL* ssl, int bogusID, Suites* clSuites)
     {
         int ret = 0;
-        WOLFSSL_SESSION* session = GetSession(ssl,
-                                                  ssl->arrays->masterSecret, 1);
+        WOLFSSL_SESSION* session;
 
         (void)bogusID;
 
+        session = GetSession(ssl, ssl->arrays->masterSecret, 1);
         #ifdef HAVE_SESSION_TICKET
             if (ssl->options.useTicket == 1) {
                 session = &ssl->session;
@@ -23770,6 +23770,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             else if (session->haveEMS && !ssl->options.haveEMS) {
                 WOLFSSL_MSG("Trying to resume a session with EMS without "
                             "using EMS");
+            #ifdef WOLFSSL_EXTRA_ALERTS
+                SendAlert(ssl, alert_fatal, handshake_failure);
+            #endif
                 return EXT_MASTER_SECRET_NEEDED_E;
             }
         #ifdef HAVE_EXT_CACHE
@@ -23777,6 +23780,25 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         #endif
         }
         else {
+        #ifndef NO_RESUME_SUITE_CHECK
+            int j;
+
+            /* Check client suites include the one in session */
+            for (j = 0; j < clSuites->suiteSz; j += 2) {
+                if (clSuites->suites[j] == session->cipherSuite0 &&
+                                clSuites->suites[j+1] == session->cipherSuite) {
+                    break;
+                }
+            }
+            if (j == clSuites->suiteSz) {
+                WOLFSSL_MSG("Prev session's cipher suite not in ClientHello");
+            #ifdef WOLFSSL_EXTRA_ALERTS
+                SendAlert(ssl, alert_fatal, illegal_parameter);
+            #endif
+                return UNSUPPORTED_SUITE;
+            }
+        #endif
+
         #ifdef HAVE_EXT_CACHE
             wolfSSL_SESSION_free(session);
         #endif
@@ -24972,11 +24994,16 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 ssl->version.minor = it->pv.minor;
             }
 
+
             if (!IsAtLeastTLSv1_3(ssl->version)) {
                 XMEMCPY(ssl->arrays->masterSecret, it->msecret, SECRET_LEN);
                 /* Copy the haveExtendedMasterSecret property from the ticket to
                  * the saved session, so the property may be checked later. */
                 ssl->session.haveEMS = it->haveEMS;
+            #ifndef NO_RESUME_SUITE_CHECK
+                ssl->session.cipherSuite0 = it->suite[0];
+                ssl->session.cipherSuite = it->suite[1];
+            #endif
             }
             else {
 #ifdef WOLFSSL_TLS13
