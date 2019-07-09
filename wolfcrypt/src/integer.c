@@ -4654,8 +4654,10 @@ int mp_prime_is_prime_ex (mp_int * a, int t, int *result, WC_RNG *rng)
         goto LBL_B;
     }
 
-    if (mp_cmp_d(&b, 2) != MP_GT || mp_cmp(&b, &c) != MP_LT)
+    if (mp_cmp_d(&b, 2) != MP_GT || mp_cmp(&b, &c) != MP_LT) {
+        ix--;
         continue;
+    }
 
     if ((err = mp_prime_miller_rabin (a, &b, &res)) != MP_OKAY) {
       goto LBL_B;
