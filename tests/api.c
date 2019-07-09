@@ -13130,8 +13130,8 @@ static int test_wc_DsaKeyToPublicDer(void)
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
+    XFREE(der,NULL,DYNAMIC_TYPE_TMP_BUFFER);
     wc_FreeDsaKey(&genKey);
-
 #endif /* !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN) */
 #endif /* HAVE_SELFTEST */
     return ret;
