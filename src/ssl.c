@@ -24393,14 +24393,18 @@ WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PrivateKey(XFILE fp, WOLFSSL_EVP_
 #endif
 
 #ifndef NO_WOLFSSL_STUB
-/*** TBD ***/
-WOLFSSL_API int X509_STORE_load_locations(WOLFSSL_X509_STORE *ctx, const char *file, const char *dir)
+/* Stub, returning WOLFSSL_SUCCESS for now */
+WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str, const char *file, const char *dir)
 {
-    (void)ctx;
+    (void)str;
     (void)file;
     (void)dir;
     WOLFSSL_STUB("X509_STORE_load_locations");
-    return WOLFSSL_FAILURE;
+    #ifdef WOLFSSL_APACHE_HTTPD
+        return WOLFSSL_SUCCESS;
+    #else
+        return WOLFSSL_FAILURE;
+    #endif
 }
 #endif
 

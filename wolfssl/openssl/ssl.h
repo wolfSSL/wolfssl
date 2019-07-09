@@ -467,6 +467,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_VERIFY_PARAM_set_hostflags wolfSSL_X509_VERIFY_PARAM_set_hostflags
 #define X509_VERIFY_PARAM_set1_host     wolfSSL_X509_VERIFY_PARAM_set1_host
 #define X509_VERIFY_PARAM_set1_ip_asc   wolfSSL_X509_VERIFY_PARAM_set1_ip_asc
+#define X509_STORE_load_locations       wolfSSL_X509_STORE_load_locations
 
 #define X509_LOOKUP_add_dir             wolfSSL_X509_LOOKUP_add_dir
 #define X509_LOOKUP_load_file           wolfSSL_X509_LOOKUP_load_file
