@@ -720,7 +720,7 @@ enum {
 #define SSL_get_rbio                    wolfSSL_SSL_get_rbio
 #define SSL_get_wbio                    wolfSSL_SSL_get_wbio
 #define SSL_do_handshake                wolfSSL_SSL_do_handshake
-#define SSL_get_ciphers(x)              wolfSSL_get_ciphers_compat(x)
+#define SSL_get_ciphers(x)              get_ciphers_compat(x)
 #define SSL_SESSION_get_id              wolfSSL_SESSION_get_id
 #define SSL_get_cipher_bits(s,np)       \
                           wolfSSL_CIPHER_get_bits(SSL_get_current_cipher(s),np)

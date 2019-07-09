@@ -8295,7 +8295,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
         case ALT_NAMES_OID:
             {
                 DNS_entry* dns = NULL;
-                sk->type = STACK_TYPE_NAME;
+                sk->type = STACK_TYPE_GEN_NAME;
 
                 if (x509->subjAltNameSet && x509->altNames != NULL) {
                     /* alt names are DNS_entry structs */
@@ -17387,8 +17387,6 @@ void wolfSSL_sk_GENERAL_NAME_pop_free(WOLFSSL_STACK* sk,
         wolfSSL_ASN1_OBJECT_free(sk->data.obj);
     }
     XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
-
-
 }
 
 /* Creates a new WOLFSSL_GENERAL_NAME structure.
@@ -18863,7 +18861,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
         WOLFSSL_ENTER("wolfSSL_X509_NAME_entry_count");
 
         if (name != NULL)
-            count = name->fullName.entryCount;
+            count = name->fullName.locSz;
 
         WOLFSSL_LEAVE("wolfSSL_X509_NAME_entry_count", count);
         return count;
@@ -21759,6 +21757,8 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
     #ifdef WOLFSSL_QT
     XMEMCPY(&a->data[i], x509->serial, x509->serialSz);
     a->length = x509->serialSz;
+    /* Store internally. Free'd when x509 is */
+    x509->serialNumber = a;
     #else
     a->data[i++] = ASN_INTEGER;
     i += SetLength(x509->serialSz, a->data + i);
@@ -24170,21 +24170,27 @@ void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
         return NULL;
 
     switch (sk->type) {
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         case STACK_TYPE_X509:
             return (void*)sk->data.x509;
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         case STACK_TYPE_CIPHER:
             if (sk->data.cipher == NULL)
                 return NULL;
             sk->data.cipher->offset = offset;
             return (void*)sk->data.cipher;
-        case STACK_TYPE_NAME:
+        case STACK_TYPE_GEN_NAME:
             gn = (WOLFSSL_GENERAL_NAME*)sk->data.obj;
             gn->d.ia5 = sk->data.obj->d.ia5;
             gn->type  = sk->data.obj->type;
             return (void*)gn;
         case STACK_TYPE_ACCESS_DESCRIPTION:
             return (void*)sk->data.access;
+        case STACK_TYPE_OBJ:
+            return (void*)sk->data.obj;
+            break;
+        case STACK_TYPE_NULL:
+            return (void*)sk->data.generic;
+            break;
     #endif
         default:
             return (void*)sk->data.obj;
@@ -24192,7 +24198,7 @@ void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
 }
 
 /* Free the structure for ASN1_OBJECT stack */
-void wolfSSL_sk_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
+void wolfSSL_sk_free(WOLFSSL_STACK* sk)
 {
     WOLFSSL_ENTER("wolfSSL_sk_free");
 
@@ -24200,8 +24206,56 @@ void wolfSSL_sk_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
         WOLFSSL_MSG("Error, BAD_FUNC_ARG");
         return;
     }
-    wolfSSL_sk_ASN1_OBJECT_free(sk);
+
+    switch (sk->type) {
+    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+        case STACK_TYPE_X509:
+            wolfSSL_sk_X509_free(sk);
+            break;
+        case STACK_TYPE_CIPHER:
+            wolfSSL_sk_CIPHER_free(sk);
+            break;
+        case STACK_TYPE_GEN_NAME:
+            wolfSSL_sk_GENERAL_NAME_pop_free(sk,NULL);
+            break;
+        case STACK_TYPE_ACCESS_DESCRIPTION:
+            wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(sk,NULL);
+            break;
+        case STACK_TYPE_OBJ:
+            wolfSSL_sk_ASN1_OBJECT_free(sk);
+            break;
+        case STACK_TYPE_NULL:
+            wolfSSL_sk_GENERIC_free(sk);
+            break;
+    #endif
+       default:
+            wolfSSL_sk_ASN1_OBJECT_free(sk);
+    }
 }
+/* Frees each node in the stack and frees the stack.
+ * Does not free any internal members of the stack nodes.
+ */
+void wolfSSL_sk_GENERIC_free(WOLFSSL_STACK* sk)
+{
+    WOLFSSL_STACK* node;
+    WOLFSSL_STACK* tmp;
+    WOLFSSL_ENTER("wolfSSL_sk_GENERIC_free");
+
+    if (sk == NULL)
+        return;
+
+    /* parse through stack freeing each node */
+    node = sk->next;
+    while (node) {
+        tmp  = node;
+        node = node->next;
+        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+
+    /* free head of stack */
+    XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
+}
+
 
 /* Free all nodes in a stack */
 void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
@@ -24250,20 +24304,82 @@ WOLFSSL_STACK* wolfSSL_sk_new_null(void)
     }
 
     XMEMSET(sk, 0, sizeof(WOLFSSL_STACK));
+    sk->type = STACK_TYPE_NULL;
 
     return sk;
 }
 
 /* return 1 on success 0 on fail */
-int wolfSSL_sk_push(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, const void *data)
+int wolfSSL_sk_GENERIC_push(WOLFSSL_STACK* sk, void* generic)
 {
-    WOLFSSL_ENTER("wolfSSL_sk_push");
+    WOLFSSL_STACK* node;
 
-    if (wolfSSL_sk_ASN1_OBJECT_push(sk, (WOLFSSL_ASN1_OBJECT*) data) == 1) {
+    WOLFSSL_ENTER("wolfSSL_sk_CIPHER_push");
+
+    if (sk == NULL || generic == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
+    /* no previous values in stack */
+    if (sk->data.generic == NULL) {
+        sk->data.generic = generic;
+        sk->num += 1;
         return WOLFSSL_SUCCESS;
     }
 
-    return WOLFSSL_FAILURE;
+    /* stack already has value(s) create a new node and add more */
+    node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK),NULL,DYNAMIC_TYPE_SSL);
+    if (node == NULL) {
+        WOLFSSL_MSG("Memory error");
+        return WOLFSSL_FAILURE;
+    }
+    XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
+
+    /* push new cipher onto head of stack */
+    node->type         = sk->type;
+    node->data.generic = sk->data.generic;
+    node->next         = sk->next;
+    sk->next           = node;
+    sk->data.generic   = generic;
+    sk->num           += 1;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* return 1 on success 0 on fail */
+int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
+{
+    int ret = WOLFSSL_FAILURE;
+    WOLFSSL_ENTER("wolfSSL_sk_push");
+
+    switch (sk->type) {
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        case STACK_TYPE_X509:
+            ret = wolfSSL_sk_X509_push(sk, (WOLFSSL_X509*) data);
+            break;
+        case STACK_TYPE_CIPHER:
+            ret = wolfSSL_sk_CIPHER_push(sk, (WOLFSSL_CIPHER*) data);
+            break;
+        case STACK_TYPE_GEN_NAME:
+            ret = wolfSSL_sk_ASN1_OBJECT_push(sk, (WOLFSSL_ASN1_OBJECT*) data);
+            break;
+        case STACK_TYPE_ACCESS_DESCRIPTION:
+            ret = wolfSSL_sk_ACCESS_DESCRIPTION_push(sk,
+                                            (WOLFSSL_ACCESS_DESCRIPTION*) data);
+            break;
+        case STACK_TYPE_NULL:
+            ret = wolfSSL_sk_GENERIC_push(sk, (void*) data);
+            break;
+        case STACK_TYPE_OBJ:
+            ret = wolfSSL_sk_ASN1_OBJECT_push(sk, (WOLFSSL_ASN1_OBJECT*) data);
+            break;
+    #endif
+        default:
+            ret = wolfSSL_sk_ASN1_OBJECT_push(sk, (WOLFSSL_ASN1_OBJECT*) data);
+            break;
+    }
+
+    return ret;
 }
 
 #if defined(HAVE_ECC)
@@ -38534,10 +38650,17 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-/*  wolfSSL_get_ciphers_compat creates a new stack of
- * "suiteSz" amount of "&ssl->cipher"s.
+/*  Returns all ciphers that were set by configure options.
+ *  input:  compatible cipher stack is stored within.
+ *  output: The stack of compatible ciphers (stored in ssl->supportedCiphers).
+ *  The stored stack is free'd by wolfSSL_free().
  */
-WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
+WOLF_STACK_OF(WOLFSSL_CIPHER)* get_ciphers_compat(const WOLFSSL* ssl)
+{
+    return wolfSSL_get_ciphers_compat((WOLFSSL*) ssl);
+}
+
+WOLF_STACK_OF(WOLFSSL_CIPHER)* wolfSSL_get_ciphers_compat(WOLFSSL* ssl)
 {
     WOLFSSL_STACK* sk = NULL;
     WOLFSSL_CIPHER* cipher;
@@ -38559,10 +38682,11 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
     for (i = 0; i < suiteSz; i++) {
         wolfSSL_sk_CIPHER_push(sk, cipher);
     }
+    ssl->supportedCiphers = sk;
 
     return sk;
 }
-#endif
+#endif /* (WOLFSSL_QT) || (OPENSSL_ALL) */
 
 #ifndef NO_WOLFSSL_STUB
 void wolfSSL_OPENSSL_config(char *config_name)
@@ -38572,7 +38696,7 @@ void wolfSSL_OPENSSL_config(char *config_name)
 }
 #endif /* NO_WOLFSSL_STUB */
 
-#endif
+#endif /* (OPENSSL_ALL) || (WOLFSSL_NGINX) || (WOLFSSL_HAPROXY) */
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
     || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)

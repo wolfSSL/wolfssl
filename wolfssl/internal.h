@@ -1826,7 +1826,7 @@ WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
 #endif
 /* wolfSSL Cipher type just points back to SSL */
 struct WOLFSSL_CIPHER {
-    WOLFSSL* ssl;
+    WOLFSSL* ssl; /* Does not need to be free'd */
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     char description[UINT8_SZ];
     unsigned long offset;
@@ -3412,13 +3412,15 @@ typedef struct Arrays {
 #endif
 
 #define STACK_TYPE_X509               0
-#define STACK_TYPE_NAME               1
+#define STACK_TYPE_GEN_NAME           1
 #define STACK_TYPE_BIO                2
 #define STACK_TYPE_OBJ                3
 #define STACK_TYPE_STRING             4
 #define STACK_TYPE_CIPHER             5
 #define STACK_TYPE_ACCESS_DESCRIPTION 6
 #define STACK_TYPE_X509_EXT           7
+#define STACK_TYPE_NULL               8
+
 struct WOLFSSL_STACK {
     unsigned long num; /* number of nodes in stack
                         * (safety measure for freeing and shortcut for count) */
@@ -3432,6 +3434,7 @@ struct WOLFSSL_STACK {
         WOLFSSL_ACCESS_DESCRIPTION* access;
         WOLFSSL_X509_EXTENSION* ext;
         #endif
+        void*                  generic;
         char*                  string;
     } data;
     WOLFSSL_STACK* next;
@@ -3484,6 +3487,7 @@ struct WOLFSSL_X509 {
     WOLFSSL_ASN1_TIME* notAfterTime;
     WOLFSSL_ASN1_TIME* notBeforeTime;
     WOLFSSL_STACK* ext_sk; /* Store X509_EXTENSIONS from wolfSSL_X509_get_ext */
+    WOLFSSL_ASN1_INTEGER* serialNumber; /* Stores SN from wolfSSL_X509_get_serialNumber */
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
     int              notBeforeSz;
     int              notAfterSz;
@@ -4008,6 +4012,9 @@ struct WOLFSSL {
 #ifdef WOLFSSL_EARLY_DATA
     EarlyDataState earlyData;
     word32 earlyDataSz;
+#endif
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+    WOLFSSL_STACK* supportedCiphers;
 #endif
 };
 

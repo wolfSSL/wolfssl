@@ -3203,6 +3203,10 @@ void FreeX509(WOLFSSL_X509* x509)
         if (x509->ext_sk != NULL) {
             wolfSSL_sk_X509_EXTENSION_free(x509->ext_sk);
         }
+        /* Free serialNumber that was set by wolfSSL_X509_get_serialNumber */
+        if (x509->serialNumber != NULL) {
+            wolfSSL_ASN1_INTEGER_free(x509->serialNumber);
+        }
         #endif /* OPENSSL_ALL || WOLFSSL_QT */
         if (x509->extKeyUsageSrc != NULL) {
             XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
@@ -5671,6 +5675,9 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     #endif
     }
 #endif /* WOLFSSL_STATIC_MEMORY */
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+    wolfSSL_sk_CIPHER_free(ssl->supportedCiphers);
+#endif
 }
 
 /* Free any handshake resources no longer needed */
@@ -17131,7 +17138,7 @@ int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
     const char* name;
     const char *keaStr, *authStr, *encStr, *macStr, *protocol;
     char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
-    uint8_t len = UINT8_SZ;
+    uint8_t len = UINT8_SZ-1;
     WOLFSSL_ENTER("wolfSSL_CIPHER_sk_description");
 
     if (cipher == NULL)

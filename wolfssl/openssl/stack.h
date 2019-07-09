@@ -31,6 +31,8 @@
 typedef void (*wolfSSL_sk_freefunc)(void *);
 
 WOLFSSL_API void wolfSSL_sk_free(WOLFSSL_STACK *);
+WOLFSSL_API void wolfSSL_sk_GENERIC_free(WOLFSSL_STACK *);
+WOLFSSL_API int wolfSSL_sk_GENERIC_push(WOLFSSL_STACK *sk, void *data);
 WOLFSSL_API void wolfSSL_sk_pop_free(WOLFSSL_STACK *st, void (*func) (void *));
 WOLFSSL_API WOLFSSL_STACK *wolfSSL_sk_new_null(void);
 WOLFSSL_API int wolfSSL_sk_push(WOLFSSL_STACK *st, const void *data);
