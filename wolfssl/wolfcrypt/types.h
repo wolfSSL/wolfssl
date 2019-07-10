@@ -446,6 +446,7 @@
                        Windows 10, snprintf is no longer identical to
                        _snprintf. The snprintf function behavior is now
                        C99 standard compliant. */
+                    #include <stdio.h>
                     #define XSNPRINTF snprintf
                 #else
                     /* 4996 warning to use MS extensions e.g., _sprintf_s
