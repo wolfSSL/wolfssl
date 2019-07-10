@@ -1294,6 +1294,23 @@ int SetCipherSpecs(WOLFSSL* ssl)
         break;
 #endif
 
+#ifdef BUILD_TLS_RSA_WITH_NULL_MD5
+    case TLS_RSA_WITH_NULL_MD5 :
+        ssl->specs.bulk_cipher_algorithm = wolfssl_cipher_null;
+        ssl->specs.cipher_type           = stream;
+        ssl->specs.mac_algorithm         = md5_mac;
+        ssl->specs.kea                   = rsa_kea;
+        ssl->specs.sig_algo              = rsa_sa_algo;
+        ssl->specs.hash_size             = WC_MD5_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_MD5;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = 0;
+        ssl->specs.block_size            = 0;
+        ssl->specs.iv_size               = 0;
+
+        break;
+#endif
+
 #ifdef BUILD_TLS_RSA_WITH_NULL_SHA
     case TLS_RSA_WITH_NULL_SHA :
         ssl->specs.bulk_cipher_algorithm = wolfssl_cipher_null;
