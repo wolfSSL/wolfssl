@@ -9922,6 +9922,10 @@ int wolfSSL_Cleanup(void)
     if (wc_FreeMutex(&count_mutex) != 0)
         ret = BAD_MUTEX_E;
 
+#ifdef OPENSSL_EXTRA
+    wolfSSL_RAND_Cleanup();
+#endif
+
     if (wolfCrypt_Cleanup() != 0) {
         WOLFSSL_MSG("Error with wolfCrypt_Cleanup call");
         ret = WC_CLEANUP_E;
