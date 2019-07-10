@@ -3113,8 +3113,10 @@ void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag)
 void FreeX509Name(WOLFSSL_X509_NAME* name, void* heap)
 {
     if (name != NULL) {
-        if (name->dynamicName)
+        if (name->dynamicName) {
             XFREE(name->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
+            name->name = NULL;
+        }
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         {
             int i;
@@ -3161,22 +3163,31 @@ void FreeX509(WOLFSSL_X509* x509)
 
     FreeX509Name(&x509->issuer, x509->heap);
     FreeX509Name(&x509->subject, x509->heap);
-    if (x509->pubKey.buffer)
+    if (x509->pubKey.buffer) {
         XFREE(x509->pubKey.buffer, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        x509->pubKey.buffer = NULL;
+    }
     FreeDer(&x509->derCert);
     XFREE(x509->sig.buffer, x509->heap, DYNAMIC_TYPE_SIGNATURE);
+    x509->sig.buffer = NULL;
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         XFREE(x509->authKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->authKeyId = NULL;
         XFREE(x509->subjKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->subjKeyId = NULL;
         if (x509->authInfo != NULL) {
             XFREE(x509->authInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
+            x509->authInfo = NULL;
         }
         if (x509->extKeyUsageSrc != NULL) {
             XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
+            x509->extKeyUsageSrc= NULL;
         }
     #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
-    if (x509->altNames)
+    if (x509->altNames) {
         FreeAltNames(x509->altNames, x509->heap);
+        x509->altNames = NULL;
+    }
 }
 
 
@@ -9023,6 +9034,9 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
             if (CopyDecodedToX509(x509, args->dCert) == 0) {
                 store->current_cert = x509;
             }
+            else {
+                FreeX509(x509);
+            }
         }
     #endif
     #ifdef SESSION_CERTS
@@ -9531,6 +9545,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             if (args->dCert == NULL) {
                 ERROR_OUT(MEMORY_E, exit_ppc);
             }
+            XMEMSET(args->dCert, 0, sizeof(DecodedCert));
         #endif
 
             /* Advance state and proceed */

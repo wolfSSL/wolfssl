@@ -11120,12 +11120,14 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
             }
 
             /* decrypt encryptedContent */
-            ret = wc_PKCS7_DecryptContent(encOID, pkcs7->encryptionKey,
+            if (ret == 0) {
+                ret = wc_PKCS7_DecryptContent(encOID, pkcs7->encryptionKey,
                                   pkcs7->encryptionKeySz, tmpIv, expBlockSz,
                                   NULL, 0, NULL, 0, encryptedContent,
                                   encryptedContentSz, encryptedContent);
-            if (ret != 0) {
-                XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                if (ret != 0) {
+                    XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                }
             }
 
             if (ret == 0) {
