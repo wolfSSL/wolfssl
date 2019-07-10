@@ -350,6 +350,11 @@ WC_STATIC WC_INLINE byte ctMaskEq(int a, int b)
     return 0 - (a == b);
 }
 
+WC_STATIC WC_INLINE word16 ctMask16Eq(int a, int b)
+{
+    return 0 - (a == b);
+}
+
 /* Constant time - mask set when a != b. */
 WC_STATIC WC_INLINE byte ctMaskNotEq(int a, int b)
 {
