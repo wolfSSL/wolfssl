@@ -5652,6 +5652,10 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled) {
         WOLFSSL_MSG("Secure Renegotiation needs to retain handshake resources");
+    #ifdef KEEP_PEER_CERT
+        /* free peer cert in preparation for new handshake */
+        FreeX509(&ssl->peerCert);
+    #endif
         return;
     }
 #endif
