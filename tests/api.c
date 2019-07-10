@@ -2574,11 +2574,16 @@ static void test_client_nofail(void* args, void *cb)
 
     /* IANA Cipher Suites Names */
     /* Unless WOLFSSL_CIPHER_INTERNALNAME or NO_ERROR_STRINGS,
-        then its the internal cipher suite name */
+        then it's the internal cipher suite name */
     cipher = wolfSSL_get_current_cipher(ssl);
     cipherName1 = wolfSSL_CIPHER_get_name(cipher);
     cipherName2 = wolfSSL_get_cipher(ssl);
     AssertStrEQ(cipherName1, cipherName2);
+#if !defined(WOLFSSL_CIPHER_INTERNALNAME) && !defined(NO_ERROR_STRINGS)
+    cipherName1 = wolfSSL_get_cipher_name_iana_from_suite(
+            (cipherSuite >> 8), cipherSuite & 0xFF);
+    AssertStrEQ(cipherName1, cipherName2);
+#endif
 
     if (cb != NULL)
         ((cbType)cb)(ctx, ssl);

@@ -19221,6 +19221,12 @@ const char* wolfSSL_get_cipher_name_from_suite(const byte cipherSuite0,
     return GetCipherNameInternal(cipherSuite0, cipherSuite);
 }
 
+const char* wolfSSL_get_cipher_name_iana_from_suite(const byte cipherSuite0,
+        const byte cipherSuite)
+{
+    return GetCipherNameIana(cipherSuite0, cipherSuite);
+}
+
 word32 wolfSSL_CIPHER_get_id(const WOLFSSL_CIPHER* cipher)
 {
     word16 cipher_id = 0;
