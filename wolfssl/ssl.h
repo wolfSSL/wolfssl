@@ -590,6 +590,8 @@ WOLFSSL_API int wolfSSL_get_ciphers_iana(char*, int);
 WOLFSSL_API const char* wolfSSL_get_cipher_name(WOLFSSL* ssl);
 WOLFSSL_API const char* wolfSSL_get_cipher_name_from_suite(const unsigned char,
     const unsigned char);
+WOLFSSL_API const char* wolfSSL_get_cipher_name_iana_from_suite(
+    const unsigned char, const unsigned char);
 WOLFSSL_API const char* wolfSSL_get_shared_ciphers(WOLFSSL* ssl, char* buf,
     int len);
 WOLFSSL_API const char* wolfSSL_get_curve_name(WOLFSSL* ssl);

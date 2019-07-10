@@ -16553,6 +16553,12 @@ const char* wolfSSL_get_cipher_name_from_suite(const byte cipherSuite0,
     return GetCipherNameInternal(cipherSuite0, cipherSuite);
 }
 
+const char* wolfSSL_get_cipher_name_iana_from_suite(const byte cipherSuite0,
+        const byte cipherSuite)
+{
+    return GetCipherNameIana(cipherSuite0, cipherSuite);
+}
+
 
 #if defined(HAVE_ECC) || !defined(NO_DH)
 #ifdef HAVE_FFDHE
