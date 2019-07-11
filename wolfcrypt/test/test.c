@@ -13061,6 +13061,7 @@ int dh_test(void)
         /* Test Check Key */
         ret = wc_DhSetCheckKey(&key, dh_p, sizeof(dh_p), dh_g, sizeof(dh_g),
             NULL, 0, 0, &rng);
+        keyInit = 1; /* DhSetCheckKey also initializes the key, free it */
     }
 #endif
 
