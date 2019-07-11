@@ -129,8 +129,8 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 #endif /* _WIN32 */
 
 
-static int TraceOn = 0;         /* Trace is off by default */
-static FILE* TraceFile = 0;
+static WOLFSSL_SHARED int TraceOn = 0;         /* Trace is off by default */
+static WOLFSSL_SHARED FILE* TraceFile = 0;
 
 
 /* windows uses .rc table for this */
@@ -4077,12 +4077,15 @@ int ssl_FreeZeroDecodeBuffer(byte** data, int sz, char* error)
 int ssl_Trace(const char* traceFile, char* error)
 {
     if (traceFile) {
-        TraceFile = fopen(traceFile, "a");
-        if (!TraceFile) {
-            SetError(BAD_TRACE_FILE_STR, error, NULL, 0);
-            return -1;
+        /* Don't try to reopen the file */
+        if (TraceFile == NULL) {
+            TraceFile = fopen(traceFile, "a");
+            if (!TraceFile) {
+                SetError(BAD_TRACE_FILE_STR, error, NULL, 0);
+                return -1;
+             }
+            TraceOn = 1;
         }
-        TraceOn = 1;
     }
     else
         TraceOn = 0;

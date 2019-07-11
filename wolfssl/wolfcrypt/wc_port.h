@@ -720,6 +720,15 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
                                     will use dynamic buffer if not big enough */
 #endif
 
+#ifdef HAVE_CAVIUM_OCTEON
+    /* By default, the OCTEON's global variables are all thread local. This
+     * tag allows them to be shared between threads. */
+    #include "cvmx-platform.h"
+    #define WOLFSSL_SHARED CVMX_SHARED
+#else
+    #define WOLFSSL_SHARED
+#endif
+
 
 #ifdef __cplusplus
     }  /* extern "C" */

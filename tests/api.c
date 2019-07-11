@@ -18548,6 +18548,7 @@ static void test_wc_PemToDer(void)
 
     if (cert_buf)
         free(cert_buf);
+    printf(resultFmt, passed);
 #endif
 }
 
@@ -18564,6 +18565,7 @@ static void test_wc_AllocDer(void)
     AssertIntEQ(ret, 0);
     AssertNotNull(pDer);
     wc_FreeDer(&pDer);
+    printf(resultFmt, passed);
 #endif
 }
 
