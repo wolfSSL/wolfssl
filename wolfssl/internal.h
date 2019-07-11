@@ -3513,6 +3513,7 @@ struct WOLFSSL_STACK {
         #endif
         void*                  generic;
         char*                  string;
+        WOLFSSL_GENERAL_NAME* gn;
     } data;
     void* heap; /* memory heap hint */
     WOLFSSL_STACK* next;

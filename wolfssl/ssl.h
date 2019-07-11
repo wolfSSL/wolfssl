@@ -279,12 +279,14 @@ struct WOLFSSL_ASN1_OBJECT {
     int    grp;  /* type of OID, i.e. oidCertPolicyType */
     int    nid;
     unsigned int  objSz;
-    unsigned char dynamic; /* if 1 then obj was dynamiclly created, 0 otherwise */
-    #define WOLFSSL_ASN1_DYNAMIC 0x1
-    #define WOLFSSL_ASN1_DYNAMIC_DATA 0x2
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     int ca;
     WOLFSSL_ASN1_INTEGER *pathlen;
+#endif
+    unsigned char dynamic; /* if 1 then obj was dynamically created, 0 otherwise */
+
+#if defined(WOLFSSL_APACHE_HTTPD)
+    WOLFSSL_GENERAL_NAME* gn;
 #endif
 
     struct d { /* derefrenced */
@@ -963,12 +965,15 @@ WOLFSSL_API int wolfSSL_sk_X509_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
 WOLFSSL_API WOLFSSL_X509* wolfSSL_sk_X509_pop(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk);
 WOLFSSL_API WOLFSSL_STACK* wolfSSL_sk_X509_dup(WOLFSSL_STACK* sk);
 WOLFSSL_API void wolfSSL_sk_X509_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk);
-WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_sk_GENERAL_NAME_value(
+WOLFSSL_API WOLFSSL_GENERAL_NAME* wolfSSL_GENERAL_NAME_new(void);
+WOLFSSL_API void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* gn);
+WOLFSSL_API int wolfSSL_sk_GENERAL_NAME_push(WOLF_STACK_OF(WOLFSSL_GENERAL_NAME)* sk,
+                                                      WOLFSSL_GENERAL_NAME* gn);
+WOLFSSL_API WOLFSSL_GENERAL_NAME* wolfSSL_sk_GENERAL_NAME_value(
         WOLFSSL_STACK* sk, int i);
 WOLFSSL_API int wolfSSL_sk_GENERAL_NAME_num(WOLFSSL_STACK* sk);
 WOLFSSL_API void wolfSSL_sk_GENERAL_NAME_pop_free(WOLFSSL_STACK* sk,
                                        void f (WOLFSSL_GENERAL_NAME*));
-WOLFSSL_API void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name);
 WOLFSSL_API void wolfSSL_GENERAL_NAMES_free(WOLFSSL_GENERAL_NAMES* name);
 WOLFSSL_API int wolfSSL_sk_ACCESS_DESCRIPTION_num(WOLFSSL_STACK* sk);
 WOLFSSL_API void wolfSSL_AUTHORITY_INFO_ACCESS_free(

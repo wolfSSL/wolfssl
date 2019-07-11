@@ -964,6 +964,9 @@ typedef STACK_OF(WOLFSSL_GENERAL_NAME) GENERAL_NAMES;
 #define SSL_get_state                   wolfSSL_get_state
 #define SSL_state_string_long           wolfSSL_state_string_long
 
+#define GENERAL_NAME_new                wolfSSL_GENERAL_NAME_new
+#define GENERAL_NAME_free               wolfSSL_GENERAL_NAME_free
+#define sk_GENERAL_NAME_push            wolfSSL_sk_GENERAL_NAME_push
 #define sk_GENERAL_NAME_value           wolfSSL_sk_GENERAL_NAME_value
 #define SSL_SESSION_get_ex_data         wolfSSL_SESSION_get_ex_data
 #define SSL_SESSION_set_ex_data         wolfSSL_SESSION_set_ex_data
