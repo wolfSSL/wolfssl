@@ -3763,6 +3763,12 @@ doMessage:
             SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }
+#ifdef WOLFSSL_SNIFFER_STATS
+        LOCK_STAT();
+        NOLOCK_INC_STAT(SnifferStats.sslDecryptedPackets);
+        NOLOCK_ADD_TO_STAT(SnifferStats.sslDecryptedBytes, sslBytes);
+        UNLOCK_STAT();
+#endif
         sslFrame = DecryptMessage(ssl, sslFrame, rhSize,
                                   ssl->buffers.outputBuffer.buffer, &errCode,
                                   &ivAdvance);
