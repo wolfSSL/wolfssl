@@ -404,35 +404,37 @@ typedef struct SnifferSession {
 
 
 /* Sniffer Server List and mutex */
-static SnifferServer* ServerList = 0;
-static wolfSSL_Mutex ServerListMutex;
+static WOLFSSL_SHARED SnifferServer* ServerList = 0;
+static WOLFSSL_SHARED wolfSSL_Mutex ServerListMutex;
 
 
 /* Session Hash Table, mutex, and count */
-static SnifferSession* SessionTable[HASH_SIZE];
-static wolfSSL_Mutex SessionMutex;
-static int SessionCount = 0;
+static WOLFSSL_SHARED SnifferSession* SessionTable[HASH_SIZE];
+static WOLFSSL_SHARED wolfSSL_Mutex SessionMutex;
+static WOLFSSL_SHARED int SessionCount = 0;
 
 /* Recovery of missed data switches and stats */
-static wolfSSL_Mutex RecoveryMutex;      /* for stats */
-static int RecoveryEnabled    = 0;       /* global switch */
-static int MaxRecoveryMemory  = -1;      /* per session max recovery memory */
-static word32 MissedDataSessions = 0;    /* # of sessions with missed data */
+static WOLFSSL_SHARED wolfSSL_Mutex RecoveryMutex; /* for stats */
+static WOLFSSL_SHARED int RecoveryEnabled    = 0;  /* global switch */
+static WOLFSSL_SHARED int MaxRecoveryMemory  = -1;
+                                           /* per session max recovery memory */
+static WOLFSSL_SHARED word32 MissedDataSessions = 0;
+                                            /* # of sessions with missed data */
 
 /* Connection Info Callback */
-static SSLConnCb ConnectionCb;
-static void* ConnectionCbCtx = NULL;
+static WOLFSSL_SHARED SSLConnCb ConnectionCb;
+static WOLFSSL_SHARED void* ConnectionCbCtx = NULL;
 
 #ifdef WOLFSSL_SNIFFER_STATS
 /* Sessions Statistics */
-static SSLStats SnifferStats;
-static wolfSSL_Mutex StatsMutex;
+static WOLFSSL_SHARED SSLStats SnifferStats;
+static WOLFSSL_SHARED wolfSSL_Mutex StatsMutex;
 #endif
 
 #ifdef WOLFSSL_SNIFFER_WATCH
 /* Watch Key Callback */
-static SSLWatchCb WatchCb;
-static void* WatchCbCtx = NULL;
+static WOLFSSL_SHARED SSLWatchCb WatchCb;
+static WOLFSSL_SHARED void* WatchCbCtx = NULL;
 #endif
 
 

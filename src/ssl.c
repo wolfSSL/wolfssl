@@ -4658,13 +4658,13 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         WOLFSSL_SESSION Sessions[SESSIONS_PER_ROW];
     } SessionRow;
 
-    static SessionRow SessionCache[SESSION_ROWS];
+    static WOLFSSL_SHARED SessionRow SessionCache[SESSION_ROWS];
 
     #if defined(WOLFSSL_SESSION_STATS) && defined(WOLFSSL_PEAK_SESSIONS)
-        static word32 PeakSessions;
+        static WOLFSSL_SHARED word32 PeakSessions;
     #endif
 
-    static wolfSSL_Mutex session_mutex;   /* SessionCache mutex */
+    static WOLFSSL_SHARED wolfSSL_Mutex session_mutex; /* SessionCache mutex */
 
     #ifndef NO_CLIENT_CACHE
 
@@ -4679,7 +4679,8 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
             ClientSession Clients[SESSIONS_PER_ROW];
         } ClientRow;
 
-        static ClientRow ClientCache[SESSION_ROWS];  /* Client Cache */
+        static WOLFSSL_SHARED ClientRow ClientCache[SESSION_ROWS];
+                                                     /* Client Cache */
                                                      /* uses session mutex */
     #endif  /* NO_CLIENT_CACHE */
 
