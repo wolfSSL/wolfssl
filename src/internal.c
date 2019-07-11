@@ -2702,6 +2702,13 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     }
 #endif
 
+#ifdef BUILD_TLS_RSA_WITH_NULL_MD5
+    if (tls && haveRSA) {
+        suites->suites[idx++] = CIPHER_BYTE;
+        suites->suites[idx++] = TLS_RSA_WITH_NULL_MD5;
+    }
+#endif
+
 #ifdef BUILD_TLS_RSA_WITH_NULL_SHA
     if (tls && haveRSA) {
         suites->suites[idx++] = CIPHER_BYTE;
@@ -8107,6 +8114,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
+        case TLS_RSA_WITH_NULL_MD5 :
         case TLS_RSA_WITH_NULL_SHA :
         case TLS_RSA_WITH_NULL_SHA256 :
             if (requirement == REQUIRES_RSA)
@@ -16372,6 +16380,10 @@ static const CipherSuiteInfo cipher_names[] =
 
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_SHA
     SUITE_INFO("AES256-SHA","TLS_RSA_WITH_AES_256_CBC_SHA",CIPHER_BYTE,TLS_RSA_WITH_AES_256_CBC_SHA),
+#endif
+
+#ifdef BUILD_TLS_RSA_WITH_NULL_MD5
+    SUITE_INFO("NULL-MD5","TLS_RSA_WITH_NULL_MD5",CIPHER_BYTE,TLS_RSA_WITH_NULL_MD5),
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_NULL_SHA

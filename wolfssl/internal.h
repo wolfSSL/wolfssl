@@ -422,6 +422,9 @@
     #if !defined(NO_TLS) && defined(HAVE_NULL_CIPHER)
         #if !defined(NO_RSA)
             #if defined(WOLFSSL_STATIC_RSA)
+                #ifndef NO_MD5
+                    #define BUILD_TLS_RSA_WITH_NULL_MD5
+                #endif
                 #if !defined(NO_SHA)
                     #define BUILD_TLS_RSA_WITH_NULL_SHA
                 #endif
@@ -921,6 +924,7 @@ enum {
     TLS_DH_anon_WITH_AES_128_CBC_SHA  = 0x34,
     TLS_RSA_WITH_AES_256_CBC_SHA      = 0x35,
     TLS_RSA_WITH_AES_128_CBC_SHA      = 0x2F,
+    TLS_RSA_WITH_NULL_MD5             = 0x01,
     TLS_RSA_WITH_NULL_SHA             = 0x02,
     TLS_PSK_WITH_AES_256_CBC_SHA      = 0x8d,
     TLS_PSK_WITH_AES_128_CBC_SHA256   = 0xae,
