@@ -118,7 +118,12 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define CONF_get1_default_config_file   wolfSSL_CONF_get1_default_config_file
 
-#define CRYPTO_free                     XFREE
+#ifdef WOLFSSL_QT
+    #define CRYPTO_free(xp) {if((xp)) wolfSSL_Free((xp));}
+#else
+  #define CRYPTO_free                     XFREE
+#endif
+
 #define CRYPTO_malloc                   XMALLOC
 #define CRYPTO_EX_new                   WOLFSSL_CRYPTO_EX_new
 #define CRYPTO_EX_dup                   WOLFSSL_CRYPTO_EX_dup

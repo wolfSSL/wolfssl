@@ -5677,6 +5677,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif /* WOLFSSL_STATIC_MEMORY */
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     wolfSSL_sk_CIPHER_free(ssl->supportedCiphers);
+    wolfSSL_sk_X509_free(ssl->peerCertChain);
 #endif
 }
 
@@ -10678,18 +10679,18 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
         ssl->options.serverState = SERVER_FINISHED_COMPLETE;
 #ifdef OPENSSL_EXTRA
-		ssl->cbmode = SSL_CB_MODE_WRITE;
-		ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
+    ssl->cbmode = SSL_CB_MODE_WRITE;
+    ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
 #endif
         if (!ssl->options.resuming) {
 #ifdef OPENSSL_EXTRA
-			if (ssl->CBIS != NULL) {
-				ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, SSL_SUCCESS);
-			}
+            if (ssl->CBIS != NULL) {
+                ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, SSL_SUCCESS);
+            }
 #endif
-			ssl->options.handShakeState = HANDSHAKE_DONE;
-			ssl->options.handShakeDone  = 1;
-		}
+            ssl->options.handShakeState = HANDSHAKE_DONE;
+            ssl->options.handShakeDone  = 1;
+        }
     }
     else {
         ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
@@ -13270,7 +13271,6 @@ int ProcessReply(WOLFSSL* ssl)
 #if defined(WOLFSSL_DTLS)
     int    used;
 #endif
-    WOLFSSL_ENTER("ProcessReply");
 #ifdef ATOMIC_USER
     if (ssl->ctx->DecryptVerifyCb)
         atomicUser = 1;

@@ -7835,6 +7835,11 @@ int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
     #endif
 
         WOLFSSL_ENTER("DecodeCertPolicy");
+        /* Check if valid cert pointer before dereferencing below */
+        #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
+        if (cert == NULL)
+            return BAD_FUNC_ARG;
+        #endif
 
         if (GetSequence(input, &idx, &total_length, sz) < 0) {
             WOLFSSL_MSG("\tGet CertPolicy total seq failed");
@@ -7916,7 +7921,7 @@ int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
         WOLFSSL_LEAVE("DecodeCertPolicy", 0);
         return 0;
     }
-#endif /* WOLFSSL_SEP */
+#endif /* WOLFSSL_SEP || WOLFSSL_CERT_EXT */
 
 /* Macro to check if bit is set, if not sets and return success.
     Otherwise returns failure */

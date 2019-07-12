@@ -479,6 +479,13 @@ then
     ENABLED_FORTRESS="yes"
 fi
 
+#Qt Support
+AC_ARG_ENABLE([qt],
+    [AS_HELP_STRING([--enable-qt],[Enable qt (default: disabled)])],
+    [ ENABLED_QT=$enableval ],
+    [ ENABLED_QT=no ]
+    )
+
 # ssl bump build
 AC_ARG_ENABLE([bump],
     [AS_HELP_STRING([--enable-bump],[Enable SSL Bump build (default: disabled)])],
@@ -1406,7 +1413,7 @@ AC_ARG_ENABLE([dsa],
     [ ENABLED_DSA=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes"
 then
     ENABLED_DSA="yes"
 fi
@@ -1789,12 +1796,6 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STACK_LOG -finstrument-functions"
 fi
 
-#Qt Support
-AC_ARG_ENABLE([qt],
-    [AS_HELP_STRING([--enable-qt],[Enable qt (default: disabled)])],
-    [ ENABLED_QT=$enableval ],
-    [ ENABLED_QT=no ]
-    )
 if test "$ENABLED_QT" = "yes"
 then
     # Requires opensslextra and opensslall
@@ -1855,26 +1856,6 @@ then
     AM_CFLAGS="$AM_CFLAGS -DOPENSSL_NO_SSL3 -DWOLFSSL_STATIC_RSA"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_PSK"
 fi
-
-# DSA
-AC_ARG_ENABLE([dsa],
-    [AS_HELP_STRING([--enable-dsa],[Enable DSA (default: disabled)])],
-    [ ENABLED_DSA=$enableval ],
-    [ ENABLED_DSA=no ]
-    )
-
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes"
-then
-    ENABLED_DSA="yes"
-fi
-
-if test "$ENABLED_DSA" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_DSA"
-fi
-
-AM_CONDITIONAL([BUILD_DSA], [test "x$ENABLED_DSA" = "xyes"])
-
 
 # RSA
 AC_ARG_ENABLE([rsa],
@@ -2851,6 +2832,10 @@ AC_ARG_ENABLE([sni],
     [ ENABLED_SNI=$enableval ],
     [ ENABLED_SNI=no ]
     )
+if test "x$ENABLED_QT" = "xyes"
+then
+    ENABLED_SNI="yes"
+fi
 
 if test "x$ENABLED_SNI" = "xyes"
 then

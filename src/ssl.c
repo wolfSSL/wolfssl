@@ -7186,19 +7186,34 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
     return local;
 }
 
-#ifndef NO_WOLFSSL_STUB
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
 long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
 {
-    WOLFSSL_STUB("SSL_ctrl");
-    (void)ssl;
-    (void)cmd;
-    (void)opt;
-    (void)pt;
+    WOLFSSL_ENTER("wolfSSL_ctrl");
+    (void) opt;
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    switch (cmd) {
+        case SSL_CTRL_SET_TLSEXT_HOSTNAME:
+            WOLFSSL_MSG("Entering Case: SSL_CTRL_SET_TLSEXT_HOSTNAME.");
+        #ifdef HAVE_SNI
+            if (pt == NULL) {
+                WOLFSSL_MSG("Passed in NULL Host Name.");
+                break;
+            }
+            return wolfSSL_set_tlsext_host_name(ssl, (const char*) pt);
+        #else
+            WOLFSSL_MSG("SNI not enabled.");
+            break;
+        #endif /* HAVE_SNI */
+        default:
+            WOLFSSL_MSG("Case not implemented.");
+    }
+
     return WOLFSSL_FAILURE;
 }
-#endif
 
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
 long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
 {
     long ctrl_opt;
@@ -7209,7 +7224,7 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
     switch(cmd) {
         #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
         case SSL_CTRL_OPTIONS:
-            WOLFSSL_MSG("Entering Case: SSL_CTRL_OPTIONS\n");
+            WOLFSSL_MSG("Entering Case: SSL_CTRL_OPTIONS.");
             ctrl_opt = wolfSSL_CTX_set_options(ctx, opt);
 
             #ifdef WOLFSSL_QT
@@ -7227,18 +7242,18 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
             return ctrl_opt;
         #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
         case SSL_CTRL_EXTRA_CHAIN_CERT:
-            WOLFSSL_MSG("Entering Case: SSL_CTRL_EXTRA_CHAIN_CERT\n");
+            WOLFSSL_MSG("Entering Case: SSL_CTRL_EXTRA_CHAIN_CERT.");
             if (pt == NULL) {
-                WOLFSSL_MSG("Passed in x509 pointer NULL.\n");
+                WOLFSSL_MSG("Passed in x509 pointer NULL.");
                 break;
             }
             return wolfSSL_CTX_add_extra_chain_cert(ctx,pt);
 
         #ifndef NO_DH
         case SSL_CTRL_SET_TMP_DH:
-            WOLFSSL_MSG("Entering Case: SSL_CTRL_SET_TMP_DH\n");
+            WOLFSSL_MSG("Entering Case: SSL_CTRL_SET_TMP_DH.");
             if (pt == NULL) {
-                WOLFSSL_MSG("Passed in DH pointer NULL.\n");
+                WOLFSSL_MSG("Passed in DH pointer NULL.");
                 break;
             }
             return wolfSSL_CTX_set_tmp_dh(ctx, pt);
@@ -7246,9 +7261,9 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
 
         #ifdef HAVE_ECC
         case SSL_CTRL_SET_TMP_ECDH:
-            WOLFSSL_MSG("Entering Case: SSL_CTRL_SET_TMP_ECDH\n");
+            WOLFSSL_MSG("Entering Case: SSL_CTRL_SET_TMP_ECDH.");
             if (pt == NULL) {
-                WOLFSSL_MSG("Passed in ECDH pointer NULL.\n");
+                WOLFSSL_MSG("Passed in ECDH pointer NULL.");
                 break;
             }
             return wolfSSL_SSL_CTX_set_tmp_ecdh(ctx,pt);
@@ -7257,7 +7272,7 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
             wolfSSL_CTX_set_mode(ctx,opt);
             break;
         default:
-            WOLFSSL_MSG("No case found for passed in cmd\n");
+            WOLFSSL_MSG("No case found for passed in cmd.");
     }
 
     return WOLFSSL_FAILURE;
@@ -16404,20 +16419,47 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 #endif /* KEEP_PEER_CERT */
 
 #if defined(SESSION_CERTS)
+/*  Return stack of peer certs.
+ *      If Qt or OPENSSL_ALL is defined then return ssl->peerCertChain.
+ *      All other cases return &ssl->session.chain
+ * ssl->peerCertChain is type WOLFSSL_STACK*
+ * ssl->session.chain is type WOLFSSL_X509_CHAIN
+ * Caller does not need to free return. The stack is Free'd when WOLFSSL* ssl is.
+ */
 WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
 {
+    WOLFSSL_STACK* sk;
     WOLFSSL_ENTER("wolfSSL_get_peer_cert_chain");
 
+    if (ssl == NULL)
+        return NULL;
+
+    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+        if (ssl->peerCertChain == NULL)
+            wolfSSL_set_peer_cert_chain((WOLFSSL*) ssl);
+        sk = ssl->peerCertChain;
+    #elif
+        sk = (WOLF_STACK_OF(WOLFSSL_X509)* )&ssl->session.chain;
+    #endif
+
+    if (sk == NULL) {
+        WOLFSSL_MSG("Error: Null Peer Cert Chain");
+    }
+    return sk;
+}
+
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
+{
     WOLFSSL_STACK* sk;
-#ifdef WOLFSSL_QT
     WOLFSSL_X509* x509;
     int i = 0;
     int ret;
-#endif
+
+    WOLFSSL_ENTER("wolfSSL_set_peer_cert_chain");
     if ((ssl == NULL) || (ssl->session.chain.count == 0))
         return NULL;
 
-#ifdef WOLFSSL_QT
     sk = wolfSSL_sk_X509_new();
     i = ssl->session.chain.count-1;
     for (; i >= 0; i--) {
@@ -16440,15 +16482,16 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
             return NULL;
         }
     }
-#else
-    sk = (WOLF_STACK_OF(WOLFSSL_X509)* )&ssl->session.chain;
-#endif
+
     if (sk == NULL) {
         WOLFSSL_MSG("Null session chain");
     }
+    /* This is Free'd when ssl is Free'd */
+    ssl->peerCertChain = sk;
     return sk;
 }
-#endif
+#endif /* OPENSSL_ALL || WOLFSSL_QT */
+#endif /* SESSION_CERTS */
 
 #ifndef NO_CERTS
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
@@ -38653,7 +38696,7 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 /*  Returns all ciphers that were set by configure options.
  *  input:  compatible cipher stack is stored within.
  *  output: The stack of compatible ciphers (stored in ssl->supportedCiphers).
- *  The stored stack is free'd by wolfSSL_free().
+ *  Caller doesn't need to Free. The stored stack is free'd by wolfSSL_free().
  */
 WOLF_STACK_OF(WOLFSSL_CIPHER)* get_ciphers_compat(const WOLFSSL* ssl)
 {
@@ -38682,6 +38725,7 @@ WOLF_STACK_OF(WOLFSSL_CIPHER)* wolfSSL_get_ciphers_compat(WOLFSSL* ssl)
     for (i = 0; i < suiteSz; i++) {
         wolfSSL_sk_CIPHER_push(sk, cipher);
     }
+    /* This is Free'd when WOLFSSL* ssl is Free'd */
     ssl->supportedCiphers = sk;
 
     return sk;

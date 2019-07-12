@@ -20078,7 +20078,6 @@ static int msgCb(SSL_CTX *ctx, SSL *ssl)
         printf("\n\n");
     }
     BIO_free(bio);
-    sk_X509_free(sk);
     #endif
     return SSL_SUCCESS;
 }
