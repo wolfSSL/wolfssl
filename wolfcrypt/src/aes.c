@@ -159,8 +159,7 @@
                                           const byte* authIn, word32 authInSz)
             {
                 if (aes == NULL || out == NULL || in == NULL || iv == NULL
-                        || authTag == NULL || authTagSz > AES_BLOCK_SIZE ||
-                        ivSz > AES_BLOCK_SIZE) {
+                        || authTagSz > AES_BLOCK_SIZE || ivSz > AES_BLOCK_SIZE) {
                     return BAD_FUNC_ARG;
                 }
 
@@ -5685,7 +5684,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* If the sz is non-zero, both in and out must be set. If sz is 0,
      * in and out are don't cares, as this is is the GMAC case. */
     if (aes == NULL || iv == NULL || (sz != 0 && (in == NULL || out == NULL)) ||
-        authTag == NULL || authTagSz > AES_BLOCK_SIZE || authTagSz == 0) {
+        authTagSz > AES_BLOCK_SIZE) {
 
         return BAD_FUNC_ARG;
     }
@@ -5975,7 +5974,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* If the sz is non-zero, both in and out must be set. If sz is 0,
      * in and out are don't cares, as this is is the GMAC case. */
     if (aes == NULL || iv == NULL || (sz != 0 && (in == NULL || out == NULL)) ||
-        authTag == NULL || authTagSz > AES_BLOCK_SIZE || authTagSz == 0) {
+        authTagSz > AES_BLOCK_SIZE) {
 
         return BAD_FUNC_ARG;
     }
