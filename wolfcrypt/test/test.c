@@ -240,7 +240,8 @@
 #endif /* WOLFSSL_STATIC_MEMORY */
 
 /* these cases do not have intermediate hashing support */
-#if (defined(WOLFSSL_AFALG_XILINX_SHA3) && !defined(WOLFSSL_AFALG_HASH_KEEP))
+#if (defined(WOLFSSL_AFALG_XILINX_SHA3) && !defined(WOLFSSL_AFALG_HASH_KEEP)) \
+        && !defined(WOLFSSL_XILINX_CRYPT)
     #define NO_INTM_HASH_TEST
 #endif
 
@@ -755,7 +756,7 @@ initDefaultName();
 #endif
 
 #if defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && \
-   !defined(WOLFSSL_AFALG_XILINX_AES)
+   !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT)
     if ( (ret = gmac_test()) != 0)
         return err_sys("GMAC     test failed!\n", ret);
     else
@@ -842,7 +843,7 @@ initDefaultName();
     if ( (ret = aesgcm_test()) != 0)
         return err_sys("AES-GCM  test failed!\n", ret);
     #endif
-    #ifndef WOLFSSL_AFALG_XILINX_AES
+    #if !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT)
     if ((ret = aesgcm_default_test()) != 0) {
         return err_sys("AES-GCM  test failed!\n", ret);
     }
@@ -2713,7 +2714,7 @@ static int sha3_384_test(void)
     a.inLen  = XSTRLEN(a.input);
     a.outLen = WC_SHA3_384_DIGEST_SIZE;
 
-#ifdef WOLFSSL_AFALG_XILINX_SHA3
+#if defined(WOLFSSL_AFALG_XILINX_SHA3) || defined(WOLFSSL_XILINX_CRYPT)
     /* NIST test vector with a length that is a multiple of 4 */
     b.input  = "\x7d\x80\xb1\x60\xc4\xb5\x36\xa3\xbe\xb7\x99\x80\x59\x93\x44"
                "\x04\x7c\x5f\x82\xa1\xdf\xc3\xee\xd4";
@@ -2740,7 +2741,11 @@ static int sha3_384_test(void)
     c.inLen  = XSTRLEN(c.input);
     c.outLen = WC_SHA3_384_DIGEST_SIZE;
 
+#ifdef WOLFSSL_XILINX_CRYPT
+    test_sha[0] = b; /* hardware acc. can not handle "" string */
+#else
     test_sha[0] = a;
+#endif
     test_sha[1] = b;
     test_sha[2] = c;
 
@@ -7509,7 +7514,7 @@ int aesgcm_test(void)
 #endif /* HAVE_AES_DECRYPT */
     }
 
-#ifndef WOLFSSL_AFALG_XILINX_AES
+#if !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT)
 #ifdef BENCH_AESGCM_LARGE
     /* Variable plain text length test */
     for (plen=1; plen<BENCH_AESGCM_LARGE; plen++) {
@@ -7625,7 +7630,8 @@ int aesgcm_test(void)
 #endif /* WOLFSSL_AES_128 */
 #endif /* ENABLE_NON_12BYTE_IV_TEST */
 
-#if defined(WOLFSSL_AES_256) && !defined(WOLFSSL_AFALG_XILINX_AES)
+#if defined(WOLFSSL_AES_256) && !defined(WOLFSSL_AFALG_XILINX_AES) && \
+    !defined(WOLFSSL_XILINX_CRYPT)
     XMEMSET(resultT, 0, sizeof(resultT));
     XMEMSET(resultC, 0, sizeof(resultC));
     XMEMSET(resultP, 0, sizeof(resultP));

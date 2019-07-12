@@ -1340,7 +1340,6 @@ extern void uITRON4_free(void *p) ;
 
 
 #if defined(WOLFSSL_XILINX)
-    #define USER_TIME /* XTIME in asn.c */
     #define NO_WOLFSSL_DIR
     #define NO_DEV_RANDOM
     #define HAVE_AESGCM
