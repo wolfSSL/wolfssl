@@ -168,8 +168,10 @@ SSL_SNIFFER_API int ssl_ReadResetStatistics(SSLStats* stats);
 
 
 typedef int (*SSLWatchCb)(void* vSniffer,
-                        const unsigned char* certHash, unsigned int certHashSz,
-                        const unsigned char* cert, unsigned int certSz,
+                        const unsigned char* certHash,
+                        unsigned int certHashSz,
+                        const unsigned char* certChain,
+                        unsigned int certChainSz,
                         void* ctx, char* error);
 
 WOLFSSL_API
