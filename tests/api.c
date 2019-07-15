@@ -2201,7 +2201,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_loop(void* args)
     if (cbf != NULL && cbf->ctx_ready != NULL) {
         cbf->ctx_ready(ctx);
     }
-    
+
     while(count != loop_count) {
         ssl = wolfSSL_new(ctx);
         if (ssl == NULL) {
@@ -2219,7 +2219,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_loop(void* args)
                     "Please run from wolfSSL home dir");*/
             goto done;
         }
-   
+
 #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
         wolfSSL_SetTmpDH_file(ssl, dhParamFile, WOLFSSL_FILETYPE_PEM);
 #elif !defined(NO_DH)
@@ -2564,7 +2564,7 @@ static void test_client_reuse_WOLFSSLobj(void* args, void *cb, void* server_args
     if(wolfSSL_KeepHandshakeResources(ssl)) {
         /* err_sys("SSL_KeepHandshakeResources failed"); */
         goto done;
-    }  
+    }
     if (sharedCtx && wolfSSL_use_certificate_file(ssl, cliCertFile,
                                      WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
         /*err_sys("can't load client cert file, "
@@ -23181,6 +23181,49 @@ static void test_wc_ecc_get_curve_id_from_name(void)
 #endif /* HAVE_ECC */
 }
 
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && \
+    !defined(HAVE_SELFTEST) && \
+    !(defined(HAVE_FIPS) || defined(HAVE_FIPS_VERSION))
+
+static void test_wc_ecc_get_curve_id_from_dp_params(void)
+{
+    int id;
+    int curve_id;
+    int ret = 0;
+    WOLFSSL_EC_KEY *ecKey;
+    ecc_key* key;
+    const ecc_set_type* params;
+
+    printf(testingFmt, "wc_ecc_get_curve_id_from_dp_params");
+
+    #if !defined(NO_ECC256) && !defined(NO_ECC_SECP)
+        id = wc_ecc_get_curve_id_from_name("SECP256R1");
+        AssertIntEQ(id, ECC_SECP256R1);
+
+        ecKey = wolfSSL_EC_KEY_new_by_curve_name(id);
+        AssertNotNull(ecKey);
+
+        ret = wolfSSL_EC_KEY_generate_key(ecKey);
+
+        if (ret == 0) {
+            /* normal test */
+            key = (ecc_key*)ecKey->internal;
+            params = key->dp;
+
+            curve_id = wc_ecc_get_curve_id_from_dp_params(params);
+            AssertIntEQ(curve_id, id);
+        }
+    #endif
+    /* invalid case, NULL input*/
+
+    id = wc_ecc_get_curve_id_from_dp_params(NULL);
+    AssertIntEQ(id, BAD_FUNC_ARG);
+    wolfSSL_EC_KEY_free(ecKey);
+
+    printf(resultFmt, passed);
+}
+#endif /* defined(OPENSSL_EXTRA) && defined(HAVE_ECC) */
+
 static void test_wc_ecc_get_curve_id_from_params(void)
 {
 #ifdef HAVE_ECC
@@ -24824,7 +24867,7 @@ void ApiTest(void)
     test_wolfSSL_read_write();
 #if defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_TLS13)
     test_wolfSSL_reuse_WOLFSSLobj();
-#endif    
+#endif
 #endif
     test_wolfSSL_dtls_export();
     AssertIntEQ(test_wolfSSL_SetMinVersion(), WOLFSSL_SUCCESS);
@@ -24985,7 +25028,6 @@ void ApiTest(void)
     test_wc_ecc_get_curve_size_from_name();
     test_wc_ecc_get_curve_id_from_name();
     test_wc_ecc_get_curve_id_from_params();
-
 #ifdef WOLFSSL_TLS13
     /* TLS v1.3 API tests */
     test_tls13_apis();
@@ -25132,6 +25174,11 @@ void ApiTest(void)
     test_wolfSSL_EVP_get_cipherbynid();
     test_wolfSSL_EC();
     test_wolfSSL_ECDSA_SIG();
+#endif
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && \
+    !defined(HAVE_SELFTEST) && \
+    !(defined(HAVE_FIPS) || defined(HAVE_FIPS_VERSION))
+    test_wc_ecc_get_curve_id_from_dp_params();
 #endif
 
 #ifdef HAVE_HASHDRBG
