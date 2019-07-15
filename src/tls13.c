@@ -3952,7 +3952,11 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     i += OPAQUE16_LEN;
     if (pv.major < SSLv3_MAJOR) {
         WOLFSSL_MSG("Legacy version field contains unsupported value");
+ #ifdef WOLFSSL_MYSQL_COMPATIBLE
+        SendAlert(ssl, alert_fatal, wc_protocol_version);
+ #else
         SendAlert(ssl, alert_fatal, protocol_version);
+ #endif
         return INVALID_PARAMETER;
     }
     /* Legacy protocol version cannot negotiate TLS 1.3 or higher. */
