@@ -11341,7 +11341,7 @@ static int test_wc_RsaPublicKeyDecodeRaw (void)
     /* In FIPS builds, wc_MakeRsaKey() will return an error if it cannot find
      * a probable prime in 5*(modLen/2) attempts. In non-FIPS builds, it keeps
      * trying until it gets a probable prime. */
-    #ifdef WOLFSSL_FIPS
+    #ifdef HAVE_FIPS
         static int MakeRsaKeyRetry(RsaKey* key, int size, long e, WC_RNG* rng)
         {
             int ret;
@@ -20664,7 +20664,7 @@ static void test_wolfSSL_PKCS8_Compat(void)
 
 static void test_wolfSSL_PKCS8_d2i(void)
 {
-#ifndef WOLFSSL_FIPS
+#ifndef HAVE_FIPS
     /* This test ends up using HMAC as a part of PBKDF2, and HMAC
      * requires a 12 byte password in FIPS mode. This test ends up
      * trying to use an 8 byte password. */
@@ -20821,7 +20821,7 @@ static void test_wolfSSL_PKCS8_d2i(void)
 
     printf(resultFmt, passed);
 #endif
-#endif /* WOLFSSL_FIPS */
+#endif /* HAVE_FIPS */
 }
 
 static void test_wolfSSL_ERR_put_error(void)
