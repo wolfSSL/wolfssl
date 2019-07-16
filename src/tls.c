@@ -2835,15 +2835,8 @@ static word16 TLSX_CSR_GetSize(CertificateStatusRequest* csr, byte isRequest)
     }
 #endif
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
-    if (!isRequest && csr->ssl->options.tls1_3) {
-        if (csr->response.buffer == NULL) {
-            OcspRequest* request = &csr->request.ocsp;
-            int ret = CreateOcspResponse(csr->ssl, &request, &csr->response);
-            if (ret < 0)
-                return ret;
-        }
+    if (!isRequest && csr->ssl->options.tls1_3)
         return OPAQUE8_LEN + OPAQUE24_LEN + csr->response.length;
-    }
 #endif
 
     return size;
@@ -2952,6 +2945,13 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
         if (ssl->options.tls1_3) {
             word32       resp_length;
             word32       offset = 0;
+
+            /* Get the new extension potentially created above. */
+            extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
+            csr = extension ? (CertificateStatusRequest*)extension->data : NULL;
+            if (csr == NULL)
+                return MEMORY_ERROR;
+
             ret = 0;
             if (OPAQUE8_LEN + OPAQUE24_LEN > length)
                 ret = BUFFER_ERROR;
@@ -3032,7 +3032,25 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
         if (ret != WOLFSSL_SUCCESS)
             return ret; /* throw error */
 
-        TLSX_SetResponse(ssl, TLSX_STATUS_REQUEST);
+    #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
+        if (ssl->options.tls1_3) {
+            OcspRequest* request;
+            TLSX* extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
+            CertificateStatusRequest* csr = extension ?
+                (CertificateStatusRequest*)extension->data : NULL;
+            if (csr == NULL)
+                return MEMORY_ERROR;
+
+            request = &csr->request.ocsp;
+            ret = CreateOcspResponse(ssl, &request, &csr->response);
+            if (ret != 0)
+                return ret;
+            if (csr->response.buffer)
+                TLSX_SetResponse(ssl, TLSX_STATUS_REQUEST);
+        }
+        else
+    #endif
+            TLSX_SetResponse(ssl, TLSX_STATUS_REQUEST);
         ssl->status_request = status_type;
 #endif
     }
@@ -10419,10 +10437,14 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 WOLFSSL_BUFFER(input + offset, size);
             #endif
 
-#ifdef WOLFSSL_TLS13
-                if (IsAtLeastTLSv1_3(ssl->version))
-                    break;
-#endif
+ #ifdef WOLFSSL_TLS13
+                if (IsAtLeastTLSv1_3(ssl->version) &&
+                        msgType != client_hello &&
+                        msgType != certificate_request &&
+                        msgType != certificate) {
+                     break;
+                }
+ #endif
                 ret = CSR_PARSE(ssl, input + offset, size, isRequest);
                 break;
 

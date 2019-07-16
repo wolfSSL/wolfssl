@@ -5127,6 +5127,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             if (ret < 0)
                 return ret;
 
+            extSz = 0;
             ret = TLSX_WriteResponse(ssl, ssl->buffers.certExts->buffer,
                                                            certificate, &extSz);
             if (ret < 0)
