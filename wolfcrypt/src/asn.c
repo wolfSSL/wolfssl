@@ -10073,6 +10073,12 @@ typedef struct DerCert {
 #ifdef WOLFSSL_CERT_REQ
 
 /* Write a set header to output */
+static word32 SetPrintableString(word32 len, byte* output)
+{
+    output[0] = ASN_PRINTABLE_STRING;
+    return SetLength(len, output + 1) + 1;
+}
+
 static word32 SetUTF8String(word32 len, byte* output)
 {
     output[0] = ASN_UTF8STRING;
@@ -11969,7 +11975,8 @@ int wc_MakeNtruCert(Cert* cert, byte* derBuffer, word32 derSz,
 
 #ifdef WOLFSSL_CERT_REQ
 
-static int SetReqAttrib(byte* output, char* pw, int extSz)
+static int SetReqAttrib(byte* output, char* pw, int pwPrintableString,
+                        int extSz)
 {
     static const byte cpOid[] =
         { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
@@ -11998,7 +12005,11 @@ static int SetReqAttrib(byte* output, char* pw, int extSz)
 
     if (pw && pw[0]) {
         pwSz = (int)XSTRLEN(pw);
-        cpStrSz = SetUTF8String(pwSz, cpStr);
+        if (pwPrintableString) {
+            cpStrSz = SetPrintableString(pwSz, cpStr);
+        } else {
+            cpStrSz = SetUTF8String(pwSz, cpStr);
+        }
         cpSetSz = SetSet(cpStrSz + pwSz, cpSet);
         cpSeqSz = SetSequence(sizeof(cpOid) + cpSetSz + cpStrSz + pwSz, cpSeq);
         cpSz = cpSeqSz + sizeof(cpOid) + cpSetSz + cpStrSz + pwSz;
@@ -12206,8 +12217,9 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
 #endif /* WOLFSSL_CERT_EXT */
     }
 
-    der->attribSz = SetReqAttrib(der->attrib,
-                                 cert->challengePw, der->extensionsSz);
+    der->attribSz = SetReqAttrib(der->attrib, cert->challengePw,
+                                 cert->challengePwPrintableString,
+                                 der->extensionsSz);
     if (der->attribSz <= 0)
         return REQ_ATTRIBUTE_E;
 

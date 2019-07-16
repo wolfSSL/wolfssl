@@ -1379,12 +1379,99 @@ static int EncodeAttributes(EncodedAttrib* ea, int eaSz,
 }
 
 
-static int FlattenAttributes(byte* output, EncodedAttrib* ea, int eaSz)
-{
-    int i, idx;
+typedef struct FlatAttrib {
+    byte* data;
+    word32 dataSz;
+} FlatAttrib;
 
-    idx = 0;
+
+/* Free FlatAttrib array and memory allocated to internal struct members */
+static void FreeAttribArray(PKCS7* pkcs7, FlatAttrib** arr, int rows)
+{
+    int i;
+
+    if (arr) {
+        for (i = 0; i < rows; i++) {
+            if (arr[i]) {
+                if (arr[i]->data) {
+                    ForceZero(arr[i]->data, arr[i]->dataSz);
+                    XFREE(arr[i]->data, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                }
+                ForceZero(arr[i], sizeof(FlatAttrib));
+                XFREE(arr[i], pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+        }
+        ForceZero(arr, rows);
+        XFREE(arr, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    (void)pkcs7;
+}
+
+
+/* Sort FlatAttrib array in ascending order */
+static int SortAttribArray(FlatAttrib** arr, int rows)
+{
+    int i, j;
+    word32 minSz, minIdx;
+    FlatAttrib* a   = NULL;
+    FlatAttrib* b   = NULL;
+    FlatAttrib* tmp = NULL;
+
+    if (arr == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    for (i = 0; i < rows; i++) {
+        a = arr[i];
+        minSz = a->dataSz;
+        minIdx = i;
+        for (j = i+1; j < rows; j++) {
+            b = arr[j];
+            if (b->dataSz < minSz) {
+                minSz = b->dataSz;
+                minIdx = j;
+            }
+        }
+        if (minSz < a->dataSz) {
+            /* swap array positions */
+            tmp = arr[i];
+            arr[i] = arr[minIdx];
+            arr[minIdx] = tmp;
+        }
+    }
+
+    return 0;
+}
+
+
+/* Build up array of FlatAttrib structs from EncodedAttrib ones. FlatAttrib
+ * holds flattened DER encoding of each attribute */
+static int FlattenEncodedAttribs(PKCS7* pkcs7, FlatAttrib** derArr, int rows,
+                                 EncodedAttrib* ea, int eaSz)
+{
+    int i, idx, sz;
+    byte* output   = NULL;
+    FlatAttrib* fa = NULL;
+
+    if (pkcs7 == NULL || derArr == NULL || ea == NULL) {
+        WOLFSSL_MSG("Invalid arguments to FlattenEncodedAttribs");
+        return BAD_FUNC_ARG;
+    }
+
+    if (rows != eaSz) {
+        WOLFSSL_MSG("DER array not large enough to hold attribute count");
+        return BAD_FUNC_ARG;
+    }
+
     for (i = 0; i < eaSz; i++) {
+        sz = ea[i].valueSeqSz + ea[i].oidSz + ea[i].valueSetSz + ea[i].valueSz;
+
+        output = (byte*)XMALLOC(sz, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (output == NULL) {
+            return MEMORY_E;
+        }
+
+        idx = 0;
         XMEMCPY(output + idx, ea[i].valueSeq, ea[i].valueSeqSz);
         idx += ea[i].valueSeqSz;
         XMEMCPY(output + idx, ea[i].oid, ea[i].oidSz);
@@ -1392,8 +1479,70 @@ static int FlattenAttributes(byte* output, EncodedAttrib* ea, int eaSz)
         XMEMCPY(output + idx, ea[i].valueSet, ea[i].valueSetSz);
         idx += ea[i].valueSetSz;
         XMEMCPY(output + idx, ea[i].value, ea[i].valueSz);
-        idx += ea[i].valueSz;
+
+        fa = derArr[i];
+        fa->data = output;
+        fa->dataSz = sz;
     }
+
+    return 0;
+}
+
+
+/* Sort and Flatten EncodedAttrib attributes into output buffer */
+static int FlattenAttributes(PKCS7* pkcs7, byte* output, EncodedAttrib* ea,
+                             int eaSz)
+{
+    int i, idx, ret;
+    FlatAttrib** derArr = NULL;
+    FlatAttrib*  fa     = NULL;
+
+    if (pkcs7 == NULL || output == NULL || ea == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* create array of FlatAttrib struct pointers to hold DER attribs */
+    derArr = (FlatAttrib**) XMALLOC(eaSz * sizeof(FlatAttrib*), pkcs7->heap,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
+    if (derArr == NULL) {
+        return MEMORY_E;
+    }
+    ForceZero(derArr, eaSz);
+
+    for (i = 0; i < eaSz; i++) {
+        derArr[i] = (FlatAttrib*) XMALLOC(sizeof(FlatAttrib), pkcs7->heap,
+                                          DYNAMIC_TYPE_TMP_BUFFER);
+        if (derArr[i] == NULL) {
+            FreeAttribArray(pkcs7, derArr, eaSz);
+            return MEMORY_E;
+        }
+        ForceZero(derArr[i], sizeof(FlatAttrib));
+    }
+
+    /* flatten EncodedAttrib into DER byte arrays */
+    ret = FlattenEncodedAttribs(pkcs7, derArr, eaSz, ea, eaSz);
+    if (ret != 0) {
+        FreeAttribArray(pkcs7, derArr, eaSz);
+        return ret;
+    }
+
+    /* SET OF DER signed attributes must be sorted in ascending order */
+    ret = SortAttribArray(derArr, eaSz);
+    if (ret != 0) {
+        FreeAttribArray(pkcs7, derArr, eaSz);
+        return ret;
+    }
+
+    /* copy sorted DER attribute arrays into output buffer */
+    idx = 0;
+    for (i = 0; i < eaSz; i++) {
+        fa = derArr[i];
+        XMEMCPY(output + idx, fa->data, fa->dataSz);
+        idx += fa->dataSz;
+    }
+
+    FreeAttribArray(pkcs7, derArr, eaSz);
+
     return 0;
 }
 
@@ -2086,7 +2235,7 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
                 return MEMORY_E;
             }
 
-            FlattenAttributes(flatSignedAttribs,
+            FlattenAttributes(pkcs7, flatSignedAttribs,
                                        esd->signedAttribs, esd->signedAttribsCount);
             esd->signedAttribSetSz = SetImplicit(ASN_SET, 0, esd->signedAttribsSz,
                                                               esd->signedAttribSet);
@@ -10123,7 +10272,8 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
             return MEMORY_E;
         }
 
-        FlattenAttributes(flatAuthAttribs, authAttribs, authAttribsCount);
+        FlattenAttributes(pkcs7, flatAuthAttribs, authAttribs,
+                          authAttribsCount);
 
         authAttribsSetSz = SetImplicit(ASN_SET, 1, authAttribsSz,
                                        authAttribSet);
@@ -10167,7 +10317,8 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
             return MEMORY_E;
         }
 
-        FlattenAttributes(flatUnauthAttribs, unauthAttribs, unauthAttribsCount);
+        FlattenAttributes(pkcs7, flatUnauthAttribs, unauthAttribs,
+                          unauthAttribsCount);
         unauthAttribsSetSz = SetImplicit(ASN_SET, 2, unauthAttribsSz,
                                          unauthAttribSet);
     }
@@ -11121,7 +11272,7 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
             return MEMORY_E;
         }
 
-        FlattenAttributes(flatAttribs, attribs, attribsCount);
+        FlattenAttributes(pkcs7, flatAttribs, attribs, attribsCount);
         attribsSetSz = SetImplicit(ASN_SET, 1, attribsSz, attribSet);
 
     } else {
