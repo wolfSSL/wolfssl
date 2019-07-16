@@ -2014,21 +2014,24 @@ static WC_INLINE void AddSuiteHashSigAlgo(Suites* suites, byte macAlgo, byte sig
 #endif /* USE_ECDSA_KEYSZ_HASH_ALGO */
 
     if (addSigAlgo) {
+#ifdef WC_RSA_PSS
         if (sigAlgo == rsa_pss_sa_algo) {
             /* RSA PSS is sig then mac */
             suites->hashSigAlgo[*inOutIdx] = sigAlgo;
             *inOutIdx += 1;
             suites->hashSigAlgo[*inOutIdx] = macAlgo;
             *inOutIdx += 1;
-#ifdef WOLFSSL_TLS13
+    #ifdef WOLFSSL_TLS13
             /* Add the certificate algorithm as well */
             suites->hashSigAlgo[*inOutIdx] = sigAlgo;
             *inOutIdx += 1;
             suites->hashSigAlgo[*inOutIdx] = PSS_RSAE_TO_PSS_PSS(macAlgo);
             *inOutIdx += 1;
-#endif
+    #endif
         }
-        else {
+        else
+#endif
+        {
             suites->hashSigAlgo[*inOutIdx] = macAlgo;
             *inOutIdx += 1;
             suites->hashSigAlgo[*inOutIdx] = sigAlgo;
@@ -17119,8 +17122,13 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
         }
         else
     #endif
+    #ifdef WC_RSA_PSS
         if (sigAlgo == ssl->suites->sigAlgo || (sigAlgo == rsa_pss_sa_algo &&
-                                         ssl->suites->sigAlgo == rsa_sa_algo)) {
+                                           ssl->suites->sigAlgo == rsa_sa_algo))
+    #else
+        if (sigAlgo == ssl->suites->sigAlgo)
+    #endif
+        {
             /* pick highest available between both server and client */
             switch (hashAlgo) {
                 case sha_mac:
@@ -21258,6 +21266,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 /* prepend hdr */
                 c16toa(args->length, args->verify + args->extraSz);
             }
+            #ifdef WC_RSA_PSS
             else if (args->sigAlgo == rsa_pss_sa_algo) {
                 XMEMCPY(ssl->buffers.sig.buffer, ssl->buffers.digest.buffer,
                         ssl->buffers.digest.length);
@@ -21267,6 +21276,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 /* prepend hdr */
                 c16toa(args->length, args->verify + args->extraSz);
             }
+            #endif
         #endif /* !NO_RSA */
         #if defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)
             if (args->sigAlgo == ed25519_sa_algo) {
