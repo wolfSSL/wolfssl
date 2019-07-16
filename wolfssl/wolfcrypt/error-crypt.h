@@ -225,8 +225,9 @@ enum {
     WC_PKCS7_WANT_READ_E= -270,  /* PKCS7 operations wants more input */
 
     CRYPTOCB_UNAVAILABLE= -271, /* Crypto callback unavailable */
+    PKCS7_SIGNEEDS_CHECK= -272, /* signature needs verified by caller */
 
-    WC_LAST_E           = -271,  /* Update this to indicate last error */
+    WC_LAST_E           = -272,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

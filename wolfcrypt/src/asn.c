@@ -281,6 +281,14 @@ WOLFSSL_LOCAL int GetSet(const byte* input, word32* inOutIdx, int* len,
                         maxIdx);
 }
 
+
+WOLFSSL_LOCAL int GetSet_ex(const byte* input, word32* inOutIdx, int* len,
+                        word32 maxIdx, int check)
+{
+    return GetASNHeader_ex(input, ASN_SET | ASN_CONSTRUCTED, inOutIdx, len,
+                        maxIdx, check);
+}
+
 /* Get the DER/BER encoded ASN.1 NULL element.
  * Ensure that the all fields are as expected and move index past the element.
  *

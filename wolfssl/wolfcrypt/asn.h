@@ -1025,6 +1025,8 @@ WOLFSSL_LOCAL int GetSequence_ex(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx, int check);
 WOLFSSL_LOCAL int GetSet(const byte* input, word32* inOutIdx, int* len,
                         word32 maxIdx);
+WOLFSSL_LOCAL int GetSet_ex(const byte* input, word32* inOutIdx, int* len,
+                        word32 maxIdx, int check);
 WOLFSSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
                               int* version, word32 maxIdx);
 WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
