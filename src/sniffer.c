@@ -2314,6 +2314,8 @@ static int ProcessCertificate(const byte* input, int* sslBytes,
         SnifferSession* session, char* error)
 {
     Sha256 sha;
+    const byte* certChain;
+    word32 certChainSz;
     word32 certSz;
     int ret;
     byte digest[SHA256_DIGEST_SIZE];
@@ -2330,7 +2332,9 @@ static int ProcessCertificate(const byte* input, int* sslBytes,
         return -1;
     }
 
+    ato24(input, &certChainSz);
     input += CERT_HEADER_SZ;
+    certChain = input;
     ato24(input, &certSz);
     input += OPAQUE24_LEN;
 
@@ -2344,8 +2348,8 @@ static int ProcessCertificate(const byte* input, int* sslBytes,
         return -1;
     }
 
-    ret = WatchCb((void*)session, digest, sizeof(digest), input, certSz,
-            WatchCbCtx, error);
+    ret = WatchCb((void*)session, digest, sizeof(digest),
+            certChain, certChainSz, WatchCbCtx, error);
     if (ret != 0) {
 #ifdef WOLFSSL_SNIFFER_STATS
         INC_STAT(SnifferStats.sslKeysUnmatched);
