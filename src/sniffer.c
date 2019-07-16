@@ -253,7 +253,8 @@ static const char* const msgTable[] =
     /* 86 */
     "Watch callback not set",
     "Watch hash failed",
-    "Watch callback failed"
+    "Watch callback failed",
+    "Bad Certificate Message"
 };
 
 
@@ -2320,8 +2321,6 @@ static int ProcessCertificate(const byte* input, int* sslBytes,
     int ret;
     byte digest[SHA256_DIGEST_SIZE];
 
-    (void)sslBytes;
-
     /* If the receiver is the server, this is the client certificate message,
      * and it should be ignored at this point. */
     if (session->flags.side == WOLFSSL_SERVER_END)
@@ -2332,11 +2331,28 @@ static int ProcessCertificate(const byte* input, int* sslBytes,
         return -1;
     }
 
+    if (*sslBytes < CERT_HEADER_SZ) {
+        SetError(BAD_CERT_MSG_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
     ato24(input, &certChainSz);
+    *sslBytes -= CERT_HEADER_SZ;
     input += CERT_HEADER_SZ;
+
+    if (*sslBytes < (int)certChainSz) {
+        SetError(BAD_CERT_MSG_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
     certChain = input;
+
     ato24(input, &certSz);
     input += OPAQUE24_LEN;
+    if (*sslBytes < (int)certSz) {
+        SetError(BAD_CERT_MSG_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+
+    *sslBytes -= certChainSz;
 
     ret = wc_InitSha256(&sha);
     if (ret == 0)

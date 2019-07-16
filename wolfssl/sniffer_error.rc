@@ -106,5 +106,6 @@ STRINGTABLE
     86, "Watch callback not set"
     87, "Watch hash failed"
     88, "Watch callback failed"
+    89, "Bad Certificate Message"
 }
 
