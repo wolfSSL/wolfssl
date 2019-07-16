@@ -665,16 +665,16 @@ then
 fi
 
 
-# big cache
-AC_ARG_ENABLE([bigcache],
-    [AS_HELP_STRING([--enable-bigcache],[Enable big session cache (default: disabled)])],
-    [ ENABLED_BIGCACHE=$enableval ],
-    [ ENABLED_BIGCACHE=no ]
+# TITAN cache
+AC_ARG_ENABLE([titancache],
+    [AS_HELP_STRING([--enable-titancache],[Enable titan session cache (default: disabled)])],
+    [ ENABLED_TITANCACHE=$enableval ],
+    [ ENABLED_TITANCACHE=no ]
     )
 
-if test "$ENABLED_BIGCACHE" = "yes"
+if test "$ENABLED_TITANCACHE" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DBIG_SESSION_CACHE"
+    AM_CFLAGS="$AM_CFLAGS -DTITAN_SESSION_CACHE"
 fi
 
 
@@ -688,6 +688,19 @@ AC_ARG_ENABLE([hugecache],
 if test "$ENABLED_HUGECACHE" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHUGE_SESSION_CACHE"
+fi
+
+
+# big cache
+AC_ARG_ENABLE([bigcache],
+    [AS_HELP_STRING([--enable-bigcache],[Enable big session cache (default: disabled)])],
+    [ ENABLED_BIGCACHE=$enableval ],
+    [ ENABLED_BIGCACHE=no ]
+    )
+
+if test "$ENABLED_BIGCACHE" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DBIG_SESSION_CACHE"
 fi
 
 

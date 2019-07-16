@@ -4613,14 +4613,18 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     /* basic config gives a cache with 33 sessions, adequate for clients and
        embedded servers
 
-       MEDIUM_SESSION_CACHE allows 1055 sessions, adequate for servers that
-       aren't under heavy load, basically allows 200 new sessions per minute
-
-       BIG_SESSION_CACHE yields 20,027 sessions
+       TITAN_SESSION_CACHE allows just over 2 million sessions, for servers
+       with titanic amounts of memory with long session ID timeouts and high
+       levels of traffic.
 
        HUGE_SESSION_CACHE yields 65,791 sessions, for servers under heavy load,
        allows over 13,000 new sessions per minute or over 200 new sessions per
        second
+
+       BIG_SESSION_CACHE yields 20,027 sessions
+
+       MEDIUM_SESSION_CACHE allows 1055 sessions, adequate for servers that
+       aren't under heavy load, basically allows 200 new sessions per minute
 
        SMALL_SESSION_CACHE only stores 6 sessions, good for embedded clients
        or systems where the default of nearly 3kB is too much RAM, this define
@@ -4628,7 +4632,10 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 
        default SESSION_CACHE stores 33 sessions (no XXX_SESSION_CACHE defined)
     */
-    #ifdef HUGE_SESSION_CACHE
+    #if defined(TITAN_SESSION_CACHE)
+        #define SESSIONS_PER_ROW 31
+        #define SESSION_ROWS 64937
+    #elif defined(HUGE_SESSION_CACHE)
         #define SESSIONS_PER_ROW 11
         #define SESSION_ROWS 5981
     #elif defined(BIG_SESSION_CACHE)
