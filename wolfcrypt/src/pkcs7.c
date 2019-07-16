@@ -1313,14 +1313,14 @@ static void FreeAttribArray(PKCS7* pkcs7, FlatAttrib** arr, int rows)
         for (i = 0; i < rows; i++) {
             if (arr[i]) {
                 if (arr[i]->data) {
-                    XMEMSET(arr[i]->data, 0, arr[i]->dataSz);
+                    ForceZero(arr[i]->data, arr[i]->dataSz);
                     XFREE(arr[i]->data, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 }
-                XMEMSET(arr[i], 0, sizeof(FlatAttrib));
+                ForceZero(arr[i], sizeof(FlatAttrib));
                 XFREE(arr[i], pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
             }
         }
-        XMEMSET(arr, 0, rows);
+        ForceZero(arr, rows);
         XFREE(arr, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     (void)pkcs7;
@@ -1426,7 +1426,7 @@ static int FlattenAttributes(PKCS7* pkcs7, byte* output, EncodedAttrib* ea,
     if (derArr == NULL) {
         return MEMORY_E;
     }
-    XMEMSET(derArr, 0, eaSz);
+    ForceZero(derArr, eaSz);
 
     for (i = 0; i < eaSz; i++) {
         derArr[i] = (FlatAttrib*) XMALLOC(sizeof(FlatAttrib), pkcs7->heap,
@@ -1435,7 +1435,7 @@ static int FlattenAttributes(PKCS7* pkcs7, byte* output, EncodedAttrib* ea,
             FreeAttribArray(pkcs7, derArr, eaSz);
             return MEMORY_E;
         }
-        XMEMSET(derArr[i], 0, sizeof(FlatAttrib));
+        ForceZero(derArr[i], sizeof(FlatAttrib));
     }
 
     /* flatten EncodedAttrib into DER byte arrays */
