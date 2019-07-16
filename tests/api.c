@@ -22542,7 +22542,7 @@ static void test_wolfSSL_DC_cert(void)
     ret = 0;
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
 #endif
         if (ret >= 0) {
             ret = wc_MakeSelfCert(&cert, der, FOURK_BUF, &key, &rng);
