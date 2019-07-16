@@ -722,6 +722,11 @@ extern void uITRON4_free(void *p) ;
     #define USE_WOLF_STRTOK /* use with HAVE_ALPN */
     #define HAVE_TLS_EXTENSIONS
     #define HAVE_AESGCM
+    #ifdef WOLFSSL_TI_CRYPT
+        #define NO_GCM_ENCRYPT_EXTRA
+        #define NO_PUBLIC_GCM_SET_IV
+        #define NO_PUBLIC_CCM_SET_NONCE
+    #endif
     #define HAVE_SUPPORTED_CURVES
     #define ALT_ECC_SIZE
 

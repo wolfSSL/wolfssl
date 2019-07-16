@@ -116,7 +116,7 @@ int wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
 #endif /* !NO_AES && HAVE_AES_CBC */
 
 
-#ifndef NO_DES3
+#if !defined(NO_DES3) && !defined(WOLFSSL_TI_CRYPT)
 int wc_Des_CbcEncryptWithKey(byte* out, const byte* in, word32 sz,
                              const byte* key, const byte* iv)
 {
