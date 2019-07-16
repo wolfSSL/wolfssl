@@ -189,13 +189,13 @@ const byte eccHash[] = {
 
 static int myWatchCb(void* vSniffer,
         const unsigned char* certHash, unsigned int certHashSz,
-        const unsigned char* cert, unsigned int certSz,
+        const unsigned char* certChain, unsigned int certChainSz,
         void* ctx, char* error)
 {
     const char* certName = NULL;
 
-    (void)cert;
-    (void)certSz;
+    (void)certChain;
+    (void)certChainSz;
     (void)ctx;
 
     if (certHashSz == sizeof(rsaHash) &&
