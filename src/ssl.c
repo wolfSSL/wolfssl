@@ -292,8 +292,8 @@ int wolfSSL_send_session(WOLFSSL* ssl)
 
 
 /* prevent multiple mutex initializations */
-static volatile int initRefCount = 0;
-static wolfSSL_Mutex count_mutex;   /* init ref count mutex */
+static volatile WOLFSSL_GLOBAL int initRefCount = 0;
+static WOLFSSL_GLOBAL wolfSSL_Mutex count_mutex;   /* init ref count mutex */
 
 /* Create a new WOLFSSL_CTX struct and return the pointer to created struct.
    WOLFSSL_METHOD pointer passed in is given to ctx to manage.
@@ -4658,13 +4658,13 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         WOLFSSL_SESSION Sessions[SESSIONS_PER_ROW];
     } SessionRow;
 
-    static WOLFSSL_SHARED SessionRow SessionCache[SESSION_ROWS];
+    static WOLFSSL_GLOBAL SessionRow SessionCache[SESSION_ROWS];
 
     #if defined(WOLFSSL_SESSION_STATS) && defined(WOLFSSL_PEAK_SESSIONS)
-        static WOLFSSL_SHARED word32 PeakSessions;
+        static WOLFSSL_GLOBAL word32 PeakSessions;
     #endif
 
-    static WOLFSSL_SHARED wolfSSL_Mutex session_mutex; /* SessionCache mutex */
+    static WOLFSSL_GLOBAL wolfSSL_Mutex session_mutex; /* SessionCache mutex */
 
     #ifndef NO_CLIENT_CACHE
 
@@ -4679,7 +4679,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
             ClientSession Clients[SESSIONS_PER_ROW];
         } ClientRow;
 
-        static WOLFSSL_SHARED ClientRow ClientCache[SESSION_ROWS];
+        static WOLFSSL_GLOBAL ClientRow ClientCache[SESSION_ROWS];
                                                      /* Client Cache */
                                                      /* uses session mutex */
     #endif  /* NO_CLIENT_CACHE */

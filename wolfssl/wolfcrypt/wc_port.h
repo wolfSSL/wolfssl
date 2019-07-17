@@ -724,9 +724,9 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     /* By default, the OCTEON's global variables are all thread local. This
      * tag allows them to be shared between threads. */
     #include "cvmx-platform.h"
-    #define WOLFSSL_SHARED CVMX_SHARED
+    #define WOLFSSL_GLOBAL CVMX_SHARED
 #else
-    #define WOLFSSL_SHARED
+    #define WOLFSSL_GLOBAL
 #endif
 
 

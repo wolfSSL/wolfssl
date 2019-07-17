@@ -325,8 +325,8 @@ static int QSH_FreeAll(WOLFSSL* ssl)
 
 
 #ifdef HAVE_NTRU
-static WC_RNG* rng;
-static wolfSSL_Mutex* rngMutex;
+static WOLFSSL_GLOBAL WC_RNG* rng;
+static WOLFSSL_GLOBAL wolfSSL_Mutex* rngMutex;
 
 static word32 GetEntropy(unsigned char* out, word32 num_bytes)
 {

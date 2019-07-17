@@ -129,8 +129,8 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 #endif /* _WIN32 */
 
 
-static WOLFSSL_SHARED int TraceOn = 0;         /* Trace is off by default */
-static WOLFSSL_SHARED FILE* TraceFile = 0;
+static WOLFSSL_GLOBAL int TraceOn = 0;         /* Trace is off by default */
+static WOLFSSL_GLOBAL FILE* TraceFile = 0;
 
 
 /* windows uses .rc table for this */
@@ -404,37 +404,37 @@ typedef struct SnifferSession {
 
 
 /* Sniffer Server List and mutex */
-static WOLFSSL_SHARED SnifferServer* ServerList = 0;
-static WOLFSSL_SHARED wolfSSL_Mutex ServerListMutex;
+static WOLFSSL_GLOBAL SnifferServer* ServerList = 0;
+static WOLFSSL_GLOBAL wolfSSL_Mutex ServerListMutex;
 
 
 /* Session Hash Table, mutex, and count */
-static WOLFSSL_SHARED SnifferSession* SessionTable[HASH_SIZE];
-static WOLFSSL_SHARED wolfSSL_Mutex SessionMutex;
-static WOLFSSL_SHARED int SessionCount = 0;
+static WOLFSSL_GLOBAL SnifferSession* SessionTable[HASH_SIZE];
+static WOLFSSL_GLOBAL wolfSSL_Mutex SessionMutex;
+static WOLFSSL_GLOBAL int SessionCount = 0;
 
 /* Recovery of missed data switches and stats */
-static WOLFSSL_SHARED wolfSSL_Mutex RecoveryMutex; /* for stats */
-static WOLFSSL_SHARED int RecoveryEnabled    = 0;  /* global switch */
-static WOLFSSL_SHARED int MaxRecoveryMemory  = -1;
+static WOLFSSL_GLOBAL wolfSSL_Mutex RecoveryMutex; /* for stats */
+static WOLFSSL_GLOBAL int RecoveryEnabled    = 0;  /* global switch */
+static WOLFSSL_GLOBAL int MaxRecoveryMemory  = -1;
                                            /* per session max recovery memory */
-static WOLFSSL_SHARED word32 MissedDataSessions = 0;
+static WOLFSSL_GLOBAL word32 MissedDataSessions = 0;
                                             /* # of sessions with missed data */
 
 /* Connection Info Callback */
-static WOLFSSL_SHARED SSLConnCb ConnectionCb;
-static WOLFSSL_SHARED void* ConnectionCbCtx = NULL;
+static WOLFSSL_GLOBAL SSLConnCb ConnectionCb;
+static WOLFSSL_GLOBAL void* ConnectionCbCtx = NULL;
 
 #ifdef WOLFSSL_SNIFFER_STATS
 /* Sessions Statistics */
-static WOLFSSL_SHARED SSLStats SnifferStats;
-static WOLFSSL_SHARED wolfSSL_Mutex StatsMutex;
+static WOLFSSL_GLOBAL SSLStats SnifferStats;
+static WOLFSSL_GLOBAL wolfSSL_Mutex StatsMutex;
 #endif
 
 #ifdef WOLFSSL_SNIFFER_WATCH
 /* Watch Key Callback */
-static WOLFSSL_SHARED SSLWatchCb WatchCb;
-static WOLFSSL_SHARED void* WatchCbCtx = NULL;
+static WOLFSSL_GLOBAL SSLWatchCb WatchCb;
+static WOLFSSL_GLOBAL void* WatchCbCtx = NULL;
 #endif
 
 
