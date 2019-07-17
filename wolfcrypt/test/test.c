@@ -365,7 +365,10 @@ int scrypt_test(void);
     #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
         int pkcs7authenveloped_test(void);
     #endif
-    int pkcs7callback_test(byte* cert, word32 certSz, byte* key, word32 keySz);
+    #ifndef NO_AES
+        int pkcs7callback_test(byte* cert, word32 certSz, byte* key,
+                word32 keySz);
+    #endif
 #endif
 #if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT) && \
     !defined(NO_FILESYSTEM)
@@ -20786,6 +20789,7 @@ static int myOriDecryptCb(PKCS7* pkcs7, byte* oriType, word32 oriTypeSz,
 }
 
 
+#ifndef NO_AES
 /* returns 0 on success */
 static int myDecryptionFunc(PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
         byte* aad, word32 aadSz, byte* authTag, word32 authTagSz,
@@ -20895,6 +20899,7 @@ static int myDecryptionFunc(PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
     (void)authTagSz;
     return ret;
 }
+#endif /* NO_AES */
 
 
 static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
@@ -22018,6 +22023,7 @@ int pkcs7authenveloped_test(void)
 }
 
 #endif /* HAVE_AESGCM || HAVE_AESCCM */
+#ifndef NO_AES
 static const byte defKey[] = {
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
@@ -22418,6 +22424,7 @@ int pkcs7callback_test(byte* cert, word32 certSz, byte* key, word32 keySz)
 
     return 0;
 }
+#endif /* NO_AES */
 
 #ifndef NO_PKCS7_ENCRYPTED_DATA
 
@@ -23980,10 +23987,12 @@ int pkcs7signed_test(void)
                             eccClientCertBuf, (word32)eccClientCertBufSz,
                             eccClientPrivKeyBuf, (word32)eccClientPrivKeyBufSz);
 
+#ifndef NO_AES
     if (ret >= 0)
         ret = pkcs7callback_test(
                             rsaClientCertBuf, (word32)rsaClientCertBufSz,
                             rsaClientPrivKeyBuf, (word32)rsaClientPrivKeyBufSz);
+#endif
 
     XFREE(rsaClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(rsaClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
