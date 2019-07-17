@@ -152,6 +152,9 @@ typedef struct SSLStats
     unsigned long int sslDecryptedPackets;
     unsigned long int sslKeyMatches;
     unsigned long int sslEncryptedConns;
+
+    unsigned long int sslResumptionValid;
+    unsigned long int sslResumptionInserts;
 } SSLStats;
 
 

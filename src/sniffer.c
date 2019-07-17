@@ -2125,6 +2125,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         Trace(SERVER_DID_RESUMPTION_STR);
 #ifdef WOLFSSL_SNIFFER_STATS
         INC_STAT(SnifferStats.sslResumedConns);
+        INC_STAT(SnifferStats.sslResumptionValid);
 #endif
         if (SetCipherSpecs(session->sslServer) != 0) {
             SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
@@ -2464,8 +2465,12 @@ static int ProcessFinished(const byte* input, int size, int* sslBytes,
     if (ret == 0 && session->flags.cached == 0) {
         if (session->sslServer->options.haveSessionId) {
             WOLFSSL_SESSION* sess = GetSession(session->sslServer, NULL, 0);
-            if (sess == NULL)
+            if (sess == NULL) {
                 AddSession(session->sslServer);  /* don't re add */
+#ifdef WOLFSSL_SNIFFER_STATS
+                INC_STAT(SnifferStats.sslResumptionInserts);
+#endif
+            }
             session->flags.cached = 1;
          }
     }
