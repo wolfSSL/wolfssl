@@ -9244,7 +9244,8 @@ static const CertName certDefaultName = {
 
 #ifndef NO_RSA
 
-#if defined(WOLFSSL_TEST_CERT)
+#if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT) && \
+    !defined(NO_FILESYSTEM)
 static byte minSerial[] = { 0x02, 0x01, 0x01 };
 static byte minName[] = { 0x30, 0x00 };
 static byte nameBad[] = {
