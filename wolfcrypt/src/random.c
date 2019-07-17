@@ -1544,26 +1544,39 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
      * on the STM32F2/F4/F7. */
 
     #ifdef WOLFSSL_STM32_CUBEMX
-    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-    {
-        RNG_HandleTypeDef hrng;
-        int i;
-        (void)os;
+        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+        #ifndef WOLFSSL_CUBEMX_USE_LL
+            RNG_HandleTypeDef hrng;
+        #endif
+            int i;
+            (void)os;
 
-        /* enable RNG clock source */
-        __HAL_RCC_RNG_CLK_ENABLE();
+            /* enable RNG clock source */
+        #ifndef WOLFSSL_CUBEMX_USE_LL
+            __HAL_RCC_RNG_CLK_ENABLE();
+            /* enable RNG peripheral */
+            hrng.Instance = RNG;
+            HAL_RNG_Init(&hrng);
+        #else
+            LL_RNG_Enable(RNG);
+            while (!LL_RNG_IsActiveFlag_DRDY(RNG)) {};
+            if ((LL_RNG_IsActiveFlag_CECS(RNG)) ||
+                (LL_RNG_IsActiveFlag_SECS(RNG)))
+                return RNG_FAILURE_E;
+        #endif
 
-        /* enable RNG peripheral */
-        hrng.Instance = RNG;
-        HAL_RNG_Init(&hrng);
+            for (i = 0; i < (int)sz; i++) {
+                /* get value */
+            #ifndef WOLFSSL_CUBEMX_USE_LL
+                output[i] = (byte)HAL_RNG_GetRandomNumber(&hrng);
+            #else
+                output[i] = (byte) LL_RNG_ReadRandData32(RNG);
+            #endif
+            }
 
-        for (i = 0; i < (int)sz; i++) {
-            /* get value */
-            output[i] = (byte)HAL_RNG_GetRandomNumber(&hrng);
+            return 0;
         }
-
-        return 0;
-    }
     #else
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
