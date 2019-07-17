@@ -3750,7 +3750,7 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
         for (r = 0; r < FP_PRIME_SIZE; r++) {
             if (fp_mod_d(a, primes[r], &d) == MP_OKAY) {
                 if (d == 0)
-                    ret = FP_NO;
+                    return FP_NO;
             }
             else
                 return FP_VAL;
