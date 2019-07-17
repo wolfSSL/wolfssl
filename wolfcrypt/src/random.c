@@ -89,13 +89,12 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
         return FreeRng_fips(rng);
     }
 
-    int wc_RNG_HealthTest(int reseed,
-                                        const byte* entropyA, word32 entropyASz,
-                                        const byte* entropyB, word32 entropyBSz,
-                                        byte* output, word32 outputSz)
+    int wc_RNG_HealthTest(int reseed, const byte* seedA, word32 seedASz,
+                                      const byte* seedB, word32 seedBSz,
+                                      byte* output, word32 outputSz)
     {
-        return RNG_HealthTest_fips(reseed, entropyA, entropyASz,
-                              entropyB, entropyBSz, output, outputSz);
+        return RNG_HealthTest_fips(reseed, seedA, seedASz,
+                              seedB, seedBSz, output, outputSz);
    }
 #endif /* HAVE_HASHDRBG */
 
@@ -142,6 +141,8 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #elif defined(WOLFSSL_ROWLEY_ARM)
 #elif defined(WOLFSSL_EMBOS)
 #elif defined(MICRIUM)
+#elif defined(WOLFSSL_NUCLEUS)
+#elif defined(WOLFSSL_PB)
 #else
     /* include headers that may be needed to get good seed */
     #include <fcntl.h>
@@ -175,9 +176,68 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #define OUTPUT_BLOCK_LEN  (WC_SHA256_DIGEST_SIZE)
 #define MAX_REQUEST_LEN   (0x10000)
 #define RESEED_INTERVAL   WC_RESEED_INTERVAL
-#define SECURITY_STRENGTH (2048)
-#define ENTROPY_SZ        (SECURITY_STRENGTH/8)
-#define MAX_ENTROPY_SZ    (ENTROPY_SZ + ENTROPY_SZ/2)
+
+
+/* For FIPS builds, the user should not be adjusting the values. */
+#if defined(HAVE_FIPS) && \
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+    #if defined(RNG_SECURITY_STRENGTH) \
+            || defined(ENTROPY_SCALE_FACTOR) \
+            || defined(SEED_BLOCK_SZ)
+
+        #error "Do not change the RNG parameters for FIPS builds."
+    #endif
+#endif
+
+
+/* The security strength for the RNG is the target number of bits of
+ * entropy you are looking for in a seed. */
+#ifndef RNG_SECURITY_STRENGTH
+    #if defined(HAVE_FIPS) && \
+	    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+        /* SHA-256 requires a minimum of 256-bits of entropy. The goal
+         * of 1024 will provide 4 times that. */
+        #define RNG_SECURITY_STRENGTH (1024)
+    #else
+        /* If not using FIPS or using old FIPS, set the number down a bit.
+         * More is better, but more is also slower. */
+        #define RNG_SECURITY_STRENGTH (256)
+    #endif
+#endif
+
+#ifndef ENTROPY_SCALE_FACTOR
+    /* The entropy scale factor should be the whole number inverse of the
+     * minimum bits of entropy per bit of NDRNG output. */
+    #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
+        /* The value of 2 applies to Intel's RDSEED which provides about
+         * 0.5 bits minimum of entropy per bit. */
+        #define ENTROPY_SCALE_FACTOR 2
+    #else
+        /* Setting the default to 1. */
+        #define ENTROPY_SCALE_FACTOR 1
+    #endif
+#endif
+
+#ifndef SEED_BLOCK_SZ
+    /* The seed block size, is the size of the output of the underlying NDRNG.
+     * This value is used for testing the output of the NDRNG. */
+    #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
+        /* RDSEED outputs in blocks of 64-bits. */
+        #define SEED_BLOCK_SZ sizeof(word64)
+    #else
+        /* Setting the default to 4. */
+        #define SEED_BLOCK_SZ 4
+    #endif
+#endif
+
+#define SEED_SZ        (RNG_SECURITY_STRENGTH*ENTROPY_SCALE_FACTOR/8)
+
+/* The maximum seed size will be the seed size plus a seed block for the
+ * test, and an additional half of the seed size. This additional half
+ * is in case the user does not supply a nonce. A nonce will be obtained
+ * from the NDRNG. */
+#define MAX_SEED_SZ    (SEED_SZ + SEED_SZ/2 + SEED_BLOCK_SZ)
+
 
 /* Internal return codes */
 #define DRBG_SUCCESS      0
@@ -217,6 +277,9 @@ typedef struct DRBG {
     int devId;
 #endif
     byte   matchCount;
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    wc_Sha256 sha256;
+#endif
 } DRBG;
 
 
@@ -233,7 +296,11 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
     int i;
     int len;
     word32 bits = (outSz * 8); /* reverse byte order */
-    wc_Sha256 sha;
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    wc_Sha256* sha = &drbg->sha256;
+#else
+    wc_Sha256 sha[1];
+#endif
     DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
 
     (void)drbg;
@@ -249,34 +316,38 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
         + ((outSz % OUTPUT_BLOCK_LEN) ? 1 : 0);
 
     for (i = 0, ctr = 1; i < len; i++, ctr++) {
+#ifndef WOLFSSL_SMALL_STACK_CACHE
     #ifdef WOLFSSL_ASYNC_CRYPT
-        ret = wc_InitSha256_ex(&sha, drbg->heap, drbg->devId);
+        ret = wc_InitSha256_ex(sha, drbg->heap, drbg->devId);
     #else
-        ret = wc_InitSha256(&sha);
+        ret = wc_InitSha256(sha);
     #endif
         if (ret != 0)
             break;
 
         if (ret == 0)
-            ret = wc_Sha256Update(&sha, &ctr, sizeof(ctr));
+#endif
+            ret = wc_Sha256Update(sha, &ctr, sizeof(ctr));
         if (ret == 0)
-            ret = wc_Sha256Update(&sha, (byte*)&bits, sizeof(bits));
+            ret = wc_Sha256Update(sha, (byte*)&bits, sizeof(bits));
 
         if (ret == 0) {
             /* churning V is the only string that doesn't have the type added */
             if (type != drbgInitV)
-                ret = wc_Sha256Update(&sha, &type, sizeof(type));
+                ret = wc_Sha256Update(sha, &type, sizeof(type));
         }
         if (ret == 0)
-            ret = wc_Sha256Update(&sha, inA, inASz);
+            ret = wc_Sha256Update(sha, inA, inASz);
         if (ret == 0) {
             if (inB != NULL && inBSz > 0)
-                ret = wc_Sha256Update(&sha, inB, inBSz);
+                ret = wc_Sha256Update(sha, inB, inBSz);
         }
         if (ret == 0)
-            ret = wc_Sha256Final(&sha, digest);
+            ret = wc_Sha256Final(sha, digest);
 
-        wc_Sha256Free(&sha);
+#ifndef WOLFSSL_SMALL_STACK_CACHE
+        wc_Sha256Free(sha);
+#endif
         if (ret == 0) {
             if (outSz > OUTPUT_BLOCK_LEN) {
                 XMEMCPY(out, digest, OUTPUT_BLOCK_LEN);
@@ -297,17 +368,19 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
 }
 
 /* Returns: DRBG_SUCCESS or DRBG_FAILURE */
-static int Hash_DRBG_Reseed(DRBG* drbg, const byte* entropy, word32 entropySz)
+static int Hash_DRBG_Reseed(DRBG* drbg, const byte* seed, word32 seedSz)
 {
-    byte seed[DRBG_SEED_LEN];
+    byte newV[DRBG_SEED_LEN];
 
-    if (Hash_df(drbg, seed, sizeof(seed), drbgReseed, drbg->V, sizeof(drbg->V),
-                                          entropy, entropySz) != DRBG_SUCCESS) {
+    XMEMSET(newV, 0, DRBG_SEED_LEN);
+
+    if (Hash_df(drbg, newV, sizeof(newV), drbgReseed,
+                drbg->V, sizeof(drbg->V), seed, seedSz) != DRBG_SUCCESS) {
         return DRBG_FAILURE;
     }
 
-    XMEMCPY(drbg->V, seed, sizeof(drbg->V));
-    ForceZero(seed, sizeof(seed));
+    XMEMCPY(drbg->V, newV, sizeof(drbg->V));
+    ForceZero(newV, sizeof(newV));
 
     if (Hash_df(drbg, drbg->C, sizeof(drbg->C), drbgInitC, drbg->V,
                                     sizeof(drbg->V), NULL, 0) != DRBG_SUCCESS) {
@@ -321,16 +394,16 @@ static int Hash_DRBG_Reseed(DRBG* drbg, const byte* entropy, word32 entropySz)
 }
 
 /* Returns: DRBG_SUCCESS and DRBG_FAILURE or BAD_FUNC_ARG on fail */
-int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* entropy, word32 entropySz)
+int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
 {
-    if (rng == NULL || entropy == NULL) {
+    if (rng == NULL || seed == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    return Hash_DRBG_Reseed(rng->drbg, entropy, entropySz);
+    return Hash_DRBG_Reseed(rng->drbg, seed, seedSz);
 }
 
-static INLINE void array_add_one(byte* data, word32 dataSz)
+static WC_INLINE void array_add_one(byte* data, word32 dataSz)
 {
     int i;
 
@@ -349,7 +422,11 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
     int i;
     int len;
     word32 checkBlock;
-    wc_Sha256 sha;
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    wc_Sha256* sha = &drbg->sha256;
+#else
+    wc_Sha256 sha[1];
+#endif
     DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
 
     /* Special case: outSz is 0 and out is NULL. wc_Generate a block to save for
@@ -361,16 +438,20 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
 
     XMEMCPY(data, V, sizeof(data));
     for (i = 0; i < len; i++) {
+#ifndef WOLFSSL_SMALL_STACK_CACHE
     #ifdef WOLFSSL_ASYNC_CRYPT
-        ret = wc_InitSha256_ex(&sha, drbg->heap, drbg->devId);
+        ret = wc_InitSha256_ex(sha, drbg->heap, drbg->devId);
     #else
-        ret = wc_InitSha256(&sha);
+        ret = wc_InitSha256(sha);
     #endif
         if (ret == 0)
-            ret = wc_Sha256Update(&sha, data, sizeof(data));
+#endif
+            ret = wc_Sha256Update(sha, data, sizeof(data));
         if (ret == 0)
-            ret = wc_Sha256Final(&sha, digest);
-        wc_Sha256Free(&sha);
+            ret = wc_Sha256Final(sha, digest);
+#ifndef WOLFSSL_SMALL_STACK_CACHE
+        wc_Sha256Free(sha);
+#endif
 
         if (ret == 0) {
             XMEMCPY(&checkBlock, digest, sizeof(word32));
@@ -411,7 +492,7 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
     return (ret == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
 }
 
-static INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen)
+static WC_INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen)
 {
     word16 carry = 0;
 
@@ -437,7 +518,11 @@ static INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen)
 static int Hash_DRBG_Generate(DRBG* drbg, byte* out, word32 outSz)
 {
     int ret;
-    wc_Sha256 sha;
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    wc_Sha256* sha = &drbg->sha256;
+#else
+    wc_Sha256 sha[1];
+#endif
     byte type;
     word32 reseedCtr;
 
@@ -450,19 +535,23 @@ static int Hash_DRBG_Generate(DRBG* drbg, byte* out, word32 outSz)
 
         ret = Hash_gen(drbg, out, outSz, drbg->V);
         if (ret == DRBG_SUCCESS) {
+#ifndef WOLFSSL_SMALL_STACK_CACHE
         #ifdef WOLFSSL_ASYNC_CRYPT
-            ret = wc_InitSha256_ex(&sha, drbg->heap, drbg->devId);
+            ret = wc_InitSha256_ex(sha, drbg->heap, drbg->devId);
         #else
-            ret = wc_InitSha256(&sha);
+            ret = wc_InitSha256(sha);
         #endif
             if (ret == 0)
-                ret = wc_Sha256Update(&sha, &type, sizeof(type));
+#endif
+                ret = wc_Sha256Update(sha, &type, sizeof(type));
             if (ret == 0)
-                ret = wc_Sha256Update(&sha, drbg->V, sizeof(drbg->V));
+                ret = wc_Sha256Update(sha, drbg->V, sizeof(drbg->V));
             if (ret == 0)
-                ret = wc_Sha256Final(&sha, digest);
+                ret = wc_Sha256Final(sha, digest);
 
-            wc_Sha256Free(&sha);
+#ifndef WOLFSSL_SMALL_STACK_CACHE
+            wc_Sha256Free(sha);
+#endif
 
             if (ret == 0) {
                 array_add(drbg->V, sizeof(drbg->V), digest, WC_SHA256_DIGEST_SIZE);
@@ -499,6 +588,16 @@ static int Hash_DRBG_Instantiate(DRBG* drbg, const byte* seed, word32 seedSz,
     (void)devId;
 #endif
 
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        ret = wc_InitSha256_ex(&drbg->sha256, drbg->heap, drbg->devId);
+    #else
+        ret = wc_InitSha256(&drbg->sha256);
+    #endif
+    if (ret != 0)
+        return ret;
+#endif
+
     if (Hash_df(drbg, drbg->V, sizeof(drbg->V), drbgInitV, seed, seedSz,
                                               nonce, nonceSz) == DRBG_SUCCESS &&
         Hash_df(drbg, drbg->C, sizeof(drbg->C), drbgInitC, drbg->V,
@@ -520,12 +619,39 @@ static int Hash_DRBG_Uninstantiate(DRBG* drbg)
     int    compareSum = 0;
     byte*  compareDrbg = (byte*)drbg;
 
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    wc_Sha256Free(&drbg->sha256);
+#endif
+
     ForceZero(drbg, sizeof(DRBG));
 
     for (i = 0; i < sizeof(DRBG); i++)
         compareSum |= compareDrbg[i] ^ 0;
 
     return (compareSum == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
+}
+
+
+int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
+{
+    int ret = DRBG_SUCCESS;
+
+    /* Check the seed for duplicate words. */
+    word32 seedIdx = 0;
+    word32 scratchSz = min(SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ);
+
+    while (seedIdx < seedSz - SEED_BLOCK_SZ) {
+        if (ConstantCompare(seed + seedIdx,
+                            seed + seedIdx + scratchSz,
+                            scratchSz) == 0) {
+
+            ret = DRBG_CONT_FAILURE;
+        }
+        seedIdx += SEED_BLOCK_SZ;
+        scratchSz = min(SEED_BLOCK_SZ, (seedSz - seedIdx));
+    }
+
+    return ret;
 }
 #endif /* HAVE_HASHDRBG */
 /* End NIST DRBG Code */
@@ -535,7 +661,9 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
                     void* heap, int devId)
 {
     int ret = RNG_FAILURE_E;
-    word32 entropySz = ENTROPY_SZ;
+#ifdef HAVE_HASHDRBG
+    word32 seedSz = SEED_SZ + SEED_BLOCK_SZ;
+#endif
 
     (void)nonce;
     (void)nonceSz;
@@ -587,10 +715,10 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #else
 #ifdef HAVE_HASHDRBG
     if (nonceSz == 0)
-        entropySz = MAX_ENTROPY_SZ;
+        seedSz = MAX_SEED_SZ;
 
     if (wc_RNG_HealthTestLocal(0) == 0) {
-        DECLARE_VAR(entropy, byte, MAX_ENTROPY_SZ, rng->heap);
+        DECLARE_VAR(seed, byte, MAX_SEED_SZ, rng->heap);
 
         rng->drbg =
                 (struct DRBG*)XMALLOC(sizeof(DRBG), rng->heap,
@@ -598,16 +726,24 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         if (rng->drbg == NULL) {
             ret = MEMORY_E;
         }
-        else if (wc_GenerateSeed(&rng->seed, entropy, entropySz) == 0 &&
-                 Hash_DRBG_Instantiate(rng->drbg, entropy, entropySz,
-                            nonce, nonceSz, rng->heap, devId) == DRBG_SUCCESS) {
-            ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
-        }
-        else
-            ret = DRBG_FAILURE;
+        else {
+            ret = wc_GenerateSeed(&rng->seed, seed, seedSz);
+            if (ret != 0)
+                ret = DRBG_FAILURE;
+            else
+                ret = wc_RNG_TestSeed(seed, seedSz);
 
-        ForceZero(entropy, entropySz);
-        FREE_VAR(entropy, rng->heap);
+            if (ret == DRBG_SUCCESS)
+                 ret = Hash_DRBG_Instantiate(rng->drbg,
+                            seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
+                            nonce, nonceSz, rng->heap, devId);
+
+            if (ret == DRBG_SUCCESS)
+                ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
+        }
+
+        ForceZero(seed, seedSz);
+        FREE_VAR(seed, rng->heap);
     }
     else
         ret = DRBG_CONT_FAILURE;
@@ -700,20 +836,24 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     ret = Hash_DRBG_Generate(rng->drbg, output, sz);
     if (ret == DRBG_NEED_RESEED) {
         if (wc_RNG_HealthTestLocal(1) == 0) {
-            byte entropy[ENTROPY_SZ];
+            byte newSeed[SEED_SZ + SEED_BLOCK_SZ];
 
-            if (wc_GenerateSeed(&rng->seed, entropy, ENTROPY_SZ) == 0 &&
-                Hash_DRBG_Reseed(rng->drbg, entropy, ENTROPY_SZ)
-                                                              == DRBG_SUCCESS) {
-
-                ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
-                if (ret == DRBG_SUCCESS)
-                    ret = Hash_DRBG_Generate(rng->drbg, output, sz);
-            }
-            else
+            ret = wc_GenerateSeed(&rng->seed, newSeed,
+                                  SEED_SZ + SEED_BLOCK_SZ);
+            if (ret != 0)
                 ret = DRBG_FAILURE;
+            else
+                ret = wc_RNG_TestSeed(newSeed, SEED_SZ + SEED_BLOCK_SZ);
 
-            ForceZero(entropy, ENTROPY_SZ);
+            if (ret == DRBG_SUCCESS)
+                ret = Hash_DRBG_Reseed(rng->drbg, newSeed + SEED_BLOCK_SZ,
+                                       SEED_SZ);
+            if (ret == DRBG_SUCCESS)
+                ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
+            if (ret == DRBG_SUCCESS)
+                ret = Hash_DRBG_Generate(rng->drbg, output, sz);
+
+            ForceZero(newSeed, sizeof(newSeed));
         }
         else
             ret = DRBG_CONT_FAILURE;
@@ -775,21 +915,20 @@ int wc_FreeRng(WC_RNG* rng)
 }
 
 #ifdef HAVE_HASHDRBG
-int wc_RNG_HealthTest(int reseed, const byte* entropyA, word32 entropyASz,
-                                  const byte* entropyB, word32 entropyBSz,
+int wc_RNG_HealthTest(int reseed, const byte* seedA, word32 seedASz,
+                                  const byte* seedB, word32 seedBSz,
                                   byte* output, word32 outputSz)
 {
     return wc_RNG_HealthTest_ex(reseed, NULL, 0,
-                                entropyA, entropyASz,
-                                entropyB, entropyBSz,
+                                seedA, seedASz, seedB, seedBSz,
                                 output, outputSz,
                                 NULL, INVALID_DEVID);
 }
 
 
 int wc_RNG_HealthTest_ex(int reseed, const byte* nonce, word32 nonceSz,
-                                  const byte* entropyA, word32 entropyASz,
-                                  const byte* entropyB, word32 entropyBSz,
+                                  const byte* seedA, word32 seedASz,
+                                  const byte* seedB, word32 seedBSz,
                                   byte* output, word32 outputSz,
                                   void* heap, int devId)
 {
@@ -799,11 +938,11 @@ int wc_RNG_HealthTest_ex(int reseed, const byte* nonce, word32 nonceSz,
     DRBG  drbg_var;
 #endif
 
-    if (entropyA == NULL || output == NULL) {
+    if (seedA == NULL || output == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    if (reseed != 0 && entropyB == NULL) {
+    if (reseed != 0 && seedB == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -812,7 +951,7 @@ int wc_RNG_HealthTest_ex(int reseed, const byte* nonce, word32 nonceSz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    drbg = (struct DRBG*)XMALLOC(sizeof(DRBG), NULL, DYNAMIC_TYPE_RNG);
+    drbg = (DRBG*)XMALLOC(sizeof(DRBG), NULL, DYNAMIC_TYPE_RNG);
     if (drbg == NULL) {
         return MEMORY_E;
     }
@@ -820,13 +959,13 @@ int wc_RNG_HealthTest_ex(int reseed, const byte* nonce, word32 nonceSz,
     drbg = &drbg_var;
 #endif
 
-    if (Hash_DRBG_Instantiate(drbg, entropyA, entropyASz, nonce, nonceSz,
+    if (Hash_DRBG_Instantiate(drbg, seedA, seedASz, nonce, nonceSz,
                               heap, devId) != 0) {
         goto exit_rng_ht;
     }
 
     if (reseed) {
-        if (Hash_DRBG_Reseed(drbg, entropyB, entropyBSz) != 0) {
+        if (Hash_DRBG_Reseed(drbg, seedB, seedBSz) != 0) {
             goto exit_rng_ht;
         }
     }
@@ -857,14 +996,14 @@ exit_rng_ht:
 }
 
 
-const byte entropyA[] = {
+const byte seedA[] = {
     0x63, 0x36, 0x33, 0x77, 0xe4, 0x1e, 0x86, 0x46, 0x8d, 0xeb, 0x0a, 0xb4,
     0xa8, 0xed, 0x68, 0x3f, 0x6a, 0x13, 0x4e, 0x47, 0xe0, 0x14, 0xc7, 0x00,
     0x45, 0x4e, 0x81, 0xe9, 0x53, 0x58, 0xa5, 0x69, 0x80, 0x8a, 0xa3, 0x8f,
     0x2a, 0x72, 0xa6, 0x23, 0x59, 0x91, 0x5a, 0x9f, 0x8a, 0x04, 0xca, 0x68
 };
 
-const byte reseedEntropyA[] = {
+const byte reseedSeedA[] = {
     0xe6, 0x2b, 0x8a, 0x8e, 0xe8, 0xf1, 0x41, 0xb6, 0x98, 0x05, 0x66, 0xe3,
     0xbf, 0xe3, 0xc0, 0x49, 0x03, 0xda, 0xd4, 0xac, 0x2c, 0xdf, 0x9f, 0x22,
     0x80, 0x01, 0x0a, 0x67, 0x39, 0xbc, 0x83, 0xd3
@@ -884,7 +1023,7 @@ const byte outputA[] = {
     0xa1, 0x80, 0x18, 0x3a, 0x07, 0xdf, 0xae, 0x17
 };
 
-const byte entropyB[] = {
+const byte seedB[] = {
     0xa6, 0x5a, 0xd0, 0xf3, 0x45, 0xdb, 0x4e, 0x0e, 0xff, 0xe8, 0x75, 0xc3,
     0xa2, 0xe7, 0x1f, 0x42, 0xc7, 0x12, 0x9d, 0x62, 0x0f, 0xf5, 0xc1, 0x19,
     0xa9, 0xef, 0x55, 0xf0, 0x51, 0x85, 0xe0, 0xfb, /* nonce next */
@@ -925,8 +1064,8 @@ static int wc_RNG_HealthTestLocal(int reseed)
 #endif
 
     if (reseed) {
-        ret = wc_RNG_HealthTest(1, entropyA, sizeof(entropyA),
-                                reseedEntropyA, sizeof(reseedEntropyA),
+        ret = wc_RNG_HealthTest(1, seedA, sizeof(seedA),
+                                reseedSeedA, sizeof(reseedSeedA),
                                 check, RNG_HEALTH_TEST_CHECK_SIZE);
         if (ret == 0) {
             if (ConstantCompare(check, outputA,
@@ -935,7 +1074,7 @@ static int wc_RNG_HealthTestLocal(int reseed)
         }
     }
     else {
-        ret = wc_RNG_HealthTest(0, entropyB, sizeof(entropyB),
+        ret = wc_RNG_HealthTest(0, seedB, sizeof(seedB),
                                 NULL, 0,
                                 check, RNG_HEALTH_TEST_CHECK_SIZE);
         if (ret == 0) {
@@ -945,13 +1084,13 @@ static int wc_RNG_HealthTestLocal(int reseed)
         }
 
         /* The previous test cases use a large seed instead of a seed and nonce.
-         * entropyB is actually from a test case with a seed and nonce, and
+         * seedB is actually from a test case with a seed and nonce, and
          * just concatenates them. The pivot point between seed and nonce is
          * byte 32, feed them into the health test separately. */
         if (ret == 0) {
             ret = wc_RNG_HealthTest_ex(0,
-                                    entropyB + 32, sizeof(entropyB) - 32,
-                                    entropyB, 32,
+                                    seedB + 32, sizeof(seedB) - 32,
+                                    seedB, 32,
                                     NULL, 0,
                                     check, RNG_HEALTH_TEST_CHECK_SIZE,
                                     NULL, INVALID_DEVID);
@@ -1084,7 +1223,7 @@ int wc_FreeNetRandom(void)
 #ifndef USE_WINDOWS_API
 
     /* return 0 on success */
-    static INLINE int IntelRDseed64(word64* seed)
+    static WC_INLINE int IntelRDseed64(word64* seed)
     {
         unsigned char ok;
 
@@ -1097,7 +1236,7 @@ int wc_FreeNetRandom(void)
      * It does allow for Intel intrinsic functions. */
 
     /* return 0 on success */
-    static INLINE int IntelRDseed64(word64* seed)
+    static WC_INLINE int IntelRDseed64(word64* seed)
     {
         int ok;
 
@@ -1108,7 +1247,7 @@ int wc_FreeNetRandom(void)
 #endif /* USE_WINDOWS_API */
 
 /* return 0 on success */
-static INLINE int IntelRDseed64_r(word64* rnd)
+static WC_INLINE int IntelRDseed64_r(word64* rnd)
 {
     int i;
     for (i = 0; i < INTELRD_RETRY; i++) {
@@ -1156,7 +1295,7 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 #ifndef USE_WINDOWS_API
 
 /* return 0 on success */
-static INLINE int IntelRDrand64(word64 *rnd)
+static WC_INLINE int IntelRDrand64(word64 *rnd)
 {
     unsigned char ok;
 
@@ -1170,7 +1309,7 @@ static INLINE int IntelRDrand64(word64 *rnd)
      * It does allow for Intel intrinsic functions. */
 
 /* return 0 on success */
-static INLINE int IntelRDrand64(word64 *rnd)
+static WC_INLINE int IntelRDrand64(word64 *rnd)
 {
     int ok;
 
@@ -1182,7 +1321,7 @@ static INLINE int IntelRDrand64(word64 *rnd)
 #endif /* USE_WINDOWS_API */
 
 /* return 0 on success */
-static INLINE int IntelRDrand64_r(word64 *rnd)
+static WC_INLINE int IntelRDrand64_r(word64 *rnd)
 {
     int i;
     for (i = 0; i < INTELRD_RETRY; i++) {
@@ -1303,6 +1442,19 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
+    #ifdef HAVE_INTEL_RDSEED
+        if (IS_INTEL_RDSEED(intel_flags)) {
+             if (!wc_GenerateSeed_IntelRD(NULL, output, sz)) {
+                 /* success, we're done */
+                 return 0;
+             }
+        #ifdef FORCE_FAILURE_RDSEED
+             /* don't fall back to CryptoAPI */
+             return READ_RAN_E;
+        #endif
+        }
+    #endif /* HAVE_INTEL_RDSEED */
+
     if(!CryptAcquireContext(&os->handle, 0, 0, PROV_RSA_FULL,
                             CRYPT_VERIFYCONTEXT))
         return WINCRYPT_E;
@@ -1423,7 +1575,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
          */
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
-            int i;
+            word32 i;
 
             /* turn on RNGA module */
             #if defined(SIM_SCGC3_RNGA_MASK)
@@ -1539,9 +1691,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #endif /* FREESCALE_K70_RNGA */
 
 #elif defined(STM32_RNG)
-    /*
-     * wc_Generate a RNG seed using the hardware random number generator
-     * on the STM32F2/F4/F7. */
+     /* Generate a RNG seed using the hardware random number generator
+      * on the STM32F2/F4/F7. */
 
     #ifdef WOLFSSL_STM32_CUBEMX
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -1564,7 +1715,45 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         return 0;
     }
+    #elif defined(WOLFSSL_STM32F427_RNG)
+
+    /* Generate a RNG seed using the hardware RNG on the STM32F427
+     * directly, following steps outlined in STM32F4 Reference
+     * Manual (Chapter 24) for STM32F4xx family. */
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int i;
+        (void)os;
+
+        /* enable RNG peripheral clock */
+        RCC->AHB2ENR |= RCC_AHB2ENR_RNGEN;
+
+        /* enable RNG interrupt, set IE bit in RNG->CR register */
+        RNG->CR |= RNG_CR_IE;
+
+        /* enable RNG, set RNGEN bit in RNG->CR. Activates RNG,
+         * RNG_LFSR, and error detector */
+        RNG->CR |= RNG_CR_RNGEN;
+
+        /* verify no errors, make sure SEIS and CEIS bits are 0
+         * in RNG->SR register */
+        if (RNG->SR & (RNG_SR_SECS | RNG_SR_CECS))
+            return RNG_FAILURE_E;
+
+        for (i = 0; i < (int)sz; i++) {
+            /* wait until RNG number is ready */
+            while ((RNG->SR & RNG_SR_DRDY) == 0) { }
+
+            /* get value */
+            output[i] = RNG->DR;
+        }
+
+        return 0;
+    }
+
     #else
+
+    /* Generate a RNG seed using the STM32 Standard Peripheral Library */
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int i;
@@ -1614,6 +1803,38 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
+#elif defined(WOLFSSL_PB)
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        word32 i;
+        for (i = 0; i < sz; i++)
+            output[i] = UTL_Rand();
+
+        (void)os;
+
+        return 0;
+    }
+
+#elif defined(WOLFSSL_NUCLEUS)
+#include "nucleus.h"
+#include "kernel/plus_common.h"
+
+#warning "potential for not enough entropy, currently being used for testing"
+int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+{
+    int i;
+    srand(NU_Get_Time_Stamp());
+
+    for (i = 0; i < sz; i++ ) {
+        output[i] = rand() % 256;
+        if ((i % 8) == 7) {
+            srand(NU_Get_Time_Stamp());
+        }
+    }
+
+    return 0;
+}
 #elif defined(WOLFSSL_VXWORKS)
 
     #include <randomNumGen.h>
@@ -1796,6 +2017,25 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return ret;
     }
 
+#elif defined(WOLFSSL_APACHE_MYNEWT)
+
+    #include <stdlib.h>
+    #include "os/os_time.h"
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int i;
+        srand(os_time_get());
+
+        for (i = 0; i < sz; i++ ) {
+            output[i] = rand() % 256;
+            if ((i % 8) == 7) {
+                srand(os_time_get());
+            }
+        }
+
+        return 0;
+    }
+
 #elif defined(CUSTOM_RAND_GENERATE_BLOCK)
     /* #define CUSTOM_RAND_GENERATE_BLOCK myRngFunc
      * extern int myRngFunc(byte* output, word32 sz);
@@ -1806,7 +2046,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
       defined(WOLFSSL_uITRON4)  || defined(WOLFSSL_uTKERNEL2) || \
       defined(WOLFSSL_LPC43xx)  || defined(WOLFSSL_STM32F2xx) || \
       defined(MBED)             || defined(WOLFSSL_EMBOS) || \
-      defined(WOLFSSL_GENSEED_FORTEST) || defined(WOLFSSL_CHIBIOS)
+      defined(WOLFSSL_GENSEED_FORTEST) || defined(WOLFSSL_CHIBIOS) || \
+      defined(WOLFSSL_CONTIKI)
 
     /* these platforms do not have a default random seed and
        you'll need to implement your own wc_GenerateSeed or define via
@@ -1906,6 +2147,5 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #endif
 
 /* End wc_GenerateSeed */
-
 #endif /* WC_NO_RNG */
 #endif /* HAVE_FIPS */
