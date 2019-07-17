@@ -210,7 +210,6 @@ int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh);
 #define PEM_read_PrivateKey             wolfSSL_PEM_read_PrivateKey
 #define PEM_write_X509                  wolfSSL_PEM_write_X509
 #define PEM_write_bio_PrivateKey        wolfSSL_PEM_write_bio_PrivateKey
-#define PEM_write_bio_PUBKEY            wolfSSL_PEM_write_PUBKEY
 #define PEM_write_bio_PKCS8PrivateKey   wolfSSL_PEM_write_bio_PKCS8PrivateKey
 
 /* DH */
@@ -244,6 +243,7 @@ int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh);
 #define PEM_read_bio_PrivateKey         wolfSSL_PEM_read_bio_PrivateKey
 #define PEM_read_PUBKEY                 wolfSSL_PEM_read_PUBKEY
 #define PEM_read_bio_PUBKEY             wolfSSL_PEM_read_bio_PUBKEY
+#define PEM_write_bio_PUBKEY            wolfSSL_PEM_write_bio_PUBKEY
 
 #ifdef __cplusplus
     }  /* extern "C" */ 

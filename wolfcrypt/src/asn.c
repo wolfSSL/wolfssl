@@ -7459,8 +7459,8 @@ static int DecodeAuthInfo(const byte* input, int sz, DecodedCert* cert)
         if ((b == (ASN_CONTEXT_SPECIFIC | GENERALNAME_URI)) &&
             oid == AIA_OCSP_OID)
         {
-            cert->extAuthInfoOcspSz = length;
-            cert->extAuthInfoOcsp = input + idx;
+            cert->extAuthInfoSz = length;
+            cert->extAuthInfo = input + idx;
             count++;
         #if !defined(OPENSSL_ALL) || !defined(WOLFSSL_QT)
             break;
@@ -15389,16 +15389,16 @@ int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
         XMEMCPY(req->serial, cert->serial, cert->serialSz);
         req->serialSz = cert->serialSz;
 
-        if (cert->extAuthInfoOcspSz != 0 && cert->extAuthInfoOcsp != NULL) {
-            req->url = (byte*)XMALLOC(cert->extAuthInfoOcspSz + 1, req->heap,
+        if (cert->extAuthInfoSz != 0 && cert->extAuthInfo != NULL) {
+            req->url = (byte*)XMALLOC(cert->extAuthInfoSz + 1, req->heap,
                                                      DYNAMIC_TYPE_OCSP_REQUEST);
             if (req->url == NULL) {
                 XFREE(req->serial, req->heap, DYNAMIC_TYPE_OCSP);
                 return MEMORY_E;
             }
 
-            XMEMCPY(req->url, cert->extAuthInfoOcsp, cert->extAuthInfoOcspSz);
-            req->urlSz = cert->extAuthInfoOcspSz;
+            XMEMCPY(req->url, cert->extAuthInfo, cert->extAuthInfoSz);
+            req->urlSz = cert->extAuthInfoSz;
             req->url[req->urlSz] = 0;
         }
     }

@@ -7702,13 +7702,13 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                 }
 
                 /* Add OCSP object to stack */
-                if (x509->authInfoOcsp != NULL &&
-                    x509->authInfoOcspSz > 0)
+                if (x509->authInfo != NULL &&
+                    x509->authInfoSz > 0)
                 {
                     WOLFSSL_ASN1_OBJECT* obj;
                     obj = wolfSSL_ASN1_OBJECT_new();
-                    obj->obj = x509->authInfoOcsp;
-                    obj->objSz = x509->authInfoOcspSz;
+                    obj->obj = x509->authInfo;
+                    obj->objSz = x509->authInfoSz;
                     obj->grp = oidCertAuthInfoType;
                     obj->nid = AIA_OCSP_OID;
 
@@ -8384,7 +8384,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
             break;
 
         case AUTH_INFO_OID:
-            if (x509->authInfoSet && x509->authInfoOcsp != NULL) {
+            if (x509->authInfoSet && x509->authInfo != NULL) {
                 if (c != NULL) {
                     *c = x509->authInfoCrit;
                 }
@@ -8396,8 +8396,8 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                 }
                 obj->type  = AUTH_INFO_OID;
                 obj->grp   = oidCertExtType;
-                obj->obj   = x509->authInfoOcsp;
-                obj->objSz = x509->authInfoOcspSz;
+                obj->obj   = x509->authInfo;
+                obj->objSz = x509->authInfoSz;
                 obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
                 obj->dynamic &= ~WOLFSSL_ASN1_DYNAMIC_DATA;
             }
@@ -16438,7 +16438,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
         if (ssl->peerCertChain == NULL)
             wolfSSL_set_peer_cert_chain((WOLFSSL*) ssl);
         sk = ssl->peerCertChain;
-    #elif
+    #else
         sk = (WOLF_STACK_OF(WOLFSSL_X509)* )&ssl->session.chain;
     #endif
 
@@ -29164,6 +29164,10 @@ int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
 }
 #endif /* NO_RSA */
 
+/* with set1 functions the pkey struct does not own the DSA structure
+ *
+ * returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure
+ */
 #if defined(WOLFSSL_QT) && !defined(NO_DSA)
 int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
 {
@@ -29957,7 +29961,7 @@ int wolfSSL_PEM_write_bio_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
         return MEMORY_E;
     }
 
-    ret = wc_DerToPemEx(keyDer, key->pkey_sz, tmp, pemSz, \
+    ret = wc_DerToPemEx(keyDer, key->pkey_sz, tmp, pemSz,
                         NULL, PUBLICKEY_TYPE);
     if (ret < 0) {
         WOLFSSL_LEAVE("wolfSSL_PEM_write_bio_PUBKEY", ret);
@@ -39370,18 +39374,18 @@ WOLF_STACK_OF(WOLFSSL_STRING) *wolfSSL_X509_get1_ocsp(WOLFSSL_X509 *x)
     WOLFSSL_STACK* list = NULL;
     char*          url;
 
-    if (x->authInfoOcspSz == 0)
+    if (x->authInfoSz == 0)
         return NULL;
 
-    list = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK) + x->authInfoOcspSz + 1,
+    list = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK) + x->authInfoSz + 1,
                                    NULL, DYNAMIC_TYPE_OPENSSL);
     if (list == NULL)
         return NULL;
 
     url = (char*)list;
     url += sizeof(WOLFSSL_STACK);
-    XMEMCPY(url, x->authInfoOcsp, x->authInfoOcspSz);
-    url[x->authInfoOcspSz] = '\0';
+    XMEMCPY(url, x->authInfo, x->authInfoSz);
+    url[x->authInfoSz] = '\0';
 
     list->data.string = url;
     list->next = NULL;
