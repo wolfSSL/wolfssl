@@ -19,8 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#if defined(USE_INTEL_SPEEDUP) && (defined(HAVE_ED25519) || defined(HAVE_CURVE25519))
-
 #ifndef HAVE_INTEL_AVX1
 #define HAVE_INTEL_AVX1
 #endif /* HAVE_INTEL_AVX1 */
@@ -16177,5 +16175,3 @@ _fe_ge_sub_avx2:
 .size	fe_ge_sub_avx2,.-fe_ge_sub_avx2
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
-
-#endif /* USE_INTEL_SPEEDUP && (HAVE_ED25519 || HAVE_CURVE25519) */
