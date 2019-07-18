@@ -19,13 +19,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifdef WOLFSSL_ARMASM
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 
 #include <wolfssl/wolfcrypt/sha512.h>
@@ -706,3 +706,4 @@ int wc_Sha384GetFlags(wc_Sha384* sha384, word32* flags)
 #endif /* WOLFSSL_SHA384 */
 
 #endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
+#endif /* WOLFSSL_ARMASM */

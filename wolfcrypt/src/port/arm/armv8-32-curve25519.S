@@ -23,6 +23,8 @@
  *   cd ../scripts
  *   ruby ./x25519/x25519.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-curve25519.S
  */
+
+#ifdef WOLFSSL_ARMASM
 #ifndef __aarch64__
 	.text
 	.align	2
@@ -6007,3 +6009,4 @@ fe_ge_sub:
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	fe_ge_sub,.-fe_ge_sub
 #endif /* !__aarch64__ */
+#endif /* WOLFSSL_ARMASM */
