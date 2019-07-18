@@ -9803,18 +9803,6 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word16* pLength)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_POST_HANDSHAKE_AUTH));
     #endif
         }
-    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-        if (IsAtLeastTLSv1_3(ssl->version) && ssl->options.noPskDheKe) {
-        #if !defined(NO_PSK)
-            if (ssl->options.havePSK)
-                TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
-        #endif
-        #if defined(HAVE_SESSION_TICKET)
-            if (ssl->options.resuming)
-                TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
-        #endif
-        }
-    #endif
 #endif
     #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
      || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
@@ -9903,18 +9891,6 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_POST_HANDSHAKE_AUTH));
     #endif
         }
-    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-        if (IsAtLeastTLSv1_3(ssl->version) && ssl->options.noPskDheKe) {
-        #if !defined(NO_PSK)
-            if (ssl->options.havePSK)
-                TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
-        #endif
-        #if defined(HAVE_SESSION_TICKET)
-            if (ssl->options.resuming)
-                TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
-        #endif
-        }
-    #endif
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
         /* Must write Pre-shared Key extension at the end in TLS v1.3.
          * Must not write out Pre-shared Key extension in earlier versions of
