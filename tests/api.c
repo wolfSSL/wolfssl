@@ -25275,12 +25275,12 @@ void ApiTest(void)
     AssertIntEQ(test_ForceZero(), 0);
 
     AssertIntEQ(test_wolfSSL_Cleanup(), WOLFSSL_SUCCESS);
-    wolfSSL_Cleanup();
 
     /* If at some point a stub get implemented this test should fail indicating
      * a need to implement a new test case
      */
     test_stubs_are_stubs();
+    wolfSSL_Cleanup();
 
     printf(" End API Tests\n");
 
