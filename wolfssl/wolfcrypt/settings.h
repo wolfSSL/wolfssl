@@ -1997,7 +1997,7 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_NO_WORD64_OPS
 #endif
 
-#if !defined(WOLFCRYPT_ONLY) && !defined(WOLFSSL_NO_TLS12)
+#if !defined(WOLFCRYPT_ONLY) || !defined(WOLFSSL_NO_TLS12)
     #undef  WOLFSSL_HAVE_PRF
     #define WOLFSSL_HAVE_PRF
 #endif
