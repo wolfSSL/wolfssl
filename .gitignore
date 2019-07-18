@@ -295,6 +295,7 @@ Backup
 UpgradeLog.htm
 *.aps
 *.VC.db
+*.filters
 
 IDE/INTIME-RTOS/Debug_*
 IDE/VS-ARM/.vs
