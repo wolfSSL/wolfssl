@@ -167,7 +167,7 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
     WOLFSSL_BIO* front = bio;
     int  sz  = 0;
 
-    WOLFSSL_ENTER("wolfSSL_BIO_read");
+//    WOLFSSL_ENTER("wolfSSL_BIO_read");
 
     /* info cb, abort if user returns <= 0*/
     if (front != NULL && front->infoCb != NULL) {

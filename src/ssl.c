@@ -2520,6 +2520,7 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl)
 
 #if !defined(NO_WOLFSSL_SERVER) && defined(HAVE_SERVER_RENEGOTIATION_INFO)
         if (ssl->options.side == WOLFSSL_SERVER_END) {
+            ssl->do_reneg = 1;
             ret = SendHelloRequest(ssl);
             if (ret != 0) {
                 ssl->error = ret;
@@ -6614,6 +6615,41 @@ int wolfSSL_CertManagerLoadCRL(WOLFSSL_CERT_MANAGER* cm, const char* path,
     return LoadCRL(cm->crl, path, type, monitor);
 }
 
+/* Loads a CRL path or file location into WOLFSSL_CRL struct.
+   Returns WOLFSSL_SUCCESS or error on failure. */
+int wolfSSL_CertManagerLoadCRL_ex(WOLFSSL_CERT_MANAGER* cm, const char* path,
+                              int type, int monitor, const char* file)
+{
+    int ret;
+    WOLFSSL_ENTER("wolfSSL_CertManagerLoadCRL_ex");
+    ret = WOLFSSL_FAILURE;
+
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+    if (cm->crl == NULL) {
+        if (wolfSSL_CertManagerEnableCRL(cm, 0) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Enable CRL failed");
+            return WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    if (!file) {
+        ret = LoadCRL(cm->crl, path, type, monitor);
+        if (ret != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("LoadCRL failed");
+        }
+    }
+    else if (file) {
+        ret = ProcessFile(NULL, file, type, CRL_TYPE, NULL, 0, cm->crl);
+        if (ret != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("ProcessFile failed");
+        }
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_CertManagerLoadCRL_ex", ret);
+    return ret;
+}
 
 int wolfSSL_EnableCRL(WOLFSSL* ssl, int options)
 {
@@ -6633,7 +6669,6 @@ int wolfSSL_DisableCRL(WOLFSSL* ssl)
     else
         return BAD_FUNC_ARG;
 }
-
 
 int wolfSSL_LoadCRL(WOLFSSL* ssl, const char* path, int type, int monitor)
 {
@@ -9293,8 +9328,9 @@ void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode, VerifyCallback vc)
         ctx->verifyPeer = 0;  /* in case previously set */
     }
 
-    if (mode & WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT)
+    if (mode & WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT) {
         ctx->failNoCert = 1;
+    }
 
     if (mode & WOLFSSL_VERIFY_FAIL_EXCEPT_PSK) {
         ctx->failNoCert    = 0; /* fail on all is set to fail on PSK */
@@ -22237,6 +22273,7 @@ void wolfSSL_X509_STORE_CTX_cleanup(WOLFSSL_X509_STORE_CTX* ctx)
 
 int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 {
+    WOLFSSL_ENTER("wolfSSL_X509_verify_cert");
     if (ctx != NULL && ctx->store != NULL && ctx->store->cm != NULL
          && ctx->current_cert != NULL && ctx->current_cert->derCert != NULL) {
         return wolfSSL_CertManagerVerifyBuffer(ctx->store->cm,
@@ -24474,21 +24511,39 @@ WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PrivateKey(XFILE fp, WOLFSSL_EVP_
 #endif
 #endif
 
-#ifndef NO_WOLFSSL_STUB
-/* Stub, returning WOLFSSL_SUCCESS for now */
-WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str, const char *file, const char *dir)
+/* Loads certificate(s) into X509_STORE struct from either a file or directory.
+ *  Returns WOLFSSL_SUCCESS on success or WOLFSSL_FAILURE if an error occurs.
+ *  NOTE: only CRL types are currently supported for Apache httpd compatibility.
+ */
+WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
+                                              const char *file, const char *dir)
 {
-    (void)str;
-    (void)file;
-    (void)dir;
-    WOLFSSL_STUB("X509_STORE_load_locations");
-    #ifdef WOLFSSL_APACHE_HTTPD
-        return WOLFSSL_SUCCESS;
-    #else
+    int ret;
+
+    WOLFSSL_ENTER("X509_STORE_load_locations");
+
+    if (str == NULL)
         return WOLFSSL_FAILURE;
-    #endif
+
+    if (dir != NULL) {
+        ret = wolfSSL_CertManagerLoadCRL_ex(str->cm, dir, WOLFSSL_FILETYPE_PEM,
+                                                                       0, NULL);
+        if (ret != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Failed to load file");
+            return WOLFSSL_FAILURE;
+        }
+    }
+    if (file != NULL) {
+        ret = wolfSSL_CertManagerLoadCRL_ex(str->cm, file, WOLFSSL_FILETYPE_PEM,
+                                                                       0, file);
+        if (ret != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Failed to load directory");
+            return WOLFSSL_FAILURE;
+        }
+    }
+
+    return WOLFSSL_SUCCESS;
 }
-#endif
 
 #ifndef NO_WOLFSSL_STUB
 /*** TBD ***/
@@ -40968,6 +41023,14 @@ int wolfSSL_SSL_in_connect_init(WOLFSSL* ssl)
 
     if (ssl == NULL)
         return WOLFSSL_FAILURE;
+
+#ifdef HAVE_SECURE_RENEGOTIATION
+    /* TODO: need a better check for when in renegotiation state */
+    if (ssl->do_reneg == 1) {
+        ssl->do_reneg = 0;
+        return WOLFSSL_SUCCESS;
+    }
+#endif
 
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
         return ssl->options.connectState > CONNECT_BEGIN &&

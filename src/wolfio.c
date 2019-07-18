@@ -129,7 +129,7 @@ int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
             ssl->biord->method->custom->readCb) {
         WOLFSSL_MSG("Calling custom biord");
         recvd = ssl->biord->method->custom->readCb(ssl->biord, buf, sz);
-        if (recvd < 0)
+        if (recvd < 0 && recvd != WOLFSSL_CBIO_ERR_WANT_READ)
             return WOLFSSL_CBIO_ERR_GENERAL;
         return recvd;
     }

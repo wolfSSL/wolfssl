@@ -2393,6 +2393,7 @@ typedef struct SecureRenegotiation {
    enum key_cache_state cache_status;  /* track key cache state */
    byte                 client_verify_data[TLS_FINISHED_SZ];  /* cached */
    byte                 server_verify_data[TLS_FINISHED_SZ];  /* cached */
+   byte                 subject_hash_set; /* if peer cert hash is set */
    byte                 subject_hash[KEYID_SIZE];  /* peer cert hash */
    Keys                 tmp_keys;  /* can't overwrite real keys yet */
 } SecureRenegotiation;
@@ -4027,6 +4028,7 @@ struct WOLFSSL {
         || defined(HAVE_SERVER_RENEGOTIATION_INFO)
         int                  secure_rene_count;    /* how many times */
         SecureRenegotiation* secure_renegotiation; /* valid pointer indicates */
+        int do_reneg;                              /* in renegotiation state */
     #endif                                         /* user turned on */
     #ifdef HAVE_ALPN
         char*   alpn_client_list;  /* keep the client's list */

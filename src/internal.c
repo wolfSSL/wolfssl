@@ -10232,13 +10232,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                     if (IsEncryptionOn(ssl, 0)) {
                         /* compare against previous time */
-                        if (XMEMCMP(args->dCert->subjectHash,
-                                    ssl->secure_renegotiation->subject_hash,
-                                    KEYID_SIZE) != 0) {
-                            WOLFSSL_MSG(
-                                "Peer sent different cert during scr, fatal");
-                            args->fatal = 1;
-                            ret = SCR_DIFFERENT_CERT_E;
+                        if (ssl->secure_renegotiation->subject_hash_set) {
+                            if (XMEMCMP(args->dCert->subjectHash,
+                                        ssl->secure_renegotiation->subject_hash,
+                                        KEYID_SIZE) != 0) {
+                                WOLFSSL_MSG(
+                                  "Peer sent different cert during scr, fatal");
+                                args->fatal = 1;
+                                ret = SCR_DIFFERENT_CERT_E;
+                            }
                         }
                     }
 
@@ -10246,6 +10248,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (args->fatal == 0) {
                         XMEMCPY(ssl->secure_renegotiation->subject_hash,
                                 args->dCert->subjectHash, KEYID_SIZE);
+                        ssl->secure_renegotiation->subject_hash_set = 1;
                     }
                 }
             #endif /* HAVE_SECURE_RENEGOTIATION */
