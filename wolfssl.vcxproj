@@ -288,6 +288,7 @@
     <ClCompile Include="wolfcrypt\src\arc4.c" />
     <ClCompile Include="wolfcrypt\src\asn.c" />
     <ClCompile Include="wolfcrypt\src\blake2b.c" />
+    <ClCompile Include="wolfcrypt\src\blake2s.c" />
     <ClCompile Include="wolfcrypt\src\camellia.c" />
     <ClCompile Include="wolfcrypt\src\chacha.c" />
     <ClCompile Include="wolfcrypt\src\chacha20_poly1305.c" />
@@ -327,9 +328,14 @@
     <ClCompile Include="wolfcrypt\src\sha3.c" />
     <ClCompile Include="wolfcrypt\src\sha512.c" />
     <ClCompile Include="wolfcrypt\src\signature.c" />
+    <ClCompile Include="wolfcrypt\src\sp_c32.c" />
+    <ClCompile Include="wolfcrypt\src\sp_c64.c" />
+    <ClCompile Include="wolfcrypt\src\sp_int.c" />
+    <ClCompile Include="wolfcrypt\src\sp_x86_64.c" />
     <ClCompile Include="wolfcrypt\src\srp.c" />
     <ClCompile Include="wolfcrypt\src\tfm.c" />
     <ClCompile Include="wolfcrypt\src\wc_encrypt.c" />
+    <ClCompile Include="wolfcrypt\src\wc_pkcs11.c" />
     <ClCompile Include="wolfcrypt\src\wc_port.c" />
     <ClCompile Include="wolfcrypt\src\wolfmath.c" />
     <ClCompile Include="wolfcrypt\src\wolfevent.c" />
