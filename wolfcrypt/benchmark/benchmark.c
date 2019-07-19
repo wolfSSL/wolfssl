@@ -5753,7 +5753,7 @@ int main(int argc, char** argv)
     while (argc > 1) {
         if (string_matches(argv[1], "-?")) {
             if(--argc>1){
-                lng_index = atoi((++argv)[1]);
+                lng_index = XATOI((++argv)[1]);
                 if(lng_index<0||lng_index>1) {
                     lng_index = 0;
                 }
@@ -5772,7 +5772,7 @@ int main(int argc, char** argv)
             argc--;
             argv++;
             if(argc>1) {
-                lng_index = atoi(argv[1]);
+                lng_index = XATOI(argv[1]);
                 if(lng_index<0||lng_index>1){
                     printf("invalid number(%d) is specified. [<num> :0-1]\n",lng_index);
                     lng_index = 0;
@@ -5802,7 +5802,7 @@ int main(int argc, char** argv)
             argc--;
             argv++;
             if (argc > 1) {
-                g_threadCount = atoi(argv[1]);
+                g_threadCount = XATOI(argv[1]);
                 if (g_threadCount < 1 || lng_index > 128){
                     printf("invalid number(%d) is specified. [<num> :1-128]\n",
                         g_threadCount);
@@ -5867,7 +5867,7 @@ int main(int argc, char** argv)
         }
         else {
             /* parse for block size */
-            benchmark_configure(atoi(argv[1]));
+            benchmark_configure(XATOI(argv[1]));
         }
         argc--;
         argv++;

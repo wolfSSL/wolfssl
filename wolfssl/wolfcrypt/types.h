@@ -401,6 +401,9 @@
         #define XSTRNCMP(s1,s2,n) strncmp((s1),(s2),(n))
         #define XSTRNCAT(s1,s2,n) strncat((s1),(s2),(n))
 
+        #include <stdlib.h>
+        #define XATOI(s)          atoi((s))
+
         #ifdef USE_WOLF_STRSEP
             #define XSTRSEP(s1,d) wc_strsep((s1),(d))
         #else

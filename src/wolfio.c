@@ -39,7 +39,7 @@
 #include <wolfssl/wolfio.h>
 
 #if defined(HAVE_HTTP_CLIENT)
-    #include <stdlib.h>   /* atoi(), strtol() */
+    #include <stdlib.h>   /* strtol() */
 #endif
 
 /*
@@ -1101,7 +1101,7 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                     else if (XSTRNCASECMP(start, "Content-Length:", 15) == 0) {
                         start += 15;
                         while (*start == ' ' && *start != '\0') start++;
-                        chunkSz = atoi(start);
+                        chunkSz = XATOI(start);
                         state = (state == phr_http_start) ? phr_have_length : phr_wait_end;
                     }
                     else if (XSTRNCASECMP(start, "Transfer-Encoding:", 18) == 0) {
