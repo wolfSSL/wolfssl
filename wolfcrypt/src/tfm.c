@@ -478,7 +478,7 @@ WC_INLINE static int fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-   tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
    if (tmp == NULL)
        return FP_MEM;
 #endif
@@ -504,7 +504,7 @@ WC_INLINE static int fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
   fp_copy(dst, C);
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
 
   return FP_OKAY;
@@ -526,7 +526,7 @@ int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
    IF_HAVE_INTEL_MULX(ret = fp_mul_comba_mulx(A, B, C), return ret) ;
 
 #ifdef WOLFSSL_SMALL_STACK
-   tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
    if (tmp == NULL)
        return FP_MEM;
 #endif
@@ -580,7 +580,7 @@ int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
   fp_copy(dst, C);
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
   return ret;
 }
@@ -612,7 +612,7 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  q = (fp_int*)XMALLOC(sizeof(fp_int) * 5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  q = (fp_int*)XMALLOC(sizeof(fp_int) * 5, NULL, DYNAMIC_TYPE_BIGINT);
   if (q == NULL) {
       return FP_MEM;
   }
@@ -736,7 +736,7 @@ int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(q, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(q, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
   return FP_OKAY;
 }
@@ -832,7 +832,7 @@ int fp_mod(fp_int *a, fp_int *b, fp_int *c)
    int    err;
 
 #ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
    if (t == NULL)
        return FP_MEM;
 #endif
@@ -848,7 +848,7 @@ int fp_mod(fp_int *a, fp_int *b, fp_int *c)
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
   return err;
 }
@@ -896,7 +896,7 @@ static int fp_invmod_slow (fp_int * a, fp_int * b, fp_int * c)
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  x = (fp_int*)XMALLOC(sizeof(fp_int) * 8, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  x = (fp_int*)XMALLOC(sizeof(fp_int) * 8, NULL, DYNAMIC_TYPE_BIGINT);
   if (x == NULL) {
       return FP_MEM;
   }
@@ -912,7 +912,7 @@ static int fp_invmod_slow (fp_int * a, fp_int * b, fp_int * c)
   /* x = a, y = b */
   if ((err = fp_mod(a, b, x)) != FP_OKAY) {
   #ifdef WOLFSSL_SMALL_STACK
-    XFREE(x, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
   #endif
     return err;
   }
@@ -921,7 +921,7 @@ static int fp_invmod_slow (fp_int * a, fp_int * b, fp_int * c)
   /* 2. [modified] if x,y are both even then return an error! */
   if (fp_iseven (x) == FP_YES && fp_iseven (y) == FP_YES) {
   #ifdef WOLFSSL_SMALL_STACK
-    XFREE(x, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
   #endif
     return FP_VAL;
   }
@@ -987,7 +987,7 @@ top:
   /* if v != 1 then there is no inverse */
   if (fp_cmp_d (v, 1) != FP_EQ) {
   #ifdef WOLFSSL_SMALL_STACK
-    XFREE(x, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
   #endif
     return FP_VAL;
   }
@@ -1005,7 +1005,7 @@ top:
   /* C is now the inverse */
   fp_copy(C, c);
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(x, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
   return FP_OKAY;
 }
@@ -1026,7 +1026,7 @@ int fp_invmod(fp_int *a, fp_int *b, fp_int *c)
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  x = (fp_int*)XMALLOC(sizeof(fp_int) * 6, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  x = (fp_int*)XMALLOC(sizeof(fp_int) * 6, NULL, DYNAMIC_TYPE_BIGINT);
   if (x == NULL) {
       return FP_MEM;
   }
@@ -1098,7 +1098,7 @@ top:
   /* if v != 1 then there is no inverse */
   if (fp_cmp_d (v, 1) != FP_EQ) {
   #ifdef WOLFSSL_SMALL_STACK
-    XFREE(x, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
   #endif
     return FP_VAL;
   }
@@ -1115,7 +1115,7 @@ top:
   fp_copy (D, c);
   c->sign = neg;
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(x, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
   return FP_OKAY;
 }
@@ -1131,7 +1131,7 @@ int fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
    if (t == NULL)
        return FP_MEM;
 #endif
@@ -1151,7 +1151,7 @@ int fp_mulmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
   return err;
 }
@@ -1167,7 +1167,7 @@ int fp_submod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
    if (t == NULL)
        return FP_MEM;
 #endif
@@ -1185,7 +1185,7 @@ int fp_submod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
   return err;
 }
@@ -1201,7 +1201,7 @@ int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
    if (t == NULL)
        return FP_MEM;
 #endif
@@ -1219,7 +1219,7 @@ int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
   return err;
 }
@@ -1476,9 +1476,9 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 
 #ifdef WOLFSSL_SMALL_STACK
 #ifndef WC_NO_CACHE_RESISTANT
-   R = (fp_int*)XMALLOC(sizeof(fp_int) * 3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   R = (fp_int*)XMALLOC(sizeof(fp_int) * 3, NULL, DYNAMIC_TYPE_BIGINT);
 #else
-   R = (fp_int*)XMALLOC(sizeof(fp_int) * 2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   R = (fp_int*)XMALLOC(sizeof(fp_int) * 2, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
    if (R == NULL)
        return FP_MEM;
@@ -1530,14 +1530,14 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
     err = fp_mul(&R[0], &R[1], &R[y^1]);
     if (err != FP_OKAY) {
     #ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
     #endif
       return err;
     }
     err = fp_montgomery_reduce(&R[y^1], P, mp);
     if (err != FP_OKAY) {
     #ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
     #endif
       return err;
     }
@@ -1546,14 +1546,14 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
     err = fp_sqr(&R[y], &R[y]);
     if (err != FP_OKAY) {
     #ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
     #endif
       return err;
     }
     err = fp_montgomery_reduce(&R[y], P, mp);
     if (err != FP_OKAY) {
     #ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
     #endif
       return err;
     }
@@ -1567,14 +1567,14 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
     err = fp_sqr(&R[2], &R[2]);
     if (err != FP_OKAY) {
     #ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
     #endif
       return err;
     }
     err = fp_montgomery_reduce(&R[2], P, mp);
     if (err != FP_OKAY) {
     #ifdef WOLFSSL_SMALL_STACK
-      XFREE(R, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
     #endif
       return err;
     }
@@ -1587,7 +1587,7 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
    err = fp_montgomery_reduce(&R[0], P, mp);
    fp_copy(&R[0], Y);
 #ifdef WOLFSSL_SMALL_STACK
-   XFREE(R, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   XFREE(R, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
    return err;
 }
@@ -1630,7 +1630,7 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 
 #ifdef WOLFSSL_SMALL_STACK
   /* only allocate space for what's needed for window plus res */
-  M = (fp_int*)XMALLOC(sizeof(fp_int)*((1 << winsize) + 1), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  M = (fp_int*)XMALLOC(sizeof(fp_int)*((1 << winsize) + 1), NULL, DYNAMIC_TYPE_BIGINT);
   if (M == NULL) {
      return FP_MEM;
   }
@@ -1671,7 +1671,7 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
     err = fp_montgomery_reduce (&M[1 << (winsize - 1)], P, mp);
     if (err != FP_OKAY) {
     #ifdef WOLFSSL_SMALL_STACK
-      XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
     #endif
       return err;
     }
@@ -1682,14 +1682,14 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
     err = fp_mul(&M[x - 1], &M[1], &M[x]);
     if (err != FP_OKAY) {
     #ifdef WOLFSSL_SMALL_STACK
-      XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
     #endif
       return err;
     }
     err = fp_montgomery_reduce(&M[x], P, mp);
     if (err != FP_OKAY) {
     #ifdef WOLFSSL_SMALL_STACK
-      XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
     #endif
       return err;
     }
@@ -1733,14 +1733,14 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
       err = fp_sqr(res, res);
       if (err != FP_OKAY) {
       #ifdef WOLFSSL_SMALL_STACK
-        XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
       #endif
         return err;
       }
       fp_montgomery_reduce(res, P, mp);
       if (err != FP_OKAY) {
       #ifdef WOLFSSL_SMALL_STACK
-        XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
       #endif
         return err;
       }
@@ -1758,14 +1758,14 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
         err = fp_sqr(res, res);
         if (err != FP_OKAY) {
         #ifdef WOLFSSL_SMALL_STACK
-          XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+          XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
         #endif
           return err;
         }
         err = fp_montgomery_reduce(res, P, mp);
         if (err != FP_OKAY) {
         #ifdef WOLFSSL_SMALL_STACK
-          XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+          XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
         #endif
           return err;
         }
@@ -1775,14 +1775,14 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
       err = fp_mul(res, &M[bitbuf], res);
       if (err != FP_OKAY) {
       #ifdef WOLFSSL_SMALL_STACK
-        XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
       #endif
         return err;
       }
       err = fp_montgomery_reduce(res, P, mp);
       if (err != FP_OKAY) {
       #ifdef WOLFSSL_SMALL_STACK
-        XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
       #endif
         return err;
       }
@@ -1801,14 +1801,14 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
       err = fp_sqr(res, res);
       if (err != FP_OKAY) {
       #ifdef WOLFSSL_SMALL_STACK
-        XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
       #endif
         return err;
       }
       err = fp_montgomery_reduce(res, P, mp);
       if (err != FP_OKAY) {
       #ifdef WOLFSSL_SMALL_STACK
-        XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
       #endif
         return err;
       }
@@ -1820,14 +1820,14 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
         err = fp_mul(res, &M[1], res);
         if (err != FP_OKAY) {
         #ifdef WOLFSSL_SMALL_STACK
-          XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+          XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
         #endif
           return err;
         }
         err = fp_montgomery_reduce(res, P, mp);
         if (err != FP_OKAY) {
         #ifdef WOLFSSL_SMALL_STACK
-          XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+          XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
         #endif
           return err;
         }
@@ -1847,7 +1847,7 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
   fp_copy (res, Y);
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
   return err;
 }
@@ -1884,7 +1884,7 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
    #endif
 
    #ifdef WOLFSSL_SMALL_STACK
-      tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
       if (tmp == NULL)
           return FP_MEM;
    #endif
@@ -1900,7 +1900,7 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
          }
       }
    #ifdef WOLFSSL_SMALL_STACK
-      XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
    #endif
       return err;
 #else
@@ -2069,7 +2069,7 @@ int fp_sqr_comba(fp_int *A, fp_int *B)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-   tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
    if (tmp == NULL)
        return FP_MEM;
 #endif
@@ -2144,7 +2144,7 @@ int fp_sqr_comba(fp_int *A, fp_int *B)
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
   return FP_OKAY;
 }
@@ -2313,7 +2313,7 @@ static int fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp)
 
 #ifdef WOLFSSL_SMALL_STACK
    /* only allocate space for what's needed for window plus res */
-   c = (fp_digit*)XMALLOC(sizeof(fp_digit)*(FP_SIZE + 1), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   c = (fp_digit*)XMALLOC(sizeof(fp_digit)*(FP_SIZE + 1), NULL, DYNAMIC_TYPE_BIGINT);
    if (c == NULL) {
       return FP_MEM;
    }
@@ -2376,7 +2376,7 @@ static int fp_montgomery_reduce_mulx(fp_int *a, fp_int *m, fp_digit mp)
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(c, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(c, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
   return FP_OKAY;
 }
@@ -2410,7 +2410,7 @@ int fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
 
 #ifdef WOLFSSL_SMALL_STACK
    /* only allocate space for what's needed for window plus res */
-   c = (fp_digit*)XMALLOC(sizeof(fp_digit)*(FP_SIZE + 1), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   c = (fp_digit*)XMALLOC(sizeof(fp_digit)*(FP_SIZE + 1), NULL, DYNAMIC_TYPE_BIGINT);
    if (c == NULL) {
       return FP_MEM;
    }
@@ -2475,7 +2475,7 @@ int fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(c, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(c, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
   return FP_OKAY;
 }
@@ -2581,7 +2581,7 @@ int fp_to_unsigned_bin(fp_int *a, unsigned char *b)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
    if (t == NULL)
        return FP_MEM;
 #endif
@@ -2592,7 +2592,7 @@ int fp_to_unsigned_bin(fp_int *a, unsigned char *b)
   fp_reverse (b, x);
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
   return FP_OKAY;
 }
@@ -2619,7 +2619,7 @@ int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
    if (t == NULL)
        return FP_MEM;
 #endif
@@ -2633,7 +2633,7 @@ int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c)
   fp_reverse (b, x);
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
   return FP_OKAY;
 #endif
@@ -2878,7 +2878,7 @@ int fp_sub_d(fp_int *a, fp_digit b, fp_int *c)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-   tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
    if (tmp == NULL)
        return FP_MEM;
 #endif
@@ -2896,7 +2896,7 @@ int fp_sub_d(fp_int *a, fp_digit b, fp_int *c)
    }
 
 #ifdef WOLFSSL_SMALL_STACK
-   XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
    return FP_OKAY;
 }
@@ -3279,7 +3279,7 @@ int fp_sqrmod(fp_int *a, fp_int *b, fp_int *c)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
    if (t == NULL)
        return FP_MEM;
 #endif
@@ -3300,7 +3300,7 @@ int fp_sqrmod(fp_int *a, fp_int *b, fp_int *c)
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
   return err;
 }
@@ -3337,7 +3337,7 @@ static int fp_exch (fp_int * a, fp_int * b)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
    if (t == NULL)
        return FP_MEM;
 #endif
@@ -3347,7 +3347,7 @@ static int fp_exch (fp_int * a, fp_int * b)
     *b = *t;
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
     return FP_OKAY;
 }
@@ -3443,7 +3443,7 @@ static int fp_div_d(fp_int *a, fp_digit b, fp_int *c, fp_digit *d)
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  q = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  q = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
   if (q == NULL)
       return FP_MEM;
 #endif
@@ -3479,7 +3479,7 @@ static int fp_div_d(fp_int *a, fp_digit b, fp_int *c, fp_digit *d)
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(q, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(q, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
   return FP_OKAY;
 }
@@ -3606,7 +3606,7 @@ static int fp_prime_miller_rabin(fp_int * a, fp_int * b, int *result)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-  n1 = (fp_int*)XMALLOC(sizeof(fp_int) * 3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  n1 = (fp_int*)XMALLOC(sizeof(fp_int) * 3, NULL, DYNAMIC_TYPE_BIGINT);
   if (n1 == NULL) {
       return FP_MEM;
   }
@@ -3624,7 +3624,7 @@ static int fp_prime_miller_rabin(fp_int * a, fp_int * b, int *result)
   fp_clear(r);
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(n1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(n1, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
 
   return err;
@@ -3702,7 +3702,7 @@ int fp_isprime_ex(fp_int *a, int t, int* result)
    }
 
 #ifdef WOLFSSL_SMALL_STACK
-  b = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  b = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
   if (b == NULL)
       return FP_MEM;
 #endif
@@ -3714,14 +3714,14 @@ int fp_isprime_ex(fp_int *a, int t, int* result)
        if (res == FP_NO) {
           *result = FP_NO;
        #ifdef WOLFSSL_SMALL_STACK
-          XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+          XFREE(b, NULL, DYNAMIC_TYPE_BIGINT);
        #endif
           return FP_OKAY;
        }
    }
    *result = FP_YES;
 #ifdef WOLFSSL_SMALL_STACK
-   XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   XFREE(b, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
    return FP_OKAY;
 }
@@ -3786,7 +3786,7 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
         if (base == NULL)
             return FP_MEM;
 
-        b = (fp_int*)XMALLOC(sizeof(fp_int) * 5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        b = (fp_int*)XMALLOC(sizeof(fp_int) * 5, NULL, DYNAMIC_TYPE_BIGINT);
         if (b == NULL) {
             return FP_MEM;
         }
@@ -3802,7 +3802,7 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
         err = fp_sub_d(a, 2, c);
         if (err != FP_OKAY) {
         #ifdef WOLFSSL_SMALL_STACK
-           XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+           XFREE(b, NULL, DYNAMIC_TYPE_BIGINT);
            XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
            return err;
@@ -3810,7 +3810,7 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
         while (t > 0) {
             if ((err = wc_RNG_GenerateBlock(rng, base, baseSz)) != 0) {
             #ifdef WOLFSSL_SMALL_STACK
-               XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+               XFREE(b, NULL, DYNAMIC_TYPE_BIGINT);
                XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             #endif
                return err;
@@ -3834,7 +3834,7 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
         fp_clear(b);
         fp_clear(c);
      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(b, NULL, DYNAMIC_TYPE_BIGINT);
         XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
      #endif
     }
@@ -3962,7 +3962,7 @@ int fp_lcm(fp_int *a, fp_int *b, fp_int *c)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-   t = (fp_int*)XMALLOC(sizeof(fp_int) * 2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   t = (fp_int*)XMALLOC(sizeof(fp_int) * 2, NULL, DYNAMIC_TYPE_BIGINT);
    if (t == NULL) {
        return FP_MEM;
    }
@@ -3984,7 +3984,7 @@ int fp_lcm(fp_int *a, fp_int *b, fp_int *c)
    }
 
 #ifdef WOLFSSL_SMALL_STACK
-   XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
    return err;
 }
@@ -4019,7 +4019,7 @@ int fp_gcd(fp_int *a, fp_int *b, fp_int *c)
    }
 
 #ifdef WOLFSSL_SMALL_STACK
-   u = (fp_int*)XMALLOC(sizeof(fp_int) * 3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   u = (fp_int*)XMALLOC(sizeof(fp_int) * 3, NULL, DYNAMIC_TYPE_BIGINT);
    if (u == NULL) {
        return FP_MEM;
    }
@@ -4044,7 +4044,7 @@ int fp_gcd(fp_int *a, fp_int *b, fp_int *c)
    fp_copy(u, c);
 
 #ifdef WOLFSSL_SMALL_STACK
-   XFREE(u, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   XFREE(u, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
    return FP_OKAY;
 }
@@ -4310,7 +4310,7 @@ int mp_radix_size (mp_int *a, int radix, int *size)
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
     if (t == NULL)
         return FP_MEM;
 #endif
@@ -4326,7 +4326,7 @@ int mp_radix_size (mp_int *a, int radix, int *size)
         if ((res = fp_div_d (t, (mp_digit) radix, t, &d)) != FP_OKAY) {
             fp_zero (t);
         #ifdef WOLFSSL_SMALL_STACK
-            XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
         #endif
             return res;
         }
@@ -4337,7 +4337,7 @@ int mp_radix_size (mp_int *a, int radix, int *size)
     /* return digs + 1, the 1 is for the NULL byte that would be required. */
     *size = digs + 1;
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
     return FP_OKAY;
 }
@@ -4367,7 +4367,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    t = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
     if (t == NULL)
         return FP_MEM;
 #endif
@@ -4387,7 +4387,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
         if ((res = fp_div_d (t, (fp_digit) radix, t, &d)) != FP_OKAY) {
             fp_zero (t);
         #ifdef WOLFSSL_SMALL_STACK
-            XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
         #endif
             return res;
         }
@@ -4405,7 +4405,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
 
     fp_zero (t);
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
     return FP_OKAY;
 }
