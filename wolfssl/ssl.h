@@ -300,6 +300,10 @@ struct WOLFSSL_EVP_PKEY {
         WOLFSSL_EC_KEY* ecc;
         byte      ownEcc; /* if struct owns ECC and should free it */
     #endif
+    #ifndef NO_DH
+        WOLFSSL_DH* dh;
+        byte      ownDh; /* if struct owns DH and should free it */
+    #endif
     WC_RNG rng;
     #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
     #ifdef HAVE_ECC
@@ -1086,6 +1090,7 @@ WOLFSSL_API void wolfSSL_X509_STORE_CTX_cleanup(WOLFSSL_X509_STORE_CTX*);
 
 WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_lastUpdate(WOLFSSL_X509_CRL*);
 WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_nextUpdate(WOLFSSL_X509_CRL*);
+WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_X509_gmtime_adj(WOLFSSL_ASN1_TIME *s, long adj);
 
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509*);
 WOLFSSL_API int       wolfSSL_X509_CRL_verify(WOLFSSL_X509_CRL*, WOLFSSL_EVP_PKEY*);
@@ -1132,6 +1137,7 @@ WOLFSSL_API WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGE
                                        WOLFSSL_BIGNUM *bn);
 WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME*, time_t,
                                                      int, long);
+WOLFSSL_API void wolfSSL_ASN1_TIME_free(WOLFSSL_ASN1_TIME* t);
 #endif
 
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_load_client_CA_file(const char*);
@@ -2781,6 +2787,7 @@ WOLFSSL_API int NIDToEccEnum(int n);
 WOLFSSL_API unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line);
 WOLFSSL_API long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt);
 WOLFSSL_API long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt,void* pt);
+WOLFSSL_API long wolfSSL_CTX_callback_ctrl(WOLFSSL_CTX* ctx, int cmd, void (*fp)());
 
 #ifndef NO_CERTS
 WOLFSSL_API WOLFSSL_X509_NAME_ENTRY* wolfSSL_X509_NAME_ENTRY_create_by_NID(

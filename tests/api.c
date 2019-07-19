@@ -23764,7 +23764,7 @@ static void test_wolfSSL_d2i_DHparams()
     AssertNotNull(dh->p);
     AssertNotNull(dh->g);
     AssertTrue(pt != buf);
-    AssertIntEQ(DH_generate_key(dh), 1);
+    AssertIntEQ(DH_generate_key(dh), WOLFSSL_SUCCESS);
 
     /* Invalid cases */
     AssertNull(wolfSSL_d2i_DHparams(NULL, NULL, len));
@@ -23994,7 +23994,7 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_DSA (void)
     XFCLOSE(fp);
 #endif /* END USE_CERT_BUFFERS_1024 */
 
-    printf(testingFmt, \
+    printf(testingFmt,
            "wolfSSL_EVP_PKEY_set1_DSA and wolfSSL_EVP_PKEY_get1_DSA");
 
     /* Create hash to later Sign and Verify */
@@ -24003,7 +24003,7 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_DSA (void)
     AssertIntEQ(SHA1_Final(hash,&sha), WOLFSSL_SUCCESS);
 
     /* Initialize pkey with der format dsa key */
-    AssertNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_DSA, &pkey, \
+    AssertNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_DSA, &pkey,
                 &dsaKeyDer ,(long)dsaKeySz));
 
     /* Test wolfSSL_EVP_PKEY_get1_DSA */
@@ -24015,7 +24015,7 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_DSA (void)
     /* Sign */
     AssertIntEQ(wolfSSL_DSA_do_sign(hash, signature, dsa), WOLFSSL_SUCCESS);
     /* Verify. */
-    AssertIntEQ(wolfSSL_DSA_do_verify(hash, signature, dsa, &answer), \
+    AssertIntEQ(wolfSSL_DSA_do_verify(hash, signature, dsa, &answer),
                 WOLFSSL_SUCCESS);
 
     /* Test wolfSSL_EVP_PKEY_set1_DSA */
@@ -24026,7 +24026,7 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_DSA (void)
     set1Pkey = wolfSSL_PKEY_new();
 
     /* Should Fail Verify: setDsa not initialized from set1Pkey */
-    AssertIntNE(wolfSSL_DSA_do_verify(hash,signature,setDsa,&answer), \
+    AssertIntNE(wolfSSL_DSA_do_verify(hash,signature,setDsa,&answer),
                 WOLFSSL_SUCCESS);
 
     /* Should Pass: set dsa into set1Pkey */
@@ -24047,7 +24047,7 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_EC_KEY (void)
     WOLFSSL_EC_KEY  *ecGet1  = NULL;
     EVP_PKEY  *pkey = NULL;
 
-    printf(testingFmt, \
+    printf(testingFmt,
            "wolfSSL_EVP_PKEY_set1_EC_KEY and wolfSSL_EVP_PKEY_get1_EC_KEY");
     AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
     AssertNotNull(pkey = wolfSSL_PKEY_new());
@@ -24141,11 +24141,11 @@ static void test_wolfSSL_CTX_ctrl(void)
 
 #if defined(HAVE_ECC)
 #if defined(USE_CERT_BUFFERS_256)
-        AssertNotNull(ecX509 = wolfSSL_X509_load_certificate_buffer( \
-                      cliecc_cert_der_256, sizeof_cliecc_cert_der_256, \
+        AssertNotNull(ecX509 = wolfSSL_X509_load_certificate_buffer(
+                      cliecc_cert_der_256, sizeof_cliecc_cert_der_256,
                       SSL_FILETYPE_ASN1));
 #else
-        AssertNotNull(ecX509 = wolfSSL_X509_load_certificate_file( \
+        AssertNotNull(ecX509 = wolfSSL_X509_load_certificate_file(
                       cliEccCertFile, SSL_FILETYPE_PEM));
 #endif
         AssertNotNull(pkey = X509_get_pubkey(ecX509));
@@ -24159,27 +24159,27 @@ static void test_wolfSSL_CTX_ctrl(void)
 #endif /* !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA) */
 
     /* Tests should fail with passed in NULL pointer */
-    AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_EXTRA_CHAIN_CERT,0,NULL), \
+    AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_EXTRA_CHAIN_CERT,0,NULL),
                 SSL_FAILURE);
 #if !defined(NO_DH) && !defined(NO_DSA)
-    AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_DH,0,NULL), \
+    AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_DH,0,NULL),
                 SSL_FAILURE);
 #endif
 #ifdef HAVE_ECC
-    AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_ECDH,0,NULL), \
+    AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_ECDH,0,NULL),
                 SSL_FAILURE);
 #endif
 
     /* Test with SSL_CTRL_EXTRA_CHAIN_CERT
      * wolfSSL_CTX_ctrl should succesffuly call SSL_CTX_add_extra_chain_cert
      */
-    AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_EXTRA_CHAIN_CERT,0,x509), \
+    AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_EXTRA_CHAIN_CERT,0,x509),
                 SSL_SUCCESS);
 
     /* Test with SSL_CTRL_OPTIONS
      * wolfSSL_CTX_ctrl should succesffuly call SSL_CTX_set_options
      */
-    AssertTrue(wolfSSL_CTX_ctrl(ctx,SSL_CTRL_OPTIONS,SSL_OP_NO_TLSv1,NULL) \
+    AssertTrue(wolfSSL_CTX_ctrl(ctx,SSL_CTRL_OPTIONS,SSL_OP_NO_TLSv1,NULL)
                == SSL_OP_NO_TLSv1);
     AssertTrue(SSL_CTX_get_options(ctx) == SSL_OP_NO_TLSv1);
 
@@ -24187,7 +24187,7 @@ static void test_wolfSSL_CTX_ctrl(void)
      * wolfSSL_CTX_ctrl should succesffuly call wolfSSL_SSL_CTX_set_tmp_dh
      */
 #if !defined(NO_DH) && !defined(NO_DSA)
-    AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_DH,0,dh), \
+    AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_DH,0,dh),
                 SSL_SUCCESS);
 #endif
 
@@ -24195,7 +24195,7 @@ static void test_wolfSSL_CTX_ctrl(void)
      * wolfSSL_CTX_ctrl should succesffuly call wolfSSL_SSL_CTX_set_tmp_ecdh
      */
 #ifdef HAVE_ECC
-    AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_ECDH,0,ecKey), \
+    AssertIntEQ((int)wolfSSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_ECDH,0,ecKey),
                 SSL_SUCCESS);
 #endif
 
@@ -24218,6 +24218,54 @@ static void test_wolfSSL_CTX_ctrl(void)
 #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
           !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
 }
+
+static void test_wolfSSL_EVP_PKEY_set1_get1_DH (void)
+{
+#if !defined(NO_DH)
+    DH       *dh    = NULL;
+    DH       *setDh = NULL;
+    EVP_PKEY *pkey  = NULL;
+
+    FILE* f = NULL;
+    unsigned char buf[4096];
+    const unsigned char* pt = buf;
+    const char* dh2048 = "./certs/dh2048.der";
+    long len = 0;
+    int code = -1;
+
+    printf(testingFmt,"wolfSSL_EVP_PKEY_set1_DH and wolfSSL_EVP_PKEY_get1_DH");
+
+    XMEMSET(buf, 0, sizeof(buf));
+
+    f = XFOPEN(dh2048, "rb");
+    AssertTrue(f != XBADFILE);
+    len = (long)XFREAD(buf, 1, sizeof(buf), f);
+    XFCLOSE(f);
+
+    /* Load dh2048.der into DH with internal format */
+    AssertNotNull(setDh = wolfSSL_d2i_DHparams(NULL, &pt, len));
+
+    AssertIntEQ(wolfSSL_DH_check(setDh, &code), WOLFSSL_SUCCESS);
+    AssertIntEQ(code, 0);
+    code = -1;
+
+    pkey = wolfSSL_PKEY_new();
+
+    /* Set DH into PKEY */
+    AssertIntEQ(wolfSSL_EVP_PKEY_set1_DH(pkey, setDh), WOLFSSL_SUCCESS);
+
+    /* Get DH from PKEY */
+    AssertNotNull(dh = wolfSSL_EVP_PKEY_get1_DH(pkey));
+
+    AssertIntEQ(wolfSSL_DH_check(dh, &code), WOLFSSL_SUCCESS);
+    AssertIntEQ(code, 0);
+
+    EVP_PKEY_free(pkey);
+    DH_free(setDh);
+    DH_free(dh);
+    printf(resultFmt, passed);
+#endif /* NO_DH */
+} /* END test_EVP_PKEY_set1_get1_DH */
 
 static void test_wolfSSL_DH_check(void)
 {
@@ -26663,6 +26711,7 @@ void ApiTest(void)
     test_wolfSSL_EC_KEY_dup();
     test_wolfSSL_EVP_PKEY_set1_get1_DSA();
     test_wolfSSL_EVP_PKEY_set1_get1_EC_KEY();
+    test_wolfSSL_EVP_PKEY_set1_get1_DH();
     test_wolfSSL_CTX_ctrl();
     test_wolfSSL_DH_check();
     test_wolfSSL_ASN1_STRING_print();

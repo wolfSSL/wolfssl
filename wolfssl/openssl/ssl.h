@@ -295,6 +295,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
     #define X509_EXTENSION_get_data     wolfSSL_X509_EXTENSION_get_data
     #define X509_EXTENSION_new          wolfSSL_X509_EXTENSION_new
     #define X509_EXTENSION_free         wolfSSL_X509_EXTENSION_free
+    #define X509_gmtime_adj             wolfSSL_X509_gmtime_adj
 #endif
 
 #define DSA_dup_DH                      wolfSSL_DSA_dup_DH
@@ -504,7 +505,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 
 typedef WOLFSSL_ASN1_BIT_STRING         ASN1_BIT_STRING;
-
+#define ASN1_TIME_free                  wolfSSL_ASN1_TIME_free
 #define ASN1_TIME_adj                   wolfSSL_ASN1_TIME_adj
 #define ASN1_TIME_print                 wolfSSL_ASN1_TIME_print
 #define ASN1_TIME_to_generalizedtime    wolfSSL_ASN1_TIME_to_generalizedtime
@@ -858,8 +859,9 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 
 #define SSL_CTRL_GET_SESSION_REUSED             0
 
-#define SSL_ctrl     wolfSSL_ctrl
-#define SSL_CTX_ctrl wolfSSL_CTX_ctrl
+#define SSL_ctrl                wolfSSL_ctrl
+#define SSL_CTX_ctrl            wolfSSL_CTX_ctrl
+#define SSL_CTX_callback_ctrl   wolfSSL_CTX_callback_ctrl
 
 #define SSL3_RANDOM_SIZE                32 /* same as RAN_LEN in internal.h */
 #if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(OPENSSL_EXTRA) \

@@ -25,12 +25,18 @@
 #ifndef WOLFSSL_DH_H_
 #define WOLFSSL_DH_H_
 
-#include <wolfssl/openssl/ssl.h>
 #include <wolfssl/openssl/bn.h>
 
 #ifdef __cplusplus
     extern "C" {
 #endif
+
+#ifndef WOLFSSL_DH_TYPE_DEFINED /* guard on redeclaration */
+typedef struct WOLFSSL_DH            WOLFSSL_DH;
+#define WOLFSSL_DH_TYPE_DEFINED
+#endif
+
+typedef WOLFSSL_DH                   DH;
 
 struct WOLFSSL_DH {
     WOLFSSL_BIGNUM* p;
@@ -48,7 +54,7 @@ struct WOLFSSL_DH {
 };
 
 
-WOLFSSL_API WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh, \
+WOLFSSL_API WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh,
                                          const unsigned char **pp, long length);
 WOLFSSL_API int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out);
 WOLFSSL_API WOLFSSL_DH* wolfSSL_DH_new(void);
@@ -57,9 +63,10 @@ WOLFSSL_API void wolfSSL_DH_free(WOLFSSL_DH*);
 WOLFSSL_API int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes);
 WOLFSSL_API int wolfSSL_DH_size(WOLFSSL_DH*);
 WOLFSSL_API int wolfSSL_DH_generate_key(WOLFSSL_DH*);
-WOLFSSL_API int wolfSSL_DH_compute_key(unsigned char* key, \
+WOLFSSL_API int wolfSSL_DH_compute_key(unsigned char* key,
                                        WOLFSSL_BIGNUM* pub, WOLFSSL_DH*);
 WOLFSSL_API int setDhExternal(WOLFSSL_DH *dh);
+WOLFSSL_API int wolfSSL_DH_LoadDer(WOLFSSL_DH*, const unsigned char*, int sz);
 
 typedef WOLFSSL_DH DH;
 
