@@ -152,7 +152,43 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath=".\src\crl.c"
+				>
+			</File>
+			<File
+				RelativePath=".\src\internal.c"
+				>
+			</File>
+			<File
+				RelativePath=".\src\keys.c"
+				>
+			</File>
+			<File
+				RelativePath=".\src\ocsp.c"
+				>
+			</File>
+			<File
+				RelativePath=".\src\ssl.c"
+				>
+			</File>
+			<File
+				RelativePath=".\src\tls.c"
+				>
+			</File>
+			<File
+				RelativePath=".\src\tls13.c"
+				>
+			</File>
+			<File
+				RelativePath=".\src\wolfio.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\aes.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\aes_asm.asm"
 				>
 			</File>
 			<File
@@ -165,6 +201,10 @@
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\blake2b.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\blake2s.c"
 				>
 			</File>
 			<File
@@ -181,10 +221,6 @@
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\chacha20_poly1305.c"
-				>
-			</File>
-			<File
-				RelativePath=".\src\crl.c"
 				>
 			</File>
 			<File
@@ -208,6 +244,22 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\fe_low_mem.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\fe_operations.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\ge_low_mem.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\ge_operations.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\hash.c"
 				>
 			</File>
@@ -224,19 +276,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\src\internal.c"
-				>
-			</File>
-			<File
-				RelativePath=".\src\wolfio.c"
-				>
-			</File>
-			<File
-				RelativePath=".\src\keys.c"
-				>
-			</File>
-			<File
 				RelativePath=".\wolfcrypt\src\logging.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\md2.c"
 				>
 			</File>
 			<File
@@ -252,10 +296,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\src\ocsp.c"
-				>
-			</File>
-			<File
 				RelativePath=".\wolfcrypt\src\pkcs7.c"
 				>
 			</File>
@@ -265,14 +305,6 @@
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\poly1305.c"
-				>
-			</File>
-			<File
-				RelativePath=".\wolfcrypt\src\wc_port.c"
-				>
-			</File>
-			<File
-				RelativePath=".\wolfcrypt\src\wolfmath.c"
 				>
 			</File>
 			<File
@@ -308,23 +340,43 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\sp_c32.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\sp_c64.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\sp_int.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\sp_x86_64.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\signature.c"
 				>
 			</File>
 			<File
-				RelativePath=".\src\ssl.c"
-				>
-			</File>
-			<File
-				RelativePath=".\src\tls.c"
-				>
-			</File>
-			<File
-				RelativePath=".\src\tls13.c"
+				RelativePath=".\wolfcrypt\src\tfm.c"
 				>
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\wc_encrypt.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\wc_pkcs11.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\wc_port.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\wolfmath.c"
 				>
 			</File>
 			<File

@@ -3912,12 +3912,13 @@ static void bench_hmac(int doAsync, int type, int digestSz,
     Hmac   hmac[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-#if defined(BENCH_EMBEDDED)
+#ifdef WOLFSSL_ASYNC_CRYPT
     DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_MAX_DIGEST_SIZE, HEAP_HINT);
-    (void)digestSz;
 #else
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, digestSz, HEAP_HINT);
+	byte digest[BENCH_MAX_PENDING][WC_MAX_DIGEST_SIZE];
 #endif
+
+	(void)digestSz;
 
     /* clear for done cleanup */
     XMEMSET(hmac, 0, sizeof(hmac));
@@ -3978,13 +3979,13 @@ exit_hmac:
 
 exit:
 
-#ifdef WOLFSSL_ASYNC_CRYPT
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
         wc_HmacFree(&hmac[i]);
     }
-#endif
 
+#ifdef WOLFSSL_ASYNC_CRYPT
     FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+#endif
 }
 
 #ifndef NO_MD5

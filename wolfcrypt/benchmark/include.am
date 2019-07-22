@@ -10,4 +10,5 @@ noinst_HEADERS += wolfcrypt/benchmark/benchmark.h
 endif
 EXTRA_DIST += wolfcrypt/benchmark/benchmark.sln 
 EXTRA_DIST += wolfcrypt/benchmark/benchmark.vcproj
+EXTRA_DIST += wolfcrypt/benchmark/README.md
 DISTCLEANFILES+= wolfcrypt/benchmark/.libs/benchmark
