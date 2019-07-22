@@ -249,7 +249,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "MOV        w26, v1.S[0]         \n\t"
         "MOV        w27, v2.S[0]         \n\t"
         "MOV        w28, v3.S[0]         \n\t"
-        "MOV        w29, v4.S[0]         \n\t"
+        "MOV        w30, v4.S[0]         \n\t"
         /* Copy 5*r^4 to ARM */
         "MOV        w15, v5.S[0]         \n\t"
         "MOV        w16, v6.S[0]         \n\t"
@@ -309,7 +309,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "UMULL      v24.2D, v15.2S, v3.2S \n\t"
         "MUL        x12, x20, x28        \n\t"
         "UMULL      v25.2D, v15.2S, v4.2S \n\t"
-        "MUL        x13, x20, x29        \n\t"
+        "MUL        x13, x20, x30        \n\t"
         "UMLAL      v21.2D, v16.2S, v9.2S \n\t"
         "MADD       x9, x21, x19, x9     \n\t"
         "UMLAL      v22.2D, v16.2S, v0.2S \n\t"
@@ -489,7 +489,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "ADD        v21.2D, v21.2D, v10.2D \n\t"
         "MOV        w28, v3.S[2]         \n\t"
         "ADD        v22.2D, v22.2D, v11.2D \n\t"
-        "MOV        w29, v4.S[2]         \n\t"
+        "MOV        w30, v4.S[2]         \n\t"
         "ADD        v23.2D, v23.2D, v12.2D \n\t"
         /* Copy 5*r^2 to ARM */
         "MOV        w15, v5.S[2]         \n\t"
@@ -550,7 +550,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "MOV        w26, v1.S[0]         \n\t"
         "MOV        w27, v2.S[0]         \n\t"
         "MOV        w28, v3.S[0]         \n\t"
-        "MOV        w29, v4.S[0]         \n\t"
+        "MOV        w30, v4.S[0]         \n\t"
         /* Copy 5*r^2 to ARM */
         "MOV        w15, v5.S[0]         \n\t"
         "MOV        w16, v6.S[0]         \n\t"
@@ -606,7 +606,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "UMULL      v24.2D, v15.2S, v3.2S \n\t"
         "MUL        x12, x20, x28        \n\t"
         "UMULL      v25.2D, v15.2S, v4.2S \n\t"
-        "MUL        x13, x20, x29        \n\t"
+        "MUL        x13, x20, x30        \n\t"
         "UMLAL      v21.2D, v16.2S, v9.2S \n\t"
         "MADD       x9, x21, x19, x9     \n\t"
         "UMLAL      v22.2D, v16.2S, v0.2S \n\t"
@@ -734,7 +734,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "MUL        v5.2S, v0.2S, v28.2S[0] \n\t"
         "MUL        x12, x20, x28        \n\t"
         "MUL        v6.2S, v1.2S, v28.2S[0] \n\t"
-        "MUL        x13, x20, x29        \n\t"
+        "MUL        x13, x20, x30        \n\t"
         "MUL        v7.2S, v2.2S, v28.2S[0] \n\t"
         "MADD       x9, x21, x19, x9     \n\t"
         "MUL        v8.2S, v3.2S, v28.2S[0] \n\t"
@@ -868,9 +868,9 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
           "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19",
           "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "w9", "w10",
           "w11", "w12", "w13", "w14", "w15", "w16", "w17", "w18", "w19", "w20",
-          "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "w29", "x9",
+          "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "w30", "x9",
           "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x18", "x19",
-          "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "x29",
+          "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "x30",
           "v29", "v30"
     );
     poly1305_blocks_16(ctx, m, bytes);
