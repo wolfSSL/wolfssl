@@ -946,6 +946,8 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
 
         pkcs7->singleCert = derCert;
         pkcs7->singleCertSz = derCertSz;
+        pkcs7->cert[0] = derCert;
+        pkcs7->certSz[0] = derCertSz;
 
         /* create new Pkcs7Cert for recipient, freed during cleanup */
         cert = (Pkcs7Cert*)XMALLOC(sizeof(Pkcs7Cert), pkcs7->heap,

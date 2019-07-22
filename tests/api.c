@@ -17450,7 +17450,7 @@ static void test_PKCS7_signed_enveloped(void)
 
     /* check verify fails */
     AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
-    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, sigSz),
             PKCS7_SIGNEEDS_CHECK);
 
@@ -17473,6 +17473,12 @@ static void test_PKCS7_signed_enveloped(void)
         /* verify was success */
     }
 
+    wc_PKCS7_Free(pkcs7);
+
+    /* initializing the PKCS7 struct with the signing certificate should pass */
+    AssertNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, sigSz), 0);
     wc_PKCS7_Free(pkcs7);
 
     /* create valid degenerate bundle */
