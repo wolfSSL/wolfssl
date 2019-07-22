@@ -23,6 +23,8 @@
  *   cd ../scripts
  *   ruby ./sha2/sha512.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-sha512-asm.S
  */
+
+#ifdef WOLFSSL_ARMASM
 #ifndef __aarch64__
 #ifdef WOLFSSL_ARMASM_NO_NEON
 	.text
@@ -5330,3 +5332,4 @@ L_sha512_len_neon_start:
 	.size	Transform_Sha512_Len,.-Transform_Sha512_Len
 #endif /* !WOLFSSL_ARMASM_NO_NEON */
 #endif /* !__aarch64__ */
+#endif /* WOLFSSL_ARMASM */

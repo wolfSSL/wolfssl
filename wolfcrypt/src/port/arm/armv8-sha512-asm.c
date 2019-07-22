@@ -24,7 +24,16 @@
  *   ruby ./sha2/sha512.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-sha512-asm.c
  */
 #ifdef __aarch64__
+
 #include <stdint.h>
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
+#include <wolfssl/wolfcrypt/settings.h>
+
+#ifdef WOLFSSL_ARMASM
+
 #include <wolfssl/wolfcrypt/sha512.h>
 
 static const uint64_t L_SHA512_transform_neon_len_k[] = {
@@ -1029,4 +1038,5 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
     );
 }
 
+#endif /* WOLFSSL_ARMASM */
 #endif /* __aarch64__ */

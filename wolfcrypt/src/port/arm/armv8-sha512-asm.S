@@ -23,6 +23,8 @@
  *   cd ../scripts
  *   ruby ./sha2/sha512.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-sha512-asm.S
  */
+
+#ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
 	.text
 	.section	.rodata
@@ -1044,3 +1046,4 @@ L_sha512_len_neon_start:
 	ret
 	.size	Transform_Sha512_Len,.-Transform_Sha512_Len
 #endif /* __aarch64__ */
+#endif /* WOLFSSL_ARMASM */
