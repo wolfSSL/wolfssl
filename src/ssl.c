@@ -7190,12 +7190,10 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
 long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
 {
     WOLFSSL_ENTER("wolfSSL_ctrl");
-    (void) opt;
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
     switch (cmd) {
-        #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_QT)
         case SSL_CTRL_SET_TLSEXT_HOSTNAME:
             WOLFSSL_MSG("Entering Case: SSL_CTRL_SET_TLSEXT_HOSTNAME.");
         #ifdef HAVE_SNI
@@ -7208,11 +7206,11 @@ long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
             WOLFSSL_MSG("SNI not enabled.");
             break;
         #endif /* HAVE_SNI */
-        #endif /* WOLFSSL_NGINX || WOLFSSL_QT */
         default:
             WOLFSSL_MSG("Case not implemented.");
     }
-
+    (void)opt;
+    (void)pt;
     return WOLFSSL_FAILURE;
 }
 
@@ -7281,7 +7279,7 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
 }
 
 #ifndef WOLFSSL_NO_STUB
-long wolfSSL_CTX_callback_ctrl(WOLFSSL_CTX* ctx, int cmd, void (*fp)())
+long wolfSSL_CTX_callback_ctrl(WOLFSSL_CTX* ctx, int cmd, void* fp)
 {
     (void) ctx;
     (void) cmd;
@@ -19230,7 +19228,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
             int  issSz = 256;
         #endif
 
-            issuer = wolfSSL_X509_get_name_oneline(
+            issuer = wolfSSL_X509_NAME_oneline(
                                wolfSSL_X509_get_issuer_name(x509), buff, issSz);
 
             if (wolfSSL_BIO_write(bio, "        Issuer: ",
@@ -19309,7 +19307,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
             int  subSz = 256;
         #endif
 
-            subject = wolfSSL_X509_get_name_oneline(
+            subject = wolfSSL_X509_NAME_oneline(
                               wolfSSL_X509_get_subject_name(x509), buff, subSz);
 
             if (wolfSSL_BIO_write(bio, "\n        Subject: ",
@@ -29392,7 +29390,6 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
     }
 
     dhkey = (DhKey*)key->internal;
-    ret = wc_DhParamsToDer(dhkey, NULL, &derSz);
     if (wc_DhParamsToDer(dhkey, NULL, &derSz) != LENGTH_ONLY_E) {
         WOLFSSL_MSG("Failed to get size of DH params");
         XFREE(derBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);

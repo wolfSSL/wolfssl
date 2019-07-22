@@ -1913,7 +1913,7 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_QT)
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
     #define SSL_CTRL_SET_TLSEXT_HOSTNAME 55
 #endif
 
