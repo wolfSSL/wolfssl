@@ -2241,11 +2241,13 @@ int uIPGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *_ctx)
  * return : bytes sent, or error
  */
 
-int GNRC_Send(WOLFSSL* ssl, char* buf, int sz, void* _ctx)
+int GNRC_SendTo(WOLFSSL* ssl, char* buf, int sz, void* _ctx)
 {
     sock_tls_t *ctx = (sock_tls_t *)_ctx;
     int ret = 0;
     (void)ssl;
+    if (!ctx)
+        return WOLFSSL_CBIO_ERR_GENERAL;
     ret = sock_udp_send(&ctx->conn.udp, (unsigned char *)buf, sz, &ctx->peer_addr);
     if (ret == 0)
         return WOLFSSL_CBIO_ERR_WANT_WRITE;
@@ -2255,7 +2257,7 @@ int GNRC_Send(WOLFSSL* ssl, char* buf, int sz, void* _ctx)
 /* The GNRC TCP/IP receive callback
  *  return : nb bytes read, or error
  */
-int GNRC_Receive(WOLFSSL *ssl, char *buf, int sz, void *_ctx)
+int GNRC_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *_ctx)
 {
     sock_udp_ep_t ep;
     int ret;

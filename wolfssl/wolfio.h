@@ -516,9 +516,9 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 
     typedef struct gnrc_wolfssl_ctx sock_tls_t;
 
-    WOLFSSL_LOCAL int GNRC_Receive(WOLFSSL* ssl, char* buf, int sz,
+    WOLFSSL_LOCAL int GNRC_ReceiveFrom(WOLFSSL* ssl, char* buf, int sz,
                                      void* ctx);
-    WOLFSSL_LOCAL int GNRC_Send(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+    WOLFSSL_LOCAL int GNRC_SendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
 #endif
 
