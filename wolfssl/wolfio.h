@@ -518,7 +518,7 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 
     WOLFSSL_LOCAL int GNRC_Receive(WOLFSSL* ssl, char* buf, int sz,
                                      void* ctx);
-    WOLFSSL_LOCAL int GNRC_SendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+    WOLFSSL_LOCAL int GNRC_Send(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
 #endif
 

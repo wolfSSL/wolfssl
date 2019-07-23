@@ -2164,6 +2164,8 @@ int uIPSend(WOLFSSL* ssl, char* buf, int sz, void* _ctx)
             break;
         total_written += ret;
     } while(total_written < sz);
+    if (total_written == 0)
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
     return total_written;
 }
 
@@ -2173,8 +2175,8 @@ int uIPSendTo(WOLFSSL* ssl, char* buf, int sz, void* _ctx)
     int ret = 0;
     (void)ssl;
     ret = udp_socket_sendto(&ctx->conn.udp, (unsigned char *)buf, sz, &ctx->peer_addr, ctx->peer_port );
-    if (ret <= 0)
-        return 0;
+    if (ret == 0)
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
     return ret;
 }
 
@@ -2239,14 +2241,14 @@ int uIPGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *_ctx)
  * return : bytes sent, or error
  */
 
-int GNRC_SendTo(WOLFSSL* ssl, char* buf, int sz, void* _ctx)
+int GNRC_Send(WOLFSSL* ssl, char* buf, int sz, void* _ctx)
 {
     sock_tls_t *ctx = (sock_tls_t *)_ctx;
     int ret = 0;
     (void)ssl;
     ret = sock_udp_send(&ctx->conn.udp, (unsigned char *)buf, sz, &ctx->peer_addr);
-    if (ret <= 0)
-        return 0;
+    if (ret == 0)
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
     return ret;
 }
 
@@ -2260,7 +2262,7 @@ int GNRC_Receive(WOLFSSL *ssl, char *buf, int sz, void *_ctx)
     uint32_t timeout = wolfSSL_dtls_get_current_timeout(ssl) * 1000000;
     sock_tls_t *ctx = (sock_tls_t *)_ctx;
     if (!ctx)
-        return -1;
+        return WOLFSSL_CBIO_ERR_GENERAL;
     (void)ssl;
     if (wolfSSL_get_using_nonblock(ctx->ssl)) {
         timeout = 0;
@@ -2279,16 +2281,22 @@ int GNRC_Receive(WOLFSSL *ssl, char *buf, int sz, void *_ctx)
 /* GNRC DTLS Generate Cookie callback
  *  return : number of bytes copied into buf, or error
  */
+#define GNRC_MAX_TOKEN_SIZE (32)
 int GNRC_GenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *_ctx)
 {
     sock_tls_t *ctx = (sock_tls_t *)_ctx;
-    byte token[32];
+    if (!ctx)
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    byte token[GNRC_MAX_TOKEN_SIZE];
     byte digest[WC_SHA_DIGEST_SIZE];
     int  ret = 0;
+    size_t token_size = sizeof(sock_udp_ep_t);
     (void)ssl;
-    XMEMSET(token, 0, sizeof(token));
-    XMEMCPY(token, &ctx->peer_addr, sizeof(sock_udp_ep_t));
-    ret = wc_ShaHash(token, sizeof(sock_udp_ep_t), digest);
+    if (token_size > GNRC_MAX_TOKEN_SIZE)
+        token_size = GNRC_MAX_TOKEN_SIZE;
+    XMEMSET(token, 0, GNRC_MAX_TOKEN_SIZE);
+    XMEMCPY(token, &ctx->peer_addr, token_size);
+    ret = wc_ShaHash(token, token_size, digest);
     if (ret != 0)
         return ret;
     if (sz > WC_SHA_DIGEST_SIZE)

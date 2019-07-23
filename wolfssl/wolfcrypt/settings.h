@@ -529,6 +529,9 @@
     #define TFM_NO_ASM
     #define NO_FILESYSTEM
     #define USE_CERT_BUFFERS_2048
+    #if defined(WOLFSSL_GNRC) && !defined(WOLFSSL_DTLS)
+        #define WOLFSSL_DTLS
+    #endif
 #endif
 
 #ifdef WOLFSSL_CHIBIOS

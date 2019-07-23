@@ -1706,6 +1706,9 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 #elif defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
     ctx->CBIORecv = Mynewt_Receive;
     ctx->CBIOSend = Mynewt_Send;
+#elif defined(WOLFSSL_GNRC)
+    ctx->CBIORecv = GNRC_Receive;
+    ctx->CBIOSend = GNRC_Send;
 #endif
 
 #ifdef HAVE_NTRU
@@ -5021,8 +5024,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     }
     ssl->IOCB_ReadCtx  = ssl->mnCtx;  /* default Mynewt IO ctx, same for read */
     ssl->IOCB_WriteCtx = ssl->mnCtx;  /* and write */
+#elif defined (WOLFSSL_GNRC)
+    ssl->IOCB_ReadCtx = ssl->gnrcCtx;
+    ssl->IOCB_WriteCtx = ssl->gnrcCtx;
 #endif
-
     /* initialize states */
     ssl->options.serverState = NULL_STATE;
     ssl->options.clientState = NULL_STATE;
