@@ -269,13 +269,12 @@ struct WOLFSSL_ASN1_OBJECT {
 #endif
 
     struct d { /* derefrenced */
+        WOLFSSL_ASN1_STRING* dNSName;
+        WOLFSSL_ASN1_STRING* uniformResourceIdentifier;
         WOLFSSL_ASN1_STRING  ia5_internal;
         WOLFSSL_ASN1_STRING* ia5; /* points to ia5_internal */
-        WOLFSSL_ASN1_STRING* dNSName;
-        WOLFSSL_ASN1_STRING* iPAddress;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-        WOLFSSL_ASN1_STRING* uniformResourceIdentifier;
-#endif
+        WOLFSSL_ASN1_STRING  iPAddress_internal;
+        WOLFSSL_ASN1_STRING* iPAddress; /* points to iPAddress_internal */
     } d;
 };
 
@@ -2787,7 +2786,7 @@ WOLFSSL_API int NIDToEccEnum(int n);
 WOLFSSL_API unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line);
 WOLFSSL_API long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt);
 WOLFSSL_API long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt,void* pt);
-WOLFSSL_API long wolfSSL_CTX_callback_ctrl(WOLFSSL_CTX* ctx, int cmd, void* fp);
+WOLFSSL_API long wolfSSL_CTX_callback_ctrl(WOLFSSL_CTX* ctx, int cmd, void (*fp)(void));
 
 #ifndef NO_CERTS
 WOLFSSL_API WOLFSSL_X509_NAME_ENTRY* wolfSSL_X509_NAME_ENTRY_create_by_NID(

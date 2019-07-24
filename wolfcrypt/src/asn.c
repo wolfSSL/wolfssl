@@ -211,6 +211,7 @@ static int GetASNHeader_ex(const byte* input, byte tag, word32* inOutIdx, int* l
 
     if ((idx + 1) > maxIdx)
         return BUFFER_E;
+
     b = input[idx++];
     if (b != tag)
         return ASN_PARSE_E;
@@ -7203,6 +7204,49 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             length -= strLen;
             idx    += strLen;
         }
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+        else if (b == (ASN_CONTEXT_SPECIFIC | ASN_IP_TYPE)) {
+            DNS_entry* ipAddr;
+            int strLen;
+            word32 lenStartIdx = idx;
+            WOLFSSL_MSG("Decoding Subject Alt. Name: IP Address");
+
+            if (GetLength(input, &idx, &strLen, sz) < 0) {
+                WOLFSSL_MSG("\tfail: str length");
+                return ASN_PARSE_E;
+            }
+            length -= (idx - lenStartIdx);
+            /* check that strLen at index is not past input buffer */
+            if (strLen + (int)idx > sz) {
+                return BUFFER_E;
+            }
+
+            ipAddr = (DNS_entry*)XMALLOC(sizeof(DNS_entry), cert->heap,
+                                        DYNAMIC_TYPE_ALTNAME);
+            if (ipAddr == NULL) {
+                WOLFSSL_MSG("\tOut of Memory");
+                return MEMORY_E;
+            }
+
+            ipAddr->type = ASN_IP_TYPE;
+            ipAddr->name = (char*)XMALLOC(strLen, cert->heap,
+                                         DYNAMIC_TYPE_ALTNAME);
+            if (ipAddr->name == NULL) {
+                WOLFSSL_MSG("\tOut of Memory");
+                XFREE(ipAddr, cert->heap, DYNAMIC_TYPE_ALTNAME);
+                return MEMORY_E;
+            }
+            ipAddr->len = strLen;
+            XMEMCPY(ipAddr->name, &input[idx], strLen);
+            ipAddr->name[strLen] = '\0';
+
+            ipAddr->next   = cert->altNames;
+            cert->altNames = ipAddr;
+
+            length -= strLen;
+            idx    += strLen;
+        }
+#endif
 #endif /* IGNORE_NAME_CONSTRAINTS */
 #ifdef WOLFSSL_SEP
         else if (b == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE))

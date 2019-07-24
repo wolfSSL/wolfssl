@@ -76,7 +76,10 @@ enum {
     AFTER   = 1
 };
 
-/* ASN Tags   */
+/* ASN Tags
+* GeneralName OID reference:
+* Page 38: https://tools.ietf.org/html/rfc5280#section-4.2.1.6
+*/
 enum ASN_Tags {
     ASN_BOOLEAN           = 0x01,
     ASN_INTEGER           = 0x02,
@@ -95,6 +98,7 @@ enum ASN_Tags {
     ASN_DNS_TYPE          = 0x02,
     ASN_DIR_TYPE          = 0x04,
     ASN_URI_TYPE          = 0x06, /* the value 6 is from GeneralName OID */
+    ASN_IP_TYPE           = 0x07, /* the value 7 is from GeneralName OID */
     ASN_GENERALIZED_TIME  = 0x18,
     CRL_EXTENSIONS        = 0xa0,
     ASN_EXTENSIONS        = 0xa3,

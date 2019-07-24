@@ -7279,7 +7279,7 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
 }
 
 #ifndef WOLFSSL_NO_STUB
-long wolfSSL_CTX_callback_ctrl(WOLFSSL_CTX* ctx, int cmd, void* fp)
+long wolfSSL_CTX_callback_ctrl(WOLFSSL_CTX* ctx, int cmd, void (*fp)(void))
 {
     (void) ctx;
     (void) cmd;
@@ -8349,9 +8349,41 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                         obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
                         obj->dynamic &= ~WOLFSSL_ASN1_DYNAMIC_DATA ;
 
-                        /* set app derefrenced pointers */
-                        obj->d.ia5_internal.data   = dns->name;
-                        obj->d.ia5_internal.length = dns->len;
+                        /* set app dereferenced pointers */
+                        switch(dns->type){
+                        case ASN_OTHER_TYPE:
+                            WOLFSSL_MSG("Currently Unsupported: ASN_OTHER_TYPE");
+                            break;
+                        case ASN_RFC822_TYPE:
+                            /* ASN_RFC822_TYPE is an IA5String */
+                            obj->d.ia5_internal.data   = dns->name;
+                            obj->d.ia5_internal.length = dns->len;
+                            break;
+                        case ASN_URI_TYPE:
+                            /* ASN_URI_TYPE is an IA5String */
+                            obj->d.ia5_internal.data   = dns->name;
+                            obj->d.ia5_internal.length = dns->len;
+                            obj->d.uniformResourceIdentifier = obj->d.ia5;
+                            break;
+                        case ASN_DNS_TYPE:
+                            /* ASN_DNS_TYPE is an IA5String */
+                            obj->d.ia5_internal.data   = dns->name;
+                            obj->d.ia5_internal.length = dns->len;
+                            obj->d.dNSName = obj->d.ia5;
+                            break;
+                        case ASN_DIR_TYPE:
+                            WOLFSSL_MSG("Currently Unsupported: ASN_DIR_TYPE");
+                            break;
+                       case ASN_IP_TYPE:
+                            /* ASN_IP_TYPE is an Octet String
+                             * length 4:  ipv4
+                             * length 16: ipv6
+                             */
+                            obj->d.iPAddress_internal.data   = dns->name;
+                            obj->d.iPAddress_internal.length = dns->len;
+                            obj->d.ia5_internal.length       = dns->len;
+                            break;
+                        }
 
                         dns = dns->next;
                         /* last dns in list add at end of function */
@@ -17434,31 +17466,8 @@ int wolfSSL_sk_GENERAL_NAME_num(WOLFSSL_STACK* sk)
 void wolfSSL_sk_GENERAL_NAME_pop_free(WOLFSSL_STACK* sk,
                                       void f (WOLFSSL_GENERAL_NAME*))
 {
-    WOLFSSL_STACK* node;
-
     WOLFSSL_ENTER("wolfSSL_sk_GENERAL_NAME_pop_free");
-
-    (void)f;
-    if (sk == NULL) {
-        return;
-    }
-
-    /* parse through stack freeing each node */
-    node = sk->next;
-    while (sk->num > 1) {
-        WOLFSSL_STACK* tmp = node;
-        node = node->next;
-
-        wolfSSL_ASN1_OBJECT_free(tmp->data.obj);
-        XFREE(tmp, NULL, DYNAMIC_TYPE_ASN1);
-        sk->num -= 1;
-    }
-
-    /* free head of stack */
-    if (sk->num == 1) {
-        wolfSSL_ASN1_OBJECT_free(sk->data.obj);
-    }
-    XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
+    wolfSSL_sk_ASN1_OBJECT_pop_free(sk,(void (*)(WOLFSSL_ASN1_OBJECT*))f);
 }
 
 /* Creates a new WOLFSSL_GENERAL_NAME structure.
@@ -17797,7 +17806,8 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void)
     }
 
     XMEMSET(obj, 0, sizeof(WOLFSSL_ASN1_OBJECT));
-    obj->d.ia5 = &(obj->d.ia5_internal);
+    obj->d.ia5       = &(obj->d.ia5_internal);
+    obj->d.iPAddress = &(obj->d.iPAddress_internal);
     obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
 
     return obj;
@@ -24271,8 +24281,14 @@ void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
             return (void*)sk->data.cipher;
         case STACK_TYPE_GEN_NAME:
             gn = (WOLFSSL_GENERAL_NAME*)sk->data.obj;
-            gn->d.ia5 = sk->data.obj->d.ia5;
-            gn->type  = sk->data.obj->type;
+            if (gn == NULL)
+                return NULL;
+            gn->type         = sk->data.obj->type;
+            gn->d.ia5        = sk->data.obj->d.ia5;
+            gn->d.iPAddress  = sk->data.obj->d.iPAddress;
+            gn->d.dNSName    = sk->data.obj->d.dNSName;
+            gn->d.uniformResourceIdentifier =
+                                      sk->data.obj->d.uniformResourceIdentifier;
             return (void*)gn;
         case STACK_TYPE_ACCESS_DESCRIPTION:
             return (void*)sk->data.access;
@@ -24307,7 +24323,7 @@ void wolfSSL_sk_free(WOLFSSL_STACK* sk)
             wolfSSL_sk_CIPHER_free(sk);
             break;
         case STACK_TYPE_GEN_NAME:
-            wolfSSL_sk_GENERAL_NAME_pop_free(sk,NULL);
+            wolfSSL_sk_ASN1_OBJECT_free(sk);
             break;
         case STACK_TYPE_ACCESS_DESCRIPTION:
             wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(sk,NULL);
@@ -24372,6 +24388,8 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
         case STACK_TYPE_OBJ:
             wolfSSL_sk_ASN1_OBJECT_pop_free(sk,
                                           (void (*)(WOLFSSL_ASN1_OBJECT*))func);
+            break;
+        case STACK_TYPE_GEN_NAME:
             break;
     #endif
         default:
