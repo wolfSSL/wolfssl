@@ -1989,14 +1989,17 @@ void FreeCiphers(WOLFSSL* ssl)
 #ifdef BUILD_AES
     wc_AesFree(ssl->encrypt.aes);
     wc_AesFree(ssl->decrypt.aes);
-    #if defined(BUILD_AESGCM) || defined(HAVE_AESCCM)
+    #if (defined(BUILD_AESGCM) || defined(HAVE_AESCCM)) && \
+                                                      !defined(WOLFSSL_NO_TLS12)
         XFREE(ssl->decrypt.additional, ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
-        XFREE(ssl->decrypt.nonce, ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
         XFREE(ssl->encrypt.additional, ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
-        XFREE(ssl->encrypt.nonce, ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
     #endif
     XFREE(ssl->encrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->decrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#ifdef CIPHER_NONCE
+    XFREE(ssl->decrypt.nonce, ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
+    XFREE(ssl->encrypt.nonce, ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
 #endif
 #ifdef HAVE_CAMELLIA
     XFREE(ssl->encrypt.cam, ssl->heap, DYNAMIC_TYPE_CIPHER);
@@ -2020,6 +2023,12 @@ void FreeCiphers(WOLFSSL* ssl)
 #ifdef HAVE_IDEA
     XFREE(ssl->encrypt.idea, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->decrypt.idea, ssl->heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER)
+    wc_HmacFree(ssl->encrypt.hmac);
+    wc_HmacFree(ssl->decrypt.hmac);
+    XFREE(ssl->encrypt.hmac, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    XFREE(ssl->decrypt.hmac, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 }
 
@@ -2248,6 +2257,22 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
         suites->suites[idx++] = TLS13_BYTE;
         suites->suites[idx++] = TLS_AES_128_CCM_8_SHA256;
     }
+#endif
+
+#ifdef HAVE_NULL_CIPHER
+    #ifdef BUILD_TLS_SHA256_SHA256
+        if (tls1_3) {
+            suites->suites[idx++] = ECC_BYTE;
+            suites->suites[idx++] = TLS_SHA256_SHA256;
+        }
+    #endif
+
+    #ifdef BUILD_TLS_SHA384_SHA384
+        if (tls1_3) {
+            suites->suites[idx++] = ECC_BYTE;
+            suites->suites[idx++] = TLS_SHA384_SHA384;
+        }
+    #endif
 #endif
 #endif /* WOLFSSL_TLS13 */
 
@@ -8098,6 +8123,14 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 #endif /* HAVE_ECC */
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER)
+        case TLS_SHA256_SHA256:
+            return 0;
+        case TLS_SHA384_SHA384:
+            return 0;
+#endif
+
         default:
             WOLFSSL_MSG("Unsupported cipher suite, CipherRequires ECC");
             return 0;
@@ -16452,6 +16485,14 @@ static const CipherSuiteInfo cipher_names[] =
     SUITE_INFO("TLS13-AES128-CCM-8-SHA256","TLS_AES_128_CCM_8_SHA256",TLS13_BYTE,TLS_AES_128_CCM_8_SHA256),
 #endif
 
+#ifdef BUILD_TLS_SHA256_SHA256
+    SUITE_INFO("TLS13-SHA256-SHA256","TLS_SHA256_SHA256",ECC_BYTE,TLS_SHA256_SHA256),
+#endif
+
+#ifdef BUILD_TLS_SHA384_SHA384
+    SUITE_INFO("TLS13-SHA384-SHA384","TLS_SHA384_SHA384",ECC_BYTE,TLS_SHA384_SHA384),
+#endif
+
 #ifndef WOLFSSL_NO_TLS12
 
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA
@@ -17235,7 +17276,12 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
             ret = 0;
             break;
         }
-        else if (ssl->specs.sig_algo == 0 && !IsAtLeastTLSv1_3(ssl->version)) {
+#if !defined(WOLFSSL_TLS13) || !defined(HAVE_NULL_CIPHER)
+        else if (ssl->specs.sig_algo == 0 && IsAtLeastTLSv1_3(ssl->version)) {
+        }
+#endif
+        else if (ssl->specs.sig_algo == 0)
+        {
             ssl->suites->hashAlgo = ssl->specs.mac_algorithm;
             ret = 0;
         }
