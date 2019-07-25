@@ -8363,7 +8363,9 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                             /* ASN_URI_TYPE is an IA5String */
                             obj->d.ia5_internal.data   = dns->name;
                             obj->d.ia5_internal.length = dns->len;
+                        #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
                             obj->d.uniformResourceIdentifier = obj->d.ia5;
+                        #endif
                             break;
                         case ASN_DNS_TYPE:
                             /* ASN_DNS_TYPE is an IA5String */
@@ -8374,7 +8376,8 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                         case ASN_DIR_TYPE:
                             WOLFSSL_MSG("Currently Unsupported: ASN_DIR_TYPE");
                             break;
-                       case ASN_IP_TYPE:
+                        #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+                        case ASN_IP_TYPE:
                             /* ASN_IP_TYPE is an Octet String
                              * length 4:  ipv4
                              * length 16: ipv6
@@ -8383,6 +8386,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                             obj->d.iPAddress_internal.length = dns->len;
                             obj->d.ia5_internal.length       = dns->len;
                             break;
+                        #endif
                         }
 
                         dns = dns->next;
@@ -17807,7 +17811,9 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void)
 
     XMEMSET(obj, 0, sizeof(WOLFSSL_ASN1_OBJECT));
     obj->d.ia5       = &(obj->d.ia5_internal);
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
     obj->d.iPAddress = &(obj->d.iPAddress_internal);
+#endif
     obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
 
     return obj;

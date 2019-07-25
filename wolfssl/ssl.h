@@ -270,10 +270,12 @@ struct WOLFSSL_ASN1_OBJECT {
 
     struct d { /* derefrenced */
         WOLFSSL_ASN1_STRING* dNSName;
-        WOLFSSL_ASN1_STRING* uniformResourceIdentifier;
         WOLFSSL_ASN1_STRING  ia5_internal;
         WOLFSSL_ASN1_STRING* ia5; /* points to ia5_internal */
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+        WOLFSSL_ASN1_STRING* uniformResourceIdentifier;
         WOLFSSL_ASN1_STRING  iPAddress_internal;
+#endif
         WOLFSSL_ASN1_STRING* iPAddress; /* points to iPAddress_internal */
     } d;
 };
