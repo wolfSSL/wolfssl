@@ -89,7 +89,7 @@ int SSL_STSAFE_CreateKeyCb(WOLFSSL* ssl, ecc_key* key, word32 keySz,
 
     /* generate new ephemeral key on device */
     err = stsafe_interface_create_key(&slot, curve_id, (uint8_t*)&pubKeyRaw[0]);
-    if (err != 0) {
+    if (err != STSAFE_A_OK) {
     #ifdef USE_STSAFE_VERBOSE
         STSAFE_INTERFACE_PRINTF("stsafe_interface_create_key error: %d\n", err);
     #endif
@@ -407,7 +407,7 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             /* generate new ephemeral key on device */
             rc = stsafe_interface_create_key(&slot, curve_id,
                 (uint8_t*)pubKeyRaw);
-            if (rc != 0) {
+            if (rc != STSAFE_A_OK) {
             #ifdef USE_STSAFE_VERBOSE
                 STSAFE_INTERFACE_PRINTF("stsafe_interface_create_key error: %d\n", rc);
             #endif
@@ -446,7 +446,7 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             XMEMSET(sigRS, 0, sizeof(sigRS));
             rc = stsafe_interface_sign(STSAFE_A_SLOT_0, curve_id,
                 (uint8_t*)info->pk.eccsign.in, sigRS);
-            if (rc != 0) {
+            if (rc != STSAFE_A_OK) {
             #ifdef USE_STSAFE_VERBOSE
                 STSAFE_INTERFACE_PRINTF("stsafe_interface_sign error: %d\n", rc);
             #endif
@@ -503,7 +503,7 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                 rc = stsafe_interface_verify(curve_id,
                     (uint8_t*)info->pk.eccverify.hash, sigRS, pubKeyX, pubKeyY,
                     (int32_t*)info->pk.eccverify.res);
-                if (rc != 0) {
+                if (rc != STSAFE_A_OK) {
                 #ifdef USE_STSAFE_VERBOSE
                     STSAFE_INTERFACE_PRINTF("stsafe_interface_verify error: %d\n", rc);
                 #endif
@@ -538,7 +538,7 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                 rc = stsafe_interface_shared_secret(curve_id,
                     otherKeyX, otherKeyY,
                     info->pk.ecdh.out, (int32_t*)info->pk.ecdh.outlen);
-                if (rc != 0) {
+                if (rc != STSAFE_A_OK) {
                 #ifdef USE_STSAFE_VERBOSE
                     STSAFE_INTERFACE_PRINTF("stsafe_interface_shared_secret error: %d\n", rc);
                 #endif
