@@ -8237,6 +8237,23 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
     }
     return NULL;
 }
+/* The get0 functions do not expect the caller to free the return value.
+ * The WOLFSSL_X509_STORE structure will be free'd with WOLFSSL_X509_STORE_CTX
+ *
+ * returns WOLFSSL_X509_STORE* on success and NULL on failure
+ */
+
+WOLFSSL_X509_STORE* wolfSSL_X509_STORE_CTX_get0_store(
+                                                WOLFSSL_X509_STORE_CTX *ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get0_store");
+    if (ctx == NULL || ctx->store == NULL) {
+        WOLFSSL_MSG("Invalid Argument");
+        return NULL;
+    }
+
+   return ctx->store;
+}
 
 #if !defined(NO_WOLFSSL_STUB)
     int wolfSSL_X509_STORE_CTX_set_purpose(WOLFSSL_X509_STORE_CTX *ctx,
@@ -8247,9 +8264,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
         WOLFSSL_STUB("wolfSSL_X509_STORE_CTX_set_purpose");
         return 0;
     }
-#endif
 
-#if !defined(NO_WOLFSSL_STUB)
     /* Returns default file name and path of config file. However
        a wolfssl.cnf file is not currently supported */
     char* wolfSSL_CONF_get1_default_config_file(void)
@@ -8258,8 +8273,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
         WOLFSSL_STUB("CONF_get1_default_config_file");
         return NULL;
     }
-#endif
-
+#endif /* !NO_WOLFSSL_STUB */
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
 
 
@@ -21119,6 +21133,9 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
 
 WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
 {
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    WOLFSSL_STACK* sk;
+#endif
     WOLFSSL_X509_STORE* store = NULL;
 
     if((store = (WOLFSSL_X509_STORE*)XMALLOC(sizeof(WOLFSSL_X509_STORE), NULL,
@@ -21138,6 +21155,15 @@ WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
         goto err_exit;
     if(InitCRL(store->crl, NULL) < 0)
         goto err_exit;
+#endif
+
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    sk = wolfSSL_sk_new_null();
+    if (sk == NULL) {
+        WOLFSSL_MSG("WOLFSSL_STACK memory error");
+        goto err_exit;
+    }
+    store->ex_data.data = sk;
 #endif
 
     return store;
@@ -21165,6 +21191,10 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
 #ifdef HAVE_CRL
         if (store->crl != NULL)
             wolfSSL_X509_CRL_free(store->crl);
+#endif
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+        if (store->ex_data.data != NULL)
+            wolfSSL_sk_GENERIC_free(store->ex_data.data);
 #endif
         XFREE(store, NULL, DYNAMIC_TYPE_X509_STORE);
     }
@@ -36817,6 +36847,74 @@ int wolfSSL_get_ex_new_index(long argValue, void* arg,
 
     return ssl_idx++;
 }
+
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+int CRYPTO_set_ex_data(WOLFSSL_CRYPTO_EX_DATA* r, int idx, void* arg)
+{
+    WOLFSSL_STACK* sk;
+    WOLFSSL_ENTER("wolfSSL_CRYPTO_set_ex_data");
+
+    if (r == NULL || arg == NULL) {
+        WOLFSSL_MSG("Invalid Input: WOLFSSL_CRYPTO_EX_DATA");
+        return WOLFSSL_FAILURE;
+    }
+
+    sk = r->data;
+    if (sk == NULL || sk->num < (unsigned long)idx) {
+        WOLFSSL_MSG("Invalid Input: Stack");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* Go to node at idx */
+    for (; sk != NULL && idx > 0; idx--)
+        sk = sk->next;
+    /* if node is tail of stack */
+    if (sk == NULL) {
+        WOLFSSL_MSG("idx exceeds stack size.");
+        return WOLFSSL_FAILURE;
+    }
+    /* Free any data */
+    if (sk->data.generic != NULL)
+        XFREE(sk->data.generic, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    sk->data.generic = arg;
+
+    return WOLFSSL_SUCCESS;
+}
+
+void* CRYPTO_get_ex_data(const WOLFSSL_CRYPTO_EX_DATA* r, int idx)
+{
+    void* ex_data;
+    WOLFSSL_STACK* sk;
+    WOLFSSL_ENTER("wolfSSL_CRYPTO_get_ex_data");
+
+    if (r == NULL) {
+        WOLFSSL_MSG("Invalid Input: WOLFSSL_CRYPTO_EX_DATA");
+        return NULL;
+    }
+
+    sk = r->data;
+    if (sk == NULL || sk->num < (unsigned long)idx) {
+        WOLFSSL_MSG("Invalid Input: Stack");
+        return NULL;
+    }
+
+    /* Go to node at idx */
+    for (; sk != NULL && idx > 0; idx--)
+        sk = sk->next;
+    /* if node is tail of stack */
+    if (sk == NULL) {
+        WOLFSSL_MSG("idx exceeds stack size.");
+        return NULL;
+    }
+    ex_data = sk->data.generic;
+    if (ex_data == NULL) {
+        WOLFSSL_MSG("Error getting ex_data");
+    }
+
+    return ex_data;
+}
+#endif /* WOLFSSL_QT || OPENSSL_ALL */
 
 
 int wolfSSL_CTX_set_ex_data(WOLFSSL_CTX* ctx, int idx, void* data)

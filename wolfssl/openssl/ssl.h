@@ -124,10 +124,11 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
   #define CRYPTO_free                     XFREE
 #endif
 
-#define CRYPTO_malloc                   XMALLOC
-#define CRYPTO_EX_new                   WOLFSSL_CRYPTO_EX_new
-#define CRYPTO_EX_dup                   WOLFSSL_CRYPTO_EX_dup
-#define CRYPTO_EX_free                  WOLFSSL_CRYPTO_EX_free
+#define CRYPTO_EX_DATA                WOLFSSL_CRYPTO_EX_DATA
+#define CRYPTO_malloc                 XMALLOC
+#define CRYPTO_EX_new                 WOLFSSL_CRYPTO_EX_new
+#define CRYPTO_EX_dup                 WOLFSSL_CRYPTO_EX_dup
+#define CRYPTO_EX_free                WOLFSSL_CRYPTO_EX_free
 
 /* depreciated */
 #define CRYPTO_thread_id                wolfSSL_thread_id
@@ -138,12 +139,12 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define CRYPTO_READ             0x04
 #define CRYPTO_WRITE            0x08
 
-#define CRYPTO_set_locking_callback     wolfSSL_set_locking_callback
+#define CRYPTO_set_locking_callback         wolfSSL_set_locking_callback
 #define CRYPTO_set_dynlock_create_callback  wolfSSL_set_dynlock_create_callback
-#define CRYPTO_set_dynlock_lock_callback wolfSSL_set_dynlock_lock_callback
+#define CRYPTO_set_dynlock_lock_callback    wolfSSL_set_dynlock_lock_callback
 #define CRYPTO_set_dynlock_destroy_callback wolfSSL_set_dynlock_destroy_callback
-#define CRYPTO_num_locks                wolfSSL_num_locks
-#define CRYPTO_dynlock_value            WOLFSSL_dynlock_value
+#define CRYPTO_dynlock_value                WOLFSSL_dynlock_value
+#define CRYPTO_num_locks                    wolfSSL_num_locks
 
 #define CRYPTO_cleanup_all_ex_data      wolfSSL_cleanup_all_ex_data
 
@@ -409,6 +410,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_STORE_CTX_get_ex_data      wolfSSL_X509_STORE_CTX_get_ex_data
 #define X509_STORE_CTX_verify_cb        WOLFSSL_X509_STORE_CTX_verify_cb
 #define X509_STORE_CTX_get_error_depth  wolfSSL_X509_STORE_CTX_get_error_depth
+#define X509_STORE_CTX_get0_store       wolfSSL_X509_STORE_CTX_get0_store
 
 #define X509_STORE_set_verify_cb(s, c) \
 wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_CTX_verify_cb)(c))

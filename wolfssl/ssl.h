@@ -358,6 +358,27 @@ struct WOLFSSL_X509_LOOKUP {
     WOLFSSL_X509_STORE *store;
 };
 
+#ifdef OPENSSL_EXTRA
+typedef struct WOLFSSL_CRYPTO_EX_DATA {
+    WOLFSSL_STACK* data;
+} WOLFSSL_CRYPTO_EX_DATA;
+
+typedef int  (WOLFSSL_CRYPTO_EX_new)(void* p, void* ptr,
+        WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
+typedef int  (WOLFSSL_CRYPTO_EX_dup)(WOLFSSL_CRYPTO_EX_DATA* out,
+        WOLFSSL_CRYPTO_EX_DATA* in, void* inPtr, int idx, long argV, void* arg);
+typedef void (WOLFSSL_CRYPTO_EX_free)(void* p, void* ptr,
+        WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+WOLFSSL_API int CRYPTO_set_ex_data(WOLFSSL_CRYPTO_EX_DATA* r,int idx,void* arg);
+WOLFSSL_API void* CRYPTO_get_ex_data(const WOLFSSL_CRYPTO_EX_DATA* r, int idx);
+#endif /* WOLFSSL_QT || OPENSSL_ALL */
+
+WOLFSSL_API int  wolfSSL_get_ex_new_index(long argValue, void* arg,
+        WOLFSSL_CRYPTO_EX_new* a, WOLFSSL_CRYPTO_EX_dup* b,
+        WOLFSSL_CRYPTO_EX_free* c);
+#endif /* OPENSSL_EXTRA */
+
 struct WOLFSSL_X509_STORE {
     int                   cache;          /* stunnel dereference */
     WOLFSSL_CERT_MANAGER* cm;
@@ -367,6 +388,7 @@ struct WOLFSSL_X509_STORE {
 #endif
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     WOLFSSL_X509_STORE_CTX_verify_cb verify_cb;
+    WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
 #if defined(OPENSSL_EXTRA) && defined(HAVE_CRL)
     WOLFSSL_X509_CRL *crl;
@@ -741,21 +763,6 @@ WOLFSSL_API
 typedef int (*VerifyCallback)(int, WOLFSSL_X509_STORE_CTX*);
 #ifdef OPENSSL_EXTRA
 typedef void (CallbackInfoState)(const WOLFSSL*, int, int);
-
-typedef struct WOLFSSL_CRYPTO_EX_DATA {
-    WOLFSSL_STACK* data;
-} WOLFSSL_CRYPTO_EX_DATA;
-
-typedef int  (WOLFSSL_CRYPTO_EX_new)(void* p, void* ptr,
-        WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
-typedef int  (WOLFSSL_CRYPTO_EX_dup)(WOLFSSL_CRYPTO_EX_DATA* out,
-        WOLFSSL_CRYPTO_EX_DATA* in, void* inPtr, int idx, long argV, void* arg);
-typedef void (WOLFSSL_CRYPTO_EX_free)(void* p, void* ptr,
-        WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
-
-WOLFSSL_API int  wolfSSL_get_ex_new_index(long argValue, void* arg,
-        WOLFSSL_CRYPTO_EX_new* a, WOLFSSL_CRYPTO_EX_dup* b,
-        WOLFSSL_CRYPTO_EX_free* c);
 #endif
 
 WOLFSSL_API void wolfSSL_CTX_set_verify(WOLFSSL_CTX*, int,
@@ -1006,10 +1013,12 @@ WOLFSSL_API int  wolfSSL_num_locks(void);
 
 WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get_current_cert(
                                                         WOLFSSL_X509_STORE_CTX*);
+WOLFSSL_API WOLFSSL_X509_STORE* wolfSSL_X509_STORE_CTX_get0_store(
+                                                    WOLFSSL_X509_STORE_CTX *ctx);
 WOLFSSL_API int   wolfSSL_X509_STORE_CTX_get_error(WOLFSSL_X509_STORE_CTX*);
 WOLFSSL_API int   wolfSSL_X509_STORE_CTX_get_error_depth(WOLFSSL_X509_STORE_CTX*);
 
-WOLFSSL_API void  wolfSSL_X509_STORE_CTX_set_verify_cb( \
+WOLFSSL_API void  wolfSSL_X509_STORE_CTX_set_verify_cb(
                                     WOLFSSL_X509_STORE_CTX *ctx,
                                     WOLFSSL_X509_STORE_CTX_verify_cb verify_cb);
 WOLFSSL_API void wolfSSL_X509_STORE_set_verify_cb(WOLFSSL_X509_STORE *st,
