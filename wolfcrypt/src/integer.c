@@ -927,6 +927,11 @@ int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
 #endif
 }
 
+int mp_exptmod_ex (mp_int * G, mp_int * X, int digits, mp_int * P, mp_int * Y)
+{
+    (void)digits;
+    return mp_exptmod(G, X, P, Y);
+}
 
 /* b = |a|
  *

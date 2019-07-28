@@ -1455,7 +1455,7 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
    Based on work by Marc Joye, Sung-Ming Yen, "The Montgomery Powering Ladder",
    Cryptographic Hardware and Embedded Systems, CHES 2002
 */
-static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
+static int _fp_exptmod(fp_int * G, fp_int * X, int digits, fp_int * P, fp_int * Y)
 {
 #ifndef WOLFSSL_SMALL_STACK
 #ifdef WC_NO_CACHE_RESISTANT
@@ -1508,7 +1508,7 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
   /* set initial mode and bit cnt */
   bitcnt = 1;
   buf    = 0;
-  digidx = X->used - 1;
+  digidx = digits - 1;
 
   for (;;) {
     /* grab next digit as required */
@@ -1597,7 +1597,8 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 /* y = g**x (mod b)
  * Some restrictions... x must be positive and < b
  */
-static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
+static int _fp_exptmod(fp_int * G, fp_int * X, int digits, fp_int * P,
+                       fp_int * Y)
 {
   fp_digit buf, mp;
   int      err, bitbuf, bitcpy, bitcnt, mode, digidx, x, y, winsize;
@@ -1608,6 +1609,8 @@ static int _fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
   fp_int   res[1];
   fp_int   M[64];
 #endif
+
+  (void)digits;
 
   /* find window size */
   x = fp_count_bits (X);
@@ -1894,7 +1897,7 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
       err = fp_invmod(tmp, P, tmp);
       if (err == FP_OKAY) {
          X->sign = FP_ZPOS;
-         err =  _fp_exptmod(tmp, X, P, Y);
+         err =  _fp_exptmod(tmp, X, X->used, P, Y);
          if (X != Y) {
             X->sign = FP_NEG;
          }
@@ -1909,9 +1912,69 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
    }
    else {
       /* Positive exponent so just exptmod */
-      return _fp_exptmod(G, X, P, Y);
+      return _fp_exptmod(G, X, X->used, P, Y);
    }
 }
+
+int fp_exptmod_ex(fp_int * G, fp_int * X, int digits, fp_int * P, fp_int * Y)
+{
+
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
+   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+   int x = fp_count_bits (X);
+#endif
+
+   /* prevent overflows */
+   if (P->used > (FP_SIZE/2)) {
+      return FP_VAL;
+   }
+
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
+   !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
+   if(x > EPS_RSA_EXPT_XBTIS) {
+      return esp_mp_exptmod(G, X, x, P, Y);
+   }
+#endif
+
+   if (X->sign == FP_NEG) {
+#ifndef POSITIVE_EXP_ONLY  /* reduce stack if assume no negatives */
+      int    err;
+   #ifndef WOLFSSL_SMALL_STACK
+      fp_int tmp[1];
+   #else
+      fp_int *tmp;
+   #endif
+
+   #ifdef WOLFSSL_SMALL_STACK
+      tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      if (tmp == NULL)
+          return FP_MEM;
+   #endif
+
+      /* yes, copy G and invmod it */
+      fp_init_copy(tmp, G);
+      err = fp_invmod(tmp, P, tmp);
+      if (err == FP_OKAY) {
+         X->sign = FP_ZPOS;
+         err =  _fp_exptmod(tmp, X, digits, P, Y);
+         if (X != Y) {
+            X->sign = FP_NEG;
+         }
+      }
+   #ifdef WOLFSSL_SMALL_STACK
+      XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   #endif
+      return err;
+#else
+      return FP_VAL;
+#endif
+   }
+   else {
+      /* Positive exponent so just exptmod */
+      return _fp_exptmod(G, X, digits, P, Y);
+   }
+}
+
 
 /* computes a = 2**b */
 void fp_2expt(fp_int *a, int b)
@@ -3102,6 +3165,11 @@ int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
 #endif
 {
   return fp_exptmod(G, X, P, Y);
+}
+
+int mp_exptmod_ex (mp_int * G, mp_int * X, int digits, mp_int * P, mp_int * Y)
+{
+  return fp_exptmod_ex(G, X, digits, P, Y);
 }
 
 /* compare two ints (signed)*/

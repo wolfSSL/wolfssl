@@ -209,7 +209,7 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
 
     /* public key : y = g^x mod p */
     if (err == MP_OKAY)
-        err = mp_exptmod(&dsa->g, &dsa->x, &dsa->p, &dsa->y);
+        err = mp_exptmod_ex(&dsa->g, &dsa->x, dsa->q.used, &dsa->p, &dsa->y);
 
     if (err == MP_OKAY)
         dsa->type = DSA_PRIVATE;
@@ -702,8 +702,10 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
         ret = MP_INVMOD_E;
 
     /* generate r, r = (g exp k mod p) mod q */
-    if (ret == 0 && mp_exptmod(&key->g, &k, &key->p, &r) != MP_OKAY)
+    if (ret == 0 && mp_exptmod_ex(&key->g, &k, key->q.used, &key->p,
+                                                               &r) != MP_OKAY) {
         ret = MP_EXPTMOD_E;
+    }
 
     if (ret == 0 && mp_mod(&r, &key->q, &r) != MP_OKAY)
         ret = MP_MOD_E;
