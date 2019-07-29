@@ -4146,6 +4146,9 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                         NO_USER_CHECK) <= 0)
                 ret = ASN_PARSE_E;
 
+            if (localIdx >= pkiMsgSz) {
+                ret = BUFFER_E;
+            }
 
             /* get length of content in the case that there is multiple parts */
             if (ret == 0 && pkiMsg[localIdx] == (ASN_OCTET_STRING | ASN_CONSTRUCTED)) {
@@ -4159,6 +4162,10 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
                 /* Check whether there is one OCTET_STRING inside. */
                 start = localIdx;
+                if (localIdx >= pkiMsgSz) {
+                    ret = BUFFER_E;
+                }
+
                 if (ret == 0 && pkiMsg[localIdx++] != ASN_OCTET_STRING)
                     ret = ASN_PARSE_E;
 
