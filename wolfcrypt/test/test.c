@@ -8933,7 +8933,7 @@ int memory_test(void)
     }
 
     if (ret != wolfSSL_StaticBufferSz(buffer, ret, WOLFMEM_GENERAL)) {
-        return -6510; /* retrun value changed when using suggested value */
+        return -6510; /* return value changed when using suggested value */
     }
 
     ret = wolfSSL_MemoryPaddingSz();
