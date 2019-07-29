@@ -971,7 +971,7 @@ int wolfSSL_CTX_mcast_set_member_id(WOLFSSL_CTX* ctx, word16 id)
     if (ret == 0) {
         ctx->haveEMS = 0;
         ctx->haveMcast = 1;
-        ctx->mcastID = id;
+        ctx->mcastID = (byte)id;
 #ifndef WOLFSSL_USER_IO
         ctx->CBIORecv = EmbedReceiveFromMcast;
 #endif /* WOLFSSL_USER_IO */

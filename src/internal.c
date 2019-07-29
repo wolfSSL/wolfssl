@@ -4467,10 +4467,10 @@ int InitSSL_Suites(WOLFSSL* ssl)
     havePSK = (byte)ssl->options.havePSK;
 #endif /* NO_PSK */
 #ifdef HAVE_ANON
-    haveAnon = ssl->options.haveAnon;
+    haveAnon = (byte)ssl->options.haveAnon;
 #endif /* HAVE_ANON*/
 #ifdef WOLFSSL_MULTICAST
-    haveMcast = ssl->options.haveMcast;
+    haveMcast = (byte)ssl->options.haveMcast;
 #endif /* WOLFSSL_MULTICAST */
 
 #ifdef WOLFSSL_EARLY_DATA
