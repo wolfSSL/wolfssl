@@ -3080,7 +3080,7 @@ static int sp_2048_mod_exp_90(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
  * a  A single precision integer.
  * m  Mask to AND against each digit.
  */
-static void sp_2048_mask_45(sp_digit* r, sp_digit* a, sp_digit m)
+static void sp_2048_mask_45(sp_digit* r, const sp_digit* a, sp_digit m)
 {
 #ifdef WOLFSSL_SP_SMALL
     int i;
@@ -3720,6 +3720,213 @@ int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
 }
 
 #ifdef WOLFSSL_HAVE_SP_DH
+
+#ifdef HAVE_FFDHE_2048
+SP_NOINLINE static void sp_2048_lshift_90(sp_digit* r, sp_digit* a, byte n)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int i;
+
+    r[90] = a[89] >> (23 - n);
+    for (i=89; i>0; i--)
+        r[i] = ((a[i] << n) | (a[i-1] >> (23 - n)) & 0x7fffff;
+#else
+    r[90] = a[89] >> (23 - n);
+    r[89] = ((a[89] << n) | (a[88] >> (23 - n))) & 0x7fffff;
+    r[88] = ((a[88] << n) | (a[87] >> (23 - n))) & 0x7fffff;
+    r[87] = ((a[87] << n) | (a[86] >> (23 - n))) & 0x7fffff;
+    r[86] = ((a[86] << n) | (a[85] >> (23 - n))) & 0x7fffff;
+    r[85] = ((a[85] << n) | (a[84] >> (23 - n))) & 0x7fffff;
+    r[84] = ((a[84] << n) | (a[83] >> (23 - n))) & 0x7fffff;
+    r[83] = ((a[83] << n) | (a[82] >> (23 - n))) & 0x7fffff;
+    r[82] = ((a[82] << n) | (a[81] >> (23 - n))) & 0x7fffff;
+    r[81] = ((a[81] << n) | (a[80] >> (23 - n))) & 0x7fffff;
+    r[80] = ((a[80] << n) | (a[79] >> (23 - n))) & 0x7fffff;
+    r[79] = ((a[79] << n) | (a[78] >> (23 - n))) & 0x7fffff;
+    r[78] = ((a[78] << n) | (a[77] >> (23 - n))) & 0x7fffff;
+    r[77] = ((a[77] << n) | (a[76] >> (23 - n))) & 0x7fffff;
+    r[76] = ((a[76] << n) | (a[75] >> (23 - n))) & 0x7fffff;
+    r[75] = ((a[75] << n) | (a[74] >> (23 - n))) & 0x7fffff;
+    r[74] = ((a[74] << n) | (a[73] >> (23 - n))) & 0x7fffff;
+    r[73] = ((a[73] << n) | (a[72] >> (23 - n))) & 0x7fffff;
+    r[72] = ((a[72] << n) | (a[71] >> (23 - n))) & 0x7fffff;
+    r[71] = ((a[71] << n) | (a[70] >> (23 - n))) & 0x7fffff;
+    r[70] = ((a[70] << n) | (a[69] >> (23 - n))) & 0x7fffff;
+    r[69] = ((a[69] << n) | (a[68] >> (23 - n))) & 0x7fffff;
+    r[68] = ((a[68] << n) | (a[67] >> (23 - n))) & 0x7fffff;
+    r[67] = ((a[67] << n) | (a[66] >> (23 - n))) & 0x7fffff;
+    r[66] = ((a[66] << n) | (a[65] >> (23 - n))) & 0x7fffff;
+    r[65] = ((a[65] << n) | (a[64] >> (23 - n))) & 0x7fffff;
+    r[64] = ((a[64] << n) | (a[63] >> (23 - n))) & 0x7fffff;
+    r[63] = ((a[63] << n) | (a[62] >> (23 - n))) & 0x7fffff;
+    r[62] = ((a[62] << n) | (a[61] >> (23 - n))) & 0x7fffff;
+    r[61] = ((a[61] << n) | (a[60] >> (23 - n))) & 0x7fffff;
+    r[60] = ((a[60] << n) | (a[59] >> (23 - n))) & 0x7fffff;
+    r[59] = ((a[59] << n) | (a[58] >> (23 - n))) & 0x7fffff;
+    r[58] = ((a[58] << n) | (a[57] >> (23 - n))) & 0x7fffff;
+    r[57] = ((a[57] << n) | (a[56] >> (23 - n))) & 0x7fffff;
+    r[56] = ((a[56] << n) | (a[55] >> (23 - n))) & 0x7fffff;
+    r[55] = ((a[55] << n) | (a[54] >> (23 - n))) & 0x7fffff;
+    r[54] = ((a[54] << n) | (a[53] >> (23 - n))) & 0x7fffff;
+    r[53] = ((a[53] << n) | (a[52] >> (23 - n))) & 0x7fffff;
+    r[52] = ((a[52] << n) | (a[51] >> (23 - n))) & 0x7fffff;
+    r[51] = ((a[51] << n) | (a[50] >> (23 - n))) & 0x7fffff;
+    r[50] = ((a[50] << n) | (a[49] >> (23 - n))) & 0x7fffff;
+    r[49] = ((a[49] << n) | (a[48] >> (23 - n))) & 0x7fffff;
+    r[48] = ((a[48] << n) | (a[47] >> (23 - n))) & 0x7fffff;
+    r[47] = ((a[47] << n) | (a[46] >> (23 - n))) & 0x7fffff;
+    r[46] = ((a[46] << n) | (a[45] >> (23 - n))) & 0x7fffff;
+    r[45] = ((a[45] << n) | (a[44] >> (23 - n))) & 0x7fffff;
+    r[44] = ((a[44] << n) | (a[43] >> (23 - n))) & 0x7fffff;
+    r[43] = ((a[43] << n) | (a[42] >> (23 - n))) & 0x7fffff;
+    r[42] = ((a[42] << n) | (a[41] >> (23 - n))) & 0x7fffff;
+    r[41] = ((a[41] << n) | (a[40] >> (23 - n))) & 0x7fffff;
+    r[40] = ((a[40] << n) | (a[39] >> (23 - n))) & 0x7fffff;
+    r[39] = ((a[39] << n) | (a[38] >> (23 - n))) & 0x7fffff;
+    r[38] = ((a[38] << n) | (a[37] >> (23 - n))) & 0x7fffff;
+    r[37] = ((a[37] << n) | (a[36] >> (23 - n))) & 0x7fffff;
+    r[36] = ((a[36] << n) | (a[35] >> (23 - n))) & 0x7fffff;
+    r[35] = ((a[35] << n) | (a[34] >> (23 - n))) & 0x7fffff;
+    r[34] = ((a[34] << n) | (a[33] >> (23 - n))) & 0x7fffff;
+    r[33] = ((a[33] << n) | (a[32] >> (23 - n))) & 0x7fffff;
+    r[32] = ((a[32] << n) | (a[31] >> (23 - n))) & 0x7fffff;
+    r[31] = ((a[31] << n) | (a[30] >> (23 - n))) & 0x7fffff;
+    r[30] = ((a[30] << n) | (a[29] >> (23 - n))) & 0x7fffff;
+    r[29] = ((a[29] << n) | (a[28] >> (23 - n))) & 0x7fffff;
+    r[28] = ((a[28] << n) | (a[27] >> (23 - n))) & 0x7fffff;
+    r[27] = ((a[27] << n) | (a[26] >> (23 - n))) & 0x7fffff;
+    r[26] = ((a[26] << n) | (a[25] >> (23 - n))) & 0x7fffff;
+    r[25] = ((a[25] << n) | (a[24] >> (23 - n))) & 0x7fffff;
+    r[24] = ((a[24] << n) | (a[23] >> (23 - n))) & 0x7fffff;
+    r[23] = ((a[23] << n) | (a[22] >> (23 - n))) & 0x7fffff;
+    r[22] = ((a[22] << n) | (a[21] >> (23 - n))) & 0x7fffff;
+    r[21] = ((a[21] << n) | (a[20] >> (23 - n))) & 0x7fffff;
+    r[20] = ((a[20] << n) | (a[19] >> (23 - n))) & 0x7fffff;
+    r[19] = ((a[19] << n) | (a[18] >> (23 - n))) & 0x7fffff;
+    r[18] = ((a[18] << n) | (a[17] >> (23 - n))) & 0x7fffff;
+    r[17] = ((a[17] << n) | (a[16] >> (23 - n))) & 0x7fffff;
+    r[16] = ((a[16] << n) | (a[15] >> (23 - n))) & 0x7fffff;
+    r[15] = ((a[15] << n) | (a[14] >> (23 - n))) & 0x7fffff;
+    r[14] = ((a[14] << n) | (a[13] >> (23 - n))) & 0x7fffff;
+    r[13] = ((a[13] << n) | (a[12] >> (23 - n))) & 0x7fffff;
+    r[12] = ((a[12] << n) | (a[11] >> (23 - n))) & 0x7fffff;
+    r[11] = ((a[11] << n) | (a[10] >> (23 - n))) & 0x7fffff;
+    r[10] = ((a[10] << n) | (a[9] >> (23 - n))) & 0x7fffff;
+    r[9] = ((a[9] << n) | (a[8] >> (23 - n))) & 0x7fffff;
+    r[8] = ((a[8] << n) | (a[7] >> (23 - n))) & 0x7fffff;
+    r[7] = ((a[7] << n) | (a[6] >> (23 - n))) & 0x7fffff;
+    r[6] = ((a[6] << n) | (a[5] >> (23 - n))) & 0x7fffff;
+    r[5] = ((a[5] << n) | (a[4] >> (23 - n))) & 0x7fffff;
+    r[4] = ((a[4] << n) | (a[3] >> (23 - n))) & 0x7fffff;
+    r[3] = ((a[3] << n) | (a[2] >> (23 - n))) & 0x7fffff;
+    r[2] = ((a[2] << n) | (a[1] >> (23 - n))) & 0x7fffff;
+    r[1] = ((a[1] << n) | (a[0] >> (23 - n))) & 0x7fffff;
+#endif
+    r[0] = (a[0] << n) & 0x7fffff;
+}
+
+/* Modular exponentiate 2 to the e mod m. (r = 2^e mod m)
+ *
+ * r     A single precision number that is the result of the operation.
+ * e     A single precision number that is the exponent.
+ * bits  The number of bits in the exponent.
+ * m     A single precision number that is the modulus.
+ * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ */
+static int sp_2048_mod_exp_2_90(sp_digit* r, sp_digit* e, int bits, sp_digit* m)
+{
+#ifndef WOLFSSL_SMALL_STACK
+    sp_digit nd[180];
+    sp_digit td[91];
+#else
+    sp_digit* td;
+#endif
+    sp_digit* norm;
+    sp_digit* tmp;
+    sp_digit mp = 1;
+    sp_digit n, o;
+    int i;
+    int c, y;
+    int err = MP_OKAY;
+
+#ifdef WOLFSSL_SMALL_STACK
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 271, NULL,
+                            DYNAMIC_TYPE_TMP_BUFFER);
+    if (td == NULL)
+        err = MEMORY_E;
+
+    if (err == MP_OKAY) {
+        norm = td;
+        tmp  = td + 180;
+    }
+#else
+    norm = nd;
+    tmp  = td;
+#endif
+
+    if (err == MP_OKAY) {
+        XMEMSET(td, 0, sizeof(td));
+        sp_2048_mont_setup(m, &mp);
+        sp_2048_mont_norm_90(norm, m);
+
+        bits = ((bits + 3) / 4) * 4;
+        i = ((bits + 22) / 23) - 1;
+        c = bits % 23;
+        if (c == 0)
+            c = 23;
+        if (i < 90)
+            n = e[i--] << (32 - c);
+        else {
+            n = 0;
+            i--;
+        }
+        if (c < 4) {
+            n |= e[i--] << (9 - c);
+            c += 23;
+        }
+        y = (n >> 28) & 0xf;
+        n <<= 4;
+        c -= 4;
+        sp_2048_lshift_90(r, norm, y);
+        for (; i>=0 || c>=4; ) {
+            if (c < 4) {
+                n |= e[i--] << (9 - c);
+                c += 23;
+            }
+            y = (n >> 28) & 0xf;
+            n <<= 4;
+            c -= 4;
+
+            sp_2048_mont_sqr_90(r, r, m, mp);
+            sp_2048_mont_sqr_90(r, r, m, mp);
+            sp_2048_mont_sqr_90(r, r, m, mp);
+            sp_2048_mont_sqr_90(r, r, m, mp);
+
+            sp_2048_lshift_90(r, r, y);
+            sp_2048_mul_d_90(tmp, norm, (r[90] << 22) + (r[89] >> 1));
+            r[90] = 0;
+            r[89] &= 0x1L;
+            sp_2048_add_90(r, r, tmp);
+            sp_2048_norm_90(r);
+            o = sp_2048_cmp_90(r, m);
+            sp_2048_cond_sub_90(r, r, m, (o < 0) - 1);
+        }
+
+        sp_2048_mont_reduce_90(r, m, mp);
+        n = sp_2048_cmp_90(r, m);
+        sp_2048_cond_sub_90(r, r, m, (n < 0) - 1);
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (td != NULL)
+        XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return err;
+}
+
+#endif /* HAVE_FFDHE_2048 */
+
 /* Perform the modular exponentiation for Diffie-Hellman.
  *
  * base     Base.
@@ -3765,7 +3972,14 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
         sp_2048_from_bin(e, 90, exp, expLen);
         sp_2048_from_mp(m, 90, mod);
 
-        err = sp_2048_mod_exp_90(r, b, e, expLen * 8, m, 0);
+    #ifdef HAVE_FFDHE_2048
+        if (base->used == 1 && base->dp[0] == 2 &&
+                ((m[89] << 15) | (m[88] >> 8)) == 0xffffL) {
+            err = sp_2048_mod_exp_2_90(r, e, expLen * 8, m);
+        }
+        else
+    #endif
+            err = sp_2048_mod_exp_90(r, b, e, expLen * 8, m, 0);
     }
 
     if (err == MP_OKAY) {
@@ -3824,7 +4038,14 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
         sp_2048_from_bin(e, 90, exp, expLen);
         sp_2048_from_mp(m, 90, mod);
 
-        err = sp_2048_mod_exp_90(r, b, e, expLen * 8, m, 0);
+    #ifdef HAVE_FFDHE_2048
+        if (base->used == 1 && base->dp[0] == 2 &&
+                ((m[89] << 15) | (m[88] >> 8)) == 0xffffL) {
+            err = sp_2048_mod_exp_2_90(r, e, expLen * 8, m);
+        }
+        else
+    #endif
+            err = sp_2048_mod_exp_90(r, b, e, expLen * 8, m, 0);
     }
 
     if (err == MP_OKAY) {
@@ -6427,7 +6648,7 @@ static int sp_3072_mod_exp_134(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
  * a  A single precision integer.
  * m  Mask to AND against each digit.
  */
-static void sp_3072_mask_67(sp_digit* r, sp_digit* a, sp_digit m)
+static void sp_3072_mask_67(sp_digit* r, const sp_digit* a, sp_digit m)
 {
 #ifdef WOLFSSL_SP_SMALL
     int i;
@@ -7065,6 +7286,257 @@ int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
 }
 
 #ifdef WOLFSSL_HAVE_SP_DH
+
+#ifdef HAVE_FFDHE_3072
+SP_NOINLINE static void sp_3072_lshift_134(sp_digit* r, sp_digit* a, byte n)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int i;
+
+    r[134] = a[133] >> (23 - n);
+    for (i=133; i>0; i--)
+        r[i] = ((a[i] << n) | (a[i-1] >> (23 - n)) & 0x7fffff;
+#else
+    r[134] = a[133] >> (23 - n);
+    r[133] = ((a[133] << n) | (a[132] >> (23 - n))) & 0x7fffff;
+    r[132] = ((a[132] << n) | (a[131] >> (23 - n))) & 0x7fffff;
+    r[131] = ((a[131] << n) | (a[130] >> (23 - n))) & 0x7fffff;
+    r[130] = ((a[130] << n) | (a[129] >> (23 - n))) & 0x7fffff;
+    r[129] = ((a[129] << n) | (a[128] >> (23 - n))) & 0x7fffff;
+    r[128] = ((a[128] << n) | (a[127] >> (23 - n))) & 0x7fffff;
+    r[127] = ((a[127] << n) | (a[126] >> (23 - n))) & 0x7fffff;
+    r[126] = ((a[126] << n) | (a[125] >> (23 - n))) & 0x7fffff;
+    r[125] = ((a[125] << n) | (a[124] >> (23 - n))) & 0x7fffff;
+    r[124] = ((a[124] << n) | (a[123] >> (23 - n))) & 0x7fffff;
+    r[123] = ((a[123] << n) | (a[122] >> (23 - n))) & 0x7fffff;
+    r[122] = ((a[122] << n) | (a[121] >> (23 - n))) & 0x7fffff;
+    r[121] = ((a[121] << n) | (a[120] >> (23 - n))) & 0x7fffff;
+    r[120] = ((a[120] << n) | (a[119] >> (23 - n))) & 0x7fffff;
+    r[119] = ((a[119] << n) | (a[118] >> (23 - n))) & 0x7fffff;
+    r[118] = ((a[118] << n) | (a[117] >> (23 - n))) & 0x7fffff;
+    r[117] = ((a[117] << n) | (a[116] >> (23 - n))) & 0x7fffff;
+    r[116] = ((a[116] << n) | (a[115] >> (23 - n))) & 0x7fffff;
+    r[115] = ((a[115] << n) | (a[114] >> (23 - n))) & 0x7fffff;
+    r[114] = ((a[114] << n) | (a[113] >> (23 - n))) & 0x7fffff;
+    r[113] = ((a[113] << n) | (a[112] >> (23 - n))) & 0x7fffff;
+    r[112] = ((a[112] << n) | (a[111] >> (23 - n))) & 0x7fffff;
+    r[111] = ((a[111] << n) | (a[110] >> (23 - n))) & 0x7fffff;
+    r[110] = ((a[110] << n) | (a[109] >> (23 - n))) & 0x7fffff;
+    r[109] = ((a[109] << n) | (a[108] >> (23 - n))) & 0x7fffff;
+    r[108] = ((a[108] << n) | (a[107] >> (23 - n))) & 0x7fffff;
+    r[107] = ((a[107] << n) | (a[106] >> (23 - n))) & 0x7fffff;
+    r[106] = ((a[106] << n) | (a[105] >> (23 - n))) & 0x7fffff;
+    r[105] = ((a[105] << n) | (a[104] >> (23 - n))) & 0x7fffff;
+    r[104] = ((a[104] << n) | (a[103] >> (23 - n))) & 0x7fffff;
+    r[103] = ((a[103] << n) | (a[102] >> (23 - n))) & 0x7fffff;
+    r[102] = ((a[102] << n) | (a[101] >> (23 - n))) & 0x7fffff;
+    r[101] = ((a[101] << n) | (a[100] >> (23 - n))) & 0x7fffff;
+    r[100] = ((a[100] << n) | (a[99] >> (23 - n))) & 0x7fffff;
+    r[99] = ((a[99] << n) | (a[98] >> (23 - n))) & 0x7fffff;
+    r[98] = ((a[98] << n) | (a[97] >> (23 - n))) & 0x7fffff;
+    r[97] = ((a[97] << n) | (a[96] >> (23 - n))) & 0x7fffff;
+    r[96] = ((a[96] << n) | (a[95] >> (23 - n))) & 0x7fffff;
+    r[95] = ((a[95] << n) | (a[94] >> (23 - n))) & 0x7fffff;
+    r[94] = ((a[94] << n) | (a[93] >> (23 - n))) & 0x7fffff;
+    r[93] = ((a[93] << n) | (a[92] >> (23 - n))) & 0x7fffff;
+    r[92] = ((a[92] << n) | (a[91] >> (23 - n))) & 0x7fffff;
+    r[91] = ((a[91] << n) | (a[90] >> (23 - n))) & 0x7fffff;
+    r[90] = ((a[90] << n) | (a[89] >> (23 - n))) & 0x7fffff;
+    r[89] = ((a[89] << n) | (a[88] >> (23 - n))) & 0x7fffff;
+    r[88] = ((a[88] << n) | (a[87] >> (23 - n))) & 0x7fffff;
+    r[87] = ((a[87] << n) | (a[86] >> (23 - n))) & 0x7fffff;
+    r[86] = ((a[86] << n) | (a[85] >> (23 - n))) & 0x7fffff;
+    r[85] = ((a[85] << n) | (a[84] >> (23 - n))) & 0x7fffff;
+    r[84] = ((a[84] << n) | (a[83] >> (23 - n))) & 0x7fffff;
+    r[83] = ((a[83] << n) | (a[82] >> (23 - n))) & 0x7fffff;
+    r[82] = ((a[82] << n) | (a[81] >> (23 - n))) & 0x7fffff;
+    r[81] = ((a[81] << n) | (a[80] >> (23 - n))) & 0x7fffff;
+    r[80] = ((a[80] << n) | (a[79] >> (23 - n))) & 0x7fffff;
+    r[79] = ((a[79] << n) | (a[78] >> (23 - n))) & 0x7fffff;
+    r[78] = ((a[78] << n) | (a[77] >> (23 - n))) & 0x7fffff;
+    r[77] = ((a[77] << n) | (a[76] >> (23 - n))) & 0x7fffff;
+    r[76] = ((a[76] << n) | (a[75] >> (23 - n))) & 0x7fffff;
+    r[75] = ((a[75] << n) | (a[74] >> (23 - n))) & 0x7fffff;
+    r[74] = ((a[74] << n) | (a[73] >> (23 - n))) & 0x7fffff;
+    r[73] = ((a[73] << n) | (a[72] >> (23 - n))) & 0x7fffff;
+    r[72] = ((a[72] << n) | (a[71] >> (23 - n))) & 0x7fffff;
+    r[71] = ((a[71] << n) | (a[70] >> (23 - n))) & 0x7fffff;
+    r[70] = ((a[70] << n) | (a[69] >> (23 - n))) & 0x7fffff;
+    r[69] = ((a[69] << n) | (a[68] >> (23 - n))) & 0x7fffff;
+    r[68] = ((a[68] << n) | (a[67] >> (23 - n))) & 0x7fffff;
+    r[67] = ((a[67] << n) | (a[66] >> (23 - n))) & 0x7fffff;
+    r[66] = ((a[66] << n) | (a[65] >> (23 - n))) & 0x7fffff;
+    r[65] = ((a[65] << n) | (a[64] >> (23 - n))) & 0x7fffff;
+    r[64] = ((a[64] << n) | (a[63] >> (23 - n))) & 0x7fffff;
+    r[63] = ((a[63] << n) | (a[62] >> (23 - n))) & 0x7fffff;
+    r[62] = ((a[62] << n) | (a[61] >> (23 - n))) & 0x7fffff;
+    r[61] = ((a[61] << n) | (a[60] >> (23 - n))) & 0x7fffff;
+    r[60] = ((a[60] << n) | (a[59] >> (23 - n))) & 0x7fffff;
+    r[59] = ((a[59] << n) | (a[58] >> (23 - n))) & 0x7fffff;
+    r[58] = ((a[58] << n) | (a[57] >> (23 - n))) & 0x7fffff;
+    r[57] = ((a[57] << n) | (a[56] >> (23 - n))) & 0x7fffff;
+    r[56] = ((a[56] << n) | (a[55] >> (23 - n))) & 0x7fffff;
+    r[55] = ((a[55] << n) | (a[54] >> (23 - n))) & 0x7fffff;
+    r[54] = ((a[54] << n) | (a[53] >> (23 - n))) & 0x7fffff;
+    r[53] = ((a[53] << n) | (a[52] >> (23 - n))) & 0x7fffff;
+    r[52] = ((a[52] << n) | (a[51] >> (23 - n))) & 0x7fffff;
+    r[51] = ((a[51] << n) | (a[50] >> (23 - n))) & 0x7fffff;
+    r[50] = ((a[50] << n) | (a[49] >> (23 - n))) & 0x7fffff;
+    r[49] = ((a[49] << n) | (a[48] >> (23 - n))) & 0x7fffff;
+    r[48] = ((a[48] << n) | (a[47] >> (23 - n))) & 0x7fffff;
+    r[47] = ((a[47] << n) | (a[46] >> (23 - n))) & 0x7fffff;
+    r[46] = ((a[46] << n) | (a[45] >> (23 - n))) & 0x7fffff;
+    r[45] = ((a[45] << n) | (a[44] >> (23 - n))) & 0x7fffff;
+    r[44] = ((a[44] << n) | (a[43] >> (23 - n))) & 0x7fffff;
+    r[43] = ((a[43] << n) | (a[42] >> (23 - n))) & 0x7fffff;
+    r[42] = ((a[42] << n) | (a[41] >> (23 - n))) & 0x7fffff;
+    r[41] = ((a[41] << n) | (a[40] >> (23 - n))) & 0x7fffff;
+    r[40] = ((a[40] << n) | (a[39] >> (23 - n))) & 0x7fffff;
+    r[39] = ((a[39] << n) | (a[38] >> (23 - n))) & 0x7fffff;
+    r[38] = ((a[38] << n) | (a[37] >> (23 - n))) & 0x7fffff;
+    r[37] = ((a[37] << n) | (a[36] >> (23 - n))) & 0x7fffff;
+    r[36] = ((a[36] << n) | (a[35] >> (23 - n))) & 0x7fffff;
+    r[35] = ((a[35] << n) | (a[34] >> (23 - n))) & 0x7fffff;
+    r[34] = ((a[34] << n) | (a[33] >> (23 - n))) & 0x7fffff;
+    r[33] = ((a[33] << n) | (a[32] >> (23 - n))) & 0x7fffff;
+    r[32] = ((a[32] << n) | (a[31] >> (23 - n))) & 0x7fffff;
+    r[31] = ((a[31] << n) | (a[30] >> (23 - n))) & 0x7fffff;
+    r[30] = ((a[30] << n) | (a[29] >> (23 - n))) & 0x7fffff;
+    r[29] = ((a[29] << n) | (a[28] >> (23 - n))) & 0x7fffff;
+    r[28] = ((a[28] << n) | (a[27] >> (23 - n))) & 0x7fffff;
+    r[27] = ((a[27] << n) | (a[26] >> (23 - n))) & 0x7fffff;
+    r[26] = ((a[26] << n) | (a[25] >> (23 - n))) & 0x7fffff;
+    r[25] = ((a[25] << n) | (a[24] >> (23 - n))) & 0x7fffff;
+    r[24] = ((a[24] << n) | (a[23] >> (23 - n))) & 0x7fffff;
+    r[23] = ((a[23] << n) | (a[22] >> (23 - n))) & 0x7fffff;
+    r[22] = ((a[22] << n) | (a[21] >> (23 - n))) & 0x7fffff;
+    r[21] = ((a[21] << n) | (a[20] >> (23 - n))) & 0x7fffff;
+    r[20] = ((a[20] << n) | (a[19] >> (23 - n))) & 0x7fffff;
+    r[19] = ((a[19] << n) | (a[18] >> (23 - n))) & 0x7fffff;
+    r[18] = ((a[18] << n) | (a[17] >> (23 - n))) & 0x7fffff;
+    r[17] = ((a[17] << n) | (a[16] >> (23 - n))) & 0x7fffff;
+    r[16] = ((a[16] << n) | (a[15] >> (23 - n))) & 0x7fffff;
+    r[15] = ((a[15] << n) | (a[14] >> (23 - n))) & 0x7fffff;
+    r[14] = ((a[14] << n) | (a[13] >> (23 - n))) & 0x7fffff;
+    r[13] = ((a[13] << n) | (a[12] >> (23 - n))) & 0x7fffff;
+    r[12] = ((a[12] << n) | (a[11] >> (23 - n))) & 0x7fffff;
+    r[11] = ((a[11] << n) | (a[10] >> (23 - n))) & 0x7fffff;
+    r[10] = ((a[10] << n) | (a[9] >> (23 - n))) & 0x7fffff;
+    r[9] = ((a[9] << n) | (a[8] >> (23 - n))) & 0x7fffff;
+    r[8] = ((a[8] << n) | (a[7] >> (23 - n))) & 0x7fffff;
+    r[7] = ((a[7] << n) | (a[6] >> (23 - n))) & 0x7fffff;
+    r[6] = ((a[6] << n) | (a[5] >> (23 - n))) & 0x7fffff;
+    r[5] = ((a[5] << n) | (a[4] >> (23 - n))) & 0x7fffff;
+    r[4] = ((a[4] << n) | (a[3] >> (23 - n))) & 0x7fffff;
+    r[3] = ((a[3] << n) | (a[2] >> (23 - n))) & 0x7fffff;
+    r[2] = ((a[2] << n) | (a[1] >> (23 - n))) & 0x7fffff;
+    r[1] = ((a[1] << n) | (a[0] >> (23 - n))) & 0x7fffff;
+#endif
+    r[0] = (a[0] << n) & 0x7fffff;
+}
+
+/* Modular exponentiate 2 to the e mod m. (r = 2^e mod m)
+ *
+ * r     A single precision number that is the result of the operation.
+ * e     A single precision number that is the exponent.
+ * bits  The number of bits in the exponent.
+ * m     A single precision number that is the modulus.
+ * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ */
+static int sp_3072_mod_exp_2_134(sp_digit* r, sp_digit* e, int bits, sp_digit* m)
+{
+#ifndef WOLFSSL_SMALL_STACK
+    sp_digit nd[268];
+    sp_digit td[135];
+#else
+    sp_digit* td;
+#endif
+    sp_digit* norm;
+    sp_digit* tmp;
+    sp_digit mp = 1;
+    sp_digit n, o;
+    int i;
+    int c, y;
+    int err = MP_OKAY;
+
+#ifdef WOLFSSL_SMALL_STACK
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 403, NULL,
+                            DYNAMIC_TYPE_TMP_BUFFER);
+    if (td == NULL)
+        err = MEMORY_E;
+
+    if (err == MP_OKAY) {
+        norm = td;
+        tmp  = td + 268;
+    }
+#else
+    norm = nd;
+    tmp  = td;
+#endif
+
+    if (err == MP_OKAY) {
+        XMEMSET(td, 0, sizeof(td));
+        sp_3072_mont_setup(m, &mp);
+        sp_3072_mont_norm_134(norm, m);
+
+        bits = ((bits + 3) / 4) * 4;
+        i = ((bits + 22) / 23) - 1;
+        c = bits % 23;
+        if (c == 0)
+            c = 23;
+        if (i < 134)
+            n = e[i--] << (32 - c);
+        else {
+            n = 0;
+            i--;
+        }
+        if (c < 4) {
+            n |= e[i--] << (9 - c);
+            c += 23;
+        }
+        y = (n >> 28) & 0xf;
+        n <<= 4;
+        c -= 4;
+        sp_3072_lshift_134(r, norm, y);
+        for (; i>=0 || c>=4; ) {
+            if (c < 4) {
+                n |= e[i--] << (9 - c);
+                c += 23;
+            }
+            y = (n >> 28) & 0xf;
+            n <<= 4;
+            c -= 4;
+
+            sp_3072_mont_sqr_134(r, r, m, mp);
+            sp_3072_mont_sqr_134(r, r, m, mp);
+            sp_3072_mont_sqr_134(r, r, m, mp);
+            sp_3072_mont_sqr_134(r, r, m, mp);
+
+            sp_3072_lshift_134(r, r, y);
+            sp_3072_mul_d_134(tmp, norm, (r[134] << 10) + (r[133] >> 13));
+            r[134] = 0;
+            r[133] &= 0x1fffL;
+            sp_3072_add_134(r, r, tmp);
+            sp_3072_norm_134(r);
+            o = sp_3072_cmp_134(r, m);
+            sp_3072_cond_sub_134(r, r, m, (o < 0) - 1);
+        }
+
+        sp_3072_mont_reduce_134(r, m, mp);
+        n = sp_3072_cmp_134(r, m);
+        sp_3072_cond_sub_134(r, r, m, (n < 0) - 1);
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (td != NULL)
+        XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return err;
+}
+
+#endif /* HAVE_FFDHE_3072 */
+
 /* Perform the modular exponentiation for Diffie-Hellman.
  *
  * base     Base.
@@ -7110,7 +7582,14 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
         sp_3072_from_bin(e, 134, exp, expLen);
         sp_3072_from_mp(m, 134, mod);
 
-        err = sp_3072_mod_exp_134(r, b, e, expLen * 8, m, 0);
+    #ifdef HAVE_FFDHE_3072
+        if (base->used == 1 && base->dp[0] == 2 &&
+                ((m[133] << 3) | (m[132] >> 20)) == 0xffffL) {
+            err = sp_3072_mod_exp_2_134(r, e, expLen * 8, m);
+        }
+        else
+    #endif
+            err = sp_3072_mod_exp_134(r, b, e, expLen * 8, m, 0);
     }
 
     if (err == MP_OKAY) {
@@ -7169,7 +7648,14 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
         sp_3072_from_bin(e, 134, exp, expLen);
         sp_3072_from_mp(m, 134, mod);
 
-        err = sp_3072_mod_exp_134(r, b, e, expLen * 8, m, 0);
+    #ifdef HAVE_FFDHE_3072
+        if (base->used == 1 && base->dp[0] == 2 &&
+                ((m[133] << 3) | (m[132] >> 20)) == 0xffffL) {
+            err = sp_3072_mod_exp_2_134(r, e, expLen * 8, m);
+        }
+        else
+    #endif
+            err = sp_3072_mod_exp_134(r, b, e, expLen * 8, m, 0);
     }
 
     if (err == MP_OKAY) {

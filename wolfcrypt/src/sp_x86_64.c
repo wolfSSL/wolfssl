@@ -102,14 +102,14 @@ static void sp_2048_from_mp(sp_digit* r, int max, mp_int* a)
         s = 64 - s;
         if (j + 1 >= max)
             break;
-        r[++j] = a->dp[i] >> s;
+        r[++j] = (sp_digit)(a->dp[i] >> s);
         while (s + 64 <= DIGIT_BIT) {
             s += 64;
             r[j] &= 0xffffffffffffffffl;
             if (j + 1 >= max)
                 break;
             if (s < DIGIT_BIT)
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(a->dp[i] >> s);
             else
                 r[++j] = 0;
         }
@@ -190,7 +190,7 @@ extern sp_digit sp_2048_add_32(sp_digit* r, const sp_digit* a, const sp_digit* b
  * a  A single precision integer.
  * m  Mask to AND against each digit.
  */
-static void sp_2048_mask_16(sp_digit* r, sp_digit* a, sp_digit m)
+static void sp_2048_mask_16(sp_digit* r, const sp_digit* a, sp_digit m)
 {
 #ifdef WOLFSSL_SP_SMALL
     int i;
@@ -580,9 +580,12 @@ static int sp_2048_mod_exp_16(sp_digit* r, sp_digit* a, sp_digit* e,
 
         i = (bits - 1) / 64;
         n = e[i--];
-        y = n >> 59;
-        n <<= 5;
-        c = 59;
+        c = bits & 63;
+        if (c == 0)
+            c = 64;
+        c -= bits % 5;
+        y = n >> c;
+        n <<= 64 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 16);
         for (; i>=0 || c>=5; ) {
             if (c == 0) {
@@ -613,10 +616,6 @@ static int sp_2048_mod_exp_16(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_2048_mont_mul_16(r, r, t[y], m, mp);
         }
-        y = e[0] & ((1 << c) - 1);
-        for (; c > 0; c--)
-            sp_2048_mont_sqr_16(r, r, m, mp);
-        sp_2048_mont_mul_16(r, r, t[y], m, mp);
 
         XMEMSET(&r[16], 0, sizeof(sp_digit) * 16);
         sp_2048_mont_reduce_16(r, m, mp);
@@ -760,9 +759,12 @@ static int sp_2048_mod_exp_avx2_16(sp_digit* r, sp_digit* a, sp_digit* e,
 
         i = (bits - 1) / 64;
         n = e[i--];
-        y = n >> 59;
-        n <<= 5;
-        c = 59;
+        c = bits & 63;
+        if (c == 0)
+            c = 64;
+        c -= bits % 5;
+        y = n >> c;
+        n <<= 64 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 16);
         for (; i>=0 || c>=5; ) {
             if (c == 0) {
@@ -793,10 +795,6 @@ static int sp_2048_mod_exp_avx2_16(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_2048_mont_mul_avx2_16(r, r, t[y], m, mp);
         }
-        y = e[0] & ((1 << c) - 1);
-        for (; c > 0; c--)
-            sp_2048_mont_sqr_avx2_16(r, r, m, mp);
-        sp_2048_mont_mul_avx2_16(r, r, t[y], m, mp);
 
         XMEMSET(&r[16], 0, sizeof(sp_digit) * 16);
         sp_2048_mont_reduce_avx2_16(r, m, mp);
@@ -891,7 +889,7 @@ static WC_INLINE sp_digit div_2048_word_32(sp_digit d1, sp_digit d0,
  * a  A single precision integer.
  * m  Mask to AND against each digit.
  */
-static void sp_2048_mask_32(sp_digit* r, sp_digit* a, sp_digit m)
+static void sp_2048_mask_32(sp_digit* r, const sp_digit* a, sp_digit m)
 {
 #ifdef WOLFSSL_SP_SMALL
     int i;
@@ -1125,9 +1123,12 @@ static int sp_2048_mod_exp_32(sp_digit* r, sp_digit* a, sp_digit* e,
 
         i = (bits - 1) / 64;
         n = e[i--];
-        y = n >> 59;
-        n <<= 5;
-        c = 59;
+        c = bits & 63;
+        if (c == 0)
+            c = 64;
+        c -= bits % 5;
+        y = n >> c;
+        n <<= 64 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 32);
         for (; i>=0 || c>=5; ) {
             if (c == 0) {
@@ -1158,10 +1159,6 @@ static int sp_2048_mod_exp_32(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_2048_mont_mul_32(r, r, t[y], m, mp);
         }
-        y = e[0] & ((1 << c) - 1);
-        for (; c > 0; c--)
-            sp_2048_mont_sqr_32(r, r, m, mp);
-        sp_2048_mont_mul_32(r, r, t[y], m, mp);
 
         XMEMSET(&r[32], 0, sizeof(sp_digit) * 32);
         sp_2048_mont_reduce_32(r, m, mp);
@@ -1307,9 +1304,12 @@ static int sp_2048_mod_exp_avx2_32(sp_digit* r, sp_digit* a, sp_digit* e,
 
         i = (bits - 1) / 64;
         n = e[i--];
-        y = n >> 59;
-        n <<= 5;
-        c = 59;
+        c = bits & 63;
+        if (c == 0)
+            c = 64;
+        c -= bits % 5;
+        y = n >> c;
+        n <<= 64 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 32);
         for (; i>=0 || c>=5; ) {
             if (c == 0) {
@@ -1340,10 +1340,6 @@ static int sp_2048_mod_exp_avx2_32(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_2048_mont_mul_avx2_32(r, r, t[y], m, mp);
         }
-        y = e[0] & ((1 << c) - 1);
-        for (; c > 0; c--)
-            sp_2048_mont_sqr_avx2_32(r, r, m, mp);
-        sp_2048_mont_mul_avx2_32(r, r, t[y], m, mp);
 
         XMEMSET(&r[32], 0, sizeof(sp_digit) * 32);
         sp_2048_mont_reduce_avx2_32(r, m, mp);
@@ -1711,7 +1707,7 @@ static int sp_2048_to_mp(sp_digit* a, mp_int* r)
         for (i = 0; i < 32; i++) {
             r->dp[j] |= ((mp_digit)a[i]) << s;
             if (s + 64 >= DIGIT_BIT) {
-    #if DIGIT_BIT < 64
+    #if DIGIT_BIT != 32 && DIGIT_BIT != 64
                 r->dp[j] &= (1l << DIGIT_BIT) - 1;
     #endif
                 s = DIGIT_BIT - s;
@@ -1775,6 +1771,220 @@ int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     return err;
 }
 
+#ifdef HAVE_FFDHE_2048
+extern void sp_2048_lshift_32(sp_digit* r, const sp_digit* a, int n);
+#ifdef HAVE_INTEL_AVX2
+/* Modular exponentiate 2 to the e mod m. (r = 2^e mod m)
+ *
+ * r     A single precision number that is the result of the operation.
+ * e     A single precision number that is the exponent.
+ * bits  The number of bits in the exponent.
+ * m     A single precision number that is the modulus.
+ * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ */
+static int sp_2048_mod_exp_2_avx2_32(sp_digit* r, sp_digit* e, int bits,
+        sp_digit* m)
+{
+#ifndef WOLFSSL_SMALL_STACK
+    sp_digit nd[64];
+    sp_digit td[33];
+#else
+    sp_digit* td;
+#endif
+    sp_digit* norm;
+    sp_digit* tmp;
+    sp_digit mp = 1;
+    sp_digit n, o;
+    sp_digit mask;
+    int i;
+    int c, y;
+    int err = MP_OKAY;
+
+#ifdef WOLFSSL_SMALL_STACK
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 97, NULL,
+                            DYNAMIC_TYPE_TMP_BUFFER);
+    if (td == NULL)
+        err = MEMORY_E;
+
+    if (err == MP_OKAY) {
+        norm = td;
+        tmp  = td + 64;
+    }
+#else
+    norm = nd;
+    tmp  = td;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_2048_mont_setup(m, &mp);
+        sp_2048_mont_norm_32(norm, m);
+
+        i = (bits - 1) / 64;
+        n = e[i--];
+        c = bits & 63;
+        if (c == 0)
+            c = 64;
+        c -= bits % 6;
+        y = n >> c;
+        n <<= 64 - c;
+        sp_2048_lshift_32(r, norm, y);
+        for (; i>=0 || c>=6; ) {
+            if (c == 0) {
+                n = e[i--];
+                y = n >> 58;
+                n <<= 6;
+                c = 58;
+            }
+            else if (c < 6) {
+                y = n >> 58;
+                n = e[i--];
+                c = 6 - c;
+                y |= n >> (64 - c);
+                n <<= c;
+                c = 64 - c;
+            }
+            else {
+                y = (n >> 58) & 0x3f;
+                n <<= 6;
+                c -= 6;
+            }
+
+            sp_2048_mont_sqr_avx2_32(r, r, m, mp);
+            sp_2048_mont_sqr_avx2_32(r, r, m, mp);
+            sp_2048_mont_sqr_avx2_32(r, r, m, mp);
+            sp_2048_mont_sqr_avx2_32(r, r, m, mp);
+            sp_2048_mont_sqr_avx2_32(r, r, m, mp);
+            sp_2048_mont_sqr_avx2_32(r, r, m, mp);
+
+            sp_2048_lshift_32(r, r, y);
+            sp_2048_mul_d_avx2_32(tmp, norm, r[32]);
+            r[32] = 0;
+            o = sp_2048_add_32(r, r, tmp);
+            sp_2048_cond_sub_32(r, r, m, (sp_digit)0 - o);
+        }
+
+        XMEMSET(&r[32], 0, sizeof(sp_digit) * 32);
+        sp_2048_mont_reduce_avx2_32(r, m, mp);
+
+        mask = 0 - (sp_2048_cmp_32(r, m) >= 0);
+        sp_2048_cond_sub_32(r, r, m, mask);
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (td != NULL)
+        XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return err;
+}
+#endif /* HAVE_INTEL_AVX2 */
+
+/* Modular exponentiate 2 to the e mod m. (r = 2^e mod m)
+ *
+ * r     A single precision number that is the result of the operation.
+ * e     A single precision number that is the exponent.
+ * bits  The number of bits in the exponent.
+ * m     A single precision number that is the modulus.
+ * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ */
+static int sp_2048_mod_exp_2_32(sp_digit* r, sp_digit* e, int bits,
+        sp_digit* m)
+{
+#ifndef WOLFSSL_SMALL_STACK
+    sp_digit nd[64];
+    sp_digit td[33];
+#else
+    sp_digit* td;
+#endif
+    sp_digit* norm;
+    sp_digit* tmp;
+    sp_digit mp = 1;
+    sp_digit n, o;
+    sp_digit mask;
+    int i;
+    int c, y;
+    int err = MP_OKAY;
+
+#ifdef WOLFSSL_SMALL_STACK
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 97, NULL,
+                            DYNAMIC_TYPE_TMP_BUFFER);
+    if (td == NULL)
+        err = MEMORY_E;
+
+    if (err == MP_OKAY) {
+        norm = td;
+        tmp  = td + 64;
+    }
+#else
+    norm = nd;
+    tmp  = td;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_2048_mont_setup(m, &mp);
+        sp_2048_mont_norm_32(norm, m);
+
+        i = (bits - 1) / 64;
+        n = e[i--];
+        c = bits & 63;
+        if (c == 0)
+            c = 64;
+        c -= bits % 6;
+        y = n >> c;
+        n <<= 64 - c;
+        sp_2048_lshift_32(r, norm, y);
+        for (; i>=0 || c>=6; ) {
+            if (c == 0) {
+                n = e[i--];
+                y = n >> 58;
+                n <<= 6;
+                c = 58;
+            }
+            else if (c < 6) {
+                y = n >> 58;
+                n = e[i--];
+                c = 6 - c;
+                y |= n >> (64 - c);
+                n <<= c;
+                c = 64 - c;
+            }
+            else {
+                y = (n >> 58) & 0x3f;
+                n <<= 6;
+                c -= 6;
+            }
+
+            sp_2048_mont_sqr_32(r, r, m, mp);
+            sp_2048_mont_sqr_32(r, r, m, mp);
+            sp_2048_mont_sqr_32(r, r, m, mp);
+            sp_2048_mont_sqr_32(r, r, m, mp);
+            sp_2048_mont_sqr_32(r, r, m, mp);
+            sp_2048_mont_sqr_32(r, r, m, mp);
+
+            sp_2048_lshift_32(r, r, y);
+            sp_2048_mul_d_32(tmp, norm, r[32]);
+            r[32] = 0;
+            o = sp_2048_add_32(r, r, tmp);
+            sp_2048_cond_sub_32(r, r, m, (sp_digit)0 - o);
+        }
+
+        XMEMSET(&r[32], 0, sizeof(sp_digit) * 32);
+        sp_2048_mont_reduce_32(r, m, mp);
+
+        mask = 0 - (sp_2048_cmp_32(r, m) >= 0);
+        sp_2048_cond_sub_32(r, r, m, mask);
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (td != NULL)
+        XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return err;
+}
+
+#endif /* HAVE_FFDHE_2048 */
+
 /* Perform the modular exponentiation for Diffie-Hellman.
  *
  * base     Base.
@@ -1808,12 +2018,25 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
         sp_2048_from_bin(e, 32, exp, expLen);
         sp_2048_from_mp(m, 32, mod);
 
+    #ifdef HAVE_FFDHE_2048
+        if (base->used == 1 && base->dp[0] == 2 && m[31] == (sp_digit)-1) {
 #ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-            err = sp_2048_mod_exp_avx2_32(r, b, e, expLen * 8, m, 0);
-        else
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+                err = sp_2048_mod_exp_2_avx2_32(r, e, expLen * 8, m);
+            else
 #endif
-            err = sp_2048_mod_exp_32(r, b, e, expLen * 8, m, 0);
+                err = sp_2048_mod_exp_2_32(r, e, expLen * 8, m);
+        }
+        else
+    #endif
+        {
+#ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+                err = sp_2048_mod_exp_avx2_32(r, b, e, expLen * 8, m, 0);
+            else
+#endif
+                err = sp_2048_mod_exp_32(r, b, e, expLen * 8, m, 0);
+        }
     }
 
     if (err == MP_OKAY) {
@@ -1934,14 +2157,14 @@ static void sp_3072_from_mp(sp_digit* r, int max, mp_int* a)
         s = 64 - s;
         if (j + 1 >= max)
             break;
-        r[++j] = a->dp[i] >> s;
+        r[++j] = (sp_digit)(a->dp[i] >> s);
         while (s + 64 <= DIGIT_BIT) {
             s += 64;
             r[j] &= 0xffffffffffffffffl;
             if (j + 1 >= max)
                 break;
             if (s < DIGIT_BIT)
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(a->dp[i] >> s);
             else
                 r[++j] = 0;
         }
@@ -2022,7 +2245,7 @@ extern sp_digit sp_3072_add_48(sp_digit* r, const sp_digit* a, const sp_digit* b
  * a  A single precision integer.
  * m  Mask to AND against each digit.
  */
-static void sp_3072_mask_24(sp_digit* r, sp_digit* a, sp_digit m)
+static void sp_3072_mask_24(sp_digit* r, const sp_digit* a, sp_digit m)
 {
 #ifdef WOLFSSL_SP_SMALL
     int i;
@@ -2412,9 +2635,12 @@ static int sp_3072_mod_exp_24(sp_digit* r, sp_digit* a, sp_digit* e,
 
         i = (bits - 1) / 64;
         n = e[i--];
-        y = n >> 59;
-        n <<= 5;
-        c = 59;
+        c = bits & 63;
+        if (c == 0)
+            c = 64;
+        c -= bits % 5;
+        y = n >> c;
+        n <<= 64 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 24);
         for (; i>=0 || c>=5; ) {
             if (c == 0) {
@@ -2445,10 +2671,6 @@ static int sp_3072_mod_exp_24(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_3072_mont_mul_24(r, r, t[y], m, mp);
         }
-        y = e[0] & ((1 << c) - 1);
-        for (; c > 0; c--)
-            sp_3072_mont_sqr_24(r, r, m, mp);
-        sp_3072_mont_mul_24(r, r, t[y], m, mp);
 
         XMEMSET(&r[24], 0, sizeof(sp_digit) * 24);
         sp_3072_mont_reduce_24(r, m, mp);
@@ -2592,9 +2814,12 @@ static int sp_3072_mod_exp_avx2_24(sp_digit* r, sp_digit* a, sp_digit* e,
 
         i = (bits - 1) / 64;
         n = e[i--];
-        y = n >> 59;
-        n <<= 5;
-        c = 59;
+        c = bits & 63;
+        if (c == 0)
+            c = 64;
+        c -= bits % 5;
+        y = n >> c;
+        n <<= 64 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 24);
         for (; i>=0 || c>=5; ) {
             if (c == 0) {
@@ -2625,10 +2850,6 @@ static int sp_3072_mod_exp_avx2_24(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_3072_mont_mul_avx2_24(r, r, t[y], m, mp);
         }
-        y = e[0] & ((1 << c) - 1);
-        for (; c > 0; c--)
-            sp_3072_mont_sqr_avx2_24(r, r, m, mp);
-        sp_3072_mont_mul_avx2_24(r, r, t[y], m, mp);
 
         XMEMSET(&r[24], 0, sizeof(sp_digit) * 24);
         sp_3072_mont_reduce_avx2_24(r, m, mp);
@@ -2723,7 +2944,7 @@ static WC_INLINE sp_digit div_3072_word_48(sp_digit d1, sp_digit d0,
  * a  A single precision integer.
  * m  Mask to AND against each digit.
  */
-static void sp_3072_mask_48(sp_digit* r, sp_digit* a, sp_digit m)
+static void sp_3072_mask_48(sp_digit* r, const sp_digit* a, sp_digit m)
 {
 #ifdef WOLFSSL_SP_SMALL
     int i;
@@ -2957,9 +3178,12 @@ static int sp_3072_mod_exp_48(sp_digit* r, sp_digit* a, sp_digit* e,
 
         i = (bits - 1) / 64;
         n = e[i--];
-        y = n >> 59;
-        n <<= 5;
-        c = 59;
+        c = bits & 63;
+        if (c == 0)
+            c = 64;
+        c -= bits % 5;
+        y = n >> c;
+        n <<= 64 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 48);
         for (; i>=0 || c>=5; ) {
             if (c == 0) {
@@ -2990,10 +3214,6 @@ static int sp_3072_mod_exp_48(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_3072_mont_mul_48(r, r, t[y], m, mp);
         }
-        y = e[0] & ((1 << c) - 1);
-        for (; c > 0; c--)
-            sp_3072_mont_sqr_48(r, r, m, mp);
-        sp_3072_mont_mul_48(r, r, t[y], m, mp);
 
         XMEMSET(&r[48], 0, sizeof(sp_digit) * 48);
         sp_3072_mont_reduce_48(r, m, mp);
@@ -3139,9 +3359,12 @@ static int sp_3072_mod_exp_avx2_48(sp_digit* r, sp_digit* a, sp_digit* e,
 
         i = (bits - 1) / 64;
         n = e[i--];
-        y = n >> 59;
-        n <<= 5;
-        c = 59;
+        c = bits & 63;
+        if (c == 0)
+            c = 64;
+        c -= bits % 5;
+        y = n >> c;
+        n <<= 64 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 48);
         for (; i>=0 || c>=5; ) {
             if (c == 0) {
@@ -3172,10 +3395,6 @@ static int sp_3072_mod_exp_avx2_48(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_3072_mont_mul_avx2_48(r, r, t[y], m, mp);
         }
-        y = e[0] & ((1 << c) - 1);
-        for (; c > 0; c--)
-            sp_3072_mont_sqr_avx2_48(r, r, m, mp);
-        sp_3072_mont_mul_avx2_48(r, r, t[y], m, mp);
 
         XMEMSET(&r[48], 0, sizeof(sp_digit) * 48);
         sp_3072_mont_reduce_avx2_48(r, m, mp);
@@ -3543,7 +3762,7 @@ static int sp_3072_to_mp(sp_digit* a, mp_int* r)
         for (i = 0; i < 48; i++) {
             r->dp[j] |= ((mp_digit)a[i]) << s;
             if (s + 64 >= DIGIT_BIT) {
-    #if DIGIT_BIT < 64
+    #if DIGIT_BIT != 32 && DIGIT_BIT != 64
                 r->dp[j] &= (1l << DIGIT_BIT) - 1;
     #endif
                 s = DIGIT_BIT - s;
@@ -3607,6 +3826,220 @@ int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     return err;
 }
 
+#ifdef HAVE_FFDHE_3072
+extern void sp_3072_lshift_48(sp_digit* r, const sp_digit* a, int n);
+#ifdef HAVE_INTEL_AVX2
+/* Modular exponentiate 2 to the e mod m. (r = 2^e mod m)
+ *
+ * r     A single precision number that is the result of the operation.
+ * e     A single precision number that is the exponent.
+ * bits  The number of bits in the exponent.
+ * m     A single precision number that is the modulus.
+ * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ */
+static int sp_3072_mod_exp_2_avx2_48(sp_digit* r, sp_digit* e, int bits,
+        sp_digit* m)
+{
+#ifndef WOLFSSL_SMALL_STACK
+    sp_digit nd[96];
+    sp_digit td[49];
+#else
+    sp_digit* td;
+#endif
+    sp_digit* norm;
+    sp_digit* tmp;
+    sp_digit mp = 1;
+    sp_digit n, o;
+    sp_digit mask;
+    int i;
+    int c, y;
+    int err = MP_OKAY;
+
+#ifdef WOLFSSL_SMALL_STACK
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 145, NULL,
+                            DYNAMIC_TYPE_TMP_BUFFER);
+    if (td == NULL)
+        err = MEMORY_E;
+
+    if (err == MP_OKAY) {
+        norm = td;
+        tmp  = td + 96;
+    }
+#else
+    norm = nd;
+    tmp  = td;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_3072_mont_setup(m, &mp);
+        sp_3072_mont_norm_48(norm, m);
+
+        i = (bits - 1) / 64;
+        n = e[i--];
+        c = bits & 63;
+        if (c == 0)
+            c = 64;
+        c -= bits % 6;
+        y = n >> c;
+        n <<= 64 - c;
+        sp_3072_lshift_48(r, norm, y);
+        for (; i>=0 || c>=6; ) {
+            if (c == 0) {
+                n = e[i--];
+                y = n >> 58;
+                n <<= 6;
+                c = 58;
+            }
+            else if (c < 6) {
+                y = n >> 58;
+                n = e[i--];
+                c = 6 - c;
+                y |= n >> (64 - c);
+                n <<= c;
+                c = 64 - c;
+            }
+            else {
+                y = (n >> 58) & 0x3f;
+                n <<= 6;
+                c -= 6;
+            }
+
+            sp_3072_mont_sqr_avx2_48(r, r, m, mp);
+            sp_3072_mont_sqr_avx2_48(r, r, m, mp);
+            sp_3072_mont_sqr_avx2_48(r, r, m, mp);
+            sp_3072_mont_sqr_avx2_48(r, r, m, mp);
+            sp_3072_mont_sqr_avx2_48(r, r, m, mp);
+            sp_3072_mont_sqr_avx2_48(r, r, m, mp);
+
+            sp_3072_lshift_48(r, r, y);
+            sp_3072_mul_d_avx2_48(tmp, norm, r[48]);
+            r[48] = 0;
+            o = sp_3072_add_48(r, r, tmp);
+            sp_3072_cond_sub_48(r, r, m, (sp_digit)0 - o);
+        }
+
+        XMEMSET(&r[48], 0, sizeof(sp_digit) * 48);
+        sp_3072_mont_reduce_avx2_48(r, m, mp);
+
+        mask = 0 - (sp_3072_cmp_48(r, m) >= 0);
+        sp_3072_cond_sub_48(r, r, m, mask);
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (td != NULL)
+        XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return err;
+}
+#endif /* HAVE_INTEL_AVX2 */
+
+/* Modular exponentiate 2 to the e mod m. (r = 2^e mod m)
+ *
+ * r     A single precision number that is the result of the operation.
+ * e     A single precision number that is the exponent.
+ * bits  The number of bits in the exponent.
+ * m     A single precision number that is the modulus.
+ * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
+ */
+static int sp_3072_mod_exp_2_48(sp_digit* r, sp_digit* e, int bits,
+        sp_digit* m)
+{
+#ifndef WOLFSSL_SMALL_STACK
+    sp_digit nd[96];
+    sp_digit td[49];
+#else
+    sp_digit* td;
+#endif
+    sp_digit* norm;
+    sp_digit* tmp;
+    sp_digit mp = 1;
+    sp_digit n, o;
+    sp_digit mask;
+    int i;
+    int c, y;
+    int err = MP_OKAY;
+
+#ifdef WOLFSSL_SMALL_STACK
+    td = (sp_digit*)XMALLOC(sizeof(sp_digit) * 145, NULL,
+                            DYNAMIC_TYPE_TMP_BUFFER);
+    if (td == NULL)
+        err = MEMORY_E;
+
+    if (err == MP_OKAY) {
+        norm = td;
+        tmp  = td + 96;
+    }
+#else
+    norm = nd;
+    tmp  = td;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_3072_mont_setup(m, &mp);
+        sp_3072_mont_norm_48(norm, m);
+
+        i = (bits - 1) / 64;
+        n = e[i--];
+        c = bits & 63;
+        if (c == 0)
+            c = 64;
+        c -= bits % 6;
+        y = n >> c;
+        n <<= 64 - c;
+        sp_3072_lshift_48(r, norm, y);
+        for (; i>=0 || c>=6; ) {
+            if (c == 0) {
+                n = e[i--];
+                y = n >> 58;
+                n <<= 6;
+                c = 58;
+            }
+            else if (c < 6) {
+                y = n >> 58;
+                n = e[i--];
+                c = 6 - c;
+                y |= n >> (64 - c);
+                n <<= c;
+                c = 64 - c;
+            }
+            else {
+                y = (n >> 58) & 0x3f;
+                n <<= 6;
+                c -= 6;
+            }
+
+            sp_3072_mont_sqr_48(r, r, m, mp);
+            sp_3072_mont_sqr_48(r, r, m, mp);
+            sp_3072_mont_sqr_48(r, r, m, mp);
+            sp_3072_mont_sqr_48(r, r, m, mp);
+            sp_3072_mont_sqr_48(r, r, m, mp);
+            sp_3072_mont_sqr_48(r, r, m, mp);
+
+            sp_3072_lshift_48(r, r, y);
+            sp_3072_mul_d_48(tmp, norm, r[48]);
+            r[48] = 0;
+            o = sp_3072_add_48(r, r, tmp);
+            sp_3072_cond_sub_48(r, r, m, (sp_digit)0 - o);
+        }
+
+        XMEMSET(&r[48], 0, sizeof(sp_digit) * 48);
+        sp_3072_mont_reduce_48(r, m, mp);
+
+        mask = 0 - (sp_3072_cmp_48(r, m) >= 0);
+        sp_3072_cond_sub_48(r, r, m, mask);
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (td != NULL)
+        XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return err;
+}
+
+#endif /* HAVE_FFDHE_3072 */
+
 /* Perform the modular exponentiation for Diffie-Hellman.
  *
  * base     Base.
@@ -3640,12 +4073,25 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
         sp_3072_from_bin(e, 48, exp, expLen);
         sp_3072_from_mp(m, 48, mod);
 
+    #ifdef HAVE_FFDHE_3072
+        if (base->used == 1 && base->dp[0] == 2 && m[47] == (sp_digit)-1) {
 #ifdef HAVE_INTEL_AVX2
-        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
-            err = sp_3072_mod_exp_avx2_48(r, b, e, expLen * 8, m, 0);
-        else
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+                err = sp_3072_mod_exp_2_avx2_48(r, e, expLen * 8, m);
+            else
 #endif
-            err = sp_3072_mod_exp_48(r, b, e, expLen * 8, m, 0);
+                err = sp_3072_mod_exp_2_48(r, e, expLen * 8, m);
+        }
+        else
+    #endif
+        {
+#ifdef HAVE_INTEL_AVX2
+            if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+                err = sp_3072_mod_exp_avx2_48(r, b, e, expLen * 8, m, 0);
+            else
+#endif
+                err = sp_3072_mod_exp_48(r, b, e, expLen * 8, m, 0);
+        }
     }
 
     if (err == MP_OKAY) {
@@ -3911,14 +4357,14 @@ static void sp_256_from_mp(sp_digit* r, int max, mp_int* a)
         s = 64 - s;
         if (j + 1 >= max)
             break;
-        r[++j] = a->dp[i] >> s;
+        r[++j] = (sp_digit)(a->dp[i] >> s);
         while (s + 64 <= DIGIT_BIT) {
             s += 64;
             r[j] &= 0xffffffffffffffffl;
             if (j + 1 >= max)
                 break;
             if (s < DIGIT_BIT)
-                r[++j] = a->dp[i] >> s;
+                r[++j] = (sp_digit)(a->dp[i] >> s);
             else
                 r[++j] = 0;
         }
@@ -4012,7 +4458,7 @@ static int sp_256_to_mp(sp_digit* a, mp_int* r)
         for (i = 0; i < 4; i++) {
             r->dp[j] |= ((mp_digit)a[i]) << s;
             if (s + 64 >= DIGIT_BIT) {
-    #if DIGIT_BIT < 64
+    #if DIGIT_BIT != 32 && DIGIT_BIT != 64
                 r->dp[j] &= (1l << DIGIT_BIT) - 1;
     #endif
                 s = DIGIT_BIT - s;
@@ -19921,7 +20367,7 @@ static WC_INLINE sp_digit div_256_word_4(sp_digit d1, sp_digit d0,
  * a  A single precision integer.
  * m  Mask to AND against each digit.
  */
-static void sp_256_mask_4(sp_digit* r, sp_digit* a, sp_digit m)
+static void sp_256_mask_4(sp_digit* r, const sp_digit* a, sp_digit m)
 {
 #ifdef WOLFSSL_SP_SMALL
     int i;

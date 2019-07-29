@@ -12910,6 +12910,79 @@ static int dh_test_check_pubvalue(void)
 }
 #endif
 
+#if defined(WOLFSSL_HAVE_SP_DH) && defined(HAVE_FFDHE)
+
+#ifdef HAVE_FFDHE_3072
+    #define FFDHE_KEY_SIZE      (3072/8)
+#else
+    #define FFDHE_KEY_SIZE      (2048/8)
+#endif
+
+static int dh_test_ffdhe(WC_RNG *rng, const DhParams* params)
+{
+    int    ret;
+    word32 privSz, pubSz, privSz2, pubSz2;
+    byte   priv[FFDHE_KEY_SIZE];
+    byte   pub[FFDHE_KEY_SIZE];
+    byte   priv2[FFDHE_KEY_SIZE];
+    byte   pub2[FFDHE_KEY_SIZE];
+    byte   agree[FFDHE_KEY_SIZE];
+    byte   agree2[FFDHE_KEY_SIZE];
+    word32 agreeSz = (word32)sizeof(agree);
+    word32 agreeSz2 = (word32)sizeof(agree2);
+    DhKey  key;
+    DhKey  key2;
+
+    ret = wc_InitDhKey_ex(&key, HEAP_HINT, devId);
+    if (ret != 0) {
+        ERROR_OUT(-7180, done);
+    }
+    ret = wc_InitDhKey_ex(&key2, HEAP_HINT, devId);
+    if (ret != 0) {
+        ERROR_OUT(-7181, done);
+    }
+
+    ret = wc_DhSetKey(&key, params->p, params->p_len, params->g, params->g_len);
+    if (ret != 0) {
+        ERROR_OUT(-7182, done);
+    }
+
+    ret = wc_DhSetKey(&key2, params->p, params->p_len, params->g,
+                                                                 params->g_len);
+    if (ret != 0) {
+        ERROR_OUT(-7183, done);
+    }
+
+    ret = wc_DhGenerateKeyPair(&key, rng, priv, &privSz, pub, &pubSz);
+    if (ret != 0) {
+        ERROR_OUT(-7184, done);
+    }
+
+    ret = wc_DhGenerateKeyPair(&key2, rng, priv2, &privSz2, pub2, &pubSz2);
+    if (ret != 0) {
+        ERROR_OUT(-7185, done);
+    }
+
+    ret = wc_DhAgree(&key, agree, &agreeSz, priv, privSz, pub2, pubSz2);
+    if (ret != 0) {
+        ERROR_OUT(-7186, done);
+    }
+
+    ret = wc_DhAgree(&key2, agree2, &agreeSz2, priv2, privSz2, pub, pubSz);
+    if (ret != 0) {
+        ERROR_OUT(-7187, done);
+    }
+
+    if (agreeSz != agreeSz2 || XMEMCMP(agree, agree2, agreeSz)) {
+        ERROR_OUT(-7188, done);
+    }
+
+done:
+    return ret;
+}
+
+#endif /* WOLFSSL_HAVE_SP_DH && HAVE_FFDHE */
+
 int dh_test(void)
 {
     int    ret;
@@ -13062,6 +13135,17 @@ int dh_test(void)
         ret = dh_test_check_pubvalue();
 #endif
 
+#ifdef WOLFSSL_HAVE_SP_DH
+    /* Specialized code for key gen when using FFDHE-2048 and FFDHE-3072. */
+    #ifdef HAVE_FFDHE_2048
+    if (ret == 0)
+        ret = dh_test_ffdhe(&rng, wc_Dh_ffdhe2048_Get());
+    #endif
+    #ifdef HAVE_FFDHE_3072
+    if (ret == 0)
+        ret = dh_test_ffdhe(&rng, wc_Dh_ffdhe3072_Get());
+    #endif
+#endif /* WOLFSSL_HAVE_SP_DH */
 
     wc_FreeDhKey(&key);
     keyInit = 0;
