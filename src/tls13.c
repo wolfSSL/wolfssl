@@ -3880,6 +3880,8 @@ static int DoTls13SupportedVersions(WOLFSSL* ssl, const byte* input, word32 i,
         return BUFFER_ERROR;
     ato16(input + i, &suiteSz);
     i += OPAQUE16_LEN;
+    if (i + suiteSz + 1 > helloSz)
+        return BUFFER_ERROR;
     i += suiteSz;
     /* Compression */
     b = input[i++];
