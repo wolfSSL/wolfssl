@@ -1879,7 +1879,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #ifdef WOLFSSL_STATIC_MEMORY
     if (ctx->heap != NULL) {
 #ifdef WOLFSSL_HEAP_TEST
-        /* avoid derefrencing a test value */
+        /* avoid dereferencing a test value */
         if (ctx->heap != (void*)WOLFSSL_HEAP_TEST)
 #endif
         {
@@ -4533,10 +4533,10 @@ int InitSSL_Suites(WOLFSSL* ssl)
     havePSK = (byte)ssl->options.havePSK;
 #endif /* NO_PSK */
 #ifdef HAVE_ANON
-    haveAnon = ssl->options.haveAnon;
+    haveAnon = (byte)ssl->options.haveAnon;
 #endif /* HAVE_ANON*/
 #ifdef WOLFSSL_MULTICAST
-    haveMcast = ssl->options.haveMcast;
+    haveMcast = (byte)ssl->options.haveMcast;
 #endif /* WOLFSSL_MULTICAST */
 
 #ifdef WOLFSSL_EARLY_DATA
@@ -4906,7 +4906,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         WOLFSSL_HEAP_HINT* ssl_hint;
         WOLFSSL_HEAP_HINT* ctx_hint;
 
-        /* avoid derefrencing a test value */
+        /* avoid dereferencing a test value */
     #ifdef WOLFSSL_HEAP_TEST
         if (ctx->heap == (void*)WOLFSSL_HEAP_TEST) {
             ssl->heap = ctx->heap;
@@ -5374,7 +5374,7 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
         return NOT_COMPILED_IN;
     }
 
-    /* Allocate memeory for key */
+    /* Allocate memory for key */
     *pKey = XMALLOC(sz, ssl->heap, type);
     if (*pKey == NULL) {
         return MEMORY_E;
@@ -6519,10 +6519,10 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
             }
 
             /**
-             * on server side, retranmission is being triggered only by sending
+             * on server side, retransmission is being triggered only by sending
              * first message of given flight, in order to trigger client
              * to retransmit its whole flight. Sending the whole previous flight
-             * could lead to retranmission of previous client flight for each
+             * could lead to retransmission of previous client flight for each
              * server message from previous flight. Therefore one message should
              * be enough to do the trick.
              */
@@ -8379,7 +8379,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
 
 /* Match names with wildcards, each wildcard can represent a single name
-   component or fragment but not mulitple names, i.e.,
+   component or fragment but not multiple names, i.e.,
    *.z.com matches y.z.com but not x.y.z.com
 
    return 1 on success */
@@ -12986,7 +12986,7 @@ int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
     /* Make ret negative on masking failure. */
     ret -= 1 - good;
 
-    /* Treat any faulure as verify MAC error. */
+    /* Treat any failure as verify MAC error. */
     if (ret != 0)
         ret = VERIFY_MAC_ERROR;
 
@@ -17169,7 +17169,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
         }
     #endif
     /* For ECDSA the `USE_ECDSA_KEYSZ_HASH_ALGO` build option will choose a hash
-     * algorithm that matches the ephemeral ECDHE key size or the next higest
+     * algorithm that matches the ephemeral ECDHE key size or the next highest
      * available. This workaround resolves issue with some peer's that do not
      * properly support scenarios such as a P-256 key hashed with SHA512.
      */
@@ -17334,7 +17334,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
 
     }
 
-    /* Add packet name to previsouly added packet info */
+    /* Add packet name to previously added packet info */
     void AddLateName(const char* name, TimeoutInfo* info)
     {
         /* make sure we have a valid previous one */
@@ -17346,7 +17346,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
         }
     }
 
-    /* Add record header to previsouly added packet info */
+    /* Add record header to previously added packet info */
     void AddLateRecordHeader(const RecordLayerHeader* rl, TimeoutInfo* info)
     {
         /* make sure we have a valid previous one */
@@ -19715,7 +19715,7 @@ static int NtruSecretDecrypt(QSHKey* key, byte* bufIn, word32 inSz,
 
 int QSH_Init(WOLFSSL* ssl)
 {
-    /* check so not initialising twice when running DTLS */
+    /* check so not initializing twice when running DTLS */
     if (ssl->QSH_secret != NULL)
         return 0;
 
@@ -21634,7 +21634,7 @@ int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
                                    ssl->session_ticket_ctx);
         }
         /* Create a fake sessionID based on the ticket, this will
-         * supercede the existing session cache info. */
+         * supersede the existing session cache info. */
         ssl->options.haveSessionId = 1;
 #ifdef WOLFSSL_TLS13
         if (ssl->options.tls1_3) {
@@ -22368,7 +22368,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             goto exit_sske;
                         }
 
-                        /* get ouput buffer */
+                        /* get output buffer */
                         args->output = ssl->buffers.outputBuffer.buffer +
                                        ssl->buffers.outputBuffer.length;
 
@@ -22431,7 +22431,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             goto exit_sske;
                         }
 
-                        /* get ouput buffer */
+                        /* get output buffer */
                         args->output = ssl->buffers.outputBuffer.buffer +
                                        ssl->buffers.outputBuffer.length;
 
@@ -22707,7 +22707,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             goto exit_sske;
                         }
 
-                        /* get ouput buffer */
+                        /* get output buffer */
                         args->output = ssl->buffers.outputBuffer.buffer +
                                        ssl->buffers.outputBuffer.length;
 
@@ -22935,7 +22935,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             goto exit_sske;
                         }
 
-                        /* get ouput buffer */
+                        /* get output buffer */
                         args->output = ssl->buffers.outputBuffer.buffer +
                                        ssl->buffers.outputBuffer.length;
 

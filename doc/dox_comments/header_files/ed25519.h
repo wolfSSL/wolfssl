@@ -3,10 +3,10 @@
 
     \brief This function generates a new ed25519_key and stores it in key.
 
-    \retrun 0 Returned upon successfully making an ed25519_key
-    \retrun BAD_FUNC_ARG Returned if rng or key evaluate to NULL, or if the
+    \return 0 Returned upon successfully making an ed25519_key
+    \return BAD_FUNC_ARG Returned if rng or key evaluate to NULL, or if the
     specified key size is not 32 bytes (ed25519 has 32 byte keys)
-    \retrun MEMORY_E Returned if there is an error allocating memory
+    \return MEMORY_E Returned if there is an error allocating memory
     during function execution
 
     \param rng pointer to an initialized RNG object with which to

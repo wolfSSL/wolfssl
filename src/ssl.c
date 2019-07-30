@@ -196,7 +196,7 @@ int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf, unsigned int* sz)
  * sequence number, epoch, AEAD state etc.
  *
  * buf is the argument to contain the serialized state, if null then set "sz" to
- *     buffer size required 
+ *     buffer size required
  * sz  is the size of the buffer passed in
  * ssl is the WOLFSSL struct to serialize
  * returns the size of serialized session on success, 0 on no action, and
@@ -479,7 +479,7 @@ void FreeWriteDup(WOLFSSL* ssl)
  * duplicate existing ssl members into dup needed for writing
  *
  * dup write only WOLFSSL
- * ssl exisiting WOLFSSL
+ * ssl existing WOLFSSL
  *
  * 0 on success
 */
@@ -527,10 +527,10 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
 
 /*
  * duplicate a WOLFSSL object post handshake for writing only
- * turn exisitng object into read only.  Allows concurrent access from two
+ * turn existing object into read only.  Allows concurrent access from two
  * different threads.
  *
- * ssl exisiting WOLFSSL object
+ * ssl existing WOLFSSL object
  *
  * return dup'd WOLFSSL object on success
 */
@@ -971,7 +971,7 @@ int wolfSSL_CTX_mcast_set_member_id(WOLFSSL_CTX* ctx, word16 id)
     if (ret == 0) {
         ctx->haveEMS = 0;
         ctx->haveMcast = 1;
-        ctx->mcastID = id;
+        ctx->mcastID = (byte)id;
 #ifndef WOLFSSL_USER_IO
         ctx->CBIORecv = EmbedReceiveFromMcast;
 #endif /* WOLFSSL_USER_IO */
@@ -3447,7 +3447,7 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
  *
  * id  cipher NID
  *
- * retrun WOLFSSL_EVP_CIPHER
+ * return WOLFSSL_EVP_CIPHER
 */
 const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
 {
@@ -7270,7 +7270,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                         obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
                         obj->dynamic &= ~WOLFSSL_ASN1_DYNAMIC_DATA ;
 
-                        /* set app derefrenced pointers */
+                        /* set app dereferenced pointers */
                         obj->d.ia5_internal.data   = dns->name;
                         obj->d.ia5_internal.length = (int)XSTRLEN(dns->name);
                         dns = dns->next;
@@ -22940,7 +22940,7 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
         rng = tmpRNG;
         initTmpRng = 1;
     }
- 
+
     if (rng) {
         if (wc_RNG_GenerateBlock(rng, buf, num) != 0)
             WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");

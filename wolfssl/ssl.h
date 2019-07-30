@@ -223,7 +223,7 @@ struct WOLFSSL_ASN1_OBJECT {
     unsigned char dynamic; /* if 1 then obj was dynamiclly created, 0 otherwise */
     #define WOLFSSL_ASN1_DYNAMIC 0x1
     #define WOLFSSL_ASN1_DYNAMIC_DATA 0x2
-    struct d { /* derefrenced */
+    struct d { /* dereferenced */
         WOLFSSL_ASN1_STRING  ia5_internal;
         WOLFSSL_ASN1_STRING* ia5; /* points to ia5_internal */
         WOLFSSL_ASN1_STRING* dNSName;
