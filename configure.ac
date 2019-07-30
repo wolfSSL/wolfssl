@@ -189,6 +189,7 @@ then
     enable_scrypt=yes
     enable_indef=yes
     enable_enckeys=yes
+    enable_dhdefaultparams=yes
 
     # Enable AES Decrypt, AES ECB, Alt Names, DER Load, Keep Certs, CRL IO with Timeout
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
@@ -4436,6 +4437,17 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DWOLFSSL_FORCE_MALLOC_FAIL_TEST"
 fi
 
+# Support for enabling setting default DH parameters in
+AC_ARG_ENABLE([defaultdhparams],
+    [AS_HELP_STRING([--enable-dhdefaultparams],[Enables option for default dh parameters (default: disabled)])],
+    [ ENABLED_DHDEFAULTPARAMS=$enableval ],
+    [ ENABLED_DHDEFAULTPARAMS=no ]
+    )
+if test "$ENABLED_DHDEFAULTPARAMS" = "yes" || test "$ENABLED_QT" = "no"
+then
+    ENABLED_DHDEFAULTPARAMS=yes
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_DH_DEFAULT_PARAMS"
+fi
 
 # User Settings
 AC_ARG_ENABLE([usersettings],
@@ -5029,6 +5041,7 @@ echo "   * RSA:                        $ENABLED_RSA"
 echo "   * RSA-PSS:                    $ENABLED_RSAPSS"
 echo "   * DSA:                        $ENABLED_DSA"
 echo "   * DH:                         $ENABLED_DH"
+echo "   * DH Default Parameters:      $ENABLED_DHDEFAULTPARAMS"
 echo "   * ECC:                        $ENABLED_ECC"
 echo "   * ECC Custom Curves           $ENABLED_ECCCUSTCURVES"
 echo "   * CURVE25519:                 $ENABLED_CURVE25519"

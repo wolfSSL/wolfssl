@@ -24831,7 +24831,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
         }
 
-#ifdef HAVE_TLS_EXTENSIONS
+#if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_DH_DEFAULT_PARAMS)
     #if defined(HAVE_FFDHE) && defined(HAVE_SUPPORTED_CURVES)
         if (TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS) != NULL) {
             /* Set FFDHE parameters or clear DHE parameters if FFDH parameters
