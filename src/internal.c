@@ -485,7 +485,8 @@ static int ExportCipherSpecState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 
 
 /* serializes the key struct for exporting */
-static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
+static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver,
+        byte small)
 {
     word32 idx = 0;
     byte   sz;
@@ -499,12 +500,12 @@ static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 
     keys = &(ssl->keys);
 
-    if (DTLS_EXPORT_KEY_SZ > len) {
-        WOLFSSL_MSG("Buffer not large enough for max key struct size");
+    if (DTLS_EXPORT_MIN_KEY_SZ > len) {
+        WOLFSSL_MSG("Buffer not large enough for minimum key struct size");
         return BUFFER_E;
     }
 
-    XMEMSET(exp, 0, DTLS_EXPORT_KEY_SZ);
+    XMEMSET(exp, 0, DTLS_EXPORT_MIN_KEY_SZ);
 
     c32toa(keys->peer_sequence_number_hi, exp + idx); idx += OPAQUE32_LEN;
     c32toa(keys->peer_sequence_number_lo, exp + idx); idx += OPAQUE32_LEN;
@@ -535,8 +536,15 @@ static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     exp[idx++] = keys->encryptionOn;
     exp[idx++] = keys->decryptedCur;
 
+    /* from here on the buffer needs checked because is variable length that
+     * can be larger than DTLS_EXPORT_MIN_KEY_SZ */
     {
         word32 i;
+        if ((OPAQUE16_LEN * 2) + idx +
+                (2 * (WOLFSSL_DTLS_WINDOW_WORDS * OPAQUE32_LEN)) > len) {
+            WOLFSSL_MSG("Buffer not large enough for WOLFSSL_DTLS_WINDOW_WORDS");
+            return BUFFER_E;
+        }
 
         c16toa(WOLFSSL_DTLS_WINDOW_WORDS, exp + idx); idx += OPAQUE16_LEN;
         for (i = 0; i < WOLFSSL_DTLS_WINDOW_WORDS; i++) {
@@ -550,6 +558,11 @@ static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
         }
     }
 
+    if (idx >= len) {
+        WOLFSSL_MSG("Buffer not large enough for truncated hmac flag");
+        return BUFFER_E;
+    }
+
 #ifdef HAVE_TRUNCATED_HMAC
     sz         = ssl->truncated_hmac ? TRUNCATED_HMAC_SZ: ssl->specs.hash_size;
     exp[idx++] = ssl->truncated_hmac;
@@ -557,31 +570,60 @@ static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     sz         = ssl->specs.hash_size;
     exp[idx++] = 0; /* no truncated hmac */
 #endif
-    exp[idx++] = sz;
-#ifndef WOLFSSL_AEAD_ONLY
-    XMEMCPY(exp + idx, keys->client_write_MAC_secret, sz); idx += sz;
-    XMEMCPY(exp + idx, keys->server_write_MAC_secret, sz); idx += sz;
-#else
-    XMEMSET(exp + idx, 0, sz); idx += sz;
-    XMEMSET(exp + idx, 0, sz); idx += sz;
-#endif
 
-    sz         = ssl->specs.key_size;
-    exp[idx++] = sz;
-    XMEMCPY(exp + idx, keys->client_write_key, sz); idx += sz;
-    XMEMCPY(exp + idx, keys->server_write_key, sz); idx += sz;
+    sz = (small)? 0: sz;
+    if (idx + (sz * 2) + OPAQUE8_LEN > len) {
+        WOLFSSL_MSG("Buffer not large enough for MAC secret");
+        return BUFFER_E;
+    }
 
-    sz         = ssl->specs.iv_size;
     exp[idx++] = sz;
-    XMEMCPY(exp + idx, keys->client_write_IV, sz); idx += sz;
-    XMEMCPY(exp + idx, keys->server_write_IV, sz); idx += sz;
+    if (sz > 0) {
+    #ifndef WOLFSSL_AEAD_ONLY
+        XMEMCPY(exp + idx, keys->client_write_MAC_secret, sz); idx += sz;
+        XMEMCPY(exp + idx, keys->server_write_MAC_secret, sz); idx += sz;
+    #else
+        XMEMSET(exp + idx, 0, sz); idx += sz;
+        XMEMSET(exp + idx, 0, sz); idx += sz;
+    #endif
+    }
+
+    sz = (small)? 0: ssl->specs.key_size;
+    if (idx + (sz * 2) + OPAQUE8_LEN > len) {
+        WOLFSSL_MSG("Buffer not large enough for write key");
+        return BUFFER_E;
+    }
+
+    exp[idx++] = sz;
+    if (sz > 0) {
+        XMEMCPY(exp + idx, keys->client_write_key, sz); idx += sz;
+        XMEMCPY(exp + idx, keys->server_write_key, sz); idx += sz;
+    }
+
+    sz = (small)? 0: ssl->specs.iv_size;
+    if (idx + (sz * 2) + OPAQUE8_LEN + AEAD_MAX_EXP_SZ > len) {
+        WOLFSSL_MSG("Buffer not large enough for IVs");
+        return BUFFER_E;
+    }
+
+    exp[idx++] = sz;
+    if (sz > 0) {
+        XMEMCPY(exp + idx, keys->client_write_IV, sz); idx += sz;
+        XMEMCPY(exp + idx, keys->server_write_IV, sz); idx += sz;
+    }
     XMEMCPY(exp + idx, keys->aead_exp_IV, AEAD_MAX_EXP_SZ);
     idx += AEAD_MAX_EXP_SZ;
 
-    sz         = AEAD_MAX_IMP_SZ;
+    sz = (small)? 0: AEAD_MAX_IMP_SZ;
+    if (idx + (sz * 2) + OPAQUE8_LEN > len) {
+        WOLFSSL_MSG("Buffer not large enough for imp IVs");
+        return BUFFER_E;
+    }
     exp[idx++] = sz;
-    XMEMCPY(exp + idx, keys->aead_enc_imp_IV, sz); idx += sz;
-    XMEMCPY(exp + idx, keys->aead_dec_imp_IV, sz); idx += sz;
+    if (sz > 0) {
+        XMEMCPY(exp + idx, keys->aead_enc_imp_IV, sz); idx += sz;
+        XMEMCPY(exp + idx, keys->aead_dec_imp_IV, sz); idx += sz;
+    }
 
     /* DTLS_EXPORT_KEY_SZ is max value. idx size can vary */
     if (idx > DTLS_EXPORT_KEY_SZ) {
@@ -647,6 +689,7 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 
     /* check minimum length -- includes byte used for size indicators */
     if (len < DTLS_EXPORT_MIN_KEY_SZ) {
+        WOLFSSL_MSG("Buffer not large enough for minimum expected size");
         return BUFFER_E;
     }
     ato32(exp + idx, &keys->peer_sequence_number_hi); idx += OPAQUE32_LEN;
@@ -722,11 +765,14 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 #endif
     sz = exp[idx++];
 #ifndef WOLFSSL_AEAD_ONLY
-    if (sz > sizeof(keys->client_write_MAC_secret) || sz + idx > len) {
+    if (sz > sizeof(keys->client_write_MAC_secret) || (sz * 2) + idx > len) {
+        WOLFSSL_MSG("Buffer not large enough for MAC import");
         return BUFFER_E;
     }
-    XMEMCPY(keys->client_write_MAC_secret, exp + idx, sz); idx += sz;
-    XMEMCPY(keys->server_write_MAC_secret, exp + idx, sz); idx += sz;
+    if (sz > 0) {
+        XMEMCPY(keys->client_write_MAC_secret, exp + idx, sz); idx += sz;
+        XMEMCPY(keys->server_write_MAC_secret, exp + idx, sz); idx += sz;
+    }
 #else
     if (sz + idx > len) {
         return BUFFER_E;
@@ -735,27 +781,36 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 #endif
 
     sz = exp[idx++];
-    if (sz > sizeof(keys->client_write_key) || sz + idx > len) {
+    if (sz > sizeof(keys->client_write_key) || (sz * 2) + idx > len) {
+        WOLFSSL_MSG("Buffer not large enough for key import");
         return BUFFER_E;
     }
-    XMEMCPY(keys->client_write_key, exp + idx, sz); idx += sz;
-    XMEMCPY(keys->server_write_key, exp + idx, sz); idx += sz;
+    if (sz > 0) {
+        XMEMCPY(keys->client_write_key, exp + idx, sz); idx += sz;
+        XMEMCPY(keys->server_write_key, exp + idx, sz); idx += sz;
+    }
 
     sz = exp[idx++];
-    if (sz > sizeof(keys->client_write_IV) || sz + idx > len) {
+    if (sz > sizeof(keys->client_write_IV) || (sz * 2) + idx > len) {
+        WOLFSSL_MSG("Buffer not large enough for write IV import");
         return BUFFER_E;
     }
-    XMEMCPY(keys->client_write_IV, exp + idx, sz); idx += sz;
-    XMEMCPY(keys->server_write_IV, exp + idx, sz); idx += sz;
+    if (sz > 0) {
+        XMEMCPY(keys->client_write_IV, exp + idx, sz); idx += sz;
+        XMEMCPY(keys->server_write_IV, exp + idx, sz); idx += sz;
+    }
     XMEMCPY(keys->aead_exp_IV, exp + idx, AEAD_MAX_EXP_SZ);
     idx += AEAD_MAX_EXP_SZ;
 
     sz = exp[idx++];
-    if (sz > sizeof(keys->aead_enc_imp_IV) || sz + idx > len) {
+    if (sz > sizeof(keys->aead_enc_imp_IV) || (sz * 2) + idx > len) {
+        WOLFSSL_MSG("Buffer not large enough for imp IV import");
         return BUFFER_E;
     }
-    XMEMCPY(keys->aead_enc_imp_IV, exp + idx, sz); idx += sz;
-    XMEMCPY(keys->aead_dec_imp_IV, exp + idx, sz); idx += sz;
+    if (sz > 0) {
+        XMEMCPY(keys->aead_enc_imp_IV, exp + idx, sz); idx += sz;
+        XMEMCPY(keys->aead_dec_imp_IV, exp + idx, sz); idx += sz;
+    }
 
     WOLFSSL_LEAVE("ImportKeyState", idx);
     (void)ver;
@@ -1053,6 +1108,7 @@ static int dtls_export_load(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     return idx;
 }
 
+#ifndef WOLFSSL_SESSION_EXPORT_NOPEER
 static int ExportPeerInfo(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 {
     int    idx  = 0;
@@ -1092,6 +1148,7 @@ static int ExportPeerInfo(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 
     return idx;
 }
+#endif /* !WOLFSSL_SESSION_EXPORT_NOPEER */
 
 
 static int ImportPeerInfo(WOLFSSL* ssl, byte* buf, word32 len, byte ver)
@@ -1105,6 +1162,11 @@ static int ImportPeerInfo(WOLFSSL* ssl, byte* buf, word32 len, byte ver)
     if (ver != DTLS_EXPORT_VERSION && ver != DTLS_EXPORT_VERSION_3) {
         WOLFSSL_MSG("Export version not supported");
         return BAD_FUNC_ARG;
+    }
+
+    if (len == 0) {
+        WOLFSSL_MSG("No peer info sent");
+        return 0;
     }
 
     if (ssl == NULL || buf == NULL || len < 3 * DTLS_EXPORT_LEN) {
@@ -1157,7 +1219,7 @@ int wolfSSL_dtls_export_state_internal(WOLFSSL* ssl, byte* buf, word32 sz)
 
     totalLen += DTLS_EXPORT_LEN * 2; /* 2 protocol bytes and 2 length bytes */
     /* each of the following have a 2 byte length before data */
-    totalLen += DTLS_EXPORT_LEN + DTLS_EXPORT_KEY_SZ;
+    totalLen += DTLS_EXPORT_LEN + DTLS_EXPORT_MIN_KEY_SZ;
     if (totalLen > sz) {
         WOLFSSL_LEAVE("wolfSSL_dtls_export_state_internal", BUFFER_E);
         return BUFFER_E;
@@ -1171,7 +1233,7 @@ int wolfSSL_dtls_export_state_internal(WOLFSSL* ssl, byte* buf, word32 sz)
     /* export keys struct and dtls state -- variable length stored in ret */
     idx += DTLS_EXPORT_LEN; /* leave room for length */
     if ((ret = ExportKeyState(ssl, buf + idx, sz - idx,
-                                                    DTLS_EXPORT_VERSION)) < 0) {
+                                                 DTLS_EXPORT_VERSION, 1)) < 0) {
         WOLFSSL_LEAVE("wolfSSL_dtls_export_state_internal", ret);
         return ret;
     }
@@ -1242,7 +1304,7 @@ int wolfSSL_dtls_export_internal(WOLFSSL* ssl, byte* buf, word32 sz)
     /* export keys struct and dtls state -- variable length stored in ret */
     idx += DTLS_EXPORT_LEN; /* leave room for length */
     if ((ret = ExportKeyState(ssl, buf + idx, sz - idx,
-                                                    DTLS_EXPORT_VERSION)) < 0) {
+                                                 DTLS_EXPORT_VERSION, 0)) < 0) {
         WOLFSSL_LEAVE("wolfSSL_dtls_export_internal", ret);
         return ret;
     }
@@ -1259,11 +1321,15 @@ int wolfSSL_dtls_export_internal(WOLFSSL* ssl, byte* buf, word32 sz)
 
     /* export of dtls peer information */
     idx += DTLS_EXPORT_LEN;
+#ifdef WOLFSSL_SESSION_EXPORT_NOPEER
+    ret = 0; /* not saving peer port/ip information */
+#else
     if ((ret = ExportPeerInfo(ssl, buf + idx, sz - idx,
                                                     DTLS_EXPORT_VERSION)) < 0) {
         WOLFSSL_LEAVE("wolfSSL_dtls_export_internal", ret);
         return ret;
     }
+#endif
     c16toa(ret, buf + idx - DTLS_EXPORT_LEN);
     idx += ret;
 
