@@ -261,7 +261,7 @@ int wc_curve25519_import_public_ex(const byte* in, word32 inLen,
  *
  * pub     Public key bytes.
  * pubSz   Size of public key in bytes.
- * endian  Big-endian or little-endian.
+ * endian  Public key bytes passed in as big-endian or little-endian.
  * returns BAD_FUNC_ARGS when pub is NULL,
  *         BUFFER_E when size of public key is zero;
  *         ECC_OUT_OF_RANGE_E if the high bit is set;
