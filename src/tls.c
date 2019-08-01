@@ -6925,11 +6925,17 @@ static int TLSX_KeyShare_ProcessX25519(WOLFSSL* ssl,
     WOLFSSL_BUFFER(keyShareEntry->ke, keyShareEntry->keLen);
 #endif
 
-    /* Point is validated by import function. */
-    if (wc_curve25519_import_public_ex(keyShareEntry->ke, keyShareEntry->keLen,
-                                                  peerX25519Key,
+    if (wc_curve25519_check_public(keyShareEntry->ke, keyShareEntry->keLen,
                                                   EC25519_LITTLE_ENDIAN) != 0) {
         ret = ECC_PEERKEY_ERROR;
+    }
+
+    if (ret == 0) {
+        if (wc_curve25519_import_public_ex(keyShareEntry->ke,
+                                            keyShareEntry->keLen, peerX25519Key,
+                                            EC25519_LITTLE_ENDIAN) != 0) {
+            ret = ECC_PEERKEY_ERROR;
+        }
     }
 
     if (ret == 0) {

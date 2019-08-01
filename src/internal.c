@@ -18969,6 +18969,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     curveId = wc_ecc_get_oid(curveOid, NULL, NULL);
                     if (wc_ecc_import_x963_ex(input + args->idx, length,
                                         ssl->peerEccKey, curveId) != 0) {
+                    #ifdef WOLFSSL_EXTRA_ALERTS
+                        SendAlert(ssl, alert_fatal, illegal_parameter);
+                    #endif
                         ERROR_OUT(ECC_PEERKEY_ERROR, exit_dske);
                     }
 
@@ -26069,6 +26072,22 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 if (ret != 0) {
                                     goto exit_dcke;
                                 }
+                            }
+
+                            if ((ret = wc_curve25519_check_public(
+                                    input + args->idx, args->length,
+                                    EC25519_LITTLE_ENDIAN)) != 0) {
+                        #ifdef WOLFSSL_EXTRA_ALERTS
+                                if (ret == BUFFER_E)
+                                    SendAlert(ssl, alert_fatal, decode_error);
+                                else if (ret == ECC_OUT_OF_RANGE_E)
+                                    SendAlert(ssl, alert_fatal, bad_record_mac);
+                                else {
+                                    SendAlert(ssl, alert_fatal,
+                                                             illegal_parameter);
+                                }
+                        #endif
+                                ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
                             }
 
                             if (wc_curve25519_import_public_ex(
