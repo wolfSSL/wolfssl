@@ -8424,8 +8424,10 @@ static int CheckForAltNames(DecodedCert* dCert, char* domain, int* checkCN)
             break;
         }
         /* No matches and wild pattern match failed. */
-        else if (altName->name[0] == '*' && match == 0)
+        else if (altName->name && altName->len >=1 &&
+                altName->name[0] == '*' && match == 0) {
             match = -1;
+        }
 
         altName = altName->next;
     }
