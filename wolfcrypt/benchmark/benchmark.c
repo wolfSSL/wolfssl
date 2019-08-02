@@ -513,7 +513,7 @@ static const char* bench_Usage_msg1[][14] = {
         "-<alg>      Algorithm to benchmark. Available algorithms include:\n",
         "-lng <num>  Display benchmark result by specified language.\n            0: English, 1: Japanese\n",
         "<num>       Size of block in bytes\n",
-        "-threads <num> Number of threads to run\n"
+        "-threads <num> Number of threads to run\n",
         "-print      Show benchmark stats summary\n"
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -530,7 +530,7 @@ static const char* bench_Usage_msg1[][14] = {
         "-<alg>      アルゴリズムのベンチマークを実施します。\n            利用可能なアルゴリズムは下記を含みます:\n",
         "-lng <num>  指定された言語でベンチマーク結果を表示します。\n            0: 英語、 1: 日本語\n",
         "<num>       ブロックサイズをバイト単位で指定します。\n",
-        "-threads <num> 実行するスレッド数\n"
+        "-threads <num> 実行するスレッド数\n",
         "-print      ベンチマーク統計の要約を表示する\n"
     },
 #endif
@@ -5749,9 +5749,9 @@ static void Usage(void)
     printf("%s", bench_Usage_msg1[lng_index][10]);   /* option -lng */
     printf("%s", bench_Usage_msg1[lng_index][11]);   /* option <num> */
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
-    printf("%s", bench_Usage_msg1[lng_index][10]);   /* option -threads <num> */
+    printf("%s", bench_Usage_msg1[lng_index][12]);   /* option -threads <num> */
 #endif
-    printf("%s", bench_Usage_msg1[lng_index][11]);   /* option -print */
+    printf("%s", bench_Usage_msg1[lng_index][13]);   /* option -print */
 }
 
 /* Match the command line argument with the string.
