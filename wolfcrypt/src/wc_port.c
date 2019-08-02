@@ -206,9 +206,8 @@ int wolfCrypt_Init(void)
             return ret;
         }
 #endif
-
-        initRefCount = 1;
     }
+    initRefCount++;
 
     return ret;
 }
@@ -219,7 +218,11 @@ int wolfCrypt_Cleanup(void)
 {
     int ret = 0;
 
-    if (initRefCount == 1) {
+    initRefCount--;
+    if (initRefCount < 0)
+        initRefCount = 0;
+
+    if (initRefCount == 0) {
         WOLFSSL_ENTER("wolfCrypt_Cleanup");
 
 #ifdef HAVE_ECC
@@ -250,7 +253,6 @@ int wolfCrypt_Cleanup(void)
     #if defined(WOLFSSL_CRYPTOCELL)
         cc310_Free();
     #endif
-        initRefCount = 0; /* allow re-init */
     }
 
     return ret;
