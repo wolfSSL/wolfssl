@@ -10973,7 +10973,7 @@ int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
     token = XSTRTOK(str, ".", &ptr);
     while (token != NULL)
     {
-        val = (word32)atoi(token);
+        val = (word32)XATOI(token);
 
         if (nb_val == 0) {
             if (val > 2) {

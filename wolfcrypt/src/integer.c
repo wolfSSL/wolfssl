@@ -1902,7 +1902,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
 
 #ifdef WOLFSSL_SMALL_STACK
   M = (mp_int*) XMALLOC(sizeof(mp_int) * TAB_SIZE, NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                                                       DYNAMIC_TYPE_BIGINT);
   if (M == NULL)
     return MP_MEM;
 #endif
@@ -1935,7 +1935,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
   /* init first cell */
   if ((err = mp_init_size(&M[1], P->alloc)) != MP_OKAY) {
 #ifdef WOLFSSL_SMALL_STACK
-     XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+     XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
 
      return err;
@@ -1950,7 +1950,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
       mp_clear(&M[1]);
 
 #ifdef WOLFSSL_SMALL_STACK
-      XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
 
       return err;
@@ -2192,7 +2192,7 @@ LBL_M:
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
 
   return err;
