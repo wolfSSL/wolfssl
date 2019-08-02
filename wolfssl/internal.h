@@ -3924,6 +3924,9 @@ struct WOLFSSL {
 #if defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
     void*           mnCtx;             /* mynewt mn_socket IO Context */
 #endif /* defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP) */
+#ifdef WOLFSSL_GNRC
+    struct gnrc_wolfssl_ctx *gnrcCtx;  /* Riot-OS GNRC UDP/IP context */
+#endif
 #ifdef SESSION_INDEX
     int sessionIndex;                  /* Session's location in the cache. */
 #endif

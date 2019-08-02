@@ -2164,6 +2164,8 @@ int uIPSend(WOLFSSL* ssl, char* buf, int sz, void* _ctx)
             break;
         total_written += ret;
     } while(total_written < sz);
+    if (total_written == 0)
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
     return total_written;
 }
 
@@ -2173,8 +2175,8 @@ int uIPSendTo(WOLFSSL* ssl, char* buf, int sz, void* _ctx)
     int ret = 0;
     (void)ssl;
     ret = udp_socket_sendto(&ctx->conn.udp, (unsigned char *)buf, sz, &ctx->peer_addr, ctx->peer_port );
-    if (ret <= 0)
-        return 0;
+    if (ret == 0)
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
     return ret;
 }
 
@@ -2224,5 +2226,87 @@ int uIPGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *_ctx)
 }
 
 #endif /* WOLFSSL_UIP */
+
+#ifdef WOLFSSL_GNRC
+
+#include <net/sock.h>
+#include <net/sock/tcp.h>
+#include <stdio.h>
+
+/* GNRC TCP/IP port, using the native tcp/udp socket api.
+ * TCP and UDP are currently supported with the callbacks below.
+ *
+ */
+/* The GNRC tcp send callback
+ * return : bytes sent, or error
+ */
+
+int GNRC_SendTo(WOLFSSL* ssl, char* buf, int sz, void* _ctx)
+{
+    sock_tls_t *ctx = (sock_tls_t *)_ctx;
+    int ret = 0;
+    (void)ssl;
+    if (!ctx)
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    ret = sock_udp_send(&ctx->conn.udp, (unsigned char *)buf, sz, &ctx->peer_addr);
+    if (ret == 0)
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+    return ret;
+}
+
+/* The GNRC TCP/IP receive callback
+ *  return : nb bytes read, or error
+ */
+int GNRC_ReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *_ctx)
+{
+    sock_udp_ep_t ep;
+    int ret;
+    uint32_t timeout = wolfSSL_dtls_get_current_timeout(ssl) * 1000000;
+    sock_tls_t *ctx = (sock_tls_t *)_ctx;
+    if (!ctx)
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    (void)ssl;
+    if (wolfSSL_get_using_nonblock(ctx->ssl)) {
+        timeout = 0;
+    }
+    ret = sock_udp_recv(&ctx->conn.udp, buf, sz, timeout, &ep);
+    if (ret > 0) {
+        if (ctx->peer_addr.port == 0)
+            XMEMCPY(&ctx->peer_addr, &ep, sizeof(sock_udp_ep_t));
+    }
+    if (ret == -ETIMEDOUT) {
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+    }
+    return ret;
+}
+
+/* GNRC DTLS Generate Cookie callback
+ *  return : number of bytes copied into buf, or error
+ */
+#define GNRC_MAX_TOKEN_SIZE (32)
+int GNRC_GenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *_ctx)
+{
+    sock_tls_t *ctx = (sock_tls_t *)_ctx;
+    if (!ctx)
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    byte token[GNRC_MAX_TOKEN_SIZE];
+    byte digest[WC_SHA_DIGEST_SIZE];
+    int  ret = 0;
+    size_t token_size = sizeof(sock_udp_ep_t);
+    (void)ssl;
+    if (token_size > GNRC_MAX_TOKEN_SIZE)
+        token_size = GNRC_MAX_TOKEN_SIZE;
+    XMEMSET(token, 0, GNRC_MAX_TOKEN_SIZE);
+    XMEMCPY(token, &ctx->peer_addr, token_size);
+    ret = wc_ShaHash(token, token_size, digest);
+    if (ret != 0)
+        return ret;
+    if (sz > WC_SHA_DIGEST_SIZE)
+        sz = WC_SHA_DIGEST_SIZE;
+    XMEMCPY(buf, digest, sz);
+    return sz;
+}
+
+#endif /* WOLFSSL_GNRC */
 
 #endif /* WOLFCRYPT_ONLY */
