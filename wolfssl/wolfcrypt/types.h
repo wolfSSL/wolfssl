@@ -485,8 +485,10 @@
             defined(HAVE_CRL_IO) || defined(HAVE_HTTP_CLIENT) || \
             !defined(NO_CRYPT_BENCHMARK)
 
-            #include <stdlib.h>
-            #define XATOI(s)          atoi((s))
+            #ifndef XATOI /* if custom XATOI is not already defined */
+                #include <stdlib.h>
+                #define XATOI(s)          atoi((s))
+            #endif
         #endif
     #endif
 
