@@ -324,6 +324,7 @@ MP_API int  mp_reduce_is_2k(mp_int *a);
 MP_API int  mp_dr_is_modulus(mp_int *a);
 MP_API int  mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
                              int);
+MP_API int  mp_exptmod_base_2 (mp_int * X, mp_int * P, mp_int * Y);
 MP_API int  mp_montgomery_setup (mp_int * n, mp_digit * rho);
 int  fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho);
 MP_API int  mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho);

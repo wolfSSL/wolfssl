@@ -886,6 +886,12 @@ int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
 #endif
   }
 
+#ifdef BN_MP_EXPTMOD_BASE_2
+  if (G->used == 1 && G->dp[0] == 2) {
+    return mp_exptmod_base_2(X, P, Y);
+  }
+#endif
+
 /* modified diminished radix reduction */
 #if defined(BN_MP_REDUCE_IS_2K_L_C) && defined(BN_MP_REDUCE_2K_L_C) && \
   defined(BN_S_MP_EXPTMOD_C)
@@ -2197,6 +2203,161 @@ LBL_M:
 
   return err;
 }
+
+#ifdef BN_MP_EXPTMOD_BASE_2
+#if DIGIT_BIT < 16
+    #define WINSIZE    3
+#elif DIGIT_BIT < 32
+    #define WINSIZE    4
+#elif DIGIT_BIT < 64
+    #define WINSIZE    5
+#elif DIGIT_BIT < 128
+    #define WINSIZE    6
+#endif
+int mp_exptmod_base_2(mp_int * X, mp_int * P, mp_int * Y)
+{
+  mp_digit buf, mp;
+  int      err, bitbuf, bitcpy, bitcnt, digidx, x, y;
+#ifdef WOLFSSL_SMALL_STACK
+  mp_int  *res;
+#else
+  mp_int   res[1];
+#endif
+  int     (*redux)(mp_int*,mp_int*,mp_digit);
+
+  /* automatically pick the comba one if available (saves quite a few
+     calls/ifs) */
+#ifdef BN_FAST_MP_MONTGOMERY_REDUCE_C
+  if (((P->used * 2 + 1) < (int)MP_WARRAY) &&
+       P->used < (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
+     redux = fast_mp_montgomery_reduce;
+  } else
+#endif
+  {
+#ifdef BN_MP_MONTGOMERY_REDUCE_C
+     /* use slower baseline Montgomery method */
+     redux = mp_montgomery_reduce;
+#else
+     return MP_VAL;
+#endif
+  }
+
+#ifdef WOLFSSL_SMALL_STACK
+  res = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  if (res == NULL) {
+     return MP_MEM;
+  }
+#endif
+
+  /* now setup montgomery  */
+  if ((err = mp_montgomery_setup(P, &mp)) != MP_OKAY) {
+     return err;
+  }
+
+  /* setup result */
+  mp_init(res);
+
+  /* now we need R mod m */
+  mp_montgomery_calc_normalization(res, P);
+
+  /* Get the top bits left over after taking WINSIZE bits starting at the
+   * least-significant.
+   */
+  digidx = X->used - 1;
+  bitcpy = (X->used * DIGIT_BIT) % WINSIZE;
+  if (bitcpy > 0) {
+     bitcnt = (int)DIGIT_BIT - bitcpy;
+     buf    = X->dp[digidx--];
+     bitbuf = (int)(buf >> bitcnt);
+     /* Multiply montgomery representation of 1 by 2 ^ top */
+     mp_mul_2d(res, bitbuf, res);
+     mp_mod(res, P, res);
+     /* Move out bits used */
+     buf  <<= bitcpy;
+     bitcnt++;
+  }
+  else {
+     bitcnt = 1;
+     buf    = 0;
+  }
+
+  /* empty window and reset  */
+  bitbuf = 0;
+  bitcpy = 0;
+
+  for (;;) {
+    /* grab next digit as required */
+    if (--bitcnt == 0) {
+      /* if digidx == -1 we are out of digits so break */
+      if (digidx == -1) {
+        break;
+      }
+      /* read next digit and reset bitcnt */
+      buf    = X->dp[digidx--];
+      bitcnt = (int)DIGIT_BIT;
+    }
+
+    /* grab the next msb from the exponent */
+    y       = (int)(buf >> (DIGIT_BIT - 1)) & 1;
+    buf   <<= (mp_digit)1;
+    /* add bit to the window */
+    bitbuf |= (y << (WINSIZE - ++bitcpy));
+
+    if (bitcpy == WINSIZE) {
+      /* ok window is filled so square as required and multiply  */
+      /* square first */
+      for (x = 0; x < WINSIZE; x++) {
+        err = mp_sqr(res, res);
+        if (err != MP_OKAY) {
+        #ifdef WOLFSSL_SMALL_STACK
+          XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+          return err;
+        }
+        err = (*redux)(res, P, mp);
+        if (err != MP_OKAY) {
+        #ifdef WOLFSSL_SMALL_STACK
+          XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+          return err;
+        }
+      }
+
+      /* then multiply by 2^bitbuf */
+      mp_mul_2d(res, bitbuf, res);
+      err = mp_mod(res, P, res);
+      if (err != MP_OKAY) {
+      #ifdef WOLFSSL_SMALL_STACK
+        XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      #endif
+        return err;
+      }
+
+      /* empty window and reset */
+      bitcpy = 0;
+      bitbuf = 0;
+    }
+  }
+
+  /* fixup result if Montgomery reduction is used
+   * recall that any value in a Montgomery system is
+   * actually multiplied by R mod n.  So we have
+   * to reduce one more time to cancel out the factor
+   * of R.
+   */
+  err = (*redux)(res, P, mp);
+
+  /* swap res with Y */
+  mp_copy(res, Y);
+
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+  return err;
+}
+
+#undef WINSIZE
+#endif /* BN_MP_EXPTMOD_BASE_2 */
 
 
 /* setups the montgomery reduction stuff */
