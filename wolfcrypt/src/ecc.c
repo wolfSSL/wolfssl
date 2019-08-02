@@ -3395,6 +3395,17 @@ int wc_ecc_get_curve_id_from_oid(const byte* oid, word32 len)
     return ecc_sets[curve_idx].id;
 }
 
+/* Get curve parameters using curve index */
+const ecc_set_type* wc_ecc_get_curve_params(int curve_idx)
+{
+    const ecc_set_type* ecc_set = NULL;
+
+    if (curve_idx >= 0 && curve_idx < (int)ECC_SET_COUNT) {
+        ecc_set = &ecc_sets[curve_idx];
+    }
+    return ecc_set;
+}
+
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
 static WC_INLINE int wc_ecc_alloc_mpint(ecc_key* key, mp_int** mp)

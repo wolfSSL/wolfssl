@@ -528,6 +528,8 @@ int wc_ecc_get_curve_id_from_dp_params(const ecc_set_type* dp);
 WOLFSSL_API
 int wc_ecc_get_curve_id_from_oid(const byte* oid, word32 len);
 
+WOLFSSL_API const ecc_set_type* wc_ecc_get_curve_params(int curve_idx);
+
 WOLFSSL_API
 ecc_point* wc_ecc_new_point(void);
 WOLFSSL_API

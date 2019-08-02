@@ -14307,6 +14307,28 @@ static int test_wc_ecc_size (void)
     return ret;
 } /* END test_wc_ecc_size */
 
+static void test_wc_ecc_params(void)
+{
+    /* FIPS/CAVP self-test modules do not have `wc_ecc_get_curve_params`.
+        It was added after certifications */
+#if defined(HAVE_ECC) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    const ecc_set_type* ecc_set;
+#if !defined(NO_ECC256) && !defined(NO_ECC_SECP)
+    /* Test for SECP256R1 curve */
+    int curve_id = ECC_SECP256R1;
+    int curve_idx = wc_ecc_get_curve_idx(curve_id);
+    AssertIntNE(curve_idx, ECC_CURVE_INVALID);
+    ecc_set = wc_ecc_get_curve_params(curve_idx);
+    AssertNotNull(ecc_set);
+    AssertIntEQ(ecc_set->id, curve_id);
+#endif
+    /* Test case when SECP256R1 is not enabled */
+    /* Test that we get curve params for index 0 */
+    ecc_set = wc_ecc_get_curve_params(0);
+    AssertNotNull(ecc_set);
+#endif /* HAVE_ECC && !HAVE_FIPS && !HAVE_SELFTEST */
+}
+
 /*
  * Testing wc_ecc_sign_hash() and wc_ecc_verify_hash()
  */
@@ -25235,6 +25257,7 @@ void ApiTest(void)
     AssertIntEQ(test_wc_ecc_init(), 0);
     AssertIntEQ(test_wc_ecc_check_key(), 0);
     AssertIntEQ(test_wc_ecc_size(), 0);
+    test_wc_ecc_params();
     AssertIntEQ(test_wc_ecc_signVerify_hash(), 0);
     AssertIntEQ(test_wc_ecc_shared_secret(), 0);
     AssertIntEQ(test_wc_ecc_export_x963(), 0);
