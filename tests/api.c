@@ -14309,9 +14309,9 @@ static int test_wc_ecc_size (void)
 
 static void test_wc_ecc_params(void)
 {
-    /* FIPS module does not have `wc_ecc_get_curve_params`.
+    /* FIPS/CAVP self-test modules do not have `wc_ecc_get_curve_params`.
         It was added after certifications */
-#if defined(HAVE_ECC) && !defined(HAVE_FIPS)
+#if defined(HAVE_ECC) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     const ecc_set_type* ecc_set;
 #if !defined(NO_ECC256) && !defined(NO_ECC_SECP)
     /* Test for SECP256R1 curve */
@@ -14326,7 +14326,7 @@ static void test_wc_ecc_params(void)
     /* Test that we get curve params for index 0 */
     ecc_set = wc_ecc_get_curve_params(0);
     AssertNotNull(ecc_set);
-#endif /* HAVE_ECC && !HAVE_FIPS */
+#endif /* HAVE_ECC && !HAVE_FIPS && !HAVE_SELFTEST */
 }
 
 /*
