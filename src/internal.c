@@ -1783,7 +1783,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 /* In case contexts are held in array and don't want to free actual ctx */
 void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 {
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+#if !defined(NO_WOLFSSL_SERVER) && defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     int i;
 #endif
 
