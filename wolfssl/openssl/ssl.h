@@ -340,6 +340,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define X509_NAME_print_ex              wolfSSL_X509_NAME_print_ex
 #define X509_NAME_digest                wolfSSL_X509_NAME_digest
 #define X509_cmp_current_time           wolfSSL_X509_cmp_current_time
+#define X509_cmp_time                   wolfSSL_X509_cmp_time
 
 #define sk_X509_NAME_pop_free           wolfSSL_sk_X509_NAME_pop_free
 #define sk_X509_NAME_num                wolfSSL_sk_X509_NAME_num
@@ -381,7 +382,9 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define X509_STORE_get_by_subject       wolfSSL_X509_STORE_get_by_subject
 #define X509_STORE_CTX_get1_issuer      wolfSSL_X509_STORE_CTX_get1_issuer
 #define X509_STORE_CTX_set_time         wolfSSL_X509_STORE_CTX_set_time
+#define X509_VERIFY_PARAM_set_hostflags wolfSSL_X509_VERIFY_PARAM_set_hostflags
 #define X509_VERIFY_PARAM_set1_host     wolfSSL_X509_VERIFY_PARAM_set1_host
+#define X509_VERIFY_PARAM_set1_ip_asc   wolfSSL_X509_VERIFY_PARAM_set1_ip_asc
 
 #define X509_LOOKUP_add_dir             wolfSSL_X509_LOOKUP_add_dir
 #define X509_LOOKUP_load_file           wolfSSL_X509_LOOKUP_load_file
@@ -478,6 +481,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define ASN1_INTEGER_free               wolfSSL_ASN1_INTEGER_free
 #define ASN1_INTEGER_cmp                wolfSSL_ASN1_INTEGER_cmp
 #define ASN1_INTEGER_get                wolfSSL_ASN1_INTEGER_get
+#define ASN1_INTEGER_set                wolfSSL_ASN1_INTEGER_set
 #define ASN1_INTEGER_to_BN              wolfSSL_ASN1_INTEGER_to_BN
 
 #define ASN1_STRING_data                wolfSSL_ASN1_STRING_data
@@ -616,6 +620,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 
 #define d2i_PKCS12_bio                  wolfSSL_d2i_PKCS12_bio
 #define d2i_PKCS12_fp                   wolfSSL_d2i_PKCS12_fp
+#define i2d_PKCS12_bio                  wolfSSL_i2d_PKCS12_bio
 
 #define d2i_RSAPublicKey                wolfSSL_d2i_RSAPublicKey
 #define d2i_RSAPrivateKey               wolfSSL_d2i_RSAPrivateKey

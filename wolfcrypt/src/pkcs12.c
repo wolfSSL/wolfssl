@@ -629,7 +629,7 @@ int wc_d2i_PKCS12(const byte* der, word32 derSz, WC_PKCS12* pkcs12)
     printf("version = %d\n", version);
 #endif
 
-    if (version != 3) {
+    if (version != WC_PKCS12_VERSION_DEFAULT) {
         WOLFSSL_MSG("PKCS12 unsupported version!");
         return ASN_VERSION_E;
     }
@@ -670,6 +670,167 @@ int wc_d2i_PKCS12(const byte* der, word32 derSz, WC_PKCS12* pkcs12)
     return ret;
 }
 
+/* Convert WC_PKCS12 struct to allocated DER buffer.
+ * pkcs12 : non-null pkcs12 pointer
+ * der    : pointer-pointer to der buffer. If NULL space will be
+ *          allocated for der, which must be freed by application.
+ * return size of DER on success and negative on failure.
+ */
+int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der)
+{
+    int ret = 0;
+    word32 seqSz, verSz, totalSz = 0, idx = 0, sdBufSz = 0;
+    byte *buf = NULL;
+    byte ver[MAX_VERSION_SZ];
+    byte seq[MAX_SEQ_SZ];
+    byte *sdBuf = NULL;
+
+    if ((pkcs12 == NULL) || (pkcs12->safe == NULL) || (der == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    /* Create the MAC portion */
+    if ((ret == 0) && (pkcs12->signData != NULL)) {
+        MacData *mac = (MacData*)pkcs12->signData;
+        word32 aSz = (2 + (2 + 5) + (2));
+        word32 bSz = (2 + mac->digestSz);
+        word32 cSz = (2 + mac->saltSz);
+        word32 dSz = (2 + sizeof(short int));
+        word32 innerSz = aSz + bSz;
+        word32 outerSz = 2 + innerSz + cSz + dSz;
+
+        sdBufSz = 2 + outerSz;
+        sdBuf = (byte*)XMALLOC(sdBufSz, pkcs12->heap, DYNAMIC_TYPE_PKCS);
+        if (sdBuf == NULL) {
+            ret = MEMORY_E;
+        }
+
+        if (ret == 0) {
+            idx += SetSequence(outerSz, sdBuf);
+            idx += SetSequence(innerSz, &sdBuf[idx]);
+
+            /* Set Algorithm Identifier */
+            {
+                word32 algoIdSz;
+
+                algoIdSz = SetAlgoID(mac->oid, &sdBuf[idx], oidHashType, 0);
+                if (algoIdSz == 0) {
+                    ret = ALGO_ID_E;
+                }
+                else {
+                    idx += algoIdSz;
+                }
+            }
+        }
+
+        if (ret == 0) {
+            /* Octet string holding digest */
+            sdBuf[idx++] = ASN_OCTET_STRING;
+            idx += SetLength(mac->digestSz, &sdBuf[idx]);
+            XMEMCPY(&sdBuf[idx], mac->digest, mac->digestSz);
+            idx += mac->digestSz;
+
+            /* Set salt */
+            sdBuf[idx++] = ASN_OCTET_STRING;
+            idx += SetLength(mac->saltSz, &sdBuf[idx]);
+            XMEMCPY(&sdBuf[idx], mac->salt, mac->saltSz);
+            idx += mac->saltSz;
+
+            /* MAC iterations */
+            {
+                int tmpSz;
+                word32 tmpIdx = 0;
+                byte ar[MAX_LENGTH_SZ + 2];
+                tmpSz = SetShortInt(ar, &tmpIdx, mac->itt, MAX_LENGTH_SZ + 2);
+                XMEMCPY(&sdBuf[idx], ar, tmpSz);
+            }
+
+            totalSz += sdBufSz;
+        }
+    }
+
+    /* Calculate size of der */
+    if (ret == 0) {
+        totalSz += pkcs12->safe->dataSz;
+
+        totalSz += 4; /* Octet string */
+
+        totalSz += 4; /* Element */
+
+        totalSz += 2 + sizeof(WC_PKCS12_DATA_OID);
+
+        totalSz += 4; /* Seq */
+
+        verSz = SetMyVersion(WC_PKCS12_VERSION_DEFAULT, ver, FALSE);
+        totalSz += verSz;
+
+        seqSz = SetSequence(totalSz, seq);
+        totalSz += seqSz;
+
+        if (*der == NULL) {
+            /* Allocate if requested */
+            buf = (byte*)XMALLOC(totalSz, NULL, DYNAMIC_TYPE_PKCS);
+            if (buf == NULL) {
+                ret = MEMORY_E;
+            }
+        }
+        else {
+            buf = *der;
+        }
+    }
+
+    if (ret == 0) {
+        idx = 0;
+
+        /* Copy parts to buf */
+        XMEMCPY(&buf[idx], seq, seqSz);
+        idx += seqSz;
+
+        XMEMCPY(&buf[idx], ver, verSz);
+        idx += verSz;
+
+        seqSz = SetSequence(totalSz - sdBufSz - idx - 4, seq);
+        XMEMCPY(&buf[idx], seq, seqSz);
+        idx += seqSz;
+
+        /* OID */
+        idx += SetObjectId(sizeof(WC_PKCS12_DATA_OID), &buf[idx]);
+        XMEMCPY(&buf[idx], WC_PKCS12_DATA_OID, sizeof(WC_PKCS12_DATA_OID));
+        idx += sizeof(WC_PKCS12_DATA_OID);
+
+        /* Element */
+        buf[idx++] = 0xA0;
+        idx += SetLength(totalSz - sdBufSz - idx - 3, &buf[idx]);
+
+        /* Octet string */
+        idx += SetOctetString(totalSz - sdBufSz - idx - 4, &buf[idx]);
+
+        XMEMCPY(&buf[idx], pkcs12->safe->data, pkcs12->safe->dataSz);
+        idx += pkcs12->safe->dataSz;
+
+        if (pkcs12->signData != NULL) {
+            XMEMCPY(&buf[idx], sdBuf, sdBufSz);
+        }
+
+        if (*der == NULL) {
+            /* Point to start of data allocated for DER */
+            *der = buf;
+        }
+        else {
+            /* Increment pointer to byte past DER */
+            *der = &buf[totalSz];
+        }
+
+        /* Return size of der */
+        ret = totalSz;
+    }
+
+    XFREE(sdBuf, pkcs12->heap, DYNAMIC_TYPE_PKCS);
+    /* Allocation of buf was the last time ret could be a failure,
+     * so no need to free here */
+
+    return ret;
+}
 
 /* helper function to free WC_DerCertList */
 void wc_FreeCertList(WC_DerCertList* list, void* heap)

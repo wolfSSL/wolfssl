@@ -18709,6 +18709,39 @@ WC_PKCS12* wolfSSL_d2i_PKCS12_bio(WOLFSSL_BIO* bio, WC_PKCS12** pkcs12)
 }
 
 
+/* Converts the PKCS12 to DER format and outputs it into bio.
+ *
+ * bio is the structure to hold output DER
+ * pkcs12 structure to create DER from
+ *
+ * return 1 for success or 0 if an error occurs
+ */
+int wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO *bio, WC_PKCS12 *pkcs12)
+{
+    int ret = WOLFSSL_FAILURE;
+
+    WOLFSSL_ENTER("wolfSSL_i2d_PKCS12_bio");
+
+    if ((bio != NULL) && (pkcs12 != NULL)) {
+        word32 certSz = 0;
+        byte *certDer = NULL;
+
+        certSz = wc_i2d_PKCS12(pkcs12, &certDer);
+        if ((certSz > 0) && (certDer != NULL)) {
+            if (wolfSSL_BIO_write(bio, certDer, certSz) == (int)certSz) {
+                ret = SSL_SUCCESS;
+            }
+        }
+
+        if (certDer != NULL) {
+            XFREE(certDer, NULL, DYNAMIC_TYPE_PKCS);
+        }
+    }
+
+    return ret;
+}
+
+
 /* helper function to get DER buffer from WOLFSSL_EVP_PKEY */
 static int wolfSSL_i2d_PrivateKey(WOLFSSL_EVP_PKEY* key, unsigned char** der)
 {
@@ -18716,7 +18749,6 @@ static int wolfSSL_i2d_PrivateKey(WOLFSSL_EVP_PKEY* key, unsigned char** der)
 
     return key->pkey_sz;
 }
-
 
 
 /* Creates a new WC_PKCS12 structure
@@ -19789,6 +19821,36 @@ WOLFSSL_X509_VERIFY_PARAM* wolfSSL_get0_param(WOLFSSL* ssl)
     return ssl->param;
 }
 
+/* Set the host flag in the X509_VERIFY_PARAM structure */
+void wolfSSL_X509_VERIFY_PARAM_set_hostflags(WOLFSSL_X509_VERIFY_PARAM* param,
+                                             unsigned int flags)
+{
+    if (param != NULL) {
+        param->hostFlags = flags;
+    }
+}
+
+/* Sets the expected IP address to ipasc.
+ *
+ * param is a pointer to the X509_VERIFY_PARAM structure
+ * ipasc is a NULL-terminated string with N.N.N.N for IPv4 and
+ *       HH:HH ... HH:HH for IPv6.
+ *
+ * return 1 for success and 0 for failure*/
+int wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(WOLFSSL_X509_VERIFY_PARAM *param,
+        const char *ipasc)
+{
+    int ret = WOLFSSL_FAILURE;
+
+    if (param != NULL) {
+        XSTRNCPY(param->ipasc, ipasc, WOLFSSL_MAX_IPSTR-1);
+        param->ipasc[WOLFSSL_MAX_IPSTR-1] = '\0';
+        ret = WOLFSSL_SUCCESS;
+    }
+
+    return ret;
+}
+
 #ifndef NO_WOLFSSL_STUB
 void wolfSSL_X509_OBJECT_free_contents(WOLFSSL_X509_OBJECT* obj)
 {
@@ -19805,6 +19867,85 @@ int wolfSSL_X509_cmp_current_time(const WOLFSSL_ASN1_TIME* asnTime)
     return 0;
 }
 #endif
+
+/* return -1 if asnTime is earlier than or equal to cmpTime, and 1 otherwise
+ * return 0 on error
+ */
+int wolfSSL_X509_cmp_time(const WOLFSSL_ASN1_TIME* asnTime, time_t* cmpTime)
+{
+    int ret = WOLFSSL_FAILURE, i = 0;
+    time_t tmpTime, *pTime = &tmpTime;
+    byte data_ptr[MAX_TIME_STRING_SZ], inv = 0;
+    struct tm ts, *tmpTs = NULL, *ct;
+#if defined(NEED_TMP_TIME)
+    /* for use with gmtime_r */
+    struct tm tmpTimeStorage;
+    tmpTs = &tmpTimeStorage;
+#else
+    (void)tmpTs;
+#endif
+
+
+    if (asnTime != NULL) {
+        if (cmpTime == NULL) {
+            /* Use current time */
+            *pTime = XTIME(0);
+        }
+        else {
+            pTime = cmpTime;
+        }
+
+        /* Convert ASN1_time to time_t */
+        XMEMSET(&ts, 0, sizeof(struct tm));
+
+        /* Check type */
+        if (asnTime->data[0] == ASN_UTC_TIME) {
+            /* 2-digit year */
+            i += 2; /* Skip type and size */
+            XMEMCPY(data_ptr, &asnTime->data[i], ASN_UTC_TIME_SIZE);
+            ts.tm_year = (data_ptr[i] - '0') * 10; i++;
+            ts.tm_year += data_ptr[i] - '0'; i++;
+            if (ts.tm_year < 70) {
+                ts.tm_year += 100;
+            }
+        }
+        else if (asnTime->data[0] == ASN_GENERALIZED_TIME) {
+            /* 4-digit year */
+            i += 2; /* Skip type and size */
+            XMEMCPY(data_ptr, &asnTime->data[i], ASN_GENERALIZED_TIME_SIZE);
+            ts.tm_year = (data_ptr[i] - '0') * 1000; i++;
+            ts.tm_year += (data_ptr[i] - '0') * 100; i++;
+            ts.tm_year += (data_ptr[i] - '0') * 10; i++;
+            ts.tm_year += data_ptr[i] - '0'; i++;
+            ts.tm_year -= 1900;
+        }
+        else {
+            /* Invalid type */
+            inv = 1;
+        }
+
+        if (inv != 1) {
+            ts.tm_mon = (data_ptr[i] - '0') * 10; i++;
+            ts.tm_mon += (data_ptr[i] - '0') - 1; i++; /* January is 0 not 1 */
+            ts.tm_mday = (data_ptr[i] - '0') * 10; i++;
+            ts.tm_mday += (data_ptr[i] - '0'); i++;
+            ts.tm_hour = (data_ptr[i] - '0') * 10; i++;
+            ts.tm_hour += (data_ptr[i] - '0'); i++;
+            ts.tm_min = (data_ptr[i] - '0') * 10; i++;
+            ts.tm_min += (data_ptr[i] - '0'); i++;
+            ts.tm_sec = (data_ptr[i] - '0') * 10; i++;
+            ts.tm_sec += (data_ptr[i] - '0');
+
+            /* Convert to time struct*/
+            ct = XGMTIME(pTime, tmpTs);
+
+            /* DAteGreaterThan returns 1 for >; 0 for <= */
+            ret = DateGreaterThan(&ts, ct) ? 1 : -1;
+        }
+    }
+
+    return ret;
+}
 
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_sk_X509_REVOKED_num(WOLFSSL_X509_REVOKED* revoked)
@@ -19864,6 +20005,65 @@ void wolfSSL_ASN1_INTEGER_free(WOLFSSL_ASN1_INTEGER* in)
         }
         XFREE(in, NULL, DYNAMIC_TYPE_OPENSSL);
     }
+}
+
+
+/* sets the value of WOLFSSL_ASN1_INTEGER a to the long value v. */
+int wolfSSL_ASN1_INTEGER_set(WOLFSSL_ASN1_INTEGER *a, long v)
+{
+    int ret = WOLFSSL_SUCCESS; /* return 1 for success and 0 for failure */
+    int j;
+    unsigned int i = 0;
+    unsigned char tmp[sizeof(long)+1] = {0};
+
+    if (a != NULL) {
+        /* dynamically create data buffer, +2 for type and length */
+        a->data = (unsigned char*)XMALLOC((sizeof(long)+1) + 2, NULL,
+                DYNAMIC_TYPE_OPENSSL);
+        if (a->data == NULL) {
+            wolfSSL_ASN1_INTEGER_free(a);
+            ret = WOLFSSL_FAILURE;
+        }
+        else {
+            a->dataMax   = (int)(sizeof(long)+1) + 2;
+            a->isDynamic = 1;
+        }
+    }
+    else {
+        /* Invalid parameter */
+        ret = WOLFSSL_FAILURE;
+    }
+
+
+    if (ret != WOLFSSL_FAILURE) {
+        /* Set type */
+        a->data[i++] = ASN_INTEGER;
+
+        /* Check for negative */
+        if (v < 0) {
+            a->negative = 1;
+            v *= -1;
+        }
+
+        /* Create char buffer */
+        for (j = 0; j < (int)sizeof(long); j++) {
+            if (v == 0) {
+                break;
+            }
+            tmp[j] = (unsigned char)(v & 0xff);
+            v >>= 8;
+        }
+
+        /* Set length */
+        a->data[i++] = (unsigned char)((j == 0) ? ++j : j);
+
+        /* Copy to data */
+        for (; j > 0; j--) {
+            a->data[i++] = tmp[j-1];
+        }
+    }
+
+    return ret;
 }
 
 
@@ -20069,7 +20269,6 @@ long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* i)
     return 0;
 }
 #endif
-
 
 void* wolfSSL_X509_STORE_CTX_get_ex_data(WOLFSSL_X509_STORE_CTX* ctx, int idx)
 {

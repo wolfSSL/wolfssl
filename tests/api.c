@@ -4358,6 +4358,27 @@ static void test_wolfSSL_PKCS12(void)
     PKCS12_free(pkcs12);
 #endif /* HAVE_ECC */
 
+    /* Test i2d_PKCS12_bio */
+    f = XFOPEN(file, "rb");
+    AssertTrue((f != XBADFILE));
+    AssertNotNull(pkcs12 = d2i_PKCS12_fp(f, NULL));
+    XFCLOSE(f);
+
+    bio = BIO_new(BIO_s_mem());
+    AssertNotNull(bio);
+
+    ret = i2d_PKCS12_bio(bio, pkcs12);
+    AssertIntEQ(ret, 1);
+
+    ret = i2d_PKCS12_bio(NULL, pkcs12);
+    AssertIntEQ(ret, 0);
+
+    ret = i2d_PKCS12_bio(bio, NULL);
+    AssertIntEQ(ret, 0);
+
+    PKCS12_free(pkcs12);
+    BIO_free(bio);
+
     (void)x509;
     (void)subject;
     (void)order;
@@ -20627,6 +20648,31 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
 }
 
 
+static void test_wolfSSL_X509_cmp_time(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN1_TIME) \
+&& !defined(USER_TIME) && !defined(TIME_OVERRIDES)
+
+    printf(testingFmt, "wolfSSL_X509_cmp_time()");
+
+    WOLFSSL_ASN1_TIME asn_time;
+    time_t t;
+
+    AssertIntEQ(0, wolfSSL_X509_cmp_time(NULL, &t));
+    XMEMSET(&asn_time, 0, sizeof(WOLFSSL_ASN1_TIME));
+    AssertIntEQ(0, wolfSSL_X509_cmp_time(&asn_time, &t));
+
+    asn_time.data[0] = ASN_UTC_TIME;
+    asn_time.data[1] = ASN_UTC_TIME_SIZE;
+    XMEMCPY(&asn_time.data[2], "000222211515Z", 13);
+    AssertIntEQ(-1, wolfSSL_X509_cmp_time(&asn_time, NULL));
+
+
+    printf(resultFmt, passed);
+#endif
+}
+
+
 static void test_wolfSSL_X509(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)\
@@ -20683,6 +20729,49 @@ static void test_wolfSSL_X509(void)
 
     printf(resultFmt, passed);
     #endif
+}
+
+
+static void test_wolfSSL_X509_VERIFY_PARAM(void)
+{
+#if defined(OPENSSL_EXTRA)
+    WOLFSSL_X509_VERIFY_PARAM *param;
+    int ret;
+    char testIPv4[] = "127.0.0.1";
+    char testIPv6[] = "0001:0000:0000:0000:0000:0000:0000:0000/32";
+
+    printf(testingFmt, "wolfSSL_X509()");
+
+    /* Initializer function is not ported */
+    /* param = wolfSSL_X509_VERIFY_PARAM_new(); */
+
+    param = (WOLFSSL_X509_VERIFY_PARAM *)XMALLOC(
+                sizeof(WOLFSSL_X509_VERIFY_PARAM), NULL, DYNAMIC_TYPE_OPENSSL);
+    AssertNotNull(param);
+
+    XMEMSET(param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM ));
+
+    wolfSSL_X509_VERIFY_PARAM_set_hostflags(NULL, 0x00);
+
+    wolfSSL_X509_VERIFY_PARAM_set_hostflags(param, 0x01);
+    AssertIntEQ(0x01, param->hostFlags);
+
+    ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(NULL, testIPv4);
+    AssertIntEQ(0, ret);
+
+    ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(param, testIPv4);
+    AssertIntEQ(1, ret);
+    AssertIntEQ(0, XSTRNCMP(param->ipasc, testIPv4, WOLFSSL_MAX_IPSTR));
+
+    ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(param, testIPv6);
+    AssertIntEQ(1, ret);
+    AssertIntEQ(0, XSTRNCMP(param->ipasc, testIPv6, WOLFSSL_MAX_IPSTR));
+
+    XFREE(param, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    printf(resultFmt, passed);
+
+#endif
 }
 
 
@@ -24791,6 +24880,84 @@ static void test_wolfSSL_X509_NAME_ENTRY_get_object()
 #endif
 }
 
+static void test_wolfSSL_ASN1_INTEGER_set()
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
+    ASN1_INTEGER *a;
+    long val;
+    int ret;
+
+    printf(testingFmt, "wolfSSL_ASN1_INTEGER_set");
+
+    a = wolfSSL_ASN1_INTEGER_new();
+    val = 0;
+    ret = ASN1_INTEGER_set(NULL, val);
+    AssertIntEQ(ret, 0);
+    wolfSSL_ASN1_INTEGER_free(a);
+
+    /* 0 */
+    a = wolfSSL_ASN1_INTEGER_new();
+    val = 0;
+    ret = ASN1_INTEGER_set(a, val);
+    AssertIntEQ(ret, 1);
+    wolfSSL_ASN1_INTEGER_free(a);
+
+    /* 40 */
+    a = wolfSSL_ASN1_INTEGER_new();
+    val = 40;
+    ret = ASN1_INTEGER_set(a, val);
+    AssertIntEQ(ret, 1);
+    wolfSSL_ASN1_INTEGER_free(a);
+
+    /* -40 */
+    a = wolfSSL_ASN1_INTEGER_new();
+    val = -40;
+    ret = ASN1_INTEGER_set(a, val);
+    AssertIntEQ(ret, 1);
+    AssertIntEQ(a->negative, 1);
+    wolfSSL_ASN1_INTEGER_free(a);
+
+    /* 128 */
+    a = wolfSSL_ASN1_INTEGER_new();
+    val = 128;
+    ret = ASN1_INTEGER_set(a, val);
+    AssertIntEQ(ret, 1);
+    wolfSSL_ASN1_INTEGER_free(a);
+
+    /* -128 */
+    a = wolfSSL_ASN1_INTEGER_new();
+    val = -128;
+    ret = ASN1_INTEGER_set(a, val);
+    AssertIntEQ(ret, 1);
+    AssertIntEQ(a->negative, 1);
+    wolfSSL_ASN1_INTEGER_free(a);
+
+    /* 200 */
+    a = wolfSSL_ASN1_INTEGER_new();
+    val = 200;
+    ret = ASN1_INTEGER_set(a, val);
+    AssertIntEQ(ret, 1);
+    wolfSSL_ASN1_INTEGER_free(a);
+
+    /* 2147483648 */
+    a = wolfSSL_ASN1_INTEGER_new();
+    val = 2147483648;
+    ret = ASN1_INTEGER_set(a, val);
+    AssertIntEQ(ret, 1);
+    wolfSSL_ASN1_INTEGER_free(a);
+
+    /* -2147483648 */
+    a = wolfSSL_ASN1_INTEGER_new();
+    val = -2147483648;
+    ret = ASN1_INTEGER_set(a, val);
+    AssertIntEQ(a->negative, 1);
+    AssertIntEQ(ret, 1);
+    wolfSSL_ASN1_INTEGER_free(a);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_i2c_ASN1_INTEGER()
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
@@ -25218,10 +25385,12 @@ void ApiTest(void)
     test_wolfSSL_BIO();
     test_wolfSSL_ASN1_STRING();
     test_wolfSSL_X509();
+    test_wolfSSL_X509_VERIFY_PARAM();
     test_wolfSSL_RAND();
     test_wolfSSL_BUF();
     test_wolfSSL_set_tlsext_status_type();
     test_wolfSSL_ASN1_TIME_adj();
+    test_wolfSSL_X509_cmp_time();
     test_wolfSSL_CTX_set_client_CA_list();
     test_wolfSSL_CTX_add_client_CA();
     test_wolfSSL_CTX_set_srp_username();
@@ -25258,6 +25427,7 @@ void ApiTest(void)
     test_wolfSSL_OpenSSL_add_all_algorithms();
     test_wolfSSL_ASN1_STRING_print_ex();
     test_wolfSSL_ASN1_TIME_to_generalizedtime();
+    test_wolfSSL_ASN1_INTEGER_set();
     test_wolfSSL_i2c_ASN1_INTEGER();
     test_wolfSSL_X509_check_ca();
     test_wolfSSL_DC_cert();
