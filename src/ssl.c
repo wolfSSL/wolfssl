@@ -2516,6 +2516,10 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl)
 
         XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
 
+#if defined(KEEP_PEER_CERT) && defined(WOLFSSL_APACHE_HTTPD)
+        /* free peer cert in preparation for new handshake */
+        FreeX509(&ssl->peerCert);
+#endif
         ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
 
 #if !defined(NO_WOLFSSL_SERVER) && defined(HAVE_SERVER_RENEGOTIATION_INFO)
@@ -13348,6 +13352,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_get_client_CA_list(
             const WOLFSSL* ssl)
     {
+        WOLFSSL_ENTER("wolfSSL_get_client_CA_list");
+
         if (ssl == NULL) {
             WOLFSSL_MSG("Bad argument passed to wolfSSL_get_client_CA_list");
             return NULL;
@@ -35424,6 +35430,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         CertName cName;
         unsigned char buf[256]; /* ASN_MAX_NAME */
         int sz;
+        WOLFSSL_ENTER("wolfSSL_i2d_X509_NAME");
 
         if (out == NULL || name == NULL) {
             return BAD_FUNC_ARG;
@@ -36195,6 +36202,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
     void wolfSSL_X509_NAME_ENTRY_free(WOLFSSL_X509_NAME_ENTRY* ne)
     {
+        WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_free");
         if (ne != NULL) {
             if (ne->value != NULL && ne->value != &(ne->data)) {
                 wolfSSL_ASN1_STRING_free(ne->value);
@@ -37809,12 +37817,12 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         {
         case ASN_COMMON_NAME:
             sz = name->fullName.cnLen;
-            pt = &name->fullName.fullName[name->fullName.cnIdx],
+            pt = &name->fullName.fullName[name->fullName.cnIdx];
             name->cnEntry.nid           = name->fullName.cnNid;
             break;
         case ASN_COUNTRY_NAME:
             sz = name->fullName.cLen;
-            pt = &name->fullName.fullName[name->fullName.cIdx],
+            pt = &name->fullName.fullName[name->fullName.cIdx];
             name->cnEntry.nid           = name->fullName.cNid;
             break;
         case ASN_LOCALITY_NAME:
