@@ -16628,6 +16628,108 @@ static void test_wc_PKCS7_VerifySignedData(void)
 } /* END test_wc_PKCS7_VerifySignedData() */
 
 
+#if defined(HAVE_PKCS7) && !defined(NO_AES) && !defined(NO_AES_256)
+static const byte defKey[] = {
+    0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+    0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+    0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+    0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
+};
+static byte aesHandle[32]; /* simulated hardware key handle */
+
+/* return 0 on success */
+static int myDecryptionFunc(PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
+        byte* aad, word32 aadSz, byte* authTag, word32 authTagSz,
+        byte* in, int inSz, byte* out, void* usrCtx)
+{
+    int ret;
+    Aes aes;
+
+    if (usrCtx == NULL) {
+        /* no simulated handle passed in */
+        return -1;
+    }
+
+    switch (encryptOID) {
+        case AES256CBCb:
+            if (ivSz  != AES_BLOCK_SIZE)
+                return BAD_FUNC_ARG;
+            break;
+
+        default:
+            WOLFSSL_MSG("Unsupported content cipher type for test");
+            return ALGO_ID_E;
+    };
+
+    /* simulate using handle to get key */
+    ret = wc_AesInit(&aes, HEAP_HINT, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_AesSetKey(&aes, (byte*)usrCtx, 32, iv, AES_DECRYPTION);
+        if (ret == 0)
+            ret = wc_AesCbcDecrypt(&aes, out, in, inSz);
+        wc_AesFree(&aes);
+    }
+
+    (void)aad;
+    (void)aadSz;
+    (void)authTag;
+    (void)authTagSz;
+    (void)pkcs7;
+    return ret;
+}
+
+
+/* returns key size on success */
+static int myCEKwrapFunc(PKCS7* pkcs7, byte* cek, word32 cekSz, byte* keyId,
+        word32 keyIdSz, byte* orginKey, word32 orginKeySz,
+        byte* out, word32 outSz, int keyWrapAlgo, int type, int direction)
+{
+    int ret = -1;
+
+    if (out == NULL)
+        return BAD_FUNC_ARG;
+
+    if (keyId[0] != 0x00) {
+        return -1;
+    }
+
+    if (type != (int)PKCS7_KEKRI) {
+        return -1;
+    }
+
+    switch (keyWrapAlgo) {
+        case AES256_WRAP:
+            /* simulate setting a handle for later decryption but use key
+             * as handle in the test case here */
+            ret = wc_AesKeyUnWrap(defKey, sizeof(defKey), cek, cekSz,
+                                      aesHandle, sizeof(aesHandle), NULL);
+            if (ret < 0)
+                return ret;
+
+            ret = wc_PKCS7_SetDecodeEncryptedCtx(pkcs7, (void*)aesHandle);
+            if (ret < 0)
+                return ret;
+
+            /* return key size on success */
+            return sizeof(defKey);
+
+        default:
+            WOLFSSL_MSG("Unsupported key wrap algorithm in example");
+            return BAD_KEYWRAP_ALG_E;
+    };
+
+    (void)cekSz;
+    (void)cek;
+    (void)outSz;
+    (void)keyIdSz;
+    (void)direction;
+    (void)orginKey; /* used with KAKRI */
+    (void)orginKeySz;
+    return ret;
+}
+#endif /* HAVE_PKCS7 && !NO_AES && !NO_AES_256 */
+
+
 /*
  * Testing wc_PKCS7_EncodeEnvelopedData()
  */
@@ -16883,10 +16985,39 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
     AssertIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
         (word32)sizeof(output), decoded, (word32)sizeof(decoded)), BAD_FUNC_ARG);
     pkcs7->privateKey = tmpBytePtr;
+    wc_PKCS7_Free(pkcs7);
+
+#if !defined(NO_AES) && !defined(NO_AES_256)
+    /* test of decrypt callback with KEKRI enveloped data */
+    {
+        int envelopedSz;
+        const byte keyId[] = { 0x00 };
+
+        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+        pkcs7->content      = (byte*)input;
+        pkcs7->contentSz    = (word32)(sizeof(input)/sizeof(char));
+        pkcs7->contentOID   = DATA;
+        pkcs7->encryptOID   = AES256CBCb;
+        AssertIntGT(wc_PKCS7_AddRecipient_KEKRI(pkcs7, AES256_WRAP,
+                    (byte*)defKey, sizeof(defKey), (byte*)keyId,
+                    sizeof(keyId), NULL, NULL, 0, NULL, 0, 0), 0);
+        AssertIntEQ(wc_PKCS7_SetSignerIdentifierType(pkcs7, CMS_SKID), 0);
+        AssertIntGT((envelopedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, output,
+                        (word32)sizeof(output))), 0);
+        wc_PKCS7_Free(pkcs7);
+
+        /* decode envelopedData */
+        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+        AssertIntEQ(wc_PKCS7_SetWrapCEKCb(pkcs7, myCEKwrapFunc), 0);
+        AssertIntEQ(wc_PKCS7_SetDecodeEncryptedCb(pkcs7, myDecryptionFunc), 0);
+        AssertIntGT((decodedSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
+                        envelopedSz, decoded, sizeof(decoded))), 0);
+        wc_PKCS7_Free(pkcs7);
+    }
+#endif /* !NO_AES && !NO_AES_256 */
+
 
     printf(resultFmt, passed);
-
-    wc_PKCS7_Free(pkcs7);
 #ifndef NO_RSA
     if (rsaCert) {
         XFREE(rsaCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);

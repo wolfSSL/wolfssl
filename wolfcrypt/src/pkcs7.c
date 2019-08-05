@@ -9955,10 +9955,18 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
             }
 
             /* decrypt encryptedContent */
-            ret = wc_PKCS7_DecryptContent(encOID, decryptedKey, blockKeySz,
+            if (pkcs7->decryptionCb != NULL) {
+                ret = pkcs7->decryptionCb(pkcs7, encOID, tmpIv, expBlockSz,
+                                      NULL, 0, NULL, 0, encryptedContent,
+                                      encryptedContentSz, encryptedContent,
+                                      pkcs7->decryptionCtx);
+            }
+            else {
+                ret = wc_PKCS7_DecryptContent(encOID, decryptedKey, blockKeySz,
                                   tmpIv, expBlockSz, NULL, 0, NULL, 0,
                                   encryptedContent, encryptedContentSz,
                                   encryptedContent);
+            }
             if (ret != 0) {
                 XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 break;
