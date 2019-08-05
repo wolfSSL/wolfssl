@@ -5421,7 +5421,7 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
                 (blocks * AES_BLOCK_SIZE), out, STM32_HAL_TIMEOUT);
         }
     }
-    if (status == HAL_OK && partial != 0) {
+    if (status == HAL_OK && (partial != 0 || blocks == 0)) {
         /* GCM payload phase - partial remainder */
         XMEMSET(partialBlock, 0, sizeof(partialBlock));
         XMEMCPY(partialBlock, in + (blocks * AES_BLOCK_SIZE), partial);
@@ -5442,7 +5442,7 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
         status = HAL_CRYP_Encrypt(&hcryp, (uint32_t*)in, (blocks * AES_BLOCK_SIZE),
             (uint32_t*)out, STM32_HAL_TIMEOUT);
     }
-    if (status == HAL_OK && partial != 0) {
+    if (status == HAL_OK && (partial != 0 || blocks == 0)) {
         /* GCM payload phase - partial remainder */
         XMEMSET(partialBlock, 0, sizeof(partialBlock));
         XMEMCPY(partialBlock, in + (blocks * AES_BLOCK_SIZE), partial);
@@ -5461,7 +5461,7 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
         status = HAL_CRYPEx_AESGCM_Encrypt(&hcryp, (byte*)in,
             (blocks * AES_BLOCK_SIZE), out, STM32_HAL_TIMEOUT);
     }
-    if (status == HAL_OK && partial != 0) {
+    if (status == HAL_OK && (partial != 0 || blocks == 0)) {
         /* GCM payload phase - partial remainder */
         XMEMSET(partialBlock, 0, sizeof(partialBlock));
         XMEMCPY(partialBlock, in + (blocks * AES_BLOCK_SIZE), partial);
@@ -5840,7 +5840,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
                 (blocks * AES_BLOCK_SIZE), out, STM32_HAL_TIMEOUT);
         }
     }
-    if (status == HAL_OK && partial != 0) {
+    if (status == HAL_OK && (partial != 0 || blocks == 0)) {
         /* GCM payload phase - partial remainder */
         XMEMSET(partialBlock, 0, sizeof(partialBlock));
         XMEMCPY(partialBlock, in + (blocks * AES_BLOCK_SIZE), partial);
@@ -5861,7 +5861,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
         status = HAL_CRYP_Encrypt(&hcryp, (uint32_t*)in, (blocks * AES_BLOCK_SIZE),
             (uint32_t*)out, STM32_HAL_TIMEOUT);
     }
-    if (status == HAL_OK && partial != 0) {
+    if (status == HAL_OK && (partial != 0 || blocks == 0)) {
         /* GCM payload phase - partial remainder */
         XMEMSET(partialBlock, 0, sizeof(partialBlock));
         XMEMCPY(partialBlock, in + (blocks * AES_BLOCK_SIZE), partial);
@@ -5880,7 +5880,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
         status = HAL_CRYPEx_AESGCM_Decrypt(&hcryp, (byte*)in,
             (blocks * AES_BLOCK_SIZE), out, STM32_HAL_TIMEOUT);
     }
-    if (status == HAL_OK && partial != 0) {
+    if (status == HAL_OK && (partial != 0 || blocks == 0)) {
         /* GCM payload phase - partial remainder */
         XMEMSET(partialBlock, 0, sizeof(partialBlock));
         XMEMCPY(partialBlock, in + (blocks * AES_BLOCK_SIZE), partial);
