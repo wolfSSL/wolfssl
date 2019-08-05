@@ -1858,6 +1858,162 @@ static int _fp_exptmod(fp_int * G, fp_int * X, int digits, fp_int * P,
 #endif /* TFM_TIMING_RESISTANT */
 
 
+#ifdef TFM_TIMING_RESISTANT
+#if DIGIT_BIT <= 16
+    #define WINSIZE    2
+#elif DIGIT_BIT <= 32
+    #define WINSIZE    3
+#elif DIGIT_BIT <= 64
+    #define WINSIZE    4
+#elif DIGIT_BIT <= 128
+    #define WINSIZE    5
+#endif
+
+/* y = 2**x (mod b)
+ * Some restrictions... x must be positive and < b
+ */
+static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
+                              fp_int * Y)
+{
+  fp_digit buf, mp;
+  int      err, bitbuf, bitcpy, bitcnt, digidx, x, y;
+#ifdef WOLFSSL_SMALL_STACK
+  fp_int  *res;
+  fp_int  *tmp;
+#else
+  fp_int   res[1];
+  fp_int   tmp[1];
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+  res = (fp_int*)XMALLOC(2*sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  if (res == NULL) {
+     return FP_MEM;
+  }
+  tmp = &res[1];
+#endif
+
+  /* now setup montgomery  */
+  if ((err = fp_montgomery_setup(P, &mp)) != FP_OKAY) {
+     return err;
+  }
+
+  /* setup result */
+  fp_init(res);
+  fp_init(tmp);
+
+  fp_mul_2d(P, 1 << WINSIZE, tmp);
+
+  /* now we need R mod m */
+  fp_montgomery_calc_normalization(res, P);
+
+  /* Get the top bits left over after taking WINSIZE bits starting at the
+   * least-significant.
+   */
+  digidx = digits - 1;
+  bitcpy = (digits * DIGIT_BIT) % WINSIZE;
+  if (bitcpy > 0) {
+      bitcnt = (int)DIGIT_BIT - bitcpy;
+      buf    = X->dp[digidx--];
+      bitbuf = (int)(buf >> bitcnt);
+      /* Multiply montgomery representation of 1 by 2 ^ top */
+      fp_mul_2d(res, bitbuf, res);
+      fp_add(res, tmp, res);
+      err = fp_mod(res, P, res);
+      if (err != FP_OKAY) {
+      #ifdef WOLFSSL_SMALL_STACK
+        XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      #endif
+        return err;
+      }
+      /* Move out bits used */
+      buf  <<= bitcpy;
+      bitcnt++;
+  }
+  else {
+      bitcnt = 1;
+      buf    = 0;
+  }
+
+  /* empty window and reset  */
+  bitbuf = 0;
+  bitcpy = 0;
+
+  for (;;) {
+    /* grab next digit as required */
+    if (--bitcnt == 0) {
+      /* if digidx == -1 we are out of digits so break */
+      if (digidx == -1) {
+        break;
+      }
+      /* read next digit and reset bitcnt */
+      buf    = X->dp[digidx--];
+      bitcnt = (int)DIGIT_BIT;
+    }
+
+    /* grab the next msb from the exponent */
+    y       = (int)(buf >> (DIGIT_BIT - 1)) & 1;
+    buf   <<= (fp_digit)1;
+    /* add bit to the window */
+    bitbuf |= (y << (WINSIZE - ++bitcpy));
+
+    if (bitcpy == WINSIZE) {
+      /* ok window is filled so square as required and multiply  */
+      /* square first */
+      for (x = 0; x < WINSIZE; x++) {
+        err = fp_sqr(res, res);
+        if (err != FP_OKAY) {
+        #ifdef WOLFSSL_SMALL_STACK
+          XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+          return err;
+        }
+        err = fp_montgomery_reduce(res, P, mp);
+        if (err != FP_OKAY) {
+        #ifdef WOLFSSL_SMALL_STACK
+          XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+          return err;
+        }
+      }
+
+      /* then multiply by 2^bitbuf */
+      fp_mul_2d(res, bitbuf, res);
+      /* Add in value to make mod operation take same time */
+      fp_add(res, tmp, res);
+      err = fp_mod(res, P, res);
+      if (err != FP_OKAY) {
+      #ifdef WOLFSSL_SMALL_STACK
+        XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      #endif
+        return err;
+      }
+
+      /* empty window and reset */
+      bitcpy = 0;
+      bitbuf = 0;
+    }
+  }
+
+  /* fixup result if Montgomery reduction is used
+   * recall that any value in a Montgomery system is
+   * actually multiplied by R mod n.  So we have
+   * to reduce one more time to cancel out the factor
+   * of R.
+   */
+  err = fp_montgomery_reduce(res, P, mp);
+
+  /* swap res with Y */
+  fp_copy(res, Y);
+
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+  return err;
+}
+
+#undef WINSIZE
+#else
 #if DIGIT_BIT < 16
     #define WINSIZE    3
 #elif DIGIT_BIT < 32
@@ -1913,7 +2069,13 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
       bitbuf = (int)(buf >> bitcnt);
       /* Multiply montgomery representation of 1 by 2 ^ top */
       fp_mul_2d(res, bitbuf, res);
-      fp_mod(res, P, res);
+      err = fp_mod(res, P, res);
+      if (err != FP_OKAY) {
+      #ifdef WOLFSSL_SMALL_STACK
+        XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      #endif
+        return err;
+      }
       /* Move out bits used */
       buf  <<= bitcpy;
       bitcnt++;
@@ -1999,6 +2161,7 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
 }
 
 #undef WINSIZE
+#endif
 
 
 int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
