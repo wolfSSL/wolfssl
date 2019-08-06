@@ -19766,7 +19766,7 @@ WOLFSSL_X509_VERIFY_PARAM* wolfSSL_get0_param(WOLFSSL* ssl)
     if (ssl == NULL) {
         return NULL;
     }
-    return &ssl->param;
+    return ssl->param;
 }
 
 #ifndef NO_WOLFSSL_STUB

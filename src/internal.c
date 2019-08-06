@@ -5119,6 +5119,15 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->sessionCtxSz = ctx->sessionCtxSz;
     XMEMCPY(ssl->sessionCtx, ctx->sessionCtx, ctx->sessionCtxSz);
     ssl->cbioFlag = ctx->cbioFlag;
+
+    if ((ssl->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
+                           sizeof(WOLFSSL_X509_VERIFY_PARAM),
+                           ssl->heap, DYNAMIC_TYPE_OPENSSL)) == NULL) {
+        WOLFSSL_MSG("ssl->param memory error");
+        return MEMORY_E;
+    }
+    XMEMSET(ssl->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
+
 #endif
 
     InitCiphers(ssl);
@@ -5682,7 +5691,11 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         FreeWriteDup(ssl);
     }
 #endif
-
+#ifdef OPENSSL_EXTRA
+    if (ssl->param) {
+        XFREE(ssl->param, ssl->heap, DYNAMIC_TYPE_OPENSSL);
+    }
+#endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     while (ssl->certReqCtx != NULL) {
         CertReqCtx* curr = ssl->certReqCtx;
@@ -9121,16 +9134,17 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
             XMEMSET(store->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
 
             /* Overwrite with non-default param values in SSL */
+            if (ssl->param) {
+                if (ssl->param->check_time)
+                    store->param->check_time = ssl->param->check_time;
 
-            if (ssl->param.check_time)
-                store->param->check_time = ssl->param.check_time;
+                if (ssl->param->flags)
+                    store->param->flags = ssl->param->flags;
 
-            if (ssl->param.flags)
-                store->param->flags = ssl->param.flags;
-
-            if (ssl->param.hostName[0])
-                XMEMCPY(store->param->hostName, ssl->param.hostName,
-                        WOLFSSL_HOST_NAME_MAX);
+                if (ssl->param->hostName[0])
+                    XMEMCPY(store->param->hostName, ssl->param->hostName,
+                            WOLFSSL_HOST_NAME_MAX);
+            }
          }
     #endif /* defined(OPENSSL_EXTRA) */
     #endif /* defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)*/
