@@ -930,7 +930,11 @@ int wc_InitDhKey_ex(DhKey* key, void* heap, int devId)
 
     key->heap = heap; /* for XMALLOC/XFREE in future */
 
+    #if !defined(WOLFSSL_QT) && !defined(OPENSSL_ALL)
     if (mp_init_multi(&key->p, &key->g, &key->q, NULL, NULL, NULL) != MP_OKAY)
+    #else
+    if (mp_init_multi(&key->p,&key->g,&key->q,&key->pub,&key->priv,NULL) != MP_OKAY)
+    #endif
         return MEMORY_E;
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
@@ -2018,6 +2022,74 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
 
     return ret;
 }
+
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+WOLFSSL_LOCAL int wc_DhSetFullKeys(DhKey* key,const byte* priv_key,word32 privSz,
+                                   const byte* pub_key, word32 pubSz)
+{
+    byte havePriv = 0;
+    byte havePub = 0;
+    mp_int* keyPriv = NULL;
+    mp_int* keyPub  = NULL;
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    havePriv = ( (priv_key != NULL) && (privSz > 0) );
+    havePub  = ( (pub_key  != NULL) && (pubSz  > 0) );
+
+    if (!havePub && !havePriv) {
+        WOLFSSL_MSG("No Public or Private Key to Set");
+        return BAD_FUNC_ARG;
+    }
+    /* Set Private Key */
+    if (havePriv == TRUE) {
+        /* may have leading 0 */
+        if (priv_key[0] == 0) {
+            privSz--; priv_key++;
+        }
+        if (mp_init(&key->priv) != MP_OKAY)
+            havePriv = FALSE;
+    }
+
+    if (havePriv == TRUE) {
+        if (mp_read_unsigned_bin(&key->priv, priv_key, privSz) != MP_OKAY) {
+            havePriv = FALSE;
+        } else {
+            keyPriv = &key->priv;
+            WOLFSSL_MSG("DH Private Key Set.");
+        }
+    }
+
+    /* Set Public Key */
+    if (havePub == TRUE) {
+        /* may have leading 0 */
+        if (pub_key[0] == 0) {
+            pubSz--; pub_key++;
+        }
+        if (mp_init(&key->pub) != MP_OKAY)
+            havePub = FALSE;
+    }
+
+    if (havePub == TRUE) {
+        if (mp_read_unsigned_bin(&key->pub, pub_key, pubSz) != MP_OKAY) {
+            havePub = FALSE;
+        } else {
+            keyPub = &key->pub;
+            WOLFSSL_MSG("DH Public Key Set.");
+        }
+    }
+    /* Free Memory if error occured */
+    if (havePriv == FALSE && keyPriv != NULL)
+        mp_clear(keyPriv);
+    if (havePub == FALSE && keyPub != NULL)
+        mp_clear(keyPub);
+
+    /* WOLFSSL_SUCCESS if private or public was set else WOLFSSL_FAILURE */
+    return havePriv || havePub;
+}
+#endif
 
 
 static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,

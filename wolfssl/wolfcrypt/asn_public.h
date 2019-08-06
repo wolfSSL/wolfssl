@@ -106,6 +106,9 @@ enum CertType {
     PKCS12_TYPE,
     PKCS8_PRIVATEKEY_TYPE,
     PKCS8_ENC_PRIVATEKEY_TYPE
+    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    ,DH_PRIVATEKEY_TYPE
+    #endif
 };
 
 

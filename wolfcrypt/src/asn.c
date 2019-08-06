@@ -856,8 +856,10 @@ static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
     if ((idx + 1) > maxIdx)
         return BUFFER_E;
 
-    if (input[idx++] != ASN_BIT_STRING)
+    if (input[idx++] != ASN_BIT_STRING) {
+        WOLFSSL_MSG("NOT BIT STRING");
         return ASN_BITSTR_E;
+    }
 
     if (GetLength(input, &idx, &length, maxIdx) < 0)
         return ASN_PARSE_E;
@@ -915,7 +917,11 @@ static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
  * output      Buffer to write into.
  * returns the number of bytes added to the buffer.
  */
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+WOLFSSL_LOCAL word32 SetBitString(word32 len, byte unusedBits, byte* output)
+#else
 static word32 SetBitString(word32 len, byte unusedBits, byte* output)
+#endif
 {
     word32 idx = 0;
 
@@ -1280,6 +1286,9 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 #ifdef HAVE_ED25519
     static const byte keyEd25519Oid[] = {43, 101, 112};
 #endif /* HAVE_ED25519 */
+#if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
+    static const byte keyDhOid[] = {42, 134, 72, 134, 247, 13, 1, 3, 1};
+#endif /* ! NO_DH ... */
 
 /* curveType */
 #ifdef HAVE_ECC
@@ -1607,6 +1616,12 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(keyEd25519Oid);
                     break;
                 #endif /* HAVE_ED25519 */
+                #if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
+                case DHk:
+                    oid = keyDhOid;
+                    *oidSz = sizeof(keyDhOid);
+                    break;
+                #endif /* ! NO_DH && (WOLFSSL_QT || OPENSSL_ALL */
                 default:
                     break;
             }
@@ -4038,19 +4053,80 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
 
 int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
 {
-    int    length;
+    int ret = 0;
+    int length;
+    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    word32 oid = 0, temp = 0;
+    #endif
+
+    WOLFSSL_ENTER("wc_DhKeyDecode");
+
+    if (inOutIdx == NULL)
+        return BAD_FUNC_ARG;
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
+    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    temp = *inOutIdx;
+    #endif
+
+    /* Assume input started after 1.2.840.113549.1.3.1 dhKeyAgreement */
     if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->g,  input, inOutIdx, inSz) < 0) {
-        return ASN_DH_KEY_E;
+        ret = ASN_DH_KEY_E;
     }
 
-    return 0;
-}
+    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    /* If ASN_DH_KEY_E: Check if input started at beginning of key */
+    if (ret == ASN_DH_KEY_E) {
+        /* rewind back to after the first sequence */
+        *inOutIdx = temp;
+        if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+            return ASN_PARSE_E;
 
+        /* Check for dhKeyAgreement */
+        ret = GetObjectId(input, inOutIdx, &oid, oidKeyType, inSz);
+        if (oid != DHk || ret < 0)
+            return ASN_DH_KEY_E;
+
+        if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+            return ASN_PARSE_E;
+
+        if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
+            GetInt(&key->g,  input, inOutIdx, inSz) < 0) {
+            return ASN_DH_KEY_E;
+        }
+    }
+
+    temp = *inOutIdx;
+    ret = (CheckBitString(input, inOutIdx, &length, inSz, 0, NULL) == 0);
+
+    if (ret) {
+        /* Found Bit String */
+        if (GetInt(&key->pub, input, inOutIdx, inSz) == 0) {
+            WOLFSSL_MSG("Found Public Key");
+        }
+    } else {
+        *inOutIdx = temp;
+        ret = (GetOctetString(input, inOutIdx, &length, inSz) >= 0);
+        if (ret) {
+            /* Found Octet String */
+            if (GetInt(&key->priv, input, inOutIdx, inSz) == 0) {
+                WOLFSSL_MSG("Found Private Key");
+            }
+        } else {
+            /* Don't use length from failed CheckBitString/GetOctetString */
+            *inOutIdx = temp;
+        }
+    }
+    ret = 0;
+    #endif /* WOLFSSL_QT || OPENSSL_ALL */
+
+    WOLFSSL_MSG("wc_DhKeyDecode Success");
+
+    return ret;
+}
 
 int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p, word32* pInOutSz,
                  byte* g, word32* gInOutSz)
@@ -9168,6 +9244,9 @@ int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
             if (footer) *footer = END_PUB_KEY;
             ret = 0;
             break;
+    #if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
+        case DH_PRIVATEKEY_TYPE:
+    #endif
         case PKCS8_PRIVATEKEY_TYPE:
             if (header) *header = BEGIN_PRIV_KEY;
             if (footer) *footer = END_PRIV_KEY;
@@ -9687,6 +9766,11 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                 *keyFormat = 2;
             else if (algId == ECDSAk)
                 *keyFormat = 1;
+            #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+            else if (algId == DHk) {
+                *keyFormat = 3;
+            }
+            #endif
         }
         else {
             /* ignore failure here and assume key is not pkcs8 wrapped */
@@ -9734,6 +9818,10 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                         *keyFormat = 1;
                     else if ((algId == DSAk) && (keyFormat != NULL))
                         *keyFormat = 2;
+                    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+                    else if ((algId == DHk) && (keyFormat != NULL))
+                        *keyFormat = 3;
+                    #endif
                     ret = 0;
                 }
             #else

@@ -7043,9 +7043,53 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out, unsigned char** in,
     }
     #endif /* NO_DSA */
 
+    #if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
+    {
+        DhKey dh;
+        word32 keyIdx = 0;
+
+        /* test if DH key */
+        if (wc_InitDhKey(&dh) == 0 &&
+            wc_DhKeyDecode(mem, &keyIdx, &dh, (word32)memSz) == 0) {
+            wc_FreeDhKey(&dh);
+            pkey = wolfSSL_PKEY_new();
+
+            if (pkey != NULL) {
+                pkey->pkey_sz = memSz;
+                pkey->pkey.ptr = (char*)XMALLOC(memSz, NULL,
+                        DYNAMIC_TYPE_PUBLIC_KEY);
+                if (pkey->pkey.ptr == NULL) {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    return NULL;
+                }
+                XMEMCPY(pkey->pkey.ptr, mem, memSz);
+                pkey->type = EVP_PKEY_DH;
+                if (out != NULL) {
+                    *out = pkey;
+                }
+
+                pkey->ownDh = 1;
+                pkey->dh = wolfSSL_DH_new();
+                if (pkey->dh == NULL) {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    return NULL;
+                }
+
+                if (wolfSSL_DH_LoadDer(pkey->dh,
+                            (const unsigned char*)pkey->pkey.ptr,
+                            pkey->pkey_sz) != WOLFSSL_SUCCESS) {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    return NULL;
+                }
+
+                return pkey;
+            }
+        }
+        wc_FreeDhKey(&dh);
+    }
+    #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) */
 
     return pkey;
-
 }
 
 
@@ -7133,22 +7177,6 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
             }
             break;
 #endif /* NO_RSA */
-#ifndef NO_DSA
-        case EVP_PKEY_DSA:
-            local->ownDsa = 1;
-            local->dsa = wolfSSL_DSA_new();
-            if (local->dsa == NULL) {
-                wolfSSL_EVP_PKEY_free(local);
-                return NULL;
-            }
-            if (wolfSSL_DSA_LoadDer(local->dsa,
-                    (const unsigned char*)local->pkey.ptr, local->pkey_sz)
-                    != SSL_SUCCESS) {
-                wolfSSL_EVP_PKEY_free(local);
-                return NULL;
-            }
-            break;
-#endif /* NO_DSA */
 #ifdef HAVE_ECC
         case EVP_PKEY_EC:
             local->ownEcc = 1;
@@ -7165,7 +7193,40 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
             }
             break;
 #endif /* HAVE_ECC */
-
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+#ifndef NO_DSA
+        case EVP_PKEY_DSA:
+            local->ownDsa = 1;
+            local->dsa = wolfSSL_DSA_new();
+            if (local->dsa == NULL) {
+                wolfSSL_EVP_PKEY_free(local);
+                return NULL;
+            }
+            if (wolfSSL_DSA_LoadDer(local->dsa,
+                    (const unsigned char*)local->pkey.ptr, local->pkey_sz)
+                    != SSL_SUCCESS) {
+                wolfSSL_EVP_PKEY_free(local);
+                return NULL;
+            }
+            break;
+#endif /* NO_DSA */
+#ifndef NO_DH
+        case EVP_PKEY_DH:
+            local->ownDh = 1;
+            local->dh = wolfSSL_DH_new();
+            if (local->dh == NULL) {
+                wolfSSL_EVP_PKEY_free(local);
+                return NULL;
+            }
+            if (wolfSSL_DH_LoadDer(local->dh,
+                      (const unsigned char*)local->pkey.ptr, local->pkey_sz)
+                      != SSL_SUCCESS) {
+                wolfSSL_EVP_PKEY_free(local);
+                return NULL;
+            }
+        break;
+#endif /* HAVE_DH */
+#endif /* WOLFSSL_QT || OPENSSL_ALL */
         default:
             WOLFSSL_MSG("Unsupported key type");
             wolfSSL_EVP_PKEY_free(local);
@@ -26838,12 +26899,25 @@ static int SetDhInternal(WOLFSSL_DH* dh)
     int            ret = WOLFSSL_FATAL_ERROR;
     int            pSz = 1024;
     int            gSz = 1024;
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    int            privSz = 256; /* Up to 2048-bit */
+    int            pubSz  = 256;
+#endif
+
 #ifdef WOLFSSL_SMALL_STACK
     unsigned char* p   = NULL;
     unsigned char* g   = NULL;
+    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    unsigned char* priv_key = NULL;
+    unsigned char* pub_key = NULL;
+    #endif
 #else
     unsigned char  p[1024];
     unsigned char  g[1024];
+    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    unsigned char priv_key[256];
+    unsigned char pub_key[256];
+    #endif
 #endif
 
     WOLFSSL_ENTER("SetDhInternal");
@@ -26854,10 +26928,21 @@ static int SetDhInternal(WOLFSSL_DH* dh)
         WOLFSSL_MSG("Bad p internal size");
     else if (wolfSSL_BN_bn2bin(dh->g, NULL) > gSz)
         WOLFSSL_MSG("Bad g internal size");
+    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    else if (wolfSSL_BN_bn2bin(dh->priv_key, NULL) > privSz)
+        WOLFSSL_MSG("Bad private key internal size");
+    else if (wolfSSL_BN_bn2bin(dh->pub_key, NULL) > privSz)
+        WOLFSSL_MSG("Bad public key internal size");
+    #endif
     else {
     #ifdef WOLFSSL_SMALL_STACK
         p = (unsigned char*)XMALLOC(pSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
         g = (unsigned char*)XMALLOC(gSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+
+        #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+        priv_key = (unsigned char*)XMALLOC(privSz,NULL,DYNAMIC_TYPE_PRIVATE_KEY);
+        pub_key  = (unsigned char*)XMALLOC(pubSz,NULL,DYNAMIC_TYPE_PUBLIC_KEY);
+        #endif
 
         if (p == NULL || g == NULL) {
             XFREE(p, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
@@ -26865,6 +26950,24 @@ static int SetDhInternal(WOLFSSL_DH* dh)
             return ret;
         }
     #endif
+
+        #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+        privSz = wolfSSL_BN_bn2bin(dh->priv_key, priv_key);
+        pubSz  = wolfSSL_BN_bn2bin(dh->pub_key,  pub_key);
+        if (privSz <= 0) {
+            WOLFSSL_MSG("No private key size.");
+        }
+        if (pubSz <= 0) {
+            WOLFSSL_MSG("No public key size.");
+        }
+        if (privSz > 0 || pubSz > 0) {
+            ret = wc_DhSetFullKeys((DhKey*)dh->internal,priv_key,privSz,
+                                    pub_key,pubSz);
+            if (ret == WOLFSSL_FAILURE) {
+                WOLFSSL_MSG("Failed setting private or public key.");
+            }
+        }
+        #endif
 
         pSz = wolfSSL_BN_bn2bin(dh->p, p);
         gSz = wolfSSL_BN_bn2bin(dh->g, g);
@@ -26881,9 +26984,12 @@ static int SetDhInternal(WOLFSSL_DH* dh)
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(p, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
         XFREE(g, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+        XFREE(priv_key, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
+        XFREE(pub_key,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        #endif
     #endif
     }
-
 
     return ret;
 }
@@ -27450,6 +27556,9 @@ WOLFSSL_DH *wolfSSL_DSA_dup_DH(const WOLFSSL_DSA *dsa)
 #endif /* OPENSSL_EXTRA */
 #endif /* !NO_RSA && !NO_DSA */
 
+/* Set the members of DhKey into WOLFSSL_DH
+ * DhKey was populated from wc_DhKeyDecode
+ */
 #if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
 int setDhExternal(WOLFSSL_DH *dh) {
     DhKey *key;
@@ -27468,6 +27577,16 @@ int setDhExternal(WOLFSSL_DH *dh) {
 
     if (SetIndividualExternal(&dh->g, &key->g) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("dh param g error");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (SetIndividualExternal(&dh->priv_key, &key->priv) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("No DH Private Key");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (SetIndividualExternal(&dh->pub_key, &key->pub) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("No DH Public Key");
         return WOLFSSL_FATAL_ERROR;
     }
 
@@ -29416,18 +29535,51 @@ WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
 #endif
 
 /* with set1 functions the pkey struct does not own the DH structure
+ * Build the following DH Key format from the passed in WOLFSSL_DH
+ * then store in WOLFSSL_EVP_PKEY in DER format.
+ *
+ *Public Key Format example:
+ *SEQUENCE (2 elem)
+ * SEQUENCE (2 elem)
+ *   OBJECT IDENTIFIER 1.2.840.113549.1.3.1 dhKeyAgreement (PKCS #3)
+ *   SEQUENCE (2 elem)
+ *     INTEGER (1024 bit)
+ *     INTEGER 2
+ * BIT STRING (1 elem)
+ *   INTEGER (1
+ *
+ *Private Key Format Example:
+ *SEQUENCE (3 elem)
+ * INTEGER 0
+ * SEQUENCE (2 elem)
+ *   OBJECT IDENTIFIER 1.2.840.113549.1.3.1 dhKeyAgreement (PKCS #3)
+ *   SEQUENCE (2 elem)
+ *     INTEGER (1024 bit)
+ *     INTEGER 2
+ * OCTET STRING (1 elem)
+ *   INTEGER (1
+ *
+ *Parameters Only Format Example:
+ * SEQUENCE (2 elem)
+ *  INTEGER (1024 bit)
+ *  INTEGER 2
  *
  * returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure
  */
 #if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL)) \
 && !defined(NO_FILESYSTEM)
-static int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz);
+static int wc_DhPubKeyToDer(DhKey*  key, byte* out, word32* outSz);
+static int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
+static int wc_DhParamsToDer(DhKey*  key, byte* out, word32* outSz);
 int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
 {
+    byte havePublic = 0, havePrivate = 0;
     int ret;
     word32 derSz = 0;
     byte* derBuf = NULL;
     DhKey* dhkey = NULL;
+    mp_int pubKey;
+    mp_int privKey;
 
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_DH");
 
@@ -29447,11 +29599,25 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
     }
 
     dhkey = (DhKey*)key->internal;
-    ret = wc_DhParamsToDer(dhkey, NULL, &derSz);
-    /* Get size of der buffer only */
+
+    pubKey  = dhkey->pub;
+    privKey = dhkey->priv;
+
+    havePublic  = mp_unsigned_bin_size(&pubKey)  > 0;
+    havePrivate = mp_unsigned_bin_size(&privKey) > 0;
+
+    /* Get size of DER buffer only */
+    if (havePublic && !havePrivate) {
+        ret = wc_DhPubKeyToDer(dhkey, NULL, &derSz);
+    } else if (havePrivate && !havePublic) {
+        ret = wc_DhPrivKeyToDer(dhkey, NULL, &derSz);
+    } else {
+        ret = wc_DhParamsToDer(dhkey,NULL,&derSz);
+    }
+
     if (derSz <= 0 || ret != LENGTH_ONLY_E) {
-        WOLFSSL_MSG("Failed to get size of DH params");
-        return WOLFSSL_FAILURE;
+       WOLFSSL_MSG("Failed to get size of DH Key");
+       return WOLFSSL_FAILURE;
     }
 
     derBuf = (byte*)XMALLOC(derSz, pkey->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -29459,14 +29625,23 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
         WOLFSSL_MSG("malloc failed");
         return WOLFSSL_FAILURE;
     }
-    /* Fill buffer with DH parameters (DER format) */
-    ret = wc_DhParamsToDer(dhkey, derBuf, &derSz);
+
+    /* Fill DER buffer */
+    if (havePublic && !havePrivate) {
+        ret = wc_DhPubKeyToDer(dhkey, derBuf, &derSz);
+    } else if (havePrivate && !havePublic) {
+        ret = wc_DhPrivKeyToDer(dhkey, derBuf, &derSz);
+    } else {
+        ret = wc_DhParamsToDer(dhkey,derBuf,&derSz);
+    }
+
     if (ret <= 0) {
-        WOLFSSL_MSG("Failed to export DH params");
+        WOLFSSL_MSG("Failed to export DH Key");
         XFREE(derBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
-    /* Store DH parameters into pkey (DER format) */
+
+    /* Store DH key into pkey (DER format) */
     pkey->pkey.ptr = (char*)XMALLOC(derSz, pkey->heap, DYNAMIC_TYPE_DER);
     if (pkey->pkey.ptr == NULL) {
         WOLFSSL_MSG("key malloc failed");
@@ -29486,7 +29661,7 @@ WOLFSSL_DH* wolfSSL_EVP_PKEY_get1_DH(WOLFSSL_EVP_PKEY* key)
 
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_get1_DH");
 
-    if (key == NULL) {
+    if (key == NULL || key->dh == NULL) {
         WOLFSSL_MSG("Bad function argument");
         return NULL;
     }
@@ -29502,19 +29677,17 @@ WOLFSSL_DH* wolfSSL_EVP_PKEY_get1_DH(WOLFSSL_EVP_PKEY* key)
         if (wolfSSL_DH_LoadDer(local, (const unsigned char*)key->pkey.ptr,
                     key->pkey_sz) != SSL_SUCCESS) {
             wolfSSL_DH_free(local);
-            local = NULL;
-        }
-
-        if (wolfSSL_DH_check(local, NULL) != WOLFSSL_SUCCESS) {
-            wolfSSL_DH_free(local);
+            WOLFSSL_MSG("Error wolfSSL_DH_LoadDer");
             local = NULL;
         }
 
     }
     else {
         WOLFSSL_MSG("WOLFSSL_EVP_PKEY does not hold a DH key");
+        wolfSSL_DH_free(local);
         return NULL;
     }
+
     return local;
 }
 #endif /* !NO_DH && (WOLFSSL_QT || OPENSSL_ALL) && !NO_FILESYSTEM */
@@ -30230,6 +30403,12 @@ int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
 #ifdef HAVE_ECC
         case EVP_PKEY_EC:
             type = ECC_PRIVATEKEY_TYPE;
+            break;
+#endif
+
+#if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
+        case EVP_PKEY_DH:
+            type = DH_PRIVATEKEY_TYPE;
             break;
 #endif
 
@@ -32862,9 +33041,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
                                                   void* pass)
 {
     WOLFSSL_EVP_PKEY* pkey = NULL;
-    DerBuffer*        der = NULL;
+    DerBuffer*        der  = NULL;
     int               keyFormat = 0;
-
     WOLFSSL_ENTER("wolfSSL_PEM_read_bio_PrivateKey");
 
     if (bio == NULL)
@@ -32883,10 +33061,17 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
                 /* DSA key if format is 2 */
                 type = EVP_PKEY_DSA;
             }
+            #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+            else if (keyFormat == 3) {
+                /* DSA key if format is 2 */
+                type = EVP_PKEY_DH;
+            }
+            #endif
         }
         else {
             /* Default to RSA if format is not set */
             type = EVP_PKEY_RSA;
+
         }
 
         /* handle case where reuse is attempted */
@@ -33515,8 +33700,6 @@ int wolfSSL_DH_LoadDer(WOLFSSL_DH* dh, const unsigned char* derBuf, int derSz)
     word32 idx = 0;
     int    ret;
 
-    WOLFSSL_ENTER("wolfSSL_DH_LoadDer");
-
     if (dh == NULL || dh->internal == NULL || derBuf == NULL || derSz <= 0) {
         WOLFSSL_MSG("Bad function arguments");
         return WOLFSSL_FATAL_ERROR;
@@ -33533,11 +33716,9 @@ int wolfSSL_DH_LoadDer(WOLFSSL_DH* dh, const unsigned char* derBuf, int derSz)
         return WOLFSSL_FATAL_ERROR;
     }
 
-    dh->inSet = 1;
-
     return WOLFSSL_SUCCESS;
 }
-#endif /* NO_DH && WOLFSSL_QT || OPENSSL_ALL */
+#endif /* ! NO_DH && WOLFSSL_QT || OPENSSL_ALL */
 #endif /* OPENSSL_EXTRA */
 
 
@@ -37375,6 +37556,7 @@ static int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz)
     sz += SetLength(gSz, scratch);
     sz += gSz + pSz;
 
+
     if (out == NULL) {
         byte seqScratch[MAX_SEQ_SZ];
 
@@ -37414,9 +37596,205 @@ static int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz)
         return BUFFER_E;
     }
     idx += gSz;
+
     return idx;
 }
 
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+static int wc_DhPubKeyToDer(DhKey* key, byte* out, word32* outSz)
+{
+    word32 sz = 0;
+    word32 paramSz = 0;
+    int ret;
+    int pubSz = 0;
+    int idx = 0;
+    byte scratch[MAX_ALGO_SZ];
+
+    /* Get size of entire key */
+
+    /*  SEQUENCE               <--| SetAlgoId
+     *      OBJECT IDENTIFIER  <--|
+     *      SEQUENCE     <--
+     *          INTEGER    | wc_DhParamsToDer
+     *          INTEGER  <--
+     */
+    ret = wc_DhParamsToDer(key, NULL, &paramSz);
+    if (ret != LENGTH_ONLY_E)
+        return ASN_PARSE_E;
+    sz += paramSz;
+    sz += SetAlgoID(DHk, scratch, oidKeyType, paramSz);
+
+    /*  BIT STRING
+     *      INTEGER
+     */
+    pubSz = mp_unsigned_bin_size(&key->pub);
+    if (pubSz < 0)
+        return pubSz;
+    else if (pubSz > 256) /* Key is larger than 2048 */
+        return ASN_VERSION_E;
+
+    if (mp_leading_bit(&key->pub))
+        pubSz++;
+
+    sz += ASN_TAG_SZ; /* Integer */
+    sz += SetLength(pubSz, scratch);
+    sz += pubSz;
+
+    sz += SetBitString(pubSz + ASN_BIT_STRING, 0, scratch);
+
+    if (out == NULL) {
+        /* Uppermost SEQUENCE */
+        *outSz = sz + SetSequence(sz, scratch);
+        return LENGTH_ONLY_E;
+    }
+    /* end get size of entire key */
+
+    /* Check for indexing errors */
+    if (*outSz < MAX_SEQ_SZ || *outSz < sz) {
+        return BUFFER_E;
+    }
+
+    /* Build Up Entire Key */
+
+    idx += SetSequence(sz, out);
+
+    idx += SetAlgoID(DHk, out+idx, oidKeyType, paramSz);
+    ret = wc_DhParamsToDer(key, out+idx, &paramSz);
+    if (ret < 0)
+        return ret;
+    idx += ret;
+
+    /* BIT STRING
+     *   INTEGER
+     */
+    if (pubSz == 256) { /* Key Size: 2048 */
+        idx += SetBitString(pubSz + ASN_BIT_STRING+1, 0, out+idx);
+    } else if (pubSz == 128) { /* Key Size: 1024 */
+        idx += SetBitString(pubSz + ASN_BIT_STRING, 0, out+idx);
+    } else if (pubSz == 64) { /* Key Size: 512 */
+        idx += SetBitString(pubSz + ASN_BIT_STRING-1, 0, out+idx);
+    } else {
+        WOLFSSL_MSG("Unsupported Key Size");
+        return ASN_PARSE_E;
+    }
+
+    out[idx++] = ASN_INTEGER;
+    idx += SetLength(pubSz, out + idx);
+    if (mp_leading_bit(&key->pub)) {
+        out[idx++] = 0x00;
+        pubSz -= 1; /* subtract 1 from size to account for leading 0 */
+    }
+    ret = mp_to_unsigned_bin(&key->pub, out + idx);
+    if (ret != MP_OKAY) {
+        return BUFFER_E;
+    }
+    idx += pubSz;
+
+    return idx;
+}
+
+static int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz)
+{
+    word32 sz = 0;
+    word32 paramSz = 0;
+    int ret;
+    int privSz = 0;
+    int idx = 0;
+    byte scratch[MAX_ALGO_SZ];
+
+    /* Get size of entire key */
+
+    /*  INTEGER 0 */
+    sz += ASN_TAG_SZ; /* Integer */
+    sz += SetLength(1, scratch);
+    sz += 1;
+
+    /*  SEQUENCE               <--| SetAlgoId
+     *      OBJECT IDENTIFIER  <--|
+     *      SEQUENCE       <--
+     *          INTEGER       | wc_DhParamsToDer
+     *          INTEGER     <--
+     */
+    ret = wc_DhParamsToDer(key, NULL, &paramSz);
+    if (ret != LENGTH_ONLY_E)
+        return ASN_PARSE_E;
+    sz += paramSz;
+    sz += SetAlgoID(DHk, scratch, oidKeyType, paramSz);
+
+    /*  OCTET STRING
+     *      INTEGER
+     */
+    privSz = mp_unsigned_bin_size(&key->priv);
+    if (privSz < 0)
+        return privSz;
+    else if (privSz > 256) /* Key is larger than 2048 */
+        return ASN_VERSION_E;
+
+    if (mp_leading_bit(&key->priv))
+        privSz++;
+
+    sz += ASN_TAG_SZ; /* Integer */
+    sz += SetLength(privSz, scratch);
+    sz += privSz;
+
+    sz += SetOctetString(privSz + ASN_OCTET_STRING, scratch);
+
+    if (out == NULL) {
+        /* Uppermost SEQUENCE */
+        *outSz = sz + SetSequence(sz, scratch);
+        return LENGTH_ONLY_E;
+    }
+    /* end get size of entire key */
+
+    /* Check for indexing errors */
+    if (*outSz < MAX_SEQ_SZ || *outSz < sz) {
+        return BUFFER_E;
+    }
+
+    /* Build Up Entire Key */
+
+    idx += SetSequence(sz, out);
+
+    /* INTEGER 0 */
+    out[idx++] = ASN_INTEGER;
+    idx += SetLength(1, out+idx);
+    out[idx++] = 0;
+
+    idx += SetAlgoID(DHk, out+idx, oidKeyType, paramSz);
+    ret = wc_DhParamsToDer(key, out+idx, &paramSz);
+    if (ret < 0)
+        return ret;
+    idx += ret;
+
+    /* OCTET STRING
+     *   INTEGER
+     */
+    if (privSz == 256) {
+        idx += SetOctetString(privSz + ASN_OCTET_STRING, out+idx);
+    } else if (privSz == 128) {
+        idx += SetOctetString(privSz + ASN_OCTET_STRING-1, out+idx);
+    } else if (privSz == 64) {
+        idx += SetOctetString(privSz + ASN_OCTET_STRING-2, out+idx);
+    } else {
+        WOLFSSL_MSG("Unsupported key size");
+        return ASN_VERSION_E;
+    }
+
+    out[idx++] = ASN_INTEGER;
+    idx += SetLength(privSz, out + idx);
+    if (mp_leading_bit(&key->priv)) {
+        out[idx++] = 0x00;
+        privSz -= 1; /* subtract 1 from size to account for leading 0 */
+    }
+    ret = mp_to_unsigned_bin(&key->priv, out + idx);
+    if (ret != MP_OKAY) {
+        return BUFFER_E;
+    }
+    idx += privSz;
+
+    return idx;
+}
+#endif
 
 /* Writes the DH parameters in PEM format from "dh" out to the file pointer
  * passed in.
