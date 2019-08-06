@@ -17841,7 +17841,7 @@ static void test_wolfSSL_X509_NAME(void)
 static void test_wolfSSL_X509_subject_name_hash(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) \
-    && !defined(NO_SHA)
+    && !defined(NO_SHA) && !defined(NO_RSA)
 
     X509* x509;
     X509_NAME* subjectName = NULL;
@@ -19491,7 +19491,7 @@ static void test_wolfSSL_X509_STORE_CTX_set_time(void)
 
 static void test_wolfSSL_get0_param(void)
 {
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
     SSL_CTX* ctx;
     SSL*     ssl;
     WOLFSSL_X509_VERIFY_PARAM* pParam;
@@ -19510,7 +19510,7 @@ static void test_wolfSSL_get0_param(void)
     SSL_free(ssl);
     SSL_CTX_free(ctx);
     printf(resultFmt, passed);
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA && !defined(NO_RSA)*/
 }
 
 static void test_wolfSSL_X509_VERIFY_PARAM_set1_host(void)
