@@ -19256,6 +19256,11 @@ err_exit:
     if(store->crl != NULL)
         wolfSSL_X509_CRL_free(store->crl);
 #endif
+#ifdef OPENSSL_EXTRA
+        if (store->param != NULL){
+            XFREE(store->param,NULL,DYNAMIC_TYPE_OPENSSL);
+        }
+#endif
     wolfSSL_X509_STORE_free(store);
 
     return NULL;
@@ -36390,11 +36395,12 @@ PKCS7_SIGNED* wolfSSL_PKCS7_SIGNED_new(void)
     byte signedData[]= { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x02};
     PKCS7* pkcs7 = NULL;
 
-    pkcs7 = wolfSSL_PKCS7_new();
+    if ((pkcs7 = wolfSSL_PKCS7_new()) == NULL)
+        return NULL;
     pkcs7->contentOID = SIGNED_DATA;
     if ((wc_PKCS7_SetContentType(pkcs7, signedData, sizeof(signedData))) < 0) {
         if (pkcs7) {
-            wc_PKCS7_Free(pkcs7);
+            wolfSSL_PKCS7_free(pkcs7);
             return NULL;
         }
     }
