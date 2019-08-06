@@ -36588,6 +36588,7 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
     if (bio == NULL || p7 == NULL)
         return WOLFSSL_FAILURE;
 
+    XMEMSET(hashBuf, 0, WC_MAX_DIGEST_SIZE);
     XMEMSET(outputHead, 0, outputHeadSz);
     XMEMSET(outputFoot, 0, outputFootSz);
 
@@ -36615,6 +36616,7 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
     if (!output)
          return WOLFSSL_FAILURE;
 
+    XMEMSET(output, 0, outputSz);
     outputSz = 0;
     XMEMCPY(&output[outputSz], outputHead, outputHeadSz);
     outputSz += outputHeadSz;
@@ -36628,9 +36630,13 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
     if (pemSz < 0)
         goto error;
 
+    pemSz++; /* for '\0'*/
+
     /* create PEM buffer and convert from DER to PEM*/
     if ((pem = (byte*)XMALLOC(pemSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
         goto error;
+
+    XMEMSET(pem, 0, pemSz);
 
     if (wc_DerToPemEx(output, outputSz, pem, pemSz, NULL, CERT_TYPE) < 0) {
         goto error;
