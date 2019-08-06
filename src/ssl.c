@@ -36420,7 +36420,7 @@ void wolfSSL_PKCS7_free(PKCS7* pkcs7)
 }
 void wolfSSL_PKCS7_SIGNED_free(PKCS7_SIGNED* p7)
 {
-    wolfSSL_PKCS7_free((PKCS7*)p7);
+    wolfSSL_PKCS7_free(p7);
     return;
 }
 PKCS7* wolfSSL_d2i_PKCS7(PKCS7** p7, const unsigned char** in, int len)
@@ -36588,6 +36588,9 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
     if (bio == NULL || p7 == NULL)
         return WOLFSSL_FAILURE;
 
+    XMEMSET(outputHead, 0, outputHeadSz);
+    XMEMSET(outputFoot, 0, outputFootSz);
+
     hashType = wc_OidGetHash(p7->hashOID);
     hashSz = wc_HashGetDigestSize(hashType);
     if (hashSz > WC_MAX_DIGEST_SIZE)
@@ -36602,8 +36605,9 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
             return WOLFSSL_FAILURE;
     };
 
-    wc_PKCS7_EncodeSignedData_ex(p7, hashBuf, hashSz,
-                        outputHead, &outputHeadSz, outputFoot, &outputFootSz);
+    if ((wc_PKCS7_EncodeSignedData_ex(p7, hashBuf, hashSz,
+        outputHead, &outputHeadSz, outputFoot, &outputFootSz)) != 0)
+        return WOLFSSL_FAILURE;
 
     outputSz = outputHeadSz + p7->contentSz + outputFootSz;
     output = (byte*)XMALLOC(outputSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);

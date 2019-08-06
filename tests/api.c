@@ -23695,10 +23695,10 @@ static void test_wolfSSL_PKCS7_SIGNED_new(void)
 static void test_wolfSSL_PEM_write_bio_PKCS7(void)
 {
 #if defined(OPENSSL_ALL) && defined(HAVE_PKCS7) && !defined(NO_FILESYSTEM)
-    PKCS7* pkcs7;
-    BIO* bio;
+    PKCS7* pkcs7 = NULL;
+    BIO* bio = NULL;
     const byte* cert_buf = NULL;
-    int ret;
+    int ret = 0;
     WC_RNG rng;
     const byte data[] = { /* Hello World */
         0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,

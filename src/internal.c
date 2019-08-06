@@ -5120,14 +5120,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     XMEMCPY(ssl->sessionCtx, ctx->sessionCtx, ctx->sessionCtxSz);
     ssl->cbioFlag = ctx->cbioFlag;
 
-    if ((ssl->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
-                           sizeof(WOLFSSL_X509_VERIFY_PARAM),
-                           ssl->heap, DYNAMIC_TYPE_OPENSSL)) == NULL) {
-        WOLFSSL_MSG("ssl->param memory error");
-        return MEMORY_E;
-    }
-    XMEMSET(ssl->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
-
 #endif
 
     InitCiphers(ssl);
@@ -5152,6 +5144,16 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
             return MEMORY_E;
         }
         XMEMSET(ssl->arrays->preMasterSecret, 0, ENCRYPT_LEN);
+#endif
+
+#ifdef OPENSSL_EXTRA
+    if ((ssl->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
+                           sizeof(WOLFSSL_X509_VERIFY_PARAM),
+                           ssl->heap, DYNAMIC_TYPE_OPENSSL)) == NULL) {
+        WOLFSSL_MSG("ssl->param memory error");
+        return MEMORY_E;
+    }
+    XMEMSET(ssl->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
 #endif
 
 #ifdef SINGLE_THREADED
@@ -9128,24 +9130,26 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         }
 
     #if defined(OPENSSL_EXTRA)
-        if ((store->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
-                            sizeof(WOLFSSL_X509_VERIFY_PARAM),
-                            ssl->heap, DYNAMIC_TYPE_OPENSSL)) != NULL) {
-            XMEMSET(store->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
+        store->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
+                        sizeof(WOLFSSL_X509_VERIFY_PARAM),
+                        ssl->heap, DYNAMIC_TYPE_OPENSSL);
+        if (store->param == NULL) {
+            return MEMORY_E;
+        }
+        XMEMSET(store->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
+        /* Overwrite with non-default param values in SSL */
+        if (ssl->param) {
+            if (ssl->param->check_time)
+                store->param->check_time = ssl->param->check_time;
 
-            /* Overwrite with non-default param values in SSL */
-            if (ssl->param) {
-                if (ssl->param->check_time)
-                    store->param->check_time = ssl->param->check_time;
+            if (ssl->param->flags)
+                store->param->flags = ssl->param->flags;
 
-                if (ssl->param->flags)
-                    store->param->flags = ssl->param->flags;
+            if (ssl->param->hostName[0])
+                XMEMCPY(store->param->hostName, ssl->param->hostName,
+                        WOLFSSL_HOST_NAME_MAX);
 
-                if (ssl->param->hostName[0])
-                    XMEMCPY(store->param->hostName, ssl->param->hostName,
-                            WOLFSSL_HOST_NAME_MAX);
-            }
-         }
+        }
     #endif /* defined(OPENSSL_EXTRA) */
     #endif /* defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)*/
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
