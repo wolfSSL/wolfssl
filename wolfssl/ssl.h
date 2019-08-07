@@ -119,6 +119,8 @@ typedef struct WOLFSSL_STACK      WOLFSSL_STACK;
 typedef struct WOLFSSL_X509       WOLFSSL_X509;
 typedef struct WOLFSSL_X509_NAME  WOLFSSL_X509_NAME;
 typedef struct WOLFSSL_X509_NAME_ENTRY  WOLFSSL_X509_NAME_ENTRY;
+typedef struct WOLFSSL_X509_PUBKEY WOLFSSL_X509_PUBKEY;
+typedef struct WOLFSSL_X509_ALGOR WOLFSSL_X509_ALGOR;
 typedef struct WOLFSSL_X509_CHAIN WOLFSSL_X509_CHAIN;
 typedef struct WC_PKCS12          WOLFSSL_X509_PKCS12;
 
@@ -374,6 +376,17 @@ struct WOLFSSL_X509_INFO {
 typedef struct WOLFSSL_X509_INFO WOLFSSL_X509_INFO;
 
 #define WOLFSSL_EVP_PKEY_DEFAULT EVP_PKEY_RSA /* default key type */
+
+struct WOLFSSL_X509_ALGOR {
+    WOLFSSL_ASN1_OBJECT* algorithm;
+    WOLFSSL_ASN1_TYPE* parameter;
+};
+
+struct WOLFSSL_X509_PUBKEY {
+    WOLFSSL_X509_ALGOR* algor;
+    WOLFSSL_ASN1_BIT_STRING* public_key;
+    WOLFSSL_EVP_PKEY* pkey;
+};
 
 
 enum BIO_TYPE {
@@ -3506,8 +3519,8 @@ WOLFSSL_API int SSL_SESSION_set1_id(WOLFSSL_SESSION *s, const unsigned char *sid
 WOLFSSL_API int SSL_SESSION_set1_id_context(WOLFSSL_SESSION *s, const unsigned char *sid_ctx, unsigned int sid_ctx_len);
 WOLFSSL_API void *X509_get0_tbs_sigalg(const WOLFSSL_X509 *x);
 WOLFSSL_API void X509_ALGOR_get0(WOLFSSL_ASN1_OBJECT **paobj, int *pptype, const void **ppval, const void *algor);
-WOLFSSL_API void *X509_get_X509_PUBKEY(void * x);
-WOLFSSL_API int X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg, const unsigned char **pk, int *ppklen, void **pa, WOLFSSL_EVP_PKEY *pub);
+WOLFSSL_API WOLFSSL_X509_PUBKEY *wolfSSL_X509_get_X509_PUBKEY(const WOLFSSL_X509* x509);
+WOLFSSL_API int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg, const unsigned char **pk, int *ppklen, void **pa, WOLFSSL_X509_PUBKEY *pub);
 WOLFSSL_API int i2t_ASN1_OBJECT(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a);
 WOLFSSL_API int wolfSSL_i2a_ASN1_OBJECT(WOLFSSL_BIO *bp, WOLFSSL_ASN1_OBJECT *a);
 WOLFSSL_API void SSL_CTX_set_tmp_dh_callback(WOLFSSL_CTX *ctx, WOLFSSL_DH *(*dh) (WOLFSSL *ssl, int is_export, int keylength));

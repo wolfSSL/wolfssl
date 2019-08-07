@@ -6645,7 +6645,7 @@ int wolfSSL_CertManagerLoadCRL_ex(WOLFSSL_CERT_MANAGER* cm, const char* path,
         }
     }
     else if (file) {
-        ret = ProcessFile(NULL, file, type, CRL_TYPE, NULL, 0, cm->crl);
+        ret = ProcessFile(NULL, file, type, CRL_TYPE, NULL, 0, cm->crl, 0);
         if (ret != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("ProcessFile failed");
         }
@@ -13456,9 +13456,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
             /* Need a persistent copy of the subject name. */
             node->data.name = wolfSSL_X509_NAME_dup(subjectName);
-
-            /* Clear pointers so freeing certificate doesn't free memory. */
-            XMEMSET(subjectName, 0, sizeof(WOLFSSL_X509_NAME));
 
             /* Put node on the front of the list. */
             node->num  = (list == NULL) ? 1 : list->num + 1;
@@ -24360,25 +24357,24 @@ WOLFSSL_API void X509_ALGOR_get0(WOLFSSL_ASN1_OBJECT **paobj, int *pptype, const
 #endif
 
 #ifndef NO_WOLFSSL_STUB
-/*** TBD ***/
-WOLFSSL_API void *X509_get_X509_PUBKEY(void * x)
+WOLFSSL_X509_PUBKEY* wolfSSL_X509_get_X509_PUBKEY(const WOLFSSL_X509* x509)
 {
-    (void)x;
-    WOLFSSL_STUB("X509_get_X509_PUBKEY");
+    (void)x509;
+    WOLFSSL_ENTER("X509_get_X509_PUBKEY");
     return NULL;
 }
 #endif
 
 #ifndef NO_WOLFSSL_STUB
-/*** TBD ***/
-WOLFSSL_API int X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg, const unsigned char **pk, int *ppklen, void **pa, WOLFSSL_EVP_PKEY *pub)
+int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg,
+     const unsigned char **pk, int *ppklen, void **pa, WOLFSSL_X509_PUBKEY *pub)
 {
-    (void)ppkalg;
     (void)pk;
     (void)ppklen;
     (void)pa;
+    (void)ppkalg;
     (void)pub;
-    WOLFSSL_STUB("X509_PUBKEY_get0_param");
+    WOLFSSL_ENTER("X509_PUBKEY_get0_param");
     return WOLFSSL_FAILURE;
 }
 #endif
