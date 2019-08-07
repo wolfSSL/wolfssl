@@ -7055,7 +7055,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out, unsigned char** in,
             pkey = wolfSSL_PKEY_new();
 
             if (pkey != NULL) {
-                pkey->pkey_sz = memSz;
+                pkey->pkey_sz = (int)memSz;
                 pkey->pkey.ptr = (char*)XMALLOC(memSz, NULL,
                         DYNAMIC_TYPE_PUBLIC_KEY);
                 if (pkey->pkey.ptr == NULL) {
@@ -21786,6 +21786,15 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
                 }
                 break;
             #endif /* NO_DSA */
+
+            #if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
+            case EVP_PKEY_DH:
+                if (key->dh != NULL && key->ownDh == 1) {
+                    wolfSSL_DH_free(key->dh);
+                    key->dh = NULL;
+                }
+                break;
+            #endif /* ! NO_DH ... */
 
             default:
             break;

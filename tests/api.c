@@ -18748,7 +18748,7 @@ static void test_wolfSSL_PEM_bio_RSAKey(void)
 static void test_wolfSSL_PEM_bio_DSAKey(void)
 {
 #ifndef HAVE_SELFTEST
-#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && !defined(NO_CERTS) && \
+#if (defined(WOLFSSL_QT) || defined(OPENSSL_ALL)) && !defined(NO_CERTS) && \
     defined(WOLFSSL_KEY_GEN) && !defined(NO_FILESYSTEM) && !defined(NO_DSA)
     DSA* dsa = NULL;
     BIO* bio = NULL;
@@ -18791,12 +18791,11 @@ static void test_wolfSSL_PEM_bio_DSAKey(void)
     #endif /* HAVE_ECC */
 
     printf(resultFmt, passed);
-#endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+#endif /* defined(WOLFSSL_QT) || defined(OPENSSL_ALL)) && \
          !defined(NO_CERTS) && defined(WOLFSSL_KEY_GEN) && \
          !defined(NO_FILESYSTEM) && !defined(NO_DSA) */
 #endif /* HAVE_SELFTEST */
 }
-
 
 static void test_wolfSSL_PEM_bio_ECKey(void)
 {
