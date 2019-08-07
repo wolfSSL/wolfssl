@@ -24356,28 +24356,64 @@ WOLFSSL_API void X509_ALGOR_get0(WOLFSSL_ASN1_OBJECT **paobj, int *pptype, const
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
+/* Returns X509_PUBKEY structure containing X509_ALGOR and EVP_PKEY */
 WOLFSSL_X509_PUBKEY* wolfSSL_X509_get_X509_PUBKEY(const WOLFSSL_X509* x509)
 {
-    (void)x509;
+    WOLFSSL_X509_PUBKEY* pubkey;
+    WOLFSSL_X509_ALGOR* algor;
+    int nid;
     WOLFSSL_ENTER("X509_get_X509_PUBKEY");
-    return NULL;
-}
-#endif
 
-#ifndef NO_WOLFSSL_STUB
+    if (x509 == NULL) {
+        WOLFSSL_MSG("x509 struct NULL error");
+        return NULL;
+    }
+
+    /* Create X509_PUBKEY structure */
+    pubkey = (WOLFSSL_X509_PUBKEY*)XMALLOC(sizeof(WOLFSSL_X509_PUBKEY), NULL,
+                                                          DYNAMIC_TYPE_OPENSSL);
+    if (pubkey == NULL) {
+        WOLFSSL_MSG("Memory error");
+        return NULL;
+    }
+    XMEMSET(pubkey, 0, sizeof(WOLFSSL_X509_PUBKEY));
+    /* Set EVP_PKEY */
+    pubkey->pkey = wolfSSL_X509_get_pubkey((WOLFSSL_X509*)x509);
+
+    /* Create X509_ALGOR struct for X509_PUBKEY */
+    algor = (WOLFSSL_X509_ALGOR*)XMALLOC(sizeof(WOLFSSL_X509_ALGOR),
+                                            NULL, DYNAMIC_TYPE_OPENSSL);
+    if (algor == NULL) {
+        WOLFSSL_MSG("Memory error");
+        XFREE(pubkey, NULL, DYNAMIC_TYPE_OPENSSL);
+        return NULL;
+    }
+    XMEMSET(algor, 0, sizeof(WOLFSSL_X509_ALGOR));
+
+    /* Set X509_ALGOR in pubkey */
+    nid = wolfSSL_X509_get_pubkey_type((WOLFSSL_X509*)x509);
+    algor->algorithm = wolfSSL_OBJ_nid2obj(nid);
+    pubkey->algor = algor;
+
+    return pubkey;
+}
+
+/* For Apache httpd compatibility - for now only uses X509_PUBKEY */
 int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg,
      const unsigned char **pk, int *ppklen, void **pa, WOLFSSL_X509_PUBKEY *pub)
 {
     (void)pk;
     (void)ppklen;
     (void)pa;
-    (void)ppkalg;
-    (void)pub;
     WOLFSSL_ENTER("X509_PUBKEY_get0_param");
+
+    if (ppkalg) {
+        *ppkalg = pub->algor->algorithm;
+        return WOLFSSL_SUCCESS;
+    }
+
     return WOLFSSL_FAILURE;
 }
-#endif
 
 #ifndef NO_WOLFSSL_STUB
 /*** TBD ***/
