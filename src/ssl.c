@@ -37685,16 +37685,21 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return oid2nid(oid, o->grp);
     }
 
-#ifndef NO_WOLFSSL_STUB
+    /* Returns the long name that corresponds with an ASN1_OBJECT nid value.
+     *  n : NID value of ASN1_OBJECT to search */
     char * wolfSSL_OBJ_nid2ln(int n)
     {
-        (void)n;
+        int i;
         WOLFSSL_ENTER("wolfSSL_OBJ_nid2ln");
-        WOLFSSL_STUB("OBJ_nid2ln");
 
+        for (i = 0; i < (int)WOLFSSL_OBJECT_INFO_SZ; i++) {
+            if (wolfssl_object_info[i].nid == n)
+                return (char*)wolfssl_object_info[i].lName;
+        }
+
+        WOLFSSL_MSG("NID not found in table");
         return NULL;
     }
-#endif
 
     /* compares two objects, return 0 if equal */
     int wolfSSL_OBJ_cmp(const WOLFSSL_ASN1_OBJECT* a,
