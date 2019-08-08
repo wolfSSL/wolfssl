@@ -484,7 +484,9 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_CRL_get_REVOKED            wolfSSL_X509_CRL_get_REVOKED
 
 #define X509_get_X509_PUBKEY            wolfSSL_X509_get_X509_PUBKEY
+#define X509_get0_tbs_sigalg            wolfSSL_X509_get0_tbs_sigalg
 #define X509_PUBKEY_get0_param          wolfSSL_X509_PUBKEY_get0_param
+#define X509_ALGOR_get0                 wolfSSL_X509_ALGOR_get0
 
 #define sk_X509_REVOKED_num             wolfSSL_sk_X509_REVOKED_num
 #define sk_X509_REVOKED_value           wolfSSL_sk_X509_REVOKED_value

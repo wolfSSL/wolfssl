@@ -24334,27 +24334,50 @@ WOLFSSL_API int SSL_SESSION_set1_id_context(WOLFSSL_SESSION *s, const unsigned c
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
-/*** TBD ***/
-WOLFSSL_API void *X509_get0_tbs_sigalg(const WOLFSSL_X509 *x)
+/* Returns X509_ALGOR struct with signature algorithm */
+const WOLFSSL_X509_ALGOR* wolfSSL_X509_get0_tbs_sigalg(const WOLFSSL_X509 *x509)
 {
-    (void)x;
-    WOLFSSL_STUB("X509_get0_tbs_sigalg");
-    return NULL;
-}
-#endif
+    WOLFSSL_X509_ALGOR* algor;
+    int nid;
+    WOLFSSL_ENTER("X509_get0_tbs_sigalg");
 
-#ifndef NO_WOLFSSL_STUB
-/*** TBD ***/
-WOLFSSL_API void X509_ALGOR_get0(WOLFSSL_ASN1_OBJECT **paobj, int *pptype, const void **ppval, const void *algor)
+    if (x509 == NULL) {
+        WOLFSSL_MSG("x509 struct NULL error");
+        return NULL;
+    }
+
+    algor = (WOLFSSL_X509_ALGOR*)XMALLOC(sizeof(WOLFSSL_X509_ALGOR),
+                                            NULL, DYNAMIC_TYPE_OPENSSL);
+    if (algor == NULL) {
+        WOLFSSL_MSG("Memory error");
+        return NULL;
+    }
+    XMEMSET(algor, 0, sizeof(WOLFSSL_X509_ALGOR));
+
+    /* Get signature algorithm */
+    nid = wolfSSL_X509_get_signature_type((WOLFSSL_X509*)x509);
+    /* Set algorithm as ASN1_OBJECT. algor->parameter not currently being set */
+    algor->algorithm = wolfSSL_OBJ_nid2obj(nid);
+
+    return algor;
+}
+
+/* For Apache httpd compatibility - for now only sets the X509_AGLOR member in
+   paobj. */
+void wolfSSL_X509_ALGOR_get0(WOLFSSL_ASN1_OBJECT **paobj, int *pptype,
+                            const void **ppval, const WOLFSSL_X509_ALGOR *algor)
 {
-    (void)paobj;
     (void)pptype;
     (void)ppval;
-    (void)algor;
-    WOLFSSL_STUB("X509_ALGOR_get0");
+    WOLFSSL_ENTER("X509_ALGOR_get0");
+
+    if (paobj) {
+        *paobj = algor->algorithm;
+    }
+    else {
+        WOLFSSL_MSG("ASN1_OBJECT NULL error");
+    }
 }
-#endif
 
 /* Returns X509_PUBKEY structure containing X509_ALGOR and EVP_PKEY */
 WOLFSSL_X509_PUBKEY* wolfSSL_X509_get_X509_PUBKEY(const WOLFSSL_X509* x509)
@@ -24398,7 +24421,8 @@ WOLFSSL_X509_PUBKEY* wolfSSL_X509_get_X509_PUBKEY(const WOLFSSL_X509* x509)
     return pubkey;
 }
 
-/* For Apache httpd compatibility - for now only uses X509_PUBKEY */
+/* For Apache httpd compatibility - for now only sets the X509_PUBKEY member in
+   ppkalg */
 int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg,
      const unsigned char **pk, int *ppklen, void **pa, WOLFSSL_X509_PUBKEY *pub)
 {
