@@ -1158,7 +1158,7 @@ void wc_PKCS7_Free(PKCS7* pkcs7)
     pkcs7->contentTypeSz = 0;
 
     if (pkcs7->signature) {
-        XFREE(pkcs7->signature, pkcs7->heap, DYNAMIC_TYPE_SIGANTURE);
+        XFREE(pkcs7->signature, pkcs7->heap, DYNAMIC_TYPE_SIGNATURE);
         pkcs7->signature = NULL;
         pkcs7->signatureSz = 0;
     }
@@ -3465,7 +3465,7 @@ static int wc_PKCS7_SignedDataVerifySignature(PKCS7* pkcs7, byte* sig,
             WOLFSSL_MSG("No certificates in bundle to verify signature");
 
             /* store signature */
-            XFREE(pkcs7->signature, pkcs7->heap, DYNAMIC_TYPE_SIGANTURE);
+            XFREE(pkcs7->signature, pkcs7->heap, DYNAMIC_TYPE_SIGNATURE);
             pkcs7->signature = NULL;
             pkcs7->signatureSz = 0;
             pkcs7->signature = (byte*)XMALLOC(sigSz, pkcs7->heap,
