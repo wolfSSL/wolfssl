@@ -1935,7 +1935,7 @@ static int Tls13IntegrityOnly_Decrypt(WOLFSSL* ssl, byte* output,
     if (ret == 0)
         ret = wc_HmacFinal(ssl->decrypt.hmac, hmac);
     /* Check authentication tag matches */
-    if (ret == 0 && XMEMCMP(tagIn, hmac, ssl->specs.hash_size) != 0)
+    if (ret == 0 && ConstantCompare(tagIn, hmac, ssl->specs.hash_size) != 0)
         ret = DECRYPT_ERROR;
     /* Copy the input to output if not the same buffer */
     if (ret == 0 && output != input)
