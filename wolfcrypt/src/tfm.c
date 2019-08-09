@@ -1895,6 +1895,9 @@ static int _fp_exptmod_base_2(fp_int * X, int digits, fp_int * P,
 
   /* now setup montgomery  */
   if ((err = fp_montgomery_setup(P, &mp)) != FP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+     XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
      return err;
   }
 

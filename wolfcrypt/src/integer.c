@@ -2251,14 +2251,18 @@ int mp_exptmod_base_2(mp_int * X, mp_int * P, mp_int * Y)
 
   /* now setup montgomery  */
   if ((err = mp_montgomery_setup(P, &mp)) != MP_OKAY) {
-     return err;
+     goto LBL_M;
   }
 
   /* setup result */
-  mp_init(res);
+  if ((err = mp_init(res)) != MP_OKAY) {
+     goto LBL_M;
+  }
 
   /* now we need R mod m */
-  mp_montgomery_calc_normalization(res, P);
+  if ((err = mp_montgomery_calc_normalization(res, P)) != MP_OKAY) {
+     goto LBL_RES;
+  }
 
   /* Get the top bits left over after taking WINSIZE bits starting at the
    * least-significant.
@@ -2270,8 +2274,14 @@ int mp_exptmod_base_2(mp_int * X, mp_int * P, mp_int * Y)
      buf    = X->dp[digidx--];
      bitbuf = (int)(buf >> bitcnt);
      /* Multiply montgomery representation of 1 by 2 ^ top */
-     mp_mul_2d(res, bitbuf, res);
-     mp_mod(res, P, res);
+     err = mp_mul_2d(res, bitbuf, res);
+     if (err != MP_OKAY) {
+        goto LBL_RES;
+     }
+     err = mp_mod(res, P, res);
+     if (err != MP_OKAY) {
+        goto LBL_RES;
+     }
      /* Move out bits used */
      buf  <<= bitcpy;
      bitcnt++;
@@ -2309,28 +2319,22 @@ int mp_exptmod_base_2(mp_int * X, mp_int * P, mp_int * Y)
       for (x = 0; x < WINSIZE; x++) {
         err = mp_sqr(res, res);
         if (err != MP_OKAY) {
-        #ifdef WOLFSSL_SMALL_STACK
-          XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-          return err;
+          goto LBL_RES;
         }
         err = (*redux)(res, P, mp);
         if (err != MP_OKAY) {
-        #ifdef WOLFSSL_SMALL_STACK
-          XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-          return err;
+          goto LBL_RES;
         }
       }
 
       /* then multiply by 2^bitbuf */
-      mp_mul_2d(res, bitbuf, res);
+      err = mp_mul_2d(res, bitbuf, res);
+      if (err != MP_OKAY) {
+         goto LBL_RES;
+      }
       err = mp_mod(res, P, res);
       if (err != MP_OKAY) {
-      #ifdef WOLFSSL_SMALL_STACK
-        XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-      #endif
-        return err;
+         goto LBL_RES;
       }
 
       /* empty window and reset */
@@ -2346,10 +2350,15 @@ int mp_exptmod_base_2(mp_int * X, mp_int * P, mp_int * Y)
    * of R.
    */
   err = (*redux)(res, P, mp);
+  if (err != MP_OKAY) {
+     goto LBL_RES;
+  }
 
   /* swap res with Y */
   mp_copy(res, Y);
 
+LBL_RES:mp_clear (res);
+LBL_M:
 #ifdef WOLFSSL_SMALL_STACK
   XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
