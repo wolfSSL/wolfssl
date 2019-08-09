@@ -2857,6 +2857,7 @@ int wolfSSL_get_alert_history(WOLFSSL* ssl, WOLFSSL_ALERT_HISTORY *h)
     return WOLFSSL_SUCCESS;
 }
 
+#ifdef OPENSSL_EXTRA
 /* returns SSL_WRITING, SSL_READING or SSL_NOTHING */
 int wolfSSL_want(WOLFSSL* ssl)
 {
@@ -2869,6 +2870,7 @@ int wolfSSL_want(WOLFSSL* ssl)
     }
     return rw_state;
 }
+#endif
 
 /* return TRUE if current error is want read */
 int wolfSSL_want_read(WOLFSSL* ssl)
