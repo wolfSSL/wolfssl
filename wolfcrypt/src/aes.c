@@ -1807,7 +1807,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         aes->keylen = keylen;
         aes->rounds = keylen/4 + 6;
         XMEMCPY(rk, userKey, keylen);
-    #ifndef WOLFSSL_STM32_CUBEMX
+    #if !defined(WOLFSSL_STM32_CUBEMX) || defined(STM32_HAL_V2)
         ByteReverseWords(rk, rk, keylen);
     #endif
     #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER)
@@ -2467,6 +2467,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         hcryp.Init.KeyWriteFlag  = CRYP_KEY_WRITE_ENABLE;
     #elif defined(STM32_HAL_V2)
         hcryp.Init.Algorithm  = CRYP_AES_CBC;
+        ByteReverseWords(aes->reg, aes->reg, AES_BLOCK_SIZE);
     #endif
         hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)aes->reg;
         HAL_CRYP_Init(&hcryp);
@@ -2519,6 +2520,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         hcryp.Init.KeyWriteFlag  = CRYP_KEY_WRITE_ENABLE;
     #elif defined(STM32_HAL_V2)
         hcryp.Init.Algorithm  = CRYP_AES_CBC;
+        ByteReverseWords(aes->reg, aes->reg, AES_BLOCK_SIZE);
     #endif
 
         hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)aes->reg;
@@ -3205,6 +3207,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             int ret = 0;
         #ifdef WOLFSSL_STM32_CUBEMX
             CRYP_HandleTypeDef hcryp;
+            #ifdef STM32_HAL_V2
+            word32 iv[AES_BLOCK_SIZE/sizeof(word32)];
+            #endif
         #else
             word32 *iv;
             CRYP_InitTypeDef cryptInit;
@@ -3221,10 +3226,12 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             hcryp.Init.OperatingMode = CRYP_ALGOMODE_ENCRYPT;
             hcryp.Init.ChainingMode  = CRYP_CHAINMODE_AES_CTR;
             hcryp.Init.KeyWriteFlag  = CRYP_KEY_WRITE_ENABLE;
+            hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)aes->reg;
         #elif defined(STM32_HAL_V2)
             hcryp.Init.Algorithm  = CRYP_AES_CTR;
+            ByteReverseWords(iv, aes->reg, AES_BLOCK_SIZE);
+            hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)iv;
         #endif
-            hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)aes->reg;
             HAL_CRYP_Init(&hcryp);
 
         #ifdef STM32_CRYPTO_AES_ONLY
@@ -5345,6 +5352,9 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
     int ret;
 #ifdef WOLFSSL_STM32_CUBEMX
     CRYP_HandleTypeDef hcryp;
+    #ifdef STM32_HAL_V2
+    word32 ivWord[AES_BLOCK_SIZE/sizeof(word32)];
+    #endif
 #else
     word32 keyCopy[AES_256_KEY_SIZE/sizeof(word32)];
 #endif
@@ -5436,6 +5446,8 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
     }
 #elif defined(STM32_HAL_V2)
     hcryp.Init.Algorithm  = CRYP_AES_GCM;
+    ByteReverseWords(ivWord, (word32*)ctr, AES_BLOCK_SIZE);
+    hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)ivWord;
     HAL_CRYP_Init(&hcryp);
     if (blocks) {
         /* GCM payload phase - blocks */
@@ -5764,6 +5776,9 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     int ret;
 #ifdef WOLFSSL_STM32_CUBEMX
     CRYP_HandleTypeDef hcryp;
+    #ifdef STM32_HAL_V2
+    word32 ivWord[AES_BLOCK_SIZE/sizeof(word32)];
+    #endif
 #else
     word32 keyCopy[AES_256_KEY_SIZE/sizeof(word32)];
 #endif
@@ -5855,6 +5870,8 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     }
 #elif defined(STM32_HAL_V2)
     hcryp.Init.Algorithm = CRYP_AES_GCM;
+    ByteReverseWords(ivWord, (word32*)ctr, AES_BLOCK_SIZE);
+    hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)ivWord;
     HAL_CRYP_Init(&hcryp);
     if (blocks) {
         /* GCM payload phase - blocks */
