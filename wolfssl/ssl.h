@@ -1249,6 +1249,7 @@ enum {
     SSL_OP_TLS_ROLLBACK_BUG                       = 0x00000200,
     SSL_OP_ALL                                    = 0x00000400,
     SSL_OP_EPHEMERAL_RSA                          = 0x00000800,
+    SSL_OP_NO_SSLv2                               = 0x00000000, /* N/A */
     SSL_OP_NO_SSLv3                               = 0x00001000,
     SSL_OP_NO_TLSv1                               = 0x00002000,
     SSL_OP_PKCS1_CHECK_1                          = 0x00004000,
@@ -1268,6 +1269,14 @@ enum {
     SSL_OP_NO_COMPRESSION                         = 0x10000000,
     SSL_OP_NO_TLSv1_3                             = 0x20000000,
 };
+
+#define SSL_OP_NO_SSL_MASK (SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | \
+    SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 | SSL_OP_NO_TLSv1_3)
+
+#define SSL_NOTHING 1
+#define SSL_WRITING 2
+#define SSL_READING 3
+
 
 enum {
 #ifdef HAVE_OCSP
