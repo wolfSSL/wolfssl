@@ -2857,6 +2857,18 @@ int wolfSSL_get_alert_history(WOLFSSL* ssl, WOLFSSL_ALERT_HISTORY *h)
     return WOLFSSL_SUCCESS;
 }
 
+/* returns SSL_WRITING, SSL_READING or SSL_NOTHING */
+int wolfSSL_want(WOLFSSL* ssl)
+{
+    int rw_state = SSL_NOTHING;
+    if (ssl) {
+        if (ssl->error == WANT_READ)
+            rw_state = SSL_READING;
+        else if (ssl->error == WANT_WRITE)
+            rw_state = SSL_WRITING;
+    }
+    return rw_state;
+}
 
 /* return TRUE if current error is want read */
 int wolfSSL_want_read(WOLFSSL* ssl)

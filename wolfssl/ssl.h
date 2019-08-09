@@ -1625,6 +1625,7 @@ WOLFSSL_API int  wolfSSL_CTX_set_session_id_context(WOLFSSL_CTX*,
 WOLFSSL_API WOLFSSL_X509* wolfSSL_get_peer_certificate(WOLFSSL* ssl);
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL*);
 
+WOLFSSL_API int wolfSSL_want(WOLFSSL*);
 WOLFSSL_API int wolfSSL_want_read(WOLFSSL*);
 WOLFSSL_API int wolfSSL_want_write(WOLFSSL*);
 
