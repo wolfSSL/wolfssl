@@ -1801,9 +1801,7 @@ WOLFSSL_API void wolfSSL_SetFuzzerCb(WOLFSSL* ssl, CallbackFuzzer cbf, void* fCt
 #endif
 
 
-WOLFSSL_API int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL*,
-                                               const unsigned char*,
-                                               unsigned int);
+WOLFSSL_API int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL*, const byte*, word32);
 
 
 /* I/O Callback default errors */
