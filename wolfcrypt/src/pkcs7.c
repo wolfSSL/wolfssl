@@ -9036,11 +9036,18 @@ static int wc_PKCS7_DecryptKari(PKCS7* pkcs7, byte* in, word32 inSz,
                     break;
         #endif
                 default:
+                    WOLFSSL_MSG("AES key wrap algorithm unsupported");
+                    if (pkcs7->wrapCEKCb) {
+                        WOLFSSL_MSG("Direction not set!");
+                        break; /* if unwrapping callback is set then do not
+                                * force restriction of supported wrap
+                                * algorithms */
+                    }
+
                     wc_PKCS7_KariFree(kari);
                     #ifdef WOLFSSL_SMALL_STACK
                         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                     #endif
-                    WOLFSSL_MSG("AES key wrap algorithm unsupported");
                     return BAD_KEYWRAP_ALG_E;
             }
 
