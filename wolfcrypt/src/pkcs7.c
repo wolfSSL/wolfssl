@@ -9110,6 +9110,14 @@ static int wc_PKCS7_DecryptKari(PKCS7* pkcs7, byte* in, word32 inSz,
                         decryptedKey, *decryptedKeySz,
                         keyWrapOID, (int)PKCS7_KARI, direction);
                 XFREE(tmpKeyDer, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+                if (keySz  > 0) {
+                    /* If unwrapping was successful then consider recipient
+                     * found. Checking for NULL singleCert to confirm previous
+                     * SID check was not done */
+                    if (pkcs7->singleCert == NULL)
+                        *recipFound = 1;
+                }
             }
             else {
                 /* create KEK */
