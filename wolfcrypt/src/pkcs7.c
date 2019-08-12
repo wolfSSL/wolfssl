@@ -8054,7 +8054,8 @@ static int wc_PKCS7_KariGetOriginatorIdentifierOrKey(WC_PKCS7_KARI* kari,
                         byte* pkiMsg, word32 pkiMsgSz, word32* idx)
 {
     int ret, length;
-    word32 keyOID;
+    word32 keyOID, oidSum = 0;
+    int curve_id = ECC_CURVE_DEF;
 
     if (kari == NULL || pkiMsg == NULL || idx == NULL)
         return BAD_FUNC_ARG;
@@ -8086,6 +8087,15 @@ static int wc_PKCS7_KariGetOriginatorIdentifierOrKey(WC_PKCS7_KARI* kari,
     if (keyOID != ECDSAk)
         return ASN_PARSE_E;
 
+    /* optional algorithm parameters */
+    ret = GetObjectId(pkiMsg, idx, &oidSum, oidIgnoreType, pkiMsgSz);
+    if (ret == 0) {
+        /* get curve id */
+        curve_id = wc_ecc_get_oid(oidSum, NULL, 0);
+        if (curve_id < 0)
+            return ECC_CURVE_OID_E;
+    }
+
     /* remove ECPoint BIT STRING */
     if ((pkiMsgSz > (*idx + 1)) && (pkiMsg[(*idx)++] != ASN_BIT_STRING))
         return ASN_PARSE_E;
@@ -8104,7 +8114,8 @@ static int wc_PKCS7_KariGetOriginatorIdentifierOrKey(WC_PKCS7_KARI* kari,
     kari->senderKeyInit = 1;
 
     /* length-1 for unused bits counter */
-    ret = wc_ecc_import_x963(pkiMsg + (*idx), length - 1, kari->senderKey);
+    ret = wc_ecc_import_x963_ex(pkiMsg + (*idx), length - 1, kari->senderKey,
+            curve_id);
     if (ret != 0) {
         ret = wc_EccPublicKeyDecode(pkiMsg, idx, kari->senderKey, *idx + length - 1);
         if (ret != 0)
