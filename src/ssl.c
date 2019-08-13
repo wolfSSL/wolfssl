@@ -16672,6 +16672,9 @@ WOLFSSL_X509_NAME* wolfSSL_X509_get_subject_name(WOLFSSL_X509* cert)
 *
 * RETURNS:
 * The beginning of the hash digest. Otherwise, returns zero.
+* Note:
+* Returns a different hash value from OpenSSL's X509_subject_name_hash() API
+* depending on the subject name.
 */
 unsigned long wolfSSL_X509_subject_name_hash(const WOLFSSL_X509* x509)
 {
@@ -19738,21 +19741,31 @@ void wolfSSL_X509_STORE_CTX_set_time(WOLFSSL_X509_STORE_CTX* ctx,
 * RETURNS:
 *
 */
-void wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
+int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
                                          const char* name,
                                          unsigned int nameSz)
 {
     if (pParam == NULL)
-        return;
+        return WOLFSSL_FAILURE;
 
     XMEMSET(pParam->hostName, 0, WOLFSSL_HOST_NAME_MAX);
+    /* If name is NUL-terminated, namelen can be set to zero. */
+    if(name && (nameSz == 0))
+        nameSz = XSTRLEN(name);
 
-    if (nameSz > WOLFSSL_HOST_NAME_MAX)
-        nameSz = WOLFSSL_HOST_NAME_MAX;
+    if (nameSz > 0 && name[nameSz - 1] == '\0')
+        nameSz--;
+
+    if (nameSz > WOLFSSL_HOST_NAME_MAX-1)
+        nameSz = WOLFSSL_HOST_NAME_MAX-1;
 
     if (nameSz > 0)
         XMEMCPY(pParam->hostName, name, nameSz);
-        pParam->hostName[WOLFSSL_HOST_NAME_MAX-1] = '\0';
+
+        pParam->hostName[nameSz] = '\0';
+
+    return WOLFSSL_SUCCESS;
+
 }
 /******************************************************************************
 * wolfSSL_get0_param - return a pointer to the SSL verification parameters

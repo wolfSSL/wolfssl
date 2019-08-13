@@ -9054,7 +9054,16 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         use_cb = 1;
     }
 #endif
+#if defined(OPENSSL_EXTRA)
+    /* perform domain name check on the peer certificate */
+    if (args->dCertInit && args->dCert && args->dCert->subjectCN \
+        && ssl->param && ssl->param->hostName[0]) {
 
+        if(XSTRSTR(args->dCert->subjectCN, ssl->param->hostName) == NULL) {
+            return VERIFY_CERT_ERROR;
+        }
+    }
+#endif
     /* if verify callback has been set */
     if (use_cb && ssl->verifyCallback) {
     #ifdef WOLFSSL_SMALL_STACK
