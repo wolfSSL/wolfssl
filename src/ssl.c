@@ -19745,13 +19745,21 @@ int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
                                          const char* name,
                                          unsigned int nameSz)
 {
+    unsigned int sz = 0;
+
     if (pParam == NULL)
         return WOLFSSL_FAILURE;
 
     XMEMSET(pParam->hostName, 0, WOLFSSL_HOST_NAME_MAX);
+
+    if (name == NULL)
+        return WOLFSSL_SUCCESS;
+
+    sz = (unsigned int)XSTRLEN(name);
+
     /* If name is NUL-terminated, namelen can be set to zero. */
-    if(name && (nameSz == 0))
-        nameSz = (unsigned int)XSTRLEN(name);
+    if(nameSz == 0 || nameSz > sz)
+        nameSz = sz;
 
     if (nameSz > 0 && name[nameSz - 1] == '\0')
         nameSz--;
@@ -19765,7 +19773,6 @@ int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
         pParam->hostName[nameSz] = '\0';
 
     return WOLFSSL_SUCCESS;
-
 }
 /******************************************************************************
 * wolfSSL_get0_param - return a pointer to the SSL verification parameters
