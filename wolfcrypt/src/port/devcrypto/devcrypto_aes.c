@@ -168,7 +168,7 @@ static int wc_DevCrypto_AesDirect(Aes* aes, byte* out, const byte* in,
 #endif
 
 
-#if defined(WOLFSSL_AES_DIRECT)
+#if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESCCM)
 void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
 {
     wc_DevCrypto_AesDirect(aes, out, in, AES_BLOCK_SIZE, COP_ENCRYPT);
