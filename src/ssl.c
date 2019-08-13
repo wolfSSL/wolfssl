@@ -36673,23 +36673,27 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
     if ((wolfSSL_BIO_write(bio, pem, pemSz) == pemSz)) {
         XFREE(output, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(pem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(outputHead, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(outputFoot, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         return WOLFSSL_SUCCESS;
     }
 
 error:
 #ifdef WOLFSSL_SMALL_STACK
     if (outputHead) {
-      XFREE(outputHead, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(outputHead, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (outputFoot) {
-      XFREE(outputFoot, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(outputFoot, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
     if (output) {
-      XFREE(output, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(output, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (pem) {
-      XFREE(pem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     return WOLFSSL_FAILURE;
 }
