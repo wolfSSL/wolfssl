@@ -19751,7 +19751,7 @@ int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
     XMEMSET(pParam->hostName, 0, WOLFSSL_HOST_NAME_MAX);
     /* If name is NUL-terminated, namelen can be set to zero. */
     if(name && (nameSz == 0))
-        nameSz = XSTRLEN(name);
+        nameSz = (unsigned int)XSTRLEN(name);
 
     if (nameSz > 0 && name[nameSz - 1] == '\0')
         nameSz--;
