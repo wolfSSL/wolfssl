@@ -3739,6 +3739,7 @@ struct WOLFSSL {
     WOLFSSL_BIO*     biord;              /* socket bio read  to free/close */
     WOLFSSL_BIO*     biowr;              /* socket bio write to free/close */
     byte             sessionCtx[ID_LEN]; /* app session context ID */
+    WOLFSSL_X509_VERIFY_PARAM* param;    /* verification parameters*/
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     unsigned long    peerVerifyRet;

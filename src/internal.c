@@ -5119,6 +5119,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->sessionCtxSz = ctx->sessionCtxSz;
     XMEMCPY(ssl->sessionCtx, ctx->sessionCtx, ctx->sessionCtxSz);
     ssl->cbioFlag = ctx->cbioFlag;
+
 #endif
 
     InitCiphers(ssl);
@@ -5143,6 +5144,16 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
             return MEMORY_E;
         }
         XMEMSET(ssl->arrays->preMasterSecret, 0, ENCRYPT_LEN);
+#endif
+
+#ifdef OPENSSL_EXTRA
+    if ((ssl->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
+                           sizeof(WOLFSSL_X509_VERIFY_PARAM),
+                           ssl->heap, DYNAMIC_TYPE_OPENSSL)) == NULL) {
+        WOLFSSL_MSG("ssl->param memory error");
+        return MEMORY_E;
+    }
+    XMEMSET(ssl->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
 #endif
 
 #ifdef SINGLE_THREADED
@@ -5682,7 +5693,11 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         FreeWriteDup(ssl);
     }
 #endif
-
+#ifdef OPENSSL_EXTRA
+    if (ssl->param) {
+        XFREE(ssl->param, ssl->heap, DYNAMIC_TYPE_OPENSSL);
+    }
+#endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     while (ssl->certReqCtx != NULL) {
         CertReqCtx* curr = ssl->certReqCtx;
@@ -9039,7 +9054,16 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         use_cb = 1;
     }
 #endif
+#if defined(OPENSSL_EXTRA)
+    /* perform domain name check on the peer certificate */
+    if (args->dCertInit && args->dCert && args->dCert->subjectCN \
+        && ssl->param && ssl->param->hostName[0]) {
 
+        if(XSTRSTR(args->dCert->subjectCN, ssl->param->hostName) == NULL) {
+            return VERIFY_CERT_ERROR;
+        }
+    }
+#endif
     /* if verify callback has been set */
     if (use_cb && ssl->verifyCallback) {
     #ifdef WOLFSSL_SMALL_STACK
@@ -9113,7 +9137,30 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         else {
             store->store = &ssl->ctx->x509_store;
         }
-    #endif
+
+    #if defined(OPENSSL_EXTRA)
+        store->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
+                        sizeof(WOLFSSL_X509_VERIFY_PARAM),
+                        ssl->heap, DYNAMIC_TYPE_OPENSSL);
+        if (store->param == NULL) {
+            return MEMORY_E;
+        }
+        XMEMSET(store->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
+        /* Overwrite with non-default param values in SSL */
+        if (ssl->param) {
+            if (ssl->param->check_time)
+                store->param->check_time = ssl->param->check_time;
+
+            if (ssl->param->flags)
+                store->param->flags = ssl->param->flags;
+
+            if (ssl->param->hostName[0])
+                XMEMCPY(store->param->hostName, ssl->param->hostName,
+                        WOLFSSL_HOST_NAME_MAX);
+
+        }
+    #endif /* defined(OPENSSL_EXTRA) */
+    #endif /* defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)*/
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         #ifdef KEEP_PEER_CERT
         if (args->certIdx == 0) {
@@ -9167,6 +9214,11 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         #endif
         }
     #endif /* SESSION_CERTS */
+#ifdef OPENSSL_EXTRA
+        if (store->param){
+            XFREE(store->param, ssl->heap, DYNAMIC_TYPE_OPENSSL);
+        }
+#endif
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(domain, ssl->heap, DYNAMIC_TYPE_STRING);
         #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
