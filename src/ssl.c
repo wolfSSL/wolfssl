@@ -36584,10 +36584,15 @@ WOLFSSL_STACK* wolfSSL_PKCS7_get0_signers(PKCS7* pkcs7, WOLFSSL_STACK* certs,
 
 int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
 {
-    byte        outputHead[2048];
-    byte        outputFoot[2048];
-    word32      outputHeadSz = (word32)sizeof(outputHead);
-    word32      outputFootSz = (word32)sizeof(outputFoot);
+#ifdef WOLFSSL_SMALL_STACK
+    byte* outputHead;
+    byte* outputFoot;
+#else
+    byte outputHead[2048];
+    byte outputFoot[2048];
+#endif
+    word32 outputHeadSz = 2048;
+    word32 outputFootSz = 2048;
     word32 outputSz = 0;
     byte*  output = NULL;
     byte*  pem = NULL;
@@ -36600,6 +36605,17 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
 
     if (bio == NULL || p7 == NULL)
         return WOLFSSL_FAILURE;
+
+#ifdef WOLFSSL_SMALL_STACK
+    outputHead = (byte*)XMALLOC(outputHeadSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (outputHead == NULL)
+        return MEMORY_E;
+
+    outputFoot = (byte*)XMALLOC(outputFootSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (outputFoot == NULL)
+        goto error;
+
+#endif
 
     XMEMSET(hashBuf, 0, WC_MAX_DIGEST_SIZE);
     XMEMSET(outputHead, 0, outputHeadSz);
@@ -36661,6 +36677,14 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
     }
 
 error:
+#ifdef WOLFSSL_SMALL_STACK
+    if (outputHead) {
+      XFREE(outputHead, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (outputFoot) {
+      XFREE(outputFoot, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
     if (output) {
       XFREE(output, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
