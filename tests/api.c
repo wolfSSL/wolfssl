@@ -294,6 +294,7 @@
     #endif
 #endif
 #ifdef OPENSSL_EXTRA
+    #include <wolfssl/openssl/x509v3.h>
     #include <wolfssl/openssl/asn1.h>
     #include <wolfssl/openssl/crypto.h>
     #include <wolfssl/openssl/pkcs12.h>

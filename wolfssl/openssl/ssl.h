@@ -87,11 +87,7 @@ typedef WOLFSSL_ASN1_OBJECT    ASN1_OBJECT;
 typedef WOLFSSL_ASN1_STRING    ASN1_STRING;
 typedef WOLFSSL_dynlock_value  CRYPTO_dynlock_value;
 typedef WOLFSSL_BUF_MEM        BUF_MEM;
-
-/* GENERAL_NAME and BASIC_CONSTRAINTS structs may need implemented as
- * compatibility layer expands. For now treating them as an ASN1_OBJECT */
-typedef WOLFSSL_ASN1_OBJECT GENERAL_NAME;
-typedef WOLFSSL_ASN1_OBJECT BASIC_CONSTRAINTS;
+typedef WOLFSSL_GENERAL_NAME   GENERAL_NAME;
 
 #define ASN1_UTCTIME         WOLFSSL_ASN1_TIME
 #define ASN1_GENERALIZEDTIME WOLFSSL_ASN1_TIME
@@ -265,6 +261,11 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define SSL_SESSION_get_master_key      wolfSSL_SESSION_get_master_key
 #define SSL_SESSION_get_master_key_length wolfSSL_SESSION_get_master_key_length
 
+#if defined(OPENSSL_ALL)
+    #define X509_cmp                    wolfSSL_X509_cmp
+    #define X509_get_ext_count          wolfSSL_X509_get_ext_count
+#endif
+
 #define DSA_dup_DH                      wolfSSL_DSA_dup_DH
 
 #define i2d_X509_bio                    wolfSSL_i2d_X509_bio
@@ -324,6 +325,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define sk_X509_push                    wolfSSL_sk_X509_push
 #define sk_X509_pop                     wolfSSL_sk_X509_pop
 #define sk_X509_pop_free                wolfSSL_sk_X509_pop_free
+#define sk_X509_dup                     wolfSSL_sk_X509_dup
 #define sk_X509_free                    wolfSSL_sk_X509_free
 
 #define i2d_X509_NAME                   wolfSSL_i2d_X509_NAME
@@ -366,6 +368,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define X509_STORE_CTX_new              wolfSSL_X509_STORE_CTX_new
 #define X509_STORE_CTX_free             wolfSSL_X509_STORE_CTX_free
 #define X509_STORE_CTX_get_chain        wolfSSL_X509_STORE_CTX_get_chain
+#define X509_STORE_CTX_get1_chain       wolfSSL_X509_STORE_CTX_get1_chain
 #define X509_STORE_CTX_get_error        wolfSSL_X509_STORE_CTX_get_error
 #define X509_STORE_CTX_get_error_depth  wolfSSL_X509_STORE_CTX_get_error_depth
 #define X509_STORE_CTX_init             wolfSSL_X509_STORE_CTX_init
@@ -852,7 +855,7 @@ typedef STACK_OF(WOLFSSL_ASN1_OBJECT) GENERAL_NAMES;
 #define SSL_SESSION_get_ex_new_index    wolfSSL_SESSION_get_ex_new_index
 #define SSL_SESSION_get_id              wolfSSL_SESSION_get_id
 #define sk_GENERAL_NAME_pop_free        wolfSSL_sk_GENERAL_NAME_pop_free
-#define GENERAL_NAME_free               NULL
+#define GENERAL_NAME_free               wolfSSL_GENERAL_NAME_free
 
 #define SSL3_AL_FATAL                   2
 #define SSL_TLSEXT_ERR_OK               0
