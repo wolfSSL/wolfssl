@@ -166,7 +166,7 @@ typedef struct WOLFSSL_X509_LOOKUP    WOLFSSL_X509_LOOKUP;
 typedef struct WOLFSSL_X509_LOOKUP_METHOD WOLFSSL_X509_LOOKUP_METHOD;
 typedef struct WOLFSSL_CRL            WOLFSSL_X509_CRL;
 typedef struct WOLFSSL_X509_STORE     WOLFSSL_X509_STORE;
-typedef struct WOLFSSL_X509_VERIFY_PARAM  WOLFSSL_X509_VERIFY_PARAM;
+typedef struct WOLFSSL_X509_VERIFY_PARAM WOLFSSL_X509_VERIFY_PARAM;
 typedef struct WOLFSSL_BIO            WOLFSSL_BIO;
 typedef struct WOLFSSL_BIO_METHOD     WOLFSSL_BIO_METHOD;
 typedef struct WOLFSSL_X509_EXTENSION WOLFSSL_X509_EXTENSION;
@@ -319,10 +319,13 @@ struct WOLFSSL_X509_STORE {
 #define WOLFSSL_NO_CHECK_TIME  0x200000
 #define WOLFSSL_NO_WILDCARDS   0x4
 #define WOLFSSL_HOST_NAME_MAX  256
+#define WOLFSSL_MAX_IPSTR 46 /* max ip size IPv4 mapped IPv6 */
 struct WOLFSSL_X509_VERIFY_PARAM {
     time_t         check_time;
     unsigned long  flags;
     char           hostName[WOLFSSL_HOST_NAME_MAX];
+    unsigned int  hostFlags;
+    char ipasc[WOLFSSL_MAX_IPSTR];
 };
 #endif
 
@@ -1013,15 +1016,20 @@ WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_EVP(WOLFSSL_EVP_PKEY** key,
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new_ex(void* heap);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new(void);
 WOLFSSL_API int       wolfSSL_X509_cmp_current_time(const WOLFSSL_ASN1_TIME*);
+WOLFSSL_API int wolfSSL_X509_cmp_time(const WOLFSSL_ASN1_TIME* asnTime,
+        time_t *cmpTime);
 WOLFSSL_API int       wolfSSL_sk_X509_REVOKED_num(WOLFSSL_X509_REVOKED*);
 #ifdef OPENSSL_EXTRA
 WOLFSSL_API void      wolfSSL_X509_STORE_CTX_set_time(WOLFSSL_X509_STORE_CTX*,
                                                       unsigned long flags,
                                                       time_t t);
+WOLFSSL_API void wolfSSL_X509_VERIFY_PARAM_set_hostflags(
+                WOLFSSL_X509_VERIFY_PARAM* param, unsigned int flags);
 WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
                                                     const char* name,
                                                     unsigned int nameSz);
-
+WOLFSSL_API int wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(
+        WOLFSSL_X509_VERIFY_PARAM *param, const char *ipasc);
 #endif
 WOLFSSL_API WOLFSSL_X509_REVOKED* wolfSSL_X509_CRL_get_REVOKED(WOLFSSL_X509_CRL*);
 WOLFSSL_API WOLFSSL_X509_REVOKED* wolfSSL_sk_X509_REVOKED_value(
@@ -1029,6 +1037,7 @@ WOLFSSL_API WOLFSSL_X509_REVOKED* wolfSSL_sk_X509_REVOKED_value(
 WOLFSSL_API WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509*);
 WOLFSSL_API void wolfSSL_ASN1_INTEGER_free(WOLFSSL_ASN1_INTEGER*);
 WOLFSSL_API WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_new(void);
+WOLFSSL_API int wolfSSL_ASN1_INTEGER_set(WOLFSSL_ASN1_INTEGER *a, long v);
 
 WOLFSSL_API int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO*, const WOLFSSL_ASN1_TIME*);
 
@@ -1657,6 +1666,7 @@ WOLFSSL_API int  wolfSSL_connect_cert(WOLFSSL* ssl);
 typedef struct WC_PKCS12 WC_PKCS12;
 WOLFSSL_API WC_PKCS12* wolfSSL_d2i_PKCS12_bio(WOLFSSL_BIO* bio,
                                        WC_PKCS12** pkcs12);
+WOLFSSL_API int wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO *bio, WC_PKCS12 *pkcs12);
 #ifndef NO_FILESYSTEM
 WOLFSSL_API WOLFSSL_X509_PKCS12* wolfSSL_d2i_PKCS12_fp(XFILE fp,
                                        WOLFSSL_X509_PKCS12** pkcs12);
