@@ -425,7 +425,8 @@ void fp_mul_d(fp_int *a, fp_digit b, fp_int *c)
    }
 
    /* zero any excess digits on the destination that we didn't write to */
-   for (; x < oldused; x++) {
+   /* also checking FP_SIZE here for static analysis */
+   for (; x < oldused && x < FP_SIZE; x++) {
       c->dp[x] = 0;
    }
    fp_clamp(c);
