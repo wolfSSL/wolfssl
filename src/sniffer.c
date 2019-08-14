@@ -508,9 +508,9 @@ static void FreeNamedKey(NamedKey* in)
     if (in) {
         if (in->key) {
             ForceZero(in->key, in->keySz);
-            free(in->key);
+            XFREE(in->key, NULL, DYNAMIC_TYPE_X509);
         }
-        free(in);
+        XFREE(in, NULL, DYNAMIC_TYPE_SNIFFER_NAMED_KEY);
     }
 }
 
@@ -541,7 +541,7 @@ static void FreeSnifferServer(SnifferServer* srv)
 #endif
         SSL_CTX_free(srv->ctx);
     }
-    free(srv);
+    XFREE(srv, NULL, DYNAMIC_TYPE_SNIFFER_SERVER);
 }
 
 
@@ -549,8 +549,8 @@ static void FreeSnifferServer(SnifferServer* srv)
 static void FreePacketBuffer(PacketBuffer* del)
 {
     if (del) {
-        free(del->data);
-        free(del);
+        XFREE(del->data, NULL, DYNAMIC_TYPE_SNIFFER_PB_BUFFER);
+        XFREE(del, NULL, DYNAMIC_TYPE_SNIFFER_PB);
     }
 }
 
@@ -581,12 +581,12 @@ static void FreeSnifferSession(SnifferSession* session)
         FreePacketList(session->cliReassemblyList);
         FreePacketList(session->srvReassemblyList);
 
-        free(session->ticketID);
+        XFREE(session->ticketID, NULL, DYNAMIC_TYPE_SNIFFER_TICKET_ID);
 #ifdef HAVE_EXTENDED_MASTER
-        free(session->hash);
+        XFREE(session->hash, NULL, DYNAMIC_TYPE_HASHES);
 #endif
     }
-    free(session);
+    XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
 }
 
 
@@ -1311,7 +1311,7 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
     fileSz = XFTELL(file);
     XREWIND(file);
 
-    loadBuf = (byte*)malloc(fileSz);
+    loadBuf = (byte*)XMALLOC(fileSz, NULL, DYNAMIC_TYPE_FILE);
     if (loadBuf == NULL) {
         XFCLOSE(file);
         return -1;
@@ -1321,12 +1321,12 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
     XFCLOSE(file);
 
     if (ret != fileSz) {
-        free(loadBuf);
+        XFREE(loadBuf, NULL, DYNAMIC_TYPE_FILE);
         return -1;
     }
 
     if (typeKey == WOLFSSL_FILETYPE_PEM) {
-        byte* saveBuf   = (byte*)malloc(fileSz);
+        byte* saveBuf   = (byte*)XMALLOC(fileSz, NULL, DYNAMIC_TYPE_X509);
         int   saveBufSz = 0;
 
         ret = -1;
@@ -1335,7 +1335,7 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
                                                 saveBuf, (int)fileSz, password);
             if (saveBufSz < 0) {
                 saveBufSz = 0;
-                free(saveBuf);
+                XFREE(saveBuf, NULL, DYNAMIC_TYPE_X509);
                 saveBuf = NULL;
             }
             else
@@ -1343,7 +1343,7 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
         }
 
         ForceZero(loadBuf, (word32)fileSz);
-        free(loadBuf);
+        XFREE(loadBuf, NULL, DYNAMIC_TYPE_FILE);
 
         if (saveBuf) {
             *keyBuf = saveBuf;
@@ -1371,7 +1371,7 @@ static int CreateWatchSnifferServer(char* error)
 {
     SnifferServer* sniffer;
 
-    sniffer = (SnifferServer*)malloc(sizeof(SnifferServer));
+    sniffer = (SnifferServer*)XMALLOC(sizeof(SnifferServer), NULL, DYNAMIC_TYPE_SNIFFER_SERVER);
     if (sniffer == NULL) {
         SetError(MEMORY_STR, error, NULL, 0);
         return -1;
@@ -1411,7 +1411,8 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
     (void)name;
 #ifdef HAVE_SNI
     if (name != NULL) {
-        namedKey = (NamedKey*)malloc(sizeof(NamedKey));
+        namedKey = (NamedKey*)XMALLOC(sizeof(NamedKey),
+                NULL, DYNAMIC_TYPE_SNIFFER_NAMED_KEY);
         if (namedKey == NULL) {
             SetError(MEMORY_STR, error, NULL, 0);
             return -1;
@@ -1443,7 +1444,8 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
 
     if (sniffer == NULL) {
         isNew = 1;
-        sniffer = (SnifferServer*)malloc(sizeof(SnifferServer));
+        sniffer = (SnifferServer*)XMALLOC(sizeof(SnifferServer),
+                NULL, DYNAMIC_TYPE_SNIFFER_SERVER);
         if (sniffer == NULL) {
             SetError(MEMORY_STR, error, NULL, 0);
 #ifdef HAVE_SNI
@@ -2082,7 +2084,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
     }
 
     if (!session->flags.expectEms) {
-        free(session->hash);
+        XFREE(session->hash, NULL, DYNAMIC_TYPE_HASHES);
         session->hash = NULL;
     }
 #endif
@@ -2343,7 +2345,8 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
 
             if (extLen) {
                 if (session->ticketID == 0) {
-                    session->ticketID = (byte*)malloc(ID_LEN);
+                    session->ticketID = (byte*)XMALLOC(ID_LEN,
+                            NULL, DYNAMIC_TYPE_SNIFFER_TICKET_ID);
                     if (session->ticketID == 0) {
                         SetError(MEMORY_STR, error, session,
                                  FATAL_ERROR_STATE);
@@ -2597,7 +2600,7 @@ static int DoHandShake(const byte* input, int* sslBytes,
                     ret = -1;
                 }
                 XMEMSET(session->hash, 0, sizeof(HsHashes));
-                free(session->hash);
+                XFREE(session->hash, NULL, DYNAMIC_TYPE_HASHES);
                 session->hash = NULL;
             }
             else {
@@ -2825,7 +2828,8 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
 
     Trace(NEW_SESSION_STR);
     /* create a new one */
-    session = (SnifferSession*)malloc(sizeof(SnifferSession));
+    session = (SnifferSession*)XMALLOC(sizeof(SnifferSession),
+            NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
     if (session == NULL) {
         SetError(MEMORY_STR, error, NULL, 0);
         return 0;
@@ -2833,15 +2837,16 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     InitSession(session);
 #ifdef HAVE_EXTENDED_MASTER
     {
-        HsHashes* newHash = (HsHashes*)malloc(sizeof(HsHashes));
+        HsHashes* newHash = (HsHashes*)XMALLOC(sizeof(HsHashes),
+                NULL, DYNAMIC_TYPE_HASHES);
         if (newHash == NULL) {
             SetError(MEMORY_STR, error, NULL, 0);
-            free(session);
+            XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
             return 0;
         }
         if (HashInit(newHash) != 0) {
             SetError(EXTENDED_MASTER_HASH_STR, error, NULL, 0);
-            free(session);
+            XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
             return 0;
         }
         session->hash = newHash;
@@ -2862,14 +2867,14 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
     session->context = GetSnifferServer(ipInfo, tcpInfo);
     if (session->context == NULL) {
         SetError(SERVER_NOT_REG_STR, error, NULL, 0);
-        free(session);
+        XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
         return 0;
     }
 
     session->sslServer = SSL_new(session->context->ctx);
     if (session->sslServer == NULL) {
         SetError(BAD_NEW_SSL_STR, error, session, FATAL_ERROR_STATE);
-        free(session);
+        XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
         return 0;
     }
     session->sslClient = SSL_new(session->context->ctx);
@@ -2878,7 +2883,7 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
         session->sslServer = 0;
 
         SetError(BAD_NEW_SSL_STR, error, session, FATAL_ERROR_STATE);
-        free(session);
+        XFREE(session, NULL, DYNAMIC_TYPE_SNIFFER_SESSION);
         return 0;
     }
     /* put server back into server mode */
@@ -3102,16 +3107,17 @@ static PacketBuffer* CreateBuffer(word32* begin, word32 end, const byte* data,
     int added = end - *begin + 1;
     assert(*begin <= end);
 
-    pb = (PacketBuffer*)malloc(sizeof(PacketBuffer));
+    pb = (PacketBuffer*)XMALLOC(sizeof(PacketBuffer),
+            NULL, DYNAMIC_TYPE_SNIFFER_PB);
     if (pb == NULL) return NULL;
 
     pb->next  = 0;
     pb->begin = *begin;
     pb->end   = end;
-    pb->data = (byte*)malloc(added);
+    pb->data = (byte*)XMALLOC(added, NULL, DYNAMIC_TYPE_SNIFFER_PB_BUFFER);
 
     if (pb->data == NULL) {
-        free(pb);
+        XFREE(pb, NULL, DYNAMIC_TYPE_SNIFFER_PB);
         return NULL;
     }
     XMEMCPY(pb->data, data, added);
@@ -3838,10 +3844,11 @@ doPart:
                         byte* tmpData;  /* don't leak on realloc free */
                         /* add an extra byte at end of allocation in case user
                          * wants to null terminate plaintext */
-                        tmpData = (byte*)realloc(*data, decoded + ret + 1);
+                        tmpData = (byte*)XREALLOC(*data, decoded + ret + 1,
+                                NULL, DYNAMIC_TYPE_TMP_BUFFER);
                         if (tmpData == NULL) {
                             ForceZero(*data, decoded);
-                            free(*data);
+                            XFREE(*data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                             *data = NULL;
                             SetError(MEMORY_STR, error, session,
                                      FATAL_ERROR_STATE);
@@ -4071,7 +4078,7 @@ int ssl_FreeZeroDecodeBuffer(byte** data, int sz, char* error)
 
     if (data != NULL) {
         ForceZero(*data, (word32)sz);
-        free(*data);
+        XFREE(*data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         *data = NULL;
     }
 
@@ -4288,13 +4295,13 @@ int ssl_SetWatchKey_file(void* vSniffer, const char* keyFile, int keyType,
     ret = LoadKeyFile(&keyBuf, &keyBufSz, keyFile, keyType, password);
     if (ret < 0) {
         SetError(KEY_FILE_STR, error, NULL, 0);
-        free(keyBuf);
+        XFREE(keyBuf, NULL, DYNAMIC_TYPE_X509);
         return -1;
     }
 
     ret = ssl_SetWatchKey_buffer(vSniffer, keyBuf, keyBufSz, FILETYPE_DER,
             error);
-    free(keyBuf);
+    XFREE(keyBuf, NULL, DYNAMIC_TYPE_X509);
 
     return ret;
 }
