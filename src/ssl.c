@@ -16475,7 +16475,7 @@ void wolfSSL_sk_ASN1_OBJECT_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
 
     /* parse through stack freeing each node */
     node = sk->next;
-    while (sk->num > 1) {
+    while ((node != NULL) && (sk->num > 1)) {
         WOLFSSL_STACK* tmp = node;
         node = node->next;
 
@@ -16499,31 +16499,33 @@ void wolfSSL_sk_ASN1_OBJECT_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
  * f   X509 free function
  */
 void wolfSSL_sk_ASN1_OBJECT_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
-                                           void f (WOLFSSL_ASN1_OBJECT*))
+                                     void (*func)(WOLFSSL_ASN1_OBJECT*))
 {
     WOLFSSL_STACK* node;
 
     WOLFSSL_ENTER("wolfSSL_sk_ASN1_OBJECT_pop_free");
-    (void)f;
+    (void)func;
 
-    if (sk == NULL) {
+    if ((sk == NULL) || (func == NULL)) {
+        WOLFSSL_MSG("Parameter error");
         return;
     }
 
     /* parse through stack freeing each node */
     node = sk->next;
-    while (sk->num > 1) {
+    while ((node != NULL) && (sk->num > 1)) {
         WOLFSSL_STACK* tmp = node;
         node = node->next;
 
-        f(tmp->data.obj);
+        func(tmp->data.obj);
+
         XFREE(tmp, NULL, DYNAMIC_TYPE_ASN1);
         sk->num -= 1;
     }
 
     /* free head of stack */
     if (sk->num == 1) {
-        f(sk->data.obj);
+        func(sk->data.obj);
     }
     XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
 }

@@ -834,8 +834,8 @@ WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_sk_ASN1_OBJECT_pop(
                                             WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk);
 WOLFSSL_API void wolfSSL_sk_ASN1_OBJECT_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk);
 WOLFSSL_API void wolfSSL_sk_ASN1_OBJECT_pop_free(
-                                       WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
-                                       void f (WOLFSSL_ASN1_OBJECT*));
+                WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
+                void (*func)(WOLFSSL_ASN1_OBJECT*));
 WOLFSSL_API int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, WOLFSSL_ASN1_STRING *in);
 
 WOLFSSL_API int  wolfSSL_set_ex_data(WOLFSSL*, int, void*);

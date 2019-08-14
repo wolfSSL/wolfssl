@@ -23086,6 +23086,75 @@ static void test_wolfSSL_AES_cbc_encrypt()
 }
 
 
+static void test_wolfSSL_X509_get_ext_count(void) {
+#if !defined(NO_FILESYSTEM) && defined (OPENSSL_ALL)
+    FILE* f;
+    WOLFSSL_X509* x509;
+    int ret = 0;
+
+    AssertNotNull(f = fopen("./certs/server-cert.pem", "rb"));
+    AssertNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
+    fclose(f);
+
+    printf(testingFmt, "wolfSSL_X509_get_ext_count() valid input");
+    AssertIntEQ((ret = wolfSSL_X509_get_ext_count(x509)), 3);
+    printf(resultFmt, ret == 3 ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_X509_get_ext_count() NULL argument");
+    AssertIntEQ((ret = wolfSSL_X509_get_ext_count(NULL)), WOLFSSL_FAILURE);
+    printf(resultFmt, ret == WOLFSSL_FAILURE ? passed : failed);
+
+    wolfSSL_X509_free(x509);
+#endif
+}
+
+static void test_wolfSSL_X509_cmp(void){
+#if defined(OPENSSL_ALL)
+    FILE* file1;
+    FILE* file2;
+    WOLFSSL_X509* cert1;
+    WOLFSSL_X509* cert2;
+    int ret = 0;
+
+    AssertNotNull(file1=fopen("./certs/server-cert.pem", "rb"));
+    AssertNotNull(file2=fopen("./certs/client-cert-3072.pem", "rb"));
+
+    AssertNotNull(cert1 = wolfSSL_PEM_read_X509(file1, NULL, NULL, NULL));
+    AssertNotNull(cert2 = wolfSSL_PEM_read_X509(file2, NULL, NULL, NULL));
+    fclose(file1);
+    fclose(file2);
+
+    printf(testingFmt, "wolfSSL_X509_cmp() testing matching certs");
+    ret = wolfSSL_X509_cmp(cert1, cert1);
+    AssertIntEQ(0, wolfSSL_X509_cmp(cert1, cert1));
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_X509_cmp() testing mismatched certs");
+    ret = wolfSSL_X509_cmp(cert1, cert2);
+    AssertIntEQ(-1, wolfSSL_X509_cmp(cert1, cert2));
+    printf(resultFmt, ret == -1 ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_X509_cmp() testing NULL, valid args");
+    ret = wolfSSL_X509_cmp(NULL, cert2);
+    AssertIntEQ(BAD_FUNC_ARG, wolfSSL_X509_cmp(NULL, cert2));
+    printf(resultFmt, ret == BAD_FUNC_ARG ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_X509_cmp() testing valid, NULL args");
+    ret = wolfSSL_X509_cmp(cert1, NULL);
+    AssertIntEQ(BAD_FUNC_ARG, wolfSSL_X509_cmp(cert1, NULL));
+    printf(resultFmt, ret == BAD_FUNC_ARG ? passed : failed);
+
+    printf(testingFmt, "wolfSSL_X509_cmp() testing NULL, NULL args");
+    ret = wolfSSL_X509_cmp(NULL, NULL);
+    AssertIntEQ(BAD_FUNC_ARG, wolfSSL_X509_cmp(NULL, NULL));
+    printf(resultFmt, ret == BAD_FUNC_ARG ? passed : failed);
+
+    wolfSSL_X509_free(cert1);
+    wolfSSL_X509_free(cert2);
+#endif
+}
+
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -25444,6 +25513,10 @@ void ApiTest(void)
     test_wolfSSL_X509_get_version();
     test_wolfSSL_X509_print();
     test_wolfSSL_RSA_verify();
+
+    test_wolfSSL_X509_get_ext_count();
+    test_wolfSSL_X509_cmp();
+
     /* test the no op functions for compatibility */
     test_no_op_functions();
 
