@@ -5507,7 +5507,7 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
         if (authTag) {
             /* STM32 GCM won't compute Auth correctly for partial or
                 when IV != 12, so use software here */
-            if (partial != 0 || ivSz != GCM_NONCE_MID_SZ) {
+            if (sz == 0 || partial != 0 || ivSz != GCM_NONCE_MID_SZ) {
                 DecrementGcmCounter(ctr); /* hardware requires +1, so subtract it */
                 GHASH(aes, authIn, authInSz, out, sz, authTag, authTagSz);
                 wc_AesEncrypt(aes, ctr, tag);
@@ -5889,6 +5889,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     if (status == HAL_OK) {
         /* Compute the authTag */
         status = HAL_CRYPEx_AESGCM_GenerateAuthTAG(&hcryp, (uint32_t*)tag, STM32_HAL_TIMEOUT);
+        ByteReverseWords((word32*)tag, (word32*)tag, authTagSz);
     }
 #else
     HAL_CRYP_Init(&hcryp);
@@ -5932,7 +5933,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
 #endif /* WOLFSSL_STM32_CUBEMX */
 
     /* STM32 GCM hardware only supports IV of 12 bytes, so use software for auth */
-    if (ivSz != GCM_NONCE_MID_SZ) {
+    if (sz == 0 || ivSz != GCM_NONCE_MID_SZ) {
         DecrementGcmCounter(ctr); /* hardware requires +1, so subtract it */
         GHASH(aes, authIn, authInSz, in, sz, tag, sizeof(tag));
         wc_AesEncrypt(aes, ctr, partialBlock);
