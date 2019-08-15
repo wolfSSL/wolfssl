@@ -62,6 +62,7 @@
 #define BN_MP_DR_SETUP_C
 #define BN_MP_EXCH_C
 #define BN_MP_EXPT_D_C
+#define BN_MP_EXPTMOD_BASE_2
 #define BN_MP_EXPTMOD_C
 #define BN_MP_EXPTMOD_FAST_C
 #define BN_MP_EXTEUCLID_C
@@ -358,6 +359,7 @@
    #define BN_MP_REDUCE_IS_2K_C
    #define BN_MP_ISODD_C
    #define BN_MP_EXPTMOD_FAST_C
+   #define BN_MP_EXPTMOD_BASE_2
 #endif
 
 #if defined(BN_MP_EXPTMOD_FAST_C)

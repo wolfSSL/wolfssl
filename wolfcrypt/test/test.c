@@ -12910,7 +12910,7 @@ static int dh_test_check_pubvalue(void)
 }
 #endif
 
-#if defined(WOLFSSL_HAVE_SP_DH) && defined(HAVE_FFDHE)
+#if defined(HAVE_FFDHE)
 
 #ifdef HAVE_FFDHE_3072
     #define FFDHE_KEY_SIZE      (3072/8)
@@ -12981,7 +12981,7 @@ done:
     return ret;
 }
 
-#endif /* WOLFSSL_HAVE_SP_DH && HAVE_FFDHE */
+#endif /* HAVE_FFDHE */
 
 int dh_test(void)
 {
@@ -13135,17 +13135,21 @@ int dh_test(void)
         ret = dh_test_check_pubvalue();
 #endif
 
-#ifdef WOLFSSL_HAVE_SP_DH
     /* Specialized code for key gen when using FFDHE-2048 and FFDHE-3072. */
     #ifdef HAVE_FFDHE_2048
-    if (ret == 0)
+    if (ret == 0) {
         ret = dh_test_ffdhe(&rng, wc_Dh_ffdhe2048_Get());
+        if (ret != 0)
+            printf("error with FFDHE 2048\n");
+    }
     #endif
     #ifdef HAVE_FFDHE_3072
-    if (ret == 0)
+    if (ret == 0) {
         ret = dh_test_ffdhe(&rng, wc_Dh_ffdhe3072_Get());
+        if (ret != 0)
+            printf("error with FFDHE 3072\n");
+    }
     #endif
-#endif /* WOLFSSL_HAVE_SP_DH */
 
     wc_FreeDhKey(&key);
     keyInit = 0;
