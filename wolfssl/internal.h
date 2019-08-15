@@ -256,6 +256,8 @@
     #define BUILD_TLS_QSH
 #endif
 
+#ifndef WOLFSSL_NO_TLS12
+
 #ifndef WOLFSSL_MAX_STRENGTH
 
 #ifdef WOLFSSL_AEAD_ONLY
@@ -785,6 +787,8 @@
     #endif
 #endif
 
+#endif
+
 #if defined(WOLFSSL_TLS13)
     #ifdef HAVE_AESGCM
         #if !defined(NO_SHA256) && defined(WOLFSSL_AES_128)
@@ -805,6 +809,14 @@
         #if !defined(NO_SHA256) && defined(WOLFSSL_AES_128)
             #define BUILD_TLS_AES_128_CCM_SHA256
             #define BUILD_TLS_AES_128_CCM_8_SHA256
+        #endif
+    #endif
+    #ifdef HAVE_NULL_CIPHER
+        #ifndef NO_SHA256
+            #define BUILD_TLS_SHA256_SHA256
+        #endif
+        #ifdef WOLFSSL_SHA384
+            #define BUILD_TLS_SHA384_SHA384
         #endif
     #endif
 #endif
@@ -841,7 +853,9 @@
     defined(BUILD_TLS_DHE_RSA_WITH_AES_256_GCM_SHA384) || \
     defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384) || \
     defined(BUILD_TLS_PSK_WITH_AES_256_GCM_SHA384) || \
-    defined(BUILD_TLS_DHE_PSK_WITH_AES_256_GCM_SHA384)
+    defined(BUILD_TLS_DHE_PSK_WITH_AES_256_GCM_SHA384) || \
+    defined(BUILD_TLS_AES_128_GCM_SHA256) || \
+    defined(BUILD_TLS_AES_256_GCM_SHA384)
     #define BUILD_AESGCM
 #else
     /* No AES-GCM cipher suites available with build */
@@ -901,7 +915,9 @@
 #if defined(WOLFSSL_MAX_STRENGTH) || \
     (defined(HAVE_AESGCM) && !defined(NO_AESGCM_AEAD)) || \
      defined(HAVE_AESCCM) || \
-    (defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_CHAPOL_AEAD))
+    (defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
+     !defined(NO_CHAPOL_AEAD)) || \
+    (defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER))
 
     #define HAVE_AEAD
 #endif
@@ -1069,6 +1085,10 @@ enum {
     TLS_CHACHA20_POLY1305_SHA256 = 0x03,
     TLS_AES_128_CCM_SHA256       = 0x04,
     TLS_AES_128_CCM_8_SHA256     = 0x05,
+
+    /* TLS v1.3 Integity only cipher suites - 0xC0 (ECC) first byte */
+    TLS_SHA256_SHA256            = 0xB4,
+    TLS_SHA384_SHA384            = 0xB5,
 
     /* Fallback SCSV (Signaling Cipher Suite Value) */
     TLS_FALLBACK_SCSV                        = 0x56,
@@ -1357,6 +1377,8 @@ enum Misc {
     CHACHA20_IV_SIZE      = 12,  /* 96 bits for iv          */
 
     POLY1305_AUTH_SZ    = 16,  /* 128 bits                */
+
+    HMAC_NONCE_SZ       = 12,  /* Size of HMAC nonce */
 
     HC_128_KEY_SIZE     = 16,  /* 128 bits                */
     HC_128_IV_SIZE      = 16,  /* also 128 bits           */
@@ -2887,8 +2909,10 @@ enum CipherType { aead };
 #endif
 
 
-
-
+#if defined(BUILD_AES) || defined(BUILD_AESGCM) || (defined(HAVE_CHACHA) && \
+                               defined(HAVE_POLY1305)) || defined(WOLFSSL_TLS13)
+    #define CIPHER_NONCE
+#endif
 
 
 /* cipher for now */
@@ -2901,10 +2925,13 @@ typedef struct Ciphers {
 #endif
 #if defined(BUILD_AES) || defined(BUILD_AESGCM)
     Aes*    aes;
-    #if defined(BUILD_AESGCM) || defined(HAVE_AESCCM) || defined(WOLFSSL_TLS13)
+    #if (defined(BUILD_AESGCM) || defined(HAVE_AESCCM)) && \
+                                                      !defined(WOLFSSL_NO_TLS12)
         byte* additional;
-        byte* nonce;
     #endif
+#endif
+#ifdef CIPHER_NONCE
+    byte* nonce;
 #endif
 #ifdef HAVE_CAMELLIA
     Camellia* cam;
@@ -2920,6 +2947,9 @@ typedef struct Ciphers {
 #endif
 #ifdef HAVE_IDEA
     Idea* idea;
+#endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER)
+    Hmac* hmac;
 #endif
     byte    state;
     byte    setup;       /* have we set it up flag for detection */

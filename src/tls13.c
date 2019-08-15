@@ -1615,6 +1615,43 @@ static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
 }
 #endif
 
+#ifdef HAVE_NULL_CIPHER
+/* Create authenication tag and copy data over input.
+ *
+ * ssl     The SSL/TLS object.
+ * output  The buffer to copy data into.
+ *         May be the same pointer as input.
+ * input   The data.
+ * sz      The number of bytes of data.
+ * nonce   The nonce to use with authentication.
+ * aad     The additional authentication data.
+ * aadSz   The size of the addition authentication data.
+ * tag     The authentication tag buffer.
+ * returns 0 on success, otherwise failure.
+ */
+static int Tls13IntegrityOnly_Encrypt(WOLFSSL* ssl, byte* output,
+                                      const byte* input, word16 sz,
+                                      const byte* nonce,
+                                      const byte* aad, word16 aadSz, byte* tag)
+{
+    int ret;
+
+    /* HMAC: nonce | aad | input  */
+    ret = wc_HmacUpdate(ssl->encrypt.hmac, nonce, HMAC_NONCE_SZ);
+    if (ret == 0)
+        ret = wc_HmacUpdate(ssl->encrypt.hmac, aad, aadSz);
+    if (ret == 0)
+        ret = wc_HmacUpdate(ssl->encrypt.hmac, input, sz);
+    if (ret == 0)
+        ret = wc_HmacFinal(ssl->encrypt.hmac, tag);
+    /* Copy the input to output if not the same buffer */
+    if (ret == 0 && output != input)
+        XMEMCPY(output, input, sz);
+
+    return ret;
+}
+#endif
+
 /* Encrypt data for TLS v1.3.
  *
  * ssl     The SSL/TLS object.
@@ -1668,6 +1705,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
 #endif
         #endif
 
+        #ifdef CIPHER_NONCE
             if (ssl->encrypt.nonce == NULL)
                 ssl->encrypt.nonce = (byte*)XMALLOC(AEAD_NONCE_SZ,
                                             ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
@@ -1676,6 +1714,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
 
             BuildTls13Nonce(ssl, ssl->encrypt.nonce, ssl->keys.aead_enc_imp_IV,
                             CUR_ORDER);
+        #endif
 
             /* Advance state and proceed */
             ssl->encrypt.state = CIPHER_STATE_DO;
@@ -1748,6 +1787,13 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                     break;
             #endif
 
+            #ifdef HAVE_NULL_CIPHER
+                case wolfssl_cipher_null:
+                    ret = Tls13IntegrityOnly_Encrypt(ssl, output, input, dataSz,
+                        ssl->encrypt.nonce, aad, aadSz, output + dataSz);
+                    break;
+            #endif
+
                 default:
                     WOLFSSL_MSG("wolfSSL Encrypt programming error");
                     return ENCRYPT_ERROR;
@@ -1773,16 +1819,20 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
 
         case CIPHER_STATE_END:
         {
-            #ifdef WOLFSSL_DEBUG_TLS
+        #ifdef WOLFSSL_DEBUG_TLS
+            #ifdef CIPHER_NONCE
                 WOLFSSL_MSG("Nonce");
                 WOLFSSL_BUFFER(ssl->encrypt.nonce, ssl->specs.iv_size);
+            #endif
                 WOLFSSL_MSG("Encrypted data");
                 WOLFSSL_BUFFER(output, dataSz);
                 WOLFSSL_MSG("Authentication Tag");
                 WOLFSSL_BUFFER(output + dataSz, macSz);
-            #endif
+        #endif
 
+        #ifdef CIPHER_NONCE
             ForceZero(ssl->encrypt.nonce, AEAD_NONCE_SZ);
+        #endif
 
             break;
         }
@@ -1853,6 +1903,48 @@ static int ChaCha20Poly1305_Decrypt(WOLFSSL* ssl, byte* output,
 }
 #endif
 
+#ifdef HAVE_NULL_CIPHER
+/* Check HMAC tag and copy over input.
+ *
+ * ssl     The SSL/TLS object.
+ * output  The buffer to copy data into.
+ *         May be the same pointer as input.
+ * input   The data.
+ * sz      The number of bytes of data.
+ * nonce   The nonce to use with authentication.
+ * aad     The additional authentication data.
+ * aadSz   The size of the addition authentication data.
+ * tagIn   The authentication tag data from packet.
+ * returns 0 on success, otherwise failure.
+ */
+static int Tls13IntegrityOnly_Decrypt(WOLFSSL* ssl, byte* output,
+                                      const byte* input, word16 sz,
+                                      const byte* nonce,
+                                      const byte* aad, word16 aadSz,
+                                      const byte* tagIn)
+{
+    int ret;
+    byte hmac[WC_MAX_DIGEST_SIZE];
+
+    /* HMAC: nonce | aad | input  */
+    ret = wc_HmacUpdate(ssl->decrypt.hmac, nonce, HMAC_NONCE_SZ);
+    if (ret == 0)
+        ret = wc_HmacUpdate(ssl->decrypt.hmac, aad, aadSz);
+    if (ret == 0)
+        ret = wc_HmacUpdate(ssl->decrypt.hmac, input, sz);
+    if (ret == 0)
+        ret = wc_HmacFinal(ssl->decrypt.hmac, hmac);
+    /* Check authentication tag matches */
+    if (ret == 0 && ConstantCompare(tagIn, hmac, ssl->specs.hash_size) != 0)
+        ret = DECRYPT_ERROR;
+    /* Copy the input to output if not the same buffer */
+    if (ret == 0 && output != input)
+        XMEMCPY(output, input, sz);
+
+    return ret;
+}
+#endif
+
 /* Decrypt data for TLS v1.3.
  *
  * ssl     The SSL/TLS object.
@@ -1915,6 +2007,7 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
             WOLFSSL_BUFFER(input + dataSz, macSz);
         #endif
 
+        #ifdef CIPHER_NONCE
             if (ssl->decrypt.nonce == NULL)
                 ssl->decrypt.nonce = (byte*)XMALLOC(AEAD_NONCE_SZ,
                                             ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
@@ -1923,6 +2016,7 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
 
             BuildTls13Nonce(ssl, ssl->decrypt.nonce, ssl->keys.aead_dec_imp_IV,
                             PEER_ORDER);
+        #endif
 
             /* Advance state and proceed */
             ssl->decrypt.state = CIPHER_STATE_DO;
@@ -1985,6 +2079,12 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
                     break;
             #endif
 
+            #ifdef HAVE_NULL_CIPHER
+                case wolfssl_cipher_null:
+                    ret = Tls13IntegrityOnly_Decrypt(ssl, output, input, dataSz,
+                        ssl->decrypt.nonce, aad, aadSz, input + dataSz);
+                    break;
+            #endif
                 default:
                     WOLFSSL_MSG("wolfSSL Decrypt programming error");
                     return DECRYPT_ERROR;
@@ -2005,13 +2105,17 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
         case CIPHER_STATE_END:
         {
         #ifdef WOLFSSL_DEBUG_TLS
-            WOLFSSL_MSG("Nonce");
-            WOLFSSL_BUFFER(ssl->decrypt.nonce, ssl->specs.iv_size);
-            WOLFSSL_MSG("Decrypted data");
-            WOLFSSL_BUFFER(output, dataSz);
+            #ifdef CIPHER_NONCE
+                WOLFSSL_MSG("Nonce");
+                WOLFSSL_BUFFER(ssl->decrypt.nonce, ssl->specs.iv_size);
+            #endif
+                WOLFSSL_MSG("Decrypted data");
+                WOLFSSL_BUFFER(output, dataSz);
         #endif
 
+        #ifdef CIPHER_NONCE
             ForceZero(ssl->decrypt.nonce, AEAD_NONCE_SZ);
+        #endif
 
             break;
         }
@@ -4168,6 +4272,14 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return ret;
         }
 
+#ifdef HAVE_NULL_CIPHER
+        if (ssl->options.cipherSuite0 == ECC_BYTE &&
+                              (ssl->options.cipherSuite == TLS_SHA256_SHA256 ||
+                               ssl->options.cipherSuite == TLS_SHA384_SHA384)) {
+            ;
+        }
+        else
+#endif
         /* Check that the negotiated ciphersuite matches protocol version. */
         if (ssl->options.cipherSuite0 != TLS13_BYTE) {
             WOLFSSL_MSG("Negotiated ciphersuite from lesser version than "
