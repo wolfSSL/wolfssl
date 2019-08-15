@@ -2093,11 +2093,6 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         if (XMEMCMP(session->sslServer->arrays->sessionID,
                     session->sslClient->arrays->sessionID, ID_LEN) == 0)
             doResume = 1;
-        else if (session->sslClient->options.haveSessionId) {
-#ifdef WOLFSSL_SNIFFER_STATS
-            INC_STAT(SnifferStats.sslResumeMisses);
-#endif
-        }
     }
     else if (session->sslClient->options.haveSessionId == 0 &&
              session->sslServer->options.haveSessionId == 0 &&
@@ -2116,6 +2111,9 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         SSL_SESSION* resume = GetSession(session->sslServer,
                                   session->sslServer->arrays->masterSecret, 0);
         if (resume == NULL) {
+#ifdef WOLFSSL_SNIFFER_STATS
+            INC_STAT(SnifferStats.sslResumeMisses);
+#endif
             SetError(BAD_SESSION_RESUME_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }
