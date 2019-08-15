@@ -760,6 +760,14 @@
 #elif defined(WOLFSSL_DEVCRYPTO_AES)
     /* if all AES is enabled with devcrypto then tables are not needed */
 
+    #if defined(HAVE_AESCCM)
+    static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    {
+        wc_AesEncryptDirect(aes, outBlock, inBlock);
+        return 0;
+    }
+    #endif
+
 #else
 
     /* using wolfCrypt software implementation */
@@ -1314,7 +1322,8 @@ static const word32 Td[4][256] = {
 };
 
 
-#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
+#if (defined(HAVE_AES_CBC) && !defined(WOLFSSL_DEVCRYPTO_CBC)) \
+			|| defined(WOLFSSL_AES_DIRECT)
 static const byte Td4[256] =
 {
     0x52U, 0x09U, 0x6aU, 0xd5U, 0x30U, 0x36U, 0xa5U, 0x38U,
