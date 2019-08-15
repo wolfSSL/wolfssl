@@ -3395,6 +3395,16 @@ typedef struct Arrays {
 #define MAX_DATE_SZ 32
 #endif
 
+#define STACK_TYPE_X509               0
+#define STACK_TYPE_GEN_NAME           1
+#define STACK_TYPE_BIO                2
+#define STACK_TYPE_OBJ                3
+#define STACK_TYPE_STRING             4
+#define STACK_TYPE_CIPHER             5
+#define STACK_TYPE_ACCESS_DESCRIPTION 6
+#define STACK_TYPE_X509_EXT           7
+#define STACK_TYPE_NULL               8
+
 struct WOLFSSL_STACK {
     unsigned long num; /* number of nodes in stack
                         * (safety measure for freeing and shortcut for count) */
@@ -3403,9 +3413,13 @@ struct WOLFSSL_STACK {
         WOLFSSL_X509_NAME*   name;
         WOLFSSL_BIO*         bio;
         WOLFSSL_ASN1_OBJECT* obj;
+    #if defined(OPENSSL_ALL)
+        WOLFSSL_ACCESS_DESCRIPTION* access;
+    #endif
         char*                string;
     } data;
     WOLFSSL_STACK* next;
+    byte type;     /* Identifies type of stack. */
 };
 
 
@@ -3473,6 +3487,10 @@ struct WOLFSSL_X509 {
     char             certPolicies[MAX_CERTPOL_NB][MAX_CERTPOL_SZ];
     int              certPoliciesNb;
 #endif /* WOLFSSL_CERT_EXT */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+    wolfSSL_Mutex    refMutex;                       /* ref count mutex */
+    int              refCount;                       /* reference count */
+#endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #ifdef HAVE_EX_DATA
     void*            ex_data[MAX_EX_DATA];

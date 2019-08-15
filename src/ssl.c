@@ -76,6 +76,8 @@
     #include <wolfssl/openssl/ecdsa.h>
     #include <wolfssl/openssl/ecdh.h>
     #include <wolfssl/openssl/rc4.h>
+    #include <wolfssl/openssl/stack.h>
+    #include <wolfssl/openssl/x509v3.h>
     /* openssl headers end, wolfssl internal headers next */
     #include <wolfssl/wolfcrypt/hmac.h>
     #include <wolfssl/wolfcrypt/random.h>
@@ -7182,6 +7184,77 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
     return ret;
 }
 
+#if defined(OPENSSL_ALL)
+/* Returns the number of X509V3 extensions in X509 object, or 0 on failure */
+int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
+{
+    int extCount = 0;
+    int length = 0;
+    int outSz = 0;
+    const byte* rawCert;
+    int sz = 0;
+    word32 idx = 0;
+    DecodedCert cert;
+    const byte* input;
+
+    WOLFSSL_ENTER("wolfSSL_X509_get_ext_count()");
+    if (passedCert == NULL) {
+        WOLFSSL_MSG("\tNot passed a certificate");
+        return WOLFSSL_FAILURE;
+    }
+
+    rawCert = wolfSSL_X509_get_der((WOLFSSL_X509*)passedCert, &outSz);
+    if (rawCert == NULL) {
+        WOLFSSL_MSG("\tpassedCert has no internal DerBuffer set.");
+        return WOLFSSL_FAILURE;
+    }
+    InitDecodedCert(&cert, rawCert, (word32)outSz, 0);
+
+    if (ParseCert(&cert, CA_TYPE, NO_VERIFY, NULL) < 0) {
+        WOLFSSL_MSG("\tCertificate parsing failed");
+        return WOLFSSL_FAILURE;
+    }
+
+    input = cert.extensions;
+    sz = cert.extensionsSz;
+
+    if (input == NULL || sz == 0) {
+        FreeDecodedCert(&cert);
+        return WOLFSSL_FAILURE;
+    }
+
+    if (input[idx++] != ASN_EXTENSIONS) {
+        WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
+        FreeDecodedCert(&cert);
+        return WOLFSSL_FAILURE;
+    }
+
+    if (GetLength(input, &idx, &length, sz) < 0) {
+        WOLFSSL_MSG("\tfail: invalid length");
+        FreeDecodedCert(&cert);
+        return WOLFSSL_FAILURE;
+    }
+
+    if (GetSequence(input, &idx, &length, sz) < 0) {
+        WOLFSSL_MSG("\tfail: should be a SEQUENCE (1)");
+        FreeDecodedCert(&cert);
+        return WOLFSSL_FAILURE;
+    }
+
+    while (idx < (word32)sz) {
+        if (GetSequence(input, &idx, &length, sz) < 0) {
+            WOLFSSL_MSG("\tfail: should be a SEQUENCE");
+            FreeDecodedCert(&cert);
+            return WOLFSSL_FAILURE;
+        }
+        idx += length;
+        extCount++;
+    }
+    FreeDecodedCert(&cert);
+    return extCount;
+}
+
+#endif /* OPENSSL_ALL */
 
 /* Looks for the extension matching the passed in nid
  *
@@ -15899,6 +15972,55 @@ void wolfSSL_sk_X509_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk) {
 
 #endif /* NO_CERTS && OPENSSL_EXTRA */
 
+#if defined(OPENSSL_ALL)
+
+/* Frees all nodes in ACCESS_DESCRIPTION stack
+*
+* sk stack of nodes to free
+* f  free function to use, not called with wolfSSL
+*/
+void wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(WOLFSSL_STACK* sk,
+                                         void f (WOLFSSL_ACCESS_DESCRIPTION*))
+{
+   WOLFSSL_STACK* node;
+
+   WOLFSSL_ENTER("wolfSSL_sk_ACCESS_DESCRIPTION_pop_free");
+
+   (void)f;
+   if (sk == NULL) {
+       return;
+   }
+
+   /* parse through stack freeing each node */
+   node = sk->next;
+   while (sk->num > 1) {
+       WOLFSSL_STACK* tmp = node;
+       node = node->next;
+
+       if(tmp->data.access->method) {
+           wolfSSL_ASN1_OBJECT_free(tmp->data.access->method);
+       }
+       if(tmp->data.access->location) {
+           wolfSSL_GENERAL_NAME_free(tmp->data.access->location);
+       }
+       XFREE(tmp, NULL, DYNAMIC_TYPE_ASN1);
+       sk->num -= 1;
+   }
+
+   /* free head of stack */
+   if (sk->num == 1) {
+       if(sk->data.access->method) {
+           wolfSSL_ASN1_OBJECT_free(sk->data.access->method);
+       }
+       if(sk->data.access->location) {
+           wolfSSL_GENERAL_NAME_free(sk->data.access->location);
+       }
+   }
+   XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
+}
+
+#endif
+
 #ifdef OPENSSL_EXTRA
 
 /* Returns the general name at index i from the stack
@@ -15955,7 +16077,7 @@ int wolfSSL_sk_GENERAL_NAME_num(WOLFSSL_STACK* sk)
  * f  free function to use, not called with wolfSSL
  */
 void wolfSSL_sk_GENERAL_NAME_pop_free(WOLFSSL_STACK* sk,
-        void f (WOLFSSL_ASN1_OBJECT*))
+        void f (WOLFSSL_GENERAL_NAME*))
 {
     WOLFSSL_STACK* node;
 
@@ -15985,6 +16107,29 @@ void wolfSSL_sk_GENERAL_NAME_pop_free(WOLFSSL_STACK* sk,
 
 
 }
+
+/* Frees GENERAL_NAME objects.
+*/
+void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name)
+{
+    WOLFSSL_ENTER("wolfSSL_GENERAL_NAME_Free");
+    if(name != NULL) {
+        if (name->d.dNSName != NULL) {
+            wolfSSL_ASN1_STRING_free(name->d.dNSName);
+        }
+        if (name->d.uniformResourceIdentifier != NULL) {
+            wolfSSL_ASN1_STRING_free(name->d.uniformResourceIdentifier);
+        }
+        if (name->d.iPAddress != NULL) {
+            wolfSSL_ASN1_STRING_free(name->d.iPAddress);
+        }
+        if (name->d.registeredID != NULL) {
+            wolfSSL_ASN1_OBJECT_free(name->d.registeredID);
+        }
+        XFREE(name, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+}
+
 #endif /* OPENSSL_EXTRA */
 
 #ifndef NO_FILESYSTEM
@@ -16330,7 +16475,7 @@ void wolfSSL_sk_ASN1_OBJECT_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
 
     /* parse through stack freeing each node */
     node = sk->next;
-    while (sk->num > 1) {
+    while ((node != NULL) && (sk->num > 1)) {
         WOLFSSL_STACK* tmp = node;
         node = node->next;
 
@@ -16342,6 +16487,45 @@ void wolfSSL_sk_ASN1_OBJECT_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
     /* free head of stack */
     if (sk->num == 1) {
         wolfSSL_ASN1_OBJECT_free(sk->data.obj);
+    }
+    XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
+}
+
+/* Free's all nodes in ASN1_OBJECT stack.
+ * This is different then wolfSSL_ASN1_OBJECT_free in that it allows for
+ * choosing the function to use when freeing an ASN1_OBJECT stack.
+ *
+ * sk  stack to free nodes in
+ * f   X509 free function
+ */
+void wolfSSL_sk_ASN1_OBJECT_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
+                                     void (*func)(WOLFSSL_ASN1_OBJECT*))
+{
+    WOLFSSL_STACK* node;
+
+    WOLFSSL_ENTER("wolfSSL_sk_ASN1_OBJECT_pop_free");
+    (void)func;
+
+    if ((sk == NULL) || (func == NULL)) {
+        WOLFSSL_MSG("Parameter error");
+        return;
+    }
+
+    /* parse through stack freeing each node */
+    node = sk->next;
+    while ((node != NULL) && (sk->num > 1)) {
+        WOLFSSL_STACK* tmp = node;
+        node = node->next;
+
+        func(tmp->data.obj);
+
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ASN1);
+        sk->num -= 1;
+    }
+
+    /* free head of stack */
+    if (sk->num == 1) {
+        func(sk->data.obj);
     }
     XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
 }
@@ -16574,6 +16758,32 @@ const char* wolfSSL_get_cipher_name_from_suite(const byte cipherSuite0,
     return GetCipherNameInternal(cipherSuite0, cipherSuite);
 }
 
+#if defined(OPENSSL_ALL)
+/* Free the structure for WOLFSSL_CIPHER stack
+ *
+ * sk  stack to free nodes in
+ */
+void wolfSSL_sk_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk)
+{
+    WOLFSSL_STACK* node;
+    WOLFSSL_STACK* tmp;
+    WOLFSSL_ENTER("wolfSSL_sk_CIPHER_free");
+
+    if (sk == NULL)
+        return;
+
+    /* parse through stack freeing each node */
+    node = sk->next;
+    while (node) {
+        tmp  = node;
+        node = node->next;
+        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+
+    /* free head of stack */
+    XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
+}
+#endif
 
 #if defined(HAVE_ECC) || !defined(NO_DH)
 #ifdef HAVE_FFDHE
@@ -16923,6 +17133,77 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
 /* End of smaller subset of X509 compatibility functions. Avoid increasing the
  * size of this subset and its memory usage */
 #endif /* OPENSSL_EXTRA_X509_SMALL */
+
+#if defined(OPENSSL_ALL)
+/* Takes two WOLFSSL_X509* certificates and performs a Sha hash of each, if the
+   * has values are the same, then it will do an XMEMCMP to confirm they are
+   * identical. Returns a 0 when certificates match, returns a negative number
+   * when certificates are not a match.
+*/
+int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
+{
+        const byte* derA;
+        const byte* derB;
+        int retHashA;
+        int retHashB;
+        int outSzA = 0;
+        int outSzB = 0;
+
+        #ifdef WOLFSSL_PIC32MZ_HASH
+            byte digestA[PIC32_DIGEST_SIZE];
+            byte digestB[PIC32_DIGEST_SIZE];
+        #else
+            byte digestA[WC_SHA_DIGEST_SIZE];
+            byte digestB[WC_SHA_DIGEST_SIZE];
+        #endif
+
+        if (a == NULL || b == NULL){
+            return BAD_FUNC_ARG;
+        }
+
+        derA = wolfSSL_X509_get_der((WOLFSSL_X509*)a, &outSzA);
+        if(derA == NULL){
+            WOLFSSL_MSG("wolfSSL_X509_get_der - certificate A has failed");
+            return WOLFSSL_FATAL_ERROR;
+        }
+        derB = wolfSSL_X509_get_der((WOLFSSL_X509*)b, &outSzB);
+        if(derB == NULL){
+            WOLFSSL_MSG("wolfSSL_X509_get_der - certificate B has failed");
+            return WOLFSSL_FATAL_ERROR;
+        }
+
+        retHashA = wc_ShaHash(derA, (word32)outSzA, digestA);
+        if(retHashA != 0){
+            WOLFSSL_MSG("Hash of certificate A has failed");
+            return WOLFSSL_FATAL_ERROR;
+        }
+        retHashB = wc_ShaHash(derB, (word32)outSzB, digestB);
+        if(retHashB != 0){
+            WOLFSSL_MSG("Hash of certificate B has failed");
+            return WOLFSSL_FATAL_ERROR;
+        }
+
+        if (outSzA == outSzB){
+            #ifdef WOLFSSL_PIC32MZ_HASH
+            if(XMEMCMP(digestA, digestB, PIC32_DIGEST_SIZE) != 0){
+                return WOLFSSL_FATAL_ERROR;
+            }
+            #else
+            if(XMEMCMP(digestA, digestB, WC_SHA_DIGEST_SIZE) != 0){
+                return WOLFSSL_FATAL_ERROR;
+            }
+            #endif
+            else{
+                WOLFSSL_LEAVE("wolfSSL_X509_cmp", 0);
+                return 0;
+            }
+        }
+        else{
+            WOLFSSL_LEAVE("wolfSSL_X509_cmp", WOLFSSL_FATAL_ERROR);
+            return WOLFSSL_FATAL_ERROR;
+        }
+    }
+#endif
 
 #if defined(OPENSSL_EXTRA)
 #if !defined(NO_CERTS)
@@ -19218,6 +19499,89 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
 #endif /* SESSION_CERTS */
 
     return ctx->chain;
+}
+
+
+/* make shallow copy of the stack, data pointers are copied by reference */
+WOLFSSL_STACK* wolfSSL_sk_X509_dup(WOLFSSL_STACK* sk)
+{
+    unsigned long i;
+    WOLFSSL_STACK* dup = NULL;
+    WOLFSSL_STACK* node = NULL;
+    WOLFSSL_STACK *dIdx = NULL, *sIdx = sk;
+
+    if (sk == NULL) {
+        return NULL;
+    }
+
+    for (i = 0; i < sk->num; i++) {
+
+        node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
+                                         DYNAMIC_TYPE_X509);
+        if (node == NULL) {
+            if (i != 0) {
+                wolfSSL_sk_free(dup);
+            }
+            WOLFSSL_MSG("Memory error");
+            return NULL;
+        }
+        XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
+
+        /* copy sk node to new node, data by reference */
+        node->data.x509 = sIdx->data.x509;
+        node->num = sIdx->num;
+
+        /* insert node into list, progress idx */
+        if (i == 0) {
+            dup = node;
+        } else {
+            dIdx->next = node;
+        }
+
+        dIdx = node;
+        sIdx = sIdx->next;
+    }
+
+    return dup;
+}
+
+
+/* like X509_STORE_CTX_get_chain(), but return a copy with data reference
+   counts increased */
+WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get1_chain(WOLFSSL_X509_STORE_CTX* ctx)
+{
+    unsigned long i;
+    WOLFSSL_STACK* ref;
+    WOLFSSL_STACK* dup;
+
+    if (ctx == NULL) {
+        return NULL;
+    }
+
+    /* get chain in ctx */
+    ref = wolfSSL_X509_STORE_CTX_get_chain(ctx);
+    if (ref == NULL) {
+        return ref;
+    }
+
+    /* create duplicate of ctx chain */
+    dup = wolfSSL_sk_X509_dup(ref);
+    if (dup == NULL) {
+        return NULL;
+    }
+
+    /* increase ref counts of inner data X509 */
+    ref = dup;
+    for (i = 0; i < dup->num && ref != NULL; i++) {
+        if (wc_LockMutex(&ref->data.x509->refMutex) != 0) {
+            WOLFSSL_MSG("Failed to lock x509 mutex");
+        }
+        ref->data.x509->refCount++;
+        wc_UnLockMutex(&ref->data.x509->refMutex);
+        ref = ref->next;
+    }
+
+    return dup;
 }
 
 
@@ -22462,6 +22826,102 @@ void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
     if (sk == NULL)
         return NULL;
     return (void*)sk->data.obj;
+}
+
+
+/* Free the structure for ASN1_OBJECT stack */
+void wolfSSL_sk_free(WOLFSSL_STACK* sk)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_free");
+
+    if (sk == NULL) {
+        WOLFSSL_MSG("Error, BAD_FUNC_ARG");
+        return;
+    }
+
+    switch (sk->type) {
+    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+        case STACK_TYPE_X509:
+            wolfSSL_sk_X509_free(sk);
+            break;
+        case STACK_TYPE_CIPHER:
+            wolfSSL_sk_CIPHER_free(sk);
+            break;
+        case STACK_TYPE_GEN_NAME:
+            wolfSSL_sk_ASN1_OBJECT_free(sk);
+            break;
+        case STACK_TYPE_ACCESS_DESCRIPTION:
+            wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(sk,NULL);
+            break;
+        case STACK_TYPE_OBJ:
+            wolfSSL_sk_ASN1_OBJECT_free(sk);
+            break;
+        case STACK_TYPE_NULL:
+            wolfSSL_sk_GENERIC_free(sk);
+            break;
+    #endif
+       default:
+            wolfSSL_sk_ASN1_OBJECT_free(sk);
+    }
+}
+/* Frees each node in the stack and frees the stack.
+ * Does not free any internal members of the stack nodes.
+ */
+void wolfSSL_sk_GENERIC_free(WOLFSSL_STACK* sk)
+{
+    WOLFSSL_STACK* node;
+    WOLFSSL_STACK* tmp;
+    WOLFSSL_ENTER("wolfSSL_sk_GENERIC_free");
+
+    if (sk == NULL)
+        return;
+
+    /* parse through stack freeing each node */
+    node = sk->next;
+    while (node) {
+        tmp  = node;
+        node = node->next;
+        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+
+    /* free head of stack */
+    XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
+}
+
+
+/* Free all nodes in a stack */
+void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
+                                                       wolfSSL_sk_freefunc func)
+{
+    int type;
+    WOLFSSL_ENTER("wolfSSL_sk_pop_free");
+
+    if (sk == NULL) {
+        WOLFSSL_MSG("Error, BAD_FUNC_ARG");
+        return;
+    }
+    type = sk->type;
+    switch(type) {
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        case STACK_TYPE_ACCESS_DESCRIPTION:
+            wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(sk,
+                                   (void (*)(WOLFSSL_ACCESS_DESCRIPTION*))func);
+            break;
+        case STACK_TYPE_X509:
+            wolfSSL_sk_X509_pop_free(sk,(void (*)(WOLFSSL_X509*))func);
+            break;
+        case STACK_TYPE_OBJ:
+            wolfSSL_sk_ASN1_OBJECT_pop_free(sk,
+                                          (void (*)(WOLFSSL_ASN1_OBJECT*))func);
+            break;
+        case STACK_TYPE_GEN_NAME:
+            break;
+    #endif
+        default:
+            wolfSSL_sk_ASN1_OBJECT_pop_free(sk,
+                                          (void (*)(WOLFSSL_ASN1_OBJECT*))func);
+            break;
+    }
 }
 
 #endif /* OPENSSL_EXTRA */
