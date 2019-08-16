@@ -674,19 +674,23 @@ int wc_d2i_PKCS12(const byte* der, word32 derSz, WC_PKCS12* pkcs12)
  * pkcs12 : non-null pkcs12 pointer
  * der    : pointer-pointer to der buffer. If NULL space will be
  *          allocated for der, which must be freed by application.
+ * derSz  : size of buffer passed in when der is not NULL. NULL arg disables
+ *          sanity checks on buffer read/writes. Max size gets set to derSz when
+ *          the "der" buffer passed in is NULL and LENGTH_ONLY_E is returned.
  * return size of DER on success and negative on failure.
  */
-int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der)
+int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
 {
     int ret = 0;
-    word32 seqSz, verSz, totalSz = 0, idx = 0, sdBufSz = 0;
+    word32 seqSz, verSz = 0, totalSz = 0, idx = 0, sdBufSz = 0;
     byte *buf = NULL;
     byte ver[MAX_VERSION_SZ];
     byte seq[MAX_SEQ_SZ];
     byte *sdBuf = NULL;
 
-    if ((pkcs12 == NULL) || (pkcs12->safe == NULL) || (der == NULL)) {
-        ret = BAD_FUNC_ARG;
+    if ((pkcs12 == NULL) || (pkcs12->safe == NULL) ||
+            (der == NULL && derSz == NULL)) {
+        return BAD_FUNC_ARG;
     }
 
     /* Create the MAC portion */
@@ -761,21 +765,40 @@ int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der)
 
         totalSz += 4; /* Seq */
 
-        verSz = SetMyVersion(WC_PKCS12_VERSION_DEFAULT, ver, FALSE);
-        totalSz += verSz;
+        ret = SetMyVersion(WC_PKCS12_VERSION_DEFAULT, ver, FALSE);
+        if (ret > 0) {
+            verSz = (word32)ret;
+            ret   = 0; /* value larger than 0 is success */
+            totalSz += verSz;
 
-        seqSz = SetSequence(totalSz, seq);
-        totalSz += seqSz;
+            seqSz = SetSequence(totalSz, seq);
+            totalSz += seqSz;
 
-        if (*der == NULL) {
-            /* Allocate if requested */
-            buf = (byte*)XMALLOC(totalSz, NULL, DYNAMIC_TYPE_PKCS);
-            if (buf == NULL) {
-                ret = MEMORY_E;
+            /* check if getting length only */
+            if (der == NULL && derSz != NULL) {
+                *derSz = totalSz;
+                XFREE(sdBuf, pkcs12->heap, DYNAMIC_TYPE_PKCS);
+                return LENGTH_ONLY_E;
             }
-        }
-        else {
-            buf = *der;
+
+            if (*der == NULL) {
+                /* Allocate if requested */
+                buf = (byte*)XMALLOC(totalSz, NULL, DYNAMIC_TYPE_PKCS);
+                if (buf == NULL) {
+                    ret = MEMORY_E;
+                }
+            }
+            else {
+                buf = *der;
+
+                /* sanity check on buffer size if passed in */
+                if (derSz != NULL) {
+                    if (*derSz < (int)totalSz) {
+                        WOLFSSL_MSG("Buffer passed in is too small");
+                        ret = BUFFER_E;
+                    }
+                }
+            }
         }
     }
 
@@ -799,7 +822,7 @@ int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der)
         idx += sizeof(WC_PKCS12_DATA_OID);
 
         /* Element */
-        buf[idx++] = 0xA0;
+        buf[idx++] = ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC;
         idx += SetLength(totalSz - sdBufSz - idx - 3, &buf[idx]);
 
         /* Octet string */

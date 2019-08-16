@@ -285,6 +285,9 @@
 #ifdef HAVE_CURVE25519
     #include <wolfssl/wolfcrypt/curve25519.h>
 #endif
+#ifdef HAVE_PKCS12
+    #include <wolfssl/wolfcrypt/pkcs12.h>
+#endif
 
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_ALL))
     #include <wolfssl/openssl/ssl.h>
@@ -17700,6 +17703,52 @@ static void test_PKCS7_signed_enveloped(void)
 #endif
 }
 
+static void test_wc_i2d_PKCS12(void)
+{
+#if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12) \
+    && !defined(NO_FILESYSTEM) && !defined(NO_RSA) \
+    && !defined(NO_AES) && !defined(NO_DES3)
+    WC_PKCS12* pkcs12 = NULL;
+    unsigned char der[FOURK_BUF * 2];
+    unsigned char* pt;
+    int derSz;
+    unsigned char out[FOURK_BUF * 2];
+    int outSz = FOURK_BUF * 2;
+
+    const char p12_f[] = "./certs/test-servercert.p12";
+    XFILE f;
+
+    printf(testingFmt, "wc_i2d_PKCS12");
+
+    AssertNotNull(f = XFOPEN(p12_f, "rb"));
+    derSz = XFREAD(der, 1, sizeof(der), f);
+    AssertIntGT(derSz, 0);
+    XFCLOSE(f);
+
+    AssertNotNull(pkcs12 = wc_PKCS12_new());
+    AssertIntEQ(wc_d2i_PKCS12(der, derSz, pkcs12), 0);
+    AssertIntEQ(wc_i2d_PKCS12(pkcs12, NULL, &outSz), LENGTH_ONLY_E);
+    AssertIntEQ(outSz, derSz);
+
+    outSz = derSz - 1;
+    pt = out;
+    AssertIntLE(wc_i2d_PKCS12(pkcs12, &pt, &outSz), 0);
+
+    outSz = derSz;
+    AssertIntEQ(wc_i2d_PKCS12(pkcs12, &pt, &outSz), derSz);
+    AssertIntEQ((pt == out), 0);
+
+    pt = NULL;
+    AssertIntEQ(wc_i2d_PKCS12(pkcs12, &pt, NULL), derSz);
+    XFREE(pt, NULL, DYNAMIC_TYPE_PKCS);
+    wc_PKCS12_free(pkcs12);
+
+    printf(resultFmt, passed);
+
+#endif
+}
+
+
 /* Testing wc_SignatureGetSize() for signature type ECC */
 static int test_wc_SignatureGetSize_ecc(void)
 {
@@ -25891,6 +25940,8 @@ void ApiTest(void)
     test_wc_PKCS7_Degenerate();
     test_wc_PKCS7_BER();
     test_PKCS7_signed_enveloped();
+
+    test_wc_i2d_PKCS12();
 
     test_wolfSSL_CTX_LoadCRL();
 
