@@ -1022,8 +1022,8 @@ int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
             }
         }
 
-        if (!skip && ProcessFile(NULL, name, type, CRL_TYPE, NULL, 0, crl)
-                                                           != WOLFSSL_SUCCESS) {
+        if (!skip && ProcessFile(NULL, name, type, CRL_TYPE, NULL, 0, crl,
+                                 NO_VERIFY) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("CRL file load failed, continuing");
         }
 
