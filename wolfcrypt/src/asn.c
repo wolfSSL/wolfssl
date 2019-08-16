@@ -9088,7 +9088,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     int         sz          = (int)longSz;
     int         encrypted_key = 0;
     DerBuffer*  der;
+#if defined(HAVE_PKCS8) || defined(WOLFSSL_ENCRYPTED_KEYS)
     word32      algId = 0;
+#endif
 
     WOLFSSL_ENTER("PemToDer");
 
@@ -9215,6 +9217,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 #endif
         ) && !encrypted_key)
     {
+    #ifdef HAVE_PKCS8
         /* pkcs8 key, convert and adjust length */
         if ((ret = ToTraditional_ex(der->buffer, der->length, &algId)) > 0) {
             der->length = ret;
@@ -9222,6 +9225,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         else {
             /* ignore failure here and assume key is not pkcs8 wrapped */
         }
+    #endif
 
         return 0;
     }
@@ -13986,6 +13990,7 @@ int wc_EccPrivateKeyToDer(ecc_key* key, byte* output, word32 inLen)
     return wc_BuildEccKeyDer(key, output, inLen, 0);
 }
 
+#ifdef HAVE_PKCS8
 /* Write only private ecc key to unencrypted PKCS#8 format.
  *
  * If output is NULL, places required PKCS#8 buffer size in outLen and
@@ -14054,7 +14059,7 @@ int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output, word32* outLen)
     *outLen = ret;
     return ret;
 }
-
+#endif /* HAVE_PKCS8 */
 #endif /* HAVE_ECC_KEY_EXPORT && !NO_ASN_CRYPT */
 #endif /* HAVE_ECC */
 

@@ -16876,6 +16876,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
         goto done;
     }
 
+#ifdef HAVE_PKCS8
     /* test export of PKCS#8 unencrypted private key */
     pkcs8Sz = FOURK_BUF;
     derSz = wc_EccPrivateKeyToPKCS8(&userA, der, &pkcs8Sz);
@@ -16892,6 +16893,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
     if (ret != 0) {
         goto done;
     }
+#endif /* HAVE_PKCS8 */
 
 done:
 

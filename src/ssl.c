@@ -4767,6 +4767,19 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             if (ret == 0) {
                 XMEMCPY(der->buffer, buff, length);
             }
+
+        #ifdef HAVE_PKCS8
+            /* if private key try and remove PKCS8 header */
+            if (type == PRIVATEKEY_TYPE) {
+                word32 algId = 0;
+                if ((ret = ToTraditional_ex(der->buffer, der->length, &algId)) > 0) {
+                    /* Found PKCS8 header */
+                    /* ToTraditional_ex moves buff and returns adjusted length */
+                    der->length = ret;
+                }
+                ret = 0; /* failures should be ignored */
+            }
+        #endif
         }
     }
 

@@ -4419,12 +4419,14 @@ static WC_INLINE int PKCS8TestCallBack(char* passwd, int sz, int rw, void* userd
 /* Testing functions dealing with PKCS8 */
 static void test_wolfSSL_PKCS8(void)
 {
-#if !defined(NO_FILESYSTEM) && !defined(NO_ASN)
+#if !defined(NO_FILESYSTEM) && !defined(NO_ASN) && defined(HAVE_PKCS8)
     byte buffer[FOURK_BUF];
     byte der[FOURK_BUF];
     const char eccPkcs8PrivKeyFile[] = "./certs/ecc-privkeyPkcs8.pem";
+    const char serverKeyPkcs8DerFile[] = "./certs/server-keyPkcs8.der";
     XFILE f;
     int bytes;
+    WOLFSSL_CTX* ctx;
 #ifdef HAVE_ECC
     int ret;
     ecc_key key;
@@ -4436,16 +4438,9 @@ static void test_wolfSSL_PKCS8(void)
     #define TEST_PKCS8_ENC
     const char serverKeyPkcs8EncFile[] = "./certs/server-keyPkcs8Enc.pem";
     int flag = 1;
-    WOLFSSL_CTX* ctx;
 #endif
 
     printf(testingFmt, "wolfSSL_PKCS8()");
-
-#ifdef TEST_PKCS8_ENC
-    f = XFOPEN(serverKeyPkcs8EncFile, "rb");
-    AssertTrue((f != XBADFILE));
-    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
-    XFCLOSE(f);
 
 #ifndef NO_WOLFSSL_CLIENT
     #ifndef WOLFSSL_NO_TLS12
@@ -4460,6 +4455,13 @@ static void test_wolfSSL_PKCS8(void)
         AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
     #endif
 #endif
+
+#ifdef TEST_PKCS8_ENC
+    f = XFOPEN(serverKeyPkcs8EncFile, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    XFCLOSE(f);
+
     wolfSSL_CTX_set_default_passwd_cb(ctx, &PKCS8TestCallBack);
     wolfSSL_CTX_set_default_passwd_cb_userdata(ctx, (void*)&flag);
     AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
@@ -4472,14 +4474,24 @@ static void test_wolfSSL_PKCS8(void)
     AssertIntNE(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
                 SSL_FILETYPE_PEM), SSL_SUCCESS);
 
-    wolfSSL_CTX_free(ctx);
-
     /* decrypt PKCS8 PEM to key in DER format with not using WOLFSSL_CTX */
     AssertIntGT(wc_KeyPemToDer(buffer, bytes, der, FOURK_BUF, "yassl123"), 0);
 
     /* test that error value is returned with a bad password */
     AssertIntLT(wc_KeyPemToDer(buffer, bytes, der, FOURK_BUF, "bad"), 0);
 #endif /* TEST_PKCS8_ENC */
+
+
+    /* test loading ASN.1 (DER) PKCS8 private key file (not encrypted) */
+    f = XFOPEN(serverKeyPkcs8DerFile, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    XFCLOSE(f);
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+                SSL_FILETYPE_ASN1), SSL_SUCCESS);
+
+    wolfSSL_CTX_free(ctx);
+
 
     /* Test PKCS8 PEM ECC key no crypt */
     f = XFOPEN(eccPkcs8PrivKeyFile, "rb");
@@ -4502,7 +4514,7 @@ static void test_wolfSSL_PKCS8(void)
 #endif
 
     printf(resultFmt, passed);
-#endif /* !NO_FILESYSTEM && !NO_ASN */
+#endif /* !NO_FILESYSTEM && !NO_ASN && HAVE_PKCS8 */
 }
 
 /* Testing functions dealing with PKCS5 */
@@ -23107,7 +23119,7 @@ static void test_no_op_functions(void)
 
 static void test_wc_GetPkcs8TraditionalOffset(void)
 {
-#if !defined(NO_ASN) && !defined(NO_FILESYSTEM)
+#if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(HAVE_PKCS8)
     int length, derSz;
     word32 inOutIdx;
     const char* path = "./certs/server-keyPkcs8.der";
