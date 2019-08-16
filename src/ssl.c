@@ -4258,14 +4258,18 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 
     WOLFSSL_MSG("Adding a CA");
 
-    if (cm == NULL)
+    if (cm == NULL) {
+        FreeDer(pDer);
         return BAD_FUNC_ARG;
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
                                  DYNAMIC_TYPE_DCERT);
-    if (cert == NULL)
+    if (cert == NULL) {
+        FreeDer(pDer);
         return MEMORY_E;
+    }
 #endif
 
     InitDecodedCert(cert, der->buffer, der->length, cm->heap);
