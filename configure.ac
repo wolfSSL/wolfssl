@@ -4395,6 +4395,26 @@ then
 fi
 
 
+# When building for wolfRand, strip out all options to disable everything.
+AS_IF([test "x$ENABLED_FIPS" = "xyes" && test "x$FIPS_VERSION" = "xrand"],
+[NEW_AM_CFLAGS="-DNO_AES -DNO_DH -DNO_ASN -DNO_RSA -DNO_SHA -DNO_MD5 -DNO_BIG_INT"
+for v in $AM_CFLAGS
+do
+  case $v in
+-DHAVE_FFDHE_2048 | -DTFM_TIMING_RESISTANT | -DECC_TIMING_RESISTANT | \
+-DWC_RSA_BLINDING | -DHAVE_AESGCM | -DWOLFSSL_SHA512 | -DWOLFSSL_SHA384 | \
+-DHAVE_ECC | -DTFM_ECC256 | -DECC_SHAMIR | -DHAVE_TLS_EXTENSIONS | \
+-DHAVE_SUPPORTED_CURVES | -DHAVE_EXTENDED_MASTER | -DUSE_FAST_MATH)
+    AS_ECHO(["ignoring $v"])
+    ;;
+  *)
+    NEW_AM_CFLAGS="$NEW_AM_CFLAGS $v"
+    ;;
+  esac
+done
+AM_CFLAGS=$NEW_AM_CFLAGS])
+
+
 ################################################################################
 # Check for build-type conflicts                                               #
 ################################################################################
