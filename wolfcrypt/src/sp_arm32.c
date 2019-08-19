@@ -4870,7 +4870,7 @@ static int sp_2048_mod_exp_32(sp_digit* r, sp_digit* a, sp_digit* e,
         c -= bits % 4;
         if (c == 32)
             c = 28;
-        y = n >> c;
+        y = (int)(n >> c);
         n <<= 32 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 32);
         for (; i>=0 || c>=4; ) {
@@ -5014,7 +5014,7 @@ static int sp_2048_mod_exp_32(sp_digit* r, sp_digit* a, sp_digit* e,
         c -= bits % 5;
         if (c == 32)
             c = 27;
-        y = n >> c;
+        y = (int)(n >> c);
         n <<= 32 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 32);
         for (; i>=0 || c>=5; ) {
@@ -7118,7 +7118,7 @@ static int sp_2048_mod_exp_64(sp_digit* r, sp_digit* a, sp_digit* e,
         c -= bits % 4;
         if (c == 32)
             c = 28;
-        y = n >> c;
+        y = (int)(n >> c);
         n <<= 32 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 64);
         for (; i>=0 || c>=4; ) {
@@ -7262,7 +7262,7 @@ static int sp_2048_mod_exp_64(sp_digit* r, sp_digit* a, sp_digit* e,
         c -= bits % 5;
         if (c == 32)
             c = 27;
-        y = n >> c;
+        y = (int)(n >> c);
         n <<= 32 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 64);
         for (; i>=0 || c>=5; ) {
@@ -8118,7 +8118,7 @@ static int sp_2048_mod_exp_2_64(sp_digit* r, sp_digit* e, int bits,
         c -= bits % 5;
         if (c == 32)
             c = 27;
-        y = n >> c;
+        y = (int)(n >> c);
         n <<= 32 - c;
         sp_2048_lshift_64(r, norm, y);
         for (; i>=0 || c>=5; ) {
@@ -15267,7 +15267,7 @@ static int sp_3072_mod_exp_48(sp_digit* r, sp_digit* a, sp_digit* e,
         c -= bits % 4;
         if (c == 32)
             c = 28;
-        y = n >> c;
+        y = (int)(n >> c);
         n <<= 32 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 48);
         for (; i>=0 || c>=4; ) {
@@ -15411,7 +15411,7 @@ static int sp_3072_mod_exp_48(sp_digit* r, sp_digit* a, sp_digit* e,
         c -= bits % 5;
         if (c == 32)
             c = 27;
-        y = n >> c;
+        y = (int)(n >> c);
         n <<= 32 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 48);
         for (; i>=0 || c>=5; ) {
@@ -18315,7 +18315,7 @@ static int sp_3072_mod_exp_96(sp_digit* r, sp_digit* a, sp_digit* e,
         c -= bits % 4;
         if (c == 32)
             c = 28;
-        y = n >> c;
+        y = (int)(n >> c);
         n <<= 32 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 96);
         for (; i>=0 || c>=4; ) {
@@ -18459,7 +18459,7 @@ static int sp_3072_mod_exp_96(sp_digit* r, sp_digit* a, sp_digit* e,
         c -= bits % 5;
         if (c == 32)
             c = 27;
-        y = n >> c;
+        y = (int)(n >> c);
         n <<= 32 - c;
         XMEMCPY(r, t[y], sizeof(sp_digit) * 96);
         for (; i>=0 || c>=5; ) {
@@ -19507,7 +19507,7 @@ static int sp_3072_mod_exp_2_96(sp_digit* r, sp_digit* e, int bits,
         c -= bits % 5;
         if (c == 32)
             c = 27;
-        y = n >> c;
+        y = (int)(n >> c);
         n <<= 32 - c;
         sp_3072_lshift_96(r, norm, y);
         for (; i>=0 || c>=5; ) {
