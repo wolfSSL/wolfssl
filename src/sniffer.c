@@ -4123,6 +4123,8 @@ int ssl_EnableRecovery(int onOff, int maxMemory, char* error)
 
 
 
+#ifdef WOLFSSL_SESSION_STATS
+
 int ssl_GetSessionStats(unsigned int* active,     unsigned int* total,
                         unsigned int* peak,       unsigned int* maxSessions,
                         unsigned int* missedData, unsigned int* reassemblyMem,
@@ -4162,6 +4164,8 @@ int ssl_GetSessionStats(unsigned int* active,     unsigned int* total,
         return -1;
     }
 }
+
+#endif
 
 
 
