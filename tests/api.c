@@ -16029,7 +16029,7 @@ static void test_wc_PKCS7_InitWithCert (void)
         fp = XFOPEN("./certs/1024/client-cert.der", "rb");
         AssertTrue(fp != XBADFILE);
 
-        certSz = XFREAD(cert, 1, sizeof_client_cert_der_1024, fp);
+        certSz = (int)XFREAD(cert, 1, sizeof_client_cert_der_1024, fp);
         XFCLOSE(fp);
     #endif
 #elif defined(HAVE_ECC)
@@ -16046,7 +16046,7 @@ static void test_wc_PKCS7_InitWithCert (void)
 
         AssertTrue(fp != XBADFILE);
 
-        certSz = XFREAD(cert, 1, sizeof_cliecc_cert_der_256, fp);
+        certSz = (int)XFREAD(cert, 1, sizeof_cliecc_cert_der_256, fp);
         XFCLOSE(fp);
     #endif
 #else
@@ -16116,12 +16116,12 @@ static void test_wc_PKCS7_EncodeData (void)
 
         fp = XFOPEN("./certs/1024/client-cert.der", "rb");
         AssertTrue(fp != XBADFILE);
-        certSz = XFREAD(cert, 1, sizeof_client_cert_der_1024, fp);
+        certSz = (int)XFREAD(cert, 1, sizeof_client_cert_der_1024, fp);
         XFCLOSE(fp);
 
         fp = XFOPEN("./certs/1024/client-key.der", "rb");
         AssertTrue(fp != XBADFILE);
-        keySz = XFREAD(key, 1, sizeof_client_key_der_1024, fp);
+        keySz = (int)XFREAD(key, 1, sizeof_client_key_der_1024, fp);
         XFCLOSE(fp);
     #endif
 #elif defined(HAVE_ECC)
@@ -16142,12 +16142,12 @@ static void test_wc_PKCS7_EncodeData (void)
 
         fp = XFOPEN("./certs/client-ecc-cert.der", "rb");
         AssertTrue(fp != XBADFILE);
-        certSz = XFREAD(cert, 1, sizeof_cliecc_cert_der_256, fp);
+        certSz = (int)XFREAD(cert, 1, sizeof_cliecc_cert_der_256, fp);
         XFCLOSE(fp);
 
         fp = XFOPEN("./certs/client-ecc-key.der", "rb");
         AssertTrue(fp != XBADFILE);
-        keySz = XFREAD(key, 1, sizeof_ecc_clikey_der_256, fp);
+        keySz = (int)XFREAD(key, 1, sizeof_ecc_clikey_der_256, fp);
         XFCLOSE(fp);
     #endif
 #endif
@@ -16223,12 +16223,12 @@ static void test_wc_PKCS7_EncodeSignedData(void)
 
         fp = XFOPEN("./certs/1024/client-cert.der", "rb");
         AssertTrue(fp != XBADFILE);
-        certSz = XFREAD(cert, 1, sizeof_client_cert_der_1024, fp);
+        certSz = (int)XFREAD(cert, 1, sizeof_client_cert_der_1024, fp);
         XFCLOSE(fp);
 
         fp = XFOPEN("./certs/1024/client-key.der", "rb");
         AssertTrue(fp != XBADFILE);
-        keySz = XFREAD(key, 1, sizeof_client_key_der_1024, fp);
+        keySz = (int)XFREAD(key, 1, sizeof_client_key_der_1024, fp);
         XFCLOSE(fp);
     #endif
 #elif defined(HAVE_ECC)
@@ -16249,12 +16249,12 @@ static void test_wc_PKCS7_EncodeSignedData(void)
 
         fp = XOPEN("./certs/client-ecc-cert.der", "rb");
         AssertTrue(fp != XBADFILE);
-        certSz = XFREAD(cert, 1, sizeof_cliecc_cert_der_256, fp);
+        certSz = (int)XFREAD(cert, 1, sizeof_cliecc_cert_der_256, fp);
         XFCLOSE(fp);
 
         fp = XFOPEN("./certs/client-ecc-key.der", "rb");
         AssertTrue(fp != XBADFILE);
-        keySz = XFREAD(key, 1, sizeof_ecc_clikey_der_256, fp);
+        keySz = (int)XFREAD(key, 1, sizeof_ecc_clikey_der_256, fp);
         XFCLOSE(fp);
     #endif
 #endif
@@ -16347,12 +16347,12 @@ static void test_wc_PKCS7_EncodeSignedData_ex(void)
 
         fp = XFOPEN("./certs/1024/client-cert.der", "rb");
         AssertTrue((fp != XBADFILE));
-        certSz = XFREAD(cert, 1, sizeof_client_cert_der_1024, fp);
+        certSz = (int)XFREAD(cert, 1, sizeof_client_cert_der_1024, fp);
         XFCLOSE(fp);
 
         fp = XFOPEN("./certs/1024/client-key.der", "rb");
         AssertTrue(fp != XBADFILE);
-        keySz = XFREAD(key, 1, sizeof_client_key_der_1024, fp);
+        keySz = (int)XFREAD(key, 1, sizeof_client_key_der_1024, fp);
         XFCLOSE(fp);
     #endif
 #elif defined(HAVE_ECC)
@@ -16373,12 +16373,12 @@ static void test_wc_PKCS7_EncodeSignedData_ex(void)
 
         fp = XFOPEN("./certs/client-ecc-cert.der", "rb");
         AssertTrue(fp != XBADFILE);
-        certSz = XFREAD(cert, 1, sizeof_cliecc_cert_der_256, fp);
+        certSz = (int)XFREAD(cert, 1, sizeof_cliecc_cert_der_256, fp);
         XFCLOSE(fp);
 
         fp = XFOPEN("./certs/client-ecc-key.der", "rb");
         AssertTrue(fp != XBADFILE);
-        keySz = XFREAD(key, 1, sizeof_ecc_clikey_der_256, fp);
+        keySz = (int)XFREAD(key, 1, sizeof_ecc_clikey_der_256, fp);
         XFCLOSE(fp);
     #endif
 #endif
@@ -17721,7 +17721,7 @@ static void test_wc_i2d_PKCS12(void)
     printf(testingFmt, "wc_i2d_PKCS12");
 
     AssertNotNull(f = XFOPEN(p12_f, "rb"));
-    derSz = XFREAD(der, 1, sizeof(der), f);
+    derSz = (int)XFREAD(der, 1, sizeof(der), f);
     AssertIntGT(derSz, 0);
     XFCLOSE(f);
 
@@ -17852,7 +17852,7 @@ static int test_wc_SignatureGetSize_rsa(void)
             #elif !defined(NO_FILESYSTEM)
                 file = XFOPEN(clientKey, "rb");
                 if (file != XBADFILE) {
-                    bytes = XFREAD(tmp, 1, FOURK_BUF, file);
+                    bytes = (size_t)XFREAD(tmp, 1, FOURK_BUF, file);
                     XFCLOSE(file);
                 }
                 else {
@@ -18827,7 +18827,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
 
         f = XFOPEN("./certs/ecc-key.der", "rb");
         AssertTrue((f != XBADFILE));
-        bytes = XFREAD(buf, 1, sizeof(buf), f);
+        bytes = (size_t)XFREAD(buf, 1, sizeof(buf), f);
         XFCLOSE(f);
 
         server_key = buf;
@@ -24071,12 +24071,12 @@ static void test_wolfSSL_PEM_write_bio_PKCS7(void)
 
         fp = XFOPEN("./certs/1024/client-cert.der", "rb");
         AssertTrue((fp != XBADFILE));
-        certSz = XFREAD(cert, 1, sizeof_client_cert_der_1024, fp);
+        certSz = (int)XFREAD(cert, 1, sizeof_client_cert_der_1024, fp);
         XFCLOSE(fp);
 
         fp = XFOPEN("./certs/1024/client-key.der", "rb");
         AssertTrue(fp != XBADFILE);
-        keySz = XFREAD(key, 1, sizeof_client_key_der_1024, fp);
+        keySz = (int)XFREAD(key, 1, sizeof_client_key_der_1024, fp);
         XFCLOSE(fp);
     #endif
 #elif defined(HAVE_ECC)
@@ -24097,12 +24097,12 @@ static void test_wolfSSL_PEM_write_bio_PKCS7(void)
 
         fp = XFOPEN("./certs/client-ecc-cert.der", "rb");
         AssertTrue(fp != XBADFILE);
-        certSz = XFREAD(cert, 1, sizeof_cliecc_cert_der_256, fp);
+        certSz = (int)XFREAD(cert, 1, sizeof_cliecc_cert_der_256, fp);
         XFCLOSE(fp);
 
         fp = XFOPEN("./certs/client-ecc-key.der", "rb");
         AssertTrue(fp != XBADFILE);
-        keySz = XFREAD(key, 1, sizeof_ecc_clikey_der_256, fp);
+        keySz = (int)XFREAD(key, 1, sizeof_ecc_clikey_der_256, fp);
         XFCLOSE(fp);
     #endif
 #else

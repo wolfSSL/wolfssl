@@ -682,7 +682,7 @@ int wc_d2i_PKCS12(const byte* der, word32 derSz, WC_PKCS12* pkcs12)
 int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
 {
     int ret = 0;
-    word32 seqSz, verSz = 0, totalSz = 0, idx = 0, sdBufSz = 0;
+    word32 seqSz = 0, verSz = 0, totalSz = 0, idx = 0, sdBufSz = 0;
     byte *buf = NULL;
     byte ver[MAX_VERSION_SZ];
     byte seq[MAX_SEQ_SZ];
