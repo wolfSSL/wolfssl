@@ -22365,8 +22365,10 @@ static void test_wolfSSL_X509_set_name(void)
 
 static void test_wolfSSL_X509_set_notAfter(void)
 {
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD) \
-    && !defined(NO_ASN1_TIME) && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) \
+    && !defined(NO_ASN1_TIME) && !defined(USER_TIME) && \
+    !defined(TIME_OVERRIDES) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
 
     X509* x;
     BIO*  bio;
@@ -22416,8 +22418,10 @@ static void test_wolfSSL_X509_set_notAfter(void)
 
 static void test_wolfSSL_X509_set_notBefore(void)
 {
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD) \
-    && !defined(NO_ASN1_TIME) && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) \
+    && !defined(NO_ASN1_TIME) && !defined(USER_TIME) && \
+    !defined(TIME_OVERRIDES) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
 
     X509* x;
     BIO*  bio;
@@ -22470,7 +22474,8 @@ static void test_wolfSSL_X509_set_notBefore(void)
 
 static void test_wolfSSL_X509_set_version(void)
 {
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && \
+    !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
     X509* x509;
     long v = 2L;
 
