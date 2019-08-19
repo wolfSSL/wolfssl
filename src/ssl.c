@@ -4704,6 +4704,10 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     int           devId = wolfSSL_CTX_GetDevId(ctx, ssl);
     word32        idx = 0;
     int           keySz = 0;
+#if (defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)) || \
+     defined(HAVE_PKCS8)
+    word32        algId = 0;
+#endif
 #ifdef WOLFSSL_SMALL_STACK
     EncryptedInfo* info = NULL;
 #else
@@ -4734,7 +4738,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 #endif
 
     XMEMSET(info, 0, sizeof(EncryptedInfo));
-#ifdef WOLFSSL_ENCRYPTED_KEYS
+#if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)
     if (ctx) {
         info->passwd_cb       = ctx->passwd_cb;
         info->passwd_userdata = ctx->passwd_userdata;
@@ -4771,7 +4775,6 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #ifdef HAVE_PKCS8
             /* if private key try and remove PKCS8 header */
             if (type == PRIVATEKEY_TYPE) {
-                word32 algId = 0;
                 if ((ret = ToTraditional_ex(der->buffer, der->length, &algId)) > 0) {
                     /* Found PKCS8 header */
                     /* ToTraditional_ex moves buff and returns adjusted length */
@@ -4799,46 +4802,48 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         }
     }
 
-#ifdef WOLFSSL_ENCRYPTED_KEYS
-    /* for WOLFSSL_FILETYPE_PEM, PemToDer manage the decryption if required */
-    if (ret >= 0 && info->set && format != WOLFSSL_FILETYPE_PEM) {
-        /* decrypt */
+#if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)
+    /* for WOLFSSL_FILETYPE_PEM, PemToDer manages the decryption */
+    /* If private key type PKCS8 header wasn't already removed (algoId == 0) */
+    if (ret >= 0 && format != WOLFSSL_FILETYPE_PEM && info->passwd_cb &&
+        type == PRIVATEKEY_TYPE && algId == 0)
+    {
         int   passwordSz = NAME_SZ;
-#ifdef WOLFSSL_SMALL_STACK
-        char* password = NULL;
-#else
+    #ifndef WOLFSSL_SMALL_STACK
         char  password[NAME_SZ];
-#endif
-
-    #ifdef WOLFSSL_SMALL_STACK
-        password = (char*)XMALLOC(passwordSz, heap, DYNAMIC_TYPE_STRING);
-        if (password == NULL)
-            ret = MEMORY_E;
-        else
-    #endif
-        if (info->passwd_cb == NULL) {
-            WOLFSSL_MSG("No password callback set");
-            ret = NO_PASSWORD;
+    #else
+        char* password = (char*)XMALLOC(passwordSz, heap, DYNAMIC_TYPE_STRING);
+        if (password == NULL) {
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
+        #endif
+            FreeDer(&der);
+            return MEMORY_E;
         }
-        else {
-            ret = info->passwd_cb(password, passwordSz, PEM_PASS_READ,
-                info->passwd_userdata);
+    #endif
+        /* get password */
+        ret = info->passwd_cb(password, passwordSz, PEM_PASS_READ,
+            info->passwd_userdata);
+        if (ret >= 0) {
+            passwordSz = ret;
+
+            /* PKCS8 decrypt */
+            ret = ToTraditionalEnc(der->buffer, der->length,
+                                   password, passwordSz, &algId);
             if (ret >= 0) {
-                passwordSz = ret;
-
-                /* decrypt the key */
-                ret = wc_BufferKeyDecrypt(info, der->buffer, der->length,
-                    (byte*)password, passwordSz, WC_MD5);
-
-                ForceZero(password, passwordSz);
+                der->length = ret;
             }
+            printf("ToTraditionalEnc ret %d\n", ret);
+            ret = 0; /* ignore failures and try parsing directly unencrypted */
+
+            ForceZero(password, passwordSz);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(password, heap, DYNAMIC_TYPE_STRING);
     #endif
     }
-#endif /* WOLFSSL_ENCRYPTED_KEYS */
+#endif /* WOLFSSL_ENCRYPTED_KEYS && !NO_PWDBASED */
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
@@ -4924,6 +4929,15 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     }
 
     if (type == PRIVATEKEY_TYPE && format != WOLFSSL_FILETYPE_RAW) {
+    #if defined(WOLFSSL_ENCRYPTED_KEYS) || defined(HAVE_PKCS8)
+        /* attempt to detect key type */
+        if (algId == RSAk)
+            rsaKey = 1;
+        else if (algId == ECDSAk)
+            eccKey = 1;
+        else if (algId == ED25519k)
+            ed25519Key = 1;
+    #endif
     #ifndef NO_RSA
         if (!eccKey && !ed25519Key) {
             /* make sure RSA key can be used */

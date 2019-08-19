@@ -4389,9 +4389,13 @@ static void test_wolfSSL_PKCS12(void)
 }
 
 
-#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
-        !defined(NO_DES3) && !defined(NO_FILESYSTEM) && \
-        !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA)
+#if !defined(NO_FILESYSTEM) && !defined(NO_ASN) && defined(HAVE_PKCS8) && \
+    defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3) && \
+    !defined(NO_PWDBASED) && !defined(NO_RSA)
+    #define TEST_PKCS8_ENC
+#endif
+
+#ifdef TEST_PKCS8_ENC
 /* for PKCS8 test case */
 static WC_INLINE int PKCS8TestCallBack(char* passwd, int sz, int rw, void* userdata)
 {
@@ -4406,15 +4410,14 @@ static WC_INLINE int PKCS8TestCallBack(char* passwd, int sz, int rw, void* userd
         case 1: /* flag set for specific WOLFSSL_CTX structure, note userdata
                  * can be anything the user wishes to be passed to the callback
                  * associated with the WOLFSSL_CTX */
-            strncpy(passwd, "yassl123", sz);
+            XSTRNCPY(passwd, "yassl123", sz);
             return 8;
 
-       default:
+        default:
             return BAD_FUNC_ARG;
     }
 }
-#endif
-
+#endif /* TEST_PKCS8_ENC */
 
 /* Testing functions dealing with PKCS8 */
 static void test_wolfSSL_PKCS8(void)
@@ -4422,7 +4425,9 @@ static void test_wolfSSL_PKCS8(void)
 #if !defined(NO_FILESYSTEM) && !defined(NO_ASN) && defined(HAVE_PKCS8)
     byte buffer[FOURK_BUF];
     byte der[FOURK_BUF];
-    const char eccPkcs8PrivKeyFile[] = "./certs/ecc-privkeyPkcs8.pem";
+    const char eccPkcs8PrivKeyPemFile[] = "./certs/ecc-privkeyPkcs8.pem";
+    const char eccPkcs8PrivKeyDerFile[] = "./certs/ecc-privkeyPkcs8.der";
+    const char serverKeyPkcs8PemFile[] = "./certs/server-keyPkcs8.pem";
     const char serverKeyPkcs8DerFile[] = "./certs/server-keyPkcs8.der";
     XFILE f;
     int bytes;
@@ -4432,12 +4437,14 @@ static void test_wolfSSL_PKCS8(void)
     ecc_key key;
     word32 x = 0;
 #endif
-#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
-     defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3) && \
-    !defined(NO_PWDBASED) && !defined(NO_RSA)
-    #define TEST_PKCS8_ENC
-    const char serverKeyPkcs8EncFile[] = "./certs/server-keyPkcs8Enc.pem";
-    int flag = 1;
+#ifdef TEST_PKCS8_ENC
+    const char serverKeyPkcs8EncPemFile[] = "./certs/server-keyPkcs8Enc.pem";
+    const char serverKeyPkcs8EncDerFile[] = "./certs/server-keyPkcs8Enc.der";
+    #ifdef HAVE_ECC
+        const char eccPkcs8EncPrivKeyPemFile[] = "./certs/ecc-keyPkcs8Enc.pem";
+        const char eccPkcs8EncPrivKeyDerFile[] = "./certs/ecc-keyPkcs8Enc.der";
+    #endif
+    int flag;
 #endif
 
     printf(testingFmt, "wolfSSL_PKCS8()");
@@ -4457,28 +4464,85 @@ static void test_wolfSSL_PKCS8(void)
 #endif
 
 #ifdef TEST_PKCS8_ENC
-    f = XFOPEN(serverKeyPkcs8EncFile, "rb");
+    wolfSSL_CTX_set_default_passwd_cb(ctx, PKCS8TestCallBack);
+    wolfSSL_CTX_set_default_passwd_cb_userdata(ctx, (void*)&flag);
+
+    /* test loading PEM PKCS8 encrypted file */
+    f = XFOPEN(serverKeyPkcs8EncPemFile, "rb");
     AssertTrue((f != XBADFILE));
     bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
     XFCLOSE(f);
-
-    wolfSSL_CTX_set_default_passwd_cb(ctx, &PKCS8TestCallBack);
-    wolfSSL_CTX_set_default_passwd_cb_userdata(ctx, (void*)&flag);
+    flag = 1; /* used by password callback as return code */
     AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
-                SSL_FILETYPE_PEM), SSL_SUCCESS);
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
-    /* this next case should fail if setting the user flag to a value other
-     * than 1 due to the password callback functions return value */
-    flag = 0;
-    wolfSSL_CTX_set_default_passwd_cb_userdata(ctx, (void*)&flag);
+    /* this next case should fail because of password callback return code */
+    flag = 0; /* used by password callback as return code */
     AssertIntNE(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
-                SSL_FILETYPE_PEM), SSL_SUCCESS);
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
     /* decrypt PKCS8 PEM to key in DER format with not using WOLFSSL_CTX */
-    AssertIntGT(wc_KeyPemToDer(buffer, bytes, der, FOURK_BUF, "yassl123"), 0);
+    AssertIntGT(wc_KeyPemToDer(buffer, bytes, der, (word32)sizeof(der),
+        "yassl123"), 0);
 
     /* test that error value is returned with a bad password */
-    AssertIntLT(wc_KeyPemToDer(buffer, bytes, der, FOURK_BUF, "bad"), 0);
+    AssertIntLT(wc_KeyPemToDer(buffer, bytes, der, (word32)sizeof(der),
+        "bad"), 0);
+
+    /* test loading PEM PKCS8 encrypted file */
+    f = XFOPEN(serverKeyPkcs8EncDerFile, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    XFCLOSE(f);
+    flag = 1; /* used by password callback as return code */
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    /* this next case should fail because of password callback return code */
+    flag = 0; /* used by password callback as return code */
+    AssertIntNE(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    #ifdef HAVE_ECC
+    /* test loading PEM PKCS8 encrypted ECC Key file */
+    f = XFOPEN(eccPkcs8EncPrivKeyPemFile, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    XFCLOSE(f);
+    flag = 1; /* used by password callback as return code */
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    /* this next case should fail because of password callback return code */
+    flag = 0; /* used by password callback as return code */
+    AssertIntNE(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    /* decrypt PKCS8 PEM to key in DER format with not using WOLFSSL_CTX */
+    AssertIntGT(wc_KeyPemToDer(buffer, bytes, der, (word32)sizeof(der),
+        "yassl123"), 0);
+
+    /* test that error value is returned with a bad password */
+    AssertIntLT(wc_KeyPemToDer(buffer, bytes, der, (word32)sizeof(der),
+        "bad"), 0);
+
+    /* test loading DER PKCS8 encrypted ECC Key file */
+    f = XFOPEN(eccPkcs8EncPrivKeyDerFile, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    XFCLOSE(f);
+    flag = 1; /* used by password callback as return code */
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    /* this next case should fail because of password callback return code */
+    flag = 0; /* used by password callback as return code */
+    AssertIntNE(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    /* leave flag as "okay" */
+    flag = 1;
+    #endif
 #endif /* TEST_PKCS8_ENC */
 
 
@@ -4488,20 +4552,31 @@ static void test_wolfSSL_PKCS8(void)
     bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
     XFCLOSE(f);
     AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
-                SSL_FILETYPE_ASN1), SSL_SUCCESS);
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 
-    wolfSSL_CTX_free(ctx);
+    /* test loading PEM PKCS8 private key file (not encrypted) */
+    f = XFOPEN(serverKeyPkcs8PemFile, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    XFCLOSE(f);
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
 
     /* Test PKCS8 PEM ECC key no crypt */
-    f = XFOPEN(eccPkcs8PrivKeyFile, "rb");
+    f = XFOPEN(eccPkcs8PrivKeyPemFile, "rb");
     AssertTrue((f != XBADFILE));
     bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
     XFCLOSE(f);
 
-    /* decrypt PKCS8 PEM to key in DER format with not using WOLFSSL_CTX */
 #ifdef HAVE_ECC
-    AssertIntGT((bytes = wc_KeyPemToDer(buffer, bytes, der, FOURK_BUF, NULL)), 0);
+    /* Test PKCS8 PEM ECC key no crypt */
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    /* decrypt PKCS8 PEM to key in DER format */
+    AssertIntGT((bytes = wc_KeyPemToDer(buffer, bytes, der,
+        (word32)sizeof(der), NULL)), 0);
     ret = wc_ecc_init(&key);
     if (ret == 0) {
         ret = wc_EccPrivateKeyDecode(der, &x, &key, bytes);
@@ -4509,9 +4584,23 @@ static void test_wolfSSL_PKCS8(void)
     }
     AssertIntEQ(ret, 0);
 #else
-    AssertIntEQ((bytes = wc_KeyPemToDer(buffer, bytes, der, FOURK_BUF, NULL)),
-        ASN_NO_PEM_HEADER);
+    AssertIntEQ((bytes = wc_KeyPemToDer(buffer, bytes, der,
+        (word32)sizeof(der), NULL)), ASN_NO_PEM_HEADER);
 #endif
+
+#ifdef HAVE_ECC
+    /* Test PKCS8 DER ECC key no crypt */
+    f = XFOPEN(eccPkcs8PrivKeyDerFile, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    XFCLOSE(f);
+
+    /* Test using a PKCS8 ECC PEM */
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+#endif
+
+    wolfSSL_CTX_free(ctx);
 
     printf(resultFmt, passed);
 #endif /* !NO_FILESYSTEM && !NO_ASN && HAVE_PKCS8 */
