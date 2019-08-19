@@ -193,6 +193,12 @@
 /* Uncomment next line if using ARM CRYPTOCELL*/
 /* #define WOLFSSL_CRYPTOCELL */
 
+/* Uncomment next line if using RENESAS TSIP */
+/* #define WOLFSSL_RENESAS_TSIP */
+
+/* Uncomment next line if using RENESAS RX64N */
+/* #define WOLFSSL_RENESAS_RX65N */
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -264,6 +270,15 @@
    #endif
 #endif
 #endif /* WOLFSSL_ESPIDF */
+
+#if defined(WOLFSSL_RENESAS_TSIP)
+    #define TSIP_TLS_HMAC_KEY_INDEX_WORDSIZE 64
+    #if !defined(NO_RENESAS_TSIP_CRYPT) && defined(WOLFSSL_RENESAS_RX65N)
+        #define WOLFSSL_RENESAS_TSIP_CRYPT
+        #define WOLFSSL_RENESAS_TSIP_TLS
+        #define WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT
+    #endif
+#endif
 
 #if defined(HAVE_LWIP_NATIVE) /* using LwIP native TCP socket */
     #define WOLFSSL_LWIP

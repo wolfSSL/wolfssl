@@ -171,7 +171,11 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
     int QSH_Init(WOLFSSL* ssl);
 #endif
 
-
+#ifdef WOLFSSL_RENESAS_TSIP_TLS
+    byte tsip_useable(byte cipher0, byte cipher, byte side);
+    int tsip_generatePremasterSecret();
+    int tsip_generateEncryptPreMasterSecret(WOLFSSL *ssl, byte *out, word32 *outSz);
+#endif
 int IsTLS(const WOLFSSL* ssl)
 {
     if (ssl->version.major == SSLv3_MAJOR && ssl->version.minor >=TLSv1_MINOR)
@@ -1828,7 +1832,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     wolfSSL_CertManagerFree(ctx->cm);
     ctx->cm = NULL;
     #ifdef OPENSSL_EXTRA
-	/* ctx->cm was free'd so cm of x509 store should now be NULL */
+    /* ctx->cm was free'd so cm of x509 store should now be NULL */
         if (ctx->x509_store_pt != NULL) {
             ctx->x509_store_pt->cm = NULL;
         }
@@ -5780,6 +5784,9 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #ifndef NO_RSA
     FreeKey(ssl, DYNAMIC_TYPE_RSA, (void**)&ssl->peerRsaKey);
     ssl->peerRsaKeyPresent = 0;
+#endif
+#ifdef WOLFSSL_RENESAS_TSIP_TLS
+    XFREE(ssl->peerTsipEncRsaKeyIndex, ssl->heap, DYNAMIC_TYPE_RSA);
 #endif
     if (ssl->buffers.inputBuffer.dynamicFlag)
         ShrinkInputBuffer(ssl, FORCED_FREE);
@@ -10456,6 +10463,22 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         }
                         else {
                             ssl->peerRsaKeyPresent = 1;
+                    #ifdef WOLFSSL_RENESAS_TSIP_TLS
+                        /* copy encrypted tsip key index into ssl object */
+                        if (args->dCert->tsip_encRsaKeyIdx) {
+                            if (!ssl->peerTsipEncRsaKeyIndex) {
+                                ssl->peerTsipEncRsaKeyIndex = (byte*)XMALLOC(560,
+                                    ssl->heap, DYNAMIC_TYPE_RSA);
+                            }
+                            if (!ssl->peerTsipEncRsaKeyIndex) {
+                                args->lastErr = MEMORY_E;
+                                goto exit_ppc;
+                            }
+                            
+                            XMEMCPY(ssl->peerTsipEncRsaKeyIndex,
+                                        args->dCert->tsip_encRsaKeyIdx, 560);
+                         }
+                    #endif
                     #ifdef HAVE_PK_CALLBACKS
                         #ifndef NO_RSA
                             #ifdef HAVE_SECURE_RENEGOTIATION
@@ -11026,18 +11049,18 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
         ssl->options.serverState = SERVER_FINISHED_COMPLETE;
 #ifdef OPENSSL_EXTRA
-		ssl->cbmode = SSL_CB_MODE_WRITE;
-		ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
+        ssl->cbmode = SSL_CB_MODE_WRITE;
+        ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
 #endif
         if (!ssl->options.resuming) {
 #ifdef OPENSSL_EXTRA
-			if (ssl->CBIS != NULL) {
-				ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, SSL_SUCCESS);
-			}
+            if (ssl->CBIS != NULL) {
+                ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, SSL_SUCCESS);
+            }
 #endif
-			ssl->options.handShakeState = HANDSHAKE_DONE;
-			ssl->options.handShakeDone  = 1;
-		}
+            ssl->options.handShakeState = HANDSHAKE_DONE;
+            ssl->options.handShakeDone  = 1;
+        }
     }
     else {
         ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
@@ -11047,12 +11070,12 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
 #endif
         if (ssl->options.resuming) {
 #ifdef OPENSSL_EXTRA
-			if (ssl->CBIS != NULL) {
-				ssl->CBIS(ssl, SSL_CB_ACCEPT_LOOP, SSL_SUCCESS);
-			}
+            if (ssl->CBIS != NULL) {
+                ssl->CBIS(ssl, SSL_CB_ACCEPT_LOOP, SSL_SUCCESS);
+            }
 #endif
-			ssl->options.handShakeState = HANDSHAKE_DONE;
-			ssl->options.handShakeDone  = 1;
+            ssl->options.handShakeState = HANDSHAKE_DONE;
+            ssl->options.handShakeDone  = 1;
         }
     }
 
@@ -11504,9 +11527,9 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #ifdef OPENSSL_EXTRA
     if (ssl->CBIS != NULL){
-		ssl->cbmode = SSL_CB_MODE_READ;
-		ssl->cbtype = type;
-		ssl->CBIS(ssl, SSL_CB_ACCEPT_LOOP, SSL_SUCCESS);
+        ssl->cbmode = SSL_CB_MODE_READ;
+        ssl->cbtype = type;
+        ssl->CBIS(ssl, SSL_CB_ACCEPT_LOOP, SSL_SUCCESS);
     }
 #endif
 
@@ -12647,7 +12670,14 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
             if (ret != 0)
                 break;
         #endif
-
+        #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+            !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
+            if (tsip_useable(ssl->options.cipherSuite0,
+                             ssl->options.cipherSuite,
+                             ssl->options.side)) {
+                wc_tsip_AesCbcEncrypt(ssl->encrypt.aes, out, input, sz);
+            } else
+        #endif
             ret = wc_AesCbcEncrypt(ssl->encrypt.aes, out, input, sz);
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (ret == WC_PENDING_E && asyncOkay) {
@@ -12925,7 +12955,14 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
             if (ret != 0)
                 break;
         #endif
-
+        #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+            !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
+            if (tsip_useable(ssl->options.cipherSuite0,
+                             ssl->options.cipherSuite,
+                             ssl->options.side)) {
+                ret = wc_tsip_AesCbcDecrypt(ssl->decrypt.aes, plain, input, sz);
+            } else
+        #endif
             ret = wc_AesCbcDecrypt(ssl->decrypt.aes, plain, input, sz);
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (ret == WC_PENDING_E) {
@@ -14504,18 +14541,18 @@ int SendChangeCipher(WOLFSSL* ssl)
     int                ret;
 
     #ifdef OPENSSL_EXTRA
-	ssl->cbmode = SSL_CB_MODE_WRITE;
-	if (ssl->options.side == WOLFSSL_SERVER_END){
-		ssl->options.serverState = SERVER_CHANGECIPHERSPEC_COMPLETE;
-		if (ssl->CBIS != NULL)
-			ssl->CBIS(ssl, SSL_CB_ACCEPT_LOOP, SSL_SUCCESS);
-	}
-	else{
-		ssl->options.clientState =
-			CLIENT_CHANGECIPHERSPEC_COMPLETE;
-		if (ssl->CBIS != NULL)
-			ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, SSL_SUCCESS);
-	}
+    ssl->cbmode = SSL_CB_MODE_WRITE;
+    if (ssl->options.side == WOLFSSL_SERVER_END){
+        ssl->options.serverState = SERVER_CHANGECIPHERSPEC_COMPLETE;
+        if (ssl->CBIS != NULL)
+            ssl->CBIS(ssl, SSL_CB_ACCEPT_LOOP, SSL_SUCCESS);
+    }
+    else{
+        ssl->options.clientState =
+            CLIENT_CHANGECIPHERSPEC_COMPLETE;
+        if (ssl->CBIS != NULL)
+            ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, SSL_SUCCESS);
+    }
     #endif
 
     #ifdef WOLFSSL_DTLS
@@ -17239,7 +17276,7 @@ static const CipherSuiteInfo cipher_names[] =
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM
-	SUITE_INFO("ECDHE-ECDSA-AES128-CCM","TLS_ECDHE_ECDSA_WITH_AES_128_CCM",ECC_BYTE,TLS_ECDHE_ECDSA_WITH_AES_128_CCM),
+    SUITE_INFO("ECDHE-ECDSA-AES128-CCM","TLS_ECDHE_ECDSA_WITH_AES_128_CCM",ECC_BYTE,TLS_ECDHE_ECDSA_WITH_AES_128_CCM),
 #endif
 
 #ifdef BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
@@ -18503,8 +18540,8 @@ exit_dpk:
         ssl->options.clientState = CLIENT_HELLO_COMPLETE;
 #ifdef OPENSSL_EXTRA
         ssl->cbmode = SSL_CB_MODE_WRITE;
-		if (ssl->CBIS != NULL)
-			ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, SSL_SUCCESS);
+        if (ssl->CBIS != NULL)
+            ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, SSL_SUCCESS);
 #endif
 
 #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
@@ -19164,11 +19201,11 @@ exit_dpk:
                 ssl->options.sendVerify = SEND_CERT;
             }
         }
-	#ifdef OPENSSL_EXTRA
-		else
-	#else
+    #ifdef OPENSSL_EXTRA
+        else
+    #else
         else if (IsTLS(ssl))
-	#endif
+    #endif
         {
             ssl->options.sendVerify = SEND_BLANK_CERT;
         }
@@ -20732,10 +20769,10 @@ int SendClientKeyExchange(WOLFSSL* ssl)
     WOLFSSL_ENTER("SendClientKeyExchange");
 
 #ifdef OPENSSL_EXTRA
-	ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
-	ssl->cbmode = SSL_CB_MODE_WRITE;
-	if (ssl->CBIS != NULL)
-		ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, SSL_SUCCESS);
+    ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
+    ssl->cbmode = SSL_CB_MODE_WRITE;
+    if (ssl->CBIS != NULL)
+        ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, SSL_SUCCESS);
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -20980,16 +21017,28 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 case rsa_kea:
                 {
                     /* build PreMasterSecret with RNG data */
-                    ret = wc_RNG_GenerateBlock(ssl->rng,
-                        &ssl->arrays->preMasterSecret[VERSION_SZ],
-                        SECRET_LEN - VERSION_SZ);
-                    if (ret != 0) {
-                        goto exit_scke;
-                    }
+                    #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+                       !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
+                    if (tsip_useable(ssl->options.cipherSuite0,
+                                     ssl->options.cipherSuite,
+                                     ssl->options.side)) {
+                        tsip_generatePremasterSecret( 
+                        &ssl->arrays->preMasterSecret[VERSION_SZ], 
+                        ENCRYPT_LEN - VERSION_SZ);
+                    } else 
+                    #endif
+                        ret = wc_RNG_GenerateBlock(ssl->rng,
+                            &ssl->arrays->preMasterSecret[VERSION_SZ],
+                            SECRET_LEN - VERSION_SZ);
+                        if (ret != 0) {
+                            goto exit_scke;
+                        }
 
-                    ssl->arrays->preMasterSecret[0] = ssl->chVersion.major;
-                    ssl->arrays->preMasterSecret[1] = ssl->chVersion.minor;
+                        ssl->arrays->preMasterSecret[0] = ssl->chVersion.major;
+                        ssl->arrays->preMasterSecret[1] = ssl->chVersion.minor;
+
                     ssl->arrays->preMasterSz = SECRET_LEN;
+                   
                     break;
                 }
             #endif /* !NO_RSA */
@@ -21311,16 +21360,28 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             #ifndef NO_RSA
                 case rsa_kea:
                 {
-                    ret = RsaEnc(ssl,
-                        ssl->arrays->preMasterSecret, SECRET_LEN,
-                        args->encSecret, &args->encSz,
-                        ssl->peerRsaKey,
-                    #if defined(HAVE_PK_CALLBACKS)
-                        &ssl->buffers.peerRsaKey
-                    #else
-                        NULL
+                    #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+                       !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
+                    if (tsip_useable(ssl->options.cipherSuite0,
+                                     ssl->options.cipherSuite,
+                                     ssl->options.side) && 
+                                     wc_RsaEncryptSize(ssl->peerRsaKey) == 256) {
+                        ret = tsip_generateEncryptPreMasterSecret(ssl,
+                                                            args->encSecret,
+                                                            &args->encSz);
+                        
+                    } else 
                     #endif
-                    );
+                        ret = RsaEnc(ssl,
+                            ssl->arrays->preMasterSecret, SECRET_LEN,
+                            args->encSecret, &args->encSz,
+                            ssl->peerRsaKey,
+                        #if defined(HAVE_PK_CALLBACKS)
+                            &ssl->buffers.peerRsaKey
+                        #else
+                            NULL
+                        #endif
+                        );
 
                     break;
                 }

@@ -49,7 +49,9 @@
 #if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A)
     #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
 #endif
-
+#if defined(WOLFSSL_RENESAS_TSIP)
+    #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
+#endif
 #if defined(WOLFSSL_STSAFEA100)
     #include <wolfssl/wolfcrypt/port/st/stsafe.h>
 #endif
@@ -113,6 +115,13 @@ int wolfCrypt_Init(void)
         }
     #endif
 
+    #if defined(WOLFSSL_RENESAS_TSIP_CRYPT)
+        ret = tsip_Open( );
+        if( ret != TSIP_SUCCESS ) {
+            WOLFSSL_MSG("RENESAS TSIP Open failed");
+        }
+    #endif
+    
     #if defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
         ret = InitMemoryTracker();
         if (ret != 0) {
@@ -252,6 +261,9 @@ int wolfCrypt_Cleanup(void)
     #endif
     #if defined(WOLFSSL_CRYPTOCELL)
         cc310_Free();
+    #endif
+    #if defined(WOLFSSL_RENESAS_TSIP_CRYPT)
+        tsip_Close();
     #endif
     }
 

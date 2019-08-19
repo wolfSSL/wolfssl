@@ -163,7 +163,9 @@
 #if !defined(WOLFSSL_PIC32MZ_HASH) && !defined(STM32_HASH_SHA2) && \
     (!defined(WOLFSSL_IMX6_CAAM) || defined(NO_IMX6_CAAM_HASH)) && \
     !defined(WOLFSSL_AFALG_HASH) && !defined(WOLFSSL_DEVCRYPTO_HASH) && \
-    (!defined(WOLFSSL_ESP32WROOM32_CRYPT) || defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH))
+    (!defined(WOLFSSL_ESP32WROOM32_CRYPT) || defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)) && \
+    (!defined(WOLFSSL_RENESAS_TSIP_CRYPT) || defined(NO_WOLFSSL_RENESAS_TSIP_HASH))
+    
 static int InitSha256(wc_Sha256* sha256)
 {
     int ret = 0;
@@ -551,6 +553,12 @@ static int InitSha256(wc_Sha256* sha256)
 
         return ret;
     }
+    
+#elif defined(WOLFSSL_RENESAS_TSIP_CRYPT) && \
+    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
+    
+    /* implemented in wolfcrypt/src/port/Renesas/renesas_tsip_sha.c */
+    
 #else
     #define NEED_SOFT_SHA256
 
@@ -1429,7 +1437,11 @@ void wc_Sha256Free(wc_Sha256* sha256)
 
 #elif defined(WOLFSSL_DEVCRYPTO_HASH)
     /* implemented in wolfcrypt/src/port/devcrypto/devcrypt_hash.c */
-
+    
+#elif defined(WOLFSSL_RENESAS_TSIP_CRYPT) && \
+    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
+    
+    /* implemented in wolfcrypt/src/port/Renesas/renesas_tsip_sha.c */
 #else
 
 int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
@@ -1457,6 +1469,7 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
     !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
         sha256->ctx.mode = ESP32_SHA_SW;
 #endif
+
         wc_Sha256Free(&tmpSha256);
     }
     return ret;
