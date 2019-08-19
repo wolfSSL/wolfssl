@@ -299,7 +299,8 @@ WOLFSSL_LOCAL int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int resp
     InitOcspResponse(ocspResponse, newStatus, response, responseSz);
     ret = OcspResponseDecode(ocspResponse, ocsp->cm, ocsp->cm->heap, 0);
     if (ret != 0) {
-        WOLFSSL_MSG("OcspResponseDecode failed");
+        ocsp->error = ret;
+        WOLFSSL_LEAVE("OcspResponseDecode failed", ocsp->error);
         goto end;
     }
 
@@ -434,6 +435,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
                 XFREE(response, NULL, DYNAMIC_TYPE_OPENSSL);
             return ret;
         }
+        WOLFSSL_LEAVE("CheckOcspRequest", ocsp->error);
         return OCSP_LOOKUP_FAIL;
     }
 #endif
