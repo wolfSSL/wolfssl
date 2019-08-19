@@ -194,6 +194,17 @@ SSL_SNIFFER_API int ssl_SetWatchKey_file(void* vSniffer,
                         const char* password, char* error);
 
 
+typedef int (*SSLStoreDataCb)(const unsigned char* decryptBuf,
+        unsigned int decryptBufSz, unsigned int decryptBufOffset, void* ctx);
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_SetStoreDataCallback(SSLStoreDataCb cb);
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_DecodePacketWithSessionInfoStoreData(
+        const unsigned char* packet, int length, void* ctx,
+        SSLInfo* sslInfo, char* error);
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

@@ -107,5 +107,9 @@ STRINGTABLE
     87, "Watch hash failed"
     88, "Watch callback failed"
     89, "Bad Certificate Message"
+    90, "Store data callback not set"
+
+    91, "No data destination Error"
+    92, "Store Data callback failed"
 }
 

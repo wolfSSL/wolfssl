@@ -261,7 +261,12 @@ static const char* const msgTable[] =
     "Watch callback not set",
     "Watch hash failed",
     "Watch callback failed",
-    "Bad Certificate Message"
+    "Bad Certificate Message",
+    "Store data callback not set",
+
+    /* 91 */
+    "No data destination Error",
+    "Store data callback failed"
 };
 
 
@@ -435,6 +440,11 @@ static WOLFSSL_GLOBAL wolfSSL_Mutex StatsMutex;
 /* Watch Key Callback */
 static WOLFSSL_GLOBAL SSLWatchCb WatchCb;
 static WOLFSSL_GLOBAL void* WatchCbCtx = NULL;
+#endif
+
+#ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
+/* Store Data Callback */
+static WOLFSSL_GLOBAL SSLStoreDataCb StoreDataCb;
 #endif
 
 
@@ -3707,7 +3717,7 @@ static int HaveMoreInput(SnifferSession* session, const byte** sslFrame,
 /* return Number of bytes on success, 0 for no data yet, and -1 on error */
 static int ProcessMessage(const byte* sslFrame, SnifferSession* session,
                           int sslBytes, byte** data, const byte* end,
-                          char* error)
+                          void* ctx, char* error)
 {
     const byte*       sslBegin = sslFrame;
     const byte*       recordEnd;   /* end of record indicator */
@@ -3839,22 +3849,55 @@ doPart:
                     ret = ssl->buffers.clearOutputBuffer.length;
                     TraceGotData(ret);
                     if (ret) {  /* may be blank message */
-                        byte* tmpData;  /* don't leak on realloc free */
-                        /* add an extra byte at end of allocation in case user
-                         * wants to null terminate plaintext */
-                        tmpData = (byte*)XREALLOC(*data, decoded + ret + 1,
-                                NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                        if (tmpData == NULL) {
-                            ForceZero(*data, decoded);
-                            XFREE(*data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                            *data = NULL;
-                            SetError(MEMORY_STR, error, session,
-                                     FATAL_ERROR_STATE);
-                            return -1;
+                        if (data != NULL) {
+                            byte* tmpData;  /* don't leak on realloc free */
+                            /* add an extra byte at end of allocation in case
+                             * user wants to null terminate plaintext */
+                            tmpData = (byte*)XREALLOC(*data, decoded + ret + 1,
+                                    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                            if (tmpData == NULL) {
+                                ForceZero(*data, decoded);
+                                XFREE(*data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                                *data = NULL;
+                                SetError(MEMORY_STR, error, session,
+                                         FATAL_ERROR_STATE);
+                                return -1;
+                            }
+                            *data = tmpData;
+                            XMEMCPY(*data + decoded,
+                                    ssl->buffers.clearOutputBuffer.buffer, ret);
                         }
-                        *data = tmpData;
-                        XMEMCPY(*data + decoded,
-                                ssl->buffers.clearOutputBuffer.buffer, ret);
+                        else {
+#ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
+                            if (StoreDataCb) {
+                                const byte* buf;
+                                word32 offset = 0;
+                                word32 bufSz;
+                                int stored;
+
+                                buf = ssl->buffers.clearOutputBuffer.buffer;
+                                bufSz = ssl->buffers.clearOutputBuffer.length;
+                                do {
+                                    stored = StoreDataCb(buf, bufSz, offset,
+                                            ctx);
+                                    if (stored <= 0) {
+                                        return -1;
+                                    }
+                                    offset += stored;
+                                } while (offset < bufSz);
+                            }
+                            else {
+                                SetError(STORE_DATA_CB_MISSING_STR, error,
+                                        session, FATAL_ERROR_STATE);
+                                return -1;
+                            }
+#else
+                            (void)ctx;
+                            SetError(NO_DATA_DEST_STR, error, session,
+                                    FATAL_ERROR_STATE);
+                            return -1;
+#endif
+                        }
                         TraceAddedData(ret, decoded);
                         decoded += ret;
                         ssl->buffers.clearOutputBuffer.length = 0;
@@ -3965,7 +4008,8 @@ static int RemoveFatalSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
 /* Passes in an IP/TCP packet for decoding (ethernet/localhost frame) removed */
 /* returns Number of bytes on success, 0 for no data yet, and -1 on error */
 static int ssl_DecodePacketInternal(const byte* packet, int length,
-                                    byte** data, SSLInfo* sslInfo, char* error)
+                                    byte** data, SSLInfo* sslInfo,
+                                    void* ctx, char* error)
 {
     TcpInfo           tcpInfo;
     IpInfo            ipInfo;
@@ -4028,7 +4072,7 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
         INC_STAT(SnifferStats.sslDecryptedPackets);
 #endif
 
-    ret = ProcessMessage(sslFrame, session, sslBytes, data, end, error);
+    ret = ProcessMessage(sslFrame, session, sslBytes, data, end, ctx, error);
     if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
     if (CheckFinCapture(&ipInfo, &tcpInfo, session) == 0) {
         CopySessionInfo(session, sslInfo);
@@ -4044,7 +4088,7 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
 int ssl_DecodePacketWithSessionInfo(const unsigned char* packet, int length,
     unsigned char** data, SSLInfo* sslInfo, char* error)
 {
-    return ssl_DecodePacketInternal(packet, length, data, sslInfo, error);
+    return ssl_DecodePacketInternal(packet, length, data, sslInfo, NULL, error);
 }
 
 
@@ -4052,8 +4096,19 @@ int ssl_DecodePacketWithSessionInfo(const unsigned char* packet, int length,
 /* returns Number of bytes on success, 0 for no data yet, and -1 on error */
 int ssl_DecodePacket(const byte* packet, int length, byte** data, char* error)
 {
-    return ssl_DecodePacketInternal(packet, length, data, NULL, error);
+    return ssl_DecodePacketInternal(packet, length, data, NULL, NULL, error);
 }
+
+
+#ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
+
+int ssl_DecodePacketWithSessionInfoStoreData(const unsigned char* packet,
+        int length, void* ctx, SSLInfo* sslInfo, char* error)
+{
+    return ssl_DecodePacketInternal(packet, length, NULL, sslInfo, ctx, error);
+}
+
+#endif
 
 
 /* Deallocator for the decoded data buffer. */
@@ -4309,6 +4364,17 @@ int ssl_SetWatchKey_file(void* vSniffer, const char* keyFile, int keyType,
 }
 
 #endif /* WOLFSSL_SNIFFER_WATCH */
+
+
+#ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
+
+int ssl_SetStoreDataCallback(SSLStoreDataCb cb)
+{
+    StoreDataCb = cb;
+    return 0;
+}
+
+#endif /* WOLFSSL_SNIFFER_STORE_DATA_CB */
 
 #endif /* WOLFSSL_SNIFFER */
 #endif /* WOLFCRYPT_ONLY */

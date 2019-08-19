@@ -125,6 +125,10 @@
 #define WATCH_HASH_STR 87
 #define WATCH_FAIL_STR 88
 #define BAD_CERT_MSG_STR 89
+#define STORE_DATA_CB_MISSING_STR 90
+
+#define NO_DATA_DEST_STR 91
+#define STORE_DATA_FAIL_STR 92
 /* !!!! also add to msgTable in sniffer.c and .rc file !!!! */
 
 

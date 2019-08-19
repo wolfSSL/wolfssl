@@ -214,6 +214,42 @@ static int myWatchCb(void* vSniffer,
 #endif
 
 
+#ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
+
+static int myStoreDataCb(const unsigned char* decryptBuf,
+        unsigned int decryptBufSz, unsigned int decryptBufOffset, void* ctx)
+{
+    byte** data = (byte**)ctx;
+    unsigned int qty;
+
+    if (data == NULL)
+        return -1;
+
+    if (decryptBufSz < decryptBufOffset)
+        return -1;
+
+    qty = (decryptBufSz - decryptBufOffset) < 32 ?
+        (decryptBufSz - decryptBufOffset) : 32;
+
+    if (*data == NULL) {
+        byte* tmpData;
+        tmpData = (byte*)realloc(*data, decryptBufSz + 1);
+        if (tmpData == NULL) {
+            free(*data);
+            *data = NULL;
+            return -1;
+        }
+        *data = tmpData;
+    }
+
+    memcpy(*data + decryptBufOffset, decryptBuf + decryptBufOffset, qty);
+
+    return qty;
+}
+
+#endif
+
+
 int main(int argc, char** argv)
 {
     int          ret = 0;
@@ -239,6 +275,9 @@ int main(int argc, char** argv)
     ssl_EnableRecovery(1, -1, err);
 #ifdef WOLFSSL_SNIFFER_WATCH
     ssl_SetWatchKeyCallback(myWatchCb, err);
+#endif
+#ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
+    ssl_SetStoreDataCallback(myStoreDataCb);
 #endif
 
     if (argc == 1) {
@@ -405,8 +444,13 @@ int main(int argc, char** argv)
             else
                 continue;
 
+#ifndef WOLFSSL_SNIFFER_STORE_DATA_CB
             ret = ssl_DecodePacketWithSessionInfo(packet, header.caplen, &data,
                                                   &sslInfo, err);
+#else
+            ret = ssl_DecodePacketWithSessionInfoStoreData(packet,
+                    header.caplen, &data, &sslInfo, err);
+#endif
             if (ret < 0) {
                 printf("ssl_Decode ret = %d, %s\n", ret, err);
                 hadBadPacket = 1;
