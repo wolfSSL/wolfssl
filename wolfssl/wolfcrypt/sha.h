@@ -157,8 +157,8 @@ WOLFSSL_API void wc_ShaSizeSet(wc_Sha* sha, word32 len);
 #endif
 
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
-    WOLFSSL_LOCAL int wc_ShaSetFlags(wc_Sha* sha, word32 flags);
-    WOLFSSL_LOCAL int wc_ShaGetFlags(wc_Sha* sha, word32* flags);
+    WOLFSSL_API int wc_ShaSetFlags(wc_Sha* sha, word32 flags);
+    WOLFSSL_API int wc_ShaGetFlags(wc_Sha* sha, word32* flags);
 #endif
 
 #ifdef __cplusplus

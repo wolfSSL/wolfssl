@@ -166,9 +166,9 @@ WOLFSSL_API int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type,
 WOLFSSL_API int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type);
 
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
-    WOLFSSL_LOCAL int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type,
+    WOLFSSL_API int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type,
         word32 flags);
-    WOLFSSL_LOCAL int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type,
+    WOLFSSL_API int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type,
         word32* flags);
 #endif
 
