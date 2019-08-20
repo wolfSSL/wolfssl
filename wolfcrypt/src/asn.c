@@ -2312,7 +2312,7 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 #endif /* HAVE_USER_RSA */
 #endif /* NO_RSA */
 
-#ifdef HAVE_PKCS8
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
 
 /* Remove PKCS8 header, place inOutIdx at beginning of traditional,
  * return traditional length on success, negative on error */
@@ -2382,6 +2382,10 @@ int ToTraditional(byte* input, word32 sz)
 
     return ToTraditional_ex(input, sz, &oid);
 }
+
+#endif /* HAVE_PKCS8 || HAVE_PKCS12 */
+
+#ifdef HAVE_PKCS8
 
 /* find beginning of traditional key inside PKCS#8 unencrypted buffer
  * return traditional length on success, with inOutIdx at beginning of
@@ -2513,7 +2517,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
 
 #endif /* HAVE_PKCS8 */
 
-#ifdef HAVE_PKCS12
+#if defined(HAVE_PKCS12) || !defined(NO_CHECK_PRIVATE_KEY)
 /* check that the private key is a pair for the public key in certificate
  * return 1 (true) on match
  * return 0 or negative value on failure/error
@@ -2716,11 +2720,11 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
     return ret;
 }
 
-#endif /* HAVE_PKCS12 */
+#endif /* HAVE_PKCS12 || !NO_CHECK_PRIVATE_KEY */
 
 #ifndef NO_PWDBASED
 
-#ifdef HAVE_PKCS8
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
 /* Check To see if PKCS version algo is supported, set id if it is return 0
    < 0 on error */
 static int CheckAlgo(int first, int second, int* id, int* version, int* blockSz)
@@ -2780,7 +2784,6 @@ static int CheckAlgo(int first, int second, int* id, int* version, int* blockSz)
     }
 }
 
-
 /* Check To see if PKCS v2 algo is supported, set id if it is return 0
    < 0 on error */
 static int CheckAlgoV2(int oid, int* id, int* blockSz)
@@ -2810,6 +2813,9 @@ static int CheckAlgoV2(int oid, int* id, int* blockSz)
     }
 }
 
+#endif /* HAVE_PKCS8 || HAVE_PKCS12 */
+
+#ifdef HAVE_PKCS8
 
 int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         int* algoID, void* heap)
@@ -2894,6 +2900,10 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
     return 1;
 }
 
+#endif /* HAVE_PKCS8 */
+
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
+
 #define PKCS8_MIN_BLOCK_SIZE 8
 static int Pkcs8Pad(byte* buf, int sz, int blockSz)
 {
@@ -2912,6 +2922,10 @@ static int Pkcs8Pad(byte* buf, int sz, int blockSz)
     /* return adjusted length */
     return sz + padSz;
 }
+
+#endif /* HAVE_PKCS8 || HAVE_PKCS12 */
+
+#ifdef HAVE_PKCS8
 
 /*
  * Used when creating PKCS12 shrouded key bags
@@ -3353,6 +3367,10 @@ int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
     return ret;
 }
 
+#endif /* HAVE_PKCS8 */
+
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
+
 /* Remove Encrypted PKCS8 header, move beginning of traditional to beginning
    of input */
 int ToTraditionalEnc(byte* input, word32 sz,const char* password,
@@ -3496,7 +3514,7 @@ exit_tte:
     return ret;
 }
 
-#endif /* HAVE_PKCS8 */
+#endif /* HAVE_PKCS8 || HAVE_PKCS12 */
 
 #ifdef HAVE_PKCS12
 

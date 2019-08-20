@@ -6279,7 +6279,7 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
     return ret;
 }
 
-
+#ifndef NO_CHECK_PRIVATE_KEY
 /* Check private against public in certificate for match
  *
  * ctx  WOLFSSL_CTX structure to check private key in
@@ -6339,9 +6339,10 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
     return WOLFSSL_FAILURE;
 #endif
 }
+#endif /* !NO_CHECK_PRIVATE_KEY */
+
 
 #ifdef HAVE_CRL
-
 
 /* check CRL if enabled, WOLFSSL_SUCCESS  */
 int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm, byte* der, int sz)

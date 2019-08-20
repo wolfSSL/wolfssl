@@ -4390,8 +4390,8 @@ static void test_wolfSSL_PKCS12(void)
 
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_ASN) && defined(HAVE_PKCS8) && \
-    defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3) && \
-    !defined(NO_PWDBASED) && !defined(NO_RSA)
+    defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3) && !defined(NO_PWDBASED) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC))
     #define TEST_PKCS8_ENC
 #endif
 
@@ -4425,10 +4425,14 @@ static void test_wolfSSL_PKCS8(void)
 #if !defined(NO_FILESYSTEM) && !defined(NO_ASN) && defined(HAVE_PKCS8)
     byte buffer[FOURK_BUF];
     byte der[FOURK_BUF];
+    #ifndef NO_RSA
+        const char serverKeyPkcs8PemFile[] = "./certs/server-keyPkcs8.pem";
+        const char serverKeyPkcs8DerFile[] = "./certs/server-keyPkcs8.der";
+    #endif
     const char eccPkcs8PrivKeyPemFile[] = "./certs/ecc-privkeyPkcs8.pem";
-    const char eccPkcs8PrivKeyDerFile[] = "./certs/ecc-privkeyPkcs8.der";
-    const char serverKeyPkcs8PemFile[] = "./certs/server-keyPkcs8.pem";
-    const char serverKeyPkcs8DerFile[] = "./certs/server-keyPkcs8.der";
+    #ifdef HAVE_ECC
+        const char eccPkcs8PrivKeyDerFile[] = "./certs/ecc-privkeyPkcs8.der";
+    #endif
     XFILE f;
     int bytes;
     WOLFSSL_CTX* ctx;
@@ -4438,8 +4442,10 @@ static void test_wolfSSL_PKCS8(void)
     word32 x = 0;
 #endif
 #ifdef TEST_PKCS8_ENC
-    const char serverKeyPkcs8EncPemFile[] = "./certs/server-keyPkcs8Enc.pem";
-    const char serverKeyPkcs8EncDerFile[] = "./certs/server-keyPkcs8Enc.der";
+    #ifndef NO_RSA
+        const char serverKeyPkcs8EncPemFile[] = "./certs/server-keyPkcs8Enc.pem";
+        const char serverKeyPkcs8EncDerFile[] = "./certs/server-keyPkcs8Enc.der";
+    #endif
     #ifdef HAVE_ECC
         const char eccPkcs8EncPrivKeyPemFile[] = "./certs/ecc-keyPkcs8Enc.pem";
         const char eccPkcs8EncPrivKeyDerFile[] = "./certs/ecc-keyPkcs8Enc.der";
@@ -4466,13 +4472,14 @@ static void test_wolfSSL_PKCS8(void)
 #ifdef TEST_PKCS8_ENC
     wolfSSL_CTX_set_default_passwd_cb(ctx, PKCS8TestCallBack);
     wolfSSL_CTX_set_default_passwd_cb_userdata(ctx, (void*)&flag);
+    flag = 1; /* used by password callback as return code */
 
+    #ifndef NO_RSA
     /* test loading PEM PKCS8 encrypted file */
     f = XFOPEN(serverKeyPkcs8EncPemFile, "rb");
     AssertTrue((f != XBADFILE));
     bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
     XFCLOSE(f);
-    flag = 1; /* used by password callback as return code */
     AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
@@ -4502,6 +4509,7 @@ static void test_wolfSSL_PKCS8(void)
     flag = 0; /* used by password callback as return code */
     AssertIntNE(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+    #endif /* !NO_RSA */
 
     #ifdef HAVE_ECC
     /* test loading PEM PKCS8 encrypted ECC Key file */
@@ -4542,10 +4550,11 @@ static void test_wolfSSL_PKCS8(void)
 
     /* leave flag as "okay" */
     flag = 1;
-    #endif
+    #endif /* HAVE_ECC */
 #endif /* TEST_PKCS8_ENC */
 
 
+#ifndef NO_RSA
     /* test loading ASN.1 (DER) PKCS8 private key file (not encrypted) */
     f = XFOPEN(serverKeyPkcs8DerFile, "rb");
     AssertTrue((f != XBADFILE));
@@ -4561,14 +4570,13 @@ static void test_wolfSSL_PKCS8(void)
     XFCLOSE(f);
     AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
-
+#endif /* !NO_RSA */
 
     /* Test PKCS8 PEM ECC key no crypt */
     f = XFOPEN(eccPkcs8PrivKeyPemFile, "rb");
     AssertTrue((f != XBADFILE));
     bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
     XFCLOSE(f);
-
 #ifdef HAVE_ECC
     /* Test PKCS8 PEM ECC key no crypt */
     AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
@@ -4583,12 +4591,7 @@ static void test_wolfSSL_PKCS8(void)
         wc_ecc_free(&key);
     }
     AssertIntEQ(ret, 0);
-#else
-    AssertIntEQ((bytes = wc_KeyPemToDer(buffer, bytes, der,
-        (word32)sizeof(der), NULL)), ASN_NO_PEM_HEADER);
-#endif
 
-#ifdef HAVE_ECC
     /* Test PKCS8 DER ECC key no crypt */
     f = XFOPEN(eccPkcs8PrivKeyDerFile, "rb");
     AssertTrue((f != XBADFILE));
@@ -4598,7 +4601,10 @@ static void test_wolfSSL_PKCS8(void)
     /* Test using a PKCS8 ECC PEM */
     AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-#endif
+#else
+    AssertIntEQ((bytes = wc_KeyPemToDer(buffer, bytes, der,
+        (word32)sizeof(der), NULL)), ASN_NO_PEM_HEADER);
+#endif /* HAVE_ECC */
 
     wolfSSL_CTX_free(ctx);
 
@@ -18459,6 +18465,7 @@ static void test_wolfSSL_private_keys(void)
     AssertIntEQ(SSL_CTX_use_PrivateKey_ASN1(0, ctx,
                 (unsigned char*)client_key_der_2048,
                 sizeof_client_key_der_2048), WOLFSSL_SUCCESS);
+#ifndef NO_CHECK_PRIVATE_KEY
 #ifndef HAVE_USER_RSA
     /* Should mismatch now that a different private key loaded */
     AssertIntNE(wolfSSL_CTX_check_private_key(ctx), WOLFSSL_SUCCESS);
@@ -18469,6 +18476,7 @@ static void test_wolfSSL_private_keys(void)
                 sizeof_server_key_der_2048), WOLFSSL_SUCCESS);
     /* After loading back in DER format of original key, should match */
     AssertIntEQ(wolfSSL_CTX_check_private_key(ctx), WOLFSSL_SUCCESS);
+#endif /* !NO_CHECK_PRIVATE_KEY */
 
     /* pkey not set yet, expecting to fail */
     AssertIntEQ(SSL_use_PrivateKey(ssl, pkey), WOLFSSL_FAILURE);

@@ -440,6 +440,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
         ret = wc_PBKDF1(key, (byte*)password, passwordSz,
                         salt, saltSz, iterations, derivedLen, typeH);
 #endif
+#ifdef HAVE_PKCS12
     else if (version == PKCS12v1) {
         int  i, idx = 0;
         byte unicodePasswd[MAX_UNICODE_SZ];
@@ -465,6 +466,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
             ret += wc_PKCS12_PBKDF(cbcIv, unicodePasswd, idx, salt, saltSz,
                                 iterations, 8, typeH, 2);
     }
+#endif /* HAVE_PKCS12 */
     else {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);

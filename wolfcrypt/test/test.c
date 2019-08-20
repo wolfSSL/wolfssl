@@ -15798,6 +15798,7 @@ int scrypt_test(void)
 }
 #endif
 
+#ifdef HAVE_PKCS12
 int pkcs12_test(void)
 {
     const byte passwd[] = { 0x00, 0x73, 0x00, 0x6d, 0x00, 0x65, 0x00, 0x67,
@@ -15849,7 +15850,7 @@ int pkcs12_test(void)
 
     return 0;
 }
-
+#endif /* HAVE_PKCS12 */
 
 int pbkdf2_test(void)
 {
@@ -15914,9 +15915,11 @@ int pwdbased_test(void)
    ret = pbkdf2_test();
    if (ret != 0)
       return ret;
+#ifdef HAVE_PKCS12
    ret = pkcs12_test();
    if (ret != 0)
       return ret;
+#endif
 #ifdef HAVE_SCRYPT
    ret = scrypt_test();
    if (ret != 0)
