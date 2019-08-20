@@ -2619,6 +2619,18 @@ static int sha3_256_test(void)
     int ret = 0;
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
 
+    byte large_input[1024];
+    const char* large_digest =
+        "\xdc\x90\xc0\xb1\x25\xdb\x2c\x34\x81\xa3\xff\xbc\x1e\x2e\x87\xeb"
+        "\x6d\x70\x85\x61\xe0\xe9\x63\x61\xff\xe5\x84\x4b\x1f\x68\x05\x15";
+
+#ifdef WOLFSSL_HASH_FLAGS
+    /* test vector with hash of empty string */
+    const char* Keccak256EmptyOut =
+        "\xc5\xd2\x46\x01\x86\xf7\x23\x3c\x92\x7e\x7d\xb2\xdc\xc7\x03\xc0"
+        "\xe5\x00\xb6\x53\xca\x82\x27\x3b\x7b\xfa\xd8\x04\x5d\x85\xa4\x70";
+#endif
+
     a.input  = "";
     a.output = "\xa7\xff\xc6\xf8\xbf\x1e\xd7\x66\x51\xc1\x47\x56\xa0\x61\xd6"
                "\x62\xf5\x80\xff\x4d\xe4\x3b\x49\xfa\x82\xd8\x0a\x4b\x80\xf8"
@@ -2667,11 +2679,6 @@ static int sha3_256_test(void)
     }
 
     /* BEGIN LARGE HASH TEST */ {
-    byte large_input[1024];
-    const char* large_digest =
-        "\xdc\x90\xc0\xb1\x25\xdb\x2c\x34\x81\xa3\xff\xbc\x1e\x2e\x87\xeb"
-        "\x6d\x70\x85\x61\xe0\xe9\x63\x61\xff\xe5\x84\x4b\x1f\x68\x05\x15";
-
     for (i = 0; i < (int)sizeof(large_input); i++) {
         large_input[i] = (byte)(i & 0xFF);
     }
@@ -2688,6 +2695,25 @@ static int sha3_256_test(void)
     if (XMEMCMP(hash, large_digest, WC_SHA3_256_DIGEST_SIZE) != 0)
         ERROR_OUT(-2608, exit);
     } /* END LARGE HASH TEST */
+
+#ifdef WOLFSSL_HASH_FLAGS
+    /* Test for Keccak256 */
+    ret = wc_Sha3_SetFlags(&sha, WC_HASH_SHA3_KECCAK256);
+    if (ret != 0) {
+        ERROR_OUT(-2609, exit);
+    }
+    ret = wc_Sha3_256_Update(&sha, (byte*)"", 0);
+    if (ret != 0) {
+        ERROR_OUT(-2610, exit);
+    }
+    ret = wc_Sha3_256_Final(&sha, hash);
+    if (ret != 0) {
+        ERROR_OUT(-2611, exit);
+    }
+    if (XMEMCMP(hash, Keccak256EmptyOut, WC_SHA3_256_DIGEST_SIZE) != 0) {
+        ERROR_OUT(-2612, exit);
+    }
+#endif
 
 exit:
     wc_Sha3_256_Free(&sha);

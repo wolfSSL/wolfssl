@@ -195,6 +195,9 @@ then
     # Enable DH const table speedups (eliminates `-lm` math lib dependency)
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072 -DFP_MAX_BITS=8192"
 
+    # Enable hash flags support
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HASH_FLAGS"
+
     # Enable multiple attribute additions such as DC
     AM_CFLAGS="-DWOLFSSL_MULTI_ATTRIB $AM_CFLAGS"
 fi
