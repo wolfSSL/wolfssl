@@ -141,7 +141,7 @@
 
 #include <stdlib.h>
 #include <wolfssl/ssl.h>  /* compatibility layer */
- #include <wolfssl/test.h>
+#include <wolfssl/test.h>
 #include <tests/unit.h>
 #include "examples/server/server.h"
      /* for testing compatibility layer callbacks */
@@ -4087,6 +4087,29 @@ static void test_wolfSSL_DisableExtendedMasterSecret(void)
     wolfSSL_CTX_free(ctx);
 #endif
 }
+
+static void test_wolfSSL_wolfSSL_UseSecureRenegotiation(void)
+{
+#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    WOLFSSL     *ssl = wolfSSL_new(ctx);
+
+    AssertNotNull(ctx);
+    AssertNotNull(ssl);
+
+    /* error cases */
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_UseSecureRenegotiation(NULL));
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseSecureRenegotiation(NULL));
+
+    /* success cases */
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseSecureRenegotiation(ctx));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseSecureRenegotiation(ssl));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+}
+
 
 /*----------------------------------------------------------------------------*
  | X509 Tests
@@ -25522,6 +25545,7 @@ void ApiTest(void)
     test_wolfSSL_UseSupportedCurve();
     test_wolfSSL_UseALPN();
     test_wolfSSL_DisableExtendedMasterSecret();
+    test_wolfSSL_wolfSSL_UseSecureRenegotiation();
 
     /* X509 tests */
     test_wolfSSL_X509_NAME_get_entry();

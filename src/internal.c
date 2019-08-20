@@ -5292,14 +5292,18 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
 #ifdef HAVE_SECURE_RENEGOTIATION
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
-    /* use secure renegotiation by default (not recommend) */
+        int useSecureReneg = ssl->ctx->useSecureReneg;
+        /* use secure renegotiation by default (not recommend) */
     #ifdef WOLFSSL_SECURE_RENEGOTIATION_ON_BY_DEFAULT
-        ret = wolfSSL_UseSecureRenegotiation(ssl);
-        if (ret != WOLFSSL_SUCCESS)
-            return ret;
+        useSecureReneg = 1;
     #endif
+        if (useSecureReneg) {
+            ret = wolfSSL_UseSecureRenegotiation(ssl);
+            if (ret != WOLFSSL_SUCCESS)
+                return ret;
+            }
     }
-#endif
+#endif /* HAVE_SECURE_RENEGOTIATION */
 
     return 0;
 }
