@@ -570,6 +570,9 @@ static int InitSha3(wc_Sha3* sha3)
     for (i = 0; i < 25; i++)
         sha3->s[i] = 0;
     sha3->i = 0;
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    sha3->flags = 0;
+#endif
 
     return 0;
 }
