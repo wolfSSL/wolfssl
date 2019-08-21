@@ -195,7 +195,7 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
 
 static void ShowCiphers(void)
 {
-    static char ciphers[4096];
+    static char ciphers[WOLFSSL_CIPHER_LIST_MAX_SIZE];
 
     int ret = wolfSSL_get_ciphers(ciphers, (int)sizeof(ciphers));
 
@@ -248,7 +248,7 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519)
     #endif
         {
     #ifdef HAVE_ECC
-        #if defined(HAVE_ECC256) || defined(HAVE_ALL_CURVES)
+        #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
             groups[count++] = WOLFSSL_ECC_SECP256R1;
             if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP256R1)
                                                            != WOLFSSL_SUCCESS) {
@@ -2582,7 +2582,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             }
         #endif
         #ifdef HAVE_ECC
-            #if defined(HAVE_ECC256) || defined(HAVE_ALL_CURVES)
+            #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
             if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP256R1)
                                                            != WOLFSSL_SUCCESS) {
                 err_sys("unable to use curve secp256r1");

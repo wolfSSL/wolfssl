@@ -48,7 +48,7 @@
 #if defined(HAVE_ED25519_SIGN) || defined(HAVE_ED25519_VERIFY)
 #define ED25519CTX_SIZE    32
 
-static const byte ed25519Ctx[ED25519CTX_SIZE] =
+static const byte ed25519Ctx[ED25519CTX_SIZE+1] =
                                              "SigEd25519 no Ed25519 collisions";
 #endif
 

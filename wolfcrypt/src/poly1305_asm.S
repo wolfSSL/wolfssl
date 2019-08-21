@@ -22,9 +22,9 @@
 #ifndef HAVE_INTEL_AVX1
 #define HAVE_INTEL_AVX1
 #endif /* HAVE_INTEL_AVX1 */
-#ifndef HAVE_INTEL_AVX2
+#ifndef NO_AVX2_SUPPORT
 #define HAVE_INTEL_AVX2
-#endif /* HAVE_INTEL_AVX2 */
+#endif /* NO_AVX2_SUPPORT */
 
 #ifdef HAVE_INTEL_AVX1
 #ifndef __APPLE__
@@ -418,6 +418,7 @@ _poly1305_calc_powers_avx2:
         movq	%r12, %rax
         shrq	$2, %rax
         leaq	0(%rax,%rax,4), %rax
+        andq	$3, %r12
         addq	%rax, %r10
         adcq	$0x00, %r11
         adcq	$0x00, %r12

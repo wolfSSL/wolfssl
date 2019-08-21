@@ -33,6 +33,11 @@
 #include <wolfssl/wolfcrypt/cryptocb.h>
 #include <wolfssl/wolfcrypt/pkcs11.h>
 
+#ifdef __cplusplus
+    extern "C" {
+#endif
+
+
 typedef struct Pkcs11Dev {
     void*             dlHandle;         /* Handle to library  */
     CK_FUNCTION_LIST* func;             /* Array of functions */
@@ -52,10 +57,6 @@ typedef struct Pkcs11Session {
     CK_SLOT_ID        slotId;           /* Id of slot to use                  */
     CK_SESSION_HANDLE handle;           /* Handle to active session           */
 } Pkcs11Session;
-
-#ifdef __cplusplus
-    extern "C" {
-#endif
 
 /* Types of keys that can be stored. */
 enum Pkcs11KeyType {

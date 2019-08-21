@@ -102,5 +102,10 @@ STRINGTABLE
     83, "Handshake Message Split Across TLS Records"
     84, "ECC Private Decode Error"
     85, "ECC Public Decode Error"
+
+    86, "Watch callback not set"
+    87, "Watch hash failed"
+    88, "Watch callback failed"
+    89, "Bad Certificate Message"
 }
 

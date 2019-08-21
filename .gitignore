@@ -78,6 +78,7 @@ tests/unit
 testsuite/testsuite.test
 tests/unit.test
 tests/bio_write_test.txt
+test-write-dhparams.pem
 testsuite/*.der
 testsuite/*.pem
 testsuite/*.raw
@@ -295,6 +296,7 @@ Backup
 UpgradeLog.htm
 *.aps
 *.VC.db
+*.filters
 
 IDE/INTIME-RTOS/Debug_*
 IDE/VS-ARM/.vs

@@ -23,6 +23,8 @@
  *   cd ../scripts
  *   ruby ./sha2/sha512.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-sha512-asm.S
  */
+
+#ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
 	.text
 	.section	.rodata
@@ -122,20 +124,19 @@ L_SHA512_transform_neon_len_ror8:
 	.globl	Transform_Sha512_Len
 	.type	Transform_Sha512_Len, %function
 Transform_Sha512_Len:
-	stp	x29, x30, [sp, #-144]!
+	stp	x29, x30, [sp, #-128]!
 	add	x29, sp, #0
 	str	x17, [x29, #16]
 	stp	x18, x19, [x29, #24]
 	stp	x20, x21, [x29, #40]
 	stp	x22, x23, [x29, #56]
 	stp	x24, x25, [x29, #72]
-	stp	x26, x27, [x29, #88]
-	str	x28, [x29, #104]
-	stp	d8, d9, [x29, #112]
-	stp	d10, d11, [x29, #128]
+	str	x26, [x29, #88]
+	stp	d8, d9, [x29, #96]
+	stp	d10, d11, [x29, #112]
 	adr	x3, L_SHA512_transform_neon_len_k
-	adr	x28, L_SHA512_transform_neon_len_ror8
-	ld1	{v11.16b}, [x28]
+	adr	x26, L_SHA512_transform_neon_len_ror8
+	ld1	{v11.16b}, [x26]
 	# Load digest into working vars
 	ldp	x4, x5, [x0]
 	ldp	x6, x7, [x0, #16]
@@ -146,53 +147,53 @@ L_sha512_len_neon_begin:
 	# Load W
 	# Copy digest to add in at end
 	ld1	{v0.2d, v1.2d, v2.2d, v3.2d}, [x1], #0x40
-	mov	x20, x4
+	mov	x18, x4
 	ld1	{v4.2d, v5.2d, v6.2d, v7.2d}, [x1], #0x40
-	mov	x21, x5
+	mov	x19, x5
 	rev64	v0.16b, v0.16b
-	mov	x22, x6
+	mov	x20, x6
 	rev64	v1.16b, v1.16b
-	mov	x23, x7
+	mov	x21, x7
 	rev64	v2.16b, v2.16b
-	mov	x24, x8
+	mov	x22, x8
 	rev64	v3.16b, v3.16b
-	mov	x25, x9
+	mov	x23, x9
 	rev64	v4.16b, v4.16b
-	mov	x26, x10
+	mov	x24, x10
 	rev64	v5.16b, v5.16b
-	mov	x27, x11
+	mov	x25, x11
 	rev64	v6.16b, v6.16b
 	rev64	v7.16b, v7.16b
 	# Pre-calc: b ^ c
 	eor	x16, x5, x6
-	mov	x28, #4
+	mov	x26, #4
 	# Start of 16 rounds
 L_sha512_len_neon_start:
 	# Round 0
-	mov	x18, v0.d[0]
-	ldr	x19, [x3], #8
+	mov	x13, v0.d[0]
+	ldr	x15, [x3], #8
 	ror	x12, x8, #14
 	ror	x14, x4, #28
 	eor	x12, x12, x8, ror 18
 	eor	x14, x14, x4, ror 34
 	eor	x12, x12, x8, ror 41
-	eor	x15, x14, x4, ror 39
+	eor	x14, x14, x4, ror 39
 	add	x11, x11, x12
 	eor	x17, x4, x5
 	eor	x12, x9, x10
 	and	x16, x17, x16
 	and	x12, x12, x8
-	add	x11, x11, x18
+	add	x11, x11, x13
 	eor	x12, x12, x10
-	add	x11, x11, x19
+	add	x11, x11, x15
 	eor	x16, x16, x5
 	add	x11, x11, x12
-	add	x15, x15, x16
+	add	x14, x14, x16
 	add	x7, x7, x11
-	add	x11, x11, x15
+	add	x11, x11, x14
 	# Round 1
-	mov	x18, v0.d[1]
-	ldr	x19, [x3], #8
+	mov	x13, v0.d[1]
+	ldr	x15, [x3], #8
 	ext	v10.16b, v0.16b, v1.16b, #8
 	ror	x12, x7, #14
 	shl	v8.2d, v7.2d, #45
@@ -204,7 +205,7 @@ L_sha512_len_neon_start:
 	sri	v9.2d, v7.2d, #61
 	eor	x12, x12, x7, ror 41
 	eor	v9.16b, v9.16b, v8.16b
-	eor	x15, x14, x11, ror 39
+	eor	x14, x14, x11, ror 39
 	ushr	v8.2d, v7.2d, #6
 	add	x10, x10, x12
 	eor	v9.16b, v9.16b, v8.16b
@@ -216,45 +217,45 @@ L_sha512_len_neon_start:
 	add	v0.2d, v0.2d, v9.2d
 	and	x12, x12, x7
 	shl	v8.2d, v10.2d, #63
-	add	x10, x10, x18
+	add	x10, x10, x13
 	sri	v8.2d, v10.2d, #1
 	eor	x12, x12, x9
 	tbl	v9.16b, {v10.16b}, v11.16b
-	add	x10, x10, x19
+	add	x10, x10, x15
 	eor	v9.16b, v9.16b, v8.16b
 	eor	x17, x17, x4
 	ushr	v10.2d, v10.2d, #7
 	add	x10, x10, x12
 	eor	v9.16b, v9.16b, v10.16b
-	add	x15, x15, x17
+	add	x14, x14, x17
 	add	v0.2d, v0.2d, v9.2d
 	add	x6, x6, x10
-	add	x10, x10, x15
+	add	x10, x10, x14
 	# Round 2
-	mov	x18, v1.d[0]
-	ldr	x19, [x3], #8
+	mov	x13, v1.d[0]
+	ldr	x15, [x3], #8
 	ror	x12, x6, #14
 	ror	x14, x10, #28
 	eor	x12, x12, x6, ror 18
 	eor	x14, x14, x10, ror 34
 	eor	x12, x12, x6, ror 41
-	eor	x15, x14, x10, ror 39
+	eor	x14, x14, x10, ror 39
 	add	x9, x9, x12
 	eor	x17, x10, x11
 	eor	x12, x7, x8
 	and	x16, x17, x16
 	and	x12, x12, x6
-	add	x9, x9, x18
+	add	x9, x9, x13
 	eor	x12, x12, x8
-	add	x9, x9, x19
+	add	x9, x9, x15
 	eor	x16, x16, x11
 	add	x9, x9, x12
-	add	x15, x15, x16
+	add	x14, x14, x16
 	add	x5, x5, x9
-	add	x9, x9, x15
+	add	x9, x9, x14
 	# Round 3
-	mov	x18, v1.d[1]
-	ldr	x19, [x3], #8
+	mov	x13, v1.d[1]
+	ldr	x15, [x3], #8
 	ext	v10.16b, v1.16b, v2.16b, #8
 	ror	x12, x5, #14
 	shl	v8.2d, v0.2d, #45
@@ -266,7 +267,7 @@ L_sha512_len_neon_start:
 	sri	v9.2d, v0.2d, #61
 	eor	x12, x12, x5, ror 41
 	eor	v9.16b, v9.16b, v8.16b
-	eor	x15, x14, x9, ror 39
+	eor	x14, x14, x9, ror 39
 	ushr	v8.2d, v0.2d, #6
 	add	x8, x8, x12
 	eor	v9.16b, v9.16b, v8.16b
@@ -278,45 +279,45 @@ L_sha512_len_neon_start:
 	add	v1.2d, v1.2d, v9.2d
 	and	x12, x12, x5
 	shl	v8.2d, v10.2d, #63
-	add	x8, x8, x18
+	add	x8, x8, x13
 	sri	v8.2d, v10.2d, #1
 	eor	x12, x12, x7
 	tbl	v9.16b, {v10.16b}, v11.16b
-	add	x8, x8, x19
+	add	x8, x8, x15
 	eor	v9.16b, v9.16b, v8.16b
 	eor	x17, x17, x10
 	ushr	v10.2d, v10.2d, #7
 	add	x8, x8, x12
 	eor	v9.16b, v9.16b, v10.16b
-	add	x15, x15, x17
+	add	x14, x14, x17
 	add	v1.2d, v1.2d, v9.2d
 	add	x4, x4, x8
-	add	x8, x8, x15
+	add	x8, x8, x14
 	# Round 4
-	mov	x18, v2.d[0]
-	ldr	x19, [x3], #8
+	mov	x13, v2.d[0]
+	ldr	x15, [x3], #8
 	ror	x12, x4, #14
 	ror	x14, x8, #28
 	eor	x12, x12, x4, ror 18
 	eor	x14, x14, x8, ror 34
 	eor	x12, x12, x4, ror 41
-	eor	x15, x14, x8, ror 39
+	eor	x14, x14, x8, ror 39
 	add	x7, x7, x12
 	eor	x17, x8, x9
 	eor	x12, x5, x6
 	and	x16, x17, x16
 	and	x12, x12, x4
-	add	x7, x7, x18
+	add	x7, x7, x13
 	eor	x12, x12, x6
-	add	x7, x7, x19
+	add	x7, x7, x15
 	eor	x16, x16, x9
 	add	x7, x7, x12
-	add	x15, x15, x16
+	add	x14, x14, x16
 	add	x11, x11, x7
-	add	x7, x7, x15
+	add	x7, x7, x14
 	# Round 5
-	mov	x18, v2.d[1]
-	ldr	x19, [x3], #8
+	mov	x13, v2.d[1]
+	ldr	x15, [x3], #8
 	ext	v10.16b, v2.16b, v3.16b, #8
 	ror	x12, x11, #14
 	shl	v8.2d, v1.2d, #45
@@ -328,7 +329,7 @@ L_sha512_len_neon_start:
 	sri	v9.2d, v1.2d, #61
 	eor	x12, x12, x11, ror 41
 	eor	v9.16b, v9.16b, v8.16b
-	eor	x15, x14, x7, ror 39
+	eor	x14, x14, x7, ror 39
 	ushr	v8.2d, v1.2d, #6
 	add	x6, x6, x12
 	eor	v9.16b, v9.16b, v8.16b
@@ -340,45 +341,45 @@ L_sha512_len_neon_start:
 	add	v2.2d, v2.2d, v9.2d
 	and	x12, x12, x11
 	shl	v8.2d, v10.2d, #63
-	add	x6, x6, x18
+	add	x6, x6, x13
 	sri	v8.2d, v10.2d, #1
 	eor	x12, x12, x5
 	tbl	v9.16b, {v10.16b}, v11.16b
-	add	x6, x6, x19
+	add	x6, x6, x15
 	eor	v9.16b, v9.16b, v8.16b
 	eor	x17, x17, x8
 	ushr	v10.2d, v10.2d, #7
 	add	x6, x6, x12
 	eor	v9.16b, v9.16b, v10.16b
-	add	x15, x15, x17
+	add	x14, x14, x17
 	add	v2.2d, v2.2d, v9.2d
 	add	x10, x10, x6
-	add	x6, x6, x15
+	add	x6, x6, x14
 	# Round 6
-	mov	x18, v3.d[0]
-	ldr	x19, [x3], #8
+	mov	x13, v3.d[0]
+	ldr	x15, [x3], #8
 	ror	x12, x10, #14
 	ror	x14, x6, #28
 	eor	x12, x12, x10, ror 18
 	eor	x14, x14, x6, ror 34
 	eor	x12, x12, x10, ror 41
-	eor	x15, x14, x6, ror 39
+	eor	x14, x14, x6, ror 39
 	add	x5, x5, x12
 	eor	x17, x6, x7
 	eor	x12, x11, x4
 	and	x16, x17, x16
 	and	x12, x12, x10
-	add	x5, x5, x18
+	add	x5, x5, x13
 	eor	x12, x12, x4
-	add	x5, x5, x19
+	add	x5, x5, x15
 	eor	x16, x16, x7
 	add	x5, x5, x12
-	add	x15, x15, x16
+	add	x14, x14, x16
 	add	x9, x9, x5
-	add	x5, x5, x15
+	add	x5, x5, x14
 	# Round 7
-	mov	x18, v3.d[1]
-	ldr	x19, [x3], #8
+	mov	x13, v3.d[1]
+	ldr	x15, [x3], #8
 	ext	v10.16b, v3.16b, v4.16b, #8
 	ror	x12, x9, #14
 	shl	v8.2d, v2.2d, #45
@@ -390,7 +391,7 @@ L_sha512_len_neon_start:
 	sri	v9.2d, v2.2d, #61
 	eor	x12, x12, x9, ror 41
 	eor	v9.16b, v9.16b, v8.16b
-	eor	x15, x14, x5, ror 39
+	eor	x14, x14, x5, ror 39
 	ushr	v8.2d, v2.2d, #6
 	add	x4, x4, x12
 	eor	v9.16b, v9.16b, v8.16b
@@ -402,45 +403,45 @@ L_sha512_len_neon_start:
 	add	v3.2d, v3.2d, v9.2d
 	and	x12, x12, x9
 	shl	v8.2d, v10.2d, #63
-	add	x4, x4, x18
+	add	x4, x4, x13
 	sri	v8.2d, v10.2d, #1
 	eor	x12, x12, x11
 	tbl	v9.16b, {v10.16b}, v11.16b
-	add	x4, x4, x19
+	add	x4, x4, x15
 	eor	v9.16b, v9.16b, v8.16b
 	eor	x17, x17, x6
 	ushr	v10.2d, v10.2d, #7
 	add	x4, x4, x12
 	eor	v9.16b, v9.16b, v10.16b
-	add	x15, x15, x17
+	add	x14, x14, x17
 	add	v3.2d, v3.2d, v9.2d
 	add	x8, x8, x4
-	add	x4, x4, x15
+	add	x4, x4, x14
 	# Round 8
-	mov	x18, v4.d[0]
-	ldr	x19, [x3], #8
+	mov	x13, v4.d[0]
+	ldr	x15, [x3], #8
 	ror	x12, x8, #14
 	ror	x14, x4, #28
 	eor	x12, x12, x8, ror 18
 	eor	x14, x14, x4, ror 34
 	eor	x12, x12, x8, ror 41
-	eor	x15, x14, x4, ror 39
+	eor	x14, x14, x4, ror 39
 	add	x11, x11, x12
 	eor	x17, x4, x5
 	eor	x12, x9, x10
 	and	x16, x17, x16
 	and	x12, x12, x8
-	add	x11, x11, x18
+	add	x11, x11, x13
 	eor	x12, x12, x10
-	add	x11, x11, x19
+	add	x11, x11, x15
 	eor	x16, x16, x5
 	add	x11, x11, x12
-	add	x15, x15, x16
+	add	x14, x14, x16
 	add	x7, x7, x11
-	add	x11, x11, x15
+	add	x11, x11, x14
 	# Round 9
-	mov	x18, v4.d[1]
-	ldr	x19, [x3], #8
+	mov	x13, v4.d[1]
+	ldr	x15, [x3], #8
 	ext	v10.16b, v4.16b, v5.16b, #8
 	ror	x12, x7, #14
 	shl	v8.2d, v3.2d, #45
@@ -452,7 +453,7 @@ L_sha512_len_neon_start:
 	sri	v9.2d, v3.2d, #61
 	eor	x12, x12, x7, ror 41
 	eor	v9.16b, v9.16b, v8.16b
-	eor	x15, x14, x11, ror 39
+	eor	x14, x14, x11, ror 39
 	ushr	v8.2d, v3.2d, #6
 	add	x10, x10, x12
 	eor	v9.16b, v9.16b, v8.16b
@@ -464,45 +465,45 @@ L_sha512_len_neon_start:
 	add	v4.2d, v4.2d, v9.2d
 	and	x12, x12, x7
 	shl	v8.2d, v10.2d, #63
-	add	x10, x10, x18
+	add	x10, x10, x13
 	sri	v8.2d, v10.2d, #1
 	eor	x12, x12, x9
 	tbl	v9.16b, {v10.16b}, v11.16b
-	add	x10, x10, x19
+	add	x10, x10, x15
 	eor	v9.16b, v9.16b, v8.16b
 	eor	x17, x17, x4
 	ushr	v10.2d, v10.2d, #7
 	add	x10, x10, x12
 	eor	v9.16b, v9.16b, v10.16b
-	add	x15, x15, x17
+	add	x14, x14, x17
 	add	v4.2d, v4.2d, v9.2d
 	add	x6, x6, x10
-	add	x10, x10, x15
+	add	x10, x10, x14
 	# Round 10
-	mov	x18, v5.d[0]
-	ldr	x19, [x3], #8
+	mov	x13, v5.d[0]
+	ldr	x15, [x3], #8
 	ror	x12, x6, #14
 	ror	x14, x10, #28
 	eor	x12, x12, x6, ror 18
 	eor	x14, x14, x10, ror 34
 	eor	x12, x12, x6, ror 41
-	eor	x15, x14, x10, ror 39
+	eor	x14, x14, x10, ror 39
 	add	x9, x9, x12
 	eor	x17, x10, x11
 	eor	x12, x7, x8
 	and	x16, x17, x16
 	and	x12, x12, x6
-	add	x9, x9, x18
+	add	x9, x9, x13
 	eor	x12, x12, x8
-	add	x9, x9, x19
+	add	x9, x9, x15
 	eor	x16, x16, x11
 	add	x9, x9, x12
-	add	x15, x15, x16
+	add	x14, x14, x16
 	add	x5, x5, x9
-	add	x9, x9, x15
+	add	x9, x9, x14
 	# Round 11
-	mov	x18, v5.d[1]
-	ldr	x19, [x3], #8
+	mov	x13, v5.d[1]
+	ldr	x15, [x3], #8
 	ext	v10.16b, v5.16b, v6.16b, #8
 	ror	x12, x5, #14
 	shl	v8.2d, v4.2d, #45
@@ -514,7 +515,7 @@ L_sha512_len_neon_start:
 	sri	v9.2d, v4.2d, #61
 	eor	x12, x12, x5, ror 41
 	eor	v9.16b, v9.16b, v8.16b
-	eor	x15, x14, x9, ror 39
+	eor	x14, x14, x9, ror 39
 	ushr	v8.2d, v4.2d, #6
 	add	x8, x8, x12
 	eor	v9.16b, v9.16b, v8.16b
@@ -526,45 +527,45 @@ L_sha512_len_neon_start:
 	add	v5.2d, v5.2d, v9.2d
 	and	x12, x12, x5
 	shl	v8.2d, v10.2d, #63
-	add	x8, x8, x18
+	add	x8, x8, x13
 	sri	v8.2d, v10.2d, #1
 	eor	x12, x12, x7
 	tbl	v9.16b, {v10.16b}, v11.16b
-	add	x8, x8, x19
+	add	x8, x8, x15
 	eor	v9.16b, v9.16b, v8.16b
 	eor	x17, x17, x10
 	ushr	v10.2d, v10.2d, #7
 	add	x8, x8, x12
 	eor	v9.16b, v9.16b, v10.16b
-	add	x15, x15, x17
+	add	x14, x14, x17
 	add	v5.2d, v5.2d, v9.2d
 	add	x4, x4, x8
-	add	x8, x8, x15
+	add	x8, x8, x14
 	# Round 12
-	mov	x18, v6.d[0]
-	ldr	x19, [x3], #8
+	mov	x13, v6.d[0]
+	ldr	x15, [x3], #8
 	ror	x12, x4, #14
 	ror	x14, x8, #28
 	eor	x12, x12, x4, ror 18
 	eor	x14, x14, x8, ror 34
 	eor	x12, x12, x4, ror 41
-	eor	x15, x14, x8, ror 39
+	eor	x14, x14, x8, ror 39
 	add	x7, x7, x12
 	eor	x17, x8, x9
 	eor	x12, x5, x6
 	and	x16, x17, x16
 	and	x12, x12, x4
-	add	x7, x7, x18
+	add	x7, x7, x13
 	eor	x12, x12, x6
-	add	x7, x7, x19
+	add	x7, x7, x15
 	eor	x16, x16, x9
 	add	x7, x7, x12
-	add	x15, x15, x16
+	add	x14, x14, x16
 	add	x11, x11, x7
-	add	x7, x7, x15
+	add	x7, x7, x14
 	# Round 13
-	mov	x18, v6.d[1]
-	ldr	x19, [x3], #8
+	mov	x13, v6.d[1]
+	ldr	x15, [x3], #8
 	ext	v10.16b, v6.16b, v7.16b, #8
 	ror	x12, x11, #14
 	shl	v8.2d, v5.2d, #45
@@ -576,7 +577,7 @@ L_sha512_len_neon_start:
 	sri	v9.2d, v5.2d, #61
 	eor	x12, x12, x11, ror 41
 	eor	v9.16b, v9.16b, v8.16b
-	eor	x15, x14, x7, ror 39
+	eor	x14, x14, x7, ror 39
 	ushr	v8.2d, v5.2d, #6
 	add	x6, x6, x12
 	eor	v9.16b, v9.16b, v8.16b
@@ -588,45 +589,45 @@ L_sha512_len_neon_start:
 	add	v6.2d, v6.2d, v9.2d
 	and	x12, x12, x11
 	shl	v8.2d, v10.2d, #63
-	add	x6, x6, x18
+	add	x6, x6, x13
 	sri	v8.2d, v10.2d, #1
 	eor	x12, x12, x5
 	tbl	v9.16b, {v10.16b}, v11.16b
-	add	x6, x6, x19
+	add	x6, x6, x15
 	eor	v9.16b, v9.16b, v8.16b
 	eor	x17, x17, x8
 	ushr	v10.2d, v10.2d, #7
 	add	x6, x6, x12
 	eor	v9.16b, v9.16b, v10.16b
-	add	x15, x15, x17
+	add	x14, x14, x17
 	add	v6.2d, v6.2d, v9.2d
 	add	x10, x10, x6
-	add	x6, x6, x15
+	add	x6, x6, x14
 	# Round 14
-	mov	x18, v7.d[0]
-	ldr	x19, [x3], #8
+	mov	x13, v7.d[0]
+	ldr	x15, [x3], #8
 	ror	x12, x10, #14
 	ror	x14, x6, #28
 	eor	x12, x12, x10, ror 18
 	eor	x14, x14, x6, ror 34
 	eor	x12, x12, x10, ror 41
-	eor	x15, x14, x6, ror 39
+	eor	x14, x14, x6, ror 39
 	add	x5, x5, x12
 	eor	x17, x6, x7
 	eor	x12, x11, x4
 	and	x16, x17, x16
 	and	x12, x12, x10
-	add	x5, x5, x18
+	add	x5, x5, x13
 	eor	x12, x12, x4
-	add	x5, x5, x19
+	add	x5, x5, x15
 	eor	x16, x16, x7
 	add	x5, x5, x12
-	add	x15, x15, x16
+	add	x14, x14, x16
 	add	x9, x9, x5
-	add	x5, x5, x15
+	add	x5, x5, x14
 	# Round 15
-	mov	x18, v7.d[1]
-	ldr	x19, [x3], #8
+	mov	x13, v7.d[1]
+	ldr	x15, [x3], #8
 	ext	v10.16b, v7.16b, v0.16b, #8
 	ror	x12, x9, #14
 	shl	v8.2d, v6.2d, #45
@@ -638,7 +639,7 @@ L_sha512_len_neon_start:
 	sri	v9.2d, v6.2d, #61
 	eor	x12, x12, x9, ror 41
 	eor	v9.16b, v9.16b, v8.16b
-	eor	x15, x14, x5, ror 39
+	eor	x14, x14, x5, ror 39
 	ushr	v8.2d, v6.2d, #6
 	add	x4, x4, x12
 	eor	v9.16b, v9.16b, v8.16b
@@ -650,382 +651,382 @@ L_sha512_len_neon_start:
 	add	v7.2d, v7.2d, v9.2d
 	and	x12, x12, x9
 	shl	v8.2d, v10.2d, #63
-	add	x4, x4, x18
+	add	x4, x4, x13
 	sri	v8.2d, v10.2d, #1
 	eor	x12, x12, x11
 	tbl	v9.16b, {v10.16b}, v11.16b
-	add	x4, x4, x19
+	add	x4, x4, x15
 	eor	v9.16b, v9.16b, v8.16b
 	eor	x17, x17, x6
 	ushr	v10.2d, v10.2d, #7
 	add	x4, x4, x12
 	eor	v9.16b, v9.16b, v10.16b
-	add	x15, x15, x17
+	add	x14, x14, x17
 	add	v7.2d, v7.2d, v9.2d
 	add	x8, x8, x4
-	add	x4, x4, x15
-	subs	x28, x28, #1
+	add	x4, x4, x14
+	subs	x26, x26, #1
 	bne	L_sha512_len_neon_start
 	# Round 0
-	mov	x18, v0.d[0]
-	ldr	x19, [x3], #8
+	mov	x13, v0.d[0]
+	ldr	x15, [x3], #8
 	ror	x12, x8, #14
 	ror	x14, x4, #28
 	eor	x12, x12, x8, ror 18
 	eor	x14, x14, x4, ror 34
 	eor	x12, x12, x8, ror 41
-	eor	x15, x14, x4, ror 39
+	eor	x14, x14, x4, ror 39
 	add	x11, x11, x12
 	eor	x17, x4, x5
 	eor	x12, x9, x10
 	and	x16, x17, x16
 	and	x12, x12, x8
-	add	x11, x11, x18
+	add	x11, x11, x13
 	eor	x12, x12, x10
-	add	x11, x11, x19
+	add	x11, x11, x15
 	eor	x16, x16, x5
 	add	x11, x11, x12
-	add	x15, x15, x16
+	add	x14, x14, x16
 	add	x7, x7, x11
-	add	x11, x11, x15
+	add	x11, x11, x14
 	# Round 1
-	mov	x18, v0.d[1]
-	ldr	x19, [x3], #8
+	mov	x13, v0.d[1]
+	ldr	x15, [x3], #8
 	ror	x12, x7, #14
 	ror	x14, x11, #28
 	eor	x12, x12, x7, ror 18
 	eor	x14, x14, x11, ror 34
 	eor	x12, x12, x7, ror 41
-	eor	x15, x14, x11, ror 39
+	eor	x14, x14, x11, ror 39
 	add	x10, x10, x12
 	eor	x16, x11, x4
 	eor	x12, x8, x9
 	and	x17, x16, x17
 	and	x12, x12, x7
-	add	x10, x10, x18
+	add	x10, x10, x13
 	eor	x12, x12, x9
-	add	x10, x10, x19
+	add	x10, x10, x15
 	eor	x17, x17, x4
 	add	x10, x10, x12
-	add	x15, x15, x17
+	add	x14, x14, x17
 	add	x6, x6, x10
-	add	x10, x10, x15
+	add	x10, x10, x14
 	# Round 2
-	mov	x18, v1.d[0]
-	ldr	x19, [x3], #8
+	mov	x13, v1.d[0]
+	ldr	x15, [x3], #8
 	ror	x12, x6, #14
 	ror	x14, x10, #28
 	eor	x12, x12, x6, ror 18
 	eor	x14, x14, x10, ror 34
 	eor	x12, x12, x6, ror 41
-	eor	x15, x14, x10, ror 39
+	eor	x14, x14, x10, ror 39
 	add	x9, x9, x12
 	eor	x17, x10, x11
 	eor	x12, x7, x8
 	and	x16, x17, x16
 	and	x12, x12, x6
-	add	x9, x9, x18
+	add	x9, x9, x13
 	eor	x12, x12, x8
-	add	x9, x9, x19
+	add	x9, x9, x15
 	eor	x16, x16, x11
 	add	x9, x9, x12
-	add	x15, x15, x16
+	add	x14, x14, x16
 	add	x5, x5, x9
-	add	x9, x9, x15
+	add	x9, x9, x14
 	# Round 3
-	mov	x18, v1.d[1]
-	ldr	x19, [x3], #8
+	mov	x13, v1.d[1]
+	ldr	x15, [x3], #8
 	ror	x12, x5, #14
 	ror	x14, x9, #28
 	eor	x12, x12, x5, ror 18
 	eor	x14, x14, x9, ror 34
 	eor	x12, x12, x5, ror 41
-	eor	x15, x14, x9, ror 39
+	eor	x14, x14, x9, ror 39
 	add	x8, x8, x12
 	eor	x16, x9, x10
 	eor	x12, x6, x7
 	and	x17, x16, x17
 	and	x12, x12, x5
-	add	x8, x8, x18
+	add	x8, x8, x13
 	eor	x12, x12, x7
-	add	x8, x8, x19
+	add	x8, x8, x15
 	eor	x17, x17, x10
 	add	x8, x8, x12
-	add	x15, x15, x17
+	add	x14, x14, x17
 	add	x4, x4, x8
-	add	x8, x8, x15
+	add	x8, x8, x14
 	# Round 4
-	mov	x18, v2.d[0]
-	ldr	x19, [x3], #8
+	mov	x13, v2.d[0]
+	ldr	x15, [x3], #8
 	ror	x12, x4, #14
 	ror	x14, x8, #28
 	eor	x12, x12, x4, ror 18
 	eor	x14, x14, x8, ror 34
 	eor	x12, x12, x4, ror 41
-	eor	x15, x14, x8, ror 39
+	eor	x14, x14, x8, ror 39
 	add	x7, x7, x12
 	eor	x17, x8, x9
 	eor	x12, x5, x6
 	and	x16, x17, x16
 	and	x12, x12, x4
-	add	x7, x7, x18
+	add	x7, x7, x13
 	eor	x12, x12, x6
-	add	x7, x7, x19
+	add	x7, x7, x15
 	eor	x16, x16, x9
 	add	x7, x7, x12
-	add	x15, x15, x16
+	add	x14, x14, x16
 	add	x11, x11, x7
-	add	x7, x7, x15
+	add	x7, x7, x14
 	# Round 5
-	mov	x18, v2.d[1]
-	ldr	x19, [x3], #8
+	mov	x13, v2.d[1]
+	ldr	x15, [x3], #8
 	ror	x12, x11, #14
 	ror	x14, x7, #28
 	eor	x12, x12, x11, ror 18
 	eor	x14, x14, x7, ror 34
 	eor	x12, x12, x11, ror 41
-	eor	x15, x14, x7, ror 39
+	eor	x14, x14, x7, ror 39
 	add	x6, x6, x12
 	eor	x16, x7, x8
 	eor	x12, x4, x5
 	and	x17, x16, x17
 	and	x12, x12, x11
-	add	x6, x6, x18
+	add	x6, x6, x13
 	eor	x12, x12, x5
-	add	x6, x6, x19
+	add	x6, x6, x15
 	eor	x17, x17, x8
 	add	x6, x6, x12
-	add	x15, x15, x17
+	add	x14, x14, x17
 	add	x10, x10, x6
-	add	x6, x6, x15
+	add	x6, x6, x14
 	# Round 6
-	mov	x18, v3.d[0]
-	ldr	x19, [x3], #8
+	mov	x13, v3.d[0]
+	ldr	x15, [x3], #8
 	ror	x12, x10, #14
 	ror	x14, x6, #28
 	eor	x12, x12, x10, ror 18
 	eor	x14, x14, x6, ror 34
 	eor	x12, x12, x10, ror 41
-	eor	x15, x14, x6, ror 39
+	eor	x14, x14, x6, ror 39
 	add	x5, x5, x12
 	eor	x17, x6, x7
 	eor	x12, x11, x4
 	and	x16, x17, x16
 	and	x12, x12, x10
-	add	x5, x5, x18
+	add	x5, x5, x13
 	eor	x12, x12, x4
-	add	x5, x5, x19
+	add	x5, x5, x15
 	eor	x16, x16, x7
 	add	x5, x5, x12
-	add	x15, x15, x16
+	add	x14, x14, x16
 	add	x9, x9, x5
-	add	x5, x5, x15
+	add	x5, x5, x14
 	# Round 7
-	mov	x18, v3.d[1]
-	ldr	x19, [x3], #8
+	mov	x13, v3.d[1]
+	ldr	x15, [x3], #8
 	ror	x12, x9, #14
 	ror	x14, x5, #28
 	eor	x12, x12, x9, ror 18
 	eor	x14, x14, x5, ror 34
 	eor	x12, x12, x9, ror 41
-	eor	x15, x14, x5, ror 39
+	eor	x14, x14, x5, ror 39
 	add	x4, x4, x12
 	eor	x16, x5, x6
 	eor	x12, x10, x11
 	and	x17, x16, x17
 	and	x12, x12, x9
-	add	x4, x4, x18
+	add	x4, x4, x13
 	eor	x12, x12, x11
-	add	x4, x4, x19
+	add	x4, x4, x15
 	eor	x17, x17, x6
 	add	x4, x4, x12
-	add	x15, x15, x17
+	add	x14, x14, x17
 	add	x8, x8, x4
-	add	x4, x4, x15
+	add	x4, x4, x14
 	# Round 8
-	mov	x18, v4.d[0]
-	ldr	x19, [x3], #8
+	mov	x13, v4.d[0]
+	ldr	x15, [x3], #8
 	ror	x12, x8, #14
 	ror	x14, x4, #28
 	eor	x12, x12, x8, ror 18
 	eor	x14, x14, x4, ror 34
 	eor	x12, x12, x8, ror 41
-	eor	x15, x14, x4, ror 39
+	eor	x14, x14, x4, ror 39
 	add	x11, x11, x12
 	eor	x17, x4, x5
 	eor	x12, x9, x10
 	and	x16, x17, x16
 	and	x12, x12, x8
-	add	x11, x11, x18
+	add	x11, x11, x13
 	eor	x12, x12, x10
-	add	x11, x11, x19
+	add	x11, x11, x15
 	eor	x16, x16, x5
 	add	x11, x11, x12
-	add	x15, x15, x16
+	add	x14, x14, x16
 	add	x7, x7, x11
-	add	x11, x11, x15
+	add	x11, x11, x14
 	# Round 9
-	mov	x18, v4.d[1]
-	ldr	x19, [x3], #8
+	mov	x13, v4.d[1]
+	ldr	x15, [x3], #8
 	ror	x12, x7, #14
 	ror	x14, x11, #28
 	eor	x12, x12, x7, ror 18
 	eor	x14, x14, x11, ror 34
 	eor	x12, x12, x7, ror 41
-	eor	x15, x14, x11, ror 39
+	eor	x14, x14, x11, ror 39
 	add	x10, x10, x12
 	eor	x16, x11, x4
 	eor	x12, x8, x9
 	and	x17, x16, x17
 	and	x12, x12, x7
-	add	x10, x10, x18
+	add	x10, x10, x13
 	eor	x12, x12, x9
-	add	x10, x10, x19
+	add	x10, x10, x15
 	eor	x17, x17, x4
 	add	x10, x10, x12
-	add	x15, x15, x17
+	add	x14, x14, x17
 	add	x6, x6, x10
-	add	x10, x10, x15
+	add	x10, x10, x14
 	# Round 10
-	mov	x18, v5.d[0]
-	ldr	x19, [x3], #8
+	mov	x13, v5.d[0]
+	ldr	x15, [x3], #8
 	ror	x12, x6, #14
 	ror	x14, x10, #28
 	eor	x12, x12, x6, ror 18
 	eor	x14, x14, x10, ror 34
 	eor	x12, x12, x6, ror 41
-	eor	x15, x14, x10, ror 39
+	eor	x14, x14, x10, ror 39
 	add	x9, x9, x12
 	eor	x17, x10, x11
 	eor	x12, x7, x8
 	and	x16, x17, x16
 	and	x12, x12, x6
-	add	x9, x9, x18
+	add	x9, x9, x13
 	eor	x12, x12, x8
-	add	x9, x9, x19
+	add	x9, x9, x15
 	eor	x16, x16, x11
 	add	x9, x9, x12
-	add	x15, x15, x16
+	add	x14, x14, x16
 	add	x5, x5, x9
-	add	x9, x9, x15
+	add	x9, x9, x14
 	# Round 11
-	mov	x18, v5.d[1]
-	ldr	x19, [x3], #8
+	mov	x13, v5.d[1]
+	ldr	x15, [x3], #8
 	ror	x12, x5, #14
 	ror	x14, x9, #28
 	eor	x12, x12, x5, ror 18
 	eor	x14, x14, x9, ror 34
 	eor	x12, x12, x5, ror 41
-	eor	x15, x14, x9, ror 39
+	eor	x14, x14, x9, ror 39
 	add	x8, x8, x12
 	eor	x16, x9, x10
 	eor	x12, x6, x7
 	and	x17, x16, x17
 	and	x12, x12, x5
-	add	x8, x8, x18
+	add	x8, x8, x13
 	eor	x12, x12, x7
-	add	x8, x8, x19
+	add	x8, x8, x15
 	eor	x17, x17, x10
 	add	x8, x8, x12
-	add	x15, x15, x17
+	add	x14, x14, x17
 	add	x4, x4, x8
-	add	x8, x8, x15
+	add	x8, x8, x14
 	# Round 12
-	mov	x18, v6.d[0]
-	ldr	x19, [x3], #8
+	mov	x13, v6.d[0]
+	ldr	x15, [x3], #8
 	ror	x12, x4, #14
 	ror	x14, x8, #28
 	eor	x12, x12, x4, ror 18
 	eor	x14, x14, x8, ror 34
 	eor	x12, x12, x4, ror 41
-	eor	x15, x14, x8, ror 39
+	eor	x14, x14, x8, ror 39
 	add	x7, x7, x12
 	eor	x17, x8, x9
 	eor	x12, x5, x6
 	and	x16, x17, x16
 	and	x12, x12, x4
-	add	x7, x7, x18
+	add	x7, x7, x13
 	eor	x12, x12, x6
-	add	x7, x7, x19
+	add	x7, x7, x15
 	eor	x16, x16, x9
 	add	x7, x7, x12
-	add	x15, x15, x16
+	add	x14, x14, x16
 	add	x11, x11, x7
-	add	x7, x7, x15
+	add	x7, x7, x14
 	# Round 13
-	mov	x18, v6.d[1]
-	ldr	x19, [x3], #8
+	mov	x13, v6.d[1]
+	ldr	x15, [x3], #8
 	ror	x12, x11, #14
 	ror	x14, x7, #28
 	eor	x12, x12, x11, ror 18
 	eor	x14, x14, x7, ror 34
 	eor	x12, x12, x11, ror 41
-	eor	x15, x14, x7, ror 39
+	eor	x14, x14, x7, ror 39
 	add	x6, x6, x12
 	eor	x16, x7, x8
 	eor	x12, x4, x5
 	and	x17, x16, x17
 	and	x12, x12, x11
-	add	x6, x6, x18
+	add	x6, x6, x13
 	eor	x12, x12, x5
-	add	x6, x6, x19
+	add	x6, x6, x15
 	eor	x17, x17, x8
 	add	x6, x6, x12
-	add	x15, x15, x17
+	add	x14, x14, x17
 	add	x10, x10, x6
-	add	x6, x6, x15
+	add	x6, x6, x14
 	# Round 14
-	mov	x18, v7.d[0]
-	ldr	x19, [x3], #8
+	mov	x13, v7.d[0]
+	ldr	x15, [x3], #8
 	ror	x12, x10, #14
 	ror	x14, x6, #28
 	eor	x12, x12, x10, ror 18
 	eor	x14, x14, x6, ror 34
 	eor	x12, x12, x10, ror 41
-	eor	x15, x14, x6, ror 39
+	eor	x14, x14, x6, ror 39
 	add	x5, x5, x12
 	eor	x17, x6, x7
 	eor	x12, x11, x4
 	and	x16, x17, x16
 	and	x12, x12, x10
-	add	x5, x5, x18
+	add	x5, x5, x13
 	eor	x12, x12, x4
-	add	x5, x5, x19
+	add	x5, x5, x15
 	eor	x16, x16, x7
 	add	x5, x5, x12
-	add	x15, x15, x16
+	add	x14, x14, x16
 	add	x9, x9, x5
-	add	x5, x5, x15
+	add	x5, x5, x14
 	# Round 15
-	mov	x18, v7.d[1]
-	ldr	x19, [x3], #8
+	mov	x13, v7.d[1]
+	ldr	x15, [x3], #8
 	ror	x12, x9, #14
 	ror	x14, x5, #28
 	eor	x12, x12, x9, ror 18
 	eor	x14, x14, x5, ror 34
 	eor	x12, x12, x9, ror 41
-	eor	x15, x14, x5, ror 39
+	eor	x14, x14, x5, ror 39
 	add	x4, x4, x12
 	eor	x16, x5, x6
 	eor	x12, x10, x11
 	and	x17, x16, x17
 	and	x12, x12, x9
-	add	x4, x4, x18
+	add	x4, x4, x13
 	eor	x12, x12, x11
-	add	x4, x4, x19
+	add	x4, x4, x15
 	eor	x17, x17, x6
 	add	x4, x4, x12
-	add	x15, x15, x17
+	add	x14, x14, x17
 	add	x8, x8, x4
-	add	x4, x4, x15
-	add	x11, x11, x27
-	add	x10, x10, x26
-	add	x9, x9, x25
-	add	x8, x8, x24
-	add	x7, x7, x23
-	add	x6, x6, x22
-	add	x5, x5, x21
-	add	x4, x4, x20
+	add	x4, x4, x14
+	add	x11, x11, x25
+	add	x10, x10, x24
+	add	x9, x9, x23
+	add	x8, x8, x22
+	add	x7, x7, x21
+	add	x6, x6, x20
+	add	x5, x5, x19
+	add	x4, x4, x18
 	adr	x3, L_SHA512_transform_neon_len_k
 	subs	w2, w2, #0x80
 	bne	L_sha512_len_neon_begin
@@ -1033,17 +1034,16 @@ L_sha512_len_neon_start:
 	stp	x6, x7, [x0, #16]
 	stp	x8, x9, [x0, #32]
 	stp	x10, x11, [x0, #48]
-	eor	x0, x0, x0
 	ldr	x17, [x29, #16]
 	ldp	x18, x19, [x29, #24]
 	ldp	x20, x21, [x29, #40]
 	ldp	x22, x23, [x29, #56]
 	ldp	x24, x25, [x29, #72]
-	ldp	x26, x27, [x29, #88]
-	ldr	x28, [x29, #104]
-	ldp	d8, d9, [x29, #112]
-	ldp	d10, d11, [x29, #128]
-	ldp	x29, x30, [sp], #0x90
+	ldr	x26, [x29, #88]
+	ldp	d8, d9, [x29, #96]
+	ldp	d10, d11, [x29, #112]
+	ldp	x29, x30, [sp], #0x80
 	ret
 	.size	Transform_Sha512_Len,.-Transform_Sha512_Len
 #endif /* __aarch64__ */
+#endif /* WOLFSSL_ARMASM */

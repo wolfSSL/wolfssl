@@ -134,6 +134,7 @@ EXTRA_DIST+= wolfssl-ntru.sln
 EXTRA_DIST+= wolfssl.sln
 EXTRA_DIST+= wolfssl64.sln
 EXTRA_DIST+= valgrind-error.sh
+EXTRA_DIST+= fips-hash.sh
 EXTRA_DIST+= gencertbuf.pl
 EXTRA_DIST+= README.md
 EXTRA_DIST+= README
@@ -141,8 +142,8 @@ EXTRA_DIST+= ChangeLog.md
 EXTRA_DIST+= LICENSING
 EXTRA_DIST+= INSTALL
 EXTRA_DIST+= IPP
-EXTRA_DIST+= .cproject
-EXTRA_DIST+= .project
+EXTRA_DIST+= LPCExpresso.cproject
+EXTRA_DIST+= LPCExpresso.project
 EXTRA_DIST+= resource.h wolfssl.rc
 
 include wrapper/include.am

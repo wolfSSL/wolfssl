@@ -6126,6 +6126,45 @@ WOLFSSL_API WC_PKCS12* wolfSSL_d2i_PKCS12_bio(WOLFSSL_BIO* bio,
 /*!
     \ingroup openSSL
 
+    \brief wolfSSL_i2d_PKCS12_bio (i2d_PKCS12_bio) copies in the cert
+    information from the structure WC_PKCS12 to WOLFSSL_BIO.
+
+    \return 1 for success.
+    \return Failure 0.
+
+    \param bio WOLFSSL_BIO structure to write PKCS12 buffer to.
+    \param pkcs12 WC_PKCS12 structure for PKCS12 structure as input.
+
+    _Example_
+    \code
+    WC_PKCS12 pkcs12;
+    FILE *f;
+    byte buffer[5300];
+    char file[] = "./test.p12";
+    int bytes;
+    WOLFSSL_BIO* bio;
+    pkcs12 = wc_PKCS12_new();
+    f = fopen(file, "rb");
+    bytes = (int)fread(buffer, 1, sizeof(buffer), f);
+    fclose(f);
+    //convert the DER file into an internal structure
+    wc_d2i_PKCS12(buffer, bytes, pkcs12);
+    bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+    //convert PKCS12 structure into bio
+    wolfSSL_i2d_PKCS12_bio(bio, pkcs12);
+    wc_PKCS12_free(pkcs)
+    //use bio
+    \endcode
+
+    \sa wolfSSL_PKCS12_parse
+    \sa wc_PKCS12_free
+*/
+WOLFSSL_API WC_PKCS12* wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO* bio,
+                                       WC_PKCS12* pkcs12);
+
+/*!
+    \ingroup openSSL
+
     \brief PKCS12 can be enabled with adding –enable-opensslextra to the
     configure command. It can use triple DES and RC4 for decryption so would
     recommend also enabling these features when enabling opensslextra

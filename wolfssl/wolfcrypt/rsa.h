@@ -320,7 +320,7 @@ WOLFSSL_API int wc_RsaDirect(byte* in, word32 inLen, byte* out, word32* outSz,
                    RsaKey* key, int type, WC_RNG* rng);
 #endif
 
-#endif /* HAVE_FIPS*/
+#endif /* HAVE_FIPS */
 
 WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
                                                                        word32*);

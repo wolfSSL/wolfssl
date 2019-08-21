@@ -760,6 +760,14 @@
 #elif defined(WOLFSSL_DEVCRYPTO_AES)
     /* if all AES is enabled with devcrypto then tables are not needed */
 
+    #if defined(HAVE_AESCCM)
+    static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    {
+        wc_AesEncryptDirect(aes, outBlock, inBlock);
+        return 0;
+    }
+    #endif
+
 #else
 
     /* using wolfCrypt software implementation */
@@ -1314,7 +1322,8 @@ static const word32 Td[4][256] = {
 };
 
 
-#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
+#if (defined(HAVE_AES_CBC) && !defined(WOLFSSL_DEVCRYPTO_CBC)) \
+			|| defined(WOLFSSL_AES_DIRECT)
 static const byte Td4[256] =
 {
     0x52U, 0x09U, 0x6aU, 0xd5U, 0x30U, 0x36U, 0xa5U, 0x38U,
@@ -1628,7 +1637,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         #endif
 
         /* if input and output same will overwrite input iv */
-        XMEMCPY(aes->tmp, inBlock, AES_BLOCK_SIZE);
+        if ((const byte*)aes->tmp != inBlock)
+            XMEMCPY(aes->tmp, inBlock, AES_BLOCK_SIZE);
         AES_ECB_decrypt(inBlock, outBlock, AES_BLOCK_SIZE, (byte*)aes->key,
                         aes->rounds);
         return;
@@ -2305,6 +2315,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
             aes->use_aesni = 1;
             if (iv)
                 XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
+            else
+                XMEMSET(aes->reg, 0, AES_BLOCK_SIZE);
             if (dir == AES_ENCRYPTION)
                 return AES_set_encrypt_key(userKey, keylen * 8, aes);
         #ifdef HAVE_AES_DECRYPT
@@ -3657,6 +3669,41 @@ void AES_GCM_decrypt_avx2(const unsigned char *in, unsigned char *out,
 #endif /* HAVE_AES_DECRYPT */
 
 #else /* _MSC_VER */
+
+#define S(w,z) ((char)((unsigned long long)(w) >> (8*(7-(z))) & 0xFF))
+#define M128_INIT(x,y) { S((x),7), S((x),6), S((x),5), S((x),4), \
+                         S((x),3), S((x),2), S((x),1), S((x),0), \
+                         S((y),7), S((y),6), S((y),5), S((y),4), \
+                         S((y),3), S((y),2), S((y),1), S((y),0) }
+
+static const __m128i MOD2_128 =
+        M128_INIT(0x1, (long long int)0xc200000000000000UL);
+
+
+/* See Intel® Carry-Less Multiplication Instruction
+ * and its Usage for Computing the GCM Mode White Paper
+ * by Shay Gueron, Intel Mobility Group, Israel Development Center;
+ * and Michael E. Kounavis, Intel Labs, Circuits and Systems Research */
+
+
+/* Figure 9. AES-GCM – Encrypt With Single Block Ghash at a Time */
+
+static const __m128i ONE   = M128_INIT(0x0, 0x1);
+#ifndef AES_GCM_AESNI_NO_UNROLL
+static const __m128i TWO   = M128_INIT(0x0, 0x2);
+static const __m128i THREE = M128_INIT(0x0, 0x3);
+static const __m128i FOUR  = M128_INIT(0x0, 0x4);
+static const __m128i FIVE  = M128_INIT(0x0, 0x5);
+static const __m128i SIX   = M128_INIT(0x0, 0x6);
+static const __m128i SEVEN = M128_INIT(0x0, 0x7);
+static const __m128i EIGHT = M128_INIT(0x0, 0x8);
+#endif
+static const __m128i BSWAP_EPI64 =
+        M128_INIT(0x0001020304050607, 0x08090a0b0c0d0e0f);
+static const __m128i BSWAP_MASK =
+        M128_INIT(0x08090a0b0c0d0e0f, 0x0001020304050607);
+
+
 /* The following are for MSC based builds which do not allow
  * inline assembly. Intrinsic functions are used instead. */
 
@@ -5288,7 +5335,7 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
     word32 keyCopy[AES_256_KEY_SIZE/sizeof(word32)];
 #endif
     word32 keySize;
-    int status = 0;
+    int status = HAL_OK;
     word32 blocks = sz / AES_BLOCK_SIZE;
     word32 partial = sz % AES_BLOCK_SIZE;
     byte tag[AES_BLOCK_SIZE];
@@ -5355,8 +5402,10 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
     if (status == HAL_OK) {
         /* GCM payload phase - blocks */
         hcryp.Init.GCMCMACPhase  = CRYP_PAYLOAD_PHASE;
-        status = HAL_CRYPEx_AES_Auth(&hcryp, in, (blocks * AES_BLOCK_SIZE), out,
-            STM32_HAL_TIMEOUT);
+        if (blocks) {
+            status = HAL_CRYPEx_AES_Auth(&hcryp, (byte*)in,
+                (blocks * AES_BLOCK_SIZE), out, STM32_HAL_TIMEOUT);
+        }
     }
     if (status == HAL_OK && partial != 0) {
         /* GCM payload phase - partial remainder */
@@ -5373,9 +5422,11 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
     }
 #else
     HAL_CRYP_Init(&hcryp);
-    /* GCM payload phase - blocks */
-    status = HAL_CRYPEx_AESGCM_Encrypt(&hcryp, (byte*)in,
-        (blocks * AES_BLOCK_SIZE), out, STM32_HAL_TIMEOUT);
+    if (blocks) {
+        /* GCM payload phase - blocks */
+        status = HAL_CRYPEx_AESGCM_Encrypt(&hcryp, (byte*)in,
+            (blocks * AES_BLOCK_SIZE), out, STM32_HAL_TIMEOUT);
+    }
     if (status == HAL_OK && partial != 0) {
         /* GCM payload phase - partial remainder */
         XMEMSET(partialBlock, 0, sizeof(partialBlock));
@@ -5683,7 +5734,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     word32 keyCopy[AES_256_KEY_SIZE/sizeof(word32)];
 #endif
     word32 keySize;
-    int status;
+    int status = HAL_OK;
     word32 blocks = sz / AES_BLOCK_SIZE;
     word32 partial = sz % AES_BLOCK_SIZE;
     byte tag[AES_BLOCK_SIZE];
@@ -5750,8 +5801,10 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     if (status == HAL_OK) {
         /* GCM payload phase - blocks */
         hcryp.Init.GCMCMACPhase  = CRYP_PAYLOAD_PHASE;
-        status = HAL_CRYPEx_AES_Auth(&hcryp, in, (blocks * AES_BLOCK_SIZE), out,
-            STM32_HAL_TIMEOUT);
+        if (blocks) {
+            status = HAL_CRYPEx_AES_Auth(&hcryp, (byte*)in,
+                (blocks * AES_BLOCK_SIZE), out, STM32_HAL_TIMEOUT);
+        }
     }
     if (status == HAL_OK && partial != 0) {
         /* GCM payload phase - partial remainder */
@@ -5768,9 +5821,11 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     }
 #else
     HAL_CRYP_Init(&hcryp);
-    /* GCM payload phase - blocks */
-    status = HAL_CRYPEx_AESGCM_Decrypt(&hcryp, (byte*)in,
-        (blocks * AES_BLOCK_SIZE), out, STM32_HAL_TIMEOUT);
+    if (blocks) {
+        /* GCM payload phase - blocks */
+        status = HAL_CRYPEx_AESGCM_Decrypt(&hcryp, (byte*)in,
+            (blocks * AES_BLOCK_SIZE), out, STM32_HAL_TIMEOUT);
+    }
     if (status == HAL_OK && partial != 0) {
         /* GCM payload phase - partial remainder */
         XMEMSET(partialBlock, 0, sizeof(partialBlock));

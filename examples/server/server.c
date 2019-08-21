@@ -200,7 +200,7 @@ static int TestEmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 
     if (dtlsCtx->failOnce) {
         word32 seq = 0;
-        
+
         if (PeekSeq(buf, &seq) && seq == dtlsCtx->blockSeq) {
             dtlsCtx->failOnce = 0;
             WOLFSSL_MSG("Forcing WANT_WRITE");
@@ -453,6 +453,10 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
                 err_sys_ex(runWithErrors, "SSL_read failed");
             }
         }
+        else if (SSL_get_error(ssl, 0) == 0 &&
+                            tcp_select(SSL_get_fd(ssl), 0) == TEST_RECV_READY) {
+                err = WOLFSSL_ERROR_WANT_READ;
+        }
     } while (err == WC_PENDING_E || err == WOLFSSL_ERROR_WANT_READ);
     if (ret > 0) {
         input[ret] = 0; /* null terminate message */
@@ -464,10 +468,19 @@ static void ServerWrite(WOLFSSL* ssl, const char* output, int outputLen)
 {
     int ret, err;
     char buffer[WOLFSSL_MAX_ERROR_SZ];
+    int len;
+
+#ifdef OPENSSL_ALL
+    /* Fuzz testing expects reply split over two msgs when TLSv1.0 or below */
+    if (wolfSSL_GetVersion(ssl) <= WOLFSSL_TLSV1)
+         len = outputLen / 2;
+    else
+#endif
+        len = outputLen;
 
     do {
         err = 0; /* reset error */
-        ret = SSL_write(ssl, output, outputLen);
+        ret = SSL_write(ssl, output, len);
         if (ret <= 0) {
             err = SSL_get_error(ssl, 0);
 
@@ -477,6 +490,11 @@ static void ServerWrite(WOLFSSL* ssl, const char* output, int outputLen)
                 if (ret < 0) break;
             }
         #endif
+        }
+        else if (ret != outputLen) {
+            output += ret;
+            len = (outputLen -= ret);
+            err = WOLFSSL_ERROR_WANT_WRITE;
         }
     } while (err == WC_PENDING_E || err == WOLFSSL_ERROR_WANT_WRITE);
     if (ret != outputLen) {
@@ -586,7 +604,7 @@ static const char* server_usage_msg[][49] = {
 #ifdef WOLFSSL_SEND_HRR_COOKIE
         "-J          Server sends Cookie Extension containing state\n", /* 45 */
 #endif
-#endif /* WOLFSSL_TLS13 */ 
+#endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_EARLY_DATA
         "-0          Early data read from client (0-RTT handshake)\n",  /* 46 */
 #endif
@@ -703,7 +721,7 @@ static const char* server_usage_msg[][49] = {
 #ifdef WOLFSSL_SEND_HRR_COOKIE
         "-J          サーバーの状態を含むTLS Cookie 拡張を送信する\n",  /* 45 */
 #endif
-#endif /* WOLFSSL_TLS13 */ 
+#endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_EARLY_DATA
         "-0          クライアントからの Early Data 読み取り"
                                       "（0-RTTハンドシェイク）\n",      /* 46 */
@@ -726,7 +744,7 @@ static void Usage(void)
     int msgId = 0;
     const char** msg = server_usage_msg[lng_index];
 
-    printf("%s%s%s", "server ", LIBWOLFSSL_VERSION_STRING, 
+    printf("%s%s%s", "server ", LIBWOLFSSL_VERSION_STRING,
            msg[msgId]);
     printf("%s", msg[++msgId]);                     /* ? */
     printf("%s %d\n", msg[++msgId], wolfSSLPort);   /* -p */
@@ -1930,7 +1948,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 else
                 {
         #ifdef HAVE_ECC
-            #if defined(HAVE_ECC256) || defined(HAVE_ALL_CURVES)
+            #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
                     int groups[1] = { WOLFSSL_ECC_SECP256R1 };
 
                     if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP256R1)

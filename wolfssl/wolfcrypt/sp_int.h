@@ -85,20 +85,6 @@
 #ifdef WOLFSSL_SP_MATH
 #include <wolfssl/wolfcrypt/random.h>
 
-#ifndef MIN
-   #define MIN(x,y) ((x)<(y)?(x):(y))
-#endif
-
-#ifndef MAX
-   #define MAX(x,y) ((x)>(y)?(x):(y))
-#endif
-
-#ifdef WOLFSSL_PUBLIC_MP
-    #define MP_API   WOLFSSL_API
-#else
-    #define MP_API   WOLFSSL_LOCAL
-#endif
-
 #if !defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_HAVE_SP_DH)
     #if !defined(NO_PWDBASED) && defined(WOLFSSL_SHA512)
         #define SP_INT_DIGITS        ((512 + SP_WORD_SIZE) / SP_WORD_SIZE)
@@ -113,11 +99,29 @@
 
 #define sp_isodd(a) (a->used != 0 && (a->dp[0] & 1))
 
+#ifdef HAVE_WOLF_BIGINT
+    /* raw big integer */
+    typedef struct WC_BIGINT {
+        byte*   buf;
+        word32  len;
+        void*   heap;
+    } WC_BIGINT;
+    #define WOLF_BIGINT_DEFINED
+#endif
+
 typedef struct sp_int {
     int used;
     int size;
     sp_int_digit dp[SP_INT_DIGITS];
+#ifdef HAVE_WOLF_BIGINT
+    struct WC_BIGINT raw; /* unsigned binary (big endian) */
+#endif
 } sp_int;
+
+typedef sp_int mp_int;
+typedef sp_digit mp_digit;
+
+#include <wolfssl/wolfcrypt/wolfmath.h>
 
 
 MP_API int sp_init(sp_int* a);
@@ -148,8 +152,6 @@ MP_API int sp_add(sp_int* a, sp_int* b, sp_int* r);
 MP_API int sp_set_int(sp_int* a, unsigned long b);
 MP_API int sp_tohex(sp_int* a, char* str);
 
-typedef sp_int mp_int;
-typedef sp_digit mp_digit;
 
 #define MP_OKAY    0
 #define MP_NO      0
@@ -198,9 +200,6 @@ typedef sp_digit mp_digit;
 #define mp_set_int                  sp_set_int
 #define mp_tohex                    sp_tohex
 
-#define MP_INT_DEFINED
-
-#include <wolfssl/wolfcrypt/wolfmath.h>
 #endif
 
 #endif /* WOLF_CRYPT_SP_H */

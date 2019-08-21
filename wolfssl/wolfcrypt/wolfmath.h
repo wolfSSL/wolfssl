@@ -19,60 +19,78 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#if defined(HAVE_WOLF_BIGINT) && !defined(WOLF_BIGINT_DEFINED)
-    /* raw big integer */
-    typedef struct WC_BIGINT {
-        byte*   buf;
-        word32  len;
-        void*   heap;
-    } WC_BIGINT;
-
-    #define WOLF_BIGINT_DEFINED
-#endif
-
-
-/* only define functions if mp_int has been declared */
-#ifdef MP_INT_DEFINED
-
 #ifndef __WOLFMATH_H__
 #define __WOLFMATH_H__
 
-    /* timing resistance array */
-    #if !defined(WC_NO_CACHE_RESISTANT) && \
-        ((defined(HAVE_ECC) && defined(ECC_TIMING_RESISTANT)) || \
-         (defined(USE_FAST_MATH) && defined(TFM_TIMING_RESISTANT)))
+#ifdef __cplusplus
+    extern "C" {
+#endif
 
-        extern const wolfssl_word wc_off_on_addr[2];
+#ifdef WOLFSSL_PUBLIC_MP
+    #define MP_API   WOLFSSL_API
+#else
+    #define MP_API   WOLFSSL_LOCAL
+#endif
+
+#ifndef MIN
+   #define MIN(x,y) ((x)<(y)?(x):(y))
+#endif
+
+#ifndef MAX
+   #define MAX(x,y) ((x)>(y)?(x):(y))
+#endif
+
+/* timing resistance array */
+#if !defined(WC_NO_CACHE_RESISTANT) && \
+    ((defined(HAVE_ECC) && defined(ECC_TIMING_RESISTANT)) || \
+     (defined(USE_FAST_MATH) && defined(TFM_TIMING_RESISTANT)))
+
+    extern const wolfssl_word wc_off_on_addr[2];
+#endif
+
+
+/* common math functions */
+MP_API int get_digit_count(mp_int* a);
+MP_API mp_digit get_digit(mp_int* a, int n);
+MP_API int get_rand_digit(WC_RNG* rng, mp_digit* d);
+
+WOLFSSL_API int mp_rand(mp_int* a, int digits, WC_RNG* rng);
+
+enum {
+    /* format type */
+    WC_TYPE_HEX_STR = 1,
+    WC_TYPE_UNSIGNED_BIN = 2,
+};
+
+WOLFSSL_API int wc_export_int(mp_int* mp, byte* buf, word32* len,
+    word32 keySz, int encType);
+
+#ifdef HAVE_WOLF_BIGINT
+    #if !defined(WOLF_BIGINT_DEFINED)
+        /* raw big integer */
+        typedef struct WC_BIGINT {
+            byte*   buf;
+            word32  len;
+            void*   heap;
+        } WC_BIGINT;
+        #define WOLF_BIGINT_DEFINED
     #endif
 
-    /* common math functions */
-    int get_digit_count(mp_int* a);
-    mp_digit get_digit(mp_int* a, int n);
-    int get_rand_digit(WC_RNG* rng, mp_digit* d);
-    int mp_rand(mp_int* a, int digits, WC_RNG* rng);
+    WOLFSSL_LOCAL void wc_bigint_init(WC_BIGINT* a);
+    WOLFSSL_LOCAL int wc_bigint_alloc(WC_BIGINT* a, word32 sz);
+    WOLFSSL_LOCAL int wc_bigint_from_unsigned_bin(WC_BIGINT* a, const byte* in, word32 inlen);
+    WOLFSSL_LOCAL int wc_bigint_to_unsigned_bin(WC_BIGINT* a, byte* out, word32* outlen);
+    WOLFSSL_LOCAL void wc_bigint_zero(WC_BIGINT* a);
+    WOLFSSL_LOCAL void wc_bigint_free(WC_BIGINT* a);
 
-    enum {
-        /* format type */
-        WC_TYPE_HEX_STR = 1,
-        WC_TYPE_UNSIGNED_BIN = 2,
-    };
+    WOLFSSL_LOCAL int wc_mp_to_bigint(mp_int* src, WC_BIGINT* dst);
+    WOLFSSL_LOCAL int wc_mp_to_bigint_sz(mp_int* src, WC_BIGINT* dst, word32 sz);
+    WOLFSSL_LOCAL int wc_bigint_to_mp(WC_BIGINT* src, mp_int* dst);
+#endif /* HAVE_WOLF_BIGINT */
 
-    WOLFSSL_API int wc_export_int(mp_int* mp, byte* buf, word32* len, 
-        word32 keySz, int encType);
 
-    #ifdef HAVE_WOLF_BIGINT
-        void wc_bigint_init(WC_BIGINT* a);
-        int wc_bigint_alloc(WC_BIGINT* a, word32 sz);
-        int wc_bigint_from_unsigned_bin(WC_BIGINT* a, const byte* in, word32 inlen);
-        int wc_bigint_to_unsigned_bin(WC_BIGINT* a, byte* out, word32* outlen);
-        void wc_bigint_zero(WC_BIGINT* a);
-        void wc_bigint_free(WC_BIGINT* a);
-
-        int wc_mp_to_bigint(mp_int* src, WC_BIGINT* dst);
-        int wc_mp_to_bigint_sz(mp_int* src, WC_BIGINT* dst, word32 sz);
-        int wc_bigint_to_mp(WC_BIGINT* src, mp_int* dst);
-    #endif /* HAVE_WOLF_BIGINT */
+#ifdef __cplusplus
+    } /* extern "C" */
+#endif
 
 #endif /* __WOLFMATH_H__ */
-
-#endif /* MP_INT_DEFINED */

@@ -22,6 +22,10 @@
 #include <wolfssl/wolfcrypt/port/st/stsafe.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
+#ifndef STSAFE_INTERFACE_PRINTF
+#define STSAFE_INTERFACE_PRINTF(...)
+#endif
+
 #ifdef WOLFSSL_STSAFEA100
 
 int SSL_STSAFE_LoadDeviceCertificate(byte** pRawCertificate,
@@ -40,7 +44,7 @@ int SSL_STSAFE_LoadDeviceCertificate(byte** pRawCertificate,
     /* Try reading device certificate from ST-SAFE Zone 0 */
     err = stsafe_interface_read_device_certificate_raw(
         pRawCertificate, (uint32_t*)pRawCertificateLen);
-    if (err == 0) {
+    if (err == STSAFE_A_OK) {
     #if 0
         /* example for loading into WOLFSSL_CTX */
         err = wolfSSL_CTX_use_certificate_buffer(ctx,
@@ -52,6 +56,9 @@ int SSL_STSAFE_LoadDeviceCertificate(byte** pRawCertificate,
         XFREE(*pRawCertificate, NULL, DYNAMIC_TEMP_BUFFER);
         *pRawCertificate = NULL;
     #endif
+    }
+    else {
+        err = WC_HW_E;
     }
 
     return err;
@@ -82,7 +89,11 @@ int SSL_STSAFE_CreateKeyCb(WOLFSSL* ssl, ecc_key* key, word32 keySz,
 
     /* generate new ephemeral key on device */
     err = stsafe_interface_create_key(&slot, curve_id, (uint8_t*)&pubKeyRaw[0]);
-    if (err != 0) {
+    if (err != STSAFE_A_OK) {
+    #ifdef USE_STSAFE_VERBOSE
+        STSAFE_INTERFACE_PRINTF("stsafe_interface_create_key error: %d\n", err);
+    #endif
+        err = WC_HW_E;
         return err;
     }
 
@@ -155,6 +166,12 @@ int SSL_STSAFE_VerifyPeerCertCb(WOLFSSL* ssl,
         /* Verify signature */
         err = stsafe_interface_verify(curve_id, (uint8_t*)hash, sigRS,
             pubKeyX, pubKeyY, (int32_t*)result);
+        if (err != STSAFE_A_OK) {
+        #ifdef USE_STSAFE_VERBOSE
+            STSAFE_INTERFACE_PRINTF("stsafe_interface_verify error: %d\n", err);
+        #endif
+            err = WC_HW_E;
+        }
     }
 
     wc_ecc_free(&key);
@@ -195,7 +212,11 @@ int SSL_STSAFE_SignCertificateCb(WOLFSSL* ssl, const byte* in,
     /* Sign will always use the curve type in slot 0 (the TLS curve needs to match) */
     XMEMSET(sigRS, 0, sizeof(sigRS));
     err = stsafe_interface_sign(STSAFE_A_SLOT_0, curve_id, digest, sigRS);
-    if (err != 0) {
+    if (err != STSAFE_A_OK) {
+    #ifdef USE_STSAFE_VERBOSE
+        STSAFE_INTERFACE_PRINTF("stsafe_interface_sign error: %d\n", err);
+    #endif
+        err = WC_HW_E;
         return err;
     }
 
@@ -204,7 +225,7 @@ int SSL_STSAFE_SignCertificateCb(WOLFSSL* ssl, const byte* in,
     s = &sigRS[key_sz];
     err = wc_ecc_rs_raw_to_sig((const byte*)r, key_sz, (const byte*)s, key_sz,
         out, outSz);
-    if (err !=0) {
+    if (err != 0) {
     #ifdef USE_STSAFE_VERBOSE
         WOLFSSL_MSG("Error converting RS to Signature");
     #endif
@@ -262,7 +283,11 @@ int SSL_STSAFE_SharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
         }
 
         err = stsafe_interface_create_key(&slot, curve_id, (uint8_t*)&pubKeyRaw[0]);
-        if (err != 0) {
+        if (err != STSAFE_A_OK) {
+        #ifdef USE_STSAFE_VERBOSE
+            STSAFE_INTERFACE_PRINTF("stsafe_interface_create_key error: %d\n", err);
+        #endif
+            err = WC_HW_E;
             return err;
         }
 
@@ -299,6 +324,12 @@ int SSL_STSAFE_SharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
     /* Compute shared secret */
     err = stsafe_interface_shared_secret(curve_id, &otherKeyX[0], &otherKeyY[0],
         out, (int32_t*)outlen);
+    if (err != STSAFE_A_OK) {
+    #ifdef USE_STSAFE_VERBOSE
+        STSAFE_INTERFACE_PRINTF("stsafe_interface_shared_secret error: %d\n", err);
+    #endif
+        err = WC_HW_E;
+    }
 
     return err;
 }
@@ -357,7 +388,7 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
 #ifdef HAVE_ECC
     else if (info->algo_type == WC_ALGO_TYPE_PK) {
     #ifdef USE_STSAFE_VERBOSE
-        printf("STSAFE Pk: Type %d\n", info->pk.type);
+        STSAFE_INTERFACE_PRINTF("STSAFE Pk: Type %d\n", info->pk.type);
     #endif
 
         if (info->pk.type == WC_PK_TYPE_EC_KEYGEN) {
@@ -376,7 +407,11 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             /* generate new ephemeral key on device */
             rc = stsafe_interface_create_key(&slot, curve_id,
                 (uint8_t*)pubKeyRaw);
-            if (rc != 0) {
+            if (rc != STSAFE_A_OK) {
+            #ifdef USE_STSAFE_VERBOSE
+                STSAFE_INTERFACE_PRINTF("stsafe_interface_create_key error: %d\n", rc);
+            #endif
+                rc = WC_HW_E;
                 return rc;
             }
 
@@ -411,7 +446,11 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             XMEMSET(sigRS, 0, sizeof(sigRS));
             rc = stsafe_interface_sign(STSAFE_A_SLOT_0, curve_id,
                 (uint8_t*)info->pk.eccsign.in, sigRS);
-            if (rc != 0) {
+            if (rc != STSAFE_A_OK) {
+            #ifdef USE_STSAFE_VERBOSE
+                STSAFE_INTERFACE_PRINTF("stsafe_interface_sign error: %d\n", rc);
+            #endif
+                rc = WC_HW_E;
                 return rc;
             }
 
@@ -464,6 +503,12 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                 rc = stsafe_interface_verify(curve_id,
                     (uint8_t*)info->pk.eccverify.hash, sigRS, pubKeyX, pubKeyY,
                     (int32_t*)info->pk.eccverify.res);
+                if (rc != STSAFE_A_OK) {
+                #ifdef USE_STSAFE_VERBOSE
+                    STSAFE_INTERFACE_PRINTF("stsafe_interface_verify error: %d\n", rc);
+                #endif
+                    rc = WC_HW_E;
+                }
             }
         }
         else if (info->pk.type == WC_PK_TYPE_ECDH) {
@@ -493,6 +538,12 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                 rc = stsafe_interface_shared_secret(curve_id,
                     otherKeyX, otherKeyY,
                     info->pk.ecdh.out, (int32_t*)info->pk.ecdh.outlen);
+                if (rc != STSAFE_A_OK) {
+                #ifdef USE_STSAFE_VERBOSE
+                    STSAFE_INTERFACE_PRINTF("stsafe_interface_shared_secret error: %d\n", rc);
+                #endif
+                    rc = WC_HW_E;
+                }
             }
         }
     }
@@ -502,7 +553,7 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     if (rc != 0 && rc != CRYPTOCB_UNAVAILABLE) {
         WOLFSSL_MSG("STSAFE: CryptoCb failed");
     #ifdef USE_STSAFE_VERBOSE
-        printf("STSAFE: CryptoCb failed %d\n", rc);
+        STSAFE_INTERFACE_PRINTF("STSAFE: CryptoCb failed %d\n", rc);
     #endif
         rc = WC_HW_E;
     }

@@ -87,10 +87,58 @@ static void FreeAll(void)
 #endif
 }
 
+
+#ifdef WOLFSSL_SNIFFER_STATS
+
+static void DumpStats(void)
+{
+    SSLStats sslStats;
+    ssl_ReadStatistics(&sslStats);
+
+    printf("SSL Stats (sslStandardConns):%lu\n",
+            sslStats.sslStandardConns);
+    printf("SSL Stats (sslClientAuthConns):%lu\n",
+            sslStats.sslClientAuthConns);
+    printf("SSL Stats (sslResumedConns):%lu\n",
+            sslStats.sslResumedConns);
+    printf("SSL Stats (sslEphemeralMisses):%lu\n",
+            sslStats.sslEphemeralMisses);
+    printf("SSL Stats (sslResumeMisses):%lu\n",
+            sslStats.sslResumeMisses);
+    printf("SSL Stats (sslCiphersUnsupported):%lu\n",
+            sslStats.sslCiphersUnsupported);
+    printf("SSL Stats (sslKeysUnmatched):%lu\n",
+            sslStats.sslKeysUnmatched);
+    printf("SSL Stats (sslKeyFails):%lu\n",
+            sslStats.sslKeyFails);
+    printf("SSL Stats (sslDecodeFails):%lu\n",
+            sslStats.sslDecodeFails);
+    printf("SSL Stats (sslAlerts):%lu\n",
+            sslStats.sslAlerts);
+    printf("SSL Stats (sslDecryptedBytes):%lu\n",
+            sslStats.sslDecryptedBytes);
+    printf("SSL Stats (sslEncryptedBytes):%lu\n",
+            sslStats.sslEncryptedBytes);
+    printf("SSL Stats (sslEncryptedPackets):%lu\n",
+            sslStats.sslEncryptedPackets);
+    printf("SSL Stats (sslDecryptedPackets):%lu\n",
+            sslStats.sslDecryptedPackets);
+    printf("SSL Stats (sslKeyMatches):%lu\n",
+            sslStats.sslKeyMatches);
+    printf("SSL Stats (sslEncryptedConns):%lu\n",
+            sslStats.sslEncryptedConns);
+}
+
+#endif
+
+
 static void sig_handler(const int sig)
 {
     printf("SIGINT handled = %d.\n", sig);
     FreeAll();
+#ifdef WOLFSSL_SNIFFER_STATS
+    DumpStats();
+#endif
     if (sig)
         exit(EXIT_SUCCESS);
 }
@@ -122,6 +170,50 @@ static char* iptos(unsigned int addr)
 }
 
 
+#ifdef WOLFSSL_SNIFFER_WATCH
+
+const byte rsaHash[] = {
+    0xD1, 0xB6, 0x12, 0xAD, 0xB6, 0x50, 0x7B, 0x59,
+    0x97, 0x83, 0x6B, 0xCB, 0x35, 0xF5, 0xB8, 0x67,
+    0xEB, 0x83, 0x75, 0x40, 0x1B, 0x42, 0x61, 0xF1,
+    0x03, 0x72, 0xDC, 0x09, 0x0D, 0x60, 0x83, 0x15
+};
+
+const byte eccHash[] = {
+    0xDA, 0x08, 0x6D, 0xB5, 0x0B, 0xC4, 0x9F, 0x8A,
+    0x9E, 0x61, 0x9E, 0x87, 0x57, 0x5F, 0x00, 0xAA,
+    0x76, 0xE5, 0x1C, 0x9C, 0x74, 0x2A, 0x19, 0xBE,
+    0x22, 0xAE, 0x25, 0x3F, 0xA8, 0xAF, 0x8E, 0x7F
+};
+
+
+static int myWatchCb(void* vSniffer,
+        const unsigned char* certHash, unsigned int certHashSz,
+        const unsigned char* certChain, unsigned int certChainSz,
+        void* ctx, char* error)
+{
+    const char* certName = NULL;
+
+    (void)certChain;
+    (void)certChainSz;
+    (void)ctx;
+
+    if (certHashSz == sizeof(rsaHash) &&
+            memcmp(certHash, rsaHash, certHashSz) == 0)
+        certName = "../../certs/server-key.pem";
+    if (certHashSz == sizeof(eccHash) &&
+            memcmp(certHash, eccHash, certHashSz) == 0)
+        certName = "../../certs/ecc-key.pem";
+
+    if (certName == NULL)
+        return -1;
+
+    return ssl_SetWatchKey_file(vSniffer, certName, FILETYPE_PEM, NULL, error);
+}
+
+#endif
+
+
 int main(int argc, char** argv)
 {
     int          ret = 0;
@@ -145,6 +237,9 @@ int main(int argc, char** argv)
 #endif
     ssl_Trace("./tracefile.txt", err);
     ssl_EnableRecovery(1, -1, err);
+#ifdef WOLFSSL_SNIFFER_WATCH
+    ssl_SetWatchKeyCallback(myWatchCb, err);
+#endif
 
     if (argc == 1) {
         /* normal case, user chooses device and port */
@@ -227,6 +322,7 @@ int main(int argc, char** argv)
         ret = pcap_setfilter(pcap, &fp);
         if (ret != 0) printf("pcap_setfilter failed %s\n", pcap_geterr(pcap));
 
+#ifndef WOLFSSL_SNIFFER_WATCH
         ret = ssl_SetPrivateKey(server, port, "../../certs/server-key.pem",
                                FILETYPE_PEM, NULL, err);
         if (ret != 0) {
@@ -250,6 +346,7 @@ int main(int argc, char** argv)
                 }
             }
         }
+#endif
 #endif
     }
     else if (argc >= 3) {

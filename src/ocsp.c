@@ -483,11 +483,8 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
     if (response != NULL && ocsp->cm->ocspRespFreeCb)
         ocsp->cm->ocspRespFreeCb(ioCtx, response);
 
-    if (responseBuffer && ret != 0 ) {
-        XFREE(responseBuffer->buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        responseBuffer->buffer = NULL;
-    }
-
+    /* Keep responseBuffer in the case of getting to response check. Caller
+     * should free responseBuffer after checking OCSP return value in "ret" */
     WOLFSSL_LEAVE("CheckOcspRequest", ret);
     return ret;
 }
