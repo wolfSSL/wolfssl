@@ -3057,6 +3057,84 @@ void* wolfSSL_GetDecryptVerifyCtx(WOLFSSL* ssl)
     return NULL;
 }
 
+/**
+ * Set the callback, against the context, that encrypts then MACs.
+ *
+ * ctx  SSL/TLS context.
+ * cb   Callback function to use with Encrypt-Then-MAC.
+ */
+void  wolfSSL_CTX_SetEncryptMacCb(WOLFSSL_CTX* ctx, CallbackEncryptMac cb)
+{
+    if (ctx)
+        ctx->EncryptMacCb = cb;
+}
+
+/**
+ * Set the context to use with callback that encrypts then MACs.
+ *
+ * ssl  SSL/TLS object.
+ * ctx  Callback function's context.
+ */
+void  wolfSSL_SetEncryptMacCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->EncryptMacCtx = ctx;
+}
+
+/**
+ * Get the context being used with callback that encrypts then MACs.
+ *
+ * ssl  SSL/TLS object.
+ * returns callback function's context or NULL if SSL/TLS object is NULL.
+ */
+void* wolfSSL_GetEncryptMacCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->EncryptMacCtx;
+
+    return NULL;
+}
+
+
+/**
+ * Set the callback, against the context, that MAC verifies then decrypts.
+ *
+ * ctx  SSL/TLS context.
+ * cb   Callback function to use with Encrypt-Then-MAC.
+ */
+void  wolfSSL_CTX_SetVerifyDecryptCb(WOLFSSL_CTX* ctx, CallbackVerifyDecrypt cb)
+{
+    if (ctx)
+        ctx->VerifyDecryptCb = cb;
+}
+
+/**
+ * Set the context to use with callback that MAC verifies then decrypts.
+ *
+ * ssl  SSL/TLS object.
+ * ctx  Callback function's context.
+ */
+void  wolfSSL_SetVerifyDecryptCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->VerifyDecryptCtx = ctx;
+}
+
+/**
+ * Get the context being used with callback that MAC verifies then decrypts.
+ *
+ * ssl  SSL/TLS object.
+ * returns callback function's context or NULL if SSL/TLS object is NULL.
+ */
+void* wolfSSL_GetVerifyDecryptCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->VerifyDecryptCtx;
+
+    return NULL;
+}
+
+
 
 const byte* wolfSSL_GetClientWriteKey(WOLFSSL* ssl)
 {
@@ -3125,10 +3203,12 @@ int wolfSSL_GetCipherType(WOLFSSL* ssl)
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
+#ifndef WOLFSSL_AEAD_ONLY
     if (ssl->specs.cipher_type == block)
         return WOLFSSL_BLOCK_TYPE;
     if (ssl->specs.cipher_type == stream)
         return WOLFSSL_STREAM_TYPE;
+#endif
     if (ssl->specs.cipher_type == aead)
         return WOLFSSL_AEAD_TYPE;
 
@@ -38027,3 +38107,34 @@ int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey)
     return wolfSSL_X509_set_pubkey(req, pkey);
 }
 #endif
+
+#ifdef HAVE_ENCRYPT_THEN_MAC
+/**
+ * Sets whether Encrypt-Then-MAC extension can be negotitated against context.
+ * The default value: enabled.
+ *
+ * ctx  SSL/TLS context.
+ * set  Whether to allow or not: 1 is allow and 0 is disallow.
+ * returns WOLFSSL_SUCCESS
+ */
+int wolfSSL_CTX_AllowEncryptThenMac(WOLFSSL_CTX *ctx, int set)
+{
+    ctx->disallowEncThenMac = !set;
+    return WOLFSSL_SUCCESS;
+}
+
+/**
+ * Sets whether Encrypt-Then-MAC extension can be negotitated against context.
+ * The default value comes from context.
+ *
+ * ctx  SSL/TLS context.
+ * set  Whether to allow or not: 1 is allow and 0 is disallow.
+ * returns WOLFSSL_SUCCESS
+ */
+int wolfSSL_AllowEncryptThenMac(WOLFSSL *ssl, int set)
+{
+    ssl->options.disallowEncThenMac = !set;
+    return WOLFSSL_SUCCESS;
+}
+#endif
+

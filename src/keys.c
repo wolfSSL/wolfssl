@@ -2208,6 +2208,11 @@ int SetCipherSpecs(WOLFSSL* ssl)
 #endif
     }
 
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+    if (IsAtLeastTLSv1_3(ssl->version) || ssl->specs.cipher_type != block)
+       ssl->options.encThenMac = 0;
+#endif
+
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_AEAD_ONLY)
     if (ssl->options.dtls)
         ssl->hmac = TLS_hmac;

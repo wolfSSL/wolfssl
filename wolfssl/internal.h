@@ -2099,6 +2099,9 @@ typedef enum {
 #endif
     TLSX_APPLICATION_LAYER_PROTOCOL = 0x0010, /* a.k.a. ALPN */
     TLSX_STATUS_REQUEST_V2          = 0x0011, /* a.k.a. OCSP stapling v2 */
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+    TLSX_ENCRYPT_THEN_MAC           = 0x0016, /* RFC 7366 */
+#endif
     TLSX_QUANTUM_SAFE_HYBRID        = 0x0018, /* a.k.a. QSH  */
     TLSX_SESSION_TICKET             = 0x0023,
 #ifdef WOLFSSL_TLS13
@@ -2621,6 +2624,9 @@ struct WOLFSSL_CTX {
 #ifdef HAVE_SECURE_RENEGOTIATION
     byte        useSecureReneg:1; /* when set will set WOLFSSL objects generated to enable */
 #endif
+#ifdef HAVE_ENCRYPT_THEN_MAC
+    byte        disallowEncThenMac:1;  /* Don't do Encrypt-Then-MAC */
+#endif
 #ifdef WOLFSSL_MULTICAST
     byte        haveMcast;        /* multicast requested */
     byte        mcastID;          /* multicast group ID */
@@ -2748,6 +2754,10 @@ struct WOLFSSL_CTX {
 #ifdef ATOMIC_USER
     CallbackMacEncrypt    MacEncryptCb;    /* Atomic User Mac/Encrypt Cb */
     CallbackDecryptVerify DecryptVerifyCb; /* Atomic User Decrypt/Verify Cb */
+    #ifdef HAVE_ENCRYPT_THEN_MAC
+        CallbackEncryptMac    EncryptMacCb;    /* Atomic User Mac/Enc Cb */
+        CallbackVerifyDecrypt VerifyDecryptCb; /* Atomic User Dec/Verify Cb */
+    #endif
 #endif
 #ifdef HAVE_PK_CALLBACKS
     #ifdef HAVE_ECC
@@ -3228,6 +3238,7 @@ enum buildMsgState {
     BUILD_MSG_HASH,
     BUILD_MSG_VERIFY_MAC,
     BUILD_MSG_ENCRYPT,
+    BUILD_MSG_ENCRYPTED_VERIFY_MAC,
 };
 
 /* sub-states for cipher operations */
@@ -3351,6 +3362,10 @@ typedef struct Options {
 #endif
 #ifdef SINGLE_THREADED
     word16            ownSuites:1;        /* if suites are malloced in ssl object */
+#endif
+#ifdef HAVE_ENCRYPT_THEN_MAC
+    word16            disallowEncThenMac:1;   /* Don't do Encrypt-Then-MAC */
+    word16            encThenMac:1;           /* Doing Encrypt-Then-MAC */
 #endif
 
     /* need full byte values for this section */
@@ -3985,6 +4000,10 @@ struct WOLFSSL {
 #ifdef ATOMIC_USER
     void*    MacEncryptCtx;    /* Atomic User Mac/Encrypt Callback Context */
     void*    DecryptVerifyCtx; /* Atomic User Decrypt/Verify Callback Context */
+    #ifdef HAVE_ENCRYPT_THEN_MAC
+        void*    EncryptMacCtx;    /* Atomic User Encrypt/Mac Callback Ctx */
+        void*    VerifyDecryptCtx; /* Atomic User Verify/Decrypt Callback Ctx */
+    #endif
 #endif
 #ifdef HAVE_PK_CALLBACKS
     #ifdef HAVE_ECC

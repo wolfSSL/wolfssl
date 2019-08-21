@@ -141,6 +141,7 @@ enum processReply {
 #endif
     getRecordLayerHeader,
     getData,
+    verifyEncryptedMessage,
     decryptMessage,
     verifyMessage,
     runProcessingOneMessage
@@ -3373,6 +3374,20 @@ static void SetDigest(WOLFSSL* ssl, int hashAlgo)
 #endif /* !NO_WOLFSSL_SERVER || !NO_WOLFSSL_CLIENT */
 #endif /* !NO_CERTS */
 
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+static word32 MacSize(WOLFSSL* ssl)
+{
+#ifdef HAVE_TRUNCATED_HMAC
+    word32 digestSz = ssl->truncated_hmac ? (byte)TRUNCATED_HMAC_SZ
+                                          : ssl->specs.hash_size;
+#else
+    word32 digestSz = ssl->specs.hash_size;
+#endif
+
+    return digestSz;
+}
+#endif /* HAVE_ENCRYPT_THEN_MAC && !WOLFSSL_AEAD_ONLY */
+
 #ifndef NO_RSA
 #ifndef WOLFSSL_NO_TLS12
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
@@ -5132,6 +5147,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.userCurves = ctx->userCurves;
 #endif
 #endif /* HAVE_TLS_EXTENSIONS */
+
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+    ssl->options.disallowEncThenMac = ctx->disallowEncThenMac;
+#endif
 
     /* default alert state (none) */
     ssl->alert_history.last_rx.code  = -1;
@@ -10481,6 +10500,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             if (IsEncryptionOn(ssl, 0)) {
                 args->idx += ssl->keys.padSz;
+            #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+                if (ssl->options.encThenMac)
+                    args->idx += MacSize(ssl);
+            #endif
             }
 
             /* Advance state and proceed */
@@ -10704,9 +10727,20 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         SendAlert(ssl, alert_fatal, bad_certificate_status_response);
 
     if (IsEncryptionOn(ssl, 0)) {
-        if (*inOutIdx + ssl->keys.padSz > size)
-            return BUFFER_E;
-        *inOutIdx += ssl->keys.padSz;
+    #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+        if (ssl->options.encThenMac) {
+            word32 digestSz = MacSize(ssl);
+            if (*inOutIdx + ssl->keys.padSz + digestSz > size)
+                return BUFFER_E;
+            *inOutIdx += ssl->keys.padSz + digestSz;
+        }
+        else
+    #endif
+        {
+            if (*inOutIdx + ssl->keys.padSz > size)
+                return BUFFER_E;
+            *inOutIdx += ssl->keys.padSz;
+        }
     }
 
     WOLFSSL_LEAVE("DoCertificateStatus", ret);
@@ -10735,11 +10769,22 @@ static int DoHelloRequest(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return BUFFER_ERROR;
 
     if (IsEncryptionOn(ssl, 0)) {
-        /* access beyond input + size should be checked against totalSz */
-        if (*inOutIdx + ssl->keys.padSz > totalSz)
-            return BUFFER_E;
+    #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+        if (ssl->options.encThenMac) {
+            word32 digestSz = MacSize(ssl);
+            if (*inOutIdx + ssl->keys.padSz + digestSz > totalSz)
+                return BUFFER_E;
+            *inOutIdx += ssl->keys.padSz + digestSz;
+        }
+        else
+    #endif
+        {
+            /* access beyond input + size should be checked against totalSz */
+            if (*inOutIdx + ssl->keys.padSz > totalSz)
+                return BUFFER_E;
 
-        *inOutIdx += ssl->keys.padSz;
+            *inOutIdx += ssl->keys.padSz;
+        }
     }
 
     if (ssl->options.side == WOLFSSL_SERVER_END) {
@@ -10772,8 +10817,17 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
         return BUFFER_ERROR;
 
     /* check against totalSz */
-    if (*inOutIdx + size + ssl->keys.padSz > totalSz)
-        return BUFFER_E;
+    #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+        if (ssl->options.encThenMac) {
+            if (*inOutIdx + size + ssl->keys.padSz + MacSize(ssl) > totalSz)
+                return BUFFER_E;
+        }
+        else
+    #endif
+        {
+            if (*inOutIdx + size + ssl->keys.padSz > totalSz)
+                return BUFFER_E;
+        }
 
     #ifdef WOLFSSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName(ssl, "Finished");
@@ -10805,6 +10859,10 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
 
     /* force input exhaustion at ProcessReply consuming padSz */
     *inOutIdx += size + ssl->keys.padSz;
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+    if (ssl->options.encThenMac)
+        *inOutIdx += MacSize(ssl);
+#endif
 
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
         ssl->options.serverState = SERVER_FINISHED_COMPLETE;
@@ -11192,6 +11250,10 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     expectedIdx = *inOutIdx + size +
                   (ssl->keys.encryptionOn ? ssl->keys.padSz : 0);
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+    if (ssl->options.encThenMac && ssl->keys.encryptionOn)
+        expectedIdx += MacSize(ssl);
+#endif
 
 #if !defined(WOLFSSL_NO_SERVER) && \
     defined(HAVE_SECURE_RENEGOTIATION) && \
@@ -11369,6 +11431,10 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ssl->options.serverState = SERVER_HELLODONE_COMPLETE;
         if (IsEncryptionOn(ssl, 0)) {
             *inOutIdx += ssl->keys.padSz;
+        #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            if (ssl->options.encThenMac)
+                *inOutIdx += MacSize(ssl);
+        #endif
         }
         if (ssl->options.resuming) {
             WOLFSSL_MSG("Not resuming as thought");
@@ -11402,11 +11468,23 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         }
     #endif
         if (IsEncryptionOn(ssl, 0)) {
-            /* access beyond input + size should be checked against totalSz */
-            if (*inOutIdx + ssl->keys.padSz > totalSz)
-                return BUFFER_E;
+        #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            if (ssl->options.encThenMac) {
+                word32 digestSz = MacSize(ssl);
+                if (*inOutIdx + ssl->keys.padSz + digestSz > totalSz)
+                    return BUFFER_E;
+                *inOutIdx += ssl->keys.padSz + digestSz;
+            }
+            else
+        #endif
+            {
+                /* access beyond input + size should be checked against totalSz
+                 */
+                if (*inOutIdx + ssl->keys.padSz > totalSz)
+                    return BUFFER_E;
 
-            *inOutIdx += ssl->keys.padSz;
+                *inOutIdx += ssl->keys.padSz;
+            }
         }
         break;
 
@@ -11917,11 +11995,22 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         /* Already saw this message and processed it. It can be ignored. */
         *inOutIdx += fragSz;
         if(type == finished ) {
-            if (*inOutIdx + ssl->keys.padSz > totalSz) {
-                WOLFSSL_ERROR(BUFFER_E);
-                return BUFFER_E;
+        #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            if (ssl->options.encThenMac) {
+                word32 digestSz = MacSize(ssl);
+                if (*inOutIdx + ssl->keys.padSz + digestSz > totalSz)
+                    return BUFFER_E;
+                *inOutIdx += ssl->keys.padSz + digestSz;
             }
-            *inOutIdx += ssl->keys.padSz;
+            else
+        #endif
+            {
+                if (*inOutIdx + ssl->keys.padSz > totalSz) {
+                    WOLFSSL_ERROR(BUFFER_E);
+                    return BUFFER_E;
+                }
+                *inOutIdx += ssl->keys.padSz;
+            }
         }
         if (IsDtlsNotSctpMode(ssl) &&
             VerifyForDtlsMsgPoolSend(ssl, type, fragOffset)) {
@@ -12921,6 +13010,15 @@ static int SanityCheckCipherText(WOLFSSL* ssl, word32 encryptSz)
 
 #ifndef WOLFSSL_AEAD_ONLY
     if (ssl->specs.cipher_type == block) {
+#ifdef HAVE_ENCRYPT_THEN_MAC
+        if (ssl->options.encThenMac) {
+            if ((encryptSz - MacSize(ssl)) % ssl->specs.block_size) {
+                WOLFSSL_MSG("Block ciphertext not block size");
+                return SANITY_CIPHER_E;
+            }
+        }
+        else
+#endif
         if (encryptSz % ssl->specs.block_size) {
             WOLFSSL_MSG("Block ciphertext not block size");
             return SANITY_CIPHER_E;
@@ -13127,6 +13225,10 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
     }
 
     dataSz = msgSz - ivExtra - ssl->keys.padSz;
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+    if (ssl->options.encThenMac)
+        dataSz -= MacSize(ssl);
+#endif
     if (dataSz < 0) {
         WOLFSSL_MSG("App data buffer error, malicious input?");
         SendAlert(ssl, alert_fatal, unexpected_message);
@@ -13159,6 +13261,10 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
     }
 
     idx += ssl->keys.padSz;
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+    if (ssl->options.encThenMac)
+        idx += MacSize(ssl);
+#endif
 
 #ifdef HAVE_LIBZ
     /* decompress could be bigger, overwrite after verify */
@@ -13189,8 +13295,13 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type,
                           READ_PROTO, ssl->heap);
     #endif
 
-    if (IsEncryptionOn(ssl, 0))
+    if (IsEncryptionOn(ssl, 0)) {
         dataSz -= ssl->keys.padSz;
+    #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+        if (ssl->options.encThenMac)
+            dataSz -= MacSize(ssl);
+    #endif
+    }
 
     /* make sure can read the message */
     if (dataSz != ALERT_SIZE) {
@@ -13232,8 +13343,13 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type,
     }
 #endif
     WOLFSSL_ERROR(*type);
-    if (IsEncryptionOn(ssl, 0))
+    if (IsEncryptionOn(ssl, 0)) {
         *inOutIdx += ssl->keys.padSz;
+    #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+        if (ssl->options.encThenMac)
+            *inOutIdx += MacSize(ssl);
+    #endif
+    }
 
     return level;
 }
@@ -13311,6 +13427,30 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
     return 0;
 }
 
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+static WC_INLINE int VerifyMacEnc(WOLFSSL* ssl, const byte* input, word32 msgSz,
+                                  int content)
+{
+    int    ret;
+#ifdef HAVE_TRUNCATED_HMAC
+    word32 digestSz = ssl->truncated_hmac ? (byte)TRUNCATED_HMAC_SZ
+                                          : ssl->specs.hash_size;
+#else
+    word32 digestSz = ssl->specs.hash_size;
+#endif
+    byte   verify[WC_MAX_DIGEST_SIZE];
+
+    WOLFSSL_MSG("Verify MAC of Encrypted Data");
+
+    ret  = ssl->hmac(ssl, verify, input, msgSz - digestSz, -1, content, 1);
+    ret |= ConstantCompare(verify, input + msgSz - digestSz, digestSz);
+    if (ret != 0) {
+        return VERIFY_MAC_ERROR;
+    }
+
+    return 0;
+}
+#endif
 
 static WC_INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
                             int content, word32* padSz)
@@ -13611,8 +13751,47 @@ int ProcessReply(WOLFSSL* ssl)
             }
             ssl->keys.padSz = 0;
 
-            ssl->options.processReply = decryptMessage;
+            ssl->options.processReply = verifyEncryptedMessage;
             startIdx = ssl->buffers.inputBuffer.idx;  /* in case > 1 msg per */
+            FALL_THROUGH;
+
+        /* verify digest of encrypted message */
+        case verifyEncryptedMessage:
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            if (IsEncryptionOn(ssl, 0) && ssl->keys.decryptedCur == 0 &&
+                                       !atomicUser && ssl->options.encThenMac) {
+                ret = VerifyMacEnc(ssl, ssl->buffers.inputBuffer.buffer +
+                                   ssl->buffers.inputBuffer.idx,
+                                   ssl->curSize, ssl->curRL.type);
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                if (ret == WC_PENDING_E)
+                    return ret;
+            #endif
+                if (ret < 0) {
+                    WOLFSSL_MSG("VerifyMacEnc failed");
+                    WOLFSSL_ERROR(ret);
+                #ifdef WOLFSSL_DTLS
+                    /* If in DTLS mode, if the decrypt fails for any
+                     * reason, pretend the datagram never happened. */
+                    if (ssl->options.dtls) {
+                        ssl->options.processReply = doProcessInit;
+                        ssl->buffers.inputBuffer.idx =
+                                        ssl->buffers.inputBuffer.length;
+                        #ifdef WOLFSSL_DTLS_DROP_STATS
+                            ssl->macDropCount++;
+                        #endif /* WOLFSSL_DTLS_DROP_STATS */
+                    }
+                #endif /* WOLFSSL_DTLS */
+                #ifdef WOLFSSL_EXTRA_ALERTS
+                    if (!ssl->options.dtls)
+                        SendAlert(ssl, alert_fatal, bad_record_mac);
+                #endif
+                    return DECRYPT_ERROR;
+                }
+                ssl->keys.encryptSz    = ssl->curSize;
+            }
+#endif
+            ssl->options.processReply = decryptMessage;
             FALL_THROUGH;
 
         /* decrypt message */
@@ -13637,24 +13816,52 @@ int ProcessReply(WOLFSSL* ssl)
                 }
 
                 if (atomicUser) {
-                #ifdef ATOMIC_USER
-                    ret = ssl->ctx->DecryptVerifyCb(ssl,
-                                  in->buffer + in->idx,
-                                  in->buffer + in->idx,
-                                  ssl->curSize, ssl->curRL.type, 1,
-                                  &ssl->keys.padSz, ssl->DecryptVerifyCtx);
-                #endif /* ATOMIC_USER */
+        #ifdef ATOMIC_USER
+            #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+                    if (ssl->options.encThenMac) {
+                        ret = ssl->ctx->VerifyDecryptCb(ssl,
+                                     in->buffer + in->idx, in->buffer + in->idx,
+                                     ssl->curSize - MacSize(ssl),
+                                     ssl->curRL.type, 1, &ssl->keys.padSz,
+                                     ssl->DecryptVerifyCtx);
+                    }
+                    else
+            #endif
+                    {
+                        ret = ssl->ctx->DecryptVerifyCb(ssl,
+                                      in->buffer + in->idx,
+                                      in->buffer + in->idx,
+                                      ssl->curSize, ssl->curRL.type, 1,
+                                      &ssl->keys.padSz, ssl->DecryptVerifyCtx);
+                    }
+        #endif /* ATOMIC_USER */
                 }
                 else {
                     if (!ssl->options.tls1_3) {
-                #ifndef WOLFSSL_NO_TLS12
+        #ifndef WOLFSSL_NO_TLS12
+            #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+                    if (ssl->options.encThenMac) {
+                        word32 digestSz = MacSize(ssl);
+                        ret = Decrypt(ssl,
+                                      in->buffer + in->idx,
+                                      in->buffer + in->idx,
+                                      ssl->curSize - digestSz);
+                         ssl->keys.padSz =
+                              in->buffer[in->idx + ssl->curSize - digestSz - 1];
+                         ssl->keys.padSz += 1;
+                         ssl->keys.decryptedCur = 1;
+                    }
+                    else
+            #endif
+                    {
                         ret = Decrypt(ssl,
                                       in->buffer + in->idx,
                                       in->buffer + in->idx,
                                       ssl->curSize);
-                #else
+                    }
+        #else
                         ret = DECRYPT_ERROR;
-                #endif
+        #endif
                     }
                     else
                     {
@@ -13743,7 +13950,11 @@ int ProcessReply(WOLFSSL* ssl)
                                          ssl->curRL.type != change_cipher_spec))
 #endif
             {
-                if (!atomicUser) {
+                if (!atomicUser
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+                                && !ssl->options.encThenMac
+#endif
+                    ) {
                     ret = VerifyMac(ssl, ssl->buffers.inputBuffer.buffer +
                                     ssl->buffers.inputBuffer.idx,
                                     ssl->curSize, ssl->curRL.type,
@@ -13940,6 +14151,13 @@ int ProcessReply(WOLFSSL* ssl)
                     if (IsEncryptionOn(ssl, 0) && ssl->options.handShakeDone) {
                         ssl->buffers.inputBuffer.idx += ssl->keys.padSz;
                         ssl->curSize -= (word16) ssl->buffers.inputBuffer.idx;
+            #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+                        if (ssl->options.encThenMac) {
+                            word32 digestSz = MacSize(ssl);
+                            ssl->buffers.inputBuffer.idx += digestSz;
+                            ssl->curSize -= digestSz;
+                        }
+            #endif
                     }
 
                     if (ssl->curSize != 1) {
@@ -14054,12 +14272,29 @@ int ProcessReply(WOLFSSL* ssl)
 
                 if (IsEncryptionOn(ssl, 0)) {
                     WOLFSSL_MSG("Bundled encrypted messages, remove middle pad");
-                    if (ssl->buffers.inputBuffer.idx >= ssl->keys.padSz) {
-                        ssl->buffers.inputBuffer.idx -= ssl->keys.padSz;
+            #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+                    if (ssl->options.encThenMac) {
+                        word32 digestSz = MacSize(ssl);
+                        if (ssl->buffers.inputBuffer.idx >=
+                                                   ssl->keys.padSz + digestSz) {
+                            ssl->buffers.inputBuffer.idx -=
+                                                     ssl->keys.padSz + digestSz;
+                        }
+                        else {
+                            WOLFSSL_MSG("\tmiddle padding error");
+                            return FATAL_ERROR;
+                        }
                     }
-                    else {
-                        WOLFSSL_MSG("\tmiddle padding error");
-                        return FATAL_ERROR;
+                    else
+             #endif
+                    {
+                        if (ssl->buffers.inputBuffer.idx >= ssl->keys.padSz) {
+                            ssl->buffers.inputBuffer.idx -= ssl->keys.padSz;
+                        }
+                        else {
+                            WOLFSSL_MSG("\tmiddle padding error");
+                            return FATAL_ERROR;
+                        }
                     }
                 }
 
@@ -14563,7 +14798,14 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                         ERROR_OUT(BUFFER_E, exit_buildmsg);
                 }
                 args->sz += 1;       /* pad byte */
-                args->pad = (args->sz - args->headerSz) % blockSz;
+            #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+                if (ssl->options.encThenMac) {
+                    args->pad = (args->sz - args->headerSz -
+                                                      args->digestSz) % blockSz;
+                }
+                else
+            #endif
+                    args->pad = (args->sz - args->headerSz) % blockSz;
                 #ifdef OPENSSL_EXTRA
                 if(args->pad != 0)
                 #endif
@@ -14634,8 +14876,15 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             }
         #ifndef WOLFSSL_AEAD_ONLY
             if (ssl->specs.cipher_type == block) {
-                word32 tmpIdx = args->idx + args->digestSz;
+                word32 tmpIdx;
                 word32 i;
+
+            #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+                if (ssl->options.encThenMac)
+                    tmpIdx = args->idx;
+                else
+            #endif
+                    tmpIdx = args->idx + args->digestSz;
 
                 for (i = 0; i <= args->pad; i++)
                     output[tmpIdx++] = (byte)args->pad; /* pad byte gets pad value */
@@ -14648,18 +14897,39 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         case BUILD_MSG_VERIFY_MAC:
         {
             /* User Record Layer Callback handling */
-        #ifdef ATOMIC_USER
-            if (ssl->ctx->MacEncryptCb) {
-                ret = ssl->ctx->MacEncryptCb(ssl, output + args->idx,
-                                output + args->headerSz + args->ivSz, inSz, type, 0,
-                                output + args->headerSz, output + args->headerSz, args->size,
-                                ssl->MacEncryptCtx);
-                goto exit_buildmsg;
+    #ifdef ATOMIC_USER
+        #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            if (ssl->options.encThenMac) {
+                if (ssl->ctx->EncryptMacCb) {
+                    ret = ssl->ctx->EncryptMacCb(ssl, output + args->idx +
+                                                 args->pad + 1, type, 0,
+                                                 output + args->headerSz,
+                                                 output + args->headerSz,
+                                                 args->size - args->digestSz,
+                                                 ssl->MacEncryptCtx);
+                    goto exit_buildmsg;
+                }
             }
+            else
         #endif
+            {
+                if (ssl->ctx->MacEncryptCb) {
+                    ret = ssl->ctx->MacEncryptCb(ssl, output + args->idx,
+                                    output + args->headerSz + args->ivSz, inSz,
+                                    type, 0, output + args->headerSz,
+                                    output + args->headerSz, args->size,
+                                    ssl->MacEncryptCtx);
+                    goto exit_buildmsg;
+                }
+            }
+    #endif
 
         #ifndef WOLFSSL_AEAD_ONLY
-            if (ssl->specs.cipher_type != aead) {
+            if (ssl->specs.cipher_type != aead
+            #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+                                               && !ssl->options.encThenMac
+            #endif
+                ) {
             #ifdef HAVE_TRUNCATED_HMAC
                 if (ssl->truncated_hmac &&
                                         ssl->specs.hash_size > args->digestSz) {
@@ -14701,9 +14971,65 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         FALL_THROUGH;
         case BUILD_MSG_ENCRYPT:
         {
-            ret = Encrypt(ssl, output + args->headerSz, output + args->headerSz, args->size,
-                asyncOkay);
-            break;
+    #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            if (ssl->options.encThenMac) {
+                ret = Encrypt(ssl, output + args->headerSz,
+                                        output + args->headerSz,
+                                        args->size - args->digestSz, asyncOkay);
+            }
+            else
+    #endif
+            {
+                ret = Encrypt(ssl, output + args->headerSz,
+                                output + args->headerSz, args->size, asyncOkay);
+            }
+            if (ret != 0)
+                goto exit_buildmsg;
+            ssl->options.buildMsgState = BUILD_MSG_ENCRYPTED_VERIFY_MAC;
+        }
+        FALL_THROUGH;
+        case BUILD_MSG_ENCRYPTED_VERIFY_MAC:
+        {
+        #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            if (ssl->options.encThenMac) {
+                WOLFSSL_MSG("Calculate MAC of Encrypted Data");
+
+            #ifdef HAVE_TRUNCATED_HMAC
+                if (ssl->truncated_hmac &&
+                                        ssl->specs.hash_size > args->digestSz) {
+                #ifdef WOLFSSL_SMALL_STACK
+                    byte* hmac = NULL;
+                #else
+                    byte  hmac[WC_MAX_DIGEST_SIZE];
+                #endif
+
+                #ifdef WOLFSSL_SMALL_STACK
+                    hmac = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, ssl->heap,
+                                                           DYNAMIC_TYPE_DIGEST);
+                    if (hmac == NULL)
+                        ERROR_OUT(MEMORY_E, exit_buildmsg);
+                #endif
+
+                    ret = ssl->hmac(ssl, hmac, output + args->headerSz,
+                                    args->ivSz + inSz + args->pad + 1, -1, type,
+                                    0);
+                    XMEMCPY(output + args->idx + args->pad + 1, hmac,
+                                                                args->digestSz);
+
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(hmac, ssl->heap, DYNAMIC_TYPE_DIGEST);
+                #endif
+                }
+                else
+            #endif
+                {
+                    ret = ssl->hmac(ssl, output + args->idx + args->pad + 1,
+                                    output + args->headerSz,
+                                    args->ivSz + inSz + args->pad + 1, -1, type,
+                                    0);
+                }
+            }
+        #endif /* HAVE_ENCRYPT_THEN_MAC && !WOLFSSL_AEAD_ONLY */
         }
     }
 
@@ -18396,6 +18722,10 @@ exit_dpk:
 
         if (IsEncryptionOn(ssl, 0)) {
             *inOutIdx += ssl->keys.padSz;
+        #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            if (ssl->options.encThenMac && ssl->specs.cipher_type == block)
+                *inOutIdx += MacSize(ssl);
+        #endif
         }
 
 #ifdef HAVE_SECRET_CALLBACK
@@ -18652,8 +18982,13 @@ exit_dpk:
             ssl->options.sendVerify = SEND_BLANK_CERT;
         }
 
-        if (IsEncryptionOn(ssl, 0))
+        if (IsEncryptionOn(ssl, 0)) {
             *inOutIdx += ssl->keys.padSz;
+        #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            if (ssl->options.encThenMac)
+                *inOutIdx += MacSize(ssl);
+        #endif
+        }
 
         WOLFSSL_LEAVE("DoCertificateRequest", 0);
         WOLFSSL_END(WC_FUNC_CERTIFICATE_REQUEST_DO);
@@ -19680,6 +20015,10 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
         {
             if (IsEncryptionOn(ssl, 0)) {
                 args->idx += ssl->keys.padSz;
+            #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+                if (ssl->options.encThenMac)
+                    args->idx += MacSize(ssl);
+            #endif
             }
 
             /* QSH extensions */
@@ -21824,6 +22163,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     if (IsEncryptionOn(ssl, 0)) {
         *inOutIdx += ssl->keys.padSz;
+    #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+        if (ssl->options.encThenMac)
+            *inOutIdx += MacSize(ssl);
+    #endif
     }
 
     ssl->expect_session_ticket = 0;
@@ -25019,6 +25362,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             {
                 if (IsEncryptionOn(ssl, 0)) {
                     args->idx += ssl->keys.padSz;
+            #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+                    if (ssl->options.encThenMac)
+                        args->idx += MacSize(ssl);
+            #endif
                 }
 
                 ssl->options.havePeerVerify = 1;
@@ -26625,6 +26972,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             {
                 if (IsEncryptionOn(ssl, 0)) {
                     args->idx += ssl->keys.padSz;
+            #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+                    if (ssl->options.encThenMac)
+                        args->idx += MacSize(ssl);
+            #endif
                 }
 
             #ifdef HAVE_QSH
