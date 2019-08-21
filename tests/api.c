@@ -20531,6 +20531,54 @@ static void test_wolfSSL_X509_STORE(void)
     return;
 }
 
+static void test_wolfSSL_X509_STORE_load_locations(void)
+{
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && !defined(NO_FILESYSTEM)
+    SSL_CTX *ctx;
+    X509_STORE *store;
+
+    const char ca_file[] = "./certs/ca-cert.pem";
+    const char client_pem_file[] = "./certs/client-cert.pem";
+    const char client_der_file[] = "./certs/client-cert.der";
+    const char ecc_file[] = "./certs/ecc-key.pem";
+    const char certs_path[] = "./certs/";
+    const char bad_path[] = "./bad-path/";
+#ifdef HAVE_CRL
+    const char crl_path[] = "./certs/crl/";
+    const char crl_file[] = "./certs/crl/crl.pem";
+#endif
+
+    printf(testingFmt, "wolfSSL_X509_STORE_load_locations");
+
+    AssertNotNull(ctx = SSL_CTX_new(SSLv23_server_method()));
+    AssertNotNull(store = SSL_CTX_get_cert_store(ctx));
+    AssertIntEQ(wolfSSL_CertManagerLoadCA(store->cm, ca_file, NULL), WOLFSSL_SUCCESS);
+
+    /* Test bad arguments */
+    AssertIntEQ(X509_STORE_load_locations(NULL, ca_file, NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(X509_STORE_load_locations(store, NULL, NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(X509_STORE_load_locations(store, client_der_file, NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(X509_STORE_load_locations(store, ecc_file, NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(X509_STORE_load_locations(store, NULL, bad_path), WOLFSSL_FAILURE);
+
+#ifdef HAVE_CRL
+    /* Test with CRL */
+    AssertIntEQ(X509_STORE_load_locations(store, crl_file, NULL), WOLFSSL_SUCCESS);
+    AssertIntEQ(X509_STORE_load_locations(store, NULL, crl_path), WOLFSSL_SUCCESS);
+#endif
+
+    /* Test with CA */
+    AssertIntEQ(X509_STORE_load_locations(store, ca_file, NULL), WOLFSSL_SUCCESS);
+
+    /* Test with client_cert and certs path */
+    AssertIntEQ(X509_STORE_load_locations(store, client_pem_file, NULL), WOLFSSL_SUCCESS);
+    AssertIntEQ(X509_STORE_load_locations(store, NULL, certs_path), WOLFSSL_SUCCESS);
+
+    SSL_CTX_free(ctx);
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_wolfSSL_BN(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
@@ -27536,6 +27584,7 @@ void ApiTest(void)
     test_wolfSSL_X509_VERIFY_PARAM_set1_host();
     test_wolfSSL_X509_STORE_CTX_get0_store();
     test_wolfSSL_X509_STORE();
+    test_wolfSSL_X509_STORE_load_locations();
     test_wolfSSL_BN();
     test_wolfSSL_PEM_read_bio();
     test_wolfSSL_BIO();

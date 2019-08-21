@@ -24620,7 +24620,7 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
 
     WOLFSSL_ENTER("X509_STORE_load_locations");
 
-    if (str == NULL || str->cm == NULL)
+    if (str == NULL || str->cm == NULL || (file == NULL  && dir == NULL))
         return WOLFSSL_FAILURE;
 
     /* tmp ctx for setting our cert manager */
@@ -24658,8 +24658,10 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
         #ifdef WOLFSSL_SMALL_STACK
             readCtx = (ReadDirCtx*)XMALLOC(sizeof(ReadDirCtx), crl->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-            if (readCtx == NULL)
-                return MEMORY_E;
+            if (readCtx == NULL) {
+                WOLFSSL_MSG("Memory error");
+                return WOLFSSL_FAILURE;
+            }
         #endif
 
         /* try to load each regular file in dir */
@@ -24683,6 +24685,10 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
         /* Success if at least one file in dir was loaded */
         if (successes > 0)
             ret = WOLFSSL_SUCCESS;
+        else {
+            WOLFSSL_ERROR(ret);
+            ret = WOLFSSL_FAILURE;
+        }
 
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(readCtx, ctx->heap, DYNAMIC_TYPE_DIRCTX);
