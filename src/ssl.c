@@ -6210,6 +6210,8 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
     long   sz = 0;
     XFILE  file;
     void*  heapHint = wolfSSL_CTX_GetHeap(ctx, ssl);
+    const char* header = NULL;
+    const char* footer = NULL;
 
     (void)crl;
     (void)heapHint;
@@ -6242,6 +6244,29 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
     if ( (ret = (int)XFREAD(myBuffer, 1, sz, file)) != sz)
         ret = WOLFSSL_BAD_FILE;
     else {
+        /* Try to detect type by parsing cert header and footer */
+        if (type == DETECT_CERT_TYPE) {
+            if (wc_PemGetHeaderFooter(CA_TYPE, &header, &footer) == 0 &&
+               (XSTRNSTR((char*)myBuffer, header, (int)sz) != NULL)) {
+                type = CA_TYPE;
+            }
+#ifdef HAVE_CRL
+            else if (wc_PemGetHeaderFooter(CRL_TYPE, &header, &footer) == 0 &&
+                    (XSTRNSTR((char*)myBuffer, header, (int)sz) != NULL)) {
+                type = CRL_TYPE;
+            }
+#endif
+            else if (wc_PemGetHeaderFooter(CERT_TYPE, &header, &footer) == 0 &&
+                    (XSTRNSTR((char*)myBuffer, header, (int)sz) != NULL)) {
+                type = CERT_TYPE;
+            }
+            else {
+                WOLFSSL_MSG("Failed to detect certificate type");
+                if (dynamic)
+                    XFREE(myBuffer, heapHint, DYNAMIC_TYPE_FILE);
+                return WOLFSSL_BAD_CERTTYPE;
+            }
+        }
         if ((type == CA_TYPE || type == TRUSTED_PEER_TYPE)
                                               && format == WOLFSSL_FILETYPE_PEM)
             ret = ProcessChainBuffer(ctx, myBuffer, sz, format, type, ssl,
@@ -6465,7 +6490,7 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
 
     ret = wolfSSL_CTX_load_verify_locations(tmp, file, path);
 
-    /* don't loose our good one */
+    /* don't lose our good one */
     tmp->cm = NULL;
     wolfSSL_CTX_free(tmp);
 
@@ -21276,6 +21301,7 @@ WOLFSSL_X509_LOOKUP_METHOD* wolfSSL_X509_LOOKUP_file(void)
 WOLFSSL_X509_LOOKUP* wolfSSL_X509_STORE_add_lookup(WOLFSSL_X509_STORE* store,
                                                WOLFSSL_X509_LOOKUP_METHOD* m)
 {
+    WOLFSSL_ENTER("SSL_X509_STORE_add_lookup");
     if (store == NULL)
         return NULL;
 
@@ -22092,6 +22118,7 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
 
 WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
 {
+    WOLFSSL_ENTER("SSL_X509_STORE_new");
     WOLFSSL_X509_STORE* store = NULL;
 
     if ((store = (WOLFSSL_X509_STORE*)XMALLOC(sizeof(WOLFSSL_X509_STORE), NULL,
@@ -22192,6 +22219,7 @@ int wolfSSL_X509_STORE_get_by_subject(WOLFSSL_X509_STORE_CTX* ctx, int idx,
 
 WOLFSSL_X509_STORE_CTX* wolfSSL_X509_STORE_CTX_new(void)
 {
+    WOLFSSL_ENTER("X509_STORE_CTX_new");
     WOLFSSL_X509_STORE_CTX* ctx = (WOLFSSL_X509_STORE_CTX*)XMALLOC(
                                     sizeof(WOLFSSL_X509_STORE_CTX), NULL,
                                     DYNAMIC_TYPE_X509_CTX);
@@ -24573,38 +24601,98 @@ WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PrivateKey(XFILE fp, WOLFSSL_EVP_
 #endif
 #endif
 
-/* Loads certificate(s) into X509_STORE struct from either a file or directory.
- *  Returns WOLFSSL_SUCCESS on success or WOLFSSL_FAILURE if an error occurs.
- *  NOTE: only CRL types are currently supported for Apache httpd compatibility.
+/* Loads certificate(s) files in pem format into X509_STORE struct from either
+ * a file or directory.
+ * Returns WOLFSSL_SUCCESS on success or WOLFSSL_FAILURE if an error occurs.
  */
 WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
                                               const char *file, const char *dir)
 {
-    int ret;
+    WOLFSSL_CTX* ctx;
+    char *name = NULL;
+    int ret = WOLFSSL_SUCCESS;
+    int successes = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    ReadDirCtx* readCtx = NULL;
+#else
+    ReadDirCtx  readCtx[1];
+#endif
 
     WOLFSSL_ENTER("X509_STORE_load_locations");
 
-    if (str == NULL)
+    if (str == NULL || str->cm == NULL)
         return WOLFSSL_FAILURE;
 
-    if (dir != NULL) {
-        ret = wolfSSL_CertManagerLoadCRL_ex(str->cm, dir, WOLFSSL_FILETYPE_PEM,
-                                                                       0, NULL);
-        if (ret != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("Failed to load file");
+    /* tmp ctx for setting our cert manager */
+    ctx = wolfSSL_CTX_new(cm_pick_method());
+    if (ctx == NULL)
+        return WOLFSSL_FAILURE;
+
+    wolfSSL_CertManagerFree(ctx->cm);
+    ctx->cm = str->cm;
+
+#ifdef HAVE_CRL
+    if (str->cm->crl == NULL) {
+        if (wolfSSL_CertManagerEnableCRL(str->cm, 0) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Enable CRL failed");
+            wolfSSL_CTX_free(ctx);
             return WOLFSSL_FAILURE;
         }
     }
-    if (file != NULL) {
-        ret = wolfSSL_CertManagerLoadCRL_ex(str->cm, file, WOLFSSL_FILETYPE_PEM,
-                                                                       0, file);
+#endif
+
+    /* Load individual file */
+    if (file) {
+        /* Try to process file with type DETECT_CERT_TYPE to parse the
+           correct certificate header and footer type */
+        ret = ProcessFile(ctx, file, WOLFSSL_FILETYPE_PEM, DETECT_CERT_TYPE,
+                                                         NULL, 0, str->cm->crl);
         if (ret != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("Failed to load directory");
-            return WOLFSSL_FAILURE;
+            WOLFSSL_MSG("Failed to load file");
+            ret = WOLFSSL_FAILURE;
         }
     }
 
-    return WOLFSSL_SUCCESS;
+    /* Load files in dir */
+    if (dir && ret == WOLFSSL_SUCCESS) {
+        #ifdef WOLFSSL_SMALL_STACK
+            readCtx = (ReadDirCtx*)XMALLOC(sizeof(ReadDirCtx), crl->heap,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+            if (readCtx == NULL)
+                return MEMORY_E;
+        #endif
+
+        /* try to load each regular file in dir */
+        ret = wc_ReadDirFirst(readCtx, dir, &name);
+        while (ret == 0 && name) {
+            WOLFSSL_MSG(name);
+            /* Try to process file with type DETECT_CERT_TYPE to parse the
+               correct certificate header and footer type */
+            ret = ProcessFile(ctx, name, WOLFSSL_FILETYPE_PEM, DETECT_CERT_TYPE,
+                                                         NULL, 0, str->cm->crl);
+            /* Not failing on load errors */
+            if (ret != WOLFSSL_SUCCESS)
+                WOLFSSL_MSG("Failed to load file in path, continuing");
+            else
+                successes++;
+
+            ret = wc_ReadDirNext(readCtx, dir, &name);
+        }
+        wc_ReadDirClose(readCtx);
+
+        /* Success if at least one file in dir was loaded */
+        if (successes > 0)
+            ret = WOLFSSL_SUCCESS;
+
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(readCtx, ctx->heap, DYNAMIC_TYPE_DIRCTX);
+        #endif
+    }
+
+    ctx->cm = NULL;
+    wolfSSL_CTX_free(ctx);
+
+    return ret;
 }
 
 #ifndef NO_WOLFSSL_STUB
@@ -43163,6 +43251,7 @@ int wolfSSL_i2d_X509_REQ(WOLFSSL_X509* req, unsigned char** out)
 {
     const unsigned char* der;
     int derSz = 0;
+    WOLFSSL_ENTER("wolfSSL_i2d_X509_REQ");
 
     if (req == NULL || out == NULL) {
         return BAD_FUNC_ARG;
@@ -43188,6 +43277,7 @@ int wolfSSL_i2d_X509_REQ(WOLFSSL_X509* req, unsigned char** out)
 int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
 {
     byte* p;
+    WOLFSSL_ENTER("wolfSSL_X509_set_pubkey");
 
     if (cert == NULL || pkey == NULL)
         return WOLFSSL_FAILURE;
