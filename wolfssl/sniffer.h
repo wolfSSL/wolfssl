@@ -205,6 +205,17 @@ SSL_SNIFFER_API int ssl_DecodePacketWithSessionInfoStoreData(
         const unsigned char* packet, int length, void* ctx,
         SSLInfo* sslInfo, char* error);
 
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_DecodePacketWithChain(void* vChain,
+        unsigned int chainSz, unsigned char** data, char* error);
+
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_DecodePacketWithChainSessionInfoStoreData(
+        void* vChain, unsigned int chainSz, void* ctx, SSLInfo* sslInfo,
+        char* error);
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

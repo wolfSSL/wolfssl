@@ -72,6 +72,25 @@ enum {
 };
 
 
+/* A TLS record can be 16k and change. The chain is broken up into 2K chunks.
+ * This covers the TLS record, plus a chunk for TCP/IP headers. */
+#ifndef CHAIN_INPUT_CHUNK_SIZE
+    #define CHAIN_INPUT_CHUNK_SIZE 2048
+#elif (CHAIN_INPUT_CHUNK_SIZE < 256)
+    #undef CHAIN_INPUT_CHUNK_SIZE
+    #define CHAIN_INPUT_CHUNK_SIZE 256
+#elif (CHAIN_INPUT_CHUNK_SIZE > 16384)
+    #undef CHAIN_INPUT_CHUNK_SIZE
+    #define CHAIN_INPUT_CHUNK_SIZE 16384
+#endif
+#define CHAIN_INPUT_COUNT ((16384 / CHAIN_INPUT_CHUNK_SIZE) + 1)
+
+
+#ifndef STORE_DATA_BLOCK_SZ
+    #define STORE_DATA_BLOCK_SZ 1024
+#endif
+
+
 pcap_t* pcap = NULL;
 pcap_if_t* alldevs = NULL;
 
@@ -170,6 +189,16 @@ static char* iptos(unsigned int addr)
 }
 
 
+#if defined(WOLFSSL_SNIFFER_STORE_DATA_CB) || defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
+
+static inline unsigned int min(unsigned int a, unsigned int b)
+{
+    return a > b ? b : a;
+}
+
+#endif
+
+
 #ifdef WOLFSSL_SNIFFER_WATCH
 
 const byte rsaHash[] = {
@@ -228,8 +257,7 @@ static int myStoreDataCb(const unsigned char* decryptBuf,
     if (decryptBufSz < decryptBufOffset)
         return -1;
 
-    qty = (decryptBufSz - decryptBufOffset) < 32 ?
-        (decryptBufSz - decryptBufOffset) : 32;
+    qty = min(decryptBufSz - decryptBufOffset, STORE_DATA_BLOCK_SZ);
 
     if (*data == NULL) {
         byte* tmpData;
@@ -265,6 +293,10 @@ int main(int argc, char** argv)
 	struct       bpf_program fp;
 	pcap_if_t   *d;
 	pcap_addr_t *a;
+#ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
+    struct iovec chain[CHAIN_INPUT_COUNT];
+    int          chainSz;
+#endif
 
     signal(SIGINT, sig_handler);
 
@@ -443,13 +475,38 @@ int main(int argc, char** argv)
             }
             else
                 continue;
+#ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
+            {
+                unsigned int j = 0;
+                unsigned int remainder = header.caplen;
 
-#ifndef WOLFSSL_SNIFFER_STORE_DATA_CB
-            ret = ssl_DecodePacketWithSessionInfo(packet, header.caplen, &data,
-                                                  &sslInfo, err);
-#else
+                chainSz = 0;
+                do {
+                    unsigned int chunkSz;
+
+                    chunkSz = min(remainder, CHAIN_INPUT_CHUNK_SIZE);
+                    chain[chainSz].iov_base = (void*)(packet + j);
+                    chain[chainSz].iov_len = chunkSz;
+                    j += chunkSz;
+                    remainder -= chunkSz;
+                    chainSz++;
+                } while (j < header.caplen);
+            }
+#endif
+
+#if defined(WOLFSSL_SNIFFER_CHAIN_INPUT) && \
+    defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
+            ret = ssl_DecodePacketWithChainSessionInfoStoreData(chain, chainSz,
+                    &data, &sslInfo, err);
+#elif defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
+            (void)sslInfo;
+            ret = ssl_DecodePacketWithChain(chain, chainSz, &data, err);
+#elif defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
             ret = ssl_DecodePacketWithSessionInfoStoreData(packet,
                     header.caplen, &data, &sslInfo, err);
+#else
+            ret = ssl_DecodePacketWithSessionInfo(packet, header.caplen, &data,
+                                                  &sslInfo, err);
 #endif
             if (ret < 0) {
                 printf("ssl_Decode ret = %d, %s\n", ret, err);

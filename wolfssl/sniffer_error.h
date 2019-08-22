@@ -129,6 +129,7 @@
 
 #define NO_DATA_DEST_STR 91
 #define STORE_DATA_FAIL_STR 92
+#define CHAIN_INPUT_STR 93
 /* !!!! also add to msgTable in sniffer.c and .rc file !!!! */
 
 

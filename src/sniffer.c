@@ -266,7 +266,8 @@ static const char* const msgTable[] =
 
     /* 91 */
     "No data destination Error",
-    "Store data callback failed"
+    "Store data callback failed",
+    "Loading chain input"
 };
 
 
@@ -3562,7 +3563,8 @@ static int CheckSequence(IpInfo* ipInfo, TcpInfo* tcpInfo,
 /* returns 0 on success (continue), -1 on error, 1 on success (end) */
 static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
                           const byte** sslFrame, SnifferSession** session,
-                          int* sslBytes, const byte** end, char* error)
+                          int* sslBytes, const byte** end,
+                          void* vChain, word32 chainSz, char* error)
 {
     word32 length;
     SSL*  ssl = ((*session)->flags.side == WOLFSSL_SERVER_END) ?
@@ -3604,7 +3606,7 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
 
     /* if current partial data, add to end of partial */
     /* if skipping, the data is already at the end of partial */
-    if ( !skipPartial &&
+    if ( !skipPartial && !vChain &&
          (length = ssl->buffers.inputBuffer.length) ) {
         Trace(PARTIAL_ADD_STR);
 
@@ -3619,6 +3621,44 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
         ssl->buffers.inputBuffer.length = *sslBytes;
         *sslFrame = ssl->buffers.inputBuffer.buffer;
         *end = *sslFrame + *sslBytes;
+    }
+
+    if (vChain != NULL) {
+#ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
+        struct iovec* chain = (struct iovec*)vChain;
+        word32 i, offset, headerOffset, qty;
+
+        Trace(CHAIN_INPUT_STR);
+        headerOffset = (word32)*sslFrame - (word32)chain[0].iov_base;
+        length = *sslBytes + headerOffset;
+        if (length > ssl->buffers.inputBuffer.bufferSize) {
+            if (GrowInputBuffer(ssl, length, 0) < 0) {
+                SetError(MEMORY_STR, error, *session, FATAL_ERROR_STATE);
+                return -1;
+            }
+        }
+
+        offset = 0;
+        for (i = 0; i < chainSz; i++) {
+            /* In case there is extra data in the chain that isn't covered
+             * by the sizes in the TCP headers, don't copy too much. This
+             * case has been seen where there are 4 extra bytes in the
+             * packet capture than the TCP header indicates. */
+            if (offset + chain[i].iov_len > length)
+                qty = length - offset;
+            else
+                qty = (word32)chain[i].iov_len;
+            XMEMCPY(ssl->buffers.inputBuffer.buffer + offset,
+                    chain[i].iov_base, qty);
+            offset += qty;
+        }
+
+        ssl->buffers.inputBuffer.length = length;
+        *sslFrame = ssl->buffers.inputBuffer.buffer + headerOffset;
+        *end = *sslFrame + *sslBytes;
+#else
+        (void)chainSz;
+#endif
     }
 
     if ((*session)->flags.clientHello == 0 && **sslFrame != handshake) {
@@ -3637,6 +3677,8 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
         }
         else {
 #ifdef STARTTLS_ALLOWED
+            if (ssl->buffers.inputBuffer.dynamicFlag)
+                ShrinkInputBuffer(ssl, NO_FORCED_FREE);
             return 1;
 #endif
         }
@@ -4008,6 +4050,7 @@ static int RemoveFatalSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
 /* Passes in an IP/TCP packet for decoding (ethernet/localhost frame) removed */
 /* returns Number of bytes on success, 0 for no data yet, and -1 on error */
 static int ssl_DecodePacketInternal(const byte* packet, int length,
+                                    void* vChain, word32 chainSz,
                                     byte** data, SSLInfo* sslInfo,
                                     void* ctx, char* error)
 {
@@ -4018,6 +4061,18 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
     int               sslBytes;                /* ssl bytes unconsumed */
     int               ret;
     SnifferSession*   session = 0;
+
+#ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
+    if (packet == NULL && vChain != NULL) {
+        struct iovec* chain = (struct iovec*)vChain;
+        word32 i;
+
+        length = 0;
+        for (i = 0; i < chainSz; i++)
+            length += chain[i].iov_len;
+        packet = (const byte*)chain[0].iov_base;
+    }
+#endif
 
     if (CheckHeaders(&ipInfo, &tcpInfo, packet, length, &sslFrame, &sslBytes,
                      error) != 0)
@@ -4051,7 +4106,7 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
     }
 
     ret = CheckPreRecord(&ipInfo, &tcpInfo, &sslFrame, &session, &sslBytes,
-                         &end, error);
+                         &end, vChain, chainSz, error);
     if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
     else if (ret == -1) return -1;
     else if (ret ==  1) {
@@ -4088,7 +4143,8 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
 int ssl_DecodePacketWithSessionInfo(const unsigned char* packet, int length,
     unsigned char** data, SSLInfo* sslInfo, char* error)
 {
-    return ssl_DecodePacketInternal(packet, length, data, sslInfo, NULL, error);
+    return ssl_DecodePacketInternal(packet, length, NULL, 0, data, sslInfo,
+            NULL, error);
 }
 
 
@@ -4096,7 +4152,8 @@ int ssl_DecodePacketWithSessionInfo(const unsigned char* packet, int length,
 /* returns Number of bytes on success, 0 for no data yet, and -1 on error */
 int ssl_DecodePacket(const byte* packet, int length, byte** data, char* error)
 {
-    return ssl_DecodePacketInternal(packet, length, data, NULL, NULL, error);
+    return ssl_DecodePacketInternal(packet, length, NULL, 0, data, NULL, NULL,
+            error);
 }
 
 
@@ -4105,7 +4162,33 @@ int ssl_DecodePacket(const byte* packet, int length, byte** data, char* error)
 int ssl_DecodePacketWithSessionInfoStoreData(const unsigned char* packet,
         int length, void* ctx, SSLInfo* sslInfo, char* error)
 {
-    return ssl_DecodePacketInternal(packet, length, NULL, sslInfo, ctx, error);
+    return ssl_DecodePacketInternal(packet, length, NULL, 0, NULL, sslInfo,
+            ctx, error);
+}
+
+#endif
+
+
+#ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
+
+int ssl_DecodePacketWithChain(void* vChain, word32 chainSz, byte** data,
+        char* error)
+{
+    return ssl_DecodePacketInternal(NULL, 0, vChain, chainSz, data, NULL, NULL,
+            error);
+}
+
+#endif
+
+
+#if defined(WOLFSSL_SNIFFER_CHAIN_INPUT) && \
+     defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
+
+int ssl_DecodePacketWithChainSessionInfoStoreData(void* vChain, word32 chainSz,
+        void* ctx, SSLInfo* sslInfo, char* error)
+{
+    return ssl_DecodePacketInternal(NULL, 0, vChain, chainSz, NULL, sslInfo,
+            ctx, error);
 }
 
 #endif

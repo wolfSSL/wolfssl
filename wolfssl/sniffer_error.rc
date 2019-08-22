@@ -111,5 +111,6 @@ STRINGTABLE
 
     91, "No data destination Error"
     92, "Store Data callback failed"
+    93, "Loading chain input"
 }
 
