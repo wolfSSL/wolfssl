@@ -8024,6 +8024,8 @@ static int TLSX_PreSharedKey_Parse(WOLFSSL* ssl, byte* input, word16 length,
         list = (PreSharedKey*)extension->data;
 
         /* Length of binders. */
+        if (idx + OPAQUE16_LEN > length)
+            return BUFFER_E;
         ato16(input + idx, &len);
         idx += OPAQUE16_LEN;
         if (len < MIN_PSK_BINDERS_LEN || length - idx < len)
