@@ -784,9 +784,6 @@ int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
             if (*der == NULL) {
                 /* Allocate if requested */
                 buf = (byte*)XMALLOC(totalSz, NULL, DYNAMIC_TYPE_PKCS);
-                if (buf == NULL) {
-                    ret = MEMORY_E;
-                }
             }
             else {
                 buf = *der;
@@ -800,6 +797,10 @@ int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
                 }
             }
         }
+    }
+
+    if (buf == NULL) {
+        ret = MEMORY_E;
     }
 
     if (ret == 0) {
