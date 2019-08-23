@@ -19011,7 +19011,7 @@ int wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO *bio, WC_PKCS12 *pkcs12)
         word32 certSz = 0;
         byte *certDer = NULL;
 
-        certSz = wc_i2d_PKCS12(pkcs12, &certDer);
+        certSz = wc_i2d_PKCS12(pkcs12, &certDer, NULL);
         if ((certSz > 0) && (certDer != NULL)) {
             if (wolfSSL_BIO_write(bio, certDer, certSz) == (int)certSz) {
                 ret = SSL_SUCCESS;
