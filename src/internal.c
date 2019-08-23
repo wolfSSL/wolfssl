@@ -18270,6 +18270,24 @@ exit_dpk:
         ssl->options.cipherSuite  = cs1;
         compression = input[i++];
 
+#ifndef WOLFSSL_NO_STRICT_CIPHER_SUITE
+        {
+            word32 idx, found = 0;
+            /* confirm server_hello cipher suite is one sent in client_hello */
+            for (idx = 0; idx < ssl->suites->suiteSz; idx += 2) {
+                if (ssl->suites->suites[idx]   == cs0 &&
+                    ssl->suites->suites[idx+1] == cs1) {
+                    found = 1;
+                    break;
+                }
+            }
+            if (!found) {
+                WOLFSSL_MSG("ServerHello did not use cipher suite from ClientHello");
+                return MATCH_SUITE_ERROR;
+            }
+        }
+#endif /* !WOLFSSL_NO_STRICT_CIPHER_SUITE */
+
         if (compression != NO_COMPRESSION && !ssl->options.usingCompression) {
             WOLFSSL_MSG("Server forcing compression w/o support");
             return COMPRESSION_ERROR;
