@@ -5476,7 +5476,7 @@ int wolfSSL_CertManagerLoadCRLBuffer(WOLFSSL_CERT_MANAGER* cm,
         }
     }
 
-    return BufferLoadCRL(cm->crl, buff, sz, type, 0);
+    return BufferLoadCRL(cm->crl, buff, sz, type, VERIFY);
 }
 
 int wolfSSL_CertManagerFreeCRL(WOLFSSL_CERT_MANAGER* cm)
@@ -6039,7 +6039,7 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
                                      verify);
 #ifdef HAVE_CRL
         else if (type == CRL_TYPE)
-            ret = BufferLoadCRL(crl, myBuffer, sz, format, 0);
+            ret = BufferLoadCRL(crl, myBuffer, sz, format, verify);
 #endif
         else
             ret = ProcessBuffer(ctx, myBuffer, sz, format, type, ssl, NULL,
@@ -18556,7 +18556,8 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
                 }
             }
 
-            ret = BufferLoadCRL(cm->crl, curr, sz, WOLFSSL_FILETYPE_PEM, 1);
+            ret = BufferLoadCRL(cm->crl, curr, sz, WOLFSSL_FILETYPE_PEM,
+                NO_VERIFY);
             if (ret != WOLFSSL_SUCCESS)
                 goto end;
 #endif
@@ -19690,7 +19691,8 @@ WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl,
             if (ret < 0) {
                 WOLFSSL_MSG("Init tmp CRL failed");
             } else {
-                ret = BufferLoadCRL(newcrl, in, len, WOLFSSL_FILETYPE_ASN1, 1);
+                ret = BufferLoadCRL(newcrl, in, len, WOLFSSL_FILETYPE_ASN1,
+                    NO_VERIFY);
                 if (ret != WOLFSSL_SUCCESS) {
                     WOLFSSL_MSG("Buffer Load CRL failed");
                 } else {
