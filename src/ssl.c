@@ -2441,6 +2441,15 @@ int wolfSSL_UseSecureRenegotiation(WOLFSSL* ssl)
     return ret;
 }
 
+int wolfSSL_CTX_UseSecureRenegotiation(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->useSecureReneg = 1;
+    return WOLFSSL_SUCCESS;
+}
+
 
 /* do a secure renegotiation handshake, user forced, we discourage */
 int wolfSSL_Rehandshake(WOLFSSL* ssl)

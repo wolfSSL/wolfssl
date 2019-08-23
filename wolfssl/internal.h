@@ -2618,6 +2618,9 @@ struct WOLFSSL_CTX {
     byte        dhKeyTested:1;   /* Set when key has been tested. */
     #endif
 #endif
+#ifdef HAVE_SECURE_RENEGOTIATION
+    byte        useSecureReneg:1; /* when set will set WOLFSSL objects generated to enable */
+#endif
 #ifdef WOLFSSL_MULTICAST
     byte        haveMcast;        /* multicast requested */
     byte        mcastID;          /* multicast group ID */
