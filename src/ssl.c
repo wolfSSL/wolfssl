@@ -4833,7 +4833,6 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             if (ret >= 0) {
                 der->length = ret;
             }
-            printf("ToTraditionalEnc ret %d\n", ret);
             ret = 0; /* ignore failures and try parsing directly unencrypted */
 
             ForceZero(password, passwordSz);
