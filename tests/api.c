@@ -21642,6 +21642,57 @@ static void test_wolfSSL_X509_get_ext_count(void)
 #endif
 }
 
+static void test_wolfSSL_X509_sign(void)
+{
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && \
+    !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
+    X509_NAME *name;
+    X509 *x509;
+    EVP_PKEY *pub;
+    EVP_PKEY *priv;
+#if defined(USE_CERT_BUFFERS_1024)
+    const unsigned char* rsaPriv = (const unsigned char*)client_key_der_1024;
+    unsigned char* rsaPub = (unsigned char*)client_keypub_der_1024;
+    long clientKeySz = (long)sizeof_client_key_der_1024;
+    long clientPubKeySz = (long)sizeof_client_keypub_der_1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+    const unsigned char* rsaPriv = (const unsigned char*)client_key_der_2048;
+    unsigned char* rsaPub = (unsigned char*)client_keypub_der_2048;
+    long clientKeySz = (long)sizeof_client_key_der_2048;
+    long clientPubKeySz = (long)sizeof_client_keypub_der_2048;
+#endif
+
+    printf(testingFmt, "wolfSSL_X509_sign");
+
+    /* Set X509_NAME fields */
+    AssertNotNull(name = X509_NAME_new());
+    AssertIntEQ(X509_NAME_add_entry_by_txt(name, "country", MBSTRING_UTF8,
+                                       (byte*)"US", 2, -1, 0), WOLFSSL_SUCCESS);
+    AssertIntEQ(X509_NAME_add_entry_by_txt(name, "commonName", MBSTRING_UTF8,
+                             (byte*)"wolfssl.com", 11, -1, 0), WOLFSSL_SUCCESS);
+    AssertIntEQ(X509_NAME_add_entry_by_txt(name, "emailAddress", MBSTRING_UTF8,
+                     (byte*)"support@wolfssl.com", 19, -1, 0), WOLFSSL_SUCCESS);
+
+    /* Get private and public keys */
+    AssertNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL, &rsaPriv,
+                                                                  clientKeySz));
+    AssertNotNull(pub = wolfSSL_d2i_PUBKEY(NULL, &rsaPub, clientPubKeySz));
+    AssertNotNull(x509 = X509_new());
+
+    /* Set subject name, add pubkey, and sign certificate */
+    AssertIntEQ(X509_set_subject_name(x509, name), WOLFSSL_SUCCESS);
+    AssertIntEQ(X509_set_pubkey(x509, pub), WOLFSSL_SUCCESS);
+    /* Test invalid parameters */
+    AssertIntEQ(X509_sign(NULL, priv, EVP_sha256()), 0);
+    AssertIntEQ(X509_sign(x509, NULL, EVP_sha256()), 0);
+    AssertIntEQ(X509_sign(x509, priv, NULL), 0);
+    /* Valid case - size should be 798 */
+    AssertIntEQ(X509_sign(x509, priv, EVP_sha256()), 798);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 
 static void test_wolfSSL_X509_VERIFY_PARAM(void)
 {
@@ -27591,6 +27642,7 @@ void ApiTest(void)
     test_wolfSSL_ASN1_STRING();
     test_wolfSSL_X509();
     test_wolfSSL_X509_VERIFY_PARAM();
+    test_wolfSSL_X509_sign();
     test_wolfSSL_RAND();
     test_wolfSSL_BUF();
     test_wolfSSL_set_tlsext_status_type();

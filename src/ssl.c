@@ -24646,7 +24646,7 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
         /* Try to process file with type DETECT_CERT_TYPE to parse the
            correct certificate header and footer type */
         ret = ProcessFile(ctx, file, WOLFSSL_FILETYPE_PEM, DETECT_CERT_TYPE,
-                                                         NULL, 0, str->cm->crl);
+                                                      NULL, 0, str->cm->crl, 0);
         if (ret != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Failed to load file");
             ret = WOLFSSL_FAILURE;
@@ -24671,7 +24671,7 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
             /* Try to process file with type DETECT_CERT_TYPE to parse the
                correct certificate header and footer type */
             ret = ProcessFile(ctx, name, WOLFSSL_FILETYPE_PEM, DETECT_CERT_TYPE,
-                                                         NULL, 0, str->cm->crl);
+                                                      NULL, 0, str->cm->crl, 0);
             /* Not failing on load errors */
             if (ret != WOLFSSL_SUCCESS)
                 WOLFSSL_MSG("Failed to load file in path, continuing");
