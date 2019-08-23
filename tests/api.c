@@ -16536,11 +16536,23 @@ static void test_wc_PKCS7_EncodeSignedData_ex(void)
 
 
 #if defined(HAVE_PKCS7)
-static int CreatePKCS7SignedData(unsigned char* output, int outputSz)
+static int CreatePKCS7SignedData(unsigned char* output, int outputSz,
+                                 byte* data, word32 dataSz,
+                                 int withAttribs, int detachedSig)
 {
     PKCS7*      pkcs7;
     WC_RNG      rng;
-    byte        data[] = "Test data to encode.";
+
+    static byte messageTypeOid[] =
+               { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
+                 0x09, 0x02 };
+    static byte messageType[] = { 0x13, 2, '1', '9' };
+
+    PKCS7Attrib attribs[] =
+    {
+        { messageTypeOid, sizeof(messageTypeOid), messageType,
+                                       sizeof(messageType) }
+    };
 
 #ifndef NO_RSA
     #if defined(USE_CERT_BUFFERS_2048)
@@ -16617,17 +16629,30 @@ static int CreatePKCS7SignedData(unsigned char* output, int outputSz)
     printf(testingFmt, "wc_PKCS7_VerifySignedData()");
 
     pkcs7->content = data;
-    pkcs7->contentSz = (word32)sizeof(data);
+    pkcs7->contentSz = dataSz;
     pkcs7->privateKey = key;
     pkcs7->privateKeySz = (word32)sizeof(key);
     pkcs7->encryptOID = RSAk;
     pkcs7->hashOID = SHAh;
     pkcs7->rng = &rng;
+    if (withAttribs) {
+        /* include a signed attribute */
+        pkcs7->signedAttribs   = attribs;
+        pkcs7->signedAttribsSz = (sizeof(attribs)/sizeof(PKCS7Attrib));
+    }
+
+    if (detachedSig) {
+        AssertIntEQ(wc_PKCS7_SetDetached(pkcs7, 1), 0);
+    }
 
     AssertIntGT(wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz), 0);
     wc_PKCS7_Free(pkcs7);
     AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    if (detachedSig) {
+        pkcs7->content = data;
+        pkcs7->contentSz = dataSz;
+    }
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
 
     wc_PKCS7_Free(pkcs7);
@@ -16646,10 +16671,14 @@ static void test_wc_PKCS7_VerifySignedData(void)
     PKCS7* pkcs7;
     byte   output[FOURK_BUF];
     word32 outputSz = sizeof(output);
+    byte   data[] = "Test data to encode.";
     byte   badOut[0];
     word32 badOutSz = (word32)sizeof(badOut);
+    byte   badContent[] = "This is different content than was signed";
 
-    AssertIntGT((outputSz = CreatePKCS7SignedData(output, outputSz)), 0);
+    AssertIntGT((outputSz = CreatePKCS7SignedData(output, outputSz, data,
+                                                  (word32)sizeof(data),
+                                                  0, 0)), 0);
 
     AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
     AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
@@ -16668,6 +16697,26 @@ static void test_wc_PKCS7_VerifySignedData(void)
                                 badOutSz), BAD_FUNC_ARG);
 #endif
 
+    wc_PKCS7_Free(pkcs7);
+
+    /* Invalid content should error, use detached signature so we can
+     * easily change content */
+    AssertIntGT((outputSz = CreatePKCS7SignedData(output, outputSz, data,
+                                                  (word32)sizeof(data),
+                                                  1, 1)), 0);
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    pkcs7->content = badContent;
+    pkcs7->contentSz = sizeof(badContent);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), SIG_VERIFY_E);
+    wc_PKCS7_Free(pkcs7);
+
+    /* Test success case with detached signature and valid content */
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    pkcs7->content = data;
+    pkcs7->contentSz = sizeof(data);
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
     wc_PKCS7_Free(pkcs7);
 
     printf(resultFmt, passed);
@@ -24008,8 +24057,11 @@ static void test_wolfssl_PKCS7(void)
     byte   data[FOURK_BUF];
     word32 len = sizeof(data);
     const byte*  p = data;
+    byte   content[] = "Test data to encode.";
 
-    AssertIntGT((len = CreatePKCS7SignedData(data, len)), 0);
+    AssertIntGT((len = CreatePKCS7SignedData(data, len, content,
+                                             (word32)sizeof(content),
+                                             0, 0)), 0);
 
     AssertNull(pkcs7 = d2i_PKCS7(NULL, NULL, len));
     AssertNull(pkcs7 = d2i_PKCS7(NULL, &p, 0));

@@ -3418,7 +3418,7 @@ static int wc_PKCS7_VerifyContentMessageDigest(PKCS7* pkcs7,
     word32 digestSz = 0, idx = 0;
     byte* digestBuf = NULL;
 #ifdef WOLFSSL_SMALL_STACK
-    byte* digest;
+    byte* digest = NULL;
 #else
     byte  digest[MAX_PKCS7_DIGEST_SZ];
 #endif
@@ -3441,7 +3441,7 @@ static int wc_PKCS7_VerifyContentMessageDigest(PKCS7* pkcs7,
     /* lookup messageDigest attribute */
     attrib = findAttrib(pkcs7, mdOid, sizeof(mdOid));
     if (attrib == NULL) {
-        WOLFSSL_MSG("messageDigest attribute not in bundle, must be when " +
+        WOLFSSL_MSG("messageDigest attribute not in bundle, must be when "
                     "signed attribs are present");
         return ASN_PARSE_E;
     }
