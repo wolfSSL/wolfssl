@@ -25,6 +25,7 @@
 #else
     /* Enables blinding mode, to prevent timing attacks */
     #define WC_RSA_BLINDING
+#define NO_MULTIBYTE_PRINT
 
     #if defined(WOLFSSL_LIB)
         /* The lib */
