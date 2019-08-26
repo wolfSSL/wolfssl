@@ -23947,7 +23947,7 @@ static void test_wolfSSL_EVP_PKEY_sign(void)
     /* Verify signature.
        EVP_PKEY_verify() doesn't exist yet, so use RSA_public_decrypt(). */
 #ifdef WC_RSA_PSS
-    AssertIntEQ(RSA_public_decrypt(siglen, sig, sigVerify,
+    AssertIntEQ(RSA_public_decrypt((int)siglen, sig, sigVerify,
                              rsa, RSA_PKCS1_PSS_PADDING), SHA256_DIGEST_LENGTH);
 #else
     AssertIntEQ(RSA_public_decrypt(siglen, sig, sigVerify,
@@ -25291,8 +25291,8 @@ static void test_wolfssl_EVP_aes_gcm(void)
     byte *aad = (byte*)"Don't spend major time on minor things.";
 
     unsigned char tag[AES_BLOCK_SIZE] = {0};
-    int plaintxtSz = XSTRLEN((char*)plaintxt);
-    int aadSz = XSTRLEN((char*)aad);
+    int plaintxtSz = (int)XSTRLEN((char*)plaintxt);
+    int aadSz = (int)XSTRLEN((char*)aad);
     byte ciphertxt[AES_BLOCK_SIZE * 4] = {0};
     byte decryptedtxt[AES_BLOCK_SIZE * 4] = {0};
     int ciphertxtSz = 0;
