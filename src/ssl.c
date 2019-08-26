@@ -30463,7 +30463,7 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PUBKEY(XFILE fp, EVP_PKEY **x,
 
 #ifndef NO_RSA
 
-#ifdef XSNPRINTF
+#ifdef XSNPRINTF && !defined(HAVE_FAST_RSA)
 /* a snprintf() must be available */
 
 /******************************************************************************

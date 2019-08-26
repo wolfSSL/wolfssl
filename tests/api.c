@@ -25616,7 +25616,8 @@ static void test_wolfSSL_X509_print()
 static void test_wolfSSL_RSA_print()
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
-   !defined(NO_RSA) && !defined(HAVE_FAST_RSA) && defined(WOLFSSL_KEY_GEN)
+   !defined(NO_RSA) && !defined(HAVE_FAST_RSA) && defined(WOLFSSL_KEY_GEN) && \
+   !defined(HAVE_FAST_RSA)
     BIO *bio;
     WOLFSSL_RSA* rsa = NULL;
 
