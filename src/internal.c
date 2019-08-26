@@ -6028,39 +6028,39 @@ static WC_INLINE void DtlsGetSEQ(WOLFSSL* ssl, int order, word32 seq[2])
         /* Previous epoch case */
         if (ssl->options.haveMcast) {
         #ifdef WOLFSSL_MULTICAST
-            seq[0] = ((ssl->keys.dtls_epoch - 1) << 16) |
+            seq[0] = (((word32)ssl->keys.dtls_epoch - 1) << 16) |
                      (ssl->options.mcastID << 8) |
                      (ssl->keys.dtls_prev_sequence_number_hi & 0xFF);
         #endif
         }
         else
-            seq[0] = ((ssl->keys.dtls_epoch - 1) << 16) |
+            seq[0] = (((word32)ssl->keys.dtls_epoch - 1) << 16) |
                      (ssl->keys.dtls_prev_sequence_number_hi & 0xFFFF);
         seq[1] = ssl->keys.dtls_prev_sequence_number_lo;
     }
     else if (order == PEER_ORDER) {
         if (ssl->options.haveMcast) {
         #ifdef WOLFSSL_MULTICAST
-            seq[0] = (ssl->keys.curEpoch << 16) |
+            seq[0] = ((word32)ssl->keys.curEpoch << 16) |
                      (ssl->keys.curPeerId << 8) |
                      (ssl->keys.curSeq_hi & 0xFF);
         #endif
         }
         else
-            seq[0] = (ssl->keys.curEpoch << 16) |
+            seq[0] = ((word32)ssl->keys.curEpoch << 16) |
                      (ssl->keys.curSeq_hi & 0xFFFF);
         seq[1] = ssl->keys.curSeq_lo; /* explicit from peer */
     }
     else {
         if (ssl->options.haveMcast) {
         #ifdef WOLFSSL_MULTICAST
-            seq[0] = (ssl->keys.dtls_epoch << 16) |
+            seq[0] = ((word32)ssl->keys.dtls_epoch << 16) |
                      (ssl->options.mcastID << 8) |
                      (ssl->keys.dtls_sequence_number_hi & 0xFF);
         #endif
         }
         else
-            seq[0] = (ssl->keys.dtls_epoch << 16) |
+            seq[0] = ((word32)ssl->keys.dtls_epoch << 16) |
                      (ssl->keys.dtls_sequence_number_hi & 0xFFFF);
         seq[1] = ssl->keys.dtls_sequence_number_lo;
     }

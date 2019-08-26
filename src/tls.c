@@ -631,17 +631,17 @@ static WC_INLINE void DtlsGetSEQ(WOLFSSL* ssl, int order, word32 seq[2])
 {
     if (order == PREV_ORDER) {
         /* Previous epoch case */
-        seq[0] = ((ssl->keys.dtls_epoch - 1) << 16) |
+        seq[0] = (((word32)ssl->keys.dtls_epoch - 1) << 16) |
                  (ssl->keys.dtls_prev_sequence_number_hi & 0xFFFF);
         seq[1] = ssl->keys.dtls_prev_sequence_number_lo;
     }
     else if (order == PEER_ORDER) {
-        seq[0] = (ssl->keys.curEpoch << 16) |
+        seq[0] = ((word32)ssl->keys.curEpoch << 16) |
                  (ssl->keys.curSeq_hi & 0xFFFF);
         seq[1] = ssl->keys.curSeq_lo; /* explicit from peer */
     }
     else {
-        seq[0] = (ssl->keys.dtls_epoch << 16) |
+        seq[0] = ((word32)ssl->keys.dtls_epoch << 16) |
                  (ssl->keys.dtls_sequence_number_hi & 0xFFFF);
         seq[1] = ssl->keys.dtls_sequence_number_lo;
     }
