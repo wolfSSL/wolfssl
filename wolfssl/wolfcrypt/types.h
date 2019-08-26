@@ -440,7 +440,7 @@
             #define XSNPRINTF snprintf
             #endif
         #else
-            #if defined(_MSC_VER) || defined(__GNUC__) || defined(__MINGW32__)
+            #if defined(_MSC_VER) || defined(__CYGWIN__) || defined(__MINGW32__)
                 #if defined(_MSC_VER) && (_MSC_VER >= 1900)
                     /* Beginning with the UCRT in Visual Studio 2015 and
                        Windows 10, snprintf is no longer identical to
@@ -467,7 +467,7 @@
                     }
                     #define XSNPRINTF xsnprintf
                 #endif /* (_MSC_VER >= 1900) */
-            #endif /* _MSC_VER || __GNUC__ || __MINGW32__ */
+            #endif /* _MSC_VER || __CYGWIN__ || __MINGW32__ */
         #endif /* USE_WINDOWS_API */
 
         #if defined(WOLFSSL_CERT_EXT) || defined(HAVE_ALPN)
