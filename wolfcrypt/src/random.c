@@ -136,6 +136,10 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
     #include "fsl_rnga.h"
 #elif defined(WOLFSSL_WICED)
     #include "wiced_crypto.h"
+#elif defined(WOLFSSL_NETBURNER)
+    #include <predef.h>
+    #include <basictypes.h>
+    #include <random.h>
 #elif defined(NO_DEV_RANDOM)
 #elif defined(CUSTOM_RAND_GENERATE)
 #elif defined(CUSTOM_RAND_GENERATE_BLOCK)
@@ -2100,6 +2104,27 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return ret;
     }
 
+#elif defined(WOLFSSL_NETBURNER)
+    #warning using NetBurner pseudo random GetRandomByte for seed
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        word32 i;
+        (void)os;
+
+        if (output == NULL) {
+            return BUFFER_E;
+        }
+
+        for (i = 0; i < sz; i++) {
+            output[i] = GetRandomByte();
+
+            /* check if was a valid random number */
+            if (!RandomValid())
+                return RNG_FAILURE_E;
+        }
+
+        return 0;
+    }
 #elif defined(IDIRECT_DEV_RANDOM)
 
     extern int getRandom( int sz, unsigned char *output );

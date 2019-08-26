@@ -180,7 +180,7 @@
         #define WOLFSSL_PTHREADS
         #include <pthread.h>
     #endif
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
         #include <unistd.h>      /* for close of BIO */
     #endif
 #endif

@@ -10850,6 +10850,8 @@ int rsa_no_pad_test(void)
 
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
     inLen = wc_RsaEncryptSize(&key);
+    outSz   = inLen;
+    plainSz = inLen;
     XMEMSET(tmp, 7, inLen);
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
