@@ -13805,6 +13805,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             case EVP_CTRL_SET_KEY_LENGTH:
                 ret = wolfSSL_EVP_CIPHER_CTX_set_key_length(ctx, arg);
                 break;
+#ifdef HAVE_AESGCM
             case EVP_CTRL_GCM_SET_IVLEN:
                 if(arg <= 0 || arg > 16)
                     return WOLFSSL_FAILURE;
@@ -13826,6 +13827,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 XMEMCPY(ptr, ctx->authTag, arg);
                 ret = WOLFSSL_SUCCESS;
                 break;
+#endif /* HAVE_AESGCM */
             default:
                 WOLFSSL_MSG("EVP_CIPHER_CTX_ctrl operation not yet handled");
                 ret = WOLFSSL_FAILURE;

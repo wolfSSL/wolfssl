@@ -356,6 +356,7 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
     return WOLFSSL_SUCCESS; /* success */
 }
 
+#if defined(HAVE_AESGCM)
 static int wolfSSL_EVP_CipherUpdate_GCM(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl,
                                    const unsigned char *in, int inl)
@@ -366,6 +367,8 @@ static int wolfSSL_EVP_CipherUpdate_GCM(WOLFSSL_EVP_CIPHER_CTX *ctx,
     *outl = inl;
     return WOLFSSL_SUCCESS;
 }
+#endif
+
 WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl,
                                    const unsigned char *in, int inl)
