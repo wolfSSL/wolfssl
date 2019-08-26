@@ -23362,7 +23362,7 @@ int wolfSSL_ERR_GET_REASON(unsigned long err)
  */
 const char* wolfSSL_alert_type_string_long(int alertID)
 {
-    WOLFSSL_ENTER("wolfSSL_aalert_type_string_long");
+    WOLFSSL_ENTER("wolfSSL_alert_type_string_long");
 
     switch (alertID) {
         case close_notify:
@@ -37000,6 +37000,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         size_t fieldSz;
 
         (void)type;
+        WOLFSSL_ENTER("wolfSSL_X509_NAME_add_entry_by_txt");
 
         if (name == NULL || field == NULL)
             return WOLFSSL_FAILURE;
@@ -43081,6 +43082,7 @@ int wolfSSL_X509_set_subject_name(WOLFSSL_X509 *cert, WOLFSSL_X509_NAME *name)
     int i;
     WOLFSSL_X509_NAME_ENTRY* ne;
 
+    WOLFSSL_ENTER("X509_set_subject_name");
     if (cert == NULL || name == NULL)
         return WOLFSSL_FAILURE;
 
@@ -43110,6 +43112,7 @@ int wolfSSL_X509_set_issuer_name(WOLFSSL_X509 *cert, WOLFSSL_X509_NAME *name)
     int i;
     WOLFSSL_X509_NAME_ENTRY* ne;
 
+    WOLFSSL_ENTER("X509_set_issuer_name");
     if (cert == NULL || name == NULL)
         return WOLFSSL_FAILURE;
 

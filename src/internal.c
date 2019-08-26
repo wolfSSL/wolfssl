@@ -9265,6 +9265,10 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
             ret == ASN_BEFORE_DATE_E) {
             alertWhy = certificate_expired;
         }
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD))
+        else if (ret == CRL_CERT_REVOKED)
+            alertWhy = certificate_revoked;
+#endif
     }
     else {
         verify_ok = 1;
