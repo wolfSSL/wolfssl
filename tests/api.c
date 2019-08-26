@@ -23828,7 +23828,7 @@ static void test_wc_ecc_get_curve_id_from_params(void)
 }
 static void test_wolfSSL_EVP_PKEY_encrypt(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+#if defined(OPENSSL_ALL) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     WOLFSSL_RSA* rsa = NULL;
     WOLFSSL_EVP_PKEY* pkey = NULL;
     WOLFSSL_EVP_PKEY_CTX* ctx = NULL;
@@ -23903,7 +23903,7 @@ static void test_wolfSSL_EVP_PKEY_encrypt(void)
 }
 static void test_wolfSSL_EVP_PKEY_sign(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+#if defined(OPENSSL_ALL) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     WOLFSSL_RSA* rsa = NULL;
     WOLFSSL_EVP_PKEY* pkey = NULL;
     WOLFSSL_EVP_PKEY_CTX* ctx = NULL;
@@ -23967,6 +23967,7 @@ static void test_wolfSSL_EVP_PKEY_sign(void)
 
     EVP_PKEY_free(pkey);
     EVP_PKEY_CTX_free(ctx);
+    wolfSSL_RSA_free(rsa);
     XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(sigVerify, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     printf(resultFmt, passed);
@@ -25615,7 +25616,7 @@ static void test_wolfSSL_X509_print()
 static void test_wolfSSL_RSA_print()
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
-   !defined(NO_RSA) && !defined(HAVE_FAST_RSA)
+   !defined(NO_RSA) && !defined(HAVE_FAST_RSA) && defined(WOLFSSL_KEY_GEN)
     BIO *bio;
     WOLFSSL_RSA* rsa = NULL;
 
