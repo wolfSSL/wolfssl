@@ -1075,6 +1075,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_sign_init(WOLFSSL_EVP_PKEY_CTX *ctx)
         case EVP_PKEY_RSA:
             ctx->op = EVP_PKEY_OP_SIGN;
             ret = WOLFSSL_SUCCESS;
+            break;
         case EVP_PKEY_EC:
             WOLFSSL_MSG("not implemented");
             FALL_THROUGH;
