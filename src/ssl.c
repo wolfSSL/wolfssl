@@ -30463,8 +30463,8 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PUBKEY(XFILE fp, EVP_PKEY **x,
 
 #ifndef NO_RSA
 
-#ifdef XSNPRINTF && !defined(HAVE_FAST_RSA)
-/* a snprintf() must be available */
+#if defined(XSNPRINTF) && !defined(HAVE_FAST_RSA)
+/* snprintf() must be available */
 
 /******************************************************************************
 * wolfSSL_RSA_print - writes the human readable form of RSA to bio
