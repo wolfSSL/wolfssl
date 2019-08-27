@@ -134,6 +134,63 @@ WOLFSSL_API
 SSL_SNIFFER_API int ssl_SetConnectionCtx(void* ctx);
 
 
+typedef struct SSLStats
+{
+    unsigned long int sslStandardConns;
+    unsigned long int sslClientAuthConns;
+    unsigned long int sslResumedConns;
+    unsigned long int sslEphemeralMisses;
+    unsigned long int sslResumeMisses;
+    unsigned long int sslCiphersUnsupported;
+    unsigned long int sslKeysUnmatched;
+    unsigned long int sslKeyFails;
+    unsigned long int sslDecodeFails;
+    unsigned long int sslAlerts;
+    unsigned long int sslDecryptedBytes;
+    unsigned long int sslEncryptedBytes;
+    unsigned long int sslEncryptedPackets;
+    unsigned long int sslDecryptedPackets;
+    unsigned long int sslKeyMatches;
+    unsigned long int sslEncryptedConns;
+} SSLStats;
+
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_ResetStatistics(void);
+
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_ReadStatistics(SSLStats* stats);
+
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_ReadResetStatistics(SSLStats* stats);
+
+
+typedef int (*SSLWatchCb)(void* vSniffer,
+                        const unsigned char* certHash,
+                        unsigned int certHashSz,
+                        const unsigned char* certChain,
+                        unsigned int certChainSz,
+                        void* ctx, char* error);
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_SetWatchKeyCallback(SSLWatchCb cb, char* error);
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_SetWatchKeyCtx(void* ctx, char* error);
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_SetWatchKey_buffer(void* vSniffer,
+                        const unsigned char* key, unsigned int keySz,
+                        int keyType, char* error);
+
+WOLFSSL_API
+SSL_SNIFFER_API int ssl_SetWatchKey_file(void* vSniffer,
+                        const char* keyFile, int keyType,
+                        const char* password, char* error);
+
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

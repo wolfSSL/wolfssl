@@ -248,7 +248,13 @@ static const char* const msgTable[] =
     "Extended Master Secret Hash Error",
     "Handshake Message Split Across TLS Records",
     "ECC Private Decode Error",
-    "ECC Public Decode Error"
+    "ECC Public Decode Error",
+
+    /* 86 */
+    "Watch callback not set",
+    "Watch hash failed",
+    "Watch callback failed",
+    "Bad Certificate Message"
 };
 
 
@@ -410,6 +416,18 @@ static word32 MissedDataSessions = 0;    /* # of sessions with missed data */
 static SSLConnCb ConnectionCb;
 static void* ConnectionCbCtx = NULL;
 
+#ifdef WOLFSSL_SNIFFER_STATS
+/* Sessions Statistics */
+static SSLStats SnifferStats;
+static wolfSSL_Mutex StatsMutex;
+#endif
+
+#ifdef WOLFSSL_SNIFFER_WATCH
+/* Watch Key Callback */
+static SSLWatchCb WatchCb;
+static void* WatchCbCtx = NULL;
+#endif
+
 
 static void UpdateMissedDataSessions(void)
 {
@@ -419,6 +437,18 @@ static void UpdateMissedDataSessions(void)
 }
 
 
+#ifdef WOLFSSL_SNIFFER_STATS
+#define LOCK_STAT() do { wc_LockMutex(&StatsMutex); } while (0)
+#define UNLOCK_STAT() do { wc_UnLockMutex(&StatsMutex); } while (0)
+#define NOLOCK_ADD_TO_STAT(x,y) do { TraceStat(#x, y); x += y; } while (0)
+#define NOLOCK_INC_STAT(x) NOLOCK_ADD_TO_STAT(x,1)
+#define ADD_TO_STAT(x,y) do { LOCK_STAT(); \
+    NOLOCK_ADD_TO_STAT(x,y); UNLOCK_STAT(); } while (0)
+#define INC_STAT(x) do { LOCK_STAT(); \
+    NOLOCK_INC_STAT(x); UNLOCK_STAT(); } while (0)
+#endif
+
+
 /* Initialize overall Sniffer */
 void ssl_InitSniffer(void)
 {
@@ -426,6 +456,10 @@ void ssl_InitSniffer(void)
     wc_InitMutex(&ServerListMutex);
     wc_InitMutex(&SessionMutex);
     wc_InitMutex(&RecoveryMutex);
+#ifdef WOLFSSL_SNIFFER_STATS
+    XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
+    wc_InitMutex(&StatsMutex);
+#endif
 }
 
 
@@ -1052,6 +1086,19 @@ static void TraceSessionInfo(SSLInfo* sslInfo)
 }
 
 
+#ifdef WOLFSSL_SNIFFER_STATS
+
+/* Show value added to a named statistic. */
+static void TraceStat(const char* name, int add)
+{
+    if (TraceOn) {
+        fprintf(TraceFile, "\tAdding %d to %s\n", add, name);
+    }
+}
+
+#endif
+
+
 /* Set user error string */
 static void SetError(int idx, char* error, SnifferSession* session, int fatal)
 {
@@ -1061,6 +1108,8 @@ static void SetError(int idx, char* error, SnifferSession* session, int fatal)
         session->flags.fatalError = 1;
 }
 
+
+#ifndef WOLFSSL_SNIFFER_WATCH
 
 /* See if this IPV4 network order address has been registered */
 /* return 1 is true, 0 is false */
@@ -1109,6 +1158,8 @@ static int IsPortRegistered(word32 port)
     return ret;
 }
 
+#endif
+
 
 /* Get SnifferServer from IP and Port */
 static SnifferServer* GetSnifferServer(IpInfo* ipInfo, TcpInfo* tcpInfo)
@@ -1118,6 +1169,8 @@ static SnifferServer* GetSnifferServer(IpInfo* ipInfo, TcpInfo* tcpInfo)
     wc_LockMutex(&ServerListMutex);
 
     sniffer = ServerList;
+
+#ifndef WOLFSSL_SNIFFER_WATCH
     while (sniffer) {
         if (sniffer->port == tcpInfo->srcPort && sniffer->server == ipInfo->src)
             break;
@@ -1125,6 +1178,10 @@ static SnifferServer* GetSnifferServer(IpInfo* ipInfo, TcpInfo* tcpInfo)
             break;
         sniffer = sniffer->next;
     }
+#else
+    (void)ipInfo;
+    (void)tcpInfo;
+#endif
 
     wc_UnLockMutex(&ServerListMutex);
 
@@ -1174,8 +1231,8 @@ static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
 
     /* determine side */
     if (session) {
-        if (ipInfo->dst == session->context->server &&
-            tcpInfo->dstPort == session->context->port)
+        if (ipInfo->dst == session->server &&
+            tcpInfo->dstPort == session->srvPort)
             session->flags.side = WOLFSSL_SERVER_END;
         else
             session->flags.side = WOLFSSL_CLIENT_END;
@@ -1185,7 +1242,7 @@ static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
 }
 
 
-#ifdef HAVE_SNI
+#if defined(HAVE_SNI) || defined(WOLFSSL_SNIFFER_WATCH)
 
 static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
                 const char* keyFile, int typeKey,
@@ -1255,6 +1312,32 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
     }
 
     return ret;
+}
+
+#endif
+
+
+#ifdef WOLFSSL_SNIFFER_WATCH
+
+static int CreateWatchSnifferServer(char* error)
+{
+    SnifferServer* sniffer;
+
+    sniffer = (SnifferServer*)malloc(sizeof(SnifferServer));
+    if (sniffer == NULL) {
+        SetError(MEMORY_STR, error, NULL, 0);
+        return -1;
+    }
+    InitSnifferServer(sniffer);
+    sniffer->ctx = SSL_CTX_new(TLSv1_2_client_method());
+    if (!sniffer->ctx) {
+        SetError(MEMORY_STR, error, NULL, 0);
+        FreeSnifferServer(sniffer);
+        return -1;
+    }
+    ServerList = sniffer;
+
+    return 0;
 }
 
 #endif
@@ -1438,10 +1521,12 @@ static int CheckIpHdr(IpHdr* iphdr, IpInfo* info, int length, char* error)
         return -1;
     }
 
+#ifndef WOLFSSL_SNIFFER_WATCH
     if (!IsServerRegistered(iphdr->src) && !IsServerRegistered(iphdr->dst)) {
         SetError(SERVER_NOT_REG_STR, error, NULL, 0);
         return -1;
     }
+#endif
 
     info->length  = IP_HL(iphdr);
     info->total   = ntohs(iphdr->length);
@@ -1472,10 +1557,14 @@ static int CheckTcpHdr(TcpHdr* tcphdr, TcpInfo* info, char* error)
     if (info->ack)
         info->ackNumber = ntohl(tcphdr->ack);
 
+#ifndef WOLFSSL_SNIFFER_WATCH
     if (!IsPortRegistered(info->srcPort) && !IsPortRegistered(info->dstPort)) {
         SetError(SERVER_PORT_NOT_REG_STR, error, NULL, 0);
         return -1;
     }
+#else
+    (void)error;
+#endif
 
     return 0;
 }
@@ -1693,6 +1782,11 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
             } while (ret == WC_PENDING_E);
         }
 
+#ifdef WOLFSSL_SNIFFER_STATS
+        if (ret != 0)
+            INC_STAT(SnifferStats.sslKeyFails);
+#endif
+
         if (keyInit)
             wc_ecc_free(&key);
         if (pubKeyInit)
@@ -1799,7 +1893,7 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
                               SnifferSession* session, char* error)
 {
     ProtocolVersion pv;
-    byte            b;
+    byte            b, b0;
     int             toRead = VERSION_SZ + RAN_LEN + ENUM_LEN;
     int             doResume     = 0;
     int             initialBytes = *sslBytes;
@@ -1847,13 +1941,32 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
     *sslBytes -= b;
 
     /* cipher suite */
-    b = *input++;  /* first byte, ECC or not */
-    session->sslServer->options.cipherSuite0 = b;
-    session->sslClient->options.cipherSuite0 = b;
+    b0 = *input++;  /* first byte, ECC or not */
+    session->sslServer->options.cipherSuite0 = b0;
+    session->sslClient->options.cipherSuite0 = b0;
     b = *input++;
     session->sslServer->options.cipherSuite = b;
     session->sslClient->options.cipherSuite = b;
     *sslBytes -= SUITE_LEN;
+
+#ifdef WOLFSSL_SNIFFER_STATS
+    {
+        const CipherSuiteInfo* suites = GetCipherNames();
+        int suitesSz = GetCipherNamesSize();
+        int match = 0;
+
+        while (suitesSz) {
+            if (b0 == suites->cipherSuite0 && b == suites->cipherSuite) {
+                match = 1;
+                break;
+            }
+            suites++;
+            suitesSz--;
+        }
+        if (!match)
+            INC_STAT(SnifferStats.sslCiphersUnsupported);
+    }
+#endif /* WOLFSSL_SNIFFER_STATS */
 
     /* compression */
     b = *input++;
@@ -1920,10 +2033,16 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
     }
 #endif
 
-    if (session->sslServer->options.haveSessionId &&
-            XMEMCMP(session->sslServer->arrays->sessionID,
+    if (session->sslServer->options.haveSessionId) {
+        if (XMEMCMP(session->sslServer->arrays->sessionID,
                     session->sslClient->arrays->sessionID, ID_LEN) == 0)
-        doResume = 1;
+            doResume = 1;
+        else if (session->sslClient->options.haveSessionId) {
+#ifdef WOLFSSL_SNIFFER_STATS
+            INC_STAT(SnifferStats.sslResumeMisses);
+#endif
+        }
+    }
     else if (session->sslClient->options.haveSessionId == 0 &&
              session->sslServer->options.haveSessionId == 0 &&
              session->ticketID)
@@ -1950,6 +2069,9 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
         session->flags.resuming = 1;
 
         Trace(SERVER_DID_RESUMPTION_STR);
+#ifdef WOLFSSL_SNIFFER_STATS
+        INC_STAT(SnifferStats.sslResumedConns);
+#endif
         if (SetCipherSpecs(session->sslServer) != 0) {
             SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
             return -1;
@@ -1975,6 +2097,11 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
             SetError(BAD_DERIVE_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }
+    }
+    else {
+#ifdef WOLFSSL_SNIFFER_STATS
+        INC_STAT(SnifferStats.sslStandardConns);
+#endif
     }
 #ifdef SHOW_SECRETS
     {
@@ -2181,6 +2308,83 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
 }
 
 
+#ifdef WOLFSSL_SNIFFER_WATCH
+
+/* Process Certificate */
+static int ProcessCertificate(const byte* input, int* sslBytes,
+        SnifferSession* session, char* error)
+{
+    Sha256 sha;
+    const byte* certChain;
+    word32 certChainSz;
+    word32 certSz;
+    int ret;
+    byte digest[SHA256_DIGEST_SIZE];
+
+    /* If the receiver is the server, this is the client certificate message,
+     * and it should be ignored at this point. */
+    if (session->flags.side == WOLFSSL_SERVER_END)
+        return 0;
+
+    if (WatchCb == NULL) {
+        SetError(WATCH_CB_MISSING_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+
+    if (*sslBytes < CERT_HEADER_SZ) {
+        SetError(BAD_CERT_MSG_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+    ato24(input, &certChainSz);
+    *sslBytes -= CERT_HEADER_SZ;
+    input += CERT_HEADER_SZ;
+
+    if (*sslBytes < (int)certChainSz) {
+        SetError(BAD_CERT_MSG_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+    certChain = input;
+
+    ato24(input, &certSz);
+    input += OPAQUE24_LEN;
+    if (*sslBytes < (int)certSz) {
+        SetError(BAD_CERT_MSG_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+
+    *sslBytes -= certChainSz;
+
+    ret = wc_InitSha256(&sha);
+    if (ret == 0)
+        ret = wc_Sha256Update(&sha, input, certSz);
+    if (ret == 0)
+        ret = wc_Sha256Final(&sha, digest);
+    if (ret != 0) {
+        SetError(WATCH_HASH_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+
+    ret = WatchCb((void*)session, digest, sizeof(digest),
+            certChain, certChainSz, WatchCbCtx, error);
+    if (ret != 0) {
+#ifdef WOLFSSL_SNIFFER_STATS
+        INC_STAT(SnifferStats.sslKeysUnmatched);
+#endif
+        SetError(WATCH_FAIL_STR, error, session, FATAL_ERROR_STATE);
+        return -1;
+    }
+    else {
+#ifdef WOLFSSL_SNIFFER_STATS
+        INC_STAT(SnifferStats.sslKeyMatches);
+#endif
+    }
+
+    return 0;
+}
+
+#endif
+
+
 /* Process Finished */
 static int ProcessFinished(const byte* input, int size, int* sslBytes,
                            SnifferSession* session, char* error)
@@ -2286,6 +2490,9 @@ static int DoHandShake(const byte* input, int* sslBytes,
             Trace(GOT_CERT_REQ_STR);
             break;
         case server_key_exchange:
+#ifdef WOLFSSL_SNIFFER_STATS
+            INC_STAT(SnifferStats.sslEphemeralMisses);
+#endif
             Trace(GOT_SERVER_KEY_EX_STR);
             /* can't know temp key passively */
             SetError(BAD_CIPHER_SPEC_STR, error, session, FATAL_ERROR_STATE);
@@ -2293,6 +2500,14 @@ static int DoHandShake(const byte* input, int* sslBytes,
             break;
         case certificate:
             Trace(GOT_CERT_STR);
+            if (session->flags.side == WOLFSSL_SERVER_END) {
+#ifdef WOLFSSL_SNIFFER_STATS
+                INC_STAT(SnifferStats.sslClientAuthConns);
+#endif
+            }
+#ifdef WOLFSSL_SNIFFER_WATCH
+            ret = ProcessCertificate(input, sslBytes, session, error);
+#endif
             break;
         case server_hello_done:
             Trace(GOT_SERVER_HELLO_DONE_STR);
@@ -2627,12 +2842,10 @@ static SnifferSession* CreateSession(IpInfo* ipInfo, TcpInfo* tcpInfo,
 
     wc_UnLockMutex(&SessionMutex);
 
-    /* determine headed side */
-    if (ipInfo->dst == session->context->server &&
-        tcpInfo->dstPort == session->context->port)
-        session->flags.side = WOLFSSL_SERVER_END;
-    else
-        session->flags.side = WOLFSSL_CLIENT_END;
+    /* CreateSession is called in response to a SYN packet, we know this
+     * is headed to the server. Also we know the server is one we care
+     * about as we've passed the GetSnifferServer() successfully. */
+    session->flags.side = WOLFSSL_SERVER_END;
 
     return session;
 }
@@ -2780,6 +2993,9 @@ static int CheckSession(IpInfo* ipInfo, TcpInfo* tcpInfo, int sslBytes,
     /* create a new SnifferSession on client SYN */
     if (tcpInfo->syn && !tcpInfo->ack) {
         TraceClientSyn(tcpInfo->sequence);
+#ifdef WOLFSSL_SNIFFER_STATS
+        INC_STAT(SnifferStats.sslEncryptedConns);
+#endif
         *session = CreateSession(ipInfo, tcpInfo, error);
         if (*session == NULL) {
             *session = GetSnifferSession(ipInfo, tcpInfo);
@@ -2802,6 +3018,13 @@ static int CheckSession(IpInfo* ipInfo, TcpInfo* tcpInfo, int sslBytes,
             /* don't worry about duplicate ACKs either */
             if (sslBytes == 0 && tcpInfo->ack)
                 return 1;
+
+#ifdef WOLFSSL_SNIFFER_STATS
+            LOCK_STAT();
+            NOLOCK_INC_STAT(SnifferStats.sslDecryptedPackets);
+            NOLOCK_ADD_TO_STAT(SnifferStats.sslDecryptedBytes, sslBytes);
+            UNLOCK_STAT();
+#endif
 
             SetError(BAD_SESSION_STR, error, NULL, 0);
             return -1;
@@ -3146,6 +3369,9 @@ static int FindNextRecordInAssembly(SnifferSession* session,
         }
 
         Trace(DROPPING_LOST_FRAG_STR);
+#ifdef WOLFSSL_SNIFFER_STATS
+        INC_STAT(SnifferStats.sslDecodeFails);
+#endif
         prev = curr;
         curr = curr->next;
         *reassemblyMemory -= (prev->end - prev->begin + 1);
@@ -3577,6 +3803,9 @@ doPart:
             break;
         case alert:
             Trace(GOT_ALERT_STR);
+#ifdef WOLFSSL_SNIFFER_STATS
+            INC_STAT(SnifferStats.sslAlerts);
+#endif
             sslFrame += rhSize;
             sslBytes -= rhSize;
             break;
@@ -3683,18 +3912,51 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
     ret = CheckSession(&ipInfo, &tcpInfo, sslBytes, &session, error);
     if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
     else if (ret == -1) return -1;
-    else if (ret ==  1) return  0;   /* done for now */
+    else if (ret ==  1) {
+#ifdef WOLFSSL_SNIFFER_STATS
+        if (sslBytes > 0) {
+            LOCK_STAT();
+            NOLOCK_INC_STAT(SnifferStats.sslEncryptedPackets);
+            NOLOCK_ADD_TO_STAT(SnifferStats.sslEncryptedBytes, sslBytes);
+            UNLOCK_STAT();
+        }
+        else
+            INC_STAT(SnifferStats.sslDecryptedPackets);
+#endif
+         return  0;   /* done for now */
+    }
 
     ret = CheckSequence(&ipInfo, &tcpInfo, session, &sslBytes, &sslFrame,error);
     if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
     else if (ret == -1) return -1;
-    else if (ret ==  1) return  0;   /* done for now */
+    else if (ret ==  1) {
+#ifdef WOLFSSL_SNIFFER_STATS
+        INC_STAT(SnifferStats.sslDecryptedPackets);
+#endif
+        return  0;   /* done for now */
+    }
 
     ret = CheckPreRecord(&ipInfo, &tcpInfo, &sslFrame, &session, &sslBytes,
                          &end, error);
     if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
     else if (ret == -1) return -1;
-    else if (ret ==  1) return  0;   /* done for now */
+    else if (ret ==  1) {
+#ifdef WOLFSSL_SNIFFER_STATS
+        INC_STAT(SnifferStats.sslDecryptedPackets);
+#endif
+        return  0;   /* done for now */
+    }
+
+#ifdef WOLFSSL_SNIFFER_STATS
+    if (sslBytes > 0) {
+        LOCK_STAT();
+        NOLOCK_INC_STAT(SnifferStats.sslEncryptedPackets);
+        NOLOCK_ADD_TO_STAT(SnifferStats.sslEncryptedBytes, sslBytes);
+        UNLOCK_STAT();
+    }
+    else
+        INC_STAT(SnifferStats.sslDecryptedPackets);
+#endif
 
     ret = ProcessMessage(sslFrame, session, sslBytes, data, end, error);
     if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
@@ -3845,6 +4107,131 @@ int ssl_SetConnectionCtx(void* ctx)
 }
 
 
+#ifdef WOLFSSL_SNIFFER_STATS
+
+/* Resets the statistics tracking global structure.
+ * returns 0 on success, -1 on error */
+int ssl_ResetStatistics(void)
+{
+    wc_LockMutex(&StatsMutex);
+    XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
+    wc_UnLockMutex(&StatsMutex);
+    return 0;
+}
+
+
+/* Copies the SSL statistics into the provided stats record.
+ * returns 0 on success, -1 on error */
+int ssl_ReadStatistics(SSLStats* stats)
+{
+    if (stats == NULL)
+        return -1;
+
+    wc_LockMutex(&StatsMutex);
+    XMEMCPY(stats, &SnifferStats, sizeof(SSLStats));
+    wc_UnLockMutex(&StatsMutex);
+    return 0;
+}
+
+/* Copies the SSL statistics into the provided stats record then
+ * resets the statistics tracking global structure.
+ * returns 0 on success, -1 on error */
+int ssl_ReadResetStatistics(SSLStats* stats)
+{
+    if (stats == NULL)
+        return -1;
+
+    wc_LockMutex(&StatsMutex);
+    XMEMCPY(stats, &SnifferStats, sizeof(SSLStats));
+    XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
+    wc_UnLockMutex(&StatsMutex);
+    return 0;
+}
+
+#endif /* WOLFSSL_SNIFFER_STATS */
+
+
+#ifdef WOLFSSL_SNIFFER_WATCH
+
+int ssl_SetWatchKeyCallback(SSLWatchCb cb, char* error)
+{
+    WatchCb = cb;
+    return CreateWatchSnifferServer(error);
+}
+
+
+int ssl_SetWatchKeyCtx(void* ctx, char* error)
+{
+    (void)error;
+    WatchCbCtx = ctx;
+    return 0;
+}
+
+
+int ssl_SetWatchKey_buffer(void* vSniffer, const byte* key, word32 keySz,
+        int keyType, char* error)
+{
+    SnifferSession* sniffer;
+    int ret;
+
+    if (vSniffer == NULL) {
+        return -1;
+    }
+    if (key == NULL || keySz == 0) {
+        return -1;
+    }
+
+    sniffer = (SnifferSession*)vSniffer;
+    /* Remap the keyType from what the user can use to
+     * what wolfSSL_use_PrivateKey_buffer expects. */
+    keyType = (keyType == FILETYPE_PEM) ? WOLFSSL_FILETYPE_PEM :
+                                          WOLFSSL_FILETYPE_ASN1;
+
+    ret = wolfSSL_use_PrivateKey_buffer(sniffer->sslServer,
+            key, keySz, keyType);
+    if (ret != WOLFSSL_SUCCESS) {
+        SetError(KEY_FILE_STR, error, sniffer, FATAL_ERROR_STATE);
+        return -1;
+    }
+
+    return 0;
+}
+
+
+int ssl_SetWatchKey_file(void* vSniffer, const char* keyFile, int keyType,
+        const char* password, char* error)
+{
+    byte* keyBuf = NULL;
+    word32 keyBufSz = 0;
+    int ret;
+
+    if (vSniffer == NULL) {
+        return -1;
+    }
+    if (keyFile == NULL) {
+        return -1;
+    }
+
+    /* Remap the keyType from what the user can use to
+     * what LoadKeyFile expects. */
+    keyType = (keyType == FILETYPE_PEM) ? WOLFSSL_FILETYPE_PEM :
+                                          WOLFSSL_FILETYPE_ASN1;
+
+    ret = LoadKeyFile(&keyBuf, &keyBufSz, keyFile, keyType, password);
+    if (ret < 0) {
+        SetError(KEY_FILE_STR, error, NULL, 0);
+        free(keyBuf);
+        return -1;
+    }
+
+    ret = ssl_SetWatchKey_buffer(vSniffer, keyBuf, keyBufSz, FILETYPE_DER,
+            error);
+    free(keyBuf);
+
+    return ret;
+}
+
+#endif /* WOLFSSL_SNIFFER_WATCH */
 
 #endif /* WOLFSSL_SNIFFER */
 #endif /* WOLFCRYPT_ONLY */

@@ -23,7 +23,7 @@
 
 #if !defined(WOLFSSL_EVP_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
-        #warning evp.c does not need to be compiled seperatly from ssl.c
+        #warning evp.c does not need to be compiled separately from ssl.c
     #endif
 #else
 
@@ -460,6 +460,57 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
     }
     return WOLFSSL_SUCCESS;
 }
+
+
+#ifdef WOLFSSL_EVP_DECRYPT_LEGACY
+/* This is a version of DecryptFinal to work with data encrypted with
+ * wolfSSL_EVP_EncryptFinal() with the broken padding. (pre-v3.12.0)
+ * Only call this after wolfSSL_EVP_CipherFinal() fails on a decrypt.
+ * Note, you don't know if the padding is good or bad with the old
+ * encrypt, but it is likely to be or bad. It will update the output
+ * length with the block_size so the last block is still captured. */
+WOLFSSL_API int  wolfSSL_EVP_DecryptFinal_legacy(WOLFSSL_EVP_CIPHER_CTX *ctx,
+        unsigned char *out, int *outl)
+{
+    int fl;
+    if (ctx == NULL || out == NULL || outl == NULL)
+        return BAD_FUNC_ARG;
+
+    WOLFSSL_ENTER("wolfSSL_EVP_DecryptFinal_legacy");
+    if (ctx->block_size == 1) {
+        *outl = 0;
+        return WOLFSSL_SUCCESS;
+    }
+    if ((ctx->bufUsed % ctx->block_size) != 0) {
+        *outl = 0;
+        /* not enough padding for decrypt */
+        return WOLFSSL_FAILURE;
+    }
+    /* The original behavior of CipherFinal() was like it is now,
+     * but checkPad would return 0 in case of a bad pad. It would
+     * treat the pad as 0, and leave the data in the output buffer,
+     * and not try to copy anything. This converts checkPad's -1 error
+     * code to block_size.
+     */
+    if (ctx->lastUsed) {
+        PRINT_BUF(ctx->lastBlock, ctx->block_size);
+        if ((fl = checkPad(ctx, ctx->lastBlock)) < 0) {
+            fl = ctx->block_size;
+        }
+        else {
+            XMEMCPY(out, ctx->lastBlock, fl);
+        }
+        *outl = fl;
+    }
+    /* return error in cases where the block length is incorrect */
+    if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+#endif
+
 
 WOLFSSL_API int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *ctx)
 {

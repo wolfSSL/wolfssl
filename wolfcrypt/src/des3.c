@@ -45,6 +45,10 @@
 
 #include <wolfssl/wolfcrypt/des3.h>
 
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
 /* fips wrapper calls, user can call direct */
 #if defined(HAVE_FIPS) && \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
@@ -1587,6 +1591,15 @@
             return BAD_FUNC_ARG;
         }
 
+    #ifdef WOLF_CRYPTO_CB
+        if (des->devId != INVALID_DEVID) {
+            int ret = wc_CryptoCb_Des3Encrypt(des, out, in, sz);
+            if (ret != CRYPTOCB_UNAVAILABLE)
+                return ret;
+            /* fall-through when unavailable */
+        }
+    #endif
+
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)
         if (des->asyncDev.marker == WOLFSSL_ASYNC_MARKER_3DES &&
                                             sz >= WC_ASYNC_THRESH_DES3_CBC) {
@@ -1628,6 +1641,15 @@
         if (des == NULL || out == NULL || in == NULL) {
             return BAD_FUNC_ARG;
         }
+
+    #ifdef WOLF_CRYPTO_CB
+        if (des->devId != INVALID_DEVID) {
+            int ret = wc_CryptoCb_Des3Decrypt(des, out, in, sz);
+            if (ret != CRYPTOCB_UNAVAILABLE)
+                return ret;
+            /* fall-through when unavailable */
+        }
+    #endif
 
     #if defined(WOLFSSL_ASYNC_CRYPT)
         if (des->asyncDev.marker == WOLFSSL_ASYNC_MARKER_3DES &&
@@ -1734,11 +1756,16 @@ int wc_Des3Init(Des3* des3, void* heap, int devId)
 
     des3->heap = heap;
 
+#ifdef WOLF_CRYPTO_CB
+    des3->devId = devId;
+    des3->devCtx = NULL;
+#else
+    (void)devId;
+#endif
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)
     ret = wolfAsync_DevCtxInit(&des3->asyncDev, WOLFSSL_ASYNC_MARKER_3DES,
                                                         des3->heap, devId);
-#else
-    (void)devId;
 #endif
 
     return ret;

@@ -240,7 +240,8 @@
 #endif /* WOLFSSL_STATIC_MEMORY */
 
 /* these cases do not have intermediate hashing support */
-#if (defined(WOLFSSL_AFALG_XILINX_SHA3) && !defined(WOLFSSL_AFALG_HASH_KEEP))
+#if (defined(WOLFSSL_AFALG_XILINX_SHA3) && !defined(WOLFSSL_AFALG_HASH_KEEP)) \
+        && !defined(WOLFSSL_XILINX_CRYPT)
     #define NO_INTM_HASH_TEST
 #endif
 
@@ -363,6 +364,10 @@ int scrypt_test(void);
     int pkcs7enveloped_test(void);
     #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
         int pkcs7authenveloped_test(void);
+    #endif
+    #ifndef NO_AES
+        int pkcs7callback_test(byte* cert, word32 certSz, byte* key,
+                word32 keySz);
     #endif
 #endif
 #if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT) && \
@@ -502,6 +507,10 @@ int wolfcrypt_test(void* args)
 #endif
 {
     int ret;
+
+    printf("------------------------------------------------------------------------------\n");
+    printf(" wolfSSL version %s\n", LIBWOLFSSL_VERSION_STRING);
+    printf("------------------------------------------------------------------------------\n");
 
     if (args)
         ((func_args*)args)->return_code = -1; /* error state */
@@ -751,7 +760,7 @@ initDefaultName();
 #endif
 
 #if defined(HAVE_AESGCM) && defined(WOLFSSL_AES_128) && \
-   !defined(WOLFSSL_AFALG_XILINX_AES)
+   !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT)
     if ( (ret = gmac_test()) != 0)
         return err_sys("GMAC     test failed!\n", ret);
     else
@@ -838,7 +847,7 @@ initDefaultName();
     if ( (ret = aesgcm_test()) != 0)
         return err_sys("AES-GCM  test failed!\n", ret);
     #endif
-    #ifndef WOLFSSL_AFALG_XILINX_AES
+    #if !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT)
     if ((ret = aesgcm_default_test()) != 0) {
         return err_sys("AES-GCM  test failed!\n", ret);
     }
@@ -2709,7 +2718,7 @@ static int sha3_384_test(void)
     a.inLen  = XSTRLEN(a.input);
     a.outLen = WC_SHA3_384_DIGEST_SIZE;
 
-#ifdef WOLFSSL_AFALG_XILINX_SHA3
+#if defined(WOLFSSL_AFALG_XILINX_SHA3) || defined(WOLFSSL_XILINX_CRYPT)
     /* NIST test vector with a length that is a multiple of 4 */
     b.input  = "\x7d\x80\xb1\x60\xc4\xb5\x36\xa3\xbe\xb7\x99\x80\x59\x93\x44"
                "\x04\x7c\x5f\x82\xa1\xdf\xc3\xee\xd4";
@@ -2736,7 +2745,11 @@ static int sha3_384_test(void)
     c.inLen  = XSTRLEN(c.input);
     c.outLen = WC_SHA3_384_DIGEST_SIZE;
 
+#ifdef WOLFSSL_XILINX_CRYPT
+    test_sha[0] = b; /* hardware acc. can not handle "" string */
+#else
     test_sha[0] = a;
+#endif
     test_sha[1] = b;
     test_sha[2] = c;
 
@@ -4510,21 +4523,24 @@ int chacha_test(void)
 
 #ifndef BENCH_EMBEDDED
 #ifdef WOLFSSL_SMALL_STACK
-    cipher_big = (byte*)XMALLOC(CHACHA_BIG_TEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    cipher_big = (byte*)XMALLOC(CHACHA_BIG_TEST_SIZE, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
     if (cipher_big == NULL) {
         return MEMORY_E;
     }
-    plain_big = (byte*)XMALLOC(CHACHA_BIG_TEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    plain_big = (byte*)XMALLOC(CHACHA_BIG_TEST_SIZE, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
     if (plain_big == NULL) {
         return MEMORY_E;
     }
-    input_big = (byte*)XMALLOC(CHACHA_BIG_TEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    input_big = (byte*)XMALLOC(CHACHA_BIG_TEST_SIZE, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
     if (input_big == NULL) {
         return MEMORY_E;
     }
-    XMEMSET(cipher_big, 0, sizeof(CHACHA_BIG_TEST_SIZE));
-    XMEMSET(plain_big, 0, sizeof(CHACHA_BIG_TEST_SIZE));
-    XMEMSET(input_big, 0, sizeof(CHACHA_BIG_TEST_SIZE));
+    XMEMSET(cipher_big, 0, CHACHA_BIG_TEST_SIZE);
+    XMEMSET(plain_big, 0, CHACHA_BIG_TEST_SIZE);
+    XMEMSET(input_big, 0, CHACHA_BIG_TEST_SIZE);
 #endif /* WOLFSSL_SMALL_STACK */
 #endif /* BENCH_EMBEDDED */
 
@@ -4602,12 +4618,13 @@ int chacha_test(void)
     if (ret != 0)
         return ret;
 
-    ret |= wc_Chacha_Process(&enc, cipher_big, plain_big,  CHACHA_BIG_TEST_SIZE);
-    ret |= wc_Chacha_Process(&dec, plain_big,  cipher_big, CHACHA_BIG_TEST_SIZE);
+    ret |= wc_Chacha_Process(&enc, cipher_big, plain_big, CHACHA_BIG_TEST_SIZE);
+    ret |= wc_Chacha_Process(&dec, plain_big,  cipher_big,
+                                                          CHACHA_BIG_TEST_SIZE);
     if (ret != 0)
         return ret;
 
-    if (XMEMCMP(plain_big, input_big, sizeof(input_big)))
+    if (XMEMCMP(plain_big, input_big, CHACHA_BIG_TEST_SIZE))
         return -4330;
 
     if (XMEMCMP(cipher_big, cipher_big_result, CHACHA_BIG_TEST_SIZE))
@@ -7501,7 +7518,7 @@ int aesgcm_test(void)
 #endif /* HAVE_AES_DECRYPT */
     }
 
-#ifndef WOLFSSL_AFALG_XILINX_AES
+#if !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT)
 #ifdef BENCH_AESGCM_LARGE
     /* Variable plain text length test */
     for (plen=1; plen<BENCH_AESGCM_LARGE; plen++) {
@@ -7617,7 +7634,8 @@ int aesgcm_test(void)
 #endif /* WOLFSSL_AES_128 */
 #endif /* ENABLE_NON_12BYTE_IV_TEST */
 
-#if defined(WOLFSSL_AES_256) && !defined(WOLFSSL_AFALG_XILINX_AES)
+#if defined(WOLFSSL_AES_256) && !defined(WOLFSSL_AFALG_XILINX_AES) && \
+    !defined(WOLFSSL_XILINX_CRYPT)
     XMEMSET(resultT, 0, sizeof(resultT));
     XMEMSET(resultC, 0, sizeof(resultC));
     XMEMSET(resultP, 0, sizeof(resultP));
@@ -7935,8 +7953,12 @@ int aesccm_test(void)
     XMEMSET(p2, 0, sizeof(p2));
     XMEMSET(iv2, 0, sizeof(iv2));
 
+#ifndef HAVE_SELFTEST
+    /* selftest build does not have wc_AesCcmSetNonce() or
+     * wc_AesCcmEncrypt_ex() */
     if (wc_AesCcmSetKey(&enc, k, sizeof(k)) != 0)
         return -8220;
+
     if (wc_AesCcmSetNonce(&enc, iv, sizeof(iv)) != 0)
         return -8221;
     if (wc_AesCcmEncrypt_ex(&enc, c2, p, sizeof(c2), iv2, sizeof(iv2),
@@ -7948,6 +7970,7 @@ int aesccm_test(void)
         return -8224;
     if (XMEMCMP(t, t2, sizeof(t2)))
         return -8225;
+#endif
 
     return 0;
 }
@@ -8910,7 +8933,7 @@ int memory_test(void)
     }
 
     if (ret != wolfSSL_StaticBufferSz(buffer, ret, WOLFMEM_GENERAL)) {
-        return -6510; /* retrun value changed when using suggested value */
+        return -6510; /* return value changed when using suggested value */
     }
 
     ret = wolfSSL_MemoryPaddingSz();
@@ -9221,9 +9244,120 @@ static const CertName certDefaultName = {
 
 #ifndef NO_RSA
 
-#if defined(WOLFSSL_TEST_CERT) && !defined(NO_FILESYSTEM)
+#if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT) && \
+    !defined(NO_FILESYSTEM)
+static byte minSerial[] = { 0x02, 0x01, 0x01 };
+static byte minName[] = { 0x30, 0x00 };
+static byte nameBad[] = {
+    0x30, 0x08,
+          0x31, 0x06,
+                0x30, 0x04,
+                      0x06, 0x02,
+                            0x55, 0x04,
+};
+static byte minDates[] = {
+    0x30, 0x1e,
+          0x17, 0x0d,
+                0x31, 0x38, 0x30, 0x34, 0x31, 0x33, 0x31, 0x35,
+                0x32, 0x33, 0x31, 0x30, 0x5a,
+          0x17, 0x0d,
+                0x32, 0x31, 0x30, 0x31, 0x30, 0x37, 0x31, 0x35,
+                0x32, 0x33, 0x31, 0x30, 0x5a
+};
+static byte minPubKey[] = {
+    0x30, 0x1b,
+          0x30, 0x0d,
+                0x06, 0x09,
+                      0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
+                      0x01,
+                0x05, 0x00,
+          0x03, 0x0b,
+                0x00, 0x30, 0x08,
+                            0x02, 0x01,
+                                  0x03,
+                            0x02, 0x03,
+                                  0x01, 0x00, 0x01
+};
+static byte minSigAlg[] = {
+    0x30, 0x0d,
+          0x06, 0x09,
+                0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
+                0x0b,
+          0x05, 0x00
+};
+static byte minSig[] = {
+    0x03, 0x01,
+          0x00
+};
+
+static int add_seq(byte* certData, int offset, byte* data, byte length)
+{
+    XMEMMOVE(certData + offset + 2, data, length);
+    certData[offset++] = 0x30;
+    certData[offset++] = length;
+    return offset + length;
+}
+static int add_data(byte* certData, int offset, byte* data, byte length)
+{
+    XMEMCPY(certData + offset, data, length);
+    return offset + length;
+}
+
+static int cert_asn1_test(void)
+{
+    int ret;
+    int len[3];
+    DecodedCert cert;
+    byte certData[106];
+    byte* badCert = NULL;
+
+    len[2] = add_data(certData, 0, minSerial, (byte)sizeof(minSerial));
+    len[2] = add_data(certData, len[2], minSigAlg, (byte)sizeof(minSigAlg));
+    len[2] = add_data(certData, len[2], minName, (byte)sizeof(minName));
+    len[2] = add_data(certData, len[2], minDates, (byte)sizeof(minDates));
+    len[2] = add_data(certData, len[2], minName, (byte)sizeof(minName));
+    len[2] = add_data(certData, len[2], minPubKey, (byte)sizeof(minPubKey));
+    len[1] = add_seq(certData, 0, certData, len[2]);
+    len[1] = add_data(certData, len[1], minSigAlg, (byte)sizeof(minSigAlg));
+    len[1] = add_data(certData, len[1], minSig, (byte)sizeof(minSig));
+    len[0] = add_seq(certData, 0, certData, len[1]);
+
+    /* Minimal good certificate */
+    InitDecodedCert(&cert, certData, len[0], 0);
+    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+    FreeDecodedCert(&cert);
+    if (ret != 0) {
+        ERROR_OUT(-6630, done);
+    }
+
+    /* Bad issuer name */
+    len[2] = add_data(certData, 0, minSerial, (byte)sizeof(minSerial));
+    len[2] = add_data(certData, len[2], minSigAlg, (byte)sizeof(minSigAlg));
+    len[2] = add_data(certData, len[2], nameBad, (byte)sizeof(nameBad));
+    len[1] = add_seq(certData, 0, certData, len[2]);
+    len[0] = add_seq(certData, 0, certData, len[1]);
+    /* Put data into allocated buffer to allow access error checking. */
+    badCert = (byte*)XMALLOC(len[0], HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XMEMCPY(badCert, certData, len[0]);
+    InitDecodedCert(&cert, badCert, len[0], 0);
+    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+    FreeDecodedCert(&cert);
+    if (ret != ASN_PARSE_E) {
+        ERROR_OUT(-6631, done);
+    }
+    XFREE(badCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    badCert = NULL;
+    ret = 0;
+
+done:
+    if (badCert != NULL)
+        XFREE(badCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+
 int cert_test(void)
 {
+#if !defined(NO_FILESYSTEM)
     DecodedCert cert;
     byte*       tmp;
     size_t      bytes;
@@ -9272,10 +9406,14 @@ int cert_test(void)
 done:
     FreeDecodedCert(&cert);
     XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* !NO_FILESYSTEM */
+
+    if (ret == 0)
+        ret = cert_asn1_test();
 
     return ret;
 }
-#endif /* WOLFSSL_TEST_CERT && !NO_FILESYSTEM */
+#endif /* WOLFSSL_TEST_CERT */
 
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT) && \
    !defined(NO_FILESYSTEM)
@@ -12707,6 +12845,144 @@ exit_gen_test:
     return ret;
 }
 
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+typedef struct dh_pubvalue_test {
+    const byte* data;
+    word32 len;
+} dh_pubvalue_test;
+
+static int dh_test_check_pubvalue(void)
+{
+    int ret;
+    word32 i;
+    const byte prime[] = {0x01, 0x00, 0x01};
+    const byte pubValZero[] = { 0x00 };
+    const byte pubValZeroLong[] = { 0x00, 0x00, 0x00 };
+    const byte pubValOne[] = { 0x01 };
+    const byte pubValOneLong[] = { 0x00, 0x00, 0x01 };
+    const byte pubValPrimeMinusOne[] = { 0x01, 0x00, 0x00 };
+    const byte pubValPrimeLong[] = {0x00, 0x01, 0x00, 0x01};
+    const byte pubValPrimePlusOne[] = { 0x01, 0x00, 0x02 };
+    const byte pubValTooBig0[] = { 0x02, 0x00, 0x01 };
+    const byte pubValTooBig1[] = { 0x01, 0x01, 0x01 };
+    const byte pubValTooLong[] = { 0x01, 0x00, 0x00, 0x01 };
+    const dh_pubvalue_test dh_pubval_fail[] = {
+        { prime, sizeof(prime) },
+        { pubValZero, sizeof(pubValZero) },
+        { pubValZeroLong, sizeof(pubValZeroLong) },
+        { pubValOne, sizeof(pubValOne) },
+        { pubValOneLong, sizeof(pubValOneLong) },
+        { pubValPrimeMinusOne, sizeof(pubValPrimeMinusOne) },
+        { pubValPrimeLong, sizeof(pubValPrimeLong) },
+        { pubValPrimePlusOne, sizeof(pubValPrimePlusOne) },
+        { pubValTooBig0, sizeof(pubValTooBig0) },
+        { pubValTooBig1, sizeof(pubValTooBig1) },
+        { pubValTooLong, sizeof(pubValTooLong) },
+    };
+    const byte pubValTwo[] = { 0x02 };
+    const byte pubValTwoLong[] = { 0x00, 0x00, 0x02 };
+    const byte pubValGood[] = { 0x12, 0x34 };
+    const byte pubValGoodLen[] = { 0x00, 0x12, 0x34 };
+    const byte pubValGoodLong[] = { 0x00, 0x00, 0x12, 0x34 };
+    const dh_pubvalue_test dh_pubval_pass[] = {
+        { pubValTwo, sizeof(pubValTwo) },
+        { pubValTwoLong, sizeof(pubValTwoLong) },
+        { pubValGood, sizeof(pubValGood) },
+        { pubValGoodLen, sizeof(pubValGoodLen) },
+        { pubValGoodLong, sizeof(pubValGoodLong) },
+    };
+
+    for (i = 0; i < sizeof(dh_pubval_fail) / sizeof(*dh_pubval_fail); i++) {
+        ret = wc_DhCheckPubValue(prime, sizeof(prime), dh_pubval_fail[i].data,
+                                                         dh_pubval_fail[i].len);
+        if (ret != MP_VAL)
+            return -7150 - i;
+    }
+
+    for (i = 0; i < sizeof(dh_pubval_pass) / sizeof(*dh_pubval_pass); i++) {
+        ret = wc_DhCheckPubValue(prime, sizeof(prime), dh_pubval_pass[i].data,
+                                                         dh_pubval_pass[i].len);
+        if (ret != 0)
+            return -7160 - i;
+    }
+
+    return 0;
+}
+#endif
+
+#if defined(HAVE_FFDHE)
+
+#ifdef HAVE_FFDHE_3072
+    #define FFDHE_KEY_SIZE      (3072/8)
+#else
+    #define FFDHE_KEY_SIZE      (2048/8)
+#endif
+
+static int dh_test_ffdhe(WC_RNG *rng, const DhParams* params)
+{
+    int    ret;
+    word32 privSz, pubSz, privSz2, pubSz2;
+    byte   priv[FFDHE_KEY_SIZE];
+    byte   pub[FFDHE_KEY_SIZE];
+    byte   priv2[FFDHE_KEY_SIZE];
+    byte   pub2[FFDHE_KEY_SIZE];
+    byte   agree[FFDHE_KEY_SIZE];
+    byte   agree2[FFDHE_KEY_SIZE];
+    word32 agreeSz = (word32)sizeof(agree);
+    word32 agreeSz2 = (word32)sizeof(agree2);
+    DhKey  key;
+    DhKey  key2;
+
+    ret = wc_InitDhKey_ex(&key, HEAP_HINT, devId);
+    if (ret != 0) {
+        ERROR_OUT(-7180, done);
+    }
+    ret = wc_InitDhKey_ex(&key2, HEAP_HINT, devId);
+    if (ret != 0) {
+        ERROR_OUT(-7181, done);
+    }
+
+    ret = wc_DhSetKey(&key, params->p, params->p_len, params->g, params->g_len);
+    if (ret != 0) {
+        ERROR_OUT(-7182, done);
+    }
+
+    ret = wc_DhSetKey(&key2, params->p, params->p_len, params->g,
+                                                                 params->g_len);
+    if (ret != 0) {
+        ERROR_OUT(-7183, done);
+    }
+
+    ret = wc_DhGenerateKeyPair(&key, rng, priv, &privSz, pub, &pubSz);
+    if (ret != 0) {
+        ERROR_OUT(-7184, done);
+    }
+
+    ret = wc_DhGenerateKeyPair(&key2, rng, priv2, &privSz2, pub2, &pubSz2);
+    if (ret != 0) {
+        ERROR_OUT(-7185, done);
+    }
+
+    ret = wc_DhAgree(&key, agree, &agreeSz, priv, privSz, pub2, pubSz2);
+    if (ret != 0) {
+        ERROR_OUT(-7186, done);
+    }
+
+    ret = wc_DhAgree(&key2, agree2, &agreeSz2, priv2, privSz2, pub, pubSz);
+    if (ret != 0) {
+        ERROR_OUT(-7187, done);
+    }
+
+    if (agreeSz != agreeSz2 || XMEMCMP(agree, agree2, agreeSz)) {
+        ERROR_OUT(-7188, done);
+    }
+
+done:
+    return ret;
+}
+
+#endif /* HAVE_FFDHE */
+
 int dh_test(void)
 {
     int    ret;
@@ -12854,7 +13130,26 @@ int dh_test(void)
     ret = dh_generate_test(&rng);
     if (ret == 0)
         ret = dh_fips_generate_test(&rng);
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    if (ret == 0)
+        ret = dh_test_check_pubvalue();
+#endif
 
+    /* Specialized code for key gen when using FFDHE-2048 and FFDHE-3072. */
+    #ifdef HAVE_FFDHE_2048
+    if (ret == 0) {
+        ret = dh_test_ffdhe(&rng, wc_Dh_ffdhe2048_Get());
+        if (ret != 0)
+            printf("error with FFDHE 2048\n");
+    }
+    #endif
+    #ifdef HAVE_FFDHE_3072
+    if (ret == 0) {
+        ret = dh_test_ffdhe(&rng, wc_Dh_ffdhe3072_Get());
+        if (ret != 0)
+            printf("error with FFDHE 3072\n");
+    }
+    #endif
 
     wc_FreeDhKey(&key);
     keyInit = 0;
@@ -12865,6 +13160,7 @@ int dh_test(void)
         /* Test Check Key */
         ret = wc_DhSetCheckKey(&key, dh_p, sizeof(dh_p), dh_g, sizeof(dh_g),
             NULL, 0, 0, &rng);
+        keyInit = 1; /* DhSetCheckKey also initializes the key, free it */
     }
 #endif
 
@@ -18510,6 +18806,122 @@ static int curve25519_overflow_test(void)
 
     return 0;
 }
+
+/* Test the wc_curve25519_check_public API.
+ *
+ * returns 0 on success and -ve on failure.
+ */
+static int curve25519_check_public_test(void)
+{
+    /* Little-endian values that will fail */
+    byte fail_le[][CURVE25519_KEYSIZE] = {
+        {
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+        },
+        {
+            0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+        },
+        {
+            0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x81
+        },
+    };
+    /* Big-endian values that will fail */
+    byte fail_be[][CURVE25519_KEYSIZE] = {
+        {
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+        },
+        {
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01
+        },
+        {
+            0x81,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01
+        },
+    };
+    /* Good or valid public value */
+    byte good[CURVE25519_KEYSIZE] = {
+        0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01
+    };
+    int i;
+
+    /* Parameter checks */
+    /* NULL pointer */
+    if (wc_curve25519_check_public(NULL, 0, EC25519_LITTLE_ENDIAN) !=
+                                                                 BAD_FUNC_ARG) {
+        return -10300;
+    }
+    if (wc_curve25519_check_public(NULL, 0, EC25519_BIG_ENDIAN) !=
+                                                                 BAD_FUNC_ARG) {
+        return -10301;
+    }
+    /* Length of 0 treated differntly to other invalid lengths for TLS */
+    if (wc_curve25519_check_public(good, 0, EC25519_LITTLE_ENDIAN) != BUFFER_E)
+        return -10302;
+    if (wc_curve25519_check_public(good, 0, EC25519_BIG_ENDIAN) != BUFFER_E)
+        return -10303;
+
+    /* Length not CURVE25519_KEYSIZE */
+    for (i = 1; i < CURVE25519_KEYSIZE + 2; i++) {
+        if (i == CURVE25519_KEYSIZE)
+            continue;
+        if (wc_curve25519_check_public(good, i, EC25519_LITTLE_ENDIAN) !=
+                                                                ECC_BAD_ARG_E) {
+            return -10310 - i;
+        }
+        if (wc_curve25519_check_public(good, i, EC25519_BIG_ENDIAN) !=
+                                                                ECC_BAD_ARG_E) {
+            return -10350 - i;
+        }
+    }
+
+    /* Little-endian fail cases */
+    for (i = 0; i < (int)(sizeof(fail_le) / sizeof(fail_le)); i++) {
+        if (wc_curve25519_check_public(fail_le[i], CURVE25519_KEYSIZE,
+                                                  EC25519_LITTLE_ENDIAN) == 0) {
+            return -10390 - i;
+        }
+    }
+    /* Big-endian fail cases */
+    for (i = 0; i < (int)(sizeof(fail_be) / sizeof(fail_be)); i++) {
+        if (wc_curve25519_check_public(fail_be[i], CURVE25519_KEYSIZE,
+                                                     EC25519_BIG_ENDIAN) == 0) {
+            return -10394 - i;
+        }
+    }
+
+    /* Check a valid public value works! */
+    if (wc_curve25519_check_public(good, CURVE25519_KEYSIZE,
+                                                  EC25519_LITTLE_ENDIAN) != 0) {
+        return -10398;
+    }
+    if (wc_curve25519_check_public(good, CURVE25519_KEYSIZE,
+                                                     EC25519_BIG_ENDIAN) != 0) {
+        return -10399;
+    }
+
+    return 0;
+}
+
 #endif /* HAVE_CURVE25519_SHARED_SECRET && HAVE_CURVE25519_KEY_IMPORT */
 
 int curve25519_test(void)
@@ -18685,6 +19097,9 @@ int curve25519_test(void)
         return -8822;
 
     ret = curve25519_overflow_test();
+    if (ret != 0)
+        return ret;
+    ret = curve25519_check_public_test();
     if (ret != 0)
         return ret;
 #endif /* HAVE_CURVE25519_SHARED_SECRET && HAVE_CURVE25519_KEY_IMPORT */
@@ -20582,6 +20997,119 @@ static int myOriDecryptCb(PKCS7* pkcs7, byte* oriType, word32 oriTypeSz,
 }
 
 
+#ifndef NO_AES
+/* returns 0 on success */
+static int myDecryptionFunc(PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
+        byte* aad, word32 aadSz, byte* authTag, word32 authTagSz,
+        byte* in, int inSz, byte* out, void* usrCtx)
+{
+    int keyId = -1, ret, keySz;
+    word32 keyIdSz = 8;
+    const byte*  key;
+    byte   keyIdRaw[8];
+    Aes    aes;
+
+    /* looking for KEY ID
+     * fwDecryptKeyID OID "1.2.840.113549.1.9.16.2.37
+     */
+    const unsigned char OID[] = {
+        /* 0x06, 0x0B do not pass in tag and length */
+        0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
+        0x01, 0x09, 0x10, 0x02, 0x25
+    };
+
+    const byte defKey[] = {
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
+    };
+
+    const byte altKey[] = {
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+        0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
+    };
+
+    /* test user context passed in */
+    if (usrCtx == NULL || *(int*)usrCtx != 1) {
+        return -1;
+    }
+
+    /* if needing to find keyIdSz can call with NULL */
+    ret = wc_PKCS7_GetAttributeValue(pkcs7, OID, sizeof(OID), NULL,
+            &keyIdSz);
+    if (ret != LENGTH_ONLY_E) {
+        printf("Unexpected error %d when getting keyIdSz\n", ret);
+        printf("Possibly no KEY ID attribute set\n");
+        return -1;
+    }
+    else {
+        XMEMSET(keyIdRaw, 0, sizeof(keyIdRaw));
+        ret = wc_PKCS7_GetAttributeValue(pkcs7, OID, sizeof(OID), keyIdRaw,
+                &keyIdSz);
+        if (ret < 0) {
+            return ret;
+        }
+
+        if (keyIdSz < 3) {
+            printf("keyIdSz is smaller than expected\n");
+            return -1;
+        }
+        if (keyIdSz > 2 + sizeof(int)) {
+            printf("example case was only expecting a keyId of int size\n");
+            return -1;
+        }
+
+        /* keyIdRaw[0] OCTET TAG */
+        /* keyIdRaw[1] Length */
+        keyId = *(int*)(keyIdRaw + 2);
+    }
+
+
+    /* Use keyID here if found to select key and decrypt in HSM or in this
+     * example just select key and do software decryption */
+    if (keyId == 1) {
+        key = altKey;
+        keySz = sizeof(altKey);
+    }
+    else {
+        key = defKey;
+        keySz = sizeof(defKey);
+    }
+
+    switch (encryptOID) {
+        case AES256CBCb:
+            if ((keySz != 32 ) || (ivSz  != AES_BLOCK_SIZE))
+                return BAD_FUNC_ARG;
+            break;
+
+        case AES128CBCb:
+            if ((keySz != 16 ) || (ivSz  != AES_BLOCK_SIZE))
+                return BAD_FUNC_ARG;
+            break;
+
+        default:
+            printf("Unsupported content cipher type for example");
+            return ALGO_ID_E;
+    };
+
+    ret = wc_AesInit(&aes, HEAP_HINT, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_AesSetKey(&aes, key, keySz, iv, AES_DECRYPTION);
+        if (ret == 0)
+            ret = wc_AesCbcDecrypt(&aes, out, in, inSz);
+        wc_AesFree(&aes);
+    }
+
+    (void)aad;
+    (void)aadSz;
+    (void)authTag;
+    (void)authTagSz;
+    return ret;
+}
+#endif /* NO_AES */
+
+
 static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
                                       byte* rsaPrivKey,  word32 rsaPrivKeySz,
                                       byte* eccCert, word32 eccCertSz,
@@ -21703,7 +22231,408 @@ int pkcs7authenveloped_test(void)
 }
 
 #endif /* HAVE_AESGCM || HAVE_AESCCM */
+#ifndef NO_AES
+static const byte defKey[] = {
+    0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+    0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+    0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+    0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
+};
 
+static const byte altKey[] = {
+    0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
+    0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
+};
+
+static int myCEKwrapFunc(PKCS7* pkcs7, byte* cek, word32 cekSz, byte* keyId,
+        word32 keyIdSz, byte* orginKey, word32 orginKeySz,
+        byte* out, word32 outSz, int keyWrapAlgo, int type, int direction)
+{
+    int ret;
+
+    if (cek == NULL || out == NULL)
+        return BAD_FUNC_ARG;
+
+    /* test case sanity checks */
+    if (keyIdSz != 1) {
+        return -1;
+    }
+
+    if (keyId[0] != 0x00) {
+        return -1;
+    }
+
+    if (type != (int)PKCS7_KEKRI) {
+        return -1;
+    }
+
+    switch (keyWrapAlgo) {
+        case AES256_WRAP:
+            ret = wc_AesKeyUnWrap(defKey, sizeof(defKey), cek, cekSz,
+                                      out, outSz, NULL);
+            if (ret <= 0)
+                return ret;
+            break;
+
+        default:
+            WOLFSSL_MSG("Unsupported key wrap algorithm in example");
+            return BAD_KEYWRAP_ALG_E;
+    };
+
+    (void)pkcs7;
+    (void)direction;
+    (void)orginKey; /* used with KAKRI */
+    (void)orginKeySz;
+    return ret;
+}
+
+
+/* returns key size on success */
+static int getFirmwareKey(PKCS7* pkcs7, byte* key, word32 keySz)
+{
+    int    ret;
+    word32 atrSz;
+    byte   atr[256];
+
+    /* Additionally can look for fwWrappedFirmwareKey
+     * 1.2.840.113529.1.9.16.1.16 */
+    const unsigned char fwWrappedFirmwareKey[] = {
+        /* 0x06, 0x0B */
+        0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
+        0x01, 0x09, 0x10, 0x02, 0x27
+    };
+
+    /* find keyID in fwWrappedFirmwareKey */
+    ret = wc_PKCS7_GetAttributeValue(pkcs7, fwWrappedFirmwareKey,
+            sizeof(fwWrappedFirmwareKey), NULL, &atrSz);
+    if (ret == LENGTH_ONLY_E) {
+        XMEMSET(atr, 0, sizeof(atr));
+        ret = wc_PKCS7_GetAttributeValue(pkcs7, fwWrappedFirmwareKey,
+                sizeof(fwWrappedFirmwareKey), atr, &atrSz);
+
+        /* keyIdRaw[0] OCTET TAG */
+        /* keyIdRaw[1] Length */
+
+        if (ret > 0) {
+            PKCS7* envPkcs7;
+
+            envPkcs7 = wc_PKCS7_New(NULL, 0);
+            if (envPkcs7 == NULL) {
+                return MEMORY_E;
+            }
+
+            wc_PKCS7_Init(envPkcs7, NULL, 0);
+            ret = wc_PKCS7_SetWrapCEKCb(envPkcs7, myCEKwrapFunc);
+            if (ret == 0) {
+                /* expecting FIRMWARE_PKG_DATA content */
+                envPkcs7->contentOID = FIRMWARE_PKG_DATA;
+                ret = wc_PKCS7_DecodeEnvelopedData(envPkcs7, atr, atrSz,
+                    key, keySz);
+            }
+            wc_PKCS7_Free(envPkcs7);
+        }
+    }
+
+    return ret;
+}
+
+/* create a KEKRI enveloped data
+ * return size on success */
+static int envelopedData_encrypt(byte* in, word32 inSz, byte* out,
+        word32 outSz)
+{
+    int ret;
+    PKCS7* pkcs7;
+    const byte keyId[] = { 0x00 };
+
+    pkcs7 = wc_PKCS7_New(NULL, INVALID_DEVID);
+    if (pkcs7 == NULL)
+        return -1;
+
+    pkcs7->content     = in;
+    pkcs7->contentSz   = inSz;
+    pkcs7->contentOID  = FIRMWARE_PKG_DATA;
+    pkcs7->encryptOID  = AES256CBCb;
+    pkcs7->ukm         = NULL;
+    pkcs7->ukmSz       = 0;
+
+    /* add recipient (KEKRI type) */
+    ret = wc_PKCS7_AddRecipient_KEKRI(pkcs7, AES256_WRAP, (byte*)defKey,
+                                      sizeof(defKey), (byte*)keyId,
+                                      sizeof(keyId), NULL, NULL, 0, NULL, 0, 0);
+    if (ret < 0) {
+        printf("wc_PKCS7_AddRecipient_KEKRI() failed, ret = %d\n", ret);
+        wc_PKCS7_Free(pkcs7);
+        return -1;
+    }
+
+    /* encode envelopedData, returns size */
+    ret = wc_PKCS7_EncodeEnvelopedData(pkcs7, out, outSz);
+    if (ret <= 0) {
+        printf("wc_PKCS7_EncodeEnvelopedData() failed, ret = %d\n", ret);
+        wc_PKCS7_Free(pkcs7);
+        return -1;
+
+    }
+
+    wc_PKCS7_Free(pkcs7);
+
+    return ret;
+}
+
+
+/*
+ * keyHint is the KeyID to be set in the fwDecryptKeyID attribute
+ * returns size of buffer output on success
+ */
+static int generateBundle(byte* out, word32 *outSz, const byte* encryptKey,
+        word32 encryptKeySz, byte keyHint, byte* cert, word32 certSz,
+        byte* key, word32 keySz)
+{
+    int ret, attribNum = 1;
+    PKCS7* pkcs7;
+
+    /* KEY ID
+     * fwDecryptKeyID OID 1.2.840.113549.1.9.16.2.37
+     */
+    const unsigned char fwDecryptKeyID[] = {
+        0x06, 0x0B,
+        0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
+        0x01, 0x09, 0x10, 0x02, 0x25
+    };
+
+    /* fwWrappedFirmwareKey 1.2.840.113529.1.9.16.1.16 */
+    const unsigned char fwWrappedFirmwareKey[] = {
+        0x06, 0x0B, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
+        0x01, 0x09, 0x10, 0x02, 0x27
+    };
+
+    byte keyID[] = { 0x04, 0x01, 0x00 };
+    byte env[256];
+    char data[] = "Test of wolfSSL PKCS7 decrypt callback";
+
+    PKCS7Attrib attribs[] =
+    {
+        { fwDecryptKeyID, sizeof(fwDecryptKeyID), keyID, sizeof(keyID) },
+        { fwWrappedFirmwareKey, sizeof(fwWrappedFirmwareKey), env, 0 }
+    };
+
+    keyID[2] = keyHint;
+
+    /* If using keyHint 0 then create a bundle with fwWrappedFirmwareKey */
+    if (keyHint == 0) {
+        ret = envelopedData_encrypt((byte*)defKey, sizeof(defKey), env,
+                sizeof(env));
+        if (ret <= 0) {
+            return ret;
+        }
+        attribs[1].valueSz = ret;
+        attribNum++;
+    }
+
+    /* init PKCS7 */
+    pkcs7 = wc_PKCS7_New(NULL, INVALID_DEVID);
+    if (pkcs7 == NULL)
+        return -1;
+
+    ret = wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+    if (ret != 0) {
+        printf("ERROR: wc_PKCS7_InitWithCert() failed, ret = %d\n", ret);
+        wc_PKCS7_Free(pkcs7);
+        return -1;
+    }
+
+    ret = wc_PKCS7_SetSignerIdentifierType(pkcs7, CMS_SKID);
+    if (ret != 0) {
+        wc_PKCS7_Free(pkcs7);
+        return -1;
+    }
+
+    /* encode Signed Encrypted FirmwarePkgData */
+    if (encryptKeySz == 16) {
+        ret = wc_PKCS7_EncodeSignedEncryptedFPD(pkcs7, (byte*)encryptKey,
+                encryptKeySz, key, keySz, AES128CBCb, RSAk, SHA256h,
+                (byte*)data, sizeof(data), NULL, 0,
+                attribs, attribNum, out, *outSz);
+    }
+    else {
+        ret = wc_PKCS7_EncodeSignedEncryptedFPD(pkcs7, (byte*)encryptKey,
+                encryptKeySz, key, keySz, AES256CBCb, RSAk, SHA256h,
+                (byte*)data, sizeof(data), NULL, 0,
+                attribs, attribNum, out, *outSz);
+    }
+    if (ret <= 0) {
+        printf("ERROR: wc_PKCS7_EncodeSignedEncryptedFPD() failed, "
+                "ret = %d\n", ret);
+        wc_PKCS7_Free(pkcs7);
+        return -1;
+
+    } else {
+        *outSz = ret;
+    }
+
+    wc_PKCS7_Free(pkcs7);
+
+    return ret;
+}
+
+
+/* test verification and decryption of PKCS7 bundle
+ * return 0 on success
+ */
+static int verifyBundle(byte* derBuf, word32 derSz, int keyHint)
+{
+    int ret = 0;
+    int usrCtx = 1; /* test value to pass as user context to callback */
+    PKCS7* pkcs7;
+    byte*  sid;
+    word32 sidSz;
+    byte key[256];
+    word32 keySz = sizeof(key);
+
+    byte decoded[FOURK_BUF/2];
+    int  decodedSz = FOURK_BUF/2;
+
+    const byte expectedSid[] = {
+        0x33, 0xD8, 0x45, 0x66, 0xD7, 0x68, 0x87, 0x18,
+        0x7E, 0x54, 0x0D, 0x70, 0x27, 0x91, 0xC7, 0x26,
+        0xD7, 0x85, 0x65, 0xC0
+    };
+
+    pkcs7 = wc_PKCS7_New(HEAP_HINT, INVALID_DEVID);
+    if (pkcs7 == NULL) {
+        return MEMORY_E;
+    }
+
+    /* Test verify */
+    ret = wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        wc_PKCS7_Free(pkcs7);
+        return ret;
+    }
+    ret = wc_PKCS7_InitWithCert(pkcs7, NULL, 0);
+    if (ret != 0) {
+        wc_PKCS7_Free(pkcs7);
+        return ret;
+    }
+    ret = wc_PKCS7_VerifySignedData(pkcs7, derBuf, derSz);
+    if (ret != 0) {
+        wc_PKCS7_Free(pkcs7);
+        return ret;
+    }
+
+    /* Get size of SID and print it out */
+    ret = wc_PKCS7_GetSignerSID(pkcs7, NULL, &sidSz);
+    if (ret != LENGTH_ONLY_E) {
+        wc_PKCS7_Free(pkcs7);
+        return ret;
+    }
+
+    sid = (byte*)XMALLOC(sidSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sid == NULL) {
+        wc_PKCS7_Free(pkcs7);
+        return ret;
+    }
+
+    ret = wc_PKCS7_GetSignerSID(pkcs7, sid, &sidSz);
+    if (ret != 0) {
+        wc_PKCS7_Free(pkcs7);
+        XFREE(sid, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+    ret = XMEMCMP(sid, expectedSid, sidSz);
+    XFREE(sid, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ret != 0) {
+        wc_PKCS7_Free(pkcs7);
+        return ret;
+    }
+
+    /* get expected fwWrappedFirmwareKey */
+    if (keyHint == 0) {
+        ret = getFirmwareKey(pkcs7, key, keySz);
+        if (ret < 0) {
+            wc_PKCS7_Free(pkcs7);
+            return ret;
+        }
+        pkcs7->encryptionKey = key;
+        pkcs7->encryptionKeySz = ret;
+    }
+    else {
+        decodedSz = sizeof(decoded);
+        ret = wc_PKCS7_SetDecodeEncryptedCb(pkcs7, myDecryptionFunc);
+        if (ret != 0) {
+            wc_PKCS7_Free(pkcs7);
+            return ret;
+        }
+
+        ret = wc_PKCS7_SetDecodeEncryptedCtx(pkcs7, (void*)&usrCtx);
+        if (ret != 0) {
+            wc_PKCS7_Free(pkcs7);
+            return ret;
+        }
+    }
+
+    decodedSz = wc_PKCS7_DecodeEncryptedData(pkcs7, pkcs7->content,
+            pkcs7->contentSz, decoded, decodedSz);
+    if (decodedSz < 0) {
+        ret = decodedSz;
+        wc_PKCS7_Free(pkcs7);
+        return ret;
+    }
+
+    wc_PKCS7_Free(pkcs7);
+    return 0;
+}
+
+
+int pkcs7callback_test(byte* cert, word32 certSz, byte* key, word32 keySz)
+{
+
+    int ret = 0;
+    byte derBuf[FOURK_BUF/2];
+    word32 derSz = FOURK_BUF/2;
+
+    /* Doing default generation and verify */
+    ret = generateBundle(derBuf, &derSz, defKey, sizeof(defKey), 0, cert,
+            certSz, key, keySz);
+    if (ret <= 0) {
+        return -10000;
+    }
+
+    ret = verifyBundle(derBuf, derSz, 0);
+    if (ret != 0) {
+        return -10001;
+    }
+
+    /* test choosing other key with keyID */
+    derSz = FOURK_BUF/2;
+    ret = generateBundle(derBuf, &derSz, altKey, sizeof(altKey), 1,
+            cert, certSz, key, keySz);
+    if (ret <= 0) {
+        return -10002;
+    }
+
+    ret = verifyBundle(derBuf, derSz, 1);
+    if (ret != 0) {
+        return -10003;
+    }
+
+    /* test fail case with wrong keyID */
+    derSz = FOURK_BUF/2;
+    ret = generateBundle(derBuf, &derSz, defKey, sizeof(defKey), 1,
+            cert, certSz, key, keySz);
+    if (ret <= 0) {
+        return -10004;
+    }
+
+    ret = verifyBundle(derBuf, derSz, 1);
+    if (ret == 0) {
+        return -10005;
+    }
+
+    return 0;
+}
+#endif /* NO_AES */
 
 #ifndef NO_PKCS7_ENCRYPTED_DATA
 
@@ -23266,6 +24195,13 @@ int pkcs7signed_test(void)
                             eccClientCertBuf, (word32)eccClientCertBufSz,
                             eccClientPrivKeyBuf, (word32)eccClientPrivKeyBufSz);
 
+#ifndef NO_AES
+    if (ret >= 0)
+        ret = pkcs7callback_test(
+                            rsaClientCertBuf, (word32)rsaClientCertBufSz,
+                            rsaClientPrivKeyBuf, (word32)rsaClientPrivKeyBufSz);
+#endif
+
     XFREE(rsaClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(rsaClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(rsaServerCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -24142,7 +25078,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #endif /* HAVE_ECC */
     }
     else if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
-#ifndef NO_AES
+#if !defined(NO_AES) || !defined(NO_DES3)
     #ifdef HAVE_AESGCM
         if (info->cipher.type == WC_CIPHER_AES_GCM) {
             if (info->cipher.enc) {
@@ -24215,7 +25151,37 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             }
         }
     #endif /* HAVE_AES_CBC */
-#endif /* !NO_AES */
+    #ifndef NO_DES3
+        if (info->cipher.type == WC_CIPHER_DES3) {
+            if (info->cipher.enc) {
+                /* set devId to invalid, so software is used */
+                info->cipher.des3.des->devId = INVALID_DEVID;
+
+                ret = wc_Des3_CbcEncrypt(
+                    info->cipher.des3.des,
+                    info->cipher.des3.out,
+                    info->cipher.des3.in,
+                    info->cipher.des3.sz);
+
+                /* reset devId */
+                info->cipher.des3.des->devId = devIdArg;
+            }
+            else {
+                /* set devId to invalid, so software is used */
+                info->cipher.des3.des->devId = INVALID_DEVID;
+
+                ret = wc_Des3_CbcDecrypt(
+                    info->cipher.des3.des,
+                    info->cipher.des3.out,
+                    info->cipher.des3.in,
+                    info->cipher.des3.sz);
+
+                /* reset devId */
+                info->cipher.des3.des->devId = devIdArg;
+            }
+        }
+    #endif /* !NO_DES3 */
+#endif /* !NO_AES || !NO_DES3 */
     }
 #if !defined(NO_SHA) || !defined(NO_SHA256)
     else if (info->algo_type == WC_ALGO_TYPE_HASH) {
@@ -24335,6 +25301,10 @@ int cryptocb_test(void)
         ret = aes_test();
     #endif
 #endif /* !NO_AES */
+#ifndef NO_DES3
+    if (ret == 0)
+        ret = des3_test();
+#endif /* !NO_DES3 */
 #if !defined(NO_SHA) || !defined(NO_SHA256)
     #ifndef NO_SHA
     if (ret == 0)

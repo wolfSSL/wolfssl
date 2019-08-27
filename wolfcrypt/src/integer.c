@@ -886,6 +886,12 @@ int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
 #endif
   }
 
+#ifdef BN_MP_EXPTMOD_BASE_2
+  if (G->used == 1 && G->dp[0] == 2) {
+    return mp_exptmod_base_2(X, P, Y);
+  }
+#endif
+
 /* modified diminished radix reduction */
 #if defined(BN_MP_REDUCE_IS_2K_L_C) && defined(BN_MP_REDUCE_2K_L_C) && \
   defined(BN_S_MP_EXPTMOD_C)
@@ -927,6 +933,11 @@ int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
 #endif
 }
 
+int mp_exptmod_ex (mp_int * G, mp_int * X, int digits, mp_int * P, mp_int * Y)
+{
+    (void)digits;
+    return mp_exptmod(G, X, P, Y);
+}
 
 /* b = |a|
  *
@@ -1897,7 +1908,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
 
 #ifdef WOLFSSL_SMALL_STACK
   M = (mp_int*) XMALLOC(sizeof(mp_int) * TAB_SIZE, NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                                                       DYNAMIC_TYPE_BIGINT);
   if (M == NULL)
     return MP_MEM;
 #endif
@@ -1930,7 +1941,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
   /* init first cell */
   if ((err = mp_init_size(&M[1], P->alloc)) != MP_OKAY) {
 #ifdef WOLFSSL_SMALL_STACK
-     XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+     XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
 
      return err;
@@ -1945,7 +1956,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
       mp_clear(&M[1]);
 
 #ifdef WOLFSSL_SMALL_STACK
-      XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
 
       return err;
@@ -2187,11 +2198,175 @@ LBL_M:
   }
 
 #ifdef WOLFSSL_SMALL_STACK
-  XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
 
   return err;
 }
+
+#ifdef BN_MP_EXPTMOD_BASE_2
+#if DIGIT_BIT < 16
+    #define WINSIZE    3
+#elif DIGIT_BIT < 32
+    #define WINSIZE    4
+#elif DIGIT_BIT < 64
+    #define WINSIZE    5
+#elif DIGIT_BIT < 128
+    #define WINSIZE    6
+#endif
+int mp_exptmod_base_2(mp_int * X, mp_int * P, mp_int * Y)
+{
+  mp_digit buf, mp;
+  int      err, bitbuf, bitcpy, bitcnt, digidx, x, y;
+#ifdef WOLFSSL_SMALL_STACK
+  mp_int  *res;
+#else
+  mp_int   res[1];
+#endif
+  int     (*redux)(mp_int*,mp_int*,mp_digit);
+
+  /* automatically pick the comba one if available (saves quite a few
+     calls/ifs) */
+#ifdef BN_FAST_MP_MONTGOMERY_REDUCE_C
+  if (((P->used * 2 + 1) < (int)MP_WARRAY) &&
+       P->used < (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
+     redux = fast_mp_montgomery_reduce;
+  } else
+#endif
+  {
+#ifdef BN_MP_MONTGOMERY_REDUCE_C
+     /* use slower baseline Montgomery method */
+     redux = mp_montgomery_reduce;
+#else
+     return MP_VAL;
+#endif
+  }
+
+#ifdef WOLFSSL_SMALL_STACK
+  res = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  if (res == NULL) {
+     return MP_MEM;
+  }
+#endif
+
+  /* now setup montgomery  */
+  if ((err = mp_montgomery_setup(P, &mp)) != MP_OKAY) {
+     goto LBL_M;
+  }
+
+  /* setup result */
+  if ((err = mp_init(res)) != MP_OKAY) {
+     goto LBL_M;
+  }
+
+  /* now we need R mod m */
+  if ((err = mp_montgomery_calc_normalization(res, P)) != MP_OKAY) {
+     goto LBL_RES;
+  }
+
+  /* Get the top bits left over after taking WINSIZE bits starting at the
+   * least-significant.
+   */
+  digidx = X->used - 1;
+  bitcpy = (X->used * DIGIT_BIT) % WINSIZE;
+  if (bitcpy > 0) {
+     bitcnt = (int)DIGIT_BIT - bitcpy;
+     buf    = X->dp[digidx--];
+     bitbuf = (int)(buf >> bitcnt);
+     /* Multiply montgomery representation of 1 by 2 ^ top */
+     err = mp_mul_2d(res, bitbuf, res);
+     if (err != MP_OKAY) {
+        goto LBL_RES;
+     }
+     err = mp_mod(res, P, res);
+     if (err != MP_OKAY) {
+        goto LBL_RES;
+     }
+     /* Move out bits used */
+     buf  <<= bitcpy;
+     bitcnt++;
+  }
+  else {
+     bitcnt = 1;
+     buf    = 0;
+  }
+
+  /* empty window and reset  */
+  bitbuf = 0;
+  bitcpy = 0;
+
+  for (;;) {
+    /* grab next digit as required */
+    if (--bitcnt == 0) {
+      /* if digidx == -1 we are out of digits so break */
+      if (digidx == -1) {
+        break;
+      }
+      /* read next digit and reset bitcnt */
+      buf    = X->dp[digidx--];
+      bitcnt = (int)DIGIT_BIT;
+    }
+
+    /* grab the next msb from the exponent */
+    y       = (int)(buf >> (DIGIT_BIT - 1)) & 1;
+    buf   <<= (mp_digit)1;
+    /* add bit to the window */
+    bitbuf |= (y << (WINSIZE - ++bitcpy));
+
+    if (bitcpy == WINSIZE) {
+      /* ok window is filled so square as required and multiply  */
+      /* square first */
+      for (x = 0; x < WINSIZE; x++) {
+        err = mp_sqr(res, res);
+        if (err != MP_OKAY) {
+          goto LBL_RES;
+        }
+        err = (*redux)(res, P, mp);
+        if (err != MP_OKAY) {
+          goto LBL_RES;
+        }
+      }
+
+      /* then multiply by 2^bitbuf */
+      err = mp_mul_2d(res, bitbuf, res);
+      if (err != MP_OKAY) {
+         goto LBL_RES;
+      }
+      err = mp_mod(res, P, res);
+      if (err != MP_OKAY) {
+         goto LBL_RES;
+      }
+
+      /* empty window and reset */
+      bitcpy = 0;
+      bitbuf = 0;
+    }
+  }
+
+  /* fixup result if Montgomery reduction is used
+   * recall that any value in a Montgomery system is
+   * actually multiplied by R mod n.  So we have
+   * to reduce one more time to cancel out the factor
+   * of R.
+   */
+  err = (*redux)(res, P, mp);
+  if (err != MP_OKAY) {
+     goto LBL_RES;
+  }
+
+  /* swap res with Y */
+  mp_copy(res, Y);
+
+LBL_RES:mp_clear (res);
+LBL_M:
+#ifdef WOLFSSL_SMALL_STACK
+  XFREE(res, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+  return err;
+}
+
+#undef WINSIZE
+#endif /* BN_MP_EXPTMOD_BASE_2 */
 
 
 /* setups the montgomery reduction stuff */
@@ -4443,11 +4618,20 @@ static int mp_prime_miller_rabin (mp_int * a, mp_int * b, int *result)
     goto LBL_R;
   }
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+#ifndef WOLFSSL_SP_NO_2048
   if (mp_count_bits(a) == 1024)
       err = sp_ModExp_1024(b, &r, a, &y);
   else if (mp_count_bits(a) == 2048)
       err = sp_ModExp_2048(b, &r, a, &y);
   else
+#endif
+#ifndef WOLFSSL_SP_NO_3072
+  if (mp_count_bits(a) == 1536)
+      err = sp_ModExp_1536(b, &r, a, &y);
+  else if (mp_count_bits(a) == 3072)
+      err = sp_ModExp_3072(b, &r, a, &y);
+  else
+#endif
 #endif
       err = mp_exptmod (b, &r, a, &y);
   if (err != MP_OKAY)
@@ -4645,8 +4829,10 @@ int mp_prime_is_prime_ex (mp_int * a, int t, int *result, WC_RNG *rng)
         goto LBL_B;
     }
 
-    if (mp_cmp_d(&b, 2) != MP_GT || mp_cmp(&b, &c) != MP_LT)
+    if (mp_cmp_d(&b, 2) != MP_GT || mp_cmp(&b, &c) != MP_LT) {
+        ix--;
         continue;
+    }
 
     if ((err = mp_prime_miller_rabin (a, &b, &res)) != MP_OKAY) {
       goto LBL_B;
@@ -4860,8 +5046,8 @@ int mp_gcd (mp_int * a, mp_int * b, mp_int * c)
     }
     c->sign = MP_ZPOS;
     res = MP_OKAY;
-LBL_V:mp_clear (&u);
-LBL_U:mp_clear (&v);
+LBL_V:mp_clear (&v);
+LBL_U:mp_clear (&u);
     return res;
 }
 

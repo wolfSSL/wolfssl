@@ -245,6 +245,8 @@
 #define BENCH_HMAC               (BENCH_HMAC_MD5    | BENCH_HMAC_SHA    | \
                                   BENCH_HMAC_SHA224 | BENCH_HMAC_SHA256 | \
                                   BENCH_HMAC_SHA384 | BENCH_HMAC_SHA512)
+#define BENCH_PBKDF2             0x00000100
+
 /* Asymmetric algorithms. */
 #define BENCH_RSA_KEYGEN         0x00000001
 #define BENCH_RSA                0x00000002
@@ -423,6 +425,9 @@ static const bench_alg bench_mac_opt[] = {
     #ifdef WOLFSSL_SHA512
     { "-hmac-sha512",        BENCH_HMAC_SHA512       },
     #endif
+    #ifndef NO_PWDBASED
+    { "-pbkdf2",             BENCH_PBKDF2            },
+    #endif
 #endif
     { NULL, 0}
 };
@@ -494,7 +499,7 @@ static int lng_index = 0;
 
 #ifndef NO_MAIN_DRIVER
 #ifndef MAIN_NO_ARGS
-static const char* bench_Usage_msg1[][11] = {
+static const char* bench_Usage_msg1[][14] = {
     /* 0 English  */
     {   "-? <num>    Help, print this usage\n            0: English, 1: Japanese\n",
         "-csv        Print terminal output in csv format\n",
@@ -503,10 +508,13 @@ static const char* bench_Usage_msg1[][11] = {
         "-dgst_full  Full digest operation performed.\n",
         "-rsa_sign   Measure RSA sign/verify instead of encrypt/decrypt.\n",
         "<keySz> -rsa-sz\n            Measure RSA <key size> performance.\n",
+        "-ffhdhe2048 Measure DH using FFDHE 2048-bit parameters.\n",
+        "-ffhdhe3072 Measure DH using FFDHE 3072-bit parameters.\n",
         "-<alg>      Algorithm to benchmark. Available algorithms include:\n",
         "-lng <num>  Display benchmark result by specified language.\n            0: English, 1: Japanese\n",
         "<num>       Size of block in bytes\n",
-        "-threads <num> Number of threads to run\n"
+        "-threads <num> Number of threads to run\n",
+        "-print      Show benchmark stats summary\n"
     },
 #ifndef NO_MULTIBYTE_PRINT
     /* 1 Japanese */
@@ -517,10 +525,13 @@ static const char* bench_Usage_msg1[][11] = {
         "-dgst_full  フルの digest 暗号操作を実施します。\n",
         "-rsa_sign   暗号/復号化の代わりに RSA の署名/検証を測定します。\n",
         "<keySz> -rsa-sz\n            RSA <key size> の性能を測定します。\n",
+        "-ffhdhe2048 Measure DH using FFDHE 2048-bit parameters.\n",
+        "-ffhdhe3072 Measure DH using FFDHE 3072-bit parameters.\n",
         "-<alg>      アルゴリズムのベンチマークを実施します。\n            利用可能なアルゴリズムは下記を含みます:\n",
         "-lng <num>  指定された言語でベンチマーク結果を表示します。\n            0: 英語、 1: 日本語\n",
         "<num>       ブロックサイズをバイト単位で指定します。\n",
-        "-threads <num> 実行するスレッド数\n"
+        "-threads <num> 実行するスレッド数\n",
+        "-print      ベンチマーク統計の要約を表示する\n"
     },
 #endif
 };
@@ -851,6 +862,10 @@ static int digest_stream = 1;
 /* Don't measure RSA sign/verify by default */
 static int rsa_sign_verify = 0;
 #endif
+#ifndef NO_DH
+/* Use the FFDHE parameters */
+static int use_ffdhe = 0;
+#endif
 
 /* Don't print out in CSV format by default */
 static int csv_format = 0;
@@ -891,14 +906,42 @@ static THREAD_LS_T byte* bench_iv = NULL;
 #endif
 
 
+/* This code handles cases with systems where static (non cost) ram variables
+    aren't properly initialized with data */
+static int gBenchStaticInit = 0;
+static void benchmark_static_init(void)
+{
+    if (gBenchStaticInit == 0) {
+        gBenchStaticInit = 1;
+
+        /* Init static variables */
+        bench_all = 1;
+    #ifdef BENCH_EMBEDDED
+        numBlocks  = 25; /* how many kB to test (en/de)cryption */
+        bench_size = (1024ul);
+    #else
+        numBlocks  = 5; /* how many megs to test (en/de)cryption */
+        bench_size = (1024*1024ul);
+    #endif
+    #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+        aesAuthAddSz = AES_AUTH_ADD_SZ;
+    #endif
+        base2 = 1;
+        digest_stream = 1;
+    }
+}
+
+
+
 /******************************************************************************/
 /* Begin Stats Functions */
 /******************************************************************************/
+static int gPrintStats = 0;
+typedef enum bench_stat_type {
+    BENCH_STAT_ASYM,
+    BENCH_STAT_SYM,
+} bench_stat_type_t;
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
-    typedef enum bench_stat_type {
-        BENCH_STAT_ASYM,
-        BENCH_STAT_SYM,
-    } bench_stat_type_t;
     typedef struct bench_stats {
         struct bench_stats* next;
         struct bench_stats* prev;
@@ -910,6 +953,7 @@ static THREAD_LS_T byte* bench_iv = NULL;
         int finishCount;
         bench_stat_type_t type;
         int lastRet;
+        const char* perftype;
     } bench_stats_t;
     static bench_stats_t* bench_stats_head;
     static bench_stats_t* bench_stats_tail;
@@ -917,7 +961,7 @@ static THREAD_LS_T byte* bench_iv = NULL;
 
     static bench_stats_t* bench_stats_add(bench_stat_type_t type,
         const char* algo, int strength, const char* desc, int doAsync,
-        double perfsec, int ret)
+        double perfsec, const char* perftype, int ret)
     {
         bench_stats_t* bstat;
 
@@ -952,7 +996,6 @@ static THREAD_LS_T byte* bench_iv = NULL;
         }
 
         if (bstat) {
-            int isLast = 0;
             bstat->type = type;
             bstat->algo = algo;
             bstat->strength = strength;
@@ -960,12 +1003,9 @@ static THREAD_LS_T byte* bench_iv = NULL;
             bstat->doAsync = doAsync;
             bstat->perfsec += perfsec;
             bstat->finishCount++;
+            bstat->perftype = perftype;
             if (bstat->lastRet > ret)
                 bstat->lastRet = ret; /* track last error */
-
-            if (bstat->finishCount == g_threadCount) {
-                isLast = 1;
-            }
 
             pthread_mutex_unlock(&bench_lock);
 
@@ -973,26 +1013,91 @@ static THREAD_LS_T byte* bench_iv = NULL;
             while (bstat->finishCount < g_threadCount) {
                 wc_AsyncThreadYield();
             }
-
-            /* print final stat */
-            if (isLast) {
-                if (bstat->type == BENCH_STAT_SYM) {
-                    printf("%-16s%s %8.3f %s/s\n", bstat->desc,
-                        BENCH_ASYNC_GET_NAME(bstat->doAsync), bstat->perfsec,
-                        base2 ? "MB" : "mB");
-                }
-                else {
-                    printf("%-5s %4d %-9s %s %.3f ops/sec\n",
-                        bstat->algo, bstat->strength, bstat->desc,
-                        BENCH_ASYNC_GET_NAME(bstat->doAsync), bstat->perfsec);
-                }
-            }
         }
         else {
             pthread_mutex_unlock(&bench_lock);
         }
 
         return bstat;
+    }
+
+    void bench_stats_print(void)
+    {
+        bench_stats_t* bstat;
+
+        /* protect bench_stats_head and bench_stats_tail access */
+        pthread_mutex_lock(&bench_lock);
+
+        for (bstat = bench_stats_head; bstat != NULL; ) {
+            if (bstat->type == BENCH_STAT_SYM) {
+                printf("%-16s%s %8.3f %s/s\n", bstat->desc,
+                    BENCH_ASYNC_GET_NAME(bstat->doAsync), bstat->perfsec,
+                    base2 ? "MB" : "mB");
+            }
+            else {
+                printf("%-5s %4d %-9s %s %.3f ops/sec\n",
+                    bstat->algo, bstat->strength, bstat->desc,
+                    BENCH_ASYNC_GET_NAME(bstat->doAsync), bstat->perfsec);
+            }
+
+            bstat = bstat->next;
+        }
+
+        pthread_mutex_unlock(&bench_lock);
+    }
+
+#else
+
+    typedef struct bench_stats {
+        const char* algo;
+        const char* desc;
+        double perfsec;
+        const char* perftype;
+        int strength;
+        bench_stat_type_t type;
+        int ret;
+    } bench_stats_t;
+    #define MAX_BENCH_STATS 50
+    static bench_stats_t gStats[MAX_BENCH_STATS];
+    static int gStatsCount;
+
+    static bench_stats_t* bench_stats_add(bench_stat_type_t type,
+            const char* algo, int strength, const char* desc, int doAsync,
+            double perfsec, const char* perftype, int ret)
+    {
+        bench_stats_t* bstat = NULL;
+        if (gStatsCount >= MAX_BENCH_STATS)
+            return bstat;
+
+        bstat = &gStats[gStatsCount++];
+        bstat->algo = algo;
+        bstat->desc = desc;
+        bstat->perfsec = perfsec;
+        bstat->perftype = perftype;
+        bstat->strength = strength;
+        bstat->type = type;
+        bstat->ret = ret;
+
+        (void)doAsync;
+
+        return bstat;
+    }
+
+    void bench_stats_print(void)
+    {
+        int i;
+        bench_stats_t* bstat;
+        for (i=0; i<gStatsCount; i++) {
+            bstat = &gStats[i];
+            if (bstat->type == BENCH_STAT_SYM) {
+                printf("%-16s %8.3f %s/s\n", bstat->desc, bstat->perfsec,
+                    base2 ? "MB" : "mB");
+            }
+            else {
+                printf("%-5s %4d %-9s %.3f ops/sec\n",
+                    bstat->algo, bstat->strength, bstat->desc, bstat->perfsec);
+            }
+        }
     }
 #endif /* WOLFSSL_ASYNC_CRYPT && !WC_NO_ASYNC_THREADING */
 
@@ -1016,6 +1121,7 @@ static WC_INLINE int bench_stats_sym_check(double start)
 {
     return ((current_time(0) - start) < BENCH_MIN_RUNTIME_SEC);
 }
+
 
 /* countSz is number of bytes that 1 count represents. Normally bench_size,
  * except for AES direct that operates on AES_BLOCK_SIZE blocks */
@@ -1084,10 +1190,8 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
         printf("Benchmark %s failed: %d\n", desc, ret);
     }
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
     /* Add to thread stats */
-    bench_stats_add(BENCH_STAT_SYM, NULL, 0, desc, doAsync, persec, ret);
-#endif
+    bench_stats_add(BENCH_STAT_SYM, NULL, 0, desc, doAsync, persec, blockType, ret);
 
     (void)doAsync;
     (void)ret;
@@ -1102,6 +1206,7 @@ static void bench_stats_asym_finish(const char* algo, int strength,
 {
     double total, each = 0, opsSec, milliEach;
     const char **word = bench_result_words2[lng_index];
+    const char* kOpsSec = "Ops/Sec";
 
     total = current_time(0) - start;
     if (count > 0)
@@ -1129,10 +1234,8 @@ static void bench_stats_asym_finish(const char* algo, int strength,
         printf("Benchmark %s %s %d failed: %d\n", algo, desc, strength, ret);
     }
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
     /* Add to thread stats */
-    bench_stats_add(BENCH_STAT_ASYM, algo, strength, desc, doAsync, opsSec, ret);
-#endif
+    bench_stats_add(BENCH_STAT_ASYM, algo, strength, desc, doAsync, opsSec, kOpsSec, ret);
 
     (void)doAsync;
     (void)ret;
@@ -1546,6 +1649,11 @@ static void* benchmarks_do(void* args)
         #endif
         }
     #endif
+    #ifndef NO_PWDBASED
+        if (bench_all || (bench_mac_algs & BENCH_PBKDF2)) {
+            bench_pbkdf2();
+        }
+    #endif
 #endif /* NO_HMAC */
 
 #ifdef HAVE_SCRYPT
@@ -1698,6 +1806,8 @@ int benchmark_init(void)
 {
     int ret = 0;
 
+    benchmark_static_init();
+
 #ifdef WOLFSSL_STATIC_MEMORY
     ret = wc_LoadStaticMemory(&HEAP_HINT, gBenchMemory, sizeof(gBenchMemory),
                                                             WOLFMEM_GENERAL, 1);
@@ -1748,6 +1858,10 @@ int benchmark_free(void)
         printf("Failed to free netRandom context %d\n", ret);
     }
 #endif
+
+    if (gPrintStats || devId != INVALID_DEVID) {
+        bench_stats_print();
+    }
 
     bench_stats_free();
 
@@ -3806,12 +3920,13 @@ static void bench_hmac(int doAsync, int type, int digestSz,
     Hmac   hmac[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-#if defined(BENCH_EMBEDDED)
+#ifdef WOLFSSL_ASYNC_CRYPT
     DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_MAX_DIGEST_SIZE, HEAP_HINT);
-    (void)digestSz;
 #else
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, digestSz, HEAP_HINT);
+	byte digest[BENCH_MAX_PENDING][WC_MAX_DIGEST_SIZE];
 #endif
+
+	(void)digestSz;
 
     /* clear for done cleanup */
     XMEMSET(hmac, 0, sizeof(hmac));
@@ -3872,13 +3987,13 @@ exit_hmac:
 
 exit:
 
-#ifdef WOLFSSL_ASYNC_CRYPT
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
         wc_HmacFree(&hmac[i]);
     }
-#endif
 
+#ifdef WOLFSSL_ASYNC_CRYPT
     FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+#endif
 }
 
 #ifndef NO_MD5
@@ -3973,6 +4088,28 @@ void bench_hmac_sha512(int doAsync)
 }
 
 #endif /* WOLFSSL_SHA512 */
+
+#ifndef NO_PWDBASED
+void bench_pbkdf2(void)
+{
+    double start;
+    int    ret = 0, count = 0;
+    const char* passwd32 = "passwordpasswordpasswordpassword";
+    const byte salt32[] = { 0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06,
+                            0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06,
+                            0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06,
+                            0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06 };
+    byte derived[32];
+
+    bench_stats_start(&count, &start);
+    do {
+        ret = wc_PBKDF2(derived, (const byte*)passwd32, (int)XSTRLEN(passwd32),
+            salt32, (int)sizeof(salt32), 1000, 32, WC_SHA256);
+        count++;
+    } while (bench_stats_sym_check(start));
+    bench_stats_sym_finish("PBKDF2", 32, count, 32, start, ret);
+}
+#endif /* !NO_PWDBASED */
 
 #endif /* NO_HMAC */
 
@@ -4518,7 +4655,7 @@ void bench_dh(int doAsync)
     int    dhKeySz = BENCH_DH_KEY_SIZE * 8; /* used in printf */
     const char**desc = bench_desc_words[lng_index];
 #ifndef NO_ASN
-    size_t bytes;
+    size_t bytes = 0;
     word32 idx;
 #endif
     word32 pubSz[BENCH_MAX_PENDING];
@@ -4526,6 +4663,9 @@ void bench_dh(int doAsync)
     word32 pubSz2;
     word32 privSz2;
     word32 agreeSz[BENCH_MAX_PENDING];
+#ifdef HAVE_FFDHE_2048
+    const DhParams *params = NULL;
+#endif
 
     DECLARE_ARRAY(pub, byte, BENCH_MAX_PENDING, BENCH_DH_KEY_SIZE, HEAP_HINT);
     DECLARE_VAR(pub2, byte, BENCH_DH_KEY_SIZE, HEAP_HINT);
@@ -4535,24 +4675,38 @@ void bench_dh(int doAsync)
 
     (void)tmp;
 
+    if (!use_ffdhe) {
 #if defined(NO_ASN)
-    dhKeySz = 1024;
-    /* do nothing, but don't use default FILE */
+        dhKeySz = 1024;
+        /* do nothing, but don't use default FILE */
 #elif defined(USE_CERT_BUFFERS_1024)
-    tmp = dh_key_der_1024;
-    bytes = (size_t)sizeof_dh_key_der_1024;
-    dhKeySz = 1024;
+        tmp = dh_key_der_1024;
+        bytes = (size_t)sizeof_dh_key_der_1024;
+        dhKeySz = 1024;
 #elif defined(USE_CERT_BUFFERS_2048)
-    tmp = dh_key_der_2048;
-    bytes = (size_t)sizeof_dh_key_der_2048;
-    dhKeySz = 2048;
+        tmp = dh_key_der_2048;
+        bytes = (size_t)sizeof_dh_key_der_2048;
+        dhKeySz = 2048;
 #elif defined(USE_CERT_BUFFERS_3072)
-    tmp = dh_key_der_3072;
-    bytes = (size_t)sizeof_dh_key_der_3072;
-    dhKeySz = 3072;
+        tmp = dh_key_der_3072;
+        bytes = (size_t)sizeof_dh_key_der_3072;
+        dhKeySz = 3072;
 #else
     #error "need to define a cert buffer size"
 #endif /* USE_CERT_BUFFERS */
+    }
+#ifdef HAVE_FFDHE_2048
+    else if (use_ffdhe == 2048) {
+        params = wc_Dh_ffdhe2048_Get();
+        dhKeySz = 2048;
+    }
+#endif
+#ifdef HAVE_FFDHE_3072
+    else if (use_ffdhe == 3072) {
+        params = wc_Dh_ffdhe3072_Get();
+        dhKeySz = 3072;
+    }
+#endif
 
     /* clear for done cleanup */
     XMEMSET(dhKey, 0, sizeof(dhKey));
@@ -4566,11 +4720,20 @@ void bench_dh(int doAsync)
             goto exit;
 
         /* setup key */
+        if (!use_ffdhe) {
     #ifdef NO_ASN
-        ret = wc_DhSetKey(&dhKey[i], dh_p, sizeof(dh_p), dh_g, sizeof(dh_g));
+            ret = wc_DhSetKey(&dhKey[i], dh_p, sizeof(dh_p), dh_g,
+                                                                  sizeof(dh_g));
     #else
-        idx = 0;
-        ret = wc_DhKeyDecode(tmp, &idx, &dhKey[i], (word32)bytes);
+            idx = 0;
+            ret = wc_DhKeyDecode(tmp, &idx, &dhKey[i], (word32)bytes);
+    #endif
+        }
+    #if defined(HAVE_FFDHE_2048) || defined(HAVE_FFDHE_3072)
+        else if (params != NULL) {
+            ret = wc_DhSetKey(&dhKey[i], params->p, params->p_len, params->g,
+                                                                 params->g_len);
+        }
     #endif
         if (ret != 0) {
             printf("DhKeyDecode failed %d, can't benchmark\n", ret);
@@ -5553,8 +5716,14 @@ static void Usage(void)
     printf("%s", bench_Usage_msg1[lng_index][6]);    /* option -rsa-sz */
     #endif
 #endif
+#if !defined(NO_DH) && defined(HAVE_FFDHE_2048)
+    printf("%s", bench_Usage_msg1[lng_index][7]);    /* option -ffdhe2048 */
+#endif
+#if !defined(NO_DH) && defined(HAVE_FFDHE_3072)
+    printf("%s", bench_Usage_msg1[lng_index][8]);    /* option -ffdhe3072 */
+#endif
 #ifndef WOLFSSL_BENCHMARK_ALL
-    printf("%s", bench_Usage_msg1[lng_index][7]);    /* option -<alg> */
+    printf("%s", bench_Usage_msg1[lng_index][9]);    /* option -<alg> */
     printf("             ");
     line = 13;
     for (i=0; bench_cipher_opt[i].str != NULL; i++)
@@ -5577,11 +5746,12 @@ static void Usage(void)
         print_alg(bench_other_opt[i].str + 1, &line);
     printf("\n");
 #endif
-    printf("%s", bench_Usage_msg1[lng_index][8]);    /* option -lng */
-    printf("%s", bench_Usage_msg1[lng_index][9]);    /* option <num> */
+    printf("%s", bench_Usage_msg1[lng_index][10]);   /* option -lng */
+    printf("%s", bench_Usage_msg1[lng_index][11]);   /* option <num> */
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
-    printf("%s", bench_Usage_msg1[lng_index][10]);   /* option -threads <num> */
+    printf("%s", bench_Usage_msg1[lng_index][12]);   /* option -threads <num> */
 #endif
+    printf("%s", bench_Usage_msg1[lng_index][13]);   /* option -print */
 }
 
 /* Match the command line argument with the string.
@@ -5617,11 +5787,13 @@ int main(int argc, char** argv)
 #endif
 #endif
 
+    benchmark_static_init();
+
 #ifndef MAIN_NO_ARGS
     while (argc > 1) {
         if (string_matches(argv[1], "-?")) {
             if(--argc>1){
-                lng_index = atoi((++argv)[1]);
+                lng_index = XATOI((++argv)[1]);
                 if(lng_index<0||lng_index>1) {
                     lng_index = 0;
                 }
@@ -5640,7 +5812,7 @@ int main(int argc, char** argv)
             argc--;
             argv++;
             if(argc>1) {
-                lng_index = atoi(argv[1]);
+                lng_index = XATOI(argv[1]);
                 if(lng_index<0||lng_index>1){
                     printf("invalid number(%d) is specified. [<num> :0-1]\n",lng_index);
                     lng_index = 0;
@@ -5659,6 +5831,14 @@ int main(int argc, char** argv)
         else if (string_matches(argv[1], "-rsa_sign"))
             rsa_sign_verify = 1;
 #endif
+#if !defined(NO_DH) && defined(HAVE_FFDHE_2048)
+        else if (string_matches(argv[1], "-ffdhe2048"))
+            use_ffdhe = 2048;
+#endif
+#if !defined(NO_DH) && defined(HAVE_FFDHE_3072)
+        else if (string_matches(argv[1], "-ffdhe3072"))
+            use_ffdhe = 3072;
+#endif
 #ifdef BENCH_ASYM
         else if (string_matches(argv[1], "-csv")) {
             csv_format = 1;
@@ -5670,7 +5850,7 @@ int main(int argc, char** argv)
             argc--;
             argv++;
             if (argc > 1) {
-                g_threadCount = atoi(argv[1]);
+                g_threadCount = XATOI(argv[1]);
                 if (g_threadCount < 1 || lng_index > 128){
                     printf("invalid number(%d) is specified. [<num> :1-128]\n",
                         g_threadCount);
@@ -5679,6 +5859,9 @@ int main(int argc, char** argv)
             }
         }
 #endif
+        else if (string_matches(argv[1], "-print")) {
+            gPrintStats = 1;
+        }
         else if (argv[1][0] == '-') {
             optMatched = 0;
 #ifndef WOLFSSL_BENCHMARK_ALL
@@ -5732,7 +5915,7 @@ int main(int argc, char** argv)
         }
         else {
             /* parse for block size */
-            benchmark_configure(atoi(argv[1]));
+            benchmark_configure(XATOI(argv[1]));
         }
         argc--;
         argv++;

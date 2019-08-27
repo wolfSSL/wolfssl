@@ -8474,6 +8474,123 @@ L_mont_loop_avx2_32:
 .size	sp_2048_mont_reduce_avx2_32,.-sp_2048_mont_reduce_avx2_32
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
+/* Shift number left by n bit. (r = a << n)
+ *
+ * r  Result of left shift by n.
+ * a  Number to shift.
+ * n  Amoutnt o shift.
+ */
+#ifndef __APPLE__
+.globl	sp_2048_lshift_32
+.type	sp_2048_lshift_32,@function
+.align	16
+sp_2048_lshift_32:
+#else
+.globl	_sp_2048_lshift_32
+.p2align	4
+_sp_2048_lshift_32:
+#endif /* __APPLE__ */
+        movq	%rdx, %rcx
+        movq	$0, %r10
+        movq	216(%rsi), %r11
+        movq	224(%rsi), %rdx
+        movq	232(%rsi), %rax
+        movq	240(%rsi), %r8
+        movq	248(%rsi), %r9
+        shldq	%cl, %r9, %r10
+        shldq	%cl, %r8, %r9
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shldq	%cl, %r11, %rdx
+        movq	%rdx, 224(%rdi)
+        movq	%rax, 232(%rdi)
+        movq	%r8, 240(%rdi)
+        movq	%r9, 248(%rdi)
+        movq	%r10, 256(%rdi)
+        movq	184(%rsi), %r9
+        movq	192(%rsi), %rdx
+        movq	200(%rsi), %rax
+        movq	208(%rsi), %r8
+        shldq	%cl, %r8, %r11
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shldq	%cl, %r9, %rdx
+        movq	%rdx, 192(%rdi)
+        movq	%rax, 200(%rdi)
+        movq	%r8, 208(%rdi)
+        movq	%r11, 216(%rdi)
+        movq	152(%rsi), %r11
+        movq	160(%rsi), %rdx
+        movq	168(%rsi), %rax
+        movq	176(%rsi), %r8
+        shldq	%cl, %r8, %r9
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shldq	%cl, %r11, %rdx
+        movq	%rdx, 160(%rdi)
+        movq	%rax, 168(%rdi)
+        movq	%r8, 176(%rdi)
+        movq	%r9, 184(%rdi)
+        movq	120(%rsi), %r9
+        movq	128(%rsi), %rdx
+        movq	136(%rsi), %rax
+        movq	144(%rsi), %r8
+        shldq	%cl, %r8, %r11
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shldq	%cl, %r9, %rdx
+        movq	%rdx, 128(%rdi)
+        movq	%rax, 136(%rdi)
+        movq	%r8, 144(%rdi)
+        movq	%r11, 152(%rdi)
+        movq	88(%rsi), %r11
+        movq	96(%rsi), %rdx
+        movq	104(%rsi), %rax
+        movq	112(%rsi), %r8
+        shldq	%cl, %r8, %r9
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shldq	%cl, %r11, %rdx
+        movq	%rdx, 96(%rdi)
+        movq	%rax, 104(%rdi)
+        movq	%r8, 112(%rdi)
+        movq	%r9, 120(%rdi)
+        movq	56(%rsi), %r9
+        movq	64(%rsi), %rdx
+        movq	72(%rsi), %rax
+        movq	80(%rsi), %r8
+        shldq	%cl, %r8, %r11
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shldq	%cl, %r9, %rdx
+        movq	%rdx, 64(%rdi)
+        movq	%rax, 72(%rdi)
+        movq	%r8, 80(%rdi)
+        movq	%r11, 88(%rdi)
+        movq	24(%rsi), %r11
+        movq	32(%rsi), %rdx
+        movq	40(%rsi), %rax
+        movq	48(%rsi), %r8
+        shldq	%cl, %r8, %r9
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shldq	%cl, %r11, %rdx
+        movq	%rdx, 32(%rdi)
+        movq	%rax, 40(%rdi)
+        movq	%r8, 48(%rdi)
+        movq	%r9, 56(%rdi)
+        movq	(%rsi), %rdx
+        movq	8(%rsi), %rax
+        movq	16(%rsi), %r8
+        shldq	%cl, %r8, %r11
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shlq	%cl, %rdx
+        movq	%rdx, (%rdi)
+        movq	%rax, 8(%rdi)
+        movq	%r8, 16(%rdi)
+        movq	%r11, 24(%rdi)
+        repz retq
 /* Multiply a and b into r. (r = a * b)
  *
  * r  A single precision integer.
@@ -24330,6 +24447,171 @@ L_mont_loop_avx2_48:
 .size	sp_3072_mont_reduce_avx2_48,.-sp_3072_mont_reduce_avx2_48
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
+/* Shift number left by n bit. (r = a << n)
+ *
+ * r  Result of left shift by n.
+ * a  Number to shift.
+ * n  Amoutnt o shift.
+ */
+#ifndef __APPLE__
+.globl	sp_3072_lshift_48
+.type	sp_3072_lshift_48,@function
+.align	16
+sp_3072_lshift_48:
+#else
+.globl	_sp_3072_lshift_48
+.p2align	4
+_sp_3072_lshift_48:
+#endif /* __APPLE__ */
+        movq	%rdx, %rcx
+        movq	$0, %r10
+        movq	344(%rsi), %r11
+        movq	352(%rsi), %rdx
+        movq	360(%rsi), %rax
+        movq	368(%rsi), %r8
+        movq	376(%rsi), %r9
+        shldq	%cl, %r9, %r10
+        shldq	%cl, %r8, %r9
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shldq	%cl, %r11, %rdx
+        movq	%rdx, 352(%rdi)
+        movq	%rax, 360(%rdi)
+        movq	%r8, 368(%rdi)
+        movq	%r9, 376(%rdi)
+        movq	%r10, 384(%rdi)
+        movq	312(%rsi), %r9
+        movq	320(%rsi), %rdx
+        movq	328(%rsi), %rax
+        movq	336(%rsi), %r8
+        shldq	%cl, %r8, %r11
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shldq	%cl, %r9, %rdx
+        movq	%rdx, 320(%rdi)
+        movq	%rax, 328(%rdi)
+        movq	%r8, 336(%rdi)
+        movq	%r11, 344(%rdi)
+        movq	280(%rsi), %r11
+        movq	288(%rsi), %rdx
+        movq	296(%rsi), %rax
+        movq	304(%rsi), %r8
+        shldq	%cl, %r8, %r9
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shldq	%cl, %r11, %rdx
+        movq	%rdx, 288(%rdi)
+        movq	%rax, 296(%rdi)
+        movq	%r8, 304(%rdi)
+        movq	%r9, 312(%rdi)
+        movq	248(%rsi), %r9
+        movq	256(%rsi), %rdx
+        movq	264(%rsi), %rax
+        movq	272(%rsi), %r8
+        shldq	%cl, %r8, %r11
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shldq	%cl, %r9, %rdx
+        movq	%rdx, 256(%rdi)
+        movq	%rax, 264(%rdi)
+        movq	%r8, 272(%rdi)
+        movq	%r11, 280(%rdi)
+        movq	216(%rsi), %r11
+        movq	224(%rsi), %rdx
+        movq	232(%rsi), %rax
+        movq	240(%rsi), %r8
+        shldq	%cl, %r8, %r9
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shldq	%cl, %r11, %rdx
+        movq	%rdx, 224(%rdi)
+        movq	%rax, 232(%rdi)
+        movq	%r8, 240(%rdi)
+        movq	%r9, 248(%rdi)
+        movq	184(%rsi), %r9
+        movq	192(%rsi), %rdx
+        movq	200(%rsi), %rax
+        movq	208(%rsi), %r8
+        shldq	%cl, %r8, %r11
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shldq	%cl, %r9, %rdx
+        movq	%rdx, 192(%rdi)
+        movq	%rax, 200(%rdi)
+        movq	%r8, 208(%rdi)
+        movq	%r11, 216(%rdi)
+        movq	152(%rsi), %r11
+        movq	160(%rsi), %rdx
+        movq	168(%rsi), %rax
+        movq	176(%rsi), %r8
+        shldq	%cl, %r8, %r9
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shldq	%cl, %r11, %rdx
+        movq	%rdx, 160(%rdi)
+        movq	%rax, 168(%rdi)
+        movq	%r8, 176(%rdi)
+        movq	%r9, 184(%rdi)
+        movq	120(%rsi), %r9
+        movq	128(%rsi), %rdx
+        movq	136(%rsi), %rax
+        movq	144(%rsi), %r8
+        shldq	%cl, %r8, %r11
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shldq	%cl, %r9, %rdx
+        movq	%rdx, 128(%rdi)
+        movq	%rax, 136(%rdi)
+        movq	%r8, 144(%rdi)
+        movq	%r11, 152(%rdi)
+        movq	88(%rsi), %r11
+        movq	96(%rsi), %rdx
+        movq	104(%rsi), %rax
+        movq	112(%rsi), %r8
+        shldq	%cl, %r8, %r9
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shldq	%cl, %r11, %rdx
+        movq	%rdx, 96(%rdi)
+        movq	%rax, 104(%rdi)
+        movq	%r8, 112(%rdi)
+        movq	%r9, 120(%rdi)
+        movq	56(%rsi), %r9
+        movq	64(%rsi), %rdx
+        movq	72(%rsi), %rax
+        movq	80(%rsi), %r8
+        shldq	%cl, %r8, %r11
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shldq	%cl, %r9, %rdx
+        movq	%rdx, 64(%rdi)
+        movq	%rax, 72(%rdi)
+        movq	%r8, 80(%rdi)
+        movq	%r11, 88(%rdi)
+        movq	24(%rsi), %r11
+        movq	32(%rsi), %rdx
+        movq	40(%rsi), %rax
+        movq	48(%rsi), %r8
+        shldq	%cl, %r8, %r9
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shldq	%cl, %r11, %rdx
+        movq	%rdx, 32(%rdi)
+        movq	%rax, 40(%rdi)
+        movq	%r8, 48(%rdi)
+        movq	%r9, 56(%rdi)
+        movq	(%rsi), %rdx
+        movq	8(%rsi), %rax
+        movq	16(%rsi), %r8
+        shldq	%cl, %r8, %r11
+        shldq	%cl, %rax, %r8
+        shldq	%cl, %rdx, %rax
+        shlq	%cl, %rdx
+        movq	%rdx, (%rdi)
+        movq	%rax, 8(%rdi)
+        movq	%r8, 16(%rdi)
+        movq	%r11, 24(%rdi)
+        repz retq
 /* Conditionally copy a into r using the mask m.
  * m is -1 to copy and 0 when not.
  *

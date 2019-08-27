@@ -57,6 +57,7 @@ bench_tls(args);
 #include <string.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <errno.h>
 
 /* For testing no pthread support */
 #if 0
@@ -1235,7 +1236,7 @@ static void Usage(void)
 
 static void ShowCiphers(void)
 {
-    char ciphers[4096];
+    char ciphers[WOLFSSL_CIPHER_LIST_MAX_SIZE];
 
     int ret = wolfSSL_get_ciphers(ciphers, (int)sizeof(ciphers));
 
@@ -1373,12 +1374,11 @@ int bench_tls(void* args)
     }
     else {
         /* Run for each cipher */
-        const int ciphersSz = 4096;
-        ciphers = (char*)XMALLOC(ciphersSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        ciphers = (char*)XMALLOC(WOLFSSL_CIPHER_LIST_MAX_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (ciphers == NULL) {
             goto exit;
         }
-        wolfSSL_get_ciphers(ciphers, ciphersSz);
+        wolfSSL_get_ciphers(ciphers, WOLFSSL_CIPHER_LIST_MAX_SIZE);
         cipher = ciphers;
     }
 

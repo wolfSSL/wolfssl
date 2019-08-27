@@ -93,7 +93,7 @@ int ge_compress_key(byte* out, const byte* xIn, const byte* yIn,
 
 static word32 lt(word32 a,word32 b) /* 16-bit inputs */
 {
-  unsigned int x = a;
+  word32 x = a;
   x -= (unsigned int) b; /* 0..65535: no; 4294901761..4294967295: yes */
   x >>= 31; /* 0: no; 1: yes */
   return x;

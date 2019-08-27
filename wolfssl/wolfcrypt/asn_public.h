@@ -296,6 +296,7 @@ typedef struct Cert {
 #endif
 #ifdef WOLFSSL_CERT_REQ
     char     challengePw[CTC_NAME_SIZE];
+    int      challengePwPrintableString; /* encode as PrintableString */
 #endif
     void*   decodedCert;    /* internal DecodedCert allocated from heap */
     byte*   der;            /* Pointer to buffer of current DecodedCert cache */

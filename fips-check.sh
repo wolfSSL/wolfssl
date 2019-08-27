@@ -11,7 +11,7 @@
 #
 #     $ ./fips-check [version] [keep]
 #
-#     - version: linux (default), ios, android, windows, freertos, linux-ecc, netbsd-selftest, linuxv2, fips-ready
+#     - version: linux (default), ios, android, windows, freertos, linux-ecc, netbsd-selftest, linuxv2, fips-ready, stm32l4-v2
 #
 #     - keep: (default off) XXX-fips-test temp dir around for inspection
 #
@@ -32,6 +32,7 @@ Platform is one of:
     netos-7.6
     linuxv2 (FIPSv2, use for Win10)
     fips-ready
+    stm32l4-v2 (FIPSv2, use for STM32L4)
 Keep (default off) retains the XXX-fips-test temp dir for inspection.
 
 Example:
@@ -94,6 +95,10 @@ NETBSD_FIPS_VERSION=v3.14.2a
 NETBSD_FIPS_REPO=git@github.com:wolfssl/fips.git
 NETBSD_CRYPT_VERSION=v3.14.2
 NETBSD_CRYPT_REPO=git@github.com:wolfssl/wolfssl.git
+
+STM32L4_V2_FIPS_VERSION=WCv4.0.1-stable
+STM32L4_V2_FIPS_REPO=git@github.com:wolfSSL/fips.git
+STM32L4_V2_CRYPT_VERSION=WCv4.0.1-stable
 
 FIPS_SRCS=( fips.c fips_test.c )
 WC_MODS=( aes des3 sha sha256 sha512 rsa hmac random )
@@ -196,6 +201,19 @@ fips-ready)
   FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
   FIPS_INCS=( fips.h )
   FIPS_OPTION=ready
+  ;;
+stm32l4-v2)
+  FIPS_VERSION=$STM32L4_V2_FIPS_VERSION
+  FIPS_REPO=$STM32L4_V2_FIPS_REPO
+  CRYPT_VERSION=$STM32L4_V2_CRYPT_VERSION
+  CRYPT_INC_PATH=wolfssl/wolfcrypt
+  CRYPT_SRC_PATH=wolfcrypt/src
+# Replace the WC_MODS list for now. Do not want to copy over random.c yet.
+  WC_MODS=( aes des3 sha sha256 sha512 rsa hmac )
+  WC_MODS+=( cmac dh ecc )
+  FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
+  FIPS_INCS=( fips.h )
+  FIPS_OPTION=v2
   ;;
 *)
   Usage

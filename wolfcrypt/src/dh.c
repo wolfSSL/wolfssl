@@ -1522,6 +1522,46 @@ int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz)
 }
 
 
+/**
+ * Quick validity check of public key value agaist prime.
+ * Checks are:
+ *   - Public key not 0 or 1
+ *   - Public key not equal to prime or prime - 1
+ *   - Public key not bigger than prime.
+ *
+ * prime    Big-endian encoding of prime in bytes.
+ * primeSz  Size of prime in bytes.
+ * pub      Big-endian encoding of public key in bytes.
+ * pubSz    Size of public key in bytes.
+ */
+int wc_DhCheckPubValue(const byte* prime, word32 primeSz, const byte* pub,
+                       word32 pubSz)
+{
+    int ret = 0;
+    word32 i;
+
+    for (i = 0; i < pubSz && pub[i] == 0; i++) {
+    }
+    pubSz -= i;
+    pub += i;
+
+    if (pubSz == 0 || (pubSz == 1 && pub[0] == 1))
+        ret = MP_VAL;
+    else if (pubSz == primeSz) {
+        for (i = 0; i < pubSz-1 && pub[i] == prime[i]; i++) {
+        }
+        if (i == pubSz-1 && (pub[i] == prime[i] || pub[i] == prime[i] - 1))
+            ret = MP_VAL;
+        else if (pub[i] > prime[i])
+            ret = MP_VAL;
+    }
+    else if (pubSz > primeSz)
+        ret = MP_VAL;
+
+    return ret;
+}
+
+
 /* Check DH Private Key for invalid numbers, optionally allowing
  * the private key to be checked against the large prime (q).
  * Check per process in SP 800-56Ar3, section 5.6.2.1.2.

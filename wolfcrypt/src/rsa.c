@@ -570,6 +570,7 @@ int wc_FreeRsaKey(RsaKey* key)
 }
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_RSA_KEY_CHECK)
 /* Check the pair-wise consistency of the RSA key.
  * From NIST SP 800-56B, section 6.4.1.1.
  * Verify that k = (k^e)^d, for some k: 1 < k < n-1. */
@@ -661,6 +662,7 @@ int wc_CheckRsaKey(RsaKey* key)
 
     return ret;
 }
+#endif
 #endif
 
 
@@ -1367,7 +1369,7 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
                     byte **output, byte padValue)
 {
     int    ret = BAD_FUNC_ARG;
-    word32 i;
+    word16 i;
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
     byte   invalid = 0;
 #endif
@@ -1397,14 +1399,14 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
     }
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
     else {
-        word32 j;
-        byte   pastSep = 0;
+        word16 j;
+        word16 pastSep = 0;
 
         /* Decrypted with private key - unpad must be constant time. */
         for (i = 0, j = 2; j < pkcsBlockLen; j++) {
            /* Update i if not passed the separator and at separator. */
-           i |= (~pastSep) & ctMaskEq(pkcsBlock[j], 0x00) & (j + 1);
-           pastSep |= ctMaskEq(pkcsBlock[j], 0x00);
+            i |= (~pastSep) & ctMask16Eq(pkcsBlock[j], 0x00) & (j + 1);
+            pastSep |= ctMask16Eq(pkcsBlock[j], 0x00);
         }
 
         /* Minimum of 11 bytes of pre-message data - including leading 0x00. */
@@ -1856,6 +1858,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 
 #ifdef WOLFSSL_SP_MATH
     (void)rng;
+    WOLFSSL_MSG("SP Key Size Error");
     return WC_KEY_SIZE_E;
 #else
     (void)rng;
@@ -2894,7 +2897,7 @@ int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
 
 #ifdef WC_RSA_PSS
 /* Verify the message signed with RSA-PSS.
- * The input buffer is reused for the ouput buffer.
+ * The input buffer is reused for the output buffer.
  * Salt length is equal to hash length.
  *
  * in     Buffer holding encrypted data.
@@ -2912,7 +2915,7 @@ int wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
 }
 
 /* Verify the message signed with RSA-PSS.
- * The input buffer is reused for the ouput buffer.
+ * The input buffer is reused for the output buffer.
  *
  * in       Buffer holding encrypted data.
  * inLen    Length of data in buffer.
@@ -3063,7 +3066,7 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
 
 
 /* Verify the message signed with RSA-PSS.
- * The input buffer is reused for the ouput buffer.
+ * The input buffer is reused for the output buffer.
  * Salt length is equal to hash length.
  *
  * in     Buffer holding encrypted data.
@@ -3651,7 +3654,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
             if (err == MP_OKAY)
                 err = _CheckProbablePrime(&p, NULL, &tmp3, size, &isPrime, rng);
 
-#ifdef WOLFSSL_FIPS
+#ifdef HAVE_FIPS
             i++;
 #else
             /* Keep the old retry behavior in non-FIPS build. */
@@ -3686,7 +3689,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
             if (err == MP_OKAY)
                 err = _CheckProbablePrime(&p, &q, &tmp3, size, &isPrime, rng);
 
-#ifdef WOLFSSL_FIPS
+#ifdef HAVE_FIPS
             i++;
 #else
             /* Keep the old retry behavior in non-FIPS build. */
@@ -3764,9 +3767,11 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     mp_clear(&p);
     mp_clear(&q);
 
+#if defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_RSA_KEY_CHECK)
     /* Perform the pair-wise consistency test on the new key. */
     if (err == 0)
         err = wc_CheckRsaKey(key);
+#endif
 
     if (err != 0) {
         wc_FreeRsaKey(key);

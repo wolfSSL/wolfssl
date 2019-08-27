@@ -4650,5 +4650,4 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         }
     #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_DIRECT */
-#endif /* NO_AES */
-
+#endif /* !NO_AES && WOLFSSL_ARMASM */

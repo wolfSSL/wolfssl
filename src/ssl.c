@@ -76,6 +76,8 @@
     #include <wolfssl/openssl/ecdsa.h>
     #include <wolfssl/openssl/ecdh.h>
     #include <wolfssl/openssl/rc4.h>
+    #include <wolfssl/openssl/stack.h>
+    #include <wolfssl/openssl/x509v3.h>
     /* openssl headers end, wolfssl internal headers next */
     #include <wolfssl/wolfcrypt/hmac.h>
     #include <wolfssl/wolfcrypt/random.h>
@@ -160,7 +162,7 @@ int wolfSSL_dtls_set_export(WOLFSSL* ssl, wc_dtls_export func)
 /* This function allows for directly serializing a session rather than using
  * callbacks. It has less overhead by removing a temporary buffer and gives
  * control over when the session gets serialized. When using callbacks the
- * session is always serialized immediatly after the handshake is finished.
+ * session is always serialized immediately after the handshake is finished.
  *
  * buf is the argument to contain the serialized session
  * sz  is the size of the buffer passed in
@@ -188,6 +190,41 @@ int wolfSSL_dtls_export(WOLFSSL* ssl, unsigned char* buf, unsigned int* sz)
 
     /* copy over keys, options, and dtls state struct */
     return wolfSSL_dtls_export_internal(ssl, buf, *sz);
+}
+
+
+/* This function is similar to wolfSSL_dtls_export but only exports the portion
+ * of the WOLFSSL structure related to the state of the connection, i.e. peer
+ * sequence number, epoch, AEAD state etc.
+ *
+ * buf is the argument to contain the serialized state, if null then set "sz" to
+ *     buffer size required
+ * sz  is the size of the buffer passed in
+ * ssl is the WOLFSSL struct to serialize
+ * returns the size of serialized session on success, 0 on no action, and
+ *         negative value on error */
+int wolfSSL_dtls_export_state_only(WOLFSSL* ssl, unsigned char* buf,
+        unsigned int* sz)
+{
+    WOLFSSL_ENTER("wolfSSL_dtls_export_state_only");
+
+    if (ssl == NULL || sz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (buf == NULL) {
+        *sz = MAX_EXPORT_STATE_BUFFER;
+        return 0;
+    }
+
+    /* if not DTLS do nothing */
+    if (!ssl->options.dtls) {
+        WOLFSSL_MSG("Currently only DTLS export state is supported");
+        return 0;
+    }
+
+    /* copy over keys, options, and dtls state struct */
+    return wolfSSL_dtls_export_state_internal(ssl, buf, *sz);
 }
 
 
@@ -444,7 +481,7 @@ void FreeWriteDup(WOLFSSL* ssl)
  * duplicate existing ssl members into dup needed for writing
  *
  * dup write only WOLFSSL
- * ssl exisiting WOLFSSL
+ * ssl existing WOLFSSL
  *
  * 0 on success
 */
@@ -492,10 +529,10 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
 
 /*
  * duplicate a WOLFSSL object post handshake for writing only
- * turn exisitng object into read only.  Allows concurrent access from two
+ * turn existing object into read only.  Allows concurrent access from two
  * different threads.
  *
- * ssl exisiting WOLFSSL object
+ * ssl existing WOLFSSL object
  *
  * return dup'd WOLFSSL object on success
 */
@@ -936,7 +973,7 @@ int wolfSSL_CTX_mcast_set_member_id(WOLFSSL_CTX* ctx, word16 id)
     if (ret == 0) {
         ctx->haveEMS = 0;
         ctx->haveMcast = 1;
-        ctx->mcastID = id;
+        ctx->mcastID = (byte)id;
 #ifndef WOLFSSL_USER_IO
         ctx->CBIORecv = EmbedReceiveFromMcast;
 #endif /* WOLFSSL_USER_IO */
@@ -2404,6 +2441,15 @@ int wolfSSL_UseSecureRenegotiation(WOLFSSL* ssl)
     return ret;
 }
 
+int wolfSSL_CTX_UseSecureRenegotiation(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ctx->useSecureReneg = 1;
+    return WOLFSSL_SUCCESS;
+}
+
 
 /* do a secure renegotiation handshake, user forced, we discourage */
 int wolfSSL_Rehandshake(WOLFSSL* ssl)
@@ -3412,7 +3458,7 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
  *
  * id  cipher NID
  *
- * retrun WOLFSSL_EVP_CIPHER
+ * return WOLFSSL_EVP_CIPHER
 */
 const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
 {
@@ -4223,14 +4269,18 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 
     WOLFSSL_MSG("Adding a CA");
 
-    if (cm == NULL)
+    if (cm == NULL) {
+        FreeDer(pDer);
         return BAD_FUNC_ARG;
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
                                  DYNAMIC_TYPE_DCERT);
-    if (cert == NULL)
+    if (cert == NULL) {
+        FreeDer(pDer);
         return MEMORY_E;
+    }
 #endif
 
     InitDecodedCert(cert, der->buffer, der->length, cm->heap);
@@ -4463,6 +4513,14 @@ int wolfSSL_Init(void)
             WOLFSSL_MSG("Bad wolfCrypt Init");
             return WC_INIT_E;
         }
+
+#ifdef OPENSSL_EXTRA
+        if (wolfSSL_RAND_seed(NULL, 0) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_RAND_Seed failed");
+            return WC_INIT_E;
+        }
+#endif
+
 #ifndef NO_SESSION_CACHE
         if (wc_InitMutex(&session_mutex) != 0) {
             WOLFSSL_MSG("Bad Init Mutex session");
@@ -4493,7 +4551,7 @@ int wolfSSL_Init(void)
 /* process user cert chain to pass during the handshake */
 static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
                          long sz, int format, int type, WOLFSSL* ssl,
-                         long* used, EncryptedInfo* info)
+                         long* used, EncryptedInfo* info, int verify)
 {
     int ret = 0;
     void* heap = wolfSSL_CTX_GetHeap(ctx, ssl);
@@ -4587,9 +4645,8 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 /* add CA's to certificate manager */
                 if (type == CA_TYPE) {
                     /* verify CA unless user set to no verify */
-                    ret = AddCA(ctx->cm, &part, WOLFSSL_USER_CA,
-                        !ctx->verifyNone);
-                     gotOne = 0; /* don't exit loop for CA type */
+                    ret = AddCA(ctx->cm, &part, WOLFSSL_USER_CA, verify);
+                    gotOne = 0; /* don't exit loop for CA type */
                 }
             }
 
@@ -4644,12 +4701,13 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
     return ret;
 }
+
 /* process the buffer buff, length sz, into ctx of format and type
    used tracks bytes consumed, userChain specifies a user cert chain
    to pass during the handshake */
 int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                          long sz, int format, int type, WOLFSSL* ssl,
-                         long* used, int userChain)
+                         long* used, int userChain, int verify)
 {
     DerBuffer*    der = NULL;        /* holds DER or RAW (for NTRU) */
     int           ret = 0;
@@ -4739,7 +4797,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
          * Remainder are processed using ProcessUserChain and are loaded into
          *   ssl->buffers.certChain. */
         if (userChain) {
-            ret = ProcessUserChain(ctx, buff, sz, format, type, ssl, used, info);
+            ret = ProcessUserChain(ctx, buff, sz, format, type, ssl, used, info,
+                                   verify);
         }
     }
 
@@ -4802,7 +4861,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             return BAD_FUNC_ARG;
         }
         /* verify CA unless user set to no verify */
-        return AddCA(ctx->cm, &der, WOLFSSL_USER_CA, !ctx->verifyNone);
+        return AddCA(ctx->cm, &der, WOLFSSL_USER_CA, verify);
     }
 #ifdef WOLFSSL_TRUST_PEER_CERT
     else if (type == TRUSTED_PEER_TYPE) {
@@ -5288,7 +5347,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
 /* CA PEM file for verification, may have multiple/chain certs to process */
 static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
-                            long sz, int format, int type, WOLFSSL* ssl)
+                        long sz, int format, int type, WOLFSSL* ssl, int verify)
 {
     long used   = 0;
     int  ret    = 0;
@@ -5299,7 +5358,7 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         long consumed = 0;
 
         ret = ProcessBuffer(ctx, buff + used, sz - used, format, type, ssl,
-                            &consumed, 0);
+                            &consumed, 0, verify);
 
 #ifdef WOLFSSL_WPAS
 #ifdef HAVE_CRL
@@ -5432,7 +5491,7 @@ int wolfSSL_CertManagerLoadCRLBuffer(WOLFSSL_CERT_MANAGER* cm,
         }
     }
 
-    return BufferLoadCRL(cm->crl, buff, sz, type, 0);
+    return BufferLoadCRL(cm->crl, buff, sz, type, VERIFY);
 }
 
 int wolfSSL_CertManagerFreeCRL(WOLFSSL_CERT_MANAGER* cm)
@@ -5933,13 +5992,18 @@ int wolfSSL_CTX_DisableOCSPStapling(WOLFSSL_CTX* ctx)
 
 #endif /* HAVE_OCSP */
 
+/* macro to get verify settings for AddCA */
+#define GET_VERIFY_SETTING_CTX(ctx) \
+    (ctx && ctx->verifyNone ? NO_VERIFY : VERIFY)
+#define GET_VERIFY_SETTING_SSL(ssl) \
+    (ssl && ssl->options.verifyNone ? NO_VERIFY : VERIFY)
 
 #ifndef NO_FILESYSTEM
 
 /* process a file with name fname into ctx of format and type
    userChain specifies a user certificate chain to pass during handshake */
 int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
-                WOLFSSL* ssl, int userChain, WOLFSSL_CRL* crl)
+                WOLFSSL* ssl, int userChain, WOLFSSL_CRL* crl, int verify)
 {
 #ifdef WOLFSSL_SMALL_STACK
     byte   staticBuffer[1]; /* force heap usage */
@@ -5985,15 +6049,16 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
         ret = WOLFSSL_BAD_FILE;
     else {
         if ((type == CA_TYPE || type == TRUSTED_PEER_TYPE)
-                                                  && format == WOLFSSL_FILETYPE_PEM)
-            ret = ProcessChainBuffer(ctx, myBuffer, sz, format, type, ssl);
+                                              && format == WOLFSSL_FILETYPE_PEM)
+            ret = ProcessChainBuffer(ctx, myBuffer, sz, format, type, ssl,
+                                     verify);
 #ifdef HAVE_CRL
         else if (type == CRL_TYPE)
-            ret = BufferLoadCRL(crl, myBuffer, sz, format, 0);
+            ret = BufferLoadCRL(crl, myBuffer, sz, format, verify);
 #endif
         else
             ret = ProcessBuffer(ctx, myBuffer, sz, format, type, ssl, NULL,
-                                userChain);
+                                userChain, verify);
     }
 
     XFCLOSE(file);
@@ -6013,14 +6078,22 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
     int successCount = 0;
     int failCount = 0;
 #endif
+    int verify;
 
     WOLFSSL_MSG("wolfSSL_CTX_load_verify_locations_ex");
 
-    if (ctx == NULL || (file == NULL && path == NULL) )
+    if (ctx == NULL || (file == NULL && path == NULL)) {
         return WOLFSSL_FAILURE;
+    }
 
-    if (file)
-        ret = ProcessFile(ctx, file, WOLFSSL_FILETYPE_PEM, CA_TYPE, NULL, 0, NULL);
+    verify = GET_VERIFY_SETTING_CTX(ctx);
+    if (flags & WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY)
+        verify = VERIFY_SKIP_DATE;
+
+    if (file) {
+        ret = ProcessFile(ctx, file, WOLFSSL_FILETYPE_PEM, CA_TYPE, NULL, 0,
+                          NULL, verify);
+    }
 
     if (ret == WOLFSSL_SUCCESS && path) {
 #ifndef NO_WOLFSSL_DIR
@@ -6040,13 +6113,11 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
         while (fileRet == 0 && name) {
             WOLFSSL_MSG(name); /* log file name */
             ret = ProcessFile(ctx, name, WOLFSSL_FILETYPE_PEM, CA_TYPE,
-                                                          NULL, 0, NULL);
+                              NULL, 0, NULL, verify);
             if (ret != WOLFSSL_SUCCESS) {
                 /* handle flags for ignoring errors, skipping expired certs or
                    by PEM certificate header error */
                 if ( (flags & WOLFSSL_LOAD_FLAG_IGNORE_ERR) ||
-                    ((flags & WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY) &&
-                       (ret == ASN_BEFORE_DATE_E || ret == ASN_AFTER_DATE_E)) ||
                     ((flags & WOLFSSL_LOAD_FLAG_PEM_CA_ONLY) &&
                        (ret == ASN_NO_PEM_HEADER))) {
                     /* Do not fail here if a certificate fails to load,
@@ -6092,9 +6163,6 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
     return ret;
 }
 
-#ifndef WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS
-#define WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS WOLFSSL_LOAD_FLAG_NONE
-#endif
 int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
                                      const char* path)
 {
@@ -6117,7 +6185,8 @@ int wolfSSL_CTX_trust_peer_cert(WOLFSSL_CTX* ctx, const char* file, int type)
         return WOLFSSL_FAILURE;
     }
 
-    return ProcessFile(ctx, file, type, TRUSTED_PEER_TYPE, NULL, 0, NULL);
+    return ProcessFile(ctx, file, type, TRUSTED_PEER_TYPE, NULL, 0, NULL,
+                       GET_VERIFY_SETTING_CTX(ctx));
 }
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
@@ -6471,8 +6540,10 @@ int wolfSSL_CTX_der_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
     if (ctx == NULL || file == NULL)
         return WOLFSSL_FAILURE;
 
-    if (ProcessFile(ctx, file, format, CA_TYPE, NULL, 0, NULL) == WOLFSSL_SUCCESS)
+    if (ProcessFile(ctx, file, format, CA_TYPE, NULL, 0, NULL,
+                    GET_VERIFY_SETTING_CTX(ctx)) == WOLFSSL_SUCCESS) {
         return WOLFSSL_SUCCESS;
+    }
 
     return WOLFSSL_FAILURE;
 }
@@ -6485,8 +6556,11 @@ int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX* ctx, const char* file,
                                      int format)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_file");
-    if (ProcessFile(ctx, file, format, CERT_TYPE, NULL, 0, NULL) == WOLFSSL_SUCCESS)
+
+    if (ProcessFile(ctx, file, format, CERT_TYPE, NULL, 0, NULL,
+                    GET_VERIFY_SETTING_CTX(ctx)) == WOLFSSL_SUCCESS) {
         return WOLFSSL_SUCCESS;
+    }
 
     return WOLFSSL_FAILURE;
 }
@@ -6496,9 +6570,11 @@ int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX* ctx, const char* file,
                                     int format)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_use_PrivateKey_file");
-    if (ProcessFile(ctx, file, format, PRIVATEKEY_TYPE, NULL, 0, NULL)
-                    == WOLFSSL_SUCCESS)
+
+    if (ProcessFile(ctx, file, format, PRIVATEKEY_TYPE, NULL, 0, NULL,
+                    GET_VERIFY_SETTING_CTX(ctx)) == WOLFSSL_SUCCESS) {
         return WOLFSSL_SUCCESS;
+    }
 
     return WOLFSSL_FAILURE;
 }
@@ -6539,7 +6615,7 @@ long wolfSSL_get_verify_depth(WOLFSSL* ssl)
 /* get cert chaining depth using ctx struct */
 long wolfSSL_CTX_get_verify_depth(WOLFSSL_CTX* ctx)
 {
-    if(ctx == NULL) {
+    if (ctx == NULL) {
         return BAD_FUNC_ARG;
     }
 #ifndef OPENSSL_EXTRA
@@ -6552,11 +6628,13 @@ long wolfSSL_CTX_get_verify_depth(WOLFSSL_CTX* ctx)
 
 int wolfSSL_CTX_use_certificate_chain_file(WOLFSSL_CTX* ctx, const char* file)
 {
-   /* process up to MAX_CHAIN_DEPTH plus subject cert */
-   WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_chain_file");
-   if (ProcessFile(ctx, file, WOLFSSL_FILETYPE_PEM,CERT_TYPE,NULL,1, NULL)
-                   == WOLFSSL_SUCCESS)
-       return WOLFSSL_SUCCESS;
+    /* process up to MAX_CHAIN_DEPTH plus subject cert */
+    WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_chain_file");
+
+    if (ProcessFile(ctx, file, WOLFSSL_FILETYPE_PEM, CERT_TYPE, NULL, 1, NULL,
+                    GET_VERIFY_SETTING_CTX(ctx)) == WOLFSSL_SUCCESS) {
+        return WOLFSSL_SUCCESS;
+    }
 
    return WOLFSSL_FAILURE;
 }
@@ -6565,11 +6643,13 @@ int wolfSSL_CTX_use_certificate_chain_file(WOLFSSL_CTX* ctx, const char* file)
 int wolfSSL_CTX_use_certificate_chain_file_format(WOLFSSL_CTX* ctx,
                                                   const char* file, int format)
 {
-   /* process up to MAX_CHAIN_DEPTH plus subject cert */
-   WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_chain_file_format");
-   if (ProcessFile(ctx, file, format, CERT_TYPE, NULL, 1, NULL)
-                   == WOLFSSL_SUCCESS)
-       return WOLFSSL_SUCCESS;
+    /* process up to MAX_CHAIN_DEPTH plus subject cert */
+    WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_chain_file_format");
+
+    if (ProcessFile(ctx, file, format, CERT_TYPE, NULL, 1, NULL,
+                    GET_VERIFY_SETTING_CTX(ctx)) == WOLFSSL_SUCCESS) {
+        return WOLFSSL_SUCCESS;
+    }
 
    return WOLFSSL_FAILURE;
 }
@@ -7139,6 +7219,77 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
     return ret;
 }
 
+#if defined(OPENSSL_ALL)
+/* Returns the number of X509V3 extensions in X509 object, or 0 on failure */
+int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
+{
+    int extCount = 0;
+    int length = 0;
+    int outSz = 0;
+    const byte* rawCert;
+    int sz = 0;
+    word32 idx = 0;
+    DecodedCert cert;
+    const byte* input;
+
+    WOLFSSL_ENTER("wolfSSL_X509_get_ext_count()");
+    if (passedCert == NULL) {
+        WOLFSSL_MSG("\tNot passed a certificate");
+        return WOLFSSL_FAILURE;
+    }
+
+    rawCert = wolfSSL_X509_get_der((WOLFSSL_X509*)passedCert, &outSz);
+    if (rawCert == NULL) {
+        WOLFSSL_MSG("\tpassedCert has no internal DerBuffer set.");
+        return WOLFSSL_FAILURE;
+    }
+    InitDecodedCert(&cert, rawCert, (word32)outSz, 0);
+
+    if (ParseCert(&cert, CA_TYPE, NO_VERIFY, NULL) < 0) {
+        WOLFSSL_MSG("\tCertificate parsing failed");
+        return WOLFSSL_FAILURE;
+    }
+
+    input = cert.extensions;
+    sz = cert.extensionsSz;
+
+    if (input == NULL || sz == 0) {
+        FreeDecodedCert(&cert);
+        return WOLFSSL_FAILURE;
+    }
+
+    if (input[idx++] != ASN_EXTENSIONS) {
+        WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
+        FreeDecodedCert(&cert);
+        return WOLFSSL_FAILURE;
+    }
+
+    if (GetLength(input, &idx, &length, sz) < 0) {
+        WOLFSSL_MSG("\tfail: invalid length");
+        FreeDecodedCert(&cert);
+        return WOLFSSL_FAILURE;
+    }
+
+    if (GetSequence(input, &idx, &length, sz) < 0) {
+        WOLFSSL_MSG("\tfail: should be a SEQUENCE (1)");
+        FreeDecodedCert(&cert);
+        return WOLFSSL_FAILURE;
+    }
+
+    while (idx < (word32)sz) {
+        if (GetSequence(input, &idx, &length, sz) < 0) {
+            WOLFSSL_MSG("\tfail: should be a SEQUENCE");
+            FreeDecodedCert(&cert);
+            return WOLFSSL_FAILURE;
+        }
+        idx += length;
+        extCount++;
+    }
+    FreeDecodedCert(&cert);
+    return extCount;
+}
+
+#endif /* OPENSSL_ALL */
 
 /* Looks for the extension matching the passed in nid
  *
@@ -7227,7 +7378,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                         obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
                         obj->dynamic &= ~WOLFSSL_ASN1_DYNAMIC_DATA ;
 
-                        /* set app derefrenced pointers */
+                        /* set app dereferenced pointers */
                         obj->d.ia5_internal.data   = dns->name;
                         obj->d.ia5_internal.length = (int)XSTRLEN(dns->name);
                         dns = dns->next;
@@ -7587,6 +7738,24 @@ int wolfSSL_use_PrivateKey_ASN1(int pri, WOLFSSL* ssl, unsigned char* der,
     (void)pri; /* type of private key */
     return wolfSSL_use_PrivateKey_buffer(ssl, der, derSz, WOLFSSL_FILETYPE_ASN1);
 }
+/******************************************************************************
+* wolfSSL_CTX_use_PrivateKey_ASN1 - loads a private key buffer into the SSL ctx
+*
+* RETURNS:
+* returns WOLFSSL_SUCCESS on success, otherwise returns WOLFSSL_FAILURE
+*/
+
+int wolfSSL_CTX_use_PrivateKey_ASN1(int pri, WOLFSSL_CTX* ctx,
+                                            unsigned char* der, long derSz)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_use_PrivateKey_ASN1");
+    if (ctx == NULL || der == NULL ) {
+        return WOLFSSL_FAILURE;
+    }
+
+    (void)pri; /* type of private key */
+    return wolfSSL_CTX_use_PrivateKey_buffer(ctx, der, derSz, WOLFSSL_FILETYPE_ASN1);
+}
 
 
 #ifndef NO_RSA
@@ -7608,7 +7777,8 @@ int wolfSSL_use_certificate(WOLFSSL* ssl, WOLFSSL_X509* x509)
     WOLFSSL_ENTER("wolfSSL_use_certificate");
     if (x509 != NULL && ssl != NULL && x509->derCert != NULL) {
         if (ProcessBuffer(NULL, x509->derCert->buffer, x509->derCert->length,
-           WOLFSSL_FILETYPE_ASN1, CERT_TYPE, ssl, &idx, 0) == WOLFSSL_SUCCESS) {
+                          WOLFSSL_FILETYPE_ASN1, CERT_TYPE, ssl, &idx, 0,
+                          GET_VERIFY_SETTING_SSL(ssl)) == WOLFSSL_SUCCESS) {
             return WOLFSSL_SUCCESS;
         }
     }
@@ -7629,7 +7799,7 @@ int wolfSSL_use_certificate_ASN1(WOLFSSL* ssl, unsigned char* der, int derSz)
     WOLFSSL_ENTER("wolfSSL_use_certificate_ASN1");
     if (der != NULL && ssl != NULL) {
         if (ProcessBuffer(NULL, der, derSz, WOLFSSL_FILETYPE_ASN1, CERT_TYPE,
-                                            ssl, &idx, 0) == WOLFSSL_SUCCESS) {
+                ssl, &idx, 0, GET_VERIFY_SETTING_SSL(ssl)) == WOLFSSL_SUCCESS) {
             return WOLFSSL_SUCCESS;
         }
     }
@@ -7643,9 +7813,15 @@ int wolfSSL_use_certificate_ASN1(WOLFSSL* ssl, unsigned char* der, int derSz)
 int wolfSSL_use_certificate_file(WOLFSSL* ssl, const char* file, int format)
 {
     WOLFSSL_ENTER("wolfSSL_use_certificate_file");
+
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     if (ProcessFile(ssl->ctx, file, format, CERT_TYPE,
-                    ssl, 0, NULL) == WOLFSSL_SUCCESS)
+                ssl, 0, NULL, GET_VERIFY_SETTING_SSL(ssl)) == WOLFSSL_SUCCESS) {
         return WOLFSSL_SUCCESS;
+    }
 
     return WOLFSSL_FAILURE;
 }
@@ -7654,9 +7830,15 @@ int wolfSSL_use_certificate_file(WOLFSSL* ssl, const char* file, int format)
 int wolfSSL_use_PrivateKey_file(WOLFSSL* ssl, const char* file, int format)
 {
     WOLFSSL_ENTER("wolfSSL_use_PrivateKey_file");
+
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     if (ProcessFile(ssl->ctx, file, format, PRIVATEKEY_TYPE,
-                    ssl, 0, NULL) == WOLFSSL_SUCCESS)
+                ssl, 0, NULL, GET_VERIFY_SETTING_SSL(ssl)) == WOLFSSL_SUCCESS) {
         return WOLFSSL_SUCCESS;
+    }
 
     return WOLFSSL_FAILURE;
 }
@@ -7664,11 +7846,17 @@ int wolfSSL_use_PrivateKey_file(WOLFSSL* ssl, const char* file, int format)
 
 int wolfSSL_use_certificate_chain_file(WOLFSSL* ssl, const char* file)
 {
-   /* process up to MAX_CHAIN_DEPTH plus subject cert */
-   WOLFSSL_ENTER("wolfSSL_use_certificate_chain_file");
-   if (ProcessFile(ssl->ctx, file, WOLFSSL_FILETYPE_PEM, CERT_TYPE,
-                   ssl, 1, NULL) == WOLFSSL_SUCCESS)
-       return WOLFSSL_SUCCESS;
+    /* process up to MAX_CHAIN_DEPTH plus subject cert */
+    WOLFSSL_ENTER("wolfSSL_use_certificate_chain_file");
+
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (ProcessFile(ssl->ctx, file, WOLFSSL_FILETYPE_PEM, CERT_TYPE,
+               ssl, 1, NULL, GET_VERIFY_SETTING_SSL(ssl)) == WOLFSSL_SUCCESS) {
+        return WOLFSSL_SUCCESS;
+    }
 
    return WOLFSSL_FAILURE;
 }
@@ -7676,13 +7864,18 @@ int wolfSSL_use_certificate_chain_file(WOLFSSL* ssl, const char* file)
 int wolfSSL_use_certificate_chain_file_format(WOLFSSL* ssl, const char* file,
                                               int format)
 {
-   /* process up to MAX_CHAIN_DEPTH plus subject cert */
-   WOLFSSL_ENTER("wolfSSL_use_certificate_chain_file_format");
-   if (ProcessFile(ssl->ctx, file, format, CERT_TYPE, ssl, 1,
-                   NULL) == WOLFSSL_SUCCESS)
-       return WOLFSSL_SUCCESS;
+    /* process up to MAX_CHAIN_DEPTH plus subject cert */
+    WOLFSSL_ENTER("wolfSSL_use_certificate_chain_file_format");
 
-   return WOLFSSL_FAILURE;
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (ProcessFile(ssl->ctx, file, format, CERT_TYPE, ssl, 1,
+                    NULL, GET_VERIFY_SETTING_SSL(ssl)) == WOLFSSL_SUCCESS) {
+        return WOLFSSL_SUCCESS;
+    }
+    return WOLFSSL_FAILURE;
 }
 
 #endif /* !NO_FILESYSTEM */
@@ -7802,11 +7995,12 @@ int wolfSSL_SESSION_get_master_key_length(const WOLFSSL_SESSION* ses)
 int wolfSSL_CTX_use_NTRUPrivateKey_file(WOLFSSL_CTX* ctx, const char* file)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_use_NTRUPrivateKey_file");
+
     if (ctx == NULL)
         return WOLFSSL_FAILURE;
 
-    if (ProcessFile(ctx, file, WOLFSSL_FILETYPE_RAW, PRIVATEKEY_TYPE, NULL, 0, NULL)
-                         == WOLFSSL_SUCCESS) {
+    if (ProcessFile(ctx, file, WOLFSSL_FILETYPE_RAW, PRIVATEKEY_TYPE, NULL, 0,
+                    NULL, GET_VERIFY_SETTING_CTX(ctx)) == WOLFSSL_SUCCESS) {
         ctx->haveNTRU = 1;
         return WOLFSSL_SUCCESS;
     }
@@ -9879,6 +10073,10 @@ int wolfSSL_Cleanup(void)
     if (wc_FreeMutex(&count_mutex) != 0)
         ret = BAD_MUTEX_E;
 
+#ifdef OPENSSL_EXTRA
+    wolfSSL_RAND_Cleanup();
+#endif
+
     if (wolfCrypt_Cleanup() != 0) {
         WOLFSSL_MSG("Error with wolfCrypt_Cleanup call");
         ret = WC_CLEANUP_E;
@@ -10050,10 +10248,16 @@ static WC_INLINE void RestoreSession(WOLFSSL* ssl, WOLFSSL_SESSION* session,
     if (restoreSessionCerts) {
         ssl->session.chain        = session->chain;
         ssl->session.version      = session->version;
+    #ifdef NO_RESUME_SUITE_CHECK
         ssl->session.cipherSuite0 = session->cipherSuite0;
         ssl->session.cipherSuite  = session->cipherSuite;
+    #endif
     }
 #endif /* SESSION_CERTS */
+#ifndef NO_RESUME_SUITE_CHECK
+    ssl->session.cipherSuite0 = session->cipherSuite0;
+    ssl->session.cipherSuite  = session->cipherSuite;
+#endif
 }
 
 WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
@@ -10185,6 +10389,11 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
     copyInto->isDynamic = 0;
 #endif
 
+#ifndef NO_RESUME_SUITE_CHECK
+    copyInto->cipherSuite0   = copyFrom->cipherSuite0;
+    copyInto->cipherSuite    = copyFrom->cipherSuite;
+#endif
+
     if (wc_UnLockMutex(&session_mutex) != 0) {
         return BAD_MUTEX_E;
     }
@@ -10196,8 +10405,10 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
         return BAD_MUTEX_E;
     }
 
+#ifdef NO_RESUME_SUITE_CHECK
     copyInto->cipherSuite0   = copyFrom->cipherSuite0;
     copyInto->cipherSuite    = copyFrom->cipherSuite;
+#endif
     copyInto->namedGroup     = copyFrom->namedGroup;
     copyInto->ticketSeen     = copyFrom->ticketSeen;
     copyInto->ticketAdd      = copyFrom->ticketAdd;
@@ -10288,6 +10499,9 @@ int SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
                                defined(HAVE_SESSION_TICKET))
             ssl->version              = session->version;
+#endif
+#if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK) || \
+                        (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET))
             ssl->options.cipherSuite0 = session->cipherSuite0;
             ssl->options.cipherSuite  = session->cipherSuite;
 #endif
@@ -10465,10 +10679,15 @@ int AddSession(WOLFSSL* ssl)
                                defined(HAVE_SESSION_TICKET))
     if (error == 0) {
         session->version      = ssl->version;
+    }
+#endif /* SESSION_CERTS || (WOLFSSL_TLS13 & HAVE_SESSION_TICKET) */
+#if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK) || \
+                        (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET))
+    if (error == 0) {
         session->cipherSuite0 = ssl->options.cipherSuite0;
         session->cipherSuite  = ssl->options.cipherSuite;
     }
-#endif /* SESSION_CERTS || (WOLFSSL_TLS13 & HAVE_SESSION_TICKET) */
+#endif
 #if defined(WOLFSSL_TLS13)
     if (error == 0) {
         session->namedGroup     = ssl->session.namedGroup;
@@ -11222,28 +11441,42 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #ifndef NO_CERTS
 /* used to be defined on NO_FILESYSTEM only, but are generally useful */
 
+    int wolfSSL_CTX_load_verify_buffer_ex(WOLFSSL_CTX* ctx,
+                                         const unsigned char* in,
+                                         long sz, int format, int userChain,
+                                         word32 flags)
+    {
+        int verify;
+
+        WOLFSSL_ENTER("wolfSSL_CTX_load_verify_buffer_ex");
+
+        verify = GET_VERIFY_SETTING_CTX(ctx);
+        if (flags & WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY)
+            verify = VERIFY_SKIP_DATE;
+
+        if (format == WOLFSSL_FILETYPE_PEM)
+            return ProcessChainBuffer(ctx, in, sz, format, CA_TYPE, NULL,
+                                      verify);
+        else
+            return ProcessBuffer(ctx, in, sz, format, CA_TYPE, NULL, NULL,
+                                 userChain, verify);
+    }
+
     /* wolfSSL extension allows DER files to be loaded from buffers as well */
     int wolfSSL_CTX_load_verify_buffer(WOLFSSL_CTX* ctx,
                                        const unsigned char* in,
                                        long sz, int format)
     {
-        WOLFSSL_ENTER("wolfSSL_CTX_load_verify_buffer");
-        if (format == WOLFSSL_FILETYPE_PEM)
-            return ProcessChainBuffer(ctx, in, sz, format, CA_TYPE, NULL);
-        else
-            return ProcessBuffer(ctx, in, sz, format, CA_TYPE, NULL,NULL,0);
+        return wolfSSL_CTX_load_verify_buffer_ex(ctx, in, sz, format, 0,
+            WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS);
     }
-
 
     int wolfSSL_CTX_load_verify_chain_buffer_format(WOLFSSL_CTX* ctx,
                                        const unsigned char* in,
                                        long sz, int format)
     {
-        WOLFSSL_ENTER("wolfSSL_CTX_load_verify_chain_buffer_format");
-        if (format == WOLFSSL_FILETYPE_PEM)
-            return ProcessChainBuffer(ctx, in, sz, format, CA_TYPE, NULL);
-        else
-            return ProcessBuffer(ctx, in, sz, format, CA_TYPE, NULL,NULL,1);
+        return wolfSSL_CTX_load_verify_buffer_ex(ctx, in, sz, format, 1,
+            WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS);
     }
 
 
@@ -11260,11 +11493,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
 
         if (format == WOLFSSL_FILETYPE_PEM)
-            return ProcessChainBuffer(ctx, in, sz, format,
-                                                       TRUSTED_PEER_TYPE, NULL);
+            return ProcessChainBuffer(ctx, in, sz, format, TRUSTED_PEER_TYPE,
+                                      NULL, GET_VERIFY_SETTING_CTX(ctx));
         else
-            return ProcessBuffer(ctx, in, sz, format, TRUSTED_PEER_TYPE,
-                                                                   NULL,NULL,0);
+            return ProcessBuffer(ctx, in, sz, format, TRUSTED_PEER_TYPE, NULL,
+                                 NULL, 0, GET_VERIFY_SETTING_CTX(ctx));
     }
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
@@ -11273,7 +11506,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                                  const unsigned char* in, long sz, int format)
     {
         WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_buffer");
-        return ProcessBuffer(ctx, in, sz, format, CERT_TYPE, NULL, NULL, 0);
+        return ProcessBuffer(ctx, in, sz, format, CERT_TYPE, NULL, NULL, 0,
+                             GET_VERIFY_SETTING_CTX(ctx));
     }
 
 
@@ -11281,7 +11515,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                                  const unsigned char* in, long sz, int format)
     {
         WOLFSSL_ENTER("wolfSSL_CTX_use_PrivateKey_buffer");
-        return ProcessBuffer(ctx, in, sz, format, PRIVATEKEY_TYPE, NULL,NULL,0);
+        return ProcessBuffer(ctx, in, sz, format, PRIVATEKEY_TYPE, NULL, NULL,
+                             0, GET_VERIFY_SETTING_CTX(ctx));
     }
 
 #ifdef HAVE_PKCS11
@@ -11312,7 +11547,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                                  const unsigned char* in, long sz, int format)
     {
         WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_chain_buffer_format");
-        return ProcessBuffer(ctx, in, sz, format, CERT_TYPE, NULL, NULL, 1);
+        return ProcessBuffer(ctx, in, sz, format, CERT_TYPE, NULL, NULL, 1,
+                             GET_VERIFY_SETTING_CTX(ctx));
     }
 
     int wolfSSL_CTX_use_certificate_chain_buffer(WOLFSSL_CTX* ctx,
@@ -11430,7 +11666,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                                  const unsigned char* in, long sz, int format)
     {
         WOLFSSL_ENTER("wolfSSL_use_certificate_buffer");
-        return ProcessBuffer(ssl->ctx, in, sz, format,CERT_TYPE,ssl,NULL,0);
+        if (ssl == NULL)
+            return BAD_FUNC_ARG;
+
+        return ProcessBuffer(ssl->ctx, in, sz, format, CERT_TYPE, ssl, NULL, 0,
+                             GET_VERIFY_SETTING_SSL(ssl));
     }
 
 
@@ -11438,8 +11678,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                                  const unsigned char* in, long sz, int format)
     {
         WOLFSSL_ENTER("wolfSSL_use_PrivateKey_buffer");
+        if (ssl == NULL)
+            return BAD_FUNC_ARG;
+
         return ProcessBuffer(ssl->ctx, in, sz, format, PRIVATEKEY_TYPE,
-                             ssl, NULL, 0);
+                             ssl, NULL, 0, GET_VERIFY_SETTING_SSL(ssl));
     }
 
 #ifdef HAVE_PKCS11
@@ -11472,8 +11715,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                                  const unsigned char* in, long sz, int format)
     {
         WOLFSSL_ENTER("wolfSSL_use_certificate_chain_buffer_format");
+        if (ssl == NULL)
+            return BAD_FUNC_ARG;
+
         return ProcessBuffer(ssl->ctx, in, sz, format, CERT_TYPE,
-                             ssl, NULL, 1);
+                             ssl, NULL, 1, GET_VERIFY_SETTING_SSL(ssl));
     }
 
     int wolfSSL_use_certificate_chain_buffer(WOLFSSL* ssl,
@@ -12125,7 +12371,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         return &ctx->x509_store;
     }
-
 
     void wolfSSL_CTX_set_cert_store(WOLFSSL_CTX* ctx, WOLFSSL_X509_STORE* str)
     {
@@ -15814,6 +16059,55 @@ void wolfSSL_sk_X509_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk) {
 
 #endif /* NO_CERTS && OPENSSL_EXTRA */
 
+#if defined(OPENSSL_ALL)
+
+/* Frees all nodes in ACCESS_DESCRIPTION stack
+*
+* sk stack of nodes to free
+* f  free function to use, not called with wolfSSL
+*/
+void wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(WOLFSSL_STACK* sk,
+                                         void f (WOLFSSL_ACCESS_DESCRIPTION*))
+{
+   WOLFSSL_STACK* node;
+
+   WOLFSSL_ENTER("wolfSSL_sk_ACCESS_DESCRIPTION_pop_free");
+
+   (void)f;
+   if (sk == NULL) {
+       return;
+   }
+
+   /* parse through stack freeing each node */
+   node = sk->next;
+   while (sk->num > 1) {
+       WOLFSSL_STACK* tmp = node;
+       node = node->next;
+
+       if(tmp->data.access->method) {
+           wolfSSL_ASN1_OBJECT_free(tmp->data.access->method);
+       }
+       if(tmp->data.access->location) {
+           wolfSSL_GENERAL_NAME_free(tmp->data.access->location);
+       }
+       XFREE(tmp, NULL, DYNAMIC_TYPE_ASN1);
+       sk->num -= 1;
+   }
+
+   /* free head of stack */
+   if (sk->num == 1) {
+       if(sk->data.access->method) {
+           wolfSSL_ASN1_OBJECT_free(sk->data.access->method);
+       }
+       if(sk->data.access->location) {
+           wolfSSL_GENERAL_NAME_free(sk->data.access->location);
+       }
+   }
+   XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
+}
+
+#endif
+
 #ifdef OPENSSL_EXTRA
 
 /* Returns the general name at index i from the stack
@@ -15870,7 +16164,7 @@ int wolfSSL_sk_GENERAL_NAME_num(WOLFSSL_STACK* sk)
  * f  free function to use, not called with wolfSSL
  */
 void wolfSSL_sk_GENERAL_NAME_pop_free(WOLFSSL_STACK* sk,
-        void f (WOLFSSL_ASN1_OBJECT*))
+        void f (WOLFSSL_GENERAL_NAME*))
 {
     WOLFSSL_STACK* node;
 
@@ -15900,6 +16194,29 @@ void wolfSSL_sk_GENERAL_NAME_pop_free(WOLFSSL_STACK* sk,
 
 
 }
+
+/* Frees GENERAL_NAME objects.
+*/
+void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name)
+{
+    WOLFSSL_ENTER("wolfSSL_GENERAL_NAME_Free");
+    if(name != NULL) {
+        if (name->d.dNSName != NULL) {
+            wolfSSL_ASN1_STRING_free(name->d.dNSName);
+        }
+        if (name->d.uniformResourceIdentifier != NULL) {
+            wolfSSL_ASN1_STRING_free(name->d.uniformResourceIdentifier);
+        }
+        if (name->d.iPAddress != NULL) {
+            wolfSSL_ASN1_STRING_free(name->d.iPAddress);
+        }
+        if (name->d.registeredID != NULL) {
+            wolfSSL_ASN1_OBJECT_free(name->d.registeredID);
+        }
+        XFREE(name, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+}
+
 #endif /* OPENSSL_EXTRA */
 
 #ifndef NO_FILESYSTEM
@@ -16245,7 +16562,7 @@ void wolfSSL_sk_ASN1_OBJECT_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
 
     /* parse through stack freeing each node */
     node = sk->next;
-    while (sk->num > 1) {
+    while ((node != NULL) && (sk->num > 1)) {
         WOLFSSL_STACK* tmp = node;
         node = node->next;
 
@@ -16257,6 +16574,45 @@ void wolfSSL_sk_ASN1_OBJECT_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
     /* free head of stack */
     if (sk->num == 1) {
         wolfSSL_ASN1_OBJECT_free(sk->data.obj);
+    }
+    XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
+}
+
+/* Free's all nodes in ASN1_OBJECT stack.
+ * This is different then wolfSSL_ASN1_OBJECT_free in that it allows for
+ * choosing the function to use when freeing an ASN1_OBJECT stack.
+ *
+ * sk  stack to free nodes in
+ * f   X509 free function
+ */
+void wolfSSL_sk_ASN1_OBJECT_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
+                                     void (*func)(WOLFSSL_ASN1_OBJECT*))
+{
+    WOLFSSL_STACK* node;
+
+    WOLFSSL_ENTER("wolfSSL_sk_ASN1_OBJECT_pop_free");
+    (void)func;
+
+    if ((sk == NULL) || (func == NULL)) {
+        WOLFSSL_MSG("Parameter error");
+        return;
+    }
+
+    /* parse through stack freeing each node */
+    node = sk->next;
+    while ((node != NULL) && (sk->num > 1)) {
+        WOLFSSL_STACK* tmp = node;
+        node = node->next;
+
+        func(tmp->data.obj);
+
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ASN1);
+        sk->num -= 1;
+    }
+
+    /* free head of stack */
+    if (sk->num == 1) {
+        func(sk->data.obj);
     }
     XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
 }
@@ -16489,6 +16845,32 @@ const char* wolfSSL_get_cipher_name_from_suite(const byte cipherSuite0,
     return GetCipherNameInternal(cipherSuite0, cipherSuite);
 }
 
+#if defined(OPENSSL_ALL)
+/* Free the structure for WOLFSSL_CIPHER stack
+ *
+ * sk  stack to free nodes in
+ */
+void wolfSSL_sk_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk)
+{
+    WOLFSSL_STACK* node;
+    WOLFSSL_STACK* tmp;
+    WOLFSSL_ENTER("wolfSSL_sk_CIPHER_free");
+
+    if (sk == NULL)
+        return;
+
+    /* parse through stack freeing each node */
+    node = sk->next;
+    while (node) {
+        tmp  = node;
+        node = node->next;
+        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+
+    /* free head of stack */
+    XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
+}
+#endif
 
 #if defined(HAVE_ECC) || !defined(NO_DH)
 #ifdef HAVE_FFDHE
@@ -16522,21 +16904,31 @@ static const char* wolfssl_ffdhe_name(word16 group)
  */
 const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
 {
+    const char* cName = NULL;
+
     if (ssl == NULL)
         return NULL;
+
 #ifdef HAVE_FFDHE
-    if (ssl->namedGroup != 0)
-        return wolfssl_ffdhe_name(ssl->namedGroup);
+    if (ssl->namedGroup != 0) {
+        cName = wolfssl_ffdhe_name(ssl->namedGroup);
+    }
 #endif
+
+#ifdef HAVE_CURVE25519
+    if (ssl->ecdhCurveOID == ECC_X25519_OID && cName == NULL) {
+        cName = "X25519";
+    }
+#endif
+
 #ifdef HAVE_ECC
-    if (ssl->ecdhCurveOID == 0)
-        return NULL;
-    if (ssl->ecdhCurveOID == ECC_X25519_OID)
-        return "X25519";
-    return wc_ecc_get_name(wc_ecc_get_oid(ssl->ecdhCurveOID, NULL, NULL));
-#else
-    return NULL;
+    if (ssl->ecdhCurveOID != 0 && cName == NULL) {
+        cName = wc_ecc_get_name(wc_ecc_get_oid(ssl->ecdhCurveOID, NULL,
+                                NULL));
+    }
 #endif
+
+    return cName;
 }
 #endif
 
@@ -16571,7 +16963,48 @@ WOLFSSL_X509_NAME* wolfSSL_X509_get_subject_name(WOLFSSL_X509* cert)
     return NULL;
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA)
+/******************************************************************************
+* wolfSSL_X509_subject_name_hash - compute the hash digest of the raw subject name
+*
+* RETURNS:
+* The beginning of the hash digest. Otherwise, returns zero.
+* Note:
+* Returns a different hash value from OpenSSL's X509_subject_name_hash() API
+* depending on the subject name.
+*/
+unsigned long wolfSSL_X509_subject_name_hash(const WOLFSSL_X509* x509)
+{
+    word32 ret = 0;
+    int retHash;
+    WOLFSSL_X509_NAME *subjectName = NULL;
 
+#ifdef WOLFSSL_PIC32MZ_HASH
+        byte digest[PIC32_DIGEST_SIZE];
+#else
+        byte digest[WC_SHA_DIGEST_SIZE];
+#endif
+
+    if (x509 == NULL){
+        return WOLFSSL_FAILURE;
+    }
+
+    subjectName = wolfSSL_X509_get_subject_name((WOLFSSL_X509*)x509);
+
+    if (subjectName != NULL){
+        retHash = wc_ShaHash((const byte*)subjectName->name,
+                             (word32)subjectName->sz, digest);
+
+        if(retHash != 0){
+            WOLFSSL_MSG("Hash of X509 subjectName has failed");
+            return WOLFSSL_FAILURE;
+        }
+        ret = MakeWordFromHash(digest);
+    }
+
+    return (unsigned long)ret;
+}
+#endif
 
 WOLFSSL_X509_NAME* wolfSSL_X509_get_issuer_name(WOLFSSL_X509* cert)
 {
@@ -16787,6 +17220,77 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
 /* End of smaller subset of X509 compatibility functions. Avoid increasing the
  * size of this subset and its memory usage */
 #endif /* OPENSSL_EXTRA_X509_SMALL */
+
+#if defined(OPENSSL_ALL)
+/* Takes two WOLFSSL_X509* certificates and performs a Sha hash of each, if the
+   * has values are the same, then it will do an XMEMCMP to confirm they are
+   * identical. Returns a 0 when certificates match, returns a negative number
+   * when certificates are not a match.
+*/
+int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
+{
+        const byte* derA;
+        const byte* derB;
+        int retHashA;
+        int retHashB;
+        int outSzA = 0;
+        int outSzB = 0;
+
+        #ifdef WOLFSSL_PIC32MZ_HASH
+            byte digestA[PIC32_DIGEST_SIZE];
+            byte digestB[PIC32_DIGEST_SIZE];
+        #else
+            byte digestA[WC_SHA_DIGEST_SIZE];
+            byte digestB[WC_SHA_DIGEST_SIZE];
+        #endif
+
+        if (a == NULL || b == NULL){
+            return BAD_FUNC_ARG;
+        }
+
+        derA = wolfSSL_X509_get_der((WOLFSSL_X509*)a, &outSzA);
+        if(derA == NULL){
+            WOLFSSL_MSG("wolfSSL_X509_get_der - certificate A has failed");
+            return WOLFSSL_FATAL_ERROR;
+        }
+        derB = wolfSSL_X509_get_der((WOLFSSL_X509*)b, &outSzB);
+        if(derB == NULL){
+            WOLFSSL_MSG("wolfSSL_X509_get_der - certificate B has failed");
+            return WOLFSSL_FATAL_ERROR;
+        }
+
+        retHashA = wc_ShaHash(derA, (word32)outSzA, digestA);
+        if(retHashA != 0){
+            WOLFSSL_MSG("Hash of certificate A has failed");
+            return WOLFSSL_FATAL_ERROR;
+        }
+        retHashB = wc_ShaHash(derB, (word32)outSzB, digestB);
+        if(retHashB != 0){
+            WOLFSSL_MSG("Hash of certificate B has failed");
+            return WOLFSSL_FATAL_ERROR;
+        }
+
+        if (outSzA == outSzB){
+            #ifdef WOLFSSL_PIC32MZ_HASH
+            if(XMEMCMP(digestA, digestB, PIC32_DIGEST_SIZE) != 0){
+                return WOLFSSL_FATAL_ERROR;
+            }
+            #else
+            if(XMEMCMP(digestA, digestB, WC_SHA_DIGEST_SIZE) != 0){
+                return WOLFSSL_FATAL_ERROR;
+            }
+            #endif
+            else{
+                WOLFSSL_LEAVE("wolfSSL_X509_cmp", 0);
+                return 0;
+            }
+        }
+        else{
+            WOLFSSL_LEAVE("wolfSSL_X509_cmp", WOLFSSL_FATAL_ERROR);
+            return WOLFSSL_FATAL_ERROR;
+        }
+    }
+#endif
 
 #if defined(OPENSSL_EXTRA)
 #if !defined(NO_CERTS)
@@ -18346,7 +18850,8 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
                 }
             }
 
-            ret = BufferLoadCRL(cm->crl, curr, sz, WOLFSSL_FILETYPE_PEM, 1);
+            ret = BufferLoadCRL(cm->crl, curr, sz, WOLFSSL_FILETYPE_PEM,
+                NO_VERIFY);
             if (ret != WOLFSSL_SUCCESS)
                 goto end;
 #endif
@@ -18573,6 +19078,39 @@ WC_PKCS12* wolfSSL_d2i_PKCS12_bio(WOLFSSL_BIO* bio, WC_PKCS12** pkcs12)
 }
 
 
+/* Converts the PKCS12 to DER format and outputs it into bio.
+ *
+ * bio is the structure to hold output DER
+ * pkcs12 structure to create DER from
+ *
+ * return 1 for success or 0 if an error occurs
+ */
+int wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO *bio, WC_PKCS12 *pkcs12)
+{
+    int ret = WOLFSSL_FAILURE;
+
+    WOLFSSL_ENTER("wolfSSL_i2d_PKCS12_bio");
+
+    if ((bio != NULL) && (pkcs12 != NULL)) {
+        word32 certSz = 0;
+        byte *certDer = NULL;
+
+        certSz = wc_i2d_PKCS12(pkcs12, &certDer, NULL);
+        if ((certSz > 0) && (certDer != NULL)) {
+            if (wolfSSL_BIO_write(bio, certDer, certSz) == (int)certSz) {
+                ret = SSL_SUCCESS;
+            }
+        }
+
+        if (certDer != NULL) {
+            XFREE(certDer, NULL, DYNAMIC_TYPE_PKCS);
+        }
+    }
+
+    return ret;
+}
+
+
 /* helper function to get DER buffer from WOLFSSL_EVP_PKEY */
 static int wolfSSL_i2d_PrivateKey(WOLFSSL_EVP_PKEY* key, unsigned char** der)
 {
@@ -18580,7 +19118,6 @@ static int wolfSSL_i2d_PrivateKey(WOLFSSL_EVP_PKEY* key, unsigned char** der)
 
     return key->pkey_sz;
 }
-
 
 
 /* Creates a new WC_PKCS12 structure
@@ -19053,6 +19590,89 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
 }
 
 
+/* make shallow copy of the stack, data pointers are copied by reference */
+WOLFSSL_STACK* wolfSSL_sk_X509_dup(WOLFSSL_STACK* sk)
+{
+    unsigned long i;
+    WOLFSSL_STACK* dup = NULL;
+    WOLFSSL_STACK* node = NULL;
+    WOLFSSL_STACK *dIdx = NULL, *sIdx = sk;
+
+    if (sk == NULL) {
+        return NULL;
+    }
+
+    for (i = 0; i < sk->num; i++) {
+
+        node = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
+                                         DYNAMIC_TYPE_X509);
+        if (node == NULL) {
+            if (i != 0) {
+                wolfSSL_sk_free(dup);
+            }
+            WOLFSSL_MSG("Memory error");
+            return NULL;
+        }
+        XMEMSET(node, 0, sizeof(WOLFSSL_STACK));
+
+        /* copy sk node to new node, data by reference */
+        node->data.x509 = sIdx->data.x509;
+        node->num = sIdx->num;
+
+        /* insert node into list, progress idx */
+        if (i == 0) {
+            dup = node;
+        } else {
+            dIdx->next = node;
+        }
+
+        dIdx = node;
+        sIdx = sIdx->next;
+    }
+
+    return dup;
+}
+
+
+/* like X509_STORE_CTX_get_chain(), but return a copy with data reference
+   counts increased */
+WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get1_chain(WOLFSSL_X509_STORE_CTX* ctx)
+{
+    unsigned long i;
+    WOLFSSL_STACK* ref;
+    WOLFSSL_STACK* dup;
+
+    if (ctx == NULL) {
+        return NULL;
+    }
+
+    /* get chain in ctx */
+    ref = wolfSSL_X509_STORE_CTX_get_chain(ctx);
+    if (ref == NULL) {
+        return ref;
+    }
+
+    /* create duplicate of ctx chain */
+    dup = wolfSSL_sk_X509_dup(ref);
+    if (dup == NULL) {
+        return NULL;
+    }
+
+    /* increase ref counts of inner data X509 */
+    ref = dup;
+    for (i = 0; i < dup->num && ref != NULL; i++) {
+        if (wc_LockMutex(&ref->data.x509->refMutex) != 0) {
+            WOLFSSL_MSG("Failed to lock x509 mutex");
+        }
+        ref->data.x509->refCount++;
+        wc_UnLockMutex(&ref->data.x509->refMutex);
+        ref = ref->next;
+    }
+
+    return dup;
+}
+
+
 int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
 {
     int result = WOLFSSL_FATAL_ERROR;
@@ -19068,7 +19688,7 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
             /* AddCA() frees the buffer. */
             XMEMCPY(derCert->buffer,
                             x509->derCert->buffer, x509->derCert->length);
-            result = AddCA(store->cm, &derCert, WOLFSSL_USER_CA, 1);
+            result = AddCA(store->cm, &derCert, WOLFSSL_USER_CA, VERIFY);
         }
     }
 
@@ -19104,6 +19724,14 @@ WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
         goto err_exit;
 #endif
 
+#ifdef OPENSSL_EXTRA
+    if ((store->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
+                           sizeof(WOLFSSL_X509_VERIFY_PARAM),
+                           NULL,DYNAMIC_TYPE_OPENSSL)) == NULL)
+        goto err_exit;
+
+#endif
+
     return store;
 
 err_exit:
@@ -19114,6 +19742,11 @@ err_exit:
 #ifdef HAVE_CRL
     if(store->crl != NULL)
         wolfSSL_X509_CRL_free(store->crl);
+#endif
+#ifdef OPENSSL_EXTRA
+        if (store->param != NULL){
+            XFREE(store->param,NULL,DYNAMIC_TYPE_OPENSSL);
+        }
 #endif
     wolfSSL_X509_STORE_free(store);
 
@@ -19129,6 +19762,11 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
 #ifdef HAVE_CRL
         if (store->crl != NULL)
             wolfSSL_X509_CRL_free(store->crl);
+#endif
+#ifdef OPENSSL_EXTRA
+        if (store->param != NULL){
+            XFREE(store->param,NULL,DYNAMIC_TYPE_OPENSSL);
+        }
 #endif
         XFREE(store, NULL, DYNAMIC_TYPE_X509_STORE);
     }
@@ -19375,20 +20013,11 @@ static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
     goto _exit;
 
 err_exit:
-    if(newx509 != NULL){
-        if(type == CERT_TYPE)
-            wolfSSL_X509_free((WOLFSSL_X509*)newx509);
-    #ifdef HAVE_CRL
-        else if(type == CRL_TYPE) {
-            wolfSSL_X509_CRL_free((WOLFSSL_X509_CRL*)newx509);
-        }
-    #endif
     #if !defined(NO_ASN) && !defined(NO_PWDBASED)
-        else if(type == PKCS12_TYPE) {
-            wc_PKCS12_free((WC_PKCS12*)newx509);
-        }
-    #endif
+    if((newx509 != NULL) && (type == PKCS12_TYPE)) {
+        wc_PKCS12_free((WC_PKCS12*)newx509);
     }
+    #endif
 _exit:
     if(fileBuffer != NULL)
         XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
@@ -19439,7 +20068,8 @@ WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl,
             if (ret < 0) {
                 WOLFSSL_MSG("Init tmp CRL failed");
             } else {
-                ret = BufferLoadCRL(newcrl, in, len, WOLFSSL_FILETYPE_ASN1, 1);
+                ret = BufferLoadCRL(newcrl, in, len, WOLFSSL_FILETYPE_ASN1,
+                    NO_VERIFY);
                 if (ret != WOLFSSL_SUCCESS) {
                     WOLFSSL_MSG("Buffer Load CRL failed");
                 } else {
@@ -19589,6 +20219,90 @@ void wolfSSL_X509_STORE_CTX_set_time(WOLFSSL_X509_STORE_CTX* ctx,
     ctx->param->check_time = t;
     ctx->param->flags |= WOLFSSL_USE_CHECK_TIME;
 }
+/******************************************************************************
+* wolfSSL_X509_VERIFY_PARAM_set1_host - sets the DNS hostname to name
+* hostnames is cleared if name is NULL or empty.
+*
+* RETURNS:
+*
+*/
+int wolfSSL_X509_VERIFY_PARAM_set1_host(WOLFSSL_X509_VERIFY_PARAM* pParam,
+                                         const char* name,
+                                         unsigned int nameSz)
+{
+    unsigned int sz = 0;
+
+    if (pParam == NULL)
+        return WOLFSSL_FAILURE;
+
+    XMEMSET(pParam->hostName, 0, WOLFSSL_HOST_NAME_MAX);
+
+    if (name == NULL)
+        return WOLFSSL_SUCCESS;
+
+    sz = (unsigned int)XSTRLEN(name);
+
+    /* If name is NUL-terminated, namelen can be set to zero. */
+    if(nameSz == 0 || nameSz > sz)
+        nameSz = sz;
+
+    if (nameSz > 0 && name[nameSz - 1] == '\0')
+        nameSz--;
+
+    if (nameSz > WOLFSSL_HOST_NAME_MAX-1)
+        nameSz = WOLFSSL_HOST_NAME_MAX-1;
+
+    if (nameSz > 0)
+        XMEMCPY(pParam->hostName, name, nameSz);
+
+        pParam->hostName[nameSz] = '\0';
+
+    return WOLFSSL_SUCCESS;
+}
+/******************************************************************************
+* wolfSSL_get0_param - return a pointer to the SSL verification parameters
+*
+* RETURNS:
+* returns pointer to the SSL verification parameters on success,
+* otherwise returns NULL
+*/
+WOLFSSL_X509_VERIFY_PARAM* wolfSSL_get0_param(WOLFSSL* ssl)
+{
+    if (ssl == NULL) {
+        return NULL;
+    }
+    return ssl->param;
+}
+
+/* Set the host flag in the X509_VERIFY_PARAM structure */
+void wolfSSL_X509_VERIFY_PARAM_set_hostflags(WOLFSSL_X509_VERIFY_PARAM* param,
+                                             unsigned int flags)
+{
+    if (param != NULL) {
+        param->hostFlags = flags;
+    }
+}
+
+/* Sets the expected IP address to ipasc.
+ *
+ * param is a pointer to the X509_VERIFY_PARAM structure
+ * ipasc is a NULL-terminated string with N.N.N.N for IPv4 and
+ *       HH:HH ... HH:HH for IPv6.
+ *
+ * return 1 for success and 0 for failure*/
+int wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(WOLFSSL_X509_VERIFY_PARAM *param,
+        const char *ipasc)
+{
+    int ret = WOLFSSL_FAILURE;
+
+    if (param != NULL) {
+        XSTRNCPY(param->ipasc, ipasc, WOLFSSL_MAX_IPSTR-1);
+        param->ipasc[WOLFSSL_MAX_IPSTR-1] = '\0';
+        ret = WOLFSSL_SUCCESS;
+    }
+
+    return ret;
+}
 
 #ifndef NO_WOLFSSL_STUB
 void wolfSSL_X509_OBJECT_free_contents(WOLFSSL_X509_OBJECT* obj)
@@ -19606,6 +20320,85 @@ int wolfSSL_X509_cmp_current_time(const WOLFSSL_ASN1_TIME* asnTime)
     return 0;
 }
 #endif
+
+/* return -1 if asnTime is earlier than or equal to cmpTime, and 1 otherwise
+ * return 0 on error
+ */
+int wolfSSL_X509_cmp_time(const WOLFSSL_ASN1_TIME* asnTime, time_t* cmpTime)
+{
+    int ret = WOLFSSL_FAILURE, i = 0;
+    time_t tmpTime, *pTime = &tmpTime;
+    byte data_ptr[MAX_TIME_STRING_SZ], inv = 0;
+    struct tm ts, *tmpTs = NULL, *ct;
+#if defined(NEED_TMP_TIME)
+    /* for use with gmtime_r */
+    struct tm tmpTimeStorage;
+    tmpTs = &tmpTimeStorage;
+#else
+    (void)tmpTs;
+#endif
+
+
+    if (asnTime != NULL) {
+        if (cmpTime == NULL) {
+            /* Use current time */
+            *pTime = XTIME(0);
+        }
+        else {
+            pTime = cmpTime;
+        }
+
+        /* Convert ASN1_time to time_t */
+        XMEMSET(&ts, 0, sizeof(struct tm));
+
+        /* Check type */
+        if (asnTime->data[0] == ASN_UTC_TIME) {
+            /* 2-digit year */
+            i += 2; /* Skip type and size */
+            XMEMCPY(data_ptr, &asnTime->data[i], ASN_UTC_TIME_SIZE);
+            ts.tm_year = (data_ptr[i] - '0') * 10; i++;
+            ts.tm_year += data_ptr[i] - '0'; i++;
+            if (ts.tm_year < 70) {
+                ts.tm_year += 100;
+            }
+        }
+        else if (asnTime->data[0] == ASN_GENERALIZED_TIME) {
+            /* 4-digit year */
+            i += 2; /* Skip type and size */
+            XMEMCPY(data_ptr, &asnTime->data[i], ASN_GENERALIZED_TIME_SIZE);
+            ts.tm_year = (data_ptr[i] - '0') * 1000; i++;
+            ts.tm_year += (data_ptr[i] - '0') * 100; i++;
+            ts.tm_year += (data_ptr[i] - '0') * 10; i++;
+            ts.tm_year += data_ptr[i] - '0'; i++;
+            ts.tm_year -= 1900;
+        }
+        else {
+            /* Invalid type */
+            inv = 1;
+        }
+
+        if (inv != 1) {
+            ts.tm_mon = (data_ptr[i] - '0') * 10; i++;
+            ts.tm_mon += (data_ptr[i] - '0') - 1; i++; /* January is 0 not 1 */
+            ts.tm_mday = (data_ptr[i] - '0') * 10; i++;
+            ts.tm_mday += (data_ptr[i] - '0'); i++;
+            ts.tm_hour = (data_ptr[i] - '0') * 10; i++;
+            ts.tm_hour += (data_ptr[i] - '0'); i++;
+            ts.tm_min = (data_ptr[i] - '0') * 10; i++;
+            ts.tm_min += (data_ptr[i] - '0'); i++;
+            ts.tm_sec = (data_ptr[i] - '0') * 10; i++;
+            ts.tm_sec += (data_ptr[i] - '0');
+
+            /* Convert to time struct*/
+            ct = XGMTIME(pTime, tmpTs);
+
+            /* DAteGreaterThan returns 1 for >; 0 for <= */
+            ret = DateGreaterThan(&ts, ct) ? 1 : -1;
+        }
+    }
+
+    return ret;
+}
 
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_sk_X509_REVOKED_num(WOLFSSL_X509_REVOKED* revoked)
@@ -19665,6 +20458,65 @@ void wolfSSL_ASN1_INTEGER_free(WOLFSSL_ASN1_INTEGER* in)
         }
         XFREE(in, NULL, DYNAMIC_TYPE_OPENSSL);
     }
+}
+
+
+/* sets the value of WOLFSSL_ASN1_INTEGER a to the long value v. */
+int wolfSSL_ASN1_INTEGER_set(WOLFSSL_ASN1_INTEGER *a, long v)
+{
+    int ret = WOLFSSL_SUCCESS; /* return 1 for success and 0 for failure */
+    int j;
+    unsigned int i = 0;
+    unsigned char tmp[sizeof(long)+1] = {0};
+
+    if (a != NULL) {
+        /* dynamically create data buffer, +2 for type and length */
+        a->data = (unsigned char*)XMALLOC((sizeof(long)+1) + 2, NULL,
+                DYNAMIC_TYPE_OPENSSL);
+        if (a->data == NULL) {
+            wolfSSL_ASN1_INTEGER_free(a);
+            ret = WOLFSSL_FAILURE;
+        }
+        else {
+            a->dataMax   = (int)(sizeof(long)+1) + 2;
+            a->isDynamic = 1;
+        }
+    }
+    else {
+        /* Invalid parameter */
+        ret = WOLFSSL_FAILURE;
+    }
+
+
+    if (ret != WOLFSSL_FAILURE) {
+        /* Set type */
+        a->data[i++] = ASN_INTEGER;
+
+        /* Check for negative */
+        if (v < 0) {
+            a->negative = 1;
+            v *= -1;
+        }
+
+        /* Create char buffer */
+        for (j = 0; j < (int)sizeof(long); j++) {
+            if (v == 0) {
+                break;
+            }
+            tmp[j] = (unsigned char)(v & 0xff);
+            v >>= 8;
+        }
+
+        /* Set length */
+        a->data[i++] = (unsigned char)((j == 0) ? ++j : j);
+
+        /* Copy to data */
+        for (; j > 0; j--) {
+            a->data[i++] = tmp[j-1];
+        }
+    }
+
+    return ret;
 }
 
 
@@ -19870,7 +20722,6 @@ long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* i)
     return 0;
 }
 #endif
-
 
 void* wolfSSL_X509_STORE_CTX_get_ex_data(WOLFSSL_X509_STORE_CTX* ctx, int idx)
 {
@@ -21322,9 +22173,11 @@ long wolfSSL_CTX_add_extra_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
     }
 
     if (ctx->certificate == NULL) {
+        WOLFSSL_ENTER("wolfSSL_use_certificate_chain_buffer_format");
+
         /* Process buffer makes first certificate the leaf. */
         ret = ProcessBuffer(ctx, der, derSz, WOLFSSL_FILETYPE_ASN1, CERT_TYPE,
-                            NULL, NULL, 1);
+                            NULL, NULL, 1, GET_VERIFY_SETTING_CTX(ctx));
         if (ret != WOLFSSL_SUCCESS) {
             WOLFSSL_LEAVE("wolfSSL_CTX_add_extra_chain_cert", ret);
             return WOLFSSL_FAILURE;
@@ -21338,7 +22191,8 @@ long wolfSSL_CTX_add_extra_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
             return WOLFSSL_FAILURE;
         }
         XMEMCPY(derBuffer->buffer, der, derSz);
-        ret = AddCA(ctx->cm, &derBuffer, WOLFSSL_USER_CA, !ctx->verifyNone);
+        ret = AddCA(ctx->cm, &derBuffer, WOLFSSL_USER_CA,
+            GET_VERIFY_SETTING_CTX(ctx));
         if (ret != WOLFSSL_SUCCESS) {
             WOLFSSL_LEAVE("wolfSSL_CTX_add_extra_chain_cert", ret);
             return WOLFSSL_FAILURE;
@@ -22066,6 +22920,102 @@ void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
     return (void*)sk->data.obj;
 }
 
+
+/* Free the structure for ASN1_OBJECT stack */
+void wolfSSL_sk_free(WOLFSSL_STACK* sk)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_free");
+
+    if (sk == NULL) {
+        WOLFSSL_MSG("Error, BAD_FUNC_ARG");
+        return;
+    }
+
+    switch (sk->type) {
+    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+        case STACK_TYPE_X509:
+            wolfSSL_sk_X509_free(sk);
+            break;
+        case STACK_TYPE_CIPHER:
+            wolfSSL_sk_CIPHER_free(sk);
+            break;
+        case STACK_TYPE_GEN_NAME:
+            wolfSSL_sk_ASN1_OBJECT_free(sk);
+            break;
+        case STACK_TYPE_ACCESS_DESCRIPTION:
+            wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(sk,NULL);
+            break;
+        case STACK_TYPE_OBJ:
+            wolfSSL_sk_ASN1_OBJECT_free(sk);
+            break;
+        case STACK_TYPE_NULL:
+            wolfSSL_sk_GENERIC_free(sk);
+            break;
+    #endif
+       default:
+            wolfSSL_sk_ASN1_OBJECT_free(sk);
+    }
+}
+/* Frees each node in the stack and frees the stack.
+ * Does not free any internal members of the stack nodes.
+ */
+void wolfSSL_sk_GENERIC_free(WOLFSSL_STACK* sk)
+{
+    WOLFSSL_STACK* node;
+    WOLFSSL_STACK* tmp;
+    WOLFSSL_ENTER("wolfSSL_sk_GENERIC_free");
+
+    if (sk == NULL)
+        return;
+
+    /* parse through stack freeing each node */
+    node = sk->next;
+    while (node) {
+        tmp  = node;
+        node = node->next;
+        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+
+    /* free head of stack */
+    XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
+}
+
+
+/* Free all nodes in a stack */
+void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
+                                                       wolfSSL_sk_freefunc func)
+{
+    int type;
+    WOLFSSL_ENTER("wolfSSL_sk_pop_free");
+
+    if (sk == NULL) {
+        WOLFSSL_MSG("Error, BAD_FUNC_ARG");
+        return;
+    }
+    type = sk->type;
+    switch(type) {
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        case STACK_TYPE_ACCESS_DESCRIPTION:
+            wolfSSL_sk_ACCESS_DESCRIPTION_pop_free(sk,
+                                   (void (*)(WOLFSSL_ACCESS_DESCRIPTION*))func);
+            break;
+        case STACK_TYPE_X509:
+            wolfSSL_sk_X509_pop_free(sk,(void (*)(WOLFSSL_X509*))func);
+            break;
+        case STACK_TYPE_OBJ:
+            wolfSSL_sk_ASN1_OBJECT_pop_free(sk,
+                                          (void (*)(WOLFSSL_ASN1_OBJECT*))func);
+            break;
+        case STACK_TYPE_GEN_NAME:
+            break;
+    #endif
+        default:
+            wolfSSL_sk_ASN1_OBJECT_pop_free(sk,
+                                          (void (*)(WOLFSSL_ASN1_OBJECT*))func);
+            break;
+    }
+}
+
 #endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)
@@ -22141,7 +23091,11 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
     size += OPAQUE8_LEN;
     for (i = 0; i < sess->chain.count; i++)
         size += OPAQUE16_LEN + sess->chain.certs[i].length;
-    /* Protocol version + cipher suite */
+    /* Protocol version */
+    size += OPAQUE16_LEN;
+#endif
+#if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK)
+    /* cipher suite */
     size += OPAQUE16_LEN + OPAQUE16_LEN;
 #endif
 #ifndef NO_CLIENT_CACHE
@@ -22182,6 +23136,8 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
         }
         data[idx++] = sess->version.major;
         data[idx++] = sess->version.minor;
+#endif
+#if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK)
         data[idx++] = sess->cipherSuite0;
         data[idx++] = sess->cipherSuite;
 #endif
@@ -22308,6 +23264,8 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     }
     s->version.major = data[idx++];
     s->version.minor = data[idx++];
+#endif
+#if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK)
     s->cipherSuite0 = data[idx++];
     s->cipherSuite = data[idx++];
 #endif
@@ -22857,13 +23815,12 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
         return ret;
 #endif
 
-    if (wc_InitRng(tmpRNG) == 0) {
+    if (initGlobalRNG)
+        rng = &globalRNG;
+    else if(wc_InitRng(tmpRNG) == 0) {
         rng = tmpRNG;
         initTmpRng = 1;
     }
-    else if (initGlobalRNG)
-        rng = &globalRNG;
-
     if (rng) {
         if (wc_RNG_GenerateBlock(rng, buf, num) != 0)
             WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");
@@ -30538,7 +31495,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return x509;
     }
 
-#if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
+#if !defined(NO_FILESYSTEM)
     static void* wolfSSL_PEM_read_X509_ex(XFILE fp, void **x,
                                                     pem_password_cb *cb, void *u, int type)
     {
@@ -30655,7 +31612,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         return ret;
     }
-#endif
+#endif /* !NO_FILESYSTEM */
 
     #define PEM_BEGIN              "-----BEGIN "
     #define PEM_BEGIN_SZ           11
@@ -33112,11 +34069,9 @@ WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
     if (x != NULL)
         localDh = *x;
     if (localDh == NULL) {
-        localDh = (WOLFSSL_DH*)XMALLOC(sizeof(WOLFSSL_DH), NULL,
-                                       DYNAMIC_TYPE_OPENSSL);
+        localDh = wolfSSL_DH_new();
         if (localDh == NULL)
             goto end;
-        XMEMSET(localDh, 0, sizeof(WOLFSSL_DH));
     }
 
     /* Load data in manually */
@@ -33154,6 +34109,14 @@ WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
         localDh = NULL;
     }
 
+    if (localDh != NULL && localDh->inSet == 0) {
+        if (SetDhInternal(localDh) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Unable to set internal DH structure");
+            wolfSSL_DH_free(localDh);
+            localDh = NULL;
+        }
+    }
+
 end:
     if (memAlloced) XFREE(mem, NULL, DYNAMIC_TYPE_PEM);
     if (der != NULL) FreeDer(&der);
@@ -33168,6 +34131,174 @@ end:
     return NULL;
 #endif
 }
+
+#ifndef NO_FILESYSTEM
+/* Convert DH key parameters to DER format, write to output (outSz)
+ * If output is NULL then max expected size is set to outSz and LENGTH_ONLY_E is
+ * returned.
+ *
+ * Note : static function due to redefinition complications with DhKey and FIPS
+ * version 2 build.
+ *
+ * return bytes written on success */
+static int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz)
+{
+    word32 sz = 0, idx = 0;
+    int pSz = 0, gSz = 0, ret;
+    byte scratch[MAX_LENGTH_SZ];
+
+    if (key == NULL || outSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    pSz = mp_unsigned_bin_size(&key->p);
+    if (pSz < 0) {
+        return pSz;
+    }
+    if (mp_leading_bit(&key->p)) {
+        pSz++;
+    }
+
+    gSz = mp_unsigned_bin_size(&key->g);
+    if (gSz < 0) {
+        return gSz;
+    }
+    if (mp_leading_bit(&key->g)) {
+        gSz++;
+    }
+
+    sz  = ASN_TAG_SZ; /* Integer */
+    sz += SetLength(pSz, scratch);
+    sz += ASN_TAG_SZ; /* Integer */
+    sz += SetLength(gSz, scratch);
+    sz += gSz + pSz;
+
+    if (out == NULL) {
+        byte seqScratch[MAX_SEQ_SZ];
+
+        *outSz = sz + SetSequence(sz, seqScratch);
+        return LENGTH_ONLY_E;
+    }
+
+    if (*outSz < MAX_SEQ_SZ || *outSz < sz) {
+        return BUFFER_E;
+    }
+
+    idx += SetSequence(sz, out);
+    if (*outSz < idx + sz) {
+        return BUFFER_E;
+    }
+
+    out[idx++] = ASN_INTEGER;
+    idx += SetLength(pSz, out + idx);
+    if (mp_leading_bit(&key->p)) {
+        out[idx++] = 0x00;
+        pSz -= 1; /* subtract 1 from size to account for leading 0 */
+    }
+    ret = mp_to_unsigned_bin(&key->p, out + idx);
+    if (ret != MP_OKAY) {
+        return BUFFER_E;
+    }
+    idx += pSz;
+
+    out[idx++] = ASN_INTEGER;
+    idx += SetLength(gSz, out + idx);
+    if (mp_leading_bit(&key->g)) {
+        out[idx++] = 0x00;
+        gSz -= 1; /* subtract 1 from size to account for leading 0 */
+    }
+    ret = mp_to_unsigned_bin(&key->g, out + idx);
+    if (ret != MP_OKAY) {
+        return BUFFER_E;
+    }
+    idx += gSz;
+    return idx;
+}
+
+
+/* Writes the DH parameters in PEM format from "dh" out to the file pointer
+ * passed in.
+ *
+ * returns WOLFSSL_SUCCESS on success
+ */
+int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh)
+{
+    int ret;
+    word32 derSz = 0, pemSz = 0;
+    byte *der, *pem;
+    DhKey* key;
+
+    WOLFSSL_ENTER("wolfSSL_PEM_write_DHparams");
+
+    if (dh == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", BAD_FUNC_ARG);
+        return WOLFSSL_FAILURE;
+    }
+
+    if (dh->inSet == 0) {
+        if (SetDhInternal(dh) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Unable to set internal DH structure");
+            return WOLFSSL_FAILURE;
+        }
+    }
+    key = (DhKey*)dh->internal;
+    ret = wc_DhParamsToDer(key, NULL, &derSz);
+    if (ret != LENGTH_ONLY_E) {
+        WOLFSSL_MSG("Failed to get size of DH params");
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
+        return WOLFSSL_FAILURE;
+    }
+
+    der = (byte*)XMALLOC(derSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", MEMORY_E);
+        return WOLFSSL_FAILURE;
+    }
+    ret = wc_DhParamsToDer(key, der, &derSz);
+    if (ret <= 0) {
+        WOLFSSL_MSG("Failed to export DH params");
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
+        XFREE(der, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return WOLFSSL_FAILURE;
+    }
+
+    /* convert to PEM */
+    ret = wc_DerToPem(der, derSz, NULL, 0, DH_PARAM_TYPE);
+    if (ret < 0) {
+        WOLFSSL_MSG("Failed to convert DH params to PEM");
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
+        XFREE(der, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+    pemSz = (word32)ret;
+
+    pem = (byte*)XMALLOC(pemSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pem == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", MEMORY_E);
+        XFREE(der, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+    ret = wc_DerToPem(der, derSz, pem, pemSz, DH_PARAM_TYPE);
+    XFREE(der, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ret < 0) {
+        WOLFSSL_MSG("Failed to convert DH params to PEM");
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
+        XFREE(pem, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+
+    ret = (int)XFWRITE(pem, 1, pemSz, fp);
+    XFREE(pem, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ret <= 0) {
+        WOLFSSL_MSG("Failed to write to file");
+        WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", ret);
+        return WOLFSSL_FAILURE;
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_PEM_write_DHparams", WOLFSSL_SUCCESS);
+    return WOLFSSL_SUCCESS;
+}
+#endif /* !NO_FILESYSTEM */
 #endif
 
 #ifdef WOLFSSL_CERT_GEN
@@ -34211,8 +35342,8 @@ int wolfSSL_CTX_get_verify_mode(WOLFSSL_CTX* ctx)
     WOLFSSL_LEAVE("wolfSSL_CTX_get_verify_mode", mode);
     return mode;
 }
-#endif
 
+#endif
 #if defined(OPENSSL_EXTRA) && defined(HAVE_CURVE25519)
 /* return 1 if success, 0 if error
  * output keys are little endian format
@@ -36024,6 +37155,28 @@ PKCS7* wolfSSL_PKCS7_new(void)
 
     return (PKCS7*)pkcs7;
 }
+/******************************************************************************
+* wolfSSL_PKCS7_SIGNED_new - allocates PKCS7 and initialize it for a signed data
+*
+* RETURNS:
+* returns pointer to the PKCS7 structure on success, otherwise returns NULL
+*/
+PKCS7_SIGNED* wolfSSL_PKCS7_SIGNED_new(void)
+{
+    byte signedData[]= { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x02};
+    PKCS7* pkcs7 = NULL;
+
+    if ((pkcs7 = wolfSSL_PKCS7_new()) == NULL)
+        return NULL;
+    pkcs7->contentOID = SIGNED_DATA;
+    if ((wc_PKCS7_SetContentType(pkcs7, signedData, sizeof(signedData))) < 0) {
+        if (pkcs7) {
+            wolfSSL_PKCS7_free(pkcs7);
+            return NULL;
+        }
+    }
+    return pkcs7;
+}
 
 void wolfSSL_PKCS7_free(PKCS7* pkcs7)
 {
@@ -36036,7 +37189,11 @@ void wolfSSL_PKCS7_free(PKCS7* pkcs7)
         XFREE(p7, NULL, DYNAMIC_TYPE_PKCS7);
     }
 }
-
+void wolfSSL_PKCS7_SIGNED_free(PKCS7_SIGNED* p7)
+{
+    wolfSSL_PKCS7_free(p7);
+    return;
+}
 PKCS7* wolfSSL_d2i_PKCS7(PKCS7** p7, const unsigned char** in, int len)
 {
     WOLFSSL_PKCS7* pkcs7 = NULL;
@@ -36175,7 +37332,130 @@ WOLFSSL_STACK* wolfSSL_PKCS7_get0_signers(PKCS7* pkcs7, WOLFSSL_STACK* certs,
 
     return signers;
 }
+
+/******************************************************************************
+* wolfSSL_PEM_write_bio_PKCS7 - writes the PKCS7 data to BIO
+*
+* RETURNS:
+* returns WOLFSSL_SUCCESS on success, otherwise returns WOLFSSL_FAILURE
+*/
+
+int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
+{
+#ifdef WOLFSSL_SMALL_STACK
+    byte* outputHead;
+    byte* outputFoot;
+#else
+    byte outputHead[2048];
+    byte outputFoot[2048];
 #endif
+    word32 outputHeadSz = 2048;
+    word32 outputFootSz = 2048;
+    word32 outputSz = 0;
+    byte*  output = NULL;
+    byte*  pem = NULL;
+    int    pemSz = -1;
+    enum wc_HashType hashType;
+    byte hashBuf[WC_MAX_DIGEST_SIZE];
+    word32 hashSz = -1;
+
+    WOLFSSL_ENTER("wolfSSL_PEM_write_bio_PKCS7()");
+
+    if (bio == NULL || p7 == NULL)
+        return WOLFSSL_FAILURE;
+
+#ifdef WOLFSSL_SMALL_STACK
+    outputHead = (byte*)XMALLOC(outputHeadSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (outputHead == NULL)
+        return MEMORY_E;
+
+    outputFoot = (byte*)XMALLOC(outputFootSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (outputFoot == NULL)
+        goto error;
+
+#endif
+
+    XMEMSET(hashBuf, 0, WC_MAX_DIGEST_SIZE);
+    XMEMSET(outputHead, 0, outputHeadSz);
+    XMEMSET(outputFoot, 0, outputFootSz);
+
+    hashType = wc_OidGetHash(p7->hashOID);
+    hashSz = wc_HashGetDigestSize(hashType);
+    if (hashSz > WC_MAX_DIGEST_SIZE)
+        return WOLFSSL_FAILURE;
+
+    /* only SIGNED_DATA is supported */
+    switch (p7->contentOID) {
+        case SIGNED_DATA:
+            break;
+        default:
+            WOLFSSL_MSG("Unknown PKCS#7 Type");
+            return WOLFSSL_FAILURE;
+    };
+
+    if ((wc_PKCS7_EncodeSignedData_ex(p7, hashBuf, hashSz,
+        outputHead, &outputHeadSz, outputFoot, &outputFootSz)) != 0)
+        return WOLFSSL_FAILURE;
+
+    outputSz = outputHeadSz + p7->contentSz + outputFootSz;
+    output = (byte*)XMALLOC(outputSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (!output)
+         return WOLFSSL_FAILURE;
+
+    XMEMSET(output, 0, outputSz);
+    outputSz = 0;
+    XMEMCPY(&output[outputSz], outputHead, outputHeadSz);
+    outputSz += outputHeadSz;
+    XMEMCPY(&output[outputSz], p7->content, p7->contentSz);
+    outputSz += p7->contentSz;
+    XMEMCPY(&output[outputSz], outputFoot, outputFootSz);
+    outputSz += outputFootSz;
+
+    /* get PEM size */
+    pemSz = wc_DerToPemEx(output, outputSz, NULL, 0, NULL, CERT_TYPE);
+    if (pemSz < 0)
+        goto error;
+
+    pemSz++; /* for '\0'*/
+
+    /* create PEM buffer and convert from DER to PEM*/
+    if ((pem = (byte*)XMALLOC(pemSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+        goto error;
+
+    XMEMSET(pem, 0, pemSz);
+
+    if (wc_DerToPemEx(output, outputSz, pem, pemSz, NULL, CERT_TYPE) < 0) {
+        goto error;
+    }
+    if ((wolfSSL_BIO_write(bio, pem, pemSz) == pemSz)) {
+        XFREE(output, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(outputHead, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(outputFoot, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return WOLFSSL_SUCCESS;
+    }
+
+error:
+#ifdef WOLFSSL_SMALL_STACK
+    if (outputHead) {
+        XFREE(outputHead, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (outputFoot) {
+        XFREE(outputFoot, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+    if (output) {
+        XFREE(output, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    if (pem) {
+        XFREE(pem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    return WOLFSSL_FAILURE;
+}
+#endif /* defined(OPENSSL_ALL) && defined(HAVE_PKCS7) */
 
 #ifdef OPENSSL_ALL
 WOLFSSL_STACK* wolfSSL_sk_X509_new(void)
@@ -36747,4 +38027,3 @@ int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey)
     return wolfSSL_X509_set_pubkey(req, pkey);
 }
 #endif
-
