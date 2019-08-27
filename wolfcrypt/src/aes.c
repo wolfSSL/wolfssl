@@ -5995,7 +5995,7 @@ int AES_GCM_decrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
     byte Tprime[AES_BLOCK_SIZE];
     byte EKY0[AES_BLOCK_SIZE];
 #ifdef OPENSSL_EXTRA
-    word64 aadTemp;
+    word32 aadTemp;
 #endif
     ctr = counter;
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
