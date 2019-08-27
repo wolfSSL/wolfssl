@@ -123,7 +123,7 @@ void wolfSSL_TLS_server_init(byte doClientCheck)
             printf("Error %d loading server-key!\n", ret);
             return;
         }
-#if defined(USE_TSIP_TLS)
+#if defined(WOLFSSL_RENESAS_TSIP)
         doCliCertCheck = 1;
 #endif
         if (doCliCertCheck) {

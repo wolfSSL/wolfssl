@@ -47,7 +47,7 @@ void abort(void);
     #define T4_WORK_SIZE (14800)
     static UW tcpudp_work[(T4_WORK_SIZE / 4) + 1];
 
-#if defined(USE_TSIP_TLS)
+#if defined(WOLFSSL_RENESAS_TSIP)
     #include "key_data.h"
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 
@@ -169,7 +169,7 @@ void main(void)
     printf("End wolfCrypt Benchmark\n");
 #endif
 #elif defined(TLS_CLIENT)
-#if   defined(USE_TSIP_TLS)
+#if   defined(WOLFSSL_RENESAS_TSIP)
     const char* cipherlist[] = {
        /* NULL */
        "AES128-SHA",
@@ -186,7 +186,7 @@ void main(void)
     int i = 0;
 
     Open_tcp();
-#if   defined(USE_TSIP_TLS)
+#if   defined(WOLFSSL_RENESAS_TSIP)
     SetTsiptlsKey();
 #endif
 
@@ -202,7 +202,7 @@ void main(void)
 #elif defined(TLS_SERVER)
 
     Open_tcp();
-#if   defined(USE_TSIP_TLS)
+#if   defined(WOLFSSL_RENESAS_TSIP)
     SetTsiptlsKey();
 #endif
 
