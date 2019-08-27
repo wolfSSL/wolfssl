@@ -5123,8 +5123,8 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
         }
 #ifdef OPENSSL_EXTRA
         /* store AAD partial tag for next call */
-        aes->aadH[0] = x[0];
-        aes->aadH[1] = x[1];
+        aes->aadH[0] = (word32)x[0];
+        aes->aadH[1] = (word32)x[1];
 #endif
     }
 
@@ -5136,8 +5136,8 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
 #ifdef OPENSSL_EXTRA
         /* Start from last AAD partial tag */
         if(aes->aadLen) {
-            x[0] = aes->aadH[0];
-            x[1] = aes->aadH[1];
+            x[0] = (word64)aes->aadH[0];
+            x[1] = (word64)aes->aadH[1];
          }
 #endif
         while (blocks--) {
@@ -5168,7 +5168,7 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
         len[0] = aSz; len[1] = cSz;
 #ifdef OPENSSL_EXTRA
         if (aes->aadLen)
-            len[0] = aes->aadLen;
+            len[0] = (word64)aes->aadLen;
 #endif
         /* Lengths are in bytes. Convert to bits. */
         len[0] *= 8;
@@ -5567,7 +5567,7 @@ int AES_GCM_encrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
     byte *ctr;
     byte scratch[AES_BLOCK_SIZE];
 #ifdef OPENSSL_EXTRA
-    word64 aadTemp;
+    word32 aadTemp;
 #endif
     ctr = counter;
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
