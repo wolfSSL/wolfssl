@@ -560,10 +560,21 @@ WOLFSSL_API int wolfSSL_is_static_memory(WOLFSSL* ssl,
 WOLFSSL_API int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX*, const char*, int);
 WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX*, const char*, int);
 
+#endif
+
+#ifndef NO_CERTS
 #define WOLFSSL_LOAD_FLAG_NONE          0x00000000
 #define WOLFSSL_LOAD_FLAG_IGNORE_ERR    0x00000001
 #define WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY 0x00000002
 #define WOLFSSL_LOAD_FLAG_PEM_CA_ONLY   0x00000004
+
+#ifndef WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS
+#define WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS WOLFSSL_LOAD_FLAG_NONE
+#endif
+#endif /* !NO_CERTS */
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+
 WOLFSSL_API int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX*, const char*,
                                                 const char*, unsigned int);
 WOLFSSL_API int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX*, const char*,
@@ -1795,6 +1806,9 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL*, void* key, unsigned int len,
     WOLFSSL_API int wolfSSL_CTX_trust_peer_buffer(WOLFSSL_CTX*,
                                                const unsigned char*, long, int);
 #endif
+    WOLFSSL_API int wolfSSL_CTX_load_verify_buffer_ex(WOLFSSL_CTX*,
+                                               const unsigned char*, long, int,
+                                               int, word32);
     WOLFSSL_API int wolfSSL_CTX_load_verify_buffer(WOLFSSL_CTX*,
                                                const unsigned char*, long, int);
     WOLFSSL_API int wolfSSL_CTX_load_verify_chain_buffer_format(WOLFSSL_CTX*,

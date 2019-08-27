@@ -4043,10 +4043,10 @@ WOLFSSL_API void SSL_ResourceFree(WOLFSSL*);   /* Micrium uses */
 
     WOLFSSL_LOCAL int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                                     long sz, int format, int type, WOLFSSL* ssl,
-                                    long* used, int userChain);
+                                    long* used, int userChain, int verify);
     WOLFSSL_LOCAL int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format,
                                  int type, WOLFSSL* ssl, int userChain,
-                                WOLFSSL_CRL* crl);
+                                WOLFSSL_CRL* crl, int verify);
 
     #ifdef OPENSSL_EXTRA
     WOLFSSL_LOCAL int CheckHostName(DecodedCert* dCert, char *domainName,

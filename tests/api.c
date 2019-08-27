@@ -967,7 +967,7 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
         WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY | WOLFSSL_LOAD_FLAG_PEM_CA_ONLY),
         WOLFSSL_SUCCESS);
     #else
-    AssertIntNE(wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, load_expired_path,
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, load_expired_path,
         WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY | WOLFSSL_LOAD_FLAG_PEM_CA_ONLY),
         WOLFSSL_SUCCESS);
     #endif
@@ -1094,6 +1094,78 @@ static void test_wolfSSL_CertManagerCRL(void)
     AssertIntEQ(WOLFSSL_SUCCESS,
         wolfSSL_CertManagerLoadCA(cm, ca_cert, NULL));
     wolfSSL_CertManagerFree(cm);
+
+#endif
+}
+
+static void test_wolfSSL_CTX_load_verify_locations_ex(void)
+{
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_RSA)
+    WOLFSSL_CTX* ctx;
+    const char* ca_cert = "./certs/ca-cert.pem";
+    const char* ca_expired_cert = "./certs/test/expired/expired-ca.pem";
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+    /* test good CA */
+    AssertTrue(WOLFSSL_SUCCESS ==
+        wolfSSL_CTX_load_verify_locations_ex(ctx, ca_cert, NULL,
+            WOLFSSL_LOAD_FLAG_NONE));
+
+    /* test expired CA */
+    AssertTrue(WOLFSSL_SUCCESS !=
+        wolfSSL_CTX_load_verify_locations_ex(ctx, ca_expired_cert, NULL,
+            WOLFSSL_LOAD_FLAG_NONE));
+    AssertTrue(WOLFSSL_SUCCESS ==
+        wolfSSL_CTX_load_verify_locations_ex(ctx, ca_expired_cert, NULL,
+            WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY));
+
+    wolfSSL_CTX_free(ctx);
+
+#endif
+}
+
+static void test_wolfSSL_CTX_load_verify_buffer_ex(void)
+{
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_RSA) && \
+    defined(USE_CERT_BUFFERS_2048)
+    WOLFSSL_CTX* ctx;
+    const char* ca_expired_cert_file = "./certs/test/expired/expired-ca.der";
+    byte ca_expired_cert[TWOK_BUF];
+    word32 sizeof_ca_expired_cert;
+    XFILE fp;
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+    /* test good CA */
+    AssertTrue(WOLFSSL_SUCCESS ==
+        wolfSSL_CTX_load_verify_buffer_ex(ctx, ca_cert_der_2048,
+            sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1, 0,
+            WOLFSSL_LOAD_FLAG_NONE));
+
+    /* load expired CA */
+    XMEMSET(ca_expired_cert, 0, sizeof(ca_expired_cert));
+    fp = XFOPEN(ca_expired_cert_file, "rb");
+    AssertTrue(fp != XBADFILE);
+    sizeof_ca_expired_cert = (word32)XFREAD(ca_expired_cert, 1,
+        sizeof(ca_expired_cert), fp);
+    XFCLOSE(fp);
+
+    /* test expired CA failure */
+    AssertTrue(WOLFSSL_SUCCESS !=
+        wolfSSL_CTX_load_verify_buffer_ex(ctx, ca_expired_cert,
+            sizeof_ca_expired_cert, WOLFSSL_FILETYPE_ASN1, 0,
+            WOLFSSL_LOAD_FLAG_NONE));
+
+    /* test expired CA success */
+    AssertTrue(WOLFSSL_SUCCESS ==
+        wolfSSL_CTX_load_verify_buffer_ex(ctx, ca_expired_cert,
+            sizeof_ca_expired_cert, WOLFSSL_FILETYPE_ASN1, 0,
+            WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY));
+
+    wolfSSL_CTX_free(ctx);
 
 #endif
 }
@@ -25562,6 +25634,8 @@ void ApiTest(void)
     test_wolfSSL_CTX_load_verify_locations();
     test_wolfSSL_CertManagerLoadCABuffer();
     test_wolfSSL_CertManagerCRL();
+    test_wolfSSL_CTX_load_verify_locations_ex();
+    test_wolfSSL_CTX_load_verify_buffer_ex();
     test_wolfSSL_CTX_load_verify_chain_buffer_format();
     test_wolfSSL_CTX_use_certificate_chain_file_format();
     test_wolfSSL_CTX_trust_peer_cert();
