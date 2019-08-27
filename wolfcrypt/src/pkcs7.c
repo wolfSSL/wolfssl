@@ -3447,6 +3447,9 @@ static int wc_PKCS7_VerifyContentMessageDigest(PKCS7* pkcs7,
     }
 
     /* advance past attrib->value ASN.1 header and length */
+    if (attrib->value == NULL || attrib->valueSz == 0)
+        return ASN_PARSE_E;
+
     if (attrib->value[idx++] != ASN_OCTET_STRING)
         return ASN_PARSE_E;
 
