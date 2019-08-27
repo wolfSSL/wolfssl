@@ -1065,22 +1065,23 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
 */
 WOLFSSL_API int wolfSSL_EVP_PKEY_sign_init(WOLFSSL_EVP_PKEY_CTX *ctx)
 {
+    int ret = -2;
 
     WOLFSSL_MSG("wolfSSL_EVP_PKEY_sign_init");
     if (!ctx  || !ctx->pkey)
-        return -2;
+        return ret;
 
     switch (ctx->pkey->type) {
         case EVP_PKEY_RSA:
             ctx->op = EVP_PKEY_OP_SIGN;
-            return WOLFSSL_SUCCESS;
+            ret = WOLFSSL_SUCCESS;
         case EVP_PKEY_EC:
             WOLFSSL_MSG("not implemented");
             FALL_THROUGH;
         default:
-            return -2;
+            ret = -2;
     }
-    return WOLFSSL_SUCCESS;
+    return ret;
 }
 /******************************************************************************
 * wolfSSL_EVP_PKEY_sign - performs a public key signing operation using ctx
