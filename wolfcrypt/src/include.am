@@ -79,7 +79,11 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/Espressif/esp32_mp.c \
               wolfcrypt/src/port/Espressif/README.md \
               wolfcrypt/src/port/arm/cryptoCell.c \
-              wolfcrypt/src/port/arm/cryptoCellHash.c
+              wolfcrypt/src/port/arm/cryptoCellHash.c \
+              wolfcrypt/src/port/Renesas/renesas_tsip_aes.c \
+              wolfcrypt/src/port/Renesas/renesas_tsip_sha.c \
+              wolfcrypt/src/port/Renesas/renesas_tsip_util.c \
+              wolfcrypt/src/port/Renesas/README_TSIP.md
 
 
 if BUILD_CRYPTOCB

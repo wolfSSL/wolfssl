@@ -32,27 +32,28 @@
 		<link>
 			<name>src/benchmark.c</name>
 			<type>1</type>
-			<locationURI>copy_PARENT1/wolfcrypt/benchmark/benchmark.c</locationURI>
+			<locationURI>$%7BPARENT-5-PROJECT_LOC%7D/wolfcrypt/benchmark/benchmark.c</locationURI>
 		</link>
 		<link>
 			<name>src/benchmark.h</name>
 			<type>1</type>
-			<locationURI>copy_PARENT1/wolfcrypt/benchmark/benchmark.h</locationURI>
+			<locationURI>$%7BPARENT-5-PROJECT_LOC%7D/wolfcrypt/benchmark/benchmark.h</locationURI>
 		</link>
 		<link>
 			<name>src/test.c</name>
 			<type>1</type>
-			<locationURI>copy_PARENT1/wolfcrypt/test/test.c</locationURI>
+			<locationURI>PARENT-5-PROJECT_LOC/wolfcrypt/test/test.c</locationURI>
+		</link>
+		<link>
+			<name>src/wolfssl_dummy.c</name>
+			<type>1</type>
+			<locationURI>$%7BPARENT-1-PROJECT_LOC%7D/common/wolfssl_dummy.c</locationURI>
 		</link>
 	</linkedResources>
 	<variableList>
 		<variable>
 			<name>copy_PARENT</name>
 			<value>$%7BPARENT-3-ECLIPSE_HOME%7D/workspace/wolfssl</value>
-		</variable>
-		<variable>
-			<name>copy_PARENT1</name>
-			<value>$%7BPARENT-1-copy_PARENT%7D/wolfssl_tsip</value>
 		</variable>
 	</variableList>
 </projectDescription>

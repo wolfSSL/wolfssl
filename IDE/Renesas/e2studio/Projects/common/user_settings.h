@@ -73,14 +73,13 @@
     #define OPENSSL_EXTRA
     #define WOLFSSL_GENSEED_FORTEST /* Wardning: define your own seed gen */
 #else
-    #define NO_DES3
 #if defined(WOLFSSL_RENESAS_RX65N)
      /* In the case of Static RSA and AES-CBC use */
     #define HAVE_AES_CBC
     #define WOLFSSL_STATIC_RSA
-    /* for disabling TSIP CRYPT                    */
-    /* #define NO_RENESAS_TSIP_CRYPT               */
-    /* for disabling TSIP TLS COMMON CRYPT         */
+    /* for disabling TSIP CRYPT and TSIP TLS */
+    /* #define NO_RENESAS_TSIP_CRYPT */
+    /* for disabling only TSIP TLS-linked Common key encryption method */
     /* #define NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION */
 #endif
 #endif
