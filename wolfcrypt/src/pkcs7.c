@@ -3399,6 +3399,121 @@ static int wc_PKCS7_BuildSignedDataDigest(PKCS7* pkcs7, byte* signedAttrib,
 }
 
 
+/* Verifies CMS/PKCS7 SignedData content digest matches that which is
+ * included in the messageDigest signed attribute. Only called when
+ * signed attributes are present, otherwise original signature verification
+ * is done over content.
+ *
+ * pkcs7          - pointer to initialized PKCS7 struct
+ * hashBuf        - pointer to user-provided hash buffer, used with
+ *                  wc_PKCS7_VerifySignedData_ex()
+ * hashBufSz      - size of hashBuf, octets
+ *
+ * return 0 on success, negative on error */
+static int wc_PKCS7_VerifyContentMessageDigest(PKCS7* pkcs7,
+                                               const byte* hashBuf,
+                                               word32 hashSz)
+{
+    int ret = 0, innerAttribSz = 0;
+    word32 digestSz = 0, idx = 0;
+    byte* digestBuf = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    byte* digest = NULL;
+#else
+    byte  digest[MAX_PKCS7_DIGEST_SZ];
+#endif
+    PKCS7DecodedAttrib* attrib;
+    enum wc_HashType hashType;
+
+    /* messageDigest OID (1.2.840.113549.1.9.4) */
+    const byte mdOid[] =
+            { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x04 };
+
+    if (pkcs7 == NULL)
+        return BAD_FUNC_ARG;
+
+    if ((pkcs7->content == NULL || pkcs7->contentSz == 0) &&
+        (hashBuf == NULL || hashSz == 0)) {
+        WOLFSSL_MSG("SignedData bundle has no content or hash to verify");
+        return BAD_FUNC_ARG;
+    }
+
+    /* lookup messageDigest attribute */
+    attrib = findAttrib(pkcs7, mdOid, sizeof(mdOid));
+    if (attrib == NULL) {
+        WOLFSSL_MSG("messageDigest attribute not in bundle, must be when "
+                    "signed attribs are present");
+        return ASN_PARSE_E;
+    }
+
+    /* advance past attrib->value ASN.1 header and length */
+    if (attrib->value == NULL || attrib->valueSz == 0)
+        return ASN_PARSE_E;
+
+    if (attrib->value[idx++] != ASN_OCTET_STRING)
+        return ASN_PARSE_E;
+
+    if (GetLength(attrib->value, &idx, &innerAttribSz, attrib->valueSz) < 0)
+        return ASN_PARSE_E;
+
+    /* get hash type and size */
+    hashType = wc_OidGetHash(pkcs7->hashOID);
+    if (hashType == WC_HASH_TYPE_NONE) {
+        WOLFSSL_MSG("Error getting hash type for PKCS7 content verification");
+        return BAD_FUNC_ARG;
+    }
+
+    /* build content hash if needed, or use existing hash value */
+    if (hashBuf == NULL) {
+
+#ifdef WOLFSSL_SMALL_STACK
+        digest = (byte*)XMALLOC(MAX_PKCS7_DIGEST_SZ, pkcs7->heap,
+                                DYNAMIC_TYPE_TMP_BUFFER);
+        if (digest == NULL)
+            return MEMORY_E;
+#endif
+        XMEMSET(digest, 0, MAX_PKCS7_DIGEST_SZ);
+
+        ret = wc_Hash(hashType, pkcs7->content, pkcs7->contentSz, digest,
+                      MAX_PKCS7_DIGEST_SZ);
+        if (ret < 0) {
+            WOLFSSL_MSG("Error hashing PKCS7 content for verification");
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+            return ret;
+        }
+
+        digestBuf = digest;
+        digestSz = wc_HashGetDigestSize(hashType);
+
+    } else {
+
+        /* user passed in pre-computed hash */
+        digestBuf = (byte*)hashBuf;
+        digestSz  = hashSz;
+    }
+
+    /* compare generated to hash in messageDigest attribute */
+    if ((innerAttribSz != (int)digestSz) ||
+        (XMEMCMP(attrib->value + idx, digestBuf, digestSz) != 0)) {
+        WOLFSSL_MSG("Content digest does not match messageDigest attrib value");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return SIG_VERIFY_E;
+    }
+
+    if (hashBuf == NULL) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    }
+
+    return 0;
+}
+
+
 /* verifies SignedData signature, over either PKCS#7 DigestInfo or
  * content digest.
  *
@@ -3426,7 +3541,7 @@ static int wc_PKCS7_SignedDataVerifySignature(PKCS7* pkcs7, byte* sig,
     if (pkcs7 == NULL)
         return BAD_FUNC_ARG;
 
-    /* build hash to verify against */
+    /* allocate space to build hash */
     pkcs7DigestSz = MAX_PKCS7_DIGEST_SZ;
 #ifdef WOLFSSL_SMALL_STACK
     pkcs7Digest = (byte*)XMALLOC(pkcs7DigestSz, pkcs7->heap,
@@ -3437,6 +3552,18 @@ static int wc_PKCS7_SignedDataVerifySignature(PKCS7* pkcs7, byte* sig,
 
     XMEMSET(pkcs7Digest, 0, pkcs7DigestSz);
 
+    /* verify signed attrib digest matches that of content */
+    if (signedAttrib != NULL) {
+        ret = wc_PKCS7_VerifyContentMessageDigest(pkcs7, hashBuf, hashSz);
+        if (ret != 0) {
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(pkcs7Digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+            return ret;
+        }
+    }
+
+    /* build hash to verify against */
     ret = wc_PKCS7_BuildSignedDataDigest(pkcs7, signedAttrib,
                                          signedAttribSz, pkcs7Digest,
                                          &pkcs7DigestSz, &plainDigest,
