@@ -13791,6 +13791,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                                     int arg, void *ptr)
     {
         int ret = WOLFSSL_FAILURE;
+        if (ctx == NULL)
+            return WOLFSSL_FAILURE;
+
         (void)arg;
         (void)ptr;
 
@@ -13812,7 +13815,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret = wolfSSL_EVP_CIPHER_CTX_set_iv_length(ctx, arg);
                 break;
             case EVP_CTRL_AEAD_SET_TAG:
-                if(arg <= 0 || arg > 16)
+                if(arg <= 0 || arg > 16 || (ptr == NULL))
                     return WOLFSSL_FAILURE;
 
                 XMEMCPY(ctx->authTag, ptr, arg);
@@ -14356,6 +14359,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return WOLFSSL_SUCCESS;
     }
 #if defined(HAVE_AESGCM)
+    /* returns WOLFSSL_SUCCESS on success, otherwise returns WOLFSSL_FAILURE */
     int wolfSSL_EVP_CIPHER_CTX_set_iv_length(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                              int ivLen)
     {
@@ -30542,7 +30546,7 @@ int wolfSSL_RSA_print(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa, int offset)
         return WOLFSSL_FAILURE;
     }
 
-    for (i=0; i<8; i++) {
+    for (i=0; i<RSA_INTS; i++) {
         switch(i) {
             case 0:
                 /* Print out modulus */
