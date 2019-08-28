@@ -758,7 +758,7 @@
     #if defined(WOLFSSL_AESNI) || defined(WOLFSSL_ARMASM) || \
         defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_AFALG_XILINX)
         #if !defined(ALIGN16)
-            #if defined(__GNUC__)
+            #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
                 #define ALIGN16 __attribute__ ( (aligned (16)))
             #elif defined(_MSC_VER)
                 /* disable align warning, we want alignment ! */
@@ -770,7 +770,7 @@
         #endif /* !ALIGN16 */
 
         #if !defined (ALIGN32)
-            #if defined (__GNUC__)
+            #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
                 #define ALIGN32 __attribute__ ( (aligned (32)))
             #elif defined(_MSC_VER)
                 /* disable align warning, we want alignment ! */
@@ -782,7 +782,7 @@
         #endif /* !ALIGN32 */
 
         #if !defined(ALIGN64)
-            #if defined(__GNUC__)
+            #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
                 #define ALIGN64 __attribute__ ( (aligned (64)))
             #elif defined(_MSC_VER)
                 /* disable align warning, we want alignment ! */
@@ -793,7 +793,7 @@
             #endif
         #endif /* !ALIGN64 */
 
-        #if defined(__GNUC__)
+        #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
             #define ALIGN128 __attribute__ ( (aligned (128)))
         #elif defined(_MSC_VER)
             /* disable align warning, we want alignment ! */
@@ -803,7 +803,7 @@
             #define ALIGN128
         #endif
 
-        #if defined(__GNUC__)
+        #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
             #define ALIGN256 __attribute__ ( (aligned (256)))
         #elif defined(_MSC_VER)
             /* disable align warning, we want alignment ! */
@@ -847,7 +847,7 @@
     #endif
 
 
-    #if defined(__GNUC__)
+    #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
         #define WOLFSSL_PACK __attribute__ ((packed))
     #else
         #define WOLFSSL_PACK
@@ -862,7 +862,7 @@
         #endif
     #endif
 
-    #if defined(__GNUC__)
+    #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
         #define WC_NORETURN __attribute__((noreturn))
     #else
         #define WC_NORETURN

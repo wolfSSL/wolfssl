@@ -91,7 +91,7 @@
 
 #if defined(_MSC_VER)
     #define SHA256_NOINLINE __declspec(noinline)
-#elif defined(__GNUC__)
+#elif defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
     #define SHA256_NOINLINE __attribute__((noinline))
 #else
     #define SHA256_NOINLINE
