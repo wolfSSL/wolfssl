@@ -5123,8 +5123,10 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
         }
 #ifdef OPENSSL_EXTRA
         /* store AAD partial tag for next call */
-        aes->aadH[0] = (word32)x[0];
-        aes->aadH[1] = (word32)x[1];
+        aes->aadH[0] = (word32)((x[0] & 0xFFFFFFFF00000000) >> 32);
+        aes->aadH[1] = (word32)(x[0] & 0xFFFFFFFF);
+        aes->aadH[2] = (word32)((x[1] & 0xFFFFFFFF00000000) >> 32);
+        aes->aadH[3] = (word32)(x[1] & 0xFFFFFFFF);
 #endif
     }
 
@@ -5136,8 +5138,8 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
 #ifdef OPENSSL_EXTRA
         /* Start from last AAD partial tag */
         if(aes->aadLen) {
-            x[0] = (word64)aes->aadH[0];
-            x[1] = (word64)aes->aadH[1];
+            x[0] = ((word64)aes->aadH[0]) << 32 | aes->aadH[1];
+            x[1] = ((word64)aes->aadH[2]) << 32 | aes->aadH[3];
          }
 #endif
         while (blocks--) {

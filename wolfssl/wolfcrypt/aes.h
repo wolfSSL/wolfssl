@@ -146,7 +146,7 @@ typedef struct Aes {
 #ifdef HAVE_AESGCM
     ALIGN16 byte H[AES_BLOCK_SIZE];
 #ifdef OPENSSL_EXTRA
-    word32 aadH[2]; /* additional authenticated data GASH */
+    word32 aadH[4]; /* additional authenticated data GHASH */
     word32 aadLen;  /* additional authenticated data len */
 #endif
 
