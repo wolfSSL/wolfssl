@@ -209,7 +209,7 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
 
     /* public key : y = g^x mod p */
     if (err == MP_OKAY)
-        err = mp_exptmod(&dsa->g, &dsa->x, &dsa->p, &dsa->y);
+        err = mp_exptmod_ex(&dsa->g, &dsa->x, dsa->q.used, &dsa->p, &dsa->y);
 
     if (err == MP_OKAY)
         dsa->type = DSA_PRIVATE;
@@ -662,10 +662,11 @@ int wc_DsaExportKeyRaw(DsaKey* dsa, byte* x, word32* xSz, byte* y, word32* ySz)
 
 int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
 {
-    mp_int k, kInv, r, s, H;
-    int    ret, sz;
-    byte   buffer[DSA_HALF_SIZE];
-    byte*  tmp;  /* initial output pointer */
+    mp_int  k, kInv, r, s, H;
+    mp_int* qMinus1;
+    int     ret = 0, sz;
+    byte    buffer[DSA_HALF_SIZE];
+    byte*   tmp;  /* initial output pointer */
 
     if (digest == NULL || out == NULL || key == NULL || rng == NULL) {
         return BAD_FUNC_ARG;
@@ -677,33 +678,45 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
 
     if (mp_init_multi(&k, &kInv, &r, &s, &H, 0) != MP_OKAY)
         return MP_INIT_E;
+    qMinus1 = &kInv;
 
-    do {
-        /* generate k */
-        ret = wc_RNG_GenerateBlock(rng, buffer, sz);
-        if (ret != 0)
-            return ret;
+    /* NIST FIPS 186-4: B.2.2
+     * Per-Message Secret Number Generation by Testing Candidates
+     * Generate k in range [1, q-1].
+     *   Check that k is less than q-1: range [0, q-2].
+     *   Add 1 to k: range [1, q-1].
+     */
+    if (mp_sub_d(&key->q, 1, qMinus1))
+        ret = MP_SUB_E;
 
-        buffer[0] |= 0x0C;
+    if (ret == 0) {
+        do {
+            /* Step 4: generate k */
+            ret = wc_RNG_GenerateBlock(rng, buffer, sz);
 
-        if (mp_read_unsigned_bin(&k, buffer, sz) != MP_OKAY)
-            ret = MP_READ_E;
+            /* Step 5 */
+            if (ret == 0 && mp_read_unsigned_bin(&k, buffer, sz) != MP_OKAY)
+                ret = MP_READ_E;
 
-        /* k is a random numnber and it should be less than q
-         * if k greater than repeat
-         */
-    } while (mp_cmp(&k, &key->q) != MP_LT);
-
-    if (ret == 0 && mp_cmp_d(&k, 1) != MP_GT)
-        ret = MP_CMP_E;
+            /* k is a random numnber and it should be less than q-1
+             * if k greater than repeat
+             */
+        /* Step 6 */
+        } while (ret == 0 && mp_cmp(&k, qMinus1) != MP_LT);
+    }
+    /* Step 7 */
+    if (ret == 0 && mp_add_d(&k, 1, &k) != MP_OKAY)
+        ret = MP_MOD_E;
 
     /* inverse k mod q */
     if (ret == 0 && mp_invmod(&k, &key->q, &kInv) != MP_OKAY)
         ret = MP_INVMOD_E;
 
     /* generate r, r = (g exp k mod p) mod q */
-    if (ret == 0 && mp_exptmod(&key->g, &k, &key->p, &r) != MP_OKAY)
+    if (ret == 0 && mp_exptmod_ex(&key->g, &k, key->q.used, &key->p,
+                                                               &r) != MP_OKAY) {
         ret = MP_EXPTMOD_E;
+    }
 
     if (ret == 0 && mp_mod(&r, &key->q, &r) != MP_OKAY)
         ret = MP_MOD_E;

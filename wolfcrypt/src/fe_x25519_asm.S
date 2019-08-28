@@ -1,6 +1,6 @@
 /* fe_x25519_asm
  *
- * Copyright (C) 2006-2018 wolfSSL Inc.
+ * Copyright (C) 2006-2019 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -39,7 +39,11 @@ fe_init:
 _fe_init:
 #endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
-        movl	cpuFlagsSet(%rip), %eax
+#ifndef __APPLE__
+        movl	cpuFlagsSet@GOTPCREL(%rip), %eax
+#else
+        movl	_cpuFlagsSet(%rip), %eax
+#endif /* __APPLE__ */
         testl	%eax, %eax
         je	L_fe_init_get_flags
         repz retq
@@ -49,96 +53,160 @@ L_fe_init_get_flags:
 #else
         callq	_cpuid_get_flags
 #endif /* __APPLE__ */
-        movl	%eax, intelFlags(%rip)
+#ifndef __APPLE__
+        movl	%eax, intelFlags@GOTPCREL(%rip)
+#else
+        movl	%eax, _intelFlags(%rip)
+#endif /* __APPLE__ */
         andl	$0x50, %eax
         cmpl	$0x50, %eax
         jne	L_fe_init_flags_done
 #ifndef __APPLE__
         movq	fe_mul_avx2@GOTPCREL(%rip), %rax
 #else
-        movq	fe_mul_avx2(%rip), %rax
+        leaq	_fe_mul_avx2(%rip), %rax
 #endif /* __APPLE__ */
-        movq	%rax, fe_mul_p(%rip)
+#ifndef __APPLE__
+        movq	%rax, fe_mul_p@GOTPCREL(%rip)
+#else
+        movq	%rax, _fe_mul_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
         movq	fe_sq_avx2@GOTPCREL(%rip), %rax
 #else
-        movq	fe_sq_avx2(%rip), %rax
+        leaq	_fe_sq_avx2(%rip), %rax
 #endif /* __APPLE__ */
-        movq	%rax, fe_sq_p(%rip)
+#ifndef __APPLE__
+        movq	%rax, fe_sq_p@GOTPCREL(%rip)
+#else
+        movq	%rax, _fe_sq_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
         movq	fe_mul121666_avx2@GOTPCREL(%rip), %rax
 #else
-        movq	fe_mul121666_avx2(%rip), %rax
+        leaq	_fe_mul121666_avx2(%rip), %rax
 #endif /* __APPLE__ */
-        movq	%rax, fe_mul121666_p(%rip)
+#ifndef __APPLE__
+        movq	%rax, fe_mul121666_p@GOTPCREL(%rip)
+#else
+        movq	%rax, _fe_mul121666_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
         movq	fe_sq2_avx2@GOTPCREL(%rip), %rax
 #else
-        movq	fe_sq2_avx2(%rip), %rax
+        leaq	_fe_sq2_avx2(%rip), %rax
 #endif /* __APPLE__ */
-        movq	%rax, fe_sq2_p(%rip)
+#ifndef __APPLE__
+        movq	%rax, fe_sq2_p@GOTPCREL(%rip)
+#else
+        movq	%rax, _fe_sq2_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
         movq	fe_invert_avx2@GOTPCREL(%rip), %rax
 #else
-        movq	fe_invert_avx2(%rip), %rax
+        leaq	_fe_invert_avx2(%rip), %rax
 #endif /* __APPLE__ */
-        movq	%rax, fe_invert_p(%rip)
+#ifndef __APPLE__
+        movq	%rax, fe_invert_p@GOTPCREL(%rip)
+#else
+        movq	%rax, _fe_invert_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
         movq	curve25519_avx2@GOTPCREL(%rip), %rax
 #else
-        movq	curve25519_avx2(%rip), %rax
+        leaq	_curve25519_avx2(%rip), %rax
 #endif /* __APPLE__ */
-        movq	%rax, curve25519_p(%rip)
+#ifndef __APPLE__
+        movq	%rax, curve25519_p@GOTPCREL(%rip)
+#else
+        movq	%rax, _curve25519_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
         movq	fe_pow22523_avx2@GOTPCREL(%rip), %rax
 #else
-        movq	fe_pow22523_avx2(%rip), %rax
+        leaq	_fe_pow22523_avx2(%rip), %rax
 #endif /* __APPLE__ */
-        movq	%rax, fe_pow22523_p(%rip)
+#ifndef __APPLE__
+        movq	%rax, fe_pow22523_p@GOTPCREL(%rip)
+#else
+        movq	%rax, _fe_pow22523_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
         movq	fe_ge_to_p2_avx2@GOTPCREL(%rip), %rax
 #else
-        movq	fe_ge_to_p2_avx2(%rip), %rax
+        leaq	_fe_ge_to_p2_avx2(%rip), %rax
 #endif /* __APPLE__ */
-        movq	%rax, fe_ge_to_p2_p(%rip)
+#ifndef __APPLE__
+        movq	%rax, fe_ge_to_p2_p@GOTPCREL(%rip)
+#else
+        movq	%rax, _fe_ge_to_p2_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
         movq	fe_ge_to_p3_avx2@GOTPCREL(%rip), %rax
 #else
-        movq	fe_ge_to_p3_avx2(%rip), %rax
+        leaq	_fe_ge_to_p3_avx2(%rip), %rax
 #endif /* __APPLE__ */
-        movq	%rax, fe_ge_to_p3_p(%rip)
+#ifndef __APPLE__
+        movq	%rax, fe_ge_to_p3_p@GOTPCREL(%rip)
+#else
+        movq	%rax, _fe_ge_to_p3_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
         movq	fe_ge_dbl_avx2@GOTPCREL(%rip), %rax
 #else
-        movq	fe_ge_dbl_avx2(%rip), %rax
+        leaq	_fe_ge_dbl_avx2(%rip), %rax
 #endif /* __APPLE__ */
-        movq	%rax, fe_ge_dbl_p(%rip)
+#ifndef __APPLE__
+        movq	%rax, fe_ge_dbl_p@GOTPCREL(%rip)
+#else
+        movq	%rax, _fe_ge_dbl_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
         movq	fe_ge_madd_avx2@GOTPCREL(%rip), %rax
 #else
-        movq	fe_ge_madd_avx2(%rip), %rax
+        leaq	_fe_ge_madd_avx2(%rip), %rax
 #endif /* __APPLE__ */
-        movq	%rax, fe_ge_madd_p(%rip)
+#ifndef __APPLE__
+        movq	%rax, fe_ge_madd_p@GOTPCREL(%rip)
+#else
+        movq	%rax, _fe_ge_madd_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
         movq	fe_ge_msub_avx2@GOTPCREL(%rip), %rax
 #else
-        movq	fe_ge_msub_avx2(%rip), %rax
+        leaq	_fe_ge_msub_avx2(%rip), %rax
 #endif /* __APPLE__ */
-        movq	%rax, fe_ge_msub_p(%rip)
+#ifndef __APPLE__
+        movq	%rax, fe_ge_msub_p@GOTPCREL(%rip)
+#else
+        movq	%rax, _fe_ge_msub_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
         movq	fe_ge_add_avx2@GOTPCREL(%rip), %rax
 #else
-        movq	fe_ge_add_avx2(%rip), %rax
+        leaq	_fe_ge_add_avx2(%rip), %rax
 #endif /* __APPLE__ */
-        movq	%rax, fe_ge_add_p(%rip)
+#ifndef __APPLE__
+        movq	%rax, fe_ge_add_p@GOTPCREL(%rip)
+#else
+        movq	%rax, _fe_ge_add_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
         movq	fe_ge_sub_avx2@GOTPCREL(%rip), %rax
 #else
-        movq	fe_ge_sub_avx2(%rip), %rax
+        leaq	_fe_ge_sub_avx2(%rip), %rax
 #endif /* __APPLE__ */
-        movq	%rax, fe_ge_sub_p(%rip)
+#ifndef __APPLE__
+        movq	%rax, fe_ge_sub_p@GOTPCREL(%rip)
+#else
+        movq	%rax, _fe_ge_sub_p(%rip)
+#endif /* __APPLE__ */
 L_fe_init_flags_done:
-        movl	$0x01, cpuFlagsSet(%rip)
+#ifndef __APPLE__
+        movl	$0x1, cpuFlagsSet@GOTPCREL(%rip)
+#else
+        movl	$0x1, _cpuFlagsSet(%rip)
+#endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
         repz retq
 #ifndef __APPLE__
@@ -828,7 +896,11 @@ fe_mul:
 .p2align	2
 _fe_mul:
 #endif /* __APPLE__ */
+#ifndef __APPLE__
         jmpq	*fe_mul_p(%rip)
+#else
+        jmpq	*_fe_mul_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .size	fe_mul,.-fe_mul
 #endif /* __APPLE__ */
@@ -844,7 +916,11 @@ fe_sq:
 .p2align	2
 _fe_sq:
 #endif /* __APPLE__ */
+#ifndef __APPLE__
         jmpq	*fe_sq_p(%rip)
+#else
+        jmpq	*_fe_sq_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .size	fe_sq,.-fe_sq
 #endif /* __APPLE__ */
@@ -860,7 +936,11 @@ fe_mul121666:
 .p2align	2
 _fe_mul121666:
 #endif /* __APPLE__ */
+#ifndef __APPLE__
         jmpq	*fe_mul121666_p(%rip)
+#else
+        jmpq	*_fe_mul121666_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .size	fe_mul121666,.-fe_mul121666
 #endif /* __APPLE__ */
@@ -876,7 +956,11 @@ fe_sq2:
 .p2align	2
 _fe_sq2:
 #endif /* __APPLE__ */
+#ifndef __APPLE__
         jmpq	*fe_sq2_p(%rip)
+#else
+        jmpq	*_fe_sq2_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .size	fe_sq2,.-fe_sq2
 #endif /* __APPLE__ */
@@ -892,7 +976,11 @@ fe_invert:
 .p2align	2
 _fe_invert:
 #endif /* __APPLE__ */
+#ifndef __APPLE__
         jmpq	*fe_invert_p(%rip)
+#else
+        jmpq	*_fe_invert_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .size	fe_invert,.-fe_invert
 #endif /* __APPLE__ */
@@ -908,7 +996,11 @@ curve25519:
 .p2align	2
 _curve25519:
 #endif /* __APPLE__ */
+#ifndef __APPLE__
         jmpq	*curve25519_p(%rip)
+#else
+        jmpq	*_curve25519_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .size	curve25519,.-curve25519
 #endif /* __APPLE__ */
@@ -924,7 +1016,11 @@ fe_pow22523:
 .p2align	2
 _fe_pow22523:
 #endif /* __APPLE__ */
+#ifndef __APPLE__
         jmpq	*fe_pow22523_p(%rip)
+#else
+        jmpq	*_fe_pow22523_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .size	fe_pow22523,.-fe_pow22523
 #endif /* __APPLE__ */
@@ -940,7 +1036,11 @@ fe_ge_to_p2:
 .p2align	2
 _fe_ge_to_p2:
 #endif /* __APPLE__ */
+#ifndef __APPLE__
         jmpq	*fe_ge_to_p2_p(%rip)
+#else
+        jmpq	*_fe_ge_to_p2_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .size	fe_ge_to_p2,.-fe_ge_to_p2
 #endif /* __APPLE__ */
@@ -956,7 +1056,11 @@ fe_ge_to_p3:
 .p2align	2
 _fe_ge_to_p3:
 #endif /* __APPLE__ */
+#ifndef __APPLE__
         jmpq	*fe_ge_to_p3_p(%rip)
+#else
+        jmpq	*_fe_ge_to_p3_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .size	fe_ge_to_p3,.-fe_ge_to_p3
 #endif /* __APPLE__ */
@@ -972,7 +1076,11 @@ fe_ge_dbl:
 .p2align	2
 _fe_ge_dbl:
 #endif /* __APPLE__ */
+#ifndef __APPLE__
         jmpq	*fe_ge_dbl_p(%rip)
+#else
+        jmpq	*_fe_ge_dbl_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .size	fe_ge_dbl,.-fe_ge_dbl
 #endif /* __APPLE__ */
@@ -988,7 +1096,11 @@ fe_ge_madd:
 .p2align	2
 _fe_ge_madd:
 #endif /* __APPLE__ */
+#ifndef __APPLE__
         jmpq	*fe_ge_madd_p(%rip)
+#else
+        jmpq	*_fe_ge_madd_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .size	fe_ge_madd,.-fe_ge_madd
 #endif /* __APPLE__ */
@@ -1004,7 +1116,11 @@ fe_ge_msub:
 .p2align	2
 _fe_ge_msub:
 #endif /* __APPLE__ */
+#ifndef __APPLE__
         jmpq	*fe_ge_msub_p(%rip)
+#else
+        jmpq	*_fe_ge_msub_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .size	fe_ge_msub,.-fe_ge_msub
 #endif /* __APPLE__ */
@@ -1020,7 +1136,11 @@ fe_ge_add:
 .p2align	2
 _fe_ge_add:
 #endif /* __APPLE__ */
+#ifndef __APPLE__
         jmpq	*fe_ge_add_p(%rip)
+#else
+        jmpq	*_fe_ge_add_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .size	fe_ge_add,.-fe_ge_add
 #endif /* __APPLE__ */
@@ -1036,90 +1156,206 @@ fe_ge_sub:
 .p2align	2
 _fe_ge_sub:
 #endif /* __APPLE__ */
+#ifndef __APPLE__
         jmpq	*fe_ge_sub_p(%rip)
+#else
+        jmpq	*_fe_ge_sub_p(%rip)
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .size	fe_ge_sub,.-fe_ge_sub
 #endif /* __APPLE__ */
-	.data
-	.type	cpuFlagsSet, @object
-	.size	cpuFlagsSet,4
+#ifndef __APPLE__
+.data
+.type	cpuFlagsSet, @object
+.size	cpuFlagsSet,4
 cpuFlagsSet:
 	.long	0
-	.data
-	.type	intelFlags, @object
-	.size	intelFlags,4
+#else
+.section	__DATA,__data
+.p2align	2
+_cpuFlagsSet:
+	.long	0
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+.type	intelFlags, @object
+.size	intelFlags,4
 intelFlags:
 	.long	0
-	.data
-	.type	fe_mul_p, @object
-	.size	fe_mul_p,8
+#else
+.section	__DATA,__data
+.p2align	2
+_intelFlags:
+	.long	0
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+.type	fe_mul_p, @object
+.size	fe_mul_p,8
 fe_mul_p:
 	.quad	fe_mul_x64
-	.data
-	.type	fe_sq_p, @object
-	.size	fe_sq_p,8
+#else
+.section	__DATA,__data
+.p2align	2
+_fe_mul_p:
+	.quad	_fe_mul_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+.type	fe_sq_p, @object
+.size	fe_sq_p,8
 fe_sq_p:
 	.quad	fe_sq_x64
-	.data
-	.type	fe_mul121666_p, @object
-	.size	fe_mul121666_p,8
+#else
+.section	__DATA,__data
+.p2align	2
+_fe_sq_p:
+	.quad	_fe_sq_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+.type	fe_mul121666_p, @object
+.size	fe_mul121666_p,8
 fe_mul121666_p:
 	.quad	fe_mul121666_x64
-	.data
-	.type	fe_sq2_p, @object
-	.size	fe_sq2_p,8
+#else
+.section	__DATA,__data
+.p2align	2
+_fe_mul121666_p:
+	.quad	_fe_mul121666_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+.type	fe_sq2_p, @object
+.size	fe_sq2_p,8
 fe_sq2_p:
 	.quad	fe_sq2_x64
-	.data
-	.type	fe_invert_p, @object
-	.size	fe_invert_p,8
+#else
+.section	__DATA,__data
+.p2align	2
+_fe_sq2_p:
+	.quad	_fe_sq2_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+.type	fe_invert_p, @object
+.size	fe_invert_p,8
 fe_invert_p:
 	.quad	fe_invert_x64
-	.data
-	.type	curve25519_p, @object
-	.size	curve25519_p,8
+#else
+.section	__DATA,__data
+.p2align	2
+_fe_invert_p:
+	.quad	_fe_invert_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+.type	curve25519_p, @object
+.size	curve25519_p,8
 curve25519_p:
 	.quad	curve25519_x64
-	.data
-	.type	fe_pow22523_p, @object
-	.size	fe_pow22523_p,8
+#else
+.section	__DATA,__data
+.p2align	2
+_curve25519_p:
+	.quad	_curve25519_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+.type	fe_pow22523_p, @object
+.size	fe_pow22523_p,8
 fe_pow22523_p:
 	.quad	fe_pow22523_x64
-	.data
-	.type	fe_ge_to_p2_p, @object
-	.size	fe_ge_to_p2_p,8
+#else
+.section	__DATA,__data
+.p2align	2
+_fe_pow22523_p:
+	.quad	_fe_pow22523_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+.type	fe_ge_to_p2_p, @object
+.size	fe_ge_to_p2_p,8
 fe_ge_to_p2_p:
 	.quad	fe_ge_to_p2_x64
-	.data
-	.type	fe_ge_to_p3_p, @object
-	.size	fe_ge_to_p3_p,8
+#else
+.section	__DATA,__data
+.p2align	2
+_fe_ge_to_p2_p:
+	.quad	_fe_ge_to_p2_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+.type	fe_ge_to_p3_p, @object
+.size	fe_ge_to_p3_p,8
 fe_ge_to_p3_p:
 	.quad	fe_ge_to_p3_x64
-	.data
-	.type	fe_ge_dbl_p, @object
-	.size	fe_ge_dbl_p,8
+#else
+.section	__DATA,__data
+.p2align	2
+_fe_ge_to_p3_p:
+	.quad	_fe_ge_to_p3_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+.type	fe_ge_dbl_p, @object
+.size	fe_ge_dbl_p,8
 fe_ge_dbl_p:
 	.quad	fe_ge_dbl_x64
-	.data
-	.type	fe_ge_madd_p, @object
-	.size	fe_ge_madd_p,8
+#else
+.section	__DATA,__data
+.p2align	2
+_fe_ge_dbl_p:
+	.quad	_fe_ge_dbl_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+.type	fe_ge_madd_p, @object
+.size	fe_ge_madd_p,8
 fe_ge_madd_p:
 	.quad	fe_ge_madd_x64
-	.data
-	.type	fe_ge_msub_p, @object
-	.size	fe_ge_msub_p,8
+#else
+.section	__DATA,__data
+.p2align	2
+_fe_ge_madd_p:
+	.quad	_fe_ge_madd_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+.type	fe_ge_msub_p, @object
+.size	fe_ge_msub_p,8
 fe_ge_msub_p:
 	.quad	fe_ge_msub_x64
-	.data
-	.type	fe_ge_add_p, @object
-	.size	fe_ge_add_p,8
+#else
+.section	__DATA,__data
+.p2align	2
+_fe_ge_msub_p:
+	.quad	_fe_ge_msub_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+.type	fe_ge_add_p, @object
+.size	fe_ge_add_p,8
 fe_ge_add_p:
 	.quad	fe_ge_add_x64
-	.data
-	.type	fe_ge_sub_p, @object
-	.size	fe_ge_sub_p,8
+#else
+.section	__DATA,__data
+.p2align	2
+_fe_ge_add_p:
+	.quad	_fe_ge_add_x64
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+.type	fe_ge_sub_p, @object
+.size	fe_ge_sub_p,8
 fe_ge_sub_p:
 	.quad	fe_ge_sub_x64
+#else
+.section	__DATA,__data
+.p2align	2
+_fe_ge_sub_p:
+	.quad	_fe_ge_sub_x64
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
 .globl	fe_mul_x64

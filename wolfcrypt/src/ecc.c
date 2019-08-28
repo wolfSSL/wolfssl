@@ -2479,7 +2479,7 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
    #define M_POINTS 8
    int           first = 1, bitbuf = 0, bitcpy = 0, j;
 #else
-   #define M_POINTS 3
+   #define M_POINTS 4
 #endif
 
    ecc_point     *tG, *M[M_POINTS];
@@ -2771,7 +2771,9 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
    mode   = 0;
    bitcnt = 1;
    buf    = 0;
-   digidx = get_digit_count(k) - 1;
+   digidx = get_digit_count(modulus) - 1;
+   /* The order MAY be 1 bit longer than the modulus. */
+   digidx += (modulus->dp[digidx] >> (DIGIT_BIT-1));
 
    /* perform ops */
    if (err == MP_OKAY) {
@@ -2790,25 +2792,53 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
            i = (buf >> (DIGIT_BIT - 1)) & 1;
            buf <<= 1;
 
-           if (mode == 0 && i == 0) {
+           if (mode == 0) {
+               mode = i;
                /* timing resistant - dummy operations */
                if (err == MP_OKAY)
-                   err = ecc_projective_add_point(M[0], M[1], M[2], a, modulus,
+                   err = ecc_projective_add_point(M[1], M[2], M[2], a, modulus,
                                                   mp);
+#ifdef WC_NO_CACHE_RESISTANT
                if (err == MP_OKAY)
-                   err = ecc_projective_dbl_point(M[1], M[2], a, modulus, mp);
-               if (err == MP_OKAY)
-                   continue;
-           }
-
-           if (mode == 0 && i == 1) {
-               mode = 1;
-               /* timing resistant - dummy operations */
-               if (err == MP_OKAY)
-                   err = ecc_projective_add_point(M[0], M[1], M[2], a, modulus,
-                                                  mp);
-               if (err == MP_OKAY)
-                   err = ecc_projective_dbl_point(M[1], M[2], a, modulus, mp);
+                   err = ecc_projective_dbl_point(M[2], M[3], a, modulus, mp);
+#else
+               /* instead of using M[i] for double, which leaks key bit to cache
+                * monitor, use M[2] as temp, make sure address calc is constant,
+                * keep M[0] and M[1] in cache */
+              if (err == MP_OKAY)
+                  err = mp_copy((mp_int*)
+                             ( ((wolfssl_word)M[0]->x & wc_off_on_addr[i^1]) +
+                               ((wolfssl_word)M[1]->x & wc_off_on_addr[i])),
+                             M[2]->x);
+              if (err == MP_OKAY)
+                  err = mp_copy((mp_int*)
+                             ( ((wolfssl_word)M[0]->y & wc_off_on_addr[i^1]) +
+                               ((wolfssl_word)M[1]->y & wc_off_on_addr[i])),
+                             M[2]->y);
+              if (err == MP_OKAY)
+                  err = mp_copy((mp_int*)
+                             ( ((wolfssl_word)M[0]->z & wc_off_on_addr[i^1]) +
+                               ((wolfssl_word)M[1]->z & wc_off_on_addr[i])),
+                             M[2]->z);
+              if (err == MP_OKAY)
+                  err = ecc_projective_dbl_point(M[2], M[3], a, modulus, mp);
+              /* copy M[2] back to M[i] */
+              if (err == MP_OKAY)
+                  err = mp_copy(M[2]->x,
+                             (mp_int*)
+                             ( ((wolfssl_word)M[0]->x & wc_off_on_addr[i^1]) +
+                               ((wolfssl_word)M[1]->x & wc_off_on_addr[i])) );
+              if (err == MP_OKAY)
+                  err = mp_copy(M[2]->y,
+                             (mp_int*)
+                             ( ((wolfssl_word)M[0]->y & wc_off_on_addr[i^1]) +
+                               ((wolfssl_word)M[1]->y & wc_off_on_addr[i])) );
+              if (err == MP_OKAY)
+                  err = mp_copy(M[2]->z,
+                             (mp_int*)
+                             ( ((wolfssl_word)M[0]->z & wc_off_on_addr[i^1]) +
+                               ((wolfssl_word)M[1]->z & wc_off_on_addr[i])) );
+#endif
                if (err == MP_OKAY)
                    continue;
            }
@@ -3173,11 +3203,11 @@ int wc_ecc_get_curve_id_from_name(const char* curveName)
 }
 
 /* Compares a curve parameter (hex, from ecc_sets[]) to given input
- * parameter (byte array) for equality.
- *
+ * parameter for equality.
+ * encType is WC_TYPE_UNSIGNED_BIN or WC_TYPE_HEX_STR
  * Returns MP_EQ on success, negative on error */
 static int wc_ecc_cmp_param(const char* curveParam,
-                            const byte* param, word32 paramSz)
+                            const byte* param, word32 paramSz, int encType)
 {
     int err = MP_OKAY;
 #ifdef WOLFSSL_SMALL_STACK
@@ -3189,6 +3219,9 @@ static int wc_ecc_cmp_param(const char* curveParam,
 
     if (param == NULL || curveParam == NULL)
         return BAD_FUNC_ARG;
+
+    if (encType == WC_TYPE_HEX_STR)
+        return XSTRNCMP(curveParam, (char*) param, paramSz);
 
 #ifdef WOLFSSL_SMALL_STACK
     a = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_ECC);
@@ -3209,9 +3242,9 @@ static int wc_ecc_cmp_param(const char* curveParam,
         return err;
     }
 
-    if (err == MP_OKAY)
+    if (err == MP_OKAY) {
         err = mp_read_unsigned_bin(a, param, paramSz);
-
+    }
     if (err == MP_OKAY)
         err = mp_read_radix(b, curveParam, MP_RADIX_HEX);
 
@@ -3270,14 +3303,59 @@ int wc_ecc_get_curve_id_from_params(int fieldSize,
     for (idx = 0; ecc_sets[idx].size != 0; idx++) {
         if (curveSz == ecc_sets[idx].size) {
             if ((wc_ecc_cmp_param(ecc_sets[idx].prime, prime,
-                            primeSz) == MP_EQ) &&
-                (wc_ecc_cmp_param(ecc_sets[idx].Af, Af, AfSz) == MP_EQ) &&
-                (wc_ecc_cmp_param(ecc_sets[idx].Bf, Bf, BfSz) == MP_EQ) &&
+                            primeSz, WC_TYPE_UNSIGNED_BIN) == MP_EQ) &&
+                (wc_ecc_cmp_param(ecc_sets[idx].Af, Af, AfSz,
+                                  WC_TYPE_UNSIGNED_BIN) == MP_EQ) &&
+                (wc_ecc_cmp_param(ecc_sets[idx].Bf, Bf, BfSz,
+                                  WC_TYPE_UNSIGNED_BIN) == MP_EQ) &&
                 (wc_ecc_cmp_param(ecc_sets[idx].order, order,
-                                  orderSz) == MP_EQ) &&
-                (wc_ecc_cmp_param(ecc_sets[idx].Gx, Gx, GxSz) == MP_EQ) &&
-                (wc_ecc_cmp_param(ecc_sets[idx].Gy, Gy, GySz) == MP_EQ) &&
+                                  orderSz, WC_TYPE_UNSIGNED_BIN) == MP_EQ) &&
+                (wc_ecc_cmp_param(ecc_sets[idx].Gx, Gx, GxSz,
+                                  WC_TYPE_UNSIGNED_BIN) == MP_EQ) &&
+                (wc_ecc_cmp_param(ecc_sets[idx].Gy, Gy, GySz,
+                                  WC_TYPE_UNSIGNED_BIN) == MP_EQ) &&
                 (cofactor == ecc_sets[idx].cofactor)) {
+                    break;
+            }
+        }
+    }
+
+    if (ecc_sets[idx].size == 0)
+        return ECC_CURVE_INVALID;
+
+    return ecc_sets[idx].id;
+}
+
+/* Returns the curve id in ecc_sets[] that corresponds
+ * to a given domain parameters pointer.
+ *
+ * dp   domain parameters pointer
+ *
+ * return curve id, from ecc_sets[] on success, negative on error
+ */
+int wc_ecc_get_curve_id_from_dp_params(const ecc_set_type* dp)
+{
+    int idx;
+
+    if (dp == NULL || dp->prime == NULL ||  dp->Af == NULL ||
+        dp->Bf == NULL || dp->order == NULL || dp->Gx == NULL || dp->Gy == NULL)
+        return BAD_FUNC_ARG;
+
+    for (idx = 0; ecc_sets[idx].size != 0; idx++) {
+        if (dp->size == ecc_sets[idx].size) {
+            if ((wc_ecc_cmp_param(ecc_sets[idx].prime, (const byte*)dp->prime,
+                    (word32)XSTRLEN(dp->prime), WC_TYPE_HEX_STR) == MP_EQ) &&
+                (wc_ecc_cmp_param(ecc_sets[idx].Af, (const byte*)dp->Af,
+                    (word32)XSTRLEN(dp->Af),WC_TYPE_HEX_STR) == MP_EQ) &&
+                (wc_ecc_cmp_param(ecc_sets[idx].Bf, (const byte*)dp->Bf,
+                    (word32)XSTRLEN(dp->Bf),WC_TYPE_HEX_STR) == MP_EQ) &&
+                (wc_ecc_cmp_param(ecc_sets[idx].order, (const byte*)dp->order,
+                    (word32)XSTRLEN(dp->order),WC_TYPE_HEX_STR) == MP_EQ) &&
+                (wc_ecc_cmp_param(ecc_sets[idx].Gx, (const byte*)dp->Gx,
+                    (word32)XSTRLEN(dp->Gx),WC_TYPE_HEX_STR) == MP_EQ) &&
+                (wc_ecc_cmp_param(ecc_sets[idx].Gy, (const byte*)dp->Gy,
+                    (word32)XSTRLEN(dp->Gy),WC_TYPE_HEX_STR) == MP_EQ) &&
+                (dp->cofactor == ecc_sets[idx].cofactor)) {
                     break;
             }
         }
@@ -3315,6 +3393,17 @@ int wc_ecc_get_curve_id_from_oid(const byte* oid, word32 len)
     }
 
     return ecc_sets[curve_idx].id;
+}
+
+/* Get curve parameters using curve index */
+const ecc_set_type* wc_ecc_get_curve_params(int curve_idx)
+{
+    const ecc_set_type* ecc_set = NULL;
+
+    if (curve_idx >= 0 && curve_idx < (int)ECC_SET_COUNT) {
+        ecc_set = &ecc_sets[curve_idx];
+    }
+    return ecc_set;
 }
 
 
@@ -4541,11 +4630,13 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
             break;
     }
 
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
     /* if async pending then return and skip done cleanup below */
     if (err == WC_PENDING_E) {
         key->state++;
         return err;
     }
+#endif
 
     /* cleanup */
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
@@ -7020,6 +7111,7 @@ int wc_ecc_sig_to_rs(const byte* sig, word32 sigLen, byte* r, word32* rLen,
                      byte* s, word32* sLen)
 {
     int err;
+    int tmp_valid = 0;
     word32 x = 0;
 #ifdef WOLFSSL_SMALL_STACK
     mp_int* rtmp = NULL;
@@ -7045,6 +7137,11 @@ int wc_ecc_sig_to_rs(const byte* sig, word32 sigLen, byte* r, word32* rLen,
 
     err = DecodeECC_DSA_Sig(sig, sigLen, rtmp, stmp);
 
+    /* rtmp and stmp are initialized */
+    if (err == MP_OKAY) {
+        tmp_valid = 1;
+    }
+
     /* extract r */
     if (err == MP_OKAY) {
         x = mp_unsigned_bin_size(rtmp);
@@ -7069,8 +7166,10 @@ int wc_ecc_sig_to_rs(const byte* sig, word32 sigLen, byte* r, word32* rLen,
         }
     }
 
-    mp_clear(rtmp);
-    mp_clear(stmp);
+    if (tmp_valid) {
+        mp_clear(rtmp);
+        mp_clear(stmp);
+    }
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(stmp, NULL, DYNAMIC_TYPE_ECC);
     XFREE(rtmp, NULL, DYNAMIC_TYPE_ECC);

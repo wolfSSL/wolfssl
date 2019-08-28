@@ -428,7 +428,7 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, const byte* buff,
 
 /* Load CRL File of type, WOLFSSL_SUCCESS on ok */
 int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
-                  int noVerify)
+                  int verify)
 {
     int          ret = WOLFSSL_SUCCESS;
     const byte*  myBuffer = buff;    /* if DER ok, otherwise switch */
@@ -471,7 +471,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
 
     InitDecodedCRL(dcrl, crl->heap);
     ret = ParseCRL(dcrl, myBuffer, (word32)sz, crl->cm);
-    if (ret != 0 && !(ret == ASN_CRL_NO_SIGNER_E && noVerify)) {
+    if (ret != 0 && !(ret == ASN_CRL_NO_SIGNER_E && verify == NO_VERIFY)) {
         WOLFSSL_MSG("ParseCRL error");
     }
     else {
@@ -516,7 +516,7 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
     wc_UnLockMutex(&crl->crlLock);
 
     WOLFSSL_LEAVE("wolfSSL_X509_STORE_add_crl", WOLFSSL_SUCCESS);
-    
+
     return WOLFSSL_SUCCESS;
 }
 #endif
@@ -1022,8 +1022,8 @@ int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
             }
         }
 
-        if (!skip && ProcessFile(NULL, name, type, CRL_TYPE, NULL, 0, crl)
-                                                           != WOLFSSL_SUCCESS) {
+        if (!skip && ProcessFile(NULL, name, type, CRL_TYPE, NULL, 0, crl,
+                                 VERIFY) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("CRL file load failed, continuing");
         }
 

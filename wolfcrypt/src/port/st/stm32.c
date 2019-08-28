@@ -292,7 +292,10 @@ int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp)
     }
     hcryp->Instance = CRYP;
     hcryp->Init.DataType = CRYP_DATATYPE_8B;
-    hcryp->Init.pKey = (uint8_t*)aes->key;
+    hcryp->Init.pKey = (STM_CRYPT_TYPE*)aes->key;
+#ifdef STM32_HAL_V2
+    hcryp->Init.DataWidthUnit = CRYP_DATAWIDTHUNIT_BYTE;
+#endif
 
     return 0;
 }

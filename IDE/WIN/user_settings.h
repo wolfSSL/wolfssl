@@ -47,6 +47,22 @@
         #define HAVE_ECC
         #define ECC_SHAMIR
         #define ECC_TIMING_RESISTANT
+
+        /* Optional Performance Speedups */
+        #if 0
+            /* AESNI on x64 */
+            #ifdef _WIN64
+                #define HAVE_INTEL_RDSEED
+                #define WOLFSSL_AESNI
+            #endif
+
+            /* Single Precision Support for RSA/DH 1024/2048/3072 and ECC P-256 */
+            #define WOLFSSL_SP
+            #define WOLFSSL_HAVE_SP_ECC
+            #define WOLFSSL_HAVE_SP_DH
+            #define WOLFSSL_HAVE_SP_RSA
+        #endif
+
     #else
         /* The servers and clients */
         #define OPENSSL_EXTRA

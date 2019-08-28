@@ -506,6 +506,9 @@ const char* wc_GetErrorString(int error)
     case CRYPTOCB_UNAVAILABLE:
         return "Crypto callback unavailable";
 
+    case PKCS7_SIGNEEDS_CHECK:
+        return "Signature found but no certificate to verify";
+
     default:
         return "unknown error number";
 

@@ -502,6 +502,10 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
     #define NEED_TMP_TIME
 
+#elif defined(WOLFSSL_XILINX) && defined(FREERTOS)
+    #define USER_TIME
+    #include <time.h>
+
 #elif defined(HAVE_RTP_SYS)
     #include "os.h"           /* dc_rtc_api needs    */
     #include "dc_rtc_api.h"   /* to get current time */

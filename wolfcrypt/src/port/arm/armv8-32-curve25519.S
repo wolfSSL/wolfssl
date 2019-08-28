@@ -1,4 +1,4 @@
-/* armv7-curve25519
+/* armv8-32-curve25519
  *
  * Copyright (C) 2006-2019 wolfSSL Inc.
  *
@@ -19,18 +19,24 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* Generated using (from wolfssl):
+ *   cd ../scripts
+ *   ruby ./x25519/x25519.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-curve25519.S
+ */
+
+#ifdef WOLFSSL_ARMASM
 #ifndef __aarch64__
-.text
-.globl	fe_init
-.type	fe_init, %function
-.align	2
+	.text
+	.align	2
+	.globl	fe_init
+	.type	fe_init, %function
 fe_init:
 	bx	lr
-.size	fe_init,.-fe_init
-.text
-.globl	fe_frombytes
-.type	fe_frombytes, %function
-.align	2
+	.size	fe_init,.-fe_init
+	.text
+	.align	2
+	.globl	fe_frombytes
+	.type	fe_frombytes, %function
 fe_frombytes:
 	push	{r4, r5, r6, r7, lr}
 	ldrd	r2, r3, [r1]
@@ -45,11 +51,11 @@ fe_frombytes:
 	strd	r4, r5, [r0, #16]
 	strd	r6, r7, [r0, #24]
 	pop	{r4, r5, r6, r7, pc}
-.size	fe_frombytes,.-fe_frombytes
-.text
-.globl	fe_tobytes
-.type	fe_tobytes, %function
-.align	2
+	.size	fe_frombytes,.-fe_frombytes
+	.text
+	.align	2
+	.globl	fe_tobytes
+	.type	fe_tobytes, %function
 fe_tobytes:
 	push	{r4, r5, r6, r7, r8, lr}
 	ldrd	r2, r3, [r1]
@@ -82,11 +88,11 @@ fe_tobytes:
 	strd	r4, r5, [r0, #16]
 	strd	r6, r7, [r0, #24]
 	pop	{r4, r5, r6, r7, r8, pc}
-.size	fe_tobytes,.-fe_tobytes
-.text
-.globl	fe_1
-.type	fe_1, %function
-.align	2
+	.size	fe_tobytes,.-fe_tobytes
+	.text
+	.align	2
+	.globl	fe_1
+	.type	fe_1, %function
 fe_1:
 	# Set one
 	mov	r2, #1
@@ -100,11 +106,11 @@ fe_1:
 	str	r1, [r0, #24]
 	str	r1, [r0, #28]
 	bx	lr
-.size	fe_1,.-fe_1
-.text
-.globl	fe_0
-.type	fe_0, %function
-.align	2
+	.size	fe_1,.-fe_1
+	.text
+	.align	2
+	.globl	fe_0
+	.type	fe_0, %function
 fe_0:
 	# Set zero
 	mov	r1, #0
@@ -117,11 +123,11 @@ fe_0:
 	str	r1, [r0, #24]
 	str	r1, [r0, #28]
 	bx	lr
-.size	fe_0,.-fe_0
-.text
-.globl	fe_copy
-.type	fe_copy, %function
-.align	2
+	.size	fe_0,.-fe_0
+	.text
+	.align	2
+	.globl	fe_copy
+	.type	fe_copy, %function
 fe_copy:
 	push	{lr}
 	# Copy
@@ -138,11 +144,11 @@ fe_copy:
 	str	r12, [r0, #24]
 	str	lr, [r0, #28]
 	pop	{pc}
-.size	fe_copy,.-fe_copy
-.text
-.globl	fe_sub
-.type	fe_sub, %function
-.align	2
+	.size	fe_copy,.-fe_copy
+	.text
+	.align	2
+	.globl	fe_sub
+	.type	fe_sub, %function
 fe_sub:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	# Sub
@@ -189,11 +195,11 @@ fe_sub:
 	strd	r6, r7, [r0, #16]
 	strd	r8, r9, [r0, #24]
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-.size	fe_sub,.-fe_sub
-.text
-.globl	fe_add
-.type	fe_add, %function
-.align	2
+	.size	fe_sub,.-fe_sub
+	.text
+	.align	2
+	.globl	fe_add
+	.type	fe_add, %function
 fe_add:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	# Add
@@ -240,11 +246,11 @@ fe_add:
 	strd	r6, r7, [r0, #16]
 	strd	r8, r9, [r0, #24]
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-.size	fe_add,.-fe_add
-.text
-.globl	fe_neg
-.type	fe_neg, %function
-.align	2
+	.size	fe_add,.-fe_add
+	.text
+	.align	2
+	.globl	fe_neg
+	.type	fe_neg, %function
 fe_neg:
 	push	{r4, r5, lr}
 	mov	r5, #-1
@@ -271,11 +277,11 @@ fe_neg:
 	str	r12, [r0, #24]
 	str	lr, [r0, #28]
 	pop	{r4, r5, pc}
-.size	fe_neg,.-fe_neg
-.text
-.globl	fe_isnonzero
-.type	fe_isnonzero, %function
-.align	2
+	.size	fe_neg,.-fe_neg
+	.text
+	.align	2
+	.globl	fe_isnonzero
+	.type	fe_isnonzero, %function
 fe_isnonzero:
 	push	{r4, r5, r6, r7, r8, lr}
 	ldrd	r2, r3, [r0]
@@ -310,11 +316,11 @@ fe_isnonzero:
 	orr	r2, r2, r6
 	orr	r0, r2, r12
 	pop	{r4, r5, r6, r7, r8, pc}
-.size	fe_isnonzero,.-fe_isnonzero
-.text
-.globl	fe_isnegative
-.type	fe_isnegative, %function
-.align	2
+	.size	fe_isnonzero,.-fe_isnonzero
+	.text
+	.align	2
+	.globl	fe_isnegative
+	.type	fe_isnegative, %function
 fe_isnegative:
 	push	{lr}
 	ldrd	r2, r3, [r0]
@@ -336,11 +342,11 @@ fe_isnegative:
 	lsr	r1, r1, #31
 	eor	r0, r0, r1
 	pop	{pc}
-.size	fe_isnegative,.-fe_isnegative
-.text
-.globl	fe_cmov_table
-.type	fe_cmov_table, %function
-.align	2
+	.size	fe_isnegative,.-fe_isnegative
+	.text
+	.align	2
+	.globl	fe_cmov_table
+	.type	fe_cmov_table, %function
 fe_cmov_table:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	sxtb	r2, r2
@@ -1319,11 +1325,11 @@ fe_cmov_table:
 	str	r5, [r0, #88]
 	str	r6, [r0, #92]
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-.size	fe_cmov_table,.-fe_cmov_table
-.text
-.globl	fe_mul
-.type	fe_mul, %function
-.align	2
+	.size	fe_cmov_table,.-fe_cmov_table
+	.text
+	.align	2
+	.globl	fe_mul
+	.type	fe_mul, %function
 fe_mul:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	sub	sp, sp, #0x40
@@ -1848,11 +1854,11 @@ fe_mul:
 	strd	r10, r11, [r0, #24]
 	add	sp, sp, #0x40
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-.size	fe_mul,.-fe_mul
-.text
-.globl	fe_sq
-.type	fe_sq, %function
-.align	2
+	.size	fe_mul,.-fe_mul
+	.text
+	.align	2
+	.globl	fe_sq
+	.type	fe_sq, %function
 fe_sq:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	sub	sp, sp, #0x40
@@ -2269,11 +2275,11 @@ fe_sq:
 	strd	r10, r11, [r0, #24]
 	add	sp, sp, #0x40
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-.size	fe_sq,.-fe_sq
-.text
-.globl	fe_mul121666
-.type	fe_mul121666, %function
-.align	2
+	.size	fe_sq,.-fe_sq
+	.text
+	.align	2
+	.globl	fe_mul121666
+	.type	fe_mul121666, %function
 fe_mul121666:
 	push	{r4, r5, r6, r7, r8, r9, r10, lr}
 	# Multiply by 121666
@@ -2323,11 +2329,11 @@ fe_mul121666:
 	strd	r6, r7, [r0, #16]
 	strd	r8, r9, [r0, #24]
 	pop	{r4, r5, r6, r7, r8, r9, r10, pc}
-.size	fe_mul121666,.-fe_mul121666
-.text
-.globl	fe_sq2
-.type	fe_sq2, %function
-.align	2
+	.size	fe_mul121666,.-fe_mul121666
+	.text
+	.align	2
+	.globl	fe_sq2
+	.type	fe_sq2, %function
 fe_sq2:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	sub	sp, sp, #0x40
@@ -2759,11 +2765,11 @@ fe_sq2:
 	strd	r10, r11, [r0, #24]
 	add	sp, sp, #0x40
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-.size	fe_sq2,.-fe_sq2
-.text
-.globl	fe_invert
-.type	fe_invert, %function
-.align	2
+	.size	fe_sq2,.-fe_sq2
+	.text
+	.align	2
+	.globl	fe_invert
+	.type	fe_invert, %function
 fe_invert:
 	push	{r4, lr}
 	sub	sp, sp, #0x88
@@ -2787,110 +2793,110 @@ fe_invert:
 	mov	r1, sp
 	add	r2, sp, #32
 	bl	fe_mul
-	add	r0, sp, #64
+	add	r0, sp, #0x40
 	mov	r1, sp
 	bl	fe_sq
 	add	r0, sp, #32
 	add	r1, sp, #32
-	add	r2, sp, #64
+	add	r2, sp, #0x40
 	bl	fe_mul
-	add	r0, sp, #64
+	add	r0, sp, #0x40
 	add	r1, sp, #32
 	bl	fe_sq
 	mov	r4, #4
 L_fe_invert1:
-	add	r0, sp, #64
-	add	r1, sp, #64
+	add	r0, sp, #0x40
+	add	r1, sp, #0x40
 	bl	fe_sq
 	sub	r4, r4, #1
 	cmp	r4, #0
 	bne	L_fe_invert1
 	add	r0, sp, #32
-	add	r1, sp, #64
+	add	r1, sp, #0x40
 	add	r2, sp, #32
 	bl	fe_mul
-	add	r0, sp, #64
+	add	r0, sp, #0x40
 	add	r1, sp, #32
 	bl	fe_sq
 	mov	r4, #9
 L_fe_invert2:
-	add	r0, sp, #64
-	add	r1, sp, #64
+	add	r0, sp, #0x40
+	add	r1, sp, #0x40
 	bl	fe_sq
 	sub	r4, r4, #1
 	cmp	r4, #0
 	bne	L_fe_invert2
-	add	r0, sp, #64
-	add	r1, sp, #64
+	add	r0, sp, #0x40
+	add	r1, sp, #0x40
 	add	r2, sp, #32
 	bl	fe_mul
-	add	r0, sp, #96
-	add	r1, sp, #64
+	add	r0, sp, #0x60
+	add	r1, sp, #0x40
 	bl	fe_sq
 	mov	r4, #19
 L_fe_invert3:
-	add	r0, sp, #96
-	add	r1, sp, #96
+	add	r0, sp, #0x60
+	add	r1, sp, #0x60
 	bl	fe_sq
 	sub	r4, r4, #1
 	cmp	r4, #0
 	bne	L_fe_invert3
-	add	r0, sp, #64
-	add	r1, sp, #96
-	add	r2, sp, #64
+	add	r0, sp, #0x40
+	add	r1, sp, #0x60
+	add	r2, sp, #0x40
 	bl	fe_mul
 	mov	r4, #10
 L_fe_invert4:
-	add	r0, sp, #64
-	add	r1, sp, #64
+	add	r0, sp, #0x40
+	add	r1, sp, #0x40
 	bl	fe_sq
 	sub	r4, r4, #1
 	cmp	r4, #0
 	bne	L_fe_invert4
 	add	r0, sp, #32
-	add	r1, sp, #64
+	add	r1, sp, #0x40
 	add	r2, sp, #32
 	bl	fe_mul
-	add	r0, sp, #64
+	add	r0, sp, #0x40
 	add	r1, sp, #32
 	bl	fe_sq
-	mov	r4, #0x31
+	mov	r4, #49
 L_fe_invert5:
-	add	r0, sp, #64
-	add	r1, sp, #64
+	add	r0, sp, #0x40
+	add	r1, sp, #0x40
 	bl	fe_sq
 	sub	r4, r4, #1
 	cmp	r4, #0
 	bne	L_fe_invert5
-	add	r0, sp, #64
-	add	r1, sp, #64
+	add	r0, sp, #0x40
+	add	r1, sp, #0x40
 	add	r2, sp, #32
 	bl	fe_mul
-	add	r0, sp, #96
-	add	r1, sp, #64
+	add	r0, sp, #0x60
+	add	r1, sp, #0x40
 	bl	fe_sq
 	mov	r4, #0x63
 L_fe_invert6:
-	add	r0, sp, #96
-	add	r1, sp, #96
+	add	r0, sp, #0x60
+	add	r1, sp, #0x60
 	bl	fe_sq
 	sub	r4, r4, #1
 	cmp	r4, #0
 	bne	L_fe_invert6
-	add	r0, sp, #64
-	add	r1, sp, #96
-	add	r2, sp, #64
+	add	r0, sp, #0x40
+	add	r1, sp, #0x60
+	add	r2, sp, #0x40
 	bl	fe_mul
-	mov	r4, #0x32
+	mov	r4, #50
 L_fe_invert7:
-	add	r0, sp, #64
-	add	r1, sp, #64
+	add	r0, sp, #0x40
+	add	r1, sp, #0x40
 	bl	fe_sq
 	sub	r4, r4, #1
 	cmp	r4, #0
 	bne	L_fe_invert7
 	add	r0, sp, #32
-	add	r1, sp, #64
+	add	r1, sp, #0x40
 	add	r2, sp, #32
 	bl	fe_mul
 	mov	r4, #5
@@ -2909,11 +2915,11 @@ L_fe_invert8:
 	ldr	r0, [sp, #128]
 	add	sp, sp, #0x88
 	pop	{r4, pc}
-.size	fe_invert,.-fe_invert
-.text
-.globl	curve25519
-.type	curve25519, %function
-.align	2
+	.size	fe_invert,.-fe_invert
+	.text
+	.align	2
+	.globl	curve25519
+	.type	curve25519, %function
 curve25519:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	sub	sp, sp, #0xbc
@@ -3282,7 +3288,7 @@ L_curve25519_bits:
 	strd	r10, r11, [sp, #120]
 	ldr	r2, [sp, #160]
 	add	r1, sp, #0x60
-	add	r0, sp, #0x20
+	add	r0, sp, #32
 	bl	fe_mul
 	add	r2, sp, #0x80
 	add	r1, sp, #0
@@ -3529,7 +3535,7 @@ L_curve25519_bits:
 	strd	r10, r11, [sp, #120]
 	add	r2, sp, #0
 	ldr	r1, [sp, #168]
-	add	r0, sp, #0x20
+	add	r0, sp, #32
 	bl	fe_mul
 	add	r2, sp, #0x60
 	add	r1, sp, #0x80
@@ -3549,136 +3555,136 @@ L_curve25519_bits:
 	add	r0, sp, #32
 	add	r1, sp, #0
 	bl	fe_sq
-	add	r0, sp, #64
+	add	r0, sp, #0x40
 	add	r1, sp, #32
 	bl	fe_sq
-	add	r0, sp, #64
-	add	r1, sp, #64
+	add	r0, sp, #0x40
+	add	r1, sp, #0x40
 	bl	fe_sq
-	add	r0, sp, #64
+	add	r0, sp, #0x40
 	add	r1, sp, #0
-	add	r2, sp, #64
+	add	r2, sp, #0x40
 	bl	fe_mul
 	add	r0, sp, #32
 	add	r1, sp, #32
-	add	r2, sp, #64
+	add	r2, sp, #0x40
 	bl	fe_mul
-	add	r0, sp, #96
+	add	r0, sp, #0x60
 	add	r1, sp, #32
 	bl	fe_sq
-	add	r0, sp, #64
-	add	r1, sp, #64
-	add	r2, sp, #96
+	add	r0, sp, #0x40
+	add	r1, sp, #0x40
+	add	r2, sp, #0x60
 	bl	fe_mul
-	add	r0, sp, #96
-	add	r1, sp, #64
+	add	r0, sp, #0x60
+	add	r1, sp, #0x40
 	bl	fe_sq
 	mov	r4, #4
 L_curve25519_inv_1:
-	add	r0, sp, #96
-	add	r1, sp, #96
+	add	r0, sp, #0x60
+	add	r1, sp, #0x60
 	bl	fe_sq
 	sub	r4, r4, #1
 	cmp	r4, #0
 	bne	L_curve25519_inv_1
-	add	r0, sp, #64
-	add	r1, sp, #96
-	add	r2, sp, #64
+	add	r0, sp, #0x40
+	add	r1, sp, #0x60
+	add	r2, sp, #0x40
 	bl	fe_mul
-	add	r0, sp, #96
-	add	r1, sp, #64
+	add	r0, sp, #0x60
+	add	r1, sp, #0x40
 	bl	fe_sq
 	mov	r4, #9
 L_curve25519_inv_2:
-	add	r0, sp, #96
-	add	r1, sp, #96
+	add	r0, sp, #0x60
+	add	r1, sp, #0x60
 	bl	fe_sq
 	sub	r4, r4, #1
 	cmp	r4, #0
 	bne	L_curve25519_inv_2
-	add	r0, sp, #96
-	add	r1, sp, #96
-	add	r2, sp, #64
+	add	r0, sp, #0x60
+	add	r1, sp, #0x60
+	add	r2, sp, #0x40
 	bl	fe_mul
-	add	r0, sp, #128
-	add	r1, sp, #96
+	add	r0, sp, #0x80
+	add	r1, sp, #0x60
 	bl	fe_sq
 	mov	r4, #19
 L_curve25519_inv_3:
-	add	r0, sp, #128
-	add	r1, sp, #128
+	add	r0, sp, #0x80
+	add	r1, sp, #0x80
 	bl	fe_sq
 	sub	r4, r4, #1
 	cmp	r4, #0
 	bne	L_curve25519_inv_3
-	add	r0, sp, #96
-	add	r1, sp, #128
-	add	r2, sp, #96
+	add	r0, sp, #0x60
+	add	r1, sp, #0x80
+	add	r2, sp, #0x60
 	bl	fe_mul
 	mov	r4, #10
 L_curve25519_inv_4:
-	add	r0, sp, #96
-	add	r1, sp, #96
+	add	r0, sp, #0x60
+	add	r1, sp, #0x60
 	bl	fe_sq
 	sub	r4, r4, #1
 	cmp	r4, #0
 	bne	L_curve25519_inv_4
-	add	r0, sp, #64
-	add	r1, sp, #96
-	add	r2, sp, #64
+	add	r0, sp, #0x40
+	add	r1, sp, #0x60
+	add	r2, sp, #0x40
 	bl	fe_mul
-	add	r0, sp, #96
-	add	r1, sp, #64
+	add	r0, sp, #0x60
+	add	r1, sp, #0x40
 	bl	fe_sq
-	mov	r4, #0x31
+	mov	r4, #49
 L_curve25519_inv_5:
-	add	r0, sp, #96
-	add	r1, sp, #96
+	add	r0, sp, #0x60
+	add	r1, sp, #0x60
 	bl	fe_sq
 	sub	r4, r4, #1
 	cmp	r4, #0
 	bne	L_curve25519_inv_5
-	add	r0, sp, #96
-	add	r1, sp, #96
-	add	r2, sp, #64
+	add	r0, sp, #0x60
+	add	r1, sp, #0x60
+	add	r2, sp, #0x40
 	bl	fe_mul
-	add	r0, sp, #128
-	add	r1, sp, #96
+	add	r0, sp, #0x80
+	add	r1, sp, #0x60
 	bl	fe_sq
 	mov	r4, #0x63
 L_curve25519_inv_6:
-	add	r0, sp, #128
-	add	r1, sp, #128
+	add	r0, sp, #0x80
+	add	r1, sp, #0x80
 	bl	fe_sq
 	sub	r4, r4, #1
 	cmp	r4, #0
 	bne	L_curve25519_inv_6
-	add	r0, sp, #96
-	add	r1, sp, #128
-	add	r2, sp, #96
+	add	r0, sp, #0x60
+	add	r1, sp, #0x80
+	add	r2, sp, #0x60
 	bl	fe_mul
-	mov	r4, #0x32
+	mov	r4, #50
 L_curve25519_inv_7:
-	add	r0, sp, #96
-	add	r1, sp, #96
+	add	r0, sp, #0x60
+	add	r1, sp, #0x60
 	bl	fe_sq
 	sub	r4, r4, #1
 	cmp	r4, #0
 	bne	L_curve25519_inv_7
-	add	r0, sp, #64
-	add	r1, sp, #96
-	add	r2, sp, #64
+	add	r0, sp, #0x40
+	add	r1, sp, #0x60
+	add	r2, sp, #0x40
 	bl	fe_mul
 	mov	r4, #5
 L_curve25519_inv_8:
-	add	r0, sp, #64
-	add	r1, sp, #64
+	add	r0, sp, #0x40
+	add	r1, sp, #0x40
 	bl	fe_sq
 	sub	r4, r4, #1
 	cmp	r4, #0
 	bne	L_curve25519_inv_8
 	add	r0, sp, #0
-	add	r1, sp, #64
+	add	r1, sp, #0x40
 	add	r2, sp, #32
 	bl	fe_mul
 	add	r2, sp, #0
@@ -3688,11 +3694,11 @@ L_curve25519_inv_8:
 	mov	r0, #0
 	add	sp, sp, #0xbc
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-.size	curve25519,.-curve25519
-.text
-.globl	fe_pow22523
-.type	fe_pow22523, %function
-.align	2
+	.size	curve25519,.-curve25519
+	.text
+	.align	2
+	.globl	fe_pow22523
+	.type	fe_pow22523, %function
 fe_pow22523:
 	push	{r4, lr}
 	sub	sp, sp, #0x68
@@ -3753,19 +3759,19 @@ L_fe_pow22523_2:
 	add	r1, sp, #32
 	mov	r2, sp
 	bl	fe_mul
-	add	r0, sp, #64
+	add	r0, sp, #0x40
 	add	r1, sp, #32
 	bl	fe_sq
 	mov	r4, #19
 L_fe_pow22523_3:
-	add	r0, sp, #64
-	add	r1, sp, #64
+	add	r0, sp, #0x40
+	add	r1, sp, #0x40
 	bl	fe_sq
 	sub	r4, r4, #1
 	cmp	r4, #0
 	bne	L_fe_pow22523_3
 	add	r0, sp, #32
-	add	r1, sp, #64
+	add	r1, sp, #0x40
 	add	r2, sp, #32
 	bl	fe_mul
 	mov	r4, #10
@@ -3783,7 +3789,7 @@ L_fe_pow22523_4:
 	add	r0, sp, #32
 	mov	r1, sp
 	bl	fe_sq
-	mov	r4, #0x31
+	mov	r4, #49
 L_fe_pow22523_5:
 	add	r0, sp, #32
 	add	r1, sp, #32
@@ -3795,22 +3801,22 @@ L_fe_pow22523_5:
 	add	r1, sp, #32
 	mov	r2, sp
 	bl	fe_mul
-	add	r0, sp, #64
+	add	r0, sp, #0x40
 	add	r1, sp, #32
 	bl	fe_sq
 	mov	r4, #0x63
 L_fe_pow22523_6:
-	add	r0, sp, #64
-	add	r1, sp, #64
+	add	r0, sp, #0x40
+	add	r1, sp, #0x40
 	bl	fe_sq
 	sub	r4, r4, #1
 	cmp	r4, #0
 	bne	L_fe_pow22523_6
 	add	r0, sp, #32
-	add	r1, sp, #64
+	add	r1, sp, #0x40
 	add	r2, sp, #32
 	bl	fe_mul
-	mov	r4, #0x32
+	mov	r4, #50
 L_fe_pow22523_7:
 	add	r0, sp, #32
 	add	r1, sp, #32
@@ -3838,11 +3844,11 @@ L_fe_pow22523_8:
 	ldr	r0, [sp, #96]
 	add	sp, sp, #0x68
 	pop	{r4, pc}
-.size	fe_pow22523,.-fe_pow22523
-.text
-.globl	fe_ge_to_p2
-.type	fe_ge_to_p2, %function
-.align	2
+	.size	fe_pow22523,.-fe_pow22523
+	.text
+	.align	2
+	.globl	fe_ge_to_p2
+	.type	fe_ge_to_p2, %function
 fe_ge_to_p2:
 	push	{lr}
 	sub	sp, sp, #16
@@ -3864,11 +3870,11 @@ fe_ge_to_p2:
 	bl	fe_mul
 	add	sp, sp, #16
 	pop	{pc}
-.size	fe_ge_to_p2,.-fe_ge_to_p2
-.text
-.globl	fe_ge_to_p3
-.type	fe_ge_to_p3, %function
-.align	2
+	.size	fe_ge_to_p2,.-fe_ge_to_p2
+	.text
+	.align	2
+	.globl	fe_ge_to_p3
+	.type	fe_ge_to_p3, %function
 fe_ge_to_p3:
 	push	{lr}
 	sub	sp, sp, #16
@@ -3894,11 +3900,11 @@ fe_ge_to_p3:
 	bl	fe_mul
 	add	sp, sp, #16
 	pop	{pc}
-.size	fe_ge_to_p3,.-fe_ge_to_p3
-.text
-.globl	fe_ge_dbl
-.type	fe_ge_dbl, %function
-.align	2
+	.size	fe_ge_to_p3,.-fe_ge_to_p3
+	.text
+	.align	2
+	.globl	fe_ge_dbl
+	.type	fe_ge_dbl, %function
 fe_ge_dbl:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	sub	sp, sp, #16
@@ -4223,14 +4229,14 @@ fe_ge_dbl:
 	str	r10, [r0, #28]
 	add	sp, sp, #16
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-.size	fe_ge_dbl,.-fe_ge_dbl
-.text
-.globl	fe_ge_madd
-.type	fe_ge_madd, %function
-.align	2
+	.size	fe_ge_dbl,.-fe_ge_dbl
+	.text
+	.align	2
+	.globl	fe_ge_madd
+	.type	fe_ge_madd, %function
 fe_ge_madd:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
-	sub	sp, sp, #0x20
+	sub	sp, sp, #32
 	str	r0, [sp]
 	str	r1, [sp, #4]
 	str	r2, [sp, #8]
@@ -4663,16 +4669,16 @@ fe_ge_madd:
 	adc	r10, r10, lr
 	str	r9, [r1, #24]
 	str	r10, [r1, #28]
-	add	sp, sp, #0x20
+	add	sp, sp, #32
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-.size	fe_ge_madd,.-fe_ge_madd
-.text
-.globl	fe_ge_msub
-.type	fe_ge_msub, %function
-.align	2
+	.size	fe_ge_madd,.-fe_ge_madd
+	.text
+	.align	2
+	.globl	fe_ge_msub
+	.type	fe_ge_msub, %function
 fe_ge_msub:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
-	sub	sp, sp, #0x20
+	sub	sp, sp, #32
 	str	r0, [sp]
 	str	r1, [sp, #4]
 	str	r2, [sp, #8]
@@ -5105,13 +5111,13 @@ fe_ge_msub:
 	adc	r10, r10, lr
 	str	r9, [r1, #24]
 	str	r10, [r1, #28]
-	add	sp, sp, #0x20
+	add	sp, sp, #32
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-.size	fe_ge_msub,.-fe_ge_msub
-.text
-.globl	fe_ge_add
-.type	fe_ge_add, %function
-.align	2
+	.size	fe_ge_msub,.-fe_ge_msub
+	.text
+	.align	2
+	.globl	fe_ge_add
+	.type	fe_ge_add, %function
 fe_ge_add:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	sub	sp, sp, #0x60
@@ -5554,11 +5560,11 @@ fe_ge_add:
 	str	r10, [r1, #28]
 	add	sp, sp, #0x60
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-.size	fe_ge_add,.-fe_ge_add
-.text
-.globl	fe_ge_sub
-.type	fe_ge_sub, %function
-.align	2
+	.size	fe_ge_add,.-fe_ge_add
+	.text
+	.align	2
+	.globl	fe_ge_sub
+	.type	fe_ge_sub, %function
 fe_ge_sub:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 	sub	sp, sp, #0x60
@@ -6001,5 +6007,6 @@ fe_ge_sub:
 	str	r10, [r1, #28]
 	add	sp, sp, #0x60
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
-.size	fe_ge_sub,.-fe_ge_sub
-#endif /* __aarch64__ */
+	.size	fe_ge_sub,.-fe_ge_sub
+#endif /* !__aarch64__ */
+#endif /* WOLFSSL_ARMASM */

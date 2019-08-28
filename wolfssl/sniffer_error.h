@@ -121,6 +121,10 @@
 #define SPLIT_HANDSHAKE_MSG_STR 83
 #define ECC_DECODE_STR 84
 #define ECC_PUB_DECODE_STR 85
+#define WATCH_CB_MISSING_STR 86
+#define WATCH_HASH_STR 87
+#define WATCH_FAIL_STR 88
+#define BAD_CERT_MSG_STR 89
 /* !!!! also add to msgTable in sniffer.c and .rc file !!!! */
 
 

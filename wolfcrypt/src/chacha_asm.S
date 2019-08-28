@@ -22,9 +22,9 @@
 #ifndef HAVE_INTEL_AVX1
 #define HAVE_INTEL_AVX1
 #endif /* HAVE_INTEL_AVX1 */
-#ifndef HAVE_INTEL_AVX2
+#ifndef NO_AVX2_SUPPORT
 #define HAVE_INTEL_AVX2
-#endif /* HAVE_INTEL_AVX2 */
+#endif /* NO_AVX2_SUPPORT */
 
 #ifndef __APPLE__
 .text
@@ -975,24 +975,24 @@ L_chacha20_avx1_partial_crypt_start:
         vmovdqu	%xmm3, 48(%r10)
         addl	$0x01, 48(%rdi)
         movl	%ecx, %r8d
-        xorq	%rbx, %rbx
+        xorq	%r11, %r11
         andl	$7, %r8d
         jz	L_chacha20_avx1_partial_start64
 L_chacha20_avx1_partial_start8:
-        movzbl	(%r10,%rbx,1), %eax
-        xorb	(%rsi,%rbx,1), %al
-        movb	%al, (%rdx,%rbx,1)
-        incl	%ebx
-        cmpl	%r8d, %ebx
+        movzbl	(%r10,%r11,1), %eax
+        xorb	(%rsi,%r11,1), %al
+        movb	%al, (%rdx,%r11,1)
+        incl	%r11d
+        cmpl	%r8d, %r11d
         jne	L_chacha20_avx1_partial_start8
         je	L_chacha20_avx1_partial_end64
 L_chacha20_avx1_partial_start64:
-        movq	(%r10,%rbx,1), %rax
-        xorq	(%rsi,%rbx,1), %rax
-        movq	%rax, (%rdx,%rbx,1)
-        addl	$8, %ebx
+        movq	(%r10,%r11,1), %rax
+        xorq	(%rsi,%r11,1), %rax
+        movq	%rax, (%rdx,%r11,1)
+        addl	$8, %r11d
 L_chacha20_avx1_partial_end64:
-        cmpl	%ecx, %ebx
+        cmpl	%ecx, %r11d
         jne	L_chacha20_avx1_partial_start64
 L_chacha20_avx1_partial_done:
         addq	$0x190, %rsp
@@ -1293,7 +1293,7 @@ L_chacha20_avx2_loop256:
         vperm2i128	$32, %ymm1, %ymm0, %ymm8
         vperm2i128	$32, %ymm3, %ymm2, %ymm9
         vperm2i128	$49, %ymm1, %ymm0, %ymm12
-        vperm2i128	$49, %ymm3, %ymm2, %ymm14
+        vperm2i128	$49, %ymm3, %ymm2, %ymm13
         vperm2i128	$32, %ymm5, %ymm4, %ymm10
         vperm2i128	$32, %ymm7, %ymm6, %ymm11
         vperm2i128	$49, %ymm5, %ymm4, %ymm14
@@ -1349,7 +1349,7 @@ L_chacha20_avx2_loop256:
         vperm2i128	$32, %ymm1, %ymm0, %ymm8
         vperm2i128	$32, %ymm3, %ymm2, %ymm9
         vperm2i128	$49, %ymm1, %ymm0, %ymm12
-        vperm2i128	$49, %ymm3, %ymm2, %ymm14
+        vperm2i128	$49, %ymm3, %ymm2, %ymm13
         vperm2i128	$32, %ymm5, %ymm4, %ymm10
         vperm2i128	$32, %ymm7, %ymm6, %ymm11
         vperm2i128	$49, %ymm5, %ymm4, %ymm14
