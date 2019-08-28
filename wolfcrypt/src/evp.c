@@ -383,23 +383,21 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
     *outl = 0;
     if (inl == 0) return WOLFSSL_SUCCESS;
 
-#if defined(HAVE_AESGCM)
+#if !defined(NO_AES) && defined(HAVE_AESGCM)
         switch (ctx->cipherType) {
-#if !defined(NO_AES)
-  #if defined(HAVE_AESGCM)
             case AES_128_GCM_TYPE:
             case AES_192_GCM_TYPE:
             case AES_256_GCM_TYPE:
 /* if out == NULL, in/inl contains the additional authenticated data for GCM */
                 return wolfSSL_EVP_CipherUpdate_GCM(ctx, out, outl, in, inl);
-  #endif
             default:
-                /* fall-through*/
-                if (out == NULL)
-                    return BAD_FUNC_ARG;
-                }
-#endif /* !NO_AES */
-#endif /* HAVE_AESGCM */
+                /* fall-through */
+                break;
+        }
+#endif /* !defined(NO_AES) && defined(HAVE_AESGCM) */
+
+    if (out == NULL)
+        return BAD_FUNC_ARG;
 
     if (ctx->bufUsed > 0) { /* concatinate them if there is anything */
         fill = fillBuff(ctx, in, inl);
@@ -496,10 +494,8 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
 
     WOLFSSL_ENTER("wolfSSL_EVP_CipherFinal");
 
-#if defined(HAVE_AESGCM)
+#if !defined(NO_AES) && defined(HAVE_AESGCM)
         switch (ctx->cipherType) {
-#if !defined(NO_AES)
-  #if defined(HAVE_AESGCM)
             case AES_128_GCM_TYPE:
             case AES_192_GCM_TYPE:
             case AES_256_GCM_TYPE:
@@ -507,18 +503,17 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                 /* Clear IV, since IV reuse is not recommended for AES GCM. */
                 XMEMSET(ctx->iv, 0, AES_BLOCK_SIZE);
                 return WOLFSSL_SUCCESS;
-  #endif
             default:
-                /* fall-through*/
-                if (ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING) {
-                    if (ctx->bufUsed != 0) return WOLFSSL_FAILURE;
-                    *outl = 0;
-                    return WOLFSSL_SUCCESS;
-                }
+                /* fall-through */
+                break;
         }
-#endif /* !NO_AES */
-#endif /* HAVE_AESGCM */
+#endif /* !NO_AES && HAVE_AESGCM */
 
+    if (ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING) {
+        if (ctx->bufUsed != 0) return WOLFSSL_FAILURE;
+        *outl = 0;
+        return WOLFSSL_SUCCESS;
+    }
     if (ctx->enc) {
         if (ctx->block_size == 1) {
             *outl = 0;
