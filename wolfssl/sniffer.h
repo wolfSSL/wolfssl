@@ -181,6 +181,10 @@ WOLFSSL_API
 SSL_SNIFFER_API int ssl_SetWatchKeyCallback(SSLWatchCb cb, char* error);
 
 WOLFSSL_API
+SSL_SNIFFER_API int ssl_SetWatchKeyCallback_ex(SSLWatchCb cb, int devId,
+                        char* error);
+
+WOLFSSL_API
 SSL_SNIFFER_API int ssl_SetWatchKeyCtx(void* ctx, char* error);
 
 WOLFSSL_API
