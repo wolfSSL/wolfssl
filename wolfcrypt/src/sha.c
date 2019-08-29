@@ -667,6 +667,13 @@ void wc_ShaFree(wc_Sha* sha)
 #ifdef WOLFSSL_PIC32MZ_HASH
     wc_ShaPic32Free(sha);
 #endif
+#if (defined(WOLFSSL_RENESAS_TSIP_CRYPT) && \
+    !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH))
+    if (sha->msg != NULL) {
+        XFREE(sha->msg, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        sha->msg = NULL;
+    }
+#endif
 }
 
 #endif /* !WOLFSSL_TI_HASH */
@@ -729,7 +736,6 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
      dst->flags |= WC_HASH_FLAG_ISCOPY;
 #endif
-
     return ret;
 }
 #endif /* defined(WOLFSSL_RENESAS_TSIP_CRYPT) ... */

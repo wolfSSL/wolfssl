@@ -79,12 +79,24 @@ static int TSIPHashUpdate(wolfssl_TSIP_Hash* hash, const byte* data, word32 sz)
             hash->msg = (byte*)XMALLOC(hash->used + sz, hash->heap,
                     DYNAMIC_TYPE_TMP_BUFFER);
         } else {
+#ifdef FREERTOS
+            byte* pt = (byte*)XMALLOC(hash->used + sz, hash->heap,
+                    DYNAMIC_TYPE_TMP_BUFFER);
+            if (pt == NULL) {
+                return MEMORY_E;
+            }
+            XMEMCPY(pt, hash->msg, hash->used);
+            XFREE(hash->msg, hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            hash->msg = NULL;
+            hash->msg = pt;
+#else
             byte* pt = (byte*)XREALLOC(hash->msg, hash->used + sz, hash->heap,
                     DYNAMIC_TYPE_TMP_BUFFER);
             if (pt == NULL) {
                 return MEMORY_E;
             }
             hash->msg = pt;
+#endif
         }
         if (hash->msg == NULL) {
             return MEMORY_E;
