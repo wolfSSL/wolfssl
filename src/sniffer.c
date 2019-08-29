@@ -3832,18 +3832,24 @@ doMessage:
             SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
             return -1;
         }
-#ifdef WOLFSSL_SNIFFER_STATS
-        LOCK_STAT();
-        NOLOCK_INC_STAT(SnifferStats.sslDecryptedPackets);
-        NOLOCK_ADD_TO_STAT(SnifferStats.sslDecryptedBytes, sslBytes);
-        UNLOCK_STAT();
-#endif
         sslFrame = DecryptMessage(ssl, sslFrame, rhSize,
                                   ssl->buffers.outputBuffer.buffer, &errCode,
                                   &ivAdvance);
         recordEnd = sslFrame - ivAdvance + rhSize;  /* sslFrame moved so
                                                        should recordEnd */
         decrypted = 1;
+
+#ifdef WOLFSSL_SNIFFER_STATS
+        if (errCode != 0) {
+            INC_STAT(SnifferStats.sslKeyFails);
+        }
+        else {
+            LOCK_STAT();
+            NOLOCK_INC_STAT(SnifferStats.sslDecryptedPackets);
+            NOLOCK_ADD_TO_STAT(SnifferStats.sslDecryptedBytes, sslBytes);
+            UNLOCK_STAT();
+        }
+#endif
         if (errCode != 0) {
             SetError(BAD_DECRYPT, error, session, FATAL_ERROR_STATE);
             return -1;
