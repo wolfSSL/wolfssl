@@ -28,6 +28,7 @@
 
 #define ASN1_STRING_new      wolfSSL_ASN1_STRING_type_new
 #define ASN1_STRING_type_new wolfSSL_ASN1_STRING_type_new
+#define ASN1_STRING_type     wolfSSL_ASN1_STRING_type
 #define ASN1_STRING_set      wolfSSL_ASN1_STRING_set
 #define ASN1_STRING_free     wolfSSL_ASN1_STRING_free
 

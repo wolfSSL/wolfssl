@@ -535,6 +535,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define RSA_free                        wolfSSL_RSA_free
 #define RSA_generate_key                wolfSSL_RSA_generate_key
 #define SSL_CTX_set_tmp_rsa_callback    wolfSSL_CTX_set_tmp_rsa_callback
+#define RSA_print                       wolfSSL_RSA_print
 
 #define PEM_def_callback                wolfSSL_PEM_def_callback
 
