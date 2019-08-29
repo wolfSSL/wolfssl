@@ -3606,8 +3606,7 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
 
     /* if current partial data, add to end of partial */
     /* if skipping, the data is already at the end of partial */
-    if ( !skipPartial && !vChain &&
-         (length = ssl->buffers.inputBuffer.length) ) {
+    if ( !skipPartial && (length = ssl->buffers.inputBuffer.length) ) {
         Trace(PARTIAL_ADD_STR);
 
         if ( (*sslBytes + length) > ssl->buffers.inputBuffer.bufferSize) {
@@ -3616,49 +3615,54 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
                 return -1;
             }
         }
-        XMEMCPY(&ssl->buffers.inputBuffer.buffer[length], *sslFrame, *sslBytes);
-        *sslBytes += length;
-        ssl->buffers.inputBuffer.length = *sslBytes;
-        *sslFrame = ssl->buffers.inputBuffer.buffer;
-        *end = *sslFrame + *sslBytes;
+        if (vChain == NULL) {
+            XMEMCPY(&ssl->buffers.inputBuffer.buffer[length],
+                    *sslFrame, *sslBytes);
+            *sslBytes += length;
+            ssl->buffers.inputBuffer.length = *sslBytes;
+            *sslFrame = ssl->buffers.inputBuffer.buffer;
+            *end = *sslFrame + *sslBytes;
+        }
     }
 
     if (vChain != NULL) {
 #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
         struct iovec* chain = (struct iovec*)vChain;
-        word32 i, offset, headerOffset, qty;
+        word32 i, offset, headerSz, qty, remainder;
 
         Trace(CHAIN_INPUT_STR);
-        headerOffset = (word32)*sslFrame - (word32)chain[0].iov_base;
-        length = *sslBytes + headerOffset;
-        if (length > ssl->buffers.inputBuffer.bufferSize) {
-            if (GrowInputBuffer(ssl, length, 0) < 0) {
+        headerSz = (word32)*sslFrame - (word32)chain[0].iov_base;
+        remainder = *sslBytes;
+
+        if ( (*sslBytes + length) > ssl->buffers.inputBuffer.bufferSize) {
+            if (GrowInputBuffer(ssl, *sslBytes, length) < 0) {
                 SetError(MEMORY_STR, error, *session, FATAL_ERROR_STATE);
                 return -1;
             }
         }
 
-        offset = 0;
-        for (i = 0; i < chainSz; i++) {
-            /* In case there is extra data in the chain that isn't covered
-             * by the sizes in the TCP headers, don't copy too much. This
-             * case has been seen where there are 4 extra bytes in the
-             * packet capture than the TCP header indicates. */
-            if (offset + chain[i].iov_len > length)
-                qty = length - offset;
+        qty = min(*sslBytes, (word32)chain[0].iov_len - headerSz);
+        XMEMCPY(&ssl->buffers.inputBuffer.buffer[length],
+               (byte*)chain[0].iov_base + headerSz, qty);
+        offset = length;
+        for (i = 1; i < chainSz; i++) {
+            offset += qty;
+            remainder -= qty;
+
+            if (chain[i].iov_len > remainder)
+                qty = remainder;
             else
                 qty = (word32)chain[i].iov_len;
             XMEMCPY(ssl->buffers.inputBuffer.buffer + offset,
                     chain[i].iov_base, qty);
-            offset += qty;
         }
 
-        ssl->buffers.inputBuffer.length = length;
-        *sslFrame = ssl->buffers.inputBuffer.buffer + headerOffset;
+        *sslBytes += length;
+        ssl->buffers.inputBuffer.length = *sslBytes;
+        *sslFrame = ssl->buffers.inputBuffer.buffer;
         *end = *sslFrame + *sslBytes;
-#else
-        (void)chainSz;
 #endif
+        (void)chainSz;
     }
 
     if ((*session)->flags.clientHello == 0 && **sslFrame != handshake) {
@@ -3677,8 +3681,10 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
         }
         else {
 #ifdef STARTTLS_ALLOWED
-            if (ssl->buffers.inputBuffer.dynamicFlag)
+            if (ssl->buffers.inputBuffer.dynamicFlag) {
+                ssl->buffers.inputBuffer.length = 0;
                 ShrinkInputBuffer(ssl, NO_FORCED_FREE);
+            }
             return 1;
 #endif
         }
