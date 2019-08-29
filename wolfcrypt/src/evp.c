@@ -1824,3 +1824,29 @@ WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char *pass, int passlen,
         return WOLFSSL_FAILURE;
 }
 #endif /* OPENSSL_EXTRA && !NO_PWDBASED !NO_SHA*/
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_PWDBASED)
+WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
+                                           const unsigned char *salt,
+                                           int saltlen, int iter,
+                                           const WOLFSSL_EVP_MD *digest,
+                                           int keylen, unsigned char *out)
+{
+    const char *nostring = "";
+    int ret = 0;
+
+    if (pass == NULL) {
+        passlen = 0;
+        pass = nostring;
+    } else if (passlen == -1) {
+        passlen = (int)XSTRLEN(pass);
+    }
+
+    ret = wc_PBKDF2((byte*)out, (byte*)pass, passlen, (byte*)salt, saltlen,
+                    iter, keylen, wolfSSL_EVP_MD_type(digest));
+    if (ret == 0)
+        return WOLFSSL_SUCCESS;
+    else
+        return WOLFSSL_FAILURE;
+}
+#endif /* OPENSSL_EXTRA && !NO_PWDBASED */

@@ -3283,6 +3283,24 @@ void FreeX509(WOLFSSL_X509* x509)
             XFREE(x509->authInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
             x509->authInfo = NULL;
         }
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        if (x509->authInfoCaIssuer != NULL) {
+            XFREE(x509->authInfoCaIssuer, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        }
+        if (x509->notBeforeTime != NULL) {
+            XFREE(x509->notBeforeTime, x509->heap, DYNAMIC_TYPE_OPENSSL);
+        }
+        if (x509->notAfterTime != NULL) {
+            XFREE(x509->notAfterTime, x509->heap, DYNAMIC_TYPE_OPENSSL);
+        }
+        if (x509->ext_sk != NULL) {
+            wolfSSL_sk_X509_EXTENSION_free(x509->ext_sk);
+        }
+        /* Free serialNumber that was set by wolfSSL_X509_get_serialNumber */
+        if (x509->serialNumber != NULL) {
+            wolfSSL_ASN1_INTEGER_free(x509->serialNumber);
+        }
+        #endif /* OPENSSL_ALL || WOLFSSL_QT */
         if (x509->extKeyUsageSrc != NULL) {
             XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
             x509->extKeyUsageSrc= NULL;
@@ -6028,39 +6046,39 @@ static WC_INLINE void DtlsGetSEQ(WOLFSSL* ssl, int order, word32 seq[2])
         /* Previous epoch case */
         if (ssl->options.haveMcast) {
         #ifdef WOLFSSL_MULTICAST
-            seq[0] = ((ssl->keys.dtls_epoch - 1) << 16) |
+            seq[0] = (((word32)ssl->keys.dtls_epoch - 1) << 16) |
                      (ssl->options.mcastID << 8) |
                      (ssl->keys.dtls_prev_sequence_number_hi & 0xFF);
         #endif
         }
         else
-            seq[0] = ((ssl->keys.dtls_epoch - 1) << 16) |
+            seq[0] = (((word32)ssl->keys.dtls_epoch - 1) << 16) |
                      (ssl->keys.dtls_prev_sequence_number_hi & 0xFFFF);
         seq[1] = ssl->keys.dtls_prev_sequence_number_lo;
     }
     else if (order == PEER_ORDER) {
         if (ssl->options.haveMcast) {
         #ifdef WOLFSSL_MULTICAST
-            seq[0] = (ssl->keys.curEpoch << 16) |
+            seq[0] = ((word32)ssl->keys.curEpoch << 16) |
                      (ssl->keys.curPeerId << 8) |
                      (ssl->keys.curSeq_hi & 0xFF);
         #endif
         }
         else
-            seq[0] = (ssl->keys.curEpoch << 16) |
+            seq[0] = ((word32)ssl->keys.curEpoch << 16) |
                      (ssl->keys.curSeq_hi & 0xFFFF);
         seq[1] = ssl->keys.curSeq_lo; /* explicit from peer */
     }
     else {
         if (ssl->options.haveMcast) {
         #ifdef WOLFSSL_MULTICAST
-            seq[0] = (ssl->keys.dtls_epoch << 16) |
+            seq[0] = ((word32)ssl->keys.dtls_epoch << 16) |
                      (ssl->options.mcastID << 8) |
                      (ssl->keys.dtls_sequence_number_hi & 0xFF);
         #endif
         }
         else
-            seq[0] = (ssl->keys.dtls_epoch << 16) |
+            seq[0] = ((word32)ssl->keys.dtls_epoch << 16) |
                      (ssl->keys.dtls_sequence_number_hi & 0xFFFF);
         seq[1] = ssl->keys.dtls_sequence_number_lo;
     }
@@ -9842,7 +9860,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                             /* CA already verified above in ParseCertRelative */
                             WOLFSSL_MSG("Adding CA from chain");
-                            ret = AddCA(ssl->ctx->cm, &add, WOLFSSL_CHAIN_CA, 0);
+                            ret = AddCA(ssl->ctx->cm, &add, WOLFSSL_CHAIN_CA,
+                                NO_VERIFY);
                             if (ret == WOLFSSL_SUCCESS) {
                                 ret = 0;
                             }

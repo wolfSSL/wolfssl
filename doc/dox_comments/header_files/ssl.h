@@ -11366,6 +11366,33 @@ WOLFSSL_API int wolfSSL_check_private_key(const WOLFSSL* ssl);
 /*!
     \ingroup CertsKeys
 
+    \brief This function looks for and returns the extension index
+    matching the passed in NID value.
+
+    \return >= 0 If successful the extension index is returned.
+    \return -1 If extension is not found or error is encountered.
+
+    \param x509 certificate to get parse through for extension.
+    \param nid extension OID to be found.
+    \param lastPos start search from extension after lastPos.
+                   Set to -1 initially.
+
+    _Example_
+    \code
+    const WOLFSSL_X509* x509;
+    int lastPos = -1;
+    int idx;
+
+    idx = wolfSSL_X509_get_ext_by_NID(x509, NID_basic_constraints, lastPos);
+    \endcode
+
+*/
+WOLFSSL_API int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509* x509,
+                                             int nid, int lastPos);
+
+/*!
+    \ingroup CertsKeys
+
     \brief This function looks for and returns the extension
     matching the passed in NID value.
 
