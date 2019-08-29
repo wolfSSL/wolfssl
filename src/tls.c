@@ -8698,7 +8698,10 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, byte* input, word16 length,
         if (length != 0)
             return BUFFER_E;
 
-        return TLSX_EarlyData_Use(ssl, 0);
+        if (ssl->earlyData == expecting_early_data)
+            return TLSX_EarlyData_Use(ssl, 0);
+        ssl->earlyData = early_data_ext;
+        return 0;
     }
     if (msgType == encrypted_extensions) {
         if (length != 0)

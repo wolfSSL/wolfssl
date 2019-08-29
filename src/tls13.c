@@ -3488,8 +3488,11 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     WOLFSSL_ENTER("DoPreSharedKeys");
 
     ext = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
-    if (ext == NULL)
-        return 0;
+    if (ext == NULL) {
+        /* Hash data up to binders for deriving binders in PSK extension. */
+        ret = HashInput(ssl, input,  helloSz);
+        return ret;
+    }
 
     /* Extensions pushed on stack/list and PSK must be last. */
     if (ssl->extensions != ext)
@@ -3668,6 +3671,11 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         break;
     }
 
+    /* Hash the rest of the ClientHello. */
+    ret = HashInputRaw(ssl, input + helloSz - bindersLen, bindersLen);
+    if (ret != 0)
+        return ret;
+
     if (current == NULL) {
 #ifdef WOLFSSL_PSK_ID_PROTECTION
     #ifndef NO_CERTS
@@ -3679,11 +3687,6 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         return 0;
 #endif
     }
-
-    /* Hash the rest of the ClientHello. */
-    ret = HashInputRaw(ssl, input + helloSz - bindersLen, bindersLen);
-    if (ret != 0)
-        return ret;
 
 #ifdef WOLFSSL_EARLY_DATA
     extEarlyData = TLSX_Find(ssl->extensions, TLSX_EARLY_DATA);
@@ -4068,13 +4071,16 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* Legacy protocol version cannot negotiate TLS 1.3 or higher. */
     if (pv.major > SSLv3_MAJOR || (pv.major == SSLv3_MAJOR &&
                                                    pv.minor >= TLSv1_3_MINOR)) {
-        pv.minor = SSLv3_MAJOR;
+        pv.major = SSLv3_MAJOR;
         pv.minor = TLSv1_2_MINOR;
         wantDowngrade = 1;
+        ssl->version.minor = pv.minor;
     }
     /* Legacy version must be [ SSLv3_MAJOR, TLSv1_2_MINOR ] for TLS v1.3 */
-    else if (pv.major == SSLv3_MAJOR && pv.minor < TLSv1_2_MINOR)
+    else if (pv.major == SSLv3_MAJOR && pv.minor < TLSv1_2_MINOR) {
         wantDowngrade = 1;
+        ssl->version.minor = pv.minor;
+    }
     else {
         ret = DoTls13SupportedVersions(ssl, input + begin, i - begin, helloSz,
                                                                 &wantDowngrade);
@@ -4091,7 +4097,6 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         if (pv.minor < ssl->options.minDowngrade)
             return VERSION_ERROR;
-        ssl->version.minor = pv.minor;
 
         if ((ret = HashInput(ssl, input + begin, helloSz)) != 0)
             return ret;
@@ -4240,11 +4245,6 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #if (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
      defined(HAVE_TLS_EXTENSIONS)
     if (TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY) != NULL) {
-        if (ssl->options.downgrade) {
-            if ((ret = InitHandshakeHashes(ssl)) != 0)
-                return ret;
-        }
-
         /* Refine list for PSK processing. */
         RefineSuites(ssl, &clSuites);
 
@@ -4253,12 +4253,16 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ret != 0)
             return ret;
     }
-    else {
+    else
+#endif
+    {
 #ifdef WOLFSSL_EARLY_DATA
         ssl->earlyData = no_early_data;
 #endif
+        if ((ret = HashInput(ssl, input + begin, helloSz)) != 0)
+            return ret;
+
     }
-#endif
 
     if (!usingPSK) {
         if (TLSX_Find(ssl->extensions, TLSX_KEY_SHARE) == NULL) {
@@ -4266,9 +4270,15 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             SendAlert(ssl, alert_fatal, missing_extension);
             return INCOMPLETE_DATA;
         }
+        if (TLSX_Find(ssl->extensions, TLSX_SIGNATURE_ALGORITHMS) == NULL) {
+            WOLFSSL_MSG("Client did not send a SignatureAlgorithms extension");
+            SendAlert(ssl, alert_fatal, missing_extension);
+            return INCOMPLETE_DATA;
+        }
 
         if ((ret = MatchSuite(ssl, &clSuites)) < 0) {
             WOLFSSL_MSG("Unsupported cipher suite, ClientHello");
+            SendAlert(ssl, alert_fatal, handshake_failure);
             return ret;
         }
 
@@ -4284,6 +4294,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ssl->options.cipherSuite0 != TLS13_BYTE) {
             WOLFSSL_MSG("Negotiated ciphersuite from lesser version than "
                         "TLS v1.3");
+            SendAlert(ssl, alert_fatal, handshake_failure);
             return VERSION_ERROR;
         }
 
@@ -4291,14 +4302,8 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ssl->options.resuming) {
             ssl->options.resuming = 0;
             XMEMSET(ssl->arrays->psk_key, 0, ssl->specs.hash_size);
-            /* May or may not have done any hashing. */
-            if ((ret = InitHandshakeHashes(ssl)) != 0)
-                return ret;
         }
 #endif
-
-        if ((ret = HashInput(ssl, input + begin, helloSz)) != 0)
-            return ret;
 
         /* Derive early secret for handshake secret. */
         if ((ret = DeriveEarlySecret(ssl)) != 0)
