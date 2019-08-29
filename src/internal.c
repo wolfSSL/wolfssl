@@ -3283,6 +3283,24 @@ void FreeX509(WOLFSSL_X509* x509)
             XFREE(x509->authInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
             x509->authInfo = NULL;
         }
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        if (x509->authInfoCaIssuer != NULL) {
+            XFREE(x509->authInfoCaIssuer, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        }
+        if (x509->notBeforeTime != NULL) {
+            XFREE(x509->notBeforeTime, x509->heap, DYNAMIC_TYPE_OPENSSL);
+        }
+        if (x509->notAfterTime != NULL) {
+            XFREE(x509->notAfterTime, x509->heap, DYNAMIC_TYPE_OPENSSL);
+        }
+        if (x509->ext_sk != NULL) {
+            wolfSSL_sk_X509_EXTENSION_free(x509->ext_sk);
+        }
+        /* Free serialNumber that was set by wolfSSL_X509_get_serialNumber */
+        if (x509->serialNumber != NULL) {
+            wolfSSL_ASN1_INTEGER_free(x509->serialNumber);
+        }
+        #endif /* OPENSSL_ALL || WOLFSSL_QT */
         if (x509->extKeyUsageSrc != NULL) {
             XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
             x509->extKeyUsageSrc= NULL;

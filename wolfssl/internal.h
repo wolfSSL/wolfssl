@@ -3442,19 +3442,21 @@ struct WOLFSSL_STACK {
     unsigned long num; /* number of nodes in stack
                         * (safety measure for freeing and shortcut for count) */
     union {
-        WOLFSSL_X509*        x509;
-        WOLFSSL_X509_NAME*   name;
-        WOLFSSL_BIO*         bio;
-        WOLFSSL_ASN1_OBJECT* obj;
-    #if defined(OPENSSL_ALL)
+        WOLFSSL_X509*          x509;
+        WOLFSSL_X509_NAME*     name;
+        WOLFSSL_BIO*           bio;
+        WOLFSSL_ASN1_OBJECT*   obj;
+        WOLFSSL_CIPHER*        cipher;
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         WOLFSSL_ACCESS_DESCRIPTION* access;
-    #endif
-        char*                string;
+        WOLFSSL_X509_EXTENSION* ext;
+        #endif
+        void*                  generic;
+        char*                  string;
     } data;
     WOLFSSL_STACK* next;
     byte type;     /* Identifies type of stack. */
 };
-
 
 struct WOLFSSL_X509_NAME {
     char  *name;
@@ -3492,11 +3494,19 @@ struct WOLFSSL_X509 {
     byte             hwType[EXTERNAL_SERIAL_SIZE];
     int              hwSerialNumSz;
     byte             hwSerialNum[EXTERNAL_SERIAL_SIZE];
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        byte             certPolicySet;
-        byte             certPolicyCrit;
-    #endif /* OPENSSL_EXTRA */
-#endif
+#endif /* WOLFSSL_SEP */
+#if (defined(WOLFSSL_SEP) || defined(WOLFSSL_QT) || defined (OPENSSL_ALL)) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+    byte             certPolicySet;
+    byte             certPolicyCrit;
+#endif /* (WOLFSSL_SEP || WOLFSSL_QT) && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    WOLFSSL_ASN1_TIME* notAfterTime;
+    WOLFSSL_ASN1_TIME* notBeforeTime;
+    WOLFSSL_STACK* ext_sk; /* Store X509_EXTENSIONS from wolfSSL_X509_get_ext */
+    WOLFSSL_STACK* ext_d2i;/* Store d2i extensions from wolfSSL_X509_get_ext_d2i */
+    WOLFSSL_ASN1_INTEGER* serialNumber; /* Stores SN from wolfSSL_X509_get_serialNumber */
+#endif /* WOLFSSL_QT || OPENSSL_ALL */
     int              notBeforeSz;
     int              notAfterSz;
     byte             notBefore[MAX_DATE_SZ];
@@ -3507,12 +3517,12 @@ struct WOLFSSL_X509 {
     buffer           pubKey;
     int              pubKeyOID;
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
-    #if defined(HAVE_ECC) || defined(HAVE_ED25519)
-        word32       pkCurveOID;
-    #endif /* HAVE_ECC */
-    #ifndef NO_CERTS
-        DerBuffer*   derCert;                        /* may need  */
-    #endif
+#if defined(HAVE_ECC) || defined(HAVE_ED25519)
+    word32       pkCurveOID;
+#endif /* HAVE_ECC */
+#ifndef NO_CERTS
+    DerBuffer*   derCert;                            /* may need  */
+#endif
     void*            heap;                           /* heap hint */
     byte             dynamicMemory;                  /* dynamic memory flag */
     byte             isCa:1;
@@ -3533,6 +3543,10 @@ struct WOLFSSL_X509 {
     byte*            extKeyUsageSrc;
     const byte*      CRLInfo;
     byte*            authInfo;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+    byte*            authInfoCaIssuer;
+    int              authInfoCaIssuerSz;
+#endif
     word32           pathLength;
     word16           keyUsage;
     int              CRLInfoSz;
