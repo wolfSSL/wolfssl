@@ -2555,6 +2555,11 @@ done:
     fdCloseSession(Task_self());
 #endif
 
+#if defined(NO_MAIN_DRIVER) && defined(HAVE_ECC) && defined(FP_ECC) \
+                            && defined(HAVE_THREAD_LS)
+    wc_ecc_fp_free();  /* free per thread cache */
+#endif
+
     return;
 }
 
@@ -14301,6 +14306,10 @@ static int test_wc_ecc_make_key (void)
         ret = WOLFSSL_FATAL_ERROR;
     }
 
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+
     printf(resultFmt, ret == 0 ? passed : failed);
 #endif
 
@@ -14382,6 +14391,10 @@ static int test_wc_ecc_check_key (void)
         ret = WOLFSSL_FATAL_ERROR;
     }
     wc_ecc_free(&key);
+
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
 
 #endif
     return ret;
@@ -14560,6 +14573,11 @@ static int test_wc_ecc_signVerify_hash (void)
             ret = WOLFSSL_FATAL_ERROR;
         }
         wc_ecc_free(&key);
+
+    #ifdef FP_ECC
+        wc_ecc_fp_free();
+    #endif
+
 #endif
     return ret;
 
@@ -14628,6 +14646,10 @@ static int test_wc_ecc_shared_secret (void)
     wc_ecc_free(&key);
     wc_ecc_free(&pubKey);
 
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+
 #endif
     return ret;
 
@@ -14688,6 +14710,10 @@ static int test_wc_ecc_export_x963 (void)
         ret = WOLFSSL_FATAL_ERROR;
     }
     wc_ecc_free(&key);
+
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
 
 #endif
     return ret;
@@ -14788,6 +14814,10 @@ static int test_wc_ecc_export_x963_ex (void)
     }
     wc_ecc_free(&key);
 
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+
 #endif
     return ret;
 
@@ -14851,6 +14881,10 @@ static int test_wc_ecc_import_x963 (void)
     }
     wc_ecc_free(&key);
     wc_ecc_free(&pubKey);
+
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
 
 #endif
     return ret;
@@ -14923,6 +14957,10 @@ static int ecc_import_private_key (void)
     wc_ecc_free(&key);
     wc_ecc_free(&keyImp);
 
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+
 #endif
     return ret;
 
@@ -14979,6 +15017,10 @@ static int test_wc_ecc_export_private_only (void)
         ret = WOLFSSL_FATAL_ERROR;
     }
     wc_ecc_free(&key);
+
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
 
 #endif
     return ret;
@@ -15790,6 +15832,10 @@ static int test_wc_ecc_shared_secret_ssh (void)
     wc_ecc_free(&key);
     wc_ecc_free(&key2);
 
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
+
 #endif
     return ret;
 
@@ -15999,6 +16045,9 @@ static int test_wc_ecc_mulmod (void)
     wc_ecc_free(&key2);
     wc_ecc_free(&key3);
 
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
 
 #endif /* HAVE_ECC && !WOLFSSL_ATECC508A */
     return ret;
@@ -16054,6 +16103,9 @@ static int test_wc_ecc_is_valid_idx (void)
         ret = WOLFSSL_FATAL_ERROR;
     }
     wc_ecc_free(&key);
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
 
 #endif
     return ret;
@@ -24900,6 +24952,9 @@ static void test_wolfSSL_PEM_write_bio_PKCS7(void)
         if (cert_buf)
             free(cert_buf);
 
+#ifdef FP_ECC
+    wc_ecc_fp_free();
+#endif
         return ret;
     }
 
