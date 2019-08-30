@@ -12522,7 +12522,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (hint == 0)
             ctx->server_hint[0] = '\0';
         else {
-            XSTRNCPY(ctx->server_hint, hint, sizeof(ctx->server_hint));
+            XSTRNCPY(ctx->server_hint, hint, MAX_PSK_ID_LEN);
             ctx->server_hint[MAX_PSK_ID_LEN] = '\0'; /* null term */
         }
         return WOLFSSL_SUCCESS;
@@ -25324,7 +25324,7 @@ int wolfSSL_RAND_egd(const char* nm)
     }
     if (ret == WOLFSSL_SUCCESS) {
         rem.sun_family = AF_UNIX;
-        XSTRNCPY(rem.sun_path, nm, sizeof(rem.sun_path));
+        XSTRNCPY(rem.sun_path, nm, sizeof(rem.sun_path) - 1);
         rem.sun_path[sizeof(rem.sun_path)-1] = '\0';
     }
 
