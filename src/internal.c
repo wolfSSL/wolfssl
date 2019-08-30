@@ -3425,6 +3425,12 @@ void FreeX509(WOLFSSL_X509* x509)
             x509->extKeyUsageSrc= NULL;
         }
     #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+    #if defined(OPENSSL_ALL)
+        if (x509->algor.algorithm) {
+            wolfSSL_ASN1_OBJECT_free(x509->algor.algorithm);
+            x509->algor.algorithm = NULL;
+        }
+    #endif /* OPENSSL_ALL */
     if (x509->altNames) {
         FreeAltNames(x509->altNames, x509->heap);
         x509->altNames = NULL;
@@ -8933,6 +8939,12 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             x509->sig.length = dCert->sigLength;
             x509->sigOID = dCert->signatureOID;
         }
+#if defined(OPENSSL_ALL)
+        if (x509->algor.algorithm == NULL) {
+            printf("i am not null\n");
+            x509->algor.algorithm = wolfSSL_OBJ_nid2obj(dCert->signatureOID);
+        }
+#endif
     }
 
     /* store cert for potential retrieval */

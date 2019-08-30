@@ -24362,11 +24362,10 @@ WOLFSSL_API int SSL_SESSION_set1_id_context(WOLFSSL_SESSION *s, const unsigned c
 }
 #endif
 
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)
 /* Returns X509_ALGOR struct with signature algorithm */
 const WOLFSSL_X509_ALGOR* wolfSSL_X509_get0_tbs_sigalg(const WOLFSSL_X509 *x509)
 {
-    WOLFSSL_X509_ALGOR* algor;
-    int nid;
     WOLFSSL_ENTER("X509_get0_tbs_sigalg");
 
     if (x509 == NULL) {
@@ -24374,24 +24373,10 @@ const WOLFSSL_X509_ALGOR* wolfSSL_X509_get0_tbs_sigalg(const WOLFSSL_X509 *x509)
         return NULL;
     }
 
-    algor = (WOLFSSL_X509_ALGOR*)XMALLOC(sizeof(WOLFSSL_X509_ALGOR),
-                                            NULL, DYNAMIC_TYPE_OPENSSL);
-    if (algor == NULL) {
-        WOLFSSL_MSG("Memory error");
-        return NULL;
-    }
-    XMEMSET(algor, 0, sizeof(WOLFSSL_X509_ALGOR));
-
-    /* Get signature algorithm */
-    nid = wolfSSL_X509_get_signature_type((WOLFSSL_X509*)x509);
-    /* Set algorithm as ASN1_OBJECT. algor->parameter not currently being set */
-    algor->algorithm = wolfSSL_OBJ_nid2obj(nid);
-
-    return algor;
+    return &x509->algor;
 }
 
-/* For Apache httpd compatibility - for now only sets the X509_AGLOR member in
-   paobj. */
+/* Sets paobj pointer to X509_ALGOR signature algorithm */
 void wolfSSL_X509_ALGOR_get0(WOLFSSL_ASN1_OBJECT **paobj, int *pptype,
                             const void **ppval, const WOLFSSL_X509_ALGOR *algor)
 {
@@ -24399,7 +24384,7 @@ void wolfSSL_X509_ALGOR_get0(WOLFSSL_ASN1_OBJECT **paobj, int *pptype,
     (void)ppval;
     WOLFSSL_ENTER("X509_ALGOR_get0");
 
-    if (paobj) {
+    if (paobj && algor) {
         *paobj = algor->algorithm;
     }
     else {
@@ -24466,6 +24451,7 @@ int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg,
 
     return WOLFSSL_FAILURE;
 }
+#endif /* OPENSSL_ALL || WOLFSSL_APACHE_HTTPD */
 
 #ifndef NO_WOLFSSL_STUB
 /*** TBD ***/

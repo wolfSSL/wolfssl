@@ -3644,6 +3644,9 @@ struct WOLFSSL_X509 {
 #endif
     WOLFSSL_X509_NAME issuer;
     WOLFSSL_X509_NAME subject;
+#if defined(OPENSSL_ALL)
+    WOLFSSL_X509_ALGOR algor;
+#endif
 };
 
 

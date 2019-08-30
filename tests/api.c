@@ -21689,6 +21689,55 @@ static void test_wolfSSL_X509_sign(void)
     /* Valid case - size should be 798 */
     AssertIntEQ(X509_sign(x509, priv, EVP_sha256()), 798);
 
+    X509_NAME_free(name);
+    EVP_PKEY_free(priv);
+    EVP_PKEY_free(pub);
+    X509_free(x509);
+
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_X509_get0_tbs_sigalg(void)
+{
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD))
+    X509* x509 = NULL;
+    const X509_ALGOR* alg;
+    printf(testingFmt, "wolfSSL_X509_get0_tbs_sigalg");
+
+    AssertNotNull(x509 = X509_new());
+
+    AssertNull(alg = X509_get0_tbs_sigalg(NULL));
+    AssertNotNull(alg = X509_get0_tbs_sigalg(x509));
+
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_X509_ALGOR_get0(void)
+{
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && !defined(NO_SHA256)
+    X509* x509 = NULL;
+    ASN1_OBJECT* obj = NULL;
+    const X509_ALGOR* alg;
+    printf(testingFmt, "wolfSSL_X509_ALGOR_get0");
+
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
+                                                             SSL_FILETYPE_PEM));
+    AssertNotNull(alg = X509_get0_tbs_sigalg(x509));
+
+    /* Invalid case */
+    X509_ALGOR_get0(&obj, NULL, NULL, NULL);
+    AssertNull(obj);
+
+    /* Valid case */
+    X509_ALGOR_get0(&obj, NULL, NULL, alg);
+    AssertNotNull(obj);
+    /* Make sure NID of X509_ALGOR is Sha256 with RSA */
+    AssertIntEQ(OBJ_obj2nid(obj), CTC_SHA256wRSA);
+
+    X509_free(x509);
+
     printf(resultFmt, passed);
 #endif
 }
@@ -27643,6 +27692,8 @@ void ApiTest(void)
     test_wolfSSL_X509();
     test_wolfSSL_X509_VERIFY_PARAM();
     test_wolfSSL_X509_sign();
+    test_wolfSSL_X509_get0_tbs_sigalg();
+    test_wolfSSL_X509_ALGOR_get0();
     test_wolfSSL_RAND();
     test_wolfSSL_BUF();
     test_wolfSSL_set_tlsext_status_type();
