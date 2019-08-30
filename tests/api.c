@@ -21710,6 +21710,8 @@ static void test_wolfSSL_X509_get0_tbs_sigalg(void)
     AssertNull(alg = X509_get0_tbs_sigalg(NULL));
     AssertNotNull(alg = X509_get0_tbs_sigalg(x509));
 
+    X509_free(x509);
+
     printf(resultFmt, passed);
 #endif
 }
@@ -21785,6 +21787,47 @@ static void test_wolfSSL_X509_VERIFY_PARAM(void)
 #endif
 }
 
+static void test_wolfSSL_X509_get_X509_PUBKEY(void)
+{
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD))
+    X509* x509 = NULL;
+    X509_PUBKEY* pubKey;
+    printf(testingFmt, "wolfSSL_X509_get_X509_PUBKEY");
+
+    AssertNotNull(x509 = X509_new());
+
+    AssertNull(pubKey = wolfSSL_X509_get_X509_PUBKEY(NULL));
+    AssertNotNull(pubKey = wolfSSL_X509_get_X509_PUBKEY(x509));
+
+    X509_free(x509);
+
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_X509_PUBKEY_get0_param(void)
+{
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && !defined(NO_SHA256)
+    X509* x509 = NULL;
+    ASN1_OBJECT* obj = NULL;
+    X509_PUBKEY* pubKey;
+    printf(testingFmt, "wolfSSL_X509_get_X509_PUBKEY");
+
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
+                                                             SSL_FILETYPE_PEM));
+
+    AssertNotNull(pubKey = wolfSSL_X509_get_X509_PUBKEY(x509));
+    X509_PUBKEY_get0_param(&obj, NULL, 0, NULL, pubKey);
+    AssertNotNull(pubKey);
+
+    AssertIntEQ(OBJ_obj2nid(obj), RSAk);
+
+    X509_free(x509);
+//    AssertIntEQ(1,0);
+
+    printf(resultFmt, passed);
+#endif
+}
 
 static void test_wolfSSL_RAND(void)
 {
@@ -27694,6 +27737,8 @@ void ApiTest(void)
     test_wolfSSL_X509_sign();
     test_wolfSSL_X509_get0_tbs_sigalg();
     test_wolfSSL_X509_ALGOR_get0();
+    test_wolfSSL_X509_get_X509_PUBKEY();
+    test_wolfSSL_X509_PUBKEY_get0_param();
     test_wolfSSL_RAND();
     test_wolfSSL_BUF();
     test_wolfSSL_set_tlsext_status_type();

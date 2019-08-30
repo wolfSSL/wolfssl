@@ -24395,9 +24395,6 @@ void wolfSSL_X509_ALGOR_get0(WOLFSSL_ASN1_OBJECT **paobj, int *pptype,
 /* Returns X509_PUBKEY structure containing X509_ALGOR and EVP_PKEY */
 WOLFSSL_X509_PUBKEY* wolfSSL_X509_get_X509_PUBKEY(const WOLFSSL_X509* x509)
 {
-    WOLFSSL_X509_PUBKEY* pubkey;
-    WOLFSSL_X509_ALGOR* algor;
-    int nid;
     WOLFSSL_ENTER("X509_get_X509_PUBKEY");
 
     if (x509 == NULL) {
@@ -24405,51 +24402,42 @@ WOLFSSL_X509_PUBKEY* wolfSSL_X509_get_X509_PUBKEY(const WOLFSSL_X509* x509)
         return NULL;
     }
 
-    /* Create X509_PUBKEY structure */
-    pubkey = (WOLFSSL_X509_PUBKEY*)XMALLOC(sizeof(WOLFSSL_X509_PUBKEY), NULL,
-                                                          DYNAMIC_TYPE_OPENSSL);
-    if (pubkey == NULL) {
-        WOLFSSL_MSG("Memory error");
-        return NULL;
-    }
-    XMEMSET(pubkey, 0, sizeof(WOLFSSL_X509_PUBKEY));
-    /* Set EVP_PKEY */
-    pubkey->pkey = wolfSSL_X509_get_pubkey((WOLFSSL_X509*)x509);
-
-    /* Create X509_ALGOR struct for X509_PUBKEY */
-    algor = (WOLFSSL_X509_ALGOR*)XMALLOC(sizeof(WOLFSSL_X509_ALGOR),
-                                            NULL, DYNAMIC_TYPE_OPENSSL);
-    if (algor == NULL) {
-        WOLFSSL_MSG("Memory error");
-        XFREE(pubkey, NULL, DYNAMIC_TYPE_OPENSSL);
-        return NULL;
-    }
-    XMEMSET(algor, 0, sizeof(WOLFSSL_X509_ALGOR));
-
-    /* Set X509_ALGOR in pubkey */
-    nid = wolfSSL_X509_get_pubkey_type((WOLFSSL_X509*)x509);
-    algor->algorithm = wolfSSL_OBJ_nid2obj(nid);
-    pubkey->algor = algor;
-
-    return pubkey;
+    return (WOLFSSL_X509_PUBKEY*)&x509->key;
 }
 
-/* For Apache httpd compatibility - for now only sets the X509_PUBKEY member in
-   ppkalg */
+/* Sets ppkalg pointer to X509_PUBKEY algorithm. Returns WOLFSSL_SUCCESS on
+    success or WOLFSSL_FAILURE on error. */
 int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg,
      const unsigned char **pk, int *ppklen, void **pa, WOLFSSL_X509_PUBKEY *pub)
 {
     (void)pk;
     (void)ppklen;
     (void)pa;
+    WOLFSSL_ASN1_OBJECT* obj;
     WOLFSSL_ENTER("X509_PUBKEY_get0_param");
 
-    if (ppkalg) {
-        *ppkalg = pub->algor->algorithm;
-        return WOLFSSL_SUCCESS;
+    if (ppkalg == NULL || pub == NULL) {
+        return WOLFSSL_FAILURE;
     }
 
-    return WOLFSSL_FAILURE;
+    if (pub->algor == NULL) {
+        pub->algor = (WOLFSSL_X509_ALGOR*)XMALLOC(sizeof(WOLFSSL_X509_ALGOR),
+                                                NULL, DYNAMIC_TYPE_OPENSSL);
+        if (pub->algor == NULL) {
+            return WOLFSSL_FAILURE;
+        }
+    }
+    obj = wolfSSL_OBJ_nid2obj(pub->pubKeyOID);
+    if (obj == NULL) {
+        WOLFSSL_MSG("Failed to create object from NID");
+        return WOLFSSL_FAILURE;
+    }
+
+    pub->algor->algorithm = obj;
+    *ppkalg = pub->algor->algorithm;
+
+    return WOLFSSL_SUCCESS;
+
 }
 #endif /* OPENSSL_ALL || WOLFSSL_APACHE_HTTPD */
 

@@ -379,13 +379,11 @@ typedef struct WOLFSSL_X509_INFO WOLFSSL_X509_INFO;
 
 struct WOLFSSL_X509_ALGOR {
     WOLFSSL_ASN1_OBJECT* algorithm;
-    WOLFSSL_ASN1_TYPE* parameter;
 };
 
 struct WOLFSSL_X509_PUBKEY {
     WOLFSSL_X509_ALGOR* algor;
-    WOLFSSL_ASN1_BIT_STRING* public_key;
-    WOLFSSL_EVP_PKEY* pkey;
+    int pubKeyOID;
 };
 
 

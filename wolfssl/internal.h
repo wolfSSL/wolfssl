@@ -3646,6 +3646,7 @@ struct WOLFSSL_X509 {
     WOLFSSL_X509_NAME subject;
 #if defined(OPENSSL_ALL)
     WOLFSSL_X509_ALGOR algor;
+    WOLFSSL_X509_PUBKEY key;
 #endif
 };
 
