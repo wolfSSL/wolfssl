@@ -25254,9 +25254,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         /* encrypt */
         encLen = WOLFSSL_TICKET_ENC_SZ;  /* max size user can use */
-        ret = ssl->ctx->ticketEncCb(ssl, et->key_name, et->iv, et->mac, 1,
+        if (ssl->ctx->ticketEncCb == NULL) {
+            ret = WOLFSSL_TICKET_RET_FATAL;
+        }
+        else {
+            ret = ssl->ctx->ticketEncCb(ssl, et->key_name, et->iv, et->mac, 1,
                                     et->enc_ticket, sizeof(InternalTicket),
                                     &encLen, ssl->ctx->ticketEncCtx);
+        }
         if (ret == WOLFSSL_TICKET_RET_OK) {
             if (encLen < (int)sizeof(InternalTicket) ||
                 encLen > WOLFSSL_TICKET_ENC_SZ) {
@@ -25331,10 +25336,16 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return BAD_TICKET_MSG_SZ;
         }
         outLen = inLen;   /* may be reduced by user padding */
-        ret = ssl->ctx->ticketEncCb(ssl, et->key_name, et->iv,
+
+        if (ssl->ctx->ticketEncCb == NULL) {
+            ret = WOLFSSL_TICKET_RET_FATAL;
+        }
+        else {
+            ret = ssl->ctx->ticketEncCb(ssl, et->key_name, et->iv,
                                     et->enc_ticket + inLen, 0,
                                     et->enc_ticket, inLen, &outLen,
                                     ssl->ctx->ticketEncCtx);
+        }
         if (ret == WOLFSSL_TICKET_RET_FATAL || ret < 0) return ret;
         if (outLen > (int)inLen || outLen < (int)sizeof(InternalTicket)) {
             WOLFSSL_MSG("Bad user ticket decrypt len");
