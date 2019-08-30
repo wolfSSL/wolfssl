@@ -3052,7 +3052,9 @@ static int CheckHeaders(IpInfo* ipInfo, TcpInfo* tcpInfo, const byte* packet,
         SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
         return -1;
     }
-    *sslBytes = (int)(packet + length - *sslFrame);
+    /* We only care about the data in the TCP/IP record. There may be extra
+     * data after the IP record for the FCS for Ethernet. */
+    *sslBytes = (int)(packet + ipInfo->total - *sslFrame);
 
     return 0;
 }
@@ -4069,7 +4071,7 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
     TcpInfo           tcpInfo;
     IpInfo            ipInfo;
     const byte*       sslFrame;
-    const byte*       end = packet + length;
+    const byte*       end;
     int               sslBytes;                /* ssl bytes unconsumed */
     int               ret;
     SnifferSession*   session = 0;
@@ -4089,6 +4091,8 @@ static int ssl_DecodePacketInternal(const byte* packet, int length,
     if (CheckHeaders(&ipInfo, &tcpInfo, packet, length, &sslFrame, &sslBytes,
                      error) != 0)
         return -1;
+
+    end = sslFrame + sslBytes;
 
     ret = CheckSession(&ipInfo, &tcpInfo, sslBytes, &session, error);
     if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) return -1;
