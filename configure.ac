@@ -2936,6 +2936,19 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EXTENDED_MASTER"
 fi
 
+# Encrypt-Then-Mac
+AC_ARG_ENABLE([enc-then-mac],
+    [AS_HELP_STRING([--enable-enc-then-mac],[Enable Encryptr-Then-Mac extension (default: enabled)])],
+    [ ENABLED_ENCRYPT_THEN_MAC=$enableval ],
+    [ ENABLED_ENCRYPT_THEN_MAC=yes ]
+    )
+
+if test "x$ENABLED_ENCRYPT_THEN_MAC" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ENCRYPT_THEN_MAC"
+fi
+
+
 # TLS Extensions
 AC_ARG_ENABLE([tlsx],
     [AS_HELP_STRING([--enable-tlsx],[Enable all TLS Extensions (default: disabled)])],
@@ -2955,7 +2968,8 @@ then
     ENABLED_TRUNCATED_HMAC=yes
     ENABLED_ALPN=yes
     ENABLED_TRUSTED_CA=yes
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_ALPN -DHAVE_TRUSTED_CA"
+    ENABLED_ENCRYPT_THEN_MAC=yes
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_ALPN -DHAVE_TRUSTED_CA -DHAVE_ENCRYPT_THEN_MAC"
     # Check the ECC supported curves prereq
     AS_IF([test "x$ENABLED_ECC" = "xyes" || test "x$ENABLED_CURVE25519" = "xyes"],
           [ENABLED_SUPPORTED_CURVES=yes

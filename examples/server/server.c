@@ -582,39 +582,40 @@ static const char* server_usage_msg[][49] = {
         "-g          Return basic HTML web page\n",                     /* 35 */
         "-C <num>    The number of connections to accept, default: 1\n",/* 36 */
         "-H <arg>    Internal tests"
-                      " [defCipherList, exitWithRet, verifyFail]\n",    /* 37 */
+            " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n", /* 37 */
+        "                            loadSSL, disallowETM]\n",          /* 38 */
 #ifdef WOLFSSL_TLS13
-        "-U          Update keys and IVs before sending\n",             /* 38 */
-        "-K          Key Exchange for PSK not using (EC)DHE\n",         /* 39 */
+        "-U          Update keys and IVs before sending\n",             /* 39 */
+        "-K          Key Exchange for PSK not using (EC)DHE\n",         /* 40 */
 #ifndef NO_DH
-        "-y          Pre-generate Key Share using FFDHE_2048 only\n",   /* 40 */
+        "-y          Pre-generate Key Share using FFDHE_2048 only\n",   /* 41 */
 #endif
 #ifdef HAVE_ECC
-        "-Y          Pre-generate Key Share using P-256 only \n",       /* 41 */
+        "-Y          Pre-generate Key Share using P-256 only \n",       /* 42 */
 #endif
 #ifdef HAVE_CURVE25519
-        "-t          Pre-generate Key share using Curve25519 only\n",   /* 42 */
+        "-t          Pre-generate Key share using Curve25519 only\n",   /* 43 */
 #endif
 #ifdef HAVE_SESSION_TICKET
-        "-T          Do not generate session ticket\n",                 /* 43 */
+        "-T          Do not generate session ticket\n",                 /* 44 */
 #endif
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
-        "-Q          Request certificate from client post-handshake\n", /* 44 */
+        "-Q          Request certificate from client post-handshake\n", /* 45 */
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
-        "-J          Server sends Cookie Extension containing state\n", /* 45 */
+        "-J          Server sends Cookie Extension containing state\n", /* 46 */
 #endif
 #endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_EARLY_DATA
-        "-0          Early data read from client (0-RTT handshake)\n",  /* 46 */
+        "-0          Early data read from client (0-RTT handshake)\n",  /* 47 */
 #endif
 #ifdef WOLFSSL_MULTICAST
-        "-3 <grpid>  Multicast, grpid < 256\n",                         /* 47 */
+        "-3 <grpid>  Multicast, grpid < 256\n",                         /* 48 */
 #endif
         "-1 <num>    Display a result by specified language."
-                             "\n            0: English, 1: Japanese\n", /* 48 */
+                             "\n            0: English, 1: Japanese\n", /* 49 */
 #ifdef HAVE_TRUSTED_CA
-        "-5          Use Trusted CA Key Indication\n",                  /* 51 */
+        "-5          Use Trusted CA Key Indication\n",                  /* 52 */
 #endif
         NULL,
     },
@@ -698,41 +699,42 @@ static const char* server_usage_msg[][49] = {
         "-g          基本的な Web ページを返す\n",                      /* 35 */
         "-C <num>    アクセプト可能な接続数を指定する。既定値: 1\n",    /* 36 */
         "-H <arg>    内部テスト"
-                      " [defCipherList, exitWithRet, verifyFail]\n",    /* 37 */
+            " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n", /* 37 */
+        "                            loadSSL, disallowETM]\n",          /* 38 */
 #ifdef WOLFSSL_TLS13
-        "-U          データ送信前に、鍵とIVを更新する\n",               /* 38 */
-        "-K          鍵交換にPSKを使用、(EC)DHEは使用しない\n",         /* 39 */
+        "-U          データ送信前に、鍵とIVを更新する\n",               /* 39 */
+        "-K          鍵交換にPSKを使用、(EC)DHEは使用しない\n",         /* 40 */
 #ifndef NO_DH
-        "-y          FFDHE_2048のみを使用して鍵共有を事前生成する\n",   /* 40 */
+        "-y          FFDHE_2048のみを使用して鍵共有を事前生成する\n",   /* 41 */
 #endif
 #ifdef HAVE_ECC
-        "-Y          P-256のみを使用したキー共有の事前生成\n",          /* 41 */
+        "-Y          P-256のみを使用したキー共有の事前生成\n",          /* 42 */
 #endif
 #ifdef HAVE_CURVE25519
-        "-t          Curve25519のみを使用して鍵共有を事前生成する\n",   /* 42 */
+        "-t          Curve25519のみを使用して鍵共有を事前生成する\n",   /* 43 */
 #endif
 #ifdef HAVE_SESSION_TICKET
-        "-T         セッションチケットを生成しない\n",                  /* 43 */
+        "-T         セッションチケットを生成しない\n",                  /* 44 */
 #endif
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
         "-Q          クライアントのポストハンドシェイクから"
-                                              "証明書を要求する\n",     /* 44 */
+                                              "証明書を要求する\n",     /* 45 */
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
-        "-J          サーバーの状態を含むTLS Cookie 拡張を送信する\n",  /* 45 */
+        "-J          サーバーの状態を含むTLS Cookie 拡張を送信する\n",  /* 46 */
 #endif
 #endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_EARLY_DATA
         "-0          クライアントからの Early Data 読み取り"
-                                      "（0-RTTハンドシェイク）\n",      /* 46 */
+                                      "（0-RTTハンドシェイク）\n",      /* 47 */
 #endif
 #ifdef WOLFSSL_MULTICAST
-        "-3 <grpid>  マルチキャスト, grpid < 256\n",                    /* 47 */
+        "-3 <grpid>  マルチキャスト, grpid < 256\n",                    /* 48 */
 #endif
         "-1 <num>    指定された言語で結果を表示します。"
-                                 "\n            0: 英語、 1: 日本語\n", /* 48 */
+                                 "\n            0: 英語、 1: 日本語\n", /* 49 */
 #ifdef HAVE_TRUSTED_CA
-        "-5          信頼できる認証局の鍵表示を使用する\n",             /* 51 */
+        "-5          信頼できる認証局の鍵表示を使用する\n",             /* 52 */
 #endif
         NULL,
     },
@@ -812,7 +814,8 @@ static void Usage(void)
 #endif
     printf("%s", msg[++msgId]);     /* -g */
     printf("%s", msg[++msgId]);     /* -C */
-   printf("%s", msg[++msgId]);      /* -H */
+    printf("%s", msg[++msgId]);     /* -H */
+    printf("%s", msg[++msgId]);     /* more -H options */
 #ifdef WOLFSSL_TLS13
     printf("%s", msg[++msgId]);     /* -U */
     printf("%s", msg[++msgId]);     /* -K */
@@ -997,6 +1000,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     int exitWithRet = 0;
     int loadCertKeyIntoSSLObj = 0;
 
+#ifdef HAVE_ENCRYPT_THEN_MAC
+    int disallowETM = 0;
+#endif
+
     ((func_args*)args)->return_code = -1; /* error state */
 
 #ifdef NO_RSA
@@ -1171,6 +1178,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                     printf("Only load cert/key into wolfSSL object\n");
                 #ifndef NO_CERTS
                     loadCertKeyIntoSSLObj = 1;
+                #endif
+                }
+                else if (XSTRNCMP(myoptarg, "disallowETM", 11) == 0) {
+                    printf("Disallow Encrypt-Then-MAC\n");
+                #ifdef HAVE_ENCRYPT_THEN_MAC
+                    disallowETM = 1;
                 #endif
                 }
                 else {
@@ -1977,6 +1990,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             }
             WOLFSSL_END(WC_FUNC_CLIENT_KEY_EXCHANGE_DO);
         }
+    #endif
+
+    #ifdef HAVE_ENCRYPT_THEN_MAC
+        if (disallowETM)
+            wolfSSL_AllowEncryptThenMac(ssl, 0);
     #endif
 
 

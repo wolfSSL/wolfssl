@@ -1974,9 +1974,25 @@ typedef int (*CallbackDecryptVerify)(WOLFSSL* ssl,
        unsigned int decSz, int content, int verify, unsigned int* padSz,
        void* ctx);
 WOLFSSL_API void  wolfSSL_CTX_SetDecryptVerifyCb(WOLFSSL_CTX*,
-                                               CallbackDecryptVerify);
+                                                 CallbackDecryptVerify);
 WOLFSSL_API void  wolfSSL_SetDecryptVerifyCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetDecryptVerifyCtx(WOLFSSL* ssl);
+
+typedef int (*CallbackEncryptMac)(WOLFSSL* ssl, unsigned char* macOut,
+       int content, int macVerify, unsigned char* encOut,
+       const unsigned char* encIn, unsigned int encSz, void* ctx);
+WOLFSSL_API void  wolfSSL_CTX_SetEncryptMacCb(WOLFSSL_CTX*, CallbackEncryptMac);
+WOLFSSL_API void  wolfSSL_SetEncryptMacCtx(WOLFSSL* ssl, void *ctx);
+WOLFSSL_API void* wolfSSL_GetEncryptMacCtx(WOLFSSL* ssl);
+
+typedef int (*CallbackVerifyDecrypt)(WOLFSSL* ssl,
+       unsigned char* decOut, const unsigned char* decIn,
+       unsigned int decSz, int content, int verify, unsigned int* padSz,
+       void* ctx);
+WOLFSSL_API void  wolfSSL_CTX_SetVerifyDecryptCb(WOLFSSL_CTX*,
+                                                 CallbackVerifyDecrypt);
+WOLFSSL_API void  wolfSSL_SetVerifyDecryptCtx(WOLFSSL* ssl, void *ctx);
+WOLFSSL_API void* wolfSSL_GetVerifyDecryptCtx(WOLFSSL* ssl);
 
 WOLFSSL_API const unsigned char* wolfSSL_GetMacSecret(WOLFSSL*, int);
 WOLFSSL_API const unsigned char* wolfSSL_GetClientWriteKey(WOLFSSL*);
@@ -3238,6 +3254,11 @@ WOLFSSL_API unsigned long  wolfSSL_X509_subject_name_hash(const WOLFSSL_X509* x5
 
 #ifdef HAVE_PK_CALLBACKS
 WOLFSSL_API int wolfSSL_CTX_IsPrivatePkSet(WOLFSSL_CTX* ctx);
+#endif
+
+#ifdef HAVE_ENCRYPT_THEN_MAC
+WOLFSSL_API int wolfSSL_CTX_AllowEncryptThenMac(WOLFSSL_CTX *, int);
+WOLFSSL_API int wolfSSL_AllowEncryptThenMac(WOLFSSL *s, int);
 #endif
 
 #ifdef __cplusplus

@@ -1975,7 +1975,7 @@ static WC_INLINE void StackTrap(void)
 #endif /* STACK_TRAP */
 
 
-#ifdef ATOMIC_USER
+#if defined(ATOMIC_USER) && !defined(WOLFSSL_AEAD_ONLY)
 
 /* Atomic Encrypt Context example */
 typedef struct AtomicEncCtx {
@@ -2016,6 +2016,9 @@ static WC_INLINE int myMacEncryptCb(WOLFSSL* ssl, unsigned char* macOut,
     /* hmac, not needed if aead mode */
     wolfSSL_SetTlsHmacInner(ssl, myInner, macInSz, macContent, macVerify);
 
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
     ret = wc_HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
                wolfSSL_GetMacSecret(ssl, macVerify), wolfSSL_GetHmacSize(ssl));
     if (ret != 0)
@@ -2133,6 +2136,9 @@ static WC_INLINE int myDecryptVerifyCb(WOLFSSL* ssl,
 
     wolfSSL_SetTlsHmacInner(ssl, myInner, macInSz, macContent, macVerify);
 
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
     ret = wc_HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
                wolfSSL_GetMacSecret(ssl, macVerify), digestSz);
     if (ret != 0)
@@ -2155,6 +2161,162 @@ static WC_INLINE int myDecryptVerifyCb(WOLFSSL* ssl,
 
     return ret;
 }
+
+#if defined(HAVE_ENCRYPT_THEN_MAC)
+
+static WC_INLINE int myEncryptMacCb(WOLFSSL* ssl, unsigned char* macOut,
+       int content, int macVerify, unsigned char* encOut,
+       const unsigned char* encIn, unsigned int encSz, void* ctx)
+{
+    int  ret;
+    Hmac hmac;
+    AtomicEncCtx* encCtx = (AtomicEncCtx*)ctx;
+    byte myInner[WOLFSSL_TLS_HMAC_INNER_SZ];
+    const char* tlsStr = "TLS";
+
+    /* example supports (d)tls aes */
+    if (wolfSSL_GetBulkCipher(ssl) != wolfssl_aes) {
+        printf("myMacEncryptCb not using AES\n");
+        return -1;
+    }
+
+    if (strstr(wolfSSL_get_version(ssl), tlsStr) == NULL) {
+        printf("myMacEncryptCb not using (D)TLS\n");
+        return -1;
+    }
+
+    /* encrypt setup on first time */
+    if (encCtx->keySetup == 0) {
+        int   keyLen = wolfSSL_GetKeySize(ssl);
+        const byte* key;
+        const byte* iv;
+
+        if (wolfSSL_GetSide(ssl) == WOLFSSL_CLIENT_END) {
+            key = wolfSSL_GetClientWriteKey(ssl);
+            iv  = wolfSSL_GetClientWriteIV(ssl);
+        }
+        else {
+            key = wolfSSL_GetServerWriteKey(ssl);
+            iv  = wolfSSL_GetServerWriteIV(ssl);
+        }
+
+        ret = wc_AesSetKey(&encCtx->aes, key, keyLen, iv, AES_ENCRYPTION);
+        if (ret != 0) {
+            printf("AesSetKey failed in myMacEncryptCb\n");
+            return ret;
+        }
+        encCtx->keySetup = 1;
+    }
+
+    /* encrypt */
+    ret = wc_AesCbcEncrypt(&encCtx->aes, encOut, encIn, encSz);
+    if (ret != 0)
+        return ret;
+
+    /* Reconstruct record header. */
+    wolfSSL_SetTlsHmacInner(ssl, myInner, encSz, content, macVerify);
+
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+    ret = wc_HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
+               wolfSSL_GetMacSecret(ssl, macVerify), wolfSSL_GetHmacSize(ssl));
+    if (ret != 0)
+        return ret;
+    ret = wc_HmacUpdate(&hmac, myInner, sizeof(myInner));
+    if (ret != 0)
+        return ret;
+    ret = wc_HmacUpdate(&hmac, encOut, encSz);
+    if (ret != 0)
+        return ret;
+    return wc_HmacFinal(&hmac, macOut);
+}
+
+
+static WC_INLINE int myVerifyDecryptCb(WOLFSSL* ssl,
+       unsigned char* decOut, const unsigned char* decIn,
+       unsigned int decSz, int content, int macVerify,
+       unsigned int* padSz, void* ctx)
+{
+    AtomicDecCtx* decCtx = (AtomicDecCtx*)ctx;
+    int ret      = 0;
+    int digestSz = wolfSSL_GetHmacSize(ssl);
+    Hmac hmac;
+    byte myInner[WOLFSSL_TLS_HMAC_INNER_SZ];
+    byte verify[WC_MAX_DIGEST_SIZE];
+    const char* tlsStr = "TLS";
+
+    /* example supports (d)tls aes */
+    if (wolfSSL_GetBulkCipher(ssl) != wolfssl_aes) {
+        printf("myMacEncryptCb not using AES\n");
+        return -1;
+    }
+
+    if (strstr(wolfSSL_get_version(ssl), tlsStr) == NULL) {
+        printf("myMacEncryptCb not using (D)TLS\n");
+        return -1;
+    }
+
+    /* Reconstruct record header. */
+    wolfSSL_SetTlsHmacInner(ssl, myInner, decSz, content, macVerify);
+
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+    ret = wc_HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
+               wolfSSL_GetMacSecret(ssl, macVerify), digestSz);
+    if (ret != 0)
+        return ret;
+    ret = wc_HmacUpdate(&hmac, myInner, sizeof(myInner));
+    if (ret != 0)
+        return ret;
+    ret = wc_HmacUpdate(&hmac, decIn, decSz);
+    if (ret != 0)
+        return ret;
+    ret = wc_HmacFinal(&hmac, verify);
+    if (ret != 0)
+        return ret;
+
+    if (XMEMCMP(verify, decOut + decSz, digestSz) != 0) {
+        printf("myDecryptVerify verify failed\n");
+        return -1;
+    }
+
+    /* decrypt */
+    if (decCtx->keySetup == 0) {
+        int   keyLen = wolfSSL_GetKeySize(ssl);
+        const byte* key;
+        const byte* iv;
+
+        /* decrypt is from other side (peer) */
+        if (wolfSSL_GetSide(ssl) == WOLFSSL_SERVER_END) {
+            key = wolfSSL_GetClientWriteKey(ssl);
+            iv  = wolfSSL_GetClientWriteIV(ssl);
+        }
+        else {
+            key = wolfSSL_GetServerWriteKey(ssl);
+            iv  = wolfSSL_GetServerWriteIV(ssl);
+        }
+
+        ret = wc_AesSetKey(&decCtx->aes, key, keyLen, iv, AES_DECRYPTION);
+        if (ret != 0) {
+            printf("AesSetKey failed in myDecryptVerifyCb\n");
+            return ret;
+        }
+        decCtx->keySetup = 1;
+    }
+
+    /* decrypt */
+    ret = wc_AesCbcDecrypt(&decCtx->aes, decOut, decIn, decSz);
+    if (ret != 0)
+        return ret;
+
+    *padSz  = *(decOut + decSz - 1) + 1;
+
+    return 0;
+}
+
+#endif
 
 
 static WC_INLINE void SetupAtomicUser(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
@@ -2179,6 +2341,14 @@ static WC_INLINE void SetupAtomicUser(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
 
     wolfSSL_CTX_SetDecryptVerifyCb(ctx, myDecryptVerifyCb);
     wolfSSL_SetDecryptVerifyCtx(ssl, decCtx);
+
+#if defined(HAVE_ENCRYPT_THEN_MAC)
+    wolfSSL_CTX_SetEncryptMacCb(ctx, myEncryptMacCb);
+    wolfSSL_SetEncryptMacCtx(ssl, encCtx);
+
+    wolfSSL_CTX_SetVerifyDecryptCb(ctx, myVerifyDecryptCb);
+    wolfSSL_SetVerifyDecryptCtx(ssl, decCtx);
+#endif
 }
 
 
@@ -2186,6 +2356,8 @@ static WC_INLINE void FreeAtomicUser(WOLFSSL* ssl)
 {
     AtomicEncCtx* encCtx = (AtomicEncCtx*)wolfSSL_GetMacEncryptCtx(ssl);
     AtomicDecCtx* decCtx = (AtomicDecCtx*)wolfSSL_GetDecryptVerifyCtx(ssl);
+
+    /* Encrypt-Then-MAC callbacks use same contexts. */
 
     free(decCtx);
     free(encCtx);
