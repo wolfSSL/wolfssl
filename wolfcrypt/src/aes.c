@@ -759,7 +759,9 @@
         }
     #endif /* HAVE_AES_DECRYPT */
 
-#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
+#elif (defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)) || \
+      ((defined(WOLFSSL_AFALG) || defined(WOLFSSL_DEVCRYPTO_AES)) && \
+        defined(HAVE_AESCCM))
         static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         {
             wc_AesEncryptDirect(aes, outBlock, inBlock);
@@ -768,16 +770,6 @@
 
 #elif defined(WOLFSSL_AFALG)
 #elif defined(WOLFSSL_DEVCRYPTO_AES)
-    /* if all AES is enabled with devcrypto then tables are not needed */
-
-    #if defined(HAVE_AESCCM)
-    static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
-    {
-        wc_AesEncryptDirect(aes, outBlock, inBlock);
-        return 0;
-    }
-    #endif
-
 #else
 
     /* using wolfCrypt software implementation */
@@ -1593,8 +1585,8 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 #endif /* HAVE_AES_CBC || WOLFSSL_AES_DIRECT || HAVE_AESGCM */
 
 #if defined(HAVE_AES_DECRYPT)
-#if (defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)) && \
-    !defined(WOLFSSL_DEVCRYPTO_CBC)
+#if (defined(HAVE_AES_CBC) && !defined(WOLFSSL_DEVCRYPTO_CBC)) || \
+     defined(WOLFSSL_AES_DIRECT)
 
 /* load 4 Td Tables into cache by cache line stride */
 static WC_INLINE word32 PreFetchTd(void)
