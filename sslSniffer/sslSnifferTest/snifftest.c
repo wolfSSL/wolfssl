@@ -54,6 +54,7 @@ int main(void)
 #include <stdlib.h>        /* EXIT_SUCCESS */
 #include <string.h>        /* strcmp */
 #include <signal.h>        /* signal */
+#include <ctype.h>         /* isprint */
 
 #include <cyassl/sniffer.h>
 
@@ -513,6 +514,12 @@ int main(int argc, char** argv)
                 hadBadPacket = 1;
             }
             if (ret > 0) {
+                int j;
+                /* Convert non-printable data to periods. */
+                for (j = 0; j < ret; j++) {
+                    if (isprint(data[j]) || isspace(data[j])) continue;
+                    data[j] = '.';
+                }
                 data[ret] = 0;
                 printf("SSL App Data(%d:%d):%s\n", packetNumber, ret, data);
                 ssl_FreeZeroDecodeBuffer(&data, ret, err);
