@@ -1870,7 +1870,7 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
 
     #ifdef SHOW_SECRETS
     {
-        int i;
+        word32 i;
         printf("pre master secret: ");
         for (i = 0; i < session->sslServer->arrays->preMasterSz; i++)
             printf("%02x", session->sslServer->arrays->preMasterSecret[i]);
