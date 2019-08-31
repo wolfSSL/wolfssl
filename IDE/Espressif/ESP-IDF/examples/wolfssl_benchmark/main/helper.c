@@ -163,6 +163,8 @@ void app_main(void)
        return;
     }
     atmel_set_slot_allocator(my_atmel_alloc, my_atmel_free);
+    #else
+    (void) TAG;
     #endif
 #endif
     wolf_benchmark_task();

@@ -131,6 +131,7 @@ void tls_smp_client_task()
     size_t len;
     struct hostent *hp;
     struct ip4_addr *ip4_addr;
+    const char sndMsg[] = "GET /index.html HTTP/1.0\r\n\r\n";
 
     /* declare wolfSSL objects */
     WOLFSSL_CTX *ctx;
@@ -257,8 +258,8 @@ void tls_smp_client_task()
 
     if(sendGet){
         printf("SSL connect ok, sending GET...\n");
-        len = 28;
-        strncpy(buff, "GET /index.html HTTP/1.0\r\n\r\n", 28);
+        len = XSTRLEN(sndMsg);
+        strncpy(buff, sndMsg, len);
         buff[len] = '\0';
     } else {
         sprintf(buff, "message from esp32 tls client\n");
