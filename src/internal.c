@@ -4659,6 +4659,7 @@ int wolfSSL_CTX_IsPrivatePkSetForKeyType(WOLFSSL_CTX* ctx, byte keyType)
 {
     int pkcbset = 0;
     (void)ctx;
+    (void)keyType;
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || !defined(NO_RSA)
     if (0
     #ifdef HAVE_ECC
