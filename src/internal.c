@@ -4655,24 +4655,27 @@ int DhAgree(WOLFSSL* ssl, DhKey* dhKey,
 
 
 #ifdef HAVE_PK_CALLBACKS
-int wolfSSL_CTX_IsPrivatePkSetForKeyType(WOLFSSL_CTX* ctx, byte keyType)
+int wolfSSL_IsPrivatePkSet(WOLFSSL* ssl)
 {
     int pkcbset = 0;
-    (void)ctx;
-    (void)keyType;
+    (void)ssl;
+    
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || !defined(NO_RSA)
     if (0
     #ifdef HAVE_ECC
-        || (ctx->EccSignCb != NULL && keyType == ecc_dsa_sa_algo)
+        || (ssl->ctx->EccSignCb != NULL && 
+                                        ssl->buffers.keyType == ecc_dsa_sa_algo)
     #endif
     #ifdef HAVE_ED25519
-        || (ctx->Ed25519SignCb != NULL && keyType == ed25519_sa_algo)
+        || (ssl->ctx->Ed25519SignCb != NULL && 
+                                        ssl->buffers.keyType == ed25519_sa_algo)
     #endif
     #ifndef NO_RSA
-        || (ctx->RsaSignCb != NULL && keyType == rsa_sa_algo)
-        || (ctx->RsaDecCb != NULL && keyType == rsa_kea)
+        || (ssl->ctx->RsaSignCb != NULL && ssl->buffers.keyType == rsa_sa_algo)
+        || (ssl->ctx->RsaDecCb != NULL && ssl->buffers.keyType == rsa_kea)
         #ifdef WC_RSA_PSS
-        || (ctx->RsaPssSignCb != NULL && keyType == rsa_pss_sa_algo)
+        || (ssl->ctx->RsaPssSignCb != NULL && 
+                                        ssl->buffers.keyType == rsa_pss_sa_algo)
         #endif
     #endif
     ) {
@@ -18073,7 +18076,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
 
 #ifdef HAVE_PK_CALLBACKS
     /* allow no private key if using PK callbacks and CB is set */
-    if (wolfSSL_CTX_IsPrivatePkSetForKeyType(ssl->ctx, ssl->buffers.keyType)) {
+    if (wolfSSL_IsPrivatePkSet(ssl)) {
         *length = GetPrivateKeySigSize(ssl);
         return 0;
     }

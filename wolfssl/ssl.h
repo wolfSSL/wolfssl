@@ -3253,9 +3253,8 @@ WOLFSSL_API unsigned long  wolfSSL_X509_subject_name_hash(const WOLFSSL_X509* x5
 #endif /* OPENSSL_EXTRA */
 
 #ifdef HAVE_PK_CALLBACKS
+WOLFSSL_API int wolfSSL_IsPrivatePkSet(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_CTX_IsPrivatePkSet(WOLFSSL_CTX* ctx);
-WOLFSSL_API int wolfSSL_CTX_IsPrivatePkSetForKeyType(WOLFSSL_CTX* ctx,
-                                                                byte keyType);
 #endif
 
 #ifdef HAVE_ENCRYPT_THEN_MAC
