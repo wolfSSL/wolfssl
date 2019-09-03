@@ -15802,6 +15802,7 @@ int scrypt_test(void)
 }
 #endif
 
+#ifdef HAVE_PKCS12
 int pkcs12_test(void)
 {
     const byte passwd[] = { 0x00, 0x73, 0x00, 0x6d, 0x00, 0x65, 0x00, 0x67,
@@ -15853,7 +15854,7 @@ int pkcs12_test(void)
 
     return 0;
 }
-
+#endif /* HAVE_PKCS12 */
 
 int pbkdf2_test(void)
 {
@@ -15918,9 +15919,11 @@ int pwdbased_test(void)
    ret = pbkdf2_test();
    if (ret != 0)
       return ret;
+#ifdef HAVE_PKCS12
    ret = pkcs12_test();
    if (ret != 0)
       return ret;
+#endif
 #ifdef HAVE_SCRYPT
    ret = scrypt_test();
    if (ret != 0)
@@ -16880,6 +16883,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
         goto done;
     }
 
+#ifdef HAVE_PKCS8
     /* test export of PKCS#8 unencrypted private key */
     pkcs8Sz = FOURK_BUF;
     derSz = wc_EccPrivateKeyToPKCS8(&userA, der, &pkcs8Sz);
@@ -16896,6 +16900,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
     if (ret != 0) {
         goto done;
     }
+#endif /* HAVE_PKCS8 */
 
 done:
 
