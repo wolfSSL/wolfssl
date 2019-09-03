@@ -3592,7 +3592,7 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
                                                              private_key->heap);
         if (err == MP_OKAY) {
             x = mp_unsigned_bin_size(curve->prime);
-            if (*outlen < x) {
+            if (*outlen < x || (int)x < mp_unsigned_bin_size(result->x)) {
                 err = BUFFER_E;
             }
         }
