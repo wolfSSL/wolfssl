@@ -1046,6 +1046,10 @@ AC_ARG_ENABLE([afalg],
 
 if test "$ENABLED_AFALG" = "yes"
 then
+    if test "$ENABLED_AESCCM" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT"
+    fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_HASH"
 fi
