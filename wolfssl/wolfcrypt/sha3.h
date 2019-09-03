@@ -137,8 +137,8 @@ WOLFSSL_API int wc_Sha3_512_GetHash(wc_Sha3*, byte*);
 WOLFSSL_API int wc_Sha3_512_Copy(wc_Sha3* src, wc_Sha3* dst);
 
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
-    WOLFSSL_LOCAL int wc_Sha3_SetFlags(wc_Sha3* sha3, word32 flags);
-    WOLFSSL_LOCAL int wc_Sha3_GetFlags(wc_Sha3* sha3, word32* flags);
+    WOLFSSL_API int wc_Sha3_SetFlags(wc_Sha3* sha3, word32 flags);
+    WOLFSSL_API int wc_Sha3_GetFlags(wc_Sha3* sha3, word32* flags);
 #endif
 
 #ifdef __cplusplus

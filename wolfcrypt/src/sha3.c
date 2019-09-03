@@ -570,6 +570,9 @@ static int InitSha3(wc_Sha3* sha3)
     for (i = 0; i < 25; i++)
         sha3->s[i] = 0;
     sha3->i = 0;
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    sha3->flags = 0;
+#endif
 
     return 0;
 }
@@ -637,9 +640,15 @@ static int Sha3Final(wc_Sha3* sha3, byte* hash, byte p, byte l)
 {
     byte i;
     byte *s8 = (byte *)sha3->s;
+    byte padChar = 0x06; /* NIST SHA-3 */
 
     sha3->t[p * 8 - 1]  = 0x00;
-    sha3->t[  sha3->i]  = 0x06;
+#ifdef WOLFSSL_HASH_FLAGS
+    if (p == WC_SHA3_256_COUNT && sha3->flags & WC_HASH_SHA3_KECCAK256) {
+        padChar = 0x01;
+    }
+#endif
+    sha3->t[  sha3->i]  = padChar;
     sha3->t[p * 8 - 1] |= 0x80;
     for (i=sha3->i + 1; i < p * 8 - 1; i++)
         sha3->t[i] = 0;

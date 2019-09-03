@@ -225,6 +225,9 @@ static int InitSha512(wc_Sha512* sha512)
     */
     sha512->ctx.mode = ESP32_SHA_INIT;
 #endif
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    sha512->flags = 0;
+#endif
     return 0;
 }
 
@@ -934,6 +937,9 @@ static int InitSha384(wc_Sha384* sha384)
     */
     sha384->ctx.mode = ESP32_SHA_INIT;
 
+#endif
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    sha384->flags = 0;
 #endif
 
     return 0;

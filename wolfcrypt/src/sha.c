@@ -298,6 +298,9 @@
         sha->buffLen = 0;
         sha->loLen   = 0;
         sha->hiLen   = 0;
+    #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+        sha->flags = 0;
+    #endif
 
         return ret;
     }
