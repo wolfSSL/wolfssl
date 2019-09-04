@@ -8236,7 +8236,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
             }
             aia->type = STACK_TYPE_ACCESS_DESCRIPTION;
 
-            aiaEntry = wolfSSL_sk_value(sk,i);
+            aiaEntry = (WOLFSSL_ASN1_OBJECT*)wolfSSL_sk_value(sk,i);
             /* ACCESS_DESCRIPTION has two members, method and location.
                 Method: ASN1_OBJECT as either AIA_OCSP_OID or AIA_CA_ISSUER_OID
                 Location: GENERAL_NAME structure containing the URI. */
@@ -8298,7 +8298,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
                     return NULL;
                 }
                 i++;
-                aiaEntry = wolfSSL_sk_value(sk,i);
+                aiaEntry = (WOLFSSL_ASN1_OBJECT*)wolfSSL_sk_value(sk,i);
             }
             return aia;
 
