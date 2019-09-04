@@ -259,7 +259,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         /* Load m */
         /* Load four message blocks to NEON v10, v11, v12, v13, v14 */
         "LD4        { v10.4S-v13.4S }, [%[m]], #64 \n\t"
-        "SUB        %[bytes], %[bytes], #4*%[POLY1305_BLOCK_SIZE] \n\t"
+        "SUB        %[bytes], %[bytes], %[POLY1305_BLOCK_SIZE]*4 \n\t"
         "DUP        v29.4S, v27.S[0]     \n\t"
         "DUP        v30.4S, v26.S[0]     \n\t"
         "USHR       v14.4S, v13.4S, #8   \n\t"
@@ -403,7 +403,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         /* Load m */
         /* Load four message blocks to NEON v10, v11, v12, v13, v14 */
         "LD4        { v10.4S-v13.4S }, [%[m]], #64 \n\t"
-        "SUB        %[bytes], %[bytes], #4*%[POLY1305_BLOCK_SIZE] \n\t"
+        "SUB        %[bytes], %[bytes], %[POLY1305_BLOCK_SIZE]*4 \n\t"
         "USHR       v14.4S, v13.4S, #8   \n\t"
         "ORR        v14.16B, v14.16B, v30.16B \n\t"
         "SHL        v13.4S, v13.4S, #18  \n\t"
@@ -461,7 +461,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         /* Copy r^2 to lower half of registers */
         "MOV        v0.D[0], v0.D[1]     \n\t"
         "MOV        v5.D[0], v5.D[1]     \n\t"
-        "SUB        %[bytes], %[bytes], #2*%[POLY1305_BLOCK_SIZE] \n\t"
+        "SUB        %[bytes], %[bytes], %[POLY1305_BLOCK_SIZE]*2 \n\t"
         "MOV        v1.D[0], v1.D[1]     \n\t"
         "USHR       v14.2D, v11.2D, #40  \n\t"
         "MOV        v6.D[0], v6.D[1]     \n\t"
@@ -560,7 +560,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         /* Load m */
         /* Load two message blocks to NEON v10, v11, v12, v13, v14 */
         "LD2        { v10.2D-v11.2D }, [%[m]], #32 \n\t"
-        "SUB        %[bytes], %[bytes], #2*%[POLY1305_BLOCK_SIZE] \n\t"
+        "SUB        %[bytes], %[bytes], %[POLY1305_BLOCK_SIZE]*2 \n\t"
         "USHR       v14.2D, v11.2D, #40  \n\t"
         "ORR        v14.16B, v14.16B, v26.16B \n\t"
         "USHR       v13.2D, v11.2D, #14  \n\t"
@@ -571,11 +571,11 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "USHR       v11.2D, v10.2D, #26  \n\t"
         "AND        v11.16B, v11.16B, v27.16B \n\t"
         "AND        v10.16B, v10.16B, v27.16B \n\t"
-        "MOV        v10.2S[1], v10.2S[2] \n\t"
-        "MOV        v11.2S[1], v11.2S[2] \n\t"
-        "MOV        v12.2S[1], v12.2S[2] \n\t"
-        "MOV        v13.2S[1], v13.2S[2] \n\t"
-        "MOV        v14.2S[1], v14.2S[2] \n\t"
+        "MOV        v10.S[1], v10.S[2] \n\t"
+        "MOV        v11.S[1], v11.S[2] \n\t"
+        "MOV        v12.S[1], v12.S[2] \n\t"
+        "MOV        v13.S[1], v13.S[2] \n\t"
+        "MOV        v14.S[1], v14.S[2] \n\t"
         /* Two message blocks loaded */
         /* Add messages to accumulator */
         "ADD        v15.2S, v15.2S, v10.2S \n\t"
@@ -653,7 +653,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         /* Reduce h % P */
         "MOV        x14, #5              \n\t"
         "ADD        x10, x10, x9, LSR #26 \n\t"
-        "SUB        %[bytes], %[bytes], #2*%[POLY1305_BLOCK_SIZE] \n\t"
+        "SUB        %[bytes], %[bytes], %[POLY1305_BLOCK_SIZE]*2 \n\t"
         "ADD        x13, x13, x12, LSR #26 \n\t"
         "USHR       v14.2D, v11.2D, #40  \n\t"
         "AND        x9, x9, #0x3ffffff   \n\t"
@@ -731,15 +731,15 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "SUB        %[r], %[r], #16      \n\t"
         "MUL        x11, x20, x27        \n\t"
         /* Store [r^2, r] * 5 */
-        "MUL        v5.2S, v0.2S, v28.2S[0] \n\t"
+        "MUL        v5.2S, v0.2S, v28.S[0] \n\t"
         "MUL        x12, x20, x28        \n\t"
-        "MUL        v6.2S, v1.2S, v28.2S[0] \n\t"
+        "MUL        v6.2S, v1.2S, v28.S[0] \n\t"
         "MUL        x13, x20, x30        \n\t"
-        "MUL        v7.2S, v2.2S, v28.2S[0] \n\t"
+        "MUL        v7.2S, v2.2S, v28.S[0] \n\t"
         "MADD       x9, x21, x19, x9     \n\t"
-        "MUL        v8.2S, v3.2S, v28.2S[0] \n\t"
+        "MUL        v8.2S, v3.2S, v28.S[0] \n\t"
         "MADD       x10, x21, x25, x10   \n\t"
-        "MUL        v9.2S, v4.2S, v28.2S[0] \n\t"
+        "MUL        v9.2S, v4.2S, v28.S[0] \n\t"
         "MADD       x11, x21, x26, x11   \n\t"
         /* Final multiply by [r^2, r] */
         /* d0 = h0*r0 + h1*s4 + h2*s3 + h3*s2 + h4*s1 */
@@ -991,7 +991,7 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
         "ORR        x19, x19, x20, LSL #32 \n\t"
         "ORR        x21, x21, x22, LSL #32 \n\t"
         "STP        x19, x21, [%[ctx_r]] \n\t"
-        "STR        w23, [%[ctx_r], ##16] \n\t"
+        "STR        w23, [%[ctx_r], #16] \n\t"
         "MOV        x8, #5               \n\t"
         "MUL        x24, x15, x8         \n\t"
         "MUL        x25, x16, x8         \n\t"
@@ -1048,15 +1048,15 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
         "ORR        x14, x14, x15, LSL #32 \n\t"
         "ORR        x16, x16, x17, LSL #32 \n\t"
         "STP        x14, x16, [%[ctx_r_2]] \n\t"
-        "STR        w18, [%[ctx_r_2], ##16] \n\t"
+        "STR        w18, [%[ctx_r_2], #16] \n\t"
         /* Store r^4 */
         "ORR        x19, x19, x20, LSL #32 \n\t"
         "ORR        x21, x21, x22, LSL #32 \n\t"
         "STP        x19, x21, [%[ctx_r_4]] \n\t"
-        "STR        w23, [%[ctx_r_4], ##16] \n\t"
+        "STR        w23, [%[ctx_r_4], #16] \n\t"
         /* h (accumulator) = 0 */
         "STP        xzr, xzr, [%[ctx_h_0]] \n\t"
-        "STR        wzr, [%[ctx_h_0], ##16] \n\t"
+        "STR        wzr, [%[ctx_h_0], #16] \n\t"
         /* Save pad for later */
         "STP        x10, x11, [%[ctx_pad]] \n\t"
         /* Zero leftover */
