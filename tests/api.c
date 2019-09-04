@@ -23663,7 +23663,7 @@ static void test_wolfSSL_X509V3_EXT_d2i(void) {
     AssertNotNull(ext = wolfSSL_X509_get_ext(x509, i));
     AssertNotNull(obj = wolfSSL_X509_EXTENSION_get_object(ext));
     AssertIntEQ((nid = wolfSSL_OBJ_obj2nid(obj)), NID_basic_constraints);
-    AssertNotNull(bc = wolfSSL_X509V3_EXT_d2i(ext));
+    AssertNotNull(bc = (WOLFSSL_BASIC_CONSTRAINTS*)wolfSSL_X509V3_EXT_d2i(ext));
 
     AssertIntEQ(bc->ca, 1);
     AssertNull(bc->pathlen);
@@ -23675,7 +23675,7 @@ static void test_wolfSSL_X509V3_EXT_d2i(void) {
     AssertNotNull(obj = wolfSSL_X509_EXTENSION_get_object(ext));
     AssertIntEQ((nid = wolfSSL_OBJ_obj2nid(obj)), NID_subject_key_identifier);
 
-    AssertNotNull(asn1str = wolfSSL_X509V3_EXT_d2i(ext));
+    AssertNotNull(asn1str = (WOLFSSL_ASN1_STRING*)wolfSSL_X509V3_EXT_d2i(ext));
     AssertNotNull(method = wolfSSL_X509V3_EXT_get(ext));
     AssertNotNull(method->i2s);
     AssertNotNull(str = method->i2s((WOLFSSL_v3_ext_method*)method, asn1str));
@@ -23691,7 +23691,8 @@ static void test_wolfSSL_X509V3_EXT_d2i(void) {
     AssertNotNull(obj = wolfSSL_X509_EXTENSION_get_object(ext));
     AssertIntEQ((nid = wolfSSL_OBJ_obj2nid(obj)), NID_authority_key_identifier);
 
-    AssertNotNull(aKeyId = wolfSSL_X509V3_EXT_d2i(ext));
+    AssertNotNull(aKeyId =
+                         (WOLFSSL_AUTHORITY_KEYID*)wolfSSL_X509V3_EXT_d2i(ext));
     AssertNotNull(method = wolfSSL_X509V3_EXT_get(ext));
     AssertNotNull(asn1str = aKeyId->keyid);
     AssertNotNull(str =
@@ -23708,7 +23709,7 @@ static void test_wolfSSL_X509V3_EXT_d2i(void) {
     AssertNotNull(obj = wolfSSL_X509_EXTENSION_get_object(ext));
     AssertIntEQ((nid = wolfSSL_OBJ_obj2nid(obj)), NID_key_usage);
 
-    AssertNotNull(asn1str = wolfSSL_X509V3_EXT_d2i(ext));
+    AssertNotNull(asn1str = (WOLFSSL_ASN1_STRING*)wolfSSL_X509V3_EXT_d2i(ext));
     AssertNotNull(data = wolfSSL_ASN1_STRING_data(asn1str));
     expected = KEYUSE_KEY_CERT_SIGN | KEYUSE_CRL_SIGN;
     actual = data[0];
