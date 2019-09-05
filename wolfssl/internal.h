@@ -1156,7 +1156,19 @@ enum {
 #endif
 #define MAX_DHKEY_SZ (WOLFSSL_MAX_DHKEY_BITS / 8)
 
+#ifndef MAX_PSK_ID_LEN
+    /* max psk identity/hint supported */
+    #if defined(WOLFSSL_TLS13)
+        #define MAX_PSK_ID_LEN 256
+    #else
+        #define MAX_PSK_ID_LEN 128
+    #endif
+#endif
 
+#ifndef MAX_EARLY_DATA_SZ
+    /* maximum early data size */
+    #define MAX_EARLY_DATA_SZ  4096
+#endif
 
 enum Misc {
     CIPHER_BYTE = 0x00,            /* Default ciphers */
@@ -1199,11 +1211,6 @@ enum Misc {
     HELLO_EXT_EXTMS = 0x0017,   /* ID for the extended master secret ext */
     SECRET_LEN      = WOLFSSL_MAX_MASTER_KEY_LENGTH,
                                 /* pre RSA and all master */
-#if defined(WOLFSSL_TLS13)
-    MAX_PSK_ID_LEN     = 256,  /* max psk identity/hint supported */
-#else
-    MAX_PSK_ID_LEN     = 128,  /* max psk identity/hint supported */
-#endif
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) || \
     (defined(USE_FAST_MATH) && defined(FP_MAX_BITS) && FP_MAX_BITS > 8192)
 #ifndef NO_PSK
@@ -1260,7 +1267,6 @@ enum Misc {
     DEF_TICKET_NONCE_SZ = 1,   /* Default ticket nonce size */
     MAX_TICKET_NONCE_SZ = 8,   /* maximum ticket nonce size */
     MAX_LIFETIME   = 604800,   /* maximum ticket lifetime */
-    MAX_EARLY_DATA_SZ = 4096,  /* maximum early data size */
 
     RAN_LEN      = 32,         /* random length           */
     SEED_LEN     = RAN_LEN * 2, /* tls prf seed length    */
@@ -3738,6 +3744,7 @@ struct CertReqCtx {
 #ifdef WOLFSSL_EARLY_DATA
 typedef enum EarlyDataState {
     no_early_data,
+    early_data_ext,
     expecting_early_data,
     process_early_data,
     done_early_data
