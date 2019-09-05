@@ -255,6 +255,9 @@ static int _InitMd5(wc_Md5* md5)
     md5->buffLen = 0;
     md5->loLen   = 0;
     md5->hiLen   = 0;
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    md5->flags = 0;
+#endif
 
     return ret;
 }

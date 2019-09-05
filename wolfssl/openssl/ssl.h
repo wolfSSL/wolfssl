@@ -88,6 +88,7 @@ typedef WOLFSSL_ASN1_STRING    ASN1_STRING;
 typedef WOLFSSL_dynlock_value  CRYPTO_dynlock_value;
 typedef WOLFSSL_BUF_MEM        BUF_MEM;
 typedef WOLFSSL_GENERAL_NAME   GENERAL_NAME;
+typedef WOLFSSL_GENERAL_NAMES  GENERAL_NAMES;
 
 #define ASN1_UTCTIME         WOLFSSL_ASN1_TIME
 #define ASN1_GENERALIZEDTIME WOLFSSL_ASN1_TIME
@@ -261,9 +262,16 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define SSL_SESSION_get_master_key      wolfSSL_SESSION_get_master_key
 #define SSL_SESSION_get_master_key_length wolfSSL_SESSION_get_master_key_length
 
-#if defined(OPENSSL_ALL)
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+    #define ASN1_BOOLEAN                WOLFSSL_ASN1_BOOLEAN
+    #define X509_get_ext                wolfSSL_X509_get_ext
     #define X509_cmp                    wolfSSL_X509_cmp
     #define X509_get_ext_count          wolfSSL_X509_get_ext_count
+    #define X509_EXTENSION_get_object   wolfSSL_X509_EXTENSION_get_object
+    #define X509_EXTENSION_get_critical wolfSSL_X509_EXTENSION_get_critical
+    #define X509_EXTENSION_get_data     wolfSSL_X509_EXTENSION_get_data
+    #define X509_EXTENSION_new          wolfSSL_X509_EXTENSION_new
+    #define X509_EXTENSION_free         wolfSSL_X509_EXTENSION_free
 #endif
 
 #define DSA_dup_DH                      wolfSSL_DSA_dup_DH
@@ -292,6 +300,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define X509_load_certificate_file      wolfSSL_X509_load_certificate_file
 #define X509_digest                     wolfSSL_X509_digest
 #define X509_get_ext_d2i                wolfSSL_X509_get_ext_d2i
+#define X509_get_ext_by_NID             wolfSSL_X509_get_ext_by_NID
 #define X509_get_issuer_name            wolfSSL_X509_get_issuer_name
 #define X509_get_subject_name           wolfSSL_X509_get_subject_name
 #define X509_get_pubkey                 wolfSSL_X509_get_pubkey
@@ -487,11 +496,14 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define ASN1_INTEGER_set                wolfSSL_ASN1_INTEGER_set
 #define ASN1_INTEGER_to_BN              wolfSSL_ASN1_INTEGER_to_BN
 
+#define i2a_ASN1_OBJECT                 wolfSSL_i2a_ASN1_OBJECT
+
 #define ASN1_STRING_data                wolfSSL_ASN1_STRING_data
 #define ASN1_STRING_get0_data           wolfSSL_ASN1_STRING_data
 #define ASN1_STRING_length              wolfSSL_ASN1_STRING_length
 #define ASN1_STRING_to_UTF8             wolfSSL_ASN1_STRING_to_UTF8
 #define ASN1_STRING_print_ex            wolfSSL_ASN1_STRING_print_ex
+#define ASN1_STRING_print(x, y)         wolfSSL_ASN1_STRING_print ((WOLFSSL_BIO*)(x), (WOLFSSL_ASN1_STRING*)(y))
 
 #define ASN1_UTCTIME_pr                 wolfSSL_ASN1_UTCTIME_pr
 
@@ -504,7 +516,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_CTX_get_client_CA_list      wolfSSL_SSL_CTX_get_client_CA_list
 #define SSL_CTX_set_client_CA_list      wolfSSL_CTX_set_client_CA_list
 #define SSL_CTX_set_cert_store          wolfSSL_CTX_set_cert_store
-#define SSL_CTX_get_cert_store          wolfSSL_CTX_get_cert_store
+#define SSL_CTX_get_cert_store(x)       wolfSSL_CTX_get_cert_store ((WOLFSSL_CTX*) (x))
 #define SSL_get_ex_data_X509_STORE_CTX_idx wolfSSL_get_ex_data_X509_STORE_CTX_idx
 #define SSL_get_ex_data                 wolfSSL_get_ex_data
 
@@ -523,6 +535,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define RSA_free                        wolfSSL_RSA_free
 #define RSA_generate_key                wolfSSL_RSA_generate_key
 #define SSL_CTX_set_tmp_rsa_callback    wolfSSL_CTX_set_tmp_rsa_callback
+#define RSA_print                       wolfSSL_RSA_print
 
 #define PEM_def_callback                wolfSSL_PEM_def_callback
 
@@ -701,7 +714,6 @@ enum {
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
 #include <wolfssl/openssl/pem.h>
 
-typedef STACK_OF(WOLFSSL_ASN1_OBJECT) GENERAL_NAMES;
 #define SSL_CTRL_CHAIN       88
 #define BIO_CTRL_WPENDING    13
 #define GEN_IPADD            7
@@ -717,7 +729,6 @@ typedef STACK_OF(WOLFSSL_ASN1_OBJECT) GENERAL_NAMES;
 #define d2i_PrivateKey_bio              wolfSSL_d2i_PrivateKey_bio
 #define BIO_new_bio_pair                wolfSSL_BIO_new_bio_pair
 #define SSL_get_verify_callback         wolfSSL_get_verify_callback
-#define GENERAL_NAMES_free(GENERAL_NAMES)NULL
 
 #define SSL_set_mode(ssl,op)         wolfSSL_ctrl((ssl),SSL_CTRL_MODE,(op),NULL)
 
@@ -856,6 +867,7 @@ typedef STACK_OF(WOLFSSL_ASN1_OBJECT) GENERAL_NAMES;
 #define SSL_SESSION_get_id              wolfSSL_SESSION_get_id
 #define sk_GENERAL_NAME_pop_free        wolfSSL_sk_GENERAL_NAME_pop_free
 #define GENERAL_NAME_free               wolfSSL_GENERAL_NAME_free
+#define GENERAL_NAMES_free              wolfSSL_GENERAL_NAMES_free
 
 #define SSL3_AL_FATAL                   2
 #define SSL_TLSEXT_ERR_OK               0

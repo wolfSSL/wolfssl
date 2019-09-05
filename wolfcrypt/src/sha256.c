@@ -184,6 +184,9 @@ static int InitSha256(wc_Sha256* sha256)
     sha256->buffLen = 0;
     sha256->loLen   = 0;
     sha256->hiLen   = 0;
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    sha256->flags = 0;
+#endif
 
     return ret;
 }
@@ -1197,6 +1200,9 @@ static int InitSha256(wc_Sha256* sha256)
     #if defined(HAVE_INTEL_AVX1)|| defined(HAVE_INTEL_AVX2)
         /* choose best Transform function under this runtime environment */
         Sha256_SetTransform();
+    #endif
+    #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+        sha224->flags = 0;
     #endif
 
         return ret;

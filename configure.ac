@@ -188,6 +188,7 @@ then
     enable_scrypt=yes
     enable_indef=yes
     enable_enckeys=yes
+    enable_hashflags=yes
 
     # Enable AES Decrypt, AES ECB, Alt Names, DER Load, Keep Certs, CRL IO with Timeout
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
@@ -1045,6 +1046,10 @@ AC_ARG_ENABLE([afalg],
 
 if test "$ENABLED_AFALG" = "yes"
 then
+    if test "$ENABLED_AESCCM" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT"
+    fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_HASH"
 fi
@@ -2936,6 +2941,19 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EXTENDED_MASTER"
 fi
 
+# Encrypt-Then-Mac
+AC_ARG_ENABLE([enc-then-mac],
+    [AS_HELP_STRING([--enable-enc-then-mac],[Enable Encryptr-Then-Mac extension (default: enabled)])],
+    [ ENABLED_ENCRYPT_THEN_MAC=$enableval ],
+    [ ENABLED_ENCRYPT_THEN_MAC=yes ]
+    )
+
+if test "x$ENABLED_ENCRYPT_THEN_MAC" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_ENCRYPT_THEN_MAC"
+fi
+
+
 # TLS Extensions
 AC_ARG_ENABLE([tlsx],
     [AS_HELP_STRING([--enable-tlsx],[Enable all TLS Extensions (default: disabled)])],
@@ -2955,7 +2973,8 @@ then
     ENABLED_TRUNCATED_HMAC=yes
     ENABLED_ALPN=yes
     ENABLED_TRUSTED_CA=yes
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_ALPN -DHAVE_TRUSTED_CA"
+    ENABLED_ENCRYPT_THEN_MAC=yes
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_ALPN -DHAVE_TRUSTED_CA -DHAVE_ENCRYPT_THEN_MAC"
     # Check the ECC supported curves prereq
     AS_IF([test "x$ENABLED_ECC" = "xyes" || test "x$ENABLED_CURVE25519" = "xyes"],
           [ENABLED_SUPPORTED_CURVES=yes
@@ -4353,6 +4372,20 @@ then
 fi
 
 
+# Enable hash flags support
+# Hash flags are useful for runtime options such as SHA3 KECCAK256 selection
+AC_ARG_ENABLE([hashflags],
+    [AS_HELP_STRING([--enable-hashflags],[Enable support for hash flags (default: disabled)])],
+    [ ENABLED_HASHFLAGS=$enableval ],
+    [ ENABLED_HASHFLAGS=no ]
+    )
+
+if test "x$ENABLED_HASHFLAGS" != "xno"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HASH_FLAGS"
+fi
+
+
 # User Settings
 AC_ARG_ENABLE([usersettings],
     [AS_HELP_STRING([--enable-usersettings],[Use your own user_settings.h and do not add Makefile CFLAGS (default: disabled)])],
@@ -4749,6 +4782,7 @@ AM_CONDITIONAL([BUILD_TRUST_PEER_CERT],[test "x$have_tp" = "xyes"])
 AM_CONDITIONAL([BUILD_PKI],[test "x$ENABLED_PKI" = "xyes"])
 AM_CONDITIONAL([BUILD_DES3],[test "x$ENABLED_DES3" = "xyes"])
 AM_CONDITIONAL([BUILD_PKCS7],[test "x$ENABLED_PKCS7" = "xyes"])
+AM_CONDITIONAL([BUILD_HASHFLAGS],[test "x$ENABLED_HASHFLAGS" = "xyes"])
 
 
 CREATE_HEX_VERSION

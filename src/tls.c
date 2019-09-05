@@ -5568,6 +5568,148 @@ int TLSX_UseQSHScheme(TLSX** extensions, word16 name, byte* pKey, word16 pkeySz,
 
 #endif /* HAVE_QSH */
 
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+/******************************************************************************/
+/* Encrypt-then-MAC                                                           */
+/******************************************************************************/
+
+#ifndef WOLFSSL_NO_TLS12
+static int TLSX_EncryptThenMac_Use(WOLFSSL* ssl);
+
+/**
+ * Get the size of the Encrypt-Then-MAC extension.
+ *
+ * msgType  Type of message to put extension into.
+ * pSz      Size of extension data.
+ * return SANITY_MSG_E when the message is not allowed to have extension and
+ *        0 otherwise.
+ */
+static int TLSX_EncryptThenMac_GetSize(byte msgType, word16* pSz)
+{
+    (void)pSz;
+
+    if (msgType != client_hello && msgType != server_hello) {
+        return SANITY_MSG_E;
+    }
+
+    /* Empty extension */
+
+    return 0;
+}
+
+/**
+ * Write the Encrypt-Then-MAC extension.
+ *
+ * data     Unused
+ * output   Extension data buffer. Unused.
+ * msgType  Type of message to put extension into.
+ * pSz      Size of extension data.
+ * return SANITY_MSG_E when the message is not allowed to have extension and
+ *        0 otherwise.
+ */
+static int TLSX_EncryptThenMac_Write(void* data, byte* output, byte msgType,
+                                     word16* pSz)
+{
+    (void)data;
+    (void)output;
+    (void)pSz;
+
+    if (msgType != client_hello && msgType != server_hello) {
+        return SANITY_MSG_E;
+    }
+
+    /* Empty extension */
+
+    return 0;
+}
+
+/**
+ * Parse the Encrypt-Then-MAC extension.
+ *
+ * ssl      SSL object
+ * input    Extension data buffer.
+ * length   Length of this extension's data.
+ * msgType  Type of message to extension appeared in.
+ * return SANITY_MSG_E when the message is not allowed to have extension,
+ *        BUFFER_ERROR when the extension's data is invalid,
+ *        MEMORY_E when unable to allocate memory and
+ *        0 otherwise.
+ */
+static int TLSX_EncryptThenMac_Parse(WOLFSSL* ssl, byte* input, word16 length,
+                                     byte msgType)
+{
+    int ret;
+
+    (void)input;
+
+    if (msgType != client_hello && msgType != server_hello) {
+        return SANITY_MSG_E;
+    }
+
+    /* Empty extension */
+    if (length != 0)
+        return BUFFER_ERROR;
+
+    if (msgType == client_hello) {
+        /* Check the user hasn't disallowed use of Encrypt-Then-Mac. */
+        if (!ssl->options.disallowEncThenMac) {
+            ssl->options.encThenMac = 1;
+            /* Set the extension reply. */
+            ret = TLSX_EncryptThenMac_Use(ssl);
+            if (ret != 0)
+                return ret;
+            TLSX_SetResponse(ssl, TLSX_ENCRYPT_THEN_MAC);
+        }
+        return 0;
+    }
+
+    /* Server Hello */
+    if (ssl->options.disallowEncThenMac)
+        return SANITY_MSG_E;
+
+    ssl->options.encThenMac = 1;
+    return 0;
+
+}
+
+/**
+ * Add the Encrypt-Then-MAC extension to list.
+ *
+ * ssl      SSL object
+ * return MEMORY_E when unable to allocate memory and 0 otherwise.
+ */
+static int TLSX_EncryptThenMac_Use(WOLFSSL* ssl)
+{
+    int   ret = 0;
+    TLSX* extension;
+
+    /* Find the Encrypt-Then-Mac extension if it exists. */
+    extension = TLSX_Find(ssl->extensions, TLSX_ENCRYPT_THEN_MAC);
+    if (extension == NULL) {
+        /* Push new Encrypt-Then-Mac extension. */
+        ret = TLSX_Push(&ssl->extensions, TLSX_ENCRYPT_THEN_MAC, NULL,
+            ssl->heap);
+        if (ret != 0)
+            return ret;
+    }
+
+    return 0;
+}
+
+#define ETM_GET_SIZE  TLSX_EncryptThenMac_GetSize
+#define ETM_WRITE     TLSX_EncryptThenMac_Write
+#define ETM_PARSE     TLSX_EncryptThenMac_Parse
+
+#else
+
+#define ETM_GET_SIZE(a, b)    0
+#define ETM_WRITE(a, b, c, d) 0
+#define ETM_PARSE(a, b, c, d) 0
+
+#endif /* !WOLFSSL_NO_TLS12 */
+
+#endif /* HAVE_ENCRYPT_THEN_MAC && !WOLFSSL_AEAD_ONLY */
+
 /******************************************************************************/
 /* Supported Versions                                                         */
 /******************************************************************************/
@@ -8721,6 +8863,10 @@ void TLSX_FreeAll(TLSX* list, void* heap)
             case TLSX_SIGNATURE_ALGORITHMS:
                 break;
 #endif
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            case TLSX_ENCRYPT_THEN_MAC:
+                break;
+#endif
 #ifdef WOLFSSL_TLS13
             case TLSX_SUPPORTED_VERSIONS:
                 break;
@@ -8858,6 +9004,11 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
                 length += SA_GET_SIZE(extension->data);
                 break;
 #endif
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            case TLSX_ENCRYPT_THEN_MAC:
+                ret = ETM_GET_SIZE(msgType, &length);
+                break;
+#endif /* HAVE_ENCRYPT_THEN_MAC */
 #ifdef WOLFSSL_TLS13
             case TLSX_SUPPORTED_VERSIONS:
                 ret = SV_GET_SIZE(extension->data, msgType, &length);
@@ -9021,6 +9172,12 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 offset += SA_WRITE(extension->data, output + offset);
                 break;
 #endif
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            case TLSX_ENCRYPT_THEN_MAC:
+                WOLFSSL_MSG("Encrypt-Then-Mac extension to write");
+                ret = ETM_WRITE(extension->data, output, msgType, &offset);
+                break;
+#endif /* HAVE_ENCRYPT_THEN_MAC */
 #ifdef WOLFSSL_TLS13
             case TLSX_SUPPORTED_VERSIONS:
                 WOLFSSL_MSG("Supported Versions extension to write");
@@ -9557,6 +9714,14 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     qsh = next;
                 }
             }
+        }
+#endif
+
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+        if (!ssl->options.disallowEncThenMac) {
+            ret = TLSX_EncryptThenMac_Use(ssl);
+            if (ret != 0)
+                return ret;
         }
 #endif
 
@@ -10552,6 +10717,19 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 ret = SA_PARSE(ssl, input + offset, size, isRequest, suites);
                 break;
 #endif
+
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            case TLSX_ENCRYPT_THEN_MAC:
+                WOLFSSL_MSG("Encrypt-Then-Mac extension received");
+
+                /* Ignore for TLS 1.3+ */
+                if (IsAtLeastTLSv1_3(ssl->version))
+                    break;
+
+                ret = ETM_PARSE(ssl, input + offset, size, msgType);
+                break;
+#endif /* HAVE_ENCRYPT_THEN_MAC */
+
 #ifdef WOLFSSL_TLS13
             case TLSX_SUPPORTED_VERSIONS:
                 WOLFSSL_MSG("Skipping Supported Versions - already processed");

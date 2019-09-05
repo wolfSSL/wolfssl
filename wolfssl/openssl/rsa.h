@@ -35,6 +35,8 @@
 /* Padding types */
 #define RSA_PKCS1_PADDING      0
 #define RSA_PKCS1_OAEP_PADDING 1
+#define RSA_PKCS1_PSS_PADDING  2
+#define RSA_NO_PADDING         3
 
 #ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
 typedef struct WOLFSSL_RSA            WOLFSSL_RSA;

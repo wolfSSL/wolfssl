@@ -13,6 +13,7 @@ EXTRA_DIST += \
 	     certs/client-relative-uri.pem \
 	     certs/ecc-key.pem \
 	     certs/ecc-privkey.pem \
+	     certs/ecc-privkeyPkcs8.der \
 	     certs/ecc-privkeyPkcs8.pem \
 	     certs/ecc-keyPkcs8Enc.pem \
 	     certs/ecc-keyPkcs8Enc.der \

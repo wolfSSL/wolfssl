@@ -61,6 +61,9 @@ static int InitSha512(wc_Sha512* sha512)
     sha512->buffLen = 0;
     sha512->loLen   = 0;
     sha512->hiLen   = 0;
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    sha512->flags = 0;
+#endif
 
     return 0;
 }
@@ -501,6 +504,9 @@ static int InitSha384(wc_Sha384* sha384)
     sha384->buffLen = 0;
     sha384->loLen   = 0;
     sha384->hiLen   = 0;
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    sha384->flags = 0;
+#endif
 
     return 0;
 }

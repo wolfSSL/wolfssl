@@ -22,6 +22,7 @@
 
 #define __ESP32_CRYPT_H__
 
+#include "esp_idf_version.h"
 #include "esp_types.h"
 #include "esp_log.h"
 
@@ -38,7 +39,11 @@
 #include "soc/hwcrypto_reg.h"
 #include "soc/cpu.h"
 #include "driver/periph_ctrl.h"
+#if ESP_IDF_VERSION_MAJOR >= 4 && ESP_IDF_VERSION_MINOR >= 1
+#include <esp32/rom/ets_sys.h>
+#else
 #include <rom/ets_sys.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -50,7 +55,11 @@ int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex);
 
 #ifndef NO_AES
 
+#if ESP_IDF_VERSION_MAJOR >= 4 && ESP_IDF_VERSION_MINOR >= 1
+#include "esp32/rom/aes.h"
+#else
 #include "rom/aes.h"
+#endif
 
 typedef enum tagES32_AES_PROCESS {
     ESP32_AES_LOCKHW = 1,
@@ -80,8 +89,11 @@ uint64_t  wc_esp32elapsedTime();
 
 /* RAW hash function APIs are not implemented with esp32 hardware acceleration*/
 #define WOLFSSL_NO_HASH_RAW
-
+#if ESP_IDF_VERSION_MAJOR >= 4 && ESP_IDF_VERSION_MINOR >= 1
+#include "esp32/rom/sha.h"
+#else
 #include "rom/sha.h"
+#endif
 
 typedef enum {
     ESP32_SHA_INIT = 0,

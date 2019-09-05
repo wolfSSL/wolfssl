@@ -759,7 +759,9 @@
         }
     #endif /* HAVE_AES_DECRYPT */
 
-#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
+#elif (defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)) || \
+      ((defined(WOLFSSL_AFALG) || defined(WOLFSSL_DEVCRYPTO_AES)) && \
+        defined(HAVE_AESCCM))
         static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         {
             wc_AesEncryptDirect(aes, outBlock, inBlock);
@@ -768,16 +770,6 @@
 
 #elif defined(WOLFSSL_AFALG)
 #elif defined(WOLFSSL_DEVCRYPTO_AES)
-    /* if all AES is enabled with devcrypto then tables are not needed */
-
-    #if defined(HAVE_AESCCM)
-    static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
-    {
-        wc_AesEncryptDirect(aes, outBlock, inBlock);
-        return 0;
-    }
-    #endif
-
 #else
 
     /* using wolfCrypt software implementation */
@@ -1593,8 +1585,8 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 #endif /* HAVE_AES_CBC || WOLFSSL_AES_DIRECT || HAVE_AESGCM */
 
 #if defined(HAVE_AES_DECRYPT)
-#if (defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)) && \
-    !defined(WOLFSSL_DEVCRYPTO_CBC)
+#if (defined(HAVE_AES_CBC) && !defined(WOLFSSL_DEVCRYPTO_CBC)) || \
+     defined(WOLFSSL_AES_DIRECT)
 
 /* load 4 Td Tables into cache by cache line stride */
 static WC_INLINE word32 PreFetchTd(void)
@@ -2569,7 +2561,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #else /* STD_PERI_LIB */
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-    	int ret;
+        int ret;
         word32 *iv;
         word32 blocks = (sz / AES_BLOCK_SIZE);
         CRYP_InitTypeDef cryptInit;
@@ -2638,7 +2630,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #ifdef HAVE_AES_DECRYPT
     int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-    	int ret;
+        int ret;
         word32 *iv;
         word32 blocks = (sz / AES_BLOCK_SIZE);
         CRYP_InitTypeDef cryptInit;
@@ -5121,6 +5113,13 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
             x[1] ^= bigA[1];
             GMULT(x, bigH);
         }
+#ifdef OPENSSL_EXTRA
+        /* store AAD partial tag for next call */
+        aes->aadH[0] = (word32)((x[0] & 0xFFFFFFFF00000000) >> 32);
+        aes->aadH[1] = (word32)(x[0] & 0xFFFFFFFF);
+        aes->aadH[2] = (word32)((x[1] & 0xFFFFFFFF00000000) >> 32);
+        aes->aadH[3] = (word32)(x[1] & 0xFFFFFFFF);
+#endif
     }
 
     /* Hash in C, the Ciphertext */
@@ -5128,6 +5127,13 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
         word64 bigC[2];
         blocks = cSz / AES_BLOCK_SIZE;
         partial = cSz % AES_BLOCK_SIZE;
+#ifdef OPENSSL_EXTRA
+        /* Start from last AAD partial tag */
+        if(aes->aadLen) {
+            x[0] = ((word64)aes->aadH[0]) << 32 | aes->aadH[1];
+            x[1] = ((word64)aes->aadH[2]) << 32 | aes->aadH[3];
+         }
+#endif
         while (blocks--) {
             XMEMCPY(bigC, c, AES_BLOCK_SIZE);
             #ifdef LITTLE_ENDIAN_ORDER
@@ -5154,7 +5160,10 @@ void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
     {
         word64 len[2];
         len[0] = aSz; len[1] = cSz;
-
+#ifdef OPENSSL_EXTRA
+        if (aes->aadLen)
+            len[0] = (word64)aes->aadLen;
+#endif
         /* Lengths are in bytes. Convert to bits. */
         len[0] *= 8;
         len[1] *= 8;
@@ -5514,7 +5523,7 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
                 xorbuf(authTag, tag, authTagSz);
             }
             else {
-            	XMEMCPY(authTag, tag, authTagSz);
+                XMEMCPY(authTag, tag, authTagSz);
             }
         }
     }
@@ -5551,7 +5560,9 @@ int AES_GCM_encrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
     byte initialCounter[AES_BLOCK_SIZE];
     byte *ctr;
     byte scratch[AES_BLOCK_SIZE];
-
+#ifdef OPENSSL_EXTRA
+    word32 aadTemp;
+#endif
     ctr = counter;
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
     if (ivSz == GCM_NONCE_MID_SZ) {
@@ -5559,7 +5570,14 @@ int AES_GCM_encrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
         initialCounter[AES_BLOCK_SIZE - 1] = 1;
     }
     else {
+#ifdef OPENSSL_EXTRA
+        aadTemp = aes->aadLen;
+        aes->aadLen = 0;
+#endif
         GHASH(aes, NULL, 0, iv, ivSz, initialCounter, AES_BLOCK_SIZE);
+#ifdef OPENSSL_EXTRA
+        aes->aadLen = aadTemp;
+#endif
     }
     XMEMCPY(ctr, initialCounter, AES_BLOCK_SIZE);
 
@@ -5614,11 +5632,15 @@ int AES_GCM_encrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
         xorbuf(scratch, p, partial);
         XMEMCPY(c, scratch, partial);
     }
-
     if (authTag) {
         GHASH(aes, authIn, authInSz, out, sz, authTag, authTagSz);
         wc_AesEncrypt(aes, initialCounter, scratch);
         xorbuf(authTag, scratch, authTagSz);
+#ifdef OPENSSL_EXTRA
+        if (!in && !sz)
+            /* store AAD size for next call */
+            aes->aadLen = authInSz;
+#endif
     }
 
     return ret;
@@ -5966,7 +5988,9 @@ int AES_GCM_decrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
     byte scratch[AES_BLOCK_SIZE];
     byte Tprime[AES_BLOCK_SIZE];
     byte EKY0[AES_BLOCK_SIZE];
-
+#ifdef OPENSSL_EXTRA
+    word32 aadTemp;
+#endif
     ctr = counter;
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
     if (ivSz == GCM_NONCE_MID_SZ) {
@@ -5974,7 +5998,14 @@ int AES_GCM_decrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
         initialCounter[AES_BLOCK_SIZE - 1] = 1;
     }
     else {
+#ifdef OPENSSL_EXTRA
+        aadTemp = aes->aadLen;
+        aes->aadLen = 0;
+#endif
         GHASH(aes, NULL, 0, iv, ivSz, initialCounter, AES_BLOCK_SIZE);
+#ifdef OPENSSL_EXTRA
+        aes->aadLen = aadTemp;
+#endif
     }
     XMEMCPY(ctr, initialCounter, AES_BLOCK_SIZE);
 
@@ -5983,6 +6014,13 @@ int AES_GCM_decrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
     wc_AesEncrypt(aes, ctr, EKY0);
     xorbuf(Tprime, EKY0, sizeof(Tprime));
 
+#ifdef OPENSSL_EXTRA
+    if (!out) {
+        /* authenticated, non-confidential data */
+        /* store AAD size for next call */
+        aes->aadLen = authInSz;
+    }
+#endif
     if (ConstantCompare(authTag, Tprime, authTagSz) != 0) {
         return AES_GCM_AUTH_E;
     }
@@ -6774,6 +6812,12 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
 #endif
 #if defined(WOLFSSL_CRYPTOCELL) && defined(WOLFSSL_CRYPTOCELL_AES)
     XMEMSET(&aes->ctx, 0, sizeof(aes->ctx));
+#endif
+#ifdef HAVE_AESGCM
+#ifdef OPENSSL_EXTRA
+    XMEMSET(aes->aadH, 0, sizeof(aes->aadH));
+    aes->aadLen = 0;
+#endif
 #endif
     return ret;
 }

@@ -2312,7 +2312,7 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 #endif /* HAVE_USER_RSA */
 #endif /* NO_RSA */
 
-#ifdef HAVE_PKCS8
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
 
 /* Remove PKCS8 header, place inOutIdx at beginning of traditional,
  * return traditional length on success, negative on error */
@@ -2382,6 +2382,10 @@ int ToTraditional(byte* input, word32 sz)
 
     return ToTraditional_ex(input, sz, &oid);
 }
+
+#endif /* HAVE_PKCS8 || HAVE_PKCS12 */
+
+#ifdef HAVE_PKCS8
 
 /* find beginning of traditional key inside PKCS#8 unencrypted buffer
  * return traditional length on success, with inOutIdx at beginning of
@@ -2513,7 +2517,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
 
 #endif /* HAVE_PKCS8 */
 
-#ifdef HAVE_PKCS12
+#if defined(HAVE_PKCS12) || !defined(NO_CHECK_PRIVATE_KEY)
 /* check that the private key is a pair for the public key in certificate
  * return 1 (true) on match
  * return 0 or negative value on failure/error
@@ -2716,11 +2720,11 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
     return ret;
 }
 
-#endif /* HAVE_PKCS12 */
+#endif /* HAVE_PKCS12 || !NO_CHECK_PRIVATE_KEY */
 
 #ifndef NO_PWDBASED
 
-#ifdef HAVE_PKCS8
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
 /* Check To see if PKCS version algo is supported, set id if it is return 0
    < 0 on error */
 static int CheckAlgo(int first, int second, int* id, int* version, int* blockSz)
@@ -2780,7 +2784,6 @@ static int CheckAlgo(int first, int second, int* id, int* version, int* blockSz)
     }
 }
 
-
 /* Check To see if PKCS v2 algo is supported, set id if it is return 0
    < 0 on error */
 static int CheckAlgoV2(int oid, int* id, int* blockSz)
@@ -2810,6 +2813,9 @@ static int CheckAlgoV2(int oid, int* id, int* blockSz)
     }
 }
 
+#endif /* HAVE_PKCS8 || HAVE_PKCS12 */
+
+#ifdef HAVE_PKCS8
 
 int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         int* algoID, void* heap)
@@ -2894,6 +2900,10 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
     return 1;
 }
 
+#endif /* HAVE_PKCS8 */
+
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
+
 #define PKCS8_MIN_BLOCK_SIZE 8
 static int Pkcs8Pad(byte* buf, int sz, int blockSz)
 {
@@ -2912,6 +2922,10 @@ static int Pkcs8Pad(byte* buf, int sz, int blockSz)
     /* return adjusted length */
     return sz + padSz;
 }
+
+#endif /* HAVE_PKCS8 || HAVE_PKCS12 */
+
+#ifdef HAVE_PKCS8
 
 /*
  * Used when creating PKCS12 shrouded key bags
@@ -3353,6 +3367,10 @@ int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
     return ret;
 }
 
+#endif /* HAVE_PKCS8 */
+
+#if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
+
 /* Remove Encrypted PKCS8 header, move beginning of traditional to beginning
    of input */
 int ToTraditionalEnc(byte* input, word32 sz,const char* password,
@@ -3496,7 +3514,7 @@ exit_tte:
     return ret;
 }
 
-#endif /* HAVE_PKCS8 */
+#endif /* HAVE_PKCS8 || HAVE_PKCS12 */
 
 #ifdef HAVE_PKCS12
 
@@ -9095,7 +9113,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     int         sz          = (int)longSz;
     int         encrypted_key = 0;
     DerBuffer*  der;
+#if defined(HAVE_PKCS8) || defined(WOLFSSL_ENCRYPTED_KEYS)
     word32      algId = 0;
+#endif
 
     WOLFSSL_ENTER("PemToDer");
 
@@ -9222,6 +9242,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 #endif
         ) && !encrypted_key)
     {
+    #ifdef HAVE_PKCS8
         /* pkcs8 key, convert and adjust length */
         if ((ret = ToTraditional_ex(der->buffer, der->length, &algId)) > 0) {
             der->length = ret;
@@ -9229,6 +9250,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         else {
             /* ignore failure here and assume key is not pkcs8 wrapped */
         }
+    #endif
 
         return 0;
     }
@@ -13059,56 +13081,56 @@ static void SetNameFromDcert(CertName* cn, DecodedCert* decoded)
     if (decoded->subjectCN) {
         sz = (decoded->subjectCNLen < CTC_NAME_SIZE) ? decoded->subjectCNLen
                                                      : CTC_NAME_SIZE - 1;
-        XSTRNCPY(cn->commonName, decoded->subjectCN, CTC_NAME_SIZE);
+        XSTRNCPY(cn->commonName, decoded->subjectCN, sz);
         cn->commonName[sz] = '\0';
         cn->commonNameEnc = decoded->subjectCNEnc;
     }
     if (decoded->subjectC) {
         sz = (decoded->subjectCLen < CTC_NAME_SIZE) ? decoded->subjectCLen
                                                     : CTC_NAME_SIZE - 1;
-        XSTRNCPY(cn->country, decoded->subjectC, CTC_NAME_SIZE);
+        XSTRNCPY(cn->country, decoded->subjectC, sz);
         cn->country[sz] = '\0';
         cn->countryEnc = decoded->subjectCEnc;
     }
     if (decoded->subjectST) {
         sz = (decoded->subjectSTLen < CTC_NAME_SIZE) ? decoded->subjectSTLen
                                                      : CTC_NAME_SIZE - 1;
-        XSTRNCPY(cn->state, decoded->subjectST, CTC_NAME_SIZE);
+        XSTRNCPY(cn->state, decoded->subjectST, sz);
         cn->state[sz] = '\0';
         cn->stateEnc = decoded->subjectSTEnc;
     }
     if (decoded->subjectL) {
         sz = (decoded->subjectLLen < CTC_NAME_SIZE) ? decoded->subjectLLen
                                                     : CTC_NAME_SIZE - 1;
-        XSTRNCPY(cn->locality, decoded->subjectL, CTC_NAME_SIZE);
+        XSTRNCPY(cn->locality, decoded->subjectL, sz);
         cn->locality[sz] = '\0';
         cn->localityEnc = decoded->subjectLEnc;
     }
     if (decoded->subjectO) {
         sz = (decoded->subjectOLen < CTC_NAME_SIZE) ? decoded->subjectOLen
                                                     : CTC_NAME_SIZE - 1;
-        XSTRNCPY(cn->org, decoded->subjectO, CTC_NAME_SIZE);
+        XSTRNCPY(cn->org, decoded->subjectO, sz);
         cn->org[sz] = '\0';
         cn->orgEnc = decoded->subjectOEnc;
     }
     if (decoded->subjectOU) {
         sz = (decoded->subjectOULen < CTC_NAME_SIZE) ? decoded->subjectOULen
                                                      : CTC_NAME_SIZE - 1;
-        XSTRNCPY(cn->unit, decoded->subjectOU, CTC_NAME_SIZE);
+        XSTRNCPY(cn->unit, decoded->subjectOU, sz);
         cn->unit[sz] = '\0';
         cn->unitEnc = decoded->subjectOUEnc;
     }
     if (decoded->subjectSN) {
         sz = (decoded->subjectSNLen < CTC_NAME_SIZE) ? decoded->subjectSNLen
                                                      : CTC_NAME_SIZE - 1;
-        XSTRNCPY(cn->sur, decoded->subjectSN, CTC_NAME_SIZE);
+        XSTRNCPY(cn->sur, decoded->subjectSN, sz);
         cn->sur[sz] = '\0';
         cn->surEnc = decoded->subjectSNEnc;
     }
     if (decoded->subjectSND) {
         sz = (decoded->subjectSNDLen < CTC_NAME_SIZE) ? decoded->subjectSNDLen
                                                      : CTC_NAME_SIZE - 1;
-        XSTRNCPY(cn->serialDev, decoded->subjectSND, CTC_NAME_SIZE);
+        XSTRNCPY(cn->serialDev, decoded->subjectSND, sz);
         cn->serialDev[sz] = '\0';
         cn->serialDevEnc = decoded->subjectSNDEnc;
     }
@@ -13116,21 +13138,21 @@ static void SetNameFromDcert(CertName* cn, DecodedCert* decoded)
     if (decoded->subjectBC) {
         sz = (decoded->subjectBCLen < CTC_NAME_SIZE) ? decoded->subjectBCLen
                                                      : CTC_NAME_SIZE - 1;
-        XSTRNCPY(cn->busCat, decoded->subjectBC, CTC_NAME_SIZE);
+        XSTRNCPY(cn->busCat, decoded->subjectBC, sz);
         cn->busCat[sz] = '\0';
         cn->busCatEnc = decoded->subjectBCEnc;
     }
     if (decoded->subjectJC) {
         sz = (decoded->subjectJCLen < CTC_NAME_SIZE) ? decoded->subjectJCLen
                                                      : CTC_NAME_SIZE - 1;
-        XSTRNCPY(cn->joiC, decoded->subjectJC, CTC_NAME_SIZE);
+        XSTRNCPY(cn->joiC, decoded->subjectJC, sz);
         cn->joiC[sz] = '\0';
         cn->joiCEnc = decoded->subjectJCEnc;
     }
     if (decoded->subjectJS) {
         sz = (decoded->subjectJSLen < CTC_NAME_SIZE) ? decoded->subjectJSLen
                                                      : CTC_NAME_SIZE - 1;
-        XSTRNCPY(cn->joiSt, decoded->subjectJS, CTC_NAME_SIZE);
+        XSTRNCPY(cn->joiSt, decoded->subjectJS, sz);
         cn->joiSt[sz] = '\0';
         cn->joiStEnc = decoded->subjectJSEnc;
     }
@@ -13138,7 +13160,7 @@ static void SetNameFromDcert(CertName* cn, DecodedCert* decoded)
     if (decoded->subjectEmail) {
         sz = (decoded->subjectEmailLen < CTC_NAME_SIZE)
            ?  decoded->subjectEmailLen : CTC_NAME_SIZE - 1;
-        XSTRNCPY(cn->email, decoded->subjectEmail, CTC_NAME_SIZE);
+        XSTRNCPY(cn->email, decoded->subjectEmail, sz);
         cn->email[sz] = '\0';
     }
 }
@@ -13993,6 +14015,7 @@ int wc_EccPrivateKeyToDer(ecc_key* key, byte* output, word32 inLen)
     return wc_BuildEccKeyDer(key, output, inLen, 0);
 }
 
+#ifdef HAVE_PKCS8
 /* Write only private ecc key to unencrypted PKCS#8 format.
  *
  * If output is NULL, places required PKCS#8 buffer size in outLen and
@@ -14061,7 +14084,7 @@ int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output, word32* outLen)
     *outLen = ret;
     return ret;
 }
-
+#endif /* HAVE_PKCS8 */
 #endif /* HAVE_ECC_KEY_EXPORT && !NO_ASN_CRYPT */
 #endif /* HAVE_ECC */
 

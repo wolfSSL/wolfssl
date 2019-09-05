@@ -118,8 +118,8 @@ WOLFSSL_API void wc_Md5SizeSet(wc_Md5* md5, word32 len);
 #endif
 
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
-    WOLFSSL_LOCAL int wc_Md5SetFlags(wc_Md5* md5, word32 flags);
-    WOLFSSL_LOCAL int wc_Md5GetFlags(wc_Md5* md5, word32* flags);
+    WOLFSSL_API int wc_Md5SetFlags(wc_Md5* md5, word32 flags);
+    WOLFSSL_API int wc_Md5GetFlags(wc_Md5* md5, word32* flags);
 #endif
 
 #ifdef __cplusplus
