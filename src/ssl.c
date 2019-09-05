@@ -18379,18 +18379,23 @@ void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name)
     if(name != NULL) {
         if (name->d.dNSName != NULL) {
             wolfSSL_ASN1_STRING_free(name->d.dNSName);
+            name->d.dNSName = NULL;
         }
         if (name->d.uniformResourceIdentifier != NULL) {
             wolfSSL_ASN1_STRING_free(name->d.uniformResourceIdentifier);
+            name->d.uniformResourceIdentifier = NULL;
         }
         if (name->d.iPAddress != NULL) {
             wolfSSL_ASN1_STRING_free(name->d.iPAddress);
+            name->d.iPAddress = NULL;
         }
         if (name->d.registeredID != NULL) {
             wolfSSL_ASN1_OBJECT_free(name->d.registeredID);
+            name->d.registeredID = NULL;
         }
         if (name->d.ia5 != NULL) {
             wolfSSL_ASN1_STRING_free(name->d.ia5);
+            name->d.ia5 = NULL;
         }
         XFREE(name, NULL, DYNAMIC_TYPE_OPENSSL);
     }
@@ -18424,6 +18429,7 @@ void wolfSSL_GENERAL_NAMES_free(WOLFSSL_GENERAL_NAMES *gens)
     XFREE(gens, NULL, DYNAMIC_TYPE_ASN1);
 }
 
+#if defined(OPENSSL_ALL)
 WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* wolfSSL_sk_X509_EXTENSION_new_null(void)
 {
     return (WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)*)wolfSSL_sk_new_node(NULL);
@@ -18476,6 +18482,7 @@ void wolfSSL_sk_X509_EXTENSION_pop_free(
         wolfSSL_sk_free_node(toFree);
     }
 }
+#endif /* OPENSSL_ALL */
 
 #endif /* OPENSSL_EXTRA */
 
@@ -25801,6 +25808,9 @@ void wolfSSL_sk_free(WOLFSSL_STACK* sk)
             break;
         case STACK_TYPE_NULL:
             wolfSSL_sk_GENERIC_free(sk);
+            break;
+        case STACK_TYPE_X509_NAME:
+            wolfSSL_sk_X509_NAME_free(sk);
             break;
     #endif
        default:
@@ -39903,6 +39913,7 @@ int wolfSSL_sk_X509_NAME_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk, WOLFSSL_X509
     /* push new obj onto head of stack */
     node->data.name = sk->data.name;
     node->next      = sk->next;
+    sk->type        = STACK_TYPE_X509_NAME;
     sk->next        = node;
     sk->data.name   = name;
     sk->num        += 1;
@@ -40018,12 +40029,21 @@ void wolfSSL_sk_X509_NAME_pop_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
 /* Free only the sk structure */
 void wolfSSL_sk_X509_NAME_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
 {
+    WOLFSSL_STACK* node;
     WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_free");
 
     if (sk == NULL)
         return;
 
-    wolfSSL_sk_free(sk);
+    node = sk->next;
+    while (sk->num > 1) {
+        WOLFSSL_STACK* tmp = node;
+        node = node->next;
+        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+        sk->num -= 1;
+    }
+
+    XFREE(sk, sk->heap, DYNAMIC_TYPE_OPENSSL);
 }
 
 

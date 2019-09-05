@@ -282,7 +282,6 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
     #define ASN1_BOOLEAN                WOLFSSL_ASN1_BOOLEAN
     #define X509_get_ext                wolfSSL_X509_get_ext
     #define X509_cmp                    wolfSSL_X509_cmp
-    #define X509_get_ext_count          wolfSSL_X509_get_ext_count
     #define X509_EXTENSION_get_object   wolfSSL_X509_EXTENSION_get_object
     #define X509_EXTENSION_get_critical wolfSSL_X509_EXTENSION_get_critical
     #define X509_EXTENSION_get_data     wolfSSL_X509_EXTENSION_get_data

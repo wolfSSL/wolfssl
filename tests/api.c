@@ -21619,7 +21619,7 @@ static void test_wolfSSL_X509(void)
 
 static void test_wolfSSL_X509_get_ext_count(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
     WOLFSSL_X509* x509;
     const char ocspRootCaFile[] = "./certs/ocsp/root-ca-cert.pem";
 
