@@ -4358,9 +4358,9 @@ int ssl_ReadStatistics(SSLStats* stats)
     if (stats == NULL)
         return -1;
 
-    wc_LockMutex(&StatsMutex);
+    LOCK_STAT();
     XMEMCPY(stats, &SnifferStats, sizeof(SSLStats));
-    wc_UnLockMutex(&StatsMutex);
+    UNLOCK_STAT();
     return 0;
 }
 
@@ -4372,10 +4372,10 @@ int ssl_ReadResetStatistics(SSLStats* stats)
     if (stats == NULL)
         return -1;
 
-    wc_LockMutex(&StatsMutex);
+    LOCK_STAT();
     XMEMCPY(stats, &SnifferStats, sizeof(SSLStats));
     XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
-    wc_UnLockMutex(&StatsMutex);
+    UNLOCK_STAT();
     return 0;
 }
 
