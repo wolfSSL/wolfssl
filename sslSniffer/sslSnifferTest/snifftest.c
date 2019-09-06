@@ -184,7 +184,23 @@ static char* iptos(unsigned int addr)
 	static char    output[32];
 	byte *p = (byte*)&addr;
 
-	SNPRINTF(output, sizeof(output), "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
+	snprintf(output, sizeof(output), "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
+
+	return output;
+}
+
+
+static char* ip6tos(const unsigned char* addr)
+{
+	static char    output[42];
+
+	snprintf(output, sizeof(output),
+            "%02x%02x:%02x%02x:%02x%02x:%02x%02x:"
+            "%02x%02x:%02x%02x:%02x%02x:%02x%02x",
+            addr[0], addr[1], addr[2], addr[3],
+            addr[4], addr[5], addr[6], addr[7],
+            addr[8], addr[9], addr[10], addr[11],
+            addr[12], addr[13], addr[14], addr[15]);
 
 	return output;
 }
@@ -347,22 +363,21 @@ int main(int argc, char** argv)
 
         if (pcap == NULL) printf("pcap_create failed %s\n", err);
 
-	    /* get an IPv4 address */
+	    /* get an IPv4 or IPv6 address */
 	    for (a = d->addresses; a; a = a->next) {
-		    switch(a->addr->sa_family)
-		    {
-			    case AF_INET:
-				    server =
-                        iptos(((struct sockaddr_in *)a->addr)->sin_addr.s_addr);
-				    printf("server = %s\n", server);
-				    break;
-
-                default:
-                    break;
-		    }
+            if (a->addr->sa_family == AF_INET)
+				server =
+                    iptos(((struct sockaddr_in *)a->addr)->sin_addr.s_addr);
+            else if (a->addr->sa_family == AF_INET6)
+                server =
+                    ip6tos(((struct sockaddr_in6 *)a->addr)->sin6_addr.s6_addr);
+            else
+                server = NULL;
 	    }
 	    if (server == NULL)
-		    err_sys("Unable to get device IPv4 address");
+		    err_sys("Unable to get device IPv4 or IPv6 address");
+        else
+		    printf("server = %s\n", server);
 
         ret = pcap_set_snaplen(pcap, 65536);
         if (ret != 0) printf("pcap_set_snaplen failed %s\n", pcap_geterr(pcap));
@@ -395,6 +410,7 @@ int main(int argc, char** argv)
         if (ret != 0) printf("pcap_setfilter failed %s\n", pcap_geterr(pcap));
 
 #ifndef WOLFSSL_SNIFFER_WATCH
+        server = "::1";
         ret = ssl_SetPrivateKey(server, port, "../../certs/server-key.pem",
                                FILETYPE_PEM, NULL, err);
         if (ret != 0) {
