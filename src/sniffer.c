@@ -78,6 +78,7 @@ enum {
     IP_HDR_SZ          = 20,  /* IP header length, min */
     TCP_HDR_SZ         = 20,  /* TCP header length, min */
     IPV4               = 4,   /* IP version 4 */
+    IPV6               = 6,   /* IP version 6 */
     TCP_PROTOCOL       = 6,   /* TCP Protocol id */
     TRACE_MSG_SZ       = 80,  /* Trace Message buffer size */
     HASH_SIZE          = 499, /* Session Hash Table Rows */
@@ -316,11 +317,18 @@ typedef struct NamedKey {
 #endif
 
 
+typedef union IpAddrInfo {
+    word32 ip4;
+    word32 ip6[4];
+} IpAddrInfo;
+
+
 /* Sniffer Server holds info for each server/port monitored */
 typedef struct SnifferServer {
     SSL_CTX*       ctx;                          /* SSL context */
     char           address[MAX_SERVER_ADDRESS];  /* passed in server address */
-    word32         server;                       /* netowrk order address */
+    IpAddrInfo     server;                       /* network order address */
+    int            version;                      /* IP version */
     int            port;                         /* server port */
 #ifdef HAVE_SNI
     NamedKey*      namedKeys;                    /* mapping of names and keys */
@@ -382,8 +390,9 @@ typedef struct SnifferSession {
     SnifferServer* context;         /* server context */
     SSL*           sslServer;       /* SSL server side decode */
     SSL*           sslClient;       /* SSL client side decode */
-    word32         server;          /* server address in network byte order */
-    word32         client;          /* client address in network byte order */
+    IpAddrInfo     server;          /* server address in network byte order */
+    IpAddrInfo     client;          /* client address in network byte order */
+    int            version;
     word16         srvPort;         /* server port */
     word16         cliPort;         /* client port */
     word32         cliSeqStart;     /* client start sequence */
@@ -744,85 +753,40 @@ static int HashCopy(HS_Hashes* d, HsHashes* s)
 /* Initialize a SnifferServer */
 static void InitSnifferServer(SnifferServer* sniffer)
 {
-    sniffer->ctx = 0;
-    XMEMSET(sniffer->address, 0, MAX_SERVER_ADDRESS);
-    sniffer->server   = 0;
-    sniffer->port     = 0;
-#ifdef HAVE_SNI
-    sniffer->namedKeys = 0;
-    wc_InitMutex(&sniffer->namedKeysMutex);
-#endif
-    sniffer->next     = 0;
+    XMEMSET(sniffer, 0, sizeof(SnifferServer));
 }
 
 
 /* Initialize session flags */
 static void InitFlags(Flags* flags)
 {
-    flags->side           = 0;
-    flags->serverCipherOn = 0;
-    flags->clientCipherOn = 0;
-    flags->resuming       = 0;
-    flags->cached         = 0;
-    flags->clientHello    = 0;
-    flags->finCount       = 0;
-    flags->fatalError     = 0;
-    flags->cliAckFault    = 0;
-    flags->srvAckFault    = 0;
-    flags->cliSkipPartial = 0;
-    flags->srvSkipPartial = 0;
-#ifdef HAVE_EXTENDED_MASTER
-    flags->expectEms      = 0;
-#endif
+    XMEMSET(flags, 0, sizeof(Flags));
 }
 
 
 /* Initialize FIN Capture */
 static void InitFinCapture(FinCaputre* cap)
 {
-    cap->cliFinSeq  = 0;
-    cap->srvFinSeq  = 0;
-    cap->cliCounted = 0;
-    cap->srvCounted = 0;
+    XMEMSET(cap, 0, sizeof(FinCaputre));
 }
 
 
 /* Initialize a Sniffer Session */
 static void InitSession(SnifferSession* session)
 {
-    session->context        = 0;
-    session->sslServer      = 0;
-    session->sslClient      = 0;
-    session->server         = 0;
-    session->client         = 0;
-    session->srvPort        = 0;
-    session->cliPort        = 0;
-    session->cliSeqStart    = 0;
-    session->srvSeqStart    = 0;
-    session->cliExpected    = 0;
-    session->srvExpected    = 0;
-    session->lastUsed       = 0;
-    session->cliReassemblyList = 0;
-    session->srvReassemblyList = 0;
-    session->cliReassemblyMemory = 0;
-    session->srvReassemblyMemory = 0;
-    session->next           = 0;
-    session->ticketID       = 0;
-
+    XMEMSET(session, 0, sizeof(SnifferSession));
     InitFlags(&session->flags);
     InitFinCapture(&session->finCaputre);
-#ifdef HAVE_EXTENDED_MASTER
-    session->hash = 0;
-#endif
 }
 
 
 /* IP Info from IP Header */
 typedef struct IpInfo {
+    int    version;       /* IP version */
     int    length;        /* length of this header */
     int    total;         /* total length of fragment */
-    word32 src;           /* network order source address */
-    word32 dst;           /* network order destination address */
+    IpAddrInfo src;       /* network order source address */
+    IpAddrInfo dst;       /* network order destination address */
 } IpInfo;
 
 
@@ -868,7 +832,7 @@ typedef struct EthernetHdr {
 } EthernetHdr;
 
 
-/* IP Header */
+/* IPv4 Header */
 typedef struct IpHdr {
     byte    ver_hl;              /* version/header length */
     byte    tos;                 /* type of service */
@@ -881,6 +845,19 @@ typedef struct IpHdr {
     word32  src;                 /* source address */
     word32  dst;                 /* destination address */
 } IpHdr;
+
+
+/* IPv6 Header */
+typedef struct Ip6Hdr {
+    byte    ver_hl;              /* version/traffic class high */
+    byte    tc_fl;               /* traffic class low/flow label high */
+    word16  fl;                  /* flow label low */
+    word16  length;              /* payload length */
+    byte    next_header;         /* next header (6 for TCP, any other skip) */
+    byte    hl;                  /* hop limit */
+    word32  src[4];              /* source address */
+    word32  dst[4];              /* destination address */
+} Ip6Hdr;
 
 
 #define IP_HL(ip)      ( (((ip)->ver_hl) & 0x0f) * 4)
@@ -982,6 +959,18 @@ static char* IpToS(word32 addr, char* str)
 }
 
 
+/* Convert network byte order address into human readable */
+static char* Ip6ToS(word32* addr, char* str)
+{
+    byte* p = (byte*)addr;
+
+    /* Very incorrect. XXX */
+    SNPRINTF(str, TRACE_MSG_SZ, "::%d", p[127]);
+
+    return str;
+}
+
+
 /* Show destination and source address from Ip Hdr for packet Trace */
 static void TraceIP(IpHdr* iphdr)
 {
@@ -990,6 +979,18 @@ static void TraceIP(IpHdr* iphdr)
         char dst[TRACE_MSG_SZ];
         fprintf(TraceFile, "\tdst:%s src:%s\n", IpToS(iphdr->dst, dst),
                 IpToS(iphdr->src, src));
+    }
+}
+
+
+/* Show destination and source address from Ip6Hdr for packet Trace */
+static void TraceIP6(Ip6Hdr* iphdr)
+{
+    if (TraceOn) {
+        char src[TRACE_MSG_SZ];
+        char dst[TRACE_MSG_SZ];
+        fprintf(TraceFile, "\tdst:%s src:%s\n", Ip6ToS(iphdr->dst, dst),
+                Ip6ToS(iphdr->src, src));
     }
 }
 
@@ -1178,7 +1179,32 @@ static int IsServerRegistered(word32 addr)
 
     sniffer = ServerList;
     while (sniffer) {
-        if (sniffer->server == addr) {
+        if (sniffer->server.ip4 == addr) {
+            ret = 1;
+            break;
+        }
+        sniffer = sniffer->next;
+    }
+
+    wc_UnLockMutex(&ServerListMutex);
+
+    return ret;
+}
+
+
+/* See if this port has been registered to watch */
+/* See if this IPV4 network order address has been registered */
+/* return 1 is true, 0 is false */
+static int IsServerRegistered6(word32* addr)
+{
+    int ret = 0;     /* false */
+    SnifferServer* sniffer;
+
+    wc_LockMutex(&ServerListMutex);
+
+    sniffer = ServerList;
+    while (sniffer) {
+        if (XMEMCMP(sniffer->server.ip6, addr, sizeof(sniffer->server.ip6))) {
             ret = 1;
             break;
         }
@@ -1228,10 +1254,25 @@ static SnifferServer* GetSnifferServer(IpInfo* ipInfo, TcpInfo* tcpInfo)
 
 #ifndef WOLFSSL_SNIFFER_WATCH
     while (sniffer) {
-        if (sniffer->port == tcpInfo->srcPort && sniffer->server == ipInfo->src)
-            break;
-        if (sniffer->port == tcpInfo->dstPort && sniffer->server == ipInfo->dst)
-            break;
+        if (ipInfo->version == IPV4) {
+            if (sniffer->port == tcpInfo->srcPort &&
+                    sniffer->server.ip4 == ipInfo->src.ip4)
+                break;
+            if (sniffer->port == tcpInfo->dstPort &&
+                    sniffer->server.ip4 == ipInfo->dst.ip4)
+                break;
+        }
+        else if (ipInfo->version == IPV6) {
+            if (sniffer->port == tcpInfo->srcPort &&
+                    XMEMCMP(sniffer->server.ip6, ipInfo->src.ip6,
+                        sizeof(sniffer->server.ip6)) == 0)
+                break;
+            if (sniffer->port == tcpInfo->dstPort &&
+                    XMEMCMP(sniffer->server.ip6, ipInfo->dst.ip6,
+                        sizeof(sniffer->server.ip6)) == 0)
+                break;
+        }
+
         sniffer = sniffer->next;
     }
 #else
@@ -1248,10 +1289,32 @@ static SnifferServer* GetSnifferServer(IpInfo* ipInfo, TcpInfo* tcpInfo)
 /* Hash the Session Info, return hash row */
 static word32 SessionHash(IpInfo* ipInfo, TcpInfo* tcpInfo)
 {
-    word32 hash = ipInfo->src * ipInfo->dst;
+    word32 hash = 1;
+
+    if (ipInfo->version == IPV4) {
+        hash *= ipInfo->src.ip4 * ipInfo->dst.ip4;
+    }
+    else if (ipInfo->version == IPV6) {
+        word32 x;
+        x = ipInfo->src.ip6[0] ^ ipInfo->src.ip6[1] ^
+            ipInfo->src.ip6[2] ^ ipInfo->src.ip6[3];
+        hash *= x;
+        x = ipInfo->dst.ip6[0] ^ ipInfo->dst.ip6[1] ^
+            ipInfo->dst.ip6[2] ^ ipInfo->dst.ip6[3];
+        hash *= x;
+    }
     hash *= tcpInfo->srcPort * tcpInfo->dstPort;
 
     return hash % HASH_SIZE;
+}
+
+
+static inline int MatchAddr(int version, IpAddrInfo l, IpAddrInfo r)
+{
+    if (version == IPV4)
+        return (l.ip4 == r.ip4);
+    else
+        return (0 == XMEMCMP(l.ip6, r.ip6, sizeof(l.ip6)));
 }
 
 
@@ -1268,11 +1331,14 @@ static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
 
     session = SessionTable[row];
     while (session) {
-        if (session->server == ipInfo->src && session->client == ipInfo->dst &&
+        if (MatchAddr(session->version, session->server, ipInfo->src) &&
+            MatchAddr(session->version, session->client, ipInfo->dst) &&
                     session->srvPort == tcpInfo->srcPort &&
                     session->cliPort == tcpInfo->dstPort)
             break;
-        if (session->client == ipInfo->src && session->server == ipInfo->dst &&
+
+        if (MatchAddr(session->version, session->client, ipInfo->src) &&
+            MatchAddr(session->version, session->server, ipInfo->dst) &&
                     session->cliPort == tcpInfo->srcPort &&
                     session->srvPort == tcpInfo->dstPort)
             break;
@@ -1287,11 +1353,14 @@ static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
 
     /* determine side */
     if (session) {
-        if (ipInfo->dst == session->server &&
-            tcpInfo->dstPort == session->srvPort)
+        if (MatchAddr(ipInfo->version, ipInfo->dst, session->server) &&
+            tcpInfo->dstPort == session->srvPort) {
+
             session->flags.side = WOLFSSL_SERVER_END;
-        else
+        }
+        else {
             session->flags.side = WOLFSSL_CLIENT_END;
+        }
     }
 
     return session;
@@ -1449,7 +1518,7 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
     serverIp = inet_addr(address);
     sniffer = ServerList;
     while (sniffer != NULL &&
-           (sniffer->server != serverIp || sniffer->port != port)) {
+           (sniffer->server.ip4 != serverIp || sniffer->port != port)) {
         sniffer = sniffer->next;
     }
 
@@ -1468,7 +1537,7 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
 
         XSTRNCPY(sniffer->address, address, MAX_SERVER_ADDRESS-1);
         sniffer->address[MAX_SERVER_ADDRESS-1] = '\0';
-        sniffer->server = serverIp;
+        sniffer->server.ip4 = serverIp;
         sniffer->port = port;
 
         sniffer->ctx = SSL_CTX_new(TLSv1_2_client_method());
@@ -1569,7 +1638,49 @@ int ssl_SetPrivateKey(const char* address, int port, const char* keyFile,
 }
 
 
+/* Check IP Header for IPV6, TCP, and a registered server address */
+/* returns 0 on success, -1 on error */
+static int CheckIp6Hdr(Ip6Hdr* iphdr, IpInfo* info, int length, char* error)
+{
+    int    version = IP_V(iphdr);
+
+    TraceIP6(iphdr);
+    Trace(IP_CHECK_STR);
+
+    if (version != IPV6) {
+        SetError(BAD_IPVER_STR, error, NULL, 0);
+        return -1;
+    }
+
+    /* Here, we need to move onto next header if not TCP. */
+    if (iphdr->next_header != TCP_PROTOCOL) {
+        SetError(BAD_PROTO_STR, error, NULL, 0);
+        return -1;
+    }
+
+#ifndef WOLFSSL_SNIFFER_WATCH
+    if (!IsServerRegistered6(iphdr->src) && !IsServerRegistered6(iphdr->dst)) {
+        SetError(SERVER_NOT_REG_STR, error, NULL, 0);
+        return -1;
+    }
+#endif
+
+    info->total   = ntohs(iphdr->length);
+    info->version = IPV6;
+    XMEMCPY(info->src.ip6, iphdr->src, sizeof(info->src.ip6));
+    XMEMCPY(info->dst.ip6, iphdr->src, sizeof(info->dst.ip6));
+
+    /* This needs to massage the length and size to match what the sniffer
+     * expects. IPv4 and IPv6 treat the length parameter differently. */
+    if (info->total == 0)
+        info->total = length;  /* reassembled may be off */
+
+    return 0;
+}
+
+
 /* Check IP Header for IPV4, TCP, and a registered server address */
+/* If header IPv6, pass to CheckIp6Hdr(). */
 /* returns 0 on success, -1 on error */
 static int CheckIpHdr(IpHdr* iphdr, IpInfo* info, int length, char* error)
 {
@@ -1577,6 +1688,9 @@ static int CheckIpHdr(IpHdr* iphdr, IpInfo* info, int length, char* error)
 
     TraceIP(iphdr);
     Trace(IP_CHECK_STR);
+
+    if (version == IPV6)
+        return CheckIp6Hdr((Ip6Hdr*)iphdr, info, length, error);
 
     if (version != IPV4) {
         SetError(BAD_IPVER_STR, error, NULL, 0);
@@ -1597,8 +1711,9 @@ static int CheckIpHdr(IpHdr* iphdr, IpInfo* info, int length, char* error)
 
     info->length  = IP_HL(iphdr);
     info->total   = ntohs(iphdr->length);
-    info->src     = iphdr->src;
-    info->dst     = iphdr->dst;
+    info->version = IPV4;
+    info->src.ip4 = iphdr->src;
+    info->dst.ip4 = iphdr->dst;
 
     if (info->total == 0)
         info->total = length;  /* reassembled may be off */
