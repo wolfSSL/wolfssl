@@ -282,7 +282,7 @@ void WOLFSSL_BUFFER(const byte* buffer, word32 length)
 {
     #define LINE_LEN 16
 
-    if (loggingEnabled) {
+    while (loggingEnabled) {
         word32 i;
         char line[80];
 
@@ -310,8 +310,10 @@ void WOLFSSL_BUFFER(const byte* buffer, word32 length)
 
         wolfssl_log(INFO_LOG, line);
 
-        if (length > LINE_LEN)
-            WOLFSSL_BUFFER(buffer + LINE_LEN, length - LINE_LEN);
+        if (length <= LINE_LEN) return;
+
+        length -= LINE_LEN;
+        buffer += LINE_LEN;
     }
 }
 
