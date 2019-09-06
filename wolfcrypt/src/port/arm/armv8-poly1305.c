@@ -88,18 +88,18 @@ static WC_INLINE void poly1305_blocks_16(Poly1305* ctx, const unsigned char *m,
         /* t1 = U8TO64(&m[8]); */
         "LDP        x16, x17, [%[m]], #16 \n\t"
         /* h0 += (U8TO32(m + 0)) & 0x3ffffff; */
-        "AND        x18, x16, #0x3ffffff \n\t"
-        "ADD        x2, x2, x18          \n\t"
+        "AND        x26, x16, #0x3ffffff \n\t"
+        "ADD        x2, x2, x26          \n\t"
         /* h1 += (U8TO32(m + 3) >> 2) & 0x3ffffff; */
-        "AND        x18, x14, x16, LSR #26 \n\t"
-        "ADD        x3, x3, x18          \n\t"
+        "AND        x26, x14, x16, LSR #26 \n\t"
+        "ADD        x3, x3, x26          \n\t"
         /* h2 += (U8TO32(m + 6) >> 4) & 0x3ffffff; */
-        "EXTR       x18, x17, x16, #52   \n\t"
-        "AND        x18, x18, #0x3ffffff \n\t"
-        "ADD        x4, x4, x18          \n\t"
+        "EXTR       x26, x17, x16, #52   \n\t"
+        "AND        x26, x26, #0x3ffffff \n\t"
+        "ADD        x4, x4, x26          \n\t"
         /* h3 += (U8TO32(m + 9) >> 6) & 0x3ffffff; */
-        "AND        x18, x14, x17, LSR #14 \n\t"
-        "ADD        x5, x5, x18          \n\t"
+        "AND        x26, x14, x17, LSR #14 \n\t"
+        "ADD        x5, x5, x26          \n\t"
         /* h4 += (U8TO32(m + 12) >> 8) | hibit; */
         "ORR        x17, %[finished], x17, LSR #40 \n\t"
         "ADD        x6, x6, x17          \n\t"
@@ -110,27 +110,27 @@ static WC_INLINE void poly1305_blocks_16(Poly1305* ctx, const unsigned char *m,
         /* d4 = h0 * r4 + h1 * r3 + h2 * r2 + h3 * r1 + h4 * r0 */
         "MUL        x16, x2, x21         \n\t"
         "MUL        x17, x2, x22         \n\t"
-        "MUL        x18, x2, x23         \n\t"
+        "MUL        x26, x2, x23         \n\t"
         "MUL        x19, x2, x24         \n\t"
         "MUL        x20, x2, x25         \n\t"
         "MADD       x16, x3, x10, x16    \n\t"
         "MADD       x17, x3, x21, x17    \n\t"
-        "MADD       x18, x3, x22, x18    \n\t"
+        "MADD       x26, x3, x22, x26    \n\t"
         "MADD       x19, x3, x23, x19    \n\t"
         "MADD       x20, x3, x24, x20    \n\t"
         "MADD       x16, x4, x9, x16     \n\t"
         "MADD       x17, x4, x10, x17    \n\t"
-        "MADD       x18, x4, x21, x18    \n\t"
+        "MADD       x26, x4, x21, x26    \n\t"
         "MADD       x19, x4, x22, x19    \n\t"
         "MADD       x20, x4, x23, x20    \n\t"
         "MADD       x16, x5, x8, x16     \n\t"
         "MADD       x17, x5, x9, x17     \n\t"
-        "MADD       x18, x5, x10, x18    \n\t"
+        "MADD       x26, x5, x10, x26    \n\t"
         "MADD       x19, x5, x21, x19    \n\t"
         "MADD       x20, x5, x22, x20    \n\t"
         "MADD       x16, x6, x7, x16     \n\t"
         "MADD       x17, x6, x8, x17     \n\t"
-        "MADD       x18, x6, x9, x18     \n\t"
+        "MADD       x26, x6, x9, x26     \n\t"
         "MADD       x19, x6, x10, x19    \n\t"
         "MADD       x20, x6, x21, x20    \n\t"
         /* d1 = d1 + d0 >> 26 */
@@ -151,11 +151,11 @@ static WC_INLINE void poly1305_blocks_16(Poly1305* ctx, const unsigned char *m,
         "LSR        x2, x20, #26         \n\t"
         "AND        x19, x19, #0x3ffffff \n\t"
         "MADD       x16, x2, x15, x16    \n\t"
-        "ADD        x18, x18, x17, LSR #26 \n\t"
+        "ADD        x26, x26, x17, LSR #26 \n\t"
         "AND        x17, x17, #0x3ffffff \n\t"
         "AND        x20, x20, #0x3ffffff \n\t"
-        "ADD        x19, x19, x18, LSR #26 \n\t"
-        "AND        x4, x18, #0x3ffffff  \n\t"
+        "ADD        x19, x19, x26, LSR #26 \n\t"
+        "AND        x4, x26, #0x3ffffff  \n\t"
         "ADD        x3, x17, x16, LSR #26 \n\t"
         "AND        x2, x16, #0x3ffffff  \n\t"
         "ADD        x6, x20, x19, LSR #26 \n\t"
@@ -182,8 +182,8 @@ static WC_INLINE void poly1305_blocks_16(Poly1305* ctx, const unsigned char *m,
         : "memory", "cc",
           "w2", "w3", "w4", "w5", "w6", "w7", "w8", "w9", "w10", "w15",
           "w21", "w22", "w23", "w24", "w25", "x2", "x3", "x4", "x5", "x6",
-          "x7", "x8", "x9", "x10", "x14", "x15", "x16", "x17", "x18", "x19",
-          "x20", "x21", "x22", "x23", "x24", "x25"
+          "x7", "x8", "x9", "x10", "x14", "x15", "x16", "x17", "x19", "x20",
+          "x21", "x22", "x23", "x24", "x25", "x26"
     );
 }
 
@@ -200,15 +200,16 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "MOV        v27.D[0], x9         \n\t"
         "LDR        w24, [%[h], #16]     \n\t"
         "MOV        v27.D[1], x9         \n\t"
-        "MOV        x9, #5               \n\t"
         "LSR        x21, x20, #32        \n\t"
-        "MOV        v28.D[0], x9         \n\t"
+        "DUP        v29.4S, v27.S[0]     \n\t"
         "LSR        x23, x22, #32        \n\t"
+        "MOV        x9, #5               \n\t"
+        "AND        x20, x20, #0x3ffffff \n\t"
+        "MOV        v28.D[0], x9         \n\t"
+        "AND        x22, x22, #0x3ffffff \n\t"
         /* Zero accumulator registers */
         "MOVI       v15.2D, #0x0         \n\t"
-        "AND        x20, x20, #0x3ffffff \n\t"
         "MOVI       v16.2D, #0x0         \n\t"
-        "AND        x22, x22, #0x3ffffff \n\t"
         "MOVI       v17.2D, #0x0         \n\t"
         "MOVI       v18.2D, #0x0         \n\t"
         "MOVI       v19.2D, #0x0         \n\t"
@@ -218,6 +219,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "LSL        x9, x9, #24          \n\t"
         "MOV        v26.D[0], x9         \n\t"
         "MOV        v26.D[1], x9         \n\t"
+        "DUP        v30.4S, v26.S[0]     \n\t"
         "CMP        %[bytes], %[POLY1305_BLOCK_SIZE]*6 \n\t"
         "BLO        L_poly1305_64_start_block_size_64_%= \n\t"
         /* Load r^2 to NEON v0, v1, v2, v3, v4 */
@@ -254,14 +256,12 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "MOV        w15, v5.S[0]         \n\t"
         "MOV        w16, v6.S[0]         \n\t"
         "MOV        w17, v7.S[0]         \n\t"
-        "MOV        w18, v8.S[0]         \n\t"
+        "MOV        w8, v8.S[0]          \n\t"
         "MOV        w19, v9.S[0]         \n\t"
         /* Load m */
         /* Load four message blocks to NEON v10, v11, v12, v13, v14 */
         "LD4        { v10.4S-v13.4S }, [%[m]], #64 \n\t"
         "SUB        %[bytes], %[bytes], %[POLY1305_BLOCK_SIZE]*4 \n\t"
-        "DUP        v29.4S, v27.S[0]     \n\t"
-        "DUP        v30.4S, v26.S[0]     \n\t"
         "USHR       v14.4S, v13.4S, #8   \n\t"
         "ORR        v14.16B, v14.16B, v30.16B \n\t"
         "SHL        v13.4S, v13.4S, #18  \n\t"
@@ -275,10 +275,6 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "AND        v12.16B, v12.16B, v29.16B \n\t"
         "AND        v13.16B, v13.16B, v29.16B \n\t"
         "AND        v14.16B, v14.16B, v29.16B \n\t"
-        "MOV        v27.S[1], wzr        \n\t"
-        "MOV        v27.S[3], wzr        \n\t"
-        "MOV        v26.S[1], wzr        \n\t"
-        "MOV        v26.S[3], wzr        \n\t"
         /* Four message blocks loaded */
         /* Add messages to accumulator */
         "ADD        v15.2S, v15.2S, v10.2S \n\t"
@@ -321,7 +317,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "UMLAL      v25.2D, v16.2S, v3.2S \n\t"
         "MADD       x13, x21, x28, x13   \n\t"
         "UMLAL      v21.2D, v17.2S, v8.2S \n\t"
-        "MADD       x9, x22, x18, x9     \n\t"
+        "MADD       x9, x22, x8, x9      \n\t"
         "UMLAL      v22.2D, v17.2S, v9.2S \n\t"
         "MADD       x10, x22, x19, x10   \n\t"
         "UMLAL      v23.2D, v17.2S, v0.2S \n\t"
@@ -333,7 +329,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "UMLAL      v21.2D, v18.2S, v7.2S \n\t"
         "MADD       x9, x23, x17, x9     \n\t"
         "UMLAL      v22.2D, v18.2S, v8.2S \n\t"
-        "MADD       x10, x23, x18, x10   \n\t"
+        "MADD       x10, x23, x8, x10    \n\t"
         "UMLAL      v23.2D, v18.2S, v9.2S \n\t"
         "MADD       x11, x23, x19, x11   \n\t"
         "UMLAL      v24.2D, v18.2S, v0.2S \n\t"
@@ -345,7 +341,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "UMLAL      v22.2D, v19.2S, v7.2S \n\t"
         "MADD       x10, x24, x17, x10   \n\t"
         "UMLAL      v23.2D, v19.2S, v8.2S \n\t"
-        "MADD       x11, x24, x18, x11   \n\t"
+        "MADD       x11, x24, x8, x11    \n\t"
         "UMLAL      v24.2D, v19.2S, v9.2S \n\t"
         "MADD       x12, x24, x19, x12   \n\t"
         "UMLAL      v25.2D, v19.2S, v0.2S \n\t"
@@ -460,52 +456,52 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "LD2        { v10.2D-v11.2D }, [%[m]], #32 \n\t"
         /* Copy r^2 to lower half of registers */
         "MOV        v0.D[0], v0.D[1]     \n\t"
-        "MOV        v5.D[0], v5.D[1]     \n\t"
         "SUB        %[bytes], %[bytes], %[POLY1305_BLOCK_SIZE]*2 \n\t"
-        "MOV        v1.D[0], v1.D[1]     \n\t"
+        "MOV        v5.D[0], v5.D[1]     \n\t"
         "USHR       v14.2D, v11.2D, #40  \n\t"
-        "MOV        v6.D[0], v6.D[1]     \n\t"
+        "MOV        v1.D[0], v1.D[1]     \n\t"
         "ORR        v14.16B, v14.16B, v26.16B \n\t"
-        "MOV        v2.D[0], v2.D[1]     \n\t"
+        "MOV        v6.D[0], v6.D[1]     \n\t"
         "USHR       v13.2D, v11.2D, #14  \n\t"
-        "MOV        v7.D[0], v7.D[1]     \n\t"
+        "MOV        v2.D[0], v2.D[1]     \n\t"
         "AND        v13.16B, v13.16B, v27.16B \n\t"
-        "MOV        v3.D[0], v3.D[1]     \n\t"
+        "MOV        v7.D[0], v7.D[1]     \n\t"
         "SHL        v12.2D, v11.2D, #12  \n\t"
-        "MOV        v8.D[0], v8.D[1]     \n\t"
+        "MOV        v3.D[0], v3.D[1]     \n\t"
         "SRI        v12.2D, v10.2D, #52  \n\t"
-        "MOV        v4.D[0], v4.D[1]     \n\t"
+        "MOV        v8.D[0], v8.D[1]     \n\t"
         "AND        v12.16B, v12.16B, v27.16B \n\t"
-        "MOV        v9.D[0], v9.D[1]     \n\t"
+        "MOV        v4.D[0], v4.D[1]     \n\t"
         "USHR       v11.2D, v10.2D, #26  \n\t"
+        "MOV        v9.D[0], v9.D[1]     \n\t"
+        "AND        v11.16B, v11.16B, v27.16B \n\t"
         /* Copy r^2 to ARM */
         "MOV        w25, v0.S[2]         \n\t"
-        "AND        v11.16B, v11.16B, v27.16B \n\t"
-        "MOV        w26, v1.S[2]         \n\t"
         "AND        v10.16B, v10.16B, v27.16B \n\t"
-        "MOV        w27, v2.S[2]         \n\t"
+        "MOV        w26, v1.S[2]         \n\t"
         /* Two message blocks loaded */
         /* Add last messages */
         "ADD        v21.2D, v21.2D, v10.2D \n\t"
-        "MOV        w28, v3.S[2]         \n\t"
+        "MOV        w27, v2.S[2]         \n\t"
         "ADD        v22.2D, v22.2D, v11.2D \n\t"
-        "MOV        w30, v4.S[2]         \n\t"
+        "MOV        w28, v3.S[2]         \n\t"
         "ADD        v23.2D, v23.2D, v12.2D \n\t"
+        "MOV        w30, v4.S[2]         \n\t"
+        "ADD        v24.2D, v24.2D, v13.2D \n\t"
         /* Copy 5*r^2 to ARM */
         "MOV        w15, v5.S[2]         \n\t"
-        "ADD        v24.2D, v24.2D, v13.2D \n\t"
-        "MOV        w16, v6.S[2]         \n\t"
         "ADD        v25.2D, v25.2D, v14.2D \n\t"
-        "MOV        w17, v7.S[2]         \n\t"
+        "MOV        w16, v6.S[2]         \n\t"
         /* Reduce message to be ready for next multiplication */
         /* Reduce radix 26 NEON */
         /* Interleave h0 -> h1 -> h2 -> h3 -> h4 */
         /*       with h3 -> h4 -> h0 -> h1 */
         "USRA       v22.2D, v21.2D, #26  \n\t"
-        "MOV        w18, v8.S[2]         \n\t"
+        "MOV        w17, v7.S[2]         \n\t"
         "AND        v21.16B, v21.16B, v27.16B \n\t"
-        "MOV        w19, v9.S[2]         \n\t"
+        "MOV        w8, v8.S[2]          \n\t"
         "USRA       v25.2D, v24.2D, #26  \n\t"
+        "MOV        w19, v9.S[2]         \n\t"
         "AND        v24.16B, v24.16B, v27.16B \n\t"
         "USHR       v15.2D, v25.2D, #26  \n\t"
         "USRA       v23.2D, v22.2D, #26  \n\t"
@@ -555,7 +551,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "MOV        w15, v5.S[0]         \n\t"
         "MOV        w16, v6.S[0]         \n\t"
         "MOV        w17, v7.S[0]         \n\t"
-        "MOV        w18, v8.S[0]         \n\t"
+        "MOV        w8, v8.S[0]          \n\t"
         "MOV        w19, v9.S[0]         \n\t"
         /* Load m */
         /* Load two message blocks to NEON v10, v11, v12, v13, v14 */
@@ -571,11 +567,11 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "USHR       v11.2D, v10.2D, #26  \n\t"
         "AND        v11.16B, v11.16B, v27.16B \n\t"
         "AND        v10.16B, v10.16B, v27.16B \n\t"
-        "MOV        v10.S[1], v10.S[2] \n\t"
-        "MOV        v11.S[1], v11.S[2] \n\t"
-        "MOV        v12.S[1], v12.S[2] \n\t"
-        "MOV        v13.S[1], v13.S[2] \n\t"
-        "MOV        v14.S[1], v14.S[2] \n\t"
+        "MOV        v10.S[1], v10.S[2]   \n\t"
+        "MOV        v11.S[1], v11.S[2]   \n\t"
+        "MOV        v12.S[1], v12.S[2]   \n\t"
+        "MOV        v13.S[1], v13.S[2]   \n\t"
+        "MOV        v14.S[1], v14.S[2]   \n\t"
         /* Two message blocks loaded */
         /* Add messages to accumulator */
         "ADD        v15.2S, v15.2S, v10.2S \n\t"
@@ -618,7 +614,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "UMLAL      v25.2D, v16.2S, v3.2S \n\t"
         "MADD       x13, x21, x28, x13   \n\t"
         "UMLAL      v21.2D, v17.2S, v8.2S \n\t"
-        "MADD       x9, x22, x18, x9     \n\t"
+        "MADD       x9, x22, x8, x9      \n\t"
         "UMLAL      v22.2D, v17.2S, v9.2S \n\t"
         "MADD       x10, x22, x19, x10   \n\t"
         "UMLAL      v23.2D, v17.2S, v0.2S \n\t"
@@ -630,7 +626,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "UMLAL      v21.2D, v18.2S, v7.2S \n\t"
         "MADD       x9, x23, x17, x9     \n\t"
         "UMLAL      v22.2D, v18.2S, v8.2S \n\t"
-        "MADD       x10, x23, x18, x10   \n\t"
+        "MADD       x10, x23, x8, x10    \n\t"
         "UMLAL      v23.2D, v18.2S, v9.2S \n\t"
         "MADD       x11, x23, x19, x11   \n\t"
         "UMLAL      v24.2D, v18.2S, v0.2S \n\t"
@@ -642,7 +638,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "UMLAL      v22.2D, v19.2S, v7.2S \n\t"
         "MADD       x10, x24, x17, x10   \n\t"
         "UMLAL      v23.2D, v19.2S, v8.2S \n\t"
-        "MADD       x11, x24, x18, x11   \n\t"
+        "MADD       x11, x24, x8, x11    \n\t"
         "UMLAL      v24.2D, v19.2S, v9.2S \n\t"
         "MADD       x12, x24, x19, x12   \n\t"
         "UMLAL      v25.2D, v19.2S, v0.2S \n\t"
@@ -652,37 +648,37 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "LD2        { v10.2D-v11.2D }, [%[m]], #32 \n\t"
         /* Reduce h % P */
         "MOV        x14, #5              \n\t"
-        "ADD        x10, x10, x9, LSR #26 \n\t"
         "SUB        %[bytes], %[bytes], %[POLY1305_BLOCK_SIZE]*2 \n\t"
-        "ADD        x13, x13, x12, LSR #26 \n\t"
+        "ADD        x10, x10, x9, LSR #26 \n\t"
         "USHR       v14.2D, v11.2D, #40  \n\t"
-        "AND        x9, x9, #0x3ffffff   \n\t"
+        "ADD        x13, x13, x12, LSR #26 \n\t"
         "ORR        v14.16B, v14.16B, v26.16B \n\t"
-        "LSR        x20, x13, #26        \n\t"
+        "AND        x9, x9, #0x3ffffff   \n\t"
         "USHR       v13.2D, v11.2D, #14  \n\t"
-        "AND        x12, x12, #0x3ffffff \n\t"
+        "LSR        x20, x13, #26        \n\t"
         "AND        v13.16B, v13.16B, v27.16B \n\t"
-        "MADD       x9, x20, x14, x9     \n\t"
+        "AND        x12, x12, #0x3ffffff \n\t"
         "SHL        v12.2D, v11.2D, #12  \n\t"
-        "ADD        x11, x11, x10, LSR #26 \n\t"
+        "MADD       x9, x20, x14, x9     \n\t"
         "SRI        v12.2D, v10.2D, #52  \n\t"
-        "AND        x10, x10, #0x3ffffff \n\t"
+        "ADD        x11, x11, x10, LSR #26 \n\t"
         "AND        v12.16B, v12.16B, v27.16B \n\t"
-        "AND        x13, x13, #0x3ffffff \n\t"
+        "AND        x10, x10, #0x3ffffff \n\t"
         "USHR       v11.2D, v10.2D, #26  \n\t"
-        "ADD        x12, x12, x11, LSR #26 \n\t"
+        "AND        x13, x13, #0x3ffffff \n\t"
         "AND        v11.16B, v11.16B, v27.16B \n\t"
-        "AND        x22, x11, #0x3ffffff \n\t"
+        "ADD        x12, x12, x11, LSR #26 \n\t"
         "AND        v10.16B, v10.16B, v27.16B \n\t"
-        "ADD        x21, x10, x9, LSR #26 \n\t"
+        "AND        x22, x11, #0x3ffffff \n\t"
         /* Two message blocks loaded */
         "ADD        v21.2D, v21.2D, v10.2D \n\t"
-        "AND        x20, x9, #0x3ffffff  \n\t"
+        "ADD        x21, x10, x9, LSR #26 \n\t"
         "ADD        v22.2D, v22.2D, v11.2D \n\t"
-        "ADD        x24, x13, x12, LSR #26 \n\t"
+        "AND        x20, x9, #0x3ffffff  \n\t"
         "ADD        v23.2D, v23.2D, v12.2D \n\t"
-        "AND        x23, x12, #0x3ffffff \n\t"
+        "ADD        x24, x13, x12, LSR #26 \n\t"
         "ADD        v24.2D, v24.2D, v13.2D \n\t"
+        "AND        x23, x12, #0x3ffffff \n\t"
         "ADD        v25.2D, v25.2D, v14.2D \n\t"
         /* Reduce radix 26 NEON */
         /* Interleave h0 -> h1 -> h2 -> h3 -> h4 */
@@ -731,15 +727,15 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "SUB        %[r], %[r], #16      \n\t"
         "MUL        x11, x20, x27        \n\t"
         /* Store [r^2, r] * 5 */
-        "MUL        v5.2S, v0.2S, v28.S[0] \n\t"
+        "MUL        v5.2S, v0.2S, v28.2S[0] \n\t"
         "MUL        x12, x20, x28        \n\t"
-        "MUL        v6.2S, v1.2S, v28.S[0] \n\t"
+        "MUL        v6.2S, v1.2S, v28.2S[0] \n\t"
         "MUL        x13, x20, x30        \n\t"
-        "MUL        v7.2S, v2.2S, v28.S[0] \n\t"
+        "MUL        v7.2S, v2.2S, v28.2S[0] \n\t"
         "MADD       x9, x21, x19, x9     \n\t"
-        "MUL        v8.2S, v3.2S, v28.S[0] \n\t"
+        "MUL        v8.2S, v3.2S, v28.2S[0] \n\t"
         "MADD       x10, x21, x25, x10   \n\t"
-        "MUL        v9.2S, v4.2S, v28.S[0] \n\t"
+        "MUL        v9.2S, v4.2S, v28.2S[0] \n\t"
         "MADD       x11, x21, x26, x11   \n\t"
         /* Final multiply by [r^2, r] */
         /* d0 = h0*r0 + h1*s4 + h2*s3 + h3*s2 + h4*s1 */
@@ -752,7 +748,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "UMULL      v22.2D, v15.2S, v1.2S \n\t"
         "MADD       x13, x21, x28, x13   \n\t"
         "UMULL      v23.2D, v15.2S, v2.2S \n\t"
-        "MADD       x9, x22, x18, x9     \n\t"
+        "MADD       x9, x22, x8, x9      \n\t"
         "UMULL      v24.2D, v15.2S, v3.2S \n\t"
         "MADD       x10, x22, x19, x10   \n\t"
         "UMULL      v25.2D, v15.2S, v4.2S \n\t"
@@ -764,7 +760,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "UMLAL      v23.2D, v16.2S, v1.2S \n\t"
         "MADD       x9, x23, x17, x9     \n\t"
         "UMLAL      v24.2D, v16.2S, v2.2S \n\t"
-        "MADD       x10, x23, x18, x10   \n\t"
+        "MADD       x10, x23, x8, x10    \n\t"
         "UMLAL      v25.2D, v16.2S, v3.2S \n\t"
         "MADD       x11, x23, x19, x11   \n\t"
         "UMLAL      v21.2D, v17.2S, v8.2S \n\t"
@@ -776,7 +772,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "UMLAL      v24.2D, v17.2S, v1.2S \n\t"
         "MADD       x10, x24, x17, x10   \n\t"
         "UMLAL      v25.2D, v17.2S, v2.2S \n\t"
-        "MADD       x11, x24, x18, x11   \n\t"
+        "MADD       x11, x24, x8, x11    \n\t"
         "UMLAL      v21.2D, v18.2S, v7.2S \n\t"
         "MADD       x12, x24, x19, x12   \n\t"
         "UMLAL      v22.2D, v18.2S, v8.2S \n\t"
@@ -866,12 +862,12 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         : "memory", "cc",
           "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
           "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19",
-          "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "w9", "w10",
-          "w11", "w12", "w13", "w14", "w15", "w16", "w17", "w18", "w19", "w20",
-          "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "w30", "x9",
-          "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x18", "x19",
-          "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "x30",
-          "v29", "v30"
+          "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30",
+          "w8", "w9", "w10", "w11", "w12", "w13", "w14", "w15", "w16", "w17",
+          "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28",
+          "w30", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16",
+          "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27",
+          "x28", "x30"
     );
     poly1305_blocks_16(ctx, m, bytes);
 }
@@ -950,42 +946,42 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
         "MUL        x15, x19, x20        \n\t"
         "MUL        x16, x19, x21        \n\t"
         "MUL        x17, x19, x22        \n\t"
-        "MUL        x18, x19, x23        \n\t"
+        "MUL        x7, x19, x23         \n\t"
         "MADD       x14, x20, x27, x14   \n\t"
         "MADD       x15, x20, x19, x15   \n\t"
         "MADD       x16, x20, x20, x16   \n\t"
         "MADD       x17, x20, x21, x17   \n\t"
-        "MADD       x18, x20, x22, x18   \n\t"
+        "MADD       x7, x20, x22, x7     \n\t"
         "MADD       x14, x21, x26, x14   \n\t"
         "MADD       x15, x21, x27, x15   \n\t"
         "MADD       x16, x21, x19, x16   \n\t"
         "MADD       x17, x21, x20, x17   \n\t"
-        "MADD       x18, x21, x21, x18   \n\t"
+        "MADD       x7, x21, x21, x7     \n\t"
         "MADD       x14, x22, x25, x14   \n\t"
         "MADD       x15, x22, x26, x15   \n\t"
         "MADD       x16, x22, x27, x16   \n\t"
         "MADD       x17, x22, x19, x17   \n\t"
-        "MADD       x18, x22, x20, x18   \n\t"
+        "MADD       x7, x22, x20, x7     \n\t"
         "MADD       x14, x23, x24, x14   \n\t"
         "MADD       x15, x23, x25, x15   \n\t"
         "MADD       x16, x23, x26, x16   \n\t"
         "MADD       x17, x23, x27, x17   \n\t"
-        "MADD       x18, x23, x19, x18   \n\t"
+        "MADD       x7, x23, x19, x7     \n\t"
         /* r_2 = r^2 % P */
         "ADD        x15, x15, x14, LSR #26 \n\t"
-        "ADD        x18, x18, x17, LSR #26 \n\t"
+        "ADD        x7, x7, x17, LSR #26 \n\t"
         "AND        x14, x14, #0x3ffffff \n\t"
-        "LSR        x9, x18, #26         \n\t"
+        "LSR        x9, x7, #26          \n\t"
         "AND        x17, x17, #0x3ffffff \n\t"
         "MADD       x14, x9, x8, x14     \n\t"
         "ADD        x16, x16, x15, LSR #26 \n\t"
         "AND        x15, x15, #0x3ffffff \n\t"
-        "AND        x18, x18, #0x3ffffff \n\t"
+        "AND        x7, x7, #0x3ffffff   \n\t"
         "ADD        x17, x17, x16, LSR #26 \n\t"
         "AND        x16, x16, #0x3ffffff \n\t"
         "ADD        x15, x15, x14, LSR #26 \n\t"
         "AND        x14, x14, #0x3ffffff \n\t"
-        "ADD        x18, x18, x17, LSR #26 \n\t"
+        "ADD        x7, x7, x17, LSR #26 \n\t"
         "AND        x17, x17, #0x3ffffff \n\t"
         /* Store r */
         "ORR        x19, x19, x20, LSL #32 \n\t"
@@ -996,7 +992,7 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
         "MUL        x24, x15, x8         \n\t"
         "MUL        x25, x16, x8         \n\t"
         "MUL        x26, x17, x8         \n\t"
-        "MUL        x27, x18, x8         \n\t"
+        "MUL        x27, x7, x8          \n\t"
         /* Compute r^4 */
         /* d0 = h0 * r0 + h1 * s4 + h2 * s3 + h3 * s2 + h4 * s1 */
         /* d1 = h0 * r1 + h1 * r0 + h2 * s4 + h3 * s3 + h4 * s2 */
@@ -1007,7 +1003,7 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
         "MUL        x20, x14, x15        \n\t"
         "MUL        x21, x14, x16        \n\t"
         "MUL        x22, x14, x17        \n\t"
-        "MUL        x23, x14, x18        \n\t"
+        "MUL        x23, x14, x7         \n\t"
         "MADD       x19, x15, x27, x19   \n\t"
         "MADD       x20, x15, x14, x20   \n\t"
         "MADD       x21, x15, x15, x21   \n\t"
@@ -1023,11 +1019,11 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
         "MADD       x21, x17, x27, x21   \n\t"
         "MADD       x22, x17, x14, x22   \n\t"
         "MADD       x23, x17, x15, x23   \n\t"
-        "MADD       x19, x18, x24, x19   \n\t"
-        "MADD       x20, x18, x25, x20   \n\t"
-        "MADD       x21, x18, x26, x21   \n\t"
-        "MADD       x22, x18, x27, x22   \n\t"
-        "MADD       x23, x18, x14, x23   \n\t"
+        "MADD       x19, x7, x24, x19    \n\t"
+        "MADD       x20, x7, x25, x20    \n\t"
+        "MADD       x21, x7, x26, x21    \n\t"
+        "MADD       x22, x7, x27, x22    \n\t"
+        "MADD       x23, x7, x14, x23    \n\t"
         /* r^4 % P */
         "ADD        x20, x20, x19, LSR #26 \n\t"
         "ADD        x23, x23, x22, LSR #26 \n\t"
@@ -1048,7 +1044,7 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
         "ORR        x14, x14, x15, LSL #32 \n\t"
         "ORR        x16, x16, x17, LSL #32 \n\t"
         "STP        x14, x16, [%[ctx_r_2]] \n\t"
-        "STR        w18, [%[ctx_r_2], #16] \n\t"
+        "STR        w7, [%[ctx_r_2], #16] \n\t"
         /* Store r^4 */
         "ORR        x19, x19, x20, LSL #32 \n\t"
         "ORR        x21, x21, x22, LSL #32 \n\t"
@@ -1074,9 +1070,9 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
           [ctx_leftover] "r" (&ctx->leftover),
           [ctx_finished] "r" (&ctx->finished)
         : "memory", "cc",
-          "w14", "w15", "w16", "w17", "w18", "w19", "w20", "w21", "w22", "w23",
-          "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17",
-          "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27"
+          "w7", "w14", "w15", "w16", "w17", "w19", "w20", "w21", "w22", "w23",
+          "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16",
+          "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27"
     );
 
     return 0;
