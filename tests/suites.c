@@ -717,6 +717,18 @@ int SuiteTest(int argc, char** argv)
     /* any extra cases will need another argument */
     args.argc = 2;
 
+#ifdef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    /* SHA-2 cipher suites in old TLS versions */
+    strcpy(argv0[1], "tests/test-sha2.conf");
+    printf("starting SHA-2 cipher suite in old TLS versions tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
+
 #ifdef WOLFSSL_TLS13
     /* add TLSv13 extra suites */
     strcpy(argv0[1], "tests/test-tls13.conf");
@@ -771,6 +783,17 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
+#ifdef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    /* add dtls extra suites */
+    strcpy(argv0[1], "tests/test-dtls-sha2.conf");
+    printf("starting dtls extra cipher suite tests - old TLS sha-2 cs\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
 #endif
 #ifdef WOLFSSL_SCTP
     /* add dtls-sctp extra suites */
@@ -782,6 +805,17 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
+#ifdef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    /* add dtls-sctp extra suites */
+    strcpy(argv0[1], "tests/test-sctp-sha2.conf");
+    printf("starting dtls-sctp extra cipher suite tests - old TLS sha-2 cs\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
 #endif
 #ifndef WC_STRICT_SIG
 #if !defined(NO_RSA) && defined(HAVE_ECC) /* testing mixed ECC/RSA cert */
@@ -806,6 +840,16 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
+#ifdef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    strcpy(argv0[1], "tests/test-qsh-sha2.conf");
+    printf("starting qsh extra cipher suite tests - old TLS sha-2 cs\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
 #endif
 #ifndef NO_PSK
     #ifndef WOLFSSL_NO_TLS12

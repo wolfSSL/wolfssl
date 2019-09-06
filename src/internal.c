@@ -2706,14 +2706,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
-    if (tls && haveDH && haveRSA) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && haveDH && haveRSA)
+#else
+    if (tls && haveDH && haveRSA)
+#endif
+    {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_DHE_RSA_WITH_AES_256_CBC_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
-    if (tls && haveDH && haveRSA) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && haveDH && haveRSA)
+#else
+    if (tls && haveDH && haveRSA)
+#endif
+    {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_DHE_RSA_WITH_AES_128_CBC_SHA256;
     }
@@ -2744,14 +2754,24 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_SHA256
-    if (tls && haveRSA) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && haveRSA)
+#else
+    if (tls && haveRSA)
+#endif
+    {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_RSA_WITH_AES_256_CBC_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_SHA256
-    if (tls && haveRSA) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && haveRSA)
+#else
+    if (tls && haveRSA)
+#endif
+    {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_RSA_WITH_AES_128_CBC_SHA256;
     }
@@ -2815,7 +2835,12 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_NULL_SHA256
-    if (tls && haveRSA) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && haveRSA)
+#else
+    if (tls && haveRSA)
+#endif
+    {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_RSA_WITH_NULL_SHA256;
     }
@@ -2829,28 +2854,48 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_DHE_PSK_WITH_AES_256_CBC_SHA384
-    if (tls && haveDH && havePSK) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && haveDH && havePSK)
+#else
+    if (tls && haveDH && havePSK)
+#endif
+    {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_DHE_PSK_WITH_AES_256_CBC_SHA384;
     }
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_AES_256_CBC_SHA384
-    if (tls && havePSK) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && havePSK)
+#else
+    if (tls && havePSK)
+#endif
+    {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_PSK_WITH_AES_256_CBC_SHA384;
     }
 #endif
 
 #ifdef BUILD_TLS_DHE_PSK_WITH_AES_128_CBC_SHA256
-    if (tls && haveDH && havePSK) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && haveDH && havePSK)
+#else
+    if (tls && haveDH && havePSK)
+#endif
+    {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_DHE_PSK_WITH_AES_128_CBC_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_AES_128_CBC_SHA256
-    if (tls && havePSK) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && havePSK)
+#else
+    if (tls1 && havePSK)
+#endif
+    {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_PSK_WITH_AES_128_CBC_SHA256;
     }
@@ -2878,28 +2923,48 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_CHACHA20_POLY1305_SHA256
-    if (tls && havePSK) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && havePSK)
+#else
+    if (tls && havePSK)
+#endif
+    {
         suites->suites[idx++] = CHACHA_BYTE;
         suites->suites[idx++] = TLS_PSK_WITH_CHACHA20_POLY1305_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256
-    if (tls && havePSK) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && havePSK)
+#else
+    if (tls && havePSK)
+#endif
+    {
         suites->suites[idx++] = CHACHA_BYTE;
         suites->suites[idx++] = TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256
-    if (tls && havePSK) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && havePSK)
+#else
+    if (tls && havePSK)
+#endif
+    {
         suites->suites[idx++] = CHACHA_BYTE;
         suites->suites[idx++] = TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256
-    if (tls && havePSK) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && havePSK)
+#else
+    if (tls && havePSK)
+#endif
+    {
         suites->suites[idx++] = ECC_BYTE;
         suites->suites[idx++] = TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256;
     }
@@ -2934,35 +2999,60 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_DHE_PSK_WITH_NULL_SHA384
-    if (tls && haveDH && havePSK) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && haveDH && havePSK)
+#else
+    if (tls && haveDH && havePSK)
+#endif
+    {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_DHE_PSK_WITH_NULL_SHA384;
     }
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_NULL_SHA384
-    if (tls && havePSK) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && havePSK)
+#else
+    if (tls && havePSK)
+#endif
+    {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_PSK_WITH_NULL_SHA384;
     }
 #endif
 
 #ifdef BUILD_TLS_ECDHE_PSK_WITH_NULL_SHA256
-    if (tls && havePSK) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && havePSK)
+#else
+    if (tls && havePSK)
+#endif
+    {
         suites->suites[idx++] = ECC_BYTE;
         suites->suites[idx++] = TLS_ECDHE_PSK_WITH_NULL_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_DHE_PSK_WITH_NULL_SHA256
-    if (tls && haveDH && havePSK) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && haveDH && havePSK)
+#else
+    if (tls && haveDH && havePSK)
+#endif
+    {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_DHE_PSK_WITH_NULL_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_PSK_WITH_NULL_SHA256
-    if (tls && havePSK) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && havePSK)
+#else
+    if (tls && havePSK)
+#endif
+    {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_PSK_WITH_NULL_SHA256;
     }
@@ -3067,28 +3157,48 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256
-    if (tls && haveRSA) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && haveRSA)
+#else
+    if (tls && haveRSA)
+#endif
+    {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256
-    if (tls && haveDH && haveRSA) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && haveDH && haveRSA)
+#else
+    if (tls && haveDH && haveRSA)
+#endif
+    {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256
-    if (tls && haveRSA) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && haveRSA)
+#else
+    if (tls && haveRSA)
+#endif
+    {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256;
     }
 #endif
 
 #ifdef BUILD_TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256
-    if (tls && haveDH && haveRSA) {
+#ifndef WOLFSSL_OLDTLS_SHA2_CIPHERSUITES
+    if (tls1_2 && haveDH && haveRSA)
+#else
+    if (tls && haveDH && haveRSA)
+#endif
+    {
         suites->suites[idx++] = CIPHER_BYTE;
         suites->suites[idx++] = TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256;
     }
