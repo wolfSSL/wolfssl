@@ -193,12 +193,12 @@ static const word32 L_chacha20_neon_rol8[] = {
     0xe0d0c0f,
 };
 
-static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, byte* c, word64 bytes)
+static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, byte* c, word32 bytes)
 {
 #ifdef CHACHA_TEST
     printf("Entering wc_Chacha_encrypt_320 with %d bytes\n", bytes);
 #endif /*CHACHA_TEST */
-
+    word64 bytes64 = (word64) bytes;
     __asm__ __volatile__ (
         /*
          * The layout of used registers is:
@@ -601,7 +601,7 @@ static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, 
         "ADD    v28.4s, v28.4s, v29.4s \n\t"
         "BNE    L_chacha20_arm64_outer_%= \n\t"
         : [input] "+r" (input), [m] "+r" (m), [c] "+r" (c),
-          [bytes] "+r" (bytes)
+          [bytes] "+r" (bytes64)
         : [L_chacha20_neon_add_all_counters] "r" (L_chacha20_neon_add_all_counters),
           [L_chacha20_neon_rol8] "r" (L_chacha20_neon_rol8)
         : "memory", "cc",
@@ -1673,18 +1673,14 @@ static WC_INLINE int wc_Chacha_encrypt_128(const word32 input[CHACHA_CHUNK_WORDS
 }
 
 static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
-                                           byte* c,
-#ifdef __aarch64__
-                                           word64 bytes)
-#else
-                                           word32 bytes)
-#endif
+                                           byte* c, word32 bytes)
 {
 #ifdef CHACHA_TEST
     printf("Entering wc_Chacha_encrypt_64 with %d bytes\n", bytes);
 #endif /*CHACHA_TEST */
 
 #ifdef __aarch64__
+    word64 bytes64 = (word64) bytes;
     __asm__ __volatile__ (
         /* Load index look-up for rotating left 8 bits */
         "LD1    {v13.16B}, [%[L_chacha20_neon_rol8]] \n\t"
@@ -2203,7 +2199,7 @@ static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
         "BGE    L_chacha20_arm64_64_loop_lt_8_%= \n\t"
         "\n"
     "L_chacha20_arm64_64_done_%=: \n\t"
-        : [input] "+r" (input), [m] "+r" (m), [c] "+r" (c), [bytes] "+r" (bytes)
+        : [input] "+r" (input), [m] "+r" (m), [c] "+r" (c), [bytes] "+r" (bytes64)
         : [L_chacha20_neon_rol8] "r" (L_chacha20_neon_rol8),
           [L_chacha20_neon_inc_first_word] "r" (L_chacha20_neon_inc_first_word)
         : "memory", "x4", "x5", "x6", "x7", "v0", "v1", "v2", "v3",
