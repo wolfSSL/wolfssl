@@ -24,16 +24,7 @@
  *   ruby ./sha2/sha512.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-sha512-asm.c
  */
 #ifdef __aarch64__
-
 #include <stdint.h>
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-
-#ifdef WOLFSSL_ARMASM
-
 #include <wolfssl/wolfcrypt/sha512.h>
 
 static const uint64_t L_SHA512_transform_neon_len_k[] = {
@@ -130,8 +121,8 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
         "stp	x29, x30, [sp, #-16]!\n\t"
         "add	x29, sp, #0\n\t"
         "adr	x3, %[L_SHA512_transform_neon_len_k]\n\t"
-        "adr	x26, %[L_SHA512_transform_neon_len_ror8]\n\t"
-        "ld1	{v11.16b}, [x26]\n\t"
+        "adr	x27, %[L_SHA512_transform_neon_len_ror8]\n\t"
+        "ld1	{v11.16b}, [x27]\n\t"
         /* Load digest into working vars */
         "ldp	x4, x5, [%x[sha512]]\n\t"
         "ldp	x6, x7, [%x[sha512], #16]\n\t"
@@ -143,26 +134,26 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
         /* Load W */
         /* Copy digest to add in at end */
         "ld1	{v0.2d, v1.2d, v2.2d, v3.2d}, [%x[data]], #0x40\n\t"
-        "mov	x18, x4\n\t"
+        "mov	x19, x4\n\t"
         "ld1	{v4.2d, v5.2d, v6.2d, v7.2d}, [%x[data]], #0x40\n\t"
-        "mov	x19, x5\n\t"
+        "mov	x20, x5\n\t"
         "rev64	v0.16b, v0.16b\n\t"
-        "mov	x20, x6\n\t"
+        "mov	x21, x6\n\t"
         "rev64	v1.16b, v1.16b\n\t"
-        "mov	x21, x7\n\t"
+        "mov	x22, x7\n\t"
         "rev64	v2.16b, v2.16b\n\t"
-        "mov	x22, x8\n\t"
+        "mov	x23, x8\n\t"
         "rev64	v3.16b, v3.16b\n\t"
-        "mov	x23, x9\n\t"
+        "mov	x24, x9\n\t"
         "rev64	v4.16b, v4.16b\n\t"
-        "mov	x24, x10\n\t"
+        "mov	x25, x10\n\t"
         "rev64	v5.16b, v5.16b\n\t"
-        "mov	x25, x11\n\t"
+        "mov	x26, x11\n\t"
         "rev64	v6.16b, v6.16b\n\t"
         "rev64	v7.16b, v7.16b\n\t"
         /* Pre-calc: b ^ c */
         "eor	x16, x5, x6\n\t"
-        "mov	x26, #4\n\t"
+        "mov	x27, #4\n\t"
         /* Start of 16 rounds */
         "\n"
     "L_sha512_len_neon_start_%=: \n\t"
@@ -662,7 +653,7 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
         "add	v7.2d, v7.2d, v9.2d\n\t"
         "add	x8, x8, x4\n\t"
         "add	x4, x4, x14\n\t"
-        "subs	x26, x26, #1\n\t"
+        "subs	x27, x27, #1\n\t"
         "bne	L_sha512_len_neon_start_%=\n\t"
         /* Round 0 */
         "mov	x13, v0.d[0]\n\t"
@@ -1016,14 +1007,14 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
         "add	x14, x14, x17\n\t"
         "add	x8, x8, x4\n\t"
         "add	x4, x4, x14\n\t"
-        "add	x11, x11, x25\n\t"
-        "add	x10, x10, x24\n\t"
-        "add	x9, x9, x23\n\t"
-        "add	x8, x8, x22\n\t"
-        "add	x7, x7, x21\n\t"
-        "add	x6, x6, x20\n\t"
-        "add	x5, x5, x19\n\t"
-        "add	x4, x4, x18\n\t"
+        "add	x11, x11, x26\n\t"
+        "add	x10, x10, x25\n\t"
+        "add	x9, x9, x24\n\t"
+        "add	x8, x8, x23\n\t"
+        "add	x7, x7, x22\n\t"
+        "add	x6, x6, x21\n\t"
+        "add	x5, x5, x20\n\t"
+        "add	x4, x4, x19\n\t"
         "adr	x3, %[L_SHA512_transform_neon_len_k]\n\t"
         "subs	%w[len], %w[len], #0x80\n\t"
         "bne	L_sha512_len_neon_begin_%=\n\t"
@@ -1034,9 +1025,8 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
         "ldp	x29, x30, [sp], #16\n\t"
         : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len)
         : [L_SHA512_transform_neon_len_k] "S" (L_SHA512_transform_neon_len_k), [L_SHA512_transform_neon_len_ror8] "S" (L_SHA512_transform_neon_len_ror8)
-        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
+        : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
     );
 }
 
-#endif /* WOLFSSL_ARMASM */
 #endif /* __aarch64__ */
