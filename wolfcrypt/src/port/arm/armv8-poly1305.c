@@ -727,15 +727,15 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         "SUB        %[r], %[r], #16      \n\t"
         "MUL        x11, x20, x27        \n\t"
         /* Store [r^2, r] * 5 */
-        "MUL        v5.2S, v0.2S, v28.2S[0] \n\t"
+        "MUL        v5.2S, v0.2S, v28.S[0] \n\t"
         "MUL        x12, x20, x28        \n\t"
-        "MUL        v6.2S, v1.2S, v28.2S[0] \n\t"
+        "MUL        v6.2S, v1.2S, v28.S[0] \n\t"
         "MUL        x13, x20, x30        \n\t"
-        "MUL        v7.2S, v2.2S, v28.2S[0] \n\t"
+        "MUL        v7.2S, v2.2S, v28.S[0] \n\t"
         "MADD       x9, x21, x19, x9     \n\t"
-        "MUL        v8.2S, v3.2S, v28.2S[0] \n\t"
+        "MUL        v8.2S, v3.2S, v28.S[0] \n\t"
         "MADD       x10, x21, x25, x10   \n\t"
-        "MUL        v9.2S, v4.2S, v28.2S[0] \n\t"
+        "MUL        v9.2S, v4.2S, v28.S[0] \n\t"
         "MADD       x11, x21, x26, x11   \n\t"
         /* Final multiply by [r^2, r] */
         /* d0 = h0*r0 + h1*s4 + h2*s3 + h3*s2 + h4*s1 */
