@@ -178,7 +178,7 @@ static WC_INLINE void poly1305_blocks_16(Poly1305* ctx, const unsigned char *m,
         : [POLY1305_BLOCK_SIZE] "I" (POLY1305_BLOCK_SIZE),
           [ctx_r] "m" (ctx->r[0]),
           [ctx_r_4] "m" (ctx->r[4]),
-          [finished] "r" (ctx->finished)
+          [finished] "r" ((word64)ctx->finished)
         : "memory", "cc",
           "w2", "w3", "w4", "w5", "w6", "w7", "w8", "w9", "w10", "w15",
           "w21", "w22", "w23", "w24", "w25", "x2", "x3", "x4", "x5", "x6",
@@ -862,7 +862,7 @@ void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
           [r] "r" (ctx->r),
           [r_2] "r" (ctx->r_2),
           [r_4] "r" (ctx->r_4),
-          [finished] "r" (ctx->finished)
+          [finished] "r" ((word64)ctx->finished)
         : "memory", "cc",
           "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
           "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19",

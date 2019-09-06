@@ -193,7 +193,7 @@ static const word32 L_chacha20_neon_rol8[] = {
     0xe0d0c0f,
 };
 
-static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, byte* c, word32 bytes)
+static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, byte* c, word64 bytes)
 {
 #ifdef CHACHA_TEST
     printf("Entering wc_Chacha_encrypt_320 with %d bytes\n", bytes);
@@ -1673,7 +1673,12 @@ static WC_INLINE int wc_Chacha_encrypt_128(const word32 input[CHACHA_CHUNK_WORDS
 }
 
 static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
-                                           byte* c, word32 bytes)
+                                           byte* c,
+#ifdef __aarch64__
+                                           word64 bytes)
+#else
+                                           word32 bytes)
+#endif
 {
 #ifdef CHACHA_TEST
     printf("Entering wc_Chacha_encrypt_64 with %d bytes\n", bytes);
