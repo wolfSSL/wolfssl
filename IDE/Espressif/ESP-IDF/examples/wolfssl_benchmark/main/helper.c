@@ -150,6 +150,7 @@ int construct_argv()
 /* entry point */
 void app_main(void)
 {
+    (void) TAG;
 #ifndef NO_CRYPT_BENCHMARK
 
 /* when using atecc608a on esp32-wroom-32se */
@@ -163,8 +164,6 @@ void app_main(void)
        return;
     }
     atmel_set_slot_allocator(my_atmel_alloc, my_atmel_free);
-    #else
-    (void) TAG;
     #endif
 #endif
     wolf_benchmark_task();
