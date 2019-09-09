@@ -9,6 +9,8 @@ SiFive Freedom U540 SoC at 1.5GHz
 Getting started guide: 
 https://sifive.cdn.prismic.io/sifive%2Ffa3a584a-a02f-4fda-b758-a2def05f49f9_hifive-unleashed-getting-started-guide-v1p1.pdf
 
+Make sure your ethernet is attached and power up board. You can connecct the micro-usb to get a UART console that will display the DHCP IP address. Default login password is "sifive".
+
 ## Building Freedom-U-SDK
 
 ```sh
@@ -44,6 +46,14 @@ Note: Make sure S1 Switch 5 (MSEL2) is OFF, rest ON (MSEL=1011) to boot from SD
 
 ## Building wolfSSL
 
+This example assumes the `wolfssl` root directory is along side the `freedom-u-sdk` directory. If not then adjust paths.
+
+```
+~\
+	wolfssl
+	freedom-u-sdk
+```
+
 ```sh
 ./configure --host=riscv64 \
 	CC="`pwd`/../freedom-u-sdk/work/buildroot_initramfs/host/bin/riscv64-sifive-linux-gnu-gcc" \
@@ -54,7 +64,7 @@ Note: Make sure S1 Switch 5 (MSEL2) is OFF, rest ON (MSEL=1011) to boot from SD
 make
 ```
 
-Copy files to device:
+Copy files to device (replace IP address):
 
 ```sh
 scp ./wolfcrypt/test/testwolfcrypt root@192.168.0.144:~
