@@ -647,7 +647,7 @@ static int SetASNIntMP(mp_int* n, int maxSz, byte* output)
  *         MP_TO_E when encoding the integer fails.
  *         Otherwise, the number of bytes added to the buffer.
  */
-static int SetASNIntRSA(mp_int* n, byte* output)
+static int SetASNIntRSA(void* n, byte* output)
 {
     int idx = 0;
     int leadingBit;

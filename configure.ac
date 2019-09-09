@@ -3424,9 +3424,24 @@ then
             AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
         fi
     fi
+    
+    # Requires wolfSSL_OBJ_txt2nid
+    if test "x$ENABLED_CERTEXT" = "xno"
+    then
+        ENABLED_CERTEXT="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"
+    fi
+    
+    # Requires certgen
+    if test "x$ENABLED_CERTGEN" = "xno"
+    then
+        ENABLED_CERTGEN="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_GEN"
+    fi
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL -DWOLFSSL_ALWAYS_VERIFY_CB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI -DHAVE_EX_DATA"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB"
 fi
 
 if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no" \
