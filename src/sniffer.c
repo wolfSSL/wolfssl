@@ -1525,8 +1525,6 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
     if (serverIp.ip4 == INADDR_NONE) {
         if (inet_pton(AF_INET6, address, serverIp.ip6) == 1) {
             serverIp.version = IPV6;
-            serverIp.ip6[0] = 0;
-            serverIp.ip6[1] = 0;
         }
     }
     sniffer = ServerList;

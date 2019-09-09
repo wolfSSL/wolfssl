@@ -179,10 +179,10 @@ static void err_sys(const char* msg)
 #endif
 
 
-static char* iptos(unsigned int addr)
+static char* iptos(const struct in_addr* addr)
 {
 	static char    output[32];
-	byte *p = (byte*)&addr;
+	byte *p = (byte*)&addr->s_addr;
 
 	snprintf(output, sizeof(output), "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
 
@@ -190,19 +190,10 @@ static char* iptos(unsigned int addr)
 }
 
 
-static char* ip6tos(const unsigned char* addr)
+static const char* ip6tos(const struct in6_addr* addr)
 {
 	static char    output[42];
-
-	snprintf(output, sizeof(output),
-            "%02x%02x:%02x%02x:%02x%02x:%02x%02x:"
-            "%02x%02x:%02x%02x:%02x%02x:%02x%02x",
-            addr[0], addr[1], addr[2], addr[3],
-            addr[4], addr[5], addr[6], addr[7],
-            addr[8], addr[9], addr[10], addr[11],
-            addr[12], addr[13], addr[14], addr[15]);
-
-	return output;
+	return inet_ntop(AF_INET6, addr, output, 42);
 }
 
 
@@ -363,21 +354,21 @@ int main(int argc, char** argv)
 
         if (pcap == NULL) printf("pcap_create failed %s\n", err);
 
-	    /* get an IPv4 or IPv6 address */
+        /* print out addresses for selected interface */
 	    for (a = d->addresses; a; a = a->next) {
-            if (a->addr->sa_family == AF_INET)
+            if (a->addr->sa_family == AF_INET) {
 				server =
-                    iptos(((struct sockaddr_in *)a->addr)->sin_addr.s_addr);
-            else if (a->addr->sa_family == AF_INET6)
+                    iptos(&((struct sockaddr_in *)a->addr)->sin_addr);
+		        printf("server = %s\n", server);
+            }
+            else if (a->addr->sa_family == AF_INET6) {
                 server =
-                    ip6tos(((struct sockaddr_in6 *)a->addr)->sin6_addr.s6_addr);
-            else
-                server = NULL;
+                    ip6tos(&((struct sockaddr_in6 *)a->addr)->sin6_addr);
+		        printf("server = %s\n", server);
+            }
 	    }
 	    if (server == NULL)
 		    err_sys("Unable to get device IPv4 or IPv6 address");
-        else
-		    printf("server = %s\n", server);
 
         ret = pcap_set_snaplen(pcap, 65536);
         if (ret != 0) printf("pcap_set_snaplen failed %s\n", pcap_geterr(pcap));
@@ -409,33 +400,48 @@ int main(int argc, char** argv)
         ret = pcap_setfilter(pcap, &fp);
         if (ret != 0) printf("pcap_setfilter failed %s\n", pcap_geterr(pcap));
 
-#ifndef WOLFSSL_SNIFFER_WATCH
-        server = "::1";
-        ret = ssl_SetPrivateKey(server, port, "../../certs/server-key.pem",
-                               FILETYPE_PEM, NULL, err);
-        if (ret != 0) {
-            printf("Please run directly from sslSniffer/sslSnifferTest dir\n");
-        }
-
-#ifdef HAVE_SNI
-        {
-            char altName[128];
-
-            printf("Enter alternate SNI: ");
-            ret = scanf("%s", altName);
-
-            if (strnlen(altName, 128) > 0) {
-                ret = ssl_SetNamedPrivateKey(altName,
-                                   server, port, "../../certs/server-key.pem",
-                                   FILETYPE_PEM, NULL, err);
-                if (ret != 0) {
-                    printf("Please run directly from "
-                           "sslSniffer/sslSnifferTest dir\n");
-                }
+	    /* get IPv4 or IPv6 addresses for selected interface */
+	    for (a = d->addresses; a; a = a->next) {
+            server = NULL;
+            if (a->addr->sa_family == AF_INET) {
+				server =
+                    iptos(&((struct sockaddr_in *)a->addr)->sin_addr);
             }
-        }
-#endif
-#endif
+            else if (a->addr->sa_family == AF_INET6) {
+                server =
+                    ip6tos(&((struct sockaddr_in6 *)a->addr)->sin6_addr);
+            }
+
+            if (server) {
+            #ifndef WOLFSSL_SNIFFER_WATCH
+                ret = ssl_SetPrivateKey(server, port,
+                        "../../certs/server-key.pem",
+                        FILETYPE_PEM, NULL, err);
+                if (ret != 0) {
+                    printf("Please run directly from sslSniffer/sslSnifferTest"
+                           "dir\n");
+                }
+            #ifdef HAVE_SNI
+                {
+                    char altName[128];
+
+                    printf("Enter alternate SNI: ");
+                    ret = scanf("%s", altName);
+
+                    if (strnlen(altName, 128) > 0) {
+                        ret = ssl_SetNamedPrivateKey(altName,
+                                server, port, "../../certs/server-key.pem",
+                                FILETYPE_PEM, NULL, err);
+                        if (ret != 0) {
+                            printf("Please run directly from "
+                                   "sslSniffer/sslSnifferTest dir\n");
+                        }
+                    }
+                }
+            #endif
+            #endif
+            }
+	    }
     }
     else if (argc >= 3) {
         saveFile = 1;

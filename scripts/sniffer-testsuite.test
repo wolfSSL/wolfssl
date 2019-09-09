@@ -8,6 +8,12 @@ echo -e "\nStaring snifftest on testsuite.pcap...\n"
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\nsnifftest failed\n" && exit 1
 
+echo -e "\nStaring snifftest on sniffer-ipv6.pcap...\n"
+./sslSniffer/sslSnifferTest/snifftest ./scripts/sniffer-ipv6.pcap ./certs/server-key.pem ::1 11111
+
+RESULT=$?
+[ $RESULT -ne 0 ] && echo -e "\nsnifftest (ipv6) failed\n" && exit 1
+
 echo -e "\nSuccess!\n"
 
 exit 0
