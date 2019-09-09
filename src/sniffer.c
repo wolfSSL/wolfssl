@@ -75,11 +75,13 @@ enum {
     ETHER_IF_ADDR_LEN  = 6,   /* ethernet interface address length */
     LOCAL_IF_ADDR_LEN  = 4,   /* localhost interface address length, !windows */
     TCP_PROTO          = 6,   /* TCP_PROTOCOL */
-    IP_HDR_SZ          = 20,  /* IP header length, min */
+    IP_HDR_SZ          = 20,  /* IPv4 header length, min */
+    IP6_HDR_SZ         = 40,  /* IPv6 header length, min */
     TCP_HDR_SZ         = 20,  /* TCP header length, min */
     IPV4               = 4,   /* IP version 4 */
     IPV6               = 6,   /* IP version 6 */
     TCP_PROTOCOL       = 6,   /* TCP Protocol id */
+    NO_NEXT_HEADER     = 59,  /* IPv6 no headers follow */
     TRACE_MSG_SZ       = 80,  /* Trace Message buffer size */
     HASH_SIZE          = 499, /* Session Hash Table Rows */
     PSEUDO_HDR_SZ      = 12,  /* TCP Pseudo Header size in bytes */
@@ -858,6 +860,14 @@ typedef struct Ip6Hdr {
     byte    src[16];             /* source address */
     byte    dst[16];             /* destination address */
 } Ip6Hdr;
+
+
+/* IPv6 extension header */
+typedef struct Ip6ExtHdr {
+    byte next_header;            /* next header (6 for TCP, any other skip) */
+    byte length;                 /* length in 8-octet units - 1 */
+    byte reserved[6];
+} Ip6ExtHdr;
 
 
 #define IP_HL(ip)      ( (((ip)->ver_hl) & 0x0f) * 4)
@@ -1645,7 +1655,8 @@ int ssl_SetPrivateKey(const char* address, int port, const char* keyFile,
 /* returns 0 on success, -1 on error */
 static int CheckIp6Hdr(Ip6Hdr* iphdr, IpInfo* info, int length, char* error)
 {
-    int    version = IP_V(iphdr);
+    int        version = IP_V(iphdr);
+    int        exthdrsz = 0;
 
     TraceIP6(iphdr);
     Trace(IP_CHECK_STR);
@@ -1657,8 +1668,14 @@ static int CheckIp6Hdr(Ip6Hdr* iphdr, IpInfo* info, int length, char* error)
 
     /* Here, we need to move onto next header if not TCP. */
     if (iphdr->next_header != TCP_PROTOCOL) {
-        SetError(BAD_PROTO_STR, error, NULL, 0);
-        return -1;
+        Ip6ExtHdr* exthdr = (Ip6ExtHdr*)((byte*)iphdr + IP6_HDR_SZ);
+        do {
+            int hdrsz = (exthdr->length + 1) * 8;
+            exthdrsz += hdrsz;
+            exthdr = (Ip6ExtHdr*)((byte*)exthdr + hdrsz);
+        }
+        while (exthdr->next_header != TCP_PROTOCOL &&
+                exthdr->next_header != NO_NEXT_HEADER);
     }
 
 #ifndef WOLFSSL_SNIFFER_WATCH
@@ -1668,7 +1685,7 @@ static int CheckIp6Hdr(Ip6Hdr* iphdr, IpInfo* info, int length, char* error)
     }
 #endif
 
-    info->length = 40;
+    info->length = IP6_HDR_SZ + exthdrsz;
     info->total = ntohs(iphdr->length) + info->length;
         /* IPv6 doesn't include its own header size in the length like v4. */
     info->src.version = IPV6;
