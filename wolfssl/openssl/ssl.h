@@ -626,6 +626,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_get_peer_certificate        wolfSSL_get_peer_certificate
 #define SSL_get_peer_cert_chain         wolfSSL_get_peer_cert_chain
 
+#define SSL_want                        wolfSSL_want
 #define SSL_want_read                   wolfSSL_want_read
 #define SSL_want_write                  wolfSSL_want_write
 
