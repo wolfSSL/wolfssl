@@ -11409,7 +11409,8 @@ static WC_INLINE void RestoreSession(WOLFSSL* ssl, WOLFSSL_SESSION* session,
     #endif
     }
 #endif /* SESSION_CERTS */
-#ifndef NO_RESUME_SUITE_CHECK
+#if !defined(NO_RESUME_SUITE_CHECK) || \
+                        (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET))
     ssl->session.cipherSuite0 = session->cipherSuite0;
     ssl->session.cipherSuite  = session->cipherSuite;
 #endif
@@ -18352,7 +18353,8 @@ const char* wolfSSL_SESSION_CIPHER_get_name(WOLFSSL_SESSION* session)
         return NULL;
     }
 
-#ifdef SESSION_CERTS
+#if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK) || \
+                        (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET))
     #if !defined(WOLFSSL_CIPHER_INTERNALNAME) && !defined(NO_ERROR_STRINGS)
         return GetCipherNameIana(session->cipherSuite0, session->cipherSuite);
     #else
@@ -24775,12 +24777,16 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
     size += OPAQUE8_LEN;
     for (i = 0; i < sess->chain.count; i++)
         size += OPAQUE16_LEN + sess->chain.certs[i].length;
+#endif
+#if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
+                               defined(HAVE_SESSION_TICKET))
     /* Protocol version */
     size += OPAQUE16_LEN;
 #endif
-#if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK)
+#if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK) || \
+                        (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET))
     /* cipher suite */
-    size += OPAQUE16_LEN + OPAQUE16_LEN;
+    size += OPAQUE16_LEN;
 #endif
 #ifndef NO_CLIENT_CACHE
     /* ServerID len | ServerID */
@@ -24818,10 +24824,14 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
                     sess->chain.certs[i].length);
             idx += sess->chain.certs[i].length;
         }
+#endif
+#if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
+                               defined(HAVE_SESSION_TICKET))
         data[idx++] = sess->version.major;
         data[idx++] = sess->version.minor;
 #endif
-#if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK)
+#if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK) || \
+                        (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET))
         data[idx++] = sess->cipherSuite0;
         data[idx++] = sess->cipherSuite;
 #endif
@@ -24940,16 +24950,24 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
         XMEMCPY(s->chain.certs[j].buffer, data + idx, length);
         idx += length;
     }
-
-    /* Protocol Version | Cipher suite */
-    if (i - idx < OPAQUE16_LEN + OPAQUE16_LEN) {
+#endif
+#if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
+                               defined(HAVE_SESSION_TICKET))
+    /* Protocol Version */
+    if (i - idx < OPAQUE16_LEN) {
         ret = BUFFER_ERROR;
         goto end;
     }
     s->version.major = data[idx++];
     s->version.minor = data[idx++];
 #endif
-#if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK)
+#if defined(SESSION_CERTS) || !defined(NO_RESUME_SUITE_CHECK) || \
+                        (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET))
+    /* Cipher suite */
+    if (i - idx < OPAQUE16_LEN) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
     s->cipherSuite0 = data[idx++];
     s->cipherSuite = data[idx++];
 #endif
