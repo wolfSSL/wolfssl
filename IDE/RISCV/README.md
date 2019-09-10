@@ -22,7 +22,7 @@ make
 
 See `freedom-u-sdk/README.md` file for instructions on updating the SD card U-Boot and Linux image.
 
-Here is a summary of the steps:
+### Installing U-Boot
 
 Insert SD card from Unleashed into host and determine the assigned character sequence (X) for the media.
 
@@ -43,8 +43,22 @@ sudo dd if=./work/hifive-unleashed-<ID>.gpt of=/dev/sdX2 bs=1M
 
 Note: Make sure S1 Switch 5 (MSEL2) is OFF, rest ON (MSEL=1011) to boot from SD
 
+### Installing Debian
+
+Insert SD card from Unleashed into host and determine the assigned character sequence (X) for the media.
+
+From `freedom-u-sdk` directory:
+
+```sh
+sudo make DISK=/dev/sdX format-demo-image
+```
 
 ## Building wolfSSL
+
+Make sure you are using wolfSSL sources based on this PR https://github.com/wolfSSL/wolfssl/pull/2456
+The PR 2456 includes a patch to `wolfssl/wolfcrypt/types.h` to detect 64-bit types based on the `__riscv_xlen` macro.
+
+### Cross Compiling
 
 This example assumes the `wolfssl` root directory is along side the `freedom-u-sdk` directory. If not then adjust paths.
 
@@ -74,6 +88,13 @@ scp ./examples/server/server root@192.168.0.144:~
 
 # manually `mkdir certs` on target
 scp ./certs/* root@192.168.0.144:~/certs
+```
+
+### Native Compiler
+
+```sh
+./configure --enable-sp
+make
 ```
 
 ## Benchmark Results
