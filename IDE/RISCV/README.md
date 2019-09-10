@@ -99,46 +99,50 @@ make
 
 ## Benchmark Results
 
+The following is running the wolfCrypt benchmark at 1.5GHz on a single thread (default CPU speed is 1.0GHz).
+
 ```sh
-# ./benchmark
+echo 1500000000 > /sys/devices/platform/soc/10000000.prci/rate
+
+./benchmark
 ------------------------------------------------------------------------------
  wolfSSL version 4.1.0
 ------------------------------------------------------------------------------
 wolfCrypt Benchmark (block bytes 1048576, min 1.0 sec each)
-RNG                 10 MB took 1.709 seconds,    5.853 MB/s
-AES-128-CBC-enc      5 MB took 1.578 seconds,    3.168 MB/s
-AES-128-CBC-dec     10 MB took 1.330 seconds,    7.521 MB/s
-AES-192-CBC-enc      5 MB took 1.739 seconds,    2.875 MB/s
-AES-192-CBC-dec     10 MB took 1.485 seconds,    6.736 MB/s
-AES-256-CBC-enc      5 MB took 1.869 seconds,    2.675 MB/s
-AES-256-CBC-dec     10 MB took 1.636 seconds,    6.114 MB/s
-AES-128-GCM-enc      5 MB took 2.328 seconds,    2.147 MB/s
-AES-128-GCM-dec      5 MB took 2.210 seconds,    2.263 MB/s
-AES-192-GCM-enc      5 MB took 2.592 seconds,    1.929 MB/s
-AES-192-GCM-dec      5 MB took 2.369 seconds,    2.110 MB/s
-AES-256-GCM-enc      5 MB took 2.633 seconds,    1.899 MB/s
-AES-256-GCM-dec      5 MB took 2.607 seconds,    1.918 MB/s
-CHACHA              15 MB took 1.013 seconds,   14.808 MB/s
-CHA-POLY            15 MB took 1.286 seconds,   11.666 MB/s
-MD5                 55 MB took 1.026 seconds,   53.628 MB/s
-POLY1305            60 MB took 1.090 seconds,   55.024 MB/s
-SHA                 30 MB took 1.121 seconds,   26.763 MB/s
-SHA-256             15 MB took 1.134 seconds,   13.226 MB/s
-SHA-384             20 MB took 1.270 seconds,   15.743 MB/s
-SHA-512             20 MB took 1.270 seconds,   15.744 MB/s
-HMAC-MD5            55 MB took 1.025 seconds,   53.635 MB/s
-HMAC-SHA            30 MB took 1.120 seconds,   26.783 MB/s
-HMAC-SHA256         15 MB took 1.135 seconds,   13.217 MB/s
-HMAC-SHA384         20 MB took 1.270 seconds,   15.743 MB/s
-HMAC-SHA512         20 MB took 1.271 seconds,   15.741 MB/s
-RSA     2048 public       1400 ops took 1.077 sec, avg 0.769 ms, 1300.132 ops/sec
-RSA     2048 private       100 ops took 2.562 sec, avg 25.615 ms, 39.040 ops/sec
-DH      2048 key gen        91 ops took 1.007 sec, avg 11.063 ms, 90.394 ops/sec
-DH      2048 agree         100 ops took 1.122 sec, avg 11.224 ms, 89.097 ops/sec
-ECC      256 key gen       892 ops took 1.001 sec, avg 1.122 ms, 891.293 ops/sec
-ECDHE    256 agree         300 ops took 1.392 sec, avg 4.640 ms, 215.516 ops/sec
-ECDSA    256 sign          700 ops took 1.089 sec, avg 1.556 ms, 642.730 ops/sec
-ECDSA    256 verify        200 ops took 1.102 sec, avg 5.508 ms, 181.568 ops/sec
+RNG                 10 MB took 1.165 seconds,    8.585 MB/s
+AES-128-CBC-enc     15 MB took 1.346 seconds,   11.141 MB/s
+AES-128-CBC-dec     15 MB took 1.380 seconds,   10.867 MB/s
+AES-192-CBC-enc     10 MB took 1.002 seconds,    9.983 MB/s
+AES-192-CBC-dec     10 MB took 1.020 seconds,    9.805 MB/s
+AES-256-CBC-enc     10 MB took 1.100 seconds,    9.091 MB/s
+AES-256-CBC-dec     10 MB took 1.117 seconds,    8.952 MB/s
+AES-128-GCM-enc     10 MB took 1.809 seconds,    5.528 MB/s
+AES-128-GCM-dec     10 MB took 1.810 seconds,    5.524 MB/s
+AES-192-GCM-enc     10 MB took 1.911 seconds,    5.233 MB/s
+AES-192-GCM-dec     10 MB took 1.911 seconds,    5.232 MB/s
+AES-256-GCM-enc      5 MB took 1.013 seconds,    4.935 MB/s
+AES-256-GCM-dec      5 MB took 1.014 seconds,    4.933 MB/s
+CHACHA              25 MB took 1.181 seconds,   21.168 MB/s
+CHA-POLY            20 MB took 1.188 seconds,   16.833 MB/s
+MD5                 80 MB took 1.025 seconds,   78.066 MB/s
+POLY1305            85 MB took 1.032 seconds,   82.357 MB/s
+SHA                 40 MB took 1.033 seconds,   38.728 MB/s
+SHA-256             20 MB took 1.023 seconds,   19.557 MB/s
+SHA-384             25 MB took 1.059 seconds,   23.597 MB/s
+SHA-512             25 MB took 1.059 seconds,   23.597 MB/s
+HMAC-MD5            80 MB took 1.026 seconds,   77.950 MB/s
+HMAC-SHA            40 MB took 1.034 seconds,   38.700 MB/s
+HMAC-SHA256         20 MB took 1.023 seconds,   19.559 MB/s
+HMAC-SHA384         25 MB took 1.059 seconds,   23.598 MB/s
+HMAC-SHA512         25 MB took 1.059 seconds,   23.599 MB/s
+RSA     2048 public       2000 ops took 1.032 sec, avg 0.516 ms, 1938.304 ops/sec
+RSA     2048 private       100 ops took 1.713 sec, avg 17.132 ms, 58.370 ops/sec
+DH      2048 key gen       133 ops took 1.003 sec, avg 7.544 ms, 132.552 ops/sec
+DH      2048 agree         200 ops took 1.531 sec, avg 7.653 ms, 130.676 ops/sec
+ECC      256 key gen      1330 ops took 1.001 sec, avg 0.752 ms, 1329.260 ops/sec
+ECDHE    256 agree         400 ops took 1.243 sec, avg 3.107 ms, 321.830 ops/sec
+ECDSA    256 sign         1000 ops took 1.043 sec, avg 1.043 ms, 958.539 ops/sec
+ECDSA    256 verify        300 ops took 1.104 sec, avg 3.680 ms, 271.766 ops/sec
 Benchmark complete
 ```
 
