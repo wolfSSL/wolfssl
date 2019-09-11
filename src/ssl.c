@@ -2472,6 +2472,7 @@ int wolfSSL_CTX_UseSecureRenegotiation(WOLFSSL_CTX* ctx)
 int wolfSSL_Rehandshake(WOLFSSL* ssl)
 {
     int ret;
+    WOLFSSL_ENTER("wolfSSL_Rehandshake");
 
     if (ssl == NULL)
         return BAD_FUNC_ARG;
@@ -2510,21 +2511,16 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl)
         ssl->options.serverState = NULL_STATE;
         ssl->options.clientState = NULL_STATE;
         ssl->options.connectState  = CONNECT_BEGIN;
-        ssl->options.acceptState   = ACCEPT_BEGIN;
+        ssl->options.acceptState   = ACCEPT_BEGIN_RENEG;
         ssl->options.handShakeState = NULL_STATE;
         ssl->options.processReply  = 0;  /* TODO, move states in internal.h */
 
         XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
 
-#if defined(KEEP_PEER_CERT) && defined(WOLFSSL_APACHE_HTTPD)
-        /* free peer cert in preparation for new handshake */
-        FreeX509(&ssl->peerCert);
-#endif
         ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
 
 #if !defined(NO_WOLFSSL_SERVER) && defined(HAVE_SERVER_RENEGOTIATION_INFO)
         if (ssl->options.side == WOLFSSL_SERVER_END) {
-            ssl->do_reneg = 1;
             ret = SendHelloRequest(ssl);
             if (ret != 0) {
                 ssl->error = ret;
@@ -11284,6 +11280,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         switch (ssl->options.acceptState) {
 
+#ifdef HAVE_SECURE_RENEGOTIATION
+        case ACCEPT_BEGIN_RENEG:
+#endif
         case ACCEPT_BEGIN :
             /* get response */
             while (ssl->options.clientState < CLIENT_HELLO_COMPLETE)
@@ -41182,18 +41181,16 @@ int wolfSSL_SSL_in_connect_init(WOLFSSL* ssl)
     if (ssl == NULL)
         return WOLFSSL_FAILURE;
 
-#ifdef HAVE_SECURE_RENEGOTIATION
-    /* TODO: need a better check for when in renegotiation state */
-    if (ssl->do_reneg == 1) {
-        ssl->do_reneg = 0;
-        return WOLFSSL_SUCCESS;
-    }
-#endif
-
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
         return ssl->options.connectState > CONNECT_BEGIN &&
             ssl->options.connectState < SECOND_REPLY_DONE;
     }
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE)
+    /* If acting as server at beginning of renegotiation state, want to return
+       success to indicate a flush is needed for the HelloRequest */
+    if (ssl->options.acceptState == ACCEPT_BEGIN_RENEG)
+        return WOLFSSL_SUCCESS;
+#endif
     return ssl->options.acceptState > ACCEPT_BEGIN &&
         ssl->options.acceptState < ACCEPT_THIRD_REPLY_DONE;
 }

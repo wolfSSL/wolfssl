@@ -3178,7 +3178,8 @@ enum AcceptState {
     TICKET_SENT,
     CHANGE_CIPHER_SENT,
     ACCEPT_FINISHED_DONE,
-    ACCEPT_THIRD_REPLY_DONE
+    ACCEPT_THIRD_REPLY_DONE,
+    ACCEPT_BEGIN_RENEG
 };
 
 /* TLS 1.3 server accept state for nonblocking restart */
@@ -4031,7 +4032,6 @@ struct WOLFSSL {
         || defined(HAVE_SERVER_RENEGOTIATION_INFO)
         int                  secure_rene_count;    /* how many times */
         SecureRenegotiation* secure_renegotiation; /* valid pointer indicates */
-        int do_reneg;                              /* in renegotiation state */
     #endif                                         /* user turned on */
     #ifdef HAVE_ALPN
         char*   alpn_client_list;  /* keep the client's list */

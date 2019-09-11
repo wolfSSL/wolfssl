@@ -10372,6 +10372,18 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             #ifdef KEEP_PEER_CERT
                 if (args->fatal == 0) {
+
+                    #ifdef HAVE_SECURE_RENEGOTIATION
+                        if (ssl->secure_renegotiation &&
+                                           ssl->secure_renegotiation->enabled) {
+                        #if defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)
+                            /* free old peer cert */
+                            if (ssl->peerCert.issuer.sz)
+                                FreeX509(&ssl->peerCert);
+                        #endif
+                        }
+                    #endif
+
                     /* set X509 format for peer cert */
                     int copyRet = CopyDecodedToX509(&ssl->peerCert,
                                                                 args->dCert);
