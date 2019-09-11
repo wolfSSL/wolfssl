@@ -24792,13 +24792,30 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
     /* ServerID len | ServerID */
     size += OPAQUE16_LEN + sess->idLen;
 #endif
-#ifdef HAVE_SESSION_TICKET
-    /* ticket len | ticket */
-    size += OPAQUE16_LEN + sess->ticketLen;
-#endif
 #ifdef OPENSSL_EXTRA
     /* session context ID len | session context ID */
     size += OPAQUE8_LEN + sess->sessionCtxSz;
+#endif
+#ifdef WOLFSSL_TLS13
+    /* namedGroup */
+    size += OPAQUE16_LEN;
+#endif
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+#ifdef WOLFSSL_TLS13
+    /* ticketSeen | ticketAdd */
+    size += OPAQUE32_LEN + OPAQUE32_LEN;
+#ifndef WOLFSSL_TLS13_DRAFT_18
+    /* ticketNonce */
+    size += OPAQUE8_LEN + sess->ticketNonce.len;
+#endif
+#endif
+#ifdef WOLFSSL_EARLY_DATA
+    size += OPAQUE32_LEN;
+#endif
+#endif
+#ifdef HAVE_SESSION_TICKET
+    /* ticket len | ticket */
+    size += OPAQUE16_LEN + sess->ticketLen;
 #endif
 
     if (p != NULL) {
@@ -24840,15 +24857,36 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
         XMEMCPY(data + idx, sess->serverID, sess->idLen);
         idx += sess->idLen;
 #endif
-#ifdef HAVE_SESSION_TICKET
-        c16toa(sess->ticketLen, data + idx); idx += OPAQUE16_LEN;
-        XMEMCPY(data + idx, sess->ticket, sess->ticketLen);
-        idx += sess->ticketLen;
-#endif
 #ifdef OPENSSL_EXTRA
         data[idx++] = sess->sessionCtxSz;
         XMEMCPY(data + idx, sess->sessionCtx, sess->sessionCtxSz);
         idx += sess->sessionCtxSz;
+#endif
+#ifdef WOLFSSL_TLS13
+        c16toa(sess->namedGroup, data + idx);
+        idx += OPAQUE16_LEN;
+#endif
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+#ifdef WOLFSSL_TLS13
+    c32toa(sess->ticketSeen, data + idx);
+    idx += OPAQUE32_LEN;
+    c32toa(sess->ticketAdd, data + idx);
+    idx += OPAQUE32_LEN;
+#ifndef WOLFSSL_TLS13_DRAFT_18
+    data[idx++] = sess->ticketNonce.len;
+    XMEMCPY(data + idx, sess->ticketNonce.data, sess->ticketNonce.len);
+    idx += sess->ticketNonce.len;
+#endif
+#endif
+#ifdef WOLFSSL_EARLY_DATA
+        c32toa(sess->maxEarlyDataSz);
+        idx += OPAQUE32_LEN;
+#endif
+#endif
+#ifdef HAVE_SESSION_TICKET
+        c16toa(sess->ticketLen, data + idx); idx += OPAQUE16_LEN;
+        XMEMCPY(data + idx, sess->ticket, sess->ticketLen);
+        idx += sess->ticketLen;
 #endif
     }
 #endif
@@ -24986,6 +25024,63 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     }
     XMEMCPY(s->serverID, data + idx, s->idLen); idx += s->idLen;
 #endif
+#ifdef OPENSSL_EXTRA
+    /* byte for length of session context ID */
+    if (i - idx < OPAQUE8_LEN) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
+    s->sessionCtxSz = data[idx++];
+
+    /* app session context ID */
+    if (i - idx < s->sessionCtxSz) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
+    XMEMCPY(s->sessionCtx, data + idx, s->sessionCtxSz); idx += s->sessionCtxSz;
+#endif
+#ifdef WOLFSSL_TLS13
+    if (i - idx < OPAQUE16_LEN) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
+    ato16(data + idx, &s->namedGroup);
+    idx += OPAQUE16_LEN;
+#endif
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+#ifdef WOLFSSL_TLS13
+    if (i - idx < (OPAQUE32_LEN * 2)) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
+    ato32(data + idx, &s->ticketSeen);
+    idx += OPAQUE32_LEN;
+    ato32(data + idx, &s->ticketAdd);
+    idx += OPAQUE32_LEN;
+#ifndef WOLFSSL_TLS13_DRAFT_18
+    if (i - idx < OPAQUE8_LEN) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
+    s->ticketNonce.len = data[idx++];
+
+    if (i - idx < s->ticketNonce.len) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
+    XMEMCPY(s->ticketNonce.data, data + idx, s->ticketNonce.len);
+    idx += s->ticketNonce.len;
+#endif
+#endif
+#ifdef WOLFSSL_EARLY_DATA
+    if (i - idx < OPAQUE32_LEN) {
+        ret = BUFFER_ERROR;
+        goto end;
+    }
+    ato32(data + idx, &s->maxEarlyDataSz);
+    idx += OPAQUE32_LEN;
+#endif
+#endif
 #ifdef HAVE_SESSION_TICKET
     /* ticket len */
     if (i - idx < OPAQUE16_LEN) {
@@ -25015,21 +25110,6 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
         goto end;
     }
     XMEMCPY(s->ticket, data + idx, s->ticketLen); idx += s->ticketLen;
-#endif
-#ifdef OPENSSL_EXTRA
-    /* byte for length of session context ID */
-    if (i - idx < OPAQUE8_LEN) {
-        ret = BUFFER_ERROR;
-        goto end;
-    }
-    s->sessionCtxSz = data[idx++];
-
-    /* app session context ID */
-    if (i - idx < s->sessionCtxSz) {
-        ret = BUFFER_ERROR;
-        goto end;
-    }
-    XMEMCPY(s->sessionCtx, data + idx, s->sessionCtxSz); idx += s->sessionCtxSz;
 #endif
     (void)idx;
 
