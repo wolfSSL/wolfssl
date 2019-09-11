@@ -8036,7 +8036,13 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
                                                                   certSz) < 0) {
                         ret = ASN_PARSE_E;
                     }
+
+                    if (ret == 0) {
+                        if ((extIdx + 1) > certSz)
+                            ret = BUFFER_E;
+                    }
                 }
+
                 if (ret == 0) {
                     if (cert[extIdx] == ASN_BOOLEAN) {
                         if (GetBoolean(cert, &extIdx, certSz) < 0)
@@ -8054,6 +8060,9 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
                         extAuthKeyIdSet = 1;
                         if (GetSequence(cert, &extIdx, &extLen, certSz) < 0)
                             ret = ASN_PARSE_E;
+
+                        if (ret == 0 && extIdx + 1 < certSz)
+                            ret = BUFFER_E;
 
                         if (ret == 0 &&
                                  cert[extIdx++] == (ASN_CONTEXT_SPECIFIC | 0)) {
