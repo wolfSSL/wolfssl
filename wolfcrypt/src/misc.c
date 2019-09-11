@@ -332,6 +332,12 @@ WC_STATIC WC_INLINE byte ctMaskGTE(int a, int b)
     return (((word32)a - b    ) >> 31) - 1;
 }
 
+/* Constant time - mask set when a >= b. */
+WC_STATIC WC_INLINE int ctMaskIntGTE(int a, int b)
+{
+    return (((word32)a - b    ) >> 31) - 1;
+}
+
 /* Constant time - mask set when a < b. */
 WC_STATIC WC_INLINE byte ctMaskLT(int a, int b)
 {
@@ -347,18 +353,18 @@ WC_STATIC WC_INLINE byte ctMaskLTE(int a, int b)
 /* Constant time - mask set when a == b. */
 WC_STATIC WC_INLINE byte ctMaskEq(int a, int b)
 {
-    return 0 - (a == b);
+    return (~ctMaskGT(a, b)) & (~ctMaskLT(a, b));
 }
 
 WC_STATIC WC_INLINE word16 ctMask16Eq(int a, int b)
 {
-    return 0 - (a == b);
+    return (~ctMaskGT(a, b)) & (~ctMaskLT(a, b));
 }
 
 /* Constant time - mask set when a != b. */
 WC_STATIC WC_INLINE byte ctMaskNotEq(int a, int b)
 {
-    return 0 - (a != b);
+    return ctMaskGT(a, b) | ctMaskLT(a, b);
 }
 
 /* Constant time - select a when mask is set and b otherwise. */
