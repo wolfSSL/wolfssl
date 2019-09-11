@@ -6640,42 +6640,6 @@ int wolfSSL_CertManagerLoadCRL(WOLFSSL_CERT_MANAGER* cm, const char* path,
     return LoadCRL(cm->crl, path, type, monitor);
 }
 
-/* Loads a CRL path or file location into WOLFSSL_CRL struct.
-   Returns WOLFSSL_SUCCESS or error on failure. */
-int wolfSSL_CertManagerLoadCRL_ex(WOLFSSL_CERT_MANAGER* cm, const char* path,
-                              int type, int monitor, const char* file)
-{
-    int ret;
-    WOLFSSL_ENTER("wolfSSL_CertManagerLoadCRL_ex");
-    ret = WOLFSSL_FAILURE;
-
-    if (cm == NULL)
-        return BAD_FUNC_ARG;
-
-    if (cm->crl == NULL) {
-        if (wolfSSL_CertManagerEnableCRL(cm, 0) != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("Enable CRL failed");
-            return WOLFSSL_FATAL_ERROR;
-        }
-    }
-
-    if (!file) {
-        ret = LoadCRL(cm->crl, path, type, monitor);
-        if (ret != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("LoadCRL failed");
-        }
-    }
-    else if (file) {
-        ret = ProcessFile(NULL, file, type, CRL_TYPE, NULL, 0, cm->crl, 0);
-        if (ret != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("ProcessFile failed");
-        }
-    }
-
-    WOLFSSL_LEAVE("wolfSSL_CertManagerLoadCRL_ex", ret);
-    return ret;
-}
-
 int wolfSSL_EnableCRL(WOLFSSL* ssl, int options)
 {
     WOLFSSL_ENTER("wolfSSL_EnableCRL");
