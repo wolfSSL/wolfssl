@@ -8061,7 +8061,7 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
                         if (GetSequence(cert, &extIdx, &extLen, certSz) < 0)
                             ret = ASN_PARSE_E;
 
-                        if (ret == 0 && extIdx + 1 < certSz)
+                        if (ret == 0 && (extIdx + 1) >= certSz)
                             ret = BUFFER_E;
 
                         if (ret == 0 &&
