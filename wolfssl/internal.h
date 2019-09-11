@@ -3163,6 +3163,7 @@ enum ConnectState {
 /* server accept state for nonblocking restart */
 enum AcceptState {
     ACCEPT_BEGIN = 0,
+    ACCEPT_BEGIN_RENEG,
     ACCEPT_CLIENT_HELLO_DONE,
     ACCEPT_HELLO_RETRY_REQUEST_DONE,
     ACCEPT_FIRST_REPLY_DONE,
@@ -3178,8 +3179,7 @@ enum AcceptState {
     TICKET_SENT,
     CHANGE_CIPHER_SENT,
     ACCEPT_FINISHED_DONE,
-    ACCEPT_THIRD_REPLY_DONE,
-    ACCEPT_BEGIN_RENEG
+    ACCEPT_THIRD_REPLY_DONE
 };
 
 /* TLS 1.3 server accept state for nonblocking restart */

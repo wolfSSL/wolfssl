@@ -11280,10 +11280,10 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         switch (ssl->options.acceptState) {
 
+        case ACCEPT_BEGIN :
 #ifdef HAVE_SECURE_RENEGOTIATION
         case ACCEPT_BEGIN_RENEG:
 #endif
-        case ACCEPT_BEGIN :
             /* get response */
             while (ssl->options.clientState < CLIENT_HELLO_COMPLETE)
                 if ( (ssl->error = ProcessReply(ssl)) < 0) {
@@ -41185,12 +41185,7 @@ int wolfSSL_SSL_in_connect_init(WOLFSSL* ssl)
         return ssl->options.connectState > CONNECT_BEGIN &&
             ssl->options.connectState < SECOND_REPLY_DONE;
     }
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE)
-    /* If acting as server at beginning of renegotiation state, want to return
-       success to indicate a flush is needed for the HelloRequest */
-    if (ssl->options.acceptState == ACCEPT_BEGIN_RENEG)
-        return WOLFSSL_SUCCESS;
-#endif
+
     return ssl->options.acceptState > ACCEPT_BEGIN &&
         ssl->options.acceptState < ACCEPT_THIRD_REPLY_DONE;
 }
