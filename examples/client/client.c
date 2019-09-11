@@ -1326,6 +1326,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     WOLFSSL*         sslResume = 0;
     WOLFSSL_SESSION* session = 0;
+    byte*            flatSession = NULL;
+    int              flatSessionSz = 0;
 
 #ifndef WOLFSSL_ALT_TEST_STRINGS
     char msg[32] = "hello wolfssl!";   /* GET may make bigger */
@@ -1485,6 +1487,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
     (void)resumeSz;
     (void)session;
+    (void)flatSession;
+    (void)flatSessionSz;
     (void)sslResume;
     (void)atomicUser;
     (void)scr;
@@ -2986,6 +2990,19 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
+#if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE)
+    if (session != NULL && resumeSession) {
+        flatSessionSz = wolfSSL_i2d_SSL_SESSION(session, NULL);
+        if (flatSessionSz != 0) {
+            int checkSz = wolfSSL_i2d_SSL_SESSION(session, &flatSession);
+            if (flatSession == NULL)
+                err_sys("error creating flattened session buffer");
+            if (checkSz != flatSessionSz)
+                err_sys("flat session size check failure");
+        }
+    }
+#endif
+
     if (dtlsUDP == 0) {           /* don't send alert after "break" command */
         ret = wolfSSL_shutdown(ssl);
         if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE)
@@ -3059,7 +3076,23 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             }
         }
 #endif
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE)
+        if (flatSession) {
+            const byte* constFlatSession = flatSession;
+            session = wolfSSL_d2i_SSL_SESSION(NULL,
+                    &constFlatSession, flatSessionSz);
+        }
+#endif
+
         wolfSSL_set_session(sslResume, session);
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE)
+        if (flatSession) {
+            XFREE(flatSession, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(session, heap, DYNAMIC_TYPE_OPENSSL);
+        }
+#endif
 #ifdef HAVE_SESSION_TICKET
         wolfSSL_set_SessionTicket_cb(sslResume, sessionTicketCB,
                                     (void*)"resumed session");
