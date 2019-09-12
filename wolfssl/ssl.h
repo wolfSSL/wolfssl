@@ -298,9 +298,9 @@ struct WOLFSSL_ASN1_OBJECT {
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
         WOLFSSL_ASN1_STRING* uniformResourceIdentifier;
         WOLFSSL_ASN1_STRING  iPAddress_internal;
+        WOLFSSL_ASN1_OTHERNAME* otherName; /* added for Apache httpd */
 #endif
         WOLFSSL_ASN1_STRING* iPAddress; /* points to iPAddress_internal */
-        WOLFSSL_ASN1_OTHERNAME* otherName; /* added for Apache httpd */
     } d;
 };
 

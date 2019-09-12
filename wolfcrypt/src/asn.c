@@ -8161,14 +8161,14 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     int           len;
     word32        tbsCertIdx = 0;
     word32        sigIndex   = 0;
-    word32        signatureOID;
-    word32        oid;
+    word32        signatureOID = 0;
+    word32        oid = 0;
     word32        issuerIdx = 0;
     word32        issuerSz  = 0;
 #ifndef NO_SKID
-    int           extLen;
-    word32        extIdx;
-    word32        extEndIdx;
+    int           extLen = 0;
+    word32        extIdx = 0;
+    word32        extEndIdx = 0;
     int           extAuthKeyIdSet = 0;
 #endif
     int           ret = 0;

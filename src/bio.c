@@ -167,11 +167,12 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
     WOLFSSL_BIO* front = bio;
     int  sz  = 0;
 
-//    WOLFSSL_ENTER("wolfSSL_BIO_read");
+    WOLFSSL_ENTER("wolfSSL_BIO_read");
 
     /* info cb, abort if user returns <= 0*/
     if (front != NULL && front->infoCb != NULL) {
-        ret = (int)front->infoCb(front, WOLFSSL_BIO_CB_READ, buf, len, 0, 1);
+        ret = (int)front->infoCb(front, WOLFSSL_BIO_CB_READ, (const char*)buf,
+                                                                     len, 0, 1);
         if (ret <= 0) {
             return ret;
         }
@@ -185,7 +186,7 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
     while (bio != NULL && ret >= 0) {
         /* check for custom read */
         if (bio && bio->method->custom && bio->method->custom->readCb) {
-            ret = bio->method->custom->readCb(bio, buf, len);
+            ret = bio->method->custom->readCb(bio, (char*)buf, len);
         }
 
         /* formating data */
@@ -229,7 +230,7 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
     if (front != NULL && front->infoCb != NULL) {
         ret = (int)front->infoCb(front,
                                  WOLFSSL_BIO_CB_READ | WOLFSSL_BIO_CB_RETURN,
-                                 buf, len, 0, ret);
+                                 (const char*)buf, len, 0, ret);
     }
 
     return ret;
@@ -432,7 +433,8 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
 
     /* info cb, abort if user returns <= 0*/
     if (front != NULL && front->infoCb != NULL) {
-        ret = (int)front->infoCb(front, WOLFSSL_BIO_CB_WRITE, data, len, 0, 1);
+        ret = (int)front->infoCb(front, WOLFSSL_BIO_CB_WRITE,
+                (const char*)data, len, 0, 1);
         if (ret <= 0) {
             return ret;
         }
@@ -441,7 +443,7 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
     while (bio != NULL && ret >= 0) {
         /* check for custom write */
         if (bio && bio->method->custom && bio->method->custom->writeCb) {
-            ret = bio->method->custom->writeCb(bio, data, len);
+            ret = bio->method->custom->writeCb(bio, (const char*)data, len);
         }
 
         /* check for formating */
@@ -534,7 +536,7 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
     if (front != NULL && front->infoCb != NULL) {
         ret = (int)front->infoCb(front,
                                  WOLFSSL_BIO_CB_WRITE | WOLFSSL_BIO_CB_RETURN,
-                                 data, 0, 0, ret);
+                                 (const char*)data, 0, 0, ret);
     }
 
     return ret;
@@ -1328,6 +1330,9 @@ void* wolfSSL_BIO_get_data(WOLFSSL_BIO* bio)
  */
 long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
 {
+    #ifndef WOLFSSL_DTLS
+    (void)on;
+    #endif
     WOLFSSL_ENTER("wolfSSL_BIO_set_nbio");
 
     switch (bio->type) {
@@ -1366,16 +1371,17 @@ WOLFSSL_BIO_METHOD *wolfSSL_BIO_meth_new(int type, const char *name)
 
     WOLFSSL_ENTER("wolfSSL_BIO_meth_new");
 
-    meth = XMALLOC(sizeof(WOLFSSL_BIO_METHOD), NULL, DYNAMIC_TYPE_OPENSSL);
+    meth = (WOLFSSL_BIO_METHOD*)XMALLOC(sizeof(WOLFSSL_BIO_METHOD), NULL,
+            DYNAMIC_TYPE_OPENSSL);
     if (meth == NULL) {
         WOLFSSL_MSG("Error allocating memory for WOLFSSL_BIO_METHOD");
         return NULL;
     }
     XMEMSET(meth, 0, sizeof(WOLFSSL_BIO_METHOD));
-    meth->type = type;
+    meth->type = (byte)type;
 
-    custom = XMALLOC(sizeof(WOLFSSL_BIO_METHOD_CUSTOM), NULL,
-            DYNAMIC_TYPE_OPENSSL);
+    custom = (WOLFSSL_BIO_METHOD_CUSTOM*)XMALLOC(
+            sizeof(WOLFSSL_BIO_METHOD_CUSTOM), NULL, DYNAMIC_TYPE_OPENSSL);
     if (custom == NULL) {
         WOLFSSL_MSG("Error allocating memory for WOLFSSL_BIO_METHOD_CUSTOM");
         wolfSSL_BIO_meth_free(meth);

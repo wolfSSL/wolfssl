@@ -1055,8 +1055,9 @@ int wolfSSL_OCSP_check_nonce(OcspRequest* req, WOLFSSL_OCSP_BASICRESP* bs)
     if (reqNonce != NULL && rspNonce == NULL)
         return -1;
 
-    /* nonces are present and equal, return 1 */
-    if (reqNonceSz == rspNonceSz) {
+    /* nonces are present and equal, return 1. Extra NULL check for fixing
+        scan-build warning. */
+    if (reqNonceSz == rspNonceSz && reqNonce && rspNonce) {
         if (XMEMCMP(reqNonce, rspNonce, reqNonceSz) == 0)
             return 1;
     }

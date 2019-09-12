@@ -65,7 +65,6 @@ struct WOLFSSL_v3_ext_method {
 #define GEN_RID         8
 
 #define GENERAL_NAME       WOLFSSL_GENERAL_NAME
-#define ACCESS_DESCRIPTION WOLFSSL_ACCESS_DESCRIPTION
 
 #define X509V3_CTX         WOLFSSL_X509V3_CTX
 

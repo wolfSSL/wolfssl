@@ -20011,7 +20011,7 @@ static int verify_cb(int ok, X509_STORE_CTX *ctx)
 
 static void test_wolfSSL_X509_STORE_CTX_get0_current_issuer(void)
 {
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
     #ifdef WOLFSSL_SIGNER_DER_CERT
     int cmp;
     #endif
@@ -20148,7 +20148,7 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     #else
         AssertIntEQ(X509_STORE_CTX_set_ex_data(ctx, i, &tmpData),
                     WOLFSSL_FAILURE);
-        tmpDataRet = X509_STORE_CTX_get_ex_data(ctx, i);
+        tmpDataRet = (int*)X509_STORE_CTX_get_ex_data(ctx, i);
         AssertNull(tmpDataRet);
     #endif
         X509_STORE_CTX_free(ctx);
@@ -22135,7 +22135,11 @@ static void test_wolfSSL_ERR_put_error(void)
     AssertIntEQ(ERR_get_error_line_data(&file, &line, NULL, NULL), 0);
 
     PEMerr(4,4);
+    #if (defined(OPENSSL_EXTRA) && !defined(OPENSSL_ALL)) || defined(DEBUG_WOLFSSL_VERBOSE)
+    AssertIntEQ(ERR_get_error(), 4);
+    #else
     AssertIntEQ(ERR_get_error(), -4);
+    #endif
     /* Empty and free up all error nodes */
     ERR_clear_error();
 
@@ -23393,7 +23397,7 @@ static void test_wolfSSL_RSA_DER(void)
 
 static void test_wolfSSL_RSA_get0_key(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     RSA *rsa = NULL;
     const BIGNUM* n = NULL;
     const BIGNUM* e = NULL;

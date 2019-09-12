@@ -804,8 +804,6 @@ enum {
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
 #include <wolfssl/openssl/pem.h>
 
-typedef STACK_OF(WOLFSSL_GENERAL_NAME) GENERAL_NAMES;
-
 #define SSL_CTRL_CHAIN       88
 #define BIO_CTRL_WPENDING    13
 #define GEN_IPADD            7

@@ -1867,8 +1867,8 @@ WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
 
 /* wolfSSL Cipher type just points back to SSL */
 struct WOLFSSL_CIPHER {
-    int cipherSuite0;
-    int cipherSuite;
+    byte cipherSuite0;
+    byte cipherSuite;
     WOLFSSL* ssl;
 };
 
@@ -3185,6 +3185,7 @@ enum AcceptState {
 /* TLS 1.3 server accept state for nonblocking restart */
 enum AcceptStateTls13 {
     TLS13_ACCEPT_BEGIN = 0,
+    TLS13_ACCEPT_BEGIN_RENEG,
     TLS13_ACCEPT_CLIENT_HELLO_DONE,
     TLS13_ACCEPT_HELLO_RETRY_REQUEST_DONE,
     TLS13_ACCEPT_FIRST_REPLY_DONE,

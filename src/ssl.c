@@ -25,7 +25,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(_WIN32)
     /* turn on GNU extensions for vasprintf with wolfSSL_BIO_printf */
     #undef  _GNU_SOURCE
     #define _GNU_SOURCE
@@ -10393,7 +10393,8 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
                     for (i = 0; i < suiteSz; i++) {
                         sz += (int)XSTRLEN(names[i].name) + 2;
                     }
-                    localList = XMALLOC(sz, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    localList = (char*)XMALLOC(sz, ctx->heap,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
                     if (localList == NULL) {
                         return WOLFSSL_FAILURE;
                     }
@@ -13336,7 +13337,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     /* returns the CA's set on server side or the CA's sent from server when
      * on client side */
-#if defined(SESSION_CERTS)
+#if defined(SESSION_CERTS) && defined(OPENSSL_ALL)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_get_client_CA_list(
             const WOLFSSL* ssl)
     {
@@ -13384,6 +13385,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #endif /* SESSION_CERTS */
 
 
+    #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+        defined(WOLFSSL_NGINX) || defined (WOLFSSL_HAPROXY)
     /* registers client cert callback, called during handshake if server
        requests client auth but user has not loaded client cert/key */
     void wolfSSL_CTX_set_client_cert_cb(WOLFSSL_CTX *ctx, client_cert_cb cb)
@@ -13394,6 +13397,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             ctx->CBClientCert = cb;
         }
     }
+    #endif /* OPENSSL_ALL || OPENSSL_EXTRA || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
 #endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA || HAVE_WEBSERVER */
 
@@ -14380,6 +14384,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #endif
     }
 
+#if (defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE))
     /* print out and clear all errors */
     void wolfSSL_ERR_print_errors(WOLFSSL_BIO* bio)
     {
@@ -14388,6 +14393,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         int ret;
         int line = 0;
         char buf[WOLFSSL_MAX_ERROR_SZ * 2];
+
+        WOLFSSL_ENTER("wolfSSL_ERR_print_errors");
 
         if (bio == NULL) {
             WOLFSSL_MSG("BIO passed in was null");
@@ -14405,6 +14412,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
         } while (ret >= 0);
     }
+#endif /* OPENSSL_EXTRA || DEBUG_WOLFSSL_VERBOSE */
 
 #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
 
@@ -17229,6 +17237,11 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         (void)file;
         (void)line;
         WOLFSSL_MSG("Not compiled in debug mode");
+        #elif defined(OPENSSL_EXTRA) && defined(_WIN32)
+        (void)fun;
+        (void)file;
+        (void)line;
+        WOLFSSL_ERROR(err);
         #else
         WOLFSSL_ERROR_LINE(err, wolfSSL_ERR_sys_func(fun), (unsigned int)line,
             file, NULL);
@@ -22088,8 +22101,8 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
 
 WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
 {
-    WOLFSSL_ENTER("SSL_X509_STORE_new");
     WOLFSSL_X509_STORE* store = NULL;
+    WOLFSSL_ENTER("SSL_X509_STORE_new");
 
     if ((store = (WOLFSSL_X509_STORE*)XMALLOC(sizeof(WOLFSSL_X509_STORE), NULL,
                                     DYNAMIC_TYPE_X509_STORE)) == NULL)
@@ -22189,9 +22202,10 @@ int wolfSSL_X509_STORE_get_by_subject(WOLFSSL_X509_STORE_CTX* ctx, int idx,
 
 WOLFSSL_X509_STORE_CTX* wolfSSL_X509_STORE_CTX_new(void)
 {
+    WOLFSSL_X509_STORE_CTX* ctx;
     WOLFSSL_ENTER("X509_STORE_CTX_new");
-    WOLFSSL_X509_STORE_CTX* ctx = (WOLFSSL_X509_STORE_CTX*)XMALLOC(
-                                    sizeof(WOLFSSL_X509_STORE_CTX), NULL,
+
+    ctx = (WOLFSSL_X509_STORE_CTX*)XMALLOC(sizeof(WOLFSSL_X509_STORE_CTX), NULL,
                                     DYNAMIC_TYPE_X509_CTX);
     if (ctx != NULL) {
         ctx->param = NULL;
@@ -23134,7 +23148,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
         gt_hour = ts->tm_hour;
         gt_min  = ts->tm_min;
         gt_sec  = ts->tm_sec;
-        sz = XSNPRINTF((char *)gt_str, ASN_GENERALIZED_TIME_MAX,
+        XSNPRINTF((char *)gt_str, ASN_GENERALIZED_TIME_MAX,
                   "%4d%02d%02d%02d%02d%02dZ",
                   gt_year, gt_mon, gt_day, gt_hour, gt_min,gt_sec);
         data_ptr  = s->data;
@@ -24545,6 +24559,7 @@ WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PrivateKey(XFILE fp, WOLFSSL_EVP_
 #endif
 #endif
 
+#if !defined(NO_FILESYSTEM)
 /* Loads certificate(s) files in pem format into X509_STORE struct from either
  * a file or directory.
  * Returns WOLFSSL_SUCCESS on success or WOLFSSL_FAILURE if an error occurs.
@@ -24600,7 +24615,7 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
     /* Load files in dir */
     if (dir && ret == WOLFSSL_SUCCESS) {
         #ifdef WOLFSSL_SMALL_STACK
-            readCtx = (ReadDirCtx*)XMALLOC(sizeof(ReadDirCtx), crl->heap,
+            readCtx = (ReadDirCtx*)XMALLOC(sizeof(ReadDirCtx), ctx->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
             if (readCtx == NULL) {
                 WOLFSSL_MSG("Memory error");
@@ -24644,6 +24659,7 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
 
     return ret;
 }
+#endif
 
 #ifndef NO_WOLFSSL_STUB
 /*** TBD ***/
@@ -25527,26 +25543,24 @@ void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
     #endif
 #endif
 
+#ifndef NO_FILESYSTEM
 /* returns amount printed on success, negative in fail case */
 int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
 {
     int ret = -1;
-#ifndef NO_FILESYSTEM
     va_list args;
-#endif
 
     if (bio == NULL)
         return WOLFSSL_FATAL_ERROR;
 
     va_start(args, format);
     switch (bio->type) {
-    #ifndef NO_FILESYSTEM
         case WOLFSSL_BIO_FILE:
             ret = vfprintf(bio->file, format, args);
             break;
-    #endif
 
         case WOLFSSL_BIO_MEMORY:
+    #if defined(OPENSSL_EXTRA) && !defined(_WIN32)
         case WOLFSSL_BIO_SSL:
             {
                 char* pt = NULL;
@@ -25559,6 +25573,7 @@ int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
                 }
             }
             break;
+    #endif
 
         default:
             WOLFSSL_MSG("Unsupported WOLFSSL_BIO type for wolfSSL_BIO_printf");
@@ -25568,6 +25583,7 @@ int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
 
     return ret;
 }
+#endif
 
 #if !defined(NO_FILESYSTEM) && defined(__clang__)
 #pragma clang diagnostic pop
@@ -35103,6 +35119,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         if (ret == WOLFSSL_SUCCESS) {
             cert->version = req->version;
             cert->isCA = req->isCa;
+#ifdef WOLFSSL_CERT_EXT
             if (req->subjKeyIdSz != 0) {
                 XMEMCPY(cert->skid, req->subjKeyId, req->subjKeyIdSz);
                 cert->skidSz = req->subjKeyIdSz;
@@ -35110,6 +35127,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             if (req->keyUsageSet)
                 cert->keyUsage = req->keyUsage;
             /* Extended Key Usage not supported. */
+#endif
         }
 
         return ret;
@@ -35120,7 +35138,9 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)
     {
         int ret;
+        #ifdef WOLFSSL_CERT_EXT
         int i;
+        #endif
 
         WOLFSSL_ENTER("wolfSSL_X509_to_Cert()");
 
@@ -36256,7 +36276,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     {
         WOLF_STACK_OF(WOLFSSL_X509_INFO)* localSk;
         WOLFSSL_X509* x509 = NULL;
-        int ret;
+        int ret = WOLFSSL_SUCCESS;
 
         WOLFSSL_ENTER("wolfSSL_PEM_X509_INFO_read_bio");
 
@@ -39582,6 +39602,7 @@ int wolfSSL_sk_X509_num(const WOLF_STACK_OF(WOLFSSL_X509) *s)
     return (int)s->num;
 }
 
+#if defined(OPENSSL_ALL)
 WOLFSSL_X509_INFO* wolfSSL_X509_INFO_new(void)
 {
     WOLFSSL_X509_INFO* info;
@@ -39607,6 +39628,7 @@ void wolfSSL_X509_INFO_free(WOLFSSL_X509_INFO* info)
 
     XFREE(info, NULL, DYNAMIC_TYPE_X509);
 }
+#endif
 
 WOLFSSL_STACK* wolfSSL_sk_X509_INFO_new_null(void)
 {
@@ -39746,6 +39768,7 @@ WOLFSSL_X509_INFO* wolfSSL_sk_X509_INFO_pop(WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk
     return info;
 }
 
+#if defined(OPENSSL_ALL)
 void wolfSSL_sk_X509_INFO_pop_free(WOLF_STACK_OF(WOLFSSL_X509_INFO)* sk,
     void f (WOLFSSL_X509_INFO*))
 {
@@ -39913,6 +39936,7 @@ int wolfSSL_sk_X509_NAME_set_cmp_func(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk, wolf
     sk->comp = cb;
     return 0;
 }
+#endif /* OPENSSL_ALL */
 
 int wolfSSL_sk_X509_NAME_num(const WOLF_STACK_OF(WOLFSSL_X509_NAME) *sk)
 {
@@ -40254,16 +40278,6 @@ const byte* wolfSSL_SESSION_get_id(WOLFSSL_SESSION* sess, unsigned int* idLen)
     return sess->sessionID;
 }
 
-
-/* returns true (non 0) if the session has EMS (extended master secret) */
-static int wolfSSL_SESSION_haveEMS(const WOLFSSL_SESSION* in)
-{
-    if (in == NULL)
-        return 0;
-    return in->haveEMS;
-}
-
-
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
                                defined(HAVE_SESSION_TICKET))
 /* returns a pointer to the protocol used by the session */
@@ -40274,7 +40288,17 @@ static const char* wolfSSL_SESSION_get_protocol(const WOLFSSL_SESSION* in)
 #endif
 
 
-#ifdef HAVE_SESSION_TICKET
+#if (defined(HAVE_SESSION_TICKET) || defined(SESSION_CERTS)) && \
+    !defined(NO_FILESYSTEM)
+/* returns true (non 0) if the session has EMS (extended master secret) */
+static int wolfSSL_SESSION_haveEMS(const WOLFSSL_SESSION* in)
+{
+    if (in == NULL)
+        return 0;
+    return in->haveEMS;
+}
+
+#if defined(HAVE_SESSION_TICKET)
 /* prints out the ticket to bio passed in
  * return WOLFSSL_SUCCESS on success
  */
@@ -40431,8 +40455,9 @@ int wolfSSL_SESSION_print(WOLFSSL_BIO *bp, const WOLFSSL_SESSION *x)
 
     return WOLFSSL_SUCCESS;
 }
+#endif /* (HAVE_SESSION_TICKET || SESSION_CERTS) && !NO_FILESYSTEM */
 
-#endif
+#endif /* OPENSSL_ALL || OPENSSL_EXTRA || HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
 #if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && defined(HAVE_STUNNEL)) \
     || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)

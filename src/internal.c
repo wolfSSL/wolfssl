@@ -10372,6 +10372,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             #ifdef KEEP_PEER_CERT
                 if (args->fatal == 0) {
+                    int copyRet = 0;
 
                     #ifdef HAVE_SECURE_RENEGOTIATION
                         if (ssl->secure_renegotiation &&
@@ -10385,8 +10386,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     #endif
 
                     /* set X509 format for peer cert */
-                    int copyRet = CopyDecodedToX509(&ssl->peerCert,
-                                                                args->dCert);
+                    copyRet = CopyDecodedToX509(&ssl->peerCert, args->dCert);
                     if (copyRet == MEMORY_E) {
                         args->fatal = 1;
                     }
