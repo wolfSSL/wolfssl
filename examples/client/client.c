@@ -2997,8 +2997,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             int checkSz = wolfSSL_i2d_SSL_SESSION(session, &flatSession);
             if (flatSession == NULL)
                 err_sys("error creating flattened session buffer");
-            if (checkSz != flatSessionSz)
+            if (checkSz != flatSessionSz) {
+                XFREE(flatSession, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 err_sys("flat session size check failure");
+            }
         }
     }
 #endif
@@ -3090,7 +3092,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE)
         if (flatSession) {
             XFREE(flatSession, heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(session, heap, DYNAMIC_TYPE_OPENSSL);
+            wolfSSL_SESSION_free(session);
         }
 #endif
 #ifdef HAVE_SESSION_TICKET
