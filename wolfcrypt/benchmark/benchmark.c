@@ -4195,7 +4195,7 @@ void bench_rsaKeyGen_size(int doAsync, int keySz)
 #define RSA_BUF_SIZE 384  /* for up to 3072 bit */
 
 #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-#elif defined(WOLFSSL_PUBLIC_MP)
+#elif defined(WOLFSSL_PUBLIC_MP) || !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     #if defined(USE_CERT_BUFFERS_2048)
 static unsigned char rsa_2048_sig[] = {
     0x8c, 0x9e, 0x37, 0xbf, 0xc3, 0xa6, 0xba, 0x1c,
