@@ -6645,7 +6645,8 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
     if (pool != NULL) {
         if ((ssl->options.side == WOLFSSL_SERVER_END &&
              !(ssl->options.acceptState == SERVER_HELLO_DONE ||
-               ssl->options.acceptState == ACCEPT_FINISHED_DONE)) ||
+               ssl->options.acceptState == ACCEPT_FINISHED_DONE ||
+               ssl->options.acceptState == ACCEPT_THIRD_REPLY_DONE)) ||
             (ssl->options.side == WOLFSSL_CLIENT_END &&
              !(ssl->options.connectState == CLIENT_HELLO_SENT ||
                ssl->options.connectState == HELLO_AGAIN_REPLY ||
