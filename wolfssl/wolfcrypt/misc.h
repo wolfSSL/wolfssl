@@ -94,6 +94,7 @@ word32 btoi(byte b);
 
 WOLFSSL_LOCAL byte ctMaskGT(int a, int b);
 WOLFSSL_LOCAL byte ctMaskGTE(int a, int b);
+WOLFSSL_LOCAL int  ctMaskIntGTE(int a, int b);
 WOLFSSL_LOCAL byte ctMaskLT(int a, int b);
 WOLFSSL_LOCAL byte ctMaskLTE(int a, int b);
 WOLFSSL_LOCAL byte ctMaskEq(int a, int b);
