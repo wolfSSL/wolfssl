@@ -642,7 +642,11 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 /* Map default time functions */
 #if !defined(XTIME) && !defined(TIME_OVERRIDES) && !defined(USER_TIME)
+    #ifdef TEST_BEFORE_DATE
+    #define XTIME(tl)       (946681200UL) /* Jan 1, 2000 */
+    #else
     #define XTIME(tl)       time((tl))
+    #endif
 #endif
 #if !defined(XGMTIME) && !defined(TIME_OVERRIDES)
     #if defined(WOLFSSL_GMTIME) || !defined(HAVE_GMTIME_R) || defined(WOLF_C99)
