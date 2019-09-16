@@ -1077,6 +1077,8 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                         ERROR_OUT(ASN_PARSE_E, exit_pk12par);
                     }
                     if ((ret = GetLength(data, &idx, &size, ci->dataSz)) <= 0) {
+                        if (ret == 0)
+                            ret = ASN_PARSE_E;
                         goto exit_pk12par;
                     }
                     if (*pkey == NULL) {
@@ -1196,6 +1198,8 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                             }
                             if ((ret = GetLength(data, &idx, &size, ci->dataSz))
                                                                          <= 0) {
+                                if (ret == 0)
+                                    ret = ASN_PARSE_E;
                                 goto exit_pk12par;
                             }
                             if (data[idx++] != ASN_OCTET_STRING) {

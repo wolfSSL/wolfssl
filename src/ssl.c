@@ -21277,22 +21277,22 @@ WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
 {
     WOLFSSL_X509_STORE* store = NULL;
 
-    if((store = (WOLFSSL_X509_STORE*)XMALLOC(sizeof(WOLFSSL_X509_STORE), NULL,
-                            DYNAMIC_TYPE_X509_STORE)) == NULL)
+    if ((store = (WOLFSSL_X509_STORE*)XMALLOC(sizeof(WOLFSSL_X509_STORE), NULL,
+                                    DYNAMIC_TYPE_X509_STORE)) == NULL)
         goto err_exit;
 
     XMEMSET(store, 0, sizeof(WOLFSSL_X509_STORE));
     store->isDynamic = 1;
 
-    if((store->cm = wolfSSL_CertManagerNew()) == NULL)
+    if ((store->cm = wolfSSL_CertManagerNew()) == NULL)
         goto err_exit;
 
 #ifdef HAVE_CRL
     store->crl = NULL;
-    if((store->crl = (WOLFSSL_X509_CRL *)XMALLOC(sizeof(WOLFSSL_X509_CRL),
-                                NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
+    if ((store->crl = (WOLFSSL_X509_CRL *)XMALLOC(sizeof(WOLFSSL_X509_CRL),
+                                        NULL, DYNAMIC_TYPE_TMP_BUFFER)) == NULL)
         goto err_exit;
-    if(InitCRL(store->crl, NULL) < 0)
+    if (InitCRL(store->crl, NULL) < 0)
         goto err_exit;
 #endif
 
@@ -21307,19 +21307,9 @@ WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
     return store;
 
 err_exit:
-    if(store == NULL)
+    if (store == NULL)
         return NULL;
-    if(store->cm != NULL)
-        wolfSSL_CertManagerFree(store->cm);
-#ifdef HAVE_CRL
-    if(store->crl != NULL)
-        wolfSSL_X509_CRL_free(store->crl);
-#endif
-#ifdef OPENSSL_EXTRA
-        if (store->param != NULL){
-            XFREE(store->param,NULL,DYNAMIC_TYPE_OPENSSL);
-        }
-#endif
+
     wolfSSL_X509_STORE_free(store);
 
     return NULL;
@@ -21336,9 +21326,8 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
             wolfSSL_X509_CRL_free(store->crl);
 #endif
 #ifdef OPENSSL_EXTRA
-        if (store->param != NULL){
-            XFREE(store->param,NULL,DYNAMIC_TYPE_OPENSSL);
-        }
+        if (store->param != NULL)
+            XFREE(store->param, NULL, DYNAMIC_TYPE_OPENSSL);
 #endif
         XFREE(store, NULL, DYNAMIC_TYPE_X509_STORE);
     }
