@@ -1360,7 +1360,7 @@ static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
     if (ret == 0 && pointSz < key->dp->size * 2 + 1 + 2)
         ret = ASN_PARSE_E;
     /* Step over the OCTET_STRING wrapper. */
-    if (ret == 0 && point[i++] != ASN_OCTET_STRING)
+    if (ret == 0 && CheckASNTag(point, ASN_OCTET_STRING, i++, pointSz) != 0)
         ret = ASN_PARSE_E;
     if (ret == 0 && point[i] >= ASN_LONG_LENGTH) {
         if (point[i++] != (ASN_LONG_LENGTH | 1))
@@ -1690,7 +1690,7 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
         ret = ASN_PARSE_E;
 
     /* Check INT */
-    if (ret == 0 && in[i++] != ASN_INTEGER)
+    if (ret == 0 && CheckASNTag(in, ASN_INTGER, i++, inSz) != 0)
         ret = ASN_PARSE_E;
     if (ret == 0 && (len = in[i++]) > sz + 1)
         ret = ASN_PARSE_E;
@@ -1712,7 +1712,7 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
     if (ret == 0 && i + 2 > inSz)
         ret = ASN_PARSE_E;
     /* Check INT */
-    if (ret == 0 && in[i++] != ASN_INTEGER)
+    if (ret == 0 && CheckASNTag(in, ASN_INTGER, i++, inSz) != 0)
         ret = ASN_PARSE_E;
     if (ret == 0 && (len = in[i++]) > sz + 1)
         ret = ASN_PARSE_E;

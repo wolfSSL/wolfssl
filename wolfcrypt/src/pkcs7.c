@@ -1197,7 +1197,7 @@ static PKCS7DecodedAttrib* findAttrib(PKCS7* pkcs7, const byte* oid, word32 oidS
         word32 idx = 0;
         int    length = 0;
 
-        if (list->oid[idx++] != ASN_OBJECT_ID) {
+        if (CheckASNTag(list->oid, ASN_OBJECT_ID, idx++, list->oidSz) != 0) {
             WOLFSSL_MSG("Bad attribute ASN1 syntax");
             return NULL;
         }
@@ -3918,8 +3918,8 @@ static int wc_PKCS7_ParseSignerInfo(PKCS7* pkcs7, byte* in, word32 inSz,
             if (idx + 1 > inSz)
                 ret = BUFFER_E;
 
-            if (ret == 0 && in[idx] ==
-                        (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
+            if (ret == 0 && CheckASNTag(in, (ASN_CONSTRUCTED |
+                            ASN_CONTEXT_SPECIFIC | 0), idx, inSz) == 0) {
                 idx++;
 
                 if (ret == 0 && GetLength(in, &idx, &length, inSz) <= 0) {
@@ -3929,7 +3929,8 @@ static int wc_PKCS7_ParseSignerInfo(PKCS7* pkcs7, byte* in, word32 inSz,
                 if (idx + 1 > inSz)
                     ret = BUFFER_E;
 
-                if (ret == 0 && in[idx++] != ASN_OCTET_STRING)
+                if (ret == 0 && CheckASNTag(in, ASN_OCTET_STRING, idx++, inSz)
+                        != 0)
                     ret = ASN_PARSE_E;
 
                 if (ret == 0 && GetLength(in, &idx, &length, inSz) < 0)
@@ -3938,7 +3939,7 @@ static int wc_PKCS7_ParseSignerInfo(PKCS7* pkcs7, byte* in, word32 inSz,
             else {
                 /* check if SKID with ASN_CONTEXT_SPECIFIC otherwise in version
                  * 3 try to get issuerAndSerial */
-                if (in[idx] == ASN_CONTEXT_SPECIFIC) {
+                if (CheckASNTag(in, ASN_CONTEXT_SPECIFIC, idx, inSz) == 0) {
                     idx++;
                     if (ret == 0 && GetLength(in, &idx, &length, inSz) < 0)
                         ret = ASN_PARSE_E;
@@ -3971,8 +3972,8 @@ static int wc_PKCS7_ParseSignerInfo(PKCS7* pkcs7, byte* in, word32 inSz,
         pkcs7->hashOID = (int)hashOID;
 
         /* Get the IMPLICIT[0] SET OF signedAttributes */
-        if (ret == 0 && in[idx] ==
-                (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
+        if (ret == 0 && CheckASNTag(in, (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC
+                        | 0), idx, inSz) == 0) {
             idx++;
 
             if (GetLength(in, &idx, &length, inSz) < 0)
@@ -4165,8 +4166,8 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             }
 
             /* get the ContentInfo content */
-            if (ret == 0 && pkiMsg[idx++] !=
-                    (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+            if (ret == 0 && CheckASNTag(pkiMsg, (ASN_CONSTRUCTED |
+                            ASN_CONTEXT_SPECIFIC | 0), idx++, totalSz) != 0)
                 ret = ASN_PARSE_E;
 
             if (ret == 0 && GetLength_ex(pkiMsg, &idx, &length, totalSz,
@@ -4266,7 +4267,8 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 break;
             }
 
-            if (pkiMsg[localIdx++] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+            if (CheckASNTag(pkiMsg, (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC |
+                            0), localIdx++, pkiMsgSz) != 0)
                 ret = ASN_PARSE_E;
 
             if (ret == 0 && GetLength_ex(pkiMsg, &localIdx, &length, pkiMsgSz,
@@ -4278,7 +4280,8 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             }
 
             /* get length of content in the case that there is multiple parts */
-            if (ret == 0 && pkiMsg[localIdx] == (ASN_OCTET_STRING | ASN_CONSTRUCTED)) {
+            if (ret == 0 && CheckASNTag(pkiMsg, (ASN_OCTET_STRING |
+                            ASN_CONSTRUCTED), localIdx, pkiMsgSz) == 0) {
                 multiPart = 1;
 
                 localIdx++;
@@ -4293,7 +4296,8 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                     ret = BUFFER_E;
                 }
 
-                if (ret == 0 && pkiMsg[localIdx++] != ASN_OCTET_STRING)
+                if (ret == 0 && CheckASNTag(pkiMsg, ASN_OCTET_STRING,
+                            localIdx++, pkiMsgSz) != 0)
                     ret = ASN_PARSE_E;
 
                 if (ret == 0 && GetLength_ex(pkiMsg, &localIdx, &length, pkiMsgSz,
@@ -4310,7 +4314,8 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
             /* get length of content in case of single part */
             if (ret == 0 && !multiPart) {
-                if (pkiMsg[localIdx++] != ASN_OCTET_STRING)
+                if (CheckASNTag(pkiMsg, ASN_OCTET_STRING, localIdx++, pkiMsgSz)
+                        != 0)
                     ret = ASN_PARSE_E;
 
                 if (ret == 0 && GetLength_ex(pkiMsg, &localIdx,
@@ -4437,7 +4442,8 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 start = localIdx;
                 /* Use the data from each OCTET_STRING. */
                 while (ret == 0 && localIdx < start + contentLen) {
-                    if (pkiMsg[localIdx++] != ASN_OCTET_STRING)
+                    if (CheckASNTag(pkiMsg, ASN_OCTET_STRING, localIdx++,
+                                totalSz) != 0)
                         ret = ASN_PARSE_E;
 
                     if (ret == 0 && GetLength(pkiMsg, &localIdx, &length, totalSz) < 0)
@@ -4544,8 +4550,8 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 ret = BUFFER_E;
 
             length = 0; /* set length to 0 to check if reading in any certs */
-            if (ret == 0 && pkiMsg2[idx] ==
-                    (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
+            if (ret == 0 && CheckASNTag(pkiMsg2, (ASN_CONSTRUCTED |
+                            ASN_CONTEXT_SPECIFIC | 0), idx, pkiMsg2Sz) == 0) {
                 idx++;
                 if (GetLength_ex(pkiMsg2, &idx, &length, maxIdx, NO_USER_CHECK)
                         < 0)
@@ -4627,7 +4633,8 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                     if (length < MAX_LENGTH_SZ + ASN_TAG_SZ)
                         ret = BUFFER_E;
 
-                    if (pkiMsg2[certIdx++] == (ASN_CONSTRUCTED | ASN_SEQUENCE)) {
+                    if (CheckASNTag(pkiMsg2, (ASN_CONSTRUCTED | ASN_SEQUENCE),
+                                certIdx++, pkiMsg2Sz) == 0) {
                         if (GetLength(pkiMsg2, &certIdx, &certSz, pkiMsg2Sz) < 0)
                             ret = ASN_PARSE_E;
 
@@ -4678,8 +4685,8 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                                 certIdx + 1 < (word32)length; i++) {
                             localIdx = certIdx;
 
-                            if (pkiMsg2[certIdx++] ==
-                                             (ASN_CONSTRUCTED | ASN_SEQUENCE)) {
+                            if (CheckASNTag(pkiMsg2, (ASN_CONSTRUCTED |
+                                    ASN_SEQUENCE), certIdx++, pkiMsg2Sz) == 0) {
                                 if (GetLength(pkiMsg2, &certIdx, &sz,
                                             pkiMsg2Sz) < 0) {
                                     ret = ASN_PARSE_E;
@@ -4793,8 +4800,8 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             if (ret == 0 && idx >= maxIdx)
                 ret = BUFFER_E;
 
-            if (ret == 0 && pkiMsg2[idx] ==
-                                 (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1)) {
+            if (ret == 0 && CheckASNTag(pkiMsg2, (ASN_CONSTRUCTED |
+                            ASN_CONTEXT_SPECIFIC | 1), idx, pkiMsg2Sz) == 0) {
                 idx++;
                 if (GetLength(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
                     ret = ASN_PARSE_E;
@@ -4864,7 +4871,8 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                     ret = BUFFER_E;
 
                 /* Get the signature */
-                if (ret == 0 && pkiMsg2[idx] == ASN_OCTET_STRING) {
+                if (ret == 0 && CheckASNTag(pkiMsg2, ASN_OCTET_STRING, idx,
+                            pkiMsg2Sz) == 0) {
                     idx++;
 
                     if (GetLength(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
@@ -8014,14 +8022,15 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
             } else {
 
                 /* remove SubjectKeyIdentifier */
-                if (pkiMsg[(*idx)++] !=
-                        (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+                if (CheckASNTag(pkiMsg, (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC
+                                | 0), (*idx)++, pkiMsgSz) != 0)
                     return ASN_PARSE_E;
 
                 if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
                     return ASN_PARSE_E;
 
-                if (pkiMsg[(*idx)++] != ASN_OCTET_STRING)
+                if (CheckASNTag(pkiMsg, ASN_OCTET_STRING, (*idx)++, pkiMsgSz)
+                        != 0)
                     return ASN_PARSE_E;
 
                 if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
@@ -8043,7 +8052,7 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
                 return ALGO_ID_E;
 
             /* read encryptedKey */
-            if (pkiMsg[(*idx)++] != ASN_OCTET_STRING) {
+            if (CheckASNTag(pkiMsg, ASN_OCTET_STRING, (*idx)++, pkiMsgSz) != 0){
                 return ASN_PARSE_E;
             }
 
@@ -8188,7 +8197,8 @@ static int wc_PKCS7_KariGetOriginatorIdentifierOrKey(WC_PKCS7_KARI* kari,
         return BAD_FUNC_ARG;
 
     /* remove OriginatorIdentifierOrKey */
-    if (pkiMsg[*idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
+    if (CheckASNTag(pkiMsg, (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0),
+                *idx, pkiMsgSz) == 0) {
         (*idx)++;
         if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
             return ASN_PARSE_E;
@@ -8198,7 +8208,8 @@ static int wc_PKCS7_KariGetOriginatorIdentifierOrKey(WC_PKCS7_KARI* kari,
     }
 
     /* remove OriginatorPublicKey */
-    if (pkiMsg[*idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1)) {
+    if (CheckASNTag(pkiMsg, (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1), *idx,
+                pkiMsgSz) == 0) {
         (*idx)++;
         if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
             return ASN_PARSE_E;
@@ -8224,13 +8235,15 @@ static int wc_PKCS7_KariGetOriginatorIdentifierOrKey(WC_PKCS7_KARI* kari,
     }
 
     /* remove ECPoint BIT STRING */
-    if ((pkiMsgSz > (*idx + 1)) && (pkiMsg[(*idx)++] != ASN_BIT_STRING))
+    if ((pkiMsgSz > (*idx + 1)) && (CheckASNTag(pkiMsg, ASN_BIT_STRING, (*idx)++,
+                    pkiMsgSz) != 0))
         return ASN_PARSE_E;
 
     if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
-    if ((pkiMsgSz < (*idx + 1)) || (pkiMsg[(*idx)++] != 0x00))
+    if ((pkiMsgSz < (*idx + 1)) || (CheckASNTag(pkiMsg, ASN_OTHER_TYPE,
+                    (*idx)++, pkiMsgSz) != 0))
         return ASN_EXPECT_0_E;
 
     /* get sender ephemeral public ECDSA key */
@@ -8270,7 +8283,8 @@ static int wc_PKCS7_KariGetUserKeyingMaterial(WC_PKCS7_KARI* kari,
     savedIdx = *idx;
 
     /* starts with EXPLICIT [1] */
-    if (pkiMsg[(*idx)++] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1)) {
+    if (CheckASNTag(pkiMsg, (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1),
+                (*idx)++, pkiMsgSz) != 0) {
         *idx = savedIdx;
         return 0;
     }
@@ -8282,7 +8296,7 @@ static int wc_PKCS7_KariGetUserKeyingMaterial(WC_PKCS7_KARI* kari,
 
     /* get OCTET STRING */
     if ( (pkiMsgSz > ((*idx) + 1)) &&
-         (pkiMsg[(*idx)++] != ASN_OCTET_STRING) ) {
+         (CheckASNTag(pkiMsg, ASN_OCTET_STRING, (*idx)++, pkiMsgSz) != 0)) {
         *idx = savedIdx;
         return 0;
     }
@@ -8357,7 +8371,8 @@ static int wc_PKCS7_KariGetSubjectKeyIdentifier(WC_PKCS7_KARI* kari,
 
     /* remove RecipientKeyIdentifier IMPLICIT [0] */
     if ( (pkiMsgSz > (*idx + 1)) &&
-         (pkiMsg[(*idx)++] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) ) {
+         (CheckASNTag(pkiMsg, (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0),
+                      (*idx)++, pkiMsgSz) == 0) ) {
 
         if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
             return ASN_PARSE_E;
@@ -8368,7 +8383,7 @@ static int wc_PKCS7_KariGetSubjectKeyIdentifier(WC_PKCS7_KARI* kari,
 
     /* remove SubjectKeyIdentifier */
     if ( (pkiMsgSz > (*idx + 1)) &&
-         (pkiMsg[(*idx)++] != ASN_OCTET_STRING) )
+         (CheckASNTag(pkiMsg, ASN_OCTET_STRING, (*idx)++, pkiMsgSz) != 0))
         return ASN_PARSE_E;
 
     if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
@@ -8501,7 +8516,8 @@ static int wc_PKCS7_KariGetRecipientEncryptedKeys(WC_PKCS7_KARI* kari,
     /* KeyAgreeRecipientIdentifier is CHOICE of IssuerAndSerialNumber
      * or [0] IMMPLICIT RecipientKeyIdentifier */
     if ( (pkiMsgSz > (*idx + 1)) &&
-         (pkiMsg[*idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) ) {
+         (CheckASNTag(pkiMsg, (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0),
+                      *idx, pkiMsgSz) == 0) ) {
 
         /* try to get RecipientKeyIdentifier */
         ret = wc_PKCS7_KariGetSubjectKeyIdentifier(kari, pkiMsg, pkiMsgSz,
@@ -8518,7 +8534,7 @@ static int wc_PKCS7_KariGetRecipientEncryptedKeys(WC_PKCS7_KARI* kari,
 
     /* remove EncryptedKey */
     if ( (pkiMsgSz > (*idx + 1)) &&
-         (pkiMsg[(*idx)++] != ASN_OCTET_STRING) )
+         (CheckASNTag(pkiMsg, ASN_OCTET_STRING, (*idx)++, pkiMsgSz) != 0))
         return ASN_PARSE_E;
 
     if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
@@ -8732,7 +8748,8 @@ static int wc_PKCS7_DecryptPwri(PKCS7* pkcs7, byte* in, word32 inSz,
             pkiMsgSz = (word32)rc;
         #endif
             /* remove KeyDerivationAlgorithmIdentifier */
-            if (pkiMsg[(*idx)++] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+            if (CheckASNTag(pkiMsg, (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC |
+                            0), (*idx)++, pkiMsgSz) != 0)
                 return ASN_PARSE_E;
 
             if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
@@ -8748,7 +8765,8 @@ static int wc_PKCS7_DecryptPwri(PKCS7* pkcs7, byte* in, word32 inSz,
 
             /* get KDF salt OCTET STRING */
             if ( (pkiMsgSz > ((*idx) + 1)) &&
-                 (pkiMsg[(*idx)++] != ASN_OCTET_STRING) ) {
+                 (CheckASNTag(pkiMsg, ASN_OCTET_STRING, (*idx)++, pkiMsgSz)
+                  != 0)) {
                 return ASN_PARSE_E;
             }
 
@@ -8801,7 +8819,8 @@ static int wc_PKCS7_DecryptPwri(PKCS7* pkcs7, byte* in, word32 inSz,
 
             /* get block cipher IV, stored in OPTIONAL parameter of AlgoID */
             if ( (pkiMsgSz > ((*idx) + 1)) &&
-                 (pkiMsg[(*idx)++] != ASN_OCTET_STRING) ) {
+                 (CheckASNTag(pkiMsg, ASN_OCTET_STRING, (*idx)++, pkiMsgSz)
+                  != 0)) {
                 XFREE(salt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 return ASN_PARSE_E;
             }
@@ -8822,7 +8841,7 @@ static int wc_PKCS7_DecryptPwri(PKCS7* pkcs7, byte* in, word32 inSz,
 
             /* get EncryptedKey */
             if ( (pkiMsgSz < ((*idx) + 1)) ||
-                 (pkiMsg[(*idx)++] != ASN_OCTET_STRING) ) {
+             (CheckASNTag(pkiMsg, ASN_OCTET_STRING, (*idx)++, pkiMsgSz) != 0)) {
                 XFREE(salt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 return ASN_PARSE_E;
             }
@@ -8952,7 +8971,7 @@ static int wc_PKCS7_DecryptKekri(PKCS7* pkcs7, byte* in, word32 inSz,
 
             kekIdSz = length;
 
-            if (pkiMsg[(*idx)++] != ASN_OCTET_STRING)
+            if (CheckASNTag(pkiMsg, ASN_OCTET_STRING, (*idx)++, pkiMsgSz) != 0)
                 return ASN_PARSE_E;
 
             if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
@@ -8964,7 +8983,8 @@ static int wc_PKCS7_DecryptKekri(PKCS7* pkcs7, byte* in, word32 inSz,
             *idx += keyIdSz;
 
             /* may have OPTIONAL GeneralizedTime */
-            if ((*idx < kekIdSz) && (pkiMsg[*idx] == ASN_GENERALIZED_TIME)) {
+            if ((*idx < kekIdSz) && (CheckASNTag(pkiMsg, ASN_GENERALIZED_TIME,
+                            *idx, pkiMsgSz) == 0)) {
                 if (wc_GetDateInfo(pkiMsg + *idx, pkiMsgSz, &datePtr, &dateFormat,
                                    &dateLen) != 0) {
                     return ASN_PARSE_E;
@@ -8973,8 +8993,8 @@ static int wc_PKCS7_DecryptKekri(PKCS7* pkcs7, byte* in, word32 inSz,
             }
 
             /* may have OPTIONAL OtherKeyAttribute */
-            if ((*idx < kekIdSz) && (pkiMsg[*idx] ==
-                                     (ASN_SEQUENCE | ASN_CONSTRUCTED))) {
+            if ((*idx < kekIdSz) && (CheckASNTag(pkiMsg, (ASN_SEQUENCE |
+                                ASN_CONSTRUCTED), *idx, pkiMsgSz) == 0)) {
 
                 if (GetSequence(pkiMsg, idx, &length, pkiMsgSz) < 0)
                     return ASN_PARSE_E;
@@ -8988,7 +9008,7 @@ static int wc_PKCS7_DecryptKekri(PKCS7* pkcs7, byte* in, word32 inSz,
                 return ASN_PARSE_E;
 
             /* get EncryptedKey */
-            if (pkiMsg[(*idx)++] != ASN_OCTET_STRING)
+            if (CheckASNTag(pkiMsg, ASN_OCTET_STRING, (*idx)++, pkiMsgSz) != 0)
                 return ASN_PARSE_E;
 
             if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
@@ -9418,7 +9438,8 @@ static int wc_PKCS7_DecryptRecipientInfos(PKCS7* pkcs7, byte* in,
         else {
             /* kari is IMPLICIT[1] */
             *idx = savedIdx;
-            if (pkiMsg[*idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1)) {
+            if (CheckASNTag(pkiMsg, (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC |
+                            1), *idx, pkiMsgSz) == 0) {
 
                 (*idx)++;
 
@@ -9447,8 +9468,8 @@ static int wc_PKCS7_DecryptRecipientInfos(PKCS7* pkcs7, byte* in,
                     return ret;
 
             /* kekri is IMPLICIT[2] */
-            } else if (pkiMsg[*idx] == (ASN_CONSTRUCTED |
-                                        ASN_CONTEXT_SPECIFIC | 2)) {
+            } else if (CheckASNTag(pkiMsg, (ASN_CONSTRUCTED |
+                            ASN_CONTEXT_SPECIFIC | 2), *idx, pkiMsgSz) == 0) {
                 (*idx)++;
 
                 if (GetLength(pkiMsg, idx, &version, pkiMsgSz) < 0)
@@ -9476,8 +9497,8 @@ static int wc_PKCS7_DecryptRecipientInfos(PKCS7* pkcs7, byte* in,
                     return ret;
 
             /* pwri is IMPLICIT[3] */
-            } else if (pkiMsg[*idx] == (ASN_CONSTRUCTED |
-                                        ASN_CONTEXT_SPECIFIC | 3)) {
+            } else if (CheckASNTag(pkiMsg, (ASN_CONSTRUCTED |
+                            ASN_CONTEXT_SPECIFIC | 3), *idx, pkiMsgSz) == 0) {
         #if !defined(NO_PWDBASED) && !defined(NO_SHA)
                 (*idx)++;
 
@@ -9509,8 +9530,8 @@ static int wc_PKCS7_DecryptRecipientInfos(PKCS7* pkcs7, byte* in,
         #endif
 
             /* ori is IMPLICIT[4] */
-            } else if (pkiMsg[*idx] == (ASN_CONSTRUCTED |
-                                        ASN_CONTEXT_SPECIFIC | 4)) {
+            } else if (CheckASNTag(pkiMsg, (ASN_CONSTRUCTED |
+                            ASN_CONTEXT_SPECIFIC | 4), *idx, pkiMsgSz) == 0) {
                 (*idx)++;
 
                 /* found ori */
@@ -9687,8 +9708,8 @@ static int wc_PKCS7_ParseToRecipientInfoSet(PKCS7* pkcs7, byte* in,
                     }
                 }
 
-                if (ret == 0 && pkiMsg[(*idx)++] !=
-                        (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+                if (ret == 0 && CheckASNTag(pkiMsg, (ASN_CONSTRUCTED |
+                            ASN_CONTEXT_SPECIFIC | 0), (*idx)++, pkiMsgSz) != 0)
                     ret = ASN_PARSE_E;
 
                 if (ret == 0 && GetLength_ex(pkiMsg, idx, &length, pkiMsgSz,
@@ -9985,7 +10006,8 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
             }
 
             /* get block cipher IV, stored in OPTIONAL parameter of AlgoID */
-            if (ret == 0 && pkiMsg[idx++] != ASN_OCTET_STRING) {
+            if (ret == 0 && CheckASNTag(pkiMsg, ASN_OCTET_STRING, idx++,
+                        pkiMsgSz) != 0) {
                 ret = ASN_PARSE_E;
             }
 
@@ -10042,12 +10064,17 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
             XMEMCPY(tmpIv, &pkiMsg[idx], length);
             idx += length;
 
-            explicitOctet = pkiMsg[idx] ==
-                                   (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0);
+            explicitOctet = 0;
+            if (CheckASNTag(pkiMsg, (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED |
+                            0), idx, pkiMsgSz) == 0) {
+                explicitOctet = 1;
+            }
 
             /* read encryptedContent, cont[0] */
-            if (ret == 0 && pkiMsg[idx] != (ASN_CONTEXT_SPECIFIC | 0) &&
-                pkiMsg[idx] != (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0)) {
+            if (ret == 0 && CheckASNTag(pkiMsg, (ASN_CONTEXT_SPECIFIC | 0), idx,
+                                    pkiMsgSz) != 0 &&
+                            CheckASNTag(pkiMsg, (ASN_CONTEXT_SPECIFIC |
+                                    ASN_CONSTRUCTED | 0), idx, pkiMsgSz) != 0) {
                 ret = ASN_PARSE_E;
             }
             idx++;
@@ -10058,7 +10085,8 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
             }
 
             if (ret == 0 && explicitOctet) {
-                if (ret == 0 && pkiMsg[idx++] != ASN_OCTET_STRING) {
+                if (ret == 0 && CheckASNTag(pkiMsg, ASN_OCTET_STRING, idx++,
+                            pkiMsgSz) != 0) {
                     ret = ASN_PARSE_E;
                     break;
                 }
@@ -10845,7 +10873,8 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
             }
 
             /* get nonce, stored in OPTIONAL parameter of AlgoID */
-            if (ret == 0 && pkiMsg[idx++] != ASN_OCTET_STRING) {
+            if (ret == 0 && CheckASNTag(pkiMsg, ASN_OCTET_STRING, idx++,
+                        pkiMsgSz) != 0) {
                 ret = ASN_PARSE_E;
             }
 
@@ -10898,13 +10927,18 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
             }
 
             if (ret == 0) {
-                explicitOctet = pkiMsg[idx] ==
-                    (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0);
+                explicitOctet = 0;
+                if (CheckASNTag(pkiMsg, (ASN_CONTEXT_SPECIFIC |
+                                ASN_CONSTRUCTED | 0), idx, pkiMsgSz) == 0)
+                    explicitOctet = 1;
             }
 
             /* read encryptedContent, cont[0] */
-            if (ret == 0 && pkiMsg[idx] != (ASN_CONTEXT_SPECIFIC | 0) &&
-                pkiMsg[idx] != (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0)) {
+            if (ret == 0 &&
+                    CheckASNTag(pkiMsg, (ASN_CONTEXT_SPECIFIC | 0), idx,
+                        pkiMsgSz) != 0 &&
+                    CheckASNTag(pkiMsg, (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED
+                        | 0), idx, pkiMsgSz) != 0) {
                 ret = ASN_PARSE_E;
             }
             idx++;
@@ -10915,7 +10949,8 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
             }
 
             if (explicitOctet) {
-                if (ret == 0 && pkiMsg[idx++] != ASN_OCTET_STRING) {
+                if (ret == 0 && CheckASNTag(pkiMsg, ASN_OCTET_STRING, idx++,
+                            pkiMsgSz) != 0) {
                     ret = ASN_PARSE_E;
                 }
 
@@ -10989,8 +11024,8 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
         #endif
 
             /* may have IMPLICIT [1] authenticatedAttributes */
-            if (ret == 0 && pkiMsg[idx] ==
-                    (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1)) {
+            if (ret == 0 && CheckASNTag(pkiMsg, (ASN_CONSTRUCTED |
+                            ASN_CONTEXT_SPECIFIC | 1), idx, pkiMsgSz) == 0) {
                 encodedAttribIdx = idx;
                 encodedAttribs = pkiMsg + idx;
                 idx++;
@@ -11098,7 +11133,8 @@ authenv_atrbend:
 
 
             /* get authTag OCTET STRING */
-            if (ret == 0 && pkiMsg[idx++] != ASN_OCTET_STRING) {
+            if (ret == 0 && CheckASNTag(pkiMsg, ASN_OCTET_STRING, idx++,
+                        pkiMsgSz) != 0) {
                 ret = ASN_PARSE_E;
             }
 
@@ -11536,7 +11572,8 @@ static int wc_PKCS7_DecodeUnprotectedAttributes(PKCS7* pkcs7, byte* pkiMsg,
 
     idx = *inOutIdx;
 
-    if (pkiMsg[idx] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1))
+    if (CheckASNTag(pkiMsg, (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1), idx,
+                pkiMsgSz) != 0)
         return ASN_PARSE_E;
     idx++;
 
@@ -11653,8 +11690,8 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
             pkiMsgSz = (word32)rc;
 #endif
             if (pkcs7->version != 3) {
-                if (ret == 0 && pkiMsg[idx++] != (ASN_CONSTRUCTED |
-                        ASN_CONTEXT_SPECIFIC | 0))
+                if (ret == 0 && CheckASNTag(pkiMsg, (ASN_CONSTRUCTED |
+                        ASN_CONTEXT_SPECIFIC | 0), idx++, pkiMsgSz) != 0)
                     ret = ASN_PARSE_E;
 
                 if (ret == 0 && GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
@@ -11746,7 +11783,8 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
             /* restore saved variables */
             expBlockSz = pkcs7->stream->varOne;
 #endif
-            if (ret == 0 && pkiMsg[idx++] != ASN_OCTET_STRING)
+            if (ret == 0 && CheckASNTag(pkiMsg, ASN_OCTET_STRING, idx++,
+                        pkiMsgSz) != 0)
                 ret = ASN_PARSE_E;
 
             if (ret == 0 && GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
@@ -11793,7 +11831,8 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
             XMEMCPY(tmpIv, &pkiMsg[idx], length);
             idx += length;
             /* read encryptedContent, cont[0] */
-            if (ret == 0 && pkiMsg[idx++] != (ASN_CONTEXT_SPECIFIC | 0))
+            if (ret == 0 && CheckASNTag(pkiMsg, (ASN_CONTEXT_SPECIFIC | 0),
+                        idx++, pkiMsgSz) != 0)
                 ret = ASN_PARSE_E;
 
             if (ret == 0 && GetLength(pkiMsg, &idx, &encryptedContentSz,
@@ -12144,7 +12183,8 @@ int wc_PKCS7_DecodeCompressedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     }
 
     /* get ContentInfo content EXPLICIT SEQUENCE */
-    if (pkiMsg[idx++] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+    if (CheckASNTag(pkiMsg, (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0), idx++,
+                pkiMsgSz) != 0)
         return ASN_PARSE_E;
 
     if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
@@ -12185,14 +12225,15 @@ int wc_PKCS7_DecodeCompressedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     pkcs7->contentOID = contentType;
 
     /* get eContent EXPLICIT SEQUENCE */
-    if (pkiMsg[idx++] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+    if (CheckASNTag(pkiMsg, (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0), idx++,
+                pkiMsgSz) != 0)
         return ASN_PARSE_E;
 
     if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
     /* get content OCTET STRING */
-    if (pkiMsg[idx++] != ASN_OCTET_STRING)
+    if (CheckASNTag(pkiMsg, ASN_OCTET_STRING, idx++, pkiMsgSz) != 0)
         return ASN_PARSE_E;
 
     if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
