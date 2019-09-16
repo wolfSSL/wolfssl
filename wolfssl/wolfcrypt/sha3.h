@@ -108,7 +108,7 @@ struct Sha3 {
 };
 
 #ifndef WC_SHA3_TYPE_DEFINED
-    typedef struct wc_Sha3 Sha3;
+    typedef struct Sha3 wc_Sha3;
     #define WC_SHA3_TYPE_DEFINED
 #endif
 
