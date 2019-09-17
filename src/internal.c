@@ -13581,6 +13581,10 @@ static WC_INLINE int VerifyMacEnc(WOLFSSL* ssl, const byte* input, word32 msgSz,
 
     WOLFSSL_MSG("Verify MAC of Encrypted Data");
 
+    if (msgSz < digestSz) {
+        return VERIFY_MAC_ERROR;
+    }
+
     ret  = ssl->hmac(ssl, verify, input, msgSz - digestSz, -1, content, 1);
     ret |= ConstantCompare(verify, input + msgSz - digestSz, digestSz);
     if (ret != 0) {
