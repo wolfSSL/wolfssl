@@ -10053,7 +10053,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     ret = DoVerifyCallback(ssl, ret, args);
 
                     /* If valid CA then add to Certificate Manager */
-                    if (ret == 0) {
+                    if (ret == 0 && args->dCert->isCA && !ssl->options.verifyNone) {
                         buffer* cert = &args->certs[args->certIdx];
 
                         /* Is valid CA */
