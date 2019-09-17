@@ -27,6 +27,9 @@
 #include "lwip/netdb.h"
 #include "lwip/apps/sntp.h"
 #include "nvs_flash.h"
+#if ESP_IDF_VERSION_MAJOR >= 4 && ESP_IDF_VERSION_MINOR >= 1
+#include "protocol_examples_common.h"
+#endif
 
 const static int CONNECTED_BIT = BIT0;
 static EventGroupHandle_t wifi_event_group;
@@ -45,8 +48,9 @@ static void set_time()
     time_t now;
     struct tm timeinfo;
     char strftime_buf[64];
-
-    utctime.tv_sec = 1542008020; /* dummy time: Mon Nov 12 07:33:40 2018 */
+    /* please update the time if seeing unknown failure. */
+    /* this could cause TLS communication failure due to time expiration */
+    utctime.tv_sec = 1567125910; /* dummy time: Fri Aug 30 09:45:00 2019 */
     utctime.tv_usec = 0;
     tz.tz_minuteswest = 0;
     tz.tz_dsttime = 0;
@@ -59,9 +63,11 @@ static void set_time()
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
     ESP_LOGI(TAG, "The current date/time is: %s", strftime_buf);
 
+#if ESP_IDF_VERSION_MAJOR < 4
     /* wait until wifi connect */
     xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT,
                                             false, true, portMAX_DELAY);
+#endif
     /* now we start client tasks. */
     tls_smp_server_init();
 }
@@ -117,6 +123,15 @@ void app_main(void)
     tcpip_adapter_init();
 
     /* */
+#if ESP_IDF_VERSION_MAJOR >= 4 && ESP_IDF_VERSION_MINOR >= 1
+    (void) wifi_event_handler;
+   ESP_ERROR_CHECK(esp_event_loop_create_default());
+   /* This helper function configures Wi-Fi or Ethernet, as selected in menuconfig.
+   * Read "Establishing Wi-Fi or Ethernet Connection" section in
+   * examples/protocols/README.md for more information about this function.
+   */
+    ESP_ERROR_CHECK(example_connect());
+#else
     wifi_event_group = xEventGroupCreate();
     ESP_ERROR_CHECK(esp_event_loop_init(wifi_event_handler, NULL));
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
@@ -138,6 +153,7 @@ void app_main(void)
     ESP_LOGI(TAG, "wifi_init_sta finished.");
     ESP_LOGI(TAG, "connect to ap SSID:%s password:%s",
                                         TLS_SMP_WIFI_SSID, TLS_SMP_WIFI_PASS);
-    ESP_LOGI(TAG, "Set Dummy time...");
+#endif
+    ESP_LOGI(TAG, "Set dummy time...");
     set_time();
 }

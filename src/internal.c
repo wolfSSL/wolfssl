@@ -4655,6 +4655,36 @@ int DhAgree(WOLFSSL* ssl, DhKey* dhKey,
 
 
 #ifdef HAVE_PK_CALLBACKS
+int wolfSSL_IsPrivatePkSet(WOLFSSL* ssl)
+{
+    int pkcbset = 0;
+    (void)ssl;
+    
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || !defined(NO_RSA)
+    if (0
+    #ifdef HAVE_ECC
+        || (ssl->ctx->EccSignCb != NULL && 
+                                        ssl->buffers.keyType == ecc_dsa_sa_algo)
+    #endif
+    #ifdef HAVE_ED25519
+        || (ssl->ctx->Ed25519SignCb != NULL && 
+                                        ssl->buffers.keyType == ed25519_sa_algo)
+    #endif
+    #ifndef NO_RSA
+        || (ssl->ctx->RsaSignCb != NULL && ssl->buffers.keyType == rsa_sa_algo)
+        || (ssl->ctx->RsaDecCb != NULL && ssl->buffers.keyType == rsa_kea)
+        #ifdef WC_RSA_PSS
+        || (ssl->ctx->RsaPssSignCb != NULL && 
+                                        ssl->buffers.keyType == rsa_pss_sa_algo)
+        #endif
+    #endif
+    ) {
+        pkcbset = 1;
+    }
+#endif
+    return pkcbset;
+}
+
 int wolfSSL_CTX_IsPrivatePkSet(WOLFSSL_CTX* ctx)
 {
     int pkcbset = 0;
@@ -18047,7 +18077,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
 
 #ifdef HAVE_PK_CALLBACKS
     /* allow no private key if using PK callbacks and CB is set */
-    if (wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)) {
+    if (wolfSSL_IsPrivatePkSet(ssl)) {
         *length = GetPrivateKeySigSize(ssl);
         return 0;
     }
