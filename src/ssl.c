@@ -25750,7 +25750,7 @@ void wolfSSL_ASN1_GENERALIZEDTIME_free(WOLFSSL_ASN1_TIME* asn1Time)
     XMEMSET(asn1Time->data, 0, sizeof(asn1Time->data));
 }
 
-int  wolfSSL_sk_num(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
+int wolfSSL_sk_num(WOLFSSL_STACK* sk)
 {
     WOLFSSL_ENTER("wolfSSL_sk_num");
     if (sk == NULL)
@@ -25758,7 +25758,7 @@ int  wolfSSL_sk_num(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
     return (int)sk->num;
 }
 
-void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
+void* wolfSSL_sk_value(WOLFSSL_STACK* sk, int i)
 {
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     int offset = i;
@@ -25772,9 +25772,9 @@ void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
         return NULL;
 
     switch (sk->type) {
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         case STACK_TYPE_X509:
             return (void*)sk->data.x509;
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         case STACK_TYPE_CIPHER:
             if (sk->data.cipher == NULL)
                 return NULL;
@@ -25793,12 +25793,14 @@ void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
             return (void*)gn;
         case STACK_TYPE_ACCESS_DESCRIPTION:
             return (void*)sk->data.access;
+    #endif
         case STACK_TYPE_OBJ:
             return (void*)sk->data.obj;
             break;
         case STACK_TYPE_NULL:
             return (void*)sk->data.generic;
             break;
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         case STACK_TYPE_X509_EXT:
             return (void*)sk->data.ext;
     #endif
