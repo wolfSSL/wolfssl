@@ -9,27 +9,33 @@ Each project uses `user_settings.h` for to enable and disable features.
 
 
 ### Set Up Steps
-0. Open the wolfssl Microsoft Visual Studio Solution
+0. Setup your Azure Sphere device.
+   [Install Azure Sphere](https://docs.microsoft.com/en-us/azure-sphere/install/install)
+   [Set up an account](https://docs.microsoft.com/en-us/azure-sphere/install/azure-directory-account)
+   [Claim your device](https://docs.microsoft.com/en-us/azure-sphere/install/claim-device)
+   [Configure networking](https://docs.microsoft.com/en-us/azure-sphere/install/configure-wifi)
 
-1. Build All the Projects
+1. Open the wolfssl Microsoft Visual Studio Solution
+
+2. Build All the Projects
     + Right Click: `Solution 'wolfssl' (4 of 4 projects)`
     + Click: `Build Solution`
 
-2. Connect your Azure Sphere MT3620 Development Board using USB.
+3. Connect your Azure Sphere MT3620 Development Board using USB.
 
-3. Run the wolfCrypt Library Test
+4. Run the wolfCrypt Library Test
     + Right Click: `wolfcrypt_test (Azure Sphere)`
     + Click: `Debug->'Start new instance'.`
 
-4. Wait for the wolfCrypt Library Test to finish.
+5. Wait for the wolfCrypt Library Test to finish.
 
-5. Test the client.
+6. Test the client.
     + Run client(Azure Sphere) using: `Debug->'Start new instance'`
 
 It's OK if the HTTP GET request returns an error.
 The TLS connection was successful.
 
-6. Test the server.
+7. Test the server.
     + Run server(Azure Sphere) using: `Debug->'Start new instance'`
     + Run the following wolfSSL example client command inside wolfssl directory.
 

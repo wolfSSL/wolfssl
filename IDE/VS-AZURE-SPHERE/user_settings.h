@@ -2,7 +2,6 @@
 #define _USER_SETTINGS_H_
 
 #define WOLFSSL_AZSPHERE
-
 /* Client connects to the server with these details. */
 #ifdef CUSTOM_SERVER_CONNECTION
     #ifndef SERVER_IP
@@ -14,7 +13,7 @@
     static const char msg[] = "Are you listening wolfSSL Server?";
 #else
     #ifndef SERVER_IP
-        #define SERVER_IP "151.101.26.217" /* www.wolfssl.com */
+        #define SERVER_IP "www.wolfssl.com"
     #endif
     #define CERT         wolfssl_website_root_ca
     #define SIZEOF_CERT  sizeof_wolfssl_website_root_ca
@@ -62,5 +61,8 @@
 
 /* Filesystem */
 #define NO_FILESYSTEM
+
+/* Debug */
+#define WOLFIO_DEBUG
 
 #endif /* _USER_SETTINGS_H_ */
