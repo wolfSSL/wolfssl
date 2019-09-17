@@ -35,12 +35,16 @@ static int my_IORecv(WOLFSSL* ssl, char* buff, int sz, void* ctx)
     int ret;
     ID  cepid;
 
-    if(ctx != NULL)cepid = *(ID *)ctx;
-    else return WOLFSSL_CBIO_ERR_GENERAL;
+    if(ctx != NULL)
+        cepid = *(ID *)ctx;
+    else
+        return WOLFSSL_CBIO_ERR_GENERAL;
 
     ret = tcp_rcv_dat(cepid, buff, sz, TMO_FEVR);
-    if(ret == sz)return ret;
-    else         return WOLFSSL_CBIO_ERR_GENERAL;
+    if(ret == sz)
+       return ret;
+    else
+       return WOLFSSL_CBIO_ERR_GENERAL;
 }
 
 static int my_IOSend(WOLFSSL* ssl, char* buff, int sz, void* ctx)
@@ -48,12 +52,16 @@ static int my_IOSend(WOLFSSL* ssl, char* buff, int sz, void* ctx)
     int ret;
     ID  cepid;
 
-    if(ctx != NULL)cepid = *(ID *)ctx;
-    else return WOLFSSL_CBIO_ERR_GENERAL;
+    if(ctx != NULL)
+        cepid = *(ID *)ctx;
+    else
+        return WOLFSSL_CBIO_ERR_GENERAL;
 
     ret = tcp_snd_dat(cepid, buff, sz, TMO_FEVR);
-    if(ret == sz)return ret;
-    else         return WOLFSSL_CBIO_ERR_GENERAL;
+    if(ret == sz)
+        return ret;
+    else
+        return WOLFSSL_CBIO_ERR_GENERAL;
 }
 
 

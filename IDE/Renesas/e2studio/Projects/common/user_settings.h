@@ -71,11 +71,12 @@
 /* TSIP TLS specific definitions */
 #if !defined(WOLFSSL_RENESAS_TSIP)
     #define OPENSSL_EXTRA
-    #define WOLFSSL_GENSEED_FORTEST /* Wardning: define your own seed gen */
+    #define WOLFSSL_GENSEED_FORTEST /* Warning: define your own seed gen */
 #else
 #if defined(WOLFSSL_RENESAS_RX65N)
-     /* In the case of Static RSA and AES-CBC use */
+    /* In the case of Static RSA and AES-CBC use */
     #define HAVE_AES_CBC
+    /* TSIP ver 1.0.6 or lower supports only static RSA as Public-key cryptography. */
     #define WOLFSSL_STATIC_RSA
     /* for disabling TSIP CRYPT and TSIP TLS */
     /* #define NO_RENESAS_TSIP_CRYPT */

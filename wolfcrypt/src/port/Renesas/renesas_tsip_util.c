@@ -391,16 +391,22 @@ int tsip_generateSeesionKey(struct WOLFSSL *ssl)
                 if (enc->aes == NULL)
                     enc->aes = (Aes*)XMALLOC(sizeof(Aes), ssl->heap, 
                                                     DYNAMIC_TYPE_CIPHER);
-                if (enc->aes == NULL)
+                if (enc->aes == NULL) 
                     return MEMORY_E;
+                
                 XMEMSET(enc->aes, 0, sizeof(Aes));
             }
             if (dec) {
                 if (dec->aes == NULL)
                     dec->aes = (Aes*)XMALLOC(sizeof(Aes), ssl->heap, 
                                                     DYNAMIC_TYPE_CIPHER);
-                if (dec->aes == NULL)
+                if (dec->aes == NULL) {
+                    if (enc) {
+                        XFREE(enc->aes, NULL, DYNAMIC_TYPE_CIPHER);
+                    }
                     return MEMORY_E;
+                }
+                
                 XMEMSET(dec->aes, 0, sizeof(Aes));
             }
             /* copy key index into aes */

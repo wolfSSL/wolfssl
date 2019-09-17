@@ -28,8 +28,8 @@
 #include "wolfssl/certs_test.h"
 #include "key_data.h"
 
-#define SIMPLE_TLSSEVER_IP 		"192.168.1.45"
-#define SIMPLE_TLSSERVER_PORT	"11111"
+#define SIMPLE_TLSSEVER_IP       "192.168.1.45"
+#define SIMPLE_TLSSERVER_PORT    "11111"
 
 ER    t4_tcp_callback(ID cepid, FN fncd , VP p_parblk);
 uint32_t g_encrypted_root_public_key[140];
@@ -41,8 +41,10 @@ static int my_IORecv(WOLFSSL* ssl, char* buff, int sz, void* ctx)
     int ret;
     ID  cepid;
 
-    if(ctx != NULL)cepid = *(ID *)ctx;
-    else return WOLFSSL_CBIO_ERR_GENERAL;
+    if(ctx != NULL)
+        cepid = *(ID *)ctx;
+    else
+        return WOLFSSL_CBIO_ERR_GENERAL;
 
     ret = tcp_rcv_dat(cepid, buff, sz, TMO_FEVR);
     if(ret > 0)return ret;
@@ -54,8 +56,10 @@ static int my_IOSend(WOLFSSL* ssl, char* buff, int sz, void* ctx)
     int ret;
     ID  cepid;
 
-    if(ctx != NULL)cepid = *(ID *)ctx;
-    else return WOLFSSL_CBIO_ERR_GENERAL;
+    if(ctx != NULL)
+    	cepid = *(ID *)ctx;
+    else
+    	return WOLFSSL_CBIO_ERR_GENERAL;
 
     ret = tcp_snd_dat(cepid, buff, sz, TMO_FEVR);
     if(ret == sz)return ret;

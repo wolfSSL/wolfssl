@@ -119,6 +119,9 @@ int wolfCrypt_Init(void)
         ret = tsip_Open( );
         if( ret != TSIP_SUCCESS ) {
             WOLFSSL_MSG("RENESAS TSIP Open failed");
+            /* not return 1 since WOLFSSL_SUCCESS=1*/
+            ret = -1;/* FATAL ERROR */
+            return ret;
         }
     #endif
     
