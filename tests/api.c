@@ -2026,6 +2026,12 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         ctx = wolfSSL_CTX_new(method);
     }
 
+#if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
+                                    defined(HAVE_POLY1305)
+    TicketInit();
+    wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCb);
+#endif
+
 #if defined(USE_WINDOWS_API)
     port = ((func_args*)args)->signal->port;
 #elif defined(NO_MAIN_DRIVER) && !defined(WOLFSSL_SNIFFER) && \
@@ -2186,6 +2192,11 @@ done:
 #if defined(NO_MAIN_DRIVER) && defined(HAVE_ECC) && defined(FP_ECC) \
                             && defined(HAVE_THREAD_LS)
     wc_ecc_fp_free();  /* free per thread cache */
+#endif
+
+#if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
+                                    defined(HAVE_POLY1305)
+    TicketCleanup();
 #endif
 
 #ifndef WOLFSSL_TIRTOS
@@ -22014,6 +22025,7 @@ static void test_wolfSSL_SESSION(void)
     tcp_ready ready;
     func_args server_args;
     THREAD_TYPE serverThread;
+    char msg[80];
 
     printf(testingFmt, "wolfSSL_SESSION()");
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
@@ -22062,6 +22074,10 @@ static void test_wolfSSL_SESSION(void)
         }
     } while (ret != SSL_SUCCESS && err == WC_PENDING_E);
     AssertIntEQ(ret, SSL_SUCCESS);
+
+    AssertIntEQ(wolfSSL_write(ssl, "GET", 3), 3);
+    AssertIntEQ(wolfSSL_read(ssl, msg, sizeof(msg)), 23);
+
     sess = wolfSSL_get_session(ssl);
     wolfSSL_shutdown(ssl);
     wolfSSL_free(ssl);

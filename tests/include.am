@@ -20,15 +20,20 @@ tests_unit_test_DEPENDENCIES = src/libwolfssl.la
 endif
 EXTRA_DIST += tests/unit.h
 EXTRA_DIST += tests/test.conf \
+              tests/test-sha2.conf \
               tests/test-tls13.conf \
               tests/test-tls13-down.conf \
               tests/test-tls13-ecc.conf \
               tests/test-tls13-psk.conf \
               tests/test-qsh.conf \
+              tests/test-qsh-sha2.conf \
               tests/test-psk.conf \
               tests/test-psk-no-id.conf \
+              tests/test-psk-no-id-sha2.conf \
               tests/test-dtls.conf \
+              tests/test-dtls-sha2.conf \
               tests/test-sctp.conf \
+              tests/test-sctp-sha2.conf \
               tests/test-sig.conf \
               tests/test-ed25519.conf \
               tests/test-enckeys.conf \

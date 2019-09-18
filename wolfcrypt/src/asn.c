@@ -647,7 +647,7 @@ static int SetASNIntMP(mp_int* n, int maxSz, byte* output)
  *         MP_TO_E when encoding the integer fails.
  *         Otherwise, the number of bytes added to the buffer.
  */
-static int SetASNIntRSA(mp_int* n, byte* output)
+static int SetASNIntRSA(void* n, byte* output)
 {
     int idx = 0;
     int leadingBit;
@@ -14514,6 +14514,7 @@ static int DecodeResponseData(byte* source,
     int length;
     int version;
     word32 responderId = 0;
+    int ret;
 
     WOLFSSL_ENTER("DecodeResponseData");
 
@@ -14551,8 +14552,8 @@ static int DecodeResponseData(byte* source,
                                         &resp->producedDateFormat, size) < 0)
         return ASN_PARSE_E;
 
-    if (DecodeSingleResponse(source, &idx, resp, size) < 0)
-        return ASN_PARSE_E;
+    if ((ret = DecodeSingleResponse(source, &idx, resp, size)) < 0)
+        return ret; /* ASN_PARSE_E, ASN_BEFORE_DATE_E, ASN_AFTER_DATE_E */
 
     /*
      * Check the length of the ResponseData against the current index to
@@ -14617,8 +14618,8 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
         return ASN_INPUT_E;
     end_index = idx + length;
 
-    if (DecodeResponseData(source, &idx, resp, size) < 0)
-        return ASN_PARSE_E;
+    if ((ret = DecodeResponseData(source, &idx, resp, size)) < 0)
+        return ret; /* ASN_PARSE_E, ASN_BEFORE_DATE_E, ASN_AFTER_DATE_E */
 
     /* Get the signature algorithm */
     if (GetAlgoId(source, &idx, &resp->sigOID, oidSigType, size) < 0)

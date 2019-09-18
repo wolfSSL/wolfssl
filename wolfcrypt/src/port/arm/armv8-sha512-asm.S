@@ -23,8 +23,6 @@
  *   cd ../scripts
  *   ruby ./sha2/sha512.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-sha512-asm.S
  */
-
-#ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
 	.text
 	.section	.rodata
@@ -127,16 +125,16 @@ Transform_Sha512_Len:
 	stp	x29, x30, [sp, #-128]!
 	add	x29, sp, #0
 	str	x17, [x29, #16]
-	stp	x18, x19, [x29, #24]
-	stp	x20, x21, [x29, #40]
-	stp	x22, x23, [x29, #56]
-	stp	x24, x25, [x29, #72]
-	str	x26, [x29, #88]
+	str	x19, [x29, #24]
+	stp	x20, x21, [x29, #32]
+	stp	x22, x23, [x29, #48]
+	stp	x24, x25, [x29, #64]
+	stp	x26, x27, [x29, #80]
 	stp	d8, d9, [x29, #96]
 	stp	d10, d11, [x29, #112]
 	adr	x3, L_SHA512_transform_neon_len_k
-	adr	x26, L_SHA512_transform_neon_len_ror8
-	ld1	{v11.16b}, [x26]
+	adr	x27, L_SHA512_transform_neon_len_ror8
+	ld1	{v11.16b}, [x27]
 	# Load digest into working vars
 	ldp	x4, x5, [x0]
 	ldp	x6, x7, [x0, #16]
@@ -147,26 +145,26 @@ L_sha512_len_neon_begin:
 	# Load W
 	# Copy digest to add in at end
 	ld1	{v0.2d, v1.2d, v2.2d, v3.2d}, [x1], #0x40
-	mov	x18, x4
+	mov	x19, x4
 	ld1	{v4.2d, v5.2d, v6.2d, v7.2d}, [x1], #0x40
-	mov	x19, x5
+	mov	x20, x5
 	rev64	v0.16b, v0.16b
-	mov	x20, x6
+	mov	x21, x6
 	rev64	v1.16b, v1.16b
-	mov	x21, x7
+	mov	x22, x7
 	rev64	v2.16b, v2.16b
-	mov	x22, x8
+	mov	x23, x8
 	rev64	v3.16b, v3.16b
-	mov	x23, x9
+	mov	x24, x9
 	rev64	v4.16b, v4.16b
-	mov	x24, x10
+	mov	x25, x10
 	rev64	v5.16b, v5.16b
-	mov	x25, x11
+	mov	x26, x11
 	rev64	v6.16b, v6.16b
 	rev64	v7.16b, v7.16b
 	# Pre-calc: b ^ c
 	eor	x16, x5, x6
-	mov	x26, #4
+	mov	x27, #4
 	# Start of 16 rounds
 L_sha512_len_neon_start:
 	# Round 0
@@ -665,7 +663,7 @@ L_sha512_len_neon_start:
 	add	v7.2d, v7.2d, v9.2d
 	add	x8, x8, x4
 	add	x4, x4, x14
-	subs	x26, x26, #1
+	subs	x27, x27, #1
 	bne	L_sha512_len_neon_start
 	# Round 0
 	mov	x13, v0.d[0]
@@ -1019,14 +1017,14 @@ L_sha512_len_neon_start:
 	add	x14, x14, x17
 	add	x8, x8, x4
 	add	x4, x4, x14
-	add	x11, x11, x25
-	add	x10, x10, x24
-	add	x9, x9, x23
-	add	x8, x8, x22
-	add	x7, x7, x21
-	add	x6, x6, x20
-	add	x5, x5, x19
-	add	x4, x4, x18
+	add	x11, x11, x26
+	add	x10, x10, x25
+	add	x9, x9, x24
+	add	x8, x8, x23
+	add	x7, x7, x22
+	add	x6, x6, x21
+	add	x5, x5, x20
+	add	x4, x4, x19
 	adr	x3, L_SHA512_transform_neon_len_k
 	subs	w2, w2, #0x80
 	bne	L_sha512_len_neon_begin
@@ -1035,15 +1033,14 @@ L_sha512_len_neon_start:
 	stp	x8, x9, [x0, #32]
 	stp	x10, x11, [x0, #48]
 	ldr	x17, [x29, #16]
-	ldp	x18, x19, [x29, #24]
-	ldp	x20, x21, [x29, #40]
-	ldp	x22, x23, [x29, #56]
-	ldp	x24, x25, [x29, #72]
-	ldr	x26, [x29, #88]
+	ldr	x19, [x29, #24]
+	ldp	x20, x21, [x29, #32]
+	ldp	x22, x23, [x29, #48]
+	ldp	x24, x25, [x29, #64]
+	ldp	x26, x27, [x29, #80]
 	ldp	d8, d9, [x29, #96]
 	ldp	d10, d11, [x29, #112]
 	ldp	x29, x30, [sp], #0x80
 	ret
 	.size	Transform_Sha512_Len,.-Transform_Sha512_Len
 #endif /* __aarch64__ */
-#endif /* WOLFSSL_ARMASM */

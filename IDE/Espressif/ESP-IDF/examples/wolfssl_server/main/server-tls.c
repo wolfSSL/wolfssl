@@ -133,6 +133,7 @@ void tls_smp_server_task()
     size_t             len;
     int                shutdown = 0;
     int                ret;
+    const char msg[] = "I hear you fa shizzle!";
 
     /* declare wolfSSL objects */
     WOLFSSL_CTX* ctx;
@@ -245,7 +246,7 @@ void tls_smp_server_task()
         }
         /* Write our reply into buff */
         memset(buff, 0, sizeof(buff));
-        memcpy(buff, "I hear ya fa shizzle!", sizeof(buff));
+        memcpy(buff, msg, sizeof(msg));
         len = strnlen(buff, sizeof(buff));
         /* Reply back to the client */
         if (wolfSSL_write(ssl, buff, len) != len) {

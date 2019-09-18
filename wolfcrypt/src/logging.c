@@ -277,41 +277,52 @@ void WOLFSSL_MSG(const char* msg)
         wolfssl_log(INFO_LOG , msg);
 }
 
-
+#ifndef LINE_LEN
+#define LINE_LEN 16
+#endif
 void WOLFSSL_BUFFER(const byte* buffer, word32 length)
 {
-    #define LINE_LEN 16
+    int i, buflen = (int)length, bufidx;
+    char line[(LINE_LEN * 4) + 3]; /* \t00..0F | chars...chars\0 */
 
-    if (loggingEnabled) {
-        word32 i;
-        char line[80];
+    if (!loggingEnabled) {
+        return;
+    }
 
-        if (!buffer) {
-            wolfssl_log(INFO_LOG, "\tNULL");
+    if (!buffer) {
+        wolfssl_log(INFO_LOG, "\tNULL");
+        return;
+    }
 
-            return;
-        }
-
-        sprintf(line, "\t");
+    while (buflen > 0) {
+        bufidx = 0;
+        XSNPRINTF(&line[bufidx], sizeof(line)-bufidx, "\t");
+        bufidx++;
 
         for (i = 0; i < LINE_LEN; i++) {
-            if (i < length)
-                sprintf(line + 1 + i * 3,"%02x ", buffer[i]);
-            else
-                sprintf(line + 1 + i * 3, "   ");
+            if (i < buflen) {
+                XSNPRINTF(&line[bufidx], sizeof(line)-bufidx, "%02x ", buffer[i]);
+            }
+            else {
+                XSNPRINTF(&line[bufidx], sizeof(line)-bufidx, "   ");
+            }
+            bufidx += 3;
         }
 
-        sprintf(line + 1 + LINE_LEN * 3, "| ");
+        XSNPRINTF(&line[bufidx], sizeof(line)-bufidx, "| ");
+        bufidx++;
 
-        for (i = 0; i < LINE_LEN; i++)
-            if (i < length)
-                sprintf(line + 3 + LINE_LEN * 3 + i,
+        for (i = 0; i < LINE_LEN; i++) {
+            if (i < buflen) {
+                XSNPRINTF(&line[bufidx], sizeof(line)-bufidx,
                      "%c", 31 < buffer[i] && buffer[i] < 127 ? buffer[i] : '.');
+                bufidx++;
+            }
+        }
 
         wolfssl_log(INFO_LOG, line);
-
-        if (length > LINE_LEN)
-            WOLFSSL_BUFFER(buffer + LINE_LEN, length - LINE_LEN);
+        buffer += LINE_LEN;
+        buflen -= LINE_LEN;
     }
 }
 

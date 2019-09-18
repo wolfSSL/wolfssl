@@ -198,7 +198,7 @@ static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, 
 #ifdef CHACHA_TEST
     printf("Entering wc_Chacha_encrypt_320 with %d bytes\n", bytes);
 #endif /*CHACHA_TEST */
-
+    word64 bytes64 = (word64) bytes;
     __asm__ __volatile__ (
         /*
          * The layout of used registers is:
@@ -237,7 +237,7 @@ static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, 
         "MOV    x12, v26.d[0] \n\t"
         "MOV    x14, v26.d[1] \n\t"
         "MOV    x16, v27.d[0] \n\t"
-        "MOV    x18, v27.d[1] \n\t"
+        "MOV    x22, v27.d[1] \n\t"
         /* Move state into vector registers (x4) */
         "DUP    v0.4s, v24.s[0] \n\t"
         "DUP    v1.4s, v24.s[1] \n\t"
@@ -262,7 +262,7 @@ static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, 
         "LSR    x17, x16, #32 \n\t"
         "DUP    v14.4s, v27.s[2] \n\t"
         "DUP    v15.4s, v27.s[3] \n\t"
-        "LSR    x19, x18, #32 \n\t"
+        "LSR    x19, x22, #32 \n\t"
         /* Add to counter word */
         "ADD    v12.4s, v12.4s, v28.4s \n\t"
         "ADD    w16, w16, w21 \n\t"
@@ -286,7 +286,7 @@ static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, 
         "EOR    v13.16b, v13.16b, v1.16b \n\t"
         "EOR    w17, w17, w5 \n\t"
         "EOR    v14.16b, v14.16b, v2.16b \n\t"
-        "EOR    w18, w18, w6 \n\t"
+        "EOR    w22, w22, w6 \n\t"
         "EOR    v15.16b, v15.16b, v3.16b \n\t"
         "EOR    w19, w19, w7 \n\t"
         "REV32  v12.8h, v12.8h \n\t"
@@ -294,7 +294,7 @@ static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, 
         "REV32  v13.8h, v13.8h \n\t"
         "ROR    w17, w17, #16 \n\t"
         "REV32  v14.8h, v14.8h \n\t"
-        "ROR    w18, w18, #16 \n\t"
+        "ROR    w22, w22, #16 \n\t"
         "REV32  v15.8h, v15.8h \n\t"
         "ROR    w19, w19, #16 \n\t"
         /* c += d; b ^= c; b <<<= 12; */
@@ -303,7 +303,7 @@ static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, 
         "ADD    v9.4s, v9.4s, v13.4s \n\t"
         "ADD    w13, w13, w17 \n\t"
         "ADD    v10.4s, v10.4s, v14.4s \n\t"
-        "ADD    w14, w14, w18 \n\t"
+        "ADD    w14, w14, w22 \n\t"
         "ADD    v11.4s, v11.4s, v15.4s \n\t"
         "ADD    w15, w15, w19 \n\t"
         "EOR    v16.16b, v4.16b, v8.16b \n\t"
@@ -340,7 +340,7 @@ static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, 
         "EOR    v13.16b, v13.16b, v1.16b \n\t"
         "EOR    w17, w17, w5 \n\t"
         "EOR    v14.16b, v14.16b, v2.16b \n\t"
-        "EOR    w18, w18, w6 \n\t"
+        "EOR    w22, w22, w6 \n\t"
         "EOR    v15.16b, v15.16b, v3.16b \n\t"
         "EOR    w19, w19, w7 \n\t"
         "TBL    v12.16b, { v12.16b }, v30.16b \n\t"
@@ -348,7 +348,7 @@ static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, 
         "TBL    v13.16b, { v13.16b }, v30.16b \n\t"
         "ROR    w17, w17, #24 \n\t"
         "TBL    v14.16b, { v14.16b }, v30.16b \n\t"
-        "ROR    w18, w18, #24 \n\t"
+        "ROR    w22, w22, #24 \n\t"
         "TBL    v15.16b, { v15.16b }, v30.16b \n\t"
         "ROR    w19, w19, #24 \n\t"
         /* c += d; b ^= c; b <<<= 7; */
@@ -357,7 +357,7 @@ static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, 
         "ADD    v9.4s, v9.4s, v13.4s \n\t"
         "ADD    w13, w13, w17 \n\t"
         "ADD    v10.4s, v10.4s, v14.4s \n\t"
-        "ADD    w14, w14, w18 \n\t"
+        "ADD    w14, w14, w22 \n\t"
         "ADD    v11.4s, v11.4s, v15.4s \n\t"
         "ADD    w15, w15, w19 \n\t"
         "EOR    v16.16b, v4.16b, v8.16b \n\t"
@@ -397,7 +397,7 @@ static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, 
         "EOR    v13.16b, v13.16b, v2.16b \n\t"
         "EOR    w17, w17, w6 \n\t"
         "EOR    v14.16b, v14.16b, v3.16b \n\t"
-        "EOR    w18, w18, w7 \n\t"
+        "EOR    w22, w22, w7 \n\t"
         "REV32  v15.8h, v15.8h \n\t"
         "ROR    w19, w19, #16 \n\t"
         "REV32  v12.8h, v12.8h \n\t"
@@ -405,7 +405,7 @@ static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, 
         "REV32  v13.8h, v13.8h \n\t"
         "ROR    w17, w17, #16 \n\t"
         "REV32  v14.8h, v14.8h \n\t"
-        "ROR    w18, w18, #16 \n\t"
+        "ROR    w22, w22, #16 \n\t"
         /* c += d; b ^= c; b <<<= 12; */
         "ADD    v10.4s, v10.4s, v15.4s \n\t"
         "ADD    w14, w14, w19 \n\t"
@@ -414,7 +414,7 @@ static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, 
         "ADD    v8.4s, v8.4s, v13.4s \n\t"
         "ADD    w12, w12, w17 \n\t"
         "ADD    v9.4s, v9.4s, v14.4s \n\t"
-        "ADD    w13, w13, w18 \n\t"
+        "ADD    w13, w13, w22 \n\t"
         "EOR    v16.16b, v5.16b, v10.16b \n\t"
         "EOR    w9, w9, w14 \n\t"
         "EOR    v17.16b, v6.16b, v11.16b \n\t"
@@ -451,7 +451,7 @@ static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, 
         "EOR    v13.16b, v13.16b, v2.16b \n\t"
         "EOR    w17, w17, w6 \n\t"
         "EOR    v14.16b, v14.16b, v3.16b \n\t"
-        "EOR    w18, w18, w7 \n\t"
+        "EOR    w22, w22, w7 \n\t"
         "TBL    v15.16b, { v15.16b }, v30.16b \n\t"
         "ROR    w19, w19, #24 \n\t"
         "TBL    v12.16b, { v12.16b }, v30.16b \n\t"
@@ -459,7 +459,7 @@ static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, 
         "TBL    v13.16b, { v13.16b }, v30.16b \n\t"
         "ROR    w17, w17, #24 \n\t"
         "TBL    v14.16b, { v14.16b }, v30.16b \n\t"
-        "ROR    w18, w18, #24 \n\t"
+        "ROR    w22, w22, #24 \n\t"
         /* c += d; b ^= c; b <<<= 7; */
         "ADD    v10.4s, v10.4s, v15.4s \n\t"
         "ADD    w14, w14, w19 \n\t"
@@ -468,7 +468,7 @@ static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, 
         "ADD    v8.4s, v8.4s, v13.4s \n\t"
         "ADD    w12, w12, w17 \n\t"
         "ADD    v9.4s, v9.4s, v14.4s \n\t"
-        "ADD    w13, w13, w18 \n\t"
+        "ADD    w13, w13, w22 \n\t"
         "EOR    v16.16b, v5.16b, v10.16b \n\t"
         "EOR    w9, w9, w14 \n\t"
         "EOR    v17.16b, v6.16b, v11.16b \n\t"
@@ -582,10 +582,10 @@ static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, 
         "MOV    v17.d[1], x10 \n\t"
         "ORR    x16, x16, x17, LSL #32 \n\t"
         "MOV    v18.d[0], x12 \n\t"
-        "ORR    x18, x18, x19, LSL #32 \n\t"
+        "ORR    x22, x22, x19, LSL #32 \n\t"
         "MOV    v18.d[1], x14 \n\t"
         "MOV    v19.d[0], x16 \n\t"
-        "MOV    v19.d[1], x18 \n\t"
+        "MOV    v19.d[1], x22 \n\t"
         /* Add back state, XOR in message and store */
         "ADD    v16.4s, v16.4s, v24.4s \n\t"
         "ADD    v17.4s, v17.4s, v25.4s \n\t"
@@ -601,12 +601,12 @@ static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, 
         "ADD    v28.4s, v28.4s, v29.4s \n\t"
         "BNE    L_chacha20_arm64_outer_%= \n\t"
         : [input] "+r" (input), [m] "+r" (m), [c] "+r" (c),
-          [bytes] "+r" (bytes)
+          [bytes] "+r" (bytes64)
         : [L_chacha20_neon_add_all_counters] "r" (L_chacha20_neon_add_all_counters),
           [L_chacha20_neon_rol8] "r" (L_chacha20_neon_rol8)
         : "memory", "cc",
           "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12",
-          "x13", "x14", "x15", "x16", "x17", "x18", "x19", "x20", "x21",
+          "x13", "x14", "x15", "x16", "x17", "x22", "x19", "x20", "x21",
           "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9",
           "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18",
           "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27"
@@ -650,11 +650,11 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         "MOV    x12, v22.D[0] \n\t"
         "MOV    x14, v22.D[1] \n\t"
         "MOV    x16, v23.D[0] \n\t"
-        "MOV    x18, v23.D[1] \n\t"
+        "MOV    x22, v23.D[1] \n\t"
         /* Move state into vector registers (x3) */
         "MOV    v0.16B, v20.16B \n\t"
         "MOV    v1.16B, v21.16B \n\t"
-        "LSR    x19, x18, #32 \n\t"
+        "LSR    x19, x22, #32 \n\t"
         "MOV    v2.16B, v22.16B \n\t"
         "ADD    w20, w16, #1 \n\t"
         "MOV    v3.16B, v23.16B \n\t"
@@ -697,7 +697,7 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         "EOR    v7.16B, v7.16B, v4.16B \n\t"
         "EOR    w17, w17, w5 \n\t"
         "EOR    v11.16B, v11.16B, v8.16B \n\t"
-        "EOR    w18, w18, w6 \n\t"
+        "EOR    w22, w22, w6 \n\t"
         "REV32  v3.8H, v3.8H \n\t"
         "EOR    w19, w19, w7 \n\t"
         "REV32  v7.8H, v7.8H \n\t"
@@ -706,7 +706,7 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         /* c += d; b ^= c; b <<<= 12; */
         "ROR    w17, w17, #16 \n\t"
         "ADD    v2.4S, v2.4S, v3.4S \n\t"
-        "ROR    w18, w18, #16 \n\t"
+        "ROR    w22, w22, #16 \n\t"
         "ADD    v6.4S, v6.4S, v7.4S \n\t"
         "ROR    w19, w19, #16 \n\t"
         "ADD    v10.4S, v10.4S, v11.4S \n\t"
@@ -714,7 +714,7 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         "EOR    v12.16B, v1.16B, v2.16B \n\t"
         "ADD    w13, w13, w17 \n\t"
         "EOR    v13.16B, v5.16B, v6.16B \n\t"
-        "ADD    w14, w14, w18 \n\t"
+        "ADD    w14, w14, w22 \n\t"
         "EOR    v14.16B, v9.16B, v10.16B \n\t"
         "ADD    w15, w15, w19 \n\t"
         "SHL    v1.4S, v12.4S, #12 \n\t"
@@ -748,7 +748,7 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         "EOR    w17, w17, w5 \n\t"
         "TBL    v11.16B, { v11.16B }, v24.16B \n\t"
         /* c += d; b ^= c; b <<<= 7; */
-        "EOR    w18, w18, w6 \n\t"
+        "EOR    w22, w22, w6 \n\t"
         "ADD    v2.4S, v2.4S, v3.4S \n\t"
         "EOR    w19, w19, w7 \n\t"
         "ADD    v6.4S, v6.4S, v7.4S \n\t"
@@ -756,7 +756,7 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         "ADD    v10.4S, v10.4S, v11.4S \n\t"
         "ROR    w17, w17, #24 \n\t"
         "EOR    v12.16B, v1.16B, v2.16B \n\t"
-        "ROR    w18, w18, #24 \n\t"
+        "ROR    w22, w22, #24 \n\t"
         "EOR    v13.16B, v5.16B, v6.16B \n\t"
         "ROR    w19, w19, #24 \n\t"
         "EOR    v14.16B, v9.16B, v10.16B \n\t"
@@ -764,7 +764,7 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         "SHL    v1.4S, v12.4S, #7 \n\t"
         "ADD    w13, w13, w17 \n\t"
         "SHL    v5.4S, v13.4S, #7 \n\t"
-        "ADD    w14, w14, w18 \n\t"
+        "ADD    w14, w14, w22 \n\t"
         "SHL    v9.4S, v14.4S, #7 \n\t"
         "ADD    w15, w15, w19 \n\t"
         "SRI    v1.4S, v12.4S, #25 \n\t"
@@ -803,7 +803,7 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         "EOR    v11.16B, v11.16B, v8.16B \n\t"
         "EOR    w17, w17, w6 \n\t"
         "REV32  v3.8H, v3.8H \n\t"
-        "EOR    w18, w18, w7 \n\t"
+        "EOR    w22, w22, w7 \n\t"
         "REV32  v7.8H, v7.8H \n\t"
         "ROR    w19, w19, #16 \n\t"
         "REV32  v11.8H, v11.8H \n\t"
@@ -812,7 +812,7 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         "ADD    v2.4S, v2.4S, v3.4S \n\t"
         "ROR    w17, w17, #16 \n\t"
         "ADD    v6.4S, v6.4S, v7.4S \n\t"
-        "ROR    w18, w18, #16 \n\t"
+        "ROR    w22, w22, #16 \n\t"
         "ADD    v10.4S, v10.4S, v11.4S \n\t"
         "ADD    w14, w14, w19 \n\t"
         "EOR    v12.16B, v1.16B, v2.16B \n\t"
@@ -820,7 +820,7 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         "EOR    v13.16B, v5.16B, v6.16B \n\t"
         "ADD    w12, w12, w17 \n\t"
         "EOR    v14.16B, v9.16B, v10.16B \n\t"
-        "ADD    w13, w13, w18 \n\t"
+        "ADD    w13, w13, w22 \n\t"
         "SHL    v1.4S, v12.4S, #12 \n\t"
         "EOR    w9, w9, w14 \n\t"
         "SHL    v5.4S, v13.4S, #12 \n\t"
@@ -854,7 +854,7 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         /* c += d; b ^= c; b <<<= 7; */
         "EOR    w17, w17, w6 \n\t"
         "ADD    v2.4S, v2.4S, v3.4S \n\t"
-        "EOR    w18, w18, w7 \n\t"
+        "EOR    w22, w22, w7 \n\t"
         "ADD    v6.4S, v6.4S, v7.4S \n\t"
         "ROR    w19, w19, #24 \n\t"
         "ADD    v10.4S, v10.4S, v11.4S \n\t"
@@ -862,7 +862,7 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         "EOR    v12.16B, v1.16B, v2.16B \n\t"
         "ROR    w17, w17, #24 \n\t"
         "EOR    v13.16B, v5.16B, v6.16B \n\t"
-        "ROR    w18, w18, #24 \n\t"
+        "ROR    w22, w22, #24 \n\t"
         "EOR    v14.16B, v9.16B, v10.16B \n\t"
         "ADD    w14, w14, w19 \n\t"
         "SHL    v1.4S, v12.4S, #7 \n\t"
@@ -870,7 +870,7 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         "SHL    v5.4S, v13.4S, #7 \n\t"
         "ADD    w12, w12, w17 \n\t"
         "SHL    v9.4S, v14.4S, #7 \n\t"
-        "ADD    w13, w13, w18 \n\t"
+        "ADD    w13, w13, w22 \n\t"
         "SRI    v1.4S, v12.4S, #25 \n\t"
         "EOR    w9, w9, w14 \n\t"
         "SRI    v5.4S, v13.4S, #25 \n\t"
@@ -942,10 +942,10 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         "MOV    v13.D[1], x10 \n\t"
         "ORR    x16, x16, x17, lsl #32 \n\t"
         "MOV    v14.D[0], x12 \n\t"
-        "ORR    x18, x18, x19, lsl #32 \n\t"
+        "ORR    x22, x22, x19, lsl #32 \n\t"
         "MOV    v14.D[1], x14 \n\t"
         "MOV    v15.D[0], x16 \n\t"
-        "MOV    v15.D[1], x18 \n\t"
+        "MOV    v15.D[1], x22 \n\t"
         /* Add back state, XOR in message and store */
         "ADD    v12.4S, v12.4S, v20.4S \n\t"
         "ADD    v13.4S, v13.4S, v21.4S \n\t"
@@ -960,7 +960,7 @@ static WC_INLINE int wc_Chacha_encrypt_256(const word32 input[CHACHA_CHUNK_WORDS
         : [L_chacha20_neon_rol8] "r" (L_chacha20_neon_rol8)
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9",
           "x10", "x11", "x12", "x13", "x14", "x15", "x16",
-          "x17", "x18", "x19", "x20", "x21", "v0", "v1",
+          "x17", "x22", "x19", "x20", "x21", "v0", "v1",
           "v2", "v3", "v4", "v5", "v6", "v7", "v8",
           "v9", "v10", "v11", "v12", "v13", "v14",
           "v15", "v16", "v17", "v18", "v19", "v20",
@@ -1680,6 +1680,7 @@ static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
 #endif /*CHACHA_TEST */
 
 #ifdef __aarch64__
+    word64 bytes64 = (word64) bytes;
     __asm__ __volatile__ (
         /* Load index look-up for rotating left 8 bits */
         "LD1    {v13.16B}, [%[L_chacha20_neon_rol8]] \n\t"
@@ -2198,7 +2199,7 @@ static WC_INLINE void wc_Chacha_encrypt_64(const word32* input, const byte* m,
         "BGE    L_chacha20_arm64_64_loop_lt_8_%= \n\t"
         "\n"
     "L_chacha20_arm64_64_done_%=: \n\t"
-        : [input] "+r" (input), [m] "+r" (m), [c] "+r" (c), [bytes] "+r" (bytes)
+        : [input] "+r" (input), [m] "+r" (m), [c] "+r" (c), [bytes] "+r" (bytes64)
         : [L_chacha20_neon_rol8] "r" (L_chacha20_neon_rol8),
           [L_chacha20_neon_inc_first_word] "r" (L_chacha20_neon_inc_first_word)
         : "memory", "x4", "x5", "x6", "x7", "v0", "v1", "v2", "v3",

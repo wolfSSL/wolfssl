@@ -23,8 +23,6 @@
  *   cd ../scripts
  *   ruby ./x25519/x25519.rb arm64 ../wolfssl/wolfcrypt/src/port/arm/armv8-curve25519.S
  */
-
-#ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
 	.text
 	.align	2
@@ -219,223 +217,225 @@ fe_isnegative:
 	.globl	fe_cmov_table
 	.type	fe_cmov_table, %function
 fe_cmov_table:
-	stp	x29, x30, [sp, #-112]!
+	stp	x29, x30, [sp, #-128]!
 	add	x29, sp, #0
-	str	x17, [x29, #16]
-	stp	x18, x19, [x29, #24]
-	stp	x20, x21, [x29, #40]
-	stp	x22, x23, [x29, #56]
-	stp	x24, x25, [x29, #72]
-	stp	x26, x27, [x29, #88]
-	str	x28, [x29, #104]
+	str	x17, [x29, #40]
+	str	x19, [x29, #48]
+	stp	x20, x21, [x29, #56]
+	stp	x22, x23, [x29, #72]
+	stp	x24, x25, [x29, #88]
+	stp	x26, x27, [x29, #104]
+	str	x28, [x29, #120]
+	str	x0, [x29, #16]
 	sxtb	x2, w2
-	sbfx	x15, x2, #7, #1
-	eor	x16, x2, x15
-	sub	x16, x16, x15
-	mov	x3, #1
-	mov	x4, xzr
+	sbfx	x3, x2, #7, #1
+	eor	x0, x2, x3
+	sub	x0, x0, x3
+	mov	x4, #1
 	mov	x5, xzr
 	mov	x6, xzr
-	mov	x7, #1
-	mov	x8, xzr
+	mov	x7, xzr
+	mov	x8, #1
 	mov	x9, xzr
 	mov	x10, xzr
 	mov	x11, xzr
 	mov	x12, xzr
 	mov	x13, xzr
 	mov	x14, xzr
-	cmp	x16, #1
-	ldp	x17, x18, [x1]
+	mov	x15, xzr
+	cmp	x0, #1
+	ldp	x16, x17, [x1]
 	ldp	x19, x20, [x1, #16]
 	ldp	x21, x22, [x1, #32]
 	ldp	x23, x24, [x1, #48]
 	ldp	x25, x26, [x1, #64]
 	ldp	x27, x28, [x1, #80]
-	csel	x3, x17, x3, eq
-	csel	x4, x18, x4, eq
-	csel	x5, x19, x5, eq
-	csel	x6, x20, x6, eq
-	csel	x7, x21, x7, eq
-	csel	x8, x22, x8, eq
-	csel	x9, x23, x9, eq
-	csel	x10, x24, x10, eq
-	csel	x11, x25, x11, eq
-	csel	x12, x26, x12, eq
-	csel	x13, x27, x13, eq
-	csel	x14, x28, x14, eq
-	cmp	x16, #2
-	ldp	x17, x18, [x1, #96]
+	csel	x4, x16, x4, eq
+	csel	x5, x17, x5, eq
+	csel	x6, x19, x6, eq
+	csel	x7, x20, x7, eq
+	csel	x8, x21, x8, eq
+	csel	x9, x22, x9, eq
+	csel	x10, x23, x10, eq
+	csel	x11, x24, x11, eq
+	csel	x12, x25, x12, eq
+	csel	x13, x26, x13, eq
+	csel	x14, x27, x14, eq
+	csel	x15, x28, x15, eq
+	cmp	x0, #2
+	ldp	x16, x17, [x1, #96]
 	ldp	x19, x20, [x1, #112]
 	ldp	x21, x22, [x1, #128]
 	ldp	x23, x24, [x1, #144]
 	ldp	x25, x26, [x1, #160]
 	ldp	x27, x28, [x1, #176]
-	csel	x3, x17, x3, eq
-	csel	x4, x18, x4, eq
-	csel	x5, x19, x5, eq
-	csel	x6, x20, x6, eq
-	csel	x7, x21, x7, eq
-	csel	x8, x22, x8, eq
-	csel	x9, x23, x9, eq
-	csel	x10, x24, x10, eq
-	csel	x11, x25, x11, eq
-	csel	x12, x26, x12, eq
-	csel	x13, x27, x13, eq
-	csel	x14, x28, x14, eq
-	cmp	x16, #3
-	ldp	x17, x18, [x1, #192]
+	csel	x4, x16, x4, eq
+	csel	x5, x17, x5, eq
+	csel	x6, x19, x6, eq
+	csel	x7, x20, x7, eq
+	csel	x8, x21, x8, eq
+	csel	x9, x22, x9, eq
+	csel	x10, x23, x10, eq
+	csel	x11, x24, x11, eq
+	csel	x12, x25, x12, eq
+	csel	x13, x26, x13, eq
+	csel	x14, x27, x14, eq
+	csel	x15, x28, x15, eq
+	cmp	x0, #3
+	ldp	x16, x17, [x1, #192]
 	ldp	x19, x20, [x1, #208]
 	ldp	x21, x22, [x1, #224]
 	ldp	x23, x24, [x1, #240]
 	ldp	x25, x26, [x1, #256]
 	ldp	x27, x28, [x1, #272]
-	csel	x3, x17, x3, eq
-	csel	x4, x18, x4, eq
-	csel	x5, x19, x5, eq
-	csel	x6, x20, x6, eq
-	csel	x7, x21, x7, eq
-	csel	x8, x22, x8, eq
-	csel	x9, x23, x9, eq
-	csel	x10, x24, x10, eq
-	csel	x11, x25, x11, eq
-	csel	x12, x26, x12, eq
-	csel	x13, x27, x13, eq
-	csel	x14, x28, x14, eq
-	cmp	x16, #4
-	ldp	x17, x18, [x1, #288]
+	csel	x4, x16, x4, eq
+	csel	x5, x17, x5, eq
+	csel	x6, x19, x6, eq
+	csel	x7, x20, x7, eq
+	csel	x8, x21, x8, eq
+	csel	x9, x22, x9, eq
+	csel	x10, x23, x10, eq
+	csel	x11, x24, x11, eq
+	csel	x12, x25, x12, eq
+	csel	x13, x26, x13, eq
+	csel	x14, x27, x14, eq
+	csel	x15, x28, x15, eq
+	cmp	x0, #4
+	ldp	x16, x17, [x1, #288]
 	ldp	x19, x20, [x1, #304]
 	ldp	x21, x22, [x1, #320]
 	ldp	x23, x24, [x1, #336]
 	ldp	x25, x26, [x1, #352]
 	ldp	x27, x28, [x1, #368]
-	csel	x3, x17, x3, eq
-	csel	x4, x18, x4, eq
-	csel	x5, x19, x5, eq
-	csel	x6, x20, x6, eq
-	csel	x7, x21, x7, eq
-	csel	x8, x22, x8, eq
-	csel	x9, x23, x9, eq
-	csel	x10, x24, x10, eq
-	csel	x11, x25, x11, eq
-	csel	x12, x26, x12, eq
-	csel	x13, x27, x13, eq
-	csel	x14, x28, x14, eq
+	csel	x4, x16, x4, eq
+	csel	x5, x17, x5, eq
+	csel	x6, x19, x6, eq
+	csel	x7, x20, x7, eq
+	csel	x8, x21, x8, eq
+	csel	x9, x22, x9, eq
+	csel	x10, x23, x10, eq
+	csel	x11, x24, x11, eq
+	csel	x12, x25, x12, eq
+	csel	x13, x26, x13, eq
+	csel	x14, x27, x14, eq
+	csel	x15, x28, x15, eq
 	add	x1, x1, #0x180
-	cmp	x16, #5
-	ldp	x17, x18, [x1]
+	cmp	x0, #5
+	ldp	x16, x17, [x1]
 	ldp	x19, x20, [x1, #16]
 	ldp	x21, x22, [x1, #32]
 	ldp	x23, x24, [x1, #48]
 	ldp	x25, x26, [x1, #64]
 	ldp	x27, x28, [x1, #80]
-	csel	x3, x17, x3, eq
-	csel	x4, x18, x4, eq
-	csel	x5, x19, x5, eq
-	csel	x6, x20, x6, eq
-	csel	x7, x21, x7, eq
-	csel	x8, x22, x8, eq
-	csel	x9, x23, x9, eq
-	csel	x10, x24, x10, eq
-	csel	x11, x25, x11, eq
-	csel	x12, x26, x12, eq
-	csel	x13, x27, x13, eq
-	csel	x14, x28, x14, eq
-	cmp	x16, #6
-	ldp	x17, x18, [x1, #96]
+	csel	x4, x16, x4, eq
+	csel	x5, x17, x5, eq
+	csel	x6, x19, x6, eq
+	csel	x7, x20, x7, eq
+	csel	x8, x21, x8, eq
+	csel	x9, x22, x9, eq
+	csel	x10, x23, x10, eq
+	csel	x11, x24, x11, eq
+	csel	x12, x25, x12, eq
+	csel	x13, x26, x13, eq
+	csel	x14, x27, x14, eq
+	csel	x15, x28, x15, eq
+	cmp	x0, #6
+	ldp	x16, x17, [x1, #96]
 	ldp	x19, x20, [x1, #112]
 	ldp	x21, x22, [x1, #128]
 	ldp	x23, x24, [x1, #144]
 	ldp	x25, x26, [x1, #160]
 	ldp	x27, x28, [x1, #176]
-	csel	x3, x17, x3, eq
-	csel	x4, x18, x4, eq
-	csel	x5, x19, x5, eq
-	csel	x6, x20, x6, eq
-	csel	x7, x21, x7, eq
-	csel	x8, x22, x8, eq
-	csel	x9, x23, x9, eq
-	csel	x10, x24, x10, eq
-	csel	x11, x25, x11, eq
-	csel	x12, x26, x12, eq
-	csel	x13, x27, x13, eq
-	csel	x14, x28, x14, eq
-	cmp	x16, #7
-	ldp	x17, x18, [x1, #192]
+	csel	x4, x16, x4, eq
+	csel	x5, x17, x5, eq
+	csel	x6, x19, x6, eq
+	csel	x7, x20, x7, eq
+	csel	x8, x21, x8, eq
+	csel	x9, x22, x9, eq
+	csel	x10, x23, x10, eq
+	csel	x11, x24, x11, eq
+	csel	x12, x25, x12, eq
+	csel	x13, x26, x13, eq
+	csel	x14, x27, x14, eq
+	csel	x15, x28, x15, eq
+	cmp	x0, #7
+	ldp	x16, x17, [x1, #192]
 	ldp	x19, x20, [x1, #208]
 	ldp	x21, x22, [x1, #224]
 	ldp	x23, x24, [x1, #240]
 	ldp	x25, x26, [x1, #256]
 	ldp	x27, x28, [x1, #272]
-	csel	x3, x17, x3, eq
-	csel	x4, x18, x4, eq
-	csel	x5, x19, x5, eq
-	csel	x6, x20, x6, eq
-	csel	x7, x21, x7, eq
-	csel	x8, x22, x8, eq
-	csel	x9, x23, x9, eq
-	csel	x10, x24, x10, eq
-	csel	x11, x25, x11, eq
-	csel	x12, x26, x12, eq
-	csel	x13, x27, x13, eq
-	csel	x14, x28, x14, eq
-	cmp	x16, #8
-	ldp	x17, x18, [x1, #288]
+	csel	x4, x16, x4, eq
+	csel	x5, x17, x5, eq
+	csel	x6, x19, x6, eq
+	csel	x7, x20, x7, eq
+	csel	x8, x21, x8, eq
+	csel	x9, x22, x9, eq
+	csel	x10, x23, x10, eq
+	csel	x11, x24, x11, eq
+	csel	x12, x25, x12, eq
+	csel	x13, x26, x13, eq
+	csel	x14, x27, x14, eq
+	csel	x15, x28, x15, eq
+	cmp	x0, #8
+	ldp	x16, x17, [x1, #288]
 	ldp	x19, x20, [x1, #304]
 	ldp	x21, x22, [x1, #320]
 	ldp	x23, x24, [x1, #336]
 	ldp	x25, x26, [x1, #352]
 	ldp	x27, x28, [x1, #368]
-	csel	x3, x17, x3, eq
-	csel	x4, x18, x4, eq
-	csel	x5, x19, x5, eq
-	csel	x6, x20, x6, eq
-	csel	x7, x21, x7, eq
-	csel	x8, x22, x8, eq
-	csel	x9, x23, x9, eq
-	csel	x10, x24, x10, eq
-	csel	x11, x25, x11, eq
-	csel	x12, x26, x12, eq
-	csel	x13, x27, x13, eq
-	csel	x14, x28, x14, eq
-	mov	x17, #-19
-	mov	x18, #-1
+	csel	x4, x16, x4, eq
+	csel	x5, x17, x5, eq
+	csel	x6, x19, x6, eq
+	csel	x7, x20, x7, eq
+	csel	x8, x21, x8, eq
+	csel	x9, x22, x9, eq
+	csel	x10, x23, x10, eq
+	csel	x11, x24, x11, eq
+	csel	x12, x25, x12, eq
+	csel	x13, x26, x13, eq
+	csel	x14, x27, x14, eq
+	csel	x15, x28, x15, eq
+	mov	x16, #-19
+	mov	x17, #-1
 	mov	x19, #-1
 	mov	x20, #0x7fffffffffffffff
-	subs	x17, x17, x11
-	sbcs	x18, x18, x12
-	sbcs	x19, x19, x13
-	sbc	x20, x20, x14
+	subs	x16, x16, x12
+	sbcs	x17, x17, x13
+	sbcs	x19, x19, x14
+	sbc	x20, x20, x15
 	cmp	x2, #0
-	mov	x15, x3
-	csel	x3, x7, x3, lt
-	csel	x7, x15, x7, lt
-	mov	x15, x4
+	mov	x3, x4
 	csel	x4, x8, x4, lt
-	csel	x8, x15, x8, lt
-	mov	x15, x5
+	csel	x8, x3, x8, lt
+	mov	x3, x5
 	csel	x5, x9, x5, lt
-	csel	x9, x15, x9, lt
-	mov	x15, x6
+	csel	x9, x3, x9, lt
+	mov	x3, x6
 	csel	x6, x10, x6, lt
-	csel	x10, x15, x10, lt
-	csel	x11, x17, x11, lt
-	csel	x12, x18, x12, lt
-	csel	x13, x19, x13, lt
-	csel	x14, x20, x14, lt
-	stp	x3, x4, [x0]
-	stp	x5, x6, [x0, #16]
-	stp	x7, x8, [x0, #32]
-	stp	x9, x10, [x0, #48]
-	stp	x11, x12, [x0, #64]
-	stp	x13, x14, [x0, #80]
-	ldr	x17, [x29, #16]
-	ldp	x18, x19, [x29, #24]
-	ldp	x20, x21, [x29, #40]
-	ldp	x22, x23, [x29, #56]
-	ldp	x24, x25, [x29, #72]
-	ldp	x26, x27, [x29, #88]
-	ldr	x28, [x29, #104]
-	ldp	x29, x30, [sp], #0x70
+	csel	x10, x3, x10, lt
+	mov	x3, x7
+	csel	x7, x11, x7, lt
+	csel	x11, x3, x11, lt
+	csel	x12, x16, x12, lt
+	csel	x13, x17, x13, lt
+	csel	x14, x19, x14, lt
+	csel	x15, x20, x15, lt
+	ldr	x0, [x29, #16]
+	stp	x4, x5, [x0]
+	stp	x6, x7, [x0, #16]
+	stp	x8, x9, [x0, #32]
+	stp	x10, x11, [x0, #48]
+	stp	x12, x13, [x0, #64]
+	stp	x14, x15, [x0, #80]
+	ldr	x17, [x29, #40]
+	ldr	x19, [x29, #48]
+	ldp	x20, x21, [x29, #56]
+	ldp	x22, x23, [x29, #72]
+	ldp	x24, x25, [x29, #88]
+	ldp	x26, x27, [x29, #104]
+	ldr	x28, [x29, #120]
+	ldp	x29, x30, [sp], #0x80
 	ret
 	.size	fe_cmov_table,.-fe_cmov_table
 	.text
@@ -446,101 +446,102 @@ fe_mul:
 	stp	x29, x30, [sp, #-64]!
 	add	x29, sp, #0
 	str	x17, [x29, #24]
-	stp	x18, x19, [x29, #32]
-	stp	x20, x21, [x29, #48]
+	str	x19, [x29, #32]
+	stp	x20, x21, [x29, #40]
+	str	x22, [x29, #56]
 	# Multiply
 	ldp	x14, x15, [x1]
 	ldp	x16, x17, [x1, #16]
-	ldp	x18, x19, [x2]
-	ldp	x20, x21, [x2, #16]
+	ldp	x19, x20, [x2]
+	ldp	x21, x22, [x2, #16]
 	#  A[0] * B[0]
-	mul	x6, x14, x18
-	umulh	x7, x14, x18
+	mul	x6, x14, x19
+	umulh	x7, x14, x19
 	#  A[0] * B[1]
-	mul	x3, x14, x19
-	umulh	x8, x14, x19
+	mul	x3, x14, x20
+	umulh	x8, x14, x20
 	adds	x7, x7, x3
 	adc	x8, x8, xzr
 	#  A[1] * B[0]
-	mul	x3, x15, x18
-	umulh	x4, x15, x18
+	mul	x3, x15, x19
+	umulh	x4, x15, x19
 	adds	x7, x7, x3
 	adcs	x8, x8, x4
 	adc	x9, xzr, xzr
 	#  A[0] * B[2]
-	mul	x3, x14, x20
-	umulh	x4, x14, x20
+	mul	x3, x14, x21
+	umulh	x4, x14, x21
 	adds	x8, x8, x3
 	adc	x9, x9, x4
 	#  A[1] * B[1]
-	mul	x3, x15, x19
-	umulh	x4, x15, x19
+	mul	x3, x15, x20
+	umulh	x4, x15, x20
 	adds	x8, x8, x3
 	adcs	x9, x9, x4
 	adc	x10, xzr, xzr
 	#  A[2] * B[0]
-	mul	x3, x16, x18
-	umulh	x4, x16, x18
+	mul	x3, x16, x19
+	umulh	x4, x16, x19
 	adds	x8, x8, x3
 	adcs	x9, x9, x4
 	adc	x10, x10, xzr
 	#  A[0] * B[3]
-	mul	x3, x14, x21
-	umulh	x4, x14, x21
+	mul	x3, x14, x22
+	umulh	x4, x14, x22
 	adds	x9, x9, x3
 	adcs	x10, x10, x4
 	adc	x11, xzr, xzr
 	#  A[1] * B[2]
-	mul	x3, x15, x20
-	umulh	x4, x15, x20
+	mul	x3, x15, x21
+	umulh	x4, x15, x21
 	adds	x9, x9, x3
 	adcs	x10, x10, x4
 	adc	x11, x11, xzr
 	#  A[2] * B[1]
-	mul	x3, x16, x19
-	umulh	x4, x16, x19
+	mul	x3, x16, x20
+	umulh	x4, x16, x20
 	adds	x9, x9, x3
 	adcs	x10, x10, x4
 	adc	x11, x11, xzr
 	#  A[3] * B[0]
-	mul	x3, x17, x18
-	umulh	x4, x17, x18
+	mul	x3, x17, x19
+	umulh	x4, x17, x19
 	adds	x9, x9, x3
 	adcs	x10, x10, x4
 	adc	x11, x11, xzr
 	#  A[1] * B[3]
-	mul	x3, x15, x21
-	umulh	x4, x15, x21
+	mul	x3, x15, x22
+	umulh	x4, x15, x22
 	adds	x10, x10, x3
 	adcs	x11, x11, x4
 	adc	x12, xzr, xzr
 	#  A[2] * B[2]
-	mul	x3, x16, x20
-	umulh	x4, x16, x20
+	mul	x3, x16, x21
+	umulh	x4, x16, x21
 	adds	x10, x10, x3
 	adcs	x11, x11, x4
 	adc	x12, x12, xzr
 	#  A[3] * B[1]
-	mul	x3, x17, x19
-	umulh	x4, x17, x19
+	mul	x3, x17, x20
+	umulh	x4, x17, x20
 	adds	x10, x10, x3
 	adcs	x11, x11, x4
 	adc	x12, x12, xzr
 	#  A[2] * B[3]
-	mul	x3, x16, x21
-	umulh	x4, x16, x21
+	mul	x3, x16, x22
+	umulh	x4, x16, x22
 	adds	x11, x11, x3
 	adcs	x12, x12, x4
 	adc	x13, xzr, xzr
 	#  A[3] * B[2]
-	mul	x3, x17, x20
-	umulh	x4, x17, x20
+	mul	x3, x17, x21
+	umulh	x4, x17, x21
 	adds	x11, x11, x3
 	adcs	x12, x12, x4
 	adc	x13, x13, xzr
 	#  A[3] * B[3]
-	mul	x3, x17, x21
-	umulh	x4, x17, x21
+	mul	x3, x17, x22
+	umulh	x4, x17, x22
 	adds	x12, x12, x3
 	adc	x13, x13, x4
 	# Reduce
@@ -589,8 +590,9 @@ fe_mul:
 	stp	x6, x7, [x0]
 	stp	x8, x9, [x0, #16]
 	ldr	x17, [x29, #24]
-	ldp	x18, x19, [x29, #32]
-	ldp	x20, x21, [x29, #48]
+	ldr	x19, [x29, #32]
+	ldp	x20, x21, [x29, #40]
+	ldr	x22, [x29, #56]
 	ldp	x29, x30, [sp], #0x40
 	ret
 	.size	fe_mul,.-fe_mul
@@ -839,41 +841,42 @@ L_fe_invert8:
 curve25519:
 	stp	x29, x30, [sp, #-288]!
 	add	x29, sp, #0
-	str	x17, [x29, #192]
-	stp	x18, x19, [x29, #200]
+	str	x17, [x29, #200]
+	str	x19, [x29, #208]
 	stp	x20, x21, [x29, #216]
 	stp	x22, x23, [x29, #232]
 	stp	x24, x25, [x29, #248]
 	stp	x26, x27, [x29, #264]
 	str	x28, [x29, #280]
-	mov	x22, xzr
+	mov	x23, xzr
 	str	x0, [x29, #176]
-	# Set one
-	mov	x23, #1
-	stp	x23, xzr, [x0]
-	stp	xzr, xzr, [x0, #16]
-	# Set zero
-	stp	xzr, xzr, [x29, #16]
-	stp	xzr, xzr, [x29, #32]
-	# Set one
-	mov	x23, #1
-	stp	x23, xzr, [x29, #48]
-	stp	xzr, xzr, [x29, #64]
+	str	x2, [x29, #184]
 	# Copy
 	ldp	x6, x7, [x2]
 	ldp	x8, x9, [x2, #16]
 	stp	x6, x7, [x29, #80]
 	stp	x8, x9, [x29, #96]
+	# Set one
+	mov	x2, #1
+	stp	x2, xzr, [x0]
+	stp	xzr, xzr, [x0, #16]
+	# Set zero
+	stp	xzr, xzr, [x29, #16]
+	stp	xzr, xzr, [x29, #32]
+	# Set one
+	mov	x2, #1
+	stp	x2, xzr, [x29, #48]
+	stp	xzr, xzr, [x29, #64]
 	mov	x25, #62
 	mov	x24, #24
 L_curve25519_words:
 L_curve25519_bits:
-	ldr	x23, [x1, x24]
-	lsr	x23, x23, x25
-	and	x23, x23, #1
-	eor	x22, x22, x23
+	ldr	x2, [x1, x24]
+	lsr	x2, x2, x25
+	and	x2, x2, #1
+	eor	x23, x23, x2
 	# Conditional Swap
-	cmp	x22, #1
+	cmp	x23, #1
 	ldp	x10, x11, [x0]
 	ldp	x12, x13, [x0, #16]
 	ldp	x6, x7, [x29, #80]
@@ -887,66 +890,66 @@ L_curve25519_bits:
 	csel	x17, x13, x9, eq
 	csel	x13, x9, x13, eq
 	# Conditional Swap
-	cmp	x22, #1
-	ldp	x18, x19, [x29, #16]
-	ldp	x20, x21, [x29, #32]
+	cmp	x23, #1
+	ldp	x19, x20, [x29, #16]
+	ldp	x21, x22, [x29, #32]
 	ldp	x6, x7, [x29, #48]
 	ldp	x8, x9, [x29, #64]
-	csel	x5, x18, x6, eq
-	csel	x18, x6, x18, eq
-	csel	x26, x19, x7, eq
-	csel	x19, x7, x19, eq
-	csel	x27, x20, x8, eq
-	csel	x20, x8, x20, eq
-	csel	x28, x21, x9, eq
-	csel	x21, x9, x21, eq
-	mov	x22, x23
+	csel	x5, x19, x6, eq
+	csel	x19, x6, x19, eq
+	csel	x26, x20, x7, eq
+	csel	x20, x7, x20, eq
+	csel	x27, x21, x8, eq
+	csel	x21, x8, x21, eq
+	csel	x28, x22, x9, eq
+	csel	x22, x9, x22, eq
+	mov	x23, x2
 	# Add
-	adds	x6, x10, x18
-	adcs	x7, x11, x19
-	adcs	x8, x12, x20
-	adc	x9, x13, x21
+	adds	x6, x10, x19
+	adcs	x7, x11, x20
+	adcs	x8, x12, x21
+	adc	x9, x13, x22
 	mov	x3, #-19
-	asr	x23, x9, #63
+	asr	x2, x9, #63
 	#   Mask the modulus
-	and	x3, x23, x3
-	and	x4, x23, #0x7fffffffffffffff
+	and	x3, x2, x3
+	and	x4, x2, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
 	subs	x6, x6, x3
-	sbcs	x7, x7, x23
-	sbcs	x8, x8, x23
+	sbcs	x7, x7, x2
+	sbcs	x8, x8, x2
 	sbc	x9, x9, x4
 	# Sub
-	subs	x18, x10, x18
-	sbcs	x19, x11, x19
-	sbcs	x20, x12, x20
-	sbcs	x21, x13, x21
+	subs	x19, x10, x19
+	sbcs	x20, x11, x20
+	sbcs	x21, x12, x21
+	sbcs	x22, x13, x22
 	mov	x3, #-19
-	csetm	x23, cc
+	csetm	x2, cc
 	#   Mask the modulus
-	and	x3, x23, x3
-	and	x4, x23, #0x7fffffffffffffff
+	and	x3, x2, x3
+	and	x4, x2, #0x7fffffffffffffff
 	#   Add modulus (if underflow)
-	adds	x18, x18, x3
-	adcs	x19, x19, x23
-	adcs	x20, x20, x23
-	adc	x21, x21, x4
-	stp	x18, x19, [x29, #144]
-	stp	x20, x21, [x29, #160]
+	adds	x19, x19, x3
+	adcs	x20, x20, x2
+	adcs	x21, x21, x2
+	adc	x22, x22, x4
+	stp	x19, x20, [x29, #144]
+	stp	x21, x22, [x29, #160]
 	# Add
 	adds	x10, x14, x5
 	adcs	x11, x15, x26
 	adcs	x12, x16, x27
 	adc	x13, x17, x28
 	mov	x3, #-19
-	asr	x23, x13, #63
+	asr	x2, x13, #63
 	#   Mask the modulus
-	and	x3, x23, x3
-	and	x4, x23, #0x7fffffffffffffff
+	and	x3, x2, x3
+	and	x4, x2, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
 	subs	x10, x10, x3
-	sbcs	x11, x11, x23
-	sbcs	x12, x12, x23
+	sbcs	x11, x11, x2
+	sbcs	x12, x12, x2
 	sbc	x13, x13, x4
 	# Sub
 	subs	x14, x14, x5
@@ -954,87 +957,87 @@ L_curve25519_bits:
 	sbcs	x16, x16, x27
 	sbcs	x17, x17, x28
 	mov	x3, #-19
-	csetm	x23, cc
+	csetm	x2, cc
 	#   Mask the modulus
-	and	x3, x23, x3
-	and	x4, x23, #0x7fffffffffffffff
+	and	x3, x2, x3
+	and	x4, x2, #0x7fffffffffffffff
 	#   Add modulus (if underflow)
 	adds	x14, x14, x3
-	adcs	x15, x15, x23
-	adcs	x16, x16, x23
+	adcs	x15, x15, x2
+	adcs	x16, x16, x2
 	adc	x17, x17, x4
 	# Multiply
 	#  A[0] * B[0]
-	mul	x18, x14, x6
-	umulh	x19, x14, x6
+	mul	x19, x14, x6
+	umulh	x20, x14, x6
 	#  A[0] * B[1]
 	mul	x3, x14, x7
-	umulh	x20, x14, x7
-	adds	x19, x19, x3
-	adc	x20, x20, xzr
+	umulh	x21, x14, x7
+	adds	x20, x20, x3
+	adc	x21, x21, xzr
 	#  A[1] * B[0]
 	mul	x3, x15, x6
 	umulh	x4, x15, x6
-	adds	x19, x19, x3
-	adcs	x20, x20, x4
-	adc	x21, xzr, xzr
+	adds	x20, x20, x3
+	adcs	x21, x21, x4
+	adc	x22, xzr, xzr
 	#  A[0] * B[2]
 	mul	x3, x14, x8
 	umulh	x4, x14, x8
-	adds	x20, x20, x3
-	adc	x21, x21, x4
+	adds	x21, x21, x3
+	adc	x22, x22, x4
 	#  A[1] * B[1]
 	mul	x3, x15, x7
 	umulh	x4, x15, x7
-	adds	x20, x20, x3
-	adcs	x21, x21, x4
-	adc	x23, xzr, xzr
+	adds	x21, x21, x3
+	adcs	x22, x22, x4
+	adc	x2, xzr, xzr
 	#  A[2] * B[0]
 	mul	x3, x16, x6
 	umulh	x4, x16, x6
-	adds	x20, x20, x3
-	adcs	x21, x21, x4
-	adc	x23, x23, xzr
+	adds	x21, x21, x3
+	adcs	x22, x22, x4
+	adc	x2, x2, xzr
 	#  A[0] * B[3]
 	mul	x3, x14, x9
 	umulh	x4, x14, x9
-	adds	x21, x21, x3
-	adcs	x23, x23, x4
+	adds	x22, x22, x3
+	adcs	x2, x2, x4
 	adc	x26, xzr, xzr
 	#  A[1] * B[2]
 	mul	x3, x15, x8
 	umulh	x4, x15, x8
-	adds	x21, x21, x3
-	adcs	x23, x23, x4
+	adds	x22, x22, x3
+	adcs	x2, x2, x4
 	adc	x26, x26, xzr
 	#  A[2] * B[1]
 	mul	x3, x16, x7
 	umulh	x4, x16, x7
-	adds	x21, x21, x3
-	adcs	x23, x23, x4
+	adds	x22, x22, x3
+	adcs	x2, x2, x4
 	adc	x26, x26, xzr
 	#  A[3] * B[0]
 	mul	x3, x17, x6
 	umulh	x4, x17, x6
-	adds	x21, x21, x3
-	adcs	x23, x23, x4
+	adds	x22, x22, x3
+	adcs	x2, x2, x4
 	adc	x26, x26, xzr
 	#  A[1] * B[3]
 	mul	x3, x15, x9
 	umulh	x4, x15, x9
-	adds	x23, x23, x3
+	adds	x2, x2, x3
 	adcs	x26, x26, x4
 	adc	x27, xzr, xzr
 	#  A[2] * B[2]
 	mul	x3, x16, x8
 	umulh	x4, x16, x8
-	adds	x23, x23, x3
+	adds	x2, x2, x3
 	adcs	x26, x26, x4
 	adc	x27, x27, xzr
 	#  A[3] * B[1]
 	mul	x3, x17, x7
 	umulh	x4, x17, x7
-	adds	x23, x23, x3
+	adds	x2, x2, x3
 	adcs	x26, x26, x4
 	adc	x27, x27, xzr
 	#  A[2] * B[3]
@@ -1058,103 +1061,103 @@ L_curve25519_bits:
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x28, x28, x27, #63
 	extr	x27, x27, x26, #63
-	extr	x26, x26, x23, #63
-	extr	x23, x23, x21, #63
-	and	x21, x21, #0x7fffffffffffffff
+	extr	x26, x26, x2, #63
+	extr	x2, x2, x22, #63
+	and	x22, x22, #0x7fffffffffffffff
 	#  Multiply top half by 19
 	mov	x3, #19
-	mul	x4, x3, x23
-	umulh	x23, x3, x23
-	adds	x18, x18, x4
+	mul	x4, x3, x2
+	umulh	x2, x3, x2
+	adds	x19, x19, x4
 	mul	x4, x3, x26
 	umulh	x26, x3, x26
-	adcs	x19, x19, x4
+	adcs	x20, x20, x4
 	mul	x4, x3, x27
 	umulh	x27, x3, x27
-	adcs	x20, x20, x4
+	adcs	x21, x21, x4
 	mul	x4, x3, x28
 	umulh	x5, x3, x28
-	adcs	x21, x21, x4
+	adcs	x22, x22, x4
 	adc	x5, x5, xzr
 	#  Add remaining product results in
-	adds	x19, x19, x23
-	adcs	x20, x20, x26
-	adcs	x21, x21, x27
+	adds	x20, x20, x2
+	adcs	x21, x21, x26
+	adcs	x22, x22, x27
 	adc	x5, x5, xzr
 	#  Overflow
-	extr	x5, x5, x21, #63
+	extr	x5, x5, x22, #63
 	mul	x5, x5, x3
-	and	x21, x21, #0x7fffffffffffffff
-	adds	x18, x18, x5
-	adcs	x19, x19, xzr
+	and	x22, x22, #0x7fffffffffffffff
+	adds	x19, x19, x5
 	adcs	x20, x20, xzr
-	adc	x21, x21, xzr
+	adcs	x21, x21, xzr
+	adc	x22, x22, xzr
 	# Reduce if top bit set
-	and	x5, x3, x21, asr 63
-	and	x21, x21, #0x7fffffffffffffff
-	adds	x18, x18, x5
-	adcs	x19, x19, xzr
+	and	x5, x3, x22, asr 63
+	and	x22, x22, #0x7fffffffffffffff
+	adds	x19, x19, x5
 	adcs	x20, x20, xzr
-	adc	x21, x21, xzr
+	adcs	x21, x21, xzr
+	adc	x22, x22, xzr
 	# Store
-	stp	x18, x19, [x29, #112]
-	stp	x20, x21, [x29, #128]
+	stp	x19, x20, [x29, #112]
+	stp	x21, x22, [x29, #128]
 	# Multiply
-	ldp	x23, x26, [x29, #144]
+	ldp	x2, x26, [x29, #144]
 	ldp	x27, x28, [x29, #160]
 	#  A[0] * B[0]
-	mul	x18, x10, x23
-	umulh	x19, x10, x23
+	mul	x19, x10, x2
+	umulh	x20, x10, x2
 	#  A[0] * B[1]
 	mul	x3, x10, x26
-	umulh	x20, x10, x26
-	adds	x19, x19, x3
-	adc	x20, x20, xzr
+	umulh	x21, x10, x26
+	adds	x20, x20, x3
+	adc	x21, x21, xzr
 	#  A[1] * B[0]
-	mul	x3, x11, x23
-	umulh	x4, x11, x23
-	adds	x19, x19, x3
-	adcs	x20, x20, x4
-	adc	x21, xzr, xzr
+	mul	x3, x11, x2
+	umulh	x4, x11, x2
+	adds	x20, x20, x3
+	adcs	x21, x21, x4
+	adc	x22, xzr, xzr
 	#  A[0] * B[2]
 	mul	x3, x10, x27
 	umulh	x4, x10, x27
-	adds	x20, x20, x3
-	adc	x21, x21, x4
+	adds	x21, x21, x3
+	adc	x22, x22, x4
 	#  A[1] * B[1]
 	mul	x3, x11, x26
 	umulh	x4, x11, x26
-	adds	x20, x20, x3
-	adcs	x21, x21, x4
+	adds	x21, x21, x3
+	adcs	x22, x22, x4
 	adc	x14, xzr, xzr
 	#  A[2] * B[0]
-	mul	x3, x12, x23
-	umulh	x4, x12, x23
-	adds	x20, x20, x3
-	adcs	x21, x21, x4
+	mul	x3, x12, x2
+	umulh	x4, x12, x2
+	adds	x21, x21, x3
+	adcs	x22, x22, x4
 	adc	x14, x14, xzr
 	#  A[0] * B[3]
 	mul	x3, x10, x28
 	umulh	x4, x10, x28
-	adds	x21, x21, x3
+	adds	x22, x22, x3
 	adcs	x14, x14, x4
 	adc	x15, xzr, xzr
 	#  A[1] * B[2]
 	mul	x3, x11, x27
 	umulh	x4, x11, x27
-	adds	x21, x21, x3
+	adds	x22, x22, x3
 	adcs	x14, x14, x4
 	adc	x15, x15, xzr
 	#  A[2] * B[1]
 	mul	x3, x12, x26
 	umulh	x4, x12, x26
-	adds	x21, x21, x3
+	adds	x22, x22, x3
 	adcs	x14, x14, x4
 	adc	x15, x15, xzr
 	#  A[3] * B[0]
-	mul	x3, x13, x23
-	umulh	x4, x13, x23
-	adds	x21, x21, x3
+	mul	x3, x13, x2
+	umulh	x4, x13, x2
+	adds	x22, x22, x3
 	adcs	x14, x14, x4
 	adc	x15, x15, xzr
 	#  A[1] * B[3]
@@ -1197,56 +1200,56 @@ L_curve25519_bits:
 	extr	x17, x17, x16, #63
 	extr	x16, x16, x15, #63
 	extr	x15, x15, x14, #63
-	extr	x14, x14, x21, #63
-	and	x21, x21, #0x7fffffffffffffff
+	extr	x14, x14, x22, #63
+	and	x22, x22, #0x7fffffffffffffff
 	#  Multiply top half by 19
 	mov	x3, #19
 	mul	x4, x3, x14
 	umulh	x14, x3, x14
-	adds	x18, x18, x4
+	adds	x19, x19, x4
 	mul	x4, x3, x15
 	umulh	x15, x3, x15
-	adcs	x19, x19, x4
+	adcs	x20, x20, x4
 	mul	x4, x3, x16
 	umulh	x16, x3, x16
-	adcs	x20, x20, x4
+	adcs	x21, x21, x4
 	mul	x4, x3, x17
 	umulh	x5, x3, x17
-	adcs	x21, x21, x4
+	adcs	x22, x22, x4
 	adc	x5, x5, xzr
 	#  Add remaining product results in
-	adds	x19, x19, x14
-	adcs	x20, x20, x15
-	adcs	x21, x21, x16
+	adds	x20, x20, x14
+	adcs	x21, x21, x15
+	adcs	x22, x22, x16
 	adc	x5, x5, xzr
 	#  Overflow
-	extr	x5, x5, x21, #63
+	extr	x5, x5, x22, #63
 	mul	x5, x5, x3
-	and	x21, x21, #0x7fffffffffffffff
-	adds	x18, x18, x5
-	adcs	x19, x19, xzr
+	and	x22, x22, #0x7fffffffffffffff
+	adds	x19, x19, x5
 	adcs	x20, x20, xzr
-	adc	x21, x21, xzr
+	adcs	x21, x21, xzr
+	adc	x22, x22, xzr
 	# Reduce if top bit set
-	and	x5, x3, x21, asr 63
-	and	x21, x21, #0x7fffffffffffffff
-	adds	x18, x18, x5
-	adcs	x19, x19, xzr
+	and	x5, x3, x22, asr 63
+	and	x22, x22, #0x7fffffffffffffff
+	adds	x19, x19, x5
 	adcs	x20, x20, xzr
-	adc	x21, x21, xzr
+	adcs	x21, x21, xzr
+	adc	x22, x22, xzr
 	# Store
 	# Square
 	#  A[0] * A[1]
-	mul	x11, x23, x26
-	umulh	x12, x23, x26
+	mul	x11, x2, x26
+	umulh	x12, x2, x26
 	#  A[0] * A[2]
-	mul	x3, x23, x27
-	umulh	x13, x23, x27
+	mul	x3, x2, x27
+	umulh	x13, x2, x27
 	adds	x12, x12, x3
 	adc	x13, x13, xzr
 	#  A[0] * A[3]
-	mul	x3, x23, x28
-	umulh	x14, x23, x28
+	mul	x3, x2, x28
+	umulh	x14, x2, x28
 	adds	x13, x13, x3
 	adc	x14, x14, xzr
 	#  A[1] * A[2]
@@ -1274,8 +1277,8 @@ L_curve25519_bits:
 	adcs	x16, x16, x16
 	adc	x17, xzr, xzr
 	#  A[0] * A[0]
-	mul	x10, x23, x23
-	umulh	x5, x23, x23
+	mul	x10, x2, x2
+	umulh	x5, x2, x2
 	#  A[1] * A[1]
 	mul	x3, x26, x26
 	umulh	x4, x26, x26
@@ -1348,19 +1351,19 @@ L_curve25519_bits:
 	adc	x17, x17, xzr
 	#  A[0] * A[3]
 	mul	x3, x6, x9
-	umulh	x23, x6, x9
+	umulh	x2, x6, x9
 	adds	x17, x17, x3
-	adc	x23, x23, xzr
+	adc	x2, x2, xzr
 	#  A[1] * A[2]
 	mul	x3, x7, x8
 	umulh	x4, x7, x8
 	adds	x17, x17, x3
-	adcs	x23, x23, x4
+	adcs	x2, x2, x4
 	adc	x26, xzr, xzr
 	#  A[1] * A[3]
 	mul	x3, x7, x9
 	umulh	x4, x7, x9
-	adds	x23, x23, x3
+	adds	x2, x2, x3
 	adc	x26, x26, x4
 	#  A[2] * A[3]
 	mul	x3, x8, x9
@@ -1371,7 +1374,7 @@ L_curve25519_bits:
 	adds	x15, x15, x15
 	adcs	x16, x16, x16
 	adcs	x17, x17, x17
-	adcs	x23, x23, x23
+	adcs	x2, x2, x2
 	adcs	x26, x26, x26
 	adcs	x27, x27, x27
 	adc	x28, xzr, xzr
@@ -1388,7 +1391,7 @@ L_curve25519_bits:
 	mul	x3, x8, x8
 	umulh	x4, x8, x8
 	adds	x17, x17, x5
-	adcs	x23, x23, x3
+	adcs	x2, x2, x3
 	adc	x5, x4, xzr
 	#  A[3] * A[3]
 	mul	x3, x9, x9
@@ -1400,13 +1403,13 @@ L_curve25519_bits:
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x28, x28, x27, #63
 	extr	x27, x27, x26, #63
-	extr	x26, x26, x23, #63
-	extr	x23, x23, x17, #63
+	extr	x26, x26, x2, #63
+	extr	x2, x2, x17, #63
 	and	x17, x17, #0x7fffffffffffffff
 	#  Multiply top half by 19
 	mov	x3, #19
-	mul	x4, x3, x23
-	umulh	x23, x3, x23
+	mul	x4, x3, x2
+	umulh	x2, x3, x2
 	adds	x14, x14, x4
 	mul	x4, x3, x26
 	umulh	x26, x3, x26
@@ -1419,7 +1422,7 @@ L_curve25519_bits:
 	adcs	x17, x17, x4
 	adc	x5, x5, xzr
 	#  Add remaining product results in
-	adds	x15, x15, x23
+	adds	x15, x15, x2
 	adcs	x16, x16, x26
 	adcs	x17, x17, x27
 	adc	x5, x5, xzr
@@ -1464,53 +1467,53 @@ L_curve25519_bits:
 	umulh	x4, x15, x11
 	adds	x8, x8, x3
 	adcs	x9, x9, x4
-	adc	x23, xzr, xzr
+	adc	x2, xzr, xzr
 	#  A[2] * B[0]
 	mul	x3, x16, x10
 	umulh	x4, x16, x10
 	adds	x8, x8, x3
 	adcs	x9, x9, x4
-	adc	x23, x23, xzr
+	adc	x2, x2, xzr
 	#  A[0] * B[3]
 	mul	x3, x14, x13
 	umulh	x4, x14, x13
 	adds	x9, x9, x3
-	adcs	x23, x23, x4
+	adcs	x2, x2, x4
 	adc	x26, xzr, xzr
 	#  A[1] * B[2]
 	mul	x3, x15, x12
 	umulh	x4, x15, x12
 	adds	x9, x9, x3
-	adcs	x23, x23, x4
+	adcs	x2, x2, x4
 	adc	x26, x26, xzr
 	#  A[2] * B[1]
 	mul	x3, x16, x11
 	umulh	x4, x16, x11
 	adds	x9, x9, x3
-	adcs	x23, x23, x4
+	adcs	x2, x2, x4
 	adc	x26, x26, xzr
 	#  A[3] * B[0]
 	mul	x3, x17, x10
 	umulh	x4, x17, x10
 	adds	x9, x9, x3
-	adcs	x23, x23, x4
+	adcs	x2, x2, x4
 	adc	x26, x26, xzr
 	#  A[1] * B[3]
 	mul	x3, x15, x13
 	umulh	x4, x15, x13
-	adds	x23, x23, x3
+	adds	x2, x2, x3
 	adcs	x26, x26, x4
 	adc	x27, xzr, xzr
 	#  A[2] * B[2]
 	mul	x3, x16, x12
 	umulh	x4, x16, x12
-	adds	x23, x23, x3
+	adds	x2, x2, x3
 	adcs	x26, x26, x4
 	adc	x27, x27, xzr
 	#  A[3] * B[1]
 	mul	x3, x17, x11
 	umulh	x4, x17, x11
-	adds	x23, x23, x3
+	adds	x2, x2, x3
 	adcs	x26, x26, x4
 	adc	x27, x27, xzr
 	#  A[2] * B[3]
@@ -1534,13 +1537,13 @@ L_curve25519_bits:
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x28, x28, x27, #63
 	extr	x27, x27, x26, #63
-	extr	x26, x26, x23, #63
-	extr	x23, x23, x9, #63
+	extr	x26, x26, x2, #63
+	extr	x2, x2, x9, #63
 	and	x9, x9, #0x7fffffffffffffff
 	#  Multiply top half by 19
 	mov	x3, #19
-	mul	x4, x3, x23
-	umulh	x23, x3, x23
+	mul	x4, x3, x2
+	umulh	x2, x3, x2
 	adds	x6, x6, x4
 	mul	x4, x3, x26
 	umulh	x26, x3, x26
@@ -1553,7 +1556,7 @@ L_curve25519_bits:
 	adcs	x9, x9, x4
 	adc	x5, x5, xzr
 	#  Add remaining product results in
-	adds	x7, x7, x23
+	adds	x7, x7, x2
 	adcs	x8, x8, x26
 	adcs	x9, x9, x27
 	adc	x5, x5, xzr
@@ -1581,14 +1584,14 @@ L_curve25519_bits:
 	sbcs	x16, x16, x12
 	sbcs	x17, x17, x13
 	mov	x3, #-19
-	csetm	x23, cc
+	csetm	x2, cc
 	#   Mask the modulus
-	and	x3, x23, x3
-	and	x4, x23, #0x7fffffffffffffff
+	and	x3, x2, x3
+	and	x4, x2, #0x7fffffffffffffff
 	#   Add modulus (if underflow)
 	adds	x14, x14, x3
-	adcs	x15, x15, x23
-	adcs	x16, x16, x23
+	adcs	x15, x15, x2
+	adcs	x16, x16, x2
 	adc	x17, x17, x4
 	# Multiply by 121666
 	mov	x5, #0xdb42
@@ -1621,14 +1624,14 @@ L_curve25519_bits:
 	adcs	x12, x12, x8
 	adc	x13, x13, x9
 	mov	x3, #-19
-	asr	x23, x13, #63
+	asr	x2, x13, #63
 	#   Mask the modulus
-	and	x3, x23, x3
-	and	x4, x23, #0x7fffffffffffffff
+	and	x3, x2, x3
+	and	x4, x2, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
 	subs	x10, x10, x3
-	sbcs	x11, x11, x23
-	sbcs	x12, x12, x23
+	sbcs	x11, x11, x2
+	sbcs	x12, x12, x2
 	sbc	x13, x13, x4
 	# Multiply
 	#  A[0] * B[0]
@@ -1655,53 +1658,53 @@ L_curve25519_bits:
 	umulh	x4, x15, x11
 	adds	x8, x8, x3
 	adcs	x9, x9, x4
-	adc	x23, xzr, xzr
+	adc	x2, xzr, xzr
 	#  A[2] * B[0]
 	mul	x3, x16, x10
 	umulh	x4, x16, x10
 	adds	x8, x8, x3
 	adcs	x9, x9, x4
-	adc	x23, x23, xzr
+	adc	x2, x2, xzr
 	#  A[0] * B[3]
 	mul	x3, x14, x13
 	umulh	x4, x14, x13
 	adds	x9, x9, x3
-	adcs	x23, x23, x4
+	adcs	x2, x2, x4
 	adc	x26, xzr, xzr
 	#  A[1] * B[2]
 	mul	x3, x15, x12
 	umulh	x4, x15, x12
 	adds	x9, x9, x3
-	adcs	x23, x23, x4
+	adcs	x2, x2, x4
 	adc	x26, x26, xzr
 	#  A[2] * B[1]
 	mul	x3, x16, x11
 	umulh	x4, x16, x11
 	adds	x9, x9, x3
-	adcs	x23, x23, x4
+	adcs	x2, x2, x4
 	adc	x26, x26, xzr
 	#  A[3] * B[0]
 	mul	x3, x17, x10
 	umulh	x4, x17, x10
 	adds	x9, x9, x3
-	adcs	x23, x23, x4
+	adcs	x2, x2, x4
 	adc	x26, x26, xzr
 	#  A[1] * B[3]
 	mul	x3, x15, x13
 	umulh	x4, x15, x13
-	adds	x23, x23, x3
+	adds	x2, x2, x3
 	adcs	x26, x26, x4
 	adc	x27, xzr, xzr
 	#  A[2] * B[2]
 	mul	x3, x16, x12
 	umulh	x4, x16, x12
-	adds	x23, x23, x3
+	adds	x2, x2, x3
 	adcs	x26, x26, x4
 	adc	x27, x27, xzr
 	#  A[3] * B[1]
 	mul	x3, x17, x11
 	umulh	x4, x17, x11
-	adds	x23, x23, x3
+	adds	x2, x2, x3
 	adcs	x26, x26, x4
 	adc	x27, x27, xzr
 	#  A[2] * B[3]
@@ -1725,13 +1728,13 @@ L_curve25519_bits:
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x28, x28, x27, #63
 	extr	x27, x27, x26, #63
-	extr	x26, x26, x23, #63
-	extr	x23, x23, x9, #63
+	extr	x26, x26, x2, #63
+	extr	x2, x2, x9, #63
 	and	x9, x9, #0x7fffffffffffffff
 	#  Multiply top half by 19
 	mov	x3, #19
-	mul	x4, x3, x23
-	umulh	x23, x3, x23
+	mul	x4, x3, x2
+	umulh	x2, x3, x2
 	adds	x6, x6, x4
 	mul	x4, x3, x26
 	umulh	x26, x3, x26
@@ -1744,7 +1747,7 @@ L_curve25519_bits:
 	adcs	x9, x9, x4
 	adc	x5, x5, xzr
 	#  Add remaining product results in
-	adds	x7, x7, x23
+	adds	x7, x7, x2
 	adcs	x8, x8, x26
 	adcs	x9, x9, x27
 	adc	x5, x5, xzr
@@ -1769,35 +1772,35 @@ L_curve25519_bits:
 	# Add
 	ldp	x6, x7, [x29, #112]
 	ldp	x8, x9, [x29, #128]
-	adds	x10, x6, x18
-	adcs	x11, x7, x19
-	adcs	x12, x8, x20
-	adc	x13, x9, x21
+	adds	x10, x6, x19
+	adcs	x11, x7, x20
+	adcs	x12, x8, x21
+	adc	x13, x9, x22
 	mov	x3, #-19
-	asr	x23, x13, #63
+	asr	x2, x13, #63
 	#   Mask the modulus
-	and	x3, x23, x3
-	and	x4, x23, #0x7fffffffffffffff
+	and	x3, x2, x3
+	and	x4, x2, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
 	subs	x10, x10, x3
-	sbcs	x11, x11, x23
-	sbcs	x12, x12, x23
+	sbcs	x11, x11, x2
+	sbcs	x12, x12, x2
 	sbc	x13, x13, x4
 	# Sub
-	subs	x18, x6, x18
-	sbcs	x19, x7, x19
-	sbcs	x20, x8, x20
-	sbcs	x21, x9, x21
+	subs	x19, x6, x19
+	sbcs	x20, x7, x20
+	sbcs	x21, x8, x21
+	sbcs	x22, x9, x22
 	mov	x3, #-19
-	csetm	x23, cc
+	csetm	x2, cc
 	#   Mask the modulus
-	and	x3, x23, x3
-	and	x4, x23, #0x7fffffffffffffff
+	and	x3, x2, x3
+	and	x4, x2, #0x7fffffffffffffff
 	#   Add modulus (if underflow)
-	adds	x18, x18, x3
-	adcs	x19, x19, x23
-	adcs	x20, x20, x23
-	adc	x21, x21, x4
+	adds	x19, x19, x3
+	adcs	x20, x20, x2
+	adcs	x21, x21, x2
+	adc	x22, x22, x4
 	# Square
 	#  A[0] * A[1]
 	mul	x7, x10, x11
@@ -1809,19 +1812,19 @@ L_curve25519_bits:
 	adc	x9, x9, xzr
 	#  A[0] * A[3]
 	mul	x3, x10, x13
-	umulh	x23, x10, x13
+	umulh	x2, x10, x13
 	adds	x9, x9, x3
-	adc	x23, x23, xzr
+	adc	x2, x2, xzr
 	#  A[1] * A[2]
 	mul	x3, x11, x12
 	umulh	x4, x11, x12
 	adds	x9, x9, x3
-	adcs	x23, x23, x4
+	adcs	x2, x2, x4
 	adc	x26, xzr, xzr
 	#  A[1] * A[3]
 	mul	x3, x11, x13
 	umulh	x4, x11, x13
-	adds	x23, x23, x3
+	adds	x2, x2, x3
 	adc	x26, x26, x4
 	#  A[2] * A[3]
 	mul	x3, x12, x13
@@ -1832,7 +1835,7 @@ L_curve25519_bits:
 	adds	x7, x7, x7
 	adcs	x8, x8, x8
 	adcs	x9, x9, x9
-	adcs	x23, x23, x23
+	adcs	x2, x2, x2
 	adcs	x26, x26, x26
 	adcs	x27, x27, x27
 	adc	x28, xzr, xzr
@@ -1849,7 +1852,7 @@ L_curve25519_bits:
 	mul	x3, x12, x12
 	umulh	x4, x12, x12
 	adds	x9, x9, x5
-	adcs	x23, x23, x3
+	adcs	x2, x2, x3
 	adc	x5, x4, xzr
 	#  A[3] * A[3]
 	mul	x3, x13, x13
@@ -1861,13 +1864,13 @@ L_curve25519_bits:
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x28, x28, x27, #63
 	extr	x27, x27, x26, #63
-	extr	x26, x26, x23, #63
-	extr	x23, x23, x9, #63
+	extr	x26, x26, x2, #63
+	extr	x2, x2, x9, #63
 	and	x9, x9, #0x7fffffffffffffff
 	#  Multiply top half by 19
 	mov	x3, #19
-	mul	x4, x3, x23
-	umulh	x23, x3, x23
+	mul	x4, x3, x2
+	umulh	x2, x3, x2
 	adds	x6, x6, x4
 	mul	x4, x3, x26
 	umulh	x26, x3, x26
@@ -1880,7 +1883,7 @@ L_curve25519_bits:
 	adcs	x9, x9, x4
 	adc	x5, x5, xzr
 	#  Add remaining product results in
-	adds	x7, x7, x23
+	adds	x7, x7, x2
 	adcs	x8, x8, x26
 	adcs	x9, x9, x27
 	adc	x5, x5, xzr
@@ -1904,60 +1907,60 @@ L_curve25519_bits:
 	stp	x8, x9, [x29, #96]
 	# Square
 	#  A[0] * A[1]
-	mul	x7, x18, x19
-	umulh	x8, x18, x19
+	mul	x7, x19, x20
+	umulh	x8, x19, x20
 	#  A[0] * A[2]
-	mul	x3, x18, x20
-	umulh	x9, x18, x20
+	mul	x3, x19, x21
+	umulh	x9, x19, x21
 	adds	x8, x8, x3
 	adc	x9, x9, xzr
 	#  A[0] * A[3]
-	mul	x3, x18, x21
-	umulh	x23, x18, x21
+	mul	x3, x19, x22
+	umulh	x2, x19, x22
 	adds	x9, x9, x3
-	adc	x23, x23, xzr
+	adc	x2, x2, xzr
 	#  A[1] * A[2]
-	mul	x3, x19, x20
-	umulh	x4, x19, x20
+	mul	x3, x20, x21
+	umulh	x4, x20, x21
 	adds	x9, x9, x3
-	adcs	x23, x23, x4
+	adcs	x2, x2, x4
 	adc	x26, xzr, xzr
 	#  A[1] * A[3]
-	mul	x3, x19, x21
-	umulh	x4, x19, x21
-	adds	x23, x23, x3
+	mul	x3, x20, x22
+	umulh	x4, x20, x22
+	adds	x2, x2, x3
 	adc	x26, x26, x4
 	#  A[2] * A[3]
-	mul	x3, x20, x21
-	umulh	x27, x20, x21
+	mul	x3, x21, x22
+	umulh	x27, x21, x22
 	adds	x26, x26, x3
 	adc	x27, x27, xzr
 	# Double
 	adds	x7, x7, x7
 	adcs	x8, x8, x8
 	adcs	x9, x9, x9
-	adcs	x23, x23, x23
+	adcs	x2, x2, x2
 	adcs	x26, x26, x26
 	adcs	x27, x27, x27
 	adc	x28, xzr, xzr
 	#  A[0] * A[0]
-	mul	x6, x18, x18
-	umulh	x5, x18, x18
+	mul	x6, x19, x19
+	umulh	x5, x19, x19
 	#  A[1] * A[1]
-	mul	x3, x19, x19
-	umulh	x4, x19, x19
+	mul	x3, x20, x20
+	umulh	x4, x20, x20
 	adds	x7, x7, x5
 	adcs	x8, x8, x3
 	adc	x5, x4, xzr
 	#  A[2] * A[2]
-	mul	x3, x20, x20
-	umulh	x4, x20, x20
-	adds	x9, x9, x5
-	adcs	x23, x23, x3
-	adc	x5, x4, xzr
-	#  A[3] * A[3]
 	mul	x3, x21, x21
 	umulh	x4, x21, x21
+	adds	x9, x9, x5
+	adcs	x2, x2, x3
+	adc	x5, x4, xzr
+	#  A[3] * A[3]
+	mul	x3, x22, x22
+	umulh	x4, x22, x22
 	adds	x26, x26, x5
 	adcs	x27, x27, x3
 	adc	x28, x28, x4
@@ -1965,13 +1968,13 @@ L_curve25519_bits:
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x28, x28, x27, #63
 	extr	x27, x27, x26, #63
-	extr	x26, x26, x23, #63
-	extr	x23, x23, x9, #63
+	extr	x26, x26, x2, #63
+	extr	x2, x2, x9, #63
 	and	x9, x9, #0x7fffffffffffffff
 	#  Multiply top half by 19
 	mov	x3, #19
-	mul	x4, x3, x23
-	umulh	x23, x3, x23
+	mul	x4, x3, x2
+	umulh	x2, x3, x2
 	adds	x6, x6, x4
 	mul	x4, x3, x26
 	umulh	x26, x3, x26
@@ -1984,7 +1987,7 @@ L_curve25519_bits:
 	adcs	x9, x9, x4
 	adc	x5, x5, xzr
 	#  Add remaining product results in
-	adds	x7, x7, x23
+	adds	x7, x7, x2
 	adcs	x8, x8, x26
 	adcs	x9, x9, x27
 	adc	x5, x5, xzr
@@ -2004,6 +2007,7 @@ L_curve25519_bits:
 	adcs	x8, x8, xzr
 	adc	x9, x9, xzr
 	# Store
+	ldr	x2, [x29, #184]
 	# Multiply
 	ldp	x14, x15, [x2]
 	ldp	x16, x17, [x2, #16]
@@ -2031,53 +2035,53 @@ L_curve25519_bits:
 	umulh	x4, x15, x7
 	adds	x12, x12, x3
 	adcs	x13, x13, x4
-	adc	x23, xzr, xzr
+	adc	x2, xzr, xzr
 	#  A[2] * B[0]
 	mul	x3, x16, x6
 	umulh	x4, x16, x6
 	adds	x12, x12, x3
 	adcs	x13, x13, x4
-	adc	x23, x23, xzr
+	adc	x2, x2, xzr
 	#  A[0] * B[3]
 	mul	x3, x14, x9
 	umulh	x4, x14, x9
 	adds	x13, x13, x3
-	adcs	x23, x23, x4
+	adcs	x2, x2, x4
 	adc	x26, xzr, xzr
 	#  A[1] * B[2]
 	mul	x3, x15, x8
 	umulh	x4, x15, x8
 	adds	x13, x13, x3
-	adcs	x23, x23, x4
+	adcs	x2, x2, x4
 	adc	x26, x26, xzr
 	#  A[2] * B[1]
 	mul	x3, x16, x7
 	umulh	x4, x16, x7
 	adds	x13, x13, x3
-	adcs	x23, x23, x4
+	adcs	x2, x2, x4
 	adc	x26, x26, xzr
 	#  A[3] * B[0]
 	mul	x3, x17, x6
 	umulh	x4, x17, x6
 	adds	x13, x13, x3
-	adcs	x23, x23, x4
+	adcs	x2, x2, x4
 	adc	x26, x26, xzr
 	#  A[1] * B[3]
 	mul	x3, x15, x9
 	umulh	x4, x15, x9
-	adds	x23, x23, x3
+	adds	x2, x2, x3
 	adcs	x26, x26, x4
 	adc	x27, xzr, xzr
 	#  A[2] * B[2]
 	mul	x3, x16, x8
 	umulh	x4, x16, x8
-	adds	x23, x23, x3
+	adds	x2, x2, x3
 	adcs	x26, x26, x4
 	adc	x27, x27, xzr
 	#  A[3] * B[1]
 	mul	x3, x17, x7
 	umulh	x4, x17, x7
-	adds	x23, x23, x3
+	adds	x2, x2, x3
 	adcs	x26, x26, x4
 	adc	x27, x27, xzr
 	#  A[2] * B[3]
@@ -2101,13 +2105,13 @@ L_curve25519_bits:
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x28, x28, x27, #63
 	extr	x27, x27, x26, #63
-	extr	x26, x26, x23, #63
-	extr	x23, x23, x13, #63
+	extr	x26, x26, x2, #63
+	extr	x2, x2, x13, #63
 	and	x13, x13, #0x7fffffffffffffff
 	#  Multiply top half by 19
 	mov	x3, #19
-	mul	x4, x3, x23
-	umulh	x23, x3, x23
+	mul	x4, x3, x2
+	umulh	x2, x3, x2
 	adds	x10, x10, x4
 	mul	x4, x3, x26
 	umulh	x26, x3, x26
@@ -2120,7 +2124,7 @@ L_curve25519_bits:
 	adcs	x13, x13, x4
 	adc	x5, x5, xzr
 	#  Add remaining product results in
-	adds	x11, x11, x23
+	adds	x11, x11, x2
 	adcs	x12, x12, x26
 	adcs	x13, x13, x27
 	adc	x5, x5, xzr
@@ -2291,98 +2295,98 @@ L_curve25519_inv_8:
 	umulh	x4, x7, x11
 	adds	x16, x16, x3
 	adcs	x17, x17, x4
-	adc	x18, xzr, xzr
+	adc	x19, xzr, xzr
 	#  A[2] * B[0]
 	mul	x3, x8, x10
 	umulh	x4, x8, x10
 	adds	x16, x16, x3
 	adcs	x17, x17, x4
-	adc	x18, x18, xzr
+	adc	x19, x19, xzr
 	#  A[0] * B[3]
 	mul	x3, x6, x13
 	umulh	x4, x6, x13
 	adds	x17, x17, x3
-	adcs	x18, x18, x4
-	adc	x19, xzr, xzr
+	adcs	x19, x19, x4
+	adc	x20, xzr, xzr
 	#  A[1] * B[2]
 	mul	x3, x7, x12
 	umulh	x4, x7, x12
 	adds	x17, x17, x3
-	adcs	x18, x18, x4
-	adc	x19, x19, xzr
+	adcs	x19, x19, x4
+	adc	x20, x20, xzr
 	#  A[2] * B[1]
 	mul	x3, x8, x11
 	umulh	x4, x8, x11
 	adds	x17, x17, x3
-	adcs	x18, x18, x4
-	adc	x19, x19, xzr
+	adcs	x19, x19, x4
+	adc	x20, x20, xzr
 	#  A[3] * B[0]
 	mul	x3, x9, x10
 	umulh	x4, x9, x10
 	adds	x17, x17, x3
-	adcs	x18, x18, x4
-	adc	x19, x19, xzr
+	adcs	x19, x19, x4
+	adc	x20, x20, xzr
 	#  A[1] * B[3]
 	mul	x3, x7, x13
 	umulh	x4, x7, x13
-	adds	x18, x18, x3
-	adcs	x19, x19, x4
-	adc	x20, xzr, xzr
-	#  A[2] * B[2]
-	mul	x3, x8, x12
-	umulh	x4, x8, x12
-	adds	x18, x18, x3
-	adcs	x19, x19, x4
-	adc	x20, x20, xzr
-	#  A[3] * B[1]
-	mul	x3, x9, x11
-	umulh	x4, x9, x11
-	adds	x18, x18, x3
-	adcs	x19, x19, x4
-	adc	x20, x20, xzr
-	#  A[2] * B[3]
-	mul	x3, x8, x13
-	umulh	x4, x8, x13
 	adds	x19, x19, x3
 	adcs	x20, x20, x4
 	adc	x21, xzr, xzr
-	#  A[3] * B[2]
-	mul	x3, x9, x12
-	umulh	x4, x9, x12
+	#  A[2] * B[2]
+	mul	x3, x8, x12
+	umulh	x4, x8, x12
 	adds	x19, x19, x3
 	adcs	x20, x20, x4
 	adc	x21, x21, xzr
+	#  A[3] * B[1]
+	mul	x3, x9, x11
+	umulh	x4, x9, x11
+	adds	x19, x19, x3
+	adcs	x20, x20, x4
+	adc	x21, x21, xzr
+	#  A[2] * B[3]
+	mul	x3, x8, x13
+	umulh	x4, x8, x13
+	adds	x20, x20, x3
+	adcs	x21, x21, x4
+	adc	x22, xzr, xzr
+	#  A[3] * B[2]
+	mul	x3, x9, x12
+	umulh	x4, x9, x12
+	adds	x20, x20, x3
+	adcs	x21, x21, x4
+	adc	x22, x22, xzr
 	#  A[3] * B[3]
 	mul	x3, x9, x13
 	umulh	x4, x9, x13
-	adds	x20, x20, x3
-	adc	x21, x21, x4
+	adds	x21, x21, x3
+	adc	x22, x22, x4
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
+	extr	x22, x22, x21, #63
 	extr	x21, x21, x20, #63
 	extr	x20, x20, x19, #63
-	extr	x19, x19, x18, #63
-	extr	x18, x18, x17, #63
+	extr	x19, x19, x17, #63
 	and	x17, x17, #0x7fffffffffffffff
 	#  Multiply top half by 19
 	mov	x3, #19
-	mul	x4, x3, x18
-	umulh	x18, x3, x18
-	adds	x14, x14, x4
 	mul	x4, x3, x19
 	umulh	x19, x3, x19
-	adcs	x15, x15, x4
+	adds	x14, x14, x4
 	mul	x4, x3, x20
 	umulh	x20, x3, x20
-	adcs	x16, x16, x4
+	adcs	x15, x15, x4
 	mul	x4, x3, x21
-	umulh	x5, x3, x21
+	umulh	x21, x3, x21
+	adcs	x16, x16, x4
+	mul	x4, x3, x22
+	umulh	x5, x3, x22
 	adcs	x17, x17, x4
 	adc	x5, x5, xzr
 	#  Add remaining product results in
-	adds	x15, x15, x18
-	adcs	x16, x16, x19
-	adcs	x17, x17, x20
+	adds	x15, x15, x19
+	adcs	x16, x16, x20
+	adcs	x17, x17, x21
 	adc	x5, x5, xzr
 	#  Overflow
 	extr	x5, x5, x17, #63
@@ -2403,8 +2407,8 @@ L_curve25519_inv_8:
 	stp	x14, x15, [x0]
 	stp	x16, x17, [x0, #16]
 	mov	x0, xzr
-	ldr	x17, [x29, #192]
-	ldp	x18, x19, [x29, #200]
+	ldr	x17, [x29, #200]
+	ldr	x19, [x29, #208]
 	ldp	x20, x21, [x29, #216]
 	ldp	x22, x23, [x29, #232]
 	ldp	x24, x25, [x29, #248]
@@ -2545,8 +2549,9 @@ fe_ge_to_p2:
 	stp	x29, x30, [sp, #-112]!
 	add	x29, sp, #0
 	str	x17, [x29, #72]
-	stp	x18, x19, [x29, #80]
-	stp	x20, x21, [x29, #96]
+	str	x19, [x29, #80]
+	stp	x20, x21, [x29, #88]
+	str	x22, [x29, #104]
 	str	x1, [x29, #16]
 	str	x2, [x29, #24]
 	str	x3, [x29, #32]
@@ -2559,97 +2564,97 @@ fe_ge_to_p2:
 	ldp	x11, x12, [x1]
 	ldp	x13, x14, [x1, #16]
 	ldp	x15, x16, [x2]
-	ldp	x17, x18, [x2, #16]
+	ldp	x17, x19, [x2, #16]
 	#  A[0] * B[0]
 	mul	x3, x11, x15
 	umulh	x4, x11, x15
 	#  A[0] * B[1]
-	mul	x19, x11, x16
+	mul	x20, x11, x16
 	umulh	x5, x11, x16
-	adds	x4, x4, x19
+	adds	x4, x4, x20
 	adc	x5, x5, xzr
 	#  A[1] * B[0]
-	mul	x19, x12, x15
-	umulh	x20, x12, x15
-	adds	x4, x4, x19
-	adcs	x5, x5, x20
+	mul	x20, x12, x15
+	umulh	x21, x12, x15
+	adds	x4, x4, x20
+	adcs	x5, x5, x21
 	adc	x6, xzr, xzr
 	#  A[0] * B[2]
-	mul	x19, x11, x17
-	umulh	x20, x11, x17
-	adds	x5, x5, x19
-	adc	x6, x6, x20
+	mul	x20, x11, x17
+	umulh	x21, x11, x17
+	adds	x5, x5, x20
+	adc	x6, x6, x21
 	#  A[1] * B[1]
-	mul	x19, x12, x16
-	umulh	x20, x12, x16
-	adds	x5, x5, x19
-	adcs	x6, x6, x20
+	mul	x20, x12, x16
+	umulh	x21, x12, x16
+	adds	x5, x5, x20
+	adcs	x6, x6, x21
 	adc	x7, xzr, xzr
 	#  A[2] * B[0]
-	mul	x19, x13, x15
-	umulh	x20, x13, x15
-	adds	x5, x5, x19
-	adcs	x6, x6, x20
+	mul	x20, x13, x15
+	umulh	x21, x13, x15
+	adds	x5, x5, x20
+	adcs	x6, x6, x21
 	adc	x7, x7, xzr
 	#  A[0] * B[3]
-	mul	x19, x11, x18
-	umulh	x20, x11, x18
-	adds	x6, x6, x19
-	adcs	x7, x7, x20
+	mul	x20, x11, x19
+	umulh	x21, x11, x19
+	adds	x6, x6, x20
+	adcs	x7, x7, x21
 	adc	x8, xzr, xzr
 	#  A[1] * B[2]
-	mul	x19, x12, x17
-	umulh	x20, x12, x17
-	adds	x6, x6, x19
-	adcs	x7, x7, x20
+	mul	x20, x12, x17
+	umulh	x21, x12, x17
+	adds	x6, x6, x20
+	adcs	x7, x7, x21
 	adc	x8, x8, xzr
 	#  A[2] * B[1]
-	mul	x19, x13, x16
-	umulh	x20, x13, x16
-	adds	x6, x6, x19
-	adcs	x7, x7, x20
+	mul	x20, x13, x16
+	umulh	x21, x13, x16
+	adds	x6, x6, x20
+	adcs	x7, x7, x21
 	adc	x8, x8, xzr
 	#  A[3] * B[0]
-	mul	x19, x14, x15
-	umulh	x20, x14, x15
-	adds	x6, x6, x19
-	adcs	x7, x7, x20
+	mul	x20, x14, x15
+	umulh	x21, x14, x15
+	adds	x6, x6, x20
+	adcs	x7, x7, x21
 	adc	x8, x8, xzr
 	#  A[1] * B[3]
-	mul	x19, x12, x18
-	umulh	x20, x12, x18
-	adds	x7, x7, x19
-	adcs	x8, x8, x20
+	mul	x20, x12, x19
+	umulh	x21, x12, x19
+	adds	x7, x7, x20
+	adcs	x8, x8, x21
 	adc	x9, xzr, xzr
 	#  A[2] * B[2]
-	mul	x19, x13, x17
-	umulh	x20, x13, x17
-	adds	x7, x7, x19
-	adcs	x8, x8, x20
+	mul	x20, x13, x17
+	umulh	x21, x13, x17
+	adds	x7, x7, x20
+	adcs	x8, x8, x21
 	adc	x9, x9, xzr
 	#  A[3] * B[1]
-	mul	x19, x14, x16
-	umulh	x20, x14, x16
-	adds	x7, x7, x19
-	adcs	x8, x8, x20
+	mul	x20, x14, x16
+	umulh	x21, x14, x16
+	adds	x7, x7, x20
+	adcs	x8, x8, x21
 	adc	x9, x9, xzr
 	#  A[2] * B[3]
-	mul	x19, x13, x18
-	umulh	x20, x13, x18
-	adds	x8, x8, x19
-	adcs	x9, x9, x20
+	mul	x20, x13, x19
+	umulh	x21, x13, x19
+	adds	x8, x8, x20
+	adcs	x9, x9, x21
 	adc	x10, xzr, xzr
 	#  A[3] * B[2]
-	mul	x19, x14, x17
-	umulh	x20, x14, x17
-	adds	x8, x8, x19
-	adcs	x9, x9, x20
+	mul	x20, x14, x17
+	umulh	x21, x14, x17
+	adds	x8, x8, x20
+	adcs	x9, x9, x21
 	adc	x10, x10, xzr
 	#  A[3] * B[3]
-	mul	x19, x14, x18
-	umulh	x20, x14, x18
-	adds	x9, x9, x19
-	adc	x10, x10, x20
+	mul	x20, x14, x19
+	umulh	x21, x14, x19
+	adds	x9, x9, x20
+	adc	x10, x10, x21
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x10, x10, x9, #63
@@ -2658,37 +2663,37 @@ fe_ge_to_p2:
 	extr	x7, x7, x6, #63
 	and	x6, x6, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x19, #19
-	mul	x20, x19, x7
-	umulh	x7, x19, x7
-	adds	x3, x3, x20
-	mul	x20, x19, x8
-	umulh	x8, x19, x8
-	adcs	x4, x4, x20
-	mul	x20, x19, x9
-	umulh	x9, x19, x9
-	adcs	x5, x5, x20
-	mul	x20, x19, x10
-	umulh	x21, x19, x10
-	adcs	x6, x6, x20
-	adc	x21, x21, xzr
+	mov	x20, #19
+	mul	x21, x20, x7
+	umulh	x7, x20, x7
+	adds	x3, x3, x21
+	mul	x21, x20, x8
+	umulh	x8, x20, x8
+	adcs	x4, x4, x21
+	mul	x21, x20, x9
+	umulh	x9, x20, x9
+	adcs	x5, x5, x21
+	mul	x21, x20, x10
+	umulh	x22, x20, x10
+	adcs	x6, x6, x21
+	adc	x22, x22, xzr
 	#  Add remaining product results in
 	adds	x4, x4, x7
 	adcs	x5, x5, x8
 	adcs	x6, x6, x9
-	adc	x21, x21, xzr
+	adc	x22, x22, xzr
 	#  Overflow
-	extr	x21, x21, x6, #63
-	mul	x21, x21, x19
+	extr	x22, x22, x6, #63
+	mul	x22, x22, x20
 	and	x6, x6, #0x7fffffffffffffff
-	adds	x3, x3, x21
+	adds	x3, x3, x22
 	adcs	x4, x4, xzr
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
 	# Reduce if top bit set
-	and	x21, x19, x6, asr 63
+	and	x22, x20, x6, asr 63
 	and	x6, x6, #0x7fffffffffffffff
-	adds	x3, x3, x21
+	adds	x3, x3, x22
 	adcs	x4, x4, xzr
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
@@ -2702,97 +2707,97 @@ fe_ge_to_p2:
 	ldp	x11, x12, [x1]
 	ldp	x13, x14, [x1, #16]
 	ldp	x15, x16, [x2]
-	ldp	x17, x18, [x2, #16]
+	ldp	x17, x19, [x2, #16]
 	#  A[0] * B[0]
 	mul	x3, x11, x15
 	umulh	x4, x11, x15
 	#  A[0] * B[1]
-	mul	x19, x11, x16
+	mul	x20, x11, x16
 	umulh	x5, x11, x16
-	adds	x4, x4, x19
+	adds	x4, x4, x20
 	adc	x5, x5, xzr
 	#  A[1] * B[0]
-	mul	x19, x12, x15
-	umulh	x20, x12, x15
-	adds	x4, x4, x19
-	adcs	x5, x5, x20
+	mul	x20, x12, x15
+	umulh	x21, x12, x15
+	adds	x4, x4, x20
+	adcs	x5, x5, x21
 	adc	x6, xzr, xzr
 	#  A[0] * B[2]
-	mul	x19, x11, x17
-	umulh	x20, x11, x17
-	adds	x5, x5, x19
-	adc	x6, x6, x20
+	mul	x20, x11, x17
+	umulh	x21, x11, x17
+	adds	x5, x5, x20
+	adc	x6, x6, x21
 	#  A[1] * B[1]
-	mul	x19, x12, x16
-	umulh	x20, x12, x16
-	adds	x5, x5, x19
-	adcs	x6, x6, x20
+	mul	x20, x12, x16
+	umulh	x21, x12, x16
+	adds	x5, x5, x20
+	adcs	x6, x6, x21
 	adc	x7, xzr, xzr
 	#  A[2] * B[0]
-	mul	x19, x13, x15
-	umulh	x20, x13, x15
-	adds	x5, x5, x19
-	adcs	x6, x6, x20
+	mul	x20, x13, x15
+	umulh	x21, x13, x15
+	adds	x5, x5, x20
+	adcs	x6, x6, x21
 	adc	x7, x7, xzr
 	#  A[0] * B[3]
-	mul	x19, x11, x18
-	umulh	x20, x11, x18
-	adds	x6, x6, x19
-	adcs	x7, x7, x20
+	mul	x20, x11, x19
+	umulh	x21, x11, x19
+	adds	x6, x6, x20
+	adcs	x7, x7, x21
 	adc	x8, xzr, xzr
 	#  A[1] * B[2]
-	mul	x19, x12, x17
-	umulh	x20, x12, x17
-	adds	x6, x6, x19
-	adcs	x7, x7, x20
+	mul	x20, x12, x17
+	umulh	x21, x12, x17
+	adds	x6, x6, x20
+	adcs	x7, x7, x21
 	adc	x8, x8, xzr
 	#  A[2] * B[1]
-	mul	x19, x13, x16
-	umulh	x20, x13, x16
-	adds	x6, x6, x19
-	adcs	x7, x7, x20
+	mul	x20, x13, x16
+	umulh	x21, x13, x16
+	adds	x6, x6, x20
+	adcs	x7, x7, x21
 	adc	x8, x8, xzr
 	#  A[3] * B[0]
-	mul	x19, x14, x15
-	umulh	x20, x14, x15
-	adds	x6, x6, x19
-	adcs	x7, x7, x20
+	mul	x20, x14, x15
+	umulh	x21, x14, x15
+	adds	x6, x6, x20
+	adcs	x7, x7, x21
 	adc	x8, x8, xzr
 	#  A[1] * B[3]
-	mul	x19, x12, x18
-	umulh	x20, x12, x18
-	adds	x7, x7, x19
-	adcs	x8, x8, x20
+	mul	x20, x12, x19
+	umulh	x21, x12, x19
+	adds	x7, x7, x20
+	adcs	x8, x8, x21
 	adc	x9, xzr, xzr
 	#  A[2] * B[2]
-	mul	x19, x13, x17
-	umulh	x20, x13, x17
-	adds	x7, x7, x19
-	adcs	x8, x8, x20
+	mul	x20, x13, x17
+	umulh	x21, x13, x17
+	adds	x7, x7, x20
+	adcs	x8, x8, x21
 	adc	x9, x9, xzr
 	#  A[3] * B[1]
-	mul	x19, x14, x16
-	umulh	x20, x14, x16
-	adds	x7, x7, x19
-	adcs	x8, x8, x20
+	mul	x20, x14, x16
+	umulh	x21, x14, x16
+	adds	x7, x7, x20
+	adcs	x8, x8, x21
 	adc	x9, x9, xzr
 	#  A[2] * B[3]
-	mul	x19, x13, x18
-	umulh	x20, x13, x18
-	adds	x8, x8, x19
-	adcs	x9, x9, x20
+	mul	x20, x13, x19
+	umulh	x21, x13, x19
+	adds	x8, x8, x20
+	adcs	x9, x9, x21
 	adc	x10, xzr, xzr
 	#  A[3] * B[2]
-	mul	x19, x14, x17
-	umulh	x20, x14, x17
-	adds	x8, x8, x19
-	adcs	x9, x9, x20
+	mul	x20, x14, x17
+	umulh	x21, x14, x17
+	adds	x8, x8, x20
+	adcs	x9, x9, x21
 	adc	x10, x10, xzr
 	#  A[3] * B[3]
-	mul	x19, x14, x18
-	umulh	x20, x14, x18
-	adds	x9, x9, x19
-	adc	x10, x10, x20
+	mul	x20, x14, x19
+	umulh	x21, x14, x19
+	adds	x9, x9, x20
+	adc	x10, x10, x21
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x10, x10, x9, #63
@@ -2801,37 +2806,37 @@ fe_ge_to_p2:
 	extr	x7, x7, x6, #63
 	and	x6, x6, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x19, #19
-	mul	x20, x19, x7
-	umulh	x7, x19, x7
-	adds	x3, x3, x20
-	mul	x20, x19, x8
-	umulh	x8, x19, x8
-	adcs	x4, x4, x20
-	mul	x20, x19, x9
-	umulh	x9, x19, x9
-	adcs	x5, x5, x20
-	mul	x20, x19, x10
-	umulh	x21, x19, x10
-	adcs	x6, x6, x20
-	adc	x21, x21, xzr
+	mov	x20, #19
+	mul	x21, x20, x7
+	umulh	x7, x20, x7
+	adds	x3, x3, x21
+	mul	x21, x20, x8
+	umulh	x8, x20, x8
+	adcs	x4, x4, x21
+	mul	x21, x20, x9
+	umulh	x9, x20, x9
+	adcs	x5, x5, x21
+	mul	x21, x20, x10
+	umulh	x22, x20, x10
+	adcs	x6, x6, x21
+	adc	x22, x22, xzr
 	#  Add remaining product results in
 	adds	x4, x4, x7
 	adcs	x5, x5, x8
 	adcs	x6, x6, x9
-	adc	x21, x21, xzr
+	adc	x22, x22, xzr
 	#  Overflow
-	extr	x21, x21, x6, #63
-	mul	x21, x21, x19
+	extr	x22, x22, x6, #63
+	mul	x22, x22, x20
 	and	x6, x6, #0x7fffffffffffffff
-	adds	x3, x3, x21
+	adds	x3, x3, x22
 	adcs	x4, x4, xzr
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
 	# Reduce if top bit set
-	and	x21, x19, x6, asr 63
+	and	x22, x20, x6, asr 63
 	and	x6, x6, #0x7fffffffffffffff
-	adds	x3, x3, x21
+	adds	x3, x3, x22
 	adcs	x4, x4, xzr
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
@@ -2847,92 +2852,92 @@ fe_ge_to_p2:
 	mul	x3, x15, x11
 	umulh	x4, x15, x11
 	#  A[0] * B[1]
-	mul	x19, x15, x12
+	mul	x20, x15, x12
 	umulh	x5, x15, x12
-	adds	x4, x4, x19
+	adds	x4, x4, x20
 	adc	x5, x5, xzr
 	#  A[1] * B[0]
-	mul	x19, x16, x11
-	umulh	x20, x16, x11
-	adds	x4, x4, x19
-	adcs	x5, x5, x20
+	mul	x20, x16, x11
+	umulh	x21, x16, x11
+	adds	x4, x4, x20
+	adcs	x5, x5, x21
 	adc	x6, xzr, xzr
 	#  A[0] * B[2]
-	mul	x19, x15, x13
-	umulh	x20, x15, x13
-	adds	x5, x5, x19
-	adc	x6, x6, x20
+	mul	x20, x15, x13
+	umulh	x21, x15, x13
+	adds	x5, x5, x20
+	adc	x6, x6, x21
 	#  A[1] * B[1]
-	mul	x19, x16, x12
-	umulh	x20, x16, x12
-	adds	x5, x5, x19
-	adcs	x6, x6, x20
+	mul	x20, x16, x12
+	umulh	x21, x16, x12
+	adds	x5, x5, x20
+	adcs	x6, x6, x21
 	adc	x7, xzr, xzr
 	#  A[2] * B[0]
-	mul	x19, x17, x11
-	umulh	x20, x17, x11
-	adds	x5, x5, x19
-	adcs	x6, x6, x20
+	mul	x20, x17, x11
+	umulh	x21, x17, x11
+	adds	x5, x5, x20
+	adcs	x6, x6, x21
 	adc	x7, x7, xzr
 	#  A[0] * B[3]
-	mul	x19, x15, x14
-	umulh	x20, x15, x14
-	adds	x6, x6, x19
-	adcs	x7, x7, x20
+	mul	x20, x15, x14
+	umulh	x21, x15, x14
+	adds	x6, x6, x20
+	adcs	x7, x7, x21
 	adc	x8, xzr, xzr
 	#  A[1] * B[2]
-	mul	x19, x16, x13
-	umulh	x20, x16, x13
-	adds	x6, x6, x19
-	adcs	x7, x7, x20
+	mul	x20, x16, x13
+	umulh	x21, x16, x13
+	adds	x6, x6, x20
+	adcs	x7, x7, x21
 	adc	x8, x8, xzr
 	#  A[2] * B[1]
-	mul	x19, x17, x12
-	umulh	x20, x17, x12
-	adds	x6, x6, x19
-	adcs	x7, x7, x20
+	mul	x20, x17, x12
+	umulh	x21, x17, x12
+	adds	x6, x6, x20
+	adcs	x7, x7, x21
 	adc	x8, x8, xzr
 	#  A[3] * B[0]
-	mul	x19, x18, x11
-	umulh	x20, x18, x11
-	adds	x6, x6, x19
-	adcs	x7, x7, x20
+	mul	x20, x19, x11
+	umulh	x21, x19, x11
+	adds	x6, x6, x20
+	adcs	x7, x7, x21
 	adc	x8, x8, xzr
 	#  A[1] * B[3]
-	mul	x19, x16, x14
-	umulh	x20, x16, x14
-	adds	x7, x7, x19
-	adcs	x8, x8, x20
+	mul	x20, x16, x14
+	umulh	x21, x16, x14
+	adds	x7, x7, x20
+	adcs	x8, x8, x21
 	adc	x9, xzr, xzr
 	#  A[2] * B[2]
-	mul	x19, x17, x13
-	umulh	x20, x17, x13
-	adds	x7, x7, x19
-	adcs	x8, x8, x20
+	mul	x20, x17, x13
+	umulh	x21, x17, x13
+	adds	x7, x7, x20
+	adcs	x8, x8, x21
 	adc	x9, x9, xzr
 	#  A[3] * B[1]
-	mul	x19, x18, x12
-	umulh	x20, x18, x12
-	adds	x7, x7, x19
-	adcs	x8, x8, x20
+	mul	x20, x19, x12
+	umulh	x21, x19, x12
+	adds	x7, x7, x20
+	adcs	x8, x8, x21
 	adc	x9, x9, xzr
 	#  A[2] * B[3]
-	mul	x19, x17, x14
-	umulh	x20, x17, x14
-	adds	x8, x8, x19
-	adcs	x9, x9, x20
+	mul	x20, x17, x14
+	umulh	x21, x17, x14
+	adds	x8, x8, x20
+	adcs	x9, x9, x21
 	adc	x10, xzr, xzr
 	#  A[3] * B[2]
-	mul	x19, x18, x13
-	umulh	x20, x18, x13
-	adds	x8, x8, x19
-	adcs	x9, x9, x20
+	mul	x20, x19, x13
+	umulh	x21, x19, x13
+	adds	x8, x8, x20
+	adcs	x9, x9, x21
 	adc	x10, x10, xzr
 	#  A[3] * B[3]
-	mul	x19, x18, x14
-	umulh	x20, x18, x14
-	adds	x9, x9, x19
-	adc	x10, x10, x20
+	mul	x20, x19, x14
+	umulh	x21, x19, x14
+	adds	x9, x9, x20
+	adc	x10, x10, x21
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x10, x10, x9, #63
@@ -2941,37 +2946,37 @@ fe_ge_to_p2:
 	extr	x7, x7, x6, #63
 	and	x6, x6, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x19, #19
-	mul	x20, x19, x7
-	umulh	x7, x19, x7
-	adds	x3, x3, x20
-	mul	x20, x19, x8
-	umulh	x8, x19, x8
-	adcs	x4, x4, x20
-	mul	x20, x19, x9
-	umulh	x9, x19, x9
-	adcs	x5, x5, x20
-	mul	x20, x19, x10
-	umulh	x21, x19, x10
-	adcs	x6, x6, x20
-	adc	x21, x21, xzr
+	mov	x20, #19
+	mul	x21, x20, x7
+	umulh	x7, x20, x7
+	adds	x3, x3, x21
+	mul	x21, x20, x8
+	umulh	x8, x20, x8
+	adcs	x4, x4, x21
+	mul	x21, x20, x9
+	umulh	x9, x20, x9
+	adcs	x5, x5, x21
+	mul	x21, x20, x10
+	umulh	x22, x20, x10
+	adcs	x6, x6, x21
+	adc	x22, x22, xzr
 	#  Add remaining product results in
 	adds	x4, x4, x7
 	adcs	x5, x5, x8
 	adcs	x6, x6, x9
-	adc	x21, x21, xzr
+	adc	x22, x22, xzr
 	#  Overflow
-	extr	x21, x21, x6, #63
-	mul	x21, x21, x19
+	extr	x22, x22, x6, #63
+	mul	x22, x22, x20
 	and	x6, x6, #0x7fffffffffffffff
-	adds	x3, x3, x21
+	adds	x3, x3, x22
 	adcs	x4, x4, xzr
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
 	# Reduce if top bit set
-	and	x21, x19, x6, asr 63
+	and	x22, x20, x6, asr 63
 	and	x6, x6, #0x7fffffffffffffff
-	adds	x3, x3, x21
+	adds	x3, x3, x22
 	adcs	x4, x4, xzr
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
@@ -2979,8 +2984,9 @@ fe_ge_to_p2:
 	stp	x3, x4, [x0]
 	stp	x5, x6, [x0, #16]
 	ldr	x17, [x29, #72]
-	ldp	x18, x19, [x29, #80]
-	ldp	x20, x21, [x29, #96]
+	ldr	x19, [x29, #80]
+	ldp	x20, x21, [x29, #88]
+	ldr	x22, [x29, #104]
 	ldp	x29, x30, [sp], #0x70
 	ret
 	.size	fe_ge_to_p2,.-fe_ge_to_p2
@@ -2992,10 +2998,11 @@ fe_ge_to_p3:
 	stp	x29, x30, [sp, #-160]!
 	add	x29, sp, #0
 	str	x17, [x29, #88]
-	stp	x18, x19, [x29, #96]
-	stp	x20, x21, [x29, #112]
-	stp	x22, x23, [x29, #128]
-	stp	x24, x25, [x29, #144]
+	str	x19, [x29, #96]
+	stp	x20, x21, [x29, #104]
+	stp	x22, x23, [x29, #120]
+	stp	x24, x25, [x29, #136]
+	str	x26, [x29, #152]
 	str	x1, [x29, #16]
 	str	x2, [x29, #24]
 	str	x3, [x29, #32]
@@ -3009,97 +3016,97 @@ fe_ge_to_p3:
 	ldp	x11, x12, [x1]
 	ldp	x13, x14, [x1, #16]
 	ldp	x15, x16, [x2]
-	ldp	x17, x18, [x2, #16]
+	ldp	x17, x19, [x2, #16]
 	#  A[0] * B[0]
 	mul	x3, x11, x15
 	umulh	x4, x11, x15
 	#  A[0] * B[1]
-	mul	x23, x11, x16
+	mul	x24, x11, x16
 	umulh	x5, x11, x16
-	adds	x4, x4, x23
+	adds	x4, x4, x24
 	adc	x5, x5, xzr
 	#  A[1] * B[0]
-	mul	x23, x12, x15
-	umulh	x24, x12, x15
-	adds	x4, x4, x23
-	adcs	x5, x5, x24
+	mul	x24, x12, x15
+	umulh	x25, x12, x15
+	adds	x4, x4, x24
+	adcs	x5, x5, x25
 	adc	x6, xzr, xzr
 	#  A[0] * B[2]
-	mul	x23, x11, x17
-	umulh	x24, x11, x17
-	adds	x5, x5, x23
-	adc	x6, x6, x24
+	mul	x24, x11, x17
+	umulh	x25, x11, x17
+	adds	x5, x5, x24
+	adc	x6, x6, x25
 	#  A[1] * B[1]
-	mul	x23, x12, x16
-	umulh	x24, x12, x16
-	adds	x5, x5, x23
-	adcs	x6, x6, x24
+	mul	x24, x12, x16
+	umulh	x25, x12, x16
+	adds	x5, x5, x24
+	adcs	x6, x6, x25
 	adc	x7, xzr, xzr
 	#  A[2] * B[0]
-	mul	x23, x13, x15
-	umulh	x24, x13, x15
-	adds	x5, x5, x23
-	adcs	x6, x6, x24
+	mul	x24, x13, x15
+	umulh	x25, x13, x15
+	adds	x5, x5, x24
+	adcs	x6, x6, x25
 	adc	x7, x7, xzr
 	#  A[0] * B[3]
-	mul	x23, x11, x18
-	umulh	x24, x11, x18
-	adds	x6, x6, x23
-	adcs	x7, x7, x24
+	mul	x24, x11, x19
+	umulh	x25, x11, x19
+	adds	x6, x6, x24
+	adcs	x7, x7, x25
 	adc	x8, xzr, xzr
 	#  A[1] * B[2]
-	mul	x23, x12, x17
-	umulh	x24, x12, x17
-	adds	x6, x6, x23
-	adcs	x7, x7, x24
+	mul	x24, x12, x17
+	umulh	x25, x12, x17
+	adds	x6, x6, x24
+	adcs	x7, x7, x25
 	adc	x8, x8, xzr
 	#  A[2] * B[1]
-	mul	x23, x13, x16
-	umulh	x24, x13, x16
-	adds	x6, x6, x23
-	adcs	x7, x7, x24
+	mul	x24, x13, x16
+	umulh	x25, x13, x16
+	adds	x6, x6, x24
+	adcs	x7, x7, x25
 	adc	x8, x8, xzr
 	#  A[3] * B[0]
-	mul	x23, x14, x15
-	umulh	x24, x14, x15
-	adds	x6, x6, x23
-	adcs	x7, x7, x24
+	mul	x24, x14, x15
+	umulh	x25, x14, x15
+	adds	x6, x6, x24
+	adcs	x7, x7, x25
 	adc	x8, x8, xzr
 	#  A[1] * B[3]
-	mul	x23, x12, x18
-	umulh	x24, x12, x18
-	adds	x7, x7, x23
-	adcs	x8, x8, x24
+	mul	x24, x12, x19
+	umulh	x25, x12, x19
+	adds	x7, x7, x24
+	adcs	x8, x8, x25
 	adc	x9, xzr, xzr
 	#  A[2] * B[2]
-	mul	x23, x13, x17
-	umulh	x24, x13, x17
-	adds	x7, x7, x23
-	adcs	x8, x8, x24
+	mul	x24, x13, x17
+	umulh	x25, x13, x17
+	adds	x7, x7, x24
+	adcs	x8, x8, x25
 	adc	x9, x9, xzr
 	#  A[3] * B[1]
-	mul	x23, x14, x16
-	umulh	x24, x14, x16
-	adds	x7, x7, x23
-	adcs	x8, x8, x24
+	mul	x24, x14, x16
+	umulh	x25, x14, x16
+	adds	x7, x7, x24
+	adcs	x8, x8, x25
 	adc	x9, x9, xzr
 	#  A[2] * B[3]
-	mul	x23, x13, x18
-	umulh	x24, x13, x18
-	adds	x8, x8, x23
-	adcs	x9, x9, x24
+	mul	x24, x13, x19
+	umulh	x25, x13, x19
+	adds	x8, x8, x24
+	adcs	x9, x9, x25
 	adc	x10, xzr, xzr
 	#  A[3] * B[2]
-	mul	x23, x14, x17
-	umulh	x24, x14, x17
-	adds	x8, x8, x23
-	adcs	x9, x9, x24
+	mul	x24, x14, x17
+	umulh	x25, x14, x17
+	adds	x8, x8, x24
+	adcs	x9, x9, x25
 	adc	x10, x10, xzr
 	#  A[3] * B[3]
-	mul	x23, x14, x18
-	umulh	x24, x14, x18
-	adds	x9, x9, x23
-	adc	x10, x10, x24
+	mul	x24, x14, x19
+	umulh	x25, x14, x19
+	adds	x9, x9, x24
+	adc	x10, x10, x25
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x10, x10, x9, #63
@@ -3108,37 +3115,37 @@ fe_ge_to_p3:
 	extr	x7, x7, x6, #63
 	and	x6, x6, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x23, #19
-	mul	x24, x23, x7
-	umulh	x7, x23, x7
-	adds	x3, x3, x24
-	mul	x24, x23, x8
-	umulh	x8, x23, x8
-	adcs	x4, x4, x24
-	mul	x24, x23, x9
-	umulh	x9, x23, x9
-	adcs	x5, x5, x24
-	mul	x24, x23, x10
-	umulh	x25, x23, x10
-	adcs	x6, x6, x24
-	adc	x25, x25, xzr
+	mov	x24, #19
+	mul	x25, x24, x7
+	umulh	x7, x24, x7
+	adds	x3, x3, x25
+	mul	x25, x24, x8
+	umulh	x8, x24, x8
+	adcs	x4, x4, x25
+	mul	x25, x24, x9
+	umulh	x9, x24, x9
+	adcs	x5, x5, x25
+	mul	x25, x24, x10
+	umulh	x26, x24, x10
+	adcs	x6, x6, x25
+	adc	x26, x26, xzr
 	#  Add remaining product results in
 	adds	x4, x4, x7
 	adcs	x5, x5, x8
 	adcs	x6, x6, x9
-	adc	x25, x25, xzr
+	adc	x26, x26, xzr
 	#  Overflow
-	extr	x25, x25, x6, #63
-	mul	x25, x25, x23
+	extr	x26, x26, x6, #63
+	mul	x26, x26, x24
 	and	x6, x6, #0x7fffffffffffffff
-	adds	x3, x3, x25
+	adds	x3, x3, x26
 	adcs	x4, x4, xzr
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
 	# Reduce if top bit set
-	and	x25, x23, x6, asr 63
+	and	x26, x24, x6, asr 63
 	and	x6, x6, #0x7fffffffffffffff
-	adds	x3, x3, x25
+	adds	x3, x3, x26
 	adcs	x4, x4, xzr
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
@@ -3148,98 +3155,98 @@ fe_ge_to_p3:
 	ldr	x0, [x29, #32]
 	ldr	x2, [x29, #48]
 	# Multiply
-	ldp	x19, x20, [x2]
-	ldp	x21, x22, [x2, #16]
+	ldp	x20, x21, [x2]
+	ldp	x22, x23, [x2, #16]
 	#  A[0] * B[0]
-	mul	x3, x11, x19
-	umulh	x4, x11, x19
+	mul	x3, x11, x20
+	umulh	x4, x11, x20
 	#  A[0] * B[1]
-	mul	x23, x11, x20
-	umulh	x5, x11, x20
-	adds	x4, x4, x23
+	mul	x24, x11, x21
+	umulh	x5, x11, x21
+	adds	x4, x4, x24
 	adc	x5, x5, xzr
 	#  A[1] * B[0]
-	mul	x23, x12, x19
-	umulh	x24, x12, x19
-	adds	x4, x4, x23
-	adcs	x5, x5, x24
+	mul	x24, x12, x20
+	umulh	x25, x12, x20
+	adds	x4, x4, x24
+	adcs	x5, x5, x25
 	adc	x6, xzr, xzr
 	#  A[0] * B[2]
-	mul	x23, x11, x21
-	umulh	x24, x11, x21
-	adds	x5, x5, x23
-	adc	x6, x6, x24
+	mul	x24, x11, x22
+	umulh	x25, x11, x22
+	adds	x5, x5, x24
+	adc	x6, x6, x25
 	#  A[1] * B[1]
-	mul	x23, x12, x20
-	umulh	x24, x12, x20
-	adds	x5, x5, x23
-	adcs	x6, x6, x24
+	mul	x24, x12, x21
+	umulh	x25, x12, x21
+	adds	x5, x5, x24
+	adcs	x6, x6, x25
 	adc	x7, xzr, xzr
 	#  A[2] * B[0]
-	mul	x23, x13, x19
-	umulh	x24, x13, x19
-	adds	x5, x5, x23
-	adcs	x6, x6, x24
+	mul	x24, x13, x20
+	umulh	x25, x13, x20
+	adds	x5, x5, x24
+	adcs	x6, x6, x25
 	adc	x7, x7, xzr
 	#  A[0] * B[3]
-	mul	x23, x11, x22
-	umulh	x24, x11, x22
-	adds	x6, x6, x23
-	adcs	x7, x7, x24
+	mul	x24, x11, x23
+	umulh	x25, x11, x23
+	adds	x6, x6, x24
+	adcs	x7, x7, x25
 	adc	x8, xzr, xzr
 	#  A[1] * B[2]
-	mul	x23, x12, x21
-	umulh	x24, x12, x21
-	adds	x6, x6, x23
-	adcs	x7, x7, x24
+	mul	x24, x12, x22
+	umulh	x25, x12, x22
+	adds	x6, x6, x24
+	adcs	x7, x7, x25
 	adc	x8, x8, xzr
 	#  A[2] * B[1]
-	mul	x23, x13, x20
-	umulh	x24, x13, x20
-	adds	x6, x6, x23
-	adcs	x7, x7, x24
+	mul	x24, x13, x21
+	umulh	x25, x13, x21
+	adds	x6, x6, x24
+	adcs	x7, x7, x25
 	adc	x8, x8, xzr
 	#  A[3] * B[0]
-	mul	x23, x14, x19
-	umulh	x24, x14, x19
-	adds	x6, x6, x23
-	adcs	x7, x7, x24
+	mul	x24, x14, x20
+	umulh	x25, x14, x20
+	adds	x6, x6, x24
+	adcs	x7, x7, x25
 	adc	x8, x8, xzr
 	#  A[1] * B[3]
-	mul	x23, x12, x22
-	umulh	x24, x12, x22
-	adds	x7, x7, x23
-	adcs	x8, x8, x24
+	mul	x24, x12, x23
+	umulh	x25, x12, x23
+	adds	x7, x7, x24
+	adcs	x8, x8, x25
 	adc	x9, xzr, xzr
 	#  A[2] * B[2]
-	mul	x23, x13, x21
-	umulh	x24, x13, x21
-	adds	x7, x7, x23
-	adcs	x8, x8, x24
+	mul	x24, x13, x22
+	umulh	x25, x13, x22
+	adds	x7, x7, x24
+	adcs	x8, x8, x25
 	adc	x9, x9, xzr
 	#  A[3] * B[1]
-	mul	x23, x14, x20
-	umulh	x24, x14, x20
-	adds	x7, x7, x23
-	adcs	x8, x8, x24
+	mul	x24, x14, x21
+	umulh	x25, x14, x21
+	adds	x7, x7, x24
+	adcs	x8, x8, x25
 	adc	x9, x9, xzr
 	#  A[2] * B[3]
-	mul	x23, x13, x22
-	umulh	x24, x13, x22
-	adds	x8, x8, x23
-	adcs	x9, x9, x24
+	mul	x24, x13, x23
+	umulh	x25, x13, x23
+	adds	x8, x8, x24
+	adcs	x9, x9, x25
 	adc	x10, xzr, xzr
 	#  A[3] * B[2]
-	mul	x23, x14, x21
-	umulh	x24, x14, x21
-	adds	x8, x8, x23
-	adcs	x9, x9, x24
+	mul	x24, x14, x22
+	umulh	x25, x14, x22
+	adds	x8, x8, x24
+	adcs	x9, x9, x25
 	adc	x10, x10, xzr
 	#  A[3] * B[3]
-	mul	x23, x14, x22
-	umulh	x24, x14, x22
-	adds	x9, x9, x23
-	adc	x10, x10, x24
+	mul	x24, x14, x23
+	umulh	x25, x14, x23
+	adds	x9, x9, x24
+	adc	x10, x10, x25
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x10, x10, x9, #63
@@ -3248,37 +3255,37 @@ fe_ge_to_p3:
 	extr	x7, x7, x6, #63
 	and	x6, x6, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x23, #19
-	mul	x24, x23, x7
-	umulh	x7, x23, x7
-	adds	x3, x3, x24
-	mul	x24, x23, x8
-	umulh	x8, x23, x8
-	adcs	x4, x4, x24
-	mul	x24, x23, x9
-	umulh	x9, x23, x9
-	adcs	x5, x5, x24
-	mul	x24, x23, x10
-	umulh	x25, x23, x10
-	adcs	x6, x6, x24
-	adc	x25, x25, xzr
+	mov	x24, #19
+	mul	x25, x24, x7
+	umulh	x7, x24, x7
+	adds	x3, x3, x25
+	mul	x25, x24, x8
+	umulh	x8, x24, x8
+	adcs	x4, x4, x25
+	mul	x25, x24, x9
+	umulh	x9, x24, x9
+	adcs	x5, x5, x25
+	mul	x25, x24, x10
+	umulh	x26, x24, x10
+	adcs	x6, x6, x25
+	adc	x26, x26, xzr
 	#  Add remaining product results in
 	adds	x4, x4, x7
 	adcs	x5, x5, x8
 	adcs	x6, x6, x9
-	adc	x25, x25, xzr
+	adc	x26, x26, xzr
 	#  Overflow
-	extr	x25, x25, x6, #63
-	mul	x25, x25, x23
+	extr	x26, x26, x6, #63
+	mul	x26, x26, x24
 	and	x6, x6, #0x7fffffffffffffff
-	adds	x3, x3, x25
+	adds	x3, x3, x26
 	adcs	x4, x4, xzr
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
 	# Reduce if top bit set
-	and	x25, x23, x6, asr 63
+	and	x26, x24, x6, asr 63
 	and	x6, x6, #0x7fffffffffffffff
-	adds	x3, x3, x25
+	adds	x3, x3, x26
 	adcs	x4, x4, xzr
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
@@ -3291,95 +3298,95 @@ fe_ge_to_p3:
 	ldp	x11, x12, [x2]
 	ldp	x13, x14, [x2, #16]
 	#  A[0] * B[0]
-	mul	x3, x19, x11
-	umulh	x4, x19, x11
+	mul	x3, x20, x11
+	umulh	x4, x20, x11
 	#  A[0] * B[1]
-	mul	x23, x19, x12
-	umulh	x5, x19, x12
-	adds	x4, x4, x23
+	mul	x24, x20, x12
+	umulh	x5, x20, x12
+	adds	x4, x4, x24
 	adc	x5, x5, xzr
 	#  A[1] * B[0]
-	mul	x23, x20, x11
-	umulh	x24, x20, x11
-	adds	x4, x4, x23
-	adcs	x5, x5, x24
+	mul	x24, x21, x11
+	umulh	x25, x21, x11
+	adds	x4, x4, x24
+	adcs	x5, x5, x25
 	adc	x6, xzr, xzr
 	#  A[0] * B[2]
-	mul	x23, x19, x13
-	umulh	x24, x19, x13
-	adds	x5, x5, x23
-	adc	x6, x6, x24
+	mul	x24, x20, x13
+	umulh	x25, x20, x13
+	adds	x5, x5, x24
+	adc	x6, x6, x25
 	#  A[1] * B[1]
-	mul	x23, x20, x12
-	umulh	x24, x20, x12
-	adds	x5, x5, x23
-	adcs	x6, x6, x24
+	mul	x24, x21, x12
+	umulh	x25, x21, x12
+	adds	x5, x5, x24
+	adcs	x6, x6, x25
 	adc	x7, xzr, xzr
 	#  A[2] * B[0]
-	mul	x23, x21, x11
-	umulh	x24, x21, x11
-	adds	x5, x5, x23
-	adcs	x6, x6, x24
+	mul	x24, x22, x11
+	umulh	x25, x22, x11
+	adds	x5, x5, x24
+	adcs	x6, x6, x25
 	adc	x7, x7, xzr
 	#  A[0] * B[3]
-	mul	x23, x19, x14
-	umulh	x24, x19, x14
-	adds	x6, x6, x23
-	adcs	x7, x7, x24
+	mul	x24, x20, x14
+	umulh	x25, x20, x14
+	adds	x6, x6, x24
+	adcs	x7, x7, x25
 	adc	x8, xzr, xzr
 	#  A[1] * B[2]
-	mul	x23, x20, x13
-	umulh	x24, x20, x13
-	adds	x6, x6, x23
-	adcs	x7, x7, x24
+	mul	x24, x21, x13
+	umulh	x25, x21, x13
+	adds	x6, x6, x24
+	adcs	x7, x7, x25
 	adc	x8, x8, xzr
 	#  A[2] * B[1]
-	mul	x23, x21, x12
-	umulh	x24, x21, x12
-	adds	x6, x6, x23
-	adcs	x7, x7, x24
+	mul	x24, x22, x12
+	umulh	x25, x22, x12
+	adds	x6, x6, x24
+	adcs	x7, x7, x25
 	adc	x8, x8, xzr
 	#  A[3] * B[0]
-	mul	x23, x22, x11
-	umulh	x24, x22, x11
-	adds	x6, x6, x23
-	adcs	x7, x7, x24
+	mul	x24, x23, x11
+	umulh	x25, x23, x11
+	adds	x6, x6, x24
+	adcs	x7, x7, x25
 	adc	x8, x8, xzr
 	#  A[1] * B[3]
-	mul	x23, x20, x14
-	umulh	x24, x20, x14
-	adds	x7, x7, x23
-	adcs	x8, x8, x24
+	mul	x24, x21, x14
+	umulh	x25, x21, x14
+	adds	x7, x7, x24
+	adcs	x8, x8, x25
 	adc	x9, xzr, xzr
 	#  A[2] * B[2]
-	mul	x23, x21, x13
-	umulh	x24, x21, x13
-	adds	x7, x7, x23
-	adcs	x8, x8, x24
+	mul	x24, x22, x13
+	umulh	x25, x22, x13
+	adds	x7, x7, x24
+	adcs	x8, x8, x25
 	adc	x9, x9, xzr
 	#  A[3] * B[1]
-	mul	x23, x22, x12
-	umulh	x24, x22, x12
-	adds	x7, x7, x23
-	adcs	x8, x8, x24
+	mul	x24, x23, x12
+	umulh	x25, x23, x12
+	adds	x7, x7, x24
+	adcs	x8, x8, x25
 	adc	x9, x9, xzr
 	#  A[2] * B[3]
-	mul	x23, x21, x14
-	umulh	x24, x21, x14
-	adds	x8, x8, x23
-	adcs	x9, x9, x24
+	mul	x24, x22, x14
+	umulh	x25, x22, x14
+	adds	x8, x8, x24
+	adcs	x9, x9, x25
 	adc	x10, xzr, xzr
 	#  A[3] * B[2]
-	mul	x23, x22, x13
-	umulh	x24, x22, x13
-	adds	x8, x8, x23
-	adcs	x9, x9, x24
+	mul	x24, x23, x13
+	umulh	x25, x23, x13
+	adds	x8, x8, x24
+	adcs	x9, x9, x25
 	adc	x10, x10, xzr
 	#  A[3] * B[3]
-	mul	x23, x22, x14
-	umulh	x24, x22, x14
-	adds	x9, x9, x23
-	adc	x10, x10, x24
+	mul	x24, x23, x14
+	umulh	x25, x23, x14
+	adds	x9, x9, x24
+	adc	x10, x10, x25
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x10, x10, x9, #63
@@ -3388,37 +3395,37 @@ fe_ge_to_p3:
 	extr	x7, x7, x6, #63
 	and	x6, x6, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x23, #19
-	mul	x24, x23, x7
-	umulh	x7, x23, x7
-	adds	x3, x3, x24
-	mul	x24, x23, x8
-	umulh	x8, x23, x8
-	adcs	x4, x4, x24
-	mul	x24, x23, x9
-	umulh	x9, x23, x9
-	adcs	x5, x5, x24
-	mul	x24, x23, x10
-	umulh	x25, x23, x10
-	adcs	x6, x6, x24
-	adc	x25, x25, xzr
+	mov	x24, #19
+	mul	x25, x24, x7
+	umulh	x7, x24, x7
+	adds	x3, x3, x25
+	mul	x25, x24, x8
+	umulh	x8, x24, x8
+	adcs	x4, x4, x25
+	mul	x25, x24, x9
+	umulh	x9, x24, x9
+	adcs	x5, x5, x25
+	mul	x25, x24, x10
+	umulh	x26, x24, x10
+	adcs	x6, x6, x25
+	adc	x26, x26, xzr
 	#  Add remaining product results in
 	adds	x4, x4, x7
 	adcs	x5, x5, x8
 	adcs	x6, x6, x9
-	adc	x25, x25, xzr
+	adc	x26, x26, xzr
 	#  Overflow
-	extr	x25, x25, x6, #63
-	mul	x25, x25, x23
+	extr	x26, x26, x6, #63
+	mul	x26, x26, x24
 	and	x6, x6, #0x7fffffffffffffff
-	adds	x3, x3, x25
+	adds	x3, x3, x26
 	adcs	x4, x4, xzr
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
 	# Reduce if top bit set
-	and	x25, x23, x6, asr 63
+	and	x26, x24, x6, asr 63
 	and	x6, x6, #0x7fffffffffffffff
-	adds	x3, x3, x25
+	adds	x3, x3, x26
 	adcs	x4, x4, xzr
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
@@ -3431,92 +3438,92 @@ fe_ge_to_p3:
 	mul	x3, x11, x15
 	umulh	x4, x11, x15
 	#  A[0] * B[1]
-	mul	x23, x11, x16
+	mul	x24, x11, x16
 	umulh	x5, x11, x16
-	adds	x4, x4, x23
+	adds	x4, x4, x24
 	adc	x5, x5, xzr
 	#  A[1] * B[0]
-	mul	x23, x12, x15
-	umulh	x24, x12, x15
-	adds	x4, x4, x23
-	adcs	x5, x5, x24
+	mul	x24, x12, x15
+	umulh	x25, x12, x15
+	adds	x4, x4, x24
+	adcs	x5, x5, x25
 	adc	x6, xzr, xzr
 	#  A[0] * B[2]
-	mul	x23, x11, x17
-	umulh	x24, x11, x17
-	adds	x5, x5, x23
-	adc	x6, x6, x24
+	mul	x24, x11, x17
+	umulh	x25, x11, x17
+	adds	x5, x5, x24
+	adc	x6, x6, x25
 	#  A[1] * B[1]
-	mul	x23, x12, x16
-	umulh	x24, x12, x16
-	adds	x5, x5, x23
-	adcs	x6, x6, x24
+	mul	x24, x12, x16
+	umulh	x25, x12, x16
+	adds	x5, x5, x24
+	adcs	x6, x6, x25
 	adc	x7, xzr, xzr
 	#  A[2] * B[0]
-	mul	x23, x13, x15
-	umulh	x24, x13, x15
-	adds	x5, x5, x23
-	adcs	x6, x6, x24
+	mul	x24, x13, x15
+	umulh	x25, x13, x15
+	adds	x5, x5, x24
+	adcs	x6, x6, x25
 	adc	x7, x7, xzr
 	#  A[0] * B[3]
-	mul	x23, x11, x18
-	umulh	x24, x11, x18
-	adds	x6, x6, x23
-	adcs	x7, x7, x24
+	mul	x24, x11, x19
+	umulh	x25, x11, x19
+	adds	x6, x6, x24
+	adcs	x7, x7, x25
 	adc	x8, xzr, xzr
 	#  A[1] * B[2]
-	mul	x23, x12, x17
-	umulh	x24, x12, x17
-	adds	x6, x6, x23
-	adcs	x7, x7, x24
+	mul	x24, x12, x17
+	umulh	x25, x12, x17
+	adds	x6, x6, x24
+	adcs	x7, x7, x25
 	adc	x8, x8, xzr
 	#  A[2] * B[1]
-	mul	x23, x13, x16
-	umulh	x24, x13, x16
-	adds	x6, x6, x23
-	adcs	x7, x7, x24
+	mul	x24, x13, x16
+	umulh	x25, x13, x16
+	adds	x6, x6, x24
+	adcs	x7, x7, x25
 	adc	x8, x8, xzr
 	#  A[3] * B[0]
-	mul	x23, x14, x15
-	umulh	x24, x14, x15
-	adds	x6, x6, x23
-	adcs	x7, x7, x24
+	mul	x24, x14, x15
+	umulh	x25, x14, x15
+	adds	x6, x6, x24
+	adcs	x7, x7, x25
 	adc	x8, x8, xzr
 	#  A[1] * B[3]
-	mul	x23, x12, x18
-	umulh	x24, x12, x18
-	adds	x7, x7, x23
-	adcs	x8, x8, x24
+	mul	x24, x12, x19
+	umulh	x25, x12, x19
+	adds	x7, x7, x24
+	adcs	x8, x8, x25
 	adc	x9, xzr, xzr
 	#  A[2] * B[2]
-	mul	x23, x13, x17
-	umulh	x24, x13, x17
-	adds	x7, x7, x23
-	adcs	x8, x8, x24
+	mul	x24, x13, x17
+	umulh	x25, x13, x17
+	adds	x7, x7, x24
+	adcs	x8, x8, x25
 	adc	x9, x9, xzr
 	#  A[3] * B[1]
-	mul	x23, x14, x16
-	umulh	x24, x14, x16
-	adds	x7, x7, x23
-	adcs	x8, x8, x24
+	mul	x24, x14, x16
+	umulh	x25, x14, x16
+	adds	x7, x7, x24
+	adcs	x8, x8, x25
 	adc	x9, x9, xzr
 	#  A[2] * B[3]
-	mul	x23, x13, x18
-	umulh	x24, x13, x18
-	adds	x8, x8, x23
-	adcs	x9, x9, x24
+	mul	x24, x13, x19
+	umulh	x25, x13, x19
+	adds	x8, x8, x24
+	adcs	x9, x9, x25
 	adc	x10, xzr, xzr
 	#  A[3] * B[2]
-	mul	x23, x14, x17
-	umulh	x24, x14, x17
-	adds	x8, x8, x23
-	adcs	x9, x9, x24
+	mul	x24, x14, x17
+	umulh	x25, x14, x17
+	adds	x8, x8, x24
+	adcs	x9, x9, x25
 	adc	x10, x10, xzr
 	#  A[3] * B[3]
-	mul	x23, x14, x18
-	umulh	x24, x14, x18
-	adds	x9, x9, x23
-	adc	x10, x10, x24
+	mul	x24, x14, x19
+	umulh	x25, x14, x19
+	adds	x9, x9, x24
+	adc	x10, x10, x25
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x10, x10, x9, #63
@@ -3525,37 +3532,37 @@ fe_ge_to_p3:
 	extr	x7, x7, x6, #63
 	and	x6, x6, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x23, #19
-	mul	x24, x23, x7
-	umulh	x7, x23, x7
-	adds	x3, x3, x24
-	mul	x24, x23, x8
-	umulh	x8, x23, x8
-	adcs	x4, x4, x24
-	mul	x24, x23, x9
-	umulh	x9, x23, x9
-	adcs	x5, x5, x24
-	mul	x24, x23, x10
-	umulh	x25, x23, x10
-	adcs	x6, x6, x24
-	adc	x25, x25, xzr
+	mov	x24, #19
+	mul	x25, x24, x7
+	umulh	x7, x24, x7
+	adds	x3, x3, x25
+	mul	x25, x24, x8
+	umulh	x8, x24, x8
+	adcs	x4, x4, x25
+	mul	x25, x24, x9
+	umulh	x9, x24, x9
+	adcs	x5, x5, x25
+	mul	x25, x24, x10
+	umulh	x26, x24, x10
+	adcs	x6, x6, x25
+	adc	x26, x26, xzr
 	#  Add remaining product results in
 	adds	x4, x4, x7
 	adcs	x5, x5, x8
 	adcs	x6, x6, x9
-	adc	x25, x25, xzr
+	adc	x26, x26, xzr
 	#  Overflow
-	extr	x25, x25, x6, #63
-	mul	x25, x25, x23
+	extr	x26, x26, x6, #63
+	mul	x26, x26, x24
 	and	x6, x6, #0x7fffffffffffffff
-	adds	x3, x3, x25
+	adds	x3, x3, x26
 	adcs	x4, x4, xzr
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
 	# Reduce if top bit set
-	and	x25, x23, x6, asr 63
+	and	x26, x24, x6, asr 63
 	and	x6, x6, #0x7fffffffffffffff
-	adds	x3, x3, x25
+	adds	x3, x3, x26
 	adcs	x4, x4, xzr
 	adcs	x5, x5, xzr
 	adc	x6, x6, xzr
@@ -3563,10 +3570,11 @@ fe_ge_to_p3:
 	stp	x3, x4, [x0]
 	stp	x5, x6, [x0, #16]
 	ldr	x17, [x29, #88]
-	ldp	x18, x19, [x29, #96]
-	ldp	x20, x21, [x29, #112]
-	ldp	x22, x23, [x29, #128]
-	ldp	x24, x25, [x29, #144]
+	ldr	x19, [x29, #96]
+	ldp	x20, x21, [x29, #104]
+	ldp	x22, x23, [x29, #120]
+	ldp	x24, x25, [x29, #136]
+	ldr	x26, [x29, #152]
 	ldp	x29, x30, [sp], #0xa0
 	ret
 	.size	fe_ge_to_p3,.-fe_ge_to_p3
@@ -3578,11 +3586,12 @@ fe_ge_dbl:
 	stp	x29, x30, [sp, #-176]!
 	add	x29, sp, #0
 	str	x17, [x29, #88]
-	stp	x18, x19, [x29, #96]
-	stp	x20, x21, [x29, #112]
-	stp	x22, x23, [x29, #128]
-	stp	x24, x25, [x29, #144]
-	stp	x26, x27, [x29, #160]
+	str	x19, [x29, #96]
+	stp	x20, x21, [x29, #104]
+	stp	x22, x23, [x29, #120]
+	stp	x24, x25, [x29, #136]
+	stp	x26, x27, [x29, #152]
+	str	x28, [x29, #168]
 	str	x0, [x29, #16]
 	str	x1, [x29, #24]
 	str	x2, [x29, #32]
@@ -3598,421 +3607,30 @@ fe_ge_dbl:
 	mul	x5, x12, x13
 	umulh	x6, x12, x13
 	#  A[0] * A[2]
-	mul	x24, x12, x14
+	mul	x25, x12, x14
 	umulh	x7, x12, x14
-	adds	x6, x6, x24
+	adds	x6, x6, x25
 	adc	x7, x7, xzr
 	#  A[0] * A[3]
-	mul	x24, x12, x15
+	mul	x25, x12, x15
 	umulh	x8, x12, x15
-	adds	x7, x7, x24
+	adds	x7, x7, x25
 	adc	x8, x8, xzr
 	#  A[1] * A[2]
-	mul	x24, x13, x14
-	umulh	x25, x13, x14
-	adds	x7, x7, x24
-	adcs	x8, x8, x25
+	mul	x25, x13, x14
+	umulh	x26, x13, x14
+	adds	x7, x7, x25
+	adcs	x8, x8, x26
 	adc	x9, xzr, xzr
 	#  A[1] * A[3]
-	mul	x24, x13, x15
-	umulh	x25, x13, x15
-	adds	x8, x8, x24
-	adc	x9, x9, x25
-	#  A[2] * A[3]
-	mul	x24, x14, x15
-	umulh	x10, x14, x15
-	adds	x9, x9, x24
-	adc	x10, x10, xzr
-	# Double
-	adds	x5, x5, x5
-	adcs	x6, x6, x6
-	adcs	x7, x7, x7
-	adcs	x8, x8, x8
-	adcs	x9, x9, x9
-	adcs	x10, x10, x10
-	adc	x11, xzr, xzr
-	#  A[0] * A[0]
-	mul	x4, x12, x12
-	umulh	x26, x12, x12
-	#  A[1] * A[1]
-	mul	x24, x13, x13
-	umulh	x25, x13, x13
-	adds	x5, x5, x26
-	adcs	x6, x6, x24
-	adc	x26, x25, xzr
-	#  A[2] * A[2]
-	mul	x24, x14, x14
-	umulh	x25, x14, x14
-	adds	x7, x7, x26
-	adcs	x8, x8, x24
-	adc	x26, x25, xzr
-	#  A[3] * A[3]
-	mul	x24, x15, x15
-	umulh	x25, x15, x15
-	adds	x9, x9, x26
-	adcs	x10, x10, x24
-	adc	x11, x11, x25
-	# Reduce
-	#  Move top half into t4-t7 and remove top bit from t3
-	extr	x11, x11, x10, #63
-	extr	x10, x10, x9, #63
-	extr	x9, x9, x8, #63
-	extr	x8, x8, x7, #63
-	and	x7, x7, #0x7fffffffffffffff
-	#  Multiply top half by 19
-	mov	x24, #19
-	mul	x25, x24, x8
-	umulh	x8, x24, x8
-	adds	x4, x4, x25
-	mul	x25, x24, x9
-	umulh	x9, x24, x9
-	adcs	x5, x5, x25
-	mul	x25, x24, x10
-	umulh	x10, x24, x10
-	adcs	x6, x6, x25
-	mul	x25, x24, x11
-	umulh	x26, x24, x11
-	adcs	x7, x7, x25
-	adc	x26, x26, xzr
-	#  Add remaining product results in
-	adds	x5, x5, x8
-	adcs	x6, x6, x9
-	adcs	x7, x7, x10
-	adc	x26, x26, xzr
-	#  Overflow
-	extr	x26, x26, x7, #63
-	mul	x26, x26, x24
-	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
-	adcs	x5, x5, xzr
-	adcs	x6, x6, xzr
-	adc	x7, x7, xzr
-	# Reduce if top bit set
-	and	x26, x24, x7, asr 63
-	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
-	adcs	x5, x5, xzr
-	adcs	x6, x6, xzr
-	adc	x7, x7, xzr
-	# Store
-	stp	x4, x5, [x0]
-	stp	x6, x7, [x0, #16]
-	ldr	x0, [x29, #32]
-	ldr	x1, [x29, #56]
-	# Square
-	ldp	x20, x21, [x1]
-	ldp	x22, x23, [x1, #16]
-	#  A[0] * A[1]
-	mul	x9, x20, x21
-	umulh	x10, x20, x21
-	#  A[0] * A[2]
-	mul	x24, x20, x22
-	umulh	x11, x20, x22
-	adds	x10, x10, x24
-	adc	x11, x11, xzr
-	#  A[0] * A[3]
-	mul	x24, x20, x23
-	umulh	x16, x20, x23
-	adds	x11, x11, x24
-	adc	x16, x16, xzr
-	#  A[1] * A[2]
-	mul	x24, x21, x22
-	umulh	x25, x21, x22
-	adds	x11, x11, x24
-	adcs	x16, x16, x25
-	adc	x17, xzr, xzr
-	#  A[1] * A[3]
-	mul	x24, x21, x23
-	umulh	x25, x21, x23
-	adds	x16, x16, x24
-	adc	x17, x17, x25
-	#  A[2] * A[3]
-	mul	x24, x22, x23
-	umulh	x18, x22, x23
-	adds	x17, x17, x24
-	adc	x18, x18, xzr
-	# Double
-	adds	x9, x9, x9
-	adcs	x10, x10, x10
-	adcs	x11, x11, x11
-	adcs	x16, x16, x16
-	adcs	x17, x17, x17
-	adcs	x18, x18, x18
-	adc	x19, xzr, xzr
-	#  A[0] * A[0]
-	mul	x8, x20, x20
-	umulh	x26, x20, x20
-	#  A[1] * A[1]
-	mul	x24, x21, x21
-	umulh	x25, x21, x21
-	adds	x9, x9, x26
-	adcs	x10, x10, x24
-	adc	x26, x25, xzr
-	#  A[2] * A[2]
-	mul	x24, x22, x22
-	umulh	x25, x22, x22
-	adds	x11, x11, x26
-	adcs	x16, x16, x24
-	adc	x26, x25, xzr
-	#  A[3] * A[3]
-	mul	x24, x23, x23
-	umulh	x25, x23, x23
-	adds	x17, x17, x26
-	adcs	x18, x18, x24
-	adc	x19, x19, x25
-	# Reduce
-	#  Move top half into t4-t7 and remove top bit from t3
-	extr	x19, x19, x18, #63
-	extr	x18, x18, x17, #63
-	extr	x17, x17, x16, #63
-	extr	x16, x16, x11, #63
-	and	x11, x11, #0x7fffffffffffffff
-	#  Multiply top half by 19
-	mov	x24, #19
-	mul	x25, x24, x16
-	umulh	x16, x24, x16
+	mul	x25, x13, x15
+	umulh	x26, x13, x15
 	adds	x8, x8, x25
-	mul	x25, x24, x17
-	umulh	x17, x24, x17
-	adcs	x9, x9, x25
-	mul	x25, x24, x18
-	umulh	x18, x24, x18
-	adcs	x10, x10, x25
-	mul	x25, x24, x19
-	umulh	x26, x24, x19
-	adcs	x11, x11, x25
-	adc	x26, x26, xzr
-	#  Add remaining product results in
-	adds	x9, x9, x16
-	adcs	x10, x10, x17
-	adcs	x11, x11, x18
-	adc	x26, x26, xzr
-	#  Overflow
-	extr	x26, x26, x11, #63
-	mul	x26, x26, x24
-	and	x11, x11, #0x7fffffffffffffff
-	adds	x8, x8, x26
-	adcs	x9, x9, xzr
-	adcs	x10, x10, xzr
-	adc	x11, x11, xzr
-	# Reduce if top bit set
-	and	x26, x24, x11, asr 63
-	and	x11, x11, #0x7fffffffffffffff
-	adds	x8, x8, x26
-	adcs	x9, x9, xzr
-	adcs	x10, x10, xzr
-	adc	x11, x11, xzr
-	# Store
-	stp	x8, x9, [x0]
-	stp	x10, x11, [x0, #16]
-	ldr	x0, [x29, #24]
-	# Add
-	adds	x12, x12, x20
-	adcs	x13, x13, x21
-	adcs	x14, x14, x22
-	adc	x15, x15, x23
-	mov	x24, #-19
-	asr	x27, x15, #63
-	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
-	#   Sub modulus (if overflow)
-	subs	x12, x12, x24
-	sbcs	x13, x13, x27
-	sbcs	x14, x14, x27
-	sbc	x15, x15, x25
-	ldr	x0, [x29, #40]
-	# Square
-	#  A[0] * A[1]
-	mul	x17, x12, x13
-	umulh	x18, x12, x13
-	#  A[0] * A[2]
-	mul	x24, x12, x14
-	umulh	x19, x12, x14
-	adds	x18, x18, x24
-	adc	x19, x19, xzr
-	#  A[0] * A[3]
-	mul	x24, x12, x15
-	umulh	x20, x12, x15
-	adds	x19, x19, x24
-	adc	x20, x20, xzr
-	#  A[1] * A[2]
-	mul	x24, x13, x14
-	umulh	x25, x13, x14
-	adds	x19, x19, x24
-	adcs	x20, x20, x25
-	adc	x21, xzr, xzr
-	#  A[1] * A[3]
-	mul	x24, x13, x15
-	umulh	x25, x13, x15
-	adds	x20, x20, x24
-	adc	x21, x21, x25
+	adc	x9, x9, x26
 	#  A[2] * A[3]
-	mul	x24, x14, x15
-	umulh	x22, x14, x15
-	adds	x21, x21, x24
-	adc	x22, x22, xzr
-	# Double
-	adds	x17, x17, x17
-	adcs	x18, x18, x18
-	adcs	x19, x19, x19
-	adcs	x20, x20, x20
-	adcs	x21, x21, x21
-	adcs	x22, x22, x22
-	adc	x23, xzr, xzr
-	#  A[0] * A[0]
-	mul	x16, x12, x12
-	umulh	x26, x12, x12
-	#  A[1] * A[1]
-	mul	x24, x13, x13
-	umulh	x25, x13, x13
-	adds	x17, x17, x26
-	adcs	x18, x18, x24
-	adc	x26, x25, xzr
-	#  A[2] * A[2]
-	mul	x24, x14, x14
-	umulh	x25, x14, x14
-	adds	x19, x19, x26
-	adcs	x20, x20, x24
-	adc	x26, x25, xzr
-	#  A[3] * A[3]
-	mul	x24, x15, x15
-	umulh	x25, x15, x15
-	adds	x21, x21, x26
-	adcs	x22, x22, x24
-	adc	x23, x23, x25
-	# Reduce
-	#  Move top half into t4-t7 and remove top bit from t3
-	extr	x23, x23, x22, #63
-	extr	x22, x22, x21, #63
-	extr	x21, x21, x20, #63
-	extr	x20, x20, x19, #63
-	and	x19, x19, #0x7fffffffffffffff
-	#  Multiply top half by 19
-	mov	x24, #19
-	mul	x25, x24, x20
-	umulh	x20, x24, x20
-	adds	x16, x16, x25
-	mul	x25, x24, x21
-	umulh	x21, x24, x21
-	adcs	x17, x17, x25
-	mul	x25, x24, x22
-	umulh	x22, x24, x22
-	adcs	x18, x18, x25
-	mul	x25, x24, x23
-	umulh	x26, x24, x23
-	adcs	x19, x19, x25
-	adc	x26, x26, xzr
-	#  Add remaining product results in
-	adds	x17, x17, x20
-	adcs	x18, x18, x21
-	adcs	x19, x19, x22
-	adc	x26, x26, xzr
-	#  Overflow
-	extr	x26, x26, x19, #63
-	mul	x26, x26, x24
-	and	x19, x19, #0x7fffffffffffffff
-	adds	x16, x16, x26
-	adcs	x17, x17, xzr
-	adcs	x18, x18, xzr
-	adc	x19, x19, xzr
-	# Reduce if top bit set
-	and	x26, x24, x19, asr 63
-	and	x19, x19, #0x7fffffffffffffff
-	adds	x16, x16, x26
-	adcs	x17, x17, xzr
-	adcs	x18, x18, xzr
-	adc	x19, x19, xzr
-	# Store
-	stp	x16, x17, [x0]
-	stp	x18, x19, [x0, #16]
-	ldr	x0, [x29, #24]
-	ldr	x1, [x29, #32]
-	# Add
-	adds	x12, x8, x4
-	adcs	x13, x9, x5
-	adcs	x14, x10, x6
-	adc	x15, x11, x7
-	mov	x24, #-19
-	asr	x27, x15, #63
-	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
-	#   Sub modulus (if overflow)
-	subs	x12, x12, x24
-	sbcs	x13, x13, x27
-	sbcs	x14, x14, x27
-	sbc	x15, x15, x25
-	# Sub
-	subs	x20, x8, x4
-	sbcs	x21, x9, x5
-	sbcs	x22, x10, x6
-	sbcs	x23, x11, x7
-	mov	x24, #-19
-	csetm	x27, cc
-	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
-	#   Add modulus (if underflow)
-	adds	x20, x20, x24
-	adcs	x21, x21, x27
-	adcs	x22, x22, x27
-	adc	x23, x23, x25
-	stp	x12, x13, [x0]
-	stp	x14, x15, [x0, #16]
-	stp	x20, x21, [x1]
-	stp	x22, x23, [x1, #16]
-	ldr	x0, [x29, #16]
-	# Sub
-	subs	x16, x16, x12
-	sbcs	x17, x17, x13
-	sbcs	x18, x18, x14
-	sbcs	x19, x19, x15
-	mov	x24, #-19
-	csetm	x27, cc
-	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
-	#   Add modulus (if underflow)
-	adds	x16, x16, x24
-	adcs	x17, x17, x27
-	adcs	x18, x18, x27
-	adc	x19, x19, x25
-	stp	x16, x17, [x0]
-	stp	x18, x19, [x0, #16]
-	ldr	x0, [x29, #40]
-	ldr	x1, [x29, #64]
-	# Square * 2
-	ldp	x12, x13, [x1]
-	ldp	x14, x15, [x1, #16]
-	#  A[0] * A[1]
-	mul	x5, x12, x13
-	umulh	x6, x12, x13
-	#  A[0] * A[2]
-	mul	x24, x12, x14
-	umulh	x7, x12, x14
-	adds	x6, x6, x24
-	adc	x7, x7, xzr
-	#  A[0] * A[3]
-	mul	x24, x12, x15
-	umulh	x8, x12, x15
-	adds	x7, x7, x24
-	adc	x8, x8, xzr
-	#  A[1] * A[2]
-	mul	x24, x13, x14
-	umulh	x25, x13, x14
-	adds	x7, x7, x24
-	adcs	x8, x8, x25
-	adc	x9, xzr, xzr
-	#  A[1] * A[3]
-	mul	x24, x13, x15
-	umulh	x25, x13, x15
-	adds	x8, x8, x24
-	adc	x9, x9, x25
-	#  A[2] * A[3]
-	mul	x24, x14, x15
+	mul	x25, x14, x15
 	umulh	x10, x14, x15
-	adds	x9, x9, x24
+	adds	x9, x9, x25
 	adc	x10, x10, xzr
 	# Double
 	adds	x5, x5, x5
@@ -4026,27 +3644,418 @@ fe_ge_dbl:
 	mul	x4, x12, x12
 	umulh	x27, x12, x12
 	#  A[1] * A[1]
-	mul	x24, x13, x13
-	umulh	x25, x13, x13
+	mul	x25, x13, x13
+	umulh	x26, x13, x13
 	adds	x5, x5, x27
-	adcs	x6, x6, x24
-	adc	x27, x25, xzr
+	adcs	x6, x6, x25
+	adc	x27, x26, xzr
 	#  A[2] * A[2]
-	mul	x24, x14, x14
-	umulh	x25, x14, x14
+	mul	x25, x14, x14
+	umulh	x26, x14, x14
 	adds	x7, x7, x27
-	adcs	x8, x8, x24
-	adc	x27, x25, xzr
+	adcs	x8, x8, x25
+	adc	x27, x26, xzr
 	#  A[3] * A[3]
-	mul	x24, x15, x15
-	umulh	x25, x15, x15
+	mul	x25, x15, x15
+	umulh	x26, x15, x15
 	adds	x9, x9, x27
-	adcs	x10, x10, x24
-	adc	x11, x11, x25
-	# Double and Reduce
-	mov	x24, #0x169
+	adcs	x10, x10, x25
+	adc	x11, x11, x26
+	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
-	lsr	x27, x11, #61
+	extr	x11, x11, x10, #63
+	extr	x10, x10, x9, #63
+	extr	x9, x9, x8, #63
+	extr	x8, x8, x7, #63
+	and	x7, x7, #0x7fffffffffffffff
+	#  Multiply top half by 19
+	mov	x25, #19
+	mul	x26, x25, x8
+	umulh	x8, x25, x8
+	adds	x4, x4, x26
+	mul	x26, x25, x9
+	umulh	x9, x25, x9
+	adcs	x5, x5, x26
+	mul	x26, x25, x10
+	umulh	x10, x25, x10
+	adcs	x6, x6, x26
+	mul	x26, x25, x11
+	umulh	x27, x25, x11
+	adcs	x7, x7, x26
+	adc	x27, x27, xzr
+	#  Add remaining product results in
+	adds	x5, x5, x8
+	adcs	x6, x6, x9
+	adcs	x7, x7, x10
+	adc	x27, x27, xzr
+	#  Overflow
+	extr	x27, x27, x7, #63
+	mul	x27, x27, x25
+	and	x7, x7, #0x7fffffffffffffff
+	adds	x4, x4, x27
+	adcs	x5, x5, xzr
+	adcs	x6, x6, xzr
+	adc	x7, x7, xzr
+	# Reduce if top bit set
+	and	x27, x25, x7, asr 63
+	and	x7, x7, #0x7fffffffffffffff
+	adds	x4, x4, x27
+	adcs	x5, x5, xzr
+	adcs	x6, x6, xzr
+	adc	x7, x7, xzr
+	# Store
+	stp	x4, x5, [x0]
+	stp	x6, x7, [x0, #16]
+	ldr	x0, [x29, #32]
+	ldr	x1, [x29, #56]
+	# Square
+	ldp	x21, x22, [x1]
+	ldp	x23, x24, [x1, #16]
+	#  A[0] * A[1]
+	mul	x9, x21, x22
+	umulh	x10, x21, x22
+	#  A[0] * A[2]
+	mul	x25, x21, x23
+	umulh	x11, x21, x23
+	adds	x10, x10, x25
+	adc	x11, x11, xzr
+	#  A[0] * A[3]
+	mul	x25, x21, x24
+	umulh	x16, x21, x24
+	adds	x11, x11, x25
+	adc	x16, x16, xzr
+	#  A[1] * A[2]
+	mul	x25, x22, x23
+	umulh	x26, x22, x23
+	adds	x11, x11, x25
+	adcs	x16, x16, x26
+	adc	x17, xzr, xzr
+	#  A[1] * A[3]
+	mul	x25, x22, x24
+	umulh	x26, x22, x24
+	adds	x16, x16, x25
+	adc	x17, x17, x26
+	#  A[2] * A[3]
+	mul	x25, x23, x24
+	umulh	x19, x23, x24
+	adds	x17, x17, x25
+	adc	x19, x19, xzr
+	# Double
+	adds	x9, x9, x9
+	adcs	x10, x10, x10
+	adcs	x11, x11, x11
+	adcs	x16, x16, x16
+	adcs	x17, x17, x17
+	adcs	x19, x19, x19
+	adc	x20, xzr, xzr
+	#  A[0] * A[0]
+	mul	x8, x21, x21
+	umulh	x27, x21, x21
+	#  A[1] * A[1]
+	mul	x25, x22, x22
+	umulh	x26, x22, x22
+	adds	x9, x9, x27
+	adcs	x10, x10, x25
+	adc	x27, x26, xzr
+	#  A[2] * A[2]
+	mul	x25, x23, x23
+	umulh	x26, x23, x23
+	adds	x11, x11, x27
+	adcs	x16, x16, x25
+	adc	x27, x26, xzr
+	#  A[3] * A[3]
+	mul	x25, x24, x24
+	umulh	x26, x24, x24
+	adds	x17, x17, x27
+	adcs	x19, x19, x25
+	adc	x20, x20, x26
+	# Reduce
+	#  Move top half into t4-t7 and remove top bit from t3
+	extr	x20, x20, x19, #63
+	extr	x19, x19, x17, #63
+	extr	x17, x17, x16, #63
+	extr	x16, x16, x11, #63
+	and	x11, x11, #0x7fffffffffffffff
+	#  Multiply top half by 19
+	mov	x25, #19
+	mul	x26, x25, x16
+	umulh	x16, x25, x16
+	adds	x8, x8, x26
+	mul	x26, x25, x17
+	umulh	x17, x25, x17
+	adcs	x9, x9, x26
+	mul	x26, x25, x19
+	umulh	x19, x25, x19
+	adcs	x10, x10, x26
+	mul	x26, x25, x20
+	umulh	x27, x25, x20
+	adcs	x11, x11, x26
+	adc	x27, x27, xzr
+	#  Add remaining product results in
+	adds	x9, x9, x16
+	adcs	x10, x10, x17
+	adcs	x11, x11, x19
+	adc	x27, x27, xzr
+	#  Overflow
+	extr	x27, x27, x11, #63
+	mul	x27, x27, x25
+	and	x11, x11, #0x7fffffffffffffff
+	adds	x8, x8, x27
+	adcs	x9, x9, xzr
+	adcs	x10, x10, xzr
+	adc	x11, x11, xzr
+	# Reduce if top bit set
+	and	x27, x25, x11, asr 63
+	and	x11, x11, #0x7fffffffffffffff
+	adds	x8, x8, x27
+	adcs	x9, x9, xzr
+	adcs	x10, x10, xzr
+	adc	x11, x11, xzr
+	# Store
+	stp	x8, x9, [x0]
+	stp	x10, x11, [x0, #16]
+	ldr	x0, [x29, #24]
+	# Add
+	adds	x12, x12, x21
+	adcs	x13, x13, x22
+	adcs	x14, x14, x23
+	adc	x15, x15, x24
+	mov	x25, #-19
+	asr	x28, x15, #63
+	#   Mask the modulus
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
+	#   Sub modulus (if overflow)
+	subs	x12, x12, x25
+	sbcs	x13, x13, x28
+	sbcs	x14, x14, x28
+	sbc	x15, x15, x26
+	ldr	x0, [x29, #40]
+	# Square
+	#  A[0] * A[1]
+	mul	x17, x12, x13
+	umulh	x19, x12, x13
+	#  A[0] * A[2]
+	mul	x25, x12, x14
+	umulh	x20, x12, x14
+	adds	x19, x19, x25
+	adc	x20, x20, xzr
+	#  A[0] * A[3]
+	mul	x25, x12, x15
+	umulh	x21, x12, x15
+	adds	x20, x20, x25
+	adc	x21, x21, xzr
+	#  A[1] * A[2]
+	mul	x25, x13, x14
+	umulh	x26, x13, x14
+	adds	x20, x20, x25
+	adcs	x21, x21, x26
+	adc	x22, xzr, xzr
+	#  A[1] * A[3]
+	mul	x25, x13, x15
+	umulh	x26, x13, x15
+	adds	x21, x21, x25
+	adc	x22, x22, x26
+	#  A[2] * A[3]
+	mul	x25, x14, x15
+	umulh	x23, x14, x15
+	adds	x22, x22, x25
+	adc	x23, x23, xzr
+	# Double
+	adds	x17, x17, x17
+	adcs	x19, x19, x19
+	adcs	x20, x20, x20
+	adcs	x21, x21, x21
+	adcs	x22, x22, x22
+	adcs	x23, x23, x23
+	adc	x24, xzr, xzr
+	#  A[0] * A[0]
+	mul	x16, x12, x12
+	umulh	x27, x12, x12
+	#  A[1] * A[1]
+	mul	x25, x13, x13
+	umulh	x26, x13, x13
+	adds	x17, x17, x27
+	adcs	x19, x19, x25
+	adc	x27, x26, xzr
+	#  A[2] * A[2]
+	mul	x25, x14, x14
+	umulh	x26, x14, x14
+	adds	x20, x20, x27
+	adcs	x21, x21, x25
+	adc	x27, x26, xzr
+	#  A[3] * A[3]
+	mul	x25, x15, x15
+	umulh	x26, x15, x15
+	adds	x22, x22, x27
+	adcs	x23, x23, x25
+	adc	x24, x24, x26
+	# Reduce
+	#  Move top half into t4-t7 and remove top bit from t3
+	extr	x24, x24, x23, #63
+	extr	x23, x23, x22, #63
+	extr	x22, x22, x21, #63
+	extr	x21, x21, x20, #63
+	and	x20, x20, #0x7fffffffffffffff
+	#  Multiply top half by 19
+	mov	x25, #19
+	mul	x26, x25, x21
+	umulh	x21, x25, x21
+	adds	x16, x16, x26
+	mul	x26, x25, x22
+	umulh	x22, x25, x22
+	adcs	x17, x17, x26
+	mul	x26, x25, x23
+	umulh	x23, x25, x23
+	adcs	x19, x19, x26
+	mul	x26, x25, x24
+	umulh	x27, x25, x24
+	adcs	x20, x20, x26
+	adc	x27, x27, xzr
+	#  Add remaining product results in
+	adds	x17, x17, x21
+	adcs	x19, x19, x22
+	adcs	x20, x20, x23
+	adc	x27, x27, xzr
+	#  Overflow
+	extr	x27, x27, x20, #63
+	mul	x27, x27, x25
+	and	x20, x20, #0x7fffffffffffffff
+	adds	x16, x16, x27
+	adcs	x17, x17, xzr
+	adcs	x19, x19, xzr
+	adc	x20, x20, xzr
+	# Reduce if top bit set
+	and	x27, x25, x20, asr 63
+	and	x20, x20, #0x7fffffffffffffff
+	adds	x16, x16, x27
+	adcs	x17, x17, xzr
+	adcs	x19, x19, xzr
+	adc	x20, x20, xzr
+	# Store
+	stp	x16, x17, [x0]
+	stp	x19, x20, [x0, #16]
+	ldr	x0, [x29, #24]
+	ldr	x1, [x29, #32]
+	# Add
+	adds	x12, x8, x4
+	adcs	x13, x9, x5
+	adcs	x14, x10, x6
+	adc	x15, x11, x7
+	mov	x25, #-19
+	asr	x28, x15, #63
+	#   Mask the modulus
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
+	#   Sub modulus (if overflow)
+	subs	x12, x12, x25
+	sbcs	x13, x13, x28
+	sbcs	x14, x14, x28
+	sbc	x15, x15, x26
+	# Sub
+	subs	x21, x8, x4
+	sbcs	x22, x9, x5
+	sbcs	x23, x10, x6
+	sbcs	x24, x11, x7
+	mov	x25, #-19
+	csetm	x28, cc
+	#   Mask the modulus
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
+	#   Add modulus (if underflow)
+	adds	x21, x21, x25
+	adcs	x22, x22, x28
+	adcs	x23, x23, x28
+	adc	x24, x24, x26
+	stp	x12, x13, [x0]
+	stp	x14, x15, [x0, #16]
+	stp	x21, x22, [x1]
+	stp	x23, x24, [x1, #16]
+	ldr	x0, [x29, #16]
+	# Sub
+	subs	x16, x16, x12
+	sbcs	x17, x17, x13
+	sbcs	x19, x19, x14
+	sbcs	x20, x20, x15
+	mov	x25, #-19
+	csetm	x28, cc
+	#   Mask the modulus
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
+	#   Add modulus (if underflow)
+	adds	x16, x16, x25
+	adcs	x17, x17, x28
+	adcs	x19, x19, x28
+	adc	x20, x20, x26
+	stp	x16, x17, [x0]
+	stp	x19, x20, [x0, #16]
+	ldr	x0, [x29, #40]
+	ldr	x1, [x29, #64]
+	# Square * 2
+	ldp	x12, x13, [x1]
+	ldp	x14, x15, [x1, #16]
+	#  A[0] * A[1]
+	mul	x5, x12, x13
+	umulh	x6, x12, x13
+	#  A[0] * A[2]
+	mul	x25, x12, x14
+	umulh	x7, x12, x14
+	adds	x6, x6, x25
+	adc	x7, x7, xzr
+	#  A[0] * A[3]
+	mul	x25, x12, x15
+	umulh	x8, x12, x15
+	adds	x7, x7, x25
+	adc	x8, x8, xzr
+	#  A[1] * A[2]
+	mul	x25, x13, x14
+	umulh	x26, x13, x14
+	adds	x7, x7, x25
+	adcs	x8, x8, x26
+	adc	x9, xzr, xzr
+	#  A[1] * A[3]
+	mul	x25, x13, x15
+	umulh	x26, x13, x15
+	adds	x8, x8, x25
+	adc	x9, x9, x26
+	#  A[2] * A[3]
+	mul	x25, x14, x15
+	umulh	x10, x14, x15
+	adds	x9, x9, x25
+	adc	x10, x10, xzr
+	# Double
+	adds	x5, x5, x5
+	adcs	x6, x6, x6
+	adcs	x7, x7, x7
+	adcs	x8, x8, x8
+	adcs	x9, x9, x9
+	adcs	x10, x10, x10
+	adc	x11, xzr, xzr
+	#  A[0] * A[0]
+	mul	x4, x12, x12
+	umulh	x28, x12, x12
+	#  A[1] * A[1]
+	mul	x25, x13, x13
+	umulh	x26, x13, x13
+	adds	x5, x5, x28
+	adcs	x6, x6, x25
+	adc	x28, x26, xzr
+	#  A[2] * A[2]
+	mul	x25, x14, x14
+	umulh	x26, x14, x14
+	adds	x7, x7, x28
+	adcs	x8, x8, x25
+	adc	x28, x26, xzr
+	#  A[3] * A[3]
+	mul	x25, x15, x15
+	umulh	x26, x15, x15
+	adds	x9, x9, x28
+	adcs	x10, x10, x25
+	adc	x11, x11, x26
+	# Double and Reduce
+	mov	x25, #0x169
+	#  Move top half into t4-t7 and remove top bit from t3
+	lsr	x28, x11, #61
 	extr	x11, x11, x10, #62
 	extr	x10, x10, x9, #62
 	extr	x9, x9, x8, #62
@@ -4059,68 +4068,69 @@ fe_ge_dbl:
 	#  Two left, only one right
 	and	x11, x11, #0x7fffffffffffffff
 	#  Multiply top bits by 19*19
-	mul	x27, x27, x24
+	mul	x28, x28, x25
 	#  Multiply top half by 19
-	mov	x24, #19
-	mul	x25, x24, x8
-	umulh	x8, x24, x8
-	adds	x4, x4, x25
-	mul	x25, x24, x9
-	umulh	x9, x24, x9
-	adcs	x5, x5, x25
-	mul	x25, x24, x10
-	umulh	x10, x24, x10
-	adcs	x6, x6, x25
-	mul	x25, x24, x11
-	umulh	x26, x24, x11
-	adcs	x7, x7, x25
-	adc	x26, x26, xzr
+	mov	x25, #19
+	mul	x26, x25, x8
+	umulh	x8, x25, x8
+	adds	x4, x4, x26
+	mul	x26, x25, x9
+	umulh	x9, x25, x9
+	adcs	x5, x5, x26
+	mul	x26, x25, x10
+	umulh	x10, x25, x10
+	adcs	x6, x6, x26
+	mul	x26, x25, x11
+	umulh	x27, x25, x11
+	adcs	x7, x7, x26
+	adc	x27, x27, xzr
 	#  Add remaining product results in
-	adds	x4, x4, x27
+	adds	x4, x4, x28
 	adcs	x5, x5, x8
 	adcs	x6, x6, x9
 	adcs	x7, x7, x10
-	adc	x26, x26, xzr
+	adc	x27, x27, xzr
 	#  Overflow
-	extr	x26, x26, x7, #63
-	mul	x26, x26, x24
+	extr	x27, x27, x7, #63
+	mul	x27, x27, x25
 	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
+	adds	x4, x4, x27
 	adcs	x5, x5, xzr
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Reduce if top bit set
-	and	x26, x24, x7, asr 63
+	and	x27, x25, x7, asr 63
 	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
+	adds	x4, x4, x27
 	adcs	x5, x5, xzr
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Store
 	ldr	x0, [x29, #40]
 	# Sub
-	subs	x4, x4, x20
-	sbcs	x5, x5, x21
-	sbcs	x6, x6, x22
-	sbcs	x7, x7, x23
-	mov	x24, #-19
-	csetm	x27, cc
+	subs	x4, x4, x21
+	sbcs	x5, x5, x22
+	sbcs	x6, x6, x23
+	sbcs	x7, x7, x24
+	mov	x25, #-19
+	csetm	x28, cc
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Add modulus (if underflow)
-	adds	x4, x4, x24
-	adcs	x5, x5, x27
-	adcs	x6, x6, x27
-	adc	x7, x7, x25
+	adds	x4, x4, x25
+	adcs	x5, x5, x28
+	adcs	x6, x6, x28
+	adc	x7, x7, x26
 	stp	x4, x5, [x0]
 	stp	x6, x7, [x0, #16]
 	ldr	x17, [x29, #88]
-	ldp	x18, x19, [x29, #96]
-	ldp	x20, x21, [x29, #112]
-	ldp	x22, x23, [x29, #128]
-	ldp	x24, x25, [x29, #144]
-	ldp	x26, x27, [x29, #160]
+	ldr	x19, [x29, #96]
+	ldp	x20, x21, [x29, #104]
+	ldp	x22, x23, [x29, #120]
+	ldp	x24, x25, [x29, #136]
+	ldp	x26, x27, [x29, #152]
+	ldr	x28, [x29, #168]
 	ldp	x29, x30, [sp], #0xb0
 	ret
 	.size	fe_ge_dbl,.-fe_ge_dbl
@@ -4132,11 +4142,12 @@ fe_ge_madd:
 	stp	x29, x30, [sp, #-176]!
 	add	x29, sp, #0
 	str	x17, [x29, #88]
-	stp	x18, x19, [x29, #96]
-	stp	x20, x21, [x29, #112]
-	stp	x22, x23, [x29, #128]
-	stp	x24, x25, [x29, #144]
-	stp	x26, x27, [x29, #160]
+	str	x19, [x29, #96]
+	stp	x20, x21, [x29, #104]
+	stp	x22, x23, [x29, #120]
+	stp	x24, x25, [x29, #136]
+	stp	x26, x27, [x29, #152]
+	str	x28, [x29, #168]
 	str	x0, [x29, #16]
 	str	x1, [x29, #24]
 	str	x2, [x29, #32]
@@ -4151,170 +4162,170 @@ fe_ge_madd:
 	ldp	x12, x13, [x2]
 	ldp	x14, x15, [x2, #16]
 	ldp	x16, x17, [x3]
-	ldp	x18, x19, [x3, #16]
+	ldp	x19, x20, [x3, #16]
 	adds	x4, x12, x16
 	adcs	x5, x13, x17
-	adcs	x6, x14, x18
-	adc	x7, x15, x19
-	mov	x24, #-19
-	asr	x27, x7, #63
+	adcs	x6, x14, x19
+	adc	x7, x15, x20
+	mov	x25, #-19
+	asr	x28, x7, #63
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
-	subs	x4, x4, x24
-	sbcs	x5, x5, x27
-	sbcs	x6, x6, x27
-	sbc	x7, x7, x25
+	subs	x4, x4, x25
+	sbcs	x5, x5, x28
+	sbcs	x6, x6, x28
+	sbc	x7, x7, x26
 	# Sub
 	subs	x8, x12, x16
 	sbcs	x9, x13, x17
-	sbcs	x10, x14, x18
-	sbcs	x11, x15, x19
-	mov	x24, #-19
-	csetm	x27, cc
+	sbcs	x10, x14, x19
+	sbcs	x11, x15, x20
+	mov	x25, #-19
+	csetm	x28, cc
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Add modulus (if underflow)
-	adds	x8, x8, x24
-	adcs	x9, x9, x27
-	adcs	x10, x10, x27
-	adc	x11, x11, x25
+	adds	x8, x8, x25
+	adcs	x9, x9, x28
+	adcs	x10, x10, x28
+	adc	x11, x11, x26
 	ldr	x0, [x29, #32]
 	ldr	x2, [x29, #184]
 	# Multiply
-	ldp	x20, x21, [x2]
-	ldp	x22, x23, [x2, #16]
+	ldp	x21, x22, [x2]
+	ldp	x23, x24, [x2, #16]
 	#  A[0] * B[0]
-	mul	x12, x4, x20
-	umulh	x13, x4, x20
+	mul	x12, x4, x21
+	umulh	x13, x4, x21
 	#  A[0] * B[1]
-	mul	x24, x4, x21
-	umulh	x14, x4, x21
-	adds	x13, x13, x24
+	mul	x25, x4, x22
+	umulh	x14, x4, x22
+	adds	x13, x13, x25
 	adc	x14, x14, xzr
 	#  A[1] * B[0]
-	mul	x24, x5, x20
-	umulh	x25, x5, x20
-	adds	x13, x13, x24
-	adcs	x14, x14, x25
+	mul	x25, x5, x21
+	umulh	x26, x5, x21
+	adds	x13, x13, x25
+	adcs	x14, x14, x26
 	adc	x15, xzr, xzr
 	#  A[0] * B[2]
-	mul	x24, x4, x22
-	umulh	x25, x4, x22
-	adds	x14, x14, x24
-	adc	x15, x15, x25
+	mul	x25, x4, x23
+	umulh	x26, x4, x23
+	adds	x14, x14, x25
+	adc	x15, x15, x26
 	#  A[1] * B[1]
-	mul	x24, x5, x21
-	umulh	x25, x5, x21
-	adds	x14, x14, x24
-	adcs	x15, x15, x25
+	mul	x25, x5, x22
+	umulh	x26, x5, x22
+	adds	x14, x14, x25
+	adcs	x15, x15, x26
 	adc	x16, xzr, xzr
 	#  A[2] * B[0]
-	mul	x24, x6, x20
-	umulh	x25, x6, x20
-	adds	x14, x14, x24
-	adcs	x15, x15, x25
+	mul	x25, x6, x21
+	umulh	x26, x6, x21
+	adds	x14, x14, x25
+	adcs	x15, x15, x26
 	adc	x16, x16, xzr
 	#  A[0] * B[3]
-	mul	x24, x4, x23
-	umulh	x25, x4, x23
-	adds	x15, x15, x24
-	adcs	x16, x16, x25
+	mul	x25, x4, x24
+	umulh	x26, x4, x24
+	adds	x15, x15, x25
+	adcs	x16, x16, x26
 	adc	x17, xzr, xzr
 	#  A[1] * B[2]
-	mul	x24, x5, x22
-	umulh	x25, x5, x22
-	adds	x15, x15, x24
-	adcs	x16, x16, x25
+	mul	x25, x5, x23
+	umulh	x26, x5, x23
+	adds	x15, x15, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[2] * B[1]
-	mul	x24, x6, x21
-	umulh	x25, x6, x21
-	adds	x15, x15, x24
-	adcs	x16, x16, x25
+	mul	x25, x6, x22
+	umulh	x26, x6, x22
+	adds	x15, x15, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[3] * B[0]
-	mul	x24, x7, x20
-	umulh	x25, x7, x20
-	adds	x15, x15, x24
-	adcs	x16, x16, x25
+	mul	x25, x7, x21
+	umulh	x26, x7, x21
+	adds	x15, x15, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[1] * B[3]
-	mul	x24, x5, x23
-	umulh	x25, x5, x23
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, xzr, xzr
-	#  A[2] * B[2]
-	mul	x24, x6, x22
-	umulh	x25, x6, x22
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, x18, xzr
-	#  A[3] * B[1]
-	mul	x24, x7, x21
-	umulh	x25, x7, x21
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, x18, xzr
-	#  A[2] * B[3]
-	mul	x24, x6, x23
-	umulh	x25, x6, x23
-	adds	x17, x17, x24
-	adcs	x18, x18, x25
+	mul	x25, x5, x24
+	umulh	x26, x5, x24
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
 	adc	x19, xzr, xzr
-	#  A[3] * B[2]
-	mul	x24, x7, x22
-	umulh	x25, x7, x22
-	adds	x17, x17, x24
-	adcs	x18, x18, x25
+	#  A[2] * B[2]
+	mul	x25, x6, x23
+	umulh	x26, x6, x23
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
 	adc	x19, x19, xzr
+	#  A[3] * B[1]
+	mul	x25, x7, x22
+	umulh	x26, x7, x22
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
+	adc	x19, x19, xzr
+	#  A[2] * B[3]
+	mul	x25, x6, x24
+	umulh	x26, x6, x24
+	adds	x17, x17, x25
+	adcs	x19, x19, x26
+	adc	x20, xzr, xzr
+	#  A[3] * B[2]
+	mul	x25, x7, x23
+	umulh	x26, x7, x23
+	adds	x17, x17, x25
+	adcs	x19, x19, x26
+	adc	x20, x20, xzr
 	#  A[3] * B[3]
-	mul	x24, x7, x23
-	umulh	x25, x7, x23
-	adds	x18, x18, x24
-	adc	x19, x19, x25
+	mul	x25, x7, x24
+	umulh	x26, x7, x24
+	adds	x19, x19, x25
+	adc	x20, x20, x26
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
-	extr	x19, x19, x18, #63
-	extr	x18, x18, x17, #63
+	extr	x20, x20, x19, #63
+	extr	x19, x19, x17, #63
 	extr	x17, x17, x16, #63
 	extr	x16, x16, x15, #63
 	and	x15, x15, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x24, #19
-	mul	x25, x24, x16
-	umulh	x16, x24, x16
-	adds	x12, x12, x25
-	mul	x25, x24, x17
-	umulh	x17, x24, x17
-	adcs	x13, x13, x25
-	mul	x25, x24, x18
-	umulh	x18, x24, x18
-	adcs	x14, x14, x25
-	mul	x25, x24, x19
-	umulh	x26, x24, x19
-	adcs	x15, x15, x25
-	adc	x26, x26, xzr
+	mov	x25, #19
+	mul	x26, x25, x16
+	umulh	x16, x25, x16
+	adds	x12, x12, x26
+	mul	x26, x25, x17
+	umulh	x17, x25, x17
+	adcs	x13, x13, x26
+	mul	x26, x25, x19
+	umulh	x19, x25, x19
+	adcs	x14, x14, x26
+	mul	x26, x25, x20
+	umulh	x27, x25, x20
+	adcs	x15, x15, x26
+	adc	x27, x27, xzr
 	#  Add remaining product results in
 	adds	x13, x13, x16
 	adcs	x14, x14, x17
-	adcs	x15, x15, x18
-	adc	x26, x26, xzr
+	adcs	x15, x15, x19
+	adc	x27, x27, xzr
 	#  Overflow
-	extr	x26, x26, x15, #63
-	mul	x26, x26, x24
+	extr	x27, x27, x15, #63
+	mul	x27, x27, x25
 	and	x15, x15, #0x7fffffffffffffff
-	adds	x12, x12, x26
+	adds	x12, x12, x27
 	adcs	x13, x13, xzr
 	adcs	x14, x14, xzr
 	adc	x15, x15, xzr
 	# Reduce if top bit set
-	and	x26, x24, x15, asr 63
+	and	x27, x25, x15, asr 63
 	and	x15, x15, #0x7fffffffffffffff
-	adds	x12, x12, x26
+	adds	x12, x12, x27
 	adcs	x13, x13, xzr
 	adcs	x14, x14, xzr
 	adc	x15, x15, xzr
@@ -4322,137 +4333,137 @@ fe_ge_madd:
 	ldr	x0, [x29, #24]
 	ldr	x1, [x29, #192]
 	# Multiply
-	ldp	x20, x21, [x1]
-	ldp	x22, x23, [x1, #16]
+	ldp	x21, x22, [x1]
+	ldp	x23, x24, [x1, #16]
 	#  A[0] * B[0]
-	mul	x4, x8, x20
-	umulh	x5, x8, x20
+	mul	x4, x8, x21
+	umulh	x5, x8, x21
 	#  A[0] * B[1]
-	mul	x24, x8, x21
-	umulh	x6, x8, x21
-	adds	x5, x5, x24
+	mul	x25, x8, x22
+	umulh	x6, x8, x22
+	adds	x5, x5, x25
 	adc	x6, x6, xzr
 	#  A[1] * B[0]
-	mul	x24, x9, x20
-	umulh	x25, x9, x20
-	adds	x5, x5, x24
-	adcs	x6, x6, x25
+	mul	x25, x9, x21
+	umulh	x26, x9, x21
+	adds	x5, x5, x25
+	adcs	x6, x6, x26
 	adc	x7, xzr, xzr
 	#  A[0] * B[2]
-	mul	x24, x8, x22
-	umulh	x25, x8, x22
-	adds	x6, x6, x24
-	adc	x7, x7, x25
+	mul	x25, x8, x23
+	umulh	x26, x8, x23
+	adds	x6, x6, x25
+	adc	x7, x7, x26
 	#  A[1] * B[1]
-	mul	x24, x9, x21
-	umulh	x25, x9, x21
-	adds	x6, x6, x24
-	adcs	x7, x7, x25
+	mul	x25, x9, x22
+	umulh	x26, x9, x22
+	adds	x6, x6, x25
+	adcs	x7, x7, x26
 	adc	x16, xzr, xzr
 	#  A[2] * B[0]
-	mul	x24, x10, x20
-	umulh	x25, x10, x20
-	adds	x6, x6, x24
-	adcs	x7, x7, x25
+	mul	x25, x10, x21
+	umulh	x26, x10, x21
+	adds	x6, x6, x25
+	adcs	x7, x7, x26
 	adc	x16, x16, xzr
 	#  A[0] * B[3]
-	mul	x24, x8, x23
-	umulh	x25, x8, x23
-	adds	x7, x7, x24
-	adcs	x16, x16, x25
+	mul	x25, x8, x24
+	umulh	x26, x8, x24
+	adds	x7, x7, x25
+	adcs	x16, x16, x26
 	adc	x17, xzr, xzr
 	#  A[1] * B[2]
-	mul	x24, x9, x22
-	umulh	x25, x9, x22
-	adds	x7, x7, x24
-	adcs	x16, x16, x25
+	mul	x25, x9, x23
+	umulh	x26, x9, x23
+	adds	x7, x7, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[2] * B[1]
-	mul	x24, x10, x21
-	umulh	x25, x10, x21
-	adds	x7, x7, x24
-	adcs	x16, x16, x25
+	mul	x25, x10, x22
+	umulh	x26, x10, x22
+	adds	x7, x7, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[3] * B[0]
-	mul	x24, x11, x20
-	umulh	x25, x11, x20
-	adds	x7, x7, x24
-	adcs	x16, x16, x25
+	mul	x25, x11, x21
+	umulh	x26, x11, x21
+	adds	x7, x7, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[1] * B[3]
-	mul	x24, x9, x23
-	umulh	x25, x9, x23
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, xzr, xzr
-	#  A[2] * B[2]
-	mul	x24, x10, x22
-	umulh	x25, x10, x22
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, x18, xzr
-	#  A[3] * B[1]
-	mul	x24, x11, x21
-	umulh	x25, x11, x21
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, x18, xzr
-	#  A[2] * B[3]
-	mul	x24, x10, x23
-	umulh	x25, x10, x23
-	adds	x17, x17, x24
-	adcs	x18, x18, x25
+	mul	x25, x9, x24
+	umulh	x26, x9, x24
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
 	adc	x19, xzr, xzr
-	#  A[3] * B[2]
-	mul	x24, x11, x22
-	umulh	x25, x11, x22
-	adds	x17, x17, x24
-	adcs	x18, x18, x25
+	#  A[2] * B[2]
+	mul	x25, x10, x23
+	umulh	x26, x10, x23
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
 	adc	x19, x19, xzr
+	#  A[3] * B[1]
+	mul	x25, x11, x22
+	umulh	x26, x11, x22
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
+	adc	x19, x19, xzr
+	#  A[2] * B[3]
+	mul	x25, x10, x24
+	umulh	x26, x10, x24
+	adds	x17, x17, x25
+	adcs	x19, x19, x26
+	adc	x20, xzr, xzr
+	#  A[3] * B[2]
+	mul	x25, x11, x23
+	umulh	x26, x11, x23
+	adds	x17, x17, x25
+	adcs	x19, x19, x26
+	adc	x20, x20, xzr
 	#  A[3] * B[3]
-	mul	x24, x11, x23
-	umulh	x25, x11, x23
-	adds	x18, x18, x24
-	adc	x19, x19, x25
+	mul	x25, x11, x24
+	umulh	x26, x11, x24
+	adds	x19, x19, x25
+	adc	x20, x20, x26
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
-	extr	x19, x19, x18, #63
-	extr	x18, x18, x17, #63
+	extr	x20, x20, x19, #63
+	extr	x19, x19, x17, #63
 	extr	x17, x17, x16, #63
 	extr	x16, x16, x7, #63
 	and	x7, x7, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x24, #19
-	mul	x25, x24, x16
-	umulh	x16, x24, x16
-	adds	x4, x4, x25
-	mul	x25, x24, x17
-	umulh	x17, x24, x17
-	adcs	x5, x5, x25
-	mul	x25, x24, x18
-	umulh	x18, x24, x18
-	adcs	x6, x6, x25
-	mul	x25, x24, x19
-	umulh	x26, x24, x19
-	adcs	x7, x7, x25
-	adc	x26, x26, xzr
+	mov	x25, #19
+	mul	x26, x25, x16
+	umulh	x16, x25, x16
+	adds	x4, x4, x26
+	mul	x26, x25, x17
+	umulh	x17, x25, x17
+	adcs	x5, x5, x26
+	mul	x26, x25, x19
+	umulh	x19, x25, x19
+	adcs	x6, x6, x26
+	mul	x26, x25, x20
+	umulh	x27, x25, x20
+	adcs	x7, x7, x26
+	adc	x27, x27, xzr
 	#  Add remaining product results in
 	adds	x5, x5, x16
 	adcs	x6, x6, x17
-	adcs	x7, x7, x18
-	adc	x26, x26, xzr
+	adcs	x7, x7, x19
+	adc	x27, x27, xzr
 	#  Overflow
-	extr	x26, x26, x7, #63
-	mul	x26, x26, x24
+	extr	x27, x27, x7, #63
+	mul	x27, x27, x25
 	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
+	adds	x4, x4, x27
 	adcs	x5, x5, xzr
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Reduce if top bit set
-	and	x26, x24, x7, asr 63
+	and	x27, x25, x7, asr 63
 	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
+	adds	x4, x4, x27
 	adcs	x5, x5, xzr
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
@@ -4464,133 +4475,133 @@ fe_ge_madd:
 	adcs	x9, x13, x5
 	adcs	x10, x14, x6
 	adc	x11, x15, x7
-	mov	x24, #-19
-	asr	x27, x11, #63
+	mov	x25, #-19
+	asr	x28, x11, #63
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
-	subs	x8, x8, x24
-	sbcs	x9, x9, x27
-	sbcs	x10, x10, x27
-	sbc	x11, x11, x25
+	subs	x8, x8, x25
+	sbcs	x9, x9, x28
+	sbcs	x10, x10, x28
+	sbc	x11, x11, x26
 	# Sub
 	subs	x16, x12, x4
 	sbcs	x17, x13, x5
-	sbcs	x18, x14, x6
-	sbcs	x19, x15, x7
-	mov	x24, #-19
-	csetm	x27, cc
+	sbcs	x19, x14, x6
+	sbcs	x20, x15, x7
+	mov	x25, #-19
+	csetm	x28, cc
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Add modulus (if underflow)
-	adds	x16, x16, x24
-	adcs	x17, x17, x27
-	adcs	x18, x18, x27
-	adc	x19, x19, x25
+	adds	x16, x16, x25
+	adcs	x17, x17, x28
+	adcs	x19, x19, x28
+	adc	x20, x20, x26
 	stp	x8, x9, [x0]
 	stp	x10, x11, [x0, #16]
 	stp	x16, x17, [x1]
-	stp	x18, x19, [x1, #16]
+	stp	x19, x20, [x1, #16]
 	ldr	x0, [x29, #40]
 	ldr	x1, [x29, #176]
 	ldr	x3, [x29, #72]
 	# Multiply
 	ldp	x16, x17, [x1]
-	ldp	x18, x19, [x1, #16]
-	ldp	x20, x21, [x3]
-	ldp	x22, x23, [x3, #16]
+	ldp	x19, x20, [x1, #16]
+	ldp	x21, x22, [x3]
+	ldp	x23, x24, [x3, #16]
 	#  A[0] * B[0]
-	mul	x4, x16, x20
-	umulh	x5, x16, x20
+	mul	x4, x16, x21
+	umulh	x5, x16, x21
 	#  A[0] * B[1]
-	mul	x24, x16, x21
-	umulh	x6, x16, x21
-	adds	x5, x5, x24
+	mul	x25, x16, x22
+	umulh	x6, x16, x22
+	adds	x5, x5, x25
 	adc	x6, x6, xzr
 	#  A[1] * B[0]
-	mul	x24, x17, x20
-	umulh	x25, x17, x20
-	adds	x5, x5, x24
-	adcs	x6, x6, x25
+	mul	x25, x17, x21
+	umulh	x26, x17, x21
+	adds	x5, x5, x25
+	adcs	x6, x6, x26
 	adc	x7, xzr, xzr
 	#  A[0] * B[2]
-	mul	x24, x16, x22
-	umulh	x25, x16, x22
-	adds	x6, x6, x24
-	adc	x7, x7, x25
+	mul	x25, x16, x23
+	umulh	x26, x16, x23
+	adds	x6, x6, x25
+	adc	x7, x7, x26
 	#  A[1] * B[1]
-	mul	x24, x17, x21
-	umulh	x25, x17, x21
-	adds	x6, x6, x24
-	adcs	x7, x7, x25
+	mul	x25, x17, x22
+	umulh	x26, x17, x22
+	adds	x6, x6, x25
+	adcs	x7, x7, x26
 	adc	x8, xzr, xzr
 	#  A[2] * B[0]
-	mul	x24, x18, x20
-	umulh	x25, x18, x20
-	adds	x6, x6, x24
-	adcs	x7, x7, x25
+	mul	x25, x19, x21
+	umulh	x26, x19, x21
+	adds	x6, x6, x25
+	adcs	x7, x7, x26
 	adc	x8, x8, xzr
 	#  A[0] * B[3]
-	mul	x24, x16, x23
-	umulh	x25, x16, x23
-	adds	x7, x7, x24
-	adcs	x8, x8, x25
+	mul	x25, x16, x24
+	umulh	x26, x16, x24
+	adds	x7, x7, x25
+	adcs	x8, x8, x26
 	adc	x9, xzr, xzr
 	#  A[1] * B[2]
-	mul	x24, x17, x22
-	umulh	x25, x17, x22
-	adds	x7, x7, x24
-	adcs	x8, x8, x25
+	mul	x25, x17, x23
+	umulh	x26, x17, x23
+	adds	x7, x7, x25
+	adcs	x8, x8, x26
 	adc	x9, x9, xzr
 	#  A[2] * B[1]
-	mul	x24, x18, x21
-	umulh	x25, x18, x21
-	adds	x7, x7, x24
-	adcs	x8, x8, x25
+	mul	x25, x19, x22
+	umulh	x26, x19, x22
+	adds	x7, x7, x25
+	adcs	x8, x8, x26
 	adc	x9, x9, xzr
 	#  A[3] * B[0]
-	mul	x24, x19, x20
-	umulh	x25, x19, x20
-	adds	x7, x7, x24
-	adcs	x8, x8, x25
+	mul	x25, x20, x21
+	umulh	x26, x20, x21
+	adds	x7, x7, x25
+	adcs	x8, x8, x26
 	adc	x9, x9, xzr
 	#  A[1] * B[3]
-	mul	x24, x17, x23
-	umulh	x25, x17, x23
-	adds	x8, x8, x24
-	adcs	x9, x9, x25
+	mul	x25, x17, x24
+	umulh	x26, x17, x24
+	adds	x8, x8, x25
+	adcs	x9, x9, x26
 	adc	x10, xzr, xzr
 	#  A[2] * B[2]
-	mul	x24, x18, x22
-	umulh	x25, x18, x22
-	adds	x8, x8, x24
-	adcs	x9, x9, x25
+	mul	x25, x19, x23
+	umulh	x26, x19, x23
+	adds	x8, x8, x25
+	adcs	x9, x9, x26
 	adc	x10, x10, xzr
 	#  A[3] * B[1]
-	mul	x24, x19, x21
-	umulh	x25, x19, x21
-	adds	x8, x8, x24
-	adcs	x9, x9, x25
+	mul	x25, x20, x22
+	umulh	x26, x20, x22
+	adds	x8, x8, x25
+	adcs	x9, x9, x26
 	adc	x10, x10, xzr
 	#  A[2] * B[3]
-	mul	x24, x18, x23
-	umulh	x25, x18, x23
-	adds	x9, x9, x24
-	adcs	x10, x10, x25
+	mul	x25, x19, x24
+	umulh	x26, x19, x24
+	adds	x9, x9, x25
+	adcs	x10, x10, x26
 	adc	x11, xzr, xzr
 	#  A[3] * B[2]
-	mul	x24, x19, x22
-	umulh	x25, x19, x22
-	adds	x9, x9, x24
-	adcs	x10, x10, x25
+	mul	x25, x20, x23
+	umulh	x26, x20, x23
+	adds	x9, x9, x25
+	adcs	x10, x10, x26
 	adc	x11, x11, xzr
 	#  A[3] * B[3]
-	mul	x24, x19, x23
-	umulh	x25, x19, x23
-	adds	x10, x10, x24
-	adc	x11, x11, x25
+	mul	x25, x20, x24
+	umulh	x26, x20, x24
+	adds	x10, x10, x25
+	adc	x11, x11, x26
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x11, x11, x10, #63
@@ -4599,37 +4610,37 @@ fe_ge_madd:
 	extr	x8, x8, x7, #63
 	and	x7, x7, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x24, #19
-	mul	x25, x24, x8
-	umulh	x8, x24, x8
-	adds	x4, x4, x25
-	mul	x25, x24, x9
-	umulh	x9, x24, x9
-	adcs	x5, x5, x25
-	mul	x25, x24, x10
-	umulh	x10, x24, x10
-	adcs	x6, x6, x25
-	mul	x25, x24, x11
-	umulh	x26, x24, x11
-	adcs	x7, x7, x25
-	adc	x26, x26, xzr
+	mov	x25, #19
+	mul	x26, x25, x8
+	umulh	x8, x25, x8
+	adds	x4, x4, x26
+	mul	x26, x25, x9
+	umulh	x9, x25, x9
+	adcs	x5, x5, x26
+	mul	x26, x25, x10
+	umulh	x10, x25, x10
+	adcs	x6, x6, x26
+	mul	x26, x25, x11
+	umulh	x27, x25, x11
+	adcs	x7, x7, x26
+	adc	x27, x27, xzr
 	#  Add remaining product results in
 	adds	x5, x5, x8
 	adcs	x6, x6, x9
 	adcs	x7, x7, x10
-	adc	x26, x26, xzr
+	adc	x27, x27, xzr
 	#  Overflow
-	extr	x26, x26, x7, #63
-	mul	x26, x26, x24
+	extr	x27, x27, x7, #63
+	mul	x27, x27, x25
 	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
+	adds	x4, x4, x27
 	adcs	x5, x5, xzr
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Reduce if top bit set
-	and	x26, x24, x7, asr 63
+	and	x27, x25, x7, asr 63
 	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
+	adds	x4, x4, x27
 	adcs	x5, x5, xzr
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
@@ -4643,57 +4654,58 @@ fe_ge_madd:
 	adcs	x9, x9, x9
 	adcs	x10, x10, x10
 	adc	x11, x11, x11
-	mov	x24, #-19
-	asr	x27, x11, #63
+	mov	x25, #-19
+	asr	x28, x11, #63
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
-	subs	x8, x8, x24
-	sbcs	x9, x9, x27
-	sbcs	x10, x10, x27
-	sbc	x11, x11, x25
+	subs	x8, x8, x25
+	sbcs	x9, x9, x28
+	sbcs	x10, x10, x28
+	sbc	x11, x11, x26
 	ldr	x1, [x29, #40]
 	# Add
 	adds	x12, x8, x4
 	adcs	x13, x9, x5
 	adcs	x14, x10, x6
 	adc	x15, x11, x7
-	mov	x24, #-19
-	asr	x27, x15, #63
+	mov	x25, #-19
+	asr	x28, x15, #63
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
-	subs	x12, x12, x24
-	sbcs	x13, x13, x27
-	sbcs	x14, x14, x27
-	sbc	x15, x15, x25
+	subs	x12, x12, x25
+	sbcs	x13, x13, x28
+	sbcs	x14, x14, x28
+	sbc	x15, x15, x26
 	# Sub
 	subs	x16, x8, x4
 	sbcs	x17, x9, x5
-	sbcs	x18, x10, x6
-	sbcs	x19, x11, x7
-	mov	x24, #-19
-	csetm	x27, cc
+	sbcs	x19, x10, x6
+	sbcs	x20, x11, x7
+	mov	x25, #-19
+	csetm	x28, cc
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Add modulus (if underflow)
-	adds	x16, x16, x24
-	adcs	x17, x17, x27
-	adcs	x18, x18, x27
-	adc	x19, x19, x25
+	adds	x16, x16, x25
+	adcs	x17, x17, x28
+	adcs	x19, x19, x28
+	adc	x20, x20, x26
 	stp	x12, x13, [x0]
 	stp	x14, x15, [x0, #16]
 	stp	x16, x17, [x1]
-	stp	x18, x19, [x1, #16]
+	stp	x19, x20, [x1, #16]
 	ldr	x17, [x29, #88]
-	ldp	x18, x19, [x29, #96]
-	ldp	x20, x21, [x29, #112]
-	ldp	x22, x23, [x29, #128]
-	ldp	x24, x25, [x29, #144]
-	ldp	x26, x27, [x29, #160]
+	ldr	x19, [x29, #96]
+	ldp	x20, x21, [x29, #104]
+	ldp	x22, x23, [x29, #120]
+	ldp	x24, x25, [x29, #136]
+	ldp	x26, x27, [x29, #152]
+	ldr	x28, [x29, #168]
 	ldp	x29, x30, [sp], #0xb0
 	ret
 	.size	fe_ge_madd,.-fe_ge_madd
@@ -4705,11 +4717,12 @@ fe_ge_msub:
 	stp	x29, x30, [sp, #-176]!
 	add	x29, sp, #0
 	str	x17, [x29, #88]
-	stp	x18, x19, [x29, #96]
-	stp	x20, x21, [x29, #112]
-	stp	x22, x23, [x29, #128]
-	stp	x24, x25, [x29, #144]
-	stp	x26, x27, [x29, #160]
+	str	x19, [x29, #96]
+	stp	x20, x21, [x29, #104]
+	stp	x22, x23, [x29, #120]
+	stp	x24, x25, [x29, #136]
+	stp	x26, x27, [x29, #152]
+	str	x28, [x29, #168]
 	str	x0, [x29, #16]
 	str	x1, [x29, #24]
 	str	x2, [x29, #32]
@@ -4724,170 +4737,170 @@ fe_ge_msub:
 	ldp	x12, x13, [x2]
 	ldp	x14, x15, [x2, #16]
 	ldp	x16, x17, [x3]
-	ldp	x18, x19, [x3, #16]
+	ldp	x19, x20, [x3, #16]
 	adds	x4, x12, x16
 	adcs	x5, x13, x17
-	adcs	x6, x14, x18
-	adc	x7, x15, x19
-	mov	x24, #-19
-	asr	x27, x7, #63
+	adcs	x6, x14, x19
+	adc	x7, x15, x20
+	mov	x25, #-19
+	asr	x28, x7, #63
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
-	subs	x4, x4, x24
-	sbcs	x5, x5, x27
-	sbcs	x6, x6, x27
-	sbc	x7, x7, x25
+	subs	x4, x4, x25
+	sbcs	x5, x5, x28
+	sbcs	x6, x6, x28
+	sbc	x7, x7, x26
 	# Sub
 	subs	x8, x12, x16
 	sbcs	x9, x13, x17
-	sbcs	x10, x14, x18
-	sbcs	x11, x15, x19
-	mov	x24, #-19
-	csetm	x27, cc
+	sbcs	x10, x14, x19
+	sbcs	x11, x15, x20
+	mov	x25, #-19
+	csetm	x28, cc
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Add modulus (if underflow)
-	adds	x8, x8, x24
-	adcs	x9, x9, x27
-	adcs	x10, x10, x27
-	adc	x11, x11, x25
+	adds	x8, x8, x25
+	adcs	x9, x9, x28
+	adcs	x10, x10, x28
+	adc	x11, x11, x26
 	ldr	x0, [x29, #32]
 	ldr	x2, [x29, #192]
 	# Multiply
-	ldp	x20, x21, [x2]
-	ldp	x22, x23, [x2, #16]
+	ldp	x21, x22, [x2]
+	ldp	x23, x24, [x2, #16]
 	#  A[0] * B[0]
-	mul	x12, x4, x20
-	umulh	x13, x4, x20
+	mul	x12, x4, x21
+	umulh	x13, x4, x21
 	#  A[0] * B[1]
-	mul	x24, x4, x21
-	umulh	x14, x4, x21
-	adds	x13, x13, x24
+	mul	x25, x4, x22
+	umulh	x14, x4, x22
+	adds	x13, x13, x25
 	adc	x14, x14, xzr
 	#  A[1] * B[0]
-	mul	x24, x5, x20
-	umulh	x25, x5, x20
-	adds	x13, x13, x24
-	adcs	x14, x14, x25
+	mul	x25, x5, x21
+	umulh	x26, x5, x21
+	adds	x13, x13, x25
+	adcs	x14, x14, x26
 	adc	x15, xzr, xzr
 	#  A[0] * B[2]
-	mul	x24, x4, x22
-	umulh	x25, x4, x22
-	adds	x14, x14, x24
-	adc	x15, x15, x25
+	mul	x25, x4, x23
+	umulh	x26, x4, x23
+	adds	x14, x14, x25
+	adc	x15, x15, x26
 	#  A[1] * B[1]
-	mul	x24, x5, x21
-	umulh	x25, x5, x21
-	adds	x14, x14, x24
-	adcs	x15, x15, x25
+	mul	x25, x5, x22
+	umulh	x26, x5, x22
+	adds	x14, x14, x25
+	adcs	x15, x15, x26
 	adc	x16, xzr, xzr
 	#  A[2] * B[0]
-	mul	x24, x6, x20
-	umulh	x25, x6, x20
-	adds	x14, x14, x24
-	adcs	x15, x15, x25
+	mul	x25, x6, x21
+	umulh	x26, x6, x21
+	adds	x14, x14, x25
+	adcs	x15, x15, x26
 	adc	x16, x16, xzr
 	#  A[0] * B[3]
-	mul	x24, x4, x23
-	umulh	x25, x4, x23
-	adds	x15, x15, x24
-	adcs	x16, x16, x25
+	mul	x25, x4, x24
+	umulh	x26, x4, x24
+	adds	x15, x15, x25
+	adcs	x16, x16, x26
 	adc	x17, xzr, xzr
 	#  A[1] * B[2]
-	mul	x24, x5, x22
-	umulh	x25, x5, x22
-	adds	x15, x15, x24
-	adcs	x16, x16, x25
+	mul	x25, x5, x23
+	umulh	x26, x5, x23
+	adds	x15, x15, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[2] * B[1]
-	mul	x24, x6, x21
-	umulh	x25, x6, x21
-	adds	x15, x15, x24
-	adcs	x16, x16, x25
+	mul	x25, x6, x22
+	umulh	x26, x6, x22
+	adds	x15, x15, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[3] * B[0]
-	mul	x24, x7, x20
-	umulh	x25, x7, x20
-	adds	x15, x15, x24
-	adcs	x16, x16, x25
+	mul	x25, x7, x21
+	umulh	x26, x7, x21
+	adds	x15, x15, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[1] * B[3]
-	mul	x24, x5, x23
-	umulh	x25, x5, x23
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, xzr, xzr
-	#  A[2] * B[2]
-	mul	x24, x6, x22
-	umulh	x25, x6, x22
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, x18, xzr
-	#  A[3] * B[1]
-	mul	x24, x7, x21
-	umulh	x25, x7, x21
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, x18, xzr
-	#  A[2] * B[3]
-	mul	x24, x6, x23
-	umulh	x25, x6, x23
-	adds	x17, x17, x24
-	adcs	x18, x18, x25
+	mul	x25, x5, x24
+	umulh	x26, x5, x24
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
 	adc	x19, xzr, xzr
-	#  A[3] * B[2]
-	mul	x24, x7, x22
-	umulh	x25, x7, x22
-	adds	x17, x17, x24
-	adcs	x18, x18, x25
+	#  A[2] * B[2]
+	mul	x25, x6, x23
+	umulh	x26, x6, x23
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
 	adc	x19, x19, xzr
+	#  A[3] * B[1]
+	mul	x25, x7, x22
+	umulh	x26, x7, x22
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
+	adc	x19, x19, xzr
+	#  A[2] * B[3]
+	mul	x25, x6, x24
+	umulh	x26, x6, x24
+	adds	x17, x17, x25
+	adcs	x19, x19, x26
+	adc	x20, xzr, xzr
+	#  A[3] * B[2]
+	mul	x25, x7, x23
+	umulh	x26, x7, x23
+	adds	x17, x17, x25
+	adcs	x19, x19, x26
+	adc	x20, x20, xzr
 	#  A[3] * B[3]
-	mul	x24, x7, x23
-	umulh	x25, x7, x23
-	adds	x18, x18, x24
-	adc	x19, x19, x25
+	mul	x25, x7, x24
+	umulh	x26, x7, x24
+	adds	x19, x19, x25
+	adc	x20, x20, x26
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
-	extr	x19, x19, x18, #63
-	extr	x18, x18, x17, #63
+	extr	x20, x20, x19, #63
+	extr	x19, x19, x17, #63
 	extr	x17, x17, x16, #63
 	extr	x16, x16, x15, #63
 	and	x15, x15, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x24, #19
-	mul	x25, x24, x16
-	umulh	x16, x24, x16
-	adds	x12, x12, x25
-	mul	x25, x24, x17
-	umulh	x17, x24, x17
-	adcs	x13, x13, x25
-	mul	x25, x24, x18
-	umulh	x18, x24, x18
-	adcs	x14, x14, x25
-	mul	x25, x24, x19
-	umulh	x26, x24, x19
-	adcs	x15, x15, x25
-	adc	x26, x26, xzr
+	mov	x25, #19
+	mul	x26, x25, x16
+	umulh	x16, x25, x16
+	adds	x12, x12, x26
+	mul	x26, x25, x17
+	umulh	x17, x25, x17
+	adcs	x13, x13, x26
+	mul	x26, x25, x19
+	umulh	x19, x25, x19
+	adcs	x14, x14, x26
+	mul	x26, x25, x20
+	umulh	x27, x25, x20
+	adcs	x15, x15, x26
+	adc	x27, x27, xzr
 	#  Add remaining product results in
 	adds	x13, x13, x16
 	adcs	x14, x14, x17
-	adcs	x15, x15, x18
-	adc	x26, x26, xzr
+	adcs	x15, x15, x19
+	adc	x27, x27, xzr
 	#  Overflow
-	extr	x26, x26, x15, #63
-	mul	x26, x26, x24
+	extr	x27, x27, x15, #63
+	mul	x27, x27, x25
 	and	x15, x15, #0x7fffffffffffffff
-	adds	x12, x12, x26
+	adds	x12, x12, x27
 	adcs	x13, x13, xzr
 	adcs	x14, x14, xzr
 	adc	x15, x15, xzr
 	# Reduce if top bit set
-	and	x26, x24, x15, asr 63
+	and	x27, x25, x15, asr 63
 	and	x15, x15, #0x7fffffffffffffff
-	adds	x12, x12, x26
+	adds	x12, x12, x27
 	adcs	x13, x13, xzr
 	adcs	x14, x14, xzr
 	adc	x15, x15, xzr
@@ -4895,137 +4908,137 @@ fe_ge_msub:
 	ldr	x0, [x29, #24]
 	ldr	x1, [x29, #184]
 	# Multiply
-	ldp	x20, x21, [x1]
-	ldp	x22, x23, [x1, #16]
+	ldp	x21, x22, [x1]
+	ldp	x23, x24, [x1, #16]
 	#  A[0] * B[0]
-	mul	x4, x8, x20
-	umulh	x5, x8, x20
+	mul	x4, x8, x21
+	umulh	x5, x8, x21
 	#  A[0] * B[1]
-	mul	x24, x8, x21
-	umulh	x6, x8, x21
-	adds	x5, x5, x24
+	mul	x25, x8, x22
+	umulh	x6, x8, x22
+	adds	x5, x5, x25
 	adc	x6, x6, xzr
 	#  A[1] * B[0]
-	mul	x24, x9, x20
-	umulh	x25, x9, x20
-	adds	x5, x5, x24
-	adcs	x6, x6, x25
+	mul	x25, x9, x21
+	umulh	x26, x9, x21
+	adds	x5, x5, x25
+	adcs	x6, x6, x26
 	adc	x7, xzr, xzr
 	#  A[0] * B[2]
-	mul	x24, x8, x22
-	umulh	x25, x8, x22
-	adds	x6, x6, x24
-	adc	x7, x7, x25
+	mul	x25, x8, x23
+	umulh	x26, x8, x23
+	adds	x6, x6, x25
+	adc	x7, x7, x26
 	#  A[1] * B[1]
-	mul	x24, x9, x21
-	umulh	x25, x9, x21
-	adds	x6, x6, x24
-	adcs	x7, x7, x25
+	mul	x25, x9, x22
+	umulh	x26, x9, x22
+	adds	x6, x6, x25
+	adcs	x7, x7, x26
 	adc	x16, xzr, xzr
 	#  A[2] * B[0]
-	mul	x24, x10, x20
-	umulh	x25, x10, x20
-	adds	x6, x6, x24
-	adcs	x7, x7, x25
+	mul	x25, x10, x21
+	umulh	x26, x10, x21
+	adds	x6, x6, x25
+	adcs	x7, x7, x26
 	adc	x16, x16, xzr
 	#  A[0] * B[3]
-	mul	x24, x8, x23
-	umulh	x25, x8, x23
-	adds	x7, x7, x24
-	adcs	x16, x16, x25
+	mul	x25, x8, x24
+	umulh	x26, x8, x24
+	adds	x7, x7, x25
+	adcs	x16, x16, x26
 	adc	x17, xzr, xzr
 	#  A[1] * B[2]
-	mul	x24, x9, x22
-	umulh	x25, x9, x22
-	adds	x7, x7, x24
-	adcs	x16, x16, x25
+	mul	x25, x9, x23
+	umulh	x26, x9, x23
+	adds	x7, x7, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[2] * B[1]
-	mul	x24, x10, x21
-	umulh	x25, x10, x21
-	adds	x7, x7, x24
-	adcs	x16, x16, x25
+	mul	x25, x10, x22
+	umulh	x26, x10, x22
+	adds	x7, x7, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[3] * B[0]
-	mul	x24, x11, x20
-	umulh	x25, x11, x20
-	adds	x7, x7, x24
-	adcs	x16, x16, x25
+	mul	x25, x11, x21
+	umulh	x26, x11, x21
+	adds	x7, x7, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[1] * B[3]
-	mul	x24, x9, x23
-	umulh	x25, x9, x23
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, xzr, xzr
-	#  A[2] * B[2]
-	mul	x24, x10, x22
-	umulh	x25, x10, x22
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, x18, xzr
-	#  A[3] * B[1]
-	mul	x24, x11, x21
-	umulh	x25, x11, x21
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, x18, xzr
-	#  A[2] * B[3]
-	mul	x24, x10, x23
-	umulh	x25, x10, x23
-	adds	x17, x17, x24
-	adcs	x18, x18, x25
+	mul	x25, x9, x24
+	umulh	x26, x9, x24
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
 	adc	x19, xzr, xzr
-	#  A[3] * B[2]
-	mul	x24, x11, x22
-	umulh	x25, x11, x22
-	adds	x17, x17, x24
-	adcs	x18, x18, x25
+	#  A[2] * B[2]
+	mul	x25, x10, x23
+	umulh	x26, x10, x23
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
 	adc	x19, x19, xzr
+	#  A[3] * B[1]
+	mul	x25, x11, x22
+	umulh	x26, x11, x22
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
+	adc	x19, x19, xzr
+	#  A[2] * B[3]
+	mul	x25, x10, x24
+	umulh	x26, x10, x24
+	adds	x17, x17, x25
+	adcs	x19, x19, x26
+	adc	x20, xzr, xzr
+	#  A[3] * B[2]
+	mul	x25, x11, x23
+	umulh	x26, x11, x23
+	adds	x17, x17, x25
+	adcs	x19, x19, x26
+	adc	x20, x20, xzr
 	#  A[3] * B[3]
-	mul	x24, x11, x23
-	umulh	x25, x11, x23
-	adds	x18, x18, x24
-	adc	x19, x19, x25
+	mul	x25, x11, x24
+	umulh	x26, x11, x24
+	adds	x19, x19, x25
+	adc	x20, x20, x26
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
-	extr	x19, x19, x18, #63
-	extr	x18, x18, x17, #63
+	extr	x20, x20, x19, #63
+	extr	x19, x19, x17, #63
 	extr	x17, x17, x16, #63
 	extr	x16, x16, x7, #63
 	and	x7, x7, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x24, #19
-	mul	x25, x24, x16
-	umulh	x16, x24, x16
-	adds	x4, x4, x25
-	mul	x25, x24, x17
-	umulh	x17, x24, x17
-	adcs	x5, x5, x25
-	mul	x25, x24, x18
-	umulh	x18, x24, x18
-	adcs	x6, x6, x25
-	mul	x25, x24, x19
-	umulh	x26, x24, x19
-	adcs	x7, x7, x25
-	adc	x26, x26, xzr
+	mov	x25, #19
+	mul	x26, x25, x16
+	umulh	x16, x25, x16
+	adds	x4, x4, x26
+	mul	x26, x25, x17
+	umulh	x17, x25, x17
+	adcs	x5, x5, x26
+	mul	x26, x25, x19
+	umulh	x19, x25, x19
+	adcs	x6, x6, x26
+	mul	x26, x25, x20
+	umulh	x27, x25, x20
+	adcs	x7, x7, x26
+	adc	x27, x27, xzr
 	#  Add remaining product results in
 	adds	x5, x5, x16
 	adcs	x6, x6, x17
-	adcs	x7, x7, x18
-	adc	x26, x26, xzr
+	adcs	x7, x7, x19
+	adc	x27, x27, xzr
 	#  Overflow
-	extr	x26, x26, x7, #63
-	mul	x26, x26, x24
+	extr	x27, x27, x7, #63
+	mul	x27, x27, x25
 	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
+	adds	x4, x4, x27
 	adcs	x5, x5, xzr
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Reduce if top bit set
-	and	x26, x24, x7, asr 63
+	and	x27, x25, x7, asr 63
 	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
+	adds	x4, x4, x27
 	adcs	x5, x5, xzr
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
@@ -5037,133 +5050,133 @@ fe_ge_msub:
 	adcs	x9, x13, x5
 	adcs	x10, x14, x6
 	adc	x11, x15, x7
-	mov	x24, #-19
-	asr	x27, x11, #63
+	mov	x25, #-19
+	asr	x28, x11, #63
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
-	subs	x8, x8, x24
-	sbcs	x9, x9, x27
-	sbcs	x10, x10, x27
-	sbc	x11, x11, x25
+	subs	x8, x8, x25
+	sbcs	x9, x9, x28
+	sbcs	x10, x10, x28
+	sbc	x11, x11, x26
 	# Sub
 	subs	x16, x12, x4
 	sbcs	x17, x13, x5
-	sbcs	x18, x14, x6
-	sbcs	x19, x15, x7
-	mov	x24, #-19
-	csetm	x27, cc
+	sbcs	x19, x14, x6
+	sbcs	x20, x15, x7
+	mov	x25, #-19
+	csetm	x28, cc
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Add modulus (if underflow)
-	adds	x16, x16, x24
-	adcs	x17, x17, x27
-	adcs	x18, x18, x27
-	adc	x19, x19, x25
+	adds	x16, x16, x25
+	adcs	x17, x17, x28
+	adcs	x19, x19, x28
+	adc	x20, x20, x26
 	stp	x8, x9, [x0]
 	stp	x10, x11, [x0, #16]
 	stp	x16, x17, [x1]
-	stp	x18, x19, [x1, #16]
+	stp	x19, x20, [x1, #16]
 	ldr	x0, [x29, #40]
 	ldr	x1, [x29, #176]
 	ldr	x3, [x29, #72]
 	# Multiply
 	ldp	x16, x17, [x1]
-	ldp	x18, x19, [x1, #16]
-	ldp	x20, x21, [x3]
-	ldp	x22, x23, [x3, #16]
+	ldp	x19, x20, [x1, #16]
+	ldp	x21, x22, [x3]
+	ldp	x23, x24, [x3, #16]
 	#  A[0] * B[0]
-	mul	x4, x16, x20
-	umulh	x5, x16, x20
+	mul	x4, x16, x21
+	umulh	x5, x16, x21
 	#  A[0] * B[1]
-	mul	x24, x16, x21
-	umulh	x6, x16, x21
-	adds	x5, x5, x24
+	mul	x25, x16, x22
+	umulh	x6, x16, x22
+	adds	x5, x5, x25
 	adc	x6, x6, xzr
 	#  A[1] * B[0]
-	mul	x24, x17, x20
-	umulh	x25, x17, x20
-	adds	x5, x5, x24
-	adcs	x6, x6, x25
+	mul	x25, x17, x21
+	umulh	x26, x17, x21
+	adds	x5, x5, x25
+	adcs	x6, x6, x26
 	adc	x7, xzr, xzr
 	#  A[0] * B[2]
-	mul	x24, x16, x22
-	umulh	x25, x16, x22
-	adds	x6, x6, x24
-	adc	x7, x7, x25
+	mul	x25, x16, x23
+	umulh	x26, x16, x23
+	adds	x6, x6, x25
+	adc	x7, x7, x26
 	#  A[1] * B[1]
-	mul	x24, x17, x21
-	umulh	x25, x17, x21
-	adds	x6, x6, x24
-	adcs	x7, x7, x25
+	mul	x25, x17, x22
+	umulh	x26, x17, x22
+	adds	x6, x6, x25
+	adcs	x7, x7, x26
 	adc	x8, xzr, xzr
 	#  A[2] * B[0]
-	mul	x24, x18, x20
-	umulh	x25, x18, x20
-	adds	x6, x6, x24
-	adcs	x7, x7, x25
+	mul	x25, x19, x21
+	umulh	x26, x19, x21
+	adds	x6, x6, x25
+	adcs	x7, x7, x26
 	adc	x8, x8, xzr
 	#  A[0] * B[3]
-	mul	x24, x16, x23
-	umulh	x25, x16, x23
-	adds	x7, x7, x24
-	adcs	x8, x8, x25
+	mul	x25, x16, x24
+	umulh	x26, x16, x24
+	adds	x7, x7, x25
+	adcs	x8, x8, x26
 	adc	x9, xzr, xzr
 	#  A[1] * B[2]
-	mul	x24, x17, x22
-	umulh	x25, x17, x22
-	adds	x7, x7, x24
-	adcs	x8, x8, x25
+	mul	x25, x17, x23
+	umulh	x26, x17, x23
+	adds	x7, x7, x25
+	adcs	x8, x8, x26
 	adc	x9, x9, xzr
 	#  A[2] * B[1]
-	mul	x24, x18, x21
-	umulh	x25, x18, x21
-	adds	x7, x7, x24
-	adcs	x8, x8, x25
+	mul	x25, x19, x22
+	umulh	x26, x19, x22
+	adds	x7, x7, x25
+	adcs	x8, x8, x26
 	adc	x9, x9, xzr
 	#  A[3] * B[0]
-	mul	x24, x19, x20
-	umulh	x25, x19, x20
-	adds	x7, x7, x24
-	adcs	x8, x8, x25
+	mul	x25, x20, x21
+	umulh	x26, x20, x21
+	adds	x7, x7, x25
+	adcs	x8, x8, x26
 	adc	x9, x9, xzr
 	#  A[1] * B[3]
-	mul	x24, x17, x23
-	umulh	x25, x17, x23
-	adds	x8, x8, x24
-	adcs	x9, x9, x25
+	mul	x25, x17, x24
+	umulh	x26, x17, x24
+	adds	x8, x8, x25
+	adcs	x9, x9, x26
 	adc	x10, xzr, xzr
 	#  A[2] * B[2]
-	mul	x24, x18, x22
-	umulh	x25, x18, x22
-	adds	x8, x8, x24
-	adcs	x9, x9, x25
+	mul	x25, x19, x23
+	umulh	x26, x19, x23
+	adds	x8, x8, x25
+	adcs	x9, x9, x26
 	adc	x10, x10, xzr
 	#  A[3] * B[1]
-	mul	x24, x19, x21
-	umulh	x25, x19, x21
-	adds	x8, x8, x24
-	adcs	x9, x9, x25
+	mul	x25, x20, x22
+	umulh	x26, x20, x22
+	adds	x8, x8, x25
+	adcs	x9, x9, x26
 	adc	x10, x10, xzr
 	#  A[2] * B[3]
-	mul	x24, x18, x23
-	umulh	x25, x18, x23
-	adds	x9, x9, x24
-	adcs	x10, x10, x25
+	mul	x25, x19, x24
+	umulh	x26, x19, x24
+	adds	x9, x9, x25
+	adcs	x10, x10, x26
 	adc	x11, xzr, xzr
 	#  A[3] * B[2]
-	mul	x24, x19, x22
-	umulh	x25, x19, x22
-	adds	x9, x9, x24
-	adcs	x10, x10, x25
+	mul	x25, x20, x23
+	umulh	x26, x20, x23
+	adds	x9, x9, x25
+	adcs	x10, x10, x26
 	adc	x11, x11, xzr
 	#  A[3] * B[3]
-	mul	x24, x19, x23
-	umulh	x25, x19, x23
-	adds	x10, x10, x24
-	adc	x11, x11, x25
+	mul	x25, x20, x24
+	umulh	x26, x20, x24
+	adds	x10, x10, x25
+	adc	x11, x11, x26
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x11, x11, x10, #63
@@ -5172,37 +5185,37 @@ fe_ge_msub:
 	extr	x8, x8, x7, #63
 	and	x7, x7, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x24, #19
-	mul	x25, x24, x8
-	umulh	x8, x24, x8
-	adds	x4, x4, x25
-	mul	x25, x24, x9
-	umulh	x9, x24, x9
-	adcs	x5, x5, x25
-	mul	x25, x24, x10
-	umulh	x10, x24, x10
-	adcs	x6, x6, x25
-	mul	x25, x24, x11
-	umulh	x26, x24, x11
-	adcs	x7, x7, x25
-	adc	x26, x26, xzr
+	mov	x25, #19
+	mul	x26, x25, x8
+	umulh	x8, x25, x8
+	adds	x4, x4, x26
+	mul	x26, x25, x9
+	umulh	x9, x25, x9
+	adcs	x5, x5, x26
+	mul	x26, x25, x10
+	umulh	x10, x25, x10
+	adcs	x6, x6, x26
+	mul	x26, x25, x11
+	umulh	x27, x25, x11
+	adcs	x7, x7, x26
+	adc	x27, x27, xzr
 	#  Add remaining product results in
 	adds	x5, x5, x8
 	adcs	x6, x6, x9
 	adcs	x7, x7, x10
-	adc	x26, x26, xzr
+	adc	x27, x27, xzr
 	#  Overflow
-	extr	x26, x26, x7, #63
-	mul	x26, x26, x24
+	extr	x27, x27, x7, #63
+	mul	x27, x27, x25
 	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
+	adds	x4, x4, x27
 	adcs	x5, x5, xzr
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Reduce if top bit set
-	and	x26, x24, x7, asr 63
+	and	x27, x25, x7, asr 63
 	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
+	adds	x4, x4, x27
 	adcs	x5, x5, xzr
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
@@ -5216,57 +5229,58 @@ fe_ge_msub:
 	adcs	x9, x9, x9
 	adcs	x10, x10, x10
 	adc	x11, x11, x11
-	mov	x24, #-19
-	asr	x27, x11, #63
+	mov	x25, #-19
+	asr	x28, x11, #63
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
-	subs	x8, x8, x24
-	sbcs	x9, x9, x27
-	sbcs	x10, x10, x27
-	sbc	x11, x11, x25
+	subs	x8, x8, x25
+	sbcs	x9, x9, x28
+	sbcs	x10, x10, x28
+	sbc	x11, x11, x26
 	ldr	x1, [x29, #40]
 	# Add
 	adds	x12, x8, x4
 	adcs	x13, x9, x5
 	adcs	x14, x10, x6
 	adc	x15, x11, x7
-	mov	x24, #-19
-	asr	x27, x15, #63
+	mov	x25, #-19
+	asr	x28, x15, #63
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
-	subs	x12, x12, x24
-	sbcs	x13, x13, x27
-	sbcs	x14, x14, x27
-	sbc	x15, x15, x25
+	subs	x12, x12, x25
+	sbcs	x13, x13, x28
+	sbcs	x14, x14, x28
+	sbc	x15, x15, x26
 	# Sub
 	subs	x16, x8, x4
 	sbcs	x17, x9, x5
-	sbcs	x18, x10, x6
-	sbcs	x19, x11, x7
-	mov	x24, #-19
-	csetm	x27, cc
+	sbcs	x19, x10, x6
+	sbcs	x20, x11, x7
+	mov	x25, #-19
+	csetm	x28, cc
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Add modulus (if underflow)
-	adds	x16, x16, x24
-	adcs	x17, x17, x27
-	adcs	x18, x18, x27
-	adc	x19, x19, x25
+	adds	x16, x16, x25
+	adcs	x17, x17, x28
+	adcs	x19, x19, x28
+	adc	x20, x20, x26
 	stp	x12, x13, [x1]
 	stp	x14, x15, [x1, #16]
 	stp	x16, x17, [x0]
-	stp	x18, x19, [x0, #16]
+	stp	x19, x20, [x0, #16]
 	ldr	x17, [x29, #88]
-	ldp	x18, x19, [x29, #96]
-	ldp	x20, x21, [x29, #112]
-	ldp	x22, x23, [x29, #128]
-	ldp	x24, x25, [x29, #144]
-	ldp	x26, x27, [x29, #160]
+	ldr	x19, [x29, #96]
+	ldp	x20, x21, [x29, #104]
+	ldp	x22, x23, [x29, #120]
+	ldp	x24, x25, [x29, #136]
+	ldp	x26, x27, [x29, #152]
+	ldr	x28, [x29, #168]
 	ldp	x29, x30, [sp], #0xb0
 	ret
 	.size	fe_ge_msub,.-fe_ge_msub
@@ -5278,11 +5292,12 @@ fe_ge_add:
 	stp	x29, x30, [sp, #-176]!
 	add	x29, sp, #0
 	str	x17, [x29, #88]
-	stp	x18, x19, [x29, #96]
-	stp	x20, x21, [x29, #112]
-	stp	x22, x23, [x29, #128]
-	stp	x24, x25, [x29, #144]
-	stp	x26, x27, [x29, #160]
+	str	x19, [x29, #96]
+	stp	x20, x21, [x29, #104]
+	stp	x22, x23, [x29, #120]
+	stp	x24, x25, [x29, #136]
+	stp	x26, x27, [x29, #152]
+	str	x28, [x29, #168]
 	str	x0, [x29, #16]
 	str	x1, [x29, #24]
 	str	x2, [x29, #32]
@@ -5297,170 +5312,170 @@ fe_ge_add:
 	ldp	x12, x13, [x2]
 	ldp	x14, x15, [x2, #16]
 	ldp	x16, x17, [x3]
-	ldp	x18, x19, [x3, #16]
+	ldp	x19, x20, [x3, #16]
 	adds	x4, x12, x16
 	adcs	x5, x13, x17
-	adcs	x6, x14, x18
-	adc	x7, x15, x19
-	mov	x24, #-19
-	asr	x27, x7, #63
+	adcs	x6, x14, x19
+	adc	x7, x15, x20
+	mov	x25, #-19
+	asr	x28, x7, #63
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
-	subs	x4, x4, x24
-	sbcs	x5, x5, x27
-	sbcs	x6, x6, x27
-	sbc	x7, x7, x25
+	subs	x4, x4, x25
+	sbcs	x5, x5, x28
+	sbcs	x6, x6, x28
+	sbc	x7, x7, x26
 	# Sub
 	subs	x8, x12, x16
 	sbcs	x9, x13, x17
-	sbcs	x10, x14, x18
-	sbcs	x11, x15, x19
-	mov	x24, #-19
-	csetm	x27, cc
+	sbcs	x10, x14, x19
+	sbcs	x11, x15, x20
+	mov	x25, #-19
+	csetm	x28, cc
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Add modulus (if underflow)
-	adds	x8, x8, x24
-	adcs	x9, x9, x27
-	adcs	x10, x10, x27
-	adc	x11, x11, x25
+	adds	x8, x8, x25
+	adcs	x9, x9, x28
+	adcs	x10, x10, x28
+	adc	x11, x11, x26
 	ldr	x0, [x29, #32]
 	ldr	x2, [x29, #192]
 	# Multiply
-	ldp	x20, x21, [x2]
-	ldp	x22, x23, [x2, #16]
+	ldp	x21, x22, [x2]
+	ldp	x23, x24, [x2, #16]
 	#  A[0] * B[0]
-	mul	x12, x4, x20
-	umulh	x13, x4, x20
+	mul	x12, x4, x21
+	umulh	x13, x4, x21
 	#  A[0] * B[1]
-	mul	x24, x4, x21
-	umulh	x14, x4, x21
-	adds	x13, x13, x24
+	mul	x25, x4, x22
+	umulh	x14, x4, x22
+	adds	x13, x13, x25
 	adc	x14, x14, xzr
 	#  A[1] * B[0]
-	mul	x24, x5, x20
-	umulh	x25, x5, x20
-	adds	x13, x13, x24
-	adcs	x14, x14, x25
+	mul	x25, x5, x21
+	umulh	x26, x5, x21
+	adds	x13, x13, x25
+	adcs	x14, x14, x26
 	adc	x15, xzr, xzr
 	#  A[0] * B[2]
-	mul	x24, x4, x22
-	umulh	x25, x4, x22
-	adds	x14, x14, x24
-	adc	x15, x15, x25
+	mul	x25, x4, x23
+	umulh	x26, x4, x23
+	adds	x14, x14, x25
+	adc	x15, x15, x26
 	#  A[1] * B[1]
-	mul	x24, x5, x21
-	umulh	x25, x5, x21
-	adds	x14, x14, x24
-	adcs	x15, x15, x25
+	mul	x25, x5, x22
+	umulh	x26, x5, x22
+	adds	x14, x14, x25
+	adcs	x15, x15, x26
 	adc	x16, xzr, xzr
 	#  A[2] * B[0]
-	mul	x24, x6, x20
-	umulh	x25, x6, x20
-	adds	x14, x14, x24
-	adcs	x15, x15, x25
+	mul	x25, x6, x21
+	umulh	x26, x6, x21
+	adds	x14, x14, x25
+	adcs	x15, x15, x26
 	adc	x16, x16, xzr
 	#  A[0] * B[3]
-	mul	x24, x4, x23
-	umulh	x25, x4, x23
-	adds	x15, x15, x24
-	adcs	x16, x16, x25
+	mul	x25, x4, x24
+	umulh	x26, x4, x24
+	adds	x15, x15, x25
+	adcs	x16, x16, x26
 	adc	x17, xzr, xzr
 	#  A[1] * B[2]
-	mul	x24, x5, x22
-	umulh	x25, x5, x22
-	adds	x15, x15, x24
-	adcs	x16, x16, x25
+	mul	x25, x5, x23
+	umulh	x26, x5, x23
+	adds	x15, x15, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[2] * B[1]
-	mul	x24, x6, x21
-	umulh	x25, x6, x21
-	adds	x15, x15, x24
-	adcs	x16, x16, x25
+	mul	x25, x6, x22
+	umulh	x26, x6, x22
+	adds	x15, x15, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[3] * B[0]
-	mul	x24, x7, x20
-	umulh	x25, x7, x20
-	adds	x15, x15, x24
-	adcs	x16, x16, x25
+	mul	x25, x7, x21
+	umulh	x26, x7, x21
+	adds	x15, x15, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[1] * B[3]
-	mul	x24, x5, x23
-	umulh	x25, x5, x23
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, xzr, xzr
-	#  A[2] * B[2]
-	mul	x24, x6, x22
-	umulh	x25, x6, x22
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, x18, xzr
-	#  A[3] * B[1]
-	mul	x24, x7, x21
-	umulh	x25, x7, x21
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, x18, xzr
-	#  A[2] * B[3]
-	mul	x24, x6, x23
-	umulh	x25, x6, x23
-	adds	x17, x17, x24
-	adcs	x18, x18, x25
+	mul	x25, x5, x24
+	umulh	x26, x5, x24
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
 	adc	x19, xzr, xzr
-	#  A[3] * B[2]
-	mul	x24, x7, x22
-	umulh	x25, x7, x22
-	adds	x17, x17, x24
-	adcs	x18, x18, x25
+	#  A[2] * B[2]
+	mul	x25, x6, x23
+	umulh	x26, x6, x23
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
 	adc	x19, x19, xzr
+	#  A[3] * B[1]
+	mul	x25, x7, x22
+	umulh	x26, x7, x22
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
+	adc	x19, x19, xzr
+	#  A[2] * B[3]
+	mul	x25, x6, x24
+	umulh	x26, x6, x24
+	adds	x17, x17, x25
+	adcs	x19, x19, x26
+	adc	x20, xzr, xzr
+	#  A[3] * B[2]
+	mul	x25, x7, x23
+	umulh	x26, x7, x23
+	adds	x17, x17, x25
+	adcs	x19, x19, x26
+	adc	x20, x20, xzr
 	#  A[3] * B[3]
-	mul	x24, x7, x23
-	umulh	x25, x7, x23
-	adds	x18, x18, x24
-	adc	x19, x19, x25
+	mul	x25, x7, x24
+	umulh	x26, x7, x24
+	adds	x19, x19, x25
+	adc	x20, x20, x26
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
-	extr	x19, x19, x18, #63
-	extr	x18, x18, x17, #63
+	extr	x20, x20, x19, #63
+	extr	x19, x19, x17, #63
 	extr	x17, x17, x16, #63
 	extr	x16, x16, x15, #63
 	and	x15, x15, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x24, #19
-	mul	x25, x24, x16
-	umulh	x16, x24, x16
-	adds	x12, x12, x25
-	mul	x25, x24, x17
-	umulh	x17, x24, x17
-	adcs	x13, x13, x25
-	mul	x25, x24, x18
-	umulh	x18, x24, x18
-	adcs	x14, x14, x25
-	mul	x25, x24, x19
-	umulh	x26, x24, x19
-	adcs	x15, x15, x25
-	adc	x26, x26, xzr
+	mov	x25, #19
+	mul	x26, x25, x16
+	umulh	x16, x25, x16
+	adds	x12, x12, x26
+	mul	x26, x25, x17
+	umulh	x17, x25, x17
+	adcs	x13, x13, x26
+	mul	x26, x25, x19
+	umulh	x19, x25, x19
+	adcs	x14, x14, x26
+	mul	x26, x25, x20
+	umulh	x27, x25, x20
+	adcs	x15, x15, x26
+	adc	x27, x27, xzr
 	#  Add remaining product results in
 	adds	x13, x13, x16
 	adcs	x14, x14, x17
-	adcs	x15, x15, x18
-	adc	x26, x26, xzr
+	adcs	x15, x15, x19
+	adc	x27, x27, xzr
 	#  Overflow
-	extr	x26, x26, x15, #63
-	mul	x26, x26, x24
+	extr	x27, x27, x15, #63
+	mul	x27, x27, x25
 	and	x15, x15, #0x7fffffffffffffff
-	adds	x12, x12, x26
+	adds	x12, x12, x27
 	adcs	x13, x13, xzr
 	adcs	x14, x14, xzr
 	adc	x15, x15, xzr
 	# Reduce if top bit set
-	and	x26, x24, x15, asr 63
+	and	x27, x25, x15, asr 63
 	and	x15, x15, #0x7fffffffffffffff
-	adds	x12, x12, x26
+	adds	x12, x12, x27
 	adcs	x13, x13, xzr
 	adcs	x14, x14, xzr
 	adc	x15, x15, xzr
@@ -5468,137 +5483,137 @@ fe_ge_add:
 	ldr	x0, [x29, #24]
 	ldr	x1, [x29, #200]
 	# Multiply
-	ldp	x20, x21, [x1]
-	ldp	x22, x23, [x1, #16]
+	ldp	x21, x22, [x1]
+	ldp	x23, x24, [x1, #16]
 	#  A[0] * B[0]
-	mul	x4, x8, x20
-	umulh	x5, x8, x20
+	mul	x4, x8, x21
+	umulh	x5, x8, x21
 	#  A[0] * B[1]
-	mul	x24, x8, x21
-	umulh	x6, x8, x21
-	adds	x5, x5, x24
+	mul	x25, x8, x22
+	umulh	x6, x8, x22
+	adds	x5, x5, x25
 	adc	x6, x6, xzr
 	#  A[1] * B[0]
-	mul	x24, x9, x20
-	umulh	x25, x9, x20
-	adds	x5, x5, x24
-	adcs	x6, x6, x25
+	mul	x25, x9, x21
+	umulh	x26, x9, x21
+	adds	x5, x5, x25
+	adcs	x6, x6, x26
 	adc	x7, xzr, xzr
 	#  A[0] * B[2]
-	mul	x24, x8, x22
-	umulh	x25, x8, x22
-	adds	x6, x6, x24
-	adc	x7, x7, x25
+	mul	x25, x8, x23
+	umulh	x26, x8, x23
+	adds	x6, x6, x25
+	adc	x7, x7, x26
 	#  A[1] * B[1]
-	mul	x24, x9, x21
-	umulh	x25, x9, x21
-	adds	x6, x6, x24
-	adcs	x7, x7, x25
+	mul	x25, x9, x22
+	umulh	x26, x9, x22
+	adds	x6, x6, x25
+	adcs	x7, x7, x26
 	adc	x16, xzr, xzr
 	#  A[2] * B[0]
-	mul	x24, x10, x20
-	umulh	x25, x10, x20
-	adds	x6, x6, x24
-	adcs	x7, x7, x25
+	mul	x25, x10, x21
+	umulh	x26, x10, x21
+	adds	x6, x6, x25
+	adcs	x7, x7, x26
 	adc	x16, x16, xzr
 	#  A[0] * B[3]
-	mul	x24, x8, x23
-	umulh	x25, x8, x23
-	adds	x7, x7, x24
-	adcs	x16, x16, x25
+	mul	x25, x8, x24
+	umulh	x26, x8, x24
+	adds	x7, x7, x25
+	adcs	x16, x16, x26
 	adc	x17, xzr, xzr
 	#  A[1] * B[2]
-	mul	x24, x9, x22
-	umulh	x25, x9, x22
-	adds	x7, x7, x24
-	adcs	x16, x16, x25
+	mul	x25, x9, x23
+	umulh	x26, x9, x23
+	adds	x7, x7, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[2] * B[1]
-	mul	x24, x10, x21
-	umulh	x25, x10, x21
-	adds	x7, x7, x24
-	adcs	x16, x16, x25
+	mul	x25, x10, x22
+	umulh	x26, x10, x22
+	adds	x7, x7, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[3] * B[0]
-	mul	x24, x11, x20
-	umulh	x25, x11, x20
-	adds	x7, x7, x24
-	adcs	x16, x16, x25
+	mul	x25, x11, x21
+	umulh	x26, x11, x21
+	adds	x7, x7, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[1] * B[3]
-	mul	x24, x9, x23
-	umulh	x25, x9, x23
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, xzr, xzr
-	#  A[2] * B[2]
-	mul	x24, x10, x22
-	umulh	x25, x10, x22
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, x18, xzr
-	#  A[3] * B[1]
-	mul	x24, x11, x21
-	umulh	x25, x11, x21
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, x18, xzr
-	#  A[2] * B[3]
-	mul	x24, x10, x23
-	umulh	x25, x10, x23
-	adds	x17, x17, x24
-	adcs	x18, x18, x25
+	mul	x25, x9, x24
+	umulh	x26, x9, x24
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
 	adc	x19, xzr, xzr
-	#  A[3] * B[2]
-	mul	x24, x11, x22
-	umulh	x25, x11, x22
-	adds	x17, x17, x24
-	adcs	x18, x18, x25
+	#  A[2] * B[2]
+	mul	x25, x10, x23
+	umulh	x26, x10, x23
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
 	adc	x19, x19, xzr
+	#  A[3] * B[1]
+	mul	x25, x11, x22
+	umulh	x26, x11, x22
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
+	adc	x19, x19, xzr
+	#  A[2] * B[3]
+	mul	x25, x10, x24
+	umulh	x26, x10, x24
+	adds	x17, x17, x25
+	adcs	x19, x19, x26
+	adc	x20, xzr, xzr
+	#  A[3] * B[2]
+	mul	x25, x11, x23
+	umulh	x26, x11, x23
+	adds	x17, x17, x25
+	adcs	x19, x19, x26
+	adc	x20, x20, xzr
 	#  A[3] * B[3]
-	mul	x24, x11, x23
-	umulh	x25, x11, x23
-	adds	x18, x18, x24
-	adc	x19, x19, x25
+	mul	x25, x11, x24
+	umulh	x26, x11, x24
+	adds	x19, x19, x25
+	adc	x20, x20, x26
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
-	extr	x19, x19, x18, #63
-	extr	x18, x18, x17, #63
+	extr	x20, x20, x19, #63
+	extr	x19, x19, x17, #63
 	extr	x17, x17, x16, #63
 	extr	x16, x16, x7, #63
 	and	x7, x7, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x24, #19
-	mul	x25, x24, x16
-	umulh	x16, x24, x16
-	adds	x4, x4, x25
-	mul	x25, x24, x17
-	umulh	x17, x24, x17
-	adcs	x5, x5, x25
-	mul	x25, x24, x18
-	umulh	x18, x24, x18
-	adcs	x6, x6, x25
-	mul	x25, x24, x19
-	umulh	x26, x24, x19
-	adcs	x7, x7, x25
-	adc	x26, x26, xzr
+	mov	x25, #19
+	mul	x26, x25, x16
+	umulh	x16, x25, x16
+	adds	x4, x4, x26
+	mul	x26, x25, x17
+	umulh	x17, x25, x17
+	adcs	x5, x5, x26
+	mul	x26, x25, x19
+	umulh	x19, x25, x19
+	adcs	x6, x6, x26
+	mul	x26, x25, x20
+	umulh	x27, x25, x20
+	adcs	x7, x7, x26
+	adc	x27, x27, xzr
 	#  Add remaining product results in
 	adds	x5, x5, x16
 	adcs	x6, x6, x17
-	adcs	x7, x7, x18
-	adc	x26, x26, xzr
+	adcs	x7, x7, x19
+	adc	x27, x27, xzr
 	#  Overflow
-	extr	x26, x26, x7, #63
-	mul	x26, x26, x24
+	extr	x27, x27, x7, #63
+	mul	x27, x27, x25
 	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
+	adds	x4, x4, x27
 	adcs	x5, x5, xzr
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Reduce if top bit set
-	and	x26, x24, x7, asr 63
+	and	x27, x25, x7, asr 63
 	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
+	adds	x4, x4, x27
 	adcs	x5, x5, xzr
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
@@ -5610,35 +5625,35 @@ fe_ge_add:
 	adcs	x9, x13, x5
 	adcs	x10, x14, x6
 	adc	x11, x15, x7
-	mov	x24, #-19
-	asr	x27, x11, #63
+	mov	x25, #-19
+	asr	x28, x11, #63
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
-	subs	x8, x8, x24
-	sbcs	x9, x9, x27
-	sbcs	x10, x10, x27
-	sbc	x11, x11, x25
+	subs	x8, x8, x25
+	sbcs	x9, x9, x28
+	sbcs	x10, x10, x28
+	sbc	x11, x11, x26
 	# Sub
 	subs	x16, x12, x4
 	sbcs	x17, x13, x5
-	sbcs	x18, x14, x6
-	sbcs	x19, x15, x7
-	mov	x24, #-19
-	csetm	x27, cc
+	sbcs	x19, x14, x6
+	sbcs	x20, x15, x7
+	mov	x25, #-19
+	csetm	x28, cc
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Add modulus (if underflow)
-	adds	x16, x16, x24
-	adcs	x17, x17, x27
-	adcs	x18, x18, x27
-	adc	x19, x19, x25
+	adds	x16, x16, x25
+	adcs	x17, x17, x28
+	adcs	x19, x19, x28
+	adc	x20, x20, x26
 	stp	x8, x9, [x0]
 	stp	x10, x11, [x0, #16]
 	stp	x16, x17, [x1]
-	stp	x18, x19, [x1, #16]
+	stp	x19, x20, [x1, #16]
 	ldr	x0, [x29, #48]
 	ldr	x1, [x29, #64]
 	ldr	x2, [x29, #176]
@@ -5646,97 +5661,97 @@ fe_ge_add:
 	ldp	x12, x13, [x1]
 	ldp	x14, x15, [x1, #16]
 	ldp	x16, x17, [x2]
-	ldp	x18, x19, [x2, #16]
+	ldp	x19, x20, [x2, #16]
 	#  A[0] * B[0]
 	mul	x4, x12, x16
 	umulh	x5, x12, x16
 	#  A[0] * B[1]
-	mul	x24, x12, x17
+	mul	x25, x12, x17
 	umulh	x6, x12, x17
-	adds	x5, x5, x24
+	adds	x5, x5, x25
 	adc	x6, x6, xzr
 	#  A[1] * B[0]
-	mul	x24, x13, x16
-	umulh	x25, x13, x16
-	adds	x5, x5, x24
-	adcs	x6, x6, x25
+	mul	x25, x13, x16
+	umulh	x26, x13, x16
+	adds	x5, x5, x25
+	adcs	x6, x6, x26
 	adc	x7, xzr, xzr
 	#  A[0] * B[2]
-	mul	x24, x12, x18
-	umulh	x25, x12, x18
-	adds	x6, x6, x24
-	adc	x7, x7, x25
+	mul	x25, x12, x19
+	umulh	x26, x12, x19
+	adds	x6, x6, x25
+	adc	x7, x7, x26
 	#  A[1] * B[1]
-	mul	x24, x13, x17
-	umulh	x25, x13, x17
-	adds	x6, x6, x24
-	adcs	x7, x7, x25
+	mul	x25, x13, x17
+	umulh	x26, x13, x17
+	adds	x6, x6, x25
+	adcs	x7, x7, x26
 	adc	x8, xzr, xzr
 	#  A[2] * B[0]
-	mul	x24, x14, x16
-	umulh	x25, x14, x16
-	adds	x6, x6, x24
-	adcs	x7, x7, x25
+	mul	x25, x14, x16
+	umulh	x26, x14, x16
+	adds	x6, x6, x25
+	adcs	x7, x7, x26
 	adc	x8, x8, xzr
 	#  A[0] * B[3]
-	mul	x24, x12, x19
-	umulh	x25, x12, x19
-	adds	x7, x7, x24
-	adcs	x8, x8, x25
+	mul	x25, x12, x20
+	umulh	x26, x12, x20
+	adds	x7, x7, x25
+	adcs	x8, x8, x26
 	adc	x9, xzr, xzr
 	#  A[1] * B[2]
-	mul	x24, x13, x18
-	umulh	x25, x13, x18
-	adds	x7, x7, x24
-	adcs	x8, x8, x25
+	mul	x25, x13, x19
+	umulh	x26, x13, x19
+	adds	x7, x7, x25
+	adcs	x8, x8, x26
 	adc	x9, x9, xzr
 	#  A[2] * B[1]
-	mul	x24, x14, x17
-	umulh	x25, x14, x17
-	adds	x7, x7, x24
-	adcs	x8, x8, x25
+	mul	x25, x14, x17
+	umulh	x26, x14, x17
+	adds	x7, x7, x25
+	adcs	x8, x8, x26
 	adc	x9, x9, xzr
 	#  A[3] * B[0]
-	mul	x24, x15, x16
-	umulh	x25, x15, x16
-	adds	x7, x7, x24
-	adcs	x8, x8, x25
+	mul	x25, x15, x16
+	umulh	x26, x15, x16
+	adds	x7, x7, x25
+	adcs	x8, x8, x26
 	adc	x9, x9, xzr
 	#  A[1] * B[3]
-	mul	x24, x13, x19
-	umulh	x25, x13, x19
-	adds	x8, x8, x24
-	adcs	x9, x9, x25
+	mul	x25, x13, x20
+	umulh	x26, x13, x20
+	adds	x8, x8, x25
+	adcs	x9, x9, x26
 	adc	x10, xzr, xzr
 	#  A[2] * B[2]
-	mul	x24, x14, x18
-	umulh	x25, x14, x18
-	adds	x8, x8, x24
-	adcs	x9, x9, x25
+	mul	x25, x14, x19
+	umulh	x26, x14, x19
+	adds	x8, x8, x25
+	adcs	x9, x9, x26
 	adc	x10, x10, xzr
 	#  A[3] * B[1]
-	mul	x24, x15, x17
-	umulh	x25, x15, x17
-	adds	x8, x8, x24
-	adcs	x9, x9, x25
+	mul	x25, x15, x17
+	umulh	x26, x15, x17
+	adds	x8, x8, x25
+	adcs	x9, x9, x26
 	adc	x10, x10, xzr
 	#  A[2] * B[3]
-	mul	x24, x14, x19
-	umulh	x25, x14, x19
-	adds	x9, x9, x24
-	adcs	x10, x10, x25
+	mul	x25, x14, x20
+	umulh	x26, x14, x20
+	adds	x9, x9, x25
+	adcs	x10, x10, x26
 	adc	x11, xzr, xzr
 	#  A[3] * B[2]
-	mul	x24, x15, x18
-	umulh	x25, x15, x18
-	adds	x9, x9, x24
-	adcs	x10, x10, x25
+	mul	x25, x15, x19
+	umulh	x26, x15, x19
+	adds	x9, x9, x25
+	adcs	x10, x10, x26
 	adc	x11, x11, xzr
 	#  A[3] * B[3]
-	mul	x24, x15, x19
-	umulh	x25, x15, x19
-	adds	x10, x10, x24
-	adc	x11, x11, x25
+	mul	x25, x15, x20
+	umulh	x26, x15, x20
+	adds	x10, x10, x25
+	adc	x11, x11, x26
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x11, x11, x10, #63
@@ -5745,37 +5760,37 @@ fe_ge_add:
 	extr	x8, x8, x7, #63
 	and	x7, x7, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x24, #19
-	mul	x25, x24, x8
-	umulh	x8, x24, x8
-	adds	x4, x4, x25
-	mul	x25, x24, x9
-	umulh	x9, x24, x9
-	adcs	x5, x5, x25
-	mul	x25, x24, x10
-	umulh	x10, x24, x10
-	adcs	x6, x6, x25
-	mul	x25, x24, x11
-	umulh	x26, x24, x11
-	adcs	x7, x7, x25
-	adc	x26, x26, xzr
+	mov	x25, #19
+	mul	x26, x25, x8
+	umulh	x8, x25, x8
+	adds	x4, x4, x26
+	mul	x26, x25, x9
+	umulh	x9, x25, x9
+	adcs	x5, x5, x26
+	mul	x26, x25, x10
+	umulh	x10, x25, x10
+	adcs	x6, x6, x26
+	mul	x26, x25, x11
+	umulh	x27, x25, x11
+	adcs	x7, x7, x26
+	adc	x27, x27, xzr
 	#  Add remaining product results in
 	adds	x5, x5, x8
 	adcs	x6, x6, x9
 	adcs	x7, x7, x10
-	adc	x26, x26, xzr
+	adc	x27, x27, xzr
 	#  Overflow
-	extr	x26, x26, x7, #63
-	mul	x26, x26, x24
+	extr	x27, x27, x7, #63
+	mul	x27, x27, x25
 	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
+	adds	x4, x4, x27
 	adcs	x5, x5, xzr
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Reduce if top bit set
-	and	x26, x24, x7, asr 63
+	and	x27, x25, x7, asr 63
 	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
+	adds	x4, x4, x27
 	adcs	x5, x5, xzr
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
@@ -5786,114 +5801,114 @@ fe_ge_add:
 	adcs	x5, x5, x5
 	adcs	x6, x6, x6
 	adc	x7, x7, x7
-	mov	x24, #-19
-	asr	x27, x7, #63
+	mov	x25, #-19
+	asr	x28, x7, #63
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
-	subs	x4, x4, x24
-	sbcs	x5, x5, x27
-	sbcs	x6, x6, x27
-	sbc	x7, x7, x25
+	subs	x4, x4, x25
+	sbcs	x5, x5, x28
+	sbcs	x6, x6, x28
+	sbc	x7, x7, x26
 	ldr	x0, [x29, #40]
 	ldr	x1, [x29, #184]
 	ldr	x2, [x29, #72]
 	# Multiply
 	ldp	x16, x17, [x1]
-	ldp	x18, x19, [x1, #16]
-	ldp	x20, x21, [x2]
-	ldp	x22, x23, [x2, #16]
+	ldp	x19, x20, [x1, #16]
+	ldp	x21, x22, [x2]
+	ldp	x23, x24, [x2, #16]
 	#  A[0] * B[0]
-	mul	x8, x16, x20
-	umulh	x9, x16, x20
+	mul	x8, x16, x21
+	umulh	x9, x16, x21
 	#  A[0] * B[1]
-	mul	x24, x16, x21
-	umulh	x10, x16, x21
-	adds	x9, x9, x24
+	mul	x25, x16, x22
+	umulh	x10, x16, x22
+	adds	x9, x9, x25
 	adc	x10, x10, xzr
 	#  A[1] * B[0]
-	mul	x24, x17, x20
-	umulh	x25, x17, x20
-	adds	x9, x9, x24
-	adcs	x10, x10, x25
+	mul	x25, x17, x21
+	umulh	x26, x17, x21
+	adds	x9, x9, x25
+	adcs	x10, x10, x26
 	adc	x11, xzr, xzr
 	#  A[0] * B[2]
-	mul	x24, x16, x22
-	umulh	x25, x16, x22
-	adds	x10, x10, x24
-	adc	x11, x11, x25
+	mul	x25, x16, x23
+	umulh	x26, x16, x23
+	adds	x10, x10, x25
+	adc	x11, x11, x26
 	#  A[1] * B[1]
-	mul	x24, x17, x21
-	umulh	x25, x17, x21
-	adds	x10, x10, x24
-	adcs	x11, x11, x25
+	mul	x25, x17, x22
+	umulh	x26, x17, x22
+	adds	x10, x10, x25
+	adcs	x11, x11, x26
 	adc	x12, xzr, xzr
 	#  A[2] * B[0]
-	mul	x24, x18, x20
-	umulh	x25, x18, x20
-	adds	x10, x10, x24
-	adcs	x11, x11, x25
+	mul	x25, x19, x21
+	umulh	x26, x19, x21
+	adds	x10, x10, x25
+	adcs	x11, x11, x26
 	adc	x12, x12, xzr
 	#  A[0] * B[3]
-	mul	x24, x16, x23
-	umulh	x25, x16, x23
-	adds	x11, x11, x24
-	adcs	x12, x12, x25
+	mul	x25, x16, x24
+	umulh	x26, x16, x24
+	adds	x11, x11, x25
+	adcs	x12, x12, x26
 	adc	x13, xzr, xzr
 	#  A[1] * B[2]
-	mul	x24, x17, x22
-	umulh	x25, x17, x22
-	adds	x11, x11, x24
-	adcs	x12, x12, x25
+	mul	x25, x17, x23
+	umulh	x26, x17, x23
+	adds	x11, x11, x25
+	adcs	x12, x12, x26
 	adc	x13, x13, xzr
 	#  A[2] * B[1]
-	mul	x24, x18, x21
-	umulh	x25, x18, x21
-	adds	x11, x11, x24
-	adcs	x12, x12, x25
+	mul	x25, x19, x22
+	umulh	x26, x19, x22
+	adds	x11, x11, x25
+	adcs	x12, x12, x26
 	adc	x13, x13, xzr
 	#  A[3] * B[0]
-	mul	x24, x19, x20
-	umulh	x25, x19, x20
-	adds	x11, x11, x24
-	adcs	x12, x12, x25
+	mul	x25, x20, x21
+	umulh	x26, x20, x21
+	adds	x11, x11, x25
+	adcs	x12, x12, x26
 	adc	x13, x13, xzr
 	#  A[1] * B[3]
-	mul	x24, x17, x23
-	umulh	x25, x17, x23
-	adds	x12, x12, x24
-	adcs	x13, x13, x25
+	mul	x25, x17, x24
+	umulh	x26, x17, x24
+	adds	x12, x12, x25
+	adcs	x13, x13, x26
 	adc	x14, xzr, xzr
 	#  A[2] * B[2]
-	mul	x24, x18, x22
-	umulh	x25, x18, x22
-	adds	x12, x12, x24
-	adcs	x13, x13, x25
+	mul	x25, x19, x23
+	umulh	x26, x19, x23
+	adds	x12, x12, x25
+	adcs	x13, x13, x26
 	adc	x14, x14, xzr
 	#  A[3] * B[1]
-	mul	x24, x19, x21
-	umulh	x25, x19, x21
-	adds	x12, x12, x24
-	adcs	x13, x13, x25
+	mul	x25, x20, x22
+	umulh	x26, x20, x22
+	adds	x12, x12, x25
+	adcs	x13, x13, x26
 	adc	x14, x14, xzr
 	#  A[2] * B[3]
-	mul	x24, x18, x23
-	umulh	x25, x18, x23
-	adds	x13, x13, x24
-	adcs	x14, x14, x25
+	mul	x25, x19, x24
+	umulh	x26, x19, x24
+	adds	x13, x13, x25
+	adcs	x14, x14, x26
 	adc	x15, xzr, xzr
 	#  A[3] * B[2]
-	mul	x24, x19, x22
-	umulh	x25, x19, x22
-	adds	x13, x13, x24
-	adcs	x14, x14, x25
+	mul	x25, x20, x23
+	umulh	x26, x20, x23
+	adds	x13, x13, x25
+	adcs	x14, x14, x26
 	adc	x15, x15, xzr
 	#  A[3] * B[3]
-	mul	x24, x19, x23
-	umulh	x25, x19, x23
-	adds	x14, x14, x24
-	adc	x15, x15, x25
+	mul	x25, x20, x24
+	umulh	x26, x20, x24
+	adds	x14, x14, x25
+	adc	x15, x15, x26
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x15, x15, x14, #63
@@ -5902,37 +5917,37 @@ fe_ge_add:
 	extr	x12, x12, x11, #63
 	and	x11, x11, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x24, #19
-	mul	x25, x24, x12
-	umulh	x12, x24, x12
-	adds	x8, x8, x25
-	mul	x25, x24, x13
-	umulh	x13, x24, x13
-	adcs	x9, x9, x25
-	mul	x25, x24, x14
-	umulh	x14, x24, x14
-	adcs	x10, x10, x25
-	mul	x25, x24, x15
-	umulh	x26, x24, x15
-	adcs	x11, x11, x25
-	adc	x26, x26, xzr
+	mov	x25, #19
+	mul	x26, x25, x12
+	umulh	x12, x25, x12
+	adds	x8, x8, x26
+	mul	x26, x25, x13
+	umulh	x13, x25, x13
+	adcs	x9, x9, x26
+	mul	x26, x25, x14
+	umulh	x14, x25, x14
+	adcs	x10, x10, x26
+	mul	x26, x25, x15
+	umulh	x27, x25, x15
+	adcs	x11, x11, x26
+	adc	x27, x27, xzr
 	#  Add remaining product results in
 	adds	x9, x9, x12
 	adcs	x10, x10, x13
 	adcs	x11, x11, x14
-	adc	x26, x26, xzr
+	adc	x27, x27, xzr
 	#  Overflow
-	extr	x26, x26, x11, #63
-	mul	x26, x26, x24
+	extr	x27, x27, x11, #63
+	mul	x27, x27, x25
 	and	x11, x11, #0x7fffffffffffffff
-	adds	x8, x8, x26
+	adds	x8, x8, x27
 	adcs	x9, x9, xzr
 	adcs	x10, x10, xzr
 	adc	x11, x11, xzr
 	# Reduce if top bit set
-	and	x26, x24, x11, asr 63
+	and	x27, x25, x11, asr 63
 	and	x11, x11, #0x7fffffffffffffff
-	adds	x8, x8, x26
+	adds	x8, x8, x27
 	adcs	x9, x9, xzr
 	adcs	x10, x10, xzr
 	adc	x11, x11, xzr
@@ -5944,41 +5959,42 @@ fe_ge_add:
 	adcs	x13, x5, x9
 	adcs	x14, x6, x10
 	adc	x15, x7, x11
-	mov	x24, #-19
-	asr	x27, x15, #63
+	mov	x25, #-19
+	asr	x28, x15, #63
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
-	subs	x12, x12, x24
-	sbcs	x13, x13, x27
-	sbcs	x14, x14, x27
-	sbc	x15, x15, x25
+	subs	x12, x12, x25
+	sbcs	x13, x13, x28
+	sbcs	x14, x14, x28
+	sbc	x15, x15, x26
 	# Sub
 	subs	x16, x4, x8
 	sbcs	x17, x5, x9
-	sbcs	x18, x6, x10
-	sbcs	x19, x7, x11
-	mov	x24, #-19
-	csetm	x27, cc
+	sbcs	x19, x6, x10
+	sbcs	x20, x7, x11
+	mov	x25, #-19
+	csetm	x28, cc
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Add modulus (if underflow)
-	adds	x16, x16, x24
-	adcs	x17, x17, x27
-	adcs	x18, x18, x27
-	adc	x19, x19, x25
+	adds	x16, x16, x25
+	adcs	x17, x17, x28
+	adcs	x19, x19, x28
+	adc	x20, x20, x26
 	stp	x12, x13, [x0]
 	stp	x14, x15, [x0, #16]
 	stp	x16, x17, [x1]
-	stp	x18, x19, [x1, #16]
+	stp	x19, x20, [x1, #16]
 	ldr	x17, [x29, #88]
-	ldp	x18, x19, [x29, #96]
-	ldp	x20, x21, [x29, #112]
-	ldp	x22, x23, [x29, #128]
-	ldp	x24, x25, [x29, #144]
-	ldp	x26, x27, [x29, #160]
+	ldr	x19, [x29, #96]
+	ldp	x20, x21, [x29, #104]
+	ldp	x22, x23, [x29, #120]
+	ldp	x24, x25, [x29, #136]
+	ldp	x26, x27, [x29, #152]
+	ldr	x28, [x29, #168]
 	ldp	x29, x30, [sp], #0xb0
 	ret
 	.size	fe_ge_add,.-fe_ge_add
@@ -5990,11 +6006,12 @@ fe_ge_sub:
 	stp	x29, x30, [sp, #-176]!
 	add	x29, sp, #0
 	str	x17, [x29, #88]
-	stp	x18, x19, [x29, #96]
-	stp	x20, x21, [x29, #112]
-	stp	x22, x23, [x29, #128]
-	stp	x24, x25, [x29, #144]
-	stp	x26, x27, [x29, #160]
+	str	x19, [x29, #96]
+	stp	x20, x21, [x29, #104]
+	stp	x22, x23, [x29, #120]
+	stp	x24, x25, [x29, #136]
+	stp	x26, x27, [x29, #152]
+	str	x28, [x29, #168]
 	str	x0, [x29, #16]
 	str	x1, [x29, #24]
 	str	x2, [x29, #32]
@@ -6009,170 +6026,170 @@ fe_ge_sub:
 	ldp	x12, x13, [x2]
 	ldp	x14, x15, [x2, #16]
 	ldp	x16, x17, [x3]
-	ldp	x18, x19, [x3, #16]
+	ldp	x19, x20, [x3, #16]
 	adds	x4, x12, x16
 	adcs	x5, x13, x17
-	adcs	x6, x14, x18
-	adc	x7, x15, x19
-	mov	x24, #-19
-	asr	x27, x7, #63
+	adcs	x6, x14, x19
+	adc	x7, x15, x20
+	mov	x25, #-19
+	asr	x28, x7, #63
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
-	subs	x4, x4, x24
-	sbcs	x5, x5, x27
-	sbcs	x6, x6, x27
-	sbc	x7, x7, x25
+	subs	x4, x4, x25
+	sbcs	x5, x5, x28
+	sbcs	x6, x6, x28
+	sbc	x7, x7, x26
 	# Sub
 	subs	x8, x12, x16
 	sbcs	x9, x13, x17
-	sbcs	x10, x14, x18
-	sbcs	x11, x15, x19
-	mov	x24, #-19
-	csetm	x27, cc
+	sbcs	x10, x14, x19
+	sbcs	x11, x15, x20
+	mov	x25, #-19
+	csetm	x28, cc
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Add modulus (if underflow)
-	adds	x8, x8, x24
-	adcs	x9, x9, x27
-	adcs	x10, x10, x27
-	adc	x11, x11, x25
+	adds	x8, x8, x25
+	adcs	x9, x9, x28
+	adcs	x10, x10, x28
+	adc	x11, x11, x26
 	ldr	x0, [x29, #32]
 	ldr	x2, [x29, #200]
 	# Multiply
-	ldp	x20, x21, [x2]
-	ldp	x22, x23, [x2, #16]
+	ldp	x21, x22, [x2]
+	ldp	x23, x24, [x2, #16]
 	#  A[0] * B[0]
-	mul	x12, x4, x20
-	umulh	x13, x4, x20
+	mul	x12, x4, x21
+	umulh	x13, x4, x21
 	#  A[0] * B[1]
-	mul	x24, x4, x21
-	umulh	x14, x4, x21
-	adds	x13, x13, x24
+	mul	x25, x4, x22
+	umulh	x14, x4, x22
+	adds	x13, x13, x25
 	adc	x14, x14, xzr
 	#  A[1] * B[0]
-	mul	x24, x5, x20
-	umulh	x25, x5, x20
-	adds	x13, x13, x24
-	adcs	x14, x14, x25
+	mul	x25, x5, x21
+	umulh	x26, x5, x21
+	adds	x13, x13, x25
+	adcs	x14, x14, x26
 	adc	x15, xzr, xzr
 	#  A[0] * B[2]
-	mul	x24, x4, x22
-	umulh	x25, x4, x22
-	adds	x14, x14, x24
-	adc	x15, x15, x25
+	mul	x25, x4, x23
+	umulh	x26, x4, x23
+	adds	x14, x14, x25
+	adc	x15, x15, x26
 	#  A[1] * B[1]
-	mul	x24, x5, x21
-	umulh	x25, x5, x21
-	adds	x14, x14, x24
-	adcs	x15, x15, x25
+	mul	x25, x5, x22
+	umulh	x26, x5, x22
+	adds	x14, x14, x25
+	adcs	x15, x15, x26
 	adc	x16, xzr, xzr
 	#  A[2] * B[0]
-	mul	x24, x6, x20
-	umulh	x25, x6, x20
-	adds	x14, x14, x24
-	adcs	x15, x15, x25
+	mul	x25, x6, x21
+	umulh	x26, x6, x21
+	adds	x14, x14, x25
+	adcs	x15, x15, x26
 	adc	x16, x16, xzr
 	#  A[0] * B[3]
-	mul	x24, x4, x23
-	umulh	x25, x4, x23
-	adds	x15, x15, x24
-	adcs	x16, x16, x25
+	mul	x25, x4, x24
+	umulh	x26, x4, x24
+	adds	x15, x15, x25
+	adcs	x16, x16, x26
 	adc	x17, xzr, xzr
 	#  A[1] * B[2]
-	mul	x24, x5, x22
-	umulh	x25, x5, x22
-	adds	x15, x15, x24
-	adcs	x16, x16, x25
+	mul	x25, x5, x23
+	umulh	x26, x5, x23
+	adds	x15, x15, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[2] * B[1]
-	mul	x24, x6, x21
-	umulh	x25, x6, x21
-	adds	x15, x15, x24
-	adcs	x16, x16, x25
+	mul	x25, x6, x22
+	umulh	x26, x6, x22
+	adds	x15, x15, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[3] * B[0]
-	mul	x24, x7, x20
-	umulh	x25, x7, x20
-	adds	x15, x15, x24
-	adcs	x16, x16, x25
+	mul	x25, x7, x21
+	umulh	x26, x7, x21
+	adds	x15, x15, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[1] * B[3]
-	mul	x24, x5, x23
-	umulh	x25, x5, x23
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, xzr, xzr
-	#  A[2] * B[2]
-	mul	x24, x6, x22
-	umulh	x25, x6, x22
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, x18, xzr
-	#  A[3] * B[1]
-	mul	x24, x7, x21
-	umulh	x25, x7, x21
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, x18, xzr
-	#  A[2] * B[3]
-	mul	x24, x6, x23
-	umulh	x25, x6, x23
-	adds	x17, x17, x24
-	adcs	x18, x18, x25
+	mul	x25, x5, x24
+	umulh	x26, x5, x24
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
 	adc	x19, xzr, xzr
-	#  A[3] * B[2]
-	mul	x24, x7, x22
-	umulh	x25, x7, x22
-	adds	x17, x17, x24
-	adcs	x18, x18, x25
+	#  A[2] * B[2]
+	mul	x25, x6, x23
+	umulh	x26, x6, x23
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
 	adc	x19, x19, xzr
+	#  A[3] * B[1]
+	mul	x25, x7, x22
+	umulh	x26, x7, x22
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
+	adc	x19, x19, xzr
+	#  A[2] * B[3]
+	mul	x25, x6, x24
+	umulh	x26, x6, x24
+	adds	x17, x17, x25
+	adcs	x19, x19, x26
+	adc	x20, xzr, xzr
+	#  A[3] * B[2]
+	mul	x25, x7, x23
+	umulh	x26, x7, x23
+	adds	x17, x17, x25
+	adcs	x19, x19, x26
+	adc	x20, x20, xzr
 	#  A[3] * B[3]
-	mul	x24, x7, x23
-	umulh	x25, x7, x23
-	adds	x18, x18, x24
-	adc	x19, x19, x25
+	mul	x25, x7, x24
+	umulh	x26, x7, x24
+	adds	x19, x19, x25
+	adc	x20, x20, x26
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
-	extr	x19, x19, x18, #63
-	extr	x18, x18, x17, #63
+	extr	x20, x20, x19, #63
+	extr	x19, x19, x17, #63
 	extr	x17, x17, x16, #63
 	extr	x16, x16, x15, #63
 	and	x15, x15, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x24, #19
-	mul	x25, x24, x16
-	umulh	x16, x24, x16
-	adds	x12, x12, x25
-	mul	x25, x24, x17
-	umulh	x17, x24, x17
-	adcs	x13, x13, x25
-	mul	x25, x24, x18
-	umulh	x18, x24, x18
-	adcs	x14, x14, x25
-	mul	x25, x24, x19
-	umulh	x26, x24, x19
-	adcs	x15, x15, x25
-	adc	x26, x26, xzr
+	mov	x25, #19
+	mul	x26, x25, x16
+	umulh	x16, x25, x16
+	adds	x12, x12, x26
+	mul	x26, x25, x17
+	umulh	x17, x25, x17
+	adcs	x13, x13, x26
+	mul	x26, x25, x19
+	umulh	x19, x25, x19
+	adcs	x14, x14, x26
+	mul	x26, x25, x20
+	umulh	x27, x25, x20
+	adcs	x15, x15, x26
+	adc	x27, x27, xzr
 	#  Add remaining product results in
 	adds	x13, x13, x16
 	adcs	x14, x14, x17
-	adcs	x15, x15, x18
-	adc	x26, x26, xzr
+	adcs	x15, x15, x19
+	adc	x27, x27, xzr
 	#  Overflow
-	extr	x26, x26, x15, #63
-	mul	x26, x26, x24
+	extr	x27, x27, x15, #63
+	mul	x27, x27, x25
 	and	x15, x15, #0x7fffffffffffffff
-	adds	x12, x12, x26
+	adds	x12, x12, x27
 	adcs	x13, x13, xzr
 	adcs	x14, x14, xzr
 	adc	x15, x15, xzr
 	# Reduce if top bit set
-	and	x26, x24, x15, asr 63
+	and	x27, x25, x15, asr 63
 	and	x15, x15, #0x7fffffffffffffff
-	adds	x12, x12, x26
+	adds	x12, x12, x27
 	adcs	x13, x13, xzr
 	adcs	x14, x14, xzr
 	adc	x15, x15, xzr
@@ -6180,137 +6197,137 @@ fe_ge_sub:
 	ldr	x0, [x29, #24]
 	ldr	x1, [x29, #192]
 	# Multiply
-	ldp	x20, x21, [x1]
-	ldp	x22, x23, [x1, #16]
+	ldp	x21, x22, [x1]
+	ldp	x23, x24, [x1, #16]
 	#  A[0] * B[0]
-	mul	x4, x8, x20
-	umulh	x5, x8, x20
+	mul	x4, x8, x21
+	umulh	x5, x8, x21
 	#  A[0] * B[1]
-	mul	x24, x8, x21
-	umulh	x6, x8, x21
-	adds	x5, x5, x24
+	mul	x25, x8, x22
+	umulh	x6, x8, x22
+	adds	x5, x5, x25
 	adc	x6, x6, xzr
 	#  A[1] * B[0]
-	mul	x24, x9, x20
-	umulh	x25, x9, x20
-	adds	x5, x5, x24
-	adcs	x6, x6, x25
+	mul	x25, x9, x21
+	umulh	x26, x9, x21
+	adds	x5, x5, x25
+	adcs	x6, x6, x26
 	adc	x7, xzr, xzr
 	#  A[0] * B[2]
-	mul	x24, x8, x22
-	umulh	x25, x8, x22
-	adds	x6, x6, x24
-	adc	x7, x7, x25
+	mul	x25, x8, x23
+	umulh	x26, x8, x23
+	adds	x6, x6, x25
+	adc	x7, x7, x26
 	#  A[1] * B[1]
-	mul	x24, x9, x21
-	umulh	x25, x9, x21
-	adds	x6, x6, x24
-	adcs	x7, x7, x25
+	mul	x25, x9, x22
+	umulh	x26, x9, x22
+	adds	x6, x6, x25
+	adcs	x7, x7, x26
 	adc	x16, xzr, xzr
 	#  A[2] * B[0]
-	mul	x24, x10, x20
-	umulh	x25, x10, x20
-	adds	x6, x6, x24
-	adcs	x7, x7, x25
+	mul	x25, x10, x21
+	umulh	x26, x10, x21
+	adds	x6, x6, x25
+	adcs	x7, x7, x26
 	adc	x16, x16, xzr
 	#  A[0] * B[3]
-	mul	x24, x8, x23
-	umulh	x25, x8, x23
-	adds	x7, x7, x24
-	adcs	x16, x16, x25
+	mul	x25, x8, x24
+	umulh	x26, x8, x24
+	adds	x7, x7, x25
+	adcs	x16, x16, x26
 	adc	x17, xzr, xzr
 	#  A[1] * B[2]
-	mul	x24, x9, x22
-	umulh	x25, x9, x22
-	adds	x7, x7, x24
-	adcs	x16, x16, x25
+	mul	x25, x9, x23
+	umulh	x26, x9, x23
+	adds	x7, x7, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[2] * B[1]
-	mul	x24, x10, x21
-	umulh	x25, x10, x21
-	adds	x7, x7, x24
-	adcs	x16, x16, x25
+	mul	x25, x10, x22
+	umulh	x26, x10, x22
+	adds	x7, x7, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[3] * B[0]
-	mul	x24, x11, x20
-	umulh	x25, x11, x20
-	adds	x7, x7, x24
-	adcs	x16, x16, x25
+	mul	x25, x11, x21
+	umulh	x26, x11, x21
+	adds	x7, x7, x25
+	adcs	x16, x16, x26
 	adc	x17, x17, xzr
 	#  A[1] * B[3]
-	mul	x24, x9, x23
-	umulh	x25, x9, x23
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, xzr, xzr
-	#  A[2] * B[2]
-	mul	x24, x10, x22
-	umulh	x25, x10, x22
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, x18, xzr
-	#  A[3] * B[1]
-	mul	x24, x11, x21
-	umulh	x25, x11, x21
-	adds	x16, x16, x24
-	adcs	x17, x17, x25
-	adc	x18, x18, xzr
-	#  A[2] * B[3]
-	mul	x24, x10, x23
-	umulh	x25, x10, x23
-	adds	x17, x17, x24
-	adcs	x18, x18, x25
+	mul	x25, x9, x24
+	umulh	x26, x9, x24
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
 	adc	x19, xzr, xzr
-	#  A[3] * B[2]
-	mul	x24, x11, x22
-	umulh	x25, x11, x22
-	adds	x17, x17, x24
-	adcs	x18, x18, x25
+	#  A[2] * B[2]
+	mul	x25, x10, x23
+	umulh	x26, x10, x23
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
 	adc	x19, x19, xzr
+	#  A[3] * B[1]
+	mul	x25, x11, x22
+	umulh	x26, x11, x22
+	adds	x16, x16, x25
+	adcs	x17, x17, x26
+	adc	x19, x19, xzr
+	#  A[2] * B[3]
+	mul	x25, x10, x24
+	umulh	x26, x10, x24
+	adds	x17, x17, x25
+	adcs	x19, x19, x26
+	adc	x20, xzr, xzr
+	#  A[3] * B[2]
+	mul	x25, x11, x23
+	umulh	x26, x11, x23
+	adds	x17, x17, x25
+	adcs	x19, x19, x26
+	adc	x20, x20, xzr
 	#  A[3] * B[3]
-	mul	x24, x11, x23
-	umulh	x25, x11, x23
-	adds	x18, x18, x24
-	adc	x19, x19, x25
+	mul	x25, x11, x24
+	umulh	x26, x11, x24
+	adds	x19, x19, x25
+	adc	x20, x20, x26
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
-	extr	x19, x19, x18, #63
-	extr	x18, x18, x17, #63
+	extr	x20, x20, x19, #63
+	extr	x19, x19, x17, #63
 	extr	x17, x17, x16, #63
 	extr	x16, x16, x7, #63
 	and	x7, x7, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x24, #19
-	mul	x25, x24, x16
-	umulh	x16, x24, x16
-	adds	x4, x4, x25
-	mul	x25, x24, x17
-	umulh	x17, x24, x17
-	adcs	x5, x5, x25
-	mul	x25, x24, x18
-	umulh	x18, x24, x18
-	adcs	x6, x6, x25
-	mul	x25, x24, x19
-	umulh	x26, x24, x19
-	adcs	x7, x7, x25
-	adc	x26, x26, xzr
+	mov	x25, #19
+	mul	x26, x25, x16
+	umulh	x16, x25, x16
+	adds	x4, x4, x26
+	mul	x26, x25, x17
+	umulh	x17, x25, x17
+	adcs	x5, x5, x26
+	mul	x26, x25, x19
+	umulh	x19, x25, x19
+	adcs	x6, x6, x26
+	mul	x26, x25, x20
+	umulh	x27, x25, x20
+	adcs	x7, x7, x26
+	adc	x27, x27, xzr
 	#  Add remaining product results in
 	adds	x5, x5, x16
 	adcs	x6, x6, x17
-	adcs	x7, x7, x18
-	adc	x26, x26, xzr
+	adcs	x7, x7, x19
+	adc	x27, x27, xzr
 	#  Overflow
-	extr	x26, x26, x7, #63
-	mul	x26, x26, x24
+	extr	x27, x27, x7, #63
+	mul	x27, x27, x25
 	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
+	adds	x4, x4, x27
 	adcs	x5, x5, xzr
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Reduce if top bit set
-	and	x26, x24, x7, asr 63
+	and	x27, x25, x7, asr 63
 	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
+	adds	x4, x4, x27
 	adcs	x5, x5, xzr
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
@@ -6322,35 +6339,35 @@ fe_ge_sub:
 	adcs	x9, x13, x5
 	adcs	x10, x14, x6
 	adc	x11, x15, x7
-	mov	x24, #-19
-	asr	x27, x11, #63
+	mov	x25, #-19
+	asr	x28, x11, #63
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
-	subs	x8, x8, x24
-	sbcs	x9, x9, x27
-	sbcs	x10, x10, x27
-	sbc	x11, x11, x25
+	subs	x8, x8, x25
+	sbcs	x9, x9, x28
+	sbcs	x10, x10, x28
+	sbc	x11, x11, x26
 	# Sub
 	subs	x16, x12, x4
 	sbcs	x17, x13, x5
-	sbcs	x18, x14, x6
-	sbcs	x19, x15, x7
-	mov	x24, #-19
-	csetm	x27, cc
+	sbcs	x19, x14, x6
+	sbcs	x20, x15, x7
+	mov	x25, #-19
+	csetm	x28, cc
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Add modulus (if underflow)
-	adds	x16, x16, x24
-	adcs	x17, x17, x27
-	adcs	x18, x18, x27
-	adc	x19, x19, x25
+	adds	x16, x16, x25
+	adcs	x17, x17, x28
+	adcs	x19, x19, x28
+	adc	x20, x20, x26
 	stp	x8, x9, [x0]
 	stp	x10, x11, [x0, #16]
 	stp	x16, x17, [x1]
-	stp	x18, x19, [x1, #16]
+	stp	x19, x20, [x1, #16]
 	ldr	x0, [x29, #48]
 	ldr	x1, [x29, #64]
 	ldr	x2, [x29, #176]
@@ -6358,97 +6375,97 @@ fe_ge_sub:
 	ldp	x12, x13, [x1]
 	ldp	x14, x15, [x1, #16]
 	ldp	x16, x17, [x2]
-	ldp	x18, x19, [x2, #16]
+	ldp	x19, x20, [x2, #16]
 	#  A[0] * B[0]
 	mul	x4, x12, x16
 	umulh	x5, x12, x16
 	#  A[0] * B[1]
-	mul	x24, x12, x17
+	mul	x25, x12, x17
 	umulh	x6, x12, x17
-	adds	x5, x5, x24
+	adds	x5, x5, x25
 	adc	x6, x6, xzr
 	#  A[1] * B[0]
-	mul	x24, x13, x16
-	umulh	x25, x13, x16
-	adds	x5, x5, x24
-	adcs	x6, x6, x25
+	mul	x25, x13, x16
+	umulh	x26, x13, x16
+	adds	x5, x5, x25
+	adcs	x6, x6, x26
 	adc	x7, xzr, xzr
 	#  A[0] * B[2]
-	mul	x24, x12, x18
-	umulh	x25, x12, x18
-	adds	x6, x6, x24
-	adc	x7, x7, x25
+	mul	x25, x12, x19
+	umulh	x26, x12, x19
+	adds	x6, x6, x25
+	adc	x7, x7, x26
 	#  A[1] * B[1]
-	mul	x24, x13, x17
-	umulh	x25, x13, x17
-	adds	x6, x6, x24
-	adcs	x7, x7, x25
+	mul	x25, x13, x17
+	umulh	x26, x13, x17
+	adds	x6, x6, x25
+	adcs	x7, x7, x26
 	adc	x8, xzr, xzr
 	#  A[2] * B[0]
-	mul	x24, x14, x16
-	umulh	x25, x14, x16
-	adds	x6, x6, x24
-	adcs	x7, x7, x25
+	mul	x25, x14, x16
+	umulh	x26, x14, x16
+	adds	x6, x6, x25
+	adcs	x7, x7, x26
 	adc	x8, x8, xzr
 	#  A[0] * B[3]
-	mul	x24, x12, x19
-	umulh	x25, x12, x19
-	adds	x7, x7, x24
-	adcs	x8, x8, x25
+	mul	x25, x12, x20
+	umulh	x26, x12, x20
+	adds	x7, x7, x25
+	adcs	x8, x8, x26
 	adc	x9, xzr, xzr
 	#  A[1] * B[2]
-	mul	x24, x13, x18
-	umulh	x25, x13, x18
-	adds	x7, x7, x24
-	adcs	x8, x8, x25
+	mul	x25, x13, x19
+	umulh	x26, x13, x19
+	adds	x7, x7, x25
+	adcs	x8, x8, x26
 	adc	x9, x9, xzr
 	#  A[2] * B[1]
-	mul	x24, x14, x17
-	umulh	x25, x14, x17
-	adds	x7, x7, x24
-	adcs	x8, x8, x25
+	mul	x25, x14, x17
+	umulh	x26, x14, x17
+	adds	x7, x7, x25
+	adcs	x8, x8, x26
 	adc	x9, x9, xzr
 	#  A[3] * B[0]
-	mul	x24, x15, x16
-	umulh	x25, x15, x16
-	adds	x7, x7, x24
-	adcs	x8, x8, x25
+	mul	x25, x15, x16
+	umulh	x26, x15, x16
+	adds	x7, x7, x25
+	adcs	x8, x8, x26
 	adc	x9, x9, xzr
 	#  A[1] * B[3]
-	mul	x24, x13, x19
-	umulh	x25, x13, x19
-	adds	x8, x8, x24
-	adcs	x9, x9, x25
+	mul	x25, x13, x20
+	umulh	x26, x13, x20
+	adds	x8, x8, x25
+	adcs	x9, x9, x26
 	adc	x10, xzr, xzr
 	#  A[2] * B[2]
-	mul	x24, x14, x18
-	umulh	x25, x14, x18
-	adds	x8, x8, x24
-	adcs	x9, x9, x25
+	mul	x25, x14, x19
+	umulh	x26, x14, x19
+	adds	x8, x8, x25
+	adcs	x9, x9, x26
 	adc	x10, x10, xzr
 	#  A[3] * B[1]
-	mul	x24, x15, x17
-	umulh	x25, x15, x17
-	adds	x8, x8, x24
-	adcs	x9, x9, x25
+	mul	x25, x15, x17
+	umulh	x26, x15, x17
+	adds	x8, x8, x25
+	adcs	x9, x9, x26
 	adc	x10, x10, xzr
 	#  A[2] * B[3]
-	mul	x24, x14, x19
-	umulh	x25, x14, x19
-	adds	x9, x9, x24
-	adcs	x10, x10, x25
+	mul	x25, x14, x20
+	umulh	x26, x14, x20
+	adds	x9, x9, x25
+	adcs	x10, x10, x26
 	adc	x11, xzr, xzr
 	#  A[3] * B[2]
-	mul	x24, x15, x18
-	umulh	x25, x15, x18
-	adds	x9, x9, x24
-	adcs	x10, x10, x25
+	mul	x25, x15, x19
+	umulh	x26, x15, x19
+	adds	x9, x9, x25
+	adcs	x10, x10, x26
 	adc	x11, x11, xzr
 	#  A[3] * B[3]
-	mul	x24, x15, x19
-	umulh	x25, x15, x19
-	adds	x10, x10, x24
-	adc	x11, x11, x25
+	mul	x25, x15, x20
+	umulh	x26, x15, x20
+	adds	x10, x10, x25
+	adc	x11, x11, x26
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x11, x11, x10, #63
@@ -6457,37 +6474,37 @@ fe_ge_sub:
 	extr	x8, x8, x7, #63
 	and	x7, x7, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x24, #19
-	mul	x25, x24, x8
-	umulh	x8, x24, x8
-	adds	x4, x4, x25
-	mul	x25, x24, x9
-	umulh	x9, x24, x9
-	adcs	x5, x5, x25
-	mul	x25, x24, x10
-	umulh	x10, x24, x10
-	adcs	x6, x6, x25
-	mul	x25, x24, x11
-	umulh	x26, x24, x11
-	adcs	x7, x7, x25
-	adc	x26, x26, xzr
+	mov	x25, #19
+	mul	x26, x25, x8
+	umulh	x8, x25, x8
+	adds	x4, x4, x26
+	mul	x26, x25, x9
+	umulh	x9, x25, x9
+	adcs	x5, x5, x26
+	mul	x26, x25, x10
+	umulh	x10, x25, x10
+	adcs	x6, x6, x26
+	mul	x26, x25, x11
+	umulh	x27, x25, x11
+	adcs	x7, x7, x26
+	adc	x27, x27, xzr
 	#  Add remaining product results in
 	adds	x5, x5, x8
 	adcs	x6, x6, x9
 	adcs	x7, x7, x10
-	adc	x26, x26, xzr
+	adc	x27, x27, xzr
 	#  Overflow
-	extr	x26, x26, x7, #63
-	mul	x26, x26, x24
+	extr	x27, x27, x7, #63
+	mul	x27, x27, x25
 	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
+	adds	x4, x4, x27
 	adcs	x5, x5, xzr
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
 	# Reduce if top bit set
-	and	x26, x24, x7, asr 63
+	and	x27, x25, x7, asr 63
 	and	x7, x7, #0x7fffffffffffffff
-	adds	x4, x4, x26
+	adds	x4, x4, x27
 	adcs	x5, x5, xzr
 	adcs	x6, x6, xzr
 	adc	x7, x7, xzr
@@ -6498,114 +6515,114 @@ fe_ge_sub:
 	adcs	x5, x5, x5
 	adcs	x6, x6, x6
 	adc	x7, x7, x7
-	mov	x24, #-19
-	asr	x27, x7, #63
+	mov	x25, #-19
+	asr	x28, x7, #63
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
-	subs	x4, x4, x24
-	sbcs	x5, x5, x27
-	sbcs	x6, x6, x27
-	sbc	x7, x7, x25
+	subs	x4, x4, x25
+	sbcs	x5, x5, x28
+	sbcs	x6, x6, x28
+	sbc	x7, x7, x26
 	ldr	x0, [x29, #40]
 	ldr	x1, [x29, #184]
 	ldr	x2, [x29, #72]
 	# Multiply
 	ldp	x16, x17, [x1]
-	ldp	x18, x19, [x1, #16]
-	ldp	x20, x21, [x2]
-	ldp	x22, x23, [x2, #16]
+	ldp	x19, x20, [x1, #16]
+	ldp	x21, x22, [x2]
+	ldp	x23, x24, [x2, #16]
 	#  A[0] * B[0]
-	mul	x8, x16, x20
-	umulh	x9, x16, x20
+	mul	x8, x16, x21
+	umulh	x9, x16, x21
 	#  A[0] * B[1]
-	mul	x24, x16, x21
-	umulh	x10, x16, x21
-	adds	x9, x9, x24
+	mul	x25, x16, x22
+	umulh	x10, x16, x22
+	adds	x9, x9, x25
 	adc	x10, x10, xzr
 	#  A[1] * B[0]
-	mul	x24, x17, x20
-	umulh	x25, x17, x20
-	adds	x9, x9, x24
-	adcs	x10, x10, x25
+	mul	x25, x17, x21
+	umulh	x26, x17, x21
+	adds	x9, x9, x25
+	adcs	x10, x10, x26
 	adc	x11, xzr, xzr
 	#  A[0] * B[2]
-	mul	x24, x16, x22
-	umulh	x25, x16, x22
-	adds	x10, x10, x24
-	adc	x11, x11, x25
+	mul	x25, x16, x23
+	umulh	x26, x16, x23
+	adds	x10, x10, x25
+	adc	x11, x11, x26
 	#  A[1] * B[1]
-	mul	x24, x17, x21
-	umulh	x25, x17, x21
-	adds	x10, x10, x24
-	adcs	x11, x11, x25
+	mul	x25, x17, x22
+	umulh	x26, x17, x22
+	adds	x10, x10, x25
+	adcs	x11, x11, x26
 	adc	x12, xzr, xzr
 	#  A[2] * B[0]
-	mul	x24, x18, x20
-	umulh	x25, x18, x20
-	adds	x10, x10, x24
-	adcs	x11, x11, x25
+	mul	x25, x19, x21
+	umulh	x26, x19, x21
+	adds	x10, x10, x25
+	adcs	x11, x11, x26
 	adc	x12, x12, xzr
 	#  A[0] * B[3]
-	mul	x24, x16, x23
-	umulh	x25, x16, x23
-	adds	x11, x11, x24
-	adcs	x12, x12, x25
+	mul	x25, x16, x24
+	umulh	x26, x16, x24
+	adds	x11, x11, x25
+	adcs	x12, x12, x26
 	adc	x13, xzr, xzr
 	#  A[1] * B[2]
-	mul	x24, x17, x22
-	umulh	x25, x17, x22
-	adds	x11, x11, x24
-	adcs	x12, x12, x25
+	mul	x25, x17, x23
+	umulh	x26, x17, x23
+	adds	x11, x11, x25
+	adcs	x12, x12, x26
 	adc	x13, x13, xzr
 	#  A[2] * B[1]
-	mul	x24, x18, x21
-	umulh	x25, x18, x21
-	adds	x11, x11, x24
-	adcs	x12, x12, x25
+	mul	x25, x19, x22
+	umulh	x26, x19, x22
+	adds	x11, x11, x25
+	adcs	x12, x12, x26
 	adc	x13, x13, xzr
 	#  A[3] * B[0]
-	mul	x24, x19, x20
-	umulh	x25, x19, x20
-	adds	x11, x11, x24
-	adcs	x12, x12, x25
+	mul	x25, x20, x21
+	umulh	x26, x20, x21
+	adds	x11, x11, x25
+	adcs	x12, x12, x26
 	adc	x13, x13, xzr
 	#  A[1] * B[3]
-	mul	x24, x17, x23
-	umulh	x25, x17, x23
-	adds	x12, x12, x24
-	adcs	x13, x13, x25
+	mul	x25, x17, x24
+	umulh	x26, x17, x24
+	adds	x12, x12, x25
+	adcs	x13, x13, x26
 	adc	x14, xzr, xzr
 	#  A[2] * B[2]
-	mul	x24, x18, x22
-	umulh	x25, x18, x22
-	adds	x12, x12, x24
-	adcs	x13, x13, x25
+	mul	x25, x19, x23
+	umulh	x26, x19, x23
+	adds	x12, x12, x25
+	adcs	x13, x13, x26
 	adc	x14, x14, xzr
 	#  A[3] * B[1]
-	mul	x24, x19, x21
-	umulh	x25, x19, x21
-	adds	x12, x12, x24
-	adcs	x13, x13, x25
+	mul	x25, x20, x22
+	umulh	x26, x20, x22
+	adds	x12, x12, x25
+	adcs	x13, x13, x26
 	adc	x14, x14, xzr
 	#  A[2] * B[3]
-	mul	x24, x18, x23
-	umulh	x25, x18, x23
-	adds	x13, x13, x24
-	adcs	x14, x14, x25
+	mul	x25, x19, x24
+	umulh	x26, x19, x24
+	adds	x13, x13, x25
+	adcs	x14, x14, x26
 	adc	x15, xzr, xzr
 	#  A[3] * B[2]
-	mul	x24, x19, x22
-	umulh	x25, x19, x22
-	adds	x13, x13, x24
-	adcs	x14, x14, x25
+	mul	x25, x20, x23
+	umulh	x26, x20, x23
+	adds	x13, x13, x25
+	adcs	x14, x14, x26
 	adc	x15, x15, xzr
 	#  A[3] * B[3]
-	mul	x24, x19, x23
-	umulh	x25, x19, x23
-	adds	x14, x14, x24
-	adc	x15, x15, x25
+	mul	x25, x20, x24
+	umulh	x26, x20, x24
+	adds	x14, x14, x25
+	adc	x15, x15, x26
 	# Reduce
 	#  Move top half into t4-t7 and remove top bit from t3
 	extr	x15, x15, x14, #63
@@ -6614,37 +6631,37 @@ fe_ge_sub:
 	extr	x12, x12, x11, #63
 	and	x11, x11, #0x7fffffffffffffff
 	#  Multiply top half by 19
-	mov	x24, #19
-	mul	x25, x24, x12
-	umulh	x12, x24, x12
-	adds	x8, x8, x25
-	mul	x25, x24, x13
-	umulh	x13, x24, x13
-	adcs	x9, x9, x25
-	mul	x25, x24, x14
-	umulh	x14, x24, x14
-	adcs	x10, x10, x25
-	mul	x25, x24, x15
-	umulh	x26, x24, x15
-	adcs	x11, x11, x25
-	adc	x26, x26, xzr
+	mov	x25, #19
+	mul	x26, x25, x12
+	umulh	x12, x25, x12
+	adds	x8, x8, x26
+	mul	x26, x25, x13
+	umulh	x13, x25, x13
+	adcs	x9, x9, x26
+	mul	x26, x25, x14
+	umulh	x14, x25, x14
+	adcs	x10, x10, x26
+	mul	x26, x25, x15
+	umulh	x27, x25, x15
+	adcs	x11, x11, x26
+	adc	x27, x27, xzr
 	#  Add remaining product results in
 	adds	x9, x9, x12
 	adcs	x10, x10, x13
 	adcs	x11, x11, x14
-	adc	x26, x26, xzr
+	adc	x27, x27, xzr
 	#  Overflow
-	extr	x26, x26, x11, #63
-	mul	x26, x26, x24
+	extr	x27, x27, x11, #63
+	mul	x27, x27, x25
 	and	x11, x11, #0x7fffffffffffffff
-	adds	x8, x8, x26
+	adds	x8, x8, x27
 	adcs	x9, x9, xzr
 	adcs	x10, x10, xzr
 	adc	x11, x11, xzr
 	# Reduce if top bit set
-	and	x26, x24, x11, asr 63
+	and	x27, x25, x11, asr 63
 	and	x11, x11, #0x7fffffffffffffff
-	adds	x8, x8, x26
+	adds	x8, x8, x27
 	adcs	x9, x9, xzr
 	adcs	x10, x10, xzr
 	adc	x11, x11, xzr
@@ -6656,43 +6673,43 @@ fe_ge_sub:
 	adcs	x13, x5, x9
 	adcs	x14, x6, x10
 	adc	x15, x7, x11
-	mov	x24, #-19
-	asr	x27, x15, #63
+	mov	x25, #-19
+	asr	x28, x15, #63
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Sub modulus (if overflow)
-	subs	x12, x12, x24
-	sbcs	x13, x13, x27
-	sbcs	x14, x14, x27
-	sbc	x15, x15, x25
+	subs	x12, x12, x25
+	sbcs	x13, x13, x28
+	sbcs	x14, x14, x28
+	sbc	x15, x15, x26
 	# Sub
 	subs	x16, x4, x8
 	sbcs	x17, x5, x9
-	sbcs	x18, x6, x10
-	sbcs	x19, x7, x11
-	mov	x24, #-19
-	csetm	x27, cc
+	sbcs	x19, x6, x10
+	sbcs	x20, x7, x11
+	mov	x25, #-19
+	csetm	x28, cc
 	#   Mask the modulus
-	and	x24, x27, x24
-	and	x25, x27, #0x7fffffffffffffff
+	and	x25, x28, x25
+	and	x26, x28, #0x7fffffffffffffff
 	#   Add modulus (if underflow)
-	adds	x16, x16, x24
-	adcs	x17, x17, x27
-	adcs	x18, x18, x27
-	adc	x19, x19, x25
+	adds	x16, x16, x25
+	adcs	x17, x17, x28
+	adcs	x19, x19, x28
+	adc	x20, x20, x26
 	stp	x12, x13, [x0]
 	stp	x14, x15, [x0, #16]
 	stp	x16, x17, [x1]
-	stp	x18, x19, [x1, #16]
+	stp	x19, x20, [x1, #16]
 	ldr	x17, [x29, #88]
-	ldp	x18, x19, [x29, #96]
-	ldp	x20, x21, [x29, #112]
-	ldp	x22, x23, [x29, #128]
-	ldp	x24, x25, [x29, #144]
-	ldp	x26, x27, [x29, #160]
+	ldr	x19, [x29, #96]
+	ldp	x20, x21, [x29, #104]
+	ldp	x22, x23, [x29, #120]
+	ldp	x24, x25, [x29, #136]
+	ldp	x26, x27, [x29, #152]
+	ldr	x28, [x29, #168]
 	ldp	x29, x30, [sp], #0xb0
 	ret
 	.size	fe_ge_sub,.-fe_ge_sub
 #endif /* __aarch64__ */
-#endif /* WOLFSSL_ARMASM */

@@ -100,7 +100,8 @@
     /* These platforms have 64-bit CPU registers.  */
     #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
          defined(__mips64)  || defined(__x86_64__) || defined(_M_X64)) || \
-         defined(__aarch64__) || defined(__sparc64__)
+         defined(__aarch64__) || defined(__sparc64__) || \
+        (defined(__riscv_xlen) && (__riscv_xlen == 64))
         typedef word64 wolfssl_word;
         #define WC_64BIT_CPU
     #elif (defined(sun) || defined(__sun)) && \
@@ -440,8 +441,8 @@
             #define XSNPRINTF snprintf
             #endif
         #else
-            #ifdef _MSC_VER
-                #if (_MSC_VER >= 1900)
+            #if defined(_MSC_VER) || defined(__CYGWIN__) || defined(__MINGW32__)
+                #if defined(_MSC_VER) && (_MSC_VER >= 1900)
                     /* Beginning with the UCRT in Visual Studio 2015 and
                        Windows 10, snprintf is no longer identical to
                        _snprintf. The snprintf function behavior is now
@@ -467,7 +468,7 @@
                     }
                     #define XSNPRINTF xsnprintf
                 #endif /* (_MSC_VER >= 1900) */
-            #endif /* _MSC_VER */
+            #endif /* _MSC_VER || __CYGWIN__ || __MINGW32__ */
         #endif /* USE_WINDOWS_API */
 
         #if defined(WOLFSSL_CERT_EXT) || defined(HAVE_ALPN)
@@ -758,7 +759,7 @@
     #if defined(WOLFSSL_AESNI) || defined(WOLFSSL_ARMASM) || \
         defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_AFALG_XILINX)
         #if !defined(ALIGN16)
-            #if defined(__GNUC__)
+            #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
                 #define ALIGN16 __attribute__ ( (aligned (16)))
             #elif defined(_MSC_VER)
                 /* disable align warning, we want alignment ! */
@@ -770,7 +771,7 @@
         #endif /* !ALIGN16 */
 
         #if !defined (ALIGN32)
-            #if defined (__GNUC__)
+            #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
                 #define ALIGN32 __attribute__ ( (aligned (32)))
             #elif defined(_MSC_VER)
                 /* disable align warning, we want alignment ! */
@@ -782,7 +783,7 @@
         #endif /* !ALIGN32 */
 
         #if !defined(ALIGN64)
-            #if defined(__GNUC__)
+            #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
                 #define ALIGN64 __attribute__ ( (aligned (64)))
             #elif defined(_MSC_VER)
                 /* disable align warning, we want alignment ! */
@@ -793,7 +794,7 @@
             #endif
         #endif /* !ALIGN64 */
 
-        #if defined(__GNUC__)
+        #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
             #define ALIGN128 __attribute__ ( (aligned (128)))
         #elif defined(_MSC_VER)
             /* disable align warning, we want alignment ! */
@@ -803,7 +804,7 @@
             #define ALIGN128
         #endif
 
-        #if defined(__GNUC__)
+        #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
             #define ALIGN256 __attribute__ ( (aligned (256)))
         #elif defined(_MSC_VER)
             /* disable align warning, we want alignment ! */
@@ -847,7 +848,7 @@
     #endif
 
 
-    #if defined(__GNUC__)
+    #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
         #define WOLFSSL_PACK __attribute__ ((packed))
     #else
         #define WOLFSSL_PACK
@@ -862,7 +863,7 @@
         #endif
     #endif
 
-    #if defined(__GNUC__)
+    #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
         #define WC_NORETURN __attribute__((noreturn))
     #else
         #define WC_NORETURN

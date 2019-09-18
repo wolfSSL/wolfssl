@@ -150,6 +150,7 @@ int construct_argv()
 /* entry point */
 void app_main(void)
 {
+    (void) TAG;
 #ifndef NO_CRYPT_BENCHMARK
 
 /* when using atecc608a on esp32-wroom-32se */

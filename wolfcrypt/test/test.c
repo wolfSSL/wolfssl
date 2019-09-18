@@ -18408,6 +18408,8 @@ int ecc_test(void)
         printf("ecc_test_make_pub failed!: %d\n", ret);
         goto done;
     }
+#else
+    (void) ecc_test_make_pub;/* for compiler warning */
 #endif
 #ifdef WOLFSSL_CERT_GEN
     ret = ecc_test_cert_gen(&rng);
