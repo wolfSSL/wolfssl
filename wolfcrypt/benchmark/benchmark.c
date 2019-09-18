@@ -4164,7 +4164,11 @@ exit:
 void bench_rsaKeyGen(int doAsync)
 {
     int    k, keySz;
+#ifndef WOLFSSL_SP_MATH
     const int  keySizes[2] = {1024, 2048};
+#else
+    const int  keySizes[1] = {2048};
+#endif
 
     for (k = 0; k < (int)(sizeof(keySizes)/sizeof(int)); k++) {
         keySz = keySizes[k];

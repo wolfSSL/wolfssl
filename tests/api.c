@@ -11621,6 +11621,11 @@ static int test_wc_MakeRsaKey (void)
 
     RsaKey  genKey;
     WC_RNG  rng;
+    #ifndef WOLFSSL_SP_MATH
+    int     bits = 1024;
+    #else
+    int     bits = 2048;
+    #endif
 
     printf(testingFmt, "wc_MakeRsaKey()");
 
@@ -11628,7 +11633,7 @@ static int test_wc_MakeRsaKey (void)
     if (ret == 0) {
         ret = wc_InitRng(&rng);
         if (ret == 0) {
-            ret = MAKE_RSA_KEY(&genKey, 1024, WC_RSA_EXPONENT, &rng);
+            ret = MAKE_RSA_KEY(&genKey, bits, WC_RSA_EXPONENT, &rng);
             if (ret == 0 && wc_FreeRsaKey(&genKey) != 0) {
                 ret = WOLFSSL_FATAL_ERROR;
             }
@@ -11637,17 +11642,17 @@ static int test_wc_MakeRsaKey (void)
     #ifndef HAVE_USER_RSA
         /* Test bad args. */
         if (ret == 0) {
-            ret = MAKE_RSA_KEY(NULL, 1024, WC_RSA_EXPONENT, &rng);
+            ret = MAKE_RSA_KEY(NULL, bits, WC_RSA_EXPONENT, &rng);
             if (ret == BAD_FUNC_ARG) {
-                ret = MAKE_RSA_KEY(&genKey, 1024, WC_RSA_EXPONENT, NULL);
+                ret = MAKE_RSA_KEY(&genKey, bits, WC_RSA_EXPONENT, NULL);
             }
             if (ret == BAD_FUNC_ARG) {
                 /* e < 3 */
-                ret = MAKE_RSA_KEY(&genKey, 1024, 2, &rng);
+                ret = MAKE_RSA_KEY(&genKey, bits, 2, &rng);
             }
             if (ret == BAD_FUNC_ARG) {
                 /* e & 1 == 0 */
-                ret = MAKE_RSA_KEY(&genKey, 1024, 6, &rng);
+                ret = MAKE_RSA_KEY(&genKey, bits, 6, &rng);
             }
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
@@ -11658,17 +11663,17 @@ static int test_wc_MakeRsaKey (void)
     #else
         /* Test bad args. */
         if (ret == 0) {
-            ret = MAKE_RSA_KEY(NULL, 1024, WC_RSA_EXPONENT, &rng);
+            ret = MAKE_RSA_KEY(NULL, bits, WC_RSA_EXPONENT, &rng);
             if (ret == USER_CRYPTO_ERROR) {
-                ret = MAKE_RSA_KEY(&genKey, 1024, WC_RSA_EXPONENT, NULL);
+                ret = MAKE_RSA_KEY(&genKey, bits, WC_RSA_EXPONENT, NULL);
             }
             if (ret == USER_CRYPTO_ERROR) {
                 /* e < 3 */
-                ret = MAKE_RSA_KEY(&genKey, 1024, 2, &rng);
+                ret = MAKE_RSA_KEY(&genKey, bits, 2, &rng);
             }
             if (ret == USER_CRYPTO_ERROR) {
                 /* e & 1 == 0 */
-                ret = MAKE_RSA_KEY(&genKey, 1024, 6, &rng);
+                ret = MAKE_RSA_KEY(&genKey, bits, 6, &rng);
             }
             if (ret == USER_CRYPTO_ERROR) {
                 ret = 0;
@@ -11832,10 +11837,18 @@ static int test_wc_RsaKeyToDer (void)
     RsaKey  genKey;
     WC_RNG  rng;
     byte*   der;
+    #ifndef WOLFSSL_SP_MATH
+    int     bits = 1024;
     word32  derSz = 611;
-
     /* (2 x 128) + 2 (possible leading 00) + (5 x 64) + 5 (possible leading 00)
        + 3 (e) + 8 (ASN tag) + 10 (ASN length) + 4 seqSz + 3 version */
+    #else
+    int     bits = 2048;
+    word32  derSz = 1196;
+    /* (2 x 256) + 2 (possible leading 00) + (5 x 128) + 5 (possible leading 00)
+       + 3 (e) + 8 (ASN tag) + 17 (ASN length) + 4 seqSz + 3 version */
+    #endif
+
     der = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
         ret = WOLFSSL_FATAL_ERROR;
@@ -11849,7 +11862,7 @@ static int test_wc_RsaKeyToDer (void)
     }
     /* Make key. */
     if (ret == 0) {
-        ret = MAKE_RSA_KEY(&genKey, 1024, WC_RSA_EXPONENT, &rng);
+        ret = MAKE_RSA_KEY(&genKey, bits, WC_RSA_EXPONENT, &rng);
         if (ret != 0) {
             ret = WOLFSSL_FATAL_ERROR;
         }
@@ -11930,7 +11943,13 @@ static int test_wc_RsaKeyToPublicDer (void)
     RsaKey      key;
     WC_RNG      rng;
     byte*       der;
+    #ifndef WOLFSSL_SP_MATH
+    int         bits = 1024;
     word32      derLen = 162;
+    #else
+    int         bits = 2048;
+    word32      derLen = 290;
+    #endif
 
     der = (byte*)XMALLOC(derLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
@@ -11943,7 +11962,7 @@ static int test_wc_RsaKeyToPublicDer (void)
         ret = wc_InitRng(&rng);
     }
     if (ret == 0) {
-        ret = MAKE_RSA_KEY(&key, 1024, WC_RSA_EXPONENT, &rng);
+        ret = MAKE_RSA_KEY(&key, bits, WC_RSA_EXPONENT, &rng);
     }
 
     printf(testingFmt, "wc_RsaKeyToPublicDer()");
@@ -12018,9 +12037,15 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
     RsaKey  key;
     WC_RNG  rng;
     const char* inStr = "Everyone gets Friday off.";
-    word32  cipherLen = 128;
     word32  plainLen = 25;
     word32  inLen = (word32)XSTRLEN(inStr);
+    #ifndef WOLFSSL_SP_MATH
+    int         bits = 1024;
+    word32  cipherLen = 128;
+    #else
+    int         bits = 2048;
+    word32  cipherLen = 256;
+    #endif
 
     DECLARE_VAR_INIT(in, byte, inLen, inStr, NULL);
     DECLARE_VAR(plain, byte, plainLen, NULL);
@@ -12031,7 +12056,7 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
         ret = wc_InitRng(&rng);
     }
     if (ret == 0) {
-        ret = MAKE_RSA_KEY(&key, 1024, WC_RSA_EXPONENT, &rng);
+        ret = MAKE_RSA_KEY(&key, bits, WC_RSA_EXPONENT, &rng);
     }
     /* Encrypt. */
     printf(testingFmt, "wc_RsaPublicEncrypt()");
@@ -12101,10 +12126,16 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
     WC_RNG  rng;
     const char* inStr = "Everyone gets Friday off.";
     word32  inLen = (word32)XSTRLEN(inStr);
-    const word32 cipherSz = 128;
     const word32 plainSz = 25;
     byte*   res = NULL;
     int     idx = 0;
+    #ifndef WOLFSSL_SP_MATH
+    int          bits = 1024;
+    const word32 cipherSz = 128;
+    #else
+    int          bits = 2048;
+    const word32 cipherSz = 256;
+    #endif
 
     DECLARE_VAR_INIT(in, byte, inLen, inStr, NULL);
     DECLARE_VAR(plain, byte, plainSz, NULL);
@@ -12119,7 +12150,7 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
         ret = wc_InitRng(&rng);
     }
     if (ret == 0) {
-        ret = MAKE_RSA_KEY(&key, 1024, WC_RSA_EXPONENT, &rng);
+        ret = MAKE_RSA_KEY(&key, bits, WC_RSA_EXPONENT, &rng);
     }
     /* Encrypt */
     printf(testingFmt, "wc_RsaPublicEncrypt_ex()");
@@ -12210,10 +12241,16 @@ static int test_wc_RsaSSL_SignVerify (void)
     RsaKey  key;
     WC_RNG  rng;
     const char* inStr = "Everyone gets Friday off.";
-    const word32 outSz = 128;
     const word32 plainSz = 25;
     word32  inLen = (word32)XSTRLEN(inStr);
     word32  idx = 0;
+    #ifndef WOLFSSL_SP_MATH
+    int          bits = 1024;
+    const word32 outSz = 128;
+    #else
+    int          bits = 2048;
+    const word32 outSz = 256;
+    #endif
 
     DECLARE_VAR_INIT(in, byte, inLen, inStr, NULL);
     DECLARE_VAR(out, byte, outSz, NULL);
@@ -12226,7 +12263,7 @@ static int test_wc_RsaSSL_SignVerify (void)
     }
 
     if (ret == 0) {
-        ret = MAKE_RSA_KEY(&key, 1024, WC_RSA_EXPONENT, &rng);
+        ret = MAKE_RSA_KEY(&key, bits, WC_RSA_EXPONENT, &rng);
     }
     /* Sign. */
     printf(testingFmt, "wc_RsaSSL_Sign()");
@@ -12369,6 +12406,7 @@ static int test_wc_RsaEncryptSize (void)
     }
 
     printf(testingFmt, "wc_RsaEncryptSize()");
+#ifndef WOLFSSL_SP_MATH
     if (ret == 0) {
         ret = MAKE_RSA_KEY(&key, 1024, WC_RSA_EXPONENT, &rng);
         if (ret == 0) {
@@ -12385,6 +12423,7 @@ static int test_wc_RsaEncryptSize (void)
     } else {
         ret = 0;
     }
+#endif
 
     if (ret == 0) {
         ret = MAKE_RSA_KEY(&key, 2048, WC_RSA_EXPONENT, &rng);
@@ -12437,6 +12476,11 @@ static int test_wc_RsaFlattenPublicKey (void)
     byte    n[256];
     word32  eSz = sizeof(e);
     word32  nSz = sizeof(n);
+    #ifndef WOLFSSL_SP_MATH
+    int         bits = 1024;
+    #else
+    int         bits = 2048;
+    #endif
 
     ret = wc_InitRsaKey(&key, NULL);
     if (ret == 0) {
@@ -12444,7 +12488,7 @@ static int test_wc_RsaFlattenPublicKey (void)
     }
 
     if (ret == 0) {
-        ret = MAKE_RSA_KEY(&key, 1024, WC_RSA_EXPONENT, &rng);
+        ret = MAKE_RSA_KEY(&key, bits, WC_RSA_EXPONENT, &rng);
         if (ret >= 0) {
             ret = 0;
         } else {

@@ -11470,7 +11470,11 @@ static int rsa_keygen_test(WC_RNG* rng)
     byte*  pem = NULL;
     word32 idx = 0;
     int    derSz = 0;
+#ifndef WOLFSSL_SP_MATH
     int    keySz = 1024;
+#else
+    int    keySz = 2048;
+#endif
 
     XMEMSET(&genKey, 0, sizeof(genKey));
 

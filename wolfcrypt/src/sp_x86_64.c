@@ -1774,6 +1774,7 @@ int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     return err;
 }
 
+#ifdef WOLFSSL_HAVE_SP_DH
 #ifdef HAVE_FFDHE_2048
 extern void sp_2048_lshift_32(sp_digit* r, const sp_digit* a, int n);
 #ifdef HAVE_INTEL_AVX2
@@ -2055,6 +2056,7 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
 
     return err;
 }
+#endif
 /* Perform the modular exponentiation for Diffie-Hellman.
  *
  * base  Base. MP integer.
@@ -3832,6 +3834,7 @@ int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
     return err;
 }
 
+#ifdef WOLFSSL_HAVE_SP_DH
 #ifdef HAVE_FFDHE_3072
 extern void sp_3072_lshift_48(sp_digit* r, const sp_digit* a, int n);
 #ifdef HAVE_INTEL_AVX2
@@ -4113,6 +4116,7 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
 
     return err;
 }
+#endif
 /* Perform the modular exponentiation for Diffie-Hellman.
  *
  * base  Base. MP integer.
