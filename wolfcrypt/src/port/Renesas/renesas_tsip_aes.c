@@ -49,12 +49,12 @@ int wc_tsip_AesCbcEncrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
     uint32_t dataLength;
     byte *iv;
     
-    /* while doing TLS handshake, TSIP driver keeps true-key and iv on the device */
-    /* iv is dummy */
-    iv = (uint8_t*)aes->reg;
-    
     if ((in == NULL) || (out == NULL) || (aes == NULL))
       return BAD_FUNC_ARG;
+    
+    /* while doing TLS handshake, TSIP driver keeps true-key and iv *
+     * on the device. iv is dummy                                   */
+    iv = (uint8_t*)aes->reg;
     
     if((ret = tsip_hw_lock()) != 0){
         WOLFSSL_MSG("Failed to lock");
@@ -103,11 +103,11 @@ int wc_tsip_AesCbcDecrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
     uint32_t dataLength;
     byte *iv;
     
-    iv = (uint8_t*)aes->reg;
-    
     if ((in == NULL) || (out == NULL) || (aes == NULL))
       return BAD_FUNC_ARG;
     
+    iv = (uint8_t*)aes->reg;
+
     if((ret = tsip_hw_lock()) != 0){
         WOLFSSL_MSG("Failed to lock");
         return ret;

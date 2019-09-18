@@ -68,7 +68,7 @@ void tsip_hw_unlock( void );
 int tsip_usable(byte cipher0, byte cipher, byte side);
 void tsip_inform_sflash_signedcacert(const byte *ps_flash, 
     const byte *psigned_ca_cert, word32 len);
-void tsip_inform_cert_sing(const byte *sign);
+void tsip_inform_cert_sign(const byte *sign);
 /* set / get key */
 void tsip_inform_user_keys(byte *encrypted_session_key, byte *iv,
                            byte *encrypted_user_tls_key);

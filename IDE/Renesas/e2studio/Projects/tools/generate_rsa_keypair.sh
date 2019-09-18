@@ -6,11 +6,11 @@ function usage(){
      $0 [-g] [-]
 
     Description:
-     Generate 2048 bit Rsa key pair and Display moduls and public exponet
+     Generate 2048 bit Rsa key pair and Display modulus and public exponent
      
     Options:
       -g    generate rsa key pair, default on
-      -s    only show moduls and public exponent
+      -s    only show modulus and public exponent
 _EOT_
 exit 1
 }
@@ -45,7 +45,7 @@ if [ $FLAG_G = "on" ]; then
 fi
 
 if [ $FLAG_S = "on" ]; then
-    # display moduls and exponent
+    # display modulus and exponent
     openssl rsa -modulus < private-key.pem 2>/dev/null | grep Modulus=
     openssl rsa -text < private-key.pem 2> /dev/null | grep publicExponent
 fi

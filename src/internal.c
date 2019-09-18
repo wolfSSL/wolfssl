@@ -10467,7 +10467,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         /* copy encrypted tsip key index into ssl object */
                         if (args->dCert->tsip_encRsaKeyIdx) {
                             if (!ssl->peerTsipEncRsaKeyIndex) {
-                                ssl->peerTsipEncRsaKeyIndex = (byte*)XMALLOC(560,
+                                ssl->peerTsipEncRsaKeyIndex = (byte*)XMALLOC(
+                                    TSIP_TLS_ENCPUBKEY_SZ_BY_CERTVRFY,
                                     ssl->heap, DYNAMIC_TYPE_RSA);
                             }
                             if (!ssl->peerTsipEncRsaKeyIndex) {
@@ -10476,7 +10477,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             }
                             
                             XMEMCPY(ssl->peerTsipEncRsaKeyIndex,
-                                        args->dCert->tsip_encRsaKeyIdx, 560);
+                                        args->dCert->tsip_encRsaKeyIdx, 
+                                        TSIP_TLS_ENCPUBKEY_SZ_BY_CERTVRFY);
                          }
                     #endif
                     #ifdef HAVE_PK_CALLBACKS
@@ -17052,6 +17054,10 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case TCA_ABSENT_ERROR:
         return "TLS Extension Trusted CA ID response absent";
 
+    case TSIP_MAC_DIGSZ_E:
+        return "Invalid MAC size is specified. \
+                TSIP can only handle SHA1 and SHA256 digest size";
+
     default :
         return "unknown error number";
     }
@@ -21022,14 +21028,18 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     if (tsip_useable(ssl->options.cipherSuite0,
                                      ssl->options.cipherSuite,
                                      ssl->options.side)) {
-                        tsip_generatePremasterSecret( 
+                        ret = tsip_generatePremasterSecret( 
                         &ssl->arrays->preMasterSecret[VERSION_SZ], 
                         ENCRYPT_LEN - VERSION_SZ);
-                    } else 
+                    } else {
                     #endif
                         ret = wc_RNG_GenerateBlock(ssl->rng,
                             &ssl->arrays->preMasterSecret[VERSION_SZ],
                             SECRET_LEN - VERSION_SZ);
+                    #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+                       !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
+                    }
+                    #endif
                         if (ret != 0) {
                             goto exit_scke;
                         }

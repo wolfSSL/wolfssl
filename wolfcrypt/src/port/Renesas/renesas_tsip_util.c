@@ -38,7 +38,7 @@ wolfSSL_Mutex tsip_mutex;
 static int tsip_CryptHwMutexInit_ = 0;
 
 /* ./ca-cert.der.sign,  */
-/* expect to have these valiables defined at user application */
+/* expect to have these variables defined at user application */
 extern uint32_t s_flash[];
 extern uint32_t s_inst1[R_TSIP_SINST_WORD_SIZE];
 extern uint32_t s_inst2[R_TSIP_SINST2_WORD_SIZE];
@@ -120,13 +120,15 @@ byte tsip_useable(byte cipher0, byte cipher, byte side)
         return 0;
 }
 
-/* check if the g_alreadyVerified CA's key can be used for peer's certification */
+/* check if the g_alreadyVerified CA's key can be used for *
+ * peer's certification                                    */
 byte tsip_checkCA(word32 cmIdx)
 {
     return (cmIdx == g_CAscm_Idx? 1:0);
 }
 
-/* check if tht root CA has been verified by TSIP, and it exists in the CM table.*/
+/* check if tht root CA has been verified by TSIP, *
+ * and it exists in the CM table.                  */
 byte tsip_rootCAverified( )
 {
     return (g_CAscm_Idx != (uint32_t)-1 ? 1:0);
@@ -159,8 +161,9 @@ int tsip_Open( ) {
                 /* close once */
                 tsip_Close( );
                 /* open again with s_inst[] */
-                XMEMCPY(s_inst1, g_user_key_info.user_rsa2048_tls_pubindex.value, 
-                                                            sizeof(s_inst1));
+                XMEMCPY(s_inst1, 
+                    g_user_key_info.user_rsa2048_tls_pubindex.value,
+                    sizeof(s_inst1));
                 ret = R_TSIP_Open((uint32_t*)s_flash, s_inst1, s_inst2);
                 if (ret != TSIP_SUCCESS) {
                     WOLFSSL_MSG("R_TSIP_(Re)Open failed");
@@ -202,7 +205,7 @@ void tsip_Close( ) {
 
 /* to inform ca certificate sign */
 /* signature format expects RSA 2048 PSS with SHA256 */
-void tsip_inform_cert_sing(const byte *sign)
+void tsip_inform_cert_sign(const byte *sign)
 {
     if(sign)
         ca_cert_sig = sign;
@@ -260,14 +263,18 @@ int tsip_Sha1Hmac(const struct WOLFSSL *ssl, const byte *myInner,
             word32 verify)
 {
     tsip_hmac_sha_handle_t _handle;
+    tsip_hmac_sha_key_index_t key_index;
     int ret;
+
+    if ((ssl == NULL) || (myInner == NULL) || (in == NULL) ||
+    		(digest == NULL))
+      return BAD_FUNC_ARG;
     
     if ((ret = tsip_hw_lock()) != 0) {
         WOLFSSL_MSG("hw lock failed\n");
         return ret;
     }
-    tsip_hmac_sha_key_index_t key_index;
-
+    
     if ( (ssl->options.side == WOLFSSL_CLIENT_END && !verify) ||
          (ssl->options.side == WOLFSSL_SERVER_END &&  verify) )
         XMEMCPY(key_index.value, ssl->keys.tsip_client_write_MAC_secret,
@@ -300,9 +307,13 @@ int tsip_Sha256Hmac(const struct WOLFSSL *ssl, const byte *myInner,
             word32 verify)
 {
     tsip_hmac_sha_handle_t _handle;
-    int ret;
     tsip_hmac_sha_key_index_t key_index;
-
+    int ret;
+    
+    if ((ssl == NULL) || (myInner == NULL) || (in == NULL) ||
+        (digest == NULL))
+      return BAD_FUNC_ARG;
+    
     if ( (ssl->options.side == WOLFSSL_CLIENT_END && !verify) ||
             (ssl->options.side == WOLFSSL_SERVER_END &&  verify) )
         XMEMCPY(key_index.value, ssl->keys.tsip_client_write_MAC_secret,
@@ -342,6 +353,10 @@ int tsip_generateVerifyData(const byte *ms, /* master secret */
     int ret ;
     uint32_t l_side = R_TSIP_TLS_GENERATE_CLIENT_VERIFY;
     
+    if ((ms == NULL) || (side == NULL) || (handshake_hash == NULL) ||
+        (hashes == NULL))
+      return BAD_FUNC_ARG;
+    
     if (XSTRNCMP((const char*)side, (const char*)tls_server, FINISHED_LABEL_SZ)
                                                                            == 0)
     {
@@ -372,8 +387,12 @@ int tsip_generateSeesionKey(struct WOLFSSL *ssl)
     tsip_aes_key_index_t key_client_aes;
     tsip_aes_key_index_t key_server_aes;
     
+    if (ssl== NULL)
+      return BAD_FUNC_ARG;
+      
     if ((ret = tsip_hw_lock()) == 0) {
-        ret = R_TSIP_TlsGenerateSessionKey( _tls2tsipdef(ssl->options.cipherSuite),
+        ret = R_TSIP_TlsGenerateSessionKey(
+                _tls2tsipdef(ssl->options.cipherSuite),
                 (uint32_t*)ssl->arrays->tsip_masterSecret, 
                 (uint8_t*)ssl->arrays->clientRandom,
                 (uint8_t*)ssl->arrays->serverRandom, &key_client_mac,
@@ -454,6 +473,10 @@ int tsip_generateMasterSecret(const byte *pr, /* pre-master    */
 {
     int ret;
     
+    if ((pr == NULL) || (cr == NULL) || (sr == NULL) ||
+        (ms == NULL))
+      return BAD_FUNC_ARG;
+      
     if ((ret = tsip_hw_lock()) == 0) {
         ret = R_TSIP_TlsGenerateMasterSecret( (uint32_t*)pr,
             (uint8_t*)cr, (uint8_t*)sr, (uint32_t*)ms);
@@ -472,7 +495,10 @@ int tsip_generateMasterSecret(const byte *pr, /* pre-master    */
 int tsip_generatePremasterSecret(byte *premaster, word32 preSz )
 {
     int ret;
-
+    
+    if (premaster == NULL)
+      return BAD_FUNC_ARG;
+    
     if ((ret = tsip_hw_lock()) == 0 && preSz >=
                                     (R_TSIP_TLS_MASTER_SECRET_WORD_SIZE*4)) {
         /* generate pre-master, 80 bytes */
@@ -492,6 +518,9 @@ int tsip_generatePremasterSecret(byte *premaster, word32 preSz )
 int tsip_generateEncryptPreMasterSecret(WOLFSSL *ssl, byte *out, word32 *outSz)
 {
     int ret;
+    
+    if ((ssl == NULL) || (out == NULL) || (outSz == NULL))
+      return BAD_FUNC_ARG;
     
     if ((ret = tsip_hw_lock()) == 0) {
         if (*outSz >= 256)
@@ -525,7 +554,10 @@ int tsip_tls_CertVerify(const byte *cert, word32 certSz,
                         byte *tsip_encRsaKeyIndex)
 {
     int ret;
-
+    
+    if (cert == NULL)
+      return BAD_FUNC_ARG;
+    
     if (!signature) {
         WOLFSSL_MSG(" signature for ca verification is not set\n");
         return -1;
@@ -568,6 +600,9 @@ int tsip_tls_RootCertVerify(const byte *cert, word32 cert_len,
     /* call to generate encrypted public key for certificate verification */
     uint8_t *signature = (uint8_t*)ca_cert_sig;
     
+    if (cert == NULL)
+      return BAD_FUNC_ARG;
+      
     if (!signature) {
         WOLFSSL_MSG(" signature for ca verification is not set\n");
         return -1;

@@ -109,11 +109,11 @@
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     /* for root ca verification */
-    int tsip_tls_RootCertVerify(const byte *cert  , word32 cert_len,
+int tsip_tls_RootCertVerify(const byte *cert  , word32 cert_len,
                             word32 key_n_start, word32 key_n_len,
                             word32 key_e_start, word32 key_e_len,
                             word32 cm_row);
-    byte tsip_rootCAverified( );
+byte tsip_rootCAverified( );
 #endif
 
 #ifdef WOLFSSL_SESSION_EXPORT

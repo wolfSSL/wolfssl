@@ -1202,9 +1202,13 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
                      ssl->options.cipherSuite,
                      ssl->options.side)) {
         if (ssl->specs.hash_size == WC_SHA_DIGEST_SIZE)
-            ret = tsip_Sha1Hmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ, in, sz, digest, verify);
+            ret = tsip_Sha1Hmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ, 
+                                                        in, sz, digest, verify);
+        else if (ssl->specs.hash_size == WC_SHA256_DIGEST_SIZE)
+            ret = tsip_Sha256Hmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ, 
+                                                        in, sz, digest, verify);
         else
-            ret = tsip_Sha256Hmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ, in, sz, digest, verify);
+            ret = TSIP_MAC_DIGSZ_E;
 
         return ret;
     }

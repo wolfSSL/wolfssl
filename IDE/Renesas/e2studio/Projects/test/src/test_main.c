@@ -82,12 +82,12 @@ double current_time(int reset)
 int SetTsiptlsKey()
 {
 #if defined(WOLFSSL_RENESAS_TSIP) && defined(TLS_CLIENT)
-    tsip_inform_cert_sing((const byte *)ca_cert_sig);
+    tsip_inform_cert_sign((const byte *)ca_cert_sig);
     tsip_inform_user_keys((byte*)&g_key_block_data.encrypted_session_key,
                           (byte*)&g_key_block_data.iv,
                           (byte*)&g_key_block_data.encrypted_user_rsa2048_ne_key);
 #elif defined(WOLFSSL_RENESAS_TSIP) && defined(TLS_SERVER)
-    tsip_inform_cert_sing((const byte *)client_cert_der_sign);
+    tsip_inform_cert_sign((const byte *)client_cert_der_sign);
     tsip_inform_user_keys((byte*)&g_key_block_data.encrypted_session_key,
                           (byte*)&g_key_block_data.iv,
                           (byte*)&g_key_block_data.encrypted_user_rsa2048_ne_key);

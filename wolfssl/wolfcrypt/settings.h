@@ -273,7 +273,8 @@
 
 #if defined(WOLFSSL_RENESAS_TSIP)
     #define TSIP_TLS_HMAC_KEY_INDEX_WORDSIZE 64
-    #define TSIP_TLS_MASTERSECRET_SIZE       80 /* 20 words */
+    #define TSIP_TLS_MASTERSECRET_SIZE       80   /* 20 words */
+    #define TSIP_TLS_ENCPUBKEY_SZ_BY_CERTVRFY 560 /* in byte  */
     #if !defined(NO_RENESAS_TSIP_CRYPT) && defined(WOLFSSL_RENESAS_RX65N)
         #define WOLFSSL_RENESAS_TSIP_CRYPT
         #define WOLFSSL_RENESAS_TSIP_TLS
