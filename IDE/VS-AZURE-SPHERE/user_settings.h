@@ -7,17 +7,21 @@
     #ifndef SERVER_IP
         #define SERVER_IP "192.168.1.200" /* Local Test Server IP */
     #endif
+	#ifndef DEFAULT_PORT
+		#define DEFAULT_PORT 11111
+	#endif
     #define CERT         ca_cert_der_2048
     #define SIZEOF_CERT  sizeof_ca_cert_der_2048
-    #define DEFAULT_PORT 11111
     static const char msg[] = "Are you listening wolfSSL Server?";
 #else
     #ifndef SERVER_IP
         #define SERVER_IP "www.wolfssl.com"
     #endif
+	#ifndef DEFAULT_PORT
+		#define DEFAULT_PORT 443
+	#endif
     #define CERT         wolfssl_website_root_ca
     #define SIZEOF_CERT  sizeof_wolfssl_website_root_ca
-    #define DEFAULT_PORT 443
     static const char msg[] = "GET /index.html HTTP/1.1\r\n\r\n";
 #endif
 
@@ -53,9 +57,6 @@
 #define USE_CERT_BUFFERS_2048
 #define USE_CERT_BUFFERS_256
 
-/* Redirect printf to Log_Debug */
-#define printf Log_Debug
-
 /* OS */
 #define SINGLE_THREADED
 
@@ -63,6 +64,7 @@
 #define NO_FILESYSTEM
 
 /* Debug */
+#define printf Log_Debug
 #define WOLFIO_DEBUG
 
 #endif /* _USER_SETTINGS_H_ */

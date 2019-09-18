@@ -31,6 +31,9 @@
 #include <netinet/in.h>
 #include <unistd.h>
 
+/* <shared/util.h> includes */
+#include <shared/util.h>
+
 /* wolfSSL */
 #include <wolfssl/ssl.h>
 #include <wolfssl/certs_test.h>
@@ -39,19 +42,11 @@
 #include <applibs/log.h>
 #include <applibs/networking.h>
 
-#define DEFAULT_PORT    11111
+#define BIND_PORT		11111
 #define CERT_BUF        server_cert_der_2048
 #define SIZEOF_CERT_BUF sizeof_server_cert_der_2048
 #define KEY_BUF         server_key_der_2048
 #define SIZEOF_KEY_BUF  sizeof_server_key_der_2048
-
-static void server_Cleanup(int sockfd, WOLFSSL_CTX* ctx, WOLFSSL* ssl)
-{
-    wolfSSL_free(ssl);      /* Free the wolfSSL object                  */
-    wolfSSL_CTX_free(ctx);  /* Free the wolfSSL context object          */
-    wolfSSL_Cleanup();      /* Cleanup the wolfSSL environment          */
-    close(sockfd);          /* Close the socket listening for clients   */
-}
 
 int main(void)
 {
@@ -71,9 +66,11 @@ int main(void)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL*     ssl = NULL;
 
+    util_PrintIfAddr();
+
     /* Check if the Azure Sphere Dev Board has network connectivity. */
     if ((Networking_IsNetworkingReady(&isNetworkingReady) < 0) || !isNetworkingReady) {
-        Log_Debug("\nNetwork is not up.\n");
+        fprintf(stderr,"Error: Network is not up.\n");
         return -1;
     }
 
@@ -85,14 +82,14 @@ int main(void)
      * 0 means choose the default protocol. */
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         fprintf(stderr, "ERROR: failed to create the socket\n");
-        server_Cleanup(sockfd, ctx, ssl);
+        util_Cleanup(sockfd, ctx, ssl);
         return -1;
     }
 
     /* Create and initialize WOLFSSL_CTX */
     if ((ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method())) == NULL) {
         fprintf(stderr, "ERROR: failed to create WOLFSSL_CTX\n");
-        server_Cleanup(sockfd, ctx, ssl);
+        util_Cleanup(sockfd, ctx, ssl);
         return -1;
     }
 
@@ -101,7 +98,7 @@ int main(void)
         != SSL_SUCCESS) {
         fprintf(stderr, "ERROR: failed to load %s, please check the file.\n",
                 CERT_BUF);
-        server_Cleanup(sockfd, ctx, ssl);
+        util_Cleanup(sockfd, ctx, ssl);
         return -1;
     }
 
@@ -110,7 +107,7 @@ int main(void)
         != SSL_SUCCESS) {
         fprintf(stderr, "ERROR: failed to load %s, please check the file.\n",
                 KEY_BUF);
-        server_Cleanup(sockfd, ctx, ssl);
+        util_Cleanup(sockfd, ctx, ssl);
         return -1;
     }
 
@@ -119,20 +116,20 @@ int main(void)
 
     /* Fill in the server address */
     servAddr.sin_family      = AF_INET;             /* using IPv4      */
-    servAddr.sin_port        = htons(DEFAULT_PORT); /* on DEFAULT_PORT */
+    servAddr.sin_port        = htons(BIND_PORT);    /* on BIND_PORT    */
     servAddr.sin_addr.s_addr = INADDR_ANY;          /* from anywhere   */
 
     /* Bind the server socket to our port */
     if (bind(sockfd, (struct sockaddr*)&servAddr, sizeof(servAddr)) == -1) {
         fprintf(stderr, "ERROR: failed to bind\n");
-        server_Cleanup(sockfd, ctx, ssl);
+        util_Cleanup(sockfd, ctx, ssl);
         return -1;
     }
 
     /* Listen for a new connection, allow 5 pending connections */
     if (listen(sockfd, 5) == -1) {
         fprintf(stderr, "ERROR: failed to listen\n");
-        server_Cleanup(sockfd, ctx, ssl);
+        util_Cleanup(sockfd, ctx, ssl);
         return -1;
     }
 
@@ -144,14 +141,14 @@ int main(void)
         if ((connd = accept(sockfd, (struct sockaddr*)&clientAddr, &size))
             == -1) {
             fprintf(stderr, "ERROR: failed to accept the connection\n\n");
-            server_Cleanup(sockfd, ctx, ssl);
+            util_Cleanup(sockfd, ctx, ssl);
             return -1;
         }
 
         /* Create a WOLFSSL object */
         if ((ssl = wolfSSL_new(ctx)) == NULL) {
             fprintf(stderr, "ERROR: failed to create WOLFSSL object\n");
-            server_Cleanup(sockfd, ctx, ssl);
+            util_Cleanup(sockfd, ctx, ssl);
             return -1;
         }
 
@@ -163,7 +160,7 @@ int main(void)
         if (ret != SSL_SUCCESS) {
             fprintf(stderr, "wolfSSL_accept error = %d\n",
                 wolfSSL_get_error(ssl, ret));
-            server_Cleanup(sockfd, ctx, ssl);
+            util_Cleanup(sockfd, ctx, ssl);
             return -1;
         }
 
@@ -173,7 +170,7 @@ int main(void)
         memset(buff, 0, sizeof(buff));
         if (wolfSSL_read(ssl, buff, sizeof(buff)-1) == -1) {
             fprintf(stderr, "ERROR: failed to read\n");
-            server_Cleanup(sockfd, ctx, ssl);
+            util_Cleanup(sockfd, ctx, ssl);
             return -1;
         }
 
@@ -194,7 +191,7 @@ int main(void)
         /* Reply back to the client */
         if (wolfSSL_write(ssl, buff, (int)len) != len) {
             fprintf(stderr, "ERROR: failed to write\n");
-            server_Cleanup(sockfd, ctx, ssl);
+            util_Cleanup(sockfd, ctx, ssl);
             return -1;
         }
 
@@ -206,6 +203,6 @@ int main(void)
     printf("Shutdown complete\n");
 
     /* Cleanup and return */
-    server_Cleanup(sockfd, ctx, ssl);
+    util_Cleanup(sockfd, ctx, ssl);
     return 0;               /* Return reporting a success               */
 }

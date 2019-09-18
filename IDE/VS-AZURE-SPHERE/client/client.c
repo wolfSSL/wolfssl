@@ -31,22 +31,16 @@
 #include <netinet/in.h>
 #include <unistd.h>
 
+/* utility functions shared between client and server */
+#include <shared/util.h>
+
 /* wolfSSL */
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/certs_test.h>
 
 /* Azure Sphere */
-#include <applibs/log.h>
 #include <applibs/networking.h>
-
-static void client_Cleanup(int sockfd, WOLFSSL_CTX* ctx, WOLFSSL* ssl)
-{
-    wolfSSL_free(ssl);      /* Free the wolfSSL object                  */
-    wolfSSL_CTX_free(ctx);  /* Free the wolfSSL context object          */
-    wolfSSL_Cleanup();      /* Cleanup the wolfSSL environment          */
-    close(sockfd);          /* Close the connection to the server       */
-}
 
 int main(int argc, char** argv)
 {
@@ -59,6 +53,8 @@ int main(int argc, char** argv)
     /* declare wolfSSL objects */
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
+
+	util_PrintIfAddr();
 
     /* Check if the Azure Sphere Dev Board has network connectivity. */
     if ((Networking_IsNetworkingReady(&isNetworkingReady) < 0) || !isNetworkingReady) {
@@ -79,7 +75,7 @@ int main(int argc, char** argv)
     ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
     if (ctx == NULL) {
         fprintf(stderr, "ERROR: failed to create WOLFSSL_CTX\n");
-        client_Cleanup(sockfd,ctx,ssl);
+        util_Cleanup(sockfd,ctx,ssl);
         return -1;
     }
 
@@ -87,14 +83,14 @@ int main(int argc, char** argv)
     ret = wolfSSL_CTX_load_verify_buffer(ctx, CERT, SIZEOF_CERT, WOLFSSL_FILETYPE_ASN1);
     if (ret != SSL_SUCCESS) {
         fprintf(stderr, "ERROR: failed to load %s, please check the buffer.\n");
-        client_Cleanup(sockfd,ctx,ssl);
+        util_Cleanup(sockfd,ctx,ssl);
         return -1;
     }
 
     /* Create a WOLFSSL object */
     if ((ssl = wolfSSL_new(ctx)) == NULL) {
         fprintf(stderr, "ERROR: failed to create WOLFSSL object\n");
-        client_Cleanup(sockfd,ctx,ssl);
+        util_Cleanup(sockfd,ctx,ssl);
         return -1;
     }
 
@@ -104,7 +100,7 @@ int main(int argc, char** argv)
     /* Connect to wolfSSL on the server side */
     if (wolfSSL_connect(ssl) != SSL_SUCCESS) {
         fprintf(stderr, "ERROR: failed to connect to wolfSSL\n");
-        client_Cleanup(sockfd,ctx,ssl);
+        util_Cleanup(sockfd,ctx,ssl);
         return -1;
     }
 
@@ -115,7 +111,7 @@ int main(int argc, char** argv)
     /* Send the message to the server */
     if (wolfSSL_write(ssl, msg, (int)len) != len) {
         fprintf(stderr, "ERROR: failed to write\n");
-        client_Cleanup(sockfd,ctx,ssl);
+        util_Cleanup(sockfd,ctx,ssl);
         return -1;
     }
 
@@ -123,7 +119,7 @@ int main(int argc, char** argv)
     memset(buff, 0, sizeof(buff));
     if (wolfSSL_read(ssl, buff, sizeof(buff) - 1) == -1) {
         fprintf(stderr, "ERROR: failed to read\n");
-        client_Cleanup(sockfd,ctx,ssl);
+        util_Cleanup(sockfd,ctx,ssl);
         return -1;
     }
 
@@ -131,6 +127,6 @@ int main(int argc, char** argv)
     printf("Server Reply: %s\n", buff);
 
     /* Cleanup and return */
-    client_Cleanup(sockfd,ctx,ssl);
+    util_Cleanup(sockfd,ctx,ssl);
     return 0; /* Return reporting a success */
 }
