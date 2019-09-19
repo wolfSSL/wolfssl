@@ -113,7 +113,7 @@ enum {
     #include "wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h"
 #else
 /* wc_Sha512 digest */
-typedef struct wc_Sha512 {
+struct wc_Sha512 {
     word64  digest[WC_SHA512_DIGEST_SIZE / sizeof(word64)];
     word64  buffer[WC_SHA512_BLOCK_SIZE  / sizeof(word64)];
     word32  buffLen;   /* in bytes          */
@@ -136,7 +136,12 @@ typedef struct wc_Sha512 {
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif
-} wc_Sha512;
+};
+
+#ifndef WC_SHA512_TYPE_DEFINED
+    typedef struct wc_Sha512 wc_Sha512;
+    #define WC_SHA512_TYPE_DEFINED
+#endif
 #endif
 
 #endif /* HAVE_FIPS */
@@ -191,7 +196,10 @@ enum {
 };
 
 
-typedef wc_Sha512 wc_Sha384;
+#ifndef WC_SHA384_TYPE_DEFINED
+    typedef struct wc_Sha512 wc_Sha384;
+    #define WC_SHA384_TYPE_DEFINED
+#endif
 #endif /* HAVE_FIPS */
 
 WOLFSSL_API int wc_InitSha384(wc_Sha384*);

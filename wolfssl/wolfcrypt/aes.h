@@ -130,7 +130,7 @@ enum {
 };
 
 
-typedef struct Aes {
+struct Aes {
     /* AESNI needs key first, rounds 2nd, not sure why yet */
     ALIGN16 word32 key[60];
     word32  rounds;
@@ -202,7 +202,12 @@ typedef struct Aes {
     aes_context_t ctx;
 #endif
     void*  heap; /* memory hint to use */
-} Aes;
+};
+
+#ifndef WC_AES_TYPE_DEFINED
+    typedef struct Aes Aes;
+    #define WC_AES_TYPE_DEFINED
+#endif
 
 #ifdef WOLFSSL_AES_XTS
 typedef struct XtsAes {

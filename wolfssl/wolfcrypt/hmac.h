@@ -143,7 +143,7 @@ typedef union {
 } Hash;
 
 /* Hmac digest */
-typedef struct Hmac {
+struct Hmac {
     Hash    hash;
     word32  ipad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];  /* same block size all*/
     word32  opad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];
@@ -166,7 +166,13 @@ typedef struct Hmac {
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
     word16  keyLen;          /* hmac key length (key in ipad) */
 #endif
-} Hmac;
+};
+
+#ifndef WC_HMAC_TYPE_DEFINED
+    typedef struct Hmac Hmac;
+    #define WC_HMAC_TYPE_DEFINED
+#endif
+
 
 #endif /* HAVE_FIPS */
 
