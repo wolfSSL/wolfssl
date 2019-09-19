@@ -3401,7 +3401,11 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
 #endif
 
     if (ssl->buffers.certificate && ssl->buffers.certificate->buffer &&
-        ssl->buffers.key && ssl->buffers.key->buffer) {
+        ((ssl->buffers.key && ssl->buffers.key->buffer)
+        #ifdef HAVE_PK_CALLBACKS
+            || wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)
+        #endif
+    )) {
 #ifndef WOLFSSL_TLS13_DRAFT_18
         if (PickHashSigAlgo(ssl, peerSuites.hashSigAlgo,
                                                peerSuites.hashSigAlgoSz) != 0) {
@@ -3410,8 +3414,9 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
 #endif
         ssl->options.sendVerify = SEND_CERT;
     }
-    else
+    else {
         ssl->options.sendVerify = SEND_BLANK_CERT;
+    }
 
     /* This message is always encrypted so add encryption padding. */
     *inOutIdx += ssl->keys.padSz;
