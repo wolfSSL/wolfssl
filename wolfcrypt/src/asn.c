@@ -8448,9 +8448,21 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                              cert->heap, DYNAMIC_TYPE_RSA);
         if (cert->tsip_encRsaKeyIdx == NULL)
                 return MEMORY_E;
-    } else
+    } else {
+        if (cert->ca) {
+            /* TSIP isn't usable */
+            if (tsip_checkCA(cert->ca->cm_idx) == 0)
+                WOLFSSL_MSG("TSIP isn't usable because the ca isn't verified by TSIP.");
+            else if (cert->sigCtx.pubkey_n_len != 256)
+                WOLFSSL_MSG("TSIP isn't usable because the ca isn't signed by RSA 2048.");
+            else
+                WOLFSSL_MSG("TSIP isn't usable");
+        }
 #endif
     cert->tsip_encRsaKeyIdx = NULL;
+#if defined(WOLFSSL_RENESAS_TSIP)
+    }
+#endif
 
     if (verify != NO_VERIFY && type != CA_TYPE && type != TRUSTED_PEER_TYPE) {
         if (cert->ca) {

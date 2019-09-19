@@ -106,9 +106,31 @@ void tsip_hw_unlock( void )
 /* cipher0 : in the some cipher suite,                         */
 /*           first byte becomes greater than 0, otherwise 0x00 */
 /* side    : CLIENT END or SEVER END                           */
-byte tsip_useable(byte cipher0, byte cipher, byte side)
+int tsip_useable(const struct WOLFSSL *ssl)
 {
-    if (cipher0 > 0x00) return 0;
+    byte cipher0;
+    byte cipher;
+    byte side;
+    
+    /* sanity check */
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+    
+    /* when rsa key index == NULL, tsip isn't used for cert verification. */
+    /* in the case, we cannot use TSIP.                                   */
+    if (!ssl->peerTsipEncRsaKeyIndex)
+        return 0;
+
+    /* when enabled Extended Master Secret, we cannot use TSIP.           */
+    if (ssl->options.haveEMS)
+        return 0;
+        
+    cipher0 = ssl->options.cipherSuite0;
+    cipher = ssl->options.cipherSuite;
+    side = ssl->options.side;
+    
+    if (cipher0 > 0x00) 
+        return 0;
 
     if ((cipher == l_TLS_RSA_WITH_AES_128_CBC_SHA ||
          cipher == l_TLS_RSA_WITH_AES_128_CBC_SHA256 ||
@@ -267,7 +289,7 @@ int tsip_Sha1Hmac(const struct WOLFSSL *ssl, const byte *myInner,
     int ret;
 
     if ((ssl == NULL) || (myInner == NULL) || (in == NULL) ||
-    		(digest == NULL))
+        (digest == NULL))
       return BAD_FUNC_ARG;
     
     if ((ret = tsip_hw_lock()) != 0) {

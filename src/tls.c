@@ -132,7 +132,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
 #endif
 
 #ifdef WOLFSSL_RENESAS_TSIP_TLS
-    int tsip_useable(byte cipher0, byte cipher, byte side);
+    int tsip_useable(const WOLFSSL *ssl);
     int tsip_generateMasterSecret(const byte *pre,
                                 const byte *cr,const byte *sr,
                                 byte *ms/* out */);
@@ -204,9 +204,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #ifdef WOLFSSL_HAVE_PRF
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
-        if (tsip_useable(ssl->options.cipherSuite0,
-                           ssl->options.cipherSuite,
-                           ssl->options.side)) {
+        if (tsip_useable(ssl)) {
             ret = tsip_generateVerifyData(ssl->arrays->tsip_masterSecret,
                             side, handshake_hash, (byte*)hashes /* out */);
         } else
@@ -376,9 +374,7 @@ int DeriveTlsKeys(WOLFSSL* ssl)
 #endif
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
-    if (tsip_useable(ssl->options.cipherSuite0,
-                     ssl->options.cipherSuite,
-                     ssl->options.side))
+    if (tsip_useable(ssl))
         ret = tsip_generateSeesionKey(ssl);
     else {
 #endif
@@ -535,9 +531,7 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
     {
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
-        if (tsip_useable(ssl->options.cipherSuite0,
-                         ssl->options.cipherSuite,
-                         ssl->options.side)) {
+        if (tsip_useable(ssl)) {
             ret = tsip_generateMasterSecret(
                             &ssl->arrays->preMasterSecret[VERSION_SZ],
                             ssl->arrays->clientRandom,
@@ -1198,9 +1192,7 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     wolfSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
-    if (tsip_useable(ssl->options.cipherSuite0,
-                     ssl->options.cipherSuite,
-                     ssl->options.side)) {
+    if (tsip_useable(ssl)) {
         if (ssl->specs.hash_size == WC_SHA_DIGEST_SIZE)
             ret = tsip_Sha1Hmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ, 
                                                         in, sz, digest, verify);

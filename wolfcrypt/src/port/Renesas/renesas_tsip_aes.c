@@ -89,6 +89,9 @@ int wc_tsip_AesCbcEncrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
         } else {
             ret = R_TSIP_Aes256CbcEncryptFinal(&_handle, out, &dataLength);
         }
+    } else {
+        WOLFSSL_MSG("TSIP AES CBC encryption failed");
+        ret = -1;
     }
     
     tsip_hw_unlock();
@@ -140,6 +143,9 @@ int wc_tsip_AesCbcDecrypt(struct Aes* aes, byte* out, const byte* in, word32 sz)
             ret = R_TSIP_Aes128CbcDecryptFinal(&_handle, out, &dataLength);
         else
             ret = R_TSIP_Aes256CbcDecryptFinal(&_handle, out, &dataLength);
+    } else {
+        WOLFSSL_MSG("TSIP AES CBC decryption failed");
+        ret = -1;
     }
     
     tsip_hw_unlock();

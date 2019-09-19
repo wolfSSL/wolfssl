@@ -172,7 +172,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 #endif
 
 #ifdef WOLFSSL_RENESAS_TSIP_TLS
-    byte tsip_useable(byte cipher0, byte cipher, byte side);
+    int tsip_useable(const WOLFSSL *ssl);
     int tsip_generatePremasterSecret();
     int tsip_generateEncryptPreMasterSecret(WOLFSSL *ssl, byte *out, word32 *outSz);
 #endif
@@ -12674,10 +12674,8 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
         #endif
         #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
             !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
-            if (tsip_useable(ssl->options.cipherSuite0,
-                             ssl->options.cipherSuite,
-                             ssl->options.side)) {
-                wc_tsip_AesCbcEncrypt(ssl->encrypt.aes, out, input, sz);
+            if (tsip_useable(ssl)) {
+                ret = wc_tsip_AesCbcEncrypt(ssl->encrypt.aes, out, input, sz);
             } else
         #endif
             ret = wc_AesCbcEncrypt(ssl->encrypt.aes, out, input, sz);
@@ -12959,9 +12957,7 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
         #endif
         #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
             !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
-            if (tsip_useable(ssl->options.cipherSuite0,
-                             ssl->options.cipherSuite,
-                             ssl->options.side)) {
+            if (tsip_useable(ssl)) {
                 ret = wc_tsip_AesCbcDecrypt(ssl->decrypt.aes, plain, input, sz);
             } else
         #endif
@@ -21025,9 +21021,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     /* build PreMasterSecret with RNG data */
                     #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
                        !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
-                    if (tsip_useable(ssl->options.cipherSuite0,
-                                     ssl->options.cipherSuite,
-                                     ssl->options.side)) {
+                    if (tsip_useable(ssl)) {
                         ret = tsip_generatePremasterSecret( 
                         &ssl->arrays->preMasterSecret[VERSION_SZ], 
                         ENCRYPT_LEN - VERSION_SZ);
@@ -21372,9 +21366,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 {
                     #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
                        !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
-                    if (tsip_useable(ssl->options.cipherSuite0,
-                                     ssl->options.cipherSuite,
-                                     ssl->options.side) && 
+                    if (tsip_useable(ssl) && 
                                      wc_RsaEncryptSize(ssl->peerRsaKey) == 256) {
                         ret = tsip_generateEncryptPreMasterSecret(ssl,
                                                             args->encSecret,

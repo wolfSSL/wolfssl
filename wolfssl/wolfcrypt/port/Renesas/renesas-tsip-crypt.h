@@ -65,7 +65,7 @@ int  tsip_Open( );
 void tsip_Close( );
 int tsip_hw_lock();
 void tsip_hw_unlock( void );
-int tsip_usable(byte cipher0, byte cipher, byte side);
+int tsip_usable(const struct WOLFSSL *ssl);
 void tsip_inform_sflash_signedcacert(const byte *ps_flash, 
     const byte *psigned_ca_cert, word32 len);
 void tsip_inform_cert_sign(const byte *sign);

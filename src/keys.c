@@ -46,7 +46,7 @@
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
- int tsip_useable(byte cipher0, byte ciphper1, byte side);
+ int tsip_useable(const WOLFSSL *ssl);
 #endif
 int SetCipherSpecs(WOLFSSL* ssl)
 {
@@ -3179,8 +3179,7 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
     /* check if keys for TSIP has been created */
-    if (tsip_useable(ssl->options.cipherSuite0, ssl->options.cipherSuite,
-                    ssl->options.side) == 1)
+    if (tsip_useable(ssl) == 1)
         ret = 0;
     else
 #endif
