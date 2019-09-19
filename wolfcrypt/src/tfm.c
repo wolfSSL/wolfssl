@@ -5418,7 +5418,7 @@ static wcchar fp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 static int fp_read_radix_16(fp_int *a, const char *str)
 {
   int     i, j, k, neg;
-  char    ch;
+  int     ch;
 
   /* if the leading digit is a
    * minus set the sign to negative.
@@ -5433,15 +5433,10 @@ static int fp_read_radix_16(fp_int *a, const char *str)
   j = 0;
   k = 0;
   for (i = (int)(XSTRLEN(str) - 1); i >= 0; i--) {
-      ch = str[i];
-      if (ch >= '0' && ch <= '9')
-          ch -= (char)'0';
-      else if (ch >= 'A' && ch <= 'F')
-          ch -= (char)'A' - 10;
-      else if (ch >= 'a' && ch <= 'f')
-          ch -= (char)'a' - 10;
-      else
-          return FP_VAL;
+      ch = (int)HexCharToByte(str[i]);
+      if (ch < 0) {
+        return FP_VAL;
+      }
 
       k += j == DIGIT_BIT;
       j &= DIGIT_BIT - 1;
