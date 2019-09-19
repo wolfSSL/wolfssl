@@ -2060,7 +2060,6 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
             keyP = &key->p;
     }
 
-#ifndef WOLFSSL_SP_MATH
     if (ret == 0 && !trusted) {
         int isPrime = 0;
         if (rng != NULL)
@@ -2071,10 +2070,6 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
         if (ret == 0 && isPrime == 0)
             ret = DH_CHECK_PUB_E;
     }
-#else
-    (void)trusted;
-    (void)rng;
-#endif
 
     if (ret == 0 && mp_init(&key->g) != MP_OKAY)
         ret = MP_INIT_E;

@@ -4037,6 +4037,9 @@ if test "$ENABLED_SP_MATH" = "yes"; then
     if test "$ENABLED_SP_DH" = "no" && test "$ENABLED_DH" = "yes"; then
         AC_MSG_ERROR([Cannot use P256 single precision only math and DH])
     fi
+
+    ENABLED_FASTMATH="no"
+    ENABLED_SLOWMATH="no"
 fi
 if test "$ENABLED_SP_MATH" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_MATH"
@@ -4538,9 +4541,9 @@ then
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_WOLFSCEP"
 fi
-if test "$ENABLED_SP_MATH" = "yes" && test "$ENABLED_KEYGEN" = "yes"; then
-    AC_MSG_ERROR([Cannot use single precision math and key generation])
-fi
+#if test "$ENABLED_SP_MATH" = "yes" && test "$ENABLED_KEYGEN" = "yes"; then
+#    AC_MSG_ERROR([Cannot use single precision math and key generation])
+#fi
 
 if test "x$ENABLED_PKCS7" = "xyes"
 then

@@ -606,7 +606,7 @@ int wc_CheckRsaKey(RsaKey* key)
             ret = MP_READ_E;
     }
 
-#ifdef WOLFSSL_SP_RSA
+#ifdef WOLFSSL_HAVE_SP_RSA
 #ifndef WOLFSSL_SP_NO_2048
     if (mp_count_bits(&key->n) == 2048) {
         ret = sp_ModExp_2048(k, &key->e, &key->n, tmp);
