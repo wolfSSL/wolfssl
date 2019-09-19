@@ -1,4 +1,4 @@
-/* wolfssl_dummy.c
+/* wolfssl_demo.h
  *
  * Copyright (C) 2006-2019 wolfSSL Inc.
  *
@@ -19,23 +19,30 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-typedef unsigned long time_t;
+#ifndef WOLFSSL_DEMO_H_
+#define WOLFSSL_DEMO_H_
 
-#define YEAR 2019
-#define MON  5
+#define FREQ 10000 /* Hz */
 
-static int tick = 0;
+/* Enable wolfcrypt test */
+/* can be enabled with benchmark test */
+/* #define CRYPT_TEST    */
 
-time_t time(time_t *t)
-{
-    return ((YEAR-1970)*365+30*MON)*24*60*60 + tick++;
-}
+/* Enable benchmark               */
+/* can be enabled with cyrpt test */
+/* #define BENCHMARK     */
 
-#include <ctype.h>
-int strncasecmp(const char *s1, const char * s2, unsigned int sz)
-{
-    for( ; sz>0; sz--)
-        if(toupper(s1++) != toupper(s2++))
-        return 1;
-    return 0;
-}
+/* Enable TLS client     */
+/* cannot enable with other definition */
+/* #define TLS_CLIENT */
+
+/* Enable TLS server     */
+/* cannot enable with other definition */
+/* #define TLS_SERVER */
+
+void wolfSSL_TLS_client_init();
+void wolfSSL_TLS_client();
+void wolfSSL_TLS_server_init();
+void wolfSSL_TLS_server();
+
+#endif /* WOLFSSL_DEMO_H_ */

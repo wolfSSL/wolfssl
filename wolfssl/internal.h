@@ -2086,6 +2086,10 @@ typedef struct Keys {
     byte   updateResponseReq:1;   /* KeyUpdate response from peer required. */
     byte   keyUpdateRespond:1;    /* KeyUpdate is to be responded to. */
 #endif
+#ifdef WOLFSSL_RENESAS_TSIP_TLS
+    byte tsip_client_write_MAC_secret[TSIP_TLS_HMAC_KEY_INDEX_WORDSIZE];
+    byte tsip_server_write_MAC_secret[TSIP_TLS_HMAC_KEY_INDEX_WORDSIZE];
+#endif
 } Keys;
 
 
@@ -3435,6 +3439,10 @@ typedef struct Arrays {
     byte            secret[SECRET_LEN];
 #endif
     byte            masterSecret[SECRET_LEN];
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+   !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
+    byte            tsip_masterSecret[TSIP_TLS_MASTERSECRET_SIZE];
+#endif
 #ifdef WOLFSSL_DTLS
     byte            cookie[MAX_COOKIE_LEN];
     byte            cookieSz;
@@ -3841,6 +3849,9 @@ struct WOLFSSL {
 #endif /* OPENSSL_EXTRA */
 #ifndef NO_RSA
     RsaKey*         peerRsaKey;
+#ifdef WOLFSSL_RENESAS_TSIP_TLS
+    byte            *peerTsipEncRsaKeyIndex;
+#endif
     byte            peerRsaKeyPresent;
 #endif
 #ifdef HAVE_QSH

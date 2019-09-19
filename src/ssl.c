@@ -107,6 +107,14 @@
     #include <wolfssl/wolfcrypt/dh.h>
 #endif
 
+#if defined(WOLFSSL_RENESAS_TSIP_TLS)
+    /* for root ca verification */
+int tsip_tls_RootCertVerify(const byte *cert, word32 cert_len,
+                            word32 key_n_start, word32 key_n_len,
+                            word32 key_e_start, word32 key_e_len,
+                            word32 cm_row);
+byte tsip_rootCAverified( );
+#endif
 
 #ifdef WOLFSSL_SESSION_EXPORT
 #ifdef WOLFSSL_DTLS
@@ -4540,7 +4548,26 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
             FreeSigner(signer, cm->heap);
         }
     }
-
+#if defined(WOLFSSL_RENESAS_TSIP_TLS)
+    /* Verify CA by TSIP so that generated tsip key is going to be able to */
+    /* be used for peer's cert verification                                */
+    /* TSIP is only able to handle USER CA, and only one CA.               */
+    /* Therefore, it doesn't need to call TSIP again if there is already   */
+    /* verified CA.                                                        */
+    if ( ret == 0 && signer != NULL ) {
+        signer->cm_idx = row;
+        if (type == WOLFSSL_USER_CA && tsip_rootCAverified() == 0 ) {
+            if (ret = tsip_tls_RootCertVerify(cert->source, cert->maxIdx, 
+                cert->sigCtx.pubkey_n_start, cert->sigCtx.pubkey_n_len - 1,
+                cert->sigCtx.pubkey_e_start, cert->sigCtx.pubkey_e_len - 1,
+                row/* cm index */)
+                != 0)
+                WOLFSSL_MSG("tsip_tls_RootCertVerify() failed");
+            else
+                WOLFSSL_MSG("tsip_tls_RootCertVerify() succeed");
+        }
+    }
+#endif
     WOLFSSL_MSG("\tFreeing Parsed CA");
     FreeDecodedCert(cert);
 #ifdef WOLFSSL_SMALL_STACK

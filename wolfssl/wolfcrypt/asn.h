@@ -670,6 +670,16 @@ struct SignatureCtx {
     void* pkCtxRsa;
 #endif
 #endif /* HAVE_PK_CALLBACKS */
+#ifndef NO_RSA
+#ifdef WOLFSSL_RENESAS_TSIP_TLS
+    byte verifyByTSIP;
+    word32 certBegin;
+    word32 pubkey_n_start;
+    word32 pubkey_n_len;
+    word32 pubkey_e_start;
+    word32 pubkey_e_len;
+#endif
+#endif
 };
 
 enum CertSignState {
@@ -831,6 +841,7 @@ struct DecodedCert {
 #ifndef NO_CERTS
     SignatureCtx sigCtx;
 #endif
+    byte*  tsip_encRsaKeyIdx;
 
     /* Option Bits */
     byte subjectCNStored : 1;      /* have we saved a copy we own */
@@ -906,6 +917,9 @@ struct Signer {
     #endif
 #ifdef WOLFSSL_SIGNER_DER_CERT
     DerBuffer* derCert;
+#endif
+#ifdef WOLFSSL_RENESAS_TSIP_TLS
+    word32 cm_idx;
 #endif
     Signer* next;
 };

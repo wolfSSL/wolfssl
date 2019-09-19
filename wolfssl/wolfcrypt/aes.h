@@ -85,6 +85,11 @@
     #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
 #endif
 
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+    defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+    #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -200,6 +205,10 @@ struct Aes {
 #endif
 #if defined(WOLFSSL_CRYPTOCELL)
     aes_context_t ctx;
+#endif
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+    defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+    TSIP_AES_CTX ctx;
 #endif
     void*  heap; /* memory hint to use */
 };

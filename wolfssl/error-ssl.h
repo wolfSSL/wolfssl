@@ -163,6 +163,7 @@ enum wolfSSL_ErrorCodes {
     DH_PARAMS_NOT_FFDHE_E        = -432,   /* DH params from server not FFDHE */
     TCA_INVALID_ID_TYPE          = -433,   /* TLSX TCA ID type invalid */
     TCA_ABSENT_ERROR             = -434,   /* TLSX TCA ID no response */
+    TSIP_MAC_DIGSZ_E             = -435,   /* Invalid MAC size for TSIP */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */
