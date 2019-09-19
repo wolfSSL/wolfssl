@@ -12980,21 +12980,33 @@ static int dh_test_ffdhe(WC_RNG *rng, const DhParams* params)
     }
 
     ret = wc_DhGenerateKeyPair(&key, rng, priv, &privSz, pub, &pubSz);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         ERROR_OUT(-7184, done);
     }
 
     ret = wc_DhGenerateKeyPair(&key2, rng, priv2, &privSz2, pub2, &pubSz2);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key2.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         ERROR_OUT(-7185, done);
     }
 
     ret = wc_DhAgree(&key, agree, &agreeSz, priv, privSz, pub2, pubSz2);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         ERROR_OUT(-7186, done);
     }
 
     ret = wc_DhAgree(&key2, agree2, &agreeSz2, priv2, privSz2, pub, pubSz);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key2.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         ERROR_OUT(-7187, done);
     }

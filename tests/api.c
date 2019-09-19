@@ -22279,7 +22279,7 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
     AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, &bufPtr),
                                            sizeof_client_key_der_2048);
     AssertNotNull(bufPtr);
-    free(bufPtr);
+    XFREE(bufPtr, NULL, DYNAMIC_TYPE_OPENSSL);
 #endif /* USE_CERT_BUFFERS_2048 WOLFSSL_KEY_GEN */
     RSA_free(rsa);
 #endif /* NO_RSA */
