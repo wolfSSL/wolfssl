@@ -9585,7 +9585,8 @@ static int ProcessPeerCertParse(WOLFSSL* ssl, ProcPeerCertArgs* args,
 
     /* Parse Certificate */
     ret = ParseCertRelative(args->dCert, certType, verify, ssl->ctx->cm);
-    if (ret == 0) {
+    /* perform below checks for date failure cases */
+    if (ret == 0 || ret == ASN_BEFORE_DATE_E || ret == ASN_AFTER_DATE_E) {
         /* get subject and determine if already loaded */
     #ifndef NO_SKID
         if (args->dCert->extAuthKeyIdSet)
@@ -10001,39 +10002,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             "not adding as CA");
                     }
                     else if (ret == 0) {
-                        buffer* cert = &args->certs[args->certIdx];
-
-                        /* Is valid CA */
-                    #if defined(SESSION_CERTS) && defined(WOLFSSL_ALT_CERT_CHAINS)
-                        /* if using alternate chain, store the cert used */
-                        if (ssl->options.usingAltCertChain) {
-                            AddSessionCertToChain(&ssl->session.altChain,
-                                cert->buffer, cert->length);
-                        }
-                    #endif /* SESSION_CERTS && WOLFSSL_ALT_CERT_CHAINS */
                     #ifdef OPENSSL_EXTRA
                         if (args->certIdx > args->untrustedDepth) {
                             args->untrustedDepth = (char)args->certIdx + 1;
                         }
                     #endif
 
-                        if (!alreadySigner) {
-                            DerBuffer* add = NULL;
-                            ret = AllocDer(&add, cert->length, CA_TYPE, ssl->heap);
-                            if (ret < 0)
-                                goto exit_ppc;
-
-                            XMEMCPY(add->buffer, cert->buffer, cert->length);
-
-                            /* CA already verified above in ParseCertRelative */
-                            WOLFSSL_MSG("Adding CA from chain");
-                            ret = AddCA(ssl->ctx->cm, &add, WOLFSSL_CHAIN_CA,
-                                NO_VERIFY);
-                            if (ret == WOLFSSL_SUCCESS) {
-                                ret = 0;
-                            }
-                        }
-                        else {
+                        if (alreadySigner) {
                             WOLFSSL_MSG("Verified CA from chain and already had it");
                         }
                     }
@@ -10114,6 +10089,36 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                     /* Do verify callback */
                     ret = DoVerifyCallback(ssl, ret, args);
+
+                    /* If valid CA then add to Certificate Manager */
+                    if (ret == 0 && args->dCert->isCA && !ssl->options.verifyNone) {
+                        buffer* cert = &args->certs[args->certIdx];
+
+                        /* Is valid CA */
+                    #if defined(SESSION_CERTS) && defined(WOLFSSL_ALT_CERT_CHAINS)
+                        /* if using alternate chain, store the cert used */
+                        if (ssl->options.usingAltCertChain) {
+                            AddSessionCertToChain(&ssl->session.altChain,
+                                cert->buffer, cert->length);
+                        }
+                    #endif /* SESSION_CERTS && WOLFSSL_ALT_CERT_CHAINS */
+                        if (!alreadySigner) {
+                            DerBuffer* add = NULL;
+                            ret = AllocDer(&add, cert->length, CA_TYPE, ssl->heap);
+                            if (ret < 0)
+                                goto exit_ppc;
+
+                            XMEMCPY(add->buffer, cert->buffer, cert->length);
+
+                            /* CA already verified above in ParseCertRelative */
+                            WOLFSSL_MSG("Adding CA from chain");
+                            ret = AddCA(ssl->ctx->cm, &add, WOLFSSL_CHAIN_CA,
+                                NO_VERIFY);
+                            if (ret == WOLFSSL_SUCCESS) {
+                                ret = 0;
+                            }
+                        }
+                    }
 
                     /* Handle error codes */
                     if (ret != 0 && args->lastErr == 0) {

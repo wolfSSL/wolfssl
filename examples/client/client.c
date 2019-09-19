@@ -2350,7 +2350,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     if (!usePsk && !useAnon && !useVerifyCb && !myVerifyFail) {
     #ifndef TEST_LOAD_BUFFER
-        if (wolfSSL_CTX_load_verify_locations(ctx, verifyCert, 0)
+        unsigned int verify_flags = 0;
+    #ifdef TEST_BEFORE_DATE
+        verify_flags |= WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY;
+    #endif
+        if (wolfSSL_CTX_load_verify_locations_ex(ctx, verifyCert, 0, verify_flags)
                                                            != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("can't load ca file, Please run from wolfSSL home dir");
@@ -2362,7 +2366,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #ifdef HAVE_ECC
         /* load ecc verify too, echoserver uses it by default w/ ecc */
         #ifndef TEST_LOAD_BUFFER
-        if (wolfSSL_CTX_load_verify_locations(ctx, eccCertFile, 0)
+        if (wolfSSL_CTX_load_verify_locations_ex(ctx, eccCertFile, 0, verify_flags)
                                                            != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("can't load ecc ca file, Please run from wolfSSL home dir");

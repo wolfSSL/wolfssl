@@ -924,6 +924,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     unsigned char alpn_opt = 0;
     char*  cipherList = NULL;
     int    useDefCipherList = 0;
+    int    overrideDateErrors = 0;
     const char* verifyCert = cliCertFile;
     const char* ourCert    = svrCertFile;
     const char* ourKey     = svrKeyFile;
@@ -1036,6 +1037,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     (void)postHandAuth;
     (void)mcastID;
     (void)loadCertKeyIntoSSLObj;
+    (void)overrideDateErrors;
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
@@ -1185,6 +1187,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 #ifdef HAVE_ENCRYPT_THEN_MAC
                     disallowETM = 1;
                 #endif
+                }
+                else if (XSTRNCMP(myoptarg, "overrideDateErr", 15) == 0) {
+                    overrideDateErrors = 1;
                 }
                 else {
                     Usage();
@@ -1717,10 +1722,17 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     /* if not using PSK, verify peer with certs
        if using PSK Plus then verify peer certs except PSK suites */
     if (doCliCertCheck && (usePsk == 0 || usePskPlus) && useAnon == 0) {
+        unsigned int verify_flags = 0;
         SSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
                             (usePskPlus ? WOLFSSL_VERIFY_FAIL_EXCEPT_PSK :
-                                WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT), 0);
-        if (SSL_CTX_load_verify_locations(ctx, verifyCert, 0) != WOLFSSL_SUCCESS)
+                                WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT),
+                            overrideDateErrors == 1 ? myDateCb : NULL);
+
+    #ifdef TEST_BEFORE_DATE
+        verify_flags |= WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY;
+    #endif
+
+        if (wolfSSL_CTX_load_verify_locations_ex(ctx, verifyCert, 0, verify_flags) != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "can't load ca file, Please run from wolfSSL home dir");
         #ifdef WOLFSSL_TRUST_PEER_CERT
         if (trustCert) {
@@ -2211,10 +2223,17 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
         if (postHandAuth) {
+            unsigned int verify_flags = 0;
+
             SSL_set_verify(ssl, WOLFSSL_VERIFY_PEER |
                                 ((usePskPlus) ? WOLFSSL_VERIFY_FAIL_EXCEPT_PSK :
                                 WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT), 0);
-            if (SSL_CTX_load_verify_locations(ctx, verifyCert, 0)
+
+        #ifdef TEST_BEFORE_DATE
+            verify_flags |= WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY;
+        #endif
+
+            if (wolfSSL_CTX_load_verify_locations_ex(ctx, verifyCert, 0, verify_flags)
                                                            != WOLFSSL_SUCCESS) {
                 err_sys_ex(runWithErrors, "can't load ca file, Please run from "
                                           "wolfSSL home dir");
