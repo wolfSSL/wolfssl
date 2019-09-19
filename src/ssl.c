@@ -2570,6 +2570,15 @@ int wolfSSL_SecureResume(WOLFSSL* ssl)
 
 #endif /* NO_WOLFSSL_CLIENT */
 
+long wolfSSL_SSL_get_secure_renegotiation_support(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_SSL_get_secure_renegotiation_support");
+
+    if (!ssl)
+        return WOLFSSL_FAILURE;
+    return ssl->secure_renegotiation->enabled;
+}
+
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
 /* Session Ticket */

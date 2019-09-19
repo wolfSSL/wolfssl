@@ -869,6 +869,7 @@ enum {
 #define SSL_total_renegotiations        wolfSSL_total_renegotiations
 #define SSL_num_renegotiations          wolfSSL_num_renegotiations
 #define SSL_renegotiate                 wolfSSL_Rehandshake
+#define SSL_get_secure_renegotiation_support wolfSSL_SSL_get_secure_renegotiation_support
 #define SSL_set_tlsext_debug_arg        wolfSSL_set_tlsext_debug_arg
 #define SSL_set_tlsext_status_type      wolfSSL_set_tlsext_status_type
 #define SSL_set_tlsext_status_exts      wolfSSL_set_tlsext_status_exts
