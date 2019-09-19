@@ -34722,8 +34722,13 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         if (no_name == 1) {
             int    length;
             word32 idx = 0;
+            byte   tag;
 
-            if (a->obj[idx++] != ASN_OBJECT_ID) {
+            if (GetASNTag(a->obj, &idx, &tag, a->objSz) != 0) {
+                return WOLFSSL_FAILURE;
+            }
+
+            if (tag != ASN_OBJECT_ID) {
                 WOLFSSL_MSG("Bad ASN1 Object");
                 return WOLFSSL_FAILURE;
             }

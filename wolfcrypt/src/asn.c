@@ -199,18 +199,44 @@ WOLFSSL_LOCAL int GetLength_ex(const byte* input, word32* inOutIdx, int* len,
 }
 
 
+/* input : buffer to read from
+ * inOutIdx : index to start reading from, gets advanced by 1 if successful
+ * maxIdx : maximum index value
+ * tag : ASN tag value found
+ *
+ * returns 0 on success
+ */
+int GetASNTag(const byte* input, word32* inOutIdx, byte* tag, word32 maxIdx)
+{
+    word32 idx;
+
+    if (tag == NULL || inOutIdx == NULL || input == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    idx = *inOutIdx;
+    if (idx + ASN_TAG_SZ > maxIdx) {
+        WOLFSSL_MSG("Buffer too small for ASN tag");
+        return BUFFER_E;
+    }
+
+    *tag = input[idx];
+    *inOutIdx = idx + ASN_TAG_SZ;
+    return 0;
+}
+
+
 static int GetASNHeader_ex(const byte* input, byte tag, word32* inOutIdx, int* len,
                         word32 maxIdx, int check)
 {
     word32 idx = *inOutIdx;
-    byte   b;
+    byte   tagFound;
     int    length;
 
-    if ((idx + 1) > maxIdx)
-        return BUFFER_E;
+    if (GetASNTag(input, &idx, &tagFound, maxIdx) != 0)
+        return ASN_PARSE_E;
 
-    b = input[idx++];
-    if (b != tag)
+    if (tagFound != tag)
         return ASN_PARSE_E;
 
     if (GetLength_ex(input, &idx, &length, maxIdx, check) < 0)
@@ -450,7 +476,9 @@ static int GetInteger7Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
     if ((idx + 3) > maxIdx)
         return BUFFER_E;
 
-    if (input[idx++] != ASN_INTEGER)
+    if (GetASNTag(input, &idx, &b, maxIdx) != 0)
+        return ASN_PARSE_E;
+    if (b != ASN_INTEGER)
         return ASN_PARSE_E;
     if (input[idx++] != 1)
         return ASN_PARSE_E;
@@ -674,11 +702,15 @@ WOLFSSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
                                int* version, word32 maxIdx)
 {
     word32 idx = *inOutIdx;
+    byte   tag;
 
     if ((idx + MIN_VERSION_SZ) > maxIdx)
         return ASN_PARSE_E;
 
-    if (input[idx++] != ASN_INTEGER)
+    if (GetASNTag(input, &idx, &tag, maxIdx) != 0)
+        return ASN_PARSE_E;
+
+    if (tag != ASN_INTEGER)
         return ASN_PARSE_E;
 
     if (input[idx++] != 0x01)
@@ -697,6 +729,7 @@ WOLFSSL_LOCAL int GetShortInt(const byte* input, word32* inOutIdx, int* number, 
 {
     word32 idx = *inOutIdx;
     word32 len;
+    byte   tag;
 
     *number = 0;
 
@@ -704,7 +737,10 @@ WOLFSSL_LOCAL int GetShortInt(const byte* input, word32* inOutIdx, int* number, 
     if ((idx + 2) > maxIdx)
         return BUFFER_E;
 
-    if (input[idx++] != ASN_INTEGER)
+    if (GetASNTag(input, &idx, &tag, maxIdx) != 0)
+        return ASN_PARSE_E;
+
+    if (tag != ASN_INTEGER)
         return ASN_PARSE_E;
 
     len = input[idx++];
@@ -774,13 +810,14 @@ static int GetExplicitVersion(const byte* input, word32* inOutIdx, int* version,
                               word32 maxIdx)
 {
     word32 idx = *inOutIdx;
+    byte tag;
 
     WOLFSSL_ENTER("GetExplicitVersion");
 
-    if ((idx + 1) > maxIdx)
-        return BUFFER_E;
+    if (GetASNTag(input, &idx, &tag, maxIdx) != 0)
+        return ASN_PARSE_E;
 
-    if (input[idx++] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED)) {
+    if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED)) {
         *inOutIdx = ++idx;  /* skip header */
         return GetMyVersion(input, inOutIdx, version, maxIdx);
     }
@@ -848,11 +885,13 @@ static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
     int    length;
     byte   b;
 
-    if ((idx + 1) > maxIdx)
-        return BUFFER_E;
-
-    if (input[idx++] != ASN_BIT_STRING)
+    if (GetASNTag(input, &idx, &b, maxIdx) != 0) {
         return ASN_BITSTR_E;
+    }
+
+    if (b != ASN_BIT_STRING) {
+        return ASN_BITSTR_E;
+    }
 
     if (GetLength(input, &idx, &length, maxIdx) < 0)
         return ASN_PARSE_E;
@@ -949,6 +988,9 @@ int wc_BerToDer(const byte* ber, word32 berSz, byte* der, word32* derSz)
     outSz = *derSz;
 
     for (i = 0, j = 0; i < berSz; ) {
+        word32 localIdx;
+        byte tag;
+
         /* Check that there is data for an ASN item to parse. */
         if (i + 2 > berSz)
             return ASN_PARSE_E;
@@ -971,9 +1013,14 @@ int wc_BerToDer(const byte* ber, word32 berSz, byte* der, word32* derSz)
         /* Indefinite length is encoded as: 0x80 */
         type = ber[i];
         indef = ber[i+1] == ASN_INDEF_LENGTH;
+
+        localIdx = i;
+        if (GetASNTag(ber, &localIdx, &tag, berSz) != 0)
+            return ASN_PARSE_E;
+
         if (indef && (type & 0xC0) == 0 &&
-                                   ber[i] != (ASN_SEQUENCE | ASN_CONSTRUCTED) &&
-                                   ber[i] != (ASN_SET      | ASN_CONSTRUCTED)) {
+                tag != (ASN_SEQUENCE | ASN_CONSTRUCTED) &&
+                tag != (ASN_SET      | ASN_CONSTRUCTED)) {
             /* Indefinite length OCTET STRING or other simple type.
              * Put all the data into one entry.
              */
@@ -2097,14 +2144,16 @@ int GetASNObjectId(const byte* input, word32* inOutIdx, int* len,
                           word32 maxIdx)
 {
     word32 idx = *inOutIdx;
-    byte   b;
     int    length;
+    byte   tag;
 
     if ((idx + 1) > maxIdx)
         return BUFFER_E;
 
-    b = input[idx++];
-    if (b != ASN_OBJECT_ID)
+    if (GetASNTag(input, &idx, &tag, maxIdx) != 0)
+        return ASN_PARSE_E;
+
+    if (tag != ASN_OBJECT_ID)
         return ASN_OBJECT_ID_E;
 
     if (GetLength(input, &idx, &length, maxIdx) < 0)
@@ -2247,10 +2296,17 @@ WOLFSSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
         return ASN_OBJECT_ID_E;
 
     /* could have NULL tag and 0 terminator, but may not */
-    if (idx < maxIdx && input[idx] == ASN_TAG_NULL) {
-        ret = GetASNNull(input, &idx, maxIdx);
-        if (ret != 0)
-            return ret;
+    if (idx < maxIdx) {
+        word32 localIdx = idx; /*use localIdx to not advance when checking tag*/
+        byte   tag;
+
+        if (GetASNTag(input, &localIdx, &tag, maxIdx) == 0) {
+            if (tag == ASN_TAG_NULL) {
+                ret = GetASNNull(input, &idx, maxIdx);
+                if (ret != 0)
+                    return ret;
+            }
+        }
     }
 
     *inOutIdx = idx;
@@ -2322,6 +2378,7 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
     word32 idx;
     int    version, length;
     int    ret;
+    byte   tag;
 
     if (input == NULL || inOutIdx == NULL)
         return BAD_FUNC_ARG;
@@ -2337,7 +2394,11 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
     if (GetAlgoId(input, &idx, algId, oidKeyType, sz) < 0)
         return ASN_PARSE_E;
 
-    if (input[idx] == ASN_OBJECT_ID) {
+    if (GetASNTag(input, &idx, &tag, sz) < 0)
+        return ASN_PARSE_E;
+    idx = idx - 1; /* reset idx after finding tag */
+
+    if (tag == ASN_OBJECT_ID) {
         if (SkipObjectId(input, &idx, sz) < 0)
             return ASN_PARSE_E;
     }
@@ -3451,8 +3512,16 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,
     }
 
     /* OPTIONAL key length */
-    if (seqEnd > inOutIdx && input[inOutIdx] == ASN_INTEGER) {
-        if (GetShortInt(input, &inOutIdx, &keySz, sz) < 0) {
+    if (seqEnd > inOutIdx) {
+        word32 localIdx = inOutIdx;
+        byte tag;
+
+        if (GetASNTag(input, &localIdx, &tag, sz) < 0) {
+            ERROR_OUT(ASN_PARSE_E, exit_tte);
+        }
+
+        if (tag == ASN_INTEGER &&
+                GetShortInt(input, &inOutIdx, &keySz, sz) < 0) {
             ERROR_OUT(ASN_PARSE_E, exit_tte);
         }
     }
@@ -3749,6 +3818,7 @@ int DecryptContent(byte* input, word32 sz,const char* password, int passwordSz)
     byte   salt[MAX_SALT_SIZE];
     byte   cbcIv[MAX_IV_SIZE];
 #endif
+    byte   tag;
 
     if (GetAlgoId(input, &inOutIdx, &oid, oidIgnoreType, sz) < 0) {
         ERROR_OUT(ASN_PARSE_E, exit_dc);
@@ -3805,8 +3875,15 @@ int DecryptContent(byte* input, word32 sz,const char* password, int passwordSz)
     }
 
     /* OPTIONAL key length */
-    if (seqEnd > inOutIdx && input[inOutIdx] == ASN_INTEGER) {
-        if (GetShortInt(input, &inOutIdx, &keySz, sz) < 0) {
+    if (seqEnd > inOutIdx) {
+        word32 localIdx = inOutIdx;
+
+        if (GetASNTag(input, &localIdx, &tag, sz) < 0) {
+            ERROR_OUT(ASN_PARSE_E, exit_dc);
+        }
+
+        if (tag == ASN_INTEGER &&
+                GetShortInt(input, &inOutIdx, &keySz, sz) < 0) {
             ERROR_OUT(ASN_PARSE_E, exit_dc);
         }
     }
@@ -3847,7 +3924,11 @@ int DecryptContent(byte* input, word32 sz,const char* password, int passwordSz)
         inOutIdx += length;
     }
 
-    if (input[inOutIdx++] != (ASN_CONTEXT_SPECIFIC | 0)) {
+    if (GetASNTag(input, &inOutIdx, &tag, sz) < 0) {
+        ERROR_OUT(ASN_PARSE_E, exit_dc);
+    }
+
+    if (tag != (ASN_CONTEXT_SPECIFIC | 0)) {
         ERROR_OUT(ASN_PARSE_E, exit_dc);
     }
 
@@ -3884,7 +3965,8 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
     int ret = 0;
     int length = 0;
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
-    byte b;
+    word32 localIdx;
+    byte   tag;
 #endif
 
     if (input == NULL || inOutIdx == NULL)
@@ -3894,11 +3976,11 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
         return ASN_PARSE_E;
 
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
-    if ((*inOutIdx + 1) > inSz)
+    localIdx = *inOutIdx;
+    if (GetASNTag(input, &localIdx, &tag, inSz) < 0)
         return BUFFER_E;
 
-    b = input[*inOutIdx];
-    if (b != ASN_INTEGER) {
+    if (tag != ASN_INTEGER) {
         /* not from decoded cert, will have algo id, skip past */
         if (GetSequence(input, inOutIdx, &length, inSz) < 0)
             return ASN_PARSE_E;
@@ -3910,7 +3992,12 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx, word32 inSz,
         if (*inOutIdx  >= inSz) {
             return BUFFER_E;
         }
-        if (input[*inOutIdx] == ASN_TAG_NULL) {
+
+        localIdx = *inOutIdx;
+        if (GetASNTag(input, &localIdx, &tag, inSz) < 0)
+            return ASN_PARSE_E;
+
+        if (tag == ASN_TAG_NULL) {
             ret = GetASNNull(input, inOutIdx, inSz);
             if (ret != 0)
                 return ret;
@@ -4498,10 +4585,15 @@ static int GetKey(DecodedCert* cert)
             int ret;
             byte seq[5];
             int pubLen = length + 1 + SetLength(length, seq);
+            word32 localIdx;
             byte* publicKey;
+            byte  tag;
 
-            if (cert->source[cert->srcIdx] !=
-                                             (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
+            localIdx = cert->srcIdx;
+            if (GetASNTag(cert->source, &localIdx, &tag, cert->maxIdx) < 0)
+                return ASN_PARSE_E;
+
+            if (tag != (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
                 if (GetObjectId(cert->source, &cert->srcIdx,
                             &cert->pkCurveOID, oidCurveType, cert->maxIdx) < 0)
                     return ASN_PARSE_E;
@@ -4647,7 +4739,8 @@ static int GetName(DecodedCert* cert, int nameType)
     int    ret;
     char*  full;
     byte*  hash;
-    word32 idx;
+    word32 idx, localIdx = 0;
+    byte   tag;
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         DecodedName* dName =
                   (nameType == ISSUER) ? &cert->issuerName : &cert->subjectName;
@@ -4672,7 +4765,12 @@ static int GetName(DecodedCert* cert, int nameType)
         return BUFFER_E;
     }
 
-    if (cert->source[cert->srcIdx] == ASN_OBJECT_ID) {
+    localIdx = cert->srcIdx;
+    if (GetASNTag(cert->source, &localIdx, &tag, cert->maxIdx) < 0) {
+        return ASN_PARSE_E;
+    }
+
+    if (tag == ASN_OBJECT_ID) {
         WOLFSSL_MSG("Trying optional prefix...");
 
         if (SkipObjectId(cert->source, &cert->srcIdx, cert->maxIdx) < 0)
@@ -6843,6 +6941,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             word32 lenStartIdx = idx;
             word32 oid = 0;
             int    ret;
+            byte   tag;
 
             if (GetLength(input, &idx, &strLen, sz) < 0) {
                 WOLFSSL_MSG("\tfail: other name length");
@@ -6861,7 +6960,11 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
                 return ASN_PARSE_E;
             }
 
-            if (input[idx++] != (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED)) {
+            if (GetASNTag(input, &idx, &tag, sz) < 0) {
+                return ASN_PARSE_E;
+            }
+
+            if (tag != (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED)) {
                 WOLFSSL_MSG("\twrong type");
                 return ASN_PARSE_E;
             }
@@ -6955,8 +7058,9 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
     cert->isCA = (byte)ret;
 
     /* If there isn't any more data, return. */
-    if (idx >= (word32)sz)
+    if (idx >= (word32)sz) {
         return 0;
+    }
 
     ret = GetInteger7Bit(input, &idx, sz);
     if (ret < 0)
@@ -6976,8 +7080,9 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
 
 static int DecodeCrlDist(const byte* input, int sz, DecodedCert* cert)
 {
-    word32 idx = 0;
+    word32 idx = 0, localIdx;
     int length = 0;
+    byte tag   = 0;
 
     WOLFSSL_ENTER("DecodeCrlDist");
 
@@ -6992,20 +7097,26 @@ static int DecodeCrlDist(const byte* input, int sz, DecodedCert* cert)
     /* The Distribution Point has three explicit optional members
      *  First check for a DistributionPointName
      */
-    if (input[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+    localIdx = idx;
+    if (GetASNTag(input, &localIdx, &tag, sz) == 0 &&
+            tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
     {
         idx++;
         if (GetLength(input, &idx, &length, sz) < 0)
             return ASN_PARSE_E;
 
-        if (input[idx] ==
-                    (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | CRLDP_FULL_NAME))
+        localIdx = idx;
+        if (GetASNTag(input, &localIdx, &tag, sz) == 0 &&
+                tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED |
+                    CRLDP_FULL_NAME))
         {
             idx++;
             if (GetLength(input, &idx, &length, sz) < 0)
                 return ASN_PARSE_E;
 
-            if (input[idx] == (ASN_CONTEXT_SPECIFIC | GENERALNAME_URI))
+            localIdx = idx;
+            if (GetASNTag(input, &localIdx, &tag, sz) == 0 &&
+                    tag == (ASN_CONTEXT_SPECIFIC | GENERALNAME_URI))
             {
                 idx++;
                 if (GetLength(input, &idx, &length, sz) < 0)
@@ -7026,8 +7137,10 @@ static int DecodeCrlDist(const byte* input, int sz, DecodedCert* cert)
     }
 
     /* Check for reasonFlags */
+    localIdx = idx;
     if (idx < (word32)sz &&
-        input[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1))
+        GetASNTag(input, &localIdx, &tag, sz) == 0 &&
+        tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1))
     {
         idx++;
         if (GetLength(input, &idx, &length, sz) < 0)
@@ -7036,8 +7149,10 @@ static int DecodeCrlDist(const byte* input, int sz, DecodedCert* cert)
     }
 
     /* Check for cRLIssuer */
+    localIdx = idx;
     if (idx < (word32)sz &&
-        input[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 2))
+        GetASNTag(input, &localIdx, &tag, sz) == 0 &&
+        tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 2))
     {
         idx++;
         if (GetLength(input, &idx, &length, sz) < 0)
@@ -7063,7 +7178,7 @@ static int DecodeAuthInfo(const byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0;
     int length = 0;
-    byte b;
+    byte b = 0;
     word32 oid;
 
     WOLFSSL_ENTER("DecodeAuthInfo");
@@ -7083,7 +7198,9 @@ static int DecodeAuthInfo(const byte* input, int sz, DecodedCert* cert)
 
 
         /* Only supporting URIs right now. */
-        b = input[idx++];
+        if (GetASNTag(input, &idx, &b, sz) < 0)
+            return ASN_PARSE_E;
+
         if (GetLength(input, &idx, &length, sz) < 0)
             return ASN_PARSE_E;
 
@@ -7105,6 +7222,7 @@ static int DecodeAuthKeyId(const byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0;
     int length = 0, ret = 0;
+    byte tag;
 
     WOLFSSL_ENTER("DecodeAuthKeyId");
 
@@ -7113,7 +7231,11 @@ static int DecodeAuthKeyId(const byte* input, int sz, DecodedCert* cert)
         return ASN_PARSE_E;
     }
 
-    if (input[idx++] != (ASN_CONTEXT_SPECIFIC | 0)) {
+    if (GetASNTag(input, &idx, &tag, sz) < 0) {
+        return ASN_PARSE_E;
+    }
+
+    if (tag != (ASN_CONTEXT_SPECIFIC | 0)) {
         WOLFSSL_MSG("\tinfo: OPTIONAL item 0, not available\n");
         return 0;
     }
@@ -7564,13 +7686,18 @@ static int DecodeCertExtensions(DecodedCert* cert)
     word32 oid;
     byte critical = 0;
     byte criticalFail = 0;
+    byte tag = 0;
 
     WOLFSSL_ENTER("DecodeCertExtensions");
 
     if (input == NULL || sz == 0)
         return BAD_FUNC_ARG;
 
-    if (input[idx++] != ASN_EXTENSIONS) {
+    if (GetASNTag(input, &idx, &tag, sz) < 0) {
+        return ASN_PARSE_E;
+    }
+
+    if (tag != ASN_EXTENSIONS) {
         WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
         return ASN_PARSE_E;
     }
@@ -7586,6 +7713,8 @@ static int DecodeCertExtensions(DecodedCert* cert)
     }
 
     while (idx < (word32)sz) {
+        word32 localIdx;
+
         if (GetSequence(input, &idx, &length, sz) < 0) {
             WOLFSSL_MSG("\tfail: should be a SEQUENCE");
             return ASN_PARSE_E;
@@ -7604,14 +7733,17 @@ static int DecodeCertExtensions(DecodedCert* cert)
             return BUFFER_E;
         }
 
-        if (input[idx] == ASN_BOOLEAN) {
-            ret = GetBoolean(input, &idx, sz);
-            if (ret < 0) {
-                WOLFSSL_MSG("\tfail: critical boolean");
-                return ret;
-            }
+        localIdx = idx;
+        if (GetASNTag(input, &localIdx, &tag, sz) == 0) {
+            if (tag == ASN_BOOLEAN) {
+                ret = GetBoolean(input, &idx, sz);
+                if (ret < 0) {
+                    WOLFSSL_MSG("\tfail: critical boolean");
+                    return ret;
+                }
 
-            critical = (byte)ret;
+                critical = (byte)ret;
+            }
         }
 
         /* process the extension based on the OID */
@@ -7899,6 +8031,9 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     int           extAuthKeyIdSet = 0;
 #endif
     int           ret = 0;
+    word32        localIdx;
+    byte          tag;
+
 
     if (cert == NULL) {
         return BAD_FUNC_ARG;
@@ -7929,11 +8064,14 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     }
     if (ret == 0) {
         /* version - optional */
-        if (cert[idx] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED)) {
-            idx++;
-            if (GetLength(cert, &idx, &len, certSz) < 0)
-                ret = ASN_PARSE_E;
-            idx += len;
+        localIdx = idx;
+        if (GetASNTag(cert, &localIdx, &tag, certSz) == 0) {
+            if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED)) {
+                idx++;
+                if (GetLength(cert, &idx, &len, certSz) < 0)
+                    ret = ASN_PARSE_E;
+                idx += len;
+            }
         }
     }
 
@@ -7989,11 +8127,14 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     }
     if (ret == 0) {
         /* issuerUniqueID - optional */
-        if (cert[idx] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1)) {
-            idx++;
-            if (GetLength(cert, &idx, &len, certSz) < 0)
-                ret = ASN_PARSE_E;
-            idx += len;
+        localIdx = idx;
+        if (GetASNTag(cert, &localIdx, &tag, certSz) == 0) {
+            if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1)) {
+                idx++;
+                if (GetLength(cert, &idx, &len, certSz) < 0)
+                    ret = ASN_PARSE_E;
+                idx += len;
+            }
         }
     }
     if (ret == 0) {
@@ -8002,11 +8143,14 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     }
     if (ret == 0) {
         /* subjectUniqueID - optional */
-        if (cert[idx] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 2)) {
-            idx++;
-            if (GetLength(cert, &idx, &len, certSz) < 0)
-                ret = ASN_PARSE_E;
-            idx += len;
+        localIdx = idx;
+        if (GetASNTag(cert, &localIdx, &tag, certSz) == 0) {
+            if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 2)) {
+                idx++;
+                if (GetLength(cert, &idx, &len, certSz) < 0)
+                    ret = ASN_PARSE_E;
+                idx += len;
+            }
         }
     }
 
@@ -8015,7 +8159,9 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
             ret = BUFFER_E;
     }
     /* extensions - optional */
-    if (ret == 0 && cert[idx] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 3)) {
+    localIdx = idx;
+    if (ret == 0 && GetASNTag(cert, &localIdx, &tag, certSz) == 0 &&
+            tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 3)) {
         idx++;
         if (GetLength(cert, &idx, &extLen, certSz) < 0)
             ret = ASN_PARSE_E;
@@ -8036,9 +8182,17 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
                                                                   certSz) < 0) {
                         ret = ASN_PARSE_E;
                     }
+
+                    if (ret == 0) {
+                        if ((extIdx + 1) > certSz)
+                            ret = BUFFER_E;
+                    }
                 }
+
                 if (ret == 0) {
-                    if (cert[extIdx] == ASN_BOOLEAN) {
+                    localIdx = extIdx;
+                    if (GetASNTag(cert, &localIdx, &tag, certSz) == 0 &&
+                            tag == ASN_BOOLEAN) {
                         if (GetBoolean(cert, &extIdx, certSz) < 0)
                             ret = ASN_PARSE_E;
                     }
@@ -8055,8 +8209,12 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
                         if (GetSequence(cert, &extIdx, &extLen, certSz) < 0)
                             ret = ASN_PARSE_E;
 
+                        if (ret == 0 && (extIdx + 1) >= certSz)
+                            ret = BUFFER_E;
+
                         if (ret == 0 &&
-                                 cert[extIdx++] == (ASN_CONTEXT_SPECIFIC | 0)) {
+                                GetASNTag(cert, &extIdx, &tag, certSz) == 0 &&
+                                tag == (ASN_CONTEXT_SPECIFIC | 0)) {
                             if (GetLength(cert, &extIdx, &extLen, certSz) <= 0)
                                 ret = ASN_PARSE_E;
                             if (ret == 0) {
@@ -12942,16 +13100,19 @@ int wc_SetExtKeyUsageOID(Cert *cert, const char *in, word32 sz, byte idx,
 static int SetAltNamesFromDcert(Cert* cert, DecodedCert* decoded)
 {
     int ret = 0;
+    byte tag;
 
     if (decoded->extensions) {
-        byte   b;
         int    length;
         word32 maxExtensionsIdx;
 
         decoded->srcIdx = decoded->extensionsIdx;
-        b = decoded->source[decoded->srcIdx++];
+        if (GetASNTag(decoded->source, &decoded->srcIdx, &tag, decoded->maxIdx)
+                != 0) {
+            return ASN_PARSE_E;
+        }
 
-        if (b != ASN_EXTENSIONS) {
+        if (tag != ASN_EXTENSIONS) {
             ret = ASN_PARSE_E;
         }
         else if (GetLength(decoded->source, &decoded->srcIdx, &length,
@@ -13678,12 +13839,15 @@ static int ASNToHexString(const byte* input, word32* inOutIdx, char** out,
     int len;
     int i;
     char* str;
+    word32 localIdx;
+    byte   tag;
 
     if (*inOutIdx >= inSz) {
         return BUFFER_E;
     }
 
-    if (input[*inOutIdx] == ASN_INTEGER) {
+    localIdx = *inOutIdx;
+    if (GetASNTag(input, &localIdx, &tag, inSz) == 0 && tag == ASN_INTEGER) {
         if (GetASNInt(input, inOutIdx, &len, inSz) < 0)
             return ASN_PARSE_E;
     }
@@ -13710,7 +13874,8 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     int    length;
     int    ret;
     int    curve_id = ECC_CURVE_DEF;
-    word32 oidSum;
+    word32 oidSum, localIdx;
+    byte   tag;
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
         return BAD_FUNC_ARG;
@@ -13729,7 +13894,9 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         return BUFFER_E;
     }
 
-    if (input[*inOutIdx] == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
+    localIdx = *inOutIdx;
+    if (GetASNTag(input, &localIdx, &tag, inSz) == 0 &&
+            tag == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
 #ifdef WOLFSSL_CUSTOM_CURVES
         ecc_set_type* curve;
         int len;
@@ -13781,7 +13948,9 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
         }
         if (ret == 0) {
-            if (*inOutIdx < inSz && input[*inOutIdx] == ASN_BIT_STRING) {
+            localIdx = *inOutIdx;
+            if (*inOutIdx < inSz && GetASNTag(input, &localIdx, &tag, inSz)
+                    == 0 && tag == ASN_BIT_STRING) {
                 len = 0;
                 ret = GetASNHeader(input, ASN_BIT_STRING, inOutIdx, &len, inSz);
                 *inOutIdx += len;
@@ -14291,20 +14460,28 @@ static int GetBasicDate(const byte* source, word32* idx, byte* date,
 
 #ifdef HAVE_OCSP
 
-static int GetEnumerated(const byte* input, word32* inOutIdx, int *value)
+static int GetEnumerated(const byte* input, word32* inOutIdx, int *value,
+        int sz)
 {
     word32 idx = *inOutIdx;
     word32 len;
+    byte   tag;
 
     WOLFSSL_ENTER("GetEnumerated");
 
     *value = 0;
 
-    if (input[idx++] != ASN_ENUMERATED)
+    if (GetASNTag(input, &idx, &tag, sz) < 0)
         return ASN_PARSE_E;
 
+    if (tag != ASN_ENUMERATED)
+        return ASN_PARSE_E;
+
+    if ((int)idx >= sz)
+        return BUFFER_E;
+
     len = input[idx++];
-    if (len > 4)
+    if (len > 4 || (int)len > sz)
         return ASN_PARSE_E;
 
     while (len--) {
@@ -14320,10 +14497,11 @@ static int GetEnumerated(const byte* input, word32* inOutIdx, int *value)
 static int DecodeSingleResponse(byte* source,
                             word32* ioIndex, OcspResponse* resp, word32 size)
 {
-    word32 idx = *ioIndex, prevIndex, oid;
+    word32 idx = *ioIndex, prevIndex, oid, localIdx;
     int length, wrapperSz;
     CertStatus* cs = resp->status;
     int ret;
+    byte tag;
 
     WOLFSSL_ENTER("DecodeSingleResponse");
 
@@ -14401,8 +14579,10 @@ static int DecodeSingleResponse(byte* source,
     /* The following items are optional. Only check for them if there is more
      * unprocessed data in the singleResponse wrapper. */
 
+    localIdx = idx;
     if (((int)(idx - prevIndex) < wrapperSz) &&
-        (source[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)))
+        GetASNTag(source, &localIdx, &tag, size) == 0 &&
+        tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
     {
         idx++;
         if (GetLength(source, &idx, &length, size) < 0)
@@ -14421,8 +14601,11 @@ static int DecodeSingleResponse(byte* source,
 #endif
 #endif
     }
+
+    localIdx = idx;
     if (((int)(idx - prevIndex) < wrapperSz) &&
-        (source[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1)))
+        GetASNTag(source, &localIdx, &tag, size) == 0 &&
+        tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1))
     {
         idx++;
         if (GetLength(source, &idx, &length, size) < 0)
@@ -14443,13 +14626,17 @@ static int DecodeOcspRespExtensions(byte* source,
     int ext_bound; /* boundary index for the sequence of extensions */
     word32 oid;
     int ret;
+    byte tag;
 
     WOLFSSL_ENTER("DecodeOcspRespExtensions");
 
     if ((idx + 1) > sz)
         return BUFFER_E;
 
-    if (source[idx++] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1))
+    if (GetASNTag(source, &idx, &tag, sz) < 0)
+        return ASN_PARSE_E;
+
+    if (tag != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1))
         return ASN_PARSE_E;
 
     if (GetLength(source, &idx, &length, sz) < 0)
@@ -14461,6 +14648,8 @@ static int DecodeOcspRespExtensions(byte* source,
     ext_bound = idx + length;
 
     while (idx < (word32)ext_bound) {
+        word32 localIdx;
+
         if (GetSequence(source, &idx, &length, sz) < 0) {
             WOLFSSL_MSG("\tfail: should be a SEQUENCE");
             return ASN_PARSE_E;
@@ -14478,7 +14667,8 @@ static int DecodeOcspRespExtensions(byte* source,
             return BUFFER_E;
         }
 
-        if (source[idx] == ASN_BOOLEAN) {
+        localIdx = idx;
+        if (GetASNTag(source, &localIdx, &tag, sz) == 0 && tag == ASN_BOOLEAN) {
             WOLFSSL_MSG("\tfound optional critical flag, moving past");
             ret = GetBoolean(source, &idx, sz);
             if (ret < 0)
@@ -14510,11 +14700,11 @@ static int DecodeOcspRespExtensions(byte* source,
 static int DecodeResponseData(byte* source,
                             word32* ioIndex, OcspResponse* resp, word32 size)
 {
-    word32 idx = *ioIndex, prev_idx;
+    word32 idx = *ioIndex, prev_idx, localIdx;
     int length;
     int version;
-    word32 responderId = 0;
     int ret;
+    byte tag;
 
     WOLFSSL_ENTER("DecodeResponseData");
 
@@ -14528,7 +14718,9 @@ static int DecodeResponseData(byte* source,
      * item isn't an EXPLICIT[0], then set version to zero and move
      * onto the next item.
      */
-    if (source[idx] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED))
+    localIdx = idx;
+    if (GetASNTag(source, &localIdx, &tag, size) == 0 &&
+            tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED))
     {
         idx += 2; /* Eat the value and length */
         if (GetMyVersion(source, &idx, &version, size) < 0)
@@ -14536,10 +14728,12 @@ static int DecodeResponseData(byte* source,
     } else
         version = 0;
 
-    responderId = source[idx++];
-    if ((responderId == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1)) ||
-        (responderId == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 2)))
+    localIdx = idx;
+    if (GetASNTag(source, &localIdx, &tag, size) == 0 &&
+        ( tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1) ||
+          tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 2) ))
     {
+        idx++; /* advance past ASN tag */
         if (GetLength(source, &idx, &length, size) < 0)
             return ASN_PARSE_E;
         idx += length;
@@ -14574,10 +14768,14 @@ static int DecodeCerts(byte* source,
                             word32* ioIndex, OcspResponse* resp, word32 size)
 {
     word32 idx = *ioIndex;
+    byte tag;
 
     WOLFSSL_ENTER("DecodeCerts");
 
-    if (source[idx++] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC))
+    if (GetASNTag(source, &idx, &tag, size) < 0)
+        return ASN_PARSE_E;
+
+    if (tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC))
     {
         int length;
 
@@ -14743,6 +14941,7 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap, int noVerify)
     byte* source = resp->source;
     word32 size = resp->maxIdx;
     word32 oid;
+    byte   tag;
 
     WOLFSSL_ENTER("OcspResponseDecode");
 
@@ -14751,7 +14950,7 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap, int noVerify)
         return ASN_PARSE_E;
 
     /* First get the responseStatus, an ENUMERATED */
-    if (GetEnumerated(source, &idx, &resp->responseStatus) < 0)
+    if (GetEnumerated(source, &idx, &resp->responseStatus, size) < 0)
         return ASN_PARSE_E;
 
     if (resp->responseStatus != OCSP_SUCCESSFUL)
@@ -14760,7 +14959,9 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap, int noVerify)
     /* Next is an EXPLICIT record called ResponseBytes, OPTIONAL */
     if (idx >= size)
         return ASN_INPUT_E;
-    if (source[idx++] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC))
+    if (GetASNTag(source, &idx, &tag, size) < 0)
+        return ASN_PARSE_E;
+    if (tag != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC))
         return ASN_PARSE_E;
     if (GetLength(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
@@ -15070,10 +15271,12 @@ WOLFSSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
     int    length;  /* length of all distinguished names */
     int    ret;
     word32 dummy;
+    byte   tag;
 
     WOLFSSL_ENTER("GetNameHash");
 
-    if (source[*idx] == ASN_OBJECT_ID) {
+    dummy = *idx;
+    if (GetASNTag(source, &dummy, &tag, maxIdx) == 0 && tag == ASN_OBJECT_ID) {
         WOLFSSL_MSG("Trying optional prefix...");
 
         if (GetLength(source, idx, &length, maxIdx) < 0)
@@ -15228,9 +15431,10 @@ int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
 int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 {
     int          version, len, doNextDate = 1;
-    word32       oid, idx = 0, dateIdx;
+    word32       oid, idx = 0, dateIdx, localIdx;
     Signer*      ca = NULL;
     SignatureCtx sigCtx;
+    byte         tag;
 
     WOLFSSL_MSG("ParseCRL");
 
@@ -15251,7 +15455,8 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
     dcrl->sigIndex = len + idx;
 
     /* may have version */
-    if (buff[idx] == ASN_INTEGER) {
+    localIdx = idx;
+    if (GetASNTag(buff, &localIdx, &tag, sz) == 0 && tag == ASN_INTEGER) {
         if (GetMyVersion(buff, &idx, &version, sz) < 0)
             return ASN_PARSE_E;
     }
@@ -15288,7 +15493,9 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 #endif
     }
 
-    if (idx != dcrl->sigIndex && buff[idx] != CRL_EXTENSIONS) {
+    localIdx = idx;
+    if (idx != dcrl->sigIndex &&
+           GetASNTag(buff, &localIdx, &tag, sz) == 0 && tag != CRL_EXTENSIONS) {
         if (GetSequence(buff, &idx, &len, sz) < 0)
             return ASN_PARSE_E;
 
