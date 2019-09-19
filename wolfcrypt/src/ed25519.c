@@ -263,7 +263,7 @@ static int ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
 int wc_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
                         word32 *outLen, ed25519_key* key)
 {
-    return ed25519_sign_msg(in, inLen, out, outLen, key, Ed25519, NULL, 0);
+    return ed25519_sign_msg(in, inLen, out, outLen, key, (byte)Ed25519, NULL, 0);
 }
 
 /*
@@ -439,8 +439,8 @@ static int ed25519_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
 int wc_ed25519_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
                           word32 msgLen, int* res, ed25519_key* key)
 {
-    return ed25519_verify_msg(sig, sigLen, msg, msgLen, res, key, Ed25519, NULL,
-                                                                             0);
+    return ed25519_verify_msg(sig, sigLen, msg, msgLen, res, key, (byte)Ed25519,
+                                                                       NULL, 0);
 }
 
 /*
