@@ -1513,7 +1513,7 @@ static int FlattenAttributes(PKCS7* pkcs7, byte* output, EncodedAttrib* ea,
     if (derArr == NULL) {
         return MEMORY_E;
     }
-    ForceZero(derArr, eaSz);
+    ForceZero(derArr, eaSz * sizeof(FlatAttrib*));
 
     for (i = 0; i < eaSz; i++) {
         derArr[i] = (FlatAttrib*) XMALLOC(sizeof(FlatAttrib), pkcs7->heap,
