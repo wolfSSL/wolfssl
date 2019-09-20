@@ -50,6 +50,10 @@
 #define __asm__        asm
 #define __volatile__   volatile
 #endif /* __IAR_SYSTEMS_ICC__ */
+#ifdef __KEIL__
+#define __asm__        __asm
+#define __volatile__   volatile
+#endif
 
 #ifdef WOLFSSL_SP_ARM_CORTEX_M_ASM
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)

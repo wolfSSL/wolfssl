@@ -37,7 +37,7 @@
 
 #if defined(_MSC_VER)
     #define SP_NOINLINE __declspec(noinline)
-#elif defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
+#elif defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__) || defined(__KEIL__)
     #define SP_NOINLINE __attribute__((noinline))
 #else
     #define SP_NOINLINE
