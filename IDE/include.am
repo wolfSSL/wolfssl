@@ -14,6 +14,7 @@ include IDE/ARDUINO/include.am
 include IDE/INTIME-RTOS/include.am
 include IDE/OPENSTM32/include.am
 include IDE/VS-ARM/include.am
+include IDE/VS-AZURE-SPHERE/include.am
 include IDE/GCC-ARM/include.am
 include IDE/CSBENCH/include.am
 include IDE/ECLIPSE/DEOS/include.am
