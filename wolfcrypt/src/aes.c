@@ -3601,6 +3601,7 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     if (!((len == 16) || (len == 24) || (len == 32)))
         return BAD_FUNC_ARG;
 
+    XMEMSET(aes, 0, sizeof(Aes));
     XMEMSET(iv, 0, AES_BLOCK_SIZE);
     ret = wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
 
