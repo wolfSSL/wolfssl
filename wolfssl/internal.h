@@ -3503,6 +3503,7 @@ typedef struct Arrays {
 #define STACK_TYPE_X509_EXT           7
 #define STACK_TYPE_NULL               8
 #define STACK_TYPE_X509_NAME          9
+#define STACK_TYPE_CONF_VALUE         10
 
 struct WOLFSSL_STACK {
     unsigned long num; /* number of nodes in stack
@@ -3519,6 +3520,7 @@ struct WOLFSSL_STACK {
         WOLFSSL_CIPHER         cipher;
         WOLFSSL_ACCESS_DESCRIPTION* access;
         WOLFSSL_X509_EXTENSION* ext;
+        WOLFSSL_CONF_VALUE*    conf;
         void*                  generic;
         char*                  string;
         WOLFSSL_GENERAL_NAME* gn;

@@ -25804,6 +25804,8 @@ void* wolfSSL_sk_value(WOLFSSL_STACK* sk, int i)
         case STACK_TYPE_X509_EXT:
             return (void*)sk->data.ext;
     #endif
+        case STACK_TYPE_CONF_VALUE:
+            return (void*)sk->data.conf->value;
         default:
             return (void*)sk->data.obj;
     }
