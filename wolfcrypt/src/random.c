@@ -311,6 +311,8 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
 #endif
 #ifdef WC_ASYNC_ENABLE_SHA256
     DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
+    if (digest == NULL)
+        return MEMORY_E;
 #else
     byte digest[WC_SHA256_DIGEST_SIZE];
 #endif
@@ -443,6 +445,8 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
 #endif
 #ifdef WC_ASYNC_ENABLE_SHA256
     DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
+    if (digest == NULL)
+        return MEMORY_E;
 #else
     byte digest[WC_SHA256_DIGEST_SIZE];
 #endif
@@ -551,6 +555,8 @@ static int Hash_DRBG_Generate(DRBG* drbg, byte* out, word32 outSz)
     } else {
     #ifdef WC_ASYNC_ENABLE_SHA256
         DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
+        if (digest == NULL)
+            return MEMORY_E;
     #else
         byte digest[WC_SHA256_DIGEST_SIZE];
     #endif
@@ -749,6 +755,8 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     if (wc_RNG_HealthTestLocal(0) == 0) {
     #ifdef WC_ASYNC_ENABLE_SHA256
         DECLARE_VAR(seed, byte, MAX_SEED_SZ, rng->heap);
+        if (seed == NULL)
+            return MEMORY_E;
     #else
         byte seed[MAX_SEED_SZ];
     #endif
@@ -2180,7 +2188,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 word32 len = sizeof(rand);
                 if (sz < len)
                     len = sz;
-                /* Get one random 32-bit word from hw RNG */  
+                /* Get one random 32-bit word from hw RNG */
                 rand = esp_random( );
                 XMEMCPY(output, &rand, len);
                 output += len;

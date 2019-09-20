@@ -3815,11 +3815,7 @@ static int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
 {
 #ifndef WC_NO_RNG
     int err;
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
-    DECLARE_VAR(buf, byte, ECC_MAXSIZE_GEN, rng->heap);
-#else
     byte buf[ECC_MAXSIZE_GEN];
-#endif
 
     /*generate 8 extra bytes to mitigate bias from the modulo operation below*/
     /*see section A.1.2 in 'Suite B Implementor's Guide to FIPS 186-3 (ECDSA)'*/
@@ -3846,9 +3842,6 @@ static int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
     }
 
     ForceZero(buf, ECC_MAXSIZE);
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
-    FREE_VAR(buf, rng->heap);
-#endif
 
     return err;
 #else
@@ -4514,6 +4507,83 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
 }
 #endif /* WOLFSSL_ATECC508A || PLUTON_CRYPTO_ECC || WOLFSSL_CRYPTOCELL */
 
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
+static int wc_ecc_sign_hash_async(const byte* in, word32 inlen, byte* out,
+    word32 *outlen, WC_RNG* rng, ecc_key* key)
+{
+    int err;
+    mp_int *r = NULL, *s = NULL;
+
+    if (in == NULL || out == NULL || outlen == NULL || key == NULL ||
+                                                                rng == NULL) {
+        return ECC_BAD_ARG_E;
+    }
+
+    err = wc_ecc_alloc_async(key);
+    if (err != 0) {
+        return err;
+    }
+    r = key->r;
+    s = key->s;
+
+    switch(key->state) {
+        case ECC_STATE_NONE:
+        case ECC_STATE_SIGN_DO:
+            key->state = ECC_STATE_SIGN_DO;
+
+            if ((err = mp_init_multi(r, s, NULL, NULL, NULL, NULL)) != MP_OKAY){
+                break;
+            }
+
+            err = wc_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
+            if (err < 0) {
+                break;
+            }
+
+            FALL_THROUGH;
+
+        case ECC_STATE_SIGN_ENCODE:
+            key->state = ECC_STATE_SIGN_ENCODE;
+
+            if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
+                #ifdef HAVE_CAVIUM_V
+                    /* Nitrox requires r and s in sep buffer, so split it */
+                    NitroxEccRsSplit(key, &r->raw, &s->raw);
+                #endif
+                #ifndef WOLFSSL_ASYNC_CRYPT_TEST
+                    /* only do this if not simulator, since it overwrites result */
+                    wc_bigint_to_mp(&r->raw, r);
+                    wc_bigint_to_mp(&s->raw, s);
+                #endif
+            }
+
+            /* encoded with DSA header */
+            err = StoreECC_DSA_Sig(out, outlen, r, s);
+
+            /* done with R/S */
+            mp_clear(r);
+            mp_clear(s);
+            break;
+
+        default:
+            err = BAD_STATE_E;
+            break;
+    }
+
+    /* if async pending then return and skip done cleanup below */
+    if (err == WC_PENDING_E) {
+        key->state++;
+        return err;
+    }
+
+    /* cleanup */
+    wc_ecc_free_async(key);
+    key->state = ECC_STATE_NONE;
+
+    return err;
+}
+#endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_ECC */
+
 /**
  Sign a message digest
  in        The message digest to sign
@@ -4527,10 +4597,12 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
                      WC_RNG* rng, ecc_key* key)
 {
     int err;
+#if !defined(WOLFSSL_ASYNC_CRYPT) || !defined(WC_ASYNC_ENABLE_ECC)
+#ifdef WOLFSSL_SMALL_STACK
     mp_int *r = NULL, *s = NULL;
-#if (!defined(WOLFSSL_ASYNC_CRYPT) || !defined(WC_ASYNC_ENABLE_ECC)) && \
-    !defined(WOLFSSL_SMALL_STACK)
-    mp_int r_lcl, s_lcl;
+#else
+    mp_int r[1], s[1];
+#endif
 #endif
 
     if (in == NULL || out == NULL || outlen == NULL || key == NULL ||
@@ -4548,15 +4620,11 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
-    err = wc_ecc_alloc_async(key);
-    if (err != 0)
-        return err;
-    r = key->r;
-    s = key->s;
-#elif !defined(WOLFSSL_SMALL_STACK)
-    r = &r_lcl;
-    s = &s_lcl;
+    /* handle async cases */
+    err = wc_ecc_sign_hash_async(in, inlen, out, outlen, rng, key);
 #else
+
+#ifdef WOLFSSL_SMALL_STACK
     r = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_ECC);
     if (r == NULL)
         return MEMORY_E;
@@ -4565,84 +4633,44 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
         XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
         return MEMORY_E;
     }
-#endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_ECC */
+#endif
+    XMEMSET(r, 0, sizeof(mp_int));
+    XMEMSET(s, 0, sizeof(mp_int));
 
-    switch(key->state) {
-        case ECC_STATE_NONE:
-        case ECC_STATE_SIGN_DO:
-            key->state = ECC_STATE_SIGN_DO;
-
-            if ((err = mp_init_multi(r, s, NULL, NULL, NULL, NULL)) != MP_OKAY){
-            #if !defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_SMALL_STACK)
-                XFREE(s, key->heap, DYNAMIC_TYPE_ECC);
-                XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
-            #endif
-                break;
-            }
-
-        /* hardware crypto */
-        #if defined(WOLFSSL_ATECC508A) || defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL)
-            err = wc_ecc_sign_hash_hw(in, inlen, r, s, out, outlen, rng, key);
-        #else
-            err = wc_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
-        #endif
-            if (err < 0) {
-            #if !defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_SMALL_STACK)
-                XFREE(s, key->heap, DYNAMIC_TYPE_ECC);
-                XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
-            #endif
-                break;
-            }
-
-            FALL_THROUGH;
-
-        case ECC_STATE_SIGN_ENCODE:
-            key->state = ECC_STATE_SIGN_ENCODE;
-
-        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
-            if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
-                #ifdef HAVE_CAVIUM_V
-                    /* Nitrox requires r and s in sep buffer, so split it */
-                    NitroxEccRsSplit(key, &r->raw, &s->raw);
-                #endif
-                #ifndef WOLFSSL_ASYNC_CRYPT_TEST
-                    /* only do this if not simulator, since it overwrites result */
-                    wc_bigint_to_mp(&r->raw, r);
-                    wc_bigint_to_mp(&s->raw, s);
-                #endif
-            }
-        #endif /* WOLFSSL_ASYNC_CRYPT */
-
-            /* encoded with DSA header */
-            err = StoreECC_DSA_Sig(out, outlen, r, s);
-
-            /* done with R/S */
-            mp_clear(r);
-            mp_clear(s);
-        #if !defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_SMALL_STACK)
-            XFREE(s, key->heap, DYNAMIC_TYPE_ECC);
-            XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
-        #endif
-            break;
-
-        default:
-            err = BAD_STATE_E;
-            break;
-    }
-
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
-    /* if async pending then return and skip done cleanup below */
-    if (err == WC_PENDING_E) {
-        key->state++;
+    if ((err = mp_init_multi(r, s, NULL, NULL, NULL, NULL)) != MP_OKAY){
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(s, key->heap, DYNAMIC_TYPE_ECC);
+        XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
+    #endif
         return err;
     }
+
+/* hardware crypto */
+#if defined(WOLFSSL_ATECC508A) || defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL)
+    err = wc_ecc_sign_hash_hw(in, inlen, r, s, out, outlen, rng, key);
+#else
+    err = wc_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
 #endif
+    if (err < 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(s, key->heap, DYNAMIC_TYPE_ECC);
+        XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
+    #endif
+        return err;
+    }
+
+    /* encoded with DSA header */
+    err = StoreECC_DSA_Sig(out, outlen, r, s);
 
     /* cleanup */
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
-    wc_ecc_free_async(key);
+    mp_clear(r);
+    mp_clear(s);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(s, key->heap, DYNAMIC_TYPE_ECC);
+    XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
 #endif
-    key->state = ECC_STATE_NONE;
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
     return err;
 }

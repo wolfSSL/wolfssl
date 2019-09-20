@@ -3110,7 +3110,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE)
         if (flatSession) {
-            XFREE(flatSession, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(flatSession, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             wolfSSL_SESSION_free(session);
         }
 #endif
