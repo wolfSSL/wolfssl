@@ -1433,10 +1433,6 @@ enum Misc {
 
     MAX_WOLFSSL_FILE_SIZE = 1024ul * 1024ul * 4,  /* 4 mb file size alloc limit */
 
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
-    MAX_EX_DATA        =   5,  /* allow for five items of ex_data */
-#endif
-
     MAX_X509_SIZE      = 2048, /* max static x509 buffer size */
     CERT_MIN_SIZE      =  256, /* min PEM cert size with header/footer */
 
@@ -1616,15 +1612,35 @@ WOLFSSL_LOCAL ProtocolVersion MakeTLSv1_3(void);
 #endif
 
 
+
+/* custom method with user set callbacks */
+#define MAX_BIO_METHOD_NAME 256
+typedef struct WOLFSSL_BIO_METHOD_CUSTOM {
+    char name[MAX_BIO_METHOD_NAME];
+
+    wolfSSL_BIO_meth_puts_cb putsCb;
+    wolfSSL_BIO_meth_gets_cb getsCb;
+
+    wolfSSL_BIO_meth_read_cb  readCb;
+    wolfSSL_BIO_meth_write_cb writeCb;
+
+    wolfSSL_BIO_meth_destroy_cb freeCb;
+    wolfSSL_BIO_meth_create_cb  createCb;
+
+    wolfSSL_BIO_meth_get_ctrl_cb ctrlCb;
+} WOLFSSL_BIO_METHOD_CUSTOM;
+
 /* wolfSSL BIO_METHOD type */
 struct WOLFSSL_BIO_METHOD {
     byte type;               /* method type */
+    WOLFSSL_BIO_METHOD_CUSTOM* custom;
 };
 
 
 /* wolfSSL BIO type */
 struct WOLFSSL_BIO {
     WOLFSSL_BUF_MEM* mem_buf;
+    WOLFSSL_BIO_METHOD* method;
     WOLFSSL*     ssl;           /* possible associated ssl */
 #ifndef NO_FILESYSTEM
     XFILE        file;
@@ -1634,6 +1650,9 @@ struct WOLFSSL_BIO {
     WOLFSSL_BIO* pair;          /* BIO paired with */
     void*        heap;          /* user heap hint */
     byte*        mem;           /* memory buffer */
+    void*        usrCtx;        /* user set pointer */
+    char*        infoArg;       /* BIO callback argument */
+    wolf_bio_info_cb infoCb;    /* BIO callback */
     int         wrSz;          /* write buffer size (mem) */
     int         wrIdx;         /* current index for write buffer */
     int         rdIdx;         /* current read index */
@@ -1696,6 +1715,7 @@ WOLFSSL_LOCAL int GetPrivateKeySigSize(WOLFSSL* ssl);
 #endif
 #endif
 WOLFSSL_LOCAL void FreeKeyExchange(WOLFSSL* ssl);
+WOLFSSL_LOCAL void FreeSuites(WOLFSSL* ssl);
 WOLFSSL_LOCAL int  ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 size);
 WOLFSSL_LOCAL int  MatchDomainName(const char* pattern, int len, const char* str);
 #ifndef NO_CERTS
@@ -1810,6 +1830,9 @@ struct Suites {
     byte   setSuites;               /* user set suites from default */
     byte   hashAlgo;                /* selected hash algorithm */
     byte   sigAlgo;                 /* selected sig algorithm */
+#ifdef OPENSSL_ALL
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* stack; /* stack of available cipher suites */
+#endif
 };
 
 
@@ -1844,6 +1867,8 @@ WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
 
 /* wolfSSL Cipher type just points back to SSL */
 struct WOLFSSL_CIPHER {
+    byte cipherSuite0;
+    byte cipherSuite;
     WOLFSSL* ssl;
 };
 
@@ -2368,6 +2393,7 @@ typedef struct SecureRenegotiation {
    enum key_cache_state cache_status;  /* track key cache state */
    byte                 client_verify_data[TLS_FINISHED_SZ];  /* cached */
    byte                 server_verify_data[TLS_FINISHED_SZ];  /* cached */
+   byte                 subject_hash_set; /* if peer cert hash is set */
    byte                 subject_hash[KEYID_SIZE];  /* peer cert hash */
    Keys                 tmp_keys;  /* can't overwrite real keys yet */
 } SecureRenegotiation;
@@ -2579,6 +2605,7 @@ struct WOLFSSL_CTX {
     #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
         defined(WOLFSSL_NGINX) || defined (WOLFSSL_HAPROXY)
     WOLF_STACK_OF(WOLFSSL_X509)* x509Chain;
+    client_cert_cb CBClientCert;  /* client certificate callback */
     #endif
 #ifdef WOLFSSL_TLS13
     int         certChainCnt;
@@ -3136,6 +3163,7 @@ enum ConnectState {
 /* server accept state for nonblocking restart */
 enum AcceptState {
     ACCEPT_BEGIN = 0,
+    ACCEPT_BEGIN_RENEG,
     ACCEPT_CLIENT_HELLO_DONE,
     ACCEPT_HELLO_RETRY_REQUEST_DONE,
     ACCEPT_FIRST_REPLY_DONE,
@@ -3157,6 +3185,7 @@ enum AcceptState {
 /* TLS 1.3 server accept state for nonblocking restart */
 enum AcceptStateTls13 {
     TLS13_ACCEPT_BEGIN = 0,
+    TLS13_ACCEPT_BEGIN_RENEG,
     TLS13_ACCEPT_CLIENT_HELLO_DONE,
     TLS13_ACCEPT_HELLO_RETRY_REQUEST_DONE,
     TLS13_ACCEPT_FIRST_REPLY_DONE,
@@ -3467,23 +3496,28 @@ typedef struct Arrays {
 #define STACK_TYPE_ACCESS_DESCRIPTION 6
 #define STACK_TYPE_X509_EXT           7
 #define STACK_TYPE_NULL               8
+#define STACK_TYPE_X509_NAME          9
 
 struct WOLFSSL_STACK {
     unsigned long num; /* number of nodes in stack
                         * (safety measure for freeing and shortcut for count) */
+    #if defined(OPENSSL_ALL)
+    wolf_sk_compare_cb comp;
+    #endif
     union {
         WOLFSSL_X509*          x509;
         WOLFSSL_X509_NAME*     name;
+        WOLFSSL_X509_INFO*     info;
         WOLFSSL_BIO*           bio;
         WOLFSSL_ASN1_OBJECT*   obj;
-        WOLFSSL_CIPHER*        cipher;
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        WOLFSSL_CIPHER         cipher;
         WOLFSSL_ACCESS_DESCRIPTION* access;
         WOLFSSL_X509_EXTENSION* ext;
-        #endif
         void*                  generic;
         char*                  string;
+        WOLFSSL_GENERAL_NAME* gn;
     } data;
+    void* heap; /* memory heap hint */
     WOLFSSL_STACK* next;
     byte type;     /* Identifies type of stack. */
 };
@@ -3539,8 +3573,8 @@ struct WOLFSSL_X509 {
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
     int              notBeforeSz;
     int              notAfterSz;
-    byte             notBefore[MAX_DATE_SZ];
-    byte             notAfter[MAX_DATE_SZ];
+    WOLFSSL_ASN1_TIME notBefore;
+    WOLFSSL_ASN1_TIME notAfter;
     buffer           sig;
     int              sigOID;
     DNS_entry*       altNames;                       /* alt names list */
@@ -3611,6 +3645,10 @@ struct WOLFSSL_X509 {
 #endif
     WOLFSSL_X509_NAME issuer;
     WOLFSSL_X509_NAME subject;
+#if defined(OPENSSL_ALL)
+    WOLFSSL_X509_ALGOR algor;
+    WOLFSSL_X509_PUBKEY key;
+#endif
 };
 
 
@@ -3993,6 +4031,7 @@ struct WOLFSSL {
     #endif
     #if defined(HAVE_SECURE_RENEGOTIATION) \
         || defined(HAVE_SERVER_RENEGOTIATION_INFO)
+        int                  secure_rene_count;    /* how many times */
         SecureRenegotiation* secure_renegotiation; /* valid pointer indicates */
     #endif                                         /* user turned on */
     #ifdef HAVE_ALPN
@@ -4077,6 +4116,9 @@ struct WOLFSSL {
 #ifdef WOLFSSL_EARLY_DATA
     EarlyDataState earlyData;
     word32 earlyDataSz;
+#endif
+#ifdef OPENSSL_ALL
+    long verifyCallbackResult;
 #endif
 };
 

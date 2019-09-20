@@ -132,6 +132,7 @@ WOLFSSL_API
 WOLFSSL_BIGNUM *wolfSSL_EC_KEY_get0_private_key(const WOLFSSL_EC_KEY *key);
 WOLFSSL_API
 WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_by_curve_name(int nid);
+WOLFSSL_API const char* wolfSSL_EC_curve_nid2nist(int nid);
 WOLFSSL_API
 WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new(void);
 WOLFSSL_API
@@ -225,6 +226,8 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 #endif
 
 #define EC_POINT_dump                   wolfSSL_EC_POINT_dump
+
+#define EC_curve_nid2nist               wolfSSL_EC_curve_nid2nist
 
 #ifdef __cplusplus
 }  /* extern "C" */

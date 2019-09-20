@@ -54,6 +54,19 @@ struct WOLFSSL_v3_ext_method {
 };
 
 #define WOLFSSL_ASN1_BOOLEAN int
+#define GEN_OTHERNAME   0
+#define GEN_EMAIL       1
+#define GEN_DNS         2
+#define GEN_X400        3
+#define GEN_DIRNAME     4
+#define GEN_EDIPARTY    5
+#define GEN_URI         6
+#define GEN_IPADD       7
+#define GEN_RID         8
+
+#define GENERAL_NAME       WOLFSSL_GENERAL_NAME
+
+#define X509V3_CTX         WOLFSSL_X509V3_CTX
 
 struct WOLFSSL_X509_EXTENSION {
     WOLFSSL_ASN1_OBJECT *obj;
@@ -61,11 +74,6 @@ struct WOLFSSL_X509_EXTENSION {
     WOLFSSL_ASN1_STRING value;
     WOLFSSL_v3_ext_method ext_method;
     WOLFSSL_STACK* ext_sk; /* For extension specific data */
-};
-
-struct WOLFSSL_ACCESS_DESCRIPTION {
-    WOLFSSL_ASN1_OBJECT *method;
-    WOLFSSL_GENERAL_NAME *location;
 };
 
 typedef struct WOLFSSL_AUTHORITY_KEYID AUTHORITY_KEYID;
@@ -90,8 +98,12 @@ WOLFSSL_API int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out,
 #define ASN1_OCTET_STRING         WOLFSSL_ASN1_STRING
 #define X509V3_EXT_get            wolfSSL_X509V3_EXT_get
 #define X509V3_EXT_d2i            wolfSSL_X509V3_EXT_d2i
+#define X509V3_EXT_print   wolfSSL_X509V3_EXT_print
 #define i2s_ASN1_OCTET_STRING     wolfSSL_i2s_ASN1_STRING
 #define X509V3_EXT_print          wolfSSL_X509V3_EXT_print
+#define X509V3_EXT_conf_nid wolfSSL_X509V3_EXT_conf_nid
+#define X509V3_set_ctx      wolfSSL_X509V3_set_ctx
+#define X509V3_set_ctx_nodb wolfSSL_X509V3_set_ctx_nodb
 
 #ifdef  __cplusplus
 }

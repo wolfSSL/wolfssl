@@ -164,6 +164,7 @@ enum wolfSSL_ErrorCodes {
     TCA_INVALID_ID_TYPE          = -433,   /* TLSX TCA ID type invalid */
     TCA_ABSENT_ERROR             = -434,   /* TLSX TCA ID no response */
     TSIP_MAC_DIGSZ_E             = -435,   /* Invalid MAC size for TSIP */
+    CLIENT_CERT_CB_ERROR         = -436,   /* Client cert callback error */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */

@@ -82,7 +82,7 @@ int wolfSSL_EVP_Cipher_key_length(const WOLFSSL_EVP_CIPHER* c)
 }
 
 
-WOLFSSL_API int  wolfSSL_EVP_EncryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
+int  wolfSSL_EVP_EncryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                         const WOLFSSL_EVP_CIPHER* type,
                                         const unsigned char* key,
                                         const unsigned char* iv)
@@ -90,7 +90,7 @@ WOLFSSL_API int  wolfSSL_EVP_EncryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
     return wolfSSL_EVP_CipherInit(ctx, type, (byte*)key, (byte*)iv, 1);
 }
 
-WOLFSSL_API int  wolfSSL_EVP_EncryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
+int  wolfSSL_EVP_EncryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                         const WOLFSSL_EVP_CIPHER* type,
                                         WOLFSSL_ENGINE *impl,
                                         const unsigned char* key,
@@ -100,7 +100,7 @@ WOLFSSL_API int  wolfSSL_EVP_EncryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
     return wolfSSL_EVP_CipherInit(ctx, type, (byte*)key, (byte*)iv, 1);
 }
 
-WOLFSSL_API int  wolfSSL_EVP_DecryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
+int  wolfSSL_EVP_DecryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                         const WOLFSSL_EVP_CIPHER* type,
                                         const unsigned char* key,
                                         const unsigned char* iv)
@@ -109,7 +109,7 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
     return wolfSSL_EVP_CipherInit(ctx, type, (byte*)key, (byte*)iv, 0);
 }
 
-WOLFSSL_API int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
+int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                         const WOLFSSL_EVP_CIPHER* type,
                                         WOLFSSL_ENGINE *impl,
                                         const unsigned char* key,
@@ -121,7 +121,7 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
 }
 
 
-WOLFSSL_API WOLFSSL_EVP_CIPHER_CTX *wolfSSL_EVP_CIPHER_CTX_new(void)
+WOLFSSL_EVP_CIPHER_CTX *wolfSSL_EVP_CIPHER_CTX_new(void)
 {
 	WOLFSSL_EVP_CIPHER_CTX *ctx = (WOLFSSL_EVP_CIPHER_CTX*)XMALLOC(sizeof *ctx,
                                                  NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -132,7 +132,7 @@ WOLFSSL_API WOLFSSL_EVP_CIPHER_CTX *wolfSSL_EVP_CIPHER_CTX_new(void)
 	return ctx;
 }
 
-WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_free(WOLFSSL_EVP_CIPHER_CTX *ctx)
+void wolfSSL_EVP_CIPHER_CTX_free(WOLFSSL_EVP_CIPHER_CTX *ctx)
 {
     if (ctx) {
         WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_free");
@@ -141,13 +141,13 @@ WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_free(WOLFSSL_EVP_CIPHER_CTX *ctx)
 		}
 }
 
-WOLFSSL_API unsigned long wolfSSL_EVP_CIPHER_CTX_mode(const WOLFSSL_EVP_CIPHER_CTX *ctx)
+unsigned long wolfSSL_EVP_CIPHER_CTX_mode(const WOLFSSL_EVP_CIPHER_CTX *ctx)
 {
   if (ctx == NULL) return 0;
   return ctx->flags & WOLFSSL_EVP_CIPH_MODE;
 }
 
-WOLFSSL_API int  wolfSSL_EVP_EncryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
+int  wolfSSL_EVP_EncryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
     if (ctx && ctx->enc) {
@@ -159,7 +159,7 @@ WOLFSSL_API int  wolfSSL_EVP_EncryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
 }
 
 
-WOLFSSL_API int  wolfSSL_EVP_CipherInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
+int  wolfSSL_EVP_CipherInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                     const WOLFSSL_EVP_CIPHER* type,
                                     WOLFSSL_ENGINE *impl,
                                     const unsigned char* key,
@@ -170,7 +170,7 @@ WOLFSSL_API int  wolfSSL_EVP_CipherInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
     return wolfSSL_EVP_CipherInit(ctx, type, key, iv, enc);
 }
 
-WOLFSSL_API int  wolfSSL_EVP_EncryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
+int  wolfSSL_EVP_EncryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
     if (ctx && ctx->enc) {
@@ -181,7 +181,7 @@ WOLFSSL_API int  wolfSSL_EVP_EncryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
         return WOLFSSL_FAILURE;
 }
 
-WOLFSSL_API int  wolfSSL_EVP_DecryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
+int  wolfSSL_EVP_DecryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
     if (ctx && ctx->enc) {
@@ -193,7 +193,7 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
     }
 }
 
-WOLFSSL_API int  wolfSSL_EVP_DecryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
+int  wolfSSL_EVP_DecryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
     if (ctx && ctx->enc) {
@@ -206,7 +206,7 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptFinal_ex(WOLFSSL_EVP_CIPHER_CTX *ctx,
 }
 
 
-WOLFSSL_API int wolfSSL_EVP_DigestInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
+int wolfSSL_EVP_DigestInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
                                      const WOLFSSL_EVP_MD* type,
                                      WOLFSSL_ENGINE *impl)
 {
@@ -485,7 +485,7 @@ static int checkPad(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *buff)
     return ctx->block_size - n;
 }
 
-WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
+int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
     int fl;
@@ -607,7 +607,7 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptFinal_legacy(WOLFSSL_EVP_CIPHER_CTX *ctx,
 #endif
 
 
-WOLFSSL_API int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *ctx)
+int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *ctx)
 {
     if (ctx == NULL) return BAD_FUNC_ARG;
     switch (ctx->cipherType) {
@@ -722,7 +722,7 @@ static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher)
       else return 0;
 }
 
-WOLFSSL_API int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher)
+int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher)
 {
   if (cipher == NULL) return BAD_FUNC_ARG;
   switch (cipherType(cipher)) {
@@ -807,33 +807,33 @@ unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
         }
 }
 
-WOLFSSL_API unsigned long WOLFSSL_EVP_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
+unsigned long WOLFSSL_EVP_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
 {
   if (cipher == NULL) return 0;
   return WOLFSSL_CIPHER_mode(cipher);
 }
 
-WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags)
+void wolfSSL_EVP_CIPHER_CTX_set_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags)
 {
     if (ctx != NULL) {
         ctx->flags |= flags;
     }
 }
 
-WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_clear_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags)
+void wolfSSL_EVP_CIPHER_CTX_clear_flags(WOLFSSL_EVP_CIPHER_CTX *ctx, int flags)
 {
     if (ctx != NULL) {
         ctx->flags &= ~flags;
     }
 }
 
-WOLFSSL_API unsigned long wolfSSL_EVP_CIPHER_flags(const WOLFSSL_EVP_CIPHER *cipher)
+unsigned long wolfSSL_EVP_CIPHER_flags(const WOLFSSL_EVP_CIPHER *cipher)
 {
   if (cipher == NULL) return 0;
   return WOLFSSL_CIPHER_mode(cipher);
 }
 
-WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_padding(WOLFSSL_EVP_CIPHER_CTX *ctx, int padding)
+int  wolfSSL_EVP_CIPHER_CTX_set_padding(WOLFSSL_EVP_CIPHER_CTX *ctx, int padding)
 {
   if (ctx == NULL) return BAD_FUNC_ARG;
   if (padding) {
@@ -845,7 +845,7 @@ WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_padding(WOLFSSL_EVP_CIPHER_CTX *ctx,
   return 1;
 }
 
-WOLFSSL_API int wolfSSL_EVP_add_digest(const WOLFSSL_EVP_MD *digest)
+int wolfSSL_EVP_add_digest(const WOLFSSL_EVP_MD *digest)
 {
     (void)digest;
     /* nothing to do */
@@ -857,7 +857,7 @@ WOLFSSL_API int wolfSSL_EVP_add_digest(const WOLFSSL_EVP_MD *digest)
  *
  * return WOLFSSL_SUCCESS on success
  */
-WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx)
+int wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx)
 {
     if (ctx == NULL) return 0;
     WOLFSSL_ENTER("EVP_PKEY_CTX_free");
@@ -873,7 +873,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx)
  *
  * return the new structure on success and NULL if failed.
  */
-WOLFSSL_API WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_ENGINE *e)
+WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_ENGINE *e)
 {
     WOLFSSL_EVP_PKEY_CTX* ctx;
 
@@ -901,7 +901,7 @@ WOLFSSL_API WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pke
  *
  * returns WOLFSSL_SUCCESS on success.
  */
-WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_rsa_padding(WOLFSSL_EVP_PKEY_CTX *ctx, int padding)
+int wolfSSL_EVP_PKEY_CTX_set_rsa_padding(WOLFSSL_EVP_PKEY_CTX *ctx, int padding)
 {
     if (ctx == NULL) return 0;
     WOLFSSL_ENTER("EVP_PKEY_CTX_set_rsa_padding");
@@ -909,6 +909,33 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_rsa_padding(WOLFSSL_EVP_PKEY_CTX *ctx, 
     return WOLFSSL_SUCCESS;
 }
 
+/* create a PKEY contxt and return it */
+WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new_id(int id, WOLFSSL_ENGINE *e)
+{
+    WOLFSSL_EVP_PKEY* pkey;
+    WOLFSSL_EVP_PKEY_CTX* ctx = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_CTX_new_id");
+
+    pkey = wolfSSL_PKEY_new_ex(NULL);
+    if (pkey) {
+        pkey->type = id;
+        ctx = wolfSSL_EVP_PKEY_CTX_new(pkey, e);
+        if (ctx == NULL) {
+            wolfSSL_EVP_PKEY_free(pkey);
+        }
+    }
+    return ctx;
+}
+
+/* Returns WOLFSSL_SUCCESS or error */
+int wolfSSL_EVP_PKEY_CTX_set_rsa_keygen_bits(WOLFSSL_EVP_PKEY_CTX *ctx, int bits)
+{
+    if (ctx) {
+        ctx->nbits = bits;
+    }
+    return WOLFSSL_SUCCESS;
+}
 
 /* Uses the WOLFSSL_EVP_PKEY_CTX to decrypt a buffer.
  *
@@ -920,7 +947,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_CTX_set_rsa_padding(WOLFSSL_EVP_PKEY_CTX *ctx, 
  *
  * returns WOLFSSL_SUCCESS on success.
  */
-WOLFSSL_API int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
+int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
                      unsigned char *out, size_t *outlen,
                      const unsigned char *in, size_t inlen)
 {
@@ -963,7 +990,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
  *
  * Returns WOLFSSL_FAILURE on failure and WOLFSSL_SUCCESS on success
  */
-WOLFSSL_API int wolfSSL_EVP_PKEY_decrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
+int wolfSSL_EVP_PKEY_decrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
 {
     if (ctx == NULL) return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("EVP_PKEY_decrypt_init");
@@ -991,7 +1018,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_decrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
  *
  * Returns WOLFSSL_FAILURE on failure and WOLFSSL_SUCCESS on success
  */
-WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
+int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
                      unsigned char *out, size_t *outlen,
                      const unsigned char *in, size_t inlen)
 {
@@ -1034,7 +1061,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
  *
  * Returns WOLFSSL_FAILURE on failure and WOLFSSL_SUCCESS on success
  */
-WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
+int wolfSSL_EVP_PKEY_encrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
 {
     if (ctx == NULL) return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("EVP_PKEY_encrypt_init");
@@ -1131,7 +1158,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_sign(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *
  *
  * returns the size in bits of key on success
  */
-WOLFSSL_API int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
+int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
 {
     int bytes;
 
@@ -1142,6 +1169,66 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
 }
 
 
+int wolfSSL_EVP_PKEY_keygen_init(WOLFSSL_EVP_PKEY_CTX *ctx)
+{
+    (void)ctx;
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
+  WOLFSSL_EVP_PKEY **ppkey)
+{
+    int ret = WOLFSSL_FAILURE;
+    int ownPkey = 0;
+    WOLFSSL_EVP_PKEY* pkey;
+
+    if (ctx == NULL || ppkey == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    pkey = *ppkey;
+    if (pkey == NULL) {
+        ownPkey = 1;
+        pkey = wolfSSL_PKEY_new();
+    }
+
+    switch (pkey->type) {
+#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+        case EVP_PKEY_RSA:
+            pkey->rsa = wolfSSL_RSA_generate_key(ctx->nbits, WC_RSA_EXPONENT,
+                NULL, NULL);
+            if (pkey->rsa) {
+                pkey->ownRsa = 1;
+                pkey->pkey_sz = wolfSSL_i2d_RSAPrivateKey(pkey->rsa,
+                        (unsigned char**)&pkey->pkey.ptr);
+                ret = WOLFSSL_SUCCESS;
+            }
+            break;
+#endif
+#ifdef HAVE_ECC
+        case EVP_PKEY_EC:
+            pkey->ecc = wolfSSL_EC_KEY_new();
+            if (pkey->ecc) {
+                ret = wolfSSL_EC_KEY_generate_key(pkey->ecc);
+                if (ret == WOLFSSL_SUCCESS) {
+                    pkey->ownEcc = 1;
+                }
+            }
+#endif
+        default:
+            break;
+    }
+
+    if (ret != WOLFSSL_SUCCESS && ownPkey) {
+        wolfSSL_EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
+
+    *ppkey = pkey;
+
+    return ret;
+}
+
 /* Get the size in bytes for WOLFSSL_EVP_PKEY key
  *
  * pkey WOLFSSL_EVP_PKEY structure to get key size of
@@ -1149,7 +1236,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
  * returns the size of a key on success which is the maximum size of a
  *         signature
  */
-WOLFSSL_API int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
+int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
 {
     if (pkey == NULL) return 0;
     WOLFSSL_ENTER("EVP_PKEY_size");
@@ -1183,11 +1270,20 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
  *
  * returns WOLFSSL_SUCCESS on success
  */
-WOLFSSL_API int wolfSSL_EVP_SignInit(WOLFSSL_EVP_MD_CTX *ctx, const WOLFSSL_EVP_MD *type)
+int wolfSSL_EVP_SignInit(WOLFSSL_EVP_MD_CTX *ctx, const WOLFSSL_EVP_MD *type)
 {
     if (ctx == NULL) return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("EVP_SignInit");
     return wolfSSL_EVP_DigestInit(ctx,type);
+}
+
+WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
+                                     const WOLFSSL_EVP_MD* type,
+                                     WOLFSSL_ENGINE *impl)
+{
+    if (ctx == NULL) return WOLFSSL_FAILURE;
+    WOLFSSL_ENTER("EVP_SignInit");
+    return wolfSSL_EVP_DigestInit_ex(ctx,type,impl);
 }
 
 
@@ -1199,7 +1295,7 @@ WOLFSSL_API int wolfSSL_EVP_SignInit(WOLFSSL_EVP_MD_CTX *ctx, const WOLFSSL_EVP_
  *
  * returns WOLFSSL_SUCCESS on success
  */
-WOLFSSL_API int wolfSSL_EVP_SignUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t len)
+int wolfSSL_EVP_SignUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t len)
 {
     if (ctx == NULL) return 0;
     WOLFSSL_ENTER("EVP_SignUpdate(");
@@ -1248,7 +1344,7 @@ static int md2nid(const unsigned char md)
  *
  * returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure
  */
-WOLFSSL_API int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
+int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
                   unsigned int *siglen, WOLFSSL_EVP_PKEY *pkey)
 {
     unsigned int mdsize;
@@ -1291,7 +1387,7 @@ WOLFSSL_API int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *si
  *
  * returns WOLFSSL_SUCCESS on success
  */
-WOLFSSL_API int wolfSSL_EVP_VerifyInit(WOLFSSL_EVP_MD_CTX *ctx, const WOLFSSL_EVP_MD *type)
+int wolfSSL_EVP_VerifyInit(WOLFSSL_EVP_MD_CTX *ctx, const WOLFSSL_EVP_MD *type)
 {
     if (ctx == NULL) return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("EVP_VerifyInit");
@@ -1307,7 +1403,7 @@ WOLFSSL_API int wolfSSL_EVP_VerifyInit(WOLFSSL_EVP_MD_CTX *ctx, const WOLFSSL_EV
  *
  * returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure
  */
-WOLFSSL_API int wolfSSL_EVP_VerifyUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t len)
+int wolfSSL_EVP_VerifyUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t len)
 {
     if (ctx == NULL) return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("EVP_VerifyUpdate");
@@ -1324,7 +1420,7 @@ WOLFSSL_API int wolfSSL_EVP_VerifyUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *da
  *
  * returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure
  */
-WOLFSSL_API int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
+int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
         unsigned char*sig, unsigned int siglen, WOLFSSL_EVP_PKEY *pkey)
 {
     int ret;
@@ -1359,7 +1455,7 @@ WOLFSSL_API int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
     return WOLFSSL_FAILURE;
 }
 
-WOLFSSL_API int wolfSSL_EVP_add_cipher(const WOLFSSL_EVP_CIPHER *cipher)
+int wolfSSL_EVP_add_cipher(const WOLFSSL_EVP_CIPHER *cipher)
 {
     (void)cipher;
     /* nothing to do */
@@ -1798,10 +1894,84 @@ int wolfSSL_EVP_DigestVerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
 
     return WOLFSSL_FAILURE;
 }
+
+#ifdef WOLFSSL_APACHE_HTTPD
+#if !defined(USE_WINDOWS_API) && !defined(MICROCHIP_PIC32)
+    #include <termios.h>
+#endif
+
+#ifndef XGETPASSWD
+    static int XGETPASSWD(char* buf, int bufSz) {
+        int ret = WOLFSSL_SUCCESS;
+
+        /* turn off echo for passwords */
+    #ifdef USE_WINDOWS_API
+        DWORD originalTerm;
+        DWORD newTerm;
+        CONSOLE_SCREEN_BUFFER_INFO screenOrig;
+        HANDLE stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
+        if (GetConsoleMode(stdinHandle, &originalTerm) == 0) {
+            WOLFSSL_MSG("Couldn't get the original terminal settings");
+            return WOLFSSL_FAILURE;
+        }
+        newTerm = originalTerm;
+        newTerm &= ~ENABLE_ECHO_INPUT;
+        if (SetConsoleMode(stdinHandle, newTerm) == 0) {
+            WOLFSSL_MSG("Couldn't turn off echo");
+            return WOLFSSL_FAILURE;
+        }
+    #else
+        struct termios originalTerm;
+        struct termios newTerm;
+        if (tcgetattr(STDIN_FILENO, &originalTerm) != 0) {
+            WOLFSSL_MSG("Couldn't get the original terminal settings");
+            return WOLFSSL_FAILURE;
+        }
+        XMEMCPY(&newTerm, &originalTerm, sizeof(struct termios));
+
+        newTerm.c_lflag &= ~ECHO;
+        newTerm.c_lflag |= (ICANON | ECHONL);
+        if (tcsetattr(STDIN_FILENO, TCSANOW, &newTerm) != 0) {
+            WOLFSSL_MSG("Couldn't turn off echo");
+            return WOLFSSL_FAILURE;
+        }
+    #endif
+
+        if (XFGETS(buf, bufSz, stdin) == NULL) {
+            ret = WOLFSSL_FAILURE;
+        }
+
+        /* restore default echo */
+    #ifdef USE_WINDOWS_API
+        if (SetConsoleMode(stdinHandle, originalTerm) == 0) {
+            WOLFSSL_MSG("Couldn't restore the terminal settings");
+            return WOLFSSL_FAILURE;
+        }
+    #else
+        if (tcsetattr(STDIN_FILENO, TCSANOW, &originalTerm) != 0) {
+            WOLFSSL_MSG("Couldn't restore the terminal settings");
+            return WOLFSSL_FAILURE;
+        }
+    #endif
+        return ret;
+    }
+#endif
+
+/* returns 0 on success and -2 or -1 on failure */
+int wolfSSL_EVP_read_pw_string(char* buf, int bufSz, const char* banner, int v)
+{
+    printf("%s", banner);
+    if (XGETPASSWD(buf, bufSz) == WOLFSSL_FAILURE) {
+        return -1;
+    }
+    (void)v; /* fgets always sanity checks size of input vs buffer */
+    return 0;
+}
+#endif /* WOLFSSL_APACHE_HTTPD */
 #endif /* WOLFSSL_EVP_INCLUDED */
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_PWDBASED) && !defined(NO_SHA)
-WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char *pass, int passlen,
+int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char *pass, int passlen,
                                                const unsigned char *salt,
                                                int saltlen, int iter,
                                                int keylen, unsigned char *out)

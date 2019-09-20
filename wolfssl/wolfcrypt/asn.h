@@ -144,6 +144,19 @@ enum DN_Tags {
 #define WOLFSSL_JOI_ST           "/jurisdictionST="
 #define WOLFSSL_EMAIL_ADDR       "/emailAddress="
 
+#if defined(WOLFSSL_APACHE_HTTPD)
+    /* otherName strings */
+    #define WOLFSSL_SN_MS_UPN       "msUPN"
+    #define WOLFSSL_LN_MS_UPN       "Microsoft Universal Principal Name"
+    #define WOLFSSL_MS_UPN_SUM 265
+    #define WOLFSSL_SN_DNS_SRV      "id-on-dnsSRV"
+    #define WOLFSSL_LN_DNS_SRV      "SRVName otherName form"
+    /* TLS features extension strings */
+    #define WOLFSSL_SN_TLS_FEATURE  "tlsfeature"
+    #define WOLFSSL_LN_TLS_FEATURE  "TLS Feature"
+    #define WOLFSSL_TLS_FEATURE_SUM 92
+#endif
+
 /* NIDs */
 enum
 {
@@ -157,6 +170,10 @@ enum
     NID_id_pkix_OCSP_basic = 74,
     NID_any_policy = 75,
     NID_anyExtendedKeyUsage = 76,
+    NID_givenName = 99,
+    NID_initials = 101,
+    NID_title = 106,
+    NID_description = 107,
     NID_basic_constraints = 133,
     NID_key_usage = 129,     /* 2.5.29.15 */
     NID_ext_key_usage = 151, /* 2.5.29.37 */
@@ -173,8 +190,10 @@ enum
     NID_policy_mappings = 147,
     NID_policy_constraints = 150,
     NID_inhibit_any_policy = 168,      /* 2.5.29.54 */
-    NID_tlsfeature = 92,               /* id-pe 24 */
+    NID_tlsfeature = 1020,             /* id-pe 24 */
     NID_commonName = 0x03,             /* matchs ASN_COMMON_NAME in asn.h */
+
+
     NID_surname = 0x04,                /* SN */
     NID_serialNumber = 0x05,           /* serialNumber */
     NID_countryName = 0x06,            /* C  */
@@ -184,6 +203,8 @@ enum
     NID_organizationalUnitName = 0x0b, /* OU */
     NID_domainComponent = 0x19,        /* matchs ASN_DOMAIN_COMPONENT in asn.h */
     NID_emailAddress = 0x30,           /* emailAddress */
+    NID_id_on_dnsSRV = 82,             /* 1.3.6.1.5.5.7.8.7 */
+    NID_ms_upn = 265                   /* 1.3.6.1.4.1.311.20.2.3 */
 };
 
 enum ECC_TYPES
@@ -197,12 +218,12 @@ enum ECC_TYPES
         ASN_PIV_CERT          = 0x0A,
         ASN_PIV_NONCE         = 0x0B,
         ASN_PIV_SIGNED_NONCE  = 0x0C,
-            
+
         ASN_PIV_TAG_CERT      = 0x70,
         ASN_PIV_TAG_CERT_INFO = 0x71,
         ASN_PIV_TAG_MSCUID    = 0x72,
         ASN_PIV_TAG_ERR_DET   = 0xFE,
-            
+
         /* certificate info masks */
         ASN_PIV_CERT_INFO_COMPRESSED = 0x03,
         ASN_PIV_CERT_INFO_ISX509     = 0x04,
@@ -341,6 +362,7 @@ enum Oid_Types {
     oidHmacType         = 15,
     oidCompressType     = 16,
     oidCertNameType     = 17,
+    oidTlsExtType       = 18,
     oidIgnoreType
 };
 
@@ -1229,6 +1251,9 @@ struct OcspRequest {
     byte   issuerKeyHash[KEYID_SIZE];
     byte*  serial;   /* copy of the serial number in source cert */
     int    serialSz;
+#ifdef OPENSSL_EXTRA
+    WOLFSSL_ASN1_INTEGER* serialInt;
+#endif
     byte*  url;      /* copy of the extAuthInfo in source cert */
     int    urlSz;
 
