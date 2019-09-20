@@ -25776,10 +25776,8 @@ void* wolfSSL_sk_value(WOLFSSL_STACK* sk, int i)
             return (void*)sk->data.x509;
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         case STACK_TYPE_CIPHER:
-            if (sk->data.cipher == NULL)
-                return NULL;
-            sk->data.cipher->offset = offset;
-            return (void*)sk->data.cipher;
+            sk->data.cipher.offset = offset;
+            return (void*)&sk->data.cipher;
         case STACK_TYPE_GEN_NAME:
             gn = (WOLFSSL_GENERAL_NAME*)sk->data.obj;
             if (gn == NULL)
