@@ -60,6 +60,7 @@ typedef struct
     tsip_tls_ca_certification_public_key_index_t  user_rsa2048_tls_pubindex;
 } tsip_key_data;
 
+struct WOLFSSL;
 
 int  tsip_Open( );
 void tsip_Close( );
@@ -87,7 +88,6 @@ int tsip_tls_CertVerify(const byte *cert, word32 certSz,
 void tsip_inform_key_position(const word32 key_n_start, const word32 key_n_len,
                               const word32 key_e_start, const word32 key_e_len);
 int tsip_generatePremasterSecret(byte *premaster, word32 preSz);
-struct WOLFSSL;
 int tsip_generateEncryptPreMasterSecret(struct WOLFSSL *ssl, byte *out, 
                                         word32 *outSz);
 int tsip_generateMasterSecret(const byte *pre, const byte *cr,const byte *sr,
