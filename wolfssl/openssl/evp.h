@@ -190,7 +190,29 @@ enum {
     NID_md2           = 77,
     NID_md5           =  4,
     NID_hmac          = 855,
+    NID_dhKeyAgreement= 28,
+    EVP_PKEY_DH       = NID_dhKeyAgreement,
     EVP_PKEY_HMAC     = NID_hmac
+};
+
+enum {
+    NID_md5WithRSA    = 104,
+    NID_md5WithRSAEncryption = 8,
+    NID_dsaWithSHA1   = 113,
+    NID_dsaWithSHA1_2 = 70,
+    NID_sha1WithRSA   = 115,
+    NID_sha1WithRSAEncryption = 65,
+    NID_sha224WithRSAEncryption = 671,
+    NID_sha256WithRSAEncryption = 668,
+    NID_sha384WithRSAEncryption = 669,
+    NID_sha512WithRSAEncryption = 670,
+    NID_ecdsa_with_SHA1 = 416,
+    NID_ecdsa_with_SHA224 = 793,
+    NID_ecdsa_with_SHA256 = 794,
+    NID_ecdsa_with_SHA384 = 795,
+    NID_ecdsa_with_SHA512 = 796,
+    NID_dsa_with_SHA224 = 802,
+    NID_dsa_with_SHA256 = 803,
 };
 
 enum {
@@ -421,6 +443,8 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx);
 WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_EVP_PKEY_new(void);
 WOLFSSL_API void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY*);
 WOLFSSL_API int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey);
+WOLFSSL_API int wolfSSL_EVP_PKEY_missing_parameters(WOLFSSL_EVP_PKEY *pkey);
+WOLFSSL_API int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EVP_PKEY *b);
 WOLFSSL_API int wolfSSL_EVP_PKEY_type(int type);
 WOLFSSL_API int wolfSSL_EVP_PKEY_id(const EVP_PKEY *pkey);
 WOLFSSL_API int wolfSSL_EVP_PKEY_base_id(const EVP_PKEY *pkey);
@@ -632,6 +656,8 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_PKEY_free                  wolfSSL_EVP_PKEY_free
 #define EVP_PKEY_up_ref                wolfSSL_EVP_PKEY_up_ref
 #define EVP_PKEY_size                  wolfSSL_EVP_PKEY_size
+#define EVP_PKEY_missing_parameters    wolfSSL_EVP_PKEY_missing_parameters
+#define EVP_PKEY_cmp                   wolfSSL_EVP_PKEY_cmp
 #define EVP_PKEY_type                  wolfSSL_EVP_PKEY_type
 #define EVP_PKEY_base_id               wolfSSL_EVP_PKEY_base_id
 #define EVP_PKEY_id                    wolfSSL_EVP_PKEY_id

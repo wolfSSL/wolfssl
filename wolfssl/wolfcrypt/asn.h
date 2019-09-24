@@ -1105,7 +1105,6 @@ WOLFSSL_LOCAL int GetSerialNumber(const byte* input, word32* inOutIdx,
 WOLFSSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
                              int maxIdx);
 WOLFSSL_LOCAL int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der);
-WOLFSSL_LOCAL int RsaPublicKeyDerSize(RsaKey* key, int with_header);
 
 #ifdef HAVE_ECC
     /* ASN sig helpers */

@@ -627,12 +627,17 @@ static int SetASNInt(int len, byte firstByte, byte* output)
 {
     word32 idx = 0;
 
-    output[idx++] = ASN_INTEGER;
+    if (output)
+        output[idx] = ASN_INTEGER;
+    idx++;
     if (firstByte & 0x80)
         len++;
-    idx += SetLength(len, output + idx);
-    if (firstByte & 0x80)
-        output[idx++] = 0x00;
+    idx += SetLength(len, output ? output + idx : NULL);
+    if (firstByte & 0x80) {
+        if (output)
+            output[idx] = 0x00;
+        idx++;
+    }
 
     return idx;
 }
@@ -664,16 +669,19 @@ static int SetASNIntMP(mp_int* n, int maxSz, byte* output)
     if (maxSz >= 0 && (idx + length) > maxSz)
         return BUFFER_E;
 
-    err = mp_to_unsigned_bin(n, output + idx);
-    if (err != MP_OKAY)
-        return MP_TO_E;
+    if (output) {
+        err = mp_to_unsigned_bin(n, output + idx);
+        if (err != MP_OKAY)
+            return MP_TO_E;
+    }
     idx += length;
 
     return idx;
 }
 #endif
 
-#if !defined(NO_RSA) && defined(HAVE_USER_RSA) && defined(WOLFSSL_CERT_GEN)
+#if !defined(NO_RSA) && defined(HAVE_USER_RSA) && \
+    (defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA))
 /* Set the DER/BER encoding of the ASN.1 INTEGER element with an mp_int from
  * an RSA key.
  * The number is assumed to be positive.
@@ -697,9 +705,11 @@ static int SetASNIntRSA(void* n, byte* output)
     if ((idx + length) > MAX_RSA_INT_SZ)
         return BUFFER_E;
 
-    err = wc_Rsa_to_unsigned_bin(n, output + idx, length);
-    if (err != MP_OKAY)
-        return MP_TO_E;
+    if (output) {
+        err = wc_Rsa_to_unsigned_bin(n, output + idx, length);
+        if (err != MP_OKAY)
+            return MP_TO_E;
+    }
     idx += length;
 
     return idx;
@@ -957,9 +967,14 @@ static word32 SetBitString(word32 len, byte unusedBits, byte* output)
 {
     word32 idx = 0;
 
-    output[idx++] = ASN_BIT_STRING;
-    idx += SetLength(len + 1, output + idx);
-    output[idx++] = unusedBits;
+    if (output)
+        output[idx] = ASN_BIT_STRING;
+    idx++;
+
+    idx += SetLength(len + 1, output ? output + idx : NULL);
+    if (output)
+        output[idx] = unusedBits;
+    idx++;
 
     return idx;
 }
@@ -6053,13 +6068,19 @@ WOLFSSL_LOCAL word32 SetLength(word32 length, byte* output)
 {
     word32 i = 0, j;
 
-    if (length < ASN_LONG_LENGTH)
-        output[i++] = (byte)length;
+    if (length < ASN_LONG_LENGTH) {
+        if (output)
+            output[i] = (byte)length;
+        i++;
+    }
     else {
-        output[i++] = (byte)(BytePrecision(length) | ASN_LONG_LENGTH);
+        if (output)
+            output[i] = (byte)(BytePrecision(length) | ASN_LONG_LENGTH);
+        i++;
 
         for (j = BytePrecision(length); j; --j) {
-            output[i] = (byte)(length >> ((j - 1) * WOLFSSL_BIT_SIZE));
+            if (output)
+                output[i] = (byte)(length >> ((j - 1) * WOLFSSL_BIT_SIZE));
             i++;
         }
     }
@@ -6070,8 +6091,9 @@ WOLFSSL_LOCAL word32 SetLength(word32 length, byte* output)
 
 WOLFSSL_LOCAL word32 SetSequence(word32 len, byte* output)
 {
-    output[0] = ASN_SEQUENCE | ASN_CONSTRUCTED;
-    return SetLength(len, output + 1) + 1;
+    if (output)
+        output[0] = ASN_SEQUENCE | ASN_CONSTRUCTED;
+    return SetLength(len, output ? output + 1 : NULL) + 1;
 }
 
 WOLFSSL_LOCAL word32 SetOctetString(word32 len, byte* output)
@@ -6185,11 +6207,13 @@ WOLFSSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
     idSz  = SetObjectId(algoSz, ID_Length);
     seqSz = SetSequence(idSz + algoSz + tagSz + curveSz, seqArray);
 
-    XMEMCPY(output, seqArray, seqSz);
-    XMEMCPY(output + seqSz, ID_Length, idSz);
-    XMEMCPY(output + seqSz + idSz, algoName, algoSz);
-    if (tagSz == 2)
-        SetASNNull(&output[seqSz + idSz + algoSz]);
+    if (output) {
+        XMEMCPY(output, seqArray, seqSz);
+        XMEMCPY(output + seqSz, ID_Length, idSz);
+        XMEMCPY(output + seqSz + idSz, algoName, algoSz);
+        if (tagSz == 2)
+            SetASNNull(&output[seqSz + idSz + algoSz]);
+    }
 
     return seqSz + idSz + algoSz + tagSz;
 
@@ -10124,74 +10148,52 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
     return idx;
 }
 
-int RsaPublicKeyDerSize(RsaKey* key, int with_header)
+#endif /* !NO_RSA && (WOLFSSL_CERT_GEN || (WOLFSSL_KEY_GEN &&
+                                           !HAVE_USER_RSA))) */
+
+#if !defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA))
+int wc_RsaPublicKeyDerSize(RsaKey* key, int with_header)
 {
-    byte* dummy = NULL;
-    byte seq[MAX_SEQ_SZ];
-    byte bitString[1 + MAX_LENGTH_SZ + 1];
-    int  nSz;
-    int  eSz;
-    int  seqSz;
-    int  bitStringSz;
-    int  idx;
+    int  idx = 0;
+    int  nSz, eSz, seqSz, bitStringSz, algoSz;
 
     if (key == NULL)
         return BAD_FUNC_ARG;
 
     /* n */
-    dummy = (byte*)XMALLOC(MAX_RSA_INT_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (dummy == NULL)
-        return MEMORY_E;
-
 #ifdef HAVE_USER_RSA
-    nSz = SetASNIntRSA(key->n, dummy);
+    nSz = SetASNIntRSA(key->n, NULL);
 #else
-    nSz = SetASNIntMP(&key->n, MAX_RSA_INT_SZ, dummy);
+    nSz = SetASNIntMP(&key->n, MAX_RSA_INT_SZ, NULL);
 #endif
-    XFREE(dummy, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (nSz < 0) {
         return nSz;
     }
 
     /* e */
-    dummy = (byte*)XMALLOC(MAX_RSA_E_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (dummy == NULL) {
-        XFREE(dummy, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return MEMORY_E;
-    }
-
 #ifdef HAVE_USER_RSA
-    eSz = SetASNIntRSA(key->e, dummy);
+    eSz = SetASNIntRSA(key->e, NULL);
 #else
-    eSz = SetASNIntMP(&key->e, MAX_RSA_INT_SZ, dummy);
+    eSz = SetASNIntMP(&key->e, MAX_RSA_INT_SZ, NULL);
 #endif
-    XFREE(dummy, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (eSz < 0) {
         return eSz;
     }
 
-    seqSz  = SetSequence(nSz + eSz, seq);
+    seqSz  = SetSequence(nSz + eSz, NULL);
 
     /* headers */
     if (with_header) {
-        int  algoSz;
-        dummy = (byte*)XMALLOC(MAX_RSA_INT_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (dummy == NULL)
-            return MEMORY_E;
+        algoSz = SetAlgoID(RSAk, NULL, oidKeyType, 0);
+        bitStringSz = SetBitString(seqSz + nSz + eSz, 0, NULL);
 
-        algoSz = SetAlgoID(RSAk, dummy, oidKeyType, 0);
-        bitStringSz  = SetBitString(seqSz + nSz + eSz, 0, bitString);
-
-        idx = SetSequence(nSz + eSz + seqSz + bitStringSz + algoSz, dummy);
-        XFREE(dummy, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        idx += SetSequence(nSz + eSz + seqSz + bitStringSz + algoSz, NULL);
 
         /* algo */
         idx += algoSz;
         /* bit string */
         idx += bitStringSz;
     }
-    else
-        idx = 0;
 
     /* seq */
     idx += seqSz;
@@ -10202,8 +10204,8 @@ int RsaPublicKeyDerSize(RsaKey* key, int with_header)
 
     return idx;
 }
-#endif /* !NO_RSA && (WOLFSSL_CERT_GEN || (WOLFSSL_KEY_GEN &&
-                                           !HAVE_USER_RSA))) */
+
+#endif /* !NO_RSA && WOLFSSL_CERT_GEN */
 
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
@@ -10587,20 +10589,24 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int with_header)
 
         idx = SetSequence(pubSz + curveSz + bitStringSz + algoSz, output);
         /* algo */
-        XMEMCPY(output + idx, algo, algoSz);
+        if (output)
+            XMEMCPY(output + idx, algo, algoSz);
         idx += algoSz;
-       /* curve */
-        XMEMCPY(output + idx, curve, curveSz);
+        /* curve */
+        if (output)
+            XMEMCPY(output + idx, curve, curveSz);
         idx += curveSz;
         /* bit string */
-        XMEMCPY(output + idx, bitString, bitStringSz);
+        if (output)
+            XMEMCPY(output + idx, bitString, bitStringSz);
         idx += bitStringSz;
     }
     else
         idx = 0;
 
     /* pub */
-    XMEMCPY(output + idx, pub, pubSz);
+    if (output)
+        XMEMCPY(output + idx, pub, pubSz);
     idx += pubSz;
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -10626,7 +10632,7 @@ int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 inLen,
     word32 keySz  = 0;
     int ret;
 
-    if (output == NULL || key == NULL) {
+    if (key == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -10645,12 +10651,23 @@ int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 inLen,
         return ret;
     }
 
-    if (inLen < keySz + infoSz) {
+    /* if output null then just return size */
+    if (output == NULL) {
+        return keySz + infoSz;
+    }
+
+    if (output == NULL || inLen < keySz + infoSz) {
         return BUFFER_E;
     }
 
     return SetEccPublicKey(output, key, with_AlgCurve);
 }
+
+int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve)
+{
+    return wc_EccPublicKeyToDer(key, NULL, 0, with_AlgCurve);
+}
+
 #endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
 
 #if defined(HAVE_ED25519) && (defined(WOLFSSL_CERT_GEN) || \
@@ -10807,9 +10824,11 @@ static int CopyValidity(byte* output, Cert* cert)
 
     /* headers and output */
     seqSz = SetSequence(cert->beforeDateSz + cert->afterDateSz, output);
-    XMEMCPY(output + seqSz, cert->beforeDate, cert->beforeDateSz);
-    XMEMCPY(output + seqSz + cert->beforeDateSz, cert->afterDate,
-                                                 cert->afterDateSz);
+    if (output) {
+        XMEMCPY(output + seqSz, cert->beforeDate, cert->beforeDateSz);
+        XMEMCPY(output + seqSz + cert->beforeDateSz, cert->afterDate,
+                                                     cert->afterDateSz);
+    }
     return seqSz + cert->beforeDateSz + cert->afterDateSz;
 }
 
@@ -12253,17 +12272,20 @@ static int AddSignature(byte* buffer, int bodySz, const byte* sig, int sigSz,
     int  idx = bodySz, seqSz;
 
     /* algo */
-    idx += SetAlgoID(sigAlgoType, buffer + idx, oidSigType, 0);
+    idx += SetAlgoID(sigAlgoType, buffer ? buffer + idx : NULL, oidSigType, 0);
     /* bit string */
-    idx += SetBitString(sigSz, 0, buffer + idx);
+    idx += SetBitString(sigSz, 0, buffer ? buffer + idx : NULL);
     /* signature */
-    XMEMCPY(buffer + idx, sig, sigSz);
+    if (buffer)
+        XMEMCPY(buffer + idx, sig, sigSz);
     idx += sigSz;
 
     /* make room for overall header */
     seqSz = SetSequence(idx, seq);
-    XMEMMOVE(buffer + seqSz, buffer, idx);
-    XMEMCPY(buffer, seq, seqSz);
+    if (buffer) {
+        XMEMMOVE(buffer + seqSz, buffer, idx);
+        XMEMCPY(buffer, seq, seqSz);
+    }
 
     return idx + seqSz;
 }
@@ -12281,6 +12303,10 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
 #else
     DerCert der[1];
 #endif
+
+    if (derBuffer == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     cert->keyType = eccKey ? ECC_KEY : (rsaKey ? RSA_KEY :
                                          (ed25519Key ? ED25519_KEY : NTRU_KEY));
@@ -12611,20 +12637,25 @@ static int WriteCertReqBody(DerCert* der, byte* buffer)
     /* signed part header */
     idx = SetSequence(der->total, buffer);
     /* version */
-    XMEMCPY(buffer + idx, der->version, der->versionSz);
+    if (buffer)
+        XMEMCPY(buffer + idx, der->version, der->versionSz);
     idx += der->versionSz;
     /* subject */
-    XMEMCPY(buffer + idx, der->subject, der->subjectSz);
+    if (buffer)
+        XMEMCPY(buffer + idx, der->subject, der->subjectSz);
     idx += der->subjectSz;
     /* public key */
-    XMEMCPY(buffer + idx, der->publicKey, der->publicKeySz);
+    if (buffer)
+        XMEMCPY(buffer + idx, der->publicKey, der->publicKeySz);
     idx += der->publicKeySz;
     /* attributes */
-    XMEMCPY(buffer + idx, der->attrib, der->attribSz);
+    if (buffer)
+        XMEMCPY(buffer + idx, der->attrib, der->attribSz);
     idx += der->attribSz;
     /* extensions */
     if (der->extensionsSz) {
-        XMEMCPY(buffer + idx, der->extensions, min(der->extensionsSz,
+        if (buffer)
+            XMEMCPY(buffer + idx, der->extensions, min(der->extensionsSz,
                                                (int)sizeof(der->extensions)));
         idx += der->extensionsSz;
     }

@@ -6145,7 +6145,8 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
 
    /* return length needed only */
    if (key != NULL && out == NULL && outLen != NULL) {
-      numlen = key->dp->size;
+      /* if key hasn't been setup assume max bytes for size estimation */
+      numlen = key->dp ? key->dp->size : MAX_ECC_BYTES;
       *outLen = 1 + 2*numlen;
       return LENGTH_ONLY_E;
    }
@@ -6156,7 +6157,7 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
    if (key->type == ECC_PRIVATEKEY_ONLY)
        return ECC_PRIVATEONLY_E;
 
-   if (wc_ecc_is_valid_idx(key->idx) == 0) {
+   if (wc_ecc_is_valid_idx(key->idx) == 0 || key->dp == NULL) {
       return ECC_BAD_ARG_E;
    }
    numlen = key->dp->size;

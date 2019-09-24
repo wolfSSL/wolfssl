@@ -3406,20 +3406,16 @@ void FreeX509(WOLFSSL_X509* x509)
         if (x509->authInfoCaIssuer != NULL) {
             XFREE(x509->authInfoCaIssuer, x509->heap, DYNAMIC_TYPE_X509_EXT);
         }
-        if (x509->notBeforeTime != NULL) {
-            XFREE(x509->notBeforeTime, x509->heap, DYNAMIC_TYPE_OPENSSL);
-        }
-        if (x509->notAfterTime != NULL) {
-            XFREE(x509->notAfterTime, x509->heap, DYNAMIC_TYPE_OPENSSL);
-        }
         if (x509->ext_sk != NULL) {
             wolfSSL_sk_X509_EXTENSION_free(x509->ext_sk);
         }
+        #endif /* OPENSSL_ALL || WOLFSSL_QT */
+        #ifdef OPENSSL_EXTRA
         /* Free serialNumber that was set by wolfSSL_X509_get_serialNumber */
         if (x509->serialNumber != NULL) {
             wolfSSL_ASN1_INTEGER_free(x509->serialNumber);
         }
-        #endif /* OPENSSL_ALL || WOLFSSL_QT */
+        #endif
         if (x509->extKeyUsageSrc != NULL) {
             XFREE(x509->extKeyUsageSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
             x509->extKeyUsageSrc= NULL;
@@ -4679,22 +4675,22 @@ int wolfSSL_IsPrivatePkSet(WOLFSSL* ssl)
 {
     int pkcbset = 0;
     (void)ssl;
-    
+
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || !defined(NO_RSA)
     if (0
     #ifdef HAVE_ECC
-        || (ssl->ctx->EccSignCb != NULL && 
+        || (ssl->ctx->EccSignCb != NULL &&
                                         ssl->buffers.keyType == ecc_dsa_sa_algo)
     #endif
     #ifdef HAVE_ED25519
-        || (ssl->ctx->Ed25519SignCb != NULL && 
+        || (ssl->ctx->Ed25519SignCb != NULL &&
                                         ssl->buffers.keyType == ed25519_sa_algo)
     #endif
     #ifndef NO_RSA
         || (ssl->ctx->RsaSignCb != NULL && ssl->buffers.keyType == rsa_sa_algo)
         || (ssl->ctx->RsaDecCb != NULL && ssl->buffers.keyType == rsa_kea)
         #ifdef WC_RSA_PSS
-        || (ssl->ctx->RsaPssSignCb != NULL && 
+        || (ssl->ctx->RsaPssSignCb != NULL &&
                                         ssl->buffers.keyType == rsa_pss_sa_algo)
         #endif
     #endif
@@ -8905,17 +8901,20 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     }
 #endif /* WOLFSSL_SEP */
     {
-        int minSz = min(dCert->beforeDateLen, MAX_DATE_SZ);
-        if (minSz > 0) {
+        int minSz;
+        if (dCert->beforeDateLen > 0) {
+            minSz = min(dCert->beforeDate[1], MAX_DATE_SZ);
+            x509->notBefore.type = dCert->beforeDate[0];
             x509->notBefore.length = minSz;
-            XMEMCPY(x509->notBefore.data, dCert->beforeDate, minSz);
+            XMEMCPY(x509->notBefore.data, &dCert->beforeDate[2], minSz);
         }
         else
             x509->notBefore.length = 0;
-        minSz = min(dCert->afterDateLen, MAX_DATE_SZ);
-        if (minSz > 0) {
+        if (dCert->afterDateLen > 0) {
+            minSz = min(dCert->beforeDate[1], MAX_DATE_SZ);
+            x509->notAfter.type = dCert->beforeDate[0];
             x509->notAfter.length = minSz;
-            XMEMCPY(x509->notAfter.data, dCert->afterDate, minSz);
+            XMEMCPY(x509->notAfter.data, &dCert->afterDate[2], minSz);
         }
         else
             x509->notAfter.length = 0;
@@ -10533,9 +10532,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 args->lastErr = MEMORY_E;
                                 goto exit_ppc;
                             }
-                            
+
                             XMEMCPY(ssl->peerTsipEncRsaKeyIndex,
-                                        args->dCert->tsip_encRsaKeyIdx, 
+                                        args->dCert->tsip_encRsaKeyIdx,
                                         TSIP_TLS_ENCPUBKEY_SZ_BY_CERTVRFY);
                          }
                     #endif
@@ -21108,8 +21107,8 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
                        !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
                     if (tsip_useable(ssl)) {
-                        ret = tsip_generatePremasterSecret( 
-                        &ssl->arrays->preMasterSecret[VERSION_SZ], 
+                        ret = tsip_generatePremasterSecret(
+                        &ssl->arrays->preMasterSecret[VERSION_SZ],
                         ENCRYPT_LEN - VERSION_SZ);
                     } else {
                     #endif
@@ -21128,7 +21127,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         ssl->arrays->preMasterSecret[1] = ssl->chVersion.minor;
 
                     ssl->arrays->preMasterSz = SECRET_LEN;
-                   
+
                     break;
                 }
             #endif /* !NO_RSA */
@@ -21452,13 +21451,13 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 {
                     #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
                        !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
-                    if (tsip_useable(ssl) && 
+                    if (tsip_useable(ssl) &&
                                      wc_RsaEncryptSize(ssl->peerRsaKey) == 256) {
                         ret = tsip_generateEncryptPreMasterSecret(ssl,
                                                             args->encSecret,
                                                             &args->encSz);
-                        
-                    } else 
+
+                    } else
                     #endif
                         ret = RsaEnc(ssl,
                             ssl->arrays->preMasterSecret, SECRET_LEN,

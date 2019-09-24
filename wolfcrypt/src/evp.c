@@ -1242,10 +1242,10 @@ int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
     WOLFSSL_ENTER("EVP_PKEY_size");
 
     switch (pkey->type) {
-#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#ifndef NO_RSA
     case EVP_PKEY_RSA:
         return (int)wolfSSL_RSA_size((const WOLFSSL_RSA*)(pkey->rsa));
-#endif /* NO_RSA */
+#endif /* !NO_RSA */
 
 #ifdef HAVE_ECC
     case EVP_PKEY_EC:
@@ -1260,6 +1260,70 @@ int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
         break;
     }
     return 0;
+}
+
+#ifndef NO_WOLFSSL_STUB
+WOLFSSL_API int wolfSSL_EVP_PKEY_missing_parameters(WOLFSSL_EVP_PKEY *pkey)
+{
+    (void)pkey;
+    /* not using missing params callback and returning zero to indicate success */
+    return 0;
+}
+#endif
+
+WOLFSSL_API int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EVP_PKEY *b)
+{
+    int ret = -1; /* failure */
+    int a_sz = 0, b_sz = 0;
+
+    if (a == NULL || b == NULL)
+        return ret;
+
+    /* check its the same type of key */
+    if (a->type != b->type)
+        return ret;
+
+    /* get size based on key type */
+    switch (a->type) {
+#ifndef NO_RSA
+    case EVP_PKEY_RSA:
+        a_sz = (int)wolfSSL_RSA_size((const WOLFSSL_RSA*)(a->rsa));
+        b_sz = (int)wolfSSL_RSA_size((const WOLFSSL_RSA*)(b->rsa));
+        break;
+#endif /* !NO_RSA */
+#ifdef HAVE_ECC
+    case EVP_PKEY_EC:
+        if (a->ecc == NULL || a->ecc->internal == NULL ||
+            b->ecc == NULL || b->ecc->internal == NULL) {
+            return ret;
+        }
+        a_sz = wc_ecc_size((ecc_key*)(a->ecc->internal));
+        b_sz = wc_ecc_size((ecc_key*)(b->ecc->internal));
+        break;
+#endif /* HAVE_ECC */
+    default:
+        break;
+    } /* switch (a->type) */
+
+    /* check size */
+    if (a_sz <= 0 || b_sz <= 0 || a_sz != b_sz) {
+        return ret;
+    }
+
+    /* check public key size */
+    if (a->pkey_sz > 0 && b->pkey_sz > 0 && a->pkey_sz != b->pkey_sz) {
+        return ret;
+    }
+
+    /* check public key */
+    if (a->pkey.ptr && b->pkey.ptr) {
+        if (XMEMCMP(a->pkey.ptr, b->pkey.ptr, a->pkey_sz) != 0) {
+            return ret;
+        }
+    }
+    ret = 0; /* success */
+
+    return ret;
 }
 
 
@@ -1732,14 +1796,14 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
             return WOLFSSL_SUCCESS;
         }
     }
-#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#ifndef NO_RSA
     else if (ctx->pctx->pkey->type == EVP_PKEY_RSA) {
         if (sig == NULL) {
             *siglen = wolfSSL_RSA_size(ctx->pctx->pkey->rsa);
             return WOLFSSL_SUCCESS;
         }
     }
-#endif
+#endif /* !NO_RSA */
 #ifdef HAVE_ECC
     else if (ctx->pctx->pkey->type == EVP_PKEY_EC) {
         if (sig == NULL) {

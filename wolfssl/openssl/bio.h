@@ -75,7 +75,9 @@
 /* helper to set specific retry/read flags */
 #define BIO_set_retry_read(bio)\
     wolfSSL_BIO_set_flags((bio), WOLFSSL_BIO_FLAG_RETRY | WOLFSSL_BIO_FLAG_READ)
-
+#define BIO_set_retry_write(bio)\
+    wolfSSL_BIO_set_flags((bio), WOLFSSL_BIO_FLAG_RETRY | WOLFSSL_BIO_FLAG_WRITE)
+        
 #define BIO_clear_retry_flags      wolfSSL_BIO_clear_retry_flags
 
 #define BIO_meth_new               wolfSSL_BIO_meth_new
