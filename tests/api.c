@@ -21806,12 +21806,19 @@ static void test_wolfSSL_X509_sign(void)
 
     ret = X509_sign(x509, priv, EVP_sha256());
 
-    /* Valid case - size should be 768 */
-#ifdef USE_CERT_BUFFERS_1024
-    AssertIntEQ(ret, 768);
-#else
-    AssertIntEQ(ret, 798);
+#if 0
+    /* example for writting to file */
+    XFILE tmpFile = XFOPEN("./signed.der", "wb");
+    if (tmpFile) {
+        int derSz = 0;
+        const byte* der = wolfSSL_X509_get_der(x509, &derSz);
+        XFWRITE(der, 1, derSz, tmpFile);
+    }
+    XFCLOSE(tmpFile);
 #endif
+
+    /* Valid case - size should be 798 */
+    AssertIntEQ(ret, 798);
 
     X509_NAME_free(name);
     EVP_PKEY_free(priv);

@@ -430,8 +430,12 @@ typedef long (*wolfSSL_BIO_meth_get_ctrl_cb)(WOLFSSL_BIO*, int, long, void*);
 typedef int (*wolfSSL_BIO_meth_create_cb)(WOLFSSL_BIO*);
 typedef int (*wolfSSL_BIO_meth_destroy_cb)(WOLFSSL_BIO*);
 
+/* wolfSSL BIO_METHOD type */
+#ifndef MAX_BIO_METHOD_NAME
 #define MAX_BIO_METHOD_NAME 256
-typedef struct WOLFSSL_BIO_METHOD_CUSTOM {
+#endif
+struct WOLFSSL_BIO_METHOD {
+    byte type;               /* method type */
     char name[MAX_BIO_METHOD_NAME];
 
     wolfSSL_BIO_meth_puts_cb putsCb;
@@ -444,12 +448,6 @@ typedef struct WOLFSSL_BIO_METHOD_CUSTOM {
     wolfSSL_BIO_meth_create_cb  createCb;
 
     wolfSSL_BIO_meth_get_ctrl_cb ctrlCb;
-} WOLFSSL_BIO_METHOD_CUSTOM;
-
-/* wolfSSL BIO_METHOD type */
-struct WOLFSSL_BIO_METHOD {
-    byte type;               /* method type */
-    WOLFSSL_BIO_METHOD_CUSTOM* custom;
 };
 
 /* wolfSSL BIO type */
@@ -467,7 +465,7 @@ struct WOLFSSL_BIO {
     WOLFSSL_BIO* next;          /* next in chain */
     WOLFSSL_BIO* pair;          /* BIO paired with */
     void*        heap;          /* user heap hint */
-    byte*        ptr;           /* memory buffer */
+    void*        ptr;           /* memory buffer */
     void*        usrCtx;        /* user set pointer */
     char*        infoArg;       /* BIO callback argument */
     wolf_bio_info_cb infoCb;    /* BIO callback */

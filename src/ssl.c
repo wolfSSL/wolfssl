@@ -13951,7 +13951,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         WOLFSSL_ENTER("BIO_f_buffer");
         meth.type = WOLFSSL_BIO_BUFFER;
-        meth.custom = NULL;
 
         return &meth;
     }
@@ -13973,7 +13972,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         WOLFSSL_ENTER("wolfSSL_BIO_s_bio");
         bio_meth.type = WOLFSSL_BIO_BIO;
-        bio_meth.custom = NULL;
 
         return &bio_meth;
     }
@@ -13986,7 +13984,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         WOLFSSL_ENTER("wolfSSL_BIO_s_file");
         file_meth.type = WOLFSSL_BIO_FILE;
-        file_meth.custom = NULL;
 
         return &file_meth;
     }
@@ -13999,7 +13996,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         WOLFSSL_ENTER("wolfSSL_BIO_f_ssl");
         meth.type = WOLFSSL_BIO_SSL;
-        meth.custom = NULL;
 
         return &meth;
     }
@@ -14011,7 +14007,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         WOLFSSL_ENTER("wolfSSL_BIO_s_socket");
         meth.type = WOLFSSL_BIO_SOCKET;
-        meth.custom = NULL;
 
         return &meth;
     }
@@ -14099,8 +14094,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             }
 
             /* check if is custom method */
-            if (method->custom) {
-                method->custom->createCb(bio);
+            if (method->createCb) {
+                method->createCb(bio);
             }
         }
         return bio;
@@ -14173,8 +14168,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             }
 
             /* call custom set free callback */
-            if (bio->method->custom && bio->method->custom->freeCb) {
-                bio->method->custom->freeCb(bio);
+            if (bio->method && bio->method->freeCb) {
+                bio->method->freeCb(bio);
             }
 
             /* remove from pair by setting the paired bios pair to NULL */
@@ -17698,7 +17693,7 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
         return WOLFSSL_SUCCESS;
     }
 
-
+    /* not an openssl compatibility function - getting for derCert */
     const byte* wolfSSL_X509_get_der(WOLFSSL_X509* x509, int* outSz)
     {
         WOLFSSL_ENTER("wolfSSL_X509_get_der");
@@ -21118,7 +21113,6 @@ WOLFSSL_BIO_METHOD* wolfSSL_BIO_s_mem(void)
 
     WOLFSSL_ENTER("wolfSSL_BIO_s_mem");
     meth.type = WOLFSSL_BIO_MEMORY;
-    meth.custom = NULL;
 
     return &meth;
 }
@@ -21130,7 +21124,6 @@ WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_base64(void)
 
     WOLFSSL_ENTER("wolfSSL_BIO_f_base64");
     meth.type = WOLFSSL_BIO_BASE64;
-    meth.custom = NULL;
 
     return &meth;
 }
@@ -35437,29 +35430,38 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         cert->version = (int)wolfSSL_X509_get_version(x509);
 
-        #ifdef WOLFSSL_ALT_NAMES
-        if ((x509->notBefore.length + 2) < CTC_DATE_SIZE) {
-            cert->beforeDate[0] = x509->notBefore.type;
-            cert->beforeDate[1] = x509->notBefore.length;
-            XMEMCPY(&cert->beforeDate[2], x509->notBefore.data,
-                    x509->notBefore.length);
-            cert->beforeDateSz = x509->notBefore.length + 2;
+    #ifdef WOLFSSL_ALT_NAMES
+        if (x509->notBefore.length > 0) {
+            if ((x509->notBefore.length + 2) < CTC_DATE_SIZE) {
+                cert->beforeDate[0] = x509->notBefore.type;
+                cert->beforeDate[1] = x509->notBefore.length;
+                XMEMCPY(&cert->beforeDate[2], x509->notBefore.data,
+                        x509->notBefore.length);
+                cert->beforeDateSz = x509->notBefore.length + 2;
+            }
+            else {
+                WOLFSSL_MSG("Not before date too large");
+                return WOLFSSL_FAILURE;
+            }
         }
         else {
-            WOLFSSL_MSG("Not before date too large");
-            return WOLFSSL_FAILURE;
+            cert->beforeDateSz = 0;
         }
-
-        if ((x509->notAfter.length + 2) < CTC_DATE_SIZE) {
-            cert->afterDate[0] = x509->notAfter.type;
-            cert->afterDate[1] = x509->notAfter.length;
-            XMEMCPY(&cert->afterDate[2], x509->notAfter.data,
-                    x509->notAfter.length);
-            cert->afterDateSz = x509->notAfter.length + 2;
+        if (x509->notAfter.length > 0) {
+            if ((x509->notAfter.length + 2) < CTC_DATE_SIZE) {
+                cert->afterDate[0] = x509->notAfter.type;
+                cert->afterDate[1] = x509->notAfter.length;
+                XMEMCPY(&cert->afterDate[2], x509->notAfter.data,
+                        x509->notAfter.length);
+                cert->afterDateSz = x509->notAfter.length + 2;
+            }
+            else {
+                WOLFSSL_MSG("Not after date too large");
+                return WOLFSSL_FAILURE;
+            }
         }
         else {
-            WOLFSSL_MSG("Not after date too large");
-            return WOLFSSL_FAILURE;
+            cert->afterDateSz = 0;
         }
 
         /* copy over alt names */
@@ -35480,7 +35482,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             }
             cert->altNamesSz = idx;
         }
-        #endif
+    #endif /* WOLFSSL_ALT_NAMES */
 
         cert->sigType = wolfSSL_X509_get_signature_type(x509);
         cert->keyType = x509->pubKeyOID;

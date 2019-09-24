@@ -125,10 +125,9 @@ int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
-    if (ssl->biord->method && ssl->biord->method->custom &&
-            ssl->biord->method->custom->readCb) {
+    if (ssl->biord->method && ssl->biord->method->readCb) {
         WOLFSSL_MSG("Calling custom biord");
-        recvd = ssl->biord->method->custom->readCb(ssl->biord, buf, sz);
+        recvd = ssl->biord->method->readCb(ssl->biord, buf, sz);
         if (recvd < 0 && recvd != WOLFSSL_CBIO_ERR_WANT_READ)
             return WOLFSSL_CBIO_ERR_GENERAL;
         return recvd;
@@ -179,10 +178,9 @@ int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
         return WOLFSSL_CBIO_ERR_GENERAL;
     }
 
-    if (ssl->biowr->method && ssl->biowr->method->custom &&
-            ssl->biowr->method->custom->writeCb) {
+    if (ssl->biowr->method && ssl->biowr->method->writeCb) {
         WOLFSSL_MSG("Calling custom biowr");
-        sent = ssl->biowr->method->custom->writeCb(ssl->biowr, buf, sz);
+        sent = ssl->biowr->method->writeCb(ssl->biowr, buf, sz);
         if (sent < 0) {
             return WOLFSSL_CBIO_ERR_GENERAL;
         }
