@@ -22664,7 +22664,8 @@ static void test_wolfSSL_X509_NAME_ENTRY(void)
 
 static void test_wolfSSL_X509_set_name(void)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_CERTS)
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
     X509* x509;
     X509_NAME* name;
 
@@ -27747,8 +27748,8 @@ static void test_wolfSSL_RSA_verify()
 }
 
 
-#if defined(OPENSSL_EXTRA) && (defined(HAVE_ECC) || !defined(NO_RSA)) && \
-    !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
 static void test_openssl_make_self_signed_certificate(EVP_PKEY* pkey)
 {
     X509* x509 = NULL;
