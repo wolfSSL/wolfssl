@@ -422,13 +422,16 @@ typedef struct WOLFSSL_BUF_MEM {
 } WOLFSSL_BUF_MEM;
 
 /* custom method with user set callbacks */
-typedef int (*wolfSSL_BIO_meth_write_cb)(WOLFSSL_BIO*, const char*, int);
-typedef int (*wolfSSL_BIO_meth_read_cb)(WOLFSSL_BIO *, char *, int);
-typedef int (*wolfSSL_BIO_meth_puts_cb)(WOLFSSL_BIO*, const char*);
-typedef int (*wolfSSL_BIO_meth_gets_cb)(WOLFSSL_BIO*, char*, int);
-typedef long (*wolfSSL_BIO_meth_get_ctrl_cb)(WOLFSSL_BIO*, int, long, void*);
-typedef int (*wolfSSL_BIO_meth_create_cb)(WOLFSSL_BIO*);
-typedef int (*wolfSSL_BIO_meth_destroy_cb)(WOLFSSL_BIO*);
+typedef int  (*wolfSSL_BIO_meth_write_cb)(WOLFSSL_BIO*, const char*, int);
+typedef int  (*wolfSSL_BIO_meth_read_cb)(WOLFSSL_BIO *, char *, int);
+typedef int  (*wolfSSL_BIO_meth_puts_cb)(WOLFSSL_BIO*, const char*);
+typedef int  (*wolfSSL_BIO_meth_gets_cb)(WOLFSSL_BIO*, char*, int);
+typedef long (*wolfSSL_BIO_meth_ctrl_get_cb)(WOLFSSL_BIO*, int, long, void*);
+typedef int  (*wolfSSL_BIO_meth_create_cb)(WOLFSSL_BIO*);
+typedef int  (*wolfSSL_BIO_meth_destroy_cb)(WOLFSSL_BIO*);
+
+typedef int wolfSSL_BIO_info_cb(WOLFSSL_BIO *, int, int);
+typedef long (*wolfssl_BIO_meth_ctrl_info_cb)(WOLFSSL_BIO*, int, wolfSSL_BIO_info_cb*);
 
 /* wolfSSL BIO_METHOD type */
 #ifndef MAX_BIO_METHOD_NAME
@@ -437,17 +440,14 @@ typedef int (*wolfSSL_BIO_meth_destroy_cb)(WOLFSSL_BIO*);
 struct WOLFSSL_BIO_METHOD {
     byte type;               /* method type */
     char name[MAX_BIO_METHOD_NAME];
-
+    wolfSSL_BIO_meth_write_cb writeCb;
+    wolfSSL_BIO_meth_read_cb readCb;
     wolfSSL_BIO_meth_puts_cb putsCb;
     wolfSSL_BIO_meth_gets_cb getsCb;
-
-    wolfSSL_BIO_meth_read_cb  readCb;
-    wolfSSL_BIO_meth_write_cb writeCb;
-
+    wolfSSL_BIO_meth_ctrl_get_cb ctrlCb;
+    wolfSSL_BIO_meth_create_cb createCb;
     wolfSSL_BIO_meth_destroy_cb freeCb;
-    wolfSSL_BIO_meth_create_cb  createCb;
-
-    wolfSSL_BIO_meth_get_ctrl_cb ctrlCb;
+    wolfssl_BIO_meth_ctrl_info_cb ctrlInfoCb;
 };
 
 /* wolfSSL BIO type */
@@ -1165,7 +1165,7 @@ WOLFSSL_API int wolfSSL_BIO_meth_set_write(WOLFSSL_BIO_METHOD*, wolfSSL_BIO_meth
 WOLFSSL_API int wolfSSL_BIO_meth_set_read(WOLFSSL_BIO_METHOD*, wolfSSL_BIO_meth_read_cb);
 WOLFSSL_API int wolfSSL_BIO_meth_set_puts(WOLFSSL_BIO_METHOD*, wolfSSL_BIO_meth_puts_cb);
 WOLFSSL_API int wolfSSL_BIO_meth_set_gets(WOLFSSL_BIO_METHOD*, wolfSSL_BIO_meth_gets_cb);
-WOLFSSL_API int wolfSSL_BIO_meth_set_ctrl(WOLFSSL_BIO_METHOD*, wolfSSL_BIO_meth_get_ctrl_cb);
+WOLFSSL_API int wolfSSL_BIO_meth_set_ctrl(WOLFSSL_BIO_METHOD*, wolfSSL_BIO_meth_ctrl_get_cb);
 WOLFSSL_API int wolfSSL_BIO_meth_set_create(WOLFSSL_BIO_METHOD*, wolfSSL_BIO_meth_create_cb);
 WOLFSSL_API int wolfSSL_BIO_meth_set_destroy(WOLFSSL_BIO_METHOD*, wolfSSL_BIO_meth_destroy_cb);
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_mem_buf(void* buf, int len);

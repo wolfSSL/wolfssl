@@ -849,30 +849,6 @@ enum {
 
 #define SSL_CTX_set_tmp_dh              wolfSSL_CTX_set_tmp_dh
 
-#define BIO_new_fp                      wolfSSL_BIO_new_fp
-#define BIO_new_file                    wolfSSL_BIO_new_file
-#define BIO_new_fp                      wolfSSL_BIO_new_fp
-#define BIO_ctrl                        wolfSSL_BIO_ctrl
-#define BIO_ctrl_pending                wolfSSL_BIO_ctrl_pending
-#define BIO_wpending                    wolfSSL_BIO_wpending
-#define BIO_get_mem_ptr                 wolfSSL_BIO_get_mem_ptr
-#define BIO_int_ctrl                    wolfSSL_BIO_int_ctrl
-#define BIO_reset                       wolfSSL_BIO_reset
-#define BIO_s_file                      wolfSSL_BIO_s_file
-#define BIO_s_bio                       wolfSSL_BIO_s_bio
-#define BIO_s_socket                    wolfSSL_BIO_s_socket
-#define BIO_set_fd                      wolfSSL_BIO_set_fd
-#define BIO_ctrl_reset_read_request     wolfSSL_BIO_ctrl_reset_read_request
-
-#define BIO_set_write_buf_size          wolfSSL_BIO_set_write_buf_size
-#define BIO_make_bio_pair               wolfSSL_BIO_make_bio_pair
-
-#define BIO_set_fp                      wolfSSL_BIO_set_fp
-#define BIO_get_fp                      wolfSSL_BIO_get_fp
-#define BIO_seek                        wolfSSL_BIO_seek
-#define BIO_write_filename              wolfSSL_BIO_write_filename
-#define BIO_set_mem_eof_return          wolfSSL_BIO_set_mem_eof_return
-
 #define TLSEXT_STATUSTYPE_ocsp  1
 
 #define SSL_set_options                 wolfSSL_set_options
@@ -907,22 +883,6 @@ enum {
 #define SSL_CTX_set_max_proto_version   wolfSSL_CTX_set_max_proto_version
 
 #define SSL_get_tlsext_status_exts      wolfSSL_get_tlsext_status_exts
-
-#define BIO_C_SET_FILE_PTR                      106
-#define BIO_C_GET_FILE_PTR                      107
-#define BIO_C_SET_FILENAME                      108
-#define BIO_C_FILE_SEEK                         128
-#define BIO_C_SET_BUF_MEM_EOF_RETURN            130
-#define BIO_C_SET_WRITE_BUF_SIZE                136
-#define BIO_C_MAKE_BIO_PAIR                     138
-
-#define BIO_CTRL_RESET          1
-#define BIO_CTRL_INFO           3
-#define BIO_CTRL_FLUSH          11
-#define BIO_CTRL_WPENDING       13
-
-#define BIO_CLOSE               0x01
-#define BIO_FP_WRITE            0x04
 
 #define SSL_CTRL_CLEAR_NUM_RENEGOTIATIONS         11
 #define SSL_CTRL_GET_TOTAL_RENEGOTIATIONS         12

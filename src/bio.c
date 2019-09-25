@@ -1465,7 +1465,7 @@ int wolfSSL_BIO_meth_set_gets(WOLFSSL_BIO_METHOD *biom,
 
 
 int wolfSSL_BIO_meth_set_ctrl(WOLFSSL_BIO_METHOD *biom,
-        wolfSSL_BIO_meth_get_ctrl_cb biom_ctrl)
+        wolfSSL_BIO_meth_ctrl_get_cb biom_ctrl)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_meth_set_ctrl");
     if (biom) {
