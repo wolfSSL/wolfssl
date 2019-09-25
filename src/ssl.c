@@ -10396,7 +10396,7 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, Suites* suites,
             name[(length == sizeof(name)) ? length - 1 : length] = 0;
 
             /* check for "not" case */
-            if (name[0] == '!') {
+            if (name[0] == '!' && suiteSz > 0) {
                 /* populate list with all suites if not already created */
                 if (localList == NULL) {
                     for (i = 0; i < suiteSz; i++) {
@@ -40287,8 +40287,11 @@ const byte* wolfSSL_SESSION_get_id(WOLFSSL_SESSION* sess, unsigned int* idLen)
     return sess->sessionID;
 }
 
-#if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
-                               defined(HAVE_SESSION_TICKET))
+#if (defined(HAVE_SESSION_TICKET) || defined(SESSION_CERTS)) && \
+    !defined(NO_FILESYSTEM)
+
+#if defined(SESSION_CERTS) || \
+   (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET))
 /* returns a pointer to the protocol used by the session */
 static const char* wolfSSL_SESSION_get_protocol(const WOLFSSL_SESSION* in)
 {
@@ -40296,9 +40299,6 @@ static const char* wolfSSL_SESSION_get_protocol(const WOLFSSL_SESSION* in)
 }
 #endif
 
-
-#if (defined(HAVE_SESSION_TICKET) || defined(SESSION_CERTS)) && \
-    !defined(NO_FILESYSTEM)
 /* returns true (non 0) if the session has EMS (extended master secret) */
 static int wolfSSL_SESSION_haveEMS(const WOLFSSL_SESSION* in)
 {
