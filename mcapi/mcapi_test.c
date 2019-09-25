@@ -233,8 +233,13 @@ static int check_md5(void)
         ret = wc_Md5Final(&defMd5, defDigest);
     }
 
-    if (memcmp(mcDigest, defDigest, CRYPT_MD5_DIGEST_SIZE) != 0) {
-        printf("md5 final memcmp fialed\n");
+    if (ret != 0) {
+        printf("md5 failed\n");
+        return -1;
+    }
+
+    if (ret == 0 && memcmp(mcDigest, defDigest, CRYPT_MD5_DIGEST_SIZE) != 0) {
+        printf("md5 final memcmp failed\n");
         return -1;
     }
     printf("md5         mcapi test passed\n");

@@ -294,7 +294,7 @@
         #else
         /* just use plain C stdlib stuff if desired */
         #include <stdlib.h>
-        #define XMALLOC(s, h, t)     ((void)h, (void)t, malloc((s)))
+        #define XMALLOC(s, h, t)     malloc((s))
         #define XFREE(p, h, t)       {void* xp = (p); if((xp)) free((xp));}
         #define XREALLOC(p, n, h, t) realloc((p), (n))
         #endif

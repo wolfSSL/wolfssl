@@ -8921,7 +8921,7 @@ int memory_test(void)
     word32 size[] = { WOLFMEM_BUCKETS };
     word32 dist[] = { WOLFMEM_DIST };
     byte buffer[30000]; /* make large enough to involve many bucket sizes */
-    int pad = -(int)((wolfssl_word)&(buffer[0])) & (WOLFSSL_STATIC_ALIGN - 1);
+    int pad = -(int)((wolfssl_word)buffer) & (WOLFSSL_STATIC_ALIGN - 1);
               /* pad to account for if head of buffer is not at set memory
                * alignment when tests are ran */
 #endif
@@ -11683,7 +11683,7 @@ int rsa_test(void)
 #ifndef NO_SIG_WRAPPER
     modLen = wc_RsaEncryptSize(&key);
 #endif
-#elif defined(WOLFSSL_RSA_PUBLIC_ONLY) && defined(WOLFSSL_MP_PUBLIC)
+#else
     #ifdef USE_CERT_BUFFERS_2048
         ret = mp_read_unsigned_bin(&key.n, &tmp[12], 256);
         if (ret != 0) {
@@ -14232,7 +14232,7 @@ int openssl_test(void)
     byte       hash[WC_SHA256_DIGEST_SIZE*2];  /* max size */
 
     a.inLen = 0;
-    b = c = d = e = f = a;
+    b.inLen = c.inLen = d.inLen = e.inLen = f.inLen = a.inLen;
 
     (void)a;
     (void)b;

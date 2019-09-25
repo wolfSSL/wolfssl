@@ -11210,6 +11210,8 @@ static int SetAKID(byte* output, word32 outSz,
     static const byte akid_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x23, 0x04 };
     static const byte akid_cs[] = { 0x80 };
 
+    (void)heap;
+
     if (output == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
@@ -11347,6 +11349,8 @@ int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
     word32 val, idx = 0, nb_val;
     char *token, *str, *ptr;
     word32 len;
+
+    (void)heap;
 
     if (out == NULL || outSz == NULL || *outSz < 2 || in == NULL)
         return BAD_FUNC_ARG;
@@ -12167,6 +12171,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buffer, int sz,
     (void)eccKey;
     (void)ed25519Key;
     (void)rng;
+    (void)heap;
 
     switch (certSignCtx->state) {
     case CERTSIGN_STATE_BEGIN:

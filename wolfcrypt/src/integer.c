@@ -2217,9 +2217,9 @@ LBL_M:
 int mp_exptmod_base_2(mp_int * X, mp_int * P, mp_int * Y)
 {
   mp_digit buf, mp;
-  int      err, bitbuf, bitcpy, bitcnt, digidx, x, y;
+  int      err = MP_OKAY, bitbuf, bitcpy, bitcnt, digidx, x, y;
 #ifdef WOLFSSL_SMALL_STACK
-  mp_int  *res;
+  mp_int  *res = NULL;
 #else
   mp_int   res[1];
 #endif

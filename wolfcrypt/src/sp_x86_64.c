@@ -524,13 +524,12 @@ static int sp_2048_mod_exp_16(sp_digit* r, const sp_digit* a, const sp_digit* e,
     if (err == MP_OKAY) {
         for (i=0; i<32; i++)
             t[i] = td + i * 32;
-        norm = t[0];
     }
-#else
-    norm = t[0];
 #endif
 
     if (err == MP_OKAY) {
+        norm = t[0];
+
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_16(norm, m);
 
@@ -703,13 +702,12 @@ static int sp_2048_mod_exp_avx2_16(sp_digit* r, const sp_digit* a, const sp_digi
     if (err == MP_OKAY) {
         for (i=0; i<32; i++)
             t[i] = td + i * 32;
-        norm = t[0];
     }
-#else
-    norm = t[0];
 #endif
 
     if (err == MP_OKAY) {
+        norm = t[0];
+
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_16(norm, m);
 
@@ -1067,13 +1065,12 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
     if (err == MP_OKAY) {
         for (i=0; i<32; i++)
             t[i] = td + i * 64;
-        norm = t[0];
     }
-#else
-    norm = t[0];
 #endif
 
     if (err == MP_OKAY) {
+        norm = t[0];
+
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_32(norm, m);
 
@@ -1248,13 +1245,12 @@ static int sp_2048_mod_exp_avx2_32(sp_digit* r, const sp_digit* a, const sp_digi
     if (err == MP_OKAY) {
         for (i=0; i<32; i++)
             t[i] = td + i * 64;
-        norm = t[0];
     }
-#else
-    norm = t[0];
 #endif
 
     if (err == MP_OKAY) {
+        norm = t[0];
+
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_32(norm, m);
 
@@ -1383,7 +1379,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     sp_digit *ah;
     sp_digit* m;
     sp_digit* r;
-    sp_digit e[1];
+    sp_digit e = 0;
     int err = MP_OKAY;
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
@@ -1419,19 +1415,19 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     if (err == MP_OKAY) {
         sp_2048_from_bin(ah, 32, in, inLen);
 #if DIGIT_BIT >= 64
-        e[0] = em->dp[0];
+        e = em->dp[0];
 #else
-        e[0] = em->dp[0];
+        e = em->dp[0];
         if (em->used > 1)
-            e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
+            e |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
 #endif
-        if (e[0] == 0)
+        if (e == 0)
             err = MP_EXPTMOD_E;
     }
     if (err == MP_OKAY) {
         sp_2048_from_mp(m, 32, mm);
 
-        if (e[0] == 0x3) {
+        if (e == 0x3) {
 #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
                 if (err == MP_OKAY) {
@@ -1468,7 +1464,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 
             if (err == MP_OKAY) {
                 for (i=63; i>=0; i--)
-                    if (e[0] >> i)
+                    if (e >> i)
                         break;
 
                 XMEMCPY(r, a, sizeof(sp_digit) * 32);
@@ -1476,7 +1472,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
                 if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
                     for (i--; i>=0; i--) {
                         sp_2048_mont_sqr_avx2_32(r, r, m, mp);
-                        if (((e[0] >> i) & 1) == 1)
+                        if (((e >> i) & 1) == 1)
                             sp_2048_mont_mul_avx2_32(r, r, a, m, mp);
                     }
                     XMEMSET(&r[32], 0, sizeof(sp_digit) * 32);
@@ -1487,7 +1483,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
                 {
                     for (i--; i>=0; i--) {
                         sp_2048_mont_sqr_32(r, r, m, mp);
-                        if (((e[0] >> i) & 1) == 1)
+                        if (((e >> i) & 1) == 1)
                             sp_2048_mont_mul_32(r, r, a, m, mp);
                     }
                     XMEMSET(&r[32], 0, sizeof(sp_digit) * 32);
@@ -1809,17 +1805,17 @@ static int sp_2048_mod_exp_2_avx2_32(sp_digit* r, const sp_digit* e, int bits,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL)
         err = MEMORY_E;
-
-    if (err == MP_OKAY) {
-        norm = td;
-        tmp  = td + 64;
-    }
-#else
-    norm = nd;
-    tmp  = td;
 #endif
 
     if (err == MP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+        norm = td;
+        tmp  = td + 64;
+#else
+        norm = nd;
+        tmp  = td;
+#endif
+
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_32(norm, m);
 
@@ -1914,17 +1910,17 @@ static int sp_2048_mod_exp_2_32(sp_digit* r, const sp_digit* e, int bits,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL)
         err = MEMORY_E;
-
-    if (err == MP_OKAY) {
-        norm = td;
-        tmp  = td + 64;
-    }
-#else
-    norm = nd;
-    tmp  = td;
 #endif
 
     if (err == MP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+        norm = td;
+        tmp  = td + 64;
+#else
+        norm = nd;
+        tmp  = td;
+#endif
+
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_32(norm, m);
 
@@ -2584,13 +2580,12 @@ static int sp_3072_mod_exp_24(sp_digit* r, const sp_digit* a, const sp_digit* e,
     if (err == MP_OKAY) {
         for (i=0; i<32; i++)
             t[i] = td + i * 48;
-        norm = t[0];
     }
-#else
-    norm = t[0];
 #endif
 
     if (err == MP_OKAY) {
+        norm = t[0];
+
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_24(norm, m);
 
@@ -2763,13 +2758,12 @@ static int sp_3072_mod_exp_avx2_24(sp_digit* r, const sp_digit* a, const sp_digi
     if (err == MP_OKAY) {
         for (i=0; i<32; i++)
             t[i] = td + i * 48;
-        norm = t[0];
     }
-#else
-    norm = t[0];
 #endif
 
     if (err == MP_OKAY) {
+        norm = t[0];
+
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_24(norm, m);
 
@@ -3127,13 +3121,12 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
     if (err == MP_OKAY) {
         for (i=0; i<32; i++)
             t[i] = td + i * 96;
-        norm = t[0];
     }
-#else
-    norm = t[0];
 #endif
 
     if (err == MP_OKAY) {
+        norm = t[0];
+
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_48(norm, m);
 
@@ -3308,13 +3301,12 @@ static int sp_3072_mod_exp_avx2_48(sp_digit* r, const sp_digit* a, const sp_digi
     if (err == MP_OKAY) {
         for (i=0; i<32; i++)
             t[i] = td + i * 96;
-        norm = t[0];
     }
-#else
-    norm = t[0];
 #endif
 
     if (err == MP_OKAY) {
+        norm = t[0];
+
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_48(norm, m);
 
@@ -3443,7 +3435,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     sp_digit *ah;
     sp_digit* m;
     sp_digit* r;
-    sp_digit e[1];
+    sp_digit e = 0;
     int err = MP_OKAY;
 #ifdef HAVE_INTEL_AVX2
     word32 cpuid_flags = cpuid_get_flags();
@@ -3479,19 +3471,19 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     if (err == MP_OKAY) {
         sp_3072_from_bin(ah, 48, in, inLen);
 #if DIGIT_BIT >= 64
-        e[0] = em->dp[0];
+        e = em->dp[0];
 #else
-        e[0] = em->dp[0];
+        e = em->dp[0];
         if (em->used > 1)
-            e[0] |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
+            e |= ((sp_digit)em->dp[1]) << DIGIT_BIT;
 #endif
-        if (e[0] == 0)
+        if (e == 0)
             err = MP_EXPTMOD_E;
     }
     if (err == MP_OKAY) {
         sp_3072_from_mp(m, 48, mm);
 
-        if (e[0] == 0x3) {
+        if (e == 0x3) {
 #ifdef HAVE_INTEL_AVX2
             if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
                 if (err == MP_OKAY) {
@@ -3528,7 +3520,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 
             if (err == MP_OKAY) {
                 for (i=63; i>=0; i--)
-                    if (e[0] >> i)
+                    if (e >> i)
                         break;
 
                 XMEMCPY(r, a, sizeof(sp_digit) * 48);
@@ -3536,7 +3528,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
                 if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
                     for (i--; i>=0; i--) {
                         sp_3072_mont_sqr_avx2_48(r, r, m, mp);
-                        if (((e[0] >> i) & 1) == 1)
+                        if (((e >> i) & 1) == 1)
                             sp_3072_mont_mul_avx2_48(r, r, a, m, mp);
                     }
                     XMEMSET(&r[48], 0, sizeof(sp_digit) * 48);
@@ -3547,7 +3539,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
                 {
                     for (i--; i>=0; i--) {
                         sp_3072_mont_sqr_48(r, r, m, mp);
-                        if (((e[0] >> i) & 1) == 1)
+                        if (((e >> i) & 1) == 1)
                             sp_3072_mont_mul_48(r, r, a, m, mp);
                     }
                     XMEMSET(&r[48], 0, sizeof(sp_digit) * 48);
@@ -3869,17 +3861,17 @@ static int sp_3072_mod_exp_2_avx2_48(sp_digit* r, const sp_digit* e, int bits,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL)
         err = MEMORY_E;
-
-    if (err == MP_OKAY) {
-        norm = td;
-        tmp  = td + 96;
-    }
-#else
-    norm = nd;
-    tmp  = td;
 #endif
 
     if (err == MP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+        norm = td;
+        tmp  = td + 96;
+#else
+        norm = nd;
+        tmp  = td;
+#endif
+
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_48(norm, m);
 
@@ -3974,17 +3966,17 @@ static int sp_3072_mod_exp_2_48(sp_digit* r, const sp_digit* e, int bits,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL)
         err = MEMORY_E;
-
-    if (err == MP_OKAY) {
-        norm = td;
-        tmp  = td + 96;
-    }
-#else
-    norm = nd;
-    tmp  = td;
 #endif
 
     if (err == MP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+        norm = td;
+        tmp  = td + 96;
+#else
+        norm = nd;
+        tmp  = td;
+#endif
+
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_48(norm, m);
 
@@ -20710,7 +20702,7 @@ static void sp_256_mont_inv_order_4(sp_digit* r, const sp_digit* a,
     /* t2= a^ffffffff00000000ffffffffffffffffbce6 */
     for (i=127; i>=112; i--) {
         sp_256_mont_sqr_order_4(t2, t2);
-        if (p256_order_low[i / 64] & ((sp_digit)1 << (i % 64)))
+        if (p256_order_low[i / 64] & ((sp_int_digit)1 << (i % 64)))
             sp_256_mont_mul_order_4(t2, t2, a);
     }
     /* t2= a^ffffffff00000000ffffffffffffffffbce6f */
@@ -20850,7 +20842,7 @@ static void sp_256_mont_inv_order_avx2_4(sp_digit* r, const sp_digit* a,
     /* t2= a^ffffffff00000000ffffffffffffffffbce6 */
     for (i=127; i>=112; i--) {
         sp_256_mont_sqr_order_avx2_4(t2, t2);
-        if (p256_order_low[i / 64] & ((sp_digit)1 << (i % 64)))
+        if (p256_order_low[i / 64] & ((sp_int_digit)1 << (i % 64)))
             sp_256_mont_mul_order_avx2_4(t2, t2, a);
     }
     /* t2= a^ffffffff00000000ffffffffffffffffbce6f */
@@ -20946,27 +20938,28 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
     if (err == MP_OKAY) {
         d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 7 * 2 * 4, heap,
                                                               DYNAMIC_TYPE_ECC);
-        if (d != NULL) {
-            e = d + 0 * 4;
-            x = d + 2 * 4;
-            k = d + 4 * 4;
-            r = d + 6 * 4;
-            tmp = d + 8 * 4;
-        }
-        else
+        if (d == NULL)
             err = MEMORY_E;
     }
-#else
-    e = ed;
-    x = xd;
-    k = kd;
-    r = rd;
-    tmp = td;
 #endif
-    s = e;
-    kInv = k;
 
     if (err == MP_OKAY) {
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+        e = d + 0 * 4;
+        x = d + 2 * 4;
+        k = d + 4 * 4;
+        r = d + 6 * 4;
+        tmp = d + 8 * 4;
+#else
+        e = ed;
+        x = xd;
+        k = kd;
+        r = rd;
+        tmp = td;
+#endif
+        s = e;
+        kInv = k;
+
         if (hashLen > 32)
             hashLen = 32;
 
@@ -21672,18 +21665,19 @@ static int sp_256_mont_sqrt_4(sp_digit* y)
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 4 * 4, NULL, DYNAMIC_TYPE_ECC);
-    if (d != NULL) {
-        t1 = d + 0 * 4;
-        t2 = d + 2 * 4;
-    }
-    else
+    if (d == NULL)
         err = MEMORY_E;
-#else
-    t1 = t1d;
-    t2 = t2d;
 #endif
 
     if (err == MP_OKAY) {
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+        t1 = d + 0 * 4;
+        t2 = d + 2 * 4;
+#else
+        t1 = t1d;
+        t2 = t2d;
+#endif
+
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
             /* t2 = y ^ 0x2 */
@@ -21787,8 +21781,12 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
         x = d + 0 * 4;
         y = d + 2 * 4;
     }
-    else
+    else {
         err = MEMORY_E;
+        /* Compiler doesn't always know that err is not MP_OKAY. */
+        x = NULL;
+        y = NULL;
+    }
 #else
     x = xd;
     y = yd;

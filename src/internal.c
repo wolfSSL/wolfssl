@@ -19425,7 +19425,7 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
     word16          length;
 #ifdef HAVE_FFDHE
     const DhParams* params = NULL;
-    int             group;
+    int             group = 0;
 #endif
 
     /* p */
