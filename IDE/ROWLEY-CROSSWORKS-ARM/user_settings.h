@@ -208,6 +208,7 @@ extern "C" {
 /* MD5 */
 #undef  NO_MD5
 #if 1
+#else
     #define NO_MD5
 #endif
 
