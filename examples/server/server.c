@@ -1189,7 +1189,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 #endif
                 }
                 else if (XSTRNCMP(myoptarg, "overrideDateErr", 15) == 0) {
+                #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
                     overrideDateErrors = 1;
+                #endif
                 }
                 else {
                     Usage();
