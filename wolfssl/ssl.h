@@ -813,7 +813,7 @@ WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL*);
 WOLFSSL_API void wolfSSL_flush_sessions(WOLFSSL_CTX*, long);
 WOLFSSL_API int  wolfSSL_SetServerID(WOLFSSL*, const unsigned char*, int, int);
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY)
 WOLFSSL_API int  wolfSSL_BIO_new_bio_pair(WOLFSSL_BIO**, size_t,
                      WOLFSSL_BIO**, size_t);
 

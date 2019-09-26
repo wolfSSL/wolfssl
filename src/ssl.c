@@ -24357,7 +24357,8 @@ WOLFSSL_API int SSL_SESSION_set1_id_context(WOLFSSL_SESSION *s, const unsigned c
 }
 #endif
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD) \
+    || defined(WOLFSSL_HAPROXY)
 /* Returns X509_ALGOR struct with signature algorithm */
 const WOLFSSL_X509_ALGOR* wolfSSL_X509_get0_tbs_sigalg(const WOLFSSL_X509 *x509)
 {
@@ -24434,7 +24435,7 @@ int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg,
     return WOLFSSL_SUCCESS;
 
 }
-#endif /* OPENSSL_ALL || WOLFSSL_APACHE_HTTPD */
+#endif /* OPENSSL_ALL || WOLFSSL_APACHE_HTTPD || WOLFSSL_HAPROXY*/
 
 #ifndef NO_WOLFSSL_STUB
 /*** TBD ***/
@@ -39020,7 +39021,7 @@ int wolfSSL_get_state(const WOLFSSL* ssl)
 }
 #endif /* HAVE_LIGHTY || HAVE_STUNNEL || WOLFSSL_MYSQL_COMPATIBLE */
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY)
 
 #ifndef NO_WOLFSSL_STUB
 long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
@@ -39430,7 +39431,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_EVP(WOLFSSL_EVP_PKEY** out,
     #endif /* HAVE_ECC */
     return pkey;
 }
-#endif /* OPENSSL_ALL || WOLFSSL_ASIO */
+#endif /* OPENSSL_ALL || WOLFSSL_ASIO || WOLFSSL_HAPROXY */
 
 
 /* stunnel compatibility functions*/

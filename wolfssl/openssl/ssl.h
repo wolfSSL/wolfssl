@@ -801,7 +801,7 @@ enum {
 #define sk_SSL_CIPHER_free              wolfSSL_sk_SSL_CIPHER_free
 #define sk_SSL_CIPHER_find              wolfSSL_sk_SSL_CIPHER_find
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY)
 #include <wolfssl/openssl/pem.h>
 
 #define SSL_CTRL_CHAIN       88
