@@ -3099,7 +3099,7 @@ void* wolfSSL_GetDecryptVerifyCtx(WOLFSSL* ssl)
     return NULL;
 }
 
-#ifdef HAVE_ENCRYPT_THEN_MAC
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
 /**
  * Set the callback, against the context, that encrypts then MACs.
  *
@@ -3176,7 +3176,7 @@ void* wolfSSL_GetVerifyDecryptCtx(WOLFSSL* ssl)
 
     return NULL;
 }
-#endif /* HAVE_ENCRYPT_THEN_MAC */
+#endif /* HAVE_ENCRYPT_THEN_MAC !WOLFSSL_AEAD_ONLY */
 
 
 
