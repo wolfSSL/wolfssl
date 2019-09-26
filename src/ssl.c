@@ -3099,6 +3099,7 @@ void* wolfSSL_GetDecryptVerifyCtx(WOLFSSL* ssl)
     return NULL;
 }
 
+#ifdef HAVE_ENCRYPT_THEN_MAC
 /**
  * Set the callback, against the context, that encrypts then MACs.
  *
@@ -3175,6 +3176,7 @@ void* wolfSSL_GetVerifyDecryptCtx(WOLFSSL* ssl)
 
     return NULL;
 }
+#endif /* HAVE_ENCRYPT_THEN_MAC */
 
 
 
@@ -26106,7 +26108,7 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #endif
 #endif
 #ifdef WOLFSSL_EARLY_DATA
-        c32toa(sess->maxEarlyDataSz);
+        c32toa(sess->maxEarlyDataSz, data + idx);
         idx += OPAQUE32_LEN;
 #endif
 #endif
