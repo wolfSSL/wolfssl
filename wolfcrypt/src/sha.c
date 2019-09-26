@@ -326,13 +326,7 @@
 
         return ret;
     }
-
 #endif /* End Hardware Acceleration */
-
-#ifndef WC_SHA_DATA_ALIGNMENT
-    /* default to 32-bit alignement */
-    #define WC_SHA_DATA_ALIGNMENT 4
-#endif
 
 /* Software implementation */
 #ifdef USE_SHA_SOFTWARE_IMPL

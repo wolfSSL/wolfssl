@@ -201,9 +201,6 @@ static int InitSha256(wc_Sha256* sha256)
     /* in case intel instructions aren't available, plus we need the K[] global */
     #define NEED_SOFT_SHA256
 
-    /* requires 128-bit alignment */
-    #define WC_SHA256_DATA_ALIGNMENT 16
-
     /*****
     Intel AVX1/AVX2 Macro Control Structure
 
@@ -613,11 +610,6 @@ static int InitSha256(wc_Sha256* sha256)
         return ret;
     }
 #endif /* End Hardware Acceleration */
-
-#ifndef WC_SHA256_DATA_ALIGNMENT
-    /* default is 32-bit alignment required */
-    #define WC_SHA256_DATA_ALIGNMENT 4
-#endif
 
 #ifdef NEED_SOFT_SHA256
 

@@ -154,13 +154,7 @@ static int Transform_Len(wc_Md5* md5, const byte* data, word32 len)
 #define HAVE_MD5_CUST_API
 #else
 #define NEED_SOFT_MD5
-
 #endif /* End Hardware Acceleration */
-
-#ifndef WC_MD5_DATA_ALIGNMENT
-    /* default to 32-bit alignement */
-    #define WC_MD5_DATA_ALIGNMENT 4
-#endif
 
 #ifdef NEED_SOFT_MD5
 
