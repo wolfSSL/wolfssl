@@ -900,9 +900,9 @@ static int InitSha256(wc_Sha256* sha256)
                 /* optimization to avoid memcpy if data pointer is properly aligned */
                 /* Intel transform function requires use of sha256->buffer */
                 /* Little Endian requires byte swap, so can't use data directly */
-            #if defined(WC_SHA256_DATA_ALIGNMENT) && !defined(LITTLE_ENDIAN_ORDER) && \
+            #if defined(WC_HASH_DATA_ALIGNMENT) && !defined(LITTLE_ENDIAN_ORDER) && \
                 !defined(HAVE_INTEL_AVX1) && !defined(HAVE_INTEL_AVX2)
-                if (((size_t)data % WC_SHA256_DATA_ALIGNMENT) == 0) {
+                if (((size_t)data % WC_HASH_DATA_ALIGNMENT) == 0) {
                     local32 = (word32*)data;
                 }
                 else

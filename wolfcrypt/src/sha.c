@@ -576,8 +576,8 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
     while (len >= WC_SHA_BLOCK_SIZE) {
         /* optimization to avoid memcpy if data pointer is properly aligned */
         /* Little Endian requires byte swap, so can't use data directly */
-    #if defined(WC_SHA_DATA_ALIGNMENT) && !defined(LITTLE_ENDIAN_ORDER)
-        if (((size_t)data % WC_SHA_DATA_ALIGNMENT) == 0) {
+    #if defined(WC_HASH_DATA_ALIGNMENT) && !defined(LITTLE_ENDIAN_ORDER)
+        if (((size_t)data % WC_HASH_DATA_ALIGNMENT) == 0) {
             local32 = (word32*)data;
         }
         else

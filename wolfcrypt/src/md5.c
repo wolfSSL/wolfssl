@@ -379,8 +379,8 @@ int wc_Md5Update(wc_Md5* md5, const byte* data, word32 len)
     while (len >= WC_MD5_BLOCK_SIZE) {
         /* optimization to avoid memcpy if data pointer is properly aligned */
         /* Big Endian requires byte swap, so can't use data directly */
-    #if defined(WC_MD5_DATA_ALIGNMENT) && !defined(BIG_ENDIAN_ORDER)
-        if (((size_t)data % WC_MD5_DATA_ALIGNMENT) == 0) {
+    #if defined(WC_HASH_DATA_ALIGNMENT) && !defined(BIG_ENDIAN_ORDER)
+        if (((size_t)data % WC_HASH_DATA_ALIGNMENT) == 0) {
             local32 = (word32*)data;
         }
         else
