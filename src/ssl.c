@@ -25842,6 +25842,9 @@ void wolfSSL_sk_free(WOLFSSL_STACK* sk)
         case STACK_TYPE_X509_NAME:
             wolfSSL_sk_X509_NAME_free(sk);
             break;
+        case STACK_TYPE_CONF_VALUE:
+            wolfSSL_sk_CONF_VALUE_free(sk);
+            break;
     #endif
        default:
             wolfSSL_sk_ASN1_OBJECT_free(sk);
@@ -25906,6 +25909,33 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
             break;
     }
 }
+
+#if defined(OPENSSL_ALL)
+/* Free the structure for WOLFSSL_CONF_VALUE stack
+ *
+ * sk  stack to free nodes in
+ */
+void wolfSSL_sk_CONF_VALUE_free(WOLF_STACK_OF(WOLFSSL_CONF_VALUE)* sk)
+{
+    WOLFSSL_STACK* node;
+    WOLFSSL_STACK* tmp;
+    WOLFSSL_ENTER("wolfSSL_sk_CONF_VALUE_free");
+
+    if (sk == NULL)
+        return;
+
+    /* parse through stack freeing each node */
+    node = sk->next;
+    while (node) {
+        tmp  = node;
+        node = node->next;
+        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+
+    /* free head of stack */
+    XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
+}
+#endif
 
 /* Creates and returns a new null stack. */
 WOLFSSL_STACK* wolfSSL_sk_new_null(void)
