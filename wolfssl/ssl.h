@@ -457,15 +457,11 @@ typedef long (*wolf_bio_info_cb)(WOLFSSL_BIO *bio, int event, const char *parg,
 struct WOLFSSL_BIO {
     WOLFSSL_BUF_MEM* mem_buf;
     WOLFSSL_BIO_METHOD* method;
-    WOLFSSL*     ssl;           /* possible associated ssl */
-#ifndef NO_FILESYSTEM
-    XFILE        file;          /* file descriptor */
-#endif
     WOLFSSL_BIO* prev;          /* previous in chain */
     WOLFSSL_BIO* next;          /* next in chain */
     WOLFSSL_BIO* pair;          /* BIO paired with */
     void*        heap;          /* user heap hint */
-    void*        ptr;           /* memory buffer */
+    void*        ptr;           /* WOLFSSL, file descriptor or memory buffer */
     void*        usrCtx;        /* user set pointer */
     char*        infoArg;       /* BIO callback argument */
     wolf_bio_info_cb infoCb;    /* BIO callback */
@@ -473,7 +469,7 @@ struct WOLFSSL_BIO {
     int          wrIdx;         /* current index for write buffer */
     int          rdIdx;         /* current read index */
     int          readRq;        /* read request */
-    int          num;           /* length */
+    int          num;           /* socket num or length */
     int          eof;           /* eof flag */
     int          flags;
     byte         type;          /* method type */
@@ -1172,7 +1168,7 @@ WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_mem_buf(void* buf, int len);
 
 WOLFSSL_API long wolfSSL_BIO_set_ssl(WOLFSSL_BIO*, WOLFSSL*, int flag);
 #ifndef NO_FILESYSTEM
-WOLFSSL_API long wolfSSL_BIO_set_fd(WOLFSSL_BIO* b, XFILE fd, int flag);
+WOLFSSL_API long wolfSSL_BIO_set_fd(WOLFSSL_BIO* b, int fd, int flag);
 #endif
 WOLFSSL_API void wolfSSL_set_bio(WOLFSSL*, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr);
 

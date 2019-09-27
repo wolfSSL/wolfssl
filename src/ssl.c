@@ -7050,7 +7050,7 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY_bio(WOLFSSL_BIO* bio,
 {
     WOLFSSL_PKCS8_PRIV_KEY_INFO* pkcs8 = NULL;
 #ifdef WOLFSSL_PEM_TO_DER
-    unsigned char* mem;
+    unsigned char* mem = NULL;
     int memSz;
     int keySz;
     word32 algId;
@@ -14041,7 +14041,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         WOLFSSL_ENTER("wolfSSL_BIO_set_ssl");
 
         if (b != NULL) {
-            b->ssl   = ssl;
+            b->ptr   = ssl;
             b->shutdown = (byte)closeF;
     /* add to ssl for bio free if SSL_free called before/instead of free_all? */
         }
@@ -14050,12 +14050,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 #ifndef NO_FILESYSTEM
-    long wolfSSL_BIO_set_fd(WOLFSSL_BIO* b, XFILE fd, int closeF)
+    long wolfSSL_BIO_set_fd(WOLFSSL_BIO* b, int fd, int closeF)
     {
         WOLFSSL_ENTER("wolfSSL_BIO_set_fd");
 
         if (b != NULL) {
-            b->file = fd;
+            b->num = fd;
             b->shutdown = (byte)closeF;
         }
 
@@ -14102,6 +14102,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
+    /* this compatibility function can be used for multiple BIO types */
     int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio, void* p)
     {
         WOLFSSL_ENTER("wolfSSL_BIO_get_mem_data");
@@ -14178,8 +14179,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             }
 
             if (bio->shutdown) {
-                if (bio->ssl)
-                    wolfSSL_free(bio->ssl);
+                if (bio->type == WOLFSSL_BIO_SSL && bio->ptr)
+                    wolfSSL_free((WOLFSSL*)bio->ptr);
             #ifdef CloseSocket
                 if (bio->type == WOLFSSL_BIO_SOCKET && bio->num)
                     CloseSocket(bio->num);
@@ -14188,14 +14189,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         #ifndef NO_FILESYSTEM
             if (bio->type == WOLFSSL_BIO_FILE && bio->shutdown == BIO_CLOSE) {
-                if (bio->file) {
-                    XFCLOSE(bio->file);
+                if (bio->ptr) {
+                    XFCLOSE((XFILE)bio->ptr);
                 }
             }
         #endif
 
             if (bio->shutdown != BIO_NOCLOSE) {
-                if (bio->ptr != NULL) {
+                if (bio->type == WOLFSSL_BIO_MEMORY && bio->ptr != NULL) {
                     if (bio->mem_buf != NULL) {
                         if (bio->mem_buf->data != (char*)bio->ptr) {
                             XFREE(bio->ptr, bio->heap, DYNAMIC_TYPE_OPENSSL);
@@ -19160,10 +19161,11 @@ const char*  wolfSSL_CIPHER_get_version(const WOLFSSL_CIPHER* cipher)
     return wolfSSL_get_version(cipher->ssl);
 }
 
+#ifndef NO_WOLFSSL_STUB
 char* wolfSSL_CIPHER_get_rfc_name(const WOLFSSL_CIPHER* cipher)
 {
     char* rfcName = NULL;
-    WOLFSSL_ENTER("SSL_CIPHER_get_rfc_name");
+    WOLFSSL_STUB("SSL_CIPHER_get_rfc_name");
 
     if (cipher == NULL || cipher->ssl == NULL) {
         return NULL;
@@ -19171,6 +19173,7 @@ char* wolfSSL_CIPHER_get_rfc_name(const WOLFSSL_CIPHER* cipher)
 
     return rfcName;
 }
+#endif
 
 const char* wolfSSL_SESSION_CIPHER_get_name(WOLFSSL_SESSION* session)
 {
@@ -25626,7 +25629,9 @@ int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
     va_start(args, format);
     switch (bio->type) {
         case WOLFSSL_BIO_FILE:
-            ret = vfprintf(bio->file, format, args);
+            if (bio->ptr == NULL)
+                return -1;
+            ret = vfprintf((XFILE)bio->ptr, format, args);
             break;
 
         case WOLFSSL_BIO_MEMORY:
@@ -25674,7 +25679,7 @@ int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char *buf, int length)
         char line[80];
 
         if (!buf) {
-            return fputs("\tNULL", bio->file);
+            return fputs("\tNULL", (XFILE)bio->ptr);
         }
 
         sprintf(line, "\t");
@@ -25691,7 +25696,7 @@ int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char *buf, int length)
                      "%c", 31 < buf[i] && buf[i] < 127 ? buf[i] : '.');
             }
         }
-        ret += fputs(line, bio->file);
+        ret += fputs(line, (XFILE)bio->ptr);
 
         if (length > LINE_LEN)
             ret += wolfSSL_BIO_dump(bio, buf + LINE_LEN, length - LINE_LEN);
@@ -35928,15 +35933,15 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         else if (bp->type == WOLFSSL_BIO_FILE) {
 #ifndef NO_FILESYSTEM
             /* Read in next certificate from file but no more. */
-            i = XFTELL(bp->file);
+            i = XFTELL((XFILE)bp->ptr);
             if (i < 0)
                 return NULL;
-            if (XFSEEK(bp->file, 0, XSEEK_END) != 0)
+            if (XFSEEK((XFILE)bp->ptr, 0, XSEEK_END) != 0)
                 return NULL;
-            l = XFTELL(bp->file);
+            l = XFTELL((XFILE)bp->ptr);
             if (l < 0)
                 return NULL;
-            if (XFSEEK(bp->file, i, SEEK_SET) != 0)
+            if (XFSEEK((XFILE)bp->ptr, i, SEEK_SET) != 0)
                 return NULL;
 
             /* check calculated length */
@@ -38847,10 +38852,10 @@ WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
     }
     else if (bio->type == WOLFSSL_BIO_FILE) {
         /* Read whole file into a new buffer. */
-        if(XFSEEK(bio->file, 0, SEEK_END) != 0)
+        if(XFSEEK((XFILE)bio->ptr, 0, SEEK_END) != 0)
             goto end;
-        sz = XFTELL(bio->file);
-        if(XFSEEK(bio->file, 0, SEEK_SET) != 0)
+        sz = XFTELL((XFILE)bio->ptr);
+        if(XFSEEK((XFILE)bio->ptr, 0, SEEK_SET) != 0)
             goto end;
         if (sz <= 0L)
             goto end;
