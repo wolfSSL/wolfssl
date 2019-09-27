@@ -489,7 +489,6 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
     int ret = 0;
     word32 blocksLen;
     byte* local;
-    word32* local32;
 
     if (sha == NULL || (data == NULL && len > 0)) {
         return BAD_FUNC_ARG;
@@ -524,7 +523,6 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
     AddLength(sha, len);
 
     local = (byte*)sha->buffer;
-    local32 = sha->buffer;
 
     /* process any remainder from previous operation */
     if (sha->buffLen > 0) {
@@ -537,7 +535,7 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
 
         if (sha->buffLen == WC_SHA_BLOCK_SIZE) {
         #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
-            ByteReverseWords(local32, local32, WC_SHA_BLOCK_SIZE);
+            ByteReverseWords(sha->buffer, sha->buffer, WC_SHA_BLOCK_SIZE);
         #endif
 
         #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
@@ -574,6 +572,7 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
     }
 #else
     while (len >= WC_SHA_BLOCK_SIZE) {
+        word32* local32 = sha->buffer;
         /* optimization to avoid memcpy if data pointer is properly aligned */
         /* Little Endian requires byte swap, so can't use data directly */
     #if defined(WC_HASH_DATA_ALIGNMENT) && !defined(LITTLE_ENDIAN_ORDER)

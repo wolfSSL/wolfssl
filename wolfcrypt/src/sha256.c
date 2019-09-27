@@ -810,8 +810,7 @@ static int InitSha256(wc_Sha256* sha256)
     {
         int ret = 0;
         word32 blocksLen;
-        byte*   local;
-        word32* local32;
+        byte* local;
 
         if (sha256 == NULL || (data == NULL && len > 0)) {
             return BAD_FUNC_ARG;
@@ -831,7 +830,6 @@ static int InitSha256(wc_Sha256* sha256)
         AddLength(sha256, len);
 
         local = (byte*)sha256->buffer;
-        local32 = sha256->buffer;
 
         /* process any remainder from previous operation */
         if (sha256->buffLen > 0) {
@@ -848,7 +846,8 @@ static int InitSha256(wc_Sha256* sha256)
                 if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
                 #endif
                 {
-                    ByteReverseWords(local32, local32, WC_SHA256_BLOCK_SIZE);
+                    ByteReverseWords(sha256->buffer, sha256->buffer,
+                        WC_SHA256_BLOCK_SIZE);
                 }
             #endif
 
@@ -897,6 +896,7 @@ static int InitSha256(wc_Sha256* sha256)
     #if !defined(XTRANSFORM_LEN) || defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
         {
             while (len >= WC_SHA256_BLOCK_SIZE) {
+                word32* local32 = sha256->buffer;
                 /* optimization to avoid memcpy if data pointer is properly aligned */
                 /* Intel transform function requires use of sha256->buffer */
                 /* Little Endian requires byte swap, so can't use data directly */

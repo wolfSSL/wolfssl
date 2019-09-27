@@ -311,8 +311,7 @@ int wc_Md5Update(wc_Md5* md5, const byte* data, word32 len)
 {
     int ret = 0;
     word32 blocksLen;
-    byte*   local;
-    word32* local32;
+    byte* local;
 
     if (md5 == NULL || (data == NULL && len > 0)) {
         return BAD_FUNC_ARG;
@@ -339,7 +338,6 @@ int wc_Md5Update(wc_Md5* md5, const byte* data, word32 len)
     AddLength(md5, len);
 
     local = (byte*)md5->buffer;
-    local32 = md5->buffer;
 
     /* process any remainder from previous operation */
     if (md5->buffLen > 0) {
@@ -352,7 +350,7 @@ int wc_Md5Update(wc_Md5* md5, const byte* data, word32 len)
 
         if (md5->buffLen == WC_MD5_BLOCK_SIZE) {
         #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
-            ByteReverseWords(local32, local32, WC_MD5_BLOCK_SIZE);
+            ByteReverseWords(md5->buffer, md5->buffer, WC_MD5_BLOCK_SIZE);
         #endif
 
             ret = XTRANSFORM(md5, (const byte*)local);
@@ -377,6 +375,7 @@ int wc_Md5Update(wc_Md5* md5, const byte* data, word32 len)
     }
 #else
     while (len >= WC_MD5_BLOCK_SIZE) {
+        word32* local32 = md5->buffer;
         /* optimization to avoid memcpy if data pointer is properly aligned */
         /* Big Endian requires byte swap, so can't use data directly */
     #if defined(WC_HASH_DATA_ALIGNMENT) && !defined(BIG_ENDIAN_ORDER)
