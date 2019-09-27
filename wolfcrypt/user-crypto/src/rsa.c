@@ -99,7 +99,7 @@ int wc_InitRsaKey(RsaKey* key, void* heap)
 
 
 /* three functions needed for cert and key gen */
-#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN)
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)
 /* return 1 if there is a leading bit*/
 int wc_Rsa_leading_bit(void* bn)
 {
@@ -171,7 +171,7 @@ int wc_Rsa_to_unsigned_bin(void* bn, byte* in, int inLen)
     }
     return MP_OKAY;
 }
-#endif /* WOLFSSL_CERT_GEN or WOLFSSL_KEY_GEN */
+#endif /* WOLFSSL_CERT_GEN || WOLFSSL_KEY_GEN || OPENSSL_EXTRA */
 
 
 #ifdef OPENSSL_EXTRA /* functions needed for openssl compatibility layer */
@@ -2305,6 +2305,10 @@ makeKeyEnd:
     return ret;
 }
 
+#endif
+
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)
+
 /********** duplicate code needed -- future refactor */
 #define MAX_VERSION_SZ 5
 #define MAX_SEQ_SZ 5
@@ -2765,7 +2769,7 @@ int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
 }
 
 
-#endif /* WOLFSSL_KEY_GEN */
+#endif /* WOLFSSL_KEY_GEN || OPENSSL_EXTRA */
 
 #ifdef WC_RSA_BLINDING
 

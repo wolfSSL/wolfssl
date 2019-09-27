@@ -32,11 +32,36 @@
     extern "C" {
 #endif
 
+
 #define BIO_FLAG_BASE64_NO_NL WOLFSSL_BIO_FLAG_BASE64_NO_NL
 #define BIO_FLAG_READ         WOLFSSL_BIO_FLAG_READ
 #define BIO_FLAG_WRITE        WOLFSSL_BIO_FLAG_WRITE
 #define BIO_FLAG_IO_SPECIAL   WOLFSSL_BIO_FLAG_IO_SPECIAL
 #define BIO_FLAG_RETRY        WOLFSSL_BIO_FLAG_RETRY
+
+#define BIO_new_fp                      wolfSSL_BIO_new_fp
+#define BIO_new_file                    wolfSSL_BIO_new_file
+#define BIO_new_fp                      wolfSSL_BIO_new_fp
+#define BIO_ctrl                        wolfSSL_BIO_ctrl
+#define BIO_ctrl_pending                wolfSSL_BIO_ctrl_pending
+#define BIO_wpending                    wolfSSL_BIO_wpending
+#define BIO_get_mem_ptr                 wolfSSL_BIO_get_mem_ptr
+#define BIO_int_ctrl                    wolfSSL_BIO_int_ctrl
+#define BIO_reset                       wolfSSL_BIO_reset
+#define BIO_s_file                      wolfSSL_BIO_s_file
+#define BIO_s_bio                       wolfSSL_BIO_s_bio
+#define BIO_s_socket                    wolfSSL_BIO_s_socket
+#define BIO_set_fd                      wolfSSL_BIO_set_fd
+#define BIO_ctrl_reset_read_request     wolfSSL_BIO_ctrl_reset_read_request
+
+#define BIO_set_write_buf_size          wolfSSL_BIO_set_write_buf_size
+#define BIO_make_bio_pair               wolfSSL_BIO_make_bio_pair
+
+#define BIO_set_fp                      wolfSSL_BIO_set_fp
+#define BIO_get_fp                      wolfSSL_BIO_get_fp
+#define BIO_seek                        wolfSSL_BIO_seek
+#define BIO_write_filename              wolfSSL_BIO_write_filename
+#define BIO_set_mem_eof_return          wolfSSL_BIO_set_mem_eof_return
 
 #define BIO_find_type wolfSSL_BIO_find_type
 #define BIO_next      wolfSSL_BIO_next
@@ -51,7 +76,7 @@
 #define BIO_printf wolfSSL_BIO_printf
 #define BIO_dump   wolfSSL_BIO_dump
 
-/* BIO callback */
+/* BIO info callback */
 #define BIO_CB_FREE   WOLFSSL_BIO_CB_FREE
 #define BIO_CB_READ   WOLFSSL_BIO_CB_READ
 #define BIO_CB_WRITE  WOLFSSL_BIO_CB_WRITE
@@ -75,6 +100,8 @@
 /* helper to set specific retry/read flags */
 #define BIO_set_retry_read(bio)\
     wolfSSL_BIO_set_flags((bio), WOLFSSL_BIO_FLAG_RETRY | WOLFSSL_BIO_FLAG_READ)
+#define BIO_set_retry_write(bio)\
+    wolfSSL_BIO_set_flags((bio), WOLFSSL_BIO_FLAG_RETRY | WOLFSSL_BIO_FLAG_WRITE)
 
 #define BIO_clear_retry_flags      wolfSSL_BIO_clear_retry_flags
 
@@ -91,16 +118,34 @@
 
 
 /* BIO CTRL */
+#define BIO_CTRL_RESET             1
 #define BIO_CTRL_EOF               2
+#define BIO_CTRL_INFO              3
 #define BIO_CTRL_PUSH              6
 #define BIO_CTRL_POP               7
 #define BIO_CTRL_GET_CLOSE         8
 #define BIO_CTRL_SET_CLOSE         9
 #define BIO_CTRL_PENDING           10
+#define BIO_CTRL_FLUSH             11
 #define BIO_CTRL_DUP               12
+#define BIO_CTRL_WPENDING          13
 
-#define BIO_C_SET_BUF_MEM          114
-#define BIO_C_GET_BUF_MEM_PTR      115
+#define BIO_C_SET_FILE_PTR              106
+#define BIO_C_GET_FILE_PTR              107
+#define BIO_C_SET_FILENAME              108
+#define BIO_C_SET_BUF_MEM               114
+#define BIO_C_GET_BUF_MEM_PTR           115
+#define BIO_C_FILE_SEEK                 128
+#define BIO_C_SET_BUF_MEM_EOF_RETURN    130
+#define BIO_C_SET_WRITE_BUF_SIZE        136
+#define BIO_C_MAKE_BIO_PAIR             138
+
+#define BIO_CTRL_DGRAM_QUERY_MTU   40
+
+#define BIO_NOCLOSE                0x00
+#define BIO_CLOSE                  0x01
+
+#define BIO_FP_WRITE               0x04
 
 
 #ifdef __cplusplus
