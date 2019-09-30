@@ -3455,15 +3455,19 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
                         return BUFFER_ERROR;
 
                     ato16(input + offset, &size);
-                    offset += OPAQUE16_LEN + size;
+                    if (length - offset < size)
+                        return BUFFER_ERROR;
 
+                    offset += OPAQUE16_LEN + size;
                     /* skip request_extensions */
                     if (length - offset < OPAQUE16_LEN)
                         return BUFFER_ERROR;
 
                     ato16(input + offset, &size);
-                    offset += OPAQUE16_LEN + size;
+                    if (length - offset < size)
+                        return BUFFER_ERROR;
 
+                    offset += OPAQUE16_LEN + size;
                     if (offset > length)
                         return BUFFER_ERROR;
 
