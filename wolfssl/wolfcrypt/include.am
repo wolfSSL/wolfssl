@@ -123,3 +123,7 @@ endif
 if BUILD_FIPS_V2
 nobase_include_HEADERS+= wolfssl/wolfcrypt/fips.h
 endif
+
+if BUILD_FIPS_RAND
+nobase_include_HEADERS+= wolfssl/wolfcrypt/fips.h
+endif
