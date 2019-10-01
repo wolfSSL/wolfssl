@@ -89,7 +89,6 @@
 
 /* Note: You will also need to update the UART clock gate in hw_uart_init (SIM_SCGC1_UART5_MASK) */
 /* Note: TWR-K60 is UART3, PTC17 */
-/* Note: FRDM-K64 is UART4, PTE24 */
 /* Note: FRDM-K64 is UART4, PTE24 or UART0 PTB17 for OpenOCD  (SIM_SCGC4_UART0_MASK)*/
 /* Note: TWR-K64 is UART5, PTE8 */
 /* Note: FRDM-K82F is LPUART0 A2, LPUART4 PTC15 */
