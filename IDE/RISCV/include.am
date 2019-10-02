@@ -2,4 +2,5 @@
 # included from Top Level Makefile.am
 # All paths should be given relative to the root
 
-EXTRA_DIST+= IDE/RISCV/README.md
+include IDE/RISCV/SIFIVE-HIFIVE1/include.am
+include IDE/RISCV/SIFIVE-UNLEASHED/include.am
