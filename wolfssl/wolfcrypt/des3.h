@@ -105,6 +105,7 @@ struct Des3 {
     WC_ASYNC_DEV asyncDev;
 #endif
 #ifdef WOLF_CRYPTO_CB
+    word32 devKey[DES3_KEYLEN/sizeof(word32)]; /* raw key */
     int    devId;
     void*  devCtx;
 #endif

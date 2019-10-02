@@ -74,6 +74,10 @@
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
+#ifdef HAVE_INTEL_QA_SYNC
+    #include <wolfssl/wolfcrypt/port/intel/quickassist_sync.h>
+#endif
+
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
     #pragma warning(disable: 4996)
@@ -124,7 +128,11 @@ int wolfCrypt_Init(void)
             return ret;
         }
     #endif
-    
+
+    #ifdef HAVE_INTEL_QA_SYNC
+        ret = IntelQaHardwareStart(QAT_PROCESS_NAME, QAT_LIMIT_DEV_ACCESS);
+    #endif
+
     #if defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
         ret = InitMemoryTracker();
         if (ret != 0) {
