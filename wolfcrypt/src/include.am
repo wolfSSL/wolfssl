@@ -122,4 +122,8 @@ endif
 
 if BUILD_CRYPTOAUTHLIB
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/atmel/atmel.c
+
 endif
+
+include wolfcrypt/src/port/autosar/include.am
+

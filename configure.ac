@@ -4473,6 +4473,18 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB"
 fi
 
+# Support for autosar shim
+AC_ARG_ENABLE([autosar],
+    [AS_HELP_STRING([--enable-autosar],[Enable AutoSAR support (default: disabled)])],
+    [ ENABLED_AUTOSAR=$enableval ],
+    [ ENABLED_AUTOSAR=no ]
+    )
+
+if test "$ENABLED_AUTOSAR" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AUTOSAR"
+fi
+
 
 # Session Export
 AC_ARG_ENABLE([sessionexport],
@@ -4990,6 +5002,7 @@ AM_CONDITIONAL([BUILD_PKI],[test "x$ENABLED_PKI" = "xyes"])
 AM_CONDITIONAL([BUILD_DES3],[test "x$ENABLED_DES3" = "xyes"])
 AM_CONDITIONAL([BUILD_PKCS7],[test "x$ENABLED_PKCS7" = "xyes"])
 AM_CONDITIONAL([BUILD_HASHFLAGS],[test "x$ENABLED_HASHFLAGS" = "xyes"])
+AM_CONDITIONAL([BUILD_AUTOSAR],[test "x$ENABLED_AUTOSAR" = "xyes"])
 
 
 CREATE_HEX_VERSION
@@ -5272,6 +5285,7 @@ echo "   * Inline Code:                $ENABLED_INLINE"
 echo "   * Linux AF_ALG:               $ENABLED_AFALG"
 echo "   * Linux devcrypto:            $ENABLED_DEVCRYPTO"
 echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
+echo "   * AutoSAR :                   $ENABLED_AUTOSAR"
 echo ""
 echo "---"
 

@@ -135,3 +135,11 @@ endif
 if BUILD_FIPS_RAND
 nobase_include_HEADERS+= wolfssl/wolfcrypt/fips.h
 endif
+
+if BUILD_AUTOSAR
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/autosar/Csm.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/autosar/CryIf.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/autosar/Crypto.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/autosar/StandardTypes.h
+endif
+
