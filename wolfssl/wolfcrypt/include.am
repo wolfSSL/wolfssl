@@ -222,3 +222,11 @@ endif
 if BUILD_MAXQ10XX
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/maxim/maxq10xx.h
 endif
+
+if BUILD_AUTOSAR
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/autosar/Csm.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/autosar/CryIf.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/autosar/Crypto.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/autosar/StandardTypes.h
+endif
+

@@ -7932,6 +7932,19 @@ else
 fi
 
 
+# Support for autosar shim
+AC_ARG_ENABLE([autosar],
+    [AS_HELP_STRING([--enable-autosar],[Enable AutoSAR support (default: disabled)])],
+    [ ENABLED_AUTOSAR=$enableval ],
+    [ ENABLED_AUTOSAR=no ]
+    )
+
+if test "$ENABLED_AUTOSAR" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AUTOSAR"
+fi
+
+
 # Session Export
 AC_ARG_ENABLE([sessionexport],
     [AS_HELP_STRING([--enable-sessionexport],[Enable export and import of sessions (default: disabled)])],
@@ -9177,6 +9190,7 @@ AM_CONDITIONAL([BUILD_DTLS],[test "x$ENABLED_DTLS" = "xyes" || test "x$ENABLED_U
 AM_CONDITIONAL([BUILD_MAXQ10XX],[test "x$ENABLED_MAXQ10XX" = "xyes"])
 AM_CONDITIONAL([BUILD_ARIA],[test "x$ENABLED_ARIA" = "xyes"])
 AM_CONDITIONAL([BUILD_XILINX],[test "x$ENABLED_XILINX" = "xyes"])
+AM_CONDITIONAL([BUILD_AUTOSAR],[test "x$ENABLED_AUTOSAR" = "xyes"])
 
 if test "$ENABLED_REPRODUCIBLE_BUILD" != "yes" &&
    (test "$ax_enable_debug" = "yes" ||
@@ -9668,6 +9682,7 @@ echo "   * Dual alg cert support:      $ENABLED_DUAL_ALG_CERTS"
 echo "   * ERR Queues per Thread:      $ENABLED_ERRORQUEUEPERTHREAD"
 echo "   * rwlock:                     $ENABLED_RWLOCK"
 echo "   * keylog export:              $ENABLED_KEYLOG_EXPORT"
+echo "   * AutoSAR :                   $ENABLED_AUTOSAR"
 echo ""
 echo "---"
 
