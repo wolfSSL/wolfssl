@@ -2569,6 +2569,9 @@ struct WOLFSSL_CTX {
 #endif
     Suites*     suites;           /* make dynamic, user may not need/set */
     void*       heap;             /* for user memory overrides */
+#ifdef WOLFSSL_STATIC_MEMORY
+    byte        onHeap; /* whether the ctx/method is put on heap hint */
+#endif
     byte        verifyDepth;
     byte        verifyPeer:1;
     byte        verifyNone:1;
