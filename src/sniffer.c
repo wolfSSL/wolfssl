@@ -623,6 +623,14 @@ void ssl_FreeSniffer(void)
     wc_FreeMutex(&SessionMutex);
     wc_FreeMutex(&ServerListMutex);
 
+#ifdef WOLF_CRYPTO_CB
+#ifdef HAVE_INTEL_QA_SYNC
+    wc_CryptoCb_UnRegisterDevice(CryptoDeviceId);
+    IntelQaClose(&CryptoDevice);
+    IntelQaDeInit(CryptoDeviceId);
+#endif
+#endif
+
     if (TraceFile) {
         TraceOn = 0;
         fclose(TraceFile);
