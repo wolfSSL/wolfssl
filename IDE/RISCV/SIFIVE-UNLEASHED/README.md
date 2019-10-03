@@ -24,7 +24,7 @@ See `freedom-u-sdk/README.md` file for instructions on updating the SD card U-Bo
 
 ### Installing U-Boot
 
-Insert SD card from Unleashed into host and determine the assigned character sequence (X) for the media.
+Insert SD card from Unleashed into host and determine the assigned `/dev/sdX` for the media.
 
 From `freedom-u-sdk` directory:
 
