@@ -123,9 +123,13 @@ enum {
     #include "wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h"
 #elif defined(WOLFSSL_AFALG_HASH)
     #include "wolfssl/wolfcrypt/port/af_alg/afalg_hash.h"
+#elif defined(WOLFSSL_RENESAS_TSIP_CRYPT) && \
+   !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
+    #include "wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h"
 #else
+
 /* wc_Sha256 digest */
-typedef struct wc_Sha256 {
+struct wc_Sha256 {
 #ifdef FREESCALE_LTC_SHA
     ltc_hash_ctx_t ctx;
 #elif defined(STM32_HASH)
@@ -168,7 +172,12 @@ typedef struct wc_Sha256 {
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif
-} wc_Sha256;
+};
+
+#ifndef WC_SHA256_TYPE_DEFINED
+    typedef struct wc_Sha256 wc_Sha256;
+    #define WC_SHA256_TYPE_DEFINED
+#endif
 
 #endif
 
@@ -215,7 +224,10 @@ enum {
 };
 
 
-typedef wc_Sha256 wc_Sha224;
+#ifndef WC_SHA224_TYPE_DEFINED
+    typedef struct wc_Sha256 wc_Sha224;
+    #define WC_SHA224_TYPE_DEFINED
+#endif
 #endif /* HAVE_FIPS */
 
 WOLFSSL_API int wc_InitSha224(wc_Sha224*);

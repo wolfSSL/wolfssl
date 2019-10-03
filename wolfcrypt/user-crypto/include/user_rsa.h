@@ -106,9 +106,9 @@ WOLFSSL_API int  wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx,
                                                                RsaKey*, word32);
 WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
                                         const byte* e, word32 eSz, RsaKey* key);
+WOLFSSL_API int wc_RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
+WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
 #ifdef WOLFSSL_KEY_GEN
-    WOLFSSL_API int wc_RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
-    WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
     WOLFSSL_API int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng);
 #endif
 WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
@@ -116,7 +116,7 @@ WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
 WOLFSSL_API int  wc_RsaSetRNG(RsaKey* key, WC_RNG* rng);
 
 
-#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN)
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)
         /* abstracted BN operations with RSA key */
     WOLFSSL_API int wc_Rsa_leading_bit(void* BN);
     WOLFSSL_API int wc_Rsa_unsigned_bin_size(void* BN);

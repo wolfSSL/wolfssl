@@ -2350,7 +2350,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     if (!usePsk && !useAnon && !useVerifyCb && !myVerifyFail) {
     #ifndef TEST_LOAD_BUFFER
-        if (wolfSSL_CTX_load_verify_locations(ctx, verifyCert, 0)
+        unsigned int verify_flags = 0;
+    #ifdef TEST_BEFORE_DATE
+        verify_flags |= WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY;
+    #endif
+        if (wolfSSL_CTX_load_verify_locations_ex(ctx, verifyCert, 0, verify_flags)
                                                            != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("can't load ca file, Please run from wolfSSL home dir");
@@ -2362,7 +2366,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #ifdef HAVE_ECC
         /* load ecc verify too, echoserver uses it by default w/ ecc */
         #ifndef TEST_LOAD_BUFFER
-        if (wolfSSL_CTX_load_verify_locations(ctx, eccCertFile, 0)
+        if (wolfSSL_CTX_load_verify_locations_ex(ctx, eccCertFile, 0, verify_flags)
                                                            != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("can't load ecc ca file, Please run from wolfSSL home dir");
@@ -2870,7 +2874,22 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         for (pt = rnd; pt < rnd + size; pt++) printf("%02X", *pt);
         printf("\n");
         XFREE(rnd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
     }
+
+    #if defined(OPENSSL_ALL)
+    /* print out session to stdout */
+    {
+        WOLFSSL_BIO* bio = wolfSSL_BIO_new_fp(stdout, BIO_NOCLOSE);
+        if (bio != NULL) {
+            if (wolfSSL_SESSION_print(bio, wolfSSL_get_session(ssl)) !=
+                    WOLFSSL_SUCCESS) {
+                wolfSSL_BIO_printf(bio, "ERROR: Unable to print out session\n");
+            }
+        }
+        wolfSSL_BIO_free(bio);
+    }
+    #endif
 #endif
 
     if (doSTARTTLS) {
@@ -3091,7 +3110,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_EXT_CACHE)
         if (flatSession) {
-            XFREE(flatSession, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(flatSession, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             wolfSSL_SESSION_free(session);
         }
 #endif

@@ -85,6 +85,11 @@
     #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
 #endif
 
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+    defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+    #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -130,7 +135,7 @@ enum {
 };
 
 
-typedef struct Aes {
+struct Aes {
     /* AESNI needs key first, rounds 2nd, not sure why yet */
     ALIGN16 word32 key[60];
     word32  rounds;
@@ -201,8 +206,17 @@ typedef struct Aes {
 #if defined(WOLFSSL_CRYPTOCELL)
     aes_context_t ctx;
 #endif
+#if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
+    defined(WOLFSSL_RENESAS_TSIP_TLS_AES_CRYPT)
+    TSIP_AES_CTX ctx;
+#endif
     void*  heap; /* memory hint to use */
-} Aes;
+};
+
+#ifndef WC_AES_TYPE_DEFINED
+    typedef struct Aes Aes;
+    #define WC_AES_TYPE_DEFINED
+#endif
 
 #ifdef WOLFSSL_AES_XTS
 typedef struct XtsAes {

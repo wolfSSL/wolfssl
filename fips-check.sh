@@ -33,6 +33,7 @@ Platform is one of:
     linuxv2 (FIPSv2, use for Win10)
     fips-ready
     stm32l4-v2 (FIPSv2, use for STM32L4)
+    wolfrand
 Keep (default off) retains the XXX-fips-test temp dir for inspection.
 
 Example:
@@ -215,6 +216,19 @@ stm32l4-v2)
   FIPS_INCS=( fips.h )
   FIPS_OPTION=v2
   ;;
+wolfrand)
+  FIPS_REPO=git@github.com:wolfssl/fips.git
+  FIPS_VERSION=WRv4-stable
+  CRYPT_REPO=git@github.com:wolfssl/wolfssl.git
+  CRYPT_VERSION=WCv4-stable
+  CRYPT_INC_PATH=wolfssl/wolfcrypt
+  CRYPT_SRC_PATH=wolfcrypt/src
+  RNG_VERSION=WCv4-rng-stable
+  WC_MODS=( hmac sha256 random )
+  FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
+  FIPS_INCS=( fips.h )
+  FIPS_OPTION=rand
+  ;;
 *)
   Usage
   exit 1
@@ -254,7 +268,7 @@ then
         cp "old-tree/$CRYPT_SRC_PATH/random.c" $CRYPT_SRC_PATH
         cp "old-tree/$CRYPT_INC_PATH/random.h" $CRYPT_INC_PATH
     fi
-elif [ "x$FIPS_OPTION" == "xv2" ]
+elif [ "x$FIPS_OPTION" == "xv2" ] || [ "x$FIPS_OPTION" == "xrand" ]
 then
     $GIT branch --no-track "my$CRYPT_VERSION" $CRYPT_VERSION
     # Checkout the fips versions of the wolfCrypt files from the repo.

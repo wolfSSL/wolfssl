@@ -114,12 +114,12 @@ void esp_sha_hw_unlock( void );
 
 struct wc_Sha;
 int esp_sha_digest_process(struct wc_Sha* sha, byte bockprocess);
-int esp_sha_process(struct wc_Sha* sha);
+int esp_sha_process(struct wc_Sha* sha, const byte* data);
 
 #ifndef NO_SHA256
     struct wc_Sha256;
     int esp_sha256_digest_process(struct wc_Sha256* sha, byte bockprocess);
-    int esp_sha256_process(struct wc_Sha256* sha);
+    int esp_sha256_process(struct wc_Sha256* sha, const byte* data);
 #endif
 
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
@@ -140,7 +140,7 @@ struct fp_int;
 int esp_mp_mul(struct fp_int* X, struct fp_int* Y, struct fp_int* Z);
 int esp_mp_exptmod(struct fp_int* G, struct fp_int* X, word32 Xbits, struct fp_int* P,
                                      struct fp_int* Y);
-int esp_mp_mulmod(struct fp_int* X, struct fp_int* Y, struct fp_int* M, 
+int esp_mp_mulmod(struct fp_int* X, struct fp_int* Y, struct fp_int* M,
                                      struct fp_int* Z);
 
 #endif /* NO_RSA || HAVE_ECC*/

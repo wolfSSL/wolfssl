@@ -279,7 +279,7 @@ static void esp_digest_state(WC_ESP32SHA* ctx, byte* hash, enum SHA_TYPE sha_typ
 /*
 * sha1 process
 */
-int esp_sha_process(struct wc_Sha* sha)
+int esp_sha_process(struct wc_Sha* sha, const byte* data)
 {
     int ret = 0;
 
@@ -287,7 +287,7 @@ int esp_sha_process(struct wc_Sha* sha)
 
     word32 SHA_START_REG = SHA_1_START_REG;
 
-    esp_process_block(&sha->ctx, SHA_START_REG, sha->buffer,
+    esp_process_block(&sha->ctx, SHA_START_REG, (const word32*)data,
                                         WC_SHA_BLOCK_SIZE);
 
     ESP_LOGV(TAG, "leave esp_sha_process");
@@ -322,7 +322,7 @@ int esp_sha_digest_process(struct wc_Sha* sha, byte blockproc)
 /*
 * sha256 process
 */
-int esp_sha256_process(struct wc_Sha256* sha)
+int esp_sha256_process(struct wc_Sha256* sha, const byte* data)
 {
     int ret = 0;
     word32 SHA_START_REG = SHA_1_START_REG;
@@ -332,8 +332,8 @@ int esp_sha256_process(struct wc_Sha256* sha)
     /* start register offset */
     SHA_START_REG += (SHA2_256 << 4);
 
-    esp_process_block(&sha->ctx, SHA_START_REG, sha->buffer,
-                                            WC_SHA256_BLOCK_SIZE);
+    esp_process_block(&sha->ctx, SHA_START_REG, (const word32*)data,
+        WC_SHA256_BLOCK_SIZE);
 
     ESP_LOGV(TAG, "leave esp_sha256_process");
 

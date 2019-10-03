@@ -2831,7 +2831,7 @@ int mp_set_bit (mp_int * a, int b)
 {
     int i = b / DIGIT_BIT, res;
 
-    if (a->used < (int)(i + 1)) {
+    if (a->dp == NULL || a->used < (int)(i + 1)) {
         /* grow a to accommodate the single bit */
         if ((res = mp_grow (a, i + 1)) != MP_OKAY) {
             return res;

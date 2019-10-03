@@ -261,7 +261,7 @@ WOLFSSL_API int wc_FreeMutex(wolfSSL_Mutex*);
 WOLFSSL_API int wc_LockMutex(wolfSSL_Mutex*);
 WOLFSSL_API int wc_UnLockMutex(wolfSSL_Mutex*);
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-/* dynamiclly set which mutex to use. unlock / lock is controlled by flag */
+/* dynamically set which mutex to use. unlock / lock is controlled by flag */
 typedef void (mutex_cb)(int flag, int type, const char* file, int line);
 
 WOLFSSL_API int wc_LockMutex_ex(int flag, int type, const char* file, int line);
@@ -642,7 +642,11 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 /* Map default time functions */
 #if !defined(XTIME) && !defined(TIME_OVERRIDES) && !defined(USER_TIME)
+    #ifdef TEST_BEFORE_DATE
+    #define XTIME(tl)       (946681200UL) /* Jan 1, 2000 */
+    #else
     #define XTIME(tl)       time((tl))
+    #endif
 #endif
 #if !defined(XGMTIME) && !defined(TIME_OVERRIDES)
     #if defined(WOLFSSL_GMTIME) || !defined(HAVE_GMTIME_R) || defined(WOLF_C99)

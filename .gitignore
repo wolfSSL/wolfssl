@@ -328,3 +328,9 @@ IDE/XCODE/Index
 \.settings/
 \.cproject
 \.project
+
+# Renesas e2studio
+/IDE/Renesas/e2studio/Projects/test/src/smc_gen
+/IDE/Renesas/e2studio/Projects/test/trash
+/IDE/Renesas/e2studio/Projects/test/*.launch
+/IDE/Renesas/e2studio/Projects/test/*.scfg

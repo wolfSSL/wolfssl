@@ -21,7 +21,7 @@
 
 typedef unsigned long time_t;
 
-#define YEAR 2018
+#define YEAR 2019
 #define MON  5
 
 static int tick = 0;
@@ -36,6 +36,6 @@ int strncasecmp(const char *s1, const char * s2, unsigned int sz)
 {
     for( ; sz>0; sz--)
         if(toupper(s1++) != toupper(s2++))
-	    return 1;
+        return 1;
     return 0;
 }

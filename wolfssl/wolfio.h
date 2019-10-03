@@ -126,6 +126,7 @@
             #include <unistd.h>
         #endif
         #include <fcntl.h>
+        #define XFCNTL(fd, flag, block) fcntl((fd), (flag), (block))
 
         #if defined(HAVE_RTP_SYS)
             #include <socket.h>

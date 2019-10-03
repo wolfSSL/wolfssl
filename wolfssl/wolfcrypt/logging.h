@@ -163,9 +163,10 @@ WOLFSSL_API void wolfSSL_Debugging_OFF(void);
 
 #endif /* DEBUG_WOLFSSL && !WOLFSSL_DEBUG_ERRORS_ONLY */
 
-#if defined(DEBUG_WOLFSSL) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(DEBUG_WOLFSSL) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) ||\
+    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
 
-    #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+    #if (defined(OPENSSL_EXTRA) && !defined(_WIN32)) || defined(DEBUG_WOLFSSL_VERBOSE)
         WOLFSSL_API void WOLFSSL_ERROR_LINE(int err, const char* func, unsigned int line,
             const char* file, void* ctx);
         #define WOLFSSL_ERROR(x) \

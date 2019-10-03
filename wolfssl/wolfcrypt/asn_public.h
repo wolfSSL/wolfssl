@@ -105,7 +105,9 @@ enum CertType {
     ED25519_TYPE,
     PKCS12_TYPE,
     PKCS8_PRIVATEKEY_TYPE,
-    PKCS8_ENC_PRIVATEKEY_TYPE
+    PKCS8_ENC_PRIVATEKEY_TYPE,
+    DETECT_CERT_TYPE,
+    DH_PRIVATEKEY_TYPE,
 };
 
 
@@ -190,6 +192,23 @@ typedef struct EncryptedInfo {
 
     word16   set:1;            /* if encryption set */
 } EncryptedInfo;
+
+
+#define WOLFSSL_ASN1_INTEGER_MAX 20
+typedef struct WOLFSSL_ASN1_INTEGER {
+    /* size can be increased set at 20 for tag, length then to hold at least 16
+     * byte type */
+    unsigned char  intData[WOLFSSL_ASN1_INTEGER_MAX];
+    /* ASN_INTEGER | LENGTH | hex of number */
+    unsigned char  negative;   /* negative number flag */
+
+    unsigned char* data;
+    unsigned int   dataMax;   /* max size of data buffer */
+    unsigned int   isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
+
+    int length;
+    int type;
+} WOLFSSL_ASN1_INTEGER;
 
 
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
@@ -304,7 +323,6 @@ typedef struct Cert {
 } Cert;
 
 
-
 /* Initialize and Set Certificate defaults:
    version    = 3 (0x2)
    serial     = 0 (Will be randomly generated)
@@ -350,7 +368,7 @@ WOLFSSL_API int wc_SetAltNamesBuffer(Cert*, const byte*, int);
 WOLFSSL_API int wc_SetDatesBuffer(Cert*, const byte*, int);
 
 #ifndef NO_ASN_TIME
-WOLFSSL_API int wc_GetCertDates(Cert* cert, struct tm* before, 
+WOLFSSL_API int wc_GetCertDates(Cert* cert, struct tm* before,
     struct tm* after);
 #endif
 
@@ -408,7 +426,7 @@ WOLFSSL_API int wc_SetExtKeyUsageOID(Cert *cert, const char *oid, word32 sz,
 
 #endif /* WOLFSSL_CERT_GEN */
 
-WOLFSSL_API int wc_GetDateInfo(const byte* certDate, int certDateSz, 
+WOLFSSL_API int wc_GetDateInfo(const byte* certDate, int certDateSz,
     const byte** date, byte* format, int* length);
 #ifndef NO_ASN_TIME
 WOLFSSL_API int wc_GetDateAsCalendarTime(const byte* date, int length,
@@ -417,7 +435,7 @@ WOLFSSL_API int wc_GetDateAsCalendarTime(const byte* date, int length,
 
 #if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)
 
-    WOLFSSL_API int wc_PemGetHeaderFooter(int type, const char** header, 
+    WOLFSSL_API int wc_PemGetHeaderFooter(int type, const char** header,
         const char** footer);
 
 #endif
@@ -459,9 +477,12 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
                                 word32 outputSz, byte *cipherIno, int type);
 #endif
 
-#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#ifndef NO_RSA
+    #if !defined(HAVE_USER_RSA)
     WOLFSSL_API int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx,
         word32 inSz, const byte** n, word32* nSz, const byte** e, word32* eSz);
+    #endif
+    WOLFSSL_API int wc_RsaPublicKeyDerSize(RsaKey* key, int with_header);
 #endif
 
 #ifdef HAVE_ECC
@@ -479,6 +500,7 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
                                               ecc_key*, word32);
     WOLFSSL_API int wc_EccPublicKeyToDer(ecc_key*, byte* output,
                                          word32 inLen, int with_AlgCurve);
+    WOLFSSL_API int wc_EccPublicKeyDerSize(ecc_key*, int with_AlgCurve);
 #endif
 
 #ifdef HAVE_ED25519

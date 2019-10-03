@@ -355,9 +355,10 @@ void WOLFSSL_LEAVE(const char* msg, int ret)
  * name where WOLFSSL_ERROR is called at.
  */
 #if defined(DEBUG_WOLFSSL) || defined(OPENSSL_ALL) || \
-    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+    defined(OPENSSL_EXTRA)
 
-#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+#if (defined(OPENSSL_EXTRA) && !defined(_WIN32)) || defined(DEBUG_WOLFSSL_VERBOSE)
 void WOLFSSL_ERROR_LINE(int error, const char* func, unsigned int line,
         const char* file, void* usrCtx)
 #else
@@ -370,7 +371,7 @@ void WOLFSSL_ERROR(int error)
     {
         char buffer[WOLFSSL_MAX_ERROR_SZ];
 
-    #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+    #if (defined(OPENSSL_EXTRA) && !defined(_WIN32)) || defined(DEBUG_WOLFSSL_VERBOSE)
         (void)usrCtx; /* a user ctx for future flexibility */
         (void)func;
 
@@ -484,11 +485,6 @@ int wc_PeekErrorNode(int idx, const char **file, const char **reason,
 
     if (idx < 0) {
         err = wc_last_node;
-        if (err == NULL) {
-            WOLFSSL_MSG("No Errors in queue");
-            wc_UnLockMutex(&debug_mutex);
-            return BAD_STATE_E;
-        }
     }
     else {
         int i;
@@ -502,6 +498,12 @@ int wc_PeekErrorNode(int idx, const char **file, const char **reason,
             }
             err = err->next;
         }
+    }
+
+    if (err == NULL) {
+        WOLFSSL_MSG("No Errors in queue");
+        wc_UnLockMutex(&debug_mutex);
+        return BAD_STATE_E;
     }
 
     if (file != NULL) {
@@ -669,10 +671,14 @@ void wc_RemoveErrorNode(int idx)
     if (current != NULL) {
         if (current->prev != NULL)
             current->prev->next = current->next;
+        if (current->next != NULL)
+            current->next->prev = current->prev;
         if (wc_last_node == current)
             wc_last_node = current->prev;
         if (wc_errors == current)
             wc_errors = current->next;
+        if (wc_current_node == current)
+            wc_current_node = current->next;
         XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
     }
 

@@ -98,10 +98,13 @@ enum {
 
 #elif defined(WOLFSSL_IMX6_CAAM)
     #include "wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h"
-
+#elif defined(WOLFSSL_RENESAS_TSIP_CRYPT) && \
+   !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
+    #include "wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h"
 #else
+
 /* Sha digest */
-typedef struct wc_Sha {
+struct wc_Sha {
 #ifdef FREESCALE_LTC_SHA
         ltc_hash_ctx_t ctx;
 #elif defined(STM32_HASH)
@@ -135,7 +138,12 @@ typedef struct wc_Sha {
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif
-} wc_Sha;
+};
+
+#ifndef WC_SHA_TYPE_DEFINED
+    typedef struct wc_Sha wc_Sha;
+    #define WC_SHA_TYPE_DEFINED
+#endif
 
 #endif /* WOLFSSL_TI_HASH */
 

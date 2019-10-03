@@ -26,12 +26,13 @@
 
 #include <wolfssl/openssl/ssl.h>
 
-#define ASN1_STRING_new      wolfSSL_ASN1_STRING_type_new
+#define ASN1_STRING_new      wolfSSL_ASN1_STRING_new
 #define ASN1_STRING_type_new wolfSSL_ASN1_STRING_type_new
 #define ASN1_STRING_type     wolfSSL_ASN1_STRING_type
 #define ASN1_STRING_set      wolfSSL_ASN1_STRING_set
 #define ASN1_STRING_free     wolfSSL_ASN1_STRING_free
 
+#define V_ASN1_INTEGER                   0x02
 #define V_ASN1_OCTET_STRING              0x04 /* tag for ASN1_OCTET_STRING */
 #define V_ASN1_NEG                       0x100
 #define V_ASN1_NEG_INTEGER               (2 | V_ASN1_NEG)
@@ -56,5 +57,28 @@
                                           ASN1_STRFLGS_DUMP_DER)
 
 #define MBSTRING_UTF8                    0x1000
+#define MBSTRING_ASC                     0x1001
+#define MBSTRING_BMP                     0x1002
+#define MBSTRING_UNIV                    0x1004
+
+#define ASN1_UTCTIME_print              wolfSSL_ASN1_UTCTIME_print
+#define ASN1_TIME_check                 wolfSSL_ASN1_TIME_check
+#define ASN1_TIME_diff                  wolfSSL_ASN1_TIME_diff
+#define ASN1_TIME_set                   wolfSSL_ASN1_TIME_set
+
+#define V_ASN1_UTCTIME                  23
+#define V_ASN1_GENERALIZEDTIME          24
+
+#define ASN1_STRING_FLAG_BITS_LEFT       0x008
+#define ASN1_STRING_FLAG_NDEF            0x010
+#define ASN1_STRING_FLAG_CONT            0x020
+#define ASN1_STRING_FLAG_MSTRING         0x040
+#define ASN1_STRING_FLAG_EMBED           0x080
+
+
+WOLFSSL_API WOLFSSL_ASN1_INTEGER *wolfSSL_BN_to_ASN1_INTEGER(
+    const WOLFSSL_BIGNUM*, WOLFSSL_ASN1_INTEGER*);
+#define BN_to_ASN1_INTEGER wolfSSL_BN_to_ASN1_INTEGER
+
 
 #endif /* WOLFSSL_ASN1_H_ */

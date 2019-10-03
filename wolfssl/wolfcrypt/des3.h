@@ -95,7 +95,7 @@ typedef struct Des {
 
 
 /* DES3 encryption and decryption */
-typedef struct Des3 {
+struct Des3 {
     word32 key[3][DES_KS_SIZE];
     word32 reg[DES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
     word32 tmp[DES_BLOCK_SIZE / sizeof(word32)];      /* same         */
@@ -109,7 +109,12 @@ typedef struct Des3 {
     void*  devCtx;
 #endif
     void* heap;
-} Des3;
+};
+
+#ifndef WC_DES3_TYPE_DEFINED
+    typedef struct Des3 Des3;
+    #define WC_DES3_TYPE_DEFINED
+#endif
 #endif /* HAVE_FIPS */
 
 

@@ -96,7 +96,7 @@
     /* don't use file system for these tests, since ./certs dir isn't loaded */
     #undef  NO_FILESYSTEM
     #define NO_FILESYSTEM
-#elif defined(THREADX) && !defined(WOLFSSL_WICED)
+#elif defined(THREADX) && !defined(WOLFSSL_WICED) && !defined(THREADX_NO_DC_PRINTF)
     /* since just testing, use THREADX log printf instead */
     int dc_log_printf(char*, ...);
     #undef printf
@@ -1890,14 +1890,23 @@ int sha_test(void)
 
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
+#ifdef WOLFSSL_RENESAS_TSIP
     const char* large_digest =
-        "\x8b\x77\x02\x48\x39\xe8\xdb\xd3\x9a\xf4\x05\x24\x66\x12\x2d\x9e"
-        "\xc5\xd9\x0a\xac";
-
+            "\x1d\x6a\x5a\xf6\xe5\x7c\x86\xce\x7f\x7c\xaf\xd5\xdb\x08\xcd\x59"
+            "\x15\x8c\x6d\xb6";
+#else
+    const char* large_digest =
+           "\x8b\x77\x02\x48\x39\xe8\xdb\xd3\x9a\xf4\x05\x24\x66\x12\x2d\x9e"
+           "\xc5\xd9\x0a\xac";
+#endif
     for (i = 0; i < (int)sizeof(large_input); i++) {
         large_input[i] = (byte)(i & 0xFF);
     }
+#ifdef WOLFSSL_RENESAS_TSIP
+    times = 20;
+#else
     times = 100;
+#endif
 #ifdef WOLFSSL_PIC32MZ_HASH
     wc_ShaSizeSet(&sha, times * sizeof(large_input));
 #endif
@@ -2271,14 +2280,23 @@ int sha256_test(void)
 
     /* BEGIN LARGE HASH TEST */ {
     byte large_input[1024];
+#ifdef WOLFSSL_RENESAS_TSIP_CRYPT
     const char* large_digest =
-        "\x27\x78\x3e\x87\x96\x3a\x4e\xfb\x68\x29\xb5\x31\xc9\xba\x57\xb4"
-        "\x4f\x45\x79\x7f\x67\x70\xbd\x63\x7f\xbf\x0d\x80\x7c\xbd\xba\xe0";
-
+            "\xa4\x75\x9e\x7a\xa2\x03\x38\x32\x88\x66\xa2\xea\x17\xea\xf8\xc7"
+            "\xfe\x4e\xc6\xbb\xe3\xbb\x71\xce\xe7\xdf\x7c\x04\x61\xb3\xc2\x2f";
+#else
+    const char* large_digest =
+           "\x27\x78\x3e\x87\x96\x3a\x4e\xfb\x68\x29\xb5\x31\xc9\xba\x57\xb4"
+           "\x4f\x45\x79\x7f\x67\x70\xbd\x63\x7f\xbf\x0d\x80\x7c\xbd\xba\xe0";
+#endif
     for (i = 0; i < (int)sizeof(large_input); i++) {
         large_input[i] = (byte)(i & 0xFF);
     }
+#ifdef WOLFSSL_RENESAS_TSIP
+    times = 20;
+#else
     times = 100;
+#endif
 #ifdef WOLFSSL_PIC32MZ_HASH
     wc_Sha256SizeSet(&sha, times * sizeof(large_input));
 #endif
@@ -11470,7 +11488,11 @@ static int rsa_keygen_test(WC_RNG* rng)
     byte*  pem = NULL;
     word32 idx = 0;
     int    derSz = 0;
+#ifndef WOLFSSL_SP_MATH
     int    keySz = 1024;
+#else
+    int    keySz = 2048;
+#endif
 
     XMEMSET(&genKey, 0, sizeof(genKey));
 
@@ -12980,21 +13002,33 @@ static int dh_test_ffdhe(WC_RNG *rng, const DhParams* params)
     }
 
     ret = wc_DhGenerateKeyPair(&key, rng, priv, &privSz, pub, &pubSz);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         ERROR_OUT(-7184, done);
     }
 
     ret = wc_DhGenerateKeyPair(&key2, rng, priv2, &privSz2, pub2, &pubSz2);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key2.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         ERROR_OUT(-7185, done);
     }
 
     ret = wc_DhAgree(&key, agree, &agreeSz, priv, privSz, pub2, pubSz2);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         ERROR_OUT(-7186, done);
     }
 
     ret = wc_DhAgree(&key2, agree2, &agreeSz2, priv2, privSz2, pub, pubSz);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key2.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         ERROR_OUT(-7187, done);
     }

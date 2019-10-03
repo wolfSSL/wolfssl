@@ -4063,7 +4063,8 @@ int fp_isprime_ex(fp_int *a, int t, int* result)
    int      r, res;
 
    if (t <= 0 || t > FP_PRIME_SIZE) {
-     return FP_NO;
+     *result = FP_NO;
+     return FP_VAL;
    }
 
    /* check against primes table */

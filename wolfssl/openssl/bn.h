@@ -82,6 +82,7 @@ WOLFSSL_API int wolfSSL_BN_num_bits(const WOLFSSL_BIGNUM*);
 WOLFSSL_API int wolfSSL_BN_is_zero(const WOLFSSL_BIGNUM*);
 WOLFSSL_API int wolfSSL_BN_is_one(const WOLFSSL_BIGNUM*);
 WOLFSSL_API int wolfSSL_BN_is_odd(const WOLFSSL_BIGNUM*);
+WOLFSSL_API int wolfSSL_BN_is_negative(const WOLFSSL_BIGNUM*);
 
 WOLFSSL_API int wolfSSL_BN_cmp(const WOLFSSL_BIGNUM*, const WOLFSSL_BIGNUM*);
 
@@ -125,6 +126,7 @@ WOLFSSL_API WOLFSSL_BIGNUM *wolfSSL_BN_CTX_get(WOLFSSL_BN_CTX *ctx);
 WOLFSSL_API void wolfSSL_BN_CTX_start(WOLFSSL_BN_CTX *ctx);
 WOLFSSL_API WOLFSSL_BIGNUM *wolfSSL_BN_mod_inverse(WOLFSSL_BIGNUM*, WOLFSSL_BIGNUM*,
                                         const WOLFSSL_BIGNUM*, WOLFSSL_BN_CTX *ctx);
+
 typedef WOLFSSL_BIGNUM BIGNUM;
 typedef WOLFSSL_BN_CTX BN_CTX;
 typedef WOLFSSL_BN_GENCB BN_GENCB;
@@ -144,6 +146,7 @@ typedef WOLFSSL_BN_GENCB BN_GENCB;
 #define BN_is_zero  wolfSSL_BN_is_zero
 #define BN_is_one   wolfSSL_BN_is_one
 #define BN_is_odd   wolfSSL_BN_is_odd
+#define BN_is_negative wolfSSL_BN_is_negative
 
 #define BN_cmp    wolfSSL_BN_cmp
 
@@ -189,6 +192,18 @@ typedef WOLFSSL_BN_GENCB BN_GENCB;
 #define BN_CTX_start wolfSSL_BN_CTX_start
 
 #define BN_mod_inverse wolfSSL_BN_mod_inverse
+
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+#define BN_get_rfc2409_prime_768   wolfSSL_DH_768_prime
+#define BN_get_rfc2409_prime_1024  wolfSSL_DH_1024_prime
+#define BN_get_rfc3526_prime_1536  wolfSSL_DH_1536_prime
+#define BN_get_rfc3526_prime_2048  wolfSSL_DH_2048_prime
+#define BN_get_rfc3526_prime_3072  wolfSSL_DH_3072_prime
+#define BN_get_rfc3526_prime_4096  wolfSSL_DH_4096_prime
+#define BN_get_rfc3526_prime_6144  wolfSSL_DH_6144_prime
+#define BN_get_rfc3526_prime_8192  wolfSSL_DH_8192_prime
+#endif
+
 
 #ifdef __cplusplus
     }  /* extern "C" */

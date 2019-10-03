@@ -83,7 +83,7 @@ static void sp_2048_from_bin(sp_digit* r, int max, const byte* a, int n)
  * r  A single precision integer.
  * a  A multi-precision integer.
  */
-static void sp_2048_from_mp(sp_digit* r, int max, mp_int* a)
+static void sp_2048_from_mp(sp_digit* r, int max, const mp_int* a)
 {
 #if DIGIT_BIT == 32
     int j;
@@ -2476,7 +2476,7 @@ SP_NOINLINE static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
  * a    A single precision number.
  * rho  Bottom word of inverse.
  */
-static void sp_2048_mont_setup(sp_digit* a, sp_digit* rho)
+static void sp_2048_mont_setup(const sp_digit* a, sp_digit* rho)
 {
     sp_digit x, b;
 
@@ -2497,7 +2497,7 @@ static void sp_2048_mont_setup(sp_digit* a, sp_digit* rho)
  * b  A single precision digit.
  */
 SP_NOINLINE static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
-        const sp_digit b)
+        sp_digit b)
 {
     __asm__ __volatile__ (
         "mov	r6, #1\n\t"
@@ -2565,7 +2565,7 @@ SP_NOINLINE static void sp_2048_mul_d_64(sp_digit* r, const sp_digit* a,
  * r  A single precision number.
  * m  A signle precision number.
  */
-static void sp_2048_mont_norm_32(sp_digit* r, sp_digit* m)
+static void sp_2048_mont_norm_32(sp_digit* r, const sp_digit* m)
 {
     XMEMSET(r, 0, sizeof(sp_digit) * 32);
 
@@ -2581,8 +2581,8 @@ static void sp_2048_mont_norm_32(sp_digit* r, sp_digit* m)
  * b  A single precision number to subtract.
  * m  Mask value to apply.
  */
-SP_NOINLINE static sp_digit sp_2048_cond_sub_32(sp_digit* r, sp_digit* a,
-        sp_digit* b, sp_digit m)
+SP_NOINLINE static sp_digit sp_2048_cond_sub_32(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, sp_digit m)
 {
     sp_digit c = 0;
 
@@ -2616,7 +2616,7 @@ SP_NOINLINE static sp_digit sp_2048_cond_sub_32(sp_digit* r, sp_digit* a,
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
-SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, sp_digit* m,
+SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m,
         sp_digit mp)
 {
     sp_digit ca = 0;
@@ -2762,8 +2762,8 @@ SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, sp_digit* m,
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_2048_mont_mul_32(sp_digit* r, sp_digit* a, sp_digit* b,
-        sp_digit* m, sp_digit mp)
+static void sp_2048_mont_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        const sp_digit* m, sp_digit mp)
 {
     sp_2048_mul_32(r, a, b);
     sp_2048_mont_reduce_32(r, m, mp);
@@ -2776,7 +2776,7 @@ static void sp_2048_mont_mul_32(sp_digit* r, sp_digit* a, sp_digit* b,
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_2048_mont_sqr_32(sp_digit* r, sp_digit* a, sp_digit* m,
+static void sp_2048_mont_sqr_32(sp_digit* r, const sp_digit* a, const sp_digit* m,
         sp_digit mp)
 {
     sp_2048_sqr_32(r, a);
@@ -2790,7 +2790,7 @@ static void sp_2048_mont_sqr_32(sp_digit* r, sp_digit* a, sp_digit* m,
  * b  A single precision digit.
  */
 SP_NOINLINE static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
-        const sp_digit b)
+        sp_digit b)
 {
     __asm__ __volatile__ (
         "mov	r6, #128\n\t"
@@ -3000,7 +3000,7 @@ SP_NOINLINE static sp_digit div_2048_word_32(sp_digit d1, sp_digit d0,
  * return -ve, 0 or +ve if a is less than, equal to or greater than b
  * respectively.
  */
-SP_NOINLINE static int32_t sp_2048_cmp_32(sp_digit* a, sp_digit* b)
+SP_NOINLINE static int32_t sp_2048_cmp_32(const sp_digit* a, const sp_digit* b)
 {
     sp_digit r = 0;
 
@@ -3045,7 +3045,7 @@ SP_NOINLINE static int32_t sp_2048_cmp_32(sp_digit* a, sp_digit* b)
  * r  Remainder from the division.
  * returns MP_OKAY indicating success.
  */
-static WC_INLINE int sp_2048_div_32(sp_digit* a, sp_digit* d, sp_digit* m,
+static WC_INLINE int sp_2048_div_32(const sp_digit* a, const sp_digit* d, sp_digit* m,
         sp_digit* r)
 {
     sp_digit t1[64], t2[33];
@@ -3081,7 +3081,7 @@ static WC_INLINE int sp_2048_div_32(sp_digit* a, sp_digit* d, sp_digit* m,
  * m  A single precision number that is the modulus to reduce with.
  * returns MP_OKAY indicating success.
  */
-static WC_INLINE int sp_2048_mod_32(sp_digit* r, sp_digit* a, sp_digit* m)
+static WC_INLINE int sp_2048_mod_32(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
     return sp_2048_div_32(a, m, NULL, r);
 }
@@ -3096,8 +3096,8 @@ static WC_INLINE int sp_2048_mod_32(sp_digit* r, sp_digit* a, sp_digit* m)
  * m     A single precision number that is the modulus.
  * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
  */
-static int sp_2048_mod_exp_32(sp_digit* r, sp_digit* a, sp_digit* e,
-        int bits, sp_digit* m, int reduceA)
+static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
+        int bits, const sp_digit* m, int reduceA)
 {
 #ifndef WOLFSSL_SMALL_STACK
     sp_digit t[16][64];
@@ -3224,8 +3224,8 @@ static int sp_2048_mod_exp_32(sp_digit* r, sp_digit* a, sp_digit* e,
  * m     A single precision number that is the modulus.
  * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
  */
-static int sp_2048_mod_exp_32(sp_digit* r, sp_digit* a, sp_digit* e,
-        int bits, sp_digit* m, int reduceA)
+static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
+        int bits, const sp_digit* m, int reduceA)
 {
 #ifndef WOLFSSL_SMALL_STACK
     sp_digit t[32][64];
@@ -3370,7 +3370,7 @@ static int sp_2048_mod_exp_32(sp_digit* r, sp_digit* a, sp_digit* e,
  * r  A single precision number.
  * m  A signle precision number.
  */
-static void sp_2048_mont_norm_64(sp_digit* r, sp_digit* m)
+static void sp_2048_mont_norm_64(sp_digit* r, const sp_digit* m)
 {
     XMEMSET(r, 0, sizeof(sp_digit) * 64);
 
@@ -3387,8 +3387,8 @@ static void sp_2048_mont_norm_64(sp_digit* r, sp_digit* m)
  * b  A single precision number to subtract.
  * m  Mask value to apply.
  */
-SP_NOINLINE static sp_digit sp_2048_cond_sub_64(sp_digit* r, sp_digit* a,
-        sp_digit* b, sp_digit m)
+SP_NOINLINE static sp_digit sp_2048_cond_sub_64(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, sp_digit m)
 {
     sp_digit c = 0;
 
@@ -3423,7 +3423,7 @@ SP_NOINLINE static sp_digit sp_2048_cond_sub_64(sp_digit* r, sp_digit* a,
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
-SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, sp_digit* m,
+SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, const sp_digit* m,
         sp_digit mp)
 {
     sp_digit ca = 0;
@@ -3570,8 +3570,8 @@ SP_NOINLINE static void sp_2048_mont_reduce_64(sp_digit* a, sp_digit* m,
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_2048_mont_mul_64(sp_digit* r, sp_digit* a, sp_digit* b,
-        sp_digit* m, sp_digit mp)
+static void sp_2048_mont_mul_64(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        const sp_digit* m, sp_digit mp)
 {
     sp_2048_mul_64(r, a, b);
     sp_2048_mont_reduce_64(r, m, mp);
@@ -3584,7 +3584,7 @@ static void sp_2048_mont_mul_64(sp_digit* r, sp_digit* a, sp_digit* b,
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_2048_mont_sqr_64(sp_digit* r, sp_digit* a, sp_digit* m,
+static void sp_2048_mont_sqr_64(sp_digit* r, const sp_digit* a, const sp_digit* m,
         sp_digit mp)
 {
     sp_2048_sqr_64(r, a);
@@ -3770,7 +3770,7 @@ static void sp_2048_mask_64(sp_digit* r, const sp_digit* a, sp_digit m)
  * return -ve, 0 or +ve if a is less than, equal to or greater than b
  * respectively.
  */
-SP_NOINLINE static int32_t sp_2048_cmp_64(sp_digit* a, sp_digit* b)
+SP_NOINLINE static int32_t sp_2048_cmp_64(const sp_digit* a, const sp_digit* b)
 {
     sp_digit r = 0;
 
@@ -3815,7 +3815,7 @@ SP_NOINLINE static int32_t sp_2048_cmp_64(sp_digit* a, sp_digit* b)
  * r  Remainder from the division.
  * returns MP_OKAY indicating success.
  */
-static WC_INLINE int sp_2048_div_64(sp_digit* a, sp_digit* d, sp_digit* m,
+static WC_INLINE int sp_2048_div_64(const sp_digit* a, const sp_digit* d, sp_digit* m,
         sp_digit* r)
 {
     sp_digit t1[128], t2[65];
@@ -3851,7 +3851,7 @@ static WC_INLINE int sp_2048_div_64(sp_digit* a, sp_digit* d, sp_digit* m,
  * m  A single precision number that is the modulus to reduce with.
  * returns MP_OKAY indicating success.
  */
-static WC_INLINE int sp_2048_mod_64(sp_digit* r, sp_digit* a, sp_digit* m)
+static WC_INLINE int sp_2048_mod_64(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
     return sp_2048_div_64(a, m, NULL, r);
 }
@@ -3865,7 +3865,7 @@ static WC_INLINE int sp_2048_mod_64(sp_digit* r, sp_digit* a, sp_digit* m)
  * r  Remainder from the division.
  * returns MP_OKAY indicating success.
  */
-static WC_INLINE int sp_2048_div_64_cond(sp_digit* a, sp_digit* d, sp_digit* m,
+static WC_INLINE int sp_2048_div_64_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
         sp_digit* r)
 {
     sp_digit t1[128], t2[65];
@@ -3902,7 +3902,7 @@ static WC_INLINE int sp_2048_div_64_cond(sp_digit* a, sp_digit* d, sp_digit* m,
  * m  A single precision number that is the modulus to reduce with.
  * returns MP_OKAY indicating success.
  */
-static WC_INLINE int sp_2048_mod_64_cond(sp_digit* r, sp_digit* a, sp_digit* m)
+static WC_INLINE int sp_2048_mod_64_cond(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
     return sp_2048_div_64_cond(a, m, NULL, r);
 }
@@ -3919,8 +3919,8 @@ static WC_INLINE int sp_2048_mod_64_cond(sp_digit* r, sp_digit* a, sp_digit* m)
  * m     A single precision number that is the modulus.
  * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
  */
-static int sp_2048_mod_exp_64(sp_digit* r, sp_digit* a, sp_digit* e,
-        int bits, sp_digit* m, int reduceA)
+static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
+        int bits, const sp_digit* m, int reduceA)
 {
 #ifndef WOLFSSL_SMALL_STACK
     sp_digit t[16][128];
@@ -4047,8 +4047,8 @@ static int sp_2048_mod_exp_64(sp_digit* r, sp_digit* a, sp_digit* e,
  * m     A single precision number that is the modulus.
  * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
  */
-static int sp_2048_mod_exp_64(sp_digit* r, sp_digit* a, sp_digit* e,
-        int bits, sp_digit* m, int reduceA)
+static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
+        int bits, const sp_digit* m, int reduceA)
 {
 #ifndef WOLFSSL_SMALL_STACK
     sp_digit t[32][128];
@@ -4444,7 +4444,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
  * a  A single precision integer.
  * r  A multi-precision integer.
  */
-static int sp_2048_to_mp(sp_digit* a, mp_int* r)
+static int sp_2048_to_mp(const sp_digit* a, mp_int* r)
 {
     int err;
 
@@ -4952,8 +4952,8 @@ static void sp_2048_lshift_64(sp_digit* r, sp_digit* a, byte n)
  * m     A single precision number that is the modulus.
  * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
  */
-static int sp_2048_mod_exp_2_64(sp_digit* r, sp_digit* e, int bits,
-        sp_digit* m)
+static int sp_2048_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
+        const sp_digit* m)
 {
 #ifndef WOLFSSL_SMALL_STACK
     sp_digit nd[128];
@@ -5185,7 +5185,7 @@ static void sp_3072_from_bin(sp_digit* r, int max, const byte* a, int n)
  * r  A single precision integer.
  * a  A multi-precision integer.
  */
-static void sp_3072_from_mp(sp_digit* r, int max, mp_int* a)
+static void sp_3072_from_mp(sp_digit* r, int max, const mp_int* a)
 {
 #if DIGIT_BIT == 32
     int j;
@@ -8086,7 +8086,7 @@ SP_NOINLINE static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
  * a    A single precision number.
  * rho  Bottom word of inverse.
  */
-static void sp_3072_mont_setup(sp_digit* a, sp_digit* rho)
+static void sp_3072_mont_setup(const sp_digit* a, sp_digit* rho)
 {
     sp_digit x, b;
 
@@ -8107,7 +8107,7 @@ static void sp_3072_mont_setup(sp_digit* a, sp_digit* rho)
  * b  A single precision digit.
  */
 SP_NOINLINE static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
-        const sp_digit b)
+        sp_digit b)
 {
     __asm__ __volatile__ (
         "mov	r6, #1\n\t"
@@ -8176,7 +8176,7 @@ SP_NOINLINE static void sp_3072_mul_d_96(sp_digit* r, const sp_digit* a,
  * r  A single precision number.
  * m  A signle precision number.
  */
-static void sp_3072_mont_norm_48(sp_digit* r, sp_digit* m)
+static void sp_3072_mont_norm_48(sp_digit* r, const sp_digit* m)
 {
     XMEMSET(r, 0, sizeof(sp_digit) * 48);
 
@@ -8192,8 +8192,8 @@ static void sp_3072_mont_norm_48(sp_digit* r, sp_digit* m)
  * b  A single precision number to subtract.
  * m  Mask value to apply.
  */
-SP_NOINLINE static sp_digit sp_3072_cond_sub_48(sp_digit* r, sp_digit* a,
-        sp_digit* b, sp_digit m)
+SP_NOINLINE static sp_digit sp_3072_cond_sub_48(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, sp_digit m)
 {
     sp_digit c = 0;
 
@@ -8227,7 +8227,7 @@ SP_NOINLINE static sp_digit sp_3072_cond_sub_48(sp_digit* r, sp_digit* a,
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
-SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, sp_digit* m,
+SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m,
         sp_digit mp)
 {
     sp_digit ca = 0;
@@ -8373,8 +8373,8 @@ SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, sp_digit* m,
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_3072_mont_mul_48(sp_digit* r, sp_digit* a, sp_digit* b,
-        sp_digit* m, sp_digit mp)
+static void sp_3072_mont_mul_48(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        const sp_digit* m, sp_digit mp)
 {
     sp_3072_mul_48(r, a, b);
     sp_3072_mont_reduce_48(r, m, mp);
@@ -8387,7 +8387,7 @@ static void sp_3072_mont_mul_48(sp_digit* r, sp_digit* a, sp_digit* b,
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_3072_mont_sqr_48(sp_digit* r, sp_digit* a, sp_digit* m,
+static void sp_3072_mont_sqr_48(sp_digit* r, const sp_digit* a, const sp_digit* m,
         sp_digit mp)
 {
     sp_3072_sqr_48(r, a);
@@ -8401,7 +8401,7 @@ static void sp_3072_mont_sqr_48(sp_digit* r, sp_digit* a, sp_digit* m,
  * b  A single precision digit.
  */
 SP_NOINLINE static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
-        const sp_digit b)
+        sp_digit b)
 {
     __asm__ __volatile__ (
         "mov	r6, #192\n\t"
@@ -8611,7 +8611,7 @@ SP_NOINLINE static sp_digit div_3072_word_48(sp_digit d1, sp_digit d0,
  * return -ve, 0 or +ve if a is less than, equal to or greater than b
  * respectively.
  */
-SP_NOINLINE static int32_t sp_3072_cmp_48(sp_digit* a, sp_digit* b)
+SP_NOINLINE static int32_t sp_3072_cmp_48(const sp_digit* a, const sp_digit* b)
 {
     sp_digit r = 0;
 
@@ -8656,7 +8656,7 @@ SP_NOINLINE static int32_t sp_3072_cmp_48(sp_digit* a, sp_digit* b)
  * r  Remainder from the division.
  * returns MP_OKAY indicating success.
  */
-static WC_INLINE int sp_3072_div_48(sp_digit* a, sp_digit* d, sp_digit* m,
+static WC_INLINE int sp_3072_div_48(const sp_digit* a, const sp_digit* d, sp_digit* m,
         sp_digit* r)
 {
     sp_digit t1[96], t2[49];
@@ -8692,7 +8692,7 @@ static WC_INLINE int sp_3072_div_48(sp_digit* a, sp_digit* d, sp_digit* m,
  * m  A single precision number that is the modulus to reduce with.
  * returns MP_OKAY indicating success.
  */
-static WC_INLINE int sp_3072_mod_48(sp_digit* r, sp_digit* a, sp_digit* m)
+static WC_INLINE int sp_3072_mod_48(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
     return sp_3072_div_48(a, m, NULL, r);
 }
@@ -8707,8 +8707,8 @@ static WC_INLINE int sp_3072_mod_48(sp_digit* r, sp_digit* a, sp_digit* m)
  * m     A single precision number that is the modulus.
  * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
  */
-static int sp_3072_mod_exp_48(sp_digit* r, sp_digit* a, sp_digit* e,
-        int bits, sp_digit* m, int reduceA)
+static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
+        int bits, const sp_digit* m, int reduceA)
 {
 #ifndef WOLFSSL_SMALL_STACK
     sp_digit t[16][96];
@@ -8835,8 +8835,8 @@ static int sp_3072_mod_exp_48(sp_digit* r, sp_digit* a, sp_digit* e,
  * m     A single precision number that is the modulus.
  * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
  */
-static int sp_3072_mod_exp_48(sp_digit* r, sp_digit* a, sp_digit* e,
-        int bits, sp_digit* m, int reduceA)
+static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
+        int bits, const sp_digit* m, int reduceA)
 {
 #ifndef WOLFSSL_SMALL_STACK
     sp_digit t[32][96];
@@ -8981,7 +8981,7 @@ static int sp_3072_mod_exp_48(sp_digit* r, sp_digit* a, sp_digit* e,
  * r  A single precision number.
  * m  A signle precision number.
  */
-static void sp_3072_mont_norm_96(sp_digit* r, sp_digit* m)
+static void sp_3072_mont_norm_96(sp_digit* r, const sp_digit* m)
 {
     XMEMSET(r, 0, sizeof(sp_digit) * 96);
 
@@ -8998,8 +8998,8 @@ static void sp_3072_mont_norm_96(sp_digit* r, sp_digit* m)
  * b  A single precision number to subtract.
  * m  Mask value to apply.
  */
-SP_NOINLINE static sp_digit sp_3072_cond_sub_96(sp_digit* r, sp_digit* a,
-        sp_digit* b, sp_digit m)
+SP_NOINLINE static sp_digit sp_3072_cond_sub_96(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, sp_digit m)
 {
     sp_digit c = 0;
 
@@ -9035,7 +9035,7 @@ SP_NOINLINE static sp_digit sp_3072_cond_sub_96(sp_digit* r, sp_digit* a,
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
-SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, sp_digit* m,
+SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, const sp_digit* m,
         sp_digit mp)
 {
     sp_digit ca = 0;
@@ -9185,8 +9185,8 @@ SP_NOINLINE static void sp_3072_mont_reduce_96(sp_digit* a, sp_digit* m,
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_3072_mont_mul_96(sp_digit* r, sp_digit* a, sp_digit* b,
-        sp_digit* m, sp_digit mp)
+static void sp_3072_mont_mul_96(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        const sp_digit* m, sp_digit mp)
 {
     sp_3072_mul_96(r, a, b);
     sp_3072_mont_reduce_96(r, m, mp);
@@ -9199,7 +9199,7 @@ static void sp_3072_mont_mul_96(sp_digit* r, sp_digit* a, sp_digit* b,
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_3072_mont_sqr_96(sp_digit* r, sp_digit* a, sp_digit* m,
+static void sp_3072_mont_sqr_96(sp_digit* r, const sp_digit* a, const sp_digit* m,
         sp_digit mp)
 {
     sp_3072_sqr_96(r, a);
@@ -9385,7 +9385,7 @@ static void sp_3072_mask_96(sp_digit* r, const sp_digit* a, sp_digit m)
  * return -ve, 0 or +ve if a is less than, equal to or greater than b
  * respectively.
  */
-SP_NOINLINE static int32_t sp_3072_cmp_96(sp_digit* a, sp_digit* b)
+SP_NOINLINE static int32_t sp_3072_cmp_96(const sp_digit* a, const sp_digit* b)
 {
     sp_digit r = 0;
 
@@ -9432,7 +9432,7 @@ SP_NOINLINE static int32_t sp_3072_cmp_96(sp_digit* a, sp_digit* b)
  * r  Remainder from the division.
  * returns MP_OKAY indicating success.
  */
-static WC_INLINE int sp_3072_div_96(sp_digit* a, sp_digit* d, sp_digit* m,
+static WC_INLINE int sp_3072_div_96(const sp_digit* a, const sp_digit* d, sp_digit* m,
         sp_digit* r)
 {
     sp_digit t1[192], t2[97];
@@ -9468,7 +9468,7 @@ static WC_INLINE int sp_3072_div_96(sp_digit* a, sp_digit* d, sp_digit* m,
  * m  A single precision number that is the modulus to reduce with.
  * returns MP_OKAY indicating success.
  */
-static WC_INLINE int sp_3072_mod_96(sp_digit* r, sp_digit* a, sp_digit* m)
+static WC_INLINE int sp_3072_mod_96(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
     return sp_3072_div_96(a, m, NULL, r);
 }
@@ -9482,7 +9482,7 @@ static WC_INLINE int sp_3072_mod_96(sp_digit* r, sp_digit* a, sp_digit* m)
  * r  Remainder from the division.
  * returns MP_OKAY indicating success.
  */
-static WC_INLINE int sp_3072_div_96_cond(sp_digit* a, sp_digit* d, sp_digit* m,
+static WC_INLINE int sp_3072_div_96_cond(const sp_digit* a, const sp_digit* d, sp_digit* m,
         sp_digit* r)
 {
     sp_digit t1[192], t2[97];
@@ -9519,7 +9519,7 @@ static WC_INLINE int sp_3072_div_96_cond(sp_digit* a, sp_digit* d, sp_digit* m,
  * m  A single precision number that is the modulus to reduce with.
  * returns MP_OKAY indicating success.
  */
-static WC_INLINE int sp_3072_mod_96_cond(sp_digit* r, sp_digit* a, sp_digit* m)
+static WC_INLINE int sp_3072_mod_96_cond(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
     return sp_3072_div_96_cond(a, m, NULL, r);
 }
@@ -9536,8 +9536,8 @@ static WC_INLINE int sp_3072_mod_96_cond(sp_digit* r, sp_digit* a, sp_digit* m)
  * m     A single precision number that is the modulus.
  * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
  */
-static int sp_3072_mod_exp_96(sp_digit* r, sp_digit* a, sp_digit* e,
-        int bits, sp_digit* m, int reduceA)
+static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
+        int bits, const sp_digit* m, int reduceA)
 {
 #ifndef WOLFSSL_SMALL_STACK
     sp_digit t[16][192];
@@ -9664,8 +9664,8 @@ static int sp_3072_mod_exp_96(sp_digit* r, sp_digit* a, sp_digit* e,
  * m     A single precision number that is the modulus.
  * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
  */
-static int sp_3072_mod_exp_96(sp_digit* r, sp_digit* a, sp_digit* e,
-        int bits, sp_digit* m, int reduceA)
+static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
+        int bits, const sp_digit* m, int reduceA)
 {
 #ifndef WOLFSSL_SMALL_STACK
     sp_digit t[32][192];
@@ -10061,7 +10061,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
  * a  A single precision integer.
  * r  A multi-precision integer.
  */
-static int sp_3072_to_mp(sp_digit* a, mp_int* r)
+static int sp_3072_to_mp(const sp_digit* a, mp_int* r)
 {
     int err;
 
@@ -10767,8 +10767,8 @@ static void sp_3072_lshift_96(sp_digit* r, sp_digit* a, byte n)
  * m     A single precision number that is the modulus.
  * returns 0 on success and MEMORY_E on dynamic memory allocation failure.
  */
-static int sp_3072_mod_exp_2_96(sp_digit* r, sp_digit* e, int bits,
-        sp_digit* m)
+static int sp_3072_mod_exp_2_96(sp_digit* r, const sp_digit* e, int bits,
+        const sp_digit* m)
 {
 #ifndef WOLFSSL_SMALL_STACK
     sp_digit nd[192];
@@ -10978,43 +10978,43 @@ typedef struct sp_point {
 } sp_point;
 
 /* The modulus (prime) of the curve P256. */
-static sp_digit p256_mod[8] = {
+static const sp_digit p256_mod[8] = {
     0xffffffff,0xffffffff,0xffffffff,0x00000000,0x00000000,0x00000000,
     0x00000001,0xffffffff
 };
 /* The Montogmery normalizer for modulus of the curve P256. */
-static sp_digit p256_norm_mod[8] = {
+static const sp_digit p256_norm_mod[8] = {
     0x00000001,0x00000000,0x00000000,0xffffffff,0xffffffff,0xffffffff,
     0xfffffffe,0x00000000
 };
 /* The Montogmery multiplier for modulus of the curve P256. */
-static sp_digit p256_mp_mod = 0x00000001;
+static const sp_digit p256_mp_mod = 0x00000001;
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || defined(HAVE_ECC_SIGN) || \
                                             defined(HAVE_ECC_VERIFY)
 /* The order of the curve P256. */
-static sp_digit p256_order[8] = {
+static const sp_digit p256_order[8] = {
     0xfc632551,0xf3b9cac2,0xa7179e84,0xbce6faad,0xffffffff,0xffffffff,
     0x00000000,0xffffffff
 };
 #endif
 /* The order of the curve P256 minus 2. */
-static sp_digit p256_order2[8] = {
+static const sp_digit p256_order2[8] = {
     0xfc63254f,0xf3b9cac2,0xa7179e84,0xbce6faad,0xffffffff,0xffffffff,
     0x00000000,0xffffffff
 };
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 /* The Montogmery normalizer for order of the curve P256. */
-static sp_digit p256_norm_order[8] = {
+static const sp_digit p256_norm_order[8] = {
     0x039cdaaf,0x0c46353d,0x58e8617b,0x43190552,0x00000000,0x00000000,
     0xffffffff,0x00000000
 };
 #endif
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 /* The Montogmery multiplier for order of the curve P256. */
-static sp_digit p256_mp_order = 0xee00bc4f;
+static const sp_digit p256_mp_order = 0xee00bc4f;
 #endif
 /* The base point of curve P256. */
-static sp_point p256_base = {
+static const sp_point p256_base = {
     /* X ordinate */
     {
         0xd898c296,0xf4a13945,0x2deb33a0,0x77037d81,0x63a440f2,0xf8bce6e5,
@@ -11034,7 +11034,7 @@ static sp_point p256_base = {
     0
 };
 #if defined(HAVE_ECC_CHECK_KEY) || defined(HAVE_COMP_KEY)
-static sp_digit p256_b[8] = {
+static const sp_digit p256_b[8] = {
     0x27d2604b,0x3bce3c3e,0xcc53b0f6,0x651d06b0,0x769886bc,0xb3ebbd55,
     0xaa3a93e7,0x5ac635d8
 };
@@ -11077,7 +11077,7 @@ static sp_digit p256_b[8] = {
  * a  The number to convert.
  * m  The modulus (prime).
  */
-static int sp_256_mod_mul_norm_8(sp_digit* r, sp_digit* a, sp_digit* m)
+static int sp_256_mod_mul_norm_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
     int64_t t[8];
     int64_t a64[8];
@@ -11147,7 +11147,7 @@ static int sp_256_mod_mul_norm_8(sp_digit* r, sp_digit* a, sp_digit* m)
  * r  A single precision integer.
  * a  A multi-precision integer.
  */
-static void sp_256_from_mp(sp_digit* r, int max, mp_int* a)
+static void sp_256_from_mp(sp_digit* r, int max, const mp_int* a)
 {
 #if DIGIT_BIT == 32
     int j;
@@ -11216,7 +11216,7 @@ static void sp_256_from_mp(sp_digit* r, int max, mp_int* a)
  * p   Point of type sp_point (result).
  * pm  Point of type ecc_point.
  */
-static void sp_256_point_from_ecc_point_8(sp_point* p, ecc_point* pm)
+static void sp_256_point_from_ecc_point_8(sp_point* p, const ecc_point* pm)
 {
     XMEMSET(p->x, 0, sizeof(p->x));
     XMEMSET(p->y, 0, sizeof(p->y));
@@ -11232,7 +11232,7 @@ static void sp_256_point_from_ecc_point_8(sp_point* p, ecc_point* pm)
  * a  A single precision integer.
  * r  A multi-precision integer.
  */
-static int sp_256_to_mp(sp_digit* a, mp_int* r)
+static int sp_256_to_mp(const sp_digit* a, mp_int* r)
 {
     int err;
 
@@ -11295,7 +11295,7 @@ static int sp_256_to_mp(sp_digit* a, mp_int* r)
  * returns MEMORY_E when allocation of memory in ecc_point fails otherwise
  * MP_OKAY.
  */
-static int sp_256_point_to_ecc_point_8(sp_point* p, ecc_point* pm)
+static int sp_256_point_to_ecc_point_8(const sp_point* p, ecc_point* pm)
 {
     int err;
 
@@ -11315,7 +11315,7 @@ static int sp_256_point_to_ecc_point_8(sp_point* p, ecc_point* pm)
  * return -ve, 0 or +ve if a is less than, equal to or greater than b
  * respectively.
  */
-SP_NOINLINE static int32_t sp_256_cmp_8(sp_digit* a, sp_digit* b)
+SP_NOINLINE static int32_t sp_256_cmp_8(const sp_digit* a, const sp_digit* b)
 {
     sp_digit r = 0;
 
@@ -11365,8 +11365,8 @@ SP_NOINLINE static int32_t sp_256_cmp_8(sp_digit* a, sp_digit* b)
  * b  A single precision number to subtract.
  * m  Mask value to apply.
  */
-SP_NOINLINE static sp_digit sp_256_cond_sub_8(sp_digit* r, sp_digit* a,
-        sp_digit* b, sp_digit m)
+SP_NOINLINE static sp_digit sp_256_cond_sub_8(sp_digit* r, const sp_digit* a,
+        const sp_digit* b, sp_digit m)
 {
     sp_digit c = 0;
 
@@ -11400,7 +11400,7 @@ SP_NOINLINE static sp_digit sp_256_cond_sub_8(sp_digit* r, sp_digit* a,
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
-SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a, sp_digit* m,
+SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a, const sp_digit* m,
         sp_digit mp)
 {
     (void)mp;
@@ -11525,7 +11525,7 @@ SP_NOINLINE static void sp_256_mont_reduce_8(sp_digit* a, sp_digit* m,
  * m   The single precision number representing the modulus.
  * mp  The digit representing the negative inverse of m mod 2^n.
  */
-SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a, sp_digit* m,
+SP_NOINLINE static void sp_256_mont_reduce_order_8(sp_digit* a, const sp_digit* m,
         sp_digit mp)
 {
     sp_digit ca = 0;
@@ -11771,8 +11771,8 @@ SP_NOINLINE static void sp_256_mul_8(sp_digit* r, const sp_digit* a,
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_256_mont_mul_8(sp_digit* r, sp_digit* a, sp_digit* b,
-        sp_digit* m, sp_digit mp)
+static void sp_256_mont_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        const sp_digit* m, sp_digit mp)
 {
     sp_256_mul_8(r, a, b);
     sp_256_mont_reduce_8(r, m, mp);
@@ -11933,7 +11933,7 @@ SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_256_mont_sqr_8(sp_digit* r, sp_digit* a, sp_digit* m,
+static void sp_256_mont_sqr_8(sp_digit* r, const sp_digit* a, const sp_digit* m,
         sp_digit mp)
 {
     sp_256_sqr_8(r, a);
@@ -11949,8 +11949,8 @@ static void sp_256_mont_sqr_8(sp_digit* r, sp_digit* a, sp_digit* m,
  * m   Modulus (prime).
  * mp  Montogmery mulitplier.
  */
-static void sp_256_mont_sqr_n_8(sp_digit* r, sp_digit* a, int n,
-        sp_digit* m, sp_digit mp)
+static void sp_256_mont_sqr_n_8(sp_digit* r, const sp_digit* a, int n,
+        const sp_digit* m, sp_digit mp)
 {
     sp_256_mont_sqr_8(r, a, m, mp);
     for (; n > 1; n--)
@@ -11973,7 +11973,7 @@ static const uint32_t p256_mod_2[8] = {
  * a   Number to invert.
  * td  Temporary data.
  */
-static void sp_256_mont_inv_8(sp_digit* r, sp_digit* a, sp_digit* td)
+static void sp_256_mont_inv_8(sp_digit* r, const sp_digit* a, sp_digit* td)
 {
 #ifdef WOLFSSL_SP_SMALL
     sp_digit* t = td;
@@ -12046,7 +12046,7 @@ static void sp_256_mont_inv_8(sp_digit* r, sp_digit* a, sp_digit* td)
  * p  Montgomery form projective co-ordinate point.
  * t  Temporary ordinate data.
  */
-static void sp_256_map_8(sp_point* r, sp_point* p, sp_digit* t)
+static void sp_256_map_8(sp_point* r, const sp_point* p, sp_digit* t)
 {
     sp_digit* t1 = t;
     sp_digit* t2 = t + 2*8;
@@ -12181,8 +12181,8 @@ SP_NOINLINE static sp_digit sp_256_add_8(sp_digit* r, const sp_digit* a,
  * b   Second number to add in Montogmery form.
  * m   Modulus (prime).
  */
-SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r, sp_digit* a, sp_digit* b,
-        sp_digit* m)
+SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        const sp_digit* m)
 {
     (void)m;
 
@@ -12261,7 +12261,7 @@ SP_NOINLINE static void sp_256_mont_add_8(sp_digit* r, sp_digit* a, sp_digit* b,
  * a   Number to double in Montogmery form.
  * m   Modulus (prime).
  */
-SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r, sp_digit* a, sp_digit* m)
+SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
     (void)m;
 
@@ -12332,7 +12332,7 @@ SP_NOINLINE static void sp_256_mont_dbl_8(sp_digit* r, sp_digit* a, sp_digit* m)
  * a   Number to triple in Montogmery form.
  * m   Modulus (prime).
  */
-SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r, sp_digit* a, sp_digit* m)
+SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
     (void)m;
 
@@ -12454,8 +12454,8 @@ SP_NOINLINE static void sp_256_mont_tpl_8(sp_digit* r, sp_digit* a, sp_digit* m)
  * b   Number to subtract with in Montogmery form.
  * m   Modulus (prime).
  */
-SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r, sp_digit* a, sp_digit* b,
-        sp_digit* m)
+SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        const sp_digit* m)
 {
     (void)m;
 
@@ -12531,7 +12531,7 @@ SP_NOINLINE static void sp_256_mont_sub_8(sp_digit* r, sp_digit* a, sp_digit* b,
  * a  Number to divide.
  * m  Modulus (prime).
  */
-SP_NOINLINE static void sp_256_div2_8(sp_digit* r, sp_digit* a, sp_digit* m)
+SP_NOINLINE static void sp_256_div2_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
     __asm__ __volatile__ (
         "ldr	r7, [%[a], #0]\n\t"
@@ -12618,7 +12618,7 @@ SP_NOINLINE static void sp_256_div2_8(sp_digit* r, sp_digit* a, sp_digit* m)
  * p  Point to double.
  * t  Temporary ordinate data.
  */
-static void sp_256_proj_point_dbl_8(sp_point* r, sp_point* p, sp_digit* t)
+static void sp_256_proj_point_dbl_8(sp_point* r, const sp_point* p, sp_digit* t)
 {
     sp_point* rp[2];
     sp_digit* t1 = t;
@@ -12796,10 +12796,10 @@ static int sp_256_cmp_equal_8(const sp_digit* a, const sp_digit* b)
  * q  Second point to add.
  * t  Temporary ordinate data.
  */
-static void sp_256_proj_point_add_8(sp_point* r, sp_point* p, sp_point* q,
+static void sp_256_proj_point_add_8(sp_point* r, const sp_point* p, const sp_point* q,
         sp_digit* t)
 {
-    sp_point* ap[2];
+    const sp_point* ap[2];
     sp_point* rp[2];
     sp_digit* t1 = t;
     sp_digit* t2 = t + 2*8;
@@ -12813,7 +12813,7 @@ static void sp_256_proj_point_add_8(sp_point* r, sp_point* p, sp_point* q,
 
     /* Ensure only the first point is the same as the result. */
     if (q == r) {
-        sp_point* a = p;
+        const sp_point* a = p;
         p = q;
         q = a;
     }
@@ -12888,7 +12888,7 @@ static void sp_256_proj_point_add_8(sp_point* r, sp_point* p, sp_point* q,
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
-static int sp_256_ecc_mulmod_fast_8(sp_point* r, sp_point* g, sp_digit* k,
+static int sp_256_ecc_mulmod_fast_8(sp_point* r, const sp_point* g, const sp_digit* k,
         int map, void* heap)
 {
 #if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
@@ -13019,7 +13019,7 @@ typedef struct sp_table_entry {
  * n  Number of times to double
  * t  Temporary ordinate data.
  */
-static void sp_256_proj_point_dbl_n_8(sp_point* r, sp_point* p, int n,
+static void sp_256_proj_point_dbl_n_8(sp_point* r, const sp_point* p, int n,
         sp_digit* t)
 {
     sp_point* rp[2];
@@ -13094,10 +13094,10 @@ static void sp_256_proj_point_dbl_n_8(sp_point* r, sp_point* p, int n,
  * q  Second point to add.
  * t  Temporary ordinate data.
  */
-static void sp_256_proj_point_add_qz1_8(sp_point* r, sp_point* p,
-        sp_point* q, sp_digit* t)
+static void sp_256_proj_point_add_qz1_8(sp_point* r, const sp_point* p,
+        const sp_point* q, sp_digit* t)
 {
-    sp_point* ap[2];
+    const sp_point* ap[2];
     sp_point* rp[2];
     sp_digit* t1 = t;
     sp_digit* t2 = t + 2*8;
@@ -13193,7 +13193,7 @@ static void sp_256_proj_to_affine_8(sp_point* a, sp_digit* t)
  * tmp    Temprorary data.
  * heap  Heap to use for allocation.
  */
-static int sp_256_gen_stripe_table_8(sp_point* a,
+static int sp_256_gen_stripe_table_8(const sp_point* a,
         sp_table_entry* table, sp_digit* tmp, void* heap)
 {
 #if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
@@ -13272,8 +13272,8 @@ static int sp_256_gen_stripe_table_8(sp_point* a,
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
-static int sp_256_ecc_mulmod_stripe_8(sp_point* r, sp_point* g,
-        sp_table_entry* table, sp_digit* k, int map, void* heap)
+static int sp_256_ecc_mulmod_stripe_8(sp_point* r, const sp_point* g,
+        const sp_table_entry* table, const sp_digit* k, int map, void* heap)
 {
 #if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
     sp_point rtd;
@@ -13362,7 +13362,7 @@ static THREAD_LS_T int sp_cache_inited = 0;
     static wolfSSL_Mutex sp_cache_lock;
 #endif
 
-static void sp_ecc_get_cache(sp_point* g, sp_cache_t** cache)
+static void sp_ecc_get_cache(const sp_point* g, sp_cache_t** cache)
 {
     int i, j;
     uint32_t least;
@@ -13428,7 +13428,7 @@ static void sp_ecc_get_cache(sp_point* g, sp_cache_t** cache)
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
-static int sp_256_ecc_mulmod_8(sp_point* r, sp_point* g, sp_digit* k,
+static int sp_256_ecc_mulmod_8(sp_point* r, const sp_point* g, const sp_digit* k,
         int map, void* heap)
 {
 #ifndef FP_ECC
@@ -13478,7 +13478,7 @@ static int sp_256_ecc_mulmod_8(sp_point* r, sp_point* g, sp_digit* k,
  * tmp    Temprorary data.
  * heap  Heap to use for allocation.
  */
-static int sp_256_gen_stripe_table_8(sp_point* a,
+static int sp_256_gen_stripe_table_8(const sp_point* a,
         sp_table_entry* table, sp_digit* tmp, void* heap)
 {
 #if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
@@ -13557,8 +13557,8 @@ static int sp_256_gen_stripe_table_8(sp_point* a,
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
-static int sp_256_ecc_mulmod_stripe_8(sp_point* r, sp_point* g,
-        sp_table_entry* table, sp_digit* k, int map, void* heap)
+static int sp_256_ecc_mulmod_stripe_8(sp_point* r, const sp_point* g,
+        const sp_table_entry* table, const sp_digit* k, int map, void* heap)
 {
 #if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
     sp_point rtd;
@@ -13647,7 +13647,7 @@ static THREAD_LS_T int sp_cache_inited = 0;
     static wolfSSL_Mutex sp_cache_lock;
 #endif
 
-static void sp_ecc_get_cache(sp_point* g, sp_cache_t** cache)
+static void sp_ecc_get_cache(const sp_point* g, sp_cache_t** cache)
 {
     int i, j;
     uint32_t least;
@@ -13713,7 +13713,7 @@ static void sp_ecc_get_cache(sp_point* g, sp_cache_t** cache)
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
-static int sp_256_ecc_mulmod_8(sp_point* r, sp_point* g, sp_digit* k,
+static int sp_256_ecc_mulmod_8(sp_point* r, const sp_point* g, const sp_digit* k,
         int map, void* heap)
 {
 #ifndef FP_ECC
@@ -13806,7 +13806,7 @@ int sp_ecc_mulmod_256(mp_int* km, ecc_point* gm, ecc_point* r, int map,
 }
 
 #ifdef WOLFSSL_SP_SMALL
-static sp_table_entry p256_table[16] = {
+static const sp_table_entry p256_table[16] = {
     /* 0 */
     { { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
       { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } },
@@ -13896,7 +13896,7 @@ static sp_table_entry p256_table[16] = {
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
-static int sp_256_ecc_mulmod_base_8(sp_point* r, sp_digit* k,
+static int sp_256_ecc_mulmod_base_8(sp_point* r, const sp_digit* k,
         int map, void* heap)
 {
     return sp_256_ecc_mulmod_stripe_8(r, &p256_base, p256_table,
@@ -13904,7 +13904,7 @@ static int sp_256_ecc_mulmod_base_8(sp_point* r, sp_digit* k,
 }
 
 #else
-static sp_table_entry p256_table[256] = {
+static const sp_table_entry p256_table[256] = {
     /* 0 */
     { { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
       { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } },
@@ -15194,7 +15194,7 @@ static sp_table_entry p256_table[256] = {
  * heap  Heap to use for allocation.
  * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
  */
-static int sp_256_ecc_mulmod_base_8(sp_point* r, sp_digit* k,
+static int sp_256_ecc_mulmod_base_8(sp_point* r, const sp_digit* k,
         int map, void* heap)
 {
     return sp_256_ecc_mulmod_stripe_8(r, &p256_base, p256_table,
@@ -15627,7 +15627,7 @@ SP_NOINLINE static sp_digit sp_256_sub_in_place_8(sp_digit* a,
  * b  A single precision digit.
  */
 SP_NOINLINE static void sp_256_mul_d_8(sp_digit* r, const sp_digit* a,
-        const sp_digit b)
+        sp_digit b)
 {
     __asm__ __volatile__ (
         "mov	r6, #32\n\t"
@@ -15864,7 +15864,7 @@ static void sp_256_mask_8(sp_digit* r, const sp_digit* a, sp_digit m)
  * r  Remainder from the division.
  * returns MP_OKAY indicating success.
  */
-static WC_INLINE int sp_256_div_8(sp_digit* a, sp_digit* d, sp_digit* m,
+static WC_INLINE int sp_256_div_8(const sp_digit* a, const sp_digit* d, sp_digit* m,
         sp_digit* r)
 {
     sp_digit t1[16], t2[9];
@@ -15900,7 +15900,7 @@ static WC_INLINE int sp_256_div_8(sp_digit* a, sp_digit* d, sp_digit* m,
  * m  A single precision number that is the modulus to reduce with.
  * returns MP_OKAY indicating success.
  */
-static WC_INLINE int sp_256_mod_8(sp_digit* r, sp_digit* a, sp_digit* m)
+static WC_INLINE int sp_256_mod_8(sp_digit* r, const sp_digit* a, const sp_digit* m)
 {
     return sp_256_div_8(a, m, NULL, r);
 }
@@ -15926,7 +15926,7 @@ static const uint32_t p256_order_low[4] = {
  * a  First operand of the multiplication.
  * b  Second operand of the multiplication.
  */
-static void sp_256_mont_mul_order_8(sp_digit* r, sp_digit* a, sp_digit* b)
+static void sp_256_mont_mul_order_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
 {
     sp_256_mul_8(r, a, b);
     sp_256_mont_reduce_order_8(r, p256_order, p256_mp_order);
@@ -15937,7 +15937,7 @@ static void sp_256_mont_mul_order_8(sp_digit* r, sp_digit* a, sp_digit* b)
  * r  Result of the squaring.
  * a  Number to square.
  */
-static void sp_256_mont_sqr_order_8(sp_digit* r, sp_digit* a)
+static void sp_256_mont_sqr_order_8(sp_digit* r, const sp_digit* a)
 {
     sp_256_sqr_8(r, a);
     sp_256_mont_reduce_order_8(r, p256_order, p256_mp_order);
@@ -15950,7 +15950,7 @@ static void sp_256_mont_sqr_order_8(sp_digit* r, sp_digit* a)
  * r  Result of the squaring.
  * a  Number to square.
  */
-static void sp_256_mont_sqr_n_order_8(sp_digit* r, sp_digit* a, int n)
+static void sp_256_mont_sqr_n_order_8(sp_digit* r, const sp_digit* a, int n)
 {
     int i;
 
@@ -15967,7 +15967,7 @@ static void sp_256_mont_sqr_n_order_8(sp_digit* r, sp_digit* a, int n)
  * a   Number to invert.
  * td  Temporary data.
  */
-static void sp_256_mont_inv_order_8(sp_digit* r, sp_digit* a,
+static void sp_256_mont_inv_order_8(sp_digit* r, const sp_digit* a,
         sp_digit* td)
 {
 #ifdef WOLFSSL_SP_SMALL
