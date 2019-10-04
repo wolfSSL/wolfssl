@@ -175,6 +175,7 @@ typedef struct WOLFSSL_X509_VERIFY_PARAM WOLFSSL_X509_VERIFY_PARAM;
 typedef struct WOLFSSL_BIO            WOLFSSL_BIO;
 typedef struct WOLFSSL_BIO_METHOD     WOLFSSL_BIO_METHOD;
 typedef struct WOLFSSL_X509_EXTENSION WOLFSSL_X509_EXTENSION;
+typedef struct WOLFSSL_CONF_VALUE     WOLFSSL_CONF_VALUE;
 typedef struct WOLFSSL_ASN1_TIME      WOLFSSL_ASN1_TIME;
 typedef struct WOLFSSL_ASN1_OBJECT    WOLFSSL_ASN1_OBJECT;
 typedef struct WOLFSSL_ASN1_OTHERNAME WOLFSSL_ASN1_OTHERNAME;
@@ -1919,8 +1920,8 @@ WOLFSSL_API int wolfSSL_ASN1_TIME_diff(int *pday, int *psec,
                    const WOLFSSL_ASN1_TIME *from, const WOLFSSL_ASN1_TIME *to);
 WOLFSSL_API WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_set(WOLFSSL_ASN1_TIME *s, time_t t);
 
-WOLFSSL_API int   wolfSSL_sk_num(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)*);
-WOLFSSL_API void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)*, int);
+WOLFSSL_API int wolfSSL_sk_num(WOLFSSL_STACK* sk);
+WOLFSSL_API void* wolfSSL_sk_value(WOLFSSL_STACK* sk, int i);
 
 /* stunnel 4.28 needs */
 WOLFSSL_API void* wolfSSL_CTX_get_ex_data(const WOLFSSL_CTX*, int);

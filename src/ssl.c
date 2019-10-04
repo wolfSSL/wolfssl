@@ -25826,7 +25826,7 @@ void wolfSSL_ASN1_GENERALIZEDTIME_free(WOLFSSL_ASN1_TIME* asn1Time)
     XMEMSET(asn1Time->data, 0, sizeof(asn1Time->data));
 }
 
-int  wolfSSL_sk_num(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
+int wolfSSL_sk_num(WOLFSSL_STACK* sk)
 {
     WOLFSSL_ENTER("wolfSSL_sk_num");
     if (sk == NULL)
@@ -25834,13 +25834,55 @@ int  wolfSSL_sk_num(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
     return (int)sk->num;
 }
 
-void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
+void* wolfSSL_sk_value(WOLFSSL_STACK* sk, int i)
 {
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+    int offset = i;
+    WOLFSSL_GENERAL_NAME* gn;
+    #endif
+    WOLFSSL_ENTER("wolfSSL_sk_value");
+
     for (; sk != NULL && i > 0; i--)
         sk = sk->next;
     if (sk == NULL)
         return NULL;
-    return (void*)sk->data.obj;
+
+    switch (sk->type) {
+        case STACK_TYPE_X509:
+            return (void*)sk->data.x509;
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        case STACK_TYPE_CIPHER:
+            sk->data.cipher.offset = offset;
+            return (void*)&sk->data.cipher;
+        case STACK_TYPE_GEN_NAME:
+            gn = (WOLFSSL_GENERAL_NAME*)sk->data.obj;
+            if (gn == NULL)
+                return NULL;
+            gn->type         = sk->data.obj->type;
+            gn->d.ia5        = sk->data.obj->d.ia5;
+            gn->d.iPAddress  = sk->data.obj->d.iPAddress;
+            gn->d.dNSName    = sk->data.obj->d.dNSName;
+            gn->d.uniformResourceIdentifier =
+                                      sk->data.obj->d.uniformResourceIdentifier;
+            return (void*)gn;
+        case STACK_TYPE_ACCESS_DESCRIPTION:
+            return (void*)sk->data.access;
+    #endif
+        case STACK_TYPE_OBJ:
+            return (void*)sk->data.obj;
+            break;
+        case STACK_TYPE_NULL:
+            return (void*)sk->data.generic;
+            break;
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        case STACK_TYPE_X509_EXT:
+            return (void*)sk->data.ext;
+    #endif
+        case STACK_TYPE_CONF_VALUE:
+            return (void*)sk->data.conf->value;
+        default:
+            return (void*)sk->data.obj;
+    }
 }
 
 /* Free the structure for ASN1_OBJECT stack */
@@ -25875,6 +25917,9 @@ void wolfSSL_sk_free(WOLFSSL_STACK* sk)
             break;
         case STACK_TYPE_X509_NAME:
             wolfSSL_sk_X509_NAME_free(sk);
+            break;
+        case STACK_TYPE_CONF_VALUE:
+            wolfSSL_sk_CONF_VALUE_free(sk);
             break;
     #endif
        default:
@@ -25940,6 +25985,33 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
             break;
     }
 }
+
+#if defined(OPENSSL_ALL)
+/* Free the structure for WOLFSSL_CONF_VALUE stack
+ *
+ * sk  stack to free nodes in
+ */
+void wolfSSL_sk_CONF_VALUE_free(WOLF_STACK_OF(WOLFSSL_CONF_VALUE)* sk)
+{
+    WOLFSSL_STACK* node;
+    WOLFSSL_STACK* tmp;
+    WOLFSSL_ENTER("wolfSSL_sk_CONF_VALUE_free");
+
+    if (sk == NULL)
+        return;
+
+    /* parse through stack freeing each node */
+    node = sk->next;
+    while (node) {
+        tmp  = node;
+        node = node->next;
+        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+
+    /* free head of stack */
+    XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
+}
+#endif
 
 /* Creates and returns a new null stack. */
 WOLFSSL_STACK* wolfSSL_sk_new_null(void)
