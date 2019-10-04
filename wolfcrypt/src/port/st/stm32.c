@@ -417,14 +417,14 @@ static int stm32_get_from_mp_int(uint8_t *dst, mp_int *a, int sz)
     res = mp_to_unsigned_bin(a, dst + offset);
 
     if (res == MP_OKAY) {
-        /* reverse array for LTC direct use */
+        /* reverse array for STM32_PKA direct use */
         stm32_reverse_array(dst, sz);
     }
 
     return res;
 }
 
-/* ECC specs in lsbyte at lowest address format for direct use by LTC PKHA driver functions */
+/* ECC specs in lsbyte at lowest address format for direct use by STM32_PKA PKHA driver functions */
 #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
 #define ECC192
 #endif
@@ -582,7 +582,7 @@ int wc_ecc_mulmod_ex(mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
         return res;
 
     size = szModulus;
-    /* find LTC friendly parameters for the selected curve */
+    /* find STM32_PKA friendly parameters for the selected curve */
     if (0 != stm32_get_ecc_specs(&prime, &coef, &coef_sign, &gen_x, &gen_y, &order, size)) {
         return ECC_BAD_ARG_E;
     }
