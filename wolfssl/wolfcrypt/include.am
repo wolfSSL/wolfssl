@@ -106,6 +106,10 @@ if BUILD_CAVIUM
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h
 endif
 
+if BUILD_OCTEON_SYNC
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/cavium/cavium_octeon_sync.h
+endif
+
 if BUILD_INTEL_QA
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/intel/quickassist.h
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/intel/quickassist_mem.h

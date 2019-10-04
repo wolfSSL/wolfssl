@@ -1457,7 +1457,8 @@ static int CreateWatchSnifferServer(char* error)
         return -1;
     }
 #ifdef WOLF_CRYPTO_CB
-	wolfSSL_CTX_SetDevId(sniffer->ctx, CryptoDevId);
+    if (CryptoDevId != INVALID_DEVID)
+	    wolfSSL_CTX_SetDevId(sniffer->ctx, CryptoDevId);
 #endif
     ServerList = sniffer;
 

@@ -172,6 +172,13 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/types.h>
 
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+    #ifdef HAVE_CAVIUM_OCTEON_SYNC
+        #include <wolfssl/wolfcrypt/port/cavium/cavium_octeon_sync.h>
+    #endif
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
@@ -682,6 +689,10 @@ static const char* bench_result_words2[][5] = {
 
 /* Asynchronous helper macros */
 static THREAD_LS_T int devId = INVALID_DEVID;
+
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_INTEL_QA_SYNC)
+    static THREAD_LS_T IntelQaDev devQat;
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     static WOLF_EVENT_QUEUE eventQueue;
@@ -1288,6 +1299,39 @@ static void* benchmarks_do(void* args)
     }
 #endif
 
+#ifdef WOLF_CRYPTO_CB
+#ifdef HAVE_INTEL_QA_SYNC
+    {
+        int rc;
+        devId = IntelQaInit(NULL);
+        if (devId == INVALID_DEVID) {
+            WOLFSSL_MSG("Couldn't init the Intel QA");
+        }
+        rc = IntelQaOpen(&devQat, devId);
+        if (rc != 0) {
+            WOLFSSL_MSG("Couldn't open the device");
+        }
+        rc = wc_CryptoCb_RegisterDevice(devId,
+                IntelQaSymSync_CryptoDevCb, &devQat);
+        if (rc != 0) {
+            WOLFSSL_MSG("Couldn't register the device");
+        }
+    }
+#endif
+#ifdef HAVE_CAVIUM_OCTEON_SYNC
+    {
+        devId = wc_CryptoCb_GetDevIdOcteon();
+        if (devId == INVALID_DEVID) {
+            printf("Couldn't get the Octeon device ID\n");
+        }
+        if (wc_CryptoCb_InitOcteon() != 0) {
+            printf("Couldn't init the Cavium Octeon\n");
+            devId = INVALID_DEVID;
+        }
+    }
+#endif
+#endif
+
 #if defined(HAVE_LOCAL_RNG)
     {
         int rngRet;
@@ -1356,7 +1400,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_aescbc(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES) && \
+    #if ((defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)) || \
+         defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC)) && \
         !defined(NO_HW_BENCH)
         bench_aescbc(1);
     #endif
@@ -1367,7 +1412,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_aesgcm(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES) && \
+    #if ((defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)) || \
+         defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC)) && \
         !defined(NO_HW_BENCH)
         bench_aesgcm(1);
     #endif
@@ -1438,7 +1484,8 @@ static void* benchmarks_do(void* args)
     #ifndef NO_SW_BENCH
         bench_des(0);
     #endif
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES) && \
+    #if ((defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)) || \
+         defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC)) && \
         !defined(NO_HW_BENCH)
         bench_des(1);
     #endif
@@ -1773,6 +1820,17 @@ exit:
 #ifdef WOLFSSL_ASYNC_CRYPT
     XFREE(bench_key, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
     XFREE(bench_iv, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+#endif
+
+#ifdef WOLF_CRYPTO_CB
+#ifdef HAVE_INTEL_QA_SYNC
+    wc_CryptoCb_UnRegisterDevice(CryptoDeviceId);
+    IntelQaClose(&CryptoDevice);
+    IntelQaDeInit(CryptoDeviceId);
+#endif
+#ifdef HAVE_CAVIUM_OCTEON_SYNC
+    wc_CryptoCb_CleanupOcteon();
+#endif
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT

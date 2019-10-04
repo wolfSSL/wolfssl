@@ -44,7 +44,7 @@ typedef struct CryptoCb {
     CryptoDevCallbackFunc cb;
     void* ctx;
 } CryptoCb;
-static CryptoCb gCryptoDev[MAX_CRYPTO_DEVID_CALLBACKS];
+static WOLFSSL_GLOBAL CryptoCb gCryptoDev[MAX_CRYPTO_DEVID_CALLBACKS];
 
 static CryptoCb* wc_CryptoCb_FindDevice(int devId)
 {

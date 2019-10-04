@@ -3882,6 +3882,39 @@ AC_ARG_WITH([cavium-v],
 )
 
 
+# Cavium Octeon
+OCTEON_ROOT=""
+
+AC_ARG_WITH([octeon-sync],
+    [AS_HELP_STRING([--with-octeon-sync=PATH],[PATH to Cavium Octeon SDK dir (sync)])],
+    [
+        AC_MSG_CHECKING([for octeon])
+
+        if test "x$withval" = "xyes" ; then
+            AC_MSG_ERROR([need a PATH for --with-octeon])
+        fi
+        if test "x$withval" != "xno" ; then
+            OCTEON_ROOT=$withval
+        fi
+
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_CAVIUM_OCTEON_SYNC"
+        AM_CFLAGS="$AM_CFLAGS -DOCTEON_MODEL=$OCTEON_MODEL -DCVMX_BUILD_FOR_LINUX_HOST"
+        AM_CFLAGS="$AM_CFLAGS -I$OCTEON_ROOT/executive"
+
+        #-I$OCTEON_ROOT/target/include 
+        LDFLAGS="$LDFLAGS -lrt -Xlinker -T -Xlinker $OCTEON_ROOT/executive/cvmx-shared-linux.ld"
+        LIBS="$LIBS $OCTEON_ROOT/executive/obj-octeon3/libcvmx.a $OCTEON_ROOT/executive/obj-octeon3/libfdt.a"
+
+        enable_shared=no
+        enable_static=yes
+
+        ENABLED_OCTEON_SYNC=yes
+        AC_MSG_RESULT([yes])
+    ],
+    [ENABLED_OCTEON_SYNC=no]
+)
+
+
 # Intel QuickAssist
 QAT_DIR=""
 BUILD_INTEL_QAT_VERSION=2
@@ -4580,9 +4613,10 @@ AS_IF([test "x$ENABLED_OCSP" = "xyes" && \
        test "x$ENABLED_ECC" = "xno"],
       [AC_MSG_ERROR([please enable rsa or ecc if enabling ocsp.])])
 
-# Sync Intel QA requires the crypto callback
-AS_IF([test "x$ENABLED_CRYPTOCB" = "xno" && test "x$ENABLED_INTEL_QA_SYNC" = "xyes"],
-      [AC_MSG_ERROR([please enable the crypto callback support using --enable-cryptocb])])
+# Sync Intel QA and Sync Cavium Octeon require the crypto callback
+AS_IF([test "x$ENABLED_INTEL_QA_SYNC" = "xyes" || test "x$ENABLED_OCTEON_SYNC" = "xyes"],
+        [AS_IF([test "x$ENABLED_CRYPTOCB" = "xno"],
+         [AC_MSG_ERROR([please enable the crypto callback support using --enable-cryptocb])])])
 
 # checks for pkcs7 needed enables
 AS_IF([test "x$ENABLED_PKCS7" = "xyes" && \
@@ -4900,6 +4934,7 @@ AM_CONDITIONAL([BUILD_LIBZ],[test "x$ENABLED_LIBZ" = "xyes"])
 AM_CONDITIONAL([BUILD_PKCS11],[test "x$ENABLED_PKCS11" = "xyes"])
 AM_CONDITIONAL([BUILD_CAVIUM],[test "x$ENABLED_CAVIUM" = "xyes"])
 AM_CONDITIONAL([BUILD_CAVIUM_V],[test "x$ENABLED_CAVIUM_V" = "xyes"])
+AM_CONDITIONAL([BUILD_OCTEON_SYNC],[test "x$ENABLED_OCTEON_SYNC" = "xyes"])
 AM_CONDITIONAL([BUILD_INTEL_QA],[test "x$ENABLED_INTEL_QA" = "xyes"])
 AM_CONDITIONAL([BUILD_INTEL_QA_SYNC],[test "x$ENABLED_INTEL_QA_SYNC" = "xyes"])
 AM_CONDITIONAL([BUILD_SP],[test "x$ENABLED_SP" = "xyes"])
@@ -5191,16 +5226,17 @@ echo "   * Single Precision:           $ENABLED_SP"
 echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
 echo "   * PKCS#11:                    $ENABLED_PKCS11"
 echo "   * PKCS#12:                    $ENABLED_PKCS12"
-echo "   * Cavium:                     $ENABLED_CAVIUM"
+echo "   * Cavium Nitox:               $ENABLED_CAVIUM"
+echo "   * Cavium Octeon (Sync):       $ENABLED_OCTEON_SYNC"
+echo "   * Intel Quick Assist:         $ENABLED_INTEL_QA"
 echo "   * ARM ASM:                    $ENABLED_ARMASM"
 echo "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"
 echo "   * Write duplicate:            $ENABLED_WRITEDUP"
-echo "   * Intel Quick Assist:         $ENABLED_INTEL_QA"
 echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
 echo "   * Inline Code:                $ENABLED_INLINE"
 echo "   * Linux AF_ALG:               $ENABLED_AFALG"
 echo "   * Linux devcrypto:            $ENABLED_DEVCRYPTO"
-echo "   * Crypto callback:            $ENABLED_CRYPTOCB"
+echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
 echo ""
 echo "---"
 

@@ -109,6 +109,7 @@ struct Des3 {
 #ifdef WOLF_CRYPTO_CB
     int    devId;
     void*  devCtx;
+    word32 devKey[DES3_KEY_SIZE/sizeof(word32)]; /* raw key */
 #endif
     void* heap;
 };
