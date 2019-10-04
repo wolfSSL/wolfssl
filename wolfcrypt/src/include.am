@@ -102,15 +102,17 @@ endif
 
 if BUILD_CAVIUM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/cavium/cavium_nitrox.c
-
-EXTRA_DIST += wolfcrypt/src/port/cavium/README.md
 endif
+EXTRA_DIST += wolfcrypt/src/port/cavium/README.md
 
 if BUILD_INTEL_QA
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/intel/quickassist.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/intel/quickassist_mem.c
-
+endif
 EXTRA_DIST += wolfcrypt/src/port/intel/README.md
+
+if BUILD_INTEL_QA_SYNC
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/intel/quickassist_sync.c
 endif
 
 if BUILD_CRYPTOAUTHLIB
