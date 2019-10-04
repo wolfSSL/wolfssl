@@ -2569,9 +2569,6 @@ struct WOLFSSL_CTX {
 #endif
     Suites*     suites;           /* make dynamic, user may not need/set */
     void*       heap;             /* for user memory overrides */
-#ifdef WOLFSSL_STATIC_MEMORY
-    byte        onHeap; /* whether the ctx/method is put on heap hint */
-#endif
     byte        verifyDepth;
     byte        verifyPeer:1;
     byte        verifyNone:1;
@@ -2613,6 +2610,9 @@ struct WOLFSSL_CTX {
 #endif
 #ifdef HAVE_ENCRYPT_THEN_MAC
     byte        disallowEncThenMac:1;  /* Don't do Encrypt-Then-MAC */
+#endif
+#ifdef WOLFSSL_STATIC_MEMORY
+    byte        onHeap:1; /* whether the ctx/method is put on heap hint */
 #endif
 #ifdef WOLFSSL_MULTICAST
     byte        haveMcast;        /* multicast requested */
