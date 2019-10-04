@@ -361,5 +361,392 @@ int wc_Stm32_Aes_Init(Aes* aes, CRYP_InitTypeDef* cryptInit,
 #endif /* WOLFSSL_STM32_CUBEMX */
 #endif /* WOLFSSL_AES_DIRECT || HAVE_AESGCM || HAVE_AESCCM */
 #endif /* !NO_AES */
-
 #endif /* STM32_CRYPTO */
+
+#ifdef WOLFSSL_STM32_PKA
+#include <stm32wbxx_hal_conf.h>
+#include <stm32wbxx_hal_pka.h>
+
+extern PKA_HandleTypeDef hpka;
+
+/* Reverse array in memory (in place) */
+static void stm32_reverse_array(uint8_t *src, size_t src_len)
+{
+    unsigned int i;
+
+    for (i = 0; i < src_len / 2; i++) {
+        uint8_t tmp;
+
+        tmp = src[i];
+        src[i] = src[src_len - 1 - i];
+        src[src_len - 1 - i] = tmp;
+    }
+}
+
+
+#ifdef HAVE_ECC
+#include <wolfssl/wolfcrypt/ecc.h>
+
+/* convert from mp_int to STM32 PKA HAL integer, as array of bytes of size sz.
+ * if mp_int has less bytes than sz, add zero bytes at most significant byte positions.
+ * This is when for example modulus is 32 bytes (P-256 curve)
+ * and mp_int has only 31 bytes, we add leading zeros
+ * so that result array has 32 bytes, same as modulus (sz).
+ */
+static int stm32_get_from_mp_int(uint8_t *dst, mp_int *a, int sz)
+{
+    int res;
+    int szbin;
+    int offset;
+
+    /* check how many bytes are in the mp_int */
+    szbin = mp_unsigned_bin_size(a);
+
+    /* compute offset from dst */
+    offset = sz - szbin;
+    if (offset < 0)
+        offset = 0;
+    if (offset > sz)
+        offset = sz;
+
+    /* add leading zeroes */
+    if (offset)
+        XMEMSET(dst, 0, offset);
+
+    /* convert mp_int to array of bytes */
+    res = mp_to_unsigned_bin(a, dst + offset);
+
+    if (res == MP_OKAY) {
+        /* reverse array for LTC direct use */
+        stm32_reverse_array(dst, sz);
+    }
+
+    return res;
+}
+
+/* ECC specs in lsbyte at lowest address format for direct use by LTC PKHA driver functions */
+#if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
+#define ECC192
+#endif
+#if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
+#define ECC224
+#endif
+#if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
+#define ECC256
+#endif
+#if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
+#define ECC384
+#endif
+
+/* STM32 PKA supports up to 640bit numbers */
+#define STM32_MAX_ECC_SIZE (80)
+
+/* P-256 */
+#ifdef ECC256
+#define ECC256_KEYSIZE (32)
+
+static const uint8_t stm32_ecc256_prime[ECC256_KEYSIZE] = {
+    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x01,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+};
+static const uint32_t stm32_ecc256_coef_sign = 1U;
+
+static const uint8_t stm32_ecc256_coef[] = {
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03
+};
+
+static const uint8_t stm32_ecc256_pointX[ECC256_KEYSIZE] =  {
+    0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47,
+    0xf8, 0xbc, 0xe6, 0xe5, 0x63, 0xa4, 0x40, 0xf2,
+    0x77, 0x03, 0x7d, 0x81, 0x2d, 0xeb, 0x33, 0xa0,
+    0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96
+};
+
+const uint8_t stm32_ecc256_pointY[ECC256_KEYSIZE] = {
+    0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b,
+    0x8e, 0xe7, 0xeb, 0x4a, 0x7c, 0x0f, 0x9e, 0x16,
+    0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31, 0x5e, 0xce,
+    0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5
+};
+
+const uint8_t stm32_ecc256_order[] = {
+    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xbc, 0xe6, 0xfa, 0xad, 0xa7, 0x17, 0x9e, 0x84,
+    0xf3, 0xb9, 0xca, 0xc2, 0xfc, 0x63, 0x25, 0x51
+};
+const uint32_t stm32_ecc256_cofactor = 1U;
+
+#endif /* ECC256 */
+static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
+    const uint32_t **coef_sign, const uint8_t **GenPointX, const uint8_t **GenPointY,
+    const uint8_t **order, int size)
+{
+    switch(size) {
+    case 32:
+        *prime = stm32_ecc256_prime;
+        *coef = stm32_ecc256_coef;
+        *GenPointX = stm32_ecc256_pointX;
+        *GenPointY = stm32_ecc256_pointY;
+        *coef_sign = &stm32_ecc256_coef_sign;
+        *order = stm32_ecc256_order;
+        break;
+#if 0 /* TODO: Add other curves */
+#ifdef ECC224
+    case 28:
+        *prime = stm32_ecc224_prime;
+        *coef = stm32_ecc224_coef;
+        *GenPointX = stm32_ecc224_pointX;
+        *GenPointY = stm32_ecc224_pointY;
+        *coef_sign = &stm32_ecc224_coef;
+        break;
+#endif
+#ifdef ECC192
+    case 24:
+        *prime = stm32_ecc192_prime;
+        *coef = stm32_ecc192_coef;
+        *GenPointX = stm32_ecc192_pointX;
+        *GenPointY = stm32_ecc192_pointY;
+        *coef_sign = &stm32_ecc192_coef;
+        break;
+#endif
+#ifdef HAVE_ECC384
+    case 48:
+        *prime = stm32_ecc384_prime;
+        *coef = stm32_ecc384_coef;
+        *GenPointX = stm32_ecc384_pointX;
+        *GenPointY = stm32_ecc384_pointY;
+        *coef_sign = &stm32_ecc384_coef;
+        break;
+#endif
+#endif
+    default:
+        return -1;
+    }
+    return 0;
+}
+
+
+/**
+   Perform a point multiplication  (timing resistant)
+   k    The scalar to multiply by
+   G    The base point
+   R    [out] Destination for kG
+   modulus  The modulus of the field the ECC curve is in
+   map      Boolean whether to map back to affine or not
+            (1==map, 0 == leave in projective)
+   return MP_OKAY on success
+*/
+int wc_ecc_mulmod_ex(mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
+    mp_int *modulus, int map, void* heap)
+{
+    PKA_ECCMulInTypeDef pka_mul = { 0 };
+    PKA_ECCMulOutTypeDef pka_mul_res;
+    uint8_t size;
+    int szModulus;
+    int szkbin;
+    int status;
+    int res;
+
+
+    (void)a;
+    (void)heap;
+
+    uint8_t Gxbin[STM32_MAX_ECC_SIZE];
+    uint8_t Gybin[STM32_MAX_ECC_SIZE];
+    uint8_t kbin[STM32_MAX_ECC_SIZE];
+
+
+    const uint8_t *prime, *coef, *gen_x, *gen_y, *order;
+    const uint32_t *coef_sign;
+
+    if (k == NULL || G == NULL || R == NULL || modulus == NULL) {
+        return ECC_BAD_ARG_E;
+    }
+
+    szModulus = mp_unsigned_bin_size(modulus);
+    szkbin = mp_unsigned_bin_size(k);
+
+    res = stm32_get_from_mp_int(kbin, k, szkbin);
+    if (res == MP_OKAY)
+        res = stm32_get_from_mp_int(Gxbin, G->x, szModulus);
+    if (res == MP_OKAY)
+        res = stm32_get_from_mp_int(Gybin, G->y, szModulus);
+
+    if (res != MP_OKAY)
+        return res;
+
+    size = szModulus;
+    /* find LTC friendly parameters for the selected curve */
+    if (0 != stm32_get_ecc_specs(&prime, &coef, &coef_sign, &gen_x, &gen_y, &order, size)) {
+        return ECC_BAD_ARG_E;
+    }
+    (void)order;
+
+    pka_mul.modulusSize = szModulus;
+    pka_mul.coefSign = *coef_sign;
+    pka_mul.coefA = coef;
+    pka_mul.modulus = prime;
+    pka_mul.pointX = Gxbin;
+    pka_mul.pointY = Gybin;
+    pka_mul.scalarMulSize = size;
+    pka_mul.scalarMul = kbin;
+
+    status = HAL_PKA_ECCMul(&hpka, &pka_mul, HAL_MAX_DELAY);
+    if (status != HAL_OK) {
+        return WC_HW_E;
+    }
+    pka_mul_res.ptX = Gxbin;
+    pka_mul_res.ptY = Gybin;
+    HAL_PKA_ECCMul_GetResult(&hpka, &pka_mul_res);
+    res = mp_read_unsigned_bin(R->x, Gxbin, size);
+    if (res == MP_OKAY) {
+        res = mp_read_unsigned_bin(R->y, Gybin, size);
+#ifndef WOLFSSL_SP_MATH
+        /* if k is negative, we compute the multiplication with abs(-k)
+         * with result (x, y) and modify the result to (x, -y)
+         */
+        R->y->sign = k->sign;
+#endif
+    }
+    if (res == MP_OKAY)
+        res = mp_set(R->z, 1);
+    return res;
+}
+
+
+int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
+                    word32 hashlen, int* res, ecc_key* key)
+{
+    PKA_ECDSAVerifInTypeDef pka_ecc;
+    uint8_t size;
+    int szModulus;
+    int szrbin;
+    int status;
+    uint8_t Rbin[STM32_MAX_ECC_SIZE];
+    uint8_t Sbin[STM32_MAX_ECC_SIZE];
+    uint8_t Qxbin[STM32_MAX_ECC_SIZE];
+    uint8_t Qybin[STM32_MAX_ECC_SIZE];
+    uint8_t privKeybin[STM32_MAX_ECC_SIZE];
+    const uint8_t *prime, *coef, *gen_x, *gen_y, *order;
+    const uint32_t *coef_sign;
+
+    if (r == NULL || s == NULL || hash == NULL || res == NULL || key == NULL) {
+        return ECC_BAD_ARG_E;
+    }
+    *res = 0;
+
+    szModulus = mp_unsigned_bin_size(key->pubkey.x);
+    szrbin = mp_unsigned_bin_size(r);
+
+    status = stm32_get_from_mp_int(Rbin, r, szrbin);
+    if (status == MP_OKAY)
+        status = stm32_get_from_mp_int(Sbin, s, szrbin);
+    if (status == MP_OKAY)
+        status = stm32_get_from_mp_int(Qxbin, key->pubkey.x, szModulus);
+    if (status == MP_OKAY)
+        status = stm32_get_from_mp_int(Qybin, key->pubkey.y, szModulus);
+    if (status == MP_OKAY)
+        status = stm32_get_from_mp_int(privKeybin, &key->k, szModulus);
+    if (status != MP_OKAY)
+        return status;
+
+    size = szModulus;
+    /* find parameters for the selected curve */
+    if (0 != stm32_get_ecc_specs(&prime, &coef, &coef_sign, &gen_x, &gen_y, &order, size)) {
+        return ECC_BAD_ARG_E;
+    }
+
+
+    pka_ecc.primeOrderSize =  size;
+    pka_ecc.modulusSize =     size;
+    pka_ecc.coefSign =        *coef_sign;
+    pka_ecc.coef =            coef;
+    pka_ecc.modulus =         prime;
+    pka_ecc.basePointX =      gen_x;
+    pka_ecc.basePointY =      gen_y;
+    pka_ecc.primeOrder =      order;
+
+    pka_ecc.pPubKeyCurvePtX = Qxbin;
+    pka_ecc.pPubKeyCurvePtY = Qybin;
+    pka_ecc.RSign =           Rbin;
+    pka_ecc.SSign =           Sbin;
+    pka_ecc.hash =            hash;
+
+    status = HAL_PKA_ECDSAVerif(&hpka, &pka_ecc, 0xFFFFFFFF);
+    if (status != HAL_OK)
+        return WC_HW_E;
+    *res = HAL_PKA_ECDSAVerif_IsValidSignature(&hpka);
+    return status;
+}
+
+#if 0 /* TODO: work in progress */
+int wc_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
+                     ecc_key* key, mp_int *r, mp_int *s)
+{
+    PKA_ECDSASignInTypeDef pka_ecc;
+    PKA_ECDSASignOutTypeDef pka_ecc_out;
+    int size;
+    int szrbin;
+    int status;
+    mp_int gen_k;
+    mp_int order_mp;
+    uint8_t Keybin[STM32_MAX_ECC_SIZE];
+    uint8_t Intbin[STM32_MAX_ECC_SIZE];
+    const uint8_t *prime, *coef, *gen_x, *gen_y, *order;
+    const uint32_t *coef_sign;
+
+    if (r == NULL || s == NULL || hash == NULL || key == NULL) {
+        return ECC_BAD_ARG_E;
+    }
+
+    size = mp_unsigned_bin_size(key->pubkey.x);
+
+    status = stm32_get_from_mp_int(Keybin, &key->k, size);
+    if (status != MP_OKAY)
+        return status;
+
+    /* find parameters for the selected curve */
+    if (0 != stm32_get_ecc_specs(&prime, &coef, &coef_sign, &gen_x, &gen_y, &order, size)) {
+        return ECC_BAD_ARG_E;
+    }
+
+    status = mp_read_unsigned_bin(&order_mp, order, size);
+    if (status == MP_OKAY)
+        status = wc_ecc_gen_k(rng, size, &gen_k, &order_mp);
+    if (status == MP_OKAY)
+        status = stm32_get_from_mp_int(Intbin, &gen_k, size);
+    if (status != MP_OKAY)
+        return status;
+
+    pka_ecc.primeOrderSize =  size;
+    pka_ecc.modulusSize =     size;
+    pka_ecc.coefSign =        *coef_sign;
+    pka_ecc.coef =            coef;
+    pka_ecc.modulus =         prime;
+    pka_ecc.basePointX =      gen_x;
+    pka_ecc.basePointY =      gen_y;
+    pka_ecc.primeOrder =      order;
+
+    pka_ecc.hash =            hash;
+    pka_ecc.integer =         Intbin;
+    pka_ecc.privateKey =      Keybin;
+
+    status = HAL_PKA_ECDSASign(&hpka, &pka_ecc, 0xFFFFFFFF);
+    if (status != HAL_OK)
+        return WC_HW_E;
+    HAL_PKA_ECDSASign_GetResult(&hpka, &pka_ecc_out, NULL);
+    status = mp_read_unsigned_bin(r, pka_ecc_out.RSign, size);
+    if (status == MP_OKAY)
+        status = mp_read_unsigned_bin(s, pka_ecc_out.SSign, size);
+    return status;
+}
+#endif /* TODO */
+
+#endif /* HAVE_ECC */
+#endif /* WOLFSSL_STM32_PKA */
