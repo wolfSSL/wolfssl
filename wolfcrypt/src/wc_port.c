@@ -266,6 +266,10 @@ int wolfCrypt_Cleanup(void)
         wolfAsync_HardwareStop();
     #endif
 
+    #ifdef HAVE_INTEL_QA_SYNC
+        IntelQaHardwareStop();
+    #endif
+
     #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
         defined(WOLFSSL_IMX6_CAAM_BLOB)
         wc_caamFree();
