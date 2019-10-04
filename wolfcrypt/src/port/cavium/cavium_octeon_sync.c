@@ -503,7 +503,7 @@ static int Octeon_AesGcm_SetKey(Aes* aes)
         ret = BAD_FUNC_ARG;
 
     if (ret != 0) {
-        word32* key = (word32*)aes->devKey;
+        uint64_t* key = (uint64_t*)aes->devKey;
 
         CVMX_MT_AES_KEY(key[0], 0);
         CVMX_MT_AES_KEY(key[1], 1);

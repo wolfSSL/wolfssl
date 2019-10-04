@@ -155,16 +155,16 @@ typedef struct IntelQaDev {
 
 
 /* Interface */
-WOLFSSL_LOCAL int IntelQaHardwareStart(const char*, int);
-WOLFSSL_LOCAL void IntelQaHardwareStop(void);
-WOLFSSL_LOCAL int IntelQaInit(void*);
-WOLFSSL_LOCAL void IntelQaDeInit(int);
-WOLFSSL_LOCAL int IntelQaNumInstances(void);
-WOLFSSL_LOCAL int IntelQaOpen(IntelQaDev*, int);
-WOLFSSL_LOCAL void IntelQaClose(IntelQaDev*);
-WOLFSSL_LOCAL int IntelQaDevCopy(IntelQaDev*, IntelQaDev*);
-WOLFSSL_LOCAL int IntelQaPoll(IntelQaDev*);
-WOLFSSL_LOCAL int IntelQaGetCyInstanceCount(void);
+WOLFSSL_API int IntelQaHardwareStart(const char*, int);
+WOLFSSL_API void IntelQaHardwareStop(void);
+WOLFSSL_API int IntelQaInit(void*);
+WOLFSSL_API void IntelQaDeInit(int);
+WOLFSSL_API int IntelQaNumInstances(void);
+WOLFSSL_API int IntelQaOpen(IntelQaDev*, int);
+WOLFSSL_API void IntelQaClose(IntelQaDev*);
+WOLFSSL_API int IntelQaDevCopy(IntelQaDev*, IntelQaDev*);
+WOLFSSL_API int IntelQaPoll(IntelQaDev*);
+WOLFSSL_API int IntelQaGetCyInstanceCount(void);
 
 #ifndef NO_AES
     #ifdef HAVE_AES_CBC
@@ -196,7 +196,7 @@ WOLFSSL_LOCAL int IntelQaGetCyInstanceCount(void);
 #endif /*! NO_DES3 */
 
 #ifdef WOLF_CRYPTO_CB
-    WOLFSSL_LOCAL int IntelQaSymSync_CryptoDevCb(int, struct wc_CryptoInfo*,
+    WOLFSSL_API int IntelQaSymSync_CryptoDevCb(int, struct wc_CryptoInfo*,
 			void*);
 #endif /* WOLF_CRYPTO_CB */
 

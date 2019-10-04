@@ -76,6 +76,7 @@
 
 #ifdef HAVE_INTEL_QA_SYNC
     #include <wolfssl/wolfcrypt/port/intel/quickassist_sync.h>
+#endif
 
 #ifdef HAVE_CAVIUM_OCTEON_SYNC
     #include <wolfssl/wolfcrypt/port/cavium/cavium_octeon_sync.h>

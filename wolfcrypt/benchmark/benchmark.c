@@ -174,6 +174,9 @@
 
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
+    #ifdef HAVE_INTEL_QA_SYNC
+        #include <wolfssl/wolfcrypt/port/intel/quickassist_sync.h>
+    #endif
     #ifdef HAVE_CAVIUM_OCTEON_SYNC
         #include <wolfssl/wolfcrypt/port/cavium/cavium_octeon_sync.h>
     #endif
@@ -1305,16 +1308,16 @@ static void* benchmarks_do(void* args)
         int rc;
         devId = IntelQaInit(NULL);
         if (devId == INVALID_DEVID) {
-            WOLFSSL_MSG("Couldn't init the Intel QA");
+            printf("Couldn't init the Intel QA\n");
         }
         rc = IntelQaOpen(&devQat, devId);
         if (rc != 0) {
-            WOLFSSL_MSG("Couldn't open the device");
+            printf("Couldn't open the device\n");
         }
         rc = wc_CryptoCb_RegisterDevice(devId,
                 IntelQaSymSync_CryptoDevCb, &devQat);
         if (rc != 0) {
-            WOLFSSL_MSG("Couldn't register the device");
+            printf("Couldn't register the device\n");
         }
     }
 #endif
@@ -1372,7 +1375,7 @@ static void* benchmarks_do(void* args)
     XMEMSET(bench_plain, 0, (size_t)bench_buf_size);
     XMEMSET(bench_cipher, 0, (size_t)bench_buf_size);
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(HAVE_INTEL_QA_SYNC)
     bench_key = (byte*)XMALLOC(sizeof(bench_key_buf), HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
     bench_iv = (byte*)XMALLOC(sizeof(bench_iv_buf), HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
     if (bench_key == NULL || bench_iv == NULL) {
@@ -1824,9 +1827,9 @@ exit:
 
 #ifdef WOLF_CRYPTO_CB
 #ifdef HAVE_INTEL_QA_SYNC
-    wc_CryptoCb_UnRegisterDevice(CryptoDeviceId);
-    IntelQaClose(&CryptoDevice);
-    IntelQaDeInit(CryptoDeviceId);
+    wc_CryptoCb_UnRegisterDevice(devId);
+    IntelQaClose(&devQat);
+    IntelQaDeInit(devId);
 #endif
 #ifdef HAVE_CAVIUM_OCTEON_SYNC
     wc_CryptoCb_CleanupOcteon();
