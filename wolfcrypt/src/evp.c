@@ -773,7 +773,7 @@ unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
         case AES_256_CBC_TYPE:
             return WOLFSSL_EVP_CIPH_CBC_MODE;
     #endif
-    #if defined(WOLFSSL_AES_GCM)
+    #if defined(HAVE_AESGCM)
         case AES_128_GCM_TYPE:
         case AES_192_GCM_TYPE:
         case AES_256_GCM_TYPE:
