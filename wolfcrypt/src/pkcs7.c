@@ -5070,7 +5070,7 @@ static int wc_PKCS7_KeyWrap(byte* cek, word32 cekSz, byte* kek,
                             word32 kekSz, byte* out, word32 outSz,
                             int keyWrapAlgo, int direction)
 {
-    int ret;
+    int ret = 0;
 
     if (cek == NULL || kek == NULL || out == NULL)
         return BAD_FUNC_ARG;

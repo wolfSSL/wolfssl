@@ -2892,7 +2892,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #endif
 #endif
 
-    if (doSTARTTLS) {
+    if (doSTARTTLS && starttlsProt != NULL) {
         if (XSTRNCMP(starttlsProt, "smtp", 4) == 0) {
             if (SMTP_Shutdown(ssl, wc_shutdown) != WOLFSSL_SUCCESS) {
                 wolfSSL_free(ssl); ssl = NULL;

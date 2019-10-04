@@ -209,7 +209,7 @@ RsaKey* GetRsaPrivateKey(const char* keyFile)
         word32 idx = 0;
         XFILE  file = XFOPEN(keyFile, "rb");
 
-        if (file != XBADFILE)
+        if (file == XBADFILE)
         {
             free(key);
             return 0;

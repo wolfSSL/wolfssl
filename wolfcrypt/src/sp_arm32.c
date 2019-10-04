@@ -4824,13 +4824,12 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
     if (err == MP_OKAY) {
         for (i=0; i<16; i++)
             t[i] = td + i * 64;
-        norm = t[0];
     }
-#else
-    norm = t[0];
 #endif
 
     if (err == MP_OKAY) {
+        norm = t[0];
+
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_32(norm, m);
 
@@ -4952,13 +4951,12 @@ static int sp_2048_mod_exp_32(sp_digit* r, const sp_digit* a, const sp_digit* e,
     if (err == MP_OKAY) {
         for (i=0; i<32; i++)
             t[i] = td + i * 64;
-        norm = t[0];
     }
-#else
-    norm = t[0];
 #endif
 
     if (err == MP_OKAY) {
+        norm = t[0];
+
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_32(norm, m);
 
@@ -7072,13 +7070,12 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
     if (err == MP_OKAY) {
         for (i=0; i<16; i++)
             t[i] = td + i * 128;
-        norm = t[0];
     }
-#else
-    norm = t[0];
 #endif
 
     if (err == MP_OKAY) {
+        norm = t[0];
+
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_64(norm, m);
 
@@ -7200,13 +7197,12 @@ static int sp_2048_mod_exp_64(sp_digit* r, const sp_digit* a, const sp_digit* e,
     if (err == MP_OKAY) {
         for (i=0; i<32; i++)
             t[i] = td + i * 128;
-        norm = t[0];
     }
-#else
-    norm = t[0];
 #endif
 
     if (err == MP_OKAY) {
+        norm = t[0];
+
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_64(norm, m);
 
@@ -8096,17 +8092,17 @@ static int sp_2048_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL)
         err = MEMORY_E;
-
-    if (err == MP_OKAY) {
-        norm = td;
-        tmp  = td + 128;
-    }
-#else
-    norm = nd;
-    tmp  = td;
 #endif
 
     if (err == MP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+        norm = td;
+        tmp  = td + 128;
+#else
+        norm = nd;
+        tmp  = td;
+#endif
+
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_64(norm, m);
 
@@ -15221,13 +15217,12 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
     if (err == MP_OKAY) {
         for (i=0; i<16; i++)
             t[i] = td + i * 96;
-        norm = t[0];
     }
-#else
-    norm = t[0];
 #endif
 
     if (err == MP_OKAY) {
+        norm = t[0];
+
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_48(norm, m);
 
@@ -15349,13 +15344,12 @@ static int sp_3072_mod_exp_48(sp_digit* r, const sp_digit* a, const sp_digit* e,
     if (err == MP_OKAY) {
         for (i=0; i<32; i++)
             t[i] = td + i * 96;
-        norm = t[0];
     }
-#else
-    norm = t[0];
 #endif
 
     if (err == MP_OKAY) {
+        norm = t[0];
+
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_48(norm, m);
 
@@ -18269,13 +18263,12 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
     if (err == MP_OKAY) {
         for (i=0; i<16; i++)
             t[i] = td + i * 192;
-        norm = t[0];
     }
-#else
-    norm = t[0];
 #endif
 
     if (err == MP_OKAY) {
+        norm = t[0];
+
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_96(norm, m);
 
@@ -18397,13 +18390,12 @@ static int sp_3072_mod_exp_96(sp_digit* r, const sp_digit* a, const sp_digit* e,
     if (err == MP_OKAY) {
         for (i=0; i<32; i++)
             t[i] = td + i * 192;
-        norm = t[0];
     }
-#else
-    norm = t[0];
 #endif
 
     if (err == MP_OKAY) {
+        norm = t[0];
+
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_96(norm, m);
 
@@ -19485,17 +19477,17 @@ static int sp_3072_mod_exp_2_96(sp_digit* r, const sp_digit* e, int bits,
                             DYNAMIC_TYPE_TMP_BUFFER);
     if (td == NULL)
         err = MEMORY_E;
-
-    if (err == MP_OKAY) {
-        norm = td;
-        tmp  = td + 192;
-    }
-#else
-    norm = nd;
-    tmp  = td;
 #endif
 
     if (err == MP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+        norm = td;
+        tmp  = td + 192;
+#else
+        norm = nd;
+        tmp  = td;
+#endif
+
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_96(norm, m);
 
@@ -26640,7 +26632,7 @@ static void sp_256_mont_inv_order_8(sp_digit* r, const sp_digit* a,
     /* t2= a^ffffffff00000000ffffffffffffffffbce6 */
     for (i=127; i>=112; i--) {
         sp_256_mont_sqr_order_8(t2, t2);
-        if (p256_order_low[i / 32] & ((sp_digit)1 << (i % 32)))
+        if (p256_order_low[i / 32] & ((sp_int_digit)1 << (i % 32)))
             sp_256_mont_mul_order_8(t2, t2, a);
     }
     /* t2= a^ffffffff00000000ffffffffffffffffbce6f */
@@ -26732,27 +26724,28 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
     if (err == MP_OKAY) {
         d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 7 * 2 * 8, heap,
                                                               DYNAMIC_TYPE_ECC);
-        if (d != NULL) {
-            e = d + 0 * 8;
-            x = d + 2 * 8;
-            k = d + 4 * 8;
-            r = d + 6 * 8;
-            tmp = d + 8 * 8;
-        }
-        else
+        if (d == NULL)
             err = MEMORY_E;
     }
-#else
-    e = ed;
-    x = xd;
-    k = kd;
-    r = rd;
-    tmp = td;
 #endif
-    s = e;
-    kInv = k;
 
     if (err == MP_OKAY) {
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+        e = d + 0 * 8;
+        x = d + 2 * 8;
+        k = d + 4 * 8;
+        r = d + 6 * 8;
+        tmp = d + 8 * 8;
+#else
+        e = ed;
+        x = xd;
+        k = kd;
+        r = rd;
+        tmp = td;
+#endif
+        s = e;
+        kInv = k;
+
         if (hashLen > 32)
             hashLen = 32;
 
@@ -27370,18 +27363,19 @@ static int sp_256_mont_sqrt_8(sp_digit* y)
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 4 * 8, NULL, DYNAMIC_TYPE_ECC);
-    if (d != NULL) {
-        t1 = d + 0 * 8;
-        t2 = d + 2 * 8;
-    }
-    else
+    if (d == NULL)
         err = MEMORY_E;
-#else
-    t1 = t1d;
-    t2 = t2d;
 #endif
 
     if (err == MP_OKAY) {
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+        t1 = d + 0 * 8;
+        t2 = d + 2 * 8;
+#else
+        t1 = t1d;
+        t2 = t2d;
+#endif
+
         {
             /* t2 = y ^ 0x2 */
             sp_256_mont_sqr_8(t2, y, p256_mod, p256_mp_mod);
@@ -27448,8 +27442,12 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
         x = d + 0 * 8;
         y = d + 2 * 8;
     }
-    else
+    else {
         err = MEMORY_E;
+        /* Compiler doesn't always know that err is not MP_OKAY. */
+        x = NULL;
+        y = NULL;
+    }
 #else
     x = xd;
     y = yd;
