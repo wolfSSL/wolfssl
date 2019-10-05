@@ -34,6 +34,8 @@
 
 #ifndef _WIN32
   #include <arpa/inet.h>
+#else
+  #include <WS2tcpip.h>
 #endif
 
 #ifdef _WIN32
@@ -1177,7 +1179,7 @@ static void SetError(int idx, char* error, SnifferSession* session, int fatal)
 
 
 /* Compare IpAddrInfo structs */
-static inline int MatchAddr(IpAddrInfo l, IpAddrInfo r)
+static WC_INLINE int MatchAddr(IpAddrInfo l, IpAddrInfo r)
 {
     if (l.version == r.version) {
         if (l.version == IPV4)
