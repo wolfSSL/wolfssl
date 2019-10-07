@@ -40513,10 +40513,66 @@ void wolfSSL_sk_X509_NAME_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
     XFREE(sk, sk->heap, DYNAMIC_TYPE_OPENSSL);
 }
 
+#if defined(WOLFSSL_APACHE_HTTPD)
+/* Helper function for X509_NAME_print_ex. Sets *buf to string for domain
+   name attribute based on NID. Returns size of buf */
+int get_dn_attr_by_nid(int n, char** buf)
+{
+    int len = 0;
+    const char *str;
+
+    switch(n)
+    {
+        case NID_commonName :
+            str = "CN";
+            len = 2;
+            break;
+        case NID_countryName:
+            str = "C";
+            len = 1;
+            break;
+        case NID_localityName:
+            str = "L";
+            len = 1;
+            break;
+        case NID_stateOrProvinceName:
+            str = "ST";
+            len = 2;
+            break;
+        case NID_organizationName:
+            str = "O";
+            len = 1;
+            break;
+        case NID_organizationalUnitName:
+            str = "OU";
+            len = 2;
+            break;
+        case NID_emailAddress:
+            str = "emailAddress";
+            len = 12;
+            break;
+        default:
+            WOLFSSL_MSG("Attribute type not found");
+            str = NULL;
+
+    }
+    if (buf != NULL)
+        *buf = (char*)str;
+    return len;
+}
+#endif
 
 int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
                 int indent, unsigned long flags)
 {
+#if defined(WOLFSSL_APACHE_HTTPD)
+    int count = 0, len = 0, totalSz = 0, tmpSz = 0;
+    char tmp[ASN_NAME_MAX];
+    char fullName[ASN_NAME_MAX];
+    char *buf = NULL;
+    WOLFSSL_X509_NAME_ENTRY* ne;
+    WOLFSSL_ASN1_STRING* str;
+#endif
     int i;
     (void)flags;
     WOLFSSL_ENTER("wolfSSL_X509_NAME_print_ex");
@@ -40526,7 +40582,41 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
             return WOLFSSL_FAILURE;
     }
 
-    if (flags == XN_FLAG_RFC2253) {
+    /* If XN_FLAG_DN_REV is present, print X509_NAME in reverse order */
+    if (flags == (XN_FLAG_RFC2253 & ~XN_FLAG_DN_REV)) {
+#if defined(WOLFSSL_APACHE_HTTPD)
+        fullName[0] = '\0';
+        count = wolfSSL_X509_NAME_entry_count(name);
+        for (i = 0; i < count; i++) {
+            ne = wolfSSL_X509_NAME_get_entry(name, count - i - 1);
+            if (ne == NULL)
+                return WOLFSSL_FAILURE;
+
+            str = wolfSSL_X509_NAME_ENTRY_get_data(ne);
+            if (str == NULL)
+                return WOLFSSL_FAILURE;
+
+            len = get_dn_attr_by_nid(ne->nid, &buf);
+            if (len == 0 || buf == NULL)
+                return WOLFSSL_FAILURE;
+
+            tmpSz = str->length + len + 2;
+            if (i < count - 1) {
+                XSNPRINTF(tmp, tmpSz+1, "%s=%s,", buf, str->data);
+                XSTRNCAT(fullName, tmp, tmpSz);
+            }
+            else {
+                XSNPRINTF(tmp, tmpSz, "%s=%s", buf, str->data);
+                XSTRNCAT(fullName, tmp, tmpSz-1);
+            }
+            totalSz += tmpSz;
+        }
+        if (wolfSSL_BIO_write(bio, fullName, totalSz) != totalSz)
+            return WOLFSSL_FAILURE;
+        return WOLFSSL_SUCCESS;
+#endif
+    }
+    else if (flags == XN_FLAG_RFC2253) {
         if (wolfSSL_BIO_write(bio, name->name + 1, name->sz - 2)
                                                                 != name->sz - 2)
             return WOLFSSL_FAILURE;
