@@ -20061,7 +20061,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
 #ifndef NO_WOLFSSL_STUB
     WOLFSSL_ASN1_STRING* wolfSSL_d2i_DISPLAYTEXT(WOLFSSL_ASN1_STRING **asn,
-                                                  unsigned char **in, long len)
+                                             const unsigned char **in, long len)
     {
         WOLFSSL_STUB("d2i_DISPLAYTEXT");
         (void)asn;
@@ -24445,7 +24445,7 @@ const WOLFSSL_X509_ALGOR* wolfSSL_X509_get0_tbs_sigalg(const WOLFSSL_X509 *x509)
 }
 
 /* Sets paobj pointer to X509_ALGOR signature algorithm */
-void wolfSSL_X509_ALGOR_get0(WOLFSSL_ASN1_OBJECT **paobj, int *pptype,
+void wolfSSL_X509_ALGOR_get0(const WOLFSSL_ASN1_OBJECT **paobj, int *pptype,
                             const void **ppval, const WOLFSSL_X509_ALGOR *algor)
 {
     (void)pptype;

@@ -21836,7 +21836,7 @@ static void test_wolfSSL_X509_ALGOR_get0(void)
 {
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) && !defined(NO_SHA256)
     X509* x509 = NULL;
-    ASN1_OBJECT* obj = NULL;
+    const ASN1_OBJECT* obj = NULL;
     const X509_ALGOR* alg;
     printf(testingFmt, "wolfSSL_X509_ALGOR_get0");
 
