@@ -7463,6 +7463,7 @@ int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passedCert)
     sz = cert.extensionsSz;
 
     if (input == NULL || sz == 0) {
+        WOLFSSL_MSG("\tsz or input NULL error");
         FreeDecodedCert(&cert);
         return WOLFSSL_FAILURE;
     }
@@ -7922,6 +7923,67 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                 ext->crit = x509->CRLdistCrit;
                 break;
 
+            case ALT_NAMES_OID:
+                if (!isSet)
+                    break;
+
+                WOLFSSL_GENERAL_NAME* gn = NULL;
+                DNS_entry* dns = NULL;
+                sk = (WOLF_STACK_OF(WOLFSSL_GENERAL_NAME)*)XMALLOC(
+                            sizeof(WOLF_STACK_OF(WOLFSSL_GENERAL_NAME)), NULL,
+                                                             DYNAMIC_TYPE_ASN1);
+                if (sk == NULL) {
+                    return NULL;
+                }
+                XMEMSET(sk, 0, sizeof(WOLF_STACK_OF(WOLFSSL_GENERAL_NAME)));
+                sk->type = STACK_TYPE_GEN_NAME;
+
+                if (x509->subjAltNameSet && x509->altNames != NULL) {
+                    /* alt names are DNS_entry structs */
+                    dns = x509->altNames;
+                    /* Currenlty only support GEN_DNS type */
+                    while (dns != NULL) {
+                        gn = wolfSSL_GENERAL_NAME_new();
+                        if (gn == NULL) {
+                            WOLFSSL_MSG("Error creating GENERAL_NAME");
+                            wolfSSL_sk_free(sk);
+                            return NULL;
+                        }
+
+                        gn->type = dns->type;
+                        gn->d.ia5->length = (int)XSTRLEN(dns->name);
+                        if (wolfSSL_ASN1_STRING_set(gn->d.ia5, dns->name,
+                                    gn->d.ia5->length) != WOLFSSL_SUCCESS) {
+                            WOLFSSL_MSG("ASN1_STRING_set failed");
+                            wolfSSL_GENERAL_NAME_free(gn);
+                            wolfSSL_sk_free(sk);
+                            return NULL;
+                        }
+
+                        dns = dns->next;
+                        /* last dns in list add at end of function */
+                        if (dns != NULL) {
+                            if (wolfSSL_sk_GENERAL_NAME_push(sk, gn) !=
+                                                              WOLFSSL_SUCCESS) {
+                            WOLFSSL_MSG("Error pushing ASN1 object onto stack");
+                            wolfSSL_GENERAL_NAME_free(gn);
+                            wolfSSL_sk_free(sk);
+                            sk = NULL;
+                            }
+                        }
+                    }
+                    if (wolfSSL_sk_GENERAL_NAME_push(sk,gn) != WOLFSSL_SUCCESS) {
+                        WOLFSSL_MSG("Error pushing ASN1 object onto stack");
+                        wolfSSL_GENERAL_NAME_free(gn);
+                        wolfSSL_sk_free(sk);
+                        sk = NULL;
+                    }
+                }
+                ext->ext_sk = sk;
+                ext->crit = x509->subjAltNameCrit;
+
+                break;
+
             default:
                 WOLFSSL_MSG("Unknown extension type found, parsing OID");
                 /* If the extension type is not recognized/supported,
@@ -8024,14 +8086,38 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
         unsigned long flag, int indent)
 {
     int rc = WOLFSSL_FAILURE;
+    int nid;
     char tmp[CTC_NAME_SIZE*2];
+    ASN1_OBJECT* obj;
+    ASN1_STRING* str;
+    WOLFSSL_ENTER("wolfSSL_X509V3_EXT_print");
 
-    if ((out != NULL) && (ext != NULL)) {
+    if ((out == NULL) || (ext == NULL)) {
+        WOLFSSL_MSG("NULL parameter error");
+        return rc;
+    }
 
-        XSNPRINTF(tmp, CTC_NAME_SIZE*2, "%*s%s", indent, "", ext->value.strData);
-        if (wolfSSL_BIO_write(out, tmp, (int)XSTRLEN(tmp)) == (int)XSTRLEN(tmp)) {
-            rc = WOLFSSL_SUCCESS;
-        }
+    obj = wolfSSL_X509_EXTENSION_get_object(ext);
+    if (obj == NULL) {
+        WOLFSSL_MSG("Error getting ASN1_OBJECT from X509_EXTENSION");
+        return rc;
+    }
+
+    nid = wolfSSL_OBJ_obj2nid(obj);
+
+    /* TODO: may need to add other multi-value extensions to switch */
+    switch(nid) {
+        case ALT_NAMES_OID:
+            /* ASN1_STRING is GENERAL_NAME */
+            str = ext->ext_sk->data.gn->d.ia5;
+            break;
+        default:
+            str = &ext->value;
+    }
+
+    XSNPRINTF(tmp, CTC_NAME_SIZE*2, "%*s%s", indent, "", str->strData);
+    if (wolfSSL_BIO_write(out, tmp, (int)XSTRLEN(tmp)) == (int)XSTRLEN(tmp)) {
+        rc = WOLFSSL_SUCCESS;
     }
     (void) flag;
 
@@ -38241,7 +38327,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         unsigned char out[MAX_OID_SZ];
         unsigned int sum = 0;
 
-        WOLFSSL_ENTER("wolfSSL_OBJ_txt2nid");
+        WOLFSSL_ENTER("wolfSSL_OBJ_txt2obj");
 
         if (s == NULL)
             return NULL;
