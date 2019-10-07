@@ -24466,6 +24466,26 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
         }
 
+        if (first == CIPHER_BYTE && ssl->version.major == SSLv3_MAJOR &&
+                                           ssl->version.minor < TLSv1_2_MINOR) {
+            switch(second) {
+                case TLS_RSA_WITH_AES_128_GCM_SHA256:
+                case TLS_RSA_WITH_AES_256_GCM_SHA384:
+                case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256:
+                case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384:
+                case TLS_DH_anon_WITH_AES_256_GCM_SHA384:
+                case TLS_PSK_WITH_AES_128_GCM_SHA256:
+                case TLS_PSK_WITH_AES_256_GCM_SHA384:
+                case TLS_DHE_PSK_WITH_AES_128_GCM_SHA256:
+                case TLS_DHE_PSK_WITH_AES_256_GCM_SHA384:
+                    WOLFSSL_MSG("Version of SSL does not support AES-GCM");
+                    return WOLFSSL_FAILURE;
+                default:
+                    break;
+            }
+        }
+
+
 #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
                                                   defined(HAVE_SUPPORTED_CURVES)
         if (!TLSX_ValidateSupportedCurves(ssl, first, second)) {
