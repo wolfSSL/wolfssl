@@ -1398,6 +1398,7 @@ int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx, wolfSSL_method_func method
             WOLFSSL_MSG("Error creating ctx");
             return WOLFSSL_FAILURE;
         }
+        (*ctx)->onHeap = 1; /* free the memory back to heap when done */
     }
 
     /* determine what max applies too */

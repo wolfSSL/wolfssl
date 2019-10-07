@@ -1796,7 +1796,16 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     wolfEventQueue_Free(&ctx->event_queue);
 #endif /* HAVE_WOLF_EVENT */
 
+#ifdef WOLFSSL_STATIC_MEMORY
+    if (ctx->onHeap == 1) {
+        XFREE(ctx->method, ctx->heap, DYNAMIC_TYPE_METHOD);
+    }
+    else {
+        XFREE(ctx->method, NULL, DYNAMIC_TYPE_METHOD);
+    }
+#else
     XFREE(ctx->method, ctx->heap, DYNAMIC_TYPE_METHOD);
+#endif
     ctx->method = NULL;
     if (ctx->suites) {
         XFREE(ctx->suites, ctx->heap, DYNAMIC_TYPE_SUITES);
@@ -1920,10 +1929,17 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
     wc_UnLockMutex(&ctx->countMutex);
 
     if (doFree) {
+        void* heap = ctx->heap;
         WOLFSSL_MSG("CTX ref count down to 0, doing full free");
         SSL_CtxResourceFree(ctx);
         wc_FreeMutex(&ctx->countMutex);
-        XFREE(ctx, ctx->heap, DYNAMIC_TYPE_CTX);
+#ifdef WOLFSSL_STATIC_MEMORY
+        if (ctx->onHeap == 0) {
+            heap = NULL;
+        }
+#endif
+        XFREE(ctx, heap, DYNAMIC_TYPE_CTX);
+        (void)heap; /* not used in some builds */
     }
     else {
         (void)ctx;
