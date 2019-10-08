@@ -52,14 +52,10 @@ int ksdk_port_init(void)
     return 0;
 }
 
-
-/* LTC TFM */
-#if defined(FREESCALE_LTC_TFM)
-
 /* Reverse array in memory (in place) */
 static void ltc_reverse_array(uint8_t *src, size_t src_len)
 {
-    int i;
+    unsigned int i;
 
     for (i = 0; i < src_len / 2; i++) {
         uint8_t tmp;
@@ -70,6 +66,8 @@ static void ltc_reverse_array(uint8_t *src, size_t src_len)
     }
 }
 
+
+#ifndef WOLFSSL_SP_MATH
 /* same as mp_to_unsigned_bin() with mp_reverse() skipped */
 static int mp_to_unsigned_lsb_bin(mp_int *a, unsigned char *b)
 {
@@ -88,6 +86,7 @@ static int mp_to_unsigned_lsb_bin(mp_int *a, unsigned char *b)
 
     return res;
 }
+#endif
 
 static int ltc_get_lsb_bin_from_mp_int(uint8_t *dst, mp_int *A, uint16_t *psz)
 {
@@ -95,11 +94,21 @@ static int ltc_get_lsb_bin_from_mp_int(uint8_t *dst, mp_int *A, uint16_t *psz)
     uint16_t sz;
 
     sz = mp_unsigned_bin_size(A);
+#ifndef WOLFSSL_SP_MATH
     res = mp_to_unsigned_lsb_bin(A, dst); /* result is lsbyte at lowest addr as required by LTC */
+#else
+    res = mp_to_unsigned_bin(A, dst);
+    if (res == MP_OKAY) {
+        ltc_reverse_array(dst, sz); 
+    }
+#endif
     *psz = sz;
-
     return res;
 }
+
+/* LTC TFM */
+#if defined(FREESCALE_LTC_TFM)
+
 
 /* these function are used by wolfSSL upper layers (like RSA) */
 
@@ -113,9 +122,11 @@ int mp_mul(mp_int *A, mp_int *B, mp_int *C)
 
     /* if unsigned mul can fit into LTC PKHA let's use it, otherwise call software mul */
     if ((szA <= LTC_MAX_INT_BYTES / 2) && (szB <= LTC_MAX_INT_BYTES / 2)) {
-        int neg;
+        int neg = 0;
 
+#ifndef WOLFSSL_SP_MATH
         neg = (A->sign == B->sign) ? MP_ZPOS : MP_NEG;
+#endif
 
         /* unsigned multiply */
         uint8_t *ptrA = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, 0, DYNAMIC_TYPE_BIGINT);
@@ -140,8 +151,10 @@ int mp_mul(mp_int *A, mp_int *B, mp_int *C)
             }
         }
 
+#ifndef WOLFSSL_SP_MATH
         /* fix sign */
         C->sign = neg;
+#endif
         if (ptrA) {
             XFREE(ptrA, NULL, DYNAMIC_TYPE_BIGINT);
         }
@@ -153,7 +166,11 @@ int mp_mul(mp_int *A, mp_int *B, mp_int *C)
         }
     }
     else {
+#ifdef WOLFSSL_SP_MATH
+        res = sp_mul(A, B, C);
+#else
         res = wolfcrypt_mp_mul(A, B, C);
+#endif
     }
     return res;
 }
@@ -169,13 +186,15 @@ int mp_mod(mp_int *a, mp_int *b, mp_int *c)
     if ((szA <= LTC_MAX_INT_BYTES) && (szB <= LTC_MAX_INT_BYTES))
     {
 #endif /* FREESCALE_LTC_TFM_RSA_4096_ENABLE */
-        int neg;
+        int neg = 0;
         uint8_t *ptrA = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, 0, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrB = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, 0, DYNAMIC_TYPE_BIGINT);
         uint8_t *ptrC = (uint8_t *)XMALLOC(LTC_MAX_INT_BYTES, 0, DYNAMIC_TYPE_BIGINT);
 
+#ifndef WOLFSSL_SP_MATH
         /* get sign for the result */
         neg = (a->sign == b->sign) ? MP_ZPOS : MP_NEG;
+#endif
 
         /* get remainder of unsigned a divided by unsigned b */
         if (ptrA && ptrB && ptrC) {
@@ -200,8 +219,10 @@ int mp_mod(mp_int *a, mp_int *b, mp_int *c)
             res = MP_MEM;
         }
 
+#ifndef WOLFSSL_SP_MATH
         /* fix sign */
         c->sign = neg;
+#endif
 
         if (ptrA) {
             XFREE(ptrA, NULL, DYNAMIC_TYPE_BIGINT);
@@ -257,7 +278,9 @@ int mp_invmod(mp_int *a, mp_int *b, mp_int *c)
             res = MP_MEM;
         }
 
+#ifndef WOLFSSL_SP_MATH
         c->sign = a->sign;
+#endif
         if (ptrA) {
             XFREE(ptrA, NULL, DYNAMIC_TYPE_BIGINT);
         }
@@ -297,6 +320,7 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
         /* if A or B is negative, subtract abs(A) or abs(B) from modulus to get positive integer representation of the
          * same number */
         res = mp_init(&t);
+#ifndef WOLFSSL_SP_MATH
         if (a->sign) {
             if (res == MP_OKAY)
                 res = mp_add(a, c, &t);
@@ -309,6 +333,7 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
             if (res == MP_OKAY)
                 res = mp_copy(&t, b);
         }
+#endif
 
         if (res == MP_OKAY && ptrA && ptrB && ptrC && ptrD) {
             uint16_t sizeA, sizeB, sizeC, sizeD;
@@ -413,12 +438,14 @@ int mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y)
 
         /* if G is negative, add modulus to convert to positive number for LTC */
         res = mp_init(&t);
+#ifndef WOLFSSL_SP_MATH
         if (G->sign) {
             if (res == MP_OKAY)
                 res = mp_add(G, P, &t);
             if (res == MP_OKAY)
                 res = mp_copy(&t, G);
         }
+#endif
 
         if (res == MP_OKAY && ptrG && ptrX && ptrP) {
             res = ltc_get_lsb_bin_from_mp_int(ptrG, G, &sizeG);
@@ -731,7 +758,9 @@ int wc_ecc_mulmod_ex(mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
         /* if k is negative, we compute the multiplication with abs(-k)
          * with result (x, y) and modify the result to (x, -y)
          */
+#ifndef WOLFSSL_SP_MATH
         R->y->sign = k->sign;
+#endif
     }
     if (res == MP_OKAY)
         res = mp_set(R->z, 1);

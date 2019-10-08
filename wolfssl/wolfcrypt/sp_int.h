@@ -187,6 +187,10 @@ MP_API int sp_exptmod(sp_int* b, sp_int* e, sp_int* m, sp_int* r);
 MP_API int sp_prime_is_prime(mp_int* a, int t, int* result);
 MP_API int sp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng);
 MP_API int sp_exch(sp_int* a, sp_int* b);
+MP_API int sp_get_digit_count(sp_int *a);
+MP_API int sp_init_copy (sp_int * a, sp_int * b);
+MP_API void sp_rshb(sp_int* a, int n, sp_int* r);
+
 
 #define MP_OKAY    0
 #define MP_NO      0
@@ -249,6 +253,9 @@ MP_API int sp_exch(sp_int* a, sp_int* b);
 #define mp_prime_is_prime           sp_prime_is_prime
 #define mp_prime_is_prime_ex        sp_prime_is_prime_ex
 #define mp_exch                     sp_exch
+#define get_digit_count             sp_get_digit_count
+#define mp_init_copy                sp_init_copy
+#define mp_rshb(A,x)                sp_rshb(A,x,A)
 
 #endif
 
