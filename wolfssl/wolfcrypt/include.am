@@ -111,6 +111,10 @@ nobase_include_HEADERS+= wolfssl/wolfcrypt/port/intel/quickassist.h
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/intel/quickassist_mem.h
 endif
 
+if BUILD_INTEL_QA_SYNC
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/intel/quickassist_sync.h
+endif
+
 if BUILD_SP
 nobase_include_HEADERS+= wolfssl/wolfcrypt/sp.h
 nobase_include_HEADERS+= wolfssl/wolfcrypt/sp_int.h

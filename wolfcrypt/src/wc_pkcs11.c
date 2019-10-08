@@ -1190,7 +1190,7 @@ static int Pkcs11FindEccKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
     int             ret = 0;
     int             i;
     unsigned char*  ecPoint = NULL;
-    word32          len;
+    word32          len = 0;
     CK_RV           rv;
     CK_ULONG        count;
     CK_UTF8CHAR     params[MAX_EC_PARAM_LEN];

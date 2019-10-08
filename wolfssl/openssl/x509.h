@@ -1,9 +1,7 @@
 /* x509.h for openssl */
 
 #include <wolfssl/openssl/ssl.h>
-
-/* for compatibility, this is expected to be included */
-#include <openssl/dh.h>
+#include <wolfssl/openssl/dh.h>
 
 /* wolfSSL_X509_print_ex flags */
 #define X509_FLAG_COMPAT        (0UL)

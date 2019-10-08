@@ -1457,6 +1457,12 @@
         }
     #endif /* WOLFSSL_ASYNC_CRYPT */
 
+    #ifdef WOLF_CRYPTO_CB
+        if (des->devId != INVALID_DEVID) {
+            XMEMCPY(des->devKey, key, DES3_KEYLEN);
+        }
+    #endif
+
         ret = DesSetKey(key + (dir == DES_ENCRYPTION ? 0:16), dir, des->key[0]);
         if (ret != 0)
             return ret;

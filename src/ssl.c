@@ -1398,6 +1398,7 @@ int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx, wolfSSL_method_func method
             WOLFSSL_MSG("Error creating ctx");
             return WOLFSSL_FAILURE;
         }
+        (*ctx)->onHeap = 1; /* free the memory back to heap when done */
     }
 
     /* determine what max applies too */
@@ -4613,14 +4614,18 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     /* basic config gives a cache with 33 sessions, adequate for clients and
        embedded servers
 
-       MEDIUM_SESSION_CACHE allows 1055 sessions, adequate for servers that
-       aren't under heavy load, basically allows 200 new sessions per minute
-
-       BIG_SESSION_CACHE yields 20,027 sessions
+       TITAN_SESSION_CACHE allows just over 2 million sessions, for servers
+       with titanic amounts of memory with long session ID timeouts and high
+       levels of traffic.
 
        HUGE_SESSION_CACHE yields 65,791 sessions, for servers under heavy load,
        allows over 13,000 new sessions per minute or over 200 new sessions per
        second
+
+       BIG_SESSION_CACHE yields 20,027 sessions
+
+       MEDIUM_SESSION_CACHE allows 1055 sessions, adequate for servers that
+       aren't under heavy load, basically allows 200 new sessions per minute
 
        SMALL_SESSION_CACHE only stores 6 sessions, good for embedded clients
        or systems where the default of nearly 3kB is too much RAM, this define
@@ -4628,7 +4633,10 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 
        default SESSION_CACHE stores 33 sessions (no XXX_SESSION_CACHE defined)
     */
-    #ifdef HUGE_SESSION_CACHE
+    #if defined(TITAN_SESSION_CACHE)
+        #define SESSIONS_PER_ROW 31
+        #define SESSION_ROWS 64937
+    #elif defined(HUGE_SESSION_CACHE)
         #define SESSIONS_PER_ROW 11
         #define SESSION_ROWS 5981
     #elif defined(BIG_SESSION_CACHE)
@@ -16292,7 +16300,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         switch (ctx->cipherType) {
 
 #ifndef NO_AES
-#ifdef WOLFSSL_AES_CBC
+#ifdef HAVE_AES_CBC
             case AES_128_CBC_TYPE :
             case AES_192_CBC_TYPE :
             case AES_256_CBC_TYPE :
@@ -16300,14 +16308,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 XMEMCPY(ctx->iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
                 break;
 #endif
-#ifdef WOLFSSL_AES_GCM
+#ifdef HAVE_AESGCM
             case AES_128_GCM_TYPE :
             case AES_192_GCM_TYPE :
             case AES_256_GCM_TYPE :
                 WOLFSSL_MSG("AES GCM");
                 XMEMCPY(ctx->iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
                 break;
-#endif /* WOLFSSL_AES_GCM */
+#endif /* HAVE_AESGCM */
 #ifdef WOLFSSL_AES_COUNTER
             case AES_128_CTR_TYPE :
             case AES_192_CTR_TYPE :
@@ -16376,7 +16384,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 XMEMCPY(&ctx->cipher.aes.reg, ctx->iv, AES_BLOCK_SIZE);
                 break;
 #endif
-#ifdef WOLFSSL_AES_GCM
+#ifdef HAVE_AESGCM
             case AES_128_GCM_TYPE :
             case AES_192_GCM_TYPE :
             case AES_256_GCM_TYPE :
@@ -25819,7 +25827,7 @@ void wolfSSL_ASN1_GENERALIZEDTIME_free(WOLFSSL_ASN1_TIME* asn1Time)
     XMEMSET(asn1Time->data, 0, sizeof(asn1Time->data));
 }
 
-int  wolfSSL_sk_num(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
+int wolfSSL_sk_num(WOLFSSL_STACK* sk)
 {
     WOLFSSL_ENTER("wolfSSL_sk_num");
     if (sk == NULL)
@@ -25827,13 +25835,55 @@ int  wolfSSL_sk_num(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
     return (int)sk->num;
 }
 
-void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
+void* wolfSSL_sk_value(WOLFSSL_STACK* sk, int i)
 {
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+    int offset = i;
+    WOLFSSL_GENERAL_NAME* gn;
+    #endif
+    WOLFSSL_ENTER("wolfSSL_sk_value");
+
     for (; sk != NULL && i > 0; i--)
         sk = sk->next;
     if (sk == NULL)
         return NULL;
-    return (void*)sk->data.obj;
+
+    switch (sk->type) {
+        case STACK_TYPE_X509:
+            return (void*)sk->data.x509;
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        case STACK_TYPE_CIPHER:
+            sk->data.cipher.offset = offset;
+            return (void*)&sk->data.cipher;
+        case STACK_TYPE_GEN_NAME:
+            gn = (WOLFSSL_GENERAL_NAME*)sk->data.obj;
+            if (gn == NULL)
+                return NULL;
+            gn->type         = sk->data.obj->type;
+            gn->d.ia5        = sk->data.obj->d.ia5;
+            gn->d.iPAddress  = sk->data.obj->d.iPAddress;
+            gn->d.dNSName    = sk->data.obj->d.dNSName;
+            gn->d.uniformResourceIdentifier =
+                                      sk->data.obj->d.uniformResourceIdentifier;
+            return (void*)gn;
+        case STACK_TYPE_ACCESS_DESCRIPTION:
+            return (void*)sk->data.access;
+    #endif
+        case STACK_TYPE_OBJ:
+            return (void*)sk->data.obj;
+            break;
+        case STACK_TYPE_NULL:
+            return (void*)sk->data.generic;
+            break;
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        case STACK_TYPE_X509_EXT:
+            return (void*)sk->data.ext;
+    #endif
+        case STACK_TYPE_CONF_VALUE:
+            return (void*)sk->data.conf->value;
+        default:
+            return (void*)sk->data.obj;
+    }
 }
 
 /* Free the structure for ASN1_OBJECT stack */
@@ -25868,6 +25918,9 @@ void wolfSSL_sk_free(WOLFSSL_STACK* sk)
             break;
         case STACK_TYPE_X509_NAME:
             wolfSSL_sk_X509_NAME_free(sk);
+            break;
+        case STACK_TYPE_CONF_VALUE:
+            wolfSSL_sk_CONF_VALUE_free(sk);
             break;
     #endif
        default:
@@ -25933,6 +25986,33 @@ void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
             break;
     }
 }
+
+#if defined(OPENSSL_ALL)
+/* Free the structure for WOLFSSL_CONF_VALUE stack
+ *
+ * sk  stack to free nodes in
+ */
+void wolfSSL_sk_CONF_VALUE_free(WOLF_STACK_OF(WOLFSSL_CONF_VALUE)* sk)
+{
+    WOLFSSL_STACK* node;
+    WOLFSSL_STACK* tmp;
+    WOLFSSL_ENTER("wolfSSL_sk_CONF_VALUE_free");
+
+    if (sk == NULL)
+        return;
+
+    /* parse through stack freeing each node */
+    node = sk->next;
+    while (node) {
+        tmp  = node;
+        node = node->next;
+        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+
+    /* free head of stack */
+    XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
+}
+#endif
 
 /* Creates and returns a new null stack. */
 WOLFSSL_STACK* wolfSSL_sk_new_null(void)

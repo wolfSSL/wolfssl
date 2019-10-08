@@ -233,8 +233,13 @@
         WOLFSSL_API void* XMALLOC(size_t n, void* heap, int type);
         WOLFSSL_API void* XREALLOC(void *p, size_t n, void* heap, int type);
         WOLFSSL_API void XFREE(void *p, void* heap, int type);
-    #elif defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_INTEL_QA)
-        #include <wolfssl/wolfcrypt/port/intel/quickassist_mem.h>
+    #elif (defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_INTEL_QA)) || \
+          defined(HAVE_INTEL_QA_SYNC)
+        #ifndef HAVE_INTEL_QA_SYNC
+            #include <wolfssl/wolfcrypt/port/intel/quickassist_mem.h>
+        #else
+            #include <wolfssl/wolfcrypt/port/intel/quickassist_sync.h>
+        #endif
         #undef USE_WOLFSSL_MEMORY
         #ifdef WOLFSSL_DEBUG_MEMORY
             #define XMALLOC(s, h, t)     IntelQaMalloc((s), (h), (t), __func__, __LINE__)
@@ -294,7 +299,7 @@
         #else
         /* just use plain C stdlib stuff if desired */
         #include <stdlib.h>
-        #define XMALLOC(s, h, t)     ((void)h, (void)t, malloc((s)))
+        #define XMALLOC(s, h, t)     malloc((s))
         #define XFREE(p, h, t)       {void* xp = (p); if((xp)) free((xp));}
         #define XREALLOC(p, n, h, t) realloc((p), (n))
         #endif

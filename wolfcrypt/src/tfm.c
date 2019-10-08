@@ -4281,6 +4281,8 @@ int fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap)
          * it is proven composite. */
     byte* buf;
 
+    (void)heap;
+
     /* get type */
     if (len < 0) {
         type = USE_BBS;

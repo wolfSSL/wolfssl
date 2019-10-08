@@ -54,6 +54,13 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+    #ifdef HAVE_INTEL_QA_SYNC
+        #include <wolfssl/wolfcrypt/port/intel/quickassist_sync.h>
+    #endif
+#endif
+
 
 #ifndef WOLFSSL_SNIFFER_TIMEOUT
     #define WOLFSSL_SNIFFER_TIMEOUT 900
@@ -449,6 +456,14 @@ static void UpdateMissedDataSessions(void)
 #endif
 
 
+#ifdef WOLF_CRYPTO_CB
+    static int CryptoDeviceId = INVALID_DEVID;
+    #ifdef HAVE_INTEL_QA_SYNC
+        static IntelQaDev CryptoDevice;
+    #endif
+#endif
+
+
 /* Initialize overall Sniffer */
 void ssl_InitSniffer(void)
 {
@@ -459,6 +474,26 @@ void ssl_InitSniffer(void)
 #ifdef WOLFSSL_SNIFFER_STATS
     XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
     wc_InitMutex(&StatsMutex);
+#endif
+#ifdef WOLF_CRYPTO_CB
+    #ifdef HAVE_INTEL_QA_SYNC
+    {
+        int rc;
+        CryptoDeviceId = IntelQaInit(NULL);
+        if (CryptoDeviceId == INVALID_DEVID) {
+            WOLFSSL_MSG("Couldn't init the Intel QA");
+        }
+        rc = IntelQaOpen(&CryptoDevice, CryptoDeviceId);
+        if (rc != 0) {
+            WOLFSSL_MSG("Couldn't open the device");
+        }
+        rc = wc_CryptoCb_RegisterDevice(CryptoDeviceId,
+                IntelQaSymSync_CryptoDevCb, &CryptoDevice);
+        if (rc != 0) {
+            WOLFSSL_MSG("Couldn't register the device");
+        }
+    }
+    #endif
 #endif
 }
 
@@ -587,6 +622,14 @@ void ssl_FreeSniffer(void)
     wc_FreeMutex(&RecoveryMutex);
     wc_FreeMutex(&SessionMutex);
     wc_FreeMutex(&ServerListMutex);
+
+#ifdef WOLF_CRYPTO_CB
+#ifdef HAVE_INTEL_QA_SYNC
+    wc_CryptoCb_UnRegisterDevice(CryptoDeviceId);
+    IntelQaClose(&CryptoDevice);
+    IntelQaDeInit(CryptoDeviceId);
+#endif
+#endif
 
     if (TraceFile) {
         TraceOn = 0;
@@ -1259,7 +1302,10 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
 
     file = XFOPEN(keyFile, "rb");
     if (file == XBADFILE) return -1;
-    if(XFSEEK(file, 0, XSEEK_END) != 0) return -1;
+    if(XFSEEK(file, 0, XSEEK_END) != 0) {
+        XFCLOSE(file);
+        return -1;
+    }
     fileSz = XFTELL(file);
     XREWIND(file);
 
@@ -1335,6 +1381,9 @@ static int CreateWatchSnifferServer(char* error)
         FreeSnifferServer(sniffer);
         return -1;
     }
+#ifdef WOLF_CRYPTO_CB
+	wolfSSL_CTX_SetDevId(sniffer->ctx, CryptoDevId);
+#endif
     ServerList = sniffer;
 
     return 0;
@@ -1433,6 +1482,9 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
                 FreeSnifferServer(sniffer);
             return -1;
         }
+	#ifdef WOLF_CRYPTO_CB
+		wolfSSL_CTX_SetDevId(sniffer->ctx, CryptoDeviceId);
+	#endif
     }
 #ifdef HAVE_SNI
     else {

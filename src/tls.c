@@ -1801,6 +1801,8 @@ static SNI* TLSX_SNI_New(byte type, const void* data, word16 size, void* heap)
 {
     SNI* sni = (SNI*)XMALLOC(sizeof(SNI), heap, DYNAMIC_TYPE_TLSX);
 
+    (void)heap;
+
     if (sni) {
         sni->type = type;
         sni->next = NULL;
@@ -4076,7 +4078,7 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
     SupportedCurve* serverGroup;
     SupportedCurve* clientGroup;
     SupportedCurve* group;
-    const DhParams* params;
+    const DhParams* params = NULL;
     int found = 0;
 
     extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
@@ -4148,9 +4150,9 @@ int TLSX_SupportedFFDHE_Set(WOLFSSL* ssl)
                     params = wc_Dh_ffdhe8192_Get();
                     break;
             #endif
-                default:
-                    return BAD_FUNC_ARG;
             }
+            if (params == NULL)
+                return BAD_FUNC_ARG;
             if (params->p_len >= ssl->options.minDhKeySz &&
                                      params->p_len <= ssl->options.maxDhKeySz) {
                 break;
@@ -4983,6 +4985,8 @@ WOLFSSL_LOCAL SessionTicket* TLSX_SessionTicket_Create(word32 lifetime,
         ticket->lifetime = lifetime;
     }
 
+    (void)heap;
+
     return ticket;
 }
 WOLFSSL_LOCAL void TLSX_SessionTicket_Free(SessionTicket* ticket, void* heap)
@@ -5598,7 +5602,7 @@ int TLSX_UseQSHScheme(TLSX** extensions, word16 name, byte* pKey, word16 pkeySz,
 #define QSH_GET_SIZE TLSX_QSH_GetSize
 #define QSH_WRITE    TLSX_QSH_Write
 #else
-#define QSH_GET_SIZE(list)         0
+#define QSH_GET_SIZE(list, a)      0
 #define QSH_WRITE(a, b)            0
 #endif
 
@@ -9340,7 +9344,7 @@ static word32 GetEntropy(unsigned char* out, word32 num_bytes)
 #ifdef HAVE_QSH
 static int TLSX_CreateQSHKey(WOLFSSL* ssl, int type)
 {
-    int ret;
+    int ret = -1;
 
     (void)ssl;
 
@@ -9354,7 +9358,7 @@ static int TLSX_CreateQSHKey(WOLFSSL* ssl, int type)
 #endif
         default:
             WOLFSSL_MSG("Unknown type for creating NTRU key");
-            return -1;
+            break;
     }
 
     return ret;

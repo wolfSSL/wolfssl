@@ -5223,9 +5223,7 @@ static int test_wc_Md5Update (void)
     if (!flag) {
         a.input = "a";
         a.inLen = XSTRLEN(a.input);
-    }
 
-    if (!flag){
         ret = wc_Md5Update(&md5, (byte*)a.input, (word32)a.inLen);
         if (ret != 0) {
             flag = ret;
@@ -5435,9 +5433,7 @@ static int test_wc_ShaUpdate (void)
     if (!flag) {
         a.input = "a";
         a.inLen = XSTRLEN(a.input);
-    }
 
-    if (!flag) {
         ret = wc_ShaUpdate(&sha, (byte*)a.input, (word32)a.inLen);
         if (ret != 0) {
             flag = ret;
@@ -5645,9 +5641,7 @@ static int test_wc_Sha256Update (void)
     if (!flag) {
         a.input = "a";
         a.inLen = XSTRLEN(a.input);
-    }
 
-    if (!flag) {
         ret = wc_Sha256Update(&sha256, (byte*)a.input, (word32)a.inLen);
         if (ret != 0) {
             flag = ret;
@@ -5860,16 +5854,12 @@ static int test_wc_Sha512Update (void)
     if (!flag) {
         a.input = "a";
         a.inLen = XSTRLEN(a.input);
-    }
 
-    if (!flag) {
         ret = wc_Sha512Update(&sha512, (byte*)a.input, (word32)a.inLen);
         if (ret != 0) {
             flag = ret;
         }
-    }
 
-    if (!flag) {
         ret = wc_Sha512Final(&sha512, hash);
         if (ret != 0) {
             flag = ret;
@@ -6074,9 +6064,7 @@ static int test_wc_Sha384Update (void)
     if (!flag) {
         a.input = "a";
         a.inLen = XSTRLEN(a.input);
-    }
 
-    if (!flag) {
         ret = wc_Sha384Update(&sha384, (byte*)a.input, (word32)a.inLen);
         if (ret != 0) {
             flag = ret;
@@ -6287,9 +6275,7 @@ static int test_wc_Sha224Update (void)
     if (!flag) {
         a.input = "a";
         a.inLen = XSTRLEN(a.input);
-    }
 
-    if (!flag) {
         ret = wc_Sha224Update(&sha224, (byte*)a.input, (word32)a.inLen);
         if (ret != 0) {
             flag = ret;
@@ -6501,9 +6487,7 @@ static int test_wc_RipeMdUpdate (void)
     if (!flag) {
         a.input = "a";
         a.inLen = XSTRLEN(a.input);
-    }
 
-    if (!flag) {
         ret = wc_RipeMdUpdate(&ripemd, (byte*)a.input, (word32)a.inLen);
         if (ret != 0) {
             flag = ret;
@@ -12742,9 +12726,9 @@ static int test_wc_AesCcmEncryptDecrypt (void)
                                         sizeof(plainOut), iv, sizeof(iv),
                                         authTag, sizeof(authTag),
                                         authIn, sizeof(authIn));
-             }
-            if (XMEMCMP(plainOut, plainT, sizeof(plainT)) && ccmD == 0) {
-                ccmD = WOLFSSL_FATAL_ERROR;
+                if (XMEMCMP(plainOut, plainT, sizeof(plainT)) && ccmD == 0) {
+                    ccmD = WOLFSSL_FATAL_ERROR;
+                }
             }
         #endif
     }
@@ -18126,7 +18110,8 @@ static void test_wc_i2d_PKCS12(void)
 
     printf(testingFmt, "wc_i2d_PKCS12");
 
-    AssertNotNull(f = XFOPEN(p12_f, "rb"));
+    f =  XFOPEN(p12_f, "rb");
+    AssertNotNull(f);
     derSz = (int)XFREAD(der, 1, sizeof(der), f);
     AssertIntGT(derSz, 0);
     XFCLOSE(f);
@@ -18267,15 +18252,15 @@ static int test_wc_SignatureGetSize_rsa(void)
             #else
                 ret = WOLFSSL_FATAL_ERROR;
             #endif
-            if (ret == 0) {
-                ret = wc_InitRsaKey_ex(&rsa_key, HEAP_HINT, devId);
-                if (ret == 0) {
-                    ret = wc_RsaPrivateKeyDecode(tmp, &idx, &rsa_key,
-                        (word32)bytes);
-                }
-            }
         } else {
             ret = WOLFSSL_FATAL_ERROR;
+        }
+
+        if (ret == 0) {
+            ret = wc_InitRsaKey_ex(&rsa_key, HEAP_HINT, devId);
+        }
+        if (ret == 0) {
+            ret = wc_RsaPrivateKeyDecode(tmp, &idx, &rsa_key, (word32)bytes);
         }
 
         printf(testingFmt, "wc_SigntureGetSize_rsa()");
@@ -27420,6 +27405,7 @@ static void test_wolfSSL_ASN1_INTEGER_set()
     AssertIntEQ(ret, 1);
     wolfSSL_ASN1_INTEGER_free(a);
 
+#ifndef TIME_T_NOT_64BIT
     /* 2147483648 */
     a = wolfSSL_ASN1_INTEGER_new();
     val = 2147483648;
@@ -27434,6 +27420,7 @@ static void test_wolfSSL_ASN1_INTEGER_set()
     AssertIntEQ(a->negative, 1);
     AssertIntEQ(ret, 1);
     wolfSSL_ASN1_INTEGER_free(a);
+#endif
 
     printf(resultFmt, passed);
 #endif

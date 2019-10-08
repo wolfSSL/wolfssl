@@ -2230,7 +2230,7 @@ int uIPReceive(WOLFSSL *ssl, char *buf, int sz, void *_ctx)
  */
 int uIPGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *_ctx)
 {
-    uip_wolfssl_ctx *ctx = (uip_wolfssl_ctx *)ctx;
+    uip_wolfssl_ctx *ctx = (uip_wolfssl_ctx *)_ctx;
     byte token[32];
     byte digest[WC_SHA_DIGEST_SIZE];
     int  ret = 0;

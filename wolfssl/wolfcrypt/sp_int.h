@@ -64,8 +64,13 @@
   #elif SP_WORD_SIZE == 64
     typedef int64_t sp_digit;
     typedef uint64_t sp_int_digit;
-    typedef unsigned long uint128_t __attribute__ ((mode(TI)));
-    typedef long int128_t __attribute__ ((mode(TI)));
+    #ifdef __SIZEOF_INT128__
+      typedef __uint128_t uint128_t;
+      typedef __int128_t int128_t;
+    #else
+      typedef unsigned long uint128_t __attribute__ ((mode(TI)));
+      typedef long int128_t __attribute__ ((mode(TI)));
+    #endif
     typedef uint128_t sp_int_word;
   #else
     #error Word size not defined
@@ -78,8 +83,13 @@
   #elif SP_WORD_SIZE == 64
     typedef uint64_t sp_digit;
     typedef uint64_t sp_int_digit;
-    typedef unsigned long uint128_t __attribute__ ((mode(TI)));
-    typedef long int128_t __attribute__ ((mode(TI)));
+    #ifdef __SIZEOF_INT128__
+      typedef __uint128_t uint128_t;
+      typedef __int128_t int128_t;
+    #else
+      typedef unsigned long uint128_t __attribute__ ((mode(TI)));
+      typedef long int128_t __attribute__ ((mode(TI)));
+    #endif
     typedef uint128_t sp_int_word;
   #else
     #error Word size not defined
