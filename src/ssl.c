@@ -4900,6 +4900,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     int           resetSuites = 0;
     void*         heap = wolfSSL_CTX_GetHeap(ctx, ssl);
     int           devId = wolfSSL_CTX_GetDevId(ctx, ssl);
+#if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)
+    int           usePasswd = 0;
+#endif
     word32        idx = 0;
     int           keySz = 0;
 #if (defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)) || \
@@ -5001,48 +5004,6 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         }
     }
 
-#if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)
-    /* for WOLFSSL_FILETYPE_PEM, PemToDer manages the decryption */
-    /* If private key type PKCS8 header wasn't already removed (algoId == 0) */
-    if (ret >= 0 && format != WOLFSSL_FILETYPE_PEM && info->passwd_cb &&
-        type == PRIVATEKEY_TYPE && algId == 0)
-    {
-        int   passwordSz = NAME_SZ;
-    #ifndef WOLFSSL_SMALL_STACK
-        char  password[NAME_SZ];
-    #else
-        char* password = (char*)XMALLOC(passwordSz, heap, DYNAMIC_TYPE_STRING);
-        if (password == NULL) {
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
-        #endif
-            FreeDer(&der);
-            return MEMORY_E;
-        }
-    #endif
-        /* get password */
-        ret = info->passwd_cb(password, passwordSz, PEM_PASS_READ,
-            info->passwd_userdata);
-        if (ret >= 0) {
-            passwordSz = ret;
-
-            /* PKCS8 decrypt */
-            ret = ToTraditionalEnc(der->buffer, der->length,
-                                   password, passwordSz, &algId);
-            if (ret >= 0) {
-                der->length = ret;
-            }
-            ret = 0; /* ignore failures and try parsing directly unencrypted */
-
-            ForceZero(password, passwordSz);
-        }
-
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(password, heap, DYNAMIC_TYPE_STRING);
-    #endif
-    }
-#endif /* WOLFSSL_ENCRYPTED_KEYS && !NO_PWDBASED */
-
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
 #endif
@@ -5127,6 +5088,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     }
 
     if (type == PRIVATEKEY_TYPE && format != WOLFSSL_FILETYPE_RAW) {
+        ret = 0;
     #if defined(WOLFSSL_ENCRYPTED_KEYS) || defined(HAVE_PKCS8)
         /* attempt to detect key type */
         if (algId == RSAk)
@@ -5136,8 +5098,51 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         else if (algId == ED25519k)
             ed25519Key = 1;
     #endif
+
+#if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)
+retry_decode:
+        /* for WOLFSSL_FILETYPE_PEM, PemToDer manages the decryption */
+        /* If private key type PKCS8 header wasn't already removed (algoId == 0) */
+        if (usePasswd && format != WOLFSSL_FILETYPE_PEM && info->passwd_cb && algId == 0)
+        {
+            int   passwordSz = NAME_SZ;
+        #ifndef WOLFSSL_SMALL_STACK
+            char  password[NAME_SZ];
+        #else
+            char* password = (char*)XMALLOC(passwordSz, heap, DYNAMIC_TYPE_STRING);
+            if (password == NULL) {
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
+            #endif
+                FreeDer(&der);
+                return MEMORY_E;
+            }
+        #endif
+            /* get password */
+            ret = info->passwd_cb(password, passwordSz, PEM_PASS_READ,
+                info->passwd_userdata);
+            if (ret >= 0) {
+                passwordSz = ret;
+
+                /* PKCS8 decrypt */
+                ret = ToTraditionalEnc(der->buffer, der->length,
+                                       password, passwordSz, &algId);
+                if (ret >= 0) {
+                    der->length = ret;
+                }
+                ret = 0; /* ignore failures and try parsing directly unencrypted */
+
+                ForceZero(password, passwordSz);
+            }
+
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(password, heap, DYNAMIC_TYPE_STRING);
+        #endif
+        }
+#endif /* WOLFSSL_ENCRYPTED_KEYS && !NO_PWDBASED */
+
     #ifndef NO_RSA
-        if (!eccKey && !ed25519Key) {
+        if (ret == 0 && !eccKey && !ed25519Key) {
             /* make sure RSA key can be used */
         #ifdef WOLFSSL_SMALL_STACK
             RsaKey* key = NULL;
@@ -5200,13 +5205,10 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(key, heap, DYNAMIC_TYPE_RSA);
         #endif
-
-            if (ret != 0)
-                return ret;
         }
     #endif
     #ifdef HAVE_ECC
-        if (!rsaKey && !ed25519Key) {
+        if (ret == 0 && !rsaKey && !ed25519Key) {
             /* make sure ECC key can be used */
         #ifdef WOLFSSL_SMALL_STACK
             ecc_key* key = NULL;
@@ -5258,13 +5260,10 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(key, heap, DYNAMIC_TYPE_ECC);
         #endif
-
-            if (ret != 0)
-                return ret;
         }
     #endif /* HAVE_ECC */
     #ifdef HAVE_ED25519
-        if (!rsaKey && !eccKey) {
+        if (ret == 0 && !rsaKey && !eccKey) {
             /* make sure Ed25519 key can be used */
         #ifdef WOLFSSL_SMALL_STACK
             ed25519_key* key = NULL;
@@ -5319,13 +5318,22 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(key, heap, DYNAMIC_TYPE_ED25519);
         #endif
+        }
+    #endif /* HAVE_ED25519 */
+
+        if (ret != 0 || (!rsaKey && !eccKey && !ed25519Key)) {
+#if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)
+            if (!usePasswd && format != WOLFSSL_FILETYPE_PEM && info->passwd_cb && algId == 0) {
+                usePasswd = 1;
+                WOLFSSL_MSG("Retrying decode with password callback");
+                goto retry_decode;
+            }
+#endif
             if (ret != 0)
                 return ret;
+            if (!rsaKey && !eccKey && !ed25519Key)
+                return WOLFSSL_BAD_FILE;
         }
-    #else
-        if (!rsaKey && !eccKey && !ed25519Key)
-            return WOLFSSL_BAD_FILE;
-    #endif
         (void)ed25519Key;
         (void)devId;
     }

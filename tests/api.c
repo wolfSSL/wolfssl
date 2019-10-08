@@ -4546,6 +4546,58 @@ static void test_wolfSSL_PKCS12(void)
     #define TEST_PKCS8_ENC
 #endif
 
+static WC_INLINE int FailTestCallBack(char* passwd, int sz, int rw, void* userdata)
+{
+    (void)passwd;
+    (void)sz;
+    (void)rw;
+    (void)userdata;
+    Fail(("Password callback should not be called by default"),
+            ("Password callback was called without attempting "
+             "to first decipher private key without password."));
+    return 0;
+}
+
+static void test_wolfSSL_no_password_cb(void)
+{
+#if !defined(NO_FILESYSTEM) && !defined(NO_ASN) && defined(HAVE_PKCS8) \
+    && defined(HAVE_ECC) && defined(WOLFSSL_ENCRYPTED_KEYS)
+    WOLFSSL_CTX* ctx;
+    byte buffer[FOURK_BUF];
+    const char eccPkcs8PrivKeyDerFile[] = "./certs/ecc-privkeyPkcs8.der";
+    const char eccPkcs8PrivKeyPemFile[] = "./certs/ecc-privkeyPkcs8.pem";
+    XFILE f;
+    int bytes;
+
+    printf(testingFmt, "test_wolfSSL_no_password_cb()");
+
+#ifndef NO_WOLFSSL_CLIENT
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLS_client_method()));
+#else
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLS_server_method()));
+#endif
+    wolfSSL_CTX_set_default_passwd_cb(ctx, FailTestCallBack);
+
+    AssertTrue((f = XFOPEN(eccPkcs8PrivKeyDerFile, "rb")) != XBADFILE);
+    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    XFCLOSE(f);
+    AssertIntLE(bytes, sizeof(buffer));
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    AssertTrue((f = XFOPEN(eccPkcs8PrivKeyPemFile, "rb")) != XBADFILE);
+    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    XFCLOSE(f);
+    AssertIntLE(bytes, sizeof(buffer));
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+
+    wolfSSL_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 #ifdef TEST_PKCS8_ENC
 /* for PKCS8 test case */
 static WC_INLINE int PKCS8TestCallBack(char* passwd, int sz, int rw, void* userdata)
@@ -28006,6 +28058,7 @@ void ApiTest(void)
     /* X509 tests */
     test_wolfSSL_X509_NAME_get_entry();
     test_wolfSSL_PKCS12();
+    test_wolfSSL_no_password_cb();
     test_wolfSSL_PKCS8();
     test_wolfSSL_PKCS5();
     test_wolfSSL_URI();
