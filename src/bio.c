@@ -869,20 +869,34 @@ size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
 
 long wolfSSL_BIO_get_mem_ptr(WOLFSSL_BIO *bio, WOLFSSL_BUF_MEM **ptr)
 {
+    WOLFSSL_BIO* front = bio;
+    long ret = WOLFSSL_FAILURE;
+
     WOLFSSL_ENTER("wolfSSL_BIO_get_mem_ptr");
 
     if (bio == NULL || ptr == NULL) {
         return WOLFSSL_FAILURE;
     }
 
-    if (bio->type != WOLFSSL_BIO_MEMORY) {
-        WOLFSSL_MSG("BIO is not memory buffer type");
-        return SSL_FAILURE;
+    /* start at end and work backwards to find a memory BIO in the BIO chain */
+    while ((bio != NULL) && (bio->next != NULL)) {
+        bio = bio->next;
     }
 
-    *ptr = bio->mem_buf;
+    while (bio != NULL) {
 
-    return SSL_SUCCESS;
+        if (bio->type == WOLFSSL_BIO_MEMORY) {
+            *ptr = bio->mem_buf;
+            ret = WOLFSSL_SUCCESS;
+        }
+
+        if (bio == front) {
+            break;
+        }
+        bio = bio->prev;
+    }
+
+    return ret;
 }
 
 WOLFSSL_API long wolfSSL_BIO_int_ctrl(WOLFSSL_BIO *bp, int cmd, long larg, int iarg)
