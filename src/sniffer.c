@@ -961,25 +961,9 @@ static void TracePacket(void)
 
 
 /* Convert network byte order address into human readable */
-static char* IpToS(word32 addr, char* str)
+static const char* IpToS(int version, void* src, char* dst)
 {
-    byte* p = (byte*)&addr;
-
-    SNPRINTF(str, TRACE_MSG_SZ, "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
-
-    return str;
-}
-
-
-/* Convert network byte order address into human readable */
-static char* Ip6ToS(byte* addr, char* str)
-{
-    byte* p = (byte*)addr;
-
-    /* Very incorrect. XXX */
-    SNPRINTF(str, TRACE_MSG_SZ, "::%d", p[15]);
-
-    return str;
+    return inet_ntop(version, src, dst, TRACE_MSG_SZ);
 }
 
 
@@ -989,8 +973,9 @@ static void TraceIP(IpHdr* iphdr)
     if (TraceOn) {
         char src[TRACE_MSG_SZ];
         char dst[TRACE_MSG_SZ];
-        fprintf(TraceFile, "\tdst:%s src:%s\n", IpToS(iphdr->dst, dst),
-                IpToS(iphdr->src, src));
+        fprintf(TraceFile, "\tdst:%s src:%s\n",
+                IpToS(AF_INET, &iphdr->dst, dst),
+                IpToS(AF_INET, &iphdr->src, src));
     }
 }
 
@@ -1001,8 +986,9 @@ static void TraceIP6(Ip6Hdr* iphdr)
     if (TraceOn) {
         char src[TRACE_MSG_SZ];
         char dst[TRACE_MSG_SZ];
-        fprintf(TraceFile, "\tdst: %s src: %s\n", Ip6ToS(iphdr->dst, dst),
-                Ip6ToS(iphdr->src, src));
+        fprintf(TraceFile, "\tdst: %s src: %s\n",
+                IpToS(AF_INET6, iphdr->dst, dst),
+                IpToS(AF_INET6, iphdr->src, src));
     }
 }
 
