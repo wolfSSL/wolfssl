@@ -26,6 +26,10 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
+    #include <wolfssl/wolfcrypt/memory.h>
+#endif
+
 #ifdef _WIN32
     #define WOLFSSL_SNIFFER
 #endif
@@ -269,9 +273,10 @@ static int myStoreDataCb(const unsigned char* decryptBuf,
 
     if (*data == NULL) {
         byte* tmpData;
-        tmpData = (byte*)realloc(*data, decryptBufSz + 1);
+        tmpData = (byte*)XREALLOC(*data, decryptBufSz + 1,
+                NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (tmpData == NULL) {
-            free(*data);
+            XFREE(*data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             *data = NULL;
             return -1;
         }
