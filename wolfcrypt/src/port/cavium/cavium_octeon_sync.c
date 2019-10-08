@@ -487,8 +487,8 @@ static inline void Octeon_GHASH_Final(byte* out, word64 authInSz, word64 inSz)
 {
     word64* bigOut = (word64*)out;
 
-    CVMX_MT_GFM_XOR0(authInSz);
-    CVMX_MT_GFM_XORMUL1(inSz);
+    CVMX_MT_GFM_XOR0(authInSz * 8);
+    CVMX_MT_GFM_XORMUL1(inSz * 8);
     CVMX_MF_GFM_RESINP(bigOut[0], 0);
     CVMX_MF_GFM_RESINP(bigOut[1], 1);
 }
@@ -502,7 +502,7 @@ static int Octeon_AesGcm_SetKey(Aes* aes)
     if (aes == NULL)
         ret = BAD_FUNC_ARG;
 
-    if (ret != 0) {
+    if (ret == 0) {
         uint64_t* key = (uint64_t*)aes->devKey;
 
         CVMX_MT_AES_KEY(key[0], 0);
@@ -510,6 +510,15 @@ static int Octeon_AesGcm_SetKey(Aes* aes)
         CVMX_MT_AES_KEY(key[2], 2);
         CVMX_MT_AES_KEY(key[3], 3);
         CVMX_MT_AES_KEYLENGTH((aes->keylen / 8) - 1);
+
+        if (!aes->keySet) {
+            uint64_t* bigH = (uint64_t*)aes->H;
+            CVMX_MT_AES_ENC0(0);
+            CVMX_MT_AES_ENC1(0);
+            CVMX_MF_AES_RESULT(bigH[0], 0);
+            CVMX_MF_AES_RESULT(bigH[1], 1);
+            aes->keySet = 1;
+        }
     }
 
     return ret;
@@ -601,7 +610,6 @@ static int Octeon_AesGcm_SetEncrypt(Aes* aes, byte* in, byte* out, word32 inSz,
     word32 i, blocks, remainder;
     ALIGN16 byte aesBlockIn[AES_BLOCK_SIZE];
     ALIGN16 byte aesBlockOut[AES_BLOCK_SIZE];
-    ALIGN16 byte aesBlockMask[AES_BLOCK_SIZE];
     word64* pIn;
     word64* pOut;
     word64* pIv;
@@ -615,8 +623,8 @@ static int Octeon_AesGcm_SetEncrypt(Aes* aes, byte* in, byte* out, word32 inSz,
 
     CVMX_PREFETCH0(in);
 
-    CVMX_MT_AES_ENC0(&pIv[0]);
-    CVMX_MT_AES_ENC1(&pIv[1]);
+    CVMX_MT_AES_ENC0(pIv[0]);
+    CVMX_MT_AES_ENC1(pIv[1]);
 
     blocks = inSz / AES_BLOCK_SIZE;
     remainder = inSz % AES_BLOCK_SIZE;
@@ -648,43 +656,35 @@ static int Octeon_AesGcm_SetEncrypt(Aes* aes, byte* in, byte* out, word32 inSz,
         CVMX_STOREUNA_INT64(pOut[1], out, 8);
     }
 
-    XMEMSET(aesBlockMask, 0, sizeof(aesBlockMask));
-    for (i = 0; i < remainder; i++) {
-        aesBlockIn[i] = in[i];
-        aesBlockMask[i] = 0xff;
+    if (remainder > 0) {
+        XMEMSET(aesBlockOut, 0, sizeof(aesBlockOut));
+        for (i = 0; i < remainder; i++)
+            aesBlockIn[i] = in[i];
+
+        if (encrypt) {
+            CVMX_MF_AES_RESULT(pOut[0], 0);
+            CVMX_MF_AES_RESULT(pOut[1], 1);
+
+            pOut[0] ^= pIn[0];
+            pOut[1] ^= pIn[1];
+
+            CVMX_MT_GFM_XOR0(pOut[0]);
+            CVMX_MT_GFM_XORMUL1(pOut[1]);
+        }
+        else {
+            CVMX_MT_GFM_XOR0(pIn[0]);
+            CVMX_MT_GFM_XORMUL1(pIn[1]);
+
+            CVMX_MF_AES_RESULT(pOut[0], 0);
+            CVMX_MF_AES_RESULT(pOut[1], 1);
+
+            pOut[0] ^= pIn[0];
+            pOut[1] ^= pIn[1];
+        }
+
+        for (i = 0; i < remainder; i++)
+            out[i] = aesBlockOut[i];
     }
-
-    if (encrypt) {
-        CVMX_MF_AES_RESULT(pOut[0], 0);
-        CVMX_MF_AES_RESULT(pOut[1], 1);
-
-        pOut[0] ^= pIn[0];
-        pOut[1] ^= pIn[1];
-
-        pIv = (word64*)aesBlockMask;
-        pOut[0] &= pIv[0];
-        pOut[1] &= pIv[1];
-
-        CVMX_MT_GFM_XOR0(pOut[0]);
-        CVMX_MT_GFM_XORMUL1(pOut[1]);
-    }
-    else {
-        CVMX_MT_GFM_XOR0(pIn[0]);
-        CVMX_MT_GFM_XORMUL1(pIn[1]);
-
-        CVMX_MF_AES_RESULT(pOut[0], 0);
-        CVMX_MF_AES_RESULT(pOut[1], 1);
-
-        pOut[0] ^= pIn[0];
-        pOut[1] ^= pIn[1];
-
-        pIv = (word64*)aesBlockMask;
-        pOut[0] &= pIv[0];
-        pOut[1] &= pIv[1];
-    }
-
-    for (i = 0; i < remainder; i++)
-        out[i] = aesBlockOut[i];
 
     return 0;
 }
