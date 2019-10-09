@@ -8140,7 +8140,7 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
                     else
                         XSNPRINTF(val, len, "%*s%s", indent, "", str->strData);
 
-                    XSTRNCAT(tmp, val, sz);
+                    XSTRNCAT(tmp, val, len);
                     XFREE(val, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                     sk = sk->next;
                 }
