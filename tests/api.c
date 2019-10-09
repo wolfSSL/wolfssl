@@ -25028,11 +25028,21 @@ static void test_wolfSSL_X509V3_EXT_print(void)
     AssertNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
     fclose(f);
 
+    AssertNotNull(bio = wolfSSL_BIO_new(BIO_s_mem()));
+
     loc = wolfSSL_X509_get_ext_by_NID(x509, NID_basic_constraints, -1);
     AssertIntGT(loc, -1);
     AssertNotNull(ext = wolfSSL_X509_get_ext(x509, loc));
-    AssertNotNull(bio = wolfSSL_BIO_new(BIO_s_mem()));
+    AssertIntEQ(wolfSSL_X509V3_EXT_print(bio, ext, 0, 0), WOLFSSL_SUCCESS);
 
+    loc = wolfSSL_X509_get_ext_by_NID(x509, NID_subject_key_identifier, -1);
+    AssertIntGT(loc, -1);
+    AssertNotNull(ext = wolfSSL_X509_get_ext(x509, loc));
+    AssertIntEQ(wolfSSL_X509V3_EXT_print(bio, ext, 0, 0), WOLFSSL_SUCCESS);
+
+    loc = wolfSSL_X509_get_ext_by_NID(x509, NID_authority_key_identifier, -1);
+    AssertIntGT(loc, -1);
+    AssertNotNull(ext = wolfSSL_X509_get_ext(x509, loc));
     AssertIntEQ(wolfSSL_X509V3_EXT_print(bio, ext, 0, 0), WOLFSSL_SUCCESS);
 
     wolfSSL_BIO_free(bio);

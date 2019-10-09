@@ -2575,7 +2575,7 @@ long wolfSSL_SSL_get_secure_renegotiation_support(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_SSL_get_secure_renegotiation_support");
 
-    if (!ssl)
+    if (!ssl || !ssl->secure_renegotiation)
         return WOLFSSL_FAILURE;
     return ssl->secure_renegotiation->enabled;
 }
@@ -8085,11 +8085,12 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
 int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
         unsigned long flag, int indent)
 {
-    int rc = WOLFSSL_FAILURE;
-    int nid;
-    char tmp[CTC_NAME_SIZE*2];
     ASN1_OBJECT* obj;
     ASN1_STRING* str;
+    int nid;
+    int sz = CTC_NAME_SIZE*2;
+    int rc = WOLFSSL_FAILURE;
+    char tmp[sz];
     WOLFSSL_ENTER("wolfSSL_X509V3_EXT_print");
 
     if ((out == NULL) || (ext == NULL)) {
@@ -8103,19 +8104,65 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
         return rc;
     }
 
-    nid = wolfSSL_OBJ_obj2nid(obj);
-
-    /* TODO: may need to add other multi-value extensions to switch */
-    switch(nid) {
-        case ALT_NAMES_OID:
-            /* ASN1_STRING is GENERAL_NAME */
-            str = ext->ext_sk->data.gn->d.ia5;
-            break;
-        default:
-            str = &ext->value;
+    str = wolfSSL_X509_EXTENSION_get_data(ext);
+    if (obj == NULL) {
+        WOLFSSL_MSG("Error getting ASN1_STRING from X509_EXTENSION");
+        return rc;
     }
 
-    XSNPRINTF(tmp, CTC_NAME_SIZE*2, "%*s%s", indent, "", str->strData);
+    /* Print extension based on the type */
+    nid = wolfSSL_OBJ_obj2nid(obj);
+    switch(nid) {
+        case BASIC_CA_OID:
+            {
+                char isCa[] = "TRUE";
+                char notCa[] = "FALSE";
+                XSNPRINTF(tmp, sz, "%*sCA:%s", indent, "",
+                                                        obj->ca ? isCa : notCa);
+                break;
+            }
+        case ALT_NAMES_OID:
+            {
+                WOLFSSL_STACK* sk;
+                char val[sz];
+                tmp[0] = '\0'; /* Make sure tmp is null-terminated */
+
+                sk = ext->ext_sk;
+                while (sk != NULL) {
+                    /* str is GENERAL_NAME for subject alternative name ext */
+                    str = sk->data.gn->d.ia5;
+                    if (sk->next)
+                        XSNPRINTF(val, sz, "%*s%s, ", indent, "", str->strData);
+                    else
+                        XSNPRINTF(val, sz, "%*s%s", indent, "", str->strData);
+
+                    XSTRNCAT(tmp, val, sz);
+                    sk = sk->next;
+                }
+                break;
+            }
+
+        case AUTH_KEY_OID:
+        case SUBJ_KEY_OID:
+            {
+                char* asn1str;
+                asn1str = wolfSSL_i2s_ASN1_STRING(NULL, str);
+                XSNPRINTF(tmp, sz, "%*s%s", indent, "", asn1str);
+                XFREE(asn1str, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                break;
+            }
+
+        case AUTH_INFO_OID:
+        case CERT_POLICY_OID:
+        case CRL_DIST_OID:
+        case KEY_USAGE_OID:
+            WOLFSSL_MSG("X509V3_EXT_print not yet implemented for ext type");
+            break;
+
+        default:
+            XSNPRINTF(tmp, sz, "%*s%s", indent, "", str->strData);
+    }
+
     if (wolfSSL_BIO_write(out, tmp, (int)XSTRLEN(tmp)) == (int)XSTRLEN(tmp)) {
         rc = WOLFSSL_SUCCESS;
     }
