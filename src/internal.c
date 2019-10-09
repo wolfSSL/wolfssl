@@ -8061,7 +8061,8 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         REQUIRES_ECC_STATIC,
         REQUIRES_PSK,
         REQUIRES_NTRU,
-        REQUIRES_RSA_SIG
+        REQUIRES_RSA_SIG,
+        REQUIRES_AEAD
     };
 
 
@@ -8132,6 +8133,10 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
             }
+
+        if (requirement == REQUIRES_AEAD)
+            return 1;
+
         }
 #endif /* HAVE_CHACHA */
 
@@ -8241,20 +8246,28 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 :
             if (requirement == REQUIRES_ECC)
                 return 1;
+            if (requirement == REQUIRES_AEAD)
+                return 1;
             break;
 
         case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 :
             if (requirement == REQUIRES_ECC)
+                return 1;
+            if (requirement == REQUIRES_AEAD)
                 return 1;
             break;
 
         case TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256 :
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
+            if (requirement == REQUIRES_AEAD)
+                return 1;
             break;
 
         case TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384 :
             if (requirement == REQUIRES_ECC_STATIC)
+                return 1;
+            if (requirement == REQUIRES_AEAD)
                 return 1;
             break;
 #endif /* HAVE_ECC */
@@ -8264,10 +8277,14 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 :
             if (requirement == REQUIRES_RSA)
                 return 1;
+            if (requirement == REQUIRES_AEAD)
+                return 1;
             break;
 
         case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 :
             if (requirement == REQUIRES_RSA)
+                return 1;
+            if (requirement == REQUIRES_AEAD)
                 return 1;
             break;
 
@@ -8276,12 +8293,16 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             if (requirement == REQUIRES_RSA_SIG)
                 return 1;
+            if (requirement == REQUIRES_AEAD)
+                return 1;
             break;
 
         case TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384 :
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             if (requirement == REQUIRES_RSA_SIG)
+                return 1;
+            if (requirement == REQUIRES_AEAD)
                 return 1;
             break;
     #endif /* HAVE_ECC */
@@ -8291,6 +8312,8 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_RSA)
                 return 1;
             if (requirement == REQUIRES_RSA_SIG)
+                return 1;
+            if (requirement == REQUIRES_AEAD)
                 return 1;
             break;
     #endif /* HAVE_AESCCM */
@@ -8318,6 +8341,8 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 :
             if (requirement == REQUIRES_ECC)
                 return 1;
+            if (requirement == REQUIRES_AEAD)
+                return 1;
             break;
 
         case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 :
@@ -8342,6 +8367,8 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         case TLS_PSK_WITH_AES_256_CCM_8:
             if (requirement == REQUIRES_PSK)
                 return 1;
+            if (requirement == REQUIRES_AEAD)
+                return 1;
             break;
 
         case TLS_DHE_PSK_WITH_AES_128_CCM:
@@ -8349,6 +8376,8 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_PSK)
                 return 1;
             if (requirement == REQUIRES_DHE)
+                return 1;
+            if (requirement == REQUIRES_AEAD)
                 return 1;
             break;
 #endif /* !NO_PSK */
@@ -8493,7 +8522,19 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
 #ifndef NO_PSK
         case TLS_PSK_WITH_AES_128_GCM_SHA256 :
+            if (requirement == REQUIRES_PSK)
+                return 1;
+            if (requirement == REQUIRES_AEAD)
+                return 1;
+            break;
+
         case TLS_PSK_WITH_AES_256_GCM_SHA384 :
+            if (requirement == REQUIRES_PSK)
+                return 1;
+            if (requirement == REQUIRES_AEAD)
+                return 1;
+            break;
+
         case TLS_PSK_WITH_AES_128_CBC_SHA256 :
         case TLS_PSK_WITH_AES_256_CBC_SHA384 :
         case TLS_PSK_WITH_AES_128_CBC_SHA :
@@ -8507,6 +8548,14 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
         case TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 :
         case TLS_DHE_PSK_WITH_AES_256_GCM_SHA384 :
+            if (requirement == REQUIRES_DHE)
+                return 1;
+            if (requirement == REQUIRES_PSK)
+                return 1;
+            if (requirement == REQUIRES_AEAD)
+                return 1;
+            break;
+
         case TLS_DHE_PSK_WITH_AES_128_CBC_SHA256 :
         case TLS_DHE_PSK_WITH_AES_256_CBC_SHA384 :
         case TLS_DHE_PSK_WITH_NULL_SHA384 :
@@ -8583,6 +8632,8 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         case TLS_RSA_WITH_AES_256_GCM_SHA384 :
             if (requirement == REQUIRES_RSA)
                 return 1;
+            if (requirement == REQUIRES_AEAD)
+                return 1;
             break;
 
         case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 :
@@ -8590,6 +8641,8 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_RSA)
                 return 1;
             if (requirement == REQUIRES_DHE)
+                return 1;
+            if (requirement == REQUIRES_AEAD)
                 return 1;
             break;
 
@@ -8631,6 +8684,8 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             break;
         case TLS_DH_anon_WITH_AES_256_GCM_SHA384:
             if (requirement == REQUIRES_DHE)
+                return 1;
+            if (requirement == REQUIRES_AEAD)
                 return 1;
             break;
 #endif
@@ -24466,25 +24521,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
         }
 
-        if (first == CIPHER_BYTE && ssl->version.major == SSLv3_MAJOR &&
+        if (CipherRequires(first, second, REQUIRES_AEAD)) {
+            WOLFSSL_MSG("Requires AEAD");
+            if (ssl->version.major == SSLv3_MAJOR &&
                                            ssl->version.minor < TLSv1_2_MINOR) {
-            switch(second) {
-                case TLS_RSA_WITH_AES_128_GCM_SHA256:
-                case TLS_RSA_WITH_AES_256_GCM_SHA384:
-                case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256:
-                case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384:
-                case TLS_DH_anon_WITH_AES_256_GCM_SHA384:
-                case TLS_PSK_WITH_AES_128_GCM_SHA256:
-                case TLS_PSK_WITH_AES_256_GCM_SHA384:
-                case TLS_DHE_PSK_WITH_AES_128_GCM_SHA256:
-                case TLS_DHE_PSK_WITH_AES_256_GCM_SHA384:
-                    WOLFSSL_MSG("Version of SSL does not support AES-GCM");
-                    return WOLFSSL_FAILURE;
-                default:
-                    break;
+                WOLFSSL_MSG("Version of SSL does not support AEAD ciphers");
+                return 0;
             }
-        }
 
+        }
 
 #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
                                                   defined(HAVE_SUPPORTED_CURVES)
