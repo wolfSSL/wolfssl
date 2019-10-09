@@ -4546,6 +4546,8 @@ static void test_wolfSSL_PKCS12(void)
     #define TEST_PKCS8_ENC
 #endif
 
+#if !defined(NO_FILESYSTEM) && !defined(NO_ASN) && defined(HAVE_PKCS8) \
+    && defined(HAVE_ECC) && defined(WOLFSSL_ENCRYPTED_KEYS)
 static WC_INLINE int FailTestCallBack(char* passwd, int sz, int rw, void* userdata)
 {
     (void)passwd;
@@ -4557,6 +4559,7 @@ static WC_INLINE int FailTestCallBack(char* passwd, int sz, int rw, void* userda
              "to first decipher private key without password."));
     return 0;
 }
+#endif
 
 static void test_wolfSSL_no_password_cb(void)
 {
