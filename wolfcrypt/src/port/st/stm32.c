@@ -370,20 +370,6 @@ int wc_Stm32_Aes_Init(Aes* aes, CRYP_InitTypeDef* cryptInit,
 extern PKA_HandleTypeDef hpka;
 
 /* Reverse array in memory (in place) */
-static void stm32_reverse_array(uint8_t *src, size_t src_len)
-{
-    unsigned int i;
-
-    for (i = 0; i < src_len / 2; i++) {
-        uint8_t tmp;
-
-        tmp = src[i];
-        src[i] = src[src_len - 1 - i];
-        src[src_len - 1 - i] = tmp;
-    }
-}
-
-
 #ifdef HAVE_ECC
 #include <wolfssl/wolfcrypt/ecc.h>
 
@@ -415,12 +401,6 @@ static int stm32_get_from_mp_int(uint8_t *dst, mp_int *a, int sz)
 
     /* convert mp_int to array of bytes */
     res = mp_to_unsigned_bin(a, dst + offset);
-
-    if (res == MP_OKAY) {
-        /* reverse array for STM32_PKA direct use */
-        stm32_reverse_array(dst, sz);
-    }
-
     return res;
 }
 
