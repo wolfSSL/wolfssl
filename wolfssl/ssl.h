@@ -3347,9 +3347,6 @@ WOLFSSL_API void wolfSSL_sk_X509_NAME_pop_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)*
     void f (WOLFSSL_X509_NAME*));
 WOLFSSL_API void wolfSSL_sk_X509_NAME_free(WOLF_STACK_OF(WOLFSSL_X509_NAME) *);
 
-#if defined(WOLFSSL_APACHE_HTTPD)
-WOLFSSL_API int get_dn_attr_by_nid(int n, char** buf);
-#endif
 WOLFSSL_API int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO*,WOLFSSL_X509_NAME*,int,
         unsigned long);
 

@@ -40565,10 +40565,10 @@ void wolfSSL_sk_X509_NAME_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
     XFREE(sk, sk->heap, DYNAMIC_TYPE_OPENSSL);
 }
 
-#if defined(WOLFSSL_APACHE_HTTPD)
+#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL)
 /* Helper function for X509_NAME_print_ex. Sets *buf to string for domain
    name attribute based on NID. Returns size of buf */
-int get_dn_attr_by_nid(int n, char** buf)
+static int get_dn_attr_by_nid(int n, char** buf)
 {
     int len = 0;
     const char *str;
@@ -40617,7 +40617,7 @@ int get_dn_attr_by_nid(int n, char** buf)
 int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
                 int indent, unsigned long flags)
 {
-#if defined(WOLFSSL_APACHE_HTTPD)
+#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL)
     int count = 0, len = 0, totalSz = 0, tmpSz = 0;
     char tmp[ASN_NAME_MAX];
     char fullName[ASN_NAME_MAX];
@@ -40636,7 +40636,7 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
 
     /* If XN_FLAG_DN_REV is present, print X509_NAME in reverse order */
     if (flags == (XN_FLAG_RFC2253 & ~XN_FLAG_DN_REV)) {
-#if defined(WOLFSSL_APACHE_HTTPD)
+#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL)
         fullName[0] = '\0';
         count = wolfSSL_X509_NAME_entry_count(name);
         for (i = 0; i < count; i++) {
@@ -40652,7 +40652,7 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
             if (len == 0 || buf == NULL)
                 return WOLFSSL_FAILURE;
 
-            tmpSz = str->length + len + 2;
+            tmpSz = str->length + len + 2; /* + 2 for '=' and null char */
             if (i < count - 1) {
                 XSNPRINTF(tmp, tmpSz+1, "%s=%s,", buf, str->data);
                 XSTRNCAT(fullName, tmp, tmpSz);
@@ -40666,7 +40666,7 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
         if (wolfSSL_BIO_write(bio, fullName, totalSz) != totalSz)
             return WOLFSSL_FAILURE;
         return WOLFSSL_SUCCESS;
-#endif
+#endif /* WOLFSSL_APACHE_HTTPD || OPENSSL_ALL */
     }
     else if (flags == XN_FLAG_RFC2253) {
         if (wolfSSL_BIO_write(bio, name->name + 1, name->sz - 2)
