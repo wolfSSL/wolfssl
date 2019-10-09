@@ -8124,19 +8124,24 @@ int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out, WOLFSSL_X509_EXTENSION *ext,
         case ALT_NAMES_OID:
             {
                 WOLFSSL_STACK* sk;
-                char val[sz];
+                char* val;
+                int len;
                 tmp[0] = '\0'; /* Make sure tmp is null-terminated */
 
                 sk = ext->ext_sk;
                 while (sk != NULL) {
                     /* str is GENERAL_NAME for subject alternative name ext */
                     str = sk->data.gn->d.ia5;
+                    len = str->length + 2; /* + 2 for NULL char and "," */
+                    val = (char*)XMALLOC(len + indent, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
                     if (sk->next)
-                        XSNPRINTF(val, sz, "%*s%s, ", indent, "", str->strData);
+                        XSNPRINTF(val, len, "%*s%s, ", indent, "", str->strData);
                     else
-                        XSNPRINTF(val, sz, "%*s%s", indent, "", str->strData);
+                        XSNPRINTF(val, len, "%*s%s", indent, "", str->strData);
 
                     XSTRNCAT(tmp, val, sz);
+                    XFREE(val, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                     sk = sk->next;
                 }
                 break;
