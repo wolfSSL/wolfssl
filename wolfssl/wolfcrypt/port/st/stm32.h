@@ -28,6 +28,9 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 
+#if defined(WOLFSSL_STM32_PKA)
+    #include <wolfssl/wolfcrypt/ecc.h>
+#endif
 
 #ifdef STM32_HASH
 
