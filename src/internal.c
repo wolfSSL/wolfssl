@@ -6723,7 +6723,8 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
             (ssl->options.side == WOLFSSL_CLIENT_END &&
              !(ssl->options.connectState == CLIENT_HELLO_SENT ||
                ssl->options.connectState == HELLO_AGAIN_REPLY ||
-               ssl->options.connectState == FINISHED_DONE))) {
+               ssl->options.connectState == FINISHED_DONE ||
+               ssl->options.connectState == SECOND_REPLY_DONE))) {
 
             WOLFSSL_ERROR(DTLS_RETX_OVER_TX);
             ssl->error = DTLS_RETX_OVER_TX;
