@@ -721,6 +721,20 @@ struct CertSignCtx {
     int state; /* enum CertSignState */
 };
 
+#ifndef WOLFSSL_MAX_PATH_LEN
+    /* RFC 5280 Section 6.1.2. "Initialization" - item (k) defines
+     *     (k)  max_path_length:  this integer is initialized to "n", is
+     *     decremented for each non-self-issued certificate in the path,
+     *     and may be reduced to the value in the path length constraint
+     *     field within the basic constraints extension of a CA
+     *     certificate.
+     *
+     * wolfSSL has arbitrarily selected the value 127 for "n" in the above
+     * description. Users can modify the maximum path length by setting
+     * WOLFSSL_MAX_PATH_LEN to a preferred value at build time
+     */
+    #define WOLFSSL_MAX_PATH_LEN 127
+#endif
 
 typedef struct DecodedCert DecodedCert;
 typedef struct DecodedName DecodedName;
@@ -777,6 +791,9 @@ struct DecodedCert {
     byte    extSubjKeyId[KEYID_SIZE]; /* Subject Key ID                  */
     byte    extAuthKeyId[KEYID_SIZE]; /* Authority Key ID                */
     byte    pathLength;              /* CA basic constraint path length  */
+    byte    maxPathLen;              /* max_path_len see RFC 5280 section
+                                      * 6.1.2 "Initialization" - (k) for
+                                      * description of max_path_len */
     word16  extKeyUsage;             /* Key usage bitfield               */
     byte    extExtKeyUsage;          /* Extended Key usage bitfield      */
 
@@ -918,6 +935,7 @@ struct Signer {
     word32  pubKeySize;
     word32  keyOID;                  /* key type */
     word16  keyUsage;
+    byte    maxPathLen;
     byte    pathLength;
     byte    pathLengthSet : 1;
     byte    selfSigned : 1;

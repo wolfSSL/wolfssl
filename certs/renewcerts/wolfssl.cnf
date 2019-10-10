@@ -146,11 +146,53 @@ authorityKeyIdentifier=keyid:always,issuer:always
 basicConstraints=CA:true,pathlen:127
 keyUsage=keyCertSign, cRLSign
 
+# CA with pathlen 100
+[ pathlen_100 ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:true,pathlen:100
+keyUsage=keyCertSign, cRLSign
+
 # CA with pathlen 128
 [ pathlen_128 ]
 subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid:always,issuer:always
 basicConstraints=CA:true,pathlen:128
+keyUsage=keyCertSign, cRLSign
+
+# CA with pathlen 5
+[ pathlen_5 ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:true,pathlen:5
+keyUsage=keyCertSign, cRLSign
+
+# CA with pathlen 10
+[ pathlen_10 ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:true,pathlen:10
+keyUsage=keyCertSign, cRLSign
+
+# CA with pathlen 20
+[ pathlen_20 ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:true,pathlen:20
+keyUsage=keyCertSign, cRLSign
+
+# CA with pathlen 99
+[ pathlen_99 ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:true,pathlen:99
+keyUsage=keyCertSign, cRLSign
+
+# CA with pathlen 2
+[ pathlen_2 ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:true,pathlen:2
 keyUsage=keyCertSign, cRLSign
 
 # test pathlen server cert
