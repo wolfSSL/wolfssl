@@ -22974,6 +22974,7 @@ static void test_wolfSSL_BIO_write(void)
     char msg[] = "conversion test";
     char out[40];
     char expected[] = "Y29udmVyc2lvbiB0ZXN0AA==\n";
+    BUF_MEM* buf = NULL;
 
     printf(testingFmt, "wolfSSL_BIO_write()");
 
@@ -22983,6 +22984,12 @@ static void test_wolfSSL_BIO_write(void)
     /* now should convert to base64 then write to memory */
     AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), 25);
     BIO_flush(bio);
+
+    /* test BIO chain */
+    AssertIntEQ(SSL_SUCCESS, (int)BIO_get_mem_ptr(bio, &buf));
+    AssertNotNull(buf);
+    AssertIntEQ(buf->length, 25);
+
     AssertNotNull(ptr = BIO_find_type(bio, BIO_TYPE_MEM));
     sz = sizeof(out);
     XMEMSET(out, 0, sz);
