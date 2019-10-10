@@ -12,6 +12,10 @@ keyList=(
             chainG-ICA1-key.pem chainG-entity-key.pem
             chainH-ICA4-key.pem chainH-ICA3-key.pem chainH-ICA2-key.pem
             chainH-ICA1-key.pem chainH-entity-key.pem
+            chainI-ICA3-key.pem chainI-ICA2-key.pem chainI-ICA1-key.pem
+            chainI-entity-key.pem
+            chainJ-ICA4-key.pem chainJ-ICA3-key.pem chainJ-ICA2-key.pem
+            chainJ-ICA1-key.pem chainJ-entity-key.pem
         )
 
 for TARGET_KEY in "${keyList[@]}"

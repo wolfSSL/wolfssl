@@ -125,6 +125,13 @@ subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid:always,issuer:always
 basicConstraints=CA:true
 
+#wolfssl extensions for intermediate CAs
+[wolfssl_opts_ICA]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:true
+keyUsage=keyCertSign, cRLSign
+
 # CA with pathlen 0
 [ pathlen_0 ]
 subjectKeyIdentifier=hash

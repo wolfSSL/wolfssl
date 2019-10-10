@@ -8488,7 +8488,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     int    badDate = 0;
     int    criticalExt = 0;
     int    checkPathLen = 0;
-    int    reduceMaxPathByOne = 0;
+    int    decrementMaxPathLen = 0;
     word32 confirmOID;
 #if defined(WOLFSSL_RENESAS_TSIP)
     int    idx = 0;
@@ -8551,12 +8551,9 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         }
     #endif /* !NO_SKID */
 
-        if (!cert->ca && type == CA_TYPE && !cert->pathLengthSet) {
-            cert->pathLength = cert->maxPathLen = WOLFSSL_MAX_PATH_LEN;
-            cert->pathLengthSet = 1;
-         } else if (cert->pathLengthSet) {
-            cert->maxPathLen = cert->pathLength;
-
+        if (cert->selfSigned) {
+            cert->maxPathLen = WOLFSSL_MAX_PATH_LEN;
+         } else {
             cert->ca = NULL;
     #ifndef NO_SKID
             if (cert->extAuthKeyIdSet)
@@ -8606,7 +8603,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
              *      No  - ERROR
              */
 
-            if (cert->ca) {
+            if (cert->ca && cert->pathLengthSet) {
+                cert->maxPathLen = cert->pathLength;
                 if (cert->isCA) {
                     WOLFSSL_MSG("\tCA boolean set");
                     if (cert->extKeyUsageSet) {
@@ -8614,7 +8612,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                          if ((cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) != 0) {
                             checkPathLen = 1;
                          } else {
-                            reduceMaxPathByOne = 1;
+                            decrementMaxPathLen = 1;
                          }
                     } else {
                         checkPathLen = 1;
@@ -8626,19 +8624,26 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                         WOLFSSL_MSG("\tmaxPathLen status: set to pathLength");
                         cert->maxPathLen = cert->pathLength;
                     } else {
-                        reduceMaxPathByOne = 1;
+                        decrementMaxPathLen = 1;
                     }
                 }
 
-                if (reduceMaxPathByOne && cert->ca->maxPathLen > 0) {
+                if (decrementMaxPathLen && cert->ca->maxPathLen > 0) {
                     WOLFSSL_MSG("\tmaxPathLen status: reduce by 1");
                     cert->maxPathLen = cert->ca->maxPathLen - 1;
-                } else if (reduceMaxPathByOne && cert->ca->maxPathLen <= 0) {
+                } else if (decrementMaxPathLen && cert->ca->maxPathLen <= 0) {
                     /* Will be handled as ERROR in "verify check" below */
                     cert->maxPathLen = 0;
                 }
+            } else if (cert->ca && cert->isCA) {
+                /* case where cert->pathLength extension is not set */
+                if (cert->ca->maxPathLen > 0) {
+                    cert->maxPathLen = cert->ca->maxPathLen - 1;
+                } else {
+                    cert->maxPathLen = 0;
+                }
             }
-         }
+        }
 
         if (verify != NO_VERIFY && type != CA_TYPE &&
             type != TRUSTED_PEER_TYPE) {
@@ -8675,14 +8680,13 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
              * verify check
              */
 
-            if (cert->ca) {
-
+            if (cert->ca && cert->pathLengthSet) {
                 if (cert->isCA) {
                     if (cert->extKeyUsageSet) {
                          if ((cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) != 0) {
                               checkPathLen = 1;
                          } else {
-                              reduceMaxPathByOne = 1;
+                              decrementMaxPathLen = 1;
                          }
                     } else {
                         checkPathLen = 1;
@@ -8693,24 +8697,34 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                     if (cert->pathLength < cert->ca->maxPathLen) {
                         WOLFSSL_MSG("\tmaxPathLen status: OK");
                     } else {
-                        reduceMaxPathByOne = 1;
+                        decrementMaxPathLen = 1;
                     }
                 }
 
-                if (reduceMaxPathByOne && cert->ca->maxPathLen > 0) {
+                if (decrementMaxPathLen && cert->ca->maxPathLen > 0) {
                     WOLFSSL_MSG("\tmaxPathLen status: OK");
-                } else if (reduceMaxPathByOne && cert->ca->maxPathLen <= 0) {
+                } else if (decrementMaxPathLen && cert->ca->maxPathLen <= 0) {
                     WOLFSSL_MSG("\tNon-entity cert, maxPathLen is 0");
                     WOLFSSL_MSG("\tmaxPathLen status: ERROR");
                     return ASN_PATHLEN_INV_E;
                 }
 
-                #ifdef HAVE_OCSP
+            } else if (cert->ca && cert->isCA) {
+                /* case where pathLength constraint is not set in cert */
+                if (cert->ca->maxPathLen <= 0) {
+                    WOLFSSL_MSG("\tNon-entity cert, maxPathLen is 0");
+                    WOLFSSL_MSG("\tmaxPathLen status: ERROR");
+                    return ASN_PATHLEN_INV_E;
+                }
+            }
+            #ifdef HAVE_OCSP
+            if (cert->ca) {
                     /* Need the CA's public key hash for OCSP */
                     XMEMCPY(cert->issuerKeyHash, cert->ca->subjectKeyHash,
                         KEYID_SIZE);
-                #endif /* HAVE_OCSP */
+
             }
+            #endif /* HAVE_OCSP */
         }
     }
 #if defined(WOLFSSL_RENESAS_TSIP)

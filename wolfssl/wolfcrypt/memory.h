@@ -102,16 +102,32 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb*,
     #ifndef WOLFMEM_BUCKETS
         #ifndef SESSION_CERTS
             /* default size of chunks of memory to separate into */
-            #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3456,4544,16128
+            #ifndef LARGEST_MEM_BUCKET
+                #define LARGEST_MEM_BUCKET 16128
+            #endif
+            #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3456,4544,\
+                                    LARGEST_MEM_BUCKET
         #elif defined (OPENSSL_EXTRA)
             /* extra storage in structs for multiple attributes and order */
-            #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3360,4480,25536
+            #ifndef LARGEST_MEM_BUCKET
+                #define LARGEST_MEM_BUCKET 25536
+            #endif
+            #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3360,4480,\
+                                    LARGEST_MEM_BUCKET
         #elif defined (WOLFSSL_CERT_EXT)
             /* certificate extensions requires 24k for the SSL struct */
-            #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3456,4544,24576
+            #ifndef LARGEST_MEM_BUCKET
+                #define LARGEST_MEM_BUCKET 24576
+            #endif
+            #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3456,4544,\
+                                    LARGEST_MEM_BUCKET
         #else
             /* increase 23k for object member of WOLFSSL_X509_NAME_ENTRY */
-            #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3456,4544,23440
+            #ifndef LARGEST_MEM_BUCKET
+                #define LARGEST_MEM_BUCKET 23440
+            #endif
+            #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3456,4544,\
+                                    LARGEST_MEM_BUCKET
         #endif
     #endif
     #ifndef WOLFMEM_DIST
