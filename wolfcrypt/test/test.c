@@ -196,6 +196,12 @@
 #endif
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
+    #ifdef HAVE_INTEL_QA_SYNC
+        #include <wolfssl/wolfcrypt/port/intel/quickassist_sync.h>
+    #endif
+    #ifdef HAVE_CAVIUM_OCTEON_SYNC
+        #include <wolfssl/wolfcrypt/port/cavium/cavium_octeon_sync.h>
+    #endif
 #endif
 
 #ifdef _MSC_VER
@@ -251,6 +257,10 @@ static void initDefaultName(void);
 
 /* for async devices */
 static int devId = INVALID_DEVID;
+
+#if defined(WOLF_CRYPTO_CB) && defined(HAVE_INTEL_QA_SYNC)
+    static THREAD_LS_T IntelQaDev devQat;
+#endif
 
 #ifdef HAVE_WNR
     const char* wnrConfigFile = "wnr-example.conf";
@@ -559,6 +569,39 @@ initDefaultName();
 #else
     (void)devId;
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+#ifdef WOLF_CRYPTO_CB
+#ifdef HAVE_INTEL_QA_SYNC
+    {
+        int rc;
+        devId = IntelQaInit(NULL);
+        if (devId == INVALID_DEVID) {
+            printf("Couldn't init the Intel QA\n");
+        }
+        rc = IntelQaOpen(&devQat, devId);
+        if (rc != 0) {
+            printf("Couldn't open the device\n");
+        }
+        rc = wc_CryptoCb_RegisterDevice(devId,
+                IntelQaSymSync_CryptoDevCb, &devQat);
+        if (rc != 0) {
+            printf("Couldn't register the device\n");
+        }
+    }
+#endif
+#ifdef HAVE_CAVIUM_OCTEON_SYNC
+    {
+        devId = wc_CryptoCb_GetDevIdOcteon();
+        if (devId == INVALID_DEVID) {
+            printf("Couldn't get the Octeon device ID\n");
+        }
+        if (wc_CryptoCb_InitOcteon() != 0) {
+            printf("Couldn't init the Cavium Octeon\n");
+            devId = INVALID_DEVID;
+        }
+    }
+#endif
+#endif
 
 #ifdef HAVE_SELFTEST
     if ( (ret = wolfCrypt_SelfTest()) != 0)
@@ -1120,6 +1163,17 @@ initDefaultName();
         return err_sys("cert piv test failed!\n", ret);
     else
         test_pass("cert piv test passed!\n");
+#endif
+
+#ifdef WOLF_CRYPTO_CB
+#ifdef HAVE_INTEL_QA_SYNC
+    wc_CryptoCb_UnRegisterDevice(devId);
+    IntelQaClose(&devQat);
+    IntelQaDeInit(devId);
+#endif
+#ifdef HAVE_CAVIUM_OCTEON_SYNC
+    wc_CryptoCb_CleanupOcteon();
+#endif
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
