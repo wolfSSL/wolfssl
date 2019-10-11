@@ -28143,7 +28143,9 @@ static int test_various_pathlen_chains(void)
 
     AssertIntEQ(test_chainG(cm), 0);
 
-    wolfSSL_CertManagerUnloadCAs(cm);
+    ret = wolfSSL_CertManagerUnloadCAs(cm);
+    if (ret != WOLFSSL_SUCCESS)
+        return -1;
     wolfSSL_CertManagerFree(cm);
     /* end test chain G */
 
@@ -28162,6 +28164,8 @@ static int test_various_pathlen_chains(void)
     }
 
     ret = wolfSSL_CertManagerUnloadCAs(cm);
+    if (ret != WOLFSSL_SUCCESS)
+        return -1;
     wolfSSL_CertManagerFree(cm);
     /* end test chain H */
 
@@ -28181,6 +28185,8 @@ static int test_various_pathlen_chains(void)
     }
 
     ret = wolfSSL_CertManagerUnloadCAs(cm);
+    if (ret != WOLFSSL_SUCCESS)
+        return -1;
     wolfSSL_CertManagerFree(cm);
 
     /* Test chain J (Again only first ICA has pathLen set and it's set to 2,
