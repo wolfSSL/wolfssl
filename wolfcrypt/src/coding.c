@@ -130,7 +130,7 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
             }
         }
     }
-
+/* If the output buffer has a room for an extra byte, add a null terminator */
     if (out && *outLen > i)
         out[i]= '\0';
 
@@ -324,7 +324,7 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
 
     if (i != outSz && escaped != 1 && ret == 0)
         return ASN_INPUT_E;
-
+/* If the output buffer has a room for an extra byte, add a null terminator */
     if (out && *outLen > i)
         out[i]= '\0';
 
