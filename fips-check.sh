@@ -92,7 +92,7 @@ NETOS_7_6_CRYPT_REPO=git@github.com:cyassl/cyassl.git
 
 # non-FIPS, CAVP only but pull in selftest
 # will reset above variables below in platform switch
-NETBSD_FIPS_VERSION=v3.14.2a
+NETBSD_FIPS_VERSION=v3.14.2b
 NETBSD_FIPS_REPO=git@github.com:wolfssl/fips.git
 NETBSD_CRYPT_VERSION=v3.14.2
 NETBSD_CRYPT_REPO=git@github.com:wolfssl/wolfssl.git
