@@ -145,7 +145,8 @@
         #define WOLFSSL_PTHREADS
         #include <pthread.h>
     #endif
-    #if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
+    #if (defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)) && \
+        !defined(NO_FILESYSTEM)
         #include <unistd.h>      /* for close of BIO */
     #endif
 #endif

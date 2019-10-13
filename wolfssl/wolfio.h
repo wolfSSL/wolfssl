@@ -42,7 +42,8 @@
 
 #if !defined(WOLFSSL_USER_IO)
     /* Micrium uses NetSock I/O callbacks in wolfio.c */
-    #if !defined(USE_WOLFSSL_IO) && !defined(MICRIUM) && !defined(WOLFSSL_CONTIKI)
+    #if !defined(USE_WOLFSSL_IO) && !defined(MICRIUM) && \
+        !defined(WOLFSSL_CONTIKI) && !defined(WOLFSSL_NO_SOCK)
         #define USE_WOLFSSL_IO
     #endif
 #endif
@@ -328,7 +329,7 @@ WOLFSSL_API  int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags);
 
 #endif /* USE_WOLFSSL_IO || HAVE_HTTP_CLIENT */
 
-
+#ifndef WOLFSSL_NO_SOCK
 #ifdef USE_WINDOWS_API
     #ifndef CloseSocket
         #define CloseSocket(s) closesocket(s)
@@ -349,6 +350,7 @@ WOLFSSL_API  int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags);
         extern int close(int);
     #endif
 #endif
+#endif /* WOLFSSL_NO_SOCK */
 
 
 WOLFSSL_API int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx);

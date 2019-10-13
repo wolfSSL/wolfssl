@@ -5631,6 +5631,18 @@ exit_ed_verify:
         return (double)k_uptime_get() / 1000;
     }
 
+#elif defined(WOLFSSL_NETBURNER)
+    #include <predef.h>
+    #include <utils.h>
+    #include <constants.h>
+
+    double current_time(int reset)
+    {
+        DWORD ticks = TimeTick; /* ticks since system start */
+        (void)reset;
+
+        return (double) ticks/TICKS_PER_SECOND;
+    }
 #else
 
     #include <sys/time.h>

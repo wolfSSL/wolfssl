@@ -8205,7 +8205,7 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    sigCtx = XMALLOC(sizeof(*sigCtx), heap, DYNAMIC_TYPE_SIGNATURE);
+    sigCtx = (SignatureCtx*)XMALLOC(sizeof(*sigCtx), heap, DYNAMIC_TYPE_SIGNATURE);
     if (sigCtx == NULL)
         return MEMORY_E;
 #endif

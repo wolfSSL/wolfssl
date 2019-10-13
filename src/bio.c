@@ -124,6 +124,7 @@ static int wolfSSL_BIO_MEMORY_read(WOLFSSL_BIO* bio, void* buf, int len)
 }
 
 
+#ifndef WOLFCRYPT_ONLY
 /* Helper function to read from WOLFSSL_BIO_SSL type
  *
  * returns the number of bytes read on success
@@ -150,6 +151,7 @@ static int wolfSSL_BIO_SSL_read(WOLFSSL_BIO* bio, void* buf,
 
     return ret;
 }
+#endif /* WOLFCRYPT_ONLY */
 
 
 
@@ -209,9 +211,11 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
         }
     #endif
 
+    #ifndef WOLFCRYPT_ONLY
         if (bio && bio->type == WOLFSSL_BIO_SSL) {
             ret = wolfSSL_BIO_SSL_read(bio, buf, len, front);
         }
+    #endif
 
         /* case where front of list is done */
         if (bio == front) {
@@ -292,6 +296,7 @@ static int wolfSSL_BIO_BASE64_write(WOLFSSL_BIO* bio, const void* data,
 }
 
 
+#ifndef WOLFCRYPT_ONLY
 /* Helper function for writing to a WOLFSSL_BIO_SSL type
  *
  * returns the amount written in bytes on success
@@ -317,6 +322,7 @@ static int wolfSSL_BIO_SSL_write(WOLFSSL_BIO* bio, const void* data,
     }
     return ret;
 }
+#endif /* WOLFCRYPT_ONLY */
 
 
 /* Writes to a WOLFSSL_BIO_BIO type.
@@ -516,6 +522,7 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
         }
     #endif
 
+    #ifndef WOLFCRYPT_ONLY
         if (bio && bio->type == WOLFSSL_BIO_SSL) {
             /* already got eof, again is error */
             if (bio && front->eof) {
@@ -525,6 +532,7 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
                 ret = wolfSSL_BIO_SSL_write(bio, data, len, front);
             }
         }
+    #endif /* WOLFCRYPT_ONLY */
 
         /* advance to the next bio in list */
         bio = bio->next;
@@ -841,9 +849,11 @@ size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
         return 0;
     }
 
+#ifndef WOLFCRYPT_ONLY
     if (bio->type == WOLFSSL_BIO_SSL && bio->ptr != NULL) {
         return (long)wolfSSL_pending((WOLFSSL*)bio->ptr);
     }
+#endif
 
     if (bio->type == WOLFSSL_BIO_MEMORY) {
         return bio->wrSz;
@@ -1511,5 +1521,33 @@ int wolfSSL_BIO_meth_set_destroy(WOLFSSL_BIO_METHOD *biom,
 }
 
 
+/* this compatibility function can be used for multiple BIO types */
+int wolfSSL_BIO_get_mem_data(WOLFSSL_BIO* bio, void* p)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_get_mem_data");
+
+    if (bio == NULL)
+        return WOLFSSL_FATAL_ERROR;
+
+    if (p) {
+        *(byte**)p = (byte*)bio->ptr;
+    }
+
+    return bio->num;
+}
+
+int wolfSSL_BIO_pending(WOLFSSL_BIO* bio)
+{
+    return (int)wolfSSL_BIO_ctrl_pending(bio);
+}
+
+
+int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
+{
+    /* for wolfSSL no flushing needed */
+    WOLFSSL_ENTER("BIO_flush");
+    (void)bio;
+    return 1;
+}
 #endif /* WOLFSSL_BIO_INCLUDED */
 

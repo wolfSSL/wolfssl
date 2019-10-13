@@ -1343,6 +1343,15 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif /* MICRIUM */
 
+#ifdef WOLFSSL_MCF5441X
+    #define BIG_ENDIAN_ORDER
+    #ifndef SIZEOF_LONG
+        #define SIZEOF_LONG 4
+    #endif
+    #ifndef SIZEOF_LONG_LONG
+        #define SIZEOF_LONG_LONG 8
+    #endif
+#endif
 
 #ifdef WOLFSSL_QL
     #ifndef WOLFSSL_SEP
