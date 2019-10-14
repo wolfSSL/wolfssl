@@ -304,8 +304,8 @@ int wolfSSL_send_session(WOLFSSL* ssl)
 
 
 /* prevent multiple mutex initializations */
-static volatile int initRefCount = 0;
-static wolfSSL_Mutex count_mutex;   /* init ref count mutex */
+static volatile WOLFSSL_GLOBAL int initRefCount = 0;
+static WOLFSSL_GLOBAL wolfSSL_Mutex count_mutex;   /* init ref count mutex */
 
 /* Create a new WOLFSSL_CTX struct and return the pointer to created struct.
    WOLFSSL_METHOD pointer passed in is given to ctx to manage.
@@ -4702,13 +4702,13 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         WOLFSSL_SESSION Sessions[SESSIONS_PER_ROW];
     } SessionRow;
 
-    static SessionRow SessionCache[SESSION_ROWS];
+    static WOLFSSL_GLOBAL SessionRow SessionCache[SESSION_ROWS];
 
     #if defined(WOLFSSL_SESSION_STATS) && defined(WOLFSSL_PEAK_SESSIONS)
-        static word32 PeakSessions;
+        static WOLFSSL_GLOBAL word32 PeakSessions;
     #endif
 
-    static wolfSSL_Mutex session_mutex;   /* SessionCache mutex */
+    static WOLFSSL_GLOBAL wolfSSL_Mutex session_mutex; /* SessionCache mutex */
 
     #ifndef NO_CLIENT_CACHE
 
@@ -4723,7 +4723,8 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
             ClientSession Clients[SESSIONS_PER_ROW];
         } ClientRow;
 
-        static ClientRow ClientCache[SESSION_ROWS];  /* Client Cache */
+        static WOLFSSL_GLOBAL ClientRow ClientCache[SESSION_ROWS];
+                                                     /* Client Cache */
                                                      /* uses session mutex */
     #endif  /* NO_CLIENT_CACHE */
 
@@ -19375,6 +19376,12 @@ const char* wolfSSL_get_cipher_name_from_suite(const byte cipherSuite0,
     const byte cipherSuite)
 {
     return GetCipherNameInternal(cipherSuite0, cipherSuite);
+}
+
+const char* wolfSSL_get_cipher_name_iana_from_suite(const byte cipherSuite0,
+        const byte cipherSuite)
+{
+    return GetCipherNameIana(cipherSuite0, cipherSuite);
 }
 
 word32 wolfSSL_CIPHER_get_id(const WOLFSSL_CIPHER* cipher)

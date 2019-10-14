@@ -620,6 +620,12 @@
         DYNAMIC_TYPE_HASH_TMP     = 88,
         DYNAMIC_TYPE_BLOB         = 89,
         DYNAMIC_TYPE_NAME_ENTRY   = 90,
+        DYNAMIC_TYPE_SNIFFER_SERVER     = 1000,
+        DYNAMIC_TYPE_SNIFFER_SESSION    = 1001,
+        DYNAMIC_TYPE_SNIFFER_PB         = 1002,
+        DYNAMIC_TYPE_SNIFFER_PB_BUFFER  = 1003,
+        DYNAMIC_TYPE_SNIFFER_TICKET_ID  = 1004,
+        DYNAMIC_TYPE_SNIFFER_NAMED_KEY  = 1005,
     };
 
     /* max error buffer string size */

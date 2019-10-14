@@ -26,6 +26,10 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
+    #include <wolfssl/wolfcrypt/memory.h>
+#endif
+
 #ifdef _WIN32
     #define WOLFSSL_SNIFFER
 #endif
@@ -54,6 +58,7 @@ int main(void)
 #include <stdlib.h>        /* EXIT_SUCCESS */
 #include <string.h>        /* strcmp */
 #include <signal.h>        /* signal */
+#include <ctype.h>         /* isprint */
 
 #include <cyassl/sniffer.h>
 
@@ -70,6 +75,25 @@ enum {
     ETHER_IF_FRAME_LEN = 14,   /* ethernet interface frame length */
     NULL_IF_FRAME_LEN =   4,   /* no link interface frame length  */
 };
+
+
+/* A TLS record can be 16k and change. The chain is broken up into 2K chunks.
+ * This covers the TLS record, plus a chunk for TCP/IP headers. */
+#ifndef CHAIN_INPUT_CHUNK_SIZE
+    #define CHAIN_INPUT_CHUNK_SIZE 2048
+#elif (CHAIN_INPUT_CHUNK_SIZE < 256)
+    #undef CHAIN_INPUT_CHUNK_SIZE
+    #define CHAIN_INPUT_CHUNK_SIZE 256
+#elif (CHAIN_INPUT_CHUNK_SIZE > 16384)
+    #undef CHAIN_INPUT_CHUNK_SIZE
+    #define CHAIN_INPUT_CHUNK_SIZE 16384
+#endif
+#define CHAIN_INPUT_COUNT ((16384 / CHAIN_INPUT_CHUNK_SIZE) + 1)
+
+
+#ifndef STORE_DATA_BLOCK_SZ
+    #define STORE_DATA_BLOCK_SZ 1024
+#endif
 
 
 pcap_t* pcap = NULL;
@@ -159,15 +183,32 @@ static void err_sys(const char* msg)
 #endif
 
 
-static char* iptos(unsigned int addr)
+static char* iptos(const struct in_addr* addr)
 {
 	static char    output[32];
-	byte *p = (byte*)&addr;
+	byte *p = (byte*)&addr->s_addr;
 
-	SNPRINTF(output, sizeof(output), "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
+	snprintf(output, sizeof(output), "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
 
 	return output;
 }
+
+
+static const char* ip6tos(const struct in6_addr* addr)
+{
+	static char    output[42];
+	return inet_ntop(AF_INET6, addr, output, 42);
+}
+
+
+#if defined(WOLFSSL_SNIFFER_STORE_DATA_CB) || defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
+
+static inline unsigned int min(unsigned int a, unsigned int b)
+{
+    return a > b ? b : a;
+}
+
+#endif
 
 
 #ifdef WOLFSSL_SNIFFER_WATCH
@@ -214,6 +255,42 @@ static int myWatchCb(void* vSniffer,
 #endif
 
 
+#ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
+
+static int myStoreDataCb(const unsigned char* decryptBuf,
+        unsigned int decryptBufSz, unsigned int decryptBufOffset, void* ctx)
+{
+    byte** data = (byte**)ctx;
+    unsigned int qty;
+
+    if (data == NULL)
+        return -1;
+
+    if (decryptBufSz < decryptBufOffset)
+        return -1;
+
+    qty = min(decryptBufSz - decryptBufOffset, STORE_DATA_BLOCK_SZ);
+
+    if (*data == NULL) {
+        byte* tmpData;
+        tmpData = (byte*)XREALLOC(*data, decryptBufSz + 1,
+                NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmpData == NULL) {
+            XFREE(*data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            *data = NULL;
+            return -1;
+        }
+        *data = tmpData;
+    }
+
+    memcpy(*data + decryptBufOffset, decryptBuf + decryptBufOffset, qty);
+
+    return qty;
+}
+
+#endif
+
+
 int main(int argc, char** argv)
 {
     int          ret = 0;
@@ -229,6 +306,10 @@ int main(int argc, char** argv)
 	struct       bpf_program fp;
 	pcap_if_t   *d;
 	pcap_addr_t *a;
+#ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
+    struct iovec chain[CHAIN_INPUT_COUNT];
+    int          chainSz;
+#endif
 
     signal(SIGINT, sig_handler);
 
@@ -239,6 +320,9 @@ int main(int argc, char** argv)
     ssl_EnableRecovery(1, -1, err);
 #ifdef WOLFSSL_SNIFFER_WATCH
     ssl_SetWatchKeyCallback(myWatchCb, err);
+#endif
+#ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
+    ssl_SetStoreDataCallback(myStoreDataCb);
 #endif
 
     if (argc == 1) {
@@ -275,22 +359,21 @@ int main(int argc, char** argv)
 
         if (pcap == NULL) printf("pcap_create failed %s\n", err);
 
-	    /* get an IPv4 address */
+        /* print out addresses for selected interface */
 	    for (a = d->addresses; a; a = a->next) {
-		    switch(a->addr->sa_family)
-		    {
-			    case AF_INET:
-				    server =
-                        iptos(((struct sockaddr_in *)a->addr)->sin_addr.s_addr);
-				    printf("server = %s\n", server);
-				    break;
-
-                default:
-                    break;
-		    }
+            if (a->addr->sa_family == AF_INET) {
+				server =
+                    iptos(&((struct sockaddr_in *)a->addr)->sin_addr);
+		        printf("server = %s\n", server);
+            }
+            else if (a->addr->sa_family == AF_INET6) {
+                server =
+                    ip6tos(&((struct sockaddr_in6 *)a->addr)->sin6_addr);
+		        printf("server = %s\n", server);
+            }
 	    }
 	    if (server == NULL)
-		    err_sys("Unable to get device IPv4 address");
+		    err_sys("Unable to get device IPv4 or IPv6 address");
 
         ret = pcap_set_snaplen(pcap, 65536);
         if (ret != 0) printf("pcap_set_snaplen failed %s\n", pcap_geterr(pcap));
@@ -322,32 +405,48 @@ int main(int argc, char** argv)
         ret = pcap_setfilter(pcap, &fp);
         if (ret != 0) printf("pcap_setfilter failed %s\n", pcap_geterr(pcap));
 
-#ifndef WOLFSSL_SNIFFER_WATCH
-        ret = ssl_SetPrivateKey(server, port, "../../certs/server-key.pem",
-                               FILETYPE_PEM, NULL, err);
-        if (ret != 0) {
-            printf("Please run directly from sslSniffer/sslSnifferTest dir\n");
-        }
-
-#ifdef HAVE_SNI
-        {
-            char altName[128];
-
-            printf("Enter alternate SNI: ");
-            ret = scanf("%s", altName);
-
-            if (strnlen(altName, 128) > 0) {
-                ret = ssl_SetNamedPrivateKey(altName,
-                                   server, port, "../../certs/server-key.pem",
-                                   FILETYPE_PEM, NULL, err);
-                if (ret != 0) {
-                    printf("Please run directly from "
-                           "sslSniffer/sslSnifferTest dir\n");
-                }
+	    /* get IPv4 or IPv6 addresses for selected interface */
+	    for (a = d->addresses; a; a = a->next) {
+            server = NULL;
+            if (a->addr->sa_family == AF_INET) {
+				server =
+                    iptos(&((struct sockaddr_in *)a->addr)->sin_addr);
             }
-        }
-#endif
-#endif
+            else if (a->addr->sa_family == AF_INET6) {
+                server =
+                    ip6tos(&((struct sockaddr_in6 *)a->addr)->sin6_addr);
+            }
+
+            if (server) {
+            #ifndef WOLFSSL_SNIFFER_WATCH
+                ret = ssl_SetPrivateKey(server, port,
+                        "../../certs/server-key.pem",
+                        FILETYPE_PEM, NULL, err);
+                if (ret != 0) {
+                    printf("Please run directly from sslSniffer/sslSnifferTest"
+                           "dir\n");
+                }
+            #ifdef HAVE_SNI
+                {
+                    char altName[128];
+
+                    printf("Enter alternate SNI: ");
+                    ret = scanf("%s", altName);
+
+                    if (strnlen(altName, 128) > 0) {
+                        ret = ssl_SetNamedPrivateKey(altName,
+                                server, port, "../../certs/server-key.pem",
+                                FILETYPE_PEM, NULL, err);
+                        if (ret != 0) {
+                            printf("Please run directly from "
+                                   "sslSniffer/sslSnifferTest dir\n");
+                        }
+                    }
+                }
+            #endif
+            #endif
+            }
+	    }
     }
     else if (argc >= 3) {
         saveFile = 1;
@@ -404,14 +503,50 @@ int main(int argc, char** argv)
             }
             else
                 continue;
+#ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
+            {
+                unsigned int j = 0;
+                unsigned int remainder = header.caplen;
 
+                chainSz = 0;
+                do {
+                    unsigned int chunkSz;
+
+                    chunkSz = min(remainder, CHAIN_INPUT_CHUNK_SIZE);
+                    chain[chainSz].iov_base = (void*)(packet + j);
+                    chain[chainSz].iov_len = chunkSz;
+                    j += chunkSz;
+                    remainder -= chunkSz;
+                    chainSz++;
+                } while (j < header.caplen);
+            }
+#endif
+
+#if defined(WOLFSSL_SNIFFER_CHAIN_INPUT) && \
+    defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
+            ret = ssl_DecodePacketWithChainSessionInfoStoreData(chain, chainSz,
+                    &data, &sslInfo, err);
+#elif defined(WOLFSSL_SNIFFER_CHAIN_INPUT)
+            (void)sslInfo;
+            ret = ssl_DecodePacketWithChain(chain, chainSz, &data, err);
+#elif defined(WOLFSSL_SNIFFER_STORE_DATA_CB)
+            ret = ssl_DecodePacketWithSessionInfoStoreData(packet,
+                    header.caplen, &data, &sslInfo, err);
+#else
             ret = ssl_DecodePacketWithSessionInfo(packet, header.caplen, &data,
                                                   &sslInfo, err);
+#endif
             if (ret < 0) {
                 printf("ssl_Decode ret = %d, %s\n", ret, err);
                 hadBadPacket = 1;
             }
             if (ret > 0) {
+                int j;
+                /* Convert non-printable data to periods. */
+                for (j = 0; j < ret; j++) {
+                    if (isprint(data[j]) || isspace(data[j])) continue;
+                    data[j] = '.';
+                }
                 data[ret] = 0;
                 printf("SSL App Data(%d:%d):%s\n", packetNumber, ret, data);
                 ssl_FreeZeroDecodeBuffer(&data, ret, err);

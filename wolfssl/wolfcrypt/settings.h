@@ -1788,11 +1788,17 @@ extern void uITRON4_free(void *p) ;
     #ifndef WOLFSSL_STATIC_RSA
         #define WOLFSSL_STATIC_RSA
     #endif
-    #ifndef WOLFSSL_SESSION_STATS
-        #define WOLFSSL_SESSION_STATS
+    #ifndef WOLFSSL_STATIC_DH
+        #define WOLFSSL_STATIC_DH
     #endif
-    #ifndef WOLFSSL_PEAK_SESSIONS
-        #define WOLFSSL_PEAK_SESSIONS
+    /* Allow option to be disabled. */
+    #ifndef WOLFSSL_NO_SESSION_STATS
+        #ifndef WOLFSSL_SESSION_STATS
+            #define WOLFSSL_SESSION_STATS
+        #endif
+        #ifndef WOLFSSL_PEAK_SESSIONS
+            #define WOLFSSL_PEAK_SESSIONS
+        #endif
     #endif
 #endif
 
