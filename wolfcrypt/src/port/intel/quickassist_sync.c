@@ -743,7 +743,11 @@ static void IntelQaSymCipherFree(IntelQaDev* dev)
     dev->out = NULL;
     dev->outLen = 0;
 #ifndef NO_AES
-    dev->op.cipher.authTag = NULL;
+    if (dev->op.cipher.authTag != NULL) {
+        XMEMSET(dev->op.cipher.authTag, 0, dev->op.cipher.authTagSz);
+        XFREE(dev->op.cipher.authTag, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+        dev->op.cipher.authTag = NULL;
+    }
     dev->op.cipher.authTagSz = 0;
 #endif
 }
@@ -772,7 +776,9 @@ static int IntelQaSymCipher(IntelQaDev* dev, byte* out, const byte* in,
     Cpa32U metaSize = 0;
     Cpa8U* authInBuf = NULL;
     Cpa32U authInSzAligned = authInSz;
+    Cpa8U* authTagBuf = NULL;
     IntelQaSymCtx* ctx;
+    CpaBoolean verifyResult = CPA_FALSE;
 
     QLOG("IntelQaSymCipher: dev %p, out %p, in %p, inOutSz %d, op %d, "
             "algo %d, dir %d, hash %d\n",
@@ -806,19 +812,15 @@ static int IntelQaSymCipher(IntelQaDev* dev, byte* out, const byte* in,
     bufferList = &dev->op.cipher.bufferList;
     flatBuffer = &dev->op.cipher.flatBuffer;
     metaBuf = XMALLOC(metaSize, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
-#ifndef WOLFSSL_SNIFFER
-    dataBuf = XREALLOC((byte*)in, dataLen, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
-    ivBuf = XREALLOC((byte*)iv, AES_BLOCK_SIZE, dev->heap,
-            DYNAMIC_TYPE_ASYNC_NUMA);
-#else
     dataBuf = XMALLOC(dataLen, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
     XMEMCPY(dataBuf, in, inOutSz);
     ivBuf = XMALLOC(AES_BLOCK_SIZE, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
     XMEMCPY(ivBuf, iv, ivSz);
-#endif
+    authTagBuf = XMALLOC(authTagSz, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
 
     /* check allocations */
-    if (ivBuf == NULL || metaBuf == NULL || dataBuf == NULL) {
+    if (ivBuf == NULL || metaBuf == NULL || dataBuf == NULL ||
+        authTagBuf == NULL) {
         ret = MEMORY_E; goto exit;
     }
 
@@ -830,14 +832,9 @@ static int IntelQaSymCipher(IntelQaDev* dev, byte* out, const byte* in,
                 (authInSzAligned % AES_BLOCK_SIZE);
         }
 
-#ifndef WOLFSSL_SNIFFER
-        authInBuf = XREALLOC((byte*)authIn, authInSzAligned, dev->heap,
-            DYNAMIC_TYPE_ASYNC_NUMA);
-#else
         authInBuf = XMALLOC(authInSzAligned, dev->heap,
                 DYNAMIC_TYPE_ASYNC_NUMA);
         XMEMCPY(authInBuf, authIn, authInSz);
-#endif
         if (authInBuf == NULL) {
             ret = MEMORY_E; goto exit;
         }
@@ -878,7 +875,10 @@ static int IntelQaSymCipher(IntelQaDev* dev, byte* out, const byte* in,
         setup.hashSetupData.digestResultLenInBytes = authTagSz;
         setup.hashSetupData.authModeSetupData.aadLenInBytes = authInSz;
 
-        setup.digestIsAppended = CPA_TRUE;
+        if (cipherDirection == CPA_CY_SYM_CIPHER_DIRECTION_DECRYPT)
+            setup.digestIsAppended = CPA_TRUE;
+        else
+            setup.digestIsAppended = CPA_FALSE;
     }
 
     /* open session */
@@ -903,13 +903,19 @@ static int IntelQaSymCipher(IntelQaDev* dev, byte* out, const byte* in,
             XMEMCPY(flatBuffer->pData + inOutSz, authTag, authTagSz);
         }
     }
+    else {
+        if (authTag && authTagSz > 0) {
+            XMEMCPY(authTagBuf, authTag, authTagSz);
+        }
+    }
 
     /* store info needed for output */
     dev->out = out;
     dev->outLen = inOutSz;
     if (cipherDirection == CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT) {
-        dev->op.cipher.authTag = authTag;
+        dev->op.cipher.authTag = authTagBuf;
         dev->op.cipher.authTagSz = authTagSz;
+        opData->pDigestResult = authTagBuf;
     }
     else {
         dev->op.cipher.authTag = NULL;
@@ -920,11 +926,16 @@ static int IntelQaSymCipher(IntelQaDev* dev, byte* out, const byte* in,
     /* perform symmetric AES operation async */
     /* use same buffer list for in-place operation */
     status = cpaCySymPerformOp(dev->handle, dev, opData,
-            bufferList, bufferList, NULL);
+            bufferList, bufferList, &verifyResult);
 
-    if (ret == WC_PENDING_E)
-        return ret;
-
+    if (symOperation == CPA_CY_SYM_OP_ALGORITHM_CHAINING &&
+        cipherAlgorithm == CPA_CY_SYM_CIPHER_AES_GCM &&
+        cipherDirection == CPA_CY_SYM_CIPHER_DIRECTION_DECRYPT &&
+        hashAlgorithm == CPA_CY_SYM_HASH_AES_GCM) {
+        if (verifyResult == CPA_FALSE) {
+            ret = AES_GCM_AUTH_E;
+        }
+    }
 exit:
 
     if (ret != 0) {
@@ -932,10 +943,13 @@ exit:
             dev, status, ret);
     }
 
-#ifdef WOLFSSL_SNIFFER
     /* Capture the inline decrypt into the output. */
     XMEMCPY(out, dataBuf, inOutSz);
-#endif
+    if (cipherDirection == CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT) {
+        if (authTag != NULL && authTagSz > 0) {
+            XMEMCPY(authTag, authTagBuf, authTagSz);
+        }
+    }
 
     /* handle cleanup */
     IntelQaSymCipherFree(dev);
@@ -949,11 +963,14 @@ int IntelQaSymAesCbcEncrypt(IntelQaDev* dev,
             const byte* key, word32 keySz,
             const byte* iv, word32 ivSz)
 {
-    return IntelQaSymCipher(dev, out, in, sz,
+    int ret = IntelQaSymCipher(dev, out, in, sz,
         key, keySz, iv, ivSz,
         CPA_CY_SYM_OP_CIPHER, CPA_CY_SYM_CIPHER_AES_CBC,
         CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT,
         CPA_CY_SYM_HASH_NONE, NULL, 0, NULL, 0);
+
+    XMEMCPY((byte*)iv, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+    return ret;
 }
 
 #ifdef HAVE_AES_DECRYPT
@@ -962,11 +979,18 @@ int IntelQaSymAesCbcDecrypt(IntelQaDev* dev,
             const byte* key, word32 keySz,
             const byte* iv, word32 ivSz)
 {
-    return IntelQaSymCipher(dev, out, in, sz,
+    byte nextIv[AES_BLOCK_SIZE];
+    int ret;
+
+    XMEMCPY(nextIv, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+    ret = IntelQaSymCipher(dev, out, in, sz,
         key, keySz, iv, ivSz,
         CPA_CY_SYM_OP_CIPHER, CPA_CY_SYM_CIPHER_AES_CBC,
         CPA_CY_SYM_CIPHER_DIRECTION_DECRYPT,
         CPA_CY_SYM_HASH_NONE, NULL, 0, NULL, 0);
+
+    XMEMCPY((byte*)iv, nextIv, AES_BLOCK_SIZE);
+    return ret;
 }
 #endif /* HAVE_AES_DECRYPT */
 #endif /* HAVE_AES_CBC */

@@ -890,7 +890,8 @@ initDefaultName();
     if ( (ret = aesgcm_test()) != 0)
         return err_sys("AES-GCM  test failed!\n", ret);
     #endif
-    #if !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT)
+    #if !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT) && \
+        !(defined(WOLF_CRYPTO_CB) && defined(HAVE_INTEL_QA_SYNC))
     if ((ret = aesgcm_default_test()) != 0) {
         return err_sys("AES-GCM  test failed!\n", ret);
     }
@@ -7390,7 +7391,8 @@ int aesgcm_test(void)
 #if !defined(HAVE_FIPS) && \
         !defined(WOLFSSL_PIC32MZ_CRYPT) && \
         !defined(FREESCALE_LTC) && !defined(FREESCALE_MMCAU) && \
-        !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_AFALG_XILINX_AES)
+        !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_AFALG_XILINX_AES) && \
+        !(defined(WOLF_CRYPTO_CB) && defined(HAVE_INTEL_QA_SYNC))
 
     #define ENABLE_NON_12BYTE_IV_TEST
 #ifdef WOLFSSL_AES_192
@@ -7596,6 +7598,7 @@ int aesgcm_test(void)
     }
 #endif
 
+#if !(defined(WOLF_CRYPTO_CB) && defined(HAVE_INTEL_QA_SYNC))
     /* Variable authenticated data length test */
     for (alen=0; alen<(int)sizeof(p); alen++) {
          /* AES-GCM encrypt and decrypt both use AES encrypt internally */
@@ -7616,6 +7619,7 @@ int aesgcm_test(void)
             return -5713;
 #endif /* HAVE_AES_DECRYPT */
     }
+#endif
 
 #if !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT)
 #ifdef BENCH_AESGCM_LARGE
@@ -7734,7 +7738,8 @@ int aesgcm_test(void)
 #endif /* ENABLE_NON_12BYTE_IV_TEST */
 
 #if defined(WOLFSSL_AES_256) && !defined(WOLFSSL_AFALG_XILINX_AES) && \
-    !defined(WOLFSSL_XILINX_CRYPT)
+    !defined(WOLFSSL_XILINX_CRYPT) && \
+    !(defined(WOLF_CRYPTO_CB) && defined(HAVE_INTEL_QA_SYNC))
     XMEMSET(resultT, 0, sizeof(resultT));
     XMEMSET(resultC, 0, sizeof(resultC));
     XMEMSET(resultP, 0, sizeof(resultP));
@@ -7895,6 +7900,7 @@ int gmac_test(void)
     byte tag[16];
 
     XMEMSET(&gmac, 0, sizeof(Gmac)); /* clear context */
+    wc_AesInit((Aes*)&gmac, HEAP_HINT, INVALID_DEVID); /* Make sure devId updated */
     XMEMSET(tag, 0, sizeof(tag));
     wc_GmacSetKey(&gmac, k1, sizeof(k1));
     wc_GmacUpdate(&gmac, iv1, sizeof(iv1), a1, sizeof(a1), tag, sizeof(t1));
