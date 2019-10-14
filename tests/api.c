@@ -22982,7 +22982,7 @@ static void test_wolfSSL_BIO_write(void)
     AssertNotNull(bio   = BIO_push(bio64, BIO_new(BIO_s_mem())));
 
     /* now should convert to base64 then write to memory */
-    AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), 25);
+    AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), sizeof(msg));
     BIO_flush(bio);
 
     /* test BIO chain */
@@ -22997,7 +22997,7 @@ static void test_wolfSSL_BIO_write(void)
     AssertIntEQ(XMEMCMP(out, expected, sz), 0);
 
     /* write then read should return the same message */
-    AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), 25);
+    AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), sizeof(msg));
     sz = sizeof(out);
     XMEMSET(out, 0, sz);
     AssertIntEQ(BIO_read(bio, out, sz), 16);
@@ -23005,7 +23005,7 @@ static void test_wolfSSL_BIO_write(void)
 
     /* now try encoding with no line ending */
     BIO_set_flags(bio64, BIO_FLAG_BASE64_NO_NL);
-    AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), 24);
+    AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), sizeof(msg));
     BIO_flush(bio);
     sz = sizeof(out);
     XMEMSET(out, 0, sz);
@@ -23019,8 +23019,8 @@ static void test_wolfSSL_BIO_write(void)
     AssertNotNull(bio   = BIO_push(BIO_new(BIO_f_base64()), bio64));
     AssertNotNull(BIO_push(bio64, BIO_new(BIO_s_mem())));
 
-    /* now should convert to base64(x2) when stored and then decode with read */
-    AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), 37);
+    /* now should convert to base64 when stored and then decode with read */
+    AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), 25);
     BIO_flush(bio);
     sz = sizeof(out);
     XMEMSET(out, 0, sz);

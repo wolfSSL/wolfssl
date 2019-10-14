@@ -278,7 +278,7 @@ static int wolfSSL_BIO_BASE64_write(WOLFSSL_BIO* bio, const void* data,
     }
 
     if (ret != WOLFSSL_FATAL_ERROR) {
-        ret = (int)*outLen;
+        ret = (int) inLen;
         XMEMCPY(out, tmp, *outLen);
 
     }
@@ -433,6 +433,7 @@ static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
 int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
 {
     int  ret = 0;
+    int  retB64 = 0;
     WOLFSSL_BIO* front = bio;
     void*  frmt   = NULL;
     word32 frmtSz = 0;
@@ -500,8 +501,8 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
 
             if (ret >= 0) {
                 /* change so that data is formated buffer */
-                ret = wolfSSL_BIO_BASE64_write(bio, data, (word32)len,
-                        (byte*)frmt, &frmtSz);
+                retB64 = wolfSSL_BIO_BASE64_write(bio, data, (word32)len,
+                         (byte*)frmt, &frmtSz);
                 data = frmt;
                 len  = frmtSz;
             }
@@ -549,7 +550,10 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
                                  (const char*)data, 0, 0, ret);
     }
 
-    return ret;
+    if (retB64 != 0)
+        return retB64;
+    else
+        return ret;
 }
 
 
