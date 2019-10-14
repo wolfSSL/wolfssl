@@ -1642,7 +1642,7 @@ int ssl_SetPrivateKey(const char* address, int port, const char* keyFile,
 static int CheckIp6Hdr(Ip6Hdr* iphdr, IpInfo* info, int length, char* error)
 {
     int        version = IP_V(iphdr);
-    int        exthdrsz = 0;
+    int        exthdrsz = IP6_HDR_SZ;
 
     TraceIP6(iphdr);
     Trace(IP_CHECK_STR);
@@ -1657,6 +1657,10 @@ static int CheckIp6Hdr(Ip6Hdr* iphdr, IpInfo* info, int length, char* error)
         Ip6ExtHdr* exthdr = (Ip6ExtHdr*)((byte*)iphdr + IP6_HDR_SZ);
         do {
             int hdrsz = (exthdr->length + 1) * 8;
+            if (hdrsz > length - exthdrsz) {
+                SetError(PACKET_HDR_SHORT_STR, error, NULL, 0);
+                return -1;
+            }
             exthdrsz += hdrsz;
             exthdr = (Ip6ExtHdr*)((byte*)exthdr + hdrsz);
         }
@@ -1671,18 +1675,13 @@ static int CheckIp6Hdr(Ip6Hdr* iphdr, IpInfo* info, int length, char* error)
     }
 #endif
 
-    info->length = IP6_HDR_SZ + exthdrsz;
+    info->length = exthdrsz;
     info->total = ntohs(iphdr->length) + info->length;
         /* IPv6 doesn't include its own header size in the length like v4. */
     info->src.version = IPV6;
     XMEMCPY(info->src.ip6, iphdr->src, sizeof(info->src.ip6));
     info->dst.version = IPV6;
     XMEMCPY(info->dst.ip6, iphdr->dst, sizeof(info->dst.ip6));
-
-    /* This needs to massage the length and size to match what the sniffer
-     * expects. IPv4 and IPv6 treat the length parameter differently. */
-    if (info->total == 0)
-        info->total = length;  /* reassembled may be off */
 
     return 0;
 }
