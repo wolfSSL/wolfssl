@@ -24095,7 +24095,7 @@ static void test_wolfSSL_X509_get_serialNumber(void)
     X509_free(x509); /* free's a */
 
     AssertNotNull(serialHex = BN_bn2hex(bn));
-    AssertStrEQ(serialHex, "1");
+    AssertStrEQ(serialHex, "01");
     OPENSSL_free(serialHex);
 
     AssertIntEQ(BN_get_word(bn), 1);

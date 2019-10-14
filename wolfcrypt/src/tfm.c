@@ -4780,6 +4780,12 @@ int mp_toradix (mp_int *a, char *str, int radix)
         ++digs;
     }
 
+    /* For hexadecimal output, add zero when number of digits is odd */
+    if ((digs & 1) && (radix == 16)) {
+        *str++ = fp_s_rmap[0];
+        ++digs;
+    }
+
     /* reverse the digits of the string.  In this case _s points
      * to the first digit [excluding the sign] of the number]
      */
