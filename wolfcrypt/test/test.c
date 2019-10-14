@@ -2642,7 +2642,7 @@ static int sha3_256_test(void)
         "\xdc\x90\xc0\xb1\x25\xdb\x2c\x34\x81\xa3\xff\xbc\x1e\x2e\x87\xeb"
         "\x6d\x70\x85\x61\xe0\xe9\x63\x61\xff\xe5\x84\x4b\x1f\x68\x05\x15";
 
-#ifdef WOLFSSL_HASH_FLAGS
+#if defined(WOLFSSL_HASH_FLAGS) && !defined(WOLFSSL_ASYNC_CRYPT)
     /* test vector with hash of empty string */
     const char* Keccak256EmptyOut =
         "\xc5\xd2\x46\x01\x86\xf7\x23\x3c\x92\x7e\x7d\xb2\xdc\xc7\x03\xc0"
@@ -2714,7 +2714,8 @@ static int sha3_256_test(void)
         ERROR_OUT(-2608, exit);
     } /* END LARGE HASH TEST */
 
-#ifdef WOLFSSL_HASH_FLAGS
+    /* this is a software only variant of SHA3 not supported by external hardware devices */
+#if defined(WOLFSSL_HASH_FLAGS) && !defined(WOLFSSL_ASYNC_CRYPT)
     /* Test for Keccak256 */
     ret = wc_Sha3_SetFlags(&sha, WC_HASH_SHA3_KECCAK256);
     if (ret != 0) {
@@ -2731,7 +2732,7 @@ static int sha3_256_test(void)
     if (XMEMCMP(hash, Keccak256EmptyOut, WC_SHA3_256_DIGEST_SIZE) != 0) {
         ERROR_OUT(-2612, exit);
     }
-#endif
+#endif /* WOLFSSL_HASH_FLAGS && !WOLFSSL_ASYNC_CRYPT */
 
 exit:
     wc_Sha3_256_Free(&sha);
@@ -6530,7 +6531,7 @@ int aes_test(void)
             }
         }
     }
-#endif /* WOLFSSL_AESNI HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_AESNI && HAVE_AES_DECRYPT */
 
     /* Test of AES IV state with encrypt/decrypt */
 #ifdef WOLFSSL_AES_128
