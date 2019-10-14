@@ -4569,6 +4569,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
             signer->name           = cert->subjectCN;
         }
         signer->pathLength     = cert->pathLength;
+        signer->maxPathLen     = cert->maxPathLen;
         signer->pathLengthSet  = cert->pathLengthSet;
         signer->selfSigned     = cert->selfSigned;
     #ifndef IGNORE_NAME_CONSTRAINTS

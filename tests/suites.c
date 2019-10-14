@@ -171,6 +171,10 @@ static int IsValidCert(const char* line)
     size_t i;
     const char* begin;
     char cert[80];
+#ifdef WOLFSSL_STATIC_MEMORY
+    FILE* fStream = NULL;
+    long chkSz = 0;
+#endif
 
     begin = XSTRSTR(line, "-c ");
     if (begin == NULL)
@@ -180,6 +184,24 @@ static int IsValidCert(const char* line)
     for (i = 0; i < sizeof(cert) - 1 && *begin != ' ' && *begin != '\0'; i++)
         cert[i] = *(begin++);
     cert[i] = '\0';
+#ifdef WOLFSSL_STATIC_MEMORY
+    fStream = XFOPEN(cert, "rb");
+    if (fStream == NULL) {
+        printf("Failed to open file %s\n", cert);
+        printf("Invalid cert, skipping test\n");
+        return 0;
+    } else {
+        printf("Successfully opened file\n");
+    }
+
+    XFSEEK(fStream, 0L, SEEK_END);
+    chkSz = XFTELL(fStream);
+    XFCLOSE(fStream);
+    if (chkSz > LARGEST_MEM_BUCKET) {
+        printf("File is larger than largest bucket, skipping this test\n");
+        return 0;
+    }
+#endif
 
     ctx = wolfSSL_CTX_new(wolfSSLv23_server_method_ex(NULL));
     if (ctx == NULL)

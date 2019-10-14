@@ -2436,7 +2436,7 @@ done:
     return 0;
 #endif
 }
-#endif /* defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_TLS13) */
+#endif /* defined(OPENSSL_EXTRA) && !defined(NO_SESSION_CACHE) && !defined(WOLFSSL_TLS13) */
 
 typedef int (*cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);
 
@@ -25897,7 +25897,7 @@ static void test_EVP_PKEY_cmp(void)
     AssertNotNull(b = wolfSSL_d2i_PrivateKey(EVP_PKEY_EC, NULL,
         &in, (long)sizeof_ecc_clikey_der_256));
 
-    /* Test success case ECC */
+    /* Test success case ECC */
     AssertIntEQ(EVP_PKEY_cmp(a, b), 0);
 
     EVP_PKEY_free(b);
@@ -27955,6 +27955,266 @@ static void test_SetTmpEC_DHE_Sz(void)
 #endif
 }
 
+#if !defined(NO_RSA) && !defined(NO_SHA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS)
+static int load_ca_into_cm(WOLFSSL_CERT_MANAGER* cm, char* certA)
+{
+    int ret;
+
+    if ((ret = wolfSSL_CertManagerLoadCA(cm, certA, 0)) != WOLFSSL_SUCCESS) {
+        printf("loading cert %s failed\n", certA);
+        printf("Error: (%d): %s\n", ret, wolfSSL_ERR_reason_error_string(ret));
+        return -1;
+    }
+
+    return 0;
+}
+
+static int verify_cert_with_cm(WOLFSSL_CERT_MANAGER* cm, char* certA)
+{
+    int ret;
+    if ((ret = wolfSSL_CertManagerVerify(cm, certA, WOLFSSL_FILETYPE_PEM))
+                                                         != WOLFSSL_SUCCESS) {
+        printf("could not verify the cert: %s\n", certA);
+        printf("Error: (%d): %s\n", ret, wolfSSL_ERR_reason_error_string(ret));
+        return -1;
+    } else {
+        printf("successfully verified: %s\n", certA);
+    }
+
+    return 0;
+}
+#define LOAD_ONE_CA(a, b, c, d)                         \
+                    do {                                \
+                        a = load_ca_into_cm(c, d);      \
+                        if (a != 0)                     \
+                            return b;                   \
+                        else                            \
+                            b--;                        \
+                    } while(0)
+
+#define VERIFY_ONE_CERT(a, b, c, d)                     \
+                    do {                                \
+                        a = verify_cert_with_cm(c, d);  \
+                        if (a != 0)                     \
+                            return b;                   \
+                        else                            \
+                            b--;                        \
+                    } while(0)
+
+static int test_chainG(WOLFSSL_CERT_MANAGER* cm)
+{
+    int ret;
+    int i = -1;
+    /* Chain G is a valid chain per RFC 5280 section 4.2.1.9 */
+    char chainGArr[9][50] = {"certs/ca-cert.pem",
+                             "certs/test-pathlen/chainG-ICA7-pathlen100.pem",
+                             "certs/test-pathlen/chainG-ICA6-pathlen10.pem",
+                             "certs/test-pathlen/chainG-ICA5-pathlen20.pem",
+                             "certs/test-pathlen/chainG-ICA4-pathlen5.pem",
+                             "certs/test-pathlen/chainG-ICA3-pathlen99.pem",
+                             "certs/test-pathlen/chainG-ICA2-pathlen1.pem",
+                             "certs/test-pathlen/chainG-ICA1-pathlen0.pem",
+                             "certs/test-pathlen/chainG-entity.pem"};
+
+    LOAD_ONE_CA(ret, i, cm, chainGArr[0]); /* if failure, i = -1 here */
+    LOAD_ONE_CA(ret, i, cm, chainGArr[1]); /* if failure, i = -2 here */
+    LOAD_ONE_CA(ret, i, cm, chainGArr[2]); /* if failure, i = -3 here */
+    LOAD_ONE_CA(ret, i, cm, chainGArr[3]); /* if failure, i = -4 here */
+    LOAD_ONE_CA(ret, i, cm, chainGArr[4]); /* if failure, i = -5 here */
+    LOAD_ONE_CA(ret, i, cm, chainGArr[5]); /* if failure, i = -6 here */
+    LOAD_ONE_CA(ret, i, cm, chainGArr[6]); /* if failure, i = -7 here */
+    LOAD_ONE_CA(ret, i, cm, chainGArr[7]); /* if failure, i = -8 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainGArr[1]); /* if failure, i = -9 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainGArr[2]); /* if failure, i = -10 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainGArr[3]); /* if failure, i = -11 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainGArr[4]); /* if failure, i = -12 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainGArr[5]); /* if failure, i = -13 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainGArr[6]); /* if failure, i = -14 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainGArr[7]); /* if failure, i = -15 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainGArr[8]); /* if failure, i = -16 here */
+
+/* test validating the entity twice, should have no effect on pathLen since
+ * entity/leaf cert */
+    VERIFY_ONE_CERT(ret, i, cm, chainGArr[8]); /* if failure, i = -17 here */
+
+    return ret;
+}
+
+static int test_chainH(WOLFSSL_CERT_MANAGER* cm)
+{
+    int ret;
+    int i = -1;
+    /* Chain H is NOT a valid chain per RFC5280 section 4.2.1.9:
+     * ICA4-pathlen of 2 signing ICA3-pathlen of 2 (reduce max path len to 2)
+     * ICA3-pathlen of 2 signing ICA2-pathlen of 2 (reduce max path len to 1)
+     * ICA2-pathlen of 2 signing ICA1-pathlen of 0 (reduce max path len to 0)
+     * ICA1-pathlen of 0 signing entity (pathlen is already 0, ERROR)
+     * Test should successfully verify ICA4, ICA3, ICA2 and then fail on ICA1
+     */
+    char chainHArr[6][50] = {"certs/ca-cert.pem",
+                             "certs/test-pathlen/chainH-ICA4-pathlen2.pem",
+                             "certs/test-pathlen/chainH-ICA3-pathlen2.pem",
+                             "certs/test-pathlen/chainH-ICA2-pathlen2.pem",
+                             "certs/test-pathlen/chainH-ICA1-pathlen0.pem",
+                             "certs/test-pathlen/chainH-entity.pem"};
+
+    LOAD_ONE_CA(ret, i, cm, chainHArr[0]); /* if failure, i = -1 here */
+    LOAD_ONE_CA(ret, i, cm, chainHArr[1]); /* if failure, i = -2 here */
+    LOAD_ONE_CA(ret, i, cm, chainHArr[2]); /* if failure, i = -3 here */
+    LOAD_ONE_CA(ret, i, cm, chainHArr[3]); /* if failure, i = -4 here */
+    LOAD_ONE_CA(ret, i, cm, chainHArr[4]); /* if failure, i = -5 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainHArr[1]); /* if failure, i = -6 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainHArr[2]); /* if failure, i = -7 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainHArr[3]); /* if failure, i = -8 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainHArr[4]); /* if failure, i = -9 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainHArr[5]); /* if failure, i = -10 here */
+
+    return ret;
+}
+
+static int test_chainI(WOLFSSL_CERT_MANAGER* cm)
+{
+    int ret;
+    int i = -1;
+    /* Chain I is a valid chain per RFC5280 section 4.2.1.9:
+     * ICA3-pathlen of 2 signing ICA2 without a pathlen (reduce maxPathLen to 2)
+     * ICA2-no_pathlen signing ICA1-no_pathlen (reduce maxPathLen to 1)
+     * ICA1-no_pathlen signing entity (reduce maxPathLen to 0)
+     * Test should successfully verify ICA4, ICA3, ICA2 and then fail on ICA1
+     */
+    char chainIArr[5][50] = {"certs/ca-cert.pem",
+                             "certs/test-pathlen/chainI-ICA3-pathlen2.pem",
+                             "certs/test-pathlen/chainI-ICA2-no_pathlen.pem",
+                             "certs/test-pathlen/chainI-ICA1-no_pathlen.pem",
+                             "certs/test-pathlen/chainI-entity.pem"};
+
+    LOAD_ONE_CA(ret, i, cm, chainIArr[0]); /* if failure, i = -1 here */
+    LOAD_ONE_CA(ret, i, cm, chainIArr[1]); /* if failure, i = -2 here */
+    LOAD_ONE_CA(ret, i, cm, chainIArr[2]); /* if failure, i = -3 here */
+    LOAD_ONE_CA(ret, i, cm, chainIArr[3]); /* if failure, i = -4 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainIArr[1]); /* if failure, i = -5 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainIArr[2]); /* if failure, i = -6 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainIArr[3]); /* if failure, i = -7 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainIArr[4]); /* if failure, i = -8 here */
+
+    return ret;
+}
+
+static int test_chainJ(WOLFSSL_CERT_MANAGER* cm)
+{
+    int ret;
+    int i = -1;
+    /* Chain J is NOT a valid chain per RFC5280 section 4.2.1.9:
+     * ICA4-pathlen of 2 signing ICA3 without a pathlen (reduce maxPathLen to 2)
+     * ICA3-pathlen of 2 signing ICA2 without a pathlen (reduce maxPathLen to 1)
+     * ICA2-no_pathlen signing ICA1-no_pathlen (reduce maxPathLen to 0)
+     * ICA1-no_pathlen signing entity (ERROR, pathlen zero and non-leaf cert)
+     */
+    char chainJArr[6][50] = {"certs/ca-cert.pem",
+                             "certs/test-pathlen/chainJ-ICA4-pathlen2.pem",
+                             "certs/test-pathlen/chainJ-ICA3-no_pathlen.pem",
+                             "certs/test-pathlen/chainJ-ICA2-no_pathlen.pem",
+                             "certs/test-pathlen/chainJ-ICA1-no_pathlen.pem",
+                             "certs/test-pathlen/chainJ-entity.pem"};
+
+    LOAD_ONE_CA(ret, i, cm, chainJArr[0]); /* if failure, i = -1 here */
+    LOAD_ONE_CA(ret, i, cm, chainJArr[1]); /* if failure, i = -2 here */
+    LOAD_ONE_CA(ret, i, cm, chainJArr[2]); /* if failure, i = -3 here */
+    LOAD_ONE_CA(ret, i, cm, chainJArr[3]); /* if failure, i = -4 here */
+    LOAD_ONE_CA(ret, i, cm, chainJArr[4]); /* if failure, i = -5 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainJArr[1]); /* if failure, i = -6 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainJArr[2]); /* if failure, i = -7 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainJArr[3]); /* if failure, i = -8 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainJArr[4]); /* if failure, i = -9 here */
+    VERIFY_ONE_CERT(ret, i, cm, chainJArr[5]); /* if failure, i = -10 here */
+
+    return ret;
+}
+
+static int test_various_pathlen_chains(void)
+{
+    int ret;
+    WOLFSSL_CERT_MANAGER* cm;
+
+    /* Test chain G (large chain with varying pathLens) */
+    wolfSSL_Init();
+
+    if ((cm = wolfSSL_CertManagerNew()) == NULL) {
+        printf("cert manager new failed\n");
+        return -1;
+    }
+
+    AssertIntEQ(test_chainG(cm), 0);
+
+    ret = wolfSSL_CertManagerUnloadCAs(cm);
+    if (ret != WOLFSSL_SUCCESS)
+        return -1;
+    wolfSSL_CertManagerFree(cm);
+    /* end test chain G */
+
+    /* Test chain H (5 chain with same pathLens) */
+    if ((cm = wolfSSL_CertManagerNew()) == NULL) {
+        printf("cert manager new failed\n");
+        return -1;
+    }
+    AssertIntLT(test_chainH(cm), 0);
+
+    wolfSSL_CertManagerUnloadCAs(cm);
+    wolfSSL_CertManagerFree(cm);
+    if ((cm = wolfSSL_CertManagerNew()) == NULL) {
+        printf("cert manager new failed\n");
+        return -1;
+    }
+
+    ret = wolfSSL_CertManagerUnloadCAs(cm);
+    if (ret != WOLFSSL_SUCCESS)
+        return -1;
+    wolfSSL_CertManagerFree(cm);
+    /* end test chain H */
+
+    /* Test chain I (only first ICA has pathLen set and it's set to 2,
+     * followed by 2 ICA's, should pass) */
+    if ((cm = wolfSSL_CertManagerNew()) == NULL) {
+        printf("cert manager new failed\n");
+        return -1;
+    }
+    AssertIntEQ(test_chainI(cm), 0);
+
+    wolfSSL_CertManagerUnloadCAs(cm);
+    wolfSSL_CertManagerFree(cm);
+    if ((cm = wolfSSL_CertManagerNew()) == NULL) {
+        printf("cert manager new failed\n");
+        return -1;
+    }
+
+    ret = wolfSSL_CertManagerUnloadCAs(cm);
+    if (ret != WOLFSSL_SUCCESS)
+        return -1;
+    wolfSSL_CertManagerFree(cm);
+
+    /* Test chain J (Again only first ICA has pathLen set and it's set to 2,
+     * this time followed by 3 ICA's, should fail */
+    if ((cm = wolfSSL_CertManagerNew()) == NULL) {
+        printf("cert manager new failed\n");
+        return -1;
+    }
+    AssertIntLT(test_chainJ(cm), 0);
+
+    wolfSSL_CertManagerUnloadCAs(cm);
+    wolfSSL_CertManagerFree(cm);
+    if ((cm = wolfSSL_CertManagerNew()) == NULL) {
+        printf("cert manager new failed\n");
+        return -1;
+    }
+
+    ret = wolfSSL_CertManagerUnloadCAs(cm);
+    wolfSSL_CertManagerFree(cm);
+
+    return ret;
+}
+#endif /* !NO_RSA && !NO_SHA && !NO_FILESYSTEM && !NO_CERTS */
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -28439,6 +28699,11 @@ void ApiTest(void)
     AssertIntEQ(test_ForceZero(), 0);
 
     AssertIntEQ(test_wolfSSL_Cleanup(), WOLFSSL_SUCCESS);
+
+#if !defined(NO_RSA) && !defined(NO_SHA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS)
+    AssertIntEQ(test_various_pathlen_chains(), WOLFSSL_SUCCESS);
+#endif
 
     /* If at some point a stub get implemented this test should fail indicating
      * a need to implement a new test case
