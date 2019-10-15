@@ -68,6 +68,8 @@
 #define BIO_gets      wolfSSL_BIO_gets
 #define BIO_puts      wolfSSL_BIO_puts
 
+#define BIO_should_retry(...)           1
+
 #define BIO_TYPE_FILE WOLFSSL_BIO_FILE
 #define BIO_TYPE_BIO  WOLFSSL_BIO_BIO
 #define BIO_TYPE_MEM  WOLFSSL_BIO_MEMORY

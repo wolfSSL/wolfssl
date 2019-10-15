@@ -1306,6 +1306,42 @@ long wolfSSL_BIO_set_mem_eof_return(WOLFSSL_BIO *bio, int v)
       return 0;
 }
 
+int wolfSSL_BIO_get_len(WOLFSSL_BIO *bio)
+{
+    int len;
+#ifndef NO_FILESYSTEM
+    long memSz;
+    XFILE file;
+    long curr = 0;
+#endif
+
+    WOLFSSL_ENTER("wolfSSL_BIO_get_len");
+
+    if ((len = wolfSSL_BIO_pending(bio)) > 0) {
+    }
+#ifndef NO_FILESYSTEM
+    else if (bio->type == WOLFSSL_BIO_FILE) {
+        if (wolfSSL_BIO_get_fp(bio, &file) != WOLFSSL_SUCCESS)
+            len = BAD_FUNC_ARG;
+        if (len == 0) {
+            curr = XFTELL(file);
+            if (curr < 0) {
+                len = WOLFSSL_BAD_FILE;
+            }
+            if (XFSEEK(file, 0, XSEEK_END) != 0)
+                len = WOLFSSL_BAD_FILE;
+        }
+        if (len == 0) {
+            memSz = XFTELL(file) - curr;
+            len = (int)memSz;
+            if (XFSEEK(file, curr, SEEK_SET) != 0)
+                len = WOLFSSL_BAD_FILE;
+        }
+    }
+#endif
+    return len;
+}
+
 
 void wolfSSL_BIO_set_callback(WOLFSSL_BIO *bio, wolf_bio_info_cb callback_func)
 {

@@ -31,8 +31,13 @@
     extern "C" {
 #endif
 
+#define X509_PURPOSE_SSL_CLIENT       0
+#define X509_PURPOSE_SSL_SERVER       1
+
+#define NS_SSL_CLIENT                 0
+#define NS_SSL_SERVER                 1
+
 /* Forward reference */
-typedef struct WOLFSSL_v3_ext_method WOLFSSL_v3_ext_method;
 
 typedef void *(*X509V3_EXT_D2I)(void *, const unsigned char **, long);
 typedef STACK_OF(CONF_VALUE) *(*X509V3_EXT_I2V) (
@@ -53,6 +58,14 @@ struct WOLFSSL_v3_ext_method {
     X509V3_EXT_I2R i2r;
 };
 
+struct WOLFSSL_X509_EXTENSION {
+    WOLFSSL_ASN1_OBJECT *obj;
+    WOLFSSL_ASN1_BOOLEAN crit;
+    WOLFSSL_ASN1_STRING value;
+    WOLFSSL_v3_ext_method ext_method;
+    WOLFSSL_STACK* ext_sk; /* For extension specific data */
+};
+
 #define WOLFSSL_ASN1_BOOLEAN int
 #define GEN_OTHERNAME   0
 #define GEN_EMAIL       1
@@ -67,14 +80,6 @@ struct WOLFSSL_v3_ext_method {
 #define GENERAL_NAME       WOLFSSL_GENERAL_NAME
 
 #define X509V3_CTX         WOLFSSL_X509V3_CTX
-
-struct WOLFSSL_X509_EXTENSION {
-    WOLFSSL_ASN1_OBJECT *obj;
-    WOLFSSL_ASN1_BOOLEAN crit;
-    WOLFSSL_ASN1_STRING value;
-    WOLFSSL_v3_ext_method ext_method;
-    WOLFSSL_STACK* ext_sk; /* For extension specific data */
-};
 
 typedef struct WOLFSSL_AUTHORITY_KEYID AUTHORITY_KEYID;
 typedef struct WOLFSSL_BASIC_CONSTRAINTS BASIC_CONSTRAINTS;
@@ -98,7 +103,6 @@ WOLFSSL_API int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out,
 #define ASN1_OCTET_STRING         WOLFSSL_ASN1_STRING
 #define X509V3_EXT_get            wolfSSL_X509V3_EXT_get
 #define X509V3_EXT_d2i            wolfSSL_X509V3_EXT_d2i
-#define X509V3_EXT_print   wolfSSL_X509V3_EXT_print
 #define i2s_ASN1_OCTET_STRING     wolfSSL_i2s_ASN1_STRING
 #define X509V3_EXT_print          wolfSSL_X509V3_EXT_print
 #define X509V3_EXT_conf_nid wolfSSL_X509V3_EXT_conf_nid
