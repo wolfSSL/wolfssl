@@ -2966,12 +2966,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     if (sendGET) {
         printf("SSL connect ok, sending GET...\n");
-        msgSz = 28;
-        strncpy(msg, "GET /index.html HTTP/1.0\r\n\r\n", msgSz);
+        msgSz = sizeof("GET /index.html HTTP/1.0\r\n\r\n");
+        XSTRNCPY(msg, "GET /index.html HTTP/1.0\r\n\r\n", msgSz);
         msg[msgSz] = '\0';
 
         resumeSz = msgSz;
-        strncpy(resumeMsg, "GET /index.html HTTP/1.0\r\n\r\n", resumeSz);
+        XSTRNCPY(resumeMsg, "GET /index.html HTTP/1.0\r\n\r\n", resumeSz);
         resumeMsg[resumeSz] = '\0';
     }
 
