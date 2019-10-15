@@ -4779,7 +4779,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
         *str++ = fp_s_rmap[d];
         ++digs;
     }
-#ifdef OPENSSL_EXTRA
+#ifndef WC_DISABLE_RADIX_ZERO_PAD
     /* For hexadecimal output, add zero padding when number of digits is odd */
     if ((digs & 1) && (radix == 16)) {
         *str++ = fp_s_rmap[0];
