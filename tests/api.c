@@ -20174,7 +20174,7 @@ static void test_wolfSSL_X509_STORE_CTX(void)
         for (i = 0; i < MAX_EX_DATA; i++) {
             AssertIntEQ(X509_STORE_CTX_set_ex_data(ctx, i, &tmpData),
                         WOLFSSL_SUCCESS);
-            tmpDataRet = X509_STORE_CTX_get_ex_data(ctx, i);
+            tmpDataRet = (int*)X509_STORE_CTX_get_ex_data(ctx, i);
             AssertNotNull(tmpDataRet);
             AssertIntEQ(tmpData, *tmpDataRet);
         }
