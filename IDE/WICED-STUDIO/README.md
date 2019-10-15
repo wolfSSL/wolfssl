@@ -33,9 +33,10 @@ Once you have installed the WICED software:
        file provides the configure options for compiling wolfSSL with your project.
        The default values will give you a starting point and you may further
        configure the library to meet your needs.
-    4. Apply the patch to your WICED IDE project's 43xxx_Wi-Fi/ directory.
+    4. The wolfssL_lib.mk should be placed into 43xxx_Wi-Fi/WICED/security/BESL/wolfssl_lib
+    5. Apply the patch to your WICED IDE project's 43xxx_Wi-Fi/ directory.
             a. Open a terminal and cd into the project 43xxx_Wi-Fi/ directory.:
-            b. git apply --ignore-space-change --ignore-whitespace mychanges.patch
+            b. git apply --ignore-space-change --ignore-whitespace wiced_patch.diff
 
 You can now build and use the wolfSSL and wolfCrypt snips within the WICED SDK.
 Cypress includes great documentation and getting started videos to learn how to
