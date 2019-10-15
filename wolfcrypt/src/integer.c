@@ -5233,7 +5233,13 @@ int mp_toradix (mp_int *a, char *str, int radix)
         *str++ = mp_s_rmap[d];
         ++digs;
     }
-
+#ifdef OPENSSL_EXTRA
+    /* For hexadecimal output, add zero padding when number of digits is odd */
+    if ((digs & 1) && (radix == 16)) {
+        *str++ = mp_s_rmap[0];
+        ++digs;
+    }
+#endif
     /* reverse the digits of the string.  In this case _s points
      * to the first digit [excluding the sign] of the number]
      */
