@@ -4542,7 +4542,7 @@ static void test_wolfSSL_PKCS12(void)
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_ASN) && defined(HAVE_PKCS8) && \
     defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3) && !defined(NO_PWDBASED) && \
-    (!defined(NO_RSA) || defined(HAVE_ECC))
+    (!defined(NO_RSA) || defined(HAVE_ECC)) && !defined(NO_MD5)
     #define TEST_PKCS8_ENC
 #endif
 
@@ -19225,7 +19225,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
 
     /* key is DES encrypted */
     #if !defined(NO_DES3) && defined(WOLFSSL_ENCRYPTED_KEYS) && \
-    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM) && !defined(NO_MD5)
     {
         XFILE f;
         pem_password_cb* passwd_cb;
@@ -27170,7 +27170,7 @@ static void test_wolfSSL_PEM_read(void)
     AssertIntEQ(PEM_do_header(&cipher, data, &len, NULL,
                               (void*)"yassl123"), WOLFSSL_FAILURE);
 
-#ifndef NO_DES3
+#if !defined(NO_DES3) && !defined(NO_MD5)
     AssertIntEQ(PEM_do_header(&cipher, data, &len, PasswordCallBack,
                               (void*)"yassl123"), WOLFSSL_SUCCESS);
 #endif
