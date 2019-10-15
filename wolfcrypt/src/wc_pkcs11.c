@@ -1326,7 +1326,7 @@ static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
                                  CK_OBJECT_HANDLE pubKey)
 {
     int            ret = 0;
-    int            i = 0;
+    word32         i = 0;
     int            curveIdx;
     unsigned char* point = NULL;
     int            pointSz;
@@ -1670,6 +1670,7 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
 {
     int ret = 0;
     word32 i = 0;
+    byte   tag;
     int len, seqLen = 2;
 
     /* Make sure zeros in place when decoding short integers. */
@@ -1695,7 +1696,7 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
     /* Check INT */
     if (ret == 0 && GetASNTag(in, &i, &tag, inSz) != 0)
         ret = ASN_PARSE_E;
-    if (ret == 0 && tag != ASN_INTGER)
+    if (ret == 0 && tag != ASN_INTEGER)
         ret = ASN_PARSE_E;
     if (ret == 0 && (len = in[i++]) > sz + 1)
         ret = ASN_PARSE_E;
@@ -1719,7 +1720,7 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
     /* Check INT */
     if (ret == 0 && GetASNTag(in, &i, &tag, inSz) != 0)
         ret = ASN_PARSE_E;
-    if (ret == 0 && tag != ASN_INTGER)
+    if (ret == 0 && tag != ASN_INTEGER)
         ret = ASN_PARSE_E;
     if (ret == 0 && (len = in[i++]) > sz + 1)
         ret = ASN_PARSE_E;
