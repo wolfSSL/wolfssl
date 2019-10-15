@@ -64,4 +64,25 @@ EXTRA_DIST += \
             certs/test-pathlen/chainH-ICA4-pathlen2.pem \
             certs/test-pathlen/chainH-assembled.pem \
             certs/test-pathlen/chainH-entity-key.pem \
-            certs/test-pathlen/chainH-entity.pem
+            certs/test-pathlen/chainH-entity.pem \
+            certs/test-pathlen/chainI-ICA1-key.pem \
+            certs/test-pathlen/chainI-ICA1-no_pathlen.pem \
+            certs/test-pathlen/chainI-ICA2-key.pem \
+            certs/test-pathlen/chainI-ICA2-no_pathlen.pem \
+            certs/test-pathlen/chainI-ICA3-key.pem \
+            certs/test-pathlen/chainI-ICA3-pathlen2.pem \
+            certs/test-pathlen/chainI-assembled.pem \
+            certs/test-pathlen/chainI-entity-key.pem \
+            certs/test-pathlen/chainI-entity.pem \
+            certs/test-pathlen/chainJ-ICA1-key.pem \
+            certs/test-pathlen/chainJ-ICA1-no_pathlen.pem \
+            certs/test-pathlen/chainJ-ICA2-key.pem \
+            certs/test-pathlen/chainJ-ICA2-no_pathlen.pem \
+            certs/test-pathlen/chainJ-ICA3-key.pem \
+            certs/test-pathlen/chainJ-ICA3-no_pathlen.pem \
+            certs/test-pathlen/chainJ-ICA4-key.pem \
+            certs/test-pathlen/chainJ-ICA4-pathlen2.pem \
+            certs/test-pathlen/chainJ-assembled.pem \
+            certs/test-pathlen/chainJ-entity-key.pem \
+            certs/test-pathlen/chainJ-entity.pem
+
