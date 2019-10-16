@@ -9339,11 +9339,22 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
 #endif
 #if defined(OPENSSL_EXTRA)
     /* perform domain name check on the peer certificate */
-    if (args->dCertInit && args->dCert && args->dCert->subjectCN \
-        && ssl->param && ssl->param->hostName[0]) {
-
-        if(XSTRSTR(args->dCert->subjectCN, ssl->param->hostName) == NULL) {
-            return VERIFY_CERT_ERROR;
+    if (args->dCertInit && args->dCert &&
+            ssl->param && ssl->param->hostName[0]) {
+        /* If altNames names is present, then subject common name is ignored */
+        if (args->dCert->altNames != NULL) {
+            if (CheckAltNames(args->dCert, ssl->param->hostName) == 0 ) {
+                return VERIFY_CERT_ERROR;
+            }
+        }
+        else {
+            if (args->dCert->subjectCN) {
+                if (MatchDomainName(args->dCert->subjectCN,
+                                    args->dCert->subjectCNLen,
+                                    ssl->param->hostName) == 0) {
+                    return VERIFY_CERT_ERROR;
+                }
+            }
         }
     }
 #endif
