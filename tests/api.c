@@ -516,12 +516,20 @@ static void test_wolfSSL_Method_Allocators(void)
 
 #ifndef NO_OLD_TLS
     #ifdef WOLFSSL_ALLOW_SSLV3
+        #ifndef NO_WOLFSSL_SERVER
         TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_server_method);
+        #endif
+        #ifndef NO_WOLFSSL_CLIENT
         TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_client_method);
+        #endif
     #endif
     #ifdef WOLFSL_ALLOW_TLSV10
+        #ifndef NO_WOLFSSL_SERVER
         TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_server_method);
+        #endif
+        #ifndef NO_WOLFSSL_CLIENT
         TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_client_method);
+        #endif
     #endif
     #ifndef NO_WOLFSSL_SERVER
         TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_1_server_method);
@@ -558,12 +566,20 @@ static void test_wolfSSL_Method_Allocators(void)
 
 #ifdef WOLFSSL_DTLS
     #ifndef NO_OLD_TLS
+        #ifndef NO_WOLFSSL_SERVER
         TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_server_method);
+        #endif
+        #ifndef NO_WOLFSSL_CLIENT
         TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_client_method);
+        #endif
     #endif
     #ifndef WOLFSSL_NO_TLS12
+        #ifndef NO_WOLFSSL_SERVER
         TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_2_server_method);
+        #endif
+        #ifndef NO_WOLFSSL_CLIENT
         TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_2_client_method);
+        #endif
     #endif
 #endif /* WOLFSSL_DTLS */
 
@@ -3931,7 +3947,7 @@ static void test_wolfSSL_UseSupportedCurve(void)
 #endif
 }
 
-#ifdef HAVE_ALPN
+#if defined(HAVE_ALPN) && !defined(NO_WOLFSSL_SERVER)
 
 static void verify_ALPN_FATAL_ERROR_on_client(WOLFSSL* ssl)
 {
@@ -4187,7 +4203,7 @@ static void test_wolfSSL_UseALPN_params(void)
 
 static void test_wolfSSL_UseALPN(void)
 {
-#ifdef HAVE_ALPN
+#if defined(HAVE_ALPN) && !defined(NO_WOLFSSL_SERVER)
     test_wolfSSL_UseALPN_connection();
     test_wolfSSL_UseALPN_params();
 #endif
@@ -19440,7 +19456,11 @@ static void test_wolfSSL_tmp_dh(void)
     AssertNotNull(dh);
 
     AssertIntEQ((int)SSL_CTX_set_tmp_dh(ctx, dh), WOLFSSL_SUCCESS);
+    #ifndef NO_WOLFSSL_SERVER
     AssertIntEQ((int)SSL_set_tmp_dh(ssl, dh), WOLFSSL_SUCCESS);
+    #else
+    AssertIntEQ((int)SSL_set_tmp_dh(ssl, dh), SIDE_ERROR);
+    #endif
 
     BIO_free(bio);
     DSA_free(dsa);
@@ -21160,7 +21180,7 @@ static void test_wolfSSL_sk_SSL_CIPHER(void)
  */
 static void test_wolfSSL_set_tlsext_status_type(void){
     #if defined(OPENSSL_EXTRA) && defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
-    !defined(NO_RSA)
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_SERVER)
     SSL*     ssl;
     SSL_CTX* ctx;
 

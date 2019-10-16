@@ -40062,8 +40062,8 @@ int wolfSSL_CTX_set_tlsext_status_cb(WOLFSSL_CTX* ctx,
     if (ctx == NULL || ctx->cm == NULL)
         return WOLFSSL_FAILURE;
 
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
- || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+#if !defined(NO_WOLFSSL_SERVER) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+                               ||  defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
     /* Ensure stapling is on for callback to be used. */
     wolfSSL_CTX_EnableOCSPStapling(ctx);
 
