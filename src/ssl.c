@@ -17039,6 +17039,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                                       WOLFSSL_DES_key_schedule* ks3,
                                       WOLFSSL_DES_cblock* ivec, int enc)
     {
+        int ret;
         Des3 des;
         byte key[24];/* EDE uses 24 size key */
         byte lastblock[DES_BLOCK_SIZE];
@@ -17059,19 +17060,35 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
         if (enc) {
             wc_Des3_SetKey(&des, key, (const byte*)ivec, DES_ENCRYPTION);
-            wc_Des3_CbcEncrypt(&des, output, input, (word32)blk*DES_BLOCK_SIZE);
+            ret = wc_Des3_CbcEncrypt(&des, output, input, (word32)blk*DES_BLOCK_SIZE);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &des.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            (void)ret; /* ignore return codes for processing */
             if(lb_sz){
                 XMEMSET(lastblock, 0, DES_BLOCK_SIZE);
                 XMEMCPY(lastblock, input+sz-lb_sz, lb_sz);
-                wc_Des3_CbcEncrypt(&des, output+blk*DES_BLOCK_SIZE,
+                ret = wc_Des3_CbcEncrypt(&des, output+blk*DES_BLOCK_SIZE,
                     lastblock, (word32)DES_BLOCK_SIZE);
+            #if defined(WOLFSSL_ASYNC_CRYPT)
+                ret = wc_AsyncWait(ret, &des.asyncDev, WC_ASYNC_FLAG_NONE);
+            #endif
+                (void)ret; /* ignore return codes for processing */
             }
         }
         else {
             wc_Des3_SetKey(&des, key, (const byte*)ivec, DES_DECRYPTION);
-            wc_Des3_CbcDecrypt(&des, output, input, (word32)blk*DES_BLOCK_SIZE);
+            ret = wc_Des3_CbcDecrypt(&des, output, input, (word32)blk*DES_BLOCK_SIZE);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &des.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            (void)ret; /* ignore return codes for processing */
             if(lb_sz){
-                wc_Des3_CbcDecrypt(&des, lastblock, input+sz-lb_sz, (word32)DES_BLOCK_SIZE);
+                ret = wc_Des3_CbcDecrypt(&des, lastblock, input+sz-lb_sz, (word32)DES_BLOCK_SIZE);
+            #if defined(WOLFSSL_ASYNC_CRYPT)
+                ret = wc_AsyncWait(ret, &des.asyncDev, WC_ASYNC_FLAG_NONE);
+            #endif
+                (void)ret; /* ignore return codes for processing */
                 XMEMCPY(output+sz-lb_sz, lastblock, lb_sz);
             }
         }

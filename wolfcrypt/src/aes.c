@@ -2292,15 +2292,13 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         aes->keylen = keylen;
         aes->rounds = keylen/4 + 6;
 
-    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
-        if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES) {
-            XMEMCPY(aes->asyncKey, userKey, keylen);
-            if (iv)
-                XMEMCPY(aes->asyncIv, iv, AES_BLOCK_SIZE);
-        }
-    #endif /* WOLFSSL_ASYNC_CRYPT */
-    #ifdef WOLF_CRYPTO_CB
-        if (aes->devId != INVALID_DEVID) {
+    #if defined(WOLF_CRYPTO_CB) || (defined(WOLFSSL_DEVCRYPTO) && \
+        (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))) || \
+        (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES))
+        #ifdef WOLF_CRYPTO_CB
+        if (aes->devId != INVALID_DEVID)
+        #endif
+        {
             XMEMCPY(aes->devKey, userKey, keylen);
         }
     #endif
@@ -2333,7 +2331,6 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     #if defined(WOLFSSL_DEVCRYPTO) && \
         (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
         aes->ctx.cfd = -1;
-        XMEMCPY(aes->devKey, userKey, keylen);
     #endif
     #ifdef WOLFSSL_IMX6_CAAM_BLOB
         ForceZero(local, sizeof(local));
@@ -3036,8 +3033,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return NitroxAesCbcEncrypt(aes, out, in, sz);
         #elif defined(HAVE_INTEL_QA)
             return IntelQaSymAesCbcEncrypt(&aes->asyncDev, out, in, sz,
-                (const byte*)aes->asyncKey, aes->keylen,
-                (const byte*)aes->asyncIv, AES_BLOCK_SIZE);
+                (const byte*)aes->devKey, aes->keylen,
+                (byte*)aes->reg, AES_BLOCK_SIZE);
         #else /* WOLFSSL_ASYNC_CRYPT_TEST */
             if (wc_AsyncTestInit(&aes->asyncDev, ASYNC_TEST_AES_CBC_ENCRYPT)) {
                 WC_ASYNC_TEST* testDev = &aes->asyncDev.test;
@@ -3135,8 +3132,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return NitroxAesCbcDecrypt(aes, out, in, sz);
         #elif defined(HAVE_INTEL_QA)
             return IntelQaSymAesCbcDecrypt(&aes->asyncDev, out, in, sz,
-                (const byte*)aes->asyncKey, aes->keylen,
-                (const byte*)aes->asyncIv, AES_BLOCK_SIZE);
+                (const byte*)aes->devKey, aes->keylen,
+                (byte*)aes->reg, AES_BLOCK_SIZE);
         #else /* WOLFSSL_ASYNC_CRYPT_TEST */
             if (wc_AsyncTestInit(&aes->asyncDev, ASYNC_TEST_AES_CBC_DECRYPT)) {
                 WC_ASYNC_TEST* testDev = &aes->asyncDev.test;
@@ -3185,6 +3182,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             XMEMCPY(aes->tmp, in, AES_BLOCK_SIZE);
             wc_AesDecrypt(aes, (byte*)aes->tmp, out);
             xorbuf(out, (byte*)aes->reg, AES_BLOCK_SIZE);
+            /* store iv for next call */
             XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
 
             out += AES_BLOCK_SIZE;
@@ -5687,13 +5685,13 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         #ifdef HAVE_CAVIUM_V
         if (authInSz == 20) { /* Nitrox V GCM is only working with 20 byte AAD */
             return NitroxAesGcmEncrypt(aes, out, in, sz,
-                (const byte*)aes->asyncKey, aes->keylen, iv, ivSz,
+                (const byte*)aes->devKey, aes->keylen, iv, ivSz,
                 authTag, authTagSz, authIn, authInSz);
         }
         #endif
     #elif defined(HAVE_INTEL_QA)
         return IntelQaSymAesGcmEncrypt(&aes->asyncDev, out, in, sz,
-            (const byte*)aes->asyncKey, aes->keylen, iv, ivSz,
+            (const byte*)aes->devKey, aes->keylen, iv, ivSz,
             authTag, authTagSz, authIn, authInSz);
     #else /* WOLFSSL_ASYNC_CRYPT_TEST */
         if (wc_AsyncTestInit(&aes->asyncDev, ASYNC_TEST_AES_GCM_ENCRYPT)) {
@@ -6123,13 +6121,13 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         #ifdef HAVE_CAVIUM_V
         if (authInSz == 20) { /* Nitrox V GCM is only working with 20 byte AAD */
             return NitroxAesGcmDecrypt(aes, out, in, sz,
-                (const byte*)aes->asyncKey, aes->keylen, iv, ivSz,
+                (const byte*)aes->devKey, aes->keylen, iv, ivSz,
                 authTag, authTagSz, authIn, authInSz);
         }
         #endif
     #elif defined(HAVE_INTEL_QA)
         return IntelQaSymAesGcmDecrypt(&aes->asyncDev, out, in, sz,
-            (const byte*)aes->asyncKey, aes->keylen, iv, ivSz,
+            (const byte*)aes->devKey, aes->keylen, iv, ivSz,
             authTag, authTagSz, authIn, authInSz);
     #else /* WOLFSSL_ASYNC_CRYPT_TEST */
         if (wc_AsyncTestInit(&aes->asyncDev, ASYNC_TEST_AES_GCM_DECRYPT)) {
@@ -6871,7 +6869,8 @@ void wc_AesFree(Aes* aes)
     wc_DevCryptoFree(&aes->ctx);
 #endif
 #if defined(WOLF_CRYPTO_CB) || (defined(WOLFSSL_DEVCRYPTO) && \
-    (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC)))
+    (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))) || \
+    defined(WOLFSSL_ASYNC_CRYPT)
     ForceZero((byte*)aes->devKey, AES_MAX_KEY_SIZE/WOLFSSL_BIT_SIZE);
 #endif
 }
@@ -6979,8 +6978,6 @@ int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     byte*  tmp = NULL;
     byte*  reg = NULL;
 
-    WOLFSSL_ENTER("wc_AesCfbEncrypt");
-
     if (aes == NULL || out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -7039,8 +7036,6 @@ int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     byte*  tmp;
-
-    WOLFSSL_ENTER("wc_AesCfbDecrypt");
 
     if (aes == NULL || out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
