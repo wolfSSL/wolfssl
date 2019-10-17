@@ -164,6 +164,8 @@
 /* get index cert in PEM */
 #define CyaSSL_X509_get_subjectCN wolfSSL_X509_get_subjectCN
 #define CyaSSL_X509_get_der       wolfSSL_X509_get_der
+#define CyaSSL_X509_notBefore     wolfSSL_X509_notBefore
+#define CyaSSL_X509_notAfter      wolfSSL_X509_notAfter
 #define CyaSSL_X509_get_notBefore wolfSSL_X509_get_notBefore
 #define CyaSSL_X509_get_notAfter  wolfSSL_X509_get_notAfter
 #define CyaSSL_X509_version       wolfSSL_X509_version

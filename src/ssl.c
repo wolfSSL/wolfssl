@@ -17889,6 +17889,41 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
         return x509->derCert->buffer;
     }
 
+    /* used by JSSE (not a standard compatibility function) */
+    /* this is not thread safe */
+    const byte* wolfSSL_X509_notBefore(WOLFSSL_X509* x509)
+    {
+        static byte notBeforeData[CTC_DATE_SIZE]; /* temp buffer for date */
+        WOLFSSL_ENTER("wolfSSL_X509_notBefore");
+
+        if (x509 == NULL)
+            return NULL;
+
+        XMEMSET(notBeforeData, 0, sizeof(notBeforeData));
+        notBeforeData[0] = (byte)x509->notBefore.type;
+        notBeforeData[1] = (byte)x509->notBefore.length;
+        XMEMCPY(&notBeforeData[2], x509->notBefore.data, x509->notBefore.length);
+
+        return notBeforeData;
+    }
+    /* used by JSSE (not a standard compatibility function) */
+    /* this is not thread safe */
+    const byte* wolfSSL_X509_notAfter(WOLFSSL_X509* x509)
+    {
+        static byte notAfterData[CTC_DATE_SIZE]; /* temp buffer for date */
+        WOLFSSL_ENTER("wolfSSL_X509_notAfter");
+
+        if (x509 == NULL)
+            return NULL;
+
+        XMEMSET(notAfterData, 0, sizeof(notAfterData));
+        notAfterData[0] = (byte)x509->notAfter.type;
+        notAfterData[1] = (byte)x509->notAfter.length;
+        XMEMCPY(&notAfterData[2], x509->notAfter.data, x509->notAfter.length);
+
+        return notAfterData;
+    }
+
 
     /* get the buffer to be signed (tbs) from the WOLFSSL_X509 certificate
      *
