@@ -2526,6 +2526,7 @@ static word16 TLSX_TCA_Write(TCA* list, byte* output)
     return offset;
 }
 
+#ifndef NO_WOLFSSL_SERVER
 static TCA* TLSX_TCA_Find(TCA *list, byte type, const byte* id, word16 idSz)
 {
     TCA* tca = list;
@@ -2536,6 +2537,7 @@ static TCA* TLSX_TCA_Find(TCA *list, byte type, const byte* id, word16 idSz)
 
     return tca;
 }
+#endif /* NO_WOLFSSL_SERVER */
 
 /** Parses a buffer of TCA extensions. */
 static int TLSX_TCA_Parse(WOLFSSL* ssl, const byte* input, word16 length,
@@ -3015,10 +3017,12 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
                 if (offset + resp_length != length)
                     ret = BUFFER_ERROR;
             }
+        #if !defined(NO_WOLFSSL_SERVER)
             if (ret == 0) {
                 csr->response.buffer = input + offset;
                 csr->response.length = resp_length;
             }
+        #endif
 
             return ret;
         }

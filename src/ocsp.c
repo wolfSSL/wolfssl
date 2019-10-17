@@ -898,21 +898,26 @@ int wolfSSL_i2d_OCSP_REQUEST_bio(WOLFSSL_BIO* out,
         return WOLFSSL_FAILURE;
 
     size = wolfSSL_i2d_OCSP_REQUEST(req, NULL);
-    if (size > 0)
-        data = (unsigned char*) XMALLOC(size,NULL,DYNAMIC_TYPE_TMP_BUFFER);
-    if (data != NULL)
+    if (size > 0) {
+        data = (unsigned char*) XMALLOC(size, out->heap,
+                DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    if (data != NULL) {
         size = wolfSSL_i2d_OCSP_REQUEST(req, &data);
+    }
 
     if (size <= 0) {
-        XFREE(data,NULL,DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(data, out->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
 
-    if (wolfSSL_BIO_write(out,data,size) == (int)size) {
-        XFREE(data,NULL,DYNAMIC_TYPE_TMP_BUFFER);
+    if (wolfSSL_BIO_write(out, data, size) == (int)size) {
+        XFREE(data, out->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_SUCCESS;
     }
 
+    XFREE(data, out->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return WOLFSSL_FAILURE;
 }
 #endif /* OPENSSL_ALL || APACHE_HTTPD */

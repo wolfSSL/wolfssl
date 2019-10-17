@@ -19765,7 +19765,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                         x509->pubKey.length, x509->heap,
                                                        DYNAMIC_TYPE_PUBLIC_KEY);
             if (key->pkey.ptr == NULL) {
-                XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                wolfSSL_EVP_PKEY_free(key);
                 return NULL;
             }
             XMEMCPY(key->pkey.ptr, x509->pubKey.buffer, x509->pubKey.length);
@@ -19781,16 +19781,14 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                 key->ownRsa = 1;
                 key->rsa = wolfSSL_RSA_new();
                 if (key->rsa == NULL) {
-                    XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    wolfSSL_EVP_PKEY_free(key);
                     return NULL;
                 }
 
                 if (wolfSSL_RSA_LoadDer_ex(key->rsa,
                             (const unsigned char*)key->pkey.ptr, key->pkey_sz,
                             WOLFSSL_RSA_LOAD_PUBLIC) != SSL_SUCCESS) {
-                    wolfSSL_RSA_free(key->rsa);
-                    key->rsa = NULL;
-                    XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    wolfSSL_EVP_PKEY_free(key);
                     return NULL;
                 }
             }
@@ -19804,7 +19802,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                 key->ownEcc = 1;
                 key->ecc = wolfSSL_EC_KEY_new();
                 if (key->ecc == NULL || key->ecc->internal == NULL) {
-                    XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    wolfSSL_EVP_PKEY_free(key);
                     return NULL;
                 }
 
@@ -19813,17 +19811,13 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                 if (wc_EccPublicKeyDecode((const unsigned char*)key->pkey.ptr,
                         &idx, (ecc_key*)key->ecc->internal, key->pkey_sz) < 0) {
                     WOLFSSL_MSG("wc_EccPublicKeyDecode failed");
-                    wolfSSL_EC_KEY_free(key->ecc);
-                    key->ecc = NULL;
-                    XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    wolfSSL_EVP_PKEY_free(key);
                     return NULL;
                 }
 
                 if (SetECKeyExternal(key->ecc) != SSL_SUCCESS) {
                     WOLFSSL_MSG("SetECKeyExternal failed");
-                    wolfSSL_EC_KEY_free(key->ecc);
-                    key->ecc = NULL;
-                    XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    wolfSSL_EVP_PKEY_free(key);
                     return NULL;
                 }
 
@@ -40127,8 +40121,8 @@ int wolfSSL_CTX_set_tlsext_status_cb(WOLFSSL_CTX* ctx,
     if (ctx == NULL || ctx->cm == NULL)
         return WOLFSSL_FAILURE;
 
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
- || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+#if !defined(NO_WOLFSSL_SERVER) && (defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+                               ||  defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
     /* Ensure stapling is on for callback to be used. */
     wolfSSL_CTX_EnableOCSPStapling(ctx);
 

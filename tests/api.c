@@ -516,12 +516,20 @@ static void test_wolfSSL_Method_Allocators(void)
 
 #ifndef NO_OLD_TLS
     #ifdef WOLFSSL_ALLOW_SSLV3
+        #ifndef NO_WOLFSSL_SERVER
         TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_server_method);
+        #endif
+        #ifndef NO_WOLFSSL_CLIENT
         TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_client_method);
+        #endif
     #endif
     #ifdef WOLFSL_ALLOW_TLSV10
+        #ifndef NO_WOLFSSL_SERVER
         TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_server_method);
+        #endif
+        #ifndef NO_WOLFSSL_CLIENT
         TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_client_method);
+        #endif
     #endif
     #ifndef NO_WOLFSSL_SERVER
         TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_1_server_method);
@@ -558,12 +566,20 @@ static void test_wolfSSL_Method_Allocators(void)
 
 #ifdef WOLFSSL_DTLS
     #ifndef NO_OLD_TLS
+        #ifndef NO_WOLFSSL_SERVER
         TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_server_method);
+        #endif
+        #ifndef NO_WOLFSSL_CLIENT
         TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_client_method);
+        #endif
     #endif
     #ifndef WOLFSSL_NO_TLS12
+        #ifndef NO_WOLFSSL_SERVER
         TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_2_server_method);
+        #endif
+        #ifndef NO_WOLFSSL_CLIENT
         TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_2_client_method);
+        #endif
     #endif
 #endif /* WOLFSSL_DTLS */
 
@@ -3936,7 +3952,7 @@ static void test_wolfSSL_UseSupportedCurve(void)
 #endif
 }
 
-#ifdef HAVE_ALPN
+#if defined(HAVE_ALPN) && !defined(NO_WOLFSSL_SERVER)
 
 static void verify_ALPN_FATAL_ERROR_on_client(WOLFSSL* ssl)
 {
@@ -4192,7 +4208,7 @@ static void test_wolfSSL_UseALPN_params(void)
 
 static void test_wolfSSL_UseALPN(void)
 {
-#ifdef HAVE_ALPN
+#if defined(HAVE_ALPN) && !defined(NO_WOLFSSL_SERVER)
     test_wolfSSL_UseALPN_connection();
     test_wolfSSL_UseALPN_params();
 #endif
@@ -4547,7 +4563,7 @@ static void test_wolfSSL_PKCS12(void)
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_ASN) && defined(HAVE_PKCS8) && \
     defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3) && !defined(NO_PWDBASED) && \
-    (!defined(NO_RSA) || defined(HAVE_ECC))
+    (!defined(NO_RSA) || defined(HAVE_ECC)) && !defined(NO_MD5)
     #define TEST_PKCS8_ENC
 #endif
 
@@ -19232,7 +19248,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
 
     /* key is DES encrypted */
     #if !defined(NO_DES3) && defined(WOLFSSL_ENCRYPTED_KEYS) && \
-    !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM) && !defined(NO_MD5)
     {
         XFILE f;
         pem_password_cb* passwd_cb;
@@ -19447,7 +19463,11 @@ static void test_wolfSSL_tmp_dh(void)
     AssertNotNull(dh);
 
     AssertIntEQ((int)SSL_CTX_set_tmp_dh(ctx, dh), WOLFSSL_SUCCESS);
+    #ifndef NO_WOLFSSL_SERVER
     AssertIntEQ((int)SSL_set_tmp_dh(ssl, dh), WOLFSSL_SUCCESS);
+    #else
+    AssertIntEQ((int)SSL_set_tmp_dh(ssl, dh), SIDE_ERROR);
+    #endif
 
     BIO_free(bio);
     DSA_free(dsa);
@@ -20181,7 +20201,7 @@ static void test_wolfSSL_X509_STORE_CTX(void)
         for (i = 0; i < MAX_EX_DATA; i++) {
             AssertIntEQ(X509_STORE_CTX_set_ex_data(ctx, i, &tmpData),
                         WOLFSSL_SUCCESS);
-            tmpDataRet = X509_STORE_CTX_get_ex_data(ctx, i);
+            tmpDataRet = (int*)X509_STORE_CTX_get_ex_data(ctx, i);
             AssertNotNull(tmpDataRet);
             AssertIntEQ(tmpData, *tmpDataRet);
         }
@@ -21167,7 +21187,7 @@ static void test_wolfSSL_sk_SSL_CIPHER(void)
  */
 static void test_wolfSSL_set_tlsext_status_type(void){
     #if defined(OPENSSL_EXTRA) && defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
-    !defined(NO_RSA)
+    !defined(NO_RSA) && !defined(NO_WOLFSSL_SERVER)
     SSL*     ssl;
     SSL_CTX* ctx;
 
@@ -27177,7 +27197,7 @@ static void test_wolfSSL_PEM_read(void)
     AssertIntEQ(PEM_do_header(&cipher, data, &len, NULL,
                               (void*)"yassl123"), WOLFSSL_FAILURE);
 
-#ifndef NO_DES3
+#if !defined(NO_DES3) && !defined(NO_MD5)
     AssertIntEQ(PEM_do_header(&cipher, data, &len, PasswordCallBack,
                               (void*)"yassl123"), WOLFSSL_SUCCESS);
 #endif

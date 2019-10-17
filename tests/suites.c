@@ -899,7 +899,7 @@ int SuiteTest(int argc, char** argv)
     }
     #endif
 #endif
-#if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3)
+#if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3) && !defined(NO_MD5)
     /* test encrypted keys */
     strcpy(argv0[1], "tests/test-enckeys.conf");
     printf("starting encrypted keys extra cipher suite tests\n");
