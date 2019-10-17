@@ -1167,6 +1167,55 @@ int IntelQaSymSync_CryptoDevCb(int devId, struct wc_CryptoInfo* info, void* ctx)
     return rc;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Public API                                                                 */
+/* -------------------------------------------------------------------------- */
+
+int wc_CryptoCb_InitIntelQa(void* dev)
+{
+    IntelQaDev* qaDev = (IntelQaDev*)dev;
+    int devId, rc;
+
+    devId = IntelQaInit(NULL);
+    if (devId < 0) {
+        QLOG("Couldn't init the Intel QA\n");
+        devId = INVALID_DEVID;
+    }
+    else {
+        rc = IntelQaOpen(qaDev, devId);
+        if (rc != 0) {
+            QLOG("Couldn't open the device\n");
+            IntelQaDeInit(devId);
+            devId = INVALID_DEVID;
+        }
+        else {
+            rc = wc_CryptoCb_RegisterDevice(devId,
+                    IntelQaSymSync_CryptoDevCb, qaDev);
+            if (rc != 0) {
+                QLOG("Couldn't register the device\n");
+                IntelQaClose(qaDev);
+                IntelQaDeInit(devId);
+                devId = INVALID_DEVID;
+            }
+        }
+    }
+
+    return devId;
+}
+
+
+void wc_CryptoCb_CleanupIntelQa(int* id, void* dev)
+{
+    IntelQaDev* qaDev = (IntelQaDev*)dev;
+
+    if (INVALID_DEVID != *id) {
+        wc_CryptoCb_UnRegisterDevice(*id);
+        IntelQaClose(qaDev);
+        IntelQaDeInit(*id);
+        *id = INVALID_DEVID;
+    }
+}
+
 #endif /* WOLF_CRYPTO_CB */
 
 

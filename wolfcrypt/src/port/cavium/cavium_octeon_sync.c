@@ -646,8 +646,8 @@ static int Octeon_AesGcm_SetEncrypt(Aes* aes, byte* in, byte* out, word32 inSz,
             CVMX_MT_GFM_XORMUL1(pOut[1]);
         }
         else {
-            CVMX_MT_GFM_XOR0(pOut[0]);
-            CVMX_MT_GFM_XORMUL1(pOut[1]);
+            CVMX_MT_GFM_XOR0(pIn[0]);
+            CVMX_MT_GFM_XORMUL1(pIn[1]);
             pOut[0] ^= pIn[0];
             pOut[1] ^= pIn[1];
         }
@@ -657,9 +657,15 @@ static int Octeon_AesGcm_SetEncrypt(Aes* aes, byte* in, byte* out, word32 inSz,
     }
 
     if (remainder > 0) {
+        ALIGN16 byte aesBlockMask[AES_BLOCK_SIZE];
+        word64* pMask = (word64*)aesBlockMask;
+
         XMEMSET(aesBlockOut, 0, sizeof(aesBlockOut));
-        for (i = 0; i < remainder; i++)
+        XMEMSET(aesBlockMask, 0, sizeof(aesBlockMask));
+        for (i = 0; i < remainder; i++) {
             aesBlockIn[i] = in[i];
+            aesBlockMask[i] = 0xFF;
+        }
 
         if (encrypt) {
             CVMX_MF_AES_RESULT(pOut[0], 0);
@@ -667,6 +673,9 @@ static int Octeon_AesGcm_SetEncrypt(Aes* aes, byte* in, byte* out, word32 inSz,
 
             pOut[0] ^= pIn[0];
             pOut[1] ^= pIn[1];
+
+            pOut[0] &= pMask[0];
+            pOut[1] &= pMask[1];
 
             CVMX_MT_GFM_XOR0(pOut[0]);
             CVMX_MT_GFM_XORMUL1(pOut[1]);
@@ -680,6 +689,9 @@ static int Octeon_AesGcm_SetEncrypt(Aes* aes, byte* in, byte* out, word32 inSz,
 
             pOut[0] ^= pIn[0];
             pOut[1] ^= pIn[1];
+
+            pOut[0] &= pMask[0];
+            pOut[1] &= pMask[1];
         }
 
         for (i = 0; i < remainder; i++)
@@ -881,19 +893,22 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     return ret;
 }
 
-int wc_CryptoCb_InitOcteon(void)
+int wc_CryptoCb_InitOcteon(void* unused)
 {
-    return wc_CryptoCb_RegisterDevice(devId, myCryptoDevCb, NULL);
-}
+    (void)unused;
 
-void wc_CryptoCb_CleanupOcteon(void)
-{
-    wc_CryptoCb_UnRegisterDevice(devId);
-}
+    if (wc_CryptoCb_RegisterDevice(devId, myCryptoDevCb, NULL) < 0) {
+        return INVALID_DEVID;
+    }
 
-int wc_CryptoCb_GetDevIdOcteon(void)
-{
     return devId;
+}
+
+void wc_CryptoCb_CleanupOcteon(int* id, void* unused)
+{
+    (void)unused;
+    wc_CryptoCb_UnRegisterDevice(*id);
+    *id = INVALID_DEVID;
 }
 
 #endif /* WOLF_CRYPTO_CB */

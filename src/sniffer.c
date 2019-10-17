@@ -507,34 +507,15 @@ void ssl_InitSniffer(void)
 #endif
 #ifdef WOLF_CRYPTO_CB
     #ifdef HAVE_INTEL_QA_SYNC
-    {
-        int rc;
-        CryptoDeviceId = IntelQaInit(NULL);
-        if (CryptoDeviceId == INVALID_DEVID) {
-            printf("Couldn't init the Intel QA\n");
-        }
-        rc = IntelQaOpen(&CryptoDevice, CryptoDeviceId);
-        if (rc != 0) {
-            printf("Couldn't open the device\n");
-        }
-        rc = wc_CryptoCb_RegisterDevice(CryptoDeviceId,
-                IntelQaSymSync_CryptoDevCb, &CryptoDevice);
-        if (rc != 0) {
-            printf("Couldn't register the device\n");
-        }
+    CryptoDeviceId = wc_CryptoCb_InitIntelQa(&CryptoDevice);
+    if (INVALID_DEVID == CryptoDeviceId) {
+        printf("Couldn't init the Intel QA\n");
     }
     #endif
     #ifdef HAVE_CAVIUM_OCTEON_SYNC
-    {
-        CryptoDeviceId = wc_CryptoCb_GetDevIdOcteon();
-        if (CryptoDeviceId == INVALID_DEVID) {
-            printf("Couldn't get the Octeon device ID\n");
-        }
-        if (wc_CryptoCb_InitOcteon() != 0) {
-            printf("Couldn't init the Cavium Octeon\n");
-            CryptoDeviceId = INVALID_DEVID;
-        }
-    }
+    CryptoDeviceId = wc_CryptoCb_InitOcteon(NULL);
+    if (INVALID_DEVID == CryptoDeviceId) {
+        printf("Couldn't init the Intel QA\n");
     #endif
 #endif
 }
@@ -667,12 +648,10 @@ void ssl_FreeSniffer(void)
 
 #ifdef WOLF_CRYPTO_CB
 #ifdef HAVE_INTEL_QA_SYNC
-    wc_CryptoCb_UnRegisterDevice(CryptoDeviceId);
-    IntelQaClose(&CryptoDevice);
-    IntelQaDeInit(CryptoDeviceId);
+    wc_CryptoCb_CleanupIntelQa(&CryptoDeviceId, &CryptoDevice);
 #endif
 #ifdef HAVE_CAVIUM_OCTEON_SYNC
-    wc_CryptoCb_CleanupOcteon();
+    wc_CryptoCb_CleanupOcteon(&CryptoDeviceId, NULL);
 #endif
 #endif
 

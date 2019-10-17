@@ -42,34 +42,41 @@
 
 
 #ifdef WOLF_CRYPTO_CB
-int wc_CryptoCb_InitOcteon(void);
-void wc_CryptoCb_CleanupOcteon(void);
-int wc_CryptoCb_GetDevIdOcteon(void);
+WOLFSSL_API int wc_CryptoCb_InitOcteon(void* unused);
+WOLFSSL_API void wc_CryptoCb_CleanupOcteon(int* id, void* unused);
 #endif /* WOLF_CRYPTO_CB */
 
 
 #ifndef NO_DES3
-int Octeon_Des3_CbcEncrypt(Des3 *key, uint64_t *inp64, uint64_t *outp64, size_t inl);
-int Octeon_Des3_CbcDecrypt(Des3 *key, uint64_t *inp64, uint64_t *outp64, size_t inl);
+WOLFSSL_LOCAL int Octeon_Des3_CbcEncrypt(Des3 *key,
+        uint64_t *inp64, uint64_t *outp64, size_t inl);
+WOLFSSL_LOCAL int Octeon_Des3_CbcDecrypt(Des3 *key,
+        uint64_t *inp64, uint64_t *outp64, size_t inl);
 #endif /* !NO_DES3 */
 
 
 #ifndef NO_AES
 
 #ifdef WOLFSSL_AES_DIRECT
-int Octeon_AesEcb_Encrypt(Aes *aes, const unsigned char *in, unsigned char *out);
-int Octeon_AesEcb_Decrypt(Aes *aes, const unsigned char *in, unsigned char *out);
+WOLFSSL_LOCAL int Octeon_AesEcb_Encrypt(Aes *aes,
+        const unsigned char *in, unsigned char *out);
+WOLFSSL_LOCAL int Octeon_AesEcb_Decrypt(Aes *aes,
+        const unsigned char *in, unsigned char *out);
 #endif
 
 #ifdef HAVE_AES_CBC
-int Octeon_AesCbc_Encrypt(Aes *aes, uint64_t *inp64, uint64_t *outp64, size_t inl);
-int Octeon_AesCbc_Decrypt(Aes *aes, uint64_t *inp64, uint64_t *outp64, size_t inl);
+WOLFSSL_LOCAL int Octeon_AesCbc_Encrypt(Aes *aes,
+        uint64_t *inp64, uint64_t *outp64, size_t inl);
+WOLFSSL_LOCAL int Octeon_AesCbc_Decrypt(Aes *aes,
+        uint64_t *inp64, uint64_t *outp64, size_t inl);
 #endif
 
 #ifdef HAVE_AESGCM
-int Octeon_AesGcm_Encrypt(Aes* aes, byte* in, byte* out, word32 inSz,
+WOLFSSL_LOCAL int Octeon_AesGcm_Encrypt(Aes* aes,
+        byte* in, byte* out, word32 inSz,
         byte* iv, word32 ivSz, byte* aad, word32 aadSz, byte* tag);
-int Octeon_AesGcm_Decrypt(Aes* aes, byte* in, byte* out, word32 inSz,
+WOLFSSL_LOCAL int Octeon_AesGcm_Decrypt(Aes* aes,
+        byte* in, byte* out, word32 inSz,
         byte* iv, word32 ivSz, byte* aad, word32 aadSz, byte* tag);
 #endif /* HAVE_AESGCM */
 
