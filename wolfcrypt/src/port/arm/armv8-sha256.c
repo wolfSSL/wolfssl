@@ -1345,6 +1345,23 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
     return ret;
 }
 
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+int wc_Sha256SetFlags(wc_Sha256* sha256, word32 flags)
+{
+    if (sha256) {
+        sha256->flags = flags;
+    }
+    return 0;
+}
+int wc_Sha256GetFlags(wc_Sha256* sha256, word32* flags)
+{
+    if (sha256 && flags) {
+        *flags = sha256->flags;
+    }
+    return 0;
+}
+#endif
+
 int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 {
     int ret = 0;
@@ -1453,6 +1470,24 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
         }
         return ret;
     }
+
+#if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
+    int wc_Sha224SetFlags(wc_Sha224* sha224, word32 flags)
+    {
+        if (sha224) {
+            sha224->flags = flags;
+        }
+        return 0;
+    }
+    int wc_Sha224GetFlags(wc_Sha224* sha224, word32* flags)
+    {
+        if (sha224 && flags) {
+            *flags = sha224->flags;
+        }
+        return 0;
+    }
+#endif
+
     int wc_Sha224Copy(wc_Sha224* src, wc_Sha224* dst)
     {
         int ret = 0;

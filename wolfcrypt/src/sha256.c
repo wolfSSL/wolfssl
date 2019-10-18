@@ -1535,6 +1535,7 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 
     return ret;
 }
+#endif
 
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
 int wc_Sha256SetFlags(wc_Sha256* sha256, word32 flags)
@@ -1551,8 +1552,6 @@ int wc_Sha256GetFlags(wc_Sha256* sha256, word32* flags)
     }
     return 0;
 }
-#endif
-
 #endif
 #endif /* !WOLFSSL_TI_HASH */
 
