@@ -1917,7 +1917,9 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         const byte* iv, int dir)
     {
         int ret;
-        byte *rk = (byte*)aes->key;
+        byte* rk = (byte*)aes->key;
+        byte* tmpKey = (byte*)userKey;
+        int tmpKeyDynamic = 0;
 
         (void)dir;
 
@@ -1933,16 +1935,39 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
         aes->rounds = keylen/4 + 6;
 
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        if ((wolfssl_word)userKey % WOLFSSL_MMCAU_ALIGNMENT) {
+        #ifndef NO_WOLFSSL_ALLOC_ALIGN
+            byte* tmp = (byte*)XMALLOC(keylen + WOLFSSL_MMCAU_ALIGNMENT,
+                                       aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            if (tmp == NULL) {
+                return MEMORY_E;
+            }
+            tmpKey = tmp + (WOLFSSL_MMCAU_ALIGNMENT -
+                     ((wolfssl_word)tmp % WOLFSSL_MMCAU_ALIGNMENT));
+            XMEMCPY(tmpKey, userKey, keylen);
+            tmpKeyDynamic = 1;
+        #else
+            WOLFSSL_MSG("Bad cau_aes_set_key alignment");
+            return BAD_ALIGN_E;
+        #endif
+        }
+    #endif
+
         ret = wolfSSL_CryptHwMutexLock();
         if(ret == 0) {
         #ifdef FREESCALE_MMCAU_CLASSIC
-            cau_aes_set_key(userKey, keylen*8, rk);
+            cau_aes_set_key(tmpKey, keylen*8, rk);
         #else
-            MMCAU_AES_SetKey(userKey, keylen, rk);
+            MMCAU_AES_SetKey(tmpKey, keylen, rk);
         #endif
             wolfSSL_CryptHwMutexUnLock();
 
             ret = wc_AesSetIV(aes, iv);
+        }
+
+        if (tmpKeyDynamic == 1) {
+            XFREE(tmpKey, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
 
         return ret;
