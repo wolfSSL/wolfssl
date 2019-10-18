@@ -4455,6 +4455,7 @@ void InitDecodedCert(DecodedCert* cert,
         cert->source          = source;  /* don't own */
         cert->maxIdx          = inSz;    /* can't go over this index */
         cert->heap            = heap;
+        cert->maxPathLen      = WOLFSSL_MAX_PATH_LEN;
     #ifdef WOLFSSL_CERT_GEN
         cert->subjectSNEnc    = CTC_UTF8;
         cert->subjectCEnc     = CTC_PRINTABLE;
