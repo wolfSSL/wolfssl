@@ -998,6 +998,10 @@ exit:
     wolfSSL_CTX_free(cipherSuiteCtx);
     wolfSSL_Cleanup();
 
+#if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS) \
+                      && (defined(NO_MAIN_DRIVER) || defined(HAVE_STACK_SIZE))
+    wc_ecc_fp_free();  /* free per thread cache */
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     wolfAsync_DevClose(&devId);
 #endif

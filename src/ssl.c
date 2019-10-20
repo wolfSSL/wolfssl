@@ -6323,6 +6323,7 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
                 WOLFSSL_MSG("Failed to detect certificate type");
                 if (dynamic)
                     XFREE(myBuffer, heapHint, DYNAMIC_TYPE_FILE);
+                XFCLOSE(file);
                 return WOLFSSL_BAD_CERTTYPE;
             }
         }
@@ -16892,7 +16893,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     {
         WOLFSSL_ENTER("wolfSSL_ERR_clear_error");
 
-#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX)
+#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX) || \
+    defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
         wc_ClearErrorNodes();
 #endif
     }

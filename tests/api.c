@@ -19107,6 +19107,7 @@ static void test_wolfSSL_private_keys(void)
     SSL_free(ssl);
     SSL_CTX_free(ctx);
 #endif /* end of Ed25519 private key match tests */
+    EVP_cleanup();
 
     /* test existence of no-op macros in wolfssl/openssl/ssl.h */
     CONF_modules_free();
@@ -28165,8 +28166,6 @@ static int test_various_pathlen_chains(void)
     WOLFSSL_CERT_MANAGER* cm;
 
     /* Test chain G (large chain with varying pathLens) */
-    wolfSSL_Init();
-
     if ((cm = wolfSSL_CertManagerNew()) == NULL) {
         printf("cert manager new failed\n");
         return -1;
@@ -28648,6 +28647,7 @@ void ApiTest(void)
     AssertIntEQ(test_wc_DsaExportKeyRaw(), 0);
     AssertIntEQ(test_wc_SignatureGetSize_ecc(), 0);
     AssertIntEQ(test_wc_SignatureGetSize_rsa(), 0);
+    wolfCrypt_Cleanup();
 
 #ifdef OPENSSL_EXTRA
     /*wolfSSL_EVP_get_cipherbynid test*/
@@ -28736,6 +28736,10 @@ void ApiTest(void)
      * a need to implement a new test case
      */
     test_stubs_are_stubs();
+#if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS) \
+                      && (defined(NO_MAIN_DRIVER) || defined(HAVE_STACK_SIZE))
+    wc_ecc_fp_free();  /* free per thread cache */
+#endif
     wolfSSL_Cleanup();
 
     printf(" End API Tests\n");
