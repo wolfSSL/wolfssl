@@ -182,6 +182,7 @@ then
     enable_stunnel=yes
     enable_nginx=yes
     enable_asio=yes
+    enable_libwebsockets=yes
     enable_pwdbased=yes
     enable_aeskeywrap=yes
     enable_x963kdf=yes
@@ -433,6 +434,7 @@ AC_ARG_ENABLE([mcast],
 # lighty (--enable-lighty) HAVE_LIGHTY
 # stunnel (--enable-stunnel) HAVE_STUNNEL
 # asio (--enable-asio) WOLFSSL_ASIO
+# libwebsockets (--enable-libwebsockets) WOLFSSL_LIBWEBSOCKETS
 # HAVE_POCO_LIB
 # WOLFSSL_MYSQL_COMPATIBLE
 # web server (--enable-webserver) HAVE_WEBSERVER
@@ -471,6 +473,18 @@ AC_ARG_ENABLE([fortress],
     [ ENABLED_FORTRESS=$enableval ],
     [ ENABLED_FORTRESS=no ]
     )
+
+# libwebsockets Support
+AC_ARG_ENABLE([libwebsockets],
+    [AS_HELP_STRING([--enable-libwebsockets],[Enable libwebsockets (default: disabled)])],
+    [ ENABLED_LIBWEBSOCKETS=$enableval ],
+    [ ENABLED_LIBWEBSOCKETS=no ]
+    )
+if test "$ENABLED_LIBWEBSOCKETS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LIBWEBSOCKETS -DOPENSSL_NO_EC"
+fi
+
 
 if test "$ENABLED_OPENSSH" = "yes"
 then
@@ -519,6 +533,10 @@ AC_ARG_ENABLE([opensslall],
 [ ENABLED_OPENSSLALL=$enableval ],
 [ ENABLED_OPENSSLALL=no ]
 )
+if test "$ENABLED_LIBWEBSOCKETS" = "yes"
+then
+    ENABLED_OPENSSLALL="yes"
+fi
 
 if test "$ENABLED_OPENSSLALL" = "yes"
 then
@@ -531,7 +549,7 @@ AC_ARG_ENABLE([opensslextra],
     [ ENABLED_OPENSSLEXTRA=$enableval ],
     [ ENABLED_OPENSSLEXTRA=no ]
     )
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_SIGNAL" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_BUMP" = "yes" || test "$ENABLED_SNIFFER" = "yes" || test "$ENABLED_OPENSSLALL" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_SIGNAL" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_BUMP" = "yes" || test "$ENABLED_SNIFFER" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || test "$ENABLED_LIBWEBSOCKETS" = "yes"
 then
     ENABLED_OPENSSLEXTRA="yes"
 fi
@@ -5134,6 +5152,7 @@ echo "   * STUNNEL:                    $ENABLED_STUNNEL"
 echo "   * Apache httpd:               $ENABLED_APACHE_HTTPD"
 echo "   * NGINX:                      $ENABLED_NGINX"
 echo "   * ASIO:                       $ENABLED_ASIO"
+echo "   * LIBWEBSOCKETS:              $ENABLED_LIBWEBSOCKETS"
 echo "   * SIGNAL:                     $ENABLED_SIGNAL"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
