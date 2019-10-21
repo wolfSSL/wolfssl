@@ -1626,6 +1626,17 @@ int InitSSL_Side(WOLFSSL* ssl, word16 side)
     }
 #endif /* HAVE_EXTENDED_MASTER && !NO_WOLFSSL_CLIENT */
 
+#if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
+    if (ssl->options.dtls && ssl->options.side == WOLFSSL_SERVER_END) {
+        int ret;
+        ret = wolfSSL_DTLS_SetCookieSecret(ssl, NULL, 0);
+        if (ret != 0) {
+            WOLFSSL_MSG("DTLS Cookie Secret error");
+            return ret;
+        }
+    }
+#endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
+
     return InitSSL_Suites(ssl);
 }
 #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
