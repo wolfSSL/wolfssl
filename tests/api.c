@@ -4321,7 +4321,8 @@ static void test_wolfSSL_PKCS12(void)
                    * Password Key
                    */
 #if defined(OPENSSL_EXTRA) && !defined(NO_DES3) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA)
+    !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA) && \
+    !defined(NO_SHA)
     byte buffer[5300];
     char file[] = "./certs/test-servercert.p12";
     char order[] = "./certs/ecc-rsa-server.p12";
@@ -4614,11 +4615,11 @@ static void test_wolfSSL_PKCS8(void)
     word32 x = 0;
 #endif
 #ifdef TEST_PKCS8_ENC
-    #ifndef NO_RSA
+    #if !defined(NO_RSA) && !defined(NO_SHA)
         const char serverKeyPkcs8EncPemFile[] = "./certs/server-keyPkcs8Enc.pem";
         const char serverKeyPkcs8EncDerFile[] = "./certs/server-keyPkcs8Enc.der";
     #endif
-    #ifdef HAVE_ECC
+    #if defined(HAVE_ECC) && !defined(NO_SHA)
         const char eccPkcs8EncPrivKeyPemFile[] = "./certs/ecc-keyPkcs8Enc.pem";
         const char eccPkcs8EncPrivKeyDerFile[] = "./certs/ecc-keyPkcs8Enc.der";
     #endif
@@ -4646,7 +4647,7 @@ static void test_wolfSSL_PKCS8(void)
     wolfSSL_CTX_set_default_passwd_cb_userdata(ctx, (void*)&flag);
     flag = 1; /* used by password callback as return code */
 
-    #ifndef NO_RSA
+    #if !defined(NO_RSA) && !defined(NO_SHA)
     /* test loading PEM PKCS8 encrypted file */
     f = XFOPEN(serverKeyPkcs8EncPemFile, "rb");
     AssertTrue((f != XBADFILE));
@@ -4683,7 +4684,7 @@ static void test_wolfSSL_PKCS8(void)
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
     #endif /* !NO_RSA */
 
-    #ifdef HAVE_ECC
+    #if defined(HAVE_ECC) && !defined(NO_SHA)
     /* test loading PEM PKCS8 encrypted ECC Key file */
     f = XFOPEN(eccPkcs8EncPrivKeyPemFile, "rb");
     AssertTrue((f != XBADFILE));
@@ -18118,7 +18119,7 @@ static void test_wc_i2d_PKCS12(void)
 {
 #if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12) \
     && !defined(NO_FILESYSTEM) && !defined(NO_RSA) \
-    && !defined(NO_AES) && !defined(NO_DES3)
+    && !defined(NO_AES) && !defined(NO_DES3) && !defined(NO_SHA)
     WC_PKCS12* pkcs12 = NULL;
     unsigned char der[FOURK_BUF * 2];
     unsigned char* pt;
@@ -22384,7 +22385,7 @@ static void test_wolfSSL_OBJ(void)
  * mode
  */
 #if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && !defined(NO_ASN) && \
-    !defined(HAVE_FIPS)
+    !defined(HAVE_FIPS) && !defined(NO_SHA)
     ASN1_OBJECT *obj = NULL;
     char buf[50];
 

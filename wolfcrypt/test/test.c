@@ -5288,7 +5288,7 @@ int des_test(void)
     if (ret != 0)
         return -4606;
 
-#ifdef WOLFSSL_ENCRYPTED_KEYS
+#if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_SHA)
     {
         EncryptedInfo info;
         XMEMSET(&info, 0, sizeof(EncryptedInfo));
@@ -5422,7 +5422,7 @@ int des3_test(void)
     wc_Des3Free(&enc);
     wc_Des3Free(&dec);
 
-#ifdef WOLFSSL_ENCRYPTED_KEYS
+#if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_SHA)
     {
         EncryptedInfo info;
         XMEMSET(&info, 0, sizeof(EncryptedInfo));
