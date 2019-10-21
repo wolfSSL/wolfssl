@@ -682,8 +682,8 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_cleanup                wolfSSL_EVP_cleanup
 #define EVP_read_pw_string         wolfSSL_EVP_read_pw_string
 
-#define OpenSSL_add_all_digests()  wolfCrypt_Init()
-#define OpenSSL_add_all_ciphers()  wolfCrypt_Init()
+#define OpenSSL_add_all_digests()  wolfSSL_EVP_init()
+#define OpenSSL_add_all_ciphers()  wolfSSL_EVP_init()
 #define OpenSSL_add_all_algorithms wolfSSL_add_all_algorithms
 #define OpenSSL_add_all_algorithms_noconf wolfSSL_OpenSSL_add_all_algorithms_noconf
 #define wolfSSL_OPENSSL_add_all_algorithms_noconf wolfSSL_OpenSSL_add_all_algorithms_noconf

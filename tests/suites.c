@@ -31,6 +31,10 @@
 #include <string.h>
 #include <wolfssl/ssl.h>
 #include <tests/unit.h>
+#if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS) \
+                      && (defined(NO_MAIN_DRIVER) || defined(HAVE_STACK_SIZE))
+#include <wolfssl/wolfcrypt/ecc.h>
+#endif
 
 
 #define MAX_ARGS 40
@@ -899,7 +903,8 @@ int SuiteTest(int argc, char** argv)
     }
     #endif
 #endif
-#if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3) && !defined(NO_MD5)
+#if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3) && !defined(NO_MD5) &&\
+    !defined(NO_SHA)
     /* test encrypted keys */
     strcpy(argv0[1], "tests/test-enckeys.conf");
     printf("starting encrypted keys extra cipher suite tests\n");
@@ -998,6 +1003,10 @@ exit:
     wolfSSL_CTX_free(cipherSuiteCtx);
     wolfSSL_Cleanup();
 
+#if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS) \
+                      && (defined(NO_MAIN_DRIVER) || defined(HAVE_STACK_SIZE))
+    wc_ecc_fp_free();  /* free per thread cache */
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     wolfAsync_DevClose(&devId);
 #endif
