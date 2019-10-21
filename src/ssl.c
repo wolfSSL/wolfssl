@@ -10095,7 +10095,7 @@ WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("SSL_get_session");
     if (ssl)
-        return GetSession(ssl, 0, 0);
+        return GetSession(ssl, 0, 1);
 
     return NULL;
 }
@@ -12618,6 +12618,7 @@ int AddSession(WOLFSSL* ssl)
     int    ticLen  = 0;
 #endif
     WOLFSSL_SESSION* session;
+    int overwrite = 0;
 
     if (ssl->options.sessionCacheOff)
         return 0;
@@ -12686,7 +12687,27 @@ int AddSession(WOLFSSL* ssl)
             return BAD_MUTEX_E;
         }
 
-        idx = SessionCache[row].nextIdx++;
+        for (int i=0; i<SESSIONS_PER_ROW; i++) {
+            if (ssl->options.tls1_3) {
+            	if (XMEMCMP(ssl->session.sessionID, SessionCache[row].Sessions[i].sessionID, ID_LEN) == 0) {
+            		WOLFSSL_MSG("Session already exists. Overwriting.");
+            		overwrite = 1;
+            		idx = i;
+            		break;
+            	}
+            } else {
+            	if (XMEMCMP(ssl->arrays->sessionID, SessionCache[row].Sessions[i].sessionID, ID_LEN) == 0) {
+            		WOLFSSL_MSG("Session already exists. Overwriting.");
+            		overwrite = 1;
+            		idx = i;
+            		break;
+            	}
+            }
+        }
+
+        if (!overwrite) {
+            idx = SessionCache[row].nextIdx++;
+        }
 #ifdef SESSION_INDEX
         ssl->sessionIndex = (row << SESSIDX_ROW_SHIFT) | idx;
 #endif
@@ -12760,9 +12781,15 @@ int AddSession(WOLFSSL* ssl)
 
 #ifdef SESSION_CERTS
     if (error == 0) {
-        session->chain.count = ssl->session.chain.count;
-        XMEMCPY(session->chain.certs, ssl->session.chain.certs,
-                sizeof(x509_buffer) * MAX_CHAIN_DEPTH);
+    	if (!overwrite || (overwrite && ssl->session.chain.count > 0)) {
+    		/*
+    		 * If we are overwriting and no certs present in ssl->session.chain
+    		 * then keep the old chain.
+    		 */
+            session->chain.count = ssl->session.chain.count;
+            XMEMCPY(session->chain.certs, ssl->session.chain.certs,
+                    sizeof(x509_buffer) * session->chain.count);
+    	}
     }
 #endif /* SESSION_CERTS */
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
