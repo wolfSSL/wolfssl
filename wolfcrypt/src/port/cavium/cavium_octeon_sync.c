@@ -36,11 +36,28 @@
 #define NO_MAIN_DRIVER
 
 #include <wolfssl/wolfcrypt/port/cavium/cavium_octeon_sync.h>
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
+
+#include "cvmx.h"
+#include "cvmx-asm.h"
+#include "cvmx-key.h"
+#include "cvmx-swap.h"
+
+#ifndef NO_DES3
+    #include <wolfssl/wolfcrypt/des3.h>
+#endif
+#ifndef NO_AES
+    #include <wolfssl/wolfcrypt/aes.h>
+#endif
+
 
 static int devId = 1234;
 
 #ifndef NO_DES3
-int Octeon_Des3_CbcEncrypt(Des3* des3, uint64_t *inp64, uint64_t *outp64, size_t inl)
+static int Octeon_Des3_CbcEncrypt(Des3* des3,
+        uint64_t *inp64, uint64_t *outp64, size_t inl)
 {
     register uint64_t i0, r0;
     uint64_t *key, *iv;
@@ -115,7 +132,8 @@ int Octeon_Des3_CbcEncrypt(Des3* des3, uint64_t *inp64, uint64_t *outp64, size_t
     return 0;
 }
 
-int Octeon_Des3_CbcDecrypt(Des3* des3, uint64_t *inp64, uint64_t *outp64, size_t inl)
+static int Octeon_Des3_CbcDecrypt(Des3* des3,
+        uint64_t *inp64, uint64_t *outp64, size_t inl)
 {
     register uint64_t i0, r0;
     uint64_t *key, *iv;
@@ -197,63 +215,9 @@ int Octeon_Des3_CbcDecrypt(Des3* des3, uint64_t *inp64, uint64_t *outp64, size_t
 
 #ifndef NO_AES
 
-#ifdef WOLFSSL_AES_DIRECT
-/* Perform Single Block ECB Encrypt */
-int Octeon_AesEcb_Encrypt(Aes* aes, const unsigned char *in, unsigned char *out)
-{
-    uint64_t *in64, *out64, *key;
-
-    if (aes == NULL || in == NULL || out == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    key = (uint64_t*)aes->devKey;
-    CVMX_MT_AES_KEY(key[0], 0);
-    CVMX_MT_AES_KEY(key[1], 1);
-    CVMX_MT_AES_KEY(key[2], 2);
-    CVMX_MT_AES_KEY(key[3], 3);
-    CVMX_MT_AES_KEYLENGTH(aes->keylen/8 - 1);
-
-    in64 = (uint64_t*)in;
-    out64 = (uint64_t*)out;
-
-    CVMX_MT_AES_ENC0(in64[0]);
-    CVMX_MT_AES_ENC1(in64[1]);
-    CVMX_MF_AES_RESULT(out64[0],0);
-    CVMX_MF_AES_RESULT(out64[1],1);
-
-    return 0;
-}
-
-/* Perform Single Block ECB Decrypt */
-int Octeon_AesEcb_Decrypt(Aes* aes, const unsigned char *in, unsigned char *out)
-{
-    uint64_t *in64, *out64, *key;
-
-    if (aes == NULL || in == NULL || out == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    key = (uint64_t*)aes->devKey;
-    CVMX_MT_AES_KEY(key[0], 0);
-    CVMX_MT_AES_KEY(key[1], 1);
-    CVMX_MT_AES_KEY(key[2], 2);
-    CVMX_MT_AES_KEY(key[3], 3);
-    CVMX_MT_AES_KEYLENGTH(aes->keylen/8 - 1);
-
-    in64 = (uint64_t*)in;
-    out64 = (uint64_t*)out;
-    CVMX_MT_AES_DEC0(in64[0]);
-    CVMX_MT_AES_DEC1(in64[1]);
-    CVMX_MF_AES_RESULT(out64[0],0);
-    CVMX_MF_AES_RESULT(out64[1],1);
-
-    return 0;
-}
-#endif /* WOLFSSL_AES_DIRECT */
-
 #ifdef HAVE_AES_CBC
-int Octeon_AesCbc_Encrypt(Aes *aes, uint64_t *inp64, uint64_t *outp64, size_t inl)
+static int Octeon_AesCbc_Encrypt(Aes *aes,
+        uint64_t *inp64, uint64_t *outp64, size_t inl)
 {
     register uint64_t i0, i1, r0, r1;
     uint64_t *key, *iv;
@@ -358,7 +322,8 @@ int Octeon_AesCbc_Encrypt(Aes *aes, uint64_t *inp64, uint64_t *outp64, size_t in
     return 0;
 }
 
-int Octeon_AesCbc_Decrypt(Aes *aes, uint64_t *inp64, uint64_t *outp64, size_t inl)
+static int Octeon_AesCbc_Decrypt(Aes *aes,
+        uint64_t *inp64, uint64_t *outp64, size_t inl)
 {
     register uint64_t i0, i1, r0, r1;
     uint64_t *key, *iv;
@@ -458,7 +423,7 @@ int Octeon_AesCbc_Decrypt(Aes *aes, uint64_t *inp64, uint64_t *outp64, size_t in
             : [r1] "=&d"(in1) , [r2] "=&d"(in2) \
             : [r3] "d"(out1),  [r4] "d"(out2))
 
-static inline void Octeon_GHASH_Restore(word16 poly, byte* h)
+static void Octeon_GHASH_Restore(word16 poly, byte* h)
 {
     word64* bigH = (word64*)h;
     CVMX_MT_GFM_POLY((word64)poly);
@@ -467,7 +432,7 @@ static inline void Octeon_GHASH_Restore(word16 poly, byte* h)
 }
 
 
-static inline void Octeon_GHASH_Init(word16 poly, byte* h)
+static void Octeon_GHASH_Init(word16 poly, byte* h)
 {
     Octeon_GHASH_Restore(poly, h);
     CVMX_MT_GFM_RESINP(0, 0);
@@ -475,7 +440,7 @@ static inline void Octeon_GHASH_Init(word16 poly, byte* h)
 }
 
 
-static inline void Octeon_GHASH_Update(byte* in)
+static void Octeon_GHASH_Update(byte* in)
 {
     word64* bigIn = (word64*)in;
     CVMX_MT_GFM_XOR0(bigIn[0]);
@@ -483,7 +448,7 @@ static inline void Octeon_GHASH_Update(byte* in)
 }
 
 
-static inline void Octeon_GHASH_Final(byte* out, word64 authInSz, word64 inSz)
+static void Octeon_GHASH_Final(byte* out, word64 authInSz, word64 inSz)
 {
     word64* bigOut = (word64*)out;
 
@@ -745,7 +710,7 @@ static int Octeon_AesGcm_Finalize(Aes* aes, word32 inSz, word32 aadSz,
 }
 
 
-int Octeon_AesGcm_Encrypt(Aes* aes, byte* in, byte* out, word32 inSz,
+static int Octeon_AesGcm_Encrypt(Aes* aes, byte* in, byte* out, word32 inSz,
         byte* iv, word32 ivSz, byte* aad, word32 aadSz, byte* tag)
 {
     int ret = 0;
@@ -772,7 +737,7 @@ int Octeon_AesGcm_Encrypt(Aes* aes, byte* in, byte* out, word32 inSz,
 }
 
 
-int Octeon_AesGcm_Decrypt(Aes* aes, byte* in, byte* out, word32 inSz,
+static int Octeon_AesGcm_Decrypt(Aes* aes, byte* in, byte* out, word32 inSz,
         byte* iv, word32 ivSz, byte* aad, word32 aadSz, byte* tag)
 {
     int ret = 0;
@@ -893,10 +858,8 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     return ret;
 }
 
-int wc_CryptoCb_InitOcteon(void* unused)
+int wc_CryptoCb_InitOcteon(void)
 {
-    (void)unused;
-
     if (wc_CryptoCb_RegisterDevice(devId, myCryptoDevCb, NULL) < 0) {
         return INVALID_DEVID;
     }
@@ -904,107 +867,12 @@ int wc_CryptoCb_InitOcteon(void* unused)
     return devId;
 }
 
-void wc_CryptoCb_CleanupOcteon(int* id, void* unused)
+void wc_CryptoCb_CleanupOcteon(int* id)
 {
-    (void)unused;
     wc_CryptoCb_UnRegisterDevice(*id);
     *id = INVALID_DEVID;
 }
 
 #endif /* WOLF_CRYPTO_CB */
-
-
-#ifndef NO_MAIN_DRIVER
-
-#ifndef NO_DES3
-static int des3_test(void)
-{
-    const byte vector[] = { /* "Now is the time for all " w/o trailing 0 */
-        0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
-        0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
-        0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
-    };
-
-    byte plain[24];
-    byte cipher[24];
-
-    Des3 enc;
-    Des3 dec;
-
-    const byte key3[] =
-    {
-        0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
-        0xfe,0xde,0xba,0x98,0x76,0x54,0x32,0x10,
-        0x89,0xab,0xcd,0xef,0x01,0x23,0x45,0x67
-    };
-    const byte iv3[] =
-    {
-        0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef,
-        0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
-        0x11,0x21,0x31,0x41,0x51,0x61,0x71,0x81
-
-    };
-
-    const byte verify3[] =
-    {
-        0x43,0xa0,0x29,0x7e,0xd1,0x84,0xf8,0x0e,
-        0x89,0x64,0x84,0x32,0x12,0xd5,0x08,0x98,
-        0x18,0x94,0x15,0x74,0x87,0x12,0x7d,0xb0
-    };
-
-    int ret;
-
-
-    if (wc_Des3Init(&enc, NULL, devId) != 0)
-        return -4700;
-    if (wc_Des3Init(&dec, NULL, devId) != 0)
-        return -4701;
-
-    ret = wc_Des3_SetKey(&enc, key3, iv3, DES_ENCRYPTION);
-    if (ret != 0)
-        return -4702;
-    ret = wc_Des3_SetKey(&dec, key3, iv3, DES_DECRYPTION);
-    if (ret != 0)
-        return -4703;
-    ret = wc_Des3_CbcEncrypt(&enc, cipher, vector, sizeof(vector));
-    if (ret != 0)
-        return -4704;
-    ret = wc_Des3_CbcDecrypt(&dec, plain, cipher, sizeof(cipher));
-    if (ret != 0)
-        return -4705;
-
-    if (XMEMCMP(plain, vector, sizeof(plain)))
-        return -4706;
-
-    if (XMEMCMP(cipher, verify3, sizeof(cipher)))
-        return -4707;
-
-
-    wc_Des3Free(&enc);
-    wc_Des3Free(&dec);
-
-    return 0;
-}
-#endif /* NO_DES */
-
-int main(void)
-{
-    int ret = 0;
-
-    wolfCrypt_Init();
-
-    /* The following is called in wolfCrypt_Init().
-    wc_CryptoCb_InitOcteon();
-    */
-
-#ifndef NO_DES3
-    des3_test();
-#endif
-
-    wolfCrypt_Cleanup();
-
-    return ret;
-}
-#endif /* !NO_MAIN_DRIVER */
 
 #endif /* HAVE_CAVIUM_OCTEON_SYNC */

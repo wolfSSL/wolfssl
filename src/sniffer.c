@@ -488,9 +488,6 @@ static void UpdateMissedDataSessions(void)
 
 #ifdef WOLF_CRYPTO_CB
     static int CryptoDeviceId = INVALID_DEVID;
-    #ifdef HAVE_INTEL_QA_SYNC
-        static IntelQaDev CryptoDevice;
-    #endif
 #endif
 
 
@@ -507,13 +504,13 @@ void ssl_InitSniffer(void)
 #endif
 #ifdef WOLF_CRYPTO_CB
     #ifdef HAVE_INTEL_QA_SYNC
-    CryptoDeviceId = wc_CryptoCb_InitIntelQa(&CryptoDevice);
+    CryptoDeviceId = wc_CryptoCb_InitIntelQa();
     if (INVALID_DEVID == CryptoDeviceId) {
         printf("Couldn't init the Intel QA\n");
     }
     #endif
     #ifdef HAVE_CAVIUM_OCTEON_SYNC
-    CryptoDeviceId = wc_CryptoCb_InitOcteon(NULL);
+    CryptoDeviceId = wc_CryptoCb_InitOcteon();
     if (INVALID_DEVID == CryptoDeviceId) {
         printf("Couldn't init the Intel QA\n");
     #endif
@@ -648,10 +645,10 @@ void ssl_FreeSniffer(void)
 
 #ifdef WOLF_CRYPTO_CB
 #ifdef HAVE_INTEL_QA_SYNC
-    wc_CryptoCb_CleanupIntelQa(&CryptoDeviceId, &CryptoDevice);
+    wc_CryptoCb_CleanupIntelQa(&CryptoDeviceId);
 #endif
 #ifdef HAVE_CAVIUM_OCTEON_SYNC
-    wc_CryptoCb_CleanupOcteon(&CryptoDeviceId, NULL);
+    wc_CryptoCb_CleanupOcteon(&CryptoDeviceId);
 #endif
 #endif
 
@@ -1454,8 +1451,8 @@ static int CreateWatchSnifferServer(char* error)
         return -1;
     }
 #ifdef WOLF_CRYPTO_CB
-    if (CryptoDevId != INVALID_DEVID)
-	    wolfSSL_CTX_SetDevId(sniffer->ctx, CryptoDevId);
+    if (CryptoDeviceId != INVALID_DEVID)
+	    wolfSSL_CTX_SetDevId(sniffer->ctx, CryptoDeviceId);
 #endif
     ServerList = sniffer;
 

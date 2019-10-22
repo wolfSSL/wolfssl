@@ -258,10 +258,6 @@ static void initDefaultName(void);
 /* for async devices */
 static int devId = INVALID_DEVID;
 
-#if defined(WOLF_CRYPTO_CB) && defined(HAVE_INTEL_QA_SYNC)
-    static THREAD_LS_T IntelQaDev devQat;
-#endif
-
 #ifdef HAVE_WNR
     const char* wnrConfigFile = "wnr-example.conf";
 #endif
@@ -572,13 +568,13 @@ initDefaultName();
 
 #ifdef WOLF_CRYPTO_CB
 #ifdef HAVE_INTEL_QA_SYNC
-    devId = wc_CryptoCb_InitIntelQa(&devQat);
+    devId = wc_CryptoCb_InitIntelQa();
     if (INVALID_DEVID == devId) {
         printf("Couldn't init the Intel QA\n");
     }
 #endif
 #ifdef HAVE_CAVIUM_OCTEON_SYNC
-    devId = wc_CryptoCb_InitOcteon(NULL);
+    devId = wc_CryptoCb_InitOcteon();
     if (INVALID_DEVID == devId) {
         printf("Couldn't init the Cavium Octeon\n");
     }
@@ -1150,10 +1146,10 @@ initDefaultName();
 
 #ifdef WOLF_CRYPTO_CB
 #ifdef HAVE_INTEL_QA_SYNC
-    wc_CryptoCb_CleanupIntelQa(&devId, &devQat);
+    wc_CryptoCb_CleanupIntelQa(&devId);
 #endif
 #ifdef HAVE_CAVIUM_OCTEON_SYNC
-    wc_CryptoCb_CleanupOcteon(&devId, NULL);
+    wc_CryptoCb_CleanupOcteon(&devId);
 #endif
 #endif
 

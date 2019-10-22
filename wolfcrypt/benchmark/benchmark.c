@@ -693,10 +693,6 @@ static const char* bench_result_words2[][5] = {
 /* Asynchronous helper macros */
 static THREAD_LS_T int devId = INVALID_DEVID;
 
-#if defined(WOLF_CRYPTO_CB) && defined(HAVE_INTEL_QA_SYNC)
-    static THREAD_LS_T IntelQaDev devQat;
-#endif
-
 #ifdef WOLFSSL_ASYNC_CRYPT
     static WOLF_EVENT_QUEUE eventQueue;
 
@@ -1304,13 +1300,13 @@ static void* benchmarks_do(void* args)
 
 #ifdef WOLF_CRYPTO_CB
 #ifdef HAVE_INTEL_QA_SYNC
-    devId = wc_CryptoCb_InitIntelQa(&devQat);
+    devId = wc_CryptoCb_InitIntelQa();
     if (devId == INVALID_DEVID) {
         printf("Couldn't init the Intel QA\n");
     }
 #endif
 #ifdef HAVE_CAVIUM_OCTEON_SYNC
-    devId = wc_CryptoCb_InitOcteon(NULL);
+    devId = wc_CryptoCb_InitOcteon();
     if (devId == INVALID_DEVID) {
         printf("Couldn't get the Octeon device ID\n");
     }
@@ -1809,10 +1805,10 @@ exit:
 
 #ifdef WOLF_CRYPTO_CB
 #ifdef HAVE_INTEL_QA_SYNC
-    wc_CryptoCb_CleanupIntelQa(&devId, &devQat);
+    wc_CryptoCb_CleanupIntelQa(&devId);
 #endif
 #ifdef HAVE_CAVIUM_OCTEON_SYNC
-    wc_CryptoCb_CleanupOcteon(&devId, NULL);
+    wc_CryptoCb_CleanupOcteon(&devId);
 #endif
 #endif
 

@@ -133,10 +133,6 @@ int wolfCrypt_Init(void)
         }
     #endif
 
-    #ifdef HAVE_INTEL_QA_SYNC
-        ret = IntelQaHardwareStart(QAT_PROCESS_NAME, QAT_LIMIT_DEV_ACCESS);
-    #endif
-
     #if defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
         ret = InitMemoryTracker();
         if (ret != 0) {
@@ -268,10 +264,6 @@ int wolfCrypt_Cleanup(void)
 
     #ifdef WOLFSSL_ASYNC_CRYPT
         wolfAsync_HardwareStop();
-    #endif
-
-    #ifdef HAVE_INTEL_QA_SYNC
-        IntelQaHardwareStop();
     #endif
 
     #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \

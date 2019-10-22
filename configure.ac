@@ -3884,6 +3884,7 @@ AC_ARG_WITH([cavium-v],
 
 # Cavium Octeon
 OCTEON_ROOT=""
+: ${OCTEON_OBJ="obj-octeon2"}
 
 AC_ARG_WITH([octeon-sync],
     [AS_HELP_STRING([--with-octeon-sync=PATH],[PATH to Cavium Octeon SDK dir (sync)])],
@@ -3903,7 +3904,7 @@ AC_ARG_WITH([octeon-sync],
 
         #-I$OCTEON_ROOT/target/include 
         LDFLAGS="$LDFLAGS -lrt -Xlinker -T -Xlinker $OCTEON_ROOT/executive/cvmx-shared-linux.ld"
-        LIBS="$LIBS $OCTEON_ROOT/executive/obj-octeon3/libcvmx.a $OCTEON_ROOT/executive/obj-octeon3/libfdt.a"
+        LIBS="$LIBS $OCTEON_ROOT/executive/$OCTEON_OBJ/libcvmx.a $OCTEON_ROOT/executive/$OCTEON_OBJ/libfdt.a"
 
         enable_shared=no
         enable_static=yes
