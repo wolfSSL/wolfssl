@@ -99,7 +99,7 @@ struct Des3 {
     word32 key[3][DES_KS_SIZE];
     word32 reg[DES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
     word32 tmp[DES_BLOCK_SIZE / sizeof(word32)];      /* same         */
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)
+#ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif
 #if defined(WOLF_CRYPTO_CB) || \
