@@ -513,6 +513,7 @@ void ssl_InitSniffer(void)
     CryptoDeviceId = wc_CryptoCb_InitOcteon();
     if (INVALID_DEVID == CryptoDeviceId) {
         printf("Couldn't init the Intel QA\n");
+    }
     #endif
 #endif
 }
@@ -1433,7 +1434,7 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
 
 #ifdef WOLFSSL_SNIFFER_WATCH
 
-static int CreateWatchSnifferServer(char* error)
+static int CreateWatchSnifferServer(char* error, int devId)
 {
     SnifferServer* sniffer;
 
@@ -1452,7 +1453,7 @@ static int CreateWatchSnifferServer(char* error)
     }
 #ifdef WOLF_CRYPTO_CB
     if (CryptoDeviceId != INVALID_DEVID)
-	    wolfSSL_CTX_SetDevId(sniffer->ctx, CryptoDeviceId);
+	    wolfSSL_CTX_SetDevId(sniffer->ctx, devId);
 #endif
     ServerList = sniffer;
 
@@ -4503,10 +4504,17 @@ int ssl_ReadResetStatistics(SSLStats* stats)
 
 #ifdef WOLFSSL_SNIFFER_WATCH
 
+int ssl_SetWatchKeyCallback_ex(SSLWatchCb cb, int devId, char* error)
+{
+    WatchCb = cb;
+    return CreateWatchSnifferServer(error, devId);
+}
+
+
 int ssl_SetWatchKeyCallback(SSLWatchCb cb, char* error)
 {
     WatchCb = cb;
-    return CreateWatchSnifferServer(error);
+    return CreateWatchSnifferServer(error, INVALID_DEVID);
 }
 
 

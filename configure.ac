@@ -3903,8 +3903,8 @@ AC_ARG_WITH([octeon-sync],
         AM_CFLAGS="$AM_CFLAGS -I$OCTEON_ROOT/executive"
 
         #-I$OCTEON_ROOT/target/include 
-        LDFLAGS="$LDFLAGS -lrt -Xlinker -T -Xlinker $OCTEON_ROOT/executive/cvmx-shared-linux.ld"
-        LIBS="$LIBS $OCTEON_ROOT/executive/$OCTEON_OBJ/libcvmx.a $OCTEON_ROOT/executive/$OCTEON_OBJ/libfdt.a"
+        AM_LDFLAGS="$AM_LDFLAGS -lrt -Xlinker -T -Xlinker $OCTEON_ROOT/executive/cvmx-shared-linux.ld"
+        AM_LDFLAGS="$AM_LDFLAGS -L$OCTEON_ROOT/executive/$OCTEON_OBJ -lcvmx -lfdt"
 
         enable_shared=no
         enable_static=yes
