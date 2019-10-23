@@ -10652,7 +10652,17 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int with_header)
         return MEMORY_E;
 #endif
 
+#ifdef HAVE_SELFTEST
+    /* older version of ecc.c can not handle dp being NULL */
+    if (key != NULL && key->dp == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ret = wc_ecc_export_x963(key, pub, &pubSz);
+    }
+#else
     ret = wc_ecc_export_x963(key, pub, &pubSz);
+#endif
     if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -10749,7 +10759,19 @@ int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 inLen,
         infoSz += TRAILING_ZERO;
     }
 
-    if ((ret = wc_ecc_export_x963(key, NULL, &keySz)) != LENGTH_ONLY_E) {
+#ifdef HAVE_SELFTEST
+    /* older version of ecc.c can not handle dp being NULL */
+    if (key != NULL && key->dp == NULL) {
+        keySz = 1 + 2 * MAX_ECC_BYTES;
+        ret = LENGTH_ONLY_E;
+    }
+    else {
+        ret = wc_ecc_export_x963(key, NULL, &keySz);
+    }
+#else
+    ret = wc_ecc_export_x963(key, NULL, &keySz);
+#endif
+    if (ret != LENGTH_ONLY_E) {
         WOLFSSL_MSG("Error in getting ECC public key size");
         return ret;
     }
