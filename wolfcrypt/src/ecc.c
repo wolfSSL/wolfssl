@@ -5543,26 +5543,26 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    CRYS_ECDSA_VerifyUserContext_t sigCtxTemp;
    word32 msgLenInBytes = hashlen;
    CRYS_ECPKI_HASH_OpMode_t hash_mode;
-#elif !defined(WOLFSSL_SP_MATH)
+#elif !defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC)
    int          did_init = 0;
    ecc_point    *mG = NULL, *mQ = NULL;
-#ifdef WOLFSSL_SMALL_STACK
+   #ifdef WOLFSSL_SMALL_STACK
    mp_int*       v = NULL;
    mp_int*       w = NULL;
    mp_int*       u1 = NULL;
    mp_int*       u2 = NULL;
-#if !defined(WOLFSSL_ASYNC_CRYPT) || !defined(HAVE_CAVIUM_V)
+      #if !defined(WOLFSSL_ASYNC_CRYPT) || !defined(HAVE_CAVIUM_V)
    mp_int*       e_lcl = NULL;
-#endif
-#else /* WOLFSSL_SMALL_STACK */
+      #endif
+   #else /* WOLFSSL_SMALL_STACK */
    mp_int        v[1];
    mp_int        w[1];
    mp_int        u1[1];
    mp_int        u2[1];
-#if !defined(WOLFSSL_ASYNC_CRYPT) || !defined(HAVE_CAVIUM_V)
+      #if !defined(WOLFSSL_ASYNC_CRYPT) || !defined(HAVE_CAVIUM_V)
    mp_int        e_lcl[1];
-#endif
-#endif /* WOLFSSL_SMALL_STACK */
+      #endif
+   #endif /* WOLFSSL_SMALL_STACK */
    mp_int*       e;
    DECLARE_CURVE_SPECS(curve, ECC_CURVE_FIELD_COUNT);
 #endif
@@ -5661,7 +5661,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
       }
   }
 
-#ifdef WOLFSSL_SP_MATH
+#if defined(WOLFSSL_SP_MATH) && !defined(FREESCALE_LTC_ECC)
   if (key->idx != ECC_CUSTOM_IDX && ecc_sets[key->idx].id == ECC_SECP256R1) {
       return sp_ecc_verify_256(hash, hashlen, key->pubkey.x, key->pubkey.y,
                                            key->pubkey.z, r, s, res, key->heap);
@@ -5669,7 +5669,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
   else
       return WC_KEY_SIZE_E;
 #else
-#ifdef WOLFSSL_HAVE_SP_ECC
+#if defined WOLFSSL_HAVE_SP_ECC && !defined(FREESCALE_LTC_ECC)
 #ifndef WOLFSSL_SP_NO_256
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
     if (key->asyncDev.marker != WOLFSSL_ASYNC_MARKER_ECC)

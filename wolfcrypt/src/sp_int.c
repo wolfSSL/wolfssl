@@ -52,6 +52,16 @@ WOLFSSL_LOCAL int sp_ModExp_3072(sp_int* base, sp_int* exp, sp_int* mod,
 
 #endif
 
+int sp_get_digit_count(sp_int *a)
+{
+    int ret;
+    if (!a)
+        ret = 0;
+    else
+        ret = a->used;
+    return ret;
+}
+
 /* Initialize the big number to be zero.
  *
  * a  SP integer.
@@ -388,6 +398,18 @@ int sp_copy(sp_int* a, sp_int* r)
     }
     return MP_OKAY;
 }
+
+/* creates "a" then copies b into it */
+int sp_init_copy (sp_int * a, sp_int * b)
+{
+  int     res;
+  if ((res = sp_init(a)) == MP_OKAY) {
+      if((res = sp_copy (b, a)) != MP_OKAY) {
+          sp_clear(a);
+      }
+  }
+  return res;
+}
 #endif
 
 /* Set the big number to be the value of the digit.
@@ -561,7 +583,7 @@ int sp_sub(sp_int* a, sp_int* b, sp_int* r)
  * n    Number of bits to shift.
  * r    SP integer result.
  */
-static void sp_rshb(sp_int* a, int n, sp_int* r)
+void sp_rshb(sp_int* a, int n, sp_int* r)
 {
     int i;
     int j;
@@ -704,6 +726,8 @@ static int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
     return err;
 }
 
+
+#ifndef FREESCALE_LTC_TFM
 /* Calculate the remainder of dividing a by m: r = a mod m.
  *
  * a  SP integer.
@@ -715,6 +739,7 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
 {
     return sp_div(a, m, NULL, r);
 }
+#endif
 #endif
 
 /* Clear all data in the big number and sets value to zero.
