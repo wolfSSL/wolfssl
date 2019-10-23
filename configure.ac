@@ -538,6 +538,10 @@ then
     ENABLED_OPENSSLALL="yes"
 fi
 
+if test "$ENABLED_NGINX" = "yes"
+then
+    ENABLED_OPENSSLALL="yes"
+fi
 if test "$ENABLED_OPENSSLALL" = "yes"
 then
 AM_CFLAGS="-DOPENSSL_ALL -DWOLFSSL_EITHER_SIDE $AM_CFLAGS"
@@ -552,10 +556,6 @@ AC_ARG_ENABLE([opensslextra],
 if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_SIGNAL" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_BUMP" = "yes" || test "$ENABLED_SNIFFER" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || test "$ENABLED_LIBWEBSOCKETS" = "yes"
 then
     ENABLED_OPENSSLEXTRA="yes"
-fi
-if test "$ENABLED_NGINX" = "yes"
-then
-    ENABLED_OPENSSLALL="yes"
 fi
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
 then

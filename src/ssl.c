@@ -39497,6 +39497,9 @@ static int get_dn_attr_by_nid(int n, const char** buf)
 }
 #endif
 
+/*
+ * The BIO output of  wolfSSL_X509_NAME_print_ex does NOT include the null terminator
+ */
 int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
                 int indent, unsigned long flags)
 {
@@ -39519,7 +39522,7 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
 
     /* If XN_FLAG_DN_REV is present, print X509_NAME in reverse order */
     if (flags == (XN_FLAG_RFC2253 & ~XN_FLAG_DN_REV)) {
-#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL)
+#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
         fullName[0] = '\0';
         count = wolfSSL_X509_NAME_entry_count(name);
         for (i = 0; i < count; i++) {
@@ -39551,17 +39554,19 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
             }
             totalSz += tmpSz;
         }
+        if (fullName[totalSz-1] == '\0')
+        	totalSz--;
         if (wolfSSL_BIO_write(bio, fullName, totalSz) != totalSz)
             return WOLFSSL_FAILURE;
         return WOLFSSL_SUCCESS;
-#endif /* WOLFSSL_APACHE_HTTPD || OPENSSL_ALL */
+#endif /* WOLFSSL_APACHE_HTTPD || OPENSSL_ALL || WOLFSSL_NGINX */
     }
     else if (flags == XN_FLAG_RFC2253) {
         if (wolfSSL_BIO_write(bio, name->name + 1, name->sz - 2)
                                                                 != name->sz - 2)
             return WOLFSSL_FAILURE;
     }
-    else if (wolfSSL_BIO_write(bio, name->name, name->sz) != name->sz)
+    else if (wolfSSL_BIO_write(bio, name->name, name->sz - 1) != name->sz - 1)
         return WOLFSSL_FAILURE;
 
     return WOLFSSL_SUCCESS;
