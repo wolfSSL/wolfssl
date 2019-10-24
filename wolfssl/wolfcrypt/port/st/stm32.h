@@ -135,6 +135,9 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
 int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
                     word32 hashlen, int* res, ecc_key* key);
 
+int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
+                     ecc_key* key, mp_int *r, mp_int *s);
+
 #endif
 
 

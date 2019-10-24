@@ -4678,7 +4678,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 }
 #endif /* !NO_ASN */
 
-#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_CRYPTOCELL) /* TODO DLX: add !defined(WOLFSSL_STM32_PKA) */
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_CRYPTOCELL)
 /**
   Sign a message digest
   in        The message digest to sign
@@ -4690,6 +4690,11 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 */
 int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                      ecc_key* key, mp_int *r, mp_int *s)
+#if defined(WOLFSSL_STM32_PKA)
+{
+    return stm32_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
+}
+#else
 {
    int    err;
 #ifndef WOLFSSL_SP_MATH
@@ -5013,6 +5018,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
    return err;
 }
+#endif /* WOLFSSL_STM32_PKA */
 #endif /* WOLFSSL_ATECC508A && WOLFSSL_CRYPTOCELL*/
 #endif /* HAVE_ECC_SIGN */
 
