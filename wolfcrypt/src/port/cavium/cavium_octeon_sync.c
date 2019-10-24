@@ -52,6 +52,7 @@
     #include <wolfssl/wolfcrypt/aes.h>
 #endif
 
+#define NOOPT __attribute__((optimize("O0")))
 
 static int devId = 1234;
 
@@ -423,7 +424,7 @@ static int Octeon_AesCbc_Decrypt(Aes *aes,
             : [r1] "=&d"(in1) , [r2] "=&d"(in2) \
             : [r3] "d"(out1),  [r4] "d"(out2))
 
-static void Octeon_GHASH_Restore(word16 poly, byte* h)
+static NOOPT void Octeon_GHASH_Restore(word16 poly, byte* h)
 {
     word64* bigH = (word64*)h;
     CVMX_MT_GFM_POLY((word64)poly);
@@ -432,7 +433,7 @@ static void Octeon_GHASH_Restore(word16 poly, byte* h)
 }
 
 
-static void Octeon_GHASH_Init(word16 poly, byte* h)
+static NOOPT void Octeon_GHASH_Init(word16 poly, byte* h)
 {
     Octeon_GHASH_Restore(poly, h);
     CVMX_MT_GFM_RESINP(0, 0);
@@ -440,7 +441,7 @@ static void Octeon_GHASH_Init(word16 poly, byte* h)
 }
 
 
-static void Octeon_GHASH_Update(byte* in)
+static NOOPT void Octeon_GHASH_Update(byte* in)
 {
     word64* bigIn = (word64*)in;
     CVMX_MT_GFM_XOR0(bigIn[0]);
@@ -448,7 +449,7 @@ static void Octeon_GHASH_Update(byte* in)
 }
 
 
-static void Octeon_GHASH_Final(byte* out, word64 authInSz, word64 inSz)
+static NOOPT void Octeon_GHASH_Final(byte* out, word64 authInSz, word64 inSz)
 {
     word64* bigOut = (word64*)out;
 
@@ -460,7 +461,7 @@ static void Octeon_GHASH_Final(byte* out, word64 authInSz, word64 inSz)
 
 
 /* Sets the Octeon key with the key found in the Aes record. */
-static int Octeon_AesGcm_SetKey(Aes* aes)
+static NOOPT int Octeon_AesGcm_SetKey(Aes* aes)
 {
     int ret = 0;
 
@@ -490,7 +491,7 @@ static int Octeon_AesGcm_SetKey(Aes* aes)
 }
 
 
-static int Octeon_AesGcm_SetIV(Aes* aes, byte* iv, word32 ivSz)
+static NOOPT int Octeon_AesGcm_SetIV(Aes* aes, byte* iv, word32 ivSz)
 {
     int ret = 0;
 
@@ -531,7 +532,7 @@ static int Octeon_AesGcm_SetIV(Aes* aes, byte* iv, word32 ivSz)
 }
 
 
-static int Octeon_AesGcm_SetAAD(Aes* aes, byte* aad, word32 aadSz)
+static NOOPT int Octeon_AesGcm_SetAAD(Aes* aes, byte* aad, word32 aadSz)
 {
     word64* p;
     ALIGN16 byte aesBlock[AES_BLOCK_SIZE];
@@ -667,7 +668,7 @@ static int Octeon_AesGcm_SetEncrypt(Aes* aes, byte* in, byte* out, word32 inSz,
 }
 
 
-static int Octeon_AesGcm_Finalize(Aes* aes, word32 inSz, word32 aadSz,
+static NOOPT int Octeon_AesGcm_Finalize(Aes* aes, word32 inSz, word32 aadSz,
         byte* tag)
 {
     word64 bigSz;
