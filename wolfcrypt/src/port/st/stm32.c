@@ -623,7 +623,7 @@ static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
         *coef_sign = &stm32_ecc192_coef;
         break;
 #endif
-#ifdef HAVE_ECC384
+#ifdef ECC384
     case 48:
         *prime = stm32_ecc384_prime;
         *coef = stm32_ecc384_coef;
@@ -790,7 +790,7 @@ int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     XMEMCPY(Hashbin + (size - hashlen), hash, hashlen);
     pka_ecc.hash =            Hashbin;
 
-    status = HAL_PKA_ECDSAVerif(&hpka, &pka_ecc, 0xFFFFFFFF);
+    status = HAL_PKA_ECDSAVerif(&hpka, &pka_ecc, HAL_MAX_DELAY);
     if (status != HAL_OK) {
         HAL_PKA_RAMReset(&hpka);
         return WC_HW_E;
@@ -865,7 +865,7 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
     pka_ecc_out.RSign = Rbin;
     pka_ecc_out.SSign = Sbin;
 
-    status = HAL_PKA_ECDSASign(&hpka, &pka_ecc, 0xFFFFFFFF);
+    status = HAL_PKA_ECDSASign(&hpka, &pka_ecc, HAL_MAX_DELAY);
     if (status != HAL_OK) {
         HAL_PKA_RAMReset(&hpka);
         return WC_HW_E;
