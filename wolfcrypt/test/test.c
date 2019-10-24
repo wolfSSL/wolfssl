@@ -18436,7 +18436,7 @@ int ecc_test(void)
         goto done;
     }
 #endif
-#if !defined(WOLFSSL_ATECC508A)
+#if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_STM32_PKA)
     ret = ecc_test_make_pub(&rng);
     if (ret != 0) {
         printf("ecc_test_make_pub failed!: %d\n", ret);

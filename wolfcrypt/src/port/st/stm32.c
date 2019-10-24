@@ -740,6 +740,7 @@ int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     uint8_t Sbin[STM32_MAX_ECC_SIZE];
     uint8_t Qxbin[STM32_MAX_ECC_SIZE];
     uint8_t Qybin[STM32_MAX_ECC_SIZE];
+    uint8_t Hashbin[STM32_MAX_ECC_SIZE];
     uint8_t privKeybin[STM32_MAX_ECC_SIZE];
     const uint8_t *prime, *coef, *gen_x, *gen_y, *order;
     const uint32_t *coef_sign;
@@ -785,7 +786,9 @@ int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     pka_ecc.pPubKeyCurvePtY = Qybin;
     pka_ecc.RSign =           Rbin;
     pka_ecc.SSign =           Sbin;
-    pka_ecc.hash =            hash;
+    memset(Hashbin, 0, STM32_MAX_ECC_SIZE);
+    memcpy(Hashbin + (size - hashlen), hash, hashlen);
+    pka_ecc.hash =            Hashbin;
 
     status = HAL_PKA_ECDSAVerif(&hpka, &pka_ecc, 0xFFFFFFFF);
     if (status != HAL_OK) {
@@ -811,6 +814,7 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
     uint8_t Intbin[STM32_MAX_ECC_SIZE];
     uint8_t Rbin[STM32_MAX_ECC_SIZE];
     uint8_t Sbin[STM32_MAX_ECC_SIZE];
+    uint8_t Hashbin[STM32_MAX_ECC_SIZE];
     const uint8_t *prime, *coef, *gen_x, *gen_y, *order;
     const uint32_t *coef_sign;
     memset(&pka_ecc, 0x00, sizeof(PKA_ECDSASignInTypeDef));
@@ -851,7 +855,9 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
     pka_ecc.basePointY =      gen_y;
     pka_ecc.primeOrder =      order;
 
-    pka_ecc.hash =            hash;
+    memset(Hashbin, 0, STM32_MAX_ECC_SIZE);
+    memcpy(Hashbin + (size - hashlen), hash, hashlen);
+    pka_ecc.hash =            Hashbin;
     pka_ecc.integer =         Intbin;
     pka_ecc.privateKey =      Keybin;
 
