@@ -134,6 +134,10 @@ ECC Curve Sizes:
     #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
 #endif
 
+#if defined(WOLFSSL_STM32_PKA)
+    #include <wolfssl/wolfcrypt/port/st/stm32.h>
+#endif
+
 #ifdef WOLFSSL_SP_MATH
     #define GEN_MEM_ERR MP_MEM
 #elif defined(USE_FAST_MATH)
@@ -2448,7 +2452,7 @@ done:
 
 #endif /* !WOLFSSL_SP_MATH || WOLFSSL_PUBLIC_ECC_ADD_DBL */
 
-#if !defined(FREESCALE_LTC_ECC)
+#if !defined(FREESCALE_LTC_ECC) && !defined(WOLFSSL_STM32_PKA)
 
 #if !defined(FP_ECC) || !defined(WOLFSSL_SP_MATH)
 /**
@@ -2941,7 +2945,7 @@ exit:
 
 #endif /* !FP_ECC || !WOLFSSL_SP_MATH */
 
-#endif /* !FREESCALE_LTC_ECC */
+#endif /* !FREESCALE_LTC_ECC && !WOLFSSL_STM32_PKA */
 
 /** ECC Fixed Point mulmod global
     k        The multiplicand
@@ -3809,9 +3813,8 @@ int wc_ecc_point_is_at_infinity(ecc_point* p)
     return 0;
 }
 
-#ifndef WOLFSSL_SP_MATH
 /* generate random and ensure its greater than 0 and less than order */
-static int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
+int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
 {
 #ifndef WC_NO_RNG
     int err;
@@ -3852,7 +3855,6 @@ static int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
     return NOT_COMPILED_IN;
 #endif /* !WC_NO_RNG */
 }
-#endif /* WOLFSSL_SP_MATH */
 #endif /* !WOLFSSL_ATECC508A && !WOLFSSL_CRYPTOCELL */
 
 static WC_INLINE void wc_ecc_reset(ecc_key* key)
@@ -4688,6 +4690,11 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 */
 int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                      ecc_key* key, mp_int *r, mp_int *s)
+#if defined(WOLFSSL_STM32_PKA)
+{
+    return stm32_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
+}
+#else
 {
    int    err = 0;
 #ifndef WOLFSSL_SP_MATH
@@ -5011,6 +5018,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
    return err;
 }
+#endif /* WOLFSSL_STM32_PKA */
 #endif /* WOLFSSL_ATECC508A && WOLFSSL_CRYPTOCELL*/
 #endif /* HAVE_ECC_SIGN */
 
@@ -5531,8 +5539,14 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
    key         The corresponding public ECC key
    return      MP_OKAY if successful (even if the signature is not valid)
 */
+
 int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
                     word32 hashlen, int* res, ecc_key* key)
+#if defined(WOLFSSL_STM32_PKA)
+{
+    return stm32_ecc_verify_hash_ex(r, s, hash, hashlen, res, key);
+}
+#else
 {
    int           err;
    word32        keySz;
@@ -5836,7 +5850,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    if (err == MP_OKAY)
        err = mp_copy(key->pubkey.z, mQ->z);
 
-#ifdef FREESCALE_LTC_ECC
+#if defined(FREESCALE_LTC_ECC)
    /* use PKHA to compute u1*mG + u2*mQ */
    if (err == MP_OKAY)
        err = wc_ecc_mulmod_ex(u1, mG, mG, curve->Af, curve->prime, 0, key->heap);
@@ -5922,6 +5936,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
    return err;
 }
+#endif /* WOLFSSL_STM32_PKA */
 #endif /* HAVE_ECC_VERIFY */
 
 #ifdef HAVE_ECC_KEY_IMPORT

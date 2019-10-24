@@ -711,6 +711,8 @@ WOLFSSL_API int wc_ecc_curve_cache_init(void);
 WOLFSSL_API void wc_ecc_curve_cache_free(void);
 #endif
 
+WOLFSSL_API
+int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order);
 
 #ifdef __cplusplus
     }    /* extern "C" */
