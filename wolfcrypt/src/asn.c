@@ -14878,6 +14878,14 @@ static int DecodeSingleResponse(byte* source,
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     cs->thisDateAsn = source + idx;
+    localIdx = 0;
+    if (GetDateInfo(cs->thisDateAsn, &localIdx, NULL,
+    				(byte*)&cs->thisDateParsed.type,
+					&cs->thisDateParsed.length, size) < 0)
+        return ASN_PARSE_E;
+    XMEMCPY(cs->thisDateParsed.data,
+    		cs->thisDateAsn + localIdx - cs->thisDateParsed.length,
+    		cs->thisDateParsed.length);
 #endif
     if (GetBasicDate(source, &idx, cs->thisDate,
                                                 &cs->thisDateFormat, size) < 0)
@@ -14903,6 +14911,14 @@ static int DecodeSingleResponse(byte* source,
             return ASN_PARSE_E;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
         cs->nextDateAsn = source + idx;
+        localIdx = 0;
+        if (GetDateInfo(cs->nextDateAsn, &localIdx, NULL,
+        				(byte*)&cs->nextDateParsed.type,
+						&cs->nextDateParsed.length, size) < 0)
+            return ASN_PARSE_E;
+        XMEMCPY(cs->nextDateParsed.data,
+        		cs->nextDateAsn + localIdx - cs->nextDateParsed.length,
+        		cs->nextDateParsed.length);
 #endif
         if (GetBasicDate(source, &idx, cs->nextDate,
                                                 &cs->nextDateFormat, size) < 0)

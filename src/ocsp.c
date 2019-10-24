@@ -509,9 +509,9 @@ int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
     if (status != NULL)
         *status = bs->status->status;
     if (thisupd != NULL)
-        *thisupd = (WOLFSSL_ASN1_TIME*)bs->status->thisDateAsn;
+        *thisupd = &bs->status->thisDateParsed;
     if (nextupd != NULL)
-        *nextupd = (WOLFSSL_ASN1_TIME*)bs->status->nextDateAsn;
+        *nextupd = &bs->status->nextDateParsed;
 
     /* TODO: Not needed for Nginx. */
     if (reason != NULL)

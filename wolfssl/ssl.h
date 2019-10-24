@@ -202,13 +202,6 @@ struct WOLFSSL_BASIC_CONSTRAINTS {
 #define WOLFSSL_ASN1_UTCTIME          WOLFSSL_ASN1_TIME
 #define WOLFSSL_ASN1_GENERALIZEDTIME  WOLFSSL_ASN1_TIME
 
-
-struct WOLFSSL_ASN1_TIME {
-    unsigned char data[CTC_DATE_SIZE]; /* date bytes */
-    int length;
-    int type;
-};
-
 struct WOLFSSL_ASN1_STRING {
     char strData[CTC_NAME_SIZE];
     int length;

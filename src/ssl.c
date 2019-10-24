@@ -26510,19 +26510,19 @@ int wolfSSL_ASN1_GENERALIZEDTIME_print(WOLFSSL_BIO* bio,
     }
     p = (const char *)(asnTime->data);
     /* GetTimeString not always available. */
-    wolfSSL_BIO_write(bio, MonthStr(p + 2), 3);
+    wolfSSL_BIO_write(bio, MonthStr(p + 4), 3);
     wolfSSL_BIO_write(bio, " ", 1);
     /* Day */
-    wolfSSL_BIO_write(bio, p + 4, 2);
+    wolfSSL_BIO_write(bio, p + 6, 2);
     wolfSSL_BIO_write(bio, " ", 1);
     /* Hour */
-    wolfSSL_BIO_write(bio, p + 6, 2);
-    wolfSSL_BIO_write(bio, ":", 1);
-    /* Min */
     wolfSSL_BIO_write(bio, p + 8, 2);
     wolfSSL_BIO_write(bio, ":", 1);
-    /* Secs */
+    /* Min */
     wolfSSL_BIO_write(bio, p + 10, 2);
+    wolfSSL_BIO_write(bio, ":", 1);
+    /* Secs */
+    wolfSSL_BIO_write(bio, p + 12, 2);
     wolfSSL_BIO_write(bio, " ", 1);
     wolfSSL_BIO_write(bio, p, 4);
 
