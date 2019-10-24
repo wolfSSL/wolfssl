@@ -668,8 +668,8 @@ int wc_ecc_mulmod_ex(mp_int *k, ecc_point *G, ecc_point *R, mp_int* a,
     const uint32_t *coef_sign;
     (void)a;
     (void)heap;
-    memset(&pka_mul, 0x00, sizeof(PKA_ECCMulInTypeDef));
-    memset(&pka_mul_res, 0x00, sizeof(PKA_ECCMulOutTypeDef));
+    XMEMSET(&pka_mul, 0x00, sizeof(PKA_ECCMulInTypeDef));
+    XMEMSET(&pka_mul_res, 0x00, sizeof(PKA_ECCMulOutTypeDef));
     pka_mul_res.ptX = PtXbin;
     pka_mul_res.ptY = PtYbin;
 
@@ -744,7 +744,7 @@ int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     uint8_t privKeybin[STM32_MAX_ECC_SIZE];
     const uint8_t *prime, *coef, *gen_x, *gen_y, *order;
     const uint32_t *coef_sign;
-    memset(&pka_ecc, 0x00, sizeof(PKA_ECDSAVerifInTypeDef));
+    XMEMSET(&pka_ecc, 0x00, sizeof(PKA_ECDSAVerifInTypeDef));
 
     if (r == NULL || s == NULL || hash == NULL || res == NULL || key == NULL) {
         return ECC_BAD_ARG_E;
@@ -786,7 +786,7 @@ int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     pka_ecc.pPubKeyCurvePtY = Qybin;
     pka_ecc.RSign =           Rbin;
     pka_ecc.SSign =           Sbin;
-    memset(Hashbin, 0, STM32_MAX_ECC_SIZE);
+    XMEMSET(Hashbin, 0, STM32_MAX_ECC_SIZE);
     memcpy(Hashbin + (size - hashlen), hash, hashlen);
     pka_ecc.hash =            Hashbin;
 
@@ -817,8 +817,8 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
     uint8_t Hashbin[STM32_MAX_ECC_SIZE];
     const uint8_t *prime, *coef, *gen_x, *gen_y, *order;
     const uint32_t *coef_sign;
-    memset(&pka_ecc, 0x00, sizeof(PKA_ECDSASignInTypeDef));
-    memset(&pka_ecc, 0x00, sizeof(PKA_ECDSASignOutTypeDef));
+    XMEMSET(&pka_ecc, 0x00, sizeof(PKA_ECDSASignInTypeDef));
+    XMEMSET(&pka_ecc, 0x00, sizeof(PKA_ECDSASignOutTypeDef));
 
     if (r == NULL || s == NULL || hash == NULL || key == NULL) {
         return ECC_BAD_ARG_E;
@@ -855,7 +855,7 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
     pka_ecc.basePointY =      gen_y;
     pka_ecc.primeOrder =      order;
 
-    memset(Hashbin, 0, STM32_MAX_ECC_SIZE);
+    XMEMSET(Hashbin, 0, STM32_MAX_ECC_SIZE);
     memcpy(Hashbin + (size - hashlen), hash, hashlen);
     pka_ecc.hash =            Hashbin;
     pka_ecc.integer =         Intbin;
