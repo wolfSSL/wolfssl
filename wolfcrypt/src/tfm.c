@@ -2768,7 +2768,7 @@ int fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
    fp_digit *c;
 #endif
    fp_digit *_c, *tmpm, mu = 0;
-   int      oldused, x, y, pa, err;
+   int      oldused, x, y, pa, err = 0;
 
    IF_HAVE_INTEL_MULX(err = fp_montgomery_reduce_mulx(a, m, mp), return err) ;
    (void)err;

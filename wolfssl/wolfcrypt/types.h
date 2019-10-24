@@ -862,7 +862,8 @@
     #endif
 
 
-    #if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
+    #if (defined(__IAR_SYSTEMS_ICC__) && (__IAR_SYSTEMS_ICC__ > 8)) || \
+         defined(__GNUC__)
         #define WOLFSSL_PACK __attribute__ ((packed))
     #else
         #define WOLFSSL_PACK
