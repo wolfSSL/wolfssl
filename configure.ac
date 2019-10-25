@@ -538,10 +538,6 @@ then
     ENABLED_OPENSSLALL="yes"
 fi
 
-if test "$ENABLED_NGINX" = "yes"
-then
-    ENABLED_OPENSSLALL="yes"
-fi
 if test "$ENABLED_OPENSSLALL" = "yes"
 then
 AM_CFLAGS="-DOPENSSL_ALL -DWOLFSSL_EITHER_SIDE $AM_CFLAGS"
