@@ -24521,6 +24521,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
         }
 
+#if !defined(WOLFSSL_OLDTLS_AEAD_CIPHERSUITES)
         if (CipherRequires(first, second, REQUIRES_AEAD)) {
             WOLFSSL_MSG("Requires AEAD");
             if (ssl->version.major == SSLv3_MAJOR &&
@@ -24530,6 +24531,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
 
         }
+#endif
 
 #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
                                                   defined(HAVE_SUPPORTED_CURVES)
