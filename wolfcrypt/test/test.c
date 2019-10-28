@@ -196,6 +196,12 @@
 #endif
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
+    #ifdef HAVE_INTEL_QA_SYNC
+        #include <wolfssl/wolfcrypt/port/intel/quickassist_sync.h>
+    #endif
+    #ifdef HAVE_CAVIUM_OCTEON_SYNC
+        #include <wolfssl/wolfcrypt/port/cavium/cavium_octeon_sync.h>
+    #endif
 #endif
 
 #ifdef _MSC_VER
@@ -560,6 +566,21 @@ initDefaultName();
     (void)devId;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
+#ifdef WOLF_CRYPTO_CB
+#ifdef HAVE_INTEL_QA_SYNC
+    devId = wc_CryptoCb_InitIntelQa();
+    if (INVALID_DEVID == devId) {
+        printf("Couldn't init the Intel QA\n");
+    }
+#endif
+#ifdef HAVE_CAVIUM_OCTEON_SYNC
+    devId = wc_CryptoCb_InitOcteon();
+    if (INVALID_DEVID == devId) {
+        printf("Couldn't init the Cavium Octeon\n");
+    }
+#endif
+#endif
+
 #ifdef HAVE_SELFTEST
     if ( (ret = wolfCrypt_SelfTest()) != 0)
         return err_sys("CAVP selftest failed!\n", ret);
@@ -847,7 +868,9 @@ initDefaultName();
     if ( (ret = aesgcm_test()) != 0)
         return err_sys("AES-GCM  test failed!\n", ret);
     #endif
-    #if !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT)
+    #if !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT) && \
+        !(defined(WOLF_CRYPTO_CB) && \
+            (defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC)))
     if ((ret = aesgcm_default_test()) != 0) {
         return err_sys("AES-GCM  test failed!\n", ret);
     }
@@ -1108,7 +1131,8 @@ initDefaultName();
         test_pass("blob     test passed!\n");
 #endif
 
-#ifdef WOLF_CRYPTO_CB
+#if defined(WOLF_CRYPTO_CB) && \
+    !(defined(HAVE_INTEL_QAT_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC))
     if ( (ret = cryptocb_test()) != 0)
         return err_sys("crypto callback test failed!\n", ret);
     else
@@ -1120,6 +1144,15 @@ initDefaultName();
         return err_sys("cert piv test failed!\n", ret);
     else
         test_pass("cert piv test passed!\n");
+#endif
+
+#ifdef WOLF_CRYPTO_CB
+#ifdef HAVE_INTEL_QA_SYNC
+    wc_CryptoCb_CleanupIntelQa(&devId);
+#endif
+#ifdef HAVE_CAVIUM_OCTEON_SYNC
+    wc_CryptoCb_CleanupOcteon(&devId);
+#endif
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -7202,7 +7235,6 @@ int aesgcm_default_test(void)
         0x3a, 0x7a, 0x56, 0x05, 0x09, 0xa2, 0xd9, 0xf2
     };
 
-
     byte key2[] = {
         0x01, 0x6d, 0xbb, 0x38, 0xda, 0xa7, 0x6d, 0xfe,
         0x7d, 0xa3, 0x84, 0xeb, 0xf1, 0x24, 0x03, 0x64
@@ -7250,7 +7282,6 @@ int aesgcm_default_test(void)
 	if (ret != 0) {
 		return ret;
 	}
-
 	ret = aesgcm_default_test_helper(key2, sizeof(key2), iv2, sizeof(iv2),
 		plain2, sizeof(plain2), cipher2, sizeof(cipher2),
 		NULL, 0, tag2, sizeof(tag2));
@@ -7336,7 +7367,9 @@ int aesgcm_test(void)
 #if !defined(HAVE_FIPS) && \
         !defined(WOLFSSL_PIC32MZ_CRYPT) && \
         !defined(FREESCALE_LTC) && !defined(FREESCALE_MMCAU) && \
-        !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_AFALG_XILINX_AES)
+        !defined(WOLFSSL_XILINX_CRYPT) && !defined(WOLFSSL_AFALG_XILINX_AES) && \
+        !(defined(WOLF_CRYPTO_CB) && \
+            (defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC)))
 
     #define ENABLE_NON_12BYTE_IV_TEST
 #ifdef WOLFSSL_AES_192
@@ -7542,6 +7575,7 @@ int aesgcm_test(void)
     }
 #endif
 
+#if !(defined(WOLF_CRYPTO_CB) && defined(HAVE_INTEL_QA_SYNC))
     /* Variable authenticated data length test */
     for (alen=0; alen<(int)sizeof(p); alen++) {
          /* AES-GCM encrypt and decrypt both use AES encrypt internally */
@@ -7562,6 +7596,7 @@ int aesgcm_test(void)
             return -5713;
 #endif /* HAVE_AES_DECRYPT */
     }
+#endif
 
 #if !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT)
 #ifdef BENCH_AESGCM_LARGE
@@ -7680,7 +7715,9 @@ int aesgcm_test(void)
 #endif /* ENABLE_NON_12BYTE_IV_TEST */
 
 #if defined(WOLFSSL_AES_256) && !defined(WOLFSSL_AFALG_XILINX_AES) && \
-    !defined(WOLFSSL_XILINX_CRYPT)
+    !defined(WOLFSSL_XILINX_CRYPT) && \
+    !(defined(WOLF_CRYPTO_CB) && \
+        defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC))
     XMEMSET(resultT, 0, sizeof(resultT));
     XMEMSET(resultC, 0, sizeof(resultC));
     XMEMSET(resultP, 0, sizeof(resultP));
@@ -7715,7 +7752,8 @@ int aesgcm_test(void)
 #if !defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
     /* Test encrypt with internally generated IV */
-#if defined(WOLFSSL_AES_256) && !(defined(WC_NO_RNG) || defined(HAVE_SELFTEST))
+#if defined(WOLFSSL_AES_256) && !(defined(WC_NO_RNG) || defined(HAVE_SELFTEST)) \
+    && !(defined(WOLF_CRYPTO_CB) && defined(HAVE_CAVIUM_OCTEON_SYNC))
     {
         WC_RNG rng;
         byte randIV[12];
@@ -7841,6 +7879,7 @@ int gmac_test(void)
     byte tag[16];
 
     XMEMSET(&gmac, 0, sizeof(Gmac)); /* clear context */
+    wc_AesInit((Aes*)&gmac, HEAP_HINT, INVALID_DEVID); /* Make sure devId updated */
     XMEMSET(tag, 0, sizeof(tag));
     wc_GmacSetKey(&gmac, k1, sizeof(k1));
     wc_GmacUpdate(&gmac, iv1, sizeof(iv1), a1, sizeof(a1), tag, sizeof(t1));

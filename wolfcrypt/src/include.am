@@ -105,6 +105,11 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/port/cavium/cavium_nitrox.c
 endif
 EXTRA_DIST += wolfcrypt/src/port/cavium/README.md
 
+if BUILD_OCTEON_SYNC
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/cavium/cavium_octeon_sync.c
+endif
+EXTRA_DIST += wolfcrypt/src/port/cavium/README_Octeon.md
+
 if BUILD_INTEL_QA
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/intel/quickassist.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/intel/quickassist_mem.c

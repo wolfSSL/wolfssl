@@ -159,6 +159,9 @@ struct Aes {
     /* key-based fast multiplication table. */
     ALIGN16 byte M0[256][AES_BLOCK_SIZE];
 #endif /* GCM_TABLE */
+#ifdef HAVE_CAVIUM_OCTEON_SYNC
+    word32 y0;
+#endif
 #endif /* HAVE_AESGCM */
 #ifdef WOLFSSL_AESNI
     byte use_aesni;
@@ -197,6 +200,9 @@ struct Aes {
     (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))) || \
     (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES))
     word32 devKey[AES_MAX_KEY_SIZE/WOLFSSL_BIT_SIZE/sizeof(word32)]; /* raw key */
+#ifdef HAVE_CAVIUM_OCTEON_SYNC
+    int    keySet;
+#endif
 #endif
 #if defined(WOLFSSL_DEVCRYPTO) && \
     (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))

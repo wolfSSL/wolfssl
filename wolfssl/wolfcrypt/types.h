@@ -236,20 +236,30 @@
     #elif (defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_INTEL_QA)) || \
           defined(HAVE_INTEL_QA_SYNC)
         #ifndef HAVE_INTEL_QA_SYNC
-            #include <wolfssl/wolfcrypt/port/intel/quickassist_mem.h>
+            #include <wolfssl/wolfcrypt/port/intel/quickassist.h>
+            #undef USE_WOLFSSL_MEMORY
+            #ifdef WOLFSSL_DEBUG_MEMORY
+                #define XMALLOC(s, h, t)     IntelQaMalloc((s), (h), (t), __func__, __LINE__)
+                #define XFREE(p, h, t)       IntelQaFree((p), (h), (t), __func__, __LINE__)
+                #define XREALLOC(p, n, h, t) IntelQaRealloc((p), (n), (h), (t), __func__, __LINE__)
+            #else
+                #define XMALLOC(s, h, t)     IntelQaMalloc((s), (h), (t))
+                #define XFREE(p, h, t)       IntelQaFree((p), (h), (t))
+                #define XREALLOC(p, n, h, t) IntelQaRealloc((p), (n), (h), (t))
+            #endif /* WOLFSSL_DEBUG_MEMORY */
         #else
             #include <wolfssl/wolfcrypt/port/intel/quickassist_sync.h>
+            #undef USE_WOLFSSL_MEMORY
+            #ifdef WOLFSSL_DEBUG_MEMORY
+                #define XMALLOC(s, h, t)     wc_CryptoCb_IntelQaMalloc((s), (h), (t), __func__, __LINE__)
+                #define XFREE(p, h, t)       wc_CryptoCb_IntelQaFree((p), (h), (t), __func__, __LINE__)
+                #define XREALLOC(p, n, h, t) wc_CryptoCb_IntelQaRealloc((p), (n), (h), (t), __func__, __LINE__)
+            #else
+                #define XMALLOC(s, h, t)     wc_CryptoCb_IntelQaMalloc((s), (h), (t))
+                #define XFREE(p, h, t)       wc_CryptoCb_IntelQaFree((p), (h), (t))
+                #define XREALLOC(p, n, h, t) wc_CryptoCb_IntelQaRealloc((p), (n), (h), (t))
+            #endif /* WOLFSSL_DEBUG_MEMORY */
         #endif
-        #undef USE_WOLFSSL_MEMORY
-        #ifdef WOLFSSL_DEBUG_MEMORY
-            #define XMALLOC(s, h, t)     IntelQaMalloc((s), (h), (t), __func__, __LINE__)
-            #define XFREE(p, h, t)       IntelQaFree((p), (h), (t), __func__, __LINE__)
-            #define XREALLOC(p, n, h, t) IntelQaRealloc((p), (n), (h), (t), __func__, __LINE__)
-        #else
-            #define XMALLOC(s, h, t)     IntelQaMalloc((s), (h), (t))
-            #define XFREE(p, h, t)       IntelQaFree((p), (h), (t))
-            #define XREALLOC(p, n, h, t) IntelQaRealloc((p), (n), (h), (t))
-        #endif /* WOLFSSL_DEBUG_MEMORY */
     #elif defined(XMALLOC_USER)
         /* prototypes for user heap override functions */
         #include <stddef.h>  /* for size_t */

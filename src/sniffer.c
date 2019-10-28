@@ -61,6 +61,9 @@
     #ifdef HAVE_INTEL_QA_SYNC
         #include <wolfssl/wolfcrypt/port/intel/quickassist_sync.h>
     #endif
+    #ifdef HAVE_CAVIUM_OCTEON_SYNC
+        #include <wolfssl/wolfcrypt/port/cavium/cavium_octeon_sync.h>
+    #endif
 #endif
 
 
@@ -485,9 +488,6 @@ static void UpdateMissedDataSessions(void)
 
 #ifdef WOLF_CRYPTO_CB
     static int CryptoDeviceId = INVALID_DEVID;
-    #ifdef HAVE_INTEL_QA_SYNC
-        static IntelQaDev CryptoDevice;
-    #endif
 #endif
 
 
@@ -504,21 +504,15 @@ void ssl_InitSniffer(void)
 #endif
 #ifdef WOLF_CRYPTO_CB
     #ifdef HAVE_INTEL_QA_SYNC
-    {
-        int rc;
-        CryptoDeviceId = IntelQaInit(NULL);
-        if (CryptoDeviceId == INVALID_DEVID) {
-            WOLFSSL_MSG("Couldn't init the Intel QA");
-        }
-        rc = IntelQaOpen(&CryptoDevice, CryptoDeviceId);
-        if (rc != 0) {
-            WOLFSSL_MSG("Couldn't open the device");
-        }
-        rc = wc_CryptoCb_RegisterDevice(CryptoDeviceId,
-                IntelQaSymSync_CryptoDevCb, &CryptoDevice);
-        if (rc != 0) {
-            WOLFSSL_MSG("Couldn't register the device");
-        }
+    CryptoDeviceId = wc_CryptoCb_InitIntelQa();
+    if (INVALID_DEVID == CryptoDeviceId) {
+        printf("Couldn't init the Intel QA\n");
+    }
+    #endif
+    #ifdef HAVE_CAVIUM_OCTEON_SYNC
+    CryptoDeviceId = wc_CryptoCb_InitOcteon();
+    if (INVALID_DEVID == CryptoDeviceId) {
+        printf("Couldn't init the Intel QA\n");
     }
     #endif
 #endif
@@ -652,9 +646,10 @@ void ssl_FreeSniffer(void)
 
 #ifdef WOLF_CRYPTO_CB
 #ifdef HAVE_INTEL_QA_SYNC
-    wc_CryptoCb_UnRegisterDevice(CryptoDeviceId);
-    IntelQaClose(&CryptoDevice);
-    IntelQaDeInit(CryptoDeviceId);
+    wc_CryptoCb_CleanupIntelQa(&CryptoDeviceId);
+#endif
+#ifdef HAVE_CAVIUM_OCTEON_SYNC
+    wc_CryptoCb_CleanupOcteon(&CryptoDeviceId);
 #endif
 #endif
 
@@ -1439,7 +1434,7 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
 
 #ifdef WOLFSSL_SNIFFER_WATCH
 
-static int CreateWatchSnifferServer(char* error)
+static int CreateWatchSnifferServer(char* error, int devId)
 {
     SnifferServer* sniffer;
 
@@ -1457,7 +1452,8 @@ static int CreateWatchSnifferServer(char* error)
         return -1;
     }
 #ifdef WOLF_CRYPTO_CB
-	wolfSSL_CTX_SetDevId(sniffer->ctx, CryptoDevId);
+    if (CryptoDeviceId != INVALID_DEVID)
+	    wolfSSL_CTX_SetDevId(sniffer->ctx, devId);
 #endif
     ServerList = sniffer;
 
@@ -4508,10 +4504,17 @@ int ssl_ReadResetStatistics(SSLStats* stats)
 
 #ifdef WOLFSSL_SNIFFER_WATCH
 
+int ssl_SetWatchKeyCallback_ex(SSLWatchCb cb, int devId, char* error)
+{
+    WatchCb = cb;
+    return CreateWatchSnifferServer(error, devId);
+}
+
+
 int ssl_SetWatchKeyCallback(SSLWatchCb cb, char* error)
 {
     WatchCb = cb;
-    return CreateWatchSnifferServer(error);
+    return CreateWatchSnifferServer(error, INVALID_DEVID);
 }
 
 

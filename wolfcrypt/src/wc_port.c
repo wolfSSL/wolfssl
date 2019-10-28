@@ -78,6 +78,10 @@
     #include <wolfssl/wolfcrypt/port/intel/quickassist_sync.h>
 #endif
 
+#ifdef HAVE_CAVIUM_OCTEON_SYNC
+    #include <wolfssl/wolfcrypt/port/cavium/cavium_octeon_sync.h>
+#endif
+
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
     #pragma warning(disable: 4996)
@@ -127,10 +131,6 @@ int wolfCrypt_Init(void)
             ret = -1;/* FATAL ERROR */
             return ret;
         }
-    #endif
-
-    #ifdef HAVE_INTEL_QA_SYNC
-        ret = IntelQaHardwareStart(QAT_PROCESS_NAME, QAT_LIMIT_DEV_ACCESS);
     #endif
 
     #if defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
@@ -264,10 +264,6 @@ int wolfCrypt_Cleanup(void)
 
     #ifdef WOLFSSL_ASYNC_CRYPT
         wolfAsync_HardwareStop();
-    #endif
-
-    #ifdef HAVE_INTEL_QA_SYNC
-        IntelQaHardwareStop();
     #endif
 
     #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \

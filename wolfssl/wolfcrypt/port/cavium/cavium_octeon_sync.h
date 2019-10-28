@@ -1,4 +1,4 @@
-/* quickassist_sync.h
+/* cavium_octeon_sync.h
  *
  * Copyright (C) 2006-2019 wolfSSL Inc.
  *
@@ -19,35 +19,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef _INTEL_QUICKASSIST_SYNC_H_
-#define _INTEL_QUICKASSIST_SYNC_H_
+#ifndef _CAVIUM_OCTEON_SYNC_H_
+#define _CAVIUM_OCTEON_SYNC_H_
 
-#ifdef HAVE_INTEL_QA_SYNC
+#ifdef HAVE_CAVIUM_OCTEON_SYNC
 
-WOLFSSL_API int wc_CryptoCb_InitIntelQa(void);
-WOLFSSL_API void wc_CryptoCb_CleanupIntelQa(int* id);
+WOLFSSL_API int wc_CryptoCb_InitOcteon(void);
+WOLFSSL_API void wc_CryptoCb_CleanupOcteon(int* id);
 
-WOLFSSL_API void* wc_CryptoCb_IntelQaMalloc(size_t size,
-    void* heap, int type
-#ifdef WOLFSSL_DEBUG_MEMORY
-    , const char* func, unsigned int line
-#endif
-);
-
-WOLFSSL_API void wc_CryptoCb_IntelQaFree(void *ptr,
-    void* heap, int type
-#ifdef WOLFSSL_DEBUG_MEMORY
-    , const char* func, unsigned int line
-#endif
-);
-
-WOLFSSL_API void* wc_CryptoCb_IntelQaRealloc(void *ptr,
-    size_t size, void* heap, int type
-#ifdef WOLFSSL_DEBUG_MEMORY
-    , const char* func, unsigned int line
-#endif
-);
-
-#endif /* HAVE_INTEL_QA_SYNC */
-
-#endif /* _INTEL_QUICKASSIST_SYNC_H_ */
+#endif /* HAVE_CAVIUM_OCTEON_SYNC */
+#endif /* _CAVIUM_OCTEON_SYNC_H_ */
