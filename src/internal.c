@@ -14309,6 +14309,20 @@ int ProcessReply(WOLFSSL* ssl)
         /* the record layer is here */
         case runProcessingOneMessage:
 
+       #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+            if (IsEncryptionOn(ssl, 0) && ssl->options.encThenMac) {
+                if (ssl->buffers.inputBuffer.length - ssl->keys.padSz -
+                                              ssl->buffers.inputBuffer.idx -
+                                              MacSize(ssl) > MAX_PLAINTEXT_SZ) {
+                    WOLFSSL_MSG("Plaintext too long - Encrypt-Then-MAC");
+            #if defined(WOLFSSL_EXTRA_ALERTS)
+                    SendAlert(ssl, alert_fatal, record_overflow);
+            #endif
+                    return BUFFER_ERROR;
+                }
+            }
+            else
+       #endif
             if (ssl->buffers.inputBuffer.length - ssl->keys.padSz -
                               ssl->buffers.inputBuffer.idx > MAX_PLAINTEXT_SZ) {
                 WOLFSSL_MSG("Plaintext too long");
