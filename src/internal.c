@@ -7414,6 +7414,15 @@ retry:
     if (recvd < 0) {
         switch (recvd) {
             case WOLFSSL_CBIO_ERR_GENERAL:        /* general/unknown error */
+                #if defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)
+                    if (ssl->biord) {
+                        /* If retry and read flags are set, return WANT_READ */
+                        if ((ssl->biord->flags & WOLFSSL_BIO_FLAG_READ) &&
+                            (ssl->biord->flags & WOLFSSL_BIO_FLAG_RETRY)) {
+                            return WANT_READ;
+                        }
+                    }
+                #endif
                 return -1;
 
             case WOLFSSL_CBIO_ERR_WANT_READ:      /* want read, would block */
