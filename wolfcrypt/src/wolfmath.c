@@ -71,6 +71,7 @@
 #endif
 
 
+#if !defined(WOLFSSL_SP_MATH)
 int get_digit_count(mp_int* a)
 {
     if (a == NULL)
@@ -78,6 +79,7 @@ int get_digit_count(mp_int* a)
 
     return a->used;
 }
+#endif
 
 mp_digit get_digit(mp_int* a, int n)
 {
