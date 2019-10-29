@@ -31463,7 +31463,6 @@ int wolfSSL_EC_GROUP_get_order(const WOLFSSL_EC_GROUP *group,
 int wolfSSL_EC_GROUP_order_bits(const WOLFSSL_EC_GROUP *group)
 {
     int ret;
-    int order_bits = 0;
     mp_int order;
 
     if (group == NULL || group->curve_idx < 0) {
@@ -31476,11 +31475,7 @@ int wolfSSL_EC_GROUP_order_bits(const WOLFSSL_EC_GROUP *group)
         ret = mp_read_radix(&order, ecc_sets[group->curve_idx].order,
             MP_RADIX_HEX);
         if (ret == 0)
-            ret = mp_unsigned_bin_size(&order);
-        if (ret >= 0)
-            ret = mp_to_unsigned_bin(&order, (byte*)&order_bits);
-        if (ret == 0)
-            ret = order_bits;
+            ret = mp_count_bits(&order);
         mp_clear(&order);
     }
 

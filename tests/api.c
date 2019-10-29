@@ -1678,7 +1678,7 @@ static int test_wolfSSL_SetMinVersion(void)
  *----------------------------------------------------------------------------*/
 
 /* Test function for EC_POINT_new, EC_POINT_mul, EC_POINT_free,
-    EC_GROUP_new_by_curve_name
+    EC_GROUP_new_by_curve_name, EC_GROUP_order_bits
  */
 
 # if defined(OPENSSL_EXTRA)
@@ -1691,6 +1691,7 @@ static void test_wolfSSL_EC(void)
     BIGNUM *k = NULL, *Gx = NULL, *Gy = NULL, *Gz = NULL;
     BIGNUM *X, *Y;
     char* hexStr;
+    int group_bits;
 
     const char* kTest = "F4F8338AFCC562C5C3F3E1E46A7EFECD17AF381913FF7A96314EA47055EA0FD0";
     /* NISTP256R1 Gx/Gy */
@@ -1704,6 +1705,7 @@ static void test_wolfSSL_EC(void)
 
     AssertNotNull(ctx = BN_CTX_new());
     AssertNotNull(group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
+    AssertIntEQ((group_bits = EC_GROUP_order_bits(group)), 256);
     AssertNotNull(Gxy = EC_POINT_new(group));
     AssertNotNull(new_point = EC_POINT_new(group));
     AssertNotNull(X = BN_new());
