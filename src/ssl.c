@@ -39554,7 +39554,7 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
             }
             totalSz += tmpSz;
         }
-        if (fullName[totalSz-1] == '\0')
+        if (totalSz > 0 && fullName[totalSz-1] == '\0')
         	totalSz--;
         if (wolfSSL_BIO_write(bio, fullName, totalSz) != totalSz)
             return WOLFSSL_FAILURE;
