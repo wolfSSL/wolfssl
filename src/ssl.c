@@ -12618,6 +12618,7 @@ int AddSession(WOLFSSL* ssl)
     int    ticLen  = 0;
 #endif
     WOLFSSL_SESSION* session;
+    int i;
     int overwrite = 0;
 
     if (ssl->options.sessionCacheOff)
@@ -12687,7 +12688,7 @@ int AddSession(WOLFSSL* ssl)
             return BAD_MUTEX_E;
         }
 
-        for (int i=0; i<SESSIONS_PER_ROW; i++) {
+        for (i=0; i<SESSIONS_PER_ROW; i++) {
             if (ssl->options.tls1_3) {
             	if (XMEMCMP(ssl->session.sessionID, SessionCache[row].Sessions[i].sessionID, ID_LEN) == 0) {
             		WOLFSSL_MSG("Session already exists. Overwriting.");
