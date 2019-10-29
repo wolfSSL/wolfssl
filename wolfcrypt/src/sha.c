@@ -209,6 +209,10 @@
     #define XTRANSFORM(S,B)       Transform((S),(B))
     #define XTRANSFORM_LEN(S,B,L) Transform_Len((S),(B),(L))
 
+    #if !defined(WC_HASH_DATA_ALIGNMENT) && defined(WOLFSSL_MMCAU_ALIGNMENT)
+        #define WC_HASH_DATA_ALIGNMENT WOLFSSL_MMCAU_ALIGNMENT
+    #endif
+
     static int InitSha(wc_Sha* sha)
     {
         int ret = 0;
@@ -233,7 +237,7 @@
     static int Transform(wc_Sha* sha, const byte* data)
     {
         int ret = wolfSSL_CryptHwMutexLock();
-        if(ret == 0) {
+        if (ret == 0) {
     #ifdef FREESCALE_MMCAU_CLASSIC_SHA
             cau_sha1_hash_n((byte*)data, 1, sha->digest);
     #else
@@ -247,13 +251,33 @@
     static int Transform_Len(wc_Sha* sha, const byte* data, word32 len)
     {
         int ret = wolfSSL_CryptHwMutexLock();
-        if(ret == 0) {
+        if (ret == 0) {
+        #if defined(WC_HASH_DATA_ALIGNMENT) && WC_HASH_DATA_ALIGNMENT > 0
+            if ((size_t)data % WC_HASH_DATA_ALIGNMENT) {
+                /* data pointer is NOT aligned,
+                 * so copy and perform one block at a time */
+                byte* local = (byte*)sha->buffer;
+                while (len >= WC_SHA_BLOCK_SIZE) {
+                    XMEMCPY(local, data, WC_SHA_BLOCK_SIZE);
+                #ifdef FREESCALE_MMCAU_CLASSIC_SHA
+                    cau_sha1_hash_n(local, 1, sha->digest);
+                #else
+                    MMCAU_SHA1_HashN(local, 1, sha->digest);
+                #endif
+                    data += WC_SHA_BLOCK_SIZE;
+                    len  -= WC_SHA_BLOCK_SIZE;
+                }
+            }
+            else
+        #endif
+            {
     #ifdef FREESCALE_MMCAU_CLASSIC_SHA
             cau_sha1_hash_n((byte*)data, len/WC_SHA_BLOCK_SIZE, sha->digest);
     #else
             MMCAU_SHA1_HashN((byte*)data, len/WC_SHA_BLOCK_SIZE,
                 (uint32_t*)sha->digest);
     #endif
+            }
             wolfSSL_CryptHwMutexUnLock();
         }
         return ret;
