@@ -11626,7 +11626,7 @@ int rsa_test(void)
 #if defined(HAVE_NTRU)
     RsaKey caKey;
 #endif
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_MP_PUBLIC)
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
     word32 idx = 0;
     const char* inStr = "Everyone gets Friday off.";
     word32      inLen = (word32)XSTRLEN((char*)inStr);
@@ -11646,7 +11646,7 @@ int rsa_test(void)
     DecodedCert cert;
 #endif
 
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_MP_PUBLIC)
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
     DECLARE_VAR_INIT(in, byte, inLen, inStr, HEAP_HINT);
     DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
@@ -11841,7 +11841,7 @@ int rsa_test(void)
     }
     TEST_SLEEP();
 
-#elif defined(WOLFSSL_MP_PUBLIC)
+#elif defined(WOLFSSL_PUBLIC_MP)
     (void)outSz;
     (void)inLen;
     (void)res;
@@ -11885,7 +11885,7 @@ int rsa_test(void)
     }
 #endif
 
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_MP_PUBLIC)
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
     idx = (word32)ret;
     XMEMSET(plain, 0, plainSz);
     do {
