@@ -115,8 +115,9 @@ int wc_Md5Final(wc_Md5* md5, byte* hash)
 #define XTRANSFORM(S,B)       Transform((S), (B))
 #define XTRANSFORM_LEN(S,B,L) Transform_Len((S), (B), (L))
 
-#if !defined(WC_HASH_DATA_ALIGNMENT) && defined(WOLFSSL_MMCAU_ALIGNMENT)
-    #define WC_HASH_DATA_ALIGNMENT WOLFSSL_MMCAU_ALIGNMENT
+#ifndef WC_HASH_DATA_ALIGNMENT
+    /* these hardware API's require 4 byte (word32) alignment */
+    #define WC_HASH_DATA_ALIGNMENT 4
 #endif
 
 static int Transform(wc_Md5* md5, const byte* data)

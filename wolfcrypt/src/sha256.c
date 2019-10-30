@@ -394,8 +394,9 @@ static int InitSha256(wc_Sha256* sha256)
     #define XTRANSFORM(S, D)         Transform_Sha256((S),(D))
     #define XTRANSFORM_LEN(S, D, L)  Transform_Sha256_Len((S),(D),(L))
 
-    #if !defined(WC_HASH_DATA_ALIGNMENT) && defined(WOLFSSL_MMCAU_ALIGNMENT)
-        #define WC_HASH_DATA_ALIGNMENT WOLFSSL_MMCAU_ALIGNMENT
+    #ifndef WC_HASH_DATA_ALIGNMENT
+        /* these hardware API's require 4 byte (word32) alignment */
+        #define WC_HASH_DATA_ALIGNMENT 4
     #endif
 
     int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
