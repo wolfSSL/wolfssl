@@ -82,7 +82,8 @@ int main(int argc, char** argv)
     /* Load client certificates into WOLFSSL_CTX */
     ret = wolfSSL_CTX_load_verify_buffer(ctx, CERT, SIZEOF_CERT, WOLFSSL_FILETYPE_ASN1);
     if (ret != SSL_SUCCESS) {
-        fprintf(stderr, "ERROR: failed to load %s, please check the buffer.\n");
+        fprintf(stderr, "ERROR: failed to load client certificate, "
+                        "please check the buffer.\n");
         util_Cleanup(sockfd,ctx,ssl);
         return -1;
     }
