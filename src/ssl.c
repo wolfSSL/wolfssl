@@ -22893,6 +22893,8 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
                 default:
                 break;
             }
+
+            wc_FreeMutex(&key->refMutex);
             XFREE(key, key->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         }
     }
