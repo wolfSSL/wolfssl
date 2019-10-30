@@ -8746,7 +8746,6 @@ int CheckAltNames(DecodedCert* dCert, char* domain)
     return match;
 }
 
-
 #ifdef OPENSSL_EXTRA
 /* Check that alternative names, if they exists, match the domain.
  * Fail if there are wild patterns and they didn't match.
@@ -8817,6 +8816,13 @@ int CheckHostName(DecodedCert* dCert, char *domainName, size_t domainNameLen)
     }
 
     return 0;
+}
+
+int CheckIPAddr(DecodedCert* dCert, char* ipasc)
+{
+    WOLFSSL_MSG("Checking IPAddr");
+
+    return CheckHostName(dCert, ipasc, (size_t)XSTRLEN(ipasc));
 }
 #endif
 
@@ -9355,6 +9361,14 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
                     return VERIFY_CERT_ERROR;
                 }
             }
+        }
+    }
+
+    /* perform IP address check on the peer certificate */
+    if ((args->dCertInit != 0) && (args->dCert != NULL) &&
+        (ssl->param != NULL) && (XSTRLEN(ssl->param->ipasc) > 0)) {
+        if (CheckIPAddr(args->dCert, ssl->param->ipasc) == 0) {
+            return VERIFY_CERT_ERROR;
         }
     }
 #endif
