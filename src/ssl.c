@@ -22095,27 +22095,32 @@ int wolfSSL_i2d_X509_bio(WOLFSSL_BIO* bio, WOLFSSL_X509* x509)
  */
 int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out)
 {
+    WOLFSSL_ENTER("wolfSSL_i2d_X509");
     const unsigned char* der;
     int derSz = 0;
 
     if (x509 == NULL || out == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_i2d_X509", BAD_FUNC_ARG);
         return BAD_FUNC_ARG;
     }
 
     der = wolfSSL_X509_get_der(x509, &derSz);
     if (der == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_i2d_X509", MEMORY_E);
         return MEMORY_E;
     }
 
     if (*out == NULL) {
         *out = (unsigned char*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_OPENSSL);
         if (*out == NULL) {
+            WOLFSSL_LEAVE("wolfSSL_i2d_X509", MEMORY_E);
             return MEMORY_E;
         }
     }
 
     XMEMCPY(*out, der, derSz);
 
+    WOLFSSL_LEAVE("wolfSSL_i2d_X509", derSz);
     return derSz;
 }
 
@@ -38419,17 +38424,64 @@ long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
 long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
 {
-    WOLFSSL_STUB("SSL_CTX_ctrl");
+    WOLFSSL_ENTER("SSL_CTX_ctrl");
+    long ret = WOLFSSL_SUCCESS;
+
+    switch (cmd) {
+    case SSL_CTRL_CHAIN:
+#ifdef SESSION_CERTS
+    {
+        /*
+         * We don't care about opt here because a copy of the certificate is
+         * stored anyway so increasing the reference counter is not necessary.
+         * Just check to make sure that it is set to one of the correct values.
+         */
+        WOLF_STACK_OF(WOLFSSL_X509)* sk = (WOLF_STACK_OF(WOLFSSL_X509)*) pt;
+        WOLFSSL_X509* x509;
+        int i;
+        if (!ctx || (opt != 0 && opt != 1)) {
+            ret = WOLFSSL_FAILURE;
+            break;
+        }
+        if (pt) {
+            for (i = 0; i < wolfSSL_sk_X509_num(sk); i++) {
+                x509 = wolfSSL_sk_X509_value(sk, i);
+                /* Prevent wolfSSL_CTX_add_extra_chain_cert from freeing cert */
+                if (wolfSSL_X509_up_ref(x509) != 1) {
+                    WOLFSSL_MSG("Error increasing reference count");
+                    continue;
+                }
+                if (wolfSSL_CTX_add_extra_chain_cert(ctx, x509) !=
+                        WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("Error adding certificate to context");
+                    /* Decrease reference count on failure */
+                    wolfSSL_X509_free(x509);
+                }
+            }
+        } else {
+            /* Clear certificate chain */
+            FreeDer(&ctx->certChain);
+        }
+    }
+#else
+    WOLFSSL_MSG("Session certificates not compiled in");
+    ret = WOLFSSL_FAILURE;
+#endif
+        break;
+    default:
+        ret = WOLFSSL_FAILURE;
+        break;
+    }
+
     (void)ctx;
     (void)cmd;
     (void)opt;
     (void)pt;
-    return WOLFSSL_FAILURE;
+    WOLFSSL_LEAVE("SSL_CTX_ctrl", ret);
+    return ret;
 }
-#endif
 
 #ifndef NO_WOLFSSL_STUB
 long wolfSSL_CTX_clear_extra_chain_certs(WOLFSSL_CTX* ctx)
