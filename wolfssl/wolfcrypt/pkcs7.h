@@ -220,6 +220,14 @@ typedef int (*CallbackWrapCEK)(PKCS7* pkcs7, byte* cek, word32 cekSz,
                                   byte* out, word32 outSz,
                                   int keyWrapAlgo, int type, int dir);
 
+#if defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && !defined(NO_RSA)
+/* RSA sign raw digest callback, user builds DigestInfo */
+typedef int (*CallbackRsaSignRawDigest)(PKCS7* pkcs7, byte* digest,
+                                   word32 digestSz, byte* out, word32 outSz,
+                                   byte* privateKey, word32 privateKeySz,
+                                   int devId, int hashOID);
+#endif
+
 /* Public Structure Warning:
  * Existing members must not be changed to maintain backwards compatibility!
  */
@@ -318,6 +326,10 @@ struct PKCS7 {
     word32 signatureSz;
     word32 plainDigestSz;
     word32 pkcs7DigestSz;
+
+#if defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && !defined(NO_RSA)
+    CallbackRsaSignRawDigest rsaSignRawDigestCb;
+#endif
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };
 
@@ -438,6 +450,11 @@ WOLFSSL_API int  wc_PKCS7_AddRecipient_ORI(PKCS7* pkcs7, CallbackOriEncrypt cb,
                                            int options);
 WOLFSSL_API int  wc_PKCS7_SetWrapCEKCb(PKCS7* pkcs7,
         CallbackWrapCEK wrapCEKCb);
+
+#if defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && !defined(NO_RSA)
+WOLFSSL_API int  wc_PKCS7_SetRsaSignRawDigestCb(PKCS7* pkcs7,
+        CallbackRsaSignRawDigest cb);
+#endif
 
 /* CMS/PKCS#7 EnvelopedData */
 WOLFSSL_API int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
