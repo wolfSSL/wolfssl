@@ -40,7 +40,8 @@ _fe_init:
 #endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX2
 #ifndef __APPLE__
-        movl	cpuFlagsSet@GOTPCREL(%rip), %eax
+        movq	cpuFlagsSet@GOTPCREL(%rip), %rax
+        movl	(%rax), %eax
 #else
         movl	_cpuFlagsSet(%rip), %eax
 #endif /* __APPLE__ */
@@ -54,7 +55,8 @@ L_fe_init_get_flags:
         callq	_cpuid_get_flags
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movl	%eax, intelFlags@GOTPCREL(%rip)
+        movq	intelFlags@GOTPCREL(%rip), %rdx
+        movl	%eax, (%rdx)
 #else
         movl	%eax, _intelFlags(%rip)
 #endif /* __APPLE__ */
@@ -67,7 +69,8 @@ L_fe_init_get_flags:
         leaq	_fe_mul_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	%rax, fe_mul_p@GOTPCREL(%rip)
+        movq	fe_mul_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
 #else
         movq	%rax, _fe_mul_p(%rip)
 #endif /* __APPLE__ */
@@ -77,7 +80,8 @@ L_fe_init_get_flags:
         leaq	_fe_sq_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	%rax, fe_sq_p@GOTPCREL(%rip)
+        movq	fe_sq_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
 #else
         movq	%rax, _fe_sq_p(%rip)
 #endif /* __APPLE__ */
@@ -87,7 +91,8 @@ L_fe_init_get_flags:
         leaq	_fe_mul121666_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	%rax, fe_mul121666_p@GOTPCREL(%rip)
+        movq	fe_mul121666_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
 #else
         movq	%rax, _fe_mul121666_p(%rip)
 #endif /* __APPLE__ */
@@ -97,7 +102,8 @@ L_fe_init_get_flags:
         leaq	_fe_sq2_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	%rax, fe_sq2_p@GOTPCREL(%rip)
+        movq	fe_sq2_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
 #else
         movq	%rax, _fe_sq2_p(%rip)
 #endif /* __APPLE__ */
@@ -107,7 +113,8 @@ L_fe_init_get_flags:
         leaq	_fe_invert_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	%rax, fe_invert_p@GOTPCREL(%rip)
+        movq	fe_invert_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
 #else
         movq	%rax, _fe_invert_p(%rip)
 #endif /* __APPLE__ */
@@ -117,7 +124,8 @@ L_fe_init_get_flags:
         leaq	_curve25519_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	%rax, curve25519_p@GOTPCREL(%rip)
+        movq	curve25519_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
 #else
         movq	%rax, _curve25519_p(%rip)
 #endif /* __APPLE__ */
@@ -127,7 +135,8 @@ L_fe_init_get_flags:
         leaq	_fe_pow22523_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	%rax, fe_pow22523_p@GOTPCREL(%rip)
+        movq	fe_pow22523_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
 #else
         movq	%rax, _fe_pow22523_p(%rip)
 #endif /* __APPLE__ */
@@ -137,7 +146,8 @@ L_fe_init_get_flags:
         leaq	_fe_ge_to_p2_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	%rax, fe_ge_to_p2_p@GOTPCREL(%rip)
+        movq	fe_ge_to_p2_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
 #else
         movq	%rax, _fe_ge_to_p2_p(%rip)
 #endif /* __APPLE__ */
@@ -147,7 +157,8 @@ L_fe_init_get_flags:
         leaq	_fe_ge_to_p3_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	%rax, fe_ge_to_p3_p@GOTPCREL(%rip)
+        movq	fe_ge_to_p3_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
 #else
         movq	%rax, _fe_ge_to_p3_p(%rip)
 #endif /* __APPLE__ */
@@ -157,7 +168,8 @@ L_fe_init_get_flags:
         leaq	_fe_ge_dbl_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	%rax, fe_ge_dbl_p@GOTPCREL(%rip)
+        movq	fe_ge_dbl_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
 #else
         movq	%rax, _fe_ge_dbl_p(%rip)
 #endif /* __APPLE__ */
@@ -167,7 +179,8 @@ L_fe_init_get_flags:
         leaq	_fe_ge_madd_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	%rax, fe_ge_madd_p@GOTPCREL(%rip)
+        movq	fe_ge_madd_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
 #else
         movq	%rax, _fe_ge_madd_p(%rip)
 #endif /* __APPLE__ */
@@ -177,7 +190,8 @@ L_fe_init_get_flags:
         leaq	_fe_ge_msub_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	%rax, fe_ge_msub_p@GOTPCREL(%rip)
+        movq	fe_ge_msub_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
 #else
         movq	%rax, _fe_ge_msub_p(%rip)
 #endif /* __APPLE__ */
@@ -187,7 +201,8 @@ L_fe_init_get_flags:
         leaq	_fe_ge_add_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	%rax, fe_ge_add_p@GOTPCREL(%rip)
+        movq	fe_ge_add_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
 #else
         movq	%rax, _fe_ge_add_p(%rip)
 #endif /* __APPLE__ */
@@ -197,13 +212,15 @@ L_fe_init_get_flags:
         leaq	_fe_ge_sub_avx2(%rip), %rax
 #endif /* __APPLE__ */
 #ifndef __APPLE__
-        movq	%rax, fe_ge_sub_p@GOTPCREL(%rip)
+        movq	fe_ge_sub_p@GOTPCREL(%rip), %rdx
+        movq	%rax, (%rdx)
 #else
         movq	%rax, _fe_ge_sub_p(%rip)
 #endif /* __APPLE__ */
 L_fe_init_flags_done:
 #ifndef __APPLE__
-        movl	$0x1, cpuFlagsSet@GOTPCREL(%rip)
+        movq	cpuFlagsSet@GOTPCREL(%rip), %rdx
+        movl	$0x1, (%rdx)
 #else
         movl	$0x1, _cpuFlagsSet(%rip)
 #endif /* __APPLE__ */
