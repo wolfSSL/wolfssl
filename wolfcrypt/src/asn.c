@@ -7215,7 +7215,13 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
     /* If the basic ca constraint is false, this extension may be named, but
      * left empty. So, if the length is 0, just return. */
 
-    ret = GetBoolean(input, &idx, sz);
+    if(input[idx] == ASN_BOOLEAN)
+        ret = GetBoolean(input, &idx, sz);
+    /* For OpenSSL compatibility, if ASN_INTEGER do nothing */
+    else if (input[idx] == ASN_INTEGER)
+        return 0;
+    else
+        ret = ASN_PARSE_E;
     if (ret < 0) {
         WOLFSSL_MSG("\tfail: constraint not valid BOOLEAN");
         return ret;
