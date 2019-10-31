@@ -12293,7 +12293,7 @@ int wc_PKCS7_DecodeCompressedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     }
 
     /* get ContentInfo content EXPLICIT SEQUENCE */
-    if (GetASNTag(pkiMsg, &idx, &tag, pkiMsgSz < 0)
+    if (GetASNTag(pkiMsg, &idx, &tag, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
     if (tag != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
