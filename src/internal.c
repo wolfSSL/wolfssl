@@ -3464,6 +3464,10 @@ void FreeX509(WOLFSSL_X509* x509)
         FreeAltNames(x509->altNames, x509->heap);
         x509->altNames = NULL;
     }
+
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+        wc_FreeMutex(&x509->refMutex);
+    #endif
 }
 
 
