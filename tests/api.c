@@ -16670,6 +16670,71 @@ static void test_wc_PKCS7_EncodeData (void)
 }  /* END test_wc_PKCS7_EncodeData */
 
 
+#if defined(HAVE_PKCS7) && defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && \
+    !defined(NO_RSA) && !defined(NO_SHA256)
+/* RSA sign raw digest callback */
+static int rsaSignRawDigestCb(PKCS7* pkcs7, byte* digest, word32 digestSz,
+                              byte* out, word32 outSz, byte* privateKey,
+                              word32 privateKeySz, int devid, int hashOID)
+{
+    /* specific DigestInfo ASN.1 encoding prefix for a SHA2565 digest */
+    byte digInfoEncoding[] = {
+        0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
+        0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05,
+        0x00, 0x04, 0x20
+    };
+
+    int ret;
+    byte digestInfo[ONEK_BUF];
+    byte sig[FOURK_BUF];
+    word32 digestInfoSz = 0;
+    word32 idx = 0;
+    RsaKey rsa;
+
+    /* SHA-256 required only for this example callback due to above
+     * digInfoEncoding[] */
+    if (pkcs7 == NULL || digest == NULL || out == NULL ||
+        (sizeof(digestInfo) < sizeof(digInfoEncoding) + digestSz) ||
+        (hashOID != SHA256h)) {
+        return -1;
+    }
+
+    /* build DigestInfo */
+    XMEMCPY(digestInfo, digInfoEncoding, sizeof(digInfoEncoding));
+    digestInfoSz += sizeof(digInfoEncoding);
+    XMEMCPY(digestInfo + digestInfoSz, digest, digestSz);
+    digestInfoSz += digestSz;
+
+    /* set up RSA key */
+    ret = wc_InitRsaKey_ex(&rsa, pkcs7->heap, devid);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = wc_RsaPrivateKeyDecode(privateKey, &idx, &rsa, privateKeySz);
+
+    /* sign DigestInfo */
+    if (ret == 0) {
+        ret = wc_RsaSSL_Sign(digestInfo, digestInfoSz, sig, sizeof(sig),
+                             &rsa, pkcs7->rng);
+        if (ret > 0) {
+            if (ret > (int)outSz) {
+                /* output buffer too small */
+                ret = -1;
+            } else {
+                /* success, ret holds sig size */
+                XMEMCPY(out, sig, ret);
+            }
+        }
+    }
+
+    wc_FreeRsaKey(&rsa);
+
+    return ret;
+}
+#endif
+
+
 /*
  * Testing wc_PKCS7_EncodeSignedData()
  */
@@ -16781,6 +16846,26 @@ static void test_wc_PKCS7_EncodeSignedData(void)
     pkcs7->hashOID = 0; /* bad hashOID */
     AssertIntEQ(wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz), BAD_FUNC_ARG);
 
+#if defined(HAVE_PKCS7) && defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && \
+    !defined(NO_RSA) && !defined(NO_SHA256)
+    /* test RSA sign raw digest callback, if using RSA and compiled in.
+     * Example callback assumes SHA-256, so only run test if compiled in. */
+    AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+    AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+
+    pkcs7->content = data;
+    pkcs7->contentSz = (word32)sizeof(data);
+    pkcs7->privateKey = key;
+    pkcs7->privateKeySz = (word32)sizeof(key);
+    pkcs7->encryptOID = RSAk;
+    pkcs7->hashOID = SHA256h;
+    pkcs7->rng = &rng;
+
+    AssertIntEQ(wc_PKCS7_SetRsaSignRawDigestCb(pkcs7, rsaSignRawDigestCb), 0);
+
+    AssertIntGT(wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz), 0);
+#endif
+
     printf(resultFmt, passed);
 
     wc_PKCS7_Free(pkcs7);
@@ -16788,6 +16873,7 @@ static void test_wc_PKCS7_EncodeSignedData(void)
 
 #endif
 } /* END test_wc_PKCS7_EncodeSignedData */
+
 
 /*
  * Testing wc_PKCS7_EncodeSignedData_ex() and wc_PKCS7_VerifySignedData_ex()
