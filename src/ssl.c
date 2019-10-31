@@ -5473,6 +5473,14 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             #ifdef HAVE_PK_CALLBACKS
                 keyType = rsa_sa_algo;
             #endif
+            #ifdef HAVE_PKCS11
+                if (ctx) {
+                    ctx->privateKeyType = rsa_sa_algo;
+                }
+                else {
+                    ssl->buffers.keyType = rsa_sa_algo;
+                }
+            #endif
                 /* Determine RSA key size by parsing public key */
                 idx = 0;
                 ret = wc_RsaPublicKeyDecode_ex(cert->publicKey, &idx,
@@ -5501,6 +5509,14 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             #ifdef HAVE_PK_CALLBACKS
                 keyType = ecc_dsa_sa_algo;
             #endif
+            #ifdef HAVE_PKCS11
+                if (ctx) {
+                    ctx->privateKeyType = ecc_dsa_sa_algo;
+                }
+                else {
+                    ssl->buffers.keyType = ecc_dsa_sa_algo;
+                }
+            #endif
                 /* Determine ECC key size based on curve */
                 keySz = wc_ecc_get_curve_size_from_id(
                     wc_ecc_get_oid(cert->pkCurveOID, NULL, NULL));
@@ -5525,6 +5541,14 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             case ED25519k:
             #ifdef HAVE_PK_CALLBACKS
                 keyType = ed25519_sa_algo;
+            #endif
+            #ifdef HAVE_PKCS11
+                if (ctx) {
+                    ctx->privateKeyType = ed25519_sa_algo;
+                }
+                else {
+                    ssl->buffers.keyType = ed25519_sa_algo;
+                }
             #endif
                 /* ED25519 is fixed key size */
                 keySz = ED25519_KEY_SIZE;
