@@ -9367,7 +9367,7 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
     /* perform IP address check on the peer certificate */
     if ((args->dCertInit != 0) && (args->dCert != NULL) &&
         (ssl->param != NULL) && (XSTRLEN(ssl->param->ipasc) > 0)) {
-        if (CheckIPAddr(args->dCert, ssl->param->ipasc) == 0) {
+        if (CheckIPAddr(args->dCert, ssl->param->ipasc) != 0) {
             return VERIFY_CERT_ERROR;
         }
     }
