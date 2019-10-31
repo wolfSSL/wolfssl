@@ -4037,12 +4037,20 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
     CRYS_ECPKI_KG_TempData_t    tempBuff;
     CRYS_ECPKI_KG_FipsContext_t fipsCtx;
     byte ucompressed_key[ECC_MAX_CRYPTO_HW_SIZE*2 + 1];
-    word32 raw_size = (word32) (key->dp->size)*2 + 1;
+    word32 raw_size;
 #endif
     if (key == NULL || rng == NULL) {
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLFSSL_CRYPTOCELL)
+    if (key->dp == NULL) {
+        WOLFSSL_MSG("ECC internal dp structure was NULL");
+        return BAD_FUNC_ARG;
+    }
+
+    raw_size = (word32) (key->dp->size)*2 + 1;
+#endif
     /* make sure required variables are reset */
     wc_ecc_reset(key);
 
@@ -7232,13 +7240,21 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
     const CRYS_ECPKI_Domain_t* pDomain;
     CRYS_ECPKI_BUILD_TempData_t tempBuff;
     byte key_raw[ECC_MAX_CRYPTO_HW_SIZE*2 + 1];
-    word32 keySz = key->dp->size;
+    word32 keySz;
 #endif
     /* if d is NULL, only import as public key using Qx,Qy */
     if (key == NULL || qx == NULL || qy == NULL) {
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLFSSL_CRYPTOCELL)
+    if (key->dp == NULL) {
+        WOLFSSL_MSG("ECC internal dp structure was NULL");
+        return BAD_FUNC_ARG;
+    }
+
+    keySz = (word32) (key->dp->size)*2 + 1;
+#endif
     /* make sure required variables are reset */
     wc_ecc_reset(key);
 
