@@ -17269,6 +17269,11 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         WOLFSSL_ENTER("SSL_CTX_set_mode");
         if (mode == SSL_MODE_ENABLE_PARTIAL_WRITE)
             ctx->partialWrite = 1;
+        #ifdef DEBUG_WOLFSSL
+        else {
+            WOLFSSL_MSG("mode is not supported.");
+        }
+        #endif
 
         return mode;
     }
