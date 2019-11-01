@@ -22997,7 +22997,8 @@ void wolfSSL_X509_VERIFY_PARAM_set_hostflags(WOLFSSL_X509_VERIFY_PARAM* param,
  *
  * param is a pointer to the X509_VERIFY_PARAM structure
  * ipasc is a NULL-terminated string with N.N.N.N for IPv4 and
- *       HH:HH ... HH:HH for IPv6.
+ *       HH:HH ... HH:HH for IPv6. There is no validation performed on the
+ *       parameter, and it must be an exact match with the IP in the cert.
  *
  * return 1 for success and 0 for failure*/
 int wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(WOLFSSL_X509_VERIFY_PARAM *param,
