@@ -199,7 +199,7 @@ enum {
     WC_HW_E             = -248,  /* Error with hardware crypto use */
     WC_HW_WAIT_E        = -249,  /* Hardware waiting on resource */
 
-    PSS_SALTLEN_E       = -250,  /* PSS length of salt is to long for hash */
+    PSS_SALTLEN_E       = -250,  /* PSS length of salt is too long for hash */
     PRIME_GEN_E         = -251,  /* Failure finding a prime. */
     BER_INDEF_E         = -252,  /* Cannot decode indefinite length BER. */
     RSA_OUT_OF_RANGE_E  = -253,  /* Ciphertext to decrypt out of range. */
@@ -224,10 +224,11 @@ enum {
     PKCS7_NO_SIGNER_E   = -269,  /* No signer in PKCS#7 signed data msg */
     WC_PKCS7_WANT_READ_E= -270,  /* PKCS7 operations wants more input */
 
-    CRYPTOCB_UNAVAILABLE= -271, /* Crypto callback unavailable */
-    PKCS7_SIGNEEDS_CHECK= -272, /* signature needs verified by caller */
+    CRYPTOCB_UNAVAILABLE= -271,  /* Crypto callback unavailable */
+    PKCS7_SIGNEEDS_CHECK= -272,  /* signature needs verified by caller */
+    PSS_SALTLEN_RECOVER_E=-273,  /* PSS slat length not recoverable */
 
-    WC_LAST_E           = -272,  /* Update this to indicate last error */
+    WC_LAST_E           = -273,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

@@ -10526,6 +10526,7 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
 #ifdef RSA_PSS_TEST_WRONG_PARAMS
     int              k, l;
 #endif
+    int              len;
     byte*            plain;
     int              mgf[]   = {
 #ifndef NO_SHA
@@ -10722,6 +10723,11 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
     /* Test bad salt lengths in various APIs. */
     digestSz = wc_HashGetDigestSize(hash[0]);
     outSz = RSA_TEST_BYTES;
+#ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
+    len = -2;
+#else
+    len = -3;
+#endif
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &key->asyncDev,
@@ -10729,7 +10735,7 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
     #endif
         if (ret >= 0) {
             ret = wc_RsaPSS_Sign_ex(digest, digestSz, out, outSz, hash[0],
-                mgf[0], -2, key, rng);
+                mgf[0], len, key, rng);
         }
     } while (ret == WC_PENDING_E);
     if (ret != PSS_SALTLEN_E)
@@ -10777,21 +10783,31 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
         ERROR_OUT(-6830, exit_rsa_pss);
     TEST_SLEEP();
 
+#ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
+    len = -2;
+#else
+    len = -3;
+#endif
 #ifdef HAVE_SELFTEST
     ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
-                                    -2);
+                                    len);
 #else
     ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
-                                    -2, 0);
+                                    len, 0);
 #endif
     if (ret != PSS_SALTLEN_E)
         ERROR_OUT(-6831, exit_rsa_pss);
+#ifndef WOLFSSL_PSS_LONG_SALT
+    len = digestSz + 1;
+#else
+    len = plainSz - digestSz - 1;
+#endif
 #ifdef HAVE_SELFTEST
     ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
-                                    digestSz + 1);
+                                    len);
 #else
     ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
-                                    digestSz + 1, 0);
+                                    len, 0);
 #endif
     if (ret != PSS_SALTLEN_E)
         ERROR_OUT(-6832, exit_rsa_pss);
