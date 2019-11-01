@@ -3448,6 +3448,240 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
 
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
+#if defined(WOLFSSL_SIGNER_DER_CERT)
+/******************************************************************************
+* wolfSSL_CertManager_GetCerts - retrieve stack of X509 certificates in a
+* certificate manager (CM), also knows as cert store in OpenSSL.
+*
+* RETURNS:
+* returns stack of X509 certs on success, otherwise returns a NULL.
+*/
+WOLFSSL_STACK* wolfSSL_CertManager_GetCerts(WOLFSSL_CERT_MANAGER* cm)
+{
+    WOLFSSL_STACK* sk = NULL;
+    Signer* signers = NULL;
+    word32  row = 0;
+    DecodedCert* dCert = NULL;
+    WOLFSSL_X509* x509 = NULL;
+    int found = 0;
+
+    if (cm == NULL)
+        return NULL;
+
+    sk = wolfSSL_sk_X509_new();
+
+    if (sk == NULL) {
+        return NULL;
+    }
+
+    XMEMSET(sk, 0, sizeof(WOLFSSL_STACK));
+
+    if (wc_LockMutex(&cm->caLock) != 0) {
+        goto error_init;
+    }
+
+    for (row = 0; row < CA_TABLE_SIZE; row++) {
+        signers = cm->caTable[row];
+        while (signers && signers->derCert && signers->derCert->buffer) {
+
+            dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), cm->heap,
+                                          DYNAMIC_TYPE_DCERT);
+            if (dCert == NULL) {
+                goto error;
+            }
+
+            XMEMSET(dCert, 0, sizeof(DecodedCert));
+
+            InitDecodedCert(dCert, signers->derCert->buffer,
+                            signers->derCert->length, cm->heap);
+
+            /* Parse Certificate */
+            if (ParseCert(dCert, CERT_TYPE, NO_VERIFY, cm)) {
+                goto error;
+            }
+
+            x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), cm->heap,
+                    DYNAMIC_TYPE_X509);
+
+            if (x509 == NULL) {
+                goto error;
+            }
+
+            InitX509(x509, 1, NULL);
+
+            if (CopyDecodedToX509(x509, dCert) == 0) {
+
+                if (wolfSSL_sk_X509_push(sk, x509) != SSL_SUCCESS) {
+                    WOLFSSL_MSG("Unable to load x509 into stack");
+                    goto error;
+                }
+            }
+            else {
+                goto error;
+            }
+
+            found = 1;
+
+            signers = signers->next;
+
+            FreeDecodedCert(dCert);
+            XFREE(dCert, cm->heap, DYNAMIC_TYPE_DCERT);
+            dCert = NULL;
+        }
+    }
+    wc_UnLockMutex(&cm->caLock);
+
+    if (!found) {
+       goto error_init;
+    }
+
+    return sk;
+
+error:
+    wc_UnLockMutex(&cm->caLock);
+
+error_init:
+
+    if (dCert) {
+        FreeDecodedCert(dCert);
+        XFREE(dCert, cm->heap, DYNAMIC_TYPE_DCERT);
+    }
+    if (x509)
+        FreeX509(x509);
+
+    if (sk)
+        wolfSSL_sk_X509_free(sk);
+
+    return NULL;
+}
+#endif /* WOLFSSL_SIGNER_DER_CERT */
+
+/******************************************************************************
+* wolfSSL_X509_STORE_GetCerts - retrieve stack of X509 in a certificate store ctx
+*
+* This API can be used in SSL verify callback function to view cert chain
+* Here's an example to display certs to stdout.
+
+static int verify_callback(int ok, X509_STORE_CTX *ctx)
+{
+    WOLFSSL_BIO* bio = NULL;
+    WOLFSSL_STACK* sk = NULL;
+    X509* x509 = NULL;
+    int i = 0;
+
+    sk = wolfSSL_X509_STORE_GetCerts(ctx->store->cm);
+
+    for (i = 0; i < sk_X509_num(sk); i++) {
+        x509 = sk_X509_value(sk, i);
+        bio = BIO_new(wolfSSL_BIO_s_file());
+        if (bio != NULL) {
+            BIO_set_fp(bio, stdout, BIO_NOCLOSE);
+            X509_print(bio, x509);
+            BIO_free(bio);
+        }
+    }
+
+    sk_X509_free(sk);
+    return ok;
+}
+* You can register your call back function in your app as follows:
+*
+* ctx = SSL_CTX_new(SSLv23_method());
+* SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+*                    verify_callback);
+*
+* RETURNS:
+* returns stack of X509 certs on success, otherwise returns a NULL.
+*/
+WOLFSSL_STACK* wolfSSL_X509_STORE_GetCerts(WOLFSSL_X509_STORE_CTX* s)
+{
+    int  certIdx = 0;
+    WOLFSSL_BUFFER_INFO* cert = NULL;
+    DecodedCert* dCert = NULL;
+    WOLFSSL_X509* x509 = NULL;
+    WOLFSSL_STACK* sk = NULL;
+    int found = 0;
+
+    if (s == NULL) {
+        return NULL;
+    }
+
+    sk = wolfSSL_sk_X509_new();
+
+    if (sk == NULL) {
+        return NULL;
+    }
+
+    XMEMSET(sk, 0, sizeof(WOLFSSL_STACK));
+    certIdx = s->totalCerts;
+
+    while (certIdx-- > 0) {
+        /* get certificate buffer */
+        cert = &s->certs[certIdx];
+
+        if (cert == NULL)
+            break;
+
+        dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL, DYNAMIC_TYPE_DCERT);
+
+        if (dCert == NULL) {
+            goto error;
+        }
+        XMEMSET(dCert, 0, sizeof(DecodedCert));
+
+        InitDecodedCert(dCert, cert->buffer, cert->length, NULL);
+
+        /* Parse Certificate */
+        if (ParseCert(dCert, CERT_TYPE, NO_VERIFY, NULL)){
+            goto error;
+        }
+        x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
+                DYNAMIC_TYPE_X509);
+
+        if (x509 == NULL) {
+            goto error;
+        }
+        InitX509(x509, 1, NULL);
+
+        if (CopyDecodedToX509(x509, dCert) == 0) {
+
+            if (wolfSSL_sk_X509_push(sk, x509) != SSL_SUCCESS) {
+                WOLFSSL_MSG("Unable to load x509 into stack");
+                goto error;
+            }
+        }
+        else {
+            goto error;
+        }
+        found = 1;
+
+        FreeDecodedCert(dCert);
+        XFREE(dCert, NULL, DYNAMIC_TYPE_DCERT);
+        dCert = NULL;
+    }
+
+    if (!found) {
+        wolfSSL_sk_X509_free(sk);
+        sk = NULL;
+    }
+    return sk;
+
+error:
+    if (dCert) {
+        FreeDecodedCert(dCert);
+        XFREE(dCert, NULL, DYNAMIC_TYPE_DCERT);
+    }
+
+    if (x509)
+        FreeX509(x509);
+
+    if (sk)
+        wolfSSL_sk_X509_free(sk);
+
+    return NULL;
+}
+#endif /* defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) */
 
 /* Unload the CA signer list */
 int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm)
@@ -14114,10 +14348,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return WOLFSSL_SUCCESS;
     }
 
-
-
-
 #ifndef NO_CERTS
+
     WOLFSSL_X509_STORE* wolfSSL_CTX_get_cert_store(WOLFSSL_CTX* ctx)
     {
         if (ctx == NULL) {
@@ -43550,7 +43782,7 @@ error:
 }
 #endif /* defined(OPENSSL_ALL) && defined(HAVE_PKCS7) */
 
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
 WOLFSSL_STACK* wolfSSL_sk_X509_new(void)
 {
     WOLFSSL_STACK* s = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
