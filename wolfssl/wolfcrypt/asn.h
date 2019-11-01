@@ -818,7 +818,7 @@ struct DecodedCert {
     const byte* issuerRaw;           /* pointer to issuer inside source */
     int     issuerRawLen;
 #endif
-#ifndef IGNORE_NAME_CONSTRAINT
+#ifndef IGNORE_NAME_CONSTRAINTS
     const byte* subjectRaw;          /* pointer to subject inside source */
     int     subjectRawLen;
 #endif
