@@ -1920,6 +1920,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         byte* rk = (byte*)aes->key;
         byte* tmpKey = (byte*)userKey;
         int tmpKeyDynamic = 0;
+        word32 alignOffset = 0;
 
         (void)dir;
 
@@ -1943,8 +1944,9 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
             if (tmp == NULL) {
                 return MEMORY_E;
             }
-            tmpKey = tmp + (WOLFSSL_MMCAU_ALIGNMENT -
-                     ((wolfssl_word)tmp % WOLFSSL_MMCAU_ALIGNMENT));
+            alignOffset = WOLFSSL_MMCAU_ALIGNMENT -
+                          ((wolfssl_word)tmp % WOLFSSL_MMCAU_ALIGNMENT);
+            tmpKey = tmp + alignOffset;
             XMEMCPY(tmpKey, userKey, keylen);
             tmpKeyDynamic = 1;
         #else
@@ -1967,7 +1969,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         }
 
         if (tmpKeyDynamic == 1) {
-            XFREE(tmpKey, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(tmpKey - alignOffset, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
 
         return ret;
