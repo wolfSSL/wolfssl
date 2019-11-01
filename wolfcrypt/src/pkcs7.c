@@ -4818,6 +4818,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 ret = BUFFER_E;
                 break;
             }
+            stateIdx = idx;
         #endif
 
             /* set contentType and size after init of PKCS7 structure */
