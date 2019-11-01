@@ -282,7 +282,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 
     #define XFILE                    int
     #define XFOPEN(NAME, MODE)       vf_open((const char *)NAME, VO_RDONLY, 0);
-    #define XFSEEK                   vf_lseek
+    #define XFSEEK                   ebsnet_fseek
     #define XFTELL                   vf_tell
     #define XREWIND                  vf_rewind
     #define XFREAD(BUF, SZ, AMT, FD) vf_read(FD, BUF, SZ*AMT)

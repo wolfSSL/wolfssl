@@ -1175,6 +1175,19 @@ int wolfSSL_CryptHwMutexUnLock(void) {
         return 0;
     }
 
+    int ebsnet_fseek(int a, long b, int c)
+    {
+        int retval;
+
+        retval = vf_lseek(a, b, c);
+        if (retval > 0)
+            retval = 0;
+        else
+            retval =  -1;
+
+        return(retval);
+    }
+
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
 
     int wc_InitMutex(wolfSSL_Mutex* m)
