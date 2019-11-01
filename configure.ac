@@ -512,7 +512,7 @@ AC_ARG_ENABLE([signal],
     [ ENABLED_SIGNAL=no ]
     )
 
-# OpenSSL Coexist 
+# OpenSSL Coexist
 AC_ARG_ENABLE([opensslcoexist],
     [AS_HELP_STRING([--enable-opensslcoexist],[Enable coexistence of wolfssl/openssl (default: disabled)])],
     [ ENABLED_OPENSSLCOEXIST=$enableval ],
@@ -1068,7 +1068,7 @@ then
 fi
 
 
-# Linux af_alg 
+# Linux af_alg
 AC_ARG_ENABLE([afalg],
     [AS_HELP_STRING([--enable-afalg],[Enable Linux af_alg use for crypto (default: disabled)])],
     [ ENABLED_AFALG=$enableval ],
@@ -3535,14 +3535,14 @@ then
             AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
         fi
     fi
-    
+
     # Requires wolfSSL_OBJ_txt2nid
     if test "x$ENABLED_CERTEXT" = "xno"
     then
         ENABLED_CERTEXT="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"
     fi
-    
+
     # Requires certgen
     if test "x$ENABLED_CERTGEN" = "xno"
     then
@@ -4794,6 +4794,14 @@ AS_IF([test "x$ENABLED_WOLFSSH" = "xyes"],
        AS_IF([test "x$ENABLED_SHA512" = "xno"],[AC_MSG_ERROR([cannot enable wolfSSH with SHA-512/384 disabled])])
       ])
 
+if test "x$ENABLED_OPENSSLCOEXIST" = "xyes"; then
+    if test "x$ENABLED_OPENSSLALL" = "xyes"; then
+        AC_MSG_ERROR([Cannot use --enable-opensslcoexist with --enable-opensslall])
+    fi
+    if test "x$ENABLED_OPENSSLEXTRA" = "xyes"; then
+        AC_MSG_ERROR([Cannot use --enable-opensslcoexist with --enable-opensslextra])
+    fi
+fi
 ################################################################################
 
 # USER SETTINGS
