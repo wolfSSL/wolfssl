@@ -43954,8 +43954,9 @@ int wolfSSL_X509_set_pubkey(WOLFSSL_X509 *cert, WOLFSSL_EVP_PKEY *pkey)
 int wolfSSL_X509_set_version(WOLFSSL_X509* x509, long v)
 {
     WOLFSSL_ENTER("wolfSSL_X509_set_version");
-    if (!x509 || v > INT_MAX)
+    if ((x509 == NULL) || (v < 0) || (v > INT_MAX)) {
         return WOLFSSL_FAILURE;
+    }
     x509->version = (int) v + 1;
 
     return WOLFSSL_SUCCESS;
