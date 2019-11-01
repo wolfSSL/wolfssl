@@ -60,6 +60,9 @@ WOLFSSL_API int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd,int passLen,
 WOLFSSL_API int wc_scrypt(byte* output, const byte* passwd, int passLen,
                           const byte* salt, int saltLen, int cost,
                           int blockSize, int parallel, int dkLen);
+WOLFSSL_API int wc_scrypt_ex(byte* output, const byte* passwd, int passLen,
+                             const byte* salt, int saltLen, word32 iterations,
+                             int blockSize, int parallel, int dkLen);
 #endif
 
 

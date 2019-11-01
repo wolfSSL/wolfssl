@@ -691,7 +691,7 @@ static void scryptROMix(byte* x, byte* v, byte* y, int r, word32 n)
  * parallel   The number of parallel mix operations to perform.
  *            (Note: this implementation does not use threads.)
  * dkLen      The length of the derived key in bytes.
- * returns BAD_FUNC_ARG when: parallel not 1, blockSize is too large for cost.
+ * returns BAD_FUNC_ARG when: blockSize is too large for cost.
  */
 int wc_scrypt(byte* output, const byte* passwd, int passLen,
               const byte* salt, int saltLen, int cost, int blockSize,
@@ -747,6 +747,41 @@ end:
         XFREE(y, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
+}
+
+/* Generates an key derived from a password and salt using a memory hard
+ * algorithm.
+ * Implements RFC 7914: scrypt PBKDF.
+ *
+ * output      Derived key.
+ * passwd      Password to derive key from.
+ * passLen     Length of the password.
+ * salt        Key specific data.
+ * saltLen     Length of the salt data.
+ * iterations  Number of iterations to perform. Range: 1 << (1..(128*r/8-1))
+ * blockSize   Number of 128 byte octets in a working block.
+ * parallel    Number of parallel mix operations to perform.
+ *             (Note: this implementation does not use threads.)
+ * dkLen       Length of the derived key in bytes.
+ * returns BAD_FUNC_ARG when: iterations is not a power of 2 or blockSize is too
+ *                            large for iterations.
+ */
+int wc_scrypt_ex(byte* output, const byte* passwd, int passLen,
+                 const byte* salt, int saltLen, word32 iterations,
+                 int blockSize, int parallel, int dkLen)
+{
+    int cost;
+
+    /* Iterations must be a power of 2. */
+    if ((iterations & (iterations - 1)) != 0)
+        return BAD_FUNC_ARG;
+
+    for (cost = -1; iterations != 0; cost++) {
+        iterations >>= 1;
+    }
+
+    return wc_scrypt(output, passwd, passLen, salt, saltLen, cost, blockSize,
+                     parallel, dkLen);
 }
 #endif /* HAVE_SCRYPT */
 

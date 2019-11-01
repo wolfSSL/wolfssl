@@ -15900,6 +15900,13 @@ int scrypt_test(void)
 #endif
 #endif /* !BENCH_EMBEDDED && !HAVE_INTEL_QA */
 
+    ret = wc_scrypt_ex(derived, (byte*)"password", 8, (byte*)"NaCl", 4, 1<<10,
+                       8, 16, sizeof(verify2));
+    if (ret != 0)
+        return -7808;
+    if (XMEMCMP(derived, verify2, sizeof(verify2)) != 0)
+        return -7809;
+
     return 0;
 }
 #endif
