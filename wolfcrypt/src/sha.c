@@ -544,7 +544,7 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
             if (sha->ctx.mode == ESP32_SHA_INIT) {
                 esp_sha_try_hw_lock(&sha->ctx);
             }
-            if (sha->ctx.mode == ESP32_SHA_SW {
+            if (sha->ctx.mode == ESP32_SHA_SW) {
                 ret = XTRANSFORM(sha, (const byte*)local);
             } else {
                 esp_sha_process(sha, (const byte*)local);
@@ -685,7 +685,7 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
         if (sha->ctx.mode == ESP32_SHA_SW) {
             ret = XTRANSFORM(sha, (const byte*)local);
         } else {
-            esp_sha_process(sha, (const byte*)local);
+            ret = esp_sha_process(sha, (const byte*)local);
         }
     #else
         ret = XTRANSFORM(sha, (const byte*)local);
@@ -725,7 +725,7 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
     if (sha->ctx.mode == ESP32_SHA_SW) {
         ret = XTRANSFORM(sha, (const byte*)local);
     } else {
-        esp_sha_digest_process(sha, 1);
+        ret = esp_sha_digest_process(sha, 1);
     }
 #else
     ret = XTRANSFORM(sha, (const byte*)local);
