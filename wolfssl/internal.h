@@ -3361,6 +3361,8 @@ typedef struct Options {
 #ifdef HAVE_ENCRYPT_THEN_MAC
     word16            disallowEncThenMac:1;   /* Don't do Encrypt-Then-MAC */
     word16            encThenMac:1;           /* Doing Encrypt-Then-MAC */
+    word16            startedETMRead:1;       /* Doing Encrypt-Then-MAC read */
+    word16            startedETMWrite:1;      /* Doing Encrypt-Then-MAC write */
 #endif
 
     /* need full byte values for this section */
