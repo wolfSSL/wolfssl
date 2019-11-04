@@ -10804,7 +10804,7 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
                                                  word32 inSz, byte* output,
                                                  word32 outputSz)
 {
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCC)
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     int recipFound = 0;
     int ret = 0, length;
     word32 idx = 0;
