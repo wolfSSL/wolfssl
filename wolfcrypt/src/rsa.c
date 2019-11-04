@@ -1032,7 +1032,7 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
         pkcsBlockLen--;
     }
 
-    if (saltLen == -1) {
+    if (saltLen == RSA_PSS_SALT_LEN_DEFAULT) {
         saltLen = hLen;
         #ifdef WOLFSSL_SHA512
             /* See FIPS 186-4 section 5.5 item (e). */
@@ -1047,17 +1047,17 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
     }
 #endif
 #ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
-    else if (saltLen < -1) {
+    else if (saltLen < RSA_PSS_SALT_LEN_DEFAULT) {
         return PSS_SALTLEN_E;
     }
 #else
-    else if (saltLen == -2) {
+    else if (saltLen == RSA_PSS_SALT_LEN_DISCOVER) {
         saltLen = (int)pkcsBlockLen - hLen - 2;
         if (saltLen < 0) {
             return PSS_SALTLEN_E;
         }
     }
-    else if (saltLen < -2) {
+    else if (saltLen < RSA_PSS_SALT_LEN_DISCOVER) {
         return PSS_SALTLEN_E;
     }
 #endif
@@ -1398,7 +1398,7 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
         return WC_KEY_SIZE_E;
     }
 
-    if (saltLen == -1) {
+    if (saltLen == RSA_PSS_SALT_LEN_DEFAULT) {
         saltLen = hLen;
         #ifdef WOLFSSL_SHA512
             /* See FIPS 186-4 section 5.5 item (e). */
@@ -1411,15 +1411,15 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
         return PSS_SALTLEN_E;
 #endif
 #ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
-    else if (saltLen < -1)
+    else if (saltLen < RSA_PSS_SALT_LEN_DEFAULT)
         return PSS_SALTLEN_E;
     if (maskLen < saltLen + 1) {
         return PSS_SALTLEN_E;
     }
 #else
-    else if (saltLen < -2)
+    else if (saltLen < RSA_PSS_SALT_LEN_DISCOVER)
         return PSS_SALTLEN_E;
-    if (saltLen != -2 && maskLen < saltLen + 1) {
+    if (saltLen != RSA_PSS_SALT_LEN_DISCOVER && maskLen < saltLen + 1) {
         return WC_KEY_SIZE_E;
     }
 #endif
@@ -1445,7 +1445,7 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
     tmp[0] &= (1 << bits) - 1;
     pkcsBlock[0] &= (1 << bits) - 1;
 #ifdef WOLFSSL_PSS_SALT_LEN_DISCOVER
-    if (saltLen == -2) {
+    if (saltLen == RSA_PSS_SALT_LEN_DISCOVER) {
         for (i = 0; i < maskLen - 1; i++) {
             if (tmp[i] != pkcsBlock[i]) {
                 break;
@@ -3035,9 +3035,11 @@ int wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
                            enum wc_HashType hash, int mgf, RsaKey* key)
 {
 #ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
-    return wc_RsaPSS_VerifyInline_ex(in, inLen, out, hash, mgf, -1, key);
+    return wc_RsaPSS_VerifyInline_ex(in, inLen, out, hash, mgf,
+                                                 RSA_PSS_SALT_LEN_DEFAULT, key);
 #else
-    return wc_RsaPSS_VerifyInline_ex(in, inLen, out, hash, mgf, -2, key);
+    return wc_RsaPSS_VerifyInline_ex(in, inLen, out, hash, mgf,
+                                                RSA_PSS_SALT_LEN_DISCOVER, key);
 #endif
 }
 
@@ -3050,8 +3052,9 @@ int wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
  * hash     Hash algorithm.
  * mgf      Mask generation function.
  * key      Public RSA key.
- * saltLen  Length of salt used. -1 indicates salt length is the same as the
- *          hash length.
+ * saltLen  Length of salt used. RSA_PSS_SALT_LEN_DEFAULT (-1) indicates salt
+ *          length is the same as the hash length. RSA_PSS_SALT_LEN_DISCOVER
+ *          indicates salt length is determined from the data.
  * returns the length of the PSS data on success and negative indicates failure.
  */
 int wc_RsaPSS_VerifyInline_ex(byte* in, word32 inLen, byte** out,
@@ -3082,9 +3085,11 @@ int wc_RsaPSS_Verify(byte* in, word32 inLen, byte* out, word32 outLen,
                      enum wc_HashType hash, int mgf, RsaKey* key)
 {
 #ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
-    return wc_RsaPSS_Verify_ex(in, inLen, out, outLen, hash, mgf, -1, key);
+    return wc_RsaPSS_Verify_ex(in, inLen, out, outLen, hash, mgf,
+                                                 RSA_PSS_SALT_LEN_DEFAULT, key);
 #else
-    return wc_RsaPSS_Verify_ex(in, inLen, out, outLen, hash, mgf, -2, key);
+    return wc_RsaPSS_Verify_ex(in, inLen, out, outLen, hash, mgf,
+                                                RSA_PSS_SALT_LEN_DISCOVER, key);
 #endif
 }
 
@@ -3096,8 +3101,9 @@ int wc_RsaPSS_Verify(byte* in, word32 inLen, byte* out, word32 outLen,
  * hash     Hash algorithm.
  * mgf      Mask generation function.
  * key      Public RSA key.
- * saltLen  Length of salt used. -1 indicates salt length is the same as the
- *          hash length.
+ * saltLen  Length of salt used. RSA_PSS_SALT_LEN_DEFAULT (-1) indicates salt
+ *          length is the same as the hash length. RSA_PSS_SALT_LEN_DISCOVER
+ *          indicates salt length is determined from the data.
  * returns the length of the PSS data on success and negative indicates failure.
  */
 int wc_RsaPSS_Verify_ex(byte* in, word32 inLen, byte* out, word32 outLen,
@@ -3139,8 +3145,9 @@ int wc_RsaPSS_CheckPadding(const byte* in, word32 inSz, byte* sig,
  * sig       Buffer holding PSS data.
  * sigSz     Size of PSS data.
  * hashType  Hash algorithm.
- * saltLen   Length of salt used. -1 indicates salt length is the same as the
- *           hash length.
+ * saltLen   Length of salt used. RSA_PSS_SALT_LEN_DEFAULT (-1) indicates salt
+ *           length is the same as the hash length. RSA_PSS_SALT_LEN_DISCOVER
+ *           indicates salt length is determined from the data.
  * returns BAD_PADDING_E when the PSS data is invalid, BAD_FUNC_ARG when
  * NULL is passed in to in or sig or inSz is not the same as the hash
  * algorithm length and 0 on success.
@@ -3164,7 +3171,7 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
     }
 
     if (ret == 0) {
-        if (saltLen == -1) {
+        if (saltLen == RSA_PSS_SALT_LEN_DEFAULT) {
             saltLen = inSz;
             #ifdef WOLFSSL_SHA512
                 /* See FIPS 186-4 section 5.5 item (e). */
@@ -3179,17 +3186,17 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
         }
 #endif
 #ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
-        else if (saltLen < -1) {
+        else if (saltLen < RSA_PSS_SALT_LEN_DEFAULT) {
             ret = PSS_SALTLEN_E;
         }
 #else
-        else if (saltLen == -2) {
+        else if (saltLen == RSA_PSS_SALT_LEN_DISCOVER) {
             saltLen = sigSz - inSz;
             if (saltLen < 0) {
                 ret = PSS_SALTLEN_E;
             }
         }
-        else if (saltLen < -2) {
+        else if (saltLen < RSA_PSS_SALT_LEN_DISCOVER) {
             ret = PSS_SALTLEN_E;
         }
 #endif
@@ -3356,7 +3363,8 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
 int wc_RsaPSS_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
                        enum wc_HashType hash, int mgf, RsaKey* key, WC_RNG* rng)
 {
-    return wc_RsaPSS_Sign_ex(in, inLen, out, outLen, hash, mgf, -1, key, rng);
+    return wc_RsaPSS_Sign_ex(in, inLen, out, outLen, hash, mgf,
+                                            RSA_PSS_SALT_LEN_DEFAULT, key, rng);
 }
 
 /* Sign the hash of a message using RSA-PSS.
@@ -3367,8 +3375,9 @@ int wc_RsaPSS_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
  * outLen   Size of buffer to write to.
  * hash     Hash algorithm.
  * mgf      Mask generation function.
- * saltLen  Length of salt used. -1 indicates salt length is the same as the
- *          hash length.
+ * saltLen  Length of salt used. RSA_PSS_SALT_LEN_DEFAULT (-1) indicates salt
+ *          length is the same as the hash length. RSA_PSS_SALT_LEN_DISCOVER
+ *          indicates salt length is determined from the data.
  * key      Public RSA key.
  * rng      Random number generator.
  * returns the length of the encrypted signature on success, a negative value
