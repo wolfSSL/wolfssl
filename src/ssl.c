@@ -14121,6 +14121,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         WOLFSSL_BIO* bio;
         WOLFSSL_X509 *cert = NULL;
         WOLFSSL_X509_NAME *subjectName = NULL;
+        unsigned long err;
 
         WOLFSSL_ENTER("wolfSSL_load_client_CA_file");
 
@@ -14154,6 +14155,18 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
             wolfSSL_X509_free(cert);
             cert = NULL;
+        }
+
+        err = wolfSSL_ERR_peek_last_error();
+
+        if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
+                ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
+            /*
+             * wolfSSL_PEM_read_bio_X509 pushes an ASN_NO_PEM_HEADER error
+             * to the error queue on file end. This should not be left
+             * for the caller to find so we clear the last error.
+             */
+            wc_RemoveErrorNode(-1);
         }
 
         wolfSSL_X509_free(cert);
