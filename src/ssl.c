@@ -19724,6 +19724,36 @@ int wolfSSL_session_reused(WOLFSSL* ssl)
 }
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)
+WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
+{
+    WOLFSSL_SESSION* copy;
+    WOLFSSL_ENTER("wolfSSL_SESSION_dup");
+
+    if (session == NULL)
+        return NULL;
+    if (session->isDynamic && !session->ticket) {
+        WOLFSSL_MSG("Session dynamic flag is set but ticket pointer is null");
+        return NULL;
+    }
+
+    copy = XMALLOC(sizeof(WOLFSSL_SESSION), NULL, DYNAMIC_TYPE_OPENSSL);
+    if (copy != NULL) {
+        XMEMCPY(copy, session, sizeof(WOLFSSL_SESSION));
+        copy->isAlloced = 1;
+    #ifdef HAVE_SESSION_TICKET
+        if (session->isDynamic) {
+            copy->ticket = XMALLOC(session->ticketLen, NULL,
+                                                     DYNAMIC_TYPE_SESSION_TICK);
+            XMEMCPY(copy->ticket, session->ticket, session->ticketLen);
+        } else {
+            copy->ticket = copy->staticTicket;
+        }
+    #endif
+    }
+
+    return copy;
+}
+
 void wolfSSL_SESSION_free(WOLFSSL_SESSION* session)
 {
     if (session == NULL)
@@ -38459,7 +38489,9 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
             ret = WOLFSSL_FAILURE;
             break;
         }
-        if (pt) {
+        /* Clear certificate chain */
+        FreeDer(&ctx->certChain);
+        if (sk) {
             for (i = 0; i < wolfSSL_sk_X509_num(sk); i++) {
                 x509 = wolfSSL_sk_X509_value(sk, i);
                 /* Prevent wolfSSL_CTX_add_extra_chain_cert from freeing cert */
@@ -38474,10 +38506,10 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
                     wolfSSL_X509_free(x509);
                 }
             }
-        } else {
-            /* Clear certificate chain */
-            FreeDer(&ctx->certChain);
         }
+        /* Free previous chain */
+        wolfSSL_sk_X509_free(ctx->x509Chain);
+        ctx->x509Chain = sk;
     }
 #else
     WOLFSSL_MSG("Session certificates not compiled in");

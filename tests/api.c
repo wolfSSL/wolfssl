@@ -23340,6 +23340,7 @@ static void test_wolfSSL_SESSION(void)
     WOLFSSL*     ssl;
     WOLFSSL_CTX* ctx;
     WOLFSSL_SESSION* sess;
+    WOLFSSL_SESSION* sess_copy;
     const unsigned char context[] = "user app context";
     unsigned char* sessDer = NULL;
     unsigned char* ptr     = NULL;
@@ -23412,6 +23413,9 @@ static void test_wolfSSL_SESSION(void)
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
+
+    AssertNotNull(sess_copy = wolfSSL_SESSION_dup(sess));
+    wolfSSL_SESSION_free(sess_copy);
 
     /* get session from DER and update the timeout */
     AssertIntEQ(wolfSSL_i2d_SSL_SESSION(NULL, &sessDer), BAD_FUNC_ARG);

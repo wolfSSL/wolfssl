@@ -274,6 +274,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define SSL_set_connect_state           wolfSSL_set_connect_state
 #define SSL_set_accept_state            wolfSSL_set_accept_state
 #define SSL_session_reused              wolfSSL_session_reused
+#define SSL_SESSION_dup                 wolfSSL_SESSION_dup
 #define SSL_SESSION_free                wolfSSL_SESSION_free
 #define SSL_is_init_finished            wolfSSL_is_init_finished
 
