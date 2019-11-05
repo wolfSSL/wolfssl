@@ -41,7 +41,6 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#if !defined(NO_ASN) || !defined(NO_DH) || defined(HAVE_ECC)
 
 #ifdef NO_ASN
 enum Hash_Sum  {
@@ -128,6 +127,7 @@ enum wc_HashType wc_HashTypeConvert(int hashType)
     return eHashType;
 }
 
+#if !defined(NO_ASN) || !defined(NO_DH) || defined(HAVE_ECC)
 
 int wc_HashGetOID(enum wc_HashType hash_type)
 {
