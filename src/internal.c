@@ -3860,9 +3860,14 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
             ret = wc_RsaPSS_VerifyInline(verifySig, sigSz, &out, hashType, mgf,
                                          key);
             if (ret > 0) {
+    #ifdef HAVE_SELFTEST
+                ret = wc_RsaPSS_CheckPadding(plain, plainSz, out, ret,
+                                             hashType);
+    #else
                 ret = wc_RsaPSS_CheckPadding_ex(plain, plainSz, out, ret,
                                                 hashType, -1,
                                                 mp_count_bits(&key->n));
+    #endif
                 if (ret != 0)
                     ret = VERIFY_CERT_ERROR;
             }
@@ -20350,12 +20355,20 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     #ifndef NO_RSA
                     #ifdef WC_RSA_PSS
                         case rsa_pss_sa_algo:
+                        #ifdef HAVE_SELFTEST
+                            ret = wc_RsaPSS_CheckPadding(
+                                             ssl->buffers.digest.buffer,
+                                             ssl->buffers.digest.length,
+                                             args->output, args->sigSz,
+                                             HashAlgoToType(args->hashAlgo));
+                        #else
                             ret = wc_RsaPSS_CheckPadding_ex(
                                              ssl->buffers.digest.buffer,
                                              ssl->buffers.digest.length,
                                              args->output, args->sigSz,
                                              HashAlgoToType(args->hashAlgo),
                                              -1, args->bits);
+                        #endif
                             if (ret != 0)
                                 return ret;
                             break;
@@ -25741,12 +25754,20 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         if (args->sigAlgo == rsa_pss_sa_algo) {
                             SetDigest(ssl, args->hashAlgo);
 
+                        #ifdef HAVE_SELFTEST
+                            ret = wc_RsaPSS_CheckPadding(
+                                            ssl->buffers.digest.buffer,
+                                            ssl->buffers.digest.length,
+                                            args->output, args->sigSz,
+                                            HashAlgoToType(args->hashAlgo));
+                        #else
                             ret = wc_RsaPSS_CheckPadding_ex(
                                             ssl->buffers.digest.buffer,
                                             ssl->buffers.digest.length,
                                             args->output, args->sigSz,
                                             HashAlgoToType(args->hashAlgo), -1,
                                             mp_count_bits(&ssl->peerRsaKey->n));
+                        #endif
                             if (ret != 0) {
                                 ret = SIG_VERIFY_E;
                                 goto exit_dcv;
