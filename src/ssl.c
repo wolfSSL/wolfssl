@@ -336,7 +336,15 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
 
     ctx = (WOLFSSL_CTX*) XMALLOC(sizeof(WOLFSSL_CTX), heap, DYNAMIC_TYPE_CTX);
     if (ctx) {
-        if (InitSSL_Ctx(ctx, method, heap) < 0) {
+        int ret;
+
+        ret = InitSSL_Ctx(ctx, method, heap);
+    #ifdef WOLFSSL_STATIC_MEMORY
+        if (heap != NULL) {
+            ctx->onHeap = 1; /* free the memory back to heap when done */
+        }
+    #endif
+        if (ret < 0) {
             WOLFSSL_MSG("Init CTX failed");
             wolfSSL_CTX_free(ctx);
             ctx = NULL;
@@ -1440,7 +1448,6 @@ int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx, wolfSSL_method_func method
             WOLFSSL_MSG("Error creating ctx");
             return WOLFSSL_FAILURE;
         }
-        (*ctx)->onHeap = 1; /* free the memory back to heap when done */
     }
 
     /* determine what max applies too */
