@@ -22716,7 +22716,9 @@ static void test_wolfSSL_X509_set_notAfter(void)
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) \
     && !defined(NO_ASN1_TIME) && !defined(USER_TIME) && \
     !defined(TIME_OVERRIDES) && !defined(NO_CERTS) && \
-    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) &&\
+    !defined(TIME_T_NOT_64BIT) && !defined(NO_64BIT)
+    /* Generalized time will overflow time_t if not long */
 
     X509* x;
     BIO*  bio;
@@ -22748,10 +22750,10 @@ static void test_wolfSSL_X509_set_notAfter(void)
     AssertTrue(wolfSSL_X509_set_notAfter(x, asn_time));
     /* time_check is simply (ANS1_TIME*)x->notAfter */
     AssertNotNull(time_check = X509_get_notAfter(x));
-    /* ANS1_TIME_check validates by checking if arguement can be parsed */
+    /* ANS1_TIME_check validates by checking if argument can be parsed */
     AssertIntEQ(ASN1_TIME_check(time_check), WOLFSSL_SUCCESS);
     /* Convert to human readable format and compare to intended date */
-    AssertIntEQ(ASN1_TIME_print(bio,time_check), 1);
+    AssertIntEQ(ASN1_TIME_print(bio, time_check), 1);
     AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 24);
     AssertIntEQ(XMEMCMP(buf, "Jan 20 10:30:00 2077 GMT", sizeof(buf) - 1), 0);
     /*
@@ -22826,13 +22828,14 @@ static void test_wolfSSL_X509_set_version(void)
     !defined(NO_CERTS) && defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
     X509* x509;
     long v = 2L;
+    long max = INT_MAX;
 
     AssertNotNull(x509 = X509_new());
     /* These should pass. */
     AssertTrue(wolfSSL_X509_set_version(x509, v));
     AssertIntEQ(v, wolfSSL_X509_get_version(x509));
     /* Fail Case: When v(long) is greater than x509->version(int). */
-    v = (long) INT_MAX+1;
+    v = max+1;
     AssertFalse(wolfSSL_X509_set_version(x509, v));
     /* Cleanup */
     X509_free(x509);
