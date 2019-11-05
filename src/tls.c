@@ -7540,6 +7540,7 @@ static int TLSX_KeyShare_New(KeyShareEntry** list, int group, void *heap,
                              KeyShareEntry** keyShareEntry)
 {
     KeyShareEntry* kse;
+    KeyShareEntry** next;
 
     kse = (KeyShareEntry*)XMALLOC(sizeof(KeyShareEntry), heap,
                                   DYNAMIC_TYPE_TLSX);
@@ -7550,8 +7551,11 @@ static int TLSX_KeyShare_New(KeyShareEntry** list, int group, void *heap,
     kse->group = (word16)group;
 
     /* Add it to the back and maintain the links. */
-    while (*list != NULL)
-        list = &((*list)->next);
+    while (*list != NULL) {
+        /* Assign to temporary to work around compiler bug found by customer. */
+        next = &((*list)->next);
+        list = next;
+    }
     *list = kse;
     *keyShareEntry = kse;
 
@@ -8318,6 +8322,7 @@ static int TLSX_PreSharedKey_New(PreSharedKey** list, byte* identity,
                                  PreSharedKey** preSharedKey)
 {
     PreSharedKey* psk;
+    PreSharedKey** next;
 
     psk = (PreSharedKey*)XMALLOC(sizeof(PreSharedKey), heap, DYNAMIC_TYPE_TLSX);
     if (psk == NULL)
@@ -8334,8 +8339,11 @@ static int TLSX_PreSharedKey_New(PreSharedKey** list, byte* identity,
     psk->identityLen = len;
 
     /* Add it to the end and maintain the links. */
-    while (*list != NULL)
-        list = &((*list)->next);
+    while (*list != NULL) {
+        /* Assign to temporary to work around compiler bug found by customer. */
+        next = &((*list)->next);
+        list = next;
+    }
     *list = psk;
     *preSharedKey = psk;
 
