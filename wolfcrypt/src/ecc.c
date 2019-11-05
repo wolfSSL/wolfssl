@@ -4110,6 +4110,7 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
 #elif defined(WOLFSSL_CRYPTOCELL)
 
     pDomain = CRYS_ECPKI_GetEcDomain(cc310_mapCurve(curve_id));
+    raw_size = (word32)(key->dp->size)*2 + 1;
 
     /* generate first key pair */
     err = CRYS_ECPKI_GenKeyPair(&wc_rndState,
@@ -7299,7 +7300,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 #elif defined(WOLFSSL_CRYPTOCELL)
     if (err == MP_OKAY) {
         key_raw[0] = ECC_POINT_UNCOMP;
-        keySz = key->dp->size;
+        keySz = (word32)key->dp->size;
         err = wc_export_int(key->pubkey.x, &key_raw[1], &keySz, keySz,
             WC_TYPE_UNSIGNED_BIN);
         if (err == MP_OKAY)
