@@ -43723,6 +43723,7 @@ static int bio_get_data(WOLFSSL_BIO* bio, byte** data)
     return ret;
 }
 
+#ifndef NO_WOLFSSL_STUB
 void wolfSSL_BIO_set_init(WOLFSSL_BIO* bio, int init)
 {
     WOLFSSL_STUB("wolfSSL_BIO_set_init");
@@ -43743,12 +43744,14 @@ int wolfSSL_BIO_get_shutdown(WOLFSSL_BIO* bio)
     (void)bio;
     return 0;
 }
+#endif /* NO_WOLFSSL_STUB */
 
-int wolfSSL_BIO_clear_retry_flags(WOLFSSL_BIO* bio)
+void wolfSSL_BIO_clear_retry_flags(WOLFSSL_BIO* bio)
 {
-    WOLFSSL_STUB("wolfSSL_BIO_clear_retry_flags");
-    (void)bio;
-    return 0;
+    WOLFSSL_ENTER("wolfSSL_BIO_clear_retry_flags");
+
+    if (bio)
+        bio->flags &= ~(WOLFSSL_BIO_FLAG_READ|WOLFSSL_BIO_FLAG_RETRY);
 }
 
 /* DER data is PKCS#8 encrypted. */
