@@ -4464,11 +4464,14 @@ static void test_wolfSSL_PKCS12(void)
 #endif
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
     || defined(WOLFSSL_NGINX)
-    AssertIntEQ(SSL_CTX_set0_chain(ctx, ca), 1);
+    /* Copy stack structure */
+    AssertNotNull(tmp_ca = sk_X509_dup(ca));
+    AssertIntEQ(SSL_CTX_set0_chain(ctx, tmp_ca), 1);
+    /* CTX now owns the tmp_ca stack structure */
+    tmp_ca = NULL;
     AssertIntEQ(wolfSSL_CTX_get_extra_chain_certs(ctx, &tmp_ca), 1);
     AssertNotNull(tmp_ca);
-    /* First cert becomes the main certificate of the context */
-    AssertIntEQ(sk_X509_num(tmp_ca), 1);
+    AssertIntEQ(sk_X509_num(tmp_ca), sk_X509_num(ca));
     /* Check that the main cert is also set */
     AssertNotNull(ssl = SSL_new(ctx));
     AssertNotNull(SSL_get_certificate(ssl));

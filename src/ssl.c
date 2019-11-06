@@ -38518,6 +38518,16 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
         /* Free previous chain */
         wolfSSL_sk_X509_free(ctx->x509Chain);
         ctx->x509Chain = sk;
+        if (sk) {
+            for (i = 0; i < wolfSSL_sk_X509_num(sk); i++) {
+                x509 = wolfSSL_sk_X509_value(sk, i);
+                /* On successful setting of new chain up all refs */
+                if (wolfSSL_X509_up_ref(x509) != 1) {
+                    WOLFSSL_MSG("Error increasing reference count");
+                    continue;
+                }
+            }
+        }
     }
 #else
     WOLFSSL_MSG("Session certificates not compiled in");
