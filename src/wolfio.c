@@ -964,8 +964,8 @@ int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName, char* outPath,
     return result;
 }
 
-static int wolfIO_HttpProcessResponseBuf(int sfd, byte **recvBuf, int* recvBufSz,
-    int chunkSz, char* start, int len, int dynType, void* heap)
+static int wolfIO_HttpProcessResponseBuf(int sfd, byte **recvBuf,
+    int* recvBufSz, int chunkSz, char* start, int len, int dynType, void* heap)
 {
     byte* newRecvBuf = NULL;
     int newRecvSz = *recvBufSz + chunkSz;
@@ -975,6 +975,9 @@ static int wolfIO_HttpProcessResponseBuf(int sfd, byte **recvBuf, int* recvBufSz
 #ifdef WOLFIO_DEBUG
     printf("HTTP Chunk %d->%d\n", *recvBufSz, chunkSz);
 #endif
+
+    (void)heap;
+    (void)dynType;
 
     newRecvBuf = (byte*)XMALLOC(newRecvSz, heap, dynType);
     if (newRecvBuf == NULL) {
