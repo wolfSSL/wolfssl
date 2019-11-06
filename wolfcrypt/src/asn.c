@@ -5117,8 +5117,10 @@ static int GetName(DecodedCert* cert, int nameType)
                 XMEMCPY(&full[idx], &cert->source[cert->srcIdx], strLen);
                 idx += strLen;
             #if defined(OPENSSL_EXTRA)
-                /* store order that DN was parsed */
-                dName->loc[count++] = id;
+                if (count < DOMAIN_COMPONENT_MAX) {
+                    /* store order that DN was parsed */
+                    dName->loc[count++] = id;
+                }
             #endif
             }
 
@@ -5191,8 +5193,10 @@ static int GetName(DecodedCert* cert, int nameType)
                 XMEMCPY(&full[idx], &cert->source[cert->srcIdx], strLen);
                 idx += strLen;
             #if defined(OPENSSL_EXTRA)
-                /* store order that DN was parsed */
-                dName->loc[count++] = id;
+                if (count < DOMAIN_COMPONENT_MAX) {
+                    /* store order that DN was parsed */
+                    dName->loc[count++] = id;
+                }
             #endif
             }
 
@@ -5276,8 +5280,10 @@ static int GetName(DecodedCert* cert, int nameType)
                     XMEMCPY(&full[idx], &cert->source[cert->srcIdx], adv);
                     idx += adv;
                 #if defined(OPENSSL_EXTRA)
-                    /* store order that DN was parsed */
-                    dName->loc[count++] = ASN_EMAIL_NAME;
+                    if (count < DOMAIN_COMPONENT_MAX) {
+                        /* store order that DN was parsed */
+                        dName->loc[count++] = ASN_EMAIL_NAME;
+                    }
                 #endif
                 }
             }
@@ -5298,8 +5304,10 @@ static int GetName(DecodedCert* cert, int nameType)
                             dName->uidLen = adv;
 
                             #ifdef OPENSSL_EXTRA
-                            /* store order that DN was parsed */
-                            dName->loc[count++] = ASN_USER_ID;
+                            if (count < DOMAIN_COMPONENT_MAX) {
+                                /* store order that DN was parsed */
+                                dName->loc[count++] = ASN_USER_ID;
+                            }
                             #endif
                         #endif /* OPENSSL_EXTRA */
                             break;
@@ -5315,8 +5323,10 @@ static int GetName(DecodedCert* cert, int nameType)
                             dcnum++;
 
                             #ifdef OPENSSL_EXTRA
-                            /* store order that DN was parsed */
-                            dName->loc[count++] = ASN_DOMAIN_COMPONENT;
+                            if (count < DOMAIN_COMPONENT_MAX) {
+                                /* store order that DN was parsed */
+                                dName->loc[count++] = ASN_DOMAIN_COMPONENT;
+                            }
                             #endif
                         #endif /* OPENSSL_EXTRA */
                             break;
