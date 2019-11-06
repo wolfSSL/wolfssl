@@ -19728,6 +19728,7 @@ WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
 {
 #ifdef HAVE_EXT_CACHE
     WOLFSSL_SESSION* copy;
+
     WOLFSSL_ENTER("wolfSSL_SESSION_dup");
 
     if (session == NULL)
@@ -22146,9 +22147,10 @@ int wolfSSL_i2d_X509_bio(WOLFSSL_BIO* bio, WOLFSSL_X509* x509)
  */
 int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out)
 {
-    WOLFSSL_ENTER("wolfSSL_i2d_X509");
     const unsigned char* der;
     int derSz = 0;
+
+    WOLFSSL_ENTER("wolfSSL_i2d_X509");
 
     if (x509 == NULL || out == NULL) {
         WOLFSSL_LEAVE("wolfSSL_i2d_X509", BAD_FUNC_ARG);
@@ -38478,8 +38480,9 @@ long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
 
 long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
 {
-    WOLFSSL_ENTER("SSL_CTX_ctrl");
     long ret = WOLFSSL_SUCCESS;
+
+    WOLFSSL_ENTER("SSL_CTX_ctrl");
 
     switch (cmd) {
     case SSL_CTRL_CHAIN:
