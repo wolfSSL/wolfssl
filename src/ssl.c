@@ -38543,7 +38543,7 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
     (void)cmd;
     (void)opt;
     (void)pt;
-    WOLFSSL_LEAVE("SSL_CTX_ctrl", ret);
+    WOLFSSL_LEAVE("SSL_CTX_ctrl", (int)ret);
     return ret;
 }
 
