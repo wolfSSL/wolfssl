@@ -19726,32 +19726,40 @@ int wolfSSL_session_reused(WOLFSSL* ssl)
 #if defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)
 WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
 {
+#ifdef HAVE_EXT_CACHE
     WOLFSSL_SESSION* copy;
     WOLFSSL_ENTER("wolfSSL_SESSION_dup");
 
     if (session == NULL)
         return NULL;
+#ifdef HAVE_SESSION_TICKET
     if (session->isDynamic && !session->ticket) {
         WOLFSSL_MSG("Session dynamic flag is set but ticket pointer is null");
         return NULL;
     }
+#endif
 
     copy = XMALLOC(sizeof(WOLFSSL_SESSION), NULL, DYNAMIC_TYPE_OPENSSL);
     if (copy != NULL) {
         XMEMCPY(copy, session, sizeof(WOLFSSL_SESSION));
         copy->isAlloced = 1;
-    #ifdef HAVE_SESSION_TICKET
+#ifdef HAVE_SESSION_TICKET
         if (session->isDynamic) {
             copy->ticket = XMALLOC(session->ticketLen, NULL,
-                                                     DYNAMIC_TYPE_SESSION_TICK);
+                                                    DYNAMIC_TYPE_SESSION_TICK);
             XMEMCPY(copy->ticket, session->ticket, session->ticketLen);
         } else {
             copy->ticket = copy->staticTicket;
         }
-    #endif
+#endif
     }
-
     return copy;
+#else
+    WOLFSSL_MSG("wolfSSL_SESSION_dup was called "
+                "but HAVE_EXT_CACHE is not defined");
+    (void)session;
+    return NULL;
+#endif /* HAVE_EXT_CACHE */
 }
 
 void wolfSSL_SESSION_free(WOLFSSL_SESSION* session)

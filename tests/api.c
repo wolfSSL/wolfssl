@@ -4410,9 +4410,12 @@ static void test_wolfSSL_PKCS12(void)
     WOLFSSL_X509     *x509;
     WOLFSSL_X509     *tmp;
     WOLFSSL_CTX      *ctx;
-    WOLFSSL          *ssl;
     WOLF_STACK_OF(WOLFSSL_X509) *ca;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
+    || defined(WOLFSSL_NGINX)
+    WOLFSSL          *ssl;
     WOLF_STACK_OF(WOLFSSL_X509) *tmp_ca = NULL;
+#endif
 
     printf(testingFmt, "wolfSSL_PKCS12()");
 
@@ -4459,6 +4462,8 @@ static void test_wolfSSL_PKCS12(void)
 #else
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 #endif
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
+    || defined(WOLFSSL_NGINX)
     AssertIntEQ(SSL_CTX_set0_chain(ctx, ca), 1);
     AssertIntEQ(wolfSSL_CTX_get_extra_chain_certs(ctx, &tmp_ca), 1);
     AssertNotNull(tmp_ca);
@@ -4469,6 +4474,7 @@ static void test_wolfSSL_PKCS12(void)
     AssertNotNull(SSL_get_certificate(ssl));
     SSL_free(ssl);
     SSL_CTX_free(ctx);
+#endif
 
     /* should be 2 other certs on stack */
     tmp = sk_X509_pop(ca);
