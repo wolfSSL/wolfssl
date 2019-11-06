@@ -20770,7 +20770,7 @@ static int QSH_GenerateSerCliSecret(WOLFSSL* ssl, byte isServer)
     int offset   = 0;
     word32 tmpSz = 0;
     buffer* buf;
-    QSHKey* current = ssl->peerQSHKey;
+    QSHKey* current;
     QSHScheme* schmPre = NULL;
     QSHScheme* schm    = NULL;
 
@@ -20779,6 +20779,7 @@ static int QSH_GenerateSerCliSecret(WOLFSSL* ssl, byte isServer)
 
     WOLFSSL_MSG("Generating QSH secret key material");
 
+    current = ssl->peerQSHKey;
     /* get size of buffer needed */
     while (current) {
         if (current->pub.length != 0) {
@@ -20860,11 +20861,12 @@ static int QSH_GenerateSerCliSecret(WOLFSSL* ssl, byte isServer)
 static word32 QSH_KeyGetSize(WOLFSSL* ssl)
 {
     word32 sz = 0;
-    QSHKey* current = ssl->peerQSHKey;
+    QSHKey* current;
 
     if (ssl == NULL)
         return -1;
 
+    current = ssl->peerQSHKey;
     sz += OPAQUE16_LEN; /* type of extension ie 0x00 0x18 */
     sz += OPAQUE24_LEN;
     /* get size of buffer needed */
