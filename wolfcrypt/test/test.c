@@ -13002,14 +13002,14 @@ static int dh_test_check_pubvalue(void)
         ret = wc_DhCheckPubValue(prime, sizeof(prime), dh_pubval_fail[i].data,
                                                          dh_pubval_fail[i].len);
         if (ret != MP_VAL)
-            return -7150 - i;
+            return -7150 - (int)i;
     }
 
     for (i = 0; i < sizeof(dh_pubval_pass) / sizeof(*dh_pubval_pass); i++) {
         ret = wc_DhCheckPubValue(prime, sizeof(prime), dh_pubval_pass[i].data,
                                                          dh_pubval_pass[i].len);
         if (ret != 0)
-            return -7160 - i;
+            return -7160 - (int)i;
     }
 
     return 0;
