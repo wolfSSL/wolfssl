@@ -9350,7 +9350,9 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         /* If altNames names is present, then subject common name is ignored */
         if (args->dCert->altNames != NULL) {
             if (CheckAltNames(args->dCert, ssl->param->hostName) == 0 ) {
-                return VERIFY_CERT_ERROR;
+                if (ret == 0) {
+                    ret = VERIFY_CERT_ERROR;
+                }
             }
         }
         else {
@@ -9358,7 +9360,9 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
                 if (MatchDomainName(args->dCert->subjectCN,
                                     args->dCert->subjectCNLen,
                                     ssl->param->hostName) == 0) {
-                    return VERIFY_CERT_ERROR;
+                    if (ret == 0) {
+                        ret = VERIFY_CERT_ERROR;
+                    }
                 }
             }
         }
@@ -9368,7 +9372,9 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
     if ((args->dCertInit != 0) && (args->dCert != NULL) &&
         (ssl->param != NULL) && (XSTRLEN(ssl->param->ipasc) > 0)) {
         if (CheckIPAddr(args->dCert, ssl->param->ipasc) != 0) {
-            return VERIFY_CERT_ERROR;
+            if (ret == 0) {
+                ret = VERIFY_CERT_ERROR;
+            }
         }
     }
 #endif
