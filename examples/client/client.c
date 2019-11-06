@@ -1470,6 +1470,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #ifdef DEBUG_WOLFSSL
         WOLFSSL_MEM_STATS mem_stats;
     #endif
+    WOLFSSL_HEAP_HINT *heap = NULL;
 #endif
 
     ((func_args*)args)->return_code = -1; /* error state */
@@ -2162,10 +2163,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                                                   WOLFMEM_IO_POOL_FIXED));
     #endif /* DEBUG_WOLFSSL */
 
-    if (wolfSSL_CTX_load_static_memory(&ctx, method, memory, sizeof(memory),
-                                                     0, 1) != WOLFSSL_SUCCESS) {
+    if (wc_LoadStaticMemory(&heap, memory, sizeof(memory), WOLFMEM_GENERAL, 1)
+            != 0) {
         err_sys("unable to load static memory");
     }
+
+    ctx = wolfSSL_CTX_new_ex(method(heap), heap);
+    if (ctx == NULL)
+        err_sys("unable to get ctx");
 
     if (wolfSSL_CTX_load_static_memory(&ctx, NULL, memoryIO, sizeof(memoryIO),
            WOLFMEM_IO_POOL_FIXED | WOLFMEM_TRACK_STATS, 1) != WOLFSSL_SUCCESS) {
@@ -2173,9 +2178,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #else
     ctx = wolfSSL_CTX_new(method(NULL));
-#endif
     if (ctx == NULL)
         err_sys("unable to get ctx");
+#endif
 
 #ifdef SINGLE_THREADED
     if (wolfSSL_CTX_new_rng(ctx) != WOLFSSL_SUCCESS) {
