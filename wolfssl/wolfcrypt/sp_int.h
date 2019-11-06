@@ -180,6 +180,7 @@ MP_API int sp_tohex(sp_int* a, char* str);
 MP_API int sp_2expt(sp_int* a, int e);
 MP_API int sp_rand_prime(sp_int* r, int len, WC_RNG* rng, void* heap);
 MP_API int sp_mul(sp_int* a, sp_int* b, sp_int* r);
+MP_API int sp_mulmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r);
 MP_API int sp_gcd(sp_int* a, sp_int* b, sp_int* r);
 MP_API int sp_invmod(sp_int* a, sp_int* m, sp_int* r);
 MP_API int sp_lcm(sp_int* a, sp_int* b, sp_int* r);
@@ -246,6 +247,7 @@ MP_API void sp_rshb(sp_int* a, int n, sp_int* r);
 #define mp_2expt                    sp_2expt
 #define mp_rand_prime               sp_rand_prime
 #define mp_mul                      sp_mul
+#define mp_mulmod                   sp_mulmod
 #define mp_gcd                      sp_gcd
 #define mp_invmod                   sp_invmod
 #define mp_lcm                      sp_lcm
