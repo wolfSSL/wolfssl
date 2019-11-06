@@ -509,6 +509,9 @@ const char* wc_GetErrorString(int error)
     case PKCS7_SIGNEEDS_CHECK:
         return "Signature found but no certificate to verify";
 
+    case PSS_SALTLEN_RECOVER_E:
+        return "PSS - Salt length unable to be recovered";
+
     default:
         return "unknown error number";
 

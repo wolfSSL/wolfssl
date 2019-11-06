@@ -130,6 +130,11 @@ enum {
     RSA_PSS_PAD_TERM = 0xBC,
 #endif
 
+    RSA_PSS_SALT_LEN_DEFAULT  = -1,
+#ifdef WOLFSSL_PSS_SALT_LEN_DISCOVER
+    RSA_PSS_SALT_LEN_DISCOVER = -2,
+#endif
+
 #ifdef HAVE_PKCS11
     RSA_MAX_ID_LEN      = 32,
 #endif

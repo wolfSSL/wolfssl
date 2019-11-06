@@ -1087,56 +1087,133 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
         word32 pkcsBlockLen, WC_RNG* rng, enum wc_HashType hType, int mgf,
         int saltLen, int bits, void* heap)
 {
-    int   ret;
-    int   hLen, i;
-    byte* s;
+    int   ret = 0;
+    int   hLen, i, o, maskLen, hiBits;
     byte* m;
-    byte* h;
-    byte  salt[WC_MAX_DIGEST_SIZE];
+    byte* s;
+#if defined(WOLFSSL_PSS_LONG_SALT) || defined(WOLFSSL_PSS_SALT_LEN_DISCOVER)
+    #if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
+        byte salt[RSA_MAX_SIZE/8 + RSA_PSS_PAD_SZ];
+    #else
+        byte* salt = NULL;
+    #endif
+#else
+    byte salt[WC_MAX_DIGEST_SIZE];
+#endif
+
+#if defined(WOLFSSL_PSS_LONG_SALT) || defined(WOLFSSL_PSS_SALT_LEN_DISCOVER)
+    if (pkcsBlockLen > RSA_MAX_SIZE/8) {
+        return MEMORY_E;
+    }
+#endif
 
     hLen = wc_HashGetDigestSize(hType);
     if (hLen < 0)
         return hLen;
 
-    if (saltLen == -1) {
+    hiBits = (bits - 1) & 0x7;
+    if (hiBits == 0) {
+        *(pkcsBlock++) = 0;
+        pkcsBlockLen--;
+    }
+
+    if (saltLen == RSA_PSS_SALT_LEN_DEFAULT) {
         saltLen = hLen;
         #ifdef WOLFSSL_SHA512
             /* See FIPS 186-4 section 5.5 item (e). */
-            if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
+            if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE) {
                 saltLen = RSA_PSS_SALT_MAX_SZ;
+            }
         #endif
     }
-    else if (saltLen > hLen || saltLen < -1)
+#ifndef WOLFSSL_PSS_LONG_SALT
+    else if (saltLen > hLen) {
         return PSS_SALTLEN_E;
-    if ((int)pkcsBlockLen - hLen < saltLen + 2)
+    }
+#endif
+#ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
+    else if (saltLen < RSA_PSS_SALT_LEN_DEFAULT) {
         return PSS_SALTLEN_E;
+    }
+#else
+    else if (saltLen == RSA_PSS_SALT_LEN_DISCOVER) {
+        saltLen = (int)pkcsBlockLen - hLen - 2;
+        if (saltLen < 0) {
+            return PSS_SALTLEN_E;
+        }
+    }
+    else if (saltLen < RSA_PSS_SALT_LEN_DISCOVER) {
+        return PSS_SALTLEN_E;
+    }
+#endif
+    if ((int)pkcsBlockLen - hLen < saltLen + 2) {
+        return PSS_SALTLEN_E;
+    }
 
+    maskLen = pkcsBlockLen - 1 - hLen;
+
+#if defined(WOLFSSL_PSS_LONG_SALT) || defined(WOLFSSL_PSS_SALT_LEN_DISCOVER)
+    #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
+        salt = (byte*)XMALLOC(RSA_PSS_PAD_SZ + inputLen + saltLen, heap,
+                                                       DYNAMIC_TYPE_RSA_BUFFER);
+        if (salt == NULL) {
+            return MEMORY_E;
+        }
+    #endif
+    s = m = salt;
+    XMEMSET(m, 0, RSA_PSS_PAD_SZ);
+    m += RSA_PSS_PAD_SZ;
+    XMEMCPY(m, input, inputLen);
+    m += inputLen;
+    o = (int)(m - s);
+    if (saltLen > 0) {
+        ret = wc_RNG_GenerateBlock(rng, m, saltLen);
+        if (ret == 0) {
+            m += saltLen;
+        }
+    }
+#else
     s = m = pkcsBlock;
     XMEMSET(m, 0, RSA_PSS_PAD_SZ);
     m += RSA_PSS_PAD_SZ;
     XMEMCPY(m, input, inputLen);
     m += inputLen;
-    if ((ret = wc_RNG_GenerateBlock(rng, salt, saltLen)) != 0)
-        return ret;
-    XMEMCPY(m, salt, saltLen);
-    m += saltLen;
+    o = 0;
+    if (saltLen > 0) {
+        ret = wc_RNG_GenerateBlock(rng, salt, saltLen);
+        if (ret == 0) {
+            XMEMCPY(m, salt, saltLen);
+            m += saltLen;
+        }
+    }
+#endif
+    if (ret == 0) {
+        /* Put Hash at end of pkcsBlock - 1 */
+        ret = wc_Hash(hType, s, (word32)(m - s), pkcsBlock + maskLen, hLen);
+    }
+    if (ret == 0) {
+        pkcsBlock[pkcsBlockLen - 1] = RSA_PSS_PAD_TERM;
 
-    h = pkcsBlock + pkcsBlockLen - 1 - hLen;
-    if ((ret = wc_Hash(hType, s, (word32)(m - s), h, hLen)) != 0)
-        return ret;
-    pkcsBlock[pkcsBlockLen - 1] = RSA_PSS_PAD_TERM;
+        ret = RsaMGF(mgf, pkcsBlock + maskLen, hLen, pkcsBlock, maskLen, heap);
+    }
+    if (ret == 0) {
+        pkcsBlock[0] &= (1 << hiBits) - 1;
 
-    ret = RsaMGF(mgf, h, hLen, pkcsBlock, pkcsBlockLen - hLen - 1, heap);
-    if (ret != 0)
-        return ret;
-    pkcsBlock[0] &= (1 << ((bits - 1) & 0x7)) - 1;
+        m = pkcsBlock + maskLen - saltLen - 1;
+        *(m++) ^= 0x01;
+        for (i = 0; i < saltLen; i++) {
+            m[i] ^= salt[o + i];
+        }
+    }
 
-    m = pkcsBlock + pkcsBlockLen - 1 - saltLen - hLen - 1;
-    *(m++) ^= 0x01;
-    for (i = 0; i < saltLen; i++)
-        m[i] ^= salt[i];
-
-    return 0;
+#if defined(WOLFSSL_PSS_LONG_SALT) || defined(WOLFSSL_PSS_SALT_LEN_DISCOVER)
+    #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
+        if (salt != NULL) {
+            XFREE(salt, heap, DYNAMIC_TYPE_RSA_BUFFER);
+        }
+    #endif
+#endif
+    return ret;
 }
 #endif /* WC_RSA_PSS */
 
@@ -1379,7 +1456,7 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
 {
     int   ret;
     byte* tmp;
-    int   hLen, i;
+    int   hLen, i, maskLen;
 #if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
     byte tmp_buf[RSA_MAX_SIZE/8];
     tmp = tmp_buf;
@@ -1392,8 +1469,21 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
     hLen = wc_HashGetDigestSize(hType);
     if (hLen < 0)
         return hLen;
+    bits = (bits - 1) & 0x7;
+    if ((pkcsBlock[0] & (0xff << bits)) != 0) {
+        return BAD_PADDING_E;
+    }
+    if (bits == 0) {
+        pkcsBlock++;
+        pkcsBlockLen--;
+    }
+    maskLen = (int)pkcsBlockLen - 1 - hLen;
+    if (maskLen < 0) {
+        WOLFSSL_MSG("RsaUnPad_PSS: Hash too large");
+        return WC_KEY_SIZE_E;
+    }
 
-    if (saltLen == -1) {
+    if (saltLen == RSA_PSS_SALT_LEN_DEFAULT) {
         saltLen = hLen;
         #ifdef WOLFSSL_SHA512
             /* See FIPS 186-4 section 5.5 item (e). */
@@ -1401,10 +1491,23 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
                 saltLen = RSA_PSS_SALT_MAX_SZ;
         #endif
     }
-    else if (saltLen > hLen || saltLen < -1)
+#ifndef WOLFSSL_PSS_LONG_SALT
+    else if (saltLen > hLen)
         return PSS_SALTLEN_E;
-    if ((int)pkcsBlockLen - hLen < saltLen + 2)
+#endif
+#ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
+    else if (saltLen < RSA_PSS_SALT_LEN_DEFAULT)
         return PSS_SALTLEN_E;
+    if (maskLen < saltLen + 1) {
+        return PSS_SALTLEN_E;
+    }
+#else
+    else if (saltLen < RSA_PSS_SALT_LEN_DISCOVER)
+        return PSS_SALTLEN_E;
+    if (saltLen != RSA_PSS_SALT_LEN_DISCOVER && maskLen < saltLen + 1) {
+        return WC_KEY_SIZE_E;
+    }
+#endif
 
     if (pkcsBlock[pkcsBlockLen - 1] != RSA_PSS_PAD_TERM) {
         WOLFSSL_MSG("RsaUnPad_PSS: Padding Term Error");
@@ -1412,38 +1515,58 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
     }
 
 #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
-    tmp = (byte*)XMALLOC(pkcsBlockLen, heap, DYNAMIC_TYPE_RSA_BUFFER);
-    if (tmp == NULL)
+    tmp = (byte*)XMALLOC(maskLen, heap, DYNAMIC_TYPE_RSA_BUFFER);
+    if (tmp == NULL) {
         return MEMORY_E;
+    }
 #endif
 
-    if ((ret = RsaMGF(mgf, pkcsBlock + pkcsBlockLen - 1 - hLen, hLen,
-                                    tmp, pkcsBlockLen - 1 - hLen, heap)) != 0) {
+    if ((ret = RsaMGF(mgf, pkcsBlock + maskLen, hLen, tmp, maskLen,
+                                                                  heap)) != 0) {
         XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
         return ret;
     }
 
-    tmp[0] &= (1 << ((bits - 1) & 0x7)) - 1;
-    for (i = 0; i < (int)(pkcsBlockLen - 1 - saltLen - hLen - 1); i++) {
-        if (tmp[i] != pkcsBlock[i]) {
+    tmp[0] &= (1 << bits) - 1;
+    pkcsBlock[0] &= (1 << bits) - 1;
+#ifdef WOLFSSL_PSS_SALT_LEN_DISCOVER
+    if (saltLen == RSA_PSS_SALT_LEN_DISCOVER) {
+        for (i = 0; i < maskLen - 1; i++) {
+            if (tmp[i] != pkcsBlock[i]) {
+                break;
+            }
+        }
+        if (tmp[i] != (pkcsBlock[i] ^ 0x01)) {
             XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
             WOLFSSL_MSG("RsaUnPad_PSS: Padding Error Match");
-            return BAD_PADDING_E;
+            return PSS_SALTLEN_RECOVER_E;
+        }
+        saltLen = maskLen - (i + 1);
+    }
+    else
+#endif
+    {
+        for (i = 0; i < maskLen - 1 - saltLen; i++) {
+            if (tmp[i] != pkcsBlock[i]) {
+                XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
+                WOLFSSL_MSG("RsaUnPad_PSS: Padding Error Match");
+                return PSS_SALTLEN_E;
+            }
+        }
+        if (tmp[i] != (pkcsBlock[i] ^ 0x01)) {
+            XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
+            WOLFSSL_MSG("RsaUnPad_PSS: Padding Error End");
+            return PSS_SALTLEN_E;
         }
     }
-    if (tmp[i] != (pkcsBlock[i] ^ 0x01)) {
-        XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
-        WOLFSSL_MSG("RsaUnPad_PSS: Padding Error End");
-        return BAD_PADDING_E;
-    }
-    for (i++; i < (int)(pkcsBlockLen - 1 - hLen); i++)
+    for (i++; i < maskLen; i++)
         pkcsBlock[i] ^= tmp[i];
 
 #if !defined(WOLFSSL_NO_MALLOC) || defined(WOLFSSL_STATIC_MEMORY)
     XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
 #endif
 
-    *output = pkcsBlock + pkcsBlockLen - (hLen + saltLen + 1);
+    *output = pkcsBlock + maskLen - saltLen;
     return saltLen + hLen;
 }
 #endif
@@ -1550,7 +1673,8 @@ static int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
 
             /* In the case of no padding being used check that input is exactly
              * the RSA key length */
-            if (bits <= 0 || pkcsBlockLen != ((word32)bits/WOLFSSL_BIT_SIZE)) {
+            if (bits <= 0 || pkcsBlockLen !=
+                         ((word32)(bits+WOLFSSL_BIT_SIZE-1)/WOLFSSL_BIT_SIZE)) {
                 WOLFSSL_MSG("Bad input size");
                 ret = RSA_PAD_E;
             }
@@ -2995,7 +3119,13 @@ int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
 int wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
                            enum wc_HashType hash, int mgf, RsaKey* key)
 {
-    return wc_RsaPSS_VerifyInline_ex(in, inLen, out, hash, mgf, -1, key);
+#ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
+    return wc_RsaPSS_VerifyInline_ex(in, inLen, out, hash, mgf,
+                                                 RSA_PSS_SALT_LEN_DEFAULT, key);
+#else
+    return wc_RsaPSS_VerifyInline_ex(in, inLen, out, hash, mgf,
+                                                RSA_PSS_SALT_LEN_DISCOVER, key);
+#endif
 }
 
 /* Verify the message signed with RSA-PSS.
@@ -3007,8 +3137,9 @@ int wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
  * hash     Hash algorithm.
  * mgf      Mask generation function.
  * key      Public RSA key.
- * saltLen  Length of salt used. -1 indicates salt length is the same as the
- *          hash length.
+ * saltLen  Length of salt used. RSA_PSS_SALT_LEN_DEFAULT (-1) indicates salt
+ *          length is the same as the hash length. RSA_PSS_SALT_LEN_DISCOVER
+ *          indicates salt length is determined from the data.
  * returns the length of the PSS data on success and negative indicates failure.
  */
 int wc_RsaPSS_VerifyInline_ex(byte* in, word32 inLen, byte** out,
@@ -3038,7 +3169,13 @@ int wc_RsaPSS_VerifyInline_ex(byte* in, word32 inLen, byte** out,
 int wc_RsaPSS_Verify(byte* in, word32 inLen, byte* out, word32 outLen,
                      enum wc_HashType hash, int mgf, RsaKey* key)
 {
-    return wc_RsaPSS_Verify_ex(in, inLen, out, outLen, hash, mgf, -1, key);
+#ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
+    return wc_RsaPSS_Verify_ex(in, inLen, out, outLen, hash, mgf,
+                                                 RSA_PSS_SALT_LEN_DEFAULT, key);
+#else
+    return wc_RsaPSS_Verify_ex(in, inLen, out, outLen, hash, mgf,
+                                                RSA_PSS_SALT_LEN_DISCOVER, key);
+#endif
 }
 
 /* Verify the message signed with RSA-PSS.
@@ -3049,8 +3186,9 @@ int wc_RsaPSS_Verify(byte* in, word32 inLen, byte* out, word32 outLen,
  * hash     Hash algorithm.
  * mgf      Mask generation function.
  * key      Public RSA key.
- * saltLen  Length of salt used. -1 indicates salt length is the same as the
- *          hash length.
+ * saltLen  Length of salt used. RSA_PSS_SALT_LEN_DEFAULT (-1) indicates salt
+ *          length is the same as the hash length. RSA_PSS_SALT_LEN_DISCOVER
+ *          indicates salt length is determined from the data.
  * returns the length of the PSS data on success and negative indicates failure.
  */
 int wc_RsaPSS_Verify_ex(byte* in, word32 inLen, byte* out, word32 outLen,
@@ -3092,8 +3230,9 @@ int wc_RsaPSS_CheckPadding(const byte* in, word32 inSz, byte* sig,
  * sig       Buffer holding PSS data.
  * sigSz     Size of PSS data.
  * hashType  Hash algorithm.
- * saltLen   Length of salt used. -1 indicates salt length is the same as the
- *           hash length.
+ * saltLen   Length of salt used. RSA_PSS_SALT_LEN_DEFAULT (-1) indicates salt
+ *           length is the same as the hash length. RSA_PSS_SALT_LEN_DISCOVER
+ *           indicates salt length is determined from the data.
  * returns BAD_PADDING_E when the PSS data is invalid, BAD_FUNC_ARG when
  * NULL is passed in to in or sig or inSz is not the same as the hash
  * algorithm length and 0 on success.
@@ -3103,32 +3242,67 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
                               int saltLen, int bits)
 {
     int ret = 0;
+#ifndef WOLFSSL_PSS_LONG_SALT
     byte sigCheck[WC_MAX_DIGEST_SIZE*2 + RSA_PSS_PAD_SZ];
+#else
+    byte *sigCheck = NULL;
+#endif
 
     (void)bits;
 
     if (in == NULL || sig == NULL ||
-                      inSz != (word32)wc_HashGetDigestSize(hashType))
+                               inSz != (word32)wc_HashGetDigestSize(hashType)) {
         ret = BAD_FUNC_ARG;
+    }
 
     if (ret == 0) {
-        if (saltLen == -1) {
+        if (saltLen == RSA_PSS_SALT_LEN_DEFAULT) {
             saltLen = inSz;
             #ifdef WOLFSSL_SHA512
                 /* See FIPS 186-4 section 5.5 item (e). */
-                if (bits == 1024 && inSz == WC_SHA512_DIGEST_SIZE)
+                if (bits == 1024 && inSz == WC_SHA512_DIGEST_SIZE) {
                     saltLen = RSA_PSS_SALT_MAX_SZ;
+                }
             #endif
         }
-        else if (saltLen < -1 || (word32)saltLen > inSz)
+#ifndef WOLFSSL_PSS_LONG_SALT
+        else if ((word32)saltLen > inSz) {
             ret = PSS_SALTLEN_E;
+        }
+#endif
+#ifndef WOLFSSL_PSS_SALT_LEN_DISCOVER
+        else if (saltLen < RSA_PSS_SALT_LEN_DEFAULT) {
+            ret = PSS_SALTLEN_E;
+        }
+#else
+        else if (saltLen == RSA_PSS_SALT_LEN_DISCOVER) {
+            saltLen = sigSz - inSz;
+            if (saltLen < 0) {
+                ret = PSS_SALTLEN_E;
+            }
+        }
+        else if (saltLen < RSA_PSS_SALT_LEN_DISCOVER) {
+            ret = PSS_SALTLEN_E;
+        }
+#endif
     }
 
     /* Sig = Salt | Exp Hash */
     if (ret == 0) {
-        if (sigSz != inSz + saltLen)
-            ret = BAD_PADDING_E;
+        if (sigSz != inSz + saltLen) {
+            ret = PSS_SALTLEN_E;
+        }
     }
+
+#ifdef WOLFSSL_PSS_LONG_SALT
+    if (ret == 0) {
+        sigCheck = (byte*)XMALLOC(RSA_PSS_PAD_SZ + inSz + saltLen, NULL,
+                                                       DYNAMIC_TYPE_RSA_BUFFER);
+        if (sigCheck == NULL) {
+            ret = MEMORY_E;
+        }
+    }
+#endif
 
     /* Exp Hash = HASH(8 * 0x00 | Message Hash | Salt) */
     if (ret == 0) {
@@ -3145,6 +3319,11 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
         }
     }
 
+#ifdef WOLFSSL_PSS_LONG_SALT
+    if (sigCheck != NULL) {
+        XFREE(sigCheck, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+    }
+#endif
     return ret;
 }
 
@@ -3269,7 +3448,8 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
 int wc_RsaPSS_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
                        enum wc_HashType hash, int mgf, RsaKey* key, WC_RNG* rng)
 {
-    return wc_RsaPSS_Sign_ex(in, inLen, out, outLen, hash, mgf, -1, key, rng);
+    return wc_RsaPSS_Sign_ex(in, inLen, out, outLen, hash, mgf,
+                                            RSA_PSS_SALT_LEN_DEFAULT, key, rng);
 }
 
 /* Sign the hash of a message using RSA-PSS.
@@ -3280,8 +3460,9 @@ int wc_RsaPSS_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
  * outLen   Size of buffer to write to.
  * hash     Hash algorithm.
  * mgf      Mask generation function.
- * saltLen  Length of salt used. -1 indicates salt length is the same as the
- *          hash length.
+ * saltLen  Length of salt used. RSA_PSS_SALT_LEN_DEFAULT (-1) indicates salt
+ *          length is the same as the hash length. RSA_PSS_SALT_LEN_DISCOVER
+ *          indicates salt length is determined from the data.
  * key      Public RSA key.
  * rng      Random number generator.
  * returns the length of the encrypted signature on success, a negative value
