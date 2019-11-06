@@ -1067,7 +1067,7 @@ static int sp_sqrmod(sp_int* a, sp_int* m, sp_int* r)
     return err;
 }
 
-#if defined(WOLFSSL_HAVE_SP_DH) && defined(WOLFSSL_KEY_GEN)
+#if defined(WOLFSSL_HAVE_SP_DH) || defined(WOLFSSL_KEY_GEN)
 /* Multiply a by b mod m and store in r: r = (a * b) mod m
  *
  * a  SP integer to multiply.
@@ -1077,14 +1077,32 @@ static int sp_sqrmod(sp_int* a, sp_int* m, sp_int* r)
  * returns MP_VAL when m is 0, MP_MEM when dynamic memory allocation fails and
  *         MP_OKAY otherwise.
  */
-static int sp_mulmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
+int sp_mulmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
 {
-    int err;
+    int err = MP_OKAY;
+#ifdef WOLFSSL_SMALL_STACK
+    sp_int* t;
+#else
+    sp_int t[1];
+#endif
 
-    err = sp_mul(a, b, r);
-    if (err == MP_OKAY)
-        err = sp_mod(r, m, r);
+#ifdef WOLFSSL_SMALL_STACK
+    t = (sp_int*)XMALLOC(sizeof(sp_int), NULL, DYNAMIC_TYPE_BIGINT);
+    if (t == NULL) {
+        err = MP_MEM;
+    }
+#endif
+    if (err == MP_OKAY) {
+        err = sp_mul(a, b, t);
+    }
+    if (err == MP_OKAY) {
+        err = sp_mod(t, m, r);
+    }
 
+#ifdef WOLFSSL_SMALL_STACK
+    if (t != NULL)
+        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
     return err;
 }
 #endif
