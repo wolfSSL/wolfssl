@@ -4272,6 +4272,38 @@ static void wc_ecc_dump_oids(void)
 }
 #endif /* ECC_DUMP_OID */
 
+
+WOLFSSL_ABI
+ecc_key* wc_ecc_key_new(void* heap)
+{
+    ecc_key* key;
+
+    key = (ecc_key*)XMALLOC(sizeof(ecc_key), heap, DYNAMIC_TYPE_ECC);
+    if (key) {
+        if (wc_ecc_init_ex(key, heap, INVALID_DEVID) != 0) {
+            XFREE(key, heap, DYNAMIC_TYPE_ECC);
+            key = NULL;
+        }
+    }
+
+    return key;
+}
+
+
+WOLFSSL_ABI
+void wc_ecc_key_free(ecc_key* key)
+{
+    if (key) {
+        void* heap = key->heap;
+
+        wc_ecc_free(key);
+        ForceZero(key, sizeof(ecc_key));
+        XFREE(key, heap, DYNAMIC_TYPE_ECC);
+        (void)heap;
+    }
+}
+
+
 /**
  Make a new ECC key
  rng          An active RNG state

@@ -34,6 +34,10 @@
     #endif
 
 
+    #define WOLFSSL_ABI
+            /* Tag for all the APIs that are a part of the fixed ABI. */
+
+
     #if defined(WORDS_BIGENDIAN)
         #define BIG_ENDIAN_ORDER
     #endif

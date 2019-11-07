@@ -8728,24 +8728,16 @@ int idea_test(void)
 
 
 #ifndef WC_NO_RNG
-static int random_rng_test(void)
+static int _rng_test(WC_RNG* rng, int errorOffset)
 {
-    WC_RNG rng;
     byte block[32];
     int ret, i;
 
-#ifndef HAVE_FIPS
-    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
-#else
-    ret = wc_InitRng(&rng);
-#endif
-    if (ret != 0) return -6300;
-
     XMEMSET(block, 0, sizeof(block));
 
-    ret = wc_RNG_GenerateBlock(&rng, block, sizeof(block));
+    ret = wc_RNG_GenerateBlock(rng, block, sizeof(block));
     if (ret != 0) {
-        ret = -6301;
+        ret = -1;
         goto exit;
     }
 
@@ -8757,43 +8749,79 @@ static int random_rng_test(void)
     }
     /* All zeros count check */
     if (ret >= (int)sizeof(block)) {
-        ret = -6302;
+        ret = -2;
         goto exit;
     }
 
-    ret = wc_RNG_GenerateByte(&rng, block);
+    ret = wc_RNG_GenerateByte(rng, block);
     if (ret != 0) {
-        ret = -6303;
+        ret = -3;
         goto exit;
     }
 
     /* Parameter validation testing. */
     ret = wc_RNG_GenerateBlock(NULL, block, sizeof(block));
     if (ret != BAD_FUNC_ARG) {
-        ret = -6304;
+        ret = -4;
         goto exit;
     }
-    ret = wc_RNG_GenerateBlock(&rng, NULL, sizeof(block));
+    ret = wc_RNG_GenerateBlock(rng, NULL, sizeof(block));
     if (ret != BAD_FUNC_ARG) {
-        ret = -6305;
+        ret = -5;
         goto exit;
     }
 
     ret = wc_RNG_GenerateByte(NULL, block);
     if (ret != BAD_FUNC_ARG) {
-        ret = -6306;
+        ret = -6;
         goto exit;
     }
-    ret = wc_RNG_GenerateByte(&rng, NULL);
+    ret = wc_RNG_GenerateByte(rng, NULL);
     if (ret != BAD_FUNC_ARG) {
-        ret = -6307;
+        ret = -7;
         goto exit;
     }
 
     ret = 0;
+
 exit:
+    if (ret != 0)
+        ret += errorOffset;
+
+    return ret;
+}
+
+
+static int random_rng_test(void)
+{
+    byte nonce[8] = { 0 };
+    WC_RNG localRng;
+    WC_RNG* rng;
+    int ret;
+
+    rng = &localRng;
+    /* Test stack based RNG. */
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(rng, HEAP_HINT, devId);
+#else
+    ret = wc_InitRng(rng);
+#endif
+    if (ret != 0) return -6300;
+
+    ret = _rng_test(rng, -6300);
+
     /* Make sure and free RNG */
-    wc_FreeRng(&rng);
+    wc_FreeRng(rng);
+
+    if (ret != 0) return ret;
+
+    /* Test dynamic RNG. */
+    rng = wc_rng_new(nonce, (word32)sizeof(nonce), HEAP_HINT);
+    if (rng == NULL) return -6310;
+
+    ret = _rng_test(rng, -6310);
+
+    wc_rng_free(rng);
 
     return ret;
 }
@@ -18374,6 +18402,27 @@ exit:
 }
 #endif /* WOLFSSL_CERT_GEN */
 
+/* Test for the wc_ecc_key_new() and wc_ecc_key_free() functions. */
+static int ecc_test_allocator(WC_RNG* rng)
+{
+    ecc_key* key;
+    int ret;
+
+    key = wc_ecc_key_new(HEAP_HINT);
+    if (key == NULL) {
+        ERROR_OUT(-8532, exit);
+    }
+
+    ret = wc_ecc_make_key(rng, 32, key);
+    if (ret != 0) {
+        ERROR_OUT(-8533, exit);
+    }
+
+exit:
+    wc_ecc_key_free(key);
+    return ret;
+}
+
 int ecc_test(void)
 {
     int ret;
@@ -18501,6 +18550,11 @@ int ecc_test(void)
         goto done;
     }
 #endif
+
+    ret = ecc_test_allocator(&rng);
+    if (ret != 0) {
+        printf("ecc_test_allocator failed!: %d\n", ret);
+    }
 
 done:
     wc_FreeRng(&rng);

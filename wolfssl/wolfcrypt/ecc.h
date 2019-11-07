@@ -403,6 +403,10 @@ struct ecc_key {
 };
 
 
+WOLFSSL_ABI WOLFSSL_API ecc_key* wc_ecc_key_new(void*);
+WOLFSSL_ABI WOLFSSL_API void wc_ecc_key_free(ecc_key*);
+
+
 /* ECC predefined curve sets  */
 extern const ecc_set_type ecc_sets[];
 
