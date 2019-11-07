@@ -39658,24 +39658,24 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
             if (len == 0 || buf == NULL)
                 return WOLFSSL_FAILURE;
 
-            tmpSz = str->length + len + 2; /* + 2 for '=' and null char */
+            tmpSz = str->length + len + 2; /* + 2 for '=' and comma */
             if (tmpSz > ASN_NAME_MAX) {
                 WOLFSSL_MSG("Size greater than ASN_NAME_MAX");
                 return WOLFSSL_FAILURE;
             }
 
             if (i < count - 1) {
+                /* tmpSz+1 for last null char */
                 XSNPRINTF(tmp, tmpSz+1, "%s=%s,", buf, str->data);
                 XSTRNCAT(fullName, tmp, tmpSz);
             }
             else {
                 XSNPRINTF(tmp, tmpSz, "%s=%s", buf, str->data);
                 XSTRNCAT(fullName, tmp, tmpSz-1);
+                tmpSz--; /* Don't include null char in tmpSz */
             }
             totalSz += tmpSz;
         }
-        if (totalSz > 0 && fullName[totalSz-1] == '\0')
-        	totalSz--;
         if (wolfSSL_BIO_write(bio, fullName, totalSz) != totalSz)
             return WOLFSSL_FAILURE;
         return WOLFSSL_SUCCESS;
