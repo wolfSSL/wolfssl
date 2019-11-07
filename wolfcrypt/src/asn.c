@@ -4939,10 +4939,14 @@ static int GetName(DecodedCert* cert, int nameType)
 #endif
 
     while (cert->srcIdx < (word32)length) {
-        byte   b = 0;
-        byte   joint[3];
-        byte   tooBig = FALSE;
-        int    oidSz;
+        byte        b       = 0;
+        byte        joint[3];
+        byte        tooBig  = FALSE;
+        int         oidSz;
+        const char* copy    = NULL;
+        int         copyLen = 0;
+        int         strLen  = 0;
+        byte        id      = 0;
 
         if (GetSet(cert->source, &cert->srcIdx, &dummy, cert->maxIdx) < 0) {
             WOLFSSL_MSG("Cert name lacks set header, trying sequence");
@@ -4963,21 +4967,11 @@ static int GetName(DecodedCert* cert, int nameType)
 
         /* v1 name types */
         if (joint[0] == 0x55 && joint[1] == 0x04) {
-            const char*  copy = NULL;
-            int    strLen = 0;
-            byte   id;
-
             cert->srcIdx += 3;
             id = joint[2];
             if (GetHeader(cert->source, &b, &cert->srcIdx, &strLen,
                           cert->maxIdx, 1) < 0) {
                 return ASN_PARSE_E;
-            }
-
-            if ( (strLen + 14) > (int)(ASN_NAME_MAX - idx)) {
-                /* include biggest pre fix header too 4 = "/serialNumber=" */
-                WOLFSSL_MSG("ASN Name too big, skipping");
-                tooBig = TRUE;
             }
 
             if (id == ASN_COMMON_NAME) {
@@ -4988,6 +4982,7 @@ static int GetName(DecodedCert* cert, int nameType)
                 }
 
                 copy = WOLFSSL_COMMON_NAME;
+                copyLen = sizeof(WOLFSSL_COMMON_NAME) - 1;
                 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     dName->cnIdx = cert->srcIdx;
                     dName->cnLen = strLen;
@@ -4995,6 +4990,7 @@ static int GetName(DecodedCert* cert, int nameType)
             }
             else if (id == ASN_SUR_NAME) {
                 copy = WOLFSSL_SUR_NAME;
+                copyLen = sizeof(WOLFSSL_SUR_NAME) - 1;
                 #ifdef WOLFSSL_CERT_GEN
                     if (nameType == SUBJECT) {
                         cert->subjectSN = (char*)&cert->source[cert->srcIdx];
@@ -5009,6 +5005,7 @@ static int GetName(DecodedCert* cert, int nameType)
             }
             else if (id == ASN_COUNTRY_NAME) {
                 copy = WOLFSSL_COUNTRY_NAME;
+                copyLen = sizeof(WOLFSSL_COUNTRY_NAME) - 1;
                 #ifdef WOLFSSL_CERT_GEN
                     if (nameType == SUBJECT) {
                         cert->subjectC = (char*)&cert->source[cert->srcIdx];
@@ -5023,6 +5020,7 @@ static int GetName(DecodedCert* cert, int nameType)
             }
             else if (id == ASN_LOCALITY_NAME) {
                 copy = WOLFSSL_LOCALITY_NAME;
+                copyLen = sizeof(WOLFSSL_LOCALITY_NAME) - 1;
                 #ifdef WOLFSSL_CERT_GEN
                     if (nameType == SUBJECT) {
                         cert->subjectL = (char*)&cert->source[cert->srcIdx];
@@ -5037,6 +5035,7 @@ static int GetName(DecodedCert* cert, int nameType)
             }
             else if (id == ASN_STATE_NAME) {
                 copy = WOLFSSL_STATE_NAME;
+                copyLen = sizeof(WOLFSSL_STATE_NAME) - 1;
                 #ifdef WOLFSSL_CERT_GEN
                     if (nameType == SUBJECT) {
                         cert->subjectST = (char*)&cert->source[cert->srcIdx];
@@ -5051,6 +5050,7 @@ static int GetName(DecodedCert* cert, int nameType)
             }
             else if (id == ASN_ORG_NAME) {
                 copy = WOLFSSL_ORG_NAME;
+                copyLen = sizeof(WOLFSSL_ORG_NAME) - 1;
                 #ifdef WOLFSSL_CERT_GEN
                     if (nameType == SUBJECT) {
                         cert->subjectO = (char*)&cert->source[cert->srcIdx];
@@ -5065,6 +5065,7 @@ static int GetName(DecodedCert* cert, int nameType)
             }
             else if (id == ASN_ORGUNIT_NAME) {
                 copy = WOLFSSL_ORGUNIT_NAME;
+                copyLen = sizeof(WOLFSSL_ORGUNIT_NAME) - 1;
                 #ifdef WOLFSSL_CERT_GEN
                     if (nameType == SUBJECT) {
                         cert->subjectOU = (char*)&cert->source[cert->srcIdx];
@@ -5079,6 +5080,7 @@ static int GetName(DecodedCert* cert, int nameType)
             }
             else if (id == ASN_SERIAL_NUMBER) {
                 copy = WOLFSSL_SERIAL_NUMBER;
+                copyLen = sizeof(WOLFSSL_SERIAL_NUMBER) - 1;
                 #ifdef WOLFSSL_CERT_GEN
                     if (nameType == SUBJECT) {
                         cert->subjectSND = (char*)&cert->source[cert->srcIdx];
@@ -5094,6 +5096,7 @@ static int GetName(DecodedCert* cert, int nameType)
         #ifdef WOLFSSL_CERT_EXT
             else if (id == ASN_BUS_CAT) {
                 copy = WOLFSSL_BUS_CAT;
+                copyLen = sizeof(WOLFSSL_BUS_CAT) - 1;
             #ifdef WOLFSSL_CERT_GEN
                 if (nameType == SUBJECT) {
                     cert->subjectBC = (char*)&cert->source[cert->srcIdx];
@@ -5107,24 +5110,6 @@ static int GetName(DecodedCert* cert, int nameType)
             #endif /* OPENSSL_EXTRA */
             }
         #endif /* WOLFSSL_CERT_EXT */
-            if (copy && !tooBig) {
-                XMEMCPY(&full[idx], copy, XSTRLEN(copy));
-                idx += (word32)XSTRLEN(copy);
-            #ifdef WOLFSSL_WPAS
-                full[idx] = '=';
-                idx++;
-            #endif
-                XMEMCPY(&full[idx], &cert->source[cert->srcIdx], strLen);
-                idx += strLen;
-            #if defined(OPENSSL_EXTRA)
-                if (count < DOMAIN_COMPONENT_MAX) {
-                    /* store order that DN was parsed */
-                    dName->loc[count++] = id;
-                }
-            #endif
-            }
-
-            cert->srcIdx += strLen;
         }
     #ifdef WOLFSSL_CERT_EXT
         else if ((0 == XMEMCMP(&cert->source[cert->srcIdx], ASN_JOI_PREFIX,
@@ -5134,10 +5119,6 @@ static int GetName(DecodedCert* cert, int nameType)
                   (cert->source[cert->srcIdx + XSTRLEN(ASN_JOI_PREFIX)] ==
                           ASN_JOI_ST)))
         {
-            int strLen;
-            byte id;
-            const char* copy = NULL;
-
             cert->srcIdx += 10;
             id = cert->source[cert->srcIdx++];
             b = cert->source[cert->srcIdx++]; /* encoding */
@@ -5146,14 +5127,10 @@ static int GetName(DecodedCert* cert, int nameType)
                           cert->maxIdx) < 0)
                 return ASN_PARSE_E;
 
-            if ((strLen + strlen(WOLFSSL_JOI_ST)) > (ASN_NAME_MAX - idx)) {
-                WOLFSSL_MSG("ASN Name too big, skipping");
-                tooBig = TRUE;
-            }
-
             /* Check for jurisdiction of incorporation country name */
             if (id == ASN_JOI_C) {
                 copy = WOLFSSL_JOI_C;
+                copyLen = sizeof(WOLFSSL_JOI_C) - 1;
                 #ifdef WOLFSSL_CERT_GEN
                     if (nameType == SUBJECT) {
                         cert->subjectJC = (char*)&cert->source[cert->srcIdx];
@@ -5170,6 +5147,7 @@ static int GetName(DecodedCert* cert, int nameType)
             /* Check for jurisdiction of incorporation state name */
             else if (id == ASN_JOI_ST) {
                 copy = WOLFSSL_JOI_ST;
+                copyLen = sizeof(WOLFSSL_JOI_ST) - 1;
                 #ifdef WOLFSSL_CERT_GEN
                     if (nameType == SUBJECT) {
                         cert->subjectJS = (char*)&cert->source[cert->srcIdx];
@@ -5183,35 +5161,21 @@ static int GetName(DecodedCert* cert, int nameType)
                 #endif /* OPENSSL_EXTRA */
             }
 
-            if ((copy != NULL) && (tooBig != 1)) {
-                XMEMCPY(&full[idx], copy, XSTRLEN(copy));
-                idx += (word32)XSTRLEN(copy);
-            #ifdef WOLFSSL_WPAS
-                full[idx] = '=';
-                idx++;
-            #endif
-                XMEMCPY(&full[idx], &cert->source[cert->srcIdx], strLen);
-                idx += strLen;
-            #if defined(OPENSSL_EXTRA)
-                if (count < DOMAIN_COMPONENT_MAX) {
-                    /* store order that DN was parsed */
-                    dName->loc[count++] = id;
-                }
-            #endif
+            if ((strLen + copyLen) > (int)(ASN_NAME_MAX - idx)) {
+                WOLFSSL_MSG("ASN Name too big, skipping");
+                tooBig = TRUE;
             }
-
-            cert->srcIdx += strLen;
         }
     #endif /* WOLFSSL_CERT_EXT */
         else {
             /* skip */
             byte email = FALSE;
             byte pilot = FALSE;
-            byte id    = 0;
-            int  adv;
 
-            if (joint[0] == 0x2a && joint[1] == 0x86)  /* email id hdr */
+            if (joint[0] == 0x2a && joint[1] == 0x86) {  /* email id hdr */
+                id = ASN_EMAIL_NAME;
                 email = TRUE;
+            }
 
             if (joint[0] == 0x9  && joint[1] == 0x92) { /* uid id hdr */
                 /* last value of OID is the type of pilot attribute */
@@ -5221,33 +5185,34 @@ static int GetName(DecodedCert* cert, int nameType)
 
             cert->srcIdx += oidSz + 1;
 
-            if (GetLength(cert->source, &cert->srcIdx, &adv, cert->maxIdx) < 0)
+            if (GetLength(cert->source, &cert->srcIdx, &strLen,
+                                                              cert->maxIdx) < 0)
                 return ASN_PARSE_E;
 
-            if (adv > (int)(ASN_NAME_MAX - idx)) {
+            if (strLen > (int)(ASN_NAME_MAX - idx)) {
                 WOLFSSL_MSG("ASN name too big, skipping");
                 tooBig = TRUE;
             }
 
             if (email) {
-                if ( (14 + adv) > (int)(ASN_NAME_MAX - idx)) {
+                copyLen = sizeof(WOLFSSL_EMAIL_ADDR) - 1;
+                if ((copyLen + strLen) > (int)(ASN_NAME_MAX - idx)) {
                     WOLFSSL_MSG("ASN name too big, skipping");
                     tooBig = TRUE;
                 }
-                if (!tooBig) {
-                    XMEMCPY(&full[idx], "/emailAddress=", 14);
-                    idx += 14;
+                else {
+                    copy = WOLFSSL_EMAIL_ADDR;
                 }
 
                 #ifdef WOLFSSL_CERT_GEN
                     if (nameType == SUBJECT) {
                         cert->subjectEmail = (char*)&cert->source[cert->srcIdx];
-                        cert->subjectEmailLen = adv;
+                        cert->subjectEmailLen = strLen;
                     }
                 #endif /* WOLFSSL_CERT_GEN */
                 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     dName->emailIdx = cert->srcIdx;
-                    dName->emailLen = adv;
+                    dName->emailLen = strLen;
                 #endif /* OPENSSL_EXTRA */
                 #ifndef IGNORE_NAME_CONSTRAINTS
                     {
@@ -5260,94 +5225,79 @@ static int GetName(DecodedCert* cert, int nameType)
                             return MEMORY_E;
                         }
                         emailName->type = 0;
-                        emailName->name = (char*)XMALLOC(adv + 1,
+                        emailName->name = (char*)XMALLOC(strLen + 1,
                                               cert->heap, DYNAMIC_TYPE_ALTNAME);
                         if (emailName->name == NULL) {
                             WOLFSSL_MSG("\tOut of Memory");
                             XFREE(emailName, cert->heap, DYNAMIC_TYPE_ALTNAME);
                             return MEMORY_E;
                         }
-                        emailName->len = adv;
-                        XMEMCPY(emailName->name,
-                                              &cert->source[cert->srcIdx], adv);
-                        emailName->name[adv] = '\0';
+                        emailName->len = strLen;
+                        XMEMCPY(emailName->name, &cert->source[cert->srcIdx],
+                                                                        strLen);
+                        emailName->name[strLen] = '\0';
 
                         emailName->next = cert->altEmailNames;
                         cert->altEmailNames = emailName;
                     }
                 #endif /* IGNORE_NAME_CONSTRAINTS */
-                if (!tooBig) {
-                    XMEMCPY(&full[idx], &cert->source[cert->srcIdx], adv);
-                    idx += adv;
-                #if defined(OPENSSL_EXTRA)
-                    if (count < DOMAIN_COMPONENT_MAX) {
-                        /* store order that DN was parsed */
-                        dName->loc[count++] = ASN_EMAIL_NAME;
-                    }
-                #endif
-                }
             }
 
             if (pilot) {
-                if ( (5 + adv) > (int)(ASN_NAME_MAX - idx)) {
-                    WOLFSSL_MSG("ASN name too big, skipping");
-                    tooBig = TRUE;
-                }
-                if (!tooBig) {
-                    switch (id) {
-                        case ASN_USER_ID:
-                            XMEMCPY(&full[idx], "/UID=", 5);
-                            idx += 5;
-                        #if defined(OPENSSL_EXTRA) || \
-                            defined(OPENSSL_EXTRA_X509_SMALL)
-                            dName->uidIdx = cert->srcIdx;
-                            dName->uidLen = adv;
+                switch (id) {
+                    case ASN_USER_ID:
+                        copy = WOLFSSL_USER_ID;
+                        copyLen = sizeof(WOLFSSL_USER_ID) - 1;
+                    #if defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)
+                        dName->uidIdx = cert->srcIdx;
+                        dName->uidLen = strLen;
+                    #endif /* OPENSSL_EXTRA */
+                        break;
 
-                            #ifdef OPENSSL_EXTRA
-                            if (count < DOMAIN_COMPONENT_MAX) {
-                                /* store order that DN was parsed */
-                                dName->loc[count++] = ASN_USER_ID;
-                            }
-                            #endif
-                        #endif /* OPENSSL_EXTRA */
-                            break;
+                    case ASN_DOMAIN_COMPONENT:
+                        copy = WOLFSSL_DOMAIN_COMPONENT;
+                        copyLen = sizeof(WOLFSSL_DOMAIN_COMPONENT) - 1;
+                    #if defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)
+                        dName->dcIdx[dcnum] = cert->srcIdx;
+                        dName->dcLen[dcnum] = strLen;
+                        dName->dcNum = dcnum + 1;
+                        dcnum++;
+                    #endif /* OPENSSL_EXTRA */
+                        break;
 
-                        case ASN_DOMAIN_COMPONENT:
-                            XMEMCPY(&full[idx], "/DC=", 4);
-                            idx += 4;
-                        #if defined(OPENSSL_EXTRA) || \
-                            defined(OPENSSL_EXTRA_X509_SMALL)
-                            dName->dcIdx[dcnum] = cert->srcIdx;
-                            dName->dcLen[dcnum] = adv;
-                            dName->dcNum = dcnum + 1;
-                            dcnum++;
-
-                            #ifdef OPENSSL_EXTRA
-                            if (count < DOMAIN_COMPONENT_MAX) {
-                                /* store order that DN was parsed */
-                                dName->loc[count++] = ASN_DOMAIN_COMPONENT;
-                            }
-                            #endif
-                        #endif /* OPENSSL_EXTRA */
-                            break;
-
-                        default:
-                            WOLFSSL_MSG("Unknown pilot attribute type");
-                            return ASN_PARSE_E;
-                    }
-                    XMEMCPY(&full[idx], &cert->source[cert->srcIdx], adv);
-                    idx += adv;
+                    default:
+                        WOLFSSL_MSG("Unknown pilot attribute type");
+                        return ASN_PARSE_E;
                 }
             }
-
-            cert->srcIdx += adv;
         }
+        if ((copyLen + strLen) > (int)(ASN_NAME_MAX - idx))
+        {
+            WOLFSSL_MSG("ASN Name too big, skipping");
+            tooBig = TRUE;
+        }
+        if ((copy != NULL) && !tooBig) {
+            XMEMCPY(&full[idx], copy, copyLen);
+            idx += copyLen;
+            XMEMCPY(&full[idx], &cert->source[cert->srcIdx], strLen);
+            idx += strLen;
+
+        #ifdef OPENSSL_EXTRA
+            if (count < DOMAIN_COMPONENT_MAX) {
+                /* store order that DN was parsed */
+                dName->loc[count++] = id;
+            }
+        #endif
+        }
+        cert->srcIdx += strLen;
     }
     full[idx++] = 0;
-    #if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA)
     /* store order that DN was parsed */
     dName->locSz = count;
-    #endif
+#endif
 
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     {
@@ -7757,6 +7707,10 @@ int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
 
         WOLFSSL_ENTER("DecodeCertPolicy");
 
+    #if defined(WOLFSSL_CERT_EXT)
+         cert->extCertPoliciesNb = 0;
+    #endif
+
         if (GetSequence(input, &idx, &total_length, sz) < 0) {
             WOLFSSL_MSG("\tGet CertPolicy total seq failed");
             return ASN_PARSE_E;
@@ -7790,7 +7744,7 @@ int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
 
         #if defined(WOLFSSL_SEP)
                 cert->deviceType = (byte*)XMALLOC(length, cert->heap,
-                                                  DYNAMIC_TYPE_X509_EXT);
+                                                         DYNAMIC_TYPE_X509_EXT);
                 if (cert->deviceType == NULL) {
                     WOLFSSL_MSG("\tCouldn't alloc memory for deviceType");
                     return MEMORY_E;
@@ -7800,8 +7754,9 @@ int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
                 break;
         #elif defined(WOLFSSL_CERT_EXT)
                 /* decode cert policy */
-                if (DecodePolicyOID(cert->extCertPolicies[cert->extCertPoliciesNb], MAX_CERTPOL_SZ,
-                                    input + idx, length) <= 0) {
+                if (DecodePolicyOID(cert->extCertPolicies[
+                                       cert->extCertPoliciesNb], MAX_CERTPOL_SZ,
+                                       input + idx, length) <= 0) {
                     WOLFSSL_MSG("\tCouldn't decode CertPolicy");
                     return ASN_PARSE_E;
                 }
