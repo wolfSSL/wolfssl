@@ -12696,7 +12696,8 @@ int AddSession(WOLFSSL* ssl)
                     idx = i;
                     break;
                 }
-            } else {
+            }
+            else {
                 if (XMEMCMP(ssl->arrays->sessionID, SessionCache[row].Sessions[i].sessionID, ID_LEN) == 0) {
                     WOLFSSL_MSG("Session already exists. Overwriting.");
                     overwrite = 1;
@@ -38533,8 +38534,8 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
         }
     }
 #else
-    WOLFSSL_MSG("Session certificates not compiled in");
-    ret = WOLFSSL_FAILURE;
+        WOLFSSL_MSG("Session certificates not compiled in");
+        ret = WOLFSSL_FAILURE;
 #endif
         break;
     default:
