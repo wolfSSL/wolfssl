@@ -2228,8 +2228,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
         if (rnd) {
             printf("Server Random : ");
-            pt = rnd;
-
             for (pt = rnd; pt < rnd + size; pt++) printf("%02X", *pt);
             printf("\n");
 
