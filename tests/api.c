@@ -4351,7 +4351,9 @@ static void test_wolfSSL_X509_NAME_get_entry(void)
         ASN1_STRING* asn;
         int idx;
         ASN1_OBJECT *object = NULL;
+#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
         BIO* bio;
+#endif
 
     #ifndef NO_FILESYSTEM
         x509 = wolfSSL_X509_load_certificate_file(cliCertFile, WOLFSSL_FILETYPE_PEM);
@@ -4374,10 +4376,12 @@ static void test_wolfSSL_X509_NAME_get_entry(void)
         idx = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
         AssertIntGE(idx, 0);
 
+#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
         AssertNotNull(bio = BIO_new(BIO_s_mem()));
         AssertIntEQ(X509_NAME_print_ex(bio, name, 4,
                         (XN_FLAG_RFC2253 & ~XN_FLAG_DN_REV)), WOLFSSL_SUCCESS);
         BIO_free(bio);
+#endif
 
         ne = X509_NAME_get_entry(name, idx);
         AssertNotNull(ne);
