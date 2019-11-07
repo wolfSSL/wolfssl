@@ -7651,6 +7651,16 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
         tmp += align - hdrSz;
 #endif
 
+#ifdef WOLFSSL_STATIC_MEMORY
+    /* can be from IO memory pool which does not need copy if same buffer */
+    if (ssl->buffers.outputBuffer.length &&
+            tmp == ssl->buffers.outputBuffer.buffer) {
+        ssl->buffers.outputBuffer.bufferSize =
+            size + ssl->buffers.outputBuffer.length;
+        return 0;
+    }
+#endif
+
     if (ssl->buffers.outputBuffer.length)
         XMEMCPY(tmp, ssl->buffers.outputBuffer.buffer,
                ssl->buffers.outputBuffer.length);
@@ -7713,6 +7723,16 @@ int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
 #if defined(WOLFSSL_DTLS) || WOLFSSL_GENERAL_ALIGNMENT > 0
     if (align)
         tmp += align - hdrSz;
+#endif
+
+#ifdef WOLFSSL_STATIC_MEMORY
+    /* can be from IO memory pool which does not need copy if same buffer */
+    if (usedLength && tmp == ssl->buffers.inputBuffer.buffer) {
+        ssl->buffers.inputBuffer.bufferSize = size + usedLength;
+        ssl->buffers.inputBuffer.idx    = 0;
+        ssl->buffers.inputBuffer.length = usedLength;
+        return 0;
+    }
 #endif
 
     if (usedLength)
