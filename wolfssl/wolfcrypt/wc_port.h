@@ -280,7 +280,8 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #include "vfapi.h"
     #include "vfile.h"
 
-    int ebsnet_fseek(int a, long b, int c); /* Not prototyped in vfile.h per EBSnet feedback */
+    int ebsnet_fseek(int a, long b, int c); /* Not prototyped in vfile.h per
+                                             * EBSnet feedback */
 
     #define XFILE                    int
     #define XFOPEN(NAME, MODE)       vf_open((const char *)NAME, VO_RDONLY, 0);
