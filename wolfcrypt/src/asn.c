@@ -14880,12 +14880,12 @@ static int DecodeSingleResponse(byte* source,
     cs->thisDateAsn = source + idx;
     localIdx = 0;
     if (GetDateInfo(cs->thisDateAsn, &localIdx, NULL,
-    				(byte*)&cs->thisDateParsed.type,
-					&cs->thisDateParsed.length, size) < 0)
+                    (byte*)&cs->thisDateParsed.type,
+                    &cs->thisDateParsed.length, size) < 0)
         return ASN_PARSE_E;
     XMEMCPY(cs->thisDateParsed.data,
-    		cs->thisDateAsn + localIdx - cs->thisDateParsed.length,
-    		cs->thisDateParsed.length);
+            cs->thisDateAsn + localIdx - cs->thisDateParsed.length,
+            cs->thisDateParsed.length);
 #endif
     if (GetBasicDate(source, &idx, cs->thisDate,
                                                 &cs->thisDateFormat, size) < 0)
@@ -14913,12 +14913,12 @@ static int DecodeSingleResponse(byte* source,
         cs->nextDateAsn = source + idx;
         localIdx = 0;
         if (GetDateInfo(cs->nextDateAsn, &localIdx, NULL,
-        				(byte*)&cs->nextDateParsed.type,
-						&cs->nextDateParsed.length, size) < 0)
+                        (byte*)&cs->nextDateParsed.type,
+                        &cs->nextDateParsed.length, size) < 0)
             return ASN_PARSE_E;
         XMEMCPY(cs->nextDateParsed.data,
-        		cs->nextDateAsn + localIdx - cs->nextDateParsed.length,
-        		cs->nextDateParsed.length);
+                cs->nextDateAsn + localIdx - cs->nextDateParsed.length,
+                cs->nextDateParsed.length);
 #endif
         if (GetBasicDate(source, &idx, cs->nextDate,
                                                 &cs->nextDateFormat, size) < 0)

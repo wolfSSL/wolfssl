@@ -12690,19 +12690,19 @@ int AddSession(WOLFSSL* ssl)
 
         for (i=0; i<SESSIONS_PER_ROW; i++) {
             if (ssl->options.tls1_3) {
-            	if (XMEMCMP(ssl->session.sessionID, SessionCache[row].Sessions[i].sessionID, ID_LEN) == 0) {
-            		WOLFSSL_MSG("Session already exists. Overwriting.");
-            		overwrite = 1;
-            		idx = i;
-            		break;
-            	}
+                if (XMEMCMP(ssl->session.sessionID, SessionCache[row].Sessions[i].sessionID, ID_LEN) == 0) {
+                    WOLFSSL_MSG("Session already exists. Overwriting.");
+                    overwrite = 1;
+                    idx = i;
+                    break;
+                }
             } else {
-            	if (XMEMCMP(ssl->arrays->sessionID, SessionCache[row].Sessions[i].sessionID, ID_LEN) == 0) {
-            		WOLFSSL_MSG("Session already exists. Overwriting.");
-            		overwrite = 1;
-            		idx = i;
-            		break;
-            	}
+                if (XMEMCMP(ssl->arrays->sessionID, SessionCache[row].Sessions[i].sessionID, ID_LEN) == 0) {
+                    WOLFSSL_MSG("Session already exists. Overwriting.");
+                    overwrite = 1;
+                    idx = i;
+                    break;
+                }
             }
         }
 
@@ -12782,15 +12782,15 @@ int AddSession(WOLFSSL* ssl)
 
 #ifdef SESSION_CERTS
     if (error == 0) {
-    	if (!overwrite || (overwrite && ssl->session.chain.count > 0)) {
-    		/*
-    		 * If we are overwriting and no certs present in ssl->session.chain
-    		 * then keep the old chain.
-    		 */
+        if (!overwrite || (overwrite && ssl->session.chain.count > 0)) {
+            /*
+             * If we are overwriting and no certs present in ssl->session.chain
+             * then keep the old chain.
+             */
             session->chain.count = ssl->session.chain.count;
             XMEMCPY(session->chain.certs, ssl->session.chain.certs,
                     sizeof(x509_buffer) * session->chain.count);
-    	}
+        }
     }
 #endif /* SESSION_CERTS */
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
