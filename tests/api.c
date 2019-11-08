@@ -11262,15 +11262,14 @@ static int test_wc_Arc4SetKey (void)
     /* Test bad args. */
     if (ret == 0) {
         ret = wc_Arc4SetKey(NULL, (byte*)key, keyLen);
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_Arc4SetKey(&arc, NULL, keyLen);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            /* Exits normally if keyLen is incorrect. */
-            ret = wc_Arc4SetKey(&arc, (byte*)key, 0);
-        } else {
+        if (ret == BAD_FUNC_ARG)
+            ret = wc_Arc4SetKey(&arc, NULL, keyLen); /* NULL key */
+        if (ret == BAD_FUNC_ARG)
+            ret = wc_Arc4SetKey(&arc, (byte*)key, 0); /* length == 0 */
+        if (ret == BAD_FUNC_ARG)
+            ret = WOLFSSL_ERROR_NONE;
+        else
             ret = WOLFSSL_FATAL_ERROR;
-        }
     } /* END test bad args. */
 
     printf(resultFmt, ret == 0 ? passed : failed);
