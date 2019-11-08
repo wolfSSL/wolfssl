@@ -27628,14 +27628,7 @@ static void test_wolfSSL_X509_print()
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
     AssertIntEQ(X509_print(bio, x509), SSL_SUCCESS);
 
-#ifdef WOLFSSL_WPAS
-    /* WPAS adds extra "="" */
-    /* WPAS Issuer: /C==US/ST==Montana/L==Bozeman/O==Sawtooth/... */
-    /* NORM Issuer: /C=US/ST=Montana/L=Bozeman/O=Sawtooth/... */
-    AssertIntEQ(BIO_get_mem_data(bio, NULL), 3230);
-#else
     AssertIntEQ(BIO_get_mem_data(bio, NULL), 3212);
-#endif
     BIO_free(bio);
 
     /* print to stdout */

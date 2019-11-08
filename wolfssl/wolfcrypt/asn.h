@@ -144,6 +144,9 @@ enum DN_Tags {
 #define WOLFSSL_JOI_ST           "/jurisdictionST="
 #define WOLFSSL_EMAIL_ADDR       "/emailAddress="
 
+#define WOLFSSL_USER_ID          "/UID="
+#define WOLFSSL_DOMAIN_COMPONENT "/DC="
+
 #if defined(WOLFSSL_APACHE_HTTPD)
     /* otherName strings */
     #define WOLFSSL_SN_MS_UPN       "msUPN"
