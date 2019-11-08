@@ -72,6 +72,12 @@ static const char webServerMsg[] =
     "</html>\r\n";
 
 int runWithErrors = 0; /* Used with -x flag to run err_sys vs. print errors */
+int catastrophic = 0; /* Use with -x flag to still exit when an error is
+                      * considered catastrophic EG the servers own cert failing
+                      * to load would be catastrophic since there would be no
+                      * cert to send to clients attempting to connect. The
+                      * server should error out completely in that case
+                      */
 static int lng_index = 0;
 
 #ifdef WOLFSSL_CALLBACKS
@@ -1467,7 +1473,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
 #ifdef HAVE_WNR
     if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0)
-        err_sys_ex(runWithErrors, "can't load whitewood net random config file");
+        err_sys_ex(runWithErrors, "can't load whitewood net random config "
+                   "file");
 #endif
 
     switch (version) {
@@ -1555,29 +1562,29 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
     if (wolfSSL_CTX_load_static_memory(&ctx, method, memory, sizeof(memory),0,1)
             != WOLFSSL_SUCCESS)
-        err_sys_ex(runWithErrors, "unable to load static memory and create ctx");
+        err_sys_ex(catastrophic, "unable to load static memory and create ctx");
 
     /* load in a buffer for IO */
     if (wolfSSL_CTX_load_static_memory(&ctx, NULL, memoryIO, sizeof(memoryIO),
                                  WOLFMEM_IO_POOL_FIXED | WOLFMEM_TRACK_STATS, 1)
             != WOLFSSL_SUCCESS)
-        err_sys_ex(runWithErrors, "unable to load static memory and create ctx");
+        err_sys_ex(catastrophic, "unable to load static memory and create ctx");
 #else
     ctx = SSL_CTX_new(method(NULL));
 #endif /* WOLFSSL_STATIC_MEMORY */
     if (ctx == NULL)
-        err_sys_ex(runWithErrors, "unable to get ctx");
+        err_sys_ex(catastrophic, "unable to get ctx");
 
 #if defined(HAVE_SESSION_TICKET) && defined(HAVE_CHACHA) && \
                                     defined(HAVE_POLY1305)
     if (TicketInit() != 0)
-        err_sys_ex(runWithErrors, "unable to setup Session Ticket Key context");
+        err_sys_ex(catastrophic, "unable to setup Session Ticket Key context");
     wolfSSL_CTX_set_TicketEncCb(ctx, myTicketEncCb);
 #endif
 
     if (cipherList && !useDefCipherList) {
         if (SSL_CTX_set_cipher_list(ctx, cipherList) != WOLFSSL_SUCCESS)
-            err_sys_ex(runWithErrors, "server can't set cipher list 1");
+            err_sys_ex(runWithErrors, "server can't set custom cipher list");
     }
 
 #ifdef WOLFSSL_LEANPSK
@@ -1609,8 +1616,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     #ifndef TEST_LOAD_BUFFER
         if (SSL_CTX_use_certificate_chain_file(ctx, ourCert)
                                          != WOLFSSL_SUCCESS)
-            err_sys_ex(runWithErrors, "can't load server cert file, check file and run from"
-                    " wolfSSL home dir");
+            err_sys_ex(catastrophic, "can't load server cert file, check file "
+                       "and run from wolfSSL home dir");
     #else
         /* loads cert chain file using buffer API */
         load_buffer(ctx, ourCert, WOLFSSL_CERT_CHAIN);
@@ -1619,7 +1626,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 
 #ifndef NO_DH
-    if (wolfSSL_CTX_SetMinDhKey_Sz(ctx, (word16)minDhKeyBits) != WOLFSSL_SUCCESS) {
+    if (wolfSSL_CTX_SetMinDhKey_Sz(ctx, (word16)minDhKeyBits)
+        != WOLFSSL_SUCCESS) {
         err_sys_ex(runWithErrors, "Error setting minimum DH key size");
     }
 #endif
@@ -1638,7 +1646,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     if (useNtruKey) {
         if (wolfSSL_CTX_use_NTRUPrivateKey_file(ctx, ourKey)
                                 != WOLFSSL_SUCCESS)
-            err_sys_ex(runWithErrors, "can't load ntru key file, "
+            err_sys_ex(catastrophic, "can't load ntru key file, "
                     "Please run from wolfSSL home dir");
     }
 #endif
@@ -1655,8 +1663,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     #ifndef TEST_LOAD_BUFFER
         if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, WOLFSSL_FILETYPE_PEM)
                                          != WOLFSSL_SUCCESS)
-            err_sys_ex(runWithErrors, "can't load server private key file, check file and run "
-                "from wolfSSL home dir");
+            err_sys_ex(catastrophic, "can't load server private key file, "
+                       "check file and run from wolfSSL home dir");
     #else
         /* loads private key file using buffer API */
         load_buffer(ctx, ourKey, WOLFSSL_KEY);
@@ -1689,7 +1697,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         #else
                 defaultCipherList = "PSK-AES128-CBC-SHA256";
         #endif
-            if (SSL_CTX_set_cipher_list(ctx, defaultCipherList) != WOLFSSL_SUCCESS)
+            if (SSL_CTX_set_cipher_list(ctx, defaultCipherList)
+                != WOLFSSL_SUCCESS)
                 err_sys_ex(runWithErrors, "server can't set cipher list 2");
         }
 #endif
@@ -1734,12 +1743,16 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         verify_flags |= WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY;
     #endif
 
-        if (wolfSSL_CTX_load_verify_locations_ex(ctx, verifyCert, 0, verify_flags) != WOLFSSL_SUCCESS)
-            err_sys_ex(runWithErrors, "can't load ca file, Please run from wolfSSL home dir");
+        if (wolfSSL_CTX_load_verify_locations_ex(ctx, verifyCert, 0,
+            verify_flags) != WOLFSSL_SUCCESS) {
+            err_sys_ex(catastrophic,
+                       "can't load ca file, Please run from wolfSSL home dir");
+        }
         #ifdef WOLFSSL_TRUST_PEER_CERT
         if (trustCert) {
             if ((ret = wolfSSL_CTX_trust_peer_cert(ctx, trustCert,
-                                            WOLFSSL_FILETYPE_PEM)) != WOLFSSL_SUCCESS) {
+                                                   WOLFSSL_FILETYPE_PEM))
+                                                   != WOLFSSL_SUCCESS) {
                 err_sys_ex(runWithErrors, "can't load trusted peer cert file");
             }
         }
@@ -1812,7 +1825,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     if (doMcast) {
 #ifdef WOLFSSL_MULTICAST
         wolfSSL_CTX_mcast_set_member_id(ctx, mcastID);
-        if (wolfSSL_CTX_set_cipher_list(ctx, "WDM-NULL-SHA256") != WOLFSSL_SUCCESS)
+        if (wolfSSL_CTX_set_cipher_list(ctx, "WDM-NULL-SHA256")
+            != WOLFSSL_SUCCESS)
             err_sys("Couldn't set multicast cipher list.");
 #endif
     }
@@ -1832,7 +1846,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
         ssl = SSL_new(ctx);
         if (ssl == NULL)
-            err_sys_ex(runWithErrors, "unable to get SSL");
+            err_sys_ex(catastrophic, "unable to create an SSL object");
         #ifdef OPENSSL_EXTRA
         wolfSSL_KeepArrays(ssl);
         #endif
@@ -1843,15 +1857,16 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     #ifndef TEST_LOAD_BUFFER
         if (SSL_use_certificate_chain_file(ssl, ourCert)
                                          != WOLFSSL_SUCCESS)
-            err_sys_ex(runWithErrors, "can't load server cert file, check file and run from"
-                    " wolfSSL home dir");
+            err_sys_ex(catastrophic, "can't load server cert file, check file "
+                       "and run from wolfSSL home dir");
     #else
         /* loads cert chain file using buffer API */
         load_ssl_buffer(ssl, ourCert, WOLFSSL_CERT_CHAIN);
     #endif
     }
 
-    if (!useNtruKey && (!usePsk || usePskPlus) && !useAnon && loadCertKeyIntoSSLObj
+    if (!useNtruKey && (!usePsk || usePskPlus) && !useAnon &&
+        loadCertKeyIntoSSLObj
     #if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PRIVKEY)
         && !pkCallbacks
     #endif /* HAVE_PK_CALLBACKS && TEST_PK_PRIVKEY */
@@ -1859,8 +1874,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     #ifndef TEST_LOAD_BUFFER
         if (SSL_use_PrivateKey_file(ssl, ourKey, WOLFSSL_FILETYPE_PEM)
                                          != WOLFSSL_SUCCESS)
-            err_sys_ex(runWithErrors, "can't load server private key file, check file and run "
-                "from wolfSSL home dir");
+            err_sys_ex(catastrophic, "can't load server private key file, check"
+                       "file and run from wolfSSL home dir");
     #else
         /* loads private key file using buffer API */
         load_ssl_buffer(ssl, ourKey, WOLFSSL_KEY);
@@ -1869,7 +1884,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif /* !NO_CERTS */
 
 #ifdef WOLFSSL_SEND_HRR_COOKIE
-        if (hrrCookie && wolfSSL_send_hrr_cookie(ssl, NULL, 0) != WOLFSSL_SUCCESS) {
+        if (hrrCookie && wolfSSL_send_hrr_cookie(ssl, NULL, 0)
+            != WOLFSSL_SUCCESS) {
             err_sys("unable to set use of cookie with HRR msg");
         }
 #endif
@@ -1918,7 +1934,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         if (wolfSSL_EnableCRL(ssl, 0) != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "unable to enable CRL");
         if (wolfSSL_LoadCRL(ssl, crlPemDir, WOLFSSL_FILETYPE_PEM, crlFlags)
-                                                                 != WOLFSSL_SUCCESS)
+                            != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "unable to load CRL");
         if (wolfSSL_SetCRL_Cb(ssl, CRL_CallBack) != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "unable to set CRL callback url");
@@ -1938,14 +1954,36 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     /* All the OSCP Stapling test certs are RSA. */
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
     || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-            if (wolfSSL_CTX_EnableOCSPStapling(ctx) != WOLFSSL_SUCCESS)
-                err_sys_ex(runWithErrors, "can't enable OCSP Stapling Certificate Manager");
-            if (SSL_CTX_load_verify_locations(ctx, "certs/ocsp/intermediate1-ca-cert.pem", 0) != WOLFSSL_SUCCESS)
-                err_sys_ex(runWithErrors, "can't load ca file, Please run from wolfSSL home dir");
-            if (SSL_CTX_load_verify_locations(ctx, "certs/ocsp/intermediate2-ca-cert.pem", 0) != WOLFSSL_SUCCESS)
-                err_sys_ex(runWithErrors, "can't load ca file, Please run from wolfSSL home dir");
-            if (SSL_CTX_load_verify_locations(ctx, "certs/ocsp/intermediate3-ca-cert.pem", 0) != WOLFSSL_SUCCESS)
-                err_sys_ex(runWithErrors, "can't load ca file, Please run from wolfSSL home dir");
+        { /* scope start */
+            const char* ca1 = "certs/ocsp/intermediate1-ca-cert.pem";
+            const char* ca2 = "certs/ocsp/intermediate2-ca-cert.pem";
+            const char* ca3 = "certs/ocsp/intermediate3-ca-cert.pem";
+            int fails = 0;
+
+            if (wolfSSL_CTX_EnableOCSPStapling(ctx) != WOLFSSL_SUCCESS) {
+                err_sys_ex(catastrophic, "can't enable OCSP Stapling "
+                           "Certificate Manager");
+            }
+            if (SSL_CTX_load_verify_locations(ctx, ca1, 0) != WOLFSSL_SUCCESS) {
+                fails++;
+                err_sys_ex(runWithErrors, "can't load ca file, Please run from "
+                           "wolfSSL home dir");
+            }
+            if (SSL_CTX_load_verify_locations(ctx, ca2, 0) != WOLFSSL_SUCCESS) {
+                fails++;
+                err_sys_ex(runWithErrors, "can't load ca file, Please run from "
+                           "wolfSSL home dir");
+            }
+            if (SSL_CTX_load_verify_locations(ctx, ca3, 0) != WOLFSSL_SUCCESS) {
+                fails++;
+                err_sys_ex(runWithErrors, "can't load ca file, Please run from "
+                           "wolfSSL home dir");
+            }
+            if (fails > 2) {
+                err_sys_ex(catastrophic, "Failed to load any intermediates for "
+                           "OCSP stapling test");
+            }
+        } /* scope end */
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
 #endif /* NO_RSA */
 #endif /* HAVE_OCSP */
@@ -2022,7 +2060,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         doListen = 0; /* Don't listen next time */
 
         if (SSL_set_fd(ssl, clientfd) != WOLFSSL_SUCCESS) {
-            err_sys_ex(runWithErrors, "error in setting fd");
+            err_sys_ex(catastrophic, "error in setting fd");
         }
 
 #ifdef HAVE_TRUSTED_CA
@@ -2074,7 +2112,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             #if !defined(NO_FILESYSTEM) && !defined(NO_DH) && !defined(NO_ASN)
                 wolfSSL_SetTmpDH_file(ssl, ourDhParam, WOLFSSL_FILETYPE_PEM);
             #elif !defined(NO_DH)
-                SetDH(ssl);  /* repick suites with DHE, higher priority than PSK */
+                SetDH(ssl);  /* repick suites with DHE, higher priority than
+                              * PSK */
             #endif
 #if !defined(NO_DH) && !defined(WOLFSSL_OLD_PRIME_CHECK) && \
     !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
@@ -2110,7 +2149,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                         err = SSL_get_error(ssl, 0);
                     #ifdef WOLFSSL_ASYNC_CRYPT
                         if (err == WC_PENDING_E) {
-                            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                            ret = wolfSSL_AsyncPoll(ssl,
+                                                    WOLF_POLL_FLAG_CHECK_HW);
                             if (ret < 0) break;
                         }
                     #endif
@@ -2170,7 +2210,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         /* get size of buffer then print */
         size = wolfSSL_get_server_random(NULL, NULL, 0);
         if (size == 0) {
-            err_sys_ex(runWithErrors, "error getting server random buffer size");
+            err_sys_ex(runWithErrors, "error getting server random buffer "
+                       "size");
         }
 
         rnd = (byte*)XMALLOC(size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2180,20 +2221,21 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
         size = wolfSSL_get_server_random(ssl, rnd, size);
         if (size == 0) {
-            XFREE(rnd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (rnd) {
+                XFREE(rnd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                rnd = NULL;
+            }
             err_sys_ex(runWithErrors, "error getting server random buffer");
         }
 
-        printf("Server Random : ");
-        pt = rnd;
-        if (pt != NULL) {
+        if (rnd) {
+            printf("Server Random : ");
             for (pt = rnd; pt < rnd + size; pt++) printf("%02X", *pt);
             printf("\n");
-        } else {
-            err_sys_ex(runWithErrors, "error: attempted to dereference null "
-                                                                   "pointer");
+
+            XFREE(rnd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            rnd = NULL;
         }
-        XFREE(rnd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
 
@@ -2202,7 +2244,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             char *protocol_name = NULL, *list = NULL;
             word16 protocol_nameSz = 0, listSz = 0;
 
-            err = wolfSSL_ALPN_GetProtocol(ssl, &protocol_name, &protocol_nameSz);
+            err = wolfSSL_ALPN_GetProtocol(ssl, &protocol_name,
+                                           &protocol_nameSz);
             if (err == WOLFSSL_SUCCESS)
                 printf("Sent ALPN protocol : %s (%d)\n",
                        protocol_name, protocol_nameSz);
@@ -2235,8 +2278,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             verify_flags |= WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY;
         #endif
 
-            if (wolfSSL_CTX_load_verify_locations_ex(ctx, verifyCert, 0, verify_flags)
-                                                           != WOLFSSL_SUCCESS) {
+            if (wolfSSL_CTX_load_verify_locations_ex(ctx, verifyCert, 0,
+                                                     verify_flags)
+                                                     != WOLFSSL_SUCCESS) {
                 err_sys_ex(runWithErrors, "can't load ca file, Please run from "
                                           "wolfSSL home dir");
             }
@@ -2325,13 +2369,16 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             err_sys_ex(runWithErrors, "static memory was not used with ssl");
 
         fprintf(stderr, "\nprint off SSL memory stats\n");
-        fprintf(stderr, "*** This is memory state before wolfSSL_free is called\n");
+        fprintf(stderr, "*** This is memory state before wolfSSL_free is "
+                "called\n");
         fprintf(stderr, "peak connection memory = %d\n", ssl_stats.peakMem);
         fprintf(stderr, "current memory in use  = %d\n", ssl_stats.curMem);
         fprintf(stderr, "peak connection allocs = %d\n", ssl_stats.peakAlloc);
         fprintf(stderr, "current connection allocs = %d\n",ssl_stats.curAlloc);
-        fprintf(stderr, "total connection allocs   = %d\n",ssl_stats.totalAlloc);
-        fprintf(stderr, "total connection frees    = %d\n\n", ssl_stats.totalFr);
+        fprintf(stderr, "total connection allocs   = %d\n",
+                ssl_stats.totalAlloc);
+        fprintf(stderr, "total connection frees    = %d\n\n",
+                ssl_stats.totalFr);
 
 #endif
         SSL_free(ssl); ssl = NULL;
