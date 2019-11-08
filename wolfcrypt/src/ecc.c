@@ -4024,6 +4024,7 @@ int wc_ecc_make_pub(ecc_key* key, ecc_point* pubOut)
 }
 
 
+WOLFSSL_ABI
 int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
 {
     int err;
@@ -4318,6 +4319,7 @@ int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key)
 }
 
 /* Setup dynamic pointers if using normal math for proper freeing */
+WOLFSSL_ABI
 int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 {
     int ret = 0;
@@ -4627,6 +4629,7 @@ static int wc_ecc_sign_hash_async(const byte* in, word32 inlen, byte* out,
  key       A private ECC key
  return    MP_OKAY if successful
  */
+WOLFSSL_ABI
 int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
                      WC_RNG* rng, ecc_key* key)
 {
@@ -5080,6 +5083,7 @@ void wc_ecc_free_curve(const ecc_set_type* curve, void* heap)
   Free an ECC key from memory
   key   The key you wish to free
 */
+WOLFSSL_ABI
 int wc_ecc_free(ecc_key* key)
 {
     if (key == NULL) {

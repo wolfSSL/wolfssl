@@ -365,6 +365,7 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
 }
 
 
+WOLFSSL_ABI
 WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD* method)
 {
 #ifdef WOLFSSL_HEAP_TEST
@@ -376,6 +377,7 @@ WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD* method)
 }
 
 
+WOLFSSL_ABI
 void wolfSSL_CTX_free(WOLFSSL_CTX* ctx)
 {
     WOLFSSL_ENTER("SSL_CTX_free");
@@ -462,6 +464,7 @@ int wolfSSL_CTX_new_rng(WOLFSSL_CTX* ctx)
 #endif
 
 
+WOLFSSL_ABI
 WOLFSSL* wolfSSL_new(WOLFSSL_CTX* ctx)
 {
     WOLFSSL* ssl = NULL;
@@ -485,6 +488,7 @@ WOLFSSL* wolfSSL_new(WOLFSSL_CTX* ctx)
 }
 
 
+WOLFSSL_ABI
 void wolfSSL_free(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("SSL_free");
@@ -680,6 +684,7 @@ int wolfSSL_use_old_poly(WOLFSSL* ssl, int value)
 #endif
 
 
+WOLFSSL_ABI
 int wolfSSL_set_fd(WOLFSSL* ssl, int fd)
 {
     int ret;
@@ -1813,6 +1818,7 @@ int wolfSSL_GetDhKey_Sz(WOLFSSL* ssl)
 #endif /* !NO_DH */
 
 
+WOLFSSL_ABI
 int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
 {
     int ret;
@@ -1949,6 +1955,7 @@ int wolfSSL_peek(WOLFSSL* ssl, void* data, int sz)
 }
 
 
+WOLFSSL_ABI
 int wolfSSL_read(WOLFSSL* ssl, void* data, int sz)
 {
     WOLFSSL_ENTER("wolfSSL_read()");
@@ -1984,6 +1991,7 @@ int wolfSSL_mcast_read(WOLFSSL* ssl, word16* id, void* data, int sz)
 
 
 /* helpers to set the device id, WOLFSSL_SUCCESS on ok */
+WOLFSSL_ABI
 int wolfSSL_SetDevId(WOLFSSL* ssl, int devId)
 {
     if (ssl == NULL)
@@ -1993,6 +2001,8 @@ int wolfSSL_SetDevId(WOLFSSL* ssl, int devId)
 
     return WOLFSSL_SUCCESS;
 }
+
+WOLFSSL_ABI
 int wolfSSL_CTX_SetDevId(WOLFSSL_CTX* ctx, int devId)
 {
     if (ctx == NULL)
@@ -2026,6 +2036,7 @@ void* wolfSSL_CTX_GetHeap(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
 
 #ifdef HAVE_SNI
 
+WOLFSSL_ABI
 int wolfSSL_UseSNI(WOLFSSL* ssl, byte type, const void* data, word16 size)
 {
     if (ssl == NULL)
@@ -2035,6 +2046,7 @@ int wolfSSL_UseSNI(WOLFSSL* ssl, byte type, const void* data, word16 size)
 }
 
 
+WOLFSSL_ABI
 int wolfSSL_CTX_UseSNI(WOLFSSL_CTX* ctx, byte type, const void* data,
                                                                     word16 size)
 {
@@ -2377,6 +2389,7 @@ int wolfSSL_UseSupportedQSH(WOLFSSL* ssl, word16 name)
 /* Application-Layer Protocol Negotiation */
 #ifdef HAVE_ALPN
 
+WOLFSSL_ABI
 int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
                     word32 protocol_name_listSz, byte options)
 {
@@ -2822,6 +2835,7 @@ int wolfSSL_recv(WOLFSSL* ssl, void* data, int sz, int flags)
 
 
 /* WOLFSSL_SUCCESS on ok */
+WOLFSSL_ABI
 int wolfSSL_shutdown(WOLFSSL* ssl)
 {
     int  ret = WOLFSSL_FATAL_ERROR;
@@ -2897,6 +2911,7 @@ int wolfSSL_state(WOLFSSL* ssl)
 }
 
 
+WOLFSSL_ABI
 int wolfSSL_get_error(WOLFSSL* ssl, int ret)
 {
     WOLFSSL_ENTER("SSL_get_error");
@@ -3868,6 +3883,7 @@ void wolfSSL_ERR_dump_errors_fp(XFILE fp)
 #endif
 #endif
 
+WOLFSSL_ABI
 int wolfSSL_pending(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("SSL_pending");
@@ -3968,6 +3984,7 @@ static int SetMinVersionHelper(byte* minVersion, int version)
 
 
 /* Set minimum downgrade version allowed, WOLFSSL_SUCCESS on ok */
+WOLFSSL_ABI
 int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_SetMinVersion");
@@ -4730,6 +4747,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 
 #endif /* NO_SESSION_CACHE */
 
+WOLFSSL_ABI
 int wolfSSL_Init(void)
 {
     WOLFSSL_ENTER("wolfSSL_Init");
@@ -6466,6 +6484,7 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
     return ret;
 }
 
+WOLFSSL_ABI
 int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
                                      const char* path)
 {
@@ -6854,6 +6873,7 @@ int wolfSSL_CTX_der_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
 
 
 
+WOLFSSL_ABI
 int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX* ctx, const char* file,
                                      int format)
 {
@@ -6868,6 +6888,7 @@ int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX* ctx, const char* file,
 }
 
 
+WOLFSSL_ABI
 int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX* ctx, const char* file,
                                     int format)
 {
@@ -6928,6 +6949,7 @@ long wolfSSL_CTX_get_verify_depth(WOLFSSL_CTX* ctx)
 }
 
 
+WOLFSSL_ABI
 int wolfSSL_CTX_use_certificate_chain_file(WOLFSSL_CTX* ctx, const char* file)
 {
     /* process up to MAX_CHAIN_DEPTH plus subject cert */
@@ -9335,6 +9357,7 @@ int wolfSSL_use_certificate_ASN1(WOLFSSL* ssl, unsigned char* der, int derSz)
 
 #ifndef NO_FILESYSTEM
 
+WOLFSSL_ABI
 int wolfSSL_use_certificate_file(WOLFSSL* ssl, const char* file, int format)
 {
     WOLFSSL_ENTER("wolfSSL_use_certificate_file");
@@ -9352,6 +9375,7 @@ int wolfSSL_use_certificate_file(WOLFSSL* ssl, const char* file, int format)
 }
 
 
+WOLFSSL_ABI
 int wolfSSL_use_PrivateKey_file(WOLFSSL* ssl, const char* file, int format)
 {
     WOLFSSL_ENTER("wolfSSL_use_PrivateKey_file");
@@ -9369,6 +9393,7 @@ int wolfSSL_use_PrivateKey_file(WOLFSSL* ssl, const char* file, int format)
 }
 
 
+WOLFSSL_ABI
 int wolfSSL_use_certificate_chain_file(WOLFSSL* ssl, const char* file)
 {
     /* process up to MAX_CHAIN_DEPTH plus subject cert */
@@ -9698,6 +9723,7 @@ int wolfSSL_CTX_get_cert_cache_memsize(WOLFSSL_CTX* ctx)
 
 #ifndef NO_SESSION_CACHE
 
+WOLFSSL_ABI
 WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("SSL_get_session");
@@ -9708,6 +9734,7 @@ WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl)
 }
 
 
+WOLFSSL_ABI
 int wolfSSL_set_session(WOLFSSL* ssl, WOLFSSL_SESSION* session)
 {
     WOLFSSL_ENTER("SSL_set_session");
@@ -10076,6 +10103,7 @@ int wolfSSL_set_session_secret_cb(WOLFSSL* ssl, SessionSecretCb cb, void* ctx)
 #ifndef NO_SESSION_CACHE
 
 /* on by default if built in but allow user to turn off */
+WOLFSSL_ABI
 long wolfSSL_CTX_set_session_cache_mode(WOLFSSL_CTX* ctx, long mode)
 {
     WOLFSSL_ENTER("SSL_CTX_set_session_cache_mode");
@@ -11037,6 +11065,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
 
     /* please see note at top of README if you get an error from connect */
+    WOLFSSL_ABI
     int wolfSSL_connect(WOLFSSL* ssl)
     {
     #if !(defined(WOLFSSL_NO_TLS12) && defined(NO_OLD_TLS) && defined(WOLFSSL_TLS13))
@@ -11797,6 +11826,7 @@ static WC_INLINE word32 HashSession(const byte* sessionID, word32 len, int* erro
 }
 
 
+WOLFSSL_ABI
 void wolfSSL_flush_sessions(WOLFSSL_CTX* ctx, long tm)
 {
     /* static table now, no flushing needed */
@@ -11806,6 +11836,7 @@ void wolfSSL_flush_sessions(WOLFSSL_CTX* ctx, long tm)
 
 
 /* set ssl session timeout in seconds */
+WOLFSSL_ABI
 int wolfSSL_set_timeout(WOLFSSL* ssl, unsigned int to)
 {
     if (ssl == NULL)
@@ -11820,6 +11851,7 @@ int wolfSSL_set_timeout(WOLFSSL* ssl, unsigned int to)
 
 
 /* set ctx session timeout in seconds */
+WOLFSSL_ABI
 int wolfSSL_CTX_set_timeout(WOLFSSL_CTX* ctx, unsigned int to)
 {
     if (ctx == NULL)
@@ -12705,6 +12737,7 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
 
 /* call before SSL_connect, if verifying will add name check to
    date check and signature check */
+WOLFSSL_ABI
 int wolfSSL_check_domain_name(WOLFSSL* ssl, const char* dn)
 {
     WOLFSSL_ENTER("wolfSSL_check_domain_name");
@@ -17592,6 +17625,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
 
 #ifdef KEEP_PEER_CERT
+    WOLFSSL_ABI
     WOLFSSL_X509* wolfSSL_get_peer_certificate(WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("SSL_get_peer_certificate");
@@ -17660,6 +17694,7 @@ void wolfSSL_X509_free(WOLFSSL_X509* x509)
 
 /* copy name into in buffer, at most sz bytes, if buffer is null will
    malloc buffer, call responsible for freeing                     */
+WOLFSSL_ABI
 char* wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
 {
     int copySz;
@@ -17757,6 +17792,7 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
 #if defined(OPENSSL_ALL) || defined(KEEP_OUR_CERT) || defined(KEEP_PEER_CERT) || \
     defined(SESSION_CERTS)
     /* return the next, if any, altname from the peer cert */
+    WOLFSSL_ABI
     char* wolfSSL_X509_get_next_altname(WOLFSSL_X509* cert)
     {
         char* ret = NULL;
@@ -17922,6 +17958,7 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
 
     /* used by JSSE (not a standard compatibility function) */
     /* this is not thread safe */
+    WOLFSSL_ABI
     const byte* wolfSSL_X509_notBefore(WOLFSSL_X509* x509)
     {
         static byte notBeforeData[CTC_DATE_SIZE]; /* temp buffer for date */
@@ -17939,6 +17976,7 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
     }
     /* used by JSSE (not a standard compatibility function) */
     /* this is not thread safe */
+    WOLFSSL_ABI
     const byte* wolfSSL_X509_notAfter(WOLFSSL_X509* x509)
     {
         static byte notAfterData[CTC_DATE_SIZE]; /* temp buffer for date */
@@ -18763,6 +18801,7 @@ WOLFSSL_X509* wolfSSL_X509_d2i_fp(WOLFSSL_X509** x509, XFILE file)
 
 #endif /* NO_STDIO_FILESYSTEM */
 
+WOLFSSL_ABI
 WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
 {
 #ifdef WOLFSSL_SMALL_STACK
@@ -19609,6 +19648,7 @@ WOLFSSL_X509* wolfSSL_X509_new(void)
     return x509;
 }
 
+WOLFSSL_ABI
 WOLFSSL_X509_NAME* wolfSSL_X509_get_subject_name(WOLFSSL_X509* cert)
 {
     WOLFSSL_ENTER("wolfSSL_X509_get_subject_name");
@@ -19660,6 +19700,7 @@ unsigned long wolfSSL_X509_subject_name_hash(const WOLFSSL_X509* x509)
 }
 #endif
 
+WOLFSSL_ABI
 WOLFSSL_X509_NAME* wolfSSL_X509_get_issuer_name(WOLFSSL_X509* cert)
 {
     WOLFSSL_ENTER("X509_get_issuer_name");
@@ -33309,6 +33350,7 @@ int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN* chain, int idx,
 
 
 /* get session ID */
+WOLFSSL_ABI
 const byte* wolfSSL_get_sessionID(const WOLFSSL_SESSION* session)
 {
     WOLFSSL_ENTER("wolfSSL_get_sessionID");
@@ -33353,6 +33395,7 @@ void* wolfSSL_GetEccKeyGenCtx(WOLFSSL* ssl)
     return NULL;
 }
 
+WOLFSSL_ABI
 void  wolfSSL_CTX_SetEccSignCb(WOLFSSL_CTX* ctx, CallbackEccSign cb)
 {
     if (ctx)
