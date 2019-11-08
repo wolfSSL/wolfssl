@@ -708,7 +708,7 @@ int wc_scrypt(byte* output, const byte* passwd, int passLen,
     if (blockSize > 8)
         return BAD_FUNC_ARG;
 
-    if (cost < 1 || cost >= 128 * blockSize / 8)
+    if (cost < 1 || cost >= 128 * blockSize / 8 || parallel < 1 || dkLen < 1)
         return BAD_FUNC_ARG;
 
     bSz = 128 * blockSize;
