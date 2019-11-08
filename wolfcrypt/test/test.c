@@ -13096,6 +13096,8 @@ static int dh_test_ffdhe(WC_RNG *rng, const DhParams* params)
     }
 
 done:
+    wc_FreeDhKey(&key);
+    wc_FreeDhKey(&key2);
     return ret;
 }
 
