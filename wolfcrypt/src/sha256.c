@@ -394,6 +394,11 @@ static int InitSha256(wc_Sha256* sha256)
     #define XTRANSFORM(S, D)         Transform_Sha256((S),(D))
     #define XTRANSFORM_LEN(S, D, L)  Transform_Sha256_Len((S),(D),(L))
 
+    #ifndef WC_HASH_DATA_ALIGNMENT
+        /* these hardware API's require 4 byte (word32) alignment */
+        #define WC_HASH_DATA_ALIGNMENT 4
+    #endif
+
     int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     {
         int ret = 0;
@@ -438,6 +443,25 @@ static int InitSha256(wc_Sha256* sha256)
     {
         int ret = wolfSSL_CryptHwMutexLock();
         if (ret == 0) {
+        #if defined(WC_HASH_DATA_ALIGNMENT) && WC_HASH_DATA_ALIGNMENT > 0
+            if ((size_t)data % WC_HASH_DATA_ALIGNMENT) {
+                /* data pointer is NOT aligned,
+                 * so copy and perform one block at a time */
+                byte* local = (byte*)sha256->buffer;
+                while (len >= WC_SHA256_BLOCK_SIZE) {
+                    XMEMCPY(local, data, WC_SHA256_BLOCK_SIZE);
+                #ifdef FREESCALE_MMCAU_CLASSIC_SHA
+                    cau_sha256_hash_n(local, 1, sha256->digest);
+                #else
+                    MMCAU_SHA256_HashN(local, 1, sha256->digest);
+                #endif
+                    data += WC_SHA256_BLOCK_SIZE;
+                    len  -= WC_SHA256_BLOCK_SIZE;
+                }
+            }
+            else
+        #endif
+            {
     #ifdef FREESCALE_MMCAU_CLASSIC_SHA
             cau_sha256_hash_n((byte*)data, len/WC_SHA256_BLOCK_SIZE,
                 sha256->digest);
@@ -445,6 +469,7 @@ static int InitSha256(wc_Sha256* sha256)
             MMCAU_SHA256_HashN((byte*)data, len/WC_SHA256_BLOCK_SIZE,
                 sha256->digest);
     #endif
+            }
             wolfSSL_CryptHwMutexUnLock();
         }
         return ret;

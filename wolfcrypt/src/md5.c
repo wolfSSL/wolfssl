@@ -115,6 +115,11 @@ int wc_Md5Final(wc_Md5* md5, byte* hash)
 #define XTRANSFORM(S,B)       Transform((S), (B))
 #define XTRANSFORM_LEN(S,B,L) Transform_Len((S), (B), (L))
 
+#ifndef WC_HASH_DATA_ALIGNMENT
+    /* these hardware API's require 4 byte (word32) alignment */
+    #define WC_HASH_DATA_ALIGNMENT 4
+#endif
+
 static int Transform(wc_Md5* md5, const byte* data)
 {
     int ret = wolfSSL_CryptHwMutexLock();
@@ -133,6 +138,25 @@ static int Transform_Len(wc_Md5* md5, const byte* data, word32 len)
 {
     int ret = wolfSSL_CryptHwMutexLock();
     if (ret == 0) {
+    #if defined(WC_HASH_DATA_ALIGNMENT) && WC_HASH_DATA_ALIGNMENT > 0
+        if ((size_t)data % WC_HASH_DATA_ALIGNMENT) {
+            /* data pointer is NOT aligned,
+             * so copy and perform one block at a time */
+            byte* local = (byte*)md5->buffer;
+            while (len >= WC_MD5_BLOCK_SIZE) {
+                XMEMCPY(local, data, WC_MD5_BLOCK_SIZE);
+            #ifdef FREESCALE_MMCAU_CLASSIC_SHA
+                cau_md5_hash_n(local, 1, (unsigned char*)md5->digest);
+            #else
+                MMCAU_MD5_HashN(local, 1, (uint32_t*)md5->digest);
+            #endif
+                data += WC_MD5_BLOCK_SIZE;
+                len  -= WC_MD5_BLOCK_SIZE;
+            }
+        }
+        else
+    #endif
+        {
 #ifdef FREESCALE_MMCAU_CLASSIC_SHA
         cau_md5_hash_n((byte*)data, len / WC_MD5_BLOCK_SIZE,
             (unsigned char*)md5->digest);
@@ -140,6 +164,7 @@ static int Transform_Len(wc_Md5* md5, const byte* data, word32 len)
         MMCAU_MD5_HashN((byte*)data, len / WC_MD5_BLOCK_SIZE,
             (uint32_t*)md5->digest);
 #endif
+        }
         wolfSSL_CryptHwMutexUnLock();
     }
     return ret;
