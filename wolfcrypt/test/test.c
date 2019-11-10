@@ -16645,6 +16645,85 @@ static int ecc_test_vector(int keySize)
     return 0;
 }
 
+#if defined(HAVE_ECC_SIGN) && defined(WOLFSSL_ECDSA_SET_K)
+static int ecc_test_sign_vectors(WC_RNG* rng)
+{
+    int ret;
+    ecc_key key;
+    byte sig[72];
+    word32 sigSz;
+    unsigned char hash[32] = "test wolfSSL deterministic sign";
+    const char* dIUT =   "7d7dc5f71eb29ddaf80d6214632eeae03d9058af1fb6d22ed80badb62bc1a534";
+    const char* QIUTx =  "ead218590119e8876b29146ff89ca61770c4edbbf97d38ce385ed281d8a6b230";
+    const char* QIUTy =  "28af61281fd35e2fa7002523acc85a429cb06ee6648325389f59edfce1405141";
+    const byte k[1] = { 0x02 };
+    const byte expSig[71] = {
+        0x30, 0x45, 0x02, 0x20, 0x7c, 0xf2, 0x7b, 0x18,
+        0x8d, 0x03, 0x4f, 0x7e, 0x8a, 0x52, 0x38, 0x03,
+        0x04, 0xb5, 0x1a, 0xc3, 0xc0, 0x89, 0x69, 0xe2,
+        0x77, 0xf2, 0x1b, 0x35, 0xa6, 0x0b, 0x48, 0xfc,
+        0x47, 0x66, 0x99, 0x78, 0x02, 0x21, 0x00, 0xa8,
+        0x43, 0xa0, 0xce, 0x6c, 0x5e, 0x17, 0x8a, 0x53,
+        0x4d, 0xaf, 0xd2, 0x95, 0x78, 0x9f, 0x84, 0x4f,
+        0x94, 0xb8, 0x75, 0xa3, 0x19, 0xa5, 0xd4, 0xdf,
+        0xe1, 0xd4, 0x5e, 0x9d, 0x97, 0xfe, 0x81
+    };
+
+    ret = wc_ecc_init_ex(&key, HEAP_HINT, devId);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = wc_ecc_import_raw(&key, QIUTx, QIUTy, dIUT, "SECP256R1");
+    if (ret != 0) {
+        goto done;
+    }
+
+    ret = wc_ecc_sign_set_k(k, sizeof(k), &key);
+    if (ret != 0) {
+        goto done;
+    }
+
+    sigSz = sizeof(sig);
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret == 0)
+            ret = wc_ecc_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, &key);
+    } while (ret == WC_PENDING_E);
+    if (ret != 0) {
+        goto done;
+    }
+    TEST_SLEEP();
+
+    if (sigSz != sizeof(expSig)) {
+        ret = -8350;
+        goto done;
+    }
+    if (XMEMCMP(sig, expSig, sigSz) != 0) {
+        ret = -8351;
+        goto done;
+    }
+
+    sigSz = sizeof(sig);
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret == 0)
+            ret = wc_ecc_sign_hash(hash, sizeof(hash), sig, &sigSz, rng, &key);
+    } while (ret == WC_PENDING_E);
+    if (ret != 0) {
+        goto done;
+    }
+    TEST_SLEEP();
+
+done:
+    wc_ecc_free(&key);
+    return ret;
+}
+#endif
+
 #ifdef HAVE_ECC_CDH
 static int ecc_test_cdh_vectors(void)
 {
@@ -16667,7 +16746,7 @@ static int ecc_test_cdh_vectors(void)
     ret = wc_ecc_init_ex(&priv_key, HEAP_HINT, devId);
     if (ret != 0) {
         wc_ecc_free(&pub_key);
-        goto done;
+        return ret;
     }
     wc_ecc_set_flags(&pub_key, WC_ECC_FLAG_COFACTOR);
     wc_ecc_set_flags(&priv_key, WC_ECC_FLAG_COFACTOR);
@@ -18494,6 +18573,13 @@ int ecc_test(void)
     }
 #endif
 
+#if defined(HAVE_ECC_SIGN) && defined(WOLFSSL_ECDSA_SET_K)
+    ret = ecc_test_sign_vectors(&rng);
+    if (ret != 0) {
+        printf("ecc_test_sign_vectors failed! %d\n", ret);
+        goto done;
+    }
+#endif
 #ifdef HAVE_ECC_CDH
     ret = ecc_test_cdh_vectors();
     if (ret != 0) {
