@@ -13039,6 +13039,9 @@ static int dh_test_ffdhe(WC_RNG *rng, const DhParams* params)
     DhKey  key;
     DhKey  key2;
 
+    XMEMSET(&key, 0, sizeof(DhKey));
+    XMEMSET(&key2, 0, sizeof(DhKey));
+
     ret = wc_InitDhKey_ex(&key, HEAP_HINT, devId);
     if (ret != 0) {
         ERROR_OUT(-7180, done);
