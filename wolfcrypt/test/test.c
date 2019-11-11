@@ -8794,7 +8794,6 @@ exit:
 
 static int random_rng_test(void)
 {
-    byte nonce[8] = { 0 };
     WC_RNG localRng;
     WC_RNG* rng;
     int ret;
@@ -8815,13 +8814,18 @@ static int random_rng_test(void)
 
     if (ret != 0) return ret;
 
-    /* Test dynamic RNG. */
-    rng = wc_rng_new(nonce, (word32)sizeof(nonce), HEAP_HINT);
-    if (rng == NULL) return -6310;
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+    {
+        byte nonce[8] = { 0 };
+        /* Test dynamic RNG. */
+        rng = wc_rng_new(nonce, (word32)sizeof(nonce), HEAP_HINT);
+        if (rng == NULL) return -6310;
 
-    ret = _rng_test(rng, -6310);
+        ret = _rng_test(rng, -6310);
 
-    wc_rng_free(rng);
+        wc_rng_free(rng);
+    }
+#endif
 
     return ret;
 }
@@ -18402,11 +18406,12 @@ exit:
 }
 #endif /* WOLFSSL_CERT_GEN */
 
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 /* Test for the wc_ecc_key_new() and wc_ecc_key_free() functions. */
 static int ecc_test_allocator(WC_RNG* rng)
 {
+    int ret = 0;
     ecc_key* key;
-    int ret;
 
     key = wc_ecc_key_new(HEAP_HINT);
     if (key == NULL) {
@@ -18422,6 +18427,7 @@ exit:
     wc_ecc_key_free(key);
     return ret;
 }
+#endif
 
 int ecc_test(void)
 {
@@ -18550,11 +18556,12 @@ int ecc_test(void)
         goto done;
     }
 #endif
-
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     ret = ecc_test_allocator(&rng);
     if (ret != 0) {
         printf("ecc_test_allocator failed!: %d\n", ret);
     }
+#endif
 
 done:
     wc_FreeRng(&rng);
