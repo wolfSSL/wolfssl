@@ -11760,6 +11760,7 @@ int wolfSSL_SetHsDoneCb(WOLFSSL* ssl, HandShakeDoneCb cb, void* user_ctx)
 
 #endif /* NO_HANDSHAKE_DONE_CB */
 
+WOLFSSL_ABI
 int wolfSSL_Cleanup(void)
 {
     int ret = WOLFSSL_SUCCESS;
@@ -17685,6 +17686,7 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
 }
 
 /* Frees an external WOLFSSL_X509 structure */
+WOLFSSL_ABI
 void wolfSSL_X509_free(WOLFSSL_X509* x509)
 {
     WOLFSSL_ENTER("wolfSSL_FreeX509");

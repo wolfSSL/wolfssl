@@ -1968,7 +1968,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfSSL_check_domain_name(WOLFSSL*, const char*);
 /* need to call once to load library (session cache) */
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_Init(void);
 /* call when done to cleanup/free session cache mutex / resources  */
-WOLFSSL_API int wolfSSL_Cleanup(void);
+WOLFSSL_ABI WOLFSSL_API int wolfSSL_Cleanup(void);
 
 /* which library version do we have */
 WOLFSSL_API const char* wolfSSL_lib_version(void);
@@ -2002,7 +2002,7 @@ WOLFSSL_API unsigned char* wolfSSL_get_chain_cert(WOLFSSL_X509_CHAIN*, int idx);
 WOLFSSL_API WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN*, int idx);
 /* free X509 */
 #define wolfSSL_FreeX509(x509) wolfSSL_X509_free((x509))
-WOLFSSL_API void wolfSSL_X509_free(WOLFSSL_X509*);
+WOLFSSL_ABI WOLFSSL_API void wolfSSL_X509_free(WOLFSSL_X509*);
 /* get index cert in PEM */
 WOLFSSL_API int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN*, int idx,
                                 unsigned char* buf, int inLen, int* outLen);
