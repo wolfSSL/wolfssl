@@ -3562,6 +3562,9 @@ static const struct cipher{
     { 0, NULL, 0}
 };
 
+#ifdef OPENSSL_EXTRA
+
+/* returns cipher using provided ctx type */
 const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_CIPHER_CTX_cipher(
     const WOLFSSL_EVP_CIPHER_CTX *ctx)
 {
@@ -3596,6 +3599,8 @@ int wolfSSL_EVP_CIPHER_nid(const WOLFSSL_EVP_CIPHER *cipher)
 
     return 0;
 }
+
+#endif /* OPENSSL_EXTRA */
 
 const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
 {
@@ -7752,17 +7757,19 @@ void wolfSSL_sk_X509_EXTENSION_free(WOLFSSL_STACK* sk)
 int wolfSSL_ASN1_BIT_STRING_set_bit(WOLFSSL_ASN1_BIT_STRING* str, int pos,
     int val)
 {
-    int bytes_cnt = pos/8;
-    int bit = 1<<(7-(pos%8));
+    int bytes_cnt, bit;
     char* temp;
 
-    if (!str || (val != 0 && val != 1)) {
+    if (!str || (val != 0 && val != 1) || pos < 0) {
         return WOLFSSL_FAILURE;
     }
 
+    bytes_cnt = pos/8;
+    bit = 1<<(7-(pos%8));
+
     if (bytes_cnt+1 > str->length) {
         if (!(temp = (char*)XREALLOC(str->data, bytes_cnt+1, NULL,
-                                     DYNAMIC_TYPE_OPENSSL))) {
+                DYNAMIC_TYPE_OPENSSL))) {
             return WOLFSSL_FAILURE;
         }
         XMEMSET(temp+str->length, 0, bytes_cnt+1 - str->length);
@@ -7772,6 +7779,7 @@ int wolfSSL_ASN1_BIT_STRING_set_bit(WOLFSSL_ASN1_BIT_STRING* str, int pos,
 
     str->data[bytes_cnt] &= ~bit;
     str->data[bytes_cnt] |= val ? bit : 0;
+
     return WOLFSSL_SUCCESS;
 }
 
@@ -19309,19 +19317,23 @@ int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, WOLFSSL_ASN1_STRING *in)
        The buffer *out should be free using OPENSSL_free().
        */
     unsigned char* buf;
+    unsigned char* inPtr;
     int inLen;
 
     if (!out || !in) {
         return -1;
     }
 
+    inPtr = wolfSSL_ASN1_STRING_data(in);
     inLen = wolfSSL_ASN1_STRING_length(in);
-    buf = (unsigned char*)XMALLOC(inLen + 1, NULL,
-        DYNAMIC_TYPE_OPENSSL);
+    if (!inPtr || inLen < 0) {
+        return -1;
+    }
+    buf = (unsigned char*)XMALLOC(inLen + 1, NULL, DYNAMIC_TYPE_OPENSSL);
     if (!buf) {
         return -1;
     }
-    XMEMCPY(buf, wolfSSL_ASN1_STRING_data(in), inLen + 1);
+    XMEMCPY(buf, inPtr, inLen + 1);
     *out = buf;
     return inLen;
 }
@@ -33279,10 +33291,15 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
     return WOLFSSL_SUCCESS;
 }
 
+#if defined(OPENSSL_EXTRA)
 WOLFSSL_RSA_METHOD *wolfSSL_RSA_meth_new(const char *name, int flags)
 {
     int name_len;
     WOLFSSL_RSA_METHOD* meth;
+
+    if (name == NULL) {
+        return NULL;
+    }
 
     meth = (WOLFSSL_RSA_METHOD*)XMALLOC(sizeof(WOLFSSL_RSA_METHOD), NULL,
         DYNAMIC_TYPE_OPENSSL);
@@ -33297,7 +33314,7 @@ WOLFSSL_RSA_METHOD *wolfSSL_RSA_meth_new(const char *name, int flags)
         return NULL;
     }
     XMEMCPY(meth->name, name, name_len+1);
-    WOLFSSL_MSG("RSA_METHOD is not implemented.");
+
     return meth;
 }
 
@@ -33309,18 +33326,20 @@ void wolfSSL_RSA_meth_free(WOLFSSL_RSA_METHOD *meth)
     }
 }
 
+#ifndef NO_WOLFSSL_STUB
 int wolfSSL_RSA_meth_set(WOLFSSL_RSA_METHOD *rsa, void* p)
 {
     (void)rsa;
     (void)p;
-    WOLFSSL_MSG("RSA_METHOD is not implemented.");
+    WOLFSSL_STUB("RSA_METHOD is not implemented.");
     return 1;
 }
+#endif
 
-#if defined(OPENSSL_EXTRA)
 int wolfSSL_RSA_set_method(WOLFSSL_RSA *rsa, WOLFSSL_RSA_METHOD *meth)
 {
-    rsa->meth = meth;
+    if (rsa)
+        rsa->meth = meth;
     return 1;
 }
 
@@ -33347,7 +33366,6 @@ void wolfSSL_RSA_set_flags(WOLFSSL_RSA *r, int flags)
         r->meth->flags = flags;
     }
 }
-#endif /* OPENSSL_EXTRA */
 
 int wolfSSL_RSA_set0_key(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *n, WOLFSSL_BIGNUM *e,
                          WOLFSSL_BIGNUM *d)
@@ -33374,6 +33392,7 @@ int wolfSSL_RSA_set0_key(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *n, WOLFSSL_BIGNUM *e,
 
     return 1;
 }
+#endif /* OPENSSL_EXTRA */
 #endif /* NO_RSA */
 
 #ifdef OPENSSL_EXTRA
@@ -36422,8 +36441,7 @@ err:
     }
 #endif /* OPENSSL_EXTRA */
 
-#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
-    !defined(NO_ASN)
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
     /* DN_Tags to strings */
     static const struct DN_Tag_Strings {
         enum DN_Tags tag;
@@ -44718,4 +44736,3 @@ int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey)
     return wolfSSL_X509_set_pubkey(req, pkey);
 }
 #endif /* OPENSSL_EXTRA && !NO_CERTS && WOLFSSL_CERT_GEN && WOLFSSL_CERT_REQ */
-
