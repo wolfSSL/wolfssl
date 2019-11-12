@@ -1650,6 +1650,12 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
     char buffer[WOLFSSL_MAX_ERROR_SZ];
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     WOLFSSL_X509* peer;
+#if defined(SHOW_CERTS) && !defined(NO_FILESYSTEM)
+    WOLFSSL_BIO* bio = NULL;
+    WOLFSSL_STACK* sk = NULL;
+    X509* x509 = NULL;
+    int i = 0;
+#endif
 #endif
     (void)preverify;
 
@@ -1681,6 +1687,24 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
                                                                   subject);
         XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
         XFREE(issuer,  0, DYNAMIC_TYPE_OPENSSL);
+#if defined(SHOW_CERTS) && !defined(NO_FILESYSTEM)
+/* avoid printing same certs since myVerify is called for every cert in the chain */
+        if (store->depth == 1) {
+            /* retrieve x509 certs and display them on stdout */
+            sk = wolfSSL_X509_STORE_GetCerts(store);
+
+            for (i = 0; i < wolfSSL_sk_X509_num(sk); i++) {
+                x509 = wolfSSL_sk_X509_value(sk, i);
+                bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
+                if (bio != NULL) {
+                    wolfSSL_BIO_set_fp(bio, stdout, BIO_NOCLOSE);
+                    wolfSSL_X509_print(bio, x509);
+                    wolfSSL_BIO_free(bio);
+                }
+            }
+            wolfSSL_sk_X509_free(sk);
+        }
+#endif
     }
     else
         printf("\tPeer has no cert!\n");

@@ -1093,7 +1093,7 @@ static int test_wolfSSL_CertManagerLoadCABuffer(void)
     return ret;
 }
 
-static void test_wolfSSL_CertManager_GetCerts(void)
+static void test_wolfSSL_CertManagerGetCerts(void)
 {
 #if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
     !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
@@ -1109,18 +1109,18 @@ static void test_wolfSSL_CertManager_GetCerts(void)
 #endif
     int i = 0;
 
-    printf(testingFmt, "wolfSSL_CertManager_GetCerts()");
+    printf(testingFmt, "wolfSSL_CertManagerGetCerts()");
     AssertNotNull(file1=fopen("./certs/ca-cert.pem", "rb"));
 
     AssertNotNull(cert1 = wolfSSL_PEM_read_X509(file1, NULL, NULL, NULL));
     fclose(file1);
 
     AssertNotNull(cm = wolfSSL_CertManagerNew_ex(NULL));
-    AssertNull(sk = wolfSSL_CertManager_GetCerts(cm));
+    AssertNull(sk = wolfSSL_CertManagerGetCerts(cm));
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CertManagerLoadCA(cm,
                 "./certs/ca-cert.pem", NULL));
 
-    AssertNotNull(sk = wolfSSL_CertManager_GetCerts(cm));
+    AssertNotNull(sk = wolfSSL_CertManagerGetCerts(cm));
 
     for (i = 0; i < sk_X509_num(sk); i++) {
         x509 = sk_X509_value(sk, i);
@@ -28317,7 +28317,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_use_PrivateKey_file();
     test_wolfSSL_CTX_load_verify_locations();
     test_wolfSSL_CertManagerLoadCABuffer();
-    test_wolfSSL_CertManager_GetCerts();
+    test_wolfSSL_CertManagerGetCerts();
     test_wolfSSL_CertManagerCRL();
     test_wolfSSL_CTX_load_verify_locations_ex();
     test_wolfSSL_CTX_load_verify_buffer_ex();

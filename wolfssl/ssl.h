@@ -570,7 +570,7 @@ typedef struct WOLFSSL_X509_STORE_CTX {
 #if defined(HAVE_EX_DATA) || defined(FORTRESS)
     void* ex_data[MAX_EX_DATA];  /* external data */
 #endif
-#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL)
+#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_EXTRA)
     int depth;                   /* used in X509_STORE_CTX_*_depth */
 #endif
     void* userCtx;               /* user ctx */
@@ -2575,7 +2575,7 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
     WOLFSSL_API int wolfSSL_CertManagerDisableOCSPStapling(
                                                       WOLFSSL_CERT_MANAGER* cm);
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM)
-WOLFSSL_API WOLFSSL_STACK* wolfSSL_CertManager_GetCerts(WOLFSSL_CERT_MANAGER* cm);
+WOLFSSL_API WOLFSSL_STACK* wolfSSL_CertManagerGetCerts(WOLFSSL_CERT_MANAGER* cm);
 #endif
     WOLFSSL_API int wolfSSL_EnableCRL(WOLFSSL* ssl, int options);
     WOLFSSL_API int wolfSSL_DisableCRL(WOLFSSL* ssl);

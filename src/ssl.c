@@ -3451,13 +3451,13 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
 #if defined(WOLFSSL_SIGNER_DER_CERT)
 /******************************************************************************
-* wolfSSL_CertManager_GetCerts - retrieve stack of X509 certificates in a
+* wolfSSL_CertManagerGetCerts - retrieve stack of X509 certificates in a
 * certificate manager (CM), also knows as cert store in OpenSSL.
 *
 * RETURNS:
 * returns stack of X509 certs on success, otherwise returns a NULL.
 */
-WOLFSSL_STACK* wolfSSL_CertManager_GetCerts(WOLFSSL_CERT_MANAGER* cm)
+WOLFSSL_STACK* wolfSSL_CertManagerGetCerts(WOLFSSL_CERT_MANAGER* cm)
 {
     WOLFSSL_STACK* sk = NULL;
     Signer* signers = NULL;
@@ -3474,8 +3474,6 @@ WOLFSSL_STACK* wolfSSL_CertManager_GetCerts(WOLFSSL_CERT_MANAGER* cm)
     if (sk == NULL) {
         return NULL;
     }
-
-    XMEMSET(sk, 0, sizeof(WOLFSSL_STACK));
 
     if (wc_LockMutex(&cm->caLock) != 0) {
         goto error_init;
@@ -3561,35 +3559,7 @@ error_init:
 * wolfSSL_X509_STORE_GetCerts - retrieve stack of X509 in a certificate store ctx
 *
 * This API can be used in SSL verify callback function to view cert chain
-* Here's an example to display certs to stdout.
-
-static int verify_callback(int ok, X509_STORE_CTX *ctx)
-{
-    WOLFSSL_BIO* bio = NULL;
-    WOLFSSL_STACK* sk = NULL;
-    X509* x509 = NULL;
-    int i = 0;
-
-    sk = wolfSSL_X509_STORE_GetCerts(ctx->store->cm);
-
-    for (i = 0; i < sk_X509_num(sk); i++) {
-        x509 = sk_X509_value(sk, i);
-        bio = BIO_new(wolfSSL_BIO_s_file());
-        if (bio != NULL) {
-            BIO_set_fp(bio, stdout, BIO_NOCLOSE);
-            X509_print(bio, x509);
-            BIO_free(bio);
-        }
-    }
-
-    sk_X509_free(sk);
-    return ok;
-}
-* You can register your call back function in your app as follows:
-*
-* ctx = SSL_CTX_new(SSLv23_method());
-* SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
-*                    verify_callback);
+* See examples/client/client.c and myVerify() function in test.h
 *
 * RETURNS:
 * returns stack of X509 certs on success, otherwise returns a NULL.
@@ -3613,10 +3583,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_GetCerts(WOLFSSL_X509_STORE_CTX* s)
         return NULL;
     }
 
-    XMEMSET(sk, 0, sizeof(WOLFSSL_STACK));
-    certIdx = s->totalCerts;
-
-    while (certIdx-- > 0) {
+    for (certIdx = s->totalCerts - 1; certIdx >= 0; certIdx--) {
         /* get certificate buffer */
         cert = &s->certs[certIdx];
 
@@ -3681,7 +3648,7 @@ error:
 
     return NULL;
 }
-#endif /* defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) */
+#endif /* OPENSSL_EXTRA && !NO_FILESYSTEM */
 
 /* Unload the CA signer list */
 int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm)
@@ -38374,15 +38341,6 @@ int wolfSSL_CIPHER_get_bits(const WOLFSSL_CIPHER *c, int *alg_bits)
     return ret;
 }
 
-int wolfSSL_sk_X509_num(const WOLF_STACK_OF(WOLFSSL_X509) *s)
-{
-    WOLFSSL_ENTER("wolfSSL_sk_X509_num");
-
-    if (s == NULL)
-        return -1;
-    return (int)s->num;
-}
-
 #if defined(OPENSSL_ALL)
 WOLFSSL_X509_INFO* wolfSSL_X509_INFO_new(void)
 {
@@ -39110,6 +39068,16 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_get1_certs(WOLFSSL_X509_STORE_CT
 
 
 #if defined(OPENSSL_EXTRA)
+
+int wolfSSL_sk_X509_num(const WOLF_STACK_OF(WOLFSSL_X509) *s)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_X509_num");
+
+    if (s == NULL)
+        return -1;
+    return (int)s->num;
+}
+
 unsigned long wolfSSL_ERR_peek_last_error(void)
 {
     WOLFSSL_ENTER("wolfSSL_ERR_peek_last_error");
@@ -43780,9 +43748,9 @@ error:
     }
     return WOLFSSL_FAILURE;
 }
-#endif /* defined(OPENSSL_ALL) && defined(HAVE_PKCS7) */
+#endif /* OPENSSL_ALL && HAVE_PKCS7 */
 
-#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA)
 WOLFSSL_STACK* wolfSSL_sk_X509_new(void)
 {
     WOLFSSL_STACK* s = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
