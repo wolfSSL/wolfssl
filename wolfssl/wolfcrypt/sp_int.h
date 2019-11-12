@@ -105,17 +105,23 @@
     #else
         #define SP_INT_DIGITS        ((256 + SP_WORD_SIZE) / SP_WORD_SIZE)
     #endif
-#elif defined(WOLFSSL_SP_NO_3072)
+#elif defined(WOLFSSL_SP_4096)
     #if defined(WOLFSSL_HAVE_SP_DH) && defined(WOLFSSL_KEY_GEN)
-        #define SP_INT_DIGITS        ((4096 + SP_WORD_SIZE) / SP_WORD_SIZE)
+        #define SP_INT_DIGITS        ((8192 + SP_WORD_SIZE) / SP_WORD_SIZE)
     #else
-        #define SP_INT_DIGITS        ((2048 + SP_WORD_SIZE) / SP_WORD_SIZE)
+        #define SP_INT_DIGITS        ((4096 + SP_WORD_SIZE) / SP_WORD_SIZE)
     #endif
-#else
+#elif !defined(WOLFSSL_SP_NO_3072)
     #if defined(WOLFSSL_HAVE_SP_DH) && defined(WOLFSSL_KEY_GEN)
         #define SP_INT_DIGITS        ((6144 + SP_WORD_SIZE) / SP_WORD_SIZE)
     #else
         #define SP_INT_DIGITS        ((3072 + SP_WORD_SIZE) / SP_WORD_SIZE)
+    #endif
+#else
+    #if defined(WOLFSSL_HAVE_SP_DH) && defined(WOLFSSL_KEY_GEN)
+        #define SP_INT_DIGITS        ((4096 + SP_WORD_SIZE) / SP_WORD_SIZE)
+    #else
+        #define SP_INT_DIGITS        ((2048 + SP_WORD_SIZE) / SP_WORD_SIZE)
     #endif
 #endif
 

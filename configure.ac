@@ -4082,6 +4082,11 @@ do
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_2048"
     ;;
 
+  +4096)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_4096"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_4096"
+    ;;
+
   *)
     AC_MSG_ERROR([Invalid choice of Single Precision length in bits [256, 2048, 3072]: $ENABLED_SP.])
     break;;

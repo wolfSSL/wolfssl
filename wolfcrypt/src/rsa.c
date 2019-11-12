@@ -629,6 +629,17 @@ int wc_CheckRsaKey(RsaKey* key)
     }
     else
 #endif
+#ifdef WOLFSSL_SP_4096
+    if (mp_count_bits(&key->n) == 4096) {
+        ret = sp_ModExp_4096(k, &key->e, &key->n, tmp);
+        if (ret != 0)
+            ret = MP_EXPTMOD_E;
+        ret = sp_ModExp_4096(tmp, &key->d, &key->n, tmp);
+        if (ret != 0)
+            ret = MP_EXPTMOD_E;
+    }
+    else
+#endif
 #endif
 #ifdef WOLFSSL_SP_MATH
     {
@@ -2060,6 +2071,31 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
         case RSA_PUBLIC_ENCRYPT:
         case RSA_PUBLIC_DECRYPT:
             return sp_RsaPublic_3072(in, inLen, &key->e, &key->n, out, outLen);
+        }
+    }
+#endif
+#ifdef WOLFSSL_SP_4096
+    if (mp_count_bits(&key->n) == 4096) {
+        switch(type) {
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+        case RSA_PRIVATE_DECRYPT:
+        case RSA_PRIVATE_ENCRYPT:
+    #ifdef WC_RSA_BLINDING
+            if (rng == NULL)
+                return MISSING_RNG_E;
+    #endif
+    #ifndef RSA_LOW_MEM
+            return sp_RsaPrivate_4096(in, inLen, &key->d, &key->p, &key->q,
+                                      &key->dP, &key->dQ, &key->u, &key->n,
+                                      out, outLen);
+    #else
+            return sp_RsaPrivate_4096(in, inLen, &key->d, &key->p, &key->q,
+                                      NULL, NULL, NULL, &key->n, out, outLen);
+    #endif
+#endif
+        case RSA_PUBLIC_ENCRYPT:
+        case RSA_PUBLIC_DECRYPT:
+            return sp_RsaPublic_4096(in, inLen, &key->e, &key->n, out, outLen);
         }
     }
 #endif
@@ -3971,6 +4007,13 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         XFREE(buf, key->heap, DYNAMIC_TYPE_RSA);
     }
 
+    if (err == MP_OKAY && mp_cmp(&p, &q) < 0) {
+        err = mp_copy(&p, &tmp1);
+        if (err == MP_OKAY)
+            err = mp_copy(&q, &p);
+        if (err == MP_OKAY)
+            mp_copy(&tmp1, &q);
+    }
 
     /* Setup RsaKey buffers */
     if (err == MP_OKAY)

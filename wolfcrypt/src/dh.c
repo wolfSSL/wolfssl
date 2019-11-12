@@ -1244,6 +1244,10 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
     if (mp_count_bits(&key->p) == 3072)
         return sp_DhExp_3072(&key->g, priv, privSz, &key->p, pub, pubSz);
 #endif
+#ifdef WOLFSSL_SP_4096
+    if (mp_count_bits(&key->p) == 4096)
+        return sp_DhExp_4096(&key->g, priv, privSz, &key->p, pub, pubSz);
+#endif
 #endif
 
 #ifndef WOLFSSL_SP_MATH
@@ -1472,6 +1476,14 @@ int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
 #ifndef WOLFSSL_SP_NO_3072
         if (mp_count_bits(&key->p) == 3072) {
             ret = sp_ModExp_3072(y, q, p, y);
+            if (ret != 0)
+                ret = MP_EXPTMOD_E;
+        }
+        else
+#endif
+#ifdef WOLFSSL_SP_NO_4096
+        if (mp_count_bits(&key->p) == 4096) {
+            ret = sp_ModExp_4096(y, q, p, y);
             if (ret != 0)
                 ret = MP_EXPTMOD_E;
         }
@@ -1756,6 +1768,14 @@ int wc_DhCheckKeyPair(DhKey* key, const byte* pub, word32 pubSz,
         }
         else
 #endif
+#ifdef WOLFSSL_SP_4096
+        if (mp_count_bits(&key->p) == 4096) {
+            ret = sp_ModExp_4096(&key->g, privateKey, &key->p, checkKey);
+            if (ret != 0)
+                ret = MP_EXPTMOD_E;
+        }
+        else
+#endif
 #endif
         {
 #ifndef WOLFSSL_SP_MATH
@@ -1893,6 +1913,28 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 
         if (ret == 0)
             ret = sp_DhExp_3072(y, priv, privSz, &key->p, agree, agreeSz);
+
+        mp_clear(y);
+    #ifdef WOLFSSL_SMALL_STACK
+    #ifndef WOLFSSL_SP_MATH
+        XFREE(z, key->heap, DYNAMIC_TYPE_DH);
+        XFREE(x, key->heap, DYNAMIC_TYPE_DH);
+    #endif
+        XFREE(y, key->heap, DYNAMIC_TYPE_DH);
+    #endif
+        return ret;
+    }
+#endif
+#ifdef WOLFSSL_SP_4096
+    if (mp_count_bits(&key->p) == 4096) {
+        if (mp_init(y) != MP_OKAY)
+            return MP_INIT_E;
+
+        if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
+            ret = MP_READ_E;
+
+        if (ret == 0)
+            ret = sp_DhExp_4096(y, priv, privSz, &key->p, agree, agreeSz);
 
         mp_clear(y);
     #ifdef WOLFSSL_SMALL_STACK
