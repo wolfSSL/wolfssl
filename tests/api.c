@@ -1944,8 +1944,8 @@ static void test_wolfSSL_EVP_CIPHER_CTX()
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     const EVP_CIPHER *init = EVP_aes_128_cbc();
     const EVP_CIPHER *test = NULL;
-    byte key[AES_128_KEY_SIZE] = {0};
-    byte iv[AES_IV_SIZE] = {0};
+    byte key[AES_BLOCK_SIZE] = {0};
+    byte iv[AES_BLOCK_SIZE] = {0};
 
     AssertNotNull(ctx);
     wolfSSL_EVP_CIPHER_CTX_init(ctx);
