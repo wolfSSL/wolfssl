@@ -96,6 +96,7 @@ dist_doc_DATA+= certs/taoCert.txt
 EXTRA_DIST+= certs/ntru-key.raw
 
 include certs/1024/include.am
+include certs/4096/include.am
 include certs/crl/include.am
 include certs/ecc/include.am
 include certs/ed25519/include.am
