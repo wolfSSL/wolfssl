@@ -51,7 +51,9 @@ EXTRA_DIST += \
 	     certs/ecc-privOnlyCert.pem \
 	     certs/dh3072.pem \
 	     certs/client-cert-3072.pem \
-	     certs/client-key-3072.pem
+	     certs/client-key-3072.pem \
+	     certs/client-cert-ext.pem
+
 EXTRA_DIST += \
 	     certs/ca-key.der \
 	     certs/ca-cert.der \
@@ -75,7 +77,8 @@ EXTRA_DIST += \
 	     certs/server-ecc.der \
 	     certs/server-ecc-self.der \
 	     certs/server-ecc-rsa.der \
-	     certs/server-cert-chain.der
+	     certs/server-cert-chain.der \
+	     certs/client-cert-ext.der
 
 # ECC CA prime256v1
 EXTRA_DIST += \

@@ -112,6 +112,7 @@ enum ASN_Tags {
 #define ASN_GENERALIZED_TIME_MAX 68
 
 enum DN_Tags {
+    ASN_DN_NULL       = 0x00,
     ASN_COMMON_NAME   = 0x03,   /* CN */
     ASN_SUR_NAME      = 0x04,   /* SN */
     ASN_SERIAL_NUMBER = 0x05,   /* serialNumber */
@@ -164,6 +165,7 @@ enum DN_Tags {
 enum
 {
     NID_undef = 0,
+    NID_netscape_cert_type = NID_undef,
     NID_des = 66,
     NID_des3 = 67,
     NID_sha256 = 672,
@@ -617,7 +619,7 @@ struct DecodedName {
     int     dcLen[DOMAIN_COMPONENT_MAX];
     int     dcNum;
     int     dcMode;
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     /* hold the location / order with which each of the DN tags was found
      *
      * example of ASN_DOMAIN_COMPONENT at index 0 if first found and so on.

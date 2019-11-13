@@ -324,10 +324,11 @@ doc/pdf
 # XCODE Index
 IDE/XCODE/Index
 
-# ARM DS-5
+# ARM DS-5 && Eclipse
 \.settings/
 \.cproject
 \.project
+\.autotools
 
 # Renesas e2studio
 /IDE/Renesas/e2studio/Projects/test/src/smc_gen

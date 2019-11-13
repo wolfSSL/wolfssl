@@ -84,6 +84,7 @@ WOLFSSL_API void wolfSSL_DES_ncbc_encrypt(const unsigned char* input,
 WOLFSSL_API void wolfSSL_DES_set_odd_parity(WOLFSSL_DES_cblock*);
 WOLFSSL_API void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock*, WOLFSSL_DES_cblock*,
                                        WOLFSSL_DES_key_schedule*, int);
+WOLFSSL_API int wolfSSL_DES_check_key_parity(WOLFSSL_DES_cblock*);
 
 
 typedef WOLFSSL_DES_cblock DES_cblock;
@@ -103,6 +104,7 @@ typedef WOLFSSL_DES_LONG DES_LONG;
 #define DES_ecb_encrypt       wolfSSL_DES_ecb_encrypt
 #define DES_ede3_cbc_encrypt  wolfSSL_DES_ede3_cbc_encrypt
 #define DES_cbc_cksum         wolfSSL_DES_cbc_cksum
+#define DES_check_key_parity  wolfSSL_DES_check_key_parity
 
 #ifdef __cplusplus
     } /* extern "C" */

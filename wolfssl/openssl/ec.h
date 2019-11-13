@@ -102,6 +102,12 @@ struct WOLFSSL_EC_KEY {
     char           exSet;        /* external set from internal ? */
 };
 
+typedef struct WOLFSSL_EC_builtin_curve{
+    int nid;
+    const char *comment;
+} WOLFSSL_EC_builtin_curve;
+
+typedef WOLFSSL_EC_builtin_curve      EC_builtin_curve;
 
 #define WOLFSSL_EC_KEY_LOAD_PRIVATE 1
 #define WOLFSSL_EC_KEY_LOAD_PUBLIC  2
@@ -159,6 +165,8 @@ WOLFSSL_API
 int wolfSSL_EC_GROUP_get_order(const WOLFSSL_EC_GROUP *group,
                                WOLFSSL_BIGNUM *order, WOLFSSL_BN_CTX *ctx);
 WOLFSSL_API
+int wolfSSL_EC_GROUP_order_bits(const WOLFSSL_EC_GROUP *group);
+WOLFSSL_API
 void wolfSSL_EC_GROUP_free(WOLFSSL_EC_GROUP *group);
 WOLFSSL_API
 WOLFSSL_EC_POINT *wolfSSL_EC_POINT_new(const WOLFSSL_EC_GROUP *group);
@@ -185,11 +193,18 @@ WOLFSSL_API
 int wolfSSL_EC_POINT_is_at_infinity(const WOLFSSL_EC_GROUP *group,
                                     const WOLFSSL_EC_POINT *a);
 
+WOLFSSL_API
+size_t wolfSSL_EC_get_builtin_curves(WOLFSSL_EC_builtin_curve *r, size_t nitems);
+
 #ifndef HAVE_SELFTEST
 WOLFSSL_API
 char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
                                  const WOLFSSL_EC_POINT* point, int form,
                                  WOLFSSL_BN_CTX* ctx);
+#endif
+
+#ifndef HAVE_ECC
+#define OPENSSL_NO_EC
 #endif
 
 #define EC_KEY_new                      wolfSSL_EC_KEY_new
@@ -211,6 +226,7 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 #define EC_GROUP_get_curve_name         wolfSSL_EC_GROUP_get_curve_name
 #define EC_GROUP_get_degree             wolfSSL_EC_GROUP_get_degree
 #define EC_GROUP_get_order              wolfSSL_EC_GROUP_get_order
+#define EC_GROUP_order_bits             wolfSSL_EC_GROUP_order_bits
 
 #define EC_POINT_new                    wolfSSL_EC_POINT_new
 #define EC_POINT_free                   wolfSSL_EC_POINT_free
@@ -226,6 +242,7 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 #endif
 
 #define EC_POINT_dump                   wolfSSL_EC_POINT_dump
+#define EC_get_builtin_curves           wolfSSL_EC_get_builtin_curves
 
 #define EC_curve_nid2nist               wolfSSL_EC_curve_nid2nist
 

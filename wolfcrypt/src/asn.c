@@ -147,8 +147,8 @@ extern int wc_InitRsaHw(RsaKey* key);
     #endif
 #endif
 #ifdef WOLFSSL_RENESAS_TSIP_TLS
-WOLFSSL_LOCAL void tsip_inform_key_position(const word32 key_n_start, 
-                const word32 key_n_len, const word32 key_e_start, 
+WOLFSSL_LOCAL void tsip_inform_key_position(const word32 key_n_start,
+                const word32 key_n_len, const word32 key_e_start,
                 const word32 key_e_len);
 WOLFSSL_LOCAL int tsip_tls_CertVerify(const byte *cert, word32 certSz,
                         const byte *signature, word32 sigSz,
@@ -4010,9 +4010,9 @@ exit_dc:
 /* This function is to retrieve key position information in a cert.*
  * The information will be used to call TSIP TLS-linked API for    *
  * certificate verification.                                       */
-static int RsaPublicKeyDecodeRawIndex(const byte* input, word32* inOutIdx, 
-                                      word32 inSz, word32* key_n, 
-                                      word32* key_n_len, word32* key_e, 
+static int RsaPublicKeyDecodeRawIndex(const byte* input, word32* inOutIdx,
+                                      word32 inSz, word32* key_n,
+                                      word32* key_n_len, word32* key_e,
                                       word32* key_e_len)
 {
 
@@ -4534,7 +4534,7 @@ void FreeDecodedCert(DecodedCert* cert)
 #ifdef WOLFSSL_RENESAS_TSIP_TLS
     if (cert->tsip_encRsaKeyIdx != NULL)
         XFREE(cert->tsip_encRsaKeyIdx, cert->heap, DYNAMIC_TYPE_RSA);
-#endif        
+#endif
 #ifndef NO_CERTS
     FreeSignatureCtx(&cert->sigCtx);
 #endif
@@ -6541,14 +6541,14 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                      #ifdef WOLFSSL_RENESAS_TSIP_TLS
                         if (rsaKeyIdx != NULL)
                         {
-                            ret = tsip_tls_CertVerify(buf, bufSz, sigCtx->plain, 
+                            ret = tsip_tls_CertVerify(buf, bufSz, sigCtx->plain,
                                 sigSz,
                                 sigCtx->pubkey_n_start - sigCtx->certBegin,
                                 sigCtx->pubkey_n_len - 1,
                                 sigCtx->pubkey_e_start - sigCtx->certBegin,
                                 sigCtx->pubkey_e_len - 1,
                                 rsaKeyIdx);
-                                
+
                             if (ret == 0){
                                 sigCtx->verifyByTSIP = 1;
                                 ret = 0;
@@ -7180,7 +7180,7 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
     if (input[idx] == ASN_INTEGER)
         return 0;
     #endif
-    
+
     ret = GetBoolean(input, &idx, sz);
     if (ret < 0) {
         WOLFSSL_MSG("\tfail: constraint not valid BOOLEAN");
@@ -8719,10 +8719,10 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     /* TSIP can only handle 2048 bits(256 byte) key.  */
     if (cert->ca && tsip_checkCA(cert->ca->cm_idx) != 0 &&
         cert->sigCtx.pubkey_n_len == 256) {
-        
+
         /* assign memory to encrypted tsip Rsa key index */
         if (!cert->tsip_encRsaKeyIdx)
-            cert->tsip_encRsaKeyIdx = 
+            cert->tsip_encRsaKeyIdx =
                             (byte*)XMALLOC(TSIP_TLS_ENCPUBKEY_SZ_BY_CERTVRFY,
                              cert->heap, DYNAMIC_TYPE_RSA);
         if (cert->tsip_encRsaKeyIdx == NULL)
@@ -11451,13 +11451,12 @@ int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
     if (out == NULL || outSz == NULL || *outSz < 2 || in == NULL)
         return BAD_FUNC_ARG;
 
+    /* duplicate string (including terminator) */
     len = (word32)XSTRLEN(in);
-
     str = (char *)XMALLOC(len+1, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (str == NULL)
         return MEMORY_E;
-
-    XSTRNCPY(str, in, len+1);
+    XMEMCPY(str, in, len+1);
 
     nb_val = 0;
 
@@ -13278,12 +13277,12 @@ int wc_SetKeyUsage(Cert *cert, const char *value)
 
     cert->keyUsage = 0;
 
+    /* duplicate string (including terminator) */
     len = (word32)XSTRLEN(value);
     str = (char*)XMALLOC(len+1, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (str == NULL)
         return MEMORY_E;
-
-    XSTRNCPY(str, value, len+1);
+    XMEMCPY(str, value, len+1);
 
     /* parse value, and set corresponding Key Usage value */
     if ((token = XSTRTOK(str, ",", &ptr)) == NULL) {
@@ -13337,12 +13336,12 @@ int wc_SetExtKeyUsage(Cert *cert, const char *value)
 
     cert->extKeyUsage = 0;
 
+    /* duplicate string (including terminator) */
     len = (word32)XSTRLEN(value);
     str = (char*)XMALLOC(len+1, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (str == NULL)
         return MEMORY_E;
-
-    XSTRNCPY(str, value, len+1);
+    XMEMCPY(str, value, len+1);
 
     /* parse value, and set corresponding Key Usage value */
     if ((token = XSTRTOK(str, ",", &ptr)) == NULL) {
@@ -15196,7 +15195,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             resp->response, resp->responseSz,
             cert.publicKey, cert.pubKeySize, cert.keyOID,
             resp->sig, resp->sigSz, resp->sigOID, NULL);
-            
+
         FreeDecodedCert(&cert);
 
         if (ret != 0) {

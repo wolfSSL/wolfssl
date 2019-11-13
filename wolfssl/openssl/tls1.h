@@ -1,4 +1,4 @@
-/* buffer.h
+/* tls1.h
  *
  * Copyright (C) 2006-2019 wolfSSL Inc.
  *
@@ -20,28 +20,27 @@
  */
 
 
-#ifndef WOLFSSL_BUFFER_H_
-#define WOLFSSL_BUFFER_H_
+#ifndef WOLFSSL_OPENSSL_TLS1_H_
+#define WOLFSSL_OPENSSL_TLS1_H_
 
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/openssl/ssl.h>
-
-#ifdef __cplusplus
-    extern "C" {
+#ifndef TLS1_VERSION
+#define TLS1_VERSION                    0x0301
 #endif
 
-
-WOLFSSL_API WOLFSSL_BUF_MEM* wolfSSL_BUF_MEM_new(void);
-WOLFSSL_API int wolfSSL_BUF_MEM_grow(WOLFSSL_BUF_MEM* buf, size_t len);
-WOLFSSL_API void wolfSSL_BUF_MEM_free(WOLFSSL_BUF_MEM* buf);
-
-
-#define BUF_MEM_new  wolfSSL_BUF_MEM_new
-#define BUF_MEM_grow wolfSSL_BUF_MEM_grow
-#define BUF_MEM_free wolfSSL_BUF_MEM_free
-
-#ifdef __cplusplus
-    }  /* extern "C" */
+#ifndef TLS1_1_VERSION
+#define TLS1_1_VERSION                  0x0302
 #endif
 
-#endif /* WOLFSSL_BUFFER_H_ */
+#ifndef TLS1_2_VERSION
+#define TLS1_2_VERSION                  0x0303
+#endif
+
+#ifndef TLS1_3_VERSION
+#define TLS1_3_VERSION                  0x0304
+#endif
+
+#ifndef TLS_MAX_VERSION
+#define TLS_MAX_VERSION                 TLS1_3_VERSION
+#endif
+
+#endif /* WOLFSSL_OPENSSL_TLS1_H_ */
