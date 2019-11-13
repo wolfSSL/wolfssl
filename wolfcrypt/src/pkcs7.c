@@ -1390,6 +1390,19 @@ typedef struct FlatAttrib {
     word32 dataSz;
 } FlatAttrib;
 
+/* Returns a pointer to FlatAttrib whose members are initialized to 0.
+*  Caller is expected to free.
+*/
+static FlatAttrib* NewAttrib(void* heap)
+{
+    FlatAttrib* fb = (FlatAttrib*) XMALLOC(sizeof(FlatAttrib), heap,
+                                                   DYNAMIC_TYPE_TMP_BUFFER);
+    if (fb != NULL) {
+        ForceZero(fb, sizeof(FlatAttrib));
+    }
+    (void)heap;
+    return fb;
+}
 
 /* Free FlatAttrib array and memory allocated to internal struct members */
 static void FreeAttribArray(PKCS7* pkcs7, FlatAttrib** arr, int rows)
@@ -1513,11 +1526,10 @@ static int FlattenAttributes(PKCS7* pkcs7, byte* output, EncodedAttrib* ea,
     if (derArr == NULL) {
         return MEMORY_E;
     }
-    ForceZero(derArr, eaSz * sizeof(FlatAttrib*));
+    XMEMSET(derArr, 0, eaSz * sizeof(FlatAttrib*));
 
     for (i = 0; i < eaSz; i++) {
-        derArr[i] = (FlatAttrib*) XMALLOC(sizeof(FlatAttrib), pkcs7->heap,
-                                          DYNAMIC_TYPE_TMP_BUFFER);
+        derArr[i] = NewAttrib(pkcs7->heap);
         if (derArr[i] == NULL) {
             FreeAttribArray(pkcs7, derArr, eaSz);
             return MEMORY_E;
