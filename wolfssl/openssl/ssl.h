@@ -192,6 +192,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define TLSv1_3_method                  wolfTLSv1_3_method
 #define TLSv1_3_server_method           wolfTLSv1_3_server_method
 #define TLSv1_3_client_method           wolfTLSv1_3_client_method
+#define TLS_method                      wolfSSLv23_method
 
 #define X509_FILETYPE_ASN1 SSL_FILETYPE_ASN1
 
@@ -202,6 +203,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
     #define DTLSv1_server_method        wolfDTLSv1_server_method
     #define DTLSv1_2_client_method      wolfDTLSv1_2_client_method
     #define DTLSv1_2_server_method      wolfDTLSv1_2_server_method
+    #define DTLS_method                 wolfDTLS_method
 #endif
 
 
@@ -219,6 +221,9 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #endif
 
 #define SSL_CTX_new(method)             wolfSSL_CTX_new((WOLFSSL_METHOD*)(method))
+#ifdef OPENSSL_EXTRA
+#define SSL_CTX_up_ref                  wolfSSL_CTX_up_ref
+#endif
 #define SSL_new                         wolfSSL_new
 #define SSL_set_fd                      wolfSSL_set_fd
 #define SSL_get_fd                      wolfSSL_get_fd
@@ -245,6 +250,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define SSL_CTX_get_session_cache_mode(ctx) 0
 
 #define SSL_CTX_set_verify              wolfSSL_CTX_set_verify
+#define SSL_CTX_set_cert_verify_callback wolfSSL_CTX_set_cert_verify_callback
 #define SSL_set_verify                  wolfSSL_set_verify
 #define SSL_set_verify_result           wolfSSL_set_verify_result
 #define SSL_pending                     wolfSSL_pending
@@ -280,7 +286,8 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define SSL_CIPHER_get_name             wolfSSL_CIPHER_get_name
 #define SSL_CIPHER_get_version          wolfSSL_CIPHER_get_version
 #define SSL_CIPHER_get_id               wolfSSL_CIPHER_get_id
-#define SSL_CIPHER_get_rfc_name         wolfSSL_CIPHER_get_rfc_name
+#define SSL_CIPHER_get_rfc_name         wolfSSL_CIPHER_get_name
+#define SSL_CIPHER_standard_name        wolfSSL_CIPHER_get_name
 #define SSL_get_cipher_by_value         wolfSSL_get_cipher_by_value
 
 #define SSL_get1_session                wolfSSL_get1_session
@@ -472,6 +479,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_STORE_CTX_get0_current_issuer \
                                       wolfSSL_X509_STORE_CTX_get0_current_issuer
 #define X509_STORE_CTX_get0_store       wolfSSL_X509_STORE_CTX_get0_store
+#define X509_STORE_CTX_get0_cert        wolfSSL_X509_STORE_CTX_get0_cert
 
 #define X509_STORE_new                  wolfSSL_X509_STORE_new
 #define X509_STORE_free                 wolfSSL_X509_STORE_free
@@ -803,6 +811,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #endif
 
 #define SSL_CTX_use_certificate         wolfSSL_CTX_use_certificate
+#define SSL_CTX_add1_chain_cert         wolfSSL_CTX_add1_chain_cert
 #define SSL_CTX_use_PrivateKey          wolfSSL_CTX_use_PrivateKey
 #define BIO_read_filename               wolfSSL_BIO_read_filename
 #define SSL_CTX_set_verify_depth        wolfSSL_CTX_set_verify_depth
@@ -870,7 +879,7 @@ enum {
 #define SSL_CTX_get_app_data(ctx)       wolfSSL_CTX_get_ex_data(ctx,0)
 #define SSL_CTX_set_app_data(ctx,arg)   wolfSSL_CTX_set_ex_data(ctx,0, \
                                                                   (char *)(arg))
-#endif /* OPENSSL_ALL || WOLFSSL_ASIO */
+#endif /* OPENSSL_ALL || WOLFSSL_ASIO || WOLFSSL_HAPROXY */
 
 #define SSL_CTX_set_tmp_dh              wolfSSL_CTX_set_tmp_dh
 
@@ -1101,10 +1110,14 @@ enum {
 #define SSL_set_alpn_protos             wolfSSL_set_alpn_protos
 #define SSL_get0_next_proto_negotiated  wolfSSL_get0_next_proto_negotiated
 #define SSL_is_server                   wolfSSL_is_server
-#define SSL_CTX_set1_curves_list        wolfSSL_CTX_set1_curves_list
 
 #endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || WOLFSSL_MYSQL_COMPATIBLE ||
           OPENSSL_ALL || HAVE_LIGHTY */
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
+#define SSL_CTX_set1_curves_list        wolfSSL_CTX_set1_curves_list
+#define SSL_set1_curves_list            wolfSSL_set1_curves_list
+#endif
 
 #ifdef OPENSSL_EXTRA
 #define SSL_CTX_add_client_CA           wolfSSL_CTX_add_client_CA

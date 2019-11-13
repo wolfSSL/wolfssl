@@ -1921,11 +1921,10 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 
 void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
 {
-    int doFree = 0;
+    int refCount;
 
-    if (wc_LockMutex(&ctx->countMutex) != 0) {
-        WOLFSSL_MSG("Couldn't lock count mutex");
-
+    /* decrement CTX reference count */
+    if ((refCount = SSL_CTX_RefCount(ctx, -1)) < 0) {
         /* check error state, if mutex error code then mutex init failed but
          * CTX was still malloc'd */
         if (ctx->err == CTX_INIT_MUTEX_E) {
@@ -1934,12 +1933,8 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
         }
         return;
     }
-    ctx->refCount--;
-    if (ctx->refCount == 0)
-        doFree = 1;
-    wc_UnLockMutex(&ctx->countMutex);
 
-    if (doFree) {
+    if (refCount == 0) {
         void* heap = ctx->heap;
         WOLFSSL_MSG("CTX ref count down to 0, doing full free");
         SSL_CtxResourceFree(ctx);
@@ -4857,6 +4852,32 @@ int InitSSL_Suites(WOLFSSL* ssl)
     return WOLFSSL_SUCCESS;
 }
 
+/* returns new reference count. Arg incr positive=up or negative=down */
+int SSL_CTX_RefCount(WOLFSSL_CTX* ctx, int incr)
+{
+    int refCount;
+
+    if (ctx == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (wc_LockMutex(&ctx->countMutex) != 0) {
+        WOLFSSL_MSG("Couldn't lock CTX count mutex");
+        return BAD_MUTEX_E;
+    }
+
+    ctx->refCount += incr;
+    /* make sure refCount is never negative */
+    if (ctx->refCount < 0) {
+        ctx->refCount = 0;
+    }
+    refCount = ctx->refCount;
+
+    wc_UnLockMutex(&ctx->countMutex);
+
+    return refCount;
+}
+
 /* This function inherits a WOLFSSL_CTX's fields into an SSL object.
    It is used during initialization and to switch an ssl's CTX with
    wolfSSL_Set_SSL_CTX.  Requires ssl->suites alloc and ssl-arrays with PSK
@@ -4869,7 +4890,7 @@ int InitSSL_Suites(WOLFSSL* ssl)
    WOLFSSL_SUCCESS return value on success */
 int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 {
-    int ret = WOLFSSL_SUCCESS;
+    int ret;
     byte newSSL;
 
     if (!ssl || !ctx)
@@ -4896,12 +4917,11 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     }
 
     /* increment CTX reference count */
-    if (wc_LockMutex(&ctx->countMutex) != 0) {
-        WOLFSSL_MSG("Couldn't lock CTX count mutex");
-        return BAD_MUTEX_E;
+    if ((ret = SSL_CTX_RefCount(ctx, 1)) < 0) {
+        return ret;
     }
-    ctx->refCount++;
-    wc_UnLockMutex(&ctx->countMutex);
+    ret = WOLFSSL_SUCCESS; /* set default ret */
+
     ssl->ctx     = ctx; /* only for passing to calls, options could change */
     ssl->version = ctx->method->version;
 
@@ -9445,7 +9465,12 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
     }
 #endif
     /* if verify callback has been set */
-    if (use_cb && ssl->verifyCallback) {
+    if (use_cb && (ssl->verifyCallback
+    #ifdef OPENSSL_ALL
+        || ssl->ctx->verifyCertCb
+    #endif
+    )) {
+        int verifyFail = 0;
     #ifdef WOLFSSL_SMALL_STACK
         WOLFSSL_X509_STORE_CTX* store;
         #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -9563,14 +9588,36 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
     #ifdef SESSION_CERTS
         store->sesChain = &ssl->session.chain;
     #endif
+
+    #ifdef OPENSSL_ALL
         /* non-zero return code indicates failure override */
-        if (ssl->verifyCallback(verify_ok, store)) {
-            if (ret != 0) {
-                WOLFSSL_MSG("Verify callback overriding error!");
-                ret = 0;
+        if (ssl->ctx->verifyCertCb) {
+            if (ssl->ctx->verifyCertCb(store, ssl->ctx->verifyCertCbArg)) {
+                if (ret != 0) {
+                    WOLFSSL_MSG("Verify Cert callback overriding error!");
+                    ret = 0;
+                }
+            }
+            else {
+                verifyFail = 1;
             }
         }
-        else {
+    #endif
+
+        /* non-zero return code indicates failure override */
+        if (ssl->verifyCallback) {
+            if (ssl->verifyCallback(verify_ok, store)) {
+                if (ret != 0) {
+                    WOLFSSL_MSG("Verify callback overriding error!");
+                    ret = 0;
+                }
+            }
+            else {
+                verifyFail = 1;
+            }
+        }
+
+        if (verifyFail) {
             /* induce error if one not present */
             if (ret == 0) {
                 ret = VERIFY_CERT_ERROR;

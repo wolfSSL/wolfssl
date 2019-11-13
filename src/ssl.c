@@ -385,6 +385,14 @@ WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD* method)
 #endif
 }
 
+#ifdef OPENSSL_EXTRA
+/* increases CTX reference count to track proper time to "free" */
+int wolfSSL_CTX_up_ref(WOLFSSL_CTX* ctx)
+{
+    int refCount = SSL_CTX_RefCount(ctx, 1);
+    return ((refCount > 1) ? 1 : 0);
+}
+#endif
 
 WOLFSSL_ABI
 void wolfSSL_CTX_free(WOLFSSL_CTX* ctx)
@@ -9736,6 +9744,19 @@ void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode, VerifyCallback vc)
     ctx->verifyCallback = vc;
 }
 
+#ifdef OPENSSL_ALL
+void wolfSSL_CTX_set_cert_verify_callback(WOLFSSL_CTX* ctx,
+    CertVerifyCallback cb, void* arg)
+{
+    WOLFSSL_ENTER("SSL_CTX_set_cert_verify_callback");
+    if (ctx == NULL)
+        return;
+
+    ctx->verifyCertCb = cb;
+    ctx->verifyCertCbArg = arg;
+}
+#endif
+
 
 void wolfSSL_set_verify(WOLFSSL* ssl, int mode, VerifyCallback vc)
 {
@@ -14513,10 +14534,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return bio;
     }
 
-
-
-
-    WOLFSSL_BIO* wolfSSL_BIO_new_mem_buf(void* buf, int len)
+    WOLFSSL_BIO* wolfSSL_BIO_new_mem_buf(const void* buf, int len)
     {
         WOLFSSL_BIO* bio = NULL;
 
@@ -19634,20 +19652,6 @@ const char*  wolfSSL_CIPHER_get_version(const WOLFSSL_CIPHER* cipher)
     return wolfSSL_get_version(cipher->ssl);
 }
 
-#ifndef NO_WOLFSSL_STUB
-char* wolfSSL_CIPHER_get_rfc_name(const WOLFSSL_CIPHER* cipher)
-{
-    char* rfcName = NULL;
-    WOLFSSL_STUB("SSL_CIPHER_get_rfc_name");
-
-    if (cipher == NULL || cipher->ssl == NULL) {
-        return NULL;
-    }
-
-    return rfcName;
-}
-#endif
-
 const char* wolfSSL_SESSION_CIPHER_get_name(WOLFSSL_SESSION* session)
 {
     if (session == NULL) {
@@ -23172,6 +23176,14 @@ WOLFSSL_X509_STORE* wolfSSL_X509_STORE_CTX_get0_store(
         return NULL;
 
     return ctx->store;
+}
+
+WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get0_cert(WOLFSSL_X509_STORE_CTX* ctx)
+{
+    if (ctx == NULL)
+        return NULL;
+
+    return ctx->current_cert;
 }
 
 void wolfSSL_X509_STORE_CTX_set_time(WOLFSSL_X509_STORE_CTX* ctx,
@@ -36793,6 +36805,14 @@ err:
         return WOLFSSL_SUCCESS;
     }
 
+    int wolfSSL_CTX_add1_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
+    {
+        /* TODO: Add X509 certificate to CertificateManager... */
+        (void)ctx;
+        (void)x509;
+        return 0;
+    }
+
     #ifndef NO_WOLFSSL_STUB
     int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, const char *name) {
     #ifndef NO_FILESYSTEM
@@ -41074,14 +41094,14 @@ void wolfSSL_get0_next_proto_negotiated(const WOLFSSL *s, const unsigned char **
 #endif /* WOLFSSL_NGINX  / WOLFSSL_HAPROXY */
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
-WOLFSSL_API int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, char* names)
+int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
 {
     int idx, start = 0, len;
     int curve;
     char name[MAX_CURVE_NAME_SZ];
 
     /* Disable all curves so that only the ones the user wants are enabled. */
-    ctx->disabledCurves = (word32)-1;
+    ctx->disabledCurves = 0xFFFFFFFFUL;
     for (idx = 1; names[idx-1] != '\0'; idx++) {
         if (names[idx] != ':' && names[idx] != '\0')
             continue;
@@ -41118,7 +41138,15 @@ WOLFSSL_API int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, char* names)
 
     return WOLFSSL_SUCCESS;
 }
-#endif
+
+int wolfSSL_set1_curves_list(WOLFSSL* ssl, const char* names)
+{
+    if (ssl == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    return wolfSSL_CTX_set1_curves_list(ssl->ctx, names);
+}
+#endif /* OPENSSL_EXTRA && HAVE_ECC */
 
 #ifdef OPENSSL_EXTRA
 #ifndef NO_WOLFSSL_STUB
