@@ -811,7 +811,6 @@ extern void uITRON4_free(void *p) ;
     #define ECC_TIMING_RESISTANT
 
     #define HAVE_ECC
-    #define WOLFSSL_STATIC_RSA
 
 #endif /* EBSNET */
 
