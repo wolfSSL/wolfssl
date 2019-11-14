@@ -1,0 +1,23 @@
+name: macos-latest
+
+on: [push, pull_request]
+
+jobs:
+  macos-latest:
+
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: brew
+      run: brew install autoconf automake libtool
+    - name: autogen.sh
+      run: ./autogen.sh
+    - name: configure
+      run: ./configure
+    - name: make
+      run: make
+    - name: make check
+      run: make check || (cat ./test-suite.log && exit 1)
+    - name: make distcheck
+      run: make distcheck
