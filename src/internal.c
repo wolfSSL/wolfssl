@@ -9351,7 +9351,7 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         if (args->dCert->altNames != NULL) {
             if (CheckAltNames(args->dCert, ssl->param->hostName) == 0 ) {
                 if (ret == 0) {
-                    ret = VERIFY_CERT_ERROR;
+                    ret = DOMAIN_NAME_MISMATCH;
                 }
             }
         }
@@ -9361,7 +9361,7 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
                                     args->dCert->subjectCNLen,
                                     ssl->param->hostName) == 0) {
                     if (ret == 0) {
-                        ret = VERIFY_CERT_ERROR;
+                        ret = DOMAIN_NAME_MISMATCH;
                     }
                 }
             }
@@ -9373,7 +9373,7 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         (ssl->param != NULL) && (XSTRLEN(ssl->param->ipasc) > 0)) {
         if (CheckIPAddr(args->dCert, ssl->param->ipasc) != 0) {
             if (ret == 0) {
-                ret = VERIFY_CERT_ERROR;
+                ret = IPADDR_MISMATCH;
             }
         }
     }
@@ -16862,6 +16862,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case DOMAIN_NAME_MISMATCH :
         return "peer subject name mismatch";
+
+    case IPADDR_MISMATCH :
+        return "peer ip address mismatch";
 
     case WANT_READ :
     case WOLFSSL_ERROR_WANT_READ :
