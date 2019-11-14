@@ -8846,6 +8846,38 @@ WOLFSSL_API int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm,
                                 const unsigned char* buff, long sz, int format);
 
 /*!
+    \ingroup CertManager
+    \brief The function sets the verifyCallback function in the Certificate
+    Manager. If present, it will be called for each cert loaded. If there is
+    a verification error, the verify callback can be used to over-ride the
+    error.
+
+    \return none No return.
+
+    \param cm a pointer to a WOLFSSL_CERT_MANAGER structure, created using
+    wolfSSL_CertManagerNew().
+    \param vc a VerifyCallback function pointer to the callback routine
+
+    _Example_
+    \code
+    #include <wolfssl/ssl.h>
+
+    int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
+    { // do custom verification of certificate }
+
+    WOLFSSL_CTX* ctx = WOLFSSL_CTX_new(Protocol define);
+    WOLFSSL_CERT_MANAGER* cm = wolfSSL_CertManagerNew();
+    ...
+    wolfSSL_CertManagerSetVerify(cm, myVerify);
+
+    \endcode
+
+    \sa wolfSSL_CertManagerVerify
+*/
+WOLFSSL_API void wolfSSL_CertManagerSetVerify(WOLFSSL_CERT_MANAGER* cm,
+                                                             VerifyCallback vc);
+
+/*!
     \brief Check CRL if the option is enabled and compares the cert to the
     CRL list.
 

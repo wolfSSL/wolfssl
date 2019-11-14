@@ -1940,6 +1940,9 @@ struct WOLFSSL_CERT_MANAGER {
 #endif
     char*           ocspOverrideURL;     /* use this responder */
     void*           ocspIOCtx;           /* I/O callback CTX */
+#ifndef NO_WOLFSSL_CM_VERIFY
+    VerifyCallback  verifyCallback;      /* Verify callback */
+#endif
     CallbackCACache caCacheCallback;     /* CA cache addition callback */
     CbMissingCRL    cbMissingCRL;        /* notify through cb of missing crl */
     CbOCSPIO        ocspIOCb;            /* I/O callback for OCSP lookup */
@@ -1966,6 +1969,42 @@ WOLFSSL_LOCAL int CM_RestoreCertCache(WOLFSSL_CERT_MANAGER*, const char*);
 WOLFSSL_LOCAL int CM_MemSaveCertCache(WOLFSSL_CERT_MANAGER*, void*, int, int*);
 WOLFSSL_LOCAL int CM_MemRestoreCertCache(WOLFSSL_CERT_MANAGER*, const void*, int);
 WOLFSSL_LOCAL int CM_GetCertCacheMemSize(WOLFSSL_CERT_MANAGER*);
+WOLFSSL_LOCAL int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
+                                    long sz, int format, int err_val);
+
+
+#ifndef NO_CERTS
+#if !defined NOCERTS &&\
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
+typedef struct ProcPeerCertArgs {
+    buffer*      certs;
+#ifdef WOLFSSL_TLS13
+    buffer*      exts; /* extensions */
+#endif
+    DecodedCert* dCert;
+    word32 idx;
+    word32 begin;
+    int    totalCerts; /* number of certs in certs buffer */
+    int    count;
+    int    certIdx;
+    int    lastErr;
+#ifdef WOLFSSL_TLS13
+    byte   ctxSz;
+#endif
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    char   untrustedDepth;
+#endif
+    word16 fatal:1;
+    word16 verifyErr:1;
+    word16 dCertInit:1;
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    word16 haveTrustPeer:1; /* was cert verified by loaded trusted peer cert */
+#endif
+} ProcPeerCertArgs;
+WOLFSSL_LOCAL int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl,
+        int ret, ProcPeerCertArgs* args);
+#endif /* !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH) */
+#endif /* !defined NO_CERTS */
 
 /* wolfSSL Sock Addr */
 struct WOLFSSL_SOCKADDR {

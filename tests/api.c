@@ -1143,6 +1143,49 @@ static void test_wolfSSL_CertManagerGetCerts(void)
           !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
           defined(WOLFSSL_SIGNER_DER_CERT) */
 }
+
+static int test_wolfSSL_CertManagerSetVerify(void)
+{
+    int ret = 0;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_RSA)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    int tmp = myVerifyFail;
+    const char* ca_cert = "./certs/ca-cert.pem";
+    const char* expiredCert = "./certs/test/expired/expired-cert.pem";
+
+    cm = wolfSSL_CertManagerNew();
+    AssertNotNull(cm);
+
+    wolfSSL_CertManagerSetVerify(cm, myVerify);
+
+    ret = wolfSSL_CertManagerLoadCA(cm, ca_cert, NULL);
+    AssertIntEQ(ret, WOLFSSL_SUCCESS);
+
+    /* Use the test CB that always accepts certs */
+    myVerifyFail = 0;
+
+    ret = wolfSSL_CertManagerVerify(cm, expiredCert, WOLFSSL_FILETYPE_PEM);
+    AssertIntEQ(ret, WOLFSSL_SUCCESS);
+
+#ifdef WOLFSSL_ALWAYS_VERIFY_CB
+    {
+        const char* verifyCert = "./certs/server-cert.pem";
+        /* Use the test CB that always fails certs */
+        myVerifyFail = 1;
+
+        ret = wolfSSL_CertManagerVerify(cm, verifyCert, WOLFSSL_FILETYPE_PEM);
+        AssertIntEQ(ret, VERIFY_CERT_ERROR);
+    }
+#endif
+
+    wolfSSL_CertManagerFree(cm);
+    myVerifyFail = tmp;
+#endif
+
+    return ret;
+}
+
 static void test_wolfSSL_CertManagerCRL(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
@@ -28799,6 +28842,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_load_verify_locations();
     test_wolfSSL_CertManagerLoadCABuffer();
     test_wolfSSL_CertManagerGetCerts();
+    test_wolfSSL_CertManagerSetVerify();
     test_wolfSSL_CertManagerCRL();
     test_wolfSSL_CTX_load_verify_locations_ex();
     test_wolfSSL_CTX_load_verify_buffer_ex();
