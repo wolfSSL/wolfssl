@@ -1937,6 +1937,9 @@ struct WOLFSSL_CERT_MANAGER {
 #endif
     char*           ocspOverrideURL;     /* use this responder */
     void*           ocspIOCtx;           /* I/O callback CTX */
+#ifndef NO_WOLFSSL_CM_VERIFY
+    VerifyCallback  verifyCallback;      /* Verify callback */
+#endif
     CallbackCACache caCacheCallback;     /* CA cache addition callback */
     CbMissingCRL    cbMissingCRL;        /* notify through cb of missing crl */
     CbOCSPIO        ocspIOCb;            /* I/O callback for OCSP lookup */

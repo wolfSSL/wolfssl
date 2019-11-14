@@ -6018,6 +6018,7 @@ int wolfSSL_CertManagerLoadCABuffer(WOLFSSL_CERT_MANAGER* cm,
 {
     int ret = WOLFSSL_FATAL_ERROR;
     WOLFSSL_CTX* tmp;
+    word32 flags = WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS;
 
     WOLFSSL_ENTER("wolfSSL_CertManagerLoadCABuffer");
 
@@ -6036,7 +6037,7 @@ int wolfSSL_CertManagerLoadCABuffer(WOLFSSL_CERT_MANAGER* cm,
     wolfSSL_CertManagerFree(tmp->cm);
     tmp->cm = cm;
 
-    ret = wolfSSL_CTX_load_verify_buffer(tmp, in, sz, format);
+    ret = wolfSSL_CTX_load_verify_buffer_ex(tmp, in, sz, format, 0, flags);
 
     /* don't loose our good one */
     tmp->cm = NULL;
@@ -6153,6 +6154,136 @@ int wolfSSL_CertManagerDisableCRL(WOLFSSL_CERT_MANAGER* cm)
 
     return WOLFSSL_SUCCESS;
 }
+
+#ifndef NO_WOLFSSL_CM_VERIFY
+void wolfSSL_CertManagerSetVerify(WOLFSSL_CERT_MANAGER* cm, VerifyCallback vc)
+{
+    WOLFSSL_ENTER("wolfSSL_CertManagerSetVerify");
+    if (cm == NULL)
+        return;
+
+    cm->verifyCallback = vc;
+}
+
+static int CertManager_DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, int ret,
+        DecodedCert* cert)
+{
+
+    int verify_ok = (ret != 0) ? 0 : 1;
+#ifdef WOLFSSL_SMALL_STACK
+    WOLFSSL_X509_STORE_CTX* store;
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    WOLFSSL_X509* x509;
+    #endif
+    char* domain = NULL;
+#else
+    WOLFSSL_X509_STORE_CTX store[1];
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    WOLFSSL_X509           x509[1];
+    #endif
+    char domain[ASN_NAME_MAX];
+#endif
+
+#ifdef WOLFSSL_SMALL_STACK
+    store = (WOLFSSL_X509_STORE_CTX*)XMALLOC(
+        sizeof(WOLFSSL_X509_STORE_CTX), cm->heap, DYNAMIC_TYPE_X509_STORE);
+    if (store == NULL) {
+        return MEMORY_E;
+    }
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), cm->heap,
+        DYNAMIC_TYPE_X509);
+    if (x509 == NULL) {
+        XFREE(store, cm->heap, DYNAMIC_TYPE_X509);
+        return MEMORY_E;
+    }
+    #endif
+    domain = (char*)XMALLOC(ASN_NAME_MAX, cm->heap, DYNAMIC_TYPE_STRING);
+    if (domain == NULL) {
+        XFREE(store, cm->heap, DYNAMIC_TYPE_X509);
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        XFREE(x509, cm->heap, DYNAMIC_TYPE_X509);
+        #endif
+        return MEMORY_E;
+    }
+#endif /* WOLFSSL_SMALL_STACK */
+
+    XMEMSET(store, 0, sizeof(WOLFSSL_X509_STORE_CTX));
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    XMEMSET(x509, 0, sizeof(WOLFSSL_X509));
+#endif
+    domain[0] = '\0';
+
+    /* build subject CN as string to return in store */
+    if (cert && cert->subjectCN) {
+        int subjectCNLen = cert->subjectCNLen;
+        if (subjectCNLen > ASN_NAME_MAX-1)
+            subjectCNLen = ASN_NAME_MAX-1;
+        if (subjectCNLen > 0) {
+            XMEMCPY(domain, cert->subjectCN, subjectCNLen);
+            domain[subjectCNLen] = '\0';
+        }
+    }
+
+    store->error = ret;
+    store->error_depth = 1;
+    store->discardSessionCerts = 0;
+    store->domain = domain;
+    store->totalCerts = 1;
+    store->userCtx = cm;
+
+#if defined(OPENSSL_EXTRA)
+    store->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
+                    sizeof(WOLFSSL_X509_VERIFY_PARAM),
+                    cm->heap, DYNAMIC_TYPE_OPENSSL);
+    if (store->param == NULL) {
+        return MEMORY_E;
+    }
+    XMEMSET(store->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
+#endif /* defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)*/
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    InitX509(x509, 0, cm->heap);
+    if (CopyDecodedToX509(x509, cert) == 0) {
+        store->current_cert = x509;
+    }
+#endif
+    /* non-zero return code indicates failure override */
+    if (cm->verifyCallback(verify_ok, store)) {
+        if (ret != 0) {
+            WOLFSSL_MSG("Verify callback overriding error!");
+            ret = 0;
+        }
+    }
+    else {
+        /* induce error if one not present */
+        if (ret == 0) {
+            ret = VERIFY_CERT_ERROR;
+        }
+    }
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    FreeX509(x509);
+#endif
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+    wolfSSL_sk_X509_free(store->chain);
+    store->chain = NULL;
+#endif
+#ifdef OPENSSL_EXTRA
+    if (store->param){
+        XFREE(store->param, cm->heap, DYNAMIC_TYPE_OPENSSL);
+    }
+#endif
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(domain, cm->heap, DYNAMIC_TYPE_STRING);
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    XFREE(x509, cm->heap, DYNAMIC_TYPE_X509);
+    #endif
+    XFREE(store, cm->heap, DYNAMIC_TYPE_X509_STORE);
+#endif
+    return ret;
+}
+#endif /* NO_WOLFSSL_CM_VERIFY */
+
 /* Verify the certificate, WOLFSSL_SUCCESS for ok, < 0 for error */
 int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
                                     long sz, int format)
@@ -6199,6 +6330,13 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
 #ifdef HAVE_CRL
     if (ret == 0 && cm->crlEnabled)
         ret = CheckCertCRL(cm->crl, cert);
+#endif
+
+#ifndef NO_WOLFSSL_CM_VERIFY
+    /* if verify callback has been set */
+    if (cm->verifyCallback) {
+        ret = CertManager_DoVerifyCallback(cm, ret, cert);
+    }
 #endif
 
     FreeDecodedCert(cert);
@@ -6659,6 +6797,65 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
                                 userChain, verify);
     }
 
+#ifndef NO_WOLFSSL_CM_VERIFY
+    /* Call to over-ride status */
+    if ((ctx != NULL) && (ctx->cm != NULL) &&
+        (ctx->cm->verifyCallback != NULL)) {
+        int tmp_ret = 0;
+        DerBuffer* der = NULL;
+    #ifdef WOLFSSL_SMALL_STACK
+        DecodedCert* cert = NULL;
+    #else
+        DecodedCert  cert[1];
+    #endif
+
+    #ifdef WOLFSSL_SMALL_STACK
+        cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ctx->cm->heap,
+                                     DYNAMIC_TYPE_DCERT);
+        if (cert == NULL)
+            return MEMORY_E;
+    #endif
+
+        if (format == WOLFSSL_FILETYPE_PEM) {
+    #ifdef WOLFSSL_PEM_TO_DER
+            tmp_ret = PemToDer(myBuffer, sz, type, &der, ctx->cm->heap,
+                            NULL, NULL);
+            if (tmp_ret != 0) {
+                FreeDer(&der);
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(cert, ctx->cm->heap, DYNAMIC_TYPE_DCERT);
+            #endif
+                return tmp_ret;
+            }
+            InitDecodedCert(cert, der->buffer, der->length, ctx->cm->heap);
+    #else
+            tmp_ret = NOT_COMPILED_IN;
+    #endif
+        }
+        else {
+            InitDecodedCert(cert, (byte*)myBuffer, (word32)sz, ctx->cm->heap);
+        }
+        if (tmp_ret == 0)
+            tmp_ret = ParseCertRelative(cert, type, verify, ctx->cm);
+
+        if (ret == WOLFSSL_SUCCESS) {
+            ret = tmp_ret;
+        }
+
+        ret = CertManager_DoVerifyCallback(ctx->cm, ret, cert);
+        if (ret == 0) {
+            ret = WOLFSSL_SUCCESS;
+        }
+
+        FreeDecodedCert(cert);
+        FreeDer(&der);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(cert, cm->heap, DYNAMIC_TYPE_DCERT);
+    #endif
+
+    }
+#endif /* NO_WOLFSSL_CM_VERIFY */
+
     XFCLOSE(file);
     if (dynamic)
         XFREE(myBuffer, heapHint, DYNAMIC_TYPE_FILE);
@@ -6850,6 +7047,7 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
 {
     int ret = WOLFSSL_FATAL_ERROR;
     WOLFSSL_CTX* tmp;
+    word32 flags = WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS;
 
     WOLFSSL_ENTER("wolfSSL_CertManagerLoadCA");
 
@@ -6868,7 +7066,7 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
     wolfSSL_CertManagerFree(tmp->cm);
     tmp->cm = cm;
 
-    ret = wolfSSL_CTX_load_verify_locations(tmp, file, path);
+    ret = wolfSSL_CTX_load_verify_locations_ex(tmp, file, path, flags);
 
     /* don't lose our good one */
     tmp->cm = NULL;
