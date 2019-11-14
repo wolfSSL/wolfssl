@@ -3903,6 +3903,7 @@ AC_ARG_WITH([cavium-v],
 # Cavium Octeon
 OCTEON_ROOT=""
 : ${OCTEON_OBJ="obj-octeon2"}
+: ${OCTEON_HOST="standalone"}
 
 AC_ARG_WITH([octeon-sync],
     [AS_HELP_STRING([--with-octeon-sync=PATH],[PATH to Cavium Octeon SDK dir (sync)])],
@@ -3917,8 +3918,9 @@ AC_ARG_WITH([octeon-sync],
         fi
 
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CAVIUM_OCTEON_SYNC"
-        AM_CFLAGS="$AM_CFLAGS -DOCTEON_MODEL=$OCTEON_MODEL -DCVMX_BUILD_FOR_LINUX_HOST"
+        AM_CFLAGS="$AM_CFLAGS -DOCTEON_MODEL=$OCTEON_MODEL"
         AM_CFLAGS="$AM_CFLAGS -I$OCTEON_ROOT/executive"
+        AS_CASE([$OCTEON_HOST],['linux'],[AM_CFLAGS="$AM_CFLAGS -DCVMX_BUILD_FOR_LINUX_HOST"])
 
         #-I$OCTEON_ROOT/target/include 
         AM_LDFLAGS="$AM_LDFLAGS -lrt -Xlinker -T -Xlinker $OCTEON_ROOT/executive/cvmx-shared-linux.ld"
