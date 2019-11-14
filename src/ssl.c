@@ -16553,6 +16553,15 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                     return WOLFSSL_FAILURE;
                 ret = wolfSSL_EVP_CIPHER_CTX_set_iv_length(ctx, arg);
                 break;
+            case EVP_CTRL_AEAD_SET_IV_FIXED:
+                /* arg=-1 copies ctx->ivSz from ptr */
+                if (arg == -1) {
+                    ret = wolfSSL_EVP_CIPHER_CTX_set_iv(ctx, ptr, ctx->ivSz);
+                }
+                else {
+                    ret = wolfSSL_EVP_CIPHER_CTX_set_iv(ctx, ptr, arg);
+                }
+                break;
             case EVP_CTRL_AEAD_SET_TAG:
                 if(arg <= 0 || arg > 16 || (ptr == NULL))
                     return WOLFSSL_FAILURE;
@@ -17122,6 +17131,26 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->ivSz= ivLen;
         else
             return WOLFSSL_FAILURE;
+
+        return WOLFSSL_SUCCESS;
+    }
+
+    /* returns WOLFSSL_SUCCESS on success, otherwise returns WOLFSSL_FAILURE */
+    int wolfSSL_EVP_CIPHER_CTX_set_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, byte* iv,
+                                             int ivLen)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_set_iv_length");
+        if (!ctx || !iv
+#ifndef NO_AES
+                || ivLen != AES_BLOCK_SIZE
+#elif !defined(NO_DES3)
+                || ivLen != DES_BLOCK_SIZE
+#endif
+        ) {
+            return WOLFSSL_FAILURE;
+        }
+        XMEMCPY(ctx->iv, iv, ivLen);
+        ctx->ivSz= ivLen;
 
         return WOLFSSL_SUCCESS;
     }
@@ -30557,6 +30586,30 @@ int wolfSSL_DSA_generate_parameters_ex(WOLFSSL_DSA* dsa, int bits,
     return ret;
 }
 
+WOLFSSL_DSA_SIG* wolfSSL_DSA_SIG_new(void)
+{
+    WOLFSSL_DSA_SIG* sig;
+    WOLFSSL_ENTER("wolfSSL_DSA_SIG_new");
+    sig = (WOLFSSL_DSA_SIG*)XMALLOC(sizeof(WOLFSSL_DSA_SIG), NULL, DYNAMIC_TYPE_OPENSSL);
+    if (sig)
+        XMEMSET(sig, 0, sizeof(WOLFSSL_DSA_SIG));
+    return sig;
+}
+
+void wolfSSL_DSA_SIG_free(WOLFSSL_DSA_SIG *sig)
+{
+    WOLFSSL_ENTER("wolfSSL_DSA_SIG_free");
+    if (sig) {
+        if (sig->r) {
+            wolfSSL_BN_free(sig->r);
+        }
+        if (sig->s) {
+            wolfSSL_BN_free(sig->s);
+        }
+        XFREE(sig, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+}
+
 /* return WOLFSSL_SUCCESS on success, < 0 otherwise */
 int wolfSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
                        WOLFSSL_DSA* dsa)
@@ -30619,6 +30672,43 @@ int wolfSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
 #endif
 
     return ret;
+}
+
+WOLFSSL_DSA_SIG* wolfSSL_DSA_do_sign_ex(const unsigned char* digest,
+                                        int outLen, WOLFSSL_DSA* dsa)
+{
+    WOLFSSL_DSA_SIG* sig = NULL;
+    byte sigBin[DSA_SIG_SIZE];
+
+    WOLFSSL_ENTER("wolfSSL_DSA_do_sign_ex");
+
+    if (digest == NULL || dsa == NULL || outLen != WC_SHA_DIGEST_SIZE) {
+        WOLFSSL_MSG("Bad function arguments");
+        return NULL;
+    }
+
+    if (wolfSSL_DSA_do_sign(digest, sigBin, dsa) != WOLFSSL_SUCCESS) {
+        return NULL;
+    }
+
+    if (!(sig = wolfSSL_DSA_SIG_new())) {
+        goto error;
+    }
+
+    if (!(sig->r = wolfSSL_BN_bin2bn(sigBin, DSA_HALF_SIZE, NULL))) {
+        goto error;
+    }
+
+    if (!(sig->s = wolfSSL_BN_bin2bn(sigBin+DSA_HALF_SIZE, DSA_HALF_SIZE, NULL))) {
+        goto error;
+    }
+
+    return sig;
+error:
+    if (sig) {
+        wolfSSL_DSA_SIG_free(sig);
+    }
+    return NULL;
 }
 
 

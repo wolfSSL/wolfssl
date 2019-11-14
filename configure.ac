@@ -426,7 +426,7 @@ AC_ARG_ENABLE([mcast],
 
 
 # List of open source project defines using our openssl compatibility layer:
-# openssh (--enable-openssh)
+# openssh (--enable-openssh) WOLFSSL_OPENSSH
 # openvpn (--enable-openvpn)
 # nginix (--enable-nginx) WOLFSSL_NGINX
 # haproxy (--enable-haproxy) WOLFSSL_HAPROXY
@@ -500,6 +500,7 @@ fi
 if test "$ENABLED_OPENSSH" = "yes"
 then
     ENABLED_FORTRESS="yes"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_OPENSSH"
 fi
 
 #Qt Support

@@ -1093,8 +1093,12 @@ enum {
 
 #define PEM_R_NO_START_LINE     108
 #define PEM_R_PROBLEMS_GETTING_PASSWORD 109
+#define PEM_R_BAD_PASSWORD_READ 110
+#define PEM_R_BAD_DECRYPT       111
 #define ERR_LIB_PEM             9
 #define ERR_LIB_X509            10
+#define ERR_LIB_EVP             11
+#define ERR_LIB_ASN1            12
 
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
     defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_ALL) || \
@@ -1200,6 +1204,8 @@ enum {
 #define TLS1_CK_ECDHE_ECDSA_WITH_AES_256_CBC_SHA          (0xc00a)
 #define TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256       (0xc02b)
 #define TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 (0xcca9)
+
+#define EC_METHOD_get_field_type(x) -1
 
 #define EVP_CIPHER_mode                 WOLFSSL_CIPHER_mode
 /* WOLFSSL_EVP_CIPHER is just the string name of the cipher */

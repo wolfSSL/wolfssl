@@ -220,7 +220,9 @@ enum
     NID_domainComponent = 0x19,        /* matches ASN_DOMAIN_COMPONENT in asn.h */
     NID_emailAddress = 0x30,           /* emailAddress */
     NID_id_on_dnsSRV = 82,             /* 1.3.6.1.5.5.7.8.7 */
-    NID_ms_upn = 265                   /* 1.3.6.1.4.1.311.20.2.3 */
+    NID_ms_upn = 265,                   /* 1.3.6.1.4.1.311.20.2.3 */
+
+    NID_X9_62_prime_field = 406
 };
 
 enum ECC_TYPES

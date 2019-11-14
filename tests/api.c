@@ -20089,6 +20089,8 @@ static void test_wolfSSL_tmp_dh(void)
     BIO*     bio;
     SSL*     ssl;
     SSL_CTX* ctx;
+    unsigned char digest[WC_SHA_DIGEST_SIZE] = {202}; // initialize to anything
+    DSA_SIG* sig;
 
     printf(testingFmt, "wolfSSL_tmp_dh()");
 
@@ -20114,6 +20116,9 @@ static void test_wolfSSL_tmp_dh(void)
 
     dh = wolfSSL_DSA_dup_DH(dsa);
     AssertNotNull(dh);
+
+    AssertNotNull(sig = DSA_do_sign(digest, WC_SHA_DIGEST_SIZE, dsa));
+    DSA_SIG_free(sig);
 
     AssertIntEQ((int)SSL_CTX_set_tmp_dh(ctx, dh), WOLFSSL_SUCCESS);
     #ifndef NO_WOLFSSL_SERVER
