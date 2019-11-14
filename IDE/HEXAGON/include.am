@@ -1,0 +1,8 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+EXTRA_DIST+= IDE/HEXAGON/Makefile
+EXTRA_DIST+= IDE/HEXAGON/user_settings.h
+EXTRA_DIST+= IDE/HEXAGON/README.md
+
