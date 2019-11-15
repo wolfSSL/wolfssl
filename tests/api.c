@@ -17254,8 +17254,8 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
     const char  input[] = "Test data to encode.";
     int         i;
     int         testSz = 0;
-    #if !defined(NO_RSA) && (!defined(NO_AES) || (!defined(NO_SHA) ||\
-        !defined(NO_SHA256) || !defined(NO_SHA512)))
+    #if !defined(NO_RSA) && (!defined(NO_AES) || (!defined(NO_SHA) || \
+        !defined(NO_SHA256) || defined(WOLFSSL_SHA512)))
 
         byte*   rsaCert     = NULL;
         byte*   rsaPrivKey  = NULL;
@@ -17270,7 +17270,7 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
         #endif
     #endif
     #if defined(HAVE_ECC) && (!defined(NO_AES) || (!defined(NO_SHA) ||\
-        !defined(NO_SHA256) || !defined(NO_SHA512)))
+        !defined(NO_SHA256) || defined(WOLFSSL_SHA512)))
 
         byte*   eccCert     = NULL;
         byte*   eccPrivKey  = NULL;
@@ -17291,7 +17291,7 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
 #endif
 
 #if !defined(NO_RSA) && (!defined(NO_AES) || (!defined(NO_SHA) ||\
-    !defined(NO_SHA256) || !defined(NO_SHA512)))
+    !defined(NO_SHA256) || defined(WOLFSSL_SHA512)))
     /* RSA certs and keys. */
     #if defined(USE_CERT_BUFFERS_1024)
         /* Allocate buffer space. */
@@ -17338,7 +17338,7 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
 
 /* ECC */
 #if defined(HAVE_ECC) && (!defined(NO_AES) || (!defined(NO_SHA) ||\
-    !defined(NO_SHA256) || !defined(NO_SHA512)))
+    !defined(NO_SHA256) || defined(WOLFSSL_SHA512)))
 
     #ifdef USE_CERT_BUFFERS_256
         AssertNotNull(eccCert =
