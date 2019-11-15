@@ -794,7 +794,23 @@ extern void uITRON4_free(void *p) ;
 
     #define XMALLOC(s, h, type) ((void *)rtp_malloc((s), SSL_PRO_MALLOC))
     #define XFREE(p, h, type) (rtp_free(p))
-    #define XREALLOC(p, n, h, t) realloc((p), (n))
+    #define XREALLOC(p, n, h, t) (rtp_realloc((p), (n)))
+
+    #if (WINMSP3)
+        #define XSTRNCASECMP(s1,s2,n)  _strnicmp((s1),(s2),(n))
+    #else
+        #sslpro: settings.h - please implement XSTRNCASECMP - needed for HAVE_ECC
+    #endif
+
+    #define WOLFSSL_HAVE_MAX
+    #define WOLFSSL_HAVE_MIN
+
+    #define USE_FAST_MATH
+    #define TFM_TIMING_RESISTANT
+    #define WC_RSA_BLINDING
+    #define ECC_TIMING_RESISTANT
+
+    #define HAVE_ECC
 
 #endif /* EBSNET */
 
