@@ -1,5 +1,12 @@
-# wolfSSL STM32F2/F4 Example for Open STM32 Tools System Workbench
+# wolfSSL STM32 Example for Open STM32 Tools System Workbench
 
+This example includes:
+
+* wolfCrypt test
+* wolfCrypt benchmark
+* wolfSSL TLS client/server test using in-memory transfers
+
+These examples use the CubeMX Hal for STM32. If you'd like to use the older Standard Peripheral library undefine `WOLFSSL_STM32_CUBEMX` in `user_settings.h`.
 
 ## Requirements
 
@@ -21,6 +28,13 @@ Note: You may need to manually copy over the CubeMX HAL files for `stm32f4xx_hal
 ## Configuration
 
 The settings for the wolfSTM32 project are located in `<wolfssl-root>/IDE/OPENSTM32/Inc/user_settings.h`.
+
+* To enable STM32F2 support define `WOLFSSL_STM32F2`.
+* To enable STM32F4 support define `WOLFSSL_STM32F4`.
+* To enable STM32F7 support define `WOLFSSL_STM32F7`.
+* To enable STM32L4 support define `WOLFSSL_STM32L4`.
+
+If you are using FreeRTOS make sure your `FreeRTOSConfig.h` has its `configTOTAL_HEAP_SIZE` increased. The TLS client/server benchmark example requires about 76 KB for allocated tasks (with stack) and peak heap.
 
 ## Support
 
