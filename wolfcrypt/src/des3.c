@@ -192,9 +192,22 @@
     static void DesCrypt(Des* des, byte* out, const byte* in, word32 sz,
                   int dir, int mode)
     {
+        int ret;
     #ifdef WOLFSSL_STM32_CUBEMX
         CRYP_HandleTypeDef hcryp;
+    #else
+        word32 *dkey, *iv;
+        CRYP_InitTypeDef DES_CRYP_InitStructure;
+        CRYP_KeyInitTypeDef DES_CRYP_KeyInitStructure;
+        CRYP_IVInitTypeDef DES_CRYP_IVInitStructure;
+    #endif
 
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret != 0) {
+            return ret;
+        }
+
+    #ifdef WOLFSSL_STM32_CUBEMX
         XMEMSET(&hcryp, 0, sizeof(CRYP_HandleTypeDef));
         hcryp.Instance = CRYP;
         hcryp.Init.KeySize  = CRYP_KEYSIZE_128B;
@@ -204,8 +217,7 @@
 
         HAL_CRYP_Init(&hcryp);
 
-        while (sz > 0)
-        {
+        while (sz > 0) {
             /* if input and output same will overwrite input iv */
             XMEMCPY(des->tmp, in + sz - DES_BLOCK_SIZE, DES_BLOCK_SIZE);
 
@@ -240,11 +252,6 @@
 
         HAL_CRYP_DeInit(&hcryp);
     #else
-        word32 *dkey, *iv;
-        CRYP_InitTypeDef DES_CRYP_InitStructure;
-        CRYP_KeyInitTypeDef DES_CRYP_KeyInitStructure;
-        CRYP_IVInitTypeDef DES_CRYP_IVInitStructure;
-
         dkey = des->key;
         iv = des->reg;
 
@@ -286,8 +293,7 @@
         /* enable crypto processor */
         CRYP_Cmd(ENABLE);
 
-        while (sz > 0)
-        {
+        while (sz > 0) {
             /* flush IN/OUT FIFOs */
             CRYP_FIFOFlush();
 
@@ -314,6 +320,7 @@
         /* disable crypto processor */
         CRYP_Cmd(DISABLE);
     #endif /* WOLFSSL_STM32_CUBEMX */
+        wolfSSL_CryptHwMutexUnLock();
     }
 
     int wc_Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
