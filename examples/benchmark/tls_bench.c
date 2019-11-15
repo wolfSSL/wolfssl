@@ -423,18 +423,18 @@ static int SocketRecv(int sockFd, char* buf, int sz)
     int recvd = (int)recv(sockFd, buf, sz, 0);
     if (recvd == -1) {
         switch (errno) {
-    #if EAGAIN != EWOULDBLOCK
+    #if EAGAIN != SOCKET_EWOULDBLOCK
         case EAGAIN: /* EAGAIN == EWOULDBLOCK on some systems, but not others */
     #endif
-        case EWOULDBLOCK:
+        case SOCKET_EWOULDBLOCK:
             return WOLFSSL_CBIO_ERR_WANT_READ;
-        case ECONNRESET:
+        case SOCKET_ECONNRESET:
             return WOLFSSL_CBIO_ERR_CONN_RST;
-        case EINTR:
+        case SOCKET_EINTR:
             return WOLFSSL_CBIO_ERR_ISR;
-        case ECONNREFUSED: /* DTLS case */
+        case SOCKET_ECONNREFUSED: /* DTLS case */
             return WOLFSSL_CBIO_ERR_WANT_READ;
-        case ECONNABORTED:
+        case SOCKET_ECONNABORTED:
             return WOLFSSL_CBIO_ERR_CONN_CLOSE;
         default:
             return WOLFSSL_CBIO_ERR_GENERAL;
@@ -451,16 +451,16 @@ static int SocketSend(int sockFd, char* buf, int sz)
     int sent = (int)send(sockFd, buf, sz, 0);
     if (sent == -1) {
         switch (errno) {
-    #if EAGAIN != EWOULDBLOCK
+    #if EAGAIN != SOCKET_EWOULDBLOCK
         case EAGAIN: /* EAGAIN == EWOULDBLOCK on some systems, but not others */
     #endif
-        case EWOULDBLOCK:
+        case SOCKET_EWOULDBLOCK:
             return WOLFSSL_CBIO_ERR_WANT_READ;
-        case ECONNRESET:
+        case SOCKET_ECONNRESET:
             return WOLFSSL_CBIO_ERR_CONN_RST;
-        case EINTR:
+        case SOCKET_EINTR:
             return WOLFSSL_CBIO_ERR_ISR;
-        case EPIPE:
+        case SOCKET_EPIPE:
             return WOLFSSL_CBIO_ERR_CONN_CLOSE;
         default:
             return WOLFSSL_CBIO_ERR_GENERAL;
@@ -849,7 +849,7 @@ static void* client_thread(void* args)
 static int SetupSocketAndListen(int* listenFd, word32 port)
 {
     struct sockaddr_in servAddr;
-    int optval = 1;
+    const char optval = 1;
 
     /* Setup server address */
     XMEMSET(&servAddr, 0, sizeof(servAddr));
@@ -899,7 +899,7 @@ static int SocketWaitClient(info_t* info)
     socklen_t size = sizeof(clientAddr);
 
     if ((connd = accept(info->listenFd, (struct sockaddr*)&clientAddr, &size)) == -1) {
-        if (errno == EWOULDBLOCK)
+        if (errno == SOCKET_EWOULDBLOCK)
             return -2;
         printf("ERROR: failed to accept the connection\n");
         return -1;
