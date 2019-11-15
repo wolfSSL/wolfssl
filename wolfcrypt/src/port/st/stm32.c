@@ -263,7 +263,6 @@ int wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
 #ifdef STM32_CRYPTO
 
 #ifndef NO_AES
-#if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
 #ifdef WOLFSSL_STM32_CUBEMX
 int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp)
 {
@@ -359,7 +358,6 @@ int wc_Stm32_Aes_Init(Aes* aes, CRYP_InitTypeDef* cryptInit,
     return 0;
 }
 #endif /* WOLFSSL_STM32_CUBEMX */
-#endif /* WOLFSSL_AES_DIRECT || HAVE_AESGCM || HAVE_AESCCM */
 #endif /* !NO_AES */
 #endif /* STM32_CRYPTO */
 
