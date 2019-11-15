@@ -500,7 +500,9 @@
                     }
                     #define XSNPRINTF xsnprintf
                 #endif /* (_MSC_VER >= 1900) */
-            #endif /* _MSC_VER || __CYGWIN__ || __MINGW32__ */
+            #else
+                #define XSNPRINTF snprintf
+            #endif /* _MSC_VER */
         #endif /* USE_WINDOWS_API */
 
         #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) \
