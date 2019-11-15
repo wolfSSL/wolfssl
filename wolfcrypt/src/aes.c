@@ -3313,6 +3313,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             hcryp.Init.Algorithm  = CRYP_AES_CTR;
             ByteReverseWords(iv, aes->reg, AES_BLOCK_SIZE);
             hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)iv;
+        #else
+            hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)aes->reg;
         #endif
             HAL_CRYP_Init(&hcryp);
 
