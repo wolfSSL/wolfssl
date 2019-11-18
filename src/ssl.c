@@ -36807,10 +36807,15 @@ err:
 
     int wolfSSL_CTX_add1_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
     {
-        /* TODO: Add X509 certificate to CertificateManager... */
-        (void)ctx;
-        (void)x509;
-        return 0;
+        int ret;
+        if (ctx == NULL || x509 == NULL || x509->derCert == NULL) {
+            return WOLFSSL_FAILURE;
+        }
+
+        ret = wolfSSL_CTX_load_verify_buffer(ctx, x509->derCert->buffer,
+            x509->derCert->length, WOLFSSL_FILETYPE_ASN1);
+
+        return (ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
     }
 
     #ifndef NO_WOLFSSL_STUB
