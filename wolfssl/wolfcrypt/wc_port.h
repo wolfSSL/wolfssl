@@ -229,8 +229,9 @@
     #endif /* USE_WINDOWS_API */
 #endif /* SINGLE_THREADED */
 
-/* Enable crypt HW mutex for Freescale MMCAU or PIC32MZ */
-#if defined(FREESCALE_MMCAU) || defined(WOLFSSL_MICROCHIP_PIC32MZ)
+/* Enable crypt HW mutex for Freescale MMCAU, PIC32MZ or STM32 */
+#if defined(FREESCALE_MMCAU) || defined(WOLFSSL_MICROCHIP_PIC32MZ) || \
+    defined(STM32_CRYPTO)
     #ifndef WOLFSSL_CRYPT_HW_MUTEX
         #define WOLFSSL_CRYPT_HW_MUTEX  1
     #endif
@@ -749,4 +750,3 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 #endif
 
 #endif /* WOLF_CRYPT_PORT_H */
-

@@ -369,6 +369,7 @@
         /* disable crypto processor */
         CRYP_Cmd(DISABLE);
     #endif /* WOLFSSL_STM32_CUBEMX */
+
         return ret;
     }
 #endif /* WOLFSSL_AES_DIRECT || HAVE_AESGCM || HAVE_AESCCM */
@@ -461,6 +462,7 @@
         /* disable crypto processor */
         CRYP_Cmd(DISABLE);
     #endif /* WOLFSSL_STM32_CUBEMX */
+
         return ret;
     }
     #endif /* WOLFSSL_AES_DIRECT || HAVE_AESCCM */
@@ -2456,19 +2458,39 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #elif defined(WOLFSSL_DEVCRYPTO_AES)
         /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
 
+    #elif defined(STM32_CRYPTO)
+        /* Allow direct access to one block encrypt */
+        void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
+        {
+            if (wolfSSL_CryptHwMutexLock() == 0) {
+                wc_AesEncrypt(aes, in, out);
+                wolfSSL_CryptHwMutexUnLock();
+            }
+        }
+        #ifdef HAVE_AES_DECRYPT
+        /* Allow direct access to one block decrypt */
+        void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
+        {
+            if (wolfSSL_CryptHwMutexLock() == 0) {
+                wc_AesDecrypt(aes, in, out);
+                wolfSSL_CryptHwMutexUnLock();
+            }
+        }
+        #endif /* HAVE_AES_DECRYPT */
+
     #else
         /* Allow direct access to one block encrypt */
         void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
         {
             wc_AesEncrypt(aes, in, out);
         }
-    #ifdef HAVE_AES_DECRYPT
+        #ifdef HAVE_AES_DECRYPT
         /* Allow direct access to one block decrypt */
         void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
         {
             wc_AesDecrypt(aes, in, out);
         }
-    #endif /* HAVE_AES_DECRYPT */
+        #endif /* HAVE_AES_DECRYPT */
     #endif /* AES direct block */
 #endif /* WOLFSSL_AES_DIRECT */
 
@@ -2487,6 +2509,11 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         ret = wc_Stm32_Aes_Init(aes, &hcryp);
         if (ret != 0)
             return ret;
+
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret != 0) {
+            return ret;
+        }
 
     #ifdef STM32_CRYPTO_AES_ONLY
         hcryp.Init.OperatingMode = CRYP_ALGOMODE_ENCRYPT;
@@ -2525,6 +2552,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
         HAL_CRYP_DeInit(&hcryp);
 
+        wolfSSL_CryptHwMutexUnLock();
+
         return ret;
     }
     #ifdef HAVE_AES_DECRYPT
@@ -2537,6 +2566,11 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         ret = wc_Stm32_Aes_Init(aes, &hcryp);
         if (ret != 0)
             return ret;
+
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret != 0) {
+            return ret;
+        }
 
         /* if input and output same will overwrite input iv */
         XMEMCPY(aes->tmp, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
@@ -2577,6 +2611,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         }
 
         HAL_CRYP_DeInit(&hcryp);
+        wolfSSL_CryptHwMutexUnLock();
 
         return ret;
     }
@@ -2595,6 +2630,11 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         ret = wc_Stm32_Aes_Init(aes, &cryptInit, &keyInit);
         if (ret != 0)
             return ret;
+
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret != 0) {
+            return ret;
+        }
 
         /* reset registers to their default values */
         CRYP_DeInit();
@@ -2647,6 +2687,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
         /* disable crypto processor */
         CRYP_Cmd(DISABLE);
+        wolfSSL_CryptHwMutexUnLock();
 
         return ret;
     }
@@ -2664,6 +2705,11 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         ret = wc_Stm32_Aes_Init(aes, &cryptInit, &keyInit);
         if (ret != 0)
             return ret;
+
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret != 0) {
+            return ret;
+        }
 
         /* if input and output same will overwrite input iv */
         XMEMCPY(aes->tmp, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
@@ -2727,6 +2773,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
         /* disable crypto processor */
         CRYP_Cmd(DISABLE);
+        wolfSSL_CryptHwMutexUnLock();
 
         return ret;
     }
@@ -3245,10 +3292,17 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             CRYP_IVInitTypeDef ivInit;
         #endif
 
+            ret = wolfSSL_CryptHwMutexLock();
+            if (ret != 0) {
+                return ret;
+            }
+
         #ifdef WOLFSSL_STM32_CUBEMX
             ret = wc_Stm32_Aes_Init(aes, &hcryp);
-            if (ret != 0)
+            if (ret != 0) {
+                wolfSSL_CryptHwMutexUnLock();
                 return ret;
+            }
 
         #ifdef STM32_CRYPTO_AES_ONLY
             hcryp.Init.OperatingMode = CRYP_ALGOMODE_ENCRYPT;
@@ -3259,6 +3313,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             hcryp.Init.Algorithm  = CRYP_AES_CTR;
             ByteReverseWords(iv, aes->reg, AES_BLOCK_SIZE);
             hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)iv;
+        #else
+            hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)aes->reg;
         #endif
             HAL_CRYP_Init(&hcryp);
 
@@ -3279,8 +3335,10 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
         #else /* STD_PERI_LIB */
             ret = wc_Stm32_Aes_Init(aes, &cryptInit, &keyInit);
-            if (ret != 0)
+            if (ret != 0) {
+                wolfSSL_CryptHwMutexUnLock();
                 return ret;
+            }
 
             /* reset registers to their default values */
             CRYP_DeInit();
@@ -3325,6 +3383,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             CRYP_Cmd(DISABLE);
 
         #endif /* WOLFSSL_STM32_CUBEMX */
+
+            wolfSSL_CryptHwMutexUnLock();
             return ret;
         }
 
@@ -5432,6 +5492,11 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
         return ret;
 #endif
 
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+
     XMEMSET(ctr, 0, AES_BLOCK_SIZE);
     if (ivSz == GCM_NONCE_MID_SZ) {
         XMEMCPY(ctr, iv, ivSz);
@@ -5449,6 +5514,7 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
         authInPadded = (byte*)XMALLOC(authPadSz, aes->heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (authInPadded == NULL) {
+            wolfSSL_CryptHwMutexUnLock();
             return MEMORY_E;
         }
         XMEMSET(authInPadded, 0, authPadSz);
@@ -5569,6 +5635,8 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
     if (authInPadded != authIn) {
         XFREE(authInPadded, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
+
+    wolfSSL_CryptHwMutexUnLock();
 
     return ret;
 }
@@ -5858,6 +5926,11 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
         return ret;
 #endif
 
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret != 0) {
+        return ret;
+    }
+
     XMEMSET(ctr, 0, AES_BLOCK_SIZE);
     if (ivSz == GCM_NONCE_MID_SZ) {
         XMEMCPY(ctr, iv, ivSz);
@@ -5875,6 +5948,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
         authInPadded = (byte*)XMALLOC(authPadSz, aes->heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (authInPadded == NULL) {
+            wolfSSL_CryptHwMutexUnLock();
             return MEMORY_E;
         }
         XMEMSET(authInPadded, 0, authPadSz);
@@ -5980,7 +6054,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
 #endif /* WOLFSSL_STM32_CUBEMX */
 
     /* STM32 GCM hardware only supports IV of 12 bytes, so use software for auth */
-    if (sz == 0 || partial != 0 || ivSz != GCM_NONCE_MID_SZ) {
+    if (sz == 0 || ivSz != GCM_NONCE_MID_SZ) {
         DecrementGcmCounter(ctr); /* hardware requires +1, so subtract it */
         GHASH(aes, authIn, authInSz, in, sz, tag, sizeof(tag));
         wc_AesEncrypt(aes, ctr, partialBlock);
@@ -5995,6 +6069,8 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
     if (authInPadded != authIn) {
         XFREE(authInPadded, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
+
+    wolfSSL_CryptHwMutexUnLock();
 
     return ret;
 }

@@ -1816,9 +1816,15 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #ifdef WOLFSSL_STM32_CUBEMX
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
+        int ret;
         RNG_HandleTypeDef hrng;
         word32 i = 0;
         (void)os;
+
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret != 0) {
+            return ret;
+        }
 
         /* enable RNG clock source */
         __HAL_RCC_RNG_CLK_ENABLE();
@@ -1836,6 +1842,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 /* Single byte at a time */
                 uint32_t tmpRng = 0;
                 if (HAL_RNG_GenerateRandomNumber(&hrng, &tmpRng) != HAL_OK) {
+                    wolfSSL_CryptHwMutexUnLock();
                     return RAN_BLOCK_E;
                 }
                 output[i++] = (byte)tmpRng;
@@ -1843,11 +1850,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             else {
                 /* Use native 32 instruction */
                 if (HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&output[i]) != HAL_OK) {
+                    wolfSSL_CryptHwMutexUnLock();
                     return RAN_BLOCK_E;
                 }
                 i += sizeof(word32);
             }
         }
+
+        wolfSSL_CryptHwMutexUnLock();
 
         return 0;
     }
@@ -1858,8 +1868,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
      * Manual (Chapter 24) for STM32F4xx family. */
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        int i;
+        int ret;
+        word32 i;
         (void)os;
+
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret != 0) {
+            return ret;
+        }
 
         /* enable RNG peripheral clock */
         RCC->AHB2ENR |= RCC_AHB2ENR_RNGEN;
@@ -1873,16 +1889,20 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         /* verify no errors, make sure SEIS and CEIS bits are 0
          * in RNG->SR register */
-        if (RNG->SR & (RNG_SR_SECS | RNG_SR_CECS))
+        if (RNG->SR & (RNG_SR_SECS | RNG_SR_CECS)) {
+            wolfSSL_CryptHwMutexUnLock();
             return RNG_FAILURE_E;
+        }
 
-        for (i = 0; i < (int)sz; i++) {
+        for (i = 0; i < sz; i++) {
             /* wait until RNG number is ready */
             while ((RNG->SR & RNG_SR_DRDY) == 0) { }
 
             /* get value */
             output[i] = RNG->DR;
         }
+
+        wolfSSL_CryptHwMutexUnLock();
 
         return 0;
     }
@@ -1892,8 +1912,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     /* Generate a RNG seed using the STM32 Standard Peripheral Library */
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        int i;
+        int ret;
+        word32 i;
         (void)os;
+
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret != 0) {
+            return ret;
+        }
 
         /* enable RNG clock source */
         RCC_AHB2PeriphClockCmd(RCC_AHB2Periph_RNG, ENABLE);
@@ -1905,16 +1931,20 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         RNG_Cmd(ENABLE);
 
         /* verify no errors with RNG_CLK or Seed */
-        if (RNG_GetFlagStatus(RNG_FLAG_SECS | RNG_FLAG_CECS) != RESET)
+        if (RNG_GetFlagStatus(RNG_FLAG_SECS | RNG_FLAG_CECS) != RESET) {
+            wolfSSL_CryptHwMutexUnLock();
             return RNG_FAILURE_E;
+        }
 
-        for (i = 0; i < (int)sz; i++) {
+        for (i = 0; i < sz; i++) {
             /* wait until RNG number is ready */
             while (RNG_GetFlagStatus(RNG_FLAG_DRDY) == RESET) { }
 
             /* get value */
             output[i] = RNG_GetRandomNumber();
         }
+
+        wolfSSL_CryptHwMutexUnLock();
 
         return 0;
     }

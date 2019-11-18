@@ -12,4 +12,3 @@ EXTRA_DIST+= IDE/OPENSTM32/Src/main.c
 EXTRA_DIST+= IDE/OPENSTM32/Src/wolfssl_example.c
 EXTRA_DIST+= IDE/OPENSTM32/Inc/user_settings.h
 EXTRA_DIST+= IDE/OPENSTM32/Inc/wolfssl_example.h
-EXTRA_DIST+= IDE/OPENSTM32/Inc/lwipopts.h

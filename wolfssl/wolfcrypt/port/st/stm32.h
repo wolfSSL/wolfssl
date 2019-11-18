@@ -108,7 +108,7 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
         #define STM32_HAL_V2
     #endif
 
-    /* Thee datatype for STM32 CubeMX HAL Crypt calls */
+    /* The datatype for STM32 CubeMX HAL Crypt calls */
     #ifdef STM32_HAL_V2
         #define STM_CRYPT_TYPE uint32_t
     #else
@@ -118,15 +118,13 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
     /* CRYPT_AES_GCM starts the IV with 2 */
     #define STM32_GCM_IV_START 2
 
-    #if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
-        struct Aes;
-        #ifdef WOLFSSL_STM32_CUBEMX
-            int wc_Stm32_Aes_Init(struct Aes* aes, CRYP_HandleTypeDef* hcryp);
-        #else /* STD_PERI_LIB */
-            int wc_Stm32_Aes_Init(struct Aes* aes, CRYP_InitTypeDef* cryptInit,
-                CRYP_KeyInitTypeDef* keyInit);
-        #endif /* WOLFSSL_STM32_CUBEMX */
-    #endif /* WOLFSSL_AES_DIRECT || HAVE_AESGCM || HAVE_AESCCM */
+    struct Aes;
+    #ifdef WOLFSSL_STM32_CUBEMX
+        int wc_Stm32_Aes_Init(struct Aes* aes, CRYP_HandleTypeDef* hcryp);
+    #else /* STD_PERI_LIB */
+        int wc_Stm32_Aes_Init(struct Aes* aes, CRYP_InitTypeDef* cryptInit,
+            CRYP_KeyInitTypeDef* keyInit);
+    #endif /* WOLFSSL_STM32_CUBEMX */
 #endif /* !NO_AES */
 
 #endif /* STM32_CRYPTO */
