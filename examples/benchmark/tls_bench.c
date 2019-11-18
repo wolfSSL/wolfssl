@@ -40,7 +40,7 @@ bench_tls(args);
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/ssl.h>
-
+#include <wolfssl/wolfcrypt/hash.h> /* WC_MAX_DIGEST_SIZE */
 #include <wolfssl/test.h>
 
 #include <examples/benchmark/tls_bench.h>
@@ -107,7 +107,7 @@ bench_tls(args);
 
 /* In memory transfer buffer maximum size */
 /* Must be large enough to handle max TLS packet size plus max TLS header MAX_MSG_EXTRA */
-#define MEM_BUFFER_SZ       (TEST_PACKET_SIZE + 38 + 32)
+#define MEM_BUFFER_SZ       (TEST_PACKET_SIZE + 38 + WC_MAX_DIGEST_SIZE)
 #define SHOW_VERBOSE        0 /* Default output is tab delimited format */
 
 /* shutdown message - nice signal to server, we are done */

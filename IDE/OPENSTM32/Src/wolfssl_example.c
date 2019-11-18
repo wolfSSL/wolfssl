@@ -28,6 +28,8 @@
 #define USE_CERT_BUFFERS_256
 #include <wolfssl/certs_test.h>
 
+#include <wolfssl/wolfcrypt/hash.h> /* WC_MAX_DIGEST_SIZE */
+
 #define WOLFSSL_DEBUG_MEMORY
 #ifdef WOLFSSL_DEBUG_MEMORY
 /* for memory debugging */
@@ -46,7 +48,8 @@
 #define BENCH_SHOW_PEER_INFO 1
 #define TEST_PACKET_SIZE     (2 * 1024)  /* TLS packet size */
 #define TEST_MAX_SIZE        (32 * 1024) /* Total bytes to benchmark */
-#define MEM_BUFFER_SZ        (TEST_PACKET_SIZE + 38 + 32) /* Must be large enough to handle max packet size plus max TLS header MAX_MSG_EXTRA */
+/* Must be large enough to handle max packet size - TLS header MAX_MSG_EXTRA + MAX DIGEST */
+#define MEM_BUFFER_SZ        (TEST_PACKET_SIZE + 38 + WC_MAX_DIGEST_SIZE)
 #define SHOW_VERBOSE         0 /* Default output is tab delimited format */
 #ifndef WOLFSSL_CIPHER_LIST_MAX_SIZE
 #define WOLFSSL_CIPHER_LIST_MAX_SIZE 2048
