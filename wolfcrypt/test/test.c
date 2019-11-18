@@ -16018,6 +16018,7 @@ int pkcs12_test(void)
 }
 #endif /* HAVE_PKCS12 */
 
+#if defined(HAVE_PBKDF2) && !defined(NO_SHA256)
 int pbkdf2_test(void)
 {
     char passwd[] = "passwordpassword";
@@ -16031,8 +16032,8 @@ int pbkdf2_test(void)
         0x2d, 0xd4, 0xf9, 0x37, 0xd4, 0x95, 0x16, 0xa7, 0x2a, 0x9a, 0x21, 0xd1
     };
 
-    int ret = wc_PBKDF2(derived, (byte*)passwd, (int)XSTRLEN(passwd), salt, 8,
-                                                      iterations, kLen, WC_SHA256);
+    int ret = wc_PBKDF2_ex(derived, (byte*)passwd, (int)XSTRLEN(passwd), salt,
+              (int)sizeof(salt), iterations, kLen, WC_SHA256, HEAP_HINT, devId);
     if (ret != 0)
         return ret;
 
@@ -16042,9 +16043,9 @@ int pbkdf2_test(void)
     return 0;
 
 }
+#endif /* HAVE_PBKDF2 && !NO_SHA256 */
 
-
-#ifndef NO_SHA
+#if defined(HAVE_PBKDF1) && !defined(NO_SHA)
 int pbkdf1_test(void)
 {
     char passwd[] = "password";
@@ -16054,33 +16055,37 @@ int pbkdf1_test(void)
     byte  derived[16];
 
     const byte verify[] = {
-        0xDC, 0x19, 0x84, 0x7E, 0x05, 0xC6, 0x4D, 0x2F, 0xAF, 0x10, 0xEB, 0xFB,
-        0x4A, 0x3D, 0x2A, 0x20
+        0xDC, 0x19, 0x84, 0x7E, 0x05, 0xC6, 0x4D, 0x2F,
+        0xAF, 0x10, 0xEB, 0xFB, 0x4A, 0x3D, 0x2A, 0x20
     };
 
-    wc_PBKDF1(derived, (byte*)passwd, (int)XSTRLEN(passwd), salt, 8, iterations,
-           kLen, WC_SHA);
+    int ret = wc_PBKDF1_ex(derived, kLen, NULL, 0, (byte*)passwd,
+        (int)XSTRLEN(passwd), salt, (int)sizeof(salt), iterations, WC_SHA,
+        HEAP_HINT);
+    if (ret != 0)
+        return ret;
 
     if (XMEMCMP(derived, verify, sizeof(verify)) != 0)
         return -8100;
 
     return 0;
 }
-#endif
-
+#endif /* HAVE_PBKDF2 && !NO_SHA */
 
 int pwdbased_test(void)
 {
    int ret = 0;
 
-#ifndef NO_SHA
+#if defined(HAVE_PBKDF1) && !defined(NO_SHA)
    ret = pbkdf1_test();
    if (ret != 0)
       return ret;
 #endif
+#if defined(HAVE_PBKDF2) && !defined(NO_SHA256)
    ret = pbkdf2_test();
    if (ret != 0)
       return ret;
+#endif
 #ifdef HAVE_PKCS12
    ret = pkcs12_test();
    if (ret != 0)
@@ -25530,6 +25535,13 @@ int cryptocb_test(void)
     #ifndef NO_SHA256
     if (ret == 0)
         ret = hmac_sha256_test();
+    #endif
+#endif
+#ifndef NO_PWDBASED
+    #if defined(HAVE_PBKDF2) && !defined(NO_SHA256)
+       ret = pbkdf2_test();
+       if (ret != 0)
+          return ret;
     #endif
 #endif
 

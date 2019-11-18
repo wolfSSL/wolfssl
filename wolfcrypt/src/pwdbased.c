@@ -85,7 +85,7 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
         return MEMORY_E;
 #endif
 
-    err = wc_HashInit(hash, hashT);
+    err = wc_HashInit_ex(hash, hashT, heap, INVALID_DEVID);
     if (err != 0) {
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(hash, heap, DYNAMIC_TYPE_HASHCTX);
@@ -171,8 +171,8 @@ int wc_PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
 
 #ifdef HAVE_PBKDF2
 
-int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
-           int sLen, int iterations, int kLen, int hashType)
+int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
+           int sLen, int iterations, int kLen, int hashType, void* heap, int devId)
 {
     word32 i = 1;
     int    hLen;
@@ -199,17 +199,17 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
-    buffer = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buffer = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (buffer == NULL)
         return MEMORY_E;
-    hmac = (Hmac*)XMALLOC(sizeof(Hmac), NULL, DYNAMIC_TYPE_HMAC);
+    hmac = (Hmac*)XMALLOC(sizeof(Hmac), heap, DYNAMIC_TYPE_HMAC);
     if (hmac == NULL) {
-        XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(buffer, heap, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
 #endif
 
-    ret = wc_HmacInit(hmac, NULL, INVALID_DEVID);
+    ret = wc_HmacInit(hmac, heap, devId);
     if (ret == 0) {
         /* use int hashType here, since HMAC FIPS uses the old unique value */
         ret = wc_HmacSetKey(hmac, hashType, passwd, pLen);
@@ -263,11 +263,18 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(hmac, NULL, DYNAMIC_TYPE_HMAC);
+    XFREE(buffer, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(hmac, heap, DYNAMIC_TYPE_HMAC);
 #endif
 
     return ret;
+}
+
+int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
+           int sLen, int iterations, int kLen, int hashType)
+{
+    return wc_PBKDF2_ex(output, passwd, pLen, salt, sLen, iterations, kLen,
+        hashType, NULL, INVALID_DEVID);
 }
 
 #endif /* HAVE_PBKDF2 */
