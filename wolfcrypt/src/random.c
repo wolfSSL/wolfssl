@@ -1590,16 +1590,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #include "rtprand.h"   /* rtp_rand () */
 #include "rtptime.h"   /* rtp_get_system_msec() */
 
-
 int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
-    int i;
-    rtp_srand(rtp_get_system_msec());
+    word32 i;
 
+    rtp_srand(rtp_get_system_msec());
     for (i = 0; i < sz; i++ ) {
         output[i] = rtp_rand() % 256;
-        if ( (i % 8) == 7)
-            rtp_srand(rtp_get_system_msec());
     }
 
     return 0;
