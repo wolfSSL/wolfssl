@@ -158,6 +158,8 @@ WOLFSSL_API int wc_Hash(enum wc_HashType hash_type,
     byte* hash, word32 hash_len);
 
 /* generic hash operation wrappers */
+WOLFSSL_API int wc_HashInit_ex(wc_HashAlg* hash, enum wc_HashType type,
+    void* heap, int devId);
 WOLFSSL_API int wc_HashInit(wc_HashAlg* hash, enum wc_HashType type);
 WOLFSSL_API int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type,
     const byte* data, word32 dataSz);
