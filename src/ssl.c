@@ -27060,7 +27060,7 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
         byte*          myBuffer  = staticBuffer;
         int            dynamic   = 0;
         XFILE          file      = XBADFILE;
-        size_t         sz        = 0;
+        long           sz        = 0;
         WOLFSSL_CTX*   ctx       = ssl->ctx;
         WOLFSSL_X509*  peer_cert = &ssl->peerCert;
         DerBuffer*     fileDer = NULL;
@@ -27090,7 +27090,7 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
 
         if ((myBuffer != NULL) &&
             (sz > 0) &&
-            (XFREAD(myBuffer, 1, sz, file) == sz) &&
+            (XFREAD(myBuffer, 1, sz, file) == (size_t)sz) &&
             (PemToDer(myBuffer, (long)sz, CERT_TYPE,
                       &fileDer, ctx->heap, NULL, NULL) == 0) &&
             (fileDer->length != 0) &&
@@ -35023,7 +35023,7 @@ err:
     {
         unsigned char* pem = NULL;
         int pemSz;
-        long  i = 0, l;
+        long i = 0, l;
         void *newx509;
         int derSz;
         DerBuffer* der = NULL;
