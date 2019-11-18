@@ -872,8 +872,10 @@ static void client_thread(const void* args)
         	osSignalSet(info->server.threadId, 1);
         info->client.ret = ret;
         info->client.done = 1;
-
         osThreadSuspend(NULL);
+
+        if (info->doShutdown)
+            info->client.done = 1;
     } while (!info->doShutdown);
 
     osThreadTerminate(info->client.threadId);
@@ -1104,8 +1106,10 @@ static void server_thread(const void* args)
             osSignalSet(info->client.threadId, 1);
         info->server.ret = ret;
         info->server.done = 1;
-
         osThreadSuspend(NULL);
+
+        if (info->doShutdown)
+            info->server.done = 1;
     } while (!info->doShutdown);
 
     osThreadTerminate(info->server.threadId);
@@ -1308,6 +1312,7 @@ void wolfCryptDemo(const void* argument)
 		case 't':
 			printf("Running wolfCrypt Tests...\n");
         #ifndef NO_CRYPT_TEST
+			args.return_code = 0;
 			wolfcrypt_test(&args);
         #endif
 			printf("Crypt Test: Return code %d\n", args.return_code);
@@ -1316,6 +1321,7 @@ void wolfCryptDemo(const void* argument)
 		case 'b':
 			printf("Running wolfCrypt Benchmarks...\n");
         #ifndef NO_CRYPT_BENCHMARK
+			args.return_code = 0;
 			benchmark_test(&args);
         #endif
 			printf("Benchmark Test: Return code %d\n", args.return_code);

@@ -204,7 +204,7 @@
 
         ret = wolfSSL_CryptHwMutexLock();
         if (ret != 0) {
-            return ret;
+            return;
         }
 
     #ifdef WOLFSSL_STM32_CUBEMX
