@@ -2661,6 +2661,10 @@ struct WOLFSSL_CTX {
 #endif
 #endif /* WOLFSSL_DTLS */
     VerifyCallback  verifyCallback;     /* cert verification callback */
+#ifdef OPENSSL_ALL
+    CertVerifyCallback verifyCertCb;
+    void*              verifyCertCbArg;
+#endif /* OPENSSL_ALL */
     word32          timeout;            /* session timeout */
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
     word32          ecdhCurveOID;       /* curve Ecc_Sum */
@@ -4082,14 +4086,11 @@ struct WOLFSSL {
 };
 
 
-WOLFSSL_LOCAL
-int  SetSSL_CTX(WOLFSSL*, WOLFSSL_CTX*, int);
-WOLFSSL_LOCAL
-int  InitSSL(WOLFSSL*, WOLFSSL_CTX*, int);
-WOLFSSL_LOCAL
-void FreeSSL(WOLFSSL*, void* heap);
-WOLFSSL_API void SSL_ResourceFree(WOLFSSL*);   /* Micrium uses */
-
+WOLFSSL_LOCAL int  SSL_CTX_RefCount(WOLFSSL_CTX* ctx, int incr);
+WOLFSSL_LOCAL int  SetSSL_CTX(WOLFSSL*, WOLFSSL_CTX*, int);
+WOLFSSL_LOCAL int  InitSSL(WOLFSSL*, WOLFSSL_CTX*, int);
+WOLFSSL_LOCAL void FreeSSL(WOLFSSL*, void* heap);
+WOLFSSL_API   void SSL_ResourceFree(WOLFSSL*);   /* Micrium uses */
 
 
 #ifndef NO_CERTS
