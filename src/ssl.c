@@ -6397,6 +6397,12 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
     sz = XFTELL(file);
     XREWIND(file);
 
+    if (sz > MAX_WOLFSSL_FILE_SIZE || sz <= 0) {
+        WOLFSSL_MSG("ProcessFile file size error");
+        XFCLOSE(file);
+        return WOLFSSL_BAD_FILE;
+    }
+
     if (sz > (long)sizeof(staticBuffer)) {
         WOLFSSL_MSG("Getting dynamic buffer");
         myBuffer = (byte*)XMALLOC(sz, heapHint, DYNAMIC_TYPE_FILE);
@@ -6405,10 +6411,6 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
             return WOLFSSL_BAD_FILE;
         }
         dynamic = 1;
-    }
-    else if (sz <= 0) {
-        XFCLOSE(file);
-        return WOLFSSL_BAD_FILE;
     }
 
     if ( (ret = (int)XFREAD(myBuffer, 1, sz, file)) != sz)
@@ -6608,7 +6610,7 @@ int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* fname,
     XREWIND(file);
 
     if (sz > MAX_WOLFSSL_FILE_SIZE || sz <= 0) {
-        WOLFSSL_MSG("CertManagerVerify file bad size");
+        WOLFSSL_MSG("CertManagerVerify file size error");
         XFCLOSE(file);
         return WOLFSSL_BAD_FILE;
     }
@@ -7077,6 +7079,12 @@ static int wolfSSL_SetTmpDH_file_wrapper(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     sz = XFTELL(file);
     XREWIND(file);
 
+    if (sz > MAX_WOLFSSL_FILE_SIZE || sz <= 0) {
+        WOLFSSL_MSG("SetTmpDH file size error");
+        XFCLOSE(file);
+        return WOLFSSL_BAD_FILE;
+    }
+
     if (sz > (long)sizeof(staticBuffer)) {
         WOLFSSL_MSG("Getting dynamic buffer");
         myBuffer = (byte*) XMALLOC(sz, ctx->heap, DYNAMIC_TYPE_FILE);
@@ -7085,10 +7093,6 @@ static int wolfSSL_SetTmpDH_file_wrapper(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             return WOLFSSL_BAD_FILE;
         }
         dynamic = 1;
-    }
-    else if (sz <= 0) {
-        XFCLOSE(file);
-        return WOLFSSL_BAD_FILE;
     }
 
     if ( (ret = (int)XFREAD(myBuffer, 1, sz, file)) != sz)
@@ -10596,8 +10600,8 @@ int CM_RestoreCertCache(WOLFSSL_CERT_MANAGER* cm, const char* fname)
     memSz = (int)XFTELL(file);
     XREWIND(file);
 
-    if (memSz <= 0) {
-        WOLFSSL_MSG("Bad file size");
+    if (memSz > MAX_WOLFSSL_FILE_SIZE || memSz <= 0) {
+        WOLFSSL_MSG("CM_RestoreCertCache file size error");
         XFCLOSE(file);
         return WOLFSSL_BAD_FILE;
     }
@@ -18958,13 +18962,13 @@ WOLFSSL_X509* wolfSSL_X509_d2i_fp(WOLFSSL_X509** x509, XFILE file)
         byte* fileBuffer = NULL;
         long sz = 0;
 
-        if(XFSEEK(file, 0, XSEEK_END) != 0)
+        if (XFSEEK(file, 0, XSEEK_END) != 0)
             return NULL;
         sz = XFTELL(file);
         XREWIND(file);
 
-        if (sz < 0) {
-            WOLFSSL_MSG("Bad tell on FILE");
+        if (sz > MAX_WOLFSSL_FILE_SIZE || sz < 0) {
+            WOLFSSL_MSG("X509_d2i file size error");
             return NULL;
         }
 
@@ -19011,12 +19015,18 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
     if (file == XBADFILE)
         return NULL;
 
-    if(XFSEEK(file, 0, XSEEK_END) != 0){
+    if (XFSEEK(file, 0, XSEEK_END) != 0){
         XFCLOSE(file);
         return NULL;
     }
     sz = XFTELL(file);
     XREWIND(file);
+
+    if (sz > MAX_WOLFSSL_FILE_SIZE || sz < 0) {
+        WOLFSSL_MSG("X509_load_certificate_file size error");
+        XFCLOSE(file);
+        return NULL;
+    }
 
     if (sz > (long)sizeof(staticBuffer)) {
         fileBuffer = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE);
@@ -19025,10 +19035,6 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
             return NULL;
         }
         dynamic = 1;
-    }
-    else if (sz < 0) {
-        XFCLOSE(file);
-        return NULL;
     }
 
     ret = (int)XFREAD(fileBuffer, 1, sz, file);
@@ -21737,8 +21743,10 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
     sz = XFTELL(fp);
     XREWIND(fp);
 
-    if (sz <= 0)
+    if (sz > MAX_WOLFSSL_FILE_SIZE || sz <= 0) {
+        WOLFSSL_MSG("X509_LOOKUP_load_file size error");
         goto end;
+    }
 
     pem = (byte*)XMALLOC(sz, 0, DYNAMIC_TYPE_PEM);
     if (pem == NULL) {
@@ -22895,66 +22903,77 @@ static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
 {
     void *newx509 = NULL;
     byte *fileBuffer = NULL;
+    long sz = 0;
 
-    if (file != XBADFILE)
-    {
-        long sz = 0;
+    /* init variable */
+    if (x509)
+        *x509 = NULL;
 
-        if(XFSEEK(file, 0, XSEEK_END) != 0)
-            return NULL;
-        sz = XFTELL(file);
-        XREWIND(file);
+    /* argument check */
+    if (file == XBADFILE) {
+        return NULL;
+    }
 
-        if (sz < 0)
-        {
-            WOLFSSL_MSG("Bad tell on FILE");
-            return NULL;
+    /* determine file size */
+    if (XFSEEK(file, 0, XSEEK_END) != 0) {
+        return NULL;
+    }
+    sz = XFTELL(file);
+    XREWIND(file);
+
+    if (sz > MAX_WOLFSSL_FILE_SIZE || sz <= 0) {
+        WOLFSSL_MSG("d2i_X509_fp_ex file size error");
+        return NULL;
+    }
+
+    fileBuffer = (byte *)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE);
+    if (fileBuffer != NULL) {
+        if ((long)XFREAD(fileBuffer, 1, sz, file) != sz) {
+            WOLFSSL_MSG("File read failed");
+            goto err_exit;
         }
-
-        fileBuffer = (byte *)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE);
-        if (fileBuffer != NULL)
-        {
-            if((long)XFREAD(fileBuffer, 1, sz, file) != sz)
-            {
-                WOLFSSL_MSG("File read failed");
+        if (type == CERT_TYPE) {
+            newx509 = (void *)wolfSSL_X509_d2i(NULL, fileBuffer, (int)sz);
+        }
+    #ifdef HAVE_CRL
+        else if (type == CRL_TYPE) {
+            newx509 = (void *)wolfSSL_d2i_X509_CRL(NULL, fileBuffer, (int)sz);
+        }
+    #endif
+    #if !defined(NO_ASN) && !defined(NO_PWDBASED)
+        else if (type == PKCS12_TYPE) {
+            if ((newx509 = wc_PKCS12_new()) == NULL) {
                 goto err_exit;
             }
-            if(type == CERT_TYPE)
-                newx509 = (void *)wolfSSL_X509_d2i(NULL, fileBuffer, (int)sz);
-            #ifdef HAVE_CRL
-            else if(type == CRL_TYPE)
-                newx509 = (void *)wolfSSL_d2i_X509_CRL(NULL, fileBuffer, (int)sz);
-            #endif
-            #if !defined(NO_ASN) && !defined(NO_PWDBASED)
-            else if(type == PKCS12_TYPE){
-                if((newx509 = wc_PKCS12_new()) == NULL)
-                    goto err_exit;
-                if(wc_d2i_PKCS12(fileBuffer, (int)sz, (WC_PKCS12*)newx509) < 0)
-                    goto err_exit;
-            }
-            #endif
-            else goto err_exit;
-            if(newx509 == NULL)
-            {
-                WOLFSSL_MSG("X509 failed");
+            if (wc_d2i_PKCS12(fileBuffer, (int)sz, (WC_PKCS12*)newx509) < 0) {
                 goto err_exit;
             }
+        }
+    #endif
+        else {
+            goto err_exit;
+        }
+        if (newx509 == NULL) {
+            WOLFSSL_MSG("X509 failed");
+            goto err_exit;
         }
     }
-    if (x509 != NULL)
+
+    if (x509)
         *x509 = newx509;
 
     goto _exit;
 
 err_exit:
-    #if !defined(NO_ASN) && !defined(NO_PWDBASED)
-    if((newx509 != NULL) && (type == PKCS12_TYPE)) {
+#if !defined(NO_ASN) && !defined(NO_PWDBASED)
+    if ((newx509 != NULL) && (type == PKCS12_TYPE)) {
         wc_PKCS12_free((WC_PKCS12*)newx509);
     }
-    #endif
+#endif
 _exit:
-    if(fileBuffer != NULL)
+    if (fileBuffer != NULL)
         XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
+
     return newx509;
 }
 
@@ -27050,19 +27069,24 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
         if (file == XBADFILE)
             return WOLFSSL_BAD_FILE;
 
-        if(XFSEEK(file, 0, XSEEK_END) != 0) {
+        if (XFSEEK(file, 0, XSEEK_END) != 0) {
             XFCLOSE(file);
             return WOLFSSL_BAD_FILE;
         }
         sz = XFTELL(file);
         XREWIND(file);
 
+        if (sz > MAX_WOLFSSL_FILE_SIZE || sz < 0) {
+            WOLFSSL_MSG("cmp_peer_cert_to_file size error");
+            XFCLOSE(file);
+            return WOLFSSL_BAD_FILE;
+        }
+
         if (sz > (long)sizeof(staticBuffer)) {
             WOLFSSL_MSG("Getting dynamic buffer");
             myBuffer = (byte*)XMALLOC(sz, ctx->heap, DYNAMIC_TYPE_FILE);
             dynamic = 1;
         }
-
 
         if ((myBuffer != NULL) &&
             (sz > 0) &&
@@ -34995,7 +35019,7 @@ err:
 
 #if !defined(NO_FILESYSTEM)
     static void* wolfSSL_PEM_read_X509_ex(XFILE fp, void **x,
-                                                    pem_password_cb *cb, void *u, int type)
+        pem_password_cb *cb, void *u, int type)
     {
         unsigned char* pem = NULL;
         int pemSz;
@@ -35025,54 +35049,61 @@ err:
         if (XFSEEK(fp, i, SEEK_SET) != 0)
             return NULL;
         pemSz = (int)(l - i);
+
         /* check calculated length */
-        if (pemSz  < 0)
+        if (pemSz > MAX_WOLFSSL_FILE_SIZE || pemSz < 0) {
+            WOLFSSL_MSG("PEM_read_X509_ex file size error");
             return NULL;
-        if((pem = (unsigned char*)XMALLOC(pemSz, 0, DYNAMIC_TYPE_PEM)) == NULL)
+        }
+
+        /* allocate pem buffer */
+        pem = (unsigned char*)XMALLOC(pemSz, NULL, DYNAMIC_TYPE_PEM);
+        if (pem == NULL)
             return NULL;
 
-        if((int)XFREAD((char *)pem, 1, pemSz, fp) != pemSz)
+        if ((int)XFREAD((char *)pem, 1, pemSz, fp) != pemSz)
             goto err_exit;
 
-        switch(type){
-        case CERT_TYPE:
-            newx509 = (void *)wolfSSL_X509_load_certificate_buffer(pem, pemSz,
-                                                              WOLFSSL_FILETYPE_PEM);
-            break;
+        switch (type) {
+            case CERT_TYPE:
+                newx509 = (void *)wolfSSL_X509_load_certificate_buffer(pem,
+                    pemSz, WOLFSSL_FILETYPE_PEM);
+                break;
+
         #ifdef HAVE_CRL
-        case CRL_TYPE:
-            {
-                if((PemToDer(pem, pemSz, CRL_TYPE, &der, NULL, NULL, NULL)) < 0)
+            case CRL_TYPE:
+                if ((PemToDer(pem, pemSz, CRL_TYPE, &der, NULL, NULL, NULL)) < 0)
                     goto err_exit;
                 derSz = der->length;
-                if((newx509 = (void *)wolfSSL_d2i_X509_CRL(
-                    (WOLFSSL_X509_CRL **)x, (const unsigned char *)der->buffer, derSz)) == NULL)
+                newx509 = (void*)wolfSSL_d2i_X509_CRL((WOLFSSL_X509_CRL **)x,
+                    (const unsigned char *)der->buffer, derSz);
+                if (newx509 == NULL)
                     goto err_exit;
                 FreeDer(&der);
                 break;
-            }
         #endif
 
-        default:
-            goto err_exit;
+            default:
+                goto err_exit;
         }
         if (x != NULL) {
             *x = newx509;
         }
-        XFREE(pem, 0, DYNAMIC_TYPE_PEM);
+        XFREE(pem, NULL, DYNAMIC_TYPE_PEM);
         return newx509;
 
     err_exit:
-        if(pem != NULL)
-            XFREE(pem, 0, DYNAMIC_TYPE_PEM);
-        if(der != NULL)
+        if (pem != NULL)
+            XFREE(pem, NULL, DYNAMIC_TYPE_PEM);
+        if (der != NULL)
             FreeDer(&der);
-        return NULL;
 
+        /* unused */
         (void)cb;
         (void)u;
 	    (void)derSz;
 
+        return NULL;
     }
 
     WOLFSSL_API WOLFSSL_X509* wolfSSL_PEM_read_X509(XFILE fp, WOLFSSL_X509 **x,
@@ -37682,13 +37713,15 @@ WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
     }
     else if (bio->type == WOLFSSL_BIO_FILE) {
         /* Read whole file into a new buffer. */
-        if(XFSEEK((XFILE)bio->ptr, 0, SEEK_END) != 0)
+        if (XFSEEK((XFILE)bio->ptr, 0, SEEK_END) != 0)
             goto end;
         sz = XFTELL((XFILE)bio->ptr);
-        if(XFSEEK((XFILE)bio->ptr, 0, SEEK_SET) != 0)
+        if (XFSEEK((XFILE)bio->ptr, 0, SEEK_SET) != 0)
             goto end;
-        if (sz <= 0L)
+        if (sz > MAX_WOLFSSL_FILE_SIZE || sz <= 0L) {
+            WOLFSSL_MSG("PEM_read_bio_DHparams file size error");
             goto end;
+        }
         mem = (unsigned char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_PEM);
         if (mem == NULL)
             goto end;
@@ -44361,7 +44394,13 @@ static int bio_get_data(WOLFSSL_BIO* bio, byte** data)
                 ret = WOLFSSL_BAD_FILE;
         }
         if (ret == 0) {
-            memSz = XFTELL(file) - curr;
+            memSz = XFTELL(file);
+            if (memSz > MAX_WOLFSSL_FILE_SIZE || memSz < 0) {
+                ret = WOLFSSL_BAD_FILE;
+            }
+        }
+        if (ret == 0) {
+            memSz -= curr;
             ret = (int)memSz;
             if (XFSEEK(file, curr, SEEK_SET) != 0)
                 ret = WOLFSSL_BAD_FILE;

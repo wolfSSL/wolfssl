@@ -662,33 +662,34 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE_bio(WOLFSSL_BIO* bio,
     }
 #ifndef NO_FILESYSTEM
     else if (bio->type == WOLFSSL_BIO_FILE) {
-        long i;
-        long l;
+        long fcur;
+        long flen;
 
         if (bio->ptr == NULL)
             return NULL;
 
-        i = XFTELL((XFILE)bio->ptr);
-        if (i < 0)
+        fcur = XFTELL((XFILE)bio->ptr);
+        if (fcur < 0)
             return NULL;
         if(XFSEEK((XFILE)bio->ptr, 0, SEEK_END) != 0)
             return NULL;
-        l = XFTELL((XFILE)bio->ptr);
-        if (l < 0)
+        flen = XFTELL((XFILE)bio->ptr);
+        if (flen < 0)
             return NULL;
-        if (XFSEEK((XFILE)bio->ptr, i, SEEK_SET) != 0)
+        if (XFSEEK((XFILE)bio->ptr, fcur, SEEK_SET) != 0)
             return NULL;
 
         /* check calculated length */
-        if (l - i <= 0)
+        fcur = flen - fcur;
+        if (fcur > MAX_WOLFSSL_FILE_SIZE || fcur <= 0)
             return NULL;
 
-        data = (byte*)XMALLOC(l - i, 0, DYNAMIC_TYPE_TMP_BUFFER);
+        data = (byte*)XMALLOC(fcur, 0, DYNAMIC_TYPE_TMP_BUFFER);
         if (data == NULL)
             return NULL;
         dataAlloced = 1;
 
-        len = wolfSSL_BIO_read(bio, (char *)data, (int)l);
+        len = wolfSSL_BIO_read(bio, (char *)data, (int)flen);
     }
 #endif
     else
@@ -696,7 +697,8 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE_bio(WOLFSSL_BIO* bio,
 
     if (len > 0) {
         p = data;
-        ret = wolfSSL_d2i_OCSP_RESPONSE(response, (const unsigned char **)&p, len);
+        ret = wolfSSL_d2i_OCSP_RESPONSE(response, (const unsigned char **)&p,
+            len);
     }
 
     if (dataAlloced)
@@ -1086,4 +1088,3 @@ int wolfSSL_OCSP_check_nonce(OcspRequest* req, WOLFSSL_OCSP_BASICRESP* bs)
 
 #endif /* HAVE_OCSP */
 #endif /* WOLFCRYPT_ONLY */
-

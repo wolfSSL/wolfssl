@@ -1332,7 +1332,12 @@ int wolfSSL_BIO_get_len(WOLFSSL_BIO *bio)
                 len = WOLFSSL_BAD_FILE;
         }
         if (len == 0) {
-            memSz = XFTELL(file) - curr;
+            memSz = XFTELL(file);
+            if (memSz > MAX_WOLFSSL_FILE_SIZE || memSz < 0)
+                len = WOLFSSL_BAD_FILE;
+        }
+        if (len == 0) {
+            memSz -= curr;
             len = (int)memSz;
             if (XFSEEK(file, curr, SEEK_SET) != 0)
                 len = WOLFSSL_BAD_FILE;
@@ -1590,4 +1595,3 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
     return 1;
 }
 #endif /* WOLFSSL_BIO_INCLUDED */
-
