@@ -19575,6 +19575,12 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
     int             group = 0;
 #endif
 
+    ssl->buffers.weOwnDH = 1;
+
+    ssl->buffers.serverDH_P.buffer = NULL;
+    ssl->buffers.serverDH_G.buffer = NULL;
+    ssl->buffers.serverDH_Pub.buffer = NULL;
+
     /* p */
     if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
         ERROR_OUT(BUFFER_ERROR, exit_gdpk);
@@ -19637,8 +19643,6 @@ static int GetDhPublicKey(WOLFSSL* ssl, const byte* input, word32 size,
     XMEMCPY(ssl->buffers.serverDH_G.buffer, input + args->idx,
                                                         length);
     args->idx += length;
-
-    ssl->buffers.weOwnDH = 1;
 
     /* pub */
     if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
