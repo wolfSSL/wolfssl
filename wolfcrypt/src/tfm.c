@@ -78,6 +78,8 @@ WOLFSSL_LOCAL int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod,
     mp_int* res);
 WOLFSSL_LOCAL int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod,
     mp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_4096(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
@@ -3947,6 +3949,11 @@ static int fp_prime_miller_rabin_ex(fp_int * a, fp_int * b, int *result,
       sp_ModExp_1536(b, r, a, y);
   else if (fp_count_bits(a) == 3072)
       sp_ModExp_3072(b, r, a, y);
+  else
+#endif
+#ifdef WOLFSSL_SP_4096
+  if (fp_count_bits(a) == 4096)
+      sp_ModExp_4096(b, r, a, y);
   else
 #endif
 #endif

@@ -166,6 +166,25 @@ run_renewcerts(){
     echo "End of section"
     echo "---------------------------------------------------------------------"
     ############################################################
+    #### update the self-signed (4096-bit) client-cert.pem #####
+    ############################################################
+    echo "Updating 4096-bit client-cert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_4096\\nProgramming-4096\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ./4096/client-key.pem -config ./wolfssl.cnf -nodes -out ./4096/client-cert.csr
+    check_result $? "Step 1"
+
+
+    openssl x509 -req -in ./4096/client-cert.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey ./4096/client-key.pem -out ./4096/client-cert.pem
+    check_result $? "Step 2"
+    rm ./4096/client-cert.csr
+
+    openssl x509 -in ./4096/client-cert.pem -text > ./4096/tmp.pem
+    check_result $? "Step 3"
+    mv ./4096/tmp.pem ./4096/client-cert.pem
+    echo "End of section"
+    echo "---------------------------------------------------------------------"
+    ############################################################
     ########## update the self-signed ca-cert.pem ##############
     ############################################################
     echo "Updating ca-cert.pem"
