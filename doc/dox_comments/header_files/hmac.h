@@ -6,7 +6,8 @@
 
     \return 0 Returned on successfully initializing the Hmac object
     \return BAD_FUNC_ARG Returned if the input type is invalid. Valid options
-    are: MD5, SHA, SHA256, SHA384, SHA512, BLAKE2B_ID
+    are: MD5, SHA, SHA256, SHA384, SHA512, SHA3-224, SHA3-256, SHA3-384,
+    SHA3-512
     \return MEMORY_E Returned if there is an error allocating memory for the
     structure to use for hashing
     \return HMAC_MIN_KEYLEN_E May be returned when using a FIPS implementation
@@ -15,7 +16,8 @@
 
     \param hmac pointer to the Hmac object to initialize
     \param type type specifying which encryption method the Hmac object
-    should use. Valid options are: MD5, SHA, SHA256, SHA384, SHA512, BLAKE2B_ID
+    should use. Valid options are: MD5, SHA, SHA256, SHA384, SHA512, SHA3-224,
+    SHA3-256, SHA3-384, SHA3-512
     \param key pointer to a buffer containing the key with which to
     initialize the Hmac object
     \param length length of the key
@@ -131,14 +133,15 @@ WOLFSSL_API int wolfSSL_GetHmacMaxSize(void);
 
     \return 0 Returned upon successfully generating a key with the given inputs
     \return BAD_FUNC_ARG Returned if an invalid hash type is given as
-    argument. Valid types are: MD5, SHA, SHA256, SHA384, SHA512, BLAKE2B_ID
+    argument. Valid types are: MD5, SHA, SHA256, SHA384, SHA512, SHA3-224,
+    SHA3-256, SHA3-384, SHA3-512
     \return MEMORY_E Returned if there is an error allocating memory
     \return HMAC_MIN_KEYLEN_E May be returned when using a FIPS implementation
     and the key length specified is shorter than the minimum acceptable FIPS
     standard
 
     \param type hash type to use for the HKDF.  Valid types are: MD5, SHA,
-    SHA256, SHA384, SHA512, BLAKE2B_ID
+    SHA256, SHA384, SHA512, SHA3-224, SHA3-256, SHA3-384, SHA3-512
     \param inKey pointer to the buffer containing the key to use for KDF
     \param inKeySz length of the input key
     \param salt pointer to a buffer containing an optional salt. Use NULL
