@@ -344,14 +344,6 @@
                     #define BUILD_TLS_RSA_WITH_AES_256_CCM_8
                 #endif
             #endif
-            #if defined(HAVE_BLAKE2) && defined(HAVE_AES_CBC)
-                #ifdef WOLFSSL_AES_128
-                    #define BUILD_TLS_RSA_WITH_AES_128_CBC_B2B256
-                #endif
-                #ifdef WOLFSSL_AES_256
-                    #define BUILD_TLS_RSA_WITH_AES_256_CBC_B2B256
-                #endif
-            #endif
         #endif
     #endif
 
@@ -455,9 +447,6 @@
         #endif
         #if !defined(NO_SHA)
             #define BUILD_TLS_RSA_WITH_HC_128_SHA
-        #endif
-        #if defined(HAVE_BLAKE2)
-            #define BUILD_TLS_RSA_WITH_HC_128_B2B256
         #endif
     #endif
 
@@ -879,8 +868,7 @@
 #endif
 
 #if defined(BUILD_TLS_RSA_WITH_HC_128_SHA) || \
-    defined(BUILD_TLS_RSA_WITH_HC_128_MD5) || \
-    defined(BUILD_TLS_RSA_WITH_HC_128_B2B256)
+    defined(BUILD_TLS_RSA_WITH_HC_128_MD5)
     #define BUILD_HC128
 #endif
 
@@ -990,11 +978,6 @@ enum {
     TLS_RSA_WITH_HC_128_SHA       = 0xFC,
     TLS_RSA_WITH_RABBIT_SHA       = 0xFD,
     WDM_WITH_NULL_SHA256          = 0xFE, /* wolfSSL DTLS Multicast */
-
-    /* wolfSSL extension - Blake2b 256 */
-    TLS_RSA_WITH_AES_128_CBC_B2B256   = 0xF8,
-    TLS_RSA_WITH_AES_256_CBC_B2B256   = 0xF9,
-    TLS_RSA_WITH_HC_128_B2B256        = 0xFA,   /* eSTREAM too */
 
     /* wolfSSL extension - NTRU */
     TLS_NTRU_RSA_WITH_RC4_128_SHA      = 0xe5,

@@ -3131,27 +3131,6 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     }
 #endif
 
-#ifdef BUILD_TLS_RSA_WITH_HC_128_B2B256
-    if (!dtls && tls && haveRSA) {
-        suites->suites[idx++] = CIPHER_BYTE;
-        suites->suites[idx++] = TLS_RSA_WITH_HC_128_B2B256;
-    }
-#endif
-
-#ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_B2B256
-    if (tls && haveRSA) {
-        suites->suites[idx++] = CIPHER_BYTE;
-        suites->suites[idx++] = TLS_RSA_WITH_AES_128_CBC_B2B256;
-    }
-#endif
-
-#ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_B2B256
-    if (tls && haveRSA) {
-        suites->suites[idx++] = CIPHER_BYTE;
-        suites->suites[idx++] = TLS_RSA_WITH_AES_256_CBC_B2B256;
-    }
-#endif
-
 #ifdef BUILD_TLS_RSA_WITH_RABBIT_SHA
     if (!dtls && tls && haveRSA) {
         suites->suites[idx++] = CIPHER_BYTE;
@@ -8658,20 +8637,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
-
-        case TLS_RSA_WITH_HC_128_B2B256:
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
 #endif /* NO_HC128 */
-
-#ifdef HAVE_BLAKE2
-        case TLS_RSA_WITH_AES_128_CBC_B2B256:
-        case TLS_RSA_WITH_AES_256_CBC_B2B256:
-            if (requirement == REQUIRES_RSA)
-                return 1;
-            break;
-#endif /* HAVE_BLAKE2 */
 
 #ifndef NO_RABBIT
         case TLS_RSA_WITH_RABBIT_SHA :
@@ -17437,18 +17403,6 @@ static const CipherSuiteInfo cipher_names[] =
 
 #ifdef BUILD_TLS_RSA_WITH_HC_128_SHA
     SUITE_INFO("HC128-SHA","TLS_RSA_WITH_HC_128_SHA",CIPHER_BYTE,TLS_RSA_WITH_HC_128_SHA),
-#endif
-
-#ifdef BUILD_TLS_RSA_WITH_HC_128_B2B256
-    SUITE_INFO("HC128-B2B256","TLS_RSA_WITH_HC_128_B2B256",CIPHER_BYTE,TLS_RSA_WITH_HC_128_B2B256),
-#endif
-
-#ifdef BUILD_TLS_RSA_WITH_AES_128_CBC_B2B256
-    SUITE_INFO("AES128-B2B256","TLS_RSA_WITH_AES_128_CBC_B2B256",CIPHER_BYTE,TLS_RSA_WITH_AES_128_CBC_B2B256),
-#endif
-
-#ifdef BUILD_TLS_RSA_WITH_AES_256_CBC_B2B256
-    SUITE_INFO("AES256-B2B256","TLS_RSA_WITH_AES_256_CBC_B2B256",CIPHER_BYTE,TLS_RSA_WITH_AES_256_CBC_B2B256),
 #endif
 
 #ifdef BUILD_TLS_RSA_WITH_RABBIT_SHA

@@ -21441,11 +21441,6 @@ char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
             macStr = "SHA512";
             break;
 #endif
-#ifdef HAVE_BLAKE2
-        case blake2b_mac:
-            macStr = "BLAKE2b";
-            break;
-#endif
         default:
             macStr = "unknown";
             break;
@@ -29343,12 +29338,6 @@ static int _HMAC_Init(Hmac* hmac, int type, void* heap)
             ret = wc_InitSha512(&hmac->hash.sha512);
             break;
     #endif /* WOLFSSL_SHA512 */
-
-    #ifdef HAVE_BLAKE2
-        case BLAKE2B_ID:
-            ret = wc_InitBlake2b(&hmac->hash.blake2b, BLAKE2B_256);
-            break;
-    #endif /* HAVE_BLAKE2 */
 
     #ifdef WOLFSSL_SHA3
         case WC_SHA3_224:
