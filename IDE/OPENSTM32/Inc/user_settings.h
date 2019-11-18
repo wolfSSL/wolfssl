@@ -89,10 +89,10 @@ extern "C" {
     #define WOLFSSL_SP
     #define WOLFSSL_SP_SMALL      /* use smaller version of code */
     #define WOLFSSL_HAVE_SP_RSA
-    #define WOLFSSL_HAVE_SP_DH
+    //#define WOLFSSL_HAVE_SP_DH
     #define WOLFSSL_HAVE_SP_ECC
     #define WOLFSSL_SP_CACHE_RESISTANT
-    //#define WOLFSSL_SP_MATH     /* only SP math - eliminates fast math code */
+    #define WOLFSSL_SP_MATH     /* only SP math - eliminates fast math code */
 
     //#define WOLFSSL_SP_ASM      /* required if using the ASM versions */
     //#define WOLFSSL_SP_ARM_CORTEX_M_ASM
@@ -197,8 +197,8 @@ extern "C" {
     #define HAVE_AESGCM
 
 	/* GCM Method: GCM_SMALL, GCM_WORD32 or GCM_TABLE */
-    #undef  GCM_TABLE
-    #define GCM_TABLE
+    #undef  GCM_SMALL
+    #define GCM_SMALL
 
 	#undef  WOLFSSL_AES_COUNTER
 	#define WOLFSSL_AES_COUNTER
@@ -261,7 +261,11 @@ extern "C" {
 /* Sha256 */
 #undef NO_SHA256
 #if 1
-    #if 1
+    /* not unrolled - ~2k smaller and ~25% slower */
+    //#define USE_SLOW_SHA256
+
+    /* Sha224 */
+    #if 0
         #define WOLFSSL_SHA224
     #endif
 #else
@@ -271,6 +275,9 @@ extern "C" {
 /* Sha512 */
 #undef WOLFSSL_SHA512
 #if 1
+    /* over twice as small, but 50% slower */
+    //#define USE_SLOW_SHA512
+
     #define WOLFSSL_SHA512
     #define HAVE_SHA512 /* freeRTOS settings.h requires this */
 
@@ -279,9 +286,6 @@ extern "C" {
     #if 1
         #define WOLFSSL_SHA384
     #endif
-
-    /* over twice as small, but 50% slower */
-    //#define USE_SLOW_SHA2
 #endif
 
 /* MD5 */
@@ -326,7 +330,7 @@ extern "C" {
     #endif
 #else
     #undef  NO_WOLFSSL_MEMORY
-    #define NO_WOLFSSL_MEMORY
+    //#define NO_WOLFSSL_MEMORY
 
     #undef  NO_ERROR_STRINGS
     //#define NO_ERROR_STRINGS

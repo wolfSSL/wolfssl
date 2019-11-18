@@ -52,8 +52,8 @@
 #define WOLFSSL_CIPHER_LIST_MAX_SIZE 2048
 #endif
 #if 0
-    /* define this to test only one cipher suite */
-    #define TEST_CIPHER_SUITE "ECDHE-RSA-AES256-GCM-SHA384"
+    /* define this to test only a specific cipher suite(s) (colon separated) */
+    #define TEST_CIPHER_SUITE "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256"
 #endif
 
 
