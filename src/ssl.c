@@ -3452,7 +3452,7 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
 #if defined(WOLFSSL_SIGNER_DER_CERT)
 /******************************************************************************
 * wolfSSL_CertManagerGetCerts - retrieve stack of X509 certificates in a
-* certificate manager (CM), also knows as cert store in OpenSSL.
+* certificate manager (CM).
 *
 * RETURNS:
 * returns stack of X509 certs on success, otherwise returns a NULL.
