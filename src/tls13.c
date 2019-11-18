@@ -106,19 +106,6 @@
     #include "libntruencrypt/ntru_crypto.h"
 #endif
 
-#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG) || \
-    defined(CHACHA_AEAD_TEST) || defined(WOLFSSL_SESSION_EXPORT_DEBUG)
-    #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
-        #if MQX_USE_IO_OLD
-            #include <fio.h>
-        #else
-            #include <nio.h>
-        #endif
-    #else
-        #include <stdio.h>
-    #endif
-#endif
-
 #ifdef __sun
     #include <sys/filio.h>
 #endif

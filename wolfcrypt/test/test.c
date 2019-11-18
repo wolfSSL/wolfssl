@@ -26,6 +26,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
+#include <wolfssl/wolfcrypt/wc_port.h>
 
 #ifndef NO_CRYPT_TEST
 
@@ -47,11 +48,7 @@
 #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     #include <mqx.h>
     #include <stdlib.h>
-    #if MQX_USE_IO_OLD
-        #include <fio.h>
-    #else
-        #include <nio.h>
-    #endif
+    /* see wc_port.h for fio.h and nio.h includes */
 #elif defined(FREESCALE_KSDK_BM)
     #include "fsl_debug_console.h"
     #undef printf

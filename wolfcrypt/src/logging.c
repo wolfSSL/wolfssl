@@ -201,11 +201,7 @@ void WOLFSSL_TIME(int count)
 #ifdef DEBUG_WOLFSSL
 
 #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
-    #if MQX_USE_IO_OLD
-        #include <fio.h>
-    #else
-        #include <nio.h>
-    #endif
+    /* see wc_port.h for fio.h and nio.h includes */
 #elif defined(WOLFSSL_SGX)
     /* Declare sprintf for ocall */
     int sprintf(char* buf, const char *fmt, ...);
@@ -798,4 +794,3 @@ void wc_ERR_print_errors_fp(XFILE fp)
 #endif /* !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) */
 
 #endif /* defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE) */
-

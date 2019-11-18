@@ -33,13 +33,7 @@
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
 #if defined(SHOW_SECRETS) || defined(CHACHA_AEAD_TEST)
-    #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
-        #if MQX_USE_IO_OLD
-            #include <fio.h>
-        #else
-            #include <nio.h>
-        #endif
-    #else
+    #ifndef NO_STDIO_FILESYSTEM
         #include <stdio.h>
     #endif
 #endif
@@ -3659,4 +3653,3 @@ int MakeMasterSecret(WOLFSSL* ssl)
 }
 
 #endif /* WOLFCRYPT_ONLY */
-

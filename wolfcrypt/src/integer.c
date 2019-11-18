@@ -63,13 +63,7 @@
 #endif
 
 #ifdef SHOW_GEN
-    #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
-        #if MQX_USE_IO_OLD
-            #include <fio.h>
-        #else
-            #include <nio.h>
-        #endif
-    #else
+    #ifndef NO_STDIO_FILESYSTEM
         #include <stdio.h>
     #endif
 #endif
@@ -5288,4 +5282,3 @@ void mp_dump(const char* desc, mp_int* a, byte verbose)
 #endif /* USE_FAST_MATH */
 
 #endif /* NO_BIG_INT */
-

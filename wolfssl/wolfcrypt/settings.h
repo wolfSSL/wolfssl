@@ -875,6 +875,11 @@ extern void uITRON4_free(void *p) ;
     #define TFM_TIMING_RESISTANT
 #endif
 
+#ifdef FREESCALE_MQX_5_0
+    /* use normal Freescale MQX port, but with minor changes for 5.0 */
+    #define FREESCALE_MQX
+#endif
+
 #ifdef FREESCALE_MQX_4_0
     /* use normal Freescale MQX port, but with minor changes for 4.0 */
     #define FREESCALE_MQX
@@ -885,7 +890,8 @@ extern void uITRON4_free(void *p) ;
     #include "mqx.h"
     #ifndef NO_FILESYSTEM
         #include "mfs.h"
-        #if MQX_USE_IO_OLD
+        #if (defined(MQX_USE_IO_OLD) && MQX_USE_IO_OLD) || \
+            defined(FREESCALE_MQX_5_0)
             #include "fio.h"
             #define NO_STDIO_FILESYSTEM
         #else
@@ -908,7 +914,8 @@ extern void uITRON4_free(void *p) ;
     #define FREESCALE_COMMON
     #include <mqx.h>
     #ifndef NO_FILESYSTEM
-        #if MQX_USE_IO_OLD
+        #if (defined(MQX_USE_IO_OLD) && MQX_USE_IO_OLD) || \
+            defined(FREESCALE_MQX_5_0)
             #include <fio.h>
         #else
             #include <stdio.h>

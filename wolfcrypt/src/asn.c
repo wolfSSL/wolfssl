@@ -116,19 +116,6 @@ extern int wc_InitRsaHw(RsaKey* key);
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
 
-#ifdef WOLFSSL_DEBUG_ENCODING
-    #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
-        #if MQX_USE_IO_OLD
-            #include <fio.h>
-        #else
-            #include <nio.h>
-        #endif
-    #else
-        #include <stdio.h>
-    #endif
-#endif
-
-
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of XSTRNCPY */
     #pragma warning(disable: 4996)
@@ -7191,7 +7178,7 @@ static int DecodeBasicCaConstraint(const byte* input, int sz, DecodedCert* cert)
             cert->isCA = FALSE;
         } else return ret;
     } else
-        cert->isCA = (byte)ret;        
+        cert->isCA = (byte)ret;
 #endif
 
     /* If there isn't any more data, return. */
