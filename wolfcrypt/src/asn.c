@@ -179,7 +179,11 @@ WOLFSSL_LOCAL int GetLength_ex(const byte* input, word32* inOutIdx, int* len,
     }
 
     b = input[idx++];
-    if (b >= ASN_LONG_LENGTH) {
+    if (b == ASN_LONG_LENGTH) {
+        WOLFSSL_MSG("GetLength bad length length");
+        return ASN_PARSE_E;
+    }
+    else if (b > ASN_LONG_LENGTH) {
         word32 bytes = b & 0x7F;
 
         if ((idx + bytes) > maxIdx) {   /* for reading bytes */
