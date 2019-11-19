@@ -487,7 +487,7 @@ static void UpdateMissedDataSessions(void)
 
 
 #ifdef WOLF_CRYPTO_CB
-    static int CryptoDeviceId = INVALID_DEVID;
+    static WOLFSSL_GLOBAL int CryptoDeviceId = INVALID_DEVID;
 #endif
 
 
@@ -1434,7 +1434,7 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
 
 #ifdef WOLFSSL_SNIFFER_WATCH
 
-static int CreateWatchSnifferServer(char* error, int devId)
+static int CreateWatchSnifferServer(char* error)
 {
     SnifferServer* sniffer;
 
@@ -1453,7 +1453,7 @@ static int CreateWatchSnifferServer(char* error, int devId)
     }
 #ifdef WOLF_CRYPTO_CB
     if (CryptoDeviceId != INVALID_DEVID)
-	    wolfSSL_CTX_SetDevId(sniffer->ctx, devId);
+	    wolfSSL_CTX_SetDevId(sniffer->ctx, CryptoDeviceId);
 #endif
     ServerList = sniffer;
 
@@ -3753,7 +3753,7 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
         word32 i, offset, headerSz, qty, remainder;
 
         Trace(CHAIN_INPUT_STR);
-        headerSz = (word64)*sslFrame - (word64)chain[0].iov_base;
+        headerSz = (word32)*sslFrame - (word32)chain[0].iov_base;
         remainder = *sslBytes;
 
         if ( (*sslBytes + length) > ssl->buffers.inputBuffer.bufferSize) {
@@ -4506,15 +4506,16 @@ int ssl_ReadResetStatistics(SSLStats* stats)
 
 int ssl_SetWatchKeyCallback_ex(SSLWatchCb cb, int devId, char* error)
 {
+    (void)devId;
     WatchCb = cb;
-    return CreateWatchSnifferServer(error, devId);
+    return CreateWatchSnifferServer(error);
 }
 
 
 int ssl_SetWatchKeyCallback(SSLWatchCb cb, char* error)
 {
     WatchCb = cb;
-    return CreateWatchSnifferServer(error, INVALID_DEVID);
+    return CreateWatchSnifferServer(error);
 }
 
 
