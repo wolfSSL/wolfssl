@@ -79,6 +79,9 @@
 /* Uncomment next line if building wolfSSL for LSR */
 /* #define WOLFSSL_LSR */
 
+/* Uncomment next line if building for Freescale Classic MQX version 5.0 */
+/* #define FREESCALE_MQX_5_0 */
+
 /* Uncomment next line if building for Freescale Classic MQX version 4.0 */
 /* #define FREESCALE_MQX_4_0 */
 
