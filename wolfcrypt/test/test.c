@@ -289,7 +289,6 @@ int  hmac_sha224_test(void);
 int  hmac_sha256_test(void);
 int  hmac_sha384_test(void);
 int  hmac_sha512_test(void);
-int  hmac_blake2b_test(void);
 int  hmac_sha3_test(void);
 int  hkdf_test(void);
 int  x963kdf_test(void);
@@ -747,13 +746,6 @@ initDefaultName();
             return err_sys("HMAC-SHA512 test failed!\n", ret);
         else
             test_pass("HMAC-SHA512 test passed!\n");
-    #endif
-
-    #ifdef HAVE_BLAKE2
-        if ( (ret = hmac_blake2b_test()) != 0)
-            return err_sys("HMAC-BLAKE2 test failed!\n", ret);
-        else
-            test_pass("HMAC-BLAKE2 test passed!\n");
     #endif
 
     #if !defined(NO_HMAC) && defined(WOLFSSL_SHA3) && \
@@ -3678,95 +3670,6 @@ int hmac_sha256_test(void)
 #endif
     if (wolfSSL_GetHmacMaxSize() != WC_MAX_DIGEST_SIZE)
         return -3552;
-
-    return 0;
-}
-#endif
-
-
-#if !defined(NO_HMAC) && defined(HAVE_BLAKE2)
-int hmac_blake2b_test(void)
-{
-    Hmac hmac;
-    byte hash[BLAKE2B_256];
-
-    const char* keys[]=
-    {
-        "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
-                                                                "\x0b\x0b\x0b",
-        "Jefe",
-        "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
-                                                                "\xAA\xAA\xAA"
-    };
-
-    testVector a, b, c;
-    testVector test_hmac[3];
-
-    int ret;
-    int times = sizeof(test_hmac) / sizeof(testVector), i;
-
-    a.input  = "Hi There";
-    a.output = "\x72\x93\x0d\xdd\xf5\xf7\xe1\x78\x38\x07\x44\x18\x0b\x3f\x51"
-               "\x37\x25\xb5\x82\xc2\x08\x83\x2f\x1c\x99\xfd\x03\xa0\x16\x75"
-               "\xac\xfd";
-    a.inLen  = XSTRLEN(a.input);
-    a.outLen = BLAKE2B_256;
-
-    b.input  = "what do ya want for nothing?";
-    b.output = "\x3d\x20\x50\x71\x05\xc0\x8c\x0c\x38\x44\x1e\xf7\xf9\xd1\x67"
-               "\x21\xff\x64\xf5\x94\x00\xcf\xf9\x75\x41\xda\x88\x61\x9d\x7c"
-               "\xda\x2b";
-    b.inLen  = XSTRLEN(b.input);
-    b.outLen = BLAKE2B_256;
-
-    c.input  = "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
-               "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
-               "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
-               "\xDD\xDD\xDD\xDD\xDD\xDD";
-    c.output = "\xda\xfe\x2a\x24\xfc\xe7\xea\x36\x34\xbe\x41\x92\xc7\x11\xa7"
-               "\x00\xae\x53\x9c\x11\x9c\x80\x74\x55\x22\x25\x4a\xb9\x55\xd3"
-               "\x0f\x87";
-    c.inLen  = XSTRLEN(c.input);
-    c.outLen = BLAKE2B_256;
-
-    test_hmac[0] = a;
-    test_hmac[1] = b;
-    test_hmac[2] = c;
-
-    for (i = 0; i < times; ++i) {
-#if defined(HAVE_FIPS) || defined(HAVE_CAVIUM)
-        if (i == 1)
-            continue; /* cavium can't handle short keys, fips not allowed */
-#endif
-
-    #if !defined(HAVE_CAVIUM_V)
-        /* Blake2 only supported on Cavium Nitrox III */
-        if (wc_HmacInit(&hmac, HEAP_HINT, devId) != 0)
-            return -3600;
-    #endif
-
-        ret = wc_HmacSetKey(&hmac, BLAKE2B_ID, (byte*)keys[i],
-                         (word32)XSTRLEN(keys[i]));
-        if (ret != 0)
-            return -3601;
-        ret = wc_HmacUpdate(&hmac, (byte*)test_hmac[i].input,
-                   (word32)test_hmac[i].inLen);
-        if (ret != 0)
-            return -3602;
-        ret = wc_HmacFinal(&hmac, hash);
-        if (ret != 0)
-            return -3603;
-
-        if (XMEMCMP(hash, test_hmac[i].output, BLAKE2B_256) != 0)
-            return -3604 - i;
-
-        wc_HmacFree(&hmac);
-    }
-
-#ifndef HAVE_FIPS
-    if (wc_HmacSizeByType(BLAKE2B_ID) != BLAKE2B_OUTBYTES)
-        return -3614;
-#endif
 
     return 0;
 }
