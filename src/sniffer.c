@@ -1376,6 +1376,10 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
         return -1;
     }
     fileSz = XFTELL(file);
+    if (fileSz > MAX_WOLFSSL_FILE_SIZE || fileSz < 0) {
+        XFCLOSE(file);
+        return -1;
+    }
     XREWIND(file);
 
     loadBuf = (byte*)XMALLOC(fileSz, NULL, DYNAMIC_TYPE_FILE);

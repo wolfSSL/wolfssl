@@ -1414,7 +1414,9 @@ enum Misc {
     MIN_PSK_BINDERS_LEN=  33,  /* min length of binders */
     MAX_TICKET_AGE_SECS=  10,  /* maximum ticket age in seconds */
 
+#ifndef MAX_WOLFSSL_FILE_SIZE
     MAX_WOLFSSL_FILE_SIZE = 1024ul * 1024ul * 4,  /* 4 mb file size alloc limit */
+#endif
 
     MAX_X509_SIZE      = 2048, /* max static x509 buffer size */
     CERT_MIN_SIZE      =  256, /* min PEM cert size with header/footer */
