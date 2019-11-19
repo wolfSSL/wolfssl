@@ -1310,9 +1310,8 @@ int wolfSSL_BIO_get_len(WOLFSSL_BIO *bio)
 {
     int len;
 #ifndef NO_FILESYSTEM
-    long memSz;
+    long memSz = 0, curr = 0;
     XFILE file;
-    long curr = 0;
 #endif
 
     WOLFSSL_ENTER("wolfSSL_BIO_get_len");
