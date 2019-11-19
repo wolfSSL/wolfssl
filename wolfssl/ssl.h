@@ -42,16 +42,6 @@
 /* used internally by wolfSSL while OpenSSL types aren't */
 #include <wolfssl/callbacks.h>
 
-#ifndef NO_FILESYSTEM
-    #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
-        #if MQX_USE_IO_OLD
-            #include <fio.h>
-        #else
-            #include <nio.h>
-        #endif
-    #endif
-#endif
-
 #ifdef WOLFSSL_PREFIX
     #include "prefix_ssl.h"
 #endif

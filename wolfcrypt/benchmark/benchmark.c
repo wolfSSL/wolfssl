@@ -29,6 +29,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
+#include <wolfssl/wolfcrypt/wc_port.h>
 
 /* Macro to disable benchmark */
 #ifndef NO_CRYPT_BENCHMARK
@@ -48,11 +49,7 @@
 /* printf mappings */
 #ifdef FREESCALE_MQX
     #include <mqx.h>
-    #if MQX_USE_IO_OLD
-        #include <fio.h>
-    #else
-        #include <nio.h>
-    #endif
+    /* see wc_port.h for fio.h and nio.h includes */
 #elif defined(FREESCALE_KSDK_1_3)
     #include "fsl_debug_console.h"
     #include "fsl_os_abstraction.h"
@@ -93,7 +90,6 @@
     #include <stdarg.h>
     #include <stdio.h>
     #include <string.h>
-    #include "wolfssl/wolfcrypt/wc_port.h" /* for m2mb headers */
     #include "m2m_log.h" /* for M2M_LOG_INFO - not standard API */
     /* remap printf */
     #undef printf
