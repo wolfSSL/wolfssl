@@ -32,6 +32,11 @@
 #endif
 
 /* Change any CYASSL_ settings to WOLFSSL_ settings */
+#include <cyassl/ctaocrypt/visibility.h>
+
+/* for reverse compatibility after name change */
+#include <cyassl/ctaocrypt/settings_comp.h>
+
 #define CYASSL WOLFSSL
 
 #include <wolfssl/wolfcrypt/settings.h>
