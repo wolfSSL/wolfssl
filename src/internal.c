@@ -10040,12 +10040,14 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 if (ssl->options.tls1_3) {
                     word16 extSz;
 
-                    if ((args->idx - args->begin) + OPAQUE16_LEN > totalSz)
-                        return BUFFER_ERROR;
+                    if ((args->idx - args->begin) + OPAQUE16_LEN > totalSz) {
+                        ERROR_OUT(BUFFER_ERROR, exit_ppc);
+                    }
                     ato16(input + args->idx, &extSz);
                     args->idx += OPAQUE16_LEN;
-                    if ((args->idx - args->begin) + extSz > totalSz)
-                        return BUFFER_ERROR;
+                    if ((args->idx - args->begin) + extSz > totalSz) {
+                        ERROR_OUT(BUFFER_ERROR, exit_ppc);
+                    }
                     /* Store extension data info for later processing. */
                     args->exts[args->totalCerts].length = extSz;
                     args->exts[args->totalCerts].buffer = input + args->idx;
@@ -10053,8 +10055,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     listSz -= extSz + OPAQUE16_LEN;
                     ret = TLSX_Parse(ssl, args->exts[args->totalCerts].buffer,
                         args->exts[args->totalCerts].length, certificate, NULL);
-                    if (ret < 0)
-                        return ret;
+                    if (ret < 0) {
+                        ERROR_OUT(ret, exit_ppc);
+                    }
                 }
             #endif
 
