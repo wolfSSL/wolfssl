@@ -2109,6 +2109,9 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_BASE64_DECODE
 #endif
 
+#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+    #define MAX_EX_DATA 5  /* allow for five items of ex_data */
+#endif
 
 #ifdef __cplusplus
     }   /* extern "C" */

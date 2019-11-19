@@ -500,7 +500,7 @@ fi
 if test "$ENABLED_OPENSSH" = "yes"
 then
     ENABLED_FORTRESS="yes"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_OPENSSH"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_OPENSSH -DHAVE_EX_DATA"
 fi
 
 #Qt Support
@@ -1483,7 +1483,7 @@ then
     ENABLED_DSA="yes"
 fi
 
-if test "$ENABLED_DSA" = "no"
+if test "$ENABLED_DSA" = "no" && test "$ENABLED_OPENSSH" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_DSA"
 fi

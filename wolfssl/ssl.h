@@ -217,10 +217,6 @@ struct WOLFSSL_ASN1_STRING {
 
 #define WOLFSSL_MAX_SNAME 40
 
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
-    #define MAX_EX_DATA 5  /* allow for five items of ex_data */
-#endif
-
 
 #define WOLFSSL_ASN1_DYNAMIC 0x1
 #define WOLFSSL_ASN1_DYNAMIC_DATA 0x2
@@ -2024,6 +2020,9 @@ WOLFSSL_API WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_set(WOLFSSL_ASN1_TIME *s, time_
 WOLFSSL_API int wolfSSL_sk_num(WOLFSSL_STACK* sk);
 WOLFSSL_API void* wolfSSL_sk_value(WOLFSSL_STACK* sk, int i);
 
+WOLFSSL_API void* wolfSSL_CRYPTO_get_ex_data(void * const* ex_data, int idx);
+WOLFSSL_API int wolfSSL_CRYPTO_set_ex_data(void** ex_data, int idx, void *data);
+
 /* stunnel 4.28 needs */
 WOLFSSL_API void* wolfSSL_CTX_get_ex_data(const WOLFSSL_CTX*, int);
 WOLFSSL_API int   wolfSSL_CTX_set_ex_data(WOLFSSL_CTX*, int, void*);
@@ -2041,6 +2040,7 @@ WOLFSSL_API WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION**,
 WOLFSSL_API long wolfSSL_SESSION_get_timeout(const WOLFSSL_SESSION*);
 WOLFSSL_API long wolfSSL_SESSION_get_time(const WOLFSSL_SESSION*);
 WOLFSSL_API int  wolfSSL_CTX_get_ex_new_index(long, void*, void*, void*, void*);
+
 
 /* extra ends */
 

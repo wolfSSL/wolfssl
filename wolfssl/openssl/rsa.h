@@ -81,6 +81,9 @@ struct WOLFSSL_RSA {
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_RSA_METHOD* meth;
 #endif
+#if defined(HAVE_EX_DATA)
+    void*          ex_data[MAX_EX_DATA];  /* external data */
+#endif
 };
 
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSA_new(void);
@@ -118,12 +121,20 @@ WOLFSSL_API void wolfSSL_RSA_meth_free(WOLFSSL_RSA_METHOD *meth);
 WOLFSSL_API int wolfSSL_RSA_meth_set(WOLFSSL_RSA_METHOD *rsa, void* p);
 WOLFSSL_API int wolfSSL_RSA_set_method(WOLFSSL_RSA *rsa, WOLFSSL_RSA_METHOD *meth);
 WOLFSSL_API const WOLFSSL_RSA_METHOD* wolfSSL_RSA_get_method(const WOLFSSL_RSA *rsa);
+WOLFSSL_API const WOLFSSL_RSA_METHOD* wolfSSL_RSA_get_default_method(void);
+
 WOLFSSL_API void wolfSSL_RSA_get0_key(const WOLFSSL_RSA *r, const WOLFSSL_BIGNUM **n,
                                       const WOLFSSL_BIGNUM **e, const WOLFSSL_BIGNUM **d);
 WOLFSSL_API int wolfSSL_RSA_set0_key(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *n, WOLFSSL_BIGNUM *e,
                                      WOLFSSL_BIGNUM *d);
 WOLFSSL_API int wolfSSL_RSA_flags(const WOLFSSL_RSA *r);
 WOLFSSL_API void wolfSSL_RSA_set_flags(WOLFSSL_RSA *r, int flags);
+
+WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSAPublicKey_dup(WOLFSSL_RSA *rsa);
+
+WOLFSSL_API void* wolfSSL_RSA_get_ex_data(const WOLFSSL_RSA *rsa, int idx);
+WOLFSSL_API int wolfSSL_RSA_set_ex_data(WOLFSSL_RSA *rsa, int idx, void *data);
+
 
 #define WOLFSSL_RSA_LOAD_PRIVATE 1
 #define WOLFSSL_RSA_LOAD_PUBLIC  2
@@ -154,12 +165,15 @@ WOLFSSL_API void wolfSSL_RSA_set_flags(WOLFSSL_RSA *r, int flags);
 #define RSA_meth_set_init       wolfSSL_RSA_meth_set
 #define RSA_meth_set_finish     wolfSSL_RSA_meth_set
 #define RSA_meth_set0_app_data  wolfSSL_RSA_meth_set
+#define RSA_get_default_method  wolfSSL_RSA_get_default_method
 #define RSA_get_method          wolfSSL_RSA_get_method
 #define RSA_set_method          wolfSSL_RSA_set_method
 #define RSA_get0_key            wolfSSL_RSA_get0_key
 #define RSA_set0_key            wolfSSL_RSA_set0_key
 #define RSA_flags               wolfSSL_RSA_flags
 #define RSA_set_flags           wolfSSL_RSA_set_flags
+
+#define RSAPublicKey_dup        wolfSSL_RSAPublicKey_dup
 
 #define RSA_get0_key       wolfSSL_RSA_get0_key
 

@@ -19910,6 +19910,7 @@ static void test_wolfSSL_PEM_RSAPrivateKey(void)
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
        !defined(NO_FILESYSTEM) && !defined(NO_RSA)
     RSA* rsa = NULL;
+    RSA* rsa_dup = NULL;
     BIO* bio = NULL;
 
     printf(testingFmt, "wolfSSL_PEM_RSAPrivateKey()");
@@ -19918,8 +19919,12 @@ static void test_wolfSSL_PEM_RSAPrivateKey(void)
     AssertNotNull((rsa = PEM_read_bio_RSAPrivateKey(bio, NULL, NULL, NULL)));
     AssertIntEQ(RSA_size(rsa), 256);
 
+    AssertNotNull(rsa_dup = RSAPublicKey_dup(rsa));
+    AssertPtrNE(rsa_dup, rsa);
+
     BIO_free(bio);
     RSA_free(rsa);
+    RSA_free(rsa_dup);
 
 #ifdef HAVE_ECC
     AssertNotNull(bio = BIO_new_file(eccKeyFile, "rb"));
@@ -20075,6 +20080,54 @@ static void test_wolfSSL_PEM_PUBKEY(void)
 #endif
 }
 
+static void test_DSA_do_sign_verify(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_DSA)
+    unsigned char digest[WC_SHA_DIGEST_SIZE];
+    DSA_SIG* sig;
+    DSA* dsa;
+    word32  bytes;
+    byte sigBin[DSA_SIG_SIZE];
+    int dsacheck;
+
+#ifdef USE_CERT_BUFFERS_1024
+    byte    tmp[ONEK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMCPY(tmp, dsa_key_der_1024, sizeof_dsa_key_der_1024);
+    bytes = sizeof_dsa_key_der_1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+    byte    tmp[TWOK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMCPY(tmp, dsa_key_der_2048, sizeof_dsa_key_der_2048);
+    bytes = sizeof_dsa_key_der_2048;
+#else
+    byte    tmp[TWOK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XFILE fp = XFOPEN("./certs/dsa2048.der", "rb");
+    if (fp == XBADFILE) {
+        return WOLFSSL_BAD_FILE;
+    }
+    bytes = (word32) XFREAD(tmp, 1, sizeof(tmp), fp);
+    XFCLOSE(fp);
+#endif /* END USE_CERT_BUFFERS_1024 */
+
+    printf(testingFmt, "DSA_do_sign_verify()");
+    XMEMSET(digest, 202, sizeof(digest));
+
+    AssertNotNull(dsa = DSA_new());
+    AssertIntEQ(DSA_LoadDer(dsa, tmp, bytes), 1);
+
+    AssertIntEQ(wolfSSL_DSA_do_sign(digest, sigBin, dsa), 1);
+    AssertIntEQ(wolfSSL_DSA_do_verify(digest, sigBin, dsa, &dsacheck), 1);
+
+    AssertNotNull(sig = DSA_do_sign(digest, WC_SHA_DIGEST_SIZE, dsa));
+    AssertIntEQ(DSA_do_verify(digest, WC_SHA_DIGEST_SIZE, sig, dsa), 1);
+
+    DSA_SIG_free(sig);
+    DSA_free(dsa);
+#endif
+}
 
 static void test_wolfSSL_tmp_dh(void)
 {
@@ -20089,8 +20142,6 @@ static void test_wolfSSL_tmp_dh(void)
     BIO*     bio;
     SSL*     ssl;
     SSL_CTX* ctx;
-    unsigned char digest[WC_SHA_DIGEST_SIZE] = {202}; // initialize to anything
-    DSA_SIG* sig;
 
     printf(testingFmt, "wolfSSL_tmp_dh()");
 
@@ -20116,9 +20167,6 @@ static void test_wolfSSL_tmp_dh(void)
 
     dh = wolfSSL_DSA_dup_DH(dsa);
     AssertNotNull(dh);
-
-    AssertNotNull(sig = DSA_do_sign(digest, WC_SHA_DIGEST_SIZE, dsa));
-    DSA_SIG_free(sig);
 
     AssertIntEQ((int)SSL_CTX_set_tmp_dh(ctx, dh), WOLFSSL_SUCCESS);
     #ifndef NO_WOLFSSL_SERVER
@@ -30295,6 +30343,7 @@ void ApiTest(void)
     test_wolfSSL_PEM_bio_ECKey();
     test_wolfSSL_PEM_RSAPrivateKey();
     test_wolfSSL_PEM_PUBKEY();
+    test_DSA_do_sign_verify();
     test_wolfSSL_tmp_dh();
     test_wolfSSL_ctrl();
     test_wolfSSL_EVP_MD_size();

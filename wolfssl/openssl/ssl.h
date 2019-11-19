@@ -626,6 +626,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_COMP_add_compression_method wolfSSL_COMP_add_compression_method
 
 #define SSL_get_ex_new_index            wolfSSL_get_ex_new_index
+#define RSA_get_ex_new_index            wolfSSL_get_ex_new_index
 
 #define ASN1_BIT_STRING_new             wolfSSL_ASN1_BIT_STRING_new
 #define ASN1_BIT_STRING_free            wolfSSL_ASN1_BIT_STRING_free
