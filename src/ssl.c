@@ -3545,8 +3545,6 @@ error_init:
         FreeDecodedCert(dCert);
         XFREE(dCert, cm->heap, DYNAMIC_TYPE_DCERT);
     }
-    if (x509)
-        FreeX509(x509);
 
     if (sk)
         wolfSSL_sk_X509_free(sk);
@@ -3639,9 +3637,6 @@ error:
         FreeDecodedCert(dCert);
         XFREE(dCert, NULL, DYNAMIC_TYPE_DCERT);
     }
-
-    if (x509)
-        FreeX509(x509);
 
     if (sk)
         wolfSSL_sk_X509_free(sk);
