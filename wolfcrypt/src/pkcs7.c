@@ -2173,7 +2173,7 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     if (pkcs7->sidType == CMS_ISSUER_AND_SERIAL_NUMBER) {
         /* IssuerAndSerialNumber */
         esd->issuerSnSz = SetSerialNumber(pkcs7->issuerSn, pkcs7->issuerSnSz,
-                                         esd->issuerSn, MAX_SN_SZ);
+                                          esd->issuerSn, MAX_SN_SZ, MAX_SN_SZ);
         signerInfoSz += esd->issuerSnSz;
         esd->issuerNameSz = SetSequence(pkcs7->issuerSz, esd->issuerName);
         signerInfoSz += esd->issuerNameSz + pkcs7->issuerSz;
@@ -6128,7 +6128,7 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
             return -1;
         }
         snSz = SetSerialNumber(decoded->serial, decoded->serialSz, serial,
-                               MAX_SN_SZ);
+                               MAX_SN_SZ, MAX_SN_SZ);
 
         issuerSerialSeqSz = SetSequence(issuerSeqSz + issuerSz + snSz,
                                         issuerSerialSeq);
