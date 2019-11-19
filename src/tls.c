@@ -4268,6 +4268,10 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
          curve = curve->next) {
 
     #ifdef OPENSSL_EXTRA
+        /* skip if name is not in supported ECC range */
+        if (curve->name > WOLFSSL_ECC_X25519)
+            continue;
+        /* skip if curve is disabled by user */
         if (ssl->ctx->disabledCurves & (1 << curve->name))
             continue;
     #endif
