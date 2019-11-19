@@ -94,3 +94,5 @@ EXTRA_DIST +=  scripts/dertoc.pl
 
 # for use with wolfssl-x.x.x-commercial-fips-stm32l4-v2
 EXTRA_DIST += scripts/stm32l4-v4_0_1_build.sh
+
+EXTRA_DIST += scripts/cleanup_testfiles.sh
