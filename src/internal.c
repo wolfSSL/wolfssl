@@ -22925,10 +22925,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
                 return ret;
         }
-
-        if (ssl->options.dtls) {
-            DtlsSEQIncrement(ssl, CUR_ORDER);
-        }
     #endif
 
         if (ssl->options.groupMessages)
