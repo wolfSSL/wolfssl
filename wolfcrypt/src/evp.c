@@ -418,7 +418,7 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
 
         /* During decryption we save the last block to check padding on Final.
          * Update the last block stored if one has already been stored */
-        if ((ctx->enc == 0)) {
+        if (ctx->enc == 0) {
             if (ctx->lastUsed == 1) {
                 XMEMCPY(out, ctx->lastBlock, ctx->block_size);
                 *outl+= ctx->block_size;
