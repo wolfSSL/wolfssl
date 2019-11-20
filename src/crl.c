@@ -121,6 +121,7 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
     }
 
     (void)verified;
+    (void)heap;
 
     return 0;
 }
