@@ -599,7 +599,7 @@ char* GetSigName(int oid) {
 }
 
 
-#if !defined(NO_DSA) || defined(HAVE_ECC) || \
+#if !defined(NO_DSA) || defined(HAVE_ECC) || !defined(NO_CERTS) || \
    (!defined(NO_RSA) && \
         (defined(WOLFSSL_CERT_GEN) || \
         ((defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && !defined(HAVE_USER_RSA))))
@@ -8898,42 +8898,38 @@ WOLFSSL_LOCAL int SetMyVersion(word32 version, byte* output, int header)
 
 
 WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
-    int maxSnSz)
+    word32 outputSz, int maxSnSz)
 {
-    int i = 0;
+    int i;
     int snSzInt = (int)snSz;
 
     if (sn == NULL || output == NULL || snSzInt < 0)
         return BAD_FUNC_ARG;
 
     /* remove leading zeros */
-    while (snSzInt > 0 && sn[0] == 0) {
+    while (snSzInt > 1 && sn[0] == 0) {
         snSzInt--;
         sn++;
     }
 
+    if (sn[0] & 0x80)
+        maxSnSz--;
     /* truncate if input is too long */
     if (snSzInt > maxSnSz)
         snSzInt = maxSnSz;
 
-    /* encode ASN Integer, with length and value */
-    output[i++] = ASN_INTEGER;
-
-    /* handle MSB, to make sure value is positive */
-    if (sn[0] & 0x80) {
-        /* make room for zero pad */
-        if (snSzInt > maxSnSz-1)
-            snSzInt = maxSnSz-1;
-
-        /* add zero pad */
-        i += SetLength(snSzInt+1, &output[i]);
-        output[i++] = 0x00;
-        XMEMCPY(&output[i], sn, snSzInt);
+    i = SetASNInt(snSzInt, sn[0], NULL);
+    /* truncate if input is too long */
+    if ((word32)snSzInt > outputSz - i)
+        snSzInt = outputSz - i;
+    /* sanity check number of bytes to copy */
+    if (snSzInt <= 0) {
+        return BUFFER_E;
     }
-    else {
-        i += SetLength(snSzInt, &output[i]);
-        XMEMCPY(&output[i], sn, snSzInt);
-    }
+
+    /* write out ASN.1 Integer */
+    (void)SetASNInt(snSzInt, sn[0], output);
+    XMEMCPY(output + i, sn, snSzInt);
 
     /* compute final length */
     i += snSzInt;
@@ -11876,7 +11872,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
             return ret;
     }
     der->serialSz = SetSerialNumber(cert->serial, cert->serialSz, der->serial,
-        CTC_SERIAL_SIZE);
+        sizeof(der->serial), CTC_SERIAL_SIZE);
     if (der->serialSz < 0)
         return der->serialSz;
 
@@ -15369,7 +15365,8 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
 
     issuerSz    = SetDigest(req->issuerHash,    KEYID_SIZE,    issuerArray);
     issuerKeySz = SetDigest(req->issuerKeyHash, KEYID_SIZE,    issuerKeyArray);
-    snSz        = SetSerialNumber(req->serial,  req->serialSz, snArray, MAX_SN_SZ);
+    snSz        = SetSerialNumber(req->serial,  req->serialSz, snArray,
+                                                          MAX_SN_SZ, MAX_SN_SZ);
     extSz       = 0;
 
     if (snSz < 0)
