@@ -4970,7 +4970,10 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                       err = RNG_FAILURE_E;
                       break;
                    }
-                   mp_copy(key->sign_k, &pubkey->k);
+
+                   err = mp_copy(key->sign_k, &pubkey->k);
+                   if (err != MP_OKAY) break;
+
                    mp_forcezero(key->sign_k);
                    mp_free(key->sign_k);
                    XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
@@ -5438,9 +5441,15 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
                     }
                     /* When only Z zero then result is infinity */
                     else {
-                        mp_set(C->x, 0);
-                        mp_set(C->y, 0);
-                        mp_set(C->z, 1);
+                        err = mp_set(C->x, 0);
+                        if (err != MP_OKAY)
+                            break;
+                        err = mp_set(C->y, 0);
+                        if (err != MP_OKAY)
+                            break;
+                        err = mp_set(C->z, 1);
+                        if (err != MP_OKAY)
+                            break;
                         first = 1;
                     }
                 }
@@ -5985,9 +5994,11 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
                 }
                 /* When only Z zero then result is infinity */
                 else {
-                    mp_set(mG->x, 0);
-                    mp_set(mG->y, 0);
-                    mp_set(mG->z, 1);
+                    err = mp_set(mG->x, 0);
+                    if (err == MP_OKAY)
+                        err = mp_set(mG->y, 0);
+                    if (err == MP_OKAY)
+                        err = mp_set(mG->z, 1);
                 }
             }
         }
@@ -8555,9 +8566,18 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
                  }
                  /* When only Z zero then result is infinity */
                  else {
-                    mp_set(R->x, 0);
-                    mp_set(R->y, 0);
-                    mp_copy(&fp_cache[idx].mu, R->z);
+                    err = mp_set(R->x, 0);
+                    if (err != MP_OKAY) {
+                       break;
+                    }
+                    err = mp_set(R->y, 0);
+                    if (err != MP_OKAY) {
+                       break;
+                    }
+                    err = mp_copy(&fp_cache[idx].mu, R->z);
+                    if (err != MP_OKAY) {
+                       break;
+                    }
                     first = 1;
                  }
              }
@@ -8785,9 +8805,18 @@ static int accel_fp_mul2add(int idx1, int idx2,
                     }
                     /* When only Z zero then result is infinity */
                     else {
-                       mp_set(R->x, 0);
-                       mp_set(R->y, 0);
-                       mp_copy(&fp_cache[idx1].mu, R->z);
+                       err = mp_set(R->x, 0);
+                       if (err != MP_OKAY) {
+                          break;
+                       }
+                       err = mp_set(R->y, 0);
+                       if (err != MP_OKAY) {
+                          break;
+                       }
+                       err = mp_copy(&fp_cache[idx1].mu, R->z);
+                       if (err != MP_OKAY) {
+                          break;
+                       }
                        first = 1;
                     }
                 }
@@ -8809,9 +8838,18 @@ static int accel_fp_mul2add(int idx1, int idx2,
                     }
                     /* When only Z zero then result is infinity */
                     else {
-                       mp_set(R->x, 0);
-                       mp_set(R->y, 0);
-                       mp_copy(&fp_cache[idx2].mu, R->z);
+                       err = mp_set(R->x, 0);
+                       if (err != MP_OKAY) {
+                          break;
+                       }
+                       err = mp_set(R->y, 0);
+                       if (err != MP_OKAY) {
+                          break;
+                       }
+                       err = mp_copy(&fp_cache[idx2].mu, R->z);
+                       if (err != MP_OKAY) {
+                          break;
+                       }
                        first = 1;
                     }
                 }
@@ -8843,9 +8881,18 @@ static int accel_fp_mul2add(int idx1, int idx2,
                        }
                        /* When only Z zero then result is infinity */
                        else {
-                          mp_set(R->x, 0);
-                          mp_set(R->y, 0);
-                          mp_copy(&fp_cache[idx2].mu, R->z);
+                          err = mp_set(R->x, 0);
+                          if (err != MP_OKAY) {
+                             break;
+                          }
+                          err = mp_set(R->y, 0);
+                          if (err != MP_OKAY) {
+                             break;
+                          }
+                          err = mp_copy(&fp_cache[idx2].mu, R->z);
+                          if (err != MP_OKAY) {
+                             break;
+                          }
                           first = 1;
                        }
                    }
