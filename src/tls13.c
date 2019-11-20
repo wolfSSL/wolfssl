@@ -3146,6 +3146,19 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     ret = SetCipherSpecs(ssl);
     if (ret != 0)
         return ret;
+#ifdef HAVE_NULL_CIPHER
+    if (ssl->options.cipherSuite0 == ECC_BYTE &&
+                              (ssl->options.cipherSuite == TLS_SHA256_SHA256 ||
+                               ssl->options.cipherSuite == TLS_SHA384_SHA384)) {
+        ;
+    }
+    else
+#endif
+    /* Check that the negotiated ciphersuite matches protocol version. */
+    if (ssl->options.cipherSuite0 != TLS13_BYTE) {
+        WOLFSSL_MSG("Server sent non-TLS13 cipher suite in TLS 1.3 packet");
+        return INVALID_PARAMETER;
+    }
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
 #ifndef WOLFSSL_TLS13_DRAFT_18
@@ -7475,7 +7488,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         SendAlert(ssl, alert_fatal, illegal_parameter);
     }
 
-    if (ssl->options.tls1_3) {
+    if (ret == 0 && ssl->options.tls1_3) {
         /* Need to hash input message before deriving secrets. */
     #ifndef NO_WOLFSSL_CLIENT
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
