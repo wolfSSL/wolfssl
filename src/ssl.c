@@ -16155,6 +16155,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->keyLen     = 16;
             ctx->block_size = AES_BLOCK_SIZE;
             ctx->authTagSz  = AES_BLOCK_SIZE;
+            ctx->ivSz       = 12; /* set default IV length to 96 bits */
 
             XMEMSET(ctx->authTag, 0, ctx->authTagSz);
             if (iv)
@@ -16185,6 +16186,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->keyLen     = 24;
             ctx->block_size = AES_BLOCK_SIZE;
             ctx->authTagSz  = AES_BLOCK_SIZE;
+            ctx->ivSz       = 12; /* set default IV length to 96 bits */
 
             XMEMSET(ctx->authTag, 0, ctx->authTagSz);
             if (iv)
@@ -16215,6 +16217,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->keyLen     = 32;
             ctx->block_size = AES_BLOCK_SIZE;
             ctx->authTagSz  = AES_BLOCK_SIZE;
+            ctx->ivSz       = 12; /* set default IV length to 96 bits */
 
             XMEMSET(ctx->authTag, 0, ctx->authTagSz);
             if (iv)
