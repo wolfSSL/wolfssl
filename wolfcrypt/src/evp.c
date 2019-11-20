@@ -375,10 +375,12 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
 {
     int blocks;
     int fill;
+    int copied;
 
     if ((ctx == NULL) || (inl < 0) ||
         (outl == NULL)|| (in == NULL)) return BAD_FUNC_ARG;
     WOLFSSL_ENTER("wolfSSL_EVP_CipherUpdate");
+    printf("wolfSSL_EVP_CipherUpdate\n");
 
     *outl = 0;
     if (inl == 0) return WOLFSSL_SUCCESS;
@@ -400,34 +402,42 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
         return BAD_FUNC_ARG;
 
     if (ctx->bufUsed > 0) { /* concatinate them if there is anything */
+        printf("head fillBuff inl=%d, ctx->bufUsed=%d\n", inl, ctx->bufUsed);
         fill = fillBuff(ctx, in, inl);
         inl -= fill;
         in  += fill;
+        printf("head fillBuff inl=%d, ctx->bufUsed=%d\n", inl, ctx->bufUsed);
     }
-    if ((ctx->enc == 0)&& (ctx->lastUsed == 1)) {
+    if ((ctx->enc == 0) && (ctx->lastUsed == 1) && (inl > 0/*ctx->block_size*/)) {
         PRINT_BUF(ctx->lastBlock, ctx->block_size);
         XMEMCPY(out, ctx->lastBlock, ctx->block_size);
         *outl+= ctx->block_size;
         out  += ctx->block_size;
+        ctx->lastUsed = 0;
+        copied = 1;
+        printf("Copied out last block - 1\n");
     }
-    if (ctx->bufUsed == ctx->block_size) {
+    if (ctx->bufUsed == ctx->block_size /* && inl/ctx->block_size != 0*/) {
         /* the buff is full, flash out */
         PRINT_BUF(ctx->buf, ctx->block_size);
         if (evpCipherBlock(ctx, out, ctx->buf, ctx->block_size) == 0)
             return WOLFSSL_FAILURE;
         PRINT_BUF(out, ctx->block_size);
-        if (ctx->enc == 0) {
-            ctx->lastUsed = 1;
-            XMEMCPY(ctx->lastBlock, out, ctx->block_size);
-        } else {
-            *outl+= ctx->block_size;
-            out  += ctx->block_size;
-        }
+        *outl+= ctx->block_size;
+        out  += ctx->block_size;
         ctx->bufUsed = 0;
     }
 
     blocks = inl / ctx->block_size;
     if (blocks > 0) {
+        if ((ctx->enc == 0) && (ctx->lastUsed == 1) && (copied == 0)) {
+            PRINT_BUF(ctx->lastBlock, ctx->block_size);
+            XMEMCPY(out, ctx->lastBlock, ctx->block_size);
+            *outl += ctx->block_size;
+            out += ctx->block_size;
+            ctx->lastUsed = 0;
+            printf("Copied out last block - 2\n");
+        }
         /* process blocks */
         if (evpCipherBlock(ctx, out, in, blocks * ctx->block_size) == 0)
             return WOLFSSL_FAILURE;
@@ -447,6 +457,7 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                           * EVP_CipherFinal call */
                     XMEMCPY(ctx->lastBlock, &out[ctx->block_size * blocks],
                             ctx->block_size);
+                    printf("Saved last block\n");
                 }
                 *outl+= ctx->block_size * blocks;
             }
@@ -457,9 +468,10 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
     if (inl > 0) {
         /* put fraction into buff */
         fillBuff(ctx, in, inl);
+        printf("tailing fillBuff inl=%d\n", inl);
         /* no increase of outl */
     }
-
+    printf("Returning outl=%d, ctx->lastUsed= %d, ctx->bufUsed=%d\n", *outl, ctx->lastUsed, ctx->bufUsed);
     (void)out; /* silence warning in case not read */
 
     return WOLFSSL_SUCCESS;
@@ -515,6 +527,7 @@ int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
         *outl = 0;
     }
     else if (ctx->enc) {
+        printf("EVP_CipherFinal(ctx->enc)\n");
         if (ctx->block_size == 1) {
             *outl = 0;
         }
@@ -547,6 +560,7 @@ int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                 if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
                     /* return error in cases where the block length is incorrect */
                     ret = WOLFSSL_FAILURE;
+                    printf("EVP_CipherFinal(ctx->lastUsed == 0 && ctx->bufUsed == 0) fl=%d\n", fl);
                 }
             }
             else {
