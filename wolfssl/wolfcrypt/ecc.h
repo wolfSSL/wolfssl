@@ -391,6 +391,10 @@ struct ecc_key {
     ecc_context_t ctx;
 #endif
 
+#ifdef WOLFSSL_ECDSA_SET_K
+    mp_int *sign_k;
+#endif
+
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     mp_int* t1;
     mp_int* t2;
@@ -470,6 +474,10 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 WOLFSSL_API
 int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                         ecc_key* key, mp_int *r, mp_int *s);
+#ifdef WOLFSSL_ECDSA_SET_K
+WOLFSSL_API
+int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key);
+#endif
 #endif /* HAVE_ECC_SIGN */
 
 #ifdef HAVE_ECC_VERIFY

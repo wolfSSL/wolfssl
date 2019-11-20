@@ -106,7 +106,7 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap);
 int sp_ecc_secret_gen_256(mp_int* priv, ecc_point* pub, byte* out,
                           word32* outlen, void* heap);
 int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
-                    mp_int* rm, mp_int* sm, void* heap);
+                    mp_int* rm, mp_int* sm, mp_int* km, void* heap);
 int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX, mp_int* pY,
                       mp_int* pZ, mp_int* r, mp_int* sm, int* res, void* heap);
 int sp_ecc_is_point_256(mp_int* pX, mp_int* pY);

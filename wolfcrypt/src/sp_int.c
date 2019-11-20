@@ -851,8 +851,14 @@ int sp_add(sp_int* a, sp_int* b, sp_int* r)
  */
 int sp_set_int(sp_int* a, unsigned long b)
 {
-    a->used = 1;
-    a->dp[0] = b;
+    if (b == 0) {
+        a->used = 0;
+        a->dp[0] = 0;
+    }
+    else {
+        a->used = 1;
+        a->dp[0] = b;
+    }
 
     return MP_OKAY;
 }

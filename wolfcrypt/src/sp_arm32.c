@@ -79395,7 +79395,7 @@ static void sp_256_mont_inv_order_8(sp_digit* r, const sp_digit* a,
  * MP_OKAY on success.
  */
 int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
-                    mp_int* rm, mp_int* sm, void* heap)
+                    mp_int* rm, mp_int* sm, mp_int* km, void* heap)
 {
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     sp_digit* d = NULL;
@@ -79461,7 +79461,13 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
         sp_256_from_mp(x, 8, priv);
 
         /* New random point. */
-        err = sp_256_ecc_gen_k_8(rng, k);
+        if (km == NULL || mp_iszero(km)) {
+            err = sp_256_ecc_gen_k_8(rng, k);
+        }
+        else {
+            sp_256_from_mp(k, 8, km);
+            mp_zero(km);
+        }
         if (err == MP_OKAY) {
                 err = sp_256_ecc_mulmod_base_8(point, k, 1, NULL);
         }
@@ -79620,7 +79626,9 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
         sp_256_from_mp(p2->y, 8, pY);
         sp_256_from_mp(p2->z, 8, pZ);
 
+        {
             sp_256_mul_8(s, s, p256_norm_order);
+        }
         err = sp_256_mod_8(s, s, p256_order);
     }
     if (err == MP_OKAY) {
@@ -79638,7 +79646,26 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
     }
 
     if (err == MP_OKAY) {
+        {
             sp_256_proj_point_add_8(p1, p1, p2, tmp);
+            if (sp_256_iszero_8(p1->z)) {
+                if (sp_256_iszero_8(p1->x) && sp_256_iszero_8(p1->y)) {
+                    sp_256_proj_point_dbl_8(p1, p2, tmp);
+                }
+                else {
+                    /* Y ordinate is not used from here - don't set. */
+                    p1->x[0] = 0;
+                    p1->x[1] = 0;
+                    p1->x[2] = 0;
+                    p1->x[3] = 0;
+                    p1->x[4] = 0;
+                    p1->x[5] = 0;
+                    p1->x[6] = 0;
+                    p1->x[7] = 0;
+                    XMEMCPY(p1->z, p256_norm_mod, sizeof(p256_norm_mod));
+                }
+            }
+        }
 
         /* (r + n*order).z'.z' mod prime == (u1.G + u2.Q)->x' */
         /* Reload r and convert to Montgomery form. */
@@ -79668,7 +79695,7 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
                         /* u1 = (r + 1*order).z'.z' mod prime */
                         sp_256_mont_mul_8(u1, u2, p1->z, p256_mod,
                                                                   p256_mp_mod);
-                        *res = (int)(sp_256_cmp_8(p1->x, u2) == 0);
+                        *res = (int)(sp_256_cmp_8(p1->x, u1) == 0);
                     }
                 }
             }
