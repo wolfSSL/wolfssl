@@ -55,35 +55,71 @@ int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
 /*!
     \ingroup ECC
 
-    \brief Perform sanity checks on ecc key validity.
+    \brief Create an ECC key of specified size.
 
-    \return MP_OKAY Success, key is OK.
-    \return BAD_FUNC_ARG Returns if key is NULL.
-    \return ECC_INF_E Returns if wc_ecc_point_is_at_infinity returns 1.
+    \return MP_OKAY Success, key was created without issues.
+    \return BAD_FUNC_ARG Returns if key or rng structure is NULL.
+    \return INVALID_DEV_ID Returns if crypto callback set and bad device id.
+    \return ECC_BAD_ARG_E if keysize is invalid
+    \return ECC_CURVE_OID_E if invalid curve specified
 
-    \param key Pointer to key to check.
+    \param key Pointer to store the created key.
+    \param keysize size of key to be created in bytes (32-bytes = 256-bits)
+    \param rng Rng to be used in key creation
 
     _Example_
     \code
     ecc_key key;
+    int ret;
     WC_WC_RNG rng;
-    int check_result;
     wc_ecc_init(&key);
     wc_InitRng(&rng);
-    wc_ecc_make_key(&rng, 32, &key);
-    check_result = wc_ecc_check_key(&key);
+    ret = wc_ecc_make_key(&rng, 32, &key);
+    if (ret != MP_OKAY) {
+        // error handling
+    }
 
-    if (check_result == MP_OKAY)
-    {
-        // key check succeeded
-    }
-    else
-    {
-        // key check failed
-    }
     \endcode
 
-    \sa wc_ecc_point_is_at_infinity
+    \sa wc_ecc_make_key_ex
+*/
+WOLFSSL_API
+int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id);
+
+/*!
+    \ingroup ECC
+
+    \brief Create an ECC key of specified size.
+
+    \return MP_OKAY Success, key was created without issues.
+    \return BAD_FUNC_ARG Returns if key or rng structure is NULL.
+    \return INVALID_DEV_ID Returns if crypto callback set and bad device id.
+    \return ECC_BAD_ARG_E if keysize is invalid
+    \return ECC_CURVE_OID_E if invalid curve specified
+
+    \param key Pointer to store the created key.
+    \param keysize size of key to be created in bytes, set based on curveId
+    \param rng Rng to be used in key creation
+    \param curve_id Curve to use for key
+
+    _Example_
+    \code
+    ecc_key key;
+    int ret;
+    WC_WC_RNG rng;
+    wc_ecc_init(&key);
+    wc_InitRng(&rng);
+    int curveId = ECC_SECP521R1;
+    int keySize = wc_ecc_get_curve_size_from_id(curveId);
+    ret = wc_ecc_make_key(&rng, keySize, &key, curveId);
+    if (ret != MP_OKAY) {
+        // error handling
+    }
+
+    \endcode
+
+    \sa wc_ecc_make_key
+    \sa wc_ecc_get_curve_size_from_id
 */
 WOLFSSL_API
 int wc_ecc_check_key(ecc_key* key);
