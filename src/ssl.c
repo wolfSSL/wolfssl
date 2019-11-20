@@ -26,7 +26,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #if defined(OPENSSL_EXTRA) && !defined(_WIN32)
-    /* turn on GNU extensions for vasprintf with wolfSSL_BIO_printf */
+    /* turn on GNU extensions for XVASPRINTF with wolfSSL_BIO_printf */
     #undef  _GNU_SOURCE
     #define _GNU_SOURCE
 #endif
@@ -26151,7 +26151,7 @@ int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
         case WOLFSSL_BIO_SSL:
             {
                 char* pt = NULL;
-                ret = vasprintf(&pt, format, args);
+                ret = XVASPRINTF(&pt, format, args);
                 if (ret > 0 && pt != NULL) {
                     wolfSSL_BIO_write(bio, pt, ret);
                 }

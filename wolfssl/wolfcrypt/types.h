@@ -493,6 +493,58 @@
             #endif /* _MSC_VER || __CYGWIN__ || __MINGW32__ */
         #endif /* USE_WINDOWS_API */
 
+        /* XVASPRINTF is used in ssl.c for wolfSSL_BIO_printf */
+        #if (defined(sun) || defined(__sun) || defined(_AIX))
+            #include <stdarg.h>
+            static WC_INLINE
+            int xvasprintf(char **ret, const char *format, va_list args)
+            {
+                int count;
+                char *buffer;
+                va_list copy;
+                va_copy(copy, args);
+
+                *ret = NULL;
+
+                count = vsnprintf(NULL, 0, format, args);
+                if (count >= 0)
+                {
+                    buffer = malloc(count + 1);
+                    if (buffer == NULL)
+                    {
+                        count = -1;
+                    }
+                    else
+                    {
+                        count = vsnprintf(buffer, count + 1, format, copy);
+                        if (count < 0)
+                        {
+                            free(buffer);
+                            count = -1;
+                        }
+                        else
+                        {
+                            *ret = buffer;
+                        }
+                    }
+                }
+                va_end(copy);
+
+                return count;
+            }
+            #define XVASPRINTF xvasprintf
+        #else
+            #ifndef XVASPRINTF
+            #if defined(NO_FILESYSTEM) && (defined(OPENSSL_EXTRA) || \
+                   defined(HAVE_PKCS7)) && !defined(NO_STDIO_FILESYSTEM)
+                /* case where stdio is not included else where but is needed
+                   for vasprintf */
+                #include <stdio.h>
+            #endif
+            #define XVASPRINTF vasprintf
+            #endif
+        #endif /* defined(sun) || defined(__sun) || defined(_AIX) */
+
         #if defined(WOLFSSL_CERT_EXT) || defined(HAVE_ALPN)
             /* use only Thread Safe version of strtok */
             #if defined(USE_WOLF_STRTOK)
