@@ -569,7 +569,7 @@ int sp_sub(sp_int* a, sp_int* b, sp_int* r)
     }
     for (; i < a->used; i++) {
         r->dp[i] = a->dp[i] - c;
-        c = r->dp[i] == (sp_int_digit)-1;
+        c = (a->dp[i] == 0) && (r->dp[i] == (sp_int_digit)-1);
     }
     r->used = i;
     sp_clamp(r);
@@ -829,11 +829,11 @@ int sp_add(sp_int* a, sp_int* b, sp_int* r)
     }
     for (; i < a->used; i++) {
         r->dp[i] = a->dp[i] + c;
-        c = r->dp[i] == 0;
+        c = (a->dp[i] != 0) && (r->dp[i] == 0);
     }
     for (; i < b->used; i++) {
         r->dp[i] = b->dp[i] + c;
-        c = r->dp[i] == 0;
+        c = (b->dp[i] != 0) && (r->dp[i] == 0);
     }
     r->dp[i] = c;
     r->used = (int)(i + c);
