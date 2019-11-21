@@ -980,6 +980,11 @@ static int wolfIO_HttpProcessResponseBuf(int sfd, byte **recvBuf,
     (void)heap;
     (void)dynType;
 
+    if (chunkSz < 0 || len < 0) {
+        WOLFSSL_MSG("wolfIO_HttpProcessResponseBuf invalid chunk or length size");
+        return MEMORY_E;
+    }
+
     if (newRecvSz <= 0) {
         WOLFSSL_MSG("wolfIO_HttpProcessResponseBuf new receive size overflow");
         return MEMORY_E;
