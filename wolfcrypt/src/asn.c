@@ -14790,7 +14790,7 @@ static int GetEnumerated(const byte* input, word32* inOutIdx, int *value,
         return BUFFER_E;
 
     len = input[idx++];
-    if (len > 4 || (int)len > sz)
+    if (len > 4 || (int)(len + idx) > sz)
         return ASN_PARSE_E;
 
     while (len--) {
@@ -14849,6 +14849,9 @@ static int DecodeSingleResponse(byte* source,
     /* Get serial number */
     if (GetSerialNumber(source, &idx, cs->serial, &cs->serialSz, size) < 0)
         return ASN_PARSE_E;
+
+    if ( idx >= size )
+        return BUFFER_E;
 
     /* CertStatus */
     switch (source[idx++])
