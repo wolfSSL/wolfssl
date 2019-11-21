@@ -1923,6 +1923,32 @@ static void test_wolfSSL_ECDSA_SIG(void)
     wolfSSL_ECDSA_SIG_free(sig);
 #endif /* HAVE_ECC */
 }
+
+static void test_ECDSA_size_sign(void)
+{
+#ifdef HAVE_ECC
+    EC_KEY *key;
+    int id;
+    byte hash[WC_SHA_DIGEST_SIZE];
+    byte sig[ECC_BUFSIZE];
+    unsigned int sigSz = sizeof(sig);
+
+
+    XMEMSET(hash, 123, sizeof(hash));
+
+#if !defined(NO_ECC256) && !defined(NO_ECC_SECP)
+    id = wc_ecc_get_curve_id_from_name("SECP256R1");
+    AssertIntEQ(id, ECC_SECP256R1);
+
+    AssertNotNull(key = wolfSSL_EC_KEY_new_by_curve_name(id));
+    AssertIntEQ(EC_KEY_generate_key(key), 1);
+    AssertIntEQ(ECDSA_sign(0, hash, sizeof(hash), sig, &sigSz, key), 1);
+    AssertIntGE(ECDSA_size(key), sigSz);
+    EC_KEY_free(key);
+#endif
+
+#endif /* HAVE_ECC */
+}
 #endif /* OPENSSL_EXTRA */
 
 #include <wolfssl/openssl/pem.h>
@@ -19922,6 +19948,10 @@ static void test_wolfSSL_PEM_RSAPrivateKey(void)
     AssertNotNull(rsa_dup = RSAPublicKey_dup(rsa));
     AssertPtrNE(rsa_dup, rsa);
 
+    /* test if valgrind complains about unreleased memory */
+    RSA_up_ref(rsa);
+    RSA_free(rsa);
+
     BIO_free(bio);
     RSA_free(rsa);
     RSA_free(rsa_dup);
@@ -30687,6 +30717,7 @@ void ApiTest(void)
     test_wolfSSL_EVP_CIPHER_CTX();
     test_wolfSSL_EC();
     test_wolfSSL_ECDSA_SIG();
+    test_ECDSA_size_sign();
 #endif
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && \
     !defined(HAVE_SELFTEST) && \

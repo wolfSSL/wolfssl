@@ -85,6 +85,7 @@
     #include <wolfssl/openssl/ed25519.h>
     #include <wolfssl/openssl/ecdsa.h>
     #include <wolfssl/openssl/ecdh.h>
+    #include <wolfssl/openssl/err.h>
     #include <wolfssl/openssl/rc4.h>
     #include <wolfssl/openssl/stack.h>
     #include <wolfssl/openssl/x509v3.h>
@@ -16459,6 +16460,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return type;
     }
 
+    static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
+    {
+        int i;
+        for (i = ctrSz-1; i >= 0; i--) {
+            if (++ctr[i])
+                break;
+        }
+    }
 
     int wolfSSL_EVP_MD_CTX_cleanup(WOLFSSL_EVP_MD_CTX* ctx)
     {
@@ -16530,6 +16539,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                                     int arg, void *ptr)
     {
         int ret = WOLFSSL_FAILURE;
+        WC_RNG rng;
         if (ctx == NULL)
             return WOLFSSL_FAILURE;
 
@@ -16554,13 +16564,56 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret = wolfSSL_EVP_CIPHER_CTX_set_iv_length(ctx, arg);
                 break;
             case EVP_CTRL_AEAD_SET_IV_FIXED:
-                /* arg=-1 copies ctx->ivSz from ptr */
                 if (arg == -1) {
+                    /* arg == -1 copies ctx->ivSz from ptr */
                     ret = wolfSSL_EVP_CIPHER_CTX_set_iv(ctx, ptr, ctx->ivSz);
                 }
                 else {
-                    ret = wolfSSL_EVP_CIPHER_CTX_set_iv(ctx, ptr, arg);
+                    /*
+                     * Fixed field must be at least 4 bytes and invocation
+                     * field at least 8.
+                     */
+                    if ((arg < 4) || (ctx->ivSz - arg) < 8) {
+                        WOLFSSL_MSG("Fixed field or invocation field too short");
+                        ret = WOLFSSL_FAILURE;
+                        break;
+                    }
+                    if (wc_InitRng(&rng) != 0) {
+                        WOLFSSL_MSG("wc_InitRng failed");
+                        ret = WOLFSSL_FAILURE;
+                        break;
+                    }
+                    if (arg) {
+                        XMEMCPY(ctx->iv, ptr, arg);
+                    }
+                    if (wc_RNG_GenerateBlock(&rng, ctx->iv   + arg,
+                                                   ctx->ivSz - arg) != 0) {
+                        /* rng is freed immediately after if block so no need
+                         * to do it here
+                         */
+                        WOLFSSL_MSG("wc_RNG_GenerateBlock failed");
+                        ret = WOLFSSL_FAILURE;
+                    }
+
+                    if (wc_FreeRng(&rng) != 0) {
+                        WOLFSSL_MSG("wc_FreeRng failed");
+                        ret = WOLFSSL_FAILURE;
+                        break;
+                    }
                 }
+                break;
+            case EVP_CTRL_GCM_IV_GEN:
+                if (ctx->cipher.aes.keylen == 0 || ctx->ivSz == 0) {
+                    ret = WOLFSSL_FAILURE;
+                    WOLFSSL_MSG("Key or IV not set");
+                    break;
+                }
+                if ((ret = wc_AesGcmSetExtIV(&ctx->cipher.aes, ctx->iv, ctx->ivSz)) != 0) {
+                    WOLFSSL_MSG("wc_AesGcmSetIV failed");
+                    ret = WOLFSSL_FAILURE;
+                }
+                /* OpenSSL increments the IV. Not sure why */
+                IncCtr(ctx->iv, ctx->ivSz);
                 break;
             case EVP_CTRL_AEAD_SET_TAG:
                 if(arg <= 0 || arg > 16 || (ptr == NULL))
@@ -33692,6 +33745,78 @@ int wolfSSL_EC_KEY_set_public_key(WOLFSSL_EC_KEY *key,
 }
 /* End EC_KEY */
 
+int wolfSSL_ECDSA_size(const WOLFSSL_EC_KEY *key)
+{
+    const EC_GROUP *group;
+    int bits, bytes;
+    word32 headerSz = 4;   /* 2*ASN_TAG + 2*LEN(ENUM) */
+
+    if (!key) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (!(group = wolfSSL_EC_KEY_get0_group(key))) {
+        return WOLFSSL_FAILURE;
+    }
+    if ((bits = wolfSSL_EC_GROUP_order_bits(group)) == 0) {
+        return WOLFSSL_FAILURE;
+    }
+    bytes = (bits + 7) / 8; /* bytes needed to hold bits */
+    return headerSz +
+            2 + /* possible leading zeroes in r and s */
+            bytes + bytes + /* r and s */
+            2;
+}
+
+int wolfSSL_ECDSA_sign(int type, const unsigned char *digest,
+                       int digestSz, unsigned char *sig,
+                       unsigned int *sigSz, WOLFSSL_EC_KEY *key)
+{
+    int ret = WOLFSSL_SUCCESS;
+    WC_RNG* rng = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    WC_RNG* tmpRNG = NULL;
+#else
+    WC_RNG  tmpRNG[1];
+#endif
+    int initTmpRng = 0;
+
+#ifdef WOLFSSL_SMALL_STACK
+    tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+    if (tmpRNG == NULL)
+        return WOLFSSL_FAILURE;
+#endif
+    WOLFSSL_ENTER("wolfSSL_ECDSA_sign");
+
+    if (!key) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wc_InitRng(tmpRNG) == 0) {
+        rng = tmpRNG;
+        initTmpRng = 1;
+    }
+    else {
+        WOLFSSL_MSG("Bad RNG Init, trying global");
+        if (initGlobalRNG == 0) {
+            WOLFSSL_MSG("Global RNG no Init");
+        }
+        else {
+            rng = &globalRNG;
+        }
+    }
+    if (!rng) {
+        return WOLFSSL_FAILURE;
+    }
+    if (wc_ecc_sign_hash(digest, digestSz, sig, sigSz, rng, (ecc_key*)key->internal) != MP_OKAY) {
+        ret = WOLFSSL_FAILURE;
+    }
+    if (initTmpRng) {
+        wc_FreeRng(tmpRNG);
+    }
+    (void)type;
+    return ret;
+}
 
 #ifndef HAVE_SELFTEST
 /* ECC point compression types were not included in selftest ecc.h */
@@ -34147,6 +34272,68 @@ int wolfSSL_ECPoint_d2i(unsigned char *in, unsigned int len,
     wolfSSL_EC_POINT_dump("d2i p", p);
 
     return WOLFSSL_SUCCESS;
+}
+
+size_t wolfSSL_EC_POINT_point2oct(const WOLFSSL_EC_GROUP *group,
+                                  const WOLFSSL_EC_POINT *p,
+                                  char form,
+                                  byte *buf, size_t len, WOLFSSL_BN_CTX *ctx)
+{
+    unsigned int min_len = 0;
+
+    WOLFSSL_ENTER("EC_POINT_point2oct");
+
+    if (!group || !p) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_EC_POINT_is_at_infinity(group, p)) {
+        /* encodes to a single 0 octet */
+        if (buf != NULL) {
+            if (len < 1) {
+                ECerr(EC_F_EC_GFP_SIMPLE_POINT2OCT, EC_R_BUFFER_TOO_SMALL);
+                return WOLFSSL_FAILURE;
+            }
+            buf[0] = 0;
+        }
+        return 1;
+    }
+
+    if (form != POINT_CONVERSION_UNCOMPRESSED) {
+        WOLFSSL_MSG("Only POINT_CONVERSION_UNCOMPRESSED is supported");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_ECPoint_i2d(group, p, NULL, &min_len) != WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (min_len > len) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_ECPoint_i2d(group, p, buf, &min_len) != WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+
+    (void)ctx;
+
+    return min_len;
+}
+
+int wolfSSL_EC_POINT_oct2point(const WOLFSSL_EC_GROUP *group,
+                               WOLFSSL_EC_POINT *p, const unsigned char *buf,
+                               size_t len, WOLFSSL_BN_CTX *ctx)
+{
+    WOLFSSL_ENTER("EC_POINT_point2oct");
+
+    if (!group || !p) {
+        return WOLFSSL_FAILURE;
+    }
+
+    (void)ctx;
+
+    return wolfSSL_ECPoint_d2i((unsigned char*)buf, len, group, p);
 }
 
 WOLFSSL_EC_POINT *wolfSSL_EC_POINT_new(const WOLFSSL_EC_GROUP *group)
@@ -36567,6 +36754,22 @@ int wolfSSL_DH_LoadDer(WOLFSSL_DH* dh, const unsigned char* derBuf, int derSz)
 
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+
+/* increments ref count of WOLFSSL_RSA. Return 1 on success, 0 on error */
+int wolfSSL_RSA_up_ref(WOLFSSL_RSA* rsa)
+{
+    if (rsa) {
+        if (wc_LockMutex(&rsa->refMutex) != 0) {
+            WOLFSSL_MSG("Failed to lock x509 mutex");
+        }
+        rsa->refCount++;
+        wc_UnLockMutex(&rsa->refMutex);
+
+        return 1;
+    }
+
+    return 0;
+}
 
 /* increments ref count of WOLFSSL_X509. Return 1 on success, 0 on error */
 int wolfSSL_X509_up_ref(WOLFSSL_X509* x509)
@@ -47502,8 +47705,26 @@ static void InitwolfSSL_Rsa(WOLFSSL_RSA* rsa)
 void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
 {
     WOLFSSL_ENTER("wolfSSL_RSA_free");
+    int doFree = 0;
 
     if (rsa) {
+        if (wc_LockMutex(&rsa->refMutex) != 0) {
+            WOLFSSL_MSG("Couldn't lock rsa mutex");
+        }
+
+        /* only free if all references to it are done */
+        rsa->refCount--;
+        if (rsa->refCount == 0) {
+            doFree = 1;
+        }
+        wc_UnLockMutex(&rsa->refMutex);
+
+        if (!doFree) {
+            return;
+        }
+
+        wc_FreeMutex(&rsa->refMutex);
+
         if (rsa->internal) {
 #if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && \
     !defined(HAVE_FAST_RSA) && defined(WC_RSA_BLINDING)
@@ -47614,6 +47835,8 @@ WOLFSSL_RSA* wolfSSL_RSA_new(void)
 
     external->internal = key;
     external->inSet = 0;
+    external->refCount = 1;
+    wc_InitMutex(&external->refMutex);
     return external;
 }
 #endif /* !NO_RSA && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */

@@ -84,6 +84,10 @@ struct WOLFSSL_RSA {
 #if defined(HAVE_EX_DATA)
     void*          ex_data[MAX_EX_DATA];  /* external data */
 #endif
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+    wolfSSL_Mutex    refMutex;                       /* ref count mutex */
+    int              refCount;                       /* reference count */
+#endif
 };
 
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSA_new(void);
@@ -174,6 +178,8 @@ WOLFSSL_API int wolfSSL_RSA_set_ex_data(WOLFSSL_RSA *rsa, int idx, void *data);
 #define RSA_set_flags           wolfSSL_RSA_set_flags
 
 #define RSAPublicKey_dup        wolfSSL_RSAPublicKey_dup
+#define RSA_get_ex_data        wolfSSL_RSA_get_ex_data
+#define RSA_set_ex_data        wolfSSL_RSA_set_ex_data
 
 #define RSA_get0_key       wolfSSL_RSA_get0_key
 

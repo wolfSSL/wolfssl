@@ -698,6 +698,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTX_set_tmp_rsa_callback    wolfSSL_CTX_set_tmp_rsa_callback
 #define RSA_print                       wolfSSL_RSA_print
 #define RSA_bits                        wolfSSL_RSA_size
+#define RSA_up_ref                      wolfSSL_RSA_up_ref
 
 #define PEM_def_callback                wolfSSL_PEM_def_callback
 

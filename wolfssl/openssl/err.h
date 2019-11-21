@@ -34,11 +34,13 @@
 #define ERR_R_DISABLED                          NOT_COMPILED_IN
 #define ERR_R_PASSED_INVALID_ARGUMENT           BAD_FUNC_ARG
 #define RSA_R_UNKNOWN_PADDING_TYPE              RSA_PAD_E
+#define EC_R_BUFFER_TOO_SMALL                   BUFFER_E
 
 /* SSL function codes */
 #define RSA_F_RSA_OSSL_PRIVATE_ENCRYPT          1
 #define SSL_F_SSL_CTX_USE_CERTIFICATE_FILE      2
 #define SSL_F_SSL_USE_PRIVATEKEY                3
+#define EC_F_EC_GFP_SIMPLE_POINT2OCT            4
 
 /* reasons */
 #define ERR_R_SYS_LIB                           1
@@ -46,6 +48,7 @@
 
 #define RSAerr(f,r)  ERR_put_error(0,(f),(r),__FILE__,__LINE__)
 #define SSLerr(f,r)  ERR_put_error(0,(f),(r),__FILE__,__LINE__)
+#define ECerr(f,r)   ERR_put_error(0,(f),(r),__FILE__,__LINE__)
 
 #endif /* WOLFSSL_OPENSSL_ERR_ */
 
