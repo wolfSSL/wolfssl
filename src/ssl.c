@@ -3512,6 +3512,7 @@ WOLFSSL_STACK* wolfSSL_CertManagerGetCerts(WOLFSSL_CERT_MANAGER* cm)
 
                 if (wolfSSL_sk_X509_push(sk, x509) != SSL_SUCCESS) {
                     WOLFSSL_MSG("Unable to load x509 into stack");
+                    FreeX509(x509);
                     goto error;
                 }
             }
@@ -3613,6 +3614,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_GetCerts(WOLFSSL_X509_STORE_CTX* s)
 
             if (wolfSSL_sk_X509_push(sk, x509) != SSL_SUCCESS) {
                 WOLFSSL_MSG("Unable to load x509 into stack");
+                FreeX509(x509);
                 goto error;
             }
         }
