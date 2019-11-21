@@ -2178,6 +2178,11 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
    int x = fp_count_bits (X);
 #endif
 
+   if (fp_iszero(G)) {
+      fp_set(G, 0);
+      return FP_OKAY;
+   }
+
    /* prevent overflows */
    if (P->used > (FP_SIZE/2)) {
       return FP_VAL;
@@ -2244,6 +2249,11 @@ int fp_exptmod_ex(fp_int * G, fp_int * X, int digits, fp_int * P, fp_int * Y)
    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI)
    int x = fp_count_bits (X);
 #endif
+
+   if (fp_iszero(G)) {
+      fp_set(G, 0);
+      return FP_OKAY;
+   }
 
    /* prevent overflows */
    if (P->used > (FP_SIZE/2)) {
@@ -4437,6 +4447,9 @@ int fp_gcd(fp_int *a, fp_int *b, fp_int *c)
       fp_init_copy(v, a);
    }
 
+   u->sign = FP_ZPOS;
+   v->sign = FP_ZPOS;
+
    fp_init(r);
    while (fp_iszero(v) == FP_NO) {
       fp_mod(u, v, r);
@@ -4765,7 +4778,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
     if (fp_iszero(a) == FP_YES) {
         *str++ = '0';
         *str = '\0';
-        return FP_YES;
+        return FP_OKAY;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
