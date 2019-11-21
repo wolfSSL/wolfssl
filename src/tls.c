@@ -1449,6 +1449,8 @@ static ALPN* TLSX_ALPN_New(char *protocol_name, word16 protocol_nameSz,
     XMEMCPY(alpn->protocol_name, protocol_name, protocol_nameSz);
     alpn->protocol_name[protocol_nameSz] = 0;
 
+    (void)heap;
+
     return alpn;
 }
 
@@ -2419,6 +2421,8 @@ static TCA* TLSX_TCA_New(byte type, const byte* id, word16 idSz, void* heap)
                 tca = NULL;
         }
     }
+
+    (void)heap;
 
     return tca;
 }
@@ -8350,6 +8354,8 @@ static int TLSX_PreSharedKey_New(PreSharedKey** list, byte* identity,
     }
     *list = psk;
     *preSharedKey = psk;
+
+    (void)heap;
 
     return 0;
 }

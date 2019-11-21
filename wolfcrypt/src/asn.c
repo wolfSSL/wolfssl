@@ -14170,6 +14170,9 @@ static int ASNToHexString(const byte* input, word32* inOutIdx, char** out,
     *inOutIdx += len;
     *out = str;
 
+    (void)heap;
+    (void)heapType;
+
     return 0;
 }
 #endif /* WOLFSSL_CUSTOM_CURVES */
