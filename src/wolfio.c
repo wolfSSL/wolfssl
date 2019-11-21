@@ -1102,6 +1102,12 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
 
             switch (state) {
                 case phr_init:
+                    if (XSTRLEN(start) < 15) { /* 15 is the length of the two
+                                          constant strings we're about to
+                                          compare against. */
+                        WOLFSSL_MSG("wolfIO_HttpProcessResponse HTTP header too short.");
+                        return -1;
+                    }
                     if (XSTRNCASECMP(start, "HTTP/1", 6) == 0) {
                         start += 9;
                         if (XSTRNCASECMP(start, "200 OK", 6) != 0) {
@@ -1114,6 +1120,12 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                 case phr_http_start:
                 case phr_have_length:
                 case phr_have_type:
+                    if (XSTRLEN(start) < 13) { /* 13 is the shortest of the following
+                                          next lines we're checking for. */
+                        WOLFSSL_MSG("wolfIO_HttpProcessResponse content type is too short.");
+                        return -1;
+                    }
+
                     if (XSTRNCASECMP(start, "Content-Type:", 13) == 0) {
                         int i;
 
