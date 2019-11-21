@@ -7616,88 +7616,49 @@ static int DecodeNameConstraints(const byte* input, int sz, DecodedCert* cert)
 
 #if (defined(WOLFSSL_CERT_EXT) && !defined(WOLFSSL_SEP)) || defined(OPENSSL_EXTRA)
 
-static int Word32ToString(char* d, word32 number)
-{
-    int i = 0;
-
-    if (d != NULL) {
-        word32 order = 1000000000;
-        word32 digit;
-
-        if (number == 0) {
-            d[i++] = '0';
-        }
-        else {
-            while (order) {
-                digit = number / order;
-                if (i > 0 || digit != 0) {
-                    d[i++] = (char)digit + '0';
-                }
-                if (digit != 0)
-                    number %= digit * order;
-                if (order > 1)
-                    order /= 10;
-                else
-                    order = 0;
-            }
-        }
-        d[i] = 0;
-    }
-
-    return i;
-}
-
-
 /* Decode ITU-T X.690 OID format to a string representation
  * return string length */
 int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
 {
-    word32 val, idx = 0, nb_bytes;
-    size_t w_bytes = 0;
+    word32 val, inIdx = 0, outIdx = 0;
+    int w = 0;
 
     if (out == NULL || in == NULL || outSz < 4 || inSz < 2)
         return BAD_FUNC_ARG;
 
-    /* first two byte must be interpreted as : 40 * int1 + int2 */
-    val = (word16)in[idx++];
+    /* The first byte expands into b/40 dot b%40. */
+    val = in[inIdx++];
 
-    w_bytes = Word32ToString(out, val / 40);
-    out[w_bytes++] = '.';
-    w_bytes += Word32ToString(out+w_bytes, val % 40);
+    w = XSNPRINTF(out, outSz, "%u.%u", val / 40, val % 40);
+    if (w < 0)
+        goto exit;
+    outIdx += w;
+    val = 0;
 
-    while (idx < inSz) {
-        /* init value */
-        val = 0;
-        nb_bytes = 0;
-
-        /* check that output size is ok */
-        if (w_bytes > (outSz - 3))
-            return BUFFER_E;
-
+    do {
+        /* extract the next OID digit from in to val */
         /* first bit is used to set if value is coded on 1 or multiple bytes */
-        while ((in[idx+nb_bytes] & 0x80))
-            nb_bytes++;
-
-        if (!nb_bytes)
-            val = (word32)(in[idx++] & 0x7f);
-        else {
-            word32 base = 1, tmp = nb_bytes;
-
-            while (tmp != 0) {
-                val += (word32)(in[idx+tmp] & 0x7f) * base;
-                base *= 128;
-                tmp--;
-            }
-            val += (word32)(in[idx++] & 0x7f) * base;
-
-            idx += nb_bytes;
+        if (in[inIdx] & 0x80) {
+            val += in[inIdx] & 0x7F;
+            val *= 128;
         }
+        else {
+            /* write val as text into out */
+            val += in[inIdx];
+            w = XSNPRINTF(out + outIdx, outSz - outIdx, ".%u", val);
+            if (w < 0)
+                goto exit;
+            outIdx += w;
+            val = 0;
+        }
+        inIdx++;
+    } while (inIdx < inSz);
+    out[outIdx] = 0;
 
-        out[w_bytes++] = '.';
-        w_bytes += Word32ToString(out+w_bytes, val);
-    }
+    w = (int)outIdx;
 
-    return (int)w_bytes;
+exit:
+    return w;
 }
 #endif /* WOLFSSL_CERT_EXT && !WOLFSSL_SEP */
 
