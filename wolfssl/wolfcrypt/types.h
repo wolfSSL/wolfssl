@@ -240,7 +240,7 @@
     #elif (defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_INTEL_QA)) || \
           defined(HAVE_INTEL_QA_SYNC)
         #ifndef HAVE_INTEL_QA_SYNC
-            #include <wolfssl/wolfcrypt/port/intel/quickassist.h>
+            #include <wolfssl/wolfcrypt/port/intel/quickassist_mem.h>
             #undef USE_WOLFSSL_MEMORY
             #ifdef WOLFSSL_DEBUG_MEMORY
                 #define XMALLOC(s, h, t)     IntelQaMalloc((s), (h), (t), __func__, __LINE__)
