@@ -31868,20 +31868,18 @@ int wolfSSL_EC_POINT_is_at_infinity(const WOLFSSL_EC_GROUP *group,
 
 size_t wolfSSL_EC_get_builtin_curves(WOLFSSL_EC_builtin_curve *r, size_t nitems)
 {
-    static size_t ecc_sets_count = 0;
-    size_t i, min;
+    size_t ecc_sets_count;
+    size_t i, min_nitems;
 
-    if (ecc_sets_count == 0) {
-        for (i = 0; ecc_sets[i].size != 0; i++);
-        ecc_sets_count = i;
-    }
+    for (i = 0; ecc_sets[i].size != 0 && ecc_sets[i].name != NULL; i++);
+    ecc_sets_count = i;
 
     if (r == NULL || nitems == 0)
         return ecc_sets_count;
 
-    min = nitems < ecc_sets_count ? nitems : ecc_sets_count;
+    min_nitems = nitems < ecc_sets_count ? nitems : ecc_sets_count;
 
-    for (i = 0; i < min; i++) {
+    for (i = 0; i < min_nitems; i++) {
         r[i].nid = ecc_sets[i].id;
         r[i].comment = ecc_sets[i].name;
     }
@@ -36875,7 +36873,7 @@ err:
         WOLFSSL_ENTER("wolfSSL_OBJ_nid2sn");
 
         /* find based on NID and return name */
-        for (i = 0; i < ecc_sets[i].size; i++) {
+        for (i = 0; ecc_sets[i].size != 0; i++) {
             if (n == ecc_sets[i].id) {
                 return ecc_sets[i].name;
             }

@@ -4811,7 +4811,7 @@ WOLFSSL_LOCAL int wc_OBJ_sn2nid(const char *sn)
     if (XSTRNCMP(sn, "secp384r1", 10) == 0)
         sn = "SECP384R1";
     /* find based on name and return NID */
-    for (i = 0; i < ecc_sets[i].size; i++) {
+    for (i = 0; ecc_sets[i].size != 0 && ecc_sets[i].name != NULL; i++) {
         if (XSTRNCMP(sn, ecc_sets[i].name, ECC_MAXNAME) == 0) {
             return ecc_sets[i].id;
         }
