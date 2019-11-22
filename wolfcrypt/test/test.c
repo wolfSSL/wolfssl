@@ -3263,7 +3263,7 @@ int hash_test(void)
     if (ret != BAD_FUNC_ARG)
         return -3094;
 
-#ifndef NO_ASN
+#ifndef NO_CERTS
 #if defined(WOLFSSL_MD2) && !defined(HAVE_SELFTEST)
     ret = wc_GetCTC_HashOID(MD2);
     if (ret == 0)
@@ -11508,7 +11508,7 @@ static int rsa_keygen_test(WC_RNG* rng)
     #if !defined(HAVE_FAST_RSA) && !defined(HAVE_USER_RSA) && \
         (!defined(HAVE_FIPS) || \
          (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))) && \
-        !defined(HAVE_SELFTEST)
+        !defined(HAVE_SELFTEST) && !defined(HAVE_INTEL_QA)
     ret = wc_CheckRsaKey(&genKey);
     if (ret != 0) {
         ERROR_OUT(-8228, exit_rsa);
