@@ -26326,8 +26326,6 @@ void wolfSSL_CTX_sess_set_remove_cb(WOLFSSL_CTX* ctx, void (*f)(WOLFSSL_CTX*,
 }
 #endif /* OPENSSL_EXTRA || HAVE_EXT_CACHE */
 
-#ifdef OPENSSL_EXTRA
-
 /*
  *
  * Note: It is expected that the importing and exporting function have been
@@ -26704,6 +26702,8 @@ end:
 #endif
     return s;
 }
+
+#ifdef OPENSSL_EXTRA
 
 
 long wolfSSL_SESSION_get_timeout(const WOLFSSL_SESSION* sess)
