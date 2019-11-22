@@ -24631,7 +24631,9 @@ static int GenerateNextP(mp_int* p1, mp_int* p2, int k)
     int ret;
     mp_int ki;
 
-    ret = mp_set(&ki, k);
+    ret = mp_init(&ki);
+    if (ret == 0)
+        ret = mp_set(&ki, k);
     if (ret == 0)
         ret = mp_sub_d(p1, 1, p2);
     if (ret == 0)

@@ -4129,6 +4129,11 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
     if (a == NULL || result == NULL || rng == NULL)
         return FP_VAL;
 
+    if (fp_isone(a)) {
+        *result = FP_NO;
+        return FP_OKAY;
+    }
+
     if (ret == FP_YES) {
         fp_digit d;
         int r;
