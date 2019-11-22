@@ -1703,6 +1703,11 @@ int sp_prime_is_prime(sp_int *a, int t, int* result)
         err = MP_VAL;
     }
 
+    if (sp_isone(a)) {
+        *result = MP_NO;
+        return MP_OKAY;
+    }
+
     if (err == MP_OKAY && a->used == 1) {
         /* check against primes table */
         for (i = 0; i < SP_PRIME_SIZE; i++) {
@@ -1782,6 +1787,11 @@ int sp_prime_is_prime_ex(sp_int* a, int t, int* result, WC_RNG* rng)
 
     if (a == NULL || result == NULL || rng == NULL)
         err = MP_VAL;
+
+    if (sp_isone(a)) {
+        *result = MP_NO;
+        return MP_OKAY;
+    }
 
     if (err == MP_OKAY && a->used == 1) {
         /* check against primes table */
