@@ -3513,6 +3513,7 @@ WOLFSSL_STACK* wolfSSL_CertManagerGetCerts(WOLFSSL_CERT_MANAGER* cm)
                 if (wolfSSL_sk_X509_push(sk, x509) != SSL_SUCCESS) {
                     WOLFSSL_MSG("Unable to load x509 into stack");
                     FreeX509(x509);
+                    XFREE(x509, cm->heap, DYNAMIC_TYPE_X509);
                     goto error;
                 }
             }
@@ -3602,8 +3603,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_GetCerts(WOLFSSL_X509_STORE_CTX* s)
         if (ParseCert(dCert, CERT_TYPE, NO_VERIFY, NULL)){
             goto error;
         }
-        x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
-                DYNAMIC_TYPE_X509);
+        x509 = wolfSSL_X509_new();
 
         if (x509 == NULL) {
             goto error;
@@ -3614,7 +3614,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_GetCerts(WOLFSSL_X509_STORE_CTX* s)
 
             if (wolfSSL_sk_X509_push(sk, x509) != SSL_SUCCESS) {
                 WOLFSSL_MSG("Unable to load x509 into stack");
-                FreeX509(x509);
+                wolfSSL_X509_free(x509);
                 goto error;
             }
         }
