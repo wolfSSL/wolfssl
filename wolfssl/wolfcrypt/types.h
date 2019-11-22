@@ -494,9 +494,14 @@
         #endif /* USE_WINDOWS_API */
 
         /* XVASPRINTF is used in ssl.c for wolfSSL_BIO_printf */
+        #ifdef __GNUC__
+            #define VASPRINTFCHECK __attribute__((format(printf, 2, 0)))
+        #else
+            #define VASPRINTFCHECK
+        #endif /* __GNUC__ */
         #if (defined(sun) || defined(__sun) || defined(_AIX))
             #include <stdarg.h>
-            static WC_INLINE
+            VASPRINTFCHECK static WC_INLINE
             int xvasprintf(char **ret, const char *format, va_list args)
             {
                 int count;
