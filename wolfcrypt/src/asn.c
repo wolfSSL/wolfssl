@@ -15726,52 +15726,39 @@ int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
     return 0;
 }
 
-/* prase crl buffer into decoded state, 0 on success */
-int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
+
+static int ParseCRL_CertList(DecodedCRL* dcrl, const byte* buf,
+        word32* inOutIdx, int sz)
 {
-    int          version, len, doNextDate = 1;
-    word32       oid, idx = 0, dateIdx, localIdx;
-    Signer*      ca = NULL;
-    SignatureCtx sigCtx;
-    byte         tag;
+    word32 oid, dateIdx, idx, checkIdx;
+    int version, doNextDate = 1;
+    byte tag;
 
-    WOLFSSL_MSG("ParseCRL");
-
-    /* raw crl hash */
-    /* hash here if needed for optimized comparisons
-     * wc_Sha sha;
-     * wc_InitSha(&sha);
-     * wc_ShaUpdate(&sha, buff, sz);
-     * wc_ShaFinal(&sha, dcrl->crlHash); */
-
-    if (GetSequence(buff, &idx, &len, sz) < 0)
-        return ASN_PARSE_E;
-
-    dcrl->certBegin = idx;
-
-    if (GetSequence(buff, &idx, &len, sz) < 0)
-        return ASN_PARSE_E;
-    dcrl->sigIndex = len + idx;
+    if (dcrl == NULL || inOutIdx == NULL || buf == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     /* may have version */
-    localIdx = idx;
-    if (GetASNTag(buff, &localIdx, &tag, sz) == 0 && tag == ASN_INTEGER) {
-        if (GetMyVersion(buff, &idx, &version, sz) < 0)
+    idx = *inOutIdx;
+
+    checkIdx = idx;
+    if (GetASNTag(buf, &checkIdx, &tag, sz) == 0 && tag == ASN_INTEGER) {
+        if (GetMyVersion(buf, &idx, &version, sz) < 0)
             return ASN_PARSE_E;
     }
 
-    if (GetAlgoId(buff, &idx, &oid, oidIgnoreType, sz) < 0)
+    if (GetAlgoId(buf, &idx, &oid, oidIgnoreType, sz) < 0)
         return ASN_PARSE_E;
 
-    if (GetNameHash(buff, &idx, dcrl->issuerHash, sz) < 0)
+    if (GetNameHash(buf, &idx, dcrl->issuerHash, sz) < 0)
         return ASN_PARSE_E;
 
-    if (GetBasicDate(buff, &idx, dcrl->lastDate, &dcrl->lastDateFormat, sz) < 0)
+    if (GetBasicDate(buf, &idx, dcrl->lastDate, &dcrl->lastDateFormat, sz) < 0)
         return ASN_PARSE_E;
 
     dateIdx = idx;
 
-    if (GetBasicDate(buff, &idx, dcrl->nextDate, &dcrl->nextDateFormat, sz) < 0)
+    if (GetBasicDate(buf, &idx, dcrl->nextDate, &dcrl->nextDateFormat, sz) < 0)
     {
 #ifndef WOLFSSL_NO_CRL_NEXT_DATE
         (void)dateIdx;
@@ -15792,22 +15779,60 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 #endif
     }
 
-    localIdx = idx;
+    checkIdx = idx;
     if (idx != dcrl->sigIndex &&
-           GetASNTag(buff, &localIdx, &tag, sz) == 0 && tag != CRL_EXTENSIONS) {
-        if (GetSequence(buff, &idx, &len, sz) < 0)
-            return ASN_PARSE_E;
+           GetASNTag(buf, &checkIdx, &tag, sz) == 0 && tag != CRL_EXTENSIONS) {
 
+        int len;
+
+        if (GetSequence(buf, &idx, &len, sz) < 0)
+            return ASN_PARSE_E;
         len += idx;
 
         while (idx < (word32)len) {
-            if (GetRevoked(buff, &idx, dcrl, sz) < 0)
+            if (GetRevoked(buf, &idx, dcrl, len) < 0)
                 return ASN_PARSE_E;
         }
     }
 
-    if (idx != dcrl->sigIndex)
-        idx = dcrl->sigIndex;   /* skip extensions */
+    *inOutIdx = idx;
+
+    return 0;
+}
+
+
+/* prase crl buffer into decoded state, 0 on success */
+int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
+{
+    int          len;
+    word32       idx = 0;
+    Signer*      ca = NULL;
+    SignatureCtx sigCtx;
+
+    WOLFSSL_MSG("ParseCRL");
+
+    /* raw crl hash */
+    /* hash here if needed for optimized comparisons
+     * wc_Sha sha;
+     * wc_InitSha(&sha);
+     * wc_ShaUpdate(&sha, buff, sz);
+     * wc_ShaFinal(&sha, dcrl->crlHash); */
+
+    if (GetSequence(buff, &idx, &len, sz) < 0)
+        return ASN_PARSE_E;
+
+    dcrl->certBegin = idx;
+    /* Normalize sz for the length inside the outer sequence. */
+    sz = len + idx;
+
+    if (GetSequence(buff, &idx, &len, sz) < 0)
+        return ASN_PARSE_E;
+    dcrl->sigIndex = len + idx;
+
+    if (ParseCRL_CertList(dcrl, buff, &idx, idx + len) < 0)
+        return ASN_PARSE_E;
+
+    idx = dcrl->sigIndex;
 
     if (GetAlgoId(buff, &idx, &dcrl->signatureOID, oidSigType, sz) < 0)
         return ASN_PARSE_E;
