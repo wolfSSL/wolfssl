@@ -672,6 +672,14 @@ static int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
         }
         done = 1;
     }
+    else if (sp_count_bits(a) == sp_count_bits(d)) {
+        /* a is greater than d but same bit length */
+        sp_sub(a, d, rem);
+        if (r != NULL) {
+            sp_set(r, 1);
+        }
+        done = 1;
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     if (!done && err == MP_OKAY) {
