@@ -11870,6 +11870,8 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
         ret = wc_RNG_GenerateBlock(rng, cert->serial, cert->serialSz);
         if (ret != 0)
             return ret;
+        /* Clear the top bit to avoid a negative value */
+        cert->serial[0] &= 0x7f;
     }
     der->serialSz = SetSerialNumber(cert->serial, cert->serialSz, der->serial,
         sizeof(der->serial), CTC_SERIAL_SIZE);
