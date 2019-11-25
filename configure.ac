@@ -199,6 +199,9 @@ then
 
     # Enable multiple attribute additions such as DC
     AM_CFLAGS="-DWOLFSSL_MULTI_ATTRIB $AM_CFLAGS"
+
+    # Enable checks on ECC keys that are imported
+    AM_CFLAGS="-DWOLFSSL_VALIDATE_ECC_IMPORT $AM_CFLAGS"
 fi
 
 
@@ -1626,6 +1629,9 @@ then
         AC_MSG_ERROR([cannot enable fpecc without enabling ecc.])
     fi
     AM_CFLAGS="$AM_CFLAGS -DFP_ECC"
+
+    # Enable checks on ECC keys that are imported
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"
 fi
 
 

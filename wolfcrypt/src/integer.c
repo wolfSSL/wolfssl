@@ -965,7 +965,7 @@ int mp_invmod (mp_int * a, mp_int * b, mp_int * c)
 #endif
 {
   /* b cannot be negative */
-  if (b->sign == MP_NEG || mp_iszero(b) == MP_YES) {
+  if (b->sign == MP_NEG || mp_iszero(b) == MP_YES || mp_iszero(a) == MP_YES) {
     return MP_VAL;
   }
 
