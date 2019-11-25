@@ -4551,6 +4551,8 @@ static int GetCertHeader(DecodedCert* cert)
     if (GetSequence(cert->source, &cert->srcIdx, &len, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
+    /* Reset the max index for the size indicated in the outer wrapper. */
+    cert->maxIdx = len + cert->srcIdx;
     cert->certBegin = cert->srcIdx;
 
     if (GetSequence(cert->source, &cert->srcIdx, &len, cert->maxIdx) < 0)
@@ -4558,11 +4560,11 @@ static int GetCertHeader(DecodedCert* cert)
     cert->sigIndex = len + cert->srcIdx;
 
     if (GetExplicitVersion(cert->source, &cert->srcIdx, &cert->version,
-                                                              cert->maxIdx) < 0)
+                                                            cert->sigIndex) < 0)
         return ASN_PARSE_E;
 
     if (GetSerialNumber(cert->source, &cert->srcIdx, cert->serial,
-                                        &cert->serialSz, cert->maxIdx) < 0)
+                                           &cert->serialSz, cert->sigIndex) < 0)
         return ASN_PARSE_E;
 
     return ret;
@@ -4868,7 +4870,7 @@ int CalcHashId(const byte* data, word32 len, byte* hash)
 }
 
 /* process NAME, either issuer or subject */
-static int GetName(DecodedCert* cert, int nameType)
+static int GetName(DecodedCert* cert, int nameType, int maxIdx)
 {
     int    length;  /* length of all distinguished names */
     int    dummy;
@@ -4897,19 +4899,19 @@ static int GetName(DecodedCert* cert, int nameType)
         hash = cert->subjectHash;
     }
 
-    if (cert->srcIdx >= cert->maxIdx) {
+    if (cert->srcIdx >= (word32)maxIdx) {
         return BUFFER_E;
     }
 
     localIdx = cert->srcIdx;
-    if (GetASNTag(cert->source, &localIdx, &tag, cert->maxIdx) < 0) {
+    if (GetASNTag(cert->source, &localIdx, &tag, maxIdx) < 0) {
         return ASN_PARSE_E;
     }
 
     if (tag == ASN_OBJECT_ID) {
         WOLFSSL_MSG("Trying optional prefix...");
 
-        if (SkipObjectId(cert->source, &cert->srcIdx, cert->maxIdx) < 0)
+        if (SkipObjectId(cert->source, &cert->srcIdx, maxIdx) < 0)
             return ASN_PARSE_E;
         WOLFSSL_MSG("Got optional prefix");
     }
@@ -4918,7 +4920,7 @@ static int GetName(DecodedCert* cert, int nameType)
      * calculated over the entire DER encoding of the Name field, including
      * the tag and length. */
     idx = cert->srcIdx;
-    if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
+    if (GetSequence(cert->source, &cert->srcIdx, &length, maxIdx) < 0)
         return ASN_PARSE_E;
 
     ret = CalcHashId(&cert->source[idx], length + cert->srcIdx - idx, hash);
@@ -4952,19 +4954,19 @@ static int GetName(DecodedCert* cert, int nameType)
         int         strLen  = 0;
         byte        id      = 0;
 
-        if (GetSet(cert->source, &cert->srcIdx, &dummy, cert->maxIdx) < 0) {
+        if (GetSet(cert->source, &cert->srcIdx, &dummy, maxIdx) < 0) {
             WOLFSSL_MSG("Cert name lacks set header, trying sequence");
         }
 
-        if (GetSequence(cert->source, &cert->srcIdx, &dummy, cert->maxIdx) <= 0)
+        if (GetSequence(cert->source, &cert->srcIdx, &dummy, maxIdx) <= 0)
             return ASN_PARSE_E;
 
-        ret = GetASNObjectId(cert->source, &cert->srcIdx, &oidSz, cert->maxIdx);
+        ret = GetASNObjectId(cert->source, &cert->srcIdx, &oidSz, maxIdx);
         if (ret != 0)
             return ret;
 
         /* make sure there is room for joint */
-        if ((cert->srcIdx + sizeof(joint)) > cert->maxIdx)
+        if ((cert->srcIdx + sizeof(joint)) > (word32)maxIdx)
             return ASN_PARSE_E;
 
         XMEMCPY(joint, &cert->source[cert->srcIdx], sizeof(joint));
@@ -4974,7 +4976,7 @@ static int GetName(DecodedCert* cert, int nameType)
             cert->srcIdx += 3;
             id = joint[2];
             if (GetHeader(cert->source, &b, &cert->srcIdx, &strLen,
-                          cert->maxIdx, 1) < 0) {
+                          maxIdx, 1) < 0) {
                 return ASN_PARSE_E;
             }
 
@@ -5128,7 +5130,7 @@ static int GetName(DecodedCert* cert, int nameType)
             b = cert->source[cert->srcIdx++]; /* encoding */
 
             if (GetLength(cert->source, &cert->srcIdx, &strLen,
-                          cert->maxIdx) < 0)
+                          maxIdx) < 0)
                 return ASN_PARSE_E;
 
             /* Check for jurisdiction of incorporation country name */
@@ -5190,7 +5192,7 @@ static int GetName(DecodedCert* cert, int nameType)
             cert->srcIdx += oidSz + 1;
 
             if (GetLength(cert->source, &cert->srcIdx, &strLen,
-                                                              cert->maxIdx) < 0)
+                                                              maxIdx) < 0)
                 return ASN_PARSE_E;
 
             if (strLen > (int)(ASN_NAME_MAX - idx)) {
@@ -5808,7 +5810,7 @@ static int GetDateInfo(const byte* source, word32* idx, const byte** pDate,
     return 0;
 }
 
-static int GetDate(DecodedCert* cert, int dateType, int verify)
+static int GetDate(DecodedCert* cert, int dateType, int verify, int maxIdx)
 {
     int    ret, length;
     const byte *datePtr = NULL;
@@ -5823,7 +5825,7 @@ static int GetDate(DecodedCert* cert, int dateType, int verify)
     startIdx = cert->srcIdx;
 
     ret = GetDateInfo(cert->source, &cert->srcIdx, &datePtr, &format,
-                      &length, cert->maxIdx);
+                      &length, maxIdx);
     if (ret < 0)
         return ret;
 
@@ -5850,18 +5852,20 @@ static int GetDate(DecodedCert* cert, int dateType, int verify)
     return 0;
 }
 
-static int GetValidity(DecodedCert* cert, int verify)
+static int GetValidity(DecodedCert* cert, int verify, int maxIdx)
 {
     int length;
     int badDate = 0;
 
-    if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
+    if (GetSequence(cert->source, &cert->srcIdx, &length, maxIdx) < 0)
         return ASN_PARSE_E;
 
-    if (GetDate(cert, BEFORE, verify) < 0)
+    maxIdx = cert->srcIdx + length;
+
+    if (GetDate(cert, BEFORE, verify, maxIdx) < 0)
         badDate = ASN_BEFORE_DATE_E; /* continue parsing */
 
-    if (GetDate(cert, AFTER, verify) < 0)
+    if (GetDate(cert, AFTER, verify, maxIdx) < 0)
         return ASN_AFTER_DATE_E;
 
     if (badDate != 0)
@@ -5943,19 +5947,21 @@ int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate)
 
     WOLFSSL_MSG("Got Cert Header");
 
+    /* Using the sigIndex as the upper bound because that's where the
+     * actual certificate data ends. */
     if ( (ret = GetAlgoId(cert->source, &cert->srcIdx, &cert->signatureOID,
-                          oidSigType, cert->maxIdx)) < 0)
+                          oidSigType, cert->sigIndex)) < 0)
         return ret;
 
     WOLFSSL_MSG("Got Algo ID");
 
-    if ( (ret = GetName(cert, ISSUER)) < 0)
+    if ( (ret = GetName(cert, ISSUER, cert->sigIndex)) < 0)
         return ret;
 
-    if ( (ret = GetValidity(cert, verify)) < 0)
+    if ( (ret = GetValidity(cert, verify, cert->sigIndex)) < 0)
         *badDate = ret;
 
-    if ( (ret = GetName(cert, SUBJECT)) < 0)
+    if ( (ret = GetName(cert, SUBJECT, cert->sigIndex)) < 0)
         return ret;
 
     WOLFSSL_MSG("Got Subject Name");
