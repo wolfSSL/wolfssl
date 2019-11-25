@@ -174,9 +174,15 @@ WOLFSSL_LOCAL int GetLength_ex(const byte* input, word32* inOutIdx, int* len,
             return BUFFER_E;
         }
 
+        if (bytes > sizeof(length)) {
+            return ASN_PARSE_E;
+        }
         while (bytes--) {
             b = input[idx++];
             length = (length << 8) | b;
+        }
+        if (length < 0) {
+            return ASN_PARSE_E;
         }
     }
     else
@@ -968,6 +974,150 @@ static word32 SetBitString(word32 len, byte unusedBits, byte* output)
 #endif /* !NO_RSA || HAVE_ECC || HAVE_ED25519 */
 
 #ifdef ASN_BER_TO_DER
+/* Pull informtation from the ASN.1 BER encoded item header */
+static int GetBerHeader(const byte* data, word32* idx, word32 maxIdx,
+                        byte* pTag, word32* pLen, int* indef)
+{
+    int len = 0;
+    byte tag;
+    word32 i = *idx;
+
+    *indef = 0;
+
+    /* Check there is enough data for a minimal header */
+    if (i + 2 > maxIdx) {
+        return ASN_PARSE_E;
+    }
+
+    /* Retrieve tag */
+    tag = data[i++];
+
+    /* Indefinite length handled specially */
+    if (data[i] == 0x80) {
+        /* Check valid tag for indefinite */
+        if (((tag & 0xc0) == 0) && ((tag & ASN_CONSTRUCTED) == 0x00)) {
+            return ASN_PARSE_E;
+        }
+        i++;
+        *indef = 1;
+    }
+    else if (GetLength(data, &i, &len, maxIdx) < 0) {
+        return ASN_PARSE_E;
+    }
+
+    /* Return tag, length and index after BER item header */
+    *pTag = tag;
+    *pLen = len;
+    *idx = i;
+    return 0;
+}
+
+#ifndef INDEF_ITEMS_MAX
+#define INDEF_ITEMS_MAX       20
+#endif
+
+/* Indef length item data */
+typedef struct Indef {
+    word32 start;
+    int depth;
+    int headerLen;
+    word32 len;
+} Indef;
+
+/* Indef length items */
+typedef struct IndefItems
+{
+    Indef len[INDEF_ITEMS_MAX];
+    int cnt;
+    int idx;
+    int depth;
+} IndefItems;
+
+
+/* Get header length of current item */
+static int IndefItems_HeaderLen(IndefItems* items)
+{
+    return items->len[items->idx].headerLen;
+}
+
+/* Get data length of current item */
+static word32 IndefItems_Len(IndefItems* items)
+{
+    return items->len[items->idx].len;
+}
+
+/* Add a indefinite length item */
+static int IndefItems_AddItem(IndefItems* items, word32 start)
+{
+    int ret = 0;
+    int i;
+
+    if (items->cnt == INDEF_ITEMS_MAX) {
+        ret = MEMORY_E;
+    }
+    else {
+        i = items->cnt++;
+        items->len[i].start = start;
+        items->len[i].depth = items->depth++;
+        items->len[i].headerLen = 1;
+        items->len[i].len = 0;
+        items->idx = i;
+    }
+
+    return ret;
+}
+
+/* Increase data length of current item */
+static void IndefItems_AddData(IndefItems* items, word32 length)
+{
+    items->len[items->idx].len += length;
+}
+
+/* Update header length of current item to reflect data length */
+static void IndefItems_UpdateHeaderLen(IndefItems* items)
+{
+    items->len[items->idx].headerLen +=
+                                    SetLength(items->len[items->idx].len, NULL);
+}
+
+/* Go to indefinite parent of current item */
+static void IndefItems_Up(IndefItems* items)
+{
+    int i;
+    int depth = items->len[items->idx].depth - 1;
+
+    for (i = items->cnt - 1; i >= 0; i--) {
+        if (items->len[i].depth == depth) {
+            break;
+        }
+    }
+    items->idx = i;
+    items->depth = depth + 1;
+}
+
+/* Calcuate final length by adding length of indefinite child items */
+static void IndefItems_CalcLength(IndefItems* items)
+{
+    int i;
+    int idx = items->idx;
+
+    for (i = idx + 1; i < items->cnt; i++) {
+        if (items->len[i].depth == items->depth) {
+            items->len[idx].len += items->len[i].headerLen;
+            items->len[idx].len += items->len[i].len;
+        }
+    }
+    items->len[idx].headerLen += SetLength(items->len[idx].len, NULL);
+}
+
+/* Add more data to indefinite length item */
+static void IndefItems_MoreData(IndefItems* items, word32 length)
+{
+    if (items->cnt > 0 && items->idx >= 0) {
+        items->len[items->idx].len += length;
+    }
+}
+
 /* Convert a BER encoding with indefinite length items to DER.
  *
  * ber    BER encoded data.
@@ -982,202 +1132,217 @@ static word32 SetBitString(word32 len, byte unusedBits, byte* output)
  */
 int wc_BerToDer(const byte* ber, word32 berSz, byte* der, word32* derSz)
 {
-    int ret;
-    word32 i, j, k;
-    int len, l;
+    int ret = 0;
+    word32 i, j;
+#ifdef WOLFSSL_SMALL_STACK
+    IndefItems* indefItems = NULL;
+#else
+    IndefItems indefItems[1];
+#endif
+    byte tag, basic;
+    word32 length;
     int indef;
-    int depth = 0;
-    byte type;
-    word32 cnt, sz;
-    word32 outSz = 0;
-    byte lenBytes[4];
 
     if (ber == NULL || derSz == NULL)
         return BAD_FUNC_ARG;
 
-    sz = 0;
-    outSz = *derSz;
+#ifdef WOLFSSL_SMALL_STACK
+    indefItems = XMALLOC(sizeof(IndefItems), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (indefItems == NULL) {
+        ret = MEMORY_E;
+        goto end;
+    }
+#endif
 
-    for (i = 0, j = 0; i < berSz; ) {
-        word32 localIdx;
-        byte tag;
+    XMEMSET(indefItems, 0, sizeof(*indefItems));
 
-        /* Check that there is data for an ASN item to parse. */
-        if (i + 2 > berSz)
-            return ASN_PARSE_E;
+    /* Calculate indefinite item lengths */
+    for (i = 0; i < berSz; ) {
+        word32 start = i;
 
-        /* End Of Content (EOC) mark end of indefinite length items.
-         * EOCs are not encoded in DER.
-         * Keep track of no. indefinite length items that have not been
-         * terminated in depth.
-         */
-        if (ber[i] == 0 && ber[i+1] == 0) {
-            if (depth == 0)
-                break;
-            if (--depth == 0)
-                break;
-
-            i += 2;
-            continue;
+        /* Get next BER item */
+        ret = GetBerHeader(ber, &i, berSz, &tag, &length, &indef);
+        if (ret != 0) {
+            goto end;
         }
-
-        /* Indefinite length is encoded as: 0x80 */
-        type = ber[i];
-        indef = ber[i+1] == ASN_INDEF_LENGTH;
-
-        localIdx = i;
-        if (GetASNTag(ber, &localIdx, &tag, berSz) != 0)
-            return ASN_PARSE_E;
-
-        if (indef && (type & 0xC0) == 0 &&
-                tag != (ASN_SEQUENCE | ASN_CONSTRUCTED) &&
-                tag != (ASN_SET      | ASN_CONSTRUCTED)) {
-            /* Indefinite length OCTET STRING or other simple type.
-             * Put all the data into one entry.
-             */
-
-            /* Type no longer constructed. */
-            type &= ~ASN_CONSTRUCTED;
-            if (der != NULL) {
-                /* Ensure space for type. */
-                if (j + 1 >= outSz)
-                    return BUFFER_E;
-                der[j] = type;
-            }
-            i++; j++;
-            /* Skip indefinite length. */
-            i++;
-
-            /* There must be further ASN1 items to combine. */
-            if (i + 2 > berSz)
-                return ASN_PARSE_E;
-
-            /* Calculate length of combined data. */
-            len = 0;
-            k = i;
-            while (ber[k] != 0x00) {
-                /* Each ASN item must be the same type as the constructed. */
-                if (ber[k] != type)
-                    return ASN_PARSE_E;
-                k++;
-
-                ret = GetLength(ber, &k, &l, berSz);
-                if (ret < 0)
-                    return ASN_PARSE_E;
-                k += l;
-                len += l;
-
-                /* Must at least have terminating EOC. */
-                if (k + 2 > berSz)
-                    return ASN_PARSE_E;
-            }
-            /* Ensure a valid EOC ASN item. */
-            if (ber[k+1] != 0x00)
-                return ASN_PARSE_E;
-
-            if (der == NULL) {
-                /* Add length of ASN item length encoding and data. */
-                j += SetLength(len, lenBytes);
-                j += len;
-            }
-            else {
-                /* Check space for encoded length. */
-                if (SetLength(len, lenBytes) > outSz - j)
-                    return BUFFER_E;
-                /* Encode new length. */
-                j += SetLength(len, der + j);
-
-                /* Encode data in single item. */
-                k = i;
-                while (ber[k] != 0x00) {
-                    /* Skip ASN type. */
-                    k++;
-
-                    /* Find length of data in ASN item. */
-                    ret = GetLength(ber, &k, &l, berSz);
-                    if (ret < 0)
-                        return ASN_PARSE_E;
-
-                    /* Ensure space for data and copy in. */
-                    if (j + l > outSz)
-                        return BUFFER_E;
-                    XMEMCPY(der + j, ber + k, l);
-                    k += l; j += l;
-                }
-            }
-            /* Continue conversion after EOC. */
-            i = k + 2;
-
-            continue;
-        }
-
-        if (der != NULL) {
-            /* Ensure space for type and at least one byte of length. */
-            if (j + 1 >= outSz)
-                return BUFFER_E;
-            /* Put in type. */
-            der[j] = ber[i];
-        }
-        i++; j++;
 
         if (indef) {
-            /* Skip indefinite length. */
-            i++;
-            /* Calculate the size of the data inside constructed. */
-            ret = wc_BerToDer(ber + i, berSz - i, NULL, &sz);
-            if (ret != LENGTH_ONLY_E)
-                return ret;
-
-            if (der != NULL) {
-                /* Ensure space for encoded length. */
-                if (SetLength(sz, lenBytes) > outSz - j)
-                    return BUFFER_E;
-                /* Encode real length. */
-                j += SetLength(sz, der + j);
-            }
-            else {
-                /* Add size of encoded length. */
-                j += SetLength(sz, lenBytes);
+            /* Indefinite item - add to list */
+            ret = IndefItems_AddItem(indefItems, i);
+            if (ret != 0) {
+                goto end;
             }
 
-            /* Another EOC to find. */
-            depth++;
+            if ((tag & 0xC0) == 0 &&
+                tag != (ASN_SEQUENCE | ASN_CONSTRUCTED) &&
+                tag != (ASN_SET      | ASN_CONSTRUCTED)) {
+                /* Constructed basic type - get repeating tag */
+                basic = tag & (~ASN_CONSTRUCTED);
+
+                /* Add up lengths of each item below */
+                for (; i < berSz; ) {
+                    /* Get next BER_item */
+                    ret = GetBerHeader(ber, &i, berSz, &tag, &length, &indef);
+                    if (ret != 0) {
+                        goto end;
+                    }
+
+                    /* End of content closes item */
+                    if (tag == ASN_EOC) {
+                        /* Must be zero length */
+                        if (length != 0) {
+                            ret = ASN_PARSE_E;
+                            goto end;
+                        }
+                        break;
+                    }
+
+                    /* Must not be indefinite and tag must match parent */
+                    if (indef || tag != basic) {
+                        ret = ASN_PARSE_E;
+                        goto end;
+                    }
+
+                    /* Add to length */
+                    IndefItems_AddData(indefItems, length);
+                    /* Skip data */
+                    i += length;
+                }
+
+                /* Ensure we got an EOC and not end of data */
+                if (tag != ASN_EOC) {
+                    ret = ASN_PARSE_E;
+                    goto end;
+                }
+
+                /* Set the header length to include the length field */
+                IndefItems_UpdateHeaderLen(indefItems);
+                /* Go to indefinte parent item */
+                IndefItems_Up(indefItems);
+            }
+        }
+        else if (tag == ASN_EOC) {
+            /* End-of-content must be 0 length */
+            if (length != 0) {
+                ret = ASN_PARSE_E;
+                goto end;
+            }
+            /* Check there is an item to close - missing EOC */
+            if (indefItems->depth == 0) {
+                ret = ASN_PARSE_E;
+                goto end;
+            }
+
+            /* Finish calculation of data length for indefinite item */
+            IndefItems_CalcLength(indefItems);
+            /* Go to indefinte parent item */
+            IndefItems_Up(indefItems);
         }
         else {
-            /* Get the size of the encode length and length value. */
-            cnt = i;
-            ret = GetLength(ber, &cnt, &len, berSz);
-            if (ret < 0)
-                return ASN_PARSE_E;
-            cnt -= i;
-
-            /* Check there is enough data to copy out. */
-            if (i + cnt + len > berSz)
-                return ASN_PARSE_E;
-
-            if (der != NULL) {
-                /* Ensure space in DER buffer. */
-                if (j + cnt + len > outSz)
-                    return BUFFER_E;
-                /* Copy length and data into DER buffer. */
-                XMEMCPY(der + j, ber + i, cnt + len);
+            /* Known length item to add in - make sure enough data for it */
+            if (i + length > berSz) {
+                ret = ASN_PARSE_E;
+                goto end;
             }
-            /* Continue conversion after this ASN item. */
-            i += cnt + len;
-            j += cnt + len;
+
+            /* Include all data - can't have indefinite inside definite */
+            i += length;
+            /* Add entire item to current indefinite item */
+            IndefItems_MoreData(indefItems, i - start);
+        }
+    }
+    /* Check we had a EOC for each indefinite item */
+    if (indefItems->depth != 0) {
+        ret = ASN_PARSE_E;
+        goto end;
+    }
+
+    /* Write out DER */
+
+    j = 0;
+    /* Reset index */
+    indefItems->idx = 0;
+    for (i = 0; i < berSz; ) {
+        word32 start = i;
+
+        /* Get item - checked above */
+        (void)GetBerHeader(ber, &i, berSz, &tag, &length, &indef);
+        if (indef) {
+            if (der != NULL) {
+                /* Check enough space for header */
+                if (j + IndefItems_HeaderLen(indefItems) > *derSz) {
+                    ret = BUFFER_E;
+                    goto end;
+                }
+
+                if ((tag & 0xC0) == 0 &&
+                    tag != (ASN_SEQUENCE | ASN_CONSTRUCTED) &&
+                    tag != (ASN_SET      | ASN_CONSTRUCTED)) {
+                    /* Remove constructed tag for basic types */
+                    tag &= ~ASN_CONSTRUCTED;
+                }
+                /* Add tag and length */
+                der[j] = tag;
+                (void)SetLength(IndefItems_Len(indefItems), der + j + 1);
+            }
+            /* Add header length of indefinite item */
+            j += IndefItems_HeaderLen(indefItems);
+
+            if ((tag & 0xC0) == 0 &&
+                tag != (ASN_SEQUENCE | ASN_CONSTRUCTED) &&
+                tag != (ASN_SET      | ASN_CONSTRUCTED)) {
+                /* For basic type - get each child item and add data */
+                for (; i < berSz; ) {
+                    (void)GetBerHeader(ber, &i, berSz, &tag, &length, &indef);
+                    if (tag == ASN_EOC) {
+                        break;
+                    }
+                    if (der != NULL) {
+                        if (j + length > *derSz) {
+                            ret = BUFFER_E;
+                            goto end;
+                        }
+                        XMEMCPY(der + j, ber + i, length);
+                    }
+                    j += length;
+                    i += length;
+                }
+            }
+
+            /* Move to next indef item in list */
+            indefItems->idx++;
+        }
+        else if (tag == ASN_EOC) {
+            /* End-Of-Content is not written out in DER */
+        }
+        else {
+            /* Write out definite length item as is. */
+            i += length;
+            if (der != NULL) {
+                /* Ensure space for item */
+                if (j + i - start > *derSz) {
+                    ret = BUFFER_E;
+                    goto end;
+                }
+                /* Copy item as is */
+                XMEMCPY(der + j, ber + start, i - start);
+            }
+            j += i - start;
         }
     }
 
-    if (depth >= 1)
-        return ASN_PARSE_E;
-
-    /* Return length if no buffer to write to. */
+    /* Return the length of the DER encoded ASN.1 */
+    *derSz = j;
     if (der == NULL) {
-        *derSz = j;
-        return LENGTH_ONLY_E;
+        ret = LENGTH_ONLY_E;
     }
-
-    return 0;
+end:
+#ifdef WOLFSSL_SMALL_STACK
+    if (indefItems != NULL) {
+        XFREE(indefItems, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
+    return ret;
 }
 #endif
 

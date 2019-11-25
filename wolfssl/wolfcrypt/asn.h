@@ -78,6 +78,7 @@ enum {
 
 /* ASN Tags   */
 enum ASN_Tags {
+    ASN_EOC               = 0x00,
     ASN_BOOLEAN           = 0x01,
     ASN_INTEGER           = 0x02,
     ASN_BIT_STRING        = 0x03,

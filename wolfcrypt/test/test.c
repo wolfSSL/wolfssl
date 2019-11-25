@@ -24791,7 +24791,7 @@ int berder_test(void)
           0x00, 0x00,
     };
     static const byte good4_out[] = {
-        0x30, 0x0d,
+        0x30, 0x12,
           0x02, 0x01, 0x01,
           0x30, 0x08,
             0x04, 0x03, 0x01, 0x02, 0x03,
@@ -24799,12 +24799,14 @@ int berder_test(void)
           0x31, 0x03,
             0x06, 0x01, 0x01
     };
+    static const byte good5_in[] = { 0x30, 0x03, 0x02, 0x01, 0x01 };
 
     berDerTestData testData[] = {
         { good1_in, sizeof(good1_in), good1_out, sizeof(good1_out) },
         { good2_in, sizeof(good2_in), good2_out, sizeof(good2_out) },
         { good3_in, sizeof(good3_in), good3_out, sizeof(good3_out) },
         { good4_in, sizeof(good4_in), good4_out, sizeof(good4_out) },
+        { good5_in, sizeof(good5_in), good5_in , sizeof(good5_in ) },
     };
 
     for (i = 0; i < (int)(sizeof(testData) / sizeof(*testData)); i++) {
@@ -24829,32 +24831,38 @@ int berder_test(void)
             if (ret != ASN_PARSE_E)
                  return -9741;
         }
+
+        for (l = 0; l < testData[i].outSz-1; l++) {
+            ret = wc_BerToDer(testData[i].in, testData[i].inSz, out, &l);
+            if (ret != BUFFER_E)
+                 return -9742;
+        }
     }
 
     ret = wc_BerToDer(NULL, 4, NULL, NULL);
     if (ret != BAD_FUNC_ARG)
-        return -9742;
+        return -9743;
     ret = wc_BerToDer(out, 4, NULL, NULL);
     if (ret != BAD_FUNC_ARG)
-        return -9743;
+        return -9744;
     ret = wc_BerToDer(NULL, 4, NULL, &len);
     if (ret != BAD_FUNC_ARG)
-        return -9744;
+        return -9745;
     ret = wc_BerToDer(NULL, 4, out, NULL);
     if (ret != BAD_FUNC_ARG)
-        return -9745;
+        return -9746;
     ret = wc_BerToDer(out, 4, out, NULL);
     if (ret != BAD_FUNC_ARG)
-        return -9746;
+        return -9747;
     ret = wc_BerToDer(NULL, 4, out, &len);
     if (ret != BAD_FUNC_ARG)
-        return -9747;
+        return -9748;
 
     for (l = 1; l < sizeof(good4_out); l++) {
         len = l;
         ret = wc_BerToDer(good4_in, sizeof(good4_in), out, &len);
         if (ret != BUFFER_E)
-            return -9748;
+            return -9749;
     }
 
     return 0;
