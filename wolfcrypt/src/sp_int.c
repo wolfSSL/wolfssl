@@ -420,8 +420,14 @@ int sp_init_copy (sp_int * a, sp_int * b)
  */
 int sp_set(sp_int* a, sp_int_digit d)
 {
-    a->dp[0] = d;
-    a->used = 1;
+    if (d == 0) {
+      a->dp[0] = d;
+      a->used = 0;
+    }
+    else {
+      a->dp[0] = d;
+      a->used = 1;
+    }
     return MP_OKAY;
 }
 
