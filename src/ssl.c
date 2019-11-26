@@ -2409,7 +2409,7 @@ WOLFSSL_ABI
 int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
                     word32 protocol_name_listSz, byte options)
 {
-    char    *list, *ptr, *token[10];
+    char    *list, *ptr, *token[WOLFSSL_MAX_ALPN_NUMBER]={NULL};
     word16  len;
     int     idx = 0;
     int     ret = WOLFSSL_FAILURE;
@@ -2445,7 +2445,7 @@ int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
 
     /* read all protocol name from the list */
     token[idx] = XSTRTOK(list, ",", &ptr);
-    while (token[idx] != NULL)
+    while (token[idx] != NULL && idx < WOLFSSL_MAX_ALPN_NUMBER)
         token[++idx] = XSTRTOK(NULL, ",", &ptr);
 
     /* add protocol name list in the TLS extension in reverse order */
