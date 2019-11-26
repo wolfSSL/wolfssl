@@ -140,6 +140,11 @@ WOLFSSL_API
 int wolfSSL_EC_POINT_oct2point(const WOLFSSL_EC_GROUP *group,
                                WOLFSSL_EC_POINT *p, const unsigned char *buf,
                                size_t len, WOLFSSL_BN_CTX *ctx);
+WOLFSSL_API
+WOLFSSL_BIGNUM *wolfSSL_EC_POINT_point2bn(const WOLFSSL_EC_GROUP *group,
+                                          const WOLFSSL_EC_POINT *p,
+                                          char form,
+                                          WOLFSSL_BIGNUM *in, WOLFSSL_BN_CTX *ctx);
 
 WOLFSSL_API
 int wolfSSL_EC_KEY_LoadDer(WOLFSSL_EC_KEY* key,
@@ -203,6 +208,12 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
                                                 WOLFSSL_BIGNUM *y,
                                                 WOLFSSL_BN_CTX *ctx);
 WOLFSSL_API
+int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
+                                                WOLFSSL_EC_POINT *point,
+                                                const WOLFSSL_BIGNUM *x,
+                                                const WOLFSSL_BIGNUM *y,
+                                                WOLFSSL_BN_CTX *ctx);
+WOLFSSL_API
 int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
                          const WOLFSSL_BIGNUM *n,
                          const WOLFSSL_EC_POINT *q, const WOLFSSL_BIGNUM *m,
@@ -259,6 +270,8 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 #define EC_POINT_free                   wolfSSL_EC_POINT_free
 #define EC_POINT_get_affine_coordinates_GFp \
                                      wolfSSL_EC_POINT_get_affine_coordinates_GFp
+#define EC_POINT_set_affine_coordinates_GFp \
+                                     wolfSSL_EC_POINT_set_affine_coordinates_GFp
 #define EC_POINT_mul                    wolfSSL_EC_POINT_mul
 #define EC_POINT_clear_free             wolfSSL_EC_POINT_clear_free
 #define EC_POINT_cmp                    wolfSSL_EC_POINT_cmp
@@ -270,6 +283,7 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 #define ECPoint_d2i                     wolfSSL_ECPoint_d2i
 #define EC_POINT_point2oct              wolfSSL_EC_POINT_point2oct
 #define EC_POINT_oct2point              wolfSSL_EC_POINT_oct2point
+#define EC_POINT_point2bn               wolfSSL_EC_POINT_point2bn
 
 #ifndef HAVE_SELFTEST
     #define EC_POINT_point2hex          wolfSSL_EC_POINT_point2hex

@@ -1781,9 +1781,10 @@ static void test_wolfSSL_EC(void)
 #ifdef HAVE_ECC
     BN_CTX *ctx;
     EC_GROUP *group;
-    EC_POINT *Gxy, *new_point;
+    EC_POINT *Gxy, *new_point, *set_point;
     BIGNUM *k = NULL, *Gx = NULL, *Gy = NULL, *Gz = NULL;
     BIGNUM *X, *Y;
+    BIGNUM *set_point_bn;
     char* hexStr;
     int group_bits;
 
@@ -1802,8 +1803,10 @@ static void test_wolfSSL_EC(void)
     AssertIntEQ((group_bits = EC_GROUP_order_bits(group)), 256);
     AssertNotNull(Gxy = EC_POINT_new(group));
     AssertNotNull(new_point = EC_POINT_new(group));
+    AssertNotNull(set_point = EC_POINT_new(group));
     AssertNotNull(X = BN_new());
     AssertNotNull(Y = BN_new());
+    AssertNotNull(set_point_bn = BN_new());
 
     /* load test values */
     AssertIntEQ(BN_hex2bn(&k,  kTest), WOLFSSL_SUCCESS);
@@ -1827,6 +1830,15 @@ static void test_wolfSSL_EC(void)
 
     /* check if point X coordinate is zero */
     AssertIntEQ(BN_is_zero(X), WOLFSSL_FAILURE);
+
+    /* set the same X and Y points in another object */
+    AssertIntEQ(EC_POINT_set_affine_coordinates_GFp(group, set_point, X, Y, ctx), WOLFSSL_SUCCESS);
+
+    /* compare points as they should be the same */
+    AssertIntEQ(EC_POINT_cmp(group, new_point, set_point, ctx), 0);
+
+    AssertPtrEq(EC_POINT_point2bn(group, set_point, POINT_CONVERSION_UNCOMPRESSED,
+                                  set_point_bn, ctx), set_point_bn);
 
     /* check bn2hex */
     hexStr = BN_bn2hex(k);
@@ -1867,7 +1879,9 @@ static void test_wolfSSL_EC(void)
     BN_free(X);
     BN_free(Y);
     BN_free(k);
+    BN_free(set_point_bn);
     EC_POINT_free(new_point);
+    EC_POINT_free(set_point);
     EC_POINT_free(Gxy);
     EC_GROUP_free(group);
     BN_CTX_free(ctx);
@@ -21518,6 +21532,15 @@ static void test_wolfSSL_BN(void)
     AssertIntEQ(BN_cmp(a, b), 0);
     AssertIntLT(BN_cmp(a, c), 0);
     AssertIntGT(BN_cmp(c, b), 0);
+
+    AssertIntEQ(BN_set_word(a, 0), 1);
+    AssertIntEQ(BN_is_zero(a), 1);
+    AssertIntEQ(BN_set_bit(a, 0x45), 1);
+    AssertIntEQ(BN_is_zero(a), 0);
+    AssertIntEQ(BN_is_bit_set(a, 0x45), 1);
+    AssertIntEQ(BN_clear_bit(a, 0x45), 1);
+    AssertIntEQ(BN_is_bit_set(a, 0x45), 0);
+    AssertIntEQ(BN_is_zero(a), 1);
 
     BN_free(a);
     BN_free(b);

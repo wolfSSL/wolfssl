@@ -86,6 +86,7 @@
     #include <wolfssl/openssl/ecdsa.h>
     #include <wolfssl/openssl/ecdh.h>
     #include <wolfssl/openssl/err.h>
+    #include <wolfssl/openssl/opensslv.h>
     #include <wolfssl/openssl/rc4.h>
     #include <wolfssl/openssl/stack.h>
     #include <wolfssl/openssl/x509v3.h>
@@ -15639,6 +15640,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return SSLEAY_VERSION_NUMBER;
     }
 
+    unsigned long OpenSSL_version_num(void)
+    {
+        return OPENSSL_VERSION_NUMBER;
+    }
 
     const char* wolfSSLeay_version(int type)
     {
@@ -34308,11 +34313,9 @@ size_t wolfSSL_EC_POINT_point2oct(const WOLFSSL_EC_GROUP *group,
         return WOLFSSL_FAILURE;
     }
 
-    if (min_len > len) {
-        return WOLFSSL_FAILURE;
-    }
-
-    if (wolfSSL_ECPoint_i2d(group, p, buf, &min_len) != WOLFSSL_SUCCESS) {
+    if (buf &&
+          ((min_len > len) ||
+            wolfSSL_ECPoint_i2d(group, p, buf, &min_len) != WOLFSSL_SUCCESS)) {
         return WOLFSSL_FAILURE;
     }
 
@@ -34325,7 +34328,7 @@ int wolfSSL_EC_POINT_oct2point(const WOLFSSL_EC_GROUP *group,
                                WOLFSSL_EC_POINT *p, const unsigned char *buf,
                                size_t len, WOLFSSL_BN_CTX *ctx)
 {
-    WOLFSSL_ENTER("EC_POINT_point2oct");
+    WOLFSSL_ENTER("wolfSSL_EC_POINT_oct2point");
 
     if (!group || !p) {
         return WOLFSSL_FAILURE;
@@ -34334,6 +34337,42 @@ int wolfSSL_EC_POINT_oct2point(const WOLFSSL_EC_GROUP *group,
     (void)ctx;
 
     return wolfSSL_ECPoint_d2i((unsigned char*)buf, len, group, p);
+}
+
+/* wolfSSL_EC_POINT_point2bn should return "in" if not null */
+WOLFSSL_BIGNUM *wolfSSL_EC_POINT_point2bn(const WOLFSSL_EC_GROUP *group,
+                                          const WOLFSSL_EC_POINT *p,
+                                          char form,
+                                          WOLFSSL_BIGNUM *in, WOLFSSL_BN_CTX *ctx)
+{
+    size_t len;
+    byte *buf;
+    WOLFSSL_BIGNUM *ret = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_EC_POINT_oct2point");
+
+    if (!group || !p) {
+        return NULL;
+    }
+
+    if ((len = wolfSSL_EC_POINT_point2oct(group, p, form,
+                                          NULL, 0, ctx)) == WOLFSSL_FAILURE) {
+        return NULL;
+    }
+
+    if (!(buf = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_TMP_BUFFER))) {
+        WOLFSSL_MSG("malloc failed");
+        return NULL;
+    }
+
+    if (wolfSSL_EC_POINT_point2oct(group, p, form,
+                                   buf, len, ctx) == len) {
+        ret = wolfSSL_BN_bin2bn(buf, len, in);
+    }
+
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
 }
 
 WOLFSSL_EC_POINT *wolfSSL_EC_POINT_new(const WOLFSSL_EC_GROUP *group)
@@ -34395,6 +34434,47 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
 
     BN_copy(x, point->X);
     BN_copy(y, point->Y);
+
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
+                                                WOLFSSL_EC_POINT *point,
+                                                const WOLFSSL_BIGNUM *x,
+                                                const WOLFSSL_BIGNUM *y,
+                                                WOLFSSL_BN_CTX *ctx)
+{
+    (void)ctx;
+    WOLFSSL_ENTER("wolfSSL_EC_POINT_set_affine_coordinates_GFp");
+
+    if (group == NULL || point == NULL || point->internal == NULL ||
+        x == NULL || y == NULL) {
+        WOLFSSL_MSG("wolfSSL_EC_POINT_set_affine_coordinates_GFp NULL error");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (!point->X) {
+        point->X = wolfSSL_BN_new();
+    }
+    if (!point->Y) {
+        point->Y = wolfSSL_BN_new();
+    }
+    if (!point->Z) {
+        point->Z = wolfSSL_BN_new();
+    }
+    if (!point->X || !point->Y || !point->Z) {
+        WOLFSSL_MSG("wolfSSL_BN_new failed");
+        return WOLFSSL_FAILURE;
+    }
+
+    BN_copy(point->X, x);
+    BN_copy(point->Y, y);
+    BN_copy(point->Z, wolfSSL_BN_value_one());
+
+    if (SetECPointInternal((WOLFSSL_EC_POINT *)point) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("SetECPointInternal failed");
+        return WOLFSSL_FAILURE;
+    }
 
     return WOLFSSL_SUCCESS;
 }
@@ -42358,7 +42438,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_EVP(WOLFSSL_EVP_PKEY** out,
 /* stunnel compatibility functions*/
 #if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || \
                              defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY) || \
-                             defined(WOLFSSL_HAPROXY)))
+                             defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_OPENSSH)))
 void wolfSSL_ERR_remove_thread_state(void* pid)
 {
     (void) pid;
@@ -46485,11 +46565,6 @@ int wolfSSL_BN_is_bit_set(const WOLFSSL_BIGNUM* bn, int n)
         return WOLFSSL_FAILURE;
     }
 
-    if (n > DIGIT_BIT) {
-        WOLFSSL_MSG("input bit count too large");
-        return WOLFSSL_FAILURE;
-    }
-
     return mp_is_bit_set((mp_int*)bn->internal, (mp_digit)n);
 }
 
@@ -46504,11 +46579,65 @@ int wolfSSL_BN_set_bit(WOLFSSL_BIGNUM* bn, int n)
     }
 
     if (mp_set_bit((mp_int*)bn->internal, n) != MP_OKAY) {
-        WOLFSSL_MSG("mp_set_int error");
+        WOLFSSL_MSG("mp_set_bit error");
         return WOLFSSL_FAILURE;
     }
 
     return WOLFSSL_SUCCESS;
+}
+
+
+int wolfSSL_BN_clear_bit(WOLFSSL_BIGNUM* bn, int n)
+{
+    int ret = WOLFSSL_FAILURE;
+#ifndef WOLFSSL_SMALL_STACK
+    mp_int res[1];
+    mp_int tmp[1];
+#else
+    mp_int* res = null;
+    mp_int* tmp = null;
+#endif
+
+    if (bn == NULL || bn->internal == NULL) {
+        WOLFSSL_MSG("bn NULL error");
+        goto cleanup;
+    }
+    if (mp_is_bit_set((mp_int*)bn->internal, n)) {
+#ifdef WOLFSSL_SMALL_STACK
+       res = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
+       if (res == NULL) {
+           goto cleanup;
+       }
+       tmp = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
+       if (tmp == NULL) {
+           goto cleanup;
+       }
+#endif
+        if (mp_init(tmp) != MP_OKAY) {
+            goto cleanup;
+        }
+        if (mp_init(res) != MP_OKAY) {
+            goto cleanup;
+        }
+        if (mp_set_bit(tmp, n) != MP_OKAY) {
+            goto cleanup;
+        }
+        if (mp_sub((mp_int*)bn->internal, tmp, res) != MP_OKAY) {
+            goto cleanup;
+        }
+        if (mp_copy(res, (mp_int*)bn->internal) != MP_OKAY) {
+            goto cleanup;
+        }
+    }
+    ret = WOLFSSL_SUCCESS;
+cleanup:
+#ifdef WOLFSSL_SMALL_STACK
+    if (res):
+        XFREE(res, NULL, DYNAMIC_TYPE_BIGINT);
+    if (tmp):
+        XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
+    return ret;
 }
 
 
@@ -47691,6 +47820,14 @@ void wolfSSL_BN_clear_free(WOLFSSL_BIGNUM* bn)
         wolfSSL_BN_free(bn);
     }
 }
+
+void wolfSSL_BN_clear(WOLFSSL_BIGNUM* bn)
+{
+    WOLFSSL_MSG("wolfSSL_BN_clear");
+    if (bn && bn->internal) {
+        mp_forcezero((mp_int*)bn->internal);
+    }
+}
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #if !defined(NO_RSA) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
@@ -47753,7 +47890,7 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
         wolfSSL_BN_free(rsa->n);
 
     #ifdef WC_RSA_BLINDING
-        if (wc_FreeRng(rsa->rng) != 0) {
+        if (rsa->rng && wc_FreeRng(rsa->rng) != 0) {
             WOLFSSL_MSG("Issue freeing rng");
         }
         XFREE(rsa->rng, NULL, DYNAMIC_TYPE_RNG);
