@@ -2178,6 +2178,11 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
    int x = fp_count_bits (X);
 #endif
 
+   if (fp_iszero(G)) {
+      fp_set(G, 0);
+      return FP_OKAY;
+   }
+
    /* prevent overflows */
    if (P->used > (FP_SIZE/2)) {
       return FP_VAL;
@@ -2194,25 +2199,30 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 #ifndef POSITIVE_EXP_ONLY  /* reduce stack if assume no negatives */
       int    err;
    #ifndef WOLFSSL_SMALL_STACK
-      fp_int tmp[1];
+      fp_int tmp[2];
    #else
       fp_int *tmp;
    #endif
 
    #ifdef WOLFSSL_SMALL_STACK
-      tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
+      tmp = (fp_int*)XMALLOC(sizeof(fp_int) * 2, NULL, DYNAMIC_TYPE_BIGINT);
       if (tmp == NULL)
           return FP_MEM;
    #endif
 
       /* yes, copy G and invmod it */
-      fp_init_copy(tmp, G);
-      err = fp_invmod(tmp, P, tmp);
+      fp_init_copy(&tmp[0], G);
+      fp_init_copy(&tmp[1], P);
+      tmp[1].sign = FP_ZPOS;
+      err = fp_invmod(&tmp[0], &tmp[1], &tmp[0]);
       if (err == FP_OKAY) {
          X->sign = FP_ZPOS;
-         err =  _fp_exptmod(tmp, X, X->used, P, Y);
+         err =  _fp_exptmod(&tmp[0], X, X->used, P, Y);
          if (X != Y) {
             X->sign = FP_NEG;
+         }
+         if (P->sign == FP_NEG) {
+            fp_add(Y, P, Y);
          }
       }
    #ifdef WOLFSSL_SMALL_STACK
@@ -2240,6 +2250,11 @@ int fp_exptmod_ex(fp_int * G, fp_int * X, int digits, fp_int * P, fp_int * Y)
    int x = fp_count_bits (X);
 #endif
 
+   if (fp_iszero(G)) {
+      fp_set(G, 0);
+      return FP_OKAY;
+   }
+
    /* prevent overflows */
    if (P->used > (FP_SIZE/2)) {
       return FP_VAL;
@@ -2256,25 +2271,30 @@ int fp_exptmod_ex(fp_int * G, fp_int * X, int digits, fp_int * P, fp_int * Y)
 #ifndef POSITIVE_EXP_ONLY  /* reduce stack if assume no negatives */
       int    err;
    #ifndef WOLFSSL_SMALL_STACK
-      fp_int tmp[1];
+      fp_int tmp[2];
    #else
       fp_int *tmp;
    #endif
 
    #ifdef WOLFSSL_SMALL_STACK
-      tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+      tmp = (fp_int*)XMALLOC(sizeof(fp_int) * 2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
       if (tmp == NULL)
           return FP_MEM;
    #endif
 
       /* yes, copy G and invmod it */
-      fp_init_copy(tmp, G);
-      err = fp_invmod(tmp, P, tmp);
+      fp_init_copy(&tmp[0], G);
+      fp_init_copy(&tmp[1], P);
+      tmp[1].sign = FP_ZPOS;
+      err = fp_invmod(&tmp[0], &tmp[1], &tmp[0]);
       if (err == FP_OKAY) {
          X->sign = FP_ZPOS;
-         err =  _fp_exptmod(tmp, X, digits, P, Y);
+         err =  _fp_exptmod(&tmp[0], X, digits, P, Y);
          if (X != Y) {
             X->sign = FP_NEG;
+         }
+         if (P->sign == FP_NEG) {
+            fp_add(Y, P, Y);
          }
       }
    #ifdef WOLFSSL_SMALL_STACK
@@ -4429,6 +4449,9 @@ int fp_gcd(fp_int *a, fp_int *b, fp_int *c)
       fp_init_copy(v, a);
    }
 
+   u->sign = FP_ZPOS;
+   v->sign = FP_ZPOS;
+
    fp_init(r);
    while (fp_iszero(v) == FP_NO) {
       fp_mod(u, v, r);
@@ -4757,7 +4780,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
     if (fp_iszero(a) == FP_YES) {
         *str++ = '0';
         *str = '\0';
-        return FP_YES;
+        return FP_OKAY;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
