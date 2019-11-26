@@ -16351,6 +16351,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->keyLen     = 16;
             ctx->block_size = AES_BLOCK_SIZE;
             ctx->authTagSz  = AES_BLOCK_SIZE;
+            ctx->ivSz       = 12; /* set default IV length to 96 bits */
 
             XMEMSET(ctx->authTag, 0, ctx->authTagSz);
             if (iv)
@@ -16361,11 +16362,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
                 ret = wc_AesGcmSetKey(&ctx->cipher.aes, key, ctx->keyLen);
-                if (ret != 0)
-                    return ret;
-            }
-            if (iv && key == NULL) {
-                ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0)
                     return ret;
             }
@@ -16381,6 +16377,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->keyLen     = 24;
             ctx->block_size = AES_BLOCK_SIZE;
             ctx->authTagSz  = AES_BLOCK_SIZE;
+            ctx->ivSz       = 12; /* set default IV length to 96 bits */
 
             XMEMSET(ctx->authTag, 0, ctx->authTagSz);
             if (iv)
@@ -16391,11 +16388,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
                 ret = wc_AesGcmSetKey(&ctx->cipher.aes, key, ctx->keyLen);
-                if (ret != 0)
-                    return ret;
-            }
-            if (iv && key == NULL) {
-                ret = wc_AesSetIV(&ctx->cipher.aes, iv);
                 if (ret != 0)
                     return ret;
             }
@@ -16411,6 +16403,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->keyLen     = 32;
             ctx->block_size = AES_BLOCK_SIZE;
             ctx->authTagSz  = AES_BLOCK_SIZE;
+            ctx->ivSz       = 12; /* set default IV length to 96 bits */
 
             XMEMSET(ctx->authTag, 0, ctx->authTagSz);
             if (iv)
@@ -16423,13 +16416,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 ret = wc_AesGcmSetKey(&ctx->cipher.aes, key, ctx->keyLen);
                 if (ret != 0){
                     WOLFSSL_MSG("AesSetKey() failed");
-                    return ret;
-                }
-            }
-            if (iv && key == NULL) {
-                ret = wc_AesSetIV(&ctx->cipher.aes, iv);
-                if (ret != 0){
-                    WOLFSSL_MSG("wc_AesSetIV() failed");
                     return ret;
                 }
             }
