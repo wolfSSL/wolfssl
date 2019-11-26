@@ -902,7 +902,8 @@ int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName, char* outPath,
         if (url[cur] == '[') {
             cur++;
             /* copy until ']' */
-            while (url[cur] != 0 && url[cur] != ']' && cur < urlSz) {
+            while (i < MAX_URL_ITEM_SIZE-1 && cur < urlSz && url[cur] != 0 &&
+                    url[cur] != ']') {
                 if (outName)
                     outName[i] = url[cur];
                 i++; cur++;
@@ -910,8 +911,8 @@ int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName, char* outPath,
             cur++; /* skip ']' */
         }
         else {
-            while (url[cur] != 0 && url[cur] != ':' &&
-                                           url[cur] != '/' && cur < urlSz) {
+            while (i < MAX_URL_ITEM_SIZE-1 && cur < urlSz && url[cur] != 0 &&
+                    url[cur] != ':' && url[cur] != '/') {
                 if (outName)
                     outName[i] = url[cur];
                 i++; cur++;
@@ -927,9 +928,9 @@ int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName, char* outPath,
             word32 bigPort = 0;
             i = 0;
             cur++;
-            while (cur < urlSz && url[cur] != 0 && url[cur] != '/' &&
-                    i < 6) {
-                port[i++] = url[cur++];
+            while (i < 6 && cur < urlSz && url[cur] != 0 && url[cur] != '/') {
+                port[i] = url[cur];
+                i++; cur++;
             }
 
             for (j = 0; j < i; j++) {
@@ -945,7 +946,7 @@ int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName, char* outPath,
 
         if (cur < urlSz && url[cur] == '/') {
             i = 0;
-            while (cur < urlSz && url[cur] != 0 && i < MAX_URL_ITEM_SIZE) {
+            while (i < MAX_URL_ITEM_SIZE-1 && cur < urlSz && url[cur] != 0) {
                 if (outPath)
                     outPath[i] = url[cur];
                 i++; cur++;
@@ -979,6 +980,16 @@ static int wolfIO_HttpProcessResponseBuf(int sfd, byte **recvBuf,
     (void)heap;
     (void)dynType;
 
+    if (chunkSz < 0 || len < 0) {
+        WOLFSSL_MSG("wolfIO_HttpProcessResponseBuf invalid chunk or length size");
+        return MEMORY_E;
+    }
+
+    if (newRecvSz <= 0) {
+        WOLFSSL_MSG("wolfIO_HttpProcessResponseBuf new receive size overflow");
+        return MEMORY_E;
+    }
+
     newRecvBuf = (byte*)XMALLOC(newRecvSz, heap, dynType);
     if (newRecvBuf == NULL) {
         WOLFSSL_MSG("wolfIO_HttpProcessResponseBuf malloc failed");
@@ -995,8 +1006,15 @@ static int wolfIO_HttpProcessResponseBuf(int sfd, byte **recvBuf,
 
     /* copy the remainder of the httpBuf into the respBuf */
     if (len != 0) {
-        XMEMCPY(&newRecvBuf[pos], start, len);
-        pos += len;
+        if (pos + len <= newRecvSz) {
+            XMEMCPY(&newRecvBuf[pos], start, len);
+            pos += len;
+        }
+        else {
+            WOLFSSL_MSG("wolfIO_HttpProcessResponseBuf bad size");
+            XFREE(newRecvBuf, heap, dynType);
+            return -1;
+        }
     }
 
     /* receive the remainder of chunk */
@@ -1089,6 +1107,12 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
 
             switch (state) {
                 case phr_init:
+                    if (XSTRLEN(start) < 15) { /* 15 is the length of the two
+                                          constant strings we're about to
+                                          compare against. */
+                        WOLFSSL_MSG("wolfIO_HttpProcessResponse HTTP header too short.");
+                        return -1;
+                    }
                     if (XSTRNCASECMP(start, "HTTP/1", 6) == 0) {
                         start += 9;
                         if (XSTRNCASECMP(start, "200 OK", 6) != 0) {
@@ -1101,6 +1125,12 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                 case phr_http_start:
                 case phr_have_length:
                 case phr_have_type:
+                    if (XSTRLEN(start) < 13) { /* 13 is the shortest of the following
+                                          next lines we're checking for. */
+                        WOLFSSL_MSG("wolfIO_HttpProcessResponse content type is too short.");
+                        return -1;
+                    }
+
                     if (XSTRNCASECMP(start, "Content-Type:", 13) == 0) {
                         int i;
 
@@ -1323,7 +1353,8 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
     if (path == NULL)
         return MEMORY_E;
 
-    domainName = (char*)XMALLOC(MAX_URL_ITEM_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    domainName = (char*)XMALLOC(MAX_URL_ITEM_SIZE, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
     if (domainName == NULL) {
         XFREE(path, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
