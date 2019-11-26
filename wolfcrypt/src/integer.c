@@ -568,6 +568,8 @@ void mp_rshb (mp_int *c, int x)
     mp_digit r, rr;
     mp_digit D = x;
 
+    if (mp_iszero(c)) return;
+
     /* mask */
     mask = (((mp_digit)1) << D) - 1;
 

@@ -3176,6 +3176,8 @@ void fp_rshb(fp_int *c, int x)
     fp_digit r, rr;
     fp_digit D = x;
 
+    if (fp_iszero(c)) return;
+
     /* mask */
     mask = (((fp_digit)1) << D) - 1;
 

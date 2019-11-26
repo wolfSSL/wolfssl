@@ -12122,7 +12122,7 @@ static WC_INLINE int DtlsCheckWindow(WOLFSSL* ssl)
             return 0;
         }
 
-        if (window[idx] & (1 << (newDiff - 1))) {
+        if (window[idx] & (1 << newDiff)) {
             WOLFSSL_MSG("Current record sequence number already received.");
             return 0;
         }
@@ -12229,7 +12229,7 @@ static WC_INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
         word32 newDiff = diff % DTLS_WORD_BITS;
 
         if (idx < WOLFSSL_DTLS_WINDOW_WORDS)
-            window[idx] |= (1 << (newDiff - 1));
+            window[idx] |= (1 << newDiff);
     }
     else {
         if (diff >= DTLS_SEQ_BITS)
@@ -12251,7 +12251,7 @@ static WC_INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
                 else {
                     temp |= (oldWindow[i-idx] << newDiff);
                     window[i] = temp;
-                    temp = oldWindow[i-idx] >> (DTLS_WORD_BITS - newDiff);
+                    temp = oldWindow[i-idx] >> (DTLS_WORD_BITS - newDiff - 1);
                 }
             }
         }
@@ -12549,7 +12549,6 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
     #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {
             additionalSrc -= DTLS_HANDSHAKE_EXTRA;
-            DtlsSEQIncrement(ssl, CUR_ORDER);
         }
     #endif
 
@@ -13089,11 +13088,6 @@ static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 
 #endif
                 if (ssl->encrypt.nonce)
                     ForceZero(ssl->encrypt.nonce, AESGCM_NONCE_SZ);
-
-            #ifdef WOLFSSL_DTLS
-                if (ssl->options.dtls)
-                    DtlsSEQIncrement(ssl, CUR_ORDER);
-            #endif
             }
         #endif /* BUILD_AESGCM || HAVE_AESCCM */
             break;
@@ -22942,10 +22936,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (IsDtlsNotSctpMode(ssl)) {
             if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
                 return ret;
-        }
-
-        if (ssl->options.dtls) {
-            DtlsSEQIncrement(ssl, CUR_ORDER);
         }
     #endif
 
