@@ -1649,11 +1649,25 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
 #endif /* !NO_CERTS */
 
 static int myVerifyFail = 0;
+
+/* The verify callback is called for every certificate only when
+ * --enable-opensslextra is defined because it sets WOLFSSL_ALWAYS_VERIFY_CB and
+ * WOLFSSL_VERIFY_CB_ALL_CERTS.
+ * Normal cases of the verify callback only occur on certificate failures when the
+ * wolfSSL_set_verify(ssl, SSL_VERIFY_PEER, myVerifyCb); is called
+*/
+
 static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
 {
     char buffer[WOLFSSL_MAX_ERROR_SZ];
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     WOLFSSL_X509* peer;
+#if defined(SHOW_CERTS) && !defined(NO_FILESYSTEM)
+    WOLFSSL_BIO* bio = NULL;
+    WOLFSSL_STACK* sk = NULL;
+    X509* x509 = NULL;
+    int i = 0;
+#endif
 #endif
     (void)preverify;
 
@@ -1685,6 +1699,24 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
                                                                   subject);
         XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
         XFREE(issuer,  0, DYNAMIC_TYPE_OPENSSL);
+#if defined(SHOW_CERTS) && !defined(NO_FILESYSTEM)
+/* avoid printing duplicate certs */
+        if (store->depth == 1) {
+            /* retrieve x509 certs and display them on stdout */
+            sk = wolfSSL_X509_STORE_GetCerts(store);
+
+            for (i = 0; i < wolfSSL_sk_X509_num(sk); i++) {
+                x509 = wolfSSL_sk_X509_value(sk, i);
+                bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
+                if (bio != NULL) {
+                    wolfSSL_BIO_set_fp(bio, stdout, BIO_NOCLOSE);
+                    wolfSSL_X509_print(bio, x509);
+                    wolfSSL_BIO_free(bio);
+                }
+            }
+            wolfSSL_sk_X509_free(sk);
+        }
+#endif
     }
     else
         printf("\tPeer has no cert!\n");

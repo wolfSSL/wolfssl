@@ -1093,6 +1093,56 @@ static int test_wolfSSL_CertManagerLoadCABuffer(void)
     return ret;
 }
 
+static void test_wolfSSL_CertManagerGetCerts(void)
+{
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+     defined(WOLFSSL_SIGNER_DER_CERT)
+
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    WOLFSSL_STACK* sk = NULL;
+    X509* x509 = NULL;
+    X509* cert1 = NULL;
+    FILE* file1 = NULL;
+#ifdef DEBUG_WOLFSSL_VERBOSE
+    WOLFSSL_BIO* bio = NULL;
+#endif
+    int i = 0;
+
+    printf(testingFmt, "wolfSSL_CertManagerGetCerts()");
+    AssertNotNull(file1=fopen("./certs/ca-cert.pem", "rb"));
+
+    AssertNotNull(cert1 = wolfSSL_PEM_read_X509(file1, NULL, NULL, NULL));
+    fclose(file1);
+
+    AssertNotNull(cm = wolfSSL_CertManagerNew_ex(NULL));
+    AssertNull(sk = wolfSSL_CertManagerGetCerts(cm));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CertManagerLoadCA(cm,
+                "./certs/ca-cert.pem", NULL));
+
+    AssertNotNull(sk = wolfSSL_CertManagerGetCerts(cm));
+
+    for (i = 0; i < sk_X509_num(sk); i++) {
+        x509 = sk_X509_value(sk, i);
+        AssertIntEQ(0, wolfSSL_X509_cmp(x509, cert1));
+
+#ifdef DEBUG_WOLFSSL_VERBOSE
+        bio = BIO_new(wolfSSL_BIO_s_file());
+        if (bio != NULL) {
+            BIO_set_fp(bio, stdout, BIO_NOCLOSE);
+            X509_print(bio, x509);
+            BIO_free(bio);
+        }
+#endif /* DEBUG_WOLFSSL_VERBOSE */
+    }
+    wolfSSL_X509_free(cert1);
+    sk_X509_free(sk);
+    wolfSSL_CertManagerFree(cm);
+    printf(resultFmt, passed);
+#endif /* defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
+          !defined(NO_FILESYSTEM) && !defined(NO_RSA) && \
+          defined(WOLFSSL_SIGNER_DER_CERT) */
+}
 static void test_wolfSSL_CertManagerCRL(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
@@ -28576,6 +28626,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_use_PrivateKey_file();
     test_wolfSSL_CTX_load_verify_locations();
     test_wolfSSL_CertManagerLoadCABuffer();
+    test_wolfSSL_CertManagerGetCerts();
     test_wolfSSL_CertManagerCRL();
     test_wolfSSL_CTX_load_verify_locations_ex();
     test_wolfSSL_CTX_load_verify_buffer_ex();

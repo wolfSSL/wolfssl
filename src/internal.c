@@ -9506,6 +9506,7 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         }
 
     #if defined(OPENSSL_EXTRA)
+        store->depth = args->count;
         store->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
                         sizeof(WOLFSSL_X509_VERIFY_PARAM),
                         ssl->heap, DYNAMIC_TYPE_OPENSSL);
