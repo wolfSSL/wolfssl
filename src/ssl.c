@@ -26150,14 +26150,26 @@ int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
     #if defined(OPENSSL_EXTRA) && !defined(_WIN32)
         case WOLFSSL_BIO_SSL:
             {
+                int count;
                 char* pt = NULL;
-                ret = XVASPRINTF(&pt, format, args);
-                if (ret > 0 && pt != NULL) {
-                    wolfSSL_BIO_write(bio, pt, ret);
+                va_list copy;
+
+                va_copy(copy, args);
+                count = vsnprintf(NULL, 0, format, args);
+                if (count >= 0)
+                {
+                    pt = XMALLOC(count + 1, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    if (pt != NULL)
+                    {
+                        count = vsnprintf(pt, count + 1, format, copy);
+                        if (count >= 0)
+                        {
+                            ret = wolfSSL_BIO_write(bio, pt, count);
+                        }
+                        XFREE(pt, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    }
                 }
-                if (pt != NULL) {
-                    free(pt);
-                }
+                va_end(copy);
             }
             break;
     #endif
