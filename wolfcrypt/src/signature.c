@@ -320,6 +320,16 @@ int wc_SignatureGenerateHash(
     byte* sig, word32 *sig_len,
     const void* key, word32 key_len, WC_RNG* rng)
 {
+    return wc_SignatureGenerateHash_ex(hash_type, sig_type, hash_data, hash_len,
+        sig, sig_len, key, key_len, rng, 1);
+}
+
+int wc_SignatureGenerateHash_ex(
+    enum wc_HashType hash_type, enum wc_SignatureType sig_type,
+    const byte* hash_data, word32 hash_len,
+    byte* sig, word32 *sig_len,
+    const void* key, word32 key_len, WC_RNG* rng, int verify)
+{
     int ret;
 
     /* Suppress possible unused arg if all signature types are disabled */
@@ -393,6 +403,11 @@ int wc_SignatureGenerateHash(
             break;
     }
 
+    if (ret == 0 && verify) {
+        ret = wc_SignatureVerifyHash(hash_type, sig_type, hash_data, hash_len,
+            sig, *sig_len, key, key_len);
+    }
+
     return ret;
 }
 
@@ -401,6 +416,16 @@ int wc_SignatureGenerate(
     const byte* data, word32 data_len,
     byte* sig, word32 *sig_len,
     const void* key, word32 key_len, WC_RNG* rng)
+{
+    return wc_SignatureGenerate_ex(hash_type, sig_type, data, data_len, sig,
+        sig_len, key, key_len, rng, 1);
+}
+
+int wc_SignatureGenerate_ex(
+    enum wc_HashType hash_type, enum wc_SignatureType sig_type,
+    const byte* data, word32 data_len,
+    byte* sig, word32 *sig_len,
+    const void* key, word32 key_len, WC_RNG* rng, int verify)
 {
     int ret;
     word32 hash_len, hash_enc_len;
@@ -465,6 +490,11 @@ int wc_SignatureGenerate(
             ret = wc_SignatureGenerateHash(hash_type, sig_type,
                 hash_data, hash_enc_len, sig, sig_len, key, key_len, rng);
         }
+    }
+
+    if (ret == 0 && verify) {
+        ret = wc_SignatureVerifyHash(hash_type, sig_type, hash_data,
+            hash_enc_len, sig, *sig_len, key, key_len);
     }
 
 #ifdef WOLFSSL_SMALL_STACK
