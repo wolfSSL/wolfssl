@@ -26158,7 +26158,8 @@ int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
                 count = vsnprintf(NULL, 0, format, args);
                 if (count >= 0)
                 {
-                    pt = XMALLOC(count + 1, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    pt = (char*)XMALLOC(count + 1, bio->heap,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
                     if (pt != NULL)
                     {
                         count = vsnprintf(pt, count + 1, format, copy);
