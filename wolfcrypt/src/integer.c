@@ -4717,10 +4717,15 @@ int mp_prime_is_prime (mp_int * a, int t, int *result)
     return MP_VAL;
   }
 
+  if (mp_isone(a)) {
+      *result = MP_NO;
+      return MP_OKAY;
+  }
+
   /* is the input equal to one of the primes in the table? */
   for (ix = 0; ix < PRIME_SIZE; ix++) {
       if (mp_cmp_d(a, ltm_prime_tab[ix]) == MP_EQ) {
-         *result = 1;
+         *result = MP_YES;
          return MP_OKAY;
       }
   }
@@ -4778,6 +4783,11 @@ int mp_prime_is_prime_ex (mp_int * a, int t, int *result, WC_RNG *rng)
   /* valid value of t? */
   if (t <= 0 || t > PRIME_SIZE) {
     return MP_VAL;
+  }
+
+  if (mp_isone(a)) {
+    *result = MP_NO;
+    return MP_OKAY;
   }
 
   /* is the input equal to one of the primes in the table? */

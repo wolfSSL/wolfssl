@@ -4096,6 +4096,11 @@ int fp_isprime_ex(fp_int *a, int t, int* result)
      return FP_VAL;
    }
 
+   if (fp_isone(a)) {
+       *result = FP_NO;
+       return FP_OKAY;
+   }
+
    /* check against primes table */
    for (r = 0; r < FP_PRIME_SIZE; r++) {
        if (fp_cmp_d(a, primes[r]) == FP_EQ) {
@@ -4145,6 +4150,11 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
 
     if (a == NULL || result == NULL || rng == NULL)
         return FP_VAL;
+
+    if (fp_isone(a)) {
+        *result = FP_NO;
+        return FP_OKAY;
+    }
 
     if (ret == FP_YES) {
         fp_digit d;

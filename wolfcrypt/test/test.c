@@ -1080,7 +1080,7 @@ initDefaultName();
         test_pass("mp       test passed!\n");
 #endif
 
-#if defined(WOLFSSL_PUBLIC_MP) && !defined(WOLFSSL_SP_MATH)
+#if defined(WOLFSSL_PUBLIC_MP)
     if ( (ret = prime_test()) != 0)
         return err_sys("prime    test failed!\n", ret);
     else
@@ -24568,7 +24568,7 @@ done:
 #endif
 
 
-#if defined(WOLFSSL_PUBLIC_MP) && !defined(WOLFSSL_SP_MATH)
+#if defined(WOLFSSL_PUBLIC_MP)
 
 typedef struct pairs_t {
     const unsigned char* coeff;
@@ -24623,16 +24623,24 @@ static const unsigned char controlPrime[] = {
     0xe6, 0xd1, 0x1b, 0x5d, 0x5e, 0x96, 0xfa, 0x53
 };
 
+static const unsigned char testOne[] = { 1 };
+
 
 static int GenerateNextP(mp_int* p1, mp_int* p2, int k)
 {
     int ret;
+    mp_int ki;
 
-    ret = mp_sub_d(p1, 1, p2);
+    ret = mp_init(&ki);
     if (ret == 0)
-        ret = mp_mul_d(p2, k, p2);
+        ret = mp_set(&ki, k);
+    if (ret == 0)
+        ret = mp_sub_d(p1, 1, p2);
+    if (ret == 0)
+        ret = mp_mul(p2, &ki, p2);
     if (ret == 0)
         ret = mp_add_d(p2, 1, p2);
+    mp_clear(&ki);
 
     return ret;
 }
@@ -24737,6 +24745,23 @@ int prime_test(void)
         return -9660;
     if (!isPrime)
         return -9661;
+
+    ret = mp_read_unsigned_bin(&n, testOne, sizeof(testOne));
+    if (ret != 0)
+        return -9662;
+
+    /* This test result should indicate the value as not prime. */
+    ret = mp_prime_is_prime_ex(&n, 8, &isPrime, &rng);
+    if (ret != 0)
+        return -9663;
+    if (isPrime)
+        return -9664;
+
+    ret = mp_prime_is_prime(&n, 8, &isPrime);
+    if (ret != 0)
+        return -9665;
+    if (isPrime)
+        return -9666;
 
     mp_clear(&p3);
     mp_clear(&p2);
