@@ -35182,6 +35182,9 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         }
 
         if ((l = wolfSSL_BIO_get_len(bp)) <= 0) {
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+            WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
+    #endif
             return NULL;
         }
 
