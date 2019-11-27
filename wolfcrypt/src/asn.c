@@ -4553,7 +4553,10 @@ static int GetCertHeader(DecodedCert* cert)
 
     if (GetSequence(cert->source, &cert->srcIdx, &len, cert->maxIdx) < 0)
         return ASN_PARSE_E;
+
     cert->sigIndex = len + cert->srcIdx;
+    if (cert->sigIndex > cert->maxIdx)
+        return ASN_PARSE_E;
 
     if (GetExplicitVersion(cert->source, &cert->srcIdx, &cert->version,
                                                             cert->sigIndex) < 0)
