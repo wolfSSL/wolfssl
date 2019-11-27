@@ -4041,7 +4041,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 {
     int             ret = VERSION_ERROR;
     byte            b = 0;
-    ProtocolVersion pv = {0};
+    ProtocolVersion pv;
     Suites          clSuites;
     word32          i = *inOutIdx;
     word32          begin = i;
@@ -4053,6 +4053,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     WOLFSSL_START(WC_FUNC_CLIENT_HELLO_DO);
     WOLFSSL_ENTER("DoTls13ClientHello");
 
+    XMEMSET(&pv, 0, sizeof(ProtocolVersion));
     XMEMSET(&clSuites, 0, sizeof(Suites));
 
 #ifdef WOLFSSL_CALLBACKS
