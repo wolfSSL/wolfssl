@@ -663,6 +663,9 @@ int wc_DsaExportKeyRaw(DsaKey* dsa, byte* x, word32* xSz, byte* y, word32* ySz)
 int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
 {
     mp_int  k, kInv, r, s, H;
+#ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
+    mp_int  b;
+#endif
     mp_int* qMinus1;
     int     ret = 0, sz;
     byte    buffer[DSA_HALF_SIZE];
@@ -676,8 +679,14 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
 
     sz = min((int)sizeof(buffer), mp_unsigned_bin_size(&key->q));
 
+#ifdef WOLFSSL_MP_INVMOD_CONSTANT_TIME
     if (mp_init_multi(&k, &kInv, &r, &s, &H, 0) != MP_OKAY)
+#else
+    if (mp_init_multi(&k, &kInv, &r, &s, &H, &b) != MP_OKAY)
+#endif
+    {
         return MP_INIT_E;
+    }
     qMinus1 = &kInv;
 
     /* NIST FIPS 186-4: B.2.2
@@ -708,6 +717,7 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
     if (ret == 0 && mp_add_d(&k, 1, &k) != MP_OKAY)
         ret = MP_MOD_E;
 
+#ifdef WOLFSSL_MP_INVMOD_CONSTANT_TIME
     /* inverse k mod q */
     if (ret == 0 && mp_invmod(&k, &key->q, &kInv) != MP_OKAY)
         ret = MP_INVMOD_E;
@@ -734,6 +744,72 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
 
     if (ret == 0 && mp_mulmod(&s, &kInv, &key->q, &s) != MP_OKAY)
         ret = MP_MULMOD_E;
+#else
+    /* Blinding value
+     * Generate b in range [1, q-1].
+     */
+    if (ret == 0) {
+        do {
+            ret = wc_RNG_GenerateBlock(rng, buffer, sz);
+            if (ret == 0 && mp_read_unsigned_bin(&b, buffer, sz) != MP_OKAY)
+                ret = MP_READ_E;
+        } while (ret == 0 && mp_cmp(&b, qMinus1) != MP_LT);
+    }
+    if (ret == 0 && mp_add_d(&b, 1, &b) != MP_OKAY)
+        ret = MP_MOD_E;
+
+    /* set H from sha digest */
+    if (ret == 0 && mp_read_unsigned_bin(&H, digest,
+                                               WC_SHA_DIGEST_SIZE) != MP_OKAY) {
+        ret = MP_READ_E;
+    }
+
+    /* generate r, r = (g exp k mod p) mod q */
+    if (ret == 0 && mp_exptmod_ex(&key->g, &k, key->q.used, &key->p,
+                                                               &r) != MP_OKAY) {
+        ret = MP_EXPTMOD_E;
+    }
+
+    /* calculate s = (H + xr)/k
+                   = b.(H/k.b + x.r/k.b) */
+
+    /* k = k.b */
+    if (ret == 0 && mp_mulmod(&k, &b, &key->q, &k) != MP_OKAY)
+        ret = MP_MULMOD_E;
+
+    /* kInv = 1/k.b mod q */
+    if (ret == 0 && mp_invmod(&k, &key->q, &kInv) != MP_OKAY)
+        ret = MP_INVMOD_E;
+
+    if (ret == 0 && mp_mod(&r, &key->q, &r) != MP_OKAY)
+        ret = MP_MOD_E;
+
+    /* s = x.r */
+    if (ret == 0 && mp_mul(&key->x, &r, &s) != MP_OKAY)
+        ret = MP_MUL_E;
+
+    /* s = x.r/k.b */
+    if (ret == 0 && mp_mulmod(&s, &kInv, &key->q, &s) != MP_OKAY)
+        ret = MP_MULMOD_E;
+
+    /* H = H/k.b */
+    if (ret == 0 && mp_mulmod(&H, &kInv, &key->q, &H) != MP_OKAY)
+        ret = MP_MULMOD_E;
+
+    /* s = H/k.b + x.r/k.b
+         = (H + x.r)/k.b */
+    if (ret == 0 && mp_add(&s, &H, &s) != MP_OKAY)
+        ret = MP_ADD_E;
+
+    /* s = b.(e + x.r)/k.b
+         = (e + x.r)/k */
+    if (ret == 0 && mp_mulmod(&s, &b, &key->q, &s) != MP_OKAY)
+        ret = MP_MULMOD_E;
+
+    /* s = (e + x.r)/k */
+    if (ret == 0 && mp_mod(&s, &key->q, &s) != MP_OKAY)
+        ret = MP_MOD_E;
+#endif
 
     /* detect zero r or s */
     if (ret == 0 && (mp_iszero(&r) == MP_YES || mp_iszero(&s) == MP_YES))
@@ -759,6 +835,14 @@ int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
         }
     }
 
+    ForceZero(buffer, sz);
+    mp_forcezero(&kInv);
+    mp_forcezero(&k);
+#ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
+    mp_forcezero(&b);
+
+    mp_clear(&b);
+#endif
     mp_clear(&H);
     mp_clear(&s);
     mp_clear(&r);
