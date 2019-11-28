@@ -1003,7 +1003,7 @@ L_poly1305_avx2_blocks_end_calc:
         shlq	$40, %r12
         addq	%r9, %rax
         adcq	%r10, %rax
-        addq	%r11, %rdx
+        adcq	%r11, %rdx
         adcq	%r12, %rdx
         adcq	$0x00, %rcx
         movq	%rcx, %r8
