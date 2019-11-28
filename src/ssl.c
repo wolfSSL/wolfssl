@@ -34413,12 +34413,14 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
                                                 WOLFSSL_BIGNUM *y,
                                                 WOLFSSL_BN_CTX *ctx)
 {
+    mp_digit mp;
+    mp_int modulus;
     (void)ctx;
 
     WOLFSSL_ENTER("wolfSSL_EC_POINT_get_affine_coordinates_GFp");
 
     if (group == NULL || point == NULL || point->internal == NULL ||
-        x == NULL || y == NULL) {
+        x == NULL || y == NULL || wolfSSL_EC_POINT_is_at_infinity(group, point)) {
         WOLFSSL_MSG("wolfSSL_EC_POINT_get_affine_coordinates_GFp NULL error");
         return WOLFSSL_FAILURE;
     }
@@ -34428,6 +34430,26 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
 
         if (SetECPointInternal((WOLFSSL_EC_POINT *)point) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("SetECPointInternal failed");
+            return WOLFSSL_FAILURE;
+        }
+    }
+
+    if (!wolfSSL_BN_is_one(point->Z)) {
+        /* Map the Jacobian point back to affine space */
+        if (mp_read_radix(&modulus, ecc_sets[group->curve_idx].prime, MP_RADIX_HEX) != MP_OKAY) {
+            WOLFSSL_MSG("mp_read_radix failed");
+            return WOLFSSL_FAILURE;
+        }
+        if (mp_montgomery_setup(&modulus, &mp) != MP_OKAY) {
+            WOLFSSL_MSG("mp_montgomery_setup failed");
+            return WOLFSSL_FAILURE;
+        }
+        if (ecc_map((ecc_point*)point->internal, &modulus, mp) != MP_OKAY) {
+            WOLFSSL_MSG("ecc_map failed");
+            return WOLFSSL_FAILURE;
+        }
+        if (SetECPointExternal((WOLFSSL_EC_POINT *)point) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("SetECPointExternal failed");
             return WOLFSSL_FAILURE;
         }
     }
