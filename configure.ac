@@ -4124,92 +4124,128 @@ AC_ARG_ENABLE([sp],
 
 ENABLED_SP_RSA=no
 ENABLED_SP_DH=no
+ENABLED_SP_FF_2048=no
+ENABLED_SP_FF_3072=no
+ENABLED_SP_FF_4096=no
 ENABLED_SP_ECC=no
+ENABLED_SP_EC_256=no
+ENABLED_SP_EC_384=no
 for v in `echo $ENABLED_SP | tr "," " "`
 do
   case $v in
   small)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
     ENABLED_SP_RSA=yes
     ENABLED_SP_DH=yes
+    ENABLED_SP_FF_2048=yes
+    ENABLED_SP_FF_3072=yes
     ENABLED_SP_ECC=yes
+    ENABLED_SP_SMALL=yes
+    ENABLED_SP_EC_256=yes
+    if test "$host_cpu" = "x86_64"; then
+      ENABLED_SP_FF_4096=yes
+      ENABLED_SP_EC_384=yes
+    fi
     ;;
   yes)
     ENABLED_SP_RSA=yes
     ENABLED_SP_DH=yes
+    ENABLED_SP_FF_2048=yes
+    ENABLED_SP_FF_3072=yes
     ENABLED_SP_ECC=yes
+    ENABLED_SP_EC_256=yes
+    if test "$host_cpu" = "x86_64"; then
+      ENABLED_SP_FF_4096=yes
+      ENABLED_SP_EC_384=yes
+    fi
     ;;
   no)
     ;;
 
   smallec256 | smallp256 | small256)
     ENABLED_SP_ECC=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
+    ENABLED_SP_SMALL=yes
+    ENABLED_SP_EC_256=yes
     ;;
   ec256 | p256 | 256)
     ENABLED_SP_ECC=yes
+    ENABLED_SP_EC_256=yes
+    ;;
+  smallec384 | smallp384 | small384)
+    ENABLED_SP_ECC=yes
+    ENABLED_SP_SMALL=yes
+    ENABLED_SP_EC_384=yes
+    ;;
+  ec384 | p384 | 384)
+    ENABLED_SP_ECC=yes
+    ENABLED_SP_EC_384=yes
     ;;
 
   small2048)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
+    ENABLED_SP_SMALL=yes
     ENABLED_SP_RSA=yes
     ENABLED_SP_DH=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_3072"
+    ENABLED_SP_FF_2048=yes
     ;;
   2048)
     ENABLED_SP_RSA=yes
     ENABLED_SP_DH=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_3072"
+    ENABLED_SP_FF_2048=yes
     ;;
 
   smallrsa2048)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
+    ENABLED_SP_SMALL=yes
     ENABLED_SP_RSA=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_3072"
+    ENABLED_SP_FF_2048=yes
     ;;
   rsa2048)
     ENABLED_SP_RSA=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_3072"
+    ENABLED_SP_FF_2048=yes
     ;;
 
   small3072)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
+    ENABLED_SP_SMALL=yes
     ENABLED_SP_RSA=yes
     ENABLED_SP_DH=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_2048"
+    ENABLED_SP_FF_3072=yes
     ;;
   3072)
     ENABLED_SP_RSA=yes
     ENABLED_SP_DH=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_2048"
+    ENABLED_SP_FF_3072=yes
     ;;
 
   smallrsa3072)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
+    ENABLED_SP_SMALL=yes
     ENABLED_SP_RSA=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_2048"
+    ENABLED_SP_FF_3072=yes
     ;;
   rsa3072)
     ENABLED_SP_RSA=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_2048"
+    ENABLED_SP_FF_3072=yes
     ;;
 
-  +4096)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_4096"
-    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_4096"
+  small4096)
+    ENABLED_SP_SMALL=yes
+    ENABLED_SP_RSA=yes
+    ENABLED_SP_DH=yes
+    ENABLED_SP_FF_4096=yes
+    ;;
+
+  4096 | +4096)
+    ENABLED_SP_RSA=yes
+    ENABLED_SP_DH=yes
+    ENABLED_SP_FF_4096=yes
+    ;;
+
+  smallrsa4096)
+    ENABLED_SP_SMALL=yes
+    ENABLED_SP_RSA=yes
+    ENABLED_SP_FF_4096=yes
+    ;;
+
+  rsa4096)
+    ENABLED_SP_RSA=yes
+    ENABLED_SP_FF_4096=yes
     ;;
 
   *)
@@ -4229,10 +4265,36 @@ if test "$ENABLED_DH" = "yes" && test "$ENABLED_SP_DH" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_DH"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_HAVE_SP_DH"
 fi
+if test "$ENABLED_SP_RSA" = "yes" || test "$ENABLED_SP_DH" = "yes"; then
+    if test "$ENABLED_SP_FF_2048" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_2048"
+    fi
+    if test "$ENABLED_SP_FF_3072" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_3072"
+    fi
+    if test "$ENABLED_SP_FF_4096" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_4096"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_4096"
+    fi
+fi
 if test "$ENABLED_ECC" = "yes" && test "$ENABLED_SP_ECC" = "yes"; then
     ENABLED_SP=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_ECC"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_HAVE_SP_ECC"
+    if test "$ENABLED_SP_EC_256" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_256"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_256"
+    fi
+    if test "$ENABLED_SP_EC_384" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC384 -DWOLFSSL_SP_384"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_384"
+    fi
+fi
+if test "$ENABLED_SP_SMALL" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
 fi
 
 
@@ -4264,7 +4326,7 @@ if test "$ENABLED_SP_ASM" = "yes"; then
       ENABLED_SP_ARM_THUMB_ASM=yes
     else
       if test $host_alias = "cortex"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM -mcpu=cortex-m4"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM -mcpu=cortex-r5"
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
         ENABLED_SP_ARM_CORTEX_ASM=yes
       else
@@ -4307,10 +4369,10 @@ if test "$ENABLED_SP_MATH" = "yes"; then
         AC_MSG_ERROR([Cannot use single precision math and SRP])
     fi
     if test "$ENABLED_SP_RSA" = "no" && test "$ENABLED_RSA" = "yes"; then
-        AC_MSG_ERROR([Cannot use P256 single precision only math and RSA])
+        AC_MSG_ERROR([Cannot use RSA single precision only math and RSA])
     fi
     if test "$ENABLED_SP_DH" = "no" && test "$ENABLED_DH" = "yes"; then
-        AC_MSG_ERROR([Cannot use P256 single precision only math and DH])
+        AC_MSG_ERROR([Cannot use DH single precision only math and DH])
     fi
 
     ENABLED_FASTMATH="no"
