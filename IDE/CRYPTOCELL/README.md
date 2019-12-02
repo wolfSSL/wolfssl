@@ -22,12 +22,14 @@ The `IDE/CRYPTOCELL/main.c` example application provides a function to run the s
 - SHA-256
 - AES CBC
 - CryptoCell 310 RNG
-- RSA sign/verify and RSA key gen
+- RSA sign/verify and RSA key gen (2048 bit in PKCSv1.5 padding mode)
 - RSA encrypt/decrypt
 - ECC sign/verify/shared secret
 - ECC key import/export and key gen pairs
 - Hardware RNG
 - RTC for benchmark timing source
+
+Note: All Cryptocell features are not supported. The wolfcrypt RSA API allows import and export of Private/Public keys in DER format. However, this is not possible keys generated with Cryptocell because the reconstruction of the imported keys has not been implemented.
 
 ## Setup
 ### Setting up Nordic SDK with wolfSSL
