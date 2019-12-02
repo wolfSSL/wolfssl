@@ -1023,6 +1023,11 @@ int fp_invmod(fp_int *a, fp_int *b, fp_int *c)
 #endif
   int     neg;
 
+  /* [modified] sanity check on "a" */
+  if (fp_iszero(a) == FP_YES) {
+    return FP_VAL; /* can not divide by 0 here */
+  }
+
   /* 2. [modified] b must be odd   */
   if (fp_iseven (b) == FP_YES) {
     return fp_invmod_slow(a,b,c);

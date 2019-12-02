@@ -966,8 +966,8 @@ int wolfcrypt_mp_invmod(mp_int * a, mp_int * b, mp_int * c)
 int mp_invmod (mp_int * a, mp_int * b, mp_int * c)
 #endif
 {
-  /* b cannot be negative */
-  if (b->sign == MP_NEG || mp_iszero(b) == MP_YES) {
+  /* b cannot be negative or zero, and can not divide by 0 (1/a mod b) */
+  if (b->sign == MP_NEG || mp_iszero(b) == MP_YES || mp_iszero(a) == MP_YES) {
     return MP_VAL;
   }
 
