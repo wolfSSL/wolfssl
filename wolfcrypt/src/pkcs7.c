@@ -12283,6 +12283,7 @@ int wc_PKCS7_DecodeCompressedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
 {
     int length, version, ret;
     word32 idx = 0, algOID, contentType;
+    byte tag;
 
     byte* decompressed;
     word32 decompressedSz;
