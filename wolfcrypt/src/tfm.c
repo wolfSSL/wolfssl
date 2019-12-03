@@ -2183,14 +2183,21 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
    int x = fp_count_bits (X);
 #endif
 
-   if (fp_iszero(G)) {
-      fp_set(G, 0);
+   /* handle modulus of zero and prevent overflows */
+   if (fp_iszero(P) || (P->used > (FP_SIZE/2))) {
+      return FP_VAL;
+   }
+   if (fp_isone(P)) {
+      fp_set(Y, 0);
       return FP_OKAY;
    }
-
-   /* prevent overflows */
-   if (P->used > (FP_SIZE/2)) {
-      return FP_VAL;
+   if (fp_iszero(X)) {
+      fp_set(Y, 1);
+      return FP_OKAY;
+   }
+   if (fp_iszero(G)) {
+      fp_set(Y, 0);
+      return FP_OKAY;
    }
 
 #if defined(WOLFSSL_ESP32WROOM32_CRYPT_RSA_PRI) && \
@@ -2221,11 +2228,9 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
       tmp[1].sign = FP_ZPOS;
       err = fp_invmod(&tmp[0], &tmp[1], &tmp[0]);
       if (err == FP_OKAY) {
-         X->sign = FP_ZPOS;
-         err =  _fp_exptmod(&tmp[0], X, X->used, P, Y);
-         if (X != Y) {
-            X->sign = FP_NEG;
-         }
+         fp_copy(X, &tmp[1]);
+         tmp[1].sign = FP_ZPOS;
+         err =  _fp_exptmod(&tmp[0], &tmp[1], tmp[1].used, P, Y);
          if (P->sign == FP_NEG) {
             fp_add(Y, P, Y);
          }
