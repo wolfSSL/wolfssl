@@ -9368,6 +9368,29 @@ typedef struct ProcPeerCertArgs {
 #endif
 } ProcPeerCertArgs;
 
+static void DoCertFatalAlert(WOLFSSL* ssl, int ret)
+{
+    int alertWhy;
+    if (ssl == NULL || ret == 0) {
+        return;
+    }
+
+    /* Determine alert reason */
+    alertWhy = bad_certificate;
+    if (ret == ASN_AFTER_DATE_E || ret == ASN_BEFORE_DATE_E) {
+        alertWhy = certificate_expired;
+    }
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD))
+    else if (ret == CRL_CERT_REVOKED) {
+        alertWhy = certificate_revoked;
+    }
+#endif
+
+    /* send fatal alert and mark connection closed */
+    SendAlert(ssl, alert_fatal, alertWhy); /* try to send */
+    ssl->options.isClosed = 1;
+}
+
 /* WOLFSSL_ALWAYS_VERIFY_CB: Use verify callback for success or failure cases */
 /* WOLFSSL_VERIFY_CB_ALL_CERTS: Issue callback for all intermediate certificates */
 
@@ -9378,21 +9401,10 @@ typedef struct ProcPeerCertArgs {
 
 static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
 {
-    int verify_ok = 0, alertWhy = 0, use_cb = 0;
+    int verify_ok = 0, use_cb = 0;
 
-    /* Determine return code and alert reason */
-    if (ret != 0) {
-        alertWhy = bad_certificate;
-        if (ret == ASN_AFTER_DATE_E ||
-            ret == ASN_BEFORE_DATE_E) {
-            alertWhy = certificate_expired;
-        }
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD))
-        else if (ret == CRL_CERT_REVOKED)
-            alertWhy = certificate_revoked;
-#endif
-    }
-    else {
+    /* Determine if verify was okay */
+    if (ret == 0) {
         verify_ok = 1;
     }
 
@@ -9616,17 +9628,6 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         #endif
         XFREE(store, ssl->heap, DYNAMIC_TYPE_X509_STORE);
     #endif
-    }
-
-    if (ret != 0) {
-        if (!ssl->options.verifyNone) {
-            /* handle failure */
-            SendAlert(ssl, alert_fatal, alertWhy); /* try to send */
-            ssl->options.isClosed = 1;
-        }
-
-        /* Report SSL error */
-        ssl->error = ret;
     }
 
     return ret;
@@ -10302,9 +10303,16 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
 
                     /* Handle error codes */
-                    if (ret != 0 && args->lastErr == 0) {
-                        args->lastErr = ret; /* save error from last time */
-                        ret = 0; /* reset error */
+                    if (ret != 0) {
+                        if (!ssl->options.verifyNone) {
+                            DoCertFatalAlert(ssl, ret);
+                        }
+                        ssl->error = ret; /* Report SSL error */
+
+                        if (args->lastErr == 0) {
+                            args->lastErr = ret; /* save error from last time */
+                            ret = 0; /* reset error */
+                        }
                     }
 
                     FreeDecodedCert(args->dCert);
@@ -10874,6 +10882,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                               (ret == CRL_MISSING || ret == CRL_CERT_REVOKED)) {
                 WOLFSSL_MSG("Ignoring CRL problem based on verify setting");
                 ret = ssl->error = 0;
+            }
+
+            if (ret != 0) {
+                if (!ssl->options.verifyNone) {
+                    DoCertFatalAlert(ssl, ret);
+                }
+                ssl->error = ret; /* Report SSL error */
             }
 
             if (ret == 0 && ssl->options.side == WOLFSSL_CLIENT_END) {
