@@ -9247,7 +9247,8 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 #endif /* HAVE_ECC */
 
 #ifndef NO_RSA
-    #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
+    #if defined(WOLFSSL_CERT_GEN) || \
+        (defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT))
         static const char* otherCertDerFile = CERT_PREFIX "othercert.der";
         static const char* certDerFile = CERT_PREFIX "cert.der";
     #endif
