@@ -16746,6 +16746,8 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
     int  outputSz;
     int  dtlsExtra = 0;
 
+    WOLFSSL_ENTER("SendAlert");
+
 #ifdef HAVE_WRITE_DUP
     if (ssl->dupWrite && ssl->dupSide == READ_DUP_SIDE) {
         int notifyErr = 0;
@@ -16842,7 +16844,11 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
     ssl->buffers.outputBuffer.length += sendSz;
     ssl->options.sendAlertState = 1;
 
-    return SendBuffered(ssl);
+    ret = SendBuffered(ssl);
+
+    WOLFSSL_LEAVE("SendAlert", ret);
+
+    return ret;
 }
 
 const char* wolfSSL_ERR_reason_error_string(unsigned long e)
