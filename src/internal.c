@@ -10250,12 +10250,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
             #endif /* HAVE_OCSP || HAVE_CRL */
 
+                    /* Do verify callback */
+                    ret = DoVerifyCallback(ssl, ret, args);
+
                 #ifdef WOLFSSL_ALT_CERT_CHAINS
                     /* For alternate cert chain, its okay for a CA cert to fail
                         with ASN_NO_SIGNER_E here. The "alternate" certificate
                         chain mode only requires that the peer certificate
                         validate to a trusted CA */
-                    if (ret != 0) {
+                    if (ret != 0 && args->dCert->isCA) {
                         if (ret == ASN_NO_SIGNER_E) {
                             if (!ssl->options.usingAltCertChain) {
                                 WOLFSSL_MSG("Trying alternate cert chain");
@@ -10265,10 +10268,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             ret = 0; /* clear error and continue */
                         }
                     }
+                    else /* do not add to certificate manager */
                 #endif /* WOLFSSL_ALT_CERT_CHAINS */
-
-                    /* Do verify callback */
-                    ret = DoVerifyCallback(ssl, ret, args);
 
                     /* If valid CA then add to Certificate Manager */
                     if (ret == 0 && args->dCert->isCA && !ssl->options.verifyNone) {
