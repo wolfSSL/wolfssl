@@ -1489,24 +1489,56 @@ int sp_lcm(sp_int* a, sp_int* b, sp_int* r)
 int sp_exptmod(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
-    int bits = sp_count_bits(m);
+    int done = 0;
+    int mBits = sp_count_bits(m);
+    int bBits = sp_count_bits(b);
+    int eBits = sp_count_bits(e);
 
+    if (sp_iszero(m)) {
+        err = MP_VAL;
+    }
+    else if (sp_isone(m)) {
+        sp_set(r, 0);
+        done = 1;
+    }
+    else if (sp_iszero(e)) {
+        sp_set(r, 1);
+        done = 1;
+    }
+    else if (sp_iszero(b)) {
+        sp_set(r, 0);
+        done = 1;
+    }
+
+    if (!done && (err == MP_OKAY)) {
 #ifndef WOLFSSL_SP_NO_2048
-    if (bits == 1024)
-        sp_ModExp_1024(b, e, m, r);
-    else if (bits == 2048)
-        sp_ModExp_2048(b, e, m, r);
-    else
+        if ((mBits == 1024) && sp_isodd(m) && (bBits <= 1024) &&
+            (eBits <= 1024)) {
+            err = sp_ModExp_1024(b, e, m, r);
+            done = 1;
+        }
+        else if ((mBits == 1024) && sp_isodd(m) && (bBits <= 1024) &&
+                 (eBits <= 1024)) {
+            err = sp_ModExp_2048(b, e, m, r);
+            done = 1;
+        }
+        else
 #endif
 #ifndef WOLFSSL_SP_NO_3072
-    if (bits == 1536)
-        sp_ModExp_1536(b, e, m, r);
-    else if (bits == 3072)
-        sp_ModExp_3072(b, e, m, r);
-    else
+        if ((mBits == 1536) && sp_isodd(m) && (bBits <= 1536) &&
+            (eBits <= 1536)) {
+            err = sp_ModExp_1536(b, e, m, r);
+            done = 1;
+        }
+        else if ((mBits == 3072) && sp_isodd(m) && (bBits <= 3072) &&
+                 (eBits <= 3072)) {
+            err = sp_ModExp_3072(b, e, m, r);
+            done = 1;
+        }
 #endif
+    }
 #if defined(WOLFSSL_HAVE_SP_DH) && defined(WOLFSSL_KEY_GEN)
-    if (bits == 256) {
+    if (!done && (err == MP_OKAY)) {
         int i;
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -1516,37 +1548,44 @@ int sp_exptmod(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
     #endif
 
     #ifdef WOLFSSL_SMALL_STACK
-        t = (sp_int*)XMALLOC(sizeof(sp_int) * 2, NULL, DYNAMIC_TYPE_BIGINT);
-        if (t == NULL) {
-            err = MP_MEM;
+        if (!done && (err == MP_OKAY)) {
+            t = (sp_int*)XMALLOC(sizeof(sp_int) * 2, NULL, DYNAMIC_TYPE_BIGINT);
+            if (t == NULL) {
+                err = MP_MEM;
+            }
         }
     #endif
-        if (err == MP_OKAY) {
+        if (!done && (err == MP_OKAY)) {
             sp_init(t);
             sp_copy(b, t);
 
-            bits = sp_count_bits(e);
-        }
-        for (i = bits-2; err == MP_OKAY && i >= 0; i--) {
-            err = sp_sqrmod(t, m, t);
-            if (err == MP_OKAY &&
+            for (i = eBits-2; err == MP_OKAY && i >= 0; i--) {
+                 err = sp_sqrmod(t, m, t);
+                 if (err == MP_OKAY &&
                           (e->dp[i / SP_WORD_SIZE] >> (i % SP_WORD_SIZE)) & 1) {
-                err = sp_mulmod(t, b, m, t);
-            }
+                     err = sp_mulmod(t, b, m, t);
+                 }
+             }
         }
-        if (err == MP_OKAY)
+        if (!done && (err == MP_OKAY)) {
             sp_copy(t, r);
+        }
 
     #ifdef WOLFSSL_SMALL_STACK
-        if (t != NULL)
+        if (t != NULL) {
             XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
+        }
     #endif
     }
-    else
-#endif
+#else
+    {
         err = MP_VAL;
+    }
+#endif
 
-    (void)bits;
+    (void)mBits;
+    (void)bBits;
+    (void)eBits;
 
     return err;
 }
