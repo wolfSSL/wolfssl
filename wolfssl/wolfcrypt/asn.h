@@ -62,6 +62,10 @@
     #define WC_SHA256_DIGEST_SIZE 32
 #endif
 
+#ifndef EXTERNAL_SERIAL_SIZE
+    #define EXTERNAL_SERIAL_SIZE 32
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -69,8 +73,6 @@
 enum {
     ISSUER  = 0,
     SUBJECT = 1,
-
-    EXTERNAL_SERIAL_SIZE = 32,
 
     BEFORE  = 0,
     AFTER   = 1
