@@ -1651,6 +1651,9 @@ WOLFSSL_LOCAL int  ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 WOLFSSL_LOCAL int  MatchDomainName(const char* pattern, int len, const char* str);
 #ifndef NO_CERTS
 WOLFSSL_LOCAL int  CheckAltNames(DecodedCert* dCert, char* domain);
+#ifdef OPENSSL_EXTRA
+WOLFSSL_LOCAL int  CheckIPAddr(DecodedCert* dCert, char* ipasc);
+#endif
 #endif
 WOLFSSL_LOCAL int  CreateTicket(WOLFSSL* ssl);
 WOLFSSL_LOCAL int  HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz);

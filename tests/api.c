@@ -22113,6 +22113,9 @@ static void test_wolfSSL_X509_VERIFY_PARAM(void)
     AssertIntEQ(1, ret);
     AssertIntEQ(0, XSTRNCMP(param->ipasc, testIPv4, WOLFSSL_MAX_IPSTR));
 
+    ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(param, NULL);
+    AssertIntEQ(1, ret);
+
     ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(param, testIPv6);
     AssertIntEQ(1, ret);
     AssertIntEQ(0, XSTRNCMP(param->ipasc, testIPv6, WOLFSSL_MAX_IPSTR));

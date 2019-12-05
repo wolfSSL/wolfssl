@@ -57,7 +57,7 @@ enum wolfSSL_ErrorCodes {
     DOMAIN_NAME_MISMATCH         = -322,   /* peer subject name mismatch */
     WANT_READ                    = -323,   /* want read, call again    */
     NOT_READY_ERROR              = -324,   /* handshake layer not ready */
-
+    IPADDR_MISMATCH              = -325,   /* peer ip address mismatch */
     VERSION_ERROR                = -326,   /* record layer version error */
     WANT_WRITE                   = -327,   /* want write, call again   */
     BUFFER_ERROR                 = -328,   /* malformed buffer input   */
