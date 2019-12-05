@@ -3106,7 +3106,7 @@ int wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen, byte* out,
 #endif /* WC_NO_RSA_OAEP || WC_RSA_NO_PADDING */
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 
-
+#if !defined(WOLFSSL_CRYPTOCELL)
 int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 {
     WC_RNG* rng = NULL;
@@ -3117,6 +3117,7 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PKCSV15_PAD,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, 0, rng);
 }
+#endif
 
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
 int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
