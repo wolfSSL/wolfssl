@@ -166,6 +166,12 @@ typedef struct DerBuffer {
     int    dynType; /* DYNAMIC_TYPE_* */
 } DerBuffer;
 
+typedef struct WOLFSSL_ASN1_TIME {
+    unsigned char data[CTC_DATE_SIZE]; /* date bytes */
+    int length;
+    int type;
+} WOLFSSL_ASN1_TIME;
+
 enum {
     IV_SZ   = 32,                   /* max iv sz */
     NAME_SZ = 80,                   /* max one line */

@@ -10095,7 +10095,7 @@ WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("SSL_get_session");
     if (ssl)
-        return GetSession(ssl, 0, 0);
+        return GetSession(ssl, 0, 1);
 
     return NULL;
 }
@@ -12618,6 +12618,8 @@ int AddSession(WOLFSSL* ssl)
     int    ticLen  = 0;
 #endif
     WOLFSSL_SESSION* session;
+    int i;
+    int overwrite = 0;
 
     if (ssl->options.sessionCacheOff)
         return 0;
@@ -12686,7 +12688,28 @@ int AddSession(WOLFSSL* ssl)
             return BAD_MUTEX_E;
         }
 
-        idx = SessionCache[row].nextIdx++;
+        for (i=0; i<SESSIONS_PER_ROW; i++) {
+            if (ssl->options.tls1_3) {
+                if (XMEMCMP(ssl->session.sessionID, SessionCache[row].Sessions[i].sessionID, ID_LEN) == 0) {
+                    WOLFSSL_MSG("Session already exists. Overwriting.");
+                    overwrite = 1;
+                    idx = i;
+                    break;
+                }
+            }
+            else {
+                if (XMEMCMP(ssl->arrays->sessionID, SessionCache[row].Sessions[i].sessionID, ID_LEN) == 0) {
+                    WOLFSSL_MSG("Session already exists. Overwriting.");
+                    overwrite = 1;
+                    idx = i;
+                    break;
+                }
+            }
+        }
+
+        if (!overwrite) {
+            idx = SessionCache[row].nextIdx++;
+        }
 #ifdef SESSION_INDEX
         ssl->sessionIndex = (row << SESSIDX_ROW_SHIFT) | idx;
 #endif
@@ -12760,9 +12783,15 @@ int AddSession(WOLFSSL* ssl)
 
 #ifdef SESSION_CERTS
     if (error == 0) {
-        session->chain.count = ssl->session.chain.count;
-        XMEMCPY(session->chain.certs, ssl->session.chain.certs,
-                sizeof(x509_buffer) * MAX_CHAIN_DEPTH);
+        if (!overwrite || (overwrite && ssl->session.chain.count > 0)) {
+            /*
+             * If we are overwriting and no certs present in ssl->session.chain
+             * then keep the old chain.
+             */
+            session->chain.count = ssl->session.chain.count;
+            XMEMCPY(session->chain.certs, ssl->session.chain.certs,
+                    sizeof(x509_buffer) * session->chain.count);
+        }
     }
 #endif /* SESSION_CERTS */
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
@@ -14093,6 +14122,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         WOLFSSL_BIO* bio;
         WOLFSSL_X509 *cert = NULL;
         WOLFSSL_X509_NAME *subjectName = NULL;
+        unsigned long err;
 
         WOLFSSL_ENTER("wolfSSL_load_client_CA_file");
 
@@ -14126,6 +14156,18 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
             wolfSSL_X509_free(cert);
             cert = NULL;
+        }
+
+        err = wolfSSL_ERR_peek_last_error();
+
+        if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
+                ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
+            /*
+             * wolfSSL_PEM_read_bio_X509 pushes an ASN_NO_PEM_HEADER error
+             * to the error queue on file end. This should not be left
+             * for the caller to find so we clear the last error.
+             */
+            wc_RemoveErrorNode(-1);
         }
 
         wolfSSL_X509_free(cert);
@@ -19683,6 +19725,45 @@ int wolfSSL_session_reused(WOLFSSL* ssl)
 }
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)
+WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
+{
+#ifdef HAVE_EXT_CACHE
+    WOLFSSL_SESSION* copy;
+
+    WOLFSSL_ENTER("wolfSSL_SESSION_dup");
+
+    if (session == NULL)
+        return NULL;
+#ifdef HAVE_SESSION_TICKET
+    if (session->isDynamic && !session->ticket) {
+        WOLFSSL_MSG("Session dynamic flag is set but ticket pointer is null");
+        return NULL;
+    }
+#endif
+
+    copy = XMALLOC(sizeof(WOLFSSL_SESSION), NULL, DYNAMIC_TYPE_OPENSSL);
+    if (copy != NULL) {
+        XMEMCPY(copy, session, sizeof(WOLFSSL_SESSION));
+        copy->isAlloced = 1;
+#ifdef HAVE_SESSION_TICKET
+        if (session->isDynamic) {
+            copy->ticket = XMALLOC(session->ticketLen, NULL,
+                                                    DYNAMIC_TYPE_SESSION_TICK);
+            XMEMCPY(copy->ticket, session->ticket, session->ticketLen);
+        } else {
+            copy->ticket = copy->staticTicket;
+        }
+#endif
+    }
+    return copy;
+#else
+    WOLFSSL_MSG("wolfSSL_SESSION_dup was called "
+                "but HAVE_EXT_CACHE is not defined");
+    (void)session;
+    return NULL;
+#endif /* HAVE_EXT_CACHE */
+}
+
 void wolfSSL_SESSION_free(WOLFSSL_SESSION* session)
 {
     if (session == NULL)
@@ -22070,24 +22151,30 @@ int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out)
     const unsigned char* der;
     int derSz = 0;
 
+    WOLFSSL_ENTER("wolfSSL_i2d_X509");
+
     if (x509 == NULL || out == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_i2d_X509", BAD_FUNC_ARG);
         return BAD_FUNC_ARG;
     }
 
     der = wolfSSL_X509_get_der(x509, &derSz);
     if (der == NULL) {
+        WOLFSSL_LEAVE("wolfSSL_i2d_X509", MEMORY_E);
         return MEMORY_E;
     }
 
     if (*out == NULL) {
         *out = (unsigned char*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_OPENSSL);
         if (*out == NULL) {
+            WOLFSSL_LEAVE("wolfSSL_i2d_X509", MEMORY_E);
             return MEMORY_E;
         }
     }
 
     XMEMCPY(*out, der, derSz);
 
+    WOLFSSL_LEAVE("wolfSSL_i2d_X509", derSz);
     return derSz;
 }
 
@@ -26489,19 +26576,19 @@ int wolfSSL_ASN1_GENERALIZEDTIME_print(WOLFSSL_BIO* bio,
     }
     p = (const char *)(asnTime->data);
     /* GetTimeString not always available. */
-    wolfSSL_BIO_write(bio, MonthStr(p + 2), 3);
+    wolfSSL_BIO_write(bio, MonthStr(p + 4), 3);
     wolfSSL_BIO_write(bio, " ", 1);
     /* Day */
-    wolfSSL_BIO_write(bio, p + 4, 2);
+    wolfSSL_BIO_write(bio, p + 6, 2);
     wolfSSL_BIO_write(bio, " ", 1);
     /* Hour */
-    wolfSSL_BIO_write(bio, p + 6, 2);
-    wolfSSL_BIO_write(bio, ":", 1);
-    /* Min */
     wolfSSL_BIO_write(bio, p + 8, 2);
     wolfSSL_BIO_write(bio, ":", 1);
-    /* Secs */
+    /* Min */
     wolfSSL_BIO_write(bio, p + 10, 2);
+    wolfSSL_BIO_write(bio, ":", 1);
+    /* Secs */
+    wolfSSL_BIO_write(bio, p + 12, 2);
     wolfSSL_BIO_write(bio, " ", 1);
     wolfSSL_BIO_write(bio, p, 4);
 
@@ -35101,6 +35188,9 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         }
 
         if ((l = wolfSSL_BIO_get_len(bp)) <= 0) {
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+            WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
+    #endif
             return NULL;
         }
 
@@ -38383,7 +38473,8 @@ int wolfSSL_get_state(const WOLFSSL* ssl)
 }
 #endif /* HAVE_LIGHTY || HAVE_STUNNEL || WOLFSSL_MYSQL_COMPATIBLE */
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
+    || defined(WOLFSSL_NGINX)
 
 #ifndef NO_WOLFSSL_STUB
 long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
@@ -38397,17 +38488,77 @@ long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
 long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
 {
-    WOLFSSL_STUB("SSL_CTX_ctrl");
+    long ret = WOLFSSL_SUCCESS;
+
+    WOLFSSL_ENTER("SSL_CTX_ctrl");
+
+    switch (cmd) {
+    case SSL_CTRL_CHAIN:
+#ifdef SESSION_CERTS
+    {
+        /*
+         * We don't care about opt here because a copy of the certificate is
+         * stored anyway so increasing the reference counter is not necessary.
+         * Just check to make sure that it is set to one of the correct values.
+         */
+        WOLF_STACK_OF(WOLFSSL_X509)* sk = (WOLF_STACK_OF(WOLFSSL_X509)*) pt;
+        WOLFSSL_X509* x509;
+        int i;
+        if (!ctx || (opt != 0 && opt != 1)) {
+            ret = WOLFSSL_FAILURE;
+            break;
+        }
+        /* Clear certificate chain */
+        FreeDer(&ctx->certChain);
+        if (sk) {
+            for (i = 0; i < wolfSSL_sk_X509_num(sk); i++) {
+                x509 = wolfSSL_sk_X509_value(sk, i);
+                /* Prevent wolfSSL_CTX_add_extra_chain_cert from freeing cert */
+                if (wolfSSL_X509_up_ref(x509) != 1) {
+                    WOLFSSL_MSG("Error increasing reference count");
+                    continue;
+                }
+                if (wolfSSL_CTX_add_extra_chain_cert(ctx, x509) !=
+                        WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("Error adding certificate to context");
+                    /* Decrease reference count on failure */
+                    wolfSSL_X509_free(x509);
+                }
+            }
+        }
+        /* Free previous chain */
+        wolfSSL_sk_X509_free(ctx->x509Chain);
+        ctx->x509Chain = sk;
+        if (sk) {
+            for (i = 0; i < wolfSSL_sk_X509_num(sk); i++) {
+                x509 = wolfSSL_sk_X509_value(sk, i);
+                /* On successful setting of new chain up all refs */
+                if (wolfSSL_X509_up_ref(x509) != 1) {
+                    WOLFSSL_MSG("Error increasing reference count");
+                    continue;
+                }
+            }
+        }
+    }
+#else
+        WOLFSSL_MSG("Session certificates not compiled in");
+        ret = WOLFSSL_FAILURE;
+#endif
+        break;
+    default:
+        ret = WOLFSSL_FAILURE;
+        break;
+    }
+
     (void)ctx;
     (void)cmd;
     (void)opt;
     (void)pt;
-    return WOLFSSL_FAILURE;
+    WOLFSSL_LEAVE("SSL_CTX_ctrl", (int)ret);
+    return ret;
 }
-#endif
 
 #ifndef NO_WOLFSSL_STUB
 long wolfSSL_CTX_clear_extra_chain_certs(WOLFSSL_CTX* ctx)
@@ -39427,7 +39578,7 @@ void wolfSSL_sk_X509_NAME_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
     wolfSSL_sk_X509_NAME_pop_free(sk, NULL);
 }
 
-#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL)
+#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
 /* Helper function for X509_NAME_print_ex. Sets *buf to string for domain
    name attribute based on NID. Returns size of buf */
 static int get_dn_attr_by_nid(int n, const char** buf)
@@ -39476,10 +39627,13 @@ static int get_dn_attr_by_nid(int n, const char** buf)
 }
 #endif
 
+/*
+ * The BIO output of  wolfSSL_X509_NAME_print_ex does NOT include the null terminator
+ */
 int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
                 int indent, unsigned long flags)
 {
-#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL)
+#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
     int count = 0, len = 0, totalSz = 0, tmpSz = 0;
     char tmp[ASN_NAME_MAX];
     char fullName[ASN_NAME_MAX];
@@ -39498,7 +39652,7 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
 
     /* If XN_FLAG_DN_REV is present, print X509_NAME in reverse order */
     if (flags == (XN_FLAG_RFC2253 & ~XN_FLAG_DN_REV)) {
-#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL)
+#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
         fullName[0] = '\0';
         count = wolfSSL_X509_NAME_entry_count(name);
         for (i = 0; i < count; i++) {
@@ -39514,33 +39668,35 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
             if (len == 0 || buf == NULL)
                 return WOLFSSL_FAILURE;
 
-            tmpSz = str->length + len + 2; /* + 2 for '=' and null char */
+            tmpSz = str->length + len + 2; /* + 2 for '=' and comma */
             if (tmpSz > ASN_NAME_MAX) {
                 WOLFSSL_MSG("Size greater than ASN_NAME_MAX");
                 return WOLFSSL_FAILURE;
             }
 
             if (i < count - 1) {
+                /* tmpSz+1 for last null char */
                 XSNPRINTF(tmp, tmpSz+1, "%s=%s,", buf, str->data);
                 XSTRNCAT(fullName, tmp, tmpSz);
             }
             else {
                 XSNPRINTF(tmp, tmpSz, "%s=%s", buf, str->data);
                 XSTRNCAT(fullName, tmp, tmpSz-1);
+                tmpSz--; /* Don't include null char in tmpSz */
             }
             totalSz += tmpSz;
         }
         if (wolfSSL_BIO_write(bio, fullName, totalSz) != totalSz)
             return WOLFSSL_FAILURE;
         return WOLFSSL_SUCCESS;
-#endif /* WOLFSSL_APACHE_HTTPD || OPENSSL_ALL */
+#endif /* WOLFSSL_APACHE_HTTPD || OPENSSL_ALL || WOLFSSL_NGINX */
     }
     else if (flags == XN_FLAG_RFC2253) {
         if (wolfSSL_BIO_write(bio, name->name + 1, name->sz - 2)
                                                                 != name->sz - 2)
             return WOLFSSL_FAILURE;
     }
-    else if (wolfSSL_BIO_write(bio, name->name, name->sz) != name->sz)
+    else if (wolfSSL_BIO_write(bio, name->name, name->sz - 1) != name->sz - 1)
         return WOLFSSL_FAILURE;
 
     return WOLFSSL_SUCCESS;

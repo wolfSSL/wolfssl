@@ -4351,6 +4351,9 @@ static void test_wolfSSL_X509_NAME_get_entry(void)
         ASN1_STRING* asn;
         int idx;
         ASN1_OBJECT *object = NULL;
+#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+        BIO* bio;
+#endif
 
     #ifndef NO_FILESYSTEM
         x509 = wolfSSL_X509_load_certificate_file(cliCertFile, WOLFSSL_FILETYPE_PEM);
@@ -4372,6 +4375,13 @@ static void test_wolfSSL_X509_NAME_get_entry(void)
         name = X509_get_subject_name(x509);
         idx = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
         AssertIntGE(idx, 0);
+
+#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+        AssertNotNull(bio = BIO_new(BIO_s_mem()));
+        AssertIntEQ(X509_NAME_print_ex(bio, name, 4,
+                        (XN_FLAG_RFC2253 & ~XN_FLAG_DN_REV)), WOLFSSL_SUCCESS);
+        BIO_free(bio);
+#endif
 
         ne = X509_NAME_get_entry(name, idx);
         AssertNotNull(ne);
@@ -4409,7 +4419,13 @@ static void test_wolfSSL_PKCS12(void)
     WOLFSSL_X509     *cert;
     WOLFSSL_X509     *x509;
     WOLFSSL_X509     *tmp;
-    STACK_OF(WOLFSSL_X509) *ca;
+    WOLFSSL_CTX      *ctx;
+    WOLF_STACK_OF(WOLFSSL_X509) *ca;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
+    || defined(WOLFSSL_NGINX)
+    WOLFSSL          *ssl;
+    WOLF_STACK_OF(WOLFSSL_X509) *tmp_ca = NULL;
+#endif
 
     printf(testingFmt, "wolfSSL_PKCS12()");
 
@@ -4450,6 +4466,28 @@ static void test_wolfSSL_PKCS12(void)
     AssertNotNull(cert);
     AssertNotNull(ca);
 
+    /* Check that SSL_CTX_set0_chain correctly sets the certChain buffer */
+#ifndef NO_WOLFSSL_CLIENT
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#else
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#endif
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
+    || defined(WOLFSSL_NGINX)
+    /* Copy stack structure */
+    AssertNotNull(tmp_ca = sk_X509_dup(ca));
+    AssertIntEQ(SSL_CTX_set0_chain(ctx, tmp_ca), 1);
+    /* CTX now owns the tmp_ca stack structure */
+    tmp_ca = NULL;
+    AssertIntEQ(wolfSSL_CTX_get_extra_chain_certs(ctx, &tmp_ca), 1);
+    AssertNotNull(tmp_ca);
+    AssertIntEQ(sk_X509_num(tmp_ca), sk_X509_num(ca));
+    /* Check that the main cert is also set */
+    AssertNotNull(ssl = SSL_new(ctx));
+    AssertNotNull(SSL_get_certificate(ssl));
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+#endif
 
     /* should be 2 other certs on stack */
     tmp = sk_X509_pop(ca);
@@ -23324,6 +23362,7 @@ static void test_wolfSSL_SESSION(void)
     WOLFSSL*     ssl;
     WOLFSSL_CTX* ctx;
     WOLFSSL_SESSION* sess;
+    WOLFSSL_SESSION* sess_copy;
     const unsigned char context[] = "user app context";
     unsigned char* sessDer = NULL;
     unsigned char* ptr     = NULL;
@@ -23396,6 +23435,9 @@ static void test_wolfSSL_SESSION(void)
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
+
+    AssertNotNull(sess_copy = wolfSSL_SESSION_dup(sess));
+    wolfSSL_SESSION_free(sess_copy);
 
     /* get session from DER and update the timeout */
     AssertIntEQ(wolfSSL_i2d_SSL_SESSION(NULL, &sessDer), BAD_FUNC_ARG);
