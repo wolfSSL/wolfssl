@@ -9042,10 +9042,14 @@ WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
         return BAD_FUNC_ARG;
 
     /* remove leading zeros */
-    while (snSzInt > 1 && sn[0] == 0) {
+    while (snSzInt > 0 && sn[0] == 0) {
         snSzInt--;
         sn++;
     }
+    /* RFC 5280 - 4.1.2.2:
+     *   Serial numbers must be a postive value (and not zero) */
+    if (snSzInt == 0)
+        return BAD_FUNC_ARG;
 
     if (sn[0] & 0x80)
         maxSnSz--;
@@ -9055,8 +9059,8 @@ WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
 
     i = SetASNInt(snSzInt, sn[0], NULL);
     /* truncate if input is too long */
-    if ((word32)snSzInt > outputSz - i)
-        snSzInt = outputSz - i;
+    if (snSzInt > (int)outputSz - i)
+        snSzInt = (int)outputSz - i;
     /* sanity check number of bytes to copy */
     if (snSzInt <= 0) {
         return BUFFER_E;
@@ -11920,7 +11924,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     /* serial number (must be positive) */
     if (cert->serialSz == 0) {
         /* generate random serial */
-        cert->serialSz = CTC_SERIAL_SIZE;
+        cert->serialSz = CTC_GEN_SERIAL_SZ;
         ret = wc_RNG_GenerateBlock(rng, cert->serial, cert->serialSz);
         if (ret != 0)
             return ret;
