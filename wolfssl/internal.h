@@ -3490,6 +3490,10 @@ struct WOLFSSL_X509_NAME {
 #endif
 };
 
+#ifndef EXTERNAL_SERIAL_SIZE
+    #define EXTERNAL_SERIAL_SIZE 32
+#endif
+
 #ifdef NO_ASN
     typedef struct DNS_entry DNS_entry;
 #endif
