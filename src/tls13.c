@@ -1776,8 +1776,15 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
 
             #ifdef HAVE_NULL_CIPHER
                 case wolfssl_cipher_null:
-                    ret = Tls13IntegrityOnly_Encrypt(ssl, output, input, dataSz,
-                        ssl->encrypt.nonce, aad, aadSz, output + dataSz);
+                    if (macSz <  ssl->specs.hash_size) {
+                        WOLFSSL_MSG("Buffer too small for null cipher hmac");
+                        ret = BUFFER_E;
+                    }
+                    else {
+                        ret = Tls13IntegrityOnly_Encrypt(ssl, output, input,
+                                dataSz, ssl->encrypt.nonce, aad, aadSz,
+                                output + dataSz);
+                    }
                     break;
             #endif
 
@@ -2068,8 +2075,15 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
 
             #ifdef HAVE_NULL_CIPHER
                 case wolfssl_cipher_null:
-                    ret = Tls13IntegrityOnly_Decrypt(ssl, output, input, dataSz,
-                        ssl->decrypt.nonce, aad, aadSz, input + dataSz);
+                    if (macSz <  ssl->specs.hash_size) {
+                        WOLFSSL_MSG("Buffer too small for null cipher hmac");
+                        ret = BUFFER_E;
+                    }
+                    else {
+                        ret = Tls13IntegrityOnly_Decrypt(ssl, output, input,
+                                dataSz, ssl->decrypt.nonce, aad, aadSz,
+                                input + dataSz);
+                    }
                     break;
             #endif
                 default:
