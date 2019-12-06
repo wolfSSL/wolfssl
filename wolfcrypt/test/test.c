@@ -8714,19 +8714,6 @@ static int random_rng_test(void)
 
     if (ret != 0) return ret;
 
-#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-    {
-        byte nonce[8] = { 0 };
-        /* Test dynamic RNG. */
-        rng = wc_rng_new(nonce, (word32)sizeof(nonce), HEAP_HINT);
-        if (rng == NULL) return -6310;
-
-        ret = _rng_test(rng, -6310);
-
-        wc_rng_free(rng);
-    }
-#endif
-
     return ret;
 }
 
