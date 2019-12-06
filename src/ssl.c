@@ -506,12 +506,13 @@ WOLFSSL* wolfSSL_new(WOLFSSL_CTX* ctx)
 
 
 WOLFSSL_ABI
-void wolfSSL_free(WOLFSSL* ssl)
+int wolfSSL_free(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("SSL_free");
     if (ssl)
         FreeSSL(ssl, ssl->ctx->heap);
     WOLFSSL_LEAVE("SSL_free", 0);
+    return SSL_SUCCESS;
 }
 
 

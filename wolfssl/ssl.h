@@ -847,7 +847,7 @@ WOLFSSL_API int  wolfSSL_read_early_data(WOLFSSL*, void*, int, int*);
 #endif
 #endif
 WOLFSSL_ABI WOLFSSL_API void wolfSSL_CTX_free(WOLFSSL_CTX*);
-WOLFSSL_ABI WOLFSSL_API void wolfSSL_free(WOLFSSL*);
+WOLFSSL_ABI WOLFSSL_API int wolfSSL_free(WOLFSSL*);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_shutdown(WOLFSSL*);
 WOLFSSL_API int  wolfSSL_send(WOLFSSL*, const void*, int sz, int flags);
 WOLFSSL_API int  wolfSSL_recv(WOLFSSL*, void*, int sz, int flags);
