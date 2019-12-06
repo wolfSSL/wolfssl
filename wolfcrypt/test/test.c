@@ -13522,6 +13522,7 @@ static int openssl_aes_test(void)
         EVP_CIPHER_CTX de;
         int outlen ;
         int total = 0;
+        int i;
 
         EVP_CIPHER_CTX_init(&en);
         if (EVP_CipherInit(&en, EVP_aes_128_cbc(),
@@ -13654,6 +13655,66 @@ static int openssl_aes_test(void)
 
         if (XMEMCMP(plain, cbcPlain, 18))
             return -7334;
+
+        /* test byte by byte decrypt */
+        for (i = 0; i < AES_BLOCK_SIZE * 3; i++) {
+            plain[i] = i;
+        }
+
+        total = 0;
+        EVP_CIPHER_CTX_init(&en);
+        if (EVP_CipherInit(&en, EVP_aes_128_cbc(),
+            (unsigned char*)key, (unsigned char*)iv, 1) == 0)
+            return -7335;
+        if (EVP_CipherUpdate(&en, (byte*)cipher, &outlen,
+                    (byte*)plain, AES_BLOCK_SIZE * 3) == 0)
+            return -7336;
+        if (outlen != AES_BLOCK_SIZE * 3)
+            return -7337;
+        total += outlen;
+
+        if (EVP_CipherFinal(&en, (byte*)&cipher[total], &outlen) == 0)
+            return -7338;
+        if (outlen != AES_BLOCK_SIZE)
+            return -7339;
+        total += outlen;
+        if (total != sizeof(plain))
+            return -7340;
+
+        total = 0;
+        EVP_CIPHER_CTX_init(&de);
+        if (EVP_CipherInit(&de, EVP_aes_128_cbc(),
+            (unsigned char*)key, (unsigned char*)iv, 0) == 0)
+            return -7341;
+
+        for (i = 0; i < AES_BLOCK_SIZE * 4; i++) {
+            if (EVP_CipherUpdate(&de, (byte*)plain + total, &outlen,
+                        (byte*)cipher + i, 1) == 0)
+                return -7342;
+
+            if (outlen > 0) {
+                int j;
+
+                total += outlen;
+                for (j = 0; j < total; j++) {
+                    if (plain[j] != j) {
+                        return -7343;
+                    }
+                }
+            }
+        }
+
+        if (EVP_CipherFinal(&de, (byte*)&plain[total], &outlen) == 0)
+            return -7344;
+        total += outlen;
+        if (total != AES_BLOCK_SIZE * 3) {
+            return -7345;
+        }
+        for (i = 0; i < AES_BLOCK_SIZE * 3; i++) {
+            if (plain[i] != i) {
+                return -7346;
+            }
+        }
     }
 
     /* set buffers to be exact size to catch potential over read/write */
