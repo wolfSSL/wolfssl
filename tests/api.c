@@ -16850,6 +16850,7 @@ static void test_wc_PKCS7_EncodeSignedData(void)
     !defined(NO_RSA) && !defined(NO_SHA256)
     /* test RSA sign raw digest callback, if using RSA and compiled in.
      * Example callback assumes SHA-256, so only run test if compiled in. */
+    wc_PKCS7_Free(pkcs7);
     AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
     AssertIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
 
