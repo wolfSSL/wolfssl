@@ -14306,7 +14306,11 @@ int openssl_test(void)
             return -7400;
         }
         XMEMSET(p, 0, 10);
-        CRYPTO_free(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        #ifdef WOLFSSL_QT
+            CRYPTO_free(p);
+        #else
+            CRYPTO_free(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
     }
 
 #ifndef NO_MD5

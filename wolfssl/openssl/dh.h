@@ -25,12 +25,18 @@
 #ifndef WOLFSSL_DH_H_
 #define WOLFSSL_DH_H_
 
-#include <wolfssl/openssl/ssl.h>
 #include <wolfssl/openssl/bn.h>
 
 #ifdef __cplusplus
     extern "C" {
 #endif
+
+#ifndef WOLFSSL_DH_TYPE_DEFINED /* guard on redeclaration */
+typedef struct WOLFSSL_DH            WOLFSSL_DH;
+#define WOLFSSL_DH_TYPE_DEFINED
+#endif
+
+typedef WOLFSSL_DH                   DH;
 
 struct WOLFSSL_DH {
     WOLFSSL_BIGNUM* p;
@@ -47,14 +53,19 @@ struct WOLFSSL_DH {
      int length;
 };
 
-
+WOLFSSL_API WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh,
+                                         const unsigned char **pp, long length);
+WOLFSSL_API int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out);
 WOLFSSL_API WOLFSSL_DH* wolfSSL_DH_new(void);
 WOLFSSL_API void       wolfSSL_DH_free(WOLFSSL_DH*);
 
+WOLFSSL_API int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes);
 WOLFSSL_API int wolfSSL_DH_size(WOLFSSL_DH*);
 WOLFSSL_API int wolfSSL_DH_generate_key(WOLFSSL_DH*);
 WOLFSSL_API int wolfSSL_DH_compute_key(unsigned char* key, WOLFSSL_BIGNUM* pub,
                                      WOLFSSL_DH*);
+WOLFSSL_API int SetDhExternal(WOLFSSL_DH *dh);
+WOLFSSL_API int wolfSSL_DH_LoadDer(WOLFSSL_DH*, const unsigned char*, int sz);
 WOLFSSL_API int wolfSSL_DH_set0_pqg(WOLFSSL_DH*, WOLFSSL_BIGNUM*,
     WOLFSSL_BIGNUM*, WOLFSSL_BIGNUM*);
 
@@ -63,6 +74,10 @@ typedef WOLFSSL_DH DH;
 #define DH_new  wolfSSL_DH_new
 #define DH_free wolfSSL_DH_free
 
+#define d2i_DHparams    wolfSSL_d2i_DHparams
+#define i2d_DHparams    wolfSSL_i2d_DHparams
+#define DH_check        wolfSSL_DH_check
+
 #define DH_size         wolfSSL_DH_size
 #define DH_generate_key wolfSSL_DH_generate_key
 #define DH_compute_key  wolfSSL_DH_compute_key
@@ -70,6 +85,16 @@ typedef WOLFSSL_DH DH;
 #define DH_set0_pqg     wolfSSL_DH_set0_pqg
 #endif
 #define DH_bits(x)      (BN_num_bits(x->p))
+
+#define DH_GENERATOR_2                  2
+#define DH_CHECK_P_NOT_PRIME            0x01
+#define DH_CHECK_P_NOT_SAFE_PRIME       0x02
+#define DH_NOT_SUITABLE_GENERATOR       0x08
+
+/* Temporary values for wolfSSL_DH_Check*/
+#define DH_CHECK_INVALID_Q_VALUE        0x10
+#define DH_CHECK_Q_NOT_PRIME            0x11
+/* end temp */
 
 /* for pre 1.1.0 */
 #define get_rfc2409_prime_768      wolfSSL_DH_768_prime

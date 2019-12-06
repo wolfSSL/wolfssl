@@ -414,13 +414,16 @@ MP_API void fp_clear(fp_int *a); /* uses ForceZero to clear sensitive memory */
 MP_API void fp_forcezero (fp_int * a);
 MP_API void fp_free(fp_int* a);
 
-/* zero/even/odd ? */
+/* zero/one/even/odd/neg/word ? */
 #define fp_iszero(a) (((a)->used == 0) ? FP_YES : FP_NO)
 #define fp_isone(a) \
     ((((a)->used == 1) && ((a)->dp[0] == 1)) ? FP_YES : FP_NO)
 #define fp_iseven(a) (((a)->used > 0 && (((a)->dp[0] & 1) == 0)) ? FP_YES : FP_NO)
 #define fp_isodd(a)  (((a)->used > 0  && (((a)->dp[0] & 1) == 1)) ? FP_YES : FP_NO)
 #define fp_isneg(a)  (((a)->sign != 0) ? FP_YES : FP_NO)
+#define fp_isword(a, w) \
+    ((((a)->used == 1) && ((a)->dp[0] == w)) || ((w == 0) && ((a)->used == 0)) \
+                                                               ? FP_YES : FP_NO)
 
 /* set to a small digit */
 void fp_set(fp_int *a, fp_digit b);
@@ -700,10 +703,11 @@ int  fp_sqr_comba64(fp_int *a, fp_int *b);
 #define MP_MASK FP_MASK
 
 /* Prototypes */
-#define mp_zero(a)   fp_zero(a)
-#define mp_isone(a)  fp_isone(a)
-#define mp_iseven(a) fp_iseven(a)
-#define mp_isneg(a)  fp_isneg(a)
+#define mp_zero(a)      fp_zero(a)
+#define mp_isone(a)     fp_isone(a)
+#define mp_iseven(a)    fp_iseven(a)
+#define mp_isneg(a)     fp_isneg(a)
+#define mp_isword(a, w) fp_isword(a, w)
 
 #define MP_RADIX_BIN  2
 #define MP_RADIX_OCT  8

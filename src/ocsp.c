@@ -989,11 +989,21 @@ int wolfSSL_OCSP_id_get0_info(WOLFSSL_ASN1_STRING **name,
             }
             ser->dataMax = cid->serialSz + 2;
             ser->isDynamic = 1;
+        } else {
+            /* Use array instead of dynamic memory */
+            ser->data    = ser->intData;
+            ser->dataMax = WOLFSSL_ASN1_INTEGER_MAX;
         }
 
-        ser->data[i++] = ASN_INTEGER;
-        i += SetLength(cid->serialSz, ser->data + i);
-        XMEMCPY(&ser->data[i], cid->serial, cid->serialSz);
+        #ifdef WOLFSSL_QT
+            /* Serial number starts at 0 index of ser->data */
+            XMEMCPY(&ser->data[i], cid->serial, cid->serialSz);
+            ser->length = cid->serialSz;
+        #else
+            ser->data[i++] = ASN_INTEGER;
+            i += SetLength(cid->serialSz, ser->data + i);
+            XMEMCPY(&ser->data[i], cid->serial, cid->serialSz);
+        #endif
 
         cid->serialInt = ser;
         *serial = cid->serialInt;

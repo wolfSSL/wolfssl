@@ -64,6 +64,7 @@ EXTRA_DIST += \
 	     certs/dh2048.der \
 	     certs/dh3072.der \
 	     certs/rsa2048.der \
+         certs/rsa-pub-2048.pem \
 	     certs/rsa3072.der \
 	     certs/dsa2048.der \
 	     certs/dsa3072.der \

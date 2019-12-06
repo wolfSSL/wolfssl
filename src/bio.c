@@ -78,6 +78,7 @@ static int wolfSSL_BIO_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
 static int wolfSSL_BIO_MEMORY_read(WOLFSSL_BIO* bio, void* buf, int len)
 {
     int   sz;
+    WOLFSSL_ENTER("wolfSSL_BIO_MEMORY_read");
 
     sz = wolfSSL_BIO_pending(bio);
     if (sz > 0) {
@@ -576,6 +577,7 @@ long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bio, int cmd, long larg, void *parg)
     }
 
     switch(cmd) {
+        case BIO_CTRL_PENDING:
         case BIO_CTRL_WPENDING:
             ret = (long)wolfSSL_BIO_ctrl_pending(bio);
             break;
@@ -876,7 +878,6 @@ size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
             return pair->wrIdx - pair->rdIdx;
         }
     }
-
     return 0;
 }
 
