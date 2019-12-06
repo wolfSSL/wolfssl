@@ -1145,23 +1145,28 @@ int mp_invmod_slow (mp_int * a, mp_int * b, mp_int * c)
   /* init temps */
   if ((res = mp_init_multi(&x, &y, &u, &v,
                            &A, &B)) != MP_OKAY) {
-     return res;
+    return res;
   }
 
   /* init rest of tmps temps */
   if ((res = mp_init_multi(&C, &D, 0, 0, 0, 0)) != MP_OKAY) {
-     mp_clear(&x);
-     mp_clear(&y);
-     mp_clear(&u);
-     mp_clear(&v);
-     mp_clear(&A);
-     mp_clear(&B);
-     return res;
+    mp_clear(&x);
+    mp_clear(&y);
+    mp_clear(&u);
+    mp_clear(&v);
+    mp_clear(&A);
+    mp_clear(&B);
+    return res;
   }
 
   /* x = a, y = b */
   if ((res = mp_mod(a, b, &x)) != MP_OKAY) {
-      goto LBL_ERR;
+    goto LBL_ERR;
+  }
+  if (mp_isone(&x)) {
+    mp_set(c, 1);
+    res = MP_OKAY;
+    goto LBL_ERR;
   }
   if ((res = mp_copy (b, &y)) != MP_OKAY) {
     goto LBL_ERR;
@@ -1198,10 +1203,10 @@ top:
     if (mp_isodd (&A) == MP_YES || mp_isodd (&B) == MP_YES) {
       /* A = (A+y)/2, B = (B-x)/2 */
       if ((res = mp_add (&A, &y, &A)) != MP_OKAY) {
-         goto LBL_ERR;
+        goto LBL_ERR;
       }
       if ((res = mp_sub (&B, &x, &B)) != MP_OKAY) {
-         goto LBL_ERR;
+        goto LBL_ERR;
       }
     }
     /* A = A/2, B = B/2 */
@@ -1223,10 +1228,10 @@ top:
     if (mp_isodd (&C) == MP_YES || mp_isodd (&D) == MP_YES) {
       /* C = (C+y)/2, D = (D-x)/2 */
       if ((res = mp_add (&C, &y, &C)) != MP_OKAY) {
-         goto LBL_ERR;
+        goto LBL_ERR;
       }
       if ((res = mp_sub (&D, &x, &D)) != MP_OKAY) {
-         goto LBL_ERR;
+        goto LBL_ERR;
       }
     }
     /* C = C/2, D = D/2 */

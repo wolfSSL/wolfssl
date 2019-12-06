@@ -897,6 +897,9 @@ static int fp_invmod_slow (fp_int * a, fp_int * b, fp_int * c)
   if (b->sign == FP_NEG || fp_iszero(b) == FP_YES) {
     return FP_VAL;
   }
+  if (fp_iszero(a) == FP_YES) {
+    return FP_VAL;
+  }
 
 #ifdef WOLFSSL_SMALL_STACK
   x = (fp_int*)XMALLOC(sizeof(fp_int) * 8, NULL, DYNAMIC_TYPE_BIGINT);
@@ -922,7 +925,7 @@ static int fp_invmod_slow (fp_int * a, fp_int * b, fp_int * c)
   fp_copy(b, y);
 
   /* 2. [modified] if x,y are both even then return an error! */
-  if (fp_iseven (x) == FP_YES && fp_iseven (y) == FP_YES) {
+  if (fp_iseven(x) == FP_YES && fp_iseven(y) == FP_YES) {
   #ifdef WOLFSSL_SMALL_STACK
     XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
   #endif
@@ -1022,6 +1025,11 @@ int fp_invmod(fp_int *a, fp_int *b, fp_int *c)
   fp_int  *x, *y, *u, *v, *B, *D;
 #endif
   int     neg;
+  int     err;
+
+  if (b->sign == FP_NEG || fp_iszero(b) == FP_YES) {
+    return FP_VAL;
+  }
 
   /* [modified] sanity check on "a" */
   if (fp_iszero(a) == FP_YES) {
@@ -1029,7 +1037,7 @@ int fp_invmod(fp_int *a, fp_int *b, fp_int *c)
   }
 
   /* 2. [modified] b must be odd   */
-  if (fp_iseven (b) == FP_YES) {
+  if (fp_iseven(b) == FP_YES) {
     return fp_invmod_slow(a,b,c);
   }
 
@@ -1045,6 +1053,24 @@ int fp_invmod(fp_int *a, fp_int *b, fp_int *c)
   fp_init(x);  fp_init(y);
   fp_init(u);  fp_init(v);
   fp_init(B);  fp_init(D);
+
+  if (fp_cmp(a, b) != MP_LT) {
+    err = mp_mod(a, b, y);
+    if (err != FP_OKAY) {
+    #ifdef WOLFSSL_SMALL_STACK
+      XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
+    #endif
+      return err;
+    }
+    a = y;
+  }
+
+  if (fp_iszero(a) == FP_YES) {
+  #ifdef WOLFSSL_SMALL_STACK
+    XFREE(x, NULL, DYNAMIC_TYPE_BIGINT);
+  #endif
+    return FP_VAL;
+  }
 
   /* x == modulus, y == value to invert */
   fp_copy(b, x);
