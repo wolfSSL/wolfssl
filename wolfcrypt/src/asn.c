@@ -4699,18 +4699,23 @@ static int GetCertHeader(DecodedCert* cert)
     if (GetSequence(cert->source, &cert->srcIdx, &len, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
+    /* Reset the max index for the size indicated in the outer wrapper. */
+    cert->maxIdx = len + cert->srcIdx;
     cert->certBegin = cert->srcIdx;
 
     if (GetSequence(cert->source, &cert->srcIdx, &len, cert->maxIdx) < 0)
         return ASN_PARSE_E;
+
     cert->sigIndex = len + cert->srcIdx;
+    if (cert->sigIndex > cert->maxIdx)
+        return ASN_PARSE_E;
 
     if (GetExplicitVersion(cert->source, &cert->srcIdx, &cert->version,
-                                                              cert->maxIdx) < 0)
+                                                            cert->sigIndex) < 0)
         return ASN_PARSE_E;
 
     if (GetSerialNumber(cert->source, &cert->srcIdx, cert->serial,
-                                        &cert->serialSz, cert->maxIdx) < 0)
+                                           &cert->serialSz, cert->sigIndex) < 0)
         return ASN_PARSE_E;
 
     return ret;
@@ -5016,7 +5021,7 @@ int CalcHashId(const byte* data, word32 len, byte* hash)
 }
 
 /* process NAME, either issuer or subject */
-static int GetName(DecodedCert* cert, int nameType)
+static int GetName(DecodedCert* cert, int nameType, int maxIdx)
 {
     int    length;  /* length of all distinguished names */
     int    dummy;
@@ -5045,19 +5050,19 @@ static int GetName(DecodedCert* cert, int nameType)
         hash = cert->subjectHash;
     }
 
-    if (cert->srcIdx >= cert->maxIdx) {
+    if (cert->srcIdx >= (word32)maxIdx) {
         return BUFFER_E;
     }
 
     localIdx = cert->srcIdx;
-    if (GetASNTag(cert->source, &localIdx, &tag, cert->maxIdx) < 0) {
+    if (GetASNTag(cert->source, &localIdx, &tag, maxIdx) < 0) {
         return ASN_PARSE_E;
     }
 
     if (tag == ASN_OBJECT_ID) {
         WOLFSSL_MSG("Trying optional prefix...");
 
-        if (SkipObjectId(cert->source, &cert->srcIdx, cert->maxIdx) < 0)
+        if (SkipObjectId(cert->source, &cert->srcIdx, maxIdx) < 0)
             return ASN_PARSE_E;
         WOLFSSL_MSG("Got optional prefix");
     }
@@ -5066,7 +5071,7 @@ static int GetName(DecodedCert* cert, int nameType)
      * calculated over the entire DER encoding of the Name field, including
      * the tag and length. */
     idx = cert->srcIdx;
-    if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
+    if (GetSequence(cert->source, &cert->srcIdx, &length, maxIdx) < 0)
         return ASN_PARSE_E;
 
     ret = CalcHashId(&cert->source[idx], length + cert->srcIdx - idx, hash);
@@ -5100,19 +5105,19 @@ static int GetName(DecodedCert* cert, int nameType)
         int         strLen  = 0;
         byte        id      = 0;
 
-        if (GetSet(cert->source, &cert->srcIdx, &dummy, cert->maxIdx) < 0) {
+        if (GetSet(cert->source, &cert->srcIdx, &dummy, maxIdx) < 0) {
             WOLFSSL_MSG("Cert name lacks set header, trying sequence");
         }
 
-        if (GetSequence(cert->source, &cert->srcIdx, &dummy, cert->maxIdx) <= 0)
+        if (GetSequence(cert->source, &cert->srcIdx, &dummy, maxIdx) <= 0)
             return ASN_PARSE_E;
 
-        ret = GetASNObjectId(cert->source, &cert->srcIdx, &oidSz, cert->maxIdx);
+        ret = GetASNObjectId(cert->source, &cert->srcIdx, &oidSz, maxIdx);
         if (ret != 0)
             return ret;
 
         /* make sure there is room for joint */
-        if ((cert->srcIdx + sizeof(joint)) > cert->maxIdx)
+        if ((cert->srcIdx + sizeof(joint)) > (word32)maxIdx)
             return ASN_PARSE_E;
 
         XMEMCPY(joint, &cert->source[cert->srcIdx], sizeof(joint));
@@ -5122,7 +5127,7 @@ static int GetName(DecodedCert* cert, int nameType)
             cert->srcIdx += 3;
             id = joint[2];
             if (GetHeader(cert->source, &b, &cert->srcIdx, &strLen,
-                          cert->maxIdx, 1) < 0) {
+                          maxIdx, 1) < 0) {
                 return ASN_PARSE_E;
             }
 
@@ -5276,7 +5281,7 @@ static int GetName(DecodedCert* cert, int nameType)
             b = cert->source[cert->srcIdx++]; /* encoding */
 
             if (GetLength(cert->source, &cert->srcIdx, &strLen,
-                          cert->maxIdx) < 0)
+                          maxIdx) < 0)
                 return ASN_PARSE_E;
 
             /* Check for jurisdiction of incorporation country name */
@@ -5338,7 +5343,7 @@ static int GetName(DecodedCert* cert, int nameType)
             cert->srcIdx += oidSz + 1;
 
             if (GetLength(cert->source, &cert->srcIdx, &strLen,
-                                                              cert->maxIdx) < 0)
+                                                              maxIdx) < 0)
                 return ASN_PARSE_E;
 
             if (strLen > (int)(ASN_NAME_MAX - idx)) {
@@ -5956,7 +5961,7 @@ static int GetDateInfo(const byte* source, word32* idx, const byte** pDate,
     return 0;
 }
 
-static int GetDate(DecodedCert* cert, int dateType, int verify)
+static int GetDate(DecodedCert* cert, int dateType, int verify, int maxIdx)
 {
     int    ret, length;
     const byte *datePtr = NULL;
@@ -5971,7 +5976,7 @@ static int GetDate(DecodedCert* cert, int dateType, int verify)
     startIdx = cert->srcIdx;
 
     ret = GetDateInfo(cert->source, &cert->srcIdx, &datePtr, &format,
-                      &length, cert->maxIdx);
+                      &length, maxIdx);
     if (ret < 0)
         return ret;
 
@@ -5998,18 +6003,20 @@ static int GetDate(DecodedCert* cert, int dateType, int verify)
     return 0;
 }
 
-static int GetValidity(DecodedCert* cert, int verify)
+static int GetValidity(DecodedCert* cert, int verify, int maxIdx)
 {
     int length;
     int badDate = 0;
 
-    if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
+    if (GetSequence(cert->source, &cert->srcIdx, &length, maxIdx) < 0)
         return ASN_PARSE_E;
 
-    if (GetDate(cert, BEFORE, verify) < 0)
+    maxIdx = cert->srcIdx + length;
+
+    if (GetDate(cert, BEFORE, verify, maxIdx) < 0)
         badDate = ASN_BEFORE_DATE_E; /* continue parsing */
 
-    if (GetDate(cert, AFTER, verify) < 0)
+    if (GetDate(cert, AFTER, verify, maxIdx) < 0)
         return ASN_AFTER_DATE_E;
 
     if (badDate != 0)
@@ -6091,19 +6098,21 @@ int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate)
 
     WOLFSSL_MSG("Got Cert Header");
 
+    /* Using the sigIndex as the upper bound because that's where the
+     * actual certificate data ends. */
     if ( (ret = GetAlgoId(cert->source, &cert->srcIdx, &cert->signatureOID,
-                          oidSigType, cert->maxIdx)) < 0)
+                          oidSigType, cert->sigIndex)) < 0)
         return ret;
 
     WOLFSSL_MSG("Got Algo ID");
 
-    if ( (ret = GetName(cert, ISSUER)) < 0)
+    if ( (ret = GetName(cert, ISSUER, cert->sigIndex)) < 0)
         return ret;
 
-    if ( (ret = GetValidity(cert, verify)) < 0)
+    if ( (ret = GetValidity(cert, verify, cert->sigIndex)) < 0)
         *badDate = ret;
 
-    if ( (ret = GetName(cert, SUBJECT)) < 0)
+    if ( (ret = GetName(cert, SUBJECT, cert->sigIndex)) < 0)
         return ret;
 
     WOLFSSL_MSG("Got Subject Name");
@@ -7764,88 +7773,49 @@ static int DecodeNameConstraints(const byte* input, int sz, DecodedCert* cert)
 
 #if (defined(WOLFSSL_CERT_EXT) && !defined(WOLFSSL_SEP)) || defined(OPENSSL_EXTRA)
 
-static int Word32ToString(char* d, word32 number)
-{
-    int i = 0;
-
-    if (d != NULL) {
-        word32 order = 1000000000;
-        word32 digit;
-
-        if (number == 0) {
-            d[i++] = '0';
-        }
-        else {
-            while (order) {
-                digit = number / order;
-                if (i > 0 || digit != 0) {
-                    d[i++] = (char)digit + '0';
-                }
-                if (digit != 0)
-                    number %= digit * order;
-                if (order > 1)
-                    order /= 10;
-                else
-                    order = 0;
-            }
-        }
-        d[i] = 0;
-    }
-
-    return i;
-}
-
-
 /* Decode ITU-T X.690 OID format to a string representation
  * return string length */
 int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
 {
-    word32 val, idx = 0, nb_bytes;
-    size_t w_bytes = 0;
+    word32 val, inIdx = 0, outIdx = 0;
+    int w = 0;
 
     if (out == NULL || in == NULL || outSz < 4 || inSz < 2)
         return BAD_FUNC_ARG;
 
-    /* first two byte must be interpreted as : 40 * int1 + int2 */
-    val = (word16)in[idx++];
+    /* The first byte expands into b/40 dot b%40. */
+    val = in[inIdx++];
 
-    w_bytes = Word32ToString(out, val / 40);
-    out[w_bytes++] = '.';
-    w_bytes += Word32ToString(out+w_bytes, val % 40);
+    w = XSNPRINTF(out, outSz, "%u.%u", val / 40, val % 40);
+    if (w < 0)
+        goto exit;
+    outIdx += w;
+    val = 0;
 
-    while (idx < inSz) {
-        /* init value */
-        val = 0;
-        nb_bytes = 0;
-
-        /* check that output size is ok */
-        if (w_bytes > (outSz - 3))
-            return BUFFER_E;
-
+    do {
+        /* extract the next OID digit from in to val */
         /* first bit is used to set if value is coded on 1 or multiple bytes */
-        while ((in[idx+nb_bytes] & 0x80))
-            nb_bytes++;
-
-        if (!nb_bytes)
-            val = (word32)(in[idx++] & 0x7f);
-        else {
-            word32 base = 1, tmp = nb_bytes;
-
-            while (tmp != 0) {
-                val += (word32)(in[idx+tmp] & 0x7f) * base;
-                base *= 128;
-                tmp--;
-            }
-            val += (word32)(in[idx++] & 0x7f) * base;
-
-            idx += nb_bytes;
+        if (in[inIdx] & 0x80) {
+            val += in[inIdx] & 0x7F;
+            val *= 128;
         }
+        else {
+            /* write val as text into out */
+            val += in[inIdx];
+            w = XSNPRINTF(out + outIdx, outSz - outIdx, ".%u", val);
+            if (w < 0)
+                goto exit;
+            outIdx += w;
+            val = 0;
+        }
+        inIdx++;
+    } while (inIdx < inSz);
+    out[outIdx] = 0;
 
-        out[w_bytes++] = '.';
-        w_bytes += Word32ToString(out+w_bytes, val);
-    }
+    w = (int)outIdx;
 
-    return (int)w_bytes;
+exit:
+    return w;
 }
 #endif /* WOLFSSL_CERT_EXT && !WOLFSSL_SEP */
 
@@ -11592,87 +11562,6 @@ static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
     return idx;
 }
 
-/* Encode OID string representation to ITU-T X.690 format */
-int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
-{
-    word32 val, idx = 0, nb_val;
-    char *token, *str, *ptr;
-    word32 len;
-
-    (void)heap;
-
-    if (out == NULL || outSz == NULL || *outSz < 2 || in == NULL)
-        return BAD_FUNC_ARG;
-
-    /* duplicate string (including terminator) */
-    len = (word32)XSTRLEN(in);
-    str = (char *)XMALLOC(len+1, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (str == NULL)
-        return MEMORY_E;
-    XMEMCPY(str, in, len+1);
-
-    nb_val = 0;
-
-    /* parse value, and set corresponding Policy OID value */
-    token = XSTRTOK(str, ".", &ptr);
-    while (token != NULL)
-    {
-        val = (word32)XATOI(token);
-
-        if (nb_val == 0) {
-            if (val > 2) {
-                XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
-                return ASN_OBJECT_ID_E;
-            }
-
-            out[idx] = (byte)(40 * val);
-        }
-        else if (nb_val == 1) {
-            if (val > 127) {
-                XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
-                return ASN_OBJECT_ID_E;
-            }
-
-            if (idx > *outSz) {
-                XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
-                return BUFFER_E;
-            }
-
-            out[idx++] += (byte)val;
-        }
-        else {
-            word32  tb = 0, x;
-            int     i = 0;
-            byte    oid[MAX_OID_SZ];
-
-            while (val >= 128) {
-                x = val % 128;
-                val /= 128;
-                oid[i++] = (byte) (((tb++) ? 0x80 : 0) | x);
-            }
-
-            if ((idx+(word32)i) > *outSz) {
-                XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
-                return BUFFER_E;
-            }
-
-            oid[i] = (byte) (((tb++) ? 0x80 : 0) | val);
-
-            /* push value in the right order */
-            while (i >= 0)
-                out[idx++] = oid[i--];
-        }
-
-        token = XSTRTOK(NULL, ".", &ptr);
-        nb_val++;
-    }
-
-    *outSz = idx;
-
-    XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    return 0;
-}
-
 /* encode Certificate Policies, return total bytes written
  * each input value must be ITU-T X.690 formatted : a.b.c...
  * input must be an array of values with a NULL terminated for the latest
@@ -14094,6 +13983,90 @@ int wc_SetDatesBuffer(Cert* cert, const byte* der, int derSz)
 
 #endif /* WOLFSSL_CERT_GEN */
 
+#if (defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)) \
+        || defined(OPENSSL_EXTRA)
+/* Encode OID string representation to ITU-T X.690 format */
+int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
+{
+    word32 val, idx = 0, nb_val;
+    char *token, *str, *ptr;
+    word32 len;
+
+    (void)heap;
+
+    if (out == NULL || outSz == NULL || *outSz < 2 || in == NULL)
+        return BAD_FUNC_ARG;
+
+    /* duplicate string (including terminator) */
+    len = (word32)XSTRLEN(in);
+    str = (char *)XMALLOC(len+1, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (str == NULL)
+        return MEMORY_E;
+    XMEMCPY(str, in, len+1);
+
+    nb_val = 0;
+
+    /* parse value, and set corresponding Policy OID value */
+    token = XSTRTOK(str, ".", &ptr);
+    while (token != NULL)
+    {
+        val = (word32)XATOI(token);
+
+        if (nb_val == 0) {
+            if (val > 2) {
+                XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
+                return ASN_OBJECT_ID_E;
+            }
+
+            out[idx] = (byte)(40 * val);
+        }
+        else if (nb_val == 1) {
+            if (val > 127) {
+                XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
+                return ASN_OBJECT_ID_E;
+            }
+
+            if (idx > *outSz) {
+                XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
+                return BUFFER_E;
+            }
+
+            out[idx++] += (byte)val;
+        }
+        else {
+            word32  tb = 0, x;
+            int     i = 0;
+            byte    oid[MAX_OID_SZ];
+
+            while (val >= 128) {
+                x = val % 128;
+                val /= 128;
+                oid[i++] = (byte) (((tb++) ? 0x80 : 0) | x);
+            }
+
+            if ((idx+(word32)i) > *outSz) {
+                XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
+                return BUFFER_E;
+            }
+
+            oid[i] = (byte) (((tb++) ? 0x80 : 0) | val);
+
+            /* push value in the right order */
+            while (i >= 0)
+                out[idx++] = oid[i--];
+        }
+
+        token = XSTRTOK(NULL, ".", &ptr);
+        nb_val++;
+    }
+
+    *outSz = idx;
+
+    XFREE(str, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    return 0;
+}
+#endif /* WOLFSSL_CERT_EXT || OPENSSL_EXTRA */
+
 #endif /* !NO_CERTS */
 
 #ifdef HAVE_ECC
@@ -15934,52 +15907,39 @@ int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
     return 0;
 }
 
-/* prase crl buffer into decoded state, 0 on success */
-int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
+
+static int ParseCRL_CertList(DecodedCRL* dcrl, const byte* buf,
+        word32* inOutIdx, int sz)
 {
-    int          version, len, doNextDate = 1;
-    word32       oid, idx = 0, dateIdx, localIdx;
-    Signer*      ca = NULL;
-    SignatureCtx sigCtx;
-    byte         tag;
+    word32 oid, dateIdx, idx, checkIdx;
+    int version, doNextDate = 1;
+    byte tag;
 
-    WOLFSSL_MSG("ParseCRL");
-
-    /* raw crl hash */
-    /* hash here if needed for optimized comparisons
-     * wc_Sha sha;
-     * wc_InitSha(&sha);
-     * wc_ShaUpdate(&sha, buff, sz);
-     * wc_ShaFinal(&sha, dcrl->crlHash); */
-
-    if (GetSequence(buff, &idx, &len, sz) < 0)
-        return ASN_PARSE_E;
-
-    dcrl->certBegin = idx;
-
-    if (GetSequence(buff, &idx, &len, sz) < 0)
-        return ASN_PARSE_E;
-    dcrl->sigIndex = len + idx;
+    if (dcrl == NULL || inOutIdx == NULL || buf == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     /* may have version */
-    localIdx = idx;
-    if (GetASNTag(buff, &localIdx, &tag, sz) == 0 && tag == ASN_INTEGER) {
-        if (GetMyVersion(buff, &idx, &version, sz) < 0)
+    idx = *inOutIdx;
+
+    checkIdx = idx;
+    if (GetASNTag(buf, &checkIdx, &tag, sz) == 0 && tag == ASN_INTEGER) {
+        if (GetMyVersion(buf, &idx, &version, sz) < 0)
             return ASN_PARSE_E;
     }
 
-    if (GetAlgoId(buff, &idx, &oid, oidIgnoreType, sz) < 0)
+    if (GetAlgoId(buf, &idx, &oid, oidIgnoreType, sz) < 0)
         return ASN_PARSE_E;
 
-    if (GetNameHash(buff, &idx, dcrl->issuerHash, sz) < 0)
+    if (GetNameHash(buf, &idx, dcrl->issuerHash, sz) < 0)
         return ASN_PARSE_E;
 
-    if (GetBasicDate(buff, &idx, dcrl->lastDate, &dcrl->lastDateFormat, sz) < 0)
+    if (GetBasicDate(buf, &idx, dcrl->lastDate, &dcrl->lastDateFormat, sz) < 0)
         return ASN_PARSE_E;
 
     dateIdx = idx;
 
-    if (GetBasicDate(buff, &idx, dcrl->nextDate, &dcrl->nextDateFormat, sz) < 0)
+    if (GetBasicDate(buf, &idx, dcrl->nextDate, &dcrl->nextDateFormat, sz) < 0)
     {
 #ifndef WOLFSSL_NO_CRL_NEXT_DATE
         (void)dateIdx;
@@ -16000,22 +15960,60 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 #endif
     }
 
-    localIdx = idx;
+    checkIdx = idx;
     if (idx != dcrl->sigIndex &&
-           GetASNTag(buff, &localIdx, &tag, sz) == 0 && tag != CRL_EXTENSIONS) {
-        if (GetSequence(buff, &idx, &len, sz) < 0)
-            return ASN_PARSE_E;
+           GetASNTag(buf, &checkIdx, &tag, sz) == 0 && tag != CRL_EXTENSIONS) {
 
+        int len;
+
+        if (GetSequence(buf, &idx, &len, sz) < 0)
+            return ASN_PARSE_E;
         len += idx;
 
         while (idx < (word32)len) {
-            if (GetRevoked(buff, &idx, dcrl, sz) < 0)
+            if (GetRevoked(buf, &idx, dcrl, len) < 0)
                 return ASN_PARSE_E;
         }
     }
 
-    if (idx != dcrl->sigIndex)
-        idx = dcrl->sigIndex;   /* skip extensions */
+    *inOutIdx = idx;
+
+    return 0;
+}
+
+
+/* prase crl buffer into decoded state, 0 on success */
+int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
+{
+    int          len;
+    word32       idx = 0;
+    Signer*      ca = NULL;
+    SignatureCtx sigCtx;
+
+    WOLFSSL_MSG("ParseCRL");
+
+    /* raw crl hash */
+    /* hash here if needed for optimized comparisons
+     * wc_Sha sha;
+     * wc_InitSha(&sha);
+     * wc_ShaUpdate(&sha, buff, sz);
+     * wc_ShaFinal(&sha, dcrl->crlHash); */
+
+    if (GetSequence(buff, &idx, &len, sz) < 0)
+        return ASN_PARSE_E;
+
+    dcrl->certBegin = idx;
+    /* Normalize sz for the length inside the outer sequence. */
+    sz = len + idx;
+
+    if (GetSequence(buff, &idx, &len, sz) < 0)
+        return ASN_PARSE_E;
+    dcrl->sigIndex = len + idx;
+
+    if (ParseCRL_CertList(dcrl, buff, &idx, idx + len) < 0)
+        return ASN_PARSE_E;
+
+    idx = dcrl->sigIndex;
 
     if (GetAlgoId(buff, &idx, &dcrl->signatureOID, oidSigType, sz) < 0)
         return ASN_PARSE_E;

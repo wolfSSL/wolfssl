@@ -493,7 +493,8 @@
             #endif /* _MSC_VER || __CYGWIN__ || __MINGW32__ */
         #endif /* USE_WINDOWS_API */
 
-        #if defined(WOLFSSL_CERT_EXT) || defined(HAVE_ALPN)
+        #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) \
+                    || defined(HAVE_ALPN)
             /* use only Thread Safe version of strtok */
             #if defined(USE_WOLF_STRTOK)
                 #define XSTRTOK(s1,d,ptr) wc_strtok((s1),(d),(ptr))
