@@ -886,7 +886,9 @@ struct DecodedCert {
 #ifndef NO_CERTS
     SignatureCtx sigCtx;
 #endif
+#ifdef WOLFSSL_RENESAS_TSIP
     byte*  tsip_encRsaKeyIdx;
+#endif
 
     /* Option Bits */
     byte subjectCNStored : 1;      /* have we saved a copy we own */
