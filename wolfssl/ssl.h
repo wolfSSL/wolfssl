@@ -729,7 +729,7 @@ WOLFSSL_API int wolfSSL_is_static_memory(WOLFSSL* ssl,
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
 
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX*,
-                                                           const char*, word32);
+                                                           const char*, word16);
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX*,
                                                               const char*, int);
 
@@ -923,7 +923,7 @@ WOLFSSL_ABI WOLFSSL_API int  wolfSSL_pending(WOLFSSL*);
 
 WOLFSSL_API void wolfSSL_load_error_strings(void);
 WOLFSSL_API int  wolfSSL_library_init(void);
-WOLFSSL_ABI WOLFSSL_API int wolfSSL_CTX_set_session_cache_mode(WOLFSSL_CTX*,
+WOLFSSL_ABI WOLFSSL_API word16 wolfSSL_CTX_set_session_cache_mode(WOLFSSL_CTX*,
                                                                           long);
 
 #ifdef HAVE_SECRET_CALLBACK

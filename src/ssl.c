@@ -7152,7 +7152,7 @@ int wolfSSL_CTX_der_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
 
 WOLFSSL_ABI
 int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX* ctx, const char* file,
-                                     word32 format)
+                                     word16 format)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_file");
 
@@ -10471,7 +10471,7 @@ int wolfSSL_set_session_secret_cb(WOLFSSL* ssl, SessionSecretCb cb, void* ctx)
 
 /* on by default if built in but allow user to turn off */
 WOLFSSL_ABI
-int wolfSSL_CTX_set_session_cache_mode(WOLFSSL_CTX* ctx, long mode)
+word16 wolfSSL_CTX_set_session_cache_mode(WOLFSSL_CTX* ctx, long mode)
 {
     WOLFSSL_ENTER("SSL_CTX_set_session_cache_mode");
     if (mode == WOLFSSL_SESS_CACHE_OFF)
