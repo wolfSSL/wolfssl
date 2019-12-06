@@ -252,7 +252,8 @@
     #include <wolfssl/wolfcrypt/asn.h>
 #endif
 
-#if defined(WOLFSSL_SHA3) || defined(HAVE_PKCS7) || !defined(NO_RSA)
+#if defined(WOLFSSL_SHA3) || defined(HAVE_PKCS7) || (!defined(NO_RSA) && \
+                  !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || !defined(NO_SIG_WRAPPER)
     static int  devId = INVALID_DEVID;
 #endif
 #ifndef NO_DSA
@@ -12344,6 +12345,7 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
         return ret;
     }
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     /* Decrypt */
     printf(testingFmt, "wc_RsaPrivateDecrypt_ex()");
     #if defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS)
@@ -12356,7 +12358,7 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
                 plain, plainSz, &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA,
                 WC_MGF1SHA1, NULL, 0);
     }
-   if (ret >= 0) {
+    if (ret >= 0) {
         if (!XMEMCMP(plain, inStr, plainSz)) {
             ret = 0;
         } else {
@@ -12385,6 +12387,7 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
             }
         }
     }
+#endif
 
     FREE_VAR(in, NULL);
     FREE_VAR(plain, NULL);
