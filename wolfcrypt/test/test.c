@@ -8718,7 +8718,7 @@ static int random_rng_test(void)
     {
         byte nonce[8] = { 0 };
         /* Test dynamic RNG. */
-        rng = wc_rng_new(nonce, (word32)sizeof(nonce), HEAP_HINT);
+        rng = wc_rng_new(nonce, (word32)sizeof(nonce), HEAP_HINT, INVALID_DEVID);
         if (rng == NULL) return -6310;
 
         ret = _rng_test(rng, -6310);
