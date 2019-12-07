@@ -391,7 +391,7 @@ int memory_test(void);
 #ifdef HAVE_VALGRIND
 int mp_test(void);
 #endif
-#ifdef WOLFSSL_PUBLIC_MP
+#if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN)
 int prime_test(void);
 #endif
 #ifdef ASN_BER_TO_DER
@@ -1080,7 +1080,7 @@ initDefaultName();
         test_pass("mp       test passed!\n");
 #endif
 
-#if defined(WOLFSSL_PUBLIC_MP)
+#if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN)
     if ( (ret = prime_test()) != 0)
         return err_sys("prime    test failed!\n", ret);
     else
@@ -24630,7 +24630,7 @@ done:
 #endif
 
 
-#if defined(WOLFSSL_PUBLIC_MP)
+#if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN)
 
 typedef struct pairs_t {
     const unsigned char* coeff;
