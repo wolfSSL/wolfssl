@@ -15997,11 +15997,10 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
     WOLFSSL_MSG("ParseCRL");
 
     /* raw crl hash */
-    /* hash here if needed for optimized comparisons
-     * wc_Sha sha;
-     * wc_InitSha(&sha);
-     * wc_ShaUpdate(&sha, buff, sz);
-     * wc_ShaFinal(&sha, dcrl->crlHash); */
+    wc_Sha sha;
+    wc_InitSha(&sha);
+    wc_ShaUpdate(&sha, buff, sz);
+    wc_ShaFinal(&sha, dcrl->crlHash);
 
     if (GetSequence(buff, &idx, &len, sz) < 0)
         return ASN_PARSE_E;
@@ -16026,15 +16025,17 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
         return ASN_PARSE_E;
 
     /* openssl doesn't add skid by default for CRLs cause firefox chokes
-       we're not assuming it's available yet */
-#if !defined(NO_SKID) && defined(CRL_SKID_READY)
-    if (dcrl->extAuthKeyIdSet)
-        ca = GetCA(cm, dcrl->extAuthKeyId);
+       if experiencing issues uncomment NO_SKID define in CRL section of
+       wolfssl/wolfcrypt/settings.h */
+#ifndef NO_SKID
+    ca = GetCAByName(cm, dcrl->crlHash); /* most unique */
+    if (ca == NULL && dcrl->extAuthKeyIdSet)
+        ca = GetCA(cm, dcrl->extAuthKeyId); /* more unique than issuerHash */
     if (ca == NULL)
-        ca = GetCAByName(cm, dcrl->issuerHash);
+        ca = GetCAByName(cm, dcrl->issuerHash); /* last resort */
 #else
     ca = GetCA(cm, dcrl->issuerHash);
-#endif /* !NO_SKID && CRL_SKID_READY */
+#endif /* !NO_SKID */
     WOLFSSL_MSG("About to verify CRL signature");
 
     if (ca == NULL) {

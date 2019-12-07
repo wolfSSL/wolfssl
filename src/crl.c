@@ -82,8 +82,7 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
     WOLFSSL_ENTER("InitCRL_Entry");
 
     XMEMCPY(crle->issuerHash, dcrl->issuerHash, CRL_DIGEST_SIZE);
-    /* XMEMCPY(crle->crlHash, dcrl->crlHash, CRL_DIGEST_SIZE);
-     *   copy the hash here if needed for optimized comparisons */
+    XMEMCPY(crle->crlHash, dcrl->crlHash, CRL_DIGEST_SIZE);
     XMEMCPY(crle->lastDate, dcrl->lastDate, MAX_DATE_SIZE);
     XMEMCPY(crle->nextDate, dcrl->nextDate, MAX_DATE_SIZE);
     crle->lastDateFormat = dcrl->lastDateFormat;
@@ -109,7 +108,7 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
         }
         XMEMCPY(crle->toBeSigned, buff + dcrl->certBegin, crle->tbsSz);
         XMEMCPY(crle->signature, dcrl->signature, crle->signatureSz);
-    #if !defined(NO_SKID) && defined(CRL_SKID_READY)
+    #ifndef NO_SKID
         crle->extAuthKeyIdSet = dcrl->extAuthKeyIdSet;
         if (crle->extAuthKeyIdSet)
             XMEMCPY(crle->extAuthKeyId, dcrl->extAuthKeyId, KEYID_SIZE);
@@ -206,9 +205,9 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
             WOLFSSL_MSG("Found CRL Entry on list");
 
             if (crle->verified == 0) {
-                Signer* ca;
-            #if !defined(NO_SKID) && defined(CRL_SKID_READY)
-                byte extAuthKeyId[KEYID_SIZE]
+                Signer* ca = NULL;
+            #ifndef NO_SKID
+                byte extAuthKeyId[KEYID_SIZE];
             #endif
                 byte issuerHash[CRL_DIGEST_SIZE];
                 byte* tbs = NULL;
@@ -232,15 +231,15 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
 
                 XMEMCPY(tbs, crle->toBeSigned, tbsSz);
                 XMEMCPY(sig, crle->signature, sigSz);
-            #if !defined(NO_SKID) && defined(CRL_SKID_READY)
-                XMEMCMPY(extAuthKeyId, crle->extAuthKeyId,
+            #ifndef NO_SKID
+                XMEMCPY(extAuthKeyId, crle->extAuthKeyId,
                                                           sizeof(extAuthKeyId));
             #endif
                 XMEMCPY(issuerHash, crle->issuerHash, sizeof(issuerHash));
 
                 wc_UnLockMutex(&crl->crlLock);
 
-            #if !defined(NO_SKID) && defined(CRL_SKID_READY)
+            #ifndef NO_SKID
                 if (crle->extAuthKeyIdSet)
                     ca = GetCA(crl->cm, extAuthKeyId);
                 if (ca == NULL)
