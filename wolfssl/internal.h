@@ -1869,7 +1869,7 @@ struct CRL_Entry {
     byte*   signature;
     word32  signatureSz;
     word32  signatureOID;
-#ifndef NO_SKID
+#if !defined(NO_SKID) && !defined(NO_ASN)
     byte    extAuthKeyIdSet;
     byte    extAuthKeyId[KEYID_SIZE];
 #endif
