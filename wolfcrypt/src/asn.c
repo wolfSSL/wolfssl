@@ -15796,12 +15796,21 @@ void InitDecodedCRL(DecodedCRL* dcrl, void* heap)
     dcrl->sigIndex     = 0;
     dcrl->sigLength    = 0;
     dcrl->signatureOID = 0;
+    dcrl->signature    = NULL;
+    XMEMSET(dcrl->issuerHash, 0, SIGNER_DIGEST_SIZE);
+    XMEMSET(dcrl->crlHash, 0, SIGNER_DIGEST_SIZE);
+    XMEMSET(dcrl->lastDate, 0, MAX_DATE_SIZE);
+    XMEMSET(dcrl->nextDate, 0, MAX_DATE_SIZE);
+    XMEMSET(dcrl->extAuthKeyId, 0, KEYID_SIZE);
+    dcrl->lastDateFormat = 0;
+    dcrl->nextDateFormat = 0;
     dcrl->certs        = NULL;
     dcrl->totalCerts   = 0;
     dcrl->heap         = heap;
     #ifdef WOLFSSL_HEAP_TEST
         dcrl->heap = (void*)WOLFSSL_HEAP_TEST;
     #endif
+    dcrl->extAuthKeyIdSet = 0;
 }
 
 
