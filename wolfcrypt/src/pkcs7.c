@@ -1982,8 +1982,12 @@ static int wc_PKCS7_SignedDataBuildSignature(PKCS7* pkcs7,
                                              ESD* esd)
 {
     int ret = 0;
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || \
+    (defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && !defined(NO_RSA))
     int hashSz = 0;
+#endif
+#if defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && !defined(NO_RSA)
+    int hashOID;
 #endif
     word32 digestInfoSz = MAX_PKCS7_DIGEST_SZ;
 #ifdef WOLFSSL_SMALL_STACK
@@ -2014,11 +2018,37 @@ static int wc_PKCS7_SignedDataBuildSignature(PKCS7* pkcs7,
         return ret;
     }
 
+#if defined(HAVE_ECC) || \
+    (defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && !defined(NO_RSA))
+    /* get digest size from hash type */
+    hashSz = wc_HashGetDigestSize(esd->hashType);
+    if (hashSz < 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        return hashSz;
+    }
+#endif
+
     /* sign digestInfo */
     switch (pkcs7->publicKeyOID) {
 
 #ifndef NO_RSA
         case RSAk:
+        #ifdef HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK
+            if (pkcs7->rsaSignRawDigestCb != NULL) {
+                /* get hash OID */
+                hashOID = wc_HashGetOID(esd->hashType);
+
+                /* user signing plain digest, build DigestInfo themselves */
+                ret = pkcs7->rsaSignRawDigestCb(pkcs7,
+                           esd->contentAttribsDigest, hashSz,
+                           esd->encContentDigest, sizeof(esd->encContentDigest),
+                           pkcs7->privateKey, pkcs7->privateKeySz, pkcs7->devId,
+                           hashOID);
+                break;
+            }
+        #endif
             ret = wc_PKCS7_RsaSign(pkcs7, digestInfo, digestInfoSz, esd);
             break;
 #endif
@@ -2027,14 +2057,6 @@ static int wc_PKCS7_SignedDataBuildSignature(PKCS7* pkcs7,
         case ECDSAk:
             /* CMS with ECDSA does not sign DigestInfo structure
              * like PKCS#7 with RSA does */
-            hashSz = wc_HashGetDigestSize(esd->hashType);
-            if (hashSz < 0) {
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
-                return hashSz;
-            }
-
             ret = wc_PKCS7_EcdsaSign(pkcs7, esd->contentAttribsDigest,
                                      hashSz, esd);
             break;
@@ -3031,6 +3053,20 @@ int  wc_PKCS7_EncodeSignedEncryptedCompressedFPD(PKCS7* pkcs7, byte* encryptKey,
 
 
 #ifndef NO_RSA
+
+#ifdef HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK
+/* register raw RSA sign digest callback */
+int wc_PKCS7_SetRsaSignRawDigestCb(PKCS7* pkcs7, CallbackRsaSignRawDigest cb)
+{
+    if (pkcs7 == NULL || cb == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    pkcs7->rsaSignRawDigestCb = cb;
+
+    return 0;
+}
+#endif
 
 /* returns size of signature put into out, negative on error */
 static int wc_PKCS7_RsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
