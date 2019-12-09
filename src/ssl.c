@@ -4583,10 +4583,6 @@ Signer* GetCAByName(void* vp, byte* hash)
             if (XMEMCMP(hash, signers->subjectNameHash,
                         SIGNER_DIGEST_SIZE) == 0) {
                 ret = signers;
-            } else if (cm->crl != NULL && cm->crl->crlList != NULL &&
-                       XMEMCMP(hash, cm->crl->crlList->crlHash,
-                             SIGNER_DIGEST_SIZE) == 0) {
-                ret = signers;
             }
             signers = signers->next;
         }

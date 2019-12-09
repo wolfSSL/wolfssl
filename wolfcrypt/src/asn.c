@@ -15798,7 +15798,8 @@ void InitDecodedCRL(DecodedCRL* dcrl, void* heap)
     dcrl->signatureOID = 0;
     dcrl->signature    = NULL;
     XMEMSET(dcrl->issuerHash, 0, SIGNER_DIGEST_SIZE);
-    XMEMSET(dcrl->crlHash, 0, SIGNER_DIGEST_SIZE);
+    /* XMEMSET(dcrl->crlHash, 0, SIGNER_DIGEST_SIZE);
+     * initialize the hash here if needed for optimized comparisons */
     XMEMSET(dcrl->lastDate, 0, MAX_DATE_SIZE);
     XMEMSET(dcrl->nextDate, 0, MAX_DATE_SIZE);
     XMEMSET(dcrl->extAuthKeyId, 0, KEYID_SIZE);
@@ -16006,10 +16007,11 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
     WOLFSSL_MSG("ParseCRL");
 
     /* raw crl hash */
-    wc_Sha sha;
-    wc_InitSha(&sha);
-    wc_ShaUpdate(&sha, buff, sz);
-    wc_ShaFinal(&sha, dcrl->crlHash);
+    /* hash here if needed for optimized comparisons
+     * wc_Sha sha;
+     * wc_InitSha(&sha);
+     * wc_ShaUpdate(&sha, buff, sz);
+     * wc_ShaFinal(&sha, dcrl->crlHash); */
 
     if (GetSequence(buff, &idx, &len, sz) < 0)
         return ASN_PARSE_E;
@@ -16037,8 +16039,7 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
        if experiencing issues uncomment NO_SKID define in CRL section of
        wolfssl/wolfcrypt/settings.h */
 #ifndef NO_SKID
-    ca = GetCAByName(cm, dcrl->crlHash); /* most unique */
-    if (ca == NULL && dcrl->extAuthKeyIdSet)
+    if (dcrl->extAuthKeyIdSet)
         ca = GetCA(cm, dcrl->extAuthKeyId); /* more unique than issuerHash */
     if (ca == NULL)
         ca = GetCAByName(cm, dcrl->issuerHash); /* last resort */

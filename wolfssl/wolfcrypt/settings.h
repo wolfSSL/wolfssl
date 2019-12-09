@@ -1619,8 +1619,8 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 #ifdef HAVE_CRL
-    /* not widely supported yet */
-    #undef NO_SKID
+    /* may not be widely supported */
+    /* #undef NO_SKID */
     /* #define NO_SKID */
 #endif
 

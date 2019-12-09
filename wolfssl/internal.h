@@ -1856,7 +1856,8 @@ typedef struct CRL_Entry CRL_Entry;
 struct CRL_Entry {
     CRL_Entry* next;                      /* next entry */
     byte    issuerHash[CRL_DIGEST_SIZE];  /* issuer hash                 */
-    byte    crlHash[CRL_DIGEST_SIZE];     /* raw crl data hash           */
+    /* byte    crlHash[CRL_DIGEST_SIZE];      raw crl data hash           */
+    /* restore the hash here if needed for optimized comparisons */
     byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
     byte    nextDate[MAX_DATE_SIZE]; /* next update date   */
     byte    lastDateFormat;          /* last date format */
