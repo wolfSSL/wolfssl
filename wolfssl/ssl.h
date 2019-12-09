@@ -176,7 +176,10 @@ typedef struct WOLFSSL_v3_ext_method  WOLFSSL_v3_ext_method;
 
 typedef struct WOLFSSL_ASN1_STRING      WOLFSSL_ASN1_STRING;
 typedef struct WOLFSSL_dynlock_value    WOLFSSL_dynlock_value;
+#ifndef WOLFSSL_DH_TYPE_DEFINED /* guard on redeclaration */
 typedef struct WOLFSSL_DH               WOLFSSL_DH;
+#define WOLFSSL_DH_TYPE_DEFINED /* guard on redeclaration */
+#endif
 typedef struct WOLFSSL_ASN1_BIT_STRING  WOLFSSL_ASN1_BIT_STRING;
 typedef struct WOLFSSL_ASN1_TYPE        WOLFSSL_ASN1_TYPE;
 
