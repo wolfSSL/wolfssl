@@ -29215,7 +29215,7 @@ static void test_wolfSSL_X509_print()
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
     AssertIntEQ(X509_print(bio, x509), SSL_SUCCESS);
 
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+#if defined(WOLFSSL_QT)
     AssertIntEQ(BIO_get_mem_data(bio, NULL), 3113);
 #else
     AssertIntEQ(BIO_get_mem_data(bio, NULL), 3103);

@@ -19209,8 +19209,8 @@ void wolfSSL_ACCESS_DESCRIPTION_free(WOLFSSL_ACCESS_DESCRIPTION* access)
  * returns a new WOLFSSL_STACK structure on success */
 WOLFSSL_STACK* wolfSSL_sk_new_node(void* heap)
 {
-    WOLFSSL_ENTER("wolfSSL_sk_new_node");
     WOLFSSL_STACK* sk;
+    WOLFSSL_ENTER("wolfSSL_sk_new_node");
 
     sk = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), heap,
                                                           DYNAMIC_TYPE_OPENSSL);
