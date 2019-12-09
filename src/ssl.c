@@ -19210,7 +19210,9 @@ void wolfSSL_ACCESS_DESCRIPTION_free(WOLFSSL_ACCESS_DESCRIPTION* access)
 WOLFSSL_STACK* wolfSSL_sk_new_node(void* heap)
 {
     WOLFSSL_ENTER("wolfSSL_sk_new_node");
-    WOLFSSL_STACK* sk = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), heap,
+    WOLFSSL_STACK* sk;
+
+    sk = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), heap,
                                                           DYNAMIC_TYPE_OPENSSL);
     if (sk != NULL) {
         XMEMSET(sk, 0, sizeof(*sk));

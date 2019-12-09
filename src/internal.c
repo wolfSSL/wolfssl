@@ -17993,7 +17993,8 @@ const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]) {
              (XSTRNCMP(n2,"CHACHA20",8) == 0 && XSTRNCMP(n3,"POLY1305",8) == 0))
         encStr = "CHACHA20/POLY1305(256)";
     else if ((XSTRNCMP(n0,"NULL",4) == 0) || (XSTRNCMP(n1,"NULL",4) == 0) ||
-             (XSTRNCMP(n2,"NULL",4) == 0))
+             (XSTRNCMP(n2,"NULL",4) == 0) ||
+             ((XSTRNCMP(n0,"TLS13",5) == 0) && (XSTRNCMP(n3,"",0) == 0)))
         encStr = "None";
     else if ((XSTRNCMP(n0,"IDEA",4) == 0))
         encStr = "IDEA";
@@ -18081,7 +18082,7 @@ int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
     const char *keaStr, *authStr, *encStr, *macStr, *protocol;
     char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
     uint8_t len = UINT8_SZ-1;
-    WOLFSSL_ENTER("wolfSSL_CIPHER_sk_description");
+    WOLFSSL_ENTER("wolfSSL_sk_CIPHER_description");
 
     if (cipher == NULL)
         return WOLFSSL_FAILURE;
