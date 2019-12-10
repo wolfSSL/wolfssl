@@ -1351,7 +1351,7 @@ struct DecodedCRL {
     RevokedCert* certs;              /* revoked cert list  */
     int          totalCerts;         /* number on list     */
     void*   heap;
-    byte extAuthKeyIdSet : 1;      /* Set when the AKID was read from CRL */
+    byte    extAuthKeyIdSet;         /* Set when the AKID was read from CRL */
 };
 
 WOLFSSL_LOCAL void InitDecodedCRL(DecodedCRL*, void* heap);
