@@ -5615,14 +5615,21 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
 #ifndef NO_ASN_TIME
 
 /* two byte date/time, add to value */
-static WC_INLINE void GetTime(int* value, const byte* date, int* idx)
+static WC_INLINE int GetTime(int* value, const byte* date, int* idx)
 {
     int i = *idx;
+
+    if (date[i] < 0x30 || date[i] > 0x39 || date[i+1] < 0x30 ||
+                                                             date[i+1] > 0x39) {
+        return ASN_PARSE_E;
+    }
 
     *value += btoi(date[i++]) * 10;
     *value += btoi(date[i++]);
 
     *idx = i;
+
+    return 0;
 }
 
 int ExtractDate(const unsigned char* date, unsigned char format,
@@ -5631,23 +5638,25 @@ int ExtractDate(const unsigned char* date, unsigned char format,
     XMEMSET(certTime, 0, sizeof(struct tm));
 
     if (format == ASN_UTC_TIME) {
-        if (btoi(date[0]) >= 5)
+        if (btoi(date[*idx]) >= 5)
             certTime->tm_year = 1900;
         else
             certTime->tm_year = 2000;
     }
     else  { /* format == GENERALIZED_TIME */
-        certTime->tm_year += btoi(date[*idx]) * 1000; *idx = *idx + 1;
-        certTime->tm_year += btoi(date[*idx]) * 100;  *idx = *idx + 1;
+        if (GetTime(&certTime->tm_year, date, idx) != 0) return 0;
+        certTime->tm_year *= 100;
     }
 
     /* adjust tm_year, tm_mon */
-    GetTime((int*)&certTime->tm_year, date, idx); certTime->tm_year -= 1900;
-    GetTime((int*)&certTime->tm_mon,  date, idx); certTime->tm_mon  -= 1;
-    GetTime((int*)&certTime->tm_mday, date, idx);
-    GetTime((int*)&certTime->tm_hour, date, idx);
-    GetTime((int*)&certTime->tm_min,  date, idx);
-    GetTime((int*)&certTime->tm_sec,  date, idx);
+    if (GetTime(&certTime->tm_year, date, idx) != 0) return 0;
+    certTime->tm_year -= 1900;
+    if (GetTime(&certTime->tm_mon , date, idx) != 0) return 0;
+    certTime->tm_mon  -= 1;
+    if (GetTime(&certTime->tm_mday, date, idx) != 0) return 0;
+    if (GetTime(&certTime->tm_hour, date, idx) != 0) return 0;
+    if (GetTime(&certTime->tm_min , date, idx) != 0) return 0;
+    if (GetTime(&certTime->tm_sec , date, idx) != 0) return 0;
 
     return 1;
 }
@@ -5871,8 +5880,10 @@ int ValidateDate(const byte* date, byte format, int dateType)
     if ((date[i] == '+') || (date[i] == '-')) {
         WOLFSSL_MSG("Using time differential, not Zulu") ;
         diffSign = date[i++] == '+' ? 1 : -1 ;
-        GetTime(&diffHH, date, &i);
-        GetTime(&diffMM, date, &i);
+        if (GetTime(&diffHH, date, &i) != 0)
+            return 0;
+        if (GetTime(&diffMM, date, &i) != 0)
+            return 0;
         timeDiff = diffSign * (diffHH*60 + diffMM) * 60 ;
     } else if (date[i] != 'Z') {
         WOLFSSL_MSG("UTCtime, neither Zulu or time differential") ;
