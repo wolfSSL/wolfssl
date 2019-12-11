@@ -15796,12 +15796,22 @@ void InitDecodedCRL(DecodedCRL* dcrl, void* heap)
     dcrl->sigIndex     = 0;
     dcrl->sigLength    = 0;
     dcrl->signatureOID = 0;
+    dcrl->signature    = NULL;
+    XMEMSET(dcrl->issuerHash, 0, SIGNER_DIGEST_SIZE);
+    /* XMEMSET(dcrl->crlHash, 0, SIGNER_DIGEST_SIZE);
+     * initialize the hash here if needed for optimized comparisons */
+    XMEMSET(dcrl->lastDate, 0, MAX_DATE_SIZE);
+    XMEMSET(dcrl->nextDate, 0, MAX_DATE_SIZE);
+    XMEMSET(dcrl->extAuthKeyId, 0, KEYID_SIZE);
+    dcrl->lastDateFormat = 0;
+    dcrl->nextDateFormat = 0;
     dcrl->certs        = NULL;
     dcrl->totalCerts   = 0;
     dcrl->heap         = heap;
     #ifdef WOLFSSL_HEAP_TEST
         dcrl->heap = (void*)WOLFSSL_HEAP_TEST;
     #endif
+    dcrl->extAuthKeyIdSet = 0;
 }
 
 
@@ -16026,15 +16036,16 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
         return ASN_PARSE_E;
 
     /* openssl doesn't add skid by default for CRLs cause firefox chokes
-       we're not assuming it's available yet */
-#if !defined(NO_SKID) && defined(CRL_SKID_READY)
+       if experiencing issues uncomment NO_SKID define in CRL section of
+       wolfssl/wolfcrypt/settings.h */
+#ifndef NO_SKID
     if (dcrl->extAuthKeyIdSet)
-        ca = GetCA(cm, dcrl->extAuthKeyId);
+        ca = GetCA(cm, dcrl->extAuthKeyId); /* more unique than issuerHash */
     if (ca == NULL)
-        ca = GetCAByName(cm, dcrl->issuerHash);
+        ca = GetCAByName(cm, dcrl->issuerHash); /* last resort */
 #else
     ca = GetCA(cm, dcrl->issuerHash);
-#endif /* !NO_SKID && CRL_SKID_READY */
+#endif /* !NO_SKID */
     WOLFSSL_MSG("About to verify CRL signature");
 
     if (ca == NULL) {

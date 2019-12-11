@@ -1345,11 +1345,13 @@ struct DecodedCRL {
     byte    crlHash[SIGNER_DIGEST_SIZE]; /* raw crl data hash            */
     byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
     byte    nextDate[MAX_DATE_SIZE]; /* next update date   */
+    byte    extAuthKeyId[KEYID_SIZE]; /* Authority Key ID                */
     byte    lastDateFormat;          /* format of last date */
     byte    nextDateFormat;          /* format of next date */
     RevokedCert* certs;              /* revoked cert list  */
     int          totalCerts;         /* number on list     */
     void*   heap;
+    byte    extAuthKeyIdSet;         /* Set when the AKID was read from CRL */
 };
 
 WOLFSSL_LOCAL void InitDecodedCRL(DecodedCRL*, void* heap);
