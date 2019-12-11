@@ -9303,13 +9303,6 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                         wolfSSL_sk_free(sk);
                         return NULL;
                     }
-                    gn->d.dNSName = wolfSSL_ASN1_STRING_new();
-                    if (gn->d.dNSName == NULL) {
-                        WOLFSSL_MSG("ASN1_STRING_new failed\n");
-                        wolfSSL_GENERAL_NAME_free(gn);
-                        wolfSSL_sk_free(sk);
-                        return NULL;
-                    }
 
                     gn->type = dns->type;
                     gn->d.ia5->length = dns->len;
