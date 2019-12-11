@@ -1692,6 +1692,19 @@ else
 fi
 
 
+# ERROR QUEUE
+AC_ARG_ENABLE([errorqueue],
+    [AS_HELP_STRING([--disable-errorqueue],[Disables adding nodes to error queue when compiled with OPENSSL_EXTRA (default: enabled)])],
+    [ ENABLED_ERROR_QUEUE=$enableval ],
+    [ ENABLED_ERROR_QUEUE=yes ]
+    )
+
+if test "$ENABLED_ERROR_QUEUE" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_ERROR_QUEUE"
+fi
+
+
 # OLD TLS
 AC_ARG_ENABLE([oldtls],
     [AS_HELP_STRING([--enable-oldtls],[Enable old TLS versions < 1.2 (default: enabled)])],

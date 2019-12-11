@@ -17876,7 +17876,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     }
 
 
-#if defined(DEBUG_WOLFSSL) || defined(OPENSSL_EXTRA)
+#if (defined(DEBUG_WOLFSSL) || defined(OPENSSL_EXTRA)) && \
+    (!defined(_WIN32) && !defined(NO_ERROR_QUEUE))
     static const char WOLFSSL_SYS_ACCEPT_T[]  = "accept";
     static const char WOLFSSL_SYS_BIND_T[]    = "bind";
     static const char WOLFSSL_SYS_CONNECT_T[] = "connect";
@@ -17933,7 +17934,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         (void)file;
         (void)line;
         WOLFSSL_MSG("Not compiled in debug mode");
-        #elif defined(OPENSSL_EXTRA) && defined(_WIN32)
+        #elif defined(OPENSSL_EXTRA) && \
+                (defined(_WIN32) || defined(NO_ERROR_QUEUE))
         (void)fun;
         (void)file;
         (void)line;
