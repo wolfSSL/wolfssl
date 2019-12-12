@@ -93,6 +93,11 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
             return ASN_INPUT_E;
         }
 
+        if (i + 1 + !pad3 + !pad4 > *outLen) {
+            WOLFSSL_MSG("Bad Base64 Decode out buffer, too small");
+            return BAD_FUNC_ARG;
+        }
+
         e1 = base64Decode[e1 - BASE64_MIN];
         e2 = base64Decode[e2 - BASE64_MIN];
         e3 = (e3 == PAD) ? 0 : base64Decode[e3 - BASE64_MIN];
