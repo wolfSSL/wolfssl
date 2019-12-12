@@ -2,6 +2,7 @@
 EXTRA_DIST += wolfcrypt/src/port/autosar/csm.c \
               wolfcrypt/src/port/autosar/crypto.c \
               wolfcrypt/src/port/autosar/cryif.c \
+              wolfcrypt/src/port/autosar/README.md \
               wolfcrypt/src/port/autosar/example.c
 
 if BUILD_AUTOSAR
