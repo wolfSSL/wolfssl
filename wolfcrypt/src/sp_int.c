@@ -210,6 +210,10 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
         err = BAD_FUNC_ARG;
     }
 
+    while (*in == '0') {
+        in++;
+    }
+
     if (err == MP_OKAY) {
         a->dp[0] = 0;
         for (i = (int)(XSTRLEN(in) - 1); i >= 0; i--) {
@@ -244,8 +248,9 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
 
         for (k++; k < a->size; k++)
             a->dp[k] = 0;
+
+        sp_clamp(a);
     }
-    sp_clamp(a);
 
     return err;
 }
