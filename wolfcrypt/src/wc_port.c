@@ -1146,34 +1146,70 @@ int wolfSSL_CryptHwMutexUnLock(void) {
     }
 
 #elif defined(EBSNET)
-
-    int wc_InitMutex(wolfSSL_Mutex* m)
-    {
-        if (rtp_sig_mutex_alloc(m, "wolfSSL Mutex") == -1)
-            return BAD_MUTEX_E;
-        else
+    #if (RTPLATFORM)
+        int wc_InitMutex(wolfSSL_Mutex* m)
+        {
+            if (rtp_sig_mutex_alloc(m, "wolfSSL Mutex") == -1)
+                return BAD_MUTEX_E;
+            else
+                return 0;
+        }
+    
+        int wc_FreeMutex(wolfSSL_Mutex* m)
+        {
+            rtp_sig_mutex_free(*m);
             return 0;
-    }
-
-    int wc_FreeMutex(wolfSSL_Mutex* m)
-    {
-        rtp_sig_mutex_free(*m);
-        return 0;
-    }
-
-    int wc_LockMutex(wolfSSL_Mutex* m)
-    {
-        if (rtp_sig_mutex_claim_timed(*m, RTIP_INF) == 0)
+        }
+    
+        int wc_LockMutex(wolfSSL_Mutex* m)
+        {
+            if (rtp_sig_mutex_claim_timed(*m, RTIP_INF) == 0)
+                return 0;
+            else
+                return BAD_MUTEX_E;
+        }
+    
+        int wc_UnLockMutex(wolfSSL_Mutex* m)
+        {
+            rtp_sig_mutex_release(*m);
             return 0;
-        else
-            return BAD_MUTEX_E;
-    }
+        }
+    #else
+        int rtip_semaphore_build(wolfSSL_Mutex *m)
+        {
+            KS_SEMAPHORE_BUILD(m)
+            return(RTP_TRUE);
+        }
 
-    int wc_UnLockMutex(wolfSSL_Mutex* m)
-    {
-        rtp_sig_mutex_release(*m);
-        return 0;
-    }
+        int wc_InitMutex(wolfSSL_Mutex* m)
+        {
+            if (rtip_semaphore_build(m) == RTP_FALSE)
+                return BAD_MUTEX_E;
+            else
+                return 0;
+        }
+
+        int wc_FreeMutex(wolfSSL_Mutex* m)
+        {
+            KS_SEMAPHORE_FREE(*m);
+            return 0;
+        }
+
+        int wc_LockMutex(wolfSSL_Mutex* m)
+        {
+            if (KS_SEMAPHORE_GET(*m))
+                return 0;
+            else
+                return BAD_MUTEX_E;
+        }
+
+        int wc_UnLockMutex(wolfSSL_Mutex* m)
+        {
+            KS_SEMAPHORE_GIVE(*m);
+            return 0;
+        }
+
+    #endif
 
     int ebsnet_fseek(int a, long b, int c)
     {
