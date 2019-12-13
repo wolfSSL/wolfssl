@@ -17298,8 +17298,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "TLS Extension Trusted CA ID response absent";
 
     case TSIP_MAC_DIGSZ_E:
-        return "Invalid MAC size is specified. \
-                TSIP can only handle SHA1 and SHA256 digest size";
+        return "TSIP MAC size invalid, must be sized for SHA-1 or SHA-256";
 
     case CLIENT_CERT_CB_ERROR:
         return "Error importing client cert or key from callback";
@@ -17314,6 +17313,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 void SetErrorString(int error, char* str)
 {
     XSTRNCPY(str, wolfSSL_ERR_reason_error_string(error), WOLFSSL_MAX_ERROR_SZ);
+    str[WOLFSSL_MAX_ERROR_SZ-1] = 0;
 }
 
 #ifndef NO_ERROR_STRINGS

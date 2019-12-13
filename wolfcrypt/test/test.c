@@ -1336,6 +1336,8 @@ int error_test(void)
                 return -1103;
             if (XSTRNCMP(errStr, out, XSTRLEN(errStr)) != 0)
                 return -1104;
+            if (XSTRLEN(errStr) >= WOLFSSL_MAX_ERROR_SZ)
+                return -1109;
         }
         else {
             j++;

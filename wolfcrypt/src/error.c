@@ -521,6 +521,7 @@ const char* wc_GetErrorString(int error)
 void wc_ErrorString(int error, char* buffer)
 {
     XSTRNCPY(buffer, wc_GetErrorString(error), WOLFSSL_MAX_ERROR_SZ);
+    buffer[WOLFSSL_MAX_ERROR_SZ-1] = 0;
 }
 #endif /* !NO_ERROR_STRINGS */
 
