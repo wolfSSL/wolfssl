@@ -24457,6 +24457,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         ERROR_OUT(MEMORY_E, exit_sske);
                     }
 
+                    if (args->output == NULL) {
+                        ERROR_OUT(BUFFER_ERROR, exit_sske);
+                    }
+
                     XMEMCPY(args->input, args->output + RECORD_HEADER_SZ,
                                                                  args->inputSz);
                     ret = BuildMessage(ssl, args->output, args->sendSz,
