@@ -2559,7 +2559,19 @@ void bench_aesccm(void)
         }
         count += i;
     } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("AES-CCM", 0, count, bench_size, start, ret);
+    bench_stats_sym_finish("AES-CCM-Enc", 0, count, bench_size, start, ret);
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            wc_AesCcmDecrypt(&enc, bench_plain, bench_cipher, BENCH_SIZE,
+                bench_iv, 12, bench_tag, AES_AUTH_TAG_SZ,
+                bench_additional, aesAuthAddSz);
+        }
+        count += i;
+    } while (bench_stats_sym_check(start));
+    bench_stats_sym_finish("AES-CCM-Dec", 0, count, bench_size, start, ret);
+
 
     FREE_VAR(bench_additional, HEAP_HINT);
     FREE_VAR(bench_tag, HEAP_HINT);
