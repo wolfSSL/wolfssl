@@ -767,6 +767,10 @@ int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
                 word32 tmpIdx = 0;
                 byte ar[MAX_LENGTH_SZ + 2];
                 tmpSz = SetShortInt(ar, &tmpIdx, mac->itt, MAX_LENGTH_SZ + 2);
+                if (tmpSz < 0) {
+                    WOLFSSL_MSG("Error returned by SetShortInt");
+                    return tmpSz;
+                }
                 XMEMCPY(&sdBuf[idx], ar, tmpSz);
             }
 

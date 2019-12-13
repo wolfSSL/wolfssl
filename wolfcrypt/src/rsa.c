@@ -1467,7 +1467,7 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
 {
     int   ret;
     byte* tmp;
-    int   hLen, i, maskLen;
+    int   hLen, i, maskLen, orig_bits = bits;
 #if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
     byte tmp_buf[RSA_MAX_SIZE/8];
     tmp = tmp_buf;
@@ -1498,7 +1498,7 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
         saltLen = hLen;
         #ifdef WOLFSSL_SHA512
             /* See FIPS 186-4 section 5.5 item (e). */
-            if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
+            if (orig_bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
                 saltLen = RSA_PSS_SALT_MAX_SZ;
         #endif
     }

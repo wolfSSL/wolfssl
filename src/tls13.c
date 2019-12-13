@@ -4009,7 +4009,7 @@ static int DoTls13SupportedVersions(WOLFSSL* ssl, const byte* input, word32 i,
             return BUFFER_ERROR;
         ato16(&input[i], &totalExtSz);
         i += OPAQUE16_LEN;
-        if (i + totalExtSz != helloSz)
+        if (totalExtSz != helloSz - i)
             return BUFFER_ERROR;
 
         /* Need to negotiate version first. */

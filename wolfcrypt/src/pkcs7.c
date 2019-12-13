@@ -3430,8 +3430,8 @@ static int wc_PKCS7_VerifyContentMessageDigest(PKCS7* pkcs7,
                                                const byte* hashBuf,
                                                word32 hashSz)
 {
-    int ret = 0, innerAttribSz = 0;
-    word32 digestSz = 0, idx = 0;
+    int ret = 0, digestSz = 0, innerAttribSz = 0;
+    word32 idx = 0;
     byte* digestBuf = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     byte* digest = NULL;
@@ -3502,17 +3502,20 @@ static int wc_PKCS7_VerifyContentMessageDigest(PKCS7* pkcs7,
 
         digestBuf = digest;
         digestSz = wc_HashGetDigestSize(hashType);
-
+        if (digestSz < 0) {
+            WOLFSSL_MSG("Invalid hash type");
+            return digestSz;
+        }
     } else {
 
         /* user passed in pre-computed hash */
         digestBuf = (byte*)hashBuf;
-        digestSz  = hashSz;
+        digestSz  = (int)hashSz;
     }
 
     /* compare generated to hash in messageDigest attribute */
-    if ((innerAttribSz != (int)digestSz) ||
-        (XMEMCMP(attrib->value + idx, digestBuf, digestSz) != 0)) {
+    if ((innerAttribSz != digestSz) ||
+        (XMEMCMP(attrib->value + idx, digestBuf, (word32)digestSz) != 0)) {
         WOLFSSL_MSG("Content digest does not match messageDigest attrib value");
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4643,7 +4646,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 XFREE(pkcs7->stream->tmpCert, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 pkcs7->stream->tmpCert = (byte*)XMALLOC(length,
                         pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-                if (pkcs7->stream->tmpCert == NULL) {
+                if ((pkiMsg2 == NULL) || (pkcs7->stream->tmpCert == NULL)) {
                     ret = MEMORY_E;
                     break;
                 }
@@ -8391,11 +8394,13 @@ static int wc_PKCS7_KariGetKeyEncryptionAlgorithmId(WC_PKCS7_KARI* kari,
         word32* keyAgreeOID, word32* keyWrapOID)
 {
     int length = 0;
-    word32 localIdx = *idx;
+    word32 localIdx;
 
     if (kari == NULL || pkiMsg == NULL || idx == NULL ||
         keyAgreeOID == NULL || keyWrapOID == NULL)
         return BAD_FUNC_ARG;
+
+    localIdx = *idx;
 
     /* remove KeyEncryptionAlgorithmIdentifier */
     if (GetSequence(pkiMsg, &localIdx, &length, pkiMsgSz) < 0)
