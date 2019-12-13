@@ -76,11 +76,14 @@ typedef struct WOLFSSL_EC_KEY         WOLFSSL_EC_KEY;
 typedef struct WOLFSSL_EC_POINT       WOLFSSL_EC_POINT;
 typedef struct WOLFSSL_EC_GROUP       WOLFSSL_EC_GROUP;
 typedef struct WOLFSSL_EC_BUILTIN_CURVE WOLFSSL_EC_BUILTIN_CURVE;
+/* WOLFSSL_EC_METHOD is just an alias of WOLFSSL_EC_GROUP for now */
+typedef struct WOLFSSL_EC_GROUP       WOLFSSL_EC_METHOD;
 #define WOLFSSL_EC_TYPE_DEFINED
 #endif
 
 typedef WOLFSSL_EC_KEY                EC_KEY;
 typedef WOLFSSL_EC_GROUP              EC_GROUP;
+typedef WOLFSSL_EC_GROUP              EC_METHOD;
 typedef WOLFSSL_EC_POINT              EC_POINT;
 typedef WOLFSSL_EC_BUILTIN_CURVE      EC_builtin_curve;
 
@@ -200,6 +203,11 @@ int wolfSSL_EC_GROUP_order_bits(const WOLFSSL_EC_GROUP *group);
 WOLFSSL_API
 void wolfSSL_EC_GROUP_free(WOLFSSL_EC_GROUP *group);
 WOLFSSL_API
+const WOLFSSL_EC_METHOD* wolfSSL_EC_GROUP_method_of(
+                                                const WOLFSSL_EC_GROUP *group);
+WOLFSSL_API
+int wolfSSL_EC_METHOD_get_field_type(const WOLFSSL_EC_METHOD *meth);
+WOLFSSL_API
 WOLFSSL_EC_POINT *wolfSSL_EC_POINT_new(const WOLFSSL_EC_GROUP *group);
 WOLFSSL_API
 int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
@@ -265,6 +273,9 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 #define EC_GROUP_get_degree             wolfSSL_EC_GROUP_get_degree
 #define EC_GROUP_get_order              wolfSSL_EC_GROUP_get_order
 #define EC_GROUP_order_bits             wolfSSL_EC_GROUP_order_bits
+#define EC_GROUP_method_of              wolfSSL_EC_GROUP_method_of
+
+#define EC_METHOD_get_field_type        wolfSSL_EC_METHOD_get_field_type
 
 #define EC_POINT_new                    wolfSSL_EC_POINT_new
 #define EC_POINT_free                   wolfSSL_EC_POINT_free

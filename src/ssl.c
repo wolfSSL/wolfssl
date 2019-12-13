@@ -30002,7 +30002,12 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
     }
 
     if (rng) {
-        pubSz = privSz = wolfSSL_BN_num_bytes(dh->p);
+        pubSz = wolfSSL_BN_num_bytes(dh->p);
+        if (dh->length) {
+            privSz = dh->length/8; /* to bytes */
+        } else {
+            privSz = pubSz;
+        }
         pub   = (unsigned char*)XMALLOC(pubSz,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
         priv  = (unsigned char*)XMALLOC(privSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
         if (pub == NULL || priv == NULL) {
@@ -33219,6 +33224,12 @@ static int SetECKeyInternal(WOLFSSL_EC_KEY* eckey)
             return WOLFSSL_FATAL_ERROR;
         }
 
+        /* copy over the public point to key */
+        if (wc_ecc_copy_point((ecc_point*)eckey->pub_key->internal, &key->pubkey) != MP_OKAY) {
+            WOLFSSL_MSG("wc_ecc_copy_point error");
+            return WOLFSSL_FATAL_ERROR;
+        }
+
         /* public key */
         key->type = ECC_PUBLICKEY;
     }
@@ -33303,6 +33314,11 @@ WOLFSSL_BIGNUM *wolfSSL_EC_KEY_get0_private_key(const WOLFSSL_EC_KEY *key)
 
     if (key == NULL) {
         WOLFSSL_MSG("wolfSSL_EC_KEY_get0_private_key Bad arguments");
+        return NULL;
+    }
+
+    if (wolfSSL_BN_is_zero(key->priv_key)) {
+        /* return NULL if not set */
         return NULL;
     }
 
@@ -33738,7 +33754,12 @@ int wolfSSL_EC_KEY_set_public_key(WOLFSSL_EC_KEY *key,
         return WOLFSSL_FAILURE;
     }
 
-    if (SetECKeyExternal(key) != WOLFSSL_SUCCESS) {
+    if (SetECPointExternal(key->pub_key) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("SetECKeyInternal failed");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (SetECKeyInternal(key) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("SetECKeyInternal failed");
         return WOLFSSL_FAILURE;
     }
@@ -33894,6 +33915,10 @@ void wolfSSL_EC_POINT_dump(const char *msg, const WOLFSSL_EC_POINT *p)
 
     WOLFSSL_ENTER("wolfSSL_EC_POINT_dump");
 
+    if (!WOLFSSL_IS_DEBUG_ON() || wolfSSL_GetLoggingCb()) {
+        return;
+    }
+
     if (p == NULL) {
         printf("%s = NULL", msg);
         return;
@@ -33944,6 +33969,20 @@ int wolfSSL_EC_GROUP_cmp(const WOLFSSL_EC_GROUP *a, const WOLFSSL_EC_GROUP *b,
 #endif /* OPENSSL_EXTRA */
 
 #if defined(HAVE_ECC) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+const WOLFSSL_EC_METHOD* wolfSSL_EC_GROUP_method_of(
+                                                const WOLFSSL_EC_GROUP *group)
+{
+    return group;
+}
+
+int wolfSSL_EC_METHOD_get_field_type(const WOLFSSL_EC_METHOD *meth)
+{
+    if (meth) {
+        return NID_X9_62_prime_field;
+    }
+    return WOLFSSL_FAILURE;
+}
+
 void wolfSSL_EC_GROUP_free(WOLFSSL_EC_GROUP *group)
 {
     WOLFSSL_ENTER("wolfSSL_EC_GROUP_free");
@@ -34661,7 +34700,7 @@ int wolfSSL_EC_POINT_is_at_infinity(const WOLFSSL_EC_GROUP *group,
         return WOLFSSL_FAILURE;
     }
 
-    return WOLFSSL_SUCCESS;
+    return ret;
 }
 
 /* End EC_POINT */
@@ -46407,6 +46446,8 @@ WOLFSSL_BIGNUM* wolfSSL_BN_bin2bn(const unsigned char* str, int len,
                 wolfSSL_BN_free(ret);
             return NULL;
         }
+    } else {
+        return NULL;
     }
 
     return ret;

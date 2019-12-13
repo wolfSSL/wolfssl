@@ -1207,8 +1207,6 @@ enum {
 #define TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256       (0xc02b)
 #define TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 (0xcca9)
 
-#define EC_METHOD_get_field_type(x) -1
-
 #define EVP_CIPHER_mode                 WOLFSSL_CIPHER_mode
 /* WOLFSSL_EVP_CIPHER is just the string name of the cipher */
 #define EVP_CIPHER_name(x)              x

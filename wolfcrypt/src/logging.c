@@ -137,6 +137,12 @@ int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb f)
 #endif
 }
 
+/* allow this to be set to NULL, so logs can be redirected to default output */
+wolfSSL_Logging_cb wolfSSL_GetLoggingCb(void)
+{
+    return log_function;
+}
+
 
 int wolfSSL_Debugging_ON(void)
 {
@@ -345,6 +351,11 @@ void WOLFSSL_LEAVE(const char* msg, int ret)
                 msg, ret);
         wolfssl_log(LEAVE_LOG , buffer);
     }
+}
+
+WOLFSSL_API int WOLFSSL_IS_DEBUG_ON(void)
+{
+    return loggingEnabled;
 }
 #endif /* !WOLFSSL_DEBUG_ERRORS_ONLY */
 #endif /* DEBUG_WOLFSSL */

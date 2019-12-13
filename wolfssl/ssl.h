@@ -151,6 +151,8 @@ typedef struct WOLFSSL_EC_KEY         WOLFSSL_EC_KEY;
 typedef struct WOLFSSL_EC_POINT       WOLFSSL_EC_POINT;
 typedef struct WOLFSSL_EC_GROUP       WOLFSSL_EC_GROUP;
 typedef struct WOLFSSL_EC_BUILTIN_CURVE WOLFSSL_EC_BUILTIN_CURVE;
+/* WOLFSSL_EC_METHOD is just an alias of WOLFSSL_EC_GROUP for now */
+typedef struct WOLFSSL_EC_GROUP       WOLFSSL_EC_METHOD;
 #define WOLFSSL_EC_TYPE_DEFINED
 #endif
 

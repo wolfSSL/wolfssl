@@ -57,26 +57,65 @@ const byte base64Decode[] = { 62, BAD, BAD, BAD, 63,   /* + starts at 0x2B */
                               46, 47, 48, 49, 50, 51
                             };
 
+static WC_INLINE int Base64_SkipNewline(const byte* in, word32 *outLen, word32 *outJ)
+{
+    word32 inLen = *outLen;
+    word32 j = *outJ;
+    if (inLen && (in[j] == ' ' || in[j] == '\r' || in[j] == '\n')) {
+        byte endLine = in[j++];
+        inLen--;
+        while (inLen && endLine == ' ') {   /* allow trailing whitespace */
+            endLine = in[j++];
+            inLen--;
+        }
+        if (endLine == '\r') {
+            if (inLen) {
+                endLine = in[j++];
+                inLen--;
+            }
+        }
+        if (endLine != '\n') {
+            WOLFSSL_MSG("Bad end of line in Base64 Decode");
+            return ASN_INPUT_E;
+        }
+    }
+    *outLen = inLen;
+    *outJ = j;
+    return 0;
+}
 
 int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 {
     word32 i = 0;
     word32 j = 0;
     word32 plainSz = inLen - ((inLen + (PEM_LINE_SZ - 1)) / PEM_LINE_SZ );
+    int ret;
     const byte maxIdx = (byte)sizeof(base64Decode) + BASE64_MIN - 1;
 
     plainSz = (plainSz * 3 + 3) / 4;
     if (plainSz > *outLen) return BAD_FUNC_ARG;
 
     while (inLen > 3) {
-        byte b1, b2, b3;
-        byte e1 = in[j++];
-        byte e2 = in[j++];
-        byte e3 = in[j++];
-        byte e4 = in[j++];
-
         int pad3 = 0;
         int pad4 = 0;
+
+        byte b1, b2, b3;
+        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+            return ret;
+        }
+        byte e1 = in[j++];
+        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+            return ret;
+        }
+        byte e2 = in[j++];
+        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+            return ret;
+        }
+        byte e3 = in[j++];
+        if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+            return ret;
+        }
+        byte e4 = in[j++];
 
         if (e1 == 0)            /* end file 0's */
             break;
@@ -118,24 +157,6 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
             break;
 
         inLen -= 4;
-        if (inLen && (in[j] == ' ' || in[j] == '\r' || in[j] == '\n')) {
-            byte endLine = in[j++];
-            inLen--;
-            while (inLen && endLine == ' ') {   /* allow trailing whitespace */
-                endLine = in[j++];
-                inLen--;
-            }
-            if (endLine == '\r') {
-                if (inLen) {
-                    endLine = in[j++];
-                    inLen--;
-                }
-            }
-            if (endLine != '\n') {
-                WOLFSSL_MSG("Bad end of line in Base64 Decode");
-                return ASN_INPUT_E;
-            }
-        }
     }
 /* If the output buffer has a room for an extra byte, add a null terminator */
     if (out && *outLen > i)

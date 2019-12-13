@@ -9759,6 +9759,11 @@ const char* const END_ENC_PRIV_KEY     = "-----END ENCRYPTED PRIVATE KEY-----";
     const char* const BEGIN_DSA_PRIV   = "-----BEGIN DSA PRIVATE KEY-----";
     const char* const END_DSA_PRIV     = "-----END DSA PRIVATE KEY-----";
 #endif
+#ifdef OPENSSL_EXTRA
+    const char BEGIN_PRIV_KEY_PREFIX[] = "-----BEGIN";
+    const char PRIV_KEY_SUFFIX[] = "PRIVATE KEY-----";
+    const char END_PRIV_KEY_PREFIX[]   = "-----END";
+#endif
 const char* const BEGIN_PUB_KEY        = "-----BEGIN PUBLIC KEY-----";
 const char* const END_PUB_KEY          = "-----END PUBLIC KEY-----";
 #ifdef HAVE_ED25519
@@ -10216,6 +10221,8 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
 
 #ifdef WOLFSSL_PEM_TO_DER
 
+#define STR_SIZEOF(x) (sizeof(x) - 1) /* -1 to not count the null char */
+
 /* Remove PEM header/footer, convert to ASN1, store any encrypted data
    info->consumed tracks of PEM bytes consumed in case multiple parts */
 int PemToDer(const unsigned char* buff, long longSz, int type,
@@ -10237,6 +10244,10 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     #if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3) && !defined(NO_WOLFSSL_SKIP_TRAILING_PAD)
         int     padVal = 0;
     #endif
+#endif
+#ifdef OPENSSL_EXTRA
+    char        beginBuf[PEM_LINE_LEN];
+    char        endBuf[PEM_LINE_LEN];
 #endif
 
     WOLFSSL_ENTER("PemToDer");
@@ -10293,11 +10304,58 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     }
 
     if (!headerEnd) {
+#ifdef OPENSSL_EXTRA
+        char* beginEnd;
+        int endLen;
+        /* see if there is a -----BEGIN * PRIVATE KEY----- header */
+        headerEnd = XSTRNSTR((char*)buff, PRIV_KEY_SUFFIX, sz);
+        if (headerEnd) {
+            beginEnd = headerEnd + STR_SIZEOF(PRIV_KEY_SUFFIX);
+            /* back up to BEGIN_PRIV_KEY_PREFIX */
+            headerEnd -= STR_SIZEOF(BEGIN_PRIV_KEY_PREFIX);
+            while (headerEnd > (char*)buff &&
+                    XSTRNCMP(headerEnd, BEGIN_PRIV_KEY_PREFIX,
+                            STR_SIZEOF(BEGIN_PRIV_KEY_PREFIX)) != 0) {
+                headerEnd--;
+            }
+            if (XSTRNCMP(headerEnd, BEGIN_PRIV_KEY_PREFIX,
+                    STR_SIZEOF(BEGIN_PRIV_KEY_PREFIX)) != 0 ||
+                    beginEnd - headerEnd > PEM_LINE_LEN) {
+                WOLFSSL_MSG("Couldn't find PEM header");
+                return ASN_NO_PEM_HEADER;
+            }
+            /* headerEnd now points to beginning of header */
+            XMEMCPY(beginBuf, headerEnd, beginEnd - headerEnd);
+            beginBuf[beginEnd - headerEnd] = '\0';
+            /* look for matching footer */
+            footer = XSTRNSTR(beginEnd,
+                            beginBuf + STR_SIZEOF(BEGIN_PRIV_KEY_PREFIX),
+                            (char*)buff + sz - beginEnd);
+            if (!footer) {
+                WOLFSSL_MSG("Couldn't find PEM footer");
+                return ASN_NO_PEM_HEADER;
+            }
+            footer -= STR_SIZEOF(END_PRIV_KEY_PREFIX);
+            endLen = beginEnd - headerEnd -
+                        (STR_SIZEOF(BEGIN_PRIV_KEY_PREFIX) -
+                                STR_SIZEOF(END_PRIV_KEY_PREFIX));
+            XMEMCPY(endBuf, footer, endLen);
+            endBuf[endLen] = '\0';
+
+            header = beginBuf;
+            footer = endBuf;
+            headerEnd = beginEnd;
+        } else {
+            WOLFSSL_MSG("Couldn't find PEM header");
+            return ASN_NO_PEM_HEADER;
+        }
+#else
         WOLFSSL_MSG("Couldn't find PEM header");
         return ASN_NO_PEM_HEADER;
+#endif
+    } else {
+        headerEnd += XSTRLEN(header);
     }
-
-    headerEnd += XSTRLEN(header);
 
     /* eat end of line characters */
     headerEnd = SkipEndOfLineChars(headerEnd, bufferEnd);
@@ -10306,8 +10364,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         /* keyFormat is Key_Sum enum */
         if (keyFormat) {
         #ifdef HAVE_ECC
-            if (header == BEGIN_EC_PRIV)
-                *keyFormat = ECDSAk;
+            *eccKey = (header == BEGIN_EC_PRIV || header == beginBuf) ? 1 : 0;
+        #else
+            *eccKey = 0;
         #endif
         #if !defined(NO_DSA)
             if (header == BEGIN_DSA_PRIV)
@@ -10327,7 +10386,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 #endif /* WOLFSSL_ENCRYPTED_KEYS */
 
     /* find footer */
-    footerEnd = XSTRNSTR((char*)buff, footer, sz);
+    footerEnd = XSTRNSTR(headerEnd, footer, (char*)buff + sz - headerEnd);
     if (!footerEnd) {
         if (info)
             info->consumed = longSz; /* No more certs if no footer */
@@ -10363,6 +10422,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         return BUFFER_E;
 
     if ((header == BEGIN_PRIV_KEY
+#ifdef OPENSSL_EXTRA
+         || header == beginBuf
+#endif
 #ifdef HAVE_ECC
          || header == BEGIN_EC_PRIV
 #endif
