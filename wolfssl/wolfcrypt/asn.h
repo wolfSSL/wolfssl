@@ -239,9 +239,10 @@ enum ECC_TYPES
 #endif /* WOLFSSL_CERT_PIV */
 
 
-#define ASN_JOI_PREFIX "\x2b\x06\x01\x04\x01\x82\x37\x3c\x02\x01"
-#define ASN_JOI_C      0x3
-#define ASN_JOI_ST     0x2
+#define ASN_JOI_PREFIX_SZ       10
+#define ASN_JOI_PREFIX          "\x2b\x06\x01\x04\x01\x82\x37\x3c\x02\x01"
+#define ASN_JOI_C               0x3
+#define ASN_JOI_ST              0x2
 
 #ifndef WC_ASN_NAME_MAX
     #ifdef OPENSSL_EXTRA
