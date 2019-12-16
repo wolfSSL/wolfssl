@@ -7779,7 +7779,7 @@ int gmac_test(void)
     byte tag[16];
 
     XMEMSET(&gmac, 0, sizeof(Gmac)); /* clear context */
-    wc_AesInit((Aes*)&gmac, HEAP_HINT, INVALID_DEVID); /* Make sure devId updated */
+    (void)wc_AesInit((Aes*)&gmac, HEAP_HINT, INVALID_DEVID); /* Make sure devId updated */
     XMEMSET(tag, 0, sizeof(tag));
     wc_GmacSetKey(&gmac, k1, sizeof(k1));
     wc_GmacUpdate(&gmac, iv1, sizeof(iv1), a1, sizeof(a1), tag, sizeof(t1));
@@ -11547,14 +11547,18 @@ static int rsa_keygen_test(WC_RNG* rng)
         ERROR_OUT(-6968, exit_rsa);
     }
 #endif /* WOLFSSL_CRYPTOCELL */
-    wc_FreeRsaKey(&genKey);
-    XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    pem = NULL;
-    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    der = NULL;
 
 exit_rsa:
     wc_FreeRsaKey(&genKey);
+    if (pem != NULL) {
+        XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        pem = NULL;
+    }
+    if (der != NULL) {
+        XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        der = NULL;
+    }
+
     return ret;
 }
 #endif
