@@ -484,7 +484,7 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
             else {
                 if (outSz > (int)v) {
                     /* take off MSB */
-                    byte  tmp[129];
+                    byte  tmp[WC_MAX_BLOCK_SIZE + 1];
                     ret = mp_to_unsigned_bin(&res, tmp);
                     XMEMCPY(I + i, tmp + 1, v);
                 }
