@@ -18,8 +18,8 @@ It provides the following zephyr code.
 
 ## How to setup
 
-### delopy wolfssl source to mynewt project
-Specify the path of the mynewt project and execute  `wolfssl/IDE/mynewt/setup.sh`.
+### delopy wolfssl source to zephyr project
+Specify the path of the zephyr project and execute  `wolfssl/IDE/zephyr/setup.sh`.
 
 ```bash
 ./IDE/zephyr/setup.sh　/path/to/zephyrproject
