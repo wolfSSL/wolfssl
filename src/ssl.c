@@ -2139,7 +2139,7 @@ WOLFSSL_API int wolfSSL_UseTrustedCA(WOLFSSL* ssl, byte type,
     #ifndef NO_SHA
     else if (type == WOLFSSL_TRUSTED_CA_KEY_SHA1 ||
             type == WOLFSSL_TRUSTED_CA_CERT_SHA1) {
-        if (certId == NULL || certIdSz != SHA_DIGEST_SIZE)
+        if (certId == NULL || certIdSz != WC_SHA_DIGEST_SIZE)
             return BAD_FUNC_ARG;
     }
     #endif
@@ -36873,9 +36873,9 @@ err:
      *
      * d  message to hash
      * n  size of d buffer
-     * md buffer to hold digest. Should be SHA_DIGEST_SIZE.
+     * md buffer to hold digest. Should be WC_SHA_DIGEST_SIZE.
      *
-     * Note: if md is null then a static buffer of SHA_DIGEST_SIZE is used.
+     * Note: if md is null then a static buffer of WC_SHA_DIGEST_SIZE is used.
      *       When the static buffer is used this function is not thread safe.
      *
      * Returns a pointer to the message digest on success and NULL on failure.
