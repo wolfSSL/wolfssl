@@ -4419,10 +4419,10 @@ static void test_wolfSSL_PKCS12(void)
     WOLFSSL_X509     *cert;
     WOLFSSL_X509     *x509;
     WOLFSSL_X509     *tmp;
-    WOLFSSL_CTX      *ctx;
     WOLF_STACK_OF(WOLFSSL_X509) *ca;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
     || defined(WOLFSSL_NGINX)
+    WOLFSSL_CTX      *ctx;
     WOLFSSL          *ssl;
     WOLF_STACK_OF(WOLFSSL_X509) *tmp_ca = NULL;
 #endif
@@ -4466,14 +4466,15 @@ static void test_wolfSSL_PKCS12(void)
     AssertNotNull(cert);
     AssertNotNull(ca);
 
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
+    || defined(WOLFSSL_NGINX)
+
     /* Check that SSL_CTX_set0_chain correctly sets the certChain buffer */
 #ifndef NO_WOLFSSL_CLIENT
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
 #else
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 #endif
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
-    || defined(WOLFSSL_NGINX)
     /* Copy stack structure */
     AssertNotNull(tmp_ca = sk_X509_dup(ca));
     AssertIntEQ(SSL_CTX_set0_chain(ctx, tmp_ca), 1);
