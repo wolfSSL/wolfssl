@@ -371,6 +371,7 @@ enum Oid_Types {
     oidCompressType     = 16,
     oidCertNameType     = 17,
     oidTlsExtType       = 18,
+    oidCrlExtType       = 19,
     oidIgnoreType
 };
 
@@ -1341,17 +1342,19 @@ struct DecodedCRL {
     word32  sigLength;               /* length of signature              */
     word32  signatureOID;            /* sum of algorithm object id       */
     byte*   signature;               /* pointer into raw source, not owned */
-    byte    issuerHash[SIGNER_DIGEST_SIZE]; /* issuer hash               */
+    byte    issuerHash[SIGNER_DIGEST_SIZE]; /* issuer name hash          */
     byte    crlHash[SIGNER_DIGEST_SIZE]; /* raw crl data hash            */
     byte    lastDate[MAX_DATE_SIZE]; /* last date updated  */
     byte    nextDate[MAX_DATE_SIZE]; /* next update date   */
-    byte    extAuthKeyId[KEYID_SIZE]; /* Authority Key ID                */
     byte    lastDateFormat;          /* format of last date */
     byte    nextDateFormat;          /* format of next date */
     RevokedCert* certs;              /* revoked cert list  */
     int          totalCerts;         /* number on list     */
     void*   heap;
-    byte    extAuthKeyIdSet;         /* Set when the AKID was read from CRL */
+#ifndef NO_SKID
+    byte    extAuthKeyIdSet;
+    byte    extAuthKeyId[SIGNER_DIGEST_SIZE]; /* Authority Key ID        */
+#endif
 };
 
 WOLFSSL_LOCAL void InitDecodedCRL(DecodedCRL*, void* heap);

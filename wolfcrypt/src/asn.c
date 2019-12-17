@@ -1980,6 +1980,17 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
             }
             break;
 
+        case oidCrlExtType:
+            #ifdef HAVE_CRL
+            switch (id) {
+                case AUTH_KEY_OID:
+                    oid = extAuthKeyOid;
+                    *oidSz = sizeof(extAuthKeyOid);
+                    break;
+            }
+            #endif
+            break;
+
         case oidCertAuthInfoType:
             switch (id) {
             #ifdef HAVE_OCSP
@@ -15792,26 +15803,11 @@ void InitDecodedCRL(DecodedCRL* dcrl, void* heap)
 {
     WOLFSSL_MSG("InitDecodedCRL");
 
-    dcrl->certBegin    = 0;
-    dcrl->sigIndex     = 0;
-    dcrl->sigLength    = 0;
-    dcrl->signatureOID = 0;
-    dcrl->signature    = NULL;
-    XMEMSET(dcrl->issuerHash, 0, SIGNER_DIGEST_SIZE);
-    /* XMEMSET(dcrl->crlHash, 0, SIGNER_DIGEST_SIZE);
-     * initialize the hash here if needed for optimized comparisons */
-    XMEMSET(dcrl->lastDate, 0, MAX_DATE_SIZE);
-    XMEMSET(dcrl->nextDate, 0, MAX_DATE_SIZE);
-    XMEMSET(dcrl->extAuthKeyId, 0, KEYID_SIZE);
-    dcrl->lastDateFormat = 0;
-    dcrl->nextDateFormat = 0;
-    dcrl->certs        = NULL;
-    dcrl->totalCerts   = 0;
-    dcrl->heap         = heap;
+    XMEMSET(dcrl, 0, sizeof(DecodedCRL));
+    dcrl->heap = heap;
     #ifdef WOLFSSL_HEAP_TEST
         dcrl->heap = (void*)WOLFSSL_HEAP_TEST;
     #endif
-    dcrl->extAuthKeyIdSet = 0;
 }
 
 
@@ -15996,6 +15992,133 @@ static int ParseCRL_CertList(DecodedCRL* dcrl, const byte* buf,
 }
 
 
+#ifndef NO_SKID
+static int ParseCRL_AuthKeyIdExt(const byte* input, int sz, DecodedCRL* dcrl)
+{
+    word32 idx = 0;
+    int length = 0, ret = 0;
+    byte tag;
+
+    WOLFSSL_ENTER("ParseCRL_AuthKeyIdExt");
+
+    if (GetSequence(input, &idx, &length, sz) < 0) {
+        WOLFSSL_MSG("\tfail: should be a SEQUENCE\n");
+        return ASN_PARSE_E;
+    }
+
+    if (GetASNTag(input, &idx, &tag, sz) < 0) {
+        return ASN_PARSE_E;
+    }
+
+    if (tag != (ASN_CONTEXT_SPECIFIC | 0)) {
+        WOLFSSL_MSG("\tinfo: OPTIONAL item 0, not available\n");
+        return 0;
+    }
+
+    if (GetLength(input, &idx, &length, sz) <= 0) {
+        WOLFSSL_MSG("\tfail: extension data length");
+        return ASN_PARSE_E;
+    }
+
+    dcrl->extAuthKeyIdSet = 1;
+    if (length == KEYID_SIZE) {
+        XMEMCPY(dcrl->extAuthKeyId, input + idx, length);
+    }
+    else {
+        ret = CalcHashId(input + idx, length, dcrl->extAuthKeyId);
+    }
+
+    return ret;
+}
+#endif
+
+
+static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
+        word32* inOutIdx, word32 sz)
+{
+    int length;
+    word32 idx;
+    word32 ext_bound; /* boundary index for the sequence of extensions */
+    word32 oid;
+    byte tag;
+
+    WOLFSSL_ENTER("ParseCRL_Extensions");
+    (void)dcrl;
+
+    if (inOutIdx == NULL)
+        return BAD_FUNC_ARG;
+
+    idx = *inOutIdx;
+
+    if ((idx + 1) > sz)
+        return BUFFER_E;
+
+    if (GetASNTag(buf, &idx, &tag, sz) < 0)
+        return ASN_PARSE_E;
+
+    if (tag != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+        return ASN_PARSE_E;
+
+    if (GetLength(buf, &idx, &length, sz) < 0)
+        return ASN_PARSE_E;
+
+    if (GetSequence(buf, &idx, &length, sz) < 0)
+        return ASN_PARSE_E;
+
+    ext_bound = idx + length;
+
+    while (idx < (word32)ext_bound) {
+        word32 localIdx;
+        int ret;
+
+        if (GetSequence(buf, &idx, &length, sz) < 0) {
+            WOLFSSL_MSG("\tfail: should be a SEQUENCE");
+            return ASN_PARSE_E;
+        }
+
+        oid = 0;
+        if (GetObjectId(buf, &idx, &oid, oidCrlExtType, sz) < 0) {
+            WOLFSSL_MSG("\tfail: OBJECT ID");
+            return ASN_PARSE_E;
+        }
+
+        /* check for critical flag */
+        if ((idx + 1) > (word32)sz) {
+            WOLFSSL_MSG("\tfail: malformed buffer");
+            return BUFFER_E;
+        }
+
+        localIdx = idx;
+        if (GetASNTag(buf, &localIdx, &tag, sz) == 0 && tag == ASN_BOOLEAN) {
+            WOLFSSL_MSG("\tfound optional critical flag, moving past");
+            ret = GetBoolean(buf, &idx, sz);
+            if (ret < 0)
+                return ret;
+        }
+
+        ret = GetOctetString(buf, &idx, &length, sz);
+        if (ret < 0)
+            return ret;
+
+        if (oid == AUTH_KEY_OID) {
+        #ifndef NO_SKID
+            ret = ParseCRL_AuthKeyIdExt(buf + idx, length, dcrl);
+            if (ret < 0) {
+                WOLFSSL_MSG("\tcouldn't parse AuthKeyId extension");
+                return ret;
+            }
+        #endif
+        }
+
+        idx += length;
+    }
+
+    *inOutIdx = idx;
+
+    return 0;
+}
+
+
 /* prase crl buffer into decoded state, 0 on success */
 int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 {
@@ -16025,6 +16148,9 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
     dcrl->sigIndex = len + idx;
 
     if (ParseCRL_CertList(dcrl, buff, &idx, idx + len) < 0)
+        return ASN_PARSE_E;
+
+    if (ParseCRL_Extensions(dcrl, buff, &idx, idx + len) < 0)
         return ASN_PARSE_E;
 
     idx = dcrl->sigIndex;

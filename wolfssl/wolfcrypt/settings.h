@@ -1618,12 +1618,6 @@ extern void uITRON4_free(void *p) ;
     #define XGEN_ALIGN
 #endif
 
-#ifdef HAVE_CRL
-    /* may not be widely supported */
-    /* #undef NO_SKID */
-    /* #define NO_SKID */
-#endif
-
 
 #ifdef __INTEL_COMPILER
     #pragma warning(disable:2259) /* explicit casts to smaller sizes, disable */
