@@ -10161,6 +10161,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     && !args->haveTrustPeer
                 #endif /* WOLFSSL_TRUST_PEER_CERT */
                 ) {
+                    int skipAddCA = 0;
+                    
                     /* select last certificate */
                     args->certIdx = args->count - 1;
 
@@ -10268,12 +10270,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                             ret = 0; /* clear error and continue */
                         }
+
+                        /* do not add to certificate manager */
+                        skipAddCA = 1;
                     }
-                    else /* do not add to certificate manager */
                 #endif /* WOLFSSL_ALT_CERT_CHAINS */
 
                     /* If valid CA then add to Certificate Manager */
-                    if (ret == 0 && args->dCert->isCA && !ssl->options.verifyNone) {
+                    if (ret == 0 && args->dCert->isCA &&
+                            !ssl->options.verifyNone && !skipAddCA) {
                         buffer* cert = &args->certs[args->certIdx];
 
                         /* Is valid CA */
