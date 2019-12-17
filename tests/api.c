@@ -523,7 +523,7 @@ static void test_wolfSSL_Method_Allocators(void)
         TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_client_method);
         #endif
     #endif
-    #ifdef WOLFLSL_ALLOW_TLSV10
+    #ifdef WOLFSSL_ALLOW_TLSV10
         #ifndef NO_WOLFSSL_SERVER
         TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_server_method);
         #endif
@@ -25401,8 +25401,6 @@ static void test_wolfSSL_sk_CIPHER_description(void)
 
     printf(testingFmt, "wolfSSL_sk_CIPHER_description");
 
-    SSL_library_init();
-
     AssertNotNull(method = TLSv1_client_method());
     AssertNotNull(ctx = SSL_CTX_new(method));
 
@@ -25459,8 +25457,6 @@ static void test_wolfSSL_get_ciphers_compat(void)
     const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_COMPRESSION;
 
     printf(testingFmt, "wolfSSL_get_ciphers_compat");
-
-    SSL_library_init();
 
     AssertNotNull(method = TLSv1_client_method());
     AssertNotNull(ctx = SSL_CTX_new(method));
