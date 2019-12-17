@@ -1279,8 +1279,8 @@ int bench_tls(void* args)
     stats_t cli_comb, srv_comb;
     int i;
     char *cipher, *next_cipher, *ciphers = NULL;
-    int     argc = ((func_args*)args)->argc;
-    char**  argv = ((func_args*)args)->argv;
+    int     argc = 0;
+    char**  argv = NULL;
     int    ch;
 
     /* Vars configured by command line arguments */
@@ -1303,8 +1303,11 @@ int bench_tls(void* args)
     int listenFd = -1;
 #endif
 
-    if (args)
+    if (args != NULL) {
+        argc = ((func_args*)args)->argc;
+        argv = ((func_args*)args)->argv;
         ((func_args*)args)->return_code = -1; /* error state */
+    }
 
     /* Initialize wolfSSL */
     wolfSSL_Init();
