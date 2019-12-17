@@ -148,6 +148,7 @@ int wc_ed25519_export_key(ed25519_key* key,
                           byte* priv, word32 *privSz,
                           byte* pub, word32 *pubSz);
 
+WOLFSSL_API
 int wc_ed25519_check_key(ed25519_key* key);
 
 /* size helper */
@@ -166,4 +167,3 @@ int wc_ed25519_sig_size(ed25519_key* key);
 
 #endif /* HAVE_ED25519 */
 #endif /* WOLF_CRYPT_ED25519_H */
-
