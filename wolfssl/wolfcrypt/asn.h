@@ -890,6 +890,9 @@ struct DecodedCert {
 #endif
     byte*  tsip_encRsaKeyIdx;
 
+    int badDate;
+    int criticalExt;
+
     /* Option Bits */
     byte subjectCNStored : 1;      /* have we saved a copy we own */
     byte extSubjKeyIdSet : 1;      /* Set when the SKID was read from cert */
