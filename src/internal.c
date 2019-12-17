@@ -17303,6 +17303,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case CLIENT_CERT_CB_ERROR:
         return "Error importing client cert or key from callback";
 
+    case SSL_SHUTDOWN_ALREADY_DONE_E:
+        return "Shutdown has already occurred";
+
     default :
         return "unknown error number";
     }

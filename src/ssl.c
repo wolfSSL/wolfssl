@@ -2884,6 +2884,14 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
             }
         }
 
+#ifdef WOLFSSL_SHUTDOWNONCE
+        if (ssl->options.isClosed || ssl->options.connReset) {
+            /* Shutdown has already occurred.
+             * Caller is free to ignore this error. */
+            return SSL_SHUTDOWN_ALREADY_DONE_E;
+        }
+#endif
+
         /* call wolfSSL_shutdown again for bidirectional shutdown */
         if (ssl->options.sentNotify && !ssl->options.closeNotify) {
             ret = wolfSSL_read(ssl, &tmp, 0);
