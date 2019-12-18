@@ -29,7 +29,7 @@ The `IDE/CRYPTOCELL/main.c` example application provides a function to run the s
 - Hardware RNG
 - RTC for benchmark timing source
 
-Note: All Cryptocell features are not supported. The wolfcrypt RSA API allows import and export of Private/Public keys in DER format. However, this is not possible keys generated with Cryptocell because the reconstruction of the imported keys has not been implemented.
+Note: All Cryptocell features are not supported. The wolfcrypt RSA API allows import and export of Private/Public keys in DER format. However, this is not possible with key pairs generated with Cryptocell because the importing/exporting Cryptocell keys has not been implemented yet.
 
 ## Setup
 ### Setting up Nordic SDK with wolfSSL

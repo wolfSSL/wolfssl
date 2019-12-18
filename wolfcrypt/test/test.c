@@ -11844,7 +11844,16 @@ int rsa_test(void)
 #ifndef WOLFSSL_RSA_VERIFY_INLINE
 
 #if defined(WOLFSSL_CRYPTOCELL)
-/* Cryptocell requires the input data and signature to verify */
+        /*
+        Cryptocell requires the input data and signature byte array to verify.
+
+        first argument must be the input data
+        second argument must be the length of input data
+        third argument must be the signature byte array or the output from
+                                                                wc_RsaSSL_Sign()
+        fourth argument must be the length of the signature byte array
+        */
+
         ret = wc_RsaSSL_Verify(in, inLen, out, outSz, &key);
 #else
         ret = wc_RsaSSL_Verify(out, idx, plain, plainSz, &key);
