@@ -5269,14 +5269,13 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
         #endif /* WOLFSSL_CERT_EXT */
         }
     #ifdef WOLFSSL_CERT_EXT
-        else if ((0 == XMEMCMP(&cert->source[cert->srcIdx], ASN_JOI_PREFIX,
-                               XSTRLEN(ASN_JOI_PREFIX))) &&
-                 ((cert->source[cert->srcIdx + XSTRLEN(ASN_JOI_PREFIX)] ==
-                         ASN_JOI_C) ||
-                  (cert->source[cert->srcIdx + XSTRLEN(ASN_JOI_PREFIX)] ==
-                          ASN_JOI_ST)))
+        else if ((cert->srcIdx + ASN_JOI_PREFIX_SZ + 2 <= (word32)maxIdx) &&
+                 (0 == XMEMCMP(&cert->source[cert->srcIdx], ASN_JOI_PREFIX,
+                               ASN_JOI_PREFIX_SZ)) &&
+                 ((cert->source[cert->srcIdx+ASN_JOI_PREFIX_SZ] == ASN_JOI_C) ||
+                  (cert->source[cert->srcIdx+ASN_JOI_PREFIX_SZ] == ASN_JOI_ST)))
         {
-            cert->srcIdx += 10;
+            cert->srcIdx += ASN_JOI_PREFIX_SZ;
             id = cert->source[cert->srcIdx++];
             b = cert->source[cert->srcIdx++]; /* encoding */
 
@@ -5342,8 +5341,7 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
 
             cert->srcIdx += oidSz + 1;
 
-            if (GetLength(cert->source, &cert->srcIdx, &strLen,
-                                                              maxIdx) < 0)
+            if (GetLength(cert->source, &cert->srcIdx, &strLen, maxIdx) < 0)
                 return ASN_PARSE_E;
 
             if (strLen > (int)(ASN_NAME_MAX - idx)) {
