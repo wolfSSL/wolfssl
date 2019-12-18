@@ -470,7 +470,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 
 /* Measures throughput in kbps. Throughput = number of bytes */
 static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
-    int dtlsUDP, int dtlsSCTP, int block, int throughput, int useX25519)
+    int dtlsUDP, int dtlsSCTP, int block, size_t throughput, int useX25519)
 {
     double start, conn_time = 0, tx_time = 0, rx_time = 0;
     SOCKET_T sockfd;
@@ -532,7 +532,7 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
             ret = wc_InitRng(&rng);
         #endif
             if (ret == 0) {
-                int xfer_bytes;
+                size_t xfer_bytes;
 
                 /* Generate random data to send */
                 ret = wc_RNG_GenerateBlock(&rng, (byte*)tx_buffer, block);
@@ -547,7 +547,7 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                     int len, rx_pos, select_ret;
 
                     /* Determine packet size */
-                    len = min(block, throughput - xfer_bytes);
+                    len = min(block, (int)(throughput - xfer_bytes));
 
                     /* Perform TX */
                     start = current_time(1);
@@ -631,7 +631,7 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     wolfSSL_free(ssl); ssl = NULL;
     CloseSocket(sockfd);
 
-    printf("wolfSSL Client Benchmark %d bytes\n"
+    printf("wolfSSL Client Benchmark %zu bytes\n"
         "\tConnect %8.3f ms\n"
         "\tTX      %8.3f ms (%8.3f MBps)\n"
         "\tRX      %8.3f ms (%8.3f MBps)\n",
@@ -1354,7 +1354,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    sendGET  = 0;
     int    benchmark = 0;
     int    block = TEST_BUFFER_SIZE;
-    int    throughput = 0;
+    size_t throughput = 0;
     int    doDTLS    = 0;
     int    dtlsUDP   = 0;
     int    dtlsSCTP  = 0;
@@ -1717,7 +1717,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 break;
 
             case 'B' :
-                throughput = atoi(myoptarg);
+                throughput = atol(myoptarg);
                 for (; *myoptarg != '\0'; myoptarg++) {
                     if (*myoptarg == ',') {
                         block = atoi(myoptarg + 1);
@@ -2498,7 +2498,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         XEXIT_T(EXIT_SUCCESS);
     }
 
-    if(throughput) {
+    if (throughput) {
         ((func_args*)args)->return_code =
             ClientBenchmarkThroughput(ctx, host, port, dtlsUDP, dtlsSCTP,
                                       block, throughput, useX25519);

@@ -24,6 +24,9 @@
     #include <config.h>
 #endif
 
+#ifndef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/options.h>
+#endif
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
@@ -538,8 +541,11 @@ int wolfcrypt_test(void* args)
 #endif
 
 #if !defined(NO_BIG_INT)
-    if (CheckCtcSettings() != 1)
+    if (CheckCtcSettings() != 1) {
+        printf("Sizeof mismatch (build) %x != (run) %x\n",
+            CTC_SETTINGS, CheckRunTimeSettings());
         return err_sys("Build vs runtime math mismatch\n", -1000);
+    }
 
 #if defined(USE_FAST_MATH) && \
 	(!defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC))
