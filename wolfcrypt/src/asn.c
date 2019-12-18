@@ -7801,7 +7801,7 @@ int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
     outIdx += w;
     val = 0;
 
-    do {
+    while (inIdx < inSz && outIdx < outSz) {
         /* extract the next OID digit from in to val */
         /* first bit is used to set if value is coded on 1 or multiple bytes */
         if (in[inIdx] & 0x80) {
@@ -7818,7 +7818,9 @@ int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
             val = 0;
         }
         inIdx++;
-    } while (inIdx < inSz);
+    }
+    if (outIdx == outSz)
+        outIdx--;
     out[outIdx] = 0;
 
     w = (int)outIdx;
