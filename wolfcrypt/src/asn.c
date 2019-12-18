@@ -8606,8 +8606,6 @@ int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
 int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 {
     int    ret = 0;
-    int    badDate = 0;
-    int    criticalExt = 0;
     int    checkPathLen = 0;
     int    decrementMaxPathLen = 0;
     word32 confirmOID;
@@ -8619,9 +8617,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     }
 
     if (cert->sigCtx.state == SIG_STATE_BEGIN) {
+        cert->badDate = 0;
+        cert->criticalExt = 0;
         if ((ret = DecodeToKey(cert, verify)) < 0) {
             if (ret == ASN_BEFORE_DATE_E || ret == ASN_AFTER_DATE_E)
-                badDate = ret;
+                cert->badDate = ret;
             else
                 return ret;
         }
@@ -8643,7 +8643,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 
             if ((ret = DecodeCertExtensions(cert)) < 0) {
                 if (ret == ASN_CRIT_EXT_E)
-                    criticalExt = ret;
+                    cert->criticalExt = ret;
                 else
                     return ret;
             }
@@ -8933,11 +8933,15 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 exit_pcr:
 #endif
 
-    if (badDate != 0 && verify != VERIFY_SKIP_DATE)
-        return badDate;
+    if (cert->badDate != 0) {
+        if (verify != VERIFY_SKIP_DATE) {
+            return cert->badDate;
+        }
+        WOLFSSL_MSG("Date error: Verify option is skipping");
+    }
 
-    if (criticalExt != 0)
-        return criticalExt;
+    if (cert->criticalExt != 0)
+        return cert->criticalExt;
 
     return ret;
 }
