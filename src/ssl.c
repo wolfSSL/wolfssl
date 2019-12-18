@@ -6340,6 +6340,8 @@ static int wolfSSL_CertManagerVerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const by
         }
         ret = CertManager_DoVerifyCallback(cm, ret, cert);
     }
+#else
+    (void)err_val;
 #endif
 
     FreeDecodedCert(cert);
