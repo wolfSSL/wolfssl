@@ -16180,10 +16180,16 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
        if experiencing issues uncomment NO_SKID define in CRL section of
        wolfssl/wolfcrypt/settings.h */
 #ifndef NO_SKID
-    if (dcrl->extAuthKeyIdSet)
+    if (dcrl->extAuthKeyIdSet) {
         ca = GetCA(cm, dcrl->extAuthKeyId); /* more unique than issuerHash */
-    if (ca == NULL)
+    }
+    if (ca != NULL && XMEMCMP(dcrl->issuerHash, ca->subjectNameHash,
+                KEYID_SIZE) != 0) {
+        ca = NULL;
+    }
+    if (ca == NULL) {
         ca = GetCAByName(cm, dcrl->issuerHash); /* last resort */
+    }
 #else
     ca = GetCA(cm, dcrl->issuerHash);
 #endif /* !NO_SKID */
