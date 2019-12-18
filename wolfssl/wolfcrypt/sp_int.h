@@ -161,7 +161,7 @@ MP_API int sp_init_multi(sp_int* a, sp_int* b, sp_int* c, sp_int* d,
                          sp_int* e, sp_int* f);
 MP_API void sp_clear(sp_int* a);
 MP_API int sp_unsigned_bin_size(sp_int* a);
-MP_API int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz);
+MP_API int sp_read_unsigned_bin(sp_int* a, const byte* in, int inSz);
 MP_API int sp_read_radix(sp_int* a, const char* in, int radix);
 MP_API int sp_cmp(sp_int* a, sp_int* b);
 MP_API int sp_count_bits(sp_int* a);
