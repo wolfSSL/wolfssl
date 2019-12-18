@@ -21863,7 +21863,7 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
     WOLFSSL_ASN1_TIME *asn_time, *s;
     int offset_day;
     long offset_sec;
-    char date_str[CTC_DATE_SIZE];
+    char date_str[CTC_DATE_SIZE + 1];
     time_t t;
 
     printf(testingFmt, "wolfSSL_ASN1_TIME_adj()");
@@ -21878,14 +21878,16 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
     /* offset_sec = -45 * min;*/
     asn_time = wolfSSL_ASN1_TIME_adj(s, t, offset_day, offset_sec);
     AssertTrue(asn_time->type == asn_utc_time);
-    XSTRNCPY(date_str, (const char*)&asn_time->data, sizeof(date_str));
+    XSTRNCPY(date_str, (const char*)&asn_time->data, CTC_DATE_SIZE);
+    date_str[CTC_DATE_SIZE] = '\0';
     AssertIntEQ(0, XMEMCMP(date_str, "000222211500Z", 13));
 
     /* negative offset */
     offset_sec = -45 * mini;
     asn_time = wolfSSL_ASN1_TIME_adj(s, t, offset_day, offset_sec);
     AssertTrue(asn_time->type == asn_utc_time);
-    XSTRNCPY(date_str, (const char*)&asn_time->data, sizeof(date_str));
+    XSTRNCPY(date_str, (const char*)&asn_time->data, CTC_DATE_SIZE);
+    date_str[CTC_DATE_SIZE] = '\0';
     AssertIntEQ(0, XMEMCMP(date_str, "000222194500Z", 13));
 
     XFREE(s, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -21902,7 +21904,8 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
         offset_sec = 10 * mini;
     asn_time = wolfSSL_ASN1_TIME_adj(s, t, offset_day, offset_sec);
     AssertTrue(asn_time->type == asn_gen_time);
-    XSTRNCPY(date_str, (const char*)&asn_time->data, sizeof(date_str));
+    XSTRNCPY(date_str, (const char*)&asn_time->data, CTC_DATE_SIZE);
+    date_str[CTC_DATE_SIZE] = '\0';
     AssertIntEQ(0, XMEMCMP(date_str, "20550313091000Z", 15));
 
     XFREE(s, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -21917,13 +21920,15 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
     offset_sec = 45 * mini;
     asn_time = wolfSSL_ASN1_TIME_adj(s, t, offset_day, offset_sec);
     AssertTrue(asn_time->type == asn_utc_time);
-    XSTRNCPY(date_str, (const char*)&asn_time->data, sizeof(date_str));
+    XSTRNCPY(date_str, (const char*)&asn_time->data, CTC_DATE_SIZE);
+    date_str[CTC_DATE_SIZE] = '\0';
     AssertIntEQ(0, XMEMCMP(date_str, "000222211515Z", 13));
     XFREE(asn_time, NULL, DYNAMIC_TYPE_OPENSSL);
 
     asn_time = wolfSSL_ASN1_TIME_adj(NULL, t, offset_day, offset_sec);
     AssertTrue(asn_time->type == asn_utc_time);
-    XSTRNCPY(date_str, (const char*)&asn_time->data, sizeof(date_str));
+    XSTRNCPY(date_str, (const char*)&asn_time->data, CTC_DATE_SIZE);
+    date_str[CTC_DATE_SIZE] = '\0';
     AssertIntEQ(0, XMEMCMP(date_str, "000222211515Z", 13));
     XFREE(asn_time, NULL, DYNAMIC_TYPE_OPENSSL);
 

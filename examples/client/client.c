@@ -231,7 +231,7 @@ static void ShowVersions(void)
 #ifdef WOLFSSL_TLS13
 static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519)
 {
-    int groups[3];
+    int groups[3] = {0};
     int count = 0;
 
     (void)useX25519;
