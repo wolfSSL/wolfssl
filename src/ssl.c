@@ -19751,13 +19751,14 @@ WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
     }
 #endif
 
-    copy = XMALLOC(sizeof(WOLFSSL_SESSION), NULL, DYNAMIC_TYPE_OPENSSL);
+    copy = (WOLFSSL_SESSION*)XMALLOC(sizeof(WOLFSSL_SESSION), NULL,
+            DYNAMIC_TYPE_OPENSSL);
     if (copy != NULL) {
         XMEMCPY(copy, session, sizeof(WOLFSSL_SESSION));
         copy->isAlloced = 1;
 #ifdef HAVE_SESSION_TICKET
         if (session->isDynamic) {
-            copy->ticket = XMALLOC(session->ticketLen, NULL,
+            copy->ticket = (byte*)XMALLOC(session->ticketLen, NULL,
                                                     DYNAMIC_TYPE_SESSION_TICK);
             XMEMCPY(copy->ticket, session->ticket, session->ticketLen);
         } else {
