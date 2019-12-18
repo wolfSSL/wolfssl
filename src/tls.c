@@ -2617,7 +2617,7 @@ static int TLSX_TCA_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                     return BUFFER_ERROR;
                 ato16(input + offset, &idSz);
                 offset += OPAQUE16_LEN;
-                if (idSz > length - offset)
+                if ((offset > length) || (idSz > length - offset))
                     return BUFFER_ERROR;
                 id = input + offset;
                 offset += idSz;

@@ -3504,6 +3504,9 @@ static int wc_PKCS7_VerifyContentMessageDigest(PKCS7* pkcs7,
         digestSz = wc_HashGetDigestSize(hashType);
         if (digestSz < 0) {
             WOLFSSL_MSG("Invalid hash type");
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return digestSz;
         }
     } else {
