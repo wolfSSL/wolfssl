@@ -9374,6 +9374,29 @@ typedef struct ProcPeerCertArgs {
 #endif
 } ProcPeerCertArgs;
 
+static void DoCertFatalAlert(WOLFSSL* ssl, int ret)
+{
+    int alertWhy;
+    if (ssl == NULL || ret == 0) {
+        return;
+    }
+
+    /* Determine alert reason */
+    alertWhy = bad_certificate;
+    if (ret == ASN_AFTER_DATE_E || ret == ASN_BEFORE_DATE_E) {
+        alertWhy = certificate_expired;
+    }
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD))
+    else if (ret == CRL_CERT_REVOKED) {
+        alertWhy = certificate_revoked;
+    }
+#endif
+
+    /* send fatal alert and mark connection closed */
+    SendAlert(ssl, alert_fatal, alertWhy); /* try to send */
+    ssl->options.isClosed = 1;
+}
+
 /* WOLFSSL_ALWAYS_VERIFY_CB: Use verify callback for success or failure cases */
 /* WOLFSSL_VERIFY_CB_ALL_CERTS: Issue callback for all intermediate certificates */
 
@@ -9384,21 +9407,10 @@ typedef struct ProcPeerCertArgs {
 
 static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
 {
-    int verify_ok = 0, alertWhy = 0, use_cb = 0;
+    int verify_ok = 0, use_cb = 0;
 
-    /* Determine return code and alert reason */
-    if (ret != 0) {
-        alertWhy = bad_certificate;
-        if (ret == ASN_AFTER_DATE_E ||
-            ret == ASN_BEFORE_DATE_E) {
-            alertWhy = certificate_expired;
-        }
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD))
-        else if (ret == CRL_CERT_REVOKED)
-            alertWhy = certificate_revoked;
-#endif
-    }
-    else {
+    /* Determine if verify was okay */
+    if (ret == 0) {
         verify_ok = 1;
     }
 
@@ -9647,17 +9659,6 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         #endif
         XFREE(store, ssl->heap, DYNAMIC_TYPE_X509_STORE);
     #endif
-    }
-
-    if (ret != 0) {
-        if (!ssl->options.verifyNone) {
-            /* handle failure */
-            SendAlert(ssl, alert_fatal, alertWhy); /* try to send */
-            ssl->options.isClosed = 1;
-        }
-
-        /* Report SSL error */
-        ssl->error = ret;
     }
 
     return ret;
@@ -10191,6 +10192,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     && !args->haveTrustPeer
                 #endif /* WOLFSSL_TRUST_PEER_CERT */
                 ) {
+                    int skipAddCA = 0;
+                    
                     /* select last certificate */
                     args->certIdx = args->count - 1;
 
@@ -10281,12 +10284,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
             #endif /* HAVE_OCSP || HAVE_CRL */
 
+                    /* Do verify callback */
+                    ret = DoVerifyCallback(ssl, ret, args);
+
                 #ifdef WOLFSSL_ALT_CERT_CHAINS
                     /* For alternate cert chain, its okay for a CA cert to fail
                         with ASN_NO_SIGNER_E here. The "alternate" certificate
                         chain mode only requires that the peer certificate
                         validate to a trusted CA */
-                    if (ret != 0) {
+                    if (ret != 0 && args->dCert->isCA) {
                         if (ret == ASN_NO_SIGNER_E) {
                             if (!ssl->options.usingAltCertChain) {
                                 WOLFSSL_MSG("Trying alternate cert chain");
@@ -10295,14 +10301,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                             ret = 0; /* clear error and continue */
                         }
+
+                        /* do not add to certificate manager */
+                        skipAddCA = 1;
                     }
                 #endif /* WOLFSSL_ALT_CERT_CHAINS */
 
-                    /* Do verify callback */
-                    ret = DoVerifyCallback(ssl, ret, args);
-
                     /* If valid CA then add to Certificate Manager */
-                    if (ret == 0 && args->dCert->isCA && !ssl->options.verifyNone) {
+                    if (ret == 0 && args->dCert->isCA &&
+                            !ssl->options.verifyNone && !skipAddCA) {
                         buffer* cert = &args->certs[args->certIdx];
 
                         /* Is valid CA */
@@ -10332,9 +10339,16 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
 
                     /* Handle error codes */
-                    if (ret != 0 && args->lastErr == 0) {
-                        args->lastErr = ret; /* save error from last time */
-                        ret = 0; /* reset error */
+                    if (ret != 0) {
+                        if (!ssl->options.verifyNone) {
+                            DoCertFatalAlert(ssl, ret);
+                        }
+                        ssl->error = ret; /* Report SSL error */
+
+                        if (args->lastErr == 0) {
+                            args->lastErr = ret; /* save error from last time */
+                            ret = 0; /* reset error */
+                        }
                     }
 
                     FreeDecodedCert(args->dCert);
@@ -10904,6 +10918,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                               (ret == CRL_MISSING || ret == CRL_CERT_REVOKED)) {
                 WOLFSSL_MSG("Ignoring CRL problem based on verify setting");
                 ret = ssl->error = 0;
+            }
+
+            if (ret != 0) {
+                if (!ssl->options.verifyNone) {
+                    DoCertFatalAlert(ssl, ret);
+                }
+                ssl->error = ret; /* Report SSL error */
             }
 
             if (ret == 0 && ssl->options.side == WOLFSSL_CLIENT_END) {
@@ -16776,6 +16797,8 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
     int  outputSz;
     int  dtlsExtra = 0;
 
+    WOLFSSL_ENTER("SendAlert");
+
 #ifdef HAVE_WRITE_DUP
     if (ssl->dupWrite && ssl->dupSide == READ_DUP_SIDE) {
         int notifyErr = 0;
@@ -16872,7 +16895,11 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
     ssl->buffers.outputBuffer.length += sendSz;
     ssl->options.sendAlertState = 1;
 
-    return SendBuffered(ssl);
+    ret = SendBuffered(ssl);
+
+    WOLFSSL_LEAVE("SendAlert", ret);
+
+    return ret;
 }
 
 const char* wolfSSL_ERR_reason_error_string(unsigned long e)
