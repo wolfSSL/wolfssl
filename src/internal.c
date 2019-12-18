@@ -12380,6 +12380,14 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         return PARSE_ERROR;
     }
 
+    /* Cap the maximum size of a handshake message to something reasonable.
+     * By default is the maximum size of a certificate message assuming
+     * nine 2048-bit RSA certificates in the chain. */
+    if (size > MAX_HANDSHAKE_SZ) {
+        WOLFSSL_MSG("Handshake message too large");
+        return HANDSHAKE_SIZE_ERROR;
+    }
+
     /* check that we have complete fragment */
     if (*inOutIdx + fragSz > totalSz) {
         WOLFSSL_ERROR(INCOMPLETE_DATA);
