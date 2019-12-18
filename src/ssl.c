@@ -6240,7 +6240,7 @@ static int CertManager_DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, int ret,
         return MEMORY_E;
     }
     XMEMSET(store->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
-#endif /* defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)*/
+#endif /* defined(OPENSSL_EXTRA) */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     InitX509(x509, 0, cm->heap);
