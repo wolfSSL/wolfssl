@@ -6285,8 +6285,8 @@ static int CertManager_DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, int ret,
 #endif /* NO_WOLFSSL_CM_VERIFY */
 
 /* Verify the certificate, WOLFSSL_SUCCESS for ok, < 0 for error */
-int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
-                                    long sz, int format)
+static int wolfSSL_CertManagerVerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
+                                    long sz, int format, int err_val)
 {
     int ret = 0;
     DerBuffer* der = NULL;
@@ -6335,6 +6335,9 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
 #ifndef NO_WOLFSSL_CM_VERIFY
     /* if verify callback has been set */
     if (cm->verifyCallback) {
+        if (err_val != 0) {
+            ret = err_val;
+        }
         ret = CertManager_DoVerifyCallback(cm, ret, cert);
     }
 #endif
@@ -6348,7 +6351,12 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
     return ret == 0 ? WOLFSSL_SUCCESS : ret;
 }
 
-
+/* Verify the certificate, WOLFSSL_SUCCESS for ok, < 0 for error */
+int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
+                                    long sz, int format)
+{
+    return wolfSSL_CertManagerVerifyBuffer_ex(cm, buff, sz, format, 0);
+}
 /* turn on OCSP if off and compiled in, set options */
 int wolfSSL_CertManagerEnableOCSP(WOLFSSL_CERT_MANAGER* cm, int options)
 {
@@ -6785,9 +6793,18 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
             }
         }
         if ((type == CA_TYPE || type == TRUSTED_PEER_TYPE)
-                                              && format == WOLFSSL_FILETYPE_PEM)
+                                          && format == WOLFSSL_FILETYPE_PEM) {
             ret = ProcessChainBuffer(ctx, myBuffer, sz, format, type, ssl,
                                      verify);
+#ifndef NO_WOLFSSL_CM_VERIFY
+            /* Call to over-ride status */
+            if ((ctx != NULL) && (ctx->cm != NULL) &&
+                (ctx->cm->verifyCallback != NULL)) {
+                ret = wolfSSL_CertManagerVerifyBuffer_ex(ctx->cm, myBuffer, sz,
+                        format, (ret == WOLFSSL_SUCCESS ? 0 : ret));
+            }
+#endif /* NO_WOLFSSL_CM_VERIFY */
+        }
 #ifdef HAVE_CRL
         else if (type == CRL_TYPE)
             ret = BufferLoadCRL(crl, myBuffer, sz, format, verify);
@@ -6796,65 +6813,6 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
             ret = ProcessBuffer(ctx, myBuffer, sz, format, type, ssl, NULL,
                                 userChain, verify);
     }
-
-#ifndef NO_WOLFSSL_CM_VERIFY
-    /* Call to over-ride status */
-    if ((ctx != NULL) && (ctx->cm != NULL) &&
-        (ctx->cm->verifyCallback != NULL)) {
-        int tmp_ret = 0;
-        DerBuffer* der = NULL;
-    #ifdef WOLFSSL_SMALL_STACK
-        DecodedCert* cert = NULL;
-    #else
-        DecodedCert  cert[1];
-    #endif
-
-    #ifdef WOLFSSL_SMALL_STACK
-        cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ctx->cm->heap,
-                                     DYNAMIC_TYPE_DCERT);
-        if (cert == NULL)
-            return MEMORY_E;
-    #endif
-
-        if (format == WOLFSSL_FILETYPE_PEM) {
-    #ifdef WOLFSSL_PEM_TO_DER
-            tmp_ret = PemToDer(myBuffer, sz, type, &der, ctx->cm->heap,
-                            NULL, NULL);
-            if (tmp_ret != 0) {
-                FreeDer(&der);
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(cert, ctx->cm->heap, DYNAMIC_TYPE_DCERT);
-            #endif
-                return tmp_ret;
-            }
-            InitDecodedCert(cert, der->buffer, der->length, ctx->cm->heap);
-    #else
-            tmp_ret = NOT_COMPILED_IN;
-    #endif
-        }
-        else {
-            InitDecodedCert(cert, (byte*)myBuffer, (word32)sz, ctx->cm->heap);
-        }
-        if (tmp_ret == 0)
-            tmp_ret = ParseCertRelative(cert, type, verify, ctx->cm);
-
-        if (ret == WOLFSSL_SUCCESS) {
-            ret = tmp_ret;
-        }
-
-        ret = CertManager_DoVerifyCallback(ctx->cm, ret, cert);
-        if (ret == 0) {
-            ret = WOLFSSL_SUCCESS;
-        }
-
-        FreeDecodedCert(cert);
-        FreeDer(&der);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(cert, cm->heap, DYNAMIC_TYPE_DCERT);
-    #endif
-
-    }
-#endif /* NO_WOLFSSL_CM_VERIFY */
 
     XFCLOSE(file);
     if (dynamic)
