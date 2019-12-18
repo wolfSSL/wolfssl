@@ -20248,7 +20248,7 @@ static void test_wolfSSL_ERR_peek_last_error_line(void)
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
        !defined(NO_FILESYSTEM) && defined(DEBUG_WOLFSSL) && \
        !defined(NO_OLD_TLS) && !defined(WOLFSSL_NO_TLS12) && \
-       defined(HAVE_IO_TESTS_DEPENDENCIES)
+       defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(NO_ERROR_QUEUE)
     tcp_ready ready;
     func_args client_args;
     func_args server_args;
@@ -22553,7 +22553,8 @@ static void test_wolfSSL_PKCS8_d2i(void)
 
 static void test_wolfSSL_ERR_put_error(void)
 {
-    #if defined(OPENSSL_EXTRA) && defined(DEBUG_WOLFSSL)
+    #if !defined(NO_ERROR_QUEUE) && defined(OPENSSL_EXTRA) && \
+        defined(DEBUG_WOLFSSL)
     const char* file;
     int line;
 
@@ -22622,7 +22623,8 @@ static void test_wolfSSL_ERR_put_error(void)
 
 static void test_wolfSSL_ERR_print_errors(void)
 {
-    #if defined(OPENSSL_EXTRA) && defined(DEBUG_WOLFSSL)
+    #if !defined(NO_ERROR_QUEUE) && defined(OPENSSL_EXTRA) && \
+        defined(DEBUG_WOLFSSL)
     BIO* bio;
     char buf[1024];
 

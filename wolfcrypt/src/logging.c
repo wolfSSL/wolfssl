@@ -354,7 +354,8 @@ void WOLFSSL_LEAVE(const char* msg, int ret)
     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
     defined(OPENSSL_EXTRA)
 
-#if (defined(OPENSSL_EXTRA) && !defined(_WIN32)) || defined(DEBUG_WOLFSSL_VERBOSE)
+#if (defined(OPENSSL_EXTRA) && !defined(_WIN32) && !defined(NO_ERROR_QUEUE)) \
+    || defined(DEBUG_WOLFSSL_VERBOSE)
 void WOLFSSL_ERROR_LINE(int error, const char* func, unsigned int line,
         const char* file, void* usrCtx)
 #else
@@ -367,7 +368,8 @@ void WOLFSSL_ERROR(int error)
     {
         char buffer[WOLFSSL_MAX_ERROR_SZ];
 
-    #if (defined(OPENSSL_EXTRA) && !defined(_WIN32)) || defined(DEBUG_WOLFSSL_VERBOSE)
+    #if (defined(OPENSSL_EXTRA) && !defined(_WIN32) && \
+            !defined(NO_ERROR_QUEUE)) || defined(DEBUG_WOLFSSL_VERBOSE)
         (void)usrCtx; /* a user ctx for future flexibility */
         (void)func;
 
@@ -572,9 +574,14 @@ int wc_PullErrorNode(const char **file, const char **reason, int *line)
  * function. debug_mutex should be locked before a call to this function. */
 int wc_AddErrorNode(int error, int line, char* buf, char* file)
 {
-
+#if defined(NO_ERROR_QUEUE)
+    (void)error;
+    (void)line;
+    (void)buf;
+    (void)file;
+    WOLFSSL_MSG("Error queue turned off, can not add nodes");
+#else
     struct wc_error_queue* err;
-
     err = (struct wc_error_queue*)XMALLOC(
             sizeof(struct wc_error_queue), wc_error_heap, DYNAMIC_TYPE_LOG);
     if (err == NULL) {
@@ -640,7 +647,7 @@ int wc_AddErrorNode(int error, int line, char* buf, char* file)
             }
         }
     }
-
+#endif
     return 0;
 }
 
