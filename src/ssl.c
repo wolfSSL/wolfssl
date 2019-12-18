@@ -6237,6 +6237,13 @@ static int CertManager_DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, int ret,
                     sizeof(WOLFSSL_X509_VERIFY_PARAM),
                     cm->heap, DYNAMIC_TYPE_OPENSSL);
     if (store->param == NULL) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(domain, cm->heap, DYNAMIC_TYPE_STRING);
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        XFREE(x509, cm->heap, DYNAMIC_TYPE_X509);
+        #endif
+        XFREE(store, cm->heap, DYNAMIC_TYPE_X509_STORE);
+    #endif
         return MEMORY_E;
     }
     XMEMSET(store->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
