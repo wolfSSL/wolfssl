@@ -8677,11 +8677,16 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
          } else {
             cert->ca = NULL;
     #ifndef NO_SKID
-            if (cert->extAuthKeyIdSet)
+            if (cert->extAuthKeyIdSet) {
                 cert->ca = GetCA(cm, cert->extAuthKeyId);
+            }
             if (cert->ca == NULL && cert->extSubjKeyIdSet \
                                  && verify != VERIFY_OCSP) {
                 cert->ca = GetCA(cm, cert->extSubjKeyId);
+            }
+            if (cert->ca != NULL && XMEMCMP(cert->issuerHash,
+                                  cert->ca->subjectNameHash, KEYID_SIZE) != 0) {
+                cert->ca = NULL;
             }
             if (cert->ca == NULL)
                 cert->ca = GetCAByName(cm, cert->issuerHash);
@@ -8776,6 +8781,10 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             if (cert->ca == NULL && cert->extSubjKeyIdSet \
                                  && verify != VERIFY_OCSP) {
                 cert->ca = GetCA(cm, cert->extSubjKeyId);
+            }
+            if (cert->ca != NULL && XMEMCMP(cert->issuerHash,
+                                  cert->ca->subjectNameHash, KEYID_SIZE) != 0) {
+                cert->ca = NULL;
             }
             if (cert->ca == NULL)
                 cert->ca = GetCAByName(cm, cert->issuerHash);
