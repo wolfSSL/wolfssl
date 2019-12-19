@@ -16132,7 +16132,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     {
         WOLFSSL_ENTER("EVP_MD_CTX_cleanup");
         if (ctx->pctx != NULL)
-            XFREE(ctx->pctx, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+            wolfSSL_EVP_PKEY_CTX_free(ctx->pctx);
 
         if (ctx->macType == (NID_hmac & 0xFF)) {
             wc_HmacFree(&ctx->hash.hmac);
