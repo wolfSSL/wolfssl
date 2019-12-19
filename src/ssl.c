@@ -11572,6 +11572,8 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         #endif
 
             #ifdef WOLFSSL_DTLS
+            if (ssl->options.serverState ==
+                    SERVER_HELLOVERIFYREQUEST_COMPLETE) {
                 if (IsDtlsNotSctpMode(ssl)) {
                     /* re-init hashes, exclude first hello and verify request */
                     if ((ssl->error = InitHandshakeHashes(ssl)) != 0) {
@@ -11583,6 +11585,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                         return WOLFSSL_FATAL_ERROR;
                     }
                 }
+            }
             #endif
 
             ssl->options.connectState = HELLO_AGAIN_REPLY;
