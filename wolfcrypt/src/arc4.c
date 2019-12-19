@@ -38,7 +38,7 @@ int wc_Arc4SetKey(Arc4* arc4, const byte* key, word32 length)
     word32 i;
     word32 keyIndex = 0, stateIndex = 0;
 
-    if (arc4 == NULL || key == NULL) {
+    if (arc4 == NULL || key == NULL || length == 0) {
         return BAD_FUNC_ARG;
     }
 
