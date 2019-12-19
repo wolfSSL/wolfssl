@@ -16132,7 +16132,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     {
         WOLFSSL_ENTER("EVP_MD_CTX_cleanup");
         if (ctx->pctx != NULL)
-            wolfSSL_EVP_PKEY_CTX_free(ctx->pctx);
+            XFREE(ctx->pctx, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
 
         if (ctx->macType == (NID_hmac & 0xFF)) {
             wc_HmacFree(&ctx->hash.hmac);
@@ -23447,7 +23447,9 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
                 break;
             }
 
-            wc_FreeMutex(&key->refMutex);
+            if (wc_FreeMutex(&key->refMutex) != 0) {
+                WOLFSSL_MSG("Couldn't free pkey mutex");
+            }
             XFREE(key, key->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         }
     }

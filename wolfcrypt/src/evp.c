@@ -901,6 +901,8 @@ int wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx)
 {
     if (ctx == NULL) return 0;
     WOLFSSL_ENTER("EVP_PKEY_CTX_free");
+    if (ctx->pkey != NULL)
+        wolfSSL_EVP_PKEY_free(ctx->pkey);
     XFREE(ctx, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     return WOLFSSL_SUCCESS;
 }
