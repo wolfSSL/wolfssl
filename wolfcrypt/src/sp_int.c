@@ -49,6 +49,8 @@ WOLFSSL_LOCAL int sp_ModExp_2048(sp_int* base, sp_int* exp, sp_int* mod,
     sp_int* res);
 WOLFSSL_LOCAL int sp_ModExp_3072(sp_int* base, sp_int* exp, sp_int* mod,
     sp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_4096(sp_int* base, sp_int* exp, sp_int* mod,
+    sp_int* res);
 
 #endif
 
@@ -718,17 +720,19 @@ static int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
 #ifdef WOLFSSL_SMALL_STACK
     if (!done && err == MP_OKAY) {
         sa = (sp_int*)XMALLOC(sizeof(sp_int) * 4, NULL, DYNAMIC_TYPE_BIGINT);
-        if (sa == NULL)
+        if (sa == NULL) {
             err = MP_MEM;
-        else {
-            sd    = &sa[1];
-            tr    = &sa[2];
-            trial = &sa[3];
         }
     }
 #endif
 
     if (!done && err == MP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
+        sd    = &sa[1];
+        tr    = &sa[2];
+        trial = &sa[3];
+#endif
+
         sp_init(sa);
         sp_init(sd);
         sp_init(tr);
@@ -1166,7 +1170,7 @@ int sp_mulmod(sp_int* a, sp_int* b, sp_int* m, sp_int* r)
 {
     int err = MP_OKAY;
 #ifdef WOLFSSL_SMALL_STACK
-    sp_int* t;
+    sp_int* t = NULL;
 #else
     sp_int t[1];
 #endif
@@ -1357,19 +1361,20 @@ int sp_invmod(sp_int* a, sp_int* m, sp_int* r)
     if (u == NULL) {
         err = MP_MEM;
     }
-    else {
+#endif
+
+    if (err == MP_OKAY) {
+#ifdef WOLFSSL_SMALL_STACK
         v = &u[1];
         b = &u[2];
         c = &u[3];
-    }
 #endif
+        sp_init(v);
 
-    sp_init(v);
-
-
-    if ((err == MP_OKAY) && (sp_cmp(a, m) != MP_LT)) {
-        err = sp_mod(a, m, v);
-        a = v;
+        if (sp_cmp(a, m) != MP_LT) {
+            err = sp_mod(a, m, v);
+            a = v;
+        }
     }
 
     /* 0 != n*m + 1 (+ve m), r*a mod 0 is always 0 (never 1)  */
@@ -1569,7 +1574,18 @@ int sp_exptmod(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
             err = sp_ModExp_3072(b, e, m, r);
             done = 1;
         }
+        else
 #endif
+#ifdef WOLFSSL_SP_NO_4096
+        if ((mBits == 4096) && sp_isodd(m) && (bBits <= 4096) &&
+            (eBits <= 4096)) {
+            err = sp_ModExp_4096(b, e, m, r);
+            done = 1;
+        }
+        else
+#endif
+        {
+        }
     }
 #if defined(WOLFSSL_HAVE_SP_DH) && defined(WOLFSSL_KEY_GEN)
     if (!done && (err == MP_OKAY)) {
@@ -1624,7 +1640,7 @@ int sp_exptmod(sp_int* b, sp_int* e, sp_int* m, sp_int* r)
     #endif
     }
 #else
-    {
+    if (!done && (err == MP_OKAY)) {
         err = MP_VAL;
     }
 #endif
