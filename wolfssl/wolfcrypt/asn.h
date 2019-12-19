@@ -890,7 +890,9 @@ struct DecodedCert {
 #ifndef NO_CERTS
     SignatureCtx sigCtx;
 #endif
+#ifdef WOLFSSL_RENESAS_TSIP
     byte*  tsip_encRsaKeyIdx;
+#endif
 
     int badDate;
     int criticalExt;
