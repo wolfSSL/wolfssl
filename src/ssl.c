@@ -46782,6 +46782,7 @@ int wolfSSL_BN_hex2bn(WOLFSSL_BIGNUM** bn, const char* str)
     byte    decoded[1024];
 #endif
     int     weOwn = 0;
+    int     strLen;
 
     WOLFSSL_MSG("wolfSSL_BN_hex2bn");
 
@@ -46791,9 +46792,16 @@ int wolfSSL_BN_hex2bn(WOLFSSL_BIGNUM** bn, const char* str)
         return ret;
 #endif
 
-    if (str == NULL || str[0] == '\0')
+    if (str == NULL || str[0] == '\0') {
         WOLFSSL_MSG("Bad function argument");
-    else if (Base16_Decode((byte*)str, (int)XSTRLEN(str), decoded, &decSz) < 0)
+        return WOLFSSL_FAILURE;
+    }
+
+    strLen = XSTRLEN(str);
+    /* ignore trailing new lines */
+    while (str[strLen-1] == '\n' && strLen > 0) strLen--;
+
+    if (Base16_Decode((byte*)str, strLen, decoded, &decSz) < 0)
         WOLFSSL_MSG("Bad Base16_Decode error");
     else if (bn == NULL)
         ret = decSz;
