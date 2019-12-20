@@ -4024,7 +4024,8 @@ static void test_wolfSSL_UseSupportedCurve(void)
 #endif
 }
 
-#if defined(HAVE_ALPN) && !defined(NO_WOLFSSL_SERVER)
+#if defined(HAVE_ALPN) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_IO_TESTS_DEPENDENCIES)
 
 static void verify_ALPN_FATAL_ERROR_on_client(WOLFSSL* ssl)
 {
@@ -4280,7 +4281,8 @@ static void test_wolfSSL_UseALPN_params(void)
 
 static void test_wolfSSL_UseALPN(void)
 {
-#if defined(HAVE_ALPN) && !defined(NO_WOLFSSL_SERVER)
+#if defined(HAVE_ALPN) && !defined(NO_WOLFSSL_SERVER) &&\
+    defined(HAVE_IO_TESTS_DEPENDENCIES)
     test_wolfSSL_UseALPN_connection();
     test_wolfSSL_UseALPN_params();
 #endif
