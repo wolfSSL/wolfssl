@@ -73,8 +73,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/wolfssl/README.txt
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
-%{_libdir}/libwolfssl.so.23
-%{_libdir}/libwolfssl.so.23.0.0
+%{_libdir}/libwolfssl.so.24
+%{_libdir}/libwolfssl.so.24.0.0
 
 %files devel
 %defattr(-,root,root,-)
@@ -276,9 +276,11 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/openssl/ssl.h
 %{_includedir}/wolfssl/openssl/ssl23.h
 %{_includedir}/wolfssl/openssl/stack.h
+%{_includedir}/wolfssl/openssl/tls1.h
 %{_includedir}/wolfssl/openssl/ui.h
 %{_includedir}/wolfssl/openssl/x509.h
 %{_includedir}/wolfssl/openssl/x509v3.h
+%{_includedir}/wolfssl/openssl/x509_vfy.h
 %{_includedir}/wolfssl/options.h
 %{_includedir}/wolfssl/sniffer.h
 %{_includedir}/wolfssl/sniffer_error.h
@@ -288,6 +290,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Thu Dec 19 2019 Jacob Barthelmeh <jacob@wolfssl.com>
+- Add wolfssl/openssl/tls1.h, wolfssl/openssl/x509_vfy.h
 * Fri Mar 15 2019 John Safranek <john@wolfssl.com>
 - Updates for the v4 release.
 * Thu Dec 20 2018 Jacob Barthelmeh <jacob@wolfssl.com>
