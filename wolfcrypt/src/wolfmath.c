@@ -99,46 +99,56 @@ int get_rand_digit(WC_RNG* rng, mp_digit* d)
 int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 {
     int ret = 0;
-    mp_digit d;
+    int cnt = digits * sizeof(mp_digit);
+#if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH)
+    int i;
+#endif
 
     if (rng == NULL) {
-        ret = MISSING_RNG_E; goto exit;
+        ret = MISSING_RNG_E;
+    }
+    else if (a == NULL) {
+        ret = BAD_FUNC_ARG;
     }
 
-    if (a == NULL) {
-        ret = BAD_FUNC_ARG; goto exit;
+#if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH)
+    /* allocate space for digits */
+    if (ret == MP_OKAY) {
+        ret = mp_set_bit(a, digits * DIGIT_BIT - 1);
     }
-
-    mp_zero(a);
-    if (digits <= 0) {
-        ret = MP_OKAY; goto exit;
+#else
+#if defined(USE_FAST_MATH)
+    if ((ret == MP_OKAY) && (digits > FP_SIZE))
+#else
+    if ((ret == MP_OKAY) && (digits > SP_INT_DIGITS))
+#endif
+    {
+        ret = BAD_FUNC_ARG;
     }
-
-    /* first place a random non-zero digit */
-    do {
-        ret = get_rand_digit(rng, &d);
-        if (ret != 0) {
-            goto exit;
+    if (ret == MP_OKAY) {
+        a->used = digits;
+    }
+#endif
+    /* fill the data with random bytes */
+    if (ret == MP_OKAY) {
+        ret = wc_RNG_GenerateBlock(rng, (byte*)a->dp, cnt);
+    }
+    if (ret == MP_OKAY) {
+#if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH)
+        /* Mask down each digit to only bits used */
+        for (i = 0; i < a->used; i++) {
+            a->dp[i] &= MP_MASK;
         }
-    } while (d == 0);
-
-    if ((ret = mp_add_d(a, d, a)) != MP_OKAY) {
-        goto exit;
-    }
-
-    while (--digits > 0) {
-        if ((ret = mp_lshd(a, 1)) != MP_OKAY) {
-            goto exit;
-        }
-        if ((ret = get_rand_digit(rng, &d)) != 0) {
-            goto exit;
-        }
-        if ((ret = mp_add_d(a, d, a)) != MP_OKAY) {
-            goto exit;
+#endif
+        /* ensure top digit is not zero */
+        while ((ret == MP_OKAY) && (a->dp[a->used - 1] == 0)) {
+            ret = get_rand_digit(rng, &a->dp[a->used - 1]);
+#if !defined(USE_FAST_MATH) && !defined(WOLFSSL_SP_MATH)
+            a->dp[a->used - 1] &= MP_MASK;
+#endif
         }
     }
 
-exit:
     return ret;
 }
 #endif /* WC_RSA_BLINDING */

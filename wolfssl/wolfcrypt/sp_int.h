@@ -102,6 +102,8 @@
   #endif
 #endif
 
+#define SP_MASK    (sp_digit)(-1)
+
 #ifdef WOLFSSL_SP_MATH
 #include <wolfssl/wolfcrypt/random.h>
 
@@ -219,6 +221,7 @@ MP_API void sp_rshb(sp_int* a, int n, sp_int* r);
 #define MP_VAL   -3
 
 #define DIGIT_BIT  SP_WORD_SIZE
+#define MP_MASK    SP_MASK
 
 #define CheckFastMathSettings() 1
 
