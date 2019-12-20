@@ -5575,6 +5575,9 @@ void FreeKey(WOLFSSL* ssl, int type, void** pKey)
         #ifdef HAVE_ECC
             case DYNAMIC_TYPE_ECC:
                 wc_ecc_free((ecc_key*)*pKey);
+                #ifdef FP_ECC
+                    wc_ecc_fp_free();
+                #endif
                 break;
         #endif /* HAVE_ECC */
         #ifdef HAVE_ED25519
@@ -10193,7 +10196,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif /* WOLFSSL_TRUST_PEER_CERT */
                 ) {
                     int skipAddCA = 0;
-                    
                     /* select last certificate */
                     args->certIdx = args->count - 1;
 
