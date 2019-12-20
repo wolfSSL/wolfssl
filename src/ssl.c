@@ -16720,6 +16720,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         ctx->bufUsed = 0;
         ctx->lastUsed = 0;
 
+        if (!iv && ctx->ivSz) {
+            iv = ctx->iv;
+        }
+
 #ifndef NO_AES
     #ifdef HAVE_AES_CBC
         #ifdef WOLFSSL_AES_128
@@ -16731,6 +16735,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_CBC_MODE;
             ctx->keyLen     = 16;
             ctx->block_size = AES_BLOCK_SIZE;
+            ctx->ivSz       = AES_BLOCK_SIZE;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -16755,6 +16760,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_CBC_MODE;
             ctx->keyLen     = 24;
             ctx->block_size = AES_BLOCK_SIZE;
+            ctx->ivSz       = AES_BLOCK_SIZE;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -16779,6 +16785,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_CBC_MODE;
             ctx->keyLen     = 32;
             ctx->block_size = AES_BLOCK_SIZE;
+            ctx->ivSz       = AES_BLOCK_SIZE;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -16810,7 +16817,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->keyLen     = 16;
             ctx->block_size = AES_BLOCK_SIZE;
             ctx->authTagSz  = AES_BLOCK_SIZE;
-            ctx->ivSz       = 12; /* set default IV length to 96 bits */
+            ctx->ivSz       = GCM_NONCE_MID_SZ;
 
             XMEMSET(ctx->authTag, 0, ctx->authTagSz);
             if (iv)
@@ -16836,7 +16843,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->keyLen     = 24;
             ctx->block_size = AES_BLOCK_SIZE;
             ctx->authTagSz  = AES_BLOCK_SIZE;
-            ctx->ivSz       = 12; /* set default IV length to 96 bits */
+            ctx->ivSz       = GCM_NONCE_MID_SZ;
 
             XMEMSET(ctx->authTag, 0, ctx->authTagSz);
             if (iv)
@@ -16862,7 +16869,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->keyLen     = 32;
             ctx->block_size = AES_BLOCK_SIZE;
             ctx->authTagSz  = AES_BLOCK_SIZE;
-            ctx->ivSz       = 12; /* set default IV length to 96 bits */
+            ctx->ivSz       = GCM_NONCE_MID_SZ;
 
             XMEMSET(ctx->authTag, 0, ctx->authTagSz);
             if (iv)
@@ -16891,6 +16898,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_CTR_MODE;
             ctx->keyLen     = 16;
             ctx->block_size = NO_PADDING_BLOCK_SIZE;
+            ctx->ivSz       = AES_BLOCK_SIZE;
 #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
             ctx->cipher.aes.left = 0;
 #endif
@@ -16918,6 +16926,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_CTR_MODE;
             ctx->keyLen     = 24;
             ctx->block_size = NO_PADDING_BLOCK_SIZE;
+            ctx->ivSz       = AES_BLOCK_SIZE;
 #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
             ctx->cipher.aes.left = 0;
 #endif
@@ -16945,6 +16954,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_CTR_MODE;
             ctx->keyLen     = 32;
             ctx->block_size = NO_PADDING_BLOCK_SIZE;
+            ctx->ivSz       = AES_BLOCK_SIZE;
 #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
             ctx->cipher.aes.left = 0;
 #endif
@@ -17032,6 +17042,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_CBC_MODE;
             ctx->keyLen     = 8;
             ctx->block_size = DES_BLOCK_SIZE;
+            ctx->ivSz       = DES_BLOCK_SIZE;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -17073,6 +17084,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_CBC_MODE;
             ctx->keyLen     = 24;
             ctx->block_size = DES_BLOCK_SIZE;
+            ctx->ivSz       = DES_BLOCK_SIZE;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -17130,6 +17142,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_CBC_MODE;
             ctx->keyLen     = IDEA_KEY_SIZE;
             ctx->block_size = 8;
+            ctx->ivSz       = IDEA_BLOCK_SIZE;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
@@ -17150,6 +17163,12 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->cipherType = NULL_CIPHER_TYPE;
             ctx->keyLen = 0;
             ctx->block_size = 16;
+        }
+        ctx->ivSz = wolfSSL_EVP_CIPHER_CTX_iv_length(ctx);
+        if (iv && iv != ctx->iv) {
+            if (wolfSSL_StoreExternalIV(ctx) != WOLFSSL_SUCCESS) {
+                return WOLFSSL_FAILURE;
+            }
         }
         (void)ret; /* remove warning. If execution reaches this point, ret=0 */
         return WOLFSSL_SUCCESS;
@@ -17197,20 +17216,21 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     int wolfSSL_EVP_CIPHER_CTX_set_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, byte* iv,
                                              int ivLen)
     {
+        int expectedIvLen;
+
         WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_set_iv_length");
-        if (!ctx || !iv
-#ifndef NO_AES
-                || ivLen != AES_BLOCK_SIZE
-#elif !defined(NO_DES3)
-                || ivLen != DES_BLOCK_SIZE
-#endif
-        ) {
+        if (!ctx || !iv || !ivLen) {
             return WOLFSSL_FAILURE;
         }
-        XMEMCPY(ctx->iv, iv, ivLen);
-        ctx->ivSz= ivLen;
 
-        return WOLFSSL_SUCCESS;
+        expectedIvLen = wolfSSL_EVP_CIPHER_CTX_iv_length(ctx);
+
+        if (expectedIvLen == 0 || expectedIvLen != ivLen) {
+            WOLFSSL_MSG("Wrong ivLen value");
+            return WOLFSSL_FAILURE;
+        }
+
+        return wolfSSL_EVP_CipherInit(ctx, NULL, NULL, iv, -1);
     }
 #endif
 
@@ -17310,12 +17330,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
 #ifndef NO_DES3
             case DES_CBC_TYPE :
+                WOLFSSL_MSG("DES CBC");
                 if (ctx->enc)
                     wc_Des_CbcEncrypt(&ctx->cipher.des, dst, src, len);
                 else
                     wc_Des_CbcDecrypt(&ctx->cipher.des, dst, src, len);
                 break;
             case DES_EDE3_CBC_TYPE :
+                WOLFSSL_MSG("DES3 CBC");
                 if (ctx->enc)
                     ret = wc_Des3_CbcEncrypt(&ctx->cipher.des3, dst, src, len);
                 else
@@ -17323,9 +17345,11 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 break;
 #ifdef WOLFSSL_DES_ECB
             case DES_ECB_TYPE :
+                WOLFSSL_MSG("DES ECB");
                 ret = wc_Des_EcbEncrypt(&ctx->cipher.des, dst, src, len);
                 break;
             case DES_EDE3_ECB_TYPE :
+                WOLFSSL_MSG("DES3 ECB");
                 ret = wc_Des3_EcbEncrypt(&ctx->cipher.des3, dst, src, len);
                 break;
 #endif
@@ -17333,12 +17357,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
 #ifndef NO_RC4
             case ARC4_TYPE :
+                WOLFSSL_MSG("ARC4");
                 wc_Arc4Process(&ctx->cipher.arc4, dst, src, len);
                 break;
 #endif
 
 #ifdef HAVE_IDEA
             case IDEA_CBC_TYPE :
+                WOLFSSL_MSG("IDEA CBC");
                 if (ctx->enc)
                     wc_IdeaCbcEncrypt(&ctx->cipher.idea, dst, src, len);
                 else
@@ -17346,6 +17372,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 break;
 #endif
             case NULL_CIPHER_TYPE :
+                WOLFSSL_MSG("NULL CIPHER");
                 XMEMCPY(dst, src, len);
                 break;
 
@@ -17358,6 +17385,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         if (ret != 0) {
             WOLFSSL_MSG("wolfSSL_EVP_Cipher failure");
             return 0;  /* failure */
+        }
+
+        if (wolfSSL_StoreExternalIV(ctx) != WOLFSSL_SUCCESS) {
+            return WOLFSSL_FAILURE;
         }
 
         WOLFSSL_MSG("wolfSSL_EVP_Cipher success");
@@ -17397,6 +17428,13 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 XMEMCPY(ctx->iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
                 break;
 #endif /* HAVE_AESGCM */
+#ifdef HAVE_AES_ECB
+            case AES_128_ECB_TYPE :
+            case AES_192_ECB_TYPE :
+            case AES_256_ECB_TYPE :
+                WOLFSSL_MSG("AES ECB");
+                break;
+#endif
 #ifdef WOLFSSL_AES_COUNTER
             case AES_128_CTR_TYPE :
             case AES_192_CTR_TYPE :
@@ -17417,6 +17455,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             case DES_EDE3_CBC_TYPE :
                 WOLFSSL_MSG("DES EDE3 CBC");
                 XMEMCPY(ctx->iv, &ctx->cipher.des3.reg, DES_BLOCK_SIZE);
+                break;
+#endif
+#ifdef WOLFSSL_DES_ECB
+            case DES_ECB_TYPE :
+                WOLFSSL_MSG("DES ECB");
+                break;
+            case DES_EDE3_ECB_TYPE :
+                WOLFSSL_MSG("DES3 ECB");
                 break;
 #endif
 
@@ -17473,6 +17519,13 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 XMEMCPY(&ctx->cipher.aes.reg, ctx->iv, AES_BLOCK_SIZE);
                 break;
 #endif
+#ifdef HAVE_AES_ECB
+            case AES_128_ECB_TYPE :
+            case AES_192_ECB_TYPE :
+            case AES_256_ECB_TYPE :
+                WOLFSSL_MSG("AES ECB");
+                break;
+#endif
 #ifdef WOLFSSL_AES_COUNTER
             case AES_128_CTR_TYPE :
             case AES_192_CTR_TYPE :
@@ -17493,6 +17546,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             case DES_EDE3_CBC_TYPE :
                 WOLFSSL_MSG("DES EDE3 CBC");
                 XMEMCPY(&ctx->cipher.des3.reg, ctx->iv, DES_BLOCK_SIZE);
+                break;
+#endif
+#ifdef WOLFSSL_DES_ECB
+            case DES_ECB_TYPE :
+                WOLFSSL_MSG("DES ECB");
+                break;
+            case DES_EDE3_ECB_TYPE :
+                WOLFSSL_MSG("DES3 ECB");
                 break;
 #endif
 
@@ -34695,7 +34756,7 @@ int wolfSSL_EC_POINT_is_at_infinity(const WOLFSSL_EC_GROUP *group,
     }
 
     ret = wc_ecc_point_is_at_infinity((ecc_point*)point->internal);
-    if (ret <= 0) {
+    if (ret < 0) {
         WOLFSSL_MSG("ecc_point_is_at_infinity failure");
         return WOLFSSL_FAILURE;
     }

@@ -140,7 +140,11 @@ int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb f)
 /* allow this to be set to NULL, so logs can be redirected to default output */
 wolfSSL_Logging_cb wolfSSL_GetLoggingCb(void)
 {
+#ifdef DEBUG_WOLFSSL
     return log_function;
+#else
+    return NULL;
+#endif
 }
 
 

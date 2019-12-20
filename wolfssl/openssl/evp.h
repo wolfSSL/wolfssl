@@ -708,6 +708,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_CIPHER_CTX_clear_flags wolfSSL_EVP_CIPHER_CTX_clear_flags
 #define EVP_CIPHER_CTX_set_padding wolfSSL_EVP_CIPHER_CTX_set_padding
 #define EVP_CIPHER_CTX_flags       wolfSSL_EVP_CIPHER_CTX_flags
+#define EVP_CIPHER_CTX_set_iv      wolfSSL_EVP_CIPHER_CTX_set_iv
 #define EVP_add_digest             wolfSSL_EVP_add_digest
 #define EVP_add_cipher             wolfSSL_EVP_add_cipher
 #define EVP_cleanup                wolfSSL_EVP_cleanup
