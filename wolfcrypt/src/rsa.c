@@ -4026,13 +4026,42 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         err = mp_sub_d(&p, 1, &tmp1);
     if (err == MP_OKAY)                /* tmp2 = q-1 */
         err = mp_sub_d(&q, 1, &tmp2);
+#ifndef WC_RSA_BLINDING
+    if (err == MP_OKAY)                /* tmp3 = order of n */
+        err = mp_mul(&tmp1, &tmp2, &tmp3);
+#else
     if (err == MP_OKAY)                /* tmp3 = lcm(p-1, q-1), last loop */
         err = mp_lcm(&tmp1, &tmp2, &tmp3);
+#endif
     /* make key */
     if (err == MP_OKAY)                /* key->e = e */
         err = mp_set_int(&key->e, (mp_digit)e);
+#ifdef WC_RSA_BLINDING
+    /* Blind the inverse operation with a value that is invertable */
+    if (err == MP_OKAY) {
+        do {
+            err = mp_rand(&key->p, get_digit_count(&tmp3), rng);
+            if (err == MP_OKAY)
+                err = mp_set_bit(&key->p, 0);
+            if (err == MP_OKAY)
+                err = mp_set_bit(&key->p, size - 1);
+            if (err == MP_OKAY)
+                err = mp_gcd(&key->p, &tmp3, &key->q);
+        }
+        while ((err == MP_OKAY) && !mp_isone(&key->q));
+    }
+    if (err == MP_OKAY)
+        err = mp_mul_d(&key->p, (mp_digit)e, &key->e);
+#endif
     if (err == MP_OKAY)                /* key->d = 1/e mod lcm(p-1, q-1) */
         err = mp_invmod(&key->e, &tmp3, &key->d);
+#ifdef WC_RSA_BLINDING
+    /* Take off blinding from d and reset e */
+    if (err == MP_OKAY)
+        err = mp_mulmod(&key->d, &key->p, &tmp3, &key->d);
+    if (err == MP_OKAY)
+        err = mp_set_int(&key->e, (mp_digit)e);
+#endif
     if (err == MP_OKAY)                /* key->n = pq */
         err = mp_mul(&p, &q, &key->n);
     if (err == MP_OKAY)                /* key->dP = d mod(p-1) */
