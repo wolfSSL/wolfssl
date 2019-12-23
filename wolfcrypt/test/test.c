@@ -21328,7 +21328,13 @@ static int myDecryptionFunc(PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
 
         /* keyIdRaw[0] OCTET TAG */
         /* keyIdRaw[1] Length */
+#ifdef BIG_ENDIAN_ORDER
+        if (keyIdRaw[1] == 0x01) {
+            keyId = 1;
+        }
+#else
         keyId = *(int*)(keyIdRaw + 2);
+#endif
     }
 
 
