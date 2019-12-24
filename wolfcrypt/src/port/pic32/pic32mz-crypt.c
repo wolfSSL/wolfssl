@@ -619,7 +619,7 @@ static void wc_Pic32HashFree(hashUpdCache* cache, void* heap)
     }
 }
 
-/* API's for compatability with Harmony wrappers - not used */
+/* API's for compatibility with Harmony wrappers - not used */
 #ifndef NO_MD5
     int wc_InitMd5_ex(wc_Md5* md5, void* heap, int devId)
     {

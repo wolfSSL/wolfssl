@@ -2862,7 +2862,7 @@ static void test_client_reuse_WOLFSSLobj(void* args, void *cb, void* server_args
         goto done;
     }
     wolfSSL_set_session(ssl, session);
-    /* close socket onece */
+    /* close socket once */
     CloseSocket(sockfd);
     sockfd = 0;
     /* wait until server ready */
@@ -3184,7 +3184,7 @@ static void run_wolfssl_client(void* args)
 
 static void test_wolfSSL_read_write(void)
 {
-    /* The unit testing for read and write shall happen simutaneously, since
+    /* The unit testing for read and write shall happen simultaneously, since
      * one can't do anything with one without the other. (Except for a failure
      * test case.) This function will call all the others that will set up,
      * execute, and report their test findings.
@@ -5191,8 +5191,8 @@ static int test_wolfSSL_UseOCSPStapling(void)
 } /*END test_wolfSSL_UseOCSPStapling */
 
 
-/* Testing OCSP stapling version 2, wolfSSL_UseOCSPStaplingV2 funciton. OCSP
- * stapling eliminates the need ot contact the CA and lowers cert revocation
+/* Testing OCSP stapling version 2, wolfSSL_UseOCSPStaplingV2 function. OCSP
+ * stapling eliminates the need to contact the CA and lowers cert revocation
  * check.
  * PRE: HAVE_CERTIFICATE_STATUS_REQUEST_V2 and HAVE_OCSP defined.
  */
@@ -7991,7 +7991,7 @@ static int test_wc_Md5HmacSetKey (void)
     {
         "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b",
 #ifndef HAVE_FIPS
-        "Jefe", /* smaller than minumum FIPS key size */
+        "Jefe", /* smaller than minimum FIPS key size */
 #endif
         "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
     };
@@ -8075,7 +8075,7 @@ static int test_wc_ShaHmacSetKey (void)
         "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
                                                                 "\x0b\x0b\x0b",
 #ifndef HAVE_FIPS
-        "Jefe", /* smaller than minumum FIPS key size */
+        "Jefe", /* smaller than minimum FIPS key size */
 #endif
         "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
                                                                 "\xAA\xAA\xAA"
@@ -8159,7 +8159,7 @@ static int test_wc_Sha224HmacSetKey (void)
         "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
                                                                 "\x0b\x0b\x0b",
 #ifndef HAVE_FIPS
-        "Jefe", /* smaller than minumum FIPS key size */
+        "Jefe", /* smaller than minimum FIPS key size */
 #endif
         "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
                                                                 "\xAA\xAA\xAA"
@@ -8243,7 +8243,7 @@ static int test_wc_Sha256HmacSetKey (void)
         "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
                                                                 "\x0b\x0b\x0b",
 #ifndef HAVE_FIPS
-        "Jefe", /* smaller than minumum FIPS key size */
+        "Jefe", /* smaller than minimum FIPS key size */
 #endif
         "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
                                                                 "\xAA\xAA\xAA"
@@ -8327,7 +8327,7 @@ static int test_wc_Sha384HmacSetKey (void)
         "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
                                                                 "\x0b\x0b\x0b",
 #ifndef HAVE_FIPS
-        "Jefe", /* smaller than minumum FIPS key size */
+        "Jefe", /* smaller than minimum FIPS key size */
 #endif
         "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
                                                                 "\xAA\xAA\xAA"
@@ -10936,7 +10936,7 @@ static int test_wc_GmacUpdate (void)
     byte    tagOut2[24];
     byte    tagOut3[32];
 
-    /* Init stack varaibles. */
+    /* Init stack variables. */
     XMEMSET(tagOut, 0, sizeof(tagOut));
     XMEMSET(tagOut2, 0, sizeof(tagOut2));
     XMEMSET(tagOut3, 0, sizeof(tagOut3));
@@ -14881,7 +14881,7 @@ static int test_wc_ecc_signVerify_hash (void)
         ret = wc_ecc_sign_hash(digest, digestlen, sig, &siglen, &rng, &key);
     }
 
-    /* Checkk bad args. */
+    /* Check bad args. */
     if (ret == 0) {
         signH = wc_ecc_sign_hash(NULL, digestlen, sig, &siglen, &rng, &key);
         if (signH == ECC_BAD_ARG_E) {
@@ -18667,7 +18667,7 @@ static void test_wolfSSL_X509_NAME(void)
 
     printf(testingFmt, "wolfSSL_X509_NAME()");
 
-    /* test compile of depricated function, returns 0 */
+    /* test compile of deprecated function, returns 0 */
     AssertIntEQ(CRYPTO_thread_id(), 0);
 
     AssertNotNull(a = X509_NAME_new());
@@ -21483,7 +21483,7 @@ static void test_wolfSSL_sk_SSL_CIPHER(void)
              !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
 }
 
-/* Testing  wolfSSL_set_tlsext_status_type funciton.
+/* Testing  wolfSSL_set_tlsext_status_type function.
  * PRE: OPENSSL and HAVE_CERTIFICATE_STATUS_REQUEST defined.
  */
 static void test_wolfSSL_set_tlsext_status_type(void){
@@ -21618,7 +21618,7 @@ static void test_wolfSSL_BIO(void)
 
     /* new pair */
     AssertIntEQ(BIO_make_bio_pair(bio1, bio3), WOLFSSL_FAILURE);
-    BIO_free(bio2); /* free bio2 and automaticly remove from pair */
+    BIO_free(bio2); /* free bio2 and automatically remove from pair */
     AssertIntEQ(BIO_make_bio_pair(bio1, bio3), WOLFSSL_SUCCESS);
     AssertIntEQ((int)BIO_ctrl_pending(bio3), 0);
     AssertIntEQ(BIO_nread(bio3, &bufPt, 10), WOLFSSL_BIO_ERROR);
@@ -22145,7 +22145,7 @@ static void test_wolfSSL_X509_sign(void)
     ret = X509_sign(x509, priv, EVP_sha256());
 
 #if 0
-    /* example for writting to file */
+    /* example for writing to file */
     XFILE tmpFile = XFOPEN("./signed.der", "wb");
     if (tmpFile) {
         int derSz = 0;
@@ -23166,7 +23166,7 @@ static void test_wolfSSL_X509_set_notBefore(void)
     AssertTrue(wolfSSL_X509_set_notBefore(x, asn_time));
     /* time_check == (ANS1_TIME*)x->notBefore */
     AssertNotNull(time_check = X509_get_notBefore(x));
-    /* ANS1_TIME_check validates by checking if arguement can be parsed */
+    /* ANS1_TIME_check validates by checking if argument can be parsed */
     AssertIntEQ(ASN1_TIME_check(time_check), WOLFSSL_SUCCESS);
     /* Convert to human readable format and compare to intended date */
     AssertIntEQ(ASN1_TIME_print(bio, time_check), 1);
@@ -26763,7 +26763,7 @@ static void test_wolfSSL_PEM_write_bio_PKCS7(void)
 }
 
 /*----------------------------------------------------------------------------*
- | Certficate Failure Checks
+ | Certificate Failure Checks
  *----------------------------------------------------------------------------*/
 #ifndef NO_CERTS
     /* Use the Cert Manager(CM) API to generate the error ASN_SIG_CONFIRM_E */

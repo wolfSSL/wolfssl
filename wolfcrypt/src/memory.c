@@ -402,7 +402,7 @@ int wolfSSL_load_static_memory(byte* buffer, word32 sz, int flag,
     printf("Allocated %d bytes for static memory @ %p\n", ava, pt);
 #endif
 
-    /* devide into chunks of memory and add them to available list */
+    /* divide into chunks of memory and add them to available list */
     while (ava >= (heap->sizeList[0] + padSz + memSz)) {
         int i;
         /* creating only IO buffers from memory passed in, max TLS is 16k */
@@ -717,7 +717,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
 
     #ifdef WOLFSSL_MALLOC_CHECK
         if ((wolfssl_word)res % WOLFSSL_STATIC_ALIGN) {
-            WOLFSSL_MSG("ERROR memory is not alligned");
+            WOLFSSL_MSG("ERROR memory is not aligned");
             res = NULL;
         }
     #endif
@@ -936,7 +936,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
 
     #ifdef WOLFSSL_MALLOC_CHECK
         if ((wolfssl_word)res % WOLFSSL_STATIC_ALIGN) {
-            WOLFSSL_MSG("ERROR memory is not alligned");
+            WOLFSSL_MSG("ERROR memory is not aligned");
             res = NULL;
         }
     #endif

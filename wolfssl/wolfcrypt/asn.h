@@ -199,7 +199,7 @@ enum
     NID_policy_constraints = 150,
     NID_inhibit_any_policy = 168,      /* 2.5.29.54 */
     NID_tlsfeature = 1020,             /* id-pe 24 */
-    NID_commonName = 0x03,             /* matchs ASN_COMMON_NAME in asn.h */
+    NID_commonName = 0x03,             /* matches ASN_COMMON_NAME in asn.h */
 
 
     NID_surname = 0x04,                /* SN */
@@ -209,7 +209,7 @@ enum
     NID_stateOrProvinceName = 0x08,    /* ST */
     NID_organizationName = 0x0a,       /* O  */
     NID_organizationalUnitName = 0x0b, /* OU */
-    NID_domainComponent = 0x19,        /* matchs ASN_DOMAIN_COMPONENT in asn.h */
+    NID_domainComponent = 0x19,        /* matches ASN_DOMAIN_COMPONENT in asn.h */
     NID_emailAddress = 0x30,           /* emailAddress */
     NID_id_on_dnsSRV = 82,             /* 1.3.6.1.5.5.7.8.7 */
     NID_ms_upn = 265                   /* 1.3.6.1.4.1.311.20.2.3 */

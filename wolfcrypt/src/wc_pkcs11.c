@@ -335,7 +335,7 @@ int wc_Pkcs11Token_Open(Pkcs11Token* token, int readWrite)
 
 /**
  * Close the token's session.
- * All object, like keys, will be destoyed.
+ * All object, like keys, will be destroyed.
  *
  * @param  token    [in]  Token object.
  */
@@ -523,7 +523,7 @@ static int Pkcs11CreateEccPrivateKey(CK_OBJECT_HANDLE* privateKey,
  *
  * @param  session  [in]  Session object.
  * @param  mech     [in]  Mechanism to look for.
- * @return  NOT_COMPILED_IN when mechanism not avaialble.
+ * @return  NOT_COMPILED_IN when mechanism not available.
  *          0 when mechanism is available.
  */
 static int Pkcs11MechAvail(Pkcs11Session* session, CK_MECHANISM_TYPE mech)

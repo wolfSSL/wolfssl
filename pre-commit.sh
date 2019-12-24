@@ -24,7 +24,7 @@ git stash pop -q
 # restore current config
 echo "\nRestoring current config\n"
 mv tmp.status config.status
-# don't show output incase error from above
+# don't show output in case error from above
 ./config.status >/dev/null 2>&1
 mv tmp.options.h wolfssl/options.h 
 make clean >/dev/null 2>&1

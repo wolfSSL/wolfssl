@@ -52,7 +52,7 @@ typedef struct {
 
 
 /* ECC point, the internal structure is Little endian
- * the mathematical functions used the endianess */
+ * the mathematical functions used the endianness */
 typedef struct {
     byte point[CURVE25519_KEYSIZE];
     #ifdef FREESCALE_LTC_ECC

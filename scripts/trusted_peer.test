@@ -272,7 +272,7 @@ if [ $RESULT -eq 0 ]; then
     exit 1
 fi
 
-do_cleanup # kill PID of server running in infinit loop
+do_cleanup # kill PID of server running in infinite loop
 rm $combined_cert
 remove_ready_file
 echo ""

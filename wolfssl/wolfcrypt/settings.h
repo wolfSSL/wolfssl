@@ -1257,7 +1257,7 @@ extern void uITRON4_free(void *p) ;
     /* disable fall-back case, malloc, realloc and free are unavailable */
     #define WOLFSSL_NO_MALLOC
 
-    /* file sytem has not been ported since it is a seperate product. */
+    /* file system has not been ported since it is a separate product. */
 
     #define NO_FILESYSTEM
 

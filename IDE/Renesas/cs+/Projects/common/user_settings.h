@@ -43,7 +43,7 @@
 #define WOLFSSL_USER_IO
 
 //#define WOLFSSL_USER_KEYFILES /* To be defined key and cert files in user_settings.h  */
-//#define WOLFSSL_NO_ABORT      /* No abort during the test except exception occured */
+//#define WOLFSSL_NO_ABORT      /* No abort during the test except exception occurred */
 //#define DEBUG_WOLFSSL
 
 #define OPENSSL_EXTRA

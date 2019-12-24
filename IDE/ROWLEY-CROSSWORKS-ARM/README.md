@@ -11,11 +11,11 @@ This is a sample benchmark application. It runs the "benchmark_test" suite repea
 3. test: 
 This is a sample test application. It runs "wolfcrypt_test" suite suite repeatedly until a failure occurs.
 
-# Prerequisits
+# Prerequisites
 
-+You will need to install the "Freescale Kinetis CPU Support Package" and "ARM CPU Support Package" in the Rowley Package Manager under Tools -> Pacakge Manager.
++You will need to install the "Freescale Kinetis CPU Support Package" and "ARM CPU Support Package" in the Rowley Package Manager under Tools -> Package Manager.
 
-# Harware Support
+# Hardware Support
 
 All hardware functions are defined in `kinetis_hw.c` and are currently setup for a Freescale Kinetis K64 Coretx-M4 microcontroller. This file can be customized to work with other Kinetis microcontrollers by editing the top part of the file. Testing for this project was done with the Freescale Kinetis `MK64FN1M0xxx12` using the `TWR-K64F120M`.  To build for the `TWR-K64F120M` or `FRDM-K64F`, define `WOLFSSL_FRDM_K64` in the Preprocessor Definitions section of CrossStudio, or define it in "user_settings.h".
 
@@ -46,7 +46,7 @@ To enable the NXP/Freescale MMCAU and/or LTC:
 
 # Project Files
 
-* `arm_startup.c`: Handles startup from `reset_handler`. Disabled watchdog, initializes sections, initializes heap, starts harware and starts main.
+* `arm_startup.c`: Handles startup from `reset_handler`. Disabled watchdog, initializes sections, initializes heap, starts hardware and starts main.
 * `benchmark_main.c`: The main function entrypoint for benchmark application.
 * `hw.h`: The hardware API interface. These hardware interface functions are required for all platforms.
 * `kinetis_hw.c`: The most basic hardware implementation required for Kinetis.
@@ -56,7 +56,7 @@ To enable the NXP/Freescale MMCAU and/or LTC:
 
 # Functions required by the WolfSSL Library
 
-If you are writting your own application, the following functions need to be implemented to support the WolfSSL library:
+If you are writing your own application, the following functions need to be implemented to support the WolfSSL library:
 
-* `double current_time(int reset)`: Returns a doulbe as seconds.milliseconds.
+* `double current_time(int reset)`: Returns a double as seconds.milliseconds.
 * `int custom_rand_generate(void)`: Returns a 32-bit randomly generated number.

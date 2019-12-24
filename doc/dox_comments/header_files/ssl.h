@@ -8742,7 +8742,7 @@ WOLFSSL_API int wolfSSL_CertManagerUnload_trust_peers(WOLFSSL_CERT_MANAGER* cm);
     \brief Specifies the certificate to verify with the Certificate Manager
     context.  The format can be SSL_FILETYPE_PEM or SSL_FILETYPE_ASN1.
 
-    \return SSL_SUCCESS If successfull.
+    \return SSL_SUCCESS If successful.
     \return ASN_SIG_CONFIRM_E will be returned if the signature could not be
     verified.
     \return ASN_SIG_OID_E will be returned if the signature type is not

@@ -980,7 +980,7 @@ int wc_FreeDhKey(DhKey* key)
 #endif /* WOLFSSL_DH_CONST*/
 
 
-/* if not using fixed points use DiscreteLogWorkFactor function for unsual size
+/* if not using fixed points use DiscreteLogWorkFactor function for unusual size
    otherwise round up on size needed */
 #ifndef WOLFSSL_DH_CONST
     #define WOLFSSL_DH_ROUND(x)
@@ -1535,7 +1535,7 @@ int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz)
 
 
 /**
- * Quick validity check of public key value agaist prime.
+ * Quick validity check of public key value against prime.
  * Checks are:
  *   - Public key not 0 or 1
  *   - Public key not equal to prime or prime - 1
@@ -2214,7 +2214,7 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
             ret = MEMORY_E;
     }
 
-    /* make a random string that will be multplied against q */
+    /* make a random string that will be multiplied against q */
     if (ret == 0)
         ret = wc_RNG_GenerateBlock(rng, buf, bufSz);
 

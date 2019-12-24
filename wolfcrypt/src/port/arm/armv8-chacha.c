@@ -211,7 +211,7 @@ static WC_INLINE void wc_Chacha_encrypt_320(const word32* input, const byte* m, 
          *         these registers are later transposed make ADDing the input and XORing the message easier.
          * v16-v19: these are helper registers that are used as temporary location to store data
          * v20-v23: load the next message block
-         * v24-v27: the 64 byte intial Chacha block
+         * v24-v27: the 64 byte initial Chacha block
          * v28: vector to increment the counter words of each block
          * v29: vector of 5's to increment counters between L_chacha20_arm64_outer_%= loops
          * v30: table lookup indices to rotate values by 8

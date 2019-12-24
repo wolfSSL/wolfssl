@@ -1095,7 +1095,7 @@ static void IndefItems_Up(IndefItems* items)
     items->depth = depth + 1;
 }
 
-/* Calcuate final length by adding length of indefinite child items */
+/* Calculate final length by adding length of indefinite child items */
 static void IndefItems_CalcLength(IndefItems* items)
 {
     int i;
@@ -2793,7 +2793,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
  * return 1 (true) on match
  * return 0 or negative value on failure/error
  *
- * key   : buffer holding DER fromat key
+ * key   : buffer holding DER format key
  * keySz : size of key buffer
  * der   : a initialized and parsed DecodedCert holding a certificate */
 int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
@@ -2920,7 +2920,7 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
                                             der->pubKeySize, key_pair);
                 }
 
-                /* public and private extracted successfuly now check if is
+                /* public and private extracted successfully now check if is
                  * a pair and also do sanity checks on key. wc_ecc_check_key
                  * checks that private * base generator equals pubkey */
                 if (ret == 0) {
@@ -2968,7 +2968,7 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
             keyIdx = 0;
             if ((ret = wc_ed25519_import_public(der->publicKey, der->pubKeySize,
                                                               key_pair)) == 0) {
-                /* public and private extracted successfuly no check if is
+                /* public and private extracted successfully no check if is
                  * a pair and also do sanity checks on key. wc_ecc_check_key
                  * checks that private * base generator equals pubkey */
                 if ((ret = wc_ed25519_check_key(key_pair)) == 0)
@@ -7914,7 +7914,7 @@ exit:
                  * NOT appear more than once in a certificate policies
                  * extension". This is a sanity check for duplicates.
                  * extCertPolicies should only have OID values, additional
-                 * qualifiers need to be stored in a seperate array. */
+                 * qualifiers need to be stored in a separate array. */
                 for (i = 0; i < cert->extCertPoliciesNb; i++) {
                     if (XMEMCMP(cert->extCertPolicies[i],
                             cert->extCertPolicies[cert->extCertPoliciesNb],
@@ -8691,7 +8691,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             }
             if (cert->ca == NULL) {
                 cert->ca = GetCAByName(cm, cert->issuerHash);
-                /* If AKID is availale then this CA doesn't have the public
+                /* If AKID is available then this CA doesn't have the public
                  * key required */
                 if (cert->ca && cert->extAuthKeyIdSet) {
                     WOLFSSL_MSG("CA SKID doesn't match AKID");
@@ -9038,7 +9038,7 @@ WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
         sn++;
     }
     /* RFC 5280 - 4.1.2.2:
-     *   Serial numbers must be a postive value (and not zero) */
+     *   Serial numbers must be a positive value (and not zero) */
     if (snSzInt == 0)
         return BAD_FUNC_ARG;
 
@@ -10613,7 +10613,7 @@ typedef struct DerCert {
     int  sizeSz;                       /* encoded size length */
     int  versionSz;                    /* encoded version length */
     int  serialSz;                     /* encoded serial length */
-    int  sigAlgoSz;                    /* encoded sig alog length */
+    int  sigAlgoSz;                    /* encoded sig algo length */
     int  issuerSz;                     /* encoded issuer length */
     int  subjectSz;                    /* encoded subject length */
     int  validitySz;                   /* encoded validity length */
@@ -11544,7 +11544,7 @@ static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
     XMEMCPY(&output[idx], extkeyusage_oid, sizeof(extkeyusage_oid));
     idx += sizeof(extkeyusage_oid);
 
-    /* 3. Octect String (2) */
+    /* 3. Octet String (2) */
     idx += SetOctetString(totalSz - idx, &output[idx]);
 
     /* 4. Seq + OidListLen (2) */
@@ -16154,7 +16154,7 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
     }
     if (ca == NULL) {
         ca = GetCAByName(cm, dcrl->issuerHash); /* last resort */
-        /* If AKID is availale then this CA doesn't have the public
+        /* If AKID is available then this CA doesn't have the public
          * key required */
         if (ca && dcrl->extAuthKeyIdSet) {
             WOLFSSL_MSG("CA SKID doesn't match AKID");

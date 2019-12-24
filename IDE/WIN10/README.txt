@@ -18,7 +18,7 @@ single function. WPO also optimizes away the automatic FIPS entry function.
 Each of the source files inside the FIPS boundary defines their own code and
 constant section. The code section names start with ".fipsA$" and the constant
 section names start with ".fipsB$". Each subsection has a letter to organize
-them in a secific order. This specific ordering puts marker functions and
+them in a specific order. This specific ordering puts marker functions and
 constants on either end of the boundary so it can be hashed.
 
 

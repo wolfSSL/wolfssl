@@ -48,7 +48,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
         /* server side verified before SetCipherSpecs call */
         if (VerifyClientSuite(ssl) != 1) {
-            WOLFSSL_MSG("SetCipherSpecs() client has an unusuable suite");
+            WOLFSSL_MSG("SetCipherSpecs() client has an unusable suite");
             return UNSUPPORTED_SUITE;
         }
     }

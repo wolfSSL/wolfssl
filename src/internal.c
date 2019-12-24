@@ -2316,7 +2316,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     if (pv.major == DTLS_MAJOR) {
         dtls   = 1;
         tls    = 1;
-        /* May be dead assignments dependant upon configuration */
+        /* May be dead assignments dependent upon configuration */
         (void) dtls;
         (void) tls;
         tls1_2 = pv.minor <= DTLSv1_2_MINOR;

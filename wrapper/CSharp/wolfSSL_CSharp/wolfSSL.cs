@@ -39,7 +39,7 @@ namespace wolfSSL.CSharp {
          * Class for DTLS connections
          */
         /// <summary>
-        /// Contains information regarding a DTLS conection having UdpClient udp and IPEndPoint ep.
+        /// Contains information regarding a DTLS connection having UdpClient udp and IPEndPoint ep.
         /// Used to keep memory alive.
         /// </summary>
         public class DTLS_con
@@ -319,18 +319,18 @@ namespace wolfSSL.CSharp {
 
 
         /// <summary>
-        /// Call back to allow recieving TLS information
+        /// Call back to allow receiving TLS information
         /// </summary>
         /// <param name="ssl">structure of ssl passed in</param>
-        /// <param name="buf">buffer to contain recieved msg</param>
+        /// <param name="buf">buffer to contain received msg</param>
         /// <param name="sz">size of buffer</param>
         /// <param name="ctx">optional information passed in</param>
-        /// <returns>size of message recieved</returns>
+        /// <returns>size of message received</returns>
         private static int wolfSSLCbIORecv(IntPtr ssl, IntPtr buf, int sz, IntPtr ctx)
         {
             if (sz <= 0)
             {
-                log(ERROR_LOG, "wolfssl recieve error, size less than 0");
+                log(ERROR_LOG, "wolfssl receive error, size less than 0");
                 return wolfssl.CBIO_ERR_GENERAL;
             }
 
@@ -356,7 +356,7 @@ namespace wolfSSL.CSharp {
             }
             catch (Exception e)
             {
-                log(ERROR_LOG, "Error in recive " + e.ToString());
+                log(ERROR_LOG, "Error in receive " + e.ToString());
                 return wolfssl.CBIO_ERR_CONN_CLOSE;
             }
 
@@ -444,18 +444,18 @@ namespace wolfSSL.CSharp {
 
 
         /// <summary>
-        /// Call back to allow recieving DTLS information
+        /// Call back to allow receiving DTLS information
         /// </summary>
         /// <param name="ssl">structure of ssl passed in</param>
-        /// <param name="buf">buffer to contain recieved msg</param>
+        /// <param name="buf">buffer to contain received msg</param>
         /// <param name="sz">size of buffer</param>
         /// <param name="ctx">optional information passed in</param>
-        /// <returns>size of message recieved</returns>
+        /// <returns>size of message received</returns>
         private static int wolfSSL_dtlsCbIORecv(IntPtr ssl, IntPtr buf, int sz, IntPtr ctx)
         {
             if (sz <= 0)
             {
-                log(ERROR_LOG, "wolfssl dtls recieve error, size less than 0");
+                log(ERROR_LOG, "wolfssl dtls receive error, size less than 0");
                 return wolfssl.CBIO_ERR_GENERAL;
             }
 
@@ -513,7 +513,7 @@ namespace wolfSSL.CSharp {
                     return IntPtr.Zero;
                 }
 
-                /* keep memory pinned to be able to refrence by address */
+                /* keep memory pinned to be able to reference by address */
                 return GCHandle.ToIntPtr(GCHandle.Alloc(io, GCHandleType.Pinned));
             }
             catch (Exception e)
@@ -609,7 +609,7 @@ namespace wolfSSL.CSharp {
 
                 if (ret >= 0)
                 {
-                    /* Get data that was sent accross and store it using a literal read of
+                    /* Get data that was sent across and store it using a literal read of
                      * the conversion from bytes to character. Takes care of if
                      * a null terminator is part of the message read.
                      */
@@ -804,9 +804,9 @@ namespace wolfSSL.CSharp {
 
 
         /// <summary>
-        /// Optional, can be used to set a custom recieve function
+        /// Optional, can be used to set a custom receive function
         /// </summary>
-        /// <param name="ctx">structure to set recieve function in</param>
+        /// <param name="ctx">structure to set receive function in</param>
         /// <param name="func">function to use when reading socket</param>
         public static void SetIORecv(IntPtr ctx, CallbackIORecv_delegate func)
         {
@@ -1411,7 +1411,7 @@ namespace wolfSSL.CSharp {
 
 
         /// <summary>
-        /// Set avialable cipher suites for all ssl structs created from ctx
+        /// Set available cipher suites for all ssl structs created from ctx
         /// </summary>
         /// <param name="ctx">CTX structure to set</param>
         /// <param name="list">List full of ciphers suites</param>
@@ -1600,7 +1600,7 @@ namespace wolfSSL.CSharp {
         /// <param name="ctx">CTX structure for TLS/SSL connections </param>
         /// <param name="fileKey">Name of the file, includeing absolute directory</param>
         /// <param name="type">Type of file ie PEM or DER</param>
-        /// <returns>1 on succes</returns>
+        /// <returns>1 on success</returns>
         public static int CTX_use_PrivateKey_file(IntPtr ctx, string fileKey, int type)
         {
             try
@@ -1696,7 +1696,7 @@ namespace wolfSSL.CSharp {
         /// <param name="msg">Message to log</param>
         public static void log(int lvl, string msg)
         {
-            /* if log is not set then pring nothing */
+            /* if log is not set then print nothing */
             if (internal_log == null)
                 return;
             StringBuilder ptr = new StringBuilder(msg);

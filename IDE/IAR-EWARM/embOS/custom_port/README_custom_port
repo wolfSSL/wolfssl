@@ -109,7 +109,7 @@ We are now set to link to this library in the evaluation project
         #---------------------------------------------
 
 5. Go to Project -> Options -> Linker -> Library (Tab)
-    Add to the field "Additonal libraries:"
+    Add to the field "Additional libraries:"
     $PROJ_DIR$\..\embOS_wolfcrypt_lib_SAMV71_XULT\Debug\Exe\wolfcrypt_lib.a
     $PROJ_DIR$\..\..\extract_trial_here\Start\Lib\os7m_tlv_dp.a
 

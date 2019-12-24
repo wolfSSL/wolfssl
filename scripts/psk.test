@@ -105,7 +105,7 @@ if [ $? -ne 0 ]; then
     remove_ready_file
     # if fail here then is a settings issue so return 0
     if [ $RESULT -ne 0 ]; then
-        echo -e "\n\nIssue with choosen non PSK suites"
+        echo -e "\n\nIssue with chosen non PSK suites"
         do_cleanup
         exit 0
     fi

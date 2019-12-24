@@ -35,7 +35,7 @@ Please send questions to support@wolfssl.com
    directory path because swig doesn't like that
 2) Have python for Windows installed, note install directory
 3) Have swigwin installed, note install directory
-4) Make sure swigwin install direcotry is added to PATH env. variable
+4) Make sure swigwin install directory is added to PATH env. variable
 5) Make sure env. variables PYTHON_INCLUDE and PYTHON_LIB are set correctly e.g.
     PYTHON_INCLUE="c:\Python26\include"
     PYTHON_LIB="c:\Python26\libs\python26.lib"

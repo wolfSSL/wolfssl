@@ -49,7 +49,7 @@ WOLFSSL_API int wc_IdeaSetKey(Idea *idea, const byte* key, word16 keySz,
     int ret = wc_IdeaSetIV(&idea, iv);
     if(ret != 0)
     {
-        // Some error occured
+        // Some error occurred
     }
     \endcode
 
@@ -63,7 +63,7 @@ WOLFSSL_API int wc_IdeaSetIV(Idea *idea, const byte* iv);
     \brief Encryption or decryption for a block (64 bits).
 
     \return 0 upon success.
-    \return <0 an error occured
+    \return <0 an error occurred
 
     \param idea Pointer to idea key structure.
     \param out Pointer to destination.
@@ -115,7 +115,7 @@ WOLFSSL_API int wc_IdeaCipher(Idea *idea, byte* out, const byte* in);
                                 (word32)strlen(message)+1);
     if(ret != 0)
     {
-        // Some error occured
+        // Some error occurred
     }
     \endcode
 
@@ -151,7 +151,7 @@ WOLFSSL_API int wc_IdeaCbcEncrypt(Idea *idea, byte* out,
                                 (word32)strlen(message)+1);
     if(ret != 0)
     {
-        // Some error occured
+        // Some error occurred
     }
     \endcode
 

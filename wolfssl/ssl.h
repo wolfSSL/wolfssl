@@ -1400,7 +1400,7 @@ WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME*, time_t,
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_load_client_CA_file(const char*);
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_CTX_get_client_CA_list(
         const WOLFSSL_CTX *s);
-/* depricated function name */
+/* deprecated function name */
 #define wolfSSL_SSL_CTX_get_client_CA_list wolfSSL_CTX_get_client_CA_list
 
 WOLFSSL_API void  wolfSSL_CTX_set_client_CA_list(WOLFSSL_CTX*,
@@ -1518,7 +1518,7 @@ enum {
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
     defined(HAVE_WEBSERVER)
-/* seperated out from other enums because of size */
+/* Separated out from other enums because of size */
 enum {
     SSL_OP_MICROSOFT_SESS_ID_BUG                  = 0x00000001,
     SSL_OP_NETSCAPE_CHALLENGE_BUG                 = 0x00000002,
@@ -2260,7 +2260,7 @@ WOLFSSL_API int wolfSSL_GetMaxOutputSize(WOLFSSL*);
 WOLFSSL_API int wolfSSL_GetVersion(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_SetVersion(WOLFSSL* ssl, int version);
 
-/* moved to asn.c, old names kept for backwards compatability */
+/* moved to asn.c, old names kept for backwards compatibility */
 #define wolfSSL_KeyPemToDer    wc_KeyPemToDer
 #define wolfSSL_CertPemToDer   wc_CertPemToDer
 #define wolfSSL_PemPubKeyToDer wc_PemPubKeyToDer
@@ -3441,7 +3441,7 @@ WOLFSSL_API int  wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX *, void*);
 
 WOLFSSL_API void wolfSSL_ERR_remove_thread_state(void*);
 
-/* support for depricated old name */
+/* support for deprecated old name */
 #define WOLFSSL_ERR_remove_thread_state wolfSSL_ERR_remove_thread_state
 
 #ifndef NO_FILESYSTEM

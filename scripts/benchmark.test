@@ -23,7 +23,7 @@ client_result=-1
 
 remove_ready_file() {
     if test -e /tmp/wolfssl_server_ready; then
-        echo "removing exisitng server_ready file"
+        echo "removing existing server_ready file"
         rm /tmp/wolfssl_server_ready
     fi
 }

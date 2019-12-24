@@ -6743,7 +6743,7 @@ static int wc_PKCS7_GenerateBlock(PKCS7* pkcs7, WC_RNG* rng, byte* out,
 /* Set default SignerIdentifier type to be used. Is either
  * IssuerAndSerialNumber or SubjectKeyIdentifier. Encoding defaults to using
  * IssuerAndSerialNumber unless set with this function or explicitly
- * overriden via options when adding RecipientInfo type.
+ * overridden via options when adding RecipientInfo type.
  *
  * Using the type DEGENERATE_SID skips over signer information. In degenerate
  * cases there are no signers.

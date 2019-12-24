@@ -24,7 +24,7 @@ These Xcode projects define the `WOLFSSL_USER_SETTINGS` preprocessor
 to enable the `user_settings.h` file for setting macros across 
 multiple projects.
 
-If needed the Xcode preprocessors can be modifed with these steps:
+If needed the Xcode preprocessors can be modified with these steps:
 1. Click on the Project in "Project Navigator".
 2. Click on the "Build Settings" tab.
 3. Scroll down to the "Apple LLVM 6.0 - Preprocessing" section.
@@ -73,7 +73,7 @@ to the list of libraries to link against.
 Click on your project target, then the "Build Phases" tab. On the targets list
 click your target. Click the disclosure triangle on the section "Link Binary
 With Libraries" and verify libwolfssl.a is in the list. If not, click the "+",
-and on the "Choose framworks and libraries to add:" dialog, click the
+and on the "Choose frameworks and libraries to add:" dialog, click the
 button "Add other..." then find the file libwolfssl.a.
 
 Click on the "Build Settings" tab. Scroll down to the section "Search Paths".

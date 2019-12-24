@@ -3529,7 +3529,7 @@ int mp_invmod (mp_int * a, mp_int * b, mp_int * c)
 
 /* this is a shell function that calls either the normal or Montgomery
  * exptmod functions.  Originally the call to the montgomery code was
- * embedded in the normal function but that wasted alot of stack space
+ * embedded in the normal function but that wasted a lot of stack space
  * for nothing (since 99% of the time the Montgomery code would be called)
  */
 #if defined(FREESCALE_LTC_TFM)

@@ -225,7 +225,7 @@ CLI_PORT=`cat $ready_file2`
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 \
                          -p $CLI_PORT
 RESULT=$?
-[ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection suceeded $RESULT" && exit 1
+[ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection succeeded $RESULT" && exit 1
 printf '%s\n\n' "Test successfully REVOKED!"
 
 exit 0

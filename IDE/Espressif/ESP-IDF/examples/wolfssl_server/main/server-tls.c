@@ -64,7 +64,7 @@ static void ShowCiphers(void)
 #include "wolfssl/wolfcrypt/port/atmel/atmel.h"
 
 /* when you want to use a custom slot allocation */
-/* enable the difinition CUSTOM_SLOT_ALLOCATION. */
+/* enable the definition CUSTOM_SLOT_ALLOCATION. */
 
 #if defined(CUSTOM_SLOT_ALLOCATION)
 

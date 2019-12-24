@@ -79,7 +79,7 @@ static const word64 hash_keccak_r[24] =
     0x0000000080000001UL, 0x8000000080008008UL
 };
 
-/* Indeces used in swap and rotate operation. */
+/* Indices used in swap and rotate operation. */
 #define K_I_0   10
 #define K_I_1    7
 #define K_I_2   11
@@ -292,7 +292,7 @@ static const word64 hash_keccak_r[24] =
     0x0000000080000001UL, 0x8000000080008008UL
 };
 
-/* Indeces used in swap and rotate operation. */
+/* Indices used in swap and rotate operation. */
 #define KI_0     6
 #define KI_1    12
 #define KI_2    18

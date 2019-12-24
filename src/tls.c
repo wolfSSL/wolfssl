@@ -1266,7 +1266,7 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
 /**
  * Converts the extension type (id) to an index in the semaphore.
  *
- * Oficial reference for TLS extension types:
+ * Official reference for TLS extension types:
  *   http://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xml
  *
  * Motivation:
@@ -1297,7 +1297,7 @@ static WC_INLINE word16 TLSX_ToSemaphore(word16 type)
                    is assigned to be used by another extension.
                    Use this check value for the new extension and decrement
                    the check value by one. */
-                WOLFSSL_MSG("### TLSX semaphore colision or overflow detected!");
+                WOLFSSL_MSG("### TLSX semaphore collision or overflow detected!");
             }
     }
 
@@ -3768,7 +3768,7 @@ static int TLSX_SupportedCurve_Append(SupportedCurve* list, word16 name,
 
     while (list) {
         if (list->name == name) {
-            ret = 0; /* curve alreay in use */
+            ret = 0; /* curve already in use */
             break;
         }
 
@@ -4952,7 +4952,7 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, byte* input, word16 length,
             /* got actual ticket from client */
             ret = DoClientTicket(ssl, input, length);
             if (ret == WOLFSSL_TICKET_RET_OK) {    /* use ticket to resume */
-                WOLFSSL_MSG("Using exisitng client ticket");
+                WOLFSSL_MSG("Using existing client ticket");
                 ssl->options.useTicket = 1;
                 ssl->options.resuming  = 1;
             } else if (ret == WOLFSSL_TICKET_RET_CREATE) {
@@ -7834,7 +7834,7 @@ static int TLSX_KeyShare_SetSupported(WOLFSSL* ssl)
     if (ret != 0)
         return ret;
 
-    /* Set extension to be in reponse. */
+    /* Set extension to be in response. */
     extension = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
     extension->resp = 1;
 #else
@@ -9726,7 +9726,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
     WOLFSSL_MSG("Adding supported QSH Schemes");
 #endif
 
-    /* server will add extension depending on whats parsed from client */
+    /* server will add extension depending on what is parsed from client */
     if (!isServer) {
 #ifdef HAVE_QSH
         /* test if user has set a specific scheme already */

@@ -31,7 +31,7 @@
 
 /* Setting NO_MAIN_DRIVER here because this file ends up building
  * in the library sources which doesn't have NO_MAIN_DRIVER set,
- * as the library expects main to be somehwere else. */
+ * as the library expects main to be somewhere else. */
 #undef NO_MAIN_DRIVER
 #define NO_MAIN_DRIVER
 

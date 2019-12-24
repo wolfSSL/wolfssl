@@ -62,7 +62,7 @@ struct DescStruct {
     struct CAAM_DEVICE*    caam;
     struct buffer          buf[MAX_BUF]; /* buffers holding data input address */
     UINT4                  desc[MAX_DESC_SZ]; /* max size of 64 word32 */
-    UINT4                  aadSzBuf[4];       /* Formated AAD size for CCM */
+    UINT4                  aadSzBuf[4];       /* Formatted AAD size for CCM */
     UINT4                  alignBuf[ALIGN_BUF]; /* 64 byte buffer for non page
                                                    align */
     UINT4                  iv[MAX_CTX]; /* AES IV and also hash state */
@@ -1043,7 +1043,7 @@ static Error caamAead(struct DescStruct* desc)
         /********* handle AAD -- is only done with Init **********************/
         if ((state & CAAM_ALG_INIT) == CAAM_ALG_INIT) {
             if ((desc->type == CAAM_AESCCM) && (desc->aadSz > 0)) {
-                /* set formated AAD buffer size for CCM */
+                /* set formatted AAD buffer size for CCM */
                 ASP_FlushCaches((Address)desc->aadSzBuf, sizeof(desc->aadSzBuf));
                 desc->desc[desc->idx++] = CAAM_FIFO_L | CAAM_CLASS1 |
                     FIFOL_TYPE_AAD + desc->aadSz;
@@ -1561,7 +1561,7 @@ static Error caamTransferFinish(IODeviceVector ioCaam, IORequest req)
 
 
 /******************************************************************************
-  IODevice Interupt and Init
+  IODevice Interrupt and Init
   ****************************************************************************/
 
 static Error caamTransferWrite(IODeviceVector ioCaam,
@@ -1670,7 +1670,7 @@ void  InitCAAM(void)
     /* set up job ring */
 
     /* @TODO create partition in physical memory for job rings
-       current partion security is set to the default */
+       current partition security is set to the default */
     for (i = 1; i < CAAM_PAGE_MAX; i++) {
         ret = caamCreatePartition(i, i);
         if (ret == 0) {

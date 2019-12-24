@@ -308,7 +308,7 @@
         sha->loLen   = 0;
         sha->hiLen   = 0;
 
-        /* alwasy start firstblock = 1 when using hw engine */
+        /* always start firstblock = 1 when using hw engine */
         sha->ctx.isfirstblock = 1;
         sha->ctx.sha_type = SHA1;
         if(sha->ctx.mode == ESP32_SHA_HW){
@@ -316,7 +316,7 @@
             esp_sha_hw_unlock();
         }
         /* always set mode as INIT
-        *  whether using HW or SW is detemined at first call of update()
+        *  whether using HW or SW is determined at first call of update()
         */
         sha->ctx.mode = ESP32_SHA_INIT;
 

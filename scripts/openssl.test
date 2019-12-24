@@ -181,7 +181,7 @@ then
     exit 1
 fi
 
-OIFS=$IFS # store old seperator to reset
+OIFS=$IFS # store old separator to reset
 IFS=$'\:' # set delimiter
 set -f # no globbing
 
