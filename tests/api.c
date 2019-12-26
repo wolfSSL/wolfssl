@@ -25273,7 +25273,11 @@ static void test_wolfSSL_X509V3_EXT_d2i(void) {
     AssertNotNull(asn1str = (WOLFSSL_ASN1_STRING*)wolfSSL_X509V3_EXT_d2i(ext));
     AssertNotNull(data = wolfSSL_ASN1_STRING_data(asn1str));
     expected = KEYUSE_KEY_CERT_SIGN | KEYUSE_CRL_SIGN;
+#ifdef BIG_ENDIAN_ORDER
+    actual = data[1];
+#else
     actual = data[0];
+#endif
     AssertIntEQ(actual, expected);
     wolfSSL_ASN1_STRING_free(asn1str);
 #if 0
