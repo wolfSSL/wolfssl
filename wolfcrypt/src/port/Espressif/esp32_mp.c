@@ -332,11 +332,11 @@ int esp_mp_mulmod(fp_int* X, fp_int* Y, fp_int* M, fp_int* Z)
     }
     /* calculate r_inv = R^2 mode M
     *    where: R = b^n, and b = 2^32
-    *    accordinalry R^2 = 2^(n*32*2)
+    *    accordingly R^2 = 2^(n*32*2)
     */
     ret = mp_init_multi(&tmpZ, &r_inv, NULL, NULL, NULL, NULL);
     if(ret == 0 && (ret = esp_get_rinv(&r_inv, M, (hwWords_sz<<6))) != MP_OKAY) {
-        ESP_LOGE(TAG, "calcurate r_inv failed.");
+        ESP_LOGE(TAG, "calculate r_inv failed.");
         mp_clear(&tmpZ);
         mp_clear(&r_inv);
         return ret;
@@ -407,7 +407,7 @@ int esp_mp_mulmod(fp_int* X, fp_int* Y, fp_int* M, fp_int* Z)
     esp_mp_hw_unlock();
 
     /* additional steps                               */
-    /* this needs for known issue when Z is greather than M */
+    /* this needs for known issue when Z is greater than M */
     if(mp_cmp(&tmpZ, M)==FP_GT) {
          /* Z -= M    */
          mp_sub(&tmpZ, M, &tmpZ);

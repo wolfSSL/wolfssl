@@ -261,7 +261,7 @@ config WOLFSSL_HAVE_ASM
 	default y
 	help
 	  Enable use of assembly code in wolfSSL. This improves the performances
-	  of asymetric cryptography, however this might have an impact on the
+	  of asymmetric cryptography, however this might have an impact on the
 	  code size.
 
 config WOLFSSL_USER_SETTTINGS

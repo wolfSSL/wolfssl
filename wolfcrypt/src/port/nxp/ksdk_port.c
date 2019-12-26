@@ -909,7 +909,7 @@ status_t LTC_PKHA_Prime25519SquareRootMod(const uint8_t *A, size_t sizeA,
     }
 
     /* I = I - 1 */
-    XMEMSET(VV, 0xff, sizeof(VV)); /* just temp for maximum integer - for non-modular substract */
+    XMEMSET(VV, 0xff, sizeof(VV)); /* just temp for maximum integer - for non-modular subtract */
     if (0 <= LTC_PKHA_CompareBigNum(I, szI, &one, sizeof(one))) {
         if (status == kStatus_Success) {
             status = LTC_PKHA_ModSub1(LTC_BASE, I, szI, &one, sizeof(one),

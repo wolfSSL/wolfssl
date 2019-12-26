@@ -605,12 +605,12 @@ def wrap_socket(sock, keyfile=None, certfile=None, server_side=False,
                 ciphers=None):
     """
     Takes an instance sock of socket.socket, and returns an instance of
-    wolfssl.SSLSocket, wraping the underlying socket in an SSL context.
+    wolfssl.SSLSocket, wrapping the underlying socket in an SSL context.
 
     The sock parameter must be a SOCK_STREAM socket; other socket types are
     unsupported.
 
-    The keyfile and certfile parameters specify optional files whith proper
+    The keyfile and certfile parameters specify optional files with proper
     key and the certificates used to identify the local side of the connection.
 
     The parameter server_side is a boolean which identifies whether server-side

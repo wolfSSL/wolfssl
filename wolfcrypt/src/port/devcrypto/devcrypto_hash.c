@@ -82,7 +82,7 @@ static int HashUpdate(void* ctx, int type, const byte* input, word32 inputSz)
     }
 
     if ((dev = GetHashContext(ctx, type)) == NULL) {
-        WOLFSSL_MSG("Unsuported hash type");
+        WOLFSSL_MSG("Unsupported hash type");
         return BAD_FUNC_ARG;
     }
 
@@ -103,7 +103,7 @@ static int GetDigest(void* ctx, int type, byte* out)
     struct crypt_op crt;
 
     if ((dev = GetHashContext(ctx, type)) == NULL) {
-        WOLFSSL_MSG("Unsuported hash type");
+        WOLFSSL_MSG("Unsupported hash type");
         return BAD_FUNC_ARG;
     }
 

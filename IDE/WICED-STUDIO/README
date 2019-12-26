@@ -4,7 +4,7 @@ code repository is located on GitHub at https://github.com/wolfSSL/wolfssl.
 You can download or clone the repository. Run the autogen script and configure 
 the library with necessary functionality, see ./configure -h 
 for a list of configure options. Finally, run make and make check to ensure the
-build was successfull. You can install wolfSSL on your system with make
+build was successful. You can install wolfSSL on your system with make
 install if you wish. See www.wolfssl.com/docs/wolfssl-manual/ch2/, 'Building
 Wolfssl' for more information.
 

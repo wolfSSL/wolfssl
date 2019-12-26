@@ -51,9 +51,9 @@ export XDCOPTIONS
 #
 XDC = $(XDC_INSTALL_DIR)/xdc XDCARGS="$(XDCARGS)" XDCBUILDCFG=./wolfssl.bld
 
-######################################################
-## Shouldnt have to modify anything below this line ##
-######################################################
+#######################################################
+## Shouldn't have to modify anything below this line ##
+#######################################################
 
 all:
 	@ echo building wolfssl packages ...

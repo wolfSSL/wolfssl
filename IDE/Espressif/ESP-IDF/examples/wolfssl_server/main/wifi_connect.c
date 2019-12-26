@@ -35,7 +35,7 @@ const static int CONNECTED_BIT = BIT0;
 static EventGroupHandle_t wifi_event_group;
 /* prefix for logging */
 const static char *TAG = "tls_server";
-/* proto-type difinition */
+/* proto-type definition */
 extern void tls_smp_server_task();
 static void tls_smp_server_init();
 
@@ -89,7 +89,7 @@ static void tls_smp_server_init(void)
         ESP_LOGI(TAG, "create thread %s failed", TLS_SMP_SERVER_TASK_NAME);
     }
 }
-/* event hander for wifi events */
+/* event handler for wifi events */
 static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 {
     switch (event->event_id)

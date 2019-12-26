@@ -1478,7 +1478,7 @@ static void AddTls13Headers(byte* output, word32 length, byte type,
 
 
 #ifndef NO_CERTS
-/* Add both record layer and fragement handshake header to message.
+/* Add both record layer and fragment handshake header to message.
  *
  * output      The buffer to write the headers into.
  * fragOffset  The offset of the fragment data. (DTLS)

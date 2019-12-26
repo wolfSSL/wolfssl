@@ -1423,7 +1423,7 @@ int mp_set (mp_int * a, mp_digit b)
   return res;
 }
 
-/* chek if a bit is set */
+/* check if a bit is set */
 int mp_is_bit_set (mp_int *a, mp_digit b)
 {
     if ((mp_digit)a->used < b/DIGIT_BIT)
@@ -2496,7 +2496,7 @@ int fast_mp_montgomery_reduce (mp_int * x, mp_int * n, mp_digit rho)
     /* a = a + mu * m * b**i
      *
      * This is computed in place and on the fly.  The multiplication
-     * by b**i is handled by offseting which columns the results
+     * by b**i is handled by offsetting which columns the results
      * are added to.
      *
      * Note the comba method normally doesn't handle carries in the

@@ -2229,7 +2229,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
  * Given m must be 2048 bits, just need to subtract.
  *
  * r  A single precision number.
- * m  A signle precision number.
+ * m  A single precision number.
  */
 static void sp_2048_mont_norm_16(sp_digit* r, const sp_digit* m)
 {
@@ -3341,7 +3341,7 @@ static int sp_2048_mod_exp_16(sp_digit* r, const sp_digit* a, const sp_digit* e,
  * Given m must be 2048 bits, just need to subtract.
  *
  * r  A single precision number.
- * m  A signle precision number.
+ * m  A single precision number.
  */
 static void sp_2048_mont_norm_32(sp_digit* r, const sp_digit* m)
 {
@@ -5036,7 +5036,7 @@ static int sp_2048_to_mp(const sp_digit* a, mp_int* r)
  * exp   Exponent. MP integer.
  * mod   Modulus. MP integer.
  * res   Result. MP integer.
- * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
 int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
@@ -5405,7 +5405,7 @@ static int sp_2048_mod_exp_2_32(sp_digit* r, const sp_digit* e, int bits,
  * out      Buffer to hold big-endian bytes of exponentiation result.
  *          Must be at least 256 bytes long.
  * outLen   Length, in bytes, of exponentiation result.
- * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
 int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
@@ -5468,7 +5468,7 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
  * exp   Exponent. MP integer.
  * mod   Modulus. MP integer.
  * res   Result. MP integer.
- * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
 int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
@@ -9049,7 +9049,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
  * Given m must be 3072 bits, just need to subtract.
  *
  * r  A single precision number.
- * m  A signle precision number.
+ * m  A single precision number.
  */
 static void sp_3072_mont_norm_24(sp_digit* r, const sp_digit* m)
 {
@@ -10417,7 +10417,7 @@ static int sp_3072_mod_exp_24(sp_digit* r, const sp_digit* a, const sp_digit* e,
  * Given m must be 3072 bits, just need to subtract.
  *
  * r  A single precision number.
- * m  A signle precision number.
+ * m  A single precision number.
  */
 static void sp_3072_mont_norm_48(sp_digit* r, const sp_digit* m)
 {
@@ -12480,7 +12480,7 @@ static int sp_3072_to_mp(const sp_digit* a, mp_int* r)
  * exp   Exponent. MP integer.
  * mod   Modulus. MP integer.
  * res   Result. MP integer.
- * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
 int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
@@ -12945,7 +12945,7 @@ static int sp_3072_mod_exp_2_48(sp_digit* r, const sp_digit* e, int bits,
  * out      Buffer to hold big-endian bytes of exponentiation result.
  *          Must be at least 384 bytes long.
  * outLen   Length, in bytes, of exponentiation result.
- * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
 int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
@@ -13008,7 +13008,7 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
  * exp   Exponent. MP integer.
  * mod   Modulus. MP integer.
  * res   Result. MP integer.
- * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
 int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
@@ -27440,7 +27440,7 @@ static void sp_4096_mul_d_64(sp_digit* r, const sp_digit* a,
  * Given m must be 4096 bits, just need to subtract.
  *
  * r  A single precision number.
- * m  A signle precision number.
+ * m  A single precision number.
  */
 static void sp_4096_mont_norm_64(sp_digit* r, const sp_digit* m)
 {
@@ -29871,7 +29871,7 @@ static int sp_4096_to_mp(const sp_digit* a, mp_int* r)
  * exp   Exponent. MP integer.
  * mod   Modulus. MP integer.
  * res   Result. MP integer.
- * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
 int sp_ModExp_4096(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
@@ -30432,7 +30432,7 @@ static int sp_4096_mod_exp_2_64(sp_digit* r, const sp_digit* e, int bits,
  * out      Buffer to hold big-endian bytes of exponentiation result.
  *          Must be at least 512 bytes long.
  * outLen   Length, in bytes, of exponentiation result.
- * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
 int sp_DhExp_4096(mp_int* base, const byte* exp, word32 expLen,
@@ -31618,10 +31618,10 @@ static void sp_256_mont_inv_4(sp_digit* r, const sp_digit* a, sp_digit* td)
 #endif /* WOLFSSL_SP_SMALL */
 }
 
-/* Map the Montgomery form projective co-ordinate point to an affine point.
+/* Map the Montgomery form projective coordinate point to an affine point.
  *
- * r  Resulting affine co-ordinate point.
- * p  Montgomery form projective co-ordinate point.
+ * r  Resulting affine coordinate point.
+ * p  Montgomery form projective coordinate point.
  * t  Temporary ordinate data.
  */
 static void sp_256_map_4(sp_point* r, const sp_point* p, sp_digit* t)
@@ -31899,7 +31899,7 @@ static void sp_256_proj_point_dbl_4(sp_point* r, const sp_point* p, sp_digit* t)
     x = rp[p->infinity]->x;
     y = rp[p->infinity]->y;
     z = rp[p->infinity]->z;
-    /* Put point to double into result - good for infinty. */
+    /* Put point to double into result - good for infinity. */
     if (r != p) {
         for (i=0; i<4; i++) {
             r->x[i] = p->x[i];
@@ -32044,7 +32044,7 @@ static int sp_256_cmp_equal_4(const sp_digit* a, const sp_digit* b)
 /* Add two Montgomery form projective points.
  *
  * r  Result of addition.
- * p  Frist point to add.
+ * p  First point to add.
  * q  Second point to add.
  * t  Temporary ordinate data.
  */
@@ -32208,7 +32208,7 @@ static void sp_256_proj_point_dbl_n_store_4(sp_point* r, const sp_point* p,
  *
  * ra  Result of addition.
  * rs  Result of subtraction.
- * p   Frist point to add.
+ * p   First point to add.
  * q   Second point to add.
  * t   Temporary ordinate data.
  */
@@ -32312,7 +32312,7 @@ static const uint8_t recode_neg_4_6[66] = {
  * subtraction.
  *
  * k  Scalar to multiply by.
- * v  Vector of operations to peform.
+ * v  Vector of operations to perform.
  */
 static void sp_256_ecc_recode_6_4(const sp_digit* k, ecc_recode* v)
 {
@@ -32353,7 +32353,7 @@ static void sp_256_ecc_recode_6_4(const sp_digit* k, ecc_recode* v)
 }
 
 /* Multiply the point by the scalar and return the result.
- * If map is true then convert result to affine co-ordinates.
+ * If map is true then convert result to affine coordinates.
  *
  * r     Resulting point.
  * g     Point to multiply.
@@ -32484,7 +32484,7 @@ typedef struct sp_table_entry {
  * Only the first point can be the same pointer as the result point.
  *
  * r  Result of addition.
- * p  Frist point to add.
+ * p  First point to add.
  * q  Second point to add.
  * t  Temporary ordinate data.
  */
@@ -32566,7 +32566,7 @@ static void sp_256_proj_point_add_qz1_4(sp_point* r, const sp_point* p,
  * Ordinates are in Montgomery form.
  *
  * a  Point to convert.
- * t  Temprorary data.
+ * t  Temporary data.
  */
 static void sp_256_proj_to_affine_4(sp_point* a, sp_digit* t)
 {
@@ -32588,7 +32588,7 @@ static void sp_256_proj_to_affine_4(sp_point* a, sp_digit* t)
  *
  * a      The base point.
  * table  Place to store generated point data.
- * tmp    Temprorary data.
+ * tmp    Temporary data.
  * heap  Heap to use for allocation.
  */
 static int sp_256_gen_stripe_table_4(const sp_point* a,
@@ -32668,7 +32668,7 @@ static int sp_256_gen_stripe_table_4(const sp_point* a,
 #endif /* FP_ECC */
 #if defined(FP_ECC) || defined(WOLFSSL_SP_SMALL)
 /* Multiply the point by the scalar and return the result.
- * If map is true then convert result to affine co-ordinates.
+ * If map is true then convert result to affine coordinates.
  *
  * r     Resulting point.
  * k     Scalar to multiply by.
@@ -32831,7 +32831,7 @@ static void sp_ecc_get_cache(const sp_point* g, sp_cache_t** cache)
 #endif /* FP_ECC */
 
 /* Multiply the base point of P256 by the scalar and return the result.
- * If map is true then convert result to affine co-ordinates.
+ * If map is true then convert result to affine coordinates.
  *
  * r     Resulting point.
  * g     Point to multiply.
@@ -32882,7 +32882,7 @@ static int sp_256_ecc_mulmod_4(sp_point* r, const sp_point* g, const sp_digit* k
 }
 
 /* Multiply the point by the scalar and return the result.
- * If map is true then convert result to affine co-ordinates.
+ * If map is true then convert result to affine coordinates.
  *
  * km    Scalar to multiply by.
  * p     Point to multiply.
@@ -34216,7 +34216,7 @@ static const sp_table_entry p256_table[256] = {
 };
 
 /* Multiply the base point of P256 by the scalar and return the result.
- * If map is true then convert result to affine co-ordinates.
+ * If map is true then convert result to affine coordinates.
  *
  * r     Resulting point.
  * k     Scalar to multiply by.
@@ -34262,7 +34262,7 @@ static const uint8_t recode_neg_4_7[130] = {
  * subtraction.
  *
  * k  Scalar to multiply by.
- * v  Vector of operations to peform.
+ * v  Vector of operations to perform.
  */
 static void sp_256_ecc_recode_7_4(const sp_digit* k, ecc_recode* v)
 {
@@ -46257,7 +46257,7 @@ static const sp_table_entry p256_table[2405] = {
 };
 
 /* Multiply the point by the scalar and return the result.
- * If map is true then convert result to affine co-ordinates.
+ * If map is true then convert result to affine coordinates.
  *
  * r     Resulting point.
  * k     Scalar to multiply by.
@@ -46338,7 +46338,7 @@ static int sp_256_ecc_mulmod_add_only_4(sp_point* r, const sp_point* g,
 }
 
 /* Multiply the base point of P256 by the scalar and return the result.
- * If map is true then convert result to affine co-ordinates.
+ * If map is true then convert result to affine coordinates.
  *
  * r     Resulting point.
  * k     Scalar to multiply by.
@@ -46355,7 +46355,7 @@ static int sp_256_ecc_mulmod_base_4(sp_point* r, const sp_digit* k,
 
 #endif /* WOLFSSL_SP_SMALL */
 /* Multiply the base point of P256 by the scalar and return the result.
- * If map is true then convert result to affine co-ordinates.
+ * If map is true then convert result to affine coordinates.
  *
  * km    Scalar to multiply by.
  * r     Resulting point.

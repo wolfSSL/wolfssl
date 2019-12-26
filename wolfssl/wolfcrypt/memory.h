@@ -166,8 +166,8 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb*,
         word32 totalFr;   /* total frees for lifetime */
         word32 totalUse;  /* total amount of memory used in blocks */
         word32 avaIO;     /* available IO specific pools */
-        word32 maxHa;     /* max number of concurent handshakes allowed */
-        word32 maxIO;     /* max number of concurent IO connections allowed */
+        word32 maxHa;     /* max number of concurrent handshakes allowed */
+        word32 maxIO;     /* max number of concurrent IO connections allowed */
         word32 blockSz[WOLFMEM_MAX_BUCKETS]; /* block sizes in stacks */
         word32 avaBlock[WOLFMEM_MAX_BUCKETS];/* ava block sizes */
         word32 usedBlock[WOLFMEM_MAX_BUCKETS];
@@ -178,7 +178,7 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb*,
     typedef struct WOLFSSL_HEAP {
         wc_Memory* ava[WOLFMEM_MAX_BUCKETS];
         wc_Memory* io;                  /* list of buffers to use for IO */
-        word32     maxHa;               /* max concurent handshakes */
+        word32     maxHa;               /* max concurrent handshakes */
         word32     curHa;
         word32     maxIO;               /* max concurrent IO connections */
         word32     curIO;

@@ -225,7 +225,7 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
     encrypted or decrypted and out buffer holds the results. outl will be the
     length of encrypted/decrypted information.
 
-    \return SSL_SUCCESS If successfull.
+    \return SSL_SUCCESS If successful.
     \return SSL_FAILURE If not successful.
 
     \param ctx structure to get cipher type from.

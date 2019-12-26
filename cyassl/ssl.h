@@ -21,7 +21,7 @@
 
 
 /*
- * ssl.h makes wolfssl backwards compatibile with cyassl
+ * ssl.h makes wolfssl backwards compatible with cyassl
  */
 
 #ifndef WOLFSSL_CYASSL_H_
@@ -494,7 +494,7 @@
 /* Callbacks */
 
 /*
- * Empty commment denotes not listed in CyaSSL Manual
+ * Empty comment denotes not listed in CyaSSL Manual
  * (soon to be wolfSSL Manual)
  */
 
@@ -568,7 +568,7 @@
 /* OCSP and CRL */
 
 /*
- * Empty commment denotes not listed in CyaSSL Manual
+ * Empty comment denotes not listed in CyaSSL Manual
  * (soon to be wolfSSL Manual)
  */
 

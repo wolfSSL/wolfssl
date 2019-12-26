@@ -92,7 +92,7 @@ static WC_INLINE void AddLength(wc_Sha256* sha256, word32 len)
 
 #ifdef __aarch64__
 
-/* ARMv8 hardware accleration */
+/* ARMv8 hardware acceleration */
 static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
 {
     word32 add;
@@ -266,7 +266,7 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
             "#check if more blocks should be done\n"
             "CBZ w8, 2f \n"
 
-            "#load in message and schedual updates \n"
+            "#load in message and schedule updates \n"
             "LD1 {v0.2d-v3.2d}, [%[dataIn]], #64   \n"
             "MOV v14.16b, v12.16b \n"
             "MOV v15.16b, v13.16b \n"
@@ -298,7 +298,7 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
         }
     }
 
-    /* account for possiblity of not used if len = 0 */
+    /* account for possibility of not used if len = 0 */
     (void)add;
     (void)numBlocks;
 
@@ -498,7 +498,7 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
             sizeof(word32));
 
     __asm__ volatile (
-        "#load in message and schedual updates \n"
+        "#load in message and schedule updates \n"
         "LD1 {v4.2d-v7.2d}, %[buffer]        \n"
         "MOV v0.16b, v4.16b \n"
         "MOV v1.16b, v5.16b \n"
@@ -654,7 +654,7 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
 
 #else /* not using 64 bit */
 
-/* ARMv8 hardware accleration Aarch32 */
+/* ARMv8 hardware acceleration Aarch32 */
 static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
 {
     word32 add;
@@ -838,7 +838,7 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
             "CMP r8, #0 \n"
             "BEQ 2f \n"
 
-            "#load in message and schedual updates \n"
+            "#load in message and schedule updates \n"
             "VLD1.32 {q0}, [%[dataIn]]!   \n"
             "VLD1.32 {q1}, [%[dataIn]]!   \n"
             "VLD1.32 {q2}, [%[dataIn]]!   \n"
@@ -874,7 +874,7 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
         }
     }
 
-    /* account for possiblity of not used if len = 0 */
+    /* account for possibility of not used if len = 0 */
     (void)add;
     (void)numBlocks;
 

@@ -221,7 +221,7 @@ static int InitSha512(wc_Sha512* sha512)
         esp_sha_hw_unlock();
     }
     /* always set mode as INIT
-    *  whether using HW or SW is detemined at first call of update()
+    *  whether using HW or SW is determined at first call of update()
     */
     sha512->ctx.mode = ESP32_SHA_INIT;
 #endif
@@ -933,7 +933,7 @@ static int InitSha384(wc_Sha384* sha384)
         esp_sha_hw_unlock();
     }
     /* always set mode as INIT
-    *  whether using HW or SW is detemined at first call of update()
+    *  whether using HW or SW is determined at first call of update()
     */
     sha384->ctx.mode = ESP32_SHA_INIT;
 

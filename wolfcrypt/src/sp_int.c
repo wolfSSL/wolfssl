@@ -1667,7 +1667,7 @@ static const int lnz[SP_LNZ_CNT] = {
 /* Count the number of least significant zero bits.
  *
  * a  Number to check
- * retuns the count of least significant zero bits.
+ * returns the count of least significant zero bits.
  */
 static int sp_cnt_lsb(sp_int* a)
 {
@@ -1869,7 +1869,7 @@ static const sp_int_digit primes[SP_PRIME_SIZE] = {
  * result  MP_YES when prime.
  *         MP_NO when not prime.
  * returns MP_VAL when t is out of range, MP_MEM when dynamic memory allocation
- *         failes and otherwiese MP_OKAY.
+ *         fails and otherwise MP_OKAY.
  */
 int sp_prime_is_prime(sp_int *a, int t, int* result)
 {
@@ -1953,7 +1953,7 @@ int sp_prime_is_prime(sp_int *a, int t, int* result)
  *         MP_NO when not prime.
  * rng     Random number generator.
  * returns MP_VAL when t is out of range, MP_MEM when dynamic memory allocation
- *         failes and otherwiese MP_OKAY.
+ *         fails and otherwise MP_OKAY.
  */
 int sp_prime_is_prime_ex(sp_int* a, int t, int* result, WC_RNG* rng)
 {

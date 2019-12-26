@@ -2943,7 +2943,7 @@ exit:
     R        [out] Destination of product
     a        ECC curve parameter a
     modulus  The modulus for the curve
-    map      [boolean] If non-zero maps the point back to affine co-ordinates,
+    map      [boolean] If non-zero maps the point back to affine coordinates,
              otherwise it's left in jacobian-montgomery form
     return MP_OKAY if successful
 */
@@ -9097,7 +9097,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
     R        [out] Destination of product
     a        ECC curve parameter a
     modulus  The modulus for the curve
-    map      [boolean] If non-zero maps the point back to affine co-ordinates,
+    map      [boolean] If non-zero maps the point back to affine coordinates,
              otherwise it's left in jacobian-montgomery form
     return MP_OKAY if successful
 */

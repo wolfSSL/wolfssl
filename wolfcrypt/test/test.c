@@ -8974,7 +8974,7 @@ int memory_test(void)
         return -6514; /* memory not aligned */
     }
 
-    /* check for passing bad or unknown argments to functions */
+    /* check for passing bad or unknown arguments to functions */
     if (wolfSSL_StaticBufferSz(NULL, 1, WOLFMEM_GENERAL) > 0) {
         return -6515;
     }
@@ -10291,7 +10291,7 @@ static int rsa_decode_test(RsaKey* keyPub)
         goto done;
     }
 
-    /* Use good data and offest to bad data. */
+    /* Use good data and offset to bad data. */
     inOutIdx = 2;
     inSz = sizeof(good) - inOutIdx;
     ret = wc_RsaPublicKeyDecode(good, &inOutIdx, keyPub, inSz);
@@ -19140,7 +19140,7 @@ static int curve25519_check_public_test(void)
                                                                  BAD_FUNC_ARG) {
         return -10301;
     }
-    /* Length of 0 treated differntly to other invalid lengths for TLS */
+    /* Length of 0 treated differently to other invalid lengths for TLS */
     if (wc_curve25519_check_public(good, 0, EC25519_LITTLE_ENDIAN) != BUFFER_E)
         return -10302;
     if (wc_curve25519_check_public(good, 0, EC25519_BIG_ENDIAN) != BUFFER_E)
@@ -19330,7 +19330,7 @@ int curve25519_test(void)
     if (XMEMCMP(ss, sharedB, y))
         return -8814;
 
-    /* test swaping roles of keys and generating same shared key */
+    /* test swapping roles of keys and generating same shared key */
     XMEMSET(sharedB, 0, sizeof(sharedB));
     y = sizeof(sharedB);
     if (wc_curve25519_shared_secret(&userB, &userA, sharedB, &y) != 0)

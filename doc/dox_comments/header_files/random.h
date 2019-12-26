@@ -18,7 +18,7 @@
 
     if (wc_InitNetRandom(config, NULL, time) != 0)
     {
-        // Some error occured
+        // Some error occurred
     }
     \endcode
 

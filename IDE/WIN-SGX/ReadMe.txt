@@ -4,7 +4,7 @@
 
 Requirements:
 This code was created to use Intel's SGX hardware. It is expected that the user has gone through the
-steps of both turning on the hardware in bios if needed and has installed the necesary software
+steps of both turning on the hardware in bios if needed and has installed the necessary software
 from Intel to make use of the hardware. (https://software.intel.com/en-us/sgx) If these steps have
 not been done then it is expected that the user is familure with simiulation software being used in
 place of hardware.

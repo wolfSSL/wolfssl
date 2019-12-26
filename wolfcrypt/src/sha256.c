@@ -227,7 +227,7 @@ static int InitSha256(wc_Sha256* sha256)
 
     #if defined(HAVE_INTEL_AVX1)|| defined(HAVE_INTEL_AVX2)
         #if defined(HAVE_INTEL_RORX
-             #define RND with rorx instuction
+             #define RND with rorx instruction
         #else
             #define RND
         #endif
@@ -246,7 +246,7 @@ static int InitSha256(wc_Sha256* sha256)
       #define YMM Instructions/inline asm
 
       int Transform_Sha256() {
-          More granural Stitched Message Sched/Round
+          More granular Stitched Message Sched/Round
       }
 
     #endif
@@ -574,7 +574,7 @@ static int InitSha256(wc_Sha256* sha256)
             esp_sha_hw_unlock();
         }
         /* always set mode as INIT
-        *  whether using HW or SW is detemined at first call of update()
+        *  whether using HW or SW is determined at first call of update()
         */
         sha256->ctx.mode = ESP32_SHA_INIT;
 

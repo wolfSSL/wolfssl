@@ -377,7 +377,7 @@ void server_thread(void* arg1, void* arg2, void* arg3)
     }
     if (ret == 1)
         ret = 0;
-    /* Send HTTP repsonse */
+    /* Send HTTP response */
     if (ret == 0)
         ret = wolfssl_send(server_ssl, msgHTTPIndex);
 

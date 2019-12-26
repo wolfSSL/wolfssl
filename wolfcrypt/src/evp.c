@@ -1406,7 +1406,7 @@ int wolfSSL_EVP_SignUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t len
     return wolfSSL_EVP_DigestUpdate(ctx, data, len);
 }
 
-/* macro gaurd because currently only used with RSA */
+/* macro guard because currently only used with RSA */
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
 /* Helper function for getting the NID value from md
  *

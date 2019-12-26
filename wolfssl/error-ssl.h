@@ -105,11 +105,11 @@ enum wolfSSL_ErrorCodes {
     OUT_OF_ORDER_E               = -373,   /* out of order message */
     BAD_KEA_TYPE_E               = -374,   /* bad KEA type found */
     SANITY_CIPHER_E              = -375,   /* sanity check on cipher error */
-    RECV_OVERFLOW_E              = -376,   /* RXCB returned more than rqed */
+    RECV_OVERFLOW_E              = -376,   /* RXCB returned more than read */
     GEN_COOKIE_E                 = -377,   /* Generate Cookie Error */
     NO_PEER_VERIFY               = -378,   /* Need peer cert verify Error */
     FWRITE_ERROR                 = -379,   /* fwrite problem */
-    CACHE_MATCH_ERROR            = -380,   /* chache hdr match error */
+    CACHE_MATCH_ERROR            = -380,   /* Cache hdr match error */
     UNKNOWN_SNI_HOST_NAME_E      = -381,   /* Unrecognized host name Error */
     UNKNOWN_MAX_FRAG_LEN_E       = -382,   /* Unrecognized max frag len Error */
     KEYUSE_SIGNATURE_E           = -383,   /* KeyUse digSignature error */

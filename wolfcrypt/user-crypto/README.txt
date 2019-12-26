@@ -70,7 +70,7 @@ It is required to have a header file named user_rsa.h. This is what is looked fo
 It is required to have a library called usercrypto. This is linked to when configuring wolfSSL with the option --with-user-crypto
 
 It is required when compiled with RSA cert generation to have key struct elements named n and e containing the corresponding big numbers. And the three helper functions to work with the big numbers. These functions are called by wolfcrypt/src/asn.c when working with certificates.
-To view the needed functions look at wolfssl/wolfcrypt/rsa.h they will be extern functions surronded by HAVE_USER_RSA define.
+To view the needed functions look at wolfssl/wolfcrypt/rsa.h they will be extern functions surrounded by HAVE_USER_RSA define.
 Cert Generation for other sign and verify such as ECC are not yet supported.
 
 When building with openssl compatibility layer extra developent needs to be done, having the two functions SetRsaExernal and SetRsaInternal

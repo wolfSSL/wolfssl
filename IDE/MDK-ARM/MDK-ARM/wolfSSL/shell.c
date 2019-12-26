@@ -214,7 +214,7 @@ static struct {
     "stack", stack_comm,        /* On/Off check stack size */
     "for", for_command,         /* iterate next command X times */
     "debug", dbg_comm,          /* On/Off debug message  */
-    "help", help_comm,          /* Breif description about the commands */
+    "help", help_comm,          /* Brief description about the commands */
 
     /** short name **/
     "ec", echoclient_test,
@@ -483,7 +483,7 @@ static char command_stack[COMMAND_STACK_SIZE] ;
 static   wolfSSL_Mutex command_mutex ;
 #endif
 
-/***********    Invoke Forground Command  *********************/
+/***********    Invoke Foreground Command  *********************/
 static void command_invoke(void *args)
 {
     void (*func)(void * ) ;

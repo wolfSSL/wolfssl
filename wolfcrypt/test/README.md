@@ -2,7 +2,7 @@
 
 Tool for performing cryptographic algorithm testing.
 
-## Example Ouput
+## Example Output
 
 Run on Intel(R) Core(TM) i7-7920HQ CPU @ 3.10GHz.
 

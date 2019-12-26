@@ -6,7 +6,7 @@ embOS v4.16 (for Cortex-M and IAR compiler)
 wolfssl (latest version)
 
 Required items (Hardware) for this guide:
-Atmel SAM V71 Xplained Ultra (Or equivelent Cortex-M Evaluation Board)
+Atmel SAM V71 Xplained Ultra (Or equivalent Cortex-M Evaluation Board)
     Note: Must have J-Trace adapter (SWD or SWD + ETM)
 j-Trace for ARM Cortex-M Processors
     Note: You can see here: https://www.segger.com/j-trace-for-cortex-m.html

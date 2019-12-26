@@ -3,7 +3,7 @@ toolchain and example benchmark/testwolfcrypt application linking to it. The
 examples and default builds where made to support a MCF5441X board.
 
 Macros to define for use:
-WOLFSSL_MCF5441X /* arch settings i.e. sizeof long and endianess */
+WOLFSSL_MCF5441X /* arch settings i.e. sizeof long and endianness */
 WOLFSSL_NETBURNER /* for use of NetBurner headers and RNG seed */
 
 
@@ -17,7 +17,7 @@ wolfssl-root/wolfssl/wolfcrypt/settings.h sets the sizeof long and long long
 along with big endian macro.
 
 The configuration for the build is located in wolfssl-root/IDE/M68K/user_settings.h
-Along with the defualt build there is 2 others BUILD_B (smaller resource use),
+Along with the default build there is 2 others BUILD_B (smaller resource use),
 and BUILD_C (faster runtime with more resource use).
 
 RSA speeds of the builds

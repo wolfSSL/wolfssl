@@ -511,7 +511,7 @@ static void ServerWrite(WOLFSSL* ssl, const char* output, int outputLen)
 }
 /* when adding new option, please follow the steps below: */
 /*  1. add new option message in English section          */
-/*  2. increase the number of the second dimention        */
+/*  2. increase the number of the second column           */
 /*  3. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  4. add printf() into suitable position of Usage()     */
@@ -1550,7 +1550,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_STATIC_MEMORY
     #ifdef DEBUG_WOLFSSL
     /* print off helper buffer sizes for use with static memory
-     * printing to stderr incase of debug mode turned on */
+     * printing to stderr in case of debug mode turned on */
     fprintf(stderr, "static memory management size = %d\n",
             wolfSSL_MemoryPaddingSz());
     fprintf(stderr, "calculated optimum general buffer size = %d\n",
