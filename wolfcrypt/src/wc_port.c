@@ -82,6 +82,10 @@
     #include <wolfssl/wolfcrypt/port/cavium/cavium_octeon_sync.h>
 #endif
 
+#if defined(WOLFSSL_DSP) && !defined(WOLFSSL_DSP_BUILD)
+    #include "rpcmem.h"
+#endif
+
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
     #pragma warning(disable: 4996)
@@ -226,6 +230,13 @@ int wolfCrypt_Init(void)
             return ret;
         }
 #endif
+
+#if defined(WOLFSSL_DSP) && !defined(WOLFSSL_DSP_BUILD)
+	if ((ret = wolfSSL_InitHandle()) != 0) {
+            return ret;
+        }
+        rpcmem_init();
+#endif
     }
     initRefCount++;
 
@@ -275,6 +286,10 @@ int wolfCrypt_Cleanup(void)
     #endif
     #if defined(WOLFSSL_RENESAS_TSIP_CRYPT)
         tsip_Close();
+    #endif
+    #if defined(WOLFSSL_DSP) && !defined(WOLFSSL_DSP_BUILD)
+        rpcmem_deinit();
+        wolfSSL_CleanupHandle();
     #endif
     }
 

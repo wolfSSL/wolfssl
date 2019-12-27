@@ -979,7 +979,7 @@ int sp_tohex(sp_int* a, char* str)
 }
 #endif /* WC_MP_TO_RADIX */
 
-#if defined(WOLFSSL_KEY_GEN) || !defined(NO_DH)
+#if defined(WOLFSSL_KEY_GEN) || !defined(NO_DH) && !defined(WC_NO_RNG)
 /* Set a bit of a: a |= 1 << i
  * The field 'used' is updated in a.
  *

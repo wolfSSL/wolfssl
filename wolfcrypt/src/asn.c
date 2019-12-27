@@ -6745,7 +6745,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     break;
                 }
             #endif /* !NO_RSA */
-            #ifdef HAVE_ECC
+            #if defined(HAVE_ECC)
                 case ECDSAk:
                 {
                 #ifdef HAVE_PK_CALLBACKS

@@ -56,7 +56,13 @@
     #endif
 #endif
 
-#ifndef WOLFSSL_SP_ASM
+#ifdef WOLFSSL_DSP_BUILD
+    typedef int32 sp_digit;
+    typedef uint32 sp_int_digit;
+    typedef uint64 sp_int_word;
+    #undef SP_WORD_SIZE
+    #define SP_WORD_SIZE 32
+#elif !defined(WOLFSSL_SP_ASM)
   #if SP_WORD_SIZE == 32
     typedef int32_t sp_digit;
     typedef uint32_t sp_int_digit;

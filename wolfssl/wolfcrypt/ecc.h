@@ -404,6 +404,10 @@ struct ecc_key {
     mp_int* z;
 #endif
 #endif
+
+#ifdef WOLFSSL_DSP
+    remote_handle64 handle;
+#endif
 };
 
 
@@ -724,6 +728,14 @@ WOLFSSL_API void wc_ecc_curve_cache_free(void);
 
 WOLFSSL_API
 int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order);
+
+#ifdef WOLFSSL_DSP
+WOLFSSL_API
+int wc_ecc_set_handle(ecc_key* key, remote_handle64 handle);
+WOLFSSL_LOCAL
+int sp_dsp_ecc_verify_256(remote_handle64 handle, const byte* hash, word32 hashLen, mp_int* pX,
+    mp_int* pY, mp_int* pZ, mp_int* r, mp_int* sm, int* res, void* heap);
+#endif
 
 #ifdef __cplusplus
     }    /* extern "C" */
