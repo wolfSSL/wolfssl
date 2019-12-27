@@ -375,8 +375,9 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
 
 
 WOLFSSL_ABI
-WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD* method)
+WOLFSSL_CTX* wolfSSL_CTX_new(char foo, WOLFSSL_METHOD* method, int bar)
 {
+    printf("foo is %c, bar is %d\n", foo, bar);
 #ifdef WOLFSSL_HEAP_TEST
     /* if testing the heap hint then set top level CTX to have test value */
     return wolfSSL_CTX_new_ex(method, (void*)WOLFSSL_HEAP_TEST);
@@ -6026,7 +6027,7 @@ int wolfSSL_CertManagerLoadCABuffer(WOLFSSL_CERT_MANAGER* cm,
         WOLFSSL_MSG("No CertManager error");
         return ret;
     }
-    tmp = wolfSSL_CTX_new(cm_pick_method());
+    tmp = wolfSSL_CTX_new('a', cm_pick_method(), 23);
 
     if (tmp == NULL) {
         WOLFSSL_MSG("CTX new failed");
@@ -6858,7 +6859,7 @@ int wolfSSL_CertManagerLoadCA(WOLFSSL_CERT_MANAGER* cm, const char* file,
         WOLFSSL_MSG("No CertManager error");
         return ret;
     }
-    tmp = wolfSSL_CTX_new(cm_pick_method());
+    tmp = wolfSSL_CTX_new('q', cm_pick_method(), 29);
 
     if (tmp == NULL) {
         WOLFSSL_MSG("CTX new failed");
@@ -25434,7 +25435,7 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
         return WOLFSSL_FAILURE;
 
     /* tmp ctx for setting our cert manager */
-    ctx = wolfSSL_CTX_new(cm_pick_method());
+    ctx = wolfSSL_CTX_new('d', cm_pick_method(), 234);
     if (ctx == NULL)
         return WOLFSSL_FAILURE;
 
