@@ -9738,7 +9738,7 @@ int decodedCertCache_test(void)
 #endif /* defined(WOLFSSL_CERT_GEN_CACHE) && defined(WOLFSSL_TEST_CERT) &&
           defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN) */
 
-#if !defined(NO_ASN) && !defined(WOLFSSL_RSA_VERIFY_ONLY)
+#if !defined(NO_ASN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 static int rsa_flatten_test(RsaKey* key)
 {
     int    ret;
@@ -11581,13 +11581,17 @@ int rsa_test(void)
 #if defined(HAVE_NTRU)
     RsaKey caKey;
 #endif
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
+#ifndef NO_ASN
     word32 idx = 0;
+#endif
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_PUBLIC_MP)
     const char* inStr = "Everyone gets Friday off.";
     word32      inLen = (word32)XSTRLEN((char*)inStr);
-    byte*  res;
     const word32 outSz   = RSA_TEST_BYTES;
     const word32 plainSz = RSA_TEST_BYTES;
+#endif
+#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
+    byte*  res;
 #endif
 #ifndef NO_SIG_WRAPPER
     int modLen;
@@ -11601,7 +11605,7 @@ int rsa_test(void)
     DecodedCert cert;
 #endif
 
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_PUBLIC_MP)
     DECLARE_VAR_INIT(in, byte, inLen, inStr, HEAP_HINT);
     DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
@@ -11897,6 +11901,7 @@ int rsa_test(void)
     }
     TEST_SLEEP();
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
     idx = (word32)ret;
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -11916,6 +11921,7 @@ int rsa_test(void)
     }
     TEST_SLEEP();
     #endif /* NO_SHA */
+#endif
 
     #ifndef NO_SHA256
     XMEMSET(plain, 0, plainSz);

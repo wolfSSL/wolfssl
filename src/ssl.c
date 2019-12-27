@@ -5216,6 +5216,9 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
 {
     int ret = 0;
 
+    (void)heap;
+    (void)devId;
+
     if (ctx == NULL && ssl == NULL)
         return BAD_FUNC_ARG;
     if (!der || !keySz || !idx || !resetSuites || !rsaKey || !eccKey || !ed25519Key)

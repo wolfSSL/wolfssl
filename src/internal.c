@@ -3533,7 +3533,8 @@ static word32 MacSize(WOLFSSL* ssl)
 
 #ifndef NO_RSA
 #ifndef WOLFSSL_NO_TLS12
-#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
+#if !defined(NO_WOLFSSL_SERVER) || (!defined(NO_WOLFSSL_CLIENT) && \
+                                               !defined(WOLFSSL_NO_CLIENT_AUTH))
 static int TypeHash(int hashAlgo)
 {
     switch (hashAlgo) {
@@ -3597,6 +3598,7 @@ int ConvertHashPss(int hashAlgo, enum wc_HashType* hashType, int* mgf)
 }
 #endif
 
+#if !defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
             word32* outSz, int sigAlgo, int hashAlgo, RsaKey* key,
             DerBuffer* keyBufInfo)
@@ -3680,6 +3682,7 @@ int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 
     return ret;
 }
+#endif
 
 int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, int sigAlgo,
               int hashAlgo, RsaKey* key, buffer* keyBufInfo)
@@ -3887,6 +3890,7 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
 
 #ifndef WOLFSSL_NO_TLS12
 
+#if !defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
     RsaKey* key, DerBuffer* keyBufInfo)
 {
@@ -3946,6 +3950,7 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
 
     return ret;
 }
+#endif /* !NO_WOLFSSL_SERVER) || !WOLFSSL_NO_CLIENT_AUTH */
 
 int RsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out, word32* outSz,
     RsaKey* key, buffer* keyBufInfo)
@@ -7383,7 +7388,8 @@ static void AddHeaders(byte* output, word32 length, byte type, WOLFSSL* ssl)
 
 
 #ifndef WOLFSSL_NO_TLS12
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && (!defined(NO_WOLFSSL_SERVER) || \
+                                               !defined(WOLFSSL_NO_CLIENT_AUTH))
 static void AddFragHeaders(byte* output, word32 fragSz, word32 fragOffset,
                            word32 length, byte type, WOLFSSL* ssl)
 {
