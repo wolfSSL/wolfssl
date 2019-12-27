@@ -10151,7 +10151,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                 #ifdef OPENSSL_EXTRA
                     /* Determine untrusted depth */
-                    if (!alreadySigner) {
+                    if (!alreadySigner && (!args->dCert ||
+                            !args->dCertInit || !args->dCert->selfSigned)) {
                         args->untrustedDepth = 1;
                     }
                 #endif
