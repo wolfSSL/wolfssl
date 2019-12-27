@@ -2014,8 +2014,8 @@ extern void uITRON4_free(void *p) ;
 #endif /* OPENSSL_EXTRA */
 
 /* support for converting DER to PEM */
-#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || \
-        defined(OPENSSL_EXTRA)
+#if (defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_DER_TO_PEM)) || \
+    defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA)
     #undef  WOLFSSL_DER_TO_PEM
     #define WOLFSSL_DER_TO_PEM
 #endif

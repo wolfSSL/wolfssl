@@ -2846,6 +2846,7 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
                             WC_RNG* rng)
 {
     int ret = RSA_WRONG_TYPE_E;
+    byte* pad = NULL;
 
     if (in == NULL || inLen == 0 || out == NULL || key == NULL) {
         return BAD_FUNC_ARG;
@@ -2935,8 +2936,6 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
         FALL_THROUGH;
 
     case RSA_STATE_DECRYPT_UNPAD:
-    {
-        byte* pad = NULL;
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)
         ret = wc_RsaUnPad_ex(key->data, key->dataLen, &pad, pad_value, pad_type,
                              hash, mgf, label, labelSz, saltLen,
@@ -2983,9 +2982,8 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
         }
 
         key->state = RSA_STATE_DECRYPT_RES;
-
         FALL_THROUGH;
-    }
+
     case RSA_STATE_DECRYPT_RES:
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA) && \
             defined(HAVE_CAVIUM)

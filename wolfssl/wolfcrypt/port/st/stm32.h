@@ -28,7 +28,8 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 
-#if defined(WOLFSSL_STM32_PKA)
+#if defined(WOLFSSL_STM32_PKA) && defined(HAVE_ECC)
+    #include <wolfssl/wolfcrypt/integer.h>
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
 
@@ -129,13 +130,12 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
 
 #endif /* STM32_CRYPTO */
 
-#ifdef WOLFSSL_STM32_PKA
+#if defined(WOLFSSL_STM32_PKA) && defined(HAVE_ECC)
 int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
                     word32 hashlen, int* res, ecc_key* key);
 
 int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
                      ecc_key* key, mp_int *r, mp_int *s);
-
 #endif
 
 

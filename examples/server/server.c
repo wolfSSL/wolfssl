@@ -333,11 +333,12 @@ static int NonBlockingSSL_Accept(SSL* ssl)
 
 /* Echo number of bytes specified by -e arg */
 int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
-                   int throughput)
+                   size_t throughput)
 {
     int ret = 0, err;
     double start = 0, rx_time = 0, tx_time = 0;
-    int xfer_bytes = 0, select_ret, len, rx_pos;
+    int select_ret, len, rx_pos;
+    size_t xfer_bytes = 0;
     char* buffer;
 
     buffer = (char*)malloc(block);
@@ -351,7 +352,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
         select_ret = tcp_select(clientfd, 1); /* Timeout=1 second */
         if (select_ret == TEST_RECV_READY) {
 
-            len = min(block, throughput - xfer_bytes);
+            len = min(block, (int)(throughput - xfer_bytes));
             rx_pos = 0;
 
             if (throughput) {
@@ -416,7 +417,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
     free(buffer);
 
     if (throughput) {
-        printf("wolfSSL Server Benchmark %d bytes\n"
+        printf("wolfSSL Server Benchmark %zu bytes\n"
             "\tRX      %8.3f ms (%8.3f MBps)\n"
             "\tTX      %8.3f ms (%8.3f MBps)\n",
             throughput,
@@ -917,7 +918,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     int    cnt = 0;
     int    echoData = 0;
     int    block = TEST_BUFFER_SIZE;
-    int    throughput = 0;
+    size_t throughput = 0;
     int    minDhKeyBits  = DEFAULT_MIN_DHKEY_BITS;
     short  minRsaKeyBits = DEFAULT_MIN_RSAKEY_BITS;
     short  minEccKeyBits = DEFAULT_MIN_ECCKEY_BITS;
@@ -1302,7 +1303,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 break;
 
             case 'B':
-                throughput = atoi(myoptarg);
+                throughput = atol(myoptarg);
                 for (; *myoptarg != '\0'; myoptarg++) {
                     if (*myoptarg == ',') {
                         block = atoi(myoptarg + 1);
