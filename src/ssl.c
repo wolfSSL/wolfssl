@@ -2541,10 +2541,9 @@ int wolfSSL_CTX_UseSecureRenegotiation(WOLFSSL_CTX* ctx)
 
 
 /* do a secure renegotiation handshake, user forced, we discourage */
-int wolfSSL_Rehandshake(WOLFSSL* ssl)
+static int _Rehandshake(WOLFSSL* ssl)
 {
     int ret;
-    WOLFSSL_ENTER("wolfSSL_Rehandshake");
 
     if (ssl == NULL)
         return BAD_FUNC_ARG;
@@ -2613,15 +2612,38 @@ int wolfSSL_Rehandshake(WOLFSSL* ssl)
 }
 
 
+/* do a secure renegotiation handshake, user forced, we discourage */
+int wolfSSL_Rehandshake(WOLFSSL* ssl)
+{
+    int ret = WOLFSSL_SUCCESS;
+    WOLFSSL_ENTER("wolfSSL_Rehandshake");
+
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+        /* Reset option to send certificate verify. */
+        ssl->options.sendVerify = 0;
+    }
+    else {
+        /* Reset resuming flag to do full secure handshake. */
+        ssl->options.resuming = 0;
+        #ifdef HAVE_SESSION_TICKET
+            /* Clearing the ticket. */
+            ret = wolfSSL_UseSessionTicket(ssl);
+        #endif
+    }
+
+    if (ret == WOLFSSL_SUCCESS)
+        ret = _Rehandshake(ssl);
+
+    return ret;
+}
+
+
 #ifndef NO_WOLFSSL_CLIENT
 
 /* do a secure resumption handshake, user forced, we discourage */
 int wolfSSL_SecureResume(WOLFSSL* ssl)
 {
-    WOLFSSL_SESSION* session;
-    int ret;
-
-    WOLFSSL_ENTER("wolfSSL_SecureResume()");
+    WOLFSSL_ENTER("wolfSSL_SecureResume");
 
     if (ssl == NULL)
         return BAD_FUNC_ARG;
@@ -2631,13 +2653,7 @@ int wolfSSL_SecureResume(WOLFSSL* ssl)
         return SSL_FATAL_ERROR;
     }
 
-    session = wolfSSL_get_session(ssl);
-    ret = wolfSSL_set_session(ssl, session);
-    session = NULL;
-    if (ret == WOLFSSL_SUCCESS)
-        ret = wolfSSL_Rehandshake(ssl);
-
-    return ret;
+    return _Rehandshake(ssl);
 }
 
 #endif /* NO_WOLFSSL_CLIENT */
