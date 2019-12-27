@@ -21201,6 +21201,9 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
                         mp_to_unsigned_bin(&rsa.e, rawKey);
                         if ((word32)rawLen <= sizeof(word32)) {
                             idx = *(word32*)rawKey;
+                        #ifdef BIG_ENDIAN_ORDER
+                            idx = ByteReverseWord32(idx);
+                        #endif
                         }
                         XSNPRINTF(tmp, sizeof(tmp) - 1,
                             "\n                 Exponent: %d\n", idx);
@@ -33314,6 +33317,9 @@ int wolfSSL_RSA_print(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa, int offset)
             mp_to_unsigned_bin(rsaElem, rawKey);
             if ((word32)rawLen <= sizeof(word32)) {
                 idx = *(word32*)rawKey;
+                #ifdef BIG_ENDIAN_ORDER
+                    idx = ByteReverseWord32(idx);
+                #endif
             }
             XSNPRINTF(tmp, sizeof(tmp) - 1, "\nExponent: %d (0x%x)", idx, idx);
             if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
