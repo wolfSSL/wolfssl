@@ -220,7 +220,7 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
     #define SSL_use_RSAPrivateKey_file        wolfSSL_use_RSAPrivateKey_file
 #endif
 
-#define SSL_CTX_new(method)             wolfSSL_CTX_new((WOLFSSL_METHOD*)(method))
+#define SSL_CTX_new(a, method, b)             wolfSSL_CTX_new((a), (WOLFSSL_METHOD*)(method), (b))
 #ifdef OPENSSL_EXTRA
 #define SSL_CTX_up_ref                  wolfSSL_CTX_up_ref
 #endif

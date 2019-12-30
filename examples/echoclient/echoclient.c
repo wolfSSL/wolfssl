@@ -122,7 +122,7 @@ void echoclient_test(void* args)
 #else
     #error "no valid client method type"
 #endif
-    ctx    = SSL_CTX_new(method);
+    ctx    = SSL_CTX_new('t', method, 2356009);
 
 #ifndef NO_FILESYSTEM
     #ifndef NO_RSA

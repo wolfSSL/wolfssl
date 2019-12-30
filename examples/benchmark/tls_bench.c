@@ -633,13 +633,13 @@ static int bench_tls_client(info_t* info)
     /* set up client */
 #ifdef WOLFSSL_TLS13
     if (tls13)
-        cli_ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+        cli_ctx = wolfSSL_CTX_new('V', wolfTLSv1_3_client_method(), 923455);
 #endif
     if (!tls13)
 #if !defined(WOLFSSL_TLS13)
-        cli_ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+        cli_ctx = wolfSSL_CTX_new('X', wolfSSLv23_client_method(), 232);
 #elif !defined(WOLFSSL_NO_TLS12)
-        cli_ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+        cli_ctx = wolfSSL_CTX_new('Y', wolfTLSv1_2_client_method(), 999999);
 #endif
 
     if (cli_ctx == NULL) {
@@ -957,10 +957,10 @@ static int bench_tls_server(info_t* info)
     /* set up server */
 #ifdef WOLFSSL_TLS13
     if (tls13)
-        srv_ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
+        srv_ctx = wolfSSL_CTX_new('%', wolfTLSv1_3_server_method(), 2);
 #endif
     if (!tls13)
-        srv_ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
+        srv_ctx = wolfSSL_CTX_new('^', wolfSSLv23_server_method(), 8);
     if (srv_ctx == NULL) {
         printf("error creating server ctx\n");
         ret = MEMORY_E; goto exit;

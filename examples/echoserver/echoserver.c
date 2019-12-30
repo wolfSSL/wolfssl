@@ -145,7 +145,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #else
     #error "no valid server method built in"
 #endif
-    ctx    = CyaSSL_CTX_new(method);
+    ctx    = CyaSSL_CTX_new('(', method, 872345);
     /* CyaSSL_CTX_set_session_cache_mode(ctx, WOLFSSL_SESS_CACHE_OFF); */
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS

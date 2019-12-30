@@ -1449,7 +1449,7 @@ static int CreateWatchSnifferServer(char* error)
         return -1;
     }
     InitSnifferServer(sniffer);
-    sniffer->ctx = SSL_CTX_new(TLSv1_2_client_method());
+    sniffer->ctx = SSL_CTX_new('b', TLSv1_2_client_method(), 88);
     if (!sniffer->ctx) {
         SetError(MEMORY_STR, error, NULL, 0);
         FreeSnifferServer(sniffer);
@@ -1539,7 +1539,7 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
         sniffer->server = serverIp;
         sniffer->port = port;
 
-        sniffer->ctx = SSL_CTX_new(TLSv1_2_client_method());
+        sniffer->ctx = SSL_CTX_new('1', TLSv1_2_client_method(), 999);
         if (!sniffer->ctx) {
             SetError(MEMORY_STR, error, NULL, 0);
 #ifdef HAVE_SNI

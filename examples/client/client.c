@@ -2177,7 +2177,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         err_sys("unable to load static memory");
     }
 #else
-    ctx = wolfSSL_CTX_new(method(NULL));
+    ctx = wolfSSL_CTX_new('g', method(NULL), 8798879);
     if (ctx == NULL)
         err_sys("unable to get ctx");
 #endif

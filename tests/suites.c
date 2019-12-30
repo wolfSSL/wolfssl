@@ -207,7 +207,7 @@ static int IsValidCert(const char* line)
     }
 #endif
 
-    ctx = wolfSSL_CTX_new(wolfSSLv23_server_method_ex(NULL));
+    ctx = wolfSSL_CTX_new('i', wolfSSLv23_server_method_ex(NULL), 6984);
     if (ctx == NULL)
         return 0;
     ret = wolfSSL_CTX_use_certificate_chain_file(ctx, cert) == WOLFSSL_SUCCESS;
@@ -237,7 +237,7 @@ static int IsValidCA(const char* line)
         cert[i] = *(begin++);
     cert[i] = '\0';
 
-    ctx = wolfSSL_CTX_new(wolfSSLv23_server_method_ex(NULL));
+    ctx = wolfSSL_CTX_new('j', wolfSSLv23_server_method_ex(NULL), 3445);
     if (ctx == NULL)
         return 0;
     ret = wolfSSL_CTX_use_certificate_chain_file(ctx, cert) == WOLFSSL_SUCCESS;
@@ -686,7 +686,7 @@ int SuiteTest(int argc, char** argv)
     byte memory[200000];
 #endif
 
-    cipherSuiteCtx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    cipherSuiteCtx = wolfSSL_CTX_new('k', wolfSSLv23_client_method(), 874523);
     if (cipherSuiteCtx == NULL) {
         printf("can't get cipher suite ctx\n");
         args.return_code = EXIT_FAILURE;
