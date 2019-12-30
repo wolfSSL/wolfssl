@@ -5175,14 +5175,13 @@ int wc_ecc_free(ecc_key* key)
 #ifdef WOLFSSL_ATECC508A
     atmel_ecc_free(key->slot);
     key->slot = ATECC_INVALID_SLOT;
-#else
+#endif /* WOLFSSL_ATECC508A */
 
     mp_clear(key->pubkey.x);
     mp_clear(key->pubkey.y);
     mp_clear(key->pubkey.z);
 
     mp_forcezero(&key->k);
-#endif /* WOLFSSL_ATECC508A */
 
 #ifdef WOLFSSL_CUSTOM_CURVES
     if (key->deallocSet && key->dp != NULL)
