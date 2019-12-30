@@ -5034,6 +5034,13 @@ int chacha20_poly1305_aead_test(void)
     byte generatedPlaintext[272];
     byte generatedAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
     int err;
+#ifndef NO_CHACHAPOLY_AEAD_IUF
+    ChaChaPoly_Aead aead;
+    #define TEST_SMALL_CHACHA_CHUNKS 64
+    #ifdef TEST_SMALL_CHACHA_CHUNKS
+    word32 testLen;
+    #endif
+#endif
 
     XMEMSET(generatedCiphertext, 0, sizeof(generatedCiphertext));
     XMEMSET(generatedAuthTag, 0, sizeof(generatedAuthTag));
@@ -5092,8 +5099,8 @@ int chacha20_poly1305_aead_test(void)
     if (err != BAD_FUNC_ARG)
         return -4511;
 
-    /* Test #1 */
 
+    /* Test #1 */
     err = wc_ChaCha20Poly1305_Encrypt(key1, iv1,
                                        aad1, sizeof(aad1),
                                        plaintext1, sizeof(plaintext1),
@@ -5103,17 +5110,14 @@ int chacha20_poly1305_aead_test(void)
     }
 
     /* -- Check the ciphertext and authtag */
-
     if (XMEMCMP(generatedCiphertext, cipher1, sizeof(cipher1))) {
         return -4512;
     }
-
     if (XMEMCMP(generatedAuthTag, authTag1, sizeof(authTag1))) {
         return -4513;
     }
 
     /* -- Verify decryption works */
-
     err = wc_ChaCha20Poly1305_Decrypt(key1, iv1,
                                        aad1, sizeof(aad1),
                                        cipher1, sizeof(cipher1),
@@ -5121,17 +5125,16 @@ int chacha20_poly1305_aead_test(void)
     if (err) {
         return err;
     }
-
-    if (XMEMCMP(generatedPlaintext, plaintext1, sizeof( plaintext1))) {
+    if (XMEMCMP(generatedPlaintext, plaintext1, sizeof(plaintext1))) {
         return -4514;
     }
+
 
     XMEMSET(generatedCiphertext, 0, sizeof(generatedCiphertext));
     XMEMSET(generatedAuthTag, 0, sizeof(generatedAuthTag));
     XMEMSET(generatedPlaintext, 0, sizeof(generatedPlaintext));
 
     /* Test #2 */
-
     err = wc_ChaCha20Poly1305_Encrypt(key2, iv2,
                                        aad2, sizeof(aad2),
                                        plaintext2, sizeof(plaintext2),
@@ -5141,17 +5144,14 @@ int chacha20_poly1305_aead_test(void)
     }
 
     /* -- Check the ciphertext and authtag */
-
     if (XMEMCMP(generatedCiphertext, cipher2, sizeof(cipher2))) {
         return -4515;
     }
-
     if (XMEMCMP(generatedAuthTag, authTag2, sizeof(authTag2))) {
         return -4516;
     }
 
     /* -- Verify decryption works */
-
     err = wc_ChaCha20Poly1305_Decrypt(key2, iv2,
                                       aad2, sizeof(aad2),
                                       cipher2, sizeof(cipher2),
@@ -5163,6 +5163,222 @@ int chacha20_poly1305_aead_test(void)
     if (XMEMCMP(generatedPlaintext, plaintext2, sizeof(plaintext2))) {
         return -4517;
     }
+
+
+#ifndef NO_CHACHAPOLY_AEAD_IUF
+    /* AEAD init/update/final */
+    err = wc_ChaCha20Poly1305_Init(NULL, key1, iv1, 0);
+    if (err != BAD_FUNC_ARG)
+        return -4520;
+    err = wc_ChaCha20Poly1305_Init(&aead, NULL, iv1, 0);
+    if (err != BAD_FUNC_ARG)
+        return -4521;
+    err = wc_ChaCha20Poly1305_Init(&aead, key1, NULL, 0);
+    if (err != BAD_FUNC_ARG)
+        return -4522;
+    err = wc_ChaCha20Poly1305_UpdateAad(NULL, aad1, sizeof(aad1));
+    if (err != BAD_FUNC_ARG)
+        return -4523;
+    err = wc_ChaCha20Poly1305_UpdateAad(&aead, NULL, sizeof(aad1));
+    if (err != BAD_FUNC_ARG)
+        return -4524;
+    err = wc_ChaCha20Poly1305_UpdateData(NULL, generatedPlaintext, sizeof(plaintext1));
+    if (err != BAD_FUNC_ARG)
+        return -4525;
+    err = wc_ChaCha20Poly1305_UpdateData(&aead, NULL, sizeof(plaintext1));
+    if (err != BAD_FUNC_ARG)
+        return -4526;
+    err = wc_ChaCha20Poly1305_Final(NULL, generatedAuthTag);
+    if (err != BAD_FUNC_ARG)
+        return -4527;
+    err = wc_ChaCha20Poly1305_Final(&aead, NULL);
+    if (err != BAD_FUNC_ARG)
+        return -4528;
+
+    /* AEAD init/update/final - state tests */
+    aead.state = CHACHA20_POLY1305_STATE_INIT;
+    err = wc_ChaCha20Poly1305_UpdateAad(&aead, aad1, sizeof(aad1));
+    if (err != BAD_STATE_E)
+        return -4529;
+    aead.state = CHACHA20_POLY1305_STATE_DATA;
+    err = wc_ChaCha20Poly1305_UpdateAad(&aead, aad1, sizeof(aad1));
+    if (err != BAD_STATE_E)
+        return -4530;
+    aead.state = CHACHA20_POLY1305_STATE_FINAL;
+    err = wc_ChaCha20Poly1305_UpdateAad(&aead, aad1, sizeof(aad1));
+    if (err != BAD_STATE_E)
+        return -4531;
+    aead.state = CHACHA20_POLY1305_STATE_INIT;
+    err = wc_ChaCha20Poly1305_UpdateData(&aead, generatedPlaintext, sizeof(plaintext1));
+    if (err != BAD_STATE_E)
+        return -4532;
+    aead.state = CHACHA20_POLY1305_STATE_FINAL;
+    err = wc_ChaCha20Poly1305_UpdateData(&aead, generatedPlaintext, sizeof(plaintext1));
+    if (err != BAD_STATE_E)
+        return -4533;
+    aead.state = CHACHA20_POLY1305_STATE_INIT;
+    err = wc_ChaCha20Poly1305_Final(&aead, generatedAuthTag);
+    if (err != BAD_STATE_E)
+        return -4534;
+    aead.state = CHACHA20_POLY1305_STATE_READY;
+    err = wc_ChaCha20Poly1305_Final(&aead, generatedAuthTag);
+    if (err != BAD_STATE_E)
+        return -4535;
+    aead.state = CHACHA20_POLY1305_STATE_AAD;
+    err = wc_ChaCha20Poly1305_Final(&aead, generatedAuthTag);
+    if (err != BAD_STATE_E)
+        return -4536;
+
+    XMEMSET(generatedCiphertext, 0, sizeof(generatedCiphertext));
+    XMEMSET(generatedAuthTag, 0, sizeof(generatedAuthTag));
+    XMEMSET(generatedPlaintext, 0, sizeof(generatedPlaintext));
+
+    /* Test 1 - Encrypt */
+    err = wc_ChaCha20Poly1305_Init(&aead, key1, iv1, 1);
+    if (err != 0)
+        return -4537;
+    err = wc_ChaCha20Poly1305_UpdateAad(&aead, aad1, sizeof(aad1));
+    if (err != 0)
+        return -4538;
+#ifdef TEST_SMALL_CHACHA_CHUNKS
+    /* test doing data in smaller chunks */
+    for (testLen=0; testLen<sizeof(plaintext1); ) {
+        word32 dataLen = sizeof(plaintext1) - testLen;
+        if (dataLen > TEST_SMALL_CHACHA_CHUNKS)
+            dataLen = TEST_SMALL_CHACHA_CHUNKS;
+        XMEMCPY(&generatedCiphertext[testLen], &plaintext1[testLen], dataLen);
+        err = wc_ChaCha20Poly1305_UpdateData(&aead,
+            &generatedCiphertext[testLen], dataLen);
+        if (err != 0)
+            return -4539;
+        testLen += dataLen;
+    }
+#else
+    XMEMCPY(generatedCiphertext, plaintext1, sizeof(plaintext1));
+    err = wc_ChaCha20Poly1305_UpdateData(&aead, generatedCiphertext,
+        sizeof(plaintext1));
+#endif
+    err = wc_ChaCha20Poly1305_Final(&aead, generatedAuthTag);
+    if (err != 0)
+        return -4540;
+    err = wc_ChaCha20Poly1305_CheckTag(generatedAuthTag, authTag1);
+    if (err != 0)
+        return -4541;
+    if (XMEMCMP(generatedCiphertext, cipher1, sizeof(cipher1))) {
+        return -4542;
+    }
+
+    /* Test 1 - Decrypt */
+    err = wc_ChaCha20Poly1305_Init(&aead, key1, iv1, 0);
+    if (err != 0)
+        return -4543;
+    err = wc_ChaCha20Poly1305_UpdateAad(&aead, aad1, sizeof(aad1));
+    if (err != 0)
+        return -4544;
+#ifdef TEST_SMALL_CHACHA_CHUNKS
+    /* test doing data in smaller chunks */
+    for (testLen=0; testLen<sizeof(plaintext1); ) {
+        word32 dataLen = sizeof(plaintext1) - testLen;
+        if (dataLen > TEST_SMALL_CHACHA_CHUNKS)
+            dataLen = TEST_SMALL_CHACHA_CHUNKS;
+        XMEMCPY(&generatedPlaintext[testLen], &generatedCiphertext[testLen],
+            dataLen);
+        err = wc_ChaCha20Poly1305_UpdateData(&aead,
+            &generatedPlaintext[testLen], dataLen);
+        if (err != 0)
+            return -4545;
+        testLen += dataLen;
+    }
+#else
+    XMEMCPY(generatedPlaintext, generatedCiphertext, sizeof(cipher1));
+    err = wc_ChaCha20Poly1305_UpdateData(&aead, generatedPlaintext,
+        sizeof(cipher1));
+#endif
+    err = wc_ChaCha20Poly1305_Final(&aead, generatedAuthTag);
+    if (err != 0)
+        return -4546;
+    err = wc_ChaCha20Poly1305_CheckTag(generatedAuthTag, authTag1);
+    if (err != 0)
+        return -4547;
+    if (XMEMCMP(generatedPlaintext, plaintext1, sizeof(plaintext1))) {
+        return -4548;
+    }
+
+    XMEMSET(generatedCiphertext, 0, sizeof(generatedCiphertext));
+    XMEMSET(generatedAuthTag, 0, sizeof(generatedAuthTag));
+    XMEMSET(generatedPlaintext, 0, sizeof(generatedPlaintext));
+
+    /* Test 2 - Encrypt */
+    err = wc_ChaCha20Poly1305_Init(&aead, key2, iv2, 1);
+    if (err != 0)
+        return -4550;
+    err = wc_ChaCha20Poly1305_UpdateAad(&aead, aad2, sizeof(aad2));
+    if (err != 0)
+        return -4551;
+#ifdef TEST_SMALL_CHACHA_CHUNKS
+    /* test doing data in smaller chunks */
+    for (testLen=0; testLen<sizeof(plaintext2); ) {
+        word32 dataLen = sizeof(plaintext2) - testLen;
+        if (dataLen > TEST_SMALL_CHACHA_CHUNKS)
+            dataLen = TEST_SMALL_CHACHA_CHUNKS;
+        XMEMCPY(&generatedCiphertext[testLen], &plaintext2[testLen], dataLen);
+        err = wc_ChaCha20Poly1305_UpdateData(&aead,
+            &generatedCiphertext[testLen], dataLen);
+        if (err != 0)
+            return -4552;
+        testLen += dataLen;
+    }
+#else
+    XMEMCPY(generatedCiphertext, plaintext2, sizeof(plaintext2));
+    err = wc_ChaCha20Poly1305_UpdateData(&aead, generatedCiphertext,
+        sizeof(plaintext2));
+#endif
+    err = wc_ChaCha20Poly1305_Final(&aead, generatedAuthTag);
+    if (err != 0)
+        return -4553;
+    err = wc_ChaCha20Poly1305_CheckTag(generatedAuthTag, authTag2);
+    if (err != 0)
+        return -4554;
+    if (XMEMCMP(generatedCiphertext, cipher2, sizeof(cipher2))) {
+        return -4555;
+    }
+
+    /* Test 2 - Decrypt */
+    err = wc_ChaCha20Poly1305_Init(&aead, key2, iv2, 0);
+    if (err != 0)
+        return -4556;
+    err = wc_ChaCha20Poly1305_UpdateAad(&aead, aad2, sizeof(aad2));
+    if (err != 0)
+        return -4557;
+#ifdef TEST_SMALL_CHACHA_CHUNKS
+    /* test doing data in smaller chunks */
+    for (testLen=0; testLen<sizeof(plaintext2); ) {
+        word32 dataLen = sizeof(plaintext2) - testLen;
+        if (dataLen > TEST_SMALL_CHACHA_CHUNKS)
+            dataLen = TEST_SMALL_CHACHA_CHUNKS;
+        XMEMCPY(&generatedPlaintext[testLen], &generatedCiphertext[testLen],
+            dataLen);
+        err = wc_ChaCha20Poly1305_UpdateData(&aead,
+            &generatedPlaintext[testLen], dataLen);
+        if (err != 0)
+            return -4558;
+        testLen += dataLen;
+    }
+#else
+    XMEMCPY(generatedPlaintext, generatedCiphertext, sizeof(cipher2));
+    err = wc_ChaCha20Poly1305_UpdateData(&aead, generatedPlaintext,
+        sizeof(cipher2));
+#endif
+    err = wc_ChaCha20Poly1305_Final(&aead, generatedAuthTag);
+    if (err != 0)
+        return -4559;
+    err = wc_ChaCha20Poly1305_CheckTag(generatedAuthTag, authTag2);
+    if (err != 0)
+        return -4560;
+    if (XMEMCMP(generatedPlaintext, plaintext2, sizeof(plaintext2))) {
+        return -4561;
+    }
+#endif /* !NO_CHACHAPOLY_AEAD_IUF */
 
     return err;
 }

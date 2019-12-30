@@ -33,6 +33,8 @@
 #define WOLF_CRYPT_CHACHA20_POLY1305_H
 
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/chacha.h>
+#include <wolfssl/wolfcrypt/poly1305.h>
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
 
@@ -45,18 +47,41 @@
 #define CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE 16
 
 enum {
-    CHACHA20_POLY_1305_ENC_TYPE = 8    /* cipher unique type */
+    CHACHA20_POLY_1305_ENC_TYPE = 8,    /* cipher unique type */
+
+    /* AEAD Cipher Direction */
+    CHACHA20_POLY1305_AEAD_DECRYPT = 0,
+    CHACHA20_POLY1305_AEAD_ENCRYPT = 1,
+
+    /* AEAD State */
+    CHACHA20_POLY1305_STATE_INIT = 0,
+    CHACHA20_POLY1305_STATE_READY = 1,
+    CHACHA20_POLY1305_STATE_AAD = 2,
+    CHACHA20_POLY1305_STATE_DATA = 3,
+    CHACHA20_POLY1305_STATE_FINAL = 4,
 };
 
-    /*
-     * The IV for this implementation is 96 bits to give the most flexibility.
-     *
-     * Some protocols may have unique per-invocation inputs that are not
-     * 96-bit in length. For example, IPsec may specify a 64-bit nonce. In
-     * such a case, it is up to the protocol document to define how to
-     * transform the protocol nonce into a 96-bit nonce, for example by
-     * concatenating a constant value.
-     */
+typedef struct ChaChaPoly_Aead {
+    ChaCha   chacha;
+    Poly1305 poly;
+
+    word32   aadLen;
+    word32   dataLen;
+
+    byte     state;
+    word32   isEncrypt:1;
+} ChaChaPoly_Aead;
+
+
+/*
+ * The IV for this implementation is 96 bits to give the most flexibility.
+ *
+ * Some protocols may have unique per-invocation inputs that are not
+ * 96-bit in length. For example, IPsec may specify a 64-bit nonce. In
+ * such a case, it is up to the protocol document to define how to
+ * transform the protocol nonce into a 96-bit nonce, for example by
+ * concatenating a constant value.
+ */
 
 WOLFSSL_API
 int wc_ChaCha20Poly1305_Encrypt(
@@ -75,6 +100,27 @@ int wc_ChaCha20Poly1305_Decrypt(
                 const byte* inCiphertext, const word32 inCiphertextLen,
                 const byte inAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE],
                 byte* outPlaintext);
+
+WOLFSSL_API
+int wc_ChaCha20Poly1305_CheckTag(
+    const byte authTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE],
+    const byte authTagChk[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE]);
+
+
+#ifndef NO_CHACHAPOLY_AEAD_IUF
+/* Implementation of AEAD, which includes support for adding
+    data, then final calculation of authentication tag */
+WOLFSSL_API int wc_ChaCha20Poly1305_Init(ChaChaPoly_Aead* aead,
+    const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
+    const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE],
+    int isEncrypt);
+WOLFSSL_API int wc_ChaCha20Poly1305_UpdateAad(ChaChaPoly_Aead* aead,
+    const byte* inAAD, word32 inAADLen);
+WOLFSSL_API int wc_ChaCha20Poly1305_UpdateData(ChaChaPoly_Aead* aead,
+    byte* data, word32 dataLen);
+WOLFSSL_API int wc_ChaCha20Poly1305_Final(ChaChaPoly_Aead* aead,
+    byte outAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE]);
+#endif /* !NO_CHACHAPOLY_AEAD_IUF */
 
 #ifdef __cplusplus
     } /* extern "C" */
