@@ -9354,32 +9354,6 @@ int InitSigPkCb(WOLFSSL* ssl, SignatureCtx* sigCtx)
 
 
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
-typedef struct ProcPeerCertArgs {
-    buffer*      certs;
-#ifdef WOLFSSL_TLS13
-    buffer*      exts; /* extensions */
-#endif
-    DecodedCert* dCert;
-    word32 idx;
-    word32 begin;
-    int    totalCerts; /* number of certs in certs buffer */
-    int    count;
-    int    certIdx;
-    int    lastErr;
-#ifdef WOLFSSL_TLS13
-    byte   ctxSz;
-#endif
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    char   untrustedDepth;
-#endif
-    word16 fatal:1;
-    word16 verifyErr:1;
-    word16 dCertInit:1;
-#ifdef WOLFSSL_TRUST_PEER_CERT
-    word16 haveTrustPeer:1; /* was cert verified by loaded trusted peer cert */
-#endif
-} ProcPeerCertArgs;
-
 static void DoCertFatalAlert(WOLFSSL* ssl, int ret)
 {
     int alertWhy;
@@ -9411,9 +9385,11 @@ static void DoCertFatalAlert(WOLFSSL* ssl, int ret)
  * store->error_depth member to determine index (0=peer, >1 intermediates)
  */
 
-static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
+int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
+                                                        ProcPeerCertArgs* args)
 {
     int verify_ok = 0, use_cb = 0;
+    void *heap = (ssl != NULL) ? ssl->heap : cm->heap;
 
     /* Determine if verify was okay */
     if (ret == 0) {
@@ -9422,7 +9398,7 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
 
     /* Determine if verify callback should be used */
     if (ret != 0) {
-        if (!ssl->options.verifyNone) {
+        if ((ssl != NULL) && (!ssl->options.verifyNone)) {
             use_cb = 1; /* always report errors */
         }
     }
@@ -9440,7 +9416,7 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
 #endif
 #if defined(OPENSSL_EXTRA)
     /* perform domain name check on the peer certificate */
-    if (args->dCertInit && args->dCert &&
+    if (args->dCertInit && args->dCert && (ssl != NULL) &&
             ssl->param && ssl->param->hostName[0]) {
         /* If altNames names is present, then subject common name is ignored */
         if (args->dCert->altNames != NULL) {
@@ -9464,7 +9440,7 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
     }
 
     /* perform IP address check on the peer certificate */
-    if ((args->dCertInit != 0) && (args->dCert != NULL) &&
+    if ((args->dCertInit != 0) && (args->dCert != NULL) && (ssl != NULL) &&
         (ssl->param != NULL) && (XSTRLEN(ssl->param->ipasc) > 0)) {
         if (CheckIPAddr(args->dCert, ssl->param->ipasc) != 0) {
             if (ret == 0) {
@@ -9474,11 +9450,15 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
     }
 #endif
     /* if verify callback has been set */
-    if (use_cb && (ssl->verifyCallback
+    if ((use_cb && (ssl != NULL) && ((ssl->verifyCallback != NULL)
     #ifdef OPENSSL_ALL
-        || ssl->ctx->verifyCertCb
+        || (ssl->ctx->verifyCertCb != NULL)
     #endif
-    )) {
+        ))
+    #ifndef NO_WOLFSSL_CM_VERIFY
+        || ((cm != NULL) && (cm->verifyCallback != NULL))
+    #endif
+        ) {
         int verifyFail = 0;
     #ifdef WOLFSSL_SMALL_STACK
         WOLFSSL_X509_STORE_CTX* store;
@@ -9496,23 +9476,23 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
 
     #ifdef WOLFSSL_SMALL_STACK
         store = (WOLFSSL_X509_STORE_CTX*)XMALLOC(
-            sizeof(WOLFSSL_X509_STORE_CTX), ssl->heap, DYNAMIC_TYPE_X509_STORE);
+            sizeof(WOLFSSL_X509_STORE_CTX), heap, DYNAMIC_TYPE_X509_STORE);
         if (store == NULL) {
             return MEMORY_E;
         }
         #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), ssl->heap,
+        x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), heap,
             DYNAMIC_TYPE_X509);
         if (x509 == NULL) {
-            XFREE(store, ssl->heap, DYNAMIC_TYPE_X509);
+            XFREE(store, heap, DYNAMIC_TYPE_X509);
             return MEMORY_E;
         }
         #endif
-        domain = (char*)XMALLOC(ASN_NAME_MAX, ssl->heap, DYNAMIC_TYPE_STRING);
+        domain = (char*)XMALLOC(ASN_NAME_MAX, heap, DYNAMIC_TYPE_STRING);
         if (domain == NULL) {
-            XFREE(store, ssl->heap, DYNAMIC_TYPE_X509);
+            XFREE(store, heap, DYNAMIC_TYPE_X509);
             #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-            XFREE(x509, ssl->heap, DYNAMIC_TYPE_X509);
+            XFREE(x509, heap, DYNAMIC_TYPE_X509);
             #endif
             return MEMORY_E;
         }
@@ -9539,72 +9519,80 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         store->error_depth = args->certIdx;
         store->discardSessionCerts = 0;
         store->domain = domain;
-        store->userCtx = ssl->verifyCbCtx;
+        store->userCtx = (ssl != NULL) ? ssl->verifyCbCtx : cm;
         store->certs = args->certs;
         store->totalCerts = args->totalCerts;
     #if defined(HAVE_EX_DATA) || defined(FORTRESS)
         store->ex_data[0] = ssl;
     #endif
 
+        if (ssl != NULL) {
     #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-        if (ssl->ctx->x509_store_pt != NULL) {
-            store->store = ssl->ctx->x509_store_pt;
-        }
-        else {
-            store->store = &ssl->ctx->x509_store;
-        }
-
+            if (ssl->ctx->x509_store_pt != NULL) {
+                store->store = ssl->ctx->x509_store_pt;
+            }
+            else {
+                store->store = &ssl->ctx->x509_store;
+            }
     #if defined(OPENSSL_EXTRA)
-        store->depth = args->count;
-        store->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
-                        sizeof(WOLFSSL_X509_VERIFY_PARAM),
-                        ssl->heap, DYNAMIC_TYPE_OPENSSL);
-        if (store->param == NULL) {
-            return MEMORY_E;
-        }
-        XMEMSET(store->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
-        /* Overwrite with non-default param values in SSL */
-        if (ssl->param) {
-            if (ssl->param->check_time)
-                store->param->check_time = ssl->param->check_time;
+            store->depth = args->count;
+            store->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
+                            sizeof(WOLFSSL_X509_VERIFY_PARAM),
+                            heap, DYNAMIC_TYPE_OPENSSL);
+            if (store->param == NULL) {
+        #ifdef WOLFSSL_SMALL_STACK
+                XFREE(domain, heap, DYNAMIC_TYPE_STRING);
+            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                XFREE(x509, heap, DYNAMIC_TYPE_X509);
+            #endif
+                XFREE(store, heap, DYNAMIC_TYPE_X509_STORE);
+        #endif
+                return MEMORY_E;
+            }
+            XMEMSET(store->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
+            /* Overwrite with non-default param values in SSL */
+            if (ssl->param) {
+                if (ssl->param->check_time)
+                    store->param->check_time = ssl->param->check_time;
 
-            if (ssl->param->flags)
-                store->param->flags = ssl->param->flags;
+                if (ssl->param->flags)
+                    store->param->flags = ssl->param->flags;
 
-            if (ssl->param->hostName[0])
-                XMEMCPY(store->param->hostName, ssl->param->hostName,
-                        WOLFSSL_HOST_NAME_MAX);
+                if (ssl->param->hostName[0])
+                    XMEMCPY(store->param->hostName, ssl->param->hostName,
+                            WOLFSSL_HOST_NAME_MAX);
 
-        }
+            }
     #endif /* defined(OPENSSL_EXTRA) */
     #endif /* defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)*/
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         #ifdef KEEP_PEER_CERT
-        if (args->certIdx == 0) {
-            store->current_cert = &ssl->peerCert; /* use existing X509 */
-        }
-        else
+            if (args->certIdx == 0) {
+                store->current_cert = &ssl->peerCert; /* use existing X509 */
+            }
+            else
         #endif
-        {
-            InitX509(x509, 0, ssl->heap);
-            if (CopyDecodedToX509(x509, args->dCert) == 0) {
-                store->current_cert = x509;
+            {
+                InitX509(x509, 0, heap);
+                if (CopyDecodedToX509(x509, args->dCert) == 0) {
+                    store->current_cert = x509;
+                }
+                else {
+                    FreeX509(x509);
+                }
             }
-            else {
-                FreeX509(x509);
-            }
-        }
     #endif
     #ifdef SESSION_CERTS
-        store->sesChain = &ssl->session.chain;
+            store->sesChain = &ssl->session.chain;
     #endif
-
-    #ifdef OPENSSL_ALL
+        }
+    #ifndef NO_WOLFSSL_CM_VERIFY
         /* non-zero return code indicates failure override */
-        if (ssl->ctx->verifyCertCb) {
-            if (ssl->ctx->verifyCertCb(store, ssl->ctx->verifyCertCbArg)) {
+        if ((cm != NULL) && (cm->verifyCallback != NULL)) {
+            store->userCtx = cm;
+            if (cm->verifyCallback(verify_ok, store)) {
                 if (ret != 0) {
-                    WOLFSSL_MSG("Verify Cert callback overriding error!");
+                    WOLFSSL_MSG("Verify CM callback overriding error!");
                     ret = 0;
                 }
             }
@@ -9614,16 +9602,33 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         }
     #endif
 
-        /* non-zero return code indicates failure override */
-        if (ssl->verifyCallback) {
-            if (ssl->verifyCallback(verify_ok, store)) {
-                if (ret != 0) {
-                    WOLFSSL_MSG("Verify callback overriding error!");
-                    ret = 0;
+        if (ssl != NULL) {
+    #ifdef OPENSSL_ALL
+            /* non-zero return code indicates failure override */
+            if (ssl->ctx->verifyCertCb) {
+                if (ssl->ctx->verifyCertCb(store, ssl->ctx->verifyCertCbArg)) {
+                    if (ret != 0) {
+                        WOLFSSL_MSG("Verify Cert callback overriding error!");
+                        ret = 0;
+                    }
+                }
+                else {
+                    verifyFail = 1;
                 }
             }
-            else {
-                verifyFail = 1;
+    #endif
+
+            /* non-zero return code indicates failure override */
+            if (ssl->verifyCallback) {
+                if (ssl->verifyCallback(verify_ok, store)) {
+                    if (ret != 0) {
+                        WOLFSSL_MSG("Verify callback overriding error!");
+                        ret = 0;
+                    }
+                }
+                else {
+                    verifyFail = 1;
+                }
             }
         }
 
@@ -9645,7 +9650,7 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         store->chain = NULL;
     #endif
     #ifdef SESSION_CERTS
-        if (store->discardSessionCerts) {
+        if ((ssl != NULL) && (store->discardSessionCerts)) {
             WOLFSSL_MSG("Verify callback requested discard sess certs");
             ssl->session.chain.count = 0;
         #ifdef WOLFSSL_ALT_CERT_CHAINS
@@ -9654,18 +9659,20 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         }
     #endif /* SESSION_CERTS */
 #ifdef OPENSSL_EXTRA
-        if (store->param){
-            XFREE(store->param, ssl->heap, DYNAMIC_TYPE_OPENSSL);
+        if ((ssl != NULL) && (store->param)) {
+            XFREE(store->param, heap, DYNAMIC_TYPE_OPENSSL);
         }
 #endif
     #ifdef WOLFSSL_SMALL_STACK
-        XFREE(domain, ssl->heap, DYNAMIC_TYPE_STRING);
+        XFREE(domain, heap, DYNAMIC_TYPE_STRING);
         #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        XFREE(x509, ssl->heap, DYNAMIC_TYPE_X509);
+        XFREE(x509, heap, DYNAMIC_TYPE_X509);
         #endif
-        XFREE(store, ssl->heap, DYNAMIC_TYPE_X509_STORE);
+        XFREE(store, heap, DYNAMIC_TYPE_X509_STORE);
     #endif
     }
+
+    (void)heap;
 
     return ret;
 }
@@ -10291,7 +10298,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #endif /* HAVE_OCSP || HAVE_CRL */
 
                     /* Do verify callback */
-                    ret = DoVerifyCallback(ssl, ret, args);
+                    ret = DoVerifyCallback(ssl->ctx->cm, ssl, ret, args);
 
                 #ifdef WOLFSSL_ALT_CERT_CHAINS
                     /* For alternate cert chain, its okay for a CA cert to fail
@@ -10918,7 +10925,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         #endif
 
             /* Do verify callback */
-            ret = DoVerifyCallback(ssl, ret, args);
+            ret = DoVerifyCallback(ssl->ctx->cm, ssl, ret, args);
 
             if (ssl->options.verifyNone &&
                               (ret == CRL_MISSING || ret == CRL_CERT_REVOKED)) {
