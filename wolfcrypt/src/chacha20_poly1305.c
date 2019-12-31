@@ -329,13 +329,16 @@ int wc_ChaCha20Poly1305_UpdateAad(ChaChaPoly_Aead* aead,
 
 static int wc_ChaCha20Poly1305_CalcAad(ChaChaPoly_Aead* aead)
 {
-    /* Pad the AAD to 16 bytes */
     int ret = 0;
+    word32 paddingLen;
     byte padding[CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1];
-    word32 paddingLen = -(int)aead->aadLen &
+
+    XMEMSET(padding, 0, sizeof(padding));
+
+    /* Pad the AAD to 16 bytes */
+    paddingLen = -(int)aead->aadLen &
         (CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1);
     if (paddingLen > 0) {
-        XMEMSET(padding, 0, paddingLen);
         ret = wc_Poly1305Update(&aead->poly, padding, paddingLen);
     }
     return ret;
@@ -386,6 +389,9 @@ int wc_ChaCha20Poly1305_Final(ChaChaPoly_Aead* aead,
     byte outAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE])
 {
     int ret = 0;
+    word32 paddingLen;
+    byte padding[CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1];
+    byte little64[16]; /* word64 * 2 */
 
     if (aead == NULL || outAuthTag == NULL) {
         return BAD_FUNC_ARG;
@@ -395,6 +401,9 @@ int wc_ChaCha20Poly1305_Final(ChaChaPoly_Aead* aead,
         return BAD_STATE_E;
     }
 
+    XMEMSET(padding, 0, sizeof(padding));
+    XMEMSET(little64, 0, sizeof(little64));
+
     /* make sure AAD is calculated */
     if (aead->state == CHACHA20_POLY1305_STATE_AAD) {
         ret = wc_ChaCha20Poly1305_CalcAad(aead);
@@ -402,18 +411,15 @@ int wc_ChaCha20Poly1305_Final(ChaChaPoly_Aead* aead,
 
     /* Pad the ciphertext to 16 bytes */
     if (ret == 0) {
-        byte padding[CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1];
-        word32 paddingLen = -(int)aead->dataLen &
+        paddingLen = -(int)aead->dataLen &
             (CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1);
         if (paddingLen > 0) {
-            XMEMSET(padding, 0, paddingLen);
             ret = wc_Poly1305Update(&aead->poly, padding, paddingLen);
         }
     }
 
     /* Add the aad and ciphertext length */
     if (ret == 0) {
-        byte little64[16]; /* word64 * 2 */
         /* AAD length as a 64-bit little endian integer */
         word32ToLittle64(aead->aadLen, little64);
         /* Ciphertext length as a 64-bit little endian integer */
