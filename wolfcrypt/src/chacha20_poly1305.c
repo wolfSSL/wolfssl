@@ -166,6 +166,9 @@ int wc_ChaCha20Poly1305_CheckTag(
     const byte authTagChk[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE])
 {
     int ret = 0;
+    if (authTag == NULL || authTagChk == NULL) {
+        return BAD_FUNC_ARG;
+    }
     if (ConstantCompare(authTag, authTagChk,
             CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE) != 0) {
         ret = MAC_CMP_FAILED_E;
@@ -383,7 +386,6 @@ int wc_ChaCha20Poly1305_Final(ChaChaPoly_Aead* aead,
     if (aead->state != CHACHA20_POLY1305_STATE_DATA) {
         return BAD_STATE_E;
     }
-    aead->state = CHACHA20_POLY1305_STATE_FINAL;
 
     /* Pad the ciphertext to 16 bytes */
     paddingLen = -(int)aead->dataLen &
