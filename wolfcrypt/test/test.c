@@ -5167,13 +5167,16 @@ int chacha20_poly1305_aead_test(void)
 
 #ifndef NO_CHACHAPOLY_AEAD_IUF
     /* AEAD init/update/final */
-    err = wc_ChaCha20Poly1305_Init(NULL, key1, iv1, 0);
+    err = wc_ChaCha20Poly1305_Init(NULL, key1, iv1,
+        CHACHA20_POLY1305_AEAD_DECRYPT);
     if (err != BAD_FUNC_ARG)
         return -4520;
-    err = wc_ChaCha20Poly1305_Init(&aead, NULL, iv1, 0);
+    err = wc_ChaCha20Poly1305_Init(&aead, NULL, iv1,
+        CHACHA20_POLY1305_AEAD_DECRYPT);
     if (err != BAD_FUNC_ARG)
         return -4521;
-    err = wc_ChaCha20Poly1305_Init(&aead, key1, NULL, 0);
+    err = wc_ChaCha20Poly1305_Init(&aead, key1, NULL,
+        CHACHA20_POLY1305_AEAD_DECRYPT);
     if (err != BAD_FUNC_ARG)
         return -4522;
     err = wc_ChaCha20Poly1305_UpdateAad(NULL, aad1, sizeof(aad1));
@@ -5182,7 +5185,8 @@ int chacha20_poly1305_aead_test(void)
     err = wc_ChaCha20Poly1305_UpdateAad(&aead, NULL, sizeof(aad1));
     if (err != BAD_FUNC_ARG)
         return -4524;
-    err = wc_ChaCha20Poly1305_UpdateData(NULL, generatedPlaintext, sizeof(plaintext1));
+    err = wc_ChaCha20Poly1305_UpdateData(NULL, generatedPlaintext,
+        sizeof(plaintext1));
     if (err != BAD_FUNC_ARG)
         return -4525;
     err = wc_ChaCha20Poly1305_UpdateData(&aead, NULL, sizeof(plaintext1));
@@ -5209,11 +5213,13 @@ int chacha20_poly1305_aead_test(void)
     if (err != BAD_STATE_E)
         return -4531;
     aead.state = CHACHA20_POLY1305_STATE_INIT;
-    err = wc_ChaCha20Poly1305_UpdateData(&aead, generatedPlaintext, sizeof(plaintext1));
+    err = wc_ChaCha20Poly1305_UpdateData(&aead, generatedPlaintext,
+        sizeof(plaintext1));
     if (err != BAD_STATE_E)
         return -4532;
     aead.state = CHACHA20_POLY1305_STATE_FINAL;
-    err = wc_ChaCha20Poly1305_UpdateData(&aead, generatedPlaintext, sizeof(plaintext1));
+    err = wc_ChaCha20Poly1305_UpdateData(&aead, generatedPlaintext,
+        sizeof(plaintext1));
     if (err != BAD_STATE_E)
         return -4533;
     aead.state = CHACHA20_POLY1305_STATE_INIT;
@@ -5234,7 +5240,8 @@ int chacha20_poly1305_aead_test(void)
     XMEMSET(generatedPlaintext, 0, sizeof(generatedPlaintext));
 
     /* Test 1 - Encrypt */
-    err = wc_ChaCha20Poly1305_Init(&aead, key1, iv1, 1);
+    err = wc_ChaCha20Poly1305_Init(&aead, key1, iv1,
+        CHACHA20_POLY1305_AEAD_ENCRYPT);
     if (err != 0)
         return -4537;
     err = wc_ChaCha20Poly1305_UpdateAad(&aead, aad1, sizeof(aad1));
@@ -5269,7 +5276,8 @@ int chacha20_poly1305_aead_test(void)
     }
 
     /* Test 1 - Decrypt */
-    err = wc_ChaCha20Poly1305_Init(&aead, key1, iv1, 0);
+    err = wc_ChaCha20Poly1305_Init(&aead, key1, iv1,
+        CHACHA20_POLY1305_AEAD_DECRYPT);
     if (err != 0)
         return -4543;
     err = wc_ChaCha20Poly1305_UpdateAad(&aead, aad1, sizeof(aad1));
@@ -5309,7 +5317,8 @@ int chacha20_poly1305_aead_test(void)
     XMEMSET(generatedPlaintext, 0, sizeof(generatedPlaintext));
 
     /* Test 2 - Encrypt */
-    err = wc_ChaCha20Poly1305_Init(&aead, key2, iv2, 1);
+    err = wc_ChaCha20Poly1305_Init(&aead, key2, iv2,
+        CHACHA20_POLY1305_AEAD_ENCRYPT);
     if (err != 0)
         return -4550;
     err = wc_ChaCha20Poly1305_UpdateAad(&aead, aad2, sizeof(aad2));
@@ -5344,7 +5353,8 @@ int chacha20_poly1305_aead_test(void)
     }
 
     /* Test 2 - Decrypt */
-    err = wc_ChaCha20Poly1305_Init(&aead, key2, iv2, 0);
+    err = wc_ChaCha20Poly1305_Init(&aead, key2, iv2,
+        CHACHA20_POLY1305_AEAD_DECRYPT);
     if (err != 0)
         return -4556;
     err = wc_ChaCha20Poly1305_UpdateAad(&aead, aad2, sizeof(aad2));

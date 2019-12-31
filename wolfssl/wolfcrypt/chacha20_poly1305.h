@@ -69,7 +69,7 @@ typedef struct ChaChaPoly_Aead {
     word32   dataLen;
 
     byte     state;
-    word32   isEncrypt:1;
+    byte     isEncrypt:1;
 } ChaChaPoly_Aead;
 
 
