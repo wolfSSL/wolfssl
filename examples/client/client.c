@@ -3209,6 +3209,44 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         #endif
     #endif /* WOLFSSL_SESSION_EXPORT_DEBUG */
 
+#ifdef HAVE_SECURE_RENEGOTIATION
+    if (scr && forceScr) {
+        if (nonBlocking) {
+            printf("not doing secure renegotiation on example with"
+                   " nonblocking yet\n");
+        } else {
+            if (!resumeScr) {
+                printf("Beginning secure rengotiation.\n");
+                if (wolfSSL_Rehandshake(sslResume) != WOLFSSL_SUCCESS) {
+                    err = wolfSSL_get_error(sslResume, 0);
+                    printf("err = %d, %s\n", err,
+                                    wolfSSL_ERR_error_string(err, buffer));
+                    wolfSSL_free(sslResume); sslResume = NULL;
+                    wolfSSL_CTX_free(ctx); ctx = NULL;
+                    err_sys("wolfSSL_Rehandshake failed");
+                }
+                else {
+                    printf("RENEGOTIATION SUCCESSFUL\n");
+                }
+            }
+            else {
+                printf("Beginning secure resumption.\n");
+                if (wolfSSL_SecureResume(sslResume) != WOLFSSL_SUCCESS) {
+                    err = wolfSSL_get_error(sslResume, 0);
+                    printf("err = %d, %s\n", err,
+                                    wolfSSL_ERR_error_string(err, buffer));
+                    wolfSSL_free(sslResume); sslResume = NULL;
+                    wolfSSL_CTX_free(ctx); ctx = NULL;
+                    err_sys("wolfSSL_SecureResume failed");
+                }
+                else {
+                    printf("SECURE RESUMPTION SUCCESSFUL\n");
+                }
+            }
+        }
+    }
+#endif /* HAVE_SECURE_RENEGOTIATION */
+
         do {
             err = 0; /* reset error */
             ret = wolfSSL_write(sslResume, resumeMsg, resumeSz);
