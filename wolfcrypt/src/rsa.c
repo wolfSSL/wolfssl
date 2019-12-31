@@ -2522,17 +2522,12 @@ static int cc310_RsaPublicDecrypt(const byte* in, word32 inLen, byte* out,
     return actualOutLen;
 }
 
-static int cc310_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
-                            word32 outLen, RsaKey* key, enum wc_HashType hash)
+int cc310_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
+                  word32 outLen, RsaKey* key, CRYS_RSA_HASH_OpMode_t mode)
 {
     CRYSError_t ret = 0;
     uint16_t actualOutLen = outLen*sizeof(byte);
     CRYS_RSAPrivUserContext_t  contextPrivate;
-    CRYS_RSA_HASH_OpMode_t mode = cc310_hashModeRSA(hash);
-
-    if (mode == CRYS_RSA_After_HASH_NOT_KNOWN_mode) {
-        mode = CRYS_RSA_HASH_SHA256_mode;
-    }
 
     ret =  CRYS_RSA_PKCS1v15_Sign(&wc_rndState,
                 wc_rndGenVectFunc,
@@ -2551,16 +2546,12 @@ static int cc310_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
     return actualOutLen;
 }
 
-static int cc310_RsaSSL_Verify(const byte* in, word32 inLen, byte* sig,
-                               RsaKey* key, enum wc_HashType hash)
+int cc310_RsaSSL_Verify(const byte* in, word32 inLen, byte* sig,
+                               RsaKey* key, CRYS_RSA_HASH_OpMode_t mode)
 {
     CRYSError_t ret = 0;
     CRYS_RSAPubUserContext_t contextPub;
-    CRYS_RSA_HASH_OpMode_t mode = cc310_hashModeRSA(hash);
 
-    if (mode == CRYS_RSA_After_HASH_NOT_KNOWN_mode) {
-        mode = CRYS_RSA_HASH_SHA256_mode;
-    }
     /* verify the signature in the sig pointer */
     ret =  CRYS_RSA_PKCS1v15_Verify(&contextPub,
                 &key->ctx.pubKey,
@@ -2765,7 +2756,8 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         }
         else if (rsa_type == RSA_PRIVATE_ENCRYPT &&
                                          pad_value == RSA_BLOCK_TYPE_1) {
-         return cc310_RsaSSL_Sign(in, inLen, out, outLen, key, hash);
+         return cc310_RsaSSL_Sign(in, inLen, out, outLen, key,
+                                  cc310_hashModeRSA(hash, 0));
         }
     #endif /* WOLFSSL_CRYPTOCELL */
 
@@ -2887,7 +2879,8 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
         }
         else if (rsa_type == RSA_PUBLIC_DECRYPT &&
                                             pad_value == RSA_BLOCK_TYPE_1) {
-            return cc310_RsaSSL_Verify(in, inLen, out, key, hash);
+            return cc310_RsaSSL_Verify(in, inLen, out, key,
+                                       cc310_hashModeRSA(hash, 0));
         }
     #endif /* WOLFSSL_CRYPTOCELL */
 

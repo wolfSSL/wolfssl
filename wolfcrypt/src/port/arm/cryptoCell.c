@@ -146,34 +146,37 @@ CRYS_ECPKI_DomainID_t cc310_mapCurve(int curve_id)
 #endif /* HAVE_ECC */
 
 #ifndef NO_RSA
-CRYS_RSA_HASH_OpMode_t cc310_hashModeRSA(enum wc_HashType hash_type)
+CRYS_RSA_HASH_OpMode_t cc310_hashModeRSA(enum wc_HashType hash_type, int isHashed)
 {
     switch(hash_type)
     {
         case WC_HASH_TYPE_MD5:
         #ifndef NO_MD5
-            return CRYS_RSA_HASH_MD5_mode;
+            return isHashed? CRYS_RSA_After_MD5_mode : CRYS_RSA_HASH_MD5_mode;
         #endif
         case WC_HASH_TYPE_SHA:
         #ifndef NO_SHA
-            return CRYS_RSA_HASH_SHA1_mode;
+            return isHashed? CRYS_RSA_After_SHA1_mode : CRYS_RSA_HASH_SHA1_mode;
         #endif
         case WC_HASH_TYPE_SHA224:
         #ifdef WOLFSSL_SHA224
-            return CRYS_RSA_HASH_SHA224_mode;
+            return isHashed? CRYS_RSA_After_SHA224_mode : CRYS_RSA_HASH_SHA224_mode;
         #endif
         case WC_HASH_TYPE_SHA256:
         #ifndef NO_SHA256
-            return CRYS_RSA_HASH_SHA256_mode;
+            return isHashed? CRYS_RSA_After_SHA256_mode : CRYS_RSA_HASH_SHA256_mode;
         #endif
         case WC_HASH_TYPE_SHA384:
         #ifdef WOLFSSL_SHA384
-            return CRYS_RSA_HASH_SHA384_mode;
+            return isHashed? CRYS_RSA_After_SHA384_mode : CRYS_RSA_HASH_SHA384_mode;
         #endif
         case WC_HASH_TYPE_SHA512:
         #ifdef WOLFSSL_SHA512
-            return CRYS_RSA_HASH_SHA512_mode;
+            return isHashed? CRYS_RSA_After_SHA512_mode : CRYS_RSA_HASH_SHA512_mode;
         #endif
+        case WC_HASH_TYPE_NONE:
+            /* default to SHA256 */
+            return isHashed? CRYS_RSA_After_SHA256_mode : CRYS_RSA_HASH_SHA256_mode;
         default:
             return CRYS_RSA_After_HASH_NOT_KNOWN_mode;
     }
