@@ -327,6 +327,28 @@ int wc_ChaCha20Poly1305_UpdateAad(ChaChaPoly_Aead* aead,
     return ret;
 }
 
+static int wc_ChaCha20Poly1305_CalcAad(ChaChaPoly_Aead* aead)
+{
+    int ret = 0;
+    if (aead == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (aead->state == CHACHA20_POLY1305_STATE_AAD) {
+        /* Pad the AAD to 16 bytes */
+        byte padding[CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1];
+        word32 paddingLen = -(int)aead->aadLen &
+            (CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1);
+        if (paddingLen > 0) {
+            XMEMSET(padding, 0, paddingLen);
+            ret = wc_Poly1305Update(&aead->poly, padding, paddingLen);
+        }
+
+        /* advance state */
+        aead->state = CHACHA20_POLY1305_STATE_DATA;
+    }
+    return ret;
+}
+
 int wc_ChaCha20Poly1305_UpdateData(ChaChaPoly_Aead* aead,
     byte* data, word32 dataLen)
 {
@@ -341,17 +363,8 @@ int wc_ChaCha20Poly1305_UpdateData(ChaChaPoly_Aead* aead,
         return BAD_STATE_E;
     }
 
-    if (aead->state == CHACHA20_POLY1305_STATE_AAD) {
-        /* Pad the AAD to 16 bytes */
-        byte padding[CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1];
-        word32 paddingLen = -(int)aead->aadLen &
-            (CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1);
-        if (paddingLen > 0) {
-            XMEMSET(padding, 0, paddingLen);
-            ret = wc_Poly1305Update(&aead->poly, padding, paddingLen);
-        }
-    }
-    aead->state = CHACHA20_POLY1305_STATE_DATA;
+    /* calculate AAD */
+    ret = wc_ChaCha20Poly1305_CalcAad(aead);
 
     if (ret == 0) {
         /* Perform ChaCha20 encrypt or decrypt inline and Poly1305 auth calc */
@@ -376,27 +389,32 @@ int wc_ChaCha20Poly1305_Final(ChaChaPoly_Aead* aead,
     byte outAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE])
 {
     int ret = 0;
-    byte padding[CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1];
-    word32 paddingLen;
-    byte little64[16]; /* word64 * 2 */
 
     if (aead == NULL || outAuthTag == NULL) {
         return BAD_FUNC_ARG;
     }
+
+    /* make sure AAD is calculated */
+    ret = wc_ChaCha20Poly1305_CalcAad(aead);
+
     if (aead->state != CHACHA20_POLY1305_STATE_DATA) {
         return BAD_STATE_E;
     }
 
     /* Pad the ciphertext to 16 bytes */
-    paddingLen = -(int)aead->dataLen &
-        (CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1);
-    if (paddingLen > 0) {
-        XMEMSET(padding, 0, paddingLen);
-        ret = wc_Poly1305Update(&aead->poly, padding, paddingLen);
+    if (ret == 0) {
+        byte padding[CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1];
+        word32 paddingLen = -(int)aead->dataLen &
+            (CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1);
+        if (paddingLen > 0) {
+            XMEMSET(padding, 0, paddingLen);
+            ret = wc_Poly1305Update(&aead->poly, padding, paddingLen);
+        }
     }
 
     /* Add the aad and ciphertext length */
     if (ret == 0) {
+        byte little64[16]; /* word64 * 2 */
         /* AAD length as a 64-bit little endian integer */
         word32ToLittle64(aead->aadLen, little64);
         /* Ciphertext length as a 64-bit little endian integer */

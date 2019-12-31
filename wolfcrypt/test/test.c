@@ -5221,10 +5221,6 @@ int chacha20_poly1305_aead_test(void)
     err = wc_ChaCha20Poly1305_Final(&aead, generatedAuthTag);
     if (err != BAD_STATE_E)
         return -4533;
-    aead.state = CHACHA20_POLY1305_STATE_AAD;
-    err = wc_ChaCha20Poly1305_Final(&aead, generatedAuthTag);
-    if (err != BAD_STATE_E)
-        return -4534;
 
     XMEMSET(generatedCiphertext, 0, sizeof(generatedCiphertext));
     XMEMSET(generatedAuthTag, 0, sizeof(generatedAuthTag));
