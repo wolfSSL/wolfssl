@@ -126,6 +126,7 @@ int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter)
 
     XMEMCPY(temp, inIv, CHACHA_IV_BYTES);
 
+    ctx->left = 0; /* resets state */
     ctx->X[CHACHA_IV_BYTES+0] = counter;           /* block counter */
     ctx->X[CHACHA_IV_BYTES+1] = LITTLE32(temp[0]); /* fixed variable from nonce */
     ctx->X[CHACHA_IV_BYTES+2] = LITTLE32(temp[1]); /* counter from nonce */
@@ -200,6 +201,7 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
     ctx->X[ 1] = constants[1];
     ctx->X[ 2] = constants[2];
     ctx->X[ 3] = constants[3];
+    ctx->left = 0; /* resets state */
 
     return 0;
 }
@@ -260,18 +262,30 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                                     word32 bytes)
 {
     byte*  output;
-    word32 temp[CHACHA_CHUNK_WORDS]; /* used to make sure aligned */
     word32 i;
 
-    output = (byte*)temp;
 
+    /* handle left overs */
+    if (ctx->left > 0) {
+        output = (byte*)ctx->tmp + CHACHA_CHUNK_BYTES - ctx->left;
+        for (i = 0; i < bytes && i < ctx->left; i++) {
+            c[i] = m[i] ^ output[i];
+        }
+        ctx->left = ctx->left - i;
+        bytes = bytes - i;
+        c += i;
+        m += i;
+    }
+
+    output = (byte*)ctx->tmp;
     for (; bytes > 0;) {
-        wc_Chacha_wordtobyte(temp, ctx->X);
+        wc_Chacha_wordtobyte(ctx->tmp, ctx->X);
         ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
         if (bytes <= CHACHA_CHUNK_BYTES) {
             for (i = 0; i < bytes; ++i) {
                 c[i] = m[i] ^ output[i];
             }
+            ctx->left = CHACHA_CHUNK_BYTES - i;
             return;
         }
         for (i = 0; i < CHACHA_CHUNK_BYTES; ++i) {
