@@ -34566,15 +34566,17 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         /* copy contents */
         XMEMCPY(dup, name, sizeof(WOLFSSL_X509_NAME));
+        InitX509Name(dup, 1);
+        /* Need to set dynamicName before copying */
+        dup->dynamicName = 1;
+        dup->sz = name->sz;
 
         /* handle dynamic portions */
-        if (name->dynamicName) {
-            if (!(dup->name = (char*)XMALLOC(name->sz, 0,
-                                             DYNAMIC_TYPE_OPENSSL))) {
-                goto err;
-            }
-            XMEMCPY(dup->name, name->name, name->sz);
+        if (!(dup->name = (char*)XMALLOC(name->sz, 0,
+                                         DYNAMIC_TYPE_OPENSSL))) {
+            goto err;
         }
+        XMEMCPY(dup->name, name->name, name->sz);
     #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
         !defined(NO_ASN)
         if (!(dup->fullName.fullName = (char*)XMALLOC(name->fullName.fullNameLen,
@@ -39699,10 +39701,24 @@ void wolfSSL_sk_X509_NAME_pop_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
     XFREE(sk, sk->heap, DYNAMIC_TYPE_OPENSSL);
 }
 
-/* Free only the sk structure */
+/* Free only the sk structure, NOT X509_NAME members */
 void wolfSSL_sk_X509_NAME_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
 {
-    wolfSSL_sk_X509_NAME_pop_free(sk, NULL);
+    WOLFSSL_STACK* node;
+    WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_free");
+
+    if (sk == NULL)
+        return;
+
+    node = sk->next;
+    while (sk->num > 1) {
+        WOLFSSL_STACK* tmp = node;
+        node = node->next;
+        XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+        sk->num -= 1;
+    }
+
+    XFREE(sk, sk->heap, DYNAMIC_TYPE_OPENSSL);
 }
 
 #if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
