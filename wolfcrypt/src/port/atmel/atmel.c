@@ -347,7 +347,11 @@ int atmel_ecc_create_pms(int slotId, const uint8_t* peerKey, uint8_t* pms)
     ATECC_GET_ENC_KEY(read_key, sizeof(read_key));
 
     /* send the encrypted version of the ECDH command */
+#if defined(ATECC_USE_TRANSPORT_KEY) && ATECC_USE_TRANSPORT_KEY
     ret = atcab_ecdh_enc(slotId, peerKey, pms, read_key, slotIdEnc);
+#else
+    ret = atcab_ecdh(slotId, peerKey, pms);
+#endif
     ret = atmel_ecc_translate_err(ret);
 
     /* free the ECDHE slot */

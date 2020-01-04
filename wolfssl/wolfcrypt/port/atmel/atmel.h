@@ -60,6 +60,11 @@
 #define ATECC_SLOT_ENC_PARENT     (0x7)
 #endif
 
+/* Use a I2C transport key */
+#ifndef ATECC_USE_TRANSPORT_KEY
+#define ATECC_USE_TRANSPORT_KEY   1
+#endif
+
 /* ATECC_KEY_SIZE required for ecc.h */
 #include <wolfssl/wolfcrypt/ecc.h>
 
