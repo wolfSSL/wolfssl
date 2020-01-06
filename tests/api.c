@@ -26276,9 +26276,16 @@ static void test_wolfSSL_EVP_PKEY_encrypt(void)
     AssertIntEQ(EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING),
                 WOLFSSL_SUCCESS);
 
+    /* Test pkey references count is decremented. pkey shouldn't be destroyed
+     since ctx uses it.*/
+    AssertIntEQ(pkey->references, 2);
+    EVP_PKEY_free(pkey);
+    AssertIntEQ(pkey->references, 1);
+
     /* Encrypt data */
     AssertIntEQ(EVP_PKEY_encrypt(ctx, outEnc, &outEncLen,
                             (const unsigned char*)in, inlen), WOLFSSL_SUCCESS);
+
     /* Decrypt data */
     AssertIntEQ(EVP_PKEY_decrypt_init(ctx), WOLFSSL_SUCCESS);
 
@@ -26305,8 +26312,6 @@ static void test_wolfSSL_EVP_PKEY_encrypt(void)
                                  WOLFSSL_SUCCESS);
     AssertIntEQ(XMEMCMP(inTmp, outDecTmp, outDecLen), 0);
 #endif
-
-    EVP_PKEY_free(pkey);
     EVP_PKEY_CTX_free(ctx);
     XFREE(outEnc, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(outDec, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);

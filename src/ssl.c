@@ -23549,7 +23549,9 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
                 break;
             }
 
-            wc_FreeMutex(&key->refMutex);
+            if (wc_FreeMutex(&key->refMutex) != 0) {
+                WOLFSSL_MSG("Couldn't free pkey mutex");
+            }
             XFREE(key, key->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         }
     }
