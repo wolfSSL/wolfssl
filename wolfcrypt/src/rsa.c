@@ -651,19 +651,25 @@ int wc_CheckRsaKey(RsaKey* key)
                 break;
     #endif /* WOLFSSL_SP_4096 */
                 default:
-                /* If using only single prcsision math then issue key size error, 
-                    otherwise fall-back to multi-precision math calculation */
-                #ifdef WOLFSSL_SP_MATH
+                /* If using only single precsision math then issue key size
+                 * error, otherwise fall-back to multi-precision math
+                 * calculation */
+                #if defined(WOLFSSL_SP_MATH)
                     ret = WC_KEY_SIZE_E;
+                #else
+                    if (mp_exptmod_nct(k, &key->e, &key->n, tmp) != MP_OKAY)
+                        ret = MP_EXPTMOD_E;
+                    if (ret == 0) {
+                        if (mp_exptmod(tmp, &key->d, &key->n, tmp) != MP_OKAY)
+                            ret = MP_EXPTMOD_E;
+                    }
                 #endif
                     break;
         }
     }
-#endif /* WOLFSSL_HAVE_SP_RSA */
-
-#ifndef WOLFSSL_SP_MATH
+#else
     if (ret == 0) {
-        if (mp_exptmod(k, &key->e, &key->n, tmp) != MP_OKAY)
+        if (mp_exptmod_nct(k, &key->e, &key->n, tmp) != MP_OKAY)
             ret = MP_EXPTMOD_E;
     }
 
@@ -671,7 +677,7 @@ int wc_CheckRsaKey(RsaKey* key)
         if (mp_exptmod(tmp, &key->d, &key->n, tmp) != MP_OKAY)
             ret = MP_EXPTMOD_E;
     }
-#endif /* !WOLFSSL_SP_MATH */
+#endif /* WOLFSSL_HAVE_SP_RSA */
 
     if (ret == 0) {
         if (mp_cmp(k, tmp) != MP_EQ)
@@ -2126,7 +2132,7 @@ done:
 static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
-#ifndef WOLFSSL_SP_MATH
+#if !defined(WOLFSSL_SP_MATH)
 #ifdef WOLFSSL_SMALL_STACK
     mp_int* tmp;
 #ifdef WC_RSA_BLINDING
@@ -2233,7 +2239,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 #endif
 #endif /* WOLFSSL_HAVE_SP_RSA */
 
-#ifdef WOLFSSL_SP_MATH
+#if defined(WOLFSSL_SP_MATH)
     (void)rng;
     WOLFSSL_MSG("SP Key Size Error");
     return WC_KEY_SIZE_E;
@@ -2287,8 +2293,15 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                 ret = MP_INVMOD_E;
 
             /* rnd = rnd^e */
+        #ifndef WOLFSSL_SP_MATH_ALL
             if (ret == 0 && mp_exptmod(rnd, &key->e, &key->n, rnd) != MP_OKAY)
                 ret = MP_EXPTMOD_E;
+        #else
+            if (ret == 0 && mp_exptmod_nct(rnd, &key->e, &key->n,
+                                                              rnd) != MP_OKAY) {
+                ret = MP_EXPTMOD_E;
+            }
+        #endif
 
             /* tmp = tmp*rnd mod n */
             if (ret == 0 && mp_mulmod(tmp, rnd, &key->n, tmp) != MP_OKAY)
@@ -2342,8 +2355,14 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                     ret = MP_EXPTMOD_E;
 
                 /* tmp = (tmpa - tmpb) * qInv (mod p) */
+#if defined(WOLFSSL_SP_MATH) || (defined(WOLFSSL_SP_MATH_ALL) && \
+                                              !defined(WOLFSSL_SP_INT_NEGATIVE))
+                if (ret == 0 && mp_submod(tmpa, tmpb, &key->p, tmp) != MP_OKAY)
+                    ret = MP_SUB_E;
+#else
                 if (ret == 0 && mp_sub(tmpa, tmpb, tmp) != MP_OKAY)
                     ret = MP_SUB_E;
+#endif
 
                 if (ret == 0 && mp_mulmod(tmp, &key->u, &key->p,
                                                                 tmp) != MP_OKAY)
@@ -3814,8 +3833,11 @@ static int wc_CompareDiffPQ(mp_int* p, mp_int* q, int size)
     if (ret == 0)
         ret = mp_sub(p, q, &d);
 
+#if !defined(WOLFSSL_SP_MATH) && (!defined(WOLFSSL_SP_MATH_ALL) || \
+                                               defined(WOLFSSL_SP_INT_NEGATIVE))
     if (ret == 0)
         ret = mp_abs(&d, &d);
+#endif
 
     /* compare */
     if (ret == 0)

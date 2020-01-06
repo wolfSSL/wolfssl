@@ -696,7 +696,7 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
         if (!r) r = mp_read_unsigned_bin(&temp2, serverPubKey, serverPubKeySz);
         if (!r) r = mp_iszero(&temp2) == MP_YES ? SRP_BAD_KEY_E : 0;
         if (!r) r = mp_cmp(&temp2, &srp->N) != MP_LT ? SRP_BAD_KEY_E : 0;
-        if (!r) r = mp_sub(&temp2, &s, &temp1);
+        if (!r) r = mp_submod(&temp2, &s, &srp->N, &temp1);
 
         /* temp2 = a + u * x */
         if (!r) r = mp_mulmod(&u, &srp->auth, &srp->N, &s);
