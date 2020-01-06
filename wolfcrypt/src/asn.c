@@ -16036,8 +16036,11 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
     if (GetASNTag(buf, &idx, &tag, sz) < 0)
         return ASN_PARSE_E;
 
-    if (tag != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
-        return ASN_PARSE_E;
+    if (tag != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
+        /* Return without error if no extensions are found */
+        WOLFSSL_MSG("No CRL Extensions found");
+        return 0;
+    }
 
     if (GetLength(buf, &idx, &length, sz) < 0)
         return ASN_PARSE_E;
