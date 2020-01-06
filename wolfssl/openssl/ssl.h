@@ -210,7 +210,13 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #ifndef NO_FILESYSTEM
     #define SSL_CTX_use_certificate_file      wolfSSL_CTX_use_certificate_file
     #define SSL_CTX_use_PrivateKey_file       wolfSSL_CTX_use_PrivateKey_file
+#ifdef WOLFSSL_APACHE_HTTPD
+    #define SSL_CTX_load_verify_locations(ctx,file,path) \
+        wolfSSL_CTX_load_verify_locations_ex(ctx,file,path,\
+                                                   WOLFSSL_LOAD_FLAG_IGNORE_ERR)
+#else
     #define SSL_CTX_load_verify_locations     wolfSSL_CTX_load_verify_locations
+#endif
     #define SSL_CTX_use_certificate_chain_file wolfSSL_CTX_use_certificate_chain_file
     #define SSL_CTX_use_RSAPrivateKey_file    wolfSSL_CTX_use_RSAPrivateKey_file
 
