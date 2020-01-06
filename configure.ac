@@ -4693,16 +4693,17 @@ ENABLED_SP_EC_256=no
 ENABLED_SP_EC_384=no
 ENABLED_SP_NO_MALLOC=no
 ENABLED_SP_NONBLOCK=no
+ENABLED_SP_SMALL=no
 for v in `echo $ENABLED_SP | tr "," " "`
 do
   case $v in
   small)
+    ENABLED_SP_SMALL=yes
     ENABLED_SP_RSA=yes
     ENABLED_SP_DH=yes
     ENABLED_SP_FF_2048=yes
     ENABLED_SP_FF_3072=yes
     ENABLED_SP_ECC=yes
-    ENABLED_SP_SMALL=yes
     ENABLED_SP_EC_256=yes
     if test "$host_cpu" = "x86_64"; then
       ENABLED_SP_FF_4096=yes
@@ -4727,8 +4728,8 @@ do
     ;;
 
   smallec256 | smallp256 | small256)
-    ENABLED_SP_ECC=yes
     ENABLED_SP_SMALL=yes
+    ENABLED_SP_ECC=yes
     ENABLED_SP_EC_256=yes
     ;;
   ec256 | p256 | 256)
@@ -4736,8 +4737,8 @@ do
     ENABLED_SP_EC_256=yes
     ;;
   smallec384 | smallp384 | small384)
-    ENABLED_SP_ECC=yes
     ENABLED_SP_SMALL=yes
+    ENABLED_SP_ECC=yes
     ENABLED_SP_EC_384=yes
     ;;
   ec384 | p384 | 384)
@@ -4875,6 +4876,10 @@ if test "$ENABLED_SP_NONBLOCK" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NONBLOCK"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NONBLOCK"
 fi
+if test "$ENABLED_SMALL" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
+fi
 
 
 AC_ARG_ENABLE([sp-asm],
@@ -4960,10 +4965,96 @@ if test "$ENABLED_SP_MATH" = "yes"; then
     ENABLED_FASTMATH="no"
     ENABLED_SLOWMATH="no"
 fi
+
+AC_ARG_ENABLE([sp-math-all],
+    [AS_HELP_STRING([--enable-sp-math],[Enable Single Precision math implementation only (default: disabled)])],
+    [ ENABLED_SP_MATH_ALL=$enableval ],
+    [ ENABLED_SP_MATH_ALL=no ],
+    )
+for v in `echo $ENABLED_SP_MATH_ALL | tr "," " "`
+do
+  case $v in
+  yes | no)
+    ;;
+  small)
+    ENABLED_SP_MATH_ALL="yes"
+    ENABLED_SP_SMALL="yes"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
+    ;;
+  huge)
+    ENABLED_SP_MATH_ALL="yes"
+    ENABLED_FASTHUGEMATH="yes"
+    AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_HUGE_CFLAGS"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_INT_LARGE_COMBA"
+    ;;
+  256 | 384 | 521 | 1024 | 2048 | 3072 | 4096)
+    AM_CFLAGS="$AM_CFLAGS -DSP_INT_BITS=$v"
+    ENABLED_SP_MATH_ALL="yes"
+    ;;
+  *)
+    AC_MSG_ERROR([Support SP int bit sizes: 256, 384, 521, 1024, 2048, 3072, 4096. $ENABLED_SP_MATH_ALL not supported])
+    ;;
+  esac
+done
+
+if test "$ENABLED_SP_MATH_ALL" = "yes"; then
+
+  ENABLED_FASTMATH="no"
+  ENABLED_SLOWMATH="no"
+  ENABLED_SP="yes"
+  #ENABLED_SP_MATH="yes"
+
+  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_MATH_ALL"
+
+  case $host_cpu in
+  *x86_64*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86_64"
+    ;;
+  *x86*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_X86"
+    ;;
+  *aarch64*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM64"
+    ;;
+  *arm*)
+    if test $host_alias = "thumb"; then
+      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_THUMB -mthumb -march=armv6"
+    else
+      if test $host_alias = "cortex"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_M -mcpu=cortex-m4"
+      else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM32"
+      fi
+    fi
+    ;;
+  *ppc64* | *powerpc64*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_PPC64"
+    ;;
+  *ppc* | *powerpc*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_PPC"
+    ;;
+  *mips64*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_MIPS64"
+    ;;
+  *mips*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_MIPS"
+    ;;
+  *riscv32*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_RISCV32"
+    ;;
+  *riscv64*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_RISCV64"
+    ;;
+  *s390x*)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_S390X"
+    ;;
+  esac
+fi
+
 if test "$ENABLED_SP_MATH" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_MATH"
 fi
-
 
 # Fast RSA using Intel IPP
 ippdir="${srcdir}/IPP"
@@ -5487,9 +5578,6 @@ then
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_WOLFSCEP"
 fi
-#if test "$ENABLED_SP_MATH" = "yes" && test "$ENABLED_KEYGEN" = "yes"; then
-#    AC_MSG_ERROR([Cannot use single precision math and key generation])
-#fi
 
 if test "x$ENABLED_PKCS7" = "xyes"
 then
@@ -5597,7 +5685,17 @@ then
                 AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_HUGE_CFLAGS"
             fi
         else
-            AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_CFLAGS"
+            if test "$ENABLED_SP" = "yes" && test "$ENABLED_SP_SMALL" = "no"
+            then
+                AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_FAST_CFLAGS"
+                if test "$ENABLED_FASTHUGEMATH" = "yes"
+                then
+                    AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_HUGE_CFLAGS"
+                    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_INT_LARGE_COMBA"
+                fi
+            else
+                AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_CFLAGS"
+            fi
         fi
     ])
     fi
@@ -5813,7 +5911,7 @@ AM_CONDITIONAL([BUILD_SP_ARM32],[test "x$ENABLED_SP_ARM32_ASM" = "xyes" || test 
 AM_CONDITIONAL([BUILD_SP_ARM_THUMB],[test "x$ENABLED_SP_ARM_THUMB_ASM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SP_ARM_CORTEX],[test "x$ENABLED_SP_ARM_CORTEX_ASM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SP_X86_64],[test "x$ENABLED_SP_X86_64_ASM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_SP_INT],[test "x$ENABLED_SP_MATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_SP_INT],[test "x$ENABLED_SP_MATH" = "xyes" || test "x$ENABLED_SP_MATH_ALL" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_FAST_RSA],[test "x$ENABLED_FAST_RSA" = "xyes"])
 AM_CONDITIONAL([BUILD_MCAPI],[test "x$ENABLED_MCAPI" = "xyes"])
 AM_CONDITIONAL([BUILD_ASYNCCRYPT],[test "x$ENABLED_ASYNCCRYPT" = "xyes"])
@@ -6126,6 +6224,7 @@ echo "   * Stack sizes in tests:       $ENABLED_STACKSIZE"
 echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
 echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
 echo "   * Single Precision:           $ENABLED_SP"
+echo "   * SP math implementation:     $ENABLED_SP_MATH_ALL"
 echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
 echo "   * PKCS#11:                    $ENABLED_PKCS11"
 echo "   * PKCS#12:                    $ENABLED_PKCS12"

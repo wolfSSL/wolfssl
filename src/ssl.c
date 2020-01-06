@@ -46101,7 +46101,6 @@ int wolfSSL_BN_mod_mul(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
     return SSL_FAILURE;
 }
 
-#ifdef OPENSSL_EXTRA
 const WOLFSSL_BIGNUM* wolfSSL_BN_value_one(void)
 {
     WOLFSSL_MSG("wolfSSL_BN_value_one");
@@ -46119,7 +46118,6 @@ const WOLFSSL_BIGNUM* wolfSSL_BN_value_one(void)
 
     return bn_one;
 }
-#endif
 
 /* return compliant with OpenSSL
  *   size of BIGNUM in bytes, 0 if error */
