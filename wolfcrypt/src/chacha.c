@@ -268,6 +268,11 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
     for (; bytes > 0;) {
         wc_Chacha_wordtobyte(temp, ctx->X);
         ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
+
+        /* rolls over into fixed variable of nonce, adding for interop */
+        if (!ctx->X[CHACHA_IV_BYTES]) {
+            ctx->X[CHACHA_IV_BYTES + 1] = PLUSONE(ctx->X[CHACHA_IV_BYTES + 1]);
+        }
         if (bytes <= CHACHA_CHUNK_BYTES) {
             for (i = 0; i < bytes; ++i) {
                 c[i] = m[i] ^ output[i];
