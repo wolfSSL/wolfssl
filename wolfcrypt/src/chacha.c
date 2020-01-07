@@ -277,6 +277,11 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         /* Used up all of the stream that was left, increment the counter */
         if (ctx->left == 0) {
             ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
+            /* rolls over into fixed variable of nonce, adding for interop */
+            if (!ctx->X[CHACHA_IV_BYTES]) {
+                ctx->X[CHACHA_IV_BYTES + 1] =
+                    PLUSONE(ctx->X[CHACHA_IV_BYTES + 1]);
+            }
         }
         bytes = bytes - i;
         c += i;
@@ -287,6 +292,10 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
     while (bytes >= CHACHA_CHUNK_BYTES) {
         wc_Chacha_wordtobyte(temp, ctx->X);
         ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
+        /* rolls over into fixed variable of nonce, adding for interop */
+        if (!ctx->X[CHACHA_IV_BYTES]) {
+            ctx->X[CHACHA_IV_BYTES + 1] = PLUSONE(ctx->X[CHACHA_IV_BYTES + 1]);
+        }
         for (i = 0; i < CHACHA_CHUNK_BYTES; ++i) {
             c[i] = m[i] ^ output[i];
         }
