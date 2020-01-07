@@ -106,7 +106,7 @@ int wc_ChaCha20Poly1305_CheckTag(
     const byte authTagChk[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE]);
 
 
-#ifndef NO_CHACHAPOLY_AEAD_IUF
+
 /* Implementation of AEAD, which includes support for adding
     data, then final calculation of authentication tag */
 WOLFSSL_API int wc_ChaCha20Poly1305_Init(ChaChaPoly_Aead* aead,
@@ -116,10 +116,10 @@ WOLFSSL_API int wc_ChaCha20Poly1305_Init(ChaChaPoly_Aead* aead,
 WOLFSSL_API int wc_ChaCha20Poly1305_UpdateAad(ChaChaPoly_Aead* aead,
     const byte* inAAD, word32 inAADLen);
 WOLFSSL_API int wc_ChaCha20Poly1305_UpdateData(ChaChaPoly_Aead* aead,
-    byte* data, word32 dataLen);
+    const byte* inData, byte* outData, word32 dataLen);
 WOLFSSL_API int wc_ChaCha20Poly1305_Final(ChaChaPoly_Aead* aead,
     byte outAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE]);
-#endif /* !NO_CHACHAPOLY_AEAD_IUF */
+
 
 #ifdef __cplusplus
     } /* extern "C" */
