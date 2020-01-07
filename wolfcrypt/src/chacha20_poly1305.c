@@ -40,28 +40,7 @@
 #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifdef CHACHA_AEAD_TEST
-#include <stdio.h>
-#endif
-
 #define CHACHA20_POLY1305_AEAD_INITIAL_COUNTER  0
-#define CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT 16
-
-
-static void word32ToLittle64(const word32 inLittle32, byte outLittle64[8])
-{
-#ifndef WOLFSSL_X86_64_BUILD
-    XMEMSET(outLittle64 + 4, 0, 4);
-
-    outLittle64[0] = (byte)(inLittle32 & 0x000000FF);
-    outLittle64[1] = (byte)((inLittle32 & 0x0000FF00) >> 8);
-    outLittle64[2] = (byte)((inLittle32 & 0x00FF0000) >> 16);
-    outLittle64[3] = (byte)((inLittle32 & 0xFF000000) >> 24);
-#else
-    *(word64*)outLittle64 = inLittle32;
-#endif
-}
-
 int wc_ChaCha20Poly1305_Encrypt(
                 const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
                 const byte inIV[CHACHA20_POLY1305_AEAD_IV_SIZE],
@@ -93,7 +72,6 @@ int wc_ChaCha20Poly1305_Encrypt(
         ret = wc_ChaCha20Poly1305_Final(&aead, outAuthTag);
     return ret;
 }
-
 
 int wc_ChaCha20Poly1305_Decrypt(
                 const byte inKey[CHACHA20_POLY1305_AEAD_KEYSIZE],
@@ -217,23 +195,6 @@ int wc_ChaCha20Poly1305_UpdateAad(ChaChaPoly_Aead* aead,
     return ret;
 }
 
-static int wc_ChaCha20Poly1305_CalcAad(ChaChaPoly_Aead* aead)
-{
-    int ret = 0;
-    word32 paddingLen;
-    byte padding[CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1];
-
-    XMEMSET(padding, 0, sizeof(padding));
-
-    /* Pad the AAD to 16 bytes */
-    paddingLen = -(int)aead->aadLen &
-        (CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1);
-    if (paddingLen > 0) {
-        ret = wc_Poly1305Update(&aead->poly, padding, paddingLen);
-    }
-    return ret;
-}
-
 /* inData and outData can be same pointer (inline) */
 int wc_ChaCha20Poly1305_UpdateData(ChaChaPoly_Aead* aead,
     const byte* inData, byte* outData, word32 dataLen)
@@ -249,9 +210,9 @@ int wc_ChaCha20Poly1305_UpdateData(ChaChaPoly_Aead* aead,
         return BAD_STATE_E;
     }
 
-    /* calculate AAD */
+    /* Pad the AAD */
     if (aead->state == CHACHA20_POLY1305_STATE_AAD) {
-        ret = wc_ChaCha20Poly1305_CalcAad(aead);
+        ret = wc_Poly1305_Pad(&aead->poly, aead->aadLen);
     }
 
     /* advance state */
@@ -280,9 +241,6 @@ int wc_ChaCha20Poly1305_Final(ChaChaPoly_Aead* aead,
     byte outAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE])
 {
     int ret = 0;
-    word32 paddingLen;
-    byte padding[CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1];
-    byte little64[16]; /* word64 * 2 */
 
     if (aead == NULL || outAuthTag == NULL) {
         return BAD_FUNC_ARG;
@@ -292,31 +250,20 @@ int wc_ChaCha20Poly1305_Final(ChaChaPoly_Aead* aead,
         return BAD_STATE_E;
     }
 
-    XMEMSET(padding, 0, sizeof(padding));
-    XMEMSET(little64, 0, sizeof(little64));
-
-    /* make sure AAD is calculated */
+    /* Pad the AAD - Make sure it is done */
     if (aead->state == CHACHA20_POLY1305_STATE_AAD) {
-        ret = wc_ChaCha20Poly1305_CalcAad(aead);
+        ret = wc_Poly1305_Pad(&aead->poly, aead->aadLen);
     }
 
     /* Pad the ciphertext to 16 bytes */
     if (ret == 0) {
-        paddingLen = -(int)aead->dataLen &
-            (CHACHA20_POLY1305_MAC_PADDING_ALIGNMENT - 1);
-        if (paddingLen > 0) {
-            ret = wc_Poly1305Update(&aead->poly, padding, paddingLen);
-        }
+        ret = wc_Poly1305_Pad(&aead->poly, aead->dataLen);
     }
 
-    /* Add the aad and ciphertext length */
+    /* Add the aad length and plaintext/ciphertext length */
     if (ret == 0) {
-        /* AAD length as a 64-bit little endian integer */
-        word32ToLittle64(aead->aadLen, little64);
-        /* Ciphertext length as a 64-bit little endian integer */
-        word32ToLittle64(aead->dataLen, little64 + 8);
-
-        ret = wc_Poly1305Update(&aead->poly, little64, sizeof(little64));
+        ret = wc_Poly1305_EncodeSizes(&aead->poly, aead->aadLen,
+            aead->dataLen);
     }
 
     /* Finalize the auth tag */
@@ -329,6 +276,5 @@ int wc_ChaCha20Poly1305_Final(ChaChaPoly_Aead* aead,
 
     return ret;
 }
-
 
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */
