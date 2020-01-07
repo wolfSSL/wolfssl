@@ -6798,8 +6798,10 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
     if (file) {
         ret = ProcessFile(ctx, file, WOLFSSL_FILETYPE_PEM, CA_TYPE, NULL, 0,
                           NULL, verify);
+#ifndef NO_WOLFSSL_DIR
         if (ret == WOLFSSL_SUCCESS)
             successCount++;
+#endif
     }
 
     if (ret == WOLFSSL_SUCCESS && path) {
