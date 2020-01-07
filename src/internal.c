@@ -12667,11 +12667,19 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
         return ret;
     }
 
-    ForceZero(nonce, CHACHA20_NONCE_SZ); /* done with nonce, clear it */
     /* create Poly1305 key using chacha20 keystream */
     if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, poly,
-                                                      poly, sizeof(poly))) != 0)
+                                                    poly, sizeof(poly))) != 0) {
+        ForceZero(nonce, CHACHA20_NONCE_SZ);
         return ret;
+    }
+
+    /* set the counter after getting poly1305 key */
+    if ((ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 1)) != 0) {
+        ForceZero(nonce, CHACHA20_NONCE_SZ);
+        return ret;
+    }
+    ForceZero(nonce, CHACHA20_NONCE_SZ); /* done with nonce, clear it */
 
     /* encrypt the plain text */
     if ((ret = wc_Chacha_Process(ssl->encrypt.chacha, out,
@@ -12813,11 +12821,19 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
         return ret;
     }
 
-    ForceZero(nonce, CHACHA20_NONCE_SZ); /* done with nonce, clear it */
     /* use chacha20 keystream to get poly1305 key for tag */
     if ((ret = wc_Chacha_Process(ssl->decrypt.chacha, poly,
-                                                      poly, sizeof(poly))) != 0)
+                                                    poly, sizeof(poly))) != 0) {
+        ForceZero(nonce, CHACHA20_NONCE_SZ);
         return ret;
+    }
+
+    /* set counter after getting poly1305 key */
+    if ((ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 1)) != 0) {
+        ForceZero(nonce, CHACHA20_NONCE_SZ);
+        return ret;
+    }
+    ForceZero(nonce, CHACHA20_NONCE_SZ); /* done with nonce, clear it */
 
     /* get the tag using Poly1305 */
     if (ssl->options.oldPoly != 0) {
