@@ -9991,7 +9991,8 @@ static int test_wc_Chacha_Process (void)
     ret = XMEMCMP(input, plain, (int)inlen);
     AssertIntEQ(ret, 0);
 
-    /* test checking and using leftovers */
+#if !defined(USE_INTEL_CHACHA_SPEEDUP) && !defined(WOLFSSL_ARMASM)
+    /* test checking and using leftovers, currently just in C code */
     ret = wc_Chacha_SetIV(&enc, cipher, 0);
     AssertIntEQ(ret, 0);
     ret = wc_Chacha_SetIV(&dec, cipher, 0);
@@ -10009,6 +10010,7 @@ static int test_wc_Chacha_Process (void)
     AssertIntEQ(ret, 0);
     ret = XMEMCMP(input, plain, (int)inlen);
     AssertIntEQ(ret, 0);
+#endif
 
     /* Test bad args. */
     ret = wc_Chacha_Process(NULL, cipher, (byte*)input, (word32)inlen);
