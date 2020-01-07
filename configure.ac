@@ -5,7 +5,7 @@
 # This file is part of wolfSSL. (formerly known as CyaSSL)
 #
 #
-AC_COPYRIGHT([Copyright (C) 2006-2019 wolfSSL Inc.])
+AC_COPYRIGHT([Copyright (C) 2006-2020 wolfSSL Inc.])
 AC_PREREQ([2.63])
 AC_INIT([wolfssl],[4.3.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
