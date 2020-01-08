@@ -18104,7 +18104,7 @@ int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
      */
     strLen = (int)XSTRLEN(name);
 
-    for(i=0,j=0,k=0; i < strLen; i++) {
+    for (i = 0, j = 0, k = 0; i < strLen; i++) {
         if(name[i] != '-' && k < MAX_SEGMENTS && j < MAX_SEGMENT_SZ) {
             n[k][j] = name[i]; /* Fill kth segment string until '-' */
             j++;

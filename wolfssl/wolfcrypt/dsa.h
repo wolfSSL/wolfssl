@@ -41,8 +41,6 @@
 #define DsaPublicKeyDecode wc_DsaPublicKeyDecode
 #define DsaPrivateKeyDecode wc_DsaPrivateKeyDecode
 #define DsaKeyToDer wc_DsaKeyToDer
-#define SetDsaPublicKey wc_SetDsaPublicKey
-#define DsaKeyToPublicDer wc_DsaKeyToPublicDer
 
 #ifdef __cplusplus
     extern "C" {

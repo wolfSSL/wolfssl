@@ -2218,8 +2218,6 @@ else
         ENABLED_ARC4=no
     fi
 fi
-AM_CONDITIONAL([BUILD_IDEA], [test "x$ENABLED_IDEA" = "xyes"])
-
 
 # MD5
 AC_ARG_ENABLE([md5],
@@ -3398,15 +3396,6 @@ then
     AM_CFLAGS="$AM_CFLAGS -DKEEP_OUR_CERT -DKEEP_PEER_CERT"
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EXT_CACHE -DHAVE_EX_DATA"
 fi
-
-
-
-# ARC4
-AC_ARG_ENABLE([arc4],
-    [AS_HELP_STRING([--enable-arc4],[Enable ARC4 (default: disabled)])],
-    [ ENABLED_ARC4=$enableval ],
-    [ ENABLED_ARC4=no ]
-    )
 
 if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT" = "yes"
 then

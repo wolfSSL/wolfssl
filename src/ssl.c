@@ -19748,11 +19748,11 @@ int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
 WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh, const unsigned char **pp,
                                                                     long length)
 {
-    WOLFSSL_ENTER("wolfSSL_d2i_DHparams");
-
     WOLFSSL_DH *newDH = NULL;
     int ret;
     word32 idx = 0;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_DHparams");
 
     if (pp == NULL || length <= 0) {
         WOLFSSL_MSG("bad argument");
@@ -19794,9 +19794,10 @@ WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh, const unsigned char **pp,
  */
 int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out)
 {
-    WOLFSSL_ENTER("Enter wolfSSL_i2d_DHparams");
     word32 len;
     int ret = 0;
+
+    WOLFSSL_ENTER("wolfSSL_i2d_DHparams");
 
     if (dh == NULL) {
         WOLFSSL_MSG("Bad parameters");
@@ -20634,7 +20635,7 @@ WOLFSSL_STACK* wolfSSL_sk_new_cipher(void)
 int wolfSSL_sk_CIPHER_push(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk,
                                                       WOLFSSL_CIPHER* cipher)
 {
-    WOLFSSL_ENTER("wolfSSL_sk_CIPHER_push");
+    WOLFSSL_STUB("wolfSSL_sk_CIPHER_push");
     (void)sk;
     (void)cipher;
     return 0;
@@ -20643,7 +20644,7 @@ int wolfSSL_sk_CIPHER_push(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk,
 
 WOLFSSL_CIPHER* wolfSSL_sk_CIPHER_pop(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk)
 {
-    WOLFSSL_ENTER("wolfSSL_sk_CIPHER_pop");
+    WOLFSSL_STUB("wolfSSL_sk_CIPHER_pop");
     (void)sk;
     return NULL;
 }
@@ -21053,7 +21054,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                 key->ownDsa = 1;
                 key->dsa = wolfSSL_DSA_new();
                 if (key->dsa == NULL) {
-                    XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    wolfSSL_EVP_PKEY_free(key);
                     return NULL;
                 }
 
@@ -21062,7 +21063,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                             WOLFSSL_DSA_LOAD_PUBLIC) != SSL_SUCCESS) {
                     wolfSSL_DSA_free(key->dsa);
                     key->dsa = NULL;
-                    XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    wolfSSL_EVP_PKEY_free(key);
                     return NULL;
                 }
             }

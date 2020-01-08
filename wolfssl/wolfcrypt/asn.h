@@ -1139,8 +1139,8 @@ WOLFSSL_LOCAL word32 SetOctetString(word32 len, byte* output);
 WOLFSSL_LOCAL int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz);
 WOLFSSL_LOCAL int wc_DhPubKeyToDer(DhKey* key, byte* out, word32* outSz);
 WOLFSSL_LOCAL int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
-WOLFSSL_LOCAL word32 SetBitString(word32 len, byte unusedBits, byte* output);
 #endif
+WOLFSSL_LOCAL word32 SetBitString(word32 len, byte unusedBits, byte* output);
 WOLFSSL_LOCAL word32 SetImplicit(byte tag,byte number,word32 len,byte* output);
 WOLFSSL_LOCAL word32 SetExplicit(byte number, word32 len, byte* output);
 WOLFSSL_LOCAL word32 SetSet(word32 len, byte* output);

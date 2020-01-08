@@ -960,11 +960,7 @@ static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
  * output      Buffer to write into.
  * returns the number of bytes added to the buffer.
  */
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
 WOLFSSL_LOCAL word32 SetBitString(word32 len, byte unusedBits, byte* output)
-#else
-static word32 SetBitString(word32 len, byte unusedBits, byte* output)
-#endif
 {
     word32 idx = 0;
 
@@ -4662,7 +4658,7 @@ static WC_INLINE void FreeTmpDsas(byte** tmps, void* heap)
 
 #if !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)
 /* Write a public DSA key to output */
-int SetDsaPublicKey(byte* output, DsaKey* key,
+int wc_SetDsaPublicKey(byte* output, DsaKey* key,
                            int outLen, int with_header)
 {
     /* p, g, q = DSA params, y = public exponent */
@@ -4682,7 +4678,7 @@ int SetDsaPublicKey(byte* output, DsaKey* key,
     byte bitString[1 + MAX_LENGTH_SZ + 1];
     int  idx, pSz, gSz, qSz, ySz, innerSeqSz, outerSeqSz, bitStringSz = 0;
 
-    WOLFSSL_ENTER("SetDsaPublicKey");
+    WOLFSSL_ENTER("wc_SetDsaPublicKey");
 
     if (output == NULL || key == NULL || outLen < MAX_SEQ_SZ) {
         return BAD_FUNC_ARG;
@@ -4711,6 +4707,7 @@ int SetDsaPublicKey(byte* output, DsaKey* key,
     if ((qSz = SetASNIntMP(&key->q, MAX_DSA_INT_SZ, q)) < 0) {
         WOLFSSL_MSG("SetASNIntMP Error with q");
 #ifdef WOLFSSL_SMALL_STACK
+        XFREE(p, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(q, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         return qSz;
@@ -4725,6 +4722,8 @@ int SetDsaPublicKey(byte* output, DsaKey* key,
     if ((gSz = SetASNIntMP(&key->g, MAX_DSA_INT_SZ, g)) < 0) {
         WOLFSSL_MSG("SetASNIntMP Error with g");
 #ifdef WOLFSSL_SMALL_STACK
+        XFREE(p, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(q, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(g, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         return gSz;
@@ -4739,6 +4738,9 @@ int SetDsaPublicKey(byte* output, DsaKey* key,
     if ((ySz = SetASNIntMP(&key->y, MAX_DSA_INT_SZ, y)) < 0) {
         WOLFSSL_MSG("SetASNIntMP Error with y");
 #ifdef WOLFSSL_SMALL_STACK
+        XFREE(p, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(q, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(g, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(y, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         return ySz;
@@ -4839,9 +4841,9 @@ int SetDsaPublicKey(byte* output, DsaKey* key,
 
 /* Convert DSA Public key to DER format, write to output (inLen), return bytes
    written */
-int DsaKeyToPublicDer(DsaKey* key, byte* output, word32 inLen)
+int wc_DsaKeyToPublicDer(DsaKey* key, byte* output, word32 inLen)
 {
-    return SetDsaPublicKey(output, key, inLen, 1);
+    return wc_SetDsaPublicKey(output, key, inLen, 1);
 }
 #endif /* !HAVE_SELFTEST && WOLFSSL_KEY_GEN */
 
