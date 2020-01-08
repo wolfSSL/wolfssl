@@ -94,6 +94,32 @@ WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cbc(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_cbc(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_cbc(void);
 #endif
+#ifndef NO_AES
+#ifdef HAVE_AES_CFB1
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cfb1(void);
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_cfb1(void);
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_cfb1(void);
+#endif
+#ifdef HAVE_AES_CFB8
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cfb8(void);
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_cfb8(void);
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_cfb8(void);
+#endif
+#ifdef HAVE_AES_CFB128
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cfb128(void);
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_cfb128(void);
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_cfb128(void);
+#endif
+#ifdef HAVE_AES_OFB
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_ofb(void);
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_ofb(void);
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_ofb(void);
+#endif
+#ifdef HAVE_AES_XTS
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_xts(void);
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_xts(void);
+#endif
+#endif /* NO_AES */
 #if !defined(NO_AES) && defined(HAVE_AESGCM)
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_gcm(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_gcm(void);
@@ -571,6 +597,20 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_aes_128_cbc  wolfSSL_EVP_aes_128_cbc
 #define EVP_aes_192_cbc  wolfSSL_EVP_aes_192_cbc
 #define EVP_aes_256_cbc  wolfSSL_EVP_aes_256_cbc
+#define EVP_aes_128_cfb1 wolfSSL_EVP_aes_128_cfb1
+#define EVP_aes_192_cfb1 wolfSSL_EVP_aes_192_cfb1
+#define EVP_aes_256_cfb1 wolfSSL_EVP_aes_256_cfb1
+#define EVP_aes_128_cfb8 wolfSSL_EVP_aes_128_cfb8
+#define EVP_aes_192_cfb8 wolfSSL_EVP_aes_192_cfb8
+#define EVP_aes_256_cfb8 wolfSSL_EVP_aes_256_cfb8
+#define EVP_aes_128_cfb128 wolfSSL_EVP_aes_128_cfb128
+#define EVP_aes_192_cfb128 wolfSSL_EVP_aes_192_cfb128
+#define EVP_aes_256_cfb128 wolfSSL_EVP_aes_256_cfb128
+#define EVP_aes_128_ofb  wolfSSL_EVP_aes_128_ofb
+#define EVP_aes_192_ofb  wolfSSL_EVP_aes_192_ofb
+#define EVP_aes_256_ofb  wolfSSL_EVP_aes_256_ofb
+#define EVP_aes_128_xts  wolfSSL_EVP_aes_128_xts
+#define EVP_aes_256_xts  wolfSSL_EVP_aes_256_xts
 #define EVP_aes_128_gcm  wolfSSL_EVP_aes_128_gcm
 #define EVP_aes_192_gcm  wolfSSL_EVP_aes_192_gcm
 #define EVP_aes_256_gcm  wolfSSL_EVP_aes_256_gcm

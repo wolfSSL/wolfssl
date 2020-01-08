@@ -4073,7 +4073,65 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
         static char *EVP_AES_256_CBC;
     #endif
     #endif /* HAVE_AES_CBC */
-#if defined(OPENSSL_EXTRA)
+
+    #ifdef HAVE_AES_OFB
+    #ifdef WOLFSSL_AES_128
+        static char *EVP_AES_128_OFB;
+    #endif
+    #ifdef WOLFSSL_AES_192
+        static char *EVP_AES_192_OFB;
+    #endif
+    #ifdef WOLFSSL_AES_256
+        static char *EVP_AES_256_OFB;
+    #endif
+    #endif /* HAVE_AES_OFB */
+
+    #ifdef HAVE_AES_XTS
+    #ifdef WOLFSSL_AES_128
+        static char *EVP_AES_128_XTS;
+    #endif
+    #ifdef WOLFSSL_AES_256
+        static char *EVP_AES_256_XTS;
+    #endif
+    #endif /* HAVE_AES_XTS */
+
+    #ifdef HAVE_AES_CFB1
+    #ifdef WOLFSSL_AES_128
+        static char *EVP_AES_128_CFB1;
+    #endif
+    #ifdef WOLFSSL_AES_192
+        static char *EVP_AES_192_CFB1;
+    #endif
+    #ifdef WOLFSSL_AES_256
+        static char *EVP_AES_256_CFB1;
+    #endif
+    #endif /* HAVE_AES_CFB1 */
+
+    #ifdef HAVE_AES_CFB8
+    #ifdef WOLFSSL_AES_128
+        static char *EVP_AES_128_CFB8;
+    #endif
+    #ifdef WOLFSSL_AES_192
+        static char *EVP_AES_192_CFB8;
+    #endif
+    #ifdef WOLFSSL_AES_256
+        static char *EVP_AES_256_CFB8;
+    #endif
+    #endif /* HAVE_AES_CFB8 */
+
+    #ifdef HAVE_AES_CFB128
+    #ifdef WOLFSSL_AES_128
+        static char *EVP_AES_128_CFB128;
+    #endif
+    #ifdef WOLFSSL_AES_192
+        static char *EVP_AES_192_CFB128;
+    #endif
+    #ifdef WOLFSSL_AES_256
+        static char *EVP_AES_256_CFB128;
+    #endif
+    #endif /* HAVE_AES_CFB128 */
+
+    #if defined(OPENSSL_EXTRA)
 #ifdef HAVE_AESGCM
     #ifdef WOLFSSL_AES_128
         static char *EVP_AES_128_GCM;
@@ -4144,6 +4202,72 @@ void wolfSSL_EVP_init(void)
         #endif
     #endif /* HAVE_AES_CBC */
 
+    #ifdef HAVE_AES_CFB1
+        #ifdef WOLFSSL_AES_128
+        EVP_AES_128_CFB1 = (char *)EVP_get_cipherbyname("AES-128-CFB1");
+        #endif
+
+        #ifdef WOLFSSL_AES_192
+        EVP_AES_192_CFB1 = (char *)EVP_get_cipherbyname("AES-192-CFB1");
+        #endif
+
+        #ifdef WOLFSSL_AES_256
+        EVP_AES_256_CFB1 = (char *)EVP_get_cipherbyname("AES-256-CFB1");
+        #endif
+    #endif /* HAVE_AES_CFB1 */
+
+    #ifdef HAVE_AES_CFB8
+        #ifdef WOLFSSL_AES_128
+        EVP_AES_128_CFB8 = (char *)EVP_get_cipherbyname("AES-128-CFB8");
+        #endif
+
+        #ifdef WOLFSSL_AES_192
+        EVP_AES_192_CFB8 = (char *)EVP_get_cipherbyname("AES-192-CFB8");
+        #endif
+
+        #ifdef WOLFSSL_AES_256
+        EVP_AES_256_CFB8 = (char *)EVP_get_cipherbyname("AES-256-CFB8");
+        #endif
+    #endif /* HAVE_AES_CFB8 */
+
+    #ifdef HAVE_AES_CFB12828
+        #ifdef WOLFSSL_AES_128
+        EVP_AES_128_CFB128 = (char *)EVP_get_cipherbyname("AES-128-CFB128");
+        #endif
+
+        #ifdef WOLFSSL_AES_192
+        EVP_AES_192_CFB128 = (char *)EVP_get_cipherbyname("AES-192-CFB128");
+        #endif
+
+        #ifdef WOLFSSL_AES_256
+        EVP_AES_256_CFB128 = (char *)EVP_get_cipherbyname("AES-256-CFB128");
+        #endif
+    #endif /* HAVE_AES_CFB128 */
+
+    #ifdef HAVE_AES_OFB
+        #ifdef WOLFSSL_AES_128
+        EVP_AES_128_OFB = (char *)EVP_get_cipherbyname("AES-128-OFB");
+        #endif
+
+        #ifdef WOLFSSL_AES_192
+        EVP_AES_192_OFB = (char *)EVP_get_cipherbyname("AES-192-OFB");
+        #endif
+
+        #ifdef WOLFSSL_AES_256
+        EVP_AES_256_OFB = (char *)EVP_get_cipherbyname("AES-256-OFB");
+        #endif
+    #endif /* HAVE_AES_OFB */
+
+    #ifdef HAVE_AES_XTS
+        #ifdef WOLFSSL_AES_128
+        EVP_AES_128_XTS = (char *)EVP_get_cipherbyname("AES-128-XTS");
+        #endif
+
+        #ifdef WOLFSSL_AES_256
+        EVP_AES_256_XTS = (char *)EVP_get_cipherbyname("AES-256-XTS");
+        #endif
+    #endif /* HAVE_AES_XTS */
+
 #if defined(OPENSSL_EXTRA)
     #ifdef HAVE_AESGCM
         #ifdef WOLFSSL_AES_128
@@ -4176,7 +4300,7 @@ void wolfSSL_EVP_init(void)
         EVP_AES_256_ECB = (char *)EVP_get_cipherbyname("AES-256-ECB");
         #endif
 #endif
-#endif
+#endif /* ifndef NO_AES*/
 
 #ifndef NO_DES3
     EVP_DES_CBC = (char *)EVP_get_cipherbyname("DES-CBC");
@@ -14981,6 +15105,30 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
 #endif /* !NO_CERTS */
 
+    WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_md(void)
+    {
+        static WOLFSSL_BIO_METHOD meth;
+
+        WOLFSSL_ENTER("wolfSSL_BIO_f_md");
+        meth.type = WOLFSSL_BIO_MD;
+
+        return &meth;
+    }
+
+    /* return the context and initialize the BIO state */
+    int wolfSSL_BIO_get_md_ctx(WOLFSSL_BIO *bio, WOLFSSL_EVP_MD_CTX **mdcp)
+    {
+        int ret = WOLFSSL_FAILURE;
+
+        if ((bio != NULL) && (mdcp != NULL)) {
+            *mdcp = bio->ptr;
+
+            /* TODO: reset bio */
+        }
+
+        return ret;
+    }
+
     WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_buffer(void)
     {
         static WOLFSSL_BIO_METHOD meth;
@@ -15065,7 +15213,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     int wolfSSL_BIO_eof(WOLFSSL_BIO* b)
     {
         WOLFSSL_ENTER("BIO_eof");
-        if (b->eof)
+        if ((b != NULL) && (b->eof))
             return 1;
 
         return 0;
@@ -15098,6 +15246,18 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return WOLFSSL_SUCCESS;
     }
 #endif
+
+    /* Sets the close flag */
+    int wolfSSL_BIO_set_close(WOLFSSL_BIO *b, long flag)
+    {
+        WOLFSSL_ENTER("wolfSSL_BIO_set_close");
+        if (b != NULL) {
+            b->shutdown = (byte)flag;
+        }
+
+        return WOLFSSL_SUCCESS;
+    }
+
 
     WOLFSSL_BIO* wolfSSL_BIO_new(WOLFSSL_BIO_METHOD* method)
     {
@@ -16326,6 +16486,156 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     }
     #endif /* WOLFSSL_AES_256 */
     #endif /* HAVE_AES_CBC */
+
+    #ifdef HAVE_AES_CFB1
+    #ifdef WOLFSSL_AES_128
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cfb1(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_128_cfb1");
+        if (EVP_AES_128_CFB1 == NULL)
+            wolfSSL_EVP_init();
+        return EVP_AES_128_CFB1;
+    }
+    #endif /* WOLFSSL_AES_128 */
+
+    #ifdef WOLFSSL_AES_192
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_cfb1(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_192_cfb1");
+        if (EVP_AES_192_CFB1 == NULL)
+            wolfSSL_EVP_init();
+        return EVP_AES_192_CFB1;
+    }
+    #endif /* WOLFSSL_AES_192 */
+
+    #ifdef WOLFSSL_AES_256
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_cfb1(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_256_cfb1");
+        if (EVP_AES_256_CFB1 == NULL)
+            wolfSSL_EVP_init();
+        return EVP_AES_256_CFB1;
+    }
+    #endif /* WOLFSSL_AES_256 */
+    #endif /* HAVE_AES_CFB1 */
+
+    #ifdef HAVE_AES_CFB8
+    #ifdef WOLFSSL_AES_128
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cfb8(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_128_cfb8");
+        if (EVP_AES_128_CFB8 == NULL)
+            wolfSSL_EVP_init();
+        return EVP_AES_128_CFB8;
+    }
+    #endif /* WOLFSSL_AES_128 */
+
+    #ifdef WOLFSSL_AES_192
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_cfb8(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_192_cfb8");
+        if (EVP_AES_192_CFB8 == NULL)
+            wolfSSL_EVP_init();
+        return EVP_AES_192_CFB8;
+    }
+    #endif /* WOLFSSL_AES_192 */
+
+    #ifdef WOLFSSL_AES_256
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_cfb8(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_256_cfb8");
+        if (EVP_AES_256_CFB8 == NULL)
+            wolfSSL_EVP_init();
+        return EVP_AES_256_CFB8;
+    }
+    #endif /* WOLFSSL_AES_256 */
+    #endif /* HAVE_AES_CFB8 */
+
+    #ifdef HAVE_AES_CFB12828
+    #ifdef WOLFSSL_AES_128
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cfb128(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_128_cfb128");
+        if (EVP_AES_128_CFB128 == NULL)
+            wolfSSL_EVP_init();
+        return EVP_AES_128_CFB128;
+    }
+    #endif /* WOLFSSL_AES_128 */
+
+    #ifdef WOLFSSL_AES_192
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_cfb128(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_192_cfb128");
+        if (EVP_AES_192_CFB128 == NULL)
+            wolfSSL_EVP_init();
+        return EVP_AES_192_CFB128;
+    }
+    #endif /* WOLFSSL_AES_192 */
+
+    #ifdef WOLFSSL_AES_256
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_cfb128(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_256_cfb128");
+        if (EVP_AES_256_CFB128 == NULL)
+            wolfSSL_EVP_init();
+        return EVP_AES_256_CFB128;
+    }
+    #endif /* WOLFSSL_AES_256 */
+    #endif /* HAVE_AES_CFB128 */
+
+    #ifdef HAVE_AES_OFB
+    #ifdef WOLFSSL_AES_128
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_ofb(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_128_ofb");
+        if (EVP_AES_128_OFB == NULL)
+            wolfSSL_EVP_init();
+        return EVP_AES_128_OFB;
+    }
+    #endif /* WOLFSSL_AES_128 */
+
+    #ifdef WOLFSSL_AES_192
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_ofb(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_192_ofb");
+        if (EVP_AES_192_OFB == NULL)
+            wolfSSL_EVP_init();
+        return EVP_AES_192_OFB;
+    }
+    #endif /* WOLFSSL_AES_192 */
+
+    #ifdef WOLFSSL_AES_256
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_ofb(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_256_ofb");
+        if (EVP_AES_256_OFB == NULL)
+            wolfSSL_EVP_init();
+        return EVP_AES_256_OFB;
+    }
+    #endif /* WOLFSSL_AES_256 */
+    #endif /* HAVE_AES_OFB */
+
+    #ifdef HAVE_AES_XTS
+    #ifdef WOLFSSL_AES_128
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_xts(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_128_xts");
+        if (EVP_AES_128_XTS == NULL)
+            wolfSSL_EVP_init();
+        return EVP_AES_128_XTS;
+    }
+    #endif /* WOLFSSL_AES_128 */
+
+    #ifdef WOLFSSL_AES_256
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_xts(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_aes_256_xts");
+        if (EVP_AES_256_XTS == NULL)
+            wolfSSL_EVP_init();
+        return EVP_AES_256_XTS;
+    }
+    #endif /* WOLFSSL_AES_256 */
+    #endif /* HAVE_AES_XTS */
 
     #ifdef HAVE_AESGCM
     #ifdef WOLFSSL_AES_128
@@ -27922,15 +28232,13 @@ void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
 
 #ifndef NO_FILESYSTEM
 /* returns amount printed on success, negative in fail case */
-int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
+int wolfSSL_BIO_vprintf(WOLFSSL_BIO* bio, const char* format, va_list args)
 {
     int ret = -1;
-    va_list args;
 
     if (bio == NULL)
         return WOLFSSL_FATAL_ERROR;
 
-    va_start(args, format);
     switch (bio->type) {
         case WOLFSSL_BIO_FILE:
             if (bio->ptr == NULL)
@@ -27971,10 +28279,24 @@ int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
             WOLFSSL_MSG("Unsupported WOLFSSL_BIO type for wolfSSL_BIO_printf");
             break;
     }
+
+    return ret;
+}
+
+/* returns amount printed on success, negative in fail case */
+int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
+{
+    int ret;
+    va_list args;
+    va_start(args, format);
+
+    ret = wolfSSL_BIO_vprintf(bio, format, args);
+
     va_end(args);
 
     return ret;
 }
+
 #endif
 
 #if !defined(NO_FILESYSTEM) && defined(__clang__)
@@ -48606,6 +48928,16 @@ void wolfSSL_BIO_clear_retry_flags(WOLFSSL_BIO* bio)
 
     if (bio)
         bio->flags &= ~(WOLFSSL_BIO_FLAG_READ|WOLFSSL_BIO_FLAG_RETRY);
+}
+
+int wolfSSL_BIO_should_retry(WOLFSSL_BIO *bio)
+{
+    int ret = 0;
+    if (bio != NULL) {
+        ret = (int)(bio->flags & WOLFSSL_BIO_FLAG_RETRY);
+    }
+
+    return ret;
 }
 
 /* DER data is PKCS#8 encrypted. */

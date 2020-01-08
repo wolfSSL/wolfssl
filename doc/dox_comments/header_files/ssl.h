@@ -3871,6 +3871,29 @@ WOLFSSL_API long wolfSSL_BIO_set_fd(WOLFSSL_BIO* b, int fd, int flag);
 /*!
     \ingroup IO
 
+    \brief Sets the close flag, used to indicate that the i/o stream should be
+     closed when the BIO is freed
+
+    \return SSL_SUCCESS(1) upon success.
+
+    \param bio WOLFSSL_BIO structure.
+    \param flag flag for behavior when closing i/o stream.
+
+    _Example_
+    \code
+    WOLFSSL_BIO* bio;
+    // setup bio
+    wolfSSL_BIO_set_close(bio, BIO_NOCLOSE);
+    \endcode
+
+    \sa wolfSSL_BIO_new
+    \sa wolfSSL_BIO_free
+*/
+WOLFSSL_API int wolfSSL_BIO_set_close(WOLFSSL_BIO *b, long flag);
+
+/*!
+    \ingroup IO
+
     \brief This is used to get a BIO_SOCKET type WOLFSSL_BIO_METHOD.
 
     \return WOLFSSL_BIO_METHOD pointer to a WOLFSSL_BIO_METHOD structure
