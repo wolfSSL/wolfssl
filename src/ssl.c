@@ -18416,7 +18416,6 @@ char* wolfSSL_X509_get_name_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
     char buf[80];
     const char* sn;
     WOLFSSL_ENTER("wolfSSL_X509_get_name_oneline");
-    (void)sz;
 
     if (name == NULL) {
         WOLFSSL_MSG("wolfSSL_X509_get_subject_name failed");
@@ -18494,6 +18493,13 @@ char* wolfSSL_X509_get_name_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
             return in;
         }
     }
+    else {
+        if (totalSz > sz) {
+            WOLFSSL_MSG("Memory error");
+            return NULL;
+        }
+    }
+
     XMEMCPY(in, tmpBuf, totalSz);
     in[totalSz] = '\0';
 
@@ -18513,7 +18519,7 @@ WOLFSSL_X509* wolfSSL_d2i_X509(WOLFSSL_X509** x509, const unsigned char** in,
 
     newX509 = wolfSSL_X509_d2i(x509, *in, len);
     if (newX509 != NULL) {
-        *in += len;
+        *in += newX509->derCert->length;
     }
     return newX509;
 }
@@ -22215,6 +22221,127 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 #endif /* XSNPRINTF */
 
 #endif /* NO_CERTS */
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+/* Creates cipher->description based on cipher->offset
+ * cipher->offset is set in wolfSSL_get_ciphers_compat when it is added
+ * to a stack of ciphers.
+ * @param [in] cipher: A cipher from a stack of ciphers.
+ * return WOLFSSL_SUCCESS if cipher->description is set, else WOLFSSL_FAILURE
+ */
+int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
+{
+    int ret = WOLFSSL_FAILURE;
+    int i,j,k;
+    int strLen;
+    unsigned long offset;
+    char* dp;
+    const char* name;
+    const char *keaStr, *authStr, *encStr, *macStr, *protocol;
+    char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
+    uint8_t len = MAX_DESCRIPTION_SZ;
+    const CipherSuiteInfo* cipher_names;
+    ProtocolVersion pv;
+    WOLFSSL_ENTER("wolfSSL_sk_CIPHER_description");
+
+    if (cipher == NULL)
+        return WOLFSSL_FAILURE;
+
+    dp = cipher->description;
+    if (dp == NULL)
+        return WOLFSSL_FAILURE;
+
+    cipher_names = GetCipherNames();
+
+    offset = cipher->offset;
+    pv.major = cipher_names[offset].major;
+    pv.minor = cipher_names[offset].minor;
+    protocol = wolfSSL_internal_get_version(&pv);
+
+    name = cipher_names[offset].name;
+
+    if (name == NULL)
+        return ret;
+
+    /* Segment cipher name into n[n0,n1,n2,n4]
+     * These are used later for comparisons to create:
+     * keaStr, authStr, encStr, macStr
+     *
+     * If cipher_name = ECDHE-ECDSA-AES256-SHA
+     * then n0 = "ECDHE", n1 = "ECDSA", n2 = "AES256", n3 = "SHA"
+     * and n = [n0,n1,n2,n3,0]
+     */
+    strLen = (int)XSTRLEN(name);
+
+    for (i = 0, j = 0, k = 0; i <= strLen; i++) {
+        if (k > MAX_SEGMENTS || j > MAX_SEGMENT_SZ)
+            break;
+
+        if (name[i] != '-' && name[i] != '\0') {
+            n[k][j] = name[i]; /* Fill kth segment string until '-' */
+            j++;
+        }
+        else {
+            n[k][j] = '\0';
+            j = 0;
+            k++;
+        }
+    }
+    /* keaStr */
+    keaStr = GetCipherKeaStr(n);
+    /* authStr */
+    authStr = GetCipherAuthStr(n);
+    /* encStr */
+    encStr = GetCipherEncStr(n);
+    if ((cipher->bits = SetCipherBits(encStr)) == WOLFSSL_FAILURE) {
+       WOLFSSL_MSG("Cipher Bits Not Set.");
+    }
+    /* macStr */
+    macStr = GetCipherMacStr(n);
+
+
+    /* Build up the string by copying onto the end. */
+    XSTRNCPY(dp, name, len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+
+    XSTRNCPY(dp, " ", len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+    XSTRNCPY(dp, protocol, len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+
+    XSTRNCPY(dp, " Kx=", len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+    XSTRNCPY(dp, keaStr, len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+
+    XSTRNCPY(dp, " Au=", len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+    XSTRNCPY(dp, authStr, len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+
+    XSTRNCPY(dp, " Enc=", len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+    XSTRNCPY(dp, encStr, len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+
+    XSTRNCPY(dp, " Mac=", len);
+    dp[len-1] = '\0'; strLen = (int)XSTRLEN(dp);
+    len -= (int)strLen; dp += strLen;
+    XSTRNCPY(dp, macStr, len);
+    dp[len-1] = '\0';
+
+    return WOLFSSL_SUCCESS;
+}
+#endif
 
 char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
                                  int len)

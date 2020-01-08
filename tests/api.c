@@ -21769,7 +21769,9 @@ static void test_wolfSSL_BIO(void)
 
     /* try read using ctrl function */
     AssertIntEQ((int)BIO_ctrl(bio1, BIO_CTRL_WPENDING, 0, NULL), 8);
+    AssertIntEQ((int)BIO_ctrl(bio1, BIO_CTRL_PENDING, 0, NULL), 8);
     AssertIntEQ((int)BIO_ctrl(bio2, BIO_CTRL_WPENDING, 0, NULL), 20);
+    AssertIntEQ((int)BIO_ctrl(bio2, BIO_CTRL_PENDING, 0, NULL), 20);
 
     AssertIntEQ(BIO_nread(bio2, &bufPt, (int)BIO_ctrl_pending(bio2)), 20);
     for (i = 0; i < 20; i++) {

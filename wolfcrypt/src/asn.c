@@ -4471,26 +4471,27 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key, word32 inSz)
 
     temp = *inOutIdx;
     ret = (CheckBitString(input, inOutIdx, &length, inSz, 0, NULL) == 0);
-
-    if (ret) {
+    if (ret > 0) {
         /* Found Bit String */
         if (GetInt(&key->pub, input, inOutIdx, inSz) == 0) {
             WOLFSSL_MSG("Found Public Key");
+            ret = 0;
         }
     } else {
         *inOutIdx = temp;
         ret = (GetOctetString(input, inOutIdx, &length, inSz) >= 0);
-        if (ret) {
+        if (ret > 0) {
             /* Found Octet String */
             if (GetInt(&key->priv, input, inOutIdx, inSz) == 0) {
                 WOLFSSL_MSG("Found Private Key");
+                ret = 0;
             }
         } else {
             /* Don't use length from failed CheckBitString/GetOctetString */
             *inOutIdx = temp;
+            ret = 0;
         }
     }
-    ret = 0;
     #endif /* WOLFSSL_QT || OPENSSL_ALL */
 
     WOLFSSL_MSG("wc_DhKeyDecode Success");
@@ -14629,6 +14630,7 @@ int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
     int pSz;
     int gSz;
     unsigned int tmp;
+    word32 headerSz = 4; /* 2*ASN_TAG + 2*LEN(ENUM) */
 
     /* If the leading bit on the INTEGER is a 1, add a leading zero */
     int pLeadingZero = mp_leading_bit(p);
@@ -14643,12 +14645,12 @@ int StoreDHparams(byte* out, word32* outLen, mp_int* p, mp_int* g)
     }
 
     tmp = pLeadingZero + gLeadingZero + pLen + gLen;
-    if (*outLen < tmp) {
+    if (*outLen < (tmp + headerSz)) {
         return BUFFER_E;
     }
 
     /* Set sequence */
-    idx = SetSequence(tmp, out);
+    idx = SetSequence(tmp + headerSz + 2, out);
 
     /* Encode p */
     pSz = SetASNIntMP(p, -1, &out[idx]);

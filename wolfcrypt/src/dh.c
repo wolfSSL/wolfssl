@@ -2066,6 +2066,9 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
 }
 
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+/* Sets private and public key in DhKey if both are available, otherwise sets
+    either private or public key, depending on which is available.
+    Returns WOLFSSL_SUCCESS if at least one of the keys was set. */
 WOLFSSL_LOCAL int wc_DhSetFullKeys(DhKey* key,const byte* priv_key,word32 privSz,
                                    const byte* pub_key, word32 pubSz)
 {

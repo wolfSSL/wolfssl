@@ -1804,7 +1804,7 @@ WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
 
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-#define UINT8_SZ 255
+#define MAX_DESCRIPTION_SZ 255
 #endif
 /* wolfSSL Cipher type just points back to SSL */
 struct WOLFSSL_CIPHER {
@@ -1812,7 +1812,7 @@ struct WOLFSSL_CIPHER {
     byte cipherSuite;
     WOLFSSL* ssl;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-    char description[UINT8_SZ];
+    char description[MAX_DESCRIPTION_SZ];
     unsigned long offset;
     unsigned int in_stack; /* TRUE if added to stack in wolfSSL_get_ciphers_compat */
     int bits;
