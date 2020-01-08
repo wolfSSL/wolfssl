@@ -1135,7 +1135,7 @@ WOLFSSL_LOCAL int GetASNTag(const byte* input, word32* idx, byte* tag,
 WOLFSSL_LOCAL word32 SetLength(word32 length, byte* output);
 WOLFSSL_LOCAL word32 SetSequence(word32 len, byte* output);
 WOLFSSL_LOCAL word32 SetOctetString(word32 len, byte* output);
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+#if (defined(WOLFSSL_QT) || defined(OPENSSL_ALL)) && !defined(NO_DH)
 WOLFSSL_LOCAL int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz);
 WOLFSSL_LOCAL int wc_DhPubKeyToDer(DhKey* key, byte* out, word32* outSz);
 WOLFSSL_LOCAL int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);

@@ -18269,6 +18269,9 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
 }
 
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+/* Builds up and creates a stack of peer certificates for ssl->peerCertChain
+    based off of the ssl session chain. Returns stack of WOLFSSL_X509 certs or
+    NULL on failure */
 WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
 {
     WOLFSSL_STACK* sk;

@@ -18008,6 +18008,7 @@ const char* GetCipherEncStr(char n[][MAX_SEGMENT_SZ]) {
     return encStr;
 }
 
+/* Returns the MAC string of a cipher or "unknown" on failure */
 const char* GetCipherMacStr(char n[][MAX_SEGMENT_SZ]) {
 
     const char* macStr = NULL;
@@ -18041,6 +18042,7 @@ const char* GetCipherMacStr(char n[][MAX_SEGMENT_SZ]) {
     return macStr;
 }
 
+/* Returns the number of bits based on the cipher enc string, or 0 on failure */
 int SetCipherBits(const char* enc) {
     int ret = WOLFSSL_FAILURE;
 
