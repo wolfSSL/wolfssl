@@ -770,6 +770,9 @@ int wc_Poly1305_Pad(Poly1305* ctx, word32 lenToPad)
     if (ctx == NULL) {
         return BAD_FUNC_ARG;
     }
+    if (lenToPad == 0) {
+        return 0; /* nothing needs to be done */
+    }
 
     XMEMSET(padding, 0, sizeof(padding));
 

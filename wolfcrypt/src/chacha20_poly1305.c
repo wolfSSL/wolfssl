@@ -176,7 +176,7 @@ int wc_ChaCha20Poly1305_UpdateAad(ChaChaPoly_Aead* aead,
 {
     int ret = 0;
 
-    if (aead == NULL || inAAD == NULL) {
+    if (aead == NULL || (inAAD == NULL && inAADLen > 0)) {
         return BAD_FUNC_ARG;
     }
     if (aead->state != CHACHA20_POLY1305_STATE_READY &&
@@ -184,7 +184,7 @@ int wc_ChaCha20Poly1305_UpdateAad(ChaChaPoly_Aead* aead,
         return BAD_STATE_E;
     }
 
-    if (inAADLen > 0) {
+    if (inAAD && inAADLen > 0) {
         ret = wc_Poly1305Update(&aead->poly, inAAD, inAADLen);
         if (ret == 0) {
             aead->aadLen += inAADLen;
@@ -218,7 +218,7 @@ int wc_ChaCha20Poly1305_UpdateData(ChaChaPoly_Aead* aead,
     /* advance state */
     aead->state = CHACHA20_POLY1305_STATE_DATA;
 
-    /* Perform ChaCha20 encrypt or decrypt inline and Poly1305 auth calc */
+    /* Perform ChaCha20 encrypt/decrypt and Poly1305 auth calc */
     if (ret == 0) {
         if (aead->isEncrypt) {
             ret = wc_Chacha_Process(&aead->chacha, outData, inData, dataLen);
