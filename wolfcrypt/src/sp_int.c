@@ -450,7 +450,6 @@ int sp_set(sp_int* a, sp_int_digit d)
     return MP_OKAY;
 }
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || (!defined(NO_DH) || defined(HAVE_ECC))
 /* Recalculate the number of digits used.
  *
  * a  SP integer.
@@ -464,6 +463,7 @@ void sp_clamp(sp_int* a)
     a->used = i + 1;
 }
 
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || (!defined(NO_DH) || defined(HAVE_ECC))
 /* Grow big number to be able to hold l digits.
  * This function does nothing as the number of digits is fixed.
  *

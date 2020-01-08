@@ -11587,7 +11587,8 @@ int rsa_test(void)
 #if defined(HAVE_NTRU)
     RsaKey caKey;
 #endif
-#ifndef NO_ASN
+#if !defined(NO_ASN) || !defined(WOLFSSL_RSA_PUBLIC_ONLY) \
+                     || defined(WOLFSSL_PUBLIC_MP)
     word32 idx = 0;
 #endif
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_PUBLIC_MP)
