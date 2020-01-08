@@ -5127,6 +5127,7 @@ int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key)
 #ifdef WOLFSSL_CUSTOM_CURVES
 void wc_ecc_free_curve(const ecc_set_type* curve, void* heap)
 {
+#ifndef USE_WINDOWS_API
     if (curve->prime != NULL)
         XFREE((void*)curve->prime, heap, DYNAMIC_TYPE_ECC_BUFFER);
     if (curve->Af != NULL)
@@ -5139,6 +5140,7 @@ void wc_ecc_free_curve(const ecc_set_type* curve, void* heap)
         XFREE((void*)curve->Gx, heap, DYNAMIC_TYPE_ECC_BUFFER);
     if (curve->Gy != NULL)
         XFREE((void*)curve->Gy, heap, DYNAMIC_TYPE_ECC_BUFFER);
+#endif
 
     XFREE((void*)curve, heap, DYNAMIC_TYPE_ECC_BUFFER);
 

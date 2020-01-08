@@ -14373,9 +14373,25 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                 ret = ASN_PARSE_E;
         }
         if (ret == 0) {
+            char* p = NULL;
             SkipObjectId(input, inOutIdx, inSz);
-            ret = ASNToHexString(input, inOutIdx, (char**)&curve->prime, inSz,
+            ret = ASNToHexString(input, inOutIdx, &p, inSz,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+        #ifndef USE_WINDOWS_API
+            curve->prime = p;
+        #else
+            if (ret == 0 && p != NULL) {
+                length = XSTRLEN(p) + 1;
+                if (length > MAX_ECC_STRING) {
+                    WOLFSSL_MSG("Prime too large for buffer");
+                    ret = BUFFER_E;
+                }
+                else {
+                    XSTRNCPY(curve->prime, p, length);
+                }
+            }
+            XFREE(p, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+        #endif
         }
         if (ret == 0) {
             curve->size = (int)XSTRLEN(curve->prime) / 2;
@@ -14384,12 +14400,45 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                 ret = ASN_PARSE_E;
         }
         if (ret == 0) {
-            ret = ASNToHexString(input, inOutIdx, (char**)&curve->Af, inSz,
+            char* af = NULL;
+            ret = ASNToHexString(input, inOutIdx, &af, inSz,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+        #ifndef USE_WINDOWS_API
+            curve->Af = af;
+        #else
+            if (ret == 0 && af != NULL) {
+                length = XSTRLEN(af) + 1;
+                if (length > MAX_ECC_STRING) {
+                    WOLFSSL_MSG("Af too large for buffer");
+                    ret = BUFFER_E;
+                }
+                else {
+                    XSTRNCPY(curve->Af, af, length);
+                }
+            }
+            XFREE(af, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+        #endif
         }
+
         if (ret == 0) {
-            ret = ASNToHexString(input, inOutIdx, (char**)&curve->Bf, inSz,
+            char* bf = NULL;
+            ret = ASNToHexString(input, inOutIdx, &bf, inSz,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+        #ifndef USE_WINDOWS_API
+            curve->Bf = bf;
+        #else
+            if (ret == 0 && bf != NULL) {
+                length = XSTRLEN(bf) + 1;
+                if (length > MAX_ECC_STRING) {
+                    WOLFSSL_MSG("Bf too large for buffer");
+                    ret = BUFFER_E;
+                }
+                else {
+                    XSTRNCPY(curve->Bf, bf, length);
+                }
+            }
+            XFREE(bf, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+        #endif
         }
         if (ret == 0) {
             localIdx = *inOutIdx;
@@ -14430,14 +14479,32 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         #endif
         }
         if (ret == 0) {
+            char* o = NULL;
+
             XMEMCPY((char*)curve->Gx, point + 2, curve->size * 2);
             XMEMCPY((char*)curve->Gy, point + curve->size * 2 + 2,
                                                                curve->size * 2);
             ((char*)curve->Gx)[curve->size * 2] = '\0';
             ((char*)curve->Gy)[curve->size * 2] = '\0';
             XFREE(point, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
-            ret = ASNToHexString(input, inOutIdx, (char**)&curve->order, inSz,
+            ret = ASNToHexString(input, inOutIdx, &o, inSz,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+
+        #ifndef USE_WINDOWS_API
+            curve->order = o;
+        #else
+            if (ret == 0 && o != NULL) {
+                length = XSTRLEN(o) + 1;
+                if (length > MAX_ECC_STRING) {
+                    WOLFSSL_MSG("Order too large for buffer");
+                    ret = BUFFER_E;
+                }
+                else {
+                    XSTRNCPY(curve->order, o, length);
+                }
+            }
+            XFREE(o, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+        #endif
         }
         if (ret == 0) {
             curve->cofactor = GetInteger7Bit(input, inOutIdx, inSz);
