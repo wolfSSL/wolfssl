@@ -35558,7 +35558,8 @@ err:
     #define PEM_END_SZ             9
     #define PEM_HDR_FIN            "-----"
     #define PEM_HDR_FIN_SZ         5
-    #define PEM_HDR_FIN_EOL        "-----\n"
+    #define PEM_HDR_FIN_EOL_NEWLINE   "-----\n"
+    #define PEM_HDR_FIN_EOL_NULL_TERM "-----\0"
     #define PEM_HDR_FIN_EOL_SZ     6
 
     int wolfSSL_PEM_read_bio(WOLFSSL_BIO* bio, char **name, char **header,
@@ -35694,8 +35695,12 @@ err:
                 ret = WOLFSSL_FAILURE;
         }
         if (ret == WOLFSSL_SUCCESS) {
-            if (XSTRNCMP(pem + PEM_END_SZ + nameLen, PEM_HDR_FIN_EOL,
-                                                     PEM_HDR_FIN_EOL_SZ) != 0) {
+            if (XSTRNCMP(pem + PEM_END_SZ + nameLen,
+                    PEM_HDR_FIN_EOL_NEWLINE,
+                    PEM_HDR_FIN_EOL_SZ) != 0 &&
+                XSTRNCMP(pem + PEM_END_SZ + nameLen,
+                        PEM_HDR_FIN_EOL_NULL_TERM,
+                        PEM_HDR_FIN_EOL_SZ) != 0) {
                 ret = WOLFSSL_FAILURE;
             }
         }
@@ -35759,8 +35764,8 @@ err:
         if (!err)
             err = wolfSSL_BIO_write(bio, name, nameLen) != nameLen;
         if (!err) {
-            err = wolfSSL_BIO_write(bio, PEM_HDR_FIN_EOL, PEM_HDR_FIN_EOL_SZ) !=
-                                                        (int)PEM_HDR_FIN_EOL_SZ;
+            err = wolfSSL_BIO_write(bio, PEM_HDR_FIN_EOL_NEWLINE,
+                    PEM_HDR_FIN_EOL_SZ) != (int)PEM_HDR_FIN_EOL_SZ;
         }
         if (!err && headerLen > 0) {
             err = wolfSSL_BIO_write(bio, header, headerLen) != headerLen;
@@ -35777,8 +35782,8 @@ err:
         if (!err)
             err = wolfSSL_BIO_write(bio, name, nameLen) != nameLen;
         if (!err) {
-            err = wolfSSL_BIO_write(bio, PEM_HDR_FIN_EOL, PEM_HDR_FIN_EOL_SZ) !=
-                                                        (int)PEM_HDR_FIN_EOL_SZ;
+            err = wolfSSL_BIO_write(bio, PEM_HDR_FIN_EOL_NEWLINE,
+                    PEM_HDR_FIN_EOL_SZ) != (int)PEM_HDR_FIN_EOL_SZ;
         }
 
         if (!err) {

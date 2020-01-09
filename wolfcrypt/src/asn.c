@@ -16030,14 +16030,17 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
 
     idx = *inOutIdx;
 
+    /* CRL Extensions are optional */
     if ((idx + 1) > sz)
-        return BUFFER_E;
+        return 0;
 
+    /* CRL Extensions are optional */
     if (GetASNTag(buf, &idx, &tag, sz) < 0)
-        return ASN_PARSE_E;
+        return 0;
 
+    /* CRL Extensions are optional */
     if (tag != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
-        return ASN_PARSE_E;
+        return 0;
 
     if (GetLength(buf, &idx, &length, sz) < 0)
         return ASN_PARSE_E;
