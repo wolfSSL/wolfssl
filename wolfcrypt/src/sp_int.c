@@ -450,7 +450,6 @@ int sp_set(sp_int* a, sp_int_digit d)
     return MP_OKAY;
 }
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || (!defined(NO_DH) || defined(HAVE_ECC))
 /* Recalculate the number of digits used.
  *
  * a  SP integer.
@@ -464,6 +463,7 @@ void sp_clamp(sp_int* a)
     a->used = i + 1;
 }
 
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || (!defined(NO_DH) || defined(HAVE_ECC))
 /* Grow big number to be able to hold l digits.
  * This function does nothing as the number of digits is fixed.
  *
@@ -987,14 +987,19 @@ int sp_tohex(sp_int* a, char* str)
  * i  Index of bit to set.
  * returns MP_OKAY always.
  */
-static int sp_set_bit(sp_int* a, int i)
+int sp_set_bit(sp_int* a, int i)
 {
-    if (i / SP_WORD_SIZE < SP_INT_DIGITS) {
+    int ret = MP_OKAY;
+
+    if ((a == NULL) ||  (i / SP_WORD_SIZE >= SP_INT_DIGITS)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
         a->dp[i/SP_WORD_SIZE] |= (sp_int_digit)1 << (i % SP_WORD_SIZE);
         if (a->used <= i / SP_WORD_SIZE)
             a->used = (i / SP_WORD_SIZE) + 1;
     }
-    return MP_OKAY;
+    return ret;
 }
 
 /* Exponentiate 2 to the power of e: a = 2^e
@@ -2095,6 +2100,21 @@ int sp_exch(sp_int* a, sp_int* b)
     return MP_OKAY;
 }
 #endif
+#endif
+
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
+/* Multiply a by digit n and put result into r. r = a * n
+ *
+ * a  SP integer to be multiplied.
+ * n  Number to multiply by.
+ * r  SP integer result.
+ * returns MP_OKAY always.
+ */
+int sp_mul_d(sp_int* a, sp_int_digit n, sp_int* r)
+{
+    _sp_mul_d(a, n, r, 0);
+    return MP_OKAY;
+}
 #endif
 
 /* Returns the run time settings.

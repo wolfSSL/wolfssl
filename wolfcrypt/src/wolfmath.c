@@ -117,10 +117,10 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
         ret = mp_set_bit(a, digits * DIGIT_BIT - 1);
     }
 #else
-#if defined(USE_FAST_MATH)
-    if ((ret == MP_OKAY) && (digits > FP_SIZE))
-#else
+#if defined(WOLFSSL_SP_MATH)
     if ((ret == MP_OKAY) && (digits > SP_INT_DIGITS))
+#else
+    if ((ret == MP_OKAY) && (digits > FP_SIZE))
 #endif
     {
         ret = BAD_FUNC_ARG;
