@@ -25636,10 +25636,8 @@ static void test_wolfSSL_EC_KEY_dup(void)
 
     WOLFSSL_EC_KEY* ecKey;
     WOLFSSL_EC_KEY* dupKey;
-#if defined(WOLFSSL_PUBLIC_MP)
-    mp_int* srcKey;
-    mp_int* destKey;
-#endif
+    ecc_key* srcKey;
+    ecc_key* destKey;
 
     printf(testingFmt, "wolfSSL_EC_KEY_dup()");
 
@@ -25648,11 +25646,12 @@ static void test_wolfSSL_EC_KEY_dup(void)
 
     /* Valid cases */
     AssertNotNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
-#if defined(WOLFSSL_PUBLIC_MP)
-    srcKey = (mp_int*)ecKey->internal;
-    destKey = (mp_int*)dupKey->internal;
-    AssertIntEQ(mp_cmp(srcKey, destKey), MP_EQ);
-#endif
+    AssertIntEQ(wc_ecc_check_key(dupKey->internal), 0);
+
+    /* Compare pubkey */
+    srcKey = (ecc_key*)ecKey->internal;
+    destKey = (ecc_key*)dupKey->internal;
+    AssertIntEQ(wc_ecc_cmp_point(&srcKey->pubkey, &destKey->pubkey), 0);
 
     /* compare EC_GROUP */
     AssertIntEQ(wolfSSL_EC_GROUP_cmp(ecKey->group, dupKey->group, NULL), MP_EQ);
@@ -25713,11 +25712,6 @@ static void test_wolfSSL_EC_KEY_dup(void)
     AssertNull(dupKey = wolfSSL_EC_KEY_dup(ecKey));
     wolfSSL_EC_KEY_free(ecKey);
     wolfSSL_EC_KEY_free(dupKey);
-
-#if defined(WOLFSSL_PUBLIC_MP)
-    mp_free(srcKey);
-    mp_free(destKey);
-#endif
 
     printf(resultFmt, passed);
 #endif

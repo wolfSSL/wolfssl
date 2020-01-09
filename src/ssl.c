@@ -19621,7 +19621,7 @@ void wolfSSL_sk_X509_EXTENSION_pop_free(
 WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
 {
     WOLFSSL_EC_KEY *dup;
-    ecc_key *key;
+    ecc_key *key, *srcKey;
     int ret;
 
     WOLFSSL_ENTER("wolfSSL_EC_KEY_dup");
@@ -19645,13 +19645,36 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
         wolfSSL_EC_KEY_free(dup);
         return NULL;
     }
+    srcKey = (ecc_key*)src->internal;
 
-    ret = mp_copy((mp_int*)src->internal, (mp_int*)dup->internal);
+    /* ecc_key */
+    /* copy pubkey */
+    ret = wc_ecc_copy_point(&srcKey->pubkey, &key->pubkey);
+    if (ret != MP_OKAY) {
+        WOLFSSL_MSG("wc_ecc_copy_point error");
+        wolfSSL_EC_KEY_free(dup);
+        return NULL;
+    }
+
+    /* copy private key k */
+    ret = mp_copy(&srcKey->k, &key->k);
     if (ret != MP_OKAY) {
         WOLFSSL_MSG("mp_copy error");
         wolfSSL_EC_KEY_free(dup);
         return NULL;
     }
+
+    /* copy domain parameters */
+    ret = wc_ecc_set_curve(key, 0, srcKey->dp->id);
+    if (ret != 0) {
+        WOLFSSL_MSG("wc_ecc_set_curve error");
+        return NULL;
+    }
+
+    key->type  = srcKey->type;
+    key->idx   = srcKey->idx;
+    key->state = srcKey->state;
+    key->flags = srcKey->flags;
 
     /* Copy group */
     if (dup->group == NULL) {
@@ -19671,6 +19694,7 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
         return NULL;
     }
 
+    /* Copy public key internal */
     ret = wc_ecc_copy_point((ecc_point*)src->pub_key->internal, \
                             (ecc_point*)dup->pub_key->internal);
     if (ret != MP_OKAY) {
@@ -19679,6 +19703,26 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
         return NULL;
     }
 
+    /* Copy X, Y, Z */
+    dup->pub_key->X = wolfSSL_BN_dup(src->pub_key->X);
+    if (dup->pub_key->X == NULL) {
+        WOLFSSL_MSG("Error copying EC_POINT");
+        wolfSSL_EC_KEY_free(dup);
+    }
+    dup->pub_key->Y = wolfSSL_BN_dup(src->pub_key->Y);
+    if (dup->pub_key->Y == NULL) {
+        WOLFSSL_MSG("Error copying EC_POINT");
+        wolfSSL_EC_KEY_free(dup);
+    }
+    dup->pub_key->Z = wolfSSL_BN_dup(src->pub_key->Z);
+    if (dup->pub_key->Z == NULL) {
+        WOLFSSL_MSG("Error copying EC_POINT");
+        wolfSSL_EC_KEY_free(dup);
+    }
+
+    dup->pub_key->inSet = src->pub_key->inSet;
+    dup->pub_key->exSet = src->pub_key->exSet;
+
     /* Copy private key */
     if (src->priv_key->internal == NULL || dup->priv_key->internal == NULL) {
         WOLFSSL_MSG("NULL priv_key error");
@@ -19686,14 +19730,12 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
         return NULL;
     }
 
-    ret = mp_copy((mp_int*)src->priv_key->internal, \
-                  (mp_int*)dup->priv_key->internal);
-    if (ret != MP_OKAY) {
-        WOLFSSL_MSG("mp_copy error");
+    dup->priv_key = wolfSSL_BN_dup(src->priv_key);
+    if (dup->priv_key == NULL) {
+        WOLFSSL_MSG("BN_dup error");
         wolfSSL_EC_KEY_free(dup);
         return NULL;
     }
-    src->priv_key->neg = dup->priv_key->neg;
 
     return dup;
 
