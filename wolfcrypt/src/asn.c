@@ -7554,6 +7554,7 @@ static int DecodeAuthKeyId(const byte* input, int sz, DecodedCert* cert)
 
     if (tag != (ASN_CONTEXT_SPECIFIC | 0)) {
         WOLFSSL_MSG("\tinfo: OPTIONAL item 0, not available\n");
+        cert->extAuthKeyIdSet = 0;
         return 0;
     }
 
@@ -8490,7 +8491,6 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
                 if (ret == 0) {
                     switch (oid) {
                     case AUTH_KEY_OID:
-                        extAuthKeyIdSet = 1;
                         if (GetSequence(cert, &extIdx, &extLen, certSz) < 0)
                             ret = ASN_PARSE_E;
 
@@ -8503,6 +8503,7 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
                             if (GetLength(cert, &extIdx, &extLen, certSz) <= 0)
                                 ret = ASN_PARSE_E;
                             if (ret == 0) {
+                                extAuthKeyIdSet = 1;
                                 if (extLen == KEYID_SIZE)
                                     XMEMCPY(hash, cert + extIdx, extLen);
                                 else {
