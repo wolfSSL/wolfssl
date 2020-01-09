@@ -3807,6 +3807,54 @@ static const struct cipher{
     #ifdef WOLFSSL_AES_256
     {AES_256_CBC_TYPE, "AES-256-CBC", NID_aes_256_cbc},
     #endif
+
+    #ifdef WOLFSSL_AES_128
+    {AES_128_CFB1_TYPE, "AES-128-CFB1", NID_aes_128_cfb1},
+    #endif
+    #ifdef WOLFSSL_AES_192
+    {AES_192_CFB1_TYPE, "AES-192-CFB1", NID_aes_192_cfb1},
+    #endif
+    #ifdef WOLFSSL_AES_256
+    {AES_256_CFB1_TYPE, "AES-256-CFB1", NID_aes_256_cfb1},
+    #endif
+
+    #ifdef WOLFSSL_AES_128
+    {AES_128_CFB8_TYPE, "AES-128-CFB8", NID_aes_128_cfb8},
+    #endif
+    #ifdef WOLFSSL_AES_192
+    {AES_192_CFB8_TYPE, "AES-192-CFB8", NID_aes_192_cfb8},
+    #endif
+    #ifdef WOLFSSL_AES_256
+    {AES_256_CFB8_TYPE, "AES-256-CFB8", NID_aes_256_cfb8},
+    #endif
+
+    #ifdef WOLFSSL_AES_128
+    {AES_128_CFB128_TYPE, "AES-128-CFB128", NID_aes_128_cfb128},
+    #endif
+    #ifdef WOLFSSL_AES_192
+    {AES_192_CFB128_TYPE, "AES-192-CFB128", NID_aes_192_cfb128},
+    #endif
+    #ifdef WOLFSSL_AES_256
+    {AES_256_CFB128_TYPE, "AES-256-CFB128", NID_aes_256_cfb128},
+    #endif
+
+    #ifdef WOLFSSL_AES_128
+    {AES_128_OFB_TYPE, "AES-128-OFB", NID_aes_128_ofb},
+    #endif
+    #ifdef WOLFSSL_AES_192
+    {AES_192_OFB_TYPE, "AES-192-OFB", NID_aes_192_ofb},
+    #endif
+    #ifdef WOLFSSL_AES_256
+    {AES_256_OFB_TYPE, "AES-256-OFB", NID_aes_256_ofb},
+    #endif
+
+    #ifdef WOLFSSL_AES_128
+    {AES_128_XTS_TYPE, "AES-128-XTS", NID_aes_128_xts},
+    #endif
+    #ifdef WOLFSSL_AES_256
+    {AES_256_XTS_TYPE, "AES-256-XTS", NID_aes_256_xts},
+    #endif
+
 #if defined(OPENSSL_EXTRA)
     #ifdef WOLFSSL_AES_128
     {AES_128_GCM_TYPE, "AES-128-GCM", NID_aes_128_gcm},
@@ -4074,7 +4122,7 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
     #endif
     #endif /* HAVE_AES_CBC */
 
-    #ifdef HAVE_AES_OFB
+    #ifdef WOLFSSL_AES_OFB
     #ifdef WOLFSSL_AES_128
         static char *EVP_AES_128_OFB;
     #endif
@@ -4084,18 +4132,18 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
     #ifdef WOLFSSL_AES_256
         static char *EVP_AES_256_OFB;
     #endif
-    #endif /* HAVE_AES_OFB */
+    #endif /* WOLFSSL_AES_OFB */
 
-    #ifdef HAVE_AES_XTS
+    #ifdef WOLFSSL_AES_XTS
     #ifdef WOLFSSL_AES_128
         static char *EVP_AES_128_XTS;
     #endif
     #ifdef WOLFSSL_AES_256
         static char *EVP_AES_256_XTS;
     #endif
-    #endif /* HAVE_AES_XTS */
+    #endif /* WOLFSSL_AES_XTS */
 
-    #ifdef HAVE_AES_CFB1
+    #ifdef WOLFSSL_AES_CFB
     #ifdef WOLFSSL_AES_128
         static char *EVP_AES_128_CFB1;
     #endif
@@ -4105,9 +4153,7 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
     #ifdef WOLFSSL_AES_256
         static char *EVP_AES_256_CFB1;
     #endif
-    #endif /* HAVE_AES_CFB1 */
 
-    #ifdef HAVE_AES_CFB8
     #ifdef WOLFSSL_AES_128
         static char *EVP_AES_128_CFB8;
     #endif
@@ -4117,9 +4163,7 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
     #ifdef WOLFSSL_AES_256
         static char *EVP_AES_256_CFB8;
     #endif
-    #endif /* HAVE_AES_CFB8 */
 
-    #ifdef HAVE_AES_CFB128
     #ifdef WOLFSSL_AES_128
         static char *EVP_AES_128_CFB128;
     #endif
@@ -4129,7 +4173,7 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
     #ifdef WOLFSSL_AES_256
         static char *EVP_AES_256_CFB128;
     #endif
-    #endif /* HAVE_AES_CFB128 */
+    #endif /* WOLFSSL_AES_CFB */
 
     #if defined(OPENSSL_EXTRA)
 #ifdef HAVE_AESGCM
@@ -4202,7 +4246,7 @@ void wolfSSL_EVP_init(void)
         #endif
     #endif /* HAVE_AES_CBC */
 
-    #ifdef HAVE_AES_CFB1
+    #ifdef WOLFSSL_AES_CFB
         #ifdef WOLFSSL_AES_128
         EVP_AES_128_CFB1 = (char *)EVP_get_cipherbyname("AES-128-CFB1");
         #endif
@@ -4214,9 +4258,7 @@ void wolfSSL_EVP_init(void)
         #ifdef WOLFSSL_AES_256
         EVP_AES_256_CFB1 = (char *)EVP_get_cipherbyname("AES-256-CFB1");
         #endif
-    #endif /* HAVE_AES_CFB1 */
 
-    #ifdef HAVE_AES_CFB8
         #ifdef WOLFSSL_AES_128
         EVP_AES_128_CFB8 = (char *)EVP_get_cipherbyname("AES-128-CFB8");
         #endif
@@ -4228,9 +4270,7 @@ void wolfSSL_EVP_init(void)
         #ifdef WOLFSSL_AES_256
         EVP_AES_256_CFB8 = (char *)EVP_get_cipherbyname("AES-256-CFB8");
         #endif
-    #endif /* HAVE_AES_CFB8 */
 
-    #ifdef HAVE_AES_CFB12828
         #ifdef WOLFSSL_AES_128
         EVP_AES_128_CFB128 = (char *)EVP_get_cipherbyname("AES-128-CFB128");
         #endif
@@ -4242,9 +4282,9 @@ void wolfSSL_EVP_init(void)
         #ifdef WOLFSSL_AES_256
         EVP_AES_256_CFB128 = (char *)EVP_get_cipherbyname("AES-256-CFB128");
         #endif
-    #endif /* HAVE_AES_CFB128 */
+    #endif /* WOLFSSL_AES_CFB */
 
-    #ifdef HAVE_AES_OFB
+    #ifdef WOLFSSL_AES_OFB
         #ifdef WOLFSSL_AES_128
         EVP_AES_128_OFB = (char *)EVP_get_cipherbyname("AES-128-OFB");
         #endif
@@ -4256,9 +4296,9 @@ void wolfSSL_EVP_init(void)
         #ifdef WOLFSSL_AES_256
         EVP_AES_256_OFB = (char *)EVP_get_cipherbyname("AES-256-OFB");
         #endif
-    #endif /* HAVE_AES_OFB */
+    #endif /* WOLFSSL_AES_OFB */
 
-    #ifdef HAVE_AES_XTS
+    #ifdef WOLFSSL_AES_XTS
         #ifdef WOLFSSL_AES_128
         EVP_AES_128_XTS = (char *)EVP_get_cipherbyname("AES-128-XTS");
         #endif
@@ -4266,7 +4306,7 @@ void wolfSSL_EVP_init(void)
         #ifdef WOLFSSL_AES_256
         EVP_AES_256_XTS = (char *)EVP_get_cipherbyname("AES-256-XTS");
         #endif
-    #endif /* HAVE_AES_XTS */
+    #endif /* WOLFSSL_AES_XTS */
 
 #if defined(OPENSSL_EXTRA)
     #ifdef HAVE_AESGCM
@@ -16487,7 +16527,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     #endif /* WOLFSSL_AES_256 */
     #endif /* HAVE_AES_CBC */
 
-    #ifdef HAVE_AES_CFB1
+    #ifdef WOLFSSL_AES_CFB
     #ifdef WOLFSSL_AES_128
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cfb1(void)
     {
@@ -16517,9 +16557,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_AES_256_CFB1;
     }
     #endif /* WOLFSSL_AES_256 */
-    #endif /* HAVE_AES_CFB1 */
 
-    #ifdef HAVE_AES_CFB8
     #ifdef WOLFSSL_AES_128
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cfb8(void)
     {
@@ -16549,9 +16587,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_AES_256_CFB8;
     }
     #endif /* WOLFSSL_AES_256 */
-    #endif /* HAVE_AES_CFB8 */
 
-    #ifdef HAVE_AES_CFB12828
     #ifdef WOLFSSL_AES_128
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cfb128(void)
     {
@@ -16581,9 +16617,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_AES_256_CFB128;
     }
     #endif /* WOLFSSL_AES_256 */
-    #endif /* HAVE_AES_CFB128 */
+    #endif /* WOLFSSL_AES_CFB */
 
-    #ifdef HAVE_AES_OFB
+    #ifdef WOLFSSL_AES_OFB
     #ifdef WOLFSSL_AES_128
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_ofb(void)
     {
@@ -16613,9 +16649,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_AES_256_OFB;
     }
     #endif /* WOLFSSL_AES_256 */
-    #endif /* HAVE_AES_OFB */
+    #endif /* WOLFSSL_AES_OFB */
 
-    #ifdef HAVE_AES_XTS
+    #ifdef WOLFSSL_AES_XTS
     #ifdef WOLFSSL_AES_128
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_xts(void)
     {
@@ -16635,7 +16671,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_AES_256_XTS;
     }
     #endif /* WOLFSSL_AES_256 */
-    #endif /* HAVE_AES_XTS */
+    #endif /* WOLFSSL_AES_XTS */
 
     #ifdef HAVE_AESGCM
     #ifdef WOLFSSL_AES_128
@@ -17606,6 +17642,48 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                     ret = wc_AesCbcDecrypt(&ctx->cipher.aes, dst, src, len);
                 break;
 #endif /* HAVE_AES_CBC */
+
+#ifdef WOLFSSL_AES_CFB
+            case AES_128_CFB1_TYPE:
+            case AES_192_CFB1_TYPE:
+            case AES_256_CFB1_TYPE:
+            case AES_128_CFB8_TYPE:
+            case AES_192_CFB8_TYPE:
+            case AES_256_CFB8_TYPE:
+            case AES_128_CFB128_TYPE:
+            case AES_192_CFB128_TYPE:
+            case AES_256_CFB128_TYPE:
+                WOLFSSL_MSG("AES CFB");
+                if (ctx->enc)
+                    ret = wc_AesCfbEncrypt(&ctx->cipher.aes, dst, src, len);
+                else
+                    ret = wc_AesCfbDecrypt(&ctx->cipher.aes, dst, src, len);
+                break;
+#endif /* WOLFSSL_AES_CFB */
+#if defined(WOLFSSL_AES_OFB)
+            case AES_128_OFB_TYPE:
+            case AES_192_OFB_TYPE:
+            case AES_256_OFB_TYPE:
+                WOLFSSL_MSG("AES OFB");
+                if (ctx->enc)
+                    ret = wc_AesOfbEncrypt(&ctx->cipher.aes, dst, src, len);
+                else
+                    ret = wc_AesOfbDecrypt(&ctx->cipher.aes, dst, src, len);
+                break;
+#endif /* WOLFSSL_AES_OFB */
+#if defined(WOLFSSL_AES_XTS)
+            case AES_128_XTS_TYPE:
+            case AES_256_XTS_TYPE:
+                WOLFSSL_MSG("AES XTS");
+                if (ctx->enc)
+                    ret = wc_AesXtsEncrypt(&ctx->cipher.xts, dst, src, len,
+                            ctx->cipher.tweak, ctx->cipher.tweakSz);
+                else
+                    ret = wc_AesXtsDecrypt(&ctx->cipher.xts, dst, src, len,
+                            ctx->cipher.tweak, ctx->cipher.tweakSz);
+                break;
+#endif /* WOLFSSL_AES_XTS */
+
 #ifdef HAVE_AESGCM
             case AES_128_GCM_TYPE :
             case AES_192_GCM_TYPE :

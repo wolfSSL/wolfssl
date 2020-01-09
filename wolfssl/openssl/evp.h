@@ -95,27 +95,23 @@ WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_cbc(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_cbc(void);
 #endif
 #ifndef NO_AES
-#ifdef HAVE_AES_CFB1
+#ifdef WOLFSSL_AES_CFB
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cfb1(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_cfb1(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_cfb1(void);
-#endif
-#ifdef HAVE_AES_CFB8
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cfb8(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_cfb8(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_cfb8(void);
-#endif
-#ifdef HAVE_AES_CFB128
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cfb128(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_cfb128(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_cfb128(void);
 #endif
-#ifdef HAVE_AES_OFB
+#ifdef WOLFSSL_AES_OFB
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_ofb(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_ofb(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_ofb(void);
 #endif
-#ifdef HAVE_AES_XTS
+#ifdef WOLFSSL_AES_XTS
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_xts(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_xts(void);
 #endif
@@ -179,6 +175,11 @@ typedef struct WOLFSSL_EVP_MD_CTX {
 typedef union {
 #ifndef NO_AES
     Aes  aes;
+#ifdef WOLFSSL_AES_XTS
+    XtsAes xts;
+    byte*  tweak;
+    word32 tweakSz;
+#endif
 #endif
 #ifndef NO_DES3
     Des  des;
@@ -226,7 +227,21 @@ enum {
     NID_hmac          = 855,
     NID_dhKeyAgreement= 28,
     EVP_PKEY_DH       = NID_dhKeyAgreement,
-    EVP_PKEY_HMAC     = NID_hmac
+    EVP_PKEY_HMAC     = NID_hmac,
+    AES_128_CFB1_TYPE = 24,
+    AES_192_CFB1_TYPE = 25,
+    AES_256_CFB1_TYPE = 26,
+    AES_128_CFB8_TYPE = 27,
+    AES_192_CFB8_TYPE = 28,
+    AES_256_CFB8_TYPE = 29,
+    AES_128_CFB128_TYPE = 30,
+    AES_192_CFB128_TYPE = 31,
+    AES_256_CFB128_TYPE = 32,
+    AES_128_OFB_TYPE = 33,
+    AES_192_OFB_TYPE = 34,
+    AES_256_OFB_TYPE = 35,
+    AES_128_XTS_TYPE = 36,
+    AES_256_XTS_TYPE = 37
 };
 
 enum {
@@ -267,6 +282,20 @@ enum {
     NID_des_ede3_cbc=  44,
     NID_des_ede3_ecb=  33,
     NID_idea_cbc    =  34,
+    NID_aes_128_cfb1= 650,
+    NID_aes_192_cfb1= 651,
+    NID_aes_256_cfb1= 652,
+    NID_aes_128_cfb8= 653,
+    NID_aes_192_cfb8= 654,
+    NID_aes_256_cfb8= 655,
+    NID_aes_128_cfb128 = 421,
+    NID_aes_192_cfb128 = 425,
+    NID_aes_256_cfb128 = 429,
+    NID_aes_128_ofb = 420,
+    NID_aes_192_ofb = 424,
+    NID_aes_256_ofb = 428,
+    NID_aes_128_xts = 913,
+    NID_aes_256_xts = 914
 };
 
 #define WOLFSSL_EVP_BUF_SIZE 16
@@ -594,39 +623,39 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_sha512    wolfSSL_EVP_sha512
 #define EVP_ripemd160 wolfSSL_EVP_ripemd160
 
-#define EVP_aes_128_cbc  wolfSSL_EVP_aes_128_cbc
-#define EVP_aes_192_cbc  wolfSSL_EVP_aes_192_cbc
-#define EVP_aes_256_cbc  wolfSSL_EVP_aes_256_cbc
-#define EVP_aes_128_cfb1 wolfSSL_EVP_aes_128_cfb1
-#define EVP_aes_192_cfb1 wolfSSL_EVP_aes_192_cfb1
-#define EVP_aes_256_cfb1 wolfSSL_EVP_aes_256_cfb1
-#define EVP_aes_128_cfb8 wolfSSL_EVP_aes_128_cfb8
-#define EVP_aes_192_cfb8 wolfSSL_EVP_aes_192_cfb8
-#define EVP_aes_256_cfb8 wolfSSL_EVP_aes_256_cfb8
+#define EVP_aes_128_cbc    wolfSSL_EVP_aes_128_cbc
+#define EVP_aes_192_cbc    wolfSSL_EVP_aes_192_cbc
+#define EVP_aes_256_cbc    wolfSSL_EVP_aes_256_cbc
+#define EVP_aes_128_cfb1   wolfSSL_EVP_aes_128_cfb1
+#define EVP_aes_192_cfb1   wolfSSL_EVP_aes_192_cfb1
+#define EVP_aes_256_cfb1   wolfSSL_EVP_aes_256_cfb1
+#define EVP_aes_128_cfb8   wolfSSL_EVP_aes_128_cfb8
+#define EVP_aes_192_cfb8   wolfSSL_EVP_aes_192_cfb8
+#define EVP_aes_256_cfb8   wolfSSL_EVP_aes_256_cfb8
 #define EVP_aes_128_cfb128 wolfSSL_EVP_aes_128_cfb128
 #define EVP_aes_192_cfb128 wolfSSL_EVP_aes_192_cfb128
 #define EVP_aes_256_cfb128 wolfSSL_EVP_aes_256_cfb128
-#define EVP_aes_128_ofb  wolfSSL_EVP_aes_128_ofb
-#define EVP_aes_192_ofb  wolfSSL_EVP_aes_192_ofb
-#define EVP_aes_256_ofb  wolfSSL_EVP_aes_256_ofb
-#define EVP_aes_128_xts  wolfSSL_EVP_aes_128_xts
-#define EVP_aes_256_xts  wolfSSL_EVP_aes_256_xts
-#define EVP_aes_128_gcm  wolfSSL_EVP_aes_128_gcm
-#define EVP_aes_192_gcm  wolfSSL_EVP_aes_192_gcm
-#define EVP_aes_256_gcm  wolfSSL_EVP_aes_256_gcm
-#define EVP_aes_128_ecb  wolfSSL_EVP_aes_128_ecb
-#define EVP_aes_192_ecb  wolfSSL_EVP_aes_192_ecb
-#define EVP_aes_256_ecb  wolfSSL_EVP_aes_256_ecb
-#define EVP_aes_128_ctr  wolfSSL_EVP_aes_128_ctr
-#define EVP_aes_192_ctr  wolfSSL_EVP_aes_192_ctr
-#define EVP_aes_256_ctr  wolfSSL_EVP_aes_256_ctr
-#define EVP_des_cbc      wolfSSL_EVP_des_cbc
-#define EVP_des_ecb      wolfSSL_EVP_des_ecb
-#define EVP_des_ede3_cbc wolfSSL_EVP_des_ede3_cbc
-#define EVP_des_ede3_ecb wolfSSL_EVP_des_ede3_ecb
-#define EVP_rc4          wolfSSL_EVP_rc4
-#define EVP_idea_cbc     wolfSSL_EVP_idea_cbc
-#define EVP_enc_null     wolfSSL_EVP_enc_null
+#define EVP_aes_128_ofb    wolfSSL_EVP_aes_128_ofb
+#define EVP_aes_192_ofb    wolfSSL_EVP_aes_192_ofb
+#define EVP_aes_256_ofb    wolfSSL_EVP_aes_256_ofb
+#define EVP_aes_128_xts    wolfSSL_EVP_aes_128_xts
+#define EVP_aes_256_xts    wolfSSL_EVP_aes_256_xts
+#define EVP_aes_128_gcm    wolfSSL_EVP_aes_128_gcm
+#define EVP_aes_192_gcm    wolfSSL_EVP_aes_192_gcm
+#define EVP_aes_256_gcm    wolfSSL_EVP_aes_256_gcm
+#define EVP_aes_128_ecb    wolfSSL_EVP_aes_128_ecb
+#define EVP_aes_192_ecb    wolfSSL_EVP_aes_192_ecb
+#define EVP_aes_256_ecb    wolfSSL_EVP_aes_256_ecb
+#define EVP_aes_128_ctr    wolfSSL_EVP_aes_128_ctr
+#define EVP_aes_192_ctr    wolfSSL_EVP_aes_192_ctr
+#define EVP_aes_256_ctr    wolfSSL_EVP_aes_256_ctr
+#define EVP_des_cbc        wolfSSL_EVP_des_cbc
+#define EVP_des_ecb        wolfSSL_EVP_des_ecb
+#define EVP_des_ede3_cbc   wolfSSL_EVP_des_ede3_cbc
+#define EVP_des_ede3_ecb   wolfSSL_EVP_des_ede3_ecb
+#define EVP_rc4            wolfSSL_EVP_rc4
+#define EVP_idea_cbc       wolfSSL_EVP_idea_cbc
+#define EVP_enc_null       wolfSSL_EVP_enc_null
 
 #define EVP_MD_size             wolfSSL_EVP_MD_size
 #define EVP_MD_CTX_new          wolfSSL_EVP_MD_CTX_new
@@ -635,6 +664,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_MD_CTX_destroy      wolfSSL_EVP_MD_CTX_free
 #define EVP_MD_CTX_init         wolfSSL_EVP_MD_CTX_init
 #define EVP_MD_CTX_cleanup      wolfSSL_EVP_MD_CTX_cleanup
+#define EVP_MD_CTX_reset        wolfSSL_EVP_MD_CTX_cleanup
 #define EVP_MD_CTX_md           wolfSSL_EVP_MD_CTX_md
 #define EVP_MD_CTX_type         wolfSSL_EVP_MD_CTX_type
 #define EVP_MD_CTX_size         wolfSSL_EVP_MD_CTX_size

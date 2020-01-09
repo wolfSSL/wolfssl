@@ -54,6 +54,26 @@ int wolfSSL_EVP_Cipher_key_length(const WOLFSSL_EVP_CIPHER* c)
       case AES_192_CBC_TYPE: return 24;
       case AES_256_CBC_TYPE: return 32;
   #endif
+  #if defined(WOLFSSL_AES_CFB)
+      case AES_128_CFB1_TYPE: return 16;
+      case AES_192_CFB1_TYPE: return 24;
+      case AES_256_CFB1_TYPE: return 32;
+      case AES_128_CFB8_TYPE: return 16;
+      case AES_192_CFB8_TYPE: return 24;
+      case AES_256_CFB8_TYPE: return 32;
+      case AES_128_CFB128_TYPE: return 16;
+      case AES_192_CFB128_TYPE: return 24;
+      case AES_256_CFB128_TYPE: return 32;
+  #endif
+  #if defined(WOLFSSL_AES_OFB)
+      case AES_128_OFB_TYPE: return 16;
+      case AES_192_OFB_TYPE: return 24;
+      case AES_256_OFB_TYPE: return 32;
+  #endif
+  #if defined(WOLFSSL_AES_XTS)
+      case AES_128_XTS_TYPE: return 16;
+      case AES_256_XTS_TYPE: return 32;
+  #endif
   #if defined(HAVE_AESGCM)
       case AES_128_GCM_TYPE: return 16;
       case AES_192_GCM_TYPE: return 24;
