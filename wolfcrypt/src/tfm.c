@@ -1,6 +1,6 @@
 /* tfm.c
  *
- * Copyright (C) 2006-2019 wolfSSL Inc.
+ * Copyright (C) 2006-2020 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -86,13 +86,13 @@ WOLFSSL_LOCAL int sp_ModExp_4096(mp_int* base, mp_int* exp, mp_int* mod,
 #endif
 
 
-
+#ifndef WOLFSSL_SP_MATH
 /* math settings check */
 word32 CheckRunTimeSettings(void)
 {
     return CTC_SETTINGS;
 }
-
+#endif
 
 /* math settings size check */
 word32 CheckRunTimeFastMath(void)

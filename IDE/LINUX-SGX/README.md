@@ -5,6 +5,7 @@ This code was created to use Intel's SGX hardware. It is expected that the user 
 
 ### Overview and Build:
 This project creates a static library to then link with Enclaves. A simple example of an Enclave linking to the created wolfSSL library can be found in wolfssl-examples on github. This project has been tested with gcc 5.4.0 on Ubuntu 16.04.
+When building with tests the file wolfssl/options.h is expected, in downloaded bundles from wolfssl.com this file exists but when building from a cloned version of wolfSSL from GitHub then the file needs created. This is done either through cd wolfssl && ./autogen.sh && ./configure && ./config.status or by cd wolfssl && touch wolfssl/options.h.
 
 To create the static library, simply call make:
 

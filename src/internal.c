@@ -1,6 +1,6 @@
 /* internal.c
  *
- * Copyright (C) 2006-2019 wolfSSL Inc.
+ * Copyright (C) 2006-2020 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -10164,7 +10164,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                 #ifdef OPENSSL_EXTRA
                     /* Determine untrusted depth */
-                    if (!alreadySigner) {
+                    if (!alreadySigner && (!args->dCert ||
+                            !args->dCertInit || !args->dCert->selfSigned)) {
                         args->untrustedDepth = 1;
                     }
                 #endif
@@ -16528,6 +16529,23 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
 #endif /* WOLFSSL_NO_TLS12 */
 
+
+/* If secure renegotiation is disabled, this will always return false.
+ * Otherwise it checks to see if we are currently renegotiating. */
+static WC_INLINE int IsSCR(WOLFSSL* ssl)
+{
+#ifndef HAVE_SECURE_RENEGOTIATION
+    (void)ssl;
+#else /* HAVE_SECURE_RENEGOTIATION */
+    if (ssl->secure_renegotiation &&
+            ssl->secure_renegotiation->enabled &&
+            ssl->options.handShakeState != HANDSHAKE_DONE)
+        return 1;
+#endif /* HAVE_SECURE_RENEGOTIATION */
+    return 0;
+}
+
+
 int SendData(WOLFSSL* ssl, const void* data, int sz)
 {
     int sent = 0,  /* plainText size */
@@ -16569,7 +16587,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
     }
     else
 #endif
-    if (ssl->options.handShakeState != HANDSHAKE_DONE) {
+    if (ssl->options.handShakeState != HANDSHAKE_DONE && !IsSCR(ssl)) {
         int err;
         WOLFSSL_MSG("handshake not complete, trying to finish");
         if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {

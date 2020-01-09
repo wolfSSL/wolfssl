@@ -1,6 +1,6 @@
 /* asn.c
  *
- * Copyright (C) 2006-2019 wolfSSL Inc.
+ * Copyright (C) 2006-2020 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -16030,17 +16030,17 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
 
     idx = *inOutIdx;
 
+    /* CRL Extensions are optional */
     if ((idx + 1) > sz)
-        return BUFFER_E;
-
-    if (GetASNTag(buf, &idx, &tag, sz) < 0)
-        return ASN_PARSE_E;
-
-    if (tag != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
-        /* Return without error if no extensions are found */
-        WOLFSSL_MSG("No CRL Extensions found");
         return 0;
-    }
+
+    /* CRL Extensions are optional */
+    if (GetASNTag(buf, &idx, &tag, sz) < 0)
+        return 0;
+
+    /* CRL Extensions are optional */
+    if (tag != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+        return 0;
 
     if (GetLength(buf, &idx, &length, sz) < 0)
         return ASN_PARSE_E;

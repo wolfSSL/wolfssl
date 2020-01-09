@@ -1,6 +1,6 @@
 /* sha256.c
  *
- * Copyright (C) 2006-2019 wolfSSL Inc.
+ * Copyright (C) 2006-2020 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -410,6 +410,7 @@ static int InitSha256(wc_Sha256* sha256)
         if (ret != 0) {
             return ret;
         }
+
     #ifdef FREESCALE_MMCAU_CLASSIC_SHA
         cau_sha256_initialize_output(sha256->digest);
     #else
@@ -420,6 +421,9 @@ static int InitSha256(wc_Sha256* sha256)
         sha256->buffLen = 0;
         sha256->loLen   = 0;
         sha256->hiLen   = 0;
+    #ifdef WOLFSSL_SMALL_STACK_CACHE
+        sha256->W = NULL;
+    #endif
 
         return ret;
     }

@@ -1,6 +1,6 @@
 /* evp.c
  *
- * Copyright (C) 2006-2019 wolfSSL Inc.
+ * Copyright (C) 2006-2020 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -901,6 +901,8 @@ int wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx)
 {
     if (ctx == NULL) return 0;
     WOLFSSL_ENTER("EVP_PKEY_CTX_free");
+    if (ctx->pkey != NULL)
+        wolfSSL_EVP_PKEY_free(ctx->pkey);
     XFREE(ctx, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     return WOLFSSL_SUCCESS;
 }
@@ -916,6 +918,7 @@ int wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx)
 WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_ENGINE *e)
 {
     WOLFSSL_EVP_PKEY_CTX* ctx;
+    int type = NID_undef;
 
     if (pkey == NULL) return 0;
     if (e != NULL) return 0;
@@ -929,7 +932,18 @@ WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_E
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     ctx->padding = RSA_PKCS1_PADDING;
 #endif
+    type = wolfSSL_EVP_PKEY_type(pkey->type);
 
+    if ((type == EVP_PKEY_RSA) ||
+        (type == EVP_PKEY_DSA) ||
+        (type == EVP_PKEY_EC)) {
+        if (wc_LockMutex(&pkey->refMutex) != 0) {
+            WOLFSSL_MSG("Couldn't lock pkey mutex");
+        }
+        pkey->references++;
+
+        wc_UnLockMutex(&pkey->refMutex);
+    }
     return ctx;
 }
 

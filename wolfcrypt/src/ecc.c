@@ -1,6 +1,6 @@
 /* ecc.c
  *
- * Copyright (C) 2006-2019 wolfSSL Inc.
+ * Copyright (C) 2006-2020 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -5175,14 +5175,13 @@ int wc_ecc_free(ecc_key* key)
 #ifdef WOLFSSL_ATECC508A
     atmel_ecc_free(key->slot);
     key->slot = ATECC_INVALID_SLOT;
-#else
+#endif /* WOLFSSL_ATECC508A */
 
     mp_clear(key->pubkey.x);
     mp_clear(key->pubkey.y);
     mp_clear(key->pubkey.z);
 
     mp_forcezero(&key->k);
-#endif /* WOLFSSL_ATECC508A */
 
 #ifdef WOLFSSL_CUSTOM_CURVES
     if (key->deallocSet && key->dp != NULL)
