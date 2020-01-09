@@ -1844,8 +1844,7 @@ static int sp_2048_div_45(const sp_digit* a, const sp_digit* d, sp_digit* m,
         }
         t1[45 - 1] += t1[45 - 2] >> 23;
         t1[45 - 2] &= 0x7fffff;
-        d1 = t1[45 - 1];
-        r1 = (sp_digit)(d1 / dv);
+        r1 = t1[45 - 1] / dv;
 
         sp_2048_mul_d_45(t2, sd, r1);
         sp_2048_sub_45(t1, t1, t2);
@@ -2775,8 +2774,7 @@ static int sp_2048_div_90(const sp_digit* a, const sp_digit* d, sp_digit* m,
         }
         t1[90 - 1] += t1[90 - 2] >> 23;
         t1[90 - 2] &= 0x7fffff;
-        d1 = t1[90 - 1];
-        r1 = (sp_digit)(d1 / dv);
+        r1 = t1[90 - 1] / dv;
 
         sp_2048_mul_d_90(t2, sd, r1);
         sp_2048_sub_90(t1, t1, t2);
@@ -5677,8 +5675,7 @@ static int sp_3072_div_67(const sp_digit* a, const sp_digit* d, sp_digit* m,
         }
         t1[67 - 1] += t1[67 - 2] >> 23;
         t1[67 - 2] &= 0x7fffff;
-        d1 = t1[67 - 1];
-        r1 = (sp_digit)(d1 / dv);
+        r1 = t1[67 - 1] / dv;
 
         sp_3072_mul_d_67(t2, d, r1);
         (void)sp_3072_sub_67(t1, t1, t2);
@@ -6641,8 +6638,7 @@ static int sp_3072_div_134(const sp_digit* a, const sp_digit* d, sp_digit* m,
         }
         t1[134 - 1] += t1[134 - 2] >> 23;
         t1[134 - 2] &= 0x7fffff;
-        d1 = t1[134 - 1];
-        r1 = (sp_digit)(d1 / dv);
+        r1 = t1[134 - 1] / dv;
 
         sp_3072_mul_d_134(t2, sd, r1);
         sp_3072_sub_134(t1, t1, t2);
@@ -9722,8 +9718,7 @@ static int sp_4096_div_98(const sp_digit* a, const sp_digit* d, sp_digit* m,
         }
         t1[98 - 1] += t1[98 - 2] >> 21;
         t1[98 - 2] &= 0x1fffff;
-        d1 = t1[98 - 1];
-        r1 = (sp_digit)(d1 / dv);
+        r1 = t1[98 - 1] / dv;
 
         sp_4096_mul_d_98(t2, sd, r1);
         sp_4096_sub_98(t1, t1, t2);
@@ -10665,8 +10660,7 @@ static int sp_4096_div_196(const sp_digit* a, const sp_digit* d, sp_digit* m,
         }
         t1[196 - 1] += t1[196 - 2] >> 21;
         t1[196 - 2] &= 0x1fffff;
-        d1 = t1[196 - 1];
-        r1 = (sp_digit)(d1 / dv);
+        r1 = t1[196 - 1] / dv;
 
         sp_4096_mul_d_196(t2, sd, r1);
         sp_4096_sub_196(t1, t1, t2);
@@ -16555,35 +16549,50 @@ SP_NOINLINE static void sp_256_mul_d_10(sp_digit* r, const sp_digit* a,
 static WC_INLINE sp_digit sp_256_div_word_10(sp_digit d1, sp_digit d0,
     sp_digit dv)
 {
-    sp_digit d, r, t, dv;
-    int64_t t0, t1;
+    sp_digit d, r, t;
 
-    /* dv has 14 bits. */
-    dv = (div >> 12) + 1;
     /* All 26 bits from d1 and top 5 bits from d0. */
     d = (d1 << 5) | (d0 >> 21);
     r = d / dv;
     d -= r * dv;
-    /* Up to 17 bits in r */
-    /* Next 9 bits from d0. */
-    d <<= 9;
-    r <<= 9;
-    d |= (d0 >> 12) & ((1 << 9) - 1);
+    /* Up to 6 bits in r */
+    /* Next 5 bits from d0. */
+    r <<= 5;
+    d <<= 5;
+    d |= (d0 >> 16) & ((1 << 5) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 11 bits in r */
+    /* Next 5 bits from d0. */
+    r <<= 5;
+    d <<= 5;
+    d |= (d0 >> 11) & ((1 << 5) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 16 bits in r */
+    /* Next 5 bits from d0. */
+    r <<= 5;
+    d <<= 5;
+    d |= (d0 >> 6) & ((1 << 5) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 21 bits in r */
+    /* Next 5 bits from d0. */
+    r <<= 5;
+    d <<= 5;
+    d |= (d0 >> 1) & ((1 << 5) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
     /* Up to 26 bits in r */
-
-    /* Handle rounding error with dv - top part */
-    t0 = ((int64_t)d1 << 26) + d0;
-    t1 = (int64_t)r * dv;
-    t1 = t0 - t1;
-    t = (sp_digit)(t1 >> 12) / dv;
-    r += t;
-
-    /* Handle rounding error with dv - bottom 32 bits */
-    t1 = (sp_digit)t0 - (r * dv);
-    t = (sp_digit)t1 / dv;
+    /* Remaining 1 bits from d0. */
+    r <<= 1;
+    d <<= 1;
+    d |= d0 & ((1 << 1) - 1);
+    t = d / dv;
     r += t;
 
     return r;
@@ -16663,8 +16672,7 @@ static int sp_256_div_10(const sp_digit* a, const sp_digit* d, sp_digit* m,
         }
         t1[10 - 1] += t1[10 - 2] >> 26;
         t1[10 - 2] &= 0x3ffffff;
-        d1 = t1[10 - 1];
-        r1 = (sp_digit)(d1 / dv);
+        r1 = t1[10 - 1] / dv;
 
         sp_256_mul_d_10(t2, d, r1);
         (void)sp_256_sub_10(t1, t1, t2);
