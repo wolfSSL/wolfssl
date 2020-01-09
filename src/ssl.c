@@ -34571,14 +34571,14 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         /* copy contents */
         XMEMCPY(dup, name, sizeof(WOLFSSL_X509_NAME));
         InitX509Name(dup, 1);
-        /* Need to set dynamicName before copying */
-        dup->dynamicName = 1;
         dup->sz = name->sz;
 
         /* handle dynamic portions */
-        if (!(dup->name = (char*)XMALLOC(name->sz, 0,
-                                         DYNAMIC_TYPE_OPENSSL))) {
-            goto err;
+        if (name->dynamicName) {
+            if (!(dup->name = (char*)XMALLOC(name->sz, 0,
+                                             DYNAMIC_TYPE_OPENSSL))) {
+                goto err;
+            }
         }
         XMEMCPY(dup->name, name->name, name->sz);
     #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
