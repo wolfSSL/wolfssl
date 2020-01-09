@@ -12155,21 +12155,91 @@ static int SetCertificatePolicies(byte *output,
 }
 #endif /* WOLFSSL_CERT_EXT */
 
+
 #ifdef WOLFSSL_ALT_NAMES
+
 /* encode Alternative Names, return total bytes written */
-static int SetAltNames(byte *out, word32 outSz, byte *input, word32 length)
+static int SetAltNames(byte *output, word32 outSz,
+        const byte *input, word32 length)
 {
-    if (out == NULL || input == NULL)
+    byte san_len[1 + MAX_LENGTH_SZ];
+    int idx = 0, san_lenSz;
+    static const byte san_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x11 };
+
+    if (output == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
     if (outSz < length)
         return BUFFER_E;
 
-    /* Alternative Names come from certificate or computed by
-     * external function, so already encoded. Just copy value */
-    XMEMCPY(out, input, length);
-    return length;
+    /* Octet String header */
+    san_lenSz = SetOctetString(length, san_len);
+
+    if (outSz < MAX_SEQ_SZ)
+        return BUFFER_E;
+
+    idx = SetSequence(length + sizeof(san_oid) + san_lenSz, output);
+
+    if ((length + sizeof(san_oid) + san_lenSz) > outSz)
+        return BUFFER_E;
+
+    /* put oid */
+    XMEMCPY(output+idx, san_oid, sizeof(san_oid));
+    idx += sizeof(san_oid);
+
+    /* put octet header */
+    XMEMCPY(output+idx, san_len, san_lenSz);
+    idx += san_lenSz;
+
+    /* put value */
+    XMEMCPY(output+idx, input, length);
+    idx += length;
+
+    return idx;
 }
+
+
+#ifdef WOLFSSL_CERT_GEN
+
+int FlattenAltNames(byte* output, word32 outputSz, const DNS_entry* names)
+{
+    word32 idx;
+    const DNS_entry* curName;
+    word32 namesSz = 0;
+
+    if (output == NULL)
+        return BAD_FUNC_ARG;
+
+    if (names == NULL)
+        return 0;
+
+    curName = names;
+    do {
+        namesSz += curName->len + 2 +
+            ((curName->len < ASN_LONG_LENGTH) ? 0
+             : BytePrecision(curName->len));
+        curName = curName->next;
+    } while (curName != NULL);
+
+    if (outputSz < MAX_SEQ_SZ + namesSz)
+        return BUFFER_E;
+
+    idx = SetSequence(namesSz, output);
+
+    curName = names;
+    do {
+        output[idx++] = ASN_CONTEXT_SPECIFIC | curName->type;
+        idx += SetLength(curName->len, output + idx);
+        XMEMCPY(output + idx, curName->name, curName->len);
+        idx += curName->len;
+        curName = curName->next;
+    } while (curName != NULL);
+
+    return idx;
+}
+
+#endif /* WOLFSSL_CERT_GEN */
+
 #endif /* WOLFSL_ALT_NAMES */
 
 /* Encodes one attribute of the name (issuer/subject)

@@ -37084,24 +37084,9 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             cert->afterDateSz = 0;
         }
 
-        /* copy over alt names */
-        {
-            int idx = 0;
-            DNS_entry* dns = x509->altNames;
+        cert->altNamesSz = FlattenAltNames(cert->altNames,
+                sizeof(cert->altNames), x509->altNames);
 
-            while (dns != NULL) {
-                int sz = (int)XSTRLEN(dns->name);
-
-                if (sz < 0 || sz + idx > CTC_MAX_ALT_SIZE) {
-                    WOLFSSL_MSG("Issue with copying over alt names");
-                    return WOLFSSL_FAILURE;
-                }
-                XMEMCPY(cert->altNames, dns->name, sz);
-                idx += sz;
-                dns = dns->next;
-            }
-            cert->altNamesSz = idx;
-        }
     #endif /* WOLFSSL_ALT_NAMES */
 
         cert->sigType = wolfSSL_X509_get_signature_type(x509);
