@@ -770,7 +770,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     int ret = 0;
     SOCKADDR_S addr;
     int sockaddr_len = sizeof(SOCKADDR_IN);
-#ifdef HAVE_GETADDRINFO
+#ifndef WOLF_C99
     ADDRINFO hints;
     ADDRINFO* answer = NULL;
     char strPort[6];
@@ -785,7 +785,8 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     printf("TCP Connect: %s:%d\n", ip, port);
 #endif
 
-#ifdef HAVE_GETADDRINFO
+    /* use gethostbyname for c99 */
+#ifndef WOLF_C99
     XMEMSET(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;

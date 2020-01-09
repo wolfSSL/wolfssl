@@ -40956,19 +40956,30 @@ int wolfSSL_CTX_get_ex_new_index(long idx, void* arg, void* a, void* b,
 void* wolfSSL_CRYPTO_get_ex_data(void * const* ex_data, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_get_ex_data");
+#ifdef MAX_EX_DATA
     if(ex_data && idx < MAX_EX_DATA && idx >= 0) {
         return ex_data[idx];
     }
+#else
+    (void)ex_data;
+    (void)idx;
+#endif
     return NULL;
 }
 
 int wolfSSL_CRYPTO_set_ex_data(void** ex_data, int idx, void *data)
 {
     WOLFSSL_ENTER("wolfSSL_CRYPTO_set_ex_data");
+#ifdef MAX_EX_DATA
     if (ex_data && idx < MAX_EX_DATA && idx >= 0) {
         ex_data[idx] = data;
         return WOLFSSL_SUCCESS;
     }
+#else
+    (void)ex_data;
+    (void)idx;
+    (void)data;
+#endif
     return WOLFSSL_FAILURE;
 }
 
