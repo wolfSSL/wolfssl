@@ -620,6 +620,13 @@ initDefaultName();
         test_pass("asn      test passed!\n");
 #endif
 
+#ifndef WC_NO_RNG
+    if ( (ret = random_test()) != 0)
+        return err_sys("RANDOM   test failed!\n", ret);
+    else
+        test_pass("RANDOM   test passed!\n");
+#endif /* WC_NO_RNG */
+
 #ifndef NO_MD5
     if ( (ret = md5_test()) != 0)
         return err_sys("MD5      test failed!\n", ret);
@@ -900,13 +907,6 @@ initDefaultName();
     else
         test_pass("IDEA     test passed!\n");
 #endif
-
-#ifndef WC_NO_RNG
-    if ( (ret = random_test()) != 0)
-        return err_sys("RANDOM   test failed!\n", ret);
-    else
-        test_pass("RANDOM   test passed!\n");
-#endif /* WC_NO_RNG */
 
 #ifndef NO_RSA
     #ifdef WC_RSA_NO_PADDING
