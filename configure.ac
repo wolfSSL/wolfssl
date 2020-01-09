@@ -111,6 +111,21 @@ then
 fi
 
 
+# OpenSSL Coexist
+AC_ARG_ENABLE([opensslcoexist],
+    [AS_HELP_STRING([--enable-opensslcoexist],[Enable coexistence of wolfssl/openssl (default: disabled)])],
+    [ ENABLED_OPENSSLCOEXIST=$enableval ],
+    [ ENABLED_OPENSSLCOEXIST=no ]
+    )
+if test "x$ENABLED_OPENSSLCOEXIST" = "xyes"
+then
+    # make sure old names are disabled
+    enable_oldnames=no
+
+    AM_CFLAGS="$AM_CFLAGS -DOPENSSL_COEXIST"
+fi
+
+
 # ALL FEATURES
 AC_ARG_ENABLE([all],
     [AS_HELP_STRING([--enable-all],[Enable all wolfSSL features, except SSLv3 (default: disabled)])],
@@ -121,9 +136,6 @@ if test "$ENABLED_ALL" = "yes"
 then
     enable_dtls=yes
     enable_tls13=yes
-    enable_openssh=yes
-    enable_opensslextra=yes
-    enable_opensslall=yes
     enable_savesession=yes
     enable_savecert=yes
     enable_atomicuser=yes
@@ -176,13 +188,6 @@ then
     enable_scep=yes
     enable_srp=yes
     enable_certservice=yes
-    enable_jni=yes
-    enable_lighty=yes
-    enable_haproxy=yes
-    enable_stunnel=yes
-    enable_nginx=yes
-    enable_asio=yes
-    enable_libwebsockets=yes
     enable_pwdbased=yes
     enable_aeskeywrap=yes
     enable_x963kdf=yes
@@ -190,6 +195,21 @@ then
     enable_indef=yes
     enable_enckeys=yes
     enable_hashflags=yes
+
+    # Enable openssl compatibility only if coexist is not enabled
+    if test "$ENABLED_OPENSSLCOEXIST" = "no"
+    then
+        enable_openssh=yes
+        enable_opensslextra=yes
+        enable_opensslall=yes
+        enable_lighty=yes
+        enable_haproxy=yes
+        enable_stunnel=yes
+        enable_nginx=yes
+        enable_asio=yes
+        enable_libwebsockets=yes
+        enable_jni=yes
+    fi
 
     # Enable AES Decrypt, AES ECB, Alt Names, DER Load, Keep Certs, CRL IO with Timeout
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
@@ -511,21 +531,6 @@ AC_ARG_ENABLE([signal],
     [ ENABLED_SIGNAL=$enableval ],
     [ ENABLED_SIGNAL=no ]
     )
-
-# OpenSSL Coexist
-AC_ARG_ENABLE([opensslcoexist],
-    [AS_HELP_STRING([--enable-opensslcoexist],[Enable coexistence of wolfssl/openssl (default: disabled)])],
-    [ ENABLED_OPENSSLCOEXIST=$enableval ],
-    [ ENABLED_OPENSSLCOEXIST=no ]
-    )
-if test "x$ENABLED_OPENSSLCOEXIST" = "xyes"
-then
-    # make sure old names are disabled
-    enable_oldnames=no
-
-    AM_CFLAGS="$AM_CFLAGS -DOPENSSL_COEXIST"
-fi
-
 
 # OPENSSL Compatibility ALL
 AC_ARG_ENABLE([opensslall],
