@@ -262,32 +262,45 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
                                     word32 bytes)
 {
     byte*  output;
+    word32 temp[CHACHA_CHUNK_WORDS]; /* used to make sure aligned */
     word32 i;
 
+    output = (byte*)temp;
 
     /* handle left overs */
     if (ctx->left > 0) {
-        output = (byte*)ctx->tmp + CHACHA_CHUNK_BYTES - ctx->left;
+        wc_Chacha_wordtobyte(temp, ctx->X); /* recreate the stream */
+        output = (byte*)temp + CHACHA_CHUNK_BYTES - ctx->left;
         for (i = 0; i < bytes && i < ctx->left; i++) {
             c[i] = m[i] ^ output[i];
         }
         ctx->left = ctx->left - i;
+
+        /* Used up all of the stream that was left, increment the counter */
+        if (ctx->left == 0) {
+            ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
+        }
         bytes = bytes - i;
         c += i;
         m += i;
+        output = (byte*)temp;
     }
 
-    output = (byte*)ctx->tmp;
     for (; bytes > 0;) {
-        wc_Chacha_wordtobyte(ctx->tmp, ctx->X);
-        ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
+        wc_Chacha_wordtobyte(temp, ctx->X);
         if (bytes <= CHACHA_CHUNK_BYTES) {
             for (i = 0; i < bytes; ++i) {
                 c[i] = m[i] ^ output[i];
             }
             ctx->left = CHACHA_CHUNK_BYTES - i;
+
+            /* increment the counter if no more bytes are left */
+            if (ctx->left == 0) {
+                ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
+            }
             return;
         }
+        ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
         for (i = 0; i < CHACHA_CHUNK_BYTES; ++i) {
             c[i] = m[i] ^ output[i];
         }
