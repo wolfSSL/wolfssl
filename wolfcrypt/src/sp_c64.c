@@ -3402,11 +3402,14 @@ int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
         err = sp_2048_to_mp(r, res);
     }
 
-    XMEMSET(e, 0, sizeof(sp_digit) * 36U);
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (d != NULL)
+    if (d != NULL) {
+        XMEMSET(e, 0, sizeof(sp_digit) * 36U);
         XFREE(d, NULL, DYNAMIC_TYPE_DH);
+    }
+#else
+    XMEMSET(e, 0, sizeof(sp_digit) * 36U);
 #endif
 
     return err;
@@ -3540,12 +3543,13 @@ static int sp_2048_mod_exp_2_36(sp_digit* r, const sp_digit* e, int bits, const 
 #ifdef WOLFSSL_SMALL_STACK
         norm = td;
         tmp  = td + 72;
+        XMEMSET(td, 0, sizeof(sp_digit) * 109);
 #else
         norm = nd;
         tmp  = td;
+        XMEMSET(td, 0, sizeof(td));
 #endif
 
-        XMEMSET(td, 0, sizeof(td));
         sp_2048_mont_setup(m, &mp);
         sp_2048_mont_norm_36(norm, m);
 
@@ -3768,11 +3772,13 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
         XMEMMOVE(out, out + i, *outLen);
     }
 
-    XMEMSET(e, 0, sizeof(sp_digit) * 36U);
-
 #ifdef WOLFSSL_SMALL_STACK
-    if (d != NULL)
+    if (d != NULL) {
+        XMEMSET(e, 0, sizeof(sp_digit) * 36U);
         XFREE(d, NULL, DYNAMIC_TYPE_DH);
+    }
+#else
+    XMEMSET(e, 0, sizeof(sp_digit) * 36U);
 #endif
 
     return err;
@@ -3907,11 +3913,14 @@ int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
         err = sp_2048_to_mp(r, res);
     }
 
-    XMEMSET(e, 0, sizeof(sp_digit) * 18U);
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (d != NULL)
+    if (d != NULL) {
+        XMEMSET(e, 0, sizeof(sp_digit) * 18U);
         XFREE(d, NULL, DYNAMIC_TYPE_DH);
+    }
+#else
+    XMEMSET(e, 0, sizeof(sp_digit) * 18U);
 #endif
 
     return err;
@@ -7446,11 +7455,14 @@ int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
         err = sp_3072_to_mp(r, res);
     }
 
-    XMEMSET(e, 0, sizeof(sp_digit) * 54U);
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (d != NULL)
+    if (d != NULL) {
+        XMEMSET(e, 0, sizeof(sp_digit) * 54U);
         XFREE(d, NULL, DYNAMIC_TYPE_DH);
+    }
+#else
+    XMEMSET(e, 0, sizeof(sp_digit) * 54U);
 #endif
 
     return err;
@@ -7620,12 +7632,13 @@ static int sp_3072_mod_exp_2_54(sp_digit* r, const sp_digit* e, int bits, const 
 #ifdef WOLFSSL_SMALL_STACK
         norm = td;
         tmp  = td + 108;
+        XMEMSET(td, 0, sizeof(sp_digit) * 163);
 #else
         norm = nd;
         tmp  = td;
+        XMEMSET(td, 0, sizeof(td));
 #endif
 
-        XMEMSET(td, 0, sizeof(td));
         sp_3072_mont_setup(m, &mp);
         sp_3072_mont_norm_54(norm, m);
 
@@ -7848,11 +7861,13 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
         XMEMMOVE(out, out + i, *outLen);
     }
 
-    XMEMSET(e, 0, sizeof(sp_digit) * 54U);
-
 #ifdef WOLFSSL_SMALL_STACK
-    if (d != NULL)
+    if (d != NULL) {
+        XMEMSET(e, 0, sizeof(sp_digit) * 54U);
         XFREE(d, NULL, DYNAMIC_TYPE_DH);
+    }
+#else
+    XMEMSET(e, 0, sizeof(sp_digit) * 54U);
 #endif
 
     return err;
@@ -7987,11 +8002,14 @@ int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
         err = sp_3072_to_mp(r, res);
     }
 
-    XMEMSET(e, 0, sizeof(sp_digit) * 27U);
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (d != NULL)
+    if (d != NULL) {
+        XMEMSET(e, 0, sizeof(sp_digit) * 27U);
         XFREE(d, NULL, DYNAMIC_TYPE_DH);
+    }
+#else
+    XMEMSET(e, 0, sizeof(sp_digit) * 27U);
 #endif
 
     return err;
@@ -11799,11 +11817,14 @@ int sp_ModExp_4096(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
         err = sp_4096_to_mp(r, res);
     }
 
-    XMEMSET(e, 0, sizeof(sp_digit) * 78U);
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (d != NULL)
+    if (d != NULL) {
+        XMEMSET(e, 0, sizeof(sp_digit) * 78U);
         XFREE(d, NULL, DYNAMIC_TYPE_DH);
+    }
+#else
+    XMEMSET(e, 0, sizeof(sp_digit) * 78U);
 #endif
 
     return err;
@@ -12021,12 +12042,13 @@ static int sp_4096_mod_exp_2_78(sp_digit* r, const sp_digit* e, int bits, const 
 #ifdef WOLFSSL_SMALL_STACK
         norm = td;
         tmp  = td + 156;
+        XMEMSET(td, 0, sizeof(sp_digit) * 235);
 #else
         norm = nd;
         tmp  = td;
+        XMEMSET(td, 0, sizeof(td));
 #endif
 
-        XMEMSET(td, 0, sizeof(td));
         sp_4096_mont_setup(m, &mp);
         sp_4096_mont_norm_78(norm, m);
 
@@ -12249,11 +12271,13 @@ int sp_DhExp_4096(mp_int* base, const byte* exp, word32 expLen,
         XMEMMOVE(out, out + i, *outLen);
     }
 
-    XMEMSET(e, 0, sizeof(sp_digit) * 78U);
-
 #ifdef WOLFSSL_SMALL_STACK
-    if (d != NULL)
+    if (d != NULL) {
+        XMEMSET(e, 0, sizeof(sp_digit) * 78U);
         XFREE(d, NULL, DYNAMIC_TYPE_DH);
+    }
+#else
+    XMEMSET(e, 0, sizeof(sp_digit) * 78U);
 #endif
 
     return err;
