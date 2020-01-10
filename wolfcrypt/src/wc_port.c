@@ -82,6 +82,10 @@
     #include <wolfssl/wolfcrypt/port/cavium/cavium_octeon_sync.h>
 #endif
 
+#ifdef WOLFSSL_SCE
+    #include "hal_data.h"
+#endif
+
 #if defined(WOLFSSL_DSP) && !defined(WOLFSSL_DSP_BUILD)
     #include "rpcmem.h"
 #endif
@@ -224,6 +228,13 @@ int wolfCrypt_Init(void)
     #endif
 #endif
 
+#ifdef WOLFSSL_SCE
+        if ((ret = g_sce.p_api->open(g_sce.p_ctrl, g_sce.p_cfg)) != SSP_SUCCESS) {
+            WOLFSSL_MSG("Error opening SCE\n");
+            return -1; /* FATAL_ERROR */
+        }
+#endif
+
 #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
     defined(WOLFSSL_IMX6_CAAM_BLOB)
         if ((ret = wc_caamInit()) != 0) {
@@ -276,7 +287,9 @@ int wolfCrypt_Cleanup(void)
     #ifdef WOLFSSL_ASYNC_CRYPT
         wolfAsync_HardwareStop();
     #endif
-
+    #ifdef WOLFSSL_SCE
+        g_sce.p_api->close(g_sce.p_ctrl);
+    #endif
     #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
         defined(WOLFSSL_IMX6_CAAM_BLOB)
         wc_caamFree();

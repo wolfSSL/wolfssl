@@ -82,6 +82,8 @@
         #include "FreeRTOS_Sockets.h"
     #elif defined(WOLFSSL_IAR_ARM)
         /* nothing */
+    #elif defined(HAVE_NETX_BSD)
+        #include "nx_bsd.h"
     #elif defined(WOLFSSL_VXWORKS)
         #include <sockLib.h>
         #include <errno.h>
@@ -120,6 +122,9 @@
         #include <errno.h>
     #elif defined(WOLFSSL_ZEPHYR)
         #include <net/socket.h>
+    #elif defined(HAVE_NETX)
+        #include "nx_api.h"
+        #include "errno.h"
     #elif !defined(WOLFSSL_NO_SOCK)
         #include <sys/types.h>
         #include <errno.h>
@@ -233,6 +238,14 @@
      #define SOCKET_EPIPE       EPIPE
      #define SOCKET_ECONNREFUSED SOCKET_ERROR
      #define SOCKET_ECONNABORTED SOCKET_ERROR
+#elif defined(HAVE_NETX)
+    #define SOCKET_EWOULDBLOCK NX_NOT_CONNECTED
+    #define SOCKET_EAGAIN      NX_NOT_CONNECTED
+    #define SOCKET_ECONNRESET  NX_NOT_CONNECTED
+    #define SOCKET_EINTR       NX_NOT_CONNECTED
+    #define SOCKET_EPIPE       NX_NOT_CONNECTED
+    #define SOCKET_ECONNREFUSED NX_NOT_CONNECTED
+    #define SOCKET_ECONNABORTED NX_NOT_CONNECTED
 #else
     #define SOCKET_EWOULDBLOCK EWOULDBLOCK
     #define SOCKET_EAGAIN      EAGAIN
