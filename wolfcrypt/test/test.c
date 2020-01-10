@@ -5036,7 +5036,7 @@ int chacha20_poly1305_aead_test(void)
     int err;
 
     ChaChaPoly_Aead aead;
-    #define TEST_SMALL_CHACHA_CHUNKS 64
+    #define TEST_SMALL_CHACHA_CHUNKS 32
     #ifdef TEST_SMALL_CHACHA_CHUNKS
     word32 testLen;
     #endif
