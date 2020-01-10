@@ -10065,18 +10065,14 @@ static int test_wc_Chacha_Process (void)
         AssertIntEQ(ret, 0);
         AssertIntEQ(XMEMCMP(expected, cipher, 64), 0);
 
-        ret = wc_Chacha_Process(&enc, cipher, input2 + 64, 64);
+        ret = wc_Chacha_Process(&enc, cipher, input2 + 64, 128);
         AssertIntEQ(ret, 0);
-        AssertIntEQ(XMEMCMP(expected + 64, cipher, 64), 0);
+        AssertIntEQ(XMEMCMP(expected + 64, cipher, 128), 0);
 
         /* partial */
-        ret = wc_Chacha_Process(&enc, cipher, input2 + 128, 32);
+        ret = wc_Chacha_Process(&enc, cipher, input2 + 192, 32);
         AssertIntEQ(ret, 0);
-        AssertIntEQ(XMEMCMP(expected + 128, cipher, 32), 0);
-
-        ret = wc_Chacha_Process(&enc, cipher, input2 + 160, 64);
-        AssertIntEQ(ret, 0);
-        AssertIntEQ(XMEMCMP(expected + 160, cipher, 64), 0);
+        AssertIntEQ(XMEMCMP(expected + 192, cipher, 32), 0);
 
         ret = wc_Chacha_Process(&enc, cipher, input2 + 224, 32);
         AssertIntEQ(ret, 0);
