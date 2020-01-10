@@ -22283,7 +22283,7 @@ int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
     const char* name;
     const char *keaStr, *authStr, *encStr, *macStr, *protocol;
     char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
-    uint8_t len = MAX_DESCRIPTION_SZ;
+    uint8_t len = MAX_DESCRIPTION_SZ-1;
     const CipherSuiteInfo* cipher_names;
     ProtocolVersion pv;
     WOLFSSL_ENTER("wolfSSL_sk_CIPHER_description");
