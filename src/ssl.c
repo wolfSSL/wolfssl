@@ -25617,6 +25617,23 @@ unsigned long wolfSSL_ERR_peek_error(void)
     return wolfSSL_ERR_peek_error_line_data(NULL, NULL, NULL, NULL);
 }
 
+int wolfSSL_ERR_GET_LIB(unsigned long err)
+{
+    switch (err) {
+    case PEM_R_NO_START_LINE:
+    case PEM_R_PROBLEMS_GETTING_PASSWORD:
+    case PEM_R_BAD_PASSWORD_READ:
+    case PEM_R_BAD_DECRYPT:
+        return ERR_LIB_PEM;
+    case EVP_R_BAD_DECRYPT:
+    case EVP_R_BN_DECODE_ERROR:
+    case EVP_R_DECODE_ERROR:
+    case EVP_R_PRIVATE_KEY_DECODE_ERROR:
+        return ERR_LIB_EVP;
+    default:
+        return 0;
+    }
+}
 
 /* This function is to find global error values that are the same through out
  * all library version. With wolfSSL having only one set of error codes the
@@ -25641,7 +25658,7 @@ int wolfSSL_ERR_GET_REASON(unsigned long err)
     ret = 0 - ret; /* setting as negative value */
     /* wolfCrypt range is less than MAX (-100)
        wolfSSL range is MIN (-300) and lower */
-    if (ret < MAX_CODE_E) {
+    if (ret < MAX_CODE_E && ret > MIN_CODE_E) {
         return ret;
     }
     else {
@@ -44218,7 +44235,8 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
     }
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_MYSQL_COMPATIBLE)
+    defined(WOLFSSL_OPENSSH) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_MYSQL_COMPATIBLE)
     {
         int ret = 0;
 
@@ -44227,7 +44245,10 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
                 WOLFSSL_MSG("Issue peeking at error node in queue");
                 return 0;
             }
-            ret = -ret;
+            /* OpenSSL uses positive error codes */
+            if (ret < 0) {
+                ret = -ret;
+            }
 
             if (ret == ASN_NO_PEM_HEADER)
                 return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;

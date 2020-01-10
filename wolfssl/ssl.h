@@ -1045,6 +1045,7 @@ WOLFSSL_API int  wolfSSL_CTX_mcast_set_highwater_cb(WOLFSSL_CTX*,
                                                     CallbackMcastHighwater);
 WOLFSSL_API int  wolfSSL_mcast_set_highwater_ctx(WOLFSSL*, void*);
 
+WOLFSSL_API int   wolfSSL_ERR_GET_LIB(unsigned long err);
 WOLFSSL_API int   wolfSSL_ERR_GET_REASON(unsigned long err);
 WOLFSSL_API char* wolfSSL_ERR_error_string(unsigned long,char*);
 WOLFSSL_API void  wolfSSL_ERR_error_string_n(unsigned long e, char* buf,
@@ -1669,11 +1670,6 @@ enum {
 
     ASN1_GENERALIZEDTIME = 4,
     SSL_MAX_SSL_SESSION_ID_LENGTH = 32,
-
-    EVP_R_BAD_DECRYPT = 2,
-    EVP_R_BN_DECODE_ERROR = 3,
-    EVP_R_DECODE_ERROR = 4,
-    EVP_R_PRIVATE_KEY_DECODE_ERROR = 5,
 
     SSL_ST_CONNECT = 0x1000,
     SSL_ST_ACCEPT  = 0x2000,

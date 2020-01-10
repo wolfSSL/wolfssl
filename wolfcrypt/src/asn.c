@@ -69,6 +69,10 @@ ASN Options:
 #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
+#ifdef OPENSSL_EXTRA
+#include <wolfssl/openssl/ssl.h>
+#endif
+
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/hash.h>
 #ifdef NO_INLINE
@@ -10510,8 +10514,18 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 #endif /* !NO_WOLFSSL_SKIP_TRAILING_PAD */
 
             }
+#ifdef OPENSSL_EXTRA
+            if (ret) {
+                PEMerr(0, PEM_R_BAD_DECRYPT);
+            }
+#endif
             ForceZero(password, passwordSz);
         }
+#ifdef OPENSSL_EXTRA
+        else {
+            PEMerr(0, PEM_R_BAD_PASSWORD_READ);
+        }
+#endif
 
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(password, heap, DYNAMIC_TYPE_STRING);
