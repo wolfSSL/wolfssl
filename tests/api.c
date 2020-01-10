@@ -29315,43 +29315,42 @@ static void test_wolfssl_EVP_aes_gcm(void)
         if (i == 0) {
             /* Default uses 96-bits IV length */
 #ifdef WOLFSSL_AES_128
-    AssertIntEQ(1, EVP_DecryptInit_ex(&de, EVP_aes_128_gcm(), NULL, NULL, NULL));
+            AssertIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_128_gcm(), NULL, key, iv));
 #elif defined(WOLFSSL_AES_192)
-    AssertIntEQ(1, EVP_DecryptInit_ex(&de, EVP_aes_192_gcm(), NULL, NULL, NULL));
+            AssertIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_192_gcm(), NULL, key, iv));
 #elif defined(WOLFSSL_AES_256)
-    AssertIntEQ(1, EVP_DecryptInit_ex(&de, EVP_aes_256_gcm(), NULL, NULL, NULL));
+            AssertIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_256_gcm(), NULL, key, iv));
 #endif
-    AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&de, EVP_CTRL_GCM_SET_IVLEN, ivSz, NULL));
-    AssertIntEQ(1, EVP_DecryptInit_ex(&de, NULL, NULL, key, iv));
-    AssertIntEQ(1, EVP_DecryptUpdate(&de, NULL, &len, aad, aadSz));
-    AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&de, EVP_CTRL_GCM_SET_TAG, AES_BLOCK_SIZE, tag));
-    AssertIntEQ(1, EVP_DecryptUpdate(&de, decryptedtxt, &len, ciphertxt, ciphertxtSz));
-    decryptedtxtSz = len;
-    AssertIntGT(EVP_DecryptFinal_ex(&de, decryptedtxt, &len), 0);
-    decryptedtxtSz += len;
-    AssertIntEQ(ciphertxtSz, decryptedtxtSz);
-    AssertIntEQ(0, XMEMCMP(plaintxt, decryptedtxt, decryptedtxtSz));
+        }
+        else {
+#ifdef WOLFSSL_AES_128
+            AssertIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_128_gcm(), NULL, NULL, NULL));
+#elif defined(WOLFSSL_AES_192)
+            AssertIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_192_gcm(), NULL, NULL, NULL));
+#elif defined(WOLFSSL_AES_256)
+            AssertIntEQ(1, EVP_DecryptInit_ex(&de[i], EVP_aes_256_gcm(), NULL, NULL, NULL));
+#endif
+            /* non-default must to set the IV length first */
+            AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_GCM_SET_IVLEN, ivSz, NULL));
+            AssertIntEQ(1, EVP_DecryptInit_ex(&de[i], NULL, NULL, key, iv));
 
-    /* modify tag*/
-    tag[AES_BLOCK_SIZE-1]+=0xBB;
-    AssertIntEQ(1, EVP_DecryptUpdate(&de, NULL, &len, aad, aadSz));
-    AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&de, EVP_CTRL_GCM_SET_TAG, AES_BLOCK_SIZE, tag));
-    /* fail due to wrong tag */
-    AssertIntEQ(0, EVP_DecryptUpdate(&de, decryptedtxt, &len, ciphertxt, ciphertxtSz));
-    AssertIntGT(EVP_DecryptFinal_ex(&de, decryptedtxt, &len), 0);
-    AssertIntEQ(0, len);
-
-        /* modify tag*/
-        tag[AES_BLOCK_SIZE-1]+=0xBB;
-        AssertIntEQ(1, EVP_EncryptUpdate(&de[i], NULL, &len, aad, aadSz));
+        }
+        AssertIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, aad, aadSz));
         AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_GCM_SET_TAG, AES_BLOCK_SIZE, tag));
         AssertIntEQ(1, EVP_DecryptUpdate(&de[i], decryptedtxt, &len, ciphertxt, ciphertxtSz));
         decryptedtxtSz = len;
         AssertIntGT(EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len), 0);
         decryptedtxtSz += len;
         AssertIntEQ(ciphertxtSz, decryptedtxtSz);
-        /* decrypted text should not be equal to plain text*/
-        AssertIntNE(0, XMEMCMP(plaintxt, decryptedtxt, decryptedtxtSz));
+        AssertIntEQ(0, XMEMCMP(plaintxt, decryptedtxt, decryptedtxtSz));
+
+        /* modify tag*/
+        tag[AES_BLOCK_SIZE-1]+=0xBB;
+        AssertIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, aad, aadSz));
+        AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_GCM_SET_TAG, AES_BLOCK_SIZE, tag));
+        /* fail due to wrong tag */
+        AssertIntEQ(0, EVP_DecryptUpdate(&de[i], decryptedtxt, &len, ciphertxt, ciphertxtSz));
+        AssertIntEQ(0, len);
     }
     printf(resultFmt, passed);
 
