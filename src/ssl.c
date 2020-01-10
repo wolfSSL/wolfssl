@@ -40625,8 +40625,6 @@ int wc_DhPubKeyToDer(DhKey*  key, byte* out, word32* outSz)
     pubSz = mp_unsigned_bin_size(&key->pub);
     if (pubSz < 0)
         return pubSz;
-    else if (pubSz > 256) /* Key is larger than 2048 */
-        return ASN_VERSION_E;
 
     if (mp_leading_bit(&key->pub))
         pubSz++;
@@ -40635,7 +40633,7 @@ int wc_DhPubKeyToDer(DhKey*  key, byte* out, word32* outSz)
     sz += SetLength(pubSz, scratch);
     sz += pubSz;
 
-    sz += SetBitString(pubSz + ASN_BIT_STRING, 0, scratch);
+    sz += SetBitString(pubSz, 0, scratch);
 
     if (out == NULL) {
         /* Uppermost SEQUENCE */
@@ -40662,16 +40660,7 @@ int wc_DhPubKeyToDer(DhKey*  key, byte* out, word32* outSz)
     /* BIT STRING
      *   INTEGER
      */
-    if (pubSz == 256) { /* Key Size: 2048 */
-        idx += SetBitString(pubSz + ASN_BIT_STRING+1, 0, out+idx);
-    } else if (pubSz == 128) { /* Key Size: 1024 */
-        idx += SetBitString(pubSz + ASN_BIT_STRING, 0, out+idx);
-    } else if (pubSz == 64) { /* Key Size: 512 */
-        idx += SetBitString(pubSz + ASN_BIT_STRING-1, 0, out+idx);
-    } else {
-        WOLFSSL_MSG("Unsupported Key Size");
-        return ASN_PARSE_E;
-    }
+    idx += SetBitString(pubSz, 0, out+idx);
 
     out[idx++] = ASN_INTEGER;
     idx += SetLength(pubSz, out + idx);

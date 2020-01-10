@@ -45,7 +45,6 @@
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
 #include <wolfssl/openssl/dh.h>
 #include <wolfssl/openssl/objects.h>
-#include <wolfssl/wolfcrypt/settings.h>
 #endif
 
 /* all NID_* values are in asn.h */
@@ -124,7 +123,11 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 
 #ifdef WOLFSSL_QT
-    #define CRYPTO_free(xp) {if((xp)) wolfSSL_Free((xp));}
+    #if defined(NO_WOLFSSL_MEMORY)
+        #define CRYPTO_free(xp)         XFREE(xp, NULL, NULL);
+    #else
+        #define CRYPTO_free(xp) { if((xp)) wolfSSL_Free((xp));}
+    #endif
 #else
   #define CRYPTO_free                     XFREE
 #endif
