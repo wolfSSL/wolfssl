@@ -1737,7 +1737,7 @@ static void sp_256_proj_point_dbl_10(sp_point* r, const sp_point* p, sp_digit* t
     x = rp[p->infinity]->x;
     y = rp[p->infinity]->y;
     z = rp[p->infinity]->z;
-    /* Put point to double into result - good for infinty. */
+    /* Put point to double into result - good for infinity. */
     if (r != p) {
         for (i=0; i<10; i++) {
             r->x[i] = p->x[i];
@@ -1808,7 +1808,7 @@ static int sp_256_cmp_equal_10(const sp_digit* a, const sp_digit* b)
 /* Add two Montgomery form projective points.
  *
  * r  Result of addition.
- * p  Frist point to add.
+ * p  First point to add.
  * q  Second point to add.
  * t  Temporary ordinate data.
  */
@@ -2324,7 +2324,7 @@ static void sp_256_proj_point_dbl_n_10(sp_point* r, const sp_point* p, int n,
  * Only the first point can be the same pointer as the result point.
  *
  * r  Result of addition.
- * p  Frist point to add.
+ * p  First point to add.
  * q  Second point to add.
  * t  Temporary ordinate data.
  */
@@ -2406,7 +2406,7 @@ static void sp_256_proj_point_add_qz1_10(sp_point* r, const sp_point* p,
  * Ordinates are in Montgomery form.
  *
  * a  Point to convert.
- * t  Temprorary data.
+ * t  Temporary data.
  */
 static void sp_256_proj_to_affine_10(sp_point* a, sp_digit* t)
 {
@@ -2429,7 +2429,7 @@ static void sp_256_proj_to_affine_10(sp_point* a, sp_digit* t)
  *
  * a      The base point.
  * table  Place to store generated point data.
- * tmp    Temprorary data.
+ * tmp    Temporary data.
  * heap  Heap to use for allocation.
  */
 static int sp_256_gen_stripe_table_10(const sp_point* a,

@@ -1,7 +1,7 @@
 # Building wolfSSL with DSP Use
 
 ## Intro
-This directory is to help with building wolfSSL for use with DSP. It assumes that the Hexagon SDK has been setup on the machine and that the enviorment variables have been set by calling (source ~/Qualcomm/Hexagon_SDK/3.4.3/setup_sdk_env.source). Currently offloading ECC 256 verify operations to the DSP is supported. When WOLFSSL_DSP is defined ECC verify operations are offloaded to the aDSP by default. When not in SINGLE_THREADED mode a call back function must be set for getting the handle or a handle must be set in the ecc_key structure for the operation to make use of multiple threads when offloading to the DSP. This is because creating new handles for new threads must be done.
+This directory is to help with building wolfSSL for use with DSP. It assumes that the Hexagon SDK has been setup on the machine and that the environment variables have been set by calling (source ~/Qualcomm/Hexagon_SDK/3.4.3/setup_sdk_env.source). Currently offloading ECC 256 verify operations to the DSP is supported. When WOLFSSL_DSP is defined ECC verify operations are offloaded to the aDSP by default. When not in SINGLE_THREADED mode a call back function must be set for getting the handle or a handle must be set in the ecc_key structure for the operation to make use of multiple threads when offloading to the DSP. This is because creating new handles for new threads must be done.
 
 
 ## Building
@@ -51,7 +51,7 @@ To use wolfSSL with a user created handle it can be done by calling wc_ecc_set_h
 #### wolfSSL_SetHandleCb
 The API wolfSSL_SetHandleCb takes a function pointer of type "int (*wolfSSL_DSP_Handle_cb)(remote_handle64 *handle, int finished void *ctx);". This callback is executed right before the operation is handed off to the DSP (finished set to 0) and right after done with the handle (finished set to 1). With ECC this would be after the ECC verify function has been called but before the information is passed on to the DSP and once again with the finished flag set after the result is returned.
 
-The callback set should return 0 on sucessfully setting the input handle. The ctx argument is for future custom context to be passed in and is currently not used.
+The callback set should return 0 on successfully setting the input handle. The ctx argument is for future custom context to be passed in and is currently not used.
 
 #### Expected Performance
 This is the expected results from running ./eccbenchmark using the -O3 flag

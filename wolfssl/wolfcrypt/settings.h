@@ -143,7 +143,7 @@
 /* Uncomment next line if building for VxWorks */
 /* #define WOLFSSL_VXWORKS */
 
-/* Uncomment next line if building for Nordic nRF5x platofrm */
+/* Uncomment next line if building for Nordic nRF5x platform */
 /* #define WOLFSSL_NRF5x */
 
 /* Uncomment next line to enable deprecated less secure static DH suites */

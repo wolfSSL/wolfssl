@@ -44,7 +44,7 @@ WOLFSSL_API int wc_Compress(byte*, word32, const byte*, word32, word32);
     \brief This function decompresses the given compressed data using Huffman
     coding and stores the output in out.
 
-    \return Succes On successfully decompressing the input data, returns the
+    \return Success On successfully decompressing the input data, returns the
     number of bytes stored in the output buffer
     \return COMPRESS_INIT_E: Returned if there is an error initializing the
     stream for compression
