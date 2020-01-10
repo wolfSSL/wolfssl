@@ -2115,7 +2115,7 @@ time_t wiced_pseudo_unix_epoch_time(time_t * timer)
     {
         time_t myTime = 0;
         INT32 fd = m2mb_rtc_open("/dev/rtc0", 0);
-        if (fd >= 0) {
+        if (fd != -1) {
             M2MB_RTC_TIMEVAL_T timeval;
 
             m2mb_rtc_ioctl(fd, M2MB_RTC_IOCTL_GET_TIMEVAL, &timeval);
@@ -2131,7 +2131,7 @@ time_t wiced_pseudo_unix_epoch_time(time_t * timer)
     {
         time_t myTime = 0;
         INT32 fd = m2mb_rtc_open("/dev/rtc0", 0);
-        if (fd >= 0) {
+        if (fd != -1) {
             M2MB_RTC_TIMEVAL_T timeval;
 
             m2mb_rtc_ioctl(fd, M2MB_RTC_IOCTL_GET_TIMEVAL, &timeval);
@@ -2148,7 +2148,7 @@ time_t wiced_pseudo_unix_epoch_time(time_t * timer)
     {
         double myTime = 0;
         INT32 fd = m2mb_rtc_open("/dev/rtc0", 0);
-        if (fd >= 0) {
+        if (fd != -1) {
             M2MB_RTC_TIMEVAL_T timeval;
 
             m2mb_rtc_ioctl(fd, M2MB_RTC_IOCTL_GET_TIMEVAL, &timeval);
