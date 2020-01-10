@@ -19730,6 +19730,8 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
         return NULL;
     }
 
+    /* Free priv_key before call to dup function */
+    wolfSSL_BN_free(dup->priv_key);
     dup->priv_key = wolfSSL_BN_dup(src->priv_key);
     if (dup->priv_key == NULL) {
         WOLFSSL_MSG("BN_dup error");
