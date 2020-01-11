@@ -90,7 +90,7 @@ WOLFSSL_API int wc_Des3_CbcDecryptWithKey(byte* out,
 #ifndef NO_PWDBASED
     WOLFSSL_LOCAL int wc_CryptKey(const char* password, int passwordSz, 
         byte* salt, int saltSz, int iterations, int id, byte* input, int length,
-        int version, byte* cbcIv, int enc);
+        int version, byte* cbcIv, int enc, int shaOid);
 #endif
 
 #ifdef __cplusplus

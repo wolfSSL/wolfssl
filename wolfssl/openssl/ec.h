@@ -37,29 +37,35 @@ enum {
     POINT_CONVERSION_UNCOMPRESSED = 4,
 
 #ifdef HAVE_ECC
-    /* Use ecc_curve_type enum values for NID */
-    NID_X9_62_prime192v1 = ECC_SECP192R1,
-    NID_X9_62_prime256v1 = ECC_SECP256R1,
-    NID_secp112r1 = ECC_SECP112R1,
-    NID_secp112r2 = ECC_SECP112R2,
-    NID_secp128r1 = ECC_SECP128R1,
-    NID_secp128r2 = ECC_SECP128R2,
-    NID_secp160r1 = ECC_SECP160R1,
-    NID_secp160r2 = ECC_SECP160R2,
-    NID_secp224r1 = ECC_SECP224R1,
-    NID_secp384r1 = ECC_SECP384R1,
-    NID_secp521r1 = ECC_SECP521R1,
-    NID_secp160k1 = ECC_SECP160K1,
-    NID_secp192k1 = ECC_SECP192K1,
-    NID_secp224k1 = ECC_SECP224K1,
-    NID_secp256k1 = ECC_SECP256K1,
-    NID_brainpoolP160r1 = ECC_BRAINPOOLP160R1,
-    NID_brainpoolP192r1 = ECC_BRAINPOOLP192R1,
-    NID_brainpoolP224r1 = ECC_BRAINPOOLP224R1,
-    NID_brainpoolP256r1 = ECC_BRAINPOOLP256R1,
-    NID_brainpoolP320r1 = ECC_BRAINPOOLP320R1,
-    NID_brainpoolP384r1 = ECC_BRAINPOOLP384R1,
-    NID_brainpoolP512r1 = ECC_BRAINPOOLP512R1,
+    /* Use OpenSSL NIDs. NIDs can be mapped to ecc_curve_id enum values by
+        calling NIDToEccEnum() in ssl.c */
+    NID_X9_62_prime192v1 = 409,
+    NID_X9_62_prime192v2 = 410,
+    NID_X9_62_prime192v3 = 411,
+    NID_X9_62_prime239v1 = 412,
+    NID_X9_62_prime239v2 = 413,
+    NID_X9_62_prime239v3 = 414,
+    NID_X9_62_prime256v1 = 415,
+    NID_secp112r1 = 704,
+    NID_secp112r2 = 705,
+    NID_secp128r1 = 706,
+    NID_secp128r2 = 707,
+    NID_secp160r1 = 709,
+    NID_secp160r2 = 710,
+    NID_secp224r1 = 713,
+    NID_secp384r1 = 715,
+    NID_secp521r1 = 716,
+    NID_secp160k1 = 708,
+    NID_secp192k1 = 711,
+    NID_secp224k1 = 712,
+    NID_secp256k1 = 714,
+    NID_brainpoolP160r1 = 921,
+    NID_brainpoolP192r1 = 923,
+    NID_brainpoolP224r1 = 925,
+    NID_brainpoolP256r1 = 927,
+    NID_brainpoolP320r1 = 929,
+    NID_brainpoolP384r1 = 931,
+    NID_brainpoolP512r1 = 933,
 #endif
 
     OPENSSL_EC_NAMED_CURVE  = 0x001
@@ -69,12 +75,14 @@ enum {
 typedef struct WOLFSSL_EC_KEY         WOLFSSL_EC_KEY;
 typedef struct WOLFSSL_EC_POINT       WOLFSSL_EC_POINT;
 typedef struct WOLFSSL_EC_GROUP       WOLFSSL_EC_GROUP;
+typedef struct WOLFSSL_EC_BUILTIN_CURVE WOLFSSL_EC_BUILTIN_CURVE;
 #define WOLFSSL_EC_TYPE_DEFINED
 #endif
 
 typedef WOLFSSL_EC_KEY                EC_KEY;
 typedef WOLFSSL_EC_GROUP              EC_GROUP;
 typedef WOLFSSL_EC_POINT              EC_POINT;
+typedef WOLFSSL_EC_BUILTIN_CURVE      EC_builtin_curve;
 
 struct WOLFSSL_EC_POINT {
     WOLFSSL_BIGNUM *X;
@@ -102,15 +110,19 @@ struct WOLFSSL_EC_KEY {
     char           exSet;        /* external set from internal ? */
 };
 
-typedef struct WOLFSSL_EC_builtin_curve{
+struct WOLFSSL_EC_BUILTIN_CURVE {
     int nid;
     const char *comment;
-} WOLFSSL_EC_builtin_curve;
-
-typedef WOLFSSL_EC_builtin_curve      EC_builtin_curve;
+};
 
 #define WOLFSSL_EC_KEY_LOAD_PRIVATE 1
 #define WOLFSSL_EC_KEY_LOAD_PUBLIC  2
+
+WOLFSSL_API
+size_t wolfSSL_EC_get_builtin_curves(WOLFSSL_EC_BUILTIN_CURVE *r,size_t nitems);
+
+WOLFSSL_API
+WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src);
 
 WOLFSSL_API
 int wolfSSL_ECPoint_i2d(const WOLFSSL_EC_GROUP *curve,
@@ -193,9 +205,6 @@ WOLFSSL_API
 int wolfSSL_EC_POINT_is_at_infinity(const WOLFSSL_EC_GROUP *group,
                                     const WOLFSSL_EC_POINT *a);
 
-WOLFSSL_API
-size_t wolfSSL_EC_get_builtin_curves(WOLFSSL_EC_builtin_curve *r, size_t nitems);
-
 #ifndef HAVE_SELFTEST
 WOLFSSL_API
 char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
@@ -209,6 +218,7 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 
 #define EC_KEY_new                      wolfSSL_EC_KEY_new
 #define EC_KEY_free                     wolfSSL_EC_KEY_free
+#define EC_KEY_dup                      wolfSSL_EC_KEY_dup
 #define EC_KEY_get0_public_key          wolfSSL_EC_KEY_get0_public_key
 #define EC_KEY_get0_group               wolfSSL_EC_KEY_get0_group
 #define EC_KEY_set_private_key          wolfSSL_EC_KEY_set_private_key
@@ -236,6 +246,8 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 #define EC_POINT_clear_free             wolfSSL_EC_POINT_clear_free
 #define EC_POINT_cmp                    wolfSSL_EC_POINT_cmp
 #define EC_POINT_is_at_infinity         wolfSSL_EC_POINT_is_at_infinity
+
+#define EC_get_builtin_curves           wolfSSL_EC_get_builtin_curves
 
 #ifndef HAVE_SELFTEST
     #define EC_POINT_point2hex          wolfSSL_EC_POINT_point2hex

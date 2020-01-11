@@ -195,6 +195,7 @@ for version in $wolf_versions;
 do
     echo -e "version = $version"
     # get openssl ciphers depending on version
+    # -s flag for only supported ciphers
     case $version in "0")
         openssl_ciphers=`$OPENSSL ciphers "SSLv3"`
 
@@ -211,7 +212,7 @@ do
         fi
         ;;
     "1")
-        openssl_ciphers=`$OPENSSL ciphers "TLSv1"`
+        openssl_ciphers=`$OPENSSL ciphers -s "TLSv1"`
         tlsv1_sup=$?
         if [ $tlsv1_sup != 0 ]
         then
@@ -221,7 +222,7 @@ do
         fi
         ;;
     "2")
-        openssl_ciphers=`$OPENSSL ciphers "TLSv1.1"`
+        openssl_ciphers=`$OPENSSL ciphers -s "TLSv1.1"`
         tlsv1_1_sup=$?
         if [ $tlsv1_1_sup != 0 ]
         then
@@ -231,7 +232,7 @@ do
         fi
         ;;
     "3")
-        openssl_ciphers=`$OPENSSL ciphers "TLSv1.2"`
+        openssl_ciphers=`$OPENSSL ciphers -s "TLSv1.2"`
         tlsv1_2_sup=$?
         if [ $tlsv1_2_sup != 0 ]
         then
@@ -241,7 +242,7 @@ do
         fi
         ;;
     "4") #test all suites
-        openssl_ciphers=`$OPENSSL ciphers "ALL"`
+        openssl_ciphers=`$OPENSSL ciphers -s "ALL"`
         all_sup=$?
         if [ $all_sup != 0 ]
         then
