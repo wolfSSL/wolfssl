@@ -9743,6 +9743,46 @@ err:
     return NULL;
 }
 
+
+int wolfSSL_X509_add_altname(WOLFSSL_X509* x509, const char* name, int type)
+{
+    DNS_entry* newAltName = NULL;
+    char* nameCopy = NULL;
+    word32 nameSz;
+
+    if (x509 == NULL)
+        return WOLFSSL_FAILURE;
+
+    if (name == NULL)
+        return WOLFSSL_SUCCESS;
+
+    nameSz = (word32)XSTRLEN(name);
+    if (nameSz == 0)
+        return WOLFSSL_SUCCESS;
+
+    newAltName = (DNS_entry*)XMALLOC(sizeof(DNS_entry),
+            x509->heap, DYNAMIC_TYPE_ALTNAME);
+    if (newAltName == NULL)
+        return WOLFSSL_FAILURE;
+
+    nameCopy = (char*)XMALLOC(nameSz + 1, x509->heap, DYNAMIC_TYPE_ALTNAME);
+    if (nameCopy == NULL) {
+        XFREE(newAltName, x509->heap, DYNAMIC_TYPE_ALTNAME);
+        return WOLFSSL_FAILURE;
+    }
+
+    XSTRNCPY(nameCopy, name, nameSz);
+
+    newAltName->next = x509->altNames;
+    newAltName->type = type;
+    newAltName->len = nameSz;
+    newAltName->name = nameCopy;
+    x509->altNames = newAltName;
+
+    return WOLFSSL_SUCCESS;
+}
+
+
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int loc)
 {
