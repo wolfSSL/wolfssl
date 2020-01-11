@@ -9771,7 +9771,7 @@ int wolfSSL_X509_add_altname(WOLFSSL_X509* x509, const char* name, int type)
         return WOLFSSL_FAILURE;
     }
 
-    XSTRNCPY(nameCopy, name, nameSz);
+    XMEMCPY(nameCopy, name, nameSz + 1);
 
     newAltName->next = x509->altNames;
     newAltName->type = type;
