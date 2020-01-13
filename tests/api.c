@@ -23171,12 +23171,7 @@ static void test_wolfSSL_ERR_put_error(void)
     AssertIntEQ(ERR_get_error_line_data(&file, &line, NULL, NULL), 0);
 
     PEMerr(4,4);
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-        defined(WOLFSSL_HAPROXY)
-    AssertIntEQ(ERR_get_error(), -4);
-    #else
     AssertIntEQ(ERR_get_error(), 4);
-    #endif
     /* Empty and free up all error nodes */
     ERR_clear_error();
 

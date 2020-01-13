@@ -34453,7 +34453,7 @@ int wolfSSL_EC_POINT_oct2point(const WOLFSSL_EC_GROUP *group,
 
     (void)ctx;
 
-    return wolfSSL_ECPoint_d2i((unsigned char*)buf, len, group, p);
+    return wolfSSL_ECPoint_d2i((unsigned char*)buf, (unsigned int)len, group, p);
 }
 
 /* wolfSSL_EC_POINT_point2bn should return "in" if not null */
@@ -34484,7 +34484,7 @@ WOLFSSL_BIGNUM *wolfSSL_EC_POINT_point2bn(const WOLFSSL_EC_GROUP *group,
 
     if (wolfSSL_EC_POINT_point2oct(group, p, form,
                                    buf, len, ctx) == len) {
-        ret = wolfSSL_BN_bin2bn(buf, len, in);
+        ret = wolfSSL_BN_bin2bn(buf, (int)len, in);
     }
 
     XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -42535,7 +42535,6 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_EVP(WOLFSSL_EVP_PKEY** out,
                     wolfSSL_EVP_PKEY_free(pkey);
                     return NULL;
                 }
-                pkey->rsa->pkey = pkey;
 
                 if (wolfSSL_RSA_LoadDer_ex(pkey->rsa,
                             (const unsigned char*)pkey->pkey.ptr,
@@ -46829,7 +46828,7 @@ int wolfSSL_BN_hex2bn(WOLFSSL_BIGNUM** bn, const char* str)
         return WOLFSSL_FAILURE;
     }
 
-    strLen = XSTRLEN(str);
+    strLen = (int)XSTRLEN(str);
     /* ignore trailing new lines */
     while (str[strLen-1] == '\n' && strLen > 0) strLen--;
 

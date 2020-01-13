@@ -57,21 +57,21 @@ const byte base64Decode[] = { 62, BAD, BAD, BAD, 63,   /* + starts at 0x2B */
                               46, 47, 48, 49, 50, 51
                             };
 
-static WC_INLINE int Base64_SkipNewline(const byte* in, word32 *outLen, word32 *outJ)
+static WC_INLINE int Base64_SkipNewline(const byte* in, word32 *inLen, word32 *outJ)
 {
-    word32 inLen = *outLen;
+    word32 len = *inLen;
     word32 j = *outJ;
-    if (inLen && (in[j] == ' ' || in[j] == '\r' || in[j] == '\n')) {
+    if (len && (in[j] == ' ' || in[j] == '\r' || in[j] == '\n')) {
         byte endLine = in[j++];
-        inLen--;
-        while (inLen && endLine == ' ') {   /* allow trailing whitespace */
+        len--;
+        while (len && endLine == ' ') {   /* allow trailing whitespace */
             endLine = in[j++];
-            inLen--;
+            len--;
         }
         if (endLine == '\r') {
-            if (inLen) {
+            if (len) {
                 endLine = in[j++];
-                inLen--;
+                len--;
             }
         }
         if (endLine != '\n') {
@@ -79,7 +79,10 @@ static WC_INLINE int Base64_SkipNewline(const byte* in, word32 *outLen, word32 *
             return ASN_INPUT_E;
         }
     }
-    *outLen = inLen;
+    if (!len) {
+        return BUFFER_E;
+    }
+    *inLen = len;
     *outJ = j;
     return 0;
 }
@@ -101,21 +104,32 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
 
         byte b1, b2, b3;
         if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
+            if (ret == BUFFER_E) {
+                /* Running out of buffer here is not an error */
+                break;
+            }
             return ret;
         }
         byte e1 = in[j++];
+        if (e1 == '\0') {
+            break;
+        }
+        inLen--;
         if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
             return ret;
         }
         byte e2 = in[j++];
+        inLen--;
         if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
             return ret;
         }
         byte e3 = in[j++];
+        inLen--;
         if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
             return ret;
         }
         byte e4 = in[j++];
+        inLen--;
 
         if (e1 == 0)            /* end file 0's */
             break;
@@ -155,8 +169,6 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
             out[i++] = b3;
         else
             break;
-
-        inLen -= 4;
     }
 /* If the output buffer has a room for an extra byte, add a null terminator */
     if (out && *outLen > i)

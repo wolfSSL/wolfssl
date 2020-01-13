@@ -10334,15 +10334,15 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             /* look for matching footer */
             footer = XSTRNSTR(beginEnd,
                             beginBuf + STR_SIZEOF(BEGIN_PRIV_KEY_PREFIX),
-                            (char*)buff + sz - beginEnd);
+                            (unsigned int)((char*)buff + sz - beginEnd));
             if (!footer) {
                 WOLFSSL_MSG("Couldn't find PEM footer");
                 return ASN_NO_PEM_HEADER;
             }
             footer -= STR_SIZEOF(END_PRIV_KEY_PREFIX);
-            endLen = beginEnd - headerEnd -
+            endLen = (unsigned int)(beginEnd - headerEnd -
                         (STR_SIZEOF(BEGIN_PRIV_KEY_PREFIX) -
-                                STR_SIZEOF(END_PRIV_KEY_PREFIX));
+                                STR_SIZEOF(END_PRIV_KEY_PREFIX)));
             XMEMCPY(endBuf, footer, endLen);
             endBuf[endLen] = '\0';
 
@@ -10394,7 +10394,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 #endif /* WOLFSSL_ENCRYPTED_KEYS */
 
     /* find footer */
-    footerEnd = XSTRNSTR(headerEnd, footer, (char*)buff + sz - headerEnd);
+    footerEnd = XSTRNSTR(headerEnd, footer, (unsigned int)((char*)buff + sz - headerEnd));
     if (!footerEnd) {
         if (info)
             info->consumed = longSz; /* No more certs if no footer */
