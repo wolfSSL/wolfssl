@@ -214,8 +214,17 @@ typedef byte   ecc_oid_t;
         if any element > 127 then MSB 0x80 indicates additional byte */
 #endif
 
+
+#if !defined(WOLFSSL_ECC_CURVE_STATIC) && defined(USE_WINDOWS_API)
+    /* MSC does something different with the pointers to the arrays than GCC,
+     * and it causes the FIPS checksum to fail. In the case of windows builds,
+     * store everything as arrays instead of pointers to strings. */
+
+    #define WOLFSSL_ECC_CURVE_STATIC
+#endif
+
 /* ECC set type defined a GF(p) curve */
-#ifndef USE_WINDOWS_API
+#ifndef WOLFSSL_ECC_CURVE_STATIC
 typedef struct ecc_set_type {
     int size;             /* The size of the curve in octets */
     int id;               /* id of this curve */
@@ -232,10 +241,6 @@ typedef struct ecc_set_type {
     int         cofactor;
 } ecc_set_type;
 #else
-/* MSC does something different with the pointers to the arrays than GCC,
- * and it causes the FIPS checksum to fail. In the case of windows builds,
- * store everything as arrays instead of pointers to strings. */
-
 #define MAX_ECC_NAME 16
 #define MAX_ECC_STRING ((MAX_ECC_BYTES * 2) + 1)
     /* The values are stored as text strings. */
