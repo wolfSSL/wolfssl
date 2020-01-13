@@ -141,7 +141,9 @@ typedef struct WOLFSSL_EVP_CIPHER_CTX WOLFSSL_EVP_CIPHER_CTX;
 typedef struct WOLFSSL_EVP_MD_CTX {
     union {
         WOLFSSL_Hasher digest;
+    #ifndef NO_HMAC
         Hmac hmac;
+    #endif
     } hash;
     unsigned char macType;
     WOLFSSL_EVP_PKEY_CTX *pctx;

@@ -6672,6 +6672,23 @@ WOLFSSL_LOCAL word32 SetLength(word32 length, byte* output)
     return i;
 }
 
+WOLFSSL_LOCAL int SetMyVersion(word32 version, byte* output, int header)
+{
+    int i = 0;
+
+    if (output == NULL)
+        return BAD_FUNC_ARG;
+
+    if (header) {
+        output[i++] = ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED;
+        output[i++] = 3;
+    }
+    output[i++] = ASN_INTEGER;
+    output[i++] = 0x01;
+    output[i++] = (byte)version;
+
+    return i;
+}
 
 WOLFSSL_LOCAL word32 SetSequence(word32 len, byte* output)
 {
@@ -9520,25 +9537,6 @@ void FreeTrustedPeerTable(TrustedPeerCert** table, int rows, void* heap)
     }
 }
 #endif /* WOLFSSL_TRUST_PEER_CERT */
-
-WOLFSSL_LOCAL int SetMyVersion(word32 version, byte* output, int header)
-{
-    int i = 0;
-
-    if (output == NULL)
-        return BAD_FUNC_ARG;
-
-    if (header) {
-        output[i++] = ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED;
-        output[i++] = 3;
-    }
-    output[i++] = ASN_INTEGER;
-    output[i++] = 0x01;
-    output[i++] = (byte)version;
-
-    return i;
-}
-
 
 WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
     word32 outputSz, int maxSnSz)

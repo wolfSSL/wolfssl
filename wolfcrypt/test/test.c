@@ -17363,12 +17363,17 @@ done:
 static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     int curve_id, const ecc_set_type* dp)
 {
+#if defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)
     DECLARE_VAR(sharedA, byte, ECC_SHARED_SIZE, HEAP_HINT);
     DECLARE_VAR(sharedB, byte, ECC_SHARED_SIZE, HEAP_HINT);
+#endif
 #ifdef HAVE_ECC_KEY_EXPORT
     byte    exportBuf[MAX_ECC_BYTES * 2 + 32];
 #endif
-    word32  x, y;
+    word32  x;
+#if defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)
+    word32  y;
+#endif
 #ifdef HAVE_ECC_SIGN
     DECLARE_VAR(sig, byte, ECC_SIG_SIZE, HEAP_HINT);
     DECLARE_VAR(digest, byte, ECC_DIGEST_SIZE, HEAP_HINT);
@@ -17687,7 +17692,9 @@ done:
     wc_ecc_free(&userA);
 
     FREE_VAR(sharedA, HEAP_HINT);
+#if defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)
     FREE_VAR(sharedB, HEAP_HINT);
+#endif
 #ifdef HAVE_ECC_SIGN
     FREE_VAR(sig, HEAP_HINT);
     FREE_VAR(digest, HEAP_HINT);
@@ -18165,6 +18172,7 @@ done:
 }
 #endif
 
+#ifdef HAVE_ECC_DHE
 static int ecc_ssh_test(ecc_key* key)
 {
     int    ret;
@@ -18199,6 +18207,7 @@ static int ecc_ssh_test(ecc_key* key)
     TEST_SLEEP();
     return 0;
 }
+#endif /* HAVE_ECC_DHE */
 #endif
 
 static int ecc_def_curve_test(WC_RNG *rng)
@@ -18246,9 +18255,11 @@ static int ecc_def_curve_test(WC_RNG *rng)
     if (ret < 0)
         goto done;
 #endif
+#ifdef HAVE_ECC_DHE
     ret = ecc_ssh_test(&key);
     if (ret < 0)
         goto done;
+#endif
 #endif /* WOLFSSL_ATECC508A */
 done:
     wc_ecc_free(&key);

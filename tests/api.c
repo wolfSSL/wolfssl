@@ -218,9 +218,9 @@
     #include <wolfssl/wolfcrypt/blake2.h>
 #endif
 
+#include <wolfssl/wolfcrypt/hash.h>
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
-    #include <wolfssl/wolfcrypt/hash.h>
 
     #define FOURK_BUF 4096
     #define GEN_BUF  294
