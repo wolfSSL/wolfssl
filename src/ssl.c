@@ -69,6 +69,10 @@
 
 #include <wolfssl/wolfcrypt/wc_encrypt.h>
 
+#ifndef NO_RSA
+    #include <wolfssl/wolfcrypt/rsa.h>
+#endif
+
 #ifdef OPENSSL_EXTRA
     /* openssl headers begin */
     #include <wolfssl/openssl/aes.h>
