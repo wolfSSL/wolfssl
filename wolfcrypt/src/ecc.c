@@ -3683,9 +3683,8 @@ int wc_ecc_shared_secret_gen(ecc_key* private_key, ecc_point* point,
         return BAD_FUNC_ARG;
     }
 
-    ALLOC_CURVE_SPECS(2);
-
     /* load curve info */
+    ALLOC_CURVE_SPECS(2);
     err = wc_ecc_curve_load(private_key->dp, &curve,
         (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF));
     if (err != MP_OKAY) {
@@ -3901,11 +3900,11 @@ static int wc_ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
         curve = curveIn;
     }
     else {
-        ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
-
         /* load curve info */
-        if (err == MP_OKAY)
+        if (err == MP_OKAY) {
+            ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
             err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
+        }
     }
 
     if (err == MP_OKAY) {
@@ -4159,14 +4158,15 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
 #ifdef WOLFSSL_SP_MATH
         err = WC_KEY_SIZE_E;
 #else
-        ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
 
         /* setup the key variables */
         err = mp_init(&key->k);
 
         /* load curve info */
-        if (err == MP_OKAY)
+        if (err == MP_OKAY) {
+            ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
             err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
+        }
 
         /* generate k */
         if (err == MP_OKAY)
@@ -4736,10 +4736,13 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                                                    !defined(WOLFSSL_SMALL_STACK)
    mp_int  e_lcl;
 #endif
-#ifndef WOLFSSL_ECDSA_SET_K
-   DECLARE_CURVE_SPECS(curve, 1);
-#else
+
+#if defined(WOLFSSL_ECDSA_SET_K) || \
+    (defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
+    (defined(HAVE_CAVIUM_V) || defined(HAVE_INTEL_QA)))
    DECLARE_CURVE_SPECS(curve, ECC_CURVE_FIELD_COUNT);
+#else
+   DECLARE_CURVE_SPECS(curve, 1);
 #endif
 #endif /* !WOLFSSL_SP_MATH */
 
@@ -4805,12 +4808,9 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
     }
 #endif
 
-   ALLOC_CURVE_SPECS(1);
-
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM_V)
    err = wc_ecc_alloc_mpint(key, &key->e);
    if (err != 0) {
-      FREE_CURVE_SPECS();
       return err;
    }
    e = key->e;
@@ -4819,7 +4819,6 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 #else
    e = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_ECC);
    if (e == NULL) {
-      FREE_CURVE_SPECS();
       return MEMORY_E;
    }
 #endif
@@ -4830,15 +4829,24 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    #ifdef WOLFSSL_SMALL_STACK
       XFREE(e, key->heap, DYNAMIC_TYPE_ECC);
    #endif
-      FREE_CURVE_SPECS();
       return err;
    }
 
    /* load curve info */
-#ifndef WOLFSSL_ECDSA_SET_K
-   err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
-#else
+#if defined(WOLFSSL_ECDSA_SET_K)
+   ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
    err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
+#else
+   #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
+      (defined(HAVE_CAVIUM_V) || defined(HAVE_INTEL_QA))
+   if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC)
+      ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
+   else
+   #endif
+   {
+      ALLOC_CURVE_SPECS(1);
+      err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
+   }
 #endif
 
    /* load digest into e */
