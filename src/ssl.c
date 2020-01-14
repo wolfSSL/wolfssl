@@ -9865,7 +9865,7 @@ int wolfSSL_use_PrivateKey(WOLFSSL* ssl, WOLFSSL_EVP_PKEY* pkey)
 }
 
 
-int wolfSSL_use_PrivateKey_ASN1(int pri, WOLFSSL* ssl, unsigned char* der,
+int wolfSSL_use_PrivateKey_ASN1(int pri, WOLFSSL* ssl, const unsigned char* der,
                                 long derSz)
 {
     WOLFSSL_ENTER("wolfSSL_use_PrivateKey_ASN1");
@@ -9930,7 +9930,7 @@ int wolfSSL_use_certificate(WOLFSSL* ssl, WOLFSSL_X509* x509)
 #endif /* OPENSSL_EXTRA */
 
 #ifndef NO_CERTS
-int wolfSSL_use_certificate_ASN1(WOLFSSL* ssl, unsigned char* der, int derSz)
+int wolfSSL_use_certificate_ASN1(WOLFSSL* ssl,const unsigned char* der,int derSz)
 {
     long idx;
 
@@ -41214,6 +41214,7 @@ long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
         return BAD_FUNC_ARG;
 
     switch (cmd) {
+        #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
         case SSL_CTRL_SET_TLSEXT_HOSTNAME:
             WOLFSSL_MSG("Entering Case: SSL_CTRL_SET_TLSEXT_HOSTNAME.");
         #ifdef HAVE_SNI
@@ -41226,6 +41227,7 @@ long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
             WOLFSSL_MSG("SNI not enabled.");
             break;
         #endif /* HAVE_SNI */
+        #endif /* WOLFSSL_NGINX || WOLFSSL_QT || OPENSSL_ALL */
         default:
             WOLFSSL_MSG("Case not implemented.");
     }
