@@ -69,7 +69,6 @@
         #include <openssl/err.h>
         #include <openssl/ec.h>
         #include <openssl/hmac.h>
-        #include <openssl/bn.h>
     #endif
 
     /* make sure old names are disabled */
@@ -81,7 +80,6 @@
     #endif
 
 #elif (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
-    #include <wolfssl/openssl/bn.h>
     #include <wolfssl/openssl/hmac.h>
 
     /* We need the old SSL names */
@@ -92,6 +90,8 @@
         #undef NO_OLD_WC_NAMES
     #endif
 #endif
+/* Needed for WOLFSSL_RSA struct */
+#include <wolfssl/openssl/bn.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -455,6 +455,12 @@ struct WOLFSSL_BIO_METHOD {
 typedef long (*wolf_bio_info_cb)(WOLFSSL_BIO *bio, int event, const char *parg,
                                  int iarg, long larg, long return_value);
 
+#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+typedef struct WOLFSSL_CRYPTO_EX_DATA {
+    void* ex_data[MAX_EX_DATA];
+} WOLFSSL_CRYPTO_EX_DATA;
+#endif
+
 struct WOLFSSL_BIO {
     WOLFSSL_BUF_MEM* mem_buf;
     WOLFSSL_BIO_METHOD* method;
@@ -477,13 +483,38 @@ struct WOLFSSL_BIO {
     byte         init:1;        /* bio has been initialized */
     byte         shutdown:1;    /* close flag */
 #ifdef HAVE_EX_DATA
-    void*           ex_data[MAX_EX_DATA];
+    WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
 };
 
-typedef struct WOLFSSL_CRYPTO_EX_DATA {
-    WOLFSSL_STACK* data;
-} WOLFSSL_CRYPTO_EX_DATA;
+struct WOLFSSL_RSA {
+#ifdef WC_RSA_BLINDING
+    WC_RNG* rng;              /* for PrivateDecrypt blinding */
+#endif
+    WOLFSSL_BIGNUM* n;
+    WOLFSSL_BIGNUM* e;
+    WOLFSSL_BIGNUM* d;
+    WOLFSSL_BIGNUM* p;
+    WOLFSSL_BIGNUM* q;
+    WOLFSSL_BIGNUM* dmp1;      /* dP */
+    WOLFSSL_BIGNUM* dmq1;      /* dQ */
+    WOLFSSL_BIGNUM* iqmp;      /* u */
+    void*          heap;
+    void*          internal;  /* our RSA */
+    char           inSet;     /* internal set from external ? */
+    char           exSet;     /* external set from internal ? */
+    char           ownRng;    /* flag for if the rng should be free'd */
+#if defined(OPENSSL_EXTRA)
+    WOLFSSL_RSA_METHOD* meth;
+#endif
+#if defined(HAVE_EX_DATA)
+    WOLFSSL_CRYPTO_EX_DATA ex_data;  /* external data */
+#endif
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+    wolfSSL_Mutex    refMutex;                       /* ref count mutex */
+    int              refCount;                       /* reference count */
+#endif
+};
 
 typedef struct WOLFSSL_COMP_METHOD {
     int type;            /* stunnel dereference */
@@ -513,6 +544,8 @@ struct WOLFSSL_X509_STORE {
 #endif
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     WOLFSSL_X509_STORE_CTX_verify_cb verify_cb;
+#endif
+#ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
 #if defined(OPENSSL_EXTRA) && defined(HAVE_CRL)
@@ -578,7 +611,7 @@ struct WOLFSSL_X509_STORE_CTX {
 #endif
     char* domain;                /* subject CN domain name */
 #if defined(HAVE_EX_DATA) || defined(FORTRESS)
-    void* ex_data[MAX_EX_DATA];  /* external data */
+    WOLFSSL_CRYPTO_EX_DATA ex_data;  /* external data */
 #endif
 #if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_EXTRA)
     int depth;                   /* used in X509_STORE_CTX_*_depth */
@@ -930,9 +963,9 @@ WOLFSSL_API
 #endif /* SESSION_INDEX && SESSION_CERTS */
 
 typedef int (*VerifyCallback)(int, WOLFSSL_X509_STORE_CTX*);
-#ifdef OPENSSL_EXTRA
 typedef void (CallbackInfoState)(const WOLFSSL*, int, int);
 
+#if defined(HAVE_EX_DATA) || defined(FORTRESS)
 typedef int  (WOLFSSL_CRYPTO_EX_new)(void* p, void* ptr,
         WOLFSSL_CRYPTO_EX_DATA* a, int idx, long argValue, void* arg);
 typedef int  (WOLFSSL_CRYPTO_EX_dup)(WOLFSSL_CRYPTO_EX_DATA* out,
@@ -943,8 +976,6 @@ typedef void (WOLFSSL_CRYPTO_EX_free)(void* p, void* ptr,
 WOLFSSL_API int  wolfSSL_get_ex_new_index(long argValue, void* arg,
         WOLFSSL_CRYPTO_EX_new* a, WOLFSSL_CRYPTO_EX_dup* b,
         WOLFSSL_CRYPTO_EX_free* c);
-WOLFSSL_API int wolfSSL_CRYPTO_set_ex_data(WOLFSSL_CRYPTO_EX_DATA* r, int idx, void* arg);
-WOLFSSL_API void* wolfSSL_CRYPTO_get_ex_data(const WOLFSSL_CRYPTO_EX_DATA* r, int idx);
 #endif
 
 WOLFSSL_API void wolfSSL_CTX_set_verify(WOLFSSL_CTX*, int,
@@ -2019,8 +2050,12 @@ WOLFSSL_API WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_set(WOLFSSL_ASN1_TIME *s, time_
 WOLFSSL_API int wolfSSL_sk_num(WOLFSSL_STACK* sk);
 WOLFSSL_API void* wolfSSL_sk_value(WOLFSSL_STACK* sk, int i);
 
-WOLFSSL_API void* wolfSSL_CRYPTO_get_ex_data(void * const* ex_data, int idx);
-WOLFSSL_API int wolfSSL_CRYPTO_set_ex_data(void** ex_data, int idx, void *data);
+#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+WOLFSSL_API void* wolfSSL_CRYPTO_get_ex_data(const WOLFSSL_CRYPTO_EX_DATA* ex_data,
+                                            int idx);
+WOLFSSL_API int wolfSSL_CRYPTO_set_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data, int idx,
+                                            void *data);
+#endif
 
 /* stunnel 4.28 needs */
 WOLFSSL_API void* wolfSSL_CTX_get_ex_data(const WOLFSSL_CTX*, int);

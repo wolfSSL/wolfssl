@@ -10368,13 +10368,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         /* keyFormat is Key_Sum enum */
         if (keyFormat) {
         #ifdef HAVE_ECC
-            *eccKey = (header == BEGIN_EC_PRIV
-#ifdef OPENSSL_EXTRA
-                    || header == beginBuf
-#endif
-                    ) ? 1 : 0;
-        #else
-            *eccKey = 0;
+            if (header == BEGIN_EC_PRIV)
+                *keyFormat = ECDSAk;
         #endif
         #if !defined(NO_DSA)
             if (header == BEGIN_DSA_PRIV)

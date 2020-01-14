@@ -2740,7 +2740,7 @@ struct WOLFSSL_CTX {
     void*           userPRFArg; /* passed to prf callback */
 #endif
 #ifdef HAVE_EX_DATA
-    void*           ex_data[MAX_EX_DATA];
+    WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
 #if defined(HAVE_ALPN) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY))
     CallbackALPNSelect alpnSelect;
@@ -3121,7 +3121,7 @@ struct WOLFSSL_SESSION {
     byte               isAlloced;
 #endif
 #ifdef HAVE_EX_DATA
-    void*              ex_data[MAX_EX_DATA];
+    WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
 };
 
@@ -3597,7 +3597,7 @@ struct WOLFSSL_X509 {
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #ifdef HAVE_EX_DATA
-    void*            ex_data[MAX_EX_DATA];
+    WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
     byte*            authKeyId;
     byte*            subjKeyId;
@@ -4007,7 +4007,7 @@ struct WOLFSSL {
 #endif
     byte             keepCert;           /* keep certificate after handshake */
 #if defined(HAVE_EX_DATA) || defined(FORTRESS)
-    void*            ex_data[MAX_EX_DATA]; /* external data, for Fortress */
+    WOLFSSL_CRYPTO_EX_DATA ex_data; /* external data, for Fortress */
 #endif
     int              devId;             /* async device id to use */
 #ifdef HAVE_ONE_TIME_AUTH

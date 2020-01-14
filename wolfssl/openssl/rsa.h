@@ -61,35 +61,6 @@ typedef struct WOLFSSL_RSA_METHOD {
 
 typedef WOLFSSL_RSA_METHOD            RSA_METHOD;
 
-struct WOLFSSL_RSA {
-#ifdef WC_RSA_BLINDING
-    WC_RNG* rng;              /* for PrivateDecrypt blinding */
-#endif
-	WOLFSSL_BIGNUM* n;
-	WOLFSSL_BIGNUM* e;
-	WOLFSSL_BIGNUM* d;
-	WOLFSSL_BIGNUM* p;
-	WOLFSSL_BIGNUM* q;
-	WOLFSSL_BIGNUM* dmp1;      /* dP */
-	WOLFSSL_BIGNUM* dmq1;      /* dQ */
-	WOLFSSL_BIGNUM* iqmp;      /* u */
-    void*          heap;
-    void*          internal;  /* our RSA */
-    char           inSet;     /* internal set from external ? */
-    char           exSet;     /* external set from internal ? */
-    char           ownRng;    /* flag for if the rng should be free'd */
-#if defined(OPENSSL_EXTRA)
-    WOLFSSL_RSA_METHOD* meth;
-#endif
-#if defined(HAVE_EX_DATA)
-    void*          ex_data[MAX_EX_DATA];  /* external data */
-#endif
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
-    wolfSSL_Mutex    refMutex;                       /* ref count mutex */
-    int              refCount;                       /* reference count */
-#endif
-};
-
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSA_new(void);
 WOLFSSL_API void        wolfSSL_RSA_free(WOLFSSL_RSA*);
 
