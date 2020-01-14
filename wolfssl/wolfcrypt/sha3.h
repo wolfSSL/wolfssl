@@ -58,7 +58,7 @@ enum {
     WC_SHA3_512_DIGEST_SIZE  = 64,
     WC_SHA3_512_COUNT        =  9,
 
-#ifndef HAVE_SELFTEST
+#ifdef HAVE_SELFTEST
     /* These values are used for HMAC, not SHA-3 directly.
      * They come from from FIPS PUB 202. */
     WC_SHA3_224_BLOCK_SIZE = 144,

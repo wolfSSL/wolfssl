@@ -82,9 +82,6 @@ ASN Options:
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifndef NO_PWDBASED
-    #include <wolfssl/wolfcrypt/aes.h>
-#endif
 #ifndef NO_RC4
     #include <wolfssl/wolfcrypt/arc4.h>
 #endif
@@ -132,7 +129,9 @@ extern int wc_InitRsaHw(RsaKey* key);
 #define ERROR_OUT(err, eLabel) { ret = (err); goto eLabel; }
 
 #ifdef HAVE_SELFTEST
+#include <wolfssl/internal.h>
     #ifndef WOLFSSL_AES_KEY_SIZE_ENUM
+    #define WOLFSSL_AES_KEY_SIZE_ENUM
     enum Asn_Misc {
         AES_IV_SIZE         = 16,
         AES_128_KEY_SIZE    = 16,
@@ -8788,20 +8787,6 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
     return ret;
 }
 
-
-/* from SSL proper, for locking can't do find here anymore */
-#ifdef __cplusplus
-    extern "C" {
-#endif
-    Signer* GetCA(void* signers, byte* hash);
-    #ifndef NO_SKID
-        Signer* GetCAByName(void* signers, byte* hash);
-    #endif
-#ifdef __cplusplus
-    }
-#endif
-
-
 #if defined(WOLFCRYPT_ONLY) || defined(NO_CERTS)
 
 /* dummy functions, not using wolfSSL so don't need actual ones */
@@ -12976,36 +12961,36 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
 
 /* write DER encoded cert to buffer, size already checked */
-static int WriteCertBody(DerCert* der, byte* buffer)
+static int WriteCertBody(DerCert* der, byte* buf)
 {
     int idx;
 
     /* signed part header */
-    idx = SetSequence(der->total, buffer);
+    idx = SetSequence(der->total, buf);
     /* version */
-    XMEMCPY(buffer + idx, der->version, der->versionSz);
+    XMEMCPY(buf + idx, der->version, der->versionSz);
     idx += der->versionSz;
     /* serial */
-    XMEMCPY(buffer + idx, der->serial, der->serialSz);
+    XMEMCPY(buf + idx, der->serial, der->serialSz);
     idx += der->serialSz;
     /* sig algo */
-    XMEMCPY(buffer + idx, der->sigAlgo, der->sigAlgoSz);
+    XMEMCPY(buf + idx, der->sigAlgo, der->sigAlgoSz);
     idx += der->sigAlgoSz;
     /* issuer */
-    XMEMCPY(buffer + idx, der->issuer, der->issuerSz);
+    XMEMCPY(buf + idx, der->issuer, der->issuerSz);
     idx += der->issuerSz;
     /* validity */
-    XMEMCPY(buffer + idx, der->validity, der->validitySz);
+    XMEMCPY(buf + idx, der->validity, der->validitySz);
     idx += der->validitySz;
     /* subject */
-    XMEMCPY(buffer + idx, der->subject, der->subjectSz);
+    XMEMCPY(buf + idx, der->subject, der->subjectSz);
     idx += der->subjectSz;
     /* public key */
-    XMEMCPY(buffer + idx, der->publicKey, der->publicKeySz);
+    XMEMCPY(buf + idx, der->publicKey, der->publicKeySz);
     idx += der->publicKeySz;
     if (der->extensionsSz) {
         /* extensions */
-        XMEMCPY(buffer + idx, der->extensions, min(der->extensionsSz,
+        XMEMCPY(buf + idx, der->extensions, min(der->extensionsSz,
                                                    (int)sizeof(der->extensions)));
         idx += der->extensionsSz;
     }
@@ -13015,7 +13000,7 @@ static int WriteCertBody(DerCert* der, byte* buffer)
 
 
 /* Make RSA signature from buffer (sz), write to sig (sigSz) */
-static int MakeSignature(CertSignCtx* certSignCtx, const byte* buffer, int sz,
+static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, int sz,
     byte* sig, int sigSz, RsaKey* rsaKey, ecc_key* eccKey,
     ed25519_key* ed25519Key, WC_RNG* rng, int sigAlgoType, void* heap)
 {
@@ -13023,7 +13008,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buffer, int sz,
 
     (void)digestSz;
     (void)typeH;
-    (void)buffer;
+    (void)buf;
     (void)sz;
     (void)sig;
     (void)sigSz;
@@ -13044,7 +13029,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buffer, int sz,
             ret = MEMORY_E; goto exit_ms;
         }
 
-        ret = HashForSignature(buffer, sz, sigAlgoType, certSignCtx->digest,
+        ret = HashForSignature(buf, sz, sigAlgoType, certSignCtx->digest,
                                &typeH, &digestSz, 0);
         /* set next state, since WC_PENDING_E rentry for these are not "call again" */
         certSignCtx->state = CERTSIGN_STATE_ENCODE;
@@ -13096,7 +13081,7 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buffer, int sz,
         if (!rsaKey && !eccKey && ed25519Key) {
             word32 outSz = sigSz;
 
-            ret = wc_ed25519_sign_msg(buffer, sz, sig, &outSz, ed25519Key);
+            ret = wc_ed25519_sign_msg(buf, sz, sig, &outSz, ed25519Key);
             if (ret == 0)
                 ret = outSz;
         }
@@ -13130,26 +13115,26 @@ exit_ms:
 
 /* add signature to end of buffer, size of buffer assumed checked, return
    new length */
-static int AddSignature(byte* buffer, int bodySz, const byte* sig, int sigSz,
+static int AddSignature(byte* buf, int bodySz, const byte* sig, int sigSz,
                         int sigAlgoType)
 {
     byte seq[MAX_SEQ_SZ];
     int  idx = bodySz, seqSz;
 
     /* algo */
-    idx += SetAlgoID(sigAlgoType, buffer ? buffer + idx : NULL, oidSigType, 0);
+    idx += SetAlgoID(sigAlgoType, buf ? buf + idx : NULL, oidSigType, 0);
     /* bit string */
-    idx += SetBitString(sigSz, 0, buffer ? buffer + idx : NULL);
+    idx += SetBitString(sigSz, 0, buf ? buf + idx : NULL);
     /* signature */
-    if (buffer)
-        XMEMCPY(buffer + idx, sig, sigSz);
+    if (buf)
+        XMEMCPY(buf + idx, sig, sigSz);
     idx += sigSz;
 
     /* make room for overall header */
     seqSz = SetSequence(idx, seq);
-    if (buffer) {
-        XMEMMOVE(buffer + seqSz, buffer, idx);
-        XMEMCPY(buffer, seq, seqSz);
+    if (buf) {
+        XMEMMOVE(buf + seqSz, buf, idx);
+        XMEMCPY(buf, seq, seqSz);
     }
 
     return idx + seqSz;
@@ -13495,32 +13480,32 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
 
 
 /* write DER encoded cert req to buffer, size already checked */
-static int WriteCertReqBody(DerCert* der, byte* buffer)
+static int WriteCertReqBody(DerCert* der, byte* buf)
 {
     int idx;
 
     /* signed part header */
-    idx = SetSequence(der->total, buffer);
+    idx = SetSequence(der->total, buf);
     /* version */
-    if (buffer)
-        XMEMCPY(buffer + idx, der->version, der->versionSz);
+    if (buf)
+        XMEMCPY(buf + idx, der->version, der->versionSz);
     idx += der->versionSz;
     /* subject */
-    if (buffer)
-        XMEMCPY(buffer + idx, der->subject, der->subjectSz);
+    if (buf)
+        XMEMCPY(buf + idx, der->subject, der->subjectSz);
     idx += der->subjectSz;
     /* public key */
-    if (buffer)
-        XMEMCPY(buffer + idx, der->publicKey, der->publicKeySz);
+    if (buf)
+        XMEMCPY(buf + idx, der->publicKey, der->publicKeySz);
     idx += der->publicKeySz;
     /* attributes */
-    if (buffer)
-        XMEMCPY(buffer + idx, der->attrib, der->attribSz);
+    if (buf)
+        XMEMCPY(buf + idx, der->attrib, der->attribSz);
     idx += der->attribSz;
     /* extensions */
     if (der->extensionsSz) {
-        if (buffer)
-            XMEMCPY(buffer + idx, der->extensions, min(der->extensionsSz,
+        if (buf)
+            XMEMCPY(buf + idx, der->extensions, min(der->extensionsSz,
                                                (int)sizeof(der->extensions)));
         idx += der->extensionsSz;
     }
@@ -13589,7 +13574,7 @@ int wc_MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
 #endif /* WOLFSSL_CERT_REQ */
 
 
-static int SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
+static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
                     RsaKey* rsaKey, ecc_key* eccKey, ed25519_key* ed25519Key,
                     WC_RNG* rng)
 {
@@ -13643,7 +13628,7 @@ static int SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
             return MEMORY_E;
     }
 
-    sigSz = MakeSignature(certSignCtx, buffer, requestSz, certSignCtx->sig,
+    sigSz = MakeSignature(certSignCtx, buf, requestSz, certSignCtx->sig,
         MAX_ENCODED_SIG_SZ, rsaKey, eccKey, ed25519Key, rng, sType, heap);
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (sigSz == WC_PENDING_E) {
@@ -13657,7 +13642,7 @@ static int SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
         if (requestSz + MAX_SEQ_SZ * 2 + sigSz > (int)buffSz)
             sigSz = BUFFER_E;
         else
-            sigSz = AddSignature(buffer, requestSz, certSignCtx->sig, sigSz,
+            sigSz = AddSignature(buf, requestSz, certSignCtx->sig, sigSz,
                                  sType);
     }
 
@@ -13667,7 +13652,7 @@ static int SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
     return sigSz;
 }
 
-int wc_SignCert_ex(int requestSz, int sType, byte* buffer, word32 buffSz,
+int wc_SignCert_ex(int requestSz, int sType, byte* buf, word32 buffSz,
                    int keyType, void* key, WC_RNG* rng)
 {
     RsaKey* rsaKey = NULL;
@@ -13681,28 +13666,28 @@ int wc_SignCert_ex(int requestSz, int sType, byte* buffer, word32 buffSz,
     else if (keyType == ED25519_TYPE)
         ed25519Key = (ed25519_key*)key;
 
-    return SignCert(requestSz, sType, buffer, buffSz, rsaKey, eccKey,
+    return SignCert(requestSz, sType, buf, buffSz, rsaKey, eccKey,
                     ed25519Key, rng);
 }
 
-int wc_SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
+int wc_SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
                 RsaKey* rsaKey, ecc_key* eccKey, WC_RNG* rng)
 {
-    return SignCert(requestSz, sType, buffer, buffSz, rsaKey, eccKey, NULL,
+    return SignCert(requestSz, sType, buf, buffSz, rsaKey, eccKey, NULL,
                     rng);
 }
 
-int wc_MakeSelfCert(Cert* cert, byte* buffer, word32 buffSz,
+int wc_MakeSelfCert(Cert* cert, byte* buf, word32 buffSz,
                     RsaKey* key, WC_RNG* rng)
 {
     int ret;
 
-    ret = wc_MakeCert(cert, buffer, buffSz, key, NULL, rng);
+    ret = wc_MakeCert(cert, buf, buffSz, key, NULL, rng);
     if (ret < 0)
         return ret;
 
     return wc_SignCert(cert->bodySz, cert->sigType,
-                       buffer, buffSz, key, NULL, rng);
+                       buf, buffSz, key, NULL, rng);
 }
 
 
@@ -13725,7 +13710,7 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
                                  byte *ntruKey, word16 ntruKeySz,
                                  ed25519_key* ed25519Key, int kid_type)
 {
-    byte *buffer;
+    byte *buf;
     int   bufferSz, ret;
 
     if (cert == NULL ||
@@ -13734,9 +13719,9 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
         (kid_type != SKID_TYPE && kid_type != AKID_TYPE))
         return BAD_FUNC_ARG;
 
-    buffer = (byte *)XMALLOC(MAX_PUBLIC_KEY_SZ, cert->heap,
+    buf = (byte *)XMALLOC(MAX_PUBLIC_KEY_SZ, cert->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-    if (buffer == NULL)
+    if (buf == NULL)
         return MEMORY_E;
 
     /* Public Key */
@@ -13744,19 +13729,19 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
 #ifndef NO_RSA
     /* RSA public key */
     if (rsakey != NULL)
-        bufferSz = SetRsaPublicKey(buffer, rsakey, MAX_PUBLIC_KEY_SZ, 0);
+        bufferSz = SetRsaPublicKey(buf, rsakey, MAX_PUBLIC_KEY_SZ, 0);
 #endif
 #ifdef HAVE_ECC
     /* ECC public key */
     if (eckey != NULL)
-        bufferSz = SetEccPublicKey(buffer, eckey, 0);
+        bufferSz = SetEccPublicKey(buf, eckey, 0);
 #endif
 #ifdef HAVE_NTRU
     /* NTRU public key */
     if (ntruKey != NULL) {
         bufferSz = MAX_PUBLIC_KEY_SZ;
         ret = ntru_crypto_ntru_encrypt_publicKey2SubjectPublicKeyInfo(
-                        ntruKeySz, ntruKey, (word16 *)(&bufferSz), buffer);
+                        ntruKeySz, ntruKey, (word16 *)(&bufferSz), buf);
         if (ret != NTRU_OK)
             bufferSz = -1;
     }
@@ -13766,27 +13751,27 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
 #ifdef HAVE_ED25519
     /* ED25519 public key */
     if (ed25519Key != NULL)
-        bufferSz = SetEd25519PublicKey(buffer, ed25519Key, 0);
+        bufferSz = SetEd25519PublicKey(buf, ed25519Key, 0);
 #endif
 
     if (bufferSz <= 0) {
-        XFREE(buffer, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(buf, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return PUBLIC_KEY_E;
     }
 
     /* Compute SKID by hashing public key */
     if (kid_type == SKID_TYPE) {
-        ret = CalcHashId(buffer, bufferSz, cert->skid);
+        ret = CalcHashId(buf, bufferSz, cert->skid);
         cert->skidSz = KEYID_SIZE;
     }
     else if (kid_type == AKID_TYPE) {
-        ret = CalcHashId(buffer, bufferSz, cert->akid);
+        ret = CalcHashId(buf, bufferSz, cert->akid);
         cert->akidSz = KEYID_SIZE;
     }
     else
         ret = BAD_FUNC_ARG;
 
-    XFREE(buffer, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(buf, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
