@@ -5118,9 +5118,6 @@ int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key)
             if (key->sign_k == NULL) {
                 ret = MEMORY_E;
             }
-            else {
-                XMEMSET(key->sign_k, 0, sizeof(mp_int));
-            }
         }
     }
 
