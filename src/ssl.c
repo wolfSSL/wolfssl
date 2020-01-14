@@ -19379,7 +19379,8 @@ void wolfSSL_ACCESS_DESCRIPTION_free(WOLFSSL_ACCESS_DESCRIPTION* access)
         wolfSSL_ASN1_OBJECT_free(access->method);
     if (access->location)
         wolfSSL_GENERAL_NAME_free(access->location);
-    access = NULL;
+
+    /* access = NULL, don't try to access or double free it */
 }
 #endif
 
@@ -30144,6 +30145,8 @@ void wolfSSL_DSA_free(WOLFSSL_DSA* dsa)
         InitwolfSSL_DSA(dsa);  /* set back to NULLs for safety */
 
         XFREE(dsa, NULL, DYNAMIC_TYPE_DSA);
+
+        /* dsa = NULL, don't try to access or double free it */
     }
 }
 
@@ -33324,6 +33327,7 @@ void wolfSSL_EC_KEY_free(WOLFSSL_EC_KEY *key)
         InitwolfSSL_ECKey(key); /* set back to NULLs for safety */
 
         XFREE(key, NULL, DYNAMIC_TYPE_ECC);
+        /* key = NULL, don't try to access or double free it */
     }
 }
 #endif /* HAVE_ECC && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
@@ -33608,6 +33612,7 @@ void wolfSSL_EC_GROUP_free(WOLFSSL_EC_GROUP *group)
     WOLFSSL_ENTER("wolfSSL_EC_GROUP_free");
 
     XFREE(group, NULL, DYNAMIC_TYPE_ECC);
+    /* group = NULL, don't try to access or double free it */
 }
 #endif
 
@@ -34124,6 +34129,7 @@ void wolfSSL_EC_POINT_free(WOLFSSL_EC_POINT *p)
         p->inSet = p->exSet = 0;
 
         XFREE(p, NULL, DYNAMIC_TYPE_ECC);
+        /* p = NULL, don't try to access or double free it */
     }
 }
 #endif
@@ -47190,6 +47196,7 @@ void wolfSSL_BN_free(WOLFSSL_BIGNUM* bn)
             bn->internal = NULL;
         }
         XFREE(bn, NULL, DYNAMIC_TYPE_BIGINT);
+        /* bn = NULL, don't try to access or double free it */
     }
 }
 
@@ -47263,6 +47270,8 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
         InitwolfSSL_Rsa(rsa);  /* set back to NULLs for safety */
 
         XFREE(rsa, NULL, DYNAMIC_TYPE_RSA);
+
+        /* rsa = NULL, don't try to access or double free it */
     }
 }
 
