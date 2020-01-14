@@ -17691,8 +17691,8 @@ done:
     wc_ecc_free(&userB);
     wc_ecc_free(&userA);
 
-    FREE_VAR(sharedA, HEAP_HINT);
 #if defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)
+    FREE_VAR(sharedA, HEAP_HINT);
     FREE_VAR(sharedB, HEAP_HINT);
 #endif
 #ifdef HAVE_ECC_SIGN
