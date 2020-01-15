@@ -603,6 +603,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define BIO_eof                         wolfSSL_BIO_eof
 #define BIO_set_ss                      wolfSSL_BIO_set_ss
 
+#define BIO_f_md                        wolfSSL_BIO_f_md
+#define BIO_get_md_ctx                  wolfSSL_BIO_get_md_ctx
 #define BIO_s_mem                       wolfSSL_BIO_s_mem
 #define BIO_f_base64                    wolfSSL_BIO_f_base64
 #define BIO_set_flags                   wolfSSL_BIO_set_flags

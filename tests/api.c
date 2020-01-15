@@ -24021,6 +24021,99 @@ static void test_wolfSSL_BIO_printf(void)
     #endif
 }
 
+static void test_wolfSSL_BIO_f_md(void)
+{
+/* tests not passing */
+#if 0
+    #if defined(OPENSSL_ALL) && !defined(NO_SHA256)
+    BIO *bio, *mem;
+    char msg[] = "message to hash";
+    char out[60];
+    EVP_MD_CTX* ctx;
+    const unsigned char testKey[] =
+    {
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b
+    };
+    const char testData[] = "Hi There";
+    const unsigned char testResult[] =
+    {
+        0xb0, 0x34, 0x4c, 0x61, 0xd8, 0xdb, 0x38, 0x53,
+        0x5c, 0xa8, 0xaf, 0xce, 0xaf, 0x0b, 0xf1, 0x2b,
+        0x88, 0x1d, 0xc2, 0x00, 0xc9, 0x83, 0x3d, 0xa7,
+        0x26, 0xe9, 0x37, 0x6c, 0x2e, 0x32, 0xcf, 0xf7
+    };
+    const unsigned char expectedHash[] =
+    {
+       0x66, 0x49, 0x3C, 0xE8, 0x8A, 0x57, 0xB0, 0x60,
+       0xDC, 0x55, 0x7D, 0xFC, 0x1F, 0xA5, 0xE5, 0x07,
+       0x70, 0x5A, 0xF6, 0xD7, 0xC4, 0x1F, 0x1A, 0xE4,
+       0x2D, 0xA6, 0xFD, 0xD1, 0x29, 0x7D, 0x60, 0x0D
+    };
+    unsigned char check[sizeof(testResult) + 1];
+    size_t checkSz = -1;
+    EVP_PKEY* key;
+
+    printf(testingFmt, "wolfSSL_BIO_f_md()");
+
+    XMEMSET(out, 0, sizeof(out));
+    AssertNotNull(bio = BIO_new(BIO_f_md()));
+    AssertNotNull(mem = BIO_new(BIO_s_mem()));
+
+    AssertIntEQ(BIO_get_md_ctx(bio, &ctx), 1);
+    AssertIntEQ(EVP_DigestInit(ctx, EVP_sha256()), 1);
+
+    /* should not be able to write/read yet since just digest wrapper */
+    AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), 0);
+    AssertIntEQ(BIO_pending(bio), 0);
+    AssertIntEQ(BIO_read(bio, out, sizeof(out)), 0);
+
+    /* append BIO mem to bio in order to read/write */
+    AssertNotNull(bio = BIO_push(bio, mem));
+
+    XMEMSET(out, 0, sizeof(out));
+    AssertIntEQ(BIO_write(mem, msg, sizeof(msg)), 16);
+    AssertIntEQ(BIO_pending(bio), 16);
+
+    /* this just reads the message and does not hash it (gets calls final) */
+    AssertIntEQ(BIO_read(bio, out, sizeof(out)), 16);
+    AssertIntEQ(XMEMCMP(out, msg, sizeof(msg)), 0);
+
+    /* create a message digest using BIO */
+    XMEMSET(out, 0, sizeof(out));
+    AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), 16);
+    AssertIntEQ(BIO_pending(mem), 16);
+    AssertIntEQ(BIO_pending(bio), 16);
+    AssertIntEQ(BIO_gets(bio, out, sizeof(out)), 32);
+    AssertIntEQ(XMEMCMP(expectedHash, out, 32), 0);
+    BIO_free(bio);
+    BIO_free(mem);
+
+    /* test with HMAC */
+    XMEMSET(out, 0, sizeof(out));
+    AssertNotNull(bio = BIO_new(BIO_f_md()));
+    AssertNotNull(mem = BIO_new(BIO_s_mem()));
+    BIO_get_md_ctx(bio, &ctx);
+    AssertNotNull(key = EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, NULL,
+                                             testKey, (int)sizeof(testKey)));
+    EVP_DigestSignInit(ctx, NULL, EVP_sha256(), NULL, key);
+    AssertNotNull(bio = BIO_push(bio, mem));
+    BIO_write(bio, testData, strlen(testData));
+    EVP_DigestSignFinal(ctx, NULL, &checkSz);
+    EVP_DigestSignFinal(ctx, check, &checkSz);
+
+    AssertIntEQ(XMEMCMP(check, testResult, sizeof(testResult)), 0);
+
+    BIO_free(bio);
+    BIO_free(mem);
+
+    printf(resultFmt, passed);
+    #endif
+#endif
+}
+
+
 static void test_wolfSSL_SESSION(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
@@ -30478,6 +30571,7 @@ void ApiTest(void)
     test_wolfSSL_d2i_PUBKEY();
     test_wolfSSL_BIO_write();
     test_wolfSSL_BIO_printf();
+    test_wolfSSL_BIO_f_md();
     test_wolfSSL_SESSION();
     test_wolfSSL_DES_ecb_encrypt();
     test_wolfSSL_sk_GENERAL_NAME();
