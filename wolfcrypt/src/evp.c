@@ -143,22 +143,35 @@ int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
 
 WOLFSSL_EVP_CIPHER_CTX *wolfSSL_EVP_CIPHER_CTX_new(void)
 {
-	WOLFSSL_EVP_CIPHER_CTX *ctx = (WOLFSSL_EVP_CIPHER_CTX*)XMALLOC(sizeof *ctx,
+    WOLFSSL_EVP_CIPHER_CTX *ctx = (WOLFSSL_EVP_CIPHER_CTX*)XMALLOC(sizeof *ctx,
                                                  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-	if (ctx) {
-      WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_new");
-		  wolfSSL_EVP_CIPHER_CTX_init(ctx);
-  }
-	return ctx;
+    if (ctx) {
+        WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_new");
+        wolfSSL_EVP_CIPHER_CTX_init(ctx);
+    }
+    return ctx;
 }
 
 void wolfSSL_EVP_CIPHER_CTX_free(WOLFSSL_EVP_CIPHER_CTX *ctx)
 {
     if (ctx) {
         WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_free");
-		    wolfSSL_EVP_CIPHER_CTX_cleanup(ctx);
-		    XFREE(ctx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-		}
+        wolfSSL_EVP_CIPHER_CTX_cleanup(ctx);
+        XFREE(ctx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+}
+
+int wolfSSL_EVP_CIPHER_CTX_reset(WOLFSSL_EVP_CIPHER_CTX *ctx)
+{
+    int ret = WOLFSSL_FAILURE;
+
+    if (ctx != NULL) {
+        WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_reset");
+        wolfSSL_EVP_CIPHER_CTX_cleanup(ctx);
+        ret = WOLFSSL_SUCCESS;
+    }
+
+    return ret;
 }
 
 unsigned long wolfSSL_EVP_CIPHER_CTX_mode(const WOLFSSL_EVP_CIPHER_CTX *ctx)

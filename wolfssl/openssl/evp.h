@@ -462,6 +462,7 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptFinal_legacy(WOLFSSL_EVP_CIPHER_CTX *ctx,
 
 WOLFSSL_API WOLFSSL_EVP_CIPHER_CTX *wolfSSL_EVP_CIPHER_CTX_new(void);
 WOLFSSL_API void wolfSSL_EVP_CIPHER_CTX_free(WOLFSSL_EVP_CIPHER_CTX *ctx);
+WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_reset(WOLFSSL_EVP_CIPHER_CTX *ctx);
 WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_key_length(WOLFSSL_EVP_CIPHER_CTX* ctx);
 WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_key_length(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                                      int keylen);
@@ -718,6 +719,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_DecryptFinal_ex           wolfSSL_EVP_CipherFinal
 
 #define EVP_CIPHER_CTX_free           wolfSSL_EVP_CIPHER_CTX_free
+#define EVP_CIPHER_CTX_reset          wolfSSL_EVP_CIPHER_CTX_reset
 #define EVP_CIPHER_CTX_new            wolfSSL_EVP_CIPHER_CTX_new
 
 #define EVP_get_cipherbynid           wolfSSL_EVP_get_cipherbynid

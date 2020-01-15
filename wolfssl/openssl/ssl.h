@@ -287,6 +287,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_pending                     wolfSSL_pending
 #define SSL_load_error_strings          wolfSSL_load_error_strings
 #define SSL_library_init                wolfSSL_library_init
+#define OpenSSL_add_ssl_algorithms      wolfSSL_library_init
 #define SSL_CTX_set_session_cache_mode  wolfSSL_CTX_set_session_cache_mode
 #define SSL_CTX_set_cipher_list         wolfSSL_CTX_set_cipher_list
 #define SSL_CTX_set_ciphersuites        wolfSSL_CTX_set_cipher_list
