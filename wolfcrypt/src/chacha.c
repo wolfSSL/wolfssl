@@ -265,10 +265,8 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
     word32 temp[CHACHA_CHUNK_WORDS]; /* used to make sure aligned */
     word32 i;
 
-    output = (byte*)temp;
-
     /* handle left overs */
-    if (ctx->left > 0) {
+    if (bytes > 0 && ctx->left > 0) {
         wc_Chacha_wordtobyte(temp, ctx->X); /* recreate the stream */
         output = (byte*)temp + CHACHA_CHUNK_BYTES - ctx->left;
         for (i = 0; i < bytes && i < ctx->left; i++) {
@@ -283,23 +281,11 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         bytes = bytes - i;
         c += i;
         m += i;
-        output = (byte*)temp;
     }
 
-    for (; bytes > 0;) {
+    output = (byte*)temp;
+    while (bytes >= CHACHA_CHUNK_BYTES) {
         wc_Chacha_wordtobyte(temp, ctx->X);
-        if (bytes <= CHACHA_CHUNK_BYTES) {
-            for (i = 0; i < bytes; ++i) {
-                c[i] = m[i] ^ output[i];
-            }
-            ctx->left = CHACHA_CHUNK_BYTES - i;
-
-            /* increment the counter if no more bytes are left */
-            if (ctx->left == 0) {
-                ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
-            }
-            return;
-        }
         ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
         for (i = 0; i < CHACHA_CHUNK_BYTES; ++i) {
             c[i] = m[i] ^ output[i];
@@ -308,7 +294,19 @@ static void wc_Chacha_encrypt_bytes(ChaCha* ctx, const byte* m, byte* c,
         c += CHACHA_CHUNK_BYTES;
         m += CHACHA_CHUNK_BYTES;
     }
+
+    if (bytes) {
+        /* in this case there will always be some left over since bytes is less
+         * than CHACHA_CHUNK_BYTES, so do not increment counter after getting
+         * stream in order for the stream to be recreated on next call */
+        wc_Chacha_wordtobyte(temp, ctx->X);
+        for (i = 0; i < bytes; ++i) {
+            c[i] = m[i] ^ output[i];
+        }
+        ctx->left = CHACHA_CHUNK_BYTES - i;
+    }
 }
+
 
 /**
   * API to encrypt/decrypt a message of any size.
