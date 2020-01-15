@@ -24023,8 +24023,6 @@ static void test_wolfSSL_BIO_printf(void)
 
 static void test_wolfSSL_BIO_f_md(void)
 {
-/* tests not passing */
-#if 0
     #if defined(OPENSSL_ALL) && !defined(NO_SHA256)
     BIO *bio, *mem;
     char msg[] = "message to hash";
@@ -24051,6 +24049,13 @@ static void test_wolfSSL_BIO_f_md(void)
        0x70, 0x5A, 0xF6, 0xD7, 0xC4, 0x1F, 0x1A, 0xE4,
        0x2D, 0xA6, 0xFD, 0xD1, 0x29, 0x7D, 0x60, 0x0D
     };
+    const unsigned char emptyHash[] =
+    {
+        0xE3, 0xB0, 0xC4, 0x42, 0x98, 0xFC, 0x1C, 0x14,
+        0x9A, 0xFB, 0xF4, 0xC8, 0x99, 0x6F, 0xB9, 0x24,
+        0x27, 0xAE, 0x41, 0xE4, 0x64, 0x9B, 0x93, 0x4C,
+        0xA4, 0x95, 0x99, 0x1B, 0x78, 0x52, 0xB8, 0x55
+    };
     unsigned char check[sizeof(testResult) + 1];
     size_t checkSz = -1;
     EVP_PKEY* key;
@@ -24064,10 +24069,15 @@ static void test_wolfSSL_BIO_f_md(void)
     AssertIntEQ(BIO_get_md_ctx(bio, &ctx), 1);
     AssertIntEQ(EVP_DigestInit(ctx, EVP_sha256()), 1);
 
-    /* should not be able to write/read yet since just digest wrapper */
-    AssertIntEQ(BIO_write(bio, msg, sizeof(msg)), 0);
+    /* should not be able to write/read yet since just digest wrapper and no
+     * data is passing through the bio */
+    AssertIntEQ(BIO_write(bio, msg, 0), 0);
     AssertIntEQ(BIO_pending(bio), 0);
     AssertIntEQ(BIO_read(bio, out, sizeof(out)), 0);
+    AssertIntEQ(BIO_gets(bio, out, 3), 0);
+    AssertIntEQ(BIO_gets(bio, out, sizeof(out)), 32);
+    AssertIntEQ(XMEMCMP(emptyHash, out, 32), 0);
+    BIO_reset(bio);
 
     /* append BIO mem to bio in order to read/write */
     AssertNotNull(bio = BIO_push(bio, mem));
@@ -24110,7 +24120,6 @@ static void test_wolfSSL_BIO_f_md(void)
 
     printf(resultFmt, passed);
     #endif
-#endif
 }
 
 

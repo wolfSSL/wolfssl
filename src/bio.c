@@ -154,6 +154,23 @@ static int wolfSSL_BIO_SSL_read(WOLFSSL_BIO* bio, void* buf,
 }
 #endif /* WOLFCRYPT_ONLY */
 
+static int wolfSSL_BIO_MD_read(WOLFSSL_BIO* bio, void* buf, int sz)
+{
+    int ret = sz;
+
+    if (wolfSSL_EVP_MD_CTX_type(bio->ptr) == (NID_hmac & 0xFF)) {
+        if (wolfSSL_EVP_DigestSignUpdate(bio->ptr, buf, sz) != WOLFSSL_SUCCESS)
+        {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    else {
+        if (wolfSSL_EVP_DigestUpdate(bio->ptr, buf, ret) != WOLFSSL_SUCCESS) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    return ret;
+}
 
 
 /* Used to read data from a WOLFSSL_BIO structure
@@ -217,6 +234,11 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
             ret = wolfSSL_BIO_SSL_read(bio, buf, len, front);
         }
     #endif
+
+        /* data passing through BIO MD wrapper */
+        if (bio && bio->type == WOLFSSL_BIO_MD && ret > 0) {
+            ret = wolfSSL_BIO_MD_read(bio, buf, ret);
+        }
 
         /* case where front of list is done */
         if (bio == front) {
@@ -423,6 +445,33 @@ static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
 }
 
 
+/* Helper function for writing to a WOLFSSL_BIO_MD type
+ *
+ * returns the amount written in bytes on success (0)
+ */
+static int wolfSSL_BIO_MD_write(WOLFSSL_BIO* bio, const void* data, int len)
+{
+    int ret = 0;
+
+    if (bio == NULL || data == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (wolfSSL_EVP_MD_CTX_type(bio->ptr) == (NID_hmac & 0xFF)) {
+        if (wolfSSL_EVP_DigestSignUpdate(bio->ptr, data, len) !=
+                WOLFSSL_SUCCESS) {
+            ret = WOLFSSL_BIO_ERROR;
+        }
+    }
+    else {
+        if (wolfSSL_EVP_DigestUpdate(bio->ptr, data, len) != WOLFSSL_SUCCESS) {
+            ret =  WOLFSSL_BIO_ERROR;
+        }
+    }
+    return ret;
+}
+
+
 /* Writes data to a WOLFSSL_BIO structure
  *
  * bio  structure to write to
@@ -535,6 +584,12 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
             }
         }
     #endif /* WOLFCRYPT_ONLY */
+
+        if (bio && bio->type == WOLFSSL_BIO_MD) {
+            if (bio->next != NULL) { /* data passing through MD BIO */
+                ret = wolfSSL_BIO_MD_write(bio, data, len);
+            }
+        }
 
         /* advance to the next bio in list */
         bio = bio->next;
@@ -740,6 +795,22 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
                 break;
             }
 
+        /* call final on hash */
+        case WOLFSSL_BIO_MD:
+            if (wolfSSL_EVP_MD_CTX_size(bio->ptr) > sz) {
+                WOLFSSL_MSG("Output buffer was too small for digest");
+                ret = WOLFSSL_FAILURE;
+            }
+            else {
+                unsigned int szOut = 0;
+                ret = wolfSSL_EVP_DigestFinal(bio->ptr, (unsigned char*)buf,
+                        &szOut);
+                if (ret == WOLFSSL_SUCCESS) {
+                    ret = szOut;
+                }
+            }
+            break;
+
         default:
             WOLFSSL_MSG("BIO type not supported yet with wolfSSL_BIO_gets");
     }
@@ -853,6 +924,16 @@ size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
     WOLFSSL_ENTER("wolfSSL_BIO_ctrl_pending");
     if (bio == NULL) {
         return 0;
+    }
+
+    if (bio->type == WOLFSSL_BIO_MD) {
+        /* MD is a wrapper only get next bio */
+        while (bio->next != NULL) {
+            bio = bio->next;
+            if (bio->type != WOLFSSL_BIO_MD) {
+                break;
+            }
+        }
     }
 
 #ifndef WOLFCRYPT_ONLY
@@ -1202,6 +1283,14 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
             if (bio->mem_buf != NULL) {
                 bio->mem_buf->data = (char*)bio->ptr;
                 bio->mem_buf->length = bio->num;
+            }
+            return 0;
+
+        case WOLFSSL_BIO_MD:
+            if (bio->ptr != NULL) {
+                const WOLFSSL_EVP_MD* md = wolfSSL_EVP_MD_CTX_md(bio->ptr);
+                wolfSSL_EVP_MD_CTX_init(bio->ptr);
+                wolfSSL_EVP_DigestInit(bio->ptr, md);
             }
             return 0;
 

@@ -15162,8 +15162,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         if ((bio != NULL) && (mdcp != NULL)) {
             *mdcp = bio->ptr;
-
-            /* TODO: reset bio */
+            ret = WOLFSSL_SUCCESS;
         }
 
         return ret;
@@ -15318,7 +15317,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             bio->shutdown = BIO_CLOSE; /* default to close things */
             bio->init = 1;
             if (method->type != WOLFSSL_BIO_FILE &&
-                    method->type != WOLFSSL_BIO_SOCKET) {
+                    method->type != WOLFSSL_BIO_SOCKET &&
+                    method->type != WOLFSSL_BIO_MD) {
                 bio->mem_buf =(WOLFSSL_BUF_MEM*)XMALLOC(sizeof(WOLFSSL_BUF_MEM),
                                                        0, DYNAMIC_TYPE_OPENSSL);
                 if (bio->mem_buf == NULL) {
@@ -15327,6 +15327,15 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                     return NULL;
                 }
                 bio->mem_buf->data = (char*)bio->ptr;
+            }
+
+            if (method->type == WOLFSSL_BIO_MD) {
+                bio->ptr = wolfSSL_EVP_MD_CTX_new();
+                if (bio->ptr == NULL) {
+                    WOLFSSL_MSG("Memory error");
+                    wolfSSL_BIO_free(bio);
+                    return NULL;
+                }
             }
 
             /* check if is custom method */
@@ -15431,6 +15440,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                     wolfSSL_BUF_MEM_free(bio->mem_buf);
                     bio->mem_buf = NULL;
                 }
+            }
+
+            if (bio->type == WOLFSSL_BIO_MD) {
+                wolfSSL_EVP_MD_CTX_free(bio->ptr);
             }
 
             XFREE(bio, 0, DYNAMIC_TYPE_OPENSSL);
