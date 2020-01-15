@@ -34589,6 +34589,10 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
     }
 
     if (!wolfSSL_BN_is_one(point->Z)) {
+        if (mp_init(&modulus) != MP_OKAY) {
+            WOLFSSL_MSG("mp_init failed");
+            return WOLFSSL_FAILURE;
+        }
         /* Map the Jacobian point back to affine space */
         if (mp_read_radix(&modulus, ecc_sets[group->curve_idx].prime, MP_RADIX_HEX) != MP_OKAY) {
             WOLFSSL_MSG("mp_read_radix failed");
