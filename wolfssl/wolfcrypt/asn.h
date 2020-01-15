@@ -432,10 +432,8 @@ enum Key_Sum {
     RSAk     = 645,
     NTRUk    = 274,
     ECDSAk   = 518,
-    ED25519k = 256
-    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-    ,DHk      = 647 /* dhKeyAgreement OID: 1.2.840.113549.1.3.1 */
-    #endif
+    ED25519k = 256,
+    DHk      = 647, /* dhKeyAgreement OID: 1.2.840.113549.1.3.1 */
 };
 
 #if !defined(NO_AES) || defined(HAVE_PKCS7)
@@ -1114,6 +1112,8 @@ WOLFSSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
                              word32 maxIdx);
 WOLFSSL_LOCAL int GetSequence_ex(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx, int check);
+WOLFSSL_LOCAL int GetOctetString(const byte* input, word32* inOutIdx, int* len,
+                         word32 maxIdx);
 WOLFSSL_LOCAL int GetSet(const byte* input, word32* inOutIdx, int* len,
                         word32 maxIdx);
 WOLFSSL_LOCAL int GetSet_ex(const byte* input, word32* inOutIdx, int* len,

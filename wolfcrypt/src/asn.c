@@ -423,7 +423,7 @@ static int SetBoolean(int val, byte* output)
  *         invalid.
  *         Otherwise, the number of bytes in the ASN.1 data.
  */
-static int GetOctetString(const byte* input, word32* inOutIdx, int* len,
+int GetOctetString(const byte* input, word32* inOutIdx, int* len,
                           word32 maxIdx)
 {
     return GetASNHeader(input, ASN_OCTET_STRING, inOutIdx, len, maxIdx);
@@ -10385,14 +10385,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
                 if (ret >= 0) {
                     der->length = ret;
-                    if ((algId == ECDSAk) && (keyFormat != NULL))
-                        *keyFormat = ECDSAk;
-                    else if ((algId == DSAk) && (keyFormat != NULL))
-                        *keyFormat = DSAk;
-                    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-                    else if ((algId == DHk) && (keyFormat != NULL))
-                        *keyFormat = DHk;
-                    #endif
+                    if (keyFormat)
+                        *keyFormat = algId;
                     ret = 0;
                 }
             #else

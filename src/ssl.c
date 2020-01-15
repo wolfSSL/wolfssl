@@ -5497,12 +5497,19 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         /* ASN1 (DER) or RAW (NTRU) */
         int length = (int)sz;
         if (format == WOLFSSL_FILETYPE_ASN1) {
-            /* get length of der (read sequence) */
+            /* get length of der (read sequence or octet string) */
             word32 inOutIdx = 0;
-            if (GetSequence(buff, &inOutIdx, &length, (word32)sz) < 0) {
+            if (GetSequence(buff, &inOutIdx, &length, (word32)sz) >= 0) {
+                length += inOutIdx; /* include leading sequence */
+            }
+            /* get length using octect string (allowed for private key types) */
+            else if (type == PRIVATEKEY_TYPE &&
+                    GetOctetString(buff, &inOutIdx, &length, (word32)sz) >= 0) {
+                length += inOutIdx; /* include leading oct string */
+            }
+            else {
                 ret = ASN_PARSE_E;
             }
-            length += inOutIdx; /* include leading sequence */
         }
 
         info->consumed = length;
