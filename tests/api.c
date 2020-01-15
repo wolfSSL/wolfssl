@@ -4783,7 +4783,7 @@ static void test_wolfSSL_no_password_cb(void)
 
 #ifdef TEST_PKCS8_ENC
 /* for PKCS8 test case */
-static WC_INLINE int PKCS8TestCallBack(char* passwd, int sz, int rw, void* userdata)
+static int PKCS8TestCallBack(char* passwd, int sz, int rw, void* userdata)
 {
     int flag = 0;
 
@@ -4996,6 +4996,37 @@ static void test_wolfSSL_PKCS8(void)
 
     printf(resultFmt, passed);
 #endif /* !NO_FILESYSTEM && !NO_ASN && HAVE_PKCS8 */
+}
+
+static void test_wolfSSL_PKCS8_ED25519(void)
+{
+#if !defined(NO_ASN) && defined(HAVE_PKCS8) && \
+    defined(WOLFSSL_ENCRYPTED_KEYS) && defined(HAVE_ED25519)
+    const byte encPrivKey[] = \
+    "-----BEGIN ENCRYPTED PRIVATE KEY-----\n"
+    "MIGbMFcGCSqGSIb3DQEFDTBKMCkGCSqGSIb3DQEFDDAcBAheCGLmWGh7+AICCAAw\n"
+    "DAYIKoZIhvcNAgkFADAdBglghkgBZQMEASoEEC4L5P6GappsTyhOOoQfvh8EQJMX\n"
+    "OAdlsYKCOcFo4djg6AI1lRdeBRwVFWkha7gBdoCJOzS8wDvTbYcJMPvANu5ft3nl\n"
+    "2L9W4v7swXkV+X+a1ww=\n"
+    "-----END ENCRYPTED PRIVATE KEY-----\n";
+    const char password[] = "abcdefghijklmnopqrstuvwxyz";
+    byte der[FOURK_BUF];
+    WOLFSSL_CTX* ctx;
+    int bytes;
+
+    XMEMSET(der, 0, sizeof(der));
+    AssertIntGT((bytes = wc_KeyPemToDer(encPrivKey, sizeof(encPrivKey), der,
+        (word32)sizeof(der), password)), 0);
+#ifndef NO_WOLFSSL_SERVER
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#else
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#endif
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, der, bytes,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    wolfSSL_CTX_free(ctx);
+#endif
 }
 
 /* Testing functions dealing with PKCS5 */
@@ -30154,6 +30185,7 @@ void ApiTest(void)
     test_wolfSSL_PKCS12();
     test_wolfSSL_no_password_cb();
     test_wolfSSL_PKCS8();
+    test_wolfSSL_PKCS8_ED25519();
     test_wolfSSL_PKCS5();
     test_wolfSSL_URI();
     test_wolfSSL_TBS();
