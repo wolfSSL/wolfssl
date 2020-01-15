@@ -34,6 +34,7 @@
 #include <wolfssl/version.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef HAVE_WOLF_EVENT
     #include <wolfssl/wolfcrypt/wolfevent.h>
@@ -455,12 +456,6 @@ struct WOLFSSL_BIO_METHOD {
 typedef long (*wolf_bio_info_cb)(WOLFSSL_BIO *bio, int event, const char *parg,
                                  int iarg, long larg, long return_value);
 
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
-typedef struct WOLFSSL_CRYPTO_EX_DATA {
-    void* ex_data[MAX_EX_DATA];
-} WOLFSSL_CRYPTO_EX_DATA;
-#endif
-
 struct WOLFSSL_BIO {
     WOLFSSL_BUF_MEM* mem_buf;
     WOLFSSL_BIO_METHOD* method;
@@ -484,35 +479,6 @@ struct WOLFSSL_BIO {
     byte         shutdown:1;    /* close flag */
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;
-#endif
-};
-
-struct WOLFSSL_RSA {
-#ifdef WC_RSA_BLINDING
-    WC_RNG* rng;              /* for PrivateDecrypt blinding */
-#endif
-    WOLFSSL_BIGNUM* n;
-    WOLFSSL_BIGNUM* e;
-    WOLFSSL_BIGNUM* d;
-    WOLFSSL_BIGNUM* p;
-    WOLFSSL_BIGNUM* q;
-    WOLFSSL_BIGNUM* dmp1;      /* dP */
-    WOLFSSL_BIGNUM* dmq1;      /* dQ */
-    WOLFSSL_BIGNUM* iqmp;      /* u */
-    void*          heap;
-    void*          internal;  /* our RSA */
-    char           inSet;     /* internal set from external ? */
-    char           exSet;     /* external set from internal ? */
-    char           ownRng;    /* flag for if the rng should be free'd */
-#if defined(OPENSSL_EXTRA)
-    WOLFSSL_RSA_METHOD* meth;
-#endif
-#if defined(HAVE_EX_DATA)
-    WOLFSSL_CRYPTO_EX_DATA ex_data;  /* external data */
-#endif
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
-    wolfSSL_Mutex    refMutex;                       /* ref count mutex */
-    int              refCount;                       /* reference count */
 #endif
 };
 

@@ -26,6 +26,7 @@
 #define WOLFSSL_RSA_H_
 
 #include <wolfssl/openssl/bn.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -47,18 +48,44 @@
 #define RSA_FLAG_NO_BLINDING            (1 << 7)
 #define RSA_FLAG_NO_CONSTTIME           (1 << 8)
 
-#ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
-typedef struct WOLFSSL_RSA            WOLFSSL_RSA;
-#define WOLFSSL_RSA_TYPE_DEFINED
-#endif
-
-typedef WOLFSSL_RSA                   RSA;
-
 typedef struct WOLFSSL_RSA_METHOD {
     int flags;
     char *name;
 } WOLFSSL_RSA_METHOD;
 
+#ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
+#define WOLFSSL_RSA_TYPE_DEFINED
+typedef struct WOLFSSL_RSA {
+#ifdef WC_RSA_BLINDING
+    WC_RNG* rng;              /* for PrivateDecrypt blinding */
+#endif
+    WOLFSSL_BIGNUM* n;
+    WOLFSSL_BIGNUM* e;
+    WOLFSSL_BIGNUM* d;
+    WOLFSSL_BIGNUM* p;
+    WOLFSSL_BIGNUM* q;
+    WOLFSSL_BIGNUM* dmp1;      /* dP */
+    WOLFSSL_BIGNUM* dmq1;      /* dQ */
+    WOLFSSL_BIGNUM* iqmp;      /* u */
+    void*          heap;
+    void*          internal;  /* our RSA */
+    char           inSet;     /* internal set from external ? */
+    char           exSet;     /* external set from internal ? */
+    char           ownRng;    /* flag for if the rng should be free'd */
+#if defined(OPENSSL_EXTRA)
+    WOLFSSL_RSA_METHOD* meth;
+#endif
+#if defined(HAVE_EX_DATA)
+    WOLFSSL_CRYPTO_EX_DATA ex_data;  /* external data */
+#endif
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+    wolfSSL_Mutex    refMutex;                       /* ref count mutex */
+    int              refCount;                       /* reference count */
+#endif
+} WOLFSSL_RSA;
+#endif
+
+typedef WOLFSSL_RSA                   RSA;
 typedef WOLFSSL_RSA_METHOD            RSA_METHOD;
 
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSA_new(void);

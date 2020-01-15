@@ -5035,8 +5035,13 @@ static void test_wolfSSL_PKCS8(void)
     AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
 #else
+#ifdef OPENSSL_EXTRA
+    AssertIntGT((bytes = wc_KeyPemToDer(buffer, bytes, der,
+        (word32)sizeof(der), NULL)), 0);
+#else
     AssertIntEQ((bytes = wc_KeyPemToDer(buffer, bytes, der,
         (word32)sizeof(der), NULL)), ASN_NO_PEM_HEADER);
+#endif
 #endif /* HAVE_ECC */
 
     wolfSSL_CTX_free(ctx);
@@ -19964,8 +19969,10 @@ static void test_wolfSSL_PEM_RSAPrivateKey(void)
     AssertNotNull((rsa = PEM_read_bio_RSAPrivateKey(bio, NULL, NULL, NULL)));
     AssertIntEQ(RSA_size(rsa), 256);
 
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     AssertNotNull(rsa_dup = RSAPublicKey_dup(rsa));
     AssertPtrNE(rsa_dup, rsa);
+#endif
 
     /* test if valgrind complains about unreleased memory */
     RSA_up_ref(rsa);
