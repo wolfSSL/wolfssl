@@ -392,7 +392,7 @@ void poly1305_block(Poly1305* ctx, const unsigned char *m)
 #if !defined(WOLFSSL_ARMASM) || !defined(__aarch64__)
 int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
 {
-#if defined(POLY130564)
+#if defined(POLY130564) && !defined(USE_INTEL_SPEEDUP)
     word64 t0,t1;
 #endif
 

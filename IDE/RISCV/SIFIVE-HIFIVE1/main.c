@@ -143,12 +143,12 @@ int main(void)
 #ifdef USE_CLOCK_HZ
     /* Speed up clock */
     printf("SiFive HiFive1 Demo\n");
-    printf("Setting clock to %dMHz\n", USE_CLOCK_HZ/1000000);
+    printf("Setting clock to %dMHz\n", (int)(USE_CLOCK_HZ/1000000));
     clk_Hz = metal_clock_set_rate_hz(
         &__METAL_DT_SIFIVE_FE310_G000_PLL_HANDLE->clock, USE_CLOCK_HZ
     );
 #endif
-    printf("Actual Clock %dMHz\n", clk_Hz/1000000);
+    printf("Actual Clock %dMHz\n", (int)(clk_Hz/1000000));
 
     /* Reconfigure the SPI Bus for dual mode */
     #define QSPI0_CTRL       0x10014000UL

@@ -44,7 +44,7 @@ void InitTimer(void) {
                                        SYSCTL_USE_PLL |
                                        SYSCTL_CFG_VCO_480), 120000000);
 
-    printf("Clock=%dMHz\n", ui32SysClock/1000000) ;
+    printf("Clock=%dMHz\n", (int)(ui32SysClock/1000000));
     ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
     ROM_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
     ROM_TimerLoadSet(TIMER0_BASE, TIMER_A, -1);

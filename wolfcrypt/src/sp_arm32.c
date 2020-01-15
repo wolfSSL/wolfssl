@@ -72321,15 +72321,17 @@ static const sp_digit p256_b[8] = {
 static int sp_ecc_point_new_ex(void* heap, sp_point* sp, sp_point** p)
 {
     int ret = MP_OKAY;
-    (void)heap;
-#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    (void)sp;
-    *p = (sp_point*)XMALLOC(sizeof(sp_point), heap, DYNAMIC_TYPE_ECC);
-#else
-    *p = sp;
-#endif
     if (p == NULL) {
         ret = MEMORY_E;
+    }
+    else {
+    #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+        *p = (sp_point*)XMALLOC(sizeof(sp_point), heap, DYNAMIC_TYPE_ECC);
+        (void)sp;
+    #else
+        *p = sp;
+        (void)heap;
+    #endif
     }
     return ret;
 }
@@ -76111,11 +76113,12 @@ int sp_ecc_mulmod_256(mp_int* km, ecc_point* gm, ecc_point* r, int map,
 {
 #if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
     sp_point p;
-    sp_digit kd[8];
+    sp_digit k[8];
+#else
+    sp_digit* k = NULL;
 #endif
     sp_point* point;
-    sp_digit* k = NULL;
-    int err = MP_OKAY;
+    int err;
 
     err = sp_ecc_point_new(heap, p, point);
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
@@ -76125,8 +76128,6 @@ int sp_ecc_mulmod_256(mp_int* km, ecc_point* gm, ecc_point* r, int map,
         if (k == NULL)
             err = MEMORY_E;
     }
-#else
-    k = kd;
 #endif
     if (err == MP_OKAY) {
         sp_256_from_mp(k, 8, km);
@@ -77559,11 +77560,12 @@ int sp_ecc_mulmod_base_256(mp_int* km, ecc_point* r, int map, void* heap)
 {
 #if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
     sp_point p;
-    sp_digit kd[8];
+    sp_digit k[8];
+#else
+    sp_digit* k = NULL;
 #endif
     sp_point* point;
-    sp_digit* k = NULL;
-    int err = MP_OKAY;
+    int err;
 
     err = sp_ecc_point_new(heap, p, point);
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
@@ -77574,8 +77576,6 @@ int sp_ecc_mulmod_base_256(mp_int* km, ecc_point* r, int map, void* heap)
             err = MEMORY_E;
         }
     }
-#else
-    k = kd;
 #endif
     if (err == MP_OKAY) {
         sp_256_from_mp(k, 8, km);
@@ -77721,13 +77721,14 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 {
 #if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
     sp_point p;
-    sp_digit kd[8];
+    sp_digit k[8];
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     sp_point inf;
 #endif
+#else
+    sp_digit* k = NULL;
 #endif
     sp_point* point;
-    sp_digit* k = NULL;
 #ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
     sp_point* infinity;
 #endif
@@ -77749,8 +77750,6 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
             err = MEMORY_E;
         }
     }
-#else
-    k = kd;
 #endif
 
     if (err == MP_OKAY) {
@@ -77844,10 +77843,11 @@ int sp_ecc_secret_gen_256(mp_int* priv, ecc_point* pub, byte* out,
 {
 #if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
     sp_point p;
-    sp_digit kd[8];
+    sp_digit k[8];
+#else
+    sp_digit* k = NULL;
 #endif
     sp_point* point = NULL;
-    sp_digit* k = NULL;
     int err = MP_OKAY;
 
     if (*outLen < 32U) {
@@ -77864,8 +77864,6 @@ int sp_ecc_secret_gen_256(mp_int* priv, ecc_point* pub, byte* out,
         if (k == NULL)
             err = MEMORY_E;
     }
-#else
-    k = kd;
 #endif
 
     if (err == MP_OKAY) {
@@ -79416,7 +79414,7 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
     sp_digit carry;
     sp_digit* s = NULL;
     sp_digit* kInv = NULL;
-    int err = MP_OKAY;
+    int err;
     int32_t c;
     int i;
 
@@ -79724,7 +79722,7 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
 static int sp_256_ecc_is_point_8(sp_point* point, void* heap)
 {
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    sp_digit* d = NULL;
+    sp_digit* d;
 #else
     sp_digit t1d[2*8];
     sp_digit t2d[2*8];

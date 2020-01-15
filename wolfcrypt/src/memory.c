@@ -1042,7 +1042,7 @@ void *xmalloc(size_t n, void* heap, int type, const char* func,
     p32[0] = (word32)n;
     p = (void*)(p32 + 4);
 
-    fprintf(stderr, "Alloc: %p -> %u (%d) at %s:%s:%d\n", p, (word32)n, type,
+    fprintf(stderr, "Alloc: %p -> %u (%d) at %s:%s:%u\n", p, (word32)n, type,
                                                               func, file, line);
 
     (void)heap;
@@ -1072,10 +1072,10 @@ void *xrealloc(void *p, size_t n, void* heap, int type, const char* func,
         p32[0] = (word32)n;
         newp = (void*)(p32 + 4);
 
-        fprintf(stderr, "Alloc: %p -> %u (%d) at %s:%s:%d\n", newp, (word32)n,
+        fprintf(stderr, "Alloc: %p -> %u (%d) at %s:%s:%u\n", newp, (word32)n,
                                                         type, func, file, line);
         if (p != NULL) {
-            fprintf(stderr, "Free: %p -> %u (%d) at %s:%s:%d\n", p, oldLen,
+            fprintf(stderr, "Free: %p -> %u (%d) at %s:%s:%u\n", p, oldLen,
                                                         type, func, file, line);
         }
     }
@@ -1092,7 +1092,7 @@ void xfree(void *p, void* heap, int type, const char* func, const char* file,
     if (p != NULL) {
         p32 -= 4;
 
-        fprintf(stderr, "Free: %p -> %u (%d) at %s:%s:%d\n", p, p32[0], type,
+        fprintf(stderr, "Free: %p -> %u (%d) at %s:%s:%u\n", p, p32[0], type,
                                                               func, file, line);
 
         if (free_function)
@@ -1111,7 +1111,7 @@ void __attribute__((no_instrument_function))
      __cyg_profile_func_enter(void *func,  void *caller)
 {
     register void* sp asm("sp");
-    fprintf(stderr, "ENTER: %016lx %p\n", (size_t)func, sp);
+    fprintf(stderr, "ENTER: %016lx %p\n", (unsigned long)(size_t)func, sp);
     (void)caller;
 }
 
@@ -1119,7 +1119,7 @@ void __attribute__((no_instrument_function))
      __cyg_profile_func_exit(void *func, void *caller)
 {
     register void* sp asm("sp");
-    fprintf(stderr, "EXIT: %016lx %p\n", (size_t)func, sp);
+    fprintf(stderr, "EXIT: %016lx %p\n", (unsigned long)(size_t)func, sp);
     (void)caller;
 }
 #endif

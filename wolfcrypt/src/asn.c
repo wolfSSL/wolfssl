@@ -2826,7 +2826,7 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
     /* test if RSA key */
     if (der->keyOID == RSAk) {
     #ifdef WOLFSSL_SMALL_STACK
-        RsaKey* a = NULL;
+        RsaKey* a;
         RsaKey* b = NULL;
     #else
         RsaKey a[1], b[1];
@@ -2895,7 +2895,7 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
     #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT)
     if (der->keyOID == ECDSAk) {
     #ifdef WOLFSSL_SMALL_STACK
-        ecc_key* key_pair = NULL;
+        ecc_key* key_pair;
         byte*    privDer;
     #else
         ecc_key  key_pair[1];
@@ -2960,7 +2960,7 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
     #if defined(HAVE_ED25519) && !defined(NO_ASN_CRYPT)
     if (der->keyOID == ED25519k) {
     #ifdef WOLFSSL_SMALL_STACK
-        ed25519_key* key_pair = NULL;
+        ed25519_key* key_pair;
     #else
         ed25519_key  key_pair[1];
     #endif
@@ -3284,7 +3284,7 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
             return ASN_VERSION_E;
         }
 
-        if (salt == NULL || saltSz <= 0) {
+        if (salt == NULL || saltSz == 0) {
             saltSz = 8;
         #ifdef WOLFSSL_SMALL_STACK
             saltTmp = (byte*)XMALLOC(saltSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3356,7 +3356,7 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
     /* check if should return max size */
     if (out == NULL) {
         /* account for salt size */
-        if (salt == NULL || saltSz <= 0) {
+        if (salt == NULL || saltSz == 0) {
             tmpSz += MAX_SALT_SIZE;
         }
         else {
@@ -3516,7 +3516,7 @@ int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
 
     ret = CheckAlgo(vPKCS, vAlgo, &id, &version, &blockSz);
     /* create random salt if one not provided */
-    if (ret == 0 && (salt == NULL || saltSz <= 0)) {
+    if (ret == 0 && (salt == NULL || saltSz == 0)) {
         saltSz = 8;
     #ifdef WOLFSSL_SMALL_STACK
         saltTmp = (byte*)XMALLOC(saltSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3914,7 +3914,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
                 return ALGO_ID_E;
         }
 
-        if (saltSz <= 0) {
+        if (saltSz == 0) {
             sz += MAX_SALT_SIZE;
         }
         else {
@@ -3944,7 +3944,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     out[tmpIdx++] = ASN_OCTET_STRING;
 
     /* create random salt if one not provided */
-    if (salt == NULL || saltSz <= 0) {
+    if (salt == NULL || saltSz == 0) {
         saltSz = 8;
     #ifdef WOLFSSL_SMALL_STACK
         saltTmp = (byte*)XMALLOC(saltSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -5129,7 +5129,7 @@ static int StoreRsaKey(DecodedCert* cert, word32 bitStringEnd)
         word32 oidSz = 0;
 
         ret = wc_ecc_get_oid(oid, NULL, &oidSz);
-        if (ret < 0 || oidSz <= 0) {
+        if (ret < 0 || oidSz == 0) {
             WOLFSSL_MSG("CheckCurve not found");
             ret = ALGO_ID_E;
         }
@@ -5490,7 +5490,7 @@ int wc_OBJ_sn2nid(const char *sn)
 /* Routine for calculating hashId */
 int CalcHashId(const byte* data, word32 len, byte* hash)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret;
 
 #ifdef WOLF_CRYPTO_CB
     /* try to use a registered crypto callback */
@@ -5504,6 +5504,8 @@ int CalcHashId(const byte* data, word32 len, byte* hash)
     ret = wc_Sha256Hash(data, len, hash);
 #elif !defined(NO_SHA)
     ret = wc_ShaHash(data, len, hash);
+#else
+    ret = NOT_COMPILED_IN;
 #endif
 
     return ret;
@@ -5860,7 +5862,7 @@ static int GetName(DecodedCert* cert, int nameType, int maxIdx)
                 #endif /* OPENSSL_EXTRA */
                 #ifndef IGNORE_NAME_CONSTRAINTS
                     {
-                        DNS_entry* emailName = NULL;
+                        DNS_entry* emailName;
 
                         emailName = (DNS_entry*)XMALLOC(sizeof(DNS_entry),
                                               cert->heap, DYNAMIC_TYPE_ALTNAME);
@@ -6330,7 +6332,7 @@ int ValidateDate(const byte* date, byte format, int dateType)
     time_t ltime;
     struct tm  certTime;
     struct tm* localTime;
-    struct tm* tmpTime = NULL;
+    struct tm* tmpTime;
     int    i = 0;
     int    timeDiff = 0 ;
     int    diffHH = 0 ; int diffMM = 0 ;
@@ -6340,8 +6342,9 @@ int ValidateDate(const byte* date, byte format, int dateType)
     struct tm tmpTimeStorage;
     tmpTime = &tmpTimeStorage;
 #else
-    (void)tmpTime;
+    tmpTime = NULL;
 #endif
+    (void)tmpTime;
 
     ltime = XTIME(0);
 
@@ -9326,7 +9329,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                                                     type != TRUSTED_PEER_TYPE) {
                         WOLFSSL_MSG("\tmaxPathLen status: OK");
                     }
-                } else if (decrementMaxPathLen && cert->ca->maxPathLen <= 0) {
+                } else if (decrementMaxPathLen && cert->ca->maxPathLen == 0) {
                     cert->maxPathLen = 0;
                     if (verify != NO_VERIFY && type != CA_TYPE &&
                                                     type != TRUSTED_PEER_TYPE) {
@@ -9366,12 +9369,12 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     /* prepare for TSIP TLS cert verification API use */
     if (cert->keyOID == RSAk) {
         /* to call TSIP API, it needs keys position info in bytes */
-        if (ret = RsaPublicKeyDecodeRawIndex(cert->publicKey, (word32*)&idx,
+        if ((ret = RsaPublicKeyDecodeRawIndex(cert->publicKey, (word32*)&idx,
                                    cert->pubKeySize,
                                    &cert->sigCtx.pubkey_n_start,
                                    &cert->sigCtx.pubkey_n_len,
                                    &cert->sigCtx.pubkey_e_start,
-                                   &cert->sigCtx.pubkey_e_len) != 0) {
+                                   &cert->sigCtx.pubkey_e_len)) != 0) {
             WOLFSSL_MSG("Decoding index from cert failed.");
             return ret;
         }
@@ -10038,8 +10041,7 @@ int wc_EncryptedInfoParse(EncryptedInfo* info, char** pBuffer, size_t bufSz)
         newline = SkipEndOfLineChars(newline, bufferEnd);
 
         /* return new headerEnd */
-        if (pBuffer)
-            *pBuffer = newline;
+        *pBuffer = newline;
     }
 
     return err;
@@ -10844,7 +10846,7 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
     if (with_header) {
         int  algoSz;
 #ifdef WOLFSSL_SMALL_STACK
-        byte* algo = NULL;
+        byte* algo;
 
         algo = (byte*)XMALLOC(MAX_ALGO_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (algo == NULL) {
@@ -11289,7 +11291,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int with_header)
 #ifdef WOLFSSL_SMALL_STACK
     byte* algo = NULL;
     byte* curve = NULL;
-    byte* pub = NULL;
+    byte* pub;
 #else
     byte algo[MAX_ALGO_SZ];
     byte curve[MAX_ALGO_SZ];
@@ -11432,7 +11434,7 @@ int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 inLen,
         return keySz + infoSz;
     }
 
-    if (output == NULL || inLen < keySz + infoSz) {
+    if (inLen < keySz + infoSz) {
         return BUFFER_E;
     }
 
@@ -11459,7 +11461,7 @@ static int SetEd25519PublicKey(byte* output, ed25519_key* key, int with_header)
     word32 pubSz = ED25519_PUB_KEY_SIZE;
 #ifdef WOLFSSL_SMALL_STACK
     byte* algo = NULL;
-    byte* pub = NULL;
+    byte* pub;
 #else
     byte algo[MAX_ALGO_SZ];
     byte pub[ED25519_PUB_KEY_SIZE];
@@ -11624,7 +11626,7 @@ static int SetValidity(byte* output, int daysValid)
 
     time_t now;
     time_t then;
-    struct tm* tmpTime = NULL;
+    struct tm* tmpTime;
     struct tm* expandedTime;
     struct tm localTime;
 
@@ -11633,8 +11635,9 @@ static int SetValidity(byte* output, int daysValid)
     struct tm tmpTimeStorage;
     tmpTime = &tmpTimeStorage;
 #else
-    (void)tmpTime;
+    tmpTime = NULL;
 #endif
+    (void)tmpTime;
 
     now = XTIME(0);
 
@@ -13501,11 +13504,14 @@ static int SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
 {
     int sigSz = 0;
     void* heap = NULL;
-    CertSignCtx* certSignCtx = NULL;
+    CertSignCtx* certSignCtx;
 #ifndef WOLFSSL_ASYNC_CRYPT
     CertSignCtx  certSignCtx_lcl;
+
     certSignCtx = &certSignCtx_lcl;
     XMEMSET(certSignCtx, 0, sizeof(CertSignCtx));
+#else
+    certSignCtx = NULL;
 #endif
 
     if (requestSz < 0)
@@ -14882,7 +14888,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     XMEMCPY(priv, &input[*inOutIdx], privSz);
     *inOutIdx += length;
 
-    if (ret == 0 && (*inOutIdx + 1) < inSz) {
+    if ((*inOutIdx + 1) < inSz) {
         /* prefix 0, may have */
         b = input[*inOutIdx];
         if (b == ECC_PREFIX_0) {
@@ -16077,7 +16083,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     else
 #endif /* WOLFSSL_NO_OCSP_OPTIONAL_CERTS */
     {
-        Signer* ca = NULL;
+        Signer* ca;
         int sigValid = -1;
 
         #ifndef NO_SKID

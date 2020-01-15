@@ -457,7 +457,7 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
         }
 
         /* check for formatting */
-        if (bio && bio->type == WOLFSSL_BIO_BASE64) {
+        if (bio->type == WOLFSSL_BIO_BASE64) {
 #if defined(WOLFSSL_BASE64_ENCODE)
             word32 sz = 0;
 
@@ -527,7 +527,7 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
     #ifndef WOLFCRYPT_ONLY
         if (bio && bio->type == WOLFSSL_BIO_SSL) {
             /* already got eof, again is error */
-            if (bio && front->eof) {
+            if (front->eof) {
                 ret = SSL_FATAL_ERROR;
             }
             else {

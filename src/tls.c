@@ -4811,7 +4811,7 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, byte* input,
 int TLSX_UseSecureRenegotiation(TLSX** extensions, void* heap)
 {
     int ret = 0;
-    SecureRenegotiation* data = NULL;
+    SecureRenegotiation* data;
 
     data = (SecureRenegotiation*)XMALLOC(sizeof(SecureRenegotiation), heap,
                                                              DYNAMIC_TYPE_TLSX);
@@ -5566,7 +5566,7 @@ static int TLSX_HaveQSHScheme(word16 name)
 int TLSX_UseQSHScheme(TLSX** extensions, word16 name, byte* pKey, word16 pkeySz,
                                                                      void* heap)
 {
-    TLSX*      extension = TLSX_Find(*extensions, TLSX_QUANTUM_SAFE_HYBRID);
+    TLSX*      extension = NULL;
     QSHScheme* format    = NULL;
     int        ret       = 0;
 
@@ -5579,6 +5579,7 @@ int TLSX_UseQSHScheme(TLSX** extensions, word16 name, byte* pKey, word16 pkeySz,
         if ((ret = TLSX_QSH_Append(&format, name, pKey, pkeySz)) != 0)
             return ret;
 
+        extension = TLSX_Find(*extensions, TLSX_QUANTUM_SAFE_HYBRID);
         if (!extension) {
             if ((ret = TLSX_Push(extensions, TLSX_QUANTUM_SAFE_HYBRID, format,
                                                                   heap)) != 0) {

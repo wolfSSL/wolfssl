@@ -869,7 +869,7 @@ static int Pkcs11RsaPublic(Pkcs11Session* session, wc_CryptoInfo* info)
 
     WOLFSSL_MSG("PKCS#11: RSA Public Key Operation");
 
-    if (ret == 0 && info->pk.rsa.outLen == NULL) {
+    if (info->pk.rsa.outLen == NULL) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -941,7 +941,7 @@ static int Pkcs11RsaPrivate(Pkcs11Session* session, wc_CryptoInfo* info)
 
     WOLFSSL_MSG("PKCS#11: RSA Private Key Operation");
 
-    if (ret == 0 && info->pk.rsa.outLen == NULL) {
+    if (info->pk.rsa.outLen == NULL) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -1611,9 +1611,9 @@ static word32 Pkcs11ECDSASig_Encode(byte* sig, word32 sz)
     word32 i;
 
     /* Find first byte of data in r and s. */
-    while (sig[rStart] == 0x00 && rStart < sz - 1)
+    while (rStart < sz - 1 && sig[rStart] == 0x00)
         rStart++;
-    while (sig[sz + sStart] == 0x00 && sStart < sz - 1)
+    while (sStart < sz - 1 && sig[sz + sStart] == 0x00)
         sStart++;
     /* Check if 0 needs to be prepended to make integer a positive number. */
     rHigh = sig[rStart] >> 7;

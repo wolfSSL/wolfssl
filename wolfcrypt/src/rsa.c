@@ -684,10 +684,8 @@ int wc_CheckRsaKey(RsaKey* key)
 
     /* Check dP, dQ and u if they exist */
     if (ret == 0 && !mp_iszero(&key->dP)) {
-        if (ret == 0) {
-            if (mp_sub_d(&key->p, 1, tmp) != MP_OKAY) {
-                ret = MP_EXPTMOD_E;
-            }
+        if (mp_sub_d(&key->p, 1, tmp) != MP_OKAY) {
+            ret = MP_EXPTMOD_E;
         }
         /* Check dP <= p-1. */
         if (ret == 0) {
@@ -2011,10 +2009,10 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 {
 #ifndef WOLFSSL_SP_MATH
 #ifdef WOLFSSL_SMALL_STACK
-    mp_int* tmp = NULL;
+    mp_int* tmp;
 #ifdef WC_RSA_BLINDING
-    mp_int* rnd = NULL;
-    mp_int* rndi = NULL;
+    mp_int* rnd;
+    mp_int* rndi;
 #endif
 #else
     mp_int tmp[1];
@@ -2172,7 +2170,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
         #else
             if (ret == 0) {
             #ifdef WOLFSSL_SMALL_STACK
-                mp_int* tmpa = NULL;
+                mp_int* tmpa;
                 mp_int* tmpb = NULL;
             #else
                 mp_int tmpa[1], tmpb[1];
@@ -2258,8 +2256,8 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
         #else
             if (mp_exptmod(tmp, &key->e, &key->n, tmp) != MP_OKAY)
                 ret = MP_EXPTMOD_E;
-            break;
         #endif
+            break;
         default:
             ret = RSA_WRONG_TYPE_E;
             break;
@@ -2599,7 +2597,7 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
 
         /* Check that 1 < in < n-1. (Requirement of 800-56B.) */
 #ifdef WOLFSSL_SMALL_STACK
-        mp_int* c = NULL;
+        mp_int* c;
 #else
         mp_int c[1];
 #endif
@@ -3045,9 +3043,11 @@ int wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 int wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 {
-    WC_RNG* rng = NULL;
+    WC_RNG* rng;
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
+#else
+    rng = NULL;
 #endif
     return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
         RSA_PRIVATE_DECRYPT, RSA_BLOCK_TYPE_2, WC_RSA_PKCSV15_PAD,
@@ -3060,9 +3060,11 @@ int wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen, byte** out,
                                   RsaKey* key, int type, enum wc_HashType hash,
                                   int mgf, byte* label, word32 labelSz)
 {
-    WC_RNG* rng = NULL;
+    WC_RNG* rng;
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
+#else
+    rng = NULL;
 #endif
     return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
         RSA_PRIVATE_DECRYPT, RSA_BLOCK_TYPE_2, type, hash,
@@ -3074,9 +3076,11 @@ int wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen, byte** out,
 int wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
                                                  word32 outLen, RsaKey* key)
 {
-    WC_RNG* rng = NULL;
+    WC_RNG* rng;
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
+#else
+    rng = NULL;
 #endif
     return RsaPrivateDecryptEx((byte*)in, inLen, out, outLen, NULL, key,
         RSA_PRIVATE_DECRYPT, RSA_BLOCK_TYPE_2, WC_RSA_PKCSV15_PAD,
@@ -3089,9 +3093,11 @@ int wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen, byte* out,
                             enum wc_HashType hash, int mgf, byte* label,
                             word32 labelSz)
 {
-    WC_RNG* rng = NULL;
+    WC_RNG* rng;
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
+#else
+    rng = NULL;
 #endif
     return RsaPrivateDecryptEx((byte*)in, inLen, out, outLen, NULL, key,
         RSA_PRIVATE_DECRYPT, RSA_BLOCK_TYPE_2, type, hash, mgf, label,
@@ -3103,9 +3109,11 @@ int wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen, byte* out,
 #if !defined(WOLFSSL_CRYPTOCELL)
 int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 {
-    WC_RNG* rng = NULL;
+    WC_RNG* rng;
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
+#else
+    rng = NULL;
 #endif
     return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PKCSV15_PAD,
@@ -3123,9 +3131,10 @@ int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
         return BAD_FUNC_ARG;
     }
 
-    rng = NULL;
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
+#else
+    rng = NULL;
 #endif
 
     return RsaPrivateDecryptEx((byte*)in, inLen, out, outLen, NULL, key,
@@ -3177,9 +3186,11 @@ int wc_RsaPSS_VerifyInline_ex(byte* in, word32 inLen, byte** out,
                               enum wc_HashType hash, int mgf, int saltLen,
                               RsaKey* key)
 {
-    WC_RNG* rng = NULL;
+    WC_RNG* rng;
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
+#else
+    rng = NULL;
 #endif
     return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PSS_PAD,
@@ -3226,9 +3237,11 @@ int wc_RsaPSS_Verify_ex(byte* in, word32 inLen, byte* out, word32 outLen,
                         enum wc_HashType hash, int mgf, int saltLen,
                         RsaKey* key)
 {
-    WC_RNG* rng = NULL;
+    WC_RNG* rng;
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
+#else
+    rng = NULL;
 #endif
     return RsaPrivateDecryptEx(in, inLen, out, outLen, NULL, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PSS_PAD,

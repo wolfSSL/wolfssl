@@ -1335,7 +1335,7 @@ int wolfSSL_CryptHwMutexUnLock(void) {
 
     void *uITRON4_malloc(size_t sz) {
         ER ercd;
-        void *p;
+        void *p = NULL;
         ercd = get_mpl(ID_wolfssl_MPOOL, sz, (VP)&p);
         if (ercd == E_OK) {
             return p;
@@ -1429,7 +1429,7 @@ int wolfSSL_CryptHwMutexUnLock(void) {
 
     void *uTKernel_malloc(unsigned int sz) {
         ER ercd;
-        void *p;
+        void *p = NULL;
         ercd = tk_get_mpl(ID_wolfssl_MPOOL, sz, (VP)&p, TMO_FEVR);
         if (ercd == E_OK) {
             return p;
@@ -2206,7 +2206,6 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
     void* nucleus_realloc(void* ptr, unsigned long size, void* heap, int type)
     {
-        STATUS     status;
         DM_HEADER* old_header;
         word32     old_size, copy_size;
         void*      new_mem;

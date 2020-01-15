@@ -317,8 +317,7 @@ int blake2b_update( blake2b_state *S, const byte *in, word64 inlen )
     {
       XMEMCPY( S->buf + left, in, (wolfssl_word)inlen );
       S->buflen += inlen; /* Be lazy, do not compress */
-      in += inlen;
-      inlen -= inlen;
+      inlen = 0;
     }
   }
 

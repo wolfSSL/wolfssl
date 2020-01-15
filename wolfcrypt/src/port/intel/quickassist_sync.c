@@ -511,7 +511,7 @@ int IntelQaHardwareStart(const char* process_name, int limitDevAccess)
             }
         }
 
-        QLOG("Inst %u, Node: %d, Affin: %u, Dev: %u, Accel %u, "
+        QLOG("Inst %d, Node: %d, Affin: %u, Dev: %u, Accel %u, "
                 "EE %u, BDF %02X:%02X:%02X, isPolled %d\n",
                 i, g_cyInstanceInfo[i].nodeAffinity, coreAffinity,
                 g_cyInstanceInfo[i].physInstId.packageId,
@@ -1532,7 +1532,7 @@ static void _qaeMemFree(void *ptr, void* heap, int type
 
 #ifdef WOLFSSL_DEBUG_MEMORY
 #ifdef WOLFSSL_DEBUG_MEMORY_PRINT
-    printf("Free: %p (%u) at %s:%d, heap %p, type %d, count %d\n",
+    printf("Free: %p (%u) at %s:%u, heap %p, type %d, count %d\n",
         origPtr, (unsigned int)size, func, line, heap, type, header->count);
 #else
     (void)func;
@@ -1680,7 +1680,7 @@ static void* _qaeMemAlloc(size_t size, void* heap, int type
 
 #ifdef WOLFSSL_DEBUG_MEMORY
 #ifdef WOLFSSL_DEBUG_MEMORY_PRINT
-    printf("Alloc: %p (%u) at %s:%d, heap %p, type %d\n",
+    printf("Alloc: %p (%u) at %s:%u, heap %p, type %d\n",
         ptr, (unsigned int)size, func, line, heap, type);
 #else
     (void)func;
@@ -1841,11 +1841,11 @@ void* wc_CryptoCb_IntelQaRealloc(void *ptr, size_t size, void* heap, int type
 #ifdef WOLFSSL_DEBUG_MEMORY
 #ifdef WOLFSSL_DEBUG_MEMORY_PRINT
     if (allocNew) {
-        printf("Realloc: New %p -> %p (%u) at %s:%d, heap %p, type %d\n",
+        printf("Realloc: New %p -> %p (%u) at %s:%u, heap %p, type %d\n",
             origPtr, newPtr, (unsigned int)size, func, line, heap, type);
     }
     else {
-        printf("Realloc: Reuse %p (%u) at %s:%d, heap %p, type %d, count %d\n",
+        printf("Realloc: Reuse %p (%u) at %s:%u, heap %p, type %d, count %d\n",
              origPtr, (unsigned int)size, func, line, header->heap, header->type, header->count);
     }
 #else
@@ -1963,12 +1963,13 @@ static byte aesgcm_t[] = {
 /* simple example of using AES-GCM encrypt with Intel QA */
 int main(int argc, char** argv)
 {
+#if !defined(NO_AES) && defined(HAVE_AESGCM)
     int ret;
     IntelQaDev dev;
     byte out[256];
-    word32 outLen = sizeof(out);
     byte tmp[256];
-    word32 tmpLen = sizeof(tmp);
+    word32 tmpLen;
+#endif
 
 #ifdef QAT_DEBUG
     wolfSSL_Debugging_ON();
@@ -1992,9 +1993,6 @@ int main(int argc, char** argv)
     IntelQaClose(&dev);
 #endif /* HAVE_AESGCM */
 #endif /* NO_AES */
-
-    (void)tmp;
-    (void)tmpLen;
 
     IntelQaDeInit(0);
 

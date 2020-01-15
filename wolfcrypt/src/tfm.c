@@ -479,6 +479,9 @@ WC_INLINE static int fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
 #else
    fp_int    *tmp;
 #endif
+ 
+   /* Variables used but not seen by cppcheck. */
+   (void)ix; (void)iy; (void)iz;
 
 #ifdef WOLFSSL_SMALL_STACK
    tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
@@ -525,6 +528,9 @@ int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
 #else
    fp_int    *tmp;
 #endif
+
+   /* Variables used but not seen by cppcheck. */
+   (void)c0; (void)c1; (void)c2;
 
    IF_HAVE_INTEL_MULX(ret = fp_mul_comba_mulx(A, B, C), return ret) ;
 
@@ -2503,6 +2509,12 @@ int fp_sqr_comba(fp_int *A, fp_int *B)
    fp_int    *tmp;
 #endif
 
+   /* Variables used but not seen by cppcheck. */
+   (void)c0; (void)c1; (void)c2;
+#ifdef TFM_ISO
+   (void)tt;
+#endif
+
 #ifdef WOLFSSL_SMALL_STACK
    tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
    if (tmp == NULL)
@@ -3362,22 +3374,26 @@ void fp_init(fp_int *a)
 
 void fp_zero(fp_int *a)
 {
-    int size = FP_SIZE;
+    int size;
     a->used = 0;
     a->sign = FP_ZPOS;
 #if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
     size = a->size;
+#else
+    size = FP_SIZE;
 #endif
     XMEMSET(a->dp, 0, size * sizeof(fp_digit));
 }
 
 void fp_clear(fp_int *a)
 {
-    int size = FP_SIZE;
+    int size;
     a->used = 0;
     a->sign = FP_ZPOS;
 #if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
     size = a->size;
+#else
+    size = FP_SIZE;
 #endif
     XMEMSET(a->dp, 0, size * sizeof(fp_digit));
     fp_free(a);
@@ -3385,11 +3401,13 @@ void fp_clear(fp_int *a)
 
 void fp_forcezero (mp_int * a)
 {
-    int size = FP_SIZE;
+    int size;
     a->used = 0;
     a->sign = FP_ZPOS;
 #if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
     size = a->size;
+#else
+    size = FP_SIZE;
 #endif
     ForceZero(a->dp, size * sizeof(fp_digit));
 #ifdef HAVE_WOLF_BIGINT
@@ -4883,10 +4901,12 @@ int mp_toradix (mp_int *a, char *str, int radix)
 void mp_dump(const char* desc, mp_int* a, byte verbose)
 {
   char buffer[FP_SIZE * sizeof(fp_digit) * 2];
-  int size = FP_SIZE;
+  int size;
 
 #if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
   size = a->size;
+#else
+  size = FP_SIZE;
 #endif
 
   printf("%s: ptr=%p, used=%d, sign=%d, size=%d, fpd=%d\n",

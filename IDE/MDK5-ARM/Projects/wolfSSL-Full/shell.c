@@ -477,7 +477,7 @@ static void for_command(void *args)
 {
     if( args == NULL || ((func_args *)args)->argc == 1) {
         printf("For %d times\n", for_iteration) ;
-    } else if( args == NULL || ((func_args *)args)->argc == 2) {
+    } else if(((func_args *)args)->argc == 2) {
         for_iteration = atoi(((func_args *)args)->argv[1]) ;
     } else printf("Invalid argument\n") ;
 }

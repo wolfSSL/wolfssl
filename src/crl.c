@@ -201,8 +201,6 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
 
     while (crle) {
         if (XMEMCMP(crle->issuerHash, cert->issuerHash, CRL_DIGEST_SIZE) == 0) {
-            int doNextDate = 1;
-
             WOLFSSL_MSG("Found CRL Entry on list");
 
             if (crle->verified == 0) {
@@ -211,7 +209,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
                 byte extAuthKeyId[KEYID_SIZE];
             #endif
                 byte issuerHash[CRL_DIGEST_SIZE];
-                byte* tbs = NULL;
+                byte* tbs;
                 word32 tbsSz = crle->tbsSz;
                 byte* sig = NULL;
                 word32 sigSz = crle->signatureSz;
@@ -297,12 +295,10 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
 
             WOLFSSL_MSG("Checking next date validity");
 
-            #ifdef WOLFSSL_NO_CRL_NEXT_DATE
-                if (crle->nextDateFormat == ASN_OTHER_TYPE)
-                    doNextDate = 0;  /* skip */
-            #endif
-
-            if (doNextDate) {
+        #ifdef WOLFSSL_NO_CRL_NEXT_DATE
+            if (crle->nextDateFormat != ASN_OTHER_TYPE)
+        #endif
+            {
             #ifndef NO_ASN_TIME
                 if (!XVALIDATE_DATE(crle->nextDate,crle->nextDateFormat, AFTER)) {
                     WOLFSSL_MSG("CRL next date is no longer valid");

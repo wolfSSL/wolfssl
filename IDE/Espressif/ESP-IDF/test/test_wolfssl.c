@@ -280,13 +280,13 @@ int mp_performance_check(int mul, int mulmod, int exptmod)
                 printf("(%d,%d) Xbits = %d, Ybits = %d Pbits = %d",
                                                         i , j, Xbits, Ybits, Pbits);
                 if(mul) {
-                    printf(" mul = %llu (us)", elapsedTime1);
+                    printf(" mul = %llu (us)", (unsigned long long)elapsedTime1);
                 }
                 if(mulmod) {
-                    printf(" mulmod = %llu (us)\n", elapsedTime2);
+                    printf(" mulmod = %llu (us)\n", (unsigned long long)elapsedTime2);
                 }
                 if(exptmod) {
-                    printf(" exptmod = %llu (ms)\n", elapsedTime3);
+                    printf(" exptmod = %llu (ms)\n", (unsigned long long)elapsedTime3);
                 }
             }
         }

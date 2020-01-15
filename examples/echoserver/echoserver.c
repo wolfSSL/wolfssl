@@ -81,7 +81,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
     int    ret = 0;
     int    doDTLS = 0;
-    int    doPSK = 0;
+    int    doPSK;
     int    outCreated = 0;
     int    shutDown = 0;
     int    useAnyAddr = 0;
@@ -108,12 +108,11 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     doDTLS  = 1;
 #endif
 
-#ifdef CYASSL_LEANPSK
+#if (defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519)) || \
+                                                         defined(CYASSL_LEANPSK)
     doPSK = 1;
-#endif
-
-#if defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519)
-    doPSK = 1;
+#else
+    doPSK = 0;
 #endif
 
 #if defined(NO_MAIN_DRIVER) && !defined(CYASSL_SNIFFER) && \

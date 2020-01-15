@@ -87,7 +87,7 @@ int wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
 {
     int  ret = 0;
 #ifdef WOLFSSL_SMALL_STACK
-    Aes* aes = NULL;
+    Aes* aes;
 #else
     Aes  aes[1];
 #endif
@@ -122,7 +122,7 @@ int wc_Des_CbcEncryptWithKey(byte* out, const byte* in, word32 sz,
 {
     int ret  = 0;
 #ifdef WOLFSSL_SMALL_STACK
-    Des* des = NULL;
+    Des* des;
 #else
     Des  des[1];
 #endif
@@ -149,7 +149,7 @@ int wc_Des_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
 {
     int ret  = 0;
 #ifdef WOLFSSL_SMALL_STACK
-    Des* des = NULL;
+    Des* des;
 #else
     Des  des[1];
 #endif
@@ -177,7 +177,7 @@ int wc_Des3_CbcEncryptWithKey(byte* out, const byte* in, word32 sz,
 {
     int ret    = 0;
 #ifdef WOLFSSL_SMALL_STACK
-    Des3* des3 = NULL;
+    Des3* des3;
 #else
     Des3  des3[1];
 #endif
@@ -209,7 +209,7 @@ int wc_Des3_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
 {
     int ret    = 0;
 #ifdef WOLFSSL_SMALL_STACK
-    Des3* des3 = NULL;
+    Des3* des3;
 #else
     Des3  des3[1];
 #endif

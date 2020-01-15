@@ -771,6 +771,9 @@ int atcatls_verify_signature_cb(WOLFSSL* ssl, const byte* sig, unsigned int sigS
         /* export public as unsigned bin for hardware */
         ret = wc_ecc_export_public_raw(&tmpKey, qx, &qxLen, qy, &qyLen);
         wc_ecc_free(&tmpKey);
+        if (ret != 0) {
+            goto exit;
+        }
 
         /* decode the ECDSA signature */
         ret = wc_ecc_sig_to_rs(sig, sigSz,

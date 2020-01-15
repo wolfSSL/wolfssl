@@ -78,7 +78,6 @@ static int hash_firmware_verify_default(int numThreads)
     int ret, i;
     word32 idx;
     double t;
-    char *sp_URI_value;
     pthread_t threads[numThreads];
     ecc_key eccKey[numThreads];
 

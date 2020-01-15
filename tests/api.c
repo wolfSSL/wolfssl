@@ -1015,7 +1015,7 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
 static int test_cm_load_ca_buffer(const byte* cert_buf, size_t cert_sz, int file_type)
 {
     int ret;
-    WOLFSSL_CERT_MANAGER* cm = NULL;
+    WOLFSSL_CERT_MANAGER* cm;
 
     cm = wolfSSL_CertManagerNew();
     if (cm == NULL) {
@@ -1150,7 +1150,7 @@ static int test_wolfSSL_CertManagerSetVerify(void)
     int ret = 0;
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_RSA)
-    WOLFSSL_CERT_MANAGER* cm = NULL;
+    WOLFSSL_CERT_MANAGER* cm;
     int tmp = myVerifyFail;
     const char* ca_cert = "./certs/ca-cert.pem";
     const char* expiredCert = "./certs/test/expired/expired-cert.pem";
@@ -2037,7 +2037,7 @@ static void test_wolfSSL_EVP_CIPHER_CTX()
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     const EVP_CIPHER *init = EVP_aes_128_cbc();
-    const EVP_CIPHER *test = NULL;
+    const EVP_CIPHER *test;
     byte key[AES_BLOCK_SIZE] = {0};
     byte iv[AES_BLOCK_SIZE] = {0};
 
@@ -2165,7 +2165,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     SOCKET_T clientfd = 0;
     word16 port;
 
-    callback_functions* cbf = NULL;
+    callback_functions* cbf;
     WOLFSSL_CTX* ctx = 0;
     WOLFSSL* ssl = 0;
 
@@ -2258,7 +2258,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 
 #ifdef WOLFSSL_SESSION_EXPORT
     /* only add in more complex nonblocking case with session export tests */
-    if (args && ((func_args*)args)->argc > 0) {
+    if (((func_args*)args)->argc > 0) {
         /* set as nonblock and time out for waiting on read/write */
         tcp_set_nonblocking(&clientfd);
         wolfSSL_dtls_set_using_nonblock(ssl, 1);
@@ -2296,7 +2296,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 
 #ifdef WOLFSSL_SESSION_EXPORT
     /* only add in more complex nonblocking case with session export tests */
-    if (args && ((func_args*)args)->argc > 0) {
+    if (((func_args*)args)->argc > 0) {
         ret = nonblocking_accept_read(args, ssl, &clientfd);
         if (ret >= 0) {
             ((func_args*)args)->return_code = TEST_SUCCESS;
@@ -2385,7 +2385,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_loop(void* args)
     SOCKET_T clientfd = 0;
     word16 port;
 
-    callback_functions* cbf = NULL;
+    callback_functions* cbf;
     WOLFSSL_CTX* ctx = 0;
     WOLFSSL* ssl = 0;
 
@@ -2575,7 +2575,7 @@ typedef int (*cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);
 static void test_client_nofail(void* args, void *cb)
 {
     SOCKET_T sockfd = 0;
-    callback_functions* cbf = NULL;
+    callback_functions* cbf;
 
     WOLFSSL_CTX*     ctx     = 0;
     WOLFSSL*         ssl     = 0;
@@ -2757,7 +2757,7 @@ done:
 static void test_client_reuse_WOLFSSLobj(void* args, void *cb, void* server_args)
 {
     SOCKET_T sockfd = 0;
-    callback_functions* cbf = NULL;
+    callback_functions* cbf;
 
     WOLFSSL_CTX*     ctx     = 0;
     WOLFSSL*         ssl     = 0;
@@ -4391,11 +4391,13 @@ static void test_wolfSSL_X509_NAME_get_entry(void)
 
     {
         /* use openssl like name to test mapping */
-        X509_NAME_ENTRY* ne = NULL;
-        X509_NAME* name = NULL;
-        char* subCN = NULL;
+        X509_NAME_ENTRY* ne;
+        X509_NAME* name;
         X509* x509;
+    #ifndef NO_FILESYSTEM
         ASN1_STRING* asn;
+        char* subCN = NULL;
+    #endif
         int idx;
         ASN1_OBJECT *object = NULL;
 #if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
@@ -4456,7 +4458,10 @@ static void test_wolfSSL_PKCS12(void)
     char file[] = "./certs/test-servercert.p12";
     char order[] = "./certs/ecc-rsa-server.p12";
     char pass[] = "a password";
+#ifdef HAVE_ECC
     WOLFSSL_X509_NAME* subject;
+    WOLFSSL_X509     *x509;
+#endif
     XFILE f;
     int  bytes, ret;
     WOLFSSL_BIO      *bio;
@@ -4464,7 +4469,6 @@ static void test_wolfSSL_PKCS12(void)
     WC_PKCS12        *pkcs12;
     WC_PKCS12        *pkcs12_2;
     WOLFSSL_X509     *cert;
-    WOLFSSL_X509     *x509;
     WOLFSSL_X509     *tmp;
     WOLF_STACK_OF(WOLFSSL_X509) *ca;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
@@ -4710,8 +4714,6 @@ static void test_wolfSSL_PKCS12(void)
     PKCS12_free(pkcs12);
     BIO_free(bio);
 
-    (void)x509;
-    (void)subject;
     (void)order;
 
     printf(resultFmt, passed);
@@ -5194,8 +5196,6 @@ static int test_wolfSSL_CTX_SetMinVersion(void)
     #else
         const int versions[0];
     #endif
-
-    failFlag = WOLFSSL_SUCCESS;
 
     ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
 
@@ -6912,6 +6912,8 @@ static int test_wc_InitSha3 (void)
     int             ret = 0;
 #if defined(WOLFSSL_SHA3)
     wc_Sha3            sha3;
+
+    (void)sha3;
 
     #if !defined(WOLFSSL_NOSHA3_224)
         printf(testingFmt, "wc_InitSha3_224()");
@@ -10464,7 +10466,7 @@ static int test_wc_AesCbcEncryptDecrypt (void)
         }
     }
     /* If encrypt succeeds but cbc decrypt fails, we can still test. */
-    if (ret == 0 || (ret != 0 && cbcE == 0)) {
+    if (ret == 0 || cbcE == 0) {
         ret = wc_AesCbcDecryptWithKey(dec2, enc, AES_BLOCK_SIZE,
                                      key32, sizeof(key32)/sizeof(byte), iv);
         if (ret == 0 || XMEMCMP(vector, dec2, AES_BLOCK_SIZE) == 0) {
@@ -16573,9 +16575,7 @@ static int test_wc_ecc_mulmod (void)
 
     ret = wc_InitRng(&rng);
     if (ret == 0) {
-        if (ret == 0) {
-            ret = wc_ecc_init(&key1);
-        }
+        ret = wc_ecc_init(&key1);
         if (ret == 0) {
             ret = wc_ecc_init(&key2);
         }
@@ -16585,6 +16585,7 @@ static int test_wc_ecc_mulmod (void)
         if (ret == 0) {
             ret = wc_ecc_make_key(&rng, KEY32, &key1);
         }
+        wc_FreeRng(&rng);
     }
     if (ret == 0) {
         ret = wc_ecc_import_raw_ex(&key2, key1.dp->Gx, key1.dp->Gy, key1.dp->Af,
@@ -16626,9 +16627,6 @@ static int test_wc_ecc_mulmod (void)
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
-    if (wc_FreeRng(&rng) && ret == 0) {
-        ret = WOLFSSL_FATAL_ERROR;
-    }
     wc_ecc_free(&key1);
     wc_ecc_free(&key2);
     wc_ecc_free(&key3);
@@ -20540,7 +20538,7 @@ static void test_wolfSSL_CTX_add_extra_chain_cert(void)
     char caFile[] = "./certs/client-ca.pem";
     char clientFile[] = "./certs/client-cert.pem";
     SSL_CTX* ctx;
-    X509* x509 = NULL;
+    X509* x509;
 
     printf(testingFmt, "wolfSSL_CTX_add_extra_chain_cert()");
 
@@ -22864,6 +22862,14 @@ static void test_wolfSSL_PKCS8_d2i(void)
         #endif
     #endif
 
+#ifndef NO_FILESYSTEM
+   (void)pkcs8_buffer;
+   (void)p;
+   (void)bytes;
+   (void)file;
+   (void)bio;
+#endif
+
     #ifndef NO_RSA
     /* Try to auto-detect normal RSA private key */
     AssertNotNull(pkey = d2i_AutoPrivateKey(NULL, &rsa, rsaSz));
@@ -24367,8 +24373,8 @@ static void test_wolfSSL_RSA_get0_key(void)
     const BIGNUM* e = NULL;
     const BIGNUM* d = NULL;
 
-    const unsigned char* der = NULL;
-    int derSz = 0;
+    const unsigned char* der;
+    int derSz;
 
 #ifdef USE_CERT_BUFFERS_1024
     der = client_key_der_1024;
@@ -24376,6 +24382,9 @@ static void test_wolfSSL_RSA_get0_key(void)
 #elif defined(USE_CERT_BUFFERS_2048)
     der = client_key_der_2048;
     derSz = sizeof_client_key_der_2048;
+#else
+    der = NULL;
+    derSz = 0;
 #endif
 
     printf(testingFmt, "test_wolfSSL_RSA_get0_key()");
@@ -25009,9 +25018,9 @@ static void test_wolfSSL_OpenSSL_add_all_algorithms(void){
 
 static void test_wolfSSL_ASN1_STRING_print_ex(void){
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
-    ASN1_STRING* asn_str = NULL;
+    ASN1_STRING* asn_str;
     const char data[] = "Hello wolfSSL!";
-    ASN1_STRING* esc_str = NULL;
+    ASN1_STRING* esc_str;
     const char esc_data[] = "a+;<>";
     BIO *bio;
     unsigned long flags;
@@ -25119,7 +25128,6 @@ static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
     XMEMSET(t, 0, ASN_GENERALIZED_TIME_SIZE);
     XMEMSET(out, 0, ASN_GENERALIZED_TIME_SIZE);
     XMEMSET(data, 0, ASN_GENERALIZED_TIME_SIZE);
-    gtime = NULL;
     t->type = ASN_GENERALIZED_TIME;
     t->length = ASN_GENERALIZED_TIME_SIZE;
     XMEMCPY(t->data, "20050727123456Z", ASN_GENERALIZED_TIME_SIZE);
@@ -26778,7 +26786,7 @@ static void test_wolfSSL_X509_EXTENSION_get_critical(void)
     WOLFSSL_X509* x509;
     WOLFSSL_X509_EXTENSION* ext;
     FILE* file;
-    int crit = -1;
+    int crit;
 
     printf(testingFmt, "wolfSSL_X509_EXTENSION_get_critical");
 
@@ -26994,7 +27002,7 @@ static void test_wolfSSL_OCSP_get0_info()
     ASN1_OBJECT* pmd  = NULL;
     ASN1_STRING* keyHash = NULL;
     ASN1_INTEGER* serial = NULL;
-    ASN1_INTEGER* x509Int = NULL;
+    ASN1_INTEGER* x509Int;
 
     printf(testingFmt, "wolfSSL_OCSP_get0_info()");
 
@@ -29226,10 +29234,10 @@ static void test_wolfSSL_PEM_X509_INFO_read_bio(void)
 static void test_wolfSSL_X509_NAME_ENTRY_get_object()
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
-    X509 *x509 = NULL;
-    X509_NAME* name = NULL;
+    X509 *x509;
+    X509_NAME* name;
     int idx = 0;
-    X509_NAME_ENTRY *ne = NULL;
+    X509_NAME_ENTRY *ne;
     ASN1_OBJECT *object = NULL;
 
     printf(testingFmt, "wolfSSL_X509_NAME_ENTRY_get_object");

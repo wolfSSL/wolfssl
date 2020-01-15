@@ -1122,7 +1122,7 @@ int bench_tls(void* args)
 {
     int ret = 0;
     info_t *info = NULL;
-    char *cipher, *next_cipher, *ciphers = NULL;
+    char *cipher, *next_cipher, *ciphers;
 
     /* Runtime variables */
     int argRuntimeSec = BENCH_RUNTIME_SEC;

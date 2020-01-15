@@ -73,8 +73,10 @@ void echoclient_test(void* args)
     int doDTLS = 0;
     int doPSK = 0;
     int sendSz;
+#ifndef WOLFSSL_MDK_SHELL
     int argc    = 0;
     char** argv = 0;
+#endif
     word16 port = yasslPort;
     char buffer[CYASSL_MAX_ERROR_SZ];
 
@@ -83,7 +85,6 @@ void echoclient_test(void* args)
 #ifndef WOLFSSL_MDK_SHELL
     argc = ((func_args*)args)->argc;
     argv = ((func_args*)args)->argv;
-#endif
 
     if (argc >= 2) {
         fin  = fopen(argv[1], "r");
@@ -93,6 +94,7 @@ void echoclient_test(void* args)
         fout = fopen(argv[2], "w");
         outCreated = 1;
     }
+#endif
 
     if (!fin)  err_sys("can't open input file");
     if (!fout) err_sys("can't open output file");

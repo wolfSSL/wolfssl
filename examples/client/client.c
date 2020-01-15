@@ -315,8 +315,8 @@ static void EarlyData(WOLFSSL_CTX* ctx, WOLFSSL* ssl, const char* msg,
     if (ret != msgSz) {
         printf("SSL_write_early_data msg error %d, %s\n", err,
                                          wolfSSL_ERR_error_string(err, buffer));
-        wolfSSL_free(ssl); ssl = NULL;
-        wolfSSL_CTX_free(ctx); ctx = NULL;
+        wolfSSL_free(ssl);
+        wolfSSL_CTX_free(ctx);
         err_sys("SSL_write_early_data failed");
     }
 }
@@ -1392,9 +1392,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     unsigned char alpn_opt = 0;
     char*  cipherList = NULL;
     int    useDefCipherList = 0;
-    const char* verifyCert = caCertFile;
-    const char* ourCert    = cliCertFile;
-    const char* ourKey     = cliKeyFile;
+    const char* verifyCert;
+    const char* ourCert;
+    const char* ourKey;
 
     int   doSTARTTLS    = 0;
     char* starttlsProt = NULL;
@@ -1479,17 +1479,26 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     ((func_args*)args)->return_code = -1; /* error state */
 
-#ifdef NO_RSA
+#ifndef NO_RSA
+    verifyCert = caCertFile;
+    ourCert    = cliCertFile;
+    ourKey     = cliKeyFile;
+#else
     #ifdef HAVE_ECC
-        verifyCert = (char*)caEccCertFile;
-        ourCert    = (char*)cliEccCertFile;
-        ourKey     = (char*)cliEccKeyFile;
+        verifyCert = caEccCertFile;
+        ourCert    = cliEccCertFile;
+        ourKey     = cliEccKeyFile;
     #elif defined(HAVE_ED25519)
-        verifyCert = (char*)caEdCertFile;
-        ourCert    = (char*)cliEdCertFile;
-        ourKey     = (char*)cliEdKeyFile;
+        verifyCert = caEdCertFile;
+        ourCert    = cliEdCertFile;
+        ourKey     = cliEdKeyFile;
+    #else
+        verifyCert = NULL;
+        ourCert    = NULL;
+        ourKey     = NULL;
     #endif
 #endif
+
     (void)resumeSz;
     (void)session;
     (void)flatSession;
@@ -1728,7 +1737,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                         break;
                     }
                 }
-                if (throughput <= 0 || block <= 0) {
+                if (throughput == 0 || block <= 0) {
                     Usage();
                     XEXIT_T(MY_EX_USAGE);
                 }

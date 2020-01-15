@@ -2982,6 +2982,8 @@ int sha3_test(void)
 {
     int ret;
 
+    (void)ret;
+
 #ifndef WOLFSSL_NOSHA3_224
     if ((ret = sha3_224_test()) != 0)
         return ret;
@@ -7576,7 +7578,7 @@ int aesgcm_test(void)
     int  result;
 #ifdef WOLFSSL_AES_256
     int  alen;
-    #ifndef WOLFSSL_AFALG_XILINX_AES
+    #if !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT)
     int  plen;
     #endif
 #endif
@@ -7593,6 +7595,8 @@ int aesgcm_test(void)
     XMEMSET(large_output, 0, sizeof(large_output));
     XMEMSET(large_outdec, 0, sizeof(large_outdec));
 #endif
+
+    (void)result;
 
     XMEMSET(resultT, 0, sizeof(resultT));
     XMEMSET(resultC, 0, sizeof(resultC));
@@ -7739,7 +7743,7 @@ int aesgcm_test(void)
             return -5715;
 #endif /* HAVE_AES_DECRYPT */
     }
-#else
+#else /* BENCH_AESGCM_LARGE */
     /* Variable plain text length test */
     for (plen=1; plen<(int)sizeof(p); plen++) {
          /* AES-GCM encrypt and decrypt both use AES encrypt internally */
@@ -9074,7 +9078,7 @@ int random_test(void)
 static int simple_mem_test(int sz)
 {
     int ret = 0;
-    byte* b = NULL;
+    byte* b;
     int i;
 
     b = (byte*)XMALLOC(sz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -10979,7 +10983,7 @@ int rsa_no_pad_test(void)
 {
     WC_RNG rng;
     RsaKey key;
-    byte*  tmp = NULL;
+    byte*  tmp;
     size_t bytes;
     int    ret;
     word32 inLen   = 0;
@@ -11193,7 +11197,7 @@ exit_rsa_nopadding:
 static int rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, byte* tmp)
 {
     RsaKey      caKey;
-    byte*       der = NULL;
+    byte*       der;
     byte*       pem = NULL;
     int         ret;
     Cert*       myCert = NULL;
@@ -11475,11 +11479,8 @@ exit_rsa:
     wc_FreeRsaKey(&caKey);
 
     XFREE(myCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    myCert = NULL;
     XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    pem = NULL;
     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    der = NULL;
 
     return ret;
 }
@@ -11492,7 +11493,7 @@ static int rsa_ecc_certgen_test(WC_RNG* rng, byte* tmp)
     RsaKey      caKey;
     ecc_key     caEccKey;
     ecc_key     caEccKeyPub;
-    byte*       der = NULL;
+    byte*       der;
     byte*       pem = NULL;
     Cert*       myCert = NULL;
     int         certSz;
@@ -11698,17 +11699,13 @@ static int rsa_keygen_test(WC_RNG* rng)
     byte*  pem = NULL;
     word32 idx = 0;
     int    derSz = 0;
-#ifndef WOLFSSL_SP_MATH
+#if !defined(WOLFSSL_SP_MATH) && !defined(HAVE_FIPS)
     int    keySz = 1024;
 #else
     int    keySz = 2048;
 #endif
 
     XMEMSET(&genKey, 0, sizeof(genKey));
-
-    #ifdef HAVE_FIPS
-        keySz = 2048;
-    #endif /* HAVE_FIPS */
 
     ret = wc_InitRsaKey_ex(&genKey, HEAP_HINT, devId);
     if (ret != 0) {
@@ -11786,7 +11783,7 @@ exit_rsa:
 int rsa_test(void)
 {
     int    ret;
-    byte*  tmp = NULL;
+    byte*  tmp;
     byte*  der = NULL;
     byte*  pem = NULL;
     size_t bytes;
@@ -15770,7 +15767,7 @@ int openssl_pkey1_test(void)
     EVP_PKEY_CTX* enc = NULL;
     EVP_PKEY* pubKey  = NULL;
     EVP_PKEY* prvKey  = NULL;
-    X509* x509 = NULL;
+    X509* x509;
 
     const unsigned char msg[] = "sugar slapped";
     const unsigned char* clikey;
@@ -17052,8 +17049,8 @@ done:
 static int ecc_test_make_pub(WC_RNG* rng)
 {
     ecc_key key;
-    unsigned char* exportBuf = NULL;
-    unsigned char* tmp = NULL;
+    unsigned char* exportBuf;
+    unsigned char* tmp;
     unsigned char msg[] = "test wolfSSL ECC public gen";
     word32 x, tmpSz;
     int ret = 0;
@@ -17170,6 +17167,9 @@ static int ecc_test_make_pub(WC_RNG* rng)
 #if defined(WOLFSSL_CRYPTOCELL)
     /* create a new key since building private key from public key is unsupported */
     ret  = wc_ecc_make_key(rng, 32, &key);
+    if (ret == 0) {
+        ERROR_OUT(-8323, done);
+    }
 #endif
 #ifdef HAVE_ECC_SIGN
     tmpSz = FOURK_BUF;
@@ -18564,7 +18564,7 @@ static int ecc_test_cert_gen(WC_RNG* rng)
 #ifdef WOLFSSL_TEST_CERT
     DecodedCert decode;
 #endif
-    byte*  der = NULL;
+    byte*  der;
     byte*  pem = NULL;
     ecc_key caEccKey;
     ecc_key certPubKey;
@@ -19429,14 +19429,14 @@ static int curve25519_check_public_test(void)
     }
 
     /* Little-endian fail cases */
-    for (i = 0; i < (int)(sizeof(fail_le) / sizeof(fail_le)); i++) {
+    for (i = 0; i < (int)(sizeof(fail_le) / sizeof(*fail_le)); i++) {
         if (wc_curve25519_check_public(fail_le[i], CURVE25519_KEYSIZE,
                                                   EC25519_LITTLE_ENDIAN) == 0) {
             return -10390 - i;
         }
     }
     /* Big-endian fail cases */
-    for (i = 0; i < (int)(sizeof(fail_be) / sizeof(fail_be)); i++) {
+    for (i = 0; i < (int)(sizeof(fail_be) / sizeof(*fail_be)); i++) {
         if (wc_curve25519_check_public(fail_be[i], CURVE25519_KEYSIZE,
                                                      EC25519_BIG_ENDIAN) == 0) {
             return -10394 - i;
@@ -19519,6 +19519,8 @@ int curve25519_test(void)
         0xB8,0x51,0x11,0x84,0xD5,0x34,0x94,0xAB
     };
 #endif /* HAVE_CURVE25519_SHARED_SECRET */
+
+    (void)x;
 
 #ifndef HAVE_FIPS
     ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
@@ -21049,8 +21051,8 @@ int compress_test(void)
     int ret = 0;
     word32 dSz = sizeof(sample_text);
     word32 cSz = (dSz + (word32)(dSz * 0.001) + 12);
-    byte *c = NULL;
-    byte *d = NULL;
+    byte *c;
+    byte *d;
 
     c = XMALLOC(cSz * sizeof(byte), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     d = XMALLOC(dSz * sizeof(byte), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -21074,7 +21076,6 @@ int compress_test(void)
     if (XMEMCMP(d, sample_text, dSz) != 0) {
         ERROR_OUT(-9203, exit);
     }
-    ret = 0;
 
     /* GZIP tests */
     cSz = (dSz + (word32)(dSz * 0.001) + 12); /* reset cSz */
@@ -21170,6 +21171,9 @@ static int pkcs7_load_certs_keys(
 #ifndef NO_FILESYSTEM
     XFILE  certFile;
     XFILE  keyFile;
+
+    (void)certFile;
+    (void)keyFile;
 #endif
 
 #ifndef NO_RSA
@@ -25417,7 +25421,9 @@ int memcb_test(void)
         ret = -10006;
 #endif /* !WOLFSSL_NO_MALLOC */
 
+#ifndef WOLFSSL_NO_MALLOC
 exit_memcb:
+#endif
 
     /* restore memory callbacks */
     wolfSSL_SetAllocators(mc, fc, rc);
@@ -25806,7 +25812,10 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             /* reset devId */
             info->hash.sha256->devId = devIdArg;
         }
+        else
     #endif
+        {
+        }
     }
 #endif /* !NO_SHA || !NO_SHA256 */
 #ifndef NO_HMAC

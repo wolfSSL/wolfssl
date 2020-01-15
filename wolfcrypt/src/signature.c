@@ -126,9 +126,9 @@ int wc_SignatureVerifyHash(
     int ret;
 
     /* Check arguments */
-    if (hash_data == NULL || hash_len <= 0 ||
-        sig == NULL || sig_len <= 0 ||
-        key == NULL || key_len <= 0) {
+    if (hash_data == NULL || hash_len == 0 ||
+        sig == NULL || sig_len == 0 ||
+        key == NULL || key_len == 0) {
         return BAD_FUNC_ARG;
     }
 
@@ -259,9 +259,9 @@ int wc_SignatureVerify(
 #endif
 
     /* Check arguments */
-    if (data == NULL || data_len <= 0 ||
-        sig == NULL || sig_len <= 0 ||
-        key == NULL || key_len <= 0) {
+    if (data == NULL || data_len == 0 ||
+        sig == NULL || sig_len == 0 ||
+        key == NULL || key_len == 0) {
         return BAD_FUNC_ARG;
     }
 
@@ -358,9 +358,9 @@ int wc_SignatureGenerateHash_ex(
     (void)rng;
 
     /* Check arguments */
-    if (hash_data == NULL || hash_len <= 0 ||
-        sig == NULL || sig_len == NULL || *sig_len <= 0 ||
-        key == NULL || key_len <= 0) {
+    if (hash_data == NULL || hash_len == 0 ||
+        sig == NULL || sig_len == NULL || *sig_len == 0 ||
+        key == NULL || key_len == 0) {
         return BAD_FUNC_ARG;
     }
 
@@ -469,9 +469,9 @@ int wc_SignatureGenerate_ex(
 #endif
 
     /* Check arguments */
-    if (data == NULL || data_len <= 0 ||
-        sig == NULL || sig_len == NULL || *sig_len <= 0 ||
-        key == NULL || key_len <= 0) {
+    if (data == NULL || data_len == 0 ||
+        sig == NULL || sig_len == NULL || *sig_len == 0 ||
+        key == NULL || key_len == 0) {
         return BAD_FUNC_ARG;
     }
 

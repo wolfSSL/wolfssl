@@ -614,7 +614,7 @@ static int stm32_get_ecc_specs(const uint8_t **prime, const uint8_t **coef,
 #endif
 #ifdef ECC192
     case 24:
-        (uint8_t)*prime = stm32_ecc192_prime;
+        *prime = stm32_ecc192_prime;
         *coef = stm32_ecc192_coef;
         *GenPointX = stm32_ecc192_pointX;
         *GenPointY = stm32_ecc192_pointY;
@@ -804,7 +804,6 @@ int stm32_ecc_sign_hash_ex(const byte* hash, word32 hashlen, WC_RNG* rng,
     PKA_ECDSASignInTypeDef pka_ecc;
     PKA_ECDSASignOutTypeDef pka_ecc_out;
     int size;
-    int szrbin;
     int status;
     mp_int gen_k;
     mp_int order_mp;
