@@ -4895,7 +4895,7 @@ static void test_wolfSSL_PKCS8(void)
     flag = 0; /* used by password callback as return code */
     AssertIntNE(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
                 WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-    #endif /* !NO_RSA */
+    #endif /* !NO_RSA && !NO_SHA */
 
     #if defined(HAVE_ECC) && !defined(NO_SHA)
     /* test loading PEM PKCS8 encrypted ECC Key file */
@@ -4936,7 +4936,7 @@ static void test_wolfSSL_PKCS8(void)
 
     /* leave flag as "okay" */
     flag = 1;
-    #endif /* HAVE_ECC */
+    #endif /* HAVE_ECC && !NO_SHA */
 #endif /* TEST_PKCS8_ENC */
 
 

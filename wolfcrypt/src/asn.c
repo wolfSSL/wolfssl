@@ -10330,18 +10330,24 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         /* pkcs8 key, convert and adjust length */
         if ((ret = ToTraditional_ex(der->buffer, der->length, &algId)) > 0) {
             der->length = ret;
-            #if !defined(NO_DSA)
-            if (algId == DSAk)
-                *keyFormat = DSAk;
-            #endif
-            #ifdef HAVE_ECC
-            if (algId == ECDSAk)
-                *keyFormat = ECDSAk;
-            #endif
-            #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-            if (algId == DHk)
-                *keyFormat = DHk;
-            #endif
+            if (keyFormat) {
+                #ifndef NO_DSA
+                if (algId == DSAk)
+                    *keyFormat = DSAk;
+                #endif
+                #ifdef HAVE_ECC
+                if (algId == ECDSAk)
+                    *keyFormat = ECDSAk;
+                #endif
+                #ifndef NO_DH
+                if (algId == DHk)
+                    *keyFormat = DHk;
+                #endif
+                #ifdef HAVE_ED25519
+                if (algId == ED25519k)
+                    *keyFormat = ED25519k;
+                #endif
+            }
         }
         else {
             /* ignore failure here and assume key is not pkcs8 wrapped */
@@ -10385,8 +10391,24 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
                 if (ret >= 0) {
                     der->length = ret;
-                    if (keyFormat)
-                        *keyFormat = algId;
+                    if (keyFormat) {
+                        #ifndef NO_DSA
+                        if (algId == DSAk)
+                            *keyFormat = DSAk;
+                        #endif
+                        #ifdef HAVE_ECC
+                        if (algId == ECDSAk)
+                            *keyFormat = ECDSAk;
+                        #endif
+                        #ifndef NO_DH
+                        if (algId == DHk)
+                            *keyFormat = DHk;
+                        #endif
+                        #ifdef HAVE_ED25519
+                        if (algId == ED25519k)
+                            *keyFormat = ED25519k;
+                        #endif
+                    }
                     ret = 0;
                 }
             #else
