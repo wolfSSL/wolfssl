@@ -16548,7 +16548,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                                     int arg, void *ptr)
     {
         int ret = WOLFSSL_FAILURE;
+#ifdef HAVE_AESGCM
         WC_RNG rng;
+#endif
         if (ctx == NULL)
             return WOLFSSL_FAILURE;
 
@@ -20003,10 +20005,12 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
     }
 
     /* copy domain parameters */
-    ret = wc_ecc_set_curve(key, 0, srcKey->dp->id);
-    if (ret != 0) {
-        WOLFSSL_MSG("wc_ecc_set_curve error");
-        return NULL;
+    if (srcKey->dp) {
+        ret = wc_ecc_set_curve(key, 0, srcKey->dp->id);
+        if (ret != 0) {
+            WOLFSSL_MSG("wc_ecc_set_curve error");
+            return NULL;
+        }
     }
 
     key->type  = srcKey->type;
@@ -20043,19 +20047,22 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
 
     /* Copy X, Y, Z */
     dup->pub_key->X = wolfSSL_BN_dup(src->pub_key->X);
-    if (dup->pub_key->X == NULL) {
+    if (!dup->pub_key->X && src->pub_key->X) {
         WOLFSSL_MSG("Error copying EC_POINT");
         wolfSSL_EC_KEY_free(dup);
+        return NULL;
     }
     dup->pub_key->Y = wolfSSL_BN_dup(src->pub_key->Y);
-    if (dup->pub_key->Y == NULL) {
+    if (!dup->pub_key->Y && src->pub_key->Y) {
         WOLFSSL_MSG("Error copying EC_POINT");
         wolfSSL_EC_KEY_free(dup);
+        return NULL;
     }
     dup->pub_key->Z = wolfSSL_BN_dup(src->pub_key->Z);
-    if (dup->pub_key->Z == NULL) {
+    if (!dup->pub_key->Z && src->pub_key->Z) {
         WOLFSSL_MSG("Error copying EC_POINT");
         wolfSSL_EC_KEY_free(dup);
+        return NULL;
     }
 
     dup->pub_key->inSet = src->pub_key->inSet;
@@ -31963,6 +31970,9 @@ WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
         wolfSSL_EC_KEY_free(local);
         local = NULL;
     }
+    if (!local && key->ecc) {
+        local = wolfSSL_EC_KEY_dup(key->ecc);
+    }
     return local;
 }
 #endif /* HAVE_ECC */
@@ -32166,15 +32176,17 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_EC_
 #ifdef HAVE_ECC
     if((pkey == NULL) || (key ==NULL))return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_EC_KEY");
+#ifndef NO_RSA
     if (pkey->rsa != NULL && pkey->ownRsa == 1) {
         wolfSSL_RSA_free(pkey->rsa);
     }
+    pkey->ownRsa = 0;
+#endif
     if (pkey->ecc != NULL && pkey->ownEcc == 1) {
         wolfSSL_EC_KEY_free(pkey->ecc);
     }
     pkey->ecc    = key;
     pkey->ownEcc = 0; /* pkey does not own EC key */
-    pkey->ownRsa = 0;
     pkey->type   = EVP_PKEY_EC;
     ECC_populate_EVP_PKEY(pkey, (ecc_key*)key->internal);
     return WOLFSSL_SUCCESS;

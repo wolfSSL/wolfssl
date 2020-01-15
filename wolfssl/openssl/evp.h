@@ -262,7 +262,8 @@ struct WOLFSSL_EVP_CIPHER_CTX {
     int  bufUsed;
     ALIGN16 byte lastBlock[WOLFSSL_EVP_BUF_SIZE];
     int  lastUsed;
-#if defined(HAVE_AESGCM)
+#if defined(HAVE_AESGCM) || defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) \
+    || !defined(NO_DES3) || defined(HAVE_IDEA)
     int    ivSz;
     ALIGN16 unsigned char authTag[AES_BLOCK_SIZE];
     int     authTagSz;
