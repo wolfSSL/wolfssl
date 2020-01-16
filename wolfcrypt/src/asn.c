@@ -4622,6 +4622,7 @@ int DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
         GetInt(&key->g, input, inOutIdx, inSz) < 0 ||
         GetOctetString(input, inOutIdx, &length, inSz) < 0 ||
         GetInt(&key->y, input, inOutIdx, inSz) < 0) {
+            wc_FreeDsaKey(key);
             ret = ASN_PARSE_E;
     }
     if (ret == ASN_PARSE_E) {
