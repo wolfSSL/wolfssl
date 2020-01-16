@@ -62,13 +62,13 @@
 
 
     /* try to set SIZEOF_LONG or SIZEOF_LONG_LONG if user didn't */
-    #if defined(_MSC_VER) || defined(WC_USE_LIMITS_FOR_SIZEOF)
+    #if defined(_MSC_VER) || defined(HAVE_LIMITS_H)
         #if !defined(SIZEOF_LONG_LONG) && !defined(SIZEOF_LONG)
             #include <limits.h>
             #if defined(ULONG_MAX) && (ULONG_MAX == 0xffffffffUL)
                 #define SIZEOF_LONG 4
             #endif
-            #if defined(ULLONG_MAX) && (ULLONG_MAX == 0xffffffffffffffffui64)
+            #if defined(ULLONG_MAX) && (ULLONG_MAX == 0xffffffffffffffffULL)
                 #define SIZEOF_LONG_LONG 8
             #endif
         #endif
