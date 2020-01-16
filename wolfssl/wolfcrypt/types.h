@@ -61,12 +61,22 @@
     #endif
 
 
-    /* try to set SIZEOF_LONG or LONG_LONG if user didn't */
-    #if !defined(_MSC_VER) && !defined(__BCPLUSPLUS__) && !defined(__EMSCRIPTEN__)
+    /* try to set SIZEOF_LONG or SIZEOF_LONG_LONG if user didn't */
+    #if defined(_MSC_VER) || defined(WC_USE_LIMITS_FOR_SIZEOF)
+        #if !defined(SIZEOF_LONG_LONG) && !defined(SIZEOF_LONG)
+            #include <limits.h>
+            #if defined(ULONG_MAX) && (ULONG_MAX == 0xffffffffUL)
+                #define SIZEOF_LONG 4
+            #endif
+            #if defined(ULLONG_MAX) && (ULLONG_MAX == 0xffffffffffffffffui64)
+                #define SIZEOF_LONG_LONG 8
+            #endif
+        #endif
+    #elif !defined(__BCPLUSPLUS__) && !defined(__EMSCRIPTEN__)
         #if !defined(SIZEOF_LONG_LONG) && !defined(SIZEOF_LONG)
             #if (defined(__alpha__) || defined(__ia64__) || \
                 defined(_ARCH_PPC64) || defined(__mips64) || \
-                defined(__x86_64__) || \
+                defined(__x86_64__)  || defined(__s390x__ ) || \
                 ((defined(sun) || defined(__sun)) && \
                  (defined(LP64) || defined(_LP64))))
                 /* long should be 64bit */
@@ -104,7 +114,7 @@
     /* These platforms have 64-bit CPU registers.  */
     #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
          defined(__mips64)  || defined(__x86_64__) || defined(_M_X64)) || \
-         defined(__aarch64__) || defined(__sparc64__) || \
+         defined(__aarch64__) || defined(__sparc64__) || defined(__s390x__ ) || \
         (defined(__riscv_xlen) && (__riscv_xlen == 64))
         typedef word64 wolfssl_word;
         #define WC_64BIT_CPU
