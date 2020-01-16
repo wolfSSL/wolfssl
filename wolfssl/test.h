@@ -489,8 +489,8 @@ static WC_INLINE int mygetopt(int argc, char** argv, const char* optstring)
         if (myoptind == 0)
             myoptind++;
 
-        if (myoptind >= argc || argv[myoptind][0] != '-' ||
-                                argv[myoptind][1] == '\0') {
+        if (myoptind >= argc || argv[myoptind] == NULL ||
+                argv[myoptind][0] != '-' || argv[myoptind][1] == '\0') {
             myoptarg = NULL;
             if (myoptind < argc)
                 myoptarg = argv[myoptind];
