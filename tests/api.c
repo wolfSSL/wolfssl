@@ -1945,17 +1945,16 @@ static void test_wolfSSL_ECDSA_SIG(void)
 
 static void test_ECDSA_size_sign(void)
 {
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && !defined(NO_ECC256) && !defined(NO_ECC_SECP)
     EC_KEY *key;
     int id;
-    byte hash[WC_SHA_DIGEST_SIZE];
+    byte hash[WC_MAX_DIGEST_SIZE];
     byte sig[ECC_BUFSIZE];
     unsigned int sigSz = sizeof(sig);
 
 
     XMEMSET(hash, 123, sizeof(hash));
 
-#if !defined(NO_ECC256) && !defined(NO_ECC_SECP)
     id = wc_ecc_get_curve_id_from_name("SECP256R1");
     AssertIntEQ(id, ECC_SECP256R1);
 
@@ -1964,9 +1963,8 @@ static void test_ECDSA_size_sign(void)
     AssertIntEQ(ECDSA_sign(0, hash, sizeof(hash), sig, &sigSz, key), 1);
     AssertIntGE(ECDSA_size(key), sigSz);
     EC_KEY_free(key);
-#endif
 
-#endif /* HAVE_ECC */
+#endif /* HAVE_ECC && !NO_ECC256 && !NO_ECC_SECP */
 }
 #endif /* OPENSSL_EXTRA */
 

@@ -128,8 +128,8 @@ extern int wc_InitRsaHw(RsaKey* key);
 
 #define ERROR_OUT(err, eLabel) { ret = (err); goto eLabel; }
 
-#if defined(HAVE_SELFTEST) || !defined(NO_SKID)
 #include <wolfssl/internal.h>
+#if defined(HAVE_SELFTEST) || !defined(NO_SKID)
     #ifndef WOLFSSL_AES_KEY_SIZE_ENUM
     #define WOLFSSL_AES_KEY_SIZE_ENUM
     enum Asn_Misc {

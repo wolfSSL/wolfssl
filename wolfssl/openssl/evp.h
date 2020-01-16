@@ -256,14 +256,17 @@ struct WOLFSSL_EVP_CIPHER_CTX {
 #elif !defined(NO_DES3)
     /* working iv pointer into cipher */
     ALIGN16 unsigned char  iv[DES_BLOCK_SIZE];
+#elif defined(HAVE_IDEA)
+    /* working iv pointer into cipher */
+    ALIGN16 unsigned char  iv[IDEA_BLOCK_SIZE];
 #endif
     WOLFSSL_Cipher  cipher;
     ALIGN16 byte buf[WOLFSSL_EVP_BUF_SIZE];
     int  bufUsed;
     ALIGN16 byte lastBlock[WOLFSSL_EVP_BUF_SIZE];
     int  lastUsed;
-#if defined(HAVE_AESGCM) || defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) \
-    || !defined(NO_DES3) || defined(HAVE_IDEA)
+#if !defined(NO_AES) || !defined(NO_DES3) || defined(HAVE_IDEA)
+#define HAVE_WOLFSSL_EVP_CIPHER_CTX_IV
     int    ivSz;
     ALIGN16 unsigned char authTag[AES_BLOCK_SIZE];
     int     authTagSz;

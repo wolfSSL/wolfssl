@@ -16726,9 +16726,11 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         ctx->bufUsed = 0;
         ctx->lastUsed = 0;
 
+#ifdef HAVE_WOLFSSL_EVP_CIPHER_CTX_IV
         if (!iv && ctx->ivSz) {
             iv = ctx->iv;
         }
+#endif
 
 #ifndef NO_AES
     #ifdef HAVE_AES_CBC
@@ -17170,12 +17172,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->keyLen = 0;
             ctx->block_size = 16;
         }
+#ifdef HAVE_WOLFSSL_EVP_CIPHER_CTX_IV
         ctx->ivSz = wolfSSL_EVP_CIPHER_CTX_iv_length(ctx);
         if (iv && iv != ctx->iv) {
             if (wolfSSL_StoreExternalIV(ctx) != WOLFSSL_SUCCESS) {
                 return WOLFSSL_FAILURE;
             }
         }
+#endif
         (void)ret; /* remove warning. If execution reaches this point, ret=0 */
         return WOLFSSL_SUCCESS;
     }
@@ -31970,9 +31974,11 @@ WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
         wolfSSL_EC_KEY_free(local);
         local = NULL;
     }
+#ifdef OPENSSL_ALL
     if (!local && key->ecc) {
         local = wolfSSL_EC_KEY_dup(key->ecc);
     }
+#endif
     return local;
 }
 #endif /* HAVE_ECC */
@@ -32718,7 +32724,7 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
     pkey->type   = EVP_PKEY_RSA;
     pkey->rsa    = key;
     pkey->ownRsa = 0;
-#ifdef WOLFSSL_KEY_GEN
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     /* similar to how wolfSSL_PEM_write_mem_RSAPrivateKey finds DER of key */
     {
         int derSz;
@@ -46728,8 +46734,8 @@ int wolfSSL_BN_clear_bit(WOLFSSL_BIGNUM* bn, int n)
     mp_int res[1];
     mp_int tmp[1];
 #else
-    mp_int* res = null;
-    mp_int* tmp = null;
+    mp_int* res = NULL;
+    mp_int* tmp = NULL;
 #endif
 
     if (bn == NULL || bn->internal == NULL) {
@@ -46766,9 +46772,9 @@ int wolfSSL_BN_clear_bit(WOLFSSL_BIGNUM* bn, int n)
     ret = WOLFSSL_SUCCESS;
 cleanup:
 #ifdef WOLFSSL_SMALL_STACK
-    if (res):
+    if (res)
         XFREE(res, NULL, DYNAMIC_TYPE_BIGINT);
-    if (tmp):
+    if (tmp)
         XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
     return ret;
@@ -47984,9 +47990,10 @@ static void InitwolfSSL_Rsa(WOLFSSL_RSA* rsa)
 void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
 {
     WOLFSSL_ENTER("wolfSSL_RSA_free");
-    int doFree = 0;
 
     if (rsa) {
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+        int doFree = 0;
         if (wc_LockMutex(&rsa->refMutex) != 0) {
             WOLFSSL_MSG("Couldn't lock rsa mutex");
         }
@@ -48003,6 +48010,7 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
         }
 
         wc_FreeMutex(&rsa->refMutex);
+#endif
 
         if (rsa->internal) {
 #if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && \
@@ -48114,8 +48122,10 @@ WOLFSSL_RSA* wolfSSL_RSA_new(void)
 
     external->internal = key;
     external->inSet = 0;
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
     external->refCount = 1;
     wc_InitMutex(&external->refMutex);
+#endif
     return external;
 }
 #endif /* !NO_RSA && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
