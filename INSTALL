@@ -73,3 +73,19 @@
     Please see section 2.4 in the manual:
     http://www.wolfssl.com/yaSSL/Docs-cyassl-manual-2-building-cyassl.html
 
+13. Building with CMake
+    Note: Primary development uses automake (./configure). The support for CMake is minimal.
+
+    Internally cmake is setup to do the following:
+    1. Uses the ./configure generated wolfssl/options.h as the build options by coping it to the build directory as user_settings.h.
+    2. Builds wolfSSL as library.
+    3. Builds the examples.
+
+    Build Steps:
+    $ mkdir build
+    $ cd build
+    $ cmake ..
+    $ make
+    $ sudo make install
+
+    Make sure and run the built examples and test from the wolfssl-root to properly find the ./certs directory.
