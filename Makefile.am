@@ -146,6 +146,7 @@ EXTRA_DIST+= IPP
 EXTRA_DIST+= LPCExpresso.cproject
 EXTRA_DIST+= LPCExpresso.project
 EXTRA_DIST+= resource.h wolfssl.rc
+EXTRA_DIST+= CMakeLists.txt
 
 include wrapper/include.am
 include cyassl/include.am
