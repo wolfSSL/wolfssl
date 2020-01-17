@@ -19905,8 +19905,8 @@ static void test_wolfSSL_PEM_PrivateKey(void)
 static void test_wolfSSL_PEM_bio_RSAKey(void)
 {
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
-    defined(WOLFSSL_KEY_GEN) && \
-    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(NO_CERTS)
+    defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && \
+    !defined(HAVE_USER_RSA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     RSA* rsa = NULL;
     BIO* bio = NULL;
 
