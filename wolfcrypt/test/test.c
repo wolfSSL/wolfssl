@@ -5036,7 +5036,12 @@ int chacha20_poly1305_aead_test(void)
     int err;
 
     ChaChaPoly_Aead aead;
+
+#if !defined(USE_INTEL_CHACHA_SPEEDUP) && !defined(WOLFSSL_ARMASM)
+    #define TEST_SMALL_CHACHA_CHUNKS 32
+#else
     #define TEST_SMALL_CHACHA_CHUNKS 64
+#endif
     #ifdef TEST_SMALL_CHACHA_CHUNKS
     word32 testLen;
     #endif

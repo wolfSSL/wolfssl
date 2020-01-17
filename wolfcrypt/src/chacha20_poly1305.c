@@ -163,6 +163,12 @@ int wc_ChaCha20Poly1305_Init(ChaChaPoly_Aead* aead,
             CHACHA20_POLY1305_AEAD_KEYSIZE);
     }
 
+    /* advance counter by 1 after creating Poly1305 key */
+    if (ret == 0) {
+        ret = wc_Chacha_SetIV(&aead->chacha, inIV,
+            CHACHA20_POLY1305_AEAD_INITIAL_COUNTER + 1);
+    }
+
     if (ret == 0) {
         aead->state = CHACHA20_POLY1305_STATE_READY;
     }

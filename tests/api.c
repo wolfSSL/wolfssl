@@ -9977,32 +9977,115 @@ static int test_wc_Chacha_Process (void)
     printf(testingFmt, "wc_Chacha_Process()");
 
     ret = wc_Chacha_SetKey(&enc, key, keySz);
-    if (ret == 0) {
-        ret = wc_Chacha_SetKey(&dec, key, keySz);
-        if (ret == 0) {
-            ret = wc_Chacha_SetIV(&enc, cipher, 0);
-        }
-        if (ret == 0) {
-            ret = wc_Chacha_SetIV(&dec, cipher, 0);
-        }
+    AssertIntEQ(ret, 0);
+    ret = wc_Chacha_SetKey(&dec, key, keySz);
+    AssertIntEQ(ret, 0);
+    ret = wc_Chacha_SetIV(&enc, cipher, 0);
+    AssertIntEQ(ret, 0);
+    ret = wc_Chacha_SetIV(&dec, cipher, 0);
+    AssertIntEQ(ret, 0);
+
+    ret = wc_Chacha_Process(&enc, cipher, (byte*)input, (word32)inlen);
+    AssertIntEQ(ret, 0);
+    ret = wc_Chacha_Process(&dec, plain, cipher, (word32)inlen);
+    AssertIntEQ(ret, 0);
+    ret = XMEMCMP(input, plain, (int)inlen);
+    AssertIntEQ(ret, 0);
+
+#if !defined(USE_INTEL_CHACHA_SPEEDUP) && !defined(WOLFSSL_ARMASM)
+    /* test checking and using leftovers, currently just in C code */
+    ret = wc_Chacha_SetIV(&enc, cipher, 0);
+    AssertIntEQ(ret, 0);
+    ret = wc_Chacha_SetIV(&dec, cipher, 0);
+    AssertIntEQ(ret, 0);
+
+    ret = wc_Chacha_Process(&enc, cipher, (byte*)input, (word32)inlen - 2);
+    AssertIntEQ(ret, 0);
+    ret = wc_Chacha_Process(&enc, cipher + (inlen - 2),
+            (byte*)input + (inlen - 2), 2);
+    AssertIntEQ(ret, 0);
+    ret = wc_Chacha_Process(&dec, plain, (byte*)cipher, (word32)inlen - 2);
+    AssertIntEQ(ret, 0);
+    ret = wc_Chacha_Process(&dec, cipher + (inlen - 2),
+            (byte*)input + (inlen - 2), 2);
+    AssertIntEQ(ret, 0);
+    ret = XMEMCMP(input, plain, (int)inlen);
+    AssertIntEQ(ret, 0);
+
+    /* check edge cases with counter increment */
+    {
+        /* expected results collected from wolfSSL 4.3.0 encrypted in one call*/
+        const byte expected[] = {
+            0x54,0xB1,0xE2,0xD4,0xA2,0x4D,0x52,0x5F,
+            0x42,0x04,0x89,0x7C,0x6E,0x2D,0xFC,0x2D,
+            0x10,0x25,0xB6,0x92,0x71,0xD5,0xC3,0x20,
+            0xE3,0x0E,0xEC,0xF4,0xD8,0x10,0x70,0x29,
+            0x2D,0x4C,0x2A,0x56,0x21,0xE1,0xC7,0x37,
+            0x0B,0x86,0xF5,0x02,0x8C,0xB8,0xB8,0x38,
+            0x41,0xFD,0xDF,0xD9,0xC3,0xE6,0xC8,0x88,
+            0x06,0x82,0xD4,0x80,0x6A,0x50,0x69,0xD5,
+            0xB9,0xB0,0x2F,0x44,0x36,0x5D,0xDA,0x5E,
+            0xDE,0xF6,0xF5,0xFC,0x44,0xDC,0x07,0x51,
+            0xA7,0x32,0x42,0xDB,0xCC,0xBD,0xE2,0xE5,
+            0x0B,0xB1,0x14,0xFF,0x12,0x80,0x16,0x43,
+            0xE7,0x40,0xD5,0xEA,0xC7,0x3F,0x69,0x07,
+            0x64,0xD4,0x86,0x6C,0xE2,0x1F,0x8F,0x6E,
+            0x35,0x41,0xE7,0xD3,0xB5,0x5D,0xD6,0xD4,
+            0x9F,0x00,0xA9,0xAE,0x3D,0x28,0xA5,0x37,
+            0x80,0x3D,0x11,0x25,0xE2,0xB6,0x99,0xD9,
+            0x9B,0x98,0xE9,0x37,0xB9,0xF8,0xA0,0x04,
+            0xDF,0x13,0x49,0x3F,0x19,0x6A,0x45,0x06,
+            0x21,0xB4,0xC7,0x3B,0x49,0x45,0xB4,0xC8,
+            0x03,0x5B,0x43,0x89,0xBD,0xB3,0x96,0x4B,
+            0x17,0x6F,0x85,0xC6,0xCF,0xA6,0x05,0x35,
+            0x1E,0x25,0x03,0xBB,0x55,0x0A,0xD5,0x54,
+            0x41,0xEA,0xEB,0x50,0x40,0x1B,0x43,0x19,
+            0x59,0x1B,0x0E,0x12,0x3E,0xA2,0x71,0xC3,
+            0x1A,0xA7,0x11,0x50,0x43,0x9D,0x56,0x3B,
+            0x63,0x2F,0x63,0xF1,0x8D,0xAE,0xF3,0x23,
+            0xFA,0x1E,0xD8,0x6A,0xE1,0xB2,0x4B,0xF3,
+            0xB9,0x13,0x7A,0x72,0x2B,0x6D,0xCC,0x41,
+            0x1C,0x69,0x7C,0xCD,0x43,0x6F,0xE4,0xE2,
+            0x38,0x99,0xFB,0xC3,0x38,0x92,0x62,0x35,
+            0xC0,0x1D,0x60,0xE4,0x4B,0xDD,0x0C,0x14
+        };
+        const byte iv2[] = {
+            0x9D,0xED,0xE7,0x0F,0xEC,0x81,0x51,0xD9,
+            0x77,0x39,0x71,0xA6,0x21,0xDF,0xB8,0x93
+        };
+        byte input2[256];
+        int i;
+
+        for (i = 0; i < 256; i++)
+            input2[i] = i;
+
+        ret = wc_Chacha_SetIV(&enc, iv2, 0);
+        AssertIntEQ(ret, 0);
+
+        ret = wc_Chacha_Process(&enc, cipher, input2, 64);
+        AssertIntEQ(ret, 0);
+        AssertIntEQ(XMEMCMP(expected, cipher, 64), 0);
+
+        ret = wc_Chacha_Process(&enc, cipher, input2 + 64, 128);
+        AssertIntEQ(ret, 0);
+        AssertIntEQ(XMEMCMP(expected + 64, cipher, 128), 0);
+
+        /* partial */
+        ret = wc_Chacha_Process(&enc, cipher, input2 + 192, 32);
+        AssertIntEQ(ret, 0);
+        AssertIntEQ(XMEMCMP(expected + 192, cipher, 32), 0);
+
+        ret = wc_Chacha_Process(&enc, cipher, input2 + 224, 32);
+        AssertIntEQ(ret, 0);
+        AssertIntEQ(XMEMCMP(expected + 224, cipher, 32), 0);
     }
-    if (ret == 0) {
-        ret = wc_Chacha_Process(&enc, cipher, (byte*)input, (word32)inlen);
-        if (ret == 0) {
-            ret = wc_Chacha_Process(&dec, plain, cipher, (word32)inlen);
-            if (ret == 0) {
-                ret = XMEMCMP(input, plain, (int)inlen);
-            }
-        }
-    }
+#endif
+
     /* Test bad args. */
-    if (ret == 0) {
-        ret = wc_Chacha_Process(NULL, cipher, (byte*)input, (word32)inlen);
-        if (ret == BAD_FUNC_ARG) {
-            ret = 0;
-        } else {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
+    ret = wc_Chacha_Process(NULL, cipher, (byte*)input, (word32)inlen);
+    AssertIntEQ(ret, BAD_FUNC_ARG);
+    if (ret == BAD_FUNC_ARG) {
+        ret = 0;
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
@@ -10086,39 +10169,31 @@ static int test_wc_ChaCha20Poly1305_aead (void)
 
     ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad), plaintext,
                 sizeof(plaintext), generatedCiphertext, generatedAuthTag);
-    if (ret == 0) {
-        ret = XMEMCMP(generatedCiphertext, cipher, sizeof(cipher)/sizeof(byte));
-    }
+    AssertIntEQ(ret, 0);
+    ret = XMEMCMP(generatedCiphertext, cipher, sizeof(cipher)/sizeof(byte));
+    AssertIntEQ(ret, 0);
+
     /* Test bad args. */
-    if (ret == 0) {
-        ret = wc_ChaCha20Poly1305_Encrypt(NULL, iv, aad, sizeof(aad), plaintext,
+    ret = wc_ChaCha20Poly1305_Encrypt(NULL, iv, aad, sizeof(aad), plaintext,
                     sizeof(plaintext), generatedCiphertext, generatedAuthTag);
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_ChaCha20Poly1305_Encrypt(key, NULL, aad, sizeof(aad),
+    AssertIntEQ(ret,  BAD_FUNC_ARG);
+    ret = wc_ChaCha20Poly1305_Encrypt(key, NULL, aad, sizeof(aad),
                                         plaintext, sizeof(plaintext),
                                         generatedCiphertext, generatedAuthTag);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad), NULL,
+    AssertIntEQ(ret,  BAD_FUNC_ARG);
+    ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad), NULL,
                     sizeof(plaintext), generatedCiphertext, generatedAuthTag);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad),
+    AssertIntEQ(ret,  BAD_FUNC_ARG);
+    ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad),
                     plaintext, 0, generatedCiphertext, generatedAuthTag);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad),
+    AssertIntEQ(ret,  BAD_FUNC_ARG);
+    ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad),
                     plaintext, sizeof(plaintext), NULL, generatedAuthTag);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad),
+    AssertIntEQ(ret,  BAD_FUNC_ARG);
+    ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad),
                     plaintext, sizeof(plaintext), generatedCiphertext, NULL);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            ret = 0;
-        } else {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
+    if (ret == BAD_FUNC_ARG) {
+        ret = 0;
     }
     printf(resultFmt, ret == 0 ? passed : failed);
     if (ret != 0) {
@@ -10128,39 +10203,32 @@ static int test_wc_ChaCha20Poly1305_aead (void)
     printf(testingFmt, "wc_ChaCha20Poly1305_Decrypt()");
     ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), cipher,
                             sizeof(cipher), authTag, generatedPlaintext);
-    if (ret == 0) {
-        ret = XMEMCMP(generatedPlaintext, plaintext,
+    AssertIntEQ(ret, 0);
+    ret = XMEMCMP(generatedPlaintext, plaintext,
                                         sizeof(plaintext)/sizeof(byte));
-    }
+    AssertIntEQ(ret, 0);
+
     /* Test bad args. */
-    if (ret == 0) {
-        ret = wc_ChaCha20Poly1305_Decrypt(NULL, iv, aad, sizeof(aad), cipher,
+    ret = wc_ChaCha20Poly1305_Decrypt(NULL, iv, aad, sizeof(aad), cipher,
                                 sizeof(cipher), authTag, generatedPlaintext);
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_ChaCha20Poly1305_Decrypt(key, NULL, aad, sizeof(aad),
+    AssertIntEQ(ret,  BAD_FUNC_ARG);
+    ret = wc_ChaCha20Poly1305_Decrypt(key, NULL, aad, sizeof(aad),
                         cipher, sizeof(cipher), authTag, generatedPlaintext);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), NULL,
+    AssertIntEQ(ret,  BAD_FUNC_ARG);
+    ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), NULL,
                                 sizeof(cipher), authTag, generatedPlaintext);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), cipher,
+    AssertIntEQ(ret,  BAD_FUNC_ARG);
+    ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), cipher,
                                     sizeof(cipher), NULL, generatedPlaintext);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), cipher,
+    AssertIntEQ(ret,  BAD_FUNC_ARG);
+    ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), cipher,
                                                 sizeof(cipher), authTag, NULL);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), cipher,
+    AssertIntEQ(ret,  BAD_FUNC_ARG);
+    ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), cipher,
                                                 0, authTag, generatedPlaintext);
-        }
-        if (ret == BAD_FUNC_ARG) {
-            ret = 0;
-        } else {
-            ret = WOLFSSL_FATAL_ERROR;
-        }
+    AssertIntEQ(ret,  BAD_FUNC_ARG);
+    if (ret == BAD_FUNC_ARG) {
+        ret = 0;
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
