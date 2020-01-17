@@ -44428,7 +44428,7 @@ int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
             curve = GetCurveByOID(eccSet->oidSum);
         #else
             WOLFSSL_MSG("API not present to search farther using name");
-            return WOLFSSL_FAILURE
+            return WOLFSSL_FAILURE;
         #endif
         }
 
