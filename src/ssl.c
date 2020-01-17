@@ -5635,22 +5635,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     }
     else if (type == PRIVATEKEY_TYPE && format != WOLFSSL_FILETYPE_RAW) {
     #if defined(WOLFSSL_ENCRYPTED_KEYS) || defined(HAVE_PKCS8)
-        #ifndef NO_DSA
-        if (algId == DSAk)
-            keyFormat = DSAk;
-        #endif
-        #ifdef HAVE_ECC
-        if (algId == ECDSAk)
-            keyFormat = ECDSAk;
-        #endif
-        #ifndef NO_DH
-        if (algId == DHk)
-            keyFormat = DHk;
-        #endif
-        #ifdef HAVE_ED25519
-        if (algId == ED25519k)
-            keyFormat = ED25519k;
-        #endif
+        keyFormat = algId;
     #endif
 
         ret = ProcessBufferTryDecode(ctx, ssl, der, &keySz, &idx, &resetSuites,
