@@ -1340,35 +1340,82 @@ SP_NOINLINE static int sp_2048_add_18(sp_digit* r, const sp_digit* a,
 static WC_INLINE sp_digit sp_2048_div_word_18(sp_digit d1, sp_digit d0,
     sp_digit dv)
 {
-    sp_digit d, r, t, dv;
-    int128_t t0, t1;
+    sp_digit d, r, t;
 
-    /* dv has 29 bits. */
-    dv = (div >> 28) + 1;
     /* All 57 bits from d1 and top 6 bits from d0. */
     d = (d1 << 6) | (d0 >> 51);
     r = d / dv;
     d -= r * dv;
-    /* Up to 34 bits in r */
-    /* Next 23 bits from d0. */
-    d <<= 23;
-    r <<= 23;
-    d |= (d0 >> 28) & ((1 << 23) - 1);
+    /* Up to 7 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 45) & ((1 << 6) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
-    /* Up to 57 bits in r */
-
-    /* Handle rounding error with dv - top part */
-    t0 = ((int128_t)d1 << 57) + d0;
-    t1 = (int128_t)r * dv;
-    t1 = t0 - t1;
-    t = (sp_digit)(t1 >> 28) / dv;
+    /* Up to 13 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 39) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
     r += t;
-
-    /* Handle rounding error with dv - bottom 64 bits */
-    t1 = (sp_digit)t0 - (r * dv);
-    t = (sp_digit)t1 / dv;
+    /* Up to 19 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 33) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 25 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 27) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 31 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 21) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 37 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 15) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 43 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 9) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 49 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 3) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 55 bits in r */
+    /* Remaining 3 bits from d0. */
+    r <<= 3;
+    d <<= 3;
+    d |= d0 & ((1 << 3) - 1);
+    t = d / dv;
     r += t;
 
     return r;
@@ -1448,8 +1495,7 @@ static int sp_2048_div_18(const sp_digit* a, const sp_digit* d, sp_digit* m,
         }
         t1[18 - 1] += t1[18 - 2] >> 57;
         t1[18 - 2] &= 0x1ffffffffffffffL;
-        d1 = t1[18 - 1];
-        r1 = (sp_digit)(d1 / dv);
+        r1 = t1[18 - 1] / dv;
 
         sp_2048_mul_d_18(t2, d, r1);
         (void)sp_2048_sub_18(t1, t1, t2);
@@ -2216,35 +2262,82 @@ SP_NOINLINE static int sp_2048_add_36(sp_digit* r, const sp_digit* a,
 static WC_INLINE sp_digit sp_2048_div_word_36(sp_digit d1, sp_digit d0,
     sp_digit dv)
 {
-    sp_digit d, r, t, dv;
-    int128_t t0, t1;
+    sp_digit d, r, t;
 
-    /* dv has 29 bits. */
-    dv = (div >> 28) + 1;
     /* All 57 bits from d1 and top 6 bits from d0. */
     d = (d1 << 6) | (d0 >> 51);
     r = d / dv;
     d -= r * dv;
-    /* Up to 34 bits in r */
-    /* Next 23 bits from d0. */
-    d <<= 23;
-    r <<= 23;
-    d |= (d0 >> 28) & ((1 << 23) - 1);
+    /* Up to 7 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 45) & ((1 << 6) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
-    /* Up to 57 bits in r */
-
-    /* Handle rounding error with dv - top part */
-    t0 = ((int128_t)d1 << 57) + d0;
-    t1 = (int128_t)r * dv;
-    t1 = t0 - t1;
-    t = (sp_digit)(t1 >> 28) / dv;
+    /* Up to 13 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 39) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
     r += t;
-
-    /* Handle rounding error with dv - bottom 64 bits */
-    t1 = (sp_digit)t0 - (r * dv);
-    t = (sp_digit)t1 / dv;
+    /* Up to 19 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 33) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 25 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 27) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 31 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 21) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 37 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 15) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 43 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 9) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 49 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 3) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 55 bits in r */
+    /* Remaining 3 bits from d0. */
+    r <<= 3;
+    d <<= 3;
+    d |= d0 & ((1 << 3) - 1);
+    t = d / dv;
     r += t;
 
     return r;
@@ -2324,8 +2417,7 @@ static int sp_2048_div_36(const sp_digit* a, const sp_digit* d, sp_digit* m,
         }
         t1[36 - 1] += t1[36 - 2] >> 57;
         t1[36 - 2] &= 0x1ffffffffffffffL;
-        d1 = t1[36 - 1];
-        r1 = (sp_digit)(d1 / dv);
+        r1 = t1[36 - 1] / dv;
 
         sp_2048_mul_d_36(t2, d, r1);
         (void)sp_2048_sub_36(t1, t1, t2);
@@ -5422,35 +5514,82 @@ static void sp_3072_cond_add_27(sp_digit* r, const sp_digit* a,
 static WC_INLINE sp_digit sp_3072_div_word_27(sp_digit d1, sp_digit d0,
     sp_digit dv)
 {
-    sp_digit d, r, t, dv;
-    int128_t t0, t1;
+    sp_digit d, r, t;
 
-    /* dv has 29 bits. */
-    dv = (div >> 28) + 1;
     /* All 57 bits from d1 and top 6 bits from d0. */
     d = (d1 << 6) | (d0 >> 51);
     r = d / dv;
     d -= r * dv;
-    /* Up to 34 bits in r */
-    /* Next 23 bits from d0. */
-    d <<= 23;
-    r <<= 23;
-    d |= (d0 >> 28) & ((1 << 23) - 1);
+    /* Up to 7 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 45) & ((1 << 6) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
-    /* Up to 57 bits in r */
-
-    /* Handle rounding error with dv - top part */
-    t0 = ((int128_t)d1 << 57) + d0;
-    t1 = (int128_t)r * dv;
-    t1 = t0 - t1;
-    t = (sp_digit)(t1 >> 28) / dv;
+    /* Up to 13 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 39) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
     r += t;
-
-    /* Handle rounding error with dv - bottom 64 bits */
-    t1 = (sp_digit)t0 - (r * dv);
-    t = (sp_digit)t1 / dv;
+    /* Up to 19 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 33) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 25 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 27) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 31 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 21) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 37 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 15) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 43 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 9) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 49 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 3) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 55 bits in r */
+    /* Remaining 3 bits from d0. */
+    r <<= 3;
+    d <<= 3;
+    d |= d0 & ((1 << 3) - 1);
+    t = d / dv;
     r += t;
 
     return r;
@@ -5530,8 +5669,7 @@ static int sp_3072_div_27(const sp_digit* a, const sp_digit* d, sp_digit* m,
         }
         t1[27 - 1] += t1[27 - 2] >> 57;
         t1[27 - 2] &= 0x1ffffffffffffffL;
-        d1 = t1[27 - 1];
-        r1 = (sp_digit)(d1 / dv);
+        r1 = t1[27 - 1] / dv;
 
         sp_3072_mul_d_27(t2, d, r1);
         (void)sp_3072_sub_27(t1, t1, t2);
@@ -6268,35 +6406,82 @@ static void sp_3072_cond_add_54(sp_digit* r, const sp_digit* a,
 static WC_INLINE sp_digit sp_3072_div_word_54(sp_digit d1, sp_digit d0,
     sp_digit dv)
 {
-    sp_digit d, r, t, dv;
-    int128_t t0, t1;
+    sp_digit d, r, t;
 
-    /* dv has 29 bits. */
-    dv = (div >> 28) + 1;
     /* All 57 bits from d1 and top 6 bits from d0. */
     d = (d1 << 6) | (d0 >> 51);
     r = d / dv;
     d -= r * dv;
-    /* Up to 34 bits in r */
-    /* Next 23 bits from d0. */
-    d <<= 23;
-    r <<= 23;
-    d |= (d0 >> 28) & ((1 << 23) - 1);
+    /* Up to 7 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 45) & ((1 << 6) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
-    /* Up to 57 bits in r */
-
-    /* Handle rounding error with dv - top part */
-    t0 = ((int128_t)d1 << 57) + d0;
-    t1 = (int128_t)r * dv;
-    t1 = t0 - t1;
-    t = (sp_digit)(t1 >> 28) / dv;
+    /* Up to 13 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 39) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
     r += t;
-
-    /* Handle rounding error with dv - bottom 64 bits */
-    t1 = (sp_digit)t0 - (r * dv);
-    t = (sp_digit)t1 / dv;
+    /* Up to 19 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 33) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 25 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 27) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 31 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 21) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 37 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 15) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 43 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 9) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 49 bits in r */
+    /* Next 6 bits from d0. */
+    r <<= 6;
+    d <<= 6;
+    d |= (d0 >> 3) & ((1 << 6) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 55 bits in r */
+    /* Remaining 3 bits from d0. */
+    r <<= 3;
+    d <<= 3;
+    d |= d0 & ((1 << 3) - 1);
+    t = d / dv;
     r += t;
 
     return r;
@@ -6376,8 +6561,7 @@ static int sp_3072_div_54(const sp_digit* a, const sp_digit* d, sp_digit* m,
         }
         t1[54 - 1] += t1[54 - 2] >> 57;
         t1[54 - 2] &= 0x1ffffffffffffffL;
-        d1 = t1[54 - 1];
-        r1 = (sp_digit)(d1 / dv);
+        r1 = t1[54 - 1] / dv;
 
         sp_3072_mul_d_54(t2, d, r1);
         (void)sp_3072_sub_54(t1, t1, t2);
@@ -9641,35 +9825,50 @@ SP_NOINLINE static void sp_4096_rshift_39(sp_digit* r, sp_digit* a, byte n)
 static WC_INLINE sp_digit sp_4096_div_word_39(sp_digit d1, sp_digit d0,
     sp_digit dv)
 {
-    sp_digit d, r, t, dv;
-    int128_t t0, t1;
+    sp_digit d, r, t;
 
-    /* dv has 27 bits. */
-    dv = (div >> 26) + 1;
     /* All 53 bits from d1 and top 10 bits from d0. */
     d = (d1 << 10) | (d0 >> 43);
     r = d / dv;
     d -= r * dv;
-    /* Up to 36 bits in r */
-    /* Next 17 bits from d0. */
-    d <<= 17;
-    r <<= 17;
-    d |= (d0 >> 26) & ((1 << 17) - 1);
+    /* Up to 11 bits in r */
+    /* Next 10 bits from d0. */
+    r <<= 10;
+    d <<= 10;
+    d |= (d0 >> 33) & ((1 << 10) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
-    /* Up to 53 bits in r */
-
-    /* Handle rounding error with dv - top part */
-    t0 = ((int128_t)d1 << 53) + d0;
-    t1 = (int128_t)r * dv;
-    t1 = t0 - t1;
-    t = (sp_digit)(t1 >> 26) / dv;
+    /* Up to 21 bits in r */
+    /* Next 10 bits from d0. */
+    r <<= 10;
+    d <<= 10;
+    d |= (d0 >> 23) & ((1 << 10) - 1);
+    t = d / dv;
+    d -= t * dv;
     r += t;
-
-    /* Handle rounding error with dv - bottom 64 bits */
-    t1 = (sp_digit)t0 - (r * dv);
-    t = (sp_digit)t1 / dv;
+    /* Up to 31 bits in r */
+    /* Next 10 bits from d0. */
+    r <<= 10;
+    d <<= 10;
+    d |= (d0 >> 13) & ((1 << 10) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 41 bits in r */
+    /* Next 10 bits from d0. */
+    r <<= 10;
+    d <<= 10;
+    d |= (d0 >> 3) & ((1 << 10) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 51 bits in r */
+    /* Remaining 3 bits from d0. */
+    r <<= 3;
+    d <<= 3;
+    d |= d0 & ((1 << 3) - 1);
+    t = d / dv;
     r += t;
 
     return r;
@@ -9755,8 +9954,7 @@ static int sp_4096_div_39(const sp_digit* a, const sp_digit* d, sp_digit* m,
         }
         t1[39 - 1] += t1[39 - 2] >> 53;
         t1[39 - 2] &= 0x1fffffffffffffL;
-        d1 = t1[39 - 1];
-        r1 = (sp_digit)(d1 / dv);
+        r1 = t1[39 - 1] / dv;
 
         sp_4096_mul_d_39(t2, sd, r1);
         sp_4096_sub_39(t1, t1, t2);
@@ -10617,35 +10815,50 @@ SP_NOINLINE static void sp_4096_rshift_78(sp_digit* r, sp_digit* a, byte n)
 static WC_INLINE sp_digit sp_4096_div_word_78(sp_digit d1, sp_digit d0,
     sp_digit dv)
 {
-    sp_digit d, r, t, dv;
-    int128_t t0, t1;
+    sp_digit d, r, t;
 
-    /* dv has 27 bits. */
-    dv = (div >> 26) + 1;
     /* All 53 bits from d1 and top 10 bits from d0. */
     d = (d1 << 10) | (d0 >> 43);
     r = d / dv;
     d -= r * dv;
-    /* Up to 36 bits in r */
-    /* Next 17 bits from d0. */
-    d <<= 17;
-    r <<= 17;
-    d |= (d0 >> 26) & ((1 << 17) - 1);
+    /* Up to 11 bits in r */
+    /* Next 10 bits from d0. */
+    r <<= 10;
+    d <<= 10;
+    d |= (d0 >> 33) & ((1 << 10) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
-    /* Up to 53 bits in r */
-
-    /* Handle rounding error with dv - top part */
-    t0 = ((int128_t)d1 << 53) + d0;
-    t1 = (int128_t)r * dv;
-    t1 = t0 - t1;
-    t = (sp_digit)(t1 >> 26) / dv;
+    /* Up to 21 bits in r */
+    /* Next 10 bits from d0. */
+    r <<= 10;
+    d <<= 10;
+    d |= (d0 >> 23) & ((1 << 10) - 1);
+    t = d / dv;
+    d -= t * dv;
     r += t;
-
-    /* Handle rounding error with dv - bottom 64 bits */
-    t1 = (sp_digit)t0 - (r * dv);
-    t = (sp_digit)t1 / dv;
+    /* Up to 31 bits in r */
+    /* Next 10 bits from d0. */
+    r <<= 10;
+    d <<= 10;
+    d |= (d0 >> 13) & ((1 << 10) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 41 bits in r */
+    /* Next 10 bits from d0. */
+    r <<= 10;
+    d <<= 10;
+    d |= (d0 >> 3) & ((1 << 10) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 51 bits in r */
+    /* Remaining 3 bits from d0. */
+    r <<= 3;
+    d <<= 3;
+    d |= d0 & ((1 << 3) - 1);
+    t = d / dv;
     r += t;
 
     return r;
@@ -10731,8 +10944,7 @@ static int sp_4096_div_78(const sp_digit* a, const sp_digit* d, sp_digit* m,
         }
         t1[78 - 1] += t1[78 - 2] >> 53;
         t1[78 - 2] &= 0x1fffffffffffffL;
-        d1 = t1[78 - 1];
-        r1 = (sp_digit)(d1 / dv);
+        r1 = t1[78 - 1] / dv;
 
         sp_4096_mul_d_78(t2, sd, r1);
         sp_4096_sub_78(t1, t1, t2);
@@ -16172,35 +16384,42 @@ SP_NOINLINE static void sp_256_mul_d_5(sp_digit* r, const sp_digit* a,
 static WC_INLINE sp_digit sp_256_div_word_5(sp_digit d1, sp_digit d0,
     sp_digit dv)
 {
-    sp_digit d, r, t, dv;
-    int128_t t0, t1;
+    sp_digit d, r, t;
 
-    /* dv has 27 bits. */
-    dv = (div >> 25) + 1;
     /* All 52 bits from d1 and top 11 bits from d0. */
     d = (d1 << 11) | (d0 >> 41);
     r = d / dv;
     d -= r * dv;
-    /* Up to 36 bits in r */
-    /* Next 16 bits from d0. */
-    d <<= 16;
-    r <<= 16;
-    d |= (d0 >> 25) & ((1 << 16) - 1);
+    /* Up to 12 bits in r */
+    /* Next 11 bits from d0. */
+    r <<= 11;
+    d <<= 11;
+    d |= (d0 >> 30) & ((1 << 11) - 1);
     t = d / dv;
     d -= t * dv;
     r += t;
-    /* Up to 52 bits in r */
-
-    /* Handle rounding error with dv - top part */
-    t0 = ((int128_t)d1 << 52) + d0;
-    t1 = (int128_t)r * dv;
-    t1 = t0 - t1;
-    t = (sp_digit)(t1 >> 25) / dv;
+    /* Up to 23 bits in r */
+    /* Next 11 bits from d0. */
+    r <<= 11;
+    d <<= 11;
+    d |= (d0 >> 19) & ((1 << 11) - 1);
+    t = d / dv;
+    d -= t * dv;
     r += t;
-
-    /* Handle rounding error with dv - bottom 64 bits */
-    t1 = (sp_digit)t0 - (r * dv);
-    t = (sp_digit)t1 / dv;
+    /* Up to 34 bits in r */
+    /* Next 11 bits from d0. */
+    r <<= 11;
+    d <<= 11;
+    d |= (d0 >> 8) & ((1 << 11) - 1);
+    t = d / dv;
+    d -= t * dv;
+    r += t;
+    /* Up to 45 bits in r */
+    /* Remaining 8 bits from d0. */
+    r <<= 8;
+    d <<= 8;
+    d |= d0 & ((1 << 8) - 1);
+    t = d / dv;
     r += t;
 
     return r;
@@ -16280,8 +16499,7 @@ static int sp_256_div_5(const sp_digit* a, const sp_digit* d, sp_digit* m,
         }
         t1[5 - 1] += t1[5 - 2] >> 52;
         t1[5 - 2] &= 0xfffffffffffffL;
-        d1 = t1[5 - 1];
-        r1 = (sp_digit)(d1 / dv);
+        r1 = t1[5 - 1] / dv;
 
         sp_256_mul_d_5(t2, d, r1);
         (void)sp_256_sub_5(t1, t1, t2);
