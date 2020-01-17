@@ -2769,6 +2769,10 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
    /* M[1] == 2G */
    if (err == MP_OKAY)
        err = ecc_projective_dbl_point(tG, M[1], a, modulus, mp);
+#ifdef WC_NO_CACHE_RESISTANT
+   if (err == MP_OKAY)
+       err = wc_ecc_copy_point(M[0], M[2]);
+#endif
 
    /* setup sliding window */
    mode   = 0;
