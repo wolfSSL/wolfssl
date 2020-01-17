@@ -16537,6 +16537,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     {
         WOLFSSL_ENTER("EVP_CIPHER_CTX_init");
         if (ctx) {
+            XMEMSET(ctx, 0, sizeof(WOLFSSL_EVP_CIPHER_CTX));
             ctx->cipherType = WOLFSSL_EVP_CIPH_TYPE_INIT;   /* not yet initialized */
             ctx->keyLen     = 0;
             ctx->enc        = 1;      /* start in encrypt mode */
@@ -16577,7 +16578,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             case EVP_CTRL_AEAD_SET_IV_FIXED:
                 if (arg == -1) {
                     /* arg == -1 copies ctx->ivSz from ptr */
-                    ret = wolfSSL_EVP_CIPHER_CTX_set_iv(ctx, ptr, ctx->ivSz);
+                    ret = wolfSSL_EVP_CIPHER_CTX_set_iv(ctx, (byte*)ptr, ctx->ivSz);
                 }
                 else {
                     /*
@@ -32757,7 +32758,7 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
     return ret;
 }
 
-
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
 /* Takes an RSA public key and writes it out to a WOLFSSL_BIO
  * Returns WOLFSSL_SUCCESS or WOLFSSL_FAILURE
  */
@@ -32806,6 +32807,7 @@ int wolfSSL_PEM_write_bio_RSA_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa)
 
     return ret;
 }
+#endif
 
 
 /* Reads an RSA public key from a WOLFSSL_BIO into a WOLFSSL_RSA
@@ -32973,7 +32975,7 @@ int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
 }
 #endif /* defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) */
 
-#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA) && \
+#if (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)) && \
     (defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM))
 
 /* return code compliant with OpenSSL :
@@ -33928,16 +33930,17 @@ int wolfSSL_ECDSA_sign(int type, const unsigned char *digest,
 #endif
     int initTmpRng = 0;
 
-#ifdef WOLFSSL_SMALL_STACK
-    tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-    if (tmpRNG == NULL)
-        return WOLFSSL_FAILURE;
-#endif
     WOLFSSL_ENTER("wolfSSL_ECDSA_sign");
 
     if (!key) {
         return WOLFSSL_FAILURE;
     }
+
+#ifdef WOLFSSL_SMALL_STACK
+    tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+    if (tmpRNG == NULL)
+        return WOLFSSL_FAILURE;
+#endif
 
     if (wc_InitRng(tmpRNG) == 0) {
         rng = tmpRNG;
@@ -33952,15 +33955,22 @@ int wolfSSL_ECDSA_sign(int type, const unsigned char *digest,
             rng = &globalRNG;
         }
     }
-    if (!rng) {
-        return WOLFSSL_FAILURE;
-    }
-    if (wc_ecc_sign_hash(digest, digestSz, sig, sigSz, rng, (ecc_key*)key->internal) != MP_OKAY) {
+    if (rng) {
+        if (wc_ecc_sign_hash(digest, digestSz, sig, sigSz, rng, (ecc_key*)key->internal) != MP_OKAY) {
+            ret = WOLFSSL_FAILURE;
+        }
+        if (initTmpRng) {
+            wc_FreeRng(tmpRNG);
+        }
+    } else {
         ret = WOLFSSL_FAILURE;
     }
-    if (initTmpRng) {
-        wc_FreeRng(tmpRNG);
-    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (tmpRNG)
+        XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
+#endif
+
     (void)type;
     return ret;
 }
@@ -36552,7 +36562,7 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPrivateKey(WOLFSSL_RSA **r,
  */
 int wolfSSL_i2d_RSAPrivateKey(WOLFSSL_RSA *rsa, unsigned char **pp)
 {
-#if defined(WOLFSSL_KEY_GEN)
+#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     byte* der = NULL;
     int ret;
     int i;
@@ -36599,7 +36609,7 @@ int wolfSSL_i2d_RSAPrivateKey(WOLFSSL_RSA *rsa, unsigned char **pp)
 #else
     (void)rsa;
     (void)pp;
-    WOLFSSL_MSG("Error, WOLFSSL_KEY_GEN not defined");
+    WOLFSSL_MSG("Error, wolfSSL_i2d_RSAPrivateKey missing defines");
     return WOLFSSL_FAILURE;
 #endif /* WOLFSSL_KEY_GEN */
 }
@@ -46810,35 +46820,35 @@ int wolfSSL_BN_hex2bn(WOLFSSL_BIGNUM** bn, const char* str)
 
     if (str == NULL || str[0] == '\0') {
         WOLFSSL_MSG("Bad function argument");
-        return WOLFSSL_FAILURE;
-    }
+        ret = WOLFSSL_FAILURE;
+    } else {
+        strLen = (int)XSTRLEN(str);
+        /* ignore trailing new lines */
+        while (str[strLen-1] == '\n' && strLen > 0) strLen--;
 
-    strLen = (int)XSTRLEN(str);
-    /* ignore trailing new lines */
-    while (str[strLen-1] == '\n' && strLen > 0) strLen--;
-
-    if (Base16_Decode((byte*)str, strLen, decoded, &decSz) < 0)
-        WOLFSSL_MSG("Bad Base16_Decode error");
-    else if (bn == NULL)
-        ret = decSz;
-    else {
-        if (*bn == NULL) {
-            *bn = wolfSSL_BN_new();
-            if (*bn != NULL) {
-                weOwn = 1;
+        if (Base16_Decode((byte*)str, strLen, decoded, &decSz) < 0)
+            WOLFSSL_MSG("Bad Base16_Decode error");
+        else if (bn == NULL)
+            ret = decSz;
+        else {
+            if (*bn == NULL) {
+                *bn = wolfSSL_BN_new();
+                if (*bn != NULL) {
+                    weOwn = 1;
+                }
             }
-        }
 
-        if (*bn == NULL)
-            WOLFSSL_MSG("BN new failed");
-        else if (wolfSSL_BN_bin2bn(decoded, decSz, *bn) == NULL) {
-            WOLFSSL_MSG("Bad bin2bn error");
-            if (weOwn == 1) {
-                wolfSSL_BN_free(*bn); /* Free new BN */
+            if (*bn == NULL)
+                WOLFSSL_MSG("BN new failed");
+            else if (wolfSSL_BN_bin2bn(decoded, decSz, *bn) == NULL) {
+                WOLFSSL_MSG("Bad bin2bn error");
+                if (weOwn == 1) {
+                    wolfSSL_BN_free(*bn); /* Free new BN */
+                }
             }
+            else
+                ret = WOLFSSL_SUCCESS;
         }
-        else
-            ret = WOLFSSL_SUCCESS;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
