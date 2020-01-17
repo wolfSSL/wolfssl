@@ -5408,7 +5408,7 @@ WOLFSSL_API int EccEnumToNID(int n)
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 WOLFSSL_LOCAL int wc_OBJ_sn2nid(const char *sn)
 {
-    static const struct {
+    const struct {
         const char *sn;
         int  nid;
     } sn2nid[] = {
@@ -11866,7 +11866,7 @@ static int SetExtensionsHeader(byte* out, word32 outSz, int extSz)
 /* encode CA basic constraint true, return total bytes written */
 static int SetCa(byte* out, word32 outSz)
 {
-    static const byte ca[] = { 0x30, 0x0c, 0x06, 0x03, 0x55, 0x1d, 0x13, 0x04,
+    const byte ca[] = { 0x30, 0x0c, 0x06, 0x03, 0x55, 0x1d, 0x13, 0x04,
                                0x05, 0x30, 0x03, 0x01, 0x01, 0xff };
 
     if (out == NULL)
@@ -11915,7 +11915,7 @@ static int SetSKID(byte* output, word32 outSz, const byte *input, word32 length)
     byte skid_len[1 + MAX_LENGTH_SZ];
     byte skid_enc_len[MAX_LENGTH_SZ];
     int idx = 0, skid_lenSz, skid_enc_lenSz;
-    static const byte skid_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x0e, 0x04 };
+    const byte skid_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x0e, 0x04 };
 
     if (output == NULL || input == NULL)
         return BAD_FUNC_ARG;
@@ -11961,8 +11961,8 @@ static int SetAKID(byte* output, word32 outSz,
 {
     byte    *enc_val;
     int     ret, enc_valSz;
-    static const byte akid_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x23, 0x04 };
-    static const byte akid_cs[] = { 0x80 };
+    const byte akid_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x23, 0x04 };
+    const byte akid_cs[] = { 0x80 };
 
     (void)heap;
 
@@ -11994,7 +11994,7 @@ static int SetKeyUsage(byte* output, word32 outSz, word16 input)
 {
     byte ku[5];
     int  idx;
-    static const byte keyusage_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x0f,
+    const byte keyusage_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x0f,
                                          0x01, 0x01, 0xff, 0x04};
     if (output == NULL)
         return BAD_FUNC_ARG;
@@ -12022,7 +12022,7 @@ static int SetOjectIdValue(byte* output, word32 outSz, int* idx,
 static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
 {
     int idx = 0, oidListSz = 0, totalSz, ret = 0;
-    static const byte extkeyusage_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x25 };
+    const byte extkeyusage_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x25 };
 
     if (output == NULL)
         return BAD_FUNC_ARG;
@@ -12114,8 +12114,8 @@ static int SetCertificatePolicies(byte *output,
     word32  outSz, i = 0, der_oidSz[MAX_CERTPOL_NB];
     int     ret;
 
-    static const byte certpol_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x20, 0x04 };
-    static const byte oid_oid[] = { 0x06 };
+    const byte certpol_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x20, 0x04 };
+    const byte oid_oid[] = { 0x06 };
 
     if (output == NULL || input == NULL || nb_certpol > MAX_CERTPOL_NB)
         return BAD_FUNC_ARG;
@@ -12154,22 +12154,92 @@ static int SetCertificatePolicies(byte *output,
 }
 #endif /* WOLFSSL_CERT_EXT */
 
+
 #ifdef WOLFSSL_ALT_NAMES
+
 /* encode Alternative Names, return total bytes written */
-static int SetAltNames(byte *out, word32 outSz, byte *input, word32 length)
+static int SetAltNames(byte *output, word32 outSz,
+        const byte *input, word32 length)
 {
-    if (out == NULL || input == NULL)
+    byte san_len[1 + MAX_LENGTH_SZ];
+    int idx = 0, san_lenSz;
+    const byte san_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x11 };
+
+    if (output == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
     if (outSz < length)
         return BUFFER_E;
 
-    /* Alternative Names come from certificate or computed by
-     * external function, so already encoded. Just copy value */
-    XMEMCPY(out, input, length);
-    return length;
+    /* Octet String header */
+    san_lenSz = SetOctetString(length, san_len);
+
+    if (outSz < MAX_SEQ_SZ)
+        return BUFFER_E;
+
+    idx = SetSequence(length + sizeof(san_oid) + san_lenSz, output);
+
+    if ((length + sizeof(san_oid) + san_lenSz) > outSz)
+        return BUFFER_E;
+
+    /* put oid */
+    XMEMCPY(output+idx, san_oid, sizeof(san_oid));
+    idx += sizeof(san_oid);
+
+    /* put octet header */
+    XMEMCPY(output+idx, san_len, san_lenSz);
+    idx += san_lenSz;
+
+    /* put value */
+    XMEMCPY(output+idx, input, length);
+    idx += length;
+
+    return idx;
 }
-#endif /* WOLFSL_ALT_NAMES */
+
+
+#ifdef WOLFSSL_CERT_GEN
+
+int FlattenAltNames(byte* output, word32 outputSz, const DNS_entry* names)
+{
+    word32 idx;
+    const DNS_entry* curName;
+    word32 namesSz = 0;
+
+    if (output == NULL)
+        return BAD_FUNC_ARG;
+
+    if (names == NULL)
+        return 0;
+
+    curName = names;
+    do {
+        namesSz += curName->len + 2 +
+            ((curName->len < ASN_LONG_LENGTH) ? 0
+             : BytePrecision(curName->len));
+        curName = curName->next;
+    } while (curName != NULL);
+
+    if (outputSz < MAX_SEQ_SZ + namesSz)
+        return BUFFER_E;
+
+    idx = SetSequence(namesSz, output);
+
+    curName = names;
+    do {
+        output[idx++] = ASN_CONTEXT_SPECIFIC | curName->type;
+        idx += SetLength(curName->len, output + idx);
+        XMEMCPY(output + idx, curName->name, curName->len);
+        idx += curName->len;
+        curName = curName->next;
+    } while (curName != NULL);
+
+    return idx;
+}
+
+#endif /* WOLFSSL_CERT_GEN */
+
+#endif /* WOLFSSL_ALT_NAMES */
 
 /* Encodes one attribute of the name (issuer/subject)
  *
@@ -13056,10 +13126,10 @@ int wc_MakeNtruCert(Cert* cert, byte* derBuffer, word32 derSz,
 static int SetReqAttrib(byte* output, char* pw, int pwPrintableString,
                         int extSz)
 {
-    static const byte cpOid[] =
+    const byte cpOid[] =
         { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
                          0x09, 0x07 };
-    static const byte erOid[] =
+    const byte erOid[] =
         { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
                          0x09, 0x0e };
 
@@ -14858,7 +14928,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
 #ifdef WOLFSSL_CUSTOM_CURVES
 static void ByteToHex(byte n, char* str)
 {
-    static const char hexChar[] = { '0', '1', '2', '3', '4', '5', '6', '7',
+    const char hexChar[] = { '0', '1', '2', '3', '4', '5', '6', '7',
                                     '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
     str[0] = hexChar[n >> 4];
@@ -16045,7 +16115,7 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap, int noVerify)
 
 word32 EncodeOcspRequestExtensions(OcspRequest* req, byte* output, word32 size)
 {
-    static const byte NonceObjId[] = { 0x2b, 0x06, 0x01, 0x05, 0x05, 0x07,
+    const byte NonceObjId[] = { 0x2b, 0x06, 0x01, 0x05, 0x05, 0x07,
                                        0x30, 0x01, 0x02 };
     byte seqArray[5][MAX_SEQ_SZ];
     word32 seqSz[5], totalSz = (word32)sizeof(NonceObjId);

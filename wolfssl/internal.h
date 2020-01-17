@@ -3646,6 +3646,7 @@ struct WOLFSSL_X509 {
     WOLFSSL_X509_ALGOR algor;
     WOLFSSL_X509_PUBKEY key;
 #endif
+    byte issuerSet:1;
 };
 
 

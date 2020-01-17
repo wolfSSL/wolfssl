@@ -22443,6 +22443,22 @@ static void test_wolfSSL_X509_sign(void)
     /* Set subject name, add pubkey, and sign certificate */
     AssertIntEQ(X509_set_subject_name(x509, name), SSL_SUCCESS);
     AssertIntEQ(X509_set_pubkey(x509, pub), SSL_SUCCESS);
+#ifdef WOLFSSL_ALT_NAMES
+    /* Add some subject alt names */
+    AssertIntNE(wolfSSL_X509_add_altname(NULL,
+                NULL, ASN_DNS_TYPE), SSL_SUCCESS);
+    AssertIntEQ(wolfSSL_X509_add_altname(x509,
+                NULL, ASN_DNS_TYPE), SSL_SUCCESS);
+    AssertIntEQ(wolfSSL_X509_add_altname(x509,
+                "sphygmomanometer",
+                ASN_DNS_TYPE), SSL_SUCCESS);
+    AssertIntEQ(wolfSSL_X509_add_altname(x509,
+                "supercalifragilisticexpialidocious",
+                ASN_DNS_TYPE), SSL_SUCCESS);
+    AssertIntEQ(wolfSSL_X509_add_altname(x509,
+                "Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch",
+                ASN_DNS_TYPE), SSL_SUCCESS);
+#endif /* WOLFSSL_ALT_NAMES */
     /* Test invalid parameters */
     AssertIntEQ(X509_sign(NULL, priv, EVP_sha256()), 0);
     AssertIntEQ(X509_sign(x509, NULL, EVP_sha256()), 0);
@@ -22461,8 +22477,13 @@ static void test_wolfSSL_X509_sign(void)
     XFCLOSE(tmpFile);
 #endif
 
+#ifndef WOLFSSL_ALT_NAMES
     /* Valid case - size should be 798 */
     AssertIntEQ(ret, 798);
+#else /* WOLFSSL_ALT_NAMES */
+    /* Valid case - size should be 927 */
+    AssertIntEQ(ret, 927);
+#endif /* WOLFSSL_ALT_NAMES */
 
     X509_NAME_free(name);
     EVP_PKEY_free(priv);

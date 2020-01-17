@@ -9743,6 +9743,46 @@ err:
     return NULL;
 }
 
+
+int wolfSSL_X509_add_altname(WOLFSSL_X509* x509, const char* name, int type)
+{
+    DNS_entry* newAltName = NULL;
+    char* nameCopy = NULL;
+    word32 nameSz;
+
+    if (x509 == NULL)
+        return WOLFSSL_FAILURE;
+
+    if (name == NULL)
+        return WOLFSSL_SUCCESS;
+
+    nameSz = (word32)XSTRLEN(name);
+    if (nameSz == 0)
+        return WOLFSSL_SUCCESS;
+
+    newAltName = (DNS_entry*)XMALLOC(sizeof(DNS_entry),
+            x509->heap, DYNAMIC_TYPE_ALTNAME);
+    if (newAltName == NULL)
+        return WOLFSSL_FAILURE;
+
+    nameCopy = (char*)XMALLOC(nameSz + 1, x509->heap, DYNAMIC_TYPE_ALTNAME);
+    if (nameCopy == NULL) {
+        XFREE(newAltName, x509->heap, DYNAMIC_TYPE_ALTNAME);
+        return WOLFSSL_FAILURE;
+    }
+
+    XMEMCPY(nameCopy, name, nameSz + 1);
+
+    newAltName->next = x509->altNames;
+    newAltName->type = type;
+    newAltName->len = nameSz;
+    newAltName->name = nameCopy;
+    x509->altNames = newAltName;
+
+    return WOLFSSL_SUCCESS;
+}
+
+
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int loc)
 {
@@ -37084,24 +37124,9 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             cert->afterDateSz = 0;
         }
 
-        /* copy over alt names */
-        {
-            int idx = 0;
-            DNS_entry* dns = x509->altNames;
+        cert->altNamesSz = FlattenAltNames(cert->altNames,
+                sizeof(cert->altNames), x509->altNames);
 
-            while (dns != NULL) {
-                int sz = (int)XSTRLEN(dns->name);
-
-                if (sz < 0 || sz + idx > CTC_MAX_ALT_SIZE) {
-                    WOLFSSL_MSG("Issue with copying over alt names");
-                    return WOLFSSL_FAILURE;
-                }
-                XMEMCPY(cert->altNames, dns->name, sz);
-                idx += sz;
-                dns = dns->next;
-            }
-            cert->altNamesSz = idx;
-        }
     #endif /* WOLFSSL_ALT_NAMES */
 
         cert->sigType = wolfSSL_X509_get_signature_type(x509);
@@ -37157,6 +37182,8 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         }
 
         /* copy over Name structures */
+        if (x509->issuerSet)
+            cert->selfSigned = 0;
         if ((ret = CopyX509NameToCertName(&(x509->issuer), &(cert->issuer)))
             != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("Error copying over issuer names");
@@ -38517,7 +38544,7 @@ err:
         if (dName->fullName != NULL)
             XFREE(dName->fullName, NULL, DYNAMIC_TYPE_X509);
         dName->fullName = fullName;
-        dName->fullNameLen = idx;
+        dName->fullNameLen = idx + 1;
 
         return 0;
     }
@@ -47919,6 +47946,8 @@ int wolfSSL_X509_set_subject_name(WOLFSSL_X509 *cert, WOLFSSL_X509_NAME *name)
             wolfSSL_X509_NAME_add_entry(&cert->subject, ne, i, 1);
     }
     cert->subject.x509 = cert;
+    cert->subject.name = cert->subject.fullName.fullName;
+    cert->subject.sz = cert->subject.fullName.fullNameLen;
 
     return WOLFSSL_SUCCESS;
 }
@@ -47949,6 +47978,9 @@ int wolfSSL_X509_set_issuer_name(WOLFSSL_X509 *cert, WOLFSSL_X509_NAME *name)
             wolfSSL_X509_NAME_add_entry(&cert->issuer, ne, i, 1);
     }
     cert->issuer.x509 = cert;
+    cert->issuer.name = cert->issuer.fullName.fullName;
+    cert->issuer.sz = cert->issuer.fullName.fullNameLen;
+    cert->issuerSet = 1;
 
     return WOLFSSL_SUCCESS;
 }
