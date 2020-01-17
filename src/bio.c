@@ -141,13 +141,18 @@ static int wolfSSL_BIO_SSL_read(WOLFSSL_BIO* bio, void* buf,
     if ((front == NULL) || front->eof)
         return WOLFSSL_FATAL_ERROR;
 
+    bio->flags &= ~(WOLFSSL_BIO_FLAG_RETRY); /* default no retry */
     ret = wolfSSL_read((WOLFSSL*)bio->ptr, buf, len);
     if (ret == 0)
         front->eof = 1;
     else if (ret < 0) {
         int err = wolfSSL_get_error((WOLFSSL*)bio->ptr, 0);
-        if ( !(err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) )
+        if ( !(err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) ) {
             front->eof = 1;
+        }
+        else {
+            bio->flags |= WOLFSSL_BIO_FLAG_RETRY; /* should retry */
+        }
     }
 
     return ret;
@@ -335,13 +340,18 @@ static int wolfSSL_BIO_SSL_write(WOLFSSL_BIO* bio, const void* data,
         return BAD_FUNC_ARG;
     }
 
+    bio->flags &= ~(WOLFSSL_BIO_FLAG_RETRY); /* default no retry */
     ret = wolfSSL_write((WOLFSSL*)bio->ptr, data, len);
     if (ret == 0)
         front->eof = 1;
     else if (ret < 0) {
         int err = wolfSSL_get_error((WOLFSSL*)bio->ptr, 0);
-        if ( !(err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) )
+        if ( !(err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) ) {
             front->eof = 1;
+        }
+        else {
+            bio->flags |= WOLFSSL_BIO_FLAG_RETRY; /* should retry */
+        }
     }
     return ret;
 }
