@@ -44409,11 +44409,22 @@ int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
             curve = WOLFSSL_ECC_X25519;
         }
         else {
-            int ret = wc_ecc_get_curve_id_from_name(name);
+            int   ret;
+            const ecc_set_type *eccSet;
+
+            ret = wc_ecc_get_curve_idx_from_name(name);
             if (ret < 0) {
+                WOLFSSL_MSG("Could not find name in set");
                 return WOLFSSL_FAILURE;
             }
-            curve = (word16)ret;
+
+            eccSet = wc_ecc_get_curve_params(ret);
+            if (eccSet == NULL) {
+                WOLFSSL_MSG("NULL set returned");
+                return WOLFSSL_FAILURE;
+            }
+
+            curve = GetCurveByOID(eccSet->oidSum);
         }
 
         if (curve > (sizeof(word32) * WOLFSSL_BIT_SIZE)) {

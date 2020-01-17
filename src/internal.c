@@ -23272,15 +23272,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 
 #if defined(HAVE_ECC)
-
-    static byte SetCurveId(ecc_key* key)
-    {
-        if (key == NULL || key->dp == NULL) {
-            WOLFSSL_MSG("SetCurveId: Invalid key!");
-            return 0;
-        }
-
-        switch(key->dp->oidSum) {
+    /* returns the WOLFSSL_* version of the curve from the OID sum */
+    unsigned char GetCurveByOID(int oidSum) {
+        switch(oidSum) {
     #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
             case ECC_SECP160R1_OID:
@@ -23354,6 +23348,16 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             default:
                 return 0;
         }
+    }
+
+    static byte SetCurveId(ecc_key* key)
+    {
+        if (key == NULL || key->dp == NULL) {
+            WOLFSSL_MSG("SetCurveId: Invalid key!");
+            return 0;
+        }
+
+        return (byte)GetCurveByOID(key->dp->oidSum);
     }
 
 #endif /* HAVE_ECC || HAVE_CURVE25519 */

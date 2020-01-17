@@ -4465,6 +4465,7 @@ WOLFSSL_LOCAL int SetKeysSide(WOLFSSL*, enum encrypt_side);
 
 #ifdef HAVE_ECC
     WOLFSSL_LOCAL int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer);
+    WOLFSSL_LOCAL unsigned char GetCurveByOID(int oidSum);
 #endif
 
 WOLFSSL_LOCAL int InitHandshakeHashes(WOLFSSL* ssl);
