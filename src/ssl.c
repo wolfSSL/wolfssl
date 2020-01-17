@@ -44409,6 +44409,7 @@ int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
             curve = WOLFSSL_ECC_X25519;
         }
         else {
+        #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
             int   ret;
             const ecc_set_type *eccSet;
 
@@ -44425,6 +44426,10 @@ int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
             }
 
             curve = GetCurveByOID(eccSet->oidSum);
+        #else
+            WOLFSSL_MSG("API not present to search farther using name");
+            return WOLFSSL_FAILURE
+        #endif
         }
 
         if (curve > (sizeof(word32) * WOLFSSL_BIT_SIZE)) {

@@ -23036,6 +23036,87 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #endif /* NO_WOLFSSL_CLIENT */
 
+#ifdef HAVE_ECC
+    /* returns the WOLFSSL_* version of the curve from the OID sum */
+    unsigned char GetCurveByOID(int oidSum) {
+        switch(oidSum) {
+    #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
+        #ifndef NO_ECC_SECP
+            case ECC_SECP160R1_OID:
+                return WOLFSSL_ECC_SECP160R1;
+        #endif /* !NO_ECC_SECP */
+        #ifdef HAVE_ECC_SECPR2
+            case ECC_SECP160R2_OID:
+                return WOLFSSL_ECC_SECP160R2;
+        #endif /* HAVE_ECC_SECPR2 */
+        #ifdef HAVE_ECC_KOBLITZ
+            case ECC_SECP160K1_OID:
+                return WOLFSSL_ECC_SECP160K1;
+        #endif /* HAVE_ECC_KOBLITZ */
+    #endif
+    #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
+        #ifndef NO_ECC_SECP
+            case ECC_SECP192R1_OID:
+                return WOLFSSL_ECC_SECP192R1;
+        #endif /* !NO_ECC_SECP */
+        #ifdef HAVE_ECC_KOBLITZ
+            case ECC_SECP192K1_OID:
+                return WOLFSSL_ECC_SECP192K1;
+        #endif /* HAVE_ECC_KOBLITZ */
+    #endif
+    #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
+        #ifndef NO_ECC_SECP
+            case ECC_SECP224R1_OID:
+                return WOLFSSL_ECC_SECP224R1;
+        #endif /* !NO_ECC_SECP */
+        #ifdef HAVE_ECC_KOBLITZ
+            case ECC_SECP224K1_OID:
+                return WOLFSSL_ECC_SECP224K1;
+        #endif /* HAVE_ECC_KOBLITZ */
+    #endif
+    #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
+        #ifndef NO_ECC_SECP
+            case ECC_SECP256R1_OID:
+                return WOLFSSL_ECC_SECP256R1;
+        #endif /* !NO_ECC_SECP */
+        #ifdef HAVE_ECC_KOBLITZ
+            case ECC_SECP256K1_OID:
+                return WOLFSSL_ECC_SECP256K1;
+        #endif /* HAVE_ECC_KOBLITZ */
+        #ifdef HAVE_ECC_BRAINPOOL
+            case ECC_BRAINPOOLP256R1_OID:
+                return WOLFSSL_ECC_BRAINPOOLP256R1;
+        #endif /* HAVE_ECC_BRAINPOOL */
+    #endif
+    #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
+        #ifndef NO_ECC_SECP
+            case ECC_SECP384R1_OID:
+                return WOLFSSL_ECC_SECP384R1;
+        #endif /* !NO_ECC_SECP */
+        #ifdef HAVE_ECC_BRAINPOOL
+            case ECC_BRAINPOOLP384R1_OID:
+                return WOLFSSL_ECC_BRAINPOOLP384R1;
+        #endif /* HAVE_ECC_BRAINPOOL */
+    #endif
+    #if defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)
+        #ifdef HAVE_ECC_BRAINPOOL
+            case ECC_BRAINPOOLP512R1_OID:
+                return WOLFSSL_ECC_BRAINPOOLP512R1;
+        #endif /* HAVE_ECC_BRAINPOOL */
+    #endif
+    #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+        #ifndef NO_ECC_SECP
+            case ECC_SECP521R1_OID:
+                return WOLFSSL_ECC_SECP521R1;
+        #endif /* !NO_ECC_SECP */
+    #endif
+            default:
+                return 0;
+        }
+    }
+#endif /* HAVE_ECC */
+
+
 #ifndef NO_WOLFSSL_SERVER
 
 #ifndef WOLFSSL_NO_TLS12
@@ -23272,83 +23353,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 
 #if defined(HAVE_ECC)
-    /* returns the WOLFSSL_* version of the curve from the OID sum */
-    unsigned char GetCurveByOID(int oidSum) {
-        switch(oidSum) {
-    #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
-        #ifndef NO_ECC_SECP
-            case ECC_SECP160R1_OID:
-                return WOLFSSL_ECC_SECP160R1;
-        #endif /* !NO_ECC_SECP */
-        #ifdef HAVE_ECC_SECPR2
-            case ECC_SECP160R2_OID:
-                return WOLFSSL_ECC_SECP160R2;
-        #endif /* HAVE_ECC_SECPR2 */
-        #ifdef HAVE_ECC_KOBLITZ
-            case ECC_SECP160K1_OID:
-                return WOLFSSL_ECC_SECP160K1;
-        #endif /* HAVE_ECC_KOBLITZ */
-    #endif
-    #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
-        #ifndef NO_ECC_SECP
-            case ECC_SECP192R1_OID:
-                return WOLFSSL_ECC_SECP192R1;
-        #endif /* !NO_ECC_SECP */
-        #ifdef HAVE_ECC_KOBLITZ
-            case ECC_SECP192K1_OID:
-                return WOLFSSL_ECC_SECP192K1;
-        #endif /* HAVE_ECC_KOBLITZ */
-    #endif
-    #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
-        #ifndef NO_ECC_SECP
-            case ECC_SECP224R1_OID:
-                return WOLFSSL_ECC_SECP224R1;
-        #endif /* !NO_ECC_SECP */
-        #ifdef HAVE_ECC_KOBLITZ
-            case ECC_SECP224K1_OID:
-                return WOLFSSL_ECC_SECP224K1;
-        #endif /* HAVE_ECC_KOBLITZ */
-    #endif
-    #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
-        #ifndef NO_ECC_SECP
-            case ECC_SECP256R1_OID:
-                return WOLFSSL_ECC_SECP256R1;
-        #endif /* !NO_ECC_SECP */
-        #ifdef HAVE_ECC_KOBLITZ
-            case ECC_SECP256K1_OID:
-                return WOLFSSL_ECC_SECP256K1;
-        #endif /* HAVE_ECC_KOBLITZ */
-        #ifdef HAVE_ECC_BRAINPOOL
-            case ECC_BRAINPOOLP256R1_OID:
-                return WOLFSSL_ECC_BRAINPOOLP256R1;
-        #endif /* HAVE_ECC_BRAINPOOL */
-    #endif
-    #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
-        #ifndef NO_ECC_SECP
-            case ECC_SECP384R1_OID:
-                return WOLFSSL_ECC_SECP384R1;
-        #endif /* !NO_ECC_SECP */
-        #ifdef HAVE_ECC_BRAINPOOL
-            case ECC_BRAINPOOLP384R1_OID:
-                return WOLFSSL_ECC_BRAINPOOLP384R1;
-        #endif /* HAVE_ECC_BRAINPOOL */
-    #endif
-    #if defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)
-        #ifdef HAVE_ECC_BRAINPOOL
-            case ECC_BRAINPOOLP512R1_OID:
-                return WOLFSSL_ECC_BRAINPOOLP512R1;
-        #endif /* HAVE_ECC_BRAINPOOL */
-    #endif
-    #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
-        #ifndef NO_ECC_SECP
-            case ECC_SECP521R1_OID:
-                return WOLFSSL_ECC_SECP521R1;
-        #endif /* !NO_ECC_SECP */
-    #endif
-            default:
-                return 0;
-        }
-    }
 
     static byte SetCurveId(ecc_key* key)
     {
