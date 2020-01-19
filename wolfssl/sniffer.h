@@ -98,13 +98,6 @@ enum {
  * information associated with the SSL session.
  */
 
-#if defined(__IAR_SYSTEMS_ICC__) || defined(__GNUC__)
-    #define WOLFSSL_PACK __attribute__ ((packed))
-#else
-    #define WOLFSSL_PACK
-#endif
-
-
 typedef struct SSLInfo
 {
     unsigned char  isValid;
@@ -117,7 +110,7 @@ typedef struct SSLInfo
             /* cipher name, e.g., "TLS_RSA_..." */
     unsigned char  serverNameIndication[128];
     unsigned int   keySize;
-} WOLFSSL_PACK SSLInfo;
+} SSLInfo;
 
 
 WOLFSSL_API
