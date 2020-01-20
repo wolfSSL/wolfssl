@@ -23038,7 +23038,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifdef HAVE_ECC
     /* returns the WOLFSSL_* version of the curve from the OID sum */
-    unsigned char GetCurveByOID(int oidSum) {
+    word16 GetCurveByOID(int oidSum) {
         switch(oidSum) {
     #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
@@ -23111,6 +23111,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         #endif /* !NO_ECC_SECP */
     #endif
             default:
+                WOLFSSL_MSG("Curve OID not compiled in or implemented");
                 return 0;
         }
     }
