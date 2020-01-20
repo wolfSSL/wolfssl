@@ -83,7 +83,11 @@
     #elif defined(WOLFSSL_IAR_ARM)
         /* nothing */
     #elif defined(HAVE_NETX_BSD)
-        #include "nx_bsd.h"
+        #ifdef NETX_DUO
+            #include "nxd_bsd.h"
+        #else
+            #include "nx_bsd.h"
+        #endif
     #elif defined(WOLFSSL_VXWORKS)
         #include <sockLib.h>
         #include <errno.h>

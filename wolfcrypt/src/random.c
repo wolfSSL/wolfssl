@@ -2324,7 +2324,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         word32   len = sz;
 
         ret = g_sce_trng.p_api->open(g_sce_trng.p_ctrl, g_sce_trng.p_cfg);
-        if (ret != SSP_SUCCESS) {
+        if (ret != SSP_SUCCESS && ret != SSP_ERR_CRYPTO_ALREADY_OPEN) {
             /* error opening TRNG driver */
             return -1;
         }
