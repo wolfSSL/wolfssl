@@ -417,7 +417,11 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
     free(buffer);
 
     if (throughput) {
+    #if !defined(__MINGW32__)
         printf("wolfSSL Server Benchmark %zu bytes\n"
+    #else
+        printf("wolfSSL Server Benchmark %d bytes\n"
+    #endif
             "\tRX      %8.3f ms (%8.3f MBps)\n"
             "\tTX      %8.3f ms (%8.3f MBps)\n",
             throughput,
