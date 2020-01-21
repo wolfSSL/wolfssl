@@ -44403,7 +44403,7 @@ void wolfSSL_get0_next_proto_negotiated(const WOLFSSL *s, const unsigned char **
 int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
 {
     int idx, start = 0, len;
-    int curve;
+    word16 curve;
     char name[MAX_CURVE_NAME_SZ];
 
     /* Disable all curves so that only the ones the user wants are enabled. */
@@ -44432,13 +44432,51 @@ int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
                                           (XSTRNCMP(name, "P-521", len) == 0)) {
             curve = WOLFSSL_ECC_SECP521R1;
         }
-        else if (XSTRNCMP(name, "X25519", len) == 0)
+        else if (XSTRNCMP(name, "X25519", len) == 0) {
             curve = WOLFSSL_ECC_X25519;
-        else if ((curve = wc_ecc_get_curve_id_from_name(name)) < 0)
+        }
+        else {
+        #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+            int   ret;
+            const ecc_set_type *eccSet;
+
+            ret = wc_ecc_get_curve_idx_from_name(name);
+            if (ret < 0) {
+                WOLFSSL_MSG("Could not find name in set");
+                return WOLFSSL_FAILURE;
+            }
+
+            eccSet = wc_ecc_get_curve_params(ret);
+            if (eccSet == NULL) {
+                WOLFSSL_MSG("NULL set returned");
+                return WOLFSSL_FAILURE;
+            }
+
+            curve = GetCurveByOID(eccSet->oidSum);
+        #else
+            WOLFSSL_MSG("API not present to search farther using name");
             return WOLFSSL_FAILURE;
+        #endif
+        }
+
+        if (curve > (sizeof(word32) * WOLFSSL_BIT_SIZE)) {
+            /* shift left more than size of ctx->disabledCurves causes static
+             * analysis report */
+            WOLFSSL_MSG("curve value is too large for upcoming shift");
+            return WOLFSSL_FAILURE;
+        }
+
+    #ifndef NO_WOLFSSL_CLIENT
+        /* set the supported curve so client TLS extension contains only the
+         * desired curves */
+        if (wolfSSL_CTX_UseSupportedCurve(ctx, curve) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Unable to set supported curve");
+            return WOLFSSL_FAILURE;
+        }
+    #endif
 
         /* Switch the bit to off and therefore is enabled. */
-        ctx->disabledCurves &= ~(1 << curve);
+        ctx->disabledCurves &= ~(1U << curve);
         start = idx + 1;
     }
 
