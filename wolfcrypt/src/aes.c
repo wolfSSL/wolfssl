@@ -1964,7 +1964,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     #if !defined(WOLFSSL_STM32_CUBEMX) || defined(STM32_HAL_V2)
         ByteReverseWords(rk, rk, keylen);
     #endif
-    #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER)
+    #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
+        defined(WOLFSSL_AES_OFB)
         aes->left = 0;
     #endif
 
@@ -2037,7 +2038,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         if (iv)
             XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
 
-    #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER)
+    #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
+        defined(WOLFSSL_AES_OFB)
         aes->left = 0;
     #endif
 
@@ -2053,7 +2055,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         aes->rounds = keylen/4 + 6;
         XMEMCPY(aes->key, userKey, keylen);
 
-    #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER)
+    #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
+        defined(WOLFSSL_AES_OFB)
         aes->left = 0;
     #endif
 
@@ -2083,7 +2086,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         if (rk == NULL)
             return BAD_FUNC_ARG;
 
-    #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER)
+    #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
+        defined(WOLFSSL_AES_OFB)
         aes->left = 0;
     #endif
 
@@ -2150,7 +2154,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         aes->rounds = keylen/4 + 6;
         ret = nrf51_aes_set_key(userKey);
 
-    #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER)
+    #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
+        defined(WOLFSSL_AES_OFB)
         aes->left = 0;
     #endif
 
@@ -2288,7 +2293,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         #ifdef WOLFSSL_AESNI
             aes->use_aesni = 0;
         #endif /* WOLFSSL_AESNI */
-        #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER)
+        #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
+            defined(WOLFSSL_AES_OFB)
             aes->left = 0;
         #endif
 
@@ -2497,7 +2503,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
             checkAESNI = 1;
         }
         if (haveAESNI) {
-            #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
+            #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+                defined(WOLFSSL_AES_OFB)
                 aes->left = 0;
             #endif /* WOLFSSL_AES_COUNTER */
             aes->use_aesni = 1;
@@ -7252,43 +7259,64 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #endif
 #endif /* HAVE_AES_ECB */
 
-#ifdef WOLFSSL_AES_CFB
-/* CFB 128
+#if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_OFB)
+/* Feedback AES mode
  *
  * aes structure holding key to use for encryption
  * out buffer to hold result of encryption (must be at least as large as input
  *     buffer)
  * in  buffer to encrypt
  * sz  size of input buffer
+ * pre flag to xor after or before feedback. If 1 then add feedback before xor
  *
  * returns 0 on success and negative error values on failure
  */
 /* Software AES - CFB Encrypt */
-int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+static int wc_AesFeedbackEncrypt(Aes* aes, byte* out, const byte* in,
+        word32 sz, byte mode)
 {
     byte*  tmp = NULL;
+#ifdef WOLFSSL_AES_CFB
     byte*  reg = NULL;
+#endif
 
     if (aes == NULL || out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLFSSL_AES_CFB
     if (aes->left && sz) {
         reg = (byte*)aes->reg + AES_BLOCK_SIZE - aes->left;
     }
+#endif
 
     /* consume any unused bytes left in aes->tmp */
     tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
     while (aes->left && sz) {
-        *(out++) = *(reg++) = *(in++) ^ *(tmp++);
+        *(out) = *(in++) ^ *(tmp++);
+    #ifdef WOLFSSL_AES_CFB
+        if (mode == AES_CFB_MODE) {
+            *(reg++) = *out;
+        }
+    #endif
+        out++;
         aes->left--;
         sz--;
     }
 
     while (sz >= AES_BLOCK_SIZE) {
         wc_AesEncryptDirect(aes, out, (byte*)aes->reg);
+    #ifdef WOLFSSL_AES_OFB
+        if (mode == AES_OFB_MODE) {
+            XMEMCPY(aes->reg, out, AES_BLOCK_SIZE);
+        }
+    #endif
         xorbuf(out, in, AES_BLOCK_SIZE);
-        XMEMCPY(aes->reg, out, AES_BLOCK_SIZE);
+    #ifdef WOLFSSL_AES_CFB
+        if (mode == AES_CFB_MODE) {
+            XMEMCPY(aes->reg, out, AES_BLOCK_SIZE);
+        }
+    #endif
         out += AES_BLOCK_SIZE;
         in  += AES_BLOCK_SIZE;
         sz  -= AES_BLOCK_SIZE;
@@ -7300,10 +7328,23 @@ int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         wc_AesEncryptDirect(aes, (byte*)aes->tmp, (byte*)aes->reg);
         aes->left = AES_BLOCK_SIZE;
         tmp = (byte*)aes->tmp;
+    #ifdef WOLFSSL_AES_OFB
+        if (mode == AES_OFB_MODE) {
+            XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
+        }
+    #endif
+    #ifdef WOLFSSL_AES_CFB
         reg = (byte*)aes->reg;
+    #endif
 
         while (sz--) {
-            *(out++) = *(reg++) = *(in++) ^ *(tmp++);
+            *(out) = *(in++) ^ *(tmp++);
+        #ifdef WOLFSSL_AES_CFB
+            if (mode == AES_CFB_MODE) {
+                *(reg++) = *out;
+            }
+        #endif
+            out++;
             aes->left--;
         }
     }
@@ -7324,7 +7365,8 @@ int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
  * returns 0 on success and negative error values on failure
  */
 /* Software AES - CFB Decrypt */
-int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+static int wc_AesFeedbackDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
+        byte mode)
 {
     byte*  tmp;
 
@@ -7333,7 +7375,7 @@ int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     }
 
     /* check if more input needs copied over to aes->reg */
-    if (aes->left && sz) {
+    if (aes->left && sz && mode == AES_CFB_MODE) {
         int size = min(aes->left, sz);
         XMEMCPY((byte*)aes->reg + AES_BLOCK_SIZE - aes->left, in, size);
     }
@@ -7348,8 +7390,17 @@ int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     while (sz > AES_BLOCK_SIZE) {
         wc_AesEncryptDirect(aes, out, (byte*)aes->reg);
+    #ifdef WOLFSSL_AES_OFB
+        if (mode == AES_OFB_MODE) {
+            XMEMCPY(aes->reg, out, AES_BLOCK_SIZE);
+        }
+    #endif
         xorbuf(out, in, AES_BLOCK_SIZE);
-        XMEMCPY(aes->reg, in, AES_BLOCK_SIZE);
+    #ifdef WOLFSSL_AES_CFB
+        if (mode == AES_CFB_MODE) {
+            XMEMCPY(aes->reg, in, AES_BLOCK_SIZE);
+        }
+    #endif
         out += AES_BLOCK_SIZE;
         in  += AES_BLOCK_SIZE;
         sz  -= AES_BLOCK_SIZE;
@@ -7359,7 +7410,13 @@ int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     /* decrypt left over data */
     if (sz) {
         wc_AesEncryptDirect(aes, (byte*)aes->tmp, (byte*)aes->reg);
-        XMEMCPY(aes->reg, in, sz);
+        if (mode == AES_CFB_MODE) {
+            XMEMCPY(aes->reg, in, sz);
+        }
+        if (mode == AES_OFB_MODE) {
+            XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
+        }
+
         aes->left = AES_BLOCK_SIZE;
         tmp = (byte*)aes->tmp;
 
@@ -7370,6 +7427,80 @@ int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     }
 
     return 0;
+}
+#endif /* HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_AES_CFB */
+
+#ifdef WOLFSSL_AES_CFB
+/* CFB 128
+ *
+ * aes structure holding key to use for encryption
+ * out buffer to hold result of encryption (must be at least as large as input
+ *     buffer)
+ * in  buffer to encrypt
+ * sz  size of input buffer
+ *
+ * returns 0 on success and negative error values on failure
+ */
+/* Software AES - CFB Encrypt */
+int wc_AesCfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    return wc_AesFeedbackEncrypt(aes, out, in, sz, AES_CFB_MODE);
+}
+
+
+#ifdef HAVE_AES_DECRYPT
+/* CFB 128
+ *
+ * aes structure holding key to use for decryption
+ * out buffer to hold result of decryption (must be at least as large as input
+ *     buffer)
+ * in  buffer to decrypt
+ * sz  size of input buffer
+ *
+ * returns 0 on success and negative error values on failure
+ */
+/* Software AES - CFB Decrypt */
+int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    return wc_AesFeedbackDecrypt(aes, out, in, sz, AES_CFB_MODE);
+}
+#endif /* HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_AES_CFB */
+
+#ifdef WOLFSSL_AES_OFB
+/* OFB
+ *
+ * aes structure holding key to use for encryption
+ * out buffer to hold result of encryption (must be at least as large as input
+ *     buffer)
+ * in  buffer to encrypt
+ * sz  size of input buffer
+ *
+ * returns 0 on success and negative error values on failure
+ */
+/* Software AES - CFB Encrypt */
+int wc_AesOfbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    return wc_AesFeedbackEncrypt(aes, out, in, sz, AES_OFB_MODE);
+}
+
+
+#ifdef HAVE_AES_DECRYPT
+/* OFB
+ *
+ * aes structure holding key to use for decryption
+ * out buffer to hold result of decryption (must be at least as large as input
+ *     buffer)
+ * in  buffer to decrypt
+ * sz  size of input buffer
+ *
+ * returns 0 on success and negative error values on failure
+ */
+/* Software AES - OFB Decrypt */
+int wc_AesOfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    return wc_AesFeedbackDecrypt(aes, out, in, sz, AES_OFB_MODE);
 }
 #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_CFB */

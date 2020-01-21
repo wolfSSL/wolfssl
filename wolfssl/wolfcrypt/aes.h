@@ -130,6 +130,12 @@ enum {
     CCM_NONCE_MAX_SZ = 13,
     CTR_SZ   = 4,
     AES_IV_FIXED_SZ = 4,
+#ifdef WOLFSSL_AES_CFB
+    AES_CFB_MODE = 1,
+#endif
+#ifdef WOLFSSL_AES_OFB
+    AES_OFB_MODE = 2,
+#endif
 
 #ifdef HAVE_PKCS11
     AES_MAX_ID_LEN   = 32,
@@ -179,7 +185,8 @@ struct Aes {
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
-#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB)
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+    defined(WOLFSSL_AES_OFB)
     word32  left;            /* unused bytes left from last call */
 #endif
 #ifdef WOLFSSL_XILINX_CRYPT
@@ -272,6 +279,15 @@ WOLFSSL_API int wc_AesCfbDecrypt(Aes* aes, byte* out,
                                     const byte* in, word32 sz);
 #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_CFB */
+
+#ifdef WOLFSSL_AES_OFB
+WOLFSSL_API int wc_AesOfbEncrypt(Aes* aes, byte* out,
+                                    const byte* in, word32 sz);
+#ifdef HAVE_AES_DECRYPT
+WOLFSSL_API int wc_AesOfbDecrypt(Aes* aes, byte* out,
+                                    const byte* in, word32 sz);
+#endif /* HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_AES_OFB */
 
 #ifdef HAVE_AES_ECB
 WOLFSSL_API int wc_AesEcbEncrypt(Aes* aes, byte* out,
