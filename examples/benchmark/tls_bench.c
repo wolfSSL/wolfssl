@@ -873,7 +873,11 @@ static void* client_thread(void* args)
 static int SetupSocketAndListen(int* listenFd, word32 port)
 {
     struct sockaddr_in servAddr;
-    const char optval = 1;
+#if defined(_MSC_VER) || defined(__MINGW32__)
+    char optval = 1;
+#else
+    int optval = 1;
+#endif
 
     /* Setup server address */
     XMEMSET(&servAddr, 0, sizeof(servAddr));
@@ -890,7 +894,8 @@ static int SetupSocketAndListen(int* listenFd, word32 port)
     }
 
     /* allow reuse */
-    if (setsockopt(*listenFd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1) {
+    if (setsockopt(*listenFd, SOL_SOCKET, SO_REUSEADDR,
+                &optval, sizeof(optval)) == -1) {
         printf("setsockopt SO_REUSEADDR failed\n");
         return -1;
     }
