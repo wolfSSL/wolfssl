@@ -182,7 +182,7 @@ run_renewcerts(){
     check_result $? "Step 3"
     mv ./3072/tmp.pem ./3072/client-cert.pem
 
-    openssl x509 -in ./3072/client-key.pem -outform der -out ./3072/client-key.der
+    openssl rsa -in ./3072/client-key.pem -outform der -out ./3072/client-key.der
     openssl x509 -in ./3072/client-cert.pem -outform der -out ./3072/client-cert.der
 
     echo "End of section"

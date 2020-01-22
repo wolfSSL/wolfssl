@@ -1467,7 +1467,10 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
 {
     int   ret;
     byte* tmp;
-    int   hLen, i, maskLen, orig_bits = bits;
+    int   hLen, i, maskLen;
+#ifdef WOLFSSL_SHA512
+    int orig_bits = bits;
+#endif
 #if defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY)
     byte tmp_buf[RSA_MAX_SIZE/8];
     tmp = tmp_buf;
