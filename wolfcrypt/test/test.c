@@ -9955,12 +9955,14 @@ int decodedCertCache_test(void)
 #endif /* defined(WOLFSSL_CERT_GEN_CACHE) && defined(WOLFSSL_TEST_CERT) &&
           defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN) */
 
+#define RSA_TEST_BYTES 384
+
 #if !defined(NO_ASN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 static int rsa_flatten_test(RsaKey* key)
 {
     int    ret;
-    byte   e[256];
-    byte   n[256];
+    byte   e[RSA_TEST_BYTES];
+    byte   n[RSA_TEST_BYTES];
     word32 eSz = sizeof(e);
     word32 nSz = sizeof(n);
 
@@ -10056,13 +10058,13 @@ static int rsa_export_key_test(RsaKey* key)
     int ret;
     byte e[3];
     word32 eSz = sizeof(e);
-    byte n[256];
+    byte n[RSA_TEST_BYTES];
     word32 nSz = sizeof(n);
-    byte d[256];
+    byte d[RSA_TEST_BYTES];
     word32 dSz = sizeof(d);
-    byte p[128];
+    byte p[RSA_TEST_BYTES/2];
     word32 pSz = sizeof(p);
-    byte q[128];
+    byte q[RSA_TEST_BYTES/2];
     word32 qSz = sizeof(q);
     word32 zero = 0;
 
@@ -10125,8 +10127,6 @@ static int rsa_export_key_test(RsaKey* key)
     return 0;
 }
 #endif /* !HAVE_FIPS && !USER_RSA && !NO_ASN */
-
-#define RSA_TEST_BYTES 384
 
 #ifndef NO_SIG_WRAPPER
 static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
