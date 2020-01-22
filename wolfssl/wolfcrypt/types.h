@@ -176,7 +176,7 @@ decouple library dependencies with standard string, memory and so on.
 
 #else
         #undef WORD64_AVAILABLE
-        typedef word32 wolfssl_word;
+        typedef size_t wolfssl_word;
         #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as
                              mp_digit, no 64 bit type so make mp_digit 16 bit */
         #define WC_32BIT_CPU
