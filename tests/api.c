@@ -36515,6 +36515,217 @@ tgZl96bcAGdru8OpQYP7x/rI4h5+rwA/kwIBAg==\n\
 #endif
 }
 
+/* test_EVP_Cipher_extra, Extra-test on EVP_CipherUpdate/Final. see also test.c */
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) &&\
+    (!defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)) 
+static void binary_dump(void *ptr, int size)
+{
+    #ifdef WOLFSSL_EVP_PRINT
+   	int i = 0;
+	unsigned char *p = (unsigned char *) ptr;
+
+	printf("{");
+	while((p != NULL) && (i < size)) {
+		if((i % 8) == 0) {
+			printf("\n");
+			printf("    ");
+		}
+		printf("0x%02x, ", p[i]);
+		i++;
+	}
+	printf("\n};\n");
+    #else
+    (void) ptr;
+    (void) size;
+    #endif
+}
+
+static int last_val = 0x0f;
+
+static int check_result(unsigned char *data, int len)
+{
+	int i;
+	
+	for( ; len; ) {
+		last_val = (last_val + 1) % 16;
+		for(i = 0; i < 16; len--, i++, data++)
+			if(*data != last_val) {
+				return -1;
+			}
+	}
+    return 0;
+}
+
+static int r_offset;
+static int w_offset;
+
+static void init_offset()
+{
+    r_offset = 0;
+    w_offset = 0;
+}
+static void get_record(unsigned char *data, unsigned char *buf, int len)
+{
+    memcpy(buf, data+r_offset, len);
+    r_offset += len;
+}
+
+static void set_record(unsigned char *data, unsigned char *buf, int len)
+{
+    memcpy(data+w_offset, buf, len);
+    w_offset += len;
+}
+
+static void set_plain(unsigned char *plain, int rec)
+{
+    int i, j;
+    unsigned char *p = plain;
+
+    #define BLOCKSZ 16
+
+    for(i=0; i<(rec/BLOCKSZ); i++){
+        for(j=0; j<BLOCKSZ; j++)
+            *p++ = (i % 16);
+    }
+    //binary_dump(plain, rec);
+}
+#endif
+
+static int test_wolfSSL_EVP_Cipher_extra(void)
+{
+
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) &&\
+    (!defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)) 
+
+    /* aes128-cbc, keylen=16, ivlen=16 */
+    byte aes128_cbc_key[] = {
+        0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef,
+        0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef,
+    };
+
+    byte aes128_cbc_iv[] = {
+        0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+        0x99, 0x00, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff,
+    };
+
+    /* teset data size table */
+    int test_drive1[] = {8, 3, 5, 512, 8, 3, 8, 512, 0};
+    int test_drive2[] = {8, 3, 8, 512, 0};
+    int test_drive3[] = {512, 512, 504, 512, 512, 8, 512, 0};
+
+    int *test_drive[] = {test_drive1, test_drive2, test_drive3, NULL};
+    int test_drive_len[100];
+    int drive_len;
+
+    int ret = 0;
+	EVP_CIPHER_CTX *evp = NULL;
+	
+	int klen = 0;
+    int i, j;
+
+    const EVP_CIPHER *type;
+    byte *iv;
+    byte *key;
+    int keylen;
+
+    #define RECORDS 16
+    #define BUFFSZ  512
+    byte plain [BUFFSZ * RECORDS];
+    byte cipher[BUFFSZ * RECORDS];
+
+	byte inb[BUFFSZ];
+	byte outb[BUFFSZ+16];
+	int outl, inl;
+
+	iv = aes128_cbc_iv;
+	key = aes128_cbc_key;
+	keylen = sizeof(aes128_cbc_key);
+	type = EVP_aes_128_cbc();
+
+    set_plain(plain, BUFFSZ * RECORDS);
+
+	SSL_library_init();
+    
+    AssertNotNull(evp = EVP_CIPHER_CTX_new());
+    AssertIntNE((ret = EVP_CipherInit(evp, type, NULL, iv, 0)), 0);
+
+	klen = EVP_CIPHER_CTX_key_length(evp);
+	if (klen > 0 && keylen != klen) {
+		AssertIntNE(EVP_CIPHER_CTX_set_key_length(evp, keylen), 0);
+	}
+
+    AssertIntNE((ret = EVP_CipherInit(evp, NULL, key, iv, 1)), 0);
+
+    for (j = 0; j<RECORDS; j++)
+    {
+        inl = BUFFSZ;
+        get_record(plain, inb, inl);
+        AssertIntNE((ret = EVP_CipherUpdate(evp, outb, &outl, inb, inl)), 0);
+        set_record(cipher, outb, outl);
+    }
+
+	for (i = 0; test_drive[i]; i++) {
+
+		AssertIntNE((ret = EVP_CipherInit(evp, NULL, key, iv, 1)), 0);
+        init_offset();
+        test_drive_len[i] = 0;
+
+        for (j = 0; test_drive[i][j]; j++)
+        {
+            inl = test_drive[i][j];
+            test_drive_len[i] += inl;
+
+            get_record(plain, inb, inl);
+			AssertIntNE((ret = EVP_EncryptUpdate(evp, outb, &outl, inb, inl)), 0);
+            /* output to cipher buffer, so that following Dec test can detect
+               if any error */
+            set_record(cipher, outb, outl);
+		}
+
+		EVP_CipherFinal(evp, outb, &outl);
+
+        if(outl > 0)
+            set_record(cipher, outb, outl);
+    }
+
+	for (i = 0; test_drive[i]; i++) {
+
+		last_val = 0x0f;
+        drive_len = 0;
+
+		AssertIntNE((ret = EVP_CipherInit(evp, NULL, key, iv, 0)), 0);
+
+        init_offset();
+
+		for (j = 0; test_drive[i][j]; j++){
+			inl = test_drive[i][j];
+			get_record(cipher, inb, inl);
+
+			AssertIntNE((ret = EVP_DecryptUpdate(evp, outb, &outl, inb, inl)), 0);
+
+			binary_dump(outb, outl);
+			AssertIntEQ((ret = check_result(outb, outl)), 0);
+			AssertFalse(outl > ((inl/16+1)*16) && outl > 16);
+            drive_len += outl;
+        }
+
+		ret = EVP_CipherFinal(evp, outb, &outl);
+        binary_dump(outb, outl);
+
+        ret = (((test_drive_len[i] % 16) != 0) && (ret == 0)) ||
+                 (((test_drive_len[i] % 16) == 0) && (ret == 1));
+        AssertTrue(ret);
+    }
+
+	EVP_CIPHER_CTX_free(evp);
+
+#endif /* test_EVP_Cipher */
+
+	return 0;
+}
+
+
+
 static void test_wolfSSL_AES_ecb_encrypt(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AES_ECB)
@@ -46431,6 +46642,7 @@ void ApiTest(void)
     test_wolfssl_EVP_aes_gcm_AAD_2_parts();
     test_wolfssl_EVP_aes_gcm();
     test_wolfSSL_PKEY_up_ref();
+    test_wolfSSL_EVP_Cipher_extra(); 
     test_wolfSSL_i2d_PrivateKey();
     test_wolfSSL_OCSP_id_get0_info();
     test_wolfSSL_i2d_OCSP_CERTID();
