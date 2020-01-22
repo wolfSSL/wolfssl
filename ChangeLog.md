@@ -1,3 +1,18 @@
+# wolfSSL Release 4.4.0 (To Be Determined / Work in Progress)
+
+If you have questions about this release, then feel free to contact us on our info@ address.
+
+Release 4.4.0 of wolfSSL embedded TLS has bug fixes and new features including:
+
+##### New Feature Additions
+
+##### Fixes
+* Fix for RSA public encrypt / private sign with RSA key sizes over 2048-bit. PR #2755
+
+##### Improvements/Optimizations
+
+
+
 # wolfSSL Release 4.3.0 (12/20/2019)
 
 If you have questions about this release, then feel free to contact us on our info@ address.
