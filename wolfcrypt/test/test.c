@@ -9299,6 +9299,9 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
             #endif
         #endif
     #endif /* !NO_RSA */
+#endif /* !USE_CERT_BUFFER_* */
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_ASN)
     #ifndef NO_DH
         static const char* dhKey = CERT_ROOT "dh2048.der";
     #endif
@@ -10123,6 +10126,8 @@ static int rsa_export_key_test(RsaKey* key)
 }
 #endif /* !HAVE_FIPS && !USER_RSA && !NO_ASN */
 
+#define RSA_TEST_BYTES 384
+
 #ifndef NO_SIG_WRAPPER
 static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
 {
@@ -10146,7 +10151,7 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
         0xa6, 0x58, 0x0a, 0x33, 0x0b, 0x84, 0x5f, 0x5f
     };
     word32 inLen = (word32)XSTRLEN((char*)in);
-    byte   out[256];
+    byte   out[RSA_TEST_BYTES];
 
     /* Parameter Validation testing. */
     ret = wc_SignatureGetSize(WC_SIGNATURE_TYPE_NONE, key, keyLen);
@@ -10658,8 +10663,6 @@ done:
     return ret;
 }
 #endif
-
-#define RSA_TEST_BYTES 384
 
 #ifdef WC_RSA_PSS
 static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
