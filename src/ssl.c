@@ -115,6 +115,9 @@
         && !defined(WC_NO_RNG)
         #include <wolfssl/wolfcrypt/srp.h>
     #endif
+    #if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
+        #include <wolfssl/wolfcrypt/pkcs7.h>
+    #endif
     #if defined(OPENSSL_ALL) && defined(HAVE_PKCS7)
         #include <wolfssl/openssl/pkcs7.h>
     #endif /* OPENSSL_ALL && HAVE_PKCS7 */
@@ -16469,15 +16472,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return type;
     }
 
-    static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
-    {
-        int i;
-        for (i = ctrSz-1; i >= 0; i--) {
-            if (++ctr[i])
-                break;
-        }
-    }
-
     int wolfSSL_EVP_MD_CTX_cleanup(WOLFSSL_EVP_MD_CTX* ctx)
     {
         WOLFSSL_ENTER("EVP_MD_CTX_cleanup");
@@ -16543,13 +16537,25 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->enc        = 1;      /* start in encrypt mode */
         }
     }
+
+#if defined(HAVE_AESGCM) && !defined(HAVE_SELFTEST)
+    static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
+    {
+        int i;
+        for (i = ctrSz-1; i >= 0; i--) {
+            if (++ctr[i])
+                break;
+        }
+    }
+#endif
+
     /* This function allows cipher specific parameters to be
     determined and set. */
     int wolfSSL_EVP_CIPHER_CTX_ctrl(WOLFSSL_EVP_CIPHER_CTX *ctx, int type, \
                                     int arg, void *ptr)
     {
         int ret = WOLFSSL_FAILURE;
-#ifdef HAVE_AESGCM
+#if defined(HAVE_AESGCM) && !defined(HAVE_SELFTEST)
         WC_RNG rng;
 #endif
         if (ctx == NULL)
@@ -16569,7 +16575,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             case EVP_CTRL_SET_KEY_LENGTH:
                 ret = wolfSSL_EVP_CIPHER_CTX_set_key_length(ctx, arg);
                 break;
-#ifdef HAVE_AESGCM
+#if defined(HAVE_AESGCM) && !defined(HAVE_SELFTEST)
             case EVP_CTRL_GCM_SET_IVLEN:
                 if(arg <= 0 || arg > 16)
                     return WOLFSSL_FAILURE;
@@ -16643,7 +16649,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 XMEMCPY(ptr, ctx->authTag, arg);
                 ret = WOLFSSL_SUCCESS;
                 break;
-#endif /* HAVE_AESGCM */
+#endif /* HAVE_AESGCM && !HAVE_SELFTEST */
             default:
                 WOLFSSL_MSG("EVP_CIPHER_CTX_ctrl operation not yet handled");
                 ret = WOLFSSL_FAILURE;
@@ -29425,14 +29431,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_BN_to_ASN1_INTEGER(const WOLFSSL_BIGNUM *bn, WOLFS
 static void InitwolfSSL_DH(WOLFSSL_DH* dh)
 {
     if (dh) {
-        dh->p        = NULL;
-        dh->g        = NULL;
-        dh->q        = NULL;
-        dh->pub_key  = NULL;
-        dh->priv_key = NULL;
-        dh->internal = NULL;
-        dh->inSet    = 0;
-        dh->exSet    = 0;
+        XMEMSET(dh, 0, sizeof(WOLFSSL_DH));
     }
 }
 
@@ -30813,6 +30812,7 @@ int wolfSSL_DSA_do_sign(const unsigned char* d, unsigned char* sigRet,
     return ret;
 }
 
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 WOLFSSL_DSA_SIG* wolfSSL_DSA_do_sign_ex(const unsigned char* digest,
                                         int outLen, WOLFSSL_DSA* dsa)
 {
@@ -30849,7 +30849,7 @@ error:
     }
     return NULL;
 }
-
+#endif /* !HAVE_SELFTEST && !HAVE_FIPS */
 
 int wolfSSL_DSA_do_verify(const unsigned char* d, unsigned char* sig,
                         WOLFSSL_DSA* dsa, int *dsacheck)
@@ -30881,6 +30881,7 @@ int wolfSSL_DSA_do_verify(const unsigned char* d, unsigned char* sig,
     return WOLFSSL_SUCCESS;
 }
 
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest_len,
                              WOLFSSL_DSA_SIG* sig, WOLFSSL_DSA* dsa)
 {
@@ -30934,6 +30935,7 @@ int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest_len,
 
     return WOLFSSL_SUCCESS;
 }
+#endif /* !HAVE_SELFTEST && !HAVE_FIPS */
 #endif /* NO_DSA */
 
 

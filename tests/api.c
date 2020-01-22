@@ -20136,6 +20136,7 @@ static void test_wolfSSL_PEM_PUBKEY(void)
 
 static void test_DSA_do_sign_verify(void)
 {
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
     !defined(NO_DSA)
     unsigned char digest[WC_SHA_DIGEST_SIZE];
@@ -20181,6 +20182,7 @@ static void test_DSA_do_sign_verify(void)
     DSA_SIG_free(sig);
     DSA_free(dsa);
 #endif
+#endif /* !HAVE_SELFTEST && !HAVE_FIPS */
 }
 
 static void test_wolfSSL_tmp_dh(void)
@@ -29252,7 +29254,8 @@ static void test_wolfSSL_PEM_read(void)
 
 static void test_wolfssl_EVP_aes_gcm(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AESGCM)
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AESGCM) && \
+    !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 
     /* A 256 bit key, AES_128 will use the first 128 bit*/
     byte *key = (byte*)"01234567890123456789012345678901";
