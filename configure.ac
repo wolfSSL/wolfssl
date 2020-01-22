@@ -10,8 +10,8 @@ AC_PREREQ([2.63])
 AC_INIT([wolfssl],[4.3.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
 
-# The following sets CFLAGS and CXXFLAGS to empty if unset on command line.
-# We do not want the default "-g -O2" that AC_PROG_CC sets automatically.
+# The following sets CFLAGS to empty if unset on command line.  We do not
+# want the default "-g -O2" that AC_PROG_CC sets automatically.
 : ${CFLAGS=""}
 
 # Test ar for the "U" option. Should be checked before the libtool macros.
@@ -48,15 +48,14 @@ WOLFSSL_LIBRARY_VERSION=24:0:0
 #                 +- increment if interfaces have been added, removed or changed
 AC_SUBST([WOLFSSL_LIBRARY_VERSION])
 
-# capture user C_EXTRA_FLAGS from ./configure line, CFLAGS may hold -g -O2 even
-# if user doesn't override, no way to tell
-USER_C_EXTRA_FLAGS="$C_EXTRA_FLAGS"
-USER_CFLAGS="$CFLAGS"
+# Capture user C_EXTRA_FLAGS from configure line.
+# Use of C_EXTRA_FLAGS is deprecated because CFLAGS was fixed but someone
+# might still be using it.
+CFLAGS="$CFLAGS $C_EXTRA_FLAGS $C_FLAGS"
 
 gl_VISIBILITY
 AS_IF([ test -n "$CFLAG_VISIBILITY" ], [
-       AM_CPPFLAGS="$AM_CPPFLAGS $CFLAG_VISIBILITY"
-       CPPFLAGS="$CPPFLAGS $CFLAG_VISIBILITY"
+       AM_CFLAGS="$AM_CPPFLAGS $CFLAG_VISIBILITY"
        ])
 
 
@@ -4683,22 +4682,7 @@ AC_ARG_ENABLE([optflags],
 
 # check if should run the trusted peer certs test
 # (for now checking both C_FLAGS and C_EXTRA_FLAGS)
-case $C_EXTRA_FLAGS in
-    *WOLFSSL_TRUST_PEER_CERT*)
-        have_tp=yes
-        break;;
-    *)
-        have_tp=no ;;
-esac
-if test "$have_tp" = "no"; then
-    case $C_FLAGS in
-    *WOLFSSL_TRUST_PEER_CERT*)
-        have_tp=yes
-        break;;
-    *)
-        have_tp=no ;;
-    esac
-fi
+AS_CASE(["$CFLAGS $CPPFLAGS"],[*'WOLFSSL_TRUST_PEER_CERT'*],[ENABLED_TRUSTED_PEER_CERT=yes])
 
 
 # dertermine if we have key validation mechanism
@@ -4980,15 +4964,6 @@ case $host_os in
 esac
 
 
-# add user C_EXTRA_FLAGS back
-# For distro disable custom build options that interfere with symbol generation
-if test "$ENABLED_DISTRO" = "no"
-then
-    CFLAGS="$CFLAGS $USER_C_EXTRA_FLAGS"
-fi
-OPTION_FLAGS="$USER_CFLAGS $USER_C_EXTRA_FLAGS $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS"
-
-
 # The following AM_CONDITIONAL statements set flags for use in the Makefiles.
 # Some of these affect build targets and objects, some trigger different
 # test scripts for make check.
@@ -5095,7 +5070,7 @@ AM_CONDITIONAL([BUILD_ASYNCCRYPT],[test "x$ENABLED_ASYNCCRYPT" = "xyes"])
 AM_CONDITIONAL([BUILD_WOLFEVENT],[test "x$ENABLED_ASYNCCRYPT" = "xyes"])
 AM_CONDITIONAL([BUILD_CRYPTOCB],[test "x$ENABLED_CRYPTOCB" = "xyes"])
 AM_CONDITIONAL([BUILD_PSK],[test "x$ENABLED_PSK" = "xyes"])
-AM_CONDITIONAL([BUILD_TRUST_PEER_CERT],[test "x$have_tp" = "xyes"])
+AM_CONDITIONAL([BUILD_TRUST_PEER_CERT],[test "x$ENABLED_TRUSTED_PEER_CERT" = "xyes"])
 AM_CONDITIONAL([BUILD_PKI],[test "x$ENABLED_PKI" = "xyes"])
 AM_CONDITIONAL([BUILD_DES3],[test "x$ENABLED_DES3" = "xyes"])
 AM_CONDITIONAL([BUILD_PKCS7],[test "x$ENABLED_PKCS7" = "xyes"])
@@ -5130,15 +5105,12 @@ echo "---"
 echo "Generating user options header..."
 
 OPTION_FILE="wolfssl/options.h"
-#if
-#OPTION_FILE+="cyassl/options.h"
-#fi
 rm -f $OPTION_FILE
 
 echo "/* wolfssl options.h" > $OPTION_FILE
 echo " * generated from configure options" >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
-echo " * Copyright (C) 2006-2015 wolfSSL Inc." >> $OPTION_FILE
+echo " * Copyright (C) 2006-2020 wolfSSL Inc." >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
 echo " * This file is part of wolfSSL. (formerly known as CyaSSL)" >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
@@ -5154,7 +5126,7 @@ echo "extern \"C\" {" >> $OPTION_FILE
 echo "#endif" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 
-for option in $OPTION_FLAGS; do
+for option in $CPPFLAGS $AM_CPPFLAGS $CFLAGS $AM_CFLAGS; do
     defonly=`echo $option | sed 's/^-D//'`
     if test "$defonly" != "$option"
     then
