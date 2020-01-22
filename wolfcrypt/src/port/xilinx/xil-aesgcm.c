@@ -73,7 +73,7 @@ int  wc_AesGcmSetKey_ex(Aes* aes, const byte* key, word32 len, word32 kup)
     /* XST_SUCCESS comes from Xilinx header file */
     if (XCsuDma_CfgInitialize(&(aes->dma), con, con->BaseAddress) !=
             XST_SUCCESS) {
-        WOLFSSL_MSG("Failied to initialize hardware");
+        WOLFSSL_MSG("Failed to initialize hardware");
         return MEMORY_E;
     }
 

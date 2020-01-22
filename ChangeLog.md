@@ -1020,7 +1020,7 @@ More info can be found on-line at https://wolfssl.com/wolfSSL/Docs.html
 - Add helper functions for static memory option to allow getting optimum buffer
   sizes.
 - Update DTLS behavior on bad MAC. DTLS silently drops packets with bad MACs now.
-- Update fp_isprime function from libtom enchancement/cleanup repository.
+- Update fp_isprime function from libtom enhancement/cleanup repository.
 - Update sanity checks on inputs and return values for AES-CMAC.
 - Update wolfSSL for use with MYSQL v5.6.30.
 - Update LPCXpresso eclipse project to not include misc.c when not needed.
@@ -1347,7 +1347,7 @@ More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
   the Prosecco team at INRIA Paris-Rocquencourt for the report.
 - FIPS version submitted
 - Removes SSLv2 Client Hello processing, can be enabled with OLD_HELLO_ALLOWED
-- User can set mimimum downgrade version with CyaSSL_SetMinVersion()
+- User can set minimum downgrade version with CyaSSL_SetMinVersion()
 - Small stack improvements at TLS/SSL layer
 - TLS Master Secret generation and Key Expansion are now exposed
 - Adds client side Secure Renegotiation, * not recommended *
@@ -2014,7 +2014,7 @@ works but seems to remove sockets from  TIME_WAIT entirely?
 
 `sudo sysctl -w net.ipv4.tcp_fin_timeout=1`
 
-doen't control TIME_WAIT, it controls FIN_WAIT(2) contrary to some posts
+doesn't control TIME_WAIT, it controls FIN_WAIT(2) contrary to some posts
 
 
 # CyaSSL Release 1.4.0 (2/18/2010)

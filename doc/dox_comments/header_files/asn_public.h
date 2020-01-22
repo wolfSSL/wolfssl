@@ -1306,7 +1306,7 @@ WOLFSSL_API int wc_DerToPemEx(const byte* der, word32 derSz, byte* output,
     byte* bufSz;
     static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
     const char* keyFile,
-                    int typeKey, const char* pasword);
+                    int typeKey, const char* password);
     …
     bufSz = wc_KeyPemToDer(loadBuf, (int)fileSz, saveBuf,
     (int)fileSz, password);
