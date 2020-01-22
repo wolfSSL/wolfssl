@@ -221,7 +221,7 @@
 
 #if defined(NO_FILESYSTEM)
     #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
-        !defined(USE_CERT_BUFFERS_4096)
+        !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096)
         #define USE_CERT_BUFFERS_2048
     #endif
     #if !defined(USE_CERT_BUFFERS_256)
@@ -1518,11 +1518,7 @@ int asn_test(void)
     const byte* datePart;
 #ifndef NO_ASN_TIME
     struct tm timearg;
-    #ifdef WORD64_AVAILABLE
-        word64 now;
-    #else
-        word32 now;
-    #endif
+    time_t now;
 #endif
 
     ret = wc_GetDateInfo(dateBuf, (int)sizeof(dateBuf), &datePart, &format,
@@ -9280,7 +9276,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 
 /* Generated Test Certs */
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
-        !defined(NO_ASN)
+    !defined(USE_CERT_BUFFERS_3072) && !defined(NO_ASN)
     #ifndef NO_RSA
         static const char* clientKey  = CERT_ROOT "client-key.der";
         static const char* clientCert = CERT_ROOT "client-cert.der";
@@ -10663,7 +10659,7 @@ done:
 }
 #endif
 
-#define RSA_TEST_BYTES 256
+#define RSA_TEST_BYTES 384
 
 #ifdef WC_RSA_PSS
 static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
@@ -11815,8 +11811,8 @@ int rsa_test(void)
 #ifndef NO_SIG_WRAPPER
     int modLen;
 #endif
-#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) \
-                                    && !defined(NO_FILESYSTEM)
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
+    !defined(USE_CERT_BUFFERS_3072) && !defined(NO_FILESYSTEM)
     XFILE   file;
     XFILE   file2;
 #endif
@@ -11859,6 +11855,10 @@ int rsa_test(void)
     bytes = (size_t)sizeof_client_key_der_2048;
     if (bytes < (size_t)sizeof_client_cert_der_2048)
         bytes = (size_t)sizeof_client_cert_der_2048;
+#elif defined(USE_CERT_BUFFERS_3072)
+    bytes = (size_t)sizeof_client_key_der_3072;
+    if (bytes < (size_t)sizeof_client_cert_der_3072)
+        bytes = (size_t)sizeof_client_cert_der_3072;
 #else
 	bytes = FOURK_BUF;
 #endif
@@ -11876,6 +11876,8 @@ int rsa_test(void)
     XMEMCPY(tmp, client_key_der_1024, (size_t)sizeof_client_key_der_1024);
 #elif defined(USE_CERT_BUFFERS_2048)
     XMEMCPY(tmp, client_key_der_2048, (size_t)sizeof_client_key_der_2048);
+#elif defined(USE_CERT_BUFFERS_3072)
+    XMEMCPY(tmp, client_key_der_3072, (size_t)sizeof_client_key_der_3072);
 #elif !defined(NO_FILESYSTEM)
     file = XFOPEN(clientKey, "rb");
     if (!file) {
@@ -12440,6 +12442,9 @@ int rsa_test(void)
 #elif defined(USE_CERT_BUFFERS_2048)
     XMEMCPY(tmp, client_cert_der_2048, (size_t)sizeof_client_cert_der_2048);
     bytes = (size_t)sizeof_client_cert_der_2048;
+#elif defined(USE_CERT_BUFFERS_3072)
+    XMEMCPY(tmp, client_cert_der_3072, (size_t)sizeof_client_cert_der_3072);
+    bytes = (size_t)sizeof_client_cert_der_3072;
 #elif !defined(NO_FILESYSTEM)
     file2 = XFOPEN(clientCert, "rb");
     if (!file2) {

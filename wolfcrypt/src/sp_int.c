@@ -931,7 +931,7 @@ int sp_set_int(sp_int* a, unsigned long b)
     }
     else {
         a->used = 1;
-        a->dp[0] = b;
+        a->dp[0] = (sp_int_digit)b;
     }
 
     return MP_OKAY;
@@ -2127,4 +2127,3 @@ word32 CheckRunTimeSettings(void)
 }
 
 #endif /* WOLFSSL_SP_MATH */
-

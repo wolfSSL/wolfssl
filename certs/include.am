@@ -64,7 +64,7 @@ EXTRA_DIST += \
 	     certs/dh2048.der \
 	     certs/dh3072.der \
 	     certs/rsa2048.der \
-            certs/rsa-pub-2048.pem \
+	     certs/rsa-pub-2048.pem \
 	     certs/rsa3072.der \
 	     certs/dsa2048.der \
 	     certs/dsa3072.der \
@@ -100,6 +100,7 @@ dist_doc_DATA+= certs/taoCert.txt
 EXTRA_DIST+= certs/ntru-key.raw
 
 include certs/1024/include.am
+include certs/3072/include.am
 include certs/4096/include.am
 include certs/crl/include.am
 include certs/ecc/include.am
