@@ -103,6 +103,7 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         int pad4 = 0;
 
         byte b1, b2, b3;
+        byte e1, e2, e3, e4;
         if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
             if (ret == BUFFER_E) {
                 /* Running out of buffer here is not an error */
@@ -110,7 +111,7 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
             }
             return ret;
         }
-        byte e1 = in[j++];
+        e1 = in[j++];
         if (e1 == '\0') {
             break;
         }
@@ -118,17 +119,17 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
             return ret;
         }
-        byte e2 = in[j++];
+        e2 = in[j++];
         inLen--;
         if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
             return ret;
         }
-        byte e3 = in[j++];
+        e3 = in[j++];
         inLen--;
         if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
             return ret;
         }
-        byte e4 = in[j++];
+        e4 = in[j++];
         inLen--;
 
         if (e1 == 0)            /* end file 0's */
