@@ -98,6 +98,8 @@ WOLFSSL_LOCAL int  ctMaskIntGTE(int a, int b);
 WOLFSSL_LOCAL byte ctMaskLT(int a, int b);
 WOLFSSL_LOCAL byte ctMaskLTE(int a, int b);
 WOLFSSL_LOCAL byte ctMaskEq(int a, int b);
+WOLFSSL_LOCAL word16 ctMask16GT(int a, int b);
+WOLFSSL_LOCAL word16 ctMask16LT(int a, int b);
 WOLFSSL_LOCAL word16 ctMask16Eq(int a, int b);
 WOLFSSL_LOCAL byte ctMaskNotEq(int a, int b);
 WOLFSSL_LOCAL byte ctMaskSel(byte m, byte a, byte b);

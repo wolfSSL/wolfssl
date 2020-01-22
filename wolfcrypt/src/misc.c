@@ -356,9 +356,19 @@ WC_STATIC WC_INLINE byte ctMaskEq(int a, int b)
     return (~ctMaskGT(a, b)) & (~ctMaskLT(a, b));
 }
 
+WC_STATIC WC_INLINE word16 ctMask16GT(int a, int b)
+{
+    return (((word32)a - b - 1) >> 31) - 1;
+}
+
+WC_STATIC WC_INLINE word16 ctMask16LT(int a, int b)
+{
+    return (((word32)a - b - 1) >> 31) - 1;
+}
+
 WC_STATIC WC_INLINE word16 ctMask16Eq(int a, int b)
 {
-    return (~ctMaskGT(a, b)) & (~ctMaskLT(a, b));
+    return (~ctMask16GT(a, b)) & (~ctMask16LT(a, b));
 }
 
 /* Constant time - mask set when a != b. */
