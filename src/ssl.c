@@ -345,6 +345,10 @@ int wolfSSL_send_session(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS */
 #endif /* WOLFSSL_SESSION_EXPORT */
 
+#ifdef OPENSSL_EXTRA
+/* Global pointer to constant BN on */
+static WOLFSSL_BIGNUM* bn_one = NULL;
+#endif
 
 /* prevent multiple mutex initializations */
 static volatile WOLFSSL_GLOBAL int initRefCount = 0;
@@ -12462,6 +12466,13 @@ int wolfSSL_Cleanup(void)
 
     if (!release)
         return ret;
+
+#ifdef OPENSSL_EXTRA
+    if (bn_one) {
+        wolfSSL_BN_free(bn_one);
+        bn_one = NULL;
+    }
+#endif
 
 #ifndef NO_SESSION_CACHE
     if (wc_FreeMutex(&session_mutex) != 0)
@@ -46357,10 +46368,9 @@ int wolfSSL_BN_mod_mul(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
     return SSL_FAILURE;
 }
 
+#ifdef OPENSSL_EXTRA
 const WOLFSSL_BIGNUM* wolfSSL_BN_value_one(void)
 {
-    static WOLFSSL_BIGNUM* bn_one = NULL;
-
     WOLFSSL_MSG("wolfSSL_BN_value_one");
 
     if (bn_one == NULL) {
@@ -46376,6 +46386,7 @@ const WOLFSSL_BIGNUM* wolfSSL_BN_value_one(void)
 
     return bn_one;
 }
+#endif
 
 /* return compliant with OpenSSL
  *   size of BIGNUM in bytes, 0 if error */
