@@ -14974,6 +14974,35 @@ static int ASNToHexString(const byte* input, word32* inOutIdx, char** out,
 }
 #endif /* WOLFSSL_CUSTOM_CURVES */
 
+#ifdef WOLFSSL_CUSTOM_CURVES
+static int EccKeyParamCopy(char** dst, char* src)
+{
+    int ret = 0;
+#ifdef WOLFSSL_ECC_CURVE_STATIC
+    word32 length;
+#endif
+
+    if (dst == NULL || src == NULL)
+        return BAD_FUNC_ARG;
+
+#ifndef WOLFSSL_ECC_CURVE_STATIC
+    *dst = src;
+#else
+    length = (int)XSTRLEN(src) + 1;
+    if (length > MAX_ECC_STRING) {
+        WOLFSSL_MSG("ECC Param too large for buffer");
+        ret = BUFFER_E;
+    }
+    else {
+        XSTRNCPY(*dst, src, length);
+    }
+    XFREE(src, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+#endif
+
+    return ret;
+}
+#endif /* WOLFSSL_CUSTOM_CURVES */
+
 int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                           ecc_key* key, word32 inSz)
 {
@@ -15018,7 +15047,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         if (ret == 0) {
             static char customName[] = "Custom";
             XMEMSET(curve, 0, sizeof(*curve));
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             curve->name = customName;
         #else
             XMEMCPY((void*)curve->name, customName, sizeof(customName));
@@ -15035,9 +15064,12 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                 ret = ASN_PARSE_E;
         }
         if (ret == 0) {
+            char* p = NULL;
             SkipObjectId(input, inOutIdx, inSz);
-            ret = ASNToHexString(input, inOutIdx, (char**)&curve->prime, inSz,
+            ret = ASNToHexString(input, inOutIdx, &p, inSz,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+            if (ret == 0)
+                ret = EccKeyParamCopy((char**)&curve->prime, p);
         }
         if (ret == 0) {
             curve->size = (int)XSTRLEN(curve->prime) / 2;
@@ -15046,12 +15078,18 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                 ret = ASN_PARSE_E;
         }
         if (ret == 0) {
-            ret = ASNToHexString(input, inOutIdx, (char**)&curve->Af, inSz,
+            char* af = NULL;
+            ret = ASNToHexString(input, inOutIdx, &af, inSz,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+            if (ret == 0)
+                ret = EccKeyParamCopy((char**)&curve->Af, af);
         }
         if (ret == 0) {
-            ret = ASNToHexString(input, inOutIdx, (char**)&curve->Bf, inSz,
+            char* bf = NULL;
+            ret = ASNToHexString(input, inOutIdx, &bf, inSz,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+            if (ret == 0)
+                ret = EccKeyParamCopy((char**)&curve->Bf, bf);
         }
         if (ret == 0) {
             localIdx = *inOutIdx;
@@ -15075,7 +15113,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             }
         }
         if (ret == 0) {
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             curve->Gx = (const char*)XMALLOC(curve->size * 2 + 2, key->heap,
                                                        DYNAMIC_TYPE_ECC_BUFFER);
             curve->Gy = (const char*)XMALLOC(curve->size * 2 + 2, key->heap,
@@ -15092,19 +15130,23 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         #endif
         }
         if (ret == 0) {
+            char* o = NULL;
+
             XMEMCPY((char*)curve->Gx, point + 2, curve->size * 2);
             XMEMCPY((char*)curve->Gy, point + curve->size * 2 + 2,
                                                                curve->size * 2);
             ((char*)curve->Gx)[curve->size * 2] = '\0';
             ((char*)curve->Gy)[curve->size * 2] = '\0';
             XFREE(point, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
-            ret = ASNToHexString(input, inOutIdx, (char**)&curve->order, inSz,
+            ret = ASNToHexString(input, inOutIdx, &o, inSz,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+            if (ret == 0)
+                ret = EccKeyParamCopy((char**)&curve->order, o);
         }
         if (ret == 0) {
             curve->cofactor = GetInteger7Bit(input, inOutIdx, inSz);
 
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             curve->oid = NULL;
         #else
             XMEMSET((void*)curve->oid, 0, sizeof(curve->oid));
@@ -15115,7 +15157,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             if (wc_ecc_set_custom_curve(key, curve) < 0) {
                 ret = ASN_PARSE_E;
             }
-        #ifndef USE_WINDOWS_API
+        #ifdef WOLFSSL_CUSTOM_CURVES
             key->deallocSet = 1;
         #endif
             curve = NULL;

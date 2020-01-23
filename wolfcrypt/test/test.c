@@ -18477,10 +18477,20 @@ static int ecc_test_custom_curves(WC_RNG* rng)
     ecc_key key;
 
     /* test use of custom curve - using BRAINPOOLP256R1 for test */
+    #ifndef WOLFSSL_ECC_CURVE_STATIC
+        const ecc_oid_t ecc_oid_brainpoolp256r1[] = {
+            0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x07
+        };
+        const word32 ecc_oid_brainpoolp256r1_sz =
+            sizeof(ecc_oid_brainpoolp256r1) / sizeof(ecc_oid_t);
+    #else
+        #define ecc_oid_brainpoolp256r1 { \
+            0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x07 \
+        }
+        #define ecc_oid_brainpoolp256r1_sz 9
+    #endif
     const word32 ecc_oid_brainpoolp256r1_sum = 104;
-    const ecc_oid_t ecc_oid_brainpoolp256r1[] = {
-        0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x07
-    };
+
     const ecc_set_type ecc_dp_brainpool256r1 = {
         32,                                                                 /* size/bytes */
         ECC_CURVE_CUSTOM,                                                   /* ID         */
@@ -18492,7 +18502,7 @@ static int ecc_test_custom_curves(WC_RNG* rng)
         "8BD2AEB9CB7E57CB2C4B482FFC81B7AFB9DE27E1E3BD23C23A4453BD9ACE3262", /* Gx         */
         "547EF835C3DAC4FD97F8461A14611DC9C27745132DED8E545C1D54C72F046997", /* Gy         */
         ecc_oid_brainpoolp256r1,                                            /* oid/oidSz  */
-        sizeof(ecc_oid_brainpoolp256r1) / sizeof(ecc_oid_t),
+        ecc_oid_brainpoolp256r1_sz,
         ecc_oid_brainpoolp256r1_sum,                                        /* oid sum    */
         1,                                                                  /* cofactor   */
     };

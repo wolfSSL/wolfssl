@@ -53,6 +53,9 @@ Possible ECC enable options:
  * FP_ECC:              ECC Fixed Point Cache                   default: off
  * USE_ECC_B_PARAM:     Enable ECC curve B param                default: off
                          (on for HAVE_COMP_KEY)
+ * WOLFSSL_ECC_CURVE_STATIC:                                    default off (on for windows)
+                        For the ECC curve paramaters `ecc_set_type` use fixed
+                        array for hex string
  */
 
 /*
@@ -212,7 +215,7 @@ enum {
             #define CODED_SECP112R1    {0x2B,0x81,0x04,0x00,0x06}
             #define CODED_SECP112R1_SZ 5
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_secp112r1[] = CODED_SECP112R1;
         #else
             #define ecc_oid_secp112r1 CODED_SECP112R1
@@ -227,7 +230,7 @@ enum {
             #define CODED_SECP112R2    {0x2B,0x81,0x04,0x00,0x07}
             #define CODED_SECP112R2_SZ 5
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_secp112r2[] = CODED_SECP112R2;
         #else
             #define ecc_oid_secp112r2 CODED_SECP112R2
@@ -244,7 +247,7 @@ enum {
             #define CODED_SECP128R1    {0x2B,0x81,0x04,0x00,0x1C}
             #define CODED_SECP128R1_SZ 5
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_secp128r1[] = CODED_SECP128R1;
         #else
             #define ecc_oid_secp128r1 CODED_SECP128R1
@@ -259,7 +262,7 @@ enum {
             #define CODED_SECP128R2    {0x2B,0x81,0x04,0x00,0x1D}
             #define CODED_SECP128R2_SZ 5
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_secp128r2[] = CODED_SECP128R2;
         #else
             #define ecc_oid_secp128r2 CODED_SECP128R2
@@ -276,7 +279,7 @@ enum {
             #define CODED_SECP160R1    {0x2B,0x81,0x04,0x00,0x08}
             #define CODED_SECP160R1_SZ 5
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_secp160r1[] = CODED_SECP160R1;
         #else
             #define ecc_oid_secp160r1 CODED_SECP160R1
@@ -291,7 +294,7 @@ enum {
             #define CODED_SECP160R2    {0x2B,0x81,0x04,0x00,0x1E}
             #define CODED_SECP160R2_SZ 5
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_secp160r2[] = CODED_SECP160R2;
         #else
             #define ecc_oid_secp160r2 CODED_SECP160R2
@@ -306,7 +309,7 @@ enum {
             #define CODED_SECP160K1    {0x2B,0x81,0x04,0x00,0x09}
             #define CODED_SECP160K1_SZ 5
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_secp160k1[] = CODED_SECP160K1;
         #else
             #define ecc_oid_secp160k1 CODED_SECP160K1
@@ -321,7 +324,7 @@ enum {
             #define CODED_BRAINPOOLP160R1    {0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x01}
             #define CODED_BRAINPOOLP160R1_SZ 9
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_brainpoolp160r1[] = CODED_BRAINPOOLP160R1;
         #else
             #define ecc_oid_brainpoolp160r1 CODED_BRAINPOOLP160R1
@@ -338,7 +341,7 @@ enum {
             #define CODED_SECP192R1    {0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x01}
             #define CODED_SECP192R1_SZ 8
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_secp192r1[] = CODED_SECP192R1;
         #else
             #define ecc_oid_secp192r1 CODED_SECP192R1
@@ -353,7 +356,7 @@ enum {
             #define CODED_PRIME192V2    {0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x02}
             #define CODED_PRIME192V2_SZ 8
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_prime192v2[] = CODED_PRIME192V2;
         #else
             #define ecc_oid_prime192v2 CODED_PRIME192V2
@@ -368,7 +371,7 @@ enum {
             #define CODED_PRIME192V3    {0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x03}
             #define CODED_PRIME192V3_SZ 8
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_prime192v3[] = CODED_PRIME192V3;
         #else
             #define ecc_oid_prime192v3 CODED_PRIME192V3
@@ -383,7 +386,7 @@ enum {
             #define CODED_SECP192K1    {0x2B,0x81,0x04,0x00,0x1F}
             #define CODED_SECP192K1_SZ 5
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_secp192k1[] = CODED_SECP192K1;
         #else
             #define ecc_oid_secp192k1 CODED_SECP192K1
@@ -398,7 +401,7 @@ enum {
             #define CODED_BRAINPOOLP192R1    {0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x03}
             #define CODED_BRAINPOOLP192R1_SZ 9
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_brainpoolp192r1[] = CODED_BRAINPOOLP192R1;
         #else
             #define ecc_oid_brainpoolp192r1 CODED_BRAINPOOLP192R1
@@ -415,7 +418,7 @@ enum {
             #define CODED_SECP224R1    {0x2B,0x81,0x04,0x00,0x21}
             #define CODED_SECP224R1_SZ 5
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_secp224r1[] = CODED_SECP224R1;
         #else
             #define ecc_oid_secp224r1 CODED_SECP224R1
@@ -430,7 +433,7 @@ enum {
             #define CODED_SECP224K1    {0x2B,0x81,0x04,0x00,0x20}
             #define CODED_SECP224K1_SZ 5
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_secp224k1[] = CODED_SECP224K1;
         #else
             #define ecc_oid_secp224k1 CODED_SECP224K1
@@ -445,7 +448,7 @@ enum {
             #define CODED_BRAINPOOLP224R1    {0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x05}
             #define CODED_BRAINPOOLP224R1_SZ 9
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_brainpoolp224r1[] = CODED_BRAINPOOLP224R1;
         #else
             #define ecc_oid_brainpoolp224r1 CODED_BRAINPOOLP224R1
@@ -462,7 +465,7 @@ enum {
             #define CODED_PRIME239V1    {0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x04}
             #define CODED_PRIME239V1_SZ 8
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_prime239v1[] = CODED_PRIME239V1;
         #else
             #define ecc_oid_prime239v1 CODED_PRIME239V1
@@ -477,7 +480,7 @@ enum {
             #define CODED_PRIME239V2    {0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x05}
             #define CODED_PRIME239V2_SZ 8
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_prime239v2[] = CODED_PRIME239V2;
         #else
             #define ecc_oid_prime239v2 CODED_PRIME239V2
@@ -492,7 +495,7 @@ enum {
             #define CODED_PRIME239V3    {0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x06}
             #define CODED_PRIME239V3_SZ 8
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_prime239v3[] = CODED_PRIME239V3;
         #else
             #define ecc_oid_prime239v3 CODED_PRIME239V3
@@ -509,7 +512,7 @@ enum {
             #define CODED_SECP256R1    {0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x07}
             #define CODED_SECP256R1_SZ 8
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_secp256r1[] = CODED_SECP256R1;
         #else
             #define ecc_oid_secp256r1 CODED_SECP256R1
@@ -524,7 +527,7 @@ enum {
             #define CODED_SECP256K1    {0x2B,0x81,0x04,0x00,0x0A}
             #define CODED_SECP256K1_SZ 5
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_secp256k1[] = CODED_SECP256K1;
         #else
             #define ecc_oid_secp256k1 CODED_SECP256K1
@@ -539,7 +542,7 @@ enum {
             #define CODED_BRAINPOOLP256R1    {0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x07}
             #define CODED_BRAINPOOLP256R1_SZ 9
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_brainpoolp256r1[] = CODED_BRAINPOOLP256R1;
         #else
             #define ecc_oid_brainpoolp256r1 CODED_BRAINPOOLP256R1
@@ -556,7 +559,7 @@ enum {
             #define CODED_BRAINPOOLP320R1    {0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x09}
             #define CODED_BRAINPOOLP320R1_SZ 9
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_brainpoolp320r1[] = CODED_BRAINPOOLP320R1;
         #else
             #define ecc_oid_brainpoolp320r1 CODED_BRAINPOOLP320R1
@@ -573,7 +576,7 @@ enum {
             #define CODED_SECP384R1    {0x2B,0x81,0x04,0x00,0x22}
             #define CODED_SECP384R1_SZ 5
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_secp384r1[] = CODED_SECP384R1;
             #define CODED_SECP384R1_OID ecc_oid_secp384r1
         #else
@@ -589,7 +592,7 @@ enum {
             #define CODED_BRAINPOOLP384R1    {0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x0B}
             #define CODED_BRAINPOOLP384R1_SZ 9
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_brainpoolp384r1[] = CODED_BRAINPOOLP384R1;
         #else
             #define ecc_oid_brainpoolp384r1 CODED_BRAINPOOLP384R1
@@ -606,7 +609,7 @@ enum {
             #define CODED_BRAINPOOLP512R1    {0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x0D}
             #define CODED_BRAINPOOLP512R1_SZ 9
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_brainpoolp512r1[] = CODED_BRAINPOOLP512R1;
         #else
             #define ecc_oid_brainpoolp512r1 CODED_BRAINPOOLP512R1
@@ -623,7 +626,7 @@ enum {
             #define CODED_SECP521R1     {0x2B,0x81,0x04,0x00,0x23}
             #define CODED_SECP521R1_SZ 5
         #endif
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             static const ecc_oid_t ecc_oid_secp521r1[] = CODED_SECP521R1;
         #else
             #define ecc_oid_secp521r1 CODED_SECP521R1
@@ -1118,7 +1121,7 @@ const ecc_set_type ecc_sets[] = {
     {
         1, /* non-zero */
         ECC_CURVE_CUSTOM,
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         #else
             {0},{0},{0},{0},{0},{0},{0},{0},
@@ -1129,7 +1132,7 @@ const ecc_set_type ecc_sets[] = {
     {
         0,
         ECC_CURVE_INVALID,
-        #ifndef USE_WINDOWS_API
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
             NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         #else
             {0},{0},{0},{0},{0},{0},{0},{0},
@@ -3148,7 +3151,10 @@ int wc_ecc_get_curve_idx_from_name(const char* curveName)
     len = (word32)XSTRLEN(curveName);
 
     for (curve_idx = 0; ecc_sets[curve_idx].size != 0; curve_idx++) {
-        if (ecc_sets[curve_idx].name &&
+        if (
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
+            ecc_sets[curve_idx].name &&
+        #endif
                 XSTRNCASECMP(ecc_sets[curve_idx].name, curveName, len) == 0) {
             break;
         }
@@ -3335,9 +3341,14 @@ int wc_ecc_get_curve_id_from_dp_params(const ecc_set_type* dp)
 {
     int idx;
 
-    if (dp == NULL || dp->prime == NULL ||  dp->Af == NULL ||
-        dp->Bf == NULL || dp->order == NULL || dp->Gx == NULL || dp->Gy == NULL)
+    if (dp == NULL
+    #ifndef WOLFSSL_ECC_CURVE_STATIC
+         || dp->prime == NULL ||  dp->Af == NULL ||
+        dp->Bf == NULL || dp->order == NULL || dp->Gx == NULL || dp->Gy == NULL
+    #endif
+    ) {
         return BAD_FUNC_ARG;
+    }
 
     for (idx = 0; ecc_sets[idx].size != 0; idx++) {
         if (dp->size == ecc_sets[idx].size) {
@@ -3380,7 +3391,11 @@ int wc_ecc_get_curve_id_from_oid(const byte* oid, word32 len)
         return BAD_FUNC_ARG;
 
     for (curve_idx = 0; ecc_sets[curve_idx].size != 0; curve_idx++) {
-        if (ecc_sets[curve_idx].oid && ecc_sets[curve_idx].oidSz == len &&
+        if (
+        #ifndef WOLFSSL_ECC_CURVE_STATIC
+            ecc_sets[curve_idx].oid &&
+        #endif
+            ecc_sets[curve_idx].oidSz == len &&
                               XMEMCMP(ecc_sets[curve_idx].oid, oid, len) == 0) {
             break;
         }
@@ -5142,6 +5157,7 @@ int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key)
 #ifdef WOLFSSL_CUSTOM_CURVES
 void wc_ecc_free_curve(const ecc_set_type* curve, void* heap)
 {
+#ifndef WOLFSSL_ECC_CURVE_STATIC
     if (curve->prime != NULL)
         XFREE((void*)curve->prime, heap, DYNAMIC_TYPE_ECC_BUFFER);
     if (curve->Af != NULL)
@@ -5154,6 +5170,7 @@ void wc_ecc_free_curve(const ecc_set_type* curve, void* heap)
         XFREE((void*)curve->Gx, heap, DYNAMIC_TYPE_ECC_BUFFER);
     if (curve->Gy != NULL)
         XFREE((void*)curve->Gy, heap, DYNAMIC_TYPE_ECC_BUFFER);
+#endif
 
     XFREE((void*)curve, heap, DYNAMIC_TYPE_ECC_BUFFER);
 
