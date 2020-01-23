@@ -12291,7 +12291,7 @@ static int test_wc_RsaKeyToDer (void)
             if (ret == BAD_FUNC_ARG) {
                 ret = wc_RsaKeyToDer(&genKey, NULL, FOURK_BUF);
             }
-            if (ret == BAD_FUNC_ARG) {
+            if (ret > 0) {
                 /* Try Public Key. */
                 genKey.type = 0;
                 ret = wc_RsaKeyToDer(&genKey, der, FOURK_BUF);
@@ -24202,8 +24202,7 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
 
 #if defined(WOLFSSL_KEY_GEN)
     unsigned char buff[4096];
-    unsigned char* bufPtr;
-    bufPtr = buff;
+    unsigned char* bufPtr = buff;
 #endif
 
     printf(testingFmt, "wolfSSL_d2i_PrivateKeys_bio()");
@@ -24432,11 +24431,12 @@ static void test_wolfSSL_RSA(void)
 
 static void test_wolfSSL_RSA_DER(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(HAVE_FAST_RSA)
+#if !defined(HAVE_FAST_RSA) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(NO_RSA) && !defined(HAVE_USER_RSA) && defined(OPENSSL_EXTRA)
 
     RSA *rsa;
     int i;
-    const unsigned char *buff;
+    const unsigned char *buff = NULL;
 
     struct tbl_s
     {

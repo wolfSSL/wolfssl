@@ -11089,7 +11089,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
     byte  ver[MAX_VERSION_SZ];
     byte* tmps[RSA_INTS];
 
-    if (!key || !output)
+    if (!key)
         return BAD_FUNC_ARG;
 
     if (key->type != RSA_PRIVATE)
@@ -11128,20 +11128,22 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
     seqSz = SetSequence(verSz + intTotalLen, seq);
 
     outLen = seqSz + verSz + intTotalLen;
-    if (outLen > (int)inLen) {
-        FreeTmpRsas(tmps, key->heap);
-        return BAD_FUNC_ARG;
-    }
+    if (output) {
+        if (outLen > (int)inLen) {
+            FreeTmpRsas(tmps, key->heap);
+            return BAD_FUNC_ARG;
+        }
 
-    /* write to output */
-    XMEMCPY(output, seq, seqSz);
-    j = seqSz;
-    XMEMCPY(output + j, ver, verSz);
-    j += verSz;
+        /* write to output */
+        XMEMCPY(output, seq, seqSz);
+        j = seqSz;
+        XMEMCPY(output + j, ver, verSz);
+        j += verSz;
 
-    for (i = 0; i < RSA_INTS; i++) {
-        XMEMCPY(output + j, tmps[i], sizes[i]);
-        j += sizes[i];
+        for (i = 0; i < RSA_INTS; i++) {
+            XMEMCPY(output + j, tmps[i], sizes[i]);
+            j += sizes[i];
+        }
     }
     FreeTmpRsas(tmps, key->heap);
 
