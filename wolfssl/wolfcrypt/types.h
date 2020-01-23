@@ -483,7 +483,9 @@
                 #else
                     /* 4996 warning to use MS extensions e.g., _sprintf_s
                        instead of _snprintf */
+                    #if !defined(__MINGW32__)
                     #pragma warning(disable: 4996)
+                    #endif
                     static WC_INLINE
                     int xsnprintf(char *buffer, size_t bufsize,
                             const char *format, ...) {
@@ -500,7 +502,9 @@
                     }
                     #define XSNPRINTF xsnprintf
                 #endif /* (_MSC_VER >= 1900) */
-            #endif /* _MSC_VER || __CYGWIN__ || __MINGW32__ */
+            #else
+                #define XSNPRINTF snprintf
+            #endif /* _MSC_VER */
         #endif /* USE_WINDOWS_API */
 
         #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) \

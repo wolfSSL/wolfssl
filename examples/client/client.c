@@ -631,7 +631,11 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     wolfSSL_free(ssl); ssl = NULL;
     CloseSocket(sockfd);
 
+#if !defined(__MINGW32__)
     printf("wolfSSL Client Benchmark %zu bytes\n"
+#else
+    printf("wolfSSL Client Benchmark %d bytes\n"
+#endif
         "\tConnect %8.3f ms\n"
         "\tTX      %8.3f ms (%8.3f MBps)\n"
         "\tRX      %8.3f ms (%8.3f MBps)\n",
