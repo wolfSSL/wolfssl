@@ -4063,8 +4063,15 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         err = mp_mod(&key->d, &tmp1, &key->dP);
     if (err == MP_OKAY)                /* key->dQ = d mod(q-1) */
         err = mp_mod(&key->d, &tmp2, &key->dQ);
+#ifdef WOLFSSL_MP_INVMOD_CONSTANT_TIME
     if (err == MP_OKAY)                /* key->u = 1/q mod p */
         err = mp_invmod(&q, &p, &key->u);
+#else
+    if (err == MP_OKAY)
+        err = mp_sub_d(&p, 2, &tmp3);
+    if (err == MP_OKAY)                /* key->u = 1/q mod p = q^p-2 mod p */
+        err = mp_exptmod(&q, &tmp3 , &p, &key->u);
+#endif
     if (err == MP_OKAY)
         err = mp_copy(&p, &key->p);
     if (err == MP_OKAY)
