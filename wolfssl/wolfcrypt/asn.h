@@ -1439,6 +1439,19 @@ enum PKCSTypes {
     PKCS8v0             =   0,     /* default PKCS#8 version */
 };
 
+// AltName Types defined in RFC-5280
+ typedef enum {
+	ALTNAME_OtherName		= 0,		// OtherName
+	ALTNAME_rfc822Name		= 1,		// IA5String
+	ALTNAME_dNSName			= 2,		// IA5String
+	ALTNAME_x400Address		= 3,		// ORAddress
+	ALTNAME_directoryName	= 4,		// Name
+	ALTNAME_ediPartyName	= 5,		// EDIPartyName
+	ALTNAME_URI				= 6,		// IA5String
+	ALTNAME_ipAddress		= 7,		// Octet String
+	ALTNAME_registeredID	= 8			// OID
+} cert_altname_type;
+
 #endif /* !NO_ASN || !NO_PWDBASED */
 
 #endif /* WOLF_CRYPT_ASN_H */
