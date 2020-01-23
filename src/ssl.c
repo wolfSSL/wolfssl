@@ -9905,7 +9905,7 @@ int wolfSSL_use_PrivateKey(WOLFSSL* ssl, WOLFSSL_EVP_PKEY* pkey)
 }
 
 
-int wolfSSL_use_PrivateKey_ASN1(int pri, WOLFSSL* ssl, unsigned char* der,
+int wolfSSL_use_PrivateKey_ASN1(int pri, WOLFSSL* ssl, const unsigned char* der,
                                 long derSz)
 {
     WOLFSSL_ENTER("wolfSSL_use_PrivateKey_ASN1");
@@ -9970,7 +9970,8 @@ int wolfSSL_use_certificate(WOLFSSL* ssl, WOLFSSL_X509* x509)
 #endif /* OPENSSL_EXTRA */
 
 #ifndef NO_CERTS
-int wolfSSL_use_certificate_ASN1(WOLFSSL* ssl, unsigned char* der, int derSz)
+int wolfSSL_use_certificate_ASN1(WOLFSSL* ssl, const unsigned char* der,
+                                 int derSz)
 {
     long idx;
 
@@ -21678,6 +21679,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
         /* free any existing data before copying */
         if (asn1->data != NULL && asn1->isDynamic) {
             XFREE(asn1->data, NULL, DYNAMIC_TYPE_OPENSSL);
+            asn1->data = NULL;
         }
 
         if (sz > CTC_NAME_SIZE) {
@@ -21691,6 +21693,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
         else {
             XMEMSET(asn1->strData, 0, CTC_NAME_SIZE);
             asn1->data = asn1->strData;
+            asn1->isDynamic = 0;
         }
         if (data != NULL) {
             XMEMCPY(asn1->data, data, sz);
@@ -31498,8 +31501,8 @@ int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
 }
 #endif /* !NO_RSA */
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-#ifndef NO_DSA
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || defined(OPENSSL_EXTRA)
+#if !defined (NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)
 /* with set1 functions the pkey struct does not own the DSA structure
  *
  * returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure
@@ -31606,7 +31609,7 @@ WOLFSSL_DSA* wolfSSL_EVP_PKEY_get1_DSA(WOLFSSL_EVP_PKEY* key)
     }
     return local;
 }
-#endif /* !NO_DSA */
+#endif /* !NO_DSA && !HAVE_SELFTEST && WOLFSSL_KEY_GEN */
 
 #ifdef HAVE_ECC
 WOLFSSL_EC_KEY *wolfSSL_EVP_PKEY_get0_EC_KEY(WOLFSSL_EVP_PKEY *pkey)
@@ -31656,7 +31659,9 @@ WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
     return local;
 }
 #endif /* HAVE_ECC */
+#endif /* OPENSSL_ALL || WOLFSSL_QT || OPENSSL_EXTRA */
 
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
 #if !defined(NO_DH) && !defined(NO_FILESYSTEM)
 /* with set1 functions the pkey struct does not own the DH structure
  * Build the following DH Key format from the passed in WOLFSSL_DH
@@ -41241,6 +41246,7 @@ long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
         return BAD_FUNC_ARG;
 
     switch (cmd) {
+        #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
         case SSL_CTRL_SET_TLSEXT_HOSTNAME:
             WOLFSSL_MSG("Entering Case: SSL_CTRL_SET_TLSEXT_HOSTNAME.");
         #ifdef HAVE_SNI
@@ -41253,6 +41259,7 @@ long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
             WOLFSSL_MSG("SNI not enabled.");
             break;
         #endif /* HAVE_SNI */
+        #endif /* WOLFSSL_NGINX || WOLFSSL_QT || OPENSSL_ALL */
         default:
             WOLFSSL_MSG("Case not implemented.");
     }
