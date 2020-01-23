@@ -383,7 +383,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 const char resp[] =
                     "HTTP/1.0 200 ok\r\nContent-type: text/html\r\n\r\n"
                     "<html><body BGCOLOR=\"#ffffff\"><pre>\r\n"
-                    "greetings from wolfSSL\r\n</body></html>\r\n\r\n";
+                    "greetings from wolfSSL\r\n</pre></body></html>\r\n\r\n";
 
                 echoSz = (int)strlen(resp) + 1;
                 if (echoSz > (int)sizeof(command)) {
