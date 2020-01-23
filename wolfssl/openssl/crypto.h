@@ -35,7 +35,7 @@
 
 WOLFSSL_API const char*   wolfSSLeay_version(int type);
 WOLFSSL_API unsigned long wolfSSLeay(void);
-WOLFSSL_API unsigned long OpenSSL_version_num(void);
+WOLFSSL_API unsigned long wolfSSL_OpenSSL_version_num(void);
 
 #ifdef OPENSSL_EXTRA
 WOLFSSL_API void wolfSSL_OPENSSL_free(void*);
@@ -84,6 +84,8 @@ typedef void (CRYPTO_free_func)(void*parent, void*ptr, CRYPTO_EX_DATA *ad, int i
 #define CRYPTO_THREAD_lock wc_LockMutex
 #define CRYPTO_THREAD_r_lock wc_LockMutex
 #define CRYPTO_THREAD_unlock wc_UnLockMutex
+
+#define OpenSSL_version_num wolfSSL_OpenSSL_version_num
 
 #endif /* OPENSSL_ALL || HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 

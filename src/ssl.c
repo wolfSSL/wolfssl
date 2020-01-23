@@ -141,6 +141,12 @@
     #include <wolfssl/wolfcrypt/dh.h>
 #endif
 #endif /* !WOLFCRYPT_ONLY || OPENSSL_EXTRA */
+
+#ifdef OPENSSL_EXTRA
+/* Global pointer to constant BN on */
+static WOLFSSL_BIGNUM* bn_one = NULL;
+#endif
+
 #ifndef WOLFCRYPT_ONLY
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
@@ -344,11 +350,6 @@ int wolfSSL_send_session(WOLFSSL* ssl)
 }
 #endif /* WOLFSSL_DTLS */
 #endif /* WOLFSSL_SESSION_EXPORT */
-
-#ifdef OPENSSL_EXTRA
-/* Global pointer to constant BN on */
-static WOLFSSL_BIGNUM* bn_one = NULL;
-#endif
 
 /* prevent multiple mutex initializations */
 static volatile WOLFSSL_GLOBAL int initRefCount = 0;
@@ -15658,7 +15659,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return SSLEAY_VERSION_NUMBER;
     }
 
-    unsigned long OpenSSL_version_num(void)
+    unsigned long wolfSSL_OpenSSL_version_num(void)
     {
         return OPENSSL_VERSION_NUMBER;
     }
@@ -32201,6 +32202,18 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_EC_
         wolfSSL_RSA_free(pkey->rsa);
     }
     pkey->ownRsa = 0;
+#endif
+#ifndef NO_DSA
+    if (pkey->dsa != NULL && pkey->ownDsa == 1) {
+        wolfSSL_DSA_free(pkey->dsa);
+    }
+    pkey->ownDsa = 0;
+#endif
+#ifndef NO_DH
+    if (pkey->dh != NULL && pkey->ownDh == 1) {
+        wolfSSL_DH_free(pkey->dh);
+    }
+    pkey->ownDh = 0;
 #endif
     if (pkey->ecc != NULL && pkey->ownEcc == 1) {
         wolfSSL_EC_KEY_free(pkey->ecc);
