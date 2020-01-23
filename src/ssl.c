@@ -36849,14 +36849,14 @@ WOLFSSL_RSA* wolfSSL_RSAPublicKey_dup(WOLFSSL_RSA *rsa)
 void* wolfSSL_RSA_get_ex_data(const WOLFSSL_RSA *rsa, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_RSA_get_ex_data");
-    #ifdef HAVE_EX_DATA
+#ifdef HAVE_EX_DATA
     if (rsa) {
         return wolfSSL_CRYPTO_get_ex_data(&rsa->ex_data, idx);
     }
-    #else
+#else
     (void)rsa;
     (void)idx;
-    #endif
+#endif
     return NULL;
 }
 
