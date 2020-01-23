@@ -55,11 +55,11 @@
 #define STM32F7xx
 #endif
 
-//        <o> Thread/RTOS<0=>Single Threaded <1=>FreeRTOS <2=>SafeRTOS<3=>Windows
-//         <4=>PThread <5=>ThreadX<6=> ThreadX/NetX
-//         <7=>Micrium <8=>EBSnet<9=>MQX 
-//         <10=>T-RTOS <11=>uITRON4<12=>uTKERNEL2 
-//         <13=>Frosted <14=>CMSIS RTOS<15=>Others
+//        <o> Thread/RTOS<0=>Single Threaded <1=>FreeRTOS <3=>SafeRTOS <4=>Windows
+//         <5=>PThread <6=>ThreadX
+//         <7=>Micrium <8=>EBSnet <9=>MQX
+//         <10=>T-RTOS <11=>uITRON4 <12=>uTKERNEL2
+//         <13=>Frosted <14=>CMSIS RTOS <15=>CMSIS RTOSv2 <16=>Others
 #define MDK_CONF_THREAD 14
 #if MDK_CONF_THREAD== 0
 #define SINGLE_THREADED
@@ -245,7 +245,7 @@
 
 //      <e>HC128
 #define MDK_CONF_HC128 1
-#if MDK_CONF_AESGCM == 0
+#if MDK_CONF_HC128 == 0
 #define NO_HC128
 #endif
 //  </e>
@@ -514,4 +514,3 @@
 //  </e>
 
 //</h>
-
