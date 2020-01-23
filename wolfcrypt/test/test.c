@@ -221,7 +221,7 @@
 
 #if defined(NO_FILESYSTEM)
     #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
-        !defined(USE_CERT_BUFFERS_4096)
+        !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096)
         #define USE_CERT_BUFFERS_2048
     #endif
     #if !defined(USE_CERT_BUFFERS_256)
@@ -1518,11 +1518,7 @@ int asn_test(void)
     const byte* datePart;
 #ifndef NO_ASN_TIME
     struct tm timearg;
-    #ifdef WORD64_AVAILABLE
-        word64 now;
-    #else
-        word32 now;
-    #endif
+    time_t now;
 #endif
 
     ret = wc_GetDateInfo(dateBuf, (int)sizeof(dateBuf), &datePart, &format,
@@ -9280,7 +9276,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 
 /* Generated Test Certs */
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
-        !defined(NO_ASN)
+    !defined(USE_CERT_BUFFERS_3072) && !defined(NO_ASN)
     #ifndef NO_RSA
         static const char* clientKey  = CERT_ROOT "client-key.der";
         static const char* clientCert = CERT_ROOT "client-cert.der";
@@ -9303,6 +9299,9 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
             #endif
         #endif
     #endif /* !NO_RSA */
+#endif /* !USE_CERT_BUFFER_* */
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_ASN)
     #ifndef NO_DH
         static const char* dhKey = CERT_ROOT "dh2048.der";
     #endif
@@ -9956,12 +9955,14 @@ int decodedCertCache_test(void)
 #endif /* defined(WOLFSSL_CERT_GEN_CACHE) && defined(WOLFSSL_TEST_CERT) &&
           defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN) */
 
+#define RSA_TEST_BYTES 384
+
 #if !defined(NO_ASN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 static int rsa_flatten_test(RsaKey* key)
 {
     int    ret;
-    byte   e[256];
-    byte   n[256];
+    byte   e[RSA_TEST_BYTES];
+    byte   n[RSA_TEST_BYTES];
     word32 eSz = sizeof(e);
     word32 nSz = sizeof(n);
 
@@ -10057,13 +10058,13 @@ static int rsa_export_key_test(RsaKey* key)
     int ret;
     byte e[3];
     word32 eSz = sizeof(e);
-    byte n[256];
+    byte n[RSA_TEST_BYTES];
     word32 nSz = sizeof(n);
-    byte d[256];
+    byte d[RSA_TEST_BYTES];
     word32 dSz = sizeof(d);
-    byte p[128];
+    byte p[RSA_TEST_BYTES/2];
     word32 pSz = sizeof(p);
-    byte q[128];
+    byte q[RSA_TEST_BYTES/2];
     word32 qSz = sizeof(q);
     word32 zero = 0;
 
@@ -10150,7 +10151,7 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
         0xa6, 0x58, 0x0a, 0x33, 0x0b, 0x84, 0x5f, 0x5f
     };
     word32 inLen = (word32)XSTRLEN((char*)in);
-    byte   out[256];
+    byte   out[RSA_TEST_BYTES];
 
     /* Parameter Validation testing. */
     ret = wc_SignatureGetSize(WC_SIGNATURE_TYPE_NONE, key, keyLen);
@@ -10662,8 +10663,6 @@ done:
     return ret;
 }
 #endif
-
-#define RSA_TEST_BYTES 256
 
 #ifdef WC_RSA_PSS
 static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
@@ -11815,8 +11814,8 @@ int rsa_test(void)
 #ifndef NO_SIG_WRAPPER
     int modLen;
 #endif
-#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) \
-                                    && !defined(NO_FILESYSTEM)
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
+    !defined(USE_CERT_BUFFERS_3072) && !defined(NO_FILESYSTEM)
     XFILE   file;
     XFILE   file2;
 #endif
@@ -11859,6 +11858,10 @@ int rsa_test(void)
     bytes = (size_t)sizeof_client_key_der_2048;
     if (bytes < (size_t)sizeof_client_cert_der_2048)
         bytes = (size_t)sizeof_client_cert_der_2048;
+#elif defined(USE_CERT_BUFFERS_3072)
+    bytes = (size_t)sizeof_client_key_der_3072;
+    if (bytes < (size_t)sizeof_client_cert_der_3072)
+        bytes = (size_t)sizeof_client_cert_der_3072;
 #else
 	bytes = FOURK_BUF;
 #endif
@@ -11876,6 +11879,8 @@ int rsa_test(void)
     XMEMCPY(tmp, client_key_der_1024, (size_t)sizeof_client_key_der_1024);
 #elif defined(USE_CERT_BUFFERS_2048)
     XMEMCPY(tmp, client_key_der_2048, (size_t)sizeof_client_key_der_2048);
+#elif defined(USE_CERT_BUFFERS_3072)
+    XMEMCPY(tmp, client_key_der_3072, (size_t)sizeof_client_key_der_3072);
 #elif !defined(NO_FILESYSTEM)
     file = XFOPEN(clientKey, "rb");
     if (!file) {
@@ -12440,6 +12445,9 @@ int rsa_test(void)
 #elif defined(USE_CERT_BUFFERS_2048)
     XMEMCPY(tmp, client_cert_der_2048, (size_t)sizeof_client_cert_der_2048);
     bytes = (size_t)sizeof_client_cert_der_2048;
+#elif defined(USE_CERT_BUFFERS_3072)
+    XMEMCPY(tmp, client_cert_der_3072, (size_t)sizeof_client_cert_der_3072);
+    bytes = (size_t)sizeof_client_cert_der_3072;
 #elif !defined(NO_FILESYSTEM)
     file2 = XFOPEN(clientCert, "rb");
     if (!file2) {
