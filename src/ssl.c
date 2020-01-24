@@ -13437,7 +13437,7 @@ int wolfSSL_GetSessionAtIndex(int idx, WOLFSSL_SESSION* session)
 
 #endif /* SESSION_INDEX */
 
-#if defined(SESSION_INDEX) && defined(SESSION_CERTS)
+#if defined(SESSION_CERTS)
 
 WOLFSSL_X509_CHAIN* wolfSSL_SESSION_get_peer_chain(WOLFSSL_SESSION* session)
 {
@@ -13449,6 +13449,26 @@ WOLFSSL_X509_CHAIN* wolfSSL_SESSION_get_peer_chain(WOLFSSL_SESSION* session)
 
     WOLFSSL_LEAVE("wolfSSL_SESSION_get_peer_chain", chain ? 1 : 0);
     return chain;
+}
+
+
+/* gets the peer certificate associated with the session passed in
+ * returns null on failure, the caller should not free the returned pointer */
+WOLFSSL_X509* wolfSSL_SESSION_get0_peer(WOLFSSL_SESSION* session)
+{
+    WOLFSSL_ENTER("wolfSSL_SESSION_get_peer_chain");
+    if (session) {
+        int count;
+
+        count = wolfSSL_get_chain_count(&session->chain);
+        if (count < 1 || count >= MAX_CHAIN_DEPTH) {
+            WOLFSSL_MSG("bad count found");
+            return NULL;
+        }
+        return wolfSSL_get_chain_X509(&session->chain, count - 1);
+    }
+    WOLFSSL_MSG("No session passed in");
+    return NULL;
 }
 
 #endif /* SESSION_INDEX && SESSION_CERTS */

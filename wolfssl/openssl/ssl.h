@@ -276,6 +276,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_get_error                   wolfSSL_get_error
 #define SSL_set_session                 wolfSSL_set_session
 #define SSL_get_session(x)              wolfSSL_get_session((WOLFSSL*) (x))
+#define SSL_SESSION_get0_peer           wolfSSL_SESSION_get0_peer
 #define SSL_flush_sessions              wolfSSL_flush_sessions
 /* assume unlimited temporarily */
 #define SSL_CTX_get_session_cache_mode(ctx) 0
@@ -294,7 +295,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_set_cipher_list             wolfSSL_set_cipher_list
 /* wolfSSL does not support security levels */
 #define SSL_CTX_set_security_level(...)
-/* wolfSSL does not support expoting keying material */
+/* wolfSSL does not support exporting keying material */
 #define SSL_export_keying_material(...) 0
 
 #define SSL_CTX_set1_groups_list        wolfSSL_CTX_set1_groups_list
