@@ -7305,18 +7305,20 @@ static int wc_AesFeedbackEncrypt(Aes* aes, byte* out, const byte* in,
     }
 
     while (sz >= AES_BLOCK_SIZE) {
-        wc_AesEncryptDirect(aes, out, (byte*)aes->reg);
+        /* Using aes->tmp here for inline case i.e. in=out */
+        wc_AesEncryptDirect(aes, (byte*)aes->tmp, (byte*)aes->reg);
     #ifdef WOLFSSL_AES_OFB
         if (mode == AES_OFB_MODE) {
-            XMEMCPY(aes->reg, out, AES_BLOCK_SIZE);
+            XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
         }
     #endif
-        xorbuf(out, in, AES_BLOCK_SIZE);
+        xorbuf((byte*)aes->tmp, in, AES_BLOCK_SIZE);
     #ifdef WOLFSSL_AES_CFB
         if (mode == AES_CFB_MODE) {
-            XMEMCPY(aes->reg, out, AES_BLOCK_SIZE);
+            XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
         }
     #endif
+        XMEMCPY(out, aes->tmp, AES_BLOCK_SIZE);
         out += AES_BLOCK_SIZE;
         in  += AES_BLOCK_SIZE;
         sz  -= AES_BLOCK_SIZE;
@@ -7374,11 +7376,13 @@ static int wc_AesFeedbackDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
+    #ifdef WOLFSSL_AES_CFB
     /* check if more input needs copied over to aes->reg */
     if (aes->left && sz && mode == AES_CFB_MODE) {
         int size = min(aes->left, sz);
         XMEMCPY((byte*)aes->reg + AES_BLOCK_SIZE - aes->left, in, size);
     }
+    #endif
 
     /* consume any unused bytes left in aes->tmp */
     tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
@@ -7389,18 +7393,20 @@ static int wc_AesFeedbackDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     while (sz > AES_BLOCK_SIZE) {
-        wc_AesEncryptDirect(aes, out, (byte*)aes->reg);
+        /* Using aes->tmp here for inline case i.e. in=out */
+        wc_AesEncryptDirect(aes, (byte*)aes->tmp, (byte*)aes->reg);
     #ifdef WOLFSSL_AES_OFB
         if (mode == AES_OFB_MODE) {
-            XMEMCPY(aes->reg, out, AES_BLOCK_SIZE);
+            XMEMCPY((byte*)aes->reg, (byte*)aes->tmp, AES_BLOCK_SIZE);
         }
     #endif
-        xorbuf(out, in, AES_BLOCK_SIZE);
+        xorbuf((byte*)aes->tmp, in, AES_BLOCK_SIZE);
     #ifdef WOLFSSL_AES_CFB
         if (mode == AES_CFB_MODE) {
             XMEMCPY(aes->reg, in, AES_BLOCK_SIZE);
         }
     #endif
+        XMEMCPY(out, (byte*)aes->tmp, AES_BLOCK_SIZE);
         out += AES_BLOCK_SIZE;
         in  += AES_BLOCK_SIZE;
         sz  -= AES_BLOCK_SIZE;
@@ -7410,12 +7416,16 @@ static int wc_AesFeedbackDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* decrypt left over data */
     if (sz) {
         wc_AesEncryptDirect(aes, (byte*)aes->tmp, (byte*)aes->reg);
+    #ifdef WOLFSSL_AES_CFB
         if (mode == AES_CFB_MODE) {
             XMEMCPY(aes->reg, in, sz);
         }
+    #endif
+    #ifdef WOLFSSL_AES_OFB
         if (mode == AES_OFB_MODE) {
             XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
         }
+    #endif
 
         aes->left = AES_BLOCK_SIZE;
         tmp = (byte*)aes->tmp;

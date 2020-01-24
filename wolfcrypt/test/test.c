@@ -5866,6 +5866,77 @@ int des3_test(void)
 #endif /* WOLFSSL_AES_CFB */
 
 #ifdef WOLFSSL_AES_OFB
+#ifdef OPENSSL_EXTRA
+/* pass in the function, key, iv, plain text and expected and this function
+ * tests that the encryption and decryption is successful */
+static int EVP_test(const WOLFSSL_EVP_CIPHER* type, const byte* key,
+        const byte* iv, const byte* plain, int plainSz,
+        const byte* expected, int expectedSz)
+{
+    EVP_CIPHER_CTX ctx;
+    int idx, ret = 0, cipherSz;
+    byte* cipher;
+
+    cipher = (byte*)XMALLOC(plainSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (cipher == NULL) {
+        return -8000;
+    }
+
+
+    /* test encrypt */
+    EVP_CIPHER_CTX_init(&ctx);
+    if (EVP_CipherInit(&ctx, type, key, iv, 1) == 0) {
+        ret = -8001;
+        goto EVP_TEST_END;
+    }
+
+    if (EVP_CipherUpdate(&ctx, cipher, &idx, plain, plainSz) == 0) {
+        ret = -8002;
+        goto EVP_TEST_END;
+    }
+
+    cipherSz = idx;
+    if (EVP_CipherFinal(&ctx, cipher + cipherSz, &idx) == 0) {
+        ret = -8003;
+        goto EVP_TEST_END;
+    }
+    cipherSz += idx;
+
+    if (XMEMCMP(cipher, expected, expectedSz)) {
+        ret = -8004;
+        goto EVP_TEST_END;
+    }
+
+    /* test decrypt */
+    EVP_CIPHER_CTX_init(&ctx);
+    if (EVP_CipherInit(&ctx, type, key, iv, 0) == 0) {
+        ret = -8005;
+        goto EVP_TEST_END;
+    }
+
+    if (EVP_CipherUpdate(&ctx, cipher, &idx, cipher, cipherSz) == 0) {
+        ret = -8006;
+        goto EVP_TEST_END;
+    }
+
+    cipherSz = idx;
+    if (EVP_CipherFinal(&ctx, cipher + cipherSz, &idx) == 0) {
+        ret = -8007;
+        goto EVP_TEST_END;
+    }
+    cipherSz += idx;
+
+    if ((plainSz != cipherSz) || XMEMCMP(plain, cipher, cipherSz)) {
+        ret = -8008;
+        goto EVP_TEST_END;
+    }
+
+EVP_TEST_END:
+    XFREE(cipher, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif /* OPENSSL_EXTRA */
+
     /* test vector from https://csrc.nist.gov/Projects/cryptographic-algorithm-validation-program/Block-Ciphers */
     int aesofb_test(void)
     {
@@ -5960,6 +6031,14 @@ int des3_test(void)
 
 #ifdef WOLFSSL_AES_128
         /* 128 key size test */
+    #ifdef OPENSSL_EXTRA
+        ret = EVP_test(EVP_aes_128_ofb(), key2, iv2, plain2, sizeof(plain2),
+                cipher2, sizeof(cipher2));
+        if (ret != 0) {
+            return ret;
+        }
+    #endif
+
         ret = wc_AesSetKey(&enc, key2, sizeof(key2), iv2, AES_ENCRYPTION);
         if (ret != 0)
             return -5000;
@@ -5990,6 +6069,14 @@ int des3_test(void)
 
 #ifdef WOLFSSL_AES_192
         /* 192 key size test */
+    #ifdef OPENSSL_EXTRA
+        ret = EVP_test(EVP_aes_192_ofb(), key3, iv3, plain3, sizeof(plain3),
+                cipher3, sizeof(cipher3));
+        if (ret != 0) {
+            return ret;
+        }
+    #endif
+
         ret = wc_AesSetKey(&enc, key3, sizeof(key3), iv3, AES_ENCRYPTION);
         if (ret != 0)
             return -5006;
@@ -6020,6 +6107,14 @@ int des3_test(void)
 
 #ifdef WOLFSSL_AES_256
         /* 256 key size test */
+    #ifdef OPENSSL_EXTRA
+        ret = EVP_test(EVP_aes_256_ofb(), key1, iv1, plain1, sizeof(plain1),
+                cipher1, sizeof(cipher1));
+        if (ret != 0) {
+            return ret;
+        }
+    #endif
+
         ret = wc_AesSetKey(&enc, key1, sizeof(key1), iv1, AES_ENCRYPTION);
         if (ret != 0)
             return -5012;
@@ -6064,10 +6159,8 @@ int des3_test(void)
                     AES_BLOCK_SIZE))
             return -5021;
     #endif /* HAVE_AES_DECRYPT */
-#endif /* WOLFSSL_AES_256 */
 
-#ifdef WOLFSSL_AES_256
-        /* 256 key size test leftover support */
+        /* multiple blocks at once */
         ret = wc_AesSetKey(&enc, key1, sizeof(key1), iv1, AES_ENCRYPTION);
         if (ret != 0)
             return -5022;
@@ -6079,36 +6172,93 @@ int des3_test(void)
     #endif
 
         XMEMSET(cipher, 0, sizeof(cipher));
-        ret = wc_AesOfbEncrypt(&enc, cipher, plain1, 3);
+        ret = wc_AesOfbEncrypt(&enc, cipher, plain1, AES_BLOCK_SIZE * 3);
         if (ret != 0)
             return -5024;
 
-        if (XMEMCMP(cipher, cipher1, 3))
+        if (XMEMCMP(cipher, cipher1, AES_BLOCK_SIZE * 3))
             return -5025;
 
-        ret = wc_AesOfbEncrypt(&enc, cipher + 3, plain1 + 3, AES_BLOCK_SIZE);
+    #ifdef HAVE_AES_DECRYPT
+        ret = wc_AesOfbDecrypt(&dec, plain, cipher1, AES_BLOCK_SIZE * 3);
         if (ret != 0)
             return -5026;
 
-        if (XMEMCMP(cipher + 3, cipher1 + 3, AES_BLOCK_SIZE))
+        if (XMEMCMP(plain, plain1, AES_BLOCK_SIZE * 3))
             return -5027;
+    #endif /* HAVE_AES_DECRYPT */
+
+        /* inline decrypt/encrypt*/
+        ret = wc_AesSetKey(&enc, key1, sizeof(key1), iv1, AES_ENCRYPTION);
+        if (ret != 0)
+            return -5028;
+    #ifdef HAVE_AES_DECRYPT
+        /* decrypt uses AES_ENCRYPTION */
+        ret = wc_AesSetKey(&dec, key1, sizeof(key1), iv1, AES_ENCRYPTION);
+        if (ret != 0)
+            return -5029;
+    #endif
+
+        XMEMCPY(cipher, plain1, AES_BLOCK_SIZE * 2);
+        ret = wc_AesOfbEncrypt(&enc, cipher, cipher, AES_BLOCK_SIZE * 2);
+        if (ret != 0)
+            return -5030;
+
+        if (XMEMCMP(cipher, cipher1, AES_BLOCK_SIZE * 2))
+            return -5031;
+
+    #ifdef HAVE_AES_DECRYPT
+        ret = wc_AesOfbDecrypt(&dec, cipher, cipher, AES_BLOCK_SIZE * 2);
+        if (ret != 0)
+            return -5032;
+
+        if (XMEMCMP(cipher, plain1, AES_BLOCK_SIZE * 2))
+            return -5033;
+    #endif /* HAVE_AES_DECRYPT */
+
+        /* 256 key size test leftover support */
+        ret = wc_AesSetKey(&enc, key1, sizeof(key1), iv1, AES_ENCRYPTION);
+        if (ret != 0)
+            return -5034;
+    #ifdef HAVE_AES_DECRYPT
+        /* decrypt uses AES_ENCRYPTION */
+        ret = wc_AesSetKey(&dec, key1, sizeof(key1), iv1, AES_ENCRYPTION);
+        if (ret != 0)
+            return -5035;
+    #endif
+
+        XMEMSET(cipher, 0, sizeof(cipher));
+        ret = wc_AesOfbEncrypt(&enc, cipher, plain1, 3);
+        if (ret != 0)
+            return -5036;
+
+        if (XMEMCMP(cipher, cipher1, 3))
+            return -5037;
+
+        ret = wc_AesOfbEncrypt(&enc, cipher + 3, plain1 + 3, AES_BLOCK_SIZE);
+        if (ret != 0)
+            return -5038;
+
+        if (XMEMCMP(cipher + 3, cipher1 + 3, AES_BLOCK_SIZE))
+            return -5039;
 
     #ifdef HAVE_AES_DECRYPT
         ret = wc_AesOfbDecrypt(&dec, plain, cipher1, 6);
         if (ret != 0)
-            return -5028;
+            return -5040;
 
         if (XMEMCMP(plain, plain1, 6))
-            return -5029;
+            return -5041;
 
         ret = wc_AesOfbDecrypt(&dec, plain + 6, cipher1 + 6, AES_BLOCK_SIZE);
         if (ret != 0)
-            return -5030;
+            return -5042;
 
         if (XMEMCMP(plain + 6, plain1 + 6, AES_BLOCK_SIZE))
-            return -5031;
+            return -5043;
     #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_256 */
+
         return 0;
     }
 #endif /* WOLFSSL_AES_OFB */
@@ -14794,6 +14944,8 @@ static int openssl_aes_test(void)
 #endif /* WOLFSSL_AES_CFB && WOLFSSL_AES_128 */
     return 0;
 }
+
+
 #endif /* !defined(NO_AES) && !defined(WOLFCRYPT_ONLY) */
 
 int openssl_test(void)
