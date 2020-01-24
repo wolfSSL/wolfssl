@@ -54,6 +54,7 @@ void bench_aesecb(int);
 void bench_aesxts(void);
 void bench_aesctr(void);
 void bench_aescfb(void);
+void bench_aesofb(void);
 void bench_poly1305(void);
 void bench_camellia(void);
 void bench_md5(int);
