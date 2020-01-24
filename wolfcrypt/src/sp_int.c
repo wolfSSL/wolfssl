@@ -669,7 +669,9 @@ static int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
     int done = 0;
     int i;
     int s;
+#ifndef WOLFSSL_SP_DIV_32
     sp_int_word w = 0;
+#endif
     sp_int_digit dt;
     sp_int_digit t;
 #ifdef WOLFSSL_SMALL_STACK
@@ -752,15 +754,22 @@ static int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
         sp_clear(tr);
         tr->used = sa->used - d->used + 1;
         dt = d->dp[d->used-1];
-        for (i = sa->used - 1; i >= d->used; i--) {
-            w = ((sp_int_word)sa->dp[i] << SP_WORD_SIZE) | sa->dp[i-1];
-            w /= dt;
-            if (w > (sp_int_digit)-1) {
+#ifndef WOLFSSL_SP_DIV_32
+        for (i = sa->used - 1; i >= d->used; ) {
+            if (sa->dp[i] > dt) {
                 t = (sp_int_digit)-1;
             }
             else {
-                t = (sp_int_digit)w;
+                w = ((sp_int_word)sa->dp[i] << SP_WORD_SIZE) | sa->dp[i-1];
+                w /= dt;
+                if (w > (sp_int_digit)-1) {
+                    t = (sp_int_digit)-1;
+                }
+                else {
+                    t = (sp_int_digit)w;
+                }
             }
+
             if (t > 0) {
                 _sp_mul_d(d, t, trial, i - d->used);
                 while (sp_cmp(trial, sa) == MP_GT) {
@@ -771,11 +780,43 @@ static int sp_div(sp_int* a, sp_int* d, sp_int* r, sp_int* rem)
                 tr->dp[i - d->used] += t;
                 if (tr->dp[i - d->used] < t)
                     tr->dp[i + 1 - d->used]++;
-                if (w > (sp_int_digit)-1) {
-                    i++;
-                }
             }
+            i = sa->used - 1;
         }
+#else
+     {
+        sp_int_digit div = (dt >> (SP_WORD_SIZE / 2)) + 1;
+        for (i = sa->used - 1; i >= d->used; ) {
+            t = sa->dp[i] / div;
+            if ((t > 0) && (t << (SP_WORD_SIZE / 2) == 0))
+                t = (sp_int_digit)-1;
+            t <<= SP_WORD_SIZE / 2;
+            if (t == 0) {
+               t = sa->dp[i] << (SP_WORD_SIZE / 2);
+               t += sa->dp[i-1] >> (SP_WORD_SIZE / 2);
+               t /= div;
+            }
+
+            if (t > 0) {
+                _sp_mul_d(d, t, trial, i - d->used);
+                while (sp_cmp(trial, sa) == MP_GT) {
+                    t--;
+                    _sp_mul_d(d, t, trial, i - d->used);
+                }
+                sp_sub(sa, trial, sa);
+                tr->dp[i - d->used] += t;
+                if (tr->dp[i - d->used] < t)
+                    tr->dp[i + 1 - d->used]++;
+            }
+            i = sa->used - 1;
+        }
+
+        while (sp_cmp(sa, d) != MP_LT) {
+            sp_sub(sa, d, sa);
+            sp_add_d(tr, 1, tr);
+        }
+    }
+#endif
 
         sp_clamp(tr);
 
