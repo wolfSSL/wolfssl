@@ -138,16 +138,16 @@ extern int wc_InitRsaHw(RsaKey* key);
     #endif
 #endif
 #ifdef WOLFSSL_RENESAS_TSIP_TLS
-WOLFSSL_LOCAL void tsip_inform_key_position(const word32 key_n_start,
+void tsip_inform_key_position(const word32 key_n_start,
                 const word32 key_n_len, const word32 key_e_start,
                 const word32 key_e_len);
-WOLFSSL_LOCAL int tsip_tls_CertVerify(const byte *cert, word32 certSz,
+int tsip_tls_CertVerify(const byte *cert, word32 certSz,
                         const byte *signature, word32 sigSz,
                         word32 key_n_start, word32 key_n_len,
                         word32 key_e_start, word32 key_e_len,
                         byte *tsip_encRsaKeyIdx);
 #endif
-WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
+int GetLength(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx)
 {
     return GetLength_ex(input, inOutIdx, len, maxIdx, 1);
@@ -155,7 +155,7 @@ WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
 
 
 /* give option to check length value found against index. 1 to check 0 to not */
-WOLFSSL_LOCAL int GetLength_ex(const byte* input, word32* inOutIdx, int* len,
+int GetLength_ex(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx, int check)
 {
     int     length = 0;
@@ -290,7 +290,7 @@ static int GetHeader(const byte* input, byte* tag, word32* inOutIdx, int* len,
     return length;
 }
 
-WOLFSSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
+int GetSequence(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx)
 {
     return GetASNHeader(input, ASN_SEQUENCE | ASN_CONSTRUCTED, inOutIdx, len,
@@ -298,7 +298,7 @@ WOLFSSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
 }
 
 
-WOLFSSL_LOCAL int GetSequence_ex(const byte* input, word32* inOutIdx, int* len,
+int GetSequence_ex(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx, int check)
 {
     return GetASNHeader_ex(input, ASN_SEQUENCE | ASN_CONSTRUCTED, inOutIdx, len,
@@ -306,7 +306,7 @@ WOLFSSL_LOCAL int GetSequence_ex(const byte* input, word32* inOutIdx, int* len,
 }
 
 
-WOLFSSL_LOCAL int GetSet(const byte* input, word32* inOutIdx, int* len,
+int GetSet(const byte* input, word32* inOutIdx, int* len,
                         word32 maxIdx)
 {
     return GetASNHeader(input, ASN_SET | ASN_CONSTRUCTED, inOutIdx, len,
@@ -314,7 +314,7 @@ WOLFSSL_LOCAL int GetSet(const byte* input, word32* inOutIdx, int* len,
 }
 
 
-WOLFSSL_LOCAL int GetSet_ex(const byte* input, word32* inOutIdx, int* len,
+int GetSet_ex(const byte* input, word32* inOutIdx, int* len,
                         word32 maxIdx, int check)
 {
     return GetASNHeader_ex(input, ASN_SET | ASN_CONSTRUCTED, inOutIdx, len,
@@ -423,7 +423,7 @@ static int SetBoolean(int val, byte* output)
  *         invalid.
  *         Otherwise, the number of bytes in the ASN.1 data.
  */
-static int GetOctetString(const byte* input, word32* inOutIdx, int* len,
+int GetOctetString(const byte* input, word32* inOutIdx, int* len,
                           word32 maxIdx)
 {
     return GetASNHeader(input, ASN_OCTET_STRING, inOutIdx, len, maxIdx);
@@ -714,7 +714,7 @@ static int SetASNIntRSA(void* n, byte* output)
 #endif /* !NO_RSA && HAVE_USER_RSA && WOLFSSL_CERT_GEN */
 
 /* Windows header clash for WinCE using GetVersion */
-WOLFSSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
+int GetMyVersion(const byte* input, word32* inOutIdx,
                                int* version, word32 maxIdx)
 {
     word32 idx = *inOutIdx;
@@ -741,7 +741,7 @@ WOLFSSL_LOCAL int GetMyVersion(const byte* input, word32* inOutIdx,
 
 #ifndef NO_PWDBASED
 /* Get small count integer, 32 bits or less */
-WOLFSSL_LOCAL int GetShortInt(const byte* input, word32* inOutIdx, int* number, word32 maxIdx)
+int GetShortInt(const byte* input, word32* inOutIdx, int* number, word32 maxIdx)
 {
     word32 idx = *inOutIdx;
     word32 len;
@@ -778,7 +778,7 @@ WOLFSSL_LOCAL int GetShortInt(const byte* input, word32* inOutIdx, int* number, 
 
 /* Set small integer, 32 bits or less. DER encoding with no leading 0s
  * returns total amount written including ASN tag and length byte on success */
-WOLFSSL_LOCAL int SetShortInt(byte* input, word32* inOutIdx, word32 number, word32 maxIdx)
+int SetShortInt(byte* input, word32* inOutIdx, word32 number, word32 maxIdx)
 {
     word32 idx = *inOutIdx;
     word32 len = 0;
@@ -960,7 +960,7 @@ static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
  * output      Buffer to write into.
  * returns the number of bytes added to the buffer.
  */
-WOLFSSL_LOCAL word32 SetBitString(word32 len, byte unusedBits, byte* output)
+word32 SetBitString(word32 len, byte unusedBits, byte* output)
 {
     word32 idx = 0;
 
@@ -2502,7 +2502,7 @@ static int SkipObjectId(const byte* input, word32* inOutIdx, word32 maxIdx)
     return 0;
 }
 
-WOLFSSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
+int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
                      word32 oidType, word32 maxIdx)
 {
     int    length;
@@ -5406,7 +5406,7 @@ WOLFSSL_API int EccEnumToNID(int n)
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-WOLFSSL_LOCAL int wc_OBJ_sn2nid(const char *sn)
+int wc_OBJ_sn2nid(const char *sn)
 {
     const struct {
         const char *sn;
@@ -6252,7 +6252,7 @@ int GetAsnTimeString(void* currTime, byte* buf, word32 len)
 #if defined(USE_WOLF_VALIDDATE)
 
 /* to the second */
-WOLFSSL_LOCAL int DateGreaterThan(const struct tm* a, const struct tm* b)
+int DateGreaterThan(const struct tm* a, const struct tm* b)
 {
     if (a->tm_year > b->tm_year)
         return 1;
@@ -6648,7 +6648,7 @@ static word32 BytePrecision(word32 value)
 }
 
 
-WOLFSSL_LOCAL word32 SetLength(word32 length, byte* output)
+word32 SetLength(word32 length, byte* output)
 {
     word32 i = 0, j;
 
@@ -6672,45 +6672,27 @@ WOLFSSL_LOCAL word32 SetLength(word32 length, byte* output)
     return i;
 }
 
-WOLFSSL_LOCAL int SetMyVersion(word32 version, byte* output, int header)
-{
-    int i = 0;
-
-    if (output == NULL)
-        return BAD_FUNC_ARG;
-
-    if (header) {
-        output[i++] = ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED;
-        output[i++] = 3;
-    }
-    output[i++] = ASN_INTEGER;
-    output[i++] = 0x01;
-    output[i++] = (byte)version;
-
-    return i;
-}
-
-WOLFSSL_LOCAL word32 SetSequence(word32 len, byte* output)
+word32 SetSequence(word32 len, byte* output)
 {
     if (output)
         output[0] = ASN_SEQUENCE | ASN_CONSTRUCTED;
     return SetLength(len, output ? output + 1 : NULL) + 1;
 }
 
-WOLFSSL_LOCAL word32 SetOctetString(word32 len, byte* output)
+word32 SetOctetString(word32 len, byte* output)
 {
     output[0] = ASN_OCTET_STRING;
     return SetLength(len, output + 1) + 1;
 }
 
 /* Write a set header to output */
-WOLFSSL_LOCAL word32 SetSet(word32 len, byte* output)
+word32 SetSet(word32 len, byte* output)
 {
     output[0] = ASN_SET | ASN_CONSTRUCTED;
     return SetLength(len, output + 1) + 1;
 }
 
-WOLFSSL_LOCAL word32 SetImplicit(byte tag, byte number, word32 len, byte* output)
+word32 SetImplicit(byte tag, byte number, word32 len, byte* output)
 {
 
     output[0] = ((tag == ASN_SEQUENCE || tag == ASN_SET) ? ASN_CONSTRUCTED : 0)
@@ -6718,7 +6700,7 @@ WOLFSSL_LOCAL word32 SetImplicit(byte tag, byte number, word32 len, byte* output
     return SetLength(len, output + 1) + 1;
 }
 
-WOLFSSL_LOCAL word32 SetExplicit(byte number, word32 len, byte* output)
+word32 SetExplicit(byte number, word32 len, byte* output)
 {
     output[0] = ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | number;
     return SetLength(len, output + 1) + 1;
@@ -6780,7 +6762,7 @@ static WC_INLINE int IsSigAlgoECDSA(int algoOID)
 }
 #endif
 
-WOLFSSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
+word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
 {
     word32 tagSz, idSz, seqSz, algoSz = 0;
     const  byte* algoName = 0;
@@ -8768,9 +8750,9 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
 #ifdef __cplusplus
     extern "C" {
 #endif
-    WOLFSSL_LOCAL Signer* GetCA(void* signers, byte* hash);
+    Signer* GetCA(void* signers, byte* hash);
     #ifndef NO_SKID
-        WOLFSSL_LOCAL Signer* GetCAByName(void* signers, byte* hash);
+        Signer* GetCAByName(void* signers, byte* hash);
     #endif
 #ifdef __cplusplus
     }
@@ -9539,7 +9521,25 @@ void FreeTrustedPeerTable(TrustedPeerCert** table, int rows, void* heap)
 }
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
-WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
+int SetMyVersion(word32 version, byte* output, int header)
+{
+    int i = 0;
+
+    if (output == NULL)
+        return BAD_FUNC_ARG;
+
+    if (header) {
+        output[i++] = ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED;
+        output[i++] = 3;
+    }
+    output[i++] = ASN_INTEGER;
+    output[i++] = 0x01;
+    output[i++] = (byte)version;
+
+    return i;
+}
+
+int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
     word32 outputSz, int maxSnSz)
 {
     int i;
@@ -9585,7 +9585,7 @@ WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
 
 #endif /* !NO_CERTS */
 
-WOLFSSL_LOCAL int GetSerialNumber(const byte* input, word32* inOutIdx,
+int GetSerialNumber(const byte* input, word32* inOutIdx,
     byte* serial, int* serialSz, word32 maxIdx)
 {
     int result = 0;
@@ -10330,18 +10330,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         /* pkcs8 key, convert and adjust length */
         if ((ret = ToTraditional_ex(der->buffer, der->length, &algId)) > 0) {
             der->length = ret;
-            #if !defined(NO_DSA)
-            if (algId == DSAk)
-                *keyFormat = DSAk;
-            #endif
-            #ifdef HAVE_ECC
-            if (algId == ECDSAk)
-                *keyFormat = ECDSAk;
-            #endif
-            #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-            if (algId == DHk)
-                *keyFormat = DHk;
-            #endif
+            if (keyFormat) {
+                *keyFormat = algId;
+            }
         }
         else {
             /* ignore failure here and assume key is not pkcs8 wrapped */
@@ -10385,14 +10376,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
                 if (ret >= 0) {
                     der->length = ret;
-                    if ((algId == ECDSAk) && (keyFormat != NULL))
-                        *keyFormat = ECDSAk;
-                    else if ((algId == DSAk) && (keyFormat != NULL))
-                        *keyFormat = DSAk;
-                    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-                    else if ((algId == DHk) && (keyFormat != NULL))
-                        *keyFormat = DHk;
-                    #endif
+                    if (keyFormat) {
+                        *keyFormat = algId;
+                    }
                     ret = 0;
                 }
             #else
@@ -16444,7 +16430,7 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 
 
 /* store WC_SHA hash of NAME */
-WOLFSSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
+int GetNameHash(const byte* source, word32* idx, byte* hash,
                              int maxIdx)
 {
     int    length;  /* length of all distinguished names */
