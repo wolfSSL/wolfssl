@@ -2175,9 +2175,6 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     int ret, err = 0;
     int sharedCtx = 0;
 
-    if (args)
-        return -1;
-
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
@@ -2261,7 +2258,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 
 #ifdef WOLFSSL_SESSION_EXPORT
     /* only add in more complex nonblocking case with session export tests */
-    if (((func_args*)args)->argc > 0) {
+    if (args && ((func_args*)args)->argc > 0) {
         /* set as nonblock and time out for waiting on read/write */
         tcp_set_nonblocking(&clientfd);
         wolfSSL_dtls_set_using_nonblock(ssl, 1);
@@ -2399,9 +2396,6 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_loop(void* args)
     int sharedCtx = 0;
     int loop_count = ((func_args*)args)->argc;
     int count = 0;
-
-    if (args)
-        return -1;
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
@@ -2998,9 +2992,6 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
     char input[1024];
     int  idx;
     int  ret, err = 0;
-
-    if (args)
-        return -1;
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
