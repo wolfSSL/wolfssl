@@ -79,6 +79,7 @@ typedef WOLFSSL_EVP_PKEY       PKCS8_PRIV_KEY_INFO;
 #ifndef NO_MD5
     WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_md5(void);
 #endif
+WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_mdc2(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha1(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha224(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha256(void);
@@ -617,6 +618,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
     #define EVP_md5       wolfSSL_EVP_md5
 #endif
 #define EVP_sha1      wolfSSL_EVP_sha1
+#define EVP_mdc2      wolfSSL_EVP_mdc2
 #define EVP_dds1      wolfSSL_EVP_sha1
 #define EVP_sha224    wolfSSL_EVP_sha224
 #define EVP_sha256    wolfSSL_EVP_sha256

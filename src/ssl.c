@@ -16345,6 +16345,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 #endif /* !NO_MD5 */
 
 
+#ifndef NO_WOLFSSL_STUB
+    const WOLFSSL_EVP_MD* wolfSSL_EVP_mdc2(void)
+    {
+        WOLFSSL_STUB("EVP_mdc2");
+        return NULL;
+    }
+#endif
+
 #ifndef NO_SHA
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha1(void)
     {
