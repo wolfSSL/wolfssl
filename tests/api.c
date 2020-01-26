@@ -24196,7 +24196,6 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
     BIO*      bio = NULL;
     EVP_PKEY* pkey  = NULL;
 #ifndef NO_RSA
-    RSA*  rsa  = NULL;
 #endif
     WOLFSSL_CTX* ctx;
 
@@ -24273,34 +24272,38 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
     AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
 #endif
 
-#ifndef NO_RSA
-    /* Tests bad parameters */
-    AssertNull(d2i_RSAPrivateKey_bio(NULL, NULL));
+#if !defined(HAVE_FAST_RSA) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+    {
+        RSA* rsa = NULL;
+        /* Tests bad parameters */
+        AssertNull(d2i_RSAPrivateKey_bio(NULL, NULL));
 
-    /* RSA not set yet, expecting to fail*/
-    AssertIntEQ(SSL_CTX_use_RSAPrivateKey(ctx, rsa), BAD_FUNC_ARG);
+        /* RSA not set yet, expecting to fail*/
+        AssertIntEQ(SSL_CTX_use_RSAPrivateKey(ctx, rsa), BAD_FUNC_ARG);
 
 #if defined(USE_CERT_BUFFERS_2048) && defined(WOLFSSL_KEY_GEN)
-    /* set RSA using bio*/
-    AssertIntGT(BIO_write(bio, client_key_der_2048,
-                sizeof_client_key_der_2048), 0);
-    AssertNotNull(rsa = d2i_RSAPrivateKey_bio(bio, NULL));
+        /* set RSA using bio*/
+        AssertIntGT(BIO_write(bio, client_key_der_2048,
+                    sizeof_client_key_der_2048), 0);
+        AssertNotNull(rsa = d2i_RSAPrivateKey_bio(bio, NULL));
 
-    AssertIntEQ(SSL_CTX_use_RSAPrivateKey(ctx, rsa), WOLFSSL_SUCCESS);
+        AssertIntEQ(SSL_CTX_use_RSAPrivateKey(ctx, rsa), WOLFSSL_SUCCESS);
 
-    /*i2d RSAprivate key tests */
-    AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(NULL, NULL), BAD_FUNC_ARG);
-    AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, NULL), 1192);
-    AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, &bufPtr),
-                                           sizeof_client_key_der_2048);
-    bufPtr = NULL;
-    AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, &bufPtr),
-                                           sizeof_client_key_der_2048);
-    AssertNotNull(bufPtr);
-    XFREE(bufPtr, NULL, DYNAMIC_TYPE_OPENSSL);
+        /*i2d RSAprivate key tests */
+        AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(NULL, NULL), BAD_FUNC_ARG);
+        AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, NULL), 1192);
+        AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, &bufPtr),
+                                               sizeof_client_key_der_2048);
+        bufPtr = NULL;
+        AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, &bufPtr),
+                                               sizeof_client_key_der_2048);
+        AssertNotNull(bufPtr);
+        XFREE(bufPtr, NULL, DYNAMIC_TYPE_OPENSSL);
 #endif /* USE_CERT_BUFFERS_2048 WOLFSSL_KEY_GEN */
-    RSA_free(rsa);
-#endif /* NO_RSA */
+        RSA_free(rsa);
+    }
+#endif /* !HAVE_FAST_RSA && WOLFSSL_KEY_GEN && !NO_RSA && !HAVE_USER_RSA*/
     SSL_CTX_free(ctx);
     ctx = NULL;
     BIO_free(bio);

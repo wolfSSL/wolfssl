@@ -42297,7 +42297,8 @@ int wolfSSL_BIO_new_bio_pair(WOLFSSL_BIO **bio1_p, size_t writebuf1,
 }
 
 
-#if !defined(NO_RSA)
+#if !defined(HAVE_FAST_RSA) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(NO_RSA) && !defined(HAVE_USER_RSA)
 /* Converts an rsa key from a bio buffer into an internal rsa structure.
 Returns a pointer to the new WOLFSSL_RSA structure. */
 WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
@@ -42402,7 +42403,8 @@ int wolfSSL_CTX_use_certificate_ASN1(WOLFSSL_CTX *ctx, int derSz,
 }
 
 
-#if !defined(NO_RSA) && !defined(HAVE_FAST_RSA)
+#if !defined(HAVE_FAST_RSA) && defined(WOLFSSL_KEY_GEN) && \
+    !defined(NO_RSA) && !defined(HAVE_USER_RSA)
 /* Adds the rsa private key to the user ctx.
 Returns WOLFSSL_SUCCESS if no error, returns WOLFSSL_FAILURE otherwise.*/
 int wolfSSL_CTX_use_RSAPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL_RSA* rsa)
