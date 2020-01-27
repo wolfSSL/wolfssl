@@ -2430,6 +2430,13 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 
+/* SHA2-512/384 requires 64-bit (word64) */
+#if (defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)) && defined(NO_64BIT)
+    #undef WOLFSSL_SHA512
+    #undef WOLFSSL_SHA384
+#endif
+
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif
