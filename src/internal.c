@@ -7002,6 +7002,15 @@ ProtocolVersion MakeDTLSv1_2(void)
         return (unsigned int)(((float)xTaskGetTickCount())/configTICK_RATE_HZ);
     }
 
+#elif defined(FREERTOS)
+
+    #include "task.h"
+
+    unsigned int LowResTimer(void)
+    {
+        return (unsigned int)(((float)xTaskGetTickCount())/configTICK_RATE_HZ);
+    }
+
 #elif defined(FREESCALE_KSDK_BM)
 
     #include "lwip/sys.h" /* lwIP */

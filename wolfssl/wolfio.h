@@ -148,6 +148,11 @@
             #endif
         #endif
     #endif
+
+    #if defined(WOLFSSL_RENESAS_RA6M3G) /* Uses FREERTOS_TCP */
+        #include <errno.h>
+    #endif
+
 #endif /* USE_WINDOWS_API */
 
 #ifdef __sun
