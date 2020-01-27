@@ -18788,6 +18788,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 WOLFSSL_MSG("Mode Not Implemented");
         }
 
+        /* SSL_MODE_AUTO_RETRY
+         * Should not return -1 with renegotiation on read/write */
+
         return mode;
     }
 #endif

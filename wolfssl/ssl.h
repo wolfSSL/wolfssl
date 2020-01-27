@@ -1698,6 +1698,8 @@ enum {
     SSL_CB_MODE_WRITE = 2,
 
     SSL_MODE_ENABLE_PARTIAL_WRITE = 2,
+    SSL_MODE_AUTO_RETRY = 3, /* wolfSSL default is to block with blocking io
+                              * and auto retry */
     SSL_MODE_RELEASE_BUFFERS = -1, /* For libwebsockets build. No current use. */
 
     BIO_FLAGS_BASE64_NO_NL = 1,
