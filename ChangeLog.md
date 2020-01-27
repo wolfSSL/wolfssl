@@ -1,8 +1,8 @@
-# wolfSSL Release 4.4.0 (To Be Determined / Work in Progress)
+# wolfSSL Release X.X.X (To Be Determined / Work in Progress)
 
 If you have questions about this release, then feel free to contact us on our info@ address.
 
-Release 4.4.0 of wolfSSL embedded TLS has bug fixes and new features including:
+Release X.X.X of wolfSSL embedded TLS has bug fixes and new features including:
 
 ##### New Feature Additions
 
