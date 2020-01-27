@@ -13465,7 +13465,7 @@ WOLFSSL_X509* wolfSSL_SESSION_get0_peer(WOLFSSL_SESSION* session)
             WOLFSSL_MSG("bad count found");
             return NULL;
         }
-        return wolfSSL_get_chain_X509(&session->chain, count - 1);
+        return wolfSSL_get_chain_X509(&session->chain, 0);
     }
     WOLFSSL_MSG("No session passed in");
     return NULL;

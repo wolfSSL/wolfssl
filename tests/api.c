@@ -24305,6 +24305,20 @@ static void test_wolfSSL_SESSION(void)
     fdOpenSession(Task_self());
 #endif
 
+#if defined(SESSION_CERTS)
+    {
+        X509 *x509;
+        char buf[30];
+        int  bufSz;
+
+        AssertNotNull(x509 = SSL_SESSION_get0_peer(sess));
+        AssertIntEQ((bufSz = X509_NAME_get_text_by_NID(
+                    X509_get_subject_name(x509), NID_organizationalUnitName,
+                    buf, sizeof(buf))), 7);
+        AssertIntEQ(XMEMCMP(buf, "Support", bufSz), 0);
+    }
+#endif
+
     AssertNotNull(sess_copy = wolfSSL_SESSION_dup(sess));
     wolfSSL_SESSION_free(sess_copy);
 
