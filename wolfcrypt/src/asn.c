@@ -15028,7 +15028,7 @@ static int EccKeyParamCopy(char** dst, char* src)
 int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                           ecc_key* key, word32 inSz)
 {
-    int    length;
+    int    tot_len, length;
     int    ret;
     int    curve_id = ECC_CURVE_DEF;
     word32 oidSum, localIdx;
@@ -15037,7 +15037,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
         return BAD_FUNC_ARG;
 
-    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+    if (GetSequence(input, inOutIdx, &tot_len, inSz) < 0)
         return ASN_PARSE_E;
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
@@ -15211,7 +15211,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         return ret;
 
     /* This is the raw point data compressed or uncompressed. */
-    if (wc_ecc_import_x963_ex(input + *inOutIdx, inSz - *inOutIdx, key,
+    if (wc_ecc_import_x963_ex(input + *inOutIdx, tot_len - *inOutIdx, key,
                                                             curve_id) != 0) {
         return ASN_ECC_KEY_E;
     }
