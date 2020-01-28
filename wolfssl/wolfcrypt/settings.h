@@ -682,14 +682,15 @@ extern void uITRON4_free(void *p) ;
 #ifdef FREERTOS
     #include "FreeRTOS.h"
 
-    /* FreeRTOS pvPortRealloc() only in AVR32_UC3 port */
     #if !defined(XMALLOC_USER) && !defined(NO_WOLFSSL_MEMORY) && \
         !defined(WOLFSSL_STATIC_MEMORY)
         #define XMALLOC(s, h, type)  pvPortMalloc((s))
         #define XFREE(p, h, type)    vPortFree((p))
     #endif
-    #if defined(HAVE_ED25519) || defined(WOLFSSL_ESPIDF)
-        #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n))
+    /* FreeRTOS pvPortRealloc() implementation can be found here:
+        https://github.com/wolfSSL/wolfssl-freertos/pull/3/files */
+    #if !defined(USE_FAST_MATH) || defined(HAVE_ED25519) || defined(WOLFSSL_ESPIDF)
+        #define XREALLOC(p, n, h, t) pvPortRealloc((p), (n))
     #endif
     #ifndef NO_WRITEV
         #define NO_WRITEV
@@ -865,6 +866,8 @@ extern void uITRON4_free(void *p) ;
         #define XMALLOC(s, h, type)  pvPortMalloc((s))
         #define XFREE(p, h, type)    vPortFree((p))
     #endif
+    /* FreeRTOS pvPortRealloc() implementation can be found here:
+        https://github.com/wolfSSL/wolfssl-freertos/pull/3/files */
     #if !defined(USE_FAST_MATH) || defined(HAVE_ED25519)
         #define XREALLOC(p, n, h, t) pvPortRealloc((p), (n))
     #endif

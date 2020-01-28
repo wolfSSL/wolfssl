@@ -2086,7 +2086,6 @@ int wolfSSL_EVP_read_pw_string(char* buf, int bufSz, const char* banner, int v)
     return 0;
 }
 #endif /* WOLFSSL_APACHE_HTTPD */
-#endif /* WOLFSSL_EVP_INCLUDED */
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_PWDBASED) && !defined(NO_SHA)
 int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char *pass, int passlen,
@@ -2139,3 +2138,5 @@ WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
         return WOLFSSL_FAILURE;
 }
 #endif /* OPENSSL_EXTRA && !NO_PWDBASED */
+
+#endif /* WOLFSSL_EVP_INCLUDED */
