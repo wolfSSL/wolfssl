@@ -6039,14 +6039,6 @@ EVP_TEST_END:
         }
     #endif
 
-#ifdef OPENSSL_EXTRA
-    ret = EVP_test(EVP_aes_128_xts(), key2, iv2, plain2, sizeof(plain2),
-            cipher2, sizeof(cipher2));
-    if (ret != 0) {
-        return ret;
-    }
-#endif
-
         ret = wc_AesSetKey(&enc, key2, sizeof(key2), iv2, AES_ENCRYPTION);
         if (ret != 0)
             return -5000;
@@ -6122,14 +6114,6 @@ EVP_TEST_END:
             return ret;
         }
     #endif
-
-#ifdef OPENSSL_EXTRA
-    ret = EVP_test(EVP_aes_256_xts(), key1, iv1, plain1, sizeof(plain1),
-            cipher1, sizeof(cipher1));
-    if (ret != 0) {
-        return ret;
-    }
-#endif
 
         ret = wc_AesSetKey(&enc, key1, sizeof(key1), iv1, AES_ENCRYPTION);
         if (ret != 0)
