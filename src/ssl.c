@@ -16632,6 +16632,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                     }
                 }
                 break;
+#if !defined(_WIN32) && !defined(HAVE_FIPS)
             case EVP_CTRL_GCM_IV_GEN:
                 if (ctx->cipher.aes.keylen == 0 || ctx->ivSz == 0) {
                     ret = WOLFSSL_FAILURE;
@@ -16645,6 +16646,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 /* OpenSSL increments the IV. Not sure why */
                 IncCtr(ctx->iv, ctx->ivSz);
                 break;
+#endif
             case EVP_CTRL_AEAD_SET_TAG:
                 if(arg <= 0 || arg > 16 || (ptr == NULL))
                     return WOLFSSL_FAILURE;
