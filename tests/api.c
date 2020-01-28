@@ -12285,11 +12285,12 @@ static int test_wc_RsaKeyToDer (void)
         }
     }
     #ifndef HAVE_USER_RSA
-        /* Pass bad args. */
+        /* Pass good/bad args. */
         if (ret == 0) {
             ret = wc_RsaKeyToDer(NULL, der, FOURK_BUF);
             if (ret == BAD_FUNC_ARG) {
-                ret = wc_RsaKeyToDer(&genKey, NULL, FOURK_BUF);
+                /* Get just the output length */
+                ret = wc_RsaKeyToDer(&genKey, NULL, 0);
             }
             if (ret > 0) {
                 /* Try Public Key. */
@@ -12303,13 +12304,14 @@ static int test_wc_RsaKeyToDer (void)
             }
         }
     #else
-        /* Pass bad args. */
+        /* Pass good/bad args. */
         if (ret == 0) {
             ret = wc_RsaKeyToDer(NULL, der, FOURK_BUF);
             if (ret == USER_CRYPTO_ERROR) {
-                ret = wc_RsaKeyToDer(&genKey, NULL, FOURK_BUF);
+                /* Get just the output length */
+                ret = wc_RsaKeyToDer(&genKey, NULL, 0);
             }
-            if (ret == USER_CRYPTO_ERROR) {
+            if (ret > 0) {
                 /* Try Public Key. */
                 genKey.type = 0;
                 ret = wc_RsaKeyToDer(&genKey, der, FOURK_BUF);
