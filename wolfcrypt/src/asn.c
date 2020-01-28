@@ -4617,13 +4617,49 @@ int DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
 
     temp = (int)*inOutIdx;
 
-    if (GetInt(&key->p, input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->q, input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->g, input, inOutIdx, inSz) < 0 ||
-        GetOctetString(input, inOutIdx, &length, inSz) < 0 ||
-        GetInt(&key->y, input, inOutIdx, inSz) < 0) {
-            ret = ASN_PARSE_E;
+    /* Default case expects a certificate with OctetString but no version ID */
+    ret = GetInt(&key->p, input, inOutIdx, inSz);
+    if (ret < 0) {
+        mp_clear(&key->p);
+        ret = ASN_PARSE_E;
     }
+    else {
+        ret = GetInt(&key->q, input, inOutIdx, inSz);
+        if (ret < 0) {
+            mp_clear(&key->p);
+            mp_clear(&key->q);
+            ret = ASN_PARSE_E;
+        }
+        else {
+            ret = GetInt(&key->g, input, inOutIdx, inSz);
+            if (ret < 0) {
+                mp_clear(&key->p);
+                mp_clear(&key->q);
+                mp_clear(&key->g);
+                ret = ASN_PARSE_E;
+            }
+            else {
+                ret = GetOctetString(input, inOutIdx, &length, inSz);
+                if (ret < 0) {
+                    mp_clear(&key->p);
+                    mp_clear(&key->q);
+                    mp_clear(&key->g);
+                    ret = ASN_PARSE_E;
+                }
+                else {
+                    ret = GetInt(&key->y, input, inOutIdx, inSz);
+                    if (ret < 0) {
+                        mp_clear(&key->p);
+                        mp_clear(&key->q);
+                        mp_clear(&key->g);
+                        mp_clear(&key->y);
+                        ret = ASN_PARSE_E;
+                    }
+                }
+            }
+        }
+    }
+    /* An alternate pass if default certificate fails parsing */
     if (ret == ASN_PARSE_E) {
         *inOutIdx = temp;
         if (GetMyVersion(input, inOutIdx, &version, inSz) < 0)
