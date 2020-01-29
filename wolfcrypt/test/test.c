@@ -9283,6 +9283,11 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         #ifdef WOLFSSL_CERT_EXT
             static const char* clientKeyPub  = CERT_ROOT "client-keyPub.der";
         #endif
+    #endif
+#endif
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
+    !defined(NO_ASN)
+    #ifndef NO_RSA
         #if defined(WOLFSSL_CERT_GEN) || defined(HAVE_PKCS7)
             static const char* rsaCaKeyFile  = CERT_ROOT "ca-key.der";
             #ifdef WOLFSSL_CERT_GEN
@@ -12489,7 +12494,7 @@ int rsa_test(void)
 #elif defined(USE_CERT_BUFFERS_2048)
     XMEMCPY(tmp, client_keypub_der_2048, sizeof_client_keypub_der_2048);
     bytes = sizeof_client_keypub_der_2048;
-#elif defined(USE_CERT_BUFFERS_2048)
+#elif defined(USE_CERT_BUFFERS_3072)
     XMEMCPY(tmp, client_keypub_der_3072, sizeof_client_keypub_der_3072);
     bytes = sizeof_client_keypub_der_3072;
 #else
