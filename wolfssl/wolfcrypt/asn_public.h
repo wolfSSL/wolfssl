@@ -329,6 +329,18 @@ typedef struct Cert {
     void*   heap;           /* heap hint */
 } Cert;
 
+/* AltName Types defined in RFC-5280 */
+ typedef enum {
+	WC_ALTNAME_OTHERNAME     = 0,	/* OtherName     */
+	WC_ALTNAME_RFC822NAME    = 1,	/* IA5String     */
+	WC_ALTNAME_DNSNAME       = 2,	/* IA5String     */
+	WC_ALTNAME_X400ADDRESS   = 3,	/* ORAddress     */
+	WC_ALTNAME_DIRECTORYNAME = 4,	/* Name          */
+	WC_ALTNAME_EDIPARTYNAME  = 5,	/* EDIPartyName  */
+	WC_ALTNAME_URI           = 6,	/* IA5String     */
+	WC_ALTNAME_IPADDRESS     = 7,	/* Octet String  */
+	WC_ALTNAME_REGISTEREDID  = 8	/* OID           */
+} cert_altname_type;
 
 /* Initialize and Set Certificate defaults:
    version    = 3 (0x2)
@@ -363,6 +375,9 @@ WOLFSSL_API int wc_SetIssuer(Cert*, const char*);
 WOLFSSL_API int wc_SetSubject(Cert*, const char*);
 #ifdef WOLFSSL_ALT_NAMES
     WOLFSSL_API int wc_SetAltNames(Cert*, const char*);
+    WOLFSSL_API int wc_CertAddAltNameStr(Cert *cert, byte *name, 
+                                         cert_altname_type type);
+    WOLFSSL_API int wc_CertEncodeAltName(Cert *cert);
 #endif
 
 #ifdef WOLFSSL_CERT_GEN_CACHE
