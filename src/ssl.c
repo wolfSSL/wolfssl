@@ -24999,6 +24999,10 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_dup(const WOLFSSL_ASN1_INTEGER* src)
         return NULL;
 
     dup = wolfSSL_ASN1_INTEGER_new();
+
+    if (dup == NULL)
+        return NULL;
+
     dup->negative  = src->negative;
     dup->dataMax   = src->dataMax;
     dup->isDynamic = src->isDynamic;
