@@ -29172,6 +29172,10 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_BN_to_ASN1_INTEGER(const WOLFSSL_BIGNUM *bn, WOLFS
 
     if (ai == NULL) {
         a = wolfSSL_ASN1_INTEGER_new();
+
+        if (a == NULL)
+            return NULL;
+
         a->type = V_ASN1_INTEGER;
     }
     else {
