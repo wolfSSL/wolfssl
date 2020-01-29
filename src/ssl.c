@@ -27714,8 +27714,10 @@ int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
     va_start(args, format);
     switch (bio->type) {
         case WOLFSSL_BIO_FILE:
-            if (bio->ptr == NULL)
+            if (bio->ptr == NULL) {
+                va_end(args);
                 return -1;
+            }
             ret = vfprintf((XFILE)bio->ptr, format, args);
             break;
 
