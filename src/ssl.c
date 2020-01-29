@@ -42539,11 +42539,6 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
         return WOLFSSL_SUCCESS;
 #endif /* WOLFSSL_APACHE_HTTPD || OPENSSL_ALL || WOLFSSL_NGINX */
     }
-    else if (flags == XN_FLAG_RFC2253) {
-        if (wolfSSL_BIO_write(bio, name->name + 1, name->sz - 2)
-                                                                != name->sz - 2)
-            return WOLFSSL_FAILURE;
-    }
     else if (wolfSSL_BIO_write(bio, name->name, name->sz - 1) != name->sz - 1)
         return WOLFSSL_FAILURE;
 
