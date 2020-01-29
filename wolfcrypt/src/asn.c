@@ -11250,26 +11250,32 @@ static int wc_SetCert_LoadDer(Cert* cert, const byte* der, word32 derSz)
     return ret;
 }
 
-#define ALTNAMESOFFSET (MAX_OCTET_STR_SZ + 2*MAX_SEQ_SZ+5)
+/* AltName structure contains: 
+   Sequence of OID + Octet string containing sequence of names.
+   WC_ALTNAMESOFFSET is the max header size: 2 sequences, one
+   octet string, and the OID */
+#define WC_ALTNAMESOFFSET (MAX_SEQ_SZ + WC_SUBJECTALTNAME_OID_SIZE \
+	                       + MAX_OCTET_STR_SZ + MAX_SEQ_SZ)
 
-int wc_CertAddAltName_ex(Cert *cert, byte *name, int nameSz, cert_altname_type type) {
-	// Append encoded value from name into cert->altNames
+int wc_CertAddAltName_ex(Cert *cert, byte *name, int nameSz, 
+						 cert_altname_type type) {
+	/* Append encoded value from name into cert->altNames */
 	byte *buf;
 	int i;
 	
 	if (cert->altNamesSz == 0) {
-		// Reserve space for header structure
-		cert->altNamesSz = ALTNAMESOFFSET;
+		/* Reserve space for header structure */
+		cert->altNamesSz = WC_ALTNAMESOFFSET;
 	}
-	if (cert->altNamesSz + nameSz + 3 > WC_CTC_MAX_ALT_SIZE)
-		return BUFFER_E;		// Input too large for buffer
-	if (type < ALTNAME_OtherName || type > ALTNAME_registeredID) 
+	if (cert->altNamesSz + nameSz + MAX_OCTET_STR_SZ > WC_CTC_MAX_ALT_SIZE)
+		return BUFFER_E;		/* Input too large for buffer */
+	if (type < WC_ALTNAME_OTHERNAME || type > WC_ALTNAME_REGISTEREDID) 
 		return BAD_FUNC_ARG;
 	
 	buf = cert->altNames;  
-	i = cert->altNamesSz;		// Append new name at end of buffer
+	i = cert->altNamesSz;		/* Append new name at end of buffer */
 
-	i += SetImplicit(0, type, nameSz, buf+i);
+	i += SetImplicit(ASN_OCTET_STRING, type, nameSz, buf+i);
 	XMEMCPY(buf+i,name,nameSz);
 	cert->altNamesSz = i+nameSz;
 	return 0;
@@ -11278,35 +11284,42 @@ int wc_CertAddAltName_ex(Cert *cert, byte *name, int nameSz, cert_altname_type t
 int wc_CertAddAltNameStr(Cert *cert, byte *name, cert_altname_type type) {
 	int nameSz;
 	nameSz = XSTRLEN(name);
-	if (type == ALTNAME_rfc822Name || type == ALTNAME_dNSName || type==ALTNAME_URI) {
+	if (type == WC_ALTNAME_RFC822NAME || type == WC_ALTNAME_DNSNAME || 
+		type==WC_ALTNAME_URI) {
 		return wc_CertAddAltName_ex(cert, name, nameSz, type);
 	} else {
 		return BAD_FUNC_ARG;
 	}
 }
 int wc_CertEncodeAltName(Cert *cert) {
-	// Encode cert->altNames field by pre-pending appropriate OID and header fields
+	/* Encode cert->altNames field by pre-pending appropriate OID 
+	   and header fields */
 	byte hdrBuf[MAX_SEQ_SZ+MAX_OCTET_STR_SZ];
 	int i = 0;
 	int octSize, seqSize, namesSize;
-	byte subjectAltName[] = {0x06, 0x03, 0x55, 0x1D, 0x11};
+	byte subjectAltName[] = WC_SUBJECTALTNAME_OID;
 
-	// hdrBuf will contain:  
-	// Octet header + size  (MAX_OCTET_STR_SZ bytes)
-	// Sequence header + size (MAX_SEQ_SZ bytes)
-	namesSize = cert->altNamesSz - ALTNAMESOFFSET;
+	/* hdrBuf will contain:  
+	   Octet header + size  (MAX_OCTET_STR_SZ bytes)
+	   Sequence header + size (MAX_SEQ_SZ bytes) */
+	namesSize = cert->altNamesSz - WC_ALTNAMESOFFSET;
 	seqSize = SetSequence(namesSize, hdrBuf+MAX_OCTET_STR_SZ);
 	octSize = SetOctetString(namesSize+seqSize, hdrBuf);
 	
-	// Now we construct the final output into the buffer
-	i = SetSequence(5+octSize+seqSize+namesSize, cert->altNames);		// Initial sequence 0x30, sz
-	XMEMCPY(cert->altNames+i, subjectAltName, 5);			// subjectAltName 0x06, 0x03, 0x55, 0x1D, 0x11
-	i+=5;
-	XMEMCPY(cert->altNames+i, hdrBuf, octSize);				// Octet String 0x04, sz
+	/* Now we construct the final output into the buffer */
+	/* Initial sequence 0x30, sz */
+	i = SetSequence(WC_SUBJECTALTNAME_OID_SIZE+octSize+seqSize+namesSize, 
+					cert->altNames);		
+	/* subjectAltName 0x06, 0x03, 0x55, 0x1D, 0x11 */
+	XMEMCPY(cert->altNames+i, subjectAltName, WC_SUBJECTALTNAME_OID_SIZE);			
+	i+=WC_SUBJECTALTNAME_OID_SIZE;
+	/* Octet String 0x04, sz */
+	XMEMCPY(cert->altNames+i, hdrBuf, octSize);				
 	i+=octSize;
-	XMEMCPY(cert->altNames+i, hdrBuf+MAX_OCTET_STR_SZ, seqSize);	// Sequence of names
+	/* Sequence of names */
+	XMEMCPY(cert->altNames+i, hdrBuf+MAX_OCTET_STR_SZ, seqSize);	
 	i+=seqSize;
-	XMEMMOVE(cert->altNames+i, cert->altNames + ALTNAMESOFFSET, namesSize);
+	XMEMMOVE(cert->altNames+i, cert->altNames + WC_ALTNAMESOFFSET, namesSize);
 	cert->altNamesSz = i+namesSize;
 	return 0;
 }
