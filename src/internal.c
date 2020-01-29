@@ -18587,7 +18587,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
         TimeoutInfo* info = &ssl->timeoutInfo;
 
         if (info->numberPackets < (MAX_PACKETS_HANDSHAKE - 1)) {
-            Timeval currTime;
+            WOLFSSL_TIMEVAL currTime;
 
             /* may add name after */
             if (name) {

@@ -53,19 +53,19 @@ typedef struct handShakeInfo_st {
 
 
 #if defined(HAVE_SYS_TIME_H) && !defined(NO_TIMEVAL)
-    typedef struct timeval Timeval;
+    typedef struct timeval WOLFSSL_TIMEVAL;
 #else /* HAVE_SYS_TIME_H */
-    /* Define the Timeval explicitly. */
+    /* Define the timeval explicitly. */
     typedef struct {
         long tv_sec;  /* Seconds. */
         long tv_usec; /* Microseconds. */
-    } Timeval;
+    } WOLFSSL_TIMEVAL;
 #endif /* HAVE_SYS_TIME_H */
 
 
 typedef struct packetInfo_st {
     char           packetName[MAX_PACKETNAME_SZ + 1]; /* SSL packet name */
-    Timeval        timestamp;                       /* when it occurred    */
+    WOLFSSL_TIMEVAL timestamp;                       /* when it occurred    */
     unsigned char  value[MAX_VALUE_SZ];             /* if fits, it's here */
     unsigned char* bufferValue;                     /* otherwise here (non 0) */
     int            valueSz;                         /* sz of value or buffer */
@@ -77,7 +77,7 @@ typedef struct timeoutInfo_st {
     int        flags;                              /* for future use */
     int        numberPackets;                      /* actual # of packets */
     PacketInfo packets[MAX_PACKETS_HANDSHAKE];     /* list of all packets  */
-    Timeval    timeoutValue;                       /* timer that caused it */
+    WOLFSSL_TIMEVAL timeoutValue;                  /* timer that caused it */
 } TimeoutInfo;
 
 

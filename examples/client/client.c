@@ -72,7 +72,7 @@
 
 static int lng_index = 0;
 #ifdef WOLFSSL_CALLBACKS
-    Timeval timeout;
+    WOLFSSL_TIMEVAL timeout;
     static int handShakeCB(HandShakeInfo* info)
     {
         (void)info;

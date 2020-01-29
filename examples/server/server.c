@@ -81,7 +81,7 @@ int catastrophic = 0; /* Use with -x flag to still exit when an error is
 static int lng_index = 0;
 
 #ifdef WOLFSSL_CALLBACKS
-    Timeval srvTo;
+    WOLFSSL_TIMEVAL srvTo;
     static int srvHandShakeCB(HandShakeInfo* info)
     {
         (void)info;
@@ -1049,6 +1049,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     (void)mcastID;
     (void)loadCertKeyIntoSSLObj;
     (void)overrideDateErrors;
+    (void)nonBlocking;
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
