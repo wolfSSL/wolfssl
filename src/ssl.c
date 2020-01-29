@@ -25011,6 +25011,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_dup(const WOLFSSL_ASN1_INTEGER* src)
         dup->data = (unsigned char*)
             XMALLOC(src->dataMax,NULL,DYNAMIC_TYPE_OPENSSL);
         if (dup->data == NULL) {
+            wolfSSL_ASN1_INTEGER_free(dup);
             return NULL;
         }
         XMEMCPY(dup->data,src->data,dup->dataMax);
