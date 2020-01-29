@@ -178,7 +178,7 @@ typedef union {
     Aes  aes;
 #ifdef WOLFSSL_AES_XTS
     XtsAes xts;
-    byte*  tweak;
+    const byte*  tweak;
     word32 tweakSz;
 #endif
 #endif
