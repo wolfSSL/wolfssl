@@ -6364,6 +6364,26 @@ EVP_TEST_END:
             return -4746;
     #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_128 */
+#ifdef WOLFSSL_AES_192
+        /* 192 key tests */
+    #ifdef OPENSSL_EXTRA
+        ret = EVP_test(EVP_aes_192_cfb8(), key2, iv2, msg2, sizeof(msg2),
+                cipher2, sizeof(cipher2));
+        if (ret != 0) {
+            return ret;
+        }
+    #endif
+#endif /* WOLFSSL_AES_192 */
+#ifdef WOLFSSL_AES_256
+        /* 192 key tests */
+    #ifdef OPENSSL_EXTRA
+        ret = EVP_test(EVP_aes_256_cfb8(), key3, iv3, msg3, sizeof(msg3),
+                cipher3, sizeof(cipher3));
+        if (ret != 0) {
+            return ret;
+        }
+    #endif
+#endif /* WOLFSSL_AES_256 */
 
         return ret;
     }
@@ -6378,12 +6398,12 @@ EVP_TEST_END:
     #endif
         int  ret = 0;
 
+#ifdef WOLFSSL_AES_128
         const byte iv[] = {
             0xf4,0x75,0xc6,0x49,0x91,0xb2,0x0e,0xae,
             0xe1,0x83,0xa2,0x26,0x29,0xe2,0x1e,0x22
         };
 
-#ifdef WOLFSSL_AES_128
         const byte key1[] =
         {
             0xc8,0xfe,0x9b,0xf7,0x7b,0x93,0x0f,0x46,
@@ -6400,6 +6420,55 @@ EVP_TEST_END:
             0xc9,0x06,0x35
         };
 #endif /* WOLFSSL_AES_128 */
+#ifdef WOLFSSL_AES_192
+        const byte iv2[] = {
+            0x0a,0x02,0x84,0x6b,0x62,0xab,0xb6,0x93,
+            0xef,0x31,0xd7,0x54,0x84,0x2e,0xed,0x29
+        };
+
+        const byte key2[] =
+        {
+            0xba,0xf0,0x8b,0x76,0x31,0x7a,0x65,0xc5,
+            0xf0,0x7a,0xe6,0xf5,0x7e,0xb0,0xe6,0x54,
+            0x88,0x65,0x93,0x24,0xd2,0x97,0x09,0xe3
+        };
+
+        const byte cipher2[] =
+        {
+            0x72,0x9c,0x0b,0x6d,0xeb,0x75,0xfa,0x6e,
+            0xb5,0xe8
+        };
+
+        const byte msg2[] =
+        {
+            0x98,0x95,0x93,0x24,0x02,0x39,0x3d,0xc3,
+            0x3a,0x60
+        };
+#endif
+#ifdef WOLFSSL_AES_256
+        const byte iv3[] = {
+            0x33,0x8c,0x55,0x2f,0xf1,0xec,0xa1,0x44,
+            0x08,0xe0,0x5d,0x8c,0xf9,0xf3,0xb3,0x1b
+        };
+
+        const byte key3[] =
+        {
+            0x06,0x48,0x74,0x09,0x2f,0x7a,0x13,0xcc,
+            0x44,0x62,0x24,0x7a,0xd4,0x23,0xd0,0xe9,
+            0x6e,0xdf,0x42,0xe8,0xb6,0x7a,0x5a,0x23,
+            0xb7,0xa0,0xa6,0x47,0x7b,0x09,0x8e,0x66
+        };
+
+        const byte cipher3[] =
+        {
+            0x1c,0xff,0x95
+        };
+
+        const byte msg3[] =
+        {
+            0xb9,0x74,0xfa
+        };
+#endif
 
     if (wc_AesInit(&enc, HEAP_HINT, devId) != 0)
         return -4739;
@@ -6410,6 +6479,13 @@ EVP_TEST_END:
 
 #ifdef WOLFSSL_AES_128
         /* 128 key tests */
+    #ifdef OPENSSL_EXTRA
+        ret = EVP_test(EVP_aes_128_cfb8(), key1, iv, msg1, sizeof(msg1),
+                cipher1, sizeof(cipher1));
+        if (ret != 0) {
+            return ret;
+        }
+    #endif
         ret = wc_AesSetKey(&enc, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
         if (ret != 0)
             return -4741;
