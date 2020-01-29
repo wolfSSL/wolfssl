@@ -26881,7 +26881,7 @@ static void test_wolfSSL_X509_cmp(void)
     int ret = 0;
 
     AssertNotNull(file1=fopen("./certs/server-cert.pem", "rb"));
-    AssertNotNull(file2=fopen("./certs/client-cert-3072.pem", "rb"));
+    AssertNotNull(file2=fopen("./certs/3072/client-cert.pem", "rb"));
 
     AssertNotNull(cert1 = wolfSSL_PEM_read_X509(file1, NULL, NULL, NULL));
     AssertNotNull(cert2 = wolfSSL_PEM_read_X509(file2, NULL, NULL, NULL));
