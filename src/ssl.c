@@ -24436,6 +24436,7 @@ err_exit:
 #if !defined(NO_ASN) && !defined(NO_PWDBASED)
     if ((newx509 != NULL) && (type == PKCS12_TYPE)) {
         wc_PKCS12_free((WC_PKCS12*)newx509);
+        newx509 = NULL;
     }
 #endif
 _exit:
