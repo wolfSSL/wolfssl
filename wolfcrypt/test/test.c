@@ -15788,8 +15788,8 @@ int openssl_pkey1_test(void)
     long cliKeySz;
     unsigned char cipher[RSA_TEST_BYTES];
     unsigned char plain[RSA_TEST_BYTES];
-    size_t outlen = sizeof(cipher);
-    int expKeyLen = 2048;
+    size_t outlen;
+    int keyLenBits = 2048;
 
 #if defined(USE_CERT_BUFFERS_1024)
     XMEMCPY(tmp, client_key_der_1024, sizeof_client_key_der_1024);
@@ -15797,7 +15797,7 @@ int openssl_pkey1_test(void)
 
     x509 = wolfSSL_X509_load_certificate_buffer(client_cert_der_1024,
             sizeof_client_cert_der_1024, SSL_FILETYPE_ASN1);
-    expKeyLen = 1024;
+    keyLenBits = 1024;
 #elif defined(USE_CERT_BUFFERS_2048)
     XMEMCPY(tmp, client_key_der_2048, sizeof_client_key_der_2048);
     cliKeySz = (long)sizeof_client_key_der_2048;
@@ -15810,7 +15810,7 @@ int openssl_pkey1_test(void)
 
     x509 = wolfSSL_X509_load_certificate_buffer(client_cert_der_3072,
             sizeof_client_cert_der_3072, SSL_FILETYPE_ASN1);
-    expKeyLen = 3072;
+    keyLenBits = 3072;
 #else
     XFILE f;
 
@@ -15854,12 +15854,12 @@ int openssl_pkey1_test(void)
     }
 
     /* phase 2 API to create EVP_PKEY_CTX and encrypt/decrypt */
-    if (EVP_PKEY_bits(prvKey) != expKeyLen) {
+    if (EVP_PKEY_bits(prvKey) != keyLenBits) {
         ret = -7705;
         goto openssl_pkey1_test_done;
     }
 
-    if (EVP_PKEY_size(prvKey) != expKeyLen/8) {
+    if (EVP_PKEY_size(prvKey) != keyLenBits/8) {
         ret = -7706;
         goto openssl_pkey1_test_done;
     }
@@ -15899,13 +15899,14 @@ int openssl_pkey1_test(void)
 #endif
 
     XMEMSET(cipher, 0, sizeof(cipher));
+    outlen = keyLenBits/8;
     if (EVP_PKEY_encrypt(enc, cipher, &outlen, msg, sizeof(msg)) < 0) {
         ret = -7713;
         goto openssl_pkey1_test_done;
     }
 
     XMEMSET(plain, 0, sizeof(plain));
-    if (EVP_PKEY_decrypt(dec, plain, &outlen, cipher, sizeof(cipher)) != 1) {
+    if (EVP_PKEY_decrypt(dec, plain, &outlen, cipher, outlen) != 1) {
         ret = -7714;
         goto openssl_pkey1_test_done;
     }
