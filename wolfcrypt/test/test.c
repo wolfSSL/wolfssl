@@ -5604,416 +5604,8 @@ int des3_test(void)
 
 
 #ifndef NO_AES
-#ifdef WOLFSSL_AES_CFB
-    /* Test cases from NIST SP 800-38A, Recommendation for Block Cipher Modes of Operation Methods an*/
-    static int aescfb_test(void)
-    {
-        Aes enc;
-        byte cipher[AES_BLOCK_SIZE * 4];
-    #ifdef HAVE_AES_DECRYPT
-        Aes dec;
-        byte plain [AES_BLOCK_SIZE * 4];
-    #endif
-        int  ret = 0;
 
-        const byte iv[] = {
-            0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
-            0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f
-        };
-
-#ifdef WOLFSSL_AES_128
-        const byte key1[] =
-        {
-            0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,
-            0xab,0xf7,0x15,0x88,0x09,0xcf,0x4f,0x3c
-        };
-
-        const byte cipher1[] =
-        {
-            0x3b,0x3f,0xd9,0x2e,0xb7,0x2d,0xad,0x20,
-            0x33,0x34,0x49,0xf8,0xe8,0x3c,0xfb,0x4a,
-            0xc8,0xa6,0x45,0x37,0xa0,0xb3,0xa9,0x3f,
-            0xcd,0xe3,0xcd,0xad,0x9f,0x1c,0xe5,0x8b,
-            0x26,0x75,0x1f,0x67,0xa3,0xcb,0xb1,0x40,
-            0xb1,0x80,0x8c,0xf1,0x87,0xa4,0xf4,0xdf
-        };
-
-        const byte msg1[] =
-        {
-            0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
-            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a,
-            0xae,0x2d,0x8a,0x57,0x1e,0x03,0xac,0x9c,
-            0x9e,0xb7,0x6f,0xac,0x45,0xaf,0x8e,0x51,
-            0x30,0xc8,0x1c,0x46,0xa3,0x5c,0xe4,0x11,
-            0xe5,0xfb,0xc1,0x19,0x1a,0x0a,0x52,0xef
-        };
-#endif /* WOLFSSL_AES_128 */
-
-#ifdef WOLFSSL_AES_192
-        /* 192 size key test */
-        const byte key2[] =
-        {
-            0x8e,0x73,0xb0,0xf7,0xda,0x0e,0x64,0x52,
-            0xc8,0x10,0xf3,0x2b,0x80,0x90,0x79,0xe5,
-            0x62,0xf8,0xea,0xd2,0x52,0x2c,0x6b,0x7b
-        };
-
-        const byte cipher2[] =
-        {
-            0xcd,0xc8,0x0d,0x6f,0xdd,0xf1,0x8c,0xab,
-            0x34,0xc2,0x59,0x09,0xc9,0x9a,0x41,0x74,
-            0x67,0xce,0x7f,0x7f,0x81,0x17,0x36,0x21,
-            0x96,0x1a,0x2b,0x70,0x17,0x1d,0x3d,0x7a,
-            0x2e,0x1e,0x8a,0x1d,0xd5,0x9b,0x88,0xb1,
-            0xc8,0xe6,0x0f,0xed,0x1e,0xfa,0xc4,0xc9,
-            0xc0,0x5f,0x9f,0x9c,0xa9,0x83,0x4f,0xa0,
-            0x42,0xae,0x8f,0xba,0x58,0x4b,0x09,0xff
-        };
-
-        const byte msg2[] =
-        {
-            0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
-            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a,
-            0xae,0x2d,0x8a,0x57,0x1e,0x03,0xac,0x9c,
-            0x9e,0xb7,0x6f,0xac,0x45,0xaf,0x8e,0x51,
-            0x30,0xc8,0x1c,0x46,0xa3,0x5c,0xe4,0x11,
-            0xe5,0xfb,0xc1,0x19,0x1a,0x0a,0x52,0xef,
-            0xf6,0x9f,0x24,0x45,0xdf,0x4f,0x9b,0x17,
-            0xad,0x2b,0x41,0x7b,0xe6,0x6c,0x37,0x10
-        };
-#endif /* WOLFSSL_AES_192 */
-
-#ifdef WOLFSSL_AES_256
-        /* 256 size key simple test */
-        const byte key3[] =
-        {
-            0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
-            0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
-            0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
-            0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
-        };
-
-        const byte cipher3[] =
-        {
-            0xdc,0x7e,0x84,0xbf,0xda,0x79,0x16,0x4b,
-            0x7e,0xcd,0x84,0x86,0x98,0x5d,0x38,0x60,
-            0x39,0xff,0xed,0x14,0x3b,0x28,0xb1,0xc8,
-            0x32,0x11,0x3c,0x63,0x31,0xe5,0x40,0x7b,
-            0xdf,0x10,0x13,0x24,0x15,0xe5,0x4b,0x92,
-            0xa1,0x3e,0xd0,0xa8,0x26,0x7a,0xe2,0xf9,
-            0x75,0xa3,0x85,0x74,0x1a,0xb9,0xce,0xf8,
-            0x20,0x31,0x62,0x3d,0x55,0xb1,0xe4,0x71
-        };
-
-        const byte msg3[] =
-        {
-            0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
-            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a,
-            0xae,0x2d,0x8a,0x57,0x1e,0x03,0xac,0x9c,
-            0x9e,0xb7,0x6f,0xac,0x45,0xaf,0x8e,0x51,
-            0x30,0xc8,0x1c,0x46,0xa3,0x5c,0xe4,0x11,
-            0xe5,0xfb,0xc1,0x19,0x1a,0x0a,0x52,0xef,
-            0xf6,0x9f,0x24,0x45,0xdf,0x4f,0x9b,0x17,
-            0xad,0x2b,0x41,0x7b,0xe6,0x6c,0x37,0x10
-        };
-#endif /* WOLFSSL_AES_256 */
-
-
-    if (wc_AesInit(&enc, HEAP_HINT, devId) != 0)
-        return -4750;
-#ifdef HAVE_AES_DECRYPT
-    if (wc_AesInit(&dec, HEAP_HINT, devId) != 0)
-        return -4751;
-#endif
-
-#ifdef WOLFSSL_AES_128
-        /* 128 key tests */
-        ret = wc_AesSetKey(&enc, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
-        if (ret != 0)
-            return -4710;
-    #ifdef HAVE_AES_DECRYPT
-        /* decrypt uses AES_ENCRYPTION */
-        ret = wc_AesSetKey(&dec, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
-        if (ret != 0)
-            return -4711;
-    #endif
-
-        XMEMSET(cipher, 0, sizeof(cipher));
-        ret = wc_AesCfbEncrypt(&enc, cipher, msg1, AES_BLOCK_SIZE * 2);
-        if (ret != 0)
-            return -4712;
-
-        if (XMEMCMP(cipher, cipher1, AES_BLOCK_SIZE * 2))
-            return -4713;
-
-        /* test restarting encryption process */
-        ret = wc_AesCfbEncrypt(&enc, cipher + (AES_BLOCK_SIZE * 2),
-                msg1 + (AES_BLOCK_SIZE * 2), AES_BLOCK_SIZE);
-        if (ret != 0)
-            return -4714;
-
-        if (XMEMCMP(cipher + (AES_BLOCK_SIZE * 2),
-                    cipher1 + (AES_BLOCK_SIZE * 2), AES_BLOCK_SIZE))
-            return -4715;
-
-    #ifdef HAVE_AES_DECRYPT
-        ret = wc_AesCfbDecrypt(&dec, plain, cipher, AES_BLOCK_SIZE * 3);
-        if (ret != 0)
-            return -4716;
-
-        if (XMEMCMP(plain, msg1, AES_BLOCK_SIZE * 3))
-            return -4717;
-    #endif /* HAVE_AES_DECRYPT */
-#endif /* WOLFSSL_AES_128 */
-
-#ifdef WOLFSSL_AES_192
-        /* 192 key size test */
-        ret = wc_AesSetKey(&enc, key2, sizeof(key2), iv, AES_ENCRYPTION);
-        if (ret != 0)
-            return -4718;
-    #ifdef HAVE_AES_DECRYPT
-        /* decrypt uses AES_ENCRYPTION */
-        ret = wc_AesSetKey(&dec, key2, sizeof(key2), iv, AES_ENCRYPTION);
-        if (ret != 0)
-            return -4719;
-    #endif
-
-        XMEMSET(cipher, 0, sizeof(cipher));
-        ret = wc_AesCfbEncrypt(&enc, cipher, msg2, AES_BLOCK_SIZE * 4);
-        if (ret != 0)
-            return -4720;
-
-        if (XMEMCMP(cipher, cipher2, AES_BLOCK_SIZE * 4))
-            return -4721;
-
-    #ifdef HAVE_AES_DECRYPT
-        ret = wc_AesCfbDecrypt(&dec, plain, cipher, AES_BLOCK_SIZE * 4);
-        if (ret != 0)
-            return -4722;
-
-        if (XMEMCMP(plain, msg2, AES_BLOCK_SIZE * 4))
-            return -4723;
-    #endif /* HAVE_AES_DECRYPT */
-#endif /* WOLFSSL_AES_192 */
-
-#ifdef WOLFSSL_AES_256
-        /* 256 key size test */
-        ret = wc_AesSetKey(&enc, key3, sizeof(key3), iv, AES_ENCRYPTION);
-        if (ret != 0)
-            return -4724;
-    #ifdef HAVE_AES_DECRYPT
-        /* decrypt uses AES_ENCRYPTION */
-        ret = wc_AesSetKey(&dec, key3, sizeof(key3), iv, AES_ENCRYPTION);
-        if (ret != 0)
-            return -4725;
-    #endif
-
-        /* test with data left overs, magic lengths are checking near edges */
-        XMEMSET(cipher, 0, sizeof(cipher));
-        ret = wc_AesCfbEncrypt(&enc, cipher, msg3, 4);
-        if (ret != 0)
-            return -4726;
-
-        if (XMEMCMP(cipher, cipher3, 4))
-            return -4727;
-
-        ret = wc_AesCfbEncrypt(&enc, cipher + 4, msg3 + 4, 27);
-        if (ret != 0)
-            return -4728;
-
-        if (XMEMCMP(cipher + 4, cipher3 + 4, 27))
-            return -4729;
-
-        ret = wc_AesCfbEncrypt(&enc, cipher + 31, msg3 + 31,
-                (AES_BLOCK_SIZE * 4) - 31);
-        if (ret != 0)
-            return -4730;
-
-        if (XMEMCMP(cipher, cipher3, AES_BLOCK_SIZE * 4))
-            return -4731;
-
-    #ifdef HAVE_AES_DECRYPT
-        ret = wc_AesCfbDecrypt(&dec, plain, cipher, 4);
-        if (ret != 0)
-            return -4732;
-
-        if (XMEMCMP(plain, msg3, 4))
-            return -4733;
-
-        ret = wc_AesCfbDecrypt(&dec, plain + 4, cipher + 4, 4);
-        if (ret != 0)
-            return -4734;
-
-        ret = wc_AesCfbDecrypt(&dec, plain + 8, cipher + 8, 23);
-        if (ret != 0)
-            return -4735;
-
-        if (XMEMCMP(plain + 4, msg3 + 4, 27))
-            return -4736;
-
-        ret = wc_AesCfbDecrypt(&dec, plain + 31, cipher + 31,
-                (AES_BLOCK_SIZE * 4) - 31);
-        if (ret != 0)
-            return -4737;
-
-        if (XMEMCMP(plain, msg3, AES_BLOCK_SIZE * 4))
-            return -4738;
-    #endif /* HAVE_AES_DECRYPT */
-#endif /* WOLFSSL_AES_256 */
-
-        return ret;
-    }
-
-
-    static int aescfb1_test(void)
-    {
-        Aes enc;
-        byte cipher[AES_BLOCK_SIZE];
-    #ifdef HAVE_AES_DECRYPT
-        Aes dec;
-        byte plain [AES_BLOCK_SIZE];
-    #endif
-        int  ret = 0;
-
-        const byte iv[] = {
-            0x4d,0xbb,0xdc,0xaa,0x59,0xf3,0x63,0xc9,
-            0x2a,0x3b,0x98,0x43,0xad,0x20,0xe2,0xb7
-        };
-
-#ifdef WOLFSSL_AES_128
-        const byte key1[] =
-        {
-            0xcd,0xef,0x9d,0x06,0x61,0xba,0xe4,0x73,
-            0x8d,0x1a,0x58,0xa2,0xa6,0x22,0x8b,0x66
-        };
-
-        const byte cipher1[] =
-        {
-            0x00
-        };
-
-        const byte msg1[] =
-        {
-            0xC0
-        };
-#endif /* WOLFSSL_AES_128 */
-
-    if (wc_AesInit(&enc, HEAP_HINT, devId) != 0)
-        return -4739;
-#ifdef HAVE_AES_DECRYPT
-    if (wc_AesInit(&dec, HEAP_HINT, devId) != 0)
-        return -4740;
-#endif
-
-#ifdef WOLFSSL_AES_128
-        /* 128 key tests */
-        ret = wc_AesSetKey(&enc, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
-        if (ret != 0)
-            return -4741;
-    #ifdef HAVE_AES_DECRYPT
-        /* decrypt uses AES_ENCRYPTION */
-        ret = wc_AesSetKey(&dec, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
-        if (ret != 0)
-            return -4742;
-    #endif
-
-        XMEMSET(cipher, 0, sizeof(cipher));
-        ret = wc_AesCfb1Encrypt(&enc, cipher, msg1, 2);
-        if (ret != 0)
-            return -4743;
-
-        if (cipher[0] != cipher1[0])
-            return -4744;
-
-    #ifdef HAVE_AES_DECRYPT
-        ret = wc_AesCfb1Decrypt(&dec, plain, cipher, 2);
-        if (ret != 0)
-            return -4745;
-
-        if (plain[0] != msg1[0])
-            return -4746;
-    #endif /* HAVE_AES_DECRYPT */
-#endif /* WOLFSSL_AES_128 */
-
-        return ret;
-    }
-
-    static int aescfb8_test(void)
-    {
-        Aes enc;
-        byte cipher[AES_BLOCK_SIZE];
-    #ifdef HAVE_AES_DECRYPT
-        Aes dec;
-        byte plain [AES_BLOCK_SIZE];
-    #endif
-        int  ret = 0;
-
-        const byte iv[] = {
-            0xf4,0x75,0xc6,0x49,0x91,0xb2,0x0e,0xae,
-            0xe1,0x83,0xa2,0x26,0x29,0xe2,0x1e,0x22
-        };
-
-#ifdef WOLFSSL_AES_128
-        const byte key1[] =
-        {
-            0xc8,0xfe,0x9b,0xf7,0x7b,0x93,0x0f,0x46,
-            0xd2,0x07,0x8b,0x8c,0x0e,0x65,0x7c,0xd4
-        };
-
-        const byte cipher1[] =
-        {
-            0xd2,0x76,0x91
-        };
-
-        const byte msg1[] =
-        {
-            0xc9,0x06,0x35
-        };
-#endif /* WOLFSSL_AES_128 */
-
-    if (wc_AesInit(&enc, HEAP_HINT, devId) != 0)
-        return -4739;
-#ifdef HAVE_AES_DECRYPT
-    if (wc_AesInit(&dec, HEAP_HINT, devId) != 0)
-        return -4740;
-#endif
-
-#ifdef WOLFSSL_AES_128
-        /* 128 key tests */
-        ret = wc_AesSetKey(&enc, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
-        if (ret != 0)
-            return -4741;
-    #ifdef HAVE_AES_DECRYPT
-        /* decrypt uses AES_ENCRYPTION */
-        ret = wc_AesSetKey(&dec, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
-        if (ret != 0)
-            return -4742;
-    #endif
-
-        XMEMSET(cipher, 0, sizeof(cipher));
-        ret = wc_AesCfb8Encrypt(&enc, cipher, msg1, sizeof(msg1));
-        if (ret != 0)
-            return -4743;
-
-        if (XMEMCMP(cipher, cipher1, sizeof(cipher1)) != 0)
-            return -4744;
-
-    #ifdef HAVE_AES_DECRYPT
-        ret = wc_AesCfb8Decrypt(&dec, plain, cipher, sizeof(msg1));
-        if (ret != 0)
-            return -4745;
-
-        if (XMEMCMP(plain, msg1, sizeof(msg1)) != 0)
-            return -4746;
-    #endif /* HAVE_AES_DECRYPT */
-#endif /* WOLFSSL_AES_128 */
-
-        return ret;
-    }
-#endif /* WOLFSSL_AES_CFB */
-
-
-#ifdef WOLFSSL_AES_OFB
+#if defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_CFB)
 #ifdef OPENSSL_EXTRA
 /* pass in the function, key, iv, plain text and expected and this function
  * tests that the encryption and decryption is successful */
@@ -6029,7 +5621,6 @@ static int EVP_test(const WOLFSSL_EVP_CIPHER* type, const byte* key,
     if (cipher == NULL) {
         return -8000;
     }
-
 
     /* test encrypt */
     EVP_CIPHER_CTX_init(&ctx);
@@ -6084,7 +5675,9 @@ EVP_TEST_END:
     return ret;
 }
 #endif /* OPENSSL_EXTRA */
+#endif /* WOLFSSL_AES_OFB || WOLFSSL_AES_CFB */
 
+#ifdef WOLFSSL_AES_OFB
     /* test vector from https://csrc.nist.gov/Projects/cryptographic-algorithm-validation-program/Block-Ciphers */
     int aesofb_test(void)
     {
@@ -6410,6 +6003,437 @@ EVP_TEST_END:
         return 0;
     }
 #endif /* WOLFSSL_AES_OFB */
+
+#ifdef WOLFSSL_AES_CFB
+    /* Test cases from NIST SP 800-38A, Recommendation for Block Cipher Modes of Operation Methods an*/
+    static int aescfb_test(void)
+    {
+        Aes enc;
+        byte cipher[AES_BLOCK_SIZE * 4];
+    #ifdef HAVE_AES_DECRYPT
+        Aes dec;
+        byte plain [AES_BLOCK_SIZE * 4];
+    #endif
+        int  ret = 0;
+
+        const byte iv[] = {
+            0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+            0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f
+        };
+
+#ifdef WOLFSSL_AES_128
+        const byte key1[] =
+        {
+            0x2b,0x7e,0x15,0x16,0x28,0xae,0xd2,0xa6,
+            0xab,0xf7,0x15,0x88,0x09,0xcf,0x4f,0x3c
+        };
+
+        const byte cipher1[] =
+        {
+            0x3b,0x3f,0xd9,0x2e,0xb7,0x2d,0xad,0x20,
+            0x33,0x34,0x49,0xf8,0xe8,0x3c,0xfb,0x4a,
+            0xc8,0xa6,0x45,0x37,0xa0,0xb3,0xa9,0x3f,
+            0xcd,0xe3,0xcd,0xad,0x9f,0x1c,0xe5,0x8b,
+            0x26,0x75,0x1f,0x67,0xa3,0xcb,0xb1,0x40,
+            0xb1,0x80,0x8c,0xf1,0x87,0xa4,0xf4,0xdf
+        };
+
+        const byte msg1[] =
+        {
+            0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a,
+            0xae,0x2d,0x8a,0x57,0x1e,0x03,0xac,0x9c,
+            0x9e,0xb7,0x6f,0xac,0x45,0xaf,0x8e,0x51,
+            0x30,0xc8,0x1c,0x46,0xa3,0x5c,0xe4,0x11,
+            0xe5,0xfb,0xc1,0x19,0x1a,0x0a,0x52,0xef
+        };
+#endif /* WOLFSSL_AES_128 */
+
+#ifdef WOLFSSL_AES_192
+        /* 192 size key test */
+        const byte key2[] =
+        {
+            0x8e,0x73,0xb0,0xf7,0xda,0x0e,0x64,0x52,
+            0xc8,0x10,0xf3,0x2b,0x80,0x90,0x79,0xe5,
+            0x62,0xf8,0xea,0xd2,0x52,0x2c,0x6b,0x7b
+        };
+
+        const byte cipher2[] =
+        {
+            0xcd,0xc8,0x0d,0x6f,0xdd,0xf1,0x8c,0xab,
+            0x34,0xc2,0x59,0x09,0xc9,0x9a,0x41,0x74,
+            0x67,0xce,0x7f,0x7f,0x81,0x17,0x36,0x21,
+            0x96,0x1a,0x2b,0x70,0x17,0x1d,0x3d,0x7a,
+            0x2e,0x1e,0x8a,0x1d,0xd5,0x9b,0x88,0xb1,
+            0xc8,0xe6,0x0f,0xed,0x1e,0xfa,0xc4,0xc9,
+            0xc0,0x5f,0x9f,0x9c,0xa9,0x83,0x4f,0xa0,
+            0x42,0xae,0x8f,0xba,0x58,0x4b,0x09,0xff
+        };
+
+        const byte msg2[] =
+        {
+            0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a,
+            0xae,0x2d,0x8a,0x57,0x1e,0x03,0xac,0x9c,
+            0x9e,0xb7,0x6f,0xac,0x45,0xaf,0x8e,0x51,
+            0x30,0xc8,0x1c,0x46,0xa3,0x5c,0xe4,0x11,
+            0xe5,0xfb,0xc1,0x19,0x1a,0x0a,0x52,0xef,
+            0xf6,0x9f,0x24,0x45,0xdf,0x4f,0x9b,0x17,
+            0xad,0x2b,0x41,0x7b,0xe6,0x6c,0x37,0x10
+        };
+#endif /* WOLFSSL_AES_192 */
+
+#ifdef WOLFSSL_AES_256
+        /* 256 size key simple test */
+        const byte key3[] =
+        {
+            0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+            0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+            0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+            0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
+        };
+
+        const byte cipher3[] =
+        {
+            0xdc,0x7e,0x84,0xbf,0xda,0x79,0x16,0x4b,
+            0x7e,0xcd,0x84,0x86,0x98,0x5d,0x38,0x60,
+            0x39,0xff,0xed,0x14,0x3b,0x28,0xb1,0xc8,
+            0x32,0x11,0x3c,0x63,0x31,0xe5,0x40,0x7b,
+            0xdf,0x10,0x13,0x24,0x15,0xe5,0x4b,0x92,
+            0xa1,0x3e,0xd0,0xa8,0x26,0x7a,0xe2,0xf9,
+            0x75,0xa3,0x85,0x74,0x1a,0xb9,0xce,0xf8,
+            0x20,0x31,0x62,0x3d,0x55,0xb1,0xe4,0x71
+        };
+
+        const byte msg3[] =
+        {
+            0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a,
+            0xae,0x2d,0x8a,0x57,0x1e,0x03,0xac,0x9c,
+            0x9e,0xb7,0x6f,0xac,0x45,0xaf,0x8e,0x51,
+            0x30,0xc8,0x1c,0x46,0xa3,0x5c,0xe4,0x11,
+            0xe5,0xfb,0xc1,0x19,0x1a,0x0a,0x52,0xef,
+            0xf6,0x9f,0x24,0x45,0xdf,0x4f,0x9b,0x17,
+            0xad,0x2b,0x41,0x7b,0xe6,0x6c,0x37,0x10
+        };
+#endif /* WOLFSSL_AES_256 */
+
+
+    if (wc_AesInit(&enc, HEAP_HINT, devId) != 0)
+        return -4750;
+#ifdef HAVE_AES_DECRYPT
+    if (wc_AesInit(&dec, HEAP_HINT, devId) != 0)
+        return -4751;
+#endif
+
+#ifdef WOLFSSL_AES_128
+        /* 128 key tests */
+    #ifdef OPENSSL_EXTRA
+        ret = EVP_test(EVP_aes_128_cfb128(), key1, iv, msg1, sizeof(msg1),
+                cipher1, sizeof(cipher1));
+        if (ret != 0) {
+            return ret;
+        }
+    #endif
+
+        ret = wc_AesSetKey(&enc, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4710;
+    #ifdef HAVE_AES_DECRYPT
+        /* decrypt uses AES_ENCRYPTION */
+        ret = wc_AesSetKey(&dec, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4711;
+    #endif
+
+        XMEMSET(cipher, 0, sizeof(cipher));
+        ret = wc_AesCfbEncrypt(&enc, cipher, msg1, AES_BLOCK_SIZE * 2);
+        if (ret != 0)
+            return -4712;
+
+        if (XMEMCMP(cipher, cipher1, AES_BLOCK_SIZE * 2))
+            return -4713;
+
+        /* test restarting encryption process */
+        ret = wc_AesCfbEncrypt(&enc, cipher + (AES_BLOCK_SIZE * 2),
+                msg1 + (AES_BLOCK_SIZE * 2), AES_BLOCK_SIZE);
+        if (ret != 0)
+            return -4714;
+
+        if (XMEMCMP(cipher + (AES_BLOCK_SIZE * 2),
+                    cipher1 + (AES_BLOCK_SIZE * 2), AES_BLOCK_SIZE))
+            return -4715;
+
+    #ifdef HAVE_AES_DECRYPT
+        ret = wc_AesCfbDecrypt(&dec, plain, cipher, AES_BLOCK_SIZE * 3);
+        if (ret != 0)
+            return -4716;
+
+        if (XMEMCMP(plain, msg1, AES_BLOCK_SIZE * 3))
+            return -4717;
+    #endif /* HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_AES_128 */
+
+#ifdef WOLFSSL_AES_192
+        /* 192 key size test */
+    #ifdef OPENSSL_EXTRA
+        ret = EVP_test(EVP_aes_192_cfb128(), key2, iv, msg2, sizeof(msg2),
+                cipher2, sizeof(cipher2));
+        if (ret != 0) {
+            return ret;
+        }
+    #endif
+
+        ret = wc_AesSetKey(&enc, key2, sizeof(key2), iv, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4718;
+    #ifdef HAVE_AES_DECRYPT
+        /* decrypt uses AES_ENCRYPTION */
+        ret = wc_AesSetKey(&dec, key2, sizeof(key2), iv, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4719;
+    #endif
+
+        XMEMSET(cipher, 0, sizeof(cipher));
+        ret = wc_AesCfbEncrypt(&enc, cipher, msg2, AES_BLOCK_SIZE * 4);
+        if (ret != 0)
+            return -4720;
+
+        if (XMEMCMP(cipher, cipher2, AES_BLOCK_SIZE * 4))
+            return -4721;
+
+    #ifdef HAVE_AES_DECRYPT
+        ret = wc_AesCfbDecrypt(&dec, plain, cipher, AES_BLOCK_SIZE * 4);
+        if (ret != 0)
+            return -4722;
+
+        if (XMEMCMP(plain, msg2, AES_BLOCK_SIZE * 4))
+            return -4723;
+    #endif /* HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_AES_192 */
+
+#ifdef WOLFSSL_AES_256
+        /* 256 key size test */
+    #ifdef OPENSSL_EXTRA
+        ret = EVP_test(EVP_aes_256_cfb128(), key3, iv, msg3, sizeof(msg3),
+                cipher3, sizeof(cipher3));
+        if (ret != 0) {
+            return ret;
+        }
+    #endif
+        ret = wc_AesSetKey(&enc, key3, sizeof(key3), iv, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4724;
+    #ifdef HAVE_AES_DECRYPT
+        /* decrypt uses AES_ENCRYPTION */
+        ret = wc_AesSetKey(&dec, key3, sizeof(key3), iv, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4725;
+    #endif
+
+        /* test with data left overs, magic lengths are checking near edges */
+        XMEMSET(cipher, 0, sizeof(cipher));
+        ret = wc_AesCfbEncrypt(&enc, cipher, msg3, 4);
+        if (ret != 0)
+            return -4726;
+
+        if (XMEMCMP(cipher, cipher3, 4))
+            return -4727;
+
+        ret = wc_AesCfbEncrypt(&enc, cipher + 4, msg3 + 4, 27);
+        if (ret != 0)
+            return -4728;
+
+        if (XMEMCMP(cipher + 4, cipher3 + 4, 27))
+            return -4729;
+
+        ret = wc_AesCfbEncrypt(&enc, cipher + 31, msg3 + 31,
+                (AES_BLOCK_SIZE * 4) - 31);
+        if (ret != 0)
+            return -4730;
+
+        if (XMEMCMP(cipher, cipher3, AES_BLOCK_SIZE * 4))
+            return -4731;
+
+    #ifdef HAVE_AES_DECRYPT
+        ret = wc_AesCfbDecrypt(&dec, plain, cipher, 4);
+        if (ret != 0)
+            return -4732;
+
+        if (XMEMCMP(plain, msg3, 4))
+            return -4733;
+
+        ret = wc_AesCfbDecrypt(&dec, plain + 4, cipher + 4, 4);
+        if (ret != 0)
+            return -4734;
+
+        ret = wc_AesCfbDecrypt(&dec, plain + 8, cipher + 8, 23);
+        if (ret != 0)
+            return -4735;
+
+        if (XMEMCMP(plain + 4, msg3 + 4, 27))
+            return -4736;
+
+        ret = wc_AesCfbDecrypt(&dec, plain + 31, cipher + 31,
+                (AES_BLOCK_SIZE * 4) - 31);
+        if (ret != 0)
+            return -4737;
+
+        if (XMEMCMP(plain, msg3, AES_BLOCK_SIZE * 4))
+            return -4738;
+    #endif /* HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_AES_256 */
+
+        return ret;
+    }
+
+
+    static int aescfb1_test(void)
+    {
+        Aes enc;
+        byte cipher[AES_BLOCK_SIZE];
+    #ifdef HAVE_AES_DECRYPT
+        Aes dec;
+        byte plain [AES_BLOCK_SIZE];
+    #endif
+        int  ret = 0;
+
+        const byte iv[] = {
+            0x4d,0xbb,0xdc,0xaa,0x59,0xf3,0x63,0xc9,
+            0x2a,0x3b,0x98,0x43,0xad,0x20,0xe2,0xb7
+        };
+
+#ifdef WOLFSSL_AES_128
+        const byte key1[] =
+        {
+            0xcd,0xef,0x9d,0x06,0x61,0xba,0xe4,0x73,
+            0x8d,0x1a,0x58,0xa2,0xa6,0x22,0x8b,0x66
+        };
+
+        const byte cipher1[] =
+        {
+            0x00
+        };
+
+        const byte msg1[] =
+        {
+            0xC0
+        };
+#endif /* WOLFSSL_AES_128 */
+
+    if (wc_AesInit(&enc, HEAP_HINT, devId) != 0)
+        return -4739;
+#ifdef HAVE_AES_DECRYPT
+    if (wc_AesInit(&dec, HEAP_HINT, devId) != 0)
+        return -4740;
+#endif
+
+#ifdef WOLFSSL_AES_128
+        /* 128 key tests */
+        ret = wc_AesSetKey(&enc, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4741;
+    #ifdef HAVE_AES_DECRYPT
+        /* decrypt uses AES_ENCRYPTION */
+        ret = wc_AesSetKey(&dec, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4742;
+    #endif
+
+        XMEMSET(cipher, 0, sizeof(cipher));
+        ret = wc_AesCfb1Encrypt(&enc, cipher, msg1, 2);
+        if (ret != 0)
+            return -4743;
+
+        if (cipher[0] != cipher1[0])
+            return -4744;
+
+    #ifdef HAVE_AES_DECRYPT
+        ret = wc_AesCfb1Decrypt(&dec, plain, cipher, 2);
+        if (ret != 0)
+            return -4745;
+
+        if (plain[0] != msg1[0])
+            return -4746;
+    #endif /* HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_AES_128 */
+
+        return ret;
+    }
+
+    static int aescfb8_test(void)
+    {
+        Aes enc;
+        byte cipher[AES_BLOCK_SIZE];
+    #ifdef HAVE_AES_DECRYPT
+        Aes dec;
+        byte plain [AES_BLOCK_SIZE];
+    #endif
+        int  ret = 0;
+
+        const byte iv[] = {
+            0xf4,0x75,0xc6,0x49,0x91,0xb2,0x0e,0xae,
+            0xe1,0x83,0xa2,0x26,0x29,0xe2,0x1e,0x22
+        };
+
+#ifdef WOLFSSL_AES_128
+        const byte key1[] =
+        {
+            0xc8,0xfe,0x9b,0xf7,0x7b,0x93,0x0f,0x46,
+            0xd2,0x07,0x8b,0x8c,0x0e,0x65,0x7c,0xd4
+        };
+
+        const byte cipher1[] =
+        {
+            0xd2,0x76,0x91
+        };
+
+        const byte msg1[] =
+        {
+            0xc9,0x06,0x35
+        };
+#endif /* WOLFSSL_AES_128 */
+
+    if (wc_AesInit(&enc, HEAP_HINT, devId) != 0)
+        return -4739;
+#ifdef HAVE_AES_DECRYPT
+    if (wc_AesInit(&dec, HEAP_HINT, devId) != 0)
+        return -4740;
+#endif
+
+#ifdef WOLFSSL_AES_128
+        /* 128 key tests */
+        ret = wc_AesSetKey(&enc, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4741;
+    #ifdef HAVE_AES_DECRYPT
+        /* decrypt uses AES_ENCRYPTION */
+        ret = wc_AesSetKey(&dec, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4742;
+    #endif
+
+        XMEMSET(cipher, 0, sizeof(cipher));
+        ret = wc_AesCfb8Encrypt(&enc, cipher, msg1, sizeof(msg1));
+        if (ret != 0)
+            return -4743;
+
+        if (XMEMCMP(cipher, cipher1, sizeof(cipher1)) != 0)
+            return -4744;
+
+    #ifdef HAVE_AES_DECRYPT
+        ret = wc_AesCfb8Decrypt(&dec, plain, cipher, sizeof(msg1));
+        if (ret != 0)
+            return -4745;
+
+        if (XMEMCMP(plain, msg1, sizeof(msg1)) != 0)
+            return -4746;
+    #endif /* HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_AES_128 */
+
+        return ret;
+    }
+#endif /* WOLFSSL_AES_CFB */
 
 
 static int aes_key_size_test(void)

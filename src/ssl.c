@@ -17447,6 +17447,236 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 return ret;
         }
         #endif /* WOLFSSL_AES_256 */
+    #ifdef WOLFSSL_AES_CFB
+        #ifdef WOLFSSL_AES_128
+        if (ctx->cipherType == AES_128_CFB1_TYPE ||
+            (type && XSTRNCMP(type, EVP_AES_128_CFB1, EVP_AES_SIZE) == 0)) {
+            WOLFSSL_MSG("EVP_AES_128_CFB1");
+            ctx->cipherType = AES_128_CFB1_TYPE;
+            ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
+            ctx->flags     |= WOLFSSL_EVP_CIPH_CFB_MODE;
+            ctx->keyLen     = 16;
+            ctx->block_size = 1;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key) {
+                ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                        AES_ENCRYPTION, 0);
+                if (ret != 0)
+                    return ret;
+            }
+            if (iv && key == NULL) {
+                ret = wc_AesSetIV(&ctx->cipher.aes, iv);
+                if (ret != 0)
+                    return ret;
+            }
+        }
+        #endif /* WOLFSSL_AES_128 */
+        #ifdef WOLFSSL_AES_192
+        if (ctx->cipherType == AES_192_CFB1_TYPE ||
+                 (type && XSTRNCMP(type, EVP_AES_192_CFB1, EVP_AES_SIZE) == 0)) {
+            WOLFSSL_MSG("EVP_AES_192_CFB1");
+            ctx->cipherType = AES_192_CFB1_TYPE;
+            ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
+            ctx->flags     |= WOLFSSL_EVP_CIPH_CFB_MODE;
+            ctx->keyLen     = 24;
+            ctx->block_size = 1;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key) {
+                ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                            AES_ENCRYPTION, 0);
+                if (ret != 0)
+                    return ret;
+            }
+            if (iv && key == NULL) {
+                ret = wc_AesSetIV(&ctx->cipher.aes, iv);
+                if (ret != 0)
+                    return ret;
+            }
+        }
+        #endif /* WOLFSSL_AES_192 */
+        #ifdef WOLFSSL_AES_256
+        if (ctx->cipherType == AES_256_CFB1_TYPE ||
+                 (type && XSTRNCMP(type, EVP_AES_256_CFB1, EVP_AES_SIZE) == 0)) {
+            WOLFSSL_MSG("EVP_AES_256_CFB1");
+            ctx->cipherType = AES_256_CFB1_TYPE;
+            ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
+            ctx->flags     |= WOLFSSL_EVP_CIPH_CFB_MODE;
+            ctx->keyLen     = 32;
+            ctx->block_size = 1;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key) {
+                ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                            AES_ENCRYPTION, 0);
+                if (ret != 0){
+                    WOLFSSL_MSG("AesSetKey() failed");
+                    return ret;
+                }
+            }
+            if (iv && key == NULL) {
+                ret = wc_AesSetIV(&ctx->cipher.aes, iv);
+                if (ret != 0){
+                    WOLFSSL_MSG("wc_AesSetIV() failed");
+                    return ret;
+                }
+            }
+        }
+        #endif /* WOLFSSL_AES_256 */
+        #ifdef WOLFSSL_AES_128
+        if (ctx->cipherType == AES_128_CFB8_TYPE ||
+            (type && XSTRNCMP(type, EVP_AES_128_CFB8, EVP_AES_SIZE) == 0)) {
+            WOLFSSL_MSG("EVP_AES_128_CFB8");
+            ctx->cipherType = AES_128_CFB8_TYPE;
+            ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
+            ctx->flags     |= WOLFSSL_EVP_CIPH_CFB_MODE;
+            ctx->keyLen     = 16;
+            ctx->block_size = 1;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key) {
+                ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                        AES_ENCRYPTION, 0);
+                if (ret != 0)
+                    return ret;
+            }
+            if (iv && key == NULL) {
+                ret = wc_AesSetIV(&ctx->cipher.aes, iv);
+                if (ret != 0)
+                    return ret;
+            }
+        }
+        #endif /* WOLFSSL_AES_128 */
+        #ifdef WOLFSSL_AES_192
+        if (ctx->cipherType == AES_192_CFB8_TYPE ||
+                 (type && XSTRNCMP(type, EVP_AES_192_CFB8, EVP_AES_SIZE) == 0)) {
+            WOLFSSL_MSG("EVP_AES_192_CFB8");
+            ctx->cipherType = AES_192_CFB8_TYPE;
+            ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
+            ctx->flags     |= WOLFSSL_EVP_CIPH_CFB_MODE;
+            ctx->keyLen     = 24;
+            ctx->block_size = 1;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key) {
+                ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                            AES_ENCRYPTION, 0);
+                if (ret != 0)
+                    return ret;
+            }
+            if (iv && key == NULL) {
+                ret = wc_AesSetIV(&ctx->cipher.aes, iv);
+                if (ret != 0)
+                    return ret;
+            }
+        }
+        #endif /* WOLFSSL_AES_192 */
+        #ifdef WOLFSSL_AES_256
+        if (ctx->cipherType == AES_256_CFB8_TYPE ||
+                 (type && XSTRNCMP(type, EVP_AES_256_CFB8, EVP_AES_SIZE) == 0)) {
+            WOLFSSL_MSG("EVP_AES_256_CFB8");
+            ctx->cipherType = AES_256_CFB8_TYPE;
+            ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
+            ctx->flags     |= WOLFSSL_EVP_CIPH_CFB_MODE;
+            ctx->keyLen     = 32;
+            ctx->block_size = 1;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key) {
+                ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                            AES_ENCRYPTION, 0);
+                if (ret != 0){
+                    WOLFSSL_MSG("AesSetKey() failed");
+                    return ret;
+                }
+            }
+            if (iv && key == NULL) {
+                ret = wc_AesSetIV(&ctx->cipher.aes, iv);
+                if (ret != 0){
+                    WOLFSSL_MSG("wc_AesSetIV() failed");
+                    return ret;
+                }
+            }
+        }
+        #endif /* WOLFSSL_AES_256 */
+        #ifdef WOLFSSL_AES_128
+        if (ctx->cipherType == AES_128_CFB128_TYPE ||
+            (type && XSTRNCMP(type, EVP_AES_128_CFB128, EVP_AES_SIZE) == 0)) {
+            WOLFSSL_MSG("EVP_AES_128_CFB128");
+            ctx->cipherType = AES_128_CFB128_TYPE;
+            ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
+            ctx->flags     |= WOLFSSL_EVP_CIPH_CFB_MODE;
+            ctx->keyLen     = 16;
+            ctx->block_size = 1;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key) {
+                ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                        AES_ENCRYPTION, 0);
+                if (ret != 0)
+                    return ret;
+            }
+            if (iv && key == NULL) {
+                ret = wc_AesSetIV(&ctx->cipher.aes, iv);
+                if (ret != 0)
+                    return ret;
+            }
+        }
+        #endif /* WOLFSSL_AES_128 */
+        #ifdef WOLFSSL_AES_192
+        if (ctx->cipherType == AES_192_CFB128_TYPE ||
+                 (type && XSTRNCMP(type, EVP_AES_192_CFB128, EVP_AES_SIZE) == 0)) {
+            WOLFSSL_MSG("EVP_AES_192_CFB128");
+            ctx->cipherType = AES_192_CFB128_TYPE;
+            ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
+            ctx->flags     |= WOLFSSL_EVP_CIPH_CFB_MODE;
+            ctx->keyLen     = 24;
+            ctx->block_size = 1;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key) {
+                ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                            AES_ENCRYPTION, 0);
+                if (ret != 0)
+                    return ret;
+            }
+            if (iv && key == NULL) {
+                ret = wc_AesSetIV(&ctx->cipher.aes, iv);
+                if (ret != 0)
+                    return ret;
+            }
+        }
+        #endif /* WOLFSSL_AES_192 */
+        #ifdef WOLFSSL_AES_256
+        if (ctx->cipherType == AES_256_CFB128_TYPE ||
+                 (type && XSTRNCMP(type, EVP_AES_256_CFB128, EVP_AES_SIZE) == 0)) {
+            WOLFSSL_MSG("EVP_AES_256_CFB128");
+            ctx->cipherType = AES_256_CFB128_TYPE;
+            ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
+            ctx->flags     |= WOLFSSL_EVP_CIPH_CFB_MODE;
+            ctx->keyLen     = 32;
+            ctx->block_size = 1;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key) {
+                ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                            AES_ENCRYPTION, 0);
+                if (ret != 0){
+                    WOLFSSL_MSG("AesSetKey() failed");
+                    return ret;
+                }
+            }
+            if (iv && key == NULL) {
+                ret = wc_AesSetIV(&ctx->cipher.aes, iv);
+                if (ret != 0){
+                    WOLFSSL_MSG("wc_AesSetIV() failed");
+                    return ret;
+                }
+            }
+        }
+        #endif /* WOLFSSL_AES_256 */
+    #endif /* HAVE_AES_CFB */
     #ifdef WOLFSSL_AES_OFB
         #ifdef WOLFSSL_AES_128
         if (ctx->cipherType == AES_128_OFB_TYPE ||
@@ -17820,13 +18050,25 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             case AES_128_CFB1_TYPE:
             case AES_192_CFB1_TYPE:
             case AES_256_CFB1_TYPE:
+                WOLFSSL_MSG("AES CFB1");
+                if (ctx->enc)
+                    ret = wc_AesCfb1Encrypt(&ctx->cipher.aes, dst, src, len);
+                else
+                    ret = wc_AesCfb1Decrypt(&ctx->cipher.aes, dst, src, len);
+                break;
             case AES_128_CFB8_TYPE:
             case AES_192_CFB8_TYPE:
             case AES_256_CFB8_TYPE:
+                WOLFSSL_MSG("AES CFB8");
+                if (ctx->enc)
+                    ret = wc_AesCfb8Encrypt(&ctx->cipher.aes, dst, src, len);
+                else
+                    ret = wc_AesCfb8Decrypt(&ctx->cipher.aes, dst, src, len);
+                break;
             case AES_128_CFB128_TYPE:
             case AES_192_CFB128_TYPE:
             case AES_256_CFB128_TYPE:
-                WOLFSSL_MSG("AES CFB");
+                WOLFSSL_MSG("AES CFB128");
                 if (ctx->enc)
                     ret = wc_AesCfbEncrypt(&ctx->cipher.aes, dst, src, len);
                 else

@@ -7514,6 +7514,10 @@ static int wc_AesFeedbackCFB8(Aes* aes, byte* out, const byte* in,
         return BAD_FUNC_ARG;
     }
 
+    if (sz == 0) {
+        return 0;
+    }
+
     while (sz > 0) {
         wc_AesEncryptDirect(aes, (byte*)aes->tmp, (byte*)aes->reg);
         if (dir == AES_DECRYPTION) {
@@ -7553,6 +7557,10 @@ static int wc_AesFeedbackCFB1(Aes* aes, byte* out, const byte* in,
 
     if (aes == NULL || out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    if (sz == 0) {
+        return 0;
     }
 
     out[0] = 0;

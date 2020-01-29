@@ -357,6 +357,34 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
                 ret = wc_AesOfbDecrypt(&ctx->cipher.aes, out, in, inl);
             break;
     #endif
+    #if defined(WOLFSSL_AES_CFB)
+        case AES_128_CFB1_TYPE:
+        case AES_192_CFB1_TYPE:
+        case AES_256_CFB1_TYPE:
+            if (ctx->enc)
+                ret = wc_AesCfb1Encrypt(&ctx->cipher.aes, out, in, inl);
+            else
+                ret = wc_AesCfb1Decrypt(&ctx->cipher.aes, out, in, inl);
+            break;
+
+        case AES_128_CFB8_TYPE:
+        case AES_192_CFB8_TYPE:
+        case AES_256_CFB8_TYPE:
+            if (ctx->enc)
+                ret = wc_AesCfb8Encrypt(&ctx->cipher.aes, out, in, inl);
+            else
+                ret = wc_AesCfb8Decrypt(&ctx->cipher.aes, out, in, inl);
+            break;
+
+        case AES_128_CFB128_TYPE:
+        case AES_192_CFB128_TYPE:
+        case AES_256_CFB128_TYPE:
+            if (ctx->enc)
+                ret = wc_AesCfbEncrypt(&ctx->cipher.aes, out, in, inl);
+            else
+                ret = wc_AesCfbDecrypt(&ctx->cipher.aes, out, in, inl);
+            break;
+    #endif
 #if defined(WOLFSSL_AES_XTS)
     case AES_128_XTS_TYPE:
     case AES_256_XTS_TYPE:
@@ -607,6 +635,7 @@ int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
             padBlock(ctx);
             PRINT_BUF(ctx->buf, ctx->block_size);
             if (evpCipherBlock(ctx, out, ctx->buf, ctx->block_size) == 0) {
+                WOLFSSL_MSG("Final Cipher Block failed");
                 ret = WOLFSSL_FAILURE;
             }
             else {
@@ -622,6 +651,7 @@ int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
         else if ((ctx->bufUsed % ctx->block_size) != 0) {
             *outl = 0;
             /* not enough padding for decrypt */
+            WOLFSSL_MSG("Final Cipher Block not enough padding");
             ret = WOLFSSL_FAILURE;
         }
         else if (ctx->lastUsed) {
@@ -631,6 +661,7 @@ int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                 *outl = fl;
                 if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
                     /* return error in cases where the block length is incorrect */
+                    WOLFSSL_MSG("Final Cipher Block bad length");
                     ret = WOLFSSL_FAILURE;
                 }
             }
@@ -721,6 +752,22 @@ int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *ctx)
     case AES_128_CTR_TYPE:
     case AES_192_CTR_TYPE:
     case AES_256_CTR_TYPE:
+#endif
+#if defined(WOLFSSL_AES_CFB)
+    case AES_128_CFB1_TYPE:
+    case AES_192_CFB1_TYPE:
+    case AES_256_CFB1_TYPE:
+    case AES_128_CFB8_TYPE:
+    case AES_192_CFB8_TYPE:
+    case AES_256_CFB8_TYPE:
+    case AES_128_CFB128_TYPE:
+    case AES_192_CFB128_TYPE:
+    case AES_256_CFB128_TYPE:
+#endif
+#if defined(WOLFSSL_AES_OFB)
+    case AES_128_OFB_TYPE:
+    case AES_192_OFB_TYPE:
+    case AES_256_OFB_TYPE:
 #endif
 
     case AES_128_ECB_TYPE:
