@@ -127,25 +127,7 @@ run_renewcerts(){
     mv tmp.pem client-cert.pem
     echo "End of section"
     echo "---------------------------------------------------------------------"
-    ############################################################
-    #### update the self-signed (3072-bit) client-cert.pem #####
-    ############################################################
-    echo "Updating 3072-bit client-cert.pem"
-    echo ""
-    #pipe the following arguments to openssl req...
-    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_3072\\nProgramming-3072\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -newkey rsa:3072 -keyout client-key-3072.pem -config ./wolfssl.cnf -nodes -out client-cert-3072.csr
-    check_result $? "Step 1"
 
-
-    openssl x509 -req -in client-cert-3072.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey client-key-3072.pem -out client-cert-3072.pem
-    check_result $? "Step 2"
-    rm client-cert-3072.csr
-
-    openssl x509 -in client-cert-3072.pem -text > tmp.pem
-    check_result $? "Step 3"
-    mv tmp.pem client-cert-3072.pem
-    echo "End of section"
-    echo "---------------------------------------------------------------------"
     ############################################################
     #### update the self-signed (1024-bit) client-cert.pem #####
     ############################################################
@@ -183,6 +165,7 @@ run_renewcerts(){
     mv ./3072/tmp.pem ./3072/client-cert.pem
 
     openssl rsa -in ./3072/client-key.pem -outform der -out ./3072/client-key.der
+    openssl rsa -inform pem -in ./3072/client-key.pem -outform der -out ./3072/client-keyPub.der -pubout
     openssl x509 -in ./3072/client-cert.pem -outform der -out ./3072/client-cert.der
 
     echo "End of section"
