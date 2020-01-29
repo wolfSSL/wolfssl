@@ -5863,7 +5863,155 @@ int des3_test(void)
 
         return ret;
     }
+
+
+    static int aescfb1_test(void)
+    {
+        Aes enc;
+        byte cipher[AES_BLOCK_SIZE];
+    #ifdef HAVE_AES_DECRYPT
+        Aes dec;
+        byte plain [AES_BLOCK_SIZE];
+    #endif
+        int  ret = 0;
+
+        const byte iv[] = {
+            0x4d,0xbb,0xdc,0xaa,0x59,0xf3,0x63,0xc9,
+            0x2a,0x3b,0x98,0x43,0xad,0x20,0xe2,0xb7
+        };
+
+#ifdef WOLFSSL_AES_128
+        const byte key1[] =
+        {
+            0xcd,0xef,0x9d,0x06,0x61,0xba,0xe4,0x73,
+            0x8d,0x1a,0x58,0xa2,0xa6,0x22,0x8b,0x66
+        };
+
+        const byte cipher1[] =
+        {
+            0x00
+        };
+
+        const byte msg1[] =
+        {
+            0xC0
+        };
+#endif /* WOLFSSL_AES_128 */
+
+    if (wc_AesInit(&enc, HEAP_HINT, devId) != 0)
+        return -4739;
+#ifdef HAVE_AES_DECRYPT
+    if (wc_AesInit(&dec, HEAP_HINT, devId) != 0)
+        return -4740;
+#endif
+
+#ifdef WOLFSSL_AES_128
+        /* 128 key tests */
+        ret = wc_AesSetKey(&enc, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4741;
+    #ifdef HAVE_AES_DECRYPT
+        /* decrypt uses AES_ENCRYPTION */
+        ret = wc_AesSetKey(&dec, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4742;
+    #endif
+
+        XMEMSET(cipher, 0, sizeof(cipher));
+        ret = wc_AesCfb1Encrypt(&enc, cipher, msg1, 2);
+        if (ret != 0)
+            return -4743;
+
+        if (cipher[0] != cipher1[0])
+            return -4744;
+
+    #ifdef HAVE_AES_DECRYPT
+        ret = wc_AesCfb1Decrypt(&dec, plain, cipher, 2);
+        if (ret != 0)
+            return -4745;
+
+        if (plain[0] != msg1[0])
+            return -4746;
+    #endif /* HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_AES_128 */
+
+        return ret;
+    }
+
+    static int aescfb8_test(void)
+    {
+        Aes enc;
+        byte cipher[AES_BLOCK_SIZE];
+    #ifdef HAVE_AES_DECRYPT
+        Aes dec;
+        byte plain [AES_BLOCK_SIZE];
+    #endif
+        int  ret = 0;
+
+        const byte iv[] = {
+            0xf4,0x75,0xc6,0x49,0x91,0xb2,0x0e,0xae,
+            0xe1,0x83,0xa2,0x26,0x29,0xe2,0x1e,0x22
+        };
+
+#ifdef WOLFSSL_AES_128
+        const byte key1[] =
+        {
+            0xc8,0xfe,0x9b,0xf7,0x7b,0x93,0x0f,0x46,
+            0xd2,0x07,0x8b,0x8c,0x0e,0x65,0x7c,0xd4
+        };
+
+        const byte cipher1[] =
+        {
+            0xd2,0x76,0x91
+        };
+
+        const byte msg1[] =
+        {
+            0xc9,0x06,0x35
+        };
+#endif /* WOLFSSL_AES_128 */
+
+    if (wc_AesInit(&enc, HEAP_HINT, devId) != 0)
+        return -4739;
+#ifdef HAVE_AES_DECRYPT
+    if (wc_AesInit(&dec, HEAP_HINT, devId) != 0)
+        return -4740;
+#endif
+
+#ifdef WOLFSSL_AES_128
+        /* 128 key tests */
+        ret = wc_AesSetKey(&enc, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4741;
+    #ifdef HAVE_AES_DECRYPT
+        /* decrypt uses AES_ENCRYPTION */
+        ret = wc_AesSetKey(&dec, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4742;
+    #endif
+
+        XMEMSET(cipher, 0, sizeof(cipher));
+        ret = wc_AesCfb8Encrypt(&enc, cipher, msg1, sizeof(msg1));
+        if (ret != 0)
+            return -4743;
+
+        if (XMEMCMP(cipher, cipher1, sizeof(cipher1)) != 0)
+            return -4744;
+
+    #ifdef HAVE_AES_DECRYPT
+        ret = wc_AesCfb8Decrypt(&dec, plain, cipher, sizeof(msg1));
+        if (ret != 0)
+            return -4745;
+
+        if (XMEMCMP(plain, msg1, sizeof(msg1)) != 0)
+            return -4746;
+    #endif /* HAVE_AES_DECRYPT */
+#endif /* WOLFSSL_AES_128 */
+
+        return ret;
+    }
 #endif /* WOLFSSL_AES_CFB */
+
 
 #ifdef WOLFSSL_AES_OFB
 #ifdef OPENSSL_EXTRA
@@ -7474,6 +7622,14 @@ int aes_test(void)
 
 #if defined(WOLFSSL_AES_CFB)
     ret = aescfb_test();
+    if (ret != 0)
+        return ret;
+
+    ret = aescfb1_test();
+    if (ret != 0)
+        return ret;
+
+    ret = aescfb8_test();
     if (ret != 0)
         return ret;
 #endif
