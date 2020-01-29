@@ -1439,23 +1439,6 @@ enum PKCSTypes {
     PKCS8v0             =   0,     /* default PKCS#8 version */
 };
 
-/* AltName Types defined in RFC-5280 */
- typedef enum {
-	WC_ALTNAME_OTHERNAME     = 0,	/* OtherName     */
-	WC_ALTNAME_RFC822NAME    = 1,	/* IA5String     */
-	WC_ALTNAME_DNSNAME       = 2,	/* IA5String     */
-	WC_ALTNAME_X400ADDRESS   = 3,	/* ORAddress     */
-	WC_ALTNAME_DIRECTORYNAME = 4,	/* Name          */
-	WC_ALTNAME_EDIPARTYNAME  = 5,	/* EDIPartyName  */
-	WC_ALTNAME_URI           = 6,	/* IA5String     */
-	WC_ALTNAME_IPADDRESS     = 7,	/* Octet String  */
-	WC_ALTNAME_REGISTEREDID  = 8	/* OID           */
-} cert_altname_type;
-
-/* OID for id-ce-subjectAltName 2.5.29.17 { id-ce 17} */
-#define WC_SUBJECTALTNAME_OID {0x06, 0x03, 0x55, 0x1D, 0x11}
-#define WC_SUBJECTALTNAME_OID_SIZE 5
-
 #endif /* !NO_ASN || !NO_PWDBASED */
 
 #endif /* WOLF_CRYPT_ASN_H */
