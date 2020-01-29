@@ -11120,6 +11120,9 @@ int wc_InitCert(Cert* cert)
 #ifdef WOLFSSL_HEAP_TEST
     cert->heap = (void*)WOLFSSL_HEAP_TEST;
 #endif
+#ifdef WOLFSSL_ALT_NAMES
+	cert->altNamesSz=0; 	/* This is redundant with XMEMSET above */ 
+#endif
 
     return 0;
 }
@@ -11250,12 +11253,11 @@ static int wc_SetCert_LoadDer(Cert* cert, const byte* der, word32 derSz)
     return ret;
 }
 
-/* AltName structure contains: 
-   Sequence of OID + Octet string containing sequence of names.
-   WC_ALTNAMESOFFSET is the max header size: 2 sequences, one
-   octet string, and the OID */
-#define WC_ALTNAMESOFFSET (MAX_SEQ_SZ + WC_SUBJECTALTNAME_OID_SIZE \
-	                       + MAX_OCTET_STR_SZ + MAX_SEQ_SZ)
+#ifdef WOLFSSL_ALT_NAMES
+
+/* AltName structure contains a sequence of names.
+   WC_ALTNAMESOFFSET is the max header size */
+#define WC_ALTNAMESOFFSET (MAX_SEQ_SZ) 
 
 int wc_CertAddAltName_ex(Cert *cert, byte *name, int nameSz, 
 						 cert_altname_type type) {
@@ -11263,6 +11265,9 @@ int wc_CertAddAltName_ex(Cert *cert, byte *name, int nameSz,
 	byte *buf;
 	int i;
 	
+	if (cert == NULL || name == NULL) {
+		return BAD_FUNC_ARG;
+	}
 	if (cert->altNamesSz == 0) {
 		/* Reserve space for header structure */
 		cert->altNamesSz = WC_ALTNAMESOFFSET;
@@ -11275,54 +11280,55 @@ int wc_CertAddAltName_ex(Cert *cert, byte *name, int nameSz,
 	buf = cert->altNames;  
 	i = cert->altNamesSz;		/* Append new name at end of buffer */
 
-	i += SetImplicit(ASN_OCTET_STRING, type, nameSz, buf+i);
-	XMEMCPY(buf+i,name,nameSz);
-	cert->altNamesSz = i+nameSz;
+	i += SetImplicit(ASN_OCTET_STRING, type, nameSz, buf + i);
+	XMEMCPY(buf + i,name,nameSz);
+	cert->altNamesSz = i + nameSz;
 	return 0;
 }
 
 int wc_CertAddAltNameStr(Cert *cert, byte *name, cert_altname_type type) {
+    /* Call this function N times to add N AltName strings */
 	int nameSz;
-	nameSz = XSTRLEN(name);
-	if (type == WC_ALTNAME_RFC822NAME || type == WC_ALTNAME_DNSNAME || 
+	int rv;
+
+	if (cert == NULL || name == NULL) {
+		rv = BAD_FUNC_ARG;
+	} else if (type == WC_ALTNAME_RFC822NAME || type == WC_ALTNAME_DNSNAME || 
 		type==WC_ALTNAME_URI) {
-		return wc_CertAddAltName_ex(cert, name, nameSz, type);
+			nameSz = XSTRLEN(name);
+			rv = wc_CertAddAltName_ex(cert, name, nameSz, type);
 	} else {
-		return BAD_FUNC_ARG;
+		rv = BAD_FUNC_ARG;
 	}
+	return rv;
 }
 int wc_CertEncodeAltName(Cert *cert) {
-	/* Encode cert->altNames field by pre-pending appropriate OID 
-	   and header fields */
-	byte hdrBuf[MAX_SEQ_SZ+MAX_OCTET_STR_SZ];
+	/* Encode cert->altNames field by pre-pending the sequence info */
 	int i = 0;
-	int octSize, seqSize, namesSize;
-	byte subjectAltName[] = WC_SUBJECTALTNAME_OID;
+	int seqSize, namesSize;
 
+	if (cert == NULL) {
+		return BAD_FUNC_ARG;
+	}
 	/* hdrBuf will contain:  
-	   Octet header + size  (MAX_OCTET_STR_SZ bytes)
 	   Sequence header + size (MAX_SEQ_SZ bytes) */
+	if (cert->altNamesSz < WC_ALTNAMESOFFSET) {
+		return BAD_FUNC_ARG;	/* perhaps never added an AltName String */
+	}
 	namesSize = cert->altNamesSz - WC_ALTNAMESOFFSET;
-	seqSize = SetSequence(namesSize, hdrBuf+MAX_OCTET_STR_SZ);
-	octSize = SetOctetString(namesSize+seqSize, hdrBuf);
-	
+
 	/* Now we construct the final output into the buffer */
-	/* Initial sequence 0x30, sz */
-	i = SetSequence(WC_SUBJECTALTNAME_OID_SIZE+octSize+seqSize+namesSize, 
-					cert->altNames);		
-	/* subjectAltName 0x06, 0x03, 0x55, 0x1D, 0x11 */
-	XMEMCPY(cert->altNames+i, subjectAltName, WC_SUBJECTALTNAME_OID_SIZE);			
-	i+=WC_SUBJECTALTNAME_OID_SIZE;
-	/* Octet String 0x04, sz */
-	XMEMCPY(cert->altNames+i, hdrBuf, octSize);				
-	i+=octSize;
+	seqSize = SetSequence(namesSize, cert->altNames);
+	if (seqSize < 1) {
+		return BAD_FUNC_ARG;	/* size-length must be at least one byte */
+	}
 	/* Sequence of names */
-	XMEMCPY(cert->altNames+i, hdrBuf+MAX_OCTET_STR_SZ, seqSize);	
-	i+=seqSize;
-	XMEMMOVE(cert->altNames+i, cert->altNames + WC_ALTNAMESOFFSET, namesSize);
-	cert->altNamesSz = i+namesSize;
+	XMEMMOVE(cert->altNames + seqSize, cert->altNames + WC_ALTNAMESOFFSET, 
+			 namesSize);
+	cert->altNamesSz = seqSize + namesSize;
 	return 0;
 }
+#endif /* WOLFSSL_ALT_NAMES */
 
 #endif /* WOLFSSL_CERT_GEN */
 
