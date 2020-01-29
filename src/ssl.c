@@ -24901,6 +24901,9 @@ int wolfSSL_X509_cmp_time(const WOLFSSL_ASN1_TIME* asnTime, time_t* cmpTime)
         /* Convert to time struct*/
         ct = XGMTIME(pTime, tmpTs);
 
+        if (ct == NULL)
+            return GETTIME_ERROR;
+
         /* DateGreaterThan returns 1 for >; 0 for <= */
         ret = DateGreaterThan(&ts, ct) ? 1 : -1;
     }
