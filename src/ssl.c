@@ -17524,7 +17524,61 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             }
         }
         #endif /* WOLFSSL_AES_256 */
-    #endif /* HAVE_AES_CBC */
+    #endif /* HAVE_AES_OFB */
+    #ifdef WOLFSSL_AES_XTS
+        #ifdef WOLFSSL_AES_128
+        if (ctx->cipherType == AES_128_XTS_TYPE ||
+            (type && XSTRNCMP(type, EVP_AES_128_XTS, EVP_AES_SIZE) == 0)) {
+            WOLFSSL_MSG("EVP_AES_128_XTS");
+            ctx->cipherType = AES_128_XTS_TYPE;
+            ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
+            ctx->flags     |= WOLFSSL_EVP_CIPH_XTS_MODE;
+            ctx->keyLen     = 16;
+            ctx->block_size = 1;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key) {
+                ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                        AES_ENCRYPTION, 0);
+                if (ret != 0)
+                    return ret;
+            }
+            if (iv && key == NULL) {
+                ret = wc_AesSetIV(&ctx->cipher.aes, iv);
+                if (ret != 0)
+                    return ret;
+            }
+        }
+        #endif /* WOLFSSL_AES_128 */
+        #ifdef WOLFSSL_AES_256
+        if (ctx->cipherType == AES_256_XTS_TYPE ||
+                 (type && XSTRNCMP(type, EVP_AES_256_XTS, EVP_AES_SIZE) == 0)) {
+            WOLFSSL_MSG("EVP_AES_256_XTS");
+            ctx->cipherType = AES_256_XTS_TYPE;
+            ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
+            ctx->flags     |= WOLFSSL_EVP_CIPH_XTS_MODE;
+            ctx->keyLen     = 32;
+            ctx->block_size = 1;
+            if (enc == 0 || enc == 1)
+                ctx->enc = enc ? 1 : 0;
+            if (key) {
+                ret = AesSetKey_ex(&ctx->cipher.aes, key, ctx->keyLen, iv,
+                            AES_ENCRYPTION, 0);
+                if (ret != 0){
+                    WOLFSSL_MSG("AesSetKey() failed");
+                    return ret;
+                }
+            }
+            if (iv && key == NULL) {
+                ret = wc_AesSetIV(&ctx->cipher.aes, iv);
+                if (ret != 0){
+                    WOLFSSL_MSG("wc_AesSetIV() failed");
+                    return ret;
+                }
+            }
+        }
+        #endif /* WOLFSSL_AES_256 */
+    #endif /* HAVE_AES_XTS */
 #endif /* NO_AES */
 
 #ifndef NO_DES3

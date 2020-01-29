@@ -136,6 +136,9 @@ enum {
 #ifdef WOLFSSL_AES_OFB
     AES_OFB_MODE = 2,
 #endif
+#ifdef WOLFSSL_AES_XTS
+    AES_XTS_MODE = 3,
+#endif
 
 #ifdef HAVE_PKCS11
     AES_MAX_ID_LEN   = 32,
@@ -186,7 +189,7 @@ struct Aes {
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
-    defined(WOLFSSL_AES_OFB)
+    defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
     word32  left;            /* unused bytes left from last call */
 #endif
 #ifdef WOLFSSL_XILINX_CRYPT

@@ -357,6 +357,17 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
                 ret = wc_AesOfbDecrypt(&ctx->cipher.aes, out, in, inl);
             break;
     #endif
+#if defined(WOLFSSL_AES_XTS)
+    case AES_128_XTS_TYPE:
+    case AES_256_XTS_TYPE:
+        if (ctx->enc)
+            ret = wc_AesXtsEncrypt(&ctx->cipher.xts, out, in, inl,
+                    ctx->cipher.tweak, ctx->cipher.tweakSz);
+        else
+            ret = wc_AesXtsDecrypt(&ctx->cipher.xts, out, in, inl,
+                    ctx->cipher.tweak, ctx->cipher.tweakSz);
+        break;
+#endif
 #endif /* !NO_AES */
     #ifndef NO_DES3
         case DES_CBC_TYPE:
