@@ -19150,6 +19150,47 @@ static void test_wc_PemPubKeyToDer(void)
 #endif
 }
 
+static void test_wc_CertAddAltNameStr(void) {
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES)
+
+#define WC_ALTNAMESOFFSET (MAX_SEQ_SZ)
+	int ret;
+	int oldSize;
+	Cert newCert;
+
+	printf(testFmt,"wc_CertAddAltNameStr()");
+
+	/* First test wc_CertAddAltNameStr with invalid inputs */
+	ret = wc_CertAddAltNameStr(NULL,"www.altname1.com",WC_ALTNAME_DNSNAME);
+	AssertIntEQ(ret, BAD_FUNC_ARG);
+	ret = wc_InitCert(&newCert);
+	AssertIntEQ(ret, 0);	/* should return 0 */
+	ret = wc_CertAddAltNameStr(&newCert, NULL, WC_ALTNAME_DNSNAME);
+	AssertIntEQ(ret, BAD_FUNC_ARG);
+	ret = wc_CertAddAltNameStr(&newCert, NULL, WC_ALTNAME_OTHERNAME);
+	AssertIntEQ(ret, BAD_FUNC_ARG);
+
+	/* Now test wc_CertAddAltNameStr with valid inputs */
+	ret = wc_CertAddAltNameStr(&newCert, "www.altname1.com", WC_ALTNAME_DNSNAME);
+	AssertIntEQ(ret, 0);
+	AssertIntGT(newCert.altNameSz,WC_ALTNAMESOFFSET);
+	oldSize = newCert.altNameSz;
+	ret = wc_CertAddAltNameStr(&newCert, "www.altname2.com", WC_ALTNAME_DNSNAME);
+	AssertIntEQ(ret, 0);
+	AssertIntGT(newCert.altNameSz,oldSize);
+	oldSize = newCert.altNameSz;
+
+	/* Test Encode Function for Invalid Inputs */
+	ret = wc_CertEncodeAltName(NULL);
+	AssertIntEQ(ret, BAD_FUNC_ARG);
+
+	/* Test Encode Function for Valid Inputs */
+	ret = wc_CertEncodeAltName(&newCert);
+	AssertIntEQ(ret, 0);
+	AssertIntLE(newCert.altNameSz,oldSize);	/* Encode should shrink buffer */
+	AssertIntGT(newCert.altNameSz,0);	
+#endif
+}
 
 static void test_wolfSSL_certs(void)
 {
@@ -30178,6 +30219,7 @@ void ApiTest(void)
     test_wolfSSL_X509_subject_name_hash();
     test_wolfSSL_DES();
     test_wolfSSL_certs();
+	test_wc_CertAddAltNameStr();
     test_wolfSSL_ASN1_TIME_print();
     test_wolfSSL_ASN1_UTCTIME_print();
     test_wolfSSL_ASN1_GENERALIZEDTIME_free();
