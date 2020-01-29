@@ -6298,12 +6298,12 @@ EVP_TEST_END:
     #endif
         int  ret = 0;
 
+#ifdef WOLFSSL_AES_128
         const byte iv[] = {
             0x4d,0xbb,0xdc,0xaa,0x59,0xf3,0x63,0xc9,
             0x2a,0x3b,0x98,0x43,0xad,0x20,0xe2,0xb7
         };
 
-#ifdef WOLFSSL_AES_128
         const byte key1[] =
         {
             0xcd,0xef,0x9d,0x06,0x61,0xba,0xe4,0x73,
@@ -6320,6 +6320,53 @@ EVP_TEST_END:
             0xC0
         };
 #endif /* WOLFSSL_AES_128 */
+#ifdef WOLFSSL_AES_192
+        const byte iv2[] = {
+            0x57,0xc6,0x89,0x7c,0x99,0x52,0x28,0x13,
+            0xbf,0x67,0x9c,0xe1,0x13,0x70,0xaf,0x5e
+        };
+
+        const byte key2[] =
+        {
+            0xba,0xa1,0x58,0xa1,0x6b,0x50,0x4a,0x10,
+            0x8e,0xd4,0x33,0x2e,0xe7,0xf2,0x9b,0xf6,
+            0xd1,0xac,0x46,0xa8,0xde,0x5a,0xfe,0x7a
+        };
+
+        const byte cipher2[] =
+        {
+            0x30
+        };
+
+        const byte msg2[] =
+        {
+            0x80
+        };
+#endif /* WOLFSSL_AES_192 */
+#ifdef WOLFSSL_AES_256
+        const byte iv3[] = {
+            0x63,0x2e,0x9f,0x83,0x1f,0xa3,0x80,0x5e,
+            0x52,0x02,0xbc,0xe0,0x6d,0x04,0xf9,0xa0
+        };
+
+        const byte key3[] =
+        {
+            0xf6,0xfa,0xe4,0xf1,0x5d,0x91,0xfc,0x50,
+            0x88,0x78,0x4f,0x84,0xa5,0x37,0x12,0x7e,
+            0x32,0x63,0x55,0x9c,0x62,0x73,0x88,0x20,
+            0xc2,0xcf,0x3d,0xe1,0x1c,0x2a,0x30,0x40
+        };
+
+        const byte cipher3[] =
+        {
+            0xF7, 0x00
+        };
+
+        const byte msg3[] =
+        {
+            0x41, 0xC0
+        };
+#endif /* WOLFSSL_AES_256 */
 
     if (wc_AesInit(&enc, HEAP_HINT, devId) != 0)
         return -4739;
@@ -6385,6 +6432,27 @@ EVP_TEST_END:
     #endif
 #endif /* WOLFSSL_AES_256 */
 
+#ifdef WOLFSSL_AES_192
+        /* 192 key tests */
+    #ifdef OPENSSL_EXTRA
+        ret = EVP_test(EVP_aes_192_cfb1(), key2, iv2, msg2, sizeof(msg2),
+                cipher2, 4);
+        if (ret != 0) {
+            return ret;
+        }
+    #endif
+#endif /* WOLFSSL_AES_192 */
+
+#ifdef WOLFSSL_AES_256
+        /* 256 key tests */
+    #ifdef OPENSSL_EXTRA
+        ret = EVP_test(EVP_aes_256_cfb1(), key3, iv3, msg3, sizeof(msg3),
+                cipher3, 10);
+        if (ret != 0) {
+            return ret;
+        }
+    #endif
+#endif /* WOLFSSL_AES_192 */
         return ret;
     }
 

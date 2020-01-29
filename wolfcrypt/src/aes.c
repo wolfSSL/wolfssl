@@ -7552,6 +7552,7 @@ static int wc_AesFeedbackCFB1(Aes* aes, byte* out, const byte* in,
         word32 sz, byte dir)
 {
     byte tmp;
+    byte cur = 0; /* hold current work in order to handle inline in=out */
     byte* pt;
     int bit = 7;
 
@@ -7563,7 +7564,6 @@ static int wc_AesFeedbackCFB1(Aes* aes, byte* out, const byte* in,
         return 0;
     }
 
-    out[0] = 0;
     while (sz > 0) {
         wc_AesEncryptDirect(aes, (byte*)aes->tmp, (byte*)aes->reg);
         if (dir == AES_DECRYPTION) {
@@ -7572,6 +7572,7 @@ static int wc_AesFeedbackCFB1(Aes* aes, byte* out, const byte* in,
             /* LSB + CAT */
             tmp = (0X01 << bit) & in[0];
             tmp = tmp >> bit;
+            tmp &= 0x01;
             shiftLeftArray((byte*)aes->reg, 1);
             pt[AES_BLOCK_SIZE - 1] |= tmp;
         }
@@ -7579,9 +7580,9 @@ static int wc_AesFeedbackCFB1(Aes* aes, byte* out, const byte* in,
         /* MSB  + XOR */
         tmp = (0X01 << bit) & in[0];
         pt = (byte*)aes->tmp;
-        tmp = pt[0] ^ (tmp >> bit);
+        tmp = (pt[0] >> 7) ^ (tmp >> bit);
         tmp &= 0x01;
-        out[0] |= (tmp << bit);
+        cur |= (tmp << bit);
 
 
         if (dir == AES_ENCRYPTION) {
@@ -7594,17 +7595,20 @@ static int wc_AesFeedbackCFB1(Aes* aes, byte* out, const byte* in,
 
         bit--;
         if (bit < 0) {
+            out[0] = cur;
             out += 1;
             in  += 1;
             sz  -= 1;
             bit = 7;
-            if (sz > 0) {
-                out[0] = 0;
-            }
+            cur = 0;
         }
         else {
             sz -= 1;
         }
+    }
+
+    if (bit > 0) {
+        out[0] = cur;
     }
 
     return 0;
@@ -7616,7 +7620,7 @@ static int wc_AesFeedbackCFB1(Aes* aes, byte* out, const byte* in,
  * aes structure holding key to use for encryption
  * out buffer to hold result of encryption (must be at least as large as input
  *     buffer)
- * in  buffer to encrypt
+ * in  buffer to encrypt (packed to left, i.e. 101 is 0x90)
  * sz  size of input buffer
  *
  * returns 0 on success and negative values on failure
