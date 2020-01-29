@@ -4207,6 +4207,9 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
     static char *EVP_AES_256_ECB;
     #endif
     static const int  EVP_AES_SIZE = 11;
+    #ifdef WOLFSSL_AES_CFB
+    static const int  EVP_AESCFB_SIZE = 14;
+    #endif
 #endif
 #endif
 
@@ -17450,7 +17453,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     #ifdef WOLFSSL_AES_CFB
         #ifdef WOLFSSL_AES_128
         if (ctx->cipherType == AES_128_CFB1_TYPE ||
-            (type && XSTRNCMP(type, EVP_AES_128_CFB1, EVP_AES_SIZE) == 0)) {
+            (type && XSTRNCMP(type, EVP_AES_128_CFB1, EVP_AESCFB_SIZE) == 0)) {
             WOLFSSL_MSG("EVP_AES_128_CFB1");
             ctx->cipherType = AES_128_CFB1_TYPE;
             ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
@@ -17474,7 +17477,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         #endif /* WOLFSSL_AES_128 */
         #ifdef WOLFSSL_AES_192
         if (ctx->cipherType == AES_192_CFB1_TYPE ||
-                 (type && XSTRNCMP(type, EVP_AES_192_CFB1, EVP_AES_SIZE) == 0)) {
+                 (type && XSTRNCMP(type, EVP_AES_192_CFB1, EVP_AESCFB_SIZE) == 0)) {
             WOLFSSL_MSG("EVP_AES_192_CFB1");
             ctx->cipherType = AES_192_CFB1_TYPE;
             ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
@@ -17498,7 +17501,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         #endif /* WOLFSSL_AES_192 */
         #ifdef WOLFSSL_AES_256
         if (ctx->cipherType == AES_256_CFB1_TYPE ||
-                 (type && XSTRNCMP(type, EVP_AES_256_CFB1, EVP_AES_SIZE) == 0)) {
+                 (type && XSTRNCMP(type, EVP_AES_256_CFB1, EVP_AESCFB_SIZE) == 0)) {
             WOLFSSL_MSG("EVP_AES_256_CFB1");
             ctx->cipherType = AES_256_CFB1_TYPE;
             ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
@@ -17526,7 +17529,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         #endif /* WOLFSSL_AES_256 */
         #ifdef WOLFSSL_AES_128
         if (ctx->cipherType == AES_128_CFB8_TYPE ||
-            (type && XSTRNCMP(type, EVP_AES_128_CFB8, EVP_AES_SIZE) == 0)) {
+            (type && XSTRNCMP(type, EVP_AES_128_CFB8, EVP_AESCFB_SIZE) == 0)) {
             WOLFSSL_MSG("EVP_AES_128_CFB8");
             ctx->cipherType = AES_128_CFB8_TYPE;
             ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
@@ -17550,7 +17553,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         #endif /* WOLFSSL_AES_128 */
         #ifdef WOLFSSL_AES_192
         if (ctx->cipherType == AES_192_CFB8_TYPE ||
-                 (type && XSTRNCMP(type, EVP_AES_192_CFB8, EVP_AES_SIZE) == 0)) {
+                 (type && XSTRNCMP(type, EVP_AES_192_CFB8, EVP_AESCFB_SIZE) == 0)) {
             WOLFSSL_MSG("EVP_AES_192_CFB8");
             ctx->cipherType = AES_192_CFB8_TYPE;
             ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
@@ -17574,7 +17577,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         #endif /* WOLFSSL_AES_192 */
         #ifdef WOLFSSL_AES_256
         if (ctx->cipherType == AES_256_CFB8_TYPE ||
-                 (type && XSTRNCMP(type, EVP_AES_256_CFB8, EVP_AES_SIZE) == 0)) {
+                 (type && XSTRNCMP(type, EVP_AES_256_CFB8, EVP_AESCFB_SIZE) == 0)) {
             WOLFSSL_MSG("EVP_AES_256_CFB8");
             ctx->cipherType = AES_256_CFB8_TYPE;
             ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
@@ -17602,7 +17605,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         #endif /* WOLFSSL_AES_256 */
         #ifdef WOLFSSL_AES_128
         if (ctx->cipherType == AES_128_CFB128_TYPE ||
-            (type && XSTRNCMP(type, EVP_AES_128_CFB128, EVP_AES_SIZE) == 0)) {
+            (type && XSTRNCMP(type, EVP_AES_128_CFB128, EVP_AESCFB_SIZE) == 0)) {
             WOLFSSL_MSG("EVP_AES_128_CFB128");
             ctx->cipherType = AES_128_CFB128_TYPE;
             ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
@@ -17626,7 +17629,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         #endif /* WOLFSSL_AES_128 */
         #ifdef WOLFSSL_AES_192
         if (ctx->cipherType == AES_192_CFB128_TYPE ||
-                 (type && XSTRNCMP(type, EVP_AES_192_CFB128, EVP_AES_SIZE) == 0)) {
+                 (type && XSTRNCMP(type, EVP_AES_192_CFB128, EVP_AESCFB_SIZE) == 0)) {
             WOLFSSL_MSG("EVP_AES_192_CFB128");
             ctx->cipherType = AES_192_CFB128_TYPE;
             ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
@@ -17650,7 +17653,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         #endif /* WOLFSSL_AES_192 */
         #ifdef WOLFSSL_AES_256
         if (ctx->cipherType == AES_256_CFB128_TYPE ||
-                 (type && XSTRNCMP(type, EVP_AES_256_CFB128, EVP_AES_SIZE) == 0)) {
+                 (type && XSTRNCMP(type, EVP_AES_256_CFB128, EVP_AESCFB_SIZE) == 0)) {
             WOLFSSL_MSG("EVP_AES_256_CFB128");
             ctx->cipherType = AES_256_CFB128_TYPE;
             ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;

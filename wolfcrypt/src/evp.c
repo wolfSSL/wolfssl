@@ -859,6 +859,54 @@ static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher)
           return AES_256_ECB_TYPE;
       #endif
   #endif /*HAVE_AES_CBC */
+  #if defined(WOLFSSL_AES_XTS)
+      #ifdef WOLFSSL_AES_128
+      else if (XSTRNCMP(cipher, EVP_AES_128_XTS, EVP_AES_SIZE) == 0)
+          return AES_128_XTS_TYPE;
+      #endif
+      #ifdef WOLFSSL_AES_256
+      else if (XSTRNCMP(cipher, EVP_AES_256_XTS, EVP_AES_SIZE) == 0)
+          return AES_256_XTS_TYPE;
+      #endif
+  #endif /* WOLFSSL_AES_XTS */
+  #if defined(WOLFSSL_AES_CFB)
+      #ifdef WOLFSSL_AES_128
+      else if (XSTRNCMP(cipher, EVP_AES_128_CFB1, EVP_AESCFB_SIZE) == 0)
+          return AES_128_CFB1_TYPE;
+      #endif
+      #ifdef WOLFSSL_AES_192
+      else if (XSTRNCMP(cipher, EVP_AES_192_CFB1, EVP_AESCFB_SIZE) == 0)
+          return AES_192_CFB1_TYPE;
+      #endif
+      #ifdef WOLFSSL_AES_256
+      else if (XSTRNCMP(cipher, EVP_AES_256_CFB1, EVP_AESCFB_SIZE) == 0)
+          return AES_256_CFB1_TYPE;
+      #endif
+      #ifdef WOLFSSL_AES_128
+      else if (XSTRNCMP(cipher, EVP_AES_128_CFB8, EVP_AESCFB_SIZE) == 0)
+          return AES_128_CFB8_TYPE;
+      #endif
+      #ifdef WOLFSSL_AES_192
+      else if (XSTRNCMP(cipher, EVP_AES_192_CFB8, EVP_AESCFB_SIZE) == 0)
+          return AES_192_CFB8_TYPE;
+      #endif
+      #ifdef WOLFSSL_AES_256
+      else if (XSTRNCMP(cipher, EVP_AES_256_CFB8, EVP_AESCFB_SIZE) == 0)
+          return AES_256_CFB8_TYPE;
+      #endif
+      #ifdef WOLFSSL_AES_128
+      else if (XSTRNCMP(cipher, EVP_AES_128_CFB128, EVP_AESCFB_SIZE) == 0)
+          return AES_128_CFB128_TYPE;
+      #endif
+      #ifdef WOLFSSL_AES_192
+      else if (XSTRNCMP(cipher, EVP_AES_192_CFB128, EVP_AESCFB_SIZE) == 0)
+          return AES_192_CFB128_TYPE;
+      #endif
+      #ifdef WOLFSSL_AES_256
+      else if (XSTRNCMP(cipher, EVP_AES_256_CFB128, EVP_AESCFB_SIZE) == 0)
+          return AES_256_CFB128_TYPE;
+      #endif
+  #endif /*HAVE_AES_CBC */
 #endif /* !NO_AES */
       else return 0;
 }

@@ -5629,7 +5629,7 @@ static int EVP_test(const WOLFSSL_EVP_CIPHER* type, const byte* key,
         goto EVP_TEST_END;
     }
 
-    if (EVP_CipherUpdate(&ctx, cipher, &idx, plain, plainSz) == 0) {
+    if (EVP_CipherUpdate(&ctx, cipher, &idx, plain, expectedSz) == 0) {
         ret = -8002;
         goto EVP_TEST_END;
     }
@@ -5641,7 +5641,7 @@ static int EVP_test(const WOLFSSL_EVP_CIPHER* type, const byte* key,
     }
     cipherSz += idx;
 
-    if (XMEMCMP(cipher, expected, expectedSz)) {
+    if (XMEMCMP(cipher, expected, plainSz)) {
         ret = -8004;
         goto EVP_TEST_END;
     }
@@ -5653,7 +5653,7 @@ static int EVP_test(const WOLFSSL_EVP_CIPHER* type, const byte* key,
         goto EVP_TEST_END;
     }
 
-    if (EVP_CipherUpdate(&ctx, cipher, &idx, cipher, cipherSz) == 0) {
+    if (EVP_CipherUpdate(&ctx, cipher, &idx, cipher, expectedSz) == 0) {
         ret = -8006;
         goto EVP_TEST_END;
     }
@@ -5665,7 +5665,7 @@ static int EVP_test(const WOLFSSL_EVP_CIPHER* type, const byte* key,
     }
     cipherSz += idx;
 
-    if ((plainSz != cipherSz) || XMEMCMP(plain, cipher, cipherSz)) {
+    if ((expectedSz != cipherSz) || XMEMCMP(plain, cipher, plainSz)) {
         ret = -8008;
         goto EVP_TEST_END;
     }
@@ -6330,6 +6330,13 @@ EVP_TEST_END:
 
 #ifdef WOLFSSL_AES_128
         /* 128 key tests */
+    #ifdef OPENSSL_EXTRA
+        ret = EVP_test(EVP_aes_128_cfb1(), key1, iv, msg1, sizeof(msg1),
+                cipher1, 2);
+        if (ret != 0) {
+            return ret;
+        }
+    #endif
         ret = wc_AesSetKey(&enc, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
         if (ret != 0)
             return -4741;
