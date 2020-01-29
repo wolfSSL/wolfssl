@@ -1244,6 +1244,9 @@ int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
     if (pkey == NULL) {
         ownPkey = 1;
         pkey = wolfSSL_PKEY_new();
+
+        if (pkey == NULL)
+            return ret;
     }
 
     switch (pkey->type) {
