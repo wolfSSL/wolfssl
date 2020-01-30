@@ -66,7 +66,8 @@
 typedef char WOLFSSL_EVP_CIPHER;
 #ifndef WOLFSSL_EVP_TYPE_DEFINED /* guard on redeclaration */
 typedef char   WOLFSSL_EVP_MD;
-typedef struct WOLFSSL_EVP_PKEY WOLFSSL_EVP_PKEY;
+typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_EVP_PKEY;
+typedef struct WOLFSSL_EVP_MD_CTX   WOLFSSL_EVP_MD_CTX;
 #define WOLFSSL_EVP_TYPE_DEFINED
 #endif
 
@@ -161,7 +162,7 @@ typedef union {
 typedef struct WOLFSSL_EVP_PKEY_CTX WOLFSSL_EVP_PKEY_CTX;
 typedef struct WOLFSSL_EVP_CIPHER_CTX WOLFSSL_EVP_CIPHER_CTX;
 
-typedef struct WOLFSSL_EVP_MD_CTX {
+struct WOLFSSL_EVP_MD_CTX {
     union {
         WOLFSSL_Hasher digest;
     #ifndef NO_HMAC
@@ -170,7 +171,7 @@ typedef struct WOLFSSL_EVP_MD_CTX {
     } hash;
     unsigned char macType;
     WOLFSSL_EVP_PKEY_CTX *pctx;
-} WOLFSSL_EVP_MD_CTX;
+};
 
 
 typedef union {
