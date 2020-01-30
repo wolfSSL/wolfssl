@@ -2091,6 +2091,9 @@ static void test_wolfSSL_EVP_CIPHER_CTX()
     AssertTrue(init == test);
     AssertIntEQ(EVP_CIPHER_nid(test), NID_aes_128_cbc);
 
+    AssertIntEQ(EVP_CIPHER_CTX_reset(ctx), WOLFSSL_SUCCESS);
+    AssertIntEQ(EVP_CIPHER_CTX_reset(NULL), WOLFSSL_FAILURE);
+
     EVP_CIPHER_CTX_free(ctx);
 #endif /* !NO_AES && HAVE_AES_CBC && WOLFSSL_AES_128 */
 }
