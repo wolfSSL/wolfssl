@@ -293,6 +293,9 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 /* wolfSSL does not support expoting keying material */
 #define SSL_export_keying_material(...) 0
 
+#define SSL_CTX_set1_groups_list        wolfSSL_CTX_set1_groups_list
+#define SSL_set1_groups_list            wolfSSL_set1_groups_list
+
 #define SSL_set_ex_data                 wolfSSL_set_ex_data
 #define SSL_get_shutdown                wolfSSL_get_shutdown
 #define SSL_set_rfd                     wolfSSL_set_rfd

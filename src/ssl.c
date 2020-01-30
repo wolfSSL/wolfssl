@@ -134,6 +134,34 @@
 #endif /* !WOLFCRYPT_ONLY || OPENSSL_EXTRA */
 #ifndef WOLFCRYPT_ONLY
 
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
+const WOLF_EC_NIST_NAME kNistCurves[] = {
+    {STR_SIZEOF("P-192"),   "P-192",   NID_X9_62_prime192v1},
+    {STR_SIZEOF("P-256"),   "P-256",   NID_X9_62_prime256v1},
+    {STR_SIZEOF("P-112"),   "P-112",   NID_secp112r1},
+    {STR_SIZEOF("P-112-2"), "P-112-2", NID_secp112r2},
+    {STR_SIZEOF("P-128"),   "P-128",   NID_secp128r1},
+    {STR_SIZEOF("P-128-2"), "P-128-2", NID_secp128r2},
+    {STR_SIZEOF("P-160"),   "P-160",   NID_secp160r1},
+    {STR_SIZEOF("P-160-2"), "P-160-2", NID_secp160r2},
+    {STR_SIZEOF("P-224"),   "P-224",   NID_secp224r1},
+    {STR_SIZEOF("P-384"),   "P-384",   NID_secp384r1},
+    {STR_SIZEOF("P-521"),   "P-521",   NID_secp521r1},
+    {STR_SIZEOF("K-160"),   "K-160",   NID_secp160k1},
+    {STR_SIZEOF("K-192"),   "K-192",   NID_secp192k1},
+    {STR_SIZEOF("K-224"),   "K-224",   NID_secp224k1},
+    {STR_SIZEOF("K-256"),   "K-256",   NID_secp256k1},
+    {STR_SIZEOF("B-160"),   "B-160",   NID_brainpoolP160r1},
+    {STR_SIZEOF("B-192"),   "B-192",   NID_brainpoolP192r1},
+    {STR_SIZEOF("B-224"),   "B-224",   NID_brainpoolP224r1},
+    {STR_SIZEOF("B-256"),   "B-256",   NID_brainpoolP256r1},
+    {STR_SIZEOF("B-320"),   "B-320",   NID_brainpoolP320r1},
+    {STR_SIZEOF("B-384"),   "B-384",   NID_brainpoolP384r1},
+    {STR_SIZEOF("B-512"),   "B-512",   NID_brainpoolP512r1},
+    {0,                     NULL,      0},
+};
+#endif
+
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     /* for root ca verification */
 int tsip_tls_RootCertVerify(const byte *cert, word32 cert_len,
@@ -33095,40 +33123,12 @@ int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_EC_KEY *key)
 }
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
 
-typedef struct {
-    const char *name;
-    int nid;
-} WOLF_EC_NIST_NAME;
-static const WOLF_EC_NIST_NAME kNistCurves[] = {
-    {"P-192",   NID_X9_62_prime192v1},
-    {"P-256",   NID_X9_62_prime256v1},
-    {"P-112",   NID_secp112r1},
-    {"P-112-2", NID_secp112r2},
-    {"P-128",   NID_secp128r1},
-    {"P-128-2", NID_secp128r2},
-    {"P-160",   NID_secp160r1},
-    {"P-160-2", NID_secp160r2},
-    {"P-224",   NID_secp224r1},
-    {"P-384",   NID_secp384r1},
-    {"P-521",   NID_secp521r1},
-    {"K-160",   NID_secp160k1},
-    {"K-192",   NID_secp192k1},
-    {"K-224",   NID_secp224k1},
-    {"K-256",   NID_secp256k1},
-    {"B-160",   NID_brainpoolP160r1},
-    {"B-192",   NID_brainpoolP192r1},
-    {"B-224",   NID_brainpoolP224r1},
-    {"B-256",   NID_brainpoolP256r1},
-    {"B-320",   NID_brainpoolP320r1},
-    {"B-384",   NID_brainpoolP384r1},
-    {"B-512",   NID_brainpoolP512r1},
-};
 const char* wolfSSL_EC_curve_nid2nist(int nid)
 {
-    int i;
-    for (i = 0; i < (int)(sizeof(kNistCurves)/sizeof(WOLF_EC_NIST_NAME)); i++) {
-        if (kNistCurves[i].nid == nid) {
-            return kNistCurves[i].name;
+    const WOLF_EC_NIST_NAME* nist_name;
+    for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
+        if (nist_name->nid == nid) {
+            return kNistCurves->name;
         }
     }
     return NULL;
