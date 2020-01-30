@@ -5606,7 +5606,7 @@ int des3_test(void)
 #ifndef NO_AES
 
 #if defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_CFB)
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 /* pass in the function, key, iv, plain text and expected and this function
  * tests that the encryption and decryption is successful */
 static int EVP_test(const WOLFSSL_EVP_CIPHER* type, const byte* key,
@@ -6005,7 +6005,7 @@ EVP_TEST_END:
     }
 #endif /* WOLFSSL_AES_OFB */
 
-#ifdef WOLFSSL_AES_CFB
+#if defined(WOLFSSL_AES_CFB)
     /* Test cases from NIST SP 800-38A, Recommendation for Block Cipher Modes of Operation Methods an*/
     static int aescfb_test(void)
     {
@@ -6129,7 +6129,7 @@ EVP_TEST_END:
 
 #ifdef WOLFSSL_AES_128
         /* 128 key tests */
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
         ret = EVP_test(EVP_aes_128_cfb128(), key1, iv, msg1, sizeof(msg1),
                 cipher1, sizeof(cipher1));
         if (ret != 0) {
@@ -6177,7 +6177,7 @@ EVP_TEST_END:
 
 #ifdef WOLFSSL_AES_192
         /* 192 key size test */
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
         ret = EVP_test(EVP_aes_192_cfb128(), key2, iv, msg2, sizeof(msg2),
                 cipher2, sizeof(cipher2));
         if (ret != 0) {
@@ -6215,7 +6215,7 @@ EVP_TEST_END:
 
 #ifdef WOLFSSL_AES_256
         /* 256 key size test */
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
         ret = EVP_test(EVP_aes_256_cfb128(), key3, iv, msg3, sizeof(msg3),
                 cipher3, sizeof(cipher3));
         if (ret != 0) {
@@ -6288,7 +6288,7 @@ EVP_TEST_END:
         return ret;
     }
 
-
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     static int aescfb1_test(void)
     {
         Aes enc;
@@ -6585,6 +6585,7 @@ EVP_TEST_END:
 
         return ret;
     }
+#endif /* !HAVE_SELFTEST && !HAVE_FIPS */
 #endif /* WOLFSSL_AES_CFB */
 
 
@@ -7798,7 +7799,7 @@ int aes_test(void)
     ret = aescfb_test();
     if (ret != 0)
         return ret;
-
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     ret = aescfb1_test();
     if (ret != 0)
         return ret;
@@ -7806,6 +7807,7 @@ int aes_test(void)
     ret = aescfb8_test();
     if (ret != 0)
         return ret;
+#endif
 #endif
 
 

@@ -358,6 +358,7 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
             break;
     #endif
     #if defined(WOLFSSL_AES_CFB)
+    #if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
         case AES_128_CFB1_TYPE:
         case AES_192_CFB1_TYPE:
         case AES_256_CFB1_TYPE:
@@ -375,6 +376,7 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
             else
                 ret = wc_AesCfb8Decrypt(&ctx->cipher.aes, out, in, inl);
             break;
+    #endif /* !HAVE_SELFTEST && !HAVE_FIPS */
 
         case AES_128_CFB128_TYPE:
         case AES_192_CFB128_TYPE:

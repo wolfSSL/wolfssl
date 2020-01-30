@@ -16577,6 +16577,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     #endif /* HAVE_AES_CBC */
 
     #ifdef WOLFSSL_AES_CFB
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     #ifdef WOLFSSL_AES_128
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cfb1(void)
     {
@@ -16636,6 +16637,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_AES_256_CFB8;
     }
     #endif /* WOLFSSL_AES_256 */
+#endif /* !HAVE_SELFTEST && !HAVE_FIPS */
 
     #ifdef WOLFSSL_AES_128
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cfb128(void)
@@ -18059,6 +18061,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 #endif /* HAVE_AES_CBC */
 
 #ifdef WOLFSSL_AES_CFB
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
             case AES_128_CFB1_TYPE:
             case AES_192_CFB1_TYPE:
             case AES_256_CFB1_TYPE:
@@ -18077,6 +18080,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 else
                     ret = wc_AesCfb8Decrypt(&ctx->cipher.aes, dst, src, len);
                 break;
+#endif /* !HAVE_SELFTEST && !HAVE_FIPS */
             case AES_128_CFB128_TYPE:
             case AES_192_CFB128_TYPE:
             case AES_256_CFB128_TYPE:
