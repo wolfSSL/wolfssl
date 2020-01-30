@@ -6763,19 +6763,18 @@ static int aes_xts_128_test(void)
         0xff, 0x8d, 0xbc, 0x1d, 0x9f, 0x7f, 0xc8, 0x22
     };
 
-    XMEMSET(buf, 0, sizeof(buf));
-    if (wc_AesXtsSetKey(&aes, k2, sizeof(k2), AES_ENCRYPTION,
-            HEAP_HINT, devId) != 0)
-        return -4900;
-
-#if 0 /* Enable after passes */
-//#ifdef OPENSSL_EXTRA
+#ifdef OPENSSL_EXTRA
     ret = EVP_test(EVP_aes_128_xts(), k2, i2, p2, sizeof(p2), c2, sizeof(c2));
     if (ret != 0) {
         printf("EVP_aes_128_xts failed!\n");
         return ret;
     }
 #endif
+
+    XMEMSET(buf, 0, sizeof(buf));
+    if (wc_AesXtsSetKey(&aes, k2, sizeof(k2), AES_ENCRYPTION,
+            HEAP_HINT, devId) != 0)
+        return -4900;
 
     ret = wc_AesXtsEncrypt(&aes, buf, p2, sizeof(p2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -6945,8 +6944,7 @@ static int aes_xts_256_test(void)
         0xc3, 0xea, 0xd8, 0x10, 0xe9, 0xc0, 0xaf, 0x92
     };
 
-#if 0 /* Enable after passes */
-//#ifdef OPENSSL_EXTRA
+#ifdef OPENSSL_EXTRA
     ret = EVP_test(EVP_aes_256_xts(), k2, i2, p2, sizeof(p2), c2, sizeof(c2));
     if (ret != 0) {
         printf("EVP_aes_256_xts failed\n");

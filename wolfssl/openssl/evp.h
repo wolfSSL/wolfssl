@@ -178,8 +178,6 @@ typedef union {
     Aes  aes;
 #ifdef WOLFSSL_AES_XTS
     XtsAes xts;
-    const byte*  tweak;
-    word32 tweakSz;
 #endif
 #endif
 #ifndef NO_DES3
@@ -321,7 +319,8 @@ struct WOLFSSL_EVP_CIPHER_CTX {
     int  bufUsed;
     ALIGN16 byte lastBlock[WOLFSSL_EVP_BUF_SIZE];
     int  lastUsed;
-#if !defined(NO_AES) || !defined(NO_DES3) || defined(HAVE_IDEA)
+#if !defined(NO_AES) || !defined(NO_DES3) || defined(HAVE_IDEA) || \
+    defined(HAVE_AESGCM) || defined (WOLFSSL_AES_XTS)
 #define HAVE_WOLFSSL_EVP_CIPHER_CTX_IV
     int    ivSz;
     ALIGN16 unsigned char authTag[AES_BLOCK_SIZE];

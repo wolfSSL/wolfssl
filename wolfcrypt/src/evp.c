@@ -390,10 +390,10 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
     case AES_256_XTS_TYPE:
         if (ctx->enc)
             ret = wc_AesXtsEncrypt(&ctx->cipher.xts, out, in, inl,
-                    ctx->cipher.tweak, ctx->cipher.tweakSz);
+                    ctx->iv, ctx->ivSz);
         else
             ret = wc_AesXtsDecrypt(&ctx->cipher.xts, out, in, inl,
-                    ctx->cipher.tweak, ctx->cipher.tweakSz);
+                    ctx->iv, ctx->ivSz);
         break;
 #endif
 #endif /* !NO_AES */

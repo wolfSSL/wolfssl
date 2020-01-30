@@ -17768,15 +17768,18 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_XTS_MODE;
             ctx->keyLen     = 32;
             ctx->block_size = 1;
+            ctx->ivSz       = 16;
+
+            if (iv)
+                XMEMCPY(ctx->iv, iv, ctx->ivSz);
+            else
+                XMEMSET(ctx->iv, 0, AES_BLOCK_SIZE);
+
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
-            if (iv) {
-                ctx->cipher.tweak   = iv;
-                ctx->cipher.tweakSz = 16;
-            }
             if (key) {
                 ret = wc_AesXtsSetKey(&ctx->cipher.xts, key, ctx->keyLen, 
-                    AES_ENCRYPTION, NULL, 0);
+                    ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, NULL, 0);
                 if (ret != 0) {
                     WOLFSSL_MSG("wc_AesXtsSetKey() failed");
                     return ret;
@@ -17793,15 +17796,18 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_XTS_MODE;
             ctx->keyLen     = 64;
             ctx->block_size = 1;
+            ctx->ivSz       = 16;
+
+            if (iv)
+                XMEMCPY(ctx->iv, iv, ctx->ivSz);
+            else
+                XMEMSET(ctx->iv, 0, AES_BLOCK_SIZE);
+
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
-            if (iv) {
-                ctx->cipher.tweak   = iv;
-                ctx->cipher.tweakSz = 16;
-            }
             if (key) {
                 ret = wc_AesXtsSetKey(&ctx->cipher.xts, key, ctx->keyLen, 
-                    AES_ENCRYPTION, NULL, 0);
+                        ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, NULL, 0);
                 if (ret != 0) {
                     WOLFSSL_MSG("wc_AesXtsSetKey() failed");
                     return ret;
@@ -18093,10 +18099,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 WOLFSSL_MSG("AES XTS");
                 if (ctx->enc)
                     ret = wc_AesXtsEncrypt(&ctx->cipher.xts, dst, src, len,
-                            ctx->cipher.tweak, ctx->cipher.tweakSz);
+                            ctx->iv, ctx->ivSz);
                 else
                     ret = wc_AesXtsDecrypt(&ctx->cipher.xts, dst, src, len,
-                            ctx->cipher.tweak, ctx->cipher.tweakSz);
+                            ctx->iv, ctx->ivSz);
                 break;
 #endif /* WOLFSSL_AES_XTS */
 
