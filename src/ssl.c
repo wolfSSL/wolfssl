@@ -15190,7 +15190,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         int ret = WOLFSSL_FAILURE;
 
         if ((bio != NULL) && (mdcp != NULL)) {
-            *mdcp = bio->ptr;
+            *mdcp = (WOLFSSL_EVP_MD_CTX*)bio->ptr;
             ret = WOLFSSL_SUCCESS;
         }
 
@@ -15472,7 +15472,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             }
 
             if (bio->type == WOLFSSL_BIO_MD) {
-                wolfSSL_EVP_MD_CTX_free(bio->ptr);
+                wolfSSL_EVP_MD_CTX_free((WOLFSSL_EVP_MD_CTX*)bio->ptr);
             }
 
             XFREE(bio, 0, DYNAMIC_TYPE_OPENSSL);

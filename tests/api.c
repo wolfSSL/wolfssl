@@ -24317,10 +24317,16 @@ static void test_wolfSSL_SESSION(void)
         int  bufSz;
 
         AssertNotNull(x509 = SSL_SESSION_get0_peer(sess));
-        AssertIntEQ((bufSz = X509_NAME_get_text_by_NID(
+        AssertIntGT((bufSz = X509_NAME_get_text_by_NID(
                     X509_get_subject_name(x509), NID_organizationalUnitName,
-                    buf, sizeof(buf))), 7);
-        AssertIntEQ(XMEMCMP(buf, "Support", bufSz), 0);
+                    buf, sizeof(buf))), 0);
+        AssertIntNE((bufSz == 7 || bufSz == 16), 0); /* should be one of these*/
+        if (bufSz == 7) {
+            AssertIntEQ(XMEMCMP(buf, "Support", bufSz), 0);
+        }
+        if (bufSz == 16) {
+            AssertIntEQ(XMEMCMP(buf, "Programming-2048", bufSz), 0);
+        }
     }
 #endif
 

@@ -161,14 +161,17 @@ static int wolfSSL_BIO_MD_read(WOLFSSL_BIO* bio, void* buf, int sz)
 {
     int ret = sz;
 
-    if (wolfSSL_EVP_MD_CTX_type(bio->ptr) == (NID_hmac & 0xFF)) {
-        if (wolfSSL_EVP_DigestSignUpdate(bio->ptr, buf, sz) != WOLFSSL_SUCCESS)
+    if (wolfSSL_EVP_MD_CTX_type((WOLFSSL_EVP_MD_CTX*)bio->ptr) ==
+            (NID_hmac & 0xFF)) {
+        if (wolfSSL_EVP_DigestSignUpdate((WOLFSSL_EVP_MD_CTX*)bio->ptr, buf,
+                        sz) != WOLFSSL_SUCCESS)
         {
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
     else {
-        if (wolfSSL_EVP_DigestUpdate(bio->ptr, buf, ret) != WOLFSSL_SUCCESS) {
+        if (wolfSSL_EVP_DigestUpdate((WOLFSSL_EVP_MD_CTX*)bio->ptr, buf, ret)
+                != WOLFSSL_SUCCESS) {
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
@@ -467,14 +470,16 @@ static int wolfSSL_BIO_MD_write(WOLFSSL_BIO* bio, const void* data, int len)
         return BAD_FUNC_ARG;
     }
 
-    if (wolfSSL_EVP_MD_CTX_type(bio->ptr) == (NID_hmac & 0xFF)) {
-        if (wolfSSL_EVP_DigestSignUpdate(bio->ptr, data, len) !=
-                WOLFSSL_SUCCESS) {
+    if (wolfSSL_EVP_MD_CTX_type((WOLFSSL_EVP_MD_CTX*)bio->ptr) ==
+            (NID_hmac & 0xFF)) {
+        if (wolfSSL_EVP_DigestSignUpdate((WOLFSSL_EVP_MD_CTX*)bio->ptr, data,
+                    len) != WOLFSSL_SUCCESS) {
             ret = WOLFSSL_BIO_ERROR;
         }
     }
     else {
-        if (wolfSSL_EVP_DigestUpdate(bio->ptr, data, len) != WOLFSSL_SUCCESS) {
+        if (wolfSSL_EVP_DigestUpdate((WOLFSSL_EVP_MD_CTX*)bio->ptr, data, len)
+                != WOLFSSL_SUCCESS) {
             ret =  WOLFSSL_BIO_ERROR;
         }
     }
@@ -809,14 +814,14 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
 #ifndef WOLFCRYPT_ONLY
         /* call final on hash */
         case WOLFSSL_BIO_MD:
-            if (wolfSSL_EVP_MD_CTX_size(bio->ptr) > sz) {
+            if (wolfSSL_EVP_MD_CTX_size((WOLFSSL_EVP_MD_CTX*)bio->ptr) > sz) {
                 WOLFSSL_MSG("Output buffer was too small for digest");
                 ret = WOLFSSL_FAILURE;
             }
             else {
                 unsigned int szOut = 0;
-                ret = wolfSSL_EVP_DigestFinal(bio->ptr, (unsigned char*)buf,
-                        &szOut);
+                ret = wolfSSL_EVP_DigestFinal((WOLFSSL_EVP_MD_CTX*)bio->ptr,
+                        (unsigned char*)buf, &szOut);
                 if (ret == WOLFSSL_SUCCESS) {
                     ret = szOut;
                 }
@@ -1302,9 +1307,10 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
 #ifndef WOLFCRYPT_ONLY
         case WOLFSSL_BIO_MD:
             if (bio->ptr != NULL) {
-                const WOLFSSL_EVP_MD* md = wolfSSL_EVP_MD_CTX_md(bio->ptr);
-                wolfSSL_EVP_MD_CTX_init(bio->ptr);
-                wolfSSL_EVP_DigestInit(bio->ptr, md);
+                const WOLFSSL_EVP_MD* md =
+                    wolfSSL_EVP_MD_CTX_md((WOLFSSL_EVP_MD_CTX*)bio->ptr);
+                wolfSSL_EVP_MD_CTX_init((WOLFSSL_EVP_MD_CTX*)bio->ptr);
+                wolfSSL_EVP_DigestInit((WOLFSSL_EVP_MD_CTX*)bio->ptr, md);
             }
             return 0;
 #endif /* WOLFCRYPT_ONLY */
