@@ -21836,8 +21836,8 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
         /* print signature algo */
         {
-            int   oid;
-            char* sig;
+            int oid;
+            const char* sig;
 
             if ((oid = wolfSSL_X509_get_signature_type(x509)) <= 0) {
                 WOLFSSL_MSG("Error getting x509 signature type");
