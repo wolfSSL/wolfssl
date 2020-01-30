@@ -50,8 +50,6 @@ EXTRA_DIST += \
 	     certs/ecc-privOnlyKey.pem \
 	     certs/ecc-privOnlyCert.pem \
 	     certs/dh3072.pem \
-	     certs/client-cert-3072.pem \
-	     certs/client-key-3072.pem \
 	     certs/client-cert-ext.pem
 
 EXTRA_DIST += \

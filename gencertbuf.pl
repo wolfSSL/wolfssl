@@ -82,6 +82,7 @@ my @fileList_3072 = (
         [ "./certs/dsa3072.der", "dsa_key_der_3072" ],
         [ "./certs/rsa3072.der", "rsa_key_der_3072" ],
         [ "./certs/3072/client-key.der", "client_key_der_3072" ],
+        [ "./certs/3072/client-keyPub.der", "client_keypub_der_3072" ],
         [ "./certs/3072/client-cert.der", "client_cert_der_3072" ],
         );
 
