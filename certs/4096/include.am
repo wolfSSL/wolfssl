@@ -5,5 +5,3 @@
 EXTRA_DIST += \
          certs/4096/client-cert.pem \
          certs/4096/client-key.pem
-
-

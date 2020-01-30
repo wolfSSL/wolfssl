@@ -5,6 +5,6 @@
 EXTRA_DIST += \
          certs/3072/client-cert.der \
          certs/3072/client-cert.pem \
-		 certs/3072/client-key.der \
+         certs/3072/client-key.der \
          certs/3072/client-key.pem \
-		 certs/3072/client-keyPub.der
+         certs/3072/client-keyPub.der

@@ -24,4 +24,3 @@ EXTRA_DIST += \
          certs/1024/rsa1024.der \
          certs/1024/server-cert.der \
          certs/1024/server-key.der
-
