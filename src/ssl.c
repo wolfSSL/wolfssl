@@ -28726,7 +28726,6 @@ void wolfSSL_AES_cfb128_encrypt(const unsigned char *in, unsigned char* out,
 #endif /* NO_AES */
 
 #ifndef NO_FILESYSTEM
-    #include <stdarg.h> /* var_arg */
     #ifdef __clang__
         #pragma clang diagnostic push
         #pragma clang diagnostic ignored "-Wformat-nonliteral"

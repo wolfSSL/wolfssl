@@ -5672,6 +5672,7 @@ static int EVP_test(const WOLFSSL_EVP_CIPHER* type, const byte* key,
 
 EVP_TEST_END:
     XFREE(cipher, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    (void)cipherSz;
     return ret;
 }
 #endif /* OPENSSL_EXTRA */

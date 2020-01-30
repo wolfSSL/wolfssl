@@ -124,7 +124,6 @@ static int wolfSSL_BIO_MEMORY_read(WOLFSSL_BIO* bio, void* buf, int len)
     return sz;
 }
 
-
 #ifndef WOLFCRYPT_ONLY
 /* Helper function to read from WOLFSSL_BIO_SSL type
  *
@@ -157,7 +156,6 @@ static int wolfSSL_BIO_SSL_read(WOLFSSL_BIO* bio, void* buf,
 
     return ret;
 }
-#endif /* WOLFCRYPT_ONLY */
 
 static int wolfSSL_BIO_MD_read(WOLFSSL_BIO* bio, void* buf, int sz)
 {
@@ -176,6 +174,7 @@ static int wolfSSL_BIO_MD_read(WOLFSSL_BIO* bio, void* buf, int sz)
     }
     return ret;
 }
+#endif /* WOLFCRYPT_ONLY */
 
 
 /* Used to read data from a WOLFSSL_BIO structure
@@ -238,12 +237,12 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
         if (bio && bio->type == WOLFSSL_BIO_SSL) {
             ret = wolfSSL_BIO_SSL_read(bio, buf, len, front);
         }
-    #endif
 
         /* data passing through BIO MD wrapper */
         if (bio && bio->type == WOLFSSL_BIO_MD && ret > 0) {
             ret = wolfSSL_BIO_MD_read(bio, buf, ret);
         }
+    #endif
 
         /* case where front of list is done */
         if (bio == front) {
@@ -455,6 +454,7 @@ static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
 }
 
 
+#ifndef WOLFCRYPT_ONLY
 /* Helper function for writing to a WOLFSSL_BIO_MD type
  *
  * returns the amount written in bytes on success (0)
@@ -480,6 +480,7 @@ static int wolfSSL_BIO_MD_write(WOLFSSL_BIO* bio, const void* data, int len)
     }
     return ret;
 }
+#endif /* WOLFCRYPT_ONLY */
 
 
 /* Writes data to a WOLFSSL_BIO structure
@@ -593,13 +594,13 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
                 ret = wolfSSL_BIO_SSL_write(bio, data, len, front);
             }
         }
-    #endif /* WOLFCRYPT_ONLY */
 
         if (bio && bio->type == WOLFSSL_BIO_MD) {
             if (bio->next != NULL) { /* data passing through MD BIO */
                 ret = wolfSSL_BIO_MD_write(bio, data, len);
             }
         }
+    #endif /* WOLFCRYPT_ONLY */
 
         /* advance to the next bio in list */
         bio = bio->next;
@@ -805,6 +806,7 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
                 break;
             }
 
+#ifndef WOLFCRYPT_ONLY
         /* call final on hash */
         case WOLFSSL_BIO_MD:
             if (wolfSSL_EVP_MD_CTX_size(bio->ptr) > sz) {
@@ -820,6 +822,7 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
                 }
             }
             break;
+#endif /* WOLFCRYPT_ONLY */
 
         default:
             WOLFSSL_MSG("BIO type not supported yet with wolfSSL_BIO_gets");
@@ -1296,6 +1299,7 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
             }
             return 0;
 
+#ifndef WOLFCRYPT_ONLY
         case WOLFSSL_BIO_MD:
             if (bio->ptr != NULL) {
                 const WOLFSSL_EVP_MD* md = wolfSSL_EVP_MD_CTX_md(bio->ptr);
@@ -1303,6 +1307,7 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
                 wolfSSL_EVP_DigestInit(bio->ptr, md);
             }
             return 0;
+#endif /* WOLFCRYPT_ONLY */
 
         default:
             WOLFSSL_MSG("Unknown BIO type needs added to reset function");
