@@ -24211,7 +24211,7 @@ static void test_wolfSSL_BIO_f_md(void)
                                              testKey, (int)sizeof(testKey)));
     EVP_DigestSignInit(ctx, NULL, EVP_sha256(), NULL, key);
     AssertNotNull(bio = BIO_push(bio, mem));
-    BIO_write(bio, testData, strlen(testData));
+    BIO_write(bio, testData, (int)strlen(testData));
     EVP_DigestSignFinal(ctx, NULL, &checkSz);
     EVP_DigestSignFinal(ctx, check, &checkSz);
 
