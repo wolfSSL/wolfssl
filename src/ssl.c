@@ -13455,6 +13455,7 @@ WOLFSSL_X509_CHAIN* wolfSSL_SESSION_get_peer_chain(WOLFSSL_SESSION* session)
 }
 
 
+#ifdef OPENSSL_EXTRA
 /* gets the peer certificate associated with the session passed in
  * returns null on failure, the caller should not free the returned pointer */
 WOLFSSL_X509* wolfSSL_SESSION_get0_peer(WOLFSSL_SESSION* session)
@@ -13478,7 +13479,7 @@ WOLFSSL_X509* wolfSSL_SESSION_get0_peer(WOLFSSL_SESSION* session)
 
     return NULL;
 }
-
+#endif /* OPENSSL_EXTRA */
 #endif /* SESSION_INDEX && SESSION_CERTS */
 
 

@@ -23928,7 +23928,7 @@ static void test_wolfSSL_BIO_puts(void)
     #endif
 }
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     !defined(NO_RSA) && defined(HAVE_EXT_CACHE) && \
     defined(HAVE_IO_TESTS_DEPENDENCIES)
 static int forceWantRead(WOLFSSL *ssl, char *buf, int sz, void *ctx)
@@ -23943,7 +23943,7 @@ static int forceWantRead(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
 static void test_wolfSSL_BIO_should_retry(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+#if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     !defined(NO_RSA) && defined(HAVE_EXT_CACHE) && \
     defined(HAVE_IO_TESTS_DEPENDENCIES)
     tcp_ready ready;
