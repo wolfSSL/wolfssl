@@ -10210,8 +10210,6 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
 
 #ifdef WOLFSSL_PEM_TO_DER
 
-#define STR_SIZEOF(x) (sizeof(x) - 1) /* -1 to not count the null char */
-
 /* Remove PEM header/footer, convert to ASN1, store any encrypted data
    info->consumed tracks of PEM bytes consumed in case multiple parts */
 int PemToDer(const unsigned char* buff, long longSz, int type,
