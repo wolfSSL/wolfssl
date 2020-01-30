@@ -3076,6 +3076,9 @@ struct WOLFSSL_SESSION {
     byte               masterSecret[SECRET_LEN];  /* stored secret            */
     word16             haveEMS;                   /* ext master secret flag   */
 #ifdef SESSION_CERTS
+#ifdef OPENSSL_EXTRA
+    WOLFSSL_X509*      peer;                      /* peer cert */
+#endif
     WOLFSSL_X509_CHAIN chain;                     /* peer cert chain, static  */
     #ifdef WOLFSSL_ALT_CERT_CHAINS
     WOLFSSL_X509_CHAIN altChain;                  /* peer alt cert chain, static */

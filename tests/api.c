@@ -23993,7 +23993,7 @@ static void test_wolfSSL_BIO_should_retry(void)
     wolfSSL_SSLSetIORecv(ssl, forceWantRead);
 
     AssertNotNull(bio = BIO_new(BIO_f_ssl()));
-    BIO_set_ssl(bio, ssl, BIO_NOCLOSE);
+    BIO_set_ssl(bio, ssl, BIO_CLOSE);
 
     AssertIntLE(BIO_write(bio, msg, msgSz), 0);
     AssertIntNE(BIO_should_retry(bio), 0);
@@ -24013,6 +24013,7 @@ static void test_wolfSSL_BIO_should_retry(void)
     AssertIntEQ(XMEMCMP(reply, "I hear you fa shizzle!",
                 XSTRLEN("I hear you fa shizzle!")), 0);
     BIO_free(bio);
+    wolfSSL_CTX_free(ctx);
 
     join_thread(serverThread);
     FreeTcpReady(&ready);
@@ -24217,6 +24218,7 @@ static void test_wolfSSL_BIO_f_md(void)
 
     AssertIntEQ(XMEMCMP(check, testResult, sizeof(testResult)), 0);
 
+    EVP_PKEY_free(key);
     BIO_free(bio);
     BIO_free(mem);
 

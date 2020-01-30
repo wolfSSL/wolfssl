@@ -13468,9 +13468,14 @@ WOLFSSL_X509* wolfSSL_SESSION_get0_peer(WOLFSSL_SESSION* session)
             WOLFSSL_MSG("bad count found");
             return NULL;
         }
-        return wolfSSL_get_chain_X509(&session->chain, 0);
+
+        if (session->peer == NULL) {
+            session->peer = wolfSSL_get_chain_X509(&session->chain, 0);
+        }
+        return session->peer;
     }
     WOLFSSL_MSG("No session passed in");
+
     return NULL;
 }
 
@@ -21639,6 +21644,9 @@ WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session)
             copy->ticket = copy->staticTicket;
         }
 #endif
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+        copy->peer = wolfSSL_X509_dup(session->peer);
+#endif
     }
     return copy;
 #else
@@ -21653,6 +21661,12 @@ void wolfSSL_SESSION_free(WOLFSSL_SESSION* session)
 {
     if (session == NULL)
         return;
+
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+    if (session->peer) {
+        wolfSSL_X509_free(session->peer);
+    }
+#endif
 
 #ifdef HAVE_EXT_CACHE
     if (session->isAlloced) {
