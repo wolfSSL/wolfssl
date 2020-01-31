@@ -55,7 +55,7 @@ const char* clientKey = "./certs/client-key.pem";
 static inline WC_NORETURN void
 err_sys(const char* msg)
 {
-    printf("wolfSSL error: %s\n", msg);
+    fprintf(stderr, "wolfSSL error: %s\n", msg);
 
     exit(EXIT_FAILURE);
 }
@@ -165,7 +165,8 @@ void build_addr(SOCKADDR_IN_T* addr, const char* peer, unsigned short port)
             XMEMCPY(addr, answer->ai_addr, answer->ai_addrlen);
             freeaddrinfo(answer);
         #else
-            printf("no ipv6 getaddrinfo, loopback only tests/examples\n");
+            fprintf(stderr,
+                    "no ipv6 getaddrinfo, loopback only tests/examples\n");
             addr->sin6_addr = in6addr_loopback;
         #endif
     }
@@ -224,30 +225,70 @@ int print_cert(const char* desc, WOLFSSL_X509* cert)
     const unsigned char* xTime;
     char* nameP;
     char name[256];
+    int ret, error = -1;
 
     printf("%s\n", desc);
     xName = wolfSSL_X509_get_issuer_name(cert);
+    if (xName == NULL) {
+        fprintf(stderr, "wolfSSL_X509_get_issuer_name() failed\n");
+        goto doExit;
+    }
+
     nameP = wolfSSL_X509_NAME_oneline(xName, name, (int)sizeof(name));
+    if (nameP == NULL) {
+        fprintf(stderr, "wolfSSL_X509_NAME_online() failed\n");
+        goto doExit;
+    }
     printf("  %12s: %s\n", "issuer name", nameP);
 
     xName = wolfSSL_X509_get_subject_name(cert);
+    if (xName == NULL) {
+        fprintf(stderr, "wolfSSL_X509_get_subject_name() failed\n");
+        goto doExit;
+    }
+
     nameP = wolfSSL_X509_NAME_oneline(xName, name, (int)sizeof(name));
+    if (nameP == NULL) {
+        fprintf(stderr, "wolfSSL_X509_NAME_online() failed\n");
+        goto doExit;
+    }
     printf("  %12s: %s\n", "subject name", nameP);
 
     do {
         nameP = wolfSSL_X509_get_next_altname(cert);
         if (nameP != NULL) {
-            printf("%12s: %s\n", "altname", nameP);
+            printf("  %12s: %s\n", "altname", nameP);
         }
     } while (nameP != NULL);
 
     xTime = wolfSSL_X509_notBefore(cert);
-    print_time("notBefore", xTime);
+    if (xTime == NULL) {
+        fprintf(stderr, "wolfSSL_X509_notBefore() failed\n");
+        goto doExit;
+    }
+
+    ret = print_time("notBefore", xTime);
+    if (ret != 0) {
+        fprintf(stderr, "print_time() failed (%d)\n", ret);
+        goto doExit;
+    }
 
     xTime = wolfSSL_X509_notAfter(cert);
-    print_time("notAfter", xTime);
+    if (xTime == NULL) {
+        fprintf(stderr, "wolfSSL_X509_notAfter() failed\n");
+        goto doExit;
+    }
 
-    return 0;
+    ret = print_time("notAfter", xTime);
+    if (ret != 0) {
+        fprintf(stderr, "print_time() failed (%d)\n", ret);
+        goto doExit;
+    }
+
+    error = 0;
+
+doExit:
+    return error;
 }
 
 
@@ -255,13 +296,27 @@ static
 int test_cert_file(void)
 {
     WOLFSSL_X509* cert;
+    int ret, error = -1;
+
     cert = wolfSSL_X509_load_certificate_file(caCert, SSL_FILETYPE_PEM);
-    printf("wolfSSL_X509_load_certificate_file() = %p\n", cert);
-    if (cert != NULL)
-        print_cert("wolfSSL_X509_load_certificate_file()", cert);
+    if (cert == NULL) {
+        fprintf(stderr, "wolfSSL_X509_load_certificate_file() failed\n");
+        goto doExit;
+    }
+
+    ret = print_cert("wolfSSL_X509_load_certificate_file()", cert);
+    if (ret != 0) {
+        fprintf(stderr, "print_cert() failed (%d)\n", ret);
+        goto doCleanup;
+    }
+
+    error = 0;
+
+doCleanup:
     wolfSSL_X509_free(cert);
 
-    return 0;
+doExit:
+    return error;
 }
 
 
@@ -273,42 +328,50 @@ int test_ecc_key(void)
     byte nonce[32];
     byte digest[32];
     byte sig[72];
-    int ret = 0;
+    int ret = 0, error = -1;
     word32 digestSz = sizeof(digest), sigSz = sizeof(sig);
 
     memset(nonce, 0, sizeof(nonce));
 
     rng = wc_rng_new(nonce, (word32)sizeof(nonce), NULL);
     if (rng == NULL) {
-        printf("Couldn't get a random number generator.\n");
+        fprintf(stderr, "wc_rng_new() failed\n");
         goto doExit;
     }
 
-    wc_RNG_GenerateBlock(rng, digest, digestSz);
+    ret = wc_RNG_GenerateBlock(rng, digest, digestSz);
+    if (ret != 0) {
+        fprintf(stderr, "wc_RNG_GenerateBlock() failed (%d)\n", ret);
+        goto doCleanup;
+    }
 
     ecc = wc_ecc_key_new(NULL);
     if (ecc == NULL) {
-        printf("Couldn't allocate ECC key.\n");
-        goto doExit;
+        fprintf(stderr, "wc_ecc_key_new() failed\n");
+        goto doCleanup;
     }
 
     ret = wc_ecc_init_ex(ecc, NULL, INVALID_DEVID);
     if (ret != 0) {
-        printf("Couldn't initialize ECC key. (%d)\n", ret);
-        goto doExit;
-    }
-    ret = wc_ecc_make_key_ex(rng, 32, ecc, ECC_SECP256R1);
-    if (ret != 0) {
-        printf("Couldn't generate ECC key. (%d)\n", ret);
-        goto doExit;
-    }
-    ret = wc_ecc_sign_hash(digest, digestSz, sig, &sigSz, rng, ecc);
-    if (ret != 0) {
-        printf("Couldn't sign hash. (%d)\n", ret);
-        goto doExit;
+        fprintf(stderr, "wc_ecc_init_ex() failed (%d)\n", ret);
+        goto doCleanup;
     }
 
-doExit:
+    ret = wc_ecc_make_key_ex(rng, 32, ecc, ECC_SECP256R1);
+    if (ret != 0) {
+        fprintf(stderr, "wc_ecc_make_key_ex() failed (%d)\n", ret);
+        goto doCleanup;
+    }
+
+    ret = wc_ecc_sign_hash(digest, digestSz, sig, &sigSz, rng, ecc);
+    if (ret != 0) {
+        fprintf(stderr, "wc_ecc_sign_hash() failed (%d)\n", ret);
+        goto doCleanup;
+    }
+
+    error = 0;
+
+doCleanup:
     if (ecc != NULL) {
         wc_ecc_free(ecc);
         wc_ecc_key_free(ecc);
@@ -316,7 +379,8 @@ doExit:
     if (rng != NULL)
         wc_rng_free(rng);
 
-    return ret;
+doExit:
+    return error;
 }
 
 
@@ -327,30 +391,49 @@ int test_ecc_sign_cb(WOLFSSL* ssl,
        const unsigned char* keyDer, unsigned int keySz,
        void* ctx)
 {
-    int ret = 0;
+    int ret, error = -1;
     ecc_key* ecc = NULL;
 
     (void)ctx;
     printf("EccSignCb\n");
 
+    if (ssl == NULL) {
+        fprintf(stderr, "test_ecc_sign_cb(): Bad function param\n");
+        goto doExit;
+    }
+
+    ecc = wc_ecc_key_new(NULL);
+    if (ecc == NULL) {
+        fprintf(stderr, "wc_ecc_new() failed\n");
+        goto doExit;
+    }
+
     ret = wc_ecc_init_ex(ecc, NULL, INVALID_DEVID);
-    if (ret != 0)
-        printf("Couldn't initialize ECC key. (%d)\n", ret);
-    else
+    if (ret != 0) {
+        fprintf(stderr, "wc_ecc_init_ex() failed (%d)\n", ret);
+        goto doCleanup;
+    }
+
     ret = wc_ecc_import_x963(keyDer, keySz, ecc);
+    if (ret != 0) {
+        fprintf(stderr, "Couldn't import ECC key. (%d)\n", ret);
+        goto doCleanup;
+    }
 
-    if (ret != 0)
-        printf("Couldn't import ECC key. (%d)\n", ret);
-    else
-        ret = wc_ecc_sign_hash(in, inSz, out, outSz, wolfSSL_GetRNG(ssl), ecc);
+    ret = wc_ecc_sign_hash(in, inSz, out, outSz, wolfSSL_GetRNG(ssl), ecc);
+    if (ret != 0) {
+        fprintf(stderr, "Couldn't sign the hash. (%d)\n", ret);
+        goto doCleanup;
+    }
 
-    if (ret != 0)
-        printf("Couldn't sign the hash. (%d)\n", ret);
+    error = 0;
 
+doCleanup:
     wc_ecc_free(ecc);
     wc_ecc_key_free(ecc);
 
-    return ret;
+doExit:
+    return error;
 }
 
 
@@ -358,184 +441,364 @@ static
 int test_connection(int ver, int port)
 {
     WOLFSSL_METHOD* method;
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL* ssl = NULL;
+    WOLFSSL_X509* cert;
+    WOLFSSL_SESSION* session;
     const char* sni;
-    int ret;
+    const byte* sessionId;
+    char buffer[128];
+    char alpnList[] = "C:";
+    int ret = 0, error = -1;
+    SOCKET_T sfd;
     long mode;
 
     printf("test_connection(%d, %d)\n", ver, port);
     switch (ver) {
         case 3:
             method = wolfTLSv1_3_client_method();
-            ver = /* TLSv1_3_MINOR */ 4;
+            ver = WOLFSSL_TLSV1_3;
             break;
         default:
             method = wolfTLSv1_2_client_method();
-            ver = /* TLSv1_2_MINOR */ 3;
+            ver = WOLFSSL_TLSV1_2;
     }
 
-    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(method);
-    if (ctx) printf("got a good ctx\n");
+    if (method == NULL) {
+        fprintf(stderr, "wolfTLSv1_%d_client_method() failed\n", ver - 1);
+        goto doExit;
+    }
+
+    ctx = wolfSSL_CTX_new(method);
+    if (ctx == NULL) {
+        fprintf(stderr, "wolfSSL_CTX_new() failed\n");
+        goto doExit;
+    }
 
     ret = wolfSSL_CTX_SetMinVersion(ctx, ver);
-    if (ret != SSL_SUCCESS)
-        printf("Couldn't set the minimum TLS version on context.\n");
+    if (ret != SSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_CTX_SetMinVersion() failed (%d)\n", ret);
+        goto doCleanup;
+    }
+
     ret = wolfSSL_CTX_load_verify_locations(ctx, caCert, 0);
-    printf("load verify ret = %d\n", ret);
+    if (ret != SSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_CTX_load_verify_locations() failed (%d)\n",
+                ret);
+        goto doCleanup;
+    }
 
     ret = wolfSSL_CTX_SetDevId(ctx, 42);
-    if (ret != SSL_SUCCESS)
-        printf("couldn't set CTX's device ID\n");
-    if (wolfSSL_CTX_GetDevId(ctx, NULL) != 42)
-        printf("couldn't verify the CTX's new device ID\n");
+    if (ret != SSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_CTX_SetDevId() failed (%d)\n", ret);
+        goto doCleanup;
+    }
+
+    ret = wolfSSL_CTX_GetDevId(ctx, NULL);
+    if (ret != 42) {
+        fprintf(stderr, "wolfSSL_CTX_GetDevId() failed (%d, expected 42)\n",
+                ret);
+        goto doCleanup;
+    }
 
     wolfSSL_CTX_SetEccSignCb(ctx, test_ecc_sign_cb);
+
     mode = wolfSSL_CTX_set_session_cache_mode(ctx,
             SSL_SESS_CACHE_NO_AUTO_CLEAR);
-    printf("CTX_set_session_cache_mode ret = %lu\n", mode);
+    if (mode != SSL_SUCCESS) {
+        fprintf(stderr, "CTX_set_session_cache_mode() failed (%lu)\n", mode);
+        goto doCleanup;
+    }
 
-    WOLFSSL* ssl = wolfSSL_new(ctx);
-    if (ssl)
-        printf("got a good ssl\n");
+    ssl = wolfSSL_new(ctx);
+    if (ssl == NULL) {
+        fprintf(stderr, "wolfSSL_new() failed\n");
+        goto doCleanup;
+    }
 
-    if (wolfSSL_CTX_GetDevId(NULL, ssl) != 42)
-        printf("couldn't verify the new session's device ID\n");
+    ret = wolfSSL_CTX_GetDevId(NULL, ssl);
+    if (ret != 42) {
+        fprintf(stderr, "wolfSSL_CTX_GetDevId() failed (%d, expected 42)\n",
+                ret);
+        goto doCleanup;
+    }
+
     ret = wolfSSL_SetDevId(ssl, INVALID_DEVID);
-    if (ret != SSL_SUCCESS)
-        printf("couldn't set session's device ID\n");
-    if (wolfSSL_CTX_GetDevId(NULL, ssl) != INVALID_DEVID)
-        printf("couldn't verify the session's new device ID\n");
+    if (ret != SSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_SetDevId() failed (%d)\n", ret);
+        goto doCleanup;
+    }
+
+    ret = wolfSSL_CTX_GetDevId(NULL, ssl);
+    if (ret != INVALID_DEVID) {
+        fprintf(stderr, "wolfSSL_CTX_GetDevId() failed (%d, expected %d)",
+                ret, INVALID_DEVID);
+        goto doCleanup;
+    }
+
     sni = "badname";
     ret = wolfSSL_CTX_UseSNI(ctx, 0, sni, (word32)strlen(sni));
-    printf("CTX_UseSNI ret = %d\n", ret);
-    ret = wolfSSL_CTX_set_timeout(ctx, 1000);
-    printf("CTX_set_timeout ret = %d\n", ret);
+    if (ret != SSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_CTX_UseSNI() failed (%d)\n", ret);
+        goto doCleanup;
+    }
 
-    SOCKET_T sfd;
+    ret = wolfSSL_CTX_set_timeout(ctx, 1000);
+    if (ret != SSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_CTX_set_timeout() failed (%d)\n", ret);
+        goto doCleanup;
+    }
 
     tcp_connect(&sfd, "localhost", port);
 
-    wolfSSL_set_fd(ssl, sfd);
-    ret = wolfSSL_check_domain_name(ssl, "localhost");
-    if (ret != SSL_SUCCESS)
-        printf("Couldn't set check domain name\n");
-
-    char alpnList[] = "C:";
-    ret = wolfSSL_UseALPN(ssl, alpnList, (word32)strlen(alpnList),
-            WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
-    printf("UseALPN ret = %d\n", ret);
-    sni = "localhost";
-    ret = wolfSSL_UseSNI(ssl, 0, sni, (word32)strlen(sni));
-    printf("UseSNI ret = %d\n", ret);
-    ret = wolfSSL_set_timeout(ssl, 300);
-    printf("set_timeout ret = %d\n", ret);
-
-    ret = wolfSSL_connect(ssl);
-
-    printf("ssl connect ret = %d\n", ret);
-    if (ret < 0) {
-        int err = wolfSSL_get_error(ssl, 0);
-        printf("err = %d\n", err);
+    ret = wolfSSL_set_fd(ssl, sfd);
+    if (ret != SSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_set_fd() failed (%d)\n", ret);
+        goto doClose;
     }
 
-    WOLFSSL_X509* cert = wolfSSL_get_peer_certificate(ssl);
-    if (cert == NULL)
-        printf("the peer certificate is missing\n");
-    else {
-        print_cert("wolfSSL_get_peer_certificate()", cert);
-        wolfSSL_X509_free(cert);
+    ret = wolfSSL_check_domain_name(ssl, "localhost");
+    if (ret != SSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_check_domain_name() failed (%d)\n", ret);
+        goto doClose;
+    }
+
+    ret = wolfSSL_UseALPN(ssl, alpnList, (word32)strlen(alpnList),
+            WOLFSSL_ALPN_CONTINUE_ON_MISMATCH);
+    if (ret != SSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_UseALPN() failed (%d)\n", ret);
+        goto doClose;
+    }
+
+    sni = "localhost";
+    ret = wolfSSL_UseSNI(ssl, 0, sni, (word32)strlen(sni));
+    if (ret != SSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_UseSNI() failed (%d)\n", ret);
+        goto doClose;
+    }
+
+    ret = wolfSSL_set_timeout(ssl, 300);
+    if (ret != SSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_set_timeout() failed (%d)\n", ret);
+        goto doClose;
+    }
+
+    ret = wolfSSL_connect(ssl);
+    if (ret < 0) {
+        fprintf(stderr, "wolfSSL_connect failed (%d, %d)\n", ret,
+                wolfSSL_get_error(ssl, 0));
+        goto doClose;
+    }
+
+    cert = wolfSSL_get_peer_certificate(ssl);
+    if (cert == NULL) {
+        fprintf(stderr, "wolfSSL_get_peer_certificate() failed (%d)\n", ret);
+        goto doClose;
+    }
+    ret = print_cert("wolfSSL_get_peer_certificate()", cert);
+    wolfSSL_X509_free(cert);
+    if (ret != 0) {
+        fprintf(stderr, "print_cert() failed (%d)\n", ret);
+        goto doClose;
     }
 
     ret = wolfSSL_write(ssl, "hi there", 9);
-    printf("write ret = %d\n", ret);
-    ret = wolfSSL_pending(ssl);
-    printf("pending ret = %d\n", ret);
+    if (ret != 9) {
+        fprintf(stderr, "wolfSSL_write() failed (%d)\n", ret);
+        goto doClose;
+    }
 
-    char buffer[128];
+    ret = wolfSSL_pending(ssl);
+    if (ret > 0) {
+        fprintf(stderr, "wolfSSL_pending() failed (%d)\n", ret);
+        goto doClose;
+    }
+
     memset(buffer, 0, sizeof(buffer));
     ret = wolfSSL_read(ssl, buffer, sizeof(buffer));
-    printf("read ret = %d\n", ret);
-    printf("read %s\n", buffer);
+    if (ret <= 0) {
+        fprintf(stderr, "wolfSSL_read() failed (%d)\n", ret);
+        goto doClose;
+    }
+    printf("read: %s\n", buffer);
 
-    printf("bye\n");
+    ret = wolfSSL_shutdown(ssl);
+    if (ret == SSL_SHUTDOWN_NOT_DONE) {
+        ret = wolfSSL_shutdown(ssl);
+    }
+    if (ret != SSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_shutdown() failed (%d)\n", ret);
+        goto doClose;
+    }
 
-    wolfSSL_shutdown(ssl);
+    if (ver != WOLFSSL_TLSV1_3) {
+        session = wolfSSL_get_session(ssl);
+        if (session == NULL) {
+            fprintf(stderr, "wolfSSL_get_session() failed (%p)\n", session);
+            goto doClose;
+        }
 
-    WOLFSSL_SESSION* session = wolfSSL_get_session(ssl);
-    printf("get_session = %p\n", session);
+        sessionId = wolfSSL_get_sessionID(session);
+        if (sessionId == NULL) {
+            fprintf(stderr, "wolfSSL_get_sessionID() failed (%p)\n", sessionId);
+            goto doClose;
+        }
 
-    const byte* sessionId = wolfSSL_get_sessionID(session);
-    printf("sessionID = %p\n", sessionId);
+        ret = wolfSSL_set_session(ssl, session);
+        if (ret != SSL_SUCCESS) {
+            fprintf(stderr, "wolfSSL_set_session() failed (%d)\n", ret);
+            goto doClose;
+        }
+    }
 
-    ret = wolfSSL_set_session(ssl, session);
-    printf("set_session ret = %d\n", ret);
+    error = 0;
 
-    wolfSSL_flush_sessions(ctx, 0);
-
+doClose:
     close(sfd);
-    wolfSSL_free(ssl);
-    wolfSSL_CTX_free(ctx);
 
-    return 0;
+doCleanup:
+    wolfSSL_flush_sessions(ctx, 0);
+    if (ssl != NULL)
+        wolfSSL_free(ssl);
+    if (ctx != NULL)
+        wolfSSL_CTX_free(ctx);
+
+doExit:
+    return error;
 }
 
 
 static int
 test_cert_use(void)
 {
-    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
-    int ret;
+    WOLFSSL_CTX* ctx;
+    WOLFSSL* ssl = NULL;
+    int ret, error = -1;
+
+    ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    if (ctx == NULL) {
+        fprintf(stderr, "wolfSSL_CTX_new() failed\n");
+        goto doExit;
+    }
 
     ret = wolfSSL_CTX_use_certificate_chain_file(ctx, clientCert);
-    printf("CTX_use_certificate_chain_file ret = %d\n", ret);
-    ret = wolfSSL_CTX_use_certificate_file(ctx, clientCert, SSL_FILETYPE_PEM);
-    printf("CTX_use_certificate_file ret = %d\n", ret);
-    ret = wolfSSL_CTX_use_PrivateKey_file(ctx, clientKey, SSL_FILETYPE_PEM);
-    printf("CTX_use_PrivateKey_file ret = %d\n", ret);
+    if (ret != SSL_SUCCESS) {
+        fprintf(stderr,
+                "wolfSSL_CTX_use_certificate_chain_file() failed (%d)\n", ret);
+        goto doCleanup;
+    }
 
-    WOLFSSL* ssl = wolfSSL_new(ctx);
+    ret = wolfSSL_CTX_use_certificate_file(ctx, clientCert, SSL_FILETYPE_PEM);
+    if (ret != SSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_CTX_use_certificate_file() failed (%d)\n",
+                ret);
+        goto doCleanup;
+    }
+
+    ret = wolfSSL_CTX_use_PrivateKey_file(ctx, clientKey, SSL_FILETYPE_PEM);
+    if (ret != SSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_CTX_use_PrivateKey_file() failed (%d)\n", ret);
+        goto doCleanup;
+    }
+
+    ssl = wolfSSL_new(ctx);
+    if (ssl == NULL) {
+        fprintf(stderr, "wolfSSL_new() failed\n");
+        goto doCleanup;
+    }
 
     ret = wolfSSL_use_certificate_chain_file(ssl, clientCert);
-    printf("use_certificate_chain_file ret = %d\n", ret);
+    if (ret != SSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_use_certificate_chain_file() failed (%d)\n",
+                ret);
+        goto doCleanup;
+    }
+
     ret = wolfSSL_use_certificate_file(ssl, clientCert, SSL_FILETYPE_PEM);
-    printf("use_certificate_file ret = %d\n", ret);
+    if (ret != SSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_use_certificate_file() failed (%d)\n", ret);
+        goto doCleanup;
+    }
+
     ret = wolfSSL_use_PrivateKey_file(ssl, clientKey, SSL_FILETYPE_PEM);
-    printf("use_PrivateKey_file ret = %d\n", ret);
+    if (ret != SSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_use_PrivateKey_file() failed (%d)\n", ret);
+        goto doCleanup;
+    }
 
-    wolfSSL_free(ssl);
-    wolfSSL_CTX_free(ctx);
+    error = 0;
 
-    return 0;
+doCleanup:
+    if (ssl != NULL)
+        wolfSSL_free(ssl);
+    if (ctx != NULL)
+        wolfSSL_CTX_free(ctx);
+
+doExit:
+    return error;
 }
 
 
 int main(int argc, char* argv[])
 {
     int port = 11111;
-    int ret;
+    int ret, error = 23;
 
     if (argc > 1) {
         port = atoi(argv[1]);
         if (port == 0) {
-            printf("bad port number (%s)\n", argv[1]);
-            return 1;
+            fprintf(stderr, "bad port number (%s)\n", argv[1]);
+            goto doExit;
         }
     }
 
-    printf("hello\n");
-
     ret = wolfSSL_Init();
-    if (ret != SSL_SUCCESS)
-        printf("init = %d\n", ret);
+    if (ret != SSL_SUCCESS) {
+        fprintf(stderr, "wolfSSL_Init() failed (%d)\n", ret);
+        goto doExit;
+    }
 
-    test_cert_file();
-    test_cert_use();
-    test_ecc_key();
+    ret = test_cert_file();
+    if (ret != 0) {
+        fprintf(stderr, "test_cert_file() failed\n");
+        goto doCleanup;
+    }
 
-    test_connection(2, port);
-    test_connection(3, port);
+    ret = test_cert_use();
+    if (ret != 0) {
+        fprintf(stderr, "test_cert_use() failed\n");
+        goto doCleanup;
+    }
 
+    ret = test_ecc_key();
+    if (ret != 0) {
+        fprintf(stderr, "test_ecc_key() failed\n");
+        goto doCleanup;
+    }
+
+    ret = test_connection(1, port);
+    if (ret != 0) {
+        fprintf(stderr, "test_connection(TLSv1.1) failed\n");
+        goto doCleanup;
+    }
+
+    ret = test_connection(2, port);
+    if (ret != 0) {
+        fprintf(stderr, "test_connection(TLSv1.2) failed\n");
+        goto doCleanup;
+    }
+
+    ret = test_connection(3, port);
+    if (ret != 0) {
+        fprintf(stderr, "test_connection(TLSv1.3) failed\n");
+        goto doCleanup;
+    }
+
+    error = 0;
+
+doCleanup:
     wolfSSL_Cleanup();
-    printf("bye\n");
 
-    return 0;
+doExit:
+    return error;
 }
