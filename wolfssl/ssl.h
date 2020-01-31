@@ -2469,7 +2469,7 @@ struct DhKey;
 typedef int (*CallbackDhAgree)(WOLFSSL* ssl, struct DhKey* key,
         const unsigned char* priv, unsigned int privSz,
         const unsigned char* otherPubKeyDer, unsigned int otherPubKeySz,
-        unsigned char* out, unsigned int* outlen,
+        unsigned char* out, word32* outlen,
         void* ctx);
 WOLFSSL_API void  wolfSSL_CTX_SetDhAgreeCb(WOLFSSL_CTX*, CallbackDhAgree);
 WOLFSSL_API void  wolfSSL_SetDhAgreeCtx(WOLFSSL* ssl, void *ctx);
@@ -2523,7 +2523,7 @@ WOLFSSL_API void* wolfSSL_GetX25519SharedSecretCtx(WOLFSSL* ssl);
 #ifndef NO_RSA
 typedef int (*CallbackRsaSign)(WOLFSSL* ssl,
        const unsigned char* in, unsigned int inSz,
-       unsigned char* out, unsigned int* outSz,
+       unsigned char* out, word32* outSz,
        const unsigned char* keyDer, unsigned int keySz,
        void* ctx);
 WOLFSSL_API void  wolfSSL_CTX_SetRsaSignCb(WOLFSSL_CTX*, CallbackRsaSign);
@@ -2568,7 +2568,7 @@ WOLFSSL_API void* wolfSSL_GetRsaPssVerifyCtx(WOLFSSL* ssl);
 /* RSA Public Encrypt cb */
 typedef int (*CallbackRsaEnc)(WOLFSSL* ssl,
        const unsigned char* in, unsigned int inSz,
-       unsigned char* out, unsigned int* outSz,
+       unsigned char* out, word32* outSz,
        const unsigned char* keyDer, unsigned int keySz,
        void* ctx);
 WOLFSSL_API void  wolfSSL_CTX_SetRsaEncCb(WOLFSSL_CTX*, CallbackRsaEnc);

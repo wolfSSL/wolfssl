@@ -6122,6 +6122,14 @@ static WC_INLINE int GetTime(int* value, const byte* date, int* idx)
 int ExtractDate(const unsigned char* date, unsigned char format,
                                                   struct tm* certTime, int* idx)
 {
+    /* Extract the time from the struct tm - 16bit processors store as uint8_t */
+    int tm_year = certTime->tm_year;
+    int tm_mon  = certTime->tm_mon;
+    int tm_mday = certTime->tm_mday;
+    int tm_hour = certTime->tm_hour;
+    int tm_min  = certTime->tm_min;
+    int tm_sec  = certTime->tm_sec;
+
     XMEMSET(certTime, 0, sizeof(struct tm));
 
     if (format == ASN_UTC_TIME) {
@@ -6136,14 +6144,15 @@ int ExtractDate(const unsigned char* date, unsigned char format,
     }
 
     /* adjust tm_year, tm_mon */
-    if (GetTime(&certTime->tm_year, date, idx) != 0) return 0;
-    certTime->tm_year -= 1900;
-    if (GetTime(&certTime->tm_mon , date, idx) != 0) return 0;
-    certTime->tm_mon  -= 1;
-    if (GetTime(&certTime->tm_mday, date, idx) != 0) return 0;
-    if (GetTime(&certTime->tm_hour, date, idx) != 0) return 0;
-    if (GetTime(&certTime->tm_min , date, idx) != 0) return 0;
-    if (GetTime(&certTime->tm_sec , date, idx) != 0) return 0;
+    tm_year -= 1900;
+    tm_mon  -= 1;
+
+    if (GetTime(&tm_year, date, idx) != 0) return 0;
+    if (GetTime(&tm_mon , date, idx) != 0) return 0;
+    if (GetTime(&tm_mday, date, idx) != 0) return 0;
+    if (GetTime(&tm_hour, date, idx) != 0) return 0;
+    if (GetTime(&tm_min , date, idx) != 0) return 0;
+    if (GetTime(&tm_sec , date, idx) != 0) return 0;
 
     return 1;
 }
