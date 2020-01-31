@@ -882,6 +882,13 @@ extern void uITRON4_free(void *p) ;
     #define TFM_TIMING_RESISTANT
 #endif
 
+#ifdef WOLFSSL_USE_FLASHMEM
+    #define FLASH_QUALIFIER __flash
+    #define XMEMCPY_P(pdest, psrc, size) memcpy_P((pdest), (psrc), (size))
+#else
+    #define FLASH_QUALIFIER
+#endif
+
 #ifdef FREESCALE_MQX_5_0
     /* use normal Freescale MQX port, but with minor changes for 5.0 */
     #define FREESCALE_MQX

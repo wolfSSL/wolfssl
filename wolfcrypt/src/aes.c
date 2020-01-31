@@ -782,14 +782,14 @@
 
 #ifdef NEED_AES_TABLES
 
-static const word32 rcon[] = {
+static const FLASH_QUALIFIER word32 rcon[] = {
     0x01000000, 0x02000000, 0x04000000, 0x08000000,
     0x10000000, 0x20000000, 0x40000000, 0x80000000,
     0x1B000000, 0x36000000,
     /* for 128-bit blocks, Rijndael never uses more than 10 rcon values */
 };
 
-static const word32 Te[4][256] = {
+static const FLASH_QUALIFIER word32 Te[4][256] = {
 {
     0xc66363a5U, 0xf87c7c84U, 0xee777799U, 0xf67b7b8dU,
     0xfff2f20dU, 0xd66b6bbdU, 0xde6f6fb1U, 0x91c5c554U,
@@ -1057,7 +1057,7 @@ static const word32 Te[4][256] = {
 };
 
 #ifdef HAVE_AES_DECRYPT
-static const word32 Td[4][256] = {
+static const FLASH_QUALIFIER word32 Td[4][256] = {
 {
     0x51f4a750U, 0x7e416553U, 0x1a17a4c3U, 0x3a275e96U,
     0x3bab6bcbU, 0x1f9d45f1U, 0xacfa58abU, 0x4be30393U,
@@ -1328,7 +1328,7 @@ static const word32 Td[4][256] = {
 
 #if (defined(HAVE_AES_CBC) && !defined(WOLFSSL_DEVCRYPTO_CBC)) \
 			|| defined(WOLFSSL_AES_DIRECT)
-static const byte Td4[256] =
+static const FLASH_QUALIFIER byte Td4[256] =
 {
     0x52U, 0x09U, 0x6aU, 0xd5U, 0x30U, 0x36U, 0xa5U, 0x38U,
     0xbfU, 0x40U, 0xa3U, 0x9eU, 0x81U, 0xf3U, 0xd7U, 0xfbU,
