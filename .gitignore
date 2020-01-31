@@ -76,6 +76,7 @@ mcapi/test
 testsuite/testsuite
 tests/unit
 testsuite/testsuite.test
+tests/abi/abi-client
 tests/unit.test
 tests/bio_write_test.txt
 test-write-dhparams.pem

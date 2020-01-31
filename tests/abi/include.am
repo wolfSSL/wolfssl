@@ -1,0 +1,13 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+if BUILD_STRICT_ABI
+noinst_PROGRAMS += tests/abi/abi-client
+tests_abi_abi_client_SOURCES = tests/abi/abi-client.c
+tests_abi_abi_client_LDADD = src/libwolfssl.la $(LIB_STATIC_ADD)
+tests_abi_abi_client_DEPENDENCIES = src/libwolfssl.la
+endif
+
+EXTRA_DIST += tests/abi/README.md
+DISTCLEANFILES+= tests/abi/.libs/abi-client
