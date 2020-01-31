@@ -200,8 +200,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
 #endif /* HAVE_WNR */
 
 
-WOLFSSL_ABI WOLFSSL_API WC_RNG* wc_rng_new(byte*, word32, void*);
-WOLFSSL_ABI WOLFSSL_API void wc_rng_free(WC_RNG*);
+WOLFSSL_ABI WC_RNG* wc_rng_new(byte*, word32, void*);
+WOLFSSL_ABI void wc_rng_free(WC_RNG*);
 
 
 #ifndef WC_NO_RNG

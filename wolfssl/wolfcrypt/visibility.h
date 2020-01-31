@@ -33,11 +33,16 @@
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
     #include <cyassl/ctaocrypt/visibility.h>
     #define WOLFSSL_API   CYASSL_API
+    #define WOLFSSL_ABI   CYASSL_API
 	#define WOLFSSL_LOCAL CYASSL_LOCAL
 #else
 
 /* WOLFSSL_API is used for the public API symbols.
         It either imports or exports (or does nothing for static builds)
+
+   WOLFSSL_ABI is used for the ABI symbols. It is the same as WOLFSSL_API
+   unless enabling ABI, then it imports or exports, and WOLFSSL_API will
+   work like WOLFSSL_LOCAL.
 
    WOLFSSL_LOCAL is used for non-API symbols (private).
 */
@@ -46,33 +51,46 @@
     #if defined(_MSC_VER) || defined(__MINGW32__) || defined(__CYGWIN__)
         #if defined(WOLFSSL_DLL)
             #define WOLFSSL_API __declspec(dllexport)
+            #define WOLFSSL_ABI __declspec(dllexport)
         #else
             #define WOLFSSL_API
+            #define WOLFSSL_ABI
         #endif
         #define WOLFSSL_LOCAL
     #elif defined(HAVE_VISIBILITY) && HAVE_VISIBILITY
         #define WOLFSSL_API   __attribute__ ((visibility("default")))
+        #define WOLFSSL_ABI   __attribute__ ((visibility("default")))
         #define WOLFSSL_LOCAL __attribute__ ((visibility("hidden")))
     #elif defined(__SUNPRO_C) && (__SUNPRO_C >= 0x550)
         #define WOLFSSL_API   __global
+        #define WOLFSSL_ABI   __global
         #define WOLFSSL_LOCAL __hidden
     #else
         #define WOLFSSL_API
+        #define WOLFSSL_ABI
         #define WOLFSSL_LOCAL
     #endif /* HAVE_VISIBILITY */
 #else /* BUILDING_WOLFSSL */
     #if defined(_MSC_VER) || defined(__MINGW32__) || defined(__CYGWIN__)
         #if defined(WOLFSSL_DLL)
             #define WOLFSSL_API __declspec(dllimport)
+            #define WOLFSSL_ABI __declspec(dllimport)
         #else
             #define WOLFSSL_API
+            #define WOLFSSL_ABI
         #endif
         #define WOLFSSL_LOCAL
     #else
         #define WOLFSSL_API
+        #define WOLFSSL_ABI
         #define WOLFSSL_LOCAL
     #endif
 #endif /* BUILDING_WOLFSSL */
+
+#ifdef WOLFSSL_RESTRICT_ABI
+    #undef WOLFSSL_API
+    #define WOLFSSL_API WOLFSSL_LOCAL
+#endif
 
 #endif /* HAVE_FIPS */
 #endif /* WOLF_CRYPT_VISIBILITY_H */

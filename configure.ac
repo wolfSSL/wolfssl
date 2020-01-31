@@ -203,6 +203,23 @@ then
 fi
 
 
+# wolfABI
+AC_ARG_ENABLE([abi],
+    [AS_HELP_STRING([--enable-abi],[Restricts build to the tested ABI (default: disabled)])],
+    [ENABLED_STRICT_ABI=$enableval],[ENABLED_STRICT_ABI=no])
+AS_IF([test "x$ENABLED_STRICT_ABI" = "xyes"],[
+    enable_examples=no
+    enable_crypttests=no
+    enable_static=no
+    enable_alpn=yes
+    enable_pkcallbacks=yes
+    enable_opensslextra=yes
+    enable_sessioncerts=yes
+    enable_sni=yes
+    enable_tls13=yes
+])
+
+
 # Support for forcing 32-bit mode
 # To force 32-bit instructions use:
 #   ./configure CFLAGS="-m32" LDFLAGS="-m32" && make
@@ -4902,6 +4919,8 @@ if test "x$ENABLED_OPENSSLCOEXIST" = "xyes"; then
         AC_MSG_ERROR([Cannot use --enable-opensslcoexist with --enable-opensslextra])
     fi
 fi
+
+AS_IF([test "x$ENABLED_STRICT_ABI" = "xyes"],[AM_CPPFLAGS="$AM_CPPFLAGS -DWOLFSSL_RESTRICT_ABI"])
 ################################################################################
 
 # USER SETTINGS
@@ -5357,6 +5376,7 @@ echo "   * Inline Code:                $ENABLED_INLINE"
 echo "   * Linux AF_ALG:               $ENABLED_AFALG"
 echo "   * Linux devcrypto:            $ENABLED_DEVCRYPTO"
 echo "   * Crypto callbacks:           $ENABLED_CRYPTOCB"
+echo "   * ABI API only:               $ENABLED_STRICT_ABI"
 echo ""
 echo "---"
 
