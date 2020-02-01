@@ -33134,6 +33134,84 @@ const char* wolfSSL_EC_curve_nid2nist(int nid)
     return NULL;
 }
 
+#ifdef WOLFSSL_TLS13
+static int populate_groups(int* groups, int max_count, char *list)
+{
+    char *end;
+    size_t len;
+    int count = 0;
+    const WOLF_EC_NIST_NAME* nist_name;
+
+    if (!groups || !list) {
+        return -1;
+    }
+
+    for (end = list; ; list = ++end) {
+        if (count > max_count) {
+            WOLFSSL_MSG("Too many curves in list");
+            return -1;
+        }
+        while (*end != ':' && *end != '\0') end++;
+        len = end - list; /* end points to char after end
+                           * of curve name so no need for -1 */
+        if ((len < kNistCurves_MIN_NAME_LEN) ||
+                (len > kNistCurves_MAX_NAME_LEN)) {
+            WOLFSSL_MSG("Unrecognized curve name in list");
+            return -1;
+        }
+        for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
+            if (XSTRNCMP(list, nist_name->name, nist_name->name_len) == 0) {
+                break;
+            }
+        }
+        if (!nist_name->name) {
+            WOLFSSL_MSG("Unrecognized curve name in list");
+            return -1;
+        }
+        groups[count++] = nist_name->nid;
+        if (*end == '\0') break;
+    }
+
+    return count;
+}
+
+int wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, char *list)
+{
+    int groups[WOLFSSL_MAX_GROUP_COUNT];
+    int count;
+
+    if (!ctx || !list) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if ((count = populate_groups(groups,
+            WOLFSSL_MAX_GROUP_COUNT, list)) == -1) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return wolfSSL_CTX_set_groups(ctx, groups, count) == WOLFSSL_SUCCESS ?
+            WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+}
+
+int wolfSSL_set1_groups_list(WOLFSSL *ssl, char *list)
+{
+    int groups[WOLFSSL_MAX_GROUP_COUNT];
+    int count;
+
+    if (!ssl || !list) {
+        return WOLFSSL_FAILURE;
+    }
+
+    if ((count = populate_groups(groups,
+            WOLFSSL_MAX_GROUP_COUNT, list)) == -1) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return wolfSSL_set_groups(ssl, groups, count) == WOLFSSL_SUCCESS ?
+            WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+}
+#endif /* WOLFSSL_TLS13 */
+
 #endif /* HAVE_ECC */
 #endif /* OPENSSL_EXTRA */
 
