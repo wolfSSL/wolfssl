@@ -496,56 +496,56 @@ static int GetInteger7Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
 
 
 #if !defined(NO_DSA) && !defined(NO_SHA)
-static char sigSha1wDsaName[] = "SHAwDSA";
+static const char sigSha1wDsaName[] = "SHAwDSA";
 #endif /* NO_DSA */
 #ifndef NO_RSA
 #ifdef WOLFSSL_MD2
-    static char sigMd2wRsaName[] = "md2WithRSAEncryption";
+    static const char  sigMd2wRsaName[] = "md2WithRSAEncryption";
 #endif
 #ifndef NO_MD5
-    static char sigMd5wRsaName[] = "md5WithRSAEncryption";
+    static const char  sigMd5wRsaName[] = "md5WithRSAEncryption";
 #endif
 #ifndef NO_SHA
-    static char sigSha1wRsaName[] = "sha1WithRSAEncryption";
+    static const char  sigSha1wRsaName[] = "sha1WithRSAEncryption";
 #endif
 #ifdef WOLFSSL_SHA224
-    static char sigSha224wRsaName[] = "sha224WithRSAEncryption";
+    static const char sigSha224wRsaName[] = "sha224WithRSAEncryption";
 #endif
 #ifndef NO_SHA256
-    static char sigSha256wRsaName[] = "sha256WithRSAEncryption";
+    static const char sigSha256wRsaName[] = "sha256WithRSAEncryption";
 #endif
 #ifdef WOLFSSL_SHA384
-    static char sigSha384wRsaName[] = "sha384WithRSAEncryption";
+    static const char sigSha384wRsaName[] = "sha384WithRSAEncryption";
 #endif
 #ifdef WOLFSSL_SHA512
-    static char sigSha512wRsaName[] = "sha512WithRSAEncryption";
+    static const char sigSha512wRsaName[] = "sha512WithRSAEncryption";
 #endif
 #endif /* NO_RSA */
 #ifdef HAVE_ECC
 #ifndef NO_SHA
-    static char sigSha1wEcdsaName[] = "SHAwECDSA";
+    static const char sigSha1wEcdsaName[] = "SHAwECDSA";
 #endif
 #ifdef WOLFSSL_SHA224
-    static char sigSha224wEcdsaName[] = "SHA224wECDSA";
+    static const char sigSha224wEcdsaName[] = "SHA224wECDSA";
 #endif
 #ifndef NO_SHA256
-    static char sigSha256wEcdsaName[] = "SHA256wECDSA";
+    static const char sigSha256wEcdsaName[] = "SHA256wECDSA";
 #endif
 #ifdef WOLFSSL_SHA384
-    static char sigSha384wEcdsaName[] = "SHA384wECDSA";
+    static const char sigSha384wEcdsaName[] = "SHA384wECDSA";
 #endif
 #ifdef WOLFSSL_SHA512
-    static char sigSha512wEcdsaName[] = "SHA512wECDSA";
+    static const char sigSha512wEcdsaName[] = "SHA512wECDSA";
 #endif
 #endif /* HAVE_ECC */
-static char sigUnknownName[] = "Unknown";
+static const char sigUnknownName[] = "Unknown";
 
 
 /* Get the human readable string for a signature type
  *
  * oid  Oid value for signature
  */
-char* GetSigName(int oid) {
+const char* GetSigName(int oid) {
     switch (oid) {
     #if !defined(NO_DSA) && !defined(NO_SHA)
         case CTC_SHAwDSA:
@@ -15067,7 +15067,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             ret = MEMORY_E;
 
         if (ret == 0) {
-            static char customName[] = "Custom";
+            static const char customName[] = "Custom";
             XMEMSET(curve, 0, sizeof(*curve));
         #ifndef WOLFSSL_ECC_CURVE_STATIC
             curve->name = customName;

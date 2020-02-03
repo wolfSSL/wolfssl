@@ -1103,7 +1103,7 @@ WOLFSSL_LOCAL int GetShortInt(const byte* input, word32* inOutIdx, int* number,
 WOLFSSL_LOCAL int SetShortInt(byte* input, word32* inOutIdx, word32 number,
                               word32 maxIdx);
 
-WOLFSSL_LOCAL char* GetSigName(int oid);
+WOLFSSL_LOCAL const char* GetSigName(int oid);
 WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx);
 WOLFSSL_LOCAL int GetLength_ex(const byte* input, word32* inOutIdx, int* len,
