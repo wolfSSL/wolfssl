@@ -46743,10 +46743,8 @@ int wolfSSL_BN_clear_bit(WOLFSSL_BIGNUM* bn, int n)
 {
     int ret = WOLFSSL_FAILURE;
 #ifndef WOLFSSL_SMALL_STACK
-    mp_int res[1];
     mp_int tmp[1];
 #else
-    mp_int* res = NULL;
     mp_int* tmp = NULL;
 #endif
 
@@ -46756,10 +46754,6 @@ int wolfSSL_BN_clear_bit(WOLFSSL_BIGNUM* bn, int n)
     }
     if (mp_is_bit_set((mp_int*)bn->internal, n)) {
 #ifdef WOLFSSL_SMALL_STACK
-       res = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
-       if (res == NULL) {
-           goto cleanup;
-       }
        tmp = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_BIGINT);
        if (tmp == NULL) {
            goto cleanup;
@@ -46768,24 +46762,16 @@ int wolfSSL_BN_clear_bit(WOLFSSL_BIGNUM* bn, int n)
         if (mp_init(tmp) != MP_OKAY) {
             goto cleanup;
         }
-        if (mp_init(res) != MP_OKAY) {
-            goto cleanup;
-        }
         if (mp_set_bit(tmp, n) != MP_OKAY) {
             goto cleanup;
         }
-        if (mp_sub((mp_int*)bn->internal, tmp, res) != MP_OKAY) {
-            goto cleanup;
-        }
-        if (mp_copy(res, (mp_int*)bn->internal) != MP_OKAY) {
+        if (mp_sub((mp_int*)bn->internal, tmp, (mp_int*)bn->internal) != MP_OKAY) {
             goto cleanup;
         }
     }
     ret = WOLFSSL_SUCCESS;
 cleanup:
 #ifdef WOLFSSL_SMALL_STACK
-    if (res)
-        XFREE(res, NULL, DYNAMIC_TYPE_BIGINT);
     if (tmp)
         XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
