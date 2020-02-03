@@ -33503,64 +33503,6 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_by_curve_name(int nid)
     return key;
 }
 
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_EC_KEY *key)
-{
-    int derMax = 0;
-    int derSz  = 0;
-    byte* derBuf = NULL;
-
-    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_EC_KEY");
-    if (pkey == NULL || key == NULL)
-        return WOLFSSL_FAILURE;
-
-    if (pkey->ecc != NULL && pkey->ownEcc == 1)
-        wolfSSL_EC_KEY_free(pkey->ecc);
-
-    pkey->ecc    = key;
-    pkey->ownEcc = 0; /* pkey does not own ECC */
-    pkey->type   = EVP_PKEY_EC;
-
-    if(key->group != NULL)
-        pkey->pkey_curve = key->group->curve_oid;
-
-    if (key->inSet == 0) {
-        WOLFSSL_MSG("No ECC internal set, do it");
-
-        if (SetECKeyInternal(key) != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("SetECKeyInternal failed");
-            return WOLFSSL_FAILURE;
-        }
-    }
-    /* 4 > size of pub, priv + ASN.1 additional informations */
-    derMax = 4 * wc_ecc_size((ecc_key*)key->internal) + AES_BLOCK_SIZE;
-
-    derBuf = (byte*)XMALLOC(derMax, pkey->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (derBuf == NULL) {
-        WOLFSSL_MSG("malloc failed");
-        return WOLFSSL_FAILURE;
-    }
-    /* Key to DER */
-    derSz = wc_EccKeyToDer((ecc_key*)key->internal, derBuf, derMax);
-    if (derSz < 0) {
-        WOLFSSL_MSG("wc_EccKeyToDer failed");
-        XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return WOLFSSL_FAILURE;
-    }
-
-    pkey->pkey.ptr = (char*)XMALLOC(derSz, pkey->heap, DYNAMIC_TYPE_DER);
-    if (pkey->pkey.ptr == NULL) {
-        WOLFSSL_MSG("key malloc failed");
-        XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return WOLFSSL_FAILURE;
-    }
-    pkey->pkey_sz = derSz;
-    XMEMCPY(pkey->pkey.ptr, derBuf, derSz);
-    XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    return WOLFSSL_SUCCESS;
-}
-#endif /* WOLFSSL_QT || OPENSSL_ALL */
-
 const char* wolfSSL_EC_curve_nid2nist(int nid)
 {
     const WOLF_EC_NIST_NAME* nist_name;
