@@ -33561,34 +33561,6 @@ int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_EC_KEY *key)
 }
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
 
-typedef struct {
-    const char *name;
-    int nid;
-} WOLF_EC_NIST_NAME;
-static const WOLF_EC_NIST_NAME kNistCurves[] = {
-    {"P-192",   NID_X9_62_prime192v1},
-    {"P-256",   NID_X9_62_prime256v1},
-    {"P-112",   NID_secp112r1},
-    {"P-112-2", NID_secp112r2},
-    {"P-128",   NID_secp128r1},
-    {"P-128-2", NID_secp128r2},
-    {"P-160",   NID_secp160r1},
-    {"P-160-2", NID_secp160r2},
-    {"P-224",   NID_secp224r1},
-    {"P-384",   NID_secp384r1},
-    {"P-521",   NID_secp521r1},
-    {"K-160",   NID_secp160k1},
-    {"K-192",   NID_secp192k1},
-    {"K-224",   NID_secp224k1},
-    {"K-256",   NID_secp256k1},
-    {"B-160",   NID_brainpoolP160r1},
-    {"B-192",   NID_brainpoolP192r1},
-    {"B-224",   NID_brainpoolP224r1},
-    {"B-256",   NID_brainpoolP256r1},
-    {"B-320",   NID_brainpoolP320r1},
-    {"B-384",   NID_brainpoolP384r1},
-    {"B-512",   NID_brainpoolP512r1},
-};
 const char* wolfSSL_EC_curve_nid2nist(int nid)
 {
     const WOLF_EC_NIST_NAME* nist_name;
