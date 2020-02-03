@@ -15211,7 +15211,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         return ret;
 
     /* This is the raw point data compressed or uncompressed. */
-    if (wc_ecc_import_x963_ex(input + *inOutIdx, inSz - *inOutIdx, key,
+    if (wc_ecc_import_x963_ex(input + *inOutIdx, length, key,
                                                             curve_id) != 0) {
         return ASN_ECC_KEY_E;
     }
