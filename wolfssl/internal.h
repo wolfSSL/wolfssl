@@ -2837,6 +2837,9 @@ struct WOLFSSL_CTX {
         Srp*  srp;  /* TLS Secure Remote Password Protocol*/
         byte* srp_password;
 #endif
+#ifdef WOLFSSL_TLS13_LOG_KEYS
+    XFILE fileKeyLog;
+#endif
 };
 
 WOLFSSL_LOCAL
@@ -4121,6 +4124,9 @@ struct WOLFSSL {
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     WOLFSSL_STACK* supportedCiphers; /* Used in wolfSSL_get_ciphers_compat */
     WOLFSSL_STACK* peerCertChain;    /* Used in wolfSSL_get_peer_cert_chain */
+#endif
+#ifdef WOLFSSL_TLS13_LOG_KEYS
+    XFILE fileKeyLog;
 #endif
 };
 

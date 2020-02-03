@@ -628,6 +628,9 @@ static const char* server_usage_msg[][49] = {
 #ifdef HAVE_TRUSTED_CA
         "-5          Use Trusted CA Key Indication\n",                  /* 52 */
 #endif
+#ifdef WOLFSSL_TLS13_LOG_KEYS
+        "-6 <file>   Name of file to log TLS 1.3 keys to\n",            /* 53 */
+#endif
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -746,6 +749,9 @@ static const char* server_usage_msg[][49] = {
                                  "\n            0: 英語、 1: 日本語\n", /* 49 */
 #ifdef HAVE_TRUSTED_CA
         "-5          信頼できる認証局の鍵表示を使用する\n",             /* 52 */
+#endif
+#ifdef WOLFSSL_TLS13_LOG_KEYS
+        "-6 <file>   Name of file to log TLS 1.3 keys to\n",            /* 53 */
 #endif
         NULL,
     },
@@ -866,6 +872,9 @@ static void Usage(void)
 #ifdef HAVE_TRUSTED_CA
     printf("%s", msg[++msgId]);     /* -5 */
 #endif /* HAVE_TRUSTED_CA */
+#ifdef WOLFSSL_TLS13_LOG_KEYS
+    printf("%s", msg[++msgId]);     /* -6 */
+#endif /* WOLFSSL_TLS13_LOG_KEYS */
 }
 
 THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
@@ -989,6 +998,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
     int doDhKeyCheck = 1;
 #endif
+#ifdef WOLFSSL_TLS13_LOG_KEYS
+    char* keyLogFile = NULL;
+#endif
 
 #ifdef WOLFSSL_STATIC_MEMORY
     #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) \
@@ -1061,7 +1073,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     while ((ch = mygetopt(argc, argv, "?:"
                 "abc:defgijk:l:mnop:q:rstuv:wxy"
                 "A:B:C:D:E:GH:IJKL:MNO:PQR:S:TUVYZ:"
-                "01:23:4:5")) != -1) {
+                "01:23:4:56:")) != -1) {
         switch (ch) {
             case '?' :
                 if(myoptarg!=NULL) {
@@ -1440,6 +1452,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             #ifdef HAVE_TRUSTED_CA
                 trustedCaKeyId = 1;
             #endif /* HAVE_TRUSTED_CA */
+                break;
+
+            case '6' :
+            #ifdef WOLFSSL_TLS13_LOG_KEYS
+                keyLogFile = myoptarg;
+            #endif /* WOLFSSL_TLS13_LOG_KEYS */
                 break;
 
             default:
@@ -1847,6 +1865,15 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef HAVE_PK_CALLBACKS
         if (pkCallbacks)
             SetupPkCallbacks(ctx);
+#endif
+
+#ifdef WOLFSSL_TLS13_LOG_KEYS
+        if (keyLogFile != NULL) {
+            if (wolfSSL_CTX_use_key_log_file(ctx, keyLogFile) != 0) {
+                wolfSSL_CTX_free(ctx); ctx = NULL;
+                err_sys("Couldn't set file to log keys to.");
+            }
+        }
 #endif
 
         ssl = SSL_new(ctx);

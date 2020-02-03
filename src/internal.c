@@ -1910,6 +1910,13 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         }
     }
 #endif /* WOLFSSL_STATIC_MEMORY */
+
+#ifdef WOLFSSL_TLS13_LOG_KEYS
+    if (ctx->fileKeyLog != (XFILE)0) {
+        XFCLOSE(ctx->fileKeyLog);
+    }
+#endif
+
 }
 
 
@@ -5543,6 +5550,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
+#ifdef WOLFSSL_TLS13_LOG_KEYS
+    ssl->fileKeyLog = ctx->fileKeyLog;
+#endif
+
     return 0;
 }
 
@@ -6232,6 +6243,13 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 /* heap argument is the heap hint used when creating SSL */
 void FreeSSL(WOLFSSL* ssl, void* heap)
 {
+#ifdef WOLFSSL_TLS13_LOG_KEYS
+    if (ssl->fileKeyLog != (XFILE)0 && (ssl->ctx == NULL ||
+                                     ssl->fileKeyLog != ssl->ctx->fileKeyLog)) {
+        XFCLOSE(ssl->fileKeyLog);
+    }
+#endif
+
     if (ssl->ctx) {
         FreeSSL_Ctx(ssl->ctx); /* will decrement and free underlying CTX if 0 */
     }

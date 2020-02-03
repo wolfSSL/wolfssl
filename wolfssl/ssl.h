@@ -874,6 +874,11 @@ WOLFSSL_API int  wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz);
 WOLFSSL_API int  wolfSSL_write_early_data(WOLFSSL*, const void*, int, int*);
 WOLFSSL_API int  wolfSSL_read_early_data(WOLFSSL*, void*, int, int*);
 #endif
+#ifdef WOLFSSL_TLS13_LOG_KEYS
+WOLFSSL_API int  wolfSSL_CTX_use_key_log_file(WOLFSSL_CTX* ctx,
+                                              const char* filename);
+WOLFSSL_API int  wolfSSL_use_key_log_file(WOLFSSL* ssl, const char* filename);
+#endif
 #endif
 WOLFSSL_ABI WOLFSSL_API void wolfSSL_CTX_free(WOLFSSL_CTX*);
 WOLFSSL_ABI WOLFSSL_API void wolfSSL_free(WOLFSSL*);
