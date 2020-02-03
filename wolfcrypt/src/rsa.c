@@ -2951,19 +2951,23 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
             /* only copy output if not inline */
             if (outPtr == NULL) {
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)
-                word32 i, j;
-                int start = (int)((size_t)pad - (size_t)key->data);
+                if (rsa_type == RSA_PRIVATE_DECRYPT) {
+                    word32 i, j;
+                    int start = (int)((size_t)pad - (size_t)key->data);
 
-                for (i = 0, j = 0; j < key->dataLen; j++) {
-                    out[i] = key->data[j];
-                    c  = ctMaskGTE(j, start);
-                    c &= ctMaskLT(i, outLen);
-                    /* 0 - no add, -1 add */
-                    i += (word32)((byte)(-c));
+                    for (i = 0, j = 0; j < key->dataLen; j++) {
+                        out[i] = key->data[j];
+                        c  = ctMaskGTE(j, start);
+                        c &= ctMaskLT(i, outLen);
+                        /* 0 - no add, -1 add */
+                        i += (word32)((byte)(-c));
+                    }
                 }
-#else
-                XMEMCPY(out, pad, ret);
+                else
 #endif
+                {
+                    XMEMCPY(out, pad, ret);
+                }
             }
             else
                 *outPtr = pad;
