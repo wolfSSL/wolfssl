@@ -768,7 +768,7 @@ static int SMTP_Shutdown(WOLFSSL* ssl, int wc_shutdown)
     return WOLFSSL_SUCCESS;
 }
 
-static void ClientWrite(WOLFSSL* ssl, char* msg, int msgSz)
+static void ClientWrite(WOLFSSL* ssl, char* msg, int msgSz, const char* str)
 {
     int ret, err;
     char buffer[WOLFSSL_MAX_ERROR_SZ];
@@ -791,13 +791,14 @@ static void ClientWrite(WOLFSSL* ssl, char* msg, int msgSz)
     #endif
     );
     if (ret != msgSz) {
-        printf("SSL_write msg error %d, %s\n", err,
+        printf("SSL_write%s msg error %d, %s\n", str, err,
                                         wolfSSL_ERR_error_string(err, buffer));
         err_sys("SSL_write failed");
     }
 }
 
-static void ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead)
+static void ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
+                       const char* str)
 {
     int ret, err;
     char buffer[WOLFSSL_MAX_ERROR_SZ];
@@ -837,7 +838,7 @@ static void ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead)
     );
     if (ret > 0) {
         reply[ret] = 0;
-        printf("%s\n", reply);
+        printf("%s%s\n", str, reply);
     }
 }
 
@@ -3000,16 +3001,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_update_keys(ssl);
 #endif
 
-    ClientWrite(ssl, msg, msgSz);
+    ClientWrite(ssl, msg, msgSz, "");
 
-    ClientRead(ssl, reply, sizeof(reply)-1, 1);
+    ClientRead(ssl, reply, sizeof(reply)-1, 1, "");
 
 #if defined(WOLFSSL_TLS13)
     if (updateKeysIVs || postHandAuth)
-        ClientWrite(ssl, msg, msgSz);
+        ClientWrite(ssl, msg, msgSz, "");
 #endif
     if (sendGET) {  /* get html */
-        ClientRead(ssl, reply, sizeof(reply)-1, 0);
+        ClientRead(ssl, reply, sizeof(reply)-1, 0, "");
     }
 
 #ifndef NO_SESSION_CACHE
@@ -3251,104 +3252,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
-        do {
-            err = 0; /* reset error */
-            ret = wolfSSL_write(sslResume, resumeMsg, resumeSz);
-            if (ret <= 0) {
-                err = wolfSSL_get_error(sslResume, 0);
-            #ifdef WOLFSSL_ASYNC_CRYPT
-                if (err == WC_PENDING_E) {
-                    ret = wolfSSL_AsyncPoll(sslResume, WOLF_POLL_FLAG_CHECK_HW);
-                    if (ret < 0) break;
-                }
-            #endif
-            }
-        } while (err == WC_PENDING_E);
-        if (ret != resumeSz) {
-            printf("SSL_write resume error %d, %s\n", err,
-                    wolfSSL_ERR_error_string(err, buffer));
-            wolfSSL_free(sslResume); sslResume = NULL;
-            wolfSSL_CTX_free(ctx); ctx = NULL;
-            err_sys("SSL_write failed");
-        }
+        ClientWrite(sslResume, resumeMsg, resumeSz, " resume");
 
-        if (nonBlocking) {
-            /* give server a chance to bounce a message back to client */
-        #ifdef USE_WINDOWS_API
-            Sleep(500);
-        #elif defined(WOLFSSL_TIRTOS)
-            Task_sleep(1);
-        #else
-            sleep(1);
-        #endif
-        }
-
-        do {
-            err = 0; /* reset error */
-            ret = wolfSSL_read(sslResume, reply, sizeof(reply)-1);
-            if (ret <= 0) {
-                err = wolfSSL_get_error(sslResume, 0);
-            #ifdef WOLFSSL_ASYNC_CRYPT
-                if (err == WC_PENDING_E) {
-                    ret = wolfSSL_AsyncPoll(sslResume, WOLF_POLL_FLAG_CHECK_HW);
-                    if (ret < 0) break;
-                }
-            #endif
-            }
-        } while (err == WC_PENDING_E);
-        if (ret > 0) {
-            reply[ret] = 0;
-            printf("Server resume response: %s\n", reply);
-
-            if (sendGET) {  /* get html */
-                while (1) {
-                    do {
-                        err = 0; /* reset error */
-                        ret = wolfSSL_read(sslResume, reply, sizeof(reply)-1);
-                        if (ret <= 0) {
-                            err = wolfSSL_get_error(sslResume, 0);
-                        #ifdef WOLFSSL_ASYNC_CRYPT
-                            if (err == WC_PENDING_E) {
-                                ret = wolfSSL_AsyncPoll(sslResume,
-                                                    WOLF_POLL_FLAG_CHECK_HW);
-                                if (ret < 0) break;
-                            }
-                        #endif
-                        }
-                    } while (err == WC_PENDING_E);
-                    if (ret > 0) {
-                        reply[ret] = 0;
-                        printf("%s\n", reply);
-                    }
-                    else
-                        break;
-                }
-            }
-        }
-        if (ret < 0) {
-            if (err != WOLFSSL_ERROR_WANT_READ) {
-                printf("SSL_read resume error %d, %s\n", err,
-                    wolfSSL_ERR_error_string(err, buffer));
-                wolfSSL_free(sslResume); sslResume = NULL;
-                wolfSSL_CTX_free(ctx); ctx = NULL;
-                err_sys("SSL_read failed");
-            }
-        }
-
+        ClientRead(sslResume, reply, sizeof(reply)-1, sendGET,
+                   "Server resume: ");
         /* try to send session break */
-        do {
-            err = 0; /* reset error */
-            ret = wolfSSL_write(sslResume, msg, msgSz);
-            if (ret <= 0) {
-                err = wolfSSL_get_error(sslResume, 0);
-            #ifdef WOLFSSL_ASYNC_CRYPT
-                if (err == WC_PENDING_E) {
-                    ret = wolfSSL_AsyncPoll(sslResume, WOLF_POLL_FLAG_CHECK_HW);
-                    if (ret < 0) break;
-                }
-            #endif
-            }
-        } while (err == WC_PENDING_E);
+        ClientWrite(sslResume, msg, msgSz, " resume 2");
 
         ret = wolfSSL_shutdown(sslResume);
         if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE)
