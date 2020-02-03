@@ -1,4 +1,4 @@
-﻿/* wolfSSL-Example-IOCallbacks.cs
+/* wolfSSL-Example-IOCallbacks.cs
  *
  * Copyright (C) 2006-2020 wolfSSL Inc.
  *

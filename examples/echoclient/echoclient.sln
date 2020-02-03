@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 9.00
 # Visual C++ Express 2005
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "echoclient", "echoclient.vcproj", "{A7AA93AD-AFF0-4FF0-8AED-14685DE55CF3}"
