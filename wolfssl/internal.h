@@ -4235,6 +4235,19 @@ static const byte server[SIZEOF_SENDER] = { 0x53, 0x52, 0x56, 0x52 };
 static const byte tls_client[FINISHED_LABEL_SZ + 1] = "client finished";
 static const byte tls_server[FINISHED_LABEL_SZ + 1] = "server finished";
 
+#define STR_SIZEOF(x) (sizeof(x) - 1) /* -1 to not count the null char */
+
+#ifdef OPENSSL_EXTRA
+typedef struct {
+    int name_len;
+    const char *name;
+    int nid;
+} WOLF_EC_NIST_NAME;
+extern const WOLF_EC_NIST_NAME kNistCurves[];
+/* This is the longest and shortest curve name in the kNistCurves list */
+#define kNistCurves_MIN_NAME_LEN 5
+#define kNistCurves_MAX_NAME_LEN 7
+#endif
 
 /* internal functions */
 WOLFSSL_LOCAL int SendChangeCipher(WOLFSSL*);
