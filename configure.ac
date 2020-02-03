@@ -180,6 +180,7 @@ then
     enable_haproxy=yes
     enable_stunnel=yes
     enable_nginx=yes
+    enable_openvpn=yes
     enable_asio=yes
     enable_libwebsockets=yes
     enable_qt=yes
@@ -426,6 +427,7 @@ AC_ARG_ENABLE([mcast],
 
 # List of open source project defines using our openssl compatibility layer:
 # openssh (--enable-openssh)
+# openvpn (--enable-openvpn)
 # nginix (--enable-nginx) WOLFSSL_NGINX
 # haproxy (--enable-haproxy) WOLFSSL_HAPROXY
 # wpa_supplicant (--enable-wpas) WOLFSSL_WPAS
@@ -448,6 +450,12 @@ AC_ARG_ENABLE([openssh],
     [AS_HELP_STRING([--enable-openssh],[Enable OpenSSH compatibility build (default: disabled)])],
     [ENABLED_OPENSSH=$enableval],
     [ENABLED_OPENSSH=no])
+
+# OpenVPN compatibility Build
+AC_ARG_ENABLE([openvpn],
+    [AS_HELP_STRING([--enable-openvpn],[Enable OpenVPN compatibility build (default: disabled)])],
+    [ENABLED_OPENVPN=$enableval],
+    [ENABLED_OPENVPN=no])
 
 # nginx compatibility build
 AC_ARG_ENABLE([nginx],
@@ -543,7 +551,7 @@ AC_ARG_ENABLE([opensslall],
 [ ENABLED_OPENSSLALL=$enableval ],
 [ ENABLED_OPENSSLALL=no ]
 )
-if test "$ENABLED_LIBWEBSOCKETS" = "yes"
+if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
@@ -941,6 +949,10 @@ AC_ARG_ENABLE([aesctr],
     [ ENABLED_AESCTR=$enableval ],
     [ ENABLED_AESCTR=no ]
     )
+if test "$ENABLED_OPENVPN" = "yes"
+then
+    ENABLED_AESCTR=yes
+fi
 
 if test "$ENABLED_AESCTR" = "yes"
 then
@@ -1328,7 +1340,7 @@ AC_ARG_ENABLE([sessioncerts],
     [ ENABLED_SESSIONCERTS=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes"
 then
     ENABLED_SESSIONCERTS=yes
 fi
@@ -1362,6 +1374,10 @@ AC_ARG_ENABLE([certgen],
     [ ENABLED_CERTGEN=$enableval ],
     [ ENABLED_CERTGEN=no ]
     )
+if test "$ENABLED_OPENVPN" = "yes"
+then
+    ENABLED_CERTGEN=yes
+fi
 
 if test "$ENABLED_CERTGEN" = "yes"
 then
@@ -1392,6 +1408,10 @@ AC_ARG_ENABLE([certext],
     [ ENABLED_CERTEXT=$enableval ],
     [ ENABLED_CERTEXT=no ]
     )
+if test "$ENABLED_OPENVPN" = "yes"
+then
+    ENABLED_CERTEXT=yes
+fi
 
 if test "$ENABLED_CERTEXT" = "yes"
 then
@@ -2190,7 +2210,7 @@ AC_ARG_ENABLE([des3],
     [ ENABLED_DES3=no ]
     )
 
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_QT" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_QT" = "yes" || test "$ENABLED_OPENVPN" = "yes"
 then
     ENABLED_DES3="yes"
 fi
@@ -2687,7 +2707,7 @@ AC_ARG_ENABLE([crl],
     )
 
 
-if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_OPENVPN" = "xyes"
 then
     ENABLED_CRL=yes
 fi
@@ -3400,6 +3420,12 @@ then
         AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
     fi
 fi
+
+if test "$ENABLED_OPENVPN" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB -DHAVE_EX_DATA"
+fi
+
 
 if test "$ENABLED_NGINX" = "yes"|| test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes"
 then
