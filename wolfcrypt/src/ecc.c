@@ -3477,7 +3477,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
                       word32* outlen)
 {
    int err;
-#if defined(WOLFSSL_CRYPTOCELL)
+#if defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_ATECC508A)
    CRYS_ECDH_TempData_t tempBuff;
 #endif
    if (private_key == NULL || public_key == NULL || out == NULL ||
@@ -4041,7 +4041,7 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
     DECLARE_CURVE_SPECS(curve, ECC_CURVE_FIELD_COUNT);
 #endif
 #endif /* !WOLFSSL_ATECC508A */
-#if defined(WOLFSSL_CRYPTOCELL)
+#if defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_ATECC508A)
     const CRYS_ECPKI_Domain_t*  pDomain;
     CRYS_ECPKI_KG_TempData_t    tempBuff;
     CRYS_ECPKI_KG_FipsContext_t fipsCtx;
@@ -4463,24 +4463,19 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
 #ifdef PLUTON_CRYPTO_ECC
     if (key->devId != INVALID_DEVID) /* use hardware */
 #endif
-#if defined(WOLFSSL_CRYPTOCELL)
-    CRYS_ECDSA_SignUserContext_t sigCtxTemp;
-    word32 raw_sig_size = *outlen;
-    word32 msgLenInBytes = inlen;
-    CRYS_ECPKI_HASH_OpMode_t hash_mode;
-#endif
     {
+    #if defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_ATECC508A)
+        CRYS_ECDSA_SignUserContext_t sigCtxTemp;
+        word32 raw_sig_size = *outlen;
+        word32 msgLenInBytes = inlen;
+        CRYS_ECPKI_HASH_OpMode_t hash_mode;
+    #endif
         word32 keysize = (word32)key->dp->size;
         word32 orderBits = wc_ecc_get_curve_order_bit_count(key->dp);
 
         /* Check args */
         if (keysize > ECC_MAX_CRYPTO_HW_SIZE || *outlen < keysize*2) {
             return ECC_BAD_ARG_E;
-        }
-
-        /* if the input is larger than curve order, we must truncate */
-        if ((inlen * WOLFSSL_BIT_SIZE) > orderBits) {
-           inlen = (orderBits + WOLFSSL_BIT_SIZE - 1) / WOLFSSL_BIT_SIZE;
         }
 
     #if defined(WOLFSSL_ATECC508A)
@@ -4496,6 +4491,11 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
         }
     #elif defined(PLUTON_CRYPTO_ECC)
         {
+            /* if the input is larger than curve order, we must truncate */
+            if ((inlen * WOLFSSL_BIT_SIZE) > orderBits) {
+               inlen = (orderBits + WOLFSSL_BIT_SIZE - 1) / WOLFSSL_BIT_SIZE;
+            }
+
             /* perform ECC sign */
             word32 raw_sig_size = *outlen;
             err = Crypto_EccSign(in, inlen, out, &raw_sig_size);
@@ -4887,7 +4887,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    if (err == MP_OKAY) {
        int      loop_check = 0;
    #ifdef WOLFSSL_SMALL_STACK
-       ecc_key* pubkey = NULL;
+       ecc_key* pubkey;
    #else
        ecc_key  pubkey[1];
    #endif
@@ -5126,7 +5126,7 @@ int wc_ecc_sign_set_k(const byte* k, word32 klen, ecc_key* key)
 {
     int ret = 0;
 
-    if (k == NULL || klen <= 0 || key == NULL) {
+    if (k == NULL || klen == 0 || key == NULL) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -5363,7 +5363,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 
   if (err == MP_OKAY) {
   #ifdef WOLFSSL_SMALL_STACK
-    mp_int* mu = NULL;
+    mp_int* mu;
   #else
     mp_int  mu[1];
   #endif
@@ -5807,7 +5807,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
    hash_mode = cc310_hashModeECC(msgLenInBytes);
    if (hash_mode == CRYS_ECPKI_HASH_OpModeLast) {
-       hash_mode = cc310_hashModeECC(keySz);
+       /* hash_mode = */ cc310_hashModeECC(keySz);
        hash_mode = CRYS_ECPKI_HASH_SHA256_mode;
    }
    /* truncate if hash is longer than key size */
@@ -6450,8 +6450,8 @@ int wc_ecc_is_point(ecc_point* ecp, mp_int* a, mp_int* b, mp_int* prime)
 #ifndef WOLFSSL_SP_MATH
    int err;
 #ifdef WOLFSSL_SMALL_STACK
-   mp_int* t1 = NULL;
-   mp_int* t2 = NULL;
+   mp_int* t1;
+   mp_int* t2;
 #else
    mp_int  t1[1], t2[1];
 #endif
@@ -7114,7 +7114,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 {
     int ret;
     word32 idx = 0;
-#if defined(WOLFSSL_CRYPTOCELL)
+#if defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_ATECC508A)
     const CRYS_ECPKI_Domain_t* pDomain;
     CRYS_ECPKI_BUILD_TempData_t tempBuff;
 #endif
@@ -7428,7 +7428,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
           const char* qy, const char* d, int curve_id, int encType)
 {
     int err = MP_OKAY;
-#if defined(WOLFSSL_CRYPTOCELL)
+#if defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_ATECC508A)
     const CRYS_ECPKI_Domain_t* pDomain;
     CRYS_ECPKI_BUILD_TempData_t tempBuff;
     byte key_raw[ECC_MAX_CRYPTO_HW_SIZE*2 + 1];
@@ -7540,19 +7540,22 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
             else
                 err = mp_read_unsigned_bin(&key->k, (const byte*)d,
                     key->dp->size);
+            if (err == MP_OKAY) {
+                err = wc_export_int(&key->k, &key_raw[0], &keySz, keySz,
+                    WC_TYPE_UNSIGNED_BIN);
+            }
 
-            err = wc_export_int(&key->k, &key_raw[0], &keySz, keySz,
-                WC_TYPE_UNSIGNED_BIN);
+            if (err == MP_OKAY) {
+                /* Create private key from external key buffer*/
+                err = CRYS_ECPKI_BuildPrivKey(pDomain,
+                                              key_raw,
+                                              keySz,
+                                              &key->ctx.privKey);
 
-            /* Create private key from external key buffer*/
-            err = CRYS_ECPKI_BuildPrivKey(pDomain,
-                                          key_raw,
-                                          keySz,
-                                          &key->ctx.privKey);
-
-            if (err != SA_SILIB_RET_OK){
-                WOLFSSL_MSG("CRYS_ECPKI_BuildPrivKey failed");
-                return err;
+                if (err != SA_SILIB_RET_OK){
+                    WOLFSSL_MSG("CRYS_ECPKI_BuildPrivKey failed");
+                    return err;
+                }
             }
 
         #else
@@ -9025,7 +9028,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
                 ecc_point* B, mp_int* kB,
                 ecc_point* C, mp_int* a, mp_int* modulus, void* heap)
 {
-   int  idx1 = -1, idx2 = -1, err = MP_OKAY, mpInit = 0;
+   int  idx1 = -1, idx2 = -1, err, mpInit = 0;
    mp_digit mp;
    mp_int   mu;
 

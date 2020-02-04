@@ -1135,7 +1135,7 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                         int i;
 
                         start += 13;
-                        while (*start == ' ' && *start != '\0') start++;
+                        while (*start == ' ') start++;
 
                         /* try and match against appStrList */
                         i = 0;
@@ -1154,13 +1154,13 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                     }
                     else if (XSTRNCASECMP(start, "Content-Length:", 15) == 0) {
                         start += 15;
-                        while (*start == ' ' && *start != '\0') start++;
+                        while (*start == ' ') start++;
                         chunkSz = XATOI(start);
                         state = (state == phr_http_start) ? phr_have_length : phr_wait_end;
                     }
                     else if (XSTRNCASECMP(start, "Transfer-Encoding:", 18) == 0) {
                         start += 18;
-                        while (*start == ' ' && *start != '\0') start++;
+                        while (*start == ' ') start++;
                         if (XSTRNCASECMP(start, "chunked", 7) == 0) {
                             isChunked = 1;
                             state = (state == phr_http_start) ? phr_have_length : phr_wait_end;
@@ -2012,7 +2012,7 @@ void mynewt_ctx_clear(void *ctx) {
 /* return Mynewt_Ctx instance */
 void* mynewt_ctx_new() {
     int rc = 0;
-    Mynewt_Ctx *mynewt_ctx = NULL;
+    Mynewt_Ctx *mynewt_ctx;
     int mem_buf_count = MYNEWT_VAL(WOLFSSL_MNSOCK_MEM_BUF_COUNT);
     int mem_buf_size = MYNEWT_VAL(WOLFSSL_MNSOCK_MEM_BUF_SIZE);
     int mempool_bytes = OS_MEMPOOL_BYTES(mem_buf_count, mem_buf_size);
@@ -2149,7 +2149,7 @@ int Mynewt_Send(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 {
     Mynewt_Ctx *mynewt_ctx = (Mynewt_Ctx*)ctx;
     int rc = 0;
-    struct os_mbuf *m = NULL;
+    struct os_mbuf *m;
     int write_sz = 0;
     m = os_msys_get_pkthdr(sz, 0);
     if (!m) {

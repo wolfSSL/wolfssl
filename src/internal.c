@@ -259,7 +259,6 @@ static int QSH_FreeAll(WOLFSSL* ssl)
         /* free struct */
         XFREE(preKey, ssl->heap, DYNAMIC_TYPE_QSH);
     }
-    key = NULL;
 
 
     /* free all of peers QSH keys */
@@ -1793,7 +1792,8 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 /* In case contexts are held in array and don't want to free actual ctx */
 void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 {
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(NO_WOLFSSL_SERVER)
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && \
+                     defined(HAVE_TLS_EXTENSIONS) && !defined(NO_WOLFSSL_SERVER)
     int i;
 #endif
 
@@ -6372,7 +6372,7 @@ static WC_INLINE void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
  * extra space for the headers. */
 DtlsMsg* DtlsMsgNew(word32 sz, void* heap)
 {
-    DtlsMsg* msg = NULL;
+    DtlsMsg* msg;
 
     (void)heap;
     msg = (DtlsMsg*)XMALLOC(sizeof(DtlsMsg), heap, DYNAMIC_TYPE_DTLS_MSG);
@@ -9473,7 +9473,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
     #endif
         ))
     #ifndef NO_WOLFSSL_CM_VERIFY
-        || ((cm != NULL) && (cm->verifyCallback != NULL))
+        || (cm->verifyCallback != NULL)
     #endif
         ) {
         int verifyFail = 0;
@@ -15466,7 +15466,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 if (ssl->truncated_hmac &&
                                         ssl->specs.hash_size > args->digestSz) {
                 #ifdef WOLFSSL_SMALL_STACK
-                    byte* hmac = NULL;
+                    byte* hmac;
                 #else
                     byte  hmac[WC_MAX_DIGEST_SIZE];
                 #endif
@@ -16458,7 +16458,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
                 buffer der;
                 word32 idx = 0;
             #ifdef WOLFSSL_SMALL_STACK
-                DecodedCert* cert = NULL;
+                DecodedCert* cert;
             #else
                 DecodedCert  cert[1];
             #endif
@@ -20787,7 +20787,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         {
                             if (IsAtLeastTLSv1_2(ssl)) {
                             #ifdef WOLFSSL_SMALL_STACK
-                                byte*  encodedSig = NULL;
+                                byte*  encodedSig;
                             #else
                                 byte   encodedSig[MAX_ENCODED_SIG_SZ];
                             #endif
@@ -22604,7 +22604,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 }
             }
 
-            if (args->length <= 0) {
+            if (args->length == 0) {
                 ERROR_OUT(NO_PRIVATE_KEY, exit_scv);
             }
 
@@ -23964,7 +23964,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         #ifdef HAVE_PK_CALLBACKS
                             if (wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)) {
                                 args->tmpSigSz = GetPrivateKeySigSize(ssl);
-                                if (args->tmpSigSz <= 0) {
+                                if (args->tmpSigSz == 0) {
                                     ERROR_OUT(NO_PRIVATE_KEY, exit_sske);
                                 }
                             }
@@ -24250,7 +24250,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 }
                             }
 
-                            if (keySz <= 0) { /* test if keySz has error */
+                            if (keySz == 0) { /* test if keySz has error */
                                 ERROR_OUT(keySz, exit_sske);
                             }
 
@@ -26210,7 +26210,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     #endif
                         {
                         #ifdef WOLFSSL_SMALL_STACK
-                            byte* encodedSig = NULL;
+                            byte* encodedSig;
                         #else
                             byte  encodedSig[MAX_ENCODED_SIG_SZ];
                         #endif

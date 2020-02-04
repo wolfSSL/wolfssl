@@ -147,7 +147,7 @@ void setup_clock(void)
 
     for (i = 0; i < sntp_max_tries; i++) {
 
-        printf("Getting time from NTP server [ attempt %d of %d ]...\n",
+        printf("Getting time from NTP server [ attempt %u of %u ]...\n",
                 i+1, sntp_max_tries);
 
         /* update time from NTP server */

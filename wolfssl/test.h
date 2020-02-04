@@ -1164,6 +1164,8 @@ static WC_INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     tcp_ready* ready = args->signal;
     ready->ready = 1;
     ready->port = port;
+#else
+    (void)port;
 #endif
 
     *clientfd = *sockfd;
@@ -1215,7 +1217,7 @@ static WC_INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
                 ready = args->signal;
 
             if (ready) {
-                srf = fopen(ready->srfName, "w");
+                srf = XFOPEN(ready->srfName, "w");
 
                 if (srf) {
                     /* let's write port sever is listening on to ready file
@@ -1495,7 +1497,7 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
         *bufLen = 0;
 
         /* open file (read-only binary) */
-        file = fopen(fname, "rb");
+        file = XFOPEN(fname, "rb");
         if (!file) {
             printf("Error loading %s\n", fname);
             return BAD_PATH_ERROR;
@@ -1891,7 +1893,7 @@ static WC_INLINE void CaCb(unsigned char* der, int sz, int type)
             int depth, res;
             XFILE file;
             for(depth = 0; depth <= MAX_WOLF_ROOT_DEPTH; depth++) {
-                file = fopen(ntruKeyFile, "rb");
+                file = XFOPEN(ntruKeyFile, "rb");
                 if (file != NULL) {
                     fclose(file);
                     return depth;
@@ -2457,11 +2459,14 @@ static WC_INLINE int myEccKeyGen(WOLFSSL* ssl, ecc_key* key, word32 keySz,
     int       ret;
     WC_RNG    rng;
     PkCbInfo* cbInfo = (PkCbInfo*)ctx;
-    ecc_key*  new_key = key;
+    ecc_key*  new_key;
 #ifdef TEST_PK_PRIVKEY
     byte qx[MAX_ECC_BYTES], qy[MAX_ECC_BYTES];
     word32 qxLen = sizeof(qx), qyLen = sizeof(qy);
+
     new_key = &cbInfo->keyGen.ecc;
+#else
+    new_key = key;
 #endif
 
     (void)ssl;

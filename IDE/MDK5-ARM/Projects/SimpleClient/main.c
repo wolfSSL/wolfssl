@@ -209,7 +209,7 @@ int main (void) {
     snprintf(ver, VERSIZE, "%d", TLS_VER);
     argv[6] = ver;
 
-    printf("SSL/TLS Client(%d)\n ", sizeof(argv)/sizeof(argv[0])) ;
+    printf("SSL/TLS Client(%d)\n ", (int)(sizeof(argv)/sizeof(argv[0]))) ;
     printf("    Remote IP: %s, Port: %s\n    Version: %s\n", argv[2], argv[4],  verStr[TLS_VER]) ;
     printf("    Other options: %s\n", OTHER_OPTIONS);   
     setTime((time_t)((RTC_YEAR-1970)*365*24*60*60) + RTC_MONTH*30*24*60*60 + RTC_DAY*24*60*60);

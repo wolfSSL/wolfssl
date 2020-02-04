@@ -4441,6 +4441,9 @@ int wolfSSL_DSP_ECC_Verify_256(remote_handle64 h, int32 *u1, int hashLen, int32*
     int err;
     void* heap = NULL;
 
+    (void)h;
+    (void)hashLen;
+
     err = sp_ecc_point_new(heap, p1d, p1);
     if (err == MP_OKAY) {
         err = sp_ecc_point_new(heap, p2d, p2);
@@ -4449,10 +4452,6 @@ int wolfSSL_DSP_ECC_Verify_256(remote_handle64 h, int32 *u1, int hashLen, int32*
     if (err == MP_OKAY) {
         u2 = u2d;
         tmp = tmpd;
-
-        if (hashLen > 32U) {
-            hashLen = 32U;
-        }
 
 	XMEMCPY(u2, r, 40);
 	XMEMCPY(p2->x, x, 40);
@@ -4533,7 +4532,7 @@ void wc_ecc_fp_free(void)
 
 AEEResult wolfSSL_open(const char *uri, remote_handle64 *handle) 
 {
-   void *tptr = NULL;
+   void *tptr;
   /* can be any value or ignored, rpc layer doesn't care
    * also ok
    * *handle = 0;

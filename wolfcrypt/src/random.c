@@ -613,7 +613,7 @@ static int Hash_DRBG_Instantiate(DRBG* drbg, const byte* seed, word32 seedSz,
                                              const byte* nonce, word32 nonceSz,
                                              void* heap, int devId)
 {
-    int ret = DRBG_FAILURE;
+    int ret;
 
     XMEMSET(drbg, 0, sizeof(DRBG));
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
@@ -643,6 +643,9 @@ static int Hash_DRBG_Instantiate(DRBG* drbg, const byte* seed, word32 seedSz,
         drbg->lastBlock = 0;
         drbg->matchCount = 0;
         ret = DRBG_SUCCESS;
+    }
+    else {
+        ret = DRBG_FAILURE;
     }
 
     return ret;
@@ -1650,10 +1653,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             RNGCONbits.PLEN = 0x40;
             RNGCONbits.PRNGEN = 1;
             for (i=0; i<5; i++) { /* wait for RNGNUMGEN ready */
-                volatile int x;
+                volatile int x, y;
                 x = RNGNUMGEN1;
-                x = RNGNUMGEN2;
+                y = RNGNUMGEN2;
                 (void)x;
+                (void)y;
             }
             do {
                 rnd32[0] = RNGNUMGEN1;
@@ -2404,15 +2408,19 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int ret = 0;
 
-#ifdef WOLF_CRYPTO_CB
-    if (os != NULL && os->devId != INVALID_DEVID) {
-        ret = wc_CryptoCb_RandomSeed(os, output, sz);
-        if (ret != CRYPTOCB_UNAVAILABLE)
-            return ret;
-        /* fall-through when unavailable */
-        ret = 0; /* reset error code */
-    }
-#endif
+        if (os == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+    #ifdef WOLF_CRYPTO_CB
+        if (os->devId != INVALID_DEVID) {
+            ret = wc_CryptoCb_RandomSeed(os, output, sz);
+            if (ret != CRYPTOCB_UNAVAILABLE)
+                return ret;
+            /* fall-through when unavailable */
+            ret = 0; /* reset error code */
+        }
+    #endif
 
     #ifdef HAVE_INTEL_RDSEED
         if (IS_INTEL_RDSEED(intel_flags)) {

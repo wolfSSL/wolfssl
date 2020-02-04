@@ -1605,8 +1605,9 @@ static int wc_PKCS7_RsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
         do {
             ret = wc_AsyncWait(ret, &privKey->asyncDev,
                 WC_ASYNC_FLAG_CALL_AGAIN);
+            if (ret >= 0)
     #endif
-            if (ret >= 0) {
+            {
                 ret = wc_RsaSSL_Sign(in, inSz, esd->encContentDigest,
                                      sizeof(esd->encContentDigest),
                                      privKey, pkcs7->rng);
@@ -1668,8 +1669,9 @@ static int wc_PKCS7_EcdsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
         do {
             ret = wc_AsyncWait(ret, &privKey->asyncDev,
                 WC_ASYNC_FLAG_CALL_AGAIN);
+            if (ret >= 0)
     #endif
-            if (ret >= 0) {
+            {
                 ret = wc_ecc_sign_hash(in, inSz, esd->encContentDigest,
                                        &outSz, pkcs7->rng, privKey);
             }
@@ -3982,11 +3984,10 @@ static int wc_PKCS7_ParseSignerInfo(PKCS7* pkcs7, byte* in, word32 inSz,
                    tag == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
                 idx++;
 
-                if (ret == 0 && GetLength(in, &idx, &length, inSz) <= 0) {
+                if (GetLength(in, &idx, &length, inSz) <= 0)
                     ret = ASN_PARSE_E;
-                }
 
-                if (idx + 1 > inSz)
+                if (ret == 0 && idx + 1 > inSz)
                     ret = BUFFER_E;
 
                 if (ret == 0 && GetASNTag(in, &idx, &tag, inSz) < 0)
@@ -4130,13 +4131,12 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
 #ifndef NO_PKCS7_STREAM
     /* allow for 0 size inputs with stream mode */
-    if (pkcs7 == NULL || (pkiMsg == NULL && pkiMsgSz > 0))
+    if (pkiMsg == NULL && pkiMsgSz > 0)
         return BAD_FUNC_ARG;
 
 #else
     if (pkiMsg == NULL || pkiMsgSz == 0)
         return BAD_FUNC_ARG;
-
 #endif
 
     if ((hashSz > 0 && hashBuf == NULL) || (pkiMsg2Sz > 0 && pkiMsg2 == NULL)) {
@@ -4388,7 +4388,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
             /* get length of content in case of single part */
             if (ret == 0 && !multiPart) {
-                if (ret == 0 && tag != ASN_OCTET_STRING)
+                if (tag != ASN_OCTET_STRING)
                     ret = ASN_PARSE_E;
 
                 if (ret == 0 && GetLength_ex(pkiMsg, &localIdx,
@@ -5646,7 +5646,7 @@ int wc_PKCS7_AddRecipient_KARI(PKCS7* pkcs7, const byte* cert, word32 certSz,
                                int keyWrapOID, int keyAgreeOID, byte* ukm,
                                word32 ukmSz, int options)
 {
-    Pkcs7EncodedRecip* recip = NULL;
+    Pkcs7EncodedRecip* recip;
     Pkcs7EncodedRecip* lastRecip = NULL;
     WC_PKCS7_KARI* kari = NULL;
 
@@ -10123,7 +10123,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
         #endif
 
             /* remove EncryptedContentInfo */
-            if (ret == 0 && GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0) {
+            if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0) {
                 ret = ASN_PARSE_E;
             }
 
@@ -10211,13 +10211,13 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
 
             explicitOctet = 0;
             localIdx = idx;
-            if (ret == 0 && GetASNTag(pkiMsg, &localIdx, &tag, pkiMsgSz) == 0 &&
+            if (GetASNTag(pkiMsg, &localIdx, &tag, pkiMsgSz) == 0 &&
                     tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0)) {
                 explicitOctet = 1;
             }
 
             /* read encryptedContent, cont[0] */
-            if (ret == 0 && tag != (ASN_CONTEXT_SPECIFIC | 0) &&
+            if (tag != (ASN_CONTEXT_SPECIFIC | 0) &&
                           tag != (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0)) {
                 ret = ASN_PARSE_E;
             }
@@ -10282,7 +10282,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
         #endif
             encryptedContent = (byte*)XMALLOC(encryptedContentSz, pkcs7->heap,
                                                        DYNAMIC_TYPE_PKCS7);
-            if (ret == 0 && encryptedContent == NULL) {
+            if (encryptedContent == NULL) {
                 ret = MEMORY_E;
                 break;
             }
@@ -10457,7 +10457,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
         return blockKeySz;
 
     blockSz = wc_PKCS7_GetOIDBlockSize(pkcs7->encryptOID);
-    if (blockKeySz < 0 || blockSz < 0)
+    if (blockSz < 0)
         return blockSz;
 
     /* outer content type */
@@ -10585,7 +10585,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
             contentTypeAttrib.valueSz = ret;
 
         /* otherwise, try to set from custom content type */
-        } else if (ret <= 0) {
+        } else {
             if (pkcs7->contentTypeSz == 0) {
                 WOLFSSL_MSG("CMS pkcs7->contentType must be set if "
                             "contentOID is not");
@@ -11188,7 +11188,7 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
                 encodedAttribs = pkiMsg + idx;
                 idx++;
 
-                if (ret == 0 && GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+                if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
                     ret = ASN_PARSE_E;
             #ifndef NO_PKCS7_STREAM
                 pkcs7->stream->expected = length;

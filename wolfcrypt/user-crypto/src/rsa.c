@@ -693,7 +693,7 @@ static IppStatus init_mont(IppsMontState** mont, int* ctxSz,
 
     /* 2. Allocate working buffer using malloc */
     *mont = (IppsMontState*)XMALLOC(*ctxSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
-    if (mont == NULL) {
+    if (*mont == NULL) {
         XFREE(m, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         return ippStsNoMemErr;
     }
@@ -1620,7 +1620,6 @@ static void Free_BN(IppsBigNumState* bn)
             USER_DEBUG(("Issue with clearing a struct in RsaSSL_Sign free\n"));
         }
         XFREE(bn, NULL, DYNAMIC_TYPE_USER_CRYPTO);
-        bn = NULL;
     }
 }
 
@@ -2552,7 +2551,7 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
     if (with_header) {
         int  algoSz;
 #ifdef WOLFSSL_SMALL_STACK
-        byte* algo = NULL;
+        byte* algo;
 
         algo = (byte*)XMALLOC(MAX_ALGO_SZ, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         if (algo == NULL) {

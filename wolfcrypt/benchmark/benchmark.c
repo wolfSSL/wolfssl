@@ -4542,7 +4542,7 @@ void bench_rsa(int doAsync)
     int         ret = 0, i;
     RsaKey      rsaKey[BENCH_MAX_PENDING];
 #if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP)
-    int         rsaKeySz = RSA_BUF_SIZE * 8; /* used in printf */
+    int         rsaKeySz; /* used in printf */
     size_t      bytes;
     const byte* tmp;
     word32      idx;
