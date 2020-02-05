@@ -377,6 +377,7 @@ WOLFSSL_API int wc_SetSubject(Cert*, const char*);
     WOLFSSL_API int wc_SetAltNames(Cert*, const char*);
     WOLFSSL_API int wc_CertAddAltNameStr(Cert *cert, byte *name, 
                                          cert_altname_type type);
+	WOLFSSL_API int wc_CertAddAltNameIp(Cert *cert, byte *name, int nameSz);
     WOLFSSL_API int wc_CertEncodeAltName(Cert *cert);
 #endif
 
