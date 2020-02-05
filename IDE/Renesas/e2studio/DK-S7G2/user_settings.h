@@ -12,9 +12,19 @@
 #define SYNERGY_CYCLE_COUNT
 #define BENCH_EMBEDDED
 
-/* Use TRNG */
-//#define WOLFSSL_SCE
-#ifndef WOLFSSL_SCE
+/* Use turn on all SCE acceleration */
+#define WOLFSSL_SCE
+
+/* Used to turn off TRNG */
+#define WOLFSSL_SCE_NO_TRNG
+
+/* Used to turn off AES hardware acc. */
+#define WOLFSSL_SCE_NO_AES
+
+/* Used to turn off HASH hardware acc. */
+#define WOLFSSL_SCE_NO_HASH
+
+#if defined(WOLFSSL_SCE_NO_TRNG)
     /* use unsafe test seed if TRNG not used (not for production) */
     #define WOLFSSL_GENSEED_FORTEST
 #endif
@@ -26,6 +36,9 @@
 #define HAVE_POLY1305
 #define HAVE_ONE_TIME_AUTH
 #define HAVE_AESGCM
+
+#define HAVE_AES_ECB
+#define WOLFSSL_AES_DIRECT
 
 #define USE_FAST_MATH
 

@@ -5,7 +5,9 @@
 - Open e2studio and set the workspace to be wolfssl-X.X.X/IDE/Renesas/e2studio/DK-S7G2/
 - Create a Synergy library project named wolfssl "File->New->Synergy C/C++ Project", "Renesas Synergy C Library Project" then "Next", set wolfssl as the "Project Name" then "Next", set Board to "S7G2 DK" then "Next", finally select the BSP radius and click "Finish"
 - Copy configuration.xml and .project from wolfssl-X.X.X/IDE/Renesas/e2studio/DK-S7G2/wolfssl-template-project/ into the wolfssl-X.X.X/IDE/Renesas/e2studio/DK-S7G2/wolfssl directory
-- (optional but necessary for production) Add TRNG support by clicking on Threads tab and highlight HAL/Common click "New Stack > Driver > Crypto > TRNG Driver on r_sce_trng". Then uncomment WOLFSSL_SCE define in wolfssl project src/user_settings.h
+- (optional but necessary for production) Add TRNG support by clicking on Threads tab and highlight HAL/Common click "New Stack > Driver > Crypto > TRNG Driver on r_sce_trng". Then comment out WOLFSSL_SCE_NO_TRNG define in wolfssl project src/user_settings.h
+- (optional SHA acceleration) Add HASH support by clicking on Threads tab and highlight HAL/Common click "New Stack > Driver > Crypto > HASH Driver on r_sce_hash". Then uncomment WOLFSSL_SCE_NO_HASH define in wolfssl project src/user_settings.h
+- (optional AES acceleration) Add the stacks for AES128, AES192, and AES256. Click on Threads tab and highlight HAL/Common click "New Stack > Driver > Crypto > AES Driver on r_sce_aes". Add three one for each key size and rename them to g_sce_aes_256, g_sce_aes_192, and g_sce_aes_128. Changing each to ECB chaining mode and the key length that matches the name.
 - Generate the changes by clicking on "Generate Project Content"
 - Exclude src/wolfcrypt/port and all src/wolfcrypt/*.S and src/wolfcrypt/*.asm files from the build
 - Exclude src/wolfcrypt/evp.c, src/wolfcrypt/misc.c and src/wolfssl/bio.c

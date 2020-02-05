@@ -230,8 +230,12 @@ int wolfCrypt_Init(void)
 
 #ifdef WOLFSSL_SCE
         ret = (int)g_sce.p_api->open(g_sce.p_ctrl, g_sce.p_cfg);
-        if (ret != SSP_SUCCESS && ret != SSP_ERR_CRYPTO_ALREADY_OPEN) {
-            WOLFSSL_MSG("Error opening SCE\n");
+        if (ret == SSP_ERR_CRYPTO_SCE_ALREADY_OPEN) {
+            WOLFSSL_MSG("SCE already open");
+            ret = 0;
+        }
+        if (ret != SSP_SUCCESS) {
+            WOLFSSL_MSG("Error opening SCE");
             return -1; /* FATAL_ERROR */
         }
 #endif
