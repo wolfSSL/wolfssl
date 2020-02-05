@@ -137,7 +137,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
                                 const byte *cr,const byte *sr,
                                 byte *ms/* out */);
     int tsip_generateSeesionKey(WOLFSSL *ssl);
-    int tsip_generateVerifyData(const byte *ms, const byte *side, 
+    int tsip_generateVerifyData(const byte *ms, const byte *side,
                                 const byte *handshake_hash,
                                 byte *hashes /* out */);
 #endif
@@ -1194,10 +1194,10 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
     if (tsip_useable(ssl)) {
         if (ssl->specs.hash_size == WC_SHA_DIGEST_SIZE)
-            ret = tsip_Sha1Hmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ, 
+            ret = tsip_Sha1Hmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ,
                                                         in, sz, digest, verify);
         else if (ssl->specs.hash_size == WC_SHA256_DIGEST_SIZE)
-            ret = tsip_Sha256Hmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ, 
+            ret = tsip_Sha256Hmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ,
                                                         in, sz, digest, verify);
         else
             ret = TSIP_MAC_DIGSZ_E;
@@ -5573,6 +5573,8 @@ int TLSX_UseQSHScheme(TLSX** extensions, word16 name, byte* pKey, word16 pkeySz,
     /* sanity check */
     if (extensions == NULL || (pKey == NULL && pkeySz != 0))
         return BAD_FUNC_ARG;
+
+    extension = TLSX_Find(*extensions, TLSX_QUANTUM_SAFE_HYBRID);
 
     /* if scheme is implemented than add */
     if (TLSX_HaveQSHScheme(name)) {

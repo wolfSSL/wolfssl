@@ -2258,7 +2258,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 
 #ifdef WOLFSSL_SESSION_EXPORT
     /* only add in more complex nonblocking case with session export tests */
-    if (((func_args*)args)->argc > 0) {
+    if (args && ((func_args*)args)->argc > 0) {
         /* set as nonblock and time out for waiting on read/write */
         tcp_set_nonblocking(&clientfd);
         wolfSSL_dtls_set_using_nonblock(ssl, 1);

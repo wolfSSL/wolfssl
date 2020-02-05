@@ -10041,6 +10041,7 @@ int wc_EncryptedInfoParse(EncryptedInfo* info, char** pBuffer, size_t bufSz)
         newline = SkipEndOfLineChars(newline, bufferEnd);
 
         /* return new headerEnd */
+
         *pBuffer = newline;
     }
 

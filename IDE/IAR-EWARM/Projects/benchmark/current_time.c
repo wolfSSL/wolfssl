@@ -64,10 +64,10 @@ double current_time(int reset)
 
 /* dummy */
 double current_time(int reset) {
-    static double t; 
+    static double t;
     t += 1.0; /* for avoid infinite loop of waiting time */
     if(reset)t = 0.0;
-    return t ; 
-} 
+    return t ;
+}
 
 #endif
