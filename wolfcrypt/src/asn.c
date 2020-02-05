@@ -11302,6 +11302,17 @@ int wc_CertAddAltNameStr(Cert *cert, byte *name, cert_altname_type type) {
 	}
 	return rv;
 }
+int wc_CertAddAltNameIp(Cert *cert, byte *name, int nameSz) {
+    /* Call this function N times to add N AltName IP-addresses */
+	int rv;
+
+	if (cert == NULL || name == NULL || nameSz < 4 || nameSz > 32) {
+		rv = BAD_FUNC_ARG;
+	} else { 
+		rv = wc_CertAddAltName_ex(cert, name, nameSz, WC_ALTNAME_IPADDRESS);
+	}
+	return rv;
+}
 int wc_CertEncodeAltName(Cert *cert) {
 	/* Encode cert->altNames field by pre-pending the sequence info */
 	int i = 0;
@@ -13344,6 +13355,20 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
     else
         der->caSz = 0;
 
+#ifdef WOLFSSL_ALT_NAMES
+    /* Alternative Name */
+    if (cert->altNamesSz) {
+        der->altNamesSz = SetAltNames(der->altNames, sizeof(der->altNames),
+                                      cert->altNames, cert->altNamesSz);
+        if (der->altNamesSz <= 0)
+            return ALT_NAME_E;
+
+        der->extensionsSz += der->altNamesSz;
+    }
+    else
+        der->altNamesSz = 0;
+#endif
+
 #ifdef WOLFSSL_CERT_EXT
     /* SKID */
     if (cert->skidSz) {
@@ -13404,6 +13429,17 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
             if (ret <= 0)
                 return EXTENSIONS_E;
         }
+
+#ifdef WOLFSSL_ALT_NAMES
+        /* put Alternative Names */
+        if (der->altNamesSz) {
+            ret = SetExtensions(der->extensions, sizeof(der->extensions),
+                                &der->extensionsSz,
+                                der->altNames, der->altNamesSz);
+            if (ret <= 0)
+                return EXTENSIONS_E;
+        }
+#endif
 
 #ifdef WOLFSSL_CERT_EXT
         /* put SKID */
