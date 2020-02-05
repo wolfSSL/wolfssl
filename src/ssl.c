@@ -43820,8 +43820,10 @@ int wolfSSL_X509_check_host(X509 *x, const char *chk, size_t chklen,
 
     InitDecodedCert(&dCert, x->derCert->buffer, x->derCert->length, NULL);
     ret = ParseCertRelative(&dCert, CERT_TYPE, 0, NULL);
-    if (ret != 0)
+    if (ret != 0) {
+        FreeDecodedCert(&dCert);
         return WOLFSSL_FAILURE;
+    }
 
     ret = CheckHostName(&dCert, (char *)chk, chklen);
     FreeDecodedCert(&dCert);
