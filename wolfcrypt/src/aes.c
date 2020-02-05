@@ -7267,7 +7267,7 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
  *     buffer)
  * in  buffer to encrypt
  * sz  size of input buffer
- * pre flag to xor after or before feedback. If 1 then add feedback before xor
+ * mode flag to specify AES mode
  *
  * returns 0 on success and negative error values on failure
  */
