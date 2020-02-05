@@ -2101,6 +2101,11 @@ extern void uITRON4_free(void *p) ;
     #error TLS 1.3 requires the Signature Algorithms extension to be enabled
 #endif
 
+#ifndef NO_WOLFSSL_BASE64_DECODE
+    #define WOLFSSL_BASE64_DECODE
+#endif
+
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif

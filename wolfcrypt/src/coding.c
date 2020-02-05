@@ -42,6 +42,8 @@ enum {
 };
 
 
+#ifdef WOLFSSL_BASE64_DECODE
+
 static
 const byte base64Decode[] = { 62, BAD, BAD, BAD, 63,   /* + starts at 0x2B */
                               52, 53, 54, 55, 56, 57, 58, 59, 60, 61,
@@ -144,6 +146,7 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
     return 0;
 }
 
+#endif /* WOLFSSL_BASE64_DECODE */
 
 #if defined(WOLFSSL_BASE64_ENCODE)
 
