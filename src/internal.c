@@ -9979,16 +9979,16 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                 /* Certificate Request Context */
                 if ((args->idx - args->begin) + OPAQUE8_LEN > totalSz)
-                    return BUFFER_ERROR;
+                    ERROR_OUT(BUFFER_ERROR, exit_ppc);
                 ctxSz = *(input + args->idx);
                 args->idx++;
                 if ((args->idx - args->begin) + ctxSz > totalSz)
-                    return BUFFER_ERROR;
+                    ERROR_OUT(BUFFER_ERROR, exit_ppc);
             #ifndef NO_WOLFSSL_CLIENT
                 /* Must be empty when received from server. */
                 if (ssl->options.side == WOLFSSL_CLIENT_END) {
                     if (ctxSz != 0) {
-                        return INVALID_CERT_CTX_E;
+                        ERROR_OUT(INVALID_CERT_CTX_E, exit_ppc);
                     }
                 }
             #endif
@@ -9997,7 +9997,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 if (ssl->options.side == WOLFSSL_SERVER_END) {
                     if (ssl->options.handShakeState != HANDSHAKE_DONE &&
                                                                    ctxSz != 0) {
-                        return INVALID_CERT_CTX_E;
+                        ERROR_OUT(INVALID_CERT_CTX_E, exit_ppc);
                     }
                     else if (ssl->options.handShakeState == HANDSHAKE_DONE) {
                 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
@@ -10020,7 +10020,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         }
                         if (curr == NULL)
                 #endif
-                            return INVALID_CERT_CTX_E;
+                            ERROR_OUT(INVALID_CERT_CTX_E, exit_ppc);
                     }
                 }
             #endif
