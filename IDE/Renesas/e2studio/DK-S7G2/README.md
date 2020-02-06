@@ -27,3 +27,25 @@ The example_server loops looking to accept connections and closes immediatly aft
 The benchmark example tries to do a TCP connection to SERVER_IP on port 11112 and a TLS connection to SERVER_IP on port 11111 then does wolfCrypt benchmark collection.
 
 The wolfcryptest runs through all of the unit tests from wolfcrypt/test/test.c
+
+## Advanced Overriding Driver Name
+Defaults are set for when accessing the driver but the default names may not always work for an existing project. These are the macros and their defaults that could be mapped to other driver names:
+
+/* For main SCE open and close */
+WOLFSSL_SCE_GSCE_HANDLE g_sce
+
+/* For AES operations */
+WOLFSSL_SCE_AES256_HANDLE g_sce_aes_256
+WOLFSSL_SCE_AES192_HANDLE g_sce_aes_192
+WOLFSSL_SCE_AES128_HANDLE g_sce_aes_128
+
+/* HASH operations */
+WOLFSSL_SCE_SHA256_HANDLE g_sce_hash_0
+
+/* TRNG access */
+WOLFSSL_SCE_TRNG_HANDLE g_sce_trng
+
+
+
+An example of remapping a driver name would be the following added to a wolfSSL user_settings.h file:
+#define WOFSSL_SCE_SHA256_HANDLE my_sce_hash_driver

@@ -792,7 +792,7 @@
     {
         uint32_t ret;
 
-        if (g_sce.p_cfg->endian_flag == CRYPTO_WORD_ENDIAN_BIG) {
+        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag == CRYPTO_WORD_ENDIAN_BIG) {
             ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
         }
 
@@ -828,7 +828,7 @@
             return WC_HW_E;
         }
 
-        if (g_sce.p_cfg->endian_flag == CRYPTO_WORD_ENDIAN_BIG) {
+        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag == CRYPTO_WORD_ENDIAN_BIG) {
             ByteReverseWords((word32*)outBlock, (word32*)outBlock, sz);
             if (inBlock != outBlock) {
                 ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz); /* revert input*/
@@ -842,7 +842,7 @@
     {
         uint32_t ret;
 
-        if (g_sce.p_cfg->endian_flag == CRYPTO_WORD_ENDIAN_BIG) {
+        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag == CRYPTO_WORD_ENDIAN_BIG) {
             ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
         }
 
@@ -873,7 +873,7 @@
             return WC_HW_E;
         }
 
-        if (g_sce.p_cfg->endian_flag == CRYPTO_WORD_ENDIAN_BIG) {
+        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag == CRYPTO_WORD_ENDIAN_BIG) {
             ByteReverseWords((word32*)outBlock, (word32*)outBlock, sz);
             if (inBlock != outBlock) {
                 ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz); /* revert input*/
@@ -2415,7 +2415,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
 #if defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)
         XMEMCPY((byte*)aes->key, userKey, keylen);
-        if (g_sce.p_cfg->endian_flag == CRYPTO_WORD_ENDIAN_BIG) {
+        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag == CRYPTO_WORD_ENDIAN_BIG) {
             ByteReverseWords(aes->key, aes->key, 32);
         }
 #endif

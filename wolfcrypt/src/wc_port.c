@@ -229,7 +229,8 @@ int wolfCrypt_Init(void)
 #endif
 
 #ifdef WOLFSSL_SCE
-        ret = (int)g_sce.p_api->open(g_sce.p_ctrl, g_sce.p_cfg);
+        ret = (int)WOLFSSL_SCE_GSCE_HANDLE.p_api->open(WOLFSSL_SCE_GSCE_HANDLE.p_ctrl,
+                                                       WOLFSSL_SCE_GSCE_HANDLE.p_cfg);
         if (ret == SSP_ERR_CRYPTO_SCE_ALREADY_OPEN) {
             WOLFSSL_MSG("SCE already open");
             ret = 0;
@@ -293,7 +294,7 @@ int wolfCrypt_Cleanup(void)
         wolfAsync_HardwareStop();
     #endif
     #ifdef WOLFSSL_SCE
-        g_sce.p_api->close(g_sce.p_ctrl);
+        WOLFSSL_SCE_GSCE_HANDLE.p_api->close(WOLFSSL_SCE_GSCE_HANDLE.p_ctrl);
     #endif
     #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
         defined(WOLFSSL_IMX6_CAAM_BLOB)
