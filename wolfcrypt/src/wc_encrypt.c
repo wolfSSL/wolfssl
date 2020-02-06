@@ -25,15 +25,36 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/aes.h>
-#include <wolfssl/wolfcrypt/des3.h>
-#include <wolfssl/wolfcrypt/hash.h>
-#include <wolfssl/wolfcrypt/arc4.h>
+
+#if !defined(NO_SHA) || !defined(NO_SHA256) || defined(WOLFSSL_SHA224) || \
+    defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512) || defined(HAVE_BLAKE2) \
+    || defined(WOLFSSL_SHA3) || !defined(NO_MD5) || !defined(NO_MD4) || \
+    defined(WOLFSSL_MD2) || defined(HAVE_BLAKE2) || defined(HAVE_BLAKE2S)
+    #define WC_NEED_HASH
+#endif
+
+#ifndef NO_AES
+    #include <wolfssl/wolfcrypt/aes.h>
+#endif
+#ifndef NO_DES3
+    #include <wolfssl/wolfcrypt/des3.h>
+#endif
+#ifdef WC_NEED_HASH
+    #include <wolfssl/wolfcrypt/hash.h>
+#endif
+#ifndef NO_RC4
+    #include <wolfssl/wolfcrypt/arc4.h>
+#endif
+#ifndef NO_ASN
+    #include <wolfssl/wolfcrypt/asn.h>
+    #include <wolfssl/wolfcrypt/coding.h>
+#endif
+#ifndef NO_PWDBASED
+    #include <wolfssl/wolfcrypt/pwdbased.h>
+#endif
+
 #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/asn.h>
-#include <wolfssl/wolfcrypt/coding.h>
-#include <wolfssl/wolfcrypt/pwdbased.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef NO_INLINE

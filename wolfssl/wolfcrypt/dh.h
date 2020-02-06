@@ -35,8 +35,15 @@
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
-#include <wolfssl/wolfcrypt/integer.h>
-#include <wolfssl/wolfcrypt/random.h>
+#ifdef USE_FAST_MATH
+    #include <wolfssl/wolfcrypt/tfm.h>
+#else
+    #include <wolfssl/wolfcrypt/integer.h>
+#endif
+
+#ifndef WC_NO_RNG
+    #include <wolfssl/wolfcrypt/random.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {

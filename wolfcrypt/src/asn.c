@@ -60,12 +60,22 @@ ASN Options:
 
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/coding.h>
-#include <wolfssl/wolfcrypt/md2.h>
-#include <wolfssl/wolfcrypt/hmac.h>
+#ifdef WOLFSSL_MD2
+    #include <wolfssl/wolfcrypt/md2.h>
+#endif
+#ifndef NO_HMAC
+    #include <wolfssl/wolfcrypt/hmac.h>
+#endif
 #include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/pwdbased.h>
-#include <wolfssl/wolfcrypt/des3.h>
-#include <wolfssl/wolfcrypt/aes.h>
+#ifndef NO_PWDBASED
+    #include <wolfssl/wolfcrypt/pwdbased.h>
+#endif
+#ifndef NO_DES3
+    #include <wolfssl/wolfcrypt/des3.h>
+#endif
+#ifndef NO_AES
+    #include <wolfssl/wolfcrypt/aes.h>
+#endif
 #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 

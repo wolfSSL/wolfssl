@@ -28,10 +28,21 @@
 
 #ifndef NO_PWDBASED
 
-#include <wolfssl/wolfcrypt/pwdbased.h>
-#include <wolfssl/wolfcrypt/hmac.h>
+#ifndef NO_PWDBASED
+    #include <wolfssl/wolfcrypt/pwdbased.h>
+#endif
+#ifndef NO_HMAC
+    #include <wolfssl/wolfcrypt/hmac.h>
+#endif
+
 #include <wolfssl/wolfcrypt/hash.h>
-#include <wolfssl/wolfcrypt/integer.h>
+
+#ifdef USE_FAST_MATH
+    #include <wolfssl/wolfcrypt/tfm.h>
+#else
+    #include <wolfssl/wolfcrypt/integer.h>
+#endif
+
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef NO_INLINE

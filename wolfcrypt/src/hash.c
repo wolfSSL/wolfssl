@@ -32,7 +32,10 @@
 #endif
 
 #include <wolfssl/wolfcrypt/hash.h>
-#include <wolfssl/wolfcrypt/hmac.h>
+
+#ifndef NO_HMAC
+    #include <wolfssl/wolfcrypt/hmac.h>
+#endif
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>

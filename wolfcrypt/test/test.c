@@ -116,48 +116,119 @@
     #endif
 #endif
 
+/* Default includes */
 #include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/types.h>
-#if defined(WOLFSSL_TEST_CERT) || defined(ASN_BER_TO_DER)
-    #include <wolfssl/wolfcrypt/asn.h>
-#else
-    #include <wolfssl/wolfcrypt/asn_public.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+/* All other headers should be macro guarded appropriately */
+
+#if (!defined(NO_AES) && defined(HAVE_AES_CBC)) || \
+    (!defined(NO_DES3) && !defined(WOLFSSL_TI_CRYPT)) || \
+    (defined WOLFSSL_ENCRYPTED_KEYS) || \
+    (!defined(NO_PWDBASED) && \
+      (defined(HAVE_PKCS8) || defined(HAVE_PKCS12)) \
+    )
+    #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #endif
-#include <wolfssl/wolfcrypt/md2.h>
-#include <wolfssl/wolfcrypt/md5.h>
-#include <wolfssl/wolfcrypt/md4.h>
-#include <wolfssl/wolfcrypt/sha.h>
-#include <wolfssl/wolfcrypt/sha256.h>
-#include <wolfssl/wolfcrypt/sha512.h>
-#include <wolfssl/wolfcrypt/arc4.h>
-#if defined(WC_NO_RNG)
-    #include <wolfssl/wolfcrypt/integer.h>
-#else
+
+#ifndef NO_ASN
+    #if defined(WOLFSSL_TEST_CERT) || defined(ASN_BER_TO_DER)
+        #include <wolfssl/wolfcrypt/asn.h>
+    #else
+        #include <wolfssl/wolfcrypt/asn_public.h>
+    #endif
+#endif
+#ifdef WOLFSSL_MD2
+    #include <wolfssl/wolfcrypt/md2.h>
+#endif
+#ifndef NO_MD5
+    #include <wolfssl/wolfcrypt/md5.h>
+#endif
+#ifndef NO_MD4
+    #include <wolfssl/wolfcrypt/md4.h>
+#endif
+#ifndef NO_SHA
+    #include <wolfssl/wolfcrypt/sha.h>
+#endif
+#ifndef NO_SHA256
+    #include <wolfssl/wolfcrypt/sha256.h>
+#endif
+#ifdef WOLFSSL_SHA512
+    #include <wolfssl/wolfcrypt/sha512.h>
+#endif
+#ifndef NO_RC4
+    #include <wolfssl/wolfcrypt/arc4.h>
+#endif
+/* Set if building the test app without a math library */
+#ifndef NO_WOLF_MATH
+    #ifdef USE_FAST_MATH
+        #include <wolfssl/wolfcrypt/tfm.h>
+    #else
+        #include <wolfssl/wolfcrypt/integer.h>
+    #endif
+#endif
+#ifndef WC_NO_RNG
     #include <wolfssl/wolfcrypt/random.h>
 #endif
-#include <wolfssl/wolfcrypt/coding.h>
-#include <wolfssl/wolfcrypt/signature.h>
-#include <wolfssl/wolfcrypt/rsa.h>
-#include <wolfssl/wolfcrypt/des3.h>
-#include <wolfssl/wolfcrypt/aes.h>
-#include <wolfssl/wolfcrypt/wc_encrypt.h>
-#include <wolfssl/wolfcrypt/cmac.h>
-#include <wolfssl/wolfcrypt/poly1305.h>
-#include <wolfssl/wolfcrypt/camellia.h>
-#include <wolfssl/wolfcrypt/hmac.h>
-#include <wolfssl/wolfcrypt/dh.h>
-#include <wolfssl/wolfcrypt/dsa.h>
-#include <wolfssl/wolfcrypt/srp.h>
-#include <wolfssl/wolfcrypt/idea.h>
-#include <wolfssl/wolfcrypt/hc128.h>
-#include <wolfssl/wolfcrypt/rabbit.h>
-#include <wolfssl/wolfcrypt/chacha.h>
-#include <wolfssl/wolfcrypt/chacha20_poly1305.h>
-#include <wolfssl/wolfcrypt/pwdbased.h>
-#include <wolfssl/wolfcrypt/ripemd.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
+#if !defined(NO_CERTS) && !defined(NO_ASN)
+    #include <wolfssl/wolfcrypt/coding.h>
+#endif
+#ifndef NO_SIG_WRAPPER
+    #include <wolfssl/wolfcrypt/signature.h>
+#endif
+#ifndef NO_RSA
+    #include <wolfssl/wolfcrypt/rsa.h>
+#endif
+#ifndef NO_DES3
+    #include <wolfssl/wolfcrypt/des3.h>
+#endif
+#ifndef NO_AES
+    #include <wolfssl/wolfcrypt/aes.h>
+#endif
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
+    #include <wolfssl/wolfcrypt/cmac.h>
+#endif
+#ifdef HAVE_POLY1305
+    #include <wolfssl/wolfcrypt/poly1305.h>
+#endif
+#ifdef HAVE_CAMELLIA
+    #include <wolfssl/wolfcrypt/camellia.h>
+#endif
+#ifndef NO_HMAC
+    #include <wolfssl/wolfcrypt/hmac.h>
+#endif
+#ifndef NO_DH
+    #include <wolfssl/wolfcrypt/dh.h>
+#endif
+#ifndef NO_DSA
+    #include <wolfssl/wolfcrypt/dsa.h>
+#endif
+#ifdef WOLFCRYPT_HAVE_SRP
+    #include <wolfssl/wolfcrypt/srp.h>
+#endif
+#ifdef HAVE_IDEA
+    #include <wolfssl/wolfcrypt/idea.h>
+#endif
+#ifdef HAVE_HC128
+    #include <wolfssl/wolfcrypt/hc128.h>
+#endif
+#ifndef NO_RABBIT
+    #include <wolfssl/wolfcrypt/rabbit.h>
+#endif
+#ifdef HAVE_CHACHA
+    #include <wolfssl/wolfcrypt/chacha.h>
+#endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
+#endif
+#ifndef NO_PWDBASED
+    #include <wolfssl/wolfcrypt/pwdbased.h>
+#endif
+#ifdef WOLFSSL_RIPEMD
+    #include <wolfssl/wolfcrypt/ripemd.h>
+#endif
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif

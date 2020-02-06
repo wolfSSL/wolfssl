@@ -65,8 +65,14 @@
     #define WOLFSSL_KEY_GEN
 #endif
 #else
-    #include <wolfssl/wolfcrypt/integer.h>
-    #include <wolfssl/wolfcrypt/random.h>
+    #ifdef USE_FAST_MATH
+        #include <wolfssl/wolfcrypt/tfm.h>
+    #else
+        #include <wolfssl/wolfcrypt/integer.h>
+    #endif
+    #ifndef WC_NO_RNG
+        #include <wolfssl/wolfcrypt/random.h>
+    #endif
 #endif /* HAVE_FIPS && HAVE_FIPS_VERION 1 */
 #if defined(HAVE_FIPS) && \
 	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)

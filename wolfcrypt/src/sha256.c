@@ -59,7 +59,12 @@
 
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/cpuid.h>
+
+#if (defined(WOLFSSL_X86_64_BUILD) || defined(USE_INTEL_SPEEDUP) || \
+     defined(WOLFSSL_AESNI)) && !defined(WOLFSSL_NO_ASM)
+    #include <wolfssl/wolfcrypt/cpuid.h>
+#endif
+
 #include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef WOLF_CRYPTO_CB

@@ -46,8 +46,11 @@
 
 
 #include <wolfssl/wolfcrypt/random.h>
-#include <wolfssl/wolfcrypt/cpuid.h>
 
+#if (defined(WOLFSSL_X86_64_BUILD) || defined(USE_INTEL_SPEEDUP) || \
+     defined(WOLFSSL_AESNI)) && !defined(WOLFSSL_NO_ASM)
+    #include <wolfssl/wolfcrypt/cpuid.h>
+#endif
 
 /* If building for old FIPS. */
 #if defined(HAVE_FIPS) && \

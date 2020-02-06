@@ -44,7 +44,11 @@
 #endif
 
 #include <wolfssl/wolfcrypt/aes.h>
-#include <wolfssl/wolfcrypt/cpuid.h>
+
+#if (defined(WOLFSSL_X86_64_BUILD) || defined(USE_INTEL_SPEEDUP) || \
+     defined(WOLFSSL_AESNI)) && !defined(WOLFSSL_NO_ASM)
+    #include <wolfssl/wolfcrypt/cpuid.h>
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>

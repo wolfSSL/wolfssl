@@ -35,7 +35,11 @@
     #define NO_ASN_TIME /* backwards compatibility with NO_TIME_H */
 #endif
 
-#include <wolfssl/wolfcrypt/integer.h>
+#ifdef USE_FAST_MATH
+    #include <wolfssl/wolfcrypt/tfm.h>
+#else
+    #include <wolfssl/wolfcrypt/integer.h>
+#endif
 
 /* fips declare of RsaPrivateKeyDecode @wc_fips */
 #if defined(HAVE_FIPS) && !defined(NO_RSA) && \

@@ -28,12 +28,24 @@
 
 #ifndef NO_DSA
 
-#include <wolfssl/wolfcrypt/random.h>
-#include <wolfssl/wolfcrypt/integer.h>
+#ifndef WC_NO_RNG
+    #include <wolfssl/wolfcrypt/random.h>
+#endif
+
+#ifdef USE_FAST_MATH
+    #include <wolfssl/wolfcrypt/tfm.h>
+#else
+    #include <wolfssl/wolfcrypt/integer.h>
+#endif
+
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
-#include <wolfssl/wolfcrypt/sha.h>
-#include <wolfssl/wolfcrypt/dsa.h>
+#ifndef NO_SHA
+    #include <wolfssl/wolfcrypt/sha.h>
+#endif
+#ifndef NO_DSA
+    #include <wolfssl/wolfcrypt/dsa.h>
+#endif
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
