@@ -1355,6 +1355,7 @@ int wolfSSL_negotiate(WOLFSSL* ssl)
 }
 
 
+WOLFSSL_ABI
 WC_RNG* wolfSSL_GetRNG(WOLFSSL* ssl)
 {
     if (ssl) {
@@ -2067,6 +2068,7 @@ int wolfSSL_CTX_SetDevId(WOLFSSL_CTX* ctx, int devId)
 }
 
 /* helpers to get device id and heap */
+WOLFSSL_ABI
 int wolfSSL_CTX_GetDevId(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
 {
     int devId = INVALID_DEVID;
