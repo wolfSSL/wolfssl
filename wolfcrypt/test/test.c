@@ -172,7 +172,7 @@
 #ifndef WC_NO_RNG
     #include <wolfssl/wolfcrypt/random.h>
 #endif
-#if !defined(NO_CERTS) && !defined(NO_ASN)
+#if !defined(NO_CERTS) && !defined(NO_ASN) || defined(WOLFSSL_BASE64_ENCODE)
     #include <wolfssl/wolfcrypt/coding.h>
 #endif
 #ifndef NO_SIG_WRAPPER
