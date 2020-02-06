@@ -28,9 +28,8 @@
 
 #ifndef NO_PWDBASED
 
-#ifndef NO_PWDBASED
-    #include <wolfssl/wolfcrypt/pwdbased.h>
-#endif
+#include <wolfssl/wolfcrypt/pwdbased.h>
+
 #ifndef NO_HMAC
     #include <wolfssl/wolfcrypt/hmac.h>
 #endif
