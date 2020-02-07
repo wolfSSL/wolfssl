@@ -61,7 +61,9 @@ typedef struct handShakeInfo_st {
         long tv_usec; /* Microseconds. */
     } WOLFSSL_TIMEVAL;
 #endif /* HAVE_SYS_TIME_H */
-
+#if !defined(NO_OLD_TIMEVAL_NAME)
+    #define Timeval WOLFSSL_TIMEVAL
+#endif
 
 typedef struct packetInfo_st {
     char           packetName[MAX_PACKETNAME_SZ + 1]; /* SSL packet name */

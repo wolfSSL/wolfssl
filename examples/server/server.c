@@ -81,7 +81,11 @@ int catastrophic = 0; /* Use with -x flag to still exit when an error is
 static int lng_index = 0;
 
 #ifdef WOLFSSL_CALLBACKS
-    WOLFSSL_TIMEVAL srvTo;
+    #if !defined(NO_OLD_TIMEVAL_NAME)
+        Timeval srvTo;
+    #else
+        WOLFSSL_TIMEVAL srvTo;
+    #endif
     static int srvHandShakeCB(HandShakeInfo* info)
     {
         (void)info;
