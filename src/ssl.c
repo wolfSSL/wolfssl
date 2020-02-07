@@ -31765,7 +31765,7 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
 
     if (ret <= 0) {
         WOLFSSL_MSG("Failed to export DH Key");
-        XFREE(derBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
 
@@ -45047,6 +45047,7 @@ WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
     ret = GetInt(&mpi, ai->data, &idx, ai->dataMax);
     if (ret != 0) {
     #ifdef WOLFSSL_QT
+        mp_init(&mpi); /* must init mpi */
         /* Serial number in QT starts at index 0 of data */
         if (mp_read_unsigned_bin(&mpi, (byte*)ai->data, ai->length) != 0) {
                 mp_clear(&mpi);
