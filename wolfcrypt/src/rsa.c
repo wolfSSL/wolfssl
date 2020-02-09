@@ -4038,7 +4038,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         err = mp_sub_d(&p, 1, &tmp1);
     if (err == MP_OKAY)                /* tmp2 = q-1 */
         err = mp_sub_d(&q, 1, &tmp2);
-#ifndef WC_RSA_BLINDING
+#ifdef WC_RSA_BLINDING
     if (err == MP_OKAY)                /* tmp3 = order of n */
         err = mp_mul(&tmp1, &tmp2, &tmp3);
 #else
