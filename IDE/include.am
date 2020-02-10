@@ -23,6 +23,7 @@ include IDE/ECLIPSE/SIFIVE/include.am
 include IDE/mynewt/include.am
 include IDE/Renesas/cs+/Projects/include.am
 include IDE/Renesas/e2studio/Projects/include.am
+include IDE/Renesas/e2studio/RA6M3G/include.am
 include IDE/WICED-STUDIO/include.am
 include IDE/CRYPTOCELL/include.am
 include IDE/M68K/include.am
