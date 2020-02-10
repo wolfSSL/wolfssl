@@ -2307,7 +2307,7 @@ enum {
     WOLFSSL_CHAIN_CA = 2           /* added to cache from trusted chain */
 };
 
-WOLFSSL_API WC_RNG* wolfSSL_GetRNG(WOLFSSL*);
+WOLFSSL_ABI WOLFSSL_API WC_RNG* wolfSSL_GetRNG(WOLFSSL*);
 
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX*, int);
 WOLFSSL_API int wolfSSL_SetMinVersion(WOLFSSL*, int);
@@ -2713,7 +2713,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfSSL_SetDevId(WOLFSSL*, int devId);
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_CTX_SetDevId(WOLFSSL_CTX*, int devId);
 
 /* helpers to get device id and heap */
-WOLFSSL_API int   wolfSSL_CTX_GetDevId(WOLFSSL_CTX* ctx, WOLFSSL* ssl);
+WOLFSSL_ABI WOLFSSL_API int wolfSSL_CTX_GetDevId(WOLFSSL_CTX*, WOLFSSL*);
 WOLFSSL_API void* wolfSSL_CTX_GetHeap(WOLFSSL_CTX* ctx, WOLFSSL* ssl);
 
 /* TLS Extensions */
