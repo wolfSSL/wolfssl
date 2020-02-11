@@ -75,8 +75,9 @@
 #define BIO_TYPE_MEM  WOLFSSL_BIO_MEMORY
 #define BIO_TYPE_BASE64 WOLFSSL_BIO_BASE64
 
-#define BIO_printf wolfSSL_BIO_printf
-#define BIO_dump   wolfSSL_BIO_dump
+#define BIO_vprintf wolfSSL_BIO_vprintf
+#define BIO_printf  wolfSSL_BIO_printf
+#define BIO_dump    wolfSSL_BIO_dump
 
 /* BIO info callback */
 #define BIO_CB_FREE   WOLFSSL_BIO_CB_FREE

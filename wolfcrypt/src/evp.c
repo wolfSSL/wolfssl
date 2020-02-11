@@ -771,6 +771,10 @@ int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *ctx)
     case AES_192_OFB_TYPE:
     case AES_256_OFB_TYPE:
 #endif
+#if defined(WOLFSSL_AES_XTS)
+    case AES_128_XTS_TYPE:
+    case AES_256_XTS_TYPE:
+#endif
 
     case AES_128_ECB_TYPE:
     case AES_192_ECB_TYPE:

@@ -33375,6 +33375,18 @@ int wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER* cipher)
         return AES_BLOCK_SIZE;
     #endif
 #endif
+#ifdef WOLFSSL_AES_XTS
+    #ifdef WOLFSSL_AES_128
+    if (XSTRNCMP(name, EVP_AES_128_XTS, XSTRLEN(EVP_AES_128_XTS)) == 0)
+        return AES_BLOCK_SIZE;
+    #endif /* WOLFSSL_AES_128 */
+
+    #ifdef WOLFSSL_AES_256
+    if (XSTRNCMP(name, EVP_AES_256_XTS, XSTRLEN(EVP_AES_256_XTS)) == 0)
+        return AES_BLOCK_SIZE;
+    #endif /* WOLFSSL_AES_256 */
+#endif /* WOLFSSL_AES_XTS */
+
 #endif
 
 #ifndef NO_DES3
