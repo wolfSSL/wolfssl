@@ -19150,7 +19150,8 @@ static void test_wc_PemPubKeyToDer(void)
 #endif
 }
 
-static void test_wc_CertAddAltName(void) {
+static void test_wc_CertAddAltName(void) 
+{
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_ALT_NAMES)
 
 #define WC_ALTNAMESOFFSET (MAX_SEQ_SZ)
