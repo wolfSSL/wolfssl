@@ -11259,8 +11259,9 @@ static int wc_SetCert_LoadDer(Cert* cert, const byte* der, word32 derSz)
    WC_ALTNAMESOFFSET is the max header size */
 #define WC_ALTNAMESOFFSET (MAX_SEQ_SZ) 
 
-int wc_CertAddAltName_ex(Cert *cert, byte *name, int nameSz, 
-						 cert_altname_type type) {
+static int wc_CertAddAltName_ex(Cert *cert, byte *name, int nameSz, 
+						 cert_altname_type type) 
+{
 	/* Append encoded value from name into cert->altNames */
 	byte *buf;
 	int i;
@@ -11286,7 +11287,8 @@ int wc_CertAddAltName_ex(Cert *cert, byte *name, int nameSz,
 	return 0;
 }
 
-int wc_CertAddAltNameStr(Cert *cert, byte *name, cert_altname_type type) {
+int wc_CertAddAltNameStr(Cert *cert, byte *name, cert_altname_type type) 
+{
     /* Call this function N times to add N AltName strings */
 	int nameSz;
 	int rv;
@@ -11295,14 +11297,15 @@ int wc_CertAddAltNameStr(Cert *cert, byte *name, cert_altname_type type) {
 		rv = BAD_FUNC_ARG;
 	} else if (type == WC_ALTNAME_RFC822NAME || type == WC_ALTNAME_DNSNAME || 
 		type==WC_ALTNAME_URI) {
-			nameSz = XSTRLEN(name);
+			nameSz = XSTRLEN((char *) name);
 			rv = wc_CertAddAltName_ex(cert, name, nameSz, type);
 	} else {
 		rv = BAD_FUNC_ARG;
 	}
 	return rv;
 }
-int wc_CertAddAltNameIp(Cert *cert, byte *name, int nameSz) {
+int wc_CertAddAltNameIp(Cert *cert, byte *name, int nameSz) 
+{
     /* Call this function N times to add N AltName IP-addresses */
 	int rv;
 
@@ -11313,9 +11316,9 @@ int wc_CertAddAltNameIp(Cert *cert, byte *name, int nameSz) {
 	}
 	return rv;
 }
-int wc_CertEncodeAltName(Cert *cert) {
+int wc_CertEncodeAltName(Cert *cert) 
+{
 	/* Encode cert->altNames field by pre-pending the sequence info */
-	int i = 0;
 	int seqSize, namesSize;
 
 	if (cert == NULL) {
