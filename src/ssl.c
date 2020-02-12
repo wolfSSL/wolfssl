@@ -4639,6 +4639,7 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
 
     InitDecodedCert(cert, der->buffer, der->length, cm->heap);
     if ((ret = ParseCert(cert, TRUSTED_PEER_TYPE, verify, cm)) != 0) {
+        FreeDecodedCert(cert);
         XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
         return ret;
     }
@@ -4673,6 +4674,7 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
 
     if (AlreadyTrustedPeer(cm, subjectHash)) {
         WOLFSSL_MSG("\tAlready have this CA, not adding again");
+        FreeTrustedPeer(peerCert, cm->heap);
         (void)ret;
     }
     else {
