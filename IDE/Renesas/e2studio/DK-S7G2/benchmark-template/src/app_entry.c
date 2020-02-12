@@ -71,7 +71,7 @@ static void benchmark_TLS(int version, char* suites, int group)
         case 3: method = wolfTLSv1_3_client_method(); break;
 #endif
         default:
-            printf("Unknown TLS version (Check if wolfSSL was built with it supported)\n");
+            printf("Unknown TLS version (Check if built with it supported)\n");
             return;
     }
 
@@ -136,13 +136,15 @@ static void benchmark_TLS(int version, char* suites, int group)
     }
     for (i = 0; i < CONNECTION_TIMES; i++) {
 
-        ret = (int)nx_tcp_client_socket_bind(&sockfd, NX_ANY_PORT, NX_WAIT_FOREVER);
+        ret = (int)nx_tcp_client_socket_bind(&sockfd, NX_ANY_PORT,
+                NX_WAIT_FOREVER);
         if (ret != NX_SUCCESS) {
             printf("failed to bind socket\n");
             return;
         }
 
-        ret = (int)nx_tcp_client_socket_connect(&sockfd, TEST_IP, TEST_PORT, NX_WAIT_FOREVER);
+        ret = (int)nx_tcp_client_socket_connect(&sockfd, TEST_IP, TEST_PORT,
+                NX_WAIT_FOREVER);
         if (ret != NX_SUCCESS) {
             printf("failed to connect with error 0x%X\n", ret);
             return;
@@ -208,7 +210,8 @@ static void benchmark_TCP()
         NX_PACKET* response;
         printf("Pinging server to see if up .. ");
         fflush(stdout);
-        ret = (int)nx_icmp_ping(&g_ip0, TEST_IP, "Hello", strlen("Hello"), &response,  2000);
+        ret = (int)nx_icmp_ping(&g_ip0, TEST_IP, "Hello", strlen("Hello"),
+                &response, 2000);
         if (ret != NX_SUCCESS) {
             printf("Unable to ping server, error = 0x%X\n", ret);
             return;
@@ -228,13 +231,15 @@ static void benchmark_TCP()
     }
 
     for (i = 0; i < CONNECTION_TIMES; i++) {
-        ret = (int)nx_tcp_client_socket_bind(&sockfd, NX_ANY_PORT, NX_WAIT_FOREVER);
+        ret = (int)nx_tcp_client_socket_bind(&sockfd, NX_ANY_PORT,
+                NX_WAIT_FOREVER);
         if (ret != NX_SUCCESS) {
             printf("failed to bind socket\n");
             return;
         }
 
-        ret = (int)nx_tcp_client_socket_connect(&sockfd, TEST_IP, TEST_PORT, NX_WAIT_FOREVER);
+        ret = (int)nx_tcp_client_socket_connect(&sockfd, TEST_IP, TEST_PORT,
+                NX_WAIT_FOREVER);
         if (ret != NX_SUCCESS) {
             printf("failed to connect with error 0x%X\n", ret);
             return;

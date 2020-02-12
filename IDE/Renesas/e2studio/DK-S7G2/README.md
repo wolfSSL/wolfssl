@@ -31,6 +31,7 @@ The wolfcryptest runs through all of the unit tests from wolfcrypt/test/test.c
 ## Advanced Overriding Driver Name
 Defaults are set for when accessing the driver but the default names may not always work for an existing project. These are the macros and their defaults that could be mapped to other driver names:
 
+```
 /* For main SCE open and close */
 WOLFSSL_SCE_GSCE_HANDLE g_sce
 
@@ -44,7 +45,7 @@ WOLFSSL_SCE_SHA256_HANDLE g_sce_hash_0
 
 /* TRNG access */
 WOLFSSL_SCE_TRNG_HANDLE g_sce_trng
-
+```
 
 
 An example of remapping a driver name would be the following added to a wolfSSL user_settings.h file:

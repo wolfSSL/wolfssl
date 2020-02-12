@@ -229,8 +229,8 @@ int wolfCrypt_Init(void)
 #endif
 
 #ifdef WOLFSSL_SCE
-        ret = (int)WOLFSSL_SCE_GSCE_HANDLE.p_api->open(WOLFSSL_SCE_GSCE_HANDLE.p_ctrl,
-                                                       WOLFSSL_SCE_GSCE_HANDLE.p_cfg);
+        ret = (int)WOLFSSL_SCE_GSCE_HANDLE.p_api->open(
+                WOLFSSL_SCE_GSCE_HANDLE.p_ctrl, WOLFSSL_SCE_GSCE_HANDLE.p_cfg);
         if (ret == SSP_ERR_CRYPTO_SCE_ALREADY_OPEN) {
             WOLFSSL_MSG("SCE already open");
             ret = 0;

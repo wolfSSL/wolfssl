@@ -103,7 +103,8 @@ static void server()
 #endif
     printf("Waiting for connections on port %d\n", TEST_PORT);
 
-    ret = (int)nx_tcp_socket_create(&g_ip0, &sockfd, "TLS_SERVER", NX_IP_NORMAL, NX_FRAGMENT_OKAY, NX_IP_TIME_TO_LIVE, 1500, NX_NULL, NX_NULL);
+    ret = (int)nx_tcp_socket_create(&g_ip0, &sockfd, "TLS_SERVER", NX_IP_NORMAL,
+            NX_FRAGMENT_OKAY, NX_IP_TIME_TO_LIVE, 1500, NX_NULL, NX_NULL);
     if (ret != NX_SUCCESS) {
         printf("failed to create socket err = 0x%X\n", ret);
     }

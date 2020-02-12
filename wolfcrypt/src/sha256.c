@@ -555,23 +555,29 @@ static int InitSha256(wc_Sha256* sha256)
     #define XTRANSFORM(S, D) wc_Sha256SCE_XTRANSFORM((S), (D))
     static int wc_Sha256SCE_XTRANSFORM(wc_Sha256* sha256, const byte* data)
     {
-        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag == CRYPTO_WORD_ENDIAN_LITTLE)
+        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
+                CRYPTO_WORD_ENDIAN_LITTLE)
         {
-            ByteReverseWords((word32*)data, (word32*)data, WC_SHA256_BLOCK_SIZE);
-            ByteReverseWords(sha256->digest, sha256->digest, WC_SHA256_DIGEST_SIZE);
+            ByteReverseWords((word32*)data, (word32*)data,
+                    WC_SHA256_BLOCK_SIZE);
+            ByteReverseWords(sha256->digest, sha256->digest,
+                    WC_SHA256_DIGEST_SIZE);
         }
 
-        if (WOLFSSL_SCE_SHA256_HANDLE.p_api->hashUpdate(WOLFSSL_SCE_SHA256_HANDLE.p_ctrl,
-                                                        (word32*)data, WC_SHA256_DIGEST_WORD_SIZE,
-                                                        sha256->digest) != SSP_SUCCESS) {
+        if (WOLFSSL_SCE_SHA256_HANDLE.p_api->hashUpdate(
+                    WOLFSSL_SCE_SHA256_HANDLE.p_ctrl, (word32*)data,
+                    WC_SHA256_DIGEST_WORD_SIZE, sha256->digest) != SSP_SUCCESS){
             WOLFSSL_MSG("Unexpected hardware return value");
             return WC_HW_E;
         }
 
-        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag == CRYPTO_WORD_ENDIAN_LITTLE)
+        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
+                CRYPTO_WORD_ENDIAN_LITTLE)
         {
-            ByteReverseWords((word32*)data, (word32*)data, WC_SHA256_BLOCK_SIZE);
-            ByteReverseWords(sha256->digest, sha256->digest, WC_SHA256_DIGEST_SIZE);
+            ByteReverseWords((word32*)data, (word32*)data,
+                    WC_SHA256_BLOCK_SIZE);
+            ByteReverseWords(sha256->digest, sha256->digest,
+                    WC_SHA256_DIGEST_SIZE);
         }
 
         return 0;

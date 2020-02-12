@@ -788,34 +788,39 @@
         #define WOLFSSL_SCE_AES128_HANDLE g_sce_aes_128
     #endif
 
-    static int AES_ECB_encrypt(Aes* aes, const byte* inBlock, byte* outBlock, int sz)
+    static int AES_ECB_encrypt(Aes* aes, const byte* inBlock, byte* outBlock,
+            int sz)
     {
         uint32_t ret;
 
-        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag == CRYPTO_WORD_ENDIAN_BIG) {
+        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
+                CRYPTO_WORD_ENDIAN_BIG) {
             ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
         }
 
         switch (aes->keylen) {
         #ifdef WOLFSSL_AES_128
             case AES_128_KEY_SIZE:
-                ret = WOLFSSL_SCE_AES128_HANDLE.p_api->encrypt(WOLFSSL_SCE_AES128_HANDLE.p_ctrl, aes->key,
-                                                       NULL, (sz / sizeof(word32)),
-                                                       (word32*)inBlock, (word32*)outBlock);
+                ret = WOLFSSL_SCE_AES128_HANDLE.p_api->encrypt(
+                        WOLFSSL_SCE_AES128_HANDLE.p_ctrl, aes->key,
+                        NULL, (sz / sizeof(word32)), (word32*)inBlock,
+                        (word32*)outBlock);
                 break;
         #endif
         #ifdef WOLFSSL_AES_192
             case AES_192_KEY_SIZE:
-                ret = WOLFSSL_SCE_AES192_HANDLE.p_api->encrypt(WOLFSSL_SCE_AES192_HANDLE.p_ctrl, aes->key,
-                                                       NULL, (sz / sizeof(word32)),
-                                                       (word32*)inBlock, (word32*)outBlock);
+                ret = WOLFSSL_SCE_AES192_HANDLE.p_api->encrypt(
+                        WOLFSSL_SCE_AES192_HANDLE.p_ctrl, aes->key,
+                        NULL, (sz / sizeof(word32)), (word32*)inBlock,
+                        (word32*)outBlock);
                 break;
         #endif
         #ifdef WOLFSSL_AES_256
             case AES_256_KEY_SIZE:
-                ret = WOLFSSL_SCE_AES256_HANDLE.p_api->encrypt(WOLFSSL_SCE_AES256_HANDLE.p_ctrl, aes->key,
-                                                       NULL, (sz / sizeof(word32)),
-                                                       (word32*)inBlock, (word32*)outBlock);
+                ret = WOLFSSL_SCE_AES256_HANDLE.p_api->encrypt(
+                        WOLFSSL_SCE_AES256_HANDLE.p_ctrl, aes->key,
+                        NULL, (sz / sizeof(word32)), (word32*)inBlock,
+                        (word32*)outBlock);
                 break;
         #endif
             default:
@@ -824,45 +829,56 @@
         }
 
         if (ret != SSP_SUCCESS) {
-            ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz); /* revert input*/
+           /* revert input */
+            ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
             return WC_HW_E;
         }
 
-        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag == CRYPTO_WORD_ENDIAN_BIG) {
+        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
+                CRYPTO_WORD_ENDIAN_BIG) {
             ByteReverseWords((word32*)outBlock, (word32*)outBlock, sz);
             if (inBlock != outBlock) {
-                ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz); /* revert input*/
+                /* revert input */
+                ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
             }
         }
         return 0;
     }
 
     #if defined(HAVE_AES_DECRYPT)
-    static int AES_ECB_decrypt(Aes* aes, const byte* inBlock, byte* outBlock, int sz)
+    static int AES_ECB_decrypt(Aes* aes, const byte* inBlock, byte* outBlock,
+            int sz)
     {
         uint32_t ret;
 
-        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag == CRYPTO_WORD_ENDIAN_BIG) {
+        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
+                CRYPTO_WORD_ENDIAN_BIG) {
             ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
         }
 
         switch (aes->keylen) {
         #ifdef WOLFSSL_AES_128
             case AES_128_KEY_SIZE:
-                ret = WOLFSSL_SCE_AES128_HANDLE.p_api->decrypt(WOLFSSL_SCE_AES128_HANDLE.p_ctrl, aes->key, aes->reg,
-                                                                       (sz / sizeof(word32)), (word32*)inBlock, (word32*)outBlock);
+                ret = WOLFSSL_SCE_AES128_HANDLE.p_api->decrypt(
+                        WOLFSSL_SCE_AES128_HANDLE.p_ctrl, aes->key, aes->reg,
+                        (sz / sizeof(word32)), (word32*)inBlock,
+                        (word32*)outBlock);
                 break;
         #endif
         #ifdef WOLFSSL_AES_192
             case AES_192_KEY_SIZE:
-                ret = WOLFSSL_SCE_AES192_HANDLE.p_api->decrypt(WOLFSSL_SCE_AES192_HANDLE.p_ctrl, aes->key, aes->reg,
-                                                                       (sz / sizeof(word32)), (word32*)inBlock, (word32*)outBlock);
+                ret = WOLFSSL_SCE_AES192_HANDLE.p_api->decrypt(
+                        WOLFSSL_SCE_AES192_HANDLE.p_ctrl, aes->key, aes->reg,
+                        (sz / sizeof(word32)), (word32*)inBlock,
+                        (word32*)outBlock);
                 break;
         #endif
         #ifdef WOLFSSL_AES_256
             case AES_256_KEY_SIZE:
-                ret = WOLFSSL_SCE_AES256_HANDLE.p_api->decrypt(WOLFSSL_SCE_AES256_HANDLE.p_ctrl, aes->key, aes->reg,
-                                                                       (sz / sizeof(word32)), (word32*)inBlock, (word32*)outBlock);
+                ret = WOLFSSL_SCE_AES256_HANDLE.p_api->decrypt(
+                        WOLFSSL_SCE_AES256_HANDLE.p_ctrl, aes->key, aes->reg,
+                        (sz / sizeof(word32)), (word32*)inBlock,
+                        (word32*)outBlock);
                 break;
         #endif
             default:
@@ -873,10 +889,12 @@
             return WC_HW_E;
         }
 
-        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag == CRYPTO_WORD_ENDIAN_BIG) {
+        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
+                CRYPTO_WORD_ENDIAN_BIG) {
             ByteReverseWords((word32*)outBlock, (word32*)outBlock, sz);
             if (inBlock != outBlock) {
-                ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz); /* revert input*/
+                /* revert input */
+                ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
             }
         }
 
@@ -1559,8 +1577,8 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
             tmp_align = tmp + (AESNI_ALIGN - ((size_t)tmp % AESNI_ALIGN));
 
             XMEMCPY(tmp_align, inBlock, AES_BLOCK_SIZE);
-            AES_ECB_encrypt(tmp_align, tmp_align, AES_BLOCK_SIZE, (byte*)aes->key,
-                            aes->rounds);
+            AES_ECB_encrypt(tmp_align, tmp_align, AES_BLOCK_SIZE,
+                    (byte*)aes->key, aes->rounds);
             XMEMCPY(outBlock, tmp_align, AES_BLOCK_SIZE);
             XFREE(tmp, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
             return;
