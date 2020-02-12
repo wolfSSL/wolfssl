@@ -4107,6 +4107,10 @@ struct WOLFSSL {
 #ifdef HAVE_SECRET_CALLBACK
         SessionSecretCb sessionSecretCb;
         void*           sessionSecretCtx;
+    #ifdef WOLFSSL_TLS13
+        Tls13SecretCb   tls13SecretCb;
+        void*           tls13SecretCtx;
+    #endif
 #endif /* HAVE_SECRET_CALLBACK */
 #ifdef WOLFSSL_JNI
         void* jObjectRef;     /* reference to WolfSSLSession in JNI wrapper */

@@ -643,6 +643,19 @@ enum AlertLevel {
 /* Maximum number of groups that can be set */
 #define WOLFSSL_MAX_GROUP_COUNT       10
 
+#if defined(HAVE_SECRET_CALLBACK) && defined(WOLFSSL_TLS13)
+enum Tls13Secret {
+    CLIENT_EARLY_TRAFFIC_SECRET,
+    CLIENT_HANDSHAKE_TRAFFIC_SECRET,
+    SERVER_HANDSHAKE_TRAFFIC_SECRET,
+    CLIENT_TRAFFIC_SECRET,
+    SERVER_TRAFFIC_SECRET,
+    EARLY_EXPORTER_SECRET,
+    EXPORTER_SECRET
+};
+#endif
+
+
 typedef WOLFSSL_METHOD* (*wolfSSL_method_func)(void* heap);
 
 /* CTX Method EX Constructor Functions */
@@ -957,9 +970,15 @@ WOLFSSL_ABI WOLFSSL_API long wolfSSL_CTX_set_session_cache_mode(WOLFSSL_CTX*,
                                                                           long);
 
 #ifdef HAVE_SECRET_CALLBACK
-typedef int (*SessionSecretCb)(WOLFSSL* ssl,
-                                        void* secret, int* secretSz, void* ctx);
-WOLFSSL_API int  wolfSSL_set_session_secret_cb(WOLFSSL*, SessionSecretCb, void*);
+typedef int (*SessionSecretCb)(WOLFSSL* ssl, void* secret, int* secretSz,
+                               void* ctx);
+WOLFSSL_API int  wolfSSL_set_session_secret_cb(WOLFSSL*, SessionSecretCb,
+                                               void*);
+#ifdef WOLFSSL_TLS13
+typedef int (*Tls13SecretCb)(WOLFSSL* ssl, int id, const unsigned char* secret,
+                             int secretSz, void* ctx);
+WOLFSSL_API int  wolfSSL_set_tls13_secret_cb(WOLFSSL*, Tls13SecretCb, void*);
+#endif
 #endif /* HAVE_SECRET_CALLBACK */
 
 /* session cache persistence */
