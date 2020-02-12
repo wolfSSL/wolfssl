@@ -1624,6 +1624,9 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
         word16 j;
         word16 pastSep = 0;
 
+        if (pkcsBlockLen > 0xFFFF)
+            return RSA_PAD_E;
+
         /* Decrypted with private key - unpad must be constant time. */
         for (i = 0, j = 2; j < pkcsBlockLen; j++) {
            /* Update i if not passed the separator and at separator. */
