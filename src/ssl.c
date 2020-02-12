@@ -14899,6 +14899,13 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             wolfSSL_CertManagerFree(ctx->cm);
         }
         ctx->cm               = str->cm;
+
+        /* free existing store if it exists */
+        if (ctx->x509_store_pt != NULL) {
+            /* cert manager was free'd a little earlier in this function */
+            ctx->x509_store_pt->cm = NULL;
+        }
+        wolfSSL_X509_STORE_free(ctx->x509_store_pt);
         ctx->x509_store.cache = str->cache;
         ctx->x509_store_pt    = str; /* take ownership of store and free it
                                         with CTX free */
