@@ -363,9 +363,11 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
         case AES_192_CFB1_TYPE:
         case AES_256_CFB1_TYPE:
             if (ctx->enc)
-                ret = wc_AesCfb1Encrypt(&ctx->cipher.aes, out, in, inl);
+                ret = wc_AesCfb1Encrypt(&ctx->cipher.aes, out, in,
+                        inl * WOLFSSL_BIT_SIZE);
             else
-                ret = wc_AesCfb1Decrypt(&ctx->cipher.aes, out, in, inl);
+                ret = wc_AesCfb1Decrypt(&ctx->cipher.aes, out, in,
+                        inl * WOLFSSL_BIT_SIZE);
             break;
 
         case AES_128_CFB8_TYPE:

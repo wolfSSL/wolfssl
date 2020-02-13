@@ -6378,13 +6378,6 @@ EVP_TEST_END:
 
 #ifdef WOLFSSL_AES_128
         /* 128 key tests */
-    #ifdef OPENSSL_EXTRA
-        ret = EVP_test(EVP_aes_128_cfb1(), key1, iv, msg1, sizeof(msg1),
-                cipher1, 2);
-        if (ret != 0) {
-            return ret;
-        }
-    #endif
         ret = wc_AesSetKey(&enc, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
         if (ret != 0)
             return -4741;
@@ -6411,6 +6404,24 @@ EVP_TEST_END:
         if (plain[0] != msg1[0])
             return -4746;
     #endif /* HAVE_AES_DECRYPT */
+
+    #ifdef OPENSSL_EXTRA
+        ret = wc_AesSetKey(&enc, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4747;
+
+        XMEMSET(cipher, 0, sizeof(cipher));
+        ret = wc_AesCfb1Encrypt(&enc, cipher, msg1,
+                sizeof(msg1) * WOLFSSL_BIT_SIZE);
+        if (ret != 0)
+            return -4748;
+
+        ret = EVP_test(EVP_aes_128_cfb1(), key1, iv, msg1, sizeof(msg1),
+                cipher, sizeof(msg1));
+        if (ret != 0) {
+            return ret;
+        }
+    #endif
 #endif /* WOLFSSL_AES_128 */
 #ifdef WOLFSSL_AES_192
         /* 192 key tests */
@@ -6435,9 +6446,30 @@ EVP_TEST_END:
 
 #ifdef WOLFSSL_AES_192
         /* 192 key tests */
+        ret = wc_AesSetKey(&enc, key2, sizeof(key2), iv2, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4749;
+
+        XMEMSET(cipher, 0, sizeof(cipher));
+        ret = wc_AesCfb1Encrypt(&enc, cipher, msg2, 4);
+        if (ret != 0)
+            return -4750;
+        if (XMEMCMP(cipher, cipher2, sizeof(cipher2)) != 0)
+            return -4751;
+
     #ifdef OPENSSL_EXTRA
+        ret = wc_AesSetKey(&enc, key2, sizeof(key2), iv2, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4752;
+
+        XMEMSET(cipher, 0, sizeof(cipher));
+        ret = wc_AesCfb1Encrypt(&enc, cipher, msg2,
+                sizeof(msg2) * WOLFSSL_BIT_SIZE);
+        if (ret != 0)
+            return -4753;
+
         ret = EVP_test(EVP_aes_192_cfb1(), key2, iv2, msg2, sizeof(msg2),
-                cipher2, 4);
+                cipher, sizeof(msg2));
         if (ret != 0) {
             return ret;
         }
@@ -6446,14 +6478,35 @@ EVP_TEST_END:
 
 #ifdef WOLFSSL_AES_256
         /* 256 key tests */
+        ret = wc_AesSetKey(&enc, key3, sizeof(key3), iv3, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4754;
+
+        XMEMSET(cipher, 0, sizeof(cipher));
+        ret = wc_AesCfb1Encrypt(&enc, cipher, msg3, 10);
+        if (ret != 0)
+            return -4755;
+        if (XMEMCMP(cipher, cipher3, sizeof(cipher3)) != 0)
+            return -4756;
+
     #ifdef OPENSSL_EXTRA
+        ret = wc_AesSetKey(&enc, key3, sizeof(key3), iv3, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4757;
+
+        XMEMSET(cipher, 0, sizeof(cipher));
+        ret = wc_AesCfb1Encrypt(&enc, cipher, msg3,
+                sizeof(msg3) * WOLFSSL_BIT_SIZE);
+        if (ret != 0)
+            return -4758;
+
         ret = EVP_test(EVP_aes_256_cfb1(), key3, iv3, msg3, sizeof(msg3),
-                cipher3, 10);
+                cipher, sizeof(msg3));
         if (ret != 0) {
             return ret;
         }
     #endif
-#endif /* WOLFSSL_AES_192 */
+#endif /* WOLFSSL_AES_256 */
         return ret;
     }
 

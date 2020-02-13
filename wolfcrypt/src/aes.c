@@ -7607,7 +7607,7 @@ static int wc_AesFeedbackCFB1(Aes* aes, byte* out, const byte* in,
         }
     }
 
-    if (bit > 0) {
+    if (bit > 0 && bit < 7) {
         out[0] = cur;
     }
 
@@ -7621,7 +7621,7 @@ static int wc_AesFeedbackCFB1(Aes* aes, byte* out, const byte* in,
  * out buffer to hold result of encryption (must be at least as large as input
  *     buffer)
  * in  buffer to encrypt (packed to left, i.e. 101 is 0x90)
- * sz  size of input buffer
+ * sz  size of input buffer in bits (0x1 would be size of 1 and 0xFF size of 8)
  *
  * returns 0 on success and negative values on failure
  */
@@ -7653,7 +7653,7 @@ int wc_AesCfb8Encrypt(Aes* aes, byte* out, const byte* in, word32 sz)
  * out buffer to hold result of encryption (must be at least as large as input
  *     buffer)
  * in  buffer to encrypt
- * sz  size of input buffer
+ * sz  size of input buffer in bits (0x1 would be size of 1 and 0xFF size of 8)
  *
  * returns 0 on success and negative values on failure
  */
