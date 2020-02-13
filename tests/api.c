@@ -23229,6 +23229,41 @@ static void test_wolfSSL_ERR_print_errors(void)
     #endif
 }
 
+#if !defined(NO_ERROR_QUEUE) && defined(OPENSSL_EXTRA) && \
+    defined(DEBUG_WOLFSSL)
+static int test_wolfSSL_error_cb(const char *str, size_t len, void *u)
+{
+    wolfSSL_BIO_write((BIO*)u, str, len);
+    return 0;
+}
+#endif
+
+static void test_wolfSSL_ERR_print_errors_cb(void)
+{
+    #if !defined(NO_ERROR_QUEUE) && defined(OPENSSL_EXTRA) && \
+        defined(DEBUG_WOLFSSL)
+    BIO* bio;
+    char buf[1024];
+
+    printf(testingFmt, "wolfSSL_ERR_print_errors_cb()");
+
+    AssertNotNull(bio = BIO_new(BIO_s_mem()));
+    ERR_clear_error(); /* clear out any error nodes */
+    ERR_put_error(0,SYS_F_ACCEPT, -173, "ssl.c", 0);
+    ERR_put_error(0,SYS_F_BIND, -275, "asn.c", 100);
+
+    ERR_print_errors_cb(test_wolfSSL_error_cb, bio);
+    AssertIntEQ(BIO_gets(bio, buf, sizeof(buf)), 108);
+    AssertIntEQ(XSTRNCMP("wolfSSL error occurred, error = 173 line:0 file:ssl.c",
+                buf, 53), 0);
+    AssertIntEQ(XSTRNCMP("wolfSSL error occurred, error = 275 line:100 file:asn.c",
+                buf + 53, 55), 0);
+    AssertIntEQ(BIO_gets(bio, buf, sizeof(buf)), 0);
+
+    BIO_free(bio);
+    printf(resultFmt, passed);
+    #endif
+}
 
 static void test_wolfSSL_HMAC(void)
 {
@@ -30644,6 +30679,7 @@ void ApiTest(void)
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     test_wolfSSL_ERR_peek_last_error_line();
 #endif
+    test_wolfSSL_ERR_print_errors_cb();
     test_wolfSSL_set_options();
     test_wolfSSL_sk_SSL_CIPHER();
     test_wolfSSL_X509_STORE_CTX();

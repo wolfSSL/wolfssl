@@ -4882,6 +4882,35 @@ WOLFSSL_API long wolfSSL_get_verify_result(const WOLFSSL *ssl);
 WOLFSSL_API void  wolfSSL_ERR_print_errors_fp(FILE*, int err);
 
 /*!
+    \ingroup Debug
+
+    \brief This function uses the provided callback to handle error reporting.
+    The callback function is executed for each error line. The string, length,
+    and userdata are passed into the callback parameters.
+
+    \return none No returns.
+
+    \param cb the callback function.
+    \param u userdata to pass into the callback function.
+
+    _Example_
+    \code
+    int error_cb(const char *str, size_t len, void *u)
+    { fprintf((FILE*)u, "%-*.*s\n", (int)len, (int)len, str); return 0; }
+    ...
+    FILE* fp = ...
+    wolfSSL_ERR_print_errors_cb(error_cb, fp);
+    \endcode
+
+    \sa wolfSSL_get_error
+    \sa wolfSSL_ERR_error_string
+    \sa wolfSSL_ERR_error_string_n
+    \sa wolfSSL_load_error_strings
+*/
+WOLFSSL_API void  wolfSSL_ERR_print_errors_cb (
+        int (*cb)(const char *str, size_t len, void *u), void *u);
+
+/*!
     \brief The function sets the client_psk_cb member of the
     WOLFSSL_CTX structure.
 

@@ -798,6 +798,11 @@ void wc_ERR_print_errors_cb(int (*cb)(const char *str, size_t len, void *u),
 {
     WOLFSSL_ENTER("wc_ERR_print_errors_cb");
 
+    if (cb == NULL) {
+        /* Invalid param */
+        return;
+    }
+
     if (wc_LockMutex(&debug_mutex) != 0)
     {
         WOLFSSL_MSG("Lock debug mutex failed");
@@ -830,7 +835,7 @@ void wc_ERR_print_errors_fp(XFILE fp)
     WOLFSSL_ENTER("wc_ERR_print_errors_fp");
 
     /* Send all errors to the wc_ERR_dump_to_file function */
-    wc_ERR_print_errors_cb(wc_ERR_dump_to_file,fp);
+    wc_ERR_print_errors_cb(wc_ERR_dump_to_file, fp);
 }
 
 #endif /* !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) */
