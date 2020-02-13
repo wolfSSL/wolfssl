@@ -767,6 +767,12 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     WOLFSSL_LOCAL void wolfSSL_CleanupHandle();
 #endif
 
+#ifdef WOLFSSL_SCE
+    #ifndef WOLFSSL_SCE_GSCE_HANDLE
+        #define WOLFSSL_SCE_GSCE_HANDLE g_sce
+    #endif
+#endif
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

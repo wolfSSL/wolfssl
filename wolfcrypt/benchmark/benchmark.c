@@ -618,6 +618,24 @@ static const char* bench_desc_words[][9] = {
         XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), "%.2f,\n", \
             (float)total_cycles / (count*s))
 
+#elif defined(SYNERGY_CYCLE_COUNT)
+    #include "hal_data.h"
+    static THREAD_LS_T word64 begin_cycles;
+    static THREAD_LS_T word64 total_cycles;
+
+    #define INIT_CYCLE_COUNTER
+    #define BEGIN_INTEL_CYCLES begin_cycles = DWT->CYCCNT = 0;
+    #define END_INTEL_CYCLES   total_cycles =  DWT->CYCCNT - begin_cycles;
+
+    /* s == size in bytes that 1 count represents, normally BENCH_SIZE */
+    #define SHOW_INTEL_CYCLES(b, n, s) \
+        XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), " %s = %6.2f\n", \
+        bench_result_words1[lng_index][2], \
+            (float)total_cycles / (count*s))
+    #define SHOW_INTEL_CYCLES_CSV(b, n, s) \
+        XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), "%.2f,\n", \
+            (float)total_cycles / (count*s))
+
 #else
     #define INIT_CYCLE_COUNTER
     #define BEGIN_INTEL_CYCLES
@@ -5693,6 +5711,14 @@ exit_ed_verify:
         (void)reset;
 
         return (double) ticks/TICKS_PER_SECOND;
+    }
+
+#elif defined(THREADX)
+    #include "tx_api.h"
+    double current_time(int reset)
+    {
+        (void)reset;
+        return (double) tx_time_get() / TX_TIMER_TICKS_PER_SECOND;
     }
 #else
 
