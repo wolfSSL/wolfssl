@@ -11460,10 +11460,10 @@ int wolfSSL_dtls_get_current_timeout(WOLFSSL* ssl)
     return timeout;
 }
 
-int wolfSSL_DTLSv1_get_timeout(WOLFSSL* ssl, Timeval* timeleft)
+int wolfSSL_DTLSv1_get_timeout(WOLFSSL* ssl, WOLFSSL_TIMEVAL* timeleft)
 {
     if (ssl && timeleft) {
-        XMEMSET(timeleft, 0, sizeof(Timeval));
+        XMEMSET(timeleft, 0, sizeof(WOLFSSL_TIMEVAL));
         timeleft->tv_sec = ssl->dtls_timeout;
     }
     return 0;
@@ -13576,13 +13576,13 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
 
     static int wolfSSL_ex_wrapper(WOLFSSL* ssl, HandShakeCallBack hsCb,
-                                 TimeoutCallBack toCb, Timeval timeout)
+                                 TimeoutCallBack toCb, WOLFSSL_TIMEVAL timeout)
     {
         int       ret        = WOLFSSL_FATAL_ERROR;
         int       oldTimerOn = 0;   /* was timer already on */
-        Timeval   startTime;
-        Timeval   endTime;
-        Timeval   totalTime;
+        WOLFSSL_TIMEVAL startTime;
+        WOLFSSL_TIMEVAL endTime;
+        WOLFSSL_TIMEVAL totalTime;
         Itimerval myTimeout;
         Itimerval oldTimeout; /* if old timer adjust from total time to reset */
         struct sigaction act, oact;
@@ -13690,7 +13690,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #ifndef NO_WOLFSSL_CLIENT
 
     int wolfSSL_connect_ex(WOLFSSL* ssl, HandShakeCallBack hsCb,
-                          TimeoutCallBack toCb, Timeval timeout)
+                          TimeoutCallBack toCb, WOLFSSL_TIMEVAL timeout)
     {
         WOLFSSL_ENTER("wolfSSL_connect_ex");
         return wolfSSL_ex_wrapper(ssl, hsCb, toCb, timeout);
@@ -13702,7 +13702,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 #ifndef NO_WOLFSSL_SERVER
 
     int wolfSSL_accept_ex(WOLFSSL* ssl, HandShakeCallBack hsCb,
-                         TimeoutCallBack toCb,Timeval timeout)
+                         TimeoutCallBack toCb, WOLFSSL_TIMEVAL timeout)
     {
         WOLFSSL_ENTER("wolfSSL_accept_ex");
         return wolfSSL_ex_wrapper(ssl, hsCb, toCb, timeout);
