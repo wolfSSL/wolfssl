@@ -1781,6 +1781,8 @@ enum {
 WOLFSSL_API void  wolfSSL_ERR_print_errors_fp(XFILE, int err);
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
 WOLFSSL_API void wolfSSL_ERR_dump_errors_fp(XFILE fp);
+WOLFSSL_API void wolfSSL_ERR_print_errors_cb(int (*cb)(const char *str,
+                                                size_t len, void *u), void *u);
 #endif
 #endif
 WOLFSSL_API void wolfSSL_ERR_print_errors(WOLFSSL_BIO *bio);

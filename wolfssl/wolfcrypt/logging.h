@@ -115,7 +115,9 @@ WOLFSSL_API void wolfSSL_Debugging_OFF(void);
     WOLFSSL_API   int wc_SetLoggingHeap(void* h);
     WOLFSSL_API   int wc_ERR_remove_state(void);
     #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
-        WOLFSSL_API   void wc_ERR_print_errors_fp(XFILE fp);
+        WOLFSSL_API void wc_ERR_print_errors_fp(XFILE fp);
+        WOLFSSL_API void wc_ERR_print_errors_cb(int (*cb)(const char *str,
+                                                size_t len, void *u), void *u);
     #endif
 #endif /* OPENSSL_EXTRA || DEBUG_WOLFSSL_VERBOSE */
 

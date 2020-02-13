@@ -769,6 +769,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ERR_get_error_line_data         wolfSSL_ERR_get_error_line_data
 #define ERR_get_error                   wolfSSL_ERR_get_error
 #define ERR_print_errors_fp(file)       wolfSSL_ERR_dump_errors_fp((file))
+#define ERR_print_errors_cb             wolfSSL_ERR_print_errors_cb
 #define ERR_print_errors                wolfSSL_ERR_print_errors
 #define ERR_clear_error                 wolfSSL_ERR_clear_error
 #define ERR_free_strings                wolfSSL_ERR_free_strings

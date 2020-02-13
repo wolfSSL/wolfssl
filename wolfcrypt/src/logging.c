@@ -782,41 +782,57 @@ int wc_ERR_remove_state(void)
     return 0;
 }
 
-
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 /* empties out the error queue into the file */
+static int wc_ERR_dump_to_file (const char *str, size_t len, void *u)
+{
+    XFILE fp = (XFILE ) u;
+    fprintf(fp, "%-*.*s\n", (int)len, (int)len, str);
+    return 0;
+}
+
+/* This callback allows the application to provide a custom error printing
+ * function. */
+void wc_ERR_print_errors_cb(int (*cb)(const char *str, size_t len, void *u),
+                            void *u)
+{
+    WOLFSSL_ENTER("wc_ERR_print_errors_cb");
+
+    if (wc_LockMutex(&debug_mutex) != 0)
+    {
+        WOLFSSL_MSG("Lock debug mutex failed");
+    }
+    else
+    {
+        /* free all nodes from error queue and print them to file */
+        struct wc_error_queue *current;
+        struct wc_error_queue *next;
+
+        current = (struct wc_error_queue *)wc_errors;
+        while (current != NULL)
+        {
+            next = current->next;
+            cb(current->error, strlen(current->error), u);
+            XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
+            current = next;
+        }
+
+        /* set global pointers to match having been freed */
+        wc_errors = NULL;
+        wc_last_node = NULL;
+
+        wc_UnLockMutex(&debug_mutex);
+    }
+}
+
 void wc_ERR_print_errors_fp(XFILE fp)
 {
     WOLFSSL_ENTER("wc_ERR_print_errors_fp");
 
-        if (wc_LockMutex(&debug_mutex) != 0)
-        {
-            WOLFSSL_MSG("Lock debug mutex failed");
-        }
-        else
-        {
-            /* free all nodes from error queue and print them to file */
-            {
-                struct wc_error_queue *current;
-                struct wc_error_queue *next;
-
-                current = (struct wc_error_queue *)wc_errors;
-                while (current != NULL)
-                {
-                    next = current->next;
-                    fprintf(fp, "%s\n", current->error);
-                    XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
-                    current = next;
-                }
-
-                /* set global pointers to match having been freed */
-                wc_errors = NULL;
-                wc_last_node = NULL;
-            }
-
-            wc_UnLockMutex(&debug_mutex);
-        }
+    /* Send all errors to the wc_ERR_dump_to_file function */
+    wc_ERR_print_errors_cb(wc_ERR_dump_to_file,fp);
 }
+
 #endif /* !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) */
 
 #endif /* defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE) */

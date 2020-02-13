@@ -4377,6 +4377,12 @@ void wolfSSL_ERR_dump_errors_fp(XFILE fp)
 {
     wc_ERR_print_errors_fp(fp);
 }
+
+void wolfSSL_ERR_print_errors_cb (int (*cb)(const char *str, size_t len,
+                                            void *u), void *u)
+{
+    wc_ERR_print_errors_cb(cb, u);
+}
 #endif
 #endif
 
