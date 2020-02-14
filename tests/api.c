@@ -23233,7 +23233,7 @@ static void test_wolfSSL_ERR_print_errors(void)
     defined(DEBUG_WOLFSSL)
 static int test_wolfSSL_error_cb(const char *str, size_t len, void *u)
 {
-    wolfSSL_BIO_write((BIO*)u, str, len);
+    wolfSSL_BIO_write((BIO*)u, str, (int)len);
     return 0;
 }
 #endif
