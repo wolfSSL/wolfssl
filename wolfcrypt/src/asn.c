@@ -10234,6 +10234,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     DerBuffer*  der;
 #if defined(HAVE_PKCS8) || defined(WOLFSSL_ENCRYPTED_KEYS)
     word32      algId = 0;
+    #if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3) && !defined(NO_WOLFSSL_SKIP_TRAILING_PAD)
+        int     padVal = 0;
+    #endif
 #endif
 
     WOLFSSL_ENTER("PemToDer");
@@ -10428,6 +10431,18 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             else {
                 ret = wc_BufferKeyDecrypt(info, der->buffer, der->length,
                     (byte*)password, passwordSz, WC_MD5);
+
+#ifndef NO_WOLFSSL_SKIP_TRAILING_PAD
+            #ifndef NO_DES3
+                if (info->cipherType == WC_CIPHER_DES3) {
+                    padVal = der->buffer[der->length-1];
+                    if (padVal <= DES_BLOCK_SIZE) {
+                        der->length -= padVal;
+                    }
+                }
+            #endif /* !NO_DES3 */
+#endif /* !NO_WOLFSSL_SKIP_TRAILING_PAD */
+
             }
             ForceZero(password, passwordSz);
         }
