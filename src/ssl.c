@@ -47331,6 +47331,8 @@ WOLFSSL_RSA* wolfSSL_RSA_new(void)
 
         wc_RsaSetRNG(key, rng);
     }
+#else
+    XMEMSET(key, 0, sizeof(RsaKey));
 #endif /* WC_RSA_BLINDING */
 
     external->internal = key;
