@@ -157,36 +157,36 @@ int sp_unsigned_bin_size(sp_int* a)
 int sp_read_unsigned_bin(sp_int* a, const byte* in, int inSz)
 {
     int err = MP_OKAY;
-    int i, j = 0, s = 0;
+    int i, j = 0, k;
 
     if (inSz > SP_INT_DIGITS * (int)sizeof(a->dp[0])) {
         err = MP_VAL;
     }
 
     if (err == MP_OKAY) {
-        a->dp[0] = 0;
-        for (i = inSz-1; i >= 0; i--) {
-            a->dp[j] |= ((sp_int_digit)in[i]) << s;
-            if (s == DIGIT_BIT - 8) {
-                a->dp[++j] = 0;
-                s = 0;
-            }
-            else if (s > DIGIT_BIT - 8) {
-                s = DIGIT_BIT - s;
-                if (j + 1 >= a->size)
-                    break;
-                a->dp[++j] = in[i] >> s;
-                s = 8 - s;
-            }
-            else
-                s += 8;
+        for (i = inSz-1; i >= (SP_WORD_SIZE/8); i -= (SP_WORD_SIZE/8), j++) {
+            a->dp[j]  = (((sp_int_digit)in[i-0]) << (0*8))
+                     |  (((sp_int_digit)in[i-1]) << (1*8))
+                     |  (((sp_int_digit)in[i-2]) << (2*8))
+                     |  (((sp_int_digit)in[i-3]) << (3*8));
+    #if SP_WORD_SIZE == 64
+            a->dp[j] |= (((sp_int_digit)in[i-4]) << (4*8))
+                     |  (((sp_int_digit)in[i-5]) << (5*8))
+                     |  (((sp_int_digit)in[i-6]) << (6*8))
+                     |  (((sp_int_digit)in[i-7]) << (7*8));
+    #endif
         }
-
-        a->used = j + 1;
-        sp_clamp(a);
-        for (j++; j < a->size; j++)
+        if (i >= 0) {
             a->dp[j] = 0;
+            for (k = 0; k <= i; k++) {
+                a->dp[j] <<= 8;
+                a->dp[j] |= in[k];
+            }
+        }
+        a->used = j + 1;
     }
+
+    sp_clamp(a);
 
     return err;
 }
@@ -239,7 +239,7 @@ int sp_read_radix(sp_int* a, const char* in, int radix)
             }
             if (j == DIGIT_BIT)
                 a->dp[++k] = 0;
-            j &= DIGIT_BIT - 1;
+            j &= SP_WORD_SIZE - 1;
         }
     }
 
@@ -359,13 +359,17 @@ int sp_leading_bit(sp_int* a)
 int sp_to_unsigned_bin(sp_int* a, byte* out)
 {
     int i, j, b;
+    sp_int_digit d;
 
     j = sp_unsigned_bin_size(a) - 1;
     for (i=0; j>=0; i++) {
-        for (b = 0; b < SP_WORD_SIZE; b += 8) {
-            out[j--] = a->dp[i] >> b;
-            if (j < 0)
+        d = a->dp[i];
+        for (b = 0; b < SP_WORD_SIZE / 8; b++) {
+            out[j] = d;
+            if (--j < 0) {
                 break;
+            }
+            d >>= 8;
         }
     }
 
