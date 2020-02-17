@@ -4858,8 +4858,10 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 #else
    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
       (defined(HAVE_CAVIUM_V) || defined(HAVE_INTEL_QA))
-   if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC)
+   if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
       ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
+      err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
+   }
    else
    #endif
    {
