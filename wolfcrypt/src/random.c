@@ -156,6 +156,9 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #elif defined(WOLFSSL_ZEPHYR)
 #elif defined(WOLFSSL_TELIT_M2MB)
 #elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_TRNG)
+    #if defined(WOLFSSL_RENESAS_RA6M3G)
+        #include "wolfssl/wolfcrypt/port/Renesas/renesas_sce_ra6m3g.h"
+    #endif
 #else
     /* include headers that may be needed to get good seed */
     #include <fcntl.h>
@@ -2295,7 +2298,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #endif
     #include "r_bsp/platform.h"
     #include "r_tsip_rx_if.h"
-    
+
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int ret;
@@ -2303,7 +2306,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         while (sz > 0) {
             uint32_t len = sizeof(buffer);
-            
+
             if (sz < len) {
                 len = sz;
             }
@@ -2320,6 +2323,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
 
 #elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_TRNG)
+
+    #if defined(WOLFSSL_RENESAS_RA6M3G) /* Renesas RA6M3G MCU */
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz) {
+        return wc_Renesas_GenerateSeed(os, output, sz);
+    }
+    #elif defined(WOLFSSL_RENESAS_S7G2) /* Renesas S7G2 MCU */
+
     #include "hal_data.h"
 
     #ifndef WOLFSSL_SCE_TRNG_HANDLE
@@ -2370,6 +2380,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
         return 0;
     }
+    #endif /* WOLFSSL_RENESAS_RA6M3 */
 #elif defined(CUSTOM_RAND_GENERATE_BLOCK)
     /* #define CUSTOM_RAND_GENERATE_BLOCK myRngFunc
      * extern int myRngFunc(byte* output, word32 sz);

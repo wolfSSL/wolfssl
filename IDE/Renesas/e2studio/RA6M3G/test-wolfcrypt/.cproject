@@ -91,11 +91,12 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/wolfSSL_RA6M3G/ra_cfg/aws}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/wolfSSL_RA6M3G/ra_cfg/fsp_cfg/bsp}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/wolfSSL_RA6M3G/ra_cfg/fsp_cfg/driver}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/wolfSSL_RA6M3G/ra/fsp/src/r_sce}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/wolfSSL_RA6M3G/ra/fsp/src/r_sce/common}&quot;"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="ilg.gnuarmeclipse.managedbuild.cross.option.c.compiler.defs.1484906637" name="Defined symbols (-D)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.c.compiler.defs" useByScannerDiscovery="true" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="_RENESAS_RA_"/>
 									<listOptionValue builtIn="false" value="WOLFSSL_USER_SETTINGS"/>
-									<listOptionValue builtIn="false" value="WOLFSSL_RENESAS_RA6M3G"/>
 									<listOptionValue builtIn="false" value="USE_CERT_BUFFERS_1024"/>
 									<listOptionValue builtIn="false" value="USE_CERT_BUFFERS_256"/>
 								</option>
@@ -140,6 +141,9 @@
 							</tool>
 						</toolChain>
 					</folderInfo>
+					<sourceEntries>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+					</sourceEntries>
 				</configuration>
 			</storageModule>
 			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
@@ -282,6 +286,9 @@
 							</tool>
 						</toolChain>
 					</folderInfo>
+					<sourceEntries>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+					</sourceEntries>
 				</configuration>
 			</storageModule>
 			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>

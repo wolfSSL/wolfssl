@@ -46,7 +46,7 @@
 #if !defined(NO_SHA256) && !defined(WOLFSSL_ARMASM)
 
 #if defined(HAVE_FIPS) && \
-	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
 
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
@@ -545,8 +545,13 @@ static int InitSha256(wc_Sha256* sha256)
     /* implemented in wolfcrypt/src/port/devcrypto/devcrypt_hash.c */
 
 #elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_HASH)
-    #include "hal_data.h"
 
+    #if defined(WOLFSSL_RENESAS_RA6M3G)  /* Renesas RA6M3G MCU */
+        #include <wolfssl/wolfcrypt/port/Renesas/renesas_sce_ra6m3g.h>
+        #define XTRANSFORM(S, D) wc_Renesas_Sha256Transform((S), (D))
+
+    #elif defined(WOLFSSL_RENESAS_S7G2) /* Renesas S7G2 MCU */
+    #include "hal_data.h"
     #ifndef WOLFSSL_SCE_SHA256_HANDLE
         #define WOLFSSL_SCE_SHA256_HANDLE g_sce_hash_0
     #endif
@@ -582,7 +587,7 @@ static int InitSha256(wc_Sha256* sha256)
 
         return 0;
     }
-
+    #endif /* WOLFSSL_RENESAS_RA6M3G */
 
     int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     {

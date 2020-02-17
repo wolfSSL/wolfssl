@@ -548,7 +548,7 @@ int wolfcrypt_test(void* args)
     }
 
 #if defined(USE_FAST_MATH) && \
-	(!defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC))
+    (!defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC))
     if (CheckFastMathSettings() != 1)
         return err_sys("Build vs runtime fastmath FP_MAX_BITS mismatch\n",
                        -1001);
@@ -2286,7 +2286,7 @@ int sha256_test(void)
             (word32)test_sha[i].inLen);
         if (ret != 0) {
             ERROR_OUT(-2202 - i, exit);
-	}
+        }
         ret = wc_Sha256GetHash(&sha, hashcopy);
         if (ret != 0)
             ERROR_OUT(-2203 - i, exit);
@@ -3127,14 +3127,14 @@ int hash_test(void)
             return -2977 - i;
         if (exp_ret == 0) {
             ret = wc_Hash(typesGood[i], data, sizeof(data), hashOut,
-                                                                  digestSz - 1);
+                                                                  (word32)(digestSz - 1));
             if (ret != BUFFER_E)
                 return -2987 - i;
         }
-        ret = wc_Hash(typesGood[i], data, sizeof(data), hashOut, digestSz);
+        ret = wc_Hash(typesGood[i], data, sizeof(data), hashOut, (word32)digestSz);
         if (ret != exp_ret)
             return -2997 - i;
-        if (exp_ret == 0 && XMEMCMP(out, hashOut, digestSz) != 0)
+        if (exp_ret == 0 && XMEMCMP(out, hashOut, (word32)digestSz) != 0)
             return -3007 -i;
 
         ret = wc_HashGetBlockSize(typesGood[i]);
@@ -4850,7 +4850,7 @@ int poly1305_test(void)
 
     /* Check fail of TLS MAC function if altering additional data */
     XMEMSET(tag, 0, sizeof(tag));
-	additional[0]++;
+    additional[0]++;
     ret = wc_Poly1305_MAC(&enc, additional, sizeof(additional),
                                    (byte*)msg4, sizeof(msg4), tag, sizeof(tag));
     if (ret != 0)
@@ -7245,9 +7245,9 @@ int aes256_test(void)
 
 #ifdef HAVE_AESGCM
 
-static int aesgcm_default_test_helper(byte* key, int keySz, byte* iv, int ivSz,
-		byte* plain, int plainSz, byte* cipher, int cipherSz,
-		byte* aad, int aadSz, byte* tag, int tagSz)
+static int aesgcm_default_test_helper(byte* key, word32 keySz, byte* iv, word32 ivSz,
+        byte* plain, word32 plainSz, byte* cipher, word32 cipherSz,
+        byte* aad, word32 aadSz, byte* tag, word32 tagSz)
 {
     Aes enc;
     Aes dec;
@@ -7394,26 +7394,26 @@ int aesgcm_default_test(void)
     };
 
     int ret;
-	ret = aesgcm_default_test_helper(key1, sizeof(key1), iv1, sizeof(iv1),
-		plain1, sizeof(plain1), cipher1, sizeof(cipher1),
-		aad1, sizeof(aad1), tag1, sizeof(tag1));
-	if (ret != 0) {
-		return ret;
-	}
-	ret = aesgcm_default_test_helper(key2, sizeof(key2), iv2, sizeof(iv2),
-		plain2, sizeof(plain2), cipher2, sizeof(cipher2),
-		NULL, 0, tag2, sizeof(tag2));
-	if (ret != 0) {
-		return ret;
-	}
-	ret = aesgcm_default_test_helper(key3, sizeof(key3), iv3, sizeof(iv3),
-		NULL, 0, NULL, 0,
-		NULL, 0, tag3, sizeof(tag3));
-	if (ret != 0) {
-		return ret;
-	}
+    ret = aesgcm_default_test_helper(key1, sizeof(key1), iv1, sizeof(iv1),
+        plain1, sizeof(plain1), cipher1, sizeof(cipher1),
+        aad1, sizeof(aad1), tag1, sizeof(tag1));
+    if (ret != 0) {
+        return ret;
+    }
+    ret = aesgcm_default_test_helper(key2, sizeof(key2), iv2, sizeof(iv2),
+        plain2, sizeof(plain2), cipher2, sizeof(cipher2),
+        NULL, 0, tag2, sizeof(tag2));
+    if (ret != 0) {
+        return ret;
+    }
+    ret = aesgcm_default_test_helper(key3, sizeof(key3), iv3, sizeof(iv3),
+        NULL, 0, NULL, 0,
+        NULL, 0, tag3, sizeof(tag3));
+    if (ret != 0) {
+        return ret;
+    }
 
-	return 0;
+    return 0;
 }
 
 int aesgcm_test(void)
@@ -7972,8 +7972,8 @@ int gmac_test(void)
 
 #if !defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
-	/* FIPS builds only allow 16-byte auth tags. */
-	/* This sample uses a 15-byte auth tag. */
+    /* FIPS builds only allow 16-byte auth tags. */
+    /* This sample uses a 15-byte auth tag. */
     const byte k2[] =
     {
         0x40, 0xf7, 0xec, 0xb2, 0x52, 0x6d, 0xaa, 0xd4,
@@ -9078,10 +9078,12 @@ int random_test(void)
 static int simple_mem_test(int sz)
 {
     int ret = 0;
-    byte* b;
+    byte* b = NULL;
     int i;
 
-    b = (byte*)XMALLOC(sz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sz > 0) {
+        b = (byte*)XMALLOC((word32)sz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
     if (b == NULL) {
         return -6517;
     }
@@ -11007,14 +11009,14 @@ int rsa_no_pad_test(void)
     XMEMSET(&key, 0, sizeof(key));
 #ifdef USE_CERT_BUFFERS_1024
     bytes = (size_t)sizeof_client_key_der_1024;
-	if (bytes < (size_t)sizeof_client_cert_der_1024)
-		bytes = (size_t)sizeof_client_cert_der_1024;
+    if (bytes < (size_t)sizeof_client_cert_der_1024)
+        bytes = (size_t)sizeof_client_cert_der_1024;
 #elif defined(USE_CERT_BUFFERS_2048)
     bytes = (size_t)sizeof_client_key_der_2048;
-	if (bytes < (size_t)sizeof_client_cert_der_2048)
-		bytes = (size_t)sizeof_client_cert_der_2048;
+    if (bytes < (size_t)sizeof_client_cert_der_2048)
+        bytes = (size_t)sizeof_client_cert_der_2048;
 #else
-	bytes = FOURK_BUF;
+    bytes = FOURK_BUF;
 #endif
 
     tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -11867,7 +11869,7 @@ int rsa_test(void)
     if (bytes < (size_t)sizeof_client_cert_der_3072)
         bytes = (size_t)sizeof_client_cert_der_3072;
 #else
-	bytes = FOURK_BUF;
+    bytes = FOURK_BUF;
 #endif
 
     tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -15935,14 +15937,14 @@ openssl_pkey1_test_done:
 int openssl_evpSig_test(void)
 {
 #if !defined(NO_RSA) && !defined(NO_SHA) && !defined(HAVE_USER_RSA)
-  	byte*   prvTmp;
-	byte*   pubTmp;
-	int prvBytes;
-	int pubBytes;
+    byte*   prvTmp;
+    byte*   pubTmp;
+    int prvBytes;
+    int pubBytes;
     RSA *prvRsa;
-	RSA *pubRsa;
-	EVP_PKEY *prvPkey;
-	EVP_PKEY *pubPkey;
+    RSA *pubRsa;
+    EVP_PKEY *prvPkey;
+    EVP_PKEY *pubPkey;
 
     EVP_MD_CTX* sign;
     EVP_MD_CTX* verf;

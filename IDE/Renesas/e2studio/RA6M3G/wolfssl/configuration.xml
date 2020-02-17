@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<raConfiguration version="4">
+<raConfiguration version="5">
   <generalSettings>
     <option key="#Board#" value="board.ra6m3gek"/>
     <option key="CPU" value="RA6M3"/>
@@ -63,7 +63,7 @@
       <property id="config.bsp.fsp.mcu.adc.max_freq_hz" value="60000000"/>
     </config>
     <config id="config.bsp.ra">
-      <property id="config.bsp.common.main" value="0x400"/>
+      <property id="config.bsp.common.main" value="0x4000"/>
       <property id="config.bsp.common.heap" value="4000"/>
       <property id="config.bsp.common.vcc" value="3300"/>
       <property id="config.bsp.common.checking" value="config.bsp.common.checking.disabled"/>
@@ -178,7 +178,12 @@
       <description>Amazon FreeRTOS - Buffer Allocation 2</description>
       <originalPack>Amazon.AWS.0.8.0.pack</originalPack>
     </component>
+    <component apiversion="" class="HAL Drivers" condition="" group="all" subgroup="r_sce_ra6" variant="" vendor="Renesas" version="0.8.0">
+      <description>Secure Cryptography Engine on RA6</description>
+      <originalPack>Renesas.RA.0.8.0.pack</originalPack>
+    </component>
   </raComponentSelection>
+  <raElcConfiguration/>
   <raIcuConfiguration/>
   <raModuleConfiguration>
     <module id="module.driver.ioport_on_ioport.0">

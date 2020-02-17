@@ -21,21 +21,26 @@
 #ifndef USER_SETTINGS_H_
 #define USER_SETTINGS_H_
 
+/* Hardware Acceleration:  Renesas Secure Cryptography Engine (SCE) */
+#define WOLFSSL_SCE
+
 /* Temporary defines. Not suitable for production. */
-#define WOLFSSL_GENSEED_FORTEST /* Warning: define your own seed gen */
+#ifndef WOLFSSL_SCE
+    #define WOLFSSL_GENSEED_FORTEST /* Warning: define your own seed gen */
+    #define NO_DEV_RANDOM
+#endif
 /* End temporary defines */
 
 /* Operating Environment and Threading */
 #define FREERTOS
 #define FREERTOS_TCP
-#define NO_DEV_RANDOM
 #define NO_WRITEV
 #define NO_MAIN_DRIVER
 #define BENCH_EMBEDDED
 
 /* Filesystem and IO */
-#define NO_WOLFSSL_DIR
 #define WOLFSSL_NO_CURRDIR
+#define NO_WOLFSSL_DIR
 #define NO_FILESYSTEM
 
 /* Cryptography Enable Options */
@@ -51,17 +56,7 @@
 #define HAVE_ALPN
 #define HAVE_SNI
 #define HAVE_OCSP
-#define HAVE_AESGCM
 #define HAVE_ONE_TIME_AUTH
-
-/* Non-Fast Math may call realloc. This project has no realloc support */
-#define USE_FAST_MATH
-#define ALT_ECC_SIZE
-#define TFM_TIMING_RESISTANT
-#define ECC_TIMING_RESISTANT
-#define WC_RSA_BLINDING
-#define WOLFSSL_SMALL_STACK
-#define WOLFSSL_DH_CONST
 
 /* Cryptography Disable options */
 #define NO_PWDBASED
@@ -70,6 +65,40 @@
 #define NO_RABBIT
 #define NO_RC4
 #define NO_MD4
+
+/* AES */
+#define WOLFSSL_AES_DIRECT
+#define HAVE_AES_DECRYPT
+/* Cipher Modes */
+#define HAVE_AESGCM
+#define HAVE_AES_ECB
+#define WOLFSSL_AES_COUNTER
+#define WOLFSSL_AES_XTS
+/* No AES 192 hardware support */
+#ifdef WOLFSSL_SCE
+    #define NO_AES_192
+    #ifdef WOLFSSL_AES_192
+        #undef WOLFSSL_AES_192
+    #endif
+#endif
+
+/* wolfSSL/wolfCrypt Software Optimizations */
+#define WOLFSSL_HAVE_SP_RSA
+#define WOLFSSL_HAVE_SP_ECC
+#define WOLFSSL_SP_ARM_CORTEX_M_ASM
+
+/* Non-Fast Math may call realloc.
+ * This project uses Amazon FreeRTOS and has no realloc support
+ */
+#define USE_FAST_MATH
+#define ALT_ECC_SIZE
+#define WOLFSSL_SMALL_STACK
+#define WOLFSSL_DH_CONST
+
+/* Hardening */
+#define TFM_TIMING_RESISTANT
+#define ECC_TIMING_RESISTANT
+#define WC_RSA_BLINDING
 
 void wolfssl_thread_entry(void *pvParameters);
 extern void initialise_monitor_handles(void);

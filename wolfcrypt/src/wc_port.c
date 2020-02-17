@@ -83,7 +83,11 @@
 #endif
 
 #ifdef WOLFSSL_SCE
-    #include "hal_data.h"
+    #if defined(WOLFSSL_RENESAS_S7G2)
+        #include "hal_data.h"
+    #elif defined(WOLFSSL_RENESAS_RA6M3G)
+        #include <wolfssl/wolfcrypt/port/Renesas/renesas_sce_ra6m3g.h>
+    #endif
 #endif
 
 #if defined(WOLFSSL_DSP) && !defined(WOLFSSL_DSP_BUILD)
@@ -228,7 +232,8 @@ int wolfCrypt_Init(void)
     #endif
 #endif
 
-#ifdef WOLFSSL_SCE
+#if defined(WOLFSSL_SCE)
+#if defined(WOLFSSL_RENESAS_S7G2)
         ret = (int)WOLFSSL_SCE_GSCE_HANDLE.p_api->open(
                 WOLFSSL_SCE_GSCE_HANDLE.p_ctrl, WOLFSSL_SCE_GSCE_HANDLE.p_cfg);
         if (ret == SSP_ERR_CRYPTO_SCE_ALREADY_OPEN) {
@@ -239,7 +244,10 @@ int wolfCrypt_Init(void)
             WOLFSSL_MSG("Error opening SCE");
             return -1; /* FATAL_ERROR */
         }
-#endif
+#elif defined(WOLFSSL_RENESAS_RA6M3G)
+        wc_Renesas_SCE_init();
+#endif /* WOLFSSL_RENESAS_S7G2 */
+#endif /* WOLFSSL_SCE */
 
 #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
     defined(WOLFSSL_IMX6_CAAM_BLOB)
@@ -249,7 +257,7 @@ int wolfCrypt_Init(void)
 #endif
 
 #if defined(WOLFSSL_DSP) && !defined(WOLFSSL_DSP_BUILD)
-	if ((ret = wolfSSL_InitHandle()) != 0) {
+        if ((ret = wolfSSL_InitHandle()) != 0) {
             return ret;
         }
         rpcmem_init();
@@ -293,7 +301,7 @@ int wolfCrypt_Cleanup(void)
     #ifdef WOLFSSL_ASYNC_CRYPT
         wolfAsync_HardwareStop();
     #endif
-    #ifdef WOLFSSL_SCE
+    #if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_S7G2)
         WOLFSSL_SCE_GSCE_HANDLE.p_api->close(WOLFSSL_SCE_GSCE_HANDLE.p_ctrl);
     #endif
     #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
