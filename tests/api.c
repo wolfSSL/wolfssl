@@ -21238,8 +21238,10 @@ static void test_wolfSSL_CTX_set_srp_password(void)
 
 static void test_wolfSSL_X509_STORE(void)
 {
-#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && !defined(NO_RSA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
     X509_STORE *store;
+
+    #ifdef HAVE_CRL
     X509_CRL *crl;
     X509 *x509;
     const char crl_pem[] = "./certs/crl/crl.pem";
@@ -21260,6 +21262,25 @@ static void test_wolfSSL_X509_STORE(void)
     AssertIntEQ(X509_STORE_add_crl(store, crl), SSL_SUCCESS);
     X509_CRL_free(crl);
     X509_STORE_free(store);
+    #endif /* HAVE_CRL */
+
+
+
+    #ifndef WOLFCRYPT_ONLY
+    {
+        SSL_CTX* ctx;
+    #ifndef NO_WOLFSSL_SERVER
+        AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+    #else
+        AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
+    #endif
+        AssertNotNull(store = (X509_STORE *)X509_STORE_new());
+        SSL_CTX_set_cert_store(ctx, store);
+        AssertNotNull(store = (X509_STORE *)X509_STORE_new());
+        SSL_CTX_set_cert_store(ctx, store);
+        SSL_CTX_free(ctx);
+    }
+    #endif
     printf(resultFmt, passed);
 #endif
     return;
