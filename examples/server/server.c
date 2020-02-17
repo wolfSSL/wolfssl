@@ -2378,9 +2378,13 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
         if (dtlsUDP == 0) {
             ret = SSL_shutdown(ssl);
-            if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE)
-                SSL_shutdown(ssl);    /* bidirectional shutdown */
+            while (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE) {
+                ret = SSL_shutdown(ssl); /* bidirectional shutdown */
+                if (ret == WOLFSSL_SUCCESS)
+                    printf("Bidirectional shutdown complete\n");
+            }
         }
+
         /* display collected statistics */
 #ifdef WOLFSSL_STATIC_MEMORY
         if (wolfSSL_is_static_memory(ssl, &ssl_stats) != 1)

@@ -3045,8 +3045,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     if (dtlsUDP == 0) {           /* don't send alert after "break" command */
         ret = wolfSSL_shutdown(ssl);
-        if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE)
-            wolfSSL_shutdown(ssl);    /* bidirectional shutdown */
+        while (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE) {
+            ret = wolfSSL_shutdown(ssl); /* bidirectional shutdown */
+            if (ret == WOLFSSL_SUCCESS)
+                printf("Bidirectional shutdown complete\n");
+        }
     }
 #if defined(ATOMIC_USER) && !defined(WOLFSSL_AEAD_ONLY)
     if (atomicUser)
