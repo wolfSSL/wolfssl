@@ -5501,6 +5501,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef HAVE_SECRET_CALLBACK
     ssl->sessionSecretCb  = NULL;
     ssl->sessionSecretCtx = NULL;
+#ifdef WOLFSSL_TLS13
+    ssl->tls13SecretCb  = NULL;
+    ssl->tls13SecretCtx = NULL;
+#endif
 #endif
 
 #ifdef HAVE_SESSION_TICKET
@@ -17413,6 +17417,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case SSL_SHUTDOWN_ALREADY_DONE_E:
         return "Shutdown has already occurred";
+
+    case TLS13_SECRET_CB_E:
+        return "TLS1.3 Secret Callback Error";
 
     default :
         return "unknown error number";
