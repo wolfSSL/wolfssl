@@ -4241,8 +4241,6 @@ static const byte server[SIZEOF_SENDER] = { 0x53, 0x52, 0x56, 0x52 };
 static const byte tls_client[FINISHED_LABEL_SZ + 1] = "client finished";
 static const byte tls_server[FINISHED_LABEL_SZ + 1] = "server finished";
 
-#define STR_SIZEOF(x) (sizeof(x) - 1) /* -1 to not count the null char */
-
 #ifdef OPENSSL_EXTRA
 typedef struct {
     int name_len;

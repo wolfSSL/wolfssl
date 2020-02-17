@@ -328,7 +328,7 @@
     #endif /* HAVE_SOCKADDR */
 
     /* use gethostbyname for c99 */
-    #ifndef WOLF_C99
+    #if defined(HAVE_GETADDRINFO) && !defined(WOLF_C99)
         typedef struct addrinfo         ADDRINFO;
     #endif
 #endif /* WOLFSSL_NO_SOCK */
