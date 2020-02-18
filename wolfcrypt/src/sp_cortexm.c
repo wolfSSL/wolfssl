@@ -189,12 +189,14 @@ static void sp_2048_to_bin(sp_digit* r, byte* a)
     for (i=0; i<64 && j>=0; i++) {
         b = 0;
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)(r[i] << s); b += 8 - s; /*lint !e9033*/
+        a[j--] |= (byte)(r[i] << s); /*lint !e9033*/
+        b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 32) {
-            a[j--] = r[i] >> b; b += 8;
+            a[j--] = (byte)(r[i] >> b);
+            b += 8;
             if (j < 0) {
                 break;
             }
@@ -5120,12 +5122,14 @@ static void sp_3072_to_bin(sp_digit* r, byte* a)
     for (i=0; i<96 && j>=0; i++) {
         b = 0;
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)(r[i] << s); b += 8 - s; /*lint !e9033*/
+        a[j--] |= (byte)(r[i] << s); /*lint !e9033*/
+        b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 32) {
-            a[j--] = r[i] >> b; b += 8;
+            a[j--] = (byte)(r[i] >> b);
+            b += 8;
             if (j < 0) {
                 break;
             }
@@ -9868,12 +9872,14 @@ static void sp_4096_to_bin(sp_digit* r, byte* a)
     for (i=0; i<128 && j>=0; i++) {
         b = 0;
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)(r[i] << s); b += 8 - s; /*lint !e9033*/
+        a[j--] |= (byte)(r[i] << s); /*lint !e9033*/
+        b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 32) {
-            a[j--] = r[i] >> b; b += 8;
+            a[j--] = (byte)(r[i] >> b);
+            b += 8;
             if (j < 0) {
                 break;
             }
@@ -18469,12 +18475,14 @@ static void sp_256_to_bin(sp_digit* r, byte* a)
     for (i=0; i<8 && j>=0; i++) {
         b = 0;
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)(r[i] << s); b += 8 - s; /*lint !e9033*/
+        a[j--] |= (byte)(r[i] << s); /*lint !e9033*/
+        b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 32) {
-            a[j--] = r[i] >> b; b += 8;
+            a[j--] = (byte)(r[i] >> b);
+            b += 8;
             if (j < 0) {
                 break;
             }
@@ -23995,12 +24003,14 @@ static void sp_384_to_bin(sp_digit* r, byte* a)
     for (i=0; i<12 && j>=0; i++) {
         b = 0;
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)(r[i] << s); b += 8 - s; /*lint !e9033*/
+        a[j--] |= (byte)(r[i] << s); /*lint !e9033*/
+        b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 32) {
-            a[j--] = r[i] >> b; b += 8;
+            a[j--] = (byte)(r[i] >> b);
+            b += 8;
             if (j < 0) {
                 break;
             }

@@ -194,12 +194,14 @@ static void sp_2048_to_bin(sp_digit* r, byte* a)
     for (i=0; i<36 && j>=0; i++) {
         b = 0;
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)(r[i] << s); b += 8 - s; /*lint !e9033*/
+        a[j--] |= (byte)(r[i] << s); /*lint !e9033*/
+        b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 57) {
-            a[j--] = r[i] >> b; b += 8;
+            a[j--] = (byte)(r[i] >> b);
+            b += 8;
             if (j < 0) {
                 break;
             }
@@ -4159,12 +4161,14 @@ static void sp_3072_to_bin(sp_digit* r, byte* a)
     for (i=0; i<54 && j>=0; i++) {
         b = 0;
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)(r[i] << s); b += 8 - s; /*lint !e9033*/
+        a[j--] |= (byte)(r[i] << s); /*lint !e9033*/
+        b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 57) {
-            a[j--] = r[i] >> b; b += 8;
+            a[j--] = (byte)(r[i] >> b);
+            b += 8;
             if (j < 0) {
                 break;
             }
@@ -8340,12 +8344,14 @@ static void sp_4096_to_bin(sp_digit* r, byte* a)
     for (i=0; i<78 && j>=0; i++) {
         b = 0;
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)(r[i] << s); b += 8 - s; /*lint !e9033*/
+        a[j--] |= (byte)(r[i] << s); /*lint !e9033*/
+        b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 53) {
-            a[j--] = r[i] >> b; b += 8;
+            a[j--] = (byte)(r[i] >> b);
+            b += 8;
             if (j < 0) {
                 break;
             }
@@ -13098,12 +13104,12 @@ SP_NOINLINE static void sp_256_mul_add_5(sp_digit* r, const sp_digit* a,
     t[ 2] = tb * a[ 2];
     t[ 3] = tb * a[ 3];
     t[ 4] = tb * a[ 4];
-    r[ 0] +=                 (sp_digit)(t[ 0] & 0xfffffffffffffL);
+    r[ 0] += (sp_digit)                 (t[ 0] & 0xfffffffffffffL);
     r[ 1] += (sp_digit)((t[ 0] >> 52) + (t[ 1] & 0xfffffffffffffL));
     r[ 2] += (sp_digit)((t[ 1] >> 52) + (t[ 2] & 0xfffffffffffffL));
     r[ 3] += (sp_digit)((t[ 2] >> 52) + (t[ 3] & 0xfffffffffffffL));
     r[ 4] += (sp_digit)((t[ 3] >> 52) + (t[ 4] & 0xfffffffffffffL));
-    r[ 5] +=  t[ 4] >> 52;
+    r[ 5] += (sp_digit) (t[ 4] >> 52);
 #endif /* WOLFSSL_SP_SMALL */
 }
 
@@ -13943,11 +13949,12 @@ static int sp_256_ecc_mulmod_5(sp_point_256* r, const sp_point_256* g, const sp_
         int map, void* heap)
 {
 #if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
-    sp_point_256 td[3];
-    sp_digit tmpd[2 * 5 * 5];
-#endif
+    sp_point_256 t[3];
+    sp_digit tmp[2 * 5 * 5];
+#else
     sp_point_256* t;
     sp_digit* tmp;
+#endif
     sp_digit n;
     int i;
     int c, y;
@@ -13956,28 +13963,21 @@ static int sp_256_ecc_mulmod_5(sp_point_256* r, const sp_point_256* g, const sp_
     (void)heap;
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    sp_point_256 td[3];
-    t = (sp_point_256*)XMALLOC(sizeof(*td) * 3, heap, DYNAMIC_TYPE_ECC);
+    t = (sp_point*)XMALLOC(sizeof(*t) * 3, heap, DYNAMIC_TYPE_ECC);
     if (t == NULL)
         err = MEMORY_E;
     tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 5 * 5, heap,
                              DYNAMIC_TYPE_ECC);
     if (tmp == NULL)
         err = MEMORY_E;
-#else
-    t = td;
-    tmp = tmpd;
 #endif
 
     if (err == MP_OKAY) {
-        t[0] = &td[0];
-        t[1] = &td[1];
-        t[2] = &td[2];
-
         /* t[0] = {0, 0, 1} * norm */
         XMEMSET(&t[0], 0, sizeof(t[0]));
         t[0].infinity = 1;
         /* t[1] = {g->x, g->y, g->z} * norm */
+        t[1].infinity = 0;
         err = sp_256_mod_mul_norm_5(t[1].x, g->x, p256_mod);
     }
     if (err == MP_OKAY)
@@ -14028,8 +14028,8 @@ static int sp_256_ecc_mulmod_5(sp_point_256* r, const sp_point_256* g, const sp_
         XFREE(t, heap, DYNAMIC_TYPE_ECC);
     }
 #else
-    ForceZero(tmpd, sizeof(tmpd));
-    ForceZero(td, sizeof(td));
+    ForceZero(tmp, sizeof(tmp));
+    ForceZero(t, sizeof(t));
 #endif
 
     return err;
@@ -14705,6 +14705,23 @@ int sp_ecc_mulmod_256(mp_int* km, ecc_point* gm, ecc_point* r, int map,
 }
 
 #ifdef WOLFSSL_SP_SMALL
+/* Multiply the base point of P256 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * r     Resulting point.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_256_ecc_mulmod_base_5(sp_point_256* r, const sp_digit* k,
+        int map, void* heap)
+{
+    /* No pre-computed values. */
+    return sp_256_ecc_mulmod_5(r, &p256_base, k, map, heap);
+}
+
+#elif defined(WOLFSSL_SP_CACHE_RESISTANT)
 /* Multiply the base point of P256 by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
@@ -16260,12 +16277,14 @@ static void sp_256_to_bin(sp_digit* r, byte* a)
     for (i=0; i<5 && j>=0; i++) {
         b = 0;
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)(r[i] << s); b += 8 - s; /*lint !e9033*/
+        a[j--] |= (byte)(r[i] << s); /*lint !e9033*/
+        b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 52) {
-            a[j--] = r[i] >> b; b += 8;
+            a[j--] = (byte)(r[i] >> b);
+            b += 8;
             if (j < 0) {
                 break;
             }
@@ -18235,14 +18254,14 @@ SP_NOINLINE static void sp_384_mul_add_7(sp_digit* r, const sp_digit* a,
     t[ 4] = tb * a[ 4];
     t[ 5] = tb * a[ 5];
     t[ 6] = tb * a[ 6];
-    r[ 0] +=                 (sp_digit)(t[ 0] & 0x7fffffffffffffL);
+    r[ 0] += (sp_digit)                 (t[ 0] & 0x7fffffffffffffL);
     r[ 1] += (sp_digit)((t[ 0] >> 55) + (t[ 1] & 0x7fffffffffffffL));
     r[ 2] += (sp_digit)((t[ 1] >> 55) + (t[ 2] & 0x7fffffffffffffL));
     r[ 3] += (sp_digit)((t[ 2] >> 55) + (t[ 3] & 0x7fffffffffffffL));
     r[ 4] += (sp_digit)((t[ 3] >> 55) + (t[ 4] & 0x7fffffffffffffL));
     r[ 5] += (sp_digit)((t[ 4] >> 55) + (t[ 5] & 0x7fffffffffffffL));
     r[ 6] += (sp_digit)((t[ 5] >> 55) + (t[ 6] & 0x7fffffffffffffL));
-    r[ 7] +=  t[ 6] >> 55;
+    r[ 7] += (sp_digit) (t[ 6] >> 55);
 #endif /* WOLFSSL_SP_SMALL */
 }
 
@@ -19116,11 +19135,12 @@ static int sp_384_ecc_mulmod_7(sp_point_384* r, const sp_point_384* g, const sp_
         int map, void* heap)
 {
 #if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
-    sp_point_384 td[3];
-    sp_digit tmpd[2 * 7 * 6];
-#endif
+    sp_point_384 t[3];
+    sp_digit tmp[2 * 7 * 6];
+#else
     sp_point_384* t;
     sp_digit* tmp;
+#endif
     sp_digit n;
     int i;
     int c, y;
@@ -19129,28 +19149,21 @@ static int sp_384_ecc_mulmod_7(sp_point_384* r, const sp_point_384* g, const sp_
     (void)heap;
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    sp_point_384 td[3];
-    t = (sp_point_384*)XMALLOC(sizeof(*td) * 3, heap, DYNAMIC_TYPE_ECC);
+    t = (sp_point*)XMALLOC(sizeof(*t) * 3, heap, DYNAMIC_TYPE_ECC);
     if (t == NULL)
         err = MEMORY_E;
     tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 7 * 6, heap,
                              DYNAMIC_TYPE_ECC);
     if (tmp == NULL)
         err = MEMORY_E;
-#else
-    t = td;
-    tmp = tmpd;
 #endif
 
     if (err == MP_OKAY) {
-        t[0] = &td[0];
-        t[1] = &td[1];
-        t[2] = &td[2];
-
         /* t[0] = {0, 0, 1} * norm */
         XMEMSET(&t[0], 0, sizeof(t[0]));
         t[0].infinity = 1;
         /* t[1] = {g->x, g->y, g->z} * norm */
+        t[1].infinity = 0;
         err = sp_384_mod_mul_norm_7(t[1].x, g->x, p384_mod);
     }
     if (err == MP_OKAY)
@@ -19201,8 +19214,8 @@ static int sp_384_ecc_mulmod_7(sp_point_384* r, const sp_point_384* g, const sp_
         XFREE(t, heap, DYNAMIC_TYPE_ECC);
     }
 #else
-    ForceZero(tmpd, sizeof(tmpd));
-    ForceZero(td, sizeof(td));
+    ForceZero(tmp, sizeof(tmp));
+    ForceZero(t, sizeof(t));
 #endif
 
     return err;
@@ -19878,6 +19891,23 @@ int sp_ecc_mulmod_384(mp_int* km, ecc_point* gm, ecc_point* r, int map,
 }
 
 #ifdef WOLFSSL_SP_SMALL
+/* Multiply the base point of P384 by the scalar and return the result.
+ * If map is true then convert result to affine coordinates.
+ *
+ * r     Resulting point.
+ * k     Scalar to multiply by.
+ * map   Indicates whether to convert result to affine.
+ * heap  Heap to use for allocation.
+ * returns MEMORY_E when memory allocation fails and MP_OKAY on success.
+ */
+static int sp_384_ecc_mulmod_base_7(sp_point_384* r, const sp_digit* k,
+        int map, void* heap)
+{
+    /* No pre-computed values. */
+    return sp_384_ecc_mulmod_7(r, &p384_base, k, map, heap);
+}
+
+#elif defined(WOLFSSL_SP_CACHE_RESISTANT)
 /* Multiply the base point of P384 by the scalar and return the result.
  * If map is true then convert result to affine coordinates.
  *
@@ -21943,12 +21973,14 @@ static void sp_384_to_bin(sp_digit* r, byte* a)
     for (i=0; i<7 && j>=0; i++) {
         b = 0;
         /* lint allow cast of mismatch sp_digit and int */
-        a[j--] |= (byte)(r[i] << s); b += 8 - s; /*lint !e9033*/
+        a[j--] |= (byte)(r[i] << s); /*lint !e9033*/
+        b += 8 - s;
         if (j < 0) {
             break;
         }
         while (b < 55) {
-            a[j--] = r[i] >> b; b += 8;
+            a[j--] = (byte)(r[i] >> b);
+            b += 8;
             if (j < 0) {
                 break;
             }
