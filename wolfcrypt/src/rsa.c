@@ -1596,7 +1596,7 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
     byte   invalid = 0;
 #endif
 
-    if (output == NULL || pkcsBlockLen == 0) {
+    if (output == NULL || pkcsBlockLen == 0 || pkcsBlockLen > 0xFFFF) {
         return BAD_FUNC_ARG;
     }
 
@@ -1623,9 +1623,6 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
     else {
         word16 j;
         word16 pastSep = 0;
-
-        if (pkcsBlockLen > 0xFFFF)
-            return RSA_PAD_E;
 
         /* Decrypted with private key - unpad must be constant time. */
         for (i = 0, j = 2; j < pkcsBlockLen; j++) {
