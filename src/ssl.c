@@ -3932,7 +3932,20 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
     #endif
     #ifdef WOLFSSL_AES_256
         {"AES-256-ECB", "AES256-ECB"},
-        {"AES-256-EBC", "aes256-ecb"},
+    #endif
+    #ifdef HAVE_AESGCM
+        #ifdef WOLFSSL_AES_128
+        {"AES-128-GCM", "aes-128-gcm"},
+        {"AES-128-GCM", "id-aes128-GCM"},
+        #endif
+        #ifdef WOLFSSL_AES_192
+        {"AES-192-GCM", "aes-192-gcm"},
+        {"AES-192-GCM", "id-aes192-GCM"},
+        #endif
+        #ifdef WOLFSSL_AES_256
+        {"AES-256-GCM", "aes-256-gcm"},
+        {"AES-256-GCM", "id-aes256-GCM"},
+        #endif
     #endif
 #endif
 #ifndef NO_RC4
@@ -4017,6 +4030,20 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
             return wolfSSL_EVP_aes_256_ecb();
         #endif
     #endif /* HAVE_AES_ECB */
+    #ifdef HAVE_AESGCM
+        #ifdef WOLFSSL_AES_128
+        case NID_aes_128_gcm:
+            return wolfSSL_EVP_aes_128_gcm();
+        #endif
+        #ifdef WOLFSSL_AES_192
+        case NID_aes_192_gcm:
+            return wolfSSL_EVP_aes_192_gcm();
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case NID_aes_256_gcm:
+            return wolfSSL_EVP_aes_256_gcm();
+        #endif
+    #endif
 #endif
 
 #ifndef NO_DES3
