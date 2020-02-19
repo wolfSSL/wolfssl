@@ -26,6 +26,7 @@
 #define WOLFSSL_RSA_H_
 
 #include <wolfssl/openssl/bn.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -47,32 +48,25 @@
 #define RSA_FLAG_NO_BLINDING            (1 << 7)
 #define RSA_FLAG_NO_CONSTTIME           (1 << 8)
 
-#ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
-typedef struct WOLFSSL_RSA            WOLFSSL_RSA;
-#define WOLFSSL_RSA_TYPE_DEFINED
-#endif
-
-typedef WOLFSSL_RSA                   RSA;
-
 typedef struct WOLFSSL_RSA_METHOD {
     int flags;
     char *name;
 } WOLFSSL_RSA_METHOD;
 
-typedef WOLFSSL_RSA_METHOD            RSA_METHOD;
-
-struct WOLFSSL_RSA {
+#ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
+#define WOLFSSL_RSA_TYPE_DEFINED
+typedef struct WOLFSSL_RSA {
 #ifdef WC_RSA_BLINDING
     WC_RNG* rng;              /* for PrivateDecrypt blinding */
 #endif
-	WOLFSSL_BIGNUM* n;
-	WOLFSSL_BIGNUM* e;
-	WOLFSSL_BIGNUM* d;
-	WOLFSSL_BIGNUM* p;
-	WOLFSSL_BIGNUM* q;
-	WOLFSSL_BIGNUM* dmp1;      /* dP */
-	WOLFSSL_BIGNUM* dmq1;      /* dQ */
-	WOLFSSL_BIGNUM* iqmp;      /* u */
+    WOLFSSL_BIGNUM* n;
+    WOLFSSL_BIGNUM* e;
+    WOLFSSL_BIGNUM* d;
+    WOLFSSL_BIGNUM* p;
+    WOLFSSL_BIGNUM* q;
+    WOLFSSL_BIGNUM* dmp1;      /* dP */
+    WOLFSSL_BIGNUM* dmq1;      /* dQ */
+    WOLFSSL_BIGNUM* iqmp;      /* u */
     void*          heap;
     void*          internal;  /* our RSA */
     char           inSet;     /* internal set from external ? */
@@ -81,7 +75,18 @@ struct WOLFSSL_RSA {
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_RSA_METHOD* meth;
 #endif
-};
+#if defined(HAVE_EX_DATA)
+    WOLFSSL_CRYPTO_EX_DATA ex_data;  /* external data */
+#endif
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+    wolfSSL_Mutex    refMutex;                       /* ref count mutex */
+    int              refCount;                       /* reference count */
+#endif
+} WOLFSSL_RSA;
+#endif
+
+typedef WOLFSSL_RSA                   RSA;
+typedef WOLFSSL_RSA_METHOD            RSA_METHOD;
 
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSA_new(void);
 WOLFSSL_API void        wolfSSL_RSA_free(WOLFSSL_RSA*);
@@ -118,12 +123,20 @@ WOLFSSL_API void wolfSSL_RSA_meth_free(WOLFSSL_RSA_METHOD *meth);
 WOLFSSL_API int wolfSSL_RSA_meth_set(WOLFSSL_RSA_METHOD *rsa, void* p);
 WOLFSSL_API int wolfSSL_RSA_set_method(WOLFSSL_RSA *rsa, WOLFSSL_RSA_METHOD *meth);
 WOLFSSL_API const WOLFSSL_RSA_METHOD* wolfSSL_RSA_get_method(const WOLFSSL_RSA *rsa);
+WOLFSSL_API const WOLFSSL_RSA_METHOD* wolfSSL_RSA_get_default_method(void);
+
 WOLFSSL_API void wolfSSL_RSA_get0_key(const WOLFSSL_RSA *r, const WOLFSSL_BIGNUM **n,
                                       const WOLFSSL_BIGNUM **e, const WOLFSSL_BIGNUM **d);
 WOLFSSL_API int wolfSSL_RSA_set0_key(WOLFSSL_RSA *r, WOLFSSL_BIGNUM *n, WOLFSSL_BIGNUM *e,
                                      WOLFSSL_BIGNUM *d);
 WOLFSSL_API int wolfSSL_RSA_flags(const WOLFSSL_RSA *r);
 WOLFSSL_API void wolfSSL_RSA_set_flags(WOLFSSL_RSA *r, int flags);
+
+WOLFSSL_API WOLFSSL_RSA* wolfSSL_RSAPublicKey_dup(WOLFSSL_RSA *rsa);
+
+WOLFSSL_API void* wolfSSL_RSA_get_ex_data(const WOLFSSL_RSA *rsa, int idx);
+WOLFSSL_API int wolfSSL_RSA_set_ex_data(WOLFSSL_RSA *rsa, int idx, void *data);
+
 
 #define WOLFSSL_RSA_LOAD_PRIVATE 1
 #define WOLFSSL_RSA_LOAD_PUBLIC  2
@@ -154,12 +167,17 @@ WOLFSSL_API void wolfSSL_RSA_set_flags(WOLFSSL_RSA *r, int flags);
 #define RSA_meth_set_init       wolfSSL_RSA_meth_set
 #define RSA_meth_set_finish     wolfSSL_RSA_meth_set
 #define RSA_meth_set0_app_data  wolfSSL_RSA_meth_set
+#define RSA_get_default_method  wolfSSL_RSA_get_default_method
 #define RSA_get_method          wolfSSL_RSA_get_method
 #define RSA_set_method          wolfSSL_RSA_set_method
 #define RSA_get0_key            wolfSSL_RSA_get0_key
 #define RSA_set0_key            wolfSSL_RSA_set0_key
 #define RSA_flags               wolfSSL_RSA_flags
 #define RSA_set_flags           wolfSSL_RSA_set_flags
+
+#define RSAPublicKey_dup        wolfSSL_RSAPublicKey_dup
+#define RSA_get_ex_data        wolfSSL_RSA_get_ex_data
+#define RSA_set_ex_data        wolfSSL_RSA_set_ex_data
 
 #define RSA_get0_key       wolfSSL_RSA_get0_key
 

@@ -327,7 +327,7 @@ typedef struct alt_fp_int {
 #endif
 
 
-/* A point on an ECC curve, stored in Jacbobian format such that (x,y,z) =>
+/* A point on an ECC curve, stored in Jacobian format such that (x,y,z) =>
    (x/z^2, y/z^3, 1) when interpreted as affine */
 typedef struct {
 #ifndef ALT_ECC_SIZE

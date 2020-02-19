@@ -426,7 +426,7 @@ AC_ARG_ENABLE([mcast],
 
 
 # List of open source project defines using our openssl compatibility layer:
-# openssh (--enable-openssh)
+# openssh (--enable-openssh) WOLFSSL_OPENSSH
 # openvpn (--enable-openvpn)
 # nginix (--enable-nginx) WOLFSSL_NGINX
 # haproxy (--enable-haproxy) WOLFSSL_HAPROXY
@@ -500,6 +500,7 @@ fi
 if test "$ENABLED_OPENSSH" = "yes"
 then
     ENABLED_FORTRESS="yes"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_OPENSSH -DHAVE_EX_DATA -DWOLFSSL_BASE16"
 fi
 
 #Qt Support
@@ -1482,7 +1483,7 @@ then
     ENABLED_DSA="yes"
 fi
 
-if test "$ENABLED_DSA" = "no"
+if test "$ENABLED_DSA" = "no" && test "$ENABLED_OPENSSH" = "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_DSA"
 fi

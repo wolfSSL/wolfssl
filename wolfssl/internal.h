@@ -1329,11 +1329,13 @@ enum Misc {
 #endif
 
 #ifdef HAVE_SELFTEST
+    #ifndef WOLFSSL_AES_KEY_SIZE_ENUM
     #define WOLFSSL_AES_KEY_SIZE_ENUM
     AES_IV_SIZE         = 16,
     AES_128_KEY_SIZE    = 16,
     AES_192_KEY_SIZE    = 24,
     AES_256_KEY_SIZE    = 32,
+    #endif
 #endif
 
     MAX_IV_SZ           = AES_BLOCK_SIZE,
@@ -2740,7 +2742,7 @@ struct WOLFSSL_CTX {
     void*           userPRFArg; /* passed to prf callback */
 #endif
 #ifdef HAVE_EX_DATA
-    void*           ex_data[MAX_EX_DATA];
+    WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
 #if defined(HAVE_ALPN) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY))
     CallbackALPNSelect alpnSelect;
@@ -2748,7 +2750,7 @@ struct WOLFSSL_CTX {
 #endif
 #if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || \
                              defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY) || \
-                             defined(WOLFSSL_HAPROXY)))
+                             defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_OPENSSH) ))
     CallbackSniRecv sniRecvCb;
     void*           sniRecvCbArg;
 #endif
@@ -3121,7 +3123,7 @@ struct WOLFSSL_SESSION {
     byte               isAlloced;
 #endif
 #ifdef HAVE_EX_DATA
-    void*              ex_data[MAX_EX_DATA];
+    WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
 };
 
@@ -3597,7 +3599,7 @@ struct WOLFSSL_X509 {
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #ifdef HAVE_EX_DATA
-    void*            ex_data[MAX_EX_DATA];
+    WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
     byte*            authKeyId;
     byte*            subjKeyId;
@@ -4007,7 +4009,7 @@ struct WOLFSSL {
 #endif
     byte             keepCert;           /* keep certificate after handshake */
 #if defined(HAVE_EX_DATA) || defined(FORTRESS)
-    void*            ex_data[MAX_EX_DATA]; /* external data, for Fortress */
+    WOLFSSL_CRYPTO_EX_DATA ex_data; /* external data, for Fortress */
 #endif
     int              devId;             /* async device id to use */
 #ifdef HAVE_ONE_TIME_AUTH
@@ -4238,8 +4240,6 @@ static const byte server[SIZEOF_SENDER] = { 0x53, 0x52, 0x56, 0x52 };
 
 static const byte tls_client[FINISHED_LABEL_SZ + 1] = "client finished";
 static const byte tls_server[FINISHED_LABEL_SZ + 1] = "server finished";
-
-#define STR_SIZEOF(x) (sizeof(x) - 1) /* -1 to not count the null char */
 
 #ifdef OPENSSL_EXTRA
 typedef struct {

@@ -25,6 +25,7 @@
 #define WOLFSSL_ECDSA_H_
 
 #include <wolfssl/openssl/bn.h>
+#include <wolfssl/openssl/ec.h>
 
 
 #ifdef __cplusplus

@@ -93,6 +93,7 @@ typedef void (*wolfSSL_Logging_cb)(const int logLevel,
                                    const char *const logMessage);
 
 WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
+WOLFSSL_API wolfSSL_Logging_cb wolfSSL_GetLoggingCb(void);
 
 /* turn logging on, only if compiled in */
 WOLFSSL_API int  wolfSSL_Debugging_ON(void);
@@ -148,6 +149,7 @@ WOLFSSL_API void wolfSSL_Debugging_OFF(void);
     WOLFSSL_API void WOLFSSL_LEAVE(const char* msg, int ret);
     #define WOLFSSL_STUB(m) \
         WOLFSSL_MSG(WOLFSSL_LOG_CAT(wolfSSL Stub, m, not implemented))
+    WOLFSSL_API int WOLFSSL_IS_DEBUG_ON(void);
 
     WOLFSSL_API void WOLFSSL_MSG(const char* msg);
     WOLFSSL_API void WOLFSSL_BUFFER(const byte* buffer, word32 length);
@@ -157,6 +159,7 @@ WOLFSSL_API void wolfSSL_Debugging_OFF(void);
     #define WOLFSSL_ENTER(m)
     #define WOLFSSL_LEAVE(m, r)
     #define WOLFSSL_STUB(m)
+    #define WOLFSSL_IS_DEBUG_ON() 0
 
     #define WOLFSSL_MSG(m)
     #define WOLFSSL_BUFFER(b, l)

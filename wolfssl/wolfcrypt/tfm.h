@@ -258,6 +258,11 @@
 #ifndef FP_MAX_BITS
     #define FP_MAX_BITS           4096
 #endif
+#ifdef WOLFSSL_OPENSSH
+    /* OpenSSH uses some BIG primes so we need to accommodate for that */
+    #undef FP_MAX_BITS
+    #define FP_MAX_BITS 16384
+#endif
 #define FP_MAX_SIZE           (FP_MAX_BITS+(8*DIGIT_BIT))
 
 /* will this lib work? */
