@@ -70,6 +70,7 @@
         #include <openssl/err.h>
         #include <openssl/ec.h>
         #include <openssl/hmac.h>
+        #include <openssl/bn.h>
     #endif
 
     /* make sure old names are disabled */
@@ -81,6 +82,7 @@
     #endif
 
 #elif (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+    #include <wolfssl/openssl/bn.h>
     #include <wolfssl/openssl/hmac.h>
 
     /* We need the old SSL names */
@@ -91,8 +93,6 @@
         #undef NO_OLD_WC_NAMES
     #endif
 #endif
-/* Needed for WOLFSSL_RSA struct */
-#include <wolfssl/openssl/bn.h>
 
 #ifdef __cplusplus
     extern "C" {
