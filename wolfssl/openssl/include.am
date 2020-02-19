@@ -17,6 +17,8 @@ nobase_include_HEADERS+= \
                          wolfssl/openssl/ec.h \
                          wolfssl/openssl/ec25519.h \
                          wolfssl/openssl/ed25519.h \
+                         wolfssl/openssl/ec448.h \
+                         wolfssl/openssl/ed448.h \
                          wolfssl/openssl/engine.h \
                          wolfssl/openssl/err.h \
                          wolfssl/openssl/evp.h \

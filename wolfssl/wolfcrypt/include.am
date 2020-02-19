@@ -19,6 +19,10 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/ed25519.h \
                          wolfssl/wolfcrypt/fe_operations.h \
                          wolfssl/wolfcrypt/ge_operations.h \
+                         wolfssl/wolfcrypt/curve448.h \
+                         wolfssl/wolfcrypt/ed448.h \
+                         wolfssl/wolfcrypt/fe_448.h \
+                         wolfssl/wolfcrypt/ge_448.h \
                          wolfssl/wolfcrypt/error-crypt.h \
                          wolfssl/wolfcrypt/fips_test.h \
                          wolfssl/wolfcrypt/hash.h \

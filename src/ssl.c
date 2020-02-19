@@ -52,7 +52,7 @@
 #if !defined(WOLFSSL_ALLOW_NO_SUITES) && !defined(WOLFCRYPT_ONLY)
     #if defined(NO_DH) && !defined(HAVE_ECC) && !defined(WOLFSSL_STATIC_RSA) \
                 && !defined(WOLFSSL_STATIC_DH) && !defined(WOLFSSL_STATIC_PSK) \
-                && !defined(HAVE_ED25519)
+                && !defined(HAVE_ED25519) && !defined(HAVE_ED448)
         #error "No cipher suites defined because DH disabled, ECC disabled, and no static suites defined. Please see top of README"
     #endif
     #ifdef WOLFSSL_CERT_GEN
@@ -87,6 +87,8 @@
     #include <wolfssl/openssl/ec.h>
     #include <wolfssl/openssl/ec25519.h>
     #include <wolfssl/openssl/ed25519.h>
+    #include <wolfssl/openssl/ec448.h>
+    #include <wolfssl/openssl/ed448.h>
     #include <wolfssl/openssl/ecdsa.h>
     #include <wolfssl/openssl/ecdh.h>
     #include <wolfssl/openssl/err.h>
@@ -105,6 +107,7 @@
     #include <wolfssl/wolfcrypt/idea.h>
     #include <wolfssl/wolfcrypt/curve25519.h>
     #include <wolfssl/wolfcrypt/ed25519.h>
+    #include <wolfssl/wolfcrypt/curve448.h>
     #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL)
         #include <wolfssl/openssl/ocsp.h>
     #endif /* WITH_STUNNEL */
@@ -2344,6 +2347,7 @@ int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name)
         case WOLFSSL_ECC_BRAINPOOLP384R1:
         case WOLFSSL_ECC_BRAINPOOLP512R1:
         case WOLFSSL_ECC_X25519:
+        case WOLFSSL_ECC_X448:
 
         case WOLFSSL_FFDHE_2048:
         case WOLFSSL_FFDHE_3072:
@@ -2383,6 +2387,7 @@ int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx, word16 name)
         case WOLFSSL_ECC_BRAINPOOLP384R1:
         case WOLFSSL_ECC_BRAINPOOLP512R1:
         case WOLFSSL_ECC_X25519:
+        case WOLFSSL_ECC_X448:
         case WOLFSSL_FFDHE_2048:
         case WOLFSSL_FFDHE_3072:
         case WOLFSSL_FFDHE_4096:
@@ -5069,6 +5074,15 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
                 }
                 break;
             #endif /* HAVE_ED25519 */
+            #ifdef HAVE_ED448
+            case ED448k:
+                if (cm->minEccKeySz < 0 ||
+                                     ED448_KEY_SIZE < (word16)cm->minEccKeySz) {
+                    ret = ECC_KEY_SIZE_E;
+                    WOLFSSL_MSG("\tCA ECC key size error");
+                }
+                break;
+            #endif /* HAVE_ED448 */
 
             default:
                 WOLFSSL_MSG("\tNo key size check done on CA");
@@ -5510,8 +5524,10 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
             *idx = 0;
             if (wc_RsaPrivateKeyDecode(der->buffer, idx, key, der->length)
                 != 0) {
-            #if !defined(HAVE_ECC) && !defined(HAVE_ED25519)
-                WOLFSSL_MSG("RSA decode failed and ECC/ED25519 not enabled to try");
+            #if !defined(HAVE_ECC) && !defined(HAVE_ED25519) && \
+                                                            !defined(HAVE_ED448)
+                WOLFSSL_MSG("RSA decode failed and ECC/ED25519/ED448 not "
+                            "enabled to try");
                 ret = WOLFSSL_BAD_FILE;
             #endif
             }
@@ -5623,11 +5639,7 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
         if (ret == 0) {
             *idx = 0;
             if (wc_Ed25519PrivateKeyDecode(der->buffer, idx, key,
-                                                        der->length) != 0) {
-                ret = WOLFSSL_BAD_FILE;
-            }
-
-            if (ret == 0) {
+                                                        der->length) == 0) {
                 /* check for minimum key size and then free */
                 int minKeySz = ssl ? ssl->options.minEccKeySz :
                                                            ctx->minEccKeySz;
@@ -5636,20 +5648,20 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
                     WOLFSSL_MSG("ED25519 private key too small");
                     ret = ECC_KEY_SIZE_E;
                 }
-            }
-            if (ret == 0) {
-                if (ssl) {
-                    ssl->buffers.keyType = ed25519_sa_algo;
-                    ssl->buffers.keySz = *keySz;
-                }
-                else if (ctx) {
-                    ctx->privateKeyType = ed25519_sa_algo;
-                    ctx->privateKeySz = *keySz;
-                }
+                if (ret == 0) {
+                    if (ssl) {
+                        ssl->buffers.keyType = ed25519_sa_algo;
+                        ssl->buffers.keySz = *keySz;
+                    }
+                    else if (ctx) {
+                        ctx->privateKeyType = ed25519_sa_algo;
+                        ctx->privateKeySz = *keySz;
+                    }
 
-                *keyFormat = ED25519k;
-                if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
-                    *resetSuites = 1;
+                    *keyFormat = ED25519k;
+                    if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
+                        *resetSuites = 1;
+                    }
                 }
             }
 
@@ -5661,6 +5673,63 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl, DerBuffer* der
     #endif
     }
 #endif /* HAVE_ED25519 */
+#ifdef HAVE_ED448
+    if (ret == 0 && (*keyFormat == 0 || *keyFormat == ED448k)) {
+        /* make sure Ed448 key can be used */
+    #ifdef WOLFSSL_SMALL_STACK
+        ed448_key* key = NULL;
+    #else
+        ed448_key  key[1];
+    #endif
+
+    #ifdef WOLFSSL_SMALL_STACK
+        key = (ed448_key*)XMALLOC(sizeof(ed448_key), heap, DYNAMIC_TYPE_ED448);
+        if (key == NULL)
+            return MEMORY_E;
+    #endif
+
+        ret = wc_ed448_init(key);
+        if (ret == 0) {
+            *idx = 0;
+            if (wc_Ed448PrivateKeyDecode(der->buffer, idx, key,
+                                                            der->length) != 0) {
+                ret = WOLFSSL_BAD_FILE;
+            }
+
+            if (ret == 0) {
+                /* check for minimum key size and then free */
+                int minKeySz = ssl ? ssl->options.minEccKeySz :
+                                                               ctx->minEccKeySz;
+                *keySz = ED448_KEY_SIZE;
+                if (*keySz < minKeySz) {
+                    WOLFSSL_MSG("ED448 private key too small");
+                    ret = ECC_KEY_SIZE_E;
+                }
+            }
+            if (ret == 0) {
+                if (ssl) {
+                    ssl->buffers.keyType = ed448_sa_algo;
+                    ssl->buffers.keySz = *keySz;
+                }
+                else if (ctx) {
+                    ctx->privateKeyType = ed448_sa_algo;
+                    ctx->privateKeySz = *keySz;
+                }
+
+                *keyFormat = ED448k;
+                if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
+                    *resetSuites = 1;
+                }
+            }
+
+            wc_ed448_free(key);
+        }
+
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(key, heap, DYNAMIC_TYPE_ED448);
+    #endif
+    }
+#endif /* HAVE_ED448 */
     return ret;
 }
 
@@ -5997,12 +6066,19 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 else if (ctx)
                     ctx->haveECDSAsig = 1;
                 break;
+            case CTC_ED448:
+                WOLFSSL_MSG("ED448 cert signature");
+                if (ssl)
+                    ssl->options.haveECDSAsig = 1;
+                else if (ctx)
+                    ctx->haveECDSAsig = 1;
+                break;
             default:
                 WOLFSSL_MSG("Not ECDSA cert signature");
                 break;
         }
 
-    #if defined(HAVE_ECC) || defined(HAVE_ED25519)
+    #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
         if (ssl) {
             ssl->pkCurveOID = cert->pkCurveOID;
         #ifndef WC_STRICT_SIG
@@ -6011,6 +6087,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             }
             #ifdef HAVE_ED25519
                 else if (cert->keyOID == ED25519k) {
+                    ssl->options.haveECC = 1;
+                }
+            #endif
+            #ifdef HAVE_ED448
+                else if (cert->keyOID == ED448k) {
                     ssl->options.haveECC = 1;
                 }
             #endif
@@ -6026,6 +6107,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             }
             #ifdef HAVE_ED25519
                 else if (cert->keyOID == ED25519k) {
+                    ctx->haveECC = 1;
+                }
+            #endif
+            #ifdef HAVE_ED448
+                else if (cert->keyOID == ED448k) {
                     ctx->haveECC = 1;
                 }
             #endif
@@ -6137,6 +6223,37 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 }
                 break;
         #endif /* HAVE_ED25519 */
+        #ifdef HAVE_ED448
+            case ED448k:
+            #ifdef HAVE_PK_CALLBACKS
+                keyType = ed448_sa_algo;
+            #endif
+            #ifdef HAVE_PKCS11
+                if (ctx) {
+                    ctx->privateKeyType = ed448_sa_algo;
+                }
+                else {
+                    ssl->buffers.keyType = ed448_sa_algo;
+                }
+            #endif
+                /* ED448 is fixed key size */
+                keySz = ED448_KEY_SIZE;
+                if (ssl && !ssl->options.verifyNone) {
+                    if (ssl->options.minEccKeySz < 0 ||
+                          keySz < (int)ssl->options.minEccKeySz) {
+                        ret = ECC_KEY_SIZE_E;
+                        WOLFSSL_MSG("Certificate Ed key size error");
+                    }
+                }
+                else if (ctx && !ctx->verifyNone) {
+                    if (ctx->minEccKeySz < 0 ||
+                                  keySz < (int)ctx->minEccKeySz) {
+                        ret = ECC_KEY_SIZE_E;
+                        WOLFSSL_MSG("Certificate ECC key size error");
+                    }
+                }
+                break;
+        #endif /* HAVE_ED448 */
 
             default:
                 WOLFSSL_MSG("No key size check done on certificate");
@@ -22427,7 +22544,8 @@ void wolfSSL_sk_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk)
 }
 #endif
 
-#if defined(HAVE_ECC) || !defined(NO_DH)
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || \
+                                                                 !defined(NO_DH)
 #ifdef HAVE_FFDHE
 static const char* wolfssl_ffdhe_name(word16 group)
 {
@@ -22473,6 +22591,12 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
 #ifdef HAVE_CURVE25519
     if (ssl->ecdhCurveOID == ECC_X25519_OID && cName == NULL) {
         cName = "X25519";
+    }
+#endif
+
+#ifdef HAVE_CURVE448
+    if (ssl->ecdhCurveOID == ECC_X448_OID && cName == NULL) {
+        cName = "X448";
     }
 #endif
 
@@ -33444,22 +33568,22 @@ int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
     switch(type) {
     #ifndef NO_RSA
         case EVP_PKEY_RSA:
-            ret = wolfSSL_EVP_PKEY_assign_RSA(pkey,key);
+            ret = wolfSSL_EVP_PKEY_assign_RSA(pkey, (WOLFSSL_RSA*)key);
             break;
     #endif
     #ifndef NO_DSA
         case EVP_PKEY_DSA:
-            ret = wolfSSL_EVP_PKEY_assign_DSA(pkey, key);
+            ret = wolfSSL_EVP_PKEY_assign_DSA(pkey, (WOLFSSL_DSA*)key);
             break;
     #endif
     #ifdef HAVE_ECC
         case EVP_PKEY_EC:
-            ret = wolfSSL_EVP_PKEY_assign_EC_KEY(pkey,key);
+            ret = wolfSSL_EVP_PKEY_assign_EC_KEY(pkey, (WOLFSSL_EC_KEY*)key);
             break;
     #endif
     #ifdef NO_DH
          case EVP_PKEY_DH:
-            ret = wolfSSL_EVP_PKEY_assign_DH(pkey,key);
+            ret = wolfSSL_EVP_PKEY_assign_DH(pkey, (WOLFSSL_DH*)key);
             break;
     #endif
         default:
@@ -38720,6 +38844,84 @@ void* wolfSSL_GetX25519SharedSecretCtx(WOLFSSL* ssl)
 }
 #endif /* HAVE_CURVE25519 */
 
+#ifdef HAVE_ED448
+void  wolfSSL_CTX_SetEd448SignCb(WOLFSSL_CTX* ctx, CallbackEd448Sign cb)
+{
+    if (ctx)
+        ctx->Ed448SignCb = cb;
+}
+void  wolfSSL_SetEd448SignCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->Ed448SignCtx = ctx;
+}
+void* wolfSSL_GetEd448SignCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->Ed448SignCtx;
+
+    return NULL;
+}
+
+void  wolfSSL_CTX_SetEd448VerifyCb(WOLFSSL_CTX* ctx, CallbackEd448Verify cb)
+{
+    if (ctx)
+        ctx->Ed448VerifyCb = cb;
+}
+void  wolfSSL_SetEd448VerifyCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->Ed448VerifyCtx = ctx;
+}
+void* wolfSSL_GetEd448VerifyCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->Ed448VerifyCtx;
+
+    return NULL;
+}
+#endif /* HAVE_ED448 */
+
+#ifdef HAVE_CURVE448
+void wolfSSL_CTX_SetX448KeyGenCb(WOLFSSL_CTX* ctx,
+        CallbackX448KeyGen cb)
+{
+    if (ctx)
+        ctx->X448KeyGenCb = cb;
+}
+void  wolfSSL_SetX448KeyGenCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->X448KeyGenCtx = ctx;
+}
+void* wolfSSL_GetX448KeyGenCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->X448KeyGenCtx;
+
+    return NULL;
+}
+
+void wolfSSL_CTX_SetX448SharedSecretCb(WOLFSSL_CTX* ctx,
+        CallbackX448SharedSecret cb)
+{
+    if (ctx)
+        ctx->X448SharedSecretCb = cb;
+}
+void  wolfSSL_SetX448SharedSecretCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->X448SharedSecretCtx = ctx;
+}
+void* wolfSSL_GetX448SharedSecretCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->X448SharedSecretCtx;
+
+    return NULL;
+}
+#endif /* HAVE_CURVE448 */
+
 #ifndef NO_RSA
 void  wolfSSL_CTX_SetRsaSignCb(WOLFSSL_CTX* ctx, CallbackRsaSign cb)
 {
@@ -41582,11 +41784,14 @@ err:
         #ifdef HAVE_ED25519
             case ED25519k:
         #endif
+        #ifdef HAVE_ED448
+            case ED448k:
+        #endif
             case ECDSAk:
                 ctx->haveECC = 1;
-            #if defined(HAVE_ECC) || defined(HAVE_ED25519)
+        #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
                 ctx->pkCurveOID = x->pkCurveOID;
-            #endif
+        #endif
                 break;
         }
 
@@ -43437,7 +43642,7 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
             ret = WOLFSSL_FAILURE;
             break;
         }
-        return wolfSSL_CTX_add_extra_chain_cert(ctx,pt);
+        return wolfSSL_CTX_add_extra_chain_cert(ctx, (WOLFSSL_X509*)pt);
 
 #ifndef NO_DH
     case SSL_CTRL_SET_TMP_DH:
@@ -43447,7 +43652,7 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
             ret = WOLFSSL_FAILURE;
             break;
         }
-        return wolfSSL_CTX_set_tmp_dh(ctx, pt);
+        return wolfSSL_CTX_set_tmp_dh(ctx, (WOLFSSL_DH*)pt);
 #endif
 
 #ifdef HAVE_ECC
@@ -43458,7 +43663,7 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
             ret = WOLFSSL_FAILURE;
             break;
         }
-        return wolfSSL_SSL_CTX_set_tmp_ecdh(ctx,pt);
+        return wolfSSL_SSL_CTX_set_tmp_ecdh(ctx, (WOLFSSL_EC_KEY*)pt);
 #endif
     case SSL_CTRL_MODE:
         wolfSSL_CTX_set_mode(ctx,opt);
@@ -45456,6 +45661,338 @@ int wolfSSL_ED25519_verify(const unsigned char *msg, unsigned int msgSz,
 
 #endif /* OPENSSL_EXTRA && HAVE_ED25519 */
 
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CURVE448)
+/* return 1 if success, 0 if error
+ * output keys are little endian format
+ */
+int wolfSSL_EC448_generate_key(unsigned char *priv, unsigned int *privSz,
+                               unsigned char *pub, unsigned int *pubSz)
+{
+#ifndef WOLFSSL_KEY_GEN
+    WOLFSSL_MSG("No Key Gen built in");
+    (void) priv;
+    (void) privSz;
+    (void) pub;
+    (void) pubSz;
+    return WOLFSSL_FAILURE;
+#else /* WOLFSSL_KEY_GEN */
+    int ret = WOLFSSL_FAILURE;
+    int initTmpRng = 0;
+    WC_RNG *rng = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    WC_RNG *tmpRNG = NULL;
+#else
+    WC_RNG tmpRNG[1];
+#endif
+
+    WOLFSSL_ENTER("wolfSSL_EC448_generate_key");
+
+    if (priv == NULL || privSz == NULL || *privSz < CURVE448_KEY_SIZE ||
+        pub == NULL || pubSz == NULL || *pubSz < CURVE448_KEY_SIZE) {
+        WOLFSSL_MSG("Bad arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+    if (tmpRNG == NULL)
+        return WOLFSSL_FAILURE;
+#endif
+    if (wc_InitRng(tmpRNG) == 0) {
+        rng = tmpRNG;
+        initTmpRng = 1;
+    }
+    else {
+        WOLFSSL_MSG("Bad RNG Init, trying global");
+        if (initGlobalRNG == 0)
+            WOLFSSL_MSG("Global RNG no Init");
+        else
+            rng = &globalRNG;
+    }
+
+    if (rng) {
+        curve448_key key;
+
+        if (wc_curve448_init(&key) != MP_OKAY)
+            WOLFSSL_MSG("wc_curve448_init failed");
+        else if (wc_curve448_make_key(rng, CURVE448_KEY_SIZE, &key)!=MP_OKAY)
+            WOLFSSL_MSG("wc_curve448_make_key failed");
+        /* export key pair */
+        else if (wc_curve448_export_key_raw_ex(&key, priv, privSz, pub, pubSz,
+                                               EC448_LITTLE_ENDIAN)
+                 != MP_OKAY)
+            WOLFSSL_MSG("wc_curve448_export_key_raw_ex failed");
+        else
+            ret = WOLFSSL_SUCCESS;
+
+        wc_curve448_free(&key);
+    }
+
+    if (initTmpRng)
+        wc_FreeRng(tmpRNG);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
+#endif
+
+    return ret;
+#endif /* WOLFSSL_KEY_GEN */
+}
+
+/* return 1 if success, 0 if error
+ * input and output keys are little endian format
+ */
+int wolfSSL_EC448_shared_key(unsigned char *shared, unsigned int *sharedSz,
+                             const unsigned char *priv, unsigned int privSz,
+                             const unsigned char *pub, unsigned int pubSz)
+{
+#ifndef WOLFSSL_KEY_GEN
+    WOLFSSL_MSG("No Key Gen built in");
+    (void) shared;
+    (void) sharedSz;
+    (void) priv;
+    (void) privSz;
+    (void) pub;
+    (void) pubSz;
+    return WOLFSSL_FAILURE;
+#else /* WOLFSSL_KEY_GEN */
+    int ret = WOLFSSL_FAILURE;
+    curve448_key privkey, pubkey;
+
+    WOLFSSL_ENTER("wolfSSL_EC448_shared_key");
+
+    if (shared == NULL || sharedSz == NULL || *sharedSz < CURVE448_KEY_SIZE ||
+            priv == NULL || privSz < CURVE448_KEY_SIZE ||
+            pub == NULL || pubSz < CURVE448_KEY_SIZE) {
+        WOLFSSL_MSG("Bad arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* import private key */
+    if (wc_curve448_init(&privkey) != MP_OKAY) {
+        WOLFSSL_MSG("wc_curve448_init privkey failed");
+        return ret;
+    }
+    if (wc_curve448_import_private_ex(priv, privSz, &privkey,
+                                      EC448_LITTLE_ENDIAN) != MP_OKAY) {
+        WOLFSSL_MSG("wc_curve448_import_private_ex failed");
+        wc_curve448_free(&privkey);
+        return ret;
+    }
+
+    /* import public key */
+    if (wc_curve448_init(&pubkey) != MP_OKAY) {
+        WOLFSSL_MSG("wc_curve448_init pubkey failed");
+        wc_curve448_free(&privkey);
+        return ret;
+    }
+    if (wc_curve448_import_public_ex(pub, pubSz, &pubkey,
+                                     EC448_LITTLE_ENDIAN) != MP_OKAY) {
+        WOLFSSL_MSG("wc_curve448_import_public_ex failed");
+        wc_curve448_free(&privkey);
+        wc_curve448_free(&pubkey);
+        return ret;
+    }
+
+    if (wc_curve448_shared_secret_ex(&privkey, &pubkey, shared, sharedSz,
+                                     EC448_LITTLE_ENDIAN) != MP_OKAY)
+        WOLFSSL_MSG("wc_curve448_shared_secret_ex failed");
+    else
+        ret = WOLFSSL_SUCCESS;
+
+    wc_curve448_free(&privkey);
+    wc_curve448_free(&pubkey);
+
+    return ret;
+#endif /* WOLFSSL_KEY_GEN */
+}
+#endif /* OPENSSL_EXTRA && HAVE_CURVE448 */
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ED448)
+/* return 1 if success, 0 if error
+ * output keys are little endian format
+ */
+int wolfSSL_ED448_generate_key(unsigned char *priv, unsigned int *privSz,
+                               unsigned char *pub, unsigned int *pubSz)
+{
+#ifndef WOLFSSL_KEY_GEN
+    WOLFSSL_MSG("No Key Gen built in");
+    (void) priv;
+    (void) privSz;
+    (void) pub;
+    (void) pubSz;
+    return WOLFSSL_FAILURE;
+#else /* WOLFSSL_KEY_GEN */
+    int ret = WOLFSSL_FAILURE;
+    int initTmpRng = 0;
+    WC_RNG *rng = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    WC_RNG *tmpRNG = NULL;
+#else
+    WC_RNG tmpRNG[1];
+#endif
+
+    WOLFSSL_ENTER("wolfSSL_ED448_generate_key");
+
+    if (priv == NULL || privSz == NULL || *privSz < ED448_PRV_KEY_SIZE ||
+            pub == NULL || pubSz == NULL || *pubSz < ED448_PUB_KEY_SIZE) {
+        WOLFSSL_MSG("Bad arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+    if (tmpRNG == NULL)
+        return WOLFSSL_FATAL_ERROR;
+#endif
+    if (wc_InitRng(tmpRNG) == 0) {
+        rng = tmpRNG;
+        initTmpRng = 1;
+    }
+    else {
+        WOLFSSL_MSG("Bad RNG Init, trying global");
+        if (initGlobalRNG == 0)
+            WOLFSSL_MSG("Global RNG no Init");
+        else
+            rng = &globalRNG;
+    }
+
+    if (rng) {
+        ed448_key key;
+
+        if (wc_ed448_init(&key) != MP_OKAY)
+            WOLFSSL_MSG("wc_ed448_init failed");
+        else if (wc_ed448_make_key(rng, ED448_KEY_SIZE, &key) != MP_OKAY)
+            WOLFSSL_MSG("wc_ed448_make_key failed");
+        /* export private key */
+        else if (wc_ed448_export_key(&key, priv, privSz, pub, pubSz) != MP_OKAY)
+            WOLFSSL_MSG("wc_ed448_export_key failed");
+        else
+            ret = WOLFSSL_SUCCESS;
+
+        wc_ed448_free(&key);
+    }
+
+    if (initTmpRng)
+        wc_FreeRng(tmpRNG);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
+#endif
+
+    return ret;
+#endif /* WOLFSSL_KEY_GEN */
+}
+
+/* return 1 if success, 0 if error
+ * input and output keys are little endian format
+ * priv is a buffer containing private and public part of key
+ */
+int wolfSSL_ED448_sign(const unsigned char *msg, unsigned int msgSz,
+                       const unsigned char *priv, unsigned int privSz,
+                       unsigned char *sig, unsigned int *sigSz)
+{
+#ifndef WOLFSSL_KEY_GEN
+    WOLFSSL_MSG("No Key Gen built in");
+    (void) msg;
+    (void) msgSz;
+    (void) priv;
+    (void) privSz;
+    (void) sig;
+    (void) sigSz;
+    return WOLFSSL_FAILURE;
+#else /* WOLFSSL_KEY_GEN */
+    ed448_key key;
+    int ret = WOLFSSL_FAILURE;
+
+    WOLFSSL_ENTER("wolfSSL_ED448_sign");
+
+    if (priv == NULL || privSz != ED448_PRV_KEY_SIZE || msg == NULL ||
+            sig == NULL || *sigSz < ED448_SIG_SIZE) {
+        WOLFSSL_MSG("Bad arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* import key */
+    if (wc_ed448_init(&key) != MP_OKAY) {
+        WOLFSSL_MSG("wc_curve448_init failed");
+        return ret;
+    }
+    if (wc_ed448_import_private_key(priv, privSz/2, priv+(privSz/2),
+                                    ED448_PUB_KEY_SIZE, &key) != MP_OKAY){
+        WOLFSSL_MSG("wc_ed448_import_private failed");
+        wc_ed448_free(&key);
+        return ret;
+    }
+
+    if (wc_ed448_sign_msg(msg, msgSz, sig, sigSz, &key) != MP_OKAY)
+        WOLFSSL_MSG("wc_curve448_shared_secret_ex failed");
+    else
+        ret = WOLFSSL_SUCCESS;
+
+    wc_ed448_free(&key);
+
+    return ret;
+#endif /* WOLFSSL_KEY_GEN */
+}
+
+/* return 1 if success, 0 if error
+ * input and output keys are little endian format
+ * pub is a buffer containing public part of key
+ */
+int wolfSSL_ED448_verify(const unsigned char *msg, unsigned int msgSz,
+                         const unsigned char *pub, unsigned int pubSz,
+                         const unsigned char *sig, unsigned int sigSz)
+{
+#ifndef WOLFSSL_KEY_GEN
+    WOLFSSL_MSG("No Key Gen built in");
+    (void) msg;
+    (void) msgSz;
+    (void) pub;
+    (void) pubSz;
+    (void) sig;
+    (void) sigSz;
+    return WOLFSSL_FAILURE;
+#else /* WOLFSSL_KEY_GEN */
+    ed448_key key;
+    int ret = WOLFSSL_FAILURE, check = 0;
+
+    WOLFSSL_ENTER("wolfSSL_ED448_verify");
+
+    if (pub == NULL || pubSz != ED448_PUB_KEY_SIZE || msg == NULL ||
+            sig == NULL || sigSz != ED448_SIG_SIZE) {
+        WOLFSSL_MSG("Bad arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* import key */
+    if (wc_ed448_init(&key) != MP_OKAY) {
+        WOLFSSL_MSG("wc_curve448_init failed");
+        return ret;
+    }
+    if (wc_ed448_import_public(pub, pubSz, &key) != MP_OKAY){
+        WOLFSSL_MSG("wc_ed448_import_public failed");
+        wc_ed448_free(&key);
+        return ret;
+    }
+
+    if ((ret = wc_ed448_verify_msg((byte*)sig, sigSz, msg, msgSz, &check,
+                                   &key)) != MP_OKAY) {
+        WOLFSSL_MSG("wc_ed448_verify_msg failed");
+    }
+    else if (!check)
+        WOLFSSL_MSG("wc_ed448_verify_msg failed (signature invalid)");
+    else
+        ret = WOLFSSL_SUCCESS;
+
+    wc_ed448_free(&key);
+
+    return ret;
+#endif /* WOLFSSL_KEY_GEN */
+}
+
+#endif /* OPENSSL_EXTRA && HAVE_ED448 */
+
 #ifdef WOLFSSL_JNI
 
 int wolfSSL_set_jobject(WOLFSSL* ssl, void* objPtr)
@@ -46489,6 +47026,9 @@ int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
         }
         else if (XSTRNCMP(name, "X25519", len) == 0) {
             curve = WOLFSSL_ECC_X25519;
+        }
+        else if (XSTRNCMP(name, "X448", len) == 0) {
+            curve = WOLFSSL_ECC_X448;
         }
         else {
         #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)

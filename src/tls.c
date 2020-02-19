@@ -43,7 +43,9 @@
 #ifdef HAVE_CURVE25519
     #include <wolfssl/wolfcrypt/curve25519.h>
 #endif
-
+#ifdef HAVE_CURVE448
+    #include <wolfssl/wolfcrypt/curve448.h>
+#endif
 #ifdef HAVE_NTRU
     #include "libntruencrypt/ntru_crypto.h"
     #include <wolfssl/wolfcrypt/random.h>
@@ -65,10 +67,10 @@ static int TLSX_KeyShare_IsSupported(int namedGroup);
 
 #if ((!defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TLS13) && \
         !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)) || \
-    (defined(WOLFSSL_TLS13) && !defined(HAVE_ECC) && \
-        !defined(HAVE_CURVE25519) && defined(HAVE_SUPPORTED_CURVES)) || \
-    ((defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
-        defined(HAVE_SUPPORTED_CURVES))) && \
+    (defined(WOLFSSL_TLS13) && !defined(HAVE_ECC) && !defined(HAVE_CURVE25519) \
+        && !defined(HAVE_CURVE448) && defined(HAVE_SUPPORTED_CURVES)) || \
+    ((defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+        defined(HAVE_CURVE448)) && defined(HAVE_SUPPORTED_CURVES))) && \
      defined(HAVE_TLS_EXTENSIONS)
 static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
 #endif
@@ -3696,7 +3698,8 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
 
 #ifdef HAVE_SUPPORTED_CURVES
 
-#if !defined(HAVE_ECC) && !defined(HAVE_CURVE25519) && !defined(HAVE_FFDHE)
+#if !defined(HAVE_ECC) && !defined(HAVE_CURVE25519) && !defined(HAVE_CURVE448) \
+                       && !defined(HAVE_FFDHE)
 #error Elliptic Curves Extension requires Elliptic Curve Cryptography. \
        Use --enable-ecc in the configure script or define HAVE_ECC. \
        Alternatively use FFDHE for DH ciperhsuites.
@@ -3815,7 +3818,8 @@ static void TLSX_SupportedCurve_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
             return;
         if (ssl->suites->suites[i] == ECC_BYTE ||
                 ssl->suites->suites[i] == CHACHA_BYTE) {
-        #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
+        #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+                                                          defined(HAVE_CURVE448)
             return;
         #endif
         }
@@ -3839,7 +3843,8 @@ static void TLSX_PointFormat_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
             return;
         if (ssl->suites->suites[i] == ECC_BYTE ||
                 ssl->suites->suites[i] == CHACHA_BYTE) {
-        #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
+        #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+                                                          defined(HAVE_CURVE448)
             return;
         #endif
         }
@@ -3860,7 +3865,8 @@ static void TLSX_PointFormat_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
 
 static void TLSX_PointFormat_ValidateResponse(WOLFSSL* ssl, byte* semaphore)
 {
-#if defined(HAVE_FFDHE) || defined(HAVE_ECC) || defined(HAVE_CURVE25519)
+#if defined(HAVE_FFDHE) || defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+                                                          defined(HAVE_CURVE448)
     (void)semaphore;
 #endif
 
@@ -3868,7 +3874,7 @@ static void TLSX_PointFormat_ValidateResponse(WOLFSSL* ssl, byte* semaphore)
         return;
     if (ssl->options.cipherSuite0 == ECC_BYTE ||
         ssl->options.cipherSuite0 == CHACHA_BYTE) {
-#if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
         return;
 #endif
     }
@@ -3878,7 +3884,8 @@ static void TLSX_PointFormat_ValidateResponse(WOLFSSL* ssl, byte* semaphore)
 #endif
     }
 
-#if !defined(HAVE_FFDHE) || (!defined(HAVE_ECC) && !defined(HAVE_CURVE25519))
+#if !defined(HAVE_FFDHE) || (!defined(HAVE_ECC) && !defined(HAVE_CURVE25519) \
+                                                     && !defined(HAVE_CURVE448))
     /* turns semaphore on to avoid sending this extension. */
     TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_EC_POINT_FORMATS));
 #endif
@@ -4244,7 +4251,7 @@ static int TLSX_PointFormat_Parse(WOLFSSL* ssl, byte* input, word16 length,
     return 0;
 }
 
-#if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
 int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
     TLSX*           extension = NULL;
     SupportedCurve* curve     = NULL;
@@ -4273,7 +4280,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
 
     #ifdef OPENSSL_EXTRA
         /* skip if name is not in supported ECC range */
-        if (curve->name > WOLFSSL_ECC_X25519)
+        if (curve->name > WOLFSSL_ECC_X448)
             continue;
         /* skip if curve is disabled by user */
         if (ssl->ctx->disabledCurves & (1 << curve->name))
@@ -4366,6 +4373,19 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                 break;
         #endif /* HAVE_ECC_BRAINPOOL */
     #endif
+#endif
+        #ifdef HAVE_CURVE448
+            case WOLFSSL_ECC_X448:
+                oid = ECC_X448_OID;
+            #ifdef HAVE_ED448
+                pkOid = ECC_ED448_OID;
+            #else
+                pkOid = ECC_X448_OID;
+            #endif
+                octets = 57;
+                break;
+        #endif /* HAVE_CURVE448 */
+#ifdef HAVE_ECC
     #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP384R1:
@@ -4460,6 +4480,10 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                         defOid = 0;
                         defSz = 80;
                     }
+                    if (oid == ECC_X448_OID && defOid == oid) {
+                        defOid = 0;
+                        defSz = 80;
+                    }
                     sig |= ssl->pkCurveOID == pkOid;
                     key |= ssl->pkCurveOID == oid;
                 break;
@@ -4493,6 +4517,10 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                         defOid = 0;
                         defSz = 80;
                     }
+                    if (oid == ECC_X448_OID && defOid == oid) {
+                        defOid = 0;
+                        defSz = 80;
+                    }
                     sig = 1;
                     key |= ssl->pkCurveOID == pkOid;
                 break;
@@ -4503,8 +4531,13 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                         defOid = 0;
                         defSz = 80;
                     }
-                    if (oid != ECC_X25519_OID)
+                    if (oid == ECC_X448_OID && defOid == oid) {
+                        defOid = 0;
+                        defSz = 80;
+                    }
+                    if (oid != ECC_X25519_OID && oid != ECC_X448_OID) {
                         sig = 1;
+                    }
                     key = 1;
                 break;
             }
@@ -6667,8 +6700,8 @@ static int TLSX_KeyShare_GenX25519Key(WOLFSSL *ssl, KeyShareEntry* kse)
     curve25519_key* key;
 
     /* Allocate an ECC key to hold private key. */
-    key = (curve25519_key*)XMALLOC(sizeof(curve25519_key),
-                                           ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+    key = (curve25519_key*)XMALLOC(sizeof(curve25519_key), ssl->heap,
+                                                      DYNAMIC_TYPE_PRIVATE_KEY);
     if (key == NULL) {
         WOLFSSL_MSG("EccTempKey Memory error");
         return MEMORY_E;
@@ -6721,6 +6754,80 @@ end:
 
     ret = NOT_COMPILED_IN;
 #endif /* HAVE_CURVE25519 */
+
+    return ret;
+}
+
+/* Create a key share entry using X448 parameters group.
+ * Generates a key pair.
+ *
+ * ssl   The SSL/TLS object.
+ * kse   The key share entry object.
+ * returns 0 on success, otherwise failure.
+ */
+static int TLSX_KeyShare_GenX448Key(WOLFSSL *ssl, KeyShareEntry* kse)
+{
+    int             ret;
+#ifdef HAVE_CURVE448
+    byte*           keyData = NULL;
+    word32          dataSize = CURVE448_KEY_SIZE;
+    curve448_key*   key;
+
+    /* Allocate an ECC key to hold private key. */
+    key = (curve448_key*)XMALLOC(sizeof(curve448_key), ssl->heap,
+                                                      DYNAMIC_TYPE_PRIVATE_KEY);
+    if (key == NULL) {
+        WOLFSSL_MSG("EccTempKey Memory error");
+        return MEMORY_E;
+    }
+
+    /* Make an ECC key. */
+    ret = wc_curve448_init(key);
+    if (ret != 0)
+        goto end;
+    ret = wc_curve448_make_key(ssl->rng, CURVE448_KEY_SIZE, key);
+    if (ret != 0)
+        goto end;
+
+    /* Allocate space for the public key. */
+    keyData = (byte*)XMALLOC(CURVE448_KEY_SIZE, ssl->heap,
+                                                       DYNAMIC_TYPE_PUBLIC_KEY);
+    if (keyData == NULL) {
+        WOLFSSL_MSG("Key data Memory error");
+        ret = MEMORY_E;
+        goto end;
+    }
+
+    /* Export public key. */
+    if (wc_curve448_export_public_ex(key, keyData, &dataSize,
+                                                    EC448_LITTLE_ENDIAN) != 0) {
+        ret = ECC_EXPORT_ERROR;
+        goto end;
+    }
+
+    kse->pubKey = keyData;
+    kse->pubKeyLen = CURVE448_KEY_SIZE;
+    kse->key = key;
+
+#ifdef WOLFSSL_DEBUG_TLS
+    WOLFSSL_MSG("Public Curve448 Key");
+    WOLFSSL_BUFFER(keyData, dataSize);
+#endif
+
+end:
+    if (ret != 0) {
+        /* Data owned by key share entry otherwise. */
+        if (keyData != NULL)
+            XFREE(keyData, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        wc_curve448_free(key);
+        XFREE(key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+    }
+#else
+    (void)ssl;
+    (void)kse;
+
+    ret = NOT_COMPILED_IN;
+#endif /* HAVE_CURVE448 */
 
     return ret;
 }
@@ -6859,6 +6966,8 @@ static int TLSX_KeyShare_GenKey(WOLFSSL *ssl, KeyShareEntry *kse)
         return TLSX_KeyShare_GenDhKey(ssl, kse);
     if (kse->group == WOLFSSL_ECC_X25519)
         return TLSX_KeyShare_GenX25519Key(ssl, kse);
+    if (kse->group == WOLFSSL_ECC_X448)
+        return TLSX_KeyShare_GenX448Key(ssl, kse);
     return TLSX_KeyShare_GenEccKey(ssl, kse);
 }
 
@@ -6877,6 +6986,11 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
             if (current->group == WOLFSSL_ECC_X25519) {
 #ifdef HAVE_CURVE25519
                 wc_curve25519_free((curve25519_key*)current->key);
+#endif
+            }
+            else if (current->group == WOLFSSL_ECC_X448) {
+#ifdef HAVE_CURVE448
+                wc_curve448_free((curve448_key*)current->key);
 #endif
             }
             else {
@@ -7179,6 +7293,82 @@ static int TLSX_KeyShare_ProcessX25519(WOLFSSL* ssl,
     return ret;
 }
 
+/* Process the X448 key share extension on the client side.
+ *
+ * ssl            The SSL/TLS object.
+ * keyShareEntry  The key share entry object to use to calculate shared secret.
+ * returns 0 on success and other values indicate failure.
+ */
+static int TLSX_KeyShare_ProcessX448(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
+{
+    int ret;
+
+#ifdef HAVE_CURVE448
+    curve448_key* key = (curve448_key*)keyShareEntry->key;
+    curve448_key* peerX448Key;
+
+#ifdef HAVE_ECC
+    if (ssl->peerEccKey != NULL) {
+        wc_ecc_free(ssl->peerEccKey);
+        ssl->peerEccKey = NULL;
+    }
+#endif
+
+    peerX448Key = (curve448_key*)XMALLOC(sizeof(curve448_key), ssl->heap,
+                                                             DYNAMIC_TYPE_TLSX);
+    if (peerX448Key == NULL) {
+        WOLFSSL_MSG("PeerEccKey Memory error");
+        return MEMORY_ERROR;
+    }
+    ret = wc_curve448_init(peerX448Key);
+    if (ret != 0) {
+        XFREE(peerX448Key, ssl->heap, DYNAMIC_TYPE_TLSX);
+        return ret;
+    }
+#ifdef WOLFSSL_DEBUG_TLS
+    WOLFSSL_MSG("Peer Curve448 Key");
+    WOLFSSL_BUFFER(keyShareEntry->ke, keyShareEntry->keLen);
+#endif
+
+    if (wc_curve448_check_public(keyShareEntry->ke, keyShareEntry->keLen,
+                                                    EC448_LITTLE_ENDIAN) != 0) {
+        ret = ECC_PEERKEY_ERROR;
+    }
+
+    if (ret == 0) {
+        if (wc_curve448_import_public_ex(keyShareEntry->ke,
+                                              keyShareEntry->keLen, peerX448Key,
+                                              EC448_LITTLE_ENDIAN) != 0) {
+            ret = ECC_PEERKEY_ERROR;
+        }
+    }
+
+    if (ret == 0) {
+        ssl->ecdhCurveOID = ECC_X448_OID;
+
+        ret = wc_curve448_shared_secret_ex(key, peerX448Key,
+                                                   ssl->arrays->preMasterSecret,
+                                                   &ssl->arrays->preMasterSz,
+                                                   EC448_LITTLE_ENDIAN);
+    }
+
+    wc_curve448_free(peerX448Key);
+    XFREE(peerX448Key, ssl->heap, DYNAMIC_TYPE_TLSX);
+    wc_curve448_free((curve448_key*)keyShareEntry->key);
+    if (keyShareEntry->key != NULL) {
+        XFREE(keyShareEntry->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+        keyShareEntry->key = NULL;
+    }
+#else
+    (void)ssl;
+    (void)keyShareEntry;
+
+    ret = PEER_KEY_ERROR;
+#endif /* HAVE_CURVE448 */
+
+    return ret;
+}
+
 /* Process the ECC key share extension on the client side.
  *
  * ssl            The SSL/TLS object.
@@ -7306,6 +7496,8 @@ static int TLSX_KeyShare_Process(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         ret = TLSX_KeyShare_ProcessDh(ssl, keyShareEntry);
     else if (keyShareEntry->group == WOLFSSL_ECC_X25519)
         ret = TLSX_KeyShare_ProcessX25519(ssl, keyShareEntry);
+    else if (keyShareEntry->group == WOLFSSL_ECC_X448)
+        ret = TLSX_KeyShare_ProcessX448(ssl, keyShareEntry);
     else
         ret = TLSX_KeyShare_ProcessEcc(ssl, keyShareEntry);
 
@@ -7703,6 +7895,10 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
         case WOLFSSL_ECC_X25519:
             break;
     #endif
+    #ifdef HAVE_CURVE448
+        case WOLFSSL_ECC_X448:
+            break;
+    #endif
     #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
         case WOLFSSL_ECC_SECP384R1:
@@ -7714,10 +7910,6 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
         case WOLFSSL_ECC_SECP521R1:
             break;
         #endif /* !NO_ECC_SECP */
-    #endif
-    #ifdef HAVE_X448
-        case WOLFSSL_ECC_X448:
-            break;
     #endif
         default:
             return 0;
@@ -7749,6 +7941,11 @@ static int TLSX_KeyShare_GroupRank(WOLFSSL* ssl, int group)
     #ifndef HAVE_FIPS
         #if defined(HAVE_CURVE25519)
             ssl->group[ssl->numGroups++] = WOLFSSL_ECC_X25519;
+        #endif
+    #endif
+    #ifndef HAVE_FIPS
+        #if defined(HAVE_CURVE448)
+            ssl->group[ssl->numGroups++] = WOLFSSL_ECC_X448;
         #endif
     #endif
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
@@ -9526,10 +9723,10 @@ static byte* TLSX_QSHKeyFind_Pub(QSHKey* qsh, word16* pubLen, word16 name)
 
 #if (!defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TLS13) && \
         !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)) || \
-    (defined(WOLFSSL_TLS13) && !defined(HAVE_ECC) && \
-        !defined(HAVE_CURVE25519) && defined(HAVE_SUPPORTED_CURVES)) || \
-    ((defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
-        defined(HAVE_SUPPORTED_CURVES))
+    (defined(WOLFSSL_TLS13) && !defined(HAVE_ECC) && !defined(HAVE_CURVE25519) \
+        && !defined(HAVE_CURVE448) && defined(HAVE_SUPPORTED_CURVES)) || \
+    ((defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+        defined(HAVE_CURVE448)) && defined(HAVE_SUPPORTED_CURVES))
 
 /* Populates the default supported groups / curves */
 static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
@@ -9583,6 +9780,17 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
                 if (ret != WOLFSSL_SUCCESS) return ret;
             #endif
         #endif
+#endif /* HAVE_ECC && HAVE_SUPPORTED_CURVES */
+
+        #ifndef HAVE_FIPS
+            #if defined(HAVE_CURVE448)
+                ret = TLSX_UseSupportedCurve(extensions,
+                                                   WOLFSSL_ECC_X448, ssl->heap);
+                if (ret != WOLFSSL_SUCCESS) return ret;
+            #endif
+        #endif /* HAVE_FIPS */
+
+#if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
         #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
             #ifndef NO_ECC_SECP
                 ret = TLSX_UseSupportedCurve(extensions,
@@ -9811,8 +10019,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         }
 #endif
 
-#if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
-                                                  defined(HAVE_SUPPORTED_CURVES)
+#if (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
+                       defined(HAVE_CURVE448)) && defined(HAVE_SUPPORTED_CURVES)
         if (!ssl->options.userCurves && !ssl->ctx->userCurves) {
             if (TLSX_Find(ssl->ctx->extensions,
                                                TLSX_SUPPORTED_GROUPS) == NULL) {
@@ -9829,7 +10037,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
              if (ret != WOLFSSL_SUCCESS)
                  return ret;
         }
-#endif /* (HAVE_ECC || HAVE_CURVE25519) && HAVE_SUPPORTED_CURVES */
+#endif /* (HAVE_ECC || CURVE25519 || CURVE448) && HAVE_SUPPORTED_CURVES */
     } /* is not server */
 
 #if !defined(WOLFSSL_NO_SIGALG)
@@ -9851,7 +10059,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             }
 
     #if !defined(HAVE_ECC) && !defined(HAVE_CURVE25519) && \
-                                                  defined(HAVE_SUPPORTED_CURVES)
+                       !defined(HAVE_CURVE448) && defined(HAVE_SUPPORTED_CURVES)
         if (TLSX_Find(ssl->ctx->extensions, TLSX_SUPPORTED_GROUPS) == NULL) {
             /* Put in DH groups for TLS 1.3 only. */
             ret = TLSX_PopulateSupportedGroups(ssl, &ssl->extensions);
@@ -9859,7 +10067,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 return ret;
             ret = 0;
         }
-    #endif /* !HAVE_ECC && !HAVE_CURVE25519 && HAVE_SUPPORTED_CURVES */
+    #endif /* (HAVE_ECC || CURVE25519 || CURVE448) && HAVE_SUPPORTED_CURVES */
 
         #if !defined(WOLFSSL_TLS13_DRAFT_18) && !defined(WOLFSSL_TLS13_DRAFT_22)
             if (ssl->certHashSigAlgoSz > 0) {
@@ -9885,6 +10093,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     namedGroup = WOLFSSL_ECC_SECP256R1;
         #elif defined(HAVE_CURVE25519)
                     namedGroup = WOLFSSL_ECC_X25519;
+        #elif defined(HAVE_CURVE448)
+                    namedGroup = WOLFSSL_ECC_X448;
         #elif defined(HAVE_ECC) && (!defined(NO_ECC384) || \
                               defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP)
                     namedGroup = WOLFSSL_ECC_SECP384R1;
@@ -9996,7 +10206,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 
                 /* Pre-shared key modes: mandatory extension for resumption. */
                 modes = 1 << PSK_KE;
-            #if !defined(NO_DH) || defined(HAVE_ECC) || defined(HAVE_CURVE25519)
+            #if !defined(NO_DH) || defined(HAVE_ECC) || \
+                              defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
                 if (!ssl->options.noPskDheKe)
                     modes |= 1 << PSK_DHE_KE;
             #endif

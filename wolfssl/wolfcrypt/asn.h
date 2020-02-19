@@ -283,6 +283,8 @@ enum Misc_ASN {
     MAX_ENCODED_SIG_SZ  = 512,
 #elif defined(HAVE_ECC)
     MAX_ENCODED_SIG_SZ  = 140,
+#elif defined(HAVE_CURVE448)
+    MAX_ENCODED_SIG_SZ  = 114,
 #else
     MAX_ENCODED_SIG_SZ  =  64,
 #endif
@@ -435,6 +437,7 @@ enum Key_Sum {
     NTRUk    = 274,
     ECDSAk   = 518,
     ED25519k = 256,
+    ED448k   = 257,
     DHk      = 647, /* dhKeyAgreement OID: 1.2.840.113549.1.3.1 */
 };
 
@@ -679,7 +682,7 @@ struct SignatureCtx {
     byte* out;
     byte* plain;
 #endif
-#if defined(HAVE_ECC) || defined(HAVE_ED25519)
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     int verify;
 #endif
     union {
@@ -691,6 +694,9 @@ struct SignatureCtx {
     #endif
     #ifdef HAVE_ED25519
         struct ed25519_key* ed25519;
+    #endif
+    #ifdef HAVE_ED448
+        struct ed448_key* ed448;
     #endif
         void* ptr;
     } key;
@@ -833,7 +839,7 @@ struct DecodedCert {
     word32  extSubjKeyIdSz;
 #endif
 
-#if defined(HAVE_ECC) || defined(HAVE_ED25519)
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     word32  pkCurveOID;           /* Public Key's curve OID */
 #endif /* HAVE_ECC */
     const byte* beforeDate;
@@ -1207,7 +1213,8 @@ enum cert_enums {
     RSA_KEY         = 10,
     NTRU_KEY        = 11,
     ECC_KEY         = 12,
-    ED25519_KEY     = 13
+    ED25519_KEY     = 13,
+    ED448_KEY       = 14
 };
 
 #endif /* WOLFSSL_CERT_GEN */

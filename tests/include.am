@@ -36,6 +36,7 @@ EXTRA_DIST += tests/test.conf \
               tests/test-sctp-sha2.conf \
               tests/test-sig.conf \
               tests/test-ed25519.conf \
+              tests/test-ed448.conf \
               tests/test-enckeys.conf \
               tests/test-maxfrag.conf \
               tests/test-maxfrag-dtls.conf \

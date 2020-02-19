@@ -4861,7 +4861,8 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
 #endif /* NO_WOLFSSL_SERVER */
 
 #ifndef NO_CERTS
-#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519)
+#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+                                                             defined(HAVE_ED448)
 /* Encode the signature algorithm into buffer.
  *
  * hashalgo  The hash algorithm.
@@ -4885,6 +4886,14 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
             (void)hashAlgo;
             break;
 #endif
+#ifdef HAVE_ED448
+        /* ED448: 0x0808 */
+        case ed448_sa_algo:
+            output[0] = ED448_SA_MAJOR;
+            output[1] = ED448_SA_MINOR;
+            (void)hashAlgo;
+            break;
+#endif
 #ifndef NO_RSA
         /* PSS signatures: 0x080[4-6] */
         case rsa_pss_sa_algo:
@@ -4892,7 +4901,6 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
             output[1] = hashAlgo;
             break;
 #endif
-        /* ED448: 0x0808 */
     }
 }
 
@@ -4900,7 +4908,7 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
  *
  * input     The encoded signature algorithm.
  * hashalgo  The hash algorithm.
- * hsType   The signature type.
+ * hsType    The signature type.
  * returns INVALID_PARAMETER if not recognized and 0 otherwise.
  */
 static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
@@ -4923,9 +4931,16 @@ static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
                 *hashAlgo = sha512_mac;
             }
     #endif
+    #ifdef HAVE_ED448
+            /* ED448: 0x0808 */
+            else if (input[1] == ED448_SA_MINOR) {
+                *hsType = ed448_sa_algo;
+                /* Hash performed as part of sign/verify operation. */
+                *hashAlgo = sha512_mac;
+            }
+    #endif
             else
                 ret = INVALID_PARAMETER;
-            /* ED448: 0x0808 */
             break;
         default:
             *hashAlgo = input[0];
@@ -5638,6 +5653,10 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             else if (ssl->hsType == DYNAMIC_TYPE_ED25519)
                 args->sigAlgo = ed25519_sa_algo;
         #endif
+        #ifdef HAVE_ED448
+            else if (ssl->hsType == DYNAMIC_TYPE_ED448)
+                args->sigAlgo = ed448_sa_algo;
+        #endif
             EncodeSigAlg(ssl->suites->hashAlgo, args->sigAlgo, args->verify);
 
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
@@ -5701,7 +5720,16 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 }
                 sig->length = ED25519_SIG_SIZE;
             }
-        #endif /* HAVE_ECC */
+        #endif /* HAVE_ED25519 */
+        #ifdef HAVE_ED448
+            if (ssl->hsType == DYNAMIC_TYPE_ED448) {
+                ret = Ed448CheckPubKey(ssl);
+                if (ret < 0) {
+                    ERROR_OUT(ret, exit_scv);
+                }
+                sig->length = ED448_SIG_SIZE;
+            }
+        #endif /* HAVE_ED448 */
 
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_DO;
@@ -5730,6 +5758,20 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 ret = Ed25519Sign(ssl, args->sigData, args->sigDataSz,
                     args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
                     (word32*)&sig->length, (ed25519_key*)ssl->hsKey,
+            #ifdef HAVE_PK_CALLBACKS
+                    ssl->buffers.key
+            #else
+                    NULL
+            #endif
+                );
+                args->length = (word16)sig->length;
+            }
+        #endif
+        #ifdef HAVE_ED448
+            if (ssl->hsType == DYNAMIC_TYPE_ED448) {
+                ret = Ed448Sign(ssl, args->sigData, args->sigDataSz,
+                    args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
+                    (word32*)&sig->length, (ed448_key*)ssl->hsKey,
             #ifdef HAVE_PK_CALLBACKS
                     ssl->buffers.key
             #else
@@ -5903,7 +5945,8 @@ static int DoTls13Certificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     return ret;
 }
 
-#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519)
+#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+                                                             defined(HAVE_ED448)
 
 typedef struct Dcv13Args {
     byte*  output; /* not allocated */
@@ -6028,6 +6071,11 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 WOLFSSL_MSG("Oops, peer sent ED25519 key but not in verify");
             }
         #endif
+        #ifdef HAVE_ED448
+            if (args->sigAlgo == ed448_sa_algo && !ssl->peerEd448KeyPresent) {
+                WOLFSSL_MSG("Oops, peer sent ED448 key but not in verify");
+            }
+        #endif
         #ifdef HAVE_ECC
             if (args->sigAlgo == ecc_dsa_sa_algo &&
                                                    !ssl->peerEccDsaKeyPresent) {
@@ -6058,7 +6106,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 WOLFSSL_MSG("Doing ECC peer cert verify");
 
                 args->sigData = (byte*)XMALLOC(MAX_SIG_DATA_SZ, ssl->heap,
-                                                    DYNAMIC_TYPE_SIGNATURE);
+                                                        DYNAMIC_TYPE_SIGNATURE);
                 if (args->sigData == NULL) {
                     ERROR_OUT(MEMORY_E, exit_dcv);
                 }
@@ -6079,7 +6127,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 WOLFSSL_MSG("Doing ED25519 peer cert verify");
 
                 args->sigData = (byte*)XMALLOC(MAX_SIG_DATA_SZ, ssl->heap,
-                                                    DYNAMIC_TYPE_SIGNATURE);
+                                                        DYNAMIC_TYPE_SIGNATURE);
                 if (args->sigData == NULL) {
                     ERROR_OUT(MEMORY_E, exit_dcv);
                 }
@@ -6088,6 +6136,20 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 ret = 0;
             }
         #endif
+        #ifdef HAVE_ED448
+            if (ssl->peerEd448KeyPresent) {
+                WOLFSSL_MSG("Doing ED448 peer cert verify");
+
+                args->sigData = (byte*)XMALLOC(MAX_SIG_DATA_SZ, ssl->heap,
+                                                        DYNAMIC_TYPE_SIGNATURE);
+                if (args->sigData == NULL) {
+                    ERROR_OUT(MEMORY_E, exit_dcv);
+                }
+
+                CreateSigData(ssl, args->sigData, &args->sigDataSz, 1);
+                ret = 0;
+            }
+       #endif
 
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_DO;
@@ -6152,6 +6214,27 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     FreeKey(ssl, DYNAMIC_TYPE_ED25519,
                                                   (void**)&ssl->peerEd25519Key);
                     ssl->peerEd25519KeyPresent = 0;
+                }
+            }
+        #endif
+        #ifdef HAVE_ED448
+            if (ssl->peerEd448KeyPresent) {
+                WOLFSSL_MSG("Doing ED448 peer cert verify");
+
+                ret = Ed448Verify(ssl, input + args->idx, args->sz,
+                    args->sigData, args->sigDataSz,
+                    ssl->peerEd448Key,
+                #ifdef HAVE_PK_CALLBACKS
+                    &ssl->buffers.peerEd448Key
+                #else
+                    NULL
+                #endif
+                );
+
+                if (ret >= 0) {
+                    FreeKey(ssl, DYNAMIC_TYPE_ED448,
+                                                    (void**)&ssl->peerEd448Key);
+                    ssl->peerEd448KeyPresent = 0;
                 }
             }
         #endif
@@ -7473,8 +7556,9 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     case server_hello:
         WOLFSSL_MSG("processing server hello");
         ret = DoTls13ServerHello(ssl, input, inOutIdx, size, &type);
-    #if !defined(WOLFSSL_NO_CLIENT_AUTH) && defined(HAVE_ED25519) && \
-                                                !defined(NO_ED25519_CLIENT_AUTH)
+    #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
+               ((defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
+                (defined(HAVE_ED448) && !defined(NO_ED448_CLIENT_AUTH)))
         if (ssl->options.resuming || !IsAtLeastTLSv1_2(ssl) ||
                                                IsAtLeastTLSv1_3(ssl->version)) {
             ssl->options.cacheMessages = 0;
@@ -7527,7 +7611,8 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         break;
 #endif
 
-#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519)
+#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+                                                             defined(HAVE_ED448)
     case certificate_verify:
         WOLFSSL_MSG("processing certificate verify");
         ret = DoTls13CertificateVerify(ssl, input, inOutIdx, size);
