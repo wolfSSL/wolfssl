@@ -458,6 +458,7 @@
     #define NO_MAIN_DRIVER
     #define NO_DEV_RANDOM
     #define NO_WRITEV
+    #define HAVE_STRINGS_H
 #endif
 
 
