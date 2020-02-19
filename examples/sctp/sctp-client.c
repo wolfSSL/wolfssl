@@ -19,6 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifndef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/options.h>
+#endif
+#include <wolfssl/wolfcrypt/settings.h>
+
+#ifdef WOLFSSL_SCTP
 
 /* sctp */
 #include <sys/socket.h>
@@ -30,9 +36,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#endif /* WOLFSSL_SCTP */
 
 int main()
 {
+#ifdef WOLFSSL_SCTP
     int sd = socket(PF_INET, SOCK_STREAM, IPPROTO_SCTP);
 
     if (sd < 0)
@@ -59,6 +67,6 @@ int main()
     }
 
     close(sd);
-
+#endif /* WOLFSSL_SCTP */
     return 0;
 }
