@@ -43,6 +43,7 @@
     #include <wolfssl/openssl/md5.h>
 #endif
 #include <wolfssl/openssl/sha.h>
+#include <wolfssl/openssl/sha3.h>
 #include <wolfssl/openssl/ripemd.h>
 #include <wolfssl/openssl/rsa.h>
 #include <wolfssl/openssl/dsa.h>
@@ -87,6 +88,11 @@ WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha256(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha384(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha512(void);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_ripemd160(void);
+
+WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_224(void);
+WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_256(void);
+WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_384(void);
+WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_sha3_512(void);
 
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_ecb(void);
 WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_ecb(void);
@@ -156,6 +162,16 @@ typedef union {
     #endif
     #ifdef WOLFSSL_RIPEMD
         WOLFSSL_RIPEMD_CTX ripemd;
+    #endif
+    #ifndef WOLFSSL_NOSHA3_224
+        WOLFSSL_SHA3_224_CTX sha3_224;
+    #endif
+    #ifndef WOLFSSL_NOSHA3_256
+        WOLFSSL_SHA3_256_CTX sha3_256;
+    #endif
+        WOLFSSL_SHA3_384_CTX sha3_384;
+    #ifndef WOLFSSL_NOSHA3_512
+        WOLFSSL_SHA3_512_CTX sha3_512;
     #endif
 } WOLFSSL_Hasher;
 
@@ -262,6 +278,10 @@ enum {
     NID_ecdsa_with_SHA512 = 796,
     NID_dsa_with_SHA224 = 802,
     NID_dsa_with_SHA256 = 803,
+    NID_sha3_224        = 1096,
+    NID_sha3_256        = 1097,
+    NID_sha3_384        = 1098,
+    NID_sha3_512        = 1099,
 };
 
 enum {
@@ -627,6 +647,11 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_sha384    wolfSSL_EVP_sha384
 #define EVP_sha512    wolfSSL_EVP_sha512
 #define EVP_ripemd160 wolfSSL_EVP_ripemd160
+
+#define EVP_sha3_224    wolfSSL_EVP_sha3_224
+#define EVP_sha3_256    wolfSSL_EVP_sha3_256
+#define EVP_sha3_384    wolfSSL_EVP_sha3_384
+#define EVP_sha3_512    wolfSSL_EVP_sha3_512
 
 #define EVP_aes_128_cbc    wolfSSL_EVP_aes_128_cbc
 #define EVP_aes_192_cbc    wolfSSL_EVP_aes_192_cbc

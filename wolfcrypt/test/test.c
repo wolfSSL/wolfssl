@@ -15507,6 +15507,82 @@ int openssl_test(void)
 
 #endif /* WOLFSSL_SHA512 */
 
+#ifndef WOLFSSL_NOSHA3_224
+
+    e.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
+               "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
+    e.output = "\x54\x3e\x68\x68\xe1\x66\x6c\x1a\x64\x36\x30\xdf\x77\x36\x7a\xe5\xa6\x2a\x85\x07\x0a\x51\xc1\x4c\xbf\x66\x5c\xbc";
+    e.inLen  = XSTRLEN(e.input);
+    e.outLen = WC_SHA3_224_DIGEST_SIZE;
+
+    EVP_MD_CTX_init(&md_ctx);
+    EVP_DigestInit(&md_ctx, EVP_sha3_224());
+
+    EVP_DigestUpdate(&md_ctx, e.input, (unsigned long)e.inLen);
+    EVP_DigestFinal(&md_ctx, hash, 0);
+
+    if (XMEMCMP(hash, e.output, WC_SHA3_224_DIGEST_SIZE) != 0)
+        return -7403;
+
+#endif /* WOLFSSL_NOSHA3_224 */
+
+
+#ifndef WOLFSSL_NOSHA3_256
+    d.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
+               "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
+    d.output = "\x91\x6f\x60\x61\xfe\x87\x97\x41\xca\x64\x69\xb4\x39\x71\xdf"
+               "\xdb\x28\xb1\xa3\x2d\xc3\x6c\xb3\x25\x4e\x81\x2b\xe2\x7a\xad"
+               "\x1d\x18";
+    d.inLen  = XSTRLEN(d.input);
+    d.outLen = WC_SHA3_256_DIGEST_SIZE;
+
+    EVP_MD_CTX_init(&md_ctx);
+    EVP_DigestInit(&md_ctx, EVP_sha3_256());
+
+    EVP_DigestUpdate(&md_ctx, d.input, (unsigned long)d.inLen);
+    EVP_DigestFinal(&md_ctx, hash, 0);
+
+    if (XMEMCMP(hash, d.output, WC_SHA3_256_DIGEST_SIZE) != 0)
+        return -7404;
+#endif /* WOLFSSL_NOSHA3_256 */
+
+
+    e.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
+               "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
+    e.output = "\x79\x40\x7d\x3b\x59\x16\xb5\x9c\x3e\x30\xb0\x98\x22\x97\x47\x91\xc3\x13\xfb\x9e\xcc\x84\x9e\x40\x6f\x23\x59\x2d\x04\xf6\x25\xdc\x8c\x70\x9b\x98\xb4\x3b\x38\x52\xb3\x37\x21\x61\x79\xaa\x7f\xc7";
+    e.inLen  = XSTRLEN(e.input);
+    e.outLen = WC_SHA3_384_DIGEST_SIZE;
+
+    EVP_MD_CTX_init(&md_ctx);
+    EVP_DigestInit(&md_ctx, EVP_sha3_384());
+
+    EVP_DigestUpdate(&md_ctx, e.input, (unsigned long)e.inLen);
+    EVP_DigestFinal(&md_ctx, hash, 0);
+
+    if (XMEMCMP(hash, e.output, WC_SHA3_384_DIGEST_SIZE) != 0)
+        return -7405;
+
+
+
+#ifndef WOLFSSL_NOSHA3_512
+
+    f.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
+               "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
+    f.output = "\xaf\xeb\xb2\xef\x54\x2e\x65\x79\xc5\x0c\xad\x06\xd2\xe5\x78\xf9\xf8\xdd\x68\x81\xd7\xdc\x82\x4d\x26\x36\x0f\xee\xbf\x18\xa4\xfa\x73\xe3\x26\x11\x22\x94\x8e\xfc\xfd\x49\x2e\x74\xe8\x2e\x21\x89\xed\x0f\xb4\x40\xd1\x87\xf3\x82\x27\x0c\xb4\x55\xf2\x1d\xd1\x85";
+    f.inLen  = XSTRLEN(f.input);
+    f.outLen = WC_SHA3_512_DIGEST_SIZE;
+
+    EVP_MD_CTX_init(&md_ctx);
+    EVP_DigestInit(&md_ctx, EVP_sha3_512());
+
+    EVP_DigestUpdate(&md_ctx, f.input, (unsigned long)f.inLen);
+    EVP_DigestFinal(&md_ctx, hash, 0);
+
+    if (XMEMCMP(hash, f.output, WC_SHA3_512_DIGEST_SIZE) != 0)
+        return -7406;
+
+#endif /* WOLFSSL_NOSHA3_512 */
+
 
 #ifndef NO_MD5
     if (RAND_bytes(hash, sizeof(hash)) != 1)
