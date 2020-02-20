@@ -627,6 +627,7 @@ enum AlertDescription {
     unrecognized_name               = 112, /**< RFC 6066, section 3 */
     bad_certificate_status_response = 113, /**< RFC 6066, section 8 */
     unknown_psk_identity            = 115, /**< RFC 4279, section 2 */
+    certificate_required            = 116, /**< RFC 8446, section 8.2 */
     no_application_protocol         = 120
 };
 
@@ -866,6 +867,8 @@ WOLFSSL_API int  wolfSSL_no_ticket_TLSv13(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_CTX_no_dhe_psk(WOLFSSL_CTX* ctx);
 WOLFSSL_API int  wolfSSL_no_dhe_psk(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_update_keys(WOLFSSL* ssl);
+WOLFSSL_API int  wolfSSL_CTX_mutual_auth(WOLFSSL_CTX* ctx, int req);
+WOLFSSL_API int  wolfSSL_mutual_auth(WOLFSSL* ssl, int req);
 WOLFSSL_API int  wolfSSL_CTX_allow_post_handshake_auth(WOLFSSL_CTX* ctx);
 WOLFSSL_API int  wolfSSL_allow_post_handshake_auth(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_request_certificate(WOLFSSL* ssl);

@@ -111,6 +111,22 @@ if [ $RESULT -eq 0 ]; then
 fi
 echo ""
 
+# TLS 1.3 mutual auth required but client doesn't send certificates.
+echo -e "\n\nTLS v1.3 mutual auth fail"
+port=0
+./examples/server/server -v 4 -F -R $ready_file -p $port &
+server_pid=$!
+create_port
+./examples/client/client -v 4 -x -p $port
+RESULT=$?
+remove_ready_file
+if [ $RESULT -eq 0 ]; then
+    echo -e "\n\nIssue with requiring mutual authentication"
+    do_cleanup
+    exit 1
+fi
+echo ""
+
 
 ./examples/client/client -v 3 2>&1 | grep -- 'Bad SSL version'
 if [ $? -ne 0 ]; then
