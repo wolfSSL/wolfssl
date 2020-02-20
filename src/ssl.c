@@ -17194,7 +17194,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->block_size = 16;
         }
 #ifdef HAVE_WOLFSSL_EVP_CIPHER_CTX_IV
-        ctx->ivSz = wolfSSL_EVP_CIPHER_CTX_iv_length(ctx);
         if (iv && iv != ctx->iv) {
             if (wolfSSL_StoreExternalIV(ctx) != WOLFSSL_SUCCESS) {
                 return WOLFSSL_FAILURE;
@@ -32444,7 +32443,7 @@ int wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX* ctx)
         case AES_192_GCM_TYPE :
         case AES_256_GCM_TYPE :
             WOLFSSL_MSG("AES GCM");
-            return AES_BLOCK_SIZE;
+            return GCM_NONCE_MID_SZ;
 #endif
 #ifdef WOLFSSL_AES_COUNTER
         case AES_128_CTR_TYPE :
