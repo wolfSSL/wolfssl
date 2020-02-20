@@ -124,7 +124,9 @@ extern int wc_InitRsaHw(RsaKey* key);
 
 #define ERROR_OUT(err, eLabel) { ret = (err); goto eLabel; }
 
-#if defined(HAVE_SELFTEST) || !defined(NO_SKID)
+#if defined(HAVE_SELFTEST) || ( !defined(NO_SKID) && \
+                                ( !defined(HAVE_FIPS) || \
+                                  !defined(HAVE_FIPS_VERSION) ))
     #ifndef WOLFSSL_AES_KEY_SIZE_ENUM
     #define WOLFSSL_AES_KEY_SIZE_ENUM
     enum Asn_Misc {
