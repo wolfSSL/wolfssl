@@ -18077,7 +18077,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_XTS_MODE;
             ctx->keyLen     = 32;
             ctx->block_size = 1;
-            ctx->ivSz       = 16;
+            ctx->ivSz       = AES_BLOCK_SIZE;
 
             if (iv)
                 XMEMCPY(ctx->iv, iv, ctx->ivSz);
@@ -18105,7 +18105,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->flags     |= WOLFSSL_EVP_CIPH_XTS_MODE;
             ctx->keyLen     = 64;
             ctx->block_size = 1;
-            ctx->ivSz       = 16;
+            ctx->ivSz       = AES_BLOCK_SIZE;
 
             if (iv)
                 XMEMCPY(ctx->iv, iv, ctx->ivSz);
@@ -18595,7 +18595,38 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 XMEMCPY(ctx->iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
                 break;
 #endif /* WOLFSSL_AES_COUNTER */
-
+#ifdef WOLFSSL_AES_CFB
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+            case AES_128_CFB1_TYPE:
+            case AES_192_CFB1_TYPE:
+            case AES_256_CFB1_TYPE:
+                WOLFSSL_MSG("AES CFB1");
+                break;
+            case AES_128_CFB8_TYPE:
+            case AES_192_CFB8_TYPE:
+            case AES_256_CFB8_TYPE:
+                WOLFSSL_MSG("AES CFB8");
+                break;
+#endif /* !HAVE_SELFTEST && !HAVE_FIPS */
+            case AES_128_CFB128_TYPE:
+            case AES_192_CFB128_TYPE:
+            case AES_256_CFB128_TYPE:
+                WOLFSSL_MSG("AES CFB128");
+                break;
+#endif /* WOLFSSL_AES_CFB */
+#if defined(WOLFSSL_AES_OFB)
+            case AES_128_OFB_TYPE:
+            case AES_192_OFB_TYPE:
+            case AES_256_OFB_TYPE:
+                WOLFSSL_MSG("AES OFB");
+                break;
+#endif /* WOLFSSL_AES_OFB */
+#ifdef WOLFSSL_AES_XTS
+            case AES_128_XTS_TYPE:
+            case AES_256_XTS_TYPE:
+                WOLFSSL_MSG("AES XTS");
+                break;
+#endif /* WOLFSSL_AES_XTS */
 #endif /* NO_AES */
 
 #ifndef NO_DES3
@@ -33704,6 +33735,38 @@ int wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX* ctx)
             WOLFSSL_MSG("ARC4");
             return 0;
 #endif
+#ifdef WOLFSSL_AES_CFB
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+        case AES_128_CFB1_TYPE:
+        case AES_192_CFB1_TYPE:
+        case AES_256_CFB1_TYPE:
+            WOLFSSL_MSG("AES CFB1");
+            return AES_BLOCK_SIZE;
+        case AES_128_CFB8_TYPE:
+        case AES_192_CFB8_TYPE:
+        case AES_256_CFB8_TYPE:
+            WOLFSSL_MSG("AES CFB8");
+            return AES_BLOCK_SIZE;
+#endif /* !HAVE_SELFTEST && !HAVE_FIPS */
+        case AES_128_CFB128_TYPE:
+        case AES_192_CFB128_TYPE:
+        case AES_256_CFB128_TYPE:
+            WOLFSSL_MSG("AES CFB128");
+            return AES_BLOCK_SIZE;
+#endif /* WOLFSSL_AES_CFB */
+#if defined(WOLFSSL_AES_OFB)
+        case AES_128_OFB_TYPE:
+        case AES_192_OFB_TYPE:
+        case AES_256_OFB_TYPE:
+            WOLFSSL_MSG("AES OFB");
+            return AES_BLOCK_SIZE;
+#endif /* WOLFSSL_AES_OFB */
+#ifdef WOLFSSL_AES_XTS
+        case AES_128_XTS_TYPE:
+        case AES_256_XTS_TYPE:
+            WOLFSSL_MSG("AES XTS");
+            return AES_BLOCK_SIZE;
+#endif /* WOLFSSL_AES_XTS */
 
         case NULL_CIPHER_TYPE :
             WOLFSSL_MSG("NULL");

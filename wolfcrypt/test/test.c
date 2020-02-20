@@ -6425,27 +6425,6 @@ EVP_TEST_END:
 #endif /* WOLFSSL_AES_128 */
 #ifdef WOLFSSL_AES_192
         /* 192 key tests */
-    #ifdef OPENSSL_EXTRA
-        ret = EVP_test(EVP_aes_192_cfb8(), key2, iv2, msg2, sizeof(msg2),
-                cipher2, sizeof(cipher2));
-        if (ret != 0) {
-            return ret;
-        }
-    #endif
-#endif /* WOLFSSL_AES_192 */
-#ifdef WOLFSSL_AES_256
-        /* 192 key tests */
-    #ifdef OPENSSL_EXTRA
-        ret = EVP_test(EVP_aes_256_cfb8(), key3, iv3, msg3, sizeof(msg3),
-                cipher3, sizeof(cipher3));
-        if (ret != 0) {
-            return ret;
-        }
-    #endif
-#endif /* WOLFSSL_AES_256 */
-
-#ifdef WOLFSSL_AES_192
-        /* 192 key tests */
         ret = wc_AesSetKey(&enc, key2, sizeof(key2), iv2, AES_ENCRYPTION);
         if (ret != 0)
             return -4749;
@@ -6635,6 +6614,49 @@ EVP_TEST_END:
             return -4746;
     #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_128 */
+#ifdef WOLFSSL_AES_192
+        /* 192 key tests */
+        ret = wc_AesSetKey(&enc, key2, sizeof(key2), iv2, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4749;
+
+        XMEMSET(cipher, 0, sizeof(cipher));
+        ret = wc_AesCfb8Encrypt(&enc, cipher, msg2, sizeof(msg2));
+        if (ret != 0)
+            return -4750;
+        if (XMEMCMP(cipher, cipher2, sizeof(msg2)) != 0)
+            return -4751;
+#ifdef OPENSSL_EXTRA
+        ret = EVP_test(EVP_aes_192_cfb8(), key2, iv2, msg2, sizeof(msg2),
+                cipher2, sizeof(msg2));
+        if (ret != 0) {
+            return ret;
+        }
+#endif
+
+#endif /* WOLFSSL_AES_192 */
+
+#ifdef WOLFSSL_AES_256
+        /* 256 key tests */
+        ret = wc_AesSetKey(&enc, key3, sizeof(key3), iv3, AES_ENCRYPTION);
+        if (ret != 0)
+            return -4754;
+
+        XMEMSET(cipher, 0, sizeof(cipher));
+        ret = wc_AesCfb8Encrypt(&enc, cipher, msg3, sizeof(msg3));
+        if (ret != 0)
+            return -4755;
+        if (XMEMCMP(cipher, cipher3, sizeof(cipher3)) != 0)
+            return -4756;
+
+    #ifdef OPENSSL_EXTRA
+        ret = EVP_test(EVP_aes_256_cfb8(), key3, iv3, msg3, sizeof(msg3),
+                cipher3, sizeof(msg3));
+        if (ret != 0) {
+            return ret;
+        }
+    #endif
+#endif /* WOLFSSL_AES_256 */
 
         return ret;
     }
