@@ -694,8 +694,14 @@ extern void uITRON4_free(void *p) ;
     #endif
     /* FreeRTOS pvPortRealloc() implementation can be found here:
         https://github.com/wolfSSL/wolfssl-freertos/pull/3/files */
-    #if !defined(USE_FAST_MATH) || defined(HAVE_ED25519) || defined(WOLFSSL_ESPIDF)
-        #define XREALLOC(p, n, h, t) pvPortRealloc((p), (n))
+    #if !defined(USE_FAST_MATH) || defined(HAVE_ED25519)
+        #if defined(WOLFSSL_ESPIDF)
+            /*In IDF, realloc(p, n) is equivalent to 
+            heap_caps_realloc(p, s, MALLOC_CAP_8BIT) */
+            #define XREALLOC(p, n, h, t) realloc((p), (n))
+        #else
+            #define XREALLOC(p, n, h, t) pvPortRealloc((p), (n))
+        #endif
     #endif
     #ifndef NO_WRITEV
         #define NO_WRITEV
