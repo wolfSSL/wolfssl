@@ -3012,7 +3012,7 @@ int sha3_test(void)
 
     return 0;
 }
-#endif
+#endif /* WOLFSSL_SHA3 */
 
 
 int hash_test(void)
@@ -15528,7 +15528,7 @@ int openssl_test(void)
         return -7406;
 
 #endif /* WOLFSSL_SHA512 */
-
+#ifdef WOLFSSL_SHA3
 #ifndef WOLFSSL_NOSHA3_224
 
     e.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
@@ -15604,7 +15604,7 @@ int openssl_test(void)
         return -7406;
 
 #endif /* WOLFSSL_NOSHA3_512 */
-
+#endif /* WOLFSSL_SHA3 */
 
 #ifndef NO_MD5
     if (RAND_bytes(hash, sizeof(hash)) != 1)
