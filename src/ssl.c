@@ -18082,8 +18082,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->block_size = 1;
             ctx->ivSz       = AES_BLOCK_SIZE;
 
-            if (iv)
-                XMEMCPY(ctx->iv, iv, ctx->ivSz);
+            if (iv != NULL) {
+                if (iv != ctx->iv) /* Valgrind error when src == dst */
+                    XMEMCPY(ctx->iv, iv, ctx->ivSz);
+            }
             else
                 XMEMSET(ctx->iv, 0, AES_BLOCK_SIZE);
 
@@ -18110,8 +18112,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->block_size = 1;
             ctx->ivSz       = AES_BLOCK_SIZE;
 
-            if (iv)
-                XMEMCPY(ctx->iv, iv, ctx->ivSz);
+            if (iv != NULL) {
+                if (iv != ctx->iv) /* Valgrind error when src == dst */
+                    XMEMCPY(ctx->iv, iv, ctx->ivSz);
+            }
             else
                 XMEMSET(ctx->iv, 0, AES_BLOCK_SIZE);
 
