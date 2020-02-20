@@ -614,9 +614,7 @@ static const char* server_usage_msg[][49] = {
 #ifdef HAVE_SESSION_TICKET
         "-T          Do not generate session ticket\n",                 /* 44 */
 #endif
-#ifdef WOLFSSL_TLS13
-        "-F          Mutual authentication is required\n",              /* 45 */
-#endif
+        "-F          Send alert if no mutual authentication\n",         /* 45 */
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
         "-Q          Request certificate from client post-handshake\n", /* 46 */
 #endif
@@ -737,9 +735,7 @@ static const char* server_usage_msg[][49] = {
 #ifdef HAVE_SESSION_TICKET
         "-T         セッションチケットを生成しない\n",                  /* 44 */
 #endif
-#ifdef WOLFSSL_TLS13
-        "-F          Mutual authentication is required\n",              /* 45 */
-#endif
+        "-F          Send alert if no mutual authentication\n",         /* 45 */
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
         "-Q          クライアントのポストハンドシェイクから"
                                               "証明書を要求する\n",     /* 46 */
@@ -858,9 +854,7 @@ static void Usage(void)
 #ifdef HAVE_SESSION_TICKET
     printf("%s", msg[++msgId]);     /* -T */
 #endif
-#ifdef WOLFSSL_TLS13
     printf("%s", msg[++msgId]);     /* -F */
-#endif
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     printf("%s", msg[++msgId]);     /* -Q */
 #endif
@@ -995,7 +989,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     int noPskDheKe = 0;
 #endif
     int updateKeysIVs = 0;
-    int tls13MutualAuth = 0;
+    int mutualAuth = 0;
     int postHandAuth = 0;
 #ifdef WOLFSSL_EARLY_DATA
     int earlyData = 0;
@@ -1081,7 +1075,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     (void)crlFlags;
     (void)readySignal;
     (void)updateKeysIVs;
-    (void)tls13MutualAuth;
+    (void)mutualAuth;
     (void)postHandAuth;
     (void)mcastID;
     (void)loadCertKeyIntoSSLObj;
@@ -1414,9 +1408,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 break;
 
             case 'F' :
-                #ifdef WOLFSSL_TLS13
-                    tls13MutualAuth = 1;
-                #endif
+                    mutualAuth = 1;
                 break;
 
             case 'Q' :
@@ -1762,8 +1754,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         }
 #endif
     }
-#ifdef WOLFSSL_TLS13
-    if (tls13MutualAuth)
+#ifndef NO_CERTS
+    if (mutualAuth)
         wolfSSL_CTX_mutual_auth(ctx, 1);
 #endif
 

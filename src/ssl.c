@@ -956,6 +956,47 @@ int wolfSSL_dtls(WOLFSSL* ssl)
     return dtlsOpt;
 }
 
+#if !defined(NO_CERTS)
+/* Set whether mutual authentication is required for connections.
+ * Server side only.
+ *
+ * ctx  The SSL/TLS CTX object.
+ * req  1 to indicate required and 0 when not.
+ * returns BAD_FUNC_ARG when ctx is NULL, SIDE_ERROR when not a server and
+ * 0 on success.
+ */
+int wolfSSL_CTX_mutual_auth(WOLFSSL_CTX* ctx, int req)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+    if (ctx->method->side == WOLFSSL_CLIENT_END)
+        return SIDE_ERROR;
+
+    ctx->mutualAuth = (byte)req;
+
+    return 0;
+}
+
+/* Set whether mutual authentication is required for the connection.
+ * Server side only.
+ *
+ * ssl  The SSL/TLS object.
+ * req  1 to indicate required and 0 when not.
+ * returns BAD_FUNC_ARG when ssl is NULL, or not using TLS v1.3,
+ * SIDE_ERROR when not a client and 0 on success.
+ */
+int wolfSSL_mutual_auth(WOLFSSL* ssl, int req)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+    if (ssl->options.side == WOLFSSL_SERVER_END)
+        return SIDE_ERROR;
+
+    ssl->options.mutualAuth = (word16)req;
+
+    return 0;
+}
+#endif /* NO_CERTS */
 
 #ifndef WOLFSSL_LEANPSK
 int wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)

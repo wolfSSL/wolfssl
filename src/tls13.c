@@ -8292,48 +8292,6 @@ int wolfSSL_update_keys(WOLFSSL* ssl)
     return ret;
 }
 
-#if !defined(NO_CERTS)
-/* Set whether mutual authentication is required for TLS v1.3 connections.
- * Server side only.
- *
- * ctx  The SSL/TLS CTX object.
- * req  1 to indicate required and 0 when not.
- * returns BAD_FUNC_ARG when ctx is NULL, SIDE_ERROR when not a server and
- * 0 on success.
- */
-int wolfSSL_CTX_mutual_auth(WOLFSSL_CTX* ctx, int req)
-{
-    if (ctx == NULL || !IsAtLeastTLSv1_3(ctx->method->version))
-        return BAD_FUNC_ARG;
-    if (ctx->method->side == WOLFSSL_CLIENT_END)
-        return SIDE_ERROR;
-
-    ctx->mutualAuth = req;
-
-    return 0;
-}
-
-/* Set whether mutual authentication is required for a TLS v1.3 connection.
- * Server side only.
- *
- * ssl  The SSL/TLS object.
- * req  1 to indicate required and 0 when not.
- * returns BAD_FUNC_ARG when ssl is NULL, or not using TLS v1.3,
- * SIDE_ERROR when not a client and 0 on success.
- */
-int wolfSSL_mutual_auth(WOLFSSL* ssl, int req)
-{
-    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
-        return BAD_FUNC_ARG;
-    if (ssl->options.side == WOLFSSL_SERVER_END)
-        return SIDE_ERROR;
-
-    ssl->options.mutualAuth = req;
-
-    return 0;
-}
-#endif /* NO_CERTS */
-
 #if !defined(NO_CERTS) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
 /* Allow post-handshake authentication in TLS v1.3 connections.
  *
