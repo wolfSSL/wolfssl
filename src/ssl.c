@@ -16249,6 +16249,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
 #endif /* WOLFSSL_SHA512 */
 
+#ifdef WOLFSSL_SHA3
 #ifndef WOLFSSL_NOSHA3_224
 
     int wolfSSL_SHA3_224_Init(WOLFSSL_SHA3_224_CTX* sha)
@@ -16454,6 +16455,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
 
 #endif /* WOLFSSL_NOSHA3_512 */
+#endif /* WOLFSSL_SHA3 */
 
     static const struct s_ent {
         const unsigned char macType;
@@ -18817,6 +18819,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ret = wolfSSL_MD5_Init(&(ctx->hash.digest.md5));
         }
     #endif
+#ifdef WOLFSSL_SHA3
     #ifndef WOLFSSL_NOSHA3_224
         else if (XSTRNCMP(type, "SHA3_224", 8) == 0) {
              ctx->macType = WC_HASH_TYPE_SHA3_224;
@@ -18839,6 +18842,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
              ret = wolfSSL_SHA3_512_Init(&(ctx->hash.digest.sha3_512));
         }
     #endif
+#endif
     #ifndef NO_SHA
         /* has to be last since would pick or 224, 256, 384, or 512 too */
         else if (XSTRNCMP(type, "SHA", 3) == 0) {
