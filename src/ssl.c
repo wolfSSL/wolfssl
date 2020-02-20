@@ -35836,7 +35836,6 @@ int wolfSSL_i2d_RSAPrivateKey(WOLFSSL_RSA *rsa, unsigned char **pp)
             /* create buffer and return it */
             *pp = (unsigned char*)XMALLOC(ret, NULL, DYNAMIC_TYPE_OPENSSL);
             if (*pp == NULL) {
-                XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 return WOLFSSL_FATAL_ERROR;
             }
             XMEMCPY(*pp, der, ret);
