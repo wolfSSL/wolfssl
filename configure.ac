@@ -1,6 +1,6 @@
 # configure.ac
 #
-# Copyright (C) 2006-2017 wolfSSL Inc.
+# Copyright (C) 2006-2020 wolfSSL Inc.
 #
 # This file is part of wolfSSL. (formerly known as CyaSSL)
 #
@@ -1892,7 +1892,6 @@ then
     then
         ENABLED_OCSP="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
-        AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
     fi
 
     # Requires PSK make sure on
@@ -3452,8 +3451,6 @@ else
         ENABLED_ARC4=no
     fi
 fi
-
-AM_CONDITIONAL([BUILD_RC4], [test "x$ENABLED_ARC4" = "xyes"])
 
 # Asio Support
 AC_ARG_ENABLE([asio],
