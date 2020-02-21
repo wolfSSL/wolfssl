@@ -22683,8 +22683,18 @@ int SendCertificateVerify(WOLFSSL* ssl)
         #ifndef NO_OLD_TLS
             else {
                 /* if old TLS load MD5 and SHA hash as value to sign */
+            #ifndef NO_MD5
                 XMEMCPY(ssl->buffers.sig.buffer,
-                    (byte*)ssl->hsHashes->certHashes.md5, FINISHED_SZ);
+                    (byte*)ssl->hsHashes->certHashes.md5, WC_MD5_DIGEST_SIZE);
+            #else
+                #error "old TLS requires MD5 and SHA"
+            #endif
+            #ifndef NO_SHA
+                XMEMCPY(ssl->buffers.sig.buffer + WC_MD5_DIGEST_SIZE,
+                    (byte*)ssl->hsHashes->certHashes.sha, WC_SHA_DIGEST_SIZE);
+            #else
+                #error "old TLS requires MD5 and SHA"
+            #endif
             }
         #endif
 
