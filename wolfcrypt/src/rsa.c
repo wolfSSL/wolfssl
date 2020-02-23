@@ -768,6 +768,7 @@ int wc_CheckRsaKey(RsaKey* key)
    out:   mask output after generation
    outSz: size of output buffer
  */
+#if !defined(NO_SHA) || !defined(NO_SHA256) || defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
 static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
                                         byte* out, word32 outSz, void* heap)
 {
@@ -841,9 +842,10 @@ static int RsaMGF1(enum wc_HashType hType, byte* seed, word32 seedSz,
 
     return 0;
 }
+#endif /* SHA2 Hashes */
 
 /* helper function to direct which mask generation function is used
-   switeched on type input
+   switched on type input
  */
 static int RsaMGF(int type, byte* seed, word32 seedSz, byte* out,
                                                     word32 outSz, void* heap)
@@ -890,7 +892,7 @@ static int RsaMGF(int type, byte* seed, word32 seedSz, byte* out,
 
     return ret;
 }
-#endif /* !WC_NO_RSA_OAEP */
+#endif /* !WC_NO_RSA_OAEP || WC_RSA_PSS */
 
 
 /* Padding */
