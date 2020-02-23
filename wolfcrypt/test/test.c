@@ -154,15 +154,17 @@
 #endif
 #ifndef NO_SHA256
     #include <wolfssl/wolfcrypt/sha256.h>
+    #include <wolfssl/wolfcrypt/hash.h>
 #endif
 #ifdef WOLFSSL_SHA512
     #include <wolfssl/wolfcrypt/sha512.h>
+    #include <wolfssl/wolfcrypt/hash.h>
 #endif
 #ifndef NO_RC4
     #include <wolfssl/wolfcrypt/arc4.h>
 #endif
 /* Set if building the test app without a math library */
-#ifndef NO_WOLF_MATH
+#ifndef NO_BIG_INT
     #ifdef USE_FAST_MATH
         #include <wolfssl/wolfcrypt/tfm.h>
     #else
@@ -304,7 +306,9 @@
     #define ENABLE_ECC384_CERT_GEN_TEST
 #endif
 
-#include <wolfssl/certs_test.h>
+#if !defined(NO_ASN)
+    #include <wolfssl/certs_test.h>
+#endif
 
 #ifdef HAVE_NTRU
     #include "libntruencrypt/ntru_crypto.h"
@@ -761,10 +765,12 @@ initDefaultName();
         test_pass("SHA-3    test passed!\n");
 #endif
 
+#ifndef WOLFSSL_NO_HASH
     if ( (ret = hash_test()) != 0)
         return err_sys("Hash     test failed!\n", ret);
     else
         test_pass("Hash     test passed!\n");
+#endif
 
 #ifdef WOLFSSL_RIPEMD
     if ( (ret = ripemd_test()) != 0)
@@ -3077,6 +3083,7 @@ int sha3_test(void)
 #endif
 
 
+#ifndef WOLFSSL_NO_HASH
 int hash_test(void)
 {
     wc_HashAlg       hash;
@@ -3383,6 +3390,7 @@ int hash_test(void)
 
     return 0;
 }
+#endif /* WOLFSSL_NO_HASH */
 
 #if !defined(NO_HMAC) && !defined(NO_MD5)
 int hmac_md5_test(void)
