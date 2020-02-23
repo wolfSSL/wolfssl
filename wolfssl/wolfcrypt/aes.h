@@ -94,6 +94,8 @@
     extern "C" {
 #endif
 
+#ifndef WOLFSSL_AES_KEY_SIZE_ENUM
+#define WOLFSSL_AES_KEY_SIZE_ENUM
 /* these are required for FIPS and non-FIPS */
 enum {
     AES_128_KEY_SIZE    = 16,  /* for 128 bit             */
@@ -102,7 +104,7 @@ enum {
 
     AES_IV_SIZE         = 16,  /* always block size       */
 };
-
+#endif
 
 /* avoid redefinition of structs */
 #if !defined(HAVE_FIPS) || \

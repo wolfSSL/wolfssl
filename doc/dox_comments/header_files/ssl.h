@@ -11278,7 +11278,7 @@ int wolfSSL_DeriveTlsKeys(unsigned char* key_data, word32 keyLen,
     \sa wolfSSL_accept_ex
 */
 WOLFSSL_API int wolfSSL_connect_ex(WOLFSSL*, HandShakeCallBack, TimeoutCallBack,
-                                 Timeval);
+                                 WOLFSSL_TIMEVAL);
 
 /*!
     \brief wolfSSL_accept_ex() is an extension that allows a HandShake Callback
@@ -11310,7 +11310,7 @@ WOLFSSL_API int wolfSSL_connect_ex(WOLFSSL*, HandShakeCallBack, TimeoutCallBack,
     \sa wolfSSL_connect_ex
 */
 WOLFSSL_API int wolfSSL_accept_ex(WOLFSSL*, HandShakeCallBack, TimeoutCallBack,
-                                Timeval);
+                                WOLFSSL_TIMEVAL);
 
 /*!
     \ingroup IO

@@ -61,6 +61,7 @@ enum Hash_Sum  {
 };
 #endif /* !NO_ASN */
 
+#if !defined(NO_PWDBASED) || !defined(NO_ASN)
 /* function converts int hash type to enum */
 enum wc_HashType wc_HashTypeConvert(int hashType)
 {
@@ -129,6 +130,7 @@ enum wc_HashType wc_HashTypeConvert(int hashType)
 #endif
     return eHashType;
 }
+#endif /* !NO_PWDBASED || !NO_ASN */
 
 #if !defined(NO_ASN) || !defined(NO_DH) || defined(HAVE_ECC)
 
@@ -267,7 +269,7 @@ enum wc_HashType wc_OidGetHash(int oid)
 }
 #endif /* !NO_ASN || !NO_DH || HAVE_ECC */
 
-
+#ifndef NO_HASH_WRAPPER
 
 /* Get Hash digest size */
 int wc_HashGetDigestSize(enum wc_HashType hash_type)
@@ -1364,6 +1366,8 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
     }
 #endif /* !WOLFSSL_NOSHA3_512 */
 #endif /* WOLFSSL_SHA3 */
+
+#endif /* !NO_HASH_WRAPPER */
 
 #ifdef WOLFSSL_HAVE_PRF
 

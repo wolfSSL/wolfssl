@@ -776,6 +776,150 @@
 
 #elif defined(WOLFSSL_AFALG)
 #elif defined(WOLFSSL_DEVCRYPTO_AES)
+
+#elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)
+    #include "hal_data.h"
+
+    #ifndef WOLFSSL_SCE_AES256_HANDLE
+        #define WOLFSSL_SCE_AES256_HANDLE g_sce_aes_256
+    #endif
+
+    #ifndef WOLFSSL_SCE_AES192_HANDLE
+        #define WOLFSSL_SCE_AES192_HANDLE g_sce_aes_192
+    #endif
+
+    #ifndef WOLFSSL_SCE_AES128_HANDLE
+        #define WOLFSSL_SCE_AES128_HANDLE g_sce_aes_128
+    #endif
+
+    static int AES_ECB_encrypt(Aes* aes, const byte* inBlock, byte* outBlock,
+            int sz)
+    {
+        uint32_t ret;
+
+        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
+                CRYPTO_WORD_ENDIAN_BIG) {
+            ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
+        }
+
+        switch (aes->keylen) {
+        #ifdef WOLFSSL_AES_128
+            case AES_128_KEY_SIZE:
+                ret = WOLFSSL_SCE_AES128_HANDLE.p_api->encrypt(
+                        WOLFSSL_SCE_AES128_HANDLE.p_ctrl, aes->key,
+                        NULL, (sz / sizeof(word32)), (word32*)inBlock,
+                        (word32*)outBlock);
+                break;
+        #endif
+        #ifdef WOLFSSL_AES_192
+            case AES_192_KEY_SIZE:
+                ret = WOLFSSL_SCE_AES192_HANDLE.p_api->encrypt(
+                        WOLFSSL_SCE_AES192_HANDLE.p_ctrl, aes->key,
+                        NULL, (sz / sizeof(word32)), (word32*)inBlock,
+                        (word32*)outBlock);
+                break;
+        #endif
+        #ifdef WOLFSSL_AES_256
+            case AES_256_KEY_SIZE:
+                ret = WOLFSSL_SCE_AES256_HANDLE.p_api->encrypt(
+                        WOLFSSL_SCE_AES256_HANDLE.p_ctrl, aes->key,
+                        NULL, (sz / sizeof(word32)), (word32*)inBlock,
+                        (word32*)outBlock);
+                break;
+        #endif
+            default:
+                WOLFSSL_MSG("Unknown key size");
+                return BAD_FUNC_ARG;
+        }
+
+        if (ret != SSP_SUCCESS) {
+           /* revert input */
+            ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
+            return WC_HW_E;
+        }
+
+        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
+                CRYPTO_WORD_ENDIAN_BIG) {
+            ByteReverseWords((word32*)outBlock, (word32*)outBlock, sz);
+            if (inBlock != outBlock) {
+                /* revert input */
+                ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
+            }
+        }
+        return 0;
+    }
+
+    #if defined(HAVE_AES_DECRYPT)
+    static int AES_ECB_decrypt(Aes* aes, const byte* inBlock, byte* outBlock,
+            int sz)
+    {
+        uint32_t ret;
+
+        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
+                CRYPTO_WORD_ENDIAN_BIG) {
+            ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
+        }
+
+        switch (aes->keylen) {
+        #ifdef WOLFSSL_AES_128
+            case AES_128_KEY_SIZE:
+                ret = WOLFSSL_SCE_AES128_HANDLE.p_api->decrypt(
+                        WOLFSSL_SCE_AES128_HANDLE.p_ctrl, aes->key, aes->reg,
+                        (sz / sizeof(word32)), (word32*)inBlock,
+                        (word32*)outBlock);
+                break;
+        #endif
+        #ifdef WOLFSSL_AES_192
+            case AES_192_KEY_SIZE:
+                ret = WOLFSSL_SCE_AES192_HANDLE.p_api->decrypt(
+                        WOLFSSL_SCE_AES192_HANDLE.p_ctrl, aes->key, aes->reg,
+                        (sz / sizeof(word32)), (word32*)inBlock,
+                        (word32*)outBlock);
+                break;
+        #endif
+        #ifdef WOLFSSL_AES_256
+            case AES_256_KEY_SIZE:
+                ret = WOLFSSL_SCE_AES256_HANDLE.p_api->decrypt(
+                        WOLFSSL_SCE_AES256_HANDLE.p_ctrl, aes->key, aes->reg,
+                        (sz / sizeof(word32)), (word32*)inBlock,
+                        (word32*)outBlock);
+                break;
+        #endif
+            default:
+                WOLFSSL_MSG("Unknown key size");
+                return BAD_FUNC_ARG;
+        }
+        if (ret != SSP_SUCCESS) {
+            return WC_HW_E;
+        }
+
+        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag ==
+                CRYPTO_WORD_ENDIAN_BIG) {
+            ByteReverseWords((word32*)outBlock, (word32*)outBlock, sz);
+            if (inBlock != outBlock) {
+                /* revert input */
+                ByteReverseWords((word32*)inBlock, (word32*)inBlock, sz);
+            }
+        }
+
+        return 0;
+    }
+
+    #endif
+
+    #if defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT)
+    static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    {
+        return AES_ECB_encrypt(aes, inBlock, outBlock, AES_BLOCK_SIZE);
+    }
+    #endif
+
+    #if defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_AES_DIRECT)
+    static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+    {
+        return AES_ECB_decrypt(aes, inBlock, outBlock, AES_BLOCK_SIZE);
+    }
+    #endif
 #else
 
     /* using wolfCrypt software implementation */
@@ -1437,8 +1581,8 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
             tmp_align = tmp + (AESNI_ALIGN - ((size_t)tmp % AESNI_ALIGN));
 
             XMEMCPY(tmp_align, inBlock, AES_BLOCK_SIZE);
-            AES_ECB_encrypt(tmp_align, tmp_align, AES_BLOCK_SIZE, (byte*)aes->key,
-                            aes->rounds);
+            AES_ECB_encrypt(tmp_align, tmp_align, AES_BLOCK_SIZE,
+                    (byte*)aes->key, aes->rounds);
             XMEMCPY(outBlock, tmp_align, AES_BLOCK_SIZE);
             XFREE(tmp, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
             return;
@@ -1458,6 +1602,10 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
             printf("Skipping AES-NI\n");
         #endif
     }
+#endif
+#if defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)
+    AES_ECB_encrypt(aes, inBlock, outBlock, AES_BLOCK_SIZE);
+    return;
 #endif
 
     /*
@@ -1657,6 +1805,9 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         #endif
     }
 #endif /* WOLFSSL_AESNI */
+#if defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)
+    return AES_ECB_decrypt(aes, inBlock, outBlock, AES_BLOCK_SIZE);
+#endif
 
     /*
      * map byte array block to cipher state
@@ -2284,6 +2435,13 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         (void)dir;
     #endif /* HAVE_AES_DECRYPT */
 #endif /* NEED_AES_TABLES */
+
+#if defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)
+        XMEMCPY((byte*)aes->key, userKey, keylen);
+        if (WOLFSSL_SCE_GSCE_HANDLE.p_cfg->endian_flag == CRYPTO_WORD_ENDIAN_BIG) {
+            ByteReverseWords(aes->key, aes->key, 32);
+        }
+#endif
 
         return wc_AesSetIV(aes, iv);
     }
@@ -5710,7 +5868,7 @@ int AES_GCM_encrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
 #if defined(HAVE_AES_ECB) && !defined(WOLFSSL_PIC32MZ_CRYPT)
     /* some hardware acceleration can gain performance from doing AES encryption
      * of the whole buffer at once */
-    if (c != p) { /* can not handle inline encryption */
+    if (c != p && blocks > 0) { /* can not handle inline encryption */
         while (blocks--) {
             IncrementGcmCounter(ctr);
             XMEMCPY(c, ctr, AES_BLOCK_SIZE);
@@ -6162,7 +6320,7 @@ int AES_GCM_decrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
 #if defined(HAVE_AES_ECB) && !defined(WOLFSSL_PIC32MZ_CRYPT)
     /* some hardware acceleration can gain performance from doing AES encryption
      * of the whole buffer at once */
-    if (c != p) { /* can not handle inline decryption */
+    if (c != p && blocks > 0) { /* can not handle inline decryption */
         while (blocks--) {
             IncrementGcmCounter(ctr);
             XMEMCPY(p, ctr, AES_BLOCK_SIZE);
@@ -6171,6 +6329,7 @@ int AES_GCM_decrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
 
         /* reset number of blocks and then do encryption */
         blocks = sz / AES_BLOCK_SIZE;
+
         wc_AesEcbEncrypt(aes, out, out, AES_BLOCK_SIZE * blocks);
         xorbuf(out, c, AES_BLOCK_SIZE * blocks);
         c += AES_BLOCK_SIZE * blocks;
@@ -7038,6 +7197,26 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
 
 #elif defined(WOLFSSL_DEVCRYPTO_AES)
     /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
+
+#elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)
+
+/* Software AES - ECB */
+int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    if ((in == NULL) || (out == NULL) || (aes == NULL))
+        return BAD_FUNC_ARG;
+
+        return AES_ECB_encrypt(aes, in, out, sz);
+}
+
+
+int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    if ((in == NULL) || (out == NULL) || (aes == NULL))
+        return BAD_FUNC_ARG;
+
+        return AES_ECB_decrypt(aes, in, out, sz);
+}
 
 #else
 

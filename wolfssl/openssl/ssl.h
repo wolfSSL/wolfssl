@@ -47,6 +47,9 @@
 #include <wolfssl/openssl/objects.h>
 #endif
 
+/* need MIN_CODE_E to determine wolfSSL error range */
+#include <wolfssl/wolfcrypt/error-crypt.h>
+
 /* all NID_* values are in asn.h */
 #include <wolfssl/wolfcrypt/asn.h>
 
@@ -626,6 +629,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_COMP_add_compression_method wolfSSL_COMP_add_compression_method
 
 #define SSL_get_ex_new_index            wolfSSL_get_ex_new_index
+#define RSA_get_ex_new_index            wolfSSL_get_ex_new_index
 
 #define ASN1_BIT_STRING_new             wolfSSL_ASN1_BIT_STRING_new
 #define ASN1_BIT_STRING_free            wolfSSL_ASN1_BIT_STRING_free
@@ -697,6 +701,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTX_set_tmp_rsa_callback    wolfSSL_CTX_set_tmp_rsa_callback
 #define RSA_print                       wolfSSL_RSA_print
 #define RSA_bits                        wolfSSL_RSA_size
+#define RSA_up_ref                      wolfSSL_RSA_up_ref
 
 #define PEM_def_callback                wolfSSL_PEM_def_callback
 
@@ -747,6 +752,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SYS_F_IOCTLSOCKET    WOLFSSL_SYS_IOCTLSOCKET
 #define SYS_F_LISTEN         WOLFSSL_SYS_LISTEN
 
+#define ERR_GET_LIB                     wolfSSL_ERR_GET_LIB
 #define ERR_GET_REASON                  wolfSSL_ERR_GET_REASON
 
 #define ERR_put_error                   wolfSSL_ERR_put_error
@@ -769,8 +775,13 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ERR_reason_error_string         wolfSSL_ERR_reason_error_string
 #define ERR_load_BIO_strings            wolfSSL_ERR_load_BIO_strings
 
-#define PEMerr(func, reason)            wolfSSL_ERR_put_error(ERR_LIB_PEM,\
+#ifndef WOLFCRYPT_ONLY
+#define PEMerr(func, reason)            wolfSSL_ERR_put_error(ERR_LIB_PEM, \
                                         (func), (reason), __FILE__, __LINE__)
+#else
+#define PEMerr(func, reason)            WOLFSSL_ERROR_LINE((reason), \
+                                        NULL, __LINE__, __FILE__, NULL)
+#endif
 
 #define SSLv23_server_method            wolfSSLv23_server_method
 #define SSL_CTX_set_options             wolfSSL_CTX_set_options
@@ -847,7 +858,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 /* yassl had set the default to be 500 */
 #define SSL_get_default_timeout(ctx)    500
 
-#define DTLSv1_get_timeout(ssl, timeleft)   wolfSSL_DTLSv1_get_timeout((ssl), (Timeval*)(timeleft))
+#define DTLSv1_get_timeout(ssl, timeleft)   wolfSSL_DTLSv1_get_timeout((ssl), (WOLFSSL_TIMEVAL*)(timeleft))
 #define DTLSv1_handle_timeout               wolfSSL_DTLSv1_handle_timeout
 #define DTLSv1_set_initial_timeout_duration wolfSSL_DTLSv1_set_initial_timeout_duration
 
@@ -1086,15 +1097,25 @@ enum {
  * PEM_read_bio_X509 is called and the return error is lost.
  * The error that needs to be detected is: SSL_NO_PEM_HEADER.
  */
-#define ERR_GET_LIB(l)  (int)((((unsigned long)l) >> 24L) & 0xffL)
 #define ERR_GET_FUNC(l) (int)((((unsigned long)l) >> 12L) & 0xfffL)
 
 #define PEM_F_PEM_DEF_CALLBACK  100
 
-#define PEM_R_NO_START_LINE     108
-#define PEM_R_PROBLEMS_GETTING_PASSWORD 109
+/* Avoid wolfSSL error code range */
+#define PEM_R_NO_START_LINE             (-MIN_CODE_E + 1)
+#define PEM_R_PROBLEMS_GETTING_PASSWORD (-MIN_CODE_E + 2)
+#define PEM_R_BAD_PASSWORD_READ         (-MIN_CODE_E + 3)
+#define PEM_R_BAD_DECRYPT               (-MIN_CODE_E + 4)
+
+#define EVP_R_BAD_DECRYPT               (-MIN_CODE_E + 100 + 1)
+#define EVP_R_BN_DECODE_ERROR           (-MIN_CODE_E + 100 + 2)
+#define EVP_R_DECODE_ERROR              (-MIN_CODE_E + 100 + 3)
+#define EVP_R_PRIVATE_KEY_DECODE_ERROR  (-MIN_CODE_E + 100 + 4)
+
 #define ERR_LIB_PEM             9
 #define ERR_LIB_X509            10
+#define ERR_LIB_EVP             11
+#define ERR_LIB_ASN1            12
 
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
     defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_ALL) || \

@@ -285,6 +285,10 @@
     #endif
 #endif
 
+#if defined(WOLFSSL_RENESAS_RA6M3G)
+    /* settings in user_settings.h */
+#endif
+
 #if defined(HAVE_LWIP_NATIVE) /* using LwIP native TCP socket */
     #define WOLFSSL_LWIP
     #define NO_WRITEV
@@ -454,6 +458,7 @@
     #define NO_MAIN_DRIVER
     #define NO_DEV_RANDOM
     #define NO_WRITEV
+    #define HAVE_STRINGS_H
 #endif
 
 
@@ -2099,6 +2104,14 @@ extern void uITRON4_free(void *p) ;
 
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_NO_SIGALG)
     #error TLS 1.3 requires the Signature Algorithms extension to be enabled
+#endif
+
+#ifndef NO_WOLFSSL_BASE64_DECODE
+    #define WOLFSSL_BASE64_DECODE
+#endif
+
+#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+    #define MAX_EX_DATA 5  /* allow for five items of ex_data */
 #endif
 
 #ifdef __cplusplus

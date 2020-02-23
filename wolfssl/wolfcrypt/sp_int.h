@@ -110,6 +110,8 @@
 #if !defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_HAVE_SP_DH)
     #if !defined(NO_PWDBASED) && defined(WOLFSSL_SHA512)
         #define SP_INT_DIGITS        ((512 + SP_WORD_SIZE) / SP_WORD_SIZE)
+    #elif defined(WOLFSSL_SP_384)
+        #define SP_INT_DIGITS        ((384 + SP_WORD_SIZE) / SP_WORD_SIZE)
     #else
         #define SP_INT_DIGITS        ((256 + SP_WORD_SIZE) / SP_WORD_SIZE)
     #endif

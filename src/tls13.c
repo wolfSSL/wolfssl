@@ -440,7 +440,6 @@ static int DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
                              hash, hashOutSz, digestAlg);
 }
 
-
 #ifndef NO_PSK
 #ifdef WOLFSSL_TLS13_DRAFT_18
 /* The length of the binder key label. */
@@ -521,10 +520,21 @@ static const byte earlyTrafficLabel[EARLY_TRAFFIC_LABEL_SZ + 1] =
  */
 static int DeriveEarlyTrafficSecret(WOLFSSL* ssl, byte* key)
 {
+    int ret;
     WOLFSSL_MSG("Derive Early Traffic Secret");
-    return DeriveKey(ssl, key, -1, ssl->arrays->secret,
-                     earlyTrafficLabel, EARLY_TRAFFIC_LABEL_SZ,
-                     ssl->specs.mac_algorithm, 1);
+    ret = DeriveKey(ssl, key, -1, ssl->arrays->secret,
+                    earlyTrafficLabel, EARLY_TRAFFIC_LABEL_SZ,
+                    ssl->specs.mac_algorithm, 1);
+#ifdef HAVE_SECRET_CALLBACK
+    if (ret == 0 && ssl->tls13SecretCb != NULL) {
+        ret = ssl->tls13SecretCb(ssl, CLIENT_EARLY_TRAFFIC_SECRET, key,
+                                 ssl->specs.hash_size, ssl->tls13SecretCtx);
+        if (ret != 0) {
+            return TLS13_SECRET_CB_E;
+        }
+    }
+#endif /* HAVE_SECRET_CALLBACK */
+    return ret;
 }
 
 #ifdef TLS13_SUPPORTS_EXPORTERS
@@ -549,10 +559,21 @@ static const byte earlyExporterLabel[EARLY_EXPORTER_LABEL_SZ + 1] =
  */
 static int DeriveEarlyExporterSecret(WOLFSSL* ssl, byte* key)
 {
+    int ret;
     WOLFSSL_MSG("Derive Early Exporter Secret");
-    return DeriveKey(ssl, key, -1, ssl->arrays->secret,
-                     earlyExporterLabel, EARLY_EXPORTER_LABEL_SZ,
-                     ssl->specs.mac_algorithm, 1);
+    ret = DeriveKey(ssl, key, -1, ssl->arrays->secret,
+                    earlyExporterLabel, EARLY_EXPORTER_LABEL_SZ,
+                    ssl->specs.mac_algorithm, 1);
+#ifdef HAVE_SECRET_CALLBACK
+    if (ret == 0 && ssl->tls13SecretCb != NULL) {
+        ret = ssl->tls13SecretCb(ssl, EARLY_EXPORTER_SECRET, key
+                                 ssl->specs.hash_size, ssl->tls13SecretCtx);
+        if (ret != 0) {
+            return TLS13_SECRET_CB_E;
+        }
+    }
+#endif /* HAVE_SECRET_CALLBACK */
+    return ret;
 }
 #endif
 #endif
@@ -578,10 +599,21 @@ static const byte clientHandshakeLabel[CLIENT_HANDSHAKE_LABEL_SZ + 1] =
  */
 static int DeriveClientHandshakeSecret(WOLFSSL* ssl, byte* key)
 {
+    int ret;
     WOLFSSL_MSG("Derive Client Handshake Secret");
-    return DeriveKey(ssl, key, -1, ssl->arrays->preMasterSecret,
-                     clientHandshakeLabel, CLIENT_HANDSHAKE_LABEL_SZ,
-                     ssl->specs.mac_algorithm, 1);
+    ret = DeriveKey(ssl, key, -1, ssl->arrays->preMasterSecret,
+                    clientHandshakeLabel, CLIENT_HANDSHAKE_LABEL_SZ,
+                    ssl->specs.mac_algorithm, 1);
+#ifdef HAVE_SECRET_CALLBACK
+    if (ret == 0 && ssl->tls13SecretCb != NULL) {
+        ret = ssl->tls13SecretCb(ssl, CLIENT_HANDSHAKE_TRAFFIC_SECRET, key,
+                                 ssl->specs.hash_size, ssl->tls13SecretCtx);
+        if (ret != 0) {
+            return TLS13_SECRET_CB_E;
+        }
+    }
+#endif /* HAVE_SECRET_CALLBACK */
+    return ret;
 }
 
 #ifdef WOLFSSL_TLS13_DRAFT_18
@@ -605,10 +637,21 @@ static const byte serverHandshakeLabel[SERVER_HANDSHAKE_LABEL_SZ + 1] =
  */
 static int DeriveServerHandshakeSecret(WOLFSSL* ssl, byte* key)
 {
+    int ret;
     WOLFSSL_MSG("Derive Server Handshake Secret");
-    return DeriveKey(ssl, key, -1, ssl->arrays->preMasterSecret,
-                     serverHandshakeLabel, SERVER_HANDSHAKE_LABEL_SZ,
-                     ssl->specs.mac_algorithm, 1);
+    ret = DeriveKey(ssl, key, -1, ssl->arrays->preMasterSecret,
+                    serverHandshakeLabel, SERVER_HANDSHAKE_LABEL_SZ,
+                    ssl->specs.mac_algorithm, 1);
+#ifdef HAVE_SECRET_CALLBACK
+    if (ret == 0 && ssl->tls13SecretCb != NULL) {
+        ret = ssl->tls13SecretCb(ssl, SERVER_HANDSHAKE_TRAFFIC_SECRET, key,
+                                 ssl->specs.hash_size, ssl->tls13SecretCtx);
+        if (ret != 0) {
+            return TLS13_SECRET_CB_E;
+        }
+    }
+#endif /* HAVE_SECRET_CALLBACK */
+    return ret;
 }
 
 #ifdef WOLFSSL_TLS13_DRAFT_18
@@ -632,10 +675,21 @@ static const byte clientAppLabel[CLIENT_APP_LABEL_SZ + 1] =
  */
 static int DeriveClientTrafficSecret(WOLFSSL* ssl, byte* key)
 {
+    int ret;
     WOLFSSL_MSG("Derive Client Traffic Secret");
-    return DeriveKey(ssl, key, -1, ssl->arrays->masterSecret,
-                     clientAppLabel, CLIENT_APP_LABEL_SZ,
-                     ssl->specs.mac_algorithm, 1);
+    ret = DeriveKey(ssl, key, -1, ssl->arrays->masterSecret,
+                    clientAppLabel, CLIENT_APP_LABEL_SZ,
+                    ssl->specs.mac_algorithm, 1);
+#ifdef HAVE_SECRET_CALLBACK
+    if (ret == 0 && ssl->tls13SecretCb != NULL) {
+        ret = ssl->tls13SecretCb(ssl, CLIENT_TRAFFIC_SECRET, key,
+                                 ssl->specs.hash_size, ssl->tls13SecretCtx);
+        if (ret != 0) {
+            return TLS13_SECRET_CB_E;
+        }
+    }
+#endif /* HAVE_SECRET_CALLBACK */
+    return ret;
 }
 
 #ifdef WOLFSSL_TLS13_DRAFT_18
@@ -659,10 +713,21 @@ static const byte serverAppLabel[SERVER_APP_LABEL_SZ + 1] =
  */
 static int DeriveServerTrafficSecret(WOLFSSL* ssl, byte* key)
 {
+    int ret;
     WOLFSSL_MSG("Derive Server Traffic Secret");
-    return DeriveKey(ssl, key, -1, ssl->arrays->masterSecret,
-                     serverAppLabel, SERVER_APP_LABEL_SZ,
-                     ssl->specs.mac_algorithm, 1);
+    ret = DeriveKey(ssl, key, -1, ssl->arrays->masterSecret,
+                    serverAppLabel, SERVER_APP_LABEL_SZ,
+                    ssl->specs.mac_algorithm, 1);
+#ifdef HAVE_SECRET_CALLBACK
+    if (ret == 0 && ssl->tls13SecretCb != NULL) {
+        ret = ssl->tls13SecretCb(ssl, SERVER_TRAFFIC_SECRET, key,
+                                 ssl->specs.hash_size, ssl->tls13SecretCtx);
+        if (ret != 0) {
+            return TLS13_SECRET_CB_E;
+        }
+    }
+#endif /* HAVE_SECRET_CALLBACK */
+    return ret;
 }
 
 #ifdef TLS13_SUPPORTS_EXPORTERS
@@ -687,10 +752,21 @@ static const byte exporterMasterLabel[EXPORTER_MASTER_LABEL_SZ + 1] =
  */
 static int DeriveExporterSecret(WOLFSSL* ssl, byte* key)
 {
+    int ret;
     WOLFSSL_MSG("Derive Exporter Secret");
-    return DeriveKey(ssl, key, -1, ssl->arrays->masterSecret,
-                     exporterMasterLabel, EXPORTER_MASTER_LABEL_SZ,
-                     ssl->specs.mac_algorithm, 1);
+    ret = DeriveKey(ssl, key, -1, ssl->arrays->masterSecret,
+                    exporterMasterLabel, EXPORTER_MASTER_LABEL_SZ,
+                    ssl->specs.mac_algorithm, 1);
+#ifdef HAVE_SECRET_CALLBACK
+    if (ret == 0 && ssl->tls13SecretCb != NULL) {
+        ret = ssl->tls13SecretCb(ssl, EXPORTER_SECRET, key,
+                                 ssl->specs.hash_size, ssl->tls13SecretCtx);
+        if (ret != 0) {
+            return TLS13_SECRET_CB_E;
+        }
+    }
+#endif /* HAVE_SECRET_CALLBACK */
+    return ret;
 }
 #endif
 
@@ -3087,8 +3163,9 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         int secretSz = SECRET_LEN;
         ret = ssl->sessionSecretCb(ssl, ssl->session.masterSecret,
                                    &secretSz, ssl->sessionSecretCtx);
-        if (ret != 0 || secretSz != SECRET_LEN)
+        if (ret != 0 || secretSz != SECRET_LEN) {
             return SESSION_SECRET_CB_E;
+        }
     }
 #endif /* HAVE_SECRET_CALLBACK */
 
@@ -8841,6 +8918,20 @@ int wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz, int* outSz)
     if (ret < 0)
         ret = WOLFSSL_FATAL_ERROR;
     return ret;
+}
+#endif
+
+#ifdef HAVE_SECRET_CALLBACK
+int wolfSSL_set_tls13_secret_cb(WOLFSSL* ssl, Tls13SecretCb cb, void* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_set_tls13_secret_cb");
+    if (ssl == NULL)
+        return WOLFSSL_FATAL_ERROR;
+
+    ssl->tls13SecretCb = cb;
+    ssl->tls13SecretCtx = ctx;
+
+    return WOLFSSL_SUCCESS;
 }
 #endif
 

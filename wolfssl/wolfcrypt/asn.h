@@ -224,7 +224,9 @@ enum
     NID_domainComponent = 0x19,        /* matches ASN_DOMAIN_COMPONENT in asn.h */
     NID_emailAddress = 0x30,           /* emailAddress */
     NID_id_on_dnsSRV = 82,             /* 1.3.6.1.5.5.7.8.7 */
-    NID_ms_upn = 265                   /* 1.3.6.1.4.1.311.20.2.3 */
+    NID_ms_upn = 265,                  /* 1.3.6.1.4.1.311.20.2.3 */
+
+    NID_X9_62_prime_field = 406        /* 1.2.840.10045.1.1 */
 };
 
 enum ECC_TYPES
@@ -1146,7 +1148,8 @@ WOLFSSL_LOCAL int GetASNTag(const byte* input, word32* idx, byte* tag,
 WOLFSSL_LOCAL word32 SetLength(word32 length, byte* output);
 WOLFSSL_LOCAL word32 SetSequence(word32 len, byte* output);
 WOLFSSL_LOCAL word32 SetOctetString(word32 len, byte* output);
-#if (defined(WOLFSSL_QT) || defined(OPENSSL_ALL)) && !defined(NO_DH)
+#if (defined(WOLFSSL_QT) || defined(OPENSSL_ALL)) && !defined(NO_DH) \
+    || defined(WOLFSSL_OPENSSH)
 WOLFSSL_LOCAL int wc_DhParamsToDer(DhKey* key, byte* out, word32* outSz);
 WOLFSSL_LOCAL int wc_DhPubKeyToDer(DhKey* key, byte* out, word32* outSz);
 WOLFSSL_LOCAL int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);

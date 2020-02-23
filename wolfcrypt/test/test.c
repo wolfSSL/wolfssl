@@ -1460,7 +1460,7 @@ int base64_test(void)
 #endif
     const byte badSmall[] = "AAA Gdj=";
     const byte badLarge[] = "AAA~Gdj=";
-    const byte badEOL[] = "A+Gd ";
+    const byte badEOL[] = "A+Gd AA";
     int        i;
 
     /* Good Base64 encodings. */

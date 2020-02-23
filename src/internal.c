@@ -5501,6 +5501,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef HAVE_SECRET_CALLBACK
     ssl->sessionSecretCb  = NULL;
     ssl->sessionSecretCtx = NULL;
+#ifdef WOLFSSL_TLS13
+    ssl->tls13SecretCb  = NULL;
+    ssl->tls13SecretCtx = NULL;
+#endif
 #endif
 
 #ifdef HAVE_SESSION_TICKET
@@ -7000,6 +7004,15 @@ ProtocolVersion MakeDTLSv1_2(void)
 #elif defined(FREESCALE_FREE_RTOS) || defined(FREESCALE_KSDK_FREERTOS)
 
     #include "include/task.h"
+
+    unsigned int LowResTimer(void)
+    {
+        return (unsigned int)(((float)xTaskGetTickCount())/configTICK_RATE_HZ);
+    }
+
+#elif defined(FREERTOS)
+
+    #include "task.h"
 
     unsigned int LowResTimer(void)
     {
@@ -9540,7 +9553,10 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
         store->certs = args->certs;
         store->totalCerts = args->totalCerts;
     #if defined(HAVE_EX_DATA) || defined(FORTRESS)
-        store->ex_data[0] = ssl;
+        if (wolfSSL_CRYPTO_set_ex_data(&store->ex_data, 0, ssl)
+                != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Failed to store ssl context in WOLFSSL_X509_STORE_CTX");
+        }
     #endif
 
         if (ssl != NULL) {
@@ -9979,16 +9995,16 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                 /* Certificate Request Context */
                 if ((args->idx - args->begin) + OPAQUE8_LEN > totalSz)
-                    return BUFFER_ERROR;
+                    ERROR_OUT(BUFFER_ERROR, exit_ppc);
                 ctxSz = *(input + args->idx);
                 args->idx++;
                 if ((args->idx - args->begin) + ctxSz > totalSz)
-                    return BUFFER_ERROR;
+                    ERROR_OUT(BUFFER_ERROR, exit_ppc);
             #ifndef NO_WOLFSSL_CLIENT
                 /* Must be empty when received from server. */
                 if (ssl->options.side == WOLFSSL_CLIENT_END) {
                     if (ctxSz != 0) {
-                        return INVALID_CERT_CTX_E;
+                        ERROR_OUT(INVALID_CERT_CTX_E, exit_ppc);
                     }
                 }
             #endif
@@ -9997,7 +10013,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 if (ssl->options.side == WOLFSSL_SERVER_END) {
                     if (ssl->options.handShakeState != HANDSHAKE_DONE &&
                                                                    ctxSz != 0) {
-                        return INVALID_CERT_CTX_E;
+                        ERROR_OUT(INVALID_CERT_CTX_E, exit_ppc);
                     }
                     else if (ssl->options.handShakeState == HANDSHAKE_DONE) {
                 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
@@ -10020,7 +10036,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         }
                         if (curr == NULL)
                 #endif
-                            return INVALID_CERT_CTX_E;
+                            ERROR_OUT(INVALID_CERT_CTX_E, exit_ppc);
                     }
                 }
             #endif
@@ -17405,6 +17421,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case SSL_SHUTDOWN_ALREADY_DONE_E:
         return "Shutdown has already occurred";
 
+    case TLS13_SECRET_CB_E:
+        return "TLS1.3 Secret Callback Error";
+
     default :
         return "unknown error number";
     }
@@ -18587,7 +18606,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
         TimeoutInfo* info = &ssl->timeoutInfo;
 
         if (info->numberPackets < (MAX_PACKETS_HANDSHAKE - 1)) {
-            Timeval currTime;
+            WOLFSSL_TIMEVAL currTime;
 
             /* may add name after */
             if (name) {

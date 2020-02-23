@@ -82,6 +82,12 @@
         #include "FreeRTOS_Sockets.h"
     #elif defined(WOLFSSL_IAR_ARM)
         /* nothing */
+    #elif defined(HAVE_NETX_BSD)
+        #ifdef NETX_DUO
+            #include "nxd_bsd.h"
+        #else
+            #include "nx_bsd.h"
+        #endif
     #elif defined(WOLFSSL_VXWORKS)
         #include <sockLib.h>
         #include <errno.h>
@@ -120,6 +126,9 @@
         #include <errno.h>
     #elif defined(WOLFSSL_ZEPHYR)
         #include <net/socket.h>
+    #elif defined(HAVE_NETX)
+        #include "nx_api.h"
+        #include "errno.h"
     #elif !defined(WOLFSSL_NO_SOCK)
         #include <sys/types.h>
         #include <errno.h>
@@ -148,6 +157,11 @@
             #endif
         #endif
     #endif
+
+    #if defined(WOLFSSL_RENESAS_RA6M3G) /* Uses FREERTOS_TCP */
+        #include <errno.h>
+    #endif
+
 #endif /* USE_WINDOWS_API */
 
 #ifdef __sun
@@ -233,6 +247,14 @@
      #define SOCKET_EPIPE       EPIPE
      #define SOCKET_ECONNREFUSED SOCKET_ERROR
      #define SOCKET_ECONNABORTED SOCKET_ERROR
+#elif defined(HAVE_NETX)
+    #define SOCKET_EWOULDBLOCK NX_NOT_CONNECTED
+    #define SOCKET_EAGAIN      NX_NOT_CONNECTED
+    #define SOCKET_ECONNRESET  NX_NOT_CONNECTED
+    #define SOCKET_EINTR       NX_NOT_CONNECTED
+    #define SOCKET_EPIPE       NX_NOT_CONNECTED
+    #define SOCKET_ECONNREFUSED NX_NOT_CONNECTED
+    #define SOCKET_ECONNABORTED NX_NOT_CONNECTED
 #else
     #define SOCKET_EWOULDBLOCK EWOULDBLOCK
     #define SOCKET_EAGAIN      EAGAIN
@@ -306,11 +328,7 @@
     #endif /* HAVE_SOCKADDR */
 
     /* use gethostbyname for c99 */
-    #ifdef WOLF_C99
-        #undef HAVE_GETADDRINFO
-    #endif
-
-    #ifdef HAVE_GETADDRINFO
+    #if defined(HAVE_GETADDRINFO) && !defined(WOLF_C99)
         typedef struct addrinfo         ADDRINFO;
     #endif
 #endif /* WOLFSSL_NO_SOCK */

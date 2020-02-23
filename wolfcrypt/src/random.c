@@ -158,6 +158,7 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #elif defined(WOLFSSL_PB)
 #elif defined(WOLFSSL_ZEPHYR)
 #elif defined(WOLFSSL_TELIT_M2MB)
+#elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_TRNG)
 #else
     /* include headers that may be needed to get good seed */
     #include <fcntl.h>
@@ -894,6 +895,7 @@ int wc_InitRngNonce_ex(WC_RNG* rng, byte* nonce, word32 nonceSz,
 
 
 /* place a generated block in output */
+WOLFSSL_ABI
 int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 {
     int ret;
@@ -2319,8 +2321,58 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
         return ret;
     }
-    
-    
+
+#elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_TRNG)
+    #include "hal_data.h"
+
+    #ifndef WOLFSSL_SCE_TRNG_HANDLE
+        #define WOLFSSL_SCE_TRNG_HANDLE g_sce_trng
+    #endif
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        uint32_t ret;
+        uint32_t blocks;
+        word32   len = sz;
+
+        ret = WOLFSSL_SCE_TRNG_HANDLE.p_api->open(WOLFSSL_SCE_TRNG_HANDLE.p_ctrl,
+                                                  WOLFSSL_SCE_TRNG_HANDLE.p_cfg);
+        if (ret != SSP_SUCCESS && ret != SSP_ERR_CRYPTO_ALREADY_OPEN) {
+            /* error opening TRNG driver */
+            return -1;
+        }
+
+        blocks = sz / sizeof(uint32_t);
+        if (blocks > 0) {
+            ret = WOLFSSL_SCE_TRNG_HANDLE.p_api->read(WOLFSSL_SCE_TRNG_HANDLE.p_ctrl,
+                                                      (uint32_t*)output, blocks);
+            if (ret != SSP_SUCCESS) {
+                return -1;
+            }
+        }
+
+        len = len - (blocks * sizeof(uint32_t));
+        if (len > 0) {
+            uint32_t tmp;
+
+            if (len > sizeof(uint32_t)) {
+                return -1;
+            }
+            ret = WOLFSSL_SCE_TRNG_HANDLE.p_api->read(WOLFSSL_SCE_TRNG_HANDLE.p_ctrl,
+                                                      (uint32_t*)tmp, 1);
+            if (ret != SSP_SUCCESS) {
+                return -1;
+            }
+            XMEMCPY(output + (blocks * sizeof(uint32_t)), (byte*)&tmp, len);
+        }
+
+        ret = WOLFSSL_SCE_TRNG_HANDLE.p_api->close(WOLFSSL_SCE_TRNG_HANDLE.p_ctrl);
+        if (ret != SSP_SUCCESS) {
+            /* error opening TRNG driver */
+            return -1;
+        }
+        return 0;
+    }
 #elif defined(CUSTOM_RAND_GENERATE_BLOCK)
     /* #define CUSTOM_RAND_GENERATE_BLOCK myRngFunc
      * extern int myRngFunc(byte* output, word32 sz);

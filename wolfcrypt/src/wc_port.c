@@ -82,6 +82,10 @@
     #include <wolfssl/wolfcrypt/port/cavium/cavium_octeon_sync.h>
 #endif
 
+#ifdef WOLFSSL_SCE
+    #include "hal_data.h"
+#endif
+
 #if defined(WOLFSSL_DSP) && !defined(WOLFSSL_DSP_BUILD)
     #include "rpcmem.h"
 #endif
@@ -224,6 +228,19 @@ int wolfCrypt_Init(void)
     #endif
 #endif
 
+#ifdef WOLFSSL_SCE
+        ret = (int)WOLFSSL_SCE_GSCE_HANDLE.p_api->open(
+                WOLFSSL_SCE_GSCE_HANDLE.p_ctrl, WOLFSSL_SCE_GSCE_HANDLE.p_cfg);
+        if (ret == SSP_ERR_CRYPTO_SCE_ALREADY_OPEN) {
+            WOLFSSL_MSG("SCE already open");
+            ret = 0;
+        }
+        if (ret != SSP_SUCCESS) {
+            WOLFSSL_MSG("Error opening SCE");
+            return -1; /* FATAL_ERROR */
+        }
+#endif
+
 #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
     defined(WOLFSSL_IMX6_CAAM_BLOB)
         if ((ret = wc_caamInit()) != 0) {
@@ -276,7 +293,9 @@ int wolfCrypt_Cleanup(void)
     #ifdef WOLFSSL_ASYNC_CRYPT
         wolfAsync_HardwareStop();
     #endif
-
+    #ifdef WOLFSSL_SCE
+        WOLFSSL_SCE_GSCE_HANDLE.p_api->close(WOLFSSL_SCE_GSCE_HANDLE.p_ctrl);
+    #endif
     #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
         defined(WOLFSSL_IMX6_CAAM_BLOB)
         wc_caamFree();

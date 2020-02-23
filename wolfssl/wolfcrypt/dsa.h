@@ -59,6 +59,11 @@ enum {
     DSA_PRIVATE  = 1
 };
 
+enum {
+    DSA_HALF_SIZE = 20,   /* r and s size  */
+    DSA_SIG_SIZE  = 40    /* signature size */
+};
+
 /* DSA */
 typedef struct DsaKey {
     mp_int p, q, g, y, x;

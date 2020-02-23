@@ -256,13 +256,17 @@ struct WOLFSSL_EVP_CIPHER_CTX {
 #elif !defined(NO_DES3)
     /* working iv pointer into cipher */
     ALIGN16 unsigned char  iv[DES_BLOCK_SIZE];
+#elif defined(HAVE_IDEA)
+    /* working iv pointer into cipher */
+    ALIGN16 unsigned char  iv[IDEA_BLOCK_SIZE];
 #endif
     WOLFSSL_Cipher  cipher;
     ALIGN16 byte buf[WOLFSSL_EVP_BUF_SIZE];
     int  bufUsed;
     ALIGN16 byte lastBlock[WOLFSSL_EVP_BUF_SIZE];
     int  lastUsed;
-#if defined(HAVE_AESGCM)
+#if !defined(NO_AES) || !defined(NO_DES3) || defined(HAVE_IDEA)
+#define HAVE_WOLFSSL_EVP_CIPHER_CTX_IV
     int    ivSz;
     ALIGN16 unsigned char authTag[AES_BLOCK_SIZE];
     int     authTagSz;
@@ -407,6 +411,8 @@ WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_key_length(WOLFSSL_EVP_CIPHER_CTX* ctx);
 WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_key_length(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                                      int keylen);
 WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_iv_length(WOLFSSL_EVP_CIPHER_CTX* ctx,
+                                                     int ivLen);
+WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, byte* iv,
                                                      int ivLen);
 WOLFSSL_API int  wolfSSL_EVP_Cipher(WOLFSSL_EVP_CIPHER_CTX* ctx,
                           unsigned char* dst, unsigned char* src,
@@ -706,6 +712,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_CIPHER_CTX_clear_flags wolfSSL_EVP_CIPHER_CTX_clear_flags
 #define EVP_CIPHER_CTX_set_padding wolfSSL_EVP_CIPHER_CTX_set_padding
 #define EVP_CIPHER_CTX_flags       wolfSSL_EVP_CIPHER_CTX_flags
+#define EVP_CIPHER_CTX_set_iv      wolfSSL_EVP_CIPHER_CTX_set_iv
 #define EVP_add_digest             wolfSSL_EVP_add_digest
 #define EVP_add_cipher             wolfSSL_EVP_add_cipher
 #define EVP_cleanup                wolfSSL_EVP_cleanup
@@ -740,9 +747,11 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_CTRL_AEAD_GET_TAG          0x10
 #define EVP_CTRL_AEAD_SET_TAG          0x11
 #define EVP_CTRL_AEAD_SET_IV_FIXED     0x12
+#define EVP_CTRL_GCM_IV_GEN            0x13
 #define EVP_CTRL_GCM_SET_IVLEN         EVP_CTRL_AEAD_SET_IVLEN
 #define EVP_CTRL_GCM_GET_TAG           EVP_CTRL_AEAD_GET_TAG
 #define EVP_CTRL_GCM_SET_TAG           EVP_CTRL_AEAD_SET_TAG
+#define EVP_CTRL_GCM_SET_IV_FIXED      EVP_CTRL_AEAD_SET_IV_FIXED
 
 #ifndef EVP_MAX_MD_SIZE
     #define EVP_MAX_MD_SIZE   64     /* sha512 */

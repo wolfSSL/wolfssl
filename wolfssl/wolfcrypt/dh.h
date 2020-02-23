@@ -66,7 +66,7 @@ typedef struct DhParams {
 /* Diffie-Hellman Key */
 struct DhKey {
     mp_int p, g, q;                         /* group parameters  */
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_OPENSSH)
     mp_int pub;
     mp_int priv;
 #endif

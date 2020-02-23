@@ -21,8 +21,10 @@ include IDE/ECLIPSE/DEOS/include.am
 include IDE/ECLIPSE/MICRIUM/include.am
 include IDE/ECLIPSE/SIFIVE/include.am
 include IDE/mynewt/include.am
+include IDE/Renesas/e2studio/DK-S7G2/include.am
 include IDE/Renesas/cs+/Projects/include.am
 include IDE/Renesas/e2studio/Projects/include.am
+include IDE/Renesas/e2studio/RA6M3G/include.am
 include IDE/WICED-STUDIO/include.am
 include IDE/CRYPTOCELL/include.am
 include IDE/M68K/include.am
