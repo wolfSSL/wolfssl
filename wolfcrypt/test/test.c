@@ -306,7 +306,7 @@
     #define ENABLE_ECC384_CERT_GEN_TEST
 #endif
 
-#if !defined(NO_ASN)
+#if !defined(NO_ASN) || !defined(NO_DH)
     #include <wolfssl/certs_test.h>
 #endif
 
