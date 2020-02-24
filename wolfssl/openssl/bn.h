@@ -31,7 +31,13 @@
 #define WOLFSSL_BN_H_
 
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/integer.h>
+#ifdef WOLFSSL_SP_MATH
+    #include <wolfssl/wolfcrypt/sp_int.h>
+#elif defined(USE_FAST_MATH)
+    #include <wolfssl/wolfcrypt/tfm.h>
+#else
+    #include <wolfssl/wolfcrypt/integer.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {

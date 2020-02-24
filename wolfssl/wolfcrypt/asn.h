@@ -35,7 +35,9 @@
     #define NO_ASN_TIME /* backwards compatibility with NO_TIME_H */
 #endif
 
-#ifdef USE_FAST_MATH
+#ifdef WOLFSSL_SP_MATH
+    #include <wolfssl/wolfcrypt/sp_int.h>
+#elif defined(USE_FAST_MATH)
     #include <wolfssl/wolfcrypt/tfm.h>
 #else
     #include <wolfssl/wolfcrypt/integer.h>

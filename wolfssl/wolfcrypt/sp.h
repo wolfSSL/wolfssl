@@ -23,6 +23,7 @@
 #ifndef WOLF_CRYPT_SP_H
 #define WOLF_CRYPT_SP_H
 
+#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH) || \
@@ -30,8 +31,13 @@
 
 #include <stdint.h>
 
-#include <wolfssl/wolfcrypt/integer.h>
-#include <wolfssl/wolfcrypt/sp_int.h>
+#ifdef WOLFSSL_SP_MATH
+    #include <wolfssl/wolfcrypt/sp_int.h>
+#elif defined(USE_FAST_MATH)
+    #include <wolfssl/wolfcrypt/tfm.h>
+#else
+    #include <wolfssl/wolfcrypt/integer.h>
+#endif
 
 #include <wolfssl/wolfcrypt/ecc.h>
 

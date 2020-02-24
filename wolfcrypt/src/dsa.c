@@ -32,7 +32,9 @@
     #include <wolfssl/wolfcrypt/random.h>
 #endif
 
-#ifdef USE_FAST_MATH
+#ifdef WOLFSSL_SP_MATH
+    #include <wolfssl/wolfcrypt/sp_int.h>
+#elif defined(USE_FAST_MATH)
     #include <wolfssl/wolfcrypt/tfm.h>
 #else
     #include <wolfssl/wolfcrypt/integer.h>

@@ -25,6 +25,7 @@
 
 #include <stdint.h>
 #include <limits.h>
+#include <wolfssl/wolfcrypt/settings.h>
 
 /* Make sure WOLFSSL_SP_ASM build option defined when requested */
 #if !defined(WOLFSSL_SP_ASM) && ( \
