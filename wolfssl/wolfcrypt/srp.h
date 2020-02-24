@@ -28,8 +28,6 @@
 #ifndef WOLFCRYPT_SRP_H
 #define WOLFCRYPT_SRP_H
 
-#include <wolfssl/wolfcrypt/settings.h>
-
 #include <wolfssl/wolfcrypt/types.h>
 #ifndef NO_SHA
     #include <wolfssl/wolfcrypt/sha.h>
