@@ -35,6 +35,8 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#include <wolfssl/wolfcrypt/sp_int.h>
+
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH) || \
                                     defined(WOLFSSL_HAVE_SP_ECC)
 
