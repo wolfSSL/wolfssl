@@ -44,6 +44,7 @@
 #endif
 #endif
 
+#include <wolfssl/wolfcrypt/sp_int.h>
 #include <wolfssl/wolfcrypt/sp.h>
 
 #ifdef WOLFSSL_SP_X86_64_ASM
