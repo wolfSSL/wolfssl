@@ -180,7 +180,6 @@ run_renewcerts(){
     echo -e "US\\nMontana\\nBozeman\\nwolfSSL_4096\\nProgramming-4096\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ./4096/client-key.pem -config ./wolfssl.cnf -nodes -out ./4096/client-cert.csr
     check_result $? "Step 1"
 
-
     openssl x509 -req -in ./4096/client-cert.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey ./4096/client-key.pem -out ./4096/client-cert.pem
     check_result $? "Step 2"
     rm ./4096/client-cert.csr
@@ -188,6 +187,10 @@ run_renewcerts(){
     openssl x509 -in ./4096/client-cert.pem -text > ./4096/tmp.pem
     check_result $? "Step 3"
     mv ./4096/tmp.pem ./4096/client-cert.pem
+
+    openssl rsa -in ./4096/client-key.pem -outform der -out ./4096/client-key.der
+    openssl rsa -inform pem -in ./4096/client-key.pem -outform der -out ./4096/client-keyPub.der -pubout
+    openssl x509 -in ./4096/client-cert.pem -outform der -out ./4096/client-cert.der
     echo "End of section"
     echo "---------------------------------------------------------------------"
 
