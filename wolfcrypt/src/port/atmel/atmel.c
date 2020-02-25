@@ -291,6 +291,7 @@ int atmel_get_enc_key_default(byte* enckey, word16 keysize)
 /**
  * \brief Write enc key before.
  */
+#if defined(ATECC_USE_TRANSPORT_KEY) && ATECC_USE_TRANSPORT_KEY
 static int atmel_init_enc_key(void)
 {
     int ret;
@@ -315,6 +316,7 @@ static int atmel_init_enc_key(void)
 
 	return ret;
 }
+#endif
 
 int atmel_get_rev_info(word32* revision)
 {
@@ -447,6 +449,7 @@ int atmel_init(void)
         device_init_default();
     #endif
 
+#if defined(ATECC_USE_TRANSPORT_KEY) && ATECC_USE_TRANSPORT_KEY
         /* Init the I2C pipe encryption key. */
         /* Value is generated/stored during pair for the ATECC508A and stored
             on micro flash */
@@ -455,6 +458,7 @@ int atmel_init(void)
 			WOLFSSL_MSG("Failed to initialize transport key");
             return WC_HW_E;
 		}
+#endif
 
         mAtcaInitDone = 1;
     }
