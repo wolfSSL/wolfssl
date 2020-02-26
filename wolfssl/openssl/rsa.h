@@ -26,6 +26,7 @@
 #define WOLFSSL_RSA_H_
 
 #include <wolfssl/openssl/bn.h>
+#include <wolfssl/openssl/err.h>
 #include <wolfssl/wolfcrypt/types.h>
 
 #ifdef __cplusplus

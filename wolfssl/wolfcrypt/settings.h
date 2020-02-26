@@ -31,6 +31,11 @@
     extern "C" {
 #endif
 
+/* include the options.h file ourselves for OpenVPN */
+#ifdef ENABLE_CRYPTO_WOLFSSL
+#include <wolfssl/options.h>
+#endif
+
 /* Uncomment next line if using IPHONE */
 /* #define IPHONE */
 
