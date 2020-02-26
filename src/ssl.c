@@ -32152,15 +32152,15 @@ int wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER* cipher)
 #ifdef HAVE_AESGCM
     #ifdef WOLFSSL_AES_128
     if (XSTRNCMP(name, EVP_AES_128_GCM, XSTRLEN(EVP_AES_128_GCM)) == 0)
-        return AES_BLOCK_SIZE;
+        return GCM_NONCE_MID_SZ;
     #endif
     #ifdef WOLFSSL_AES_192
     if (XSTRNCMP(name, EVP_AES_192_GCM, XSTRLEN(EVP_AES_192_GCM)) == 0)
-        return AES_BLOCK_SIZE;
+        return GCM_NONCE_MID_SZ;
     #endif
     #ifdef WOLFSSL_AES_256
     if (XSTRNCMP(name, EVP_AES_256_GCM, XSTRLEN(EVP_AES_256_GCM)) == 0)
-        return AES_BLOCK_SIZE;
+        return GCM_NONCE_MID_SZ;
     #endif
 #endif /* HAVE_AESGCM */
 #ifdef WOLFSSL_AES_COUNTER
