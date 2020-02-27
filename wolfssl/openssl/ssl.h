@@ -276,6 +276,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_get_error                   wolfSSL_get_error
 #define SSL_set_session                 wolfSSL_set_session
 #define SSL_get_session(x)              wolfSSL_get_session((WOLFSSL*) (x))
+#define SSL_SESSION_get0_peer           wolfSSL_SESSION_get0_peer
 #define SSL_flush_sessions              wolfSSL_flush_sessions
 /* assume unlimited temporarily */
 #define SSL_CTX_get_session_cache_mode(ctx) 0
@@ -287,13 +288,14 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_pending                     wolfSSL_pending
 #define SSL_load_error_strings          wolfSSL_load_error_strings
 #define SSL_library_init                wolfSSL_library_init
+#define OpenSSL_add_ssl_algorithms      wolfSSL_library_init
 #define SSL_CTX_set_session_cache_mode  wolfSSL_CTX_set_session_cache_mode
 #define SSL_CTX_set_cipher_list         wolfSSL_CTX_set_cipher_list
 #define SSL_CTX_set_ciphersuites        wolfSSL_CTX_set_cipher_list
 #define SSL_set_cipher_list             wolfSSL_set_cipher_list
 /* wolfSSL does not support security levels */
 #define SSL_CTX_set_security_level(...)
-/* wolfSSL does not support expoting keying material */
+/* wolfSSL does not support exporting keying material */
 #define SSL_export_keying_material(...) 0
 
 #define SSL_CTX_set1_groups_list        wolfSSL_CTX_set1_groups_list
@@ -603,6 +605,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define BIO_eof                         wolfSSL_BIO_eof
 #define BIO_set_ss                      wolfSSL_BIO_set_ss
 
+#define BIO_f_md                        wolfSSL_BIO_f_md
+#define BIO_get_md_ctx                  wolfSSL_BIO_get_md_ctx
 #define BIO_s_mem                       wolfSSL_BIO_s_mem
 #define BIO_f_base64                    wolfSSL_BIO_f_base64
 #define BIO_set_flags                   wolfSSL_BIO_set_flags
@@ -765,6 +769,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ERR_get_error_line_data         wolfSSL_ERR_get_error_line_data
 #define ERR_get_error                   wolfSSL_ERR_get_error
 #define ERR_print_errors_fp(file)       wolfSSL_ERR_dump_errors_fp((file))
+#define ERR_print_errors_cb             wolfSSL_ERR_print_errors_cb
 #define ERR_print_errors                wolfSSL_ERR_print_errors
 #define ERR_clear_error                 wolfSSL_ERR_clear_error
 #define ERR_free_strings                wolfSSL_ERR_free_strings

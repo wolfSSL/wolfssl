@@ -348,9 +348,9 @@ struct WOLFSSL_EVP_PKEY {
     #endif
 };
 typedef struct WOLFSSL_EVP_PKEY WOLFSSL_PKCS8_PRIV_KEY_INFO;
-
 #ifndef WOLFSSL_EVP_TYPE_DEFINED /* guard on redeclaration */
 typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_EVP_PKEY;
+typedef struct WOLFSSL_EVP_MD_CTX   WOLFSSL_EVP_MD_CTX;
 typedef char   WOLFSSL_EVP_MD;
 #define WOLFSSL_EVP_TYPE_DEFINED
 #endif
@@ -396,7 +396,8 @@ enum BIO_TYPE {
     WOLFSSL_BIO_MEMORY = 4,
     WOLFSSL_BIO_BIO    = 5,
     WOLFSSL_BIO_FILE   = 6,
-    WOLFSSL_BIO_BASE64 = 7
+    WOLFSSL_BIO_BASE64 = 7,
+    WOLFSSL_BIO_MD     = 8
 };
 
 enum BIO_FLAGS {
@@ -463,7 +464,7 @@ struct WOLFSSL_BIO {
     WOLFSSL_BIO* next;          /* next in chain */
     WOLFSSL_BIO* pair;          /* BIO paired with */
     void*        heap;          /* user heap hint */
-    void*        ptr;           /* WOLFSSL, file descriptor or memory buffer */
+    void*        ptr;           /* WOLFSSL, file descriptor, MD, or mem buf */
     void*        usrCtx;        /* user set pointer */
     char*        infoArg;       /* BIO callback argument */
     wolf_bio_info_cb infoCb;    /* BIO callback */
@@ -923,9 +924,10 @@ WOLFSSL_API int wolfSSL_GetSessionIndex(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_GetSessionAtIndex(int index, WOLFSSL_SESSION* session);
 #endif /* SESSION_INDEX */
 
-#if defined(SESSION_INDEX) && defined(SESSION_CERTS)
+#if defined(SESSION_CERTS)
 WOLFSSL_API
     WOLFSSL_X509_CHAIN* wolfSSL_SESSION_get_peer_chain(WOLFSSL_SESSION* session);
+WOLFSSL_API WOLFSSL_X509* wolfSSL_SESSION_get0_peer(WOLFSSL_SESSION* session);
 #endif /* SESSION_INDEX && SESSION_CERTS */
 
 typedef int (*VerifyCallback)(int, WOLFSSL_X509_STORE_CTX*);
@@ -1191,6 +1193,10 @@ WOLFSSL_API wolf_bio_info_cb wolfSSL_BIO_get_callback(WOLFSSL_BIO *bio);
 WOLFSSL_API void  wolfSSL_BIO_set_callback_arg(WOLFSSL_BIO *bio, char *arg);
 WOLFSSL_API char* wolfSSL_BIO_get_callback_arg(const WOLFSSL_BIO *bio);
 
+WOLFSSL_API WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_md(void);
+WOLFSSL_API int wolfSSL_BIO_get_md_ctx(WOLFSSL_BIO *bio,
+                                                WOLFSSL_EVP_MD_CTX **mdcp);
+
 WOLFSSL_API WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_buffer(void);
 WOLFSSL_API long wolfSSL_BIO_set_write_buffer_size(WOLFSSL_BIO*, long size);
 WOLFSSL_API WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_ssl(void);
@@ -1213,6 +1219,7 @@ WOLFSSL_API void* wolfSSL_BIO_get_data(WOLFSSL_BIO*);
 WOLFSSL_API void wolfSSL_BIO_set_shutdown(WOLFSSL_BIO*, int);
 WOLFSSL_API int wolfSSL_BIO_get_shutdown(WOLFSSL_BIO*);
 WOLFSSL_API void wolfSSL_BIO_clear_retry_flags(WOLFSSL_BIO*);
+WOLFSSL_API int wolfSSL_BIO_should_retry(WOLFSSL_BIO *bio);
 
 WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_meth_new(int, const char*);
 WOLFSSL_API void wolfSSL_BIO_meth_free(WOLFSSL_BIO_METHOD*);
@@ -1229,6 +1236,7 @@ WOLFSSL_API long wolfSSL_BIO_set_ssl(WOLFSSL_BIO*, WOLFSSL*, int flag);
 #ifndef NO_FILESYSTEM
 WOLFSSL_API long wolfSSL_BIO_set_fd(WOLFSSL_BIO* b, int fd, int flag);
 #endif
+WOLFSSL_API int wolfSSL_BIO_set_close(WOLFSSL_BIO *b, long flag);
 WOLFSSL_API void wolfSSL_set_bio(WOLFSSL*, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr);
 
 #ifndef NO_FILESYSTEM
@@ -1689,6 +1697,8 @@ enum {
     SSL_CB_MODE_WRITE = 2,
 
     SSL_MODE_ENABLE_PARTIAL_WRITE = 2,
+    SSL_MODE_AUTO_RETRY = 3, /* wolfSSL default is to block with blocking io
+                              * and auto retry */
     SSL_MODE_RELEASE_BUFFERS = -1, /* For libwebsockets build. No current use. */
 
     BIO_FLAGS_BASE64_NO_NL = 1,
@@ -1771,6 +1781,8 @@ enum {
 WOLFSSL_API void  wolfSSL_ERR_print_errors_fp(XFILE, int err);
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
 WOLFSSL_API void wolfSSL_ERR_dump_errors_fp(XFILE fp);
+WOLFSSL_API void wolfSSL_ERR_print_errors_cb(int (*cb)(const char *str,
+                                                size_t len, void *u), void *u);
 #endif
 #endif
 WOLFSSL_API void wolfSSL_ERR_print_errors(WOLFSSL_BIO *bio);
@@ -1999,6 +2011,11 @@ WOLFSSL_API int wolfSSL_want(WOLFSSL*);
 WOLFSSL_API int wolfSSL_want_read(WOLFSSL*);
 WOLFSSL_API int wolfSSL_want_write(WOLFSSL*);
 
+#if !defined(NO_FILESYSTEM) && defined (OPENSSL_EXTRA)
+#include <stdarg.h> /* var_arg */
+WOLFSSL_API int wolfSSL_BIO_vprintf(WOLFSSL_BIO* bio, const char* format,
+                                                            va_list args);
+#endif
 WOLFSSL_API int wolfSSL_BIO_printf(WOLFSSL_BIO*, const char*, ...);
 WOLFSSL_API int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char*, int);
 WOLFSSL_API int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO*,
