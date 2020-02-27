@@ -110,11 +110,11 @@ bench_tls(args);
 #define MEM_BUFFER_SZ       (TEST_PACKET_SIZE + 38 + WC_MAX_DIGEST_SIZE)
 #define SHOW_VERBOSE        0 /* Default output is tab delimited format */
 
-/* shutdown message - nice signal to server, we are done */
-static const char* kShutdown = "shutdown";
-
 #if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
     !defined(WOLFCRYPT_ONLY)
+
+/* shutdown message - nice signal to server, we are done */
+static const char* kShutdown = "shutdown";
 
 #ifndef NO_WOLFSSL_CLIENT
 static const char* kTestStr =
