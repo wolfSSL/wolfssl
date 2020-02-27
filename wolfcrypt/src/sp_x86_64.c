@@ -413,6 +413,13 @@ static WC_INLINE int sp_2048_div_16(const sp_digit* a, const sp_digit* d, sp_dig
 
     div = d[15];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 16);
+    r1 = sp_2048_cmp_16(&t1[16], d) >= 0;
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+        sp_2048_cond_sub_avx2_16(&t1[16], &t1[16], d, (sp_digit)0 - r1);
+    else
+#endif
+        sp_2048_cond_sub_16(&t1[16], &t1[16], d, (sp_digit)0 - r1);
     for (i=15; i>=0; i--) {
         r1 = div_2048_word_16(t1[16 + i], t1[16 + i - 1], div);
 
@@ -906,6 +913,13 @@ static WC_INLINE int sp_2048_div_32(const sp_digit* a, const sp_digit* d, sp_dig
 
     div = d[31];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 32);
+    r1 = sp_2048_cmp_32(&t1[32], d) >= 0;
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+        sp_2048_cond_sub_avx2_32(&t1[32], &t1[32], d, (sp_digit)0 - r1);
+    else
+#endif
+        sp_2048_cond_sub_32(&t1[32], &t1[32], d, (sp_digit)0 - r1);
     for (i=31; i>=0; i--) {
         r1 = div_2048_word_32(t1[32 + i], t1[32 + i - 1], div);
 
@@ -971,6 +985,13 @@ static WC_INLINE int sp_2048_div_32_cond(const sp_digit* a, const sp_digit* d, s
 
     div = d[31];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 32);
+    for (i = 31; i > 0; i--) {
+        if (t1[i + 32] != d[i])
+            break;
+    }
+    if (t1[i + 32] >= d[i]) {
+        sp_2048_sub_in_place_32(&t1[32], d);
+    }
     for (i=31; i>=0; i--) {
         r1 = div_2048_word_32(t1[32 + i], t1[32 + i - 1], div);
 
@@ -2476,6 +2497,13 @@ static WC_INLINE int sp_3072_div_24(const sp_digit* a, const sp_digit* d, sp_dig
 
     div = d[23];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 24);
+    r1 = sp_3072_cmp_24(&t1[24], d) >= 0;
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+        sp_3072_cond_sub_avx2_24(&t1[24], &t1[24], d, (sp_digit)0 - r1);
+    else
+#endif
+        sp_3072_cond_sub_24(&t1[24], &t1[24], d, (sp_digit)0 - r1);
     for (i=23; i>=0; i--) {
         r1 = div_3072_word_24(t1[24 + i], t1[24 + i - 1], div);
 
@@ -2969,6 +2997,13 @@ static WC_INLINE int sp_3072_div_48(const sp_digit* a, const sp_digit* d, sp_dig
 
     div = d[47];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 48);
+    r1 = sp_3072_cmp_48(&t1[48], d) >= 0;
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+        sp_3072_cond_sub_avx2_48(&t1[48], &t1[48], d, (sp_digit)0 - r1);
+    else
+#endif
+        sp_3072_cond_sub_48(&t1[48], &t1[48], d, (sp_digit)0 - r1);
     for (i=47; i>=0; i--) {
         r1 = div_3072_word_48(t1[48 + i], t1[48 + i - 1], div);
 
@@ -3034,6 +3069,13 @@ static WC_INLINE int sp_3072_div_48_cond(const sp_digit* a, const sp_digit* d, s
 
     div = d[47];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 48);
+    for (i = 47; i > 0; i--) {
+        if (t1[i + 48] != d[i])
+            break;
+    }
+    if (t1[i + 48] >= d[i]) {
+        sp_3072_sub_in_place_48(&t1[48], d);
+    }
     for (i=47; i>=0; i--) {
         r1 = div_3072_word_48(t1[48 + i], t1[48 + i - 1], div);
 
@@ -4531,6 +4573,13 @@ static WC_INLINE int sp_4096_div_64(const sp_digit* a, const sp_digit* d, sp_dig
 
     div = d[63];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 64);
+    r1 = sp_4096_cmp_64(&t1[64], d) >= 0;
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+        sp_4096_cond_sub_avx2_64(&t1[64], &t1[64], d, (sp_digit)0 - r1);
+    else
+#endif
+        sp_4096_cond_sub_64(&t1[64], &t1[64], d, (sp_digit)0 - r1);
     for (i=63; i>=0; i--) {
         r1 = div_4096_word_64(t1[64 + i], t1[64 + i - 1], div);
 
@@ -4596,6 +4645,13 @@ static WC_INLINE int sp_4096_div_64_cond(const sp_digit* a, const sp_digit* d, s
 
     div = d[63];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 64);
+    for (i = 63; i > 0; i--) {
+        if (t1[i + 64] != d[i])
+            break;
+    }
+    if (t1[i + 64] >= d[i]) {
+        sp_4096_sub_in_place_64(&t1[64], d);
+    }
     for (i=63; i>=0; i--) {
         r1 = div_4096_word_64(t1[64 + i], t1[64 + i - 1], div);
 
@@ -22156,6 +22212,13 @@ static WC_INLINE int sp_256_div_4(const sp_digit* a, const sp_digit* d, sp_digit
 
     div = d[3];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 4);
+    r1 = sp_256_cmp_4(&t1[4], d) >= 0;
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+        sp_256_cond_sub_avx2_4(&t1[4], &t1[4], d, (sp_digit)0 - r1);
+    else
+#endif
+        sp_256_cond_sub_4(&t1[4], &t1[4], d, (sp_digit)0 - r1);
     for (i=3; i>=0; i--) {
         r1 = div_256_word_4(t1[4 + i], t1[4 + i - 1], div);
 
@@ -28015,6 +28078,13 @@ static WC_INLINE int sp_384_div_6(const sp_digit* a, const sp_digit* d, sp_digit
 
     div = d[5];
     XMEMCPY(t1, a, sizeof(*t1) * 2 * 6);
+    r1 = sp_384_cmp_6(&t1[6], d) >= 0;
+#ifdef HAVE_INTEL_AVX2
+    if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+        sp_384_cond_sub_avx2_6(&t1[6], &t1[6], d, (sp_digit)0 - r1);
+    else
+#endif
+        sp_384_cond_sub_6(&t1[6], &t1[6], d, (sp_digit)0 - r1);
     for (i=5; i>=0; i--) {
         r1 = div_384_word_6(t1[6 + i], t1[6 + i - 1], div);
 
