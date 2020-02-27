@@ -539,20 +539,20 @@ int mp_unitest_exptmod(const char* strZ, const char* strX, const char* strY,
 TEST_CASE("wolfssl mp exptmod test"   , "[wolfssl]")
 {
     ESP_LOGI(TAG, "mp test");
-    int verbose = 0;
+    int verbose = 1;
 
-    TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("2", "5", "1", "3", verbose));
-    TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("1", "-5", "1", "3", verbose));
+    TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("02", "5", "1", "3", verbose));
+    TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("01", "-5", "1", "3", verbose));
     TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("CE331E6D30A77A57", "1234", "A",
                            "FFFFFFFFFFFFFFFF", verbose));
-    TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("1000000", "1000", "2", "FFFFFFF", verbose));
-    TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("1000000", "2", "128",
+    TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("01000000", "1000", "2", "FFFFFFF", verbose));
+    TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("01000000", "2", "128",
                             "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", verbose));
-    TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("14B5A90", "1234", "2", "FFFFFFF", verbose));
-    TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("1234321", "1111", "2", "FFFFFFFF", verbose));
-    TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("2", "5", "1", "3", verbose));
+    TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("014B5A90", "1234", "2", "FFFFFFF", verbose));
+    TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("01234321", "1111", "2", "FFFFFFFF", verbose));
+    TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("02", "5", "1", "3", verbose));
     TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("22", "55", "1", "33", verbose));
-    TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("222", "555", "1", "333", verbose));
+    TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("0222", "555", "1", "333", verbose));
     TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("2222", "5555", "1", "3333", verbose));
     TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("11", "5555", "1", "33", verbose));
     TEST_ASSERT_EQUAL(0, mp_unitest_exptmod("55", "1111", "1", "77", verbose));
@@ -564,14 +564,14 @@ TEST_CASE("wolfssl mp mulmod test"   , "[wolfssl]")
     ESP_LOGI(TAG, "mp test");
     int verbose = 0;
     /*                                      Z    X    Y    M */
-    TEST_ASSERT_EQUAL(0, mp_unitest_mulmod("2", "5", "1", "3", verbose));
-    TEST_ASSERT_EQUAL(0, mp_unitest_mulmod("1", "-5", "1", "3", verbose));
-    TEST_ASSERT_EQUAL(0, mp_unitest_mulmod("2", "-64", "A", "3", verbose));
+    TEST_ASSERT_EQUAL(0, mp_unitest_mulmod("02", "5", "1", "3", verbose));
+    TEST_ASSERT_EQUAL(0, mp_unitest_mulmod("01", "-5", "1", "3", verbose));
+    TEST_ASSERT_EQUAL(0, mp_unitest_mulmod("02", "-64", "A", "3", verbose));
     TEST_ASSERT_EQUAL(0, mp_unitest_mulmod("74C3AC", "123456", "55555", "AAAAA1", verbose));
     TEST_ASSERT_EQUAL(0, mp_unitest_mulmod("73A068", "123456", "55555", "AAAAA3", verbose));
 
     mp_unitest_mulmod(
-    "10C530243ADE5EA7C557E9A2FF5B4573195665A89CB921F573267B15CD2BCB6467E925235AA752CC2D08B07D31497B497744CA3685A46E76247439826628589DD814AC9EEE9EF8B4B44BEE2DB6065BE3C51B788E4ECFF39FB28C3D8EBE10FC9989D97CDC6624E32EBD222E222A2E93085FC2D05E4EB73375F7FC7B11E9B3024",
+    "010C530243ADE5EA7C557E9A2FF5B4573195665A89CB921F573267B15CD2BCB6467E925235AA752CC2D08B07D31497B497744CA3685A46E76247439826628589DD814AC9EEE9EF8B4B44BEE2DB6065BE3C51B788E4ECFF39FB28C3D8EBE10FC9989D97CDC6624E32EBD222E222A2E93085FC2D05E4EB73375F7FC7B11E9B3024",
     "A4F780E83C3FAC34878787D4876BA7582E48C7637A26C6E720974FC7416150A3865D44F6D08E3DA38EB4296928C564D9A0008D8A0D63E0B8EF54D14D54FBEAB540E43D2ED6BE54806D9150C1944437CC3D8B2486A1FB932A6691B529E0E2A46524CB0825BA4F4E1B9C24554DB1913169E5373173A3B7CBBF77C3403C8C7AE86A",
     "6520379E44C1A2C359342010E1038F8C3644D9A47A9346A80C92B48A6986872D74C3BDDB49B2D93C554B588D4A4448614FADBC066CC10F3EB20A2422EA857B7DD0BF60C9CB7D733B12761BD785BCD122D97ECA0A8F1D0F705BC094B66EE5C96712AE3B14B5AA6AD9E50C6A3020BA01DA4FB94E3934527ADCDB3DE51C368B37C2",
     "BE7070B80418E528FE66D89088E0F1B7C3D0D23EE64B9474B0FFB0F763A5AB7EAFB62BB738161A50BFF1CA873AD5B0DAF8437A15B97EEA2A80D251B035AF07F3F25D243A4B8756481B3C249ADA7080BD3C8B034A0C8371DEE30370A2B760091B5EC73DA06460E3A9068DD3FF42BB0A94272D57420DB02DE0BA182560921192F3",
@@ -604,11 +604,11 @@ TEST_CASE("wolfssl mp mul test"   , "[wolfssl]")
     ESP_LOGI(TAG, "mp test");
     int verbose = 0;
 
-    TEST_ASSERT_EQUAL(0, mp_unitest_mul("A", "5", "2", verbose));
-    TEST_ASSERT_EQUAL(0, mp_unitest_mul("-A", "-5", "2", verbose));
-    TEST_ASSERT_EQUAL(0, mp_unitest_mul("A", "-5", "-2", verbose));
-    TEST_ASSERT_EQUAL(0, mp_unitest_mul("6260060", "1234", "5678", verbose));
-    TEST_ASSERT_EQUAL(0, mp_unitest_mul("38E83", "123", "321", verbose));
+    TEST_ASSERT_EQUAL(0, mp_unitest_mul("0A", "5", "2", verbose));
+    TEST_ASSERT_EQUAL(0, mp_unitest_mul("-0A", "-5", "2", verbose));
+    TEST_ASSERT_EQUAL(0, mp_unitest_mul("0A", "-5", "-2", verbose));
+    TEST_ASSERT_EQUAL(0, mp_unitest_mul("06260060", "1234", "5678", verbose));
+    TEST_ASSERT_EQUAL(0, mp_unitest_mul("038E83", "123", "321", verbose));
     TEST_ASSERT_EQUAL(0, mp_unitest_mul("75CD7FCBBC", "123456", "6789A", verbose));
 
     TEST_ASSERT_EQUAL(0, mp_unitest_mul(
@@ -618,7 +618,7 @@ TEST_CASE("wolfssl mp mul test"   , "[wolfssl]")
     verbose));
 
     TEST_ASSERT_EQUAL(0, mp_unitest_mul(
-    "33676FE7B625BF0759F7E8932B6B50D5F45E16E1C670AD20F1CDA5DFFA433685937CA8422A9CB916CC8",
+    "033676FE7B625BF0759F7E8932B6B50D5F45E16E1C670AD20F1CDA5DFFA433685937CA8422A9CB916CC8",
     "165196BA298CD54975DC483C4D21A51EA0A146783CFB41522E76E50C",
     "24D9D5CA7D9CCC06F5E70F1963E6",
     verbose));
