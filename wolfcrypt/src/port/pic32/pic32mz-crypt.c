@@ -427,6 +427,9 @@ static void start_engine(pic32mz_desc *desc)
     bufferLen = desc->dbPtr;
     if (bufferLen % 4)
         bufferLen = (bufferLen + 4) - (bufferLen % 4);
+    /* initialize the MSGLEN on engine startup to avoid infinite loop when
+     * length is less than 257 (size of PIC32_BLOCK_SIZE) */
+    uc_desc->bd[desc->currBd].MSGLEN = desc->msgSize;
     uc_desc->bd[desc->currBd].BD_CTRL.BUFLEN = bufferLen;
     uc_desc->bd[desc->currBd].BD_CTRL.LAST_BD = 1;
     uc_desc->bd[desc->currBd].BD_CTRL.LIFM = 1;
