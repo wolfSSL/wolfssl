@@ -1521,65 +1521,67 @@ int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz)
 
 
 
-WOLFSSL_API void wolfSSL_CTX_SetIORecv(WOLFSSL_CTX *ctx, CallbackIORecv CBIORecv)
+void wolfSSL_CTX_SetIORecv(WOLFSSL_CTX *ctx, CallbackIORecv CBIORecv)
 {
-    if (ctx != NULL) {
+    if (ctx) {
         ctx->CBIORecv = CBIORecv;
-        #ifdef OPENSSL_EXTRA
+    #ifdef OPENSSL_EXTRA
         ctx->cbioFlag |= WOLFSSL_CBIO_RECV;
-        #endif
+    #endif
     }
 }
 
 
-WOLFSSL_API void wolfSSL_CTX_SetIOSend(WOLFSSL_CTX *ctx, CallbackIOSend CBIOSend)
+void wolfSSL_CTX_SetIOSend(WOLFSSL_CTX *ctx, CallbackIOSend CBIOSend)
 {
-    if (ctx != NULL) {
+    if (ctx) {
         ctx->CBIOSend = CBIOSend;
-        #ifdef OPENSSL_EXTRA
+    #ifdef OPENSSL_EXTRA
         ctx->cbioFlag |= WOLFSSL_CBIO_SEND;
-        #endif
+    #endif
     }
 }
 
 
 /* sets the IO callback to use for receives at WOLFSSL level */
-WOLFSSL_API void wolfSSL_SSLSetIORecv(WOLFSSL *ssl, CallbackIORecv CBIORecv)
+void wolfSSL_SSLSetIORecv(WOLFSSL *ssl, CallbackIORecv CBIORecv)
 {
-    if (ssl != NULL) {
+    if (ssl) {
         ssl->CBIORecv = CBIORecv;
-        #ifdef OPENSSL_EXTRA
+    #ifdef OPENSSL_EXTRA
         ssl->cbioFlag |= WOLFSSL_CBIO_RECV;
-        #endif
+    #endif
     }
 }
 
 
 /* sets the IO callback to use for sends at WOLFSSL level */
-WOLFSSL_API void wolfSSL_SSLSetIOSend(WOLFSSL *ssl, CallbackIOSend CBIOSend)
+void wolfSSL_SSLSetIOSend(WOLFSSL *ssl, CallbackIOSend CBIOSend)
 {
-    if (ssl != NULL) {
+    if (ssl) {
         ssl->CBIOSend = CBIOSend;
-        #ifdef OPENSSL_EXTRA
+    #ifdef OPENSSL_EXTRA
         ssl->cbioFlag |= WOLFSSL_CBIO_SEND;
-        #endif
+    #endif
     }
 }
 
 
-WOLFSSL_API void wolfSSL_SetIOReadCtx(WOLFSSL* ssl, void *rctx)
+void wolfSSL_SetIOReadCtx(WOLFSSL* ssl, void *rctx)
 {
-    ssl->IOCB_ReadCtx = rctx;
+    if (ssl)
+        ssl->IOCB_ReadCtx = rctx;
 }
 
 
-WOLFSSL_API void wolfSSL_SetIOWriteCtx(WOLFSSL* ssl, void *wctx)
+void wolfSSL_SetIOWriteCtx(WOLFSSL* ssl, void *wctx)
 {
-    ssl->IOCB_WriteCtx = wctx;
+    if (ssl)
+        ssl->IOCB_WriteCtx = wctx;
 }
 
 
-WOLFSSL_API void* wolfSSL_GetIOReadCtx(WOLFSSL* ssl)
+void* wolfSSL_GetIOReadCtx(WOLFSSL* ssl)
 {
     if (ssl)
         return ssl->IOCB_ReadCtx;
@@ -1588,7 +1590,7 @@ WOLFSSL_API void* wolfSSL_GetIOReadCtx(WOLFSSL* ssl)
 }
 
 
-WOLFSSL_API void* wolfSSL_GetIOWriteCtx(WOLFSSL* ssl)
+void* wolfSSL_GetIOWriteCtx(WOLFSSL* ssl)
 {
     if (ssl)
         return ssl->IOCB_WriteCtx;
@@ -1597,33 +1599,37 @@ WOLFSSL_API void* wolfSSL_GetIOWriteCtx(WOLFSSL* ssl)
 }
 
 
-WOLFSSL_API void wolfSSL_SetIOReadFlags(WOLFSSL* ssl, int flags)
+void wolfSSL_SetIOReadFlags(WOLFSSL* ssl, int flags)
 {
-    ssl->rflags = flags;
+    if (ssl)
+        ssl->rflags = flags;
 }
 
 
-WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags)
+void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags)
 {
-    ssl->wflags = flags;
+    if (ssl)
+        ssl->wflags = flags;
 }
 
 
 #ifdef WOLFSSL_DTLS
 
-WOLFSSL_API void wolfSSL_CTX_SetGenCookie(WOLFSSL_CTX* ctx, CallbackGenCookie cb)
+void wolfSSL_CTX_SetGenCookie(WOLFSSL_CTX* ctx, CallbackGenCookie cb)
 {
-    ctx->CBIOCookie = cb;
+    if (ctx)
+        ctx->CBIOCookie = cb;
 }
 
 
-WOLFSSL_API void wolfSSL_SetCookieCtx(WOLFSSL* ssl, void *ctx)
+void wolfSSL_SetCookieCtx(WOLFSSL* ssl, void *ctx)
 {
-    ssl->IOCB_CookieCtx = ctx;
+    if (ssl)
+        ssl->IOCB_CookieCtx = ctx;
 }
 
 
-WOLFSSL_API void* wolfSSL_GetCookieCtx(WOLFSSL* ssl)
+void* wolfSSL_GetCookieCtx(WOLFSSL* ssl)
 {
     if (ssl)
         return ssl->IOCB_CookieCtx;
@@ -1633,15 +1639,17 @@ WOLFSSL_API void* wolfSSL_GetCookieCtx(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_SESSION_EXPORT
 
-WOLFSSL_API void wolfSSL_CTX_SetIOGetPeer(WOLFSSL_CTX* ctx, CallbackGetPeer cb)
+void wolfSSL_CTX_SetIOGetPeer(WOLFSSL_CTX* ctx, CallbackGetPeer cb)
 {
-    ctx->CBGetPeer = cb;
+    if (ctx)
+        ctx->CBGetPeer = cb;
 }
 
 
-WOLFSSL_API void wolfSSL_CTX_SetIOSetPeer(WOLFSSL_CTX* ctx, CallbackSetPeer cb)
+void wolfSSL_CTX_SetIOSetPeer(WOLFSSL_CTX* ctx, CallbackSetPeer cb)
 {
-    ctx->CBSetPeer = cb;
+    if (ctx)
+        ctx->CBSetPeer = cb;
 }
 
 #endif /* WOLFSSL_SESSION_EXPORT */
