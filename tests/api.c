@@ -18416,7 +18416,7 @@ static void test_wc_PKCS7_BER(void)
     XFILE  f;
     byte   der[4096];
 #ifndef NO_DES3
-    byte   decoded[1024];
+    byte   decoded[2048];
 #endif
     word32 derSz;
     int    ret;
