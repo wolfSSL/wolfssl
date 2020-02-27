@@ -56,12 +56,6 @@
     #include <stdio.h>
 #endif
 
-#ifndef NO_WOLFSSL_SMALL_STACK
-    #ifndef WOLFSSL_SMALL_STACK
-        #define WOLFSSL_SMALL_STACK
-    #endif
-#endif
-
 #ifdef SHOW_GEN
     #ifndef NO_STDIO_FILESYSTEM
         #include <stdio.h>

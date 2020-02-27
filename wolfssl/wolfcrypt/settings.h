@@ -2114,6 +2114,10 @@ extern void uITRON4_free(void *p) ;
     #define MAX_EX_DATA 5  /* allow for five items of ex_data */
 #endif
 
+#ifdef NO_WOLFSSL_SMALL_STACK
+    #undef WOLFSSL_SMALL_STACK
+#endif
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif
