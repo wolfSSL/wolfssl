@@ -1576,13 +1576,14 @@ WOLFSSL_API long wolfSSL_get_verify_result(const WOLFSSL *ssl);
 
 #define WOLFSSL_DEFAULT_CIPHER_LIST ""   /* default all */
 
+/* These are bit-masks */
 enum {
     WOLFSSL_OCSP_URL_OVERRIDE = 1,
     WOLFSSL_OCSP_NO_NONCE     = 2,
     WOLFSSL_OCSP_CHECKALL     = 4,
 
     WOLFSSL_CRL_CHECKALL = 1,
-    WOLFSSL_CRL_CHECK    = 27,
+    WOLFSSL_CRL_CHECK    = 2,
 };
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
