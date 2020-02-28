@@ -462,6 +462,25 @@ endif
 endif
 endif
 
+if BUILD_CURVE448
+src_libwolfssl_la_SOURCES += wolfcrypt/src/curve448.c
+endif
+
+if BUILD_ED448
+src_libwolfssl_la_SOURCES += wolfcrypt/src/ed448.c
+endif
+
+if BUILD_FE448
+src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_448.c
+endif
+
+if BUILD_GE448
+src_libwolfssl_la_SOURCES += wolfcrypt/src/ge_448.c
+if !BUILD_FE448
+src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_448.c
+endif
+endif
+
 if BUILD_LIBZ
 src_libwolfssl_la_SOURCES += wolfcrypt/src/compress.c
 endif

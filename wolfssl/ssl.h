@@ -2567,6 +2567,50 @@ WOLFSSL_API void  wolfSSL_SetX25519SharedSecretCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetX25519SharedSecretCtx(WOLFSSL* ssl);
 #endif
 
+#ifdef HAVE_ED448
+struct ed448_key;
+typedef int (*CallbackEd448Sign)(WOLFSSL* ssl,
+       const unsigned char* in, unsigned int inSz,
+       unsigned char* out, unsigned int* outSz,
+       const unsigned char* keyDer, unsigned int keySz,
+       void* ctx);
+WOLFSSL_API void  wolfSSL_CTX_SetEd448SignCb(WOLFSSL_CTX*,
+                                               CallbackEd448Sign);
+WOLFSSL_API void  wolfSSL_SetEd448SignCtx(WOLFSSL* ssl, void *ctx);
+WOLFSSL_API void* wolfSSL_GetEd448SignCtx(WOLFSSL* ssl);
+
+typedef int (*CallbackEd448Verify)(WOLFSSL* ssl,
+       const unsigned char* sig, unsigned int sigSz,
+       const unsigned char* msg, unsigned int msgSz,
+       const unsigned char* keyDer, unsigned int keySz,
+       int* result, void* ctx);
+WOLFSSL_API void  wolfSSL_CTX_SetEd448VerifyCb(WOLFSSL_CTX*,
+                                                 CallbackEd448Verify);
+WOLFSSL_API void  wolfSSL_SetEd448VerifyCtx(WOLFSSL* ssl, void *ctx);
+WOLFSSL_API void* wolfSSL_GetEd448VerifyCtx(WOLFSSL* ssl);
+#endif
+
+#ifdef HAVE_CURVE448
+struct curve448_key;
+
+typedef int (*CallbackX448KeyGen)(WOLFSSL* ssl, struct curve448_key* key,
+    unsigned int keySz, void* ctx);
+WOLFSSL_API void  wolfSSL_CTX_SetX448KeyGenCb(WOLFSSL_CTX*, CallbackX448KeyGen);
+WOLFSSL_API void  wolfSSL_SetX448KeyGenCtx(WOLFSSL* ssl, void *ctx);
+WOLFSSL_API void* wolfSSL_GetX448KeyGenCtx(WOLFSSL* ssl);
+
+typedef int (*CallbackX448SharedSecret)(WOLFSSL* ssl,
+        struct curve448_key* otherKey,
+        unsigned char* pubKeyDer, unsigned int* pubKeySz,
+        unsigned char* out, unsigned int* outlen,
+        int side, void* ctx);
+        /* side is WOLFSSL_CLIENT_END or WOLFSSL_SERVER_END */
+WOLFSSL_API void  wolfSSL_CTX_SetX448SharedSecretCb(WOLFSSL_CTX*,
+        CallbackX448SharedSecret);
+WOLFSSL_API void  wolfSSL_SetX448SharedSecretCtx(WOLFSSL* ssl, void *ctx);
+WOLFSSL_API void* wolfSSL_GetX448SharedSecretCtx(WOLFSSL* ssl);
+#endif
+
 #ifndef NO_RSA
 typedef int (*CallbackRsaSign)(WOLFSSL* ssl,
        const unsigned char* in, unsigned int inSz,
@@ -2975,7 +3019,6 @@ enum {
     WOLFSSL_ECC_BRAINPOOLP384R1 = 27,
     WOLFSSL_ECC_BRAINPOOLP512R1 = 28,
     WOLFSSL_ECC_X25519    = 29,
-    /* Not implemented. */
     WOLFSSL_ECC_X448      = 30,
 
     WOLFSSL_FFDHE_2048    = 256,

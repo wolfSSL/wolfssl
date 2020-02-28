@@ -1362,6 +1362,45 @@ int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
         return ret;
     }
 #endif /* !WOLFSSL_NOSHA3_512 */
+
+#if defined(WOLFSSL_SHAKE256) && !defined(WOLFSSL_NO_SHAKE256)
+    int wc_Shake256Hash(const byte* data, word32 len, byte* hash,
+                        word32 hashLen)
+    {
+        int ret = 0;
+    #ifdef WOLFSSL_SMALL_STACK
+        wc_Shake* shake;
+    #else
+        wc_Shake shake[1];
+    #endif
+
+    #ifdef WOLFSSL_SMALL_STACK
+        shake = (wc_Shake*)XMALLOC(sizeof(wc_Shake), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (shake == NULL)
+            return MEMORY_E;
+    #endif
+
+        if ((ret = wc_InitShake256(shake, NULL, INVALID_DEVID)) != 0) {
+            WOLFSSL_MSG("InitShake256 failed");
+        }
+        else {
+            if ((ret = wc_Shake256_Update(shake, data, len)) != 0) {
+                WOLFSSL_MSG("Shake256_Update failed");
+            }
+            else if ((ret = wc_Shake256_Final(shake, hash, hashLen)) != 0) {
+                WOLFSSL_MSG("Shake256_Final failed");
+            }
+            wc_Shake256_Free(shake);
+        }
+
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(shake, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+
+        return ret;
+    }
+#endif /* WOLFSSL_SHAKE_256 && !WOLFSSL_NO_SHAKE256 */
 #endif /* WOLFSSL_SHA3 */
 
 #endif /* !NO_HASH_WRAPPER */

@@ -799,6 +799,17 @@ int SuiteTest(int argc, char** argv)
         goto exit;
     }
 #endif
+#if defined(HAVE_CURVE448) && defined(HAVE_ED448)
+    /* add ED448 certificate cipher suite tests */
+    strcpy(argv0[1], "tests/test-ed448.conf");
+    printf("starting ED448 extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
 #ifdef WOLFSSL_DTLS
     /* add dtls extra suites */
     strcpy(argv0[1], "tests/test-dtls.conf");

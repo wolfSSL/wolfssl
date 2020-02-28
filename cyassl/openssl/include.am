@@ -15,6 +15,8 @@ nobase_include_HEADERS+= \
                          cyassl/openssl/ec.h \
                          cyassl/openssl/ec25519.h \
                          cyassl/openssl/ed25519.h \
+                         cyassl/openssl/ec448.h \
+                         cyassl/openssl/ed448.h \
                          cyassl/openssl/engine.h \
                          cyassl/openssl/err.h \
                          cyassl/openssl/evp.h \

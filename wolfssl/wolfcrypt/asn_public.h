@@ -41,6 +41,10 @@
     typedef struct ed25519_key ed25519_key;
     #define WC_ED25519KEY_TYPE_DEFINED
 #endif
+#ifndef WC_ED448KEY_TYPE_DEFINED
+    typedef struct ed448_key ed448_key;
+    #define WC_ED448KEY_TYPE_DEFINED
+#endif
 #ifndef WC_RSAKEY_TYPE_DEFINED
     typedef struct RsaKey RsaKey;
     #define WC_RSAKEY_TYPE_DEFINED
@@ -76,6 +80,8 @@ enum Ecc_Sum {
     ECC_X25519_OID = 365,
     ECC_ED25519_OID = 256,
     ECC_BRAINPOOLP320R1_OID = 106,
+    ECC_X448_OID = 362,
+    ECC_ED448_OID = 257,
     ECC_SECP384R1_OID = 210,
     ECC_BRAINPOOLP384R1_OID = 108,
     ECC_BRAINPOOLP512R1_OID = 110,
@@ -103,6 +109,7 @@ enum CertType {
     TRUSTED_PEER_TYPE,
     EDDSA_PRIVATEKEY_TYPE,
     ED25519_TYPE,
+    ED448_TYPE,
     PKCS12_TYPE,
     PKCS8_PRIVATEKEY_TYPE,
     PKCS8_ENC_PRIVATEKEY_TYPE,
@@ -126,7 +133,8 @@ enum Ctc_SigType {
     CTC_SHA384wECDSA = 525,
     CTC_SHA512wRSA   = 657,
     CTC_SHA512wECDSA = 526,
-    CTC_ED25519      = 256
+    CTC_ED25519      = 256,
+    CTC_ED448        = 257
 };
 
 enum Ctc_Encoding {
@@ -524,6 +532,24 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
                                               ed25519_key*, word32);
     #if (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
         WOLFSSL_API int wc_Ed25519PublicKeyToDer(ed25519_key*, byte* output,
+                                               word32 inLen, int with_AlgCurve);
+    #endif
+#endif
+
+#ifdef HAVE_ED448
+    /* private key helpers */
+    WOLFSSL_API int wc_Ed448PrivateKeyDecode(const byte*, word32*,
+                                             ed448_key*, word32);
+    WOLFSSL_API int wc_Ed448KeyToDer(ed448_key* key, byte* output,
+                                     word32 inLen);
+    WOLFSSL_API int wc_Ed448PrivateKeyToDer(ed448_key* key, byte* output,
+                                            word32 inLen);
+
+    /* public key helper */
+    WOLFSSL_API int wc_Ed448PublicKeyDecode(const byte*, word32*,
+                                            ed448_key*, word32);
+    #if (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
+        WOLFSSL_API int wc_Ed448PublicKeyToDer(ed448_key*, byte* output,
                                                word32 inLen, int with_AlgCurve);
     #endif
 #endif

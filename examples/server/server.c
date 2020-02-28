@@ -632,6 +632,9 @@ static const char* server_usage_msg[][49] = {
 #ifdef HAVE_TRUSTED_CA
         "-5          Use Trusted CA Key Indication\n",                  /* 52 */
 #endif
+#ifdef HAVE_CURVE448
+        "-8          Pre-generate Key share using Curve448 only\n",     /* 55 */
+#endif
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -750,6 +753,9 @@ static const char* server_usage_msg[][49] = {
                                  "\n            0: 英語、 1: 日本語\n", /* 49 */
 #ifdef HAVE_TRUSTED_CA
         "-5          信頼できる認証局の鍵表示を使用する\n",             /* 52 */
+#endif
+#ifdef HAVE_CURVE448
+        "-8          Pre-generate Key share using Curve448 only\n",     /* 55 */
 #endif
         NULL,
     },
@@ -870,6 +876,9 @@ static void Usage(void)
 #ifdef HAVE_TRUSTED_CA
     printf("%s", msg[++msgId]);     /* -5 */
 #endif /* HAVE_TRUSTED_CA */
+#ifdef HAVE_CURVE448
+    printf("%s", msg[++msgId]);     /* -8 */
+#endif
 }
 
 THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
@@ -1013,6 +1022,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     int noTicket = 0;
 #endif
     int useX25519 = 0;
+    int useX448 = 0;
     int exitWithRet = 0;
     int loadCertKeyIntoSSLObj = 0;
 
@@ -1035,6 +1045,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         verifyCert = cliEdCertFile;
         ourCert    = edCertFile;
         ourKey     = edKeyFile;
+    #elif defined(HAVE_ED448)
+        verifyCert = cliEd448CertFile;
+        ourCert    = ed448CertFile;
+        ourKey     = ed448KeyFile;
     #else
         verifyCert = NULL;
         ourCert    = NULL;
@@ -1074,7 +1088,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     while ((ch = mygetopt(argc, argv, "?:"
                 "abc:defgijk:l:mnop:q:rstuv:wxy"
                 "A:B:C:D:E:GH:IJKL:MNO:PQR:S:TUVYZ:"
-                "01:23:4:5")) != -1) {
+                "01:23:4:58")) != -1) {
         switch (ch) {
             case '?' :
                 if(myoptarg!=NULL) {
@@ -1455,6 +1469,15 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             #endif /* HAVE_TRUSTED_CA */
                 break;
 
+            case '8' :
+                #ifdef HAVE_CURVE448
+                    useX448 = 1;
+                    #if defined(WOLFSSL_TLS13) && defined(HAVE_ECC)
+                        onlyKeyShare = 2;
+                    #endif
+                #endif
+                break;
+
             default:
                 Usage();
                 XEXIT_T(MY_EX_USAGE);
@@ -1611,7 +1634,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     }
 #endif
 
-#if defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519)
+#if defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519) && \
+                                                            !defined(HAVE_ED448)
     if (!usePsk) {
         usePsk = 1;
     }
@@ -2028,8 +2052,20 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                     }
         #endif
                 }
-                else
-                {
+                else if (useX448 == 1) {
+        #ifdef HAVE_CURVE448
+                    int groups[1] = { WOLFSSL_ECC_X448 };
+
+                    if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X448)
+                                                           != WOLFSSL_SUCCESS) {
+                        err_sys("unable to use curve x448");
+                    }
+                    if (wolfSSL_set_groups(ssl, groups, 1) != WOLFSSL_SUCCESS) {
+                        err_sys("unable to set groups: x448");
+                    }
+        #endif
+                }
+                else {
         #ifdef HAVE_ECC
             #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
                     int groups[1] = { WOLFSSL_ECC_SECP256R1 };
@@ -2458,6 +2494,7 @@ exit:
     (void) ourDhParam;
     (void) ourCert;
     (void) useX25519;
+    (void) useX448;
 #ifdef HAVE_SECURE_RENEGOTIATION
     (void) forceScr;
 #endif

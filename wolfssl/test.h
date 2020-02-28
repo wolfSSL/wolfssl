@@ -38,6 +38,12 @@
     #ifdef HAVE_CURVE25519
         #include <wolfssl/wolfcrypt/curve25519.h>
     #endif /* HAVE_ECC */
+    #ifdef HAVE_ED448
+        #include <wolfssl/wolfcrypt/ed448.h>
+    #endif /* HAVE_ED448 */
+    #ifdef HAVE_CURVE448
+        #include <wolfssl/wolfcrypt/curve448.h>
+    #endif /* HAVE_ECC */
 #endif /*HAVE_PK_CALLBACKS */
 
 #ifdef USE_WINDOWS_API
@@ -290,60 +296,70 @@
 
 /* all certs relative to wolfSSL home directory now */
 #if defined(WOLFSSL_NO_CURRDIR) || defined(WOLFSSL_MDK_SHELL)
-#define caCertFile     "certs/ca-cert.pem"
-#define eccCertFile    "certs/server-ecc.pem"
-#define eccKeyFile     "certs/ecc-key.pem"
-#define eccRsaCertFile "certs/server-ecc-rsa.pem"
-#define svrCertFile    "certs/server-cert.pem"
-#define svrKeyFile     "certs/server-key.pem"
-#define cliCertFile    "certs/client-cert.pem"
-#define cliCertDerFile "certs/client-cert.der"
-#define cliCertFileExt "certs/client-cert-ext.pem"
+#define caCertFile        "certs/ca-cert.pem"
+#define eccCertFile       "certs/server-ecc.pem"
+#define eccKeyFile        "certs/ecc-key.pem"
+#define eccRsaCertFile    "certs/server-ecc-rsa.pem"
+#define svrCertFile       "certs/server-cert.pem"
+#define svrKeyFile        "certs/server-key.pem"
+#define cliCertFile       "certs/client-cert.pem"
+#define cliCertDerFile    "certs/client-cert.der"
+#define cliCertFileExt    "certs/client-cert-ext.pem"
 #define cliCertDerFileExt "certs/client-cert-ext.der"
-#define cliKeyFile     "certs/client-key.pem"
-#define ntruCertFile   "certs/ntru-cert.pem"
-#define ntruKeyFile    "certs/ntru-key.raw"
-#define dhParamFile    "certs/dh2048.pem"
-#define cliEccKeyFile  "certs/ecc-client-key.pem"
-#define cliEccCertFile "certs/client-ecc-cert.pem"
-#define caEccCertFile  "certs/ca-ecc-cert.pem"
-#define crlPemDir      "certs/crl"
-#define edCertFile     "certs/ed25519/server-ed25519-cert.pem"
-#define edKeyFile      "certs/ed25519/server-ed25519-priv.pem"
-#define cliEdCertFile  "certs/ed25519/client-ed25519.pem"
-#define cliEdKeyFile   "certs/ed25519/client-ed25519-priv.pem"
-#define caEdCertFile   "certs/ed25519/ca-ed25519.pem"
+#define cliKeyFile        "certs/client-key.pem"
+#define ntruCertFile      "certs/ntru-cert.pem"
+#define ntruKeyFile       "certs/ntru-key.raw"
+#define dhParamFile       "certs/dh2048.pem"
+#define cliEccKeyFile     "certs/ecc-client-key.pem"
+#define cliEccCertFile    "certs/client-ecc-cert.pem"
+#define caEccCertFile     "certs/ca-ecc-cert.pem"
+#define crlPemDir         "certs/crl"
+#define edCertFile        "certs/ed25519/server-ed25519-cert.pem"
+#define edKeyFile         "certs/ed25519/server-ed25519-priv.pem"
+#define cliEdCertFile     "certs/ed25519/client-ed25519.pem"
+#define cliEdKeyFile      "certs/ed25519/client-ed25519-priv.pem"
+#define caEdCertFile      "certs/ed25519/ca-ed25519.pem"
+#define ed448CertFile     "certs/ed448/server-ed448-cert.pem"
+#define ed448KeyFile      "certs/ed448/server-ed448-priv.pem"
+#define cliEd448CertFile  "certs/ed448/client-ed448.pem"
+#define cliEd448KeyFile   "certs/ed448/client-ed448-priv.pem"
+#define caEd448CertFile   "certs/ed448/ca-ed448.pem"
 #ifdef HAVE_WNR
     /* Whitewood netRandom default config file */
-    #define wnrConfig  "wnr-example.conf"
+    #define wnrConfig     "wnr-example.conf"
 #endif
 #else
-#define caCertFile     "./certs/ca-cert.pem"
-#define eccCertFile    "./certs/server-ecc.pem"
-#define eccKeyFile     "./certs/ecc-key.pem"
-#define eccRsaCertFile "./certs/server-ecc-rsa.pem"
-#define svrCertFile    "./certs/server-cert.pem"
-#define svrKeyFile     "./certs/server-key.pem"
-#define cliCertFile    "./certs/client-cert.pem"
-#define cliCertDerFile "./certs/client-cert.der"
-#define cliCertFileExt "./certs/client-cert-ext.pem"
+#define caCertFile        "./certs/ca-cert.pem"
+#define eccCertFile       "./certs/server-ecc.pem"
+#define eccKeyFile        "./certs/ecc-key.pem"
+#define eccRsaCertFile    "./certs/server-ecc-rsa.pem"
+#define svrCertFile       "./certs/server-cert.pem"
+#define svrKeyFile        "./certs/server-key.pem"
+#define cliCertFile       "./certs/client-cert.pem"
+#define cliCertDerFile    "./certs/client-cert.der"
+#define cliCertFileExt    "./certs/client-cert-ext.pem"
 #define cliCertDerFileExt "./certs/client-cert-ext.der"
-#define cliKeyFile     "./certs/client-key.pem"
-#define ntruCertFile   "./certs/ntru-cert.pem"
-#define ntruKeyFile    "./certs/ntru-key.raw"
-#define dhParamFile    "./certs/dh2048.pem"
-#define cliEccKeyFile  "./certs/ecc-client-key.pem"
-#define cliEccCertFile "./certs/client-ecc-cert.pem"
-#define caEccCertFile  "./certs/ca-ecc-cert.pem"
-#define crlPemDir      "./certs/crl"
-#define edCertFile     "./certs/ed25519/server-ed25519-cert.pem"
-#define edKeyFile      "./certs/ed25519/server-ed25519-priv.pem"
-#define cliEdCertFile  "./certs/ed25519/client-ed25519.pem"
-#define cliEdKeyFile   "./certs/ed25519/client-ed25519-priv.pem"
-#define caEdCertFile   "./certs/ed25519/ca-ed25519.pem"
+#define cliKeyFile        "./certs/client-key.pem"
+#define ntruCertFile      "./certs/ntru-cert.pem"
+#define ntruKeyFile       "./certs/ntru-key.raw"
+#define dhParamFile       "./certs/dh2048.pem"
+#define cliEccKeyFile     "./certs/ecc-client-key.pem"
+#define cliEccCertFile    "./certs/client-ecc-cert.pem"
+#define caEccCertFile     "./certs/ca-ecc-cert.pem"
+#define crlPemDir         "./certs/crl"
+#define edCertFile        "./certs/ed25519/server-ed25519-cert.pem"
+#define edKeyFile         "./certs/ed25519/server-ed25519-priv.pem"
+#define cliEdCertFile     "./certs/ed25519/client-ed25519.pem"
+#define cliEdKeyFile      "./certs/ed25519/client-ed25519-priv.pem"
+#define caEdCertFile      "./certs/ed25519/ca-ed25519.pem"
+#define ed448CertFile     "./certs/ed448/server-ed448-cert.pem"
+#define ed448KeyFile      "./certs/ed448/server-ed448-priv.pem"
+#define cliEd448CertFile  "./certs/ed448/client-ed448.pem"
+#define cliEd448KeyFile   "./certs/ed448/client-ed448-priv.pem"
+#define caEd448CertFile   "./certs/ed448/ca-ed448.pem"
 #ifdef HAVE_WNR
     /* Whitewood netRandom default config file */
-    #define wnrConfig  "./wnr-example.conf"
+    #define wnrConfig     "./wnr-example.conf"
 #endif
 #endif
 
@@ -714,7 +730,8 @@ static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
     WOLFSSL_CIPHER* cipher;
     const char** words = client_showpeer_msg[lng_index];
 
-#if defined(HAVE_ECC) || !defined(NO_DH)
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || \
+                                                                 !defined(NO_DH)
     const char *name;
 #endif
 #ifndef NO_DH
@@ -742,7 +759,8 @@ static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
 #else
     printf("%s %s\n", words[1], wolfSSL_CIPHER_get_name(cipher));
 #endif
-#if defined(HAVE_ECC) || !defined(NO_DH)
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448) || \
+                                                                 !defined(NO_DH)
     if ((name = wolfSSL_get_curve_name(ssl)) != NULL)
         printf("%s %s\n", words[2], name);
 #endif
@@ -1927,7 +1945,7 @@ static WC_INLINE int StackSizeCheck(func_args* args, thread_func tf)
     int            ret, i, used;
     void*          status;
     unsigned char* myStack = NULL;
-    int            stackSize = 1024*128;
+    int            stackSize = 1024*152;
     pthread_attr_t myAttr;
     pthread_t      threadId;
 
@@ -2441,6 +2459,9 @@ typedef struct PkCbInfo {
     #ifdef HAVE_CURVE25519
         curve25519_key curve;
     #endif
+    #ifdef HAVE_CURVE448
+        curve448_key curve;
+    #endif
     } keyGen;
 #endif
 } PkCbInfo;
@@ -2819,6 +2840,167 @@ static WC_INLINE int myX25519SharedSecret(WOLFSSL* ssl, curve25519_key* otherKey
     return ret;
 }
 #endif /* HAVE_CURVE25519 */
+
+#ifdef HAVE_ED448
+static WC_INLINE int myEd448Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
+        byte* out, word32* outSz, const byte* key, word32 keySz, void* ctx)
+{
+    int         ret;
+    word32      idx = 0;
+    ed448_key   myKey;
+    byte*       keyBuf = (byte*)key;
+    PkCbInfo*   cbInfo = (PkCbInfo*)ctx;
+
+    (void)ssl;
+    (void)cbInfo;
+
+    WOLFSSL_PKMSG("PK 448 Sign: inSz %d, keySz %d\n", inSz, keySz);
+
+#ifdef TEST_PK_PRIVKEY
+    ret = load_key_file(cbInfo->ourKey, &keyBuf, &keySz);
+    if (ret != 0)
+        return ret;
+#endif
+
+    ret = wc_ed448_init(&myKey);
+    if (ret == 0) {
+        ret = wc_Ed448PrivateKeyDecode(keyBuf, &idx, &myKey, keySz);
+        if (ret == 0)
+            ret = wc_ed448_sign_msg(in, inSz, out, outSz, &myKey);
+        wc_ed448_free(&myKey);
+    }
+
+#ifdef TEST_PK_PRIVKEY
+    free(keyBuf);
+#endif
+
+    WOLFSSL_PKMSG("PK 448 Sign: ret %d, outSz %d\n", ret, *outSz);
+
+    return ret;
+}
+
+
+static WC_INLINE int myEd448Verify(WOLFSSL* ssl, const byte* sig, word32 sigSz,
+        const byte* msg, word32 msgSz, const byte* key, word32 keySz,
+        int* result, void* ctx)
+{
+    int         ret;
+    ed448_key   myKey;
+    PkCbInfo*   cbInfo = (PkCbInfo*)ctx;
+
+    (void)ssl;
+    (void)cbInfo;
+
+    WOLFSSL_PKMSG("PK 448 Verify: sigSz %d, msgSz %d, keySz %d\n", sigSz, msgSz,
+                  keySz);
+
+    ret = wc_ed448_init(&myKey);
+    if (ret == 0) {
+        ret = wc_ed448_import_public(key, keySz, &myKey);
+        if (ret == 0) {
+            ret = wc_ed448_verify_msg(sig, sigSz, msg, msgSz, result, &myKey);
+        }
+        wc_ed448_free(&myKey);
+    }
+
+    WOLFSSL_PKMSG("PK 448 Verify: ret %d, result %d\n", ret, *result);
+
+    return ret;
+}
+#endif /* HAVE_ED448 */
+
+#ifdef HAVE_CURVE448
+static WC_INLINE int myX448KeyGen(WOLFSSL* ssl, curve448_key* key,
+    unsigned int keySz, void* ctx)
+{
+    int       ret;
+    WC_RNG    rng;
+    PkCbInfo* cbInfo = (PkCbInfo*)ctx;
+
+    (void)ssl;
+    (void)cbInfo;
+
+    WOLFSSL_PKMSG("PK 448 KeyGen: keySz %d\n", keySz);
+
+    ret = wc_InitRng(&rng);
+    if (ret != 0)
+        return ret;
+
+    ret = wc_curve448_make_key(&rng, keySz, key);
+
+    wc_FreeRng(&rng);
+
+    WOLFSSL_PKMSG("PK 448 KeyGen: ret %d\n", ret);
+
+    return ret;
+}
+
+static WC_INLINE int myX448SharedSecret(WOLFSSL* ssl, curve448_key* otherKey,
+        unsigned char* pubKeyDer, unsigned int* pubKeySz,
+        unsigned char* out, unsigned int* outlen,
+        int side, void* ctx)
+{
+    int           ret;
+    curve448_key* privKey = NULL;
+    curve448_key* pubKey = NULL;
+    curve448_key  tmpKey;
+    PkCbInfo*     cbInfo = (PkCbInfo*)ctx;
+
+    (void)ssl;
+    (void)cbInfo;
+
+    WOLFSSL_PKMSG("PK 448 PMS: side %s\n",
+        side == WOLFSSL_CLIENT_END ? "client" : "server");
+
+    ret = wc_curve448_init(&tmpKey);
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* for client: create and export public key */
+    if (side == WOLFSSL_CLIENT_END) {
+        WC_RNG rng;
+
+        privKey = &tmpKey;
+        pubKey = otherKey;
+
+        ret = wc_InitRng(&rng);
+        if (ret == 0) {
+            ret = wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, privKey);
+            if (ret == 0) {
+                ret = wc_curve448_export_public_ex(privKey, pubKeyDer,
+                    pubKeySz, EC448_LITTLE_ENDIAN);
+            }
+            wc_FreeRng(&rng);
+        }
+    }
+
+    /* for server: import public key */
+    else if (side == WOLFSSL_SERVER_END) {
+        privKey = otherKey;
+        pubKey = &tmpKey;
+
+        ret = wc_curve448_import_public_ex(pubKeyDer, *pubKeySz, pubKey,
+            EC448_LITTLE_ENDIAN);
+    }
+    else {
+        ret = BAD_FUNC_ARG;
+    }
+
+    /* generate shared secret and return it */
+    if (ret == 0) {
+        ret = wc_curve448_shared_secret_ex(privKey, pubKey, out, outlen,
+            EC448_LITTLE_ENDIAN);
+    }
+
+    wc_curve448_free(&tmpKey);
+
+    WOLFSSL_PKMSG("PK 448 PMS: ret %d, pubKeySz %d, outLen %d\n",
+        ret, *pubKeySz, *outlen);
+
+    return ret;
+}
+#endif /* HAVE_CURVE448 */
 
 #endif /* HAVE_ECC */
 
@@ -3246,6 +3428,14 @@ static WC_INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx)
         wolfSSL_CTX_SetX25519KeyGenCb(ctx, myX25519KeyGen);
         wolfSSL_CTX_SetX25519SharedSecretCb(ctx, myX25519SharedSecret);
     #endif
+    #ifdef HAVE_ED448
+        wolfSSL_CTX_SetEd448SignCb(ctx, myEd448Sign);
+        wolfSSL_CTX_SetEd448VerifyCb(ctx, myEd448Verify);
+    #endif
+    #ifdef HAVE_CURVE448
+        wolfSSL_CTX_SetX448KeyGenCb(ctx, myX448KeyGen);
+        wolfSSL_CTX_SetX448SharedSecretCb(ctx, myX448SharedSecret);
+    #endif
     #ifndef NO_RSA
         wolfSSL_CTX_SetRsaSignCb(ctx, myRsaSign);
         wolfSSL_CTX_SetRsaVerifyCb(ctx, myRsaVerify);
@@ -3278,6 +3468,14 @@ static WC_INLINE void SetupPkCallbackContexts(WOLFSSL* ssl, void* myCtx)
     #ifdef HAVE_CURVE25519
         wolfSSL_SetX25519KeyGenCtx(ssl, myCtx);
         wolfSSL_SetX25519SharedSecretCtx(ssl, myCtx);
+    #endif
+    #ifdef HAVE_ED448
+        wolfSSL_SetEd448SignCtx(ssl, myCtx);
+        wolfSSL_SetEd448VerifyCtx(ssl, myCtx);
+    #endif
+    #ifdef HAVE_CURVE448
+        wolfSSL_SetX448KeyGenCtx(ssl, myCtx);
+        wolfSSL_SetX448SharedSecretCtx(ssl, myCtx);
     #endif
     #ifndef NO_RSA
         wolfSSL_SetRsaSignCtx(ssl, myCtx);

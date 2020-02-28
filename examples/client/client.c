@@ -229,12 +229,14 @@ static void ShowVersions(void)
 }
 
 #ifdef WOLFSSL_TLS13
-static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519)
+static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
+                        int useX448)
 {
     int groups[3] = {0};
     int count = 0;
 
     (void)useX25519;
+    (void)useX448;
 
     WOLFSSL_START(WC_FUNC_CLIENT_KEY_EXCHANGE_SEND);
     if (onlyKeyShare == 0 || onlyKeyShare == 2) {
@@ -243,6 +245,14 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519)
             groups[count++] = WOLFSSL_ECC_X25519;
             if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519) != WOLFSSL_SUCCESS)
                 err_sys("unable to use curve x25519");
+        }
+        else
+    #endif
+    #ifdef HAVE_CURVE448
+        if (useX448) {
+            groups[count++] = WOLFSSL_ECC_X448;
+            if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X448) != WOLFSSL_SUCCESS)
+                err_sys("unable to use curve x448");
         }
         else
     #endif
@@ -342,7 +352,7 @@ static const char* client_bench_conmsg[][5] = {
 
 static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     int dtlsUDP, int dtlsSCTP, int benchmark, int resumeSession, int useX25519,
-    int helloRetry, int onlyKeyShare, int version, int earlyData)
+    int useX448, int helloRetry, int onlyKeyShare, int version, int earlyData)
 {
     /* time passed in number of connects give average */
     int times = benchmark, skip = times * 0.1;
@@ -362,6 +372,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 
     (void)resumeSession;
     (void)useX25519;
+    (void)useX448;
     (void)helloRetry;
     (void)onlyKeyShare;
     (void)version;
@@ -391,7 +402,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
         #ifdef WOLFSSL_TLS13
             else if (version >= 4) {
                 if (!helloRetry)
-                    SetKeyShare(ssl, onlyKeyShare, useX25519);
+                    SetKeyShare(ssl, onlyKeyShare, useX25519, useX448);
                 else
                     wolfSSL_NoKeyShares(ssl);
             }
@@ -470,7 +481,8 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 
 /* Measures throughput in kbps. Throughput = number of bytes */
 static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
-    int dtlsUDP, int dtlsSCTP, int block, size_t throughput, int useX25519)
+    int dtlsUDP, int dtlsSCTP, int block, size_t throughput, int useX25519,
+    int useX448)
 {
     double start, conn_time = 0, tx_time = 0, rx_time = 0;
     SOCKET_T sockfd;
@@ -488,12 +500,21 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     }
 
     (void)useX25519;
+    (void)useX448;
     #ifdef WOLFSSL_TLS13
         #ifdef HAVE_CURVE25519
             if (useX25519) {
                 if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519)
                         != WOLFSSL_SUCCESS) {
                     err_sys("unable to use curve x25519");
+                }
+            }
+        #endif
+        #ifdef HAVE_CURVE448
+            if (useX448) {
+                if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X448)
+                        != WOLFSSL_SUCCESS) {
+                    err_sys("unable to use curve x448");
                 }
             }
         #endif
@@ -1001,6 +1022,9 @@ static const char* client_usage_msg[][59] = {
 #ifdef HAVE_TRUSTED_CA
         "-5          Use Trusted CA Key Indication\n",                  /* 62 */
 #endif
+#ifdef HAVE_CURVE448
+        "-8          Use X448 for key exchange\n",                      /* 65 */
+#endif
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1163,6 +1187,9 @@ static const char* client_usage_msg[][59] = {
 #ifdef HAVE_TRUSTED_CA
         "-5          信頼できる認証局の鍵表示を使用する\n",             /* 62 */
 #endif
+#ifdef HAVE_CURVE448
+        "-8          Use X448 for key exchange\n",                      /* 65 */
+#endif
         NULL,
     },
 #endif
@@ -1319,6 +1346,9 @@ static void Usage(void)
 #ifdef HAVE_TRUSTED_CA
     printf("%s", msg[++msgid]);  /* -5 */
 #endif
+#ifdef HAVE_CURVE448
+    printf("%s", msg[++msgid]); /* -8 */
+#endif
 }
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
@@ -1446,6 +1476,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     char*  ocspUrl  = NULL;
 #endif
     int useX25519 = 0;
+    int useX448 = 0;
     int exitWithRet = 0;
     int loadCertKeyIntoSSLObj = 0;
 
@@ -1493,6 +1524,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         verifyCert = caEdCertFile;
         ourCert    = cliEdCertFile;
         ourKey     = cliEdKeyFile;
+    #elif defined(HAVE_ED448)
+        verifyCert = caEd448CertFile;
+        ourCert    = cliEd448CertFile;
+        ourKey     = cliEd448KeyFile;
     #else
         verifyCert = NULL;
         ourCert    = NULL;
@@ -1521,6 +1556,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)updateKeysIVs;
     (void)earlyData;
     (void)useX25519;
+    (void)useX448;
     (void)helloRetry;
     (void)onlyKeyShare;
     (void)useSupCurve;
@@ -1533,7 +1569,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     while ((ch = mygetopt(argc, argv, "?:"
             "ab:c:defgh:ijk:l:mnop:q:rstuv:wxyz"
             "A:B:CDE:F:GH:IJKL:M:NO:PQRS:TUVW:XYZ:"
-            "01:23:45")) != -1) {
+            "01:23:458")) != -1) {
         switch (ch) {
             case '?' :
                 if(myoptarg!=NULL) {
@@ -1971,6 +2007,18 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             #endif /* HAVE_TRUSTED_CA */
                 break;
 
+            case '8' :
+                #ifdef HAVE_CURVE448
+                    useX448 = 1;
+                    #ifdef HAVE_ECC
+                    useSupCurve = 1;
+                        #ifdef WOLFSSL_TLS13
+                        onlyKeyShare = 2;
+                        #endif
+                    #endif
+                #endif
+                break;
+
             default:
                 Usage();
                 XEXIT_T(MY_EX_USAGE);
@@ -2216,7 +2264,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
-#if defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519)
+#if defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519) && \
+                                                            !defined(HAVE_ED448)
     if (!usePsk) {
         usePsk = 1;
     }
@@ -2465,6 +2514,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
     }
     #endif /* HAVE_CURVE25519 */
+    #if defined(HAVE_CURVE448)
+    if (useX448) {
+        if (wolfSSL_CTX_UseSupportedCurve(ctx, WOLFSSL_ECC_X448)
+                                                           != WOLFSSL_SUCCESS) {
+            err_sys("unable to support X448");
+        }
+    }
+    #endif /* HAVE_CURVE448 */
     #ifdef HAVE_ECC
     if (useSupCurve) {
         #if !defined(NO_ECC_SECP) && \
@@ -2506,8 +2563,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         ((func_args*)args)->return_code =
             ClientBenchmarkConnections(ctx, host, port, dtlsUDP, dtlsSCTP,
                                        benchmark, resumeSession, useX25519,
-                                       helloRetry, onlyKeyShare, version,
-                                       earlyData);
+                                       useX448, helloRetry, onlyKeyShare,
+                                       version, earlyData);
         wolfSSL_CTX_free(ctx); ctx = NULL;
         XEXIT_T(EXIT_SUCCESS);
     }
@@ -2515,7 +2572,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (throughput) {
         ((func_args*)args)->return_code =
             ClientBenchmarkThroughput(ctx, host, port, dtlsUDP, dtlsSCTP,
-                                      block, throughput, useX25519);
+                                      block, throughput, useX25519, useX448);
         wolfSSL_CTX_free(ctx); ctx = NULL;
         XEXIT_T(EXIT_SUCCESS);
     }
@@ -2618,6 +2675,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519)
                                                            != WOLFSSL_SUCCESS) {
                     err_sys("unable to use curve x25519");
+                }
+            }
+        #endif
+        #ifdef HAVE_CURVE448
+            if (useX448) {
+                if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X448)
+                                                           != WOLFSSL_SUCCESS) {
+                    err_sys("unable to use curve x448");
                 }
             }
         #endif

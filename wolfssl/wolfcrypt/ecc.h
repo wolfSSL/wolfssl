@@ -196,7 +196,7 @@ typedef enum ecc_curve_id {
 #ifdef HAVE_CURVE25519
     ECC_X25519,
 #endif
-#ifdef HAVE_X448
+#ifdef HAVE_CURVE448
     ECC_X448,
 #endif
 
