@@ -5333,3 +5333,8 @@ L_sha512_len_neon_start:
 #endif /* !WOLFSSL_ARMASM_NO_NEON */
 #endif /* !__aarch64__ */
 #endif /* WOLFSSL_ARMASM */
+
+/* prevent library to declare stack as executable */
+#if defined(__ELF__) && defined(__linux__)
+        .section	.note.GNU-stack,"",%progbits
+#endif

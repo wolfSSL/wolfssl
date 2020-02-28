@@ -6713,3 +6713,8 @@ fe_ge_sub:
 	ret
 	.size	fe_ge_sub,.-fe_ge_sub
 #endif /* __aarch64__ */
+
+/* prevent library to declare stack as executable */
+#if defined(__ELF__) && defined(__linux__)
+        .section	.note.GNU-stack,"",%progbits
+#endif

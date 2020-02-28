@@ -10739,3 +10739,8 @@ L_sha512_len_avx2_rorx_done:
 .size	Transform_Sha512_AVX2_RORX_Len,.-Transform_Sha512_AVX2_RORX_Len
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
+
+/* prevent library to declare stack as executable */
+#if defined(__ELF__) && defined(__linux__)
+        .section	.note.GNU-stack,"",%progbits
+#endif

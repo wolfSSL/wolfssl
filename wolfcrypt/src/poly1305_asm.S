@@ -1103,3 +1103,8 @@ L_poly1305_avx2_final_cmp_copy:
 .size	poly1305_final_avx2,.-poly1305_final_avx2
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
+
+/* prevent library to declare stack as executable */
+#if defined(__ELF__) && defined(__linux__)
+        .section	.note.GNU-stack,"",%progbits
+#endif

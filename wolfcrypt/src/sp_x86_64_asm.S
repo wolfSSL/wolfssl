@@ -34779,3 +34779,8 @@ _sp_384_mul_d_avx2_6:
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX2 */
 #endif /* WOLFSSL_SP_384 */
+
+/* prevent library to declare stack as executable */
+#if defined(__ELF__) && defined(__linux__)
+        .section	.note.GNU-stack,"",%progbits
+#endif

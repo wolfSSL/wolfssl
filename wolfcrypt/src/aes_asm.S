@@ -1333,6 +1333,7 @@ pxor  %xmm4, %xmm3
 pxor   %xmm2, %xmm3
 ret
 
-#if defined(__linux__) && defined(__ELF__)
-    .section .note.GNU-stack,"",%progbits
+/* prevent library to declare stack as executable */
+#if defined(__ELF__) && defined(__linux__)
+        .section	.note.GNU-stack,"",%progbits
 #endif
