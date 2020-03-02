@@ -11376,6 +11376,11 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
             ssl->options.handShakeDone  = 1;
         }
     }
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls) {
+        DtlsMsgPoolReset(ssl);
+    }
+#endif
 
     WOLFSSL_LEAVE("DoFinished", 0);
     WOLFSSL_END(WC_FUNC_FINISHED_DO);
@@ -14735,7 +14740,6 @@ int ProcessReply(WOLFSSL* ssl)
                                         ssl->ctx->mcastMaxSeq);
                             }
 #endif
-                            DtlsMsgPoolReset(ssl);
                             peerSeq->nextEpoch++;
                             peerSeq->prevSeq_lo = peerSeq->nextSeq_lo;
                             peerSeq->prevSeq_hi = peerSeq->nextSeq_hi;
