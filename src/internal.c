@@ -18915,6 +18915,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
             /* mark as highest and check remainder of hashSigAlgo list */
             ssl->suites->hashAlgo = hashAlgo;
             ssl->suites->sigAlgo = sigAlgo;
+            ssl->namedGroup = 0;
             ret = 0;
         }
         else
@@ -18955,6 +18956,7 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
                     /* mark as highest and check remainder of hashSigAlgo list */
                     ssl->suites->hashAlgo = hashAlgo;
                     ssl->suites->sigAlgo = sigAlgo;
+                    ssl->namedGroup = 0;
                     break;
                 default:
                     continue;
