@@ -10317,22 +10317,22 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
 
                     if (GetASNTag(pkiMsg, &idx, &tag, pkiMsgSz) < 0) {
                         ret = ASN_PARSE_E;
-                        break;
                     }
 
-                    if (tag != ASN_OCTET_STRING) {
+                    if (ret == 0 && (tag != ASN_OCTET_STRING)) {
                         ret = ASN_PARSE_E;
-                        break;
                     }
 
                     if (ret == 0 && GetLength(pkiMsg, &idx,
                                 &encryptedContentSz, pkiMsgSz) <= 0) {
                         ret = ASN_PARSE_E;
-                        break;
                     }
 
-                    ret = PKCS7_CacheEncryptedContent(pkcs7, &pkiMsg[idx],
-                                                      encryptedContentSz);
+                    if (ret == 0) {
+                        ret = PKCS7_CacheEncryptedContent(pkcs7, &pkiMsg[idx],
+                                                          encryptedContentSz);
+                    }
+
                     if (ret != 0) {
                         break;
                     }
@@ -10340,6 +10340,11 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
                     /* advance idx past encrypted content */
                     idx += encryptedContentSz;
                 }
+
+                if (ret != 0) {
+                    break;
+                }
+
             } else {
                 /* cache encrypted content, no OCTET STRING */
                 ret = PKCS7_CacheEncryptedContent(pkcs7, &pkiMsg[idx],
