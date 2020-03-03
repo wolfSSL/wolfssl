@@ -18867,7 +18867,9 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
                                       ssl->suites->sigAlgo == ecc_dsa_sa_algo) {
                 ssl->suites->sigAlgo = sigAlgo;
                 ssl->suites->hashAlgo = sha512_mac;
+            #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
                 ssl->namedGroup = 0;
+            #endif
                 ret = 0;
                 break;
             }
@@ -18882,7 +18884,9 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
                                       ssl->suites->sigAlgo == ecc_dsa_sa_algo) {
                 ssl->suites->sigAlgo = sigAlgo;
                 ssl->suites->hashAlgo = sha512_mac;
+            #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
                 ssl->namedGroup = 0;
+            #endif
                 ret = 0;
                 break;
             }
@@ -18904,7 +18908,9 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
             if (digestSz == ssl->eccTempKeySz) {
                 ssl->suites->hashAlgo = hashAlgo;
                 ssl->suites->sigAlgo = sigAlgo;
+            #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
                 ssl->namedGroup = 0;
+            #endif
                 ret = 0;
                 break; /* done selected sig/hash algorithms */
             }
@@ -18915,7 +18921,9 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
             /* mark as highest and check remainder of hashSigAlgo list */
             ssl->suites->hashAlgo = hashAlgo;
             ssl->suites->sigAlgo = sigAlgo;
+        #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
             ssl->namedGroup = 0;
+        #endif
             ret = 0;
         }
         else
@@ -18956,7 +18964,9 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
                     /* mark as highest and check remainder of hashSigAlgo list */
                     ssl->suites->hashAlgo = hashAlgo;
                     ssl->suites->sigAlgo = sigAlgo;
+                #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
                     ssl->namedGroup = 0;
+                #endif
                     break;
                 default:
                     continue;
