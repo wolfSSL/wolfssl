@@ -21031,9 +21031,11 @@ int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
         case STACK_TYPE_X509:
             ret = wolfSSL_sk_X509_push(sk, (WOLFSSL_X509*) data);
             break;
+        #ifndef NO_WOLFSSL_STUB
         case STACK_TYPE_CIPHER:
             ret = wolfSSL_sk_CIPHER_push(sk, (WOLFSSL_CIPHER*) data);
             break;
+        #endif
         case STACK_TYPE_GEN_NAME:
             ret = wolfSSL_sk_ASN1_OBJECT_push(sk, (WOLFSSL_ASN1_OBJECT*) data);
             break;
@@ -41811,7 +41813,6 @@ err:
         return (ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
     }
 
-    #ifndef NO_WOLFSSL_STUB
     int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, const char *name) {
     #ifndef NO_FILESYSTEM
         XFILE fp;
@@ -41840,7 +41841,6 @@ err:
         return WOLFSSL_NOT_IMPLEMENTED;
     #endif
     }
-    #endif
 
     /* Return the corresponding short name for the nid <n>.
      * or NULL if short name can't be found.
