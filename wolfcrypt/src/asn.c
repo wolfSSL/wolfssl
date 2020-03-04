@@ -17483,10 +17483,10 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
         return ASN_PARSE_E;
     dcrl->sigIndex = len + idx;
 
-    if (ParseCRL_CertList(dcrl, buff, &idx, idx + len) < 0)
+    if (ParseCRL_CertList(dcrl, buff, &idx, dcrl->sigIndex) < 0)
         return ASN_PARSE_E;
 
-    if (ParseCRL_Extensions(dcrl, buff, &idx, idx + len) < 0)
+    if (ParseCRL_Extensions(dcrl, buff, &idx, dcrl->sigIndex) < 0)
         return ASN_PARSE_E;
 
     idx = dcrl->sigIndex;
