@@ -23289,49 +23289,6 @@ exit_scke:
 
 #ifndef NO_CERTS
 
-#ifdef HAVE_PK_CALLBACKS
-    int GetPrivateKeySigSize(WOLFSSL* ssl)
-    {
-        int sigSz = 0;
-
-        if (ssl == NULL)
-            return 0;
-
-        switch (ssl->buffers.keyType) {
-        #ifndef NO_RSA
-        #ifdef WC_RSA_PSS
-            case rsa_pss_sa_algo:
-        #endif
-            case rsa_sa_algo:
-                sigSz = ssl->buffers.keySz;
-                ssl->hsType = DYNAMIC_TYPE_RSA;
-                break;
-        #endif
-        #ifdef HAVE_ECC
-            case ecc_dsa_sa_algo:
-                sigSz = wc_ecc_sig_size_calc(ssl->buffers.keySz);
-                ssl->hsType = DYNAMIC_TYPE_ECC;
-                break;
-        #endif
-        #ifdef HAVE_ED25519
-            case ed25519_sa_algo:
-                sigSz = ED25519_SIG_SIZE; /* fixed known value */
-                ssl->hsType = DYNAMIC_TYPE_ED25519;
-                break;
-        #endif
-        #ifdef HAVE_ED448
-            case ed448_sa_algo:
-                sigSz = ED448_SIG_SIZE; /* fixed known value */
-                ssl->hsType = DYNAMIC_TYPE_ED448;
-                break;
-        #endif
-            default:
-                break;
-        }
-        return sigSz;
-    }
-#endif /* HAVE_PK_CALLBACKS */
-
 #ifndef WOLFSSL_NO_TLS12
 
 #ifndef WOLFSSL_NO_CLIENT_AUTH
@@ -23930,6 +23887,53 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif /* HAVE_SESSION_TICKET */
 
 #endif /* NO_WOLFSSL_CLIENT */
+
+#ifndef NO_CERTS
+
+#ifdef HAVE_PK_CALLBACKS
+    int GetPrivateKeySigSize(WOLFSSL* ssl)
+    {
+        int sigSz = 0;
+
+        if (ssl == NULL)
+            return 0;
+
+        switch (ssl->buffers.keyType) {
+        #ifndef NO_RSA
+        #ifdef WC_RSA_PSS
+            case rsa_pss_sa_algo:
+        #endif
+            case rsa_sa_algo:
+                sigSz = ssl->buffers.keySz;
+                ssl->hsType = DYNAMIC_TYPE_RSA;
+                break;
+        #endif
+        #ifdef HAVE_ECC
+            case ecc_dsa_sa_algo:
+                sigSz = wc_ecc_sig_size_calc(ssl->buffers.keySz);
+                ssl->hsType = DYNAMIC_TYPE_ECC;
+                break;
+        #endif
+        #ifdef HAVE_ED25519
+            case ed25519_sa_algo:
+                sigSz = ED25519_SIG_SIZE; /* fixed known value */
+                ssl->hsType = DYNAMIC_TYPE_ED25519;
+                break;
+        #endif
+        #ifdef HAVE_ED448
+            case ed448_sa_algo:
+                sigSz = ED448_SIG_SIZE; /* fixed known value */
+                ssl->hsType = DYNAMIC_TYPE_ED448;
+                break;
+        #endif
+            default:
+                break;
+        }
+        return sigSz;
+    }
+#endif /* HAVE_PK_CALLBACKS */
+
+#endif /* NO_CERTS */
 
 #ifdef HAVE_ECC
     /* returns the WOLFSSL_* version of the curve from the OID sum */
