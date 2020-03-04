@@ -1466,6 +1466,8 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     return err;
 }
 
+extern sp_digit sp_2048_cond_add_16(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
+extern sp_digit sp_2048_cond_add_avx2_16(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -1500,7 +1502,6 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     sp_digit* dp;
     sp_digit* dq;
     sp_digit* qi;
-    sp_digit* tmp;
     sp_digit* tmpa;
     sp_digit* tmpb;
     sp_digit* r;
@@ -1533,8 +1534,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
         tmpa = qi + 16;
         tmpb = tmpa + 32;
 
-        tmp = t;
-        r = tmp + 32;
+        r = t + 32;
     }
 #else
     r = a = ad;
@@ -1543,7 +1543,6 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     qi = dq = dp = dpd;
     tmpa = tmpad;
     tmpb = tmpbd;
-    tmp = a + 32;
 #endif
 
     if (err == MP_OKAY) {
@@ -1571,8 +1570,17 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 
     if (err == MP_OKAY) {
         c = sp_2048_sub_in_place_16(tmpa, tmpb);
-        sp_2048_mask_16(tmp, p, c);
-        sp_2048_add_16(tmpa, tmpa, tmp);
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
+            c += sp_2048_cond_add_avx2_16(tmpa, tmpa, p, c);
+            c += sp_2048_cond_add_avx2_16(tmpa, tmpa, p, c);
+        }
+        else
+#endif
+        {
+            c += sp_2048_cond_add_16(tmpa, tmpa, p, c);
+            c += sp_2048_cond_add_16(tmpa, tmpa, p, c);
+        }
 
         sp_2048_from_mp(qi, 16, qim);
 #ifdef HAVE_INTEL_AVX2
@@ -3512,6 +3520,8 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     return err;
 }
 
+extern sp_digit sp_3072_cond_add_24(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
+extern sp_digit sp_3072_cond_add_avx2_24(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -3546,7 +3556,6 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     sp_digit* dp;
     sp_digit* dq;
     sp_digit* qi;
-    sp_digit* tmp;
     sp_digit* tmpa;
     sp_digit* tmpb;
     sp_digit* r;
@@ -3579,8 +3588,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
         tmpa = qi + 24;
         tmpb = tmpa + 48;
 
-        tmp = t;
-        r = tmp + 48;
+        r = t + 48;
     }
 #else
     r = a = ad;
@@ -3589,7 +3597,6 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     qi = dq = dp = dpd;
     tmpa = tmpad;
     tmpb = tmpbd;
-    tmp = a + 48;
 #endif
 
     if (err == MP_OKAY) {
@@ -3617,8 +3624,17 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 
     if (err == MP_OKAY) {
         c = sp_3072_sub_in_place_24(tmpa, tmpb);
-        sp_3072_mask_24(tmp, p, c);
-        sp_3072_add_24(tmpa, tmpa, tmp);
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
+            c += sp_3072_cond_add_avx2_24(tmpa, tmpa, p, c);
+            c += sp_3072_cond_add_avx2_24(tmpa, tmpa, p, c);
+        }
+        else
+#endif
+        {
+            c += sp_3072_cond_add_24(tmpa, tmpa, p, c);
+            c += sp_3072_cond_add_24(tmpa, tmpa, p, c);
+        }
 
         sp_3072_from_mp(qi, 24, qim);
 #ifdef HAVE_INTEL_AVX2
@@ -5012,6 +5028,8 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     return err;
 }
 
+extern sp_digit sp_4096_cond_add_32(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
+extern sp_digit sp_4096_cond_add_avx2_32(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -5046,7 +5064,6 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
     sp_digit* dp;
     sp_digit* dq;
     sp_digit* qi;
-    sp_digit* tmp;
     sp_digit* tmpa;
     sp_digit* tmpb;
     sp_digit* r;
@@ -5079,8 +5096,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
         tmpa = qi + 32;
         tmpb = tmpa + 64;
 
-        tmp = t;
-        r = tmp + 64;
+        r = t + 64;
     }
 #else
     r = a = ad;
@@ -5089,7 +5105,6 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
     qi = dq = dp = dpd;
     tmpa = tmpad;
     tmpb = tmpbd;
-    tmp = a + 64;
 #endif
 
     if (err == MP_OKAY) {
@@ -5117,8 +5132,17 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
 
     if (err == MP_OKAY) {
         c = sp_2048_sub_in_place_32(tmpa, tmpb);
-        sp_2048_mask_32(tmp, p, c);
-        sp_2048_add_32(tmpa, tmpa, tmp);
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
+            c += sp_4096_cond_add_avx2_32(tmpa, tmpa, p, c);
+            c += sp_4096_cond_add_avx2_32(tmpa, tmpa, p, c);
+        }
+        else
+#endif
+        {
+            c += sp_4096_cond_add_32(tmpa, tmpa, p, c);
+            c += sp_4096_cond_add_32(tmpa, tmpa, p, c);
+        }
 
         sp_2048_from_mp(qi, 32, qim);
 #ifdef HAVE_INTEL_AVX2
