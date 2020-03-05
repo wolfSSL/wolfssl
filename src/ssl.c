@@ -12004,20 +12004,41 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     }
     WOLFSSL_METHOD* wolfSSLv23_method_ex(void* heap)
     {
-        WOLFSSL_METHOD* m;
+        WOLFSSL_METHOD* m = NULL;
         WOLFSSL_ENTER("SSLv23_method");
     #if !defined(NO_WOLFSSL_CLIENT)
         m = wolfSSLv23_client_method_ex(heap);
-        m->side = WOLFSSL_NEITHER_END;
     #elif !defined(NO_WOLFSSL_SERVER)
         m = wolfSSLv23_server_method_ex(heap);
-        m->side = WOLFSSL_NEITHER_END;
-    #else
-        m = NULL;
     #endif
+        if (m != NULL) {
+            m->side = WOLFSSL_NEITHER_END;
+        }
 
         return m;
     }
+
+    #ifdef WOLFSSL_ALLOW_SSLV3
+    WOLFSSL_METHOD* wolfSSLv3_method(void)
+    {
+        return wolfSSLv3_method_ex(NULL);
+    }
+    WOLFSSL_METHOD* wolfSSLv3_method_ex(void* heap)
+    {
+        WOLFSSL_METHOD* m = NULL;
+        WOLFSSL_ENTER("SSLv3_method");
+    #if !defined(NO_WOLFSSL_CLIENT)
+        m = wolfSSLv3_client_method_ex(heap);
+    #elif !defined(NO_WOLFSSL_SERVER)
+        m = wolfSSLv3_server_method_ex(heap);
+    #endif
+        if (m != NULL) {
+            m->side = WOLFSSL_NEITHER_END;
+        }
+
+        return m;
+    }
+    #endif
 #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
 
 /* client only parts */

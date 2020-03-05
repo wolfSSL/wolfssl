@@ -1012,7 +1012,7 @@ int wc_ecc_export_x963_ex(ecc_key*, byte* out, word32* outLen, int compressed);
     byte buff[] = { initialize with ANSI X9.63 formatted key };
 
     ecc_key pubKey;
-    wc_ecc_init_key(&pubKey);
+    wc_ecc_init(&pubKey);
 
     ret = wc_ecc_import_x963(buff, sizeof(buff), &pubKey);
     if ( ret != 0) {
@@ -1081,7 +1081,7 @@ NOT_COMPILED_IN Returned if the HAVE_COMP_KEY was not enabled at compile
     byte priv[] = { initialize with the raw private key };
 
     ecc_key key;
-    wc_ecc_init_key(&key);
+    wc_ecc_init(&key);
     ret = wc_ecc_import_private_key(priv, sizeof(priv), pub, sizeof(pub),
     &key);
     if ( ret != 0) {
