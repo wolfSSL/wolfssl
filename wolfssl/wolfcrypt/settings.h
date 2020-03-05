@@ -2168,6 +2168,12 @@ extern void uITRON4_free(void *p) ;
     #undef WOLFSSL_SMALL_STACK
 #endif
 
+/* The client session cache requires time for timeout */
+#if defined(NO_ASN_TIME) && !defined(NO_SESSION_CACHE)
+    #define NO_SESSION_CACHE
+#endif
+
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif

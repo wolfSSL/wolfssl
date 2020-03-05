@@ -23580,6 +23580,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
             }
         }
 
+    #ifndef NO_ASN_TIME
         /* print validity */
         {
             char tmp[80];
@@ -23588,6 +23589,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
                           (int)XSTRLEN("        Validity\n")) <= 0) {
                 return WOLFSSL_FAILURE;
             }
+
             if (wolfSSL_BIO_write(bio, "            Not Before: ",
                           (int)XSTRLEN("            Not Before: ")) <= 0) {
                 return WOLFSSL_FAILURE;
@@ -23632,6 +23634,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
                 return WOLFSSL_FAILURE;
             }
         }
+    #endif
 
         /* print subject */
         {
@@ -26491,6 +26494,7 @@ void wolfSSL_X509_OBJECT_free_contents(WOLFSSL_X509_OBJECT* obj)
 }
 #endif
 
+#ifndef NO_ASN_TIME
 int wolfSSL_X509_cmp_current_time(const WOLFSSL_ASN1_TIME* asnTime)
 {
     return wolfSSL_X509_cmp_time(asnTime, NULL);
@@ -26575,6 +26579,7 @@ int wolfSSL_X509_cmp_time(const WOLFSSL_ASN1_TIME* asnTime, time_t* cmpTime)
 
     return ret;
 }
+#endif /* !NO_ASN_TIME */
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
     !defined(TIME_OVERRIDES)
@@ -26795,6 +26800,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
 
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || \
     defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+#ifndef NO_ASN_TIME
 int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_TIME* asnTime)
 {
     char buf[MAX_TIME_STRING_SZ];
@@ -26822,7 +26828,6 @@ int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_TIME* asnTime)
     return ret;
 }
 
-
 char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* t, char* buf, int len)
 {
     WOLFSSL_ENTER("wolfSSL_ASN1_TIME_to_string");
@@ -26843,6 +26848,7 @@ char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* t, char* buf, int len)
 
     return buf;
 }
+#endif /* !NO_ASN_TIME */
 #endif /* WOLFSSL_MYSQL_COMPATIBLE || WOLFSSL_NGINX || WOLFSSL_HAPROXY ||
     OPENSSL_EXTRA*/
 
@@ -29495,6 +29501,7 @@ int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char *buf, int length)
     return ret;
 }
 
+#ifndef NO_ASN_TIME
 int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_UTCTIME* a)
 {
     WOLFSSL_ENTER("ASN1_UTCTIME_print");
@@ -29508,7 +29515,6 @@ int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_UTCTIME* a)
 
     return wolfSSL_ASN1_TIME_print(bio, a);
 }
-
 
 /* Checks the ASN1 syntax of "a"
  * returns WOLFSSL_SUCCESS (1)  if correct otherwise WOLFSSL_FAILURE (0) */
@@ -29525,6 +29531,7 @@ int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME* a)
     }
     return WOLFSSL_SUCCESS;
 }
+#endif /* !NO_ASN_TIME */
 
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_ASN1_TIME_diff(int *pday, int *psec,

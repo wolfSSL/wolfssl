@@ -20388,7 +20388,7 @@ static void test_wolfSSL_ASN1_TIME_print(void)
 
 static void test_wolfSSL_ASN1_UTCTIME_print(void)
 {
-    #if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN_TIME)
     BIO*  bio;
     ASN1_UTCTIME* utc = NULL;
     unsigned char buf[25];
@@ -20429,7 +20429,7 @@ static void test_wolfSSL_ASN1_UTCTIME_print(void)
     BIO_free(bio);
 
     printf(resultFmt, passed);
-    #endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA && !NO_ASN_TIME */
 }
 
 
@@ -23365,7 +23365,7 @@ static void test_wolfSSL_DES_ecb_encrypt(void)
 
 static void test_wolfSSL_ASN1_TIME_adj(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_ASN1_TIME) \
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN_TIME) \
 && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
 
     const int year = 365*24*60*60;
@@ -23455,7 +23455,7 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
 
 static void test_wolfSSL_X509_cmp_time(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_ASN1_TIME) \
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN_TIME) \
 && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
     WOLFSSL_ASN1_TIME asn_time;
     time_t t;
@@ -23477,9 +23477,10 @@ static void test_wolfSSL_X509_cmp_time(void)
 
 static void test_wolfSSL_X509_time_adj(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_ASN1_TIME) && \
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN_TIME) && \
     !defined(USER_TIME) && !defined(TIME_OVERRIDES) && \
-    defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA) && \
+    !defined(NO_ASN_TIME)
     X509*  x509;
     time_t t, not_before, not_after;
 
@@ -24647,7 +24648,7 @@ static void test_wolfSSL_X509_set_name(void)
 static void test_wolfSSL_X509_set_notAfter(void)
 {
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) \
-    && !defined(NO_ASN1_TIME) && !defined(USER_TIME) && \
+    && !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
     !defined(TIME_OVERRIDES) && !defined(NO_CERTS) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) &&\
     !defined(TIME_T_NOT_64BIT) && !defined(NO_64BIT)
@@ -24702,7 +24703,7 @@ static void test_wolfSSL_X509_set_notAfter(void)
 static void test_wolfSSL_X509_set_notBefore(void)
 {
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_APACHE_HTTPD)) \
-    && !defined(NO_ASN1_TIME) && !defined(USER_TIME) && \
+    && !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
     !defined(TIME_OVERRIDES) && !defined(NO_CERTS) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
 
@@ -26462,7 +26463,7 @@ static void test_wolfSSL_ASN1_STRING_print_ex(void){
 }
 
 static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
-#if defined(OPENSSL_EXTRA) && !defined(NO_ASN1_TIME)
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN_TIME)
     WOLFSSL_ASN1_TIME *t;
     WOLFSSL_ASN1_TIME *out;
     WOLFSSL_ASN1_TIME *gtime;
