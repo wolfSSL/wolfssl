@@ -40693,6 +40693,48 @@ err:
     }
 
 
+    /* Create a new WOLFSSL_X509_NAME_ENTRY structure based on the text passed
+     * in. Returns NULL on failure */
+    WOLFSSL_X509_NAME_ENTRY* wolfSSL_X509_NAME_ENTRY_create_by_txt(
+            WOLFSSL_X509_NAME_ENTRY **neIn, const char *txt, int type,
+            const unsigned char *data, int dataSz)
+    {
+        int nid = -1;
+        WOLFSSL_X509_NAME_ENTRY* ne = NULL;
+
+        WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_create_by_txt()");
+
+        if (txt == NULL) {
+            return NULL;
+        }
+
+        if (neIn != NULL) {
+            ne = *neIn;
+        }
+
+        nid = wolfSSL_OBJ_txt2nid(txt);
+        if (nid == NID_undef) {
+            WOLFSSL_MSG("Unable to find text");
+        }
+        else {
+            if (ne == NULL) {
+                ne = wolfSSL_X509_NAME_ENTRY_new();
+                if (ne == NULL) {
+                    return NULL;
+                }
+            }
+            ne->nid = nid;
+            ne->value = wolfSSL_ASN1_STRING_type_new(type);
+            if (ne->value != NULL) {
+                wolfSSL_ASN1_STRING_set(ne->value, (const void*)data, dataSz);
+                ne->set = 1;
+            }
+        }
+
+        return ne;
+    }
+
+
     WOLFSSL_X509_NAME_ENTRY* wolfSSL_X509_NAME_ENTRY_create_by_NID(
             WOLFSSL_X509_NAME_ENTRY** out, int nid, int type,
             const unsigned char* data, int dataSz)

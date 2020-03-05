@@ -24598,6 +24598,12 @@ static void test_wolfSSL_X509_NAME_ENTRY(void)
 #endif
     X509_NAME_ENTRY_free(entry);
 
+    /* Test add entry by text */
+    AssertNotNull(entry = X509_NAME_ENTRY_create_by_txt(NULL, "commonName",
+                0x0c, cn, (int)sizeof(cn)));
+    AssertIntEQ(X509_NAME_add_entry(nm, entry, -1, 0), SSL_SUCCESS);
+    X509_NAME_ENTRY_free(entry);
+
     /* Test add entry by NID */
     AssertIntEQ(X509_NAME_add_entry_by_NID(nm, NID_commonName, MBSTRING_UTF8,
                                        cn, -1, -1, 0), WOLFSSL_SUCCESS);
