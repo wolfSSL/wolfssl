@@ -5667,6 +5667,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.haveEMS = ctx->haveEMS;
 #endif
     ssl->options.useClientOrder = ctx->useClientOrder;
+    ssl->options.mutualAuth = ctx->mutualAuth;
 
 #ifdef WOLFSSL_TLS13
     #ifdef HAVE_SESSION_TICKET
@@ -9829,6 +9830,17 @@ static void DoCertFatalAlert(WOLFSSL* ssl, int ret)
         alertWhy = certificate_revoked;
     }
 #endif
+    else if (ret == NO_PEER_CERT) {
+#ifdef WOLFSSL_TLS13
+        if (ssl->options.tls1_3) {
+            alertWhy = certificate_required;
+        }
+        else
+#endif
+        {
+            alertWhy = handshake_failure;
+        }
+    }
 
     /* send fatal alert and mark connection closed */
     SendAlert(ssl, alert_fatal, alertWhy); /* try to send */
@@ -10599,6 +10611,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             args->count = args->totalCerts;
             args->certIdx = 0; /* select peer cert (first one) */
+
+            if (args->count == 0 && ssl->options.mutualAuth &&
+                                      ssl->options.side == WOLFSSL_SERVER_END) {
+                ret = NO_PEER_CERT;
+                DoCertFatalAlert(ssl, ret);
+            }
 
             args->dCertInit = 0;
         #ifndef WOLFSSL_SMALL_CERT_VERIFY
