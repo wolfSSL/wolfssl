@@ -24,6 +24,9 @@
 #ifndef WOLFSSL_ASN1_H_
 #define WOLFSSL_ASN1_H_
 
+#ifdef WOLFSSL_WPAS
+#include <stddef.h>  /* for offsetof */
+#endif /* WOLFSSL_WPAS */
 #include <wolfssl/openssl/ssl.h>
 
 #define ASN1_STRING_new      wolfSSL_ASN1_STRING_new
@@ -66,6 +69,7 @@
 #define ASN1_TIME_diff                  wolfSSL_ASN1_TIME_diff
 #define ASN1_TIME_set                   wolfSSL_ASN1_TIME_set
 
+#define V_ASN1_OBJECT                   6
 #define V_ASN1_UTCTIME                  23
 #define V_ASN1_GENERALIZEDTIME          24
 
@@ -80,5 +84,66 @@ WOLFSSL_API WOLFSSL_ASN1_INTEGER *wolfSSL_BN_to_ASN1_INTEGER(
     const WOLFSSL_BIGNUM*, WOLFSSL_ASN1_INTEGER*);
 #define BN_to_ASN1_INTEGER wolfSSL_BN_to_ASN1_INTEGER
 
+#ifdef OPENSSL_ALL
+/* IMPLEMENT_ASN1_FUNCTIONS stuff */
+typedef struct {
+    size_t offset;              /* Offset of this field in structure */
+    byte type;                  /* The type of the member as defined in
+                                 * WOLFSSL_ASN1_TYPES */
+} WOLFSSL_ASN1_TEMPLATE;
+
+typedef struct {
+    byte type;                              /* One of the ASN_Tags types */
+    const WOLFSSL_ASN1_TEMPLATE *members;   /* If SEQUENCE or CHOICE this
+                                             * contains the contents */
+    size_t mcount;                          /* Number of members if SEQUENCE
+                                             * or CHOICE */
+    size_t size;                            /* Structure size */
+} WOLFSSL_ASN1_ITEM;
+
+typedef enum {
+    WOLFSSL_X509_ALGOR_ASN1 = 0,
+    WOLFSSL_ASN1_BIT_STRING_ASN1,
+} WOLFSSL_ASN1_TYPES;
+
+#define ASN1_SEQUENCE(type) \
+    static const WOLFSSL_ASN1_TEMPLATE type##_member_data[]
+
+#define ASN1_SIMPLE(type, member, member_type) \
+    { offsetof(type, member), WOLFSSL_##member_type##_ASN1 }
+
+#define ASN1_SEQUENCE_END(type) \
+    ; \
+    const WOLFSSL_ASN1_ITEM type##_template_data = { \
+            ASN_SEQUENCE, \
+            type##_member_data, \
+            sizeof(type##_member_data) / sizeof(WOLFSSL_ASN1_TEMPLATE), \
+            sizeof(type) \
+    };
+
+WOLFSSL_API void *wolfSSL_ASN1_item_new(const WOLFSSL_ASN1_ITEM *template);
+WOLFSSL_API void wolfSSL_ASN1_item_free(void *val, const WOLFSSL_ASN1_ITEM *template);
+WOLFSSL_API int wolfSSL_ASN1_item_i2d(const void *src, byte **dest,
+                                      const WOLFSSL_ASN1_ITEM *template);
+
+/* Need function declaration otherwise compiler complains */
+#define IMPLEMENT_ASN1_FUNCTIONS(type) \
+    type *type##_new(void); \
+    type *type##_new(void){ \
+        return (type*)wolfSSL_ASN1_item_new(&type##_template_data); \
+    } \
+    void type##_free(type *t); \
+    void type##_free(type *t){ \
+        wolfSSL_ASN1_item_free(t, &type##_template_data); \
+    } \
+    int i2d_##type(type *src, byte **dest); \
+    int i2d_##type(type *src, byte **dest) \
+    { \
+        return wolfSSL_ASN1_item_i2d(src, dest, &type##_template_data);\
+    }
+
+WOLFSSL_API void *ASN1_item_new(const WOLFSSL_ASN1_ITEM *it);
+
+#endif /* WOLFSSL_WPAS */
 
 #endif /* WOLFSSL_ASN1_H_ */

@@ -6336,8 +6336,8 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
     inLen -= 1;
     in += 1;
 
-    /* calculate key size based on inLen / 2 */
-    keysize = inLen>>1;
+    /* calculate key size based on inLen / 2 if uncompressed */
+    keysize = compressed ? inLen : inLen>>1;
 
     /* read data */
     if (err == MP_OKAY)
@@ -6444,6 +6444,20 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
 
 #ifdef HAVE_ECC_KEY_EXPORT
 /* export point to der */
+
+int wc_ecc_export_point_der_ex(const int curve_idx, ecc_point* point, byte* out,
+                               word32* outLen, int compressed)
+{
+    if (compressed == 0)
+        return wc_ecc_export_point_der(curve_idx, point, out, outLen);
+#ifdef HAVE_COMP_KEY
+    else
+        return wc_ecc_export_point_der_compressed(curve_idx, point, out, outLen);
+#else
+    return NOT_COMPILED_IN;
+#endif
+}
+
 int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out,
                             word32* outLen)
 {
@@ -6458,17 +6472,16 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out,
     if ((curve_idx < 0) || (wc_ecc_is_valid_idx(curve_idx) == 0))
         return ECC_BAD_ARG_E;
 
+    numlen = ecc_sets[curve_idx].size;
+
     /* return length needed only */
     if (point != NULL && out == NULL && outLen != NULL) {
-        numlen = ecc_sets[curve_idx].size;
         *outLen = 1 + 2*numlen;
         return LENGTH_ONLY_E;
     }
 
     if (point == NULL || out == NULL || outLen == NULL)
         return ECC_BAD_ARG_E;
-
-    numlen = ecc_sets[curve_idx].size;
 
     if (*outLen < (1 + 2*numlen)) {
         *outLen = 1 + 2*numlen;
@@ -6501,6 +6514,69 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out,
     XMEMCPY(out+1+numlen, buf, numlen);
 
     *outLen = 1 + 2*numlen;
+
+done:
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(buf, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+#endif
+
+    return ret;
+}
+
+
+/* export point to der */
+int wc_ecc_export_point_der_compressed(const int curve_idx, ecc_point* point,
+                                       byte* out, word32* outLen)
+{
+    int    ret = MP_OKAY;
+    word32 numlen;
+    word32 output_len;
+#ifdef WOLFSSL_SMALL_STACK
+    byte*  buf;
+#else
+    byte   buf[ECC_BUFSIZE];
+#endif
+
+    if ((curve_idx < 0) || (wc_ecc_is_valid_idx(curve_idx) == 0))
+        return ECC_BAD_ARG_E;
+
+    numlen = ecc_sets[curve_idx].size;
+    output_len = 1 + numlen; /* y point type + x */
+
+    /* return length needed only */
+    if (point != NULL && out == NULL && outLen != NULL) {
+        *outLen = output_len;
+        return LENGTH_ONLY_E;
+    }
+
+    if (point == NULL || out == NULL || outLen == NULL)
+        return ECC_BAD_ARG_E;
+
+
+    if (*outLen < output_len) {
+        *outLen = output_len;
+        return BUFFER_E;
+    }
+
+    /* store byte point type */
+    out[0] = mp_isodd(point->y) == MP_YES ? ECC_POINT_COMP_ODD :
+                                            ECC_POINT_COMP_EVEN;
+
+#ifdef WOLFSSL_SMALL_STACK
+    buf = (byte*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+    if (buf == NULL)
+        return MEMORY_E;
+#endif
+
+    /* pad and store x */
+    XMEMSET(buf, 0, ECC_BUFSIZE);
+    ret = mp_to_unsigned_bin(point->x, buf +
+                                 (numlen - mp_unsigned_bin_size(point->x)));
+    if (ret != MP_OKAY)
+        goto done;
+    XMEMCPY(out+1, buf, numlen);
+
+    *outLen = output_len;
 
 done:
 #ifdef WOLFSSL_SMALL_STACK
@@ -6846,6 +6922,31 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
 
 #endif /* WOLFSSL_VALIDATE_ECC_IMPORT */
 
+
+int wc_ecc_get_generator(ecc_point* ecp, int curve_idx)
+{
+    int err = MP_OKAY;
+    DECLARE_CURVE_SPECS(curve, 2);
+
+    if (!ecp || curve_idx < 0 || curve_idx > (int)(ECC_SET_COUNT-1))
+        return BAD_FUNC_ARG;
+
+    ALLOC_CURVE_SPECS(2);
+
+    err = wc_ecc_curve_load(&ecc_sets[curve_idx], &curve,
+                            (ECC_CURVE_FIELD_GX | ECC_CURVE_FIELD_GY));
+    if (err == MP_OKAY)
+        err = mp_copy(curve->Gx, ecp->x);
+    if (err == MP_OKAY)
+        err = mp_copy(curve->Gy, ecp->y);
+    if (err == MP_OKAY)
+        err = mp_set(ecp->z, 1);
+
+    wc_ecc_curve_free(curve);
+    FREE_CURVE_SPECS();
+
+    return MP_OKAY;
+}
 
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || !defined(WOLFSSL_SP_MATH)
 /* validate order * pubkey = point at infinity, 0 on success */

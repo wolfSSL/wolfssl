@@ -117,6 +117,9 @@ WOLFSSL_API unsigned long wolfSSL_BN_get_word(const WOLFSSL_BIGNUM*);
 
 WOLFSSL_API int wolfSSL_BN_add(WOLFSSL_BIGNUM*, WOLFSSL_BIGNUM*,
                                WOLFSSL_BIGNUM*);
+WOLFSSL_API int wolfSSL_BN_mod_add(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
+                                   const WOLFSSL_BIGNUM *b, const WOLFSSL_BIGNUM *m,
+                                   WOLFSSL_BN_CTX *ctx);
 WOLFSSL_API char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM*);
 WOLFSSL_API int wolfSSL_BN_is_prime_ex(const WOLFSSL_BIGNUM*, int,
                                        WOLFSSL_BN_CTX*, WOLFSSL_BN_GENCB*);
@@ -185,6 +188,7 @@ typedef WOLFSSL_BN_GENCB BN_GENCB;
 #define BN_lshift wolfSSL_BN_lshift
 #define BN_add_word wolfSSL_BN_add_word
 #define BN_add wolfSSL_BN_add
+#define BN_mod_add wolfSSL_BN_mod_add
 #define BN_set_word wolfSSL_BN_set_word
 #define BN_set_bit wolfSSL_BN_set_bit
 #define BN_clear_bit wolfSSL_BN_clear_bit

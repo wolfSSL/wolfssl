@@ -607,8 +607,8 @@ int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
 {
     int fl;
     int ret = WOLFSSL_SUCCESS;
-    if (ctx == NULL || out == NULL || outl == NULL)
-        return BAD_FUNC_ARG;
+    if (!ctx || !outl)
+        return WOLFSSL_FAILURE;
 
     WOLFSSL_ENTER("wolfSSL_EVP_CipherFinal");
 
@@ -626,6 +626,9 @@ int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                 break;
         }
 #endif /* !NO_AES && HAVE_AESGCM */
+
+    if (!out)
+        return WOLFSSL_FAILURE;
 
     if (ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING) {
         if (ctx->bufUsed != 0) return WOLFSSL_FAILURE;
@@ -1144,6 +1147,111 @@ int wolfSSL_EVP_PKEY_CTX_set_rsa_keygen_bits(WOLFSSL_EVP_PKEY_CTX *ctx, int bits
 {
     if (ctx) {
         ctx->nbits = bits;
+    }
+    return WOLFSSL_SUCCESS;
+}
+
+
+int wolfSSL_EVP_PKEY_derive_init(WOLFSSL_EVP_PKEY_CTX *ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_derive_init");
+
+    if (!ctx) {
+        return WOLFSSL_FAILURE;
+    }
+    wolfSSL_EVP_PKEY_free(ctx->peerKey);
+    ctx->op = EVP_PKEY_OP_DERIVE;
+    ctx->padding = 0;
+    ctx->nbits = 0;
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_EVP_PKEY_derive_set_peer(WOLFSSL_EVP_PKEY_CTX *ctx, WOLFSSL_EVP_PKEY *peer)
+{
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_derive_set_peer");
+
+    if (!ctx || ctx->op != EVP_PKEY_OP_DERIVE) {
+        return WOLFSSL_FAILURE;
+    }
+    wolfSSL_EVP_PKEY_free(ctx->peerKey);
+    ctx->peerKey = peer;
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen)
+{
+    int len;
+
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_derive");
+
+    if (!ctx || ctx->op != EVP_PKEY_OP_DERIVE || !ctx->pkey || !ctx->peerKey || !keylen
+            || ctx->pkey->type != ctx->peerKey->type) {
+        return WOLFSSL_FAILURE;
+    }
+    switch (ctx->pkey->type) {
+#ifndef NO_DH
+    case EVP_PKEY_DH:
+        /* Use DH */
+        if (!ctx->pkey->dh || !ctx->peerKey->dh || !ctx->peerKey->dh->pub_key) {
+            return WOLFSSL_FAILURE;
+        }
+        if ((len = wolfSSL_DH_size(ctx->pkey->dh)) <= 0) {
+            return WOLFSSL_FAILURE;
+        }
+        if (key) {
+            if (*keylen < (size_t)len) {
+                return WOLFSSL_FAILURE;
+            }
+            if (wolfSSL_DH_compute_key(key, ctx->peerKey->dh->pub_key,
+                                       ctx->pkey->dh) != len) {
+                return WOLFSSL_FAILURE;
+            }
+        }
+        *keylen = (size_t)len;
+        break;
+#endif
+#ifdef HAVE_ECC
+    case EVP_PKEY_EC:
+        /* Use ECDH */
+        if (!ctx->pkey->ecc || !ctx->peerKey->ecc) {
+            return WOLFSSL_FAILURE;
+        }
+        /* set internal key if not done */
+        if (!ctx->pkey->ecc->inSet) {
+            if (SetECKeyInternal(ctx->pkey->ecc) != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("SetECKeyInternal failed");
+                return WOLFSSL_FAILURE;
+            }
+        }
+        if (!ctx->peerKey->ecc->exSet || !ctx->peerKey->ecc->pub_key->internal) {
+            if (SetECKeyExternal(ctx->peerKey->ecc) != WOLFSSL_SUCCESS) {
+                WOLFSSL_MSG("SetECKeyExternal failed");
+                return WOLFSSL_FAILURE;
+            }
+        }
+        if (!(len = wc_ecc_size((ecc_key*)ctx->pkey->ecc->internal))) {
+            return WOLFSSL_FAILURE;
+        }
+        if (key) {
+            word32 len32 = (word32)len;
+            if (*keylen < len32) {
+                WOLFSSL_MSG("buffer too short");
+                return WOLFSSL_FAILURE;
+            }
+            if (wc_ecc_shared_secret_ssh((ecc_key*)ctx->pkey->ecc->internal,
+                                         (ecc_point*)ctx->peerKey->ecc->pub_key->internal,
+                                         key, &len32) != MP_OKAY) {
+                WOLFSSL_MSG("wc_ecc_shared_secret failed");
+                return WOLFSSL_FAILURE;
+            }
+            len = (int)len32;
+        }
+        *keylen = (size_t)len;
+        break;
+#endif
+    default:
+        WOLFSSL_MSG("Unknown key type");
+        return WOLFSSL_FAILURE;
     }
     return WOLFSSL_SUCCESS;
 }

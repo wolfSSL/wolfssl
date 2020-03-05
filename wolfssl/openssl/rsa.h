@@ -49,6 +49,15 @@
 #define RSA_FLAG_NO_BLINDING            (1 << 7)
 #define RSA_FLAG_NO_CONSTTIME           (1 << 8)
 
+/* Salt length matches digest */
+#define RSA_PSS_SALTLEN_DIGEST -1
+/* Verify only: auto detect salt length */
+#define RSA_PSS_SALTLEN_AUTO   -2
+/* Set salt length to maximum possible */
+#define RSA_PSS_SALTLEN_MAX    -3
+/* Old compatible max salt length for sign only */
+#define RSA_PSS_SALTLEN_MAX_SIGN    -2
+
 typedef struct WOLFSSL_RSA_METHOD {
     int flags;
     char *name;

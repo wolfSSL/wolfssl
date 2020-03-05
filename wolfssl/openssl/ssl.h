@@ -564,7 +564,14 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_get0_tbs_sigalg            wolfSSL_X509_get0_tbs_sigalg
 #define X509_PUBKEY_get0_param          wolfSSL_X509_PUBKEY_get0_param
 #define X509_PUBKEY_get                 wolfSSL_X509_PUBKEY_get
+#define X509_PUBKEY_set                 wolfSSL_X509_PUBKEY_set
 #define X509_ALGOR_get0                 wolfSSL_X509_ALGOR_get0
+#define X509_ALGOR_set0                 wolfSSL_X509_ALGOR_set0
+
+#define X509_ALGOR_new                  wolfSSL_X509_ALGOR_new
+#define X509_ALGOR_free                 wolfSSL_X509_ALGOR_free
+#define X509_PUBKEY_new                 wolfSSL_X509_PUBKEY_new
+#define X509_PUBKEY_free                wolfSSL_X509_PUBKEY_free
 
 #define sk_X509_REVOKED_num             wolfSSL_sk_X509_REVOKED_num
 #define sk_X509_REVOKED_value           wolfSSL_sk_X509_REVOKED_value
@@ -708,6 +715,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define RSA_print                       wolfSSL_RSA_print
 #define RSA_bits                        wolfSSL_RSA_size
 #define RSA_up_ref                      wolfSSL_RSA_up_ref
+#define RSA_padding_add_PKCS1_PSS       wolfSSL_RSA_padding_add_PKCS1_PSS
+#define RSA_verify_PKCS1_PSS            wolfSSL_RSA_verify_PKCS1_PSS
 
 #define PEM_def_callback                wolfSSL_PEM_def_callback
 

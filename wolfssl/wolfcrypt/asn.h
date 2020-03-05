@@ -162,10 +162,10 @@ enum DN_Tags {
 #if defined(WOLFSSL_APACHE_HTTPD)
     /* otherName strings */
     #define WOLFSSL_SN_MS_UPN       "msUPN"
-    #define WOLFSSL_LN_MS_UPN       "Microsoft Universal Principal Name"
+    #define WOLFSSL_LN_MS_UPN       "Microsoft User Principal Name"
     #define WOLFSSL_MS_UPN_SUM 265
     #define WOLFSSL_SN_DNS_SRV      "id-on-dnsSRV"
-    #define WOLFSSL_LN_DNS_SRV      "SRVName otherName form"
+    #define WOLFSSL_LN_DNS_SRV      "SRVName"
     /* TLS features extension strings */
     #define WOLFSSL_SN_TLS_FEATURE  "tlsfeature"
     #define WOLFSSL_LN_TLS_FEATURE  "TLS Feature"
