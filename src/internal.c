@@ -4298,6 +4298,9 @@ int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer)
     /* make sure the curve is set for TLS */
     if (ret == 0 && key->dp) {
         ssl->ecdhCurveOID = key->dp->oidSum;
+    #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
+        ssl->namedGroup = 0;
+    #endif
     }
 
     /* Handle async pending response */
@@ -4600,6 +4603,9 @@ static int X25519MakeKey(WOLFSSL* ssl, curve25519_key* key,
 
     if (ret == 0) {
         ssl->ecdhCurveOID = ECC_X25519_OID;
+    #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
+        ssl->namedGroup = 0;
+    #endif
     }
 
     /* Handle async pending response */
@@ -4899,6 +4905,9 @@ static int X448MakeKey(WOLFSSL* ssl, curve448_key* key, curve448_key* peer)
 
     if (ret == 0) {
         ssl->ecdhCurveOID = ECC_X448_OID;
+    #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
+        ssl->namedGroup = 0;
+    #endif
     }
 
     /* Handle async pending response */
@@ -18885,9 +18894,6 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
                                       ssl->suites->sigAlgo == ecc_dsa_sa_algo) {
                 ssl->suites->sigAlgo = sigAlgo;
                 ssl->suites->hashAlgo = sha512_mac;
-            #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
-                ssl->namedGroup = 0;
-            #endif
                 ret = 0;
                 break;
             }
@@ -18902,9 +18908,6 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
                                       ssl->suites->sigAlgo == ecc_dsa_sa_algo) {
                 ssl->suites->sigAlgo = sigAlgo;
                 ssl->suites->hashAlgo = sha512_mac;
-            #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
-                ssl->namedGroup = 0;
-            #endif
                 ret = 0;
                 break;
             }
@@ -18939,9 +18942,6 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
             /* mark as highest and check remainder of hashSigAlgo list */
             ssl->suites->hashAlgo = hashAlgo;
             ssl->suites->sigAlgo = sigAlgo;
-        #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
-            ssl->namedGroup = 0;
-        #endif
             ret = 0;
         }
         else
@@ -18982,9 +18982,6 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
                     /* mark as highest and check remainder of hashSigAlgo list */
                     ssl->suites->hashAlgo = hashAlgo;
                     ssl->suites->sigAlgo = sigAlgo;
-                #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
-                    ssl->namedGroup = 0;
-                #endif
                     break;
                 default:
                     continue;
@@ -20792,6 +20789,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         ERROR_OUT(ECC_CURVE_ERROR, exit_dske);
                     }
                     ssl->ecdhCurveOID = curveOid;
+                #if defined(WOLFSSL_TLS13) || defined(HAVE_FFDHE)
+                    ssl->namedGroup = 0;
+                #endif
 
                     length = input[args->idx++];
                     if ((args->idx - args->begin) + length > size) {
