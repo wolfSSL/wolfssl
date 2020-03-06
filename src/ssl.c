@@ -33160,7 +33160,8 @@ static int populate_groups(int* groups, int max_count, char *list)
             return -1;
         }
         for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
-            if (XSTRNCMP(list, nist_name->name, nist_name->name_len) == 0) {
+            if (len == nist_name->name_len &&
+                    XSTRNCMP(list, nist_name->name, nist_name->name_len) == 0) {
                 break;
             }
         }

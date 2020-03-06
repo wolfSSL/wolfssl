@@ -4239,7 +4239,7 @@ static const byte tls_server[FINISHED_LABEL_SZ + 1] = "server finished";
 
 #ifdef OPENSSL_EXTRA
 typedef struct {
-    int name_len;
+    size_t name_len;
     const char *name;
     int nid;
 } WOLF_EC_NIST_NAME;
