@@ -25803,6 +25803,7 @@ static void test_wolfSSL_RSA_meth(void)
     AssertNotNull(rsa_meth =
             RSA_meth_new("placeholder RSA method", RSA_METHOD_FLAG_NO_CHECK));
 
+#ifndef NO_WOLFSSL_STUB
     AssertIntEQ(RSA_meth_set_pub_enc(rsa_meth, NULL), 1);
     AssertIntEQ(RSA_meth_set_pub_dec(rsa_meth, NULL), 1);
     AssertIntEQ(RSA_meth_set_priv_enc(rsa_meth, NULL), 1);
@@ -25810,6 +25811,7 @@ static void test_wolfSSL_RSA_meth(void)
     AssertIntEQ(RSA_meth_set_init(rsa_meth, NULL), 1);
     AssertIntEQ(RSA_meth_set_finish(rsa_meth, NULL), 1);
     AssertIntEQ(RSA_meth_set0_app_data(rsa_meth, NULL), 1);
+#endif
 
     AssertNotNull(rsa = RSA_new());
     AssertIntEQ(RSA_set_method(rsa, rsa_meth), 1);
@@ -31178,7 +31180,9 @@ static void test_openssl_generate_key_and_cert(void)
         AssertNotNull(pkey);
         AssertNotNull(ec_key);
 
+    #ifndef NO_WOLFSSL_STUB
         EC_KEY_set_asn1_flag(ec_key, OPENSSL_EC_NAMED_CURVE);
+    #endif
 
         AssertIntNE(EC_KEY_generate_key(ec_key), 0);
         AssertIntNE(EVP_PKEY_assign_EC_KEY(pkey, ec_key), 0);
