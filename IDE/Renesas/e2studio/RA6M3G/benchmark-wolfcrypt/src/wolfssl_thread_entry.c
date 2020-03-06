@@ -19,12 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 #include <wolfssl/wolfcrypt/settings.h>
-#include "wolfcrypt/benchmark/benchmark.h"
-#include "common/util.h"
+#include <wolfcrypt/benchmark/benchmark.h>
 
 void wolfssl_thread_entry(void *pvParameters) {
     FSP_PARAMETER_NOT_USED(pvParameters);
     initialise_monitor_handles();
     benchmark_test(0);
-    while (1);
+    while (1)
+        ;
 }

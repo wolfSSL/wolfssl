@@ -2778,7 +2778,12 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
     case RSA_STATE_ENCRYPT_EXPTMOD:
 
         key->dataLen = outLen;
-        ret = wc_RsaFunction(out, sz, out, &key->dataLen, rsa_type, key, rng);
+        #if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+            ret = wc_Renesas_RsaFunction(out, (word32)sz, out, &key->dataLen,
+                                         rsa_type, key, rng, pad_value);
+        #else
+            ret = wc_RsaFunction(out, sz, out, &key->dataLen,rsa_type,key,rng);
+        #endif
 
         if (ret >= 0 || ret == WC_PENDING_E) {
             key->state = RSA_STATE_ENCRYPT_RES;
@@ -2916,11 +2921,21 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
 
     case RSA_STATE_DECRYPT_EXPTMOD:
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)
+    #if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+        ret = wc_Renesas_RsaFunction(key->data, inLen, key->data, &key->dataLen,
+                                         rsa_type, key, rng, pad_value);
+    #else
         ret = wc_RsaFunction(key->data, inLen, key->data, &key->dataLen,
                                                             rsa_type, key, rng);
+    #endif /* WOLFSSL_SCE && WOLFSSL_RENESAS_RA6M3G */
 #else
+    #if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+        ret = wc_Renesas_RsaFunction(in, inLen, out, &key->dataLen,
+                                     rsa_type, key, rng, pad_value);
+    #else
         ret = wc_RsaFunction(in, inLen, out, &key->dataLen, rsa_type, key, rng);
-#endif
+    #endif /* WOLFSSL_SCE && WOLFSSL_RENESAS_RA6M3G */
+#endif /* !WOLFSSL_RSA_VERIFY_ONLY && !defined(WOLFSSL_RSA_VERIFY_INLINE */
 
         if (ret >= 0 || ret == WC_PENDING_E) {
             key->state = RSA_STATE_DECRYPT_UNPAD;
@@ -3904,6 +3919,10 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     return cc310_RSA_GenerateKeyPair(key, size, e);
 
 #endif /*WOLFSSL_CRYPTOCELL*/
+
+#if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+    return wc_Renesas_RsaGenerateKey(key, e, size);
+#endif
 
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {

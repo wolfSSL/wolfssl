@@ -18,15 +18,16 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
-
 #include <wolfssl/wolfcrypt/settings.h>
-#include "wolfcrypt/test/test.h"
+#include <wolfcrypt/test/test.h>
+#include <wolfssl/wolfcrypt/wc_port.h>
 
 void wolfssl_thread_entry(void* pvParameters)
 {
     FSP_PARAMETER_NOT_USED (pvParameters);
-    /* Benchmark output is displayed to Renesas Debug Virtual Console */
     initialise_monitor_handles();
+    wolfCrypt_Init();
     wolfcrypt_test(0);
-    while(1);
+    while(1)
+        ;
 }

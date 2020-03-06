@@ -84,6 +84,10 @@
     #include <wolfssl/wolfcrypt/port/arm/cryptoCell.h>
 #endif
 
+#if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+    #include <wolfssl/wolfcrypt/port/Renesas/renesas_sce_ra6m3g.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
