@@ -26276,7 +26276,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         }
                     }
                     else {
-                        if (args->sendSz != FINISHED_SZ || !args->output ||
+                        if (args->sendSz != FINISHED_SZ || !args->output
+                        #if !defined(NO_MD5) && !defined(NO_OLD_TLS) && \
+                            !defined(NO_SHA)
+                                ||
+                        #endif
                         #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
                                 (
                                 XMEMCMP(args->output,
