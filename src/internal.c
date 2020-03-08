@@ -26277,8 +26277,22 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     }
                     else {
                         if (args->sendSz != FINISHED_SZ || !args->output ||
-                            XMEMCMP(args->output,
-                                &ssl->hsHashes->certHashes, FINISHED_SZ) != 0) {
+                        #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
+                                (
+                                XMEMCMP(args->output,
+                                        &ssl->hsHashes->certHashes.md5,
+                                        WC_MD5_DIGEST_SIZE) != 0
+                                &&
+                        #endif
+                        #ifndef NO_SHA
+                                XMEMCMP(args->output + WC_MD5_DIGEST_SIZE,
+                                        &ssl->hsHashes->certHashes.sha,
+                                        WC_SHA_DIGEST_SIZE) != 0
+                        #endif
+                        #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
+                                )
+                        #endif
+                            ) {
                             ret = VERIFY_CERT_ERROR;
                         }
                     }
