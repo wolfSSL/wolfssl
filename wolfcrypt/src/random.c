@@ -2327,7 +2327,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #if defined(WOLFSSL_RENESAS_RA6M3G) /* Renesas RA6M3G MCU */
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz) {
         (void) os;
-        return wc_Renesas_GenerateSeed(output, sz);
+        return wc_RA6_GenerateSeed(output, sz);
     }
     #elif defined(WOLFSSL_RENESAS_S7G2) /* Renesas S7G2 MCU */
 

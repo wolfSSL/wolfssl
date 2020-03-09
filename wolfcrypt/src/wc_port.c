@@ -244,7 +244,7 @@ int wolfCrypt_Init(void)
             return -1; /* FATAL_ERROR */
         }
 #elif defined(WOLFSSL_RENESAS_RA6M3G)
-        wc_Renesas_SCE_init();
+        wc_RA6_SCE_init();
 #endif /* WOLFSSL_RENESAS_S7G2 */
 #endif /* WOLFSSL_SCE */
 

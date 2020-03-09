@@ -2779,7 +2779,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
 
         key->dataLen = outLen;
         #if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
-            ret = wc_Renesas_RsaFunction(out, (word32)sz, out, &key->dataLen,
+            ret = wc_RA6_RsaFunction(out, (word32)sz, out, &key->dataLen,
                                          rsa_type, key, rng, pad_value);
         #else
             ret = wc_RsaFunction(out, sz, out, &key->dataLen,rsa_type,key,rng);
@@ -2922,7 +2922,7 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
     case RSA_STATE_DECRYPT_EXPTMOD:
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)
     #if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
-        ret = wc_Renesas_RsaFunction(key->data, inLen, key->data, &key->dataLen,
+        ret = wc_RA6_RsaFunction(key->data, inLen, key->data, &key->dataLen,
                                          rsa_type, key, rng, pad_value);
     #else
         ret = wc_RsaFunction(key->data, inLen, key->data, &key->dataLen,
@@ -2930,7 +2930,7 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
     #endif /* WOLFSSL_SCE && WOLFSSL_RENESAS_RA6M3G */
 #else
     #if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
-        ret = wc_Renesas_RsaFunction(in, inLen, out, &key->dataLen,
+        ret = wc_RA6_RsaFunction(in, inLen, out, &key->dataLen,
                                      rsa_type, key, rng, pad_value);
     #else
         ret = wc_RsaFunction(in, inLen, out, &key->dataLen, rsa_type, key, rng);
@@ -3921,7 +3921,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #endif /*WOLFSSL_CRYPTOCELL*/
 
 #if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
-    return wc_Renesas_RsaGenerateKey(key, e, size);
+    return wc_RA6_RsaGenerateKey(key, e, size);
 #endif
 
 #ifdef WOLF_CRYPTO_CB

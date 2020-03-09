@@ -81,6 +81,10 @@
 #endif
 
 /* ECC */
+/* TODO: Add WOLFSSL_SCE_NO_ECC by default
+ * Renesas ECC Hardware on by default, but wolfSSL software is faster when
+ * WOLFSSL_SP_ARM_CORTEX_M_ASM and WOLFSSL_HAVE_SP_ECC are defined.
+ */
 #define HAVE_ECC
 #ifdef WOLFSSL_SCE
     /* Set 256 and 384 curves only */

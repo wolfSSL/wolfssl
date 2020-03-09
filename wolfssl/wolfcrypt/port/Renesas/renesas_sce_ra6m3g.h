@@ -35,43 +35,43 @@ extern "C" {
 /* Renesas RA6M3G Secure Cryptogrpahy Engine (SCE) drivers for wolfCrypt */
 
 /* General */
-int wc_Renesas_SCE_init(void);
+int wc_RA6_SCE_init(void);
 
 /* TRNG */
-int wc_Renesas_GenerateSeed(byte* output, word32 sz);
+int wc_RA6_GenerateSeed(byte* output, word32 sz);
 
 /* SHA-2 */
-int wc_Renesas_Sha256Transform(wc_Sha256*, const byte*);
+int wc_RA6_Sha256Transform(wc_Sha256*, const byte*);
 
 /* AES */
 #define AES_SCE_ENCRYPT (1) /* op for ECB/CBC */
 #define AES_SCE_DECRYPT (2) /* op for ECB/CBC */
-int wc_Renesas_AesCbc(Aes* aes, byte* out, const byte* in, word32 sz, int op);
-int wc_Renesas_AesEcb(Aes* aes, byte* out, const byte* in, word32 sz, int op);
-int wc_Renesas_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
+int wc_RA6_AesCbc(Aes* aes, byte* out, const byte* in, word32 sz, int op);
+int wc_RA6_AesEcb(Aes* aes, byte* out, const byte* in, word32 sz, int op);
+int wc_RA6_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz);
 
 /* ECC */
 #if defined(HAVE_ECC) && !defined(NO_RSA)
-int wc_Renesas_EccGenerateKey(ecc_key* key);
-int wc_Renesas_EccGenerateSign(ecc_key* key, const byte* hash,
+int wc_RA6_EccGenerateKey(ecc_key* key);
+int wc_RA6_EccGenerateSign(ecc_key* key, const byte* hash,
                                const word32 hashlen, mp_int* r, mp_int* s);
-int wc_Renesas_EccVerifySign(ecc_key* key, mp_int* r, mp_int* s,
+int wc_RA6_EccVerifySign(ecc_key* key, mp_int* r, mp_int* s,
                              const byte* hash, const word32 hashlen, int* res);
-int wc_Renesas_EccMulmod(mp_int* k, ecc_point *G, ecc_point *R,
+int wc_RA6_EccMulmod(mp_int* k, ecc_point *G, ecc_point *R,
                             mp_int* a, mp_int* b, mp_int* modulus, int map);
 #endif
 
 /* RSA */
 #if !defined(No_RSA)
-int wc_Renesas_RsaGenerateKey(RsaKey* rsa, long e, int size);
-int wc_Renesas_RsaFunction(const byte* in, word32 inLen, byte* out, word32* outLen,
+int wc_RA6_RsaGenerateKey(RsaKey* rsa, long e, int size);
+int wc_RA6_RsaFunction(const byte* in, word32 inLen, byte* out, word32* outLen,
                         int rsa_type, RsaKey* key, WC_RNG* rng, byte pad_value);
-int wc_Renesas_RsaPublicEncrypt(const byte* in, word32 inLen,
+int wc_RA6_RsaPublicEncrypt(const byte* in, word32 inLen,
                                 byte* out, word32* outLen, RsaKey* key);
-int wc_Renesas_RsaPrivateDecrypt(const byte* in, word32 inLen,
+int wc_RA6_RsaPrivateDecrypt(const byte* in, word32 inLen,
                                  byte* out, word32* outLen, RsaKey* key);
 #if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
-int wc_Renesas_RsaPrivateCrtDecrypt(const byte* in, word32 inLen, byte* out,
+int wc_RA6_RsaPrivateCrtDecrypt(const byte* in, word32 inLen, byte* out,
                                     word32* outLen, RsaKey* key);
 #endif
 #endif /* !NO_RSA */

@@ -55,7 +55,7 @@
    return  FSP_SUCCESS:     HW initialized successfully
                      *:     Error
 */
-int wc_Renesas_SCE_init(void) {
+int wc_RA6_SCE_init(void) {
     fsp_err_t ret;
 
     HW_SCE_PowerOn();
@@ -85,11 +85,11 @@ int wc_Renesas_SCE_init(void) {
            BAD_FUNC_ARG:    Invalid Argument
            WC_HW_E:         Hardware could not generate seed.
 */
-int wc_Renesas_GenerateSeed(byte* output, word32 sz) {
+int wc_RA6_GenerateSeed(byte* output, word32 sz) {
     int ret = FSP_SUCCESS;
     uint32_t tmpOut[4] = {0};
 
-    WOLFSSL_ENTER("wc_Renesas_GenerateSeed");
+    WOLFSSL_ENTER("wc_RA6_GenerateSeed");
     if (output == NULL)
         ret = BAD_FUNC_ARG;
 
@@ -129,11 +129,11 @@ int wc_Renesas_GenerateSeed(byte* output, word32 sz) {
            BAD_FUNC_ARG:    Invalid Argument
            WC_HW_E:         Hardware could not hash message
 */
-int wc_Renesas_Sha256Transform(wc_Sha256* sha256, const byte* data) {
+int wc_RA6_Sha256Transform(wc_Sha256* sha256, const byte* data) {
     int ret = 0;
     (void) data;
 
-    WOLFSSL_ENTER("wc_Renesas_Sha256Transform");
+    WOLFSSL_ENTER("wc_RA6_Sha256Transform");
     if (sha256 == NULL)
         ret = BAD_FUNC_ARG;
 
@@ -168,13 +168,13 @@ int wc_Renesas_Sha256Transform(wc_Sha256* sha256, const byte* data) {
            BAD_FUNC_ARG:    Invalid Argument
            WC_HW_E:         Hardware could not encrypt message.
 */
-int wc_Renesas_AesCbc(Aes* aes, byte* out, const byte* in, word32 sz, int op)
+int wc_RA6_AesCbc(Aes* aes, byte* out, const byte* in, word32 sz, int op)
 {
     word32 keySize = 0;
     uint32_t num_words = 0;
     int ret = 0;
 
-    WOLFSSL_ENTER("wc_Renesas_AesCbcEncrypt");
+    WOLFSSL_ENTER("wc_RA6_AesCbcEncrypt");
     /* Only accept input with size that is a multiple AES_BLOCK_SIZE */
     if (sz % AES_BLOCK_SIZE != 0 ||
             aes == NULL || out == NULL || in == NULL)
@@ -242,13 +242,13 @@ int wc_Renesas_AesCbc(Aes* aes, byte* out, const byte* in, word32 sz, int op)
            BAD_FUNC_ARG:    Invalid Argument
            WC_HW_E:         Hardware could not encrypt message.
 */
-int wc_Renesas_AesEcb(Aes* aes, byte* out, const byte* in, word32 sz, int op)
+int wc_RA6_AesEcb(Aes* aes, byte* out, const byte* in, word32 sz, int op)
 {
     word32 keySize = 0;
     uint32_t num_words = 0;
     int ret = 0;
 
-    WOLFSSL_ENTER("wc_Renesas_AesEcbEncrypt");
+    WOLFSSL_ENTER("wc_RA6_AesEcbEncrypt");
     /* Only accept input with size that is a multiple AES_BLOCK_SIZE */
     if (sz % AES_BLOCK_SIZE != 0 ||
             aes == NULL || out == NULL || in == NULL)
@@ -296,6 +296,10 @@ int wc_Renesas_AesEcb(Aes* aes, byte* out, const byte* in, word32 sz, int op)
 /*
    AES-CTR Encrypt with Renesas RA Hardware
 
+    TODO: This could possibly be optimized so that Renesas HW
+          processes the max amount of input words at once instead
+          of only doing AES_BLOCK_SIZE amounts within a while loop.
+
    Inputs:
         aes Contains AES key and parameters for stream re-use
         in  Plaintext to encrypt
@@ -307,14 +311,14 @@ int wc_Renesas_AesEcb(Aes* aes, byte* out, const byte* in, word32 sz, int op)
            BAD_FUNC_ARG:    Invalid Argument
            WC_HW_E:         Hardware could not encrypt message.
 */
-int wc_Renesas_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz) {
+int wc_RA6_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz) {
     word32 keySize = 0;
     int ret = 0;
     const byte* tmp;
     uint32_t* outTmp;
     byte inTmp[AES_BLOCK_SIZE] = {0};
 
-    WOLFSSL_ENTER("wc_Renesas_AesCtrEncrypt");
+    WOLFSSL_ENTER("wc_RA6_AesCtrEncrypt");
 
     if (aes == NULL || out == NULL || in == NULL)
         ret = BAD_FUNC_ARG;
@@ -475,7 +479,7 @@ static int Renesas_EccFormatArgs(ecc_key* key, byte* domain, byte* gxy) {
            ECC_CURVE_OID_E: Unsupported curve
            WC_HW_E:         Hardware could not generate key
 */
-int wc_Renesas_EccGenerateKey(ecc_key* key)
+int wc_RA6_EccGenerateKey(ecc_key* key)
 {
     word32 keySz = 0;
     word32 pubSz = 0;
@@ -487,7 +491,7 @@ int wc_Renesas_EccGenerateKey(ecc_key* key)
     byte pub[2*ECC384_KEYSIZE+1]  = {0};  /* HW Output: (0x04 || Px || Py) */
     byte domain[4*ECC384_KEYSIZE] = {0};  /* (Af || Bf || prime || order) */
 
-    WOLFSSL_ENTER("wc_Renesas_EccGenerateKey");
+    WOLFSSL_ENTER("wc_RA6_EccGenerateKey");
     if (key == NULL || key->dp == NULL)
         ret = BAD_FUNC_ARG;
 
@@ -554,7 +558,7 @@ int wc_Renesas_EccGenerateKey(ecc_key* key)
                ECC_CURVE_OID_E: Unsupported curve
                WC_HW_E:         Hardware could not generate sign
 */
-int wc_Renesas_EccGenerateSign(ecc_key* key, const byte* hash,
+int wc_RA6_EccGenerateSign(ecc_key* key, const byte* hash,
                                const word32 hashlen, mp_int* r, mp_int* s)
 {
     word32 keySz = 0;
@@ -566,7 +570,7 @@ int wc_Renesas_EccGenerateSign(ecc_key* key, const byte* hash,
     byte sigRS[2*ECC384_KEYSIZE]  = {0};  /* (r || s) */
     byte domain[4*ECC384_KEYSIZE] = {0};  /* (Af || Bf || prime || order) */
 
-    WOLFSSL_ENTER("wc_Renesas_EccGenerateSign");
+    WOLFSSL_ENTER("wc_RA6_EccGenerateSign");
     if (key == NULL || key->dp == NULL ||
             r == NULL || s == NULL || hash == NULL) {
         WOLFSSL_MSG("NULL input.\n");
@@ -649,7 +653,7 @@ int wc_Renesas_EccGenerateSign(ecc_key* key, const byte* hash,
            BAD_FUNC_ARG:    Invalid Argument  (res = 0)
            ECC_CURVE_OID_E: Unsupported curve (res = 0)
 */
-int wc_Renesas_EccVerifySign(ecc_key* key, mp_int* r, mp_int* s,
+int wc_RA6_EccVerifySign(ecc_key* key, mp_int* r, mp_int* s,
                              const byte* hash, const word32 hashlen, int* res)
 {
     word32 keySz = 0;
@@ -661,7 +665,7 @@ int wc_Renesas_EccVerifySign(ecc_key* key, mp_int* r, mp_int* s,
     byte sigRS[2*ECC384_KEYSIZE]  = {0};  /* ( r || s ) */
     byte domain[4*ECC384_KEYSIZE] = {0};  /* (Af || Bf || prime || order) */
 
-    WOLFSSL_ENTER("wc_Renesas_EccVerifySign");
+    WOLFSSL_ENTER("wc_RA6_EccVerifySign");
     if (key == NULL || key->dp == NULL ||
             s == NULL || hash == NULL || r == NULL) {
         WOLFSSL_MSG("NULL input.");
@@ -743,6 +747,9 @@ int wc_Renesas_EccVerifySign(ecc_key* key, mp_int* r, mp_int* s,
    Note: The hardware performance is worse than using wolfSSL software
          mulmod with WOLFSSL_HAVE_SP_ECC and WOLFSSL_SP_ARM_CORTEX_M_ASM.
 
+    TODO: Add point is at infinity check without using Renesas HW.
+          Renesas HW errors out with inputs where point goes to infinity.
+
    Inputs:
        k        The multiplicand
        G        Base point to multiply
@@ -759,17 +766,17 @@ int wc_Renesas_EccVerifySign(ecc_key* key, mp_int* r, mp_int* s,
            BAD_FUNC_ARG:    Invalid Argument
            ECC_CURVE_OID_E: Unsupported curve
 */
-int wc_Renesas_EccMulmod(mp_int* k, ecc_point *G, ecc_point *R,
+int wc_RA6_EccMulmod(mp_int* k, ecc_point *G, ecc_point *R,
                             mp_int* a, mp_int* b, mp_int* modulus, int map) {
 
     word32 keySize = 0;
     int ret = MP_OKAY;
-    uint8_t k_bin[ECC384_KEYSIZE]    = {0};
-    uint8_t g_bin[2*ECC384_KEYSIZE]  = {0}; /* HW In:  (Gx || Gy) / (Px || Py) */
-    uint8_t r_bin[2*ECC384_KEYSIZE]  = {0}; /* HW Out: (Rx || Ry) */
-    uint8_t domain[3*ECC384_KEYSIZE] = {0}; /* (a || b || modulus) */
+    byte k_bin[ECC384_KEYSIZE]    = {0};
+    byte g_bin[2*ECC384_KEYSIZE]  = {0}; /* HW In:  (Gx || Gy) / (Px || Py) */
+    byte r_bin[2*ECC384_KEYSIZE]  = {0}; /* HW Out: (Rx || Ry) */
+    byte domain[3*ECC384_KEYSIZE] = {0}; /* (a || b || modulus) */
 
-    WOLFSSL_ENTER("wc_Renesas_Ecc256Mulmod");
+    WOLFSSL_ENTER("wc_RA6_Ecc256Mulmod");
     if (k == NULL || G == NULL || R == NULL ||
             a == NULL || b == NULL || modulus == NULL)
     {
@@ -866,7 +873,7 @@ int wc_Renesas_EccMulmod(mp_int* k, ecc_point *G, ecc_point *R,
            BAD_FUNC_ARG:    Invalid Argument
            WC_HW_E:         Hardware could not generate key
 */
-int wc_Renesas_RsaGenerateKey(RsaKey* rsa, long e, int size)
+int wc_RA6_RsaGenerateKey(RsaKey* rsa, long e, int size)
 {
     int ret = MP_OKAY;
     /* Individual param size (bytes) */
@@ -875,7 +882,7 @@ int wc_Renesas_RsaGenerateKey(RsaKey* rsa, long e, int size)
     byte n[RSA_2048_KEYSIZE]         = {0};
     byte domain[RSA_MAX_PARAMS_SIZE] = {0};/* HW Out: (dQ || q || dP || p || u) */
 
-    WOLFSSL_ENTER("wc_Renesas_RsaGenerateKey");
+    WOLFSSL_ENTER("wc_RA6_RsaGenerateKey");
     if (rsa == NULL)
         ret = BAD_FUNC_ARG;
 
@@ -969,19 +976,19 @@ int wc_Renesas_RsaGenerateKey(RsaKey* rsa, long e, int size)
            WC_HW_E:         Hardware could not complete operation
 */
 
-int wc_Renesas_RsaFunction(const byte* in, word32 inLen, byte* out, word32* outLen,
+int wc_RA6_RsaFunction(const byte* in, word32 inLen, byte* out, word32* outLen,
                            int rsa_type, RsaKey* key, WC_RNG* rng, byte pad_value)
 {
     int ret;
     (void) pad_value; /* unused in wc_RsaFunction */
     (void) rng;       /* used only in wc_RsaFunction */
     if (rsa_type == RSA_PUBLIC_ENCRYPT && pad_value == RSA_BLOCK_TYPE_2) {
-        ret = wc_Renesas_RsaPublicEncrypt(in, inLen, out, outLen, key);
+        ret = wc_RA6_RsaPublicEncrypt(in, inLen, out, outLen, key);
     } else if (rsa_type == RSA_PRIVATE_DECRYPT && pad_value == RSA_BLOCK_TYPE_2) {
     #if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
-        ret = wc_Renesas_RsaPrivateCrtDecrypt(in, inLen, out, outLen, key);
+        ret = wc_RA6_RsaPrivateCrtDecrypt(in, inLen, out, outLen, key);
     #else
-        ret = wc_Renesas_RsaPrivateDecrypt(in, inLen, out, outLen, key);
+        ret = wc_RA6_RsaPrivateDecrypt(in, inLen, out, outLen, key);
     #endif
     } else { /* Resort to software */
         ret = wc_RsaFunction(out, inLen, out, outLen, rsa_type, key, rng);
@@ -1005,15 +1012,15 @@ int wc_Renesas_RsaFunction(const byte* in, word32 inLen, byte* out, word32* outL
            BAD_FUNC_ARG:    Invalid Argument
            WC_HW_E:         Hardware could not complete operation
 */
-int wc_Renesas_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
+int wc_RA6_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
                                 word32* outLen, RsaKey* key)
 {
     word32 i, keySz;
     int ret = MP_OKAY;
-    uint8_t n[RSA_2048_KEYSIZE] = {0};
+    byte n[RSA_2048_KEYSIZE] = {0};
     uint32_t e;
 
-    WOLFSSL_ENTER("wc_Renesas_RsaPublicEncrypt");
+    WOLFSSL_ENTER("wc_RA6_RsaPublicEncrypt");
     if (in == NULL || out == NULL || key == NULL ||
             outLen == NULL)
         ret = BAD_FUNC_ARG;
@@ -1027,7 +1034,7 @@ int wc_Renesas_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
     if (ret == MP_OKAY)
         ret = mp_to_unsigned_bin(&key->n, n);
     if (ret == MP_OKAY)
-        ret = mp_to_unsigned_bin(&key->e, (uint8_t*)&e);
+        ret = mp_to_unsigned_bin(&key->e, (byte*)&e);
     if (ret == MP_OKAY) /*TODO: implement ByteReverseWords without NO_INLINE */
         ByteReverseWords((word32*)&e, (word32*)&e, sizeof(word32));
 
@@ -1086,15 +1093,15 @@ int wc_Renesas_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
            BAD_FUNC_ARG:    Invalid Argument
            WC_HW_E:         Hardware could not complete operation
 */
-int wc_Renesas_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
+int wc_RA6_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
                                  word32* outLen, RsaKey* key)
 {
     word32 i, keySz;
     int ret = MP_OKAY;
-    uint8_t d[RSA_2048_KEYSIZE] = {0};
-    uint8_t n[RSA_2048_KEYSIZE] = {0};
+    byte d[RSA_2048_KEYSIZE] = {0};
+    byte n[RSA_2048_KEYSIZE] = {0};
 
-    WOLFSSL_ENTER("wc_Renesas_RsaPrivateDecrypt");
+    WOLFSSL_ENTER("wc_RA6_RsaPrivateDecrypt");
     if (in == NULL || out == NULL || key == NULL ||
             outLen == NULL)
         ret = BAD_FUNC_ARG;
@@ -1167,7 +1174,7 @@ int wc_Renesas_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
            WC_HW_E:         Hardware could not complete operation
 */
 #if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
-int wc_Renesas_RsaPrivateCrtDecrypt(const byte* in, word32 inLen, byte* out,
+int wc_RA6_RsaPrivateCrtDecrypt(const byte* in, word32 inLen, byte* out,
                                     word32* outLen, RsaKey* key)
 {
     word32 i, keySz;
@@ -1175,7 +1182,7 @@ int wc_Renesas_RsaPrivateCrtDecrypt(const byte* in, word32 inLen, byte* out,
     int ret = MP_OKAY;
     byte domain[RSA_MAX_PARAMS_SIZE] = {0};/* HW In: (dQ || q || dP || p || u) */
 
-    WOLFSSL_ENTER("wc_Renesas_RsaPrivateCrtDecrypt");
+    WOLFSSL_ENTER("wc_RA6_RsaPrivateCrtDecrypt");
     if (in == NULL || out == NULL || key == NULL ||
             outLen == NULL)
         ret = BAD_FUNC_ARG;

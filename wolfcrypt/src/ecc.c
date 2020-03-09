@@ -3033,7 +3033,7 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
 
     /* Bf found and converted to mp_int b */
     if (ret == MP_OKAY)
-        ret = wc_Renesas_EccMulmod(k, G, R, a, b, modulus, map);
+        ret = wc_RA6_EccMulmod(k, G, R, a, b, modulus, map);
 
     mp_clear(b);
     return ret;
@@ -4290,7 +4290,7 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
     }
 
 #elif defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
-    err = wc_Renesas_EccGenerateKey(key);
+    err = wc_RA6_EccGenerateKey(key);
 #else
 
 #ifdef WOLFSSL_HAVE_SP_ECC
@@ -4843,7 +4843,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 #if defined(WOLFSSL_ATECC508A) || defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL)
     err = wc_ecc_sign_hash_hw(in, inlen, r, s, out, outlen, rng, key);
 #elif defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
-    err = wc_Renesas_EccGenerateSign(key, in, inlen, r, s);
+    err = wc_RA6_EccGenerateSign(key, in, inlen, r, s);
 #else
     err = wc_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
 #endif
@@ -6011,7 +6011,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
             return err;
         }
    }
-   err = wc_Renesas_EccVerifySign(key, r, s, hash, hashlen, res);
+   err = wc_RA6_EccVerifySign(key, r, s, hash, hashlen, res);
 
 #else
   /* checking if private key with no public part */

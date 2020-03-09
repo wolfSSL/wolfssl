@@ -548,7 +548,7 @@ static int InitSha256(wc_Sha256* sha256)
 
     #if defined(WOLFSSL_RENESAS_RA6M3G)  /* Renesas RA6M3G MCU */
         #include <wolfssl/wolfcrypt/port/Renesas/renesas_sce_ra6m3g.h>
-        #define XTRANSFORM(S, D) wc_Renesas_Sha256Transform((S), (D))
+        #define XTRANSFORM(S, D) wc_RA6_Sha256Transform((S), (D))
 
     #elif defined(WOLFSSL_RENESAS_S7G2) /* Renesas S7G2 MCU */
     #include "hal_data.h"
