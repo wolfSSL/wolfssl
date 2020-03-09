@@ -62,7 +62,7 @@ int wc_RA6_EccMulmod(mp_int* k, ecc_point *G, ecc_point *R,
 #endif
 
 /* RSA */
-#if !defined(No_RSA)
+#if !defined(NO_RSA)
 int wc_RA6_RsaGenerateKey(RsaKey* rsa, long e, int size);
 int wc_RA6_RsaFunction(const byte* in, word32 inLen, byte* out, word32* outLen,
                         int rsa_type, RsaKey* key, WC_RNG* rng, byte pad_value);
