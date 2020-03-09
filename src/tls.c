@@ -11165,6 +11165,8 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 ret = KS_PARSE(ssl, input + offset, size, msgType);
                 break;
 #endif
+            default:
+                WOLFSSL_MSG("Unknown TLS extension type");
         }
 
         /* offset should be updated here! */

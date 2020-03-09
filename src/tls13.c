@@ -3379,6 +3379,9 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     WOLFSSL_START(WC_FUNC_CERTIFICATE_REQUEST_DO);
     WOLFSSL_ENTER("DoTls13CertificateRequest");
 
+#ifndef WOLFSSL_TLS13_DRAFT_18
+    XMEMSET(&peerSuites, 0, sizeof(Suites));
+#endif
 #ifdef WOLFSSL_CALLBACKS
     if (ssl->hsInfoOn) AddPacketName(ssl, "CertificateRequest");
     if (ssl->toInfoOn) AddLateName("CertificateRequest", &ssl->timeoutInfo);
