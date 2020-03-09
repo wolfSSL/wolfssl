@@ -21,10 +21,7 @@
 
 /* wolfSSL and wolfCrypt */
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/ssl.h>
-#include <wolfssl/wolfcrypt/ecc.h>
-#include <wolfssl/wolfcrypt/asn.h>
-#include <wolfssl/wolfcrypt/rsa.h>
+#include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/misc.h>
 #include <wolfssl/wolfcrypt/port/Renesas/renesas_sce_ra6m3g.h>
@@ -93,7 +90,7 @@ int wc_Renesas_GenerateSeed(byte* output, word32 sz) {
     uint32_t tmpOut[4] = {0};
 
     WOLFSSL_ENTER("wc_Renesas_GenerateSeed");
-    if (output == NULL || sz < 0)
+    if (output == NULL)
         ret = BAD_FUNC_ARG;
 
     /* Fill output with multiples of 128-bit random numbers */
@@ -133,7 +130,7 @@ int wc_Renesas_GenerateSeed(byte* output, word32 sz) {
            WC_HW_E:         Hardware could not hash message
 */
 int wc_Renesas_Sha256Transform(wc_Sha256* sha256, const byte* data) {
-    int ret = WOLFSSL_SUCCESS;
+    int ret = 0;
     (void) data;
 
     WOLFSSL_ENTER("wc_Renesas_Sha256Transform");
@@ -312,7 +309,7 @@ int wc_Renesas_AesEcb(Aes* aes, byte* out, const byte* in, word32 sz, int op)
 */
 int wc_Renesas_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz) {
     word32 keySize = 0;
-    int ret = WOLFSSL_SUCCESS;
+    int ret = 0;
     const byte* tmp;
     uint32_t* outTmp;
     byte inTmp[AES_BLOCK_SIZE] = {0};
@@ -392,6 +389,79 @@ int wc_Renesas_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz) {
     return ret;
 }
 
+#if defined(HAVE_ECC) && !defined(NO_RSA)
+/*
+   Helper function for Renesas ECC hardware functions.
+   Formats ECC domain and other parameters to be consumed by hardware.
+   This isn't expected to be called by user.
+
+   Inputs:
+       key  ECC key containing parameters to populate domain and gxy
+       domain[4*ECC384_KEYSIZE] = {0};
+       gxy[2*ECC384_KEYSIZE]    = {0};
+   Outputs:
+       domain = (Af || Bf || prime || order)
+       gxy    = (Gx || Gy)
+
+   return  MP_OKAY:         domain and gxy populated from ECC key
+           BAD_FUNC_ARG:    Invalid Argument
+*/
+#define _ECC_PARAMS 6 /* (Af || Bf || prime || order || Gx || Gy) */
+static int Renesas_EccFormatArgs(ecc_key* key, byte* domain, byte* gxy) {
+    word32 keySz = 0;
+    int i;
+    int ret;
+
+    mp_int tmp_mp[1];
+    const char* paramStrs[_ECC_PARAMS] = {0};
+    byte* domainPtrs[_ECC_PARAMS] = {0};
+
+    if (key != NULL && key->dp != NULL  &&
+            domain != NULL && gxy != NULL) {
+        keySz = (word32)wc_ecc_size(key);
+    }
+
+    if (keySz == ECC256_KEYSIZE || keySz == ECC384_KEYSIZE)
+    {
+        /* Convert ECC parameters into format expected by hardware */
+        /* Create array of pointers, used in for loop iterations */
+        paramStrs[0] = key->dp->Af;
+        paramStrs[1] = key->dp->Bf;
+        paramStrs[2] = key->dp->prime;
+        paramStrs[3] = key->dp->order;
+        paramStrs[4] = key->dp->Gx;
+        paramStrs[5] = key->dp->Gy;
+        /* (Af || Bf || prime || order) */
+        domainPtrs[0] = &domain[0];
+        domainPtrs[1] = &domain[1*keySz];
+        domainPtrs[2] = &domain[2*keySz];
+        domainPtrs[3] = &domain[3*keySz];
+        /* (Gx || Gy) */
+        domainPtrs[4] = &gxy[0];
+        domainPtrs[5] = &gxy[keySz];
+
+        /* convert Hex string -> mp_int -> byte array */
+        ret = mp_init(tmp_mp);
+        for (i = 0; i < _ECC_PARAMS; i++) {
+            if (ret != MP_OKAY)
+                break;
+            ret = mp_read_radix(tmp_mp, paramStrs[i], MP_RADIX_HEX);
+            if (ret != MP_OKAY)
+                break;
+            ret = mp_to_unsigned_bin(tmp_mp, domainPtrs[i]);
+            if (ret != MP_OKAY)
+                break;
+        }
+        mp_clear(tmp_mp);
+    } else {
+        ret = BAD_FUNC_ARG;
+    }
+    if (ret != MP_OKAY) {
+        WOLFSSL_MSG("Unable to format ECC parameters for hardware.");
+    }
+    return ret;
+}
+
 /*
    Generate an ECC Key using Renesas RA Hardware
    Supported Curves: ECC_SECP256R1, ECC_SECP256K1, ECC_SECP384R1
@@ -422,12 +492,12 @@ int wc_Renesas_EccGenerateKey(ecc_key* key)
         ret = BAD_FUNC_ARG;
 
     if (ret == MP_OKAY) {
-        keySz = (word32) key->dp->size;
+        keySz = (word32)wc_ecc_size(key);
         /* Size for Px and Py with + 1 for 0x04 at pub[0] */
         pubSz = 2*keySz + 1;
         /* Build up key parameters into format expected by hardware */
         /* MP_OKAY if successful */
-        ret = wc_renesas_EccFormatArgs(key, domain, gxy);
+        ret = Renesas_EccFormatArgs(key, domain, gxy);
     }
 
     /* Perform Hardware Key Generation */
@@ -503,7 +573,7 @@ int wc_Renesas_EccGenerateSign(ecc_key* key, const byte* hash,
         ret = BAD_FUNC_ARG;
     }
 
-    keySz = (word32) key->dp->size;
+    keySz = (word32)wc_ecc_size(key);
     if (hashlen != keySz) {
         WOLFSSL_MSG("Hash length does not match key size.");
         ret = BAD_FUNC_ARG;
@@ -513,7 +583,7 @@ int wc_Renesas_EccGenerateSign(ecc_key* key, const byte* hash,
     /* MP_OKAY if successful */
     if (ret == MP_OKAY)
     {
-        ret = wc_renesas_EccFormatArgs(key, domain, gxy);
+        ret = Renesas_EccFormatArgs(key, domain, gxy);
         /* Convert Private Key from mp_int to raw binary */
         if (ret == MP_OKAY) {
             ret = mp_to_unsigned_bin(&key->k, priv);
@@ -549,9 +619,9 @@ int wc_Renesas_EccGenerateSign(ecc_key* key, const byte* hash,
         wolfSSL_CryptHwMutexUnLock();
 
         if (ret == FSP_SUCCESS) {
-            mp_read_unsigned_bin(r, &sigRS[0], (int) keySz);
-            mp_read_unsigned_bin(s, &sigRS[keySz], (int) keySz);
-            ret = MP_OKAY;
+            ret = mp_read_unsigned_bin(r, &sigRS[0], (int) keySz);
+            if (ret == MP_OKAY)
+                mp_read_unsigned_bin(s, &sigRS[keySz], (int) keySz);
         } else {
             WOLFSSL_MSG("ECC Sign failed.");
             if (ret != ECC_CURVE_OID_E)
@@ -599,7 +669,7 @@ int wc_Renesas_EccVerifySign(ecc_key* key, mp_int* r, mp_int* s,
     }
 
     /* Input hash must be exactly the key size and cannot be all 0's */
-    keySz = (word32) key->dp->size;
+    keySz = (word32)wc_ecc_size(key);
     if (hashlen != keySz || keySz > ECC384_KEYSIZE ||
             XMEMCMP(hash, sigRS, keySz) == 0) {
         WOLFSSL_MSG("Invalid Hash or Hash length.");
@@ -609,7 +679,7 @@ int wc_Renesas_EccVerifySign(ecc_key* key, mp_int* r, mp_int* s,
     /* Build up key parameters into format expected by hardware */
     /* MP_OKAY if successful */
     if (ret == MP_OKAY) {
-        ret = wc_renesas_EccFormatArgs(key, domain, gxy);
+        ret = Renesas_EccFormatArgs(key, domain, gxy);
         /* Concatenate r and s */
         if (ret == MP_OKAY)
             ret = mp_to_unsigned_bin(r, &sigRS[0]);
@@ -689,7 +759,7 @@ int wc_Renesas_EccVerifySign(ecc_key* key, mp_int* r, mp_int* s,
            BAD_FUNC_ARG:    Invalid Argument
            ECC_CURVE_OID_E: Unsupported curve
 */
-int wc_Renesas_Ecc256Mulmod(mp_int* k, ecc_point *G, ecc_point *R,
+int wc_Renesas_EccMulmod(mp_int* k, ecc_point *G, ecc_point *R,
                             mp_int* a, mp_int* b, mp_int* modulus, int map) {
 
     word32 keySize = 0;
@@ -765,93 +835,22 @@ int wc_Renesas_Ecc256Mulmod(mp_int* k, ecc_point *G, ecc_point *R,
         wolfSSL_CryptHwMutexUnLock();
 
         if (ret == FSP_SUCCESS) {
-            mp_read_unsigned_bin(R->x, &r_bin[0], (int) keySize);
-            mp_read_unsigned_bin(R->y, &r_bin[keySize], (int) keySize);
-            if (map == 1) {
-                mp_copy(G->z, R->z);
-            }
-            ret = MP_OKAY;
+            ret = mp_read_unsigned_bin(R->x, &r_bin[0], (int) keySize);
+            if (ret == MP_OKAY)
+                mp_read_unsigned_bin(R->y, &r_bin[keySize], (int) keySize);
+            if (map == 1)
+                ret = mp_copy(G->z, R->z);
         } else {
             WOLFSSL_MSG("ECC Sign failed.");
             if (ret != ECC_CURVE_OID_E)
                 ret = WC_HW_E;
         }
     }
-
     return ret;
 }
+#endif /* HAVE_ECC && !NO_RSA */
 
-/*
-   Helper function for Renesas ECC hardware functions.
-   Formats ECC domain and other parameters to be consumed by hardware.
-
-   Inputs:
-       key  ECC key containing parameters to populate domain and gxy
-       domain[4*ECC384_KEYSIZE] = {0};
-       gxy[2*ECC384_KEYSIZE]    = {0};
-   Outputs:
-       domain = (Af || Bf || prime || order)
-       gxy    = (Gx || Gy)
-
-   return  MP_OKAY:         domain and gxy populated from ECC key
-           BAD_FUNC_ARG:    Invalid Argument
-*/
-int wc_renesas_EccFormatArgs(const ecc_key* key, byte* domain, byte* gxy) {
-    const byte paramLen = 6;
-    word32 keySz = 0;
-    int i;
-    int ret;
-
-    mp_int tmp_mp[1];
-    const char* paramStrs[6] = {0};
-    byte* domainPtrs[6] = {0};
-
-    if (key != NULL && key->dp != NULL  &&
-            domain != NULL && gxy != NULL) {
-        keySz = (word32) key->dp->size;
-    }
-
-    if (keySz == ECC256_KEYSIZE || keySz == ECC384_KEYSIZE)
-    {
-        /* Convert ECC parameters into format expected by hardware */
-        /* Create array of pointers, used in for loop iterations */
-        paramStrs[0] = key->dp->Af;
-        paramStrs[1] = key->dp->Bf;
-        paramStrs[2] = key->dp->prime;
-        paramStrs[3] = key->dp->order;
-        paramStrs[4] = key->dp->Gx;
-        paramStrs[5] = key->dp->Gy;
-        /* (Af || Bf || prime || order) */
-        domainPtrs[0] = &domain[0];
-        domainPtrs[1] = &domain[1*keySz];
-        domainPtrs[2] = &domain[2*keySz];
-        domainPtrs[3] = &domain[3*keySz];
-        /* (Gx || Gy) */
-        domainPtrs[4] = &gxy[0];
-        domainPtrs[5] = &gxy[keySz];
-
-        /* convert Hex string -> mp_int -> byte array */
-        ret = mp_init(tmp_mp);
-        for (i = 0; i < paramLen; i++) {
-            if (ret != MP_OKAY)
-                break;
-            ret = mp_read_radix(tmp_mp, paramStrs[i], MP_RADIX_HEX);
-            if (ret != MP_OKAY)
-                break;
-            ret = mp_to_unsigned_bin(tmp_mp, domainPtrs[i]);
-            if (ret != MP_OKAY)
-                break;
-        }
-        mp_clear(tmp_mp);
-    } else {
-        ret = BAD_FUNC_ARG;
-    }
-    if (ret != MP_OKAY) {
-        WOLFSSL_MSG("Unable to format ECC parameters for hardware.");
-    }
-    return ret;
-}
-
+#if !defined(NO_RSA)
 /* RSA */
 /*
    Generate an RSA Key using Renesas RA Hardware
@@ -870,7 +869,8 @@ int wc_renesas_EccFormatArgs(const ecc_key* key, byte* domain, byte* gxy) {
 int wc_Renesas_RsaGenerateKey(RsaKey* rsa, long e, int size)
 {
     int ret = MP_OKAY;
-    const int paramSz = (size / (8*2)); /* Individual param size (bytes) */
+    /* Individual param size (bytes) */
+    const int paramSz = (size / (WOLFSSL_BIT_SIZE*2));
     byte priv[RSA_2048_KEYSIZE]      = {0};
     byte n[RSA_2048_KEYSIZE]         = {0};
     byte domain[RSA_MAX_PARAMS_SIZE] = {0};/* HW Out: (dQ || q || dP || p || u) */
@@ -975,12 +975,17 @@ int wc_Renesas_RsaFunction(const byte* in, word32 inLen, byte* out, word32* outL
     int ret;
     (void) pad_value; /* unused in wc_RsaFunction */
     (void) rng;       /* used only in wc_RsaFunction */
-    if (rsa_type == RSA_PUBLIC_ENCRYPT && pad_value == RSA_BLOCK_TYPE_2)
+    if (rsa_type == RSA_PUBLIC_ENCRYPT && pad_value == RSA_BLOCK_TYPE_2) {
         ret = wc_Renesas_RsaPublicEncrypt(in, inLen, out, outLen, key);
-    else if (rsa_type == RSA_PRIVATE_DECRYPT && pad_value == RSA_BLOCK_TYPE_1)
+    } else if (rsa_type == RSA_PRIVATE_DECRYPT && pad_value == RSA_BLOCK_TYPE_2) {
+    #if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
+        ret = wc_Renesas_RsaPrivateCrtDecrypt(in, inLen, out, outLen, key);
+    #else
         ret = wc_Renesas_RsaPrivateDecrypt(in, inLen, out, outLen, key);
-    else /* Resort to software */
+    #endif
+    } else { /* Resort to software */
         ret = wc_RsaFunction(out, inLen, out, outLen, rsa_type, key, rng);
+    }
     return ret;
 }
 
@@ -1023,7 +1028,7 @@ int wc_Renesas_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
         ret = mp_to_unsigned_bin(&key->n, n);
     if (ret == MP_OKAY)
         ret = mp_to_unsigned_bin(&key->e, (uint8_t*)&e);
-    if (ret == MP_OKAY)
+    if (ret == MP_OKAY) /*TODO: implement ByteReverseWords without NO_INLINE */
         ByteReverseWords((word32*)&e, (word32*)&e, sizeof(word32));
 
     if (ret == MP_OKAY && wolfSSL_CryptHwMutexLock() == 0)
@@ -1144,3 +1149,91 @@ int wc_Renesas_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
     }
     return ret;
 }
+/*
+   RSA Private Decrypt w/ Chinese Remainder Theorem
+   using Renesas RA Hardware
+   Supported Key Sizes: 1024 and 2048
+
+   Inputs:
+      in        cipher text
+      inLen     Must be multiples of key size (bytes)
+      key       Contains: dQ, q, dP, p, u
+   Outputs:
+      out       Plain text w/ padding
+      outLen    The amount of bytes decrypted.
+
+   return  MP_OKAY:         HW completed successfully
+           BAD_FUNC_ARG:    Invalid Argument
+           WC_HW_E:         Hardware could not complete operation
+*/
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
+int wc_Renesas_RsaPrivateCrtDecrypt(const byte* in, word32 inLen, byte* out,
+                                    word32* outLen, RsaKey* key)
+{
+    word32 i, keySz;
+    word32 paramSz; /* Individual param size (bytes) */
+    int ret = MP_OKAY;
+    byte domain[RSA_MAX_PARAMS_SIZE] = {0};/* HW In: (dQ || q || dP || p || u) */
+
+    WOLFSSL_ENTER("wc_Renesas_RsaPrivateCrtDecrypt");
+    if (in == NULL || out == NULL || key == NULL ||
+            outLen == NULL)
+        ret = BAD_FUNC_ARG;
+
+    keySz = (word32) wc_RsaEncryptSize(key);
+    paramSz = (keySz / 2);
+
+    /* Make sure inLen is a multiple of key size */
+    if ((inLen % keySz) != 0 || *outLen < inLen)
+        ret = BAD_FUNC_ARG;
+
+    if (ret == MP_OKAY)
+        ret = mp_to_unsigned_bin(&key->dQ, &domain[0]);
+    if (ret == MP_OKAY)
+        ret = mp_to_unsigned_bin(&key->q, &domain[1*paramSz]);
+    if (ret == MP_OKAY)
+        ret = mp_to_unsigned_bin(&key->dP, &domain[2*paramSz]);
+    if (ret == MP_OKAY)
+        ret = mp_to_unsigned_bin(&key->p, &domain[3*paramSz]);
+    if (ret == MP_OKAY)
+        ret = mp_to_unsigned_bin(&key->u, &domain[4*paramSz]);
+
+    if (ret == MP_OKAY && wolfSSL_CryptHwMutexLock() == 0)
+    {
+        for (i = 0; i < inLen; i += keySz)
+        {
+            switch (keySz) {
+            case RSA_1024_KEYSIZE:
+                ret = (int) HW_SCE_RSA_1024PrivateCrtKeyDecrypt(
+                                                       (const uint32_t*) &in[i],
+                                                       (const uint32_t*) domain,
+                                                       (uint32_t*) &out[i]);
+                break;
+            case RSA_2048_KEYSIZE:
+                ret = (int) HW_SCE_RSA_2048PrivateCrtKeyDecrypt(
+                                                       (const uint32_t*) &in[i],
+                                                       (const uint32_t*) domain,
+                                                       (uint32_t*) &out[i]);
+                break;
+            default:
+                ret = BAD_FUNC_ARG; /* Unsupported RSA Key Size */
+                break;
+            }
+            if (ret != FSP_SUCCESS) /* Exit loop on error */
+                break;
+        }
+        wolfSSL_CryptHwMutexUnLock();
+
+        if (ret == FSP_SUCCESS) {
+            ret = (int) i;
+            *outLen = i;
+        } else {
+            /* Error from Hardware */
+            if (ret != BAD_FUNC_ARG)
+                ret = WC_HW_E;
+        }
+    }
+    return ret;
+}
+#endif /* HAVE_ECC && !NO_RSA */
+#endif /* !No_RSA */

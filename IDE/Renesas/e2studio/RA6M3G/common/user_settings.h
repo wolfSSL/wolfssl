@@ -99,7 +99,9 @@
 
 /* RSA */
 #define WOLFSSL_KEY_GEN
-#define WC_NO_RSA_OAEP
+#if defined(WOLFSSL_SCE)
+    #define WC_NO_RSA_OAEP
+#endif
 #define NO_INLINE /* Used for ByteReverseWords */
 
 /* wolfSSL/wolfCrypt Software Optimizations */

@@ -28,6 +28,7 @@ void wolfssl_thread_entry(void* pvParameters)
     initialise_monitor_handles();
     wolfCrypt_Init();
     wolfcrypt_test(0);
+    wolfCrypt_Cleanup();
     while(1)
         ;
 }
