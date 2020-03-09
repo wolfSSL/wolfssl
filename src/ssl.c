@@ -17124,14 +17124,39 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             case AES_256_GCM_TYPE :
                 WOLFSSL_MSG("AES GCM");
                 if (ctx->enc) {
-                    ret = wc_AesGcmEncrypt(&ctx->cipher.aes, dst, src, len,
+                    if (dst){
+                        /* encrypt confidential data*/
+                        ret = wc_AesGcmEncrypt(&ctx->cipher.aes, dst, src, len,
                                   ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
                                   NULL, 0);
+                    }
+                    else {
+                        /* authenticated, non-confidential data */
+                        ret = wc_AesGcmEncrypt(&ctx->cipher.aes, NULL, NULL, 0,
+                                  ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
+                                  src, len);
+                        /* Reset partial authTag error for AAD*/
+                        if (ret == AES_GCM_AUTH_E)
+                            ret = 0;
+                    }
                 }
                 else {
-                    ret = wc_AesGcmDecrypt(&ctx->cipher.aes, dst, src, len,
+                    if (dst){
+                        /* decrypt confidential data*/
+                        ret = wc_AesGcmDecrypt(&ctx->cipher.aes, dst, src, len,
                                   ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
                                   NULL, 0);
+                    }
+                    else {
+                        /* authenticated, non-confidential data*/
+                        ret = wc_AesGcmDecrypt(&ctx->cipher.aes, NULL, NULL, 0,
+                                  ctx->iv, ctx->ivSz,
+                                  ctx->authTag, ctx->authTagSz,
+                                  src, len);
+                        /* Reset partial authTag error for AAD*/
+                        if (ret == AES_GCM_AUTH_E)
+                            ret = 0;
+                    }
                 }
                 break;
 #endif /* HAVE_AESGCM */
