@@ -1577,7 +1577,7 @@ void InitSSL_Method(WOLFSSL_METHOD* method, ProtocolVersion pv)
     method->downgrade  = 0;
 }
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE) || defined(HAVE_EAPTLS_TINY)
 int InitSSL_Side(WOLFSSL* ssl, word16 side)
 {
     if (ssl == NULL)
@@ -1632,7 +1632,7 @@ int InitSSL_Side(WOLFSSL* ssl, word16 side)
 
     return InitSSL_Suites(ssl);
 }
-#endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
+#endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE || HAVE_EAPTLS_TINY */
 
 /* Initialize SSL context, return 0 on success */
 int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
@@ -5252,8 +5252,10 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->pkCurveOID = ctx->pkCurveOID;
 #endif
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_EAPTLS_TINY)
     ssl->options.mask = ctx->mask;
+#endif
+#ifdef OPENSSL_EXTRA
     ssl->CBIS         = ctx->CBIS;
 #endif
     ssl->timeout = ctx->timeout;
@@ -9284,7 +9286,7 @@ int CheckAltNames(DecodedCert* dCert, char* domain)
     return match;
 }
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_EAPTLS_TINY)
 /* Check that alternative names, if they exists, match the domain.
  * Fail if there are wild patterns and they didn't match.
  * Check the common name if no alternative names matched.
@@ -9362,7 +9364,7 @@ int CheckIPAddr(DecodedCert* dCert, char* ipasc)
 
     return CheckHostName(dCert, ipasc, (size_t)XSTRLEN(ipasc));
 }
-#endif
+#endif /* OPENSSL_EXTRA || HAVE_EAPTLS_TINY */
 
 #ifdef SESSION_CERTS
 static void AddSessionCertToChain(WOLFSSL_X509_CHAIN* chain,

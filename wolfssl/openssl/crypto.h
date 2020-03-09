@@ -69,7 +69,7 @@ WOLFSSL_API void *wolfSSL_OPENSSL_malloc(size_t a);
 #endif
 
 #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
+    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(HAVE_EAPTLS_TINY)
 #define CRYPTO_set_mem_ex_functions      wolfSSL_CRYPTO_set_mem_ex_functions
 #define FIPS_mode                        wolfSSL_FIPS_mode
 #define FIPS_mode_set                    wolfSSL_FIPS_mode_set

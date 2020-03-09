@@ -639,7 +639,7 @@ struct DecodedName {
     int     dcLen[DOMAIN_COMPONENT_MAX];
     int     dcNum;
     int     dcMode;
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || defined(HAVE_EAPTLS_TINY)
     /* hold the location / order with which each of the DN tags was found
      *
      * example of ASN_DOMAIN_COMPONENT at index 0 if first found and so on.
@@ -1026,7 +1026,7 @@ struct TrustedPeerCert {
 
 /* for testing or custom openssl wrappers */
 #if defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
-    defined(OPENSSL_EXTRA_X509_SMALL)
+    defined(OPENSSL_EXTRA_X509_SMALL) || defined(HAVE_EAPTLS_TINY)
     #define WOLFSSL_ASN_API WOLFSSL_API
 #else
     #define WOLFSSL_ASN_API WOLFSSL_LOCAL

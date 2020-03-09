@@ -1678,7 +1678,7 @@ WOLFSSL_LOCAL int  ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 WOLFSSL_LOCAL int  MatchDomainName(const char* pattern, int len, const char* str);
 #ifndef NO_CERTS
 WOLFSSL_LOCAL int  CheckAltNames(DecodedCert* dCert, char* domain);
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_EAPTLS_TINY)
 WOLFSSL_LOCAL int  CheckIPAddr(DecodedCert* dCert, char* ipasc);
 #endif
 #endif
@@ -2696,7 +2696,7 @@ struct WOLFSSL_CTX {
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     short       minEccKeySz;      /* minimum ECC key size */
 #endif
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(HAVE_EAPTLS_TINY)
     unsigned long     mask;             /* store SSL_OP_ flags */
 #endif
 #ifdef OPENSSL_EXTRA
@@ -2757,7 +2757,7 @@ struct WOLFSSL_CTX {
     pem_password_cb* passwd_cb;
     void*            passwd_userdata;
 #endif
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(HAVE_EAPTLS_TINY)
     WOLFSSL_X509_STORE x509_store; /* points to ctx->cm */
     WOLFSSL_X509_STORE* x509_store_pt; /* take ownership of external store */
     byte            readAhead;
@@ -3333,7 +3333,7 @@ typedef struct Options {
     wc_psk_server_tls13_callback server_psk_tls13_cb;  /* server callback */
 #endif
 #endif /* NO_PSK */
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(HAVE_EAPTLS_TINY)
     unsigned long     mask; /* store SSL_OP_ flags */
 #endif
 
@@ -3572,7 +3572,7 @@ struct WOLFSSL_X509_NAME {
     int   sz;
     char  staticName[ASN_NAME_MAX];
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
-    !defined(NO_ASN)
+    !defined(NO_ASN) || defined(HAVE_EAPTLS_TINY)
     DecodedName fullName;
     WOLFSSL_X509_NAME_ENTRY cnEntry;
     WOLFSSL_X509_NAME_ENTRY extra[MAX_NAME_ENTRIES]; /* extra entries added */
@@ -3640,7 +3640,7 @@ struct WOLFSSL_X509 {
     wolfSSL_Mutex    refMutex;                       /* ref count mutex */
     int              refCount;                       /* reference count */
 #endif
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || defined(HAVE_EAPTLS_TINY)
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
@@ -3910,12 +3910,15 @@ struct WOLFSSL {
     CipherSpecs     specs;
     Keys            keys;
     Options         options;
+#if defined(OPENSSL_EXTRA) || defined(HAVE_EAPTLS_TINY)
+    WOLFSSL_BIO*     biord;              /* socket bio read  to free/close */
+    WOLFSSL_BIO*     biowr;              /* socket bio write to free/close */
+#endif
+
 #ifdef OPENSSL_EXTRA
     CallbackInfoState* CBIS;             /* used to get info about SSL state */
     int              cbmode;             /* read or write on info callback */
     int              cbtype;             /* event type in info callback */
-    WOLFSSL_BIO*     biord;              /* socket bio read  to free/close */
-    WOLFSSL_BIO*     biowr;              /* socket bio write to free/close */
     byte             sessionCtx[ID_LEN]; /* app session context ID */
     WOLFSSL_X509_VERIFY_PARAM* param;    /* verification parameters*/
 #endif
@@ -4207,7 +4210,7 @@ WOLFSSL_API   void SSL_ResourceFree(WOLFSSL*);   /* Micrium uses */
                                  int type, WOLFSSL* ssl, int userChain,
                                 WOLFSSL_CRL* crl, int verify);
 
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) || defined(HAVE_EAPTLS_TINY)
     WOLFSSL_LOCAL int CheckHostName(DecodedCert* dCert, char *domainName,
                                     size_t domainNameLen);
     #endif

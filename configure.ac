@@ -3491,6 +3491,17 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_LIGHTY -DHAVE_WOLFSSL_SSL_H=1"
 fi
 
+# eaptls_tiny Support
+AC_ARG_ENABLE([eaptls_tiny],
+    [AS_HELP_STRING([--enable-eaptls-tiny],[Enable EAP-TLS tiny build (default: disabled)])],
+    [ ENABLED_EAPTLS_TINY=$enableval ],
+    [ ENABLED_EAPTLS_TINY=no ]
+    )
+if test "$ENABLED_EAPTLS_TINY" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_EAPTLS_TINY"
+fi
+
 if test "$ENABLED_NGINX" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NGINX -DWOLFSSL_SIGNER_DER_CERT"
@@ -3524,7 +3535,7 @@ then
 fi
 
 
-if test "$ENABLED_NGINX" = "yes"|| test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes"
+if test "$ENABLED_NGINX" = "yes"|| test "x$ENABLED_HAPROXY" = "xyes" || test "x$ENABLED_LIGHTY" = "xyes" || test "x$ENABLED_EAPTLS_TINY" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_VERIFY_CB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
@@ -3813,7 +3824,7 @@ AC_ARG_ENABLE([enckeys],
     [ ENABLED_ENCKEYS=no ]
     )
 
-if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_WEBSERVER" = "yes"
+if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_WEBSERVER" = "yes" || test "$ENABLED_EAPTLS_TINY" = "yes"
 then
     ENABLED_ENCKEYS=yes
 fi
@@ -3834,9 +3845,9 @@ AC_ARG_ENABLE([pwdbased],
 
 if test "$ENABLED_PWDBASED" = "no"
 then
-    if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || test "$ENABLED_WEBSERVER" = "yes" || test "$ENABLED_ENCKEYS" = "yes"
+    if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || test "$ENABLED_WEBSERVER" = "yes" || test "$ENABLED_ENCKEYS" = "yes" || test "$ENABLED_EAPTLS_TINY" = "yes"
     then
-        # opensslextra, opensslall, webserver, and enckeys needs pwdbased
+        # opensslextra, opensslall, webserver, enckeys, and eaptls-tiny needs pwdbased
         ENABLED_PWDBASED=yes
     else
         AM_CFLAGS="$AM_CFLAGS -DNO_PWDBASED"
@@ -5473,6 +5484,7 @@ echo "   * CODING:                     $ENABLED_CODING"
 echo "   * MEMORY:                     $ENABLED_MEMORY"
 echo "   * I/O POOL:                   $ENABLED_IOPOOL"
 echo "   * LIGHTY:                     $ENABLED_LIGHTY"
+echo "   * EAPTLS-TINY:                $ENABLED_EAPTLS_TINY"
 echo "   * HAPROXY:                    $ENABLED_HAPROXY"
 echo "   * STUNNEL:                    $ENABLED_STUNNEL"
 echo "   * Apache httpd:               $ENABLED_APACHE_HTTPD"
