@@ -2510,7 +2510,7 @@ int ecc_map(ecc_point* P, mp_int* modulus, mp_digit mp)
 #endif /* !WOLFSSL_SP_MATH || WOLFSSL_PUBLIC_ECC_ADD_DBL */
 
 #if !defined(FREESCALE_LTC_ECC) && !defined(WOLFSSL_STM32_PKA) && \
-	!(defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G))
+    !(defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G))
 
 #if !defined(FP_ECC) || !defined(WOLFSSL_SP_MATH)
 /**
@@ -3009,11 +3009,11 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
                      mp_int* a, mp_int* modulus, int map,
                      void* heap)
 {
-    (void)heap;
     int i;
     int ret = BAD_FUNC_ARG;
     char Af[48] = {0};
     mp_int b[1];
+    (void)heap;
 
     /* Hardware needs Bf, but standard mulmod interface does not include */
     /* Convert mp_int a to char* Af */
