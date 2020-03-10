@@ -24601,6 +24601,11 @@ static void test_wolfSSL_X509_NAME_ENTRY(void)
     /* Test add entry by text */
     AssertNotNull(entry = X509_NAME_ENTRY_create_by_txt(NULL, "commonName",
                 0x0c, cn, (int)sizeof(cn)));
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) \
+    || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX)
+    AssertNull(X509_NAME_ENTRY_create_by_txt(&entry, "unknown",
+                V_ASN1_UTF8STRING, cn, (int)sizeof(cn)));
+    #endif
     AssertIntEQ(X509_NAME_add_entry(nm, entry, -1, 0), SSL_SUCCESS);
     X509_NAME_ENTRY_free(entry);
 

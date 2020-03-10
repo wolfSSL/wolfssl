@@ -40715,6 +40715,7 @@ err:
         nid = wolfSSL_OBJ_txt2nid(txt);
         if (nid == NID_undef) {
             WOLFSSL_MSG("Unable to find text");
+            ne = NULL;
         }
         else {
             if (ne == NULL) {
