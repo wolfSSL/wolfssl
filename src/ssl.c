@@ -17094,7 +17094,11 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         int ret = 0;
         WOLFSSL_ENTER("wolfSSL_EVP_Cipher");
 
-        if (ctx == NULL || dst == NULL || src == NULL) {
+        if (ctx == NULL || src == NULL ||
+            (dst == NULL &&
+             ctx->cipherType != AES_128_GCM_TYPE &&
+             ctx->cipherType != AES_192_GCM_TYPE &&
+             ctx->cipherType != AES_256_GCM_TYPE)) {
             WOLFSSL_MSG("Bad function argument");
             return 0;  /* failure */
         }
