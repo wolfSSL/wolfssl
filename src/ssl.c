@@ -42424,7 +42424,8 @@ err:
         return NULL;
     }
 
-#endif /* OPENSSL_EXTRA || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
+#endif /* OPENSSL_EXTRA || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE ||
+        * HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY) || \
     defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL) || \
@@ -42591,7 +42592,9 @@ err:
         return &name->cnEntry;
     }
 
-#endif /* OPENSSL_EXTRA || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY || HAVE_EAPTLS_TINY */
+#endif /* OPENSSL_EXTRA || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE ||
+        * HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB ||
+        * WOLFSSL_HAPROXY || HAVE_EAPTLS_TINY */
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY) || \
     defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL) || \
@@ -42682,8 +42685,6 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
 
 #endif /* OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA)  || defined(HAVE_EAPTLS_TINY)
-
 #if defined(HAVE_EX_DATA) || defined(FORTRESS)
 void* wolfSSL_CTX_get_ex_data(const WOLFSSL_CTX* ctx, int idx)
 {
@@ -42698,7 +42699,6 @@ void* wolfSSL_CTX_get_ex_data(const WOLFSSL_CTX* ctx, int idx)
     #endif
     return NULL;
 }
-#endif /* OPENSSL_EXTRA || HAVE_EAPTLS_TINY */
 
 #ifdef OPENSSL_EXTRA
 
@@ -42759,7 +42759,7 @@ int wolfSSL_CTX_set_ex_data(WOLFSSL_CTX* ctx, int idx, void* data)
 }
 #endif
 
-#endif /* OPENSSL_EXTRA || HAVE_EAPTLS_TINY */
+#endif /* HAVE_EX_DATA) || FORTRESS */
 
 #ifdef OPENSSL_EXTRA
 
@@ -46420,8 +46420,7 @@ int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a, void *b, void *c)
 }
 #endif
 
-#ifdef HAVE_EAPTLS_TINY
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+#if defined(HAVE_EX_DATA) || defined(FORTRESS) || defined(HAVE_EAPTLS_TINY)
 void* wolfSSL_CRYPTO_get_ex_data(const WOLFSSL_CRYPTO_EX_DATA* ex_data, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_get_ex_data");
@@ -46435,8 +46434,9 @@ void* wolfSSL_CRYPTO_get_ex_data(const WOLFSSL_CRYPTO_EX_DATA* ex_data, int idx)
 #endif
     return NULL;
 }
-#endif /* HAVE_EAPTLS_TINY */
+#endif /* HAVE_EX_DATA || FORTRESS || HAVE_EAPTLS_TINY */
 
+#if defined(HAVE_EX_DATA) || defined(FORTRESS)
 int wolfSSL_CRYPTO_set_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data, int idx, void *data)
 {
     WOLFSSL_ENTER("wolfSSL_CRYPTO_set_ex_data");
