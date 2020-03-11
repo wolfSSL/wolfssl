@@ -1573,13 +1573,13 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
             c += sp_2048_cond_add_avx2_16(tmpa, tmpa, p, c);
-            c += sp_2048_cond_add_avx2_16(tmpa, tmpa, p, c);
+            sp_2048_cond_add_avx2_16(tmpa, tmpa, p, c);
         }
         else
 #endif
         {
             c += sp_2048_cond_add_16(tmpa, tmpa, p, c);
-            c += sp_2048_cond_add_16(tmpa, tmpa, p, c);
+            sp_2048_cond_add_16(tmpa, tmpa, p, c);
         }
 
         sp_2048_from_mp(qi, 16, qim);
@@ -3627,13 +3627,13 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
             c += sp_3072_cond_add_avx2_24(tmpa, tmpa, p, c);
-            c += sp_3072_cond_add_avx2_24(tmpa, tmpa, p, c);
+            sp_3072_cond_add_avx2_24(tmpa, tmpa, p, c);
         }
         else
 #endif
         {
             c += sp_3072_cond_add_24(tmpa, tmpa, p, c);
-            c += sp_3072_cond_add_24(tmpa, tmpa, p, c);
+            sp_3072_cond_add_24(tmpa, tmpa, p, c);
         }
 
         sp_3072_from_mp(qi, 24, qim);
@@ -5135,13 +5135,13 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
 #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
             c += sp_4096_cond_add_avx2_32(tmpa, tmpa, p, c);
-            c += sp_4096_cond_add_avx2_32(tmpa, tmpa, p, c);
+            sp_4096_cond_add_avx2_32(tmpa, tmpa, p, c);
         }
         else
 #endif
         {
             c += sp_4096_cond_add_32(tmpa, tmpa, p, c);
-            c += sp_4096_cond_add_32(tmpa, tmpa, p, c);
+            sp_4096_cond_add_32(tmpa, tmpa, p, c);
         }
 
         sp_2048_from_mp(qi, 32, qim);
