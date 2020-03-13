@@ -152,9 +152,13 @@ namespace wolfSSL.CSharp {
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static IntPtr wolfTLSv1_2_server_method();
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static IntPtr wolfTLSv1_3_server_method();
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static IntPtr wolfSSLv23_server_method();
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static IntPtr wolfTLSv1_2_client_method();
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static IntPtr wolfTLSv1_3_client_method();
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static IntPtr wolfSSLv23_client_method();
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -281,11 +285,28 @@ namespace wolfSSL.CSharp {
 
 
         /********************************
+         * Verify Callback
+         */
+        public delegate int CallbackVerify_delegate(int ret, IntPtr x509_ctx);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static void wolfSSL_CTX_set_verify(IntPtr ctx, int mode, CallbackVerify_delegate vc);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static void wolfSSL_set_verify(IntPtr ssl, int mode, CallbackVerify_delegate vc);
+
+
+        /********************************
          * Enum types from wolfSSL library
          */
         public static readonly int SSL_FILETYPE_PEM = 1;
         public static readonly int SSL_FILETYPE_ASN1= 2;
         public static readonly int SSL_FILETYPE_RAW = 3;
+        
+        public static readonly int SSL_VERIFY_NONE = 0;
+        public static readonly int SSL_VERIFY_PEER = 1;
+        public static readonly int SSL_VERIFY_FAIL_IF_NO_PEER_CERT = 2;
+        public static readonly int SSL_VERIFY_CLIENT_ONCE = 4;
+        public static readonly int SSL_VERIFY_FAIL_EXCEPT_PSK = 8;
+
         public static readonly int CBIO_ERR_GENERAL    = -1;
         public static readonly int CBIO_ERR_WANT_READ  = -2;
         public static readonly int CBIO_ERR_WANT_WRITE = -2;
@@ -1283,6 +1304,23 @@ namespace wolfSSL.CSharp {
             }
         }
 
+        /// <summary>
+        /// Set up TLS version 1.3 method
+        /// </summary>
+        /// <returns>pointer to TLSv1.3 method</returns>
+        public static IntPtr useTLSv1_3_server()
+        {
+            try
+            {
+                return wolfTLSv1_3_server_method();
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "wolfssl error " + e.ToString());
+                return IntPtr.Zero;
+            }
+        }
+
 
         /// <summary>
         /// Use any TLS version
@@ -1319,6 +1357,22 @@ namespace wolfSSL.CSharp {
             }
         }
 
+        /// <summary>
+        /// Set up TLS version 1.3 method
+        /// </summary>
+        /// <returns>pointer to TLSv1.3 method</returns>
+        public static IntPtr useTLSv1_3_client()
+        {
+            try
+            {
+                return wolfTLSv1_3_client_method();
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "wolfssl error " + e.ToString());
+                return IntPtr.Zero;
+            }
+        }
 
         /// <summary>
         /// Use any TLS version
@@ -1676,6 +1730,60 @@ namespace wolfSSL.CSharp {
             }
         }
 
+        /// <summary>
+        /// Set the certificate verification mode and optional callback function
+        /// </summary>
+        /// <param name="ctx">pointer to CTX that the function is set in</param>
+        /// <param name="mode">See SSL_VERIFY options</param>
+        /// <param name="vc">Optional verify callback function to use</param>
+        public static int CTX_set_verify(IntPtr ctx, int mode, CallbackVerify_delegate vc)
+        {
+            try
+            {
+                IntPtr local_ctx = unwrap(ctx);
+                if (local_ctx == IntPtr.Zero)
+                {
+                    log(ERROR_LOG, "CTX set_verify error");
+                    return FAILURE;
+                }
+
+                wolfSSL_CTX_set_verify(local_ctx, mode, vc);
+                return SUCCESS;
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "wolfssl ctx set verify error " + e.ToString());
+                return FAILURE;
+            }
+        }
+
+        /// <summary>
+        /// Set the certificate verification mode and optional callback function
+        /// </summary>
+        /// <param name="ctx">pointer to SSL object that the function is set in</param>
+        /// <param name="mode">See SSL_VERIFY options</param>
+        /// <param name="vc">Optional verify callback function to use</param>
+        public static int set_verify(IntPtr ssl, int mode, CallbackVerify_delegate vc)
+        {
+            try
+            {
+                IntPtr local_ssl = unwrap(ssl);
+                if (local_ssl == IntPtr.Zero)
+                {
+                    log(ERROR_LOG, "set_verify error");
+                    return FAILURE;
+                }
+
+                wolfSSL_set_verify(local_ssl, mode, vc);
+                return SUCCESS;
+            }
+            catch (Exception e)
+            {
+                log(ERROR_LOG, "wolfssl set verify error " + e.ToString());
+                return FAILURE;
+            }
+
+        }
 
         /// <summary>
         /// Set the function to use for logging
