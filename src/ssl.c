@@ -143,14 +143,16 @@
 #ifdef NO_ASN
     #include <wolfssl/wolfcrypt/dh.h>
 #endif
-#endif /* !WOLFCRYPT_ONLY || OPENSSL_EXTRA */
+#endif /* !WOLFCRYPT_ONLY || OPENSSL_EXTRA || \
+        * OPENSSL_EXTRA_X509_SMALL || HAVE_EAPTLS_TINY */
+
+
+#ifndef WOLFCRYPT_ONLY
 
 #ifdef OPENSSL_EXTRA
 /* Global pointer to constant BN on */
 static WOLFSSL_BIGNUM* bn_one = NULL;
 #endif
-
-#ifndef WOLFCRYPT_ONLY
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
 const WOLF_EC_NIST_NAME kNistCurves[] = {
@@ -15393,7 +15395,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
     }
 #endif
-#endif /* !NO_CERTS */
 
 #ifdef OPENSSL_EXTRA
     WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_md(void)
@@ -51123,3 +51124,4 @@ int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey)
     return wolfSSL_X509_set_pubkey(req, pkey);
 }
 #endif /* OPENSSL_EXTRA && !NO_CERTS && WOLFSSL_CERT_GEN && WOLFSSL_CERT_REQ */
+#endif /* WOLFCRYPT_ONLY */
