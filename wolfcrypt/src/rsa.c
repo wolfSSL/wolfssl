@@ -1596,7 +1596,7 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
     byte   invalid = 0;
 #endif
 
-    if (output == NULL || pkcsBlockLen == 0) {
+    if (output == NULL || pkcsBlockLen == 0 || pkcsBlockLen > 0xFFFF) {
         return BAD_FUNC_ARG;
     }
 

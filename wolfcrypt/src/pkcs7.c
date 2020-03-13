@@ -11419,7 +11419,9 @@ authenv_atrbend:
             XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             decryptedKey = NULL;
         #ifdef WOLFSSL_SMALL_STACK
+            #ifndef NO_PKCS7_STREAM
             pkcs7->stream->key = NULL;
+            #endif
         #endif
         #endif
             ret = encryptedContentSz;

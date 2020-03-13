@@ -3732,9 +3732,6 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_GetCerts(WOLFSSL_X509_STORE_CTX* s)
         /* get certificate buffer */
         cert = &s->certs[certIdx];
 
-        if (cert == NULL)
-            break;
-
         dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL, DYNAMIC_TYPE_DCERT);
 
         if (dCert == NULL) {
@@ -4934,6 +4931,7 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
 
     InitDecodedCert(cert, der->buffer, der->length, cm->heap);
     if ((ret = ParseCert(cert, TRUSTED_PEER_TYPE, verify, cm)) != 0) {
+        FreeDecodedCert(cert);
         XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
         return ret;
     }
@@ -4968,6 +4966,7 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
 
     if (AlreadyTrustedPeer(cm, subjectHash)) {
         WOLFSSL_MSG("\tAlready have this CA, not adding again");
+        FreeTrustedPeer(peerCert, cm->heap);
         (void)ret;
     }
     else {
@@ -18549,7 +18548,11 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         int ret = 0;
         WOLFSSL_ENTER("wolfSSL_EVP_Cipher");
 
-        if (ctx == NULL || dst == NULL || src == NULL) {
+        if (ctx == NULL || src == NULL ||
+            (dst == NULL &&
+             ctx->cipherType != AES_128_GCM_TYPE &&
+             ctx->cipherType != AES_192_GCM_TYPE &&
+             ctx->cipherType != AES_256_GCM_TYPE)) {
             WOLFSSL_MSG("Bad function argument");
             return 0;  /* failure */
         }
@@ -26129,6 +26132,7 @@ err_exit:
 #if !defined(NO_ASN) && !defined(NO_PWDBASED)
     if ((newx509 != NULL) && (type == PKCS12_TYPE)) {
         wc_PKCS12_free((WC_PKCS12*)newx509);
+        newx509 = NULL;
     }
 #endif
 _exit:
@@ -26596,6 +26600,9 @@ int wolfSSL_X509_cmp_time(const WOLFSSL_ASN1_TIME* asnTime, time_t* cmpTime)
         /* Convert to time struct*/
         ct = XGMTIME(pTime, tmpTs);
 
+        if (ct == NULL)
+            return GETTIME_ERROR;
+
         /* DateGreaterThan returns 1 for >; 0 for <= */
         ret = DateGreaterThan(&ts, ct) ? 1 : -1;
     }
@@ -26695,6 +26702,10 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_dup(const WOLFSSL_ASN1_INTEGER* src)
         return NULL;
 
     dup = wolfSSL_ASN1_INTEGER_new();
+
+    if (dup == NULL)
+        return NULL;
+
     dup->negative  = src->negative;
     dup->dataMax   = src->dataMax;
     dup->isDynamic = src->isDynamic;
@@ -26707,6 +26718,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_dup(const WOLFSSL_ASN1_INTEGER* src)
         dup->data = (unsigned char*)
             XMALLOC(src->dataMax,NULL,DYNAMIC_TYPE_OPENSSL);
         if (dup->data == NULL) {
+            wolfSSL_ASN1_INTEGER_free(dup);
             return NULL;
         }
         XMEMCPY(dup->data,src->data,dup->dataMax);
@@ -29417,8 +29429,10 @@ int wolfSSL_BIO_vprintf(WOLFSSL_BIO* bio, const char* format, va_list args)
 
     switch (bio->type) {
         case WOLFSSL_BIO_FILE:
-            if (bio->ptr == NULL)
+            if (bio->ptr == NULL) {
+                va_end(args);
                 return -1;
+            }
             ret = vfprintf((XFILE)bio->ptr, format, args);
             break;
 
@@ -30893,6 +30907,10 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_BN_to_ASN1_INTEGER(const WOLFSSL_BIGNUM *bn, WOLFS
 
     if (ai == NULL) {
         a = wolfSSL_ASN1_INTEGER_new();
+
+        if (a == NULL)
+            return NULL;
+
         a->type = V_ASN1_INTEGER;
     }
     else {
@@ -44920,9 +44938,9 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
             return WOLFSSL_FAILURE;
     }
 
+#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
     /* If XN_FLAG_DN_REV is present, print X509_NAME in reverse order */
     if (flags == (XN_FLAG_RFC2253 & ~XN_FLAG_DN_REV)) {
-#if defined(WOLFSSL_APACHE_HTTPD) || defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
         fullName[0] = '\0';
         count = wolfSSL_X509_NAME_entry_count(name);
         for (i = 0; i < count; i++) {
@@ -44959,13 +44977,14 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
         if (wolfSSL_BIO_write(bio, fullName, totalSz) != totalSz)
             return WOLFSSL_FAILURE;
         return WOLFSSL_SUCCESS;
-#endif /* WOLFSSL_APACHE_HTTPD || OPENSSL_ALL || WOLFSSL_NGINX */
     }
-    else if (flags == XN_FLAG_RFC2253) {
+#else
+    if (flags == XN_FLAG_RFC2253) {
         if (wolfSSL_BIO_write(bio, name->name + 1, name->sz - 2)
                                                                 != name->sz - 2)
             return WOLFSSL_FAILURE;
     }
+#endif /* WOLFSSL_APACHE_HTTPD || OPENSSL_ALL || WOLFSSL_NGINX */
     else if (wolfSSL_BIO_write(bio, name->name, name->sz - 1) != name->sz - 1)
         return WOLFSSL_FAILURE;
 
@@ -46545,8 +46564,10 @@ int wolfSSL_X509_check_host(X509 *x, const char *chk, size_t chklen,
 
     InitDecodedCert(&dCert, x->derCert->buffer, x->derCert->length, NULL);
     ret = ParseCertRelative(&dCert, CERT_TYPE, 0, NULL);
-    if (ret != 0)
+    if (ret != 0) {
+        FreeDecodedCert(&dCert);
         return WOLFSSL_FAILURE;
+    }
 
     ret = CheckHostName(&dCert, (char *)chk, chklen);
     FreeDecodedCert(&dCert);
