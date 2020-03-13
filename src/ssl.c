@@ -36119,18 +36119,22 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
         /* Map the Jacobian point back to affine space */
         if (mp_read_radix(&modulus, ecc_sets[group->curve_idx].prime, MP_RADIX_HEX) != MP_OKAY) {
             WOLFSSL_MSG("mp_read_radix failed");
+            mp_clear(&modulus);
             return WOLFSSL_FAILURE;
         }
         if (mp_montgomery_setup(&modulus, &mp) != MP_OKAY) {
             WOLFSSL_MSG("mp_montgomery_setup failed");
+            mp_clear(&modulus);
             return WOLFSSL_FAILURE;
         }
         if (ecc_map((ecc_point*)point->internal, &modulus, mp) != MP_OKAY) {
             WOLFSSL_MSG("ecc_map failed");
+            mp_clear(&modulus);
             return WOLFSSL_FAILURE;
         }
         if (SetECPointExternal((WOLFSSL_EC_POINT *)point) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("SetECPointExternal failed");
+            mp_clear(&modulus);
             return WOLFSSL_FAILURE;
         }
     }
