@@ -18298,7 +18298,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
-                ret = wc_AesXtsSetKey(&ctx->cipher.xts, key, ctx->keyLen, 
+                ret = wc_AesXtsSetKey(&ctx->cipher.xts, key, ctx->keyLen,
                     ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, NULL, 0);
                 if (ret != 0) {
                     WOLFSSL_MSG("wc_AesXtsSetKey() failed");
@@ -18328,7 +18328,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
-                ret = wc_AesXtsSetKey(&ctx->cipher.xts, key, ctx->keyLen, 
+                ret = wc_AesXtsSetKey(&ctx->cipher.xts, key, ctx->keyLen,
                         ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, NULL, 0);
                 if (ret != 0) {
                     WOLFSSL_MSG("wc_AesXtsSetKey() failed");
@@ -36137,6 +36137,7 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
 
     BN_copy(x, point->X);
     BN_copy(y, point->Y);
+    mp_clear(&modulus);
 
     return WOLFSSL_SUCCESS;
 }
@@ -48640,8 +48641,10 @@ int wolfSSL_BN_clear_bit(WOLFSSL_BIGNUM* bn, int n)
             goto cleanup;
         }
     }
+
     ret = WOLFSSL_SUCCESS;
 cleanup:
+    mp_clear(tmp);
 #ifdef WOLFSSL_SMALL_STACK
     if (tmp)
         XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
