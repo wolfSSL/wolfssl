@@ -10434,8 +10434,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     #endif
 #endif
 #ifdef OPENSSL_EXTRA
-    char        beginBuf[PEM_LINE_LEN];
-    char        endBuf[PEM_LINE_LEN];
+    char        beginBuf[PEM_LINE_LEN + 1]; /* add 1 for null terminator */
+    char        endBuf[PEM_LINE_LEN + 1];   /* add 1 for null terminator */
 #endif
 
     WOLFSSL_ENTER("PemToDer");
@@ -10506,7 +10506,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                             XSTR_SIZEOF(BEGIN_PRIV_KEY_PREFIX)) != 0) {
                 headerEnd--;
             }
-            if (XSTRNCMP(headerEnd, BEGIN_PRIV_KEY_PREFIX,
+            if (headerEnd <= (char*)buff ||
+                    XSTRNCMP(headerEnd, BEGIN_PRIV_KEY_PREFIX,
                     XSTR_SIZEOF(BEGIN_PRIV_KEY_PREFIX)) != 0 ||
                     beginEnd - headerEnd > PEM_LINE_LEN) {
                 WOLFSSL_MSG("Couldn't find PEM header");
