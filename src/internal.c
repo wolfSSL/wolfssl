@@ -3451,11 +3451,13 @@ void FreeX509(WOLFSSL_X509* x509)
             x509->algor.algorithm = NULL;
         }
         if (x509->key.algor) {
-            wolfSSL_ASN1_OBJECT_free(x509->key.algor->algorithm);
-            x509->key.algor->algorithm = NULL;
+            wolfSSL_X509_ALGOR_free(x509->key.algor);
+            x509->key.algor = NULL;
         }
-        XFREE(x509->key.algor, NULL, DYNAMIC_TYPE_OPENSSL);
-        x509->key.algor = NULL;
+        if (x509->key.pkey) {
+            wolfSSL_EVP_PKEY_free(x509->key.pkey);
+            x509->key.pkey = NULL;
+        }
     #endif /* OPENSSL_ALL */
     if (x509->altNames) {
         FreeAltNames(x509->altNames, x509->heap);

@@ -1063,6 +1063,8 @@ int wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx)
     WOLFSSL_ENTER("EVP_PKEY_CTX_free");
     if (ctx->pkey != NULL)
         wolfSSL_EVP_PKEY_free(ctx->pkey);
+    if (ctx->peerKey != NULL)
+        wolfSSL_EVP_PKEY_free(ctx->peerKey);
     XFREE(ctx, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     return WOLFSSL_SUCCESS;
 }
@@ -1094,9 +1096,7 @@ WOLFSSL_EVP_PKEY_CTX *wolfSSL_EVP_PKEY_CTX_new(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_E
 #endif
     type = wolfSSL_EVP_PKEY_type(pkey->type);
 
-    if ((type == EVP_PKEY_RSA) ||
-        (type == EVP_PKEY_DSA) ||
-        (type == EVP_PKEY_EC)) {
+    if (type != NID_undef) {
         if (wc_LockMutex(&pkey->refMutex) != 0) {
             WOLFSSL_MSG("Couldn't lock pkey mutex");
         }
@@ -1175,9 +1175,14 @@ int wolfSSL_EVP_PKEY_derive_set_peer(WOLFSSL_EVP_PKEY_CTX *ctx, WOLFSSL_EVP_PKEY
     }
     wolfSSL_EVP_PKEY_free(ctx->peerKey);
     ctx->peerKey = peer;
+    if (!wolfSSL_EVP_PKEY_up_ref(peer)) {
+        ctx->peerKey = NULL;
+        return WOLFSSL_FAILURE;
+    }
     return WOLFSSL_SUCCESS;
 }
 
+#if !defined(NO_DH) && defined(HAVE_ECC)
 int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen)
 {
     int len;
@@ -1255,6 +1260,7 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
     }
     return WOLFSSL_SUCCESS;
 }
+#endif
 
 /* Uses the WOLFSSL_EVP_PKEY_CTX to decrypt a buffer.
  *

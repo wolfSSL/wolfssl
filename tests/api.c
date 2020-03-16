@@ -1789,7 +1789,7 @@ static int test_wolfSSL_SetMinVersion(void)
 # if defined(OPENSSL_EXTRA)
 static void test_wolfSSL_EC(void)
 {
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && defined(ECC_SHAMIR)
     BN_CTX *ctx;
     EC_GROUP *group;
     EC_POINT *Gxy, *new_point, *set_point;
@@ -1798,7 +1798,7 @@ static void test_wolfSSL_EC(void)
     BIGNUM *set_point_bn;
     char* hexStr;
     int group_bits;
-    int bin_len;
+    size_t bin_len;
     unsigned char* buf = NULL;
 
     const char* kTest = "F4F8338AFCC562C5C3F3E1E46A7EFECD17AF381913FF7A96314EA47055EA0FD0";
@@ -28592,6 +28592,7 @@ static void test_wolfSSL_EVP_PKEY_derive(void)
     AssertIntEQ(EVP_PKEY_derive(ctx, skey, &skeylen), 1);
 
     EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(peerkey);
     EVP_PKEY_free(pkey);
     XFREE(skey, NULL, DYNAMIC_TYPE_OPENSSL);
 
@@ -28611,6 +28612,7 @@ static void test_wolfSSL_EVP_PKEY_derive(void)
     AssertIntEQ(EVP_PKEY_derive(ctx, skey, &skeylen), 1);
 
     EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(peerkey);
     EVP_PKEY_free(pkey);
     XFREE(skey, NULL, DYNAMIC_TYPE_OPENSSL);
 #endif
@@ -29455,15 +29457,15 @@ static void test_X509_REQ(void)
 #ifndef NO_RSA
     #ifdef USE_CERT_BUFFERS_1024
     const unsigned char* rsaPriv = (const unsigned char*)client_key_der_1024;
-    unsigned char* rsaPub = (unsigned char*)client_keypub_der_1024;
+    const unsigned char* rsaPub = (unsigned char*)client_keypub_der_1024;
     #elif defined(USE_CERT_BUFFERS_2048)
     const unsigned char* rsaPriv = (const unsigned char*)client_key_der_2048;
-    unsigned char* rsaPub = (unsigned char*)client_keypub_der_2048;
+    const unsigned char* rsaPub = (unsigned char*)client_keypub_der_2048;
     #endif
 #endif
 #ifdef HAVE_ECC
     const unsigned char* ecPriv = (const unsigned char*)ecc_clikey_der_256;
-    unsigned char* ecPub = (unsigned char*)ecc_clikeypub_der_256;
+    const unsigned char* ecPub = (unsigned char*)ecc_clikeypub_der_256;
     int len;
 #endif
 
@@ -29476,10 +29478,10 @@ static void test_X509_REQ(void)
                                            1), WOLFSSL_SUCCESS);
 
 #ifndef NO_RSA
-    AssertNotNull(priv = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL, &rsaPriv,
-                                             (long)sizeof_client_key_der_2048));
-    AssertNotNull(pub = wolfSSL_d2i_PUBKEY(NULL, &rsaPub,
-                                          (long)sizeof_client_keypub_der_2048));
+    AssertNotNull(priv = d2i_PrivateKey(EVP_PKEY_RSA, NULL, &rsaPriv,
+                                        (long)sizeof_client_key_der_2048));
+    AssertNotNull(pub = d2i_PUBKEY(NULL, &rsaPub,
+                                   (long)sizeof_client_keypub_der_2048));
     AssertNotNull(req = X509_REQ_new());
     AssertIntEQ(X509_REQ_set_subject_name(NULL, name), WOLFSSL_FAILURE);
     AssertIntEQ(X509_REQ_set_subject_name(req, NULL), WOLFSSL_FAILURE);

@@ -6945,7 +6945,7 @@ int wc_ecc_get_generator(ecc_point* ecp, int curve_idx)
     wc_ecc_curve_free(curve);
     FREE_CURVE_SPECS();
 
-    return MP_OKAY;
+    return err;
 }
 
 #if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || !defined(WOLFSSL_SP_MATH)

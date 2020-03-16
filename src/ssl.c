@@ -28231,6 +28231,7 @@ void wolfSSL_X509_ALGOR_free(WOLFSSL_X509_ALGOR *alg)
         if (alg->algorithm) {
             wolfSSL_ASN1_OBJECT_free(alg->algorithm);
         }
+        XFREE(alg, NULL, DYNAMIC_TYPE_OPENSSL);
     }
 }
 
@@ -31108,12 +31109,12 @@ void *wolfSSL_ASN1_item_new(const WOLFSSL_ASN1_ITEM *template)
     size_t i;
     WOLFSSL_ENTER("wolfSSL_ASN1_item_new");
     if (!template) {
-        WOLFSSL_LEAVE("wolfSSL_ASN1_item_new", NULL);
         return NULL;
     }
-    if ((ret = XMALLOC(template->size, NULL, DYNAMIC_TYPE_OPENSSL))) {
-        XMEMSET(ret, 0, template->size);
+    if (!(ret = XMALLOC(template->size, NULL, DYNAMIC_TYPE_OPENSSL))) {
+        return NULL;
     }
+    XMEMSET(ret, 0, template->size);
     for (member = template->members, i = 0; i < template->mcount;
             member++, i++) {
         switch(member->type) {
@@ -31140,11 +31141,9 @@ void *wolfSSL_ASN1_item_new(const WOLFSSL_ASN1_ITEM *template)
             goto error;
         }
     }
-    WOLFSSL_LEAVE("wolfSSL_ASN1_item_new", ret);
     return ret;
 error:
     wolfSSL_ASN1_item_free(ret, template);
-    WOLFSSL_LEAVE("wolfSSL_ASN1_item_new", NULL);
     return NULL;
 }
 
@@ -31292,7 +31291,7 @@ int wolfSSL_ASN1_item_i2d(const void *src, byte **dest,
     if (dest && !*dest) {
         *dest = buf;
     }
-    else if (dest && *dest) {
+    else if (dest && *dest && buf) {
         XMEMCPY(*dest, buf, len);
     }
 
@@ -36325,7 +36324,7 @@ size_t wolfSSL_EC_POINT_point2oct(const WOLFSSL_EC_GROUP *group,
                                   char form,
                                   byte *buf, size_t len, WOLFSSL_BN_CTX *ctx)
 {
-    word32 min_len = len;
+    word32 min_len = (word32)len;
     int compressed = form == POINT_CONVERSION_COMPRESSED ? 1 : 0;
 
     WOLFSSL_ENTER("EC_POINT_point2oct");
@@ -36362,7 +36361,7 @@ size_t wolfSSL_EC_POINT_point2oct(const WOLFSSL_EC_GROUP *group,
 
     (void)ctx;
 
-    return min_len;
+    return (size_t)min_len;
 }
 
 int wolfSSL_EC_POINT_oct2point(const WOLFSSL_EC_GROUP *group,
@@ -36425,7 +36424,7 @@ int wolfSSL_i2o_ECPublicKey(const WOLFSSL_EC_KEY *in, unsigned char **out)
         }
     }
 
-    return len;
+    return (int)len;
 }
 
 void wolfSSL_EC_KEY_set_conv_form(WOLFSSL_EC_KEY *eckey, char form)
@@ -36603,7 +36602,7 @@ int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
     return WOLFSSL_SUCCESS;
 }
 
-#ifndef WOLFSSL_ATECC508A
+#if !defined(WOLFSSL_ATECC508A) && defined(ECC_SHAMIR)
 /* Calculate the value: generator * n + q * m
  * return code compliant with OpenSSL :
  *   1 if success, 0 if error
@@ -36612,7 +36611,7 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
                          const WOLFSSL_BIGNUM *n, const WOLFSSL_EC_POINT *q,
                          const WOLFSSL_BIGNUM *m, WOLFSSL_BN_CTX *ctx)
 {
-    mp_int a, prime, Gx, Gy;
+    mp_int a, prime;
     int ret = WOLFSSL_FAILURE;
     ecc_point* result = NULL;
 
@@ -36702,8 +36701,6 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
 
     ret = WOLFSSL_SUCCESS;
 cleanup:
-    mp_clear(&Gx);
-    mp_clear(&Gy);
     mp_clear(&a);
     mp_clear(&prime);
     wc_ecc_del_point(result);
@@ -38226,6 +38223,8 @@ int wolfSSL_EVP_PKEY_type(int type)
             return EVP_PKEY_DSA;
         case EVP_PKEY_EC:
             return EVP_PKEY_EC;
+        case EVP_PKEY_DH:
+            return EVP_PKEY_DH;
     #endif
         default:
             return NID_undef;
@@ -38645,9 +38644,13 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
     return WOLFSSL_SUCCESS;
 }
 
+
+#if ( defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
+      defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX) ) || \
+    ( !defined(NO_RSA) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA) )
 static WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG, int *initTmpRng)
 {
-    WC_RNG* rng;
+    WC_RNG* rng = NULL;
 
     if (!rsa || !initTmpRng) {
         return NULL;
@@ -38659,13 +38662,16 @@ static WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG, int *initTm
     rng = ((RsaKey*)rsa->internal)->rng;
 #endif
     if (rng == NULL && tmpRNG) {
-#ifdef WOLFSSL_SMALL_STACK
         if (!*tmpRNG) {
+#ifdef WOLFSSL_SMALL_STACK
             *tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (*tmpRNG == NULL)
                 return NULL;
-        }
+#else
+            WOLFSSL_MSG("*tmpRNG is null");
+            return NULL;
 #endif
+        }
 
         if (wc_InitRng(*tmpRNG) == 0) {
             rng = *tmpRNG;
@@ -38686,6 +38692,7 @@ static WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG, int *initTm
     }
     return rng;
 }
+#endif
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
     || defined(WOLFSSL_NGINX)

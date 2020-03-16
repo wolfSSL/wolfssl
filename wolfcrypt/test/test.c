@@ -19106,13 +19106,13 @@ static int ecc_point_test(void)
     }
 
 #ifdef HAVE_COMP_KEY
-    ret = wc_ecc_import_point_der(derComp0, sizeof(der), curve_idx, point3);
+    ret = wc_ecc_import_point_der(derComp0, sizeof(derComp0), curve_idx, point3);
     if (ret != 0) {
         ret = -9726;
         goto done;
     }
 
-    ret = wc_ecc_import_point_der(derComp1, sizeof(der), curve_idx, point4);
+    ret = wc_ecc_import_point_der(derComp1, sizeof(derComp1), curve_idx, point4);
     if (ret != 0) {
         ret = -9727;
         goto done;
