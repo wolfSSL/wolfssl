@@ -10220,6 +10220,8 @@ int wc_EncryptedInfoParse(EncryptedInfo* info, char** pBuffer, size_t bufSz)
             }
             if ((newline != NULL) && (newline > finish)) {
                 info->ivSz = (word32)(newline - (finish + 1));
+                if (info->ivSz >= IV_SZ)
+                    return BUFFER_E;
                 if (XMEMCPY(info->iv, finish + 1, info->ivSz) == NULL)
                     return BUFFER_E;
                 info->set = 1;
