@@ -16051,9 +16051,9 @@ static int test_wc_ecc_check_key (void)
 static int test_wc_ecc_get_generator(void)
 {
     int         ret = 0;
-#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && \
+    !defined(HAVE_FIPS)
     ecc_point* pt;
-
 
     printf(testingFmt, "wc_ecc_new_point()");
 

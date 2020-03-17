@@ -17762,6 +17762,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         }
         #endif /* WOLFSSL_AES_256 */
     #endif /* HAVE_AES_CBC */
+#if !defined(_WIN32) && !defined(HAVE_FIPS)
     #ifdef HAVE_AESGCM
         #ifdef WOLFSSL_AES_128
         if (ctx->cipherType == AES_128_GCM_TYPE ||
@@ -17839,6 +17840,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         }
         #endif /* WOLFSSL_AES_256 */
     #endif /* HAVE_AESGCM */
+#endif /* !defined(_WIN32) && !defined(HAVE_FIPS) */
 #ifdef WOLFSSL_AES_COUNTER
         #ifdef WOLFSSL_AES_128
         if (ctx->cipherType == AES_128_CTR_TYPE ||
@@ -38676,8 +38678,8 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
     return WOLFSSL_SUCCESS;
 }
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
-    || defined(WOLFSSL_NGINX)
+#if defined(WC_RSA_PSS) && (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
+        defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX))
 static int hash2mgf(enum wc_HashType hType)
 {
     switch (hType) {
@@ -48866,8 +48868,7 @@ int wolfSSL_RSA_private_decrypt(int len, const unsigned char* fr,
     return ret;
 }
 
-
-
+#if !defined(_WIN32) && !defined(HAVE_FIPS)
 int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
                           unsigned char* to, WOLFSSL_RSA* rsa, int padding)
 {
@@ -48919,8 +48920,7 @@ int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
     }
     return tlen;
 }
-
-
+#endif /* !defined(_WIN32) && !defined(HAVE_FIPS) */
 
 /* RSA private encrypt calls wc_RsaSSL_Sign. Similar function set up as RSA
  * public decrypt.
