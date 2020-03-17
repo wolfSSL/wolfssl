@@ -18297,7 +18297,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
-                ret = wc_AesXtsSetKey(&ctx->cipher.xts, key, ctx->keyLen, 
+                ret = wc_AesXtsSetKey(&ctx->cipher.xts, key, ctx->keyLen,
                     ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, NULL, 0);
                 if (ret != 0) {
                     WOLFSSL_MSG("wc_AesXtsSetKey() failed");
@@ -18327,7 +18327,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
             if (key) {
-                ret = wc_AesXtsSetKey(&ctx->cipher.xts, key, ctx->keyLen, 
+                ret = wc_AesXtsSetKey(&ctx->cipher.xts, key, ctx->keyLen,
                         ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION, NULL, 0);
                 if (ret != 0) {
                     WOLFSSL_MSG("wc_AesXtsSetKey() failed");
@@ -36137,24 +36137,29 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
         /* Map the Jacobian point back to affine space */
         if (mp_read_radix(&modulus, ecc_sets[group->curve_idx].prime, MP_RADIX_HEX) != MP_OKAY) {
             WOLFSSL_MSG("mp_read_radix failed");
+            mp_clear(&modulus);
             return WOLFSSL_FAILURE;
         }
         if (mp_montgomery_setup(&modulus, &mp) != MP_OKAY) {
             WOLFSSL_MSG("mp_montgomery_setup failed");
+            mp_clear(&modulus);
             return WOLFSSL_FAILURE;
         }
         if (ecc_map((ecc_point*)point->internal, &modulus, mp) != MP_OKAY) {
             WOLFSSL_MSG("ecc_map failed");
+            mp_clear(&modulus);
             return WOLFSSL_FAILURE;
         }
         if (SetECPointExternal((WOLFSSL_EC_POINT *)point) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("SetECPointExternal failed");
+            mp_clear(&modulus);
             return WOLFSSL_FAILURE;
         }
     }
 
     BN_copy(x, point->X);
     BN_copy(y, point->Y);
+    mp_clear(&modulus);
 
     return WOLFSSL_SUCCESS;
 }
@@ -48704,8 +48709,10 @@ int wolfSSL_BN_clear_bit(WOLFSSL_BIGNUM* bn, int n)
             goto cleanup;
         }
     }
+
     ret = WOLFSSL_SUCCESS;
 cleanup:
+    mp_clear(tmp);
 #ifdef WOLFSSL_SMALL_STACK
     if (tmp)
         XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);

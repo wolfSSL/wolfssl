@@ -1839,7 +1839,6 @@ static void test_wolfSSL_EC(void)
     /* Force non-affine coordinates */
     AssertIntEQ(wolfSSL_BN_add(new_point->Z, (WOLFSSL_BIGNUM*)BN_value_one(),
                                              (WOLFSSL_BIGNUM*)BN_value_one()), 1);
-    new_point->inSet = 0;
 
     /* extract the coordinates from point */
     AssertIntEQ(EC_POINT_get_affine_coordinates_GFp(group, new_point, X, Y, ctx), WOLFSSL_SUCCESS);
