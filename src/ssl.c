@@ -22939,7 +22939,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
             #endif /* NO_RSA */
 
             /* decode ECC key */
-            #ifdef HAVE_ECC
+            #if defined(HAVE_ECC) && defined(OPENSSL_EXTRA)
             if (key->type == EVP_PKEY_EC) {
                 word32 idx = 0;
 
@@ -26334,7 +26334,7 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
                     break;
                 #endif /* NO_RSA */
 
-                #ifdef HAVE_ECC
+                #if defined(HAVE_ECC) && defined(OPENSSL_EXTRA)
                 case EVP_PKEY_EC:
                     if (key->ecc != NULL && key->ownEcc == 1) {
                         wolfSSL_EC_KEY_free(key->ecc);
@@ -30626,6 +30626,53 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
     (defined(OPENSSL_EXTRA_X509_SMALL) && !defined(NO_RSA))
 static WC_RNG globalRNG;
 static int initGlobalRNG = 0;
+#endif
+#if defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
+WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG, int *initTmpRng)
+{
+    WC_RNG* rng = NULL;
+
+    if (!rsa || !initTmpRng) {
+        return NULL;
+    }
+    *initTmpRng = 0;
+
+#if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && \
+    !defined(HAVE_FAST_RSA) && defined(WC_RSA_BLINDING)
+    rng = ((RsaKey*)rsa->internal)->rng;
+#endif
+    if (rng == NULL && tmpRNG) {
+        if (!*tmpRNG) {
+#ifdef WOLFSSL_SMALL_STACK
+            *tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (*tmpRNG == NULL)
+                return NULL;
+#else
+            WOLFSSL_MSG("*tmpRNG is null");
+            return NULL;
+#endif
+        }
+
+        if (wc_InitRng(*tmpRNG) == 0) {
+            rng = *tmpRNG;
+            *initTmpRng = 1;
+        }
+        else {
+            WOLFSSL_MSG("Bad RNG Init, trying global");
+            if (initGlobalRNG == 0)
+                WOLFSSL_MSG("Global RNG no Init");
+            else
+                rng = &globalRNG;
+#ifdef WOLFSSL_SMALL_STACK
+            if (*tmpRNG)
+                XFREE(*tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            *tmpRNG = NULL;
+#endif
+        }
+    }
+    return rng;
+}
 #endif
 #ifndef WOLFCRYPT_ONLY
 
@@ -35163,10 +35210,6 @@ static int SetECPointInternal(WOLFSSL_EC_POINT *p)
 
     return WOLFSSL_SUCCESS;
 }
-#endif /* HAVE_ECC */
-#endif /* OPENSSL_EXTRA */
-
-#if defined(HAVE_ECC) && defined(OPENSSL_EXTRA_X509_SMALL)
 
 /* EC_POINT WolfSSL -> OpenSSL */
 static int SetECPointExternal(WOLFSSL_EC_POINT *p)
@@ -35249,10 +35292,7 @@ int SetECKeyExternal(WOLFSSL_EC_KEY* eckey)
 
     return WOLFSSL_SUCCESS;
 }
-#endif /* HAVE_ECC && OPENSSL_EXTRA_X509_SMALL */
 
-#ifdef OPENSSL_EXTRA
-#ifdef HAVE_ECC
 /* EC_KEY Openssl -> WolfSSL */
 int SetECKeyInternal(WOLFSSL_EC_KEY* eckey)
 {
@@ -35509,10 +35549,6 @@ int wolfSSL_set1_groups_list(WOLFSSL *ssl, char *list)
 }
 #endif /* WOLFSSL_TLS13 */
 
-#endif /* HAVE_ECC */
-#endif /* OPENSSL_EXTRA */
-
-#if defined(HAVE_ECC) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 static void InitwolfSSL_ECKey(WOLFSSL_EC_KEY* key)
 {
     if (key) {
@@ -35598,10 +35634,6 @@ void wolfSSL_EC_KEY_free(WOLFSSL_EC_KEY *key)
         /* key = NULL, don't try to access or double free it */
     }
 }
-#endif /* HAVE_ECC && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
-
-#ifdef OPENSSL_EXTRA
-#ifdef HAVE_ECC
 
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_EC_KEY_set_group(WOLFSSL_EC_KEY *key, WOLFSSL_EC_GROUP *group)
@@ -38644,56 +38676,6 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
     return WOLFSSL_SUCCESS;
 }
 
-
-#if ( defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || \
-      defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX) ) || \
-    ( !defined(NO_RSA) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA) )
-static WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG, int *initTmpRng)
-{
-    WC_RNG* rng = NULL;
-
-    if (!rsa || !initTmpRng) {
-        return NULL;
-    }
-    *initTmpRng = 0;
-
-#if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && \
-    !defined(HAVE_FAST_RSA) && defined(WC_RSA_BLINDING)
-    rng = ((RsaKey*)rsa->internal)->rng;
-#endif
-    if (rng == NULL && tmpRNG) {
-        if (!*tmpRNG) {
-#ifdef WOLFSSL_SMALL_STACK
-            *tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            if (*tmpRNG == NULL)
-                return NULL;
-#else
-            WOLFSSL_MSG("*tmpRNG is null");
-            return NULL;
-#endif
-        }
-
-        if (wc_InitRng(*tmpRNG) == 0) {
-            rng = *tmpRNG;
-            *initTmpRng = 1;
-        }
-        else {
-            WOLFSSL_MSG("Bad RNG Init, trying global");
-            if (initGlobalRNG == 0)
-                WOLFSSL_MSG("Global RNG no Init");
-            else
-                rng = &globalRNG;
-#ifdef WOLFSSL_SMALL_STACK
-            if (*tmpRNG)
-                XFREE(*tmpRNG, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            *tmpRNG = NULL;
-#endif
-        }
-    }
-    return rng;
-}
-#endif
-
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
     || defined(WOLFSSL_NGINX)
 static int hash2mgf(enum wc_HashType hType)
@@ -38774,7 +38756,8 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *EM,
 #ifdef WOLFSSL_SMALL_STACK
     WC_RNG* tmpRNG = NULL;
 #else
-    WC_RNG  tmpRNG[1];
+    WC_RNG  _tmpRNG[1];
+    WC_RNG* tmpRNG = _tmpRNG;
 #endif
     enum wc_HashType hType;
 
@@ -48719,7 +48702,8 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* fr,
 #ifdef WOLFSSL_SMALL_STACK
     WC_RNG* tmpRNG = NULL;
 #else
-    WC_RNG  tmpRNG[1];
+    WC_RNG  _tmpRNG[1];
+    WC_RNG* tmpRNG = _tmpRNG;
 #endif
 #if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
     int  mgf = WC_MGF1NONE;

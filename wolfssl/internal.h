@@ -4373,6 +4373,9 @@ WOLFSSL_LOCAL int SetECKeyInternal(WOLFSSL_EC_KEY* eckey);
 WOLFSSL_LOCAL int SetECKeyExternal(WOLFSSL_EC_KEY* eckey);
 #endif
 
+WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
+                                         int *initTmpRng);
+
 #ifndef NO_CERTS
     #ifndef NO_RSA
         #ifdef WC_RSA_PSS
