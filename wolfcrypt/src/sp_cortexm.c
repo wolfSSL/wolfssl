@@ -4112,6 +4112,44 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     return err;
 }
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+/* Conditionally add a and b using the mask m.
+ * m is -1 to add and 0 when not.
+ *
+ * r  A single precision number representing conditional add result.
+ * a  A single precision number to add with.
+ * b  A single precision number to add.
+ * m  Mask value to apply.
+ */
+SP_NOINLINE static sp_digit sp_2048_cond_add_32(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	r5, #128\n\t"
+        "mov	r9, r5\n\t"
+        "mov	r8, #0\n\t"
+        "\n1:\n\t"
+        "ldr	r6, [%[b], r8]\n\t"
+        "and	r6, r6, %[m]\n\t"
+        "adds	r5, %[c], #-1\n\t"
+        "ldr	r5, [%[a], r8]\n\t"
+        "adcs	r5, r5, r6\n\t"
+        "mov	%[c], #0\n\t"
+        "adcs	%[c], %[c], %[c]\n\t"
+        "str	r5, [%[r], r8]\n\t"
+        "add	r8, r8, #4\n\t"
+        "cmp	r8, r9\n\t"
+        "blt	1b\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "r5", "r6", "r8", "r9"
+    );
+
+    return c;
+}
+
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -4146,7 +4184,6 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     sp_digit* dp;
     sp_digit* dq;
     sp_digit* qi;
-    sp_digit* tmp;
     sp_digit* tmpa;
     sp_digit* tmpb;
     sp_digit* r;
@@ -4176,8 +4213,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
         tmpa = qi + 32;
         tmpb = tmpa + 64;
 
-        tmp = t;
-        r = tmp + 64;
+        r = t + 64;
     }
 #else
     r = a = ad;
@@ -4186,7 +4222,6 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     qi = dq = dp = dpd;
     tmpa = tmpad;
     tmpb = tmpbd;
-    tmp = a + 64;
 #endif
 
     if (err == MP_OKAY) {
@@ -4204,8 +4239,8 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 
     if (err == MP_OKAY) {
         c = sp_2048_sub_in_place_32(tmpa, tmpb);
-        sp_2048_mask_32(tmp, p, c);
-        sp_2048_add_32(tmpa, tmpa, tmp);
+        c += sp_2048_cond_add_32(tmpa, tmpa, p, c);
+        sp_2048_cond_add_32(tmpa, tmpa, p, c);
 
         sp_2048_from_mp(qi, 32, qim);
         sp_2048_mul_32(tmpa, tmpa, qi);
@@ -4236,6 +4271,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 
     return err;
 }
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
                                               !defined(WOLFSSL_RSA_PUBLIC_ONLY))
@@ -8666,6 +8702,44 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     return err;
 }
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+/* Conditionally add a and b using the mask m.
+ * m is -1 to add and 0 when not.
+ *
+ * r  A single precision number representing conditional add result.
+ * a  A single precision number to add with.
+ * b  A single precision number to add.
+ * m  Mask value to apply.
+ */
+SP_NOINLINE static sp_digit sp_3072_cond_add_48(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	r5, #192\n\t"
+        "mov	r9, r5\n\t"
+        "mov	r8, #0\n\t"
+        "\n1:\n\t"
+        "ldr	r6, [%[b], r8]\n\t"
+        "and	r6, r6, %[m]\n\t"
+        "adds	r5, %[c], #-1\n\t"
+        "ldr	r5, [%[a], r8]\n\t"
+        "adcs	r5, r5, r6\n\t"
+        "mov	%[c], #0\n\t"
+        "adcs	%[c], %[c], %[c]\n\t"
+        "str	r5, [%[r], r8]\n\t"
+        "add	r8, r8, #4\n\t"
+        "cmp	r8, r9\n\t"
+        "blt	1b\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "r5", "r6", "r8", "r9"
+    );
+
+    return c;
+}
+
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -8700,7 +8774,6 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     sp_digit* dp;
     sp_digit* dq;
     sp_digit* qi;
-    sp_digit* tmp;
     sp_digit* tmpa;
     sp_digit* tmpb;
     sp_digit* r;
@@ -8730,8 +8803,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
         tmpa = qi + 48;
         tmpb = tmpa + 96;
 
-        tmp = t;
-        r = tmp + 96;
+        r = t + 96;
     }
 #else
     r = a = ad;
@@ -8740,7 +8812,6 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     qi = dq = dp = dpd;
     tmpa = tmpad;
     tmpb = tmpbd;
-    tmp = a + 96;
 #endif
 
     if (err == MP_OKAY) {
@@ -8758,8 +8829,8 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 
     if (err == MP_OKAY) {
         c = sp_3072_sub_in_place_48(tmpa, tmpb);
-        sp_3072_mask_48(tmp, p, c);
-        sp_3072_add_48(tmpa, tmpa, tmp);
+        c += sp_3072_cond_add_48(tmpa, tmpa, p, c);
+        sp_3072_cond_add_48(tmpa, tmpa, p, c);
 
         sp_3072_from_mp(qi, 48, qim);
         sp_3072_mul_48(tmpa, tmpa, qi);
@@ -8790,6 +8861,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 
     return err;
 }
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
                                               !defined(WOLFSSL_RSA_PUBLIC_ONLY))
@@ -12166,6 +12238,45 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     return err;
 }
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+/* Conditionally add a and b using the mask m.
+ * m is -1 to add and 0 when not.
+ *
+ * r  A single precision number representing conditional add result.
+ * a  A single precision number to add with.
+ * b  A single precision number to add.
+ * m  Mask value to apply.
+ */
+SP_NOINLINE static sp_digit sp_4096_cond_add_64(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	r5, #1\n\t"
+        "lsl	r5, r5, #8\n\t"
+        "mov	r9, r5\n\t"
+        "mov	r8, #0\n\t"
+        "\n1:\n\t"
+        "ldr	r6, [%[b], r8]\n\t"
+        "and	r6, r6, %[m]\n\t"
+        "adds	r5, %[c], #-1\n\t"
+        "ldr	r5, [%[a], r8]\n\t"
+        "adcs	r5, r5, r6\n\t"
+        "mov	%[c], #0\n\t"
+        "adcs	%[c], %[c], %[c]\n\t"
+        "str	r5, [%[r], r8]\n\t"
+        "add	r8, r8, #4\n\t"
+        "cmp	r8, r9\n\t"
+        "blt	1b\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "r5", "r6", "r8", "r9"
+    );
+
+    return c;
+}
+
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -12200,7 +12311,6 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
     sp_digit* dp;
     sp_digit* dq;
     sp_digit* qi;
-    sp_digit* tmp;
     sp_digit* tmpa;
     sp_digit* tmpb;
     sp_digit* r;
@@ -12230,8 +12340,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
         tmpa = qi + 64;
         tmpb = tmpa + 128;
 
-        tmp = t;
-        r = tmp + 128;
+        r = t + 128;
     }
 #else
     r = a = ad;
@@ -12240,7 +12349,6 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
     qi = dq = dp = dpd;
     tmpa = tmpad;
     tmpb = tmpbd;
-    tmp = a + 128;
 #endif
 
     if (err == MP_OKAY) {
@@ -12258,8 +12366,8 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
 
     if (err == MP_OKAY) {
         c = sp_4096_sub_in_place_64(tmpa, tmpb);
-        sp_4096_mask_64(tmp, p, c);
-        sp_4096_add_64(tmpa, tmpa, tmp);
+        c += sp_4096_cond_add_64(tmpa, tmpa, p, c);
+        sp_4096_cond_add_64(tmpa, tmpa, p, c);
 
         sp_4096_from_mp(qi, 64, qim);
         sp_4096_mul_64(tmpa, tmpa, qi);
@@ -12290,6 +12398,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
 
     return err;
 }
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
                                               !defined(WOLFSSL_RSA_PUBLIC_ONLY))
@@ -21053,26 +21162,24 @@ SP_NOINLINE static sp_digit sp_384_cond_add_12(sp_digit* r, const sp_digit* a, c
     sp_digit c = 0;
 
     __asm__ __volatile__ (
-        "mov	r10, #0\n\t"
-        "mov	r6, #48\n\t"
-        "sub	r10, #1\n\t"
-        "mov	r9, r6\n\t"
+        "mov	r5, #48\n\t"
+        "mov	r9, r5\n\t"
         "mov	r8, #0\n\t"
         "\n1:\n\t"
-        "ldr	r5, [%[a], r8]\n\t"
         "ldr	r6, [%[b], r8]\n\t"
         "and	r6, r6, %[m]\n\t"
-        "adds	%[c], %[c], r10\n\t"
+        "adds	r5, %[c], #-1\n\t"
+        "ldr	r5, [%[a], r8]\n\t"
         "adcs	r5, r5, r6\n\t"
-        "str	r5, [%[r], r8]\n\t"
         "mov	%[c], #0\n\t"
-        "adc	%[c], %[c], %[c]\n\t"
+        "adcs	%[c], %[c], %[c]\n\t"
+        "str	r5, [%[r], r8]\n\t"
         "add	r8, r8, #4\n\t"
         "cmp	r8, r9\n\t"
         "blt	1b\n\t"
         : [c] "+r" (c)
         : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "r5", "r6", "r8", "r9", "r10"
+        : "memory", "r5", "r6", "r8", "r9"
     );
 
     return c;

@@ -2768,41 +2768,6 @@ static int sp_2048_mod_exp_36(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || */
        /* WOLFSSL_HAVE_SP_DH */
 
-#if defined(WOLFSSL_HAVE_SP_RSA) && !defined(SP_RSA_PRIVATE_EXP_D) && \
-           !defined(RSA_LOW_MEM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-/* AND m into each word of a and store in r.
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * m  Mask to AND against each digit.
- */
-static void sp_2048_mask_18(sp_digit* r, const sp_digit* a, sp_digit m)
-{
-#ifdef WOLFSSL_SP_SMALL
-    int i;
-
-    for (i=0; i<18; i++) {
-        r[i] = a[i] & m;
-    }
-#else
-    int i;
-
-    for (i = 0; i < 16; i += 8) {
-        r[i+0] = a[i+0] & m;
-        r[i+1] = a[i+1] & m;
-        r[i+2] = a[i+2] & m;
-        r[i+3] = a[i+3] & m;
-        r[i+4] = a[i+4] & m;
-        r[i+5] = a[i+5] & m;
-        r[i+6] = a[i+6] & m;
-        r[i+7] = a[i+7] & m;
-    }
-    r[16] = a[16] & m;
-    r[17] = a[17] & m;
-#endif
-}
-
-#endif
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *
@@ -3034,6 +2999,8 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 }
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+#if !defined(SP_RSA_PRIVATE_EXP_D) && !defined(RSA_LOW_MEM)
+#endif /* !SP_RSA_PRIVATE_EXP_D && !RSA_LOW_MEM */
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -3163,7 +3130,6 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     sp_digit* dp;
     sp_digit* dq;
     sp_digit* qi;
-    sp_digit* tmp;
     sp_digit* tmpa;
     sp_digit* tmpb;
     sp_digit* r;
@@ -3199,8 +3165,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
         tmpa = qi + 18;
         tmpb = tmpa + 36;
 
-        tmp = t;
-        r = tmp + 36;
+        r = t + 36;
 
         sp_2048_from_bin(a, 36, in, inLen);
         sp_2048_from_mp(p, 18, pm);
@@ -3214,8 +3179,8 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     }
     if (err == MP_OKAY) {
         (void)sp_2048_sub_18(tmpa, tmpa, tmpb);
-        sp_2048_mask_18(tmp, p, 0 - ((sp_int_digit)tmpa[17] >> 63));
-        (void)sp_2048_add_18(tmpa, tmpa, tmp);
+        sp_2048_cond_add_18(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[17] >> 63));
+        sp_2048_cond_add_18(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[17] >> 63));
 
         sp_2048_from_mp(qi, 18, qim);
         sp_2048_mul_18(tmpa, tmpa, qi);
@@ -3240,7 +3205,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 #else
     sp_digit a[36 * 2];
     sp_digit p[18], q[18], dp[18], dq[18], qi[18];
-    sp_digit tmp[36], tmpa[36], tmpb[36];
+    sp_digit tmpa[36], tmpb[36];
     sp_digit* r = a;
     int err = MP_OKAY;
 
@@ -3275,8 +3240,8 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 
     if (err == MP_OKAY) {
         (void)sp_2048_sub_18(tmpa, tmpa, tmpb);
-        sp_2048_mask_18(tmp, p, 0 - ((sp_int_digit)tmpa[17] >> 63));
-        (void)sp_2048_add_18(tmpa, tmpa, tmp);
+        sp_2048_cond_add_18(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[17] >> 63));
+        sp_2048_cond_add_18(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[17] >> 63));
         sp_2048_mul_18(tmpa, tmpa, qi);
         err = sp_2048_mod_18(tmpa, tmpa, p);
     }
@@ -6914,42 +6879,6 @@ static int sp_3072_mod_exp_54(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || */
        /* WOLFSSL_HAVE_SP_DH */
 
-#if defined(WOLFSSL_HAVE_SP_RSA) && !defined(SP_RSA_PRIVATE_EXP_D) && \
-           !defined(RSA_LOW_MEM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-/* AND m into each word of a and store in r.
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * m  Mask to AND against each digit.
- */
-static void sp_3072_mask_27(sp_digit* r, const sp_digit* a, sp_digit m)
-{
-#ifdef WOLFSSL_SP_SMALL
-    int i;
-
-    for (i=0; i<27; i++) {
-        r[i] = a[i] & m;
-    }
-#else
-    int i;
-
-    for (i = 0; i < 24; i += 8) {
-        r[i+0] = a[i+0] & m;
-        r[i+1] = a[i+1] & m;
-        r[i+2] = a[i+2] & m;
-        r[i+3] = a[i+3] & m;
-        r[i+4] = a[i+4] & m;
-        r[i+5] = a[i+5] & m;
-        r[i+6] = a[i+6] & m;
-        r[i+7] = a[i+7] & m;
-    }
-    r[24] = a[24] & m;
-    r[25] = a[25] & m;
-    r[26] = a[26] & m;
-#endif
-}
-
-#endif
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *
@@ -7181,6 +7110,8 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 }
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+#if !defined(SP_RSA_PRIVATE_EXP_D) && !defined(RSA_LOW_MEM)
+#endif /* !SP_RSA_PRIVATE_EXP_D && !RSA_LOW_MEM */
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -7310,7 +7241,6 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     sp_digit* dp;
     sp_digit* dq;
     sp_digit* qi;
-    sp_digit* tmp;
     sp_digit* tmpa;
     sp_digit* tmpb;
     sp_digit* r;
@@ -7346,8 +7276,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
         tmpa = qi + 27;
         tmpb = tmpa + 54;
 
-        tmp = t;
-        r = tmp + 54;
+        r = t + 54;
 
         sp_3072_from_bin(a, 54, in, inLen);
         sp_3072_from_mp(p, 27, pm);
@@ -7361,8 +7290,8 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     }
     if (err == MP_OKAY) {
         (void)sp_3072_sub_27(tmpa, tmpa, tmpb);
-        sp_3072_mask_27(tmp, p, 0 - ((sp_int_digit)tmpa[26] >> 63));
-        (void)sp_3072_add_27(tmpa, tmpa, tmp);
+        sp_3072_cond_add_27(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[26] >> 63));
+        sp_3072_cond_add_27(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[26] >> 63));
 
         sp_3072_from_mp(qi, 27, qim);
         sp_3072_mul_27(tmpa, tmpa, qi);
@@ -7387,7 +7316,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 #else
     sp_digit a[54 * 2];
     sp_digit p[27], q[27], dp[27], dq[27], qi[27];
-    sp_digit tmp[54], tmpa[54], tmpb[54];
+    sp_digit tmpa[54], tmpb[54];
     sp_digit* r = a;
     int err = MP_OKAY;
 
@@ -7422,8 +7351,8 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 
     if (err == MP_OKAY) {
         (void)sp_3072_sub_27(tmpa, tmpa, tmpb);
-        sp_3072_mask_27(tmp, p, 0 - ((sp_int_digit)tmpa[26] >> 63));
-        (void)sp_3072_add_27(tmpa, tmpa, tmp);
+        sp_3072_cond_add_27(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[26] >> 63));
+        sp_3072_cond_add_27(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[26] >> 63));
         sp_3072_mul_27(tmpa, tmpa, qi);
         err = sp_3072_mod_27(tmpa, tmpa, p);
     }
@@ -11306,46 +11235,6 @@ static int sp_4096_mod_exp_78(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || */
        /* WOLFSSL_HAVE_SP_DH */
 
-#if defined(WOLFSSL_HAVE_SP_RSA) && !defined(SP_RSA_PRIVATE_EXP_D) && \
-           !defined(RSA_LOW_MEM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-/* AND m into each word of a and store in r.
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * m  Mask to AND against each digit.
- */
-static void sp_4096_mask_39(sp_digit* r, const sp_digit* a, sp_digit m)
-{
-#ifdef WOLFSSL_SP_SMALL
-    int i;
-
-    for (i=0; i<39; i++) {
-        r[i] = a[i] & m;
-    }
-#else
-    int i;
-
-    for (i = 0; i < 32; i += 8) {
-        r[i+0] = a[i+0] & m;
-        r[i+1] = a[i+1] & m;
-        r[i+2] = a[i+2] & m;
-        r[i+3] = a[i+3] & m;
-        r[i+4] = a[i+4] & m;
-        r[i+5] = a[i+5] & m;
-        r[i+6] = a[i+6] & m;
-        r[i+7] = a[i+7] & m;
-    }
-    r[32] = a[32] & m;
-    r[33] = a[33] & m;
-    r[34] = a[34] & m;
-    r[35] = a[35] & m;
-    r[36] = a[36] & m;
-    r[37] = a[37] & m;
-    r[38] = a[38] & m;
-#endif
-}
-
-#endif
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *
@@ -11577,6 +11466,8 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 }
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+#if !defined(SP_RSA_PRIVATE_EXP_D) && !defined(RSA_LOW_MEM)
+#endif /* !SP_RSA_PRIVATE_EXP_D && !RSA_LOW_MEM */
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -11706,7 +11597,6 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
     sp_digit* dp;
     sp_digit* dq;
     sp_digit* qi;
-    sp_digit* tmp;
     sp_digit* tmpa;
     sp_digit* tmpb;
     sp_digit* r;
@@ -11742,8 +11632,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
         tmpa = qi + 39;
         tmpb = tmpa + 78;
 
-        tmp = t;
-        r = tmp + 78;
+        r = t + 78;
 
         sp_4096_from_bin(a, 78, in, inLen);
         sp_4096_from_mp(p, 39, pm);
@@ -11757,8 +11646,8 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
     }
     if (err == MP_OKAY) {
         (void)sp_4096_sub_39(tmpa, tmpa, tmpb);
-        sp_4096_mask_39(tmp, p, 0 - ((sp_int_digit)tmpa[38] >> 63));
-        (void)sp_4096_add_39(tmpa, tmpa, tmp);
+        sp_4096_cond_add_39(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[38] >> 63));
+        sp_4096_cond_add_39(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[38] >> 63));
 
         sp_4096_from_mp(qi, 39, qim);
         sp_4096_mul_39(tmpa, tmpa, qi);
@@ -11783,7 +11672,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
 #else
     sp_digit a[78 * 2];
     sp_digit p[39], q[39], dp[39], dq[39], qi[39];
-    sp_digit tmp[78], tmpa[78], tmpb[78];
+    sp_digit tmpa[78], tmpb[78];
     sp_digit* r = a;
     int err = MP_OKAY;
 
@@ -11818,8 +11707,8 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
 
     if (err == MP_OKAY) {
         (void)sp_4096_sub_39(tmpa, tmpa, tmpb);
-        sp_4096_mask_39(tmp, p, 0 - ((sp_int_digit)tmpa[38] >> 63));
-        (void)sp_4096_add_39(tmpa, tmpa, tmp);
+        sp_4096_cond_add_39(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[38] >> 63));
+        sp_4096_cond_add_39(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[38] >> 63));
         sp_4096_mul_39(tmpa, tmpa, qi);
         err = sp_4096_mod_39(tmpa, tmpa, p);
     }
