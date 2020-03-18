@@ -3426,7 +3426,8 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
 
     /* check key type and get OID if ECC */
     if ((ret = wc_GetKeyOID(key, keySz, &curveOID, &oidSz, &algoID, heap))< 0) {
-            return ret;
+        WOLFSSL_MSG("Error getting key OID");
+        return ret;
     }
 
     /* PKCS#8 wrapping around key */
@@ -3937,6 +3938,9 @@ exit_tte:
  * heap       possible heap hint for mallocs/frees
  *
  * returns the total size of encrypted content on success.
+ *
+ * data returned is :
+ * [ seq - obj [ seq -salt,itt]] , construct with encrypted data
  */
 int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
         const char* password, int passwordSz, int vPKCS, int vAlgo,
@@ -3947,6 +3951,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     word32 tmpIdx   = 0;
     word32 totalSz  = 0;
     word32 seqSz;
+    word32 innerSz;
     int    ret;
     int    version, id, blockSz = 0;
 #ifdef WOLFSSL_SMALL_STACK
@@ -3956,6 +3961,11 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     byte   saltTmp[MAX_SALT_SIZE];
     byte   cbcIv[MAX_IV_SIZE];
 #endif
+    byte   seq[MAX_SEQ_SZ];
+    byte   shr[MAX_SHORT_SZ];
+    word32 maxShr = MAX_SHORT_SZ;
+    word32 algoSz;
+    const  byte* algoName;
 
     (void)heap;
 
@@ -3976,58 +3986,51 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
         return BAD_FUNC_ARG;
     }
 
+    /* calculate size */
+    /* size of constructed string at end */
+    sz = Pkcs8Pad(NULL, inputSz, blockSz);
+    totalSz  = ASN_TAG_SZ;
+    totalSz += SetLength(sz, seq);
+    totalSz += sz;
+
+    /* size of sequence holding object id and sub sequence of salt and itt */
+    algoName = OidFromId(id, oidPBEType, &algoSz);
+    if (algoName == NULL) {
+        WOLFSSL_MSG("Unknown Algorithm");
+        return 0;
+    }
+    innerSz = SetObjectId(algoSz, seq);
+    innerSz += algoSz;
+
+    /* get subsequence of salt and itt */
+    if (salt == NULL || saltSz == 0) {
+        sz = 8;
+    }
+    else {
+        sz = saltSz;
+    }
+    seqSz  = SetOctetString(sz, seq);
+    seqSz += sz;
+
+    tmpIdx = 0;
+    seqSz += SetShortInt(shr, &tmpIdx, itt, maxShr);
+    innerSz += seqSz + SetSequence(seqSz, seq);
+    totalSz += innerSz + SetSequence(innerSz, seq);
+
     if (out == NULL) {
-        sz = inputSz;
-        switch (id) {
-        #if !defined(NO_DES3) && (!defined(NO_MD5) || !defined(NO_SHA))
-            case PBE_MD5_DES:
-            case PBE_SHA1_DES:
-            case PBE_SHA1_DES3:
-                /* set to block size of 8 for DES operations. This rounds up
-                 * to the nearest multiple of 8 */
-                sz &= 0xfffffff8;
-                sz += 8;
-                break;
-        #endif /* !NO_DES3 && (!NO_MD5 || !NO_SHA) */
-        #if !defined(NO_RC4) && !defined(NO_SHA)
-            case PBE_SHA1_RC4_128:
-                break;
-        #endif
-            case -1:
-                break;
-
-            default:
-                return ALGO_ID_E;
-        }
-
-        if (saltSz == 0) {
-            sz += MAX_SALT_SIZE;
-        }
-        else {
-            sz += saltSz;
-        }
-
-        /* add 2 for tags */
-        totalSz = sz + MAX_ALGO_SZ + MAX_SEQ_SZ + MAX_LENGTH_SZ +
-            MAX_LENGTH_SZ + MAX_LENGTH_SZ + MAX_SHORT_SZ + 2;
-
-        /* adjust size to pad */
-        totalSz = Pkcs8Pad(NULL, totalSz, blockSz);
-
-        /* return result */
         *outSz = totalSz;
-
         return LENGTH_ONLY_E;
     }
 
-    if (inOutIdx + MAX_ALGO_SZ + MAX_SEQ_SZ + 1 > *outSz)
+    inOutIdx = 0;
+    if (totalSz > *outSz)
         return BUFFER_E;
 
-    sz = SetAlgoID(id, out + inOutIdx, oidPBEType, 0);
-    inOutIdx += sz; totalSz += sz;
-    tmpIdx = inOutIdx;
-    tmpIdx += MAX_SEQ_SZ; /* save room for salt and itter sequence */
-    out[tmpIdx++] = ASN_OCTET_STRING;
+    inOutIdx += SetSequence(innerSz, out + inOutIdx);
+    inOutIdx += SetObjectId(algoSz, out + inOutIdx);
+    XMEMCPY(out + inOutIdx, algoName, algoSz);
+    inOutIdx += algoSz;
+    inOutIdx += SetSequence(seqSz, out + inOutIdx);
 
     /* create random salt if one not provided */
     if (salt == NULL || saltSz == 0) {
@@ -4047,22 +4050,18 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
             return ret;
         }
     }
-
-    if (tmpIdx + MAX_LENGTH_SZ + saltSz + MAX_SHORT_SZ > *outSz) {
+    inOutIdx += SetOctetString(saltSz, out + inOutIdx);
+    if (saltSz + inOutIdx > *outSz) {
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
         return BUFFER_E;
     }
-
-    sz = SetLength(saltSz, out + tmpIdx);
-    tmpIdx += sz;
-
-    XMEMCPY(out + tmpIdx, salt, saltSz);
-    tmpIdx += saltSz;
+    XMEMCPY(out + inOutIdx, salt, saltSz);
+    inOutIdx += saltSz;
 
     /* place iteration setting in buffer */
-    ret = SetShortInt(out, &tmpIdx, itt, *outSz);
+    ret = SetShortInt(out, &inOutIdx, itt, *outSz);
     if (ret < 0) {
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -4070,13 +4069,27 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
         return ret;
     }
 
-    /* rewind and place sequence */
-    sz = tmpIdx - inOutIdx - MAX_SEQ_SZ;
-    seqSz = SetSequence(sz, out + inOutIdx);
-    XMEMMOVE(out + inOutIdx + seqSz, out + inOutIdx + MAX_SEQ_SZ, sz);
-    inOutIdx += seqSz; totalSz += seqSz;
-    inOutIdx += sz; totalSz += sz;
+    if (inOutIdx + 1 > *outSz) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        return BUFFER_E;
+    }
+    out[inOutIdx++] = ASN_CONTEXT_SPECIFIC | 0;
 
+    /* get pad size and verify buffer room */
+    sz = Pkcs8Pad(NULL, inputSz, blockSz);
+    if (sz + inOutIdx > *outSz) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        return BUFFER_E;
+    }
+    inOutIdx += SetLength(sz, out + inOutIdx);
+
+    /* copy input to output buffer and pad end */
+    XMEMCPY(out + inOutIdx, input, inputSz);
+    sz = Pkcs8Pad(out + inOutIdx, inputSz, blockSz);
 #ifdef WOLFSSL_SMALL_STACK
     cbcIv = (byte*)XMALLOC(MAX_IV_SIZE, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (cbcIv == NULL) {
@@ -4084,23 +4097,6 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
         return MEMORY_E;
     }
 #endif
-
-    if (inOutIdx + 1 + MAX_LENGTH_SZ + inputSz > *outSz)
-        return BUFFER_E;
-
-    out[inOutIdx++] = ASN_CONTEXT_SPECIFIC | 0; totalSz++;
-    sz = SetLength(inputSz, out + inOutIdx);
-    inOutIdx += sz; totalSz += sz;
-
-    /* get pad size and verify buffer room */
-    sz = Pkcs8Pad(NULL, inputSz, blockSz);
-    if (sz + inOutIdx > *outSz)
-        return BUFFER_E;
-
-    /* copy input to output buffer and pad end */
-    XMEMCPY(out + inOutIdx, input, inputSz);
-    sz = Pkcs8Pad(out + inOutIdx, inputSz, blockSz);
-    totalSz += sz;
 
     /* encrypt */
     if ((ret = wc_CryptKey(password, passwordSz, salt, saltSz, itt, id,
@@ -4120,7 +4116,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
 
     (void)rng;
 
-    return totalSz;
+    return inOutIdx + sz;
 }
 
 
