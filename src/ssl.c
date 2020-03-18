@@ -36359,7 +36359,9 @@ size_t wolfSSL_EC_POINT_point2oct(const WOLFSSL_EC_GROUP *group,
                                   byte *buf, size_t len, WOLFSSL_BN_CTX *ctx)
 {
     word32 min_len = (word32)len;
+#ifndef HAVE_SELFTEST
     int compressed = form == POINT_CONVERSION_COMPRESSED ? 1 : 0;
+#endif /* !HAVE_SELFTEST */
 
     WOLFSSL_ENTER("EC_POINT_point2oct");
 
@@ -36383,15 +36385,26 @@ size_t wolfSSL_EC_POINT_point2oct(const WOLFSSL_EC_GROUP *group,
         return 1;
     }
 
-    if (form != POINT_CONVERSION_UNCOMPRESSED && form != POINT_CONVERSION_COMPRESSED) {
-        WOLFSSL_MSG("Only POINT_CONVERSION_UNCOMPRESSED or POINT_CONVERSION_COMPRESSED are supported");
+    if (form != POINT_CONVERSION_UNCOMPRESSED
+#ifndef HAVE_SELFTEST
+            && form != POINT_CONVERSION_COMPRESSED
+#endif /* !HAVE_SELFTEST */
+            ) {
+        WOLFSSL_MSG("Unsupported curve form");
         return WOLFSSL_FAILURE;
     }
 
+#ifndef HAVE_SELFTEST
     if (wc_ecc_export_point_der_ex(group->curve_idx, (ecc_point*)p->internal,
                buf, &min_len, compressed) != (buf ? MP_OKAY : LENGTH_ONLY_E)) {
         return WOLFSSL_FAILURE;
     }
+#else
+    if (wc_ecc_export_point_der(group->curve_idx, (ecc_point*)p->internal,
+                                buf, &min_len) != (buf ? MP_OKAY : LENGTH_ONLY_E)) {
+        return WOLFSSL_FAILURE;
+    }
+#endif /* !HAVE_SELFTEST */
 
     (void)ctx;
 
@@ -36636,7 +36649,7 @@ int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
     return WOLFSSL_SUCCESS;
 }
 
-#if !defined(WOLFSSL_ATECC508A) && defined(ECC_SHAMIR)
+#if !defined(WOLFSSL_ATECC508A) && defined(ECC_SHAMIR) && !defined(HAVE_SELFTEST)
 /* Calculate the value: generator * n + q * m
  * return code compliant with OpenSSL :
  *   1 if success, 0 if error
@@ -36740,7 +36753,8 @@ cleanup:
     wc_ecc_del_point(result);
     return ret;
 }
-#endif
+#endif /* !defined(WOLFSSL_ATECC508A) && defined(ECC_SHAMIR) &&
+        * !defined(HAVE_SELFTEST) */
 
 void wolfSSL_EC_POINT_clear_free(WOLFSSL_EC_POINT *p)
 {
@@ -48868,7 +48882,7 @@ int wolfSSL_RSA_private_decrypt(int len, const unsigned char* fr,
     return ret;
 }
 
-#if !defined(_WIN32) && !defined(HAVE_FIPS)
+#if !defined(_WIN32) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
 int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
                           unsigned char* to, WOLFSSL_RSA* rsa, int padding)
 {
@@ -48920,7 +48934,7 @@ int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
     }
     return tlen;
 }
-#endif /* !defined(_WIN32) && !defined(HAVE_FIPS) */
+#endif /* !defined(_WIN32) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) */
 
 /* RSA private encrypt calls wc_RsaSSL_Sign. Similar function set up as RSA
  * public decrypt.

@@ -1798,8 +1798,6 @@ static void test_wolfSSL_EC(void)
     BIGNUM *set_point_bn;
     char* hexStr;
     int group_bits;
-    size_t bin_len;
-    unsigned char* buf = NULL;
 
     const char* kTest = "F4F8338AFCC562C5C3F3E1E46A7EFECD17AF381913FF7A96314EA47055EA0FD0";
     /* NISTP256R1 Gx/Gy */
@@ -1808,6 +1806,8 @@ static void test_wolfSSL_EC(void)
 
 #ifndef HAVE_SELFTEST
     EC_POINT *tmp;
+    size_t bin_len;
+    unsigned char* buf = NULL;
 
     const char* uncompG   = "046B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C2964FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5";
     const unsigned char binUncompG[] = {
@@ -1850,11 +1850,15 @@ static void test_wolfSSL_EC(void)
     Gxy->Y = Gy;
     Gxy->Z = Gz;
 
+#ifndef HAVE_SELFTEST
     /* perform point multiplication */
     AssertIntEQ(EC_POINT_mul(group, new_point, NULL, Gxy, k, ctx), WOLFSSL_SUCCESS);
+#else
+    AssertIntEQ(EC_POINT_set_affine_coordinates_GFp(group, new_point, Gx, Gy, ctx), WOLFSSL_SUCCESS);
+#endif
 
     /* check if point X coordinate is zero */
-    AssertIntEQ(BN_is_zero(new_point->X), WOLFSSL_FAILURE);
+    AssertIntEQ(BN_is_zero(new_point->X), 0);
 
     /* Force non-affine coordinates */
     AssertIntEQ(BN_add(new_point->Z, (WOLFSSL_BIGNUM*)BN_value_one(),
@@ -29218,7 +29222,7 @@ static void test_wolfSSL_EVP_PKEY_encrypt(void)
 static void test_wolfSSL_EVP_PKEY_sign(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && \
-    !defined(HAVE_FAST_RSA)
+    !defined(HAVE_FAST_RSA) && !defined(HAVE_SELFTEST)
     WOLFSSL_RSA* rsa = NULL;
     WOLFSSL_EVP_PKEY* pkey = NULL;
     WOLFSSL_EVP_PKEY_CTX* ctx = NULL;
