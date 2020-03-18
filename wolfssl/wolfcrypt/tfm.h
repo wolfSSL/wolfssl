@@ -535,6 +535,7 @@ int fp_sqrmod(fp_int *a, fp_int *b, fp_int *c);
 
 /* c = 1/a (mod b) */
 int fp_invmod(fp_int *a, fp_int *b, fp_int *c);
+int fp_invmod_mont_ct(fp_int *a, fp_int *b, fp_int *c, fp_digit mp);
 
 /* c = (a, b) */
 /*int fp_gcd(fp_int *a, fp_int *b, fp_int *c);*/
@@ -743,6 +744,7 @@ MP_API int  mp_submod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
 MP_API int  mp_addmod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
 MP_API int  mp_mod(mp_int *a, mp_int *b, mp_int *c);
 MP_API int  mp_invmod(mp_int *a, mp_int *b, mp_int *c);
+MP_API int  mp_invmod_mont_ct(mp_int *a, mp_int *b, mp_int *c, fp_digit mp);
 MP_API int  mp_exptmod (mp_int * g, mp_int * x, mp_int * p, mp_int * y);
 MP_API int  mp_exptmod_ex (mp_int * g, mp_int * x, int minDigits, mp_int * p,
                            mp_int * y);

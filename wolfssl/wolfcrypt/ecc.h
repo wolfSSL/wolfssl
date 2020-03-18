@@ -439,6 +439,7 @@ ECC_API int ecc_mul2add(ecc_point* A, mp_int* kA,
                 ecc_point* C, mp_int* a, mp_int* modulus, void* heap);
 
 ECC_API int ecc_map(ecc_point*, mp_int*, mp_digit);
+ECC_API int ecc_map_ex(ecc_point*, mp_int*, mp_digit, int ct);
 ECC_API int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
                                      mp_int* a, mp_int* modulus, mp_digit mp);
 ECC_API int ecc_projective_dbl_point(ecc_point* P, ecc_point* R, mp_int* a,
