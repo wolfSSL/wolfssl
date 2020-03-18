@@ -12454,7 +12454,7 @@ static int sp_256_point_new_ex_10(void* heap, sp_point_256* sp, sp_point_256** p
 #else
     *p = sp;
 #endif
-    if (p == NULL) {
+    if (*p == NULL) {
         ret = MEMORY_E;
     }
     return ret;
@@ -17786,7 +17786,7 @@ static int sp_384_point_new_ex_15(void* heap, sp_point_384* sp, sp_point_384** p
 #else
     *p = sp;
 #endif
-    if (p == NULL) {
+    if (*p == NULL) {
         ret = MEMORY_E;
     }
     return ret;
