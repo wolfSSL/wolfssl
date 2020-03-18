@@ -1177,11 +1177,10 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
     XMEMCPY(m, input, inputLen);
     m += inputLen;
     o = (int)(m - s);
-    if (saltLen > 0) {
-        ret = wc_RNG_GenerateBlock(rng, m, saltLen);
-        if (ret == 0) {
-            m += saltLen;
-        }
+
+    ret = wc_RNG_GenerateBlock(rng, m, saltLen);
+    if (ret == 0) {
+        m += saltLen;
     }
 #else
     s = m = pkcsBlock;
@@ -1189,14 +1188,13 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
     m += RSA_PSS_PAD_SZ;
     XMEMCPY(m, input, inputLen);
     m += inputLen;
-    o = 0;
-    if (saltLen > 0) {
-        ret = wc_RNG_GenerateBlock(rng, salt, saltLen);
-        if (ret == 0) {
-            XMEMCPY(m, salt, saltLen);
-            m += saltLen;
-        }
+
+    ret = wc_RNG_GenerateBlock(rng, salt, saltLen);
+    if (ret == 0) {
+        XMEMCPY(m, salt, saltLen);
+        m += saltLen;
     }
+
 #endif
     if (ret == 0) {
         /* Put Hash at end of pkcsBlock - 1 */
