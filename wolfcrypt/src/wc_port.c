@@ -2275,3 +2275,22 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         #include <wolfcrypt/src/port/arm/cryptoCellHash.c> /* sha256 */
     #endif
 #endif
+
+#ifdef BLACKFIN_BUILD
+    #include <ctype.h>
+    int strncasecmp(const char* s1, const char* s2, unsigned int n)
+    {
+        int offset = 0, ch = 0, i;
+        unsigned char a, b;
+
+        for (i = 0; i < n; i++) {
+            a = (unsigned) (*(s1 + offset));
+            b = (unsigned) (*(s2 + offset));
+            ch = tolower(a) - tolower(b);
+            if (ch != 0)
+                return ch;
+            offset += 1;
+        }
+        return ch;
+    }
+#endif

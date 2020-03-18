@@ -23,13 +23,14 @@
 #ifndef WOLFCRYPT_TEST_H
 #define WOLFCRYPT_TEST_H
 
-
 #ifdef __cplusplus
     extern "C" {
 #endif
 
 #ifdef HAVE_STACK_SIZE
 THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args);
+#elif defined(BLACKFIN_BUILD)
+fssShellReturnCode wolfcrypt_test(struct fssShellInfo* info, void* args);
 #else
 int wolfcrypt_test(void* args);
 #endif

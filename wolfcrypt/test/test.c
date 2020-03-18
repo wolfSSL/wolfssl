@@ -20,6 +20,12 @@
  */
 
 
+ int TestFoo(int x, int y)
+ {
+ 	return (x + y);
+ }
+ 
+ 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -106,7 +112,9 @@
         #include <stdlib.h>  /* we're using malloc / free direct here */
     #endif
     #ifndef STRING_USER
-        #include <stdio.h>
+        //#include <stdio.h>
+        //#define printf FCL_PRINTF
+        //#define printf(format, ...) fssShellPrintf(NULL, format CRLF, ## __VA_ARGS__)
     #endif
 
     /* enable way for customer to override test/bench printf */
@@ -438,13 +446,19 @@ int certpiv_test(void);
 
 #ifdef HAVE_STACK_SIZE
 static THREAD_RETURN err_sys(const char* msg, int es)
+#elif defined(BLACKFIN_BUILD)
+fssShellReturnCode err_sys(const char* msg, int es)
 #else
 static int err_sys(const char* msg, int es)
 #endif
 {
     printf("%s error = %d\n", msg, es);
 
-    EXIT_TEST(-1);
+    #ifdef BLACKFIN_BUILD
+    	return FSS_SHELL_RC_FAILURE;
+    #else
+        EXIT_TEST(-1);
+    #endif
 }
 
 #ifndef HAVE_STACK_SIZE
@@ -521,6 +535,8 @@ int wolfssl_pb_print(const char* msg, ...)
 
 #ifdef HAVE_STACK_SIZE
 THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args)
+#elif defined(BLACKFIN_BUILD)
+fssShellReturnCode wolfcrypt_test(struct fssShellInfo* info, void* args)
 #else
 int wolfcrypt_test(void* args)
 #endif
@@ -530,10 +546,13 @@ int wolfcrypt_test(void* args)
     printf("------------------------------------------------------------------------------\n");
     printf(" wolfSSL version %s\n", LIBWOLFSSL_VERSION_STRING);
     printf("------------------------------------------------------------------------------\n");
-
+    
     if (args)
         ((func_args*)args)->return_code = -1; /* error state */
 
+    #ifdef BLACKFIN_BUILD
+        wolfInfo = info;
+    #endif
 #ifdef WOLFSSL_STATIC_MEMORY
     if (wc_LoadStaticMemory(&HEAP_HINT, gTestMemory, sizeof(gTestMemory),
                                                 WOLFMEM_GENERAL, 1) != 0) {
@@ -604,6 +623,7 @@ initDefaultName();
         test_pass("CAVP selftest passed!\n");
 #endif
 
+#if 0 // KH start exclude
     if ( (ret = error_test()) != 0)
         return err_sys("error    test failed!\n", ret);
     else
@@ -662,6 +682,7 @@ initDefaultName();
         test_pass("MD4      test passed!\n");
 #endif
 
+#endif /* KH - if zero */
 #ifndef NO_SHA
     if ( (ret = sha_test()) != 0)
         return err_sys("SHA      test failed!\n", ret);
@@ -704,6 +725,7 @@ initDefaultName();
         test_pass("SHA-3    test passed!\n");
 #endif
 
+#if 0 // KH: exclude
 #ifdef WOLFSSL_SHAKE256
     if ( (ret = shake256_test()) != 0)
         return err_sys("SHAKE256 test failed!\n", ret);
@@ -1201,13 +1223,17 @@ initDefaultName();
 #if defined(HAVE_THREAD_LS) && defined(HAVE_ECC) && defined(FP_ECC)
     wc_ecc_fp_free();
 #endif
+#endif // KH: if zero
 
     if (args)
         ((func_args*)args)->return_code = ret;
 
     test_pass("Test complete\n");
-
+#ifdef BLACKFIN_BUILD
+	return FSS_SHELL_RC_SUCCESS;
+#else
     EXIT_TEST(ret);
+#endif
 }
 
 
@@ -3420,7 +3446,7 @@ int hash_test(void)
     if (ret != BAD_FUNC_ARG)
         return -3392;
 
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && !defined(NO_ASN)
 #if defined(WOLFSSL_MD2) && !defined(HAVE_SELFTEST)
     ret = wc_GetCTC_HashOID(MD2);
     if (ret == 0)
@@ -8551,7 +8577,7 @@ int aesgcm_test(void)
     byte resultT[sizeof(t1)];
     byte resultP[sizeof(p) + AES_BLOCK_SIZE];
     byte resultC[sizeof(p) + AES_BLOCK_SIZE];
-    int  result;
+    int  result = 0;
 #ifdef WOLFSSL_AES_256
     int  alen;
     #if !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT)

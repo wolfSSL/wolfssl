@@ -2286,7 +2286,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
         word32 *rk = aes->key;
     #ifdef NEED_AES_TABLES
-        word32 temp;
+        word32 temp = 0;
         unsigned int i = 0;
     #endif
 
