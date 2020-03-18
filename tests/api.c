@@ -24594,9 +24594,9 @@ static void test_wolfSSL_OBJ_txt2nid(void)
         int nid;
     } testVals[] = {
         { "tlsfeature", "TLS Feature", "1.3.6.1.5.5.7.1.24", NID_tlsfeature },
-        { "id-on-dnsSRV", "SRVName otherName form", "1.3.6.1.5.5.7.8.7",
+        { "id-on-dnsSRV", "SRVName", "1.3.6.1.5.5.7.8.7",
                                                              NID_id_on_dnsSRV },
-        { "msUPN", "Microsoft Universal Principal Name",
+        { "msUPN", "Microsoft User Principal Name",
                                          "1.3.6.1.4.1.311.20.2.3", NID_ms_upn },
         { NULL, NULL, NULL, NID_undef }
     };
