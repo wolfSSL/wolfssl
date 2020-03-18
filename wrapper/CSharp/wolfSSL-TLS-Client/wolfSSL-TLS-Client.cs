@@ -107,13 +107,16 @@ public class wolfSSL_TLS_CSHarp
         wolfssl.get_ciphers(ciphers, 4096);
         Console.WriteLine("Ciphers : " + ciphers.ToString());
 
-        //ciphers = new StringBuilder("ECDHE-ECDSA-AES128-GCM-SHA256");
-        //if (wolfssl.CTX_set_cipher_list(ctx, ciphers) != wolfssl.SUCCESS)
-        //{
-        //    Console.WriteLine("ERROR CTX_set_cipher_list()");
-        //    wolfssl.CTX_free(ctx);
-        //    return;
-        //}
+        /* Uncomment Section to enable specific cipher suite */
+#if false
+        ciphers = new StringBuilder("ECDHE-ECDSA-AES128-GCM-SHA256");
+        if (wolfssl.CTX_set_cipher_list(ctx, ciphers) != wolfssl.SUCCESS)
+        {
+            Console.WriteLine("ERROR CTX_set_cipher_list()");
+            wolfssl.CTX_free(ctx);
+            return;
+        }
+#endif
 
         short minDhKey = 128;
         wolfssl.CTX_SetMinDhKey_Sz(ctx, minDhKey);
@@ -129,8 +132,23 @@ public class wolfSSL_TLS_CSHarp
         /* set up TCP socket */
         tcp = new Socket(AddressFamily.InterNetwork, SocketType.Stream,
                               ProtocolType.Tcp);
-        tcp.Connect("127.0.0.1", 11111);
-        Console.WriteLine("Connection established");
+        try
+        {
+            tcp.Connect("localhost", 11111);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("tcp.Connect() error " + e.ToString());
+            wolfssl.CTX_free(ctx);
+            return;
+        }
+        if (!tcp.Connected)
+        {
+            Console.WriteLine("tcp.Connect() failed!");
+            tcp.Close();
+            wolfssl.CTX_free(ctx);
+            return;
+        }
 
         Console.WriteLine("Connected TCP");
         ssl = wolfssl.new_ssl(ctx);
