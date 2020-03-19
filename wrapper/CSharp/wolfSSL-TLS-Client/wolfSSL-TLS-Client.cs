@@ -28,7 +28,7 @@ using System.Net;
 using System.Net.Sockets;
 using wolfSSL.CSharp;
 
-public class wolfSSL_TLS_CSHarp
+public class wolfSSL_TLS_Client
 {
     /// <summary>
     /// Example of a logging function
@@ -163,7 +163,7 @@ public class wolfSSL_TLS_CSHarp
         if (wolfssl.set_fd(ssl, tcp) != wolfssl.SUCCESS)
         {
             /* get and print out the error */
-            Console.Write(wolfssl.get_error(ssl));
+            Console.WriteLine(wolfssl.get_error(ssl));
             tcp.Close();
             clean(ssl, ctx);
             return;
@@ -174,7 +174,7 @@ public class wolfSSL_TLS_CSHarp
         if (wolfssl.connect(ssl) != wolfssl.SUCCESS)
         {
             /* get and print out the error */
-            Console.Write(wolfssl.get_error(ssl));
+            Console.WriteLine(wolfssl.get_error(ssl));
             tcp.Close();
             clean(ssl, ctx);
             return;

@@ -108,7 +108,7 @@ public class wolfSSL_TLS_CSHarp
         wolfssl.CTX_SetMinDhKey_Sz(ctx, minDhKey);
 
         /* set up TCP socket */
-        IPAddress ip = IPAddress.Parse("0.0.0.0"); //bind to any
+        IPAddress ip = IPAddress.Parse("0.0.0.0"); /* bind to any */
         TcpListener tcp = new TcpListener(ip, 11111);
         tcp.Start();
 
@@ -126,7 +126,7 @@ public class wolfSSL_TLS_CSHarp
         if (wolfssl.set_fd(ssl, fd) != wolfssl.SUCCESS)
         {
             /* get and print out the error */
-            Console.Write(wolfssl.get_error(ssl));
+            Console.WriteLine(wolfssl.get_error(ssl));
             tcp.Stop();
             clean(ssl, ctx);
             return;
@@ -137,7 +137,7 @@ public class wolfSSL_TLS_CSHarp
         if (wolfssl.accept(ssl) != wolfssl.SUCCESS)
         {
             /* get and print out the error */
-            Console.Write(wolfssl.get_error(ssl));
+            Console.WriteLine(wolfssl.get_error(ssl));
             tcp.Stop();
             clean(ssl, ctx);
             return;
