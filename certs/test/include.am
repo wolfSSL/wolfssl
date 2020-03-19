@@ -7,6 +7,8 @@ EXTRA_DIST += \
          certs/test/cert-ext-ia.der \
          certs/test/cert-ext-nc.cfg \
          certs/test/cert-ext-nc.der \
+         certs/test/cert-ext-nct.cfg \
+         certs/test/cert-ext-nct.der \
          certs/test/cert-ext-ns.der \
          certs/test/gen-ext-certs.sh \
          certs/test/server-duplicate-policy.pem \
