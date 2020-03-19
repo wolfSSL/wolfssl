@@ -275,6 +275,17 @@ then
   AM_CFLAGS="-DWOLFSSL_DTLS $AM_CFLAGS"
 fi
 
+# DTLS change MTU
+AC_ARG_ENABLE([dtls-mtu],
+    [AS_HELP_STRING([--enable-dtls-mtu],[Enable setting the MTU size for wolfSSL DTLS (default: disabled)])],
+    [ ENABLED_DTLS_MTU=$enableval ],
+    [ ENABLED_DTLS_MTU=no ]
+    )
+if test "$ENABLED_DTLS_MTU" = "yes"
+then
+  AM_CFLAGS="-DWOLFSSL_DTLS_MTU $AM_CFLAGS"
+fi
+
 
 # TLS v1.3 Draft 18
 AC_ARG_ENABLE([tls13-draft18],

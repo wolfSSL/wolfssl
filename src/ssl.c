@@ -1076,6 +1076,10 @@ int wolfSSL_dtls_set_sctp(WOLFSSL* ssl)
     return WOLFSSL_SUCCESS;
 }
 
+#endif /* WOLFSSL_DTLS && WOLFSSL_SCTP */
+
+#if (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)) && \
+                                                           defined(WOLFSSL_DTLS)
 
 int wolfSSL_CTX_dtls_set_mtu(WOLFSSL_CTX* ctx, word16 newMtu)
 {
@@ -1101,8 +1105,7 @@ int wolfSSL_dtls_set_mtu(WOLFSSL* ssl, word16 newMtu)
     return WOLFSSL_SUCCESS;
 }
 
-
-#endif /* WOLFSSL_DTLS && WOLFSSL_SCTP */
+#endif /* WOLFSSL_DTLS && (WOLFSSL_SCTP || WOLFSSL_DTLS_MTU) */
 
 
 #ifdef WOLFSSL_DTLS_DROP_STATS
@@ -2023,6 +2026,8 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
         ssl->dtls_expected_rx = max(sz + 100, MAX_MTU);
 #ifdef WOLFSSL_SCTP
         if (ssl->options.dtlsSctp)
+#endif
+#if defined(WOLLSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
             ssl->dtls_expected_rx = max(ssl->dtls_expected_rx, ssl->dtlsMtuSz);
 #endif
     }
