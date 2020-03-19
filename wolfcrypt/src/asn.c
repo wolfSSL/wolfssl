@@ -7941,7 +7941,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             }
 
             ipAddr->type = ASN_IP_TYPE;
-            ipAddr->name = (char*)XMALLOC(strLen, cert->heap,
+            ipAddr->name = (char*)XMALLOC(strLen + 1, cert->heap,
                                          DYNAMIC_TYPE_ALTNAME);
             if (ipAddr->name == NULL) {
                 WOLFSSL_MSG("\tOut of Memory");
