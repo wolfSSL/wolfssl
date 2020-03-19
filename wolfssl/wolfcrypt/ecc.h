@@ -422,6 +422,7 @@ WOLFSSL_ABI WOLFSSL_API void wc_ecc_key_free(ecc_key*);
 
 /* ECC predefined curve sets  */
 extern const ecc_set_type ecc_sets[];
+extern const size_t ecc_sets_count;
 
 WOLFSSL_API
 const char* wc_ecc_get_name(int curve_id);

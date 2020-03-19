@@ -5436,45 +5436,25 @@ WOLFSSL_API int EccEnumToNID(int n)
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 int wc_OBJ_sn2nid(const char *sn)
 {
-    const struct {
-        const char *sn;
-        int  nid;
-    } sn2nid[] = {
-        {WOLFSSL_COMMON_NAME, NID_commonName},
-        {WOLFSSL_COUNTRY_NAME, NID_countryName},
-        {WOLFSSL_LOCALITY_NAME, NID_localityName},
-        {WOLFSSL_STATE_NAME, NID_stateOrProvinceName},
-        {WOLFSSL_ORG_NAME, NID_organizationName},
-        {WOLFSSL_ORGUNIT_NAME, NID_organizationalUnitName},
-        {WOLFSSL_EMAIL_ADDR, NID_emailAddress},
-        {NULL, -1}};
-
-    int i;
-    #ifdef HAVE_ECC
-    int eccEnum;
-    #endif
-    WOLFSSL_ENTER("OBJ_sn2nid");
-    for(i=0; sn2nid[i].sn != NULL; i++) {
-        if(XSTRNCMP(sn, sn2nid[i].sn, XSTRLEN(sn2nid[i].sn)) == 0) {
-            return sn2nid[i].nid;
+    const WOLFSSL_ObjectInfo *obj_info = wolfssl_object_info;
+    size_t i, snlen;
+    WOLFSSL_ENTER("wolfSSL_OBJ_ln2nid");
+    if (sn && (snlen = XSTRLEN(sn)) > 0) {
+        /* Accept input like "/CN=" */
+        if (sn[0] == '/') {
+            sn++;
+            snlen--;
+        }
+        if (sn[snlen-1] == '=') {
+            snlen--;
+        }
+        for (i = 0; i < wolfssl_object_info_sz; i++, obj_info++) {
+            if (snlen == XSTRLEN(obj_info->sName) &&
+                    XSTRNCMP(sn, obj_info->sName, snlen) == 0) {
+                return obj_info->nid;
+            }
         }
     }
-    #ifdef HAVE_ECC
-    /* Nginx uses this OpenSSL string. */
-    if (XSTRNCMP(sn, "prime256v1", 10) == 0)
-        sn = "SECP256R1";
-    if (XSTRNCMP(sn, "secp384r1", 10) == 0)
-        sn = "SECP384R1";
-    /* find based on name and return NID */
-    for (i = 0; ecc_sets[i].size != 0; i++) {
-        if (XSTRNCMP(sn, ecc_sets[i].name, ECC_MAXNAME) == 0) {
-            eccEnum = ecc_sets[i].id;
-            /* Convert enum value in ecc_curve_id to OpenSSL NID */
-            return EccEnumToNID(eccEnum);
-        }
-    }
-    #endif
-
     return NID_undef;
 }
 #endif
@@ -10109,10 +10089,11 @@ int wc_EncryptedInfoParse(EncryptedInfo* info, char** pBuffer, size_t bufSz)
                                                      PEM_LINE_LEN));
             }
             if ((newline != NULL) && (newline > finish)) {
-                info->ivSz = (word32)(newline - (finish + 1));
-                if (info->ivSz >= IV_SZ)
+                finish++;
+                info->ivSz = (word32)(newline - finish);
+                if (info->ivSz > IV_SZ)
                     return BUFFER_E;
-                if (XMEMCPY(info->iv, finish + 1, info->ivSz) == NULL)
+                if (XMEMCPY(info->iv, finish, info->ivSz) == NULL)
                     return BUFFER_E;
                 info->set = 1;
             }

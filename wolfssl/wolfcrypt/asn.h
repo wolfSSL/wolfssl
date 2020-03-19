@@ -134,6 +134,18 @@ enum DN_Tags {
     ASN_DOMAIN_COMPONENT = 0x19  /* DC */
 };
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+typedef struct WOLFSSL_ObjectInfo {
+    int nid;
+    int id;
+    word32 type;
+    const char* sName;
+    const char* lName;
+} WOLFSSL_ObjectInfo;
+extern const size_t wolfssl_object_info_sz;
+extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
+#endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) */
+
 /* DN Tag Strings */
 #define WOLFSSL_COMMON_NAME      "/CN="
 #define WOLFSSL_LN_COMMON_NAME   "/commonName="
@@ -217,7 +229,10 @@ enum
     NID_stateOrProvinceName = 0x08,    /* ST */
     NID_organizationName = 0x0a,       /* O  */
     NID_organizationalUnitName = 0x0b, /* OU */
-    NID_domainComponent = 0x19,        /* matches ASN_DOMAIN_COMPONENT in asn.h */
+    NID_jurisdictionCountryName = 0xc,
+    NID_jurisdictionStateOrProvinceName = 0xd,
+    NID_businessCategory = ASN_BUS_CAT,
+    NID_domainComponent = ASN_DOMAIN_COMPONENT,
     NID_emailAddress = 0x30,           /* emailAddress */
     NID_id_on_dnsSRV = 82,             /* 1.3.6.1.5.5.7.8.7 */
     NID_ms_upn = 265,                  /* 1.3.6.1.4.1.311.20.2.3 */

@@ -27953,18 +27953,39 @@ static void test_wolfSSL_EVP_PKEY_assign(void)
 
 static void test_wolfSSL_OBJ_ln(void)
 {
-    int i = 0, maxIdx = 7;
-    const int nid_set[] = {NID_commonName,NID_countryName,NID_localityName,
-                           NID_stateOrProvinceName,NID_organizationName,
-                           NID_organizationalUnitName,NID_emailAddress};
-    const char* ln_set[] = {WOLFSSL_LN_COMMON_NAME,WOLFSSL_LN_COUNTRY_NAME,
-                            WOLFSSL_LN_LOCALITY_NAME,WOLFSSL_LN_STATE_NAME,
-                            WOLFSSL_LN_ORG_NAME,WOLFSSL_LN_ORGUNIT_NAME,
-                            WOLFSSL_EMAIL_ADDR};
+    const int nid_set[] = {
+            NID_commonName,
+            NID_serialNumber,
+            NID_countryName,
+            NID_localityName,
+            NID_stateOrProvinceName,
+            NID_organizationName,
+            NID_organizationalUnitName,
+            NID_domainComponent,
+            NID_businessCategory,
+            NID_jurisdictionCountryName,
+            NID_jurisdictionStateOrProvinceName,
+            NID_emailAddress
+    };
+    const char* ln_set[] = {
+            "commonName",
+            "serialNumber",
+            "countryName",
+            "localityName",
+            "stateOrProvinceName",
+            "organizationName",
+            "organizationalUnitName",
+            "domainComponent",
+            "businessCategory",
+            "jurisdictionCountryName",
+            "jurisdictionStateOrProvinceName",
+            "emailAddress",
+    };
+    int i = 0, maxIdx = sizeof(ln_set)/sizeof(char*);
 
     printf(testingFmt, "wolfSSL_OBJ_ln");
 
-    AssertIntEQ(OBJ_ln2nid(NULL), BAD_FUNC_ARG);
+    AssertIntEQ(OBJ_ln2nid(NULL), NID_undef);
 
 #ifdef HAVE_ECC
     {

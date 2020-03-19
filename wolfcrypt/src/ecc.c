@@ -1141,6 +1141,7 @@ const ecc_set_type ecc_sets[] = {
     }
 };
 #define ECC_SET_COUNT   (sizeof(ecc_sets)/sizeof(ecc_set_type))
+const size_t ecc_sets_count = ECC_SET_COUNT - 1;
 
 
 #ifdef HAVE_OID_ENCODING
