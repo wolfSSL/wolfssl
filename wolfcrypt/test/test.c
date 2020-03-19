@@ -10630,6 +10630,31 @@ int cert_test(void)
     if (ret != 0) {
         ERROR_OUT(-7204, done);
     }
+    FreeDecodedCert(&cert);
+
+    /* Certificate with Netscape Certificate Type extension. */
+#ifdef FREESCALE_MQX
+    file = XFOPEN(".\\certs\\test\\cert-ext-nct.der", "rb");
+#else
+    file = XFOPEN("./certs/test/cert-ext-nct.der", "rb");
+#endif
+    if (!file) {
+        ERROR_OUT(-7203, done);
+    }
+    bytes = XFREAD(tmp, 1, FOURK_BUF, file);
+    XFCLOSE(file);
+    InitDecodedCert(&cert, tmp, (word32)bytes, 0);
+    ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+#ifndef IGNORE_NETSCAPE_CERT_TYPE
+    if (ret != 0) {
+        ERROR_OUT(-7204, done);
+    }
+#else
+    if (ret != ASN_CRIT_EXT_E) {
+        ERROR_OUT(-7205, done);
+    }
+    ret = 0;
+#endif
 
 done:
     FreeDecodedCert(&cert);

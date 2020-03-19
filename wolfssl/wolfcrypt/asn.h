@@ -502,7 +502,8 @@ enum Extensions_Sum {
     POLICY_MAP_OID            = 147,
     POLICY_CONST_OID          = 150,
     ISSUE_ALT_NAMES_OID       = 132,
-    TLS_FEATURE_OID           = 92   /* id-pe 24 */
+    TLS_FEATURE_OID           = 92,  /* id-pe 24 */
+    NETSCAPE_CT_OID           = 753  /* 2.16.840.1.113730.1.1 */
 };
 
 enum CertificatePolicy_Sum {

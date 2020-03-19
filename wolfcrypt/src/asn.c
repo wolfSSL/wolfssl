@@ -8917,6 +8917,17 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 WOLFSSL_MSG("Inhibit anyPolicy extension not supported yet.");
                 break;
 
+       #ifndef IGNORE_NETSCAPE_CERT_TYPE
+            case NETSCAPE_CT_OID:
+                WOLFSSL_MSG("Netscape certificate type extension not supported "
+                            "yet.");
+                if (CheckBitString(input, &idx, &length, idx + length, 0,
+                                                                    NULL) < 0) {
+                    return ASN_PARSE_E;
+                }
+                break;
+        #endif
+
             default:
             #ifndef WOLFSSL_NO_ASN_STRICT
                 /* While it is a failure to not support critical extensions,
