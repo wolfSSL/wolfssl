@@ -795,7 +795,6 @@ int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
                 }
                 else {
                     XMEMCPY(&sdBuf[idx], ar, tmpSz);
-                    idx += tmpSz;
                 }
             }
             totalSz += sdBufSz;
@@ -1889,9 +1888,9 @@ static byte* PKCS12_create_key_content(WC_PKCS12* pkcs12, int nidKey,
     word32 tmpSz;
     int ret;
     int algo;
+    void* heap;
 
-    void* heap = wc_PKCS12_GetHeap(pkcs12);
-
+    heap = wc_PKCS12_GetHeap(pkcs12);
     *keyCiSz = 0;
     switch (nidKey) {
         case PBE_SHA1_RC4_128:
@@ -1987,6 +1986,7 @@ static byte* PKCS12_create_key_content(WC_PKCS12* pkcs12, int nidKey,
     }
     #endif
 
+    (void)heap;
     return keyCi;
 }
 
@@ -2009,8 +2009,9 @@ static byte* PKCS12_create_cert_content(WC_PKCS12* pkcs12, int nidCert,
     word32 tmpSz;
 
     byte* certCi;
-    void* heap = wc_PKCS12_GetHeap(pkcs12);
+    void* heap;
 
+    heap = wc_PKCS12_GetHeap(pkcs12);
     switch (nidCert) {
         case PBE_SHA1_RC4_128:
             type = WC_PKCS12_ENCRYPTED_DATA;
@@ -2133,6 +2134,7 @@ static byte* PKCS12_create_cert_content(WC_PKCS12* pkcs12, int nidCert,
     }
     #endif
 
+    (void)heap;
     return certCi;
 }
 
@@ -2171,6 +2173,7 @@ static int PKCS12_create_safe(WC_PKCS12* pkcs12, byte* certCi, word32 certCiSz,
     innerData = (byte*)XMALLOC(innerDataSz, pkcs12->heap, DYNAMIC_TYPE_PKCS);
     if (innerData == NULL) {
         WOLFSSL_MSG("Error malloc'ing inner data buffer");
+        XFREE(safeData, pkcs12->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
     idx  = 0;
