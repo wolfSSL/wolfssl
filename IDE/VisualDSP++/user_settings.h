@@ -52,7 +52,7 @@ extern "C" {
 #define SIZEOF_LONG_LONG 8
 
 #undef USE_FAST_MATH
-#if 1
+#if 0
     #define USE_FAST_MATH
 
     #undef  TFM_TIMING_RESISTANT
@@ -338,7 +338,7 @@ extern "C" {
 
 /* MD5 */
 #undef  NO_MD5
-#if 0
+#if 1
 
 #else
     #define NO_MD5
@@ -383,7 +383,7 @@ extern "C" {
 #if 0
     #define DEBUG_WOLFSSL
 #else
-    #if 1
+    #if 0
         #define NO_ERROR_STRINGS
     #endif
 #endif
@@ -466,8 +466,6 @@ extern "C" {
 	extern unsigned int my_rng_seed_gen(void);
 	#undef  CUSTOM_RAND_GENERATE
 	#define CUSTOM_RAND_GENERATE  my_rng_seed_gen
-#else
-	#define WOLFSSL_GENSEED_FORTEST
 #endif
 
 /* Choose RNG method */
@@ -534,7 +532,7 @@ extern "C" {
 #endif
 
 #undef WOLFSSL_KEY_GEN
-#if 0
+#if 1
     #define WOLFSSL_KEY_GEN
 #endif
 
@@ -599,7 +597,7 @@ extern "C" {
 #define NO_MAIN_DRIVER
 
 #undef  NO_DEV_RANDOM
-#define NO_DEV_RANDOM
+//#define NO_DEV_RANDOM
 
 #undef  NO_DSA
 #define NO_DSA
@@ -637,13 +635,6 @@ extern "C" {
 #undef  NO_SIG_WRAPPER
 //#define NO_SIG_WRAPPER
 
-#include <builtins.h>
-#undef WOLFSSL_HAVE_MAX
-#define WOLFSSL_HAVE_MAX
-
-#undef WOLFSSL_HAVE_MIN
-#define WOLFSSL_HAVE_MIN
-
 #undef NO_MAIN_DRIVER
 #define NO_MAIN_DRIVER
 
@@ -652,40 +643,52 @@ extern "C" {
 
 #ifdef BLACKFIN_BUILD
 
-#include <fss_telnet_shell.h>
+    #include <builtins.h>
+	
+    #undef WOLFSSL_HAVE_MAX
+    #define WOLFSSL_HAVE_MAX
+	
+	#undef WOLFSSL_HAVE_MIN
+    #define WOLFSSL_HAVE_MIN
 
-/* added in wolfcrypt/src/wc_port.c under BLACKFIN_BUILD
- * Maybe change define to be for FCL_SUPPORT_BUILD or something more
- * in keeping with the solution. */
-extern int strncasecmp(const char* s1, const char* s2, unsigned int n);
-#undef XSTRNCASECMP
-#define XSTRNCASECMP(a,b,c) strncasecmp((a),(b),(c))
+    #include <fss_telnet_shell.h>
 
-#define XMALLOC_OVERRIDE // Need to use FCL stdlib instead of stdlib.h
-//#include <fclstdlib.h>
-extern void *          fclMalloc   (unsigned int size);
-extern void            fclFree     (void * memoryPointer);
-#define XMALLOC(a, b, c) fclMalloc(a)
-#define XFREE(a, b, c) fclFree(a)
+    /* Temporary for now, will want to test using cert files eventually */
+	#define USE_CERT_BUFFERS_2048
+	#define USE_CERT_BUFFERS_256
 
-/*************************************************************
- * wolfSSL testing
- */
+    /* added in wolfcrypt/src/wc_port.c under BLACKFIN_BUILD
+     * Maybe change define to be for FCL_SUPPORT_BUILD or something more
+     * in keeping with the solution. */
+    extern int strncasecmp(const char* s1, const char* s2, unsigned int n);
+    #undef XSTRNCASECMP
+    #define XSTRNCASECMP(a,b,c) strncasecmp((a),(b),(c))
 
- typedef struct wolfArgs {
- 	int argc;
- 	char** argv;
- 	int return_code;
- 	struct fssShellInfo* info;	
- } wolfArgs;
+    #define XMALLOC_OVERRIDE /* Need to use FCL stdlib instead of stdlib.h */
+	
+    extern void *          fclMalloc   (unsigned int size);
+    extern void            fclFree     (void * memoryPointer);
+	extern void *          fclRealloc  (void * memoryPointer, unsigned int size);
+    #define XMALLOC(a, b, c) fclMalloc(a)
+    #define XFREE(a, b, c) fclFree(a)
+	#define XREALLOC(a, b, c, d) fclRealloc(a, b)
 
-static fssShellInfo* wolfInfo;
+    /*************************************************************
+     * wolfSSL testing
+     */
+	
+    typedef struct wolfArgs {
+ 	    int argc;
+ 	    char** argv;
+ 	    int return_code;
+ 	    struct fssShellInfo* info;	
+    } wolfArgs;
 
-extern int fssShellPrintf(struct fssShellInfo* info, const char* fmt, ...);
-#define printf(format, ...) fssShellPrintf(wolfInfo, format, ## __VA_ARGS__)
+    static fssShellInfo* wolfInfo;
 
-// extern void UARTprintf(const char *format, ...);
-// #define printf(format, ...) UARTprintf(format"\r", ## __VA_ARGS__)
+    extern int fssShellPrintf(struct fssShellInfo* info, const char* fmt, ...);
+    #define printf(format, ...) fssShellPrintf(wolfInfo, format"\r", ## __VA_ARGS__)
+
 #endif /* BLACKFIN_BUILD */
 
 #ifdef __cplusplus

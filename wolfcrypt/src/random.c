@@ -155,6 +155,7 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #elif defined(WOLFSSL_PB)
 #elif defined(WOLFSSL_ZEPHYR)
 #elif defined(WOLFSSL_TELIT_M2MB)
+#elif defined(BLACKFIN_BUILD)
 #elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_TRNG)
 #else
     /* include headers that may be needed to get good seed */
@@ -2437,6 +2438,24 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                 output[i] = rand() % 256;
                 if ((i % 8) == 7) {
                     srand(get_timestamp());
+                }
+            }
+            return 0;
+        }
+
+#elif defined(BLACKFIN_BUILD)
+        /* 
+         * implementation is modeled after the solution in
+         * fusion_OT_3_5_0\security\upki\crypto\encrypt_util.c(176)
+         */
+        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+        {
+            int i;
+            srand((unsigned int) time(0));
+            for (i = 0; i < sz; i++ ) {
+                output[i] = (byte) (rand() % 256);
+                if ((i % 8) == 7) {
+                    srand((unsigned int) time(0));
                 }
             }
             return 0;
