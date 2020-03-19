@@ -1188,7 +1188,7 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
     m += RSA_PSS_PAD_SZ;
     XMEMCPY(m, input, inputLen);
     m += inputLen;
-
+    o = 0;
     ret = wc_RNG_GenerateBlock(rng, salt, saltLen);
     if (ret == 0) {
         XMEMCPY(m, salt, saltLen);
