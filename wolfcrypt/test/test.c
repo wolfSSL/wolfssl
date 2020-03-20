@@ -20,12 +20,6 @@
  */
 
 
- int TestFoo(int x, int y)
- {
- 	return (x + y);
- }
- 
- 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
