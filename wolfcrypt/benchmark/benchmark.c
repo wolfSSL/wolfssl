@@ -5979,6 +5979,28 @@ exit_ed_verify:
         (void)reset;
         return (double) tx_time_get() / TX_TIMER_TICKS_PER_SECOND;
     }
+
+#elif defined(WOLFSSL_XILINX)
+    #ifndef XPAR_CPU_CORTEXA53_0_TIMESTAMP_CLK_FREQ
+    #define XPAR_CPU_CORTEXA53_0_TIMESTAMP_CLK_FREQ 50000000
+    #endif
+    #ifndef COUNTS_PER_SECOND
+    #define COUNTS_PER_SECOND     XPAR_CPU_CORTEXA53_0_TIMESTAMP_CLK_FREQ
+    #endif
+
+    double current_time(int reset)
+    {
+        double timer;
+        uint64_t cntPct = 0;
+        asm volatile("mrs %0, CNTPCT_EL0" : "=r" (cntPct));
+
+        /* Convert to milliseconds */
+        timer = (double)(cntPct / (COUNTS_PER_SECOND / 1000));
+        /* Convert to seconds.millisecond */
+        timer /= 1000;
+        return timer;
+    }
+
 #else
 
     #include <sys/time.h>
