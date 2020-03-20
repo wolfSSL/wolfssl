@@ -1268,6 +1268,7 @@ static void bench_stats_asym_finish(const char* algo, int strength,
     double total, each = 0, opsSec, milliEach;
     const char **word = bench_result_words2[lng_index];
     const char* kOpsSec = "Ops/Sec";
+    char msg[128] = {0};
 
     total = current_time(0) - start;
     if (count > 0)
@@ -1283,12 +1284,13 @@ static void bench_stats_asym_finish(const char* algo, int strength,
             printf("Algorithm,avg ms,ops/sec,\n");
             csv_header_count++;
         }
-        printf("%s %d %s,%.3f,%.3f,\n", algo, strength, desc, milliEach, opsSec);
+        XSNPRINTF(msg, sizeof(msg), "%s %d %s,%.3f,%.3f,\n", algo, strength, desc, milliEach, opsSec);
     } else {
-        printf("%-6s %5d %-9s %s %6d %s %5.3f %s, %s %5.3f ms,"
+        XSNPRINTF(msg, sizeof(msg), "%-6s %5d %-9s %s %6d %s %5.3f %s, %s %5.3f ms,"
         " %.3f %s\n", algo, strength, desc, BENCH_ASYNC_GET_NAME(doAsync),
         count, word[0], total, word[1], word[2], milliEach, opsSec, word[3]);
     }
+    printf("%s", msg);
 
     /* show errors */
     if (ret < 0) {
