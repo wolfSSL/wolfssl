@@ -2136,7 +2136,7 @@ static void test_ECDSA_size_sign(void)
     id = wc_ecc_get_curve_id_from_name("SECP256R1");
     AssertIntEQ(id, ECC_SECP256R1);
 
-    AssertNotNull(key = wolfSSL_EC_KEY_new_by_curve_name(id));
+    AssertNotNull(key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
     AssertIntEQ(EC_KEY_generate_key(key), 1);
     AssertIntEQ(ECDSA_sign(0, hash, sizeof(hash), sig, &sigSz, key), 1);
     AssertIntGE(ECDSA_size(key), sigSz);
@@ -32246,10 +32246,10 @@ static void test_wc_ecc_get_curve_id_from_dp_params(void)
         id = wc_ecc_get_curve_id_from_name("SECP256R1");
         AssertIntEQ(id, ECC_SECP256R1);
 
-        ecKey = wolfSSL_EC_KEY_new_by_curve_name(id);
+        ecKey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
         AssertNotNull(ecKey);
 
-        ret = wolfSSL_EC_KEY_generate_key(ecKey);
+        ret = EC_KEY_generate_key(ecKey);
 
         if (ret == 0) {
             /* normal test */

@@ -31855,14 +31855,8 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_by_curve_name(int nid)
 {
     WOLFSSL_EC_KEY *key;
     int x;
-    int eccEnum;
 
     WOLFSSL_ENTER("wolfSSL_EC_KEY_new_by_curve_name");
-
-    /* If NID passed in is OpenSSL type, convert it to ecc_curve_id enum */
-    eccEnum = NIDToEccEnum(nid);
-    if (eccEnum == -1)
-        eccEnum = nid;
 
     key = wolfSSL_EC_KEY_new();
     if (key == NULL) {
@@ -31871,7 +31865,7 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_by_curve_name(int nid)
     }
 
     /* set the nid of the curve */
-    key->group->curve_nid = eccEnum;
+    key->group->curve_nid = nid;
 
     /* search and set the corresponding internal curve idx */
     for (x = 0; ecc_sets[x].size != 0; x++)
@@ -32117,8 +32111,11 @@ int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
         return 0;
     }
 
+    /* NIDToEccEnum return -1 for invalid NID so if key->group->curve_nid
+     * is 0 then pass 0 as arg */
     if (wc_ecc_make_key_ex(rng, 0, (ecc_key*)key->internal,
-                                        key->group->curve_nid) != MP_OKAY) {
+            key->group->curve_nid ? NIDToEccEnum(key->group->curve_nid) : 0
+            ) != MP_OKAY) {
         WOLFSSL_MSG("wolfSSL_EC_KEY_generate_key wc_ecc_make_key failed");
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
