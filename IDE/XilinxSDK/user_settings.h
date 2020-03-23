@@ -74,6 +74,24 @@ extern unsigned char my_rng_seed_gen(void);
 #define TFM_ECC256
 #define ECC_SHAMIR
 
+/* DH */
+#undef NO_DH
+#define WOLFSSL_DH_CONST
+#define HAVE_FFDHE_2048
+#define HAVE_FFDHE_4096
+
+/* Curve25519 / Ed25519 */
+#define HAVE_CURVE25519
+#define HAVE_ED25519 /* ED25519 Requires SHA512 */
+/* 25519 assumes UINT128_T is available for Aarch64 */
+#ifndef HAVE___UINT128_T
+#define HAVE___UINT128_T
+#endif
+
+/* ChaCha20 / Poly1305 */
+#define HAVE_CHACHA
+#define HAVE_POLY1305
+
 /* AES-GCM Only */
 #define NO_AES_CBC
 #define HAVE_AESGCM
@@ -84,12 +102,10 @@ extern unsigned char my_rng_seed_gen(void);
 #define WOLFSSL_SHA3
 #define WOLFSSL_NO_HASH_RAW /* not supported with ARMASM */
 
-/* ChaCha20 / Poly1305 */
-#define HAVE_CHACHA
-#define HAVE_POLY1305
+/* HKDF */
+#define HAVE_HKDF
 
 /* Disable Algorithms */
-#define NO_DH
 #define NO_DSA
 #define NO_RC4
 #define NO_MD4
