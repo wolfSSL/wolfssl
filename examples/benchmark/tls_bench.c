@@ -107,9 +107,11 @@ bench_tls(args);
 
 #ifdef WOLFSSL_DTLS
     #ifdef BENCH_EMBEDDED
-        #define TEST_DTLS_PACKET_SIZE   (2 * 1024 - 100)
+        /* less than WOLFSSL_MAX_MTU */
+        #define TEST_DTLS_PACKET_SIZE   (2 * 1024)
     #else
-        #define TEST_DTLS_PACKET_SIZE   (8192 - 100)
+        /* MAX_UDP_SIZE in interna.h */
+        #define TEST_DTLS_PACKET_SIZE   (8092)
     #endif
 #endif
 
@@ -317,7 +319,10 @@ typedef struct {
 /* Global vars for argument parsing */
 int myoptind = 0;
 char* myoptarg = NULL;
+
+#ifdef WOLFSSL_DTLS
 int DoneHandShake = 0;
+#endif
 
 static double gettime_secs(int reset)
 {
@@ -681,8 +686,9 @@ static void CloseAndCleanupSocket(int* sockFd)
         close(*sockFd);
         *sockFd = -1;
     }
-
+#ifdef WOLFSSL_DTLS
     DoneHandShake = 0;
+#endif
 }
 
 #ifdef BENCH_USE_NONBLOCK
