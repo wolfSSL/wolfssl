@@ -30958,7 +30958,8 @@ void *wolfSSL_OPENSSL_malloc(size_t a)
 #if defined(WOLFSSL_KEY_GEN) && defined(WOLFSSL_PEM_TO_DER)
 
 static int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
-                         unsigned char* passwd, int passwdSz, byte **cipherInfo)
+                         unsigned char* passwd, int passwdSz, byte **cipherInfo,
+                         int maxDerSz)
 {
     int ret, paddingSz;
     word32 idx, cipherInfoSz;
@@ -31011,6 +31012,13 @@ static int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
     paddingSz = ((*derSz)/info->ivSz + 1) * info->ivSz - (*derSz);
     if (paddingSz == 0)
         paddingSz = info->ivSz;
+    if (maxDerSz < *derSz + paddingSz) {
+        WOLFSSL_MSG("not enough DER buffer allocated");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(info, NULL, DYNAMIC_TYPE_ENCRYPTEDINFO);
+#endif
+        return WOLFSSL_FAILURE;
+    }
     XMEMSET(der+(*derSz), (byte)paddingSz, paddingSz);
     (*derSz) += paddingSz;
 
@@ -31456,9 +31464,20 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
     /* encrypt DER buffer if required */
     if (passwd != NULL && passwdSz > 0 && cipher != NULL) {
         int ret;
+        int blockSz = wolfSSL_EVP_CIPHER_block_size(cipher);
+        byte *tmpBuf;
+
+        /* Add space for padding */
+        if (!(tmpBuf = XREALLOC(derBuf, derSz + blockSz, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER))) {
+            WOLFSSL_MSG("Extending DER buffer failed");
+            XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
+            return WOLFSSL_FAILURE;
+        }
+        derBuf = tmpBuf;
 
         ret = EncryptDerKey(derBuf, &derSz, cipher,
-                            passwd, passwdSz, &cipherInfo);
+                            passwd, passwdSz, &cipherInfo, derSz + blockSz);
         if (ret != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("EncryptDerKey failed");
             XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
@@ -31687,7 +31706,7 @@ int SetECKeyExternal(WOLFSSL_EC_KEY* eckey)
 
     /* set group (OID, nid and idx) */
     eckey->group->curve_oid = ecc_sets[key->idx].oidSum;
-    eckey->group->curve_nid = ecc_sets[key->idx].id;
+    eckey->group->curve_nid = EccEnumToNID(ecc_sets[key->idx].id);
     eckey->group->curve_idx = key->idx;
 
     if (eckey->pub_key->internal != NULL) {
@@ -31855,6 +31874,7 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_by_curve_name(int nid)
 {
     WOLFSSL_EC_KEY *key;
     int x;
+    int eccEnum = NIDToEccEnum(nid);
 
     WOLFSSL_ENTER("wolfSSL_EC_KEY_new_by_curve_name");
 
@@ -31867,13 +31887,15 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_by_curve_name(int nid)
     /* set the nid of the curve */
     key->group->curve_nid = nid;
 
-    /* search and set the corresponding internal curve idx */
-    for (x = 0; ecc_sets[x].size != 0; x++)
-        if (ecc_sets[x].id == key->group->curve_nid) {
-            key->group->curve_idx = x;
-            key->group->curve_oid = ecc_sets[x].oidSum;
-            break;
-        }
+    if (eccEnum != -1) {
+        /* search and set the corresponding internal curve idx */
+        for (x = 0; ecc_sets[x].size != 0; x++)
+            if (ecc_sets[x].id == eccEnum) {
+                key->group->curve_idx = x;
+                key->group->curve_oid = ecc_sets[x].oidSum;
+                break;
+            }
+    }
 
     return key;
 }
@@ -32111,7 +32133,7 @@ int wolfSSL_EC_KEY_generate_key(WOLFSSL_EC_KEY *key)
         return 0;
     }
 
-    /* NIDToEccEnum return -1 for invalid NID so if key->group->curve_nid
+    /* NIDToEccEnum returns -1 for invalid NID so if key->group->curve_nid
      * is 0 then pass 0 as arg */
     if (wc_ecc_make_key_ex(rng, 0, (ecc_key*)key->internal,
             key->group->curve_nid ? NIDToEccEnum(key->group->curve_nid) : 0
@@ -32476,9 +32498,6 @@ WOLFSSL_EC_GROUP *wolfSSL_EC_GROUP_new_by_curve_name(int nid)
 
     /* If NID passed in is OpenSSL type, convert it to ecc_curve_id enum */
     eccEnum = NIDToEccEnum(nid);
-    if (eccEnum == -1)
-        eccEnum = nid;
-
 
     /* curve group */
     g = (WOLFSSL_EC_GROUP*) XMALLOC(sizeof(WOLFSSL_EC_GROUP), NULL,
@@ -32490,12 +32509,12 @@ WOLFSSL_EC_GROUP *wolfSSL_EC_GROUP_new_by_curve_name(int nid)
     XMEMSET(g, 0, sizeof(WOLFSSL_EC_GROUP));
 
     /* set the nid of the curve */
-    g->curve_nid = eccEnum;
+    g->curve_nid = nid;
 
-    if (eccEnum > ECC_CURVE_DEF) {
+    if (eccEnum != -1) {
         /* search and set the corresponding internal curve idx */
         for (x = 0; ecc_sets[x].size != 0; x++)
-            if (ecc_sets[x].id == g->curve_nid) {
+            if (ecc_sets[x].id == eccEnum) {
                 g->curve_idx = x;
                 g->curve_oid = ecc_sets[x].oidSum;
                 break;
@@ -33942,7 +33961,7 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ecc,
         int ret;
 
         ret = EncryptDerKey(derBuf, &derSz, cipher,
-                            passwd, passwdSz, &cipherInfo);
+                            passwd, passwdSz, &cipherInfo, der_max_len);
         if (ret != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("EncryptDerKey failed");
             XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
@@ -34252,7 +34271,7 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
         int ret;
 
         ret = EncryptDerKey(derBuf, &derSz, cipher,
-                            passwd, passwdSz, &cipherInfo);
+                            passwd, passwdSz, &cipherInfo, der_max_len);
         if (ret != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("EncryptDerKey failed");
             XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
