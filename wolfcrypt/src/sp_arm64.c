@@ -5023,10 +5023,10 @@ static int sp_2048_to_mp(const sp_digit* a, mp_int* r)
 
         r->dp[0] = 0;
         for (i = 0; i < 32; i++) {
-            r->dp[j] |= a[i] << s;
+            r->dp[j] |= (mp_digit)(a[i] << s);
             r->dp[j] &= (1L << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
-            r->dp[++j] = a[i] >> s;
+            r->dp[++j] = (mp_digit)(a[i] >> s);
             while (s + DIGIT_BIT <= 64) {
                 s += DIGIT_BIT;
                 r->dp[j++] &= (1L << DIGIT_BIT) - 1;
@@ -5034,7 +5034,7 @@ static int sp_2048_to_mp(const sp_digit* a, mp_int* r)
                     r->dp[j] = 0;
                 }
                 else {
-                    r->dp[j] = a[i] >> s;
+                    r->dp[j] = (mp_digit)(a[i] >> s);
                 }
             }
             s = 64 - s;
@@ -12500,10 +12500,10 @@ static int sp_3072_to_mp(const sp_digit* a, mp_int* r)
 
         r->dp[0] = 0;
         for (i = 0; i < 48; i++) {
-            r->dp[j] |= a[i] << s;
+            r->dp[j] |= (mp_digit)(a[i] << s);
             r->dp[j] &= (1L << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
-            r->dp[++j] = a[i] >> s;
+            r->dp[++j] = (mp_digit)(a[i] >> s);
             while (s + DIGIT_BIT <= 64) {
                 s += DIGIT_BIT;
                 r->dp[j++] &= (1L << DIGIT_BIT) - 1;
@@ -12511,7 +12511,7 @@ static int sp_3072_to_mp(const sp_digit* a, mp_int* r)
                     r->dp[j] = 0;
                 }
                 else {
-                    r->dp[j] = a[i] >> s;
+                    r->dp[j] = (mp_digit)(a[i] >> s);
                 }
             }
             s = 64 - s;
@@ -29968,10 +29968,10 @@ static int sp_4096_to_mp(const sp_digit* a, mp_int* r)
 
         r->dp[0] = 0;
         for (i = 0; i < 64; i++) {
-            r->dp[j] |= a[i] << s;
+            r->dp[j] |= (mp_digit)(a[i] << s);
             r->dp[j] &= (1L << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
-            r->dp[++j] = a[i] >> s;
+            r->dp[++j] = (mp_digit)(a[i] >> s);
             while (s + DIGIT_BIT <= 64) {
                 s += DIGIT_BIT;
                 r->dp[j++] &= (1L << DIGIT_BIT) - 1;
@@ -29979,7 +29979,7 @@ static int sp_4096_to_mp(const sp_digit* a, mp_int* r)
                     r->dp[j] = 0;
                 }
                 else {
-                    r->dp[j] = a[i] >> s;
+                    r->dp[j] = (mp_digit)(a[i] >> s);
                 }
             }
             s = 64 - s;
@@ -30730,7 +30730,7 @@ static int sp_256_point_new_ex_4(void* heap, sp_point_256* sp, sp_point_256** p)
 #else
     *p = sp;
 #endif
-    if (*p == NULL) {
+    if (p == NULL) {
         ret = MEMORY_E;
     }
     return ret;
@@ -30949,10 +30949,10 @@ static int sp_256_to_mp(const sp_digit* a, mp_int* r)
 
         r->dp[0] = 0;
         for (i = 0; i < 4; i++) {
-            r->dp[j] |= a[i] << s;
+            r->dp[j] |= (mp_digit)(a[i] << s);
             r->dp[j] &= (1L << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
-            r->dp[++j] = a[i] >> s;
+            r->dp[++j] = (mp_digit)(a[i] >> s);
             while (s + DIGIT_BIT <= 64) {
                 s += DIGIT_BIT;
                 r->dp[j++] &= (1L << DIGIT_BIT) - 1;
@@ -30960,7 +30960,7 @@ static int sp_256_to_mp(const sp_digit* a, mp_int* r)
                     r->dp[j] = 0;
                 }
                 else {
-                    r->dp[j] = a[i] >> s;
+                    r->dp[j] = (mp_digit)(a[i] >> s);
                 }
             }
             s = 64 - s;
@@ -48544,7 +48544,7 @@ static int sp_384_point_new_ex_6(void* heap, sp_point_384* sp, sp_point_384** p)
 #else
     *p = sp;
 #endif
-    if (*p == NULL) {
+    if (p == NULL) {
         ret = MEMORY_E;
     }
     return ret;
@@ -48816,10 +48816,10 @@ static int sp_384_to_mp(const sp_digit* a, mp_int* r)
 
         r->dp[0] = 0;
         for (i = 0; i < 6; i++) {
-            r->dp[j] |= a[i] << s;
+            r->dp[j] |= (mp_digit)(a[i] << s);
             r->dp[j] &= (1L << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
-            r->dp[++j] = a[i] >> s;
+            r->dp[++j] = (mp_digit)(a[i] >> s);
             while (s + DIGIT_BIT <= 64) {
                 s += DIGIT_BIT;
                 r->dp[j++] &= (1L << DIGIT_BIT) - 1;
@@ -48827,7 +48827,7 @@ static int sp_384_to_mp(const sp_digit* a, mp_int* r)
                     r->dp[j] = 0;
                 }
                 else {
-                    r->dp[j] = a[i] >> s;
+                    r->dp[j] = (mp_digit)(a[i] >> s);
                 }
             }
             s = 64 - s;
