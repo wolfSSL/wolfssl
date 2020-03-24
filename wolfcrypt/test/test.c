@@ -19,7 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -233,6 +232,10 @@
     #if !defined(USE_CERT_BUFFERS_256)
         #define USE_CERT_BUFFERS_256
     #endif
+#endif
+
+#if defined(USE_CERT_BUFFERS_2048) || defined(USE_CERT_BUFFERS_256)
+#error "dont want cert buffers"
 #endif
 
 #if defined(WOLFSSL_CERT_GEN) && (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES))
@@ -10264,6 +10267,9 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 #elif defined(WOLFSSL_uTKERNEL2)
     #define CERT_PREFIX "/uda/"
     #define CERT_PATH_SEP "/"
+#elif defined(BLACKFIN_BUILD)
+    #define CERT_PREFIX "C:\\"
+    #define CERT_PATH_SEP "\\"
 #else
     #define CERT_PREFIX "./"
     #define CERT_PATH_SEP "/"

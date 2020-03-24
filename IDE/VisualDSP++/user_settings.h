@@ -52,7 +52,7 @@ extern "C" {
 #define SIZEOF_LONG_LONG 8
 
 #undef USE_FAST_MATH
-#if 0
+#if 1
     #define USE_FAST_MATH
 
     #undef  TFM_TIMING_RESISTANT
@@ -66,7 +66,7 @@ extern "C" {
 #undef WOLFSSL_SP
 #if 0
     #define WOLFSSL_SP
-    #define WOLFSSL_SP_SMALL      /* use smaller version of code */
+    //#define WOLFSSL_SP_SMALL      /* use smaller version of code */
     #define WOLFSSL_HAVE_SP_RSA
     #define WOLFSSL_HAVE_SP_DH
     #define WOLFSSL_HAVE_SP_ECC
@@ -588,10 +588,10 @@ extern "C" {
 //#define NO_INLINE
 
 #undef  NO_FILESYSTEM
-#define NO_FILESYSTEM
+//#define NO_FILESYSTEM
 
 #undef  NO_WRITEV
-#define NO_WRITEV
+//#define NO_WRITEV
 
 #undef  NO_MAIN_DRIVER
 #define NO_MAIN_DRIVER
@@ -654,8 +654,8 @@ extern "C" {
     #include <fss_telnet_shell.h>
 
     /* Temporary for now, will want to test using cert files eventually */
-	#define USE_CERT_BUFFERS_2048
-	#define USE_CERT_BUFFERS_256
+	//#define USE_CERT_BUFFERS_2048
+	//#define USE_CERT_BUFFERS_256
 
     /* added in wolfcrypt/src/wc_port.c under BLACKFIN_BUILD
      * Maybe change define to be for FCL_SUPPORT_BUILD or something more
