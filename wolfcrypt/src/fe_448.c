@@ -575,6 +575,7 @@ void fe448_from_bytes(int64_t* r, const unsigned char* b)
  */
 void fe448_to_bytes(unsigned char* b, const int64_t* a)
 {
+    int128_t t;
     /* Mod */
     int64_t in0 = a[0];
     int64_t in1 = a[1];
@@ -599,15 +600,15 @@ void fe448_to_bytes(unsigned char* b, const int64_t* a)
     in0 += o;
     in4 += o;
     in7 -= o << 56;
-    o = in0  >> 56; in1  += o; in0  -= o << 56;
-    o = in1  >> 56; in2  += o; in1  -= o << 56;
-    o = in2  >> 56; in3  += o; in2  -= o << 56;
-    o = in3  >> 56; in4  += o; in3  -= o << 56;
-    o = in4  >> 56; in5  += o; in4  -= o << 56;
-    o = in5  >> 56; in6  += o; in5  -= o << 56;
-    o = in6  >> 56; in7  += o; in6  -= o << 56;
+    o = in0  >> 56; in1  += o; t = o << 56; in0  -= t;
+    o = in1  >> 56; in2  += o; t = o << 56; in1  -= t;
+    o = in2  >> 56; in3  += o; t = o << 56; in2  -= t;
+    o = in3  >> 56; in4  += o; t = o << 56; in3  -= t;
+    o = in4  >> 56; in5  += o; t = o << 56; in4  -= t;
+    o = in5  >> 56; in6  += o; t = o << 56; in5  -= t;
+    o = in6  >> 56; in7  += o; t = o << 56; in6  -= t;
     o = in7  >> 56; in0  += o;
-                    in4  += o; in7  -= o << 56;
+                    in4  += o; t = o << 56; in7  -= t;
 
     /* Output as bytes */
     b[ 0] = (in0  >>  0);
@@ -796,6 +797,7 @@ void fe448_sub(int64_t* r, const int64_t* a, const int64_t* b)
  */
 void fe448_mul39081(int64_t* r, const int64_t* a)
 {
+    int128_t t;
     int64_t o;
     int128_t t0 = a[0] * (int128_t)39081;
     int128_t t1 = a[1] * (int128_t)39081;
@@ -805,15 +807,15 @@ void fe448_mul39081(int64_t* r, const int64_t* a)
     int128_t t5 = a[5] * (int128_t)39081;
     int128_t t6 = a[6] * (int128_t)39081;
     int128_t t7 = a[7] * (int128_t)39081;
-    o = t0  >> 56; t1  += o; t0  -= (int128_t)o << 56;
-    o = t1  >> 56; t2  += o; t1  -= (int128_t)o << 56;
-    o = t2  >> 56; t3  += o; t2  -= (int128_t)o << 56;
-    o = t3  >> 56; t4  += o; t3  -= (int128_t)o << 56;
-    o = t4  >> 56; t5  += o; t4  -= (int128_t)o << 56;
-    o = t5  >> 56; t6  += o; t5  -= (int128_t)o << 56;
-    o = t6  >> 56; t7  += o; t6  -= (int128_t)o << 56;
+    o = t0  >> 56; t1  += o; t = (int128_t)o << 56; t0  -= t;
+    o = t1  >> 56; t2  += o; t = (int128_t)o << 56; t1  -= t;
+    o = t2  >> 56; t3  += o; t = (int128_t)o << 56; t2  -= t;
+    o = t3  >> 56; t4  += o; t = (int128_t)o << 56; t3  -= t;
+    o = t4  >> 56; t5  += o; t = (int128_t)o << 56; t4  -= t;
+    o = t5  >> 56; t6  += o; t = (int128_t)o << 56; t5  -= t;
+    o = t6  >> 56; t7  += o; t = (int128_t)o << 56; t6  -= t;
     o = t7  >> 56; t0  += o;
-                   t4  += o; t7  -= (int128_t)o << 56;
+                   t4  += o; t = (int128_t)o << 56; t7  -= t;
 
     /* Store */
     r[0] = t0;
@@ -834,102 +836,120 @@ void fe448_mul39081(int64_t* r, const int64_t* a)
  */
 void fe448_mul(int64_t* r, const int64_t* a, const int64_t* b)
 {
+    int128_t t;
     int64_t o;
-    int128_t t0  = (int128_t)a[ 0] * b[ 0];
-    int128_t t1  = (int128_t)a[ 0] * b[ 1]
-                 + (int128_t)a[ 1] * b[ 0];
-    int128_t t2  = (int128_t)a[ 0] * b[ 2]
-                 + (int128_t)a[ 1] * b[ 1]
-                 + (int128_t)a[ 2] * b[ 0];
-    int128_t t3  = (int128_t)a[ 0] * b[ 3]
-                 + (int128_t)a[ 1] * b[ 2]
-                 + (int128_t)a[ 2] * b[ 1]
-                 + (int128_t)a[ 3] * b[ 0];
-    int128_t t4  = (int128_t)a[ 0] * b[ 4]
-                 + (int128_t)a[ 1] * b[ 3]
-                 + (int128_t)a[ 2] * b[ 2]
-                 + (int128_t)a[ 3] * b[ 1]
-                 + (int128_t)a[ 4] * b[ 0];
-    int128_t t5  = (int128_t)a[ 0] * b[ 5]
-                 + (int128_t)a[ 1] * b[ 4]
-                 + (int128_t)a[ 2] * b[ 3]
-                 + (int128_t)a[ 3] * b[ 2]
-                 + (int128_t)a[ 4] * b[ 1]
-                 + (int128_t)a[ 5] * b[ 0];
-    int128_t t6  = (int128_t)a[ 0] * b[ 6]
-                 + (int128_t)a[ 1] * b[ 5]
-                 + (int128_t)a[ 2] * b[ 4]
-                 + (int128_t)a[ 3] * b[ 3]
-                 + (int128_t)a[ 4] * b[ 2]
-                 + (int128_t)a[ 5] * b[ 1]
-                 + (int128_t)a[ 6] * b[ 0];
-    int128_t t7  = (int128_t)a[ 0] * b[ 7]
-                 + (int128_t)a[ 1] * b[ 6]
-                 + (int128_t)a[ 2] * b[ 5]
-                 + (int128_t)a[ 3] * b[ 4]
-                 + (int128_t)a[ 4] * b[ 3]
-                 + (int128_t)a[ 5] * b[ 2]
-                 + (int128_t)a[ 6] * b[ 1]
-                 + (int128_t)a[ 7] * b[ 0];
-    int128_t t8  = (int128_t)a[ 1] * b[ 7]
-                 + (int128_t)a[ 2] * b[ 6]
-                 + (int128_t)a[ 3] * b[ 5]
-                 + (int128_t)a[ 4] * b[ 4]
-                 + (int128_t)a[ 5] * b[ 3]
-                 + (int128_t)a[ 6] * b[ 2]
-                 + (int128_t)a[ 7] * b[ 1];
-    int128_t t9  = (int128_t)a[ 2] * b[ 7]
-                 + (int128_t)a[ 3] * b[ 6]
-                 + (int128_t)a[ 4] * b[ 5]
-                 + (int128_t)a[ 5] * b[ 4]
-                 + (int128_t)a[ 6] * b[ 3]
-                 + (int128_t)a[ 7] * b[ 2];
-    int128_t t10 = (int128_t)a[ 3] * b[ 7]
-                 + (int128_t)a[ 4] * b[ 6]
-                 + (int128_t)a[ 5] * b[ 5]
-                 + (int128_t)a[ 6] * b[ 4]
-                 + (int128_t)a[ 7] * b[ 3];
-    int128_t t11 = (int128_t)a[ 4] * b[ 7]
-                 + (int128_t)a[ 5] * b[ 6]
-                 + (int128_t)a[ 6] * b[ 5]
-                 + (int128_t)a[ 7] * b[ 4];
-    int128_t t12 = (int128_t)a[ 5] * b[ 7]
-                 + (int128_t)a[ 6] * b[ 6]
-                 + (int128_t)a[ 7] * b[ 5];
-    int128_t t13 = (int128_t)a[ 6] * b[ 7]
-                 + (int128_t)a[ 7] * b[ 6];
-    int128_t t14 = (int128_t)a[ 7] * b[ 7];
+    int128_t t0   = (int128_t)a[ 0] * b[ 0];
+    int128_t t1   = (int128_t)a[ 0] * b[ 1];
+    int128_t t101 = (int128_t)a[ 1] * b[ 0];
+    int128_t t2   = (int128_t)a[ 0] * b[ 2];
+    int128_t t102 = (int128_t)a[ 1] * b[ 1];
+    int128_t t202 = (int128_t)a[ 2] * b[ 0];
+    int128_t t3   = (int128_t)a[ 0] * b[ 3];
+    int128_t t103 = (int128_t)a[ 1] * b[ 2];
+    int128_t t203 = (int128_t)a[ 2] * b[ 1];
+    int128_t t303 = (int128_t)a[ 3] * b[ 0];
+    int128_t t4   = (int128_t)a[ 0] * b[ 4];
+    int128_t t104 = (int128_t)a[ 1] * b[ 3];
+    int128_t t204 = (int128_t)a[ 2] * b[ 2];
+    int128_t t304 = (int128_t)a[ 3] * b[ 1];
+    int128_t t404 = (int128_t)a[ 4] * b[ 0];
+    int128_t t5   = (int128_t)a[ 0] * b[ 5];
+    int128_t t105 = (int128_t)a[ 1] * b[ 4];
+    int128_t t205 = (int128_t)a[ 2] * b[ 3];
+    int128_t t305 = (int128_t)a[ 3] * b[ 2];
+    int128_t t405 = (int128_t)a[ 4] * b[ 1];
+    int128_t t505 = (int128_t)a[ 5] * b[ 0];
+    int128_t t6   = (int128_t)a[ 0] * b[ 6];
+    int128_t t106 = (int128_t)a[ 1] * b[ 5];
+    int128_t t206 = (int128_t)a[ 2] * b[ 4];
+    int128_t t306 = (int128_t)a[ 3] * b[ 3];
+    int128_t t406 = (int128_t)a[ 4] * b[ 2];
+    int128_t t506 = (int128_t)a[ 5] * b[ 1];
+    int128_t t606 = (int128_t)a[ 6] * b[ 0];
+    int128_t t7   = (int128_t)a[ 0] * b[ 7];
+    int128_t t107 = (int128_t)a[ 1] * b[ 6];
+    int128_t t207 = (int128_t)a[ 2] * b[ 5];
+    int128_t t307 = (int128_t)a[ 3] * b[ 4];
+    int128_t t407 = (int128_t)a[ 4] * b[ 3];
+    int128_t t507 = (int128_t)a[ 5] * b[ 2];
+    int128_t t607 = (int128_t)a[ 6] * b[ 1];
+    int128_t t707 = (int128_t)a[ 7] * b[ 0];
+    int128_t t8   = (int128_t)a[ 1] * b[ 7];
+    int128_t t108 = (int128_t)a[ 2] * b[ 6];
+    int128_t t208 = (int128_t)a[ 3] * b[ 5];
+    int128_t t308 = (int128_t)a[ 4] * b[ 4];
+    int128_t t408 = (int128_t)a[ 5] * b[ 3];
+    int128_t t508 = (int128_t)a[ 6] * b[ 2];
+    int128_t t608 = (int128_t)a[ 7] * b[ 1];
+    int128_t t9   = (int128_t)a[ 2] * b[ 7];
+    int128_t t109 = (int128_t)a[ 3] * b[ 6];
+    int128_t t209 = (int128_t)a[ 4] * b[ 5];
+    int128_t t309 = (int128_t)a[ 5] * b[ 4];
+    int128_t t409 = (int128_t)a[ 6] * b[ 3];
+    int128_t t509 = (int128_t)a[ 7] * b[ 2];
+    int128_t t10  = (int128_t)a[ 3] * b[ 7];
+    int128_t t110 = (int128_t)a[ 4] * b[ 6];
+    int128_t t210 = (int128_t)a[ 5] * b[ 5];
+    int128_t t310 = (int128_t)a[ 6] * b[ 4];
+    int128_t t410 = (int128_t)a[ 7] * b[ 3];
+    int128_t t11  = (int128_t)a[ 4] * b[ 7];
+    int128_t t111 = (int128_t)a[ 5] * b[ 6];
+    int128_t t211 = (int128_t)a[ 6] * b[ 5];
+    int128_t t311 = (int128_t)a[ 7] * b[ 4];
+    int128_t t12  = (int128_t)a[ 5] * b[ 7];
+    int128_t t112 = (int128_t)a[ 6] * b[ 6];
+    int128_t t212 = (int128_t)a[ 7] * b[ 5];
+    int128_t t13  = (int128_t)a[ 6] * b[ 7];
+    int128_t t113 = (int128_t)a[ 7] * b[ 6];
+    int128_t t14  = (int128_t)a[ 7] * b[ 7];
+    t1  += t101;
+    t2  += t102; t2  += t202;
+    t3  += t103; t3  += t203; t3  += t303;
+    t4  += t104; t4  += t204; t4  += t304; t4  += t404;
+    t5  += t105; t5  += t205; t5  += t305; t5  += t405; t5  += t505;
+    t6  += t106; t6  += t206; t6  += t306; t6  += t406; t6  += t506;
+    t6  += t606;
+    t7  += t107; t7  += t207; t7  += t307; t7  += t407; t7  += t507;
+    t7  += t607;
+    t7  += t707;
+    t8  += t108; t8  += t208; t8  += t308; t8  += t408; t8  += t508;
+    t8  += t608;
+    t9  += t109; t9  += t209; t9  += t309; t9  += t409; t9  += t509;
+    t10 += t110; t10 += t210; t10 += t310; t10 += t410;
+    t11 += t111; t11 += t211; t11 += t311;
+    t12 += t112; t12 += t212;
+    t13 += t113;
 
     /* Reduce */
-    int128_t tr0  = t0  + t8  + t12;
-    int128_t tr1  = t1  + t9  + t13;
-    int128_t tr2  = t2  + t10 + t14;
-    int128_t tr3  = t3  + t11;
-    int128_t tr4  = t4  + t12 + t8  + t12;
-    int128_t tr5  = t5  + t13 + t9  + t13;
-    int128_t tr6  = t6  + t14 + t10 + t14;
-    int128_t tr7  = t7        + t11;
-    o = tr7  >> 56; tr0  += o;
-                    tr4  += o; tr7  -= (int128_t)o << 56;
-    o = tr0  >> 56; tr1  += o; tr0  -= (int128_t)o << 56;
-    o = tr1  >> 56; tr2  += o; tr1  -= (int128_t)o << 56;
-    o = tr2  >> 56; tr3  += o; tr2  -= (int128_t)o << 56;
-    o = tr3  >> 56; tr4  += o; tr3  -= (int128_t)o << 56;
-    o = tr4  >> 56; tr5  += o; tr4  -= (int128_t)o << 56;
-    o = tr5  >> 56; tr6  += o; tr5  -= (int128_t)o << 56;
-    o = tr6  >> 56; tr7  += o; tr6  -= (int128_t)o << 56;
-    o = tr7  >> 56; tr0  += o;
-                    tr4  += o; tr7  -= (int128_t)o << 56;
+    t0  += t8  + t12;
+    t1  += t9  + t13;
+    t2  += t10 + t14;
+    t3  += t11;
+    t4  += t12 + t8  + t12;
+    t5  += t13 + t9  + t13;
+    t6  += t14 + t10 + t14;
+    t7  +=       t11;
+    o = t7  >> 56; t0  += o;
+                   t4  += o; t = (int128_t)o << 56; t7  -= t;
+    o = t0  >> 56; t1  += o; t = (int128_t)o << 56; t0  -= t;
+    o = t1  >> 56; t2  += o; t = (int128_t)o << 56; t1  -= t;
+    o = t2  >> 56; t3  += o; t = (int128_t)o << 56; t2  -= t;
+    o = t3  >> 56; t4  += o; t = (int128_t)o << 56; t3  -= t;
+    o = t4  >> 56; t5  += o; t = (int128_t)o << 56; t4  -= t;
+    o = t5  >> 56; t6  += o; t = (int128_t)o << 56; t5  -= t;
+    o = t6  >> 56; t7  += o; t = (int128_t)o << 56; t6  -= t;
+    o = t7  >> 56; t0  += o;
+                   t4  += o; t = (int128_t)o << 56; t7  -= t;
 
     /* Store */
-    r[0] = tr0;
-    r[1] = tr1;
-    r[2] = tr2;
-    r[3] = tr3;
-    r[4] = tr4;
-    r[5] = tr5;
-    r[6] = tr6;
-    r[7] = tr7;
+    r[0] = t0;
+    r[1] = t1;
+    r[2] = t2;
+    r[3] = t3;
+    r[4] = t4;
+    r[5] = t5;
+    r[6] = t6;
+    r[7] = t7;
 }
 
 /* Square a field element. r = (a * a) mod (2^448 - 2^224 - 1)
@@ -939,74 +959,86 @@ void fe448_mul(int64_t* r, const int64_t* a, const int64_t* b)
  */
 void fe448_sqr(int64_t* r, const int64_t* a)
 {
+    int128_t t;
     int64_t o;
-    int128_t t0  =     (int128_t)a[ 0] * a[ 0];
-    int128_t t1  = 2 * (int128_t)a[ 0] * a[ 1];
-    int128_t t2  = 2 * (int128_t)a[ 0] * a[ 2]
-                 +     (int128_t)a[ 1] * a[ 1];
-    int128_t t3  = 2 * (int128_t)a[ 0] * a[ 3]
-                 + 2 * (int128_t)a[ 1] * a[ 2];
-    int128_t t4  = 2 * (int128_t)a[ 0] * a[ 4]
-                 + 2 * (int128_t)a[ 1] * a[ 3]
-                 +     (int128_t)a[ 2] * a[ 2];
-    int128_t t5  = 2 * (int128_t)a[ 0] * a[ 5]
-                 + 2 * (int128_t)a[ 1] * a[ 4]
-                 + 2 * (int128_t)a[ 2] * a[ 3];
-    int128_t t6  = 2 * (int128_t)a[ 0] * a[ 6]
-                 + 2 * (int128_t)a[ 1] * a[ 5]
-                 + 2 * (int128_t)a[ 2] * a[ 4]
-                 +     (int128_t)a[ 3] * a[ 3];
-    int128_t t7  = 2 * (int128_t)a[ 0] * a[ 7]
-                 + 2 * (int128_t)a[ 1] * a[ 6]
-                 + 2 * (int128_t)a[ 2] * a[ 5]
-                 + 2 * (int128_t)a[ 3] * a[ 4];
-    int128_t t8  = 2 * (int128_t)a[ 1] * a[ 7]
-                 + 2 * (int128_t)a[ 2] * a[ 6]
-                 + 2 * (int128_t)a[ 3] * a[ 5]
-                 +     (int128_t)a[ 4] * a[ 4];
-    int128_t t9  = 2 * (int128_t)a[ 2] * a[ 7]
-                 + 2 * (int128_t)a[ 3] * a[ 6]
-                 + 2 * (int128_t)a[ 4] * a[ 5];
-    int128_t t10 = 2 * (int128_t)a[ 3] * a[ 7]
-                 + 2 * (int128_t)a[ 4] * a[ 6]
-                 +     (int128_t)a[ 5] * a[ 5];
-    int128_t t11 = 2 * (int128_t)a[ 4] * a[ 7]
-                 + 2 * (int128_t)a[ 5] * a[ 6];
-    int128_t t12 = 2 * (int128_t)a[ 5] * a[ 7]
-                 +     (int128_t)a[ 6] * a[ 6];
-    int128_t t13 = 2 * (int128_t)a[ 6] * a[ 7];
-    int128_t t14 =     (int128_t)a[ 7] * a[ 7];
+    int128_t t0   =     (int128_t)a[ 0] * a[ 0];
+    int128_t t1   = 2 * (int128_t)a[ 0] * a[ 1];
+    int128_t t2   = 2 * (int128_t)a[ 0] * a[ 2];
+    int128_t t102 =     (int128_t)a[ 1] * a[ 1];
+    int128_t t3   = 2 * (int128_t)a[ 0] * a[ 3];
+    int128_t t103 = 2 * (int128_t)a[ 1] * a[ 2];
+    int128_t t4   = 2 * (int128_t)a[ 0] * a[ 4];
+    int128_t t104 = 2 * (int128_t)a[ 1] * a[ 3];
+    int128_t t204 =     (int128_t)a[ 2] * a[ 2];
+    int128_t t5   = 2 * (int128_t)a[ 0] * a[ 5];
+    int128_t t105 = 2 * (int128_t)a[ 1] * a[ 4];
+    int128_t t205 = 2 * (int128_t)a[ 2] * a[ 3];
+    int128_t t6   = 2 * (int128_t)a[ 0] * a[ 6];
+    int128_t t106 = 2 * (int128_t)a[ 1] * a[ 5];
+    int128_t t206 = 2 * (int128_t)a[ 2] * a[ 4];
+    int128_t t306 =     (int128_t)a[ 3] * a[ 3];
+    int128_t t7   = 2 * (int128_t)a[ 0] * a[ 7];
+    int128_t t107 = 2 * (int128_t)a[ 1] * a[ 6];
+    int128_t t207 = 2 * (int128_t)a[ 2] * a[ 5];
+    int128_t t307 = 2 * (int128_t)a[ 3] * a[ 4];
+    int128_t t8   = 2 * (int128_t)a[ 1] * a[ 7];
+    int128_t t108 = 2 * (int128_t)a[ 2] * a[ 6];
+    int128_t t208 = 2 * (int128_t)a[ 3] * a[ 5];
+    int128_t t308 =     (int128_t)a[ 4] * a[ 4];
+    int128_t t9   = 2 * (int128_t)a[ 2] * a[ 7];
+    int128_t t109 = 2 * (int128_t)a[ 3] * a[ 6];
+    int128_t t209 = 2 * (int128_t)a[ 4] * a[ 5];
+    int128_t t10  = 2 * (int128_t)a[ 3] * a[ 7];
+    int128_t t110 = 2 * (int128_t)a[ 4] * a[ 6];
+    int128_t t210 =     (int128_t)a[ 5] * a[ 5];
+    int128_t t11  = 2 * (int128_t)a[ 4] * a[ 7];
+    int128_t t111 = 2 * (int128_t)a[ 5] * a[ 6];
+    int128_t t12  = 2 * (int128_t)a[ 5] * a[ 7];
+    int128_t t112 =     (int128_t)a[ 6] * a[ 6];
+    int128_t t13  = 2 * (int128_t)a[ 6] * a[ 7];
+    int128_t t14  =     (int128_t)a[ 7] * a[ 7];
+    t2  += t102;
+    t3  += t103;
+    t4  += t104; t4  += t204;
+    t5  += t105; t5  += t205;
+    t6  += t106; t6  += t206; t6  += t306;
+    t7  += t107; t7  += t207; t7  += t307;
+    t8  += t108; t8  += t208; t8  += t308;
+    t9  += t109; t9  += t209;
+    t10 += t110; t10 += t210;
+    t11 += t111;
+    t12 += t112;
 
     /* Reduce */
-    int128_t tr0  = t0  + t8  + t12;
-    int128_t tr1  = t1  + t9  + t13;
-    int128_t tr2  = t2  + t10 + t14;
-    int128_t tr3  = t3  + t11;
-    int128_t tr4  = t4  + t12 + t8  + t12;
-    int128_t tr5  = t5  + t13 + t9  + t13;
-    int128_t tr6  = t6  + t14 + t10 + t14;
-    int128_t tr7  = t7        + t11;
-    o = tr7  >> 56; tr0  += o;
-                    tr4  += o; tr7  -= (int128_t)o << 56;
-    o = tr0  >> 56; tr1  += o; tr0  -= (int128_t)o << 56;
-    o = tr1  >> 56; tr2  += o; tr1  -= (int128_t)o << 56;
-    o = tr2  >> 56; tr3  += o; tr2  -= (int128_t)o << 56;
-    o = tr3  >> 56; tr4  += o; tr3  -= (int128_t)o << 56;
-    o = tr4  >> 56; tr5  += o; tr4  -= (int128_t)o << 56;
-    o = tr5  >> 56; tr6  += o; tr5  -= (int128_t)o << 56;
-    o = tr6  >> 56; tr7  += o; tr6  -= (int128_t)o << 56;
-    o = tr7  >> 56; tr0  += o;
-                    tr4  += o; tr7  -= (int128_t)o << 56;
+    t0  += t8  + t12;
+    t1  += t9  + t13;
+    t2  += t10 + t14;
+    t3  += t11;
+    t4  += t12 + t8  + t12;
+    t5  += t13 + t9  + t13;
+    t6  += t14 + t10 + t14;
+    t7  +=       t11;
+    o = t7  >> 56; t0  += o;
+                   t4  += o; t = (int128_t)o << 56; t7  -= t;
+    o = t0  >> 56; t1  += o; t = (int128_t)o << 56; t0  -= t;
+    o = t1  >> 56; t2  += o; t = (int128_t)o << 56; t1  -= t;
+    o = t2  >> 56; t3  += o; t = (int128_t)o << 56; t2  -= t;
+    o = t3  >> 56; t4  += o; t = (int128_t)o << 56; t3  -= t;
+    o = t4  >> 56; t5  += o; t = (int128_t)o << 56; t4  -= t;
+    o = t5  >> 56; t6  += o; t = (int128_t)o << 56; t5  -= t;
+    o = t6  >> 56; t7  += o; t = (int128_t)o << 56; t6  -= t;
+    o = t7  >> 56; t0  += o;
+                   t4  += o; t = (int128_t)o << 56; t7  -= t;
 
     /* Store */
-    r[0] = tr0;
-    r[1] = tr1;
-    r[2] = tr2;
-    r[3] = tr3;
-    r[4] = tr4;
-    r[5] = tr5;
-    r[6] = tr6;
-    r[7] = tr7;
+    r[0] = t0;
+    r[1] = t1;
+    r[2] = t2;
+    r[3] = t3;
+    r[4] = t4;
+    r[5] = t5;
+    r[6] = t6;
+    r[7] = t7;
 }
 
 /* Invert the field element. (r * a) mod (2^448 - 2^224 - 1) = 1
@@ -1396,6 +1428,7 @@ void fe448_from_bytes(int32_t* r, const unsigned char* b)
  */
 void fe448_to_bytes(unsigned char* b, const int32_t* a)
 {
+    int64_t t;
     /* Mod */
     int32_t in0 = a[0];
     int32_t in1 = a[1];
@@ -1436,23 +1469,23 @@ void fe448_to_bytes(unsigned char* b, const int32_t* a)
     in0 += o;
     in8 += o;
     in15 -= o << 28;
-    o = in0  >> 28; in1  += o; in0  -= o << 28;
-    o = in1  >> 28; in2  += o; in1  -= o << 28;
-    o = in2  >> 28; in3  += o; in2  -= o << 28;
-    o = in3  >> 28; in4  += o; in3  -= o << 28;
-    o = in4  >> 28; in5  += o; in4  -= o << 28;
-    o = in5  >> 28; in6  += o; in5  -= o << 28;
-    o = in6  >> 28; in7  += o; in6  -= o << 28;
-    o = in7  >> 28; in8  += o; in7  -= o << 28;
-    o = in8  >> 28; in9  += o; in8  -= o << 28;
-    o = in9  >> 28; in10 += o; in9  -= o << 28;
-    o = in10 >> 28; in11 += o; in10 -= o << 28;
-    o = in11 >> 28; in12 += o; in11 -= o << 28;
-    o = in12 >> 28; in13 += o; in12 -= o << 28;
-    o = in13 >> 28; in14 += o; in13 -= o << 28;
-    o = in14 >> 28; in15 += o; in14 -= o << 28;
+    o = in0  >> 28; in1  += o; t = o << 28; in0  -= t;
+    o = in1  >> 28; in2  += o; t = o << 28; in1  -= t;
+    o = in2  >> 28; in3  += o; t = o << 28; in2  -= t;
+    o = in3  >> 28; in4  += o; t = o << 28; in3  -= t;
+    o = in4  >> 28; in5  += o; t = o << 28; in4  -= t;
+    o = in5  >> 28; in6  += o; t = o << 28; in5  -= t;
+    o = in6  >> 28; in7  += o; t = o << 28; in6  -= t;
+    o = in7  >> 28; in8  += o; t = o << 28; in7  -= t;
+    o = in8  >> 28; in9  += o; t = o << 28; in8  -= t;
+    o = in9  >> 28; in10 += o; t = o << 28; in9  -= t;
+    o = in10 >> 28; in11 += o; t = o << 28; in10 -= t;
+    o = in11 >> 28; in12 += o; t = o << 28; in11 -= t;
+    o = in12 >> 28; in13 += o; t = o << 28; in12 -= t;
+    o = in13 >> 28; in14 += o; t = o << 28; in13 -= t;
+    o = in14 >> 28; in15 += o; t = o << 28; in14 -= t;
     o = in15 >> 28; in0  += o;
-                    in8  += o; in15 -= o << 28;
+                    in8  += o; t = o << 28; in15 -= t;
 
     /* Output as bytes */
     b[ 0] = (in0  >>  0);
@@ -1727,6 +1760,7 @@ void fe448_reduce(int32_t* a)
  */
 void fe448_mul39081(int32_t* r, const int32_t* a)
 {
+    int64_t t;
     int32_t o;
     int64_t t0 = a[0] * (int64_t)39081;
     int64_t t1 = a[1] * (int64_t)39081;
@@ -1744,23 +1778,23 @@ void fe448_mul39081(int32_t* r, const int32_t* a)
     int64_t t13 = a[13] * (int64_t)39081;
     int64_t t14 = a[14] * (int64_t)39081;
     int64_t t15 = a[15] * (int64_t)39081;
-    o = t0  >> 28; t1  += o; t0  -= (int64_t)o << 28;
-    o = t1  >> 28; t2  += o; t1  -= (int64_t)o << 28;
-    o = t2  >> 28; t3  += o; t2  -= (int64_t)o << 28;
-    o = t3  >> 28; t4  += o; t3  -= (int64_t)o << 28;
-    o = t4  >> 28; t5  += o; t4  -= (int64_t)o << 28;
-    o = t5  >> 28; t6  += o; t5  -= (int64_t)o << 28;
-    o = t6  >> 28; t7  += o; t6  -= (int64_t)o << 28;
-    o = t7  >> 28; t8  += o; t7  -= (int64_t)o << 28;
-    o = t8  >> 28; t9  += o; t8  -= (int64_t)o << 28;
-    o = t9  >> 28; t10 += o; t9  -= (int64_t)o << 28;
-    o = t10 >> 28; t11 += o; t10 -= (int64_t)o << 28;
-    o = t11 >> 28; t12 += o; t11 -= (int64_t)o << 28;
-    o = t12 >> 28; t13 += o; t12 -= (int64_t)o << 28;
-    o = t13 >> 28; t14 += o; t13 -= (int64_t)o << 28;
-    o = t14 >> 28; t15 += o; t14 -= (int64_t)o << 28;
+    o = t0  >> 28; t1  += o; t = (int64_t)o << 28; t0  -= t;
+    o = t1  >> 28; t2  += o; t = (int64_t)o << 28; t1  -= t;
+    o = t2  >> 28; t3  += o; t = (int64_t)o << 28; t2  -= t;
+    o = t3  >> 28; t4  += o; t = (int64_t)o << 28; t3  -= t;
+    o = t4  >> 28; t5  += o; t = (int64_t)o << 28; t4  -= t;
+    o = t5  >> 28; t6  += o; t = (int64_t)o << 28; t5  -= t;
+    o = t6  >> 28; t7  += o; t = (int64_t)o << 28; t6  -= t;
+    o = t7  >> 28; t8  += o; t = (int64_t)o << 28; t7  -= t;
+    o = t8  >> 28; t9  += o; t = (int64_t)o << 28; t8  -= t;
+    o = t9  >> 28; t10 += o; t = (int64_t)o << 28; t9  -= t;
+    o = t10 >> 28; t11 += o; t = (int64_t)o << 28; t10 -= t;
+    o = t11 >> 28; t12 += o; t = (int64_t)o << 28; t11 -= t;
+    o = t12 >> 28; t13 += o; t = (int64_t)o << 28; t12 -= t;
+    o = t13 >> 28; t14 += o; t = (int64_t)o << 28; t13 -= t;
+    o = t14 >> 28; t15 += o; t = (int64_t)o << 28; t14 -= t;
     o = t15 >> 28; t0  += o;
-                   t8  += o; t15 -= (int64_t)o << 28;
+                   t8  += o; t = (int64_t)o << 28; t15 -= t;
 
     /* Store */
     r[0] = t0;
@@ -1789,90 +1823,108 @@ void fe448_mul39081(int32_t* r, const int32_t* a)
  */
 static WC_INLINE void fe448_mul_8(int32_t* r, const int32_t* a, const int32_t* b)
 {
-    int64_t t0  = (int64_t)a[ 0] * b[ 0];
-    int64_t t1  = (int64_t)a[ 0] * b[ 1]
-                + (int64_t)a[ 1] * b[ 0];
-    int64_t t2  = (int64_t)a[ 0] * b[ 2]
-                + (int64_t)a[ 1] * b[ 1]
-                + (int64_t)a[ 2] * b[ 0];
-    int64_t t3  = (int64_t)a[ 0] * b[ 3]
-                + (int64_t)a[ 1] * b[ 2]
-                + (int64_t)a[ 2] * b[ 1]
-                + (int64_t)a[ 3] * b[ 0];
-    int64_t t4  = (int64_t)a[ 0] * b[ 4]
-                + (int64_t)a[ 1] * b[ 3]
-                + (int64_t)a[ 2] * b[ 2]
-                + (int64_t)a[ 3] * b[ 1]
-                + (int64_t)a[ 4] * b[ 0];
-    int64_t t5  = (int64_t)a[ 0] * b[ 5]
-                + (int64_t)a[ 1] * b[ 4]
-                + (int64_t)a[ 2] * b[ 3]
-                + (int64_t)a[ 3] * b[ 2]
-                + (int64_t)a[ 4] * b[ 1]
-                + (int64_t)a[ 5] * b[ 0];
-    int64_t t6  = (int64_t)a[ 0] * b[ 6]
-                + (int64_t)a[ 1] * b[ 5]
-                + (int64_t)a[ 2] * b[ 4]
-                + (int64_t)a[ 3] * b[ 3]
-                + (int64_t)a[ 4] * b[ 2]
-                + (int64_t)a[ 5] * b[ 1]
-                + (int64_t)a[ 6] * b[ 0];
-    int64_t t7  = (int64_t)a[ 0] * b[ 7]
-                + (int64_t)a[ 1] * b[ 6]
-                + (int64_t)a[ 2] * b[ 5]
-                + (int64_t)a[ 3] * b[ 4]
-                + (int64_t)a[ 4] * b[ 3]
-                + (int64_t)a[ 5] * b[ 2]
-                + (int64_t)a[ 6] * b[ 1]
-                + (int64_t)a[ 7] * b[ 0];
-    int64_t t8  = (int64_t)a[ 1] * b[ 7]
-                + (int64_t)a[ 2] * b[ 6]
-                + (int64_t)a[ 3] * b[ 5]
-                + (int64_t)a[ 4] * b[ 4]
-                + (int64_t)a[ 5] * b[ 3]
-                + (int64_t)a[ 6] * b[ 2]
-                + (int64_t)a[ 7] * b[ 1];
-    int64_t t9  = (int64_t)a[ 2] * b[ 7]
-                + (int64_t)a[ 3] * b[ 6]
-                + (int64_t)a[ 4] * b[ 5]
-                + (int64_t)a[ 5] * b[ 4]
-                + (int64_t)a[ 6] * b[ 3]
-                + (int64_t)a[ 7] * b[ 2];
-    int64_t t10 = (int64_t)a[ 3] * b[ 7]
-                + (int64_t)a[ 4] * b[ 6]
-                + (int64_t)a[ 5] * b[ 5]
-                + (int64_t)a[ 6] * b[ 4]
-                + (int64_t)a[ 7] * b[ 3];
-    int64_t t11 = (int64_t)a[ 4] * b[ 7]
-                + (int64_t)a[ 5] * b[ 6]
-                + (int64_t)a[ 6] * b[ 5]
-                + (int64_t)a[ 7] * b[ 4];
-    int64_t t12 = (int64_t)a[ 5] * b[ 7]
-                + (int64_t)a[ 6] * b[ 6]
-                + (int64_t)a[ 7] * b[ 5];
-    int64_t t13 = (int64_t)a[ 6] * b[ 7]
-                + (int64_t)a[ 7] * b[ 6];
-    int64_t t14 = (int64_t)a[ 7] * b[ 7];
+    int64_t t;
+    int64_t t0   = (int64_t)a[ 0] * b[ 0];
+    int64_t t1   = (int64_t)a[ 0] * b[ 1];
+    int64_t t101 = (int64_t)a[ 1] * b[ 0];
+    int64_t t2   = (int64_t)a[ 0] * b[ 2];
+    int64_t t102 = (int64_t)a[ 1] * b[ 1];
+    int64_t t202 = (int64_t)a[ 2] * b[ 0];
+    int64_t t3   = (int64_t)a[ 0] * b[ 3];
+    int64_t t103 = (int64_t)a[ 1] * b[ 2];
+    int64_t t203 = (int64_t)a[ 2] * b[ 1];
+    int64_t t303 = (int64_t)a[ 3] * b[ 0];
+    int64_t t4   = (int64_t)a[ 0] * b[ 4];
+    int64_t t104 = (int64_t)a[ 1] * b[ 3];
+    int64_t t204 = (int64_t)a[ 2] * b[ 2];
+    int64_t t304 = (int64_t)a[ 3] * b[ 1];
+    int64_t t404 = (int64_t)a[ 4] * b[ 0];
+    int64_t t5   = (int64_t)a[ 0] * b[ 5];
+    int64_t t105 = (int64_t)a[ 1] * b[ 4];
+    int64_t t205 = (int64_t)a[ 2] * b[ 3];
+    int64_t t305 = (int64_t)a[ 3] * b[ 2];
+    int64_t t405 = (int64_t)a[ 4] * b[ 1];
+    int64_t t505 = (int64_t)a[ 5] * b[ 0];
+    int64_t t6   = (int64_t)a[ 0] * b[ 6];
+    int64_t t106 = (int64_t)a[ 1] * b[ 5];
+    int64_t t206 = (int64_t)a[ 2] * b[ 4];
+    int64_t t306 = (int64_t)a[ 3] * b[ 3];
+    int64_t t406 = (int64_t)a[ 4] * b[ 2];
+    int64_t t506 = (int64_t)a[ 5] * b[ 1];
+    int64_t t606 = (int64_t)a[ 6] * b[ 0];
+    int64_t t7   = (int64_t)a[ 0] * b[ 7];
+    int64_t t107 = (int64_t)a[ 1] * b[ 6];
+    int64_t t207 = (int64_t)a[ 2] * b[ 5];
+    int64_t t307 = (int64_t)a[ 3] * b[ 4];
+    int64_t t407 = (int64_t)a[ 4] * b[ 3];
+    int64_t t507 = (int64_t)a[ 5] * b[ 2];
+    int64_t t607 = (int64_t)a[ 6] * b[ 1];
+    int64_t t707 = (int64_t)a[ 7] * b[ 0];
+    int64_t t8   = (int64_t)a[ 1] * b[ 7];
+    int64_t t108 = (int64_t)a[ 2] * b[ 6];
+    int64_t t208 = (int64_t)a[ 3] * b[ 5];
+    int64_t t308 = (int64_t)a[ 4] * b[ 4];
+    int64_t t408 = (int64_t)a[ 5] * b[ 3];
+    int64_t t508 = (int64_t)a[ 6] * b[ 2];
+    int64_t t608 = (int64_t)a[ 7] * b[ 1];
+    int64_t t9   = (int64_t)a[ 2] * b[ 7];
+    int64_t t109 = (int64_t)a[ 3] * b[ 6];
+    int64_t t209 = (int64_t)a[ 4] * b[ 5];
+    int64_t t309 = (int64_t)a[ 5] * b[ 4];
+    int64_t t409 = (int64_t)a[ 6] * b[ 3];
+    int64_t t509 = (int64_t)a[ 7] * b[ 2];
+    int64_t t10  = (int64_t)a[ 3] * b[ 7];
+    int64_t t110 = (int64_t)a[ 4] * b[ 6];
+    int64_t t210 = (int64_t)a[ 5] * b[ 5];
+    int64_t t310 = (int64_t)a[ 6] * b[ 4];
+    int64_t t410 = (int64_t)a[ 7] * b[ 3];
+    int64_t t11  = (int64_t)a[ 4] * b[ 7];
+    int64_t t111 = (int64_t)a[ 5] * b[ 6];
+    int64_t t211 = (int64_t)a[ 6] * b[ 5];
+    int64_t t311 = (int64_t)a[ 7] * b[ 4];
+    int64_t t12  = (int64_t)a[ 5] * b[ 7];
+    int64_t t112 = (int64_t)a[ 6] * b[ 6];
+    int64_t t212 = (int64_t)a[ 7] * b[ 5];
+    int64_t t13  = (int64_t)a[ 6] * b[ 7];
+    int64_t t113 = (int64_t)a[ 7] * b[ 6];
+    int64_t t14  = (int64_t)a[ 7] * b[ 7];
+    t1  += t101;
+    t2  += t102; t2  += t202;
+    t3  += t103; t3  += t203; t3  += t303;
+    t4  += t104; t4  += t204; t4  += t304; t4  += t404;
+    t5  += t105; t5  += t205; t5  += t305; t5  += t405; t5  += t505;
+    t6  += t106; t6  += t206; t6  += t306; t6  += t406; t6  += t506;
+    t6  += t606;
+    t7  += t107; t7  += t207; t7  += t307; t7  += t407; t7  += t507;
+    t7  += t607;
+    t7  += t707;
+    t8  += t108; t8  += t208; t8  += t308; t8  += t408; t8  += t508;
+    t8  += t608;
+    t9  += t109; t9  += t209; t9  += t309; t9  += t409; t9  += t509;
+    t10 += t110; t10 += t210; t10 += t310; t10 += t410;
+    t11 += t111; t11 += t211; t11 += t311;
+    t12 += t112; t12 += t212;
+    t13 += t113;
     int64_t o = t14 >> 28;
     int64_t t15 = o;
     t14 -= o << 28;
-    o = t0  >> 28; t1  += o; t0  -= (int64_t)o << 28;
-    o = t1  >> 28; t2  += o; t1  -= (int64_t)o << 28;
-    o = t2  >> 28; t3  += o; t2  -= (int64_t)o << 28;
-    o = t3  >> 28; t4  += o; t3  -= (int64_t)o << 28;
-    o = t4  >> 28; t5  += o; t4  -= (int64_t)o << 28;
-    o = t5  >> 28; t6  += o; t5  -= (int64_t)o << 28;
-    o = t6  >> 28; t7  += o; t6  -= (int64_t)o << 28;
-    o = t7  >> 28; t8  += o; t7  -= (int64_t)o << 28;
-    o = t8  >> 28; t9  += o; t8  -= (int64_t)o << 28;
-    o = t9  >> 28; t10 += o; t9  -= (int64_t)o << 28;
-    o = t10 >> 28; t11 += o; t10 -= (int64_t)o << 28;
-    o = t11 >> 28; t12 += o; t11 -= (int64_t)o << 28;
-    o = t12 >> 28; t13 += o; t12 -= (int64_t)o << 28;
-    o = t13 >> 28; t14 += o; t13 -= (int64_t)o << 28;
-    o = t14 >> 28; t15 += o; t14 -= (int64_t)o << 28;
+    o = t0  >> 28; t1  += o; t = (int64_t)o << 28; t0  -= t;
+    o = t1  >> 28; t2  += o; t = (int64_t)o << 28; t1  -= t;
+    o = t2  >> 28; t3  += o; t = (int64_t)o << 28; t2  -= t;
+    o = t3  >> 28; t4  += o; t = (int64_t)o << 28; t3  -= t;
+    o = t4  >> 28; t5  += o; t = (int64_t)o << 28; t4  -= t;
+    o = t5  >> 28; t6  += o; t = (int64_t)o << 28; t5  -= t;
+    o = t6  >> 28; t7  += o; t = (int64_t)o << 28; t6  -= t;
+    o = t7  >> 28; t8  += o; t = (int64_t)o << 28; t7  -= t;
+    o = t8  >> 28; t9  += o; t = (int64_t)o << 28; t8  -= t;
+    o = t9  >> 28; t10 += o; t = (int64_t)o << 28; t9  -= t;
+    o = t10 >> 28; t11 += o; t = (int64_t)o << 28; t10 -= t;
+    o = t11 >> 28; t12 += o; t = (int64_t)o << 28; t11 -= t;
+    o = t12 >> 28; t13 += o; t = (int64_t)o << 28; t12 -= t;
+    o = t13 >> 28; t14 += o; t = (int64_t)o << 28; t13 -= t;
+    o = t14 >> 28; t15 += o; t = (int64_t)o << 28; t14 -= t;
     o = t15 >> 28; t0  += o;
-                   t8  += o; t15 -= (int64_t)o << 28;
+                   t8  += o; t = (int64_t)o << 28; t15 -= t;
 
     /* Store */
     r[0] = t0;
@@ -1950,62 +2002,74 @@ void fe448_mul(int32_t* r, const int32_t* a, const int32_t* b)
  */
 static WC_INLINE void fe448_sqr_8(int32_t* r, const int32_t* a)
 {
-    int64_t t0  =     (int64_t)a[ 0] * a[ 0];
-    int64_t t1  = 2 * (int64_t)a[ 0] * a[ 1];
-    int64_t t2  = 2 * (int64_t)a[ 0] * a[ 2]
-                +     (int64_t)a[ 1] * a[ 1];
-    int64_t t3  = 2 * (int64_t)a[ 0] * a[ 3]
-                + 2 * (int64_t)a[ 1] * a[ 2];
-    int64_t t4  = 2 * (int64_t)a[ 0] * a[ 4]
-                + 2 * (int64_t)a[ 1] * a[ 3]
-                +     (int64_t)a[ 2] * a[ 2];
-    int64_t t5  = 2 * (int64_t)a[ 0] * a[ 5]
-                + 2 * (int64_t)a[ 1] * a[ 4]
-                + 2 * (int64_t)a[ 2] * a[ 3];
-    int64_t t6  = 2 * (int64_t)a[ 0] * a[ 6]
-                + 2 * (int64_t)a[ 1] * a[ 5]
-                + 2 * (int64_t)a[ 2] * a[ 4]
-                +     (int64_t)a[ 3] * a[ 3];
-    int64_t t7  = 2 * (int64_t)a[ 0] * a[ 7]
-                + 2 * (int64_t)a[ 1] * a[ 6]
-                + 2 * (int64_t)a[ 2] * a[ 5]
-                + 2 * (int64_t)a[ 3] * a[ 4];
-    int64_t t8  = 2 * (int64_t)a[ 1] * a[ 7]
-                + 2 * (int64_t)a[ 2] * a[ 6]
-                + 2 * (int64_t)a[ 3] * a[ 5]
-                +     (int64_t)a[ 4] * a[ 4];
-    int64_t t9  = 2 * (int64_t)a[ 2] * a[ 7]
-                + 2 * (int64_t)a[ 3] * a[ 6]
-                + 2 * (int64_t)a[ 4] * a[ 5];
-    int64_t t10 = 2 * (int64_t)a[ 3] * a[ 7]
-                + 2 * (int64_t)a[ 4] * a[ 6]
-                +     (int64_t)a[ 5] * a[ 5];
-    int64_t t11 = 2 * (int64_t)a[ 4] * a[ 7]
-                + 2 * (int64_t)a[ 5] * a[ 6];
-    int64_t t12 = 2 * (int64_t)a[ 5] * a[ 7]
-                +     (int64_t)a[ 6] * a[ 6];
-    int64_t t13 = 2 * (int64_t)a[ 6] * a[ 7];
-    int64_t t14 =     (int64_t)a[ 7] * a[ 7];
+    int64_t t;
+    int64_t t0   =     (int64_t)a[ 0] * a[ 0];
+    int64_t t1   = 2 * (int64_t)a[ 0] * a[ 1];
+    int64_t t2   = 2 * (int64_t)a[ 0] * a[ 2];
+    int64_t t102 =     (int64_t)a[ 1] * a[ 1];
+    int64_t t3   = 2 * (int64_t)a[ 0] * a[ 3];
+    int64_t t103 = 2 * (int64_t)a[ 1] * a[ 2];
+    int64_t t4   = 2 * (int64_t)a[ 0] * a[ 4];
+    int64_t t104 = 2 * (int64_t)a[ 1] * a[ 3];
+    int64_t t204 =     (int64_t)a[ 2] * a[ 2];
+    int64_t t5   = 2 * (int64_t)a[ 0] * a[ 5];
+    int64_t t105 = 2 * (int64_t)a[ 1] * a[ 4];
+    int64_t t205 = 2 * (int64_t)a[ 2] * a[ 3];
+    int64_t t6   = 2 * (int64_t)a[ 0] * a[ 6];
+    int64_t t106 = 2 * (int64_t)a[ 1] * a[ 5];
+    int64_t t206 = 2 * (int64_t)a[ 2] * a[ 4];
+    int64_t t306 =     (int64_t)a[ 3] * a[ 3];
+    int64_t t7   = 2 * (int64_t)a[ 0] * a[ 7];
+    int64_t t107 = 2 * (int64_t)a[ 1] * a[ 6];
+    int64_t t207 = 2 * (int64_t)a[ 2] * a[ 5];
+    int64_t t307 = 2 * (int64_t)a[ 3] * a[ 4];
+    int64_t t8   = 2 * (int64_t)a[ 1] * a[ 7];
+    int64_t t108 = 2 * (int64_t)a[ 2] * a[ 6];
+    int64_t t208 = 2 * (int64_t)a[ 3] * a[ 5];
+    int64_t t308 =     (int64_t)a[ 4] * a[ 4];
+    int64_t t9   = 2 * (int64_t)a[ 2] * a[ 7];
+    int64_t t109 = 2 * (int64_t)a[ 3] * a[ 6];
+    int64_t t209 = 2 * (int64_t)a[ 4] * a[ 5];
+    int64_t t10  = 2 * (int64_t)a[ 3] * a[ 7];
+    int64_t t110 = 2 * (int64_t)a[ 4] * a[ 6];
+    int64_t t210 =     (int64_t)a[ 5] * a[ 5];
+    int64_t t11  = 2 * (int64_t)a[ 4] * a[ 7];
+    int64_t t111 = 2 * (int64_t)a[ 5] * a[ 6];
+    int64_t t12  = 2 * (int64_t)a[ 5] * a[ 7];
+    int64_t t112 =     (int64_t)a[ 6] * a[ 6];
+    int64_t t13  = 2 * (int64_t)a[ 6] * a[ 7];
+    int64_t t14  =     (int64_t)a[ 7] * a[ 7];
+    t2  += t102;
+    t3  += t103;
+    t4  += t104; t4  += t204;
+    t5  += t105; t5  += t205;
+    t6  += t106; t6  += t206; t6  += t306;
+    t7  += t107; t7  += t207; t7  += t307;
+    t8  += t108; t8  += t208; t8  += t308;
+    t9  += t109; t9  += t209;
+    t10 += t110; t10 += t210;
+    t11 += t111;
+    t12 += t112;
     int64_t o = t14 >> 28;
     int64_t t15 = o;
     t14 -= o << 28;
-    o = t0  >> 28; t1  += o; t0  -= (int64_t)o << 28;
-    o = t1  >> 28; t2  += o; t1  -= (int64_t)o << 28;
-    o = t2  >> 28; t3  += o; t2  -= (int64_t)o << 28;
-    o = t3  >> 28; t4  += o; t3  -= (int64_t)o << 28;
-    o = t4  >> 28; t5  += o; t4  -= (int64_t)o << 28;
-    o = t5  >> 28; t6  += o; t5  -= (int64_t)o << 28;
-    o = t6  >> 28; t7  += o; t6  -= (int64_t)o << 28;
-    o = t7  >> 28; t8  += o; t7  -= (int64_t)o << 28;
-    o = t8  >> 28; t9  += o; t8  -= (int64_t)o << 28;
-    o = t9  >> 28; t10 += o; t9  -= (int64_t)o << 28;
-    o = t10 >> 28; t11 += o; t10 -= (int64_t)o << 28;
-    o = t11 >> 28; t12 += o; t11 -= (int64_t)o << 28;
-    o = t12 >> 28; t13 += o; t12 -= (int64_t)o << 28;
-    o = t13 >> 28; t14 += o; t13 -= (int64_t)o << 28;
-    o = t14 >> 28; t15 += o; t14 -= (int64_t)o << 28;
+    o = t0  >> 28; t1  += o; t = (int64_t)o << 28; t0  -= t;
+    o = t1  >> 28; t2  += o; t = (int64_t)o << 28; t1  -= t;
+    o = t2  >> 28; t3  += o; t = (int64_t)o << 28; t2  -= t;
+    o = t3  >> 28; t4  += o; t = (int64_t)o << 28; t3  -= t;
+    o = t4  >> 28; t5  += o; t = (int64_t)o << 28; t4  -= t;
+    o = t5  >> 28; t6  += o; t = (int64_t)o << 28; t5  -= t;
+    o = t6  >> 28; t7  += o; t = (int64_t)o << 28; t6  -= t;
+    o = t7  >> 28; t8  += o; t = (int64_t)o << 28; t7  -= t;
+    o = t8  >> 28; t9  += o; t = (int64_t)o << 28; t8  -= t;
+    o = t9  >> 28; t10 += o; t = (int64_t)o << 28; t9  -= t;
+    o = t10 >> 28; t11 += o; t = (int64_t)o << 28; t10 -= t;
+    o = t11 >> 28; t12 += o; t = (int64_t)o << 28; t11 -= t;
+    o = t12 >> 28; t13 += o; t = (int64_t)o << 28; t12 -= t;
+    o = t13 >> 28; t14 += o; t = (int64_t)o << 28; t13 -= t;
+    o = t14 >> 28; t15 += o; t = (int64_t)o << 28; t14 -= t;
     o = t15 >> 28; t0  += o;
-                   t8  += o; t15 -= (int64_t)o << 28;
+                   t8  += o; t = (int64_t)o << 28; t15 -= t;
 
     /* Store */
     r[0] = t0;
