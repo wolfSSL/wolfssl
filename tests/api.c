@@ -22474,7 +22474,7 @@ static void test_wolfSSL_BN(void)
 
     AssertIntEQ(BN_set_word(a, 1), SSL_SUCCESS);
     AssertIntEQ(BN_set_word(b, 5), SSL_SUCCESS);
-    AssertIntEQ(BN_is_word(a, BN_get_word(a)), SSL_SUCCESS);
+    AssertIntEQ(BN_is_word(a, (WOLFSSL_BN_ULONG)BN_get_word(a)), SSL_SUCCESS);
     AssertIntEQ(BN_is_word(a, 3), SSL_FAILURE);
     AssertIntEQ(BN_sub(c, a, b), SSL_SUCCESS);
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
