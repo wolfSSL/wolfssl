@@ -107,8 +107,8 @@ bench_tls(args);
 
 #ifdef WOLFSSL_DTLS
     #ifdef BENCH_EMBEDDED
-        /* less than WOLFSSL_MAX_MTU */
-        #define TEST_DTLS_PACKET_SIZE   (2 * 1024)
+        /* WOLFSSL_MAX_MTU in internal.h */
+        #define TEST_DTLS_PACKET_SIZE   (1500)
     #else
         /* MAX_UDP_SIZE in interna.h */
         #define TEST_DTLS_PACKET_SIZE   (8092)
