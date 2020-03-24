@@ -234,10 +234,6 @@
     #endif
 #endif
 
-#if defined(USE_CERT_BUFFERS_2048) || defined(USE_CERT_BUFFERS_256)
-#error "dont want cert buffers"
-#endif
-
 #if defined(WOLFSSL_CERT_GEN) && (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES))
     #define ENABLE_ECC384_CERT_GEN_TEST
 #endif
