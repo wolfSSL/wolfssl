@@ -161,13 +161,13 @@ server=login.live.com
 ca=certs/external/baltimore-cybertrust-root.pem
 
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
-./examples/client/client -? 2>&1 | grep -- 'Client not compiled in!'
+./examples/client/client '-?' 2>&1 | grep -- 'Client not compiled in!'
 if [ $? -eq 0 ]; then
     exit 0
 fi
 
 # check if supported key size is large enough to handle 4096 bit RSA
-size=`./examples/client/client -? | grep "Max RSA key"`
+size=`./examples/client/client '-?' | grep "Max RSA key"`
 size=`echo ${size//[^0-9]/}`
 if [ ! -z "$size" ]; then
     printf 'check on max key size of %d ...' $size
@@ -231,7 +231,7 @@ RESULT=$?
 
 # Test with example server
 
-./examples/server/server -? 2>&1 | grep -- 'Server not compiled in!'
+./examples/server/server '-?' 2>&1 | grep -- 'Server not compiled in!'
 if [ $? -eq 0 ]; then
     exit 0
 fi

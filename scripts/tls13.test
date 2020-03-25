@@ -70,11 +70,11 @@ do_trap() {
 trap do_trap INT TERM
 
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
-./examples/client/client -? 2>&1 | grep -- 'Client not compiled in!'
+./examples/client/client '-?' 2>&1 | grep -- 'Client not compiled in!'
 if [ $? -eq 0 ]; then
     exit 0
 fi
-./examples/server/server -? 2>&1 | grep -- 'Server not compiled in!'
+./examples/server/server '-?' 2>&1 | grep -- 'Server not compiled in!'
 if [ $? -eq 0 ]; then
     exit 0
 fi
