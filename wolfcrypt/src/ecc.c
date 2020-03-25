@@ -3893,6 +3893,35 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
 #endif /* !WOLFSSL_ATECC508A && !WOLFSSL_CRYPTOCELL */
 #endif /* HAVE_ECC_DHE */
 
+#ifdef USE_ECC_B_PARAM
+/* Checks if a point p lies on the curve with index curve_idx */
+int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx)
+{
+    int err;
+    DECLARE_CURVE_SPECS(curve, 3);
+
+    if (p == NULL)
+        return BAD_FUNC_ARG;
+
+    /* is the IDX valid ?  */
+    if (wc_ecc_is_valid_idx(curve_idx) != 1) {
+       return ECC_BAD_ARG_E;
+    }
+
+    ALLOC_CURVE_SPECS(3);
+    err = wc_ecc_curve_load(wc_ecc_get_curve_params(curve_idx), &curve,
+                                ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_AF |
+                                ECC_CURVE_FIELD_BF);
+    if (err == MP_OKAY) {
+        err = wc_ecc_is_point(p, curve->Af, curve->Bf, curve->prime);
+    }
+
+    wc_ecc_curve_free(curve);
+    FREE_CURVE_SPECS();
+
+    return err;
+}
+#endif /* USE_ECC_B_PARAM */
 
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_CRYPTOCELL)
