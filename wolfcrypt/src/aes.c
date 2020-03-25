@@ -6829,6 +6829,46 @@ static WC_INLINE void AesCcmCtrInc(byte* B, word32 lenSz)
     }
 }
 
+#ifdef WOLFSSL_AESNI
+static WC_INLINE void AesCcmCtrIncSet4(byte* B, word32 lenSz)
+{
+    word32 i;
+
+    /* B+1 = B */
+    XMEMCPY(B + AES_BLOCK_SIZE * 1, B, AES_BLOCK_SIZE);
+    /* B+2,B+3 = B,B+1 */
+    XMEMCPY(B + AES_BLOCK_SIZE * 2, B, AES_BLOCK_SIZE * 2);
+
+    for (i = 0; i < lenSz; i++) {
+        if (++B[AES_BLOCK_SIZE * 1 - 1 - i] != 0) break;
+    }
+    B[AES_BLOCK_SIZE * 2 - 1] += 2;
+    if (B[AES_BLOCK_SIZE * 2 - 1] < 2) {
+        for (i = 1; i < lenSz; i++) {
+            if (++B[AES_BLOCK_SIZE * 2 - 1 - i] != 0) break;
+        }
+    }
+    B[AES_BLOCK_SIZE * 3 - 1] += 3;
+    if (B[AES_BLOCK_SIZE * 3 - 1] < 3) {
+        for (i = 1; i < lenSz; i++) {
+            if (++B[AES_BLOCK_SIZE * 3 - 1 - i] != 0) break;
+        }
+    }
+}
+
+static WC_INLINE void AesCcmCtrInc4(byte* B, word32 lenSz)
+{
+    word32 i;
+
+    B[AES_BLOCK_SIZE - 1] += 4;
+    if (B[AES_BLOCK_SIZE - 1] < 4) {
+        for (i = 1; i < lenSz; i++) {
+            if (++B[AES_BLOCK_SIZE - 1 - i] != 0) break;
+        }
+    }
+}
+#endif
+
 /* Software AES - CCM Encrypt */
 /* return 0 on success */
 int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
@@ -6836,8 +6876,13 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                    byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
+#ifndef WOLFSSL_AESNI
     byte A[AES_BLOCK_SIZE];
     byte B[AES_BLOCK_SIZE];
+#else
+    ALIGN128 byte A[AES_BLOCK_SIZE * 4];
+    ALIGN128 byte B[AES_BLOCK_SIZE * 4];
+#endif
     byte lenSz;
     word32 i;
     byte mask = 0xFF;
@@ -6876,6 +6921,26 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     xorbuf(authTag, A, authTagSz);
 
     B[15] = 1;
+#ifdef WOLFSSL_AESNI
+    if (haveAESNI && aes->use_aesni) {
+        while (inSz >= AES_BLOCK_SIZE * 4) {
+            AesCcmCtrIncSet4(B, lenSz);
+
+            AES_ECB_encrypt(B, A, AES_BLOCK_SIZE * 4, (byte*)aes->key,
+                            aes->rounds);
+            xorbuf(A, in, AES_BLOCK_SIZE * 4);
+            XMEMCPY(out, A, AES_BLOCK_SIZE * 4);
+
+            inSz -= AES_BLOCK_SIZE * 4;
+            in += AES_BLOCK_SIZE * 4;
+            out += AES_BLOCK_SIZE * 4;
+
+            if (inSz < AES_BLOCK_SIZE * 4) {
+                AesCcmCtrInc4(B, lenSz);
+            }
+        }
+    }
+#endif
     while (inSz >= AES_BLOCK_SIZE) {
         wc_AesEncrypt(aes, B, A);
         xorbuf(A, in, AES_BLOCK_SIZE);
@@ -6905,8 +6970,13 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                    const byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
+#ifndef WOLFSSL_AESNI
     byte A[AES_BLOCK_SIZE];
     byte B[AES_BLOCK_SIZE];
+#else
+    ALIGN128 byte B[AES_BLOCK_SIZE * 4];
+    ALIGN128 byte A[AES_BLOCK_SIZE * 4];
+#endif
     byte* o;
     byte lenSz;
     word32 i, oSz;
@@ -6930,6 +7000,26 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         B[AES_BLOCK_SIZE - 1 - i] = 0;
     B[15] = 1;
 
+#ifdef WOLFSSL_AESNI
+    if (haveAESNI && aes->use_aesni) {
+        while (oSz >= AES_BLOCK_SIZE * 4) {
+            AesCcmCtrIncSet4(B, lenSz);
+
+            AES_ECB_encrypt(B, A, AES_BLOCK_SIZE * 4, (byte*)aes->key,
+                            aes->rounds);
+            xorbuf(A, in, AES_BLOCK_SIZE * 4);
+            XMEMCPY(o, A, AES_BLOCK_SIZE * 4);
+
+            oSz -= AES_BLOCK_SIZE * 4;
+            in += AES_BLOCK_SIZE * 4;
+            o += AES_BLOCK_SIZE * 4;
+
+            if (oSz < AES_BLOCK_SIZE * 4) {
+                AesCcmCtrInc4(B, lenSz);
+            }
+        }
+    }
+#endif
     while (oSz >= AES_BLOCK_SIZE) {
         wc_AesEncrypt(aes, B, A);
         xorbuf(A, in, AES_BLOCK_SIZE);
