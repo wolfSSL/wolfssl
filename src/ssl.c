@@ -24153,7 +24153,7 @@ int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
     const char* name;
     const char *keaStr, *authStr, *encStr, *macStr, *protocol;
     char n[MAX_SEGMENTS][MAX_SEGMENT_SZ] = {{0}};
-    uint8_t len = MAX_DESCRIPTION_SZ-1;
+    unsigned char len = MAX_DESCRIPTION_SZ-1;
     const CipherSuiteInfo* cipher_names;
     ProtocolVersion pv;
     WOLFSSL_ENTER("wolfSSL_sk_CIPHER_description");
@@ -36380,7 +36380,7 @@ size_t wolfSSL_EC_get_builtin_curves(WOLFSSL_EC_BUILTIN_CURVE *r, size_t nitems)
     size_t ecc_sets_count;
     size_t i, min_nitems;
 
-    for (i = 0; ecc_sets[i].size != 0 && ecc_sets[i].name != NULL; i++);
+    for (i = 0; ecc_sets[i].size != 0; i++);
     ecc_sets_count = i;
 
     if (r == NULL || nitems == 0)
