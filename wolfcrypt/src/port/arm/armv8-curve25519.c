@@ -30,6 +30,8 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+#ifdef WOLFSSL_ARMASM
 #include <wolfssl/wolfcrypt/fe_operations.h>
 #include <stdint.h>
 
@@ -6719,4 +6721,5 @@ void fe_ge_sub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py, const fe pz
     (void)qyminusx;
 }
 
+#endif /* WOLFSSL_ARMASM */
 #endif /* __aarch64__ */
