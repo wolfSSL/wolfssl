@@ -4550,6 +4550,7 @@ static void test_wolfSSL_PKCS12(void)
 
     d2i_PKCS12_bio(bio, &pkcs12);
     AssertNotNull(pkcs12);
+    BIO_free(bio);
 
     /* check verify MAC fail case */
     ret = PKCS12_parse(pkcs12, "bad", &pkey, &cert, NULL);
@@ -4631,6 +4632,13 @@ static void test_wolfSSL_PKCS12(void)
     X509_free(cert);
     sk_X509_free(ca);
 
+    /* convert to DER then back and parse */
+    AssertNotNull(bio = BIO_new(BIO_s_mem()));
+    AssertIntEQ(i2d_PKCS12_bio(bio, pkcs12_2), SSL_SUCCESS);
+    PKCS12_free(pkcs12_2);
+
+    AssertNotNull(pkcs12_2 = d2i_PKCS12_bio(bio, NULL));
+    BIO_free(bio);
     AssertIntEQ(PKCS12_parse(pkcs12_2, "a password", &pkey, &cert, &ca),
             SSL_SUCCESS);
 
@@ -4661,7 +4669,6 @@ static void test_wolfSSL_PKCS12(void)
 
     EVP_PKEY_free(pkey);
     X509_free(cert);
-    BIO_free(bio);
     PKCS12_free(pkcs12);
     PKCS12_free(pkcs12_2);
     sk_X509_free(ca);
