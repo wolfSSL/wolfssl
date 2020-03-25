@@ -3756,11 +3756,18 @@ int TraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
 #endif /* HAVE_PKCS8 */
 
 #if defined(HAVE_PKCS8) || defined(HAVE_PKCS12)
-
-/* Remove Encrypted PKCS8 header, move beginning of traditional to beginning
-   of input */
-int ToTraditionalEnc(byte* input, word32 sz,const char* password,
-                     int passwordSz, word32* algId)
+/* decrypt PKCS
+ *
+ * NOTE: input buffer is overwritten with decrypted data!
+ *
+ * input[in/out] data to decrypt and results are written to
+ * sz            size of input buffer
+ * password      password if used. Can be NULL for no password
+ * passwordSz    size of password buffer
+ *
+ * returns the total size of decrypted content on success.
+ */
+int DecryptContent(byte* input, word32 sz, const char* password, int passwordSz)
 {
     word32 inOutIdx = 0, seqEnd, oid, shaOid = 0;
     int    ret = 0, first, second, length = 0, version, saltSz, id;
@@ -3772,43 +3779,40 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,
     byte   salt[MAX_SALT_SIZE];
     byte   cbcIv[MAX_IV_SIZE];
 #endif
+    byte   tag;
 
     if (passwordSz < 0) {
         WOLFSSL_MSG("Bad password size");
         return BAD_FUNC_ARG;
     }
 
-    if (GetSequence(input, &inOutIdx, &length, sz) < 0) {
-        ERROR_OUT(ASN_PARSE_E, exit_tte);
-    }
-
     if (GetAlgoId(input, &inOutIdx, &oid, oidIgnoreType, sz) < 0) {
-        ERROR_OUT(ASN_PARSE_E, exit_tte);
+        ERROR_OUT(ASN_PARSE_E, exit_dc);
     }
 
     first  = input[inOutIdx - 2];   /* PKCS version always 2nd to last byte */
     second = input[inOutIdx - 1];   /* version.algo, algo id last byte */
 
     if (CheckAlgo(first, second, &id, &version, NULL) < 0) {
-        ERROR_OUT(ASN_INPUT_E, exit_tte); /* Algo ID error */
+        ERROR_OUT(ASN_INPUT_E, exit_dc); /* Algo ID error */
     }
 
     if (version == PKCS5v2) {
         if (GetSequence(input, &inOutIdx, &length, sz) < 0) {
-            ERROR_OUT(ASN_PARSE_E, exit_tte);
+            ERROR_OUT(ASN_PARSE_E, exit_dc);
         }
 
         if (GetAlgoId(input, &inOutIdx, &oid, oidKdfType, sz) < 0) {
-            ERROR_OUT(ASN_PARSE_E, exit_tte);
+            ERROR_OUT(ASN_PARSE_E, exit_dc);
         }
 
         if (oid != PBKDF2_OID) {
-            ERROR_OUT(ASN_PARSE_E, exit_tte);
+            ERROR_OUT(ASN_PARSE_E, exit_dc);
         }
     }
 
     if (GetSequence(input, &inOutIdx, &length, sz) <= 0) {
-        ERROR_OUT(ASN_PARSE_E, exit_tte);
+        ERROR_OUT(ASN_PARSE_E, exit_dc);
     }
     /* Find the end of this SEQUENCE so we can check for the OPTIONAL and
      * DEFAULT items. */
@@ -3816,16 +3820,16 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,
 
     ret = GetOctetString(input, &inOutIdx, &saltSz, sz);
     if (ret < 0)
-        goto exit_tte;
+        goto exit_dc;
 
     if (saltSz > MAX_SALT_SIZE) {
-        ERROR_OUT(ASN_PARSE_E, exit_tte);
+        ERROR_OUT(ASN_PARSE_E, exit_dc);
     }
 
 #ifdef WOLFSSL_SMALL_STACK
     salt = (byte*)XMALLOC(MAX_SALT_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (salt == NULL) {
-        ERROR_OUT(MEMORY_E, exit_tte);
+        ERROR_OUT(MEMORY_E, exit_dc);
     }
 #endif
 
@@ -3833,28 +3837,27 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,
     inOutIdx += saltSz;
 
     if (GetShortInt(input, &inOutIdx, &iterations, sz) < 0) {
-        ERROR_OUT(ASN_PARSE_E, exit_tte);
+        ERROR_OUT(ASN_PARSE_E, exit_dc);
     }
 
     /* OPTIONAL key length */
     if (seqEnd > inOutIdx) {
         word32 localIdx = inOutIdx;
-        byte tag;
 
         if (GetASNTag(input, &localIdx, &tag, sz) < 0) {
-            ERROR_OUT(ASN_PARSE_E, exit_tte);
+            ERROR_OUT(ASN_PARSE_E, exit_dc);
         }
 
         if (tag == ASN_INTEGER &&
                 GetShortInt(input, &inOutIdx, &keySz, sz) < 0) {
-            ERROR_OUT(ASN_PARSE_E, exit_tte);
+            ERROR_OUT(ASN_PARSE_E, exit_dc);
         }
     }
 
     /* DEFAULT HMAC is SHA-1 */
     if (seqEnd > inOutIdx) {
         if (GetAlgoId(input, &inOutIdx, &oid, oidHmacType, sz) < 0) {
-            ERROR_OUT(ASN_PARSE_E, exit_tte);
+            ERROR_OUT(ASN_PARSE_E, exit_dc);
         }
 
         shaOid = oid;
@@ -3863,18 +3866,18 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,
 #ifdef WOLFSSL_SMALL_STACK
     cbcIv = (byte*)XMALLOC(MAX_IV_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (cbcIv == NULL) {
-        ERROR_OUT(MEMORY_E, exit_tte);
+        ERROR_OUT(MEMORY_E, exit_dc);
     }
 #endif
 
     if (version == PKCS5v2) {
         /* get encryption algo */
         if (GetAlgoId(input, &inOutIdx, &oid, oidBlkType, sz) < 0) {
-            ERROR_OUT(ASN_PARSE_E, exit_tte);
+            ERROR_OUT(ASN_PARSE_E, exit_dc);
         }
 
         if (CheckAlgoV2(oid, &id, NULL) < 0) {
-            ERROR_OUT(ASN_PARSE_E, exit_tte); /* PKCS v2 algo id error */
+            ERROR_OUT(ASN_PARSE_E, exit_dc); /* PKCS v2 algo id error */
         }
 
         if (shaOid == 0)
@@ -3882,24 +3885,32 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,
 
         ret = GetOctetString(input, &inOutIdx, &length, sz);
         if (ret < 0)
-            goto exit_tte;
+            goto exit_dc;
 
         if (length > MAX_IV_SIZE) {
-            ERROR_OUT(ASN_PARSE_E, exit_tte);
+            ERROR_OUT(ASN_PARSE_E, exit_dc);
         }
 
         XMEMCPY(cbcIv, &input[inOutIdx], length);
         inOutIdx += length;
     }
 
-    ret = GetOctetString(input, &inOutIdx, &length, sz);
-    if (ret < 0)
-        goto exit_tte;
+    if (GetASNTag(input, &inOutIdx, &tag, sz) < 0) {
+        ERROR_OUT(ASN_PARSE_E, exit_dc);
+    }
+
+    if (tag != (ASN_CONTEXT_SPECIFIC | 0) && tag != ASN_OCTET_STRING) {
+        ERROR_OUT(ASN_PARSE_E, exit_dc);
+    }
+
+    if (GetLength(input, &inOutIdx, &length, sz) < 0) {
+        ERROR_OUT(ASN_PARSE_E, exit_dc);
+    }
 
     ret = wc_CryptKey(password, passwordSz, salt, saltSz, iterations, id,
                    input + inOutIdx, length, version, cbcIv, 0, shaOid);
 
-exit_tte:
+exit_dc:
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3907,7 +3918,31 @@ exit_tte:
 
     if (ret == 0) {
         XMEMMOVE(input, input + inOutIdx, length);
-        ret = ToTraditional_ex(input, length, algId);
+        ret = length;
+    }
+
+    return ret;
+}
+
+
+/* Remove Encrypted PKCS8 header, move beginning of traditional to beginning
+   of input */
+int ToTraditionalEnc(byte* input, word32 sz,const char* password,
+                     int passwordSz, word32* algId)
+{
+    int ret, length;
+    word32 inOutIdx = 0;
+
+    if (GetSequence(input, &inOutIdx, &length, sz) < 0) {
+        ret = ASN_PARSE_E;
+    }
+    else {
+        ret = DecryptContent(input + inOutIdx, sz - inOutIdx, password,
+                passwordSz);
+        if (ret > 0) {
+            XMEMMOVE(input, input + inOutIdx, ret);
+            ret = ToTraditional_ex(input, ret, algId);
+        }
     }
 
     return ret;
@@ -4124,165 +4159,6 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
 }
 
 
-/* decrypt PKCS
- *
- * NOTE: input buffer is overwritten with decrypted data!
- *
- * input[in/out] data to decrypt and results are written to
- * sz            size of input buffer
- * password      password if used. Can be NULL for no password
- * passwordSz    size of password buffer
- *
- * returns the total size of decrypted content on success.
- */
-int DecryptContent(byte* input, word32 sz,const char* password, int passwordSz)
-{
-    word32 inOutIdx = 0, seqEnd, oid;
-    int    ret = 0;
-    int    first, second, length = 0, version, saltSz, id;
-    int    iterations = 0, keySz = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    byte*  salt = NULL;
-    byte*  cbcIv = NULL;
-#else
-    byte   salt[MAX_SALT_SIZE];
-    byte   cbcIv[MAX_IV_SIZE];
-#endif
-    byte   tag;
-
-    if (GetAlgoId(input, &inOutIdx, &oid, oidIgnoreType, sz) < 0) {
-        ERROR_OUT(ASN_PARSE_E, exit_dc);
-    }
-
-    first  = input[inOutIdx - 2];   /* PKCS version always 2nd to last byte */
-    second = input[inOutIdx - 1];   /* version.algo, algo id last byte */
-
-    if (CheckAlgo(first, second, &id, &version, NULL) < 0) {
-        ERROR_OUT(ASN_INPUT_E, exit_dc); /* Algo ID error */
-    }
-
-    if (version == PKCS5v2) {
-        if (GetSequence(input, &inOutIdx, &length, sz) < 0) {
-            ERROR_OUT(ASN_PARSE_E, exit_dc);
-        }
-
-        if (GetAlgoId(input, &inOutIdx, &oid, oidKdfType, sz) < 0) {
-            ERROR_OUT(ASN_PARSE_E, exit_dc);
-        }
-
-        if (oid != PBKDF2_OID) {
-            ERROR_OUT(ASN_PARSE_E, exit_dc);
-        }
-    }
-
-    if (GetSequence(input, &inOutIdx, &length, sz) <= 0) {
-        ERROR_OUT(ASN_PARSE_E, exit_dc);
-    }
-    /* Find the end of this SEQUENCE so we can check for the OPTIONAL and
-     * DEFAULT items. */
-    seqEnd = inOutIdx + length;
-
-    ret = GetOctetString(input, &inOutIdx, &saltSz, sz);
-    if (ret < 0)
-        goto exit_dc;
-
-    if (saltSz > MAX_SALT_SIZE) {
-        ERROR_OUT(ASN_PARSE_E, exit_dc);
-    }
-
-#ifdef WOLFSSL_SMALL_STACK
-    salt = (byte*)XMALLOC(MAX_SALT_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (salt == NULL) {
-        ERROR_OUT(MEMORY_E, exit_dc);
-    }
-#endif
-
-    XMEMCPY(salt, &input[inOutIdx], saltSz);
-    inOutIdx += saltSz;
-
-    if (GetShortInt(input, &inOutIdx, &iterations, sz) < 0) {
-        ERROR_OUT(ASN_PARSE_E, exit_dc);
-    }
-
-    /* OPTIONAL key length */
-    if (seqEnd > inOutIdx) {
-        word32 localIdx = inOutIdx;
-
-        if (GetASNTag(input, &localIdx, &tag, sz) < 0) {
-            ERROR_OUT(ASN_PARSE_E, exit_dc);
-        }
-
-        if (tag == ASN_INTEGER &&
-                GetShortInt(input, &inOutIdx, &keySz, sz) < 0) {
-            ERROR_OUT(ASN_PARSE_E, exit_dc);
-        }
-    }
-
-    /* DEFAULT HMAC is SHA-1 */
-    if (seqEnd > inOutIdx) {
-        if (GetAlgoId(input, &inOutIdx, &oid, oidHmacType, sz) < 0) {
-            ERROR_OUT(ASN_PARSE_E, exit_dc);
-        }
-    }
-
-#ifdef WOLFSSL_SMALL_STACK
-    cbcIv = (byte*)XMALLOC(MAX_IV_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (cbcIv == NULL) {
-        ERROR_OUT(MEMORY_E, exit_dc);
-    }
-#endif
-
-    if (version == PKCS5v2) {
-        /* get encryption algo */
-        if (GetAlgoId(input, &inOutIdx, &oid, oidBlkType, sz) < 0) {
-            ERROR_OUT(ASN_PARSE_E, exit_dc);
-        }
-
-        if (CheckAlgoV2(oid, &id, NULL) < 0) {
-            ERROR_OUT(ASN_PARSE_E, exit_dc); /* PKCS v2 algo id error */
-        }
-
-        ret = GetOctetString(input, &inOutIdx, &length, sz);
-        if (ret < 0)
-            goto exit_dc;
-
-        if (length > MAX_IV_SIZE) {
-            ERROR_OUT(ASN_PARSE_E, exit_dc);
-        }
-
-        XMEMCPY(cbcIv, &input[inOutIdx], length);
-        inOutIdx += length;
-    }
-
-    if (GetASNTag(input, &inOutIdx, &tag, sz) < 0) {
-        ERROR_OUT(ASN_PARSE_E, exit_dc);
-    }
-
-    if (tag != (ASN_CONTEXT_SPECIFIC | 0)) {
-        ERROR_OUT(ASN_PARSE_E, exit_dc);
-    }
-
-    if (GetLength(input, &inOutIdx, &length, sz) < 0) {
-        ERROR_OUT(ASN_PARSE_E, exit_dc);
-    }
-
-    ret = wc_CryptKey(password, passwordSz, salt, saltSz, iterations, id,
-                   input + inOutIdx, length, version, cbcIv, 0, 0);
-
-exit_dc:
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-    if (ret == 0) {
-        XMEMMOVE(input, input + inOutIdx, length);
-        ret = length;
-    }
-
-    return ret;
-}
 #endif /* HAVE_PKCS12 */
 #endif /* NO_PWDBASED */
 
