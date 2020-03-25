@@ -1963,6 +1963,13 @@ static void test_wolfSSL_EC(void)
     AssertIntEQ(BN_is_zero(new_point->Z), 0);
 #endif
 
+    /* check if point X coordinate is zero */
+    AssertIntEQ(BN_is_zero(new_point->X), 0);
+
+#ifdef USE_ECC_B_PARAM
+    AssertIntEQ(EC_POINT_is_on_curve(group, new_point, ctx), 1);
+#endif /* USE_ECC_B_PARAM */
+
     /* Force non-affine coordinates */
     AssertIntEQ(BN_add(new_point->Z, (WOLFSSL_BIGNUM*)BN_value_one(),
                                      (WOLFSSL_BIGNUM*)BN_value_one()), 1);
@@ -2118,6 +2125,30 @@ static void test_wolfSSL_ECDSA_SIG(void)
     AssertIntEQ(XMEMCMP(sigData, outSig, 8), 0);
 
     wolfSSL_ECDSA_SIG_free(sig);
+#endif /* HAVE_ECC */
+}
+
+static void test_EC_i2d(void)
+{
+#ifdef HAVE_ECC
+    EC_KEY *key;
+    int len;
+    unsigned char *buf = NULL;
+
+    AssertNotNull(key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+    AssertIntEQ(EC_KEY_generate_key(key), 1);
+
+    AssertIntGT((len = i2d_EC_PUBKEY(key, NULL)), 0);
+    AssertIntEQ(i2d_EC_PUBKEY(key, &buf), len);
+
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf = NULL;
+
+    AssertIntGT((len = i2d_ECPrivateKey(key, NULL)), 0);
+    AssertIntEQ(i2d_ECPrivateKey(key, &buf), len);
+
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    EC_KEY_free(key);
 #endif /* HAVE_ECC */
 }
 
@@ -20056,7 +20087,8 @@ static int test_wc_ecc_del_point (void)
 
 /*
  * Testing wc_ecc_point_is_at_infinity(), wc_ecc_export_point_der(),
- * wc_ecc_import_point_der(), wc_ecc_copy_point(), and wc_ecc_cmp_point()
+ * wc_ecc_import_point_der(), wc_ecc_copy_point(), wc_ecc_point_is_on_curve(),
+ * and wc_ecc_cmp_point()
  */
 static int test_wc_ecc_pointFns (void)
 {
@@ -20218,6 +20250,27 @@ static int test_wc_ecc_pointFns (void)
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
+
+#ifdef USE_ECC_B_PARAM
+    printf(testingFmt, "wc_ecc_point_is_on_curve()");
+    /* On curve if ret == 0 */
+    if (ret == 0) {
+        ret = wc_ecc_point_is_on_curve(point, idx);
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_point_is_on_curve(NULL, idx);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_point_is_on_curve(point, 1000);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif /* USE_ECC_B_PARAM */
 
     /* Free */
     wc_ecc_del_point(point);
@@ -35933,6 +35986,7 @@ void ApiTest(void)
     test_ECDSA_size_sign();
     test_ED25519();
     test_ED448();
+    test_EC_i2d();
 #endif
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && \
     !defined(HAVE_SELFTEST) && \

@@ -148,12 +148,18 @@ int wolfSSL_EC_POINT_oct2point(const WOLFSSL_EC_GROUP *group,
 WOLFSSL_API
 int wolfSSL_i2o_ECPublicKey(const WOLFSSL_EC_KEY *in, unsigned char **out);
 WOLFSSL_API
+int wolfSSL_i2d_ECPrivateKey(const WOLFSSL_EC_KEY *in, unsigned char **out);
+WOLFSSL_API
 void wolfSSL_EC_KEY_set_conv_form(WOLFSSL_EC_KEY *eckey, char form);
 WOLFSSL_API
 WOLFSSL_BIGNUM *wolfSSL_EC_POINT_point2bn(const WOLFSSL_EC_GROUP *group,
                                           const WOLFSSL_EC_POINT *p,
                                           char form,
                                           WOLFSSL_BIGNUM *in, WOLFSSL_BN_CTX *ctx);
+WOLFSSL_API
+int wolfSSL_EC_POINT_is_on_curve(const WOLFSSL_EC_GROUP *group,
+                                 const WOLFSSL_EC_POINT *point,
+                                 WOLFSSL_BN_CTX *ctx);
 
 WOLFSSL_API
 int wolfSSL_EC_KEY_LoadDer(WOLFSSL_EC_KEY* key,
@@ -304,7 +310,10 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 #define EC_POINT_point2oct              wolfSSL_EC_POINT_point2oct
 #define EC_POINT_oct2point              wolfSSL_EC_POINT_oct2point
 #define EC_POINT_point2bn               wolfSSL_EC_POINT_point2bn
+#define EC_POINT_is_on_curve            wolfSSL_EC_POINT_is_on_curve
 #define i2o_ECPublicKey                 wolfSSL_i2o_ECPublicKey
+#define i2d_EC_PUBKEY                   wolfSSL_i2o_ECPublicKey
+#define i2d_ECPrivateKey                wolfSSL_i2d_ECPrivateKey
 #define EC_KEY_set_conv_form            wolfSSL_EC_KEY_set_conv_form
 
 #ifndef HAVE_SELFTEST

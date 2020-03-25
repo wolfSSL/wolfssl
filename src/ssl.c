@@ -100,6 +100,7 @@
     #include <wolfssl/wolfcrypt/hmac.h>
     #include <wolfssl/wolfcrypt/random.h>
     #include <wolfssl/wolfcrypt/des3.h>
+    #include <wolfssl/wolfcrypt/ecc.h>
     #include <wolfssl/wolfcrypt/md4.h>
     #include <wolfssl/wolfcrypt/md5.h>
     #include <wolfssl/wolfcrypt/arc4.h>
@@ -32894,10 +32895,14 @@ int wolfSSL_i2o_ECPublicKey(const WOLFSSL_EC_KEY *in, unsigned char **out)
         return WOLFSSL_FAILURE;
     }
 
+#ifdef HAVE_COMP_KEY
     /* Default to compressed form if not set */
     form = in->form == POINT_CONVERSION_UNCOMPRESSED ?
             POINT_CONVERSION_UNCOMPRESSED:
             POINT_CONVERSION_COMPRESSED;
+#else
+    form = POINT_CONVERSION_UNCOMPRESSED;
+#endif
 
     len = wolfSSL_EC_POINT_point2oct(in->group, in->pub_key, form,
                                      NULL, 0, NULL);
@@ -32930,11 +32935,62 @@ int wolfSSL_i2o_ECPublicKey(const WOLFSSL_EC_KEY *in, unsigned char **out)
     return (int)len;
 }
 
+int wolfSSL_i2d_ECPrivateKey(const WOLFSSL_EC_KEY *in, unsigned char **out)
+{
+    int len;
+    byte* buf = NULL;
+    WOLFSSL_ENTER("wolfSSL_i2d_ECPrivateKey");
+
+    if (!in) {
+        WOLFSSL_MSG("wolfSSL_i2d_ECPrivateKey Bad arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (!in->inSet && SetECKeyInternal((WOLFSSL_EC_KEY*)in) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("SetECKeyInternal error");
+        return WOLFSSL_FAILURE;
+    }
+
+    if ((len = wc_ecc_size((ecc_key*)in->internal)) <= 0) {
+        WOLFSSL_MSG("wc_ecc_size error");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (out) {
+        if (!(buf = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_TMP_BUFFER))) {
+            WOLFSSL_MSG("tmp buffer malloc error");
+            return WOLFSSL_FAILURE;
+        }
+
+        if (wc_ecc_export_private_only((ecc_key*)in->internal, buf,
+                (word32*)&len) != MP_OKAY) {
+            WOLFSSL_MSG("wc_ecc_export_private_only error");
+            XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return WOLFSSL_FAILURE;
+        }
+
+        if (*out) {
+            XMEMCPY(*out, buf, len);
+            XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        }
+        else {
+            *out = buf;
+        }
+    }
+
+    return len;
+}
+
 void wolfSSL_EC_KEY_set_conv_form(WOLFSSL_EC_KEY *eckey, char form)
 {
-    if (eckey && (form == POINT_CONVERSION_COMPRESSED ||
-                  form == POINT_CONVERSION_UNCOMPRESSED)) {
+    if (eckey && (form == POINT_CONVERSION_COMPRESSED
+#ifdef HAVE_COMP_KEY
+                  || form == POINT_CONVERSION_COMPRESSED
+#endif
+                  )) {
         eckey->form = form;
+    } else {
+        WOLFSSL_MSG("Incorrect form or HAVE_COMP_KEY not compiled in");
     }
 }
 
@@ -32975,6 +33031,29 @@ WOLFSSL_BIGNUM *wolfSSL_EC_POINT_point2bn(const WOLFSSL_EC_GROUP *group,
     return ret;
 }
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
+
+#ifdef USE_ECC_B_PARAM
+int wolfSSL_EC_POINT_is_on_curve(const WOLFSSL_EC_GROUP *group,
+                                 const WOLFSSL_EC_POINT *point,
+                                 WOLFSSL_BN_CTX *ctx)
+{
+    (void)ctx;
+    WOLFSSL_ENTER("wolfSSL_EC_POINT_is_on_curve");
+
+    if (!group || !point) {
+        WOLFSSL_MSG("Invalid arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (!point->inSet && SetECPointInternal((WOLFSSL_EC_POINT*)point)) {
+        WOLFSSL_MSG("SetECPointInternal error");
+        return WOLFSSL_FAILURE;
+    }
+
+    return wc_ecc_point_is_on_curve((ecc_point*)point->internal, group->curve_idx)
+            == MP_OKAY ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+}
+#endif /* USE_ECC_B_PARAM */
 
 WOLFSSL_EC_POINT *wolfSSL_EC_POINT_new(const WOLFSSL_EC_GROUP *group)
 {
