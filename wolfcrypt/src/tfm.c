@@ -521,7 +521,7 @@ int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
 {
    int       ret = 0;
    int       ix, iy, iz, tx, ty, pa;
-   fp_digit  c0 = 0, c1 = 0, c2 = 0, *tmpx, *tmpy;
+   fp_digit  c0, c1, c2, *tmpx, *tmpy;
    fp_int    *dst;
 #ifndef WOLFSSL_SMALL_STACK
    fp_int    tmp[1];
@@ -2498,9 +2498,9 @@ clean:
 int fp_sqr_comba(fp_int *A, fp_int *B)
 {
   int       pa, ix, iz;
-  fp_digit  c0 = 0, c1 = 0, c2 = 0;
+  fp_digit  c0, c1, c2;
 #ifdef TFM_ISO
-  fp_word   tt = 0;
+  fp_word   tt;
 #endif
    fp_int    *dst;
 #ifndef WOLFSSL_SMALL_STACK
