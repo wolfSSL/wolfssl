@@ -557,6 +557,7 @@ int fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
 /* d = a**b (mod c) */
 int fp_exptmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
 int fp_exptmod_ex(fp_int *a, fp_int *b, int minDigits, fp_int *c, fp_int *d);
+int fp_exptmod_nct(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
 
 #ifdef WC_RSA_NONBLOCK
 
@@ -748,6 +749,7 @@ MP_API int  mp_invmod_mont_ct(mp_int *a, mp_int *b, mp_int *c, fp_digit mp);
 MP_API int  mp_exptmod (mp_int * g, mp_int * x, mp_int * p, mp_int * y);
 MP_API int  mp_exptmod_ex (mp_int * g, mp_int * x, int minDigits, mp_int * p,
                            mp_int * y);
+MP_API int  mp_exptmod_nct (mp_int * g, mp_int * x, mp_int * p, mp_int * y);
 MP_API int  mp_mul_2d(mp_int *a, int b, mp_int *c);
 MP_API int  mp_2expt(mp_int* a, int b);
 
