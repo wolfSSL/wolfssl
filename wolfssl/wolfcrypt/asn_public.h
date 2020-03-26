@@ -187,8 +187,12 @@ enum {
 
     PEM_PASS_READ  = 0,
     PEM_PASS_WRITE = 1,
-};
+#if defined(NO_ASN)
+    PKCS5_SALT_SZ  = 8,
+    HMAC_SHA256_OID   = 653,
+#endif
 
+};
 
 typedef int (pem_password_cb)(char* passwd, int sz, int rw, void* userdata);
 
@@ -207,7 +211,6 @@ typedef struct EncryptedInfo {
 
     word16   set:1;            /* if encryption set */
 } EncryptedInfo;
-
 
 #define WOLFSSL_ASN1_INTEGER_MAX 20
 typedef struct WOLFSSL_ASN1_INTEGER {

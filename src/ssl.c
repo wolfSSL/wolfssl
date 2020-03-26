@@ -8030,8 +8030,6 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY_bio(WOLFSSL_BIO* bio,
     return pkey;
 }
 
-
-
 /* Converts a DER encoded public key to a WOLFSSL_EVP_PKEY structure.
  *
  * out  pointer to new WOLFSSL_EVP_PKEY structure. Can be NULL
@@ -8045,17 +8043,28 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out, unsigned char** in,
         long inSz)
 {
     WOLFSSL_EVP_PKEY* pkey = NULL;
+#if !defined(NO_RSA) ||   \
+    defined (HAVE_ECC) || \
+    !defined(NO_DSA) ||   \
+    !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
     const unsigned char* mem;
     long memSz = inSz;
-
+#endif
     WOLFSSL_ENTER("wolfSSL_d2i_PUBKEY");
 
     if (in == NULL || inSz < 0) {
         WOLFSSL_MSG("Bad argument");
         return NULL;
     }
-    mem = *in;
 
+#if !defined(NO_RSA) ||   \
+    defined (HAVE_ECC) || \
+    !defined(NO_DSA) ||   \
+    !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
+    mem = *in;
+#else
+    (void)out;
+#endif
     #if !defined(NO_RSA)
     {
         RsaKey rsa;
@@ -8241,7 +8250,6 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out, unsigned char** in,
     return pkey;
 }
 
-
 /* Reads in a DER format key. If PKCS8 headers are found they are stripped off.
  *
  * type  type of key
@@ -8259,6 +8267,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
     word32 idx = 0;
     int    ret;
     word32 algId;
+    (void)out;
 
     WOLFSSL_ENTER("wolfSSL_d2i_PrivateKey");
 

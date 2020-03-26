@@ -32,6 +32,7 @@
 #include <wolfssl/wolfcrypt/chacha.h>
 #include <wolfssl/wolfcrypt/des3.h>
 #include <wolfssl/wolfcrypt/arc4.h>
+#include <wolfssl/wolfcrypt/asn_public.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -76,11 +77,7 @@ WOLFSSL_API int wc_Des3_CbcDecryptWithKey(byte* out,
                                           const byte* key, const byte* iv);
 #endif /* !NO_DES3 */
 
-
-
-
 #ifdef WOLFSSL_ENCRYPTED_KEYS
-    struct EncryptedInfo;
     WOLFSSL_API int wc_BufferKeyDecrypt(struct EncryptedInfo* info, byte* der, word32 derSz,
         const byte* password, int passwordSz, int hashType);
     WOLFSSL_API int wc_BufferKeyEncrypt(struct EncryptedInfo* info, byte* der, word32 derSz,
@@ -88,7 +85,7 @@ WOLFSSL_API int wc_Des3_CbcDecryptWithKey(byte* out,
 #endif /* WOLFSSL_ENCRYPTED_KEYS */
 
 #ifndef NO_PWDBASED
-    WOLFSSL_LOCAL int wc_CryptKey(const char* password, int passwordSz, 
+    WOLFSSL_LOCAL int wc_CryptKey(const char* password, int passwordSz,
         byte* salt, int saltSz, int iterations, int id, byte* input, int length,
         int version, byte* cbcIv, int enc, int shaOid);
 #endif
