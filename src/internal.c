@@ -9530,7 +9530,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         else
             ret = MEMORY_E;
 #if defined(OPENSSL_ALL)
-        if (!ret) {
+        if (ret == 0) {
             x509->key.pubKeyOID = dCert->keyOID;
 
             if (!x509->key.algor) {

@@ -6526,6 +6526,7 @@ done:
 
 
 /* export point to der */
+#ifdef HAVE_COMP_KEY
 int wc_ecc_export_point_der_compressed(const int curve_idx, ecc_point* point,
                                        byte* out, word32* outLen)
 {
@@ -6586,7 +6587,7 @@ done:
 
     return ret;
 }
-
+#endif /* HAVE_COMP_KEY */
 
 /* export public ECC key in ANSI X9.63 format */
 int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
@@ -6973,6 +6974,7 @@ static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
 #endif
 #endif /* !WOLFSSL_ATECC508A && !WOLFSSL_CRYPTOCELL*/
 
+#ifdef OPENSSL_EXTRA
 int wc_ecc_get_generator(ecc_point* ecp, int curve_idx)
 {
     int err = MP_OKAY;
@@ -6997,6 +6999,7 @@ int wc_ecc_get_generator(ecc_point* ecp, int curve_idx)
 
     return err;
 }
+#endif /* OPENSSLALL */
 
 /* perform sanity checks on ecc key validity, 0 on success */
 int wc_ecc_check_key(ecc_key* key)

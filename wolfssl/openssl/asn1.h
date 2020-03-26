@@ -24,9 +24,6 @@
 #ifndef WOLFSSL_ASN1_H_
 #define WOLFSSL_ASN1_H_
 
-#ifdef WOLFSSL_WPAS
-#include <stddef.h>  /* for offsetof */
-#endif /* WOLFSSL_WPAS */
 #include <wolfssl/openssl/ssl.h>
 
 #define ASN1_STRING_new      wolfSSL_ASN1_STRING_new
@@ -107,10 +104,12 @@ typedef enum {
 } WOLFSSL_ASN1_TYPES;
 
 #define ASN1_SEQUENCE(type) \
+    static const type __##type##_dummy_struct;\
     static const WOLFSSL_ASN1_TEMPLATE type##_member_data[]
 
 #define ASN1_SIMPLE(type, member, member_type) \
-    { offsetof(type, member), WOLFSSL_##member_type##_ASN1 }
+    { (char*)&__##type##_dummy_struct.member - (char*)&__##type##_dummy_struct, \
+        WOLFSSL_##member_type##_ASN1 }
 
 #define ASN1_SEQUENCE_END(type) \
     ; \

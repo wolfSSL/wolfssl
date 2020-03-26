@@ -318,6 +318,11 @@ enum {
     NID_aes_256_xts = 914
 };
 
+#define NID_X9_62_id_ecPublicKey EVP_PKEY_EC
+#define NID_dhKeyAgreement       EVP_PKEY_DH
+#define NID_rsaEncryption        EVP_PKEY_RSA
+#define NID_dsa                  EVP_PKEY_DSA
+
 #define WOLFSSL_EVP_BUF_SIZE 16
 struct WOLFSSL_EVP_CIPHER_CTX {
     int            keyLen;         /* user may set for variable */

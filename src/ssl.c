@@ -21728,7 +21728,7 @@ int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out)
                                         (mp_int*)dh->g->internal);
         if (ret != MP_OKAY) {
             WOLFSSL_MSG("StoreDHparams error");
-            len = WOLFSSL_FAILURE;
+            len = 0;
         }
         else{
             *out += len;
@@ -30624,13 +30624,8 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
 #endif
 #endif /* OPENSSL_EXTRA */
 #endif /* !WOLFCRYPT_ONLY */
-#if defined(OPENSSL_EXTRA) || \
-    (defined(OPENSSL_EXTRA_X509_SMALL) && !defined(NO_RSA))
-static WC_RNG globalRNG;
-static int initGlobalRNG = 0;
-#endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
+const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
 #ifndef NO_CERTS
     /* oidCertExtType */
     { NID_basic_constraints, BASIC_CA_OID, oidCertExtType, "basicConstraints",
@@ -30784,16 +30779,23 @@ static int initGlobalRNG = 0;
         /* oidKeyType */
     #ifndef NO_DSA
         { DSAk, DSAk, oidKeyType, "DSA", "dsaEncryption"},
+        { NID_dsa, DSAk, oidKeyType, "DSA", "dsaEncryption"},
     #endif /* NO_DSA */
     #ifndef NO_RSA
         { RSAk, RSAk, oidKeyType, "RSA", "rsaEncryption"},
+        { NID_rsaEncryption, RSAk, oidKeyType, "RSA", "rsaEncryption"},
     #endif /* NO_RSA */
     #ifdef HAVE_NTRU
         { NTRUk, NTRUk, oidKeyType, "NTRU", "ntruEncryption"},
     #endif /* HAVE_NTRU */
     #ifdef HAVE_ECC
         { ECDSAk, ECDSAk, oidKeyType, "ECDSA", "ecdsaEncryption"},
+        { NID_X9_62_id_ecPublicKey, ECDSAk, oidKeyType, "id-ecPublicKey",
+                                                        "id-ecPublicKey"},
     #endif /* HAVE_ECC */
+    #ifndef NO_DH
+        { NID_dhKeyAgreement, DHk, oidKeyType, "dhKeyAgreement", "dhKeyAgreement"},
+    #endif
 
         /* oidCurveType */
     #ifdef HAVE_ECC
@@ -30924,11 +30926,16 @@ static int initGlobalRNG = 0;
             WOLFSSL_SN_TLS_FEATURE, WOLFSSL_LN_TLS_FEATURE },
     #endif
 #endif /* OPENSSL_EXTRA */
-    };
+};
 
-    #define WOLFSSL_OBJECT_INFO_SZ \
-                    (sizeof(wolfssl_object_info) / sizeof(*wolfssl_object_info))
-    const size_t wolfssl_object_info_sz = WOLFSSL_OBJECT_INFO_SZ;
+#define WOLFSSL_OBJECT_INFO_SZ \
+                (sizeof(wolfssl_object_info) / sizeof(*wolfssl_object_info))
+const size_t wolfssl_object_info_sz = WOLFSSL_OBJECT_INFO_SZ;
+#endif
+#if defined(OPENSSL_EXTRA) || \
+    (defined(OPENSSL_EXTRA_X509_SMALL) && !defined(NO_RSA))
+static WC_RNG globalRNG;
+static int initGlobalRNG = 0;
 #endif
 #if defined(OPENSSL_EXTRA) && \
     !defined(NO_RSA) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
@@ -31467,28 +31474,28 @@ void *wolfSSL_ASN1_item_new(const WOLFSSL_ASN1_ITEM *template)
     XMEMSET(ret, 0, template->size);
     for (member = template->members, i = 0; i < template->mcount;
             member++, i++) {
-        switch(member->type) {
-        case WOLFSSL_X509_ALGOR_ASN1:
-        {
-            WOLFSSL_X509_ALGOR* algor = wolfSSL_X509_ALGOR_new();
-            if (!algor) {
-                goto error;
+        switch (member->type) {
+            case WOLFSSL_X509_ALGOR_ASN1:
+            {
+                WOLFSSL_X509_ALGOR* algor = wolfSSL_X509_ALGOR_new();
+                if (!algor) {
+                    goto error;
+                }
+                *(WOLFSSL_X509_ALGOR**)(((byte*)ret) + member->offset) = algor;
+                break;
             }
-            *(WOLFSSL_X509_ALGOR**)(((byte*)ret) + member->offset) = algor;
-            break;
-        }
-        case WOLFSSL_ASN1_BIT_STRING_ASN1:
-        {
-            WOLFSSL_ASN1_BIT_STRING* bit_str = wolfSSL_ASN1_BIT_STRING_new();
-            if (!bit_str) {
-                goto error;
+            case WOLFSSL_ASN1_BIT_STRING_ASN1:
+            {
+                WOLFSSL_ASN1_BIT_STRING* bit_str = wolfSSL_ASN1_BIT_STRING_new();
+                if (!bit_str) {
+                    goto error;
+                }
+                *(WOLFSSL_ASN1_BIT_STRING**)(((byte*)ret) + member->offset) = bit_str;
+                break;
             }
-            *(WOLFSSL_ASN1_BIT_STRING**)(((byte*)ret) + member->offset) = bit_str;
-            break;
-        }
-        default:
-            WOLFSSL_MSG("Type not supported in wolfSSL_ASN1_item_new");
-            goto error;
+            default:
+                WOLFSSL_MSG("Type not supported in wolfSSL_ASN1_item_new");
+                goto error;
         }
     }
     return ret;
@@ -31505,27 +31512,27 @@ void wolfSSL_ASN1_item_free(void *val, const WOLFSSL_ASN1_ITEM *template)
     if (val) {
         for (member = template->members, i = 0; i < template->mcount;
                 member++, i++) {
-            switch(member->type) {
-            case WOLFSSL_X509_ALGOR_ASN1:
-            {
-                WOLFSSL_X509_ALGOR* algor = *(WOLFSSL_X509_ALGOR**)
-                                             (((byte*)val) + member->offset);
-                if (algor) {
-                    wolfSSL_X509_ALGOR_free(algor);
+            switch (member->type) {
+                case WOLFSSL_X509_ALGOR_ASN1:
+                {
+                    WOLFSSL_X509_ALGOR* algor = *(WOLFSSL_X509_ALGOR**)
+                                                 (((byte*)val) + member->offset);
+                    if (algor) {
+                        wolfSSL_X509_ALGOR_free(algor);
+                    }
+                    break;
                 }
-                break;
-            }
-            case WOLFSSL_ASN1_BIT_STRING_ASN1:
-            {
-                WOLFSSL_ASN1_BIT_STRING* bit_str = *(WOLFSSL_ASN1_BIT_STRING**)
-                                                    (((byte*)val) + member->offset);
-                if (bit_str) {
-                    wolfSSL_ASN1_BIT_STRING_free(bit_str);
+                case WOLFSSL_ASN1_BIT_STRING_ASN1:
+                {
+                    WOLFSSL_ASN1_BIT_STRING* bit_str = *(WOLFSSL_ASN1_BIT_STRING**)
+                                                        (((byte*)val) + member->offset);
+                    if (bit_str) {
+                        wolfSSL_ASN1_BIT_STRING_free(bit_str);
+                    }
+                    break;
                 }
-                break;
-            }
-            default:
-                WOLFSSL_MSG("Type not supported in wolfSSL_ASN1_item_free");
+                default:
+                    WOLFSSL_MSG("Type not supported in wolfSSL_ASN1_item_free");
             }
         }
         XFREE(val, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -31542,48 +31549,48 @@ static int i2dProcessMembers(const void *src, byte *buf,
     size_t i;
     WOLFSSL_ENTER("processMembers");
     for (member = members, i = 0; i < mcount; member++, i++) {
-        switch(member->type) {
-        case WOLFSSL_X509_ALGOR_ASN1:
-        {
-            word32 oid = 0;
-            word32 idx = 0;
-            const WOLFSSL_X509_ALGOR* algor = *(const WOLFSSL_X509_ALGOR**)
-                                               (((byte*)src) + member->offset);
-            if (!algor->algorithm) {
+        switch (member->type) {
+            case WOLFSSL_X509_ALGOR_ASN1:
+            {
+                word32 oid = 0;
+                word32 idx = 0;
+                const WOLFSSL_X509_ALGOR* algor = *(const WOLFSSL_X509_ALGOR**)
+                                                   (((byte*)src) + member->offset);
+                if (!algor->algorithm) {
+                    WOLFSSL_LEAVE("processMembers", WOLFSSL_FAILURE);
+                    return WOLFSSL_FAILURE;
+                }
+
+                if (GetObjectId(algor->algorithm->obj, &idx, &oid,
+                        algor->algorithm->grp, algor->algorithm->objSz) < 0) {
+                    WOLFSSL_MSG("Issue getting OID of object");
+                    return -1;
+                }
+
+                ret = SetAlgoID(oid, bufLenOrNull(buf, len),
+                                algor->algorithm->grp, 0);
+                if (!ret) {
+                    return WOLFSSL_FAILURE;
+                }
+                len += ret;
+                break;
+            }
+            case WOLFSSL_ASN1_BIT_STRING_ASN1:
+            {
+                const WOLFSSL_ASN1_BIT_STRING* bit_str;
+                bit_str = *(const WOLFSSL_ASN1_BIT_STRING**)
+                           (((byte*)src) + member->offset);
+                len += SetBitString(bit_str->length, 0, bufLenOrNull(buf, len));
+                if (buf && bit_str->data) {
+                    XMEMCPY(buf + len, bit_str->data, bit_str->length);
+                }
+                len += bit_str->length;
+                break;
+            }
+            default:
+                WOLFSSL_MSG("Type not support in processMembers");
                 WOLFSSL_LEAVE("processMembers", WOLFSSL_FAILURE);
                 return WOLFSSL_FAILURE;
-            }
-
-            if (GetObjectId(algor->algorithm->obj, &idx, &oid,
-                    algor->algorithm->grp, algor->algorithm->objSz) < 0) {
-                WOLFSSL_MSG("Issue getting OID of object");
-                return -1;
-            }
-
-            ret = SetAlgoID(oid, bufLenOrNull(buf, len),
-                            algor->algorithm->grp, 0);
-            if (!ret) {
-                return WOLFSSL_FAILURE;
-            }
-            len += ret;
-            break;
-        }
-        case WOLFSSL_ASN1_BIT_STRING_ASN1:
-        {
-            const WOLFSSL_ASN1_BIT_STRING* bit_str;
-            bit_str = *(const WOLFSSL_ASN1_BIT_STRING**)
-                       (((byte*)src) + member->offset);
-            len += SetBitString(bit_str->length, 0, bufLenOrNull(buf, len));
-            if (buf && bit_str->data) {
-                XMEMCPY(buf + len, bit_str->data, bit_str->length);
-            }
-            len += bit_str->length;
-            break;
-        }
-        default:
-            WOLFSSL_MSG("Type not support in processMembers");
-            WOLFSSL_LEAVE("processMembers", WOLFSSL_FAILURE);
-            return WOLFSSL_FAILURE;
         }
     }
     WOLFSSL_LEAVE("processMembers", len);
@@ -31616,26 +31623,26 @@ int wolfSSL_ASN1_item_i2d(const void *src, byte **dest,
     }
 
     switch (template->type) {
-    case ASN_SEQUENCE:
-    {
-        int seq_len = i2dProcessMembers(src, NULL, template->members,
-                                     template->mcount);
-        if (!seq_len) {
-            goto error;
+        case ASN_SEQUENCE:
+        {
+            int seq_len = i2dProcessMembers(src, NULL, template->members,
+                                         template->mcount);
+            if (!seq_len) {
+                goto error;
+            }
+            len += SetSequence(seq_len, bufLenOrNull(buf, len));
+            if (buf &&
+                    i2dProcessMembers(src, bufLenOrNull(buf, len), template->members,
+                                   template->mcount) != seq_len) {
+                WOLFSSL_MSG("Inconsistent sequence length");
+                goto error;
+            }
+            len += seq_len;
+            break;
         }
-        len += SetSequence(seq_len, bufLenOrNull(buf, len));
-        if (buf &&
-                i2dProcessMembers(src, bufLenOrNull(buf, len), template->members,
-                               template->mcount) != seq_len) {
-            WOLFSSL_MSG("Inconsistent sequence length");
+        default:
+            WOLFSSL_MSG("Type not supported in wolfSSL_ASN1_item_i2d");
             goto error;
-        }
-        len += seq_len;
-        break;
-    }
-    default:
-        WOLFSSL_MSG("Type not supported in wolfSSL_ASN1_item_i2d");
-        goto error;
     }
 
     if (dest && !*dest) {
@@ -36950,7 +36957,7 @@ int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
     return WOLFSSL_SUCCESS;
 }
 
-#if !defined(WOLFSSL_ATECC508A) && defined(ECC_SHAMIR) && !defined(HAVE_SELFTEST)
+#if !defined(WOLFSSL_ATECC508A) && !defined(HAVE_SELFTEST)
 /* Calculate the value: generator * n + q * m
  * return code compliant with OpenSSL :
  *   1 if success, 0 if error
@@ -36962,6 +36969,7 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
     mp_int a, prime;
     int ret = WOLFSSL_FAILURE;
     ecc_point* result = NULL;
+    ecc_point* tmp = NULL;
 
     (void)ctx;
 
@@ -37011,6 +37019,7 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
 
     if (n && q && m) {
         /* r = generator * n + q * m */
+#ifdef ECC_SHAMIR
         if (ecc_mul2add(result, (mp_int*)n->internal,
                         (ecc_point*)q->internal, (mp_int*)m->internal,
                         result, &a, &prime, NULL)
@@ -37018,6 +37027,39 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
             WOLFSSL_MSG("ecc_mul2add error");
             goto cleanup;
         }
+#else
+        mp_digit mp = 0;
+        if (mp_montgomery_setup(&prime, &mp) != MP_OKAY) {
+            WOLFSSL_MSG("mp_montgomery_setup nqm error");
+            goto cleanup;
+        }
+        if (!(tmp = wc_ecc_new_point())) {
+            WOLFSSL_MSG("wolfSSL_EC_POINT_new nqm error");
+            goto cleanup;
+        }
+        /* r = generator * n */
+        if (wc_ecc_mulmod((mp_int*)n->internal, result, result, &a, &prime, 1)
+                != MP_OKAY) {
+            WOLFSSL_MSG("wc_ecc_mulmod nqm error");
+            goto cleanup;
+        }
+        /* tmp = q * m */
+        if (wc_ecc_mulmod((mp_int*)m->internal, (ecc_point*)q->internal,
+                tmp, &a, &prime, 1) != MP_OKAY) {
+            WOLFSSL_MSG("wc_ecc_mulmod nqm error");
+            goto cleanup;
+        }
+        /* result = result + tmp */
+        if (ecc_projective_add_point(tmp, result, result, &a, &prime, mp)
+                != MP_OKAY) {
+            WOLFSSL_MSG("wc_ecc_mulmod nqm error");
+            goto cleanup;
+        }
+        if (ecc_map(result, &prime, mp) != MP_OKAY) {
+            WOLFSSL_MSG("ecc_map nqm error");
+            goto cleanup;
+        }
+#endif
     }
     else if (n) {
         /* r = generator * n */
@@ -37052,6 +37094,7 @@ cleanup:
     mp_clear(&a);
     mp_clear(&prime);
     wc_ecc_del_point(result);
+    wc_ecc_del_point(tmp);
     return ret;
 }
 #endif /* !defined(WOLFSSL_ATECC508A) && defined(ECC_SHAMIR) &&

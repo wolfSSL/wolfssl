@@ -1852,7 +1852,9 @@ static void test_wolfSSL_EC(void)
 
 #ifndef HAVE_SELFTEST
     /* perform point multiplication */
+    AssertIntEQ(EC_POINT_mul(group, new_point, Gx, Gxy, k, ctx), WOLFSSL_SUCCESS);
     AssertIntEQ(EC_POINT_mul(group, new_point, NULL, Gxy, k, ctx), WOLFSSL_SUCCESS);
+    AssertIntEQ(EC_POINT_mul(group, new_point, Gx, NULL, NULL, ctx), WOLFSSL_SUCCESS);
 #else
     AssertIntEQ(EC_POINT_set_affine_coordinates_GFp(group, new_point, Gx, Gy, ctx), WOLFSSL_SUCCESS);
 #endif
@@ -16056,7 +16058,7 @@ static int test_wc_ecc_get_generator(void)
 {
     int         ret = 0;
 #if defined(HAVE_ECC) && !defined(WC_NO_RNG) && !defined(HAVE_SELFTEST) && \
-    !defined(HAVE_FIPS)
+    !defined(HAVE_FIPS) && defined(OPENSSL_EXTRA)
     ecc_point* pt;
 
     printf(testingFmt, "wc_ecc_new_point()");
@@ -31008,7 +31010,7 @@ static void test_wolfSSL_ASN1_INTEGER_set()
 }
 
 /* Testing code used in dpp.c in hostap */
-#ifdef WOLFSSL_WPAS
+#ifdef OPENSSL_ALL
 typedef struct {
     /* AlgorithmIdentifier ecPublicKey with optional parameters present
      * as an OID identifying the curve */
@@ -31028,7 +31030,7 @@ IMPLEMENT_ASN1_FUNCTIONS(DPP_BOOTSTRAPPING_KEY);
 static void test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS()
 {
     /* Testing code used in dpp.c in hostap */
-#if defined(WOLFSSL_WPAS) && defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+#if defined(OPENSSL_ALL) && defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
     EC_KEY *eckey;
     EVP_PKEY *key;
     size_t len;
@@ -31058,7 +31060,7 @@ static void test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS()
     AssertIntEQ(EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED,
                                    der, len, NULL), len);
     bootstrap->pub_key->data = der;
-    bootstrap->pub_key->length = len;
+    bootstrap->pub_key->length = (int)len;
     /* Not actually used */
     bootstrap->pub_key->flags &= ~(ASN1_STRING_FLAG_BITS_LEFT | 0x07);
     bootstrap->pub_key->flags |= ASN1_STRING_FLAG_BITS_LEFT;
