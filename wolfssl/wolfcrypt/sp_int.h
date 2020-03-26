@@ -272,6 +272,7 @@ MP_API int sp_mul_d(sp_int* a, sp_int_digit n, sp_int* r);
 #define mp_invmod                   sp_invmod
 #define mp_lcm                      sp_lcm
 #define mp_exptmod                  sp_exptmod
+#define mp_exptmod_nct              sp_exptmod
 #define mp_prime_is_prime           sp_prime_is_prime
 #define mp_prime_is_prime_ex        sp_prime_is_prime_ex
 #define mp_exch                     sp_exch

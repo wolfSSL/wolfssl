@@ -2256,7 +2256,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
         #ifdef WOLFSSL_XILINX_CRYPT
             ret = wc_RsaFunctionXil(in, inLen, out, outLen, type, key, rng);
         #else
-            if (mp_exptmod(tmp, &key->e, &key->n, tmp) != MP_OKAY)
+            if (mp_exptmod_nct(tmp, &key->e, &key->n, tmp) != MP_OKAY)
                 ret = MP_EXPTMOD_E;
         #endif
             break;
