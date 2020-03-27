@@ -288,10 +288,11 @@ typedef struct {
 #endif
 #ifdef WOLFSSL_DTLS
     int doDTLS;
-    int serverReady;
     struct sockaddr_in serverAddr;
     struct sockaddr_in clientAddr;
 #ifdef HAVE_PTHREAD
+    int serverReady;
+    int clientOrserverOnly;
     pthread_mutex_t dtls_mutex;
     pthread_cond_t dtls_cond;
 #endif
@@ -905,7 +906,7 @@ static int bench_tls_client(info_t* info)
 
 #if defined(HAVE_PTHREAD) && defined(WOLFSSL_DTLS)
         /* synchronize with server */ 
-        if (info->doDTLS) {
+        if (info->doDTLS && !info->clientOrserverOnly) {
             pthread_mutex_lock(&info->dtls_mutex);
             if (info->serverReady != 1) {
                 pthread_cond_wait(&info->dtls_cond, &info->dtls_mutex);
@@ -1136,22 +1137,18 @@ static int SocketWaitClient(info_t* info)
 
     if (info->doDTLS) {
 #ifdef HAVE_PTHREAD
-        pthread_mutex_lock(&info->dtls_mutex);
-        info->serverReady = 1;
-        pthread_cond_signal(&info->dtls_cond);
-        pthread_mutex_unlock(&info->dtls_mutex);
+        if (!info->clientOrserverOnly) {
+            pthread_mutex_lock(&info->dtls_mutex);
+            info->serverReady = 1;
+            pthread_cond_signal(&info->dtls_cond);
+            pthread_mutex_unlock(&info->dtls_mutex);
+        }
 #endif
         connd = (int)recvfrom(info->listenFd, (char *)msg, sizeof(msg),
             MSG_PEEK, (struct sockaddr*)&clientAddr, &size);
         if (connd < -1) {
             printf("ERROR: failed to accept the connection\n");
             return -1; 
-        } else if (connd > 0) {
-            if (connect(info->listenFd, (const struct sockaddr *)&clientAddr, 
-            size) != 0) {
-                printf("ERROR: Udp connet failed.\n");
-                return -1;
-            }
         }
         XMEMCPY(&info->clientAddr, &clientAddr, sizeof(clientAddr));
         info->server.sockFd = info->listenFd;
@@ -1781,7 +1778,12 @@ int bench_tls(void* args)
 
         #ifdef WOLFSSL_DTLS
             info->doDTLS = doDTLS;
+        #ifdef HAVE_PTHREAD
             info->serverReady = 0;
+            if (argServerOnly || argClientOnly) {
+                info->clientOrserverOnly = 1;
+            }
+        #endif
         #endif
             if (argClientOnly) {
             #ifndef NO_WOLFSSL_CLIENT
