@@ -23496,8 +23496,7 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
 
     printf(testingFmt, "wolfSSL_ASN1_TIME_adj()");
 
-    s = (WOLFSSL_ASN1_TIME*)XMALLOC(sizeof(WOLFSSL_ASN1_TIME), NULL,
-                                    DYNAMIC_TYPE_OPENSSL);
+    s = wolfSSL_ASN1_TIME_new();
     /* UTC notation test */
     /* 2000/2/15 20:30:00 */
     t = (time_t)30 * year + 45 * day + 20 * hour + 30 * mini + 7 * day;
@@ -26638,11 +26637,9 @@ static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
     printf(testingFmt, "wolfSSL_ASN1_TIME_to_generalizedtime()");
 
     /* UTC Time test */
-    AssertNotNull(t = (WOLFSSL_ASN1_TIME*)XMALLOC(sizeof(WOLFSSL_ASN1_TIME),
-                NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    AssertNotNull(t = wolfSSL_ASN1_TIME_new());
     XMEMSET(t->data, 0, ASN_GENERALIZED_TIME_SIZE);
-    AssertNotNull(out = (WOLFSSL_ASN1_TIME*)XMALLOC(sizeof(WOLFSSL_ASN1_TIME),
-                NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    AssertNotNull(out = wolfSSL_ASN1_TIME_new());
     t->type = ASN_UTC_TIME;
     t->length = ASN_UTC_TIME_SIZE;
     XMEMCPY(t->data, "050727123456Z", ASN_UTC_TIME_SIZE);
@@ -31052,13 +31049,21 @@ static void test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS()
 
     AssertIntEQ(X509_ALGOR_set0(bootstrap->alg, OBJ_nid2obj(EVP_PKEY_EC),
                                 V_ASN1_OBJECT, OBJ_nid2obj(nid)), 1);
-
+#ifdef HAVE_COMP_KEY
     AssertIntGT((len = EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED,
                                           NULL, 0, NULL)), 0);
-
+#else
+    AssertIntGT((len = EC_POINT_point2oct(group, point, POINT_CONVERSION_UNCOMPRESSED,
+                                          NULL, 0, NULL)), 0);
+#endif
     AssertNotNull(der = XMALLOC(len, NULL, DYNAMIC_TYPE_ASN1));
+#ifdef HAVE_COMP_KEY
     AssertIntEQ(EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED,
                                    der, len, NULL), len);
+#else
+    AssertIntEQ(EC_POINT_point2oct(group, point, POINT_CONVERSION_UNCOMPRESSED,
+                                   der, len, NULL), len);
+#endif
     bootstrap->pub_key->data = der;
     bootstrap->pub_key->length = (int)len;
     /* Not actually used */

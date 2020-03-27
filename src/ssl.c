@@ -26906,102 +26906,6 @@ char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* t, char* buf, int len)
 
 #ifdef OPENSSL_EXTRA
 
-#if !defined(NO_ASN_TIME) && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
-
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) && !defined(NO_WOLFSSL_STUB)
-void wolfSSL_ASN1_TIME_free(WOLFSSL_ASN1_TIME* t)
-{
-    (void) t;
-    WOLFSSL_STUB("wolfSSL_ASN1_TIME_free");
-    return;
-}
-#endif /* NO_WOLFSSL_STUB && WOLFSSL_QT || OPENSSL_ALL */
-
-WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
-                                    int offset_day, long offset_sec)
-{
-    const time_t sec_per_day = 24*60*60;
-    struct tm* ts = NULL;
-    struct tm* tmpTime;
-    time_t t_adj = 0;
-    time_t offset_day_sec = 0;
-#if defined(NEED_TMP_TIME)
-    struct tm tmpTimeStorage;
-
-    tmpTime = &tmpTimeStorage;
-#else
-    tmpTime = NULL;
-#endif
-    (void)tmpTime;
-
-    WOLFSSL_ENTER("wolfSSL_ASN1_TIME_adj");
-
-    if (s == NULL){
-        s = (WOLFSSL_ASN1_TIME*)XMALLOC(sizeof(WOLFSSL_ASN1_TIME), NULL,
-                                        DYNAMIC_TYPE_OPENSSL);
-        if (s == NULL){
-            return NULL;
-        }
-        XMEMSET(s, 0, sizeof(WOLFSSL_ASN1_TIME));
-    }
-
-    /* compute GMT time with offset */
-    offset_day_sec = offset_day * sec_per_day;
-    t_adj          = t + offset_day_sec + offset_sec;
-    ts             = (struct tm *)XGMTIME(&t_adj, tmpTime);
-    if (ts == NULL){
-        WOLFSSL_MSG("failed to get time data.");
-        XFREE(s, NULL, DYNAMIC_TYPE_OPENSSL);
-        return NULL;
-    }
-
-    /* create ASN1 time notation */
-    /* UTC Time */
-    if (ts->tm_year >= 50 && ts->tm_year < 150){
-        char utc_str[ASN_UTC_TIME_SIZE];
-        int utc_year = 0,utc_mon,utc_day,utc_hour,utc_min,utc_sec;
-
-        s->type = V_ASN1_UTCTIME;
-        s->length = ASN_UTC_TIME_SIZE;
-
-        if (ts->tm_year >= 50 && ts->tm_year < 100){
-            utc_year = ts->tm_year;
-        } else if (ts->tm_year >= 100 && ts->tm_year < 150){
-            utc_year = ts->tm_year - 100;
-        }
-        utc_mon  = ts->tm_mon + 1;
-        utc_day  = ts->tm_mday;
-        utc_hour = ts->tm_hour;
-        utc_min  = ts->tm_min;
-        utc_sec  = ts->tm_sec;
-        XSNPRINTF((char *)utc_str, sizeof(utc_str),
-                  "%02d%02d%02d%02d%02d%02dZ",
-                  utc_year, utc_mon, utc_day, utc_hour, utc_min, utc_sec);
-        XMEMCPY(s->data, (byte *)utc_str, s->length);
-    /* GeneralizedTime */
-    } else {
-        char gt_str[ASN_GENERALIZED_TIME_MAX];
-        int gt_year,gt_mon,gt_day,gt_hour,gt_min,gt_sec;
-
-        s->type = V_ASN1_GENERALIZEDTIME;
-        s->length = ASN_GENERALIZED_TIME_SIZE;
-
-        gt_year = ts->tm_year + 1900;
-        gt_mon  = ts->tm_mon + 1;
-        gt_day  = ts->tm_mday;
-        gt_hour = ts->tm_hour;
-        gt_min  = ts->tm_min;
-        gt_sec  = ts->tm_sec;
-        XSNPRINTF((char *)gt_str, sizeof(gt_str),
-                  "%4d%02d%02d%02d%02d%02dZ",
-                  gt_year, gt_mon, gt_day, gt_hour, gt_min,gt_sec);
-        XMEMCPY(s->data, (byte *)gt_str, s->length);
-    }
-
-    return s;
-}
-#endif /* !NO_ASN_TIME && !USER_TIME && !TIME_OVERRIDES */
-
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_ASN1_INTEGER_cmp(const WOLFSSL_ASN1_INTEGER* a,
                             const WOLFSSL_ASN1_INTEGER* b)
@@ -28230,9 +28134,8 @@ WOLFSSL_X509_ALGOR* wolfSSL_X509_ALGOR_new(void)
 void wolfSSL_X509_ALGOR_free(WOLFSSL_X509_ALGOR *alg)
 {
     if (alg) {
-        if (alg->algorithm) {
-            wolfSSL_ASN1_OBJECT_free(alg->algorithm);
-        }
+        wolfSSL_ASN1_OBJECT_free(alg->algorithm);
+        wolfSSL_ASN1_TYPE_free(alg->parameter);
         XFREE(alg, NULL, DYNAMIC_TYPE_OPENSSL);
     }
 }
@@ -28265,8 +28168,15 @@ void wolfSSL_X509_ALGOR_get0(const WOLFSSL_ASN1_OBJECT **paobj, int *pptype,
         *paobj = algor->algorithm;
     if (ppval)
         *ppval = algor->algorithm;
-    if (pptype)
-        *pptype = V_ASN1_OBJECT;
+    if (pptype) {
+        if (algor->parameter) {
+            *pptype = algor->parameter->type;
+        }
+        else {
+            /* Default to V_ASN1_OBJECT */
+            *pptype = V_ASN1_OBJECT;
+        }
+    }
 }
 
 int wolfSSL_X509_ALGOR_set0(WOLFSSL_X509_ALGOR *algor, WOLFSSL_ASN1_OBJECT *aobj,
@@ -28275,17 +28185,72 @@ int wolfSSL_X509_ALGOR_set0(WOLFSSL_X509_ALGOR *algor, WOLFSSL_ASN1_OBJECT *aobj
     if (!algor) {
         return WOLFSSL_FAILURE;
     }
-    if (ptype != V_ASN1_OBJECT) {
-        WOLFSSL_MSG("Only V_ASN1_OBJECT ptype is supported");
-        return WOLFSSL_FAILURE;
-    }
     if (aobj) {
         algor->algorithm = aobj;
     }
-    else if (pval) {
-        algor->algorithm = pval;
+    if (pval) {
+        if (!algor->parameter) {
+            algor->parameter = wolfSSL_ASN1_TYPE_new();
+            if (!algor->parameter) {
+                return WOLFSSL_FAILURE;
+            }
+        }
+        wolfSSL_ASN1_TYPE_set(algor->parameter, ptype, pval);
     }
     return WOLFSSL_SUCCESS;
+}
+
+void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value)
+{
+    if (!a || !value) {
+        return;
+    }
+    switch (type) {
+        case V_ASN1_OBJECT:
+            a->value.object = value;
+            break;
+        case V_ASN1_UTCTIME:
+            a->value.utctime = value;
+            break;
+        case V_ASN1_GENERALIZEDTIME:
+            a->value.generalizedtime = value;
+            break;
+        default:
+            WOLFSSL_MSG("Unknown or unsupported ASN1_TYPE");
+            return;
+    }
+    a->type = type;
+}
+
+WOLFSSL_ASN1_TYPE* wolfSSL_ASN1_TYPE_new(void)
+{
+    WOLFSSL_ASN1_TYPE* ret = (WOLFSSL_ASN1_TYPE*)XMALLOC(sizeof(WOLFSSL_ASN1_TYPE),
+                                                        NULL, DYNAMIC_TYPE_OPENSSL);
+    if (!ret)
+        return NULL;
+    XMEMSET(ret, 0, sizeof(WOLFSSL_ASN1_TYPE));
+    return ret;
+}
+
+void wolfSSL_ASN1_TYPE_free(WOLFSSL_ASN1_TYPE* at)
+{
+    if (at) {
+        switch (at->type) {
+            case V_ASN1_OBJECT:
+                wolfSSL_ASN1_OBJECT_free(at->value.object);
+                break;
+            case V_ASN1_UTCTIME:
+                wolfSSL_ASN1_TIME_free(at->value.utctime);
+                break;
+            case V_ASN1_GENERALIZEDTIME:
+                wolfSSL_ASN1_TIME_free(at->value.generalizedtime);
+                break;
+            default:
+                WOLFSSL_MSG("Unknown or unsupported ASN1_TYPE");
+                break;
+        }
+        XFREE(at, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
 }
 
 WOLFSSL_X509_PUBKEY *wolfSSL_X509_PUBKEY_new(void)
@@ -50249,7 +50214,106 @@ err_exit:
     return WOLFSSL_FAILURE;
 }
 
+#if !defined(NO_ASN_TIME) && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
+WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_new(void)
+{
+    WOLFSSL_ASN1_TIME* ret = (WOLFSSL_ASN1_TIME*)
+            XMALLOC(sizeof(WOLFSSL_ASN1_TIME), NULL, DYNAMIC_TYPE_OPENSSL);
+    if (!ret)
+        return NULL;
+    XMEMSET(ret, 0, sizeof(WOLFSSL_ASN1_TIME));
+    return ret;
+}
 
+void wolfSSL_ASN1_TIME_free(WOLFSSL_ASN1_TIME* t)
+{
+    if (t) {
+        XFREE(t, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+}
+
+WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
+                                    int offset_day, long offset_sec)
+{
+    const time_t sec_per_day = 24*60*60;
+    struct tm* ts = NULL;
+    struct tm* tmpTime;
+    time_t t_adj = 0;
+    time_t offset_day_sec = 0;
+#if defined(NEED_TMP_TIME)
+    struct tm tmpTimeStorage;
+
+    tmpTime = &tmpTimeStorage;
+#else
+    tmpTime = NULL;
+#endif
+    (void)tmpTime;
+
+    WOLFSSL_ENTER("wolfSSL_ASN1_TIME_adj");
+
+    if (s == NULL){
+        s = wolfSSL_ASN1_TIME_new();
+        if (s == NULL){
+            return NULL;
+        }
+    }
+
+    /* compute GMT time with offset */
+    offset_day_sec = offset_day * sec_per_day;
+    t_adj          = t + offset_day_sec + offset_sec;
+    ts             = (struct tm *)XGMTIME(&t_adj, tmpTime);
+    if (ts == NULL){
+        WOLFSSL_MSG("failed to get time data.");
+        XFREE(s, NULL, DYNAMIC_TYPE_OPENSSL);
+        return NULL;
+    }
+
+    /* create ASN1 time notation */
+    /* UTC Time */
+    if (ts->tm_year >= 50 && ts->tm_year < 150){
+        char utc_str[ASN_UTC_TIME_SIZE];
+        int utc_year = 0,utc_mon,utc_day,utc_hour,utc_min,utc_sec;
+
+        s->type = V_ASN1_UTCTIME;
+        s->length = ASN_UTC_TIME_SIZE;
+
+        if (ts->tm_year >= 50 && ts->tm_year < 100){
+            utc_year = ts->tm_year;
+        } else if (ts->tm_year >= 100 && ts->tm_year < 150){
+            utc_year = ts->tm_year - 100;
+        }
+        utc_mon  = ts->tm_mon + 1;
+        utc_day  = ts->tm_mday;
+        utc_hour = ts->tm_hour;
+        utc_min  = ts->tm_min;
+        utc_sec  = ts->tm_sec;
+        XSNPRINTF((char *)utc_str, sizeof(utc_str),
+                  "%02d%02d%02d%02d%02d%02dZ",
+                  utc_year, utc_mon, utc_day, utc_hour, utc_min, utc_sec);
+        XMEMCPY(s->data, (byte *)utc_str, s->length);
+    /* GeneralizedTime */
+    } else {
+        char gt_str[ASN_GENERALIZED_TIME_MAX];
+        int gt_year,gt_mon,gt_day,gt_hour,gt_min,gt_sec;
+
+        s->type = V_ASN1_GENERALIZEDTIME;
+        s->length = ASN_GENERALIZED_TIME_SIZE;
+
+        gt_year = ts->tm_year + 1900;
+        gt_mon  = ts->tm_mon + 1;
+        gt_day  = ts->tm_mday;
+        gt_hour = ts->tm_hour;
+        gt_min  = ts->tm_min;
+        gt_sec  = ts->tm_sec;
+        XSNPRINTF((char *)gt_str, sizeof(gt_str),
+                  "%4d%02d%02d%02d%02d%02dZ",
+                  gt_year, gt_mon, gt_day, gt_hour, gt_min,gt_sec);
+        XMEMCPY(s->data, (byte *)gt_str, s->length);
+    }
+
+    return s;
+}
+#endif /* !NO_ASN_TIME && !USER_TIME && !TIME_OVERRIDES */
 
 #ifndef NO_ASN_TIME
 /* not a compatibility function - length getter for opaque type */
@@ -50284,13 +50348,9 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
             WOLFSSL_MSG("Invalid ASN_TIME type.");
         } else {
             if (out == NULL || *out == NULL) {
-                ret = (WOLFSSL_ASN1_TIME*)XMALLOC(sizeof(WOLFSSL_ASN1_TIME),
-                        NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                ret = wolfSSL_ASN1_TIME_new();
                 if (ret == NULL){
                     WOLFSSL_MSG("memory alloc failed.");
-                }
-                else {
-                    XMEMSET(ret, 0, sizeof(WOLFSSL_ASN1_TIME));
                 }
             } else {
                 ret = *out;

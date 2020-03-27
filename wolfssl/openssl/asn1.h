@@ -79,7 +79,8 @@
 
 WOLFSSL_API WOLFSSL_ASN1_INTEGER *wolfSSL_BN_to_ASN1_INTEGER(
     const WOLFSSL_BIGNUM*, WOLFSSL_ASN1_INTEGER*);
-#define BN_to_ASN1_INTEGER wolfSSL_BN_to_ASN1_INTEGER
+
+WOLFSSL_API void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value);
 
 #ifdef OPENSSL_ALL
 /* IMPLEMENT_ASN1_FUNCTIONS stuff */
@@ -141,8 +142,9 @@ WOLFSSL_API int wolfSSL_ASN1_item_i2d(const void *src, byte **dest,
         return wolfSSL_ASN1_item_i2d(src, dest, &type##_template_data);\
     }
 
-WOLFSSL_API void *ASN1_item_new(const WOLFSSL_ASN1_ITEM *it);
+#endif /* OPENSSL_ALL */
 
-#endif /* WOLFSSL_WPAS */
+#define BN_to_ASN1_INTEGER          wolfSSL_BN_to_ASN1_INTEGER
+#define ASN1_TYPE_set               wolfSSL_ASN1_TYPE_set
 
 #endif /* WOLFSSL_ASN1_H_ */
