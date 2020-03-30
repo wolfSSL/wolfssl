@@ -148,6 +148,9 @@ int wolfSSL_EC_POINT_oct2point(const WOLFSSL_EC_GROUP *group,
 WOLFSSL_API
 int wolfSSL_i2o_ECPublicKey(const WOLFSSL_EC_KEY *in, unsigned char **out);
 WOLFSSL_API
+WOLFSSL_EC_KEY *wolfSSL_d2i_ECPrivateKey(WOLFSSL_EC_KEY **key, const unsigned char **in,
+                                         long len);
+WOLFSSL_API
 int wolfSSL_i2d_ECPrivateKey(const WOLFSSL_EC_KEY *in, unsigned char **out);
 WOLFSSL_API
 void wolfSSL_EC_KEY_set_conv_form(WOLFSSL_EC_KEY *eckey, char form);
@@ -236,10 +239,17 @@ int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
                                                 const WOLFSSL_BIGNUM *y,
                                                 WOLFSSL_BN_CTX *ctx);
 WOLFSSL_API
+int wolfSSL_EC_POINT_add(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
+                         const WOLFSSL_EC_POINT *p1,
+                         const WOLFSSL_EC_POINT *p2, WOLFSSL_BN_CTX *ctx);
+WOLFSSL_API
 int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
                          const WOLFSSL_BIGNUM *n,
                          const WOLFSSL_EC_POINT *q, const WOLFSSL_BIGNUM *m,
                          WOLFSSL_BN_CTX *ctx);
+WOLFSSL_API
+int wolfSSL_EC_POINT_invert(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *a,
+                            WOLFSSL_BN_CTX *ctx);
 WOLFSSL_API
 void wolfSSL_EC_POINT_clear_free(WOLFSSL_EC_POINT *point);
 WOLFSSL_API
@@ -300,7 +310,9 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
                                      wolfSSL_EC_POINT_get_affine_coordinates_GFp
 #define EC_POINT_set_affine_coordinates_GFp \
                                      wolfSSL_EC_POINT_set_affine_coordinates_GFp
+#define EC_POINT_add                    wolfSSL_EC_POINT_add
 #define EC_POINT_mul                    wolfSSL_EC_POINT_mul
+#define EC_POINT_invert                 wolfSSL_EC_POINT_invert
 #define EC_POINT_clear_free             wolfSSL_EC_POINT_clear_free
 #define EC_POINT_cmp                    wolfSSL_EC_POINT_cmp
 #define EC_POINT_copy                   wolfSSL_EC_POINT_copy
@@ -316,6 +328,7 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 #define EC_POINT_is_on_curve            wolfSSL_EC_POINT_is_on_curve
 #define i2o_ECPublicKey                 wolfSSL_i2o_ECPublicKey
 #define i2d_EC_PUBKEY                   wolfSSL_i2o_ECPublicKey
+#define d2i_ECPrivateKey                wolfSSL_d2i_ECPrivateKey
 #define i2d_ECPrivateKey                wolfSSL_i2d_ECPrivateKey
 #define EC_KEY_set_conv_form            wolfSSL_EC_KEY_set_conv_form
 
