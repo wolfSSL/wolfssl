@@ -7615,6 +7615,39 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out,
     return pkey;
 }
 
+/* helper function to get raw pointer to DER buffer from WOLFSSL_EVP_PKEY */
+static int wolfSSL_EVP_PKEY_get_der(const WOLFSSL_EVP_PKEY* key, unsigned char** der)
+{
+    unsigned char* pt;
+    int sz = key->pkey_sz;
+
+    if (!key || !key->pkey_sz)
+        return WOLFSSL_FATAL_ERROR;
+
+    if (der) {
+        pt = (unsigned char*)key->pkey.ptr;
+        if (*der) {
+            /* since this function signature has no size value passed in it is
+             * assumed that the user has allocated a large enough buffer */
+            XMEMCPY(*der, pt, sz);
+            *der += sz;
+        }
+        else {
+            *der = (unsigned char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_OPENSSL);
+            if (*der == NULL) {
+                return WOLFSSL_FATAL_ERROR;
+            }
+            XMEMCPY(*der, pt, sz);
+        }
+    }
+    return sz;
+}
+
+int wolfSSL_i2d_PUBKEY(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
+{
+    return wolfSSL_EVP_PKEY_get_der(key, der);
+}
+
 
 /* Reads in a DER format key. If PKCS8 headers are found they are stripped off.
  *
@@ -22174,39 +22207,15 @@ int wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO *bio, WC_PKCS12 *pkcs12)
     return ret;
 }
 
-/* helper function to get raw pointer to DER buffer from WOLFSSL_EVP_PKEY */
-static int wolfSSL_EVP_PKEY_get_der(WOLFSSL_EVP_PKEY* key, unsigned char** der)
-{
-    if (!key)
-        return WOLFSSL_FAILURE;
-    if (der)
-        *der = (unsigned char*)key->pkey.ptr;
-    return key->pkey_sz;
-}
-
 /* Copies unencrypted DER key buffer into "der". If "der" is null then the size
- * of buffer needed is returned
+ * of buffer needed is returned. If *der == NULL then it allocates a buffer.
  * NOTE: This also advances the "der" pointer to be at the end of buffer.
  *
  * Returns size of key buffer on success
  */
-int wolfSSL_i2d_PrivateKey(WOLFSSL_EVP_PKEY* key, unsigned char** der)
+int wolfSSL_i2d_PrivateKey(const WOLFSSL_EVP_PKEY* key, unsigned char** der)
 {
-    if (key == NULL) {
-        return WOLFSSL_FATAL_ERROR;
-    }
-
-    if (key->pkey_sz <= 0 || !key->pkey.ptr) {
-        return WOLFSSL_FATAL_ERROR;
-    }
-
-    if (der != NULL) {
-        /* since this function signature has no size value passed in it is
-         * assumed that the user has allocated a large enough buffer */
-        XMEMCPY(*der, key->pkey.ptr, key->pkey_sz);
-        *der += key->pkey_sz;
-    }
-    return key->pkey_sz;
+    return wolfSSL_EVP_PKEY_get_der(key, der);
 }
 
 /* Creates a new WC_PKCS12 structure
@@ -22232,12 +22241,10 @@ WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name,
     WC_PKCS12*      pkcs12;
     WC_DerCertList* list = NULL;
     word32 passSz;
-    byte* keyDer;
+    byte* keyDer = NULL;
     word32 keyDerSz;
     byte* certDer;
     int certDerSz;
-
-    int ret;
 
     WOLFSSL_ENTER("wolfSSL_PKCS12_create()");
 
@@ -22247,11 +22254,8 @@ WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name,
     }
     passSz = (word32)XSTRLEN(pass);
 
-    if ((ret = wolfSSL_EVP_PKEY_get_der(pkey, &keyDer)) < 0) {
-        WOLFSSL_LEAVE("wolfSSL_PKCS12_create", ret);
-        return NULL;
-    }
-    keyDerSz = ret;
+    keyDer = (byte*)pkey->pkey.ptr;
+    keyDerSz = pkey->pkey_sz;
 
     certDer = (byte*)wolfSSL_X509_get_der(cert, &certDerSz);
     if (certDer == NULL) {
@@ -25314,9 +25318,9 @@ int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg,
     if (ppkalg)
         *ppkalg = pub->algor->algorithm;
     if (pk)
-        wolfSSL_EVP_PKEY_get_der(pub->pkey, (unsigned char **)pk);
+        *pk = (unsigned char*)pub->pkey->pkey.ptr;
     if (ppklen)
-        *ppklen = wolfSSL_EVP_PKEY_get_der(pub->pkey, NULL);
+        *ppklen = pub->pkey->pkey_sz;
 
     return WOLFSSL_SUCCESS;
 }
