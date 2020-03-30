@@ -32946,6 +32946,47 @@ int wolfSSL_i2o_ECPublicKey(const WOLFSSL_EC_KEY *in, unsigned char **out)
     return (int)len;
 }
 
+#ifdef HAVE_ECC_KEY_IMPORT
+WOLFSSL_EC_KEY *wolfSSL_d2i_ECPrivateKey(WOLFSSL_EC_KEY **key, const unsigned char **in,
+                                         long len)
+{
+    WOLFSSL_EC_KEY *eckey = NULL;
+    WOLFSSL_ENTER("wolfSSL_d2i_ECPrivateKey");
+
+    if (!in || !*in || len <= 0) {
+        WOLFSSL_MSG("wolfSSL_d2i_ECPrivateKey Bad arguments");
+        return NULL;
+    }
+
+    if (!(eckey = wolfSSL_EC_KEY_new())) {
+        WOLFSSL_MSG("wolfSSL_EC_KEY_new error");
+        return NULL;
+    }
+
+    if (wc_ecc_import_private_key(*in, len, NULL, 0, (ecc_key*)eckey->internal) != MP_OKAY) {
+        WOLFSSL_MSG("wc_ecc_import_private_key error");
+        goto error;
+    }
+
+    eckey->inSet = 1;
+
+    if (SetECKeyExternal(eckey) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("SetECKeyExternal error");
+        goto error;
+    }
+
+    if (key) {
+        *key = eckey;
+    }
+
+    return eckey;
+
+error:
+    wolfSSL_EC_KEY_free(eckey);
+    return NULL;
+}
+#endif /* HAVE_ECC_KEY_IMPORT */
+
 int wolfSSL_i2d_ECPrivateKey(const WOLFSSL_EC_KEY *in, unsigned char **out)
 {
     int len;
@@ -33199,6 +33240,70 @@ int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(HAVE_SELFTEST)
 #if !defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION>2))
+int wolfSSL_EC_POINT_add(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
+                         const WOLFSSL_EC_POINT *p1,
+                         const WOLFSSL_EC_POINT *p2, WOLFSSL_BN_CTX *ctx)
+{
+    mp_int a, prime;
+    mp_digit mp = 0;
+    int ret = WOLFSSL_FAILURE;
+
+    (void)ctx;
+
+    if (!group || !r || !p1 || !p2) {
+        WOLFSSL_MSG("wolfSSL_EC_POINT_add error");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (setupPoint(r) != WOLFSSL_SUCCESS ||
+        setupPoint(p1) != WOLFSSL_SUCCESS ||
+        setupPoint(p2) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("setupPoint error");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* read the curve prime and a */
+    if (mp_init_multi(&prime, &a, NULL, NULL, NULL, NULL) != MP_OKAY) {
+        WOLFSSL_MSG("mp_init_multi error");
+        goto cleanup;
+    }
+
+    if (mp_read_radix(&a, ecc_sets[group->curve_idx].Af, MP_RADIX_HEX)
+            != MP_OKAY) {
+        WOLFSSL_MSG("mp_read_radix a error");
+        goto cleanup;
+    }
+
+    if (mp_read_radix(&prime, ecc_sets[group->curve_idx].prime, MP_RADIX_HEX)
+            != MP_OKAY) {
+        WOLFSSL_MSG("mp_read_radix prime error");
+        goto cleanup;
+    }
+
+    if (mp_montgomery_setup(&prime, &mp) != MP_OKAY) {
+        WOLFSSL_MSG("mp_montgomery_setup nqm error");
+        goto cleanup;
+    }
+
+    if (ecc_projective_add_point((ecc_point*)p1->internal, (ecc_point*)p2->internal,
+                                 (ecc_point*)r->internal, &a, &prime, mp)
+            != MP_OKAY) {
+        WOLFSSL_MSG("wc_ecc_mulmod nqm error");
+        goto cleanup;
+    }
+
+    if (ecc_map((ecc_point*)r->internal, &prime, mp) != MP_OKAY) {
+        WOLFSSL_MSG("ecc_map nqm error");
+        goto cleanup;
+    }
+
+    ret = WOLFSSL_SUCCESS;
+cleanup:
+    mp_clear(&a);
+    mp_clear(&prime);
+    return ret;
+}
+
 /* Calculate the value: generator * n + q * m
  * return code compliant with OpenSSL :
  *   1 if success, 0 if error
@@ -33341,6 +33446,43 @@ cleanup:
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* !defined(WOLFSSL_ATECC508A) && defined(ECC_SHAMIR) &&
         * !defined(HAVE_SELFTEST) */
+
+/* (x, y) -> (x, -y) */
+int wolfSSL_EC_POINT_invert(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *a,
+                            WOLFSSL_BN_CTX *ctx)
+{
+    ecc_point* p;
+    mp_int prime;
+
+    (void)ctx;
+
+    WOLFSSL_ENTER("wolfSSL_EC_POINT_invert");
+
+    if (!group || !a || setupPoint(a) != WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+
+    p = (ecc_point*)a->internal;
+
+
+    /* read the curve prime and a */
+    if (mp_init_multi(&prime, NULL, NULL, NULL, NULL, NULL) != MP_OKAY) {
+        WOLFSSL_MSG("mp_init_multi error");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (mp_sub(&prime, p->y, p->y) != MP_OKAY) {
+        WOLFSSL_MSG("mp_sub error");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (SetECPointExternal(a) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("SetECPointExternal error");
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
 
 void wolfSSL_EC_POINT_clear_free(WOLFSSL_EC_POINT *p)
 {

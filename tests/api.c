@@ -1946,6 +1946,7 @@ static void test_wolfSSL_EC(void)
 
 #ifndef HAVE_SELFTEST
     /* perform point multiplication */
+    AssertIntEQ(EC_POINT_add(group, new_point, new_point, Gxy, ctx), WOLFSSL_SUCCESS);
     AssertIntEQ(EC_POINT_mul(group, new_point, Gx, Gxy, k, ctx), WOLFSSL_SUCCESS);
     AssertIntEQ(BN_is_zero(new_point->X), 0);
     AssertIntEQ(BN_is_zero(new_point->Y), 0);
@@ -1991,6 +1992,9 @@ static void test_wolfSSL_EC(void)
 
     /* Test copying */
     AssertIntEQ(EC_POINT_copy(new_point, set_point), 1);
+
+    /* Test inverting */
+    AssertIntEQ(EC_POINT_invert(group, new_point, ctx), 1);
 
     AssertPtrEq(EC_POINT_point2bn(group, set_point, POINT_CONVERSION_UNCOMPRESSED,
                                   set_point_bn, ctx), set_point_bn);
@@ -2135,8 +2139,10 @@ static void test_EC_i2d(void)
 {
 #ifdef HAVE_ECC
     EC_KEY *key;
+    EC_KEY *copy;
     int len;
     unsigned char *buf = NULL;
+    const unsigned char *tmp = NULL;
 
     AssertNotNull(key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
     AssertIntEQ(EC_KEY_generate_key(key), 1);
@@ -2150,8 +2156,12 @@ static void test_EC_i2d(void)
     AssertIntGT((len = i2d_ECPrivateKey(key, NULL)), 0);
     AssertIntEQ(i2d_ECPrivateKey(key, &buf), len);
 
+    tmp = buf;
+    AssertNotNull(d2i_ECPrivateKey(&copy, &tmp, len));
+
     XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     EC_KEY_free(key);
+    EC_KEY_free(copy);
 #endif /* HAVE_ECC */
 }
 
