@@ -1884,6 +1884,7 @@ static void test_wolfSSL_EC(void)
 #if defined(HAVE_ECC)
     BN_CTX *ctx;
     EC_GROUP *group;
+    EC_GROUP *group2;
     EC_POINT *Gxy, *new_point, *set_point;
     BIGNUM *k = NULL, *Gx = NULL, *Gy = NULL, *Gz = NULL;
     BIGNUM *X, *Y;
@@ -1923,6 +1924,7 @@ static void test_wolfSSL_EC(void)
 
     AssertNotNull(ctx = BN_CTX_new());
     AssertNotNull(group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
+    AssertNotNull(group2 = EC_GROUP_dup(group));
     AssertIntEQ((group_bits = EC_GROUP_order_bits(group)), 256);
     AssertNotNull(Gxy = EC_POINT_new(group));
     AssertNotNull(new_point = EC_POINT_new(group));
@@ -2074,6 +2076,7 @@ static void test_wolfSSL_EC(void)
     EC_POINT_free(set_point);
     EC_POINT_free(Gxy);
     EC_GROUP_free(group);
+    EC_GROUP_free(group2);
     BN_CTX_free(ctx);
 #endif /* HAVE_ECC */
 }

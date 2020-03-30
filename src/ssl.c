@@ -32453,6 +32453,13 @@ int wolfSSL_EC_GROUP_cmp(const WOLFSSL_EC_GROUP *a, const WOLFSSL_EC_GROUP *b,
     return 1;
 }
 
+WOLFSSL_EC_GROUP *wolfSSL_EC_GROUP_dup(const WOLFSSL_EC_GROUP *src)
+{
+    if (!src)
+        return NULL;
+    return wolfSSL_EC_GROUP_new_by_curve_name(src->curve_nid);
+}
+
 #endif /* HAVE_ECC */
 #endif /* OPENSSL_EXTRA */
 
