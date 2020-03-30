@@ -5517,7 +5517,7 @@ static void test_wolfSSL_X509_verify(void)
     WOLFSSL_X509* server;
     WOLFSSL_EVP_PKEY* pkey;
     unsigned char buf[2048];
-    const unsigned char* pt;
+    const unsigned char* pt = NULL;
     int bufSz;
 
     printf(testingFmt, "wolfSSL X509 verify");
@@ -5544,6 +5544,9 @@ static void test_wolfSSL_X509_verify(void)
     /* success case */
     pt = buf;
     AssertNotNull(pkey = wolfSSL_d2i_PUBKEY(NULL, &pt, bufSz));
+
+    AssertIntEQ(i2d_PUBKEY(pkey, NULL), bufSz);
+
     AssertIntEQ(wolfSSL_X509_verify(server, pkey), WOLFSSL_SUCCESS);
     wolfSSL_EVP_PKEY_free(pkey);
 
@@ -32423,7 +32426,7 @@ static void test_wolfSSL_i2d_PrivateKey()
         EVP_PKEY* pkey;
         const unsigned char* server_key = (const unsigned char*)server_key_der_2048;
         unsigned char buf[FOURK_BUF];
-        unsigned char* pt;
+        unsigned char* pt = NULL;
         int bufSz;
 
         AssertNotNull(pkey = d2i_PrivateKey(EVP_PKEY_RSA, NULL, &server_key,
@@ -32442,7 +32445,7 @@ static void test_wolfSSL_i2d_PrivateKey()
         const unsigned char* client_key =
             (const unsigned char*)ecc_clikey_der_256;
         unsigned char buf[FOURK_BUF];
-        unsigned char* pt;
+        unsigned char* pt = NULL;
         int bufSz;
 
         AssertNotNull((pkey = d2i_PrivateKey(EVP_PKEY_EC, NULL, &client_key,
