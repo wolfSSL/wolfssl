@@ -204,6 +204,8 @@ WOLFSSL_API
 int wolfSSL_EC_GROUP_cmp(const WOLFSSL_EC_GROUP *a, const WOLFSSL_EC_GROUP *b,
                          WOLFSSL_BN_CTX *ctx);
 WOLFSSL_API
+WOLFSSL_EC_GROUP *wolfSSL_EC_GROUP_dup(const WOLFSSL_EC_GROUP *src);
+WOLFSSL_API
 int wolfSSL_EC_GROUP_get_curve_name(const WOLFSSL_EC_GROUP *group);
 WOLFSSL_API
 int wolfSSL_EC_GROUP_get_degree(const WOLFSSL_EC_GROUP *group);
@@ -283,6 +285,7 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 #define EC_GROUP_set_asn1_flag          wolfSSL_EC_GROUP_set_asn1_flag
 #define EC_GROUP_new_by_curve_name      wolfSSL_EC_GROUP_new_by_curve_name
 #define EC_GROUP_cmp                    wolfSSL_EC_GROUP_cmp
+#define EC_GROUP_dup                    wolfSSL_EC_GROUP_dup
 #define EC_GROUP_get_curve_name         wolfSSL_EC_GROUP_get_curve_name
 #define EC_GROUP_get_degree             wolfSSL_EC_GROUP_get_degree
 #define EC_GROUP_get_order              wolfSSL_EC_GROUP_get_order
