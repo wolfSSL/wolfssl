@@ -9794,51 +9794,51 @@ void wc_FreeDer(DerBuffer** pDer)
 /* Max X509 header length indicates the max length + 2 ('\n', '\0') */
 #define MAX_X509_HEADER_SZ  (37 + 2)
 
-const char* const BEGIN_CERT           = "-----BEGIN CERTIFICATE-----";
-const char* const END_CERT             = "-----END CERTIFICATE-----";
+wcchar BEGIN_CERT           = "-----BEGIN CERTIFICATE-----";
+wcchar END_CERT             = "-----END CERTIFICATE-----";
 #ifdef WOLFSSL_CERT_REQ
-    const char* const BEGIN_CERT_REQ   = "-----BEGIN CERTIFICATE REQUEST-----";
-    const char* const END_CERT_REQ     = "-----END CERTIFICATE REQUEST-----";
+    wcchar BEGIN_CERT_REQ   = "-----BEGIN CERTIFICATE REQUEST-----";
+    wcchar END_CERT_REQ     = "-----END CERTIFICATE REQUEST-----";
 #endif
 #ifndef NO_DH
-    const char* const BEGIN_DH_PARAM   = "-----BEGIN DH PARAMETERS-----";
-    const char* const END_DH_PARAM     = "-----END DH PARAMETERS-----";
+    wcchar BEGIN_DH_PARAM   = "-----BEGIN DH PARAMETERS-----";
+    wcchar END_DH_PARAM     = "-----END DH PARAMETERS-----";
 #endif
 #ifndef NO_DSA
-    const char* const BEGIN_DSA_PARAM  = "-----BEGIN DSA PARAMETERS-----";
-    const char* const END_DSA_PARAM    = "-----END DSA PARAMETERS-----";
+    wcchar BEGIN_DSA_PARAM  = "-----BEGIN DSA PARAMETERS-----";
+    wcchar END_DSA_PARAM    = "-----END DSA PARAMETERS-----";
 #endif
-const char* const BEGIN_X509_CRL       = "-----BEGIN X509 CRL-----";
-const char* const END_X509_CRL         = "-----END X509 CRL-----";
-const char* const BEGIN_RSA_PRIV       = "-----BEGIN RSA PRIVATE KEY-----";
-const char* const END_RSA_PRIV         = "-----END RSA PRIVATE KEY-----";
-const char* const BEGIN_PRIV_KEY       = "-----BEGIN PRIVATE KEY-----";
-const char* const END_PRIV_KEY         = "-----END PRIVATE KEY-----";
-const char* const BEGIN_ENC_PRIV_KEY   = "-----BEGIN ENCRYPTED PRIVATE KEY-----";
-const char* const END_ENC_PRIV_KEY     = "-----END ENCRYPTED PRIVATE KEY-----";
+wcchar BEGIN_X509_CRL       = "-----BEGIN X509 CRL-----";
+wcchar END_X509_CRL         = "-----END X509 CRL-----";
+wcchar BEGIN_RSA_PRIV       = "-----BEGIN RSA PRIVATE KEY-----";
+wcchar END_RSA_PRIV         = "-----END RSA PRIVATE KEY-----";
+wcchar BEGIN_PRIV_KEY       = "-----BEGIN PRIVATE KEY-----";
+wcchar END_PRIV_KEY         = "-----END PRIVATE KEY-----";
+wcchar BEGIN_ENC_PRIV_KEY   = "-----BEGIN ENCRYPTED PRIVATE KEY-----";
+wcchar END_ENC_PRIV_KEY     = "-----END ENCRYPTED PRIVATE KEY-----";
 #ifdef HAVE_ECC
-    const char* const BEGIN_EC_PRIV    = "-----BEGIN EC PRIVATE KEY-----";
-    const char* const END_EC_PRIV      = "-----END EC PRIVATE KEY-----";
+    wcchar BEGIN_EC_PRIV    = "-----BEGIN EC PRIVATE KEY-----";
+    wcchar END_EC_PRIV      = "-----END EC PRIVATE KEY-----";
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
                                                                 !defined(NO_DSA)
-    const char* const BEGIN_DSA_PRIV   = "-----BEGIN DSA PRIVATE KEY-----";
-    const char* const END_DSA_PRIV     = "-----END DSA PRIVATE KEY-----";
+    wcchar BEGIN_DSA_PRIV   = "-----BEGIN DSA PRIVATE KEY-----";
+    wcchar END_DSA_PRIV     = "-----END DSA PRIVATE KEY-----";
 #endif
 #ifdef OPENSSL_EXTRA
     const char BEGIN_PRIV_KEY_PREFIX[] = "-----BEGIN";
     const char PRIV_KEY_SUFFIX[] = "PRIVATE KEY-----";
     const char END_PRIV_KEY_PREFIX[]   = "-----END";
 #endif
-const char* const BEGIN_PUB_KEY        = "-----BEGIN PUBLIC KEY-----";
-const char* const END_PUB_KEY          = "-----END PUBLIC KEY-----";
+wcchar BEGIN_PUB_KEY        = "-----BEGIN PUBLIC KEY-----";
+wcchar END_PUB_KEY          = "-----END PUBLIC KEY-----";
 #if defined(HAVE_ED25519) || defined(HAVE_ED448)
-    const char* const BEGIN_EDDSA_PRIV = "-----BEGIN EDDSA PRIVATE KEY-----";
-    const char* const END_EDDSA_PRIV   = "-----END EDDSA PRIVATE KEY-----";
+    wcchar BEGIN_EDDSA_PRIV = "-----BEGIN EDDSA PRIVATE KEY-----";
+    wcchar END_EDDSA_PRIV   = "-----END EDDSA PRIVATE KEY-----";
 #endif
 #ifdef HAVE_CRL
     const char *const BEGIN_CRL = "-----BEGIN X509 CRL-----";
-    const char* const END_CRL   = "-----END X509 CRL-----";
+    wcchar END_CRL   = "-----END X509 CRL-----";
 #endif
 
 
@@ -9953,22 +9953,22 @@ int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS
 
-static const char* const kProcTypeHeader = "Proc-Type";
-static const char* const kDecInfoHeader = "DEK-Info";
+static wcchar kProcTypeHeader = "Proc-Type";
+static wcchar kDecInfoHeader = "DEK-Info";
 
 #ifdef WOLFSSL_PEM_TO_DER
 #ifndef NO_DES3
-    static const char* const kEncTypeDes = "DES-CBC";
-    static const char* const kEncTypeDes3 = "DES-EDE3-CBC";
+    static wcchar kEncTypeDes = "DES-CBC";
+    static wcchar kEncTypeDes3 = "DES-EDE3-CBC";
 #endif
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
-    static const char* const kEncTypeAesCbc128 = "AES-128-CBC";
+    static wcchar kEncTypeAesCbc128 = "AES-128-CBC";
 #endif
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_192)
-    static const char* const kEncTypeAesCbc192 = "AES-192-CBC";
+    static wcchar kEncTypeAesCbc192 = "AES-192-CBC";
 #endif
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
-    static const char* const kEncTypeAesCbc256 = "AES-256-CBC";
+    static wcchar kEncTypeAesCbc256 = "AES-256-CBC";
 #endif
 
 int wc_EncryptedInfoGet(EncryptedInfo* info, const char* cipherInfo)

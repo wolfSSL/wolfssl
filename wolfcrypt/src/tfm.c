@@ -529,9 +529,6 @@ int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
    fp_int    *tmp;
 #endif
 
-   /* Variables used but not seen by cppcheck. */
-   (void)c0; (void)c1; (void)c2;
-
    IF_HAVE_INTEL_MULX(ret = fp_mul_comba_mulx(A, B, C), return ret) ;
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -587,6 +584,9 @@ int fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
   dst->sign = A->sign ^ B->sign;
   fp_clamp(dst);
   fp_copy(dst, C);
+  
+  /* Variables used but not seen by cppcheck. */
+  (void)c0; (void)c1; (void)c2;
 
 #ifdef WOLFSSL_SMALL_STACK
   XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
@@ -2624,12 +2624,6 @@ int fp_sqr_comba(fp_int *A, fp_int *B)
    fp_int    *tmp;
 #endif
 
-   /* Variables used but not seen by cppcheck. */
-   (void)c0; (void)c1; (void)c2;
-#ifdef TFM_ISO
-   (void)tt;
-#endif
-
 #ifdef WOLFSSL_SMALL_STACK
    tmp = (fp_int*)XMALLOC(sizeof(fp_int), NULL, DYNAMIC_TYPE_BIGINT);
    if (tmp == NULL)
@@ -2705,6 +2699,12 @@ int fp_sqr_comba(fp_int *A, fp_int *B)
      fp_copy(dst, B);
   }
 
+  /* Variables used but not seen by cppcheck. */
+  (void)c0; (void)c1; (void)c2;
+#ifdef TFM_ISO
+  (void)tt;
+#endif
+   
 #ifdef WOLFSSL_SMALL_STACK
   XFREE(tmp, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
@@ -4704,7 +4704,7 @@ int mp_add_d(fp_int *a, fp_digit b, fp_int *c)
     defined(DEBUG_WOLFSSL) || defined(OPENSSL_EXTRA) || defined(WC_MP_TO_RADIX)
 
 /* chars used in radix conversions */
-static const char* const fp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+static wcchar fp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                      "abcdefghijklmnopqrstuvwxyz+/";
 #endif
 
