@@ -6154,6 +6154,14 @@ int ExtractDate(const unsigned char* date, unsigned char format,
     if (GetTime(&tm_min , date, idx) != 0) return 0;
     if (GetTime(&tm_sec , date, idx) != 0) return 0;
 
+    /* Re-populate certTime with computed values */
+    certTime->tm_year = tm_year;
+    certTime->tm_mon  = tm_mon;
+    certTime->tm_mday = tm_mday;
+    certTime->tm_hour = tm_hour;
+    certTime->tm_min  = tm_min;
+    certTime->tm_sec  = tm_sec;
+
     return 1;
 }
 
