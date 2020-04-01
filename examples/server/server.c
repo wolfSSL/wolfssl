@@ -51,6 +51,8 @@
     static int devId = INVALID_DEVID;
 #endif
 
+#define DEFAULT_TIMEOUT_SEC 2
+
 /* Note on using port 0: if the server uses port 0 to bind an ephemeral port
  * number and is using the ready file for scripted testing, the code in
  * test.h will write the actual port number into the ready file for use
@@ -2378,7 +2380,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
         if (dtlsUDP == 0) {
             ret = SSL_shutdown(ssl);
-            while (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE) {
+            if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE) {
                 ret = SSL_shutdown(ssl); /* bidirectional shutdown */
                 if (ret == WOLFSSL_SUCCESS)
                     printf("Bidirectional shutdown complete\n");
