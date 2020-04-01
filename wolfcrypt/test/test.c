@@ -19106,15 +19106,39 @@ static int ecc_point_test(void)
     }
 
 #ifdef HAVE_COMP_KEY
-    ret = wc_ecc_import_point_der(derComp0, sizeof(derComp0), curve_idx, point3);
+    ret = wc_ecc_import_point_der(derComp0, sizeof(derComp0)*2-1, curve_idx, point3);
     if (ret != 0) {
         ret = -9726;
         goto done;
     }
 
-    ret = wc_ecc_import_point_der(derComp1, sizeof(derComp1), curve_idx, point4);
+    ret = wc_ecc_import_point_der_ex(derComp0, sizeof(derComp0), curve_idx, point4, 0);
     if (ret != 0) {
         ret = -9727;
+        goto done;
+    }
+
+    ret = wc_ecc_cmp_point(point3, point4);
+    if (ret != MP_EQ) {
+        ret = -9728;
+        goto done;
+    }
+
+    ret = wc_ecc_import_point_der(derComp1, sizeof(derComp1)*2-1, curve_idx, point3);
+    if (ret != 0) {
+        ret = -9729;
+        goto done;
+    }
+
+    ret = wc_ecc_import_point_der_ex(derComp1, sizeof(derComp1), curve_idx, point4, 0);
+    if (ret != 0) {
+        ret = -9730;
+        goto done;
+    }
+
+    ret = wc_ecc_cmp_point(point3, point4);
+    if (ret != MP_EQ) {
+        ret = -9731;
         goto done;
     }
 #endif

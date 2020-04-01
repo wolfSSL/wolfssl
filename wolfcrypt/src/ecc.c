@@ -6284,9 +6284,10 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #endif /* HAVE_ECC_VERIFY */
 
 #ifdef HAVE_ECC_KEY_IMPORT
-/* import point from der */
-int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
-                            ecc_point* point)
+/* import point from der
+ * if shortKeySize != 0 then keysize is always (inLen-1)>>1 */
+int wc_ecc_import_point_der_ex(byte* in, word32 inLen, const int curve_idx,
+                               ecc_point* point, char shortKeySize)
 {
     int err = 0;
 #ifdef HAVE_COMP_KEY
@@ -6337,8 +6338,9 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
     inLen -= 1;
     in += 1;
 
-    /* calculate key size based on inLen / 2 if uncompressed */
-    keysize = compressed ? inLen : inLen>>1;
+    /* calculate key size based on inLen / 2 if uncompressed or shortKeySize
+     * is true */
+    keysize = compressed && !shortKeySize ? inLen : inLen>>1;
 
     /* read data */
     if (err == MP_OKAY)
@@ -6440,6 +6442,13 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
     }
 
     return err;
+}
+
+/* function for backwards compatiblity with previous implementations */
+int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
+                            ecc_point* point)
+{
+    return wc_ecc_import_point_der_ex(in, inLen, curve_idx, point, 1);
 }
 #endif /* HAVE_ECC_KEY_IMPORT */
 

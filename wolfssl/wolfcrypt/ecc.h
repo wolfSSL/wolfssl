@@ -649,6 +649,9 @@ int wc_ecc_export_point_der_compressed(const int curve_idx, ecc_point* point,
 
 #ifdef HAVE_ECC_KEY_IMPORT
 WOLFSSL_API
+int wc_ecc_import_point_der_ex(byte* in, word32 inLen, const int curve_idx,
+                               ecc_point* point, char shortKeySize);
+WOLFSSL_API
 int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
                             ecc_point* point);
 #endif /* HAVE_ECC_KEY_IMPORT */

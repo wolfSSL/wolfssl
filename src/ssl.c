@@ -36609,11 +36609,26 @@ int wolfSSL_ECPoint_d2i(unsigned char *in, unsigned int len,
         return WOLFSSL_FAILURE;
     }
 
-    if (wc_ecc_import_point_der(in, len, group->curve_idx,
-                                (ecc_point*)p->internal) != MP_OKAY) {
-        WOLFSSL_MSG("wc_ecc_import_point_der failed");
+#ifndef HAVE_SELFTEST
+    if (wc_ecc_import_point_der_ex(in, len, group->curve_idx,
+                                   (ecc_point*)p->internal, 0) != MP_OKAY) {
+        WOLFSSL_MSG("wc_ecc_import_point_der_ex failed");
         return WOLFSSL_FAILURE;
     }
+#else
+    /* ECC_POINT_UNCOMP is not defined CAVP self test so use magic number */
+    if (in[0] == 0x04) {
+        if (wc_ecc_import_point_der(in, len, group->curve_idx,
+                                    (ecc_point*)p->internal) != MP_OKAY) {
+            WOLFSSL_MSG("wc_ecc_import_point_der failed");
+            return WOLFSSL_FAILURE;
+        }
+    }
+    else {
+        WOLFSSL_MSG("Only uncompressed points supported with HAVE_SELFTEST");
+        return WOLFSSL_FAILURE;
+    }
+#endif
 
     /* Set new external point */
     if (SetECPointExternal(p) != WOLFSSL_SUCCESS) {
