@@ -183,6 +183,11 @@ _AES_GCM_encrypt:
         movq	72(%rsp), %r15
         movl	80(%rsp), %r10d
         subq	$0xa0, %rsp
+        movq	%rsp, %rcx
+        subq	$0x40, %rsp
+        andq	$-32, %rsp
+        movq	%rcx, (%rsp)
+        addq	$48, %rsp
         pxor	%xmm4, %xmm4
         pxor	%xmm6, %xmm6
         cmpl	$12, %ebx
@@ -2002,6 +2007,8 @@ L_AES_GCM_encrypt_store_tag_loop:
 L_AES_GCM_encrypt_store_tag_16:
         movdqu	%xmm0, (%r8)
 L_AES_GCM_encrypt_store_tag_done:
+        subq	$48, %rsp
+        movq	(%rsp), %rsp
         addq	$0xa0, %rsp
         popq	%r15
         popq	%r14
@@ -2039,6 +2046,11 @@ _AES_GCM_decrypt:
         movl	88(%rsp), %r10d
         movq	96(%rsp), %rbp
         subq	$0xa8, %rsp
+        movq	%rsp, %rcx
+        subq	$0x40, %rsp
+        andq	$-32, %rsp
+        movq	%rcx, (%rsp)
+        addq	$48, %rsp
         pxor	%xmm4, %xmm4
         pxor	%xmm6, %xmm6
         cmpl	$12, %ebx
@@ -3407,6 +3419,8 @@ L_AES_GCM_decrypt_cmp_tag_16:
         sete	%bl
 L_AES_GCM_decrypt_cmp_tag_done:
         movl	%ebx, (%rbp)
+        subq	$48, %rsp
+        movq	(%rsp), %rsp
         addq	$0xa8, %rsp
         popq	%rbp
         popq	%r15
