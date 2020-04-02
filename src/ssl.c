@@ -33138,7 +33138,7 @@ const char* wolfSSL_EC_curve_nid2nist(int nid)
 static int populate_groups(int* groups, int max_count, char *list)
 {
     char *end;
-    size_t len;
+    int len;
     int count = 0;
     const WOLF_EC_NIST_NAME* nist_name;
 
@@ -33152,8 +33152,8 @@ static int populate_groups(int* groups, int max_count, char *list)
             return -1;
         }
         while (*end != ':' && *end != '\0') end++;
-        len = end - list; /* end points to char after end
-                           * of curve name so no need for -1 */
+        len = (int)(end - list); /* end points to char after end
+                                  * of curve name so no need for -1 */
         if ((len < kNistCurves_MIN_NAME_LEN) ||
                 (len > kNistCurves_MAX_NAME_LEN)) {
             WOLFSSL_MSG("Unrecognized curve name in list");
