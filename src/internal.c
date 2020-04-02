@@ -2072,7 +2072,8 @@ void InitCipherSpecs(CipherSpecs* cs)
     cs->sig_algo              = INVALID_BYTE;
 }
 
-#ifdef USE_ECDSA_KEYSZ_HASH_ALGO
+#if defined(USE_ECDSA_KEYSZ_HASH_ALGO) || (defined(WOLFSSL_TLS13) && \
+                                                              defined(HAVE_ECC))
 static int GetMacDigestSize(byte macAlgo)
 {
     switch (macAlgo) {
@@ -18920,6 +18921,27 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
             }
         }
     #endif
+    #if defined(WOLFSSL_TLS13) && defined(HAVE_ECC)
+        if (IsAtLeastTLSv1_3(ssl->version) && sigAlgo == ssl->suites->sigAlgo &&
+                                                   sigAlgo == ecc_dsa_sa_algo) {
+
+            int digestSz = GetMacDigestSize(hashAlgo);
+            if (digestSz <= 0)
+                continue;
+
+            /* TLS 1.3 signature algorithms for ECDSA match hash length with
+             * key size.
+             */
+            if (digestSz != ssl->buffers.keySz)
+                continue;
+
+            ssl->suites->hashAlgo = hashAlgo;
+            ssl->suites->sigAlgo = sigAlgo;
+            ret = 0;
+            break; /* done selected sig/hash algorithms */
+        }
+        else
+    #endif
     /* For ECDSA the `USE_ECDSA_KEYSZ_HASH_ALGO` build option will choose a hash
      * algorithm that matches the ephemeral ECDHE key size or the next highest
      * available. This workaround resolves issue with some peer's that do not
@@ -19006,7 +19028,6 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
             ret = 0;
         }
     }
-
 
     return ret;
 }
