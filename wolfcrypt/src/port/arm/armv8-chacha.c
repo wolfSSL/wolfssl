@@ -2853,5 +2853,5 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
     return 0;
 }
 
-#endif /* HAVE_CHACHA*/
+#endif /* HAVE_CHACHA */
 #endif /* WOLFSSL_ARMASM */

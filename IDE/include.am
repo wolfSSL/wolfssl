@@ -30,5 +30,6 @@ include IDE/CRYPTOCELL/include.am
 include IDE/M68K/include.am
 include IDE/HEXAGON/include.am
 include IDE/RISCV/include.am
+include IDE/XilinxSDK/include.am
 
 EXTRA_DIST+= IDE/IAR-EWARM IDE/MDK-ARM IDE/MDK5-ARM IDE/MYSQL IDE/LPCXPRESSO IDE/HEXIWEAR IDE/Espressif IDE/zephyr

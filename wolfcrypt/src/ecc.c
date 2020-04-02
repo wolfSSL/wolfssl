@@ -2540,11 +2540,11 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
 
    ecc_point     *tG, *M[M_POINTS];
    int           i, err;
-#ifdef WOLFSSL_SMALL_STACK
-   mp_int*       mu = NULL;
 #ifdef WOLFSSL_SMALL_STACK_CACHE
    ecc_key       key;
 #endif
+#ifdef WOLFSSL_SMALL_STACK
+   mp_int*       mu = NULL;
 #else
    mp_int        mu[1];
 #endif
@@ -5377,11 +5377,11 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
                     void* heap)
 #endif
 {
-#ifdef WOLFSSL_SMALL_STACK
-  ecc_point**    precomp = NULL;
 #ifdef WOLFSSL_SMALL_STACK_CACHE
   ecc_key        key;
 #endif
+#ifdef WOLFSSL_SMALL_STACK
+  ecc_point**    precomp = NULL;
 #else
   ecc_point*     precomp[SHAMIR_PRECOMP_SZ];
 #endif

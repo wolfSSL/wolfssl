@@ -1,0 +1,10 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+EXTRA_DIST+= IDE/XilinxSDK/README.md
+EXTRA_DIST+= IDE/XilinxSDK/user_settings.h
+EXTRA_DIST+= IDE/XilinxSDK/wolfssl_example.c
+EXTRA_DIST+= IDE/XilinxSDK/lscript.ld
+EXTRA_DIST+= IDE/XilinxSDK/.cproject
+EXTRA_DIST+= IDE/XilinxSDK/.project

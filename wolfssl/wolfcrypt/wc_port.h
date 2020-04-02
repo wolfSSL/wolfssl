@@ -527,7 +527,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
     #define NEED_TMP_TIME
 
-#elif defined(WOLFSSL_XILINX) && defined(FREERTOS)
+#elif defined(WOLFSSL_XILINX)
     #define USER_TIME
     #include <time.h>
 
