@@ -3124,7 +3124,7 @@ int wolfSSL_want_write(WOLFSSL* ssl)
 
 char* wolfSSL_ERR_error_string(unsigned long errNumber, char* data)
 {
-    static const char* const msg = "Please supply a buffer for error string";
+    static wcchar msg = "Please supply a buffer for error string";
 
     WOLFSSL_ENTER("ERR_error_string");
     if (data) {

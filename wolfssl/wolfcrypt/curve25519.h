@@ -44,10 +44,16 @@
 
 #define CURVE25519_KEYSIZE 32
 
+#ifdef WOLFSSL_NAMES_STATIC
+typedef char curve25519_str[12];
+#else
+typedef const char* curve25519_str;
+#endif
+
 /* curve25519 set type */
 typedef struct {
-    int size;       /* The size of the curve in octets */
-    const char* name;     /* name of this curve */
+    int size;             /* The size of the curve in octets */
+    curve25519_str name; /* name of this curve */
 } curve25519_set_type;
 
 

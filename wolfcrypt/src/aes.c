@@ -2309,8 +2309,6 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     #endif
 
 #ifdef NEED_AES_TABLES
-        (void)temp;
-
         switch (keylen) {
     #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE >= 128 && \
             defined(WOLFSSL_AES_128)
@@ -2436,6 +2434,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     #else
         (void)dir;
     #endif /* HAVE_AES_DECRYPT */
+        (void)temp;
 #endif /* NEED_AES_TABLES */
 
 #if defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)
