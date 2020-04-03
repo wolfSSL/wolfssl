@@ -2684,6 +2684,9 @@ struct WOLFSSL_CTX {
 #endif
 #if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
     byte        dtlsSctp;         /* DTLS-over-SCTP mode */
+#endif
+#if (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)) && \
+                                                           defined(WOLFSSL_DTLS)
     word16      dtlsMtuSz;        /* DTLS MTU size */
 #endif
 #ifndef NO_DH
@@ -4021,9 +4024,9 @@ struct WOLFSSL {
 #ifdef WOLFSSL_SESSION_EXPORT
     wc_dtls_export  dtls_export;        /* export function for session */
 #endif
-#ifdef WOLFSSL_SCTP
+#if defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
     word16          dtlsMtuSz;
-#endif /* WOLFSSL_SCTP */
+#endif /* WOLFSSL_SCTP || WOLFSSL_DTLS_MTU */
 #ifdef WOLFSSL_MULTICAST
     void*           mcastHwCbCtx;       /* Multicast highwater callback ctx */
 #endif /* WOLFSSL_MULTICAST */
@@ -4496,10 +4499,20 @@ WOLFSSL_LOCAL word32  LowResTimer(void);
     WOLFSSL_LOCAL int  CopyDecodedToX509(WOLFSSL_X509*, DecodedCert*);
 #endif
 
+#ifndef MAX_CIPHER_NAME
+#define MAX_CIPHER_NAME 50
+#endif
+
+#ifdef WOLFSSL_NAMES_STATIC
+typedef char cipher_name[MAX_CIPHER_NAME];
+#else
+typedef const char* cipher_name;
+#endif
+
 typedef struct CipherSuiteInfo {
-    const char* name;
+    cipher_name name;
 #ifndef NO_ERROR_STRINGS
-    const char* name_iana;
+    cipher_name name_iana;
 #endif
     byte cipherSuite0;
     byte cipherSuite;

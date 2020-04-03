@@ -498,6 +498,13 @@ static WC_INLINE int mygetopt(int argc, char** argv, const char* optstring)
     char  c;
     char* cp;
 
+    /* Added sanity check becuase scan-build complains argv[myoptind] access 
+     * results in a null pointer dereference. */
+    if (argv == NULL)  {
+        myoptarg = NULL;
+        return -1;
+    }
+
     if (myoptind == 0)
         next = NULL;   /* we're starting new/over */
 

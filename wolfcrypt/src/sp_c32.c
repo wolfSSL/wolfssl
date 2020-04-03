@@ -3128,44 +3128,6 @@ static int sp_2048_mod_exp_90(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || */
        /* WOLFSSL_HAVE_SP_DH */
 
-#if defined(WOLFSSL_HAVE_SP_RSA) && !defined(SP_RSA_PRIVATE_EXP_D) && \
-           !defined(RSA_LOW_MEM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-/* AND m into each word of a and store in r.
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * m  Mask to AND against each digit.
- */
-static void sp_2048_mask_45(sp_digit* r, const sp_digit* a, sp_digit m)
-{
-#ifdef WOLFSSL_SP_SMALL
-    int i;
-
-    for (i=0; i<45; i++) {
-        r[i] = a[i] & m;
-    }
-#else
-    int i;
-
-    for (i = 0; i < 40; i += 8) {
-        r[i+0] = a[i+0] & m;
-        r[i+1] = a[i+1] & m;
-        r[i+2] = a[i+2] & m;
-        r[i+3] = a[i+3] & m;
-        r[i+4] = a[i+4] & m;
-        r[i+5] = a[i+5] & m;
-        r[i+6] = a[i+6] & m;
-        r[i+7] = a[i+7] & m;
-    }
-    r[40] = a[40] & m;
-    r[41] = a[41] & m;
-    r[42] = a[42] & m;
-    r[43] = a[43] & m;
-    r[44] = a[44] & m;
-#endif
-}
-
-#endif
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *
@@ -3397,6 +3359,8 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 }
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+#if !defined(SP_RSA_PRIVATE_EXP_D) && !defined(RSA_LOW_MEM)
+#endif /* !SP_RSA_PRIVATE_EXP_D && !RSA_LOW_MEM */
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -3526,7 +3490,6 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     sp_digit* dp;
     sp_digit* dq;
     sp_digit* qi;
-    sp_digit* tmp;
     sp_digit* tmpa;
     sp_digit* tmpb;
     sp_digit* r;
@@ -3562,8 +3525,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
         tmpa = qi + 45;
         tmpb = tmpa + 90;
 
-        tmp = t;
-        r = tmp + 90;
+        r = t + 90;
 
         sp_2048_from_bin(a, 90, in, inLen);
         sp_2048_from_mp(p, 45, pm);
@@ -3577,8 +3539,8 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     }
     if (err == MP_OKAY) {
         (void)sp_2048_sub_45(tmpa, tmpa, tmpb);
-        sp_2048_mask_45(tmp, p, 0 - ((sp_int_digit)tmpa[44] >> 31));
-        (void)sp_2048_add_45(tmpa, tmpa, tmp);
+        sp_2048_cond_add_45(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[44] >> 31));
+        sp_2048_cond_add_45(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[44] >> 31));
 
         sp_2048_from_mp(qi, 45, qim);
         sp_2048_mul_45(tmpa, tmpa, qi);
@@ -3603,7 +3565,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 #else
     sp_digit a[90 * 2];
     sp_digit p[45], q[45], dp[45], dq[45], qi[45];
-    sp_digit tmp[90], tmpa[90], tmpb[90];
+    sp_digit tmpa[90], tmpb[90];
     sp_digit* r = a;
     int err = MP_OKAY;
 
@@ -3638,8 +3600,8 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 
     if (err == MP_OKAY) {
         (void)sp_2048_sub_45(tmpa, tmpa, tmpb);
-        sp_2048_mask_45(tmp, p, 0 - ((sp_int_digit)tmpa[44] >> 31));
-        (void)sp_2048_add_45(tmpa, tmpa, tmp);
+        sp_2048_cond_add_45(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[44] >> 31));
+        sp_2048_cond_add_45(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[44] >> 31));
         sp_2048_mul_45(tmpa, tmpa, qi);
         err = sp_2048_mod_45(tmpa, tmpa, p);
     }
@@ -7003,42 +6965,6 @@ static int sp_3072_mod_exp_134(sp_digit* r, const sp_digit* a, const sp_digit* e
 #endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || */
        /* WOLFSSL_HAVE_SP_DH */
 
-#if defined(WOLFSSL_HAVE_SP_RSA) && !defined(SP_RSA_PRIVATE_EXP_D) && \
-           !defined(RSA_LOW_MEM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-/* AND m into each word of a and store in r.
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * m  Mask to AND against each digit.
- */
-static void sp_3072_mask_67(sp_digit* r, const sp_digit* a, sp_digit m)
-{
-#ifdef WOLFSSL_SP_SMALL
-    int i;
-
-    for (i=0; i<67; i++) {
-        r[i] = a[i] & m;
-    }
-#else
-    int i;
-
-    for (i = 0; i < 64; i += 8) {
-        r[i+0] = a[i+0] & m;
-        r[i+1] = a[i+1] & m;
-        r[i+2] = a[i+2] & m;
-        r[i+3] = a[i+3] & m;
-        r[i+4] = a[i+4] & m;
-        r[i+5] = a[i+5] & m;
-        r[i+6] = a[i+6] & m;
-        r[i+7] = a[i+7] & m;
-    }
-    r[64] = a[64] & m;
-    r[65] = a[65] & m;
-    r[66] = a[66] & m;
-#endif
-}
-
-#endif
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *
@@ -7270,6 +7196,8 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 }
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+#if !defined(SP_RSA_PRIVATE_EXP_D) && !defined(RSA_LOW_MEM)
+#endif /* !SP_RSA_PRIVATE_EXP_D && !RSA_LOW_MEM */
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -7399,7 +7327,6 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     sp_digit* dp;
     sp_digit* dq;
     sp_digit* qi;
-    sp_digit* tmp;
     sp_digit* tmpa;
     sp_digit* tmpb;
     sp_digit* r;
@@ -7435,8 +7362,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
         tmpa = qi + 67;
         tmpb = tmpa + 134;
 
-        tmp = t;
-        r = tmp + 134;
+        r = t + 134;
 
         sp_3072_from_bin(a, 134, in, inLen);
         sp_3072_from_mp(p, 67, pm);
@@ -7450,8 +7376,8 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     }
     if (err == MP_OKAY) {
         (void)sp_3072_sub_67(tmpa, tmpa, tmpb);
-        sp_3072_mask_67(tmp, p, 0 - ((sp_int_digit)tmpa[66] >> 31));
-        (void)sp_3072_add_67(tmpa, tmpa, tmp);
+        sp_3072_cond_add_67(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[66] >> 31));
+        sp_3072_cond_add_67(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[66] >> 31));
 
         sp_3072_from_mp(qi, 67, qim);
         sp_3072_mul_67(tmpa, tmpa, qi);
@@ -7476,7 +7402,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 #else
     sp_digit a[134 * 2];
     sp_digit p[67], q[67], dp[67], dq[67], qi[67];
-    sp_digit tmp[134], tmpa[134], tmpb[134];
+    sp_digit tmpa[134], tmpb[134];
     sp_digit* r = a;
     int err = MP_OKAY;
 
@@ -7511,8 +7437,8 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 
     if (err == MP_OKAY) {
         (void)sp_3072_sub_67(tmpa, tmpa, tmpb);
-        sp_3072_mask_67(tmp, p, 0 - ((sp_int_digit)tmpa[66] >> 31));
-        (void)sp_3072_add_67(tmpa, tmpa, tmp);
+        sp_3072_cond_add_67(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[66] >> 31));
+        sp_3072_cond_add_67(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[66] >> 31));
         sp_3072_mul_67(tmpa, tmpa, qi);
         err = sp_3072_mod_67(tmpa, tmpa, p);
     }
@@ -11040,41 +10966,6 @@ static int sp_4096_mod_exp_196(sp_digit* r, const sp_digit* a, const sp_digit* e
 #endif /* (WOLFSSL_HAVE_SP_RSA && !WOLFSSL_RSA_PUBLIC_ONLY) || */
        /* WOLFSSL_HAVE_SP_DH */
 
-#if defined(WOLFSSL_HAVE_SP_RSA) && !defined(SP_RSA_PRIVATE_EXP_D) && \
-           !defined(RSA_LOW_MEM) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
-/* AND m into each word of a and store in r.
- *
- * r  A single precision integer.
- * a  A single precision integer.
- * m  Mask to AND against each digit.
- */
-static void sp_4096_mask_98(sp_digit* r, const sp_digit* a, sp_digit m)
-{
-#ifdef WOLFSSL_SP_SMALL
-    int i;
-
-    for (i=0; i<98; i++) {
-        r[i] = a[i] & m;
-    }
-#else
-    int i;
-
-    for (i = 0; i < 96; i += 8) {
-        r[i+0] = a[i+0] & m;
-        r[i+1] = a[i+1] & m;
-        r[i+2] = a[i+2] & m;
-        r[i+3] = a[i+3] & m;
-        r[i+4] = a[i+4] & m;
-        r[i+5] = a[i+5] & m;
-        r[i+6] = a[i+6] & m;
-        r[i+7] = a[i+7] & m;
-    }
-    r[96] = a[96] & m;
-    r[97] = a[97] & m;
-#endif
-}
-
-#endif
 #ifdef WOLFSSL_HAVE_SP_RSA
 /* RSA public key operation.
  *
@@ -11306,6 +11197,8 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 }
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+#if !defined(SP_RSA_PRIVATE_EXP_D) && !defined(RSA_LOW_MEM)
+#endif /* !SP_RSA_PRIVATE_EXP_D && !RSA_LOW_MEM */
 /* RSA private key operation.
  *
  * in      Array of bytes representing the number to exponentiate, base.
@@ -11435,7 +11328,6 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
     sp_digit* dp;
     sp_digit* dq;
     sp_digit* qi;
-    sp_digit* tmp;
     sp_digit* tmpa;
     sp_digit* tmpb;
     sp_digit* r;
@@ -11471,8 +11363,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
         tmpa = qi + 98;
         tmpb = tmpa + 196;
 
-        tmp = t;
-        r = tmp + 196;
+        r = t + 196;
 
         sp_4096_from_bin(a, 196, in, inLen);
         sp_4096_from_mp(p, 98, pm);
@@ -11486,8 +11377,8 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
     }
     if (err == MP_OKAY) {
         (void)sp_4096_sub_98(tmpa, tmpa, tmpb);
-        sp_4096_mask_98(tmp, p, 0 - ((sp_int_digit)tmpa[97] >> 31));
-        (void)sp_4096_add_98(tmpa, tmpa, tmp);
+        sp_4096_cond_add_98(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[97] >> 31));
+        sp_4096_cond_add_98(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[97] >> 31));
 
         sp_4096_from_mp(qi, 98, qim);
         sp_4096_mul_98(tmpa, tmpa, qi);
@@ -11512,7 +11403,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
 #else
     sp_digit a[196 * 2];
     sp_digit p[98], q[98], dp[98], dq[98], qi[98];
-    sp_digit tmp[196], tmpa[196], tmpb[196];
+    sp_digit tmpa[196], tmpb[196];
     sp_digit* r = a;
     int err = MP_OKAY;
 
@@ -11547,8 +11438,8 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
 
     if (err == MP_OKAY) {
         (void)sp_4096_sub_98(tmpa, tmpa, tmpb);
-        sp_4096_mask_98(tmp, p, 0 - ((sp_int_digit)tmpa[97] >> 31));
-        (void)sp_4096_add_98(tmpa, tmpa, tmp);
+        sp_4096_cond_add_98(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[97] >> 31));
+        sp_4096_cond_add_98(tmpa, tmpa, p, 0 - ((sp_int_digit)tmpa[97] >> 31));
         sp_4096_mul_98(tmpa, tmpa, qi);
         err = sp_4096_mod_98(tmpa, tmpa, p);
     }
@@ -13838,53 +13729,36 @@ static void sp_256_div2_10(sp_digit* r, const sp_digit* a, const sp_digit* m)
  */
 static void sp_256_proj_point_dbl_10(sp_point_256* r, const sp_point_256* p, sp_digit* t)
 {
-    sp_point_256* rp[2];
     sp_digit* t1 = t;
     sp_digit* t2 = t + 2*10;
     sp_digit* x;
     sp_digit* y;
     sp_digit* z;
-    int i;
 
-    /* When infinity don't double point passed in - constant time. */
-    rp[0] = r;
-
-    /*lint allow cast to different type of pointer*/
-    rp[1] = (sp_point_256*)t; /*lint !e9087 !e740*/
-    XMEMSET(rp[1], 0, sizeof(sp_point_256));
-    x = rp[p->infinity]->x;
-    y = rp[p->infinity]->y;
-    z = rp[p->infinity]->z;
-    /* Put point to double into result - good for infinity. */
+    x = r->x;
+    y = r->y;
+    z = r->z;
+    /* Put infinity into result. */
     if (r != p) {
-        for (i=0; i<10; i++) {
-            r->x[i] = p->x[i];
-        }
-        for (i=0; i<10; i++) {
-            r->y[i] = p->y[i];
-        }
-        for (i=0; i<10; i++) {
-            r->z[i] = p->z[i];
-        }
         r->infinity = p->infinity;
     }
 
     /* T1 = Z * Z */
-    sp_256_mont_sqr_10(t1, z, p256_mod, p256_mp_mod);
+    sp_256_mont_sqr_10(t1, p->z, p256_mod, p256_mp_mod);
     /* Z = Y * Z */
-    sp_256_mont_mul_10(z, y, z, p256_mod, p256_mp_mod);
+    sp_256_mont_mul_10(z, p->y, p->z, p256_mod, p256_mp_mod);
     /* Z = 2Z */
     sp_256_mont_dbl_10(z, z, p256_mod);
     /* T2 = X - T1 */
-    sp_256_mont_sub_10(t2, x, t1, p256_mod);
+    sp_256_mont_sub_10(t2, p->x, t1, p256_mod);
     /* T1 = X + T1 */
-    sp_256_mont_add_10(t1, x, t1, p256_mod);
+    sp_256_mont_add_10(t1, p->x, t1, p256_mod);
     /* T2 = T1 * T2 */
     sp_256_mont_mul_10(t2, t1, t2, p256_mod, p256_mp_mod);
     /* T1 = 3T2 */
     sp_256_mont_tpl_10(t1, t2, p256_mod);
     /* Y = 2Y */
-    sp_256_mont_dbl_10(y, y, p256_mod);
+    sp_256_mont_dbl_10(y, p->y, p256_mod);
     /* Y = Y * Y */
     sp_256_mont_sqr_10(y, y, p256_mod, p256_mp_mod);
     /* T2 = Y * Y */
@@ -13892,9 +13766,9 @@ static void sp_256_proj_point_dbl_10(sp_point_256* r, const sp_point_256* p, sp_
     /* T2 = T2/2 */
     sp_256_div2_10(t2, t2, p256_mod);
     /* Y = Y * X */
-    sp_256_mont_mul_10(y, y, x, p256_mod, p256_mp_mod);
+    sp_256_mont_mul_10(y, y, p->x, p256_mod, p256_mp_mod);
     /* X = T1 * T1 */
-    sp_256_mont_mul_10(x, t1, t1, p256_mod, p256_mp_mod);
+    sp_256_mont_sqr_10(x, t1, p256_mod, p256_mp_mod);
     /* X = X - Y */
     sp_256_mont_sub_10(x, x, y, p256_mod);
     /* X = X - Y */
@@ -13905,7 +13779,6 @@ static void sp_256_proj_point_dbl_10(sp_point_256* r, const sp_point_256* p, sp_
     sp_256_mont_mul_10(y, y, t1, p256_mod, p256_mp_mod);
     /* Y = Y - T2 */
     sp_256_mont_sub_10(y, y, t2, p256_mod);
-
 }
 
 /* Compare two numbers to determine if they are equal.
@@ -14357,10 +14230,8 @@ static int sp_256_ecc_mulmod_fast_10(sp_point_256* r, const sp_point_256* g, con
  * n  Number of times to double
  * t  Temporary ordinate data.
  */
-static void sp_256_proj_point_dbl_n_10(sp_point_256* r, const sp_point_256* p, int n,
-        sp_digit* t)
+static void sp_256_proj_point_dbl_n_10(sp_point_256* p, int n, sp_digit* t)
 {
-    sp_point_256* rp[2];
     sp_digit* w = t;
     sp_digit* a = t + 2*10;
     sp_digit* b = t + 4*10;
@@ -14369,60 +14240,73 @@ static void sp_256_proj_point_dbl_n_10(sp_point_256* r, const sp_point_256* p, i
     sp_digit* x;
     sp_digit* y;
     sp_digit* z;
-    int i;
 
-    rp[0] = r;
-
-    /*lint allow cast to different type of pointer*/
-    rp[1] = (sp_point_256*)t; /*lint !e9087 !e740*/
-    XMEMSET(rp[1], 0, sizeof(sp_point_256));
-    x = rp[p->infinity]->x;
-    y = rp[p->infinity]->y;
-    z = rp[p->infinity]->z;
-    if (r != p) {
-        for (i=0; i<10; i++) {
-            r->x[i] = p->x[i];
-        }
-        for (i=0; i<10; i++) {
-            r->y[i] = p->y[i];
-        }
-        for (i=0; i<10; i++) {
-            r->z[i] = p->z[i];
-        }
-        r->infinity = p->infinity;
-    }
+    x = p->x;
+    y = p->y;
+    z = p->z;
 
     /* Y = 2*Y */
     sp_256_mont_dbl_10(y, y, p256_mod);
     /* W = Z^4 */
     sp_256_mont_sqr_10(w, z, p256_mod, p256_mp_mod);
     sp_256_mont_sqr_10(w, w, p256_mod, p256_mp_mod);
-    while (n-- > 0) {
+
+#ifndef WOLFSSL_SP_SMALL
+    while (--n > 0)
+#else
+    while (--n >= 0)
+#endif
+    {
         /* A = 3*(X^2 - W) */
         sp_256_mont_sqr_10(t1, x, p256_mod, p256_mp_mod);
         sp_256_mont_sub_10(t1, t1, w, p256_mod);
         sp_256_mont_tpl_10(a, t1, p256_mod);
         /* B = X*Y^2 */
-        sp_256_mont_sqr_10(t2, y, p256_mod, p256_mp_mod);
-        sp_256_mont_mul_10(b, t2, x, p256_mod, p256_mp_mod);
+        sp_256_mont_sqr_10(t1, y, p256_mod, p256_mp_mod);
+        sp_256_mont_mul_10(b, t1, x, p256_mod, p256_mp_mod);
         /* X = A^2 - 2B */
         sp_256_mont_sqr_10(x, a, p256_mod, p256_mp_mod);
-        sp_256_mont_dbl_10(t1, b, p256_mod);
-        sp_256_mont_sub_10(x, x, t1, p256_mod);
+        sp_256_mont_dbl_10(t2, b, p256_mod);
+        sp_256_mont_sub_10(x, x, t2, p256_mod);
         /* Z = Z*Y */
         sp_256_mont_mul_10(z, z, y, p256_mod, p256_mp_mod);
         /* t2 = Y^4 */
-        sp_256_mont_sqr_10(t2, t2, p256_mod, p256_mp_mod);
-        if (n != 0) {
+        sp_256_mont_sqr_10(t1, t1, p256_mod, p256_mp_mod);
+#ifdef WOLFSSL_SP_SMALL
+        if (n != 0)
+#endif
+        {
             /* W = W*Y^4 */
-            sp_256_mont_mul_10(w, w, t2, p256_mod, p256_mp_mod);
+            sp_256_mont_mul_10(w, w, t1, p256_mod, p256_mp_mod);
         }
         /* y = 2*A*(B - X) - Y^4 */
         sp_256_mont_sub_10(y, b, x, p256_mod);
         sp_256_mont_mul_10(y, y, a, p256_mod, p256_mp_mod);
         sp_256_mont_dbl_10(y, y, p256_mod);
-        sp_256_mont_sub_10(y, y, t2, p256_mod);
+        sp_256_mont_sub_10(y, y, t1, p256_mod);
     }
+#ifndef WOLFSSL_SP_SMALL
+    /* A = 3*(X^2 - W) */
+    sp_256_mont_sqr_10(t1, x, p256_mod, p256_mp_mod);
+    sp_256_mont_sub_10(t1, t1, w, p256_mod);
+    sp_256_mont_tpl_10(a, t1, p256_mod);
+    /* B = X*Y^2 */
+    sp_256_mont_sqr_10(t1, y, p256_mod, p256_mp_mod);
+    sp_256_mont_mul_10(b, t1, x, p256_mod, p256_mp_mod);
+    /* X = A^2 - 2B */
+    sp_256_mont_sqr_10(x, a, p256_mod, p256_mp_mod);
+    sp_256_mont_dbl_10(t2, b, p256_mod);
+    sp_256_mont_sub_10(x, x, t2, p256_mod);
+    /* Z = Z*Y */
+    sp_256_mont_mul_10(z, z, y, p256_mod, p256_mp_mod);
+    /* t2 = Y^4 */
+    sp_256_mont_sqr_10(t1, t1, p256_mod, p256_mp_mod);
+    /* y = 2*A*(B - X) - Y^4 */
+    sp_256_mont_sub_10(y, b, x, p256_mod);
+    sp_256_mont_mul_10(y, y, a, p256_mod, p256_mp_mod);
+    sp_256_mont_dbl_10(y, y, p256_mod);
+    sp_256_mont_sub_10(y, y, t1, p256_mod);
+#endif
     /* Y = Y/2 */
     sp_256_div2_10(y, y, p256_mod);
 }
@@ -14587,7 +14471,7 @@ static int sp_256_gen_stripe_table_10(const sp_point_256* a,
         XMEMCPY(table[1].y, t->y, sizeof(table->y));
 
         for (i=1; i<8; i++) {
-            sp_256_proj_point_dbl_n_10(t, t, 32, tmp);
+            sp_256_proj_point_dbl_n_10(t, 32, tmp);
             sp_256_proj_to_affine_10(t, tmp);
             XMEMCPY(table[1<<i].x, t->x, sizeof(table->x));
             XMEMCPY(table[1<<i].y, t->y, sizeof(table->y));
@@ -19463,53 +19347,36 @@ static void sp_384_div2_15(sp_digit* r, const sp_digit* a, const sp_digit* m)
  */
 static void sp_384_proj_point_dbl_15(sp_point_384* r, const sp_point_384* p, sp_digit* t)
 {
-    sp_point_384* rp[2];
     sp_digit* t1 = t;
     sp_digit* t2 = t + 2*15;
     sp_digit* x;
     sp_digit* y;
     sp_digit* z;
-    int i;
 
-    /* When infinity don't double point passed in - constant time. */
-    rp[0] = r;
-
-    /*lint allow cast to different type of pointer*/
-    rp[1] = (sp_point_384*)t; /*lint !e9087 !e740*/
-    XMEMSET(rp[1], 0, sizeof(sp_point_384));
-    x = rp[p->infinity]->x;
-    y = rp[p->infinity]->y;
-    z = rp[p->infinity]->z;
-    /* Put point to double into result - good for infinity. */
+    x = r->x;
+    y = r->y;
+    z = r->z;
+    /* Put infinity into result. */
     if (r != p) {
-        for (i=0; i<15; i++) {
-            r->x[i] = p->x[i];
-        }
-        for (i=0; i<15; i++) {
-            r->y[i] = p->y[i];
-        }
-        for (i=0; i<15; i++) {
-            r->z[i] = p->z[i];
-        }
         r->infinity = p->infinity;
     }
 
     /* T1 = Z * Z */
-    sp_384_mont_sqr_15(t1, z, p384_mod, p384_mp_mod);
+    sp_384_mont_sqr_15(t1, p->z, p384_mod, p384_mp_mod);
     /* Z = Y * Z */
-    sp_384_mont_mul_15(z, y, z, p384_mod, p384_mp_mod);
+    sp_384_mont_mul_15(z, p->y, p->z, p384_mod, p384_mp_mod);
     /* Z = 2Z */
     sp_384_mont_dbl_15(z, z, p384_mod);
     /* T2 = X - T1 */
-    sp_384_mont_sub_15(t2, x, t1, p384_mod);
+    sp_384_mont_sub_15(t2, p->x, t1, p384_mod);
     /* T1 = X + T1 */
-    sp_384_mont_add_15(t1, x, t1, p384_mod);
+    sp_384_mont_add_15(t1, p->x, t1, p384_mod);
     /* T2 = T1 * T2 */
     sp_384_mont_mul_15(t2, t1, t2, p384_mod, p384_mp_mod);
     /* T1 = 3T2 */
     sp_384_mont_tpl_15(t1, t2, p384_mod);
     /* Y = 2Y */
-    sp_384_mont_dbl_15(y, y, p384_mod);
+    sp_384_mont_dbl_15(y, p->y, p384_mod);
     /* Y = Y * Y */
     sp_384_mont_sqr_15(y, y, p384_mod, p384_mp_mod);
     /* T2 = Y * Y */
@@ -19517,9 +19384,9 @@ static void sp_384_proj_point_dbl_15(sp_point_384* r, const sp_point_384* p, sp_
     /* T2 = T2/2 */
     sp_384_div2_15(t2, t2, p384_mod);
     /* Y = Y * X */
-    sp_384_mont_mul_15(y, y, x, p384_mod, p384_mp_mod);
+    sp_384_mont_mul_15(y, y, p->x, p384_mod, p384_mp_mod);
     /* X = T1 * T1 */
-    sp_384_mont_mul_15(x, t1, t1, p384_mod, p384_mp_mod);
+    sp_384_mont_sqr_15(x, t1, p384_mod, p384_mp_mod);
     /* X = X - Y */
     sp_384_mont_sub_15(x, x, y, p384_mod);
     /* X = X - Y */
@@ -19530,7 +19397,6 @@ static void sp_384_proj_point_dbl_15(sp_point_384* r, const sp_point_384* p, sp_
     sp_384_mont_mul_15(y, y, t1, p384_mod, p384_mp_mod);
     /* Y = Y - T2 */
     sp_384_mont_sub_15(y, y, t2, p384_mod);
-
 }
 
 /* Compare two numbers to determine if they are equal.
@@ -19983,10 +19849,8 @@ static int sp_384_ecc_mulmod_fast_15(sp_point_384* r, const sp_point_384* g, con
  * n  Number of times to double
  * t  Temporary ordinate data.
  */
-static void sp_384_proj_point_dbl_n_15(sp_point_384* r, const sp_point_384* p, int n,
-        sp_digit* t)
+static void sp_384_proj_point_dbl_n_15(sp_point_384* p, int n, sp_digit* t)
 {
-    sp_point_384* rp[2];
     sp_digit* w = t;
     sp_digit* a = t + 2*15;
     sp_digit* b = t + 4*15;
@@ -19995,60 +19859,73 @@ static void sp_384_proj_point_dbl_n_15(sp_point_384* r, const sp_point_384* p, i
     sp_digit* x;
     sp_digit* y;
     sp_digit* z;
-    int i;
 
-    rp[0] = r;
-
-    /*lint allow cast to different type of pointer*/
-    rp[1] = (sp_point_384*)t; /*lint !e9087 !e740*/
-    XMEMSET(rp[1], 0, sizeof(sp_point_384));
-    x = rp[p->infinity]->x;
-    y = rp[p->infinity]->y;
-    z = rp[p->infinity]->z;
-    if (r != p) {
-        for (i=0; i<15; i++) {
-            r->x[i] = p->x[i];
-        }
-        for (i=0; i<15; i++) {
-            r->y[i] = p->y[i];
-        }
-        for (i=0; i<15; i++) {
-            r->z[i] = p->z[i];
-        }
-        r->infinity = p->infinity;
-    }
+    x = p->x;
+    y = p->y;
+    z = p->z;
 
     /* Y = 2*Y */
     sp_384_mont_dbl_15(y, y, p384_mod);
     /* W = Z^4 */
     sp_384_mont_sqr_15(w, z, p384_mod, p384_mp_mod);
     sp_384_mont_sqr_15(w, w, p384_mod, p384_mp_mod);
-    while (n-- > 0) {
+
+#ifndef WOLFSSL_SP_SMALL
+    while (--n > 0)
+#else
+    while (--n >= 0)
+#endif
+    {
         /* A = 3*(X^2 - W) */
         sp_384_mont_sqr_15(t1, x, p384_mod, p384_mp_mod);
         sp_384_mont_sub_15(t1, t1, w, p384_mod);
         sp_384_mont_tpl_15(a, t1, p384_mod);
         /* B = X*Y^2 */
-        sp_384_mont_sqr_15(t2, y, p384_mod, p384_mp_mod);
-        sp_384_mont_mul_15(b, t2, x, p384_mod, p384_mp_mod);
+        sp_384_mont_sqr_15(t1, y, p384_mod, p384_mp_mod);
+        sp_384_mont_mul_15(b, t1, x, p384_mod, p384_mp_mod);
         /* X = A^2 - 2B */
         sp_384_mont_sqr_15(x, a, p384_mod, p384_mp_mod);
-        sp_384_mont_dbl_15(t1, b, p384_mod);
-        sp_384_mont_sub_15(x, x, t1, p384_mod);
+        sp_384_mont_dbl_15(t2, b, p384_mod);
+        sp_384_mont_sub_15(x, x, t2, p384_mod);
         /* Z = Z*Y */
         sp_384_mont_mul_15(z, z, y, p384_mod, p384_mp_mod);
         /* t2 = Y^4 */
-        sp_384_mont_sqr_15(t2, t2, p384_mod, p384_mp_mod);
-        if (n != 0) {
+        sp_384_mont_sqr_15(t1, t1, p384_mod, p384_mp_mod);
+#ifdef WOLFSSL_SP_SMALL
+        if (n != 0)
+#endif
+        {
             /* W = W*Y^4 */
-            sp_384_mont_mul_15(w, w, t2, p384_mod, p384_mp_mod);
+            sp_384_mont_mul_15(w, w, t1, p384_mod, p384_mp_mod);
         }
         /* y = 2*A*(B - X) - Y^4 */
         sp_384_mont_sub_15(y, b, x, p384_mod);
         sp_384_mont_mul_15(y, y, a, p384_mod, p384_mp_mod);
         sp_384_mont_dbl_15(y, y, p384_mod);
-        sp_384_mont_sub_15(y, y, t2, p384_mod);
+        sp_384_mont_sub_15(y, y, t1, p384_mod);
     }
+#ifndef WOLFSSL_SP_SMALL
+    /* A = 3*(X^2 - W) */
+    sp_384_mont_sqr_15(t1, x, p384_mod, p384_mp_mod);
+    sp_384_mont_sub_15(t1, t1, w, p384_mod);
+    sp_384_mont_tpl_15(a, t1, p384_mod);
+    /* B = X*Y^2 */
+    sp_384_mont_sqr_15(t1, y, p384_mod, p384_mp_mod);
+    sp_384_mont_mul_15(b, t1, x, p384_mod, p384_mp_mod);
+    /* X = A^2 - 2B */
+    sp_384_mont_sqr_15(x, a, p384_mod, p384_mp_mod);
+    sp_384_mont_dbl_15(t2, b, p384_mod);
+    sp_384_mont_sub_15(x, x, t2, p384_mod);
+    /* Z = Z*Y */
+    sp_384_mont_mul_15(z, z, y, p384_mod, p384_mp_mod);
+    /* t2 = Y^4 */
+    sp_384_mont_sqr_15(t1, t1, p384_mod, p384_mp_mod);
+    /* y = 2*A*(B - X) - Y^4 */
+    sp_384_mont_sub_15(y, b, x, p384_mod);
+    sp_384_mont_mul_15(y, y, a, p384_mod, p384_mp_mod);
+    sp_384_mont_dbl_15(y, y, p384_mod);
+    sp_384_mont_sub_15(y, y, t1, p384_mod);
+#endif
     /* Y = Y/2 */
     sp_384_div2_15(y, y, p384_mod);
 }
@@ -20213,7 +20090,7 @@ static int sp_384_gen_stripe_table_15(const sp_point_384* a,
         XMEMCPY(table[1].y, t->y, sizeof(table->y));
 
         for (i=1; i<8; i++) {
-            sp_384_proj_point_dbl_n_15(t, t, 48, tmp);
+            sp_384_proj_point_dbl_n_15(t, 48, tmp);
             sp_384_proj_to_affine_15(t, tmp);
             XMEMCPY(table[1<<i].x, t->x, sizeof(table->x));
             XMEMCPY(table[1<<i].y, t->y, sizeof(table->y));

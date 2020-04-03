@@ -1268,6 +1268,7 @@ static void bench_stats_asym_finish(const char* algo, int strength,
     double total, each = 0, opsSec, milliEach;
     const char **word = bench_result_words2[lng_index];
     const char* kOpsSec = "Ops/Sec";
+    char msg[128] = {0};
 
     total = current_time(0) - start;
     if (count > 0)
@@ -1283,12 +1284,13 @@ static void bench_stats_asym_finish(const char* algo, int strength,
             printf("Algorithm,avg ms,ops/sec,\n");
             csv_header_count++;
         }
-        printf("%s %d %s,%.3f,%.3f,\n", algo, strength, desc, milliEach, opsSec);
+        XSNPRINTF(msg, sizeof(msg), "%s %d %s,%.3f,%.3f,\n", algo, strength, desc, milliEach, opsSec);
     } else {
-        printf("%-6s %5d %-9s %s %6d %s %5.3f %s, %s %5.3f ms,"
+        XSNPRINTF(msg, sizeof(msg), "%-6s %5d %-9s %s %6d %s %5.3f %s, %s %5.3f ms,"
         " %.3f %s\n", algo, strength, desc, BENCH_ASYNC_GET_NAME(doAsync),
         count, word[0], total, word[1], word[2], milliEach, opsSec, word[3]);
     }
+    printf("%s", msg);
 
     /* show errors */
     if (ret < 0) {
@@ -5979,6 +5981,28 @@ exit_ed_verify:
         (void)reset;
         return (double) tx_time_get() / TX_TIMER_TICKS_PER_SECOND;
     }
+
+#elif defined(WOLFSSL_XILINX)
+    #ifndef XPAR_CPU_CORTEXA53_0_TIMESTAMP_CLK_FREQ
+    #define XPAR_CPU_CORTEXA53_0_TIMESTAMP_CLK_FREQ 50000000
+    #endif
+    #ifndef COUNTS_PER_SECOND
+    #define COUNTS_PER_SECOND     XPAR_CPU_CORTEXA53_0_TIMESTAMP_CLK_FREQ
+    #endif
+
+    double current_time(int reset)
+    {
+        double timer;
+        uint64_t cntPct = 0;
+        asm volatile("mrs %0, CNTPCT_EL0" : "=r" (cntPct));
+
+        /* Convert to milliseconds */
+        timer = (double)(cntPct / (COUNTS_PER_SECOND / 1000));
+        /* Convert to seconds.millisecond */
+        timer /= 1000;
+        return timer;
+    }
+
 #else
 
     #include <sys/time.h>

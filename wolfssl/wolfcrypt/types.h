@@ -71,6 +71,14 @@
     #endif
 
 
+    /* constant pointer to a constant char */
+    #ifdef WOLFSSL_NO_CONSTCHARCONST
+        typedef const char*       wcchar;
+    #else
+        typedef const char* const wcchar;
+    #endif
+
+
     /* try to set SIZEOF_LONG or SIZEOF_LONG_LONG if user didn't */
     #if defined(_MSC_VER) || defined(HAVE_LIMITS_H)
         #if !defined(SIZEOF_LONG_LONG) && !defined(SIZEOF_LONG)

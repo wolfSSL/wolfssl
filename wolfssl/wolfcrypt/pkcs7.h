@@ -330,6 +330,10 @@ struct PKCS7 {
 #if defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && !defined(NO_RSA)
     CallbackRsaSignRawDigest rsaSignRawDigestCb;
 #endif
+
+    /* used by DecodeEnvelopedData with multiple encrypted contents */
+    byte*  cachedEncryptedContent;
+    word32 cachedEncryptedContentSz;
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };
 

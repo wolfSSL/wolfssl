@@ -7,7 +7,7 @@
     <ProjectGuid>{8921AD35-4E62-4DAC-8FEE-8C9F8E57DDD2}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>wolfSSL_TLS_CSharp</RootNamespace>
+    <RootNamespace>wolfSSL_TLS_Server</RootNamespace>
     <AssemblyName>wolfSSL-TLS-Server</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>

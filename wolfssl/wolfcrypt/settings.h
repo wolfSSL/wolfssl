@@ -2173,6 +2173,13 @@ extern void uITRON4_free(void *p) ;
     #define NO_SESSION_CACHE
 #endif
 
+/* Use static ECC structs for Position Independant Code (PIC) */
+#if defined(__IAR_SYSTEMS_ICC__) && defined(__ROPI__)
+    #define WOLFSSL_ECC_CURVE_STATIC
+    #define WOLFSSL_NAMES_STATIC
+    #define WOLFSSL_NO_CONSTCHARCONST
+#endif
+
 
 #ifdef __cplusplus
     }   /* extern "C" */

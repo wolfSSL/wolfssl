@@ -23,9 +23,16 @@
 #define _WOLFPORT_STSAFE_H_
 
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+
+#ifdef WOLF_CRYPTO_CB
+#include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
+#if !defined(WOLFCRYPT_ONLY) && defined(HAVE_PK_CALLBACKS)
+#include <wolfssl/ssl.h>
+#endif
 
 #ifdef WOLFSSL_STSAFEA100
 
@@ -46,7 +53,7 @@
 WOLFSSL_API int SSL_STSAFE_LoadDeviceCertificate(byte** pRawCertificate,
     word32* pRawCertificateLen);
 
-#ifdef HAVE_PK_CALLBACKS
+#if !defined(WOLFCRYPT_ONLY) && defined(HAVE_PK_CALLBACKS)
 WOLFSSL_API int SSL_STSAFE_CreateKeyCb(WOLFSSL* ssl, ecc_key* key, word32 keySz,
     int ecc_curve, void* ctx);
 WOLFSSL_API int SSL_STSAFE_VerifyPeerCertCb(WOLFSSL* ssl,
@@ -71,8 +78,6 @@ WOLFSSL_API int SSL_STSAFE_SetupPkCallbackCtx(WOLFSSL* ssl, void* user_ctx);
 
 
 #ifdef WOLF_CRYPTO_CB
-
-#include <wolfssl/wolfcrypt/cryptocb.h>
 
 /* Device ID that's unique and valid (not INVALID_DEVID -2) */
 #define WOLF_STSAFE_DEVID 0x53545341; /* STSA */

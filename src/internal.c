@@ -1740,8 +1740,12 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 
     ctx->devId = INVALID_DEVID;
 
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SCTP)
-    ctx->dtlsMtuSz = MAX_RECORD_SIZE;
+#if defined(WOLFSSL_DTLS)
+    #ifdef WOLFSSL_SCTP
+        ctx->dtlsMtuSz = MAX_RECORD_SIZE;
+    #elif defined(WOLFSSL_DTLS_MTU)
+        ctx->dtlsMtuSz = MAX_MTU;
+    #endif
 #endif
 
 #ifndef NO_CERTS
@@ -2068,7 +2072,8 @@ void InitCipherSpecs(CipherSpecs* cs)
     cs->sig_algo              = INVALID_BYTE;
 }
 
-#ifdef USE_ECDSA_KEYSZ_HASH_ALGO
+#if defined(USE_ECDSA_KEYSZ_HASH_ALGO) || (defined(WOLFSSL_TLS13) && \
+                                                              defined(HAVE_ECC))
 static int GetMacDigestSize(byte macAlgo)
 {
     switch (macAlgo) {
@@ -5649,6 +5654,8 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef WOLFSSL_DTLS
     #ifdef WOLFSSL_SCTP
         ssl->options.dtlsSctp           = ctx->dtlsSctp;
+    #endif
+    #if defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)
         ssl->dtlsMtuSz                  = ctx->dtlsMtuSz;
         ssl->dtls_expected_rx           = ssl->dtlsMtuSz;
     #else
@@ -12077,7 +12084,8 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
 
                 #ifndef NO_PSK
                     if (ssl->specs.kea == psk_kea &&
-                                               ssl->arrays->server_hint[0] == 0)
+                        ssl->arrays != NULL &&
+                        ssl->arrays->server_hint[0] == 0)
                         pskNoServerHint = 1;
                 #endif
                 if (ssl->specs.static_ecdh == 1 ||
@@ -18913,6 +18921,27 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
             }
         }
     #endif
+    #if defined(WOLFSSL_TLS13) && defined(HAVE_ECC)
+        if (IsAtLeastTLSv1_3(ssl->version) && sigAlgo == ssl->suites->sigAlgo &&
+                                                   sigAlgo == ecc_dsa_sa_algo) {
+
+            int digestSz = GetMacDigestSize(hashAlgo);
+            if (digestSz <= 0)
+                continue;
+
+            /* TLS 1.3 signature algorithms for ECDSA match hash length with
+             * key size.
+             */
+            if (digestSz != ssl->buffers.keySz)
+                continue;
+
+            ssl->suites->hashAlgo = hashAlgo;
+            ssl->suites->sigAlgo = sigAlgo;
+            ret = 0;
+            break; /* done selected sig/hash algorithms */
+        }
+        else
+    #endif
     /* For ECDSA the `USE_ECDSA_KEYSZ_HASH_ALGO` build option will choose a hash
      * algorithm that matches the ephemeral ECDHE key size or the next highest
      * available. This workaround resolves issue with some peer's that do not
@@ -18999,7 +19028,6 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
             ret = 0;
         }
     }
-
 
     return ret;
 }

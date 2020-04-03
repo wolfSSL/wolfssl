@@ -2838,6 +2838,14 @@ int mp_set_bit (mp_int * a, int b)
 {
     int i = b / DIGIT_BIT, res;
 
+    /*
+     * Require:
+     *  bit index b >= 0
+     *  a->alloc == a->used == 0 if a->dp == NULL
+     */
+    if (b < 0 || (a->dp == NULL && (a->alloc != 0 || a->used != 0)))
+        return MP_VAL;
+
     if (a->dp == NULL || a->used < (int)(i + 1)) {
         /* grow a to accommodate the single bit */
         if ((res = mp_grow (a, i + 1)) != MP_OKAY) {

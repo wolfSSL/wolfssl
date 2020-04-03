@@ -174,8 +174,8 @@ public class wolfSSL_DTLS_Server
         }
 
         Console.WriteLine("At the end freeing stuff");
-        udp.Close();
         wolfssl.shutdown(ssl);
+        udp.Close();
         clean(ssl, ctx);
     }
 }
