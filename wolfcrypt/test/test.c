@@ -10293,12 +10293,14 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         static const char* dsaKey = CERT_ROOT "dsa2048.der";
     #endif
 #endif /* !USE_CERT_BUFFER_* */
-#if !defined(USE_CERT_BUFFERS_256) && !defined(NO_ASN)
+#if !defined(USE_CERT_BUFFERS_256)
     #ifdef HAVE_ECC
         /* cert files to be used in rsa cert gen test, check if RSA enabled */
         #ifdef HAVE_ECC_KEY_IMPORT
             static const char* eccKeyDerFile = CERT_ROOT "ecc-key.der";
         #endif
+#endif
+#if !defined(USE_CERT_BUFFERS_256) && !defined(NO_ASN)
         #ifdef WOLFSSL_CERT_GEN
             #ifndef NO_RSA
                 /* eccKeyPubFile is used in a test that requires RSA. */

@@ -7319,7 +7319,6 @@ int wc_ecc_export_private_raw(ecc_key* key, byte* qx, word32* qxLen,
 
 #endif /* HAVE_ECC_KEY_EXPORT */
 
-#ifndef NO_ASN
 #ifdef HAVE_ECC_KEY_IMPORT
 /* import private key, public part optional if (pub) passed as NULL */
 int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
@@ -7327,7 +7326,6 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
                                  int curve_id)
 {
     int ret;
-    word32 idx = 0;
 #if defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_ATECC508A)
     const CRYS_ECPKI_Domain_t* pDomain;
     CRYS_ECPKI_BUILD_TempData_t tempBuff;
@@ -7337,10 +7335,15 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 
     /* public optional, NULL if only importing private */
     if (pub != NULL) {
+    #ifndef NO_ASN
+        word32 idx = 0;
         ret = wc_ecc_import_x963_ex(pub, pubSz, key, curve_id);
         if (ret < 0)
             ret = wc_EccPublicKeyDecode(pub, &idx, key, pubSz);
         key->type = ECC_PRIVATEKEY;
+    #else
+        ret = NOT_COMPILED_IN;
+    #endif
     }
     else {
         /* make sure required variables are reset */
@@ -7422,6 +7425,7 @@ int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
 }
 #endif /* HAVE_ECC_KEY_IMPORT */
 
+#ifndef NO_ASN
 /**
    Convert ECC R,S to signature
    r       R component of signature
