@@ -491,6 +491,18 @@ AC_ARG_ENABLE([wpas],
     [ ENABLED_WPAS=no ]
     )
 
+# wpa_supplicant support
+AC_ARG_ENABLE([wpas-dpp],
+    [AS_HELP_STRING([--enable-wpas-dpp],[Enable wpa_supplicant support with dpp (default: disabled)])],
+    [ ENABLED_WPAS_DPP=$enableval ],
+    [ ENABLED_WPAS_DPP=no ]
+    )
+
+if test "$ENABLED_WPAS_DPP" = "yes"
+then
+    ENABLED_WPAS="yes"
+fi
+
 # Fortress build
 AC_ARG_ENABLE([fortress],
     [AS_HELP_STRING([--enable-fortress],[Enable SSL fortress build (default: disabled)])],
@@ -565,7 +577,7 @@ AC_ARG_ENABLE([opensslall],
 [ ENABLED_OPENSSLALL=$enableval ],
 [ ENABLED_OPENSSLALL=no ]
 )
-if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes"
+if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_WPAS_DPP" = "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
