@@ -31,8 +31,10 @@
     extern "C" {
 #endif
 
-/* include the options.h file ourselves for OpenVPN */
-#ifdef ENABLE_CRYPTO_WOLFSSL
+/* This flag allows wolfSSL to include options.h instead of having client
+ * projects do it themselves. This should *NEVER* be defined when building
+ * wolfSSL as it can cause hard to debug problems. */
+#ifdef EXTERNAL_OPTS_OPENVPN
 #include <wolfssl/options.h>
 #endif
 

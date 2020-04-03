@@ -14761,6 +14761,16 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             (wr != NULL && wr->type != WOLFSSL_BIO_SOCKET)) {
             ssl->CBIOSend = BioSend;
         }
+
+        /* User programs should always retry reading from these BIOs */
+        if (rd) {
+            /* User writes to rd */
+            BIO_set_retry_write(rd);
+        }
+        if (wr) {
+            /* User reads from wr */
+            BIO_set_retry_read(wr);
+        }
     }
 #endif
 
@@ -39966,6 +39976,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         if ((l = wolfSSL_BIO_get_len(bp)) <= 0) {
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+            /* No certificate in buffer */
             WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
     #endif
             return NULL;
@@ -46222,7 +46233,7 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
                 ret = -ret;
             }
 
-            if (ret == ASN_NO_PEM_HEADER)
+            if (ret == -ASN_NO_PEM_HEADER)
                 return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
             if (ret != WANT_READ && ret != WANT_WRITE &&
                     ret != ZERO_RETURN && ret != WOLFSSL_ERROR_ZERO_RETURN &&
