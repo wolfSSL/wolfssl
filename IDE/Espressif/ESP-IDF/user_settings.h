@@ -43,6 +43,10 @@
 #define CURVE25519_SMALL
 #define HAVE_ED25519
 
+/* when you want to use aes counter mode */
+/* #define WOLFSSL_AES_DIRECT */
+/* #define WOLFSSL_AES_COUNTER */
+
 /* esp32-wroom-32se specific definition */
 #if defined(WOLFSSL_ESPWROOM32SE)
     #define WOLFSSL_ATECC508A
