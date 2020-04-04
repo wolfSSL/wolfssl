@@ -343,6 +343,12 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
     return 0;
 }
 
+void wc_Chacha_Reset(ChaCha* ctx)
+{
+    ctx->left = 0;
+    ctx->X[CHACHA_IV_BYTES] = PLUSONE(ctx->X[CHACHA_IV_BYTES]);
+}
+
 #endif /* HAVE_CHACHA*/
 
 #endif /* WOLFSSL_ARMASM */

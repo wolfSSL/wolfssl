@@ -97,3 +97,29 @@ WOLFSSL_API int wc_Chacha_Process(ChaCha* ctx, byte* cipher, const byte* plain,
     \sa wc_Chacha_Process
 */
 WOLFSSL_API int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz);
+
+/*!
+    \ingroup ChaCha
+
+    \brief This function resets the pending states in ChaCha object.
+    This is needed after deriving one time Poly1305 key.
+
+    \return none No returns.
+
+    \param ctx pointer to the ChaCha structure in which to set the key
+
+    _Example_
+    \code
+    byte poly_key[CHACHA20_256_KEY_SIZE];
+    XMEMSET(poly_key, 0, sizeof(poly_key));
+    if (wc_Chacha_Process(chacha_ctx, poly_key, poly_key, sizeof(poly_key)) != 0) {
+        // error deriving one time Poly1305 key
+        return -1;
+    }
+    wc_Chacha_Reset(ctx);
+    \endcode
+
+    \sa wc_Chacha_SetIV
+    \sa wc_Chacha_Process
+*/
+WOLFSSL_API void wc_Chacha_Reset(ChaCha* ctx);

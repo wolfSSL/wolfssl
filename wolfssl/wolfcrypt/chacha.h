@@ -74,6 +74,8 @@ WOLFSSL_API int wc_Chacha_Process(ChaCha* ctx, byte* cipher, const byte* plain,
                               word32 msglen);
 WOLFSSL_API int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz);
 
+WOLFSSL_API void wc_Chacha_Reset(ChaCha* ctx);
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
