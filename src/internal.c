@@ -2014,7 +2014,9 @@ void FreeCiphers(WOLFSSL* ssl)
     XFREE(ssl->encrypt.des3, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->decrypt.des3, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
-#ifdef BUILD_AES
+#if defined(BUILD_AES) || defined(BUILD_AESGCM) /* See: InitKeys() in keys.c
+                                                 * on addition of BUILD_AESGCM
+                                                 * check (enc->aes, dec->aes) */
     wc_AesFree(ssl->encrypt.aes);
     wc_AesFree(ssl->decrypt.aes);
     #if (defined(BUILD_AESGCM) || defined(HAVE_AESCCM)) && \
