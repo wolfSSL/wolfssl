@@ -39054,7 +39054,7 @@ static int hash2mgf(enum wc_HashType hType)
     case WC_HASH_TYPE_BLAKE2B:
     case WC_HASH_TYPE_BLAKE2S:
     default:
-        WOLFSSL_MSG("Unrecognized hash function");
+        WOLFSSL_MSG("Unrecognized or unsupported hash function");
         return WC_MGF1NONE;
     }
 }
@@ -39090,7 +39090,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *EM,
                                       const unsigned char *mHash,
                                       const WOLFSSL_EVP_MD *hashAlg, int saltLen)
 {
-    int hLen, emLen, mgf;
+    int hashLen, emLen, mgf;
     int ret = WOLFSSL_FAILURE;
     int initTmpRng = 0;
     WC_RNG *rng = NULL;
@@ -39100,7 +39100,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *EM,
     WC_RNG  _tmpRNG[1];
     WC_RNG* tmpRNG = _tmpRNG;
 #endif
-    enum wc_HashType hType;
+    enum wc_HashType hashType;
 
     WOLFSSL_ENTER("wolfSSL_RSA_padding_add_PKCS1_PSS");
 
@@ -39108,46 +39108,54 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *EM,
         return WOLFSSL_FAILURE;
     }
 
-    rng = WOLFSSL_RSA_GetRNG(rsa, (WC_RNG**)&tmpRNG, &initTmpRng);
+    if (!(rng = WOLFSSL_RSA_GetRNG(rsa, (WC_RNG**)&tmpRNG, &initTmpRng))) {
+        WOLFSSL_MSG("WOLFSSL_RSA_GetRNG error");
+        goto cleanup;
+    }
 
     if (!rsa->exSet && SetRsaExternal(rsa) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("SetRsaExternal error");
         goto cleanup;
     }
 
-    hType = wolfSSL_EVP_MD_type(hashAlg);
-    if (hType < WC_HASH_TYPE_NONE || hType > WC_HASH_TYPE_MAX) {
+    hashType = wolfSSL_EVP_MD_type(hashAlg);
+    if (hashType < WC_HASH_TYPE_NONE || hashType > WC_HASH_TYPE_MAX) {
+        WOLFSSL_MSG("wolfSSL_EVP_MD_type error");
         goto cleanup;
     }
 
-    mgf = hash2mgf(hType);
+   if ((mgf = hash2mgf(hashType)) == WC_MGF1NONE) {
+       WOLFSSL_MSG("hash2mgf error");
+       goto cleanup;
+   }
 
-    hLen = wolfSSL_EVP_MD_size(hashAlg);
-    if (hLen < 0) {
+    if ((hashLen = wolfSSL_EVP_MD_size(hashAlg)) < 0) {
+        WOLFSSL_MSG("wolfSSL_EVP_MD_size error");
         goto cleanup;
     }
-    /*
-     * Negative sLen has special meanings:
-     *      -1      sLen == hLen
-     *      -2      salt length is maximized
-     *      -3      same as above (on signing)
-     *      -N      reserved
-     */
-    if (saltLen == RSA_PSS_SALTLEN_DIGEST) {
-        saltLen = hLen;
-    } else if (saltLen == RSA_PSS_SALTLEN_MAX_SIGN) {
-        saltLen = RSA_PSS_SALTLEN_MAX;
-    } else if (saltLen < RSA_PSS_SALTLEN_MAX) {
-        WOLFSSL_MSG("invalid saltLen");
-        goto cleanup;
-    }
-    emLen = wolfSSL_RSA_size(rsa);
-    if (emLen <= 0) {
+
+    if ((emLen = wolfSSL_RSA_size(rsa)) <= 0) {
         WOLFSSL_MSG("wolfSSL_RSA_size error");
         goto cleanup;
     }
-    if (saltLen == RSA_PSS_SALTLEN_MAX) {
-        saltLen = emLen - hLen - 2;
+
+    switch (saltLen) {
+    /* Negative saltLen values are treated differently */
+        case RSA_PSS_SALTLEN_DIGEST:
+            saltLen = hashLen;
+            break;
+        case RSA_PSS_SALTLEN_MAX_SIGN:
+        case RSA_PSS_SALTLEN_MAX:
+            saltLen = emLen - hashLen - 2;
+            break;
+        default:
+            if (saltLen < 0) {
+                /* Not any currently implemented negative value */
+                WOLFSSL_MSG("invalid saltLen");
+                goto cleanup;
+            }
     }
+
     if (wc_RsaPad_ex(mHash, wolfSSL_EVP_MD_size(hashAlg), EM, emLen,
                      RSA_BLOCK_TYPE_1, rng, WC_RSA_PSS_PAD,
                      wolfSSL_EVP_MD_type(hashAlg), mgf, NULL, 0, saltLen,
@@ -39176,8 +39184,8 @@ int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
                                  const WOLFSSL_EVP_MD *hashAlg,
                                  const unsigned char *EM, int saltLen)
 {
-    int hLen, mgf, nLen, mPrimeLen;
-    enum wc_HashType hType;
+    int hashLen, mgf, emLen, mPrimeLen;
+    enum wc_HashType hashType;
     byte *mPrime = NULL;
     byte *buf = NULL;
 
@@ -39187,56 +39195,61 @@ int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
         return WOLFSSL_FAILURE;
     }
 
-    hLen = wolfSSL_EVP_MD_size(hashAlg);
-    if (hLen < 0) {
+    if ((hashLen = wolfSSL_EVP_MD_size(hashAlg)) < 0) {
         return WOLFSSL_FAILURE;
     }
-    /*
-     * Negative sLen has special meanings:
-     *      -1      sLen == hLen
-     *      -2      salt length is maximized
-     *      -3      same as above (on signing)
-     *      -N      reserved
-     */
-    if (saltLen == RSA_PSS_SALTLEN_DIGEST) {
-        saltLen = hLen;
-    } else if (saltLen == RSA_PSS_SALTLEN_MAX_SIGN) {
-        saltLen = RSA_PSS_SALTLEN_MAX;
-    } else if (saltLen < RSA_PSS_SALTLEN_MAX) {
-        WOLFSSL_MSG("invalid saltLen");
+
+    if ((emLen = wolfSSL_RSA_size(rsa)) <= 0) {
+        WOLFSSL_MSG("wolfSSL_RSA_size error");
         return WOLFSSL_FAILURE;
+    }
+
+    switch (saltLen) {
+    /* Negative saltLen values are treated differently */
+        case RSA_PSS_SALTLEN_DIGEST:
+            saltLen = hashLen;
+            break;
+        case RSA_PSS_SALTLEN_MAX_SIGN:
+        case RSA_PSS_SALTLEN_MAX:
+            saltLen = emLen - hashLen - 2;
+            break;
+        default:
+            if (saltLen < 0) {
+                /* Not any currently implemented negative value */
+                WOLFSSL_MSG("invalid saltLen");
+                return WOLFSSL_FAILURE;
+            }
     }
 
     if (!rsa->exSet && SetRsaExternal(rsa) != WOLFSSL_SUCCESS) {
         return WOLFSSL_FAILURE;
     }
 
-    hType = wolfSSL_EVP_MD_type(hashAlg);
-    if (hType < WC_HASH_TYPE_NONE || hType > WC_HASH_TYPE_MAX) {
+    hashType = wolfSSL_EVP_MD_type(hashAlg);
+    if (hashType < WC_HASH_TYPE_NONE || hashType > WC_HASH_TYPE_MAX) {
+        WOLFSSL_MSG("wolfSSL_EVP_MD_type error");
         return WOLFSSL_FAILURE;
     }
 
-    mgf = hash2mgf(hType);
-
-    hLen = wolfSSL_EVP_MD_size(hashAlg);
-    if (hLen < 0) {
+    if ((mgf = hash2mgf(hashType)) == WC_MGF1NONE) {
+        WOLFSSL_MSG("hash2mgf error");
         return WOLFSSL_FAILURE;
     }
 
-    nLen = wolfSSL_BN_num_bytes(rsa->n);
-    if (nLen <= 0) {
+    if ((hashLen = wolfSSL_EVP_MD_size(hashAlg)) < 0) {
+        WOLFSSL_MSG("wolfSSL_EVP_MD_size error");
         return WOLFSSL_FAILURE;
     }
 
-    buf = (byte*)XMALLOC(nLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (!buf) {
+    if (!(buf = (byte*)XMALLOC(emLen, NULL, DYNAMIC_TYPE_TMP_BUFFER))) {
+        WOLFSSL_MSG("malloc error");
         return WOLFSSL_FAILURE;
     }
-    XMEMCPY(buf, EM, nLen);
+    XMEMCPY(buf, EM, emLen);
 
     /* Remove and verify the PSS padding */
-    if ((mPrimeLen = wc_RsaUnPad_ex(buf, nLen, &mPrime,
-                                    RSA_BLOCK_TYPE_1, WC_RSA_PSS_PAD, hType,
+    if ((mPrimeLen = wc_RsaUnPad_ex(buf, emLen, &mPrime,
+                                    RSA_BLOCK_TYPE_1, WC_RSA_PSS_PAD, hashType,
                                     mgf, NULL, 0, saltLen,
                                     wolfSSL_BN_num_bits(rsa->n), NULL)) < 0) {
         WOLFSSL_MSG("wc_RsaPad_ex error");
@@ -39245,7 +39258,7 @@ int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
     }
 
     /* Verify the hash is correct */
-    if (wc_RsaPSS_CheckPadding_ex(mHash, hLen, mPrime, mPrimeLen, hType,
+    if (wc_RsaPSS_CheckPadding_ex(mHash, hashLen, mPrime, mPrimeLen, hashType,
                                   saltLen, wolfSSL_BN_num_bits(rsa->n))
                                   != MP_OKAY) {
         WOLFSSL_MSG("wc_RsaPSS_CheckPadding_ex error");
