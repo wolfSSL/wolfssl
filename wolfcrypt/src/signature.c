@@ -252,7 +252,7 @@ int wc_SignatureVerify(
 {
     int ret;
     word32 hash_len, hash_enc_len;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) || defined(NO_ASN)
     byte *hash_data;
 #else
     byte hash_data[MAX_DER_DIGEST_SZ];
@@ -286,7 +286,7 @@ int wc_SignatureVerify(
     }
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) || defined(NO_ASN)
     /* Allocate temporary buffer for hash data */
     hash_data = (byte*)XMALLOC(hash_enc_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (hash_data == NULL) {
@@ -328,7 +328,7 @@ int wc_SignatureVerify(
         }
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) || defined(NO_ASN)
     XFREE(hash_data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
@@ -462,7 +462,7 @@ int wc_SignatureGenerate_ex(
 {
     int ret;
     word32 hash_len, hash_enc_len;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) || defined(NO_ASN)
     byte *hash_data;
 #else
     byte hash_data[MAX_DER_DIGEST_SZ];
@@ -496,7 +496,7 @@ int wc_SignatureGenerate_ex(
     }
 #endif
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) || defined(NO_ASN)
     /* Allocate temporary buffer for hash data */
     hash_data = (byte*)XMALLOC(hash_enc_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (hash_data == NULL) {
@@ -549,7 +549,7 @@ int wc_SignatureGenerate_ex(
     }
 #endif /* WOLFSSL_CRYPTOCELL */
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) || defined(NO_ASN)
     XFREE(hash_data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
