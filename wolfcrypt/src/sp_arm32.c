@@ -7489,6 +7489,63 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     return err;
 }
 
+#if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
+    sp_digit* a;
+    sp_digit* d = NULL;
+    sp_digit* m;
+    sp_digit* r;
+    int err = MP_OKAY;
+
+    (void)pm;
+    (void)qm;
+    (void)dpm;
+    (void)dqm;
+    (void)qim;
+
+    if (*outLen < 256U) {
+        err = MP_TO_E;
+    }
+    if (err == MP_OKAY) {
+        if (mp_count_bits(dm) > 2048) {
+           err = MP_READ_E;
+        }
+        if (inLen > 256) {
+            err = MP_READ_E;
+        }
+        if (mp_count_bits(mm) != 2048) {
+            err = MP_READ_E;
+        }
+    }
+
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 64 * 4, NULL,
+                                                              DYNAMIC_TYPE_RSA);
+        if (d == NULL) {
+            err = MEMORY_E;
+        }
+    }
+    if (err == MP_OKAY) {
+        a = d + 64;
+        m = a + 128;
+        r = a;
+
+        sp_2048_from_bin(a, 64, in, inLen);
+        sp_2048_from_mp(d, 64, dm);
+        sp_2048_from_mp(m, 64, mm);
+        err = sp_2048_mod_exp_64(r, a, d, 2048, m, 0);
+    }
+    if (err == MP_OKAY) {
+        sp_2048_to_bin(r, out);
+        *outLen = 256;
+    }
+
+    if (d != NULL) {
+        XMEMSET(d, 0, sizeof(sp_digit) * 64);
+        XFREE(d, NULL, DYNAMIC_TYPE_RSA);
+    }
+
+    return err;
+#else
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
@@ -7816,6 +7873,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     return err;
 }
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
+#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
                                               !defined(WOLFSSL_RSA_PUBLIC_ONLY))
@@ -7839,10 +7897,10 @@ static int sp_2048_to_mp(const sp_digit* a, mp_int* r)
 
         r->dp[0] = 0;
         for (i = 0; i < 64; i++) {
-            r->dp[j] |= a[i] << s;
+            r->dp[j] |= (mp_digit)(a[i] << s);
             r->dp[j] &= (1L << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
-            r->dp[++j] = a[i] >> s;
+            r->dp[++j] = (mp_digit)(a[i] >> s);
             while (s + DIGIT_BIT <= 32) {
                 s += DIGIT_BIT;
                 r->dp[j++] &= (1L << DIGIT_BIT) - 1;
@@ -7850,7 +7908,7 @@ static int sp_2048_to_mp(const sp_digit* a, mp_int* r)
                     r->dp[j] = 0;
                 }
                 else {
-                    r->dp[j] = a[i] >> s;
+                    r->dp[j] = (mp_digit)(a[i] >> s);
                 }
             }
             s = 32 - s;
@@ -18977,6 +19035,63 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     return err;
 }
 
+#if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
+    sp_digit* a;
+    sp_digit* d = NULL;
+    sp_digit* m;
+    sp_digit* r;
+    int err = MP_OKAY;
+
+    (void)pm;
+    (void)qm;
+    (void)dpm;
+    (void)dqm;
+    (void)qim;
+
+    if (*outLen < 384U) {
+        err = MP_TO_E;
+    }
+    if (err == MP_OKAY) {
+        if (mp_count_bits(dm) > 3072) {
+           err = MP_READ_E;
+        }
+        if (inLen > 384) {
+            err = MP_READ_E;
+        }
+        if (mp_count_bits(mm) != 3072) {
+            err = MP_READ_E;
+        }
+    }
+
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 96 * 4, NULL,
+                                                              DYNAMIC_TYPE_RSA);
+        if (d == NULL) {
+            err = MEMORY_E;
+        }
+    }
+    if (err == MP_OKAY) {
+        a = d + 96;
+        m = a + 192;
+        r = a;
+
+        sp_3072_from_bin(a, 96, in, inLen);
+        sp_3072_from_mp(d, 96, dm);
+        sp_3072_from_mp(m, 96, mm);
+        err = sp_3072_mod_exp_96(r, a, d, 3072, m, 0);
+    }
+    if (err == MP_OKAY) {
+        sp_3072_to_bin(r, out);
+        *outLen = 384;
+    }
+
+    if (d != NULL) {
+        XMEMSET(d, 0, sizeof(sp_digit) * 96);
+        XFREE(d, NULL, DYNAMIC_TYPE_RSA);
+    }
+
+    return err;
+#else
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
@@ -19384,6 +19499,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     return err;
 }
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
+#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
                                               !defined(WOLFSSL_RSA_PUBLIC_ONLY))
@@ -19407,10 +19523,10 @@ static int sp_3072_to_mp(const sp_digit* a, mp_int* r)
 
         r->dp[0] = 0;
         for (i = 0; i < 96; i++) {
-            r->dp[j] |= a[i] << s;
+            r->dp[j] |= (mp_digit)(a[i] << s);
             r->dp[j] &= (1L << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
-            r->dp[++j] = a[i] >> s;
+            r->dp[++j] = (mp_digit)(a[i] >> s);
             while (s + DIGIT_BIT <= 32) {
                 s += DIGIT_BIT;
                 r->dp[j++] &= (1L << DIGIT_BIT) - 1;
@@ -19418,7 +19534,7 @@ static int sp_3072_to_mp(const sp_digit* a, mp_int* r)
                     r->dp[j] = 0;
                 }
                 else {
-                    r->dp[j] = a[i] >> s;
+                    r->dp[j] = (mp_digit)(a[i] >> s);
                 }
             }
             s = 32 - s;
@@ -71539,6 +71655,63 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     return err;
 }
 
+#if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
+    sp_digit* a;
+    sp_digit* d = NULL;
+    sp_digit* m;
+    sp_digit* r;
+    int err = MP_OKAY;
+
+    (void)pm;
+    (void)qm;
+    (void)dpm;
+    (void)dqm;
+    (void)qim;
+
+    if (*outLen < 512U) {
+        err = MP_TO_E;
+    }
+    if (err == MP_OKAY) {
+        if (mp_count_bits(dm) > 4096) {
+           err = MP_READ_E;
+        }
+        if (inLen > 512) {
+            err = MP_READ_E;
+        }
+        if (mp_count_bits(mm) != 4096) {
+            err = MP_READ_E;
+        }
+    }
+
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 128 * 4, NULL,
+                                                              DYNAMIC_TYPE_RSA);
+        if (d == NULL) {
+            err = MEMORY_E;
+        }
+    }
+    if (err == MP_OKAY) {
+        a = d + 128;
+        m = a + 256;
+        r = a;
+
+        sp_4096_from_bin(a, 128, in, inLen);
+        sp_4096_from_mp(d, 128, dm);
+        sp_4096_from_mp(m, 128, mm);
+        err = sp_4096_mod_exp_128(r, a, d, 4096, m, 0);
+    }
+    if (err == MP_OKAY) {
+        sp_4096_to_bin(r, out);
+        *outLen = 512;
+    }
+
+    if (d != NULL) {
+        XMEMSET(d, 0, sizeof(sp_digit) * 128);
+        XFREE(d, NULL, DYNAMIC_TYPE_RSA);
+    }
+
+    return err;
+#else
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
@@ -72026,6 +72199,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
     return err;
 }
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
+#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
                                               !defined(WOLFSSL_RSA_PUBLIC_ONLY))
@@ -72049,10 +72223,10 @@ static int sp_4096_to_mp(const sp_digit* a, mp_int* r)
 
         r->dp[0] = 0;
         for (i = 0; i < 128; i++) {
-            r->dp[j] |= a[i] << s;
+            r->dp[j] |= (mp_digit)(a[i] << s);
             r->dp[j] &= (1L << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
-            r->dp[++j] = a[i] >> s;
+            r->dp[++j] = (mp_digit)(a[i] >> s);
             while (s + DIGIT_BIT <= 32) {
                 s += DIGIT_BIT;
                 r->dp[j++] &= (1L << DIGIT_BIT) - 1;
@@ -72060,7 +72234,7 @@ static int sp_4096_to_mp(const sp_digit* a, mp_int* r)
                     r->dp[j] = 0;
                 }
                 else {
-                    r->dp[j] = a[i] >> s;
+                    r->dp[j] = (mp_digit)(a[i] >> s);
                 }
             }
             s = 32 - s;
@@ -73192,7 +73366,7 @@ static int sp_256_point_new_ex_8(void* heap, sp_point_256* sp, sp_point_256** p)
 #else
     *p = sp;
 #endif
-    if (p == NULL) {
+    if (*p == NULL) {
         ret = MEMORY_E;
     }
     return ret;
@@ -73579,10 +73753,10 @@ static int sp_256_to_mp(const sp_digit* a, mp_int* r)
 
         r->dp[0] = 0;
         for (i = 0; i < 8; i++) {
-            r->dp[j] |= a[i] << s;
+            r->dp[j] |= (mp_digit)(a[i] << s);
             r->dp[j] &= (1L << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
-            r->dp[++j] = a[i] >> s;
+            r->dp[++j] = (mp_digit)(a[i] >> s);
             while (s + DIGIT_BIT <= 32) {
                 s += DIGIT_BIT;
                 r->dp[j++] &= (1L << DIGIT_BIT) - 1;
@@ -73590,7 +73764,7 @@ static int sp_256_to_mp(const sp_digit* a, mp_int* r)
                     r->dp[j] = 0;
                 }
                 else {
-                    r->dp[j] = a[i] >> s;
+                    r->dp[j] = (mp_digit)(a[i] >> s);
                 }
             }
             s = 32 - s;
@@ -76112,7 +76286,7 @@ static int sp_256_ecc_mulmod_fast_8(sp_point_256* r, const sp_point_256* g, cons
         n <<= 4;
         for (; i>=0 || c>=4; ) {
             if (c < 4) {
-                n |= k[i--] << (0 - c);
+                n |= k[i--];
                 c += 32;
             }
             y = (n >> 28) & 0xf;
@@ -81204,7 +81378,7 @@ static int sp_384_point_new_ex_12(void* heap, sp_point_384* sp, sp_point_384** p
 #else
     *p = sp;
 #endif
-    if (p == NULL) {
+    if (*p == NULL) {
         ret = MEMORY_E;
     }
     return ret;
@@ -81458,10 +81632,10 @@ static int sp_384_to_mp(const sp_digit* a, mp_int* r)
 
         r->dp[0] = 0;
         for (i = 0; i < 12; i++) {
-            r->dp[j] |= a[i] << s;
+            r->dp[j] |= (mp_digit)(a[i] << s);
             r->dp[j] &= (1L << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
-            r->dp[++j] = a[i] >> s;
+            r->dp[++j] = (mp_digit)(a[i] >> s);
             while (s + DIGIT_BIT <= 32) {
                 s += DIGIT_BIT;
                 r->dp[j++] &= (1L << DIGIT_BIT) - 1;
@@ -81469,7 +81643,7 @@ static int sp_384_to_mp(const sp_digit* a, mp_int* r)
                     r->dp[j] = 0;
                 }
                 else {
-                    r->dp[j] = a[i] >> s;
+                    r->dp[j] = (mp_digit)(a[i] >> s);
                 }
             }
             s = 32 - s;
@@ -84781,7 +84955,7 @@ static int sp_384_ecc_mulmod_fast_12(sp_point_384* r, const sp_point_384* g, con
         n <<= 4;
         for (; i>=0 || c>=4; ) {
             if (c < 4) {
-                n |= k[i--] << (0 - c);
+                n |= k[i--];
                 c += 32;
             }
             y = (n >> 28) & 0xf;

@@ -606,14 +606,15 @@ int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key)
             key->pointY[i] = *(in + 2*ED25519_KEY_SIZE - i);
         }
         XMEMCPY(key->p, key->pointY, ED25519_KEY_SIZE);
+        key->pubKeySet = 1;
         ret = 0;
 #else
         /* pass in (x,y) and store compressed key */
         ret = ge_compress_key(key->p, in+1,
                               in+1+ED25519_PUB_KEY_SIZE, ED25519_PUB_KEY_SIZE);
-#endif /* FREESCALE_LTC_ECC */
         if (ret == 0)
             key->pubKeySet = 1;
+#endif /* FREESCALE_LTC_ECC */
         return ret;
     }
 

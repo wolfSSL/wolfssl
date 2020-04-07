@@ -59,8 +59,10 @@ void echoclient_test(void* args)
     FILE* fin   = stdin  ;
     FILE* fout = stdout;
 
+#ifndef WOLFSSL_MDK_SHELL
     int inCreated  = 0;
     int outCreated = 0;
+#endif
 
     char msg[1024];
     char reply[1024+1];
@@ -106,11 +108,11 @@ void echoclient_test(void* args)
 #ifdef CYASSL_LEANPSK
     doPSK = 1;
 #endif
-
 #if defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519) && \
                                                             !defined(HAVE_ED448)
     doPSK = 1;
 #endif
+    (void)doPSK;
 
 #if defined(NO_MAIN_DRIVER) && !defined(USE_WINDOWS_API) && !defined(WOLFSSL_MDK_SHELL)
     port = ((func_args*)args)->signal->port;
@@ -151,8 +153,8 @@ void echoclient_test(void* args)
     /* don't use EDH, can't sniff tmp keys */
     SSL_CTX_set_cipher_list(ctx, "AES256-SHA");
 #endif
-    if (doPSK) {
 #ifndef NO_PSK
+    if (doPSK) {
         const char *defaultCipherList;
 
         CyaSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
@@ -165,8 +167,8 @@ void echoclient_test(void* args)
         #endif
         if (CyaSSL_CTX_set_cipher_list(ctx,defaultCipherList) !=WOLFSSL_SUCCESS)
             err_sys("client can't set cipher list 2");
-#endif
     }
+#endif
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
@@ -318,8 +320,10 @@ void echoclient_test(void* args)
 #endif
 
     fflush(fout);
+#ifndef WOLFSSL_MDK_SHELL
     if (inCreated)  fclose(fin);
     if (outCreated) fclose(fout);
+#endif
 
     CloseSocket(sockfd);
     ((func_args*)args)->return_code = 0;

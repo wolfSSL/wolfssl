@@ -2230,7 +2230,7 @@ int mp_exptmod_base_2(mp_int * X, mp_int * P, mp_int * Y)
 #else
   mp_int   res[1];
 #endif
-  int     (*redux)(mp_int*,mp_int*,mp_digit);
+  int     (*redux)(mp_int*,mp_int*,mp_digit) = NULL;
 
   /* automatically pick the comba one if available (saves quite a few
      calls/ifs) */

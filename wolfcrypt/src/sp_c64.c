@@ -3060,7 +3060,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     }
     if (err == MP_OKAY) {
         a = d + 36;
-        m = a + 36;
+        m = a + 72;
         r = a;
 
         sp_2048_from_bin(a, 36, in, inLen);
@@ -3292,10 +3292,10 @@ static int sp_2048_to_mp(const sp_digit* a, mp_int* r)
 
         r->dp[0] = 0;
         for (i = 0; i < 36; i++) {
-            r->dp[j] |= a[i] << s;
+            r->dp[j] |= (mp_digit)(a[i] << s);
             r->dp[j] &= (1L << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
-            r->dp[++j] = a[i] >> s;
+            r->dp[++j] = (mp_digit)(a[i] >> s);
             while (s + DIGIT_BIT <= 57) {
                 s += DIGIT_BIT;
                 r->dp[j++] &= (1L << DIGIT_BIT) - 1;
@@ -3303,7 +3303,7 @@ static int sp_2048_to_mp(const sp_digit* a, mp_int* r)
                     r->dp[j] = 0;
                 }
                 else {
-                    r->dp[j] = a[i] >> s;
+                    r->dp[j] = (mp_digit)(a[i] >> s);
                 }
             }
             s = 57 - s;
@@ -7171,7 +7171,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     }
     if (err == MP_OKAY) {
         a = d + 54;
-        m = a + 54;
+        m = a + 108;
         r = a;
 
         sp_3072_from_bin(a, 54, in, inLen);
@@ -7403,10 +7403,10 @@ static int sp_3072_to_mp(const sp_digit* a, mp_int* r)
 
         r->dp[0] = 0;
         for (i = 0; i < 54; i++) {
-            r->dp[j] |= a[i] << s;
+            r->dp[j] |= (mp_digit)(a[i] << s);
             r->dp[j] &= (1L << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
-            r->dp[++j] = a[i] >> s;
+            r->dp[++j] = (mp_digit)(a[i] >> s);
             while (s + DIGIT_BIT <= 57) {
                 s += DIGIT_BIT;
                 r->dp[j++] &= (1L << DIGIT_BIT) - 1;
@@ -7414,7 +7414,7 @@ static int sp_3072_to_mp(const sp_digit* a, mp_int* r)
                     r->dp[j] = 0;
                 }
                 else {
-                    r->dp[j] = a[i] >> s;
+                    r->dp[j] = (mp_digit)(a[i] >> s);
                 }
             }
             s = 57 - s;
@@ -11527,7 +11527,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
     }
     if (err == MP_OKAY) {
         a = d + 78;
-        m = a + 78;
+        m = a + 156;
         r = a;
 
         sp_4096_from_bin(a, 78, in, inLen);
@@ -11759,10 +11759,10 @@ static int sp_4096_to_mp(const sp_digit* a, mp_int* r)
 
         r->dp[0] = 0;
         for (i = 0; i < 78; i++) {
-            r->dp[j] |= a[i] << s;
+            r->dp[j] |= (mp_digit)(a[i] << s);
             r->dp[j] &= (1L << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
-            r->dp[++j] = a[i] >> s;
+            r->dp[++j] = (mp_digit)(a[i] >> s);
             while (s + DIGIT_BIT <= 53) {
                 s += DIGIT_BIT;
                 r->dp[j++] &= (1L << DIGIT_BIT) - 1;
@@ -11770,7 +11770,7 @@ static int sp_4096_to_mp(const sp_digit* a, mp_int* r)
                     r->dp[j] = 0;
                 }
                 else {
-                    r->dp[j] = a[i] >> s;
+                    r->dp[j] = (mp_digit)(a[i] >> s);
                 }
             }
             s = 53 - s;
@@ -12488,7 +12488,7 @@ static int sp_256_point_new_ex_5(void* heap, sp_point_256* sp, sp_point_256** p)
 #else
     *p = sp;
 #endif
-    if (p == NULL) {
+    if (*p == NULL) {
         ret = MEMORY_E;
     }
     return ret;
@@ -12759,10 +12759,10 @@ static int sp_256_to_mp(const sp_digit* a, mp_int* r)
 
         r->dp[0] = 0;
         for (i = 0; i < 5; i++) {
-            r->dp[j] |= a[i] << s;
+            r->dp[j] |= (mp_digit)(a[i] << s);
             r->dp[j] &= (1L << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
-            r->dp[++j] = a[i] >> s;
+            r->dp[++j] = (mp_digit)(a[i] >> s);
             while (s + DIGIT_BIT <= 52) {
                 s += DIGIT_BIT;
                 r->dp[j++] &= (1L << DIGIT_BIT) - 1;
@@ -12770,7 +12770,7 @@ static int sp_256_to_mp(const sp_digit* a, mp_int* r)
                     r->dp[j] = 0;
                 }
                 else {
-                    r->dp[j] = a[i] >> s;
+                    r->dp[j] = (mp_digit)(a[i] >> s);
                 }
             }
             s = 52 - s;
@@ -17566,7 +17566,7 @@ static int sp_384_point_new_ex_7(void* heap, sp_point_384* sp, sp_point_384** p)
 #else
     *p = sp;
 #endif
-    if (p == NULL) {
+    if (*p == NULL) {
         ret = MEMORY_E;
     }
     return ret;
@@ -17868,10 +17868,10 @@ static int sp_384_to_mp(const sp_digit* a, mp_int* r)
 
         r->dp[0] = 0;
         for (i = 0; i < 7; i++) {
-            r->dp[j] |= a[i] << s;
+            r->dp[j] |= (mp_digit)(a[i] << s);
             r->dp[j] &= (1L << DIGIT_BIT) - 1;
             s = DIGIT_BIT - s;
-            r->dp[++j] = a[i] >> s;
+            r->dp[++j] = (mp_digit)(a[i] >> s);
             while (s + DIGIT_BIT <= 55) {
                 s += DIGIT_BIT;
                 r->dp[j++] &= (1L << DIGIT_BIT) - 1;
@@ -17879,7 +17879,7 @@ static int sp_384_to_mp(const sp_digit* a, mp_int* r)
                     r->dp[j] = 0;
                 }
                 else {
-                    r->dp[j] = a[i] >> s;
+                    r->dp[j] = (mp_digit)(a[i] >> s);
                 }
             }
             s = 55 - s;

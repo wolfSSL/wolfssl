@@ -201,7 +201,6 @@ static int TestEmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     WOLFSSL_TEST_DTLS_CTX* dtlsCtx = (WOLFSSL_TEST_DTLS_CTX*)ctx;
     int sd = dtlsCtx->wfd;
     int sent;
-    int len = sz;
     int err;
 
     (void)ssl;
@@ -218,9 +217,8 @@ static int TestEmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
         }
     }
 
-    sent = (int)sendto(sd, &buf[sz - len], len, 0,
-                                (const SOCKADDR*)&dtlsCtx->peer.sa,
-                                dtlsCtx->peer.sz);
+    sent = (int)sendto(sd, buf, sz, 0, (const SOCKADDR*)&dtlsCtx->peer.sa,
+                                                             dtlsCtx->peer.sz);
 
     sent = TranslateReturnCode(sent, sd);
 
@@ -428,7 +426,11 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
     #endif
             "\tRX      %8.3f ms (%8.3f MBps)\n"
             "\tTX      %8.3f ms (%8.3f MBps)\n",
+    #if !defined(__MINGW32__)
             throughput,
+    #else
+            (int)throughput,
+    #endif
             tx_time * 1000, throughput / tx_time / 1024 / 1024,
             rx_time * 1000, throughput / rx_time / 1024 / 1024
         );
@@ -900,7 +902,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
     int    useWebServerMsg = 0;
     char   input[80];
+#ifndef WOLFSSL_VXWORKS
     int    ch;
+#endif
     int    version = SERVER_DEFAULT_VERSION;
 #ifndef WOLFSSL_NO_CLIENT_AUTH
     int    doCliCertCheck = 1;
@@ -2197,11 +2201,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             }
             #endif
             tcp_set_nonblocking(&clientfd);
-        }
-#endif
 
-#ifndef WOLFSSL_CALLBACKS
-        if (nonBlocking) {
             ret = NonBlockingSSL_Accept(ssl);
         }
         else {

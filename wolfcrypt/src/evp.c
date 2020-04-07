@@ -1841,10 +1841,11 @@ static int wolfSSL_evp_digest_pk_init(WOLFSSL_EVP_MD_CTX *ctx,
     else {
         int ret;
 
-        if (ctx->pctx == NULL)
+        if (ctx->pctx == NULL) {
             ctx->pctx = wolfSSL_EVP_PKEY_CTX_new(pkey, e);
-        if (ctx->pctx == NULL)
-            return WOLFSSL_FAILURE;
+            if (ctx->pctx == NULL)
+                return WOLFSSL_FAILURE;
+        }
 
         ret = wolfSSL_EVP_DigestInit(ctx, type);
         if (ret == WOLFSSL_SUCCESS && pctx != NULL)

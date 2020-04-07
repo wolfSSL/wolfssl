@@ -72,7 +72,7 @@
 
 static int lng_index = 0;
 #ifdef WOLFSSL_CALLBACKS
-    WOLFSSL_TIMEVAL timeout;
+    WOLFSSL_TIMEVAL timeoutConnect;
     static int handShakeCB(HandShakeInfo* info)
     {
         (void)info;
@@ -111,7 +111,7 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
 #ifndef WOLFSSL_CALLBACKS
     ret = wolfSSL_connect(ssl);
 #else
-    ret = wolfSSL_connect_ex(ssl, handShakeCB, timeoutCB, timeout);
+    ret = wolfSSL_connect_ex(ssl, handShakeCB, timeoutCB, timeoutConnect);
 #endif
     error = wolfSSL_get_error(ssl, 0);
     sockfd = (SOCKET_T)wolfSSL_get_fd(ssl);
@@ -157,7 +157,8 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
         #ifndef WOLFSSL_CALLBACKS
             ret = wolfSSL_connect(ssl);
         #else
-            ret = wolfSSL_connect_ex(ssl, handShakeCB, timeoutCB, timeout);
+            ret = wolfSSL_connect_ex(ssl, handShakeCB, timeoutCB,
+                                                                timeoutConnect);
         #endif
             error = wolfSSL_get_error(ssl, 0);
             elapsedSec = 0; /* reset elapsed */
@@ -660,7 +661,11 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
         "\tConnect %8.3f ms\n"
         "\tTX      %8.3f ms (%8.3f MBps)\n"
         "\tRX      %8.3f ms (%8.3f MBps)\n",
+#if !defined(__MINGW32__)
         throughput,
+#else
+        (int)throughput,
+#endif
         conn_time * 1000,
         tx_time * 1000, throughput / tx_time / 1024 / 1024,
         rx_time * 1000, throughput / rx_time / 1024 / 1024
@@ -1382,7 +1387,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                                           because can't tell if we're really
                                           going there to detect old chacha-poly
                                        */
+#ifndef WOLFSSL_VXWORKS
     int    ch;
+#endif
     int    version = CLIENT_INVALID_VERSION;
     int    usePsk   = 0;
     int    useAnon  = 0;
@@ -2669,6 +2676,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifdef WOLFSSL_TLS13
     if (!helloRetry) {
+    #if defined(WOLFSSL_TLS13) && (!defined(NO_DH) || defined(HAVE_ECC) || \
+                             defined(HAVE_CURVE25519) || defined(HAVE_CURVE448))
         if (onlyKeyShare == 0 || onlyKeyShare == 2) {
         #ifdef HAVE_CURVE25519
             if (useX25519) {
@@ -2703,6 +2712,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             }
         #endif
         }
+    #endif
     }
     else {
         wolfSSL_NoKeyShares(ssl);
@@ -2899,8 +2909,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         } while (err == WC_PENDING_E);
     }
 #else
-    timeout.tv_sec  = DEFAULT_TIMEOUT_SEC;
-    timeout.tv_usec = 0;
+    timeoutConnect.tv_sec  = DEFAULT_TIMEOUT_SEC;
+    timeoutConnect.tv_usec = 0;
     ret = NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
 #endif
     if (ret != WOLFSSL_SUCCESS) {
@@ -3207,7 +3217,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         if (nonBlocking) {
 #ifdef WOLFSSL_DTLS
             if (doDTLS) {
-                wolfSSL_dtls_set_using_nonblock(ssl, 1);
+                wolfSSL_dtls_set_using_nonblock(sslResume, 1);
             }
 #endif
             tcp_set_nonblocking(&sockfd);
@@ -3240,8 +3250,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             } while (err == WC_PENDING_E);
         }
 #else
-        timeout.tv_sec  = DEFAULT_TIMEOUT_SEC;
-        timeout.tv_usec = 0;
+        timeoutConnect.tv_sec  = DEFAULT_TIMEOUT_SEC;
+        timeoutConnect.tv_usec = 0;
         ret = NonBlockingSSL_Connect(sslResume);  /* will keep retrying on timeout */
 #endif
         if (ret != WOLFSSL_SUCCESS) {

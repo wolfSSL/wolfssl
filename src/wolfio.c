@@ -392,12 +392,11 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     WOLFSSL_DTLS_CTX* dtlsCtx = (WOLFSSL_DTLS_CTX*)ctx;
     int sd = dtlsCtx->wfd;
     int sent;
-    int len = sz;
     int err;
 
     WOLFSSL_ENTER("EmbedSendTo()");
 
-    sent = (int)SENDTO_FUNCTION(sd, &buf[sz - len], len, ssl->wflags,
+    sent = (int)SENDTO_FUNCTION(sd, buf, sz, ssl->wflags,
                                 (const SOCKADDR*)dtlsCtx->peer.sa,
                                 dtlsCtx->peer.sz);
 
@@ -1928,12 +1927,11 @@ int MicriumSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     WOLFSSL_DTLS_CTX* dtlsCtx = (WOLFSSL_DTLS_CTX*)ctx;
     NET_SOCK_ID sd = dtlsCtx->wfd;
     NET_SOCK_RTN_CODE ret;
-    int len = sz;
     NET_ERR err;
 
     WOLFSSL_ENTER("MicriumSendTo()");
 
-    ret = NetSock_TxDataTo(sd, &buf[sz - len], len, ssl->wflags,
+    ret = NetSock_TxDataTo(sd, buf, sz, ssl->wflags,
                            (NET_SOCK_ADDR*)dtlsCtx->peer.sa,
                            (NET_SOCK_ADDR_LEN)dtlsCtx->peer.sz,
                            &err);

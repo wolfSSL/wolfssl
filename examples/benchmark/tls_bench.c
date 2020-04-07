@@ -211,7 +211,7 @@ static const char* kTestStr =
 
 #if !defined(NO_WOLFSSL_SERVER)
 /* dh2048 p */
-static const unsigned char p[] =
+static const unsigned char dhp[] =
 {
     0xb0, 0xa1, 0x08, 0x06, 0x9c, 0x08, 0x13, 0xba, 0x59, 0x06, 0x3c, 0xbc, 0x30,
     0xd5, 0xf5, 0x00, 0xc1, 0x4f, 0x44, 0xa7, 0xd6, 0xef, 0x4a, 0xc6, 0x25, 0x27,
@@ -236,7 +236,7 @@ static const unsigned char p[] =
 };
 
 /* dh2048 g */
-static const unsigned char g[] =
+static const unsigned char dhg[] =
 {
     0x02,
 };
@@ -575,12 +575,11 @@ static int ReceiveFrom(WOLFSSL *ssl, int sd, char *buf, int sz)
 }
 
 static int SendTo(int sd, char *buf, int sz, const struct sockaddr *peer, 
-                                                            socklen_t peerSz)
+                  socklen_t peerSz)
 {
     int sent;
-    int len = sz;
 
-    sent = (int)sendto(sd, &buf[sz - len], len, 0, peer, peerSz);
+    sent = (int)sendto(sd, buf, sz, 0, peer, peerSz);
 
     if (sent < 0) {
         if (errno == SOCKET_EWOULDBLOCK || errno == SOCKET_EAGAIN) {
@@ -1312,7 +1311,7 @@ static int bench_tls_server(info_t* info)
         wolfSSL_SetIOReadCtx(srv_ssl, info);
         wolfSSL_SetIOWriteCtx(srv_ssl, info);
     #ifndef NO_DH
-        wolfSSL_SetTmpDH(srv_ssl, p, sizeof(p), g, sizeof(g));
+        wolfSSL_SetTmpDH(srv_ssl, dhp, sizeof(dhp), dhg, sizeof(dhg));
     #endif
 
         /* accept TLS connection */

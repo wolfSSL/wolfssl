@@ -309,7 +309,7 @@ int sp_count_bits(sp_int* a)
         r *= SP_WORD_SIZE;
         if (d >= (1L << (SP_WORD_SIZE / 2))) {
             r += SP_WORD_SIZE;
-            while ((d & (1L << (SP_WORD_SIZE - 1))) == 0) {
+            while ((d & (1UL << (SP_WORD_SIZE - 1))) == 0) {
                 r--;
                 d <<= 1;
             }

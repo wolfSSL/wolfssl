@@ -38,7 +38,7 @@ static word32 usernameSz = 4;
 static byte password[] = "password";
 static word32 passwordSz = 8;
 
-static byte N[] = {
+static byte srp_N[] = {
     0xD4, 0xC7, 0xF8, 0xA2, 0xB3, 0x2C, 0x11, 0xB8, 0xFB, 0xA9, 0x58, 0x1E,
     0xC4, 0xBA, 0x4F, 0x1B, 0x04, 0x21, 0x56, 0x42, 0xEF, 0x73, 0x55, 0xE3,
     0x7C, 0x0F, 0xC0, 0x44, 0x3E, 0xF7, 0x56, 0xEA, 0x2C, 0x6B, 0x8E, 0xEB,
@@ -47,15 +47,15 @@ static byte N[] = {
     0xDB, 0xDF, 0xCA, 0x43
 };
 
-static byte g[] = {
+static byte srp_g[] = {
     0x02
 };
 
-static byte salt[] = {
+static byte srp_salt[] = {
     0x80, 0x66, 0x61, 0x5B, 0x7D, 0x33, 0xA2, 0x2E, 0x79, 0x18
 };
 
-static byte verifier[] = {
+static byte srp_verifier[] = {
     0x24, 0x5F, 0xA5, 0x1B, 0x2A, 0x28, 0xF8, 0xFF, 0xE2, 0xA0, 0xF8, 0x61,
     0x7B, 0x0F, 0x3C, 0x05, 0xD6, 0x4A, 0x55, 0xDF, 0x74, 0x31, 0x54, 0x47,
     0xA1, 0xFA, 0x9D, 0x25, 0x7B, 0x02, 0x88, 0x0A, 0xE8, 0x5A, 0xBA, 0x8B,
@@ -64,13 +64,13 @@ static byte verifier[] = {
     0x38, 0x19, 0xAB, 0x24
 };
 
-static byte a[] = {
+static byte srp_a[] = {
     0x37, 0x95, 0xF2, 0xA6, 0xF1, 0x6F, 0x0D, 0x58, 0xBF, 0xED, 0x44, 0x87,
     0xE0, 0xB6, 0xCC, 0x1C, 0xA0, 0x50, 0xC6, 0x61, 0xBB, 0x36, 0xE0, 0x9A,
     0xF3, 0xF7, 0x1E, 0x7A, 0x61, 0x86, 0x5A, 0xF5
 };
 
-static byte A[] = {
+static byte srp_A[] = {
     0x8D, 0x28, 0xC5, 0x6A, 0x46, 0x5C, 0x82, 0xDB, 0xC7, 0xF6, 0x8B, 0x62,
     0x1A, 0xAD, 0xA1, 0x76, 0x1B, 0x55, 0xFF, 0xAB, 0x10, 0x2F, 0xFF, 0x4A,
     0xAA, 0x46, 0xAD, 0x33, 0x64, 0xDE, 0x28, 0x2E, 0x82, 0x7A, 0xBE, 0xEA,
@@ -79,13 +79,13 @@ static byte A[] = {
     0xBF, 0xCF, 0x2D, 0xB0
 };
 
-static byte b[] = {
+static byte srp_b[] = {
     0x2B, 0xDD, 0x30, 0x30, 0x53, 0xAF, 0xD8, 0x3A, 0xE7, 0xE0, 0x17, 0x82,
     0x39, 0x44, 0x2C, 0xDB, 0x30, 0x88, 0x0F, 0xC8, 0x88, 0xC2, 0xB2, 0xC1,
     0x78, 0x43, 0x2F, 0xD5, 0x60, 0xD4, 0xDA, 0x43
 };
 
-static byte B[] = {
+static byte srp_B[] = {
     0xB5, 0x80, 0x36, 0x7F, 0x50, 0x89, 0xC1, 0x04, 0x42, 0x98, 0xD7, 0x6A,
     0x37, 0x8E, 0xF1, 0x81, 0x52, 0xC5, 0x7A, 0xA1, 0xD5, 0xB7, 0x66, 0x84,
     0xA1, 0x3E, 0x32, 0x82, 0x2B, 0x3A, 0xB5, 0xD7, 0x3D, 0x50, 0xF1, 0x58,
@@ -94,19 +94,19 @@ static byte B[] = {
     0x0E, 0xC7, 0x92, 0xAD
 };
 
-static byte key[] = {
+static byte srp_key[] = {
     0x66, 0x00, 0x9D, 0x58, 0xB3, 0xD2, 0x0D, 0x4B, 0x69, 0x7F, 0xCF, 0x48,
     0xFF, 0x8F, 0x15, 0x81, 0x4C, 0x4B, 0xFE, 0x9D, 0x85, 0x77, 0x88, 0x60,
     0x1D, 0x1E, 0x51, 0xCF, 0x75, 0xCC, 0x58, 0x00, 0xE7, 0x8D, 0x22, 0x87,
     0x13, 0x6C, 0x88, 0x55
 };
 
-static byte client_proof[] = {
+static byte srp_client_proof[] = {
     0x0D, 0x49, 0xE1, 0x9C, 0x3A, 0x88, 0x43, 0x15, 0x45, 0xA8, 0xAC, 0xAB,
     0xEA, 0x15, 0x1A, 0xEE, 0xF9, 0x38, 0x4D, 0x21
 };
 
-static byte server_proof[] = {
+static byte srp_server_proof[] = {
     0xBD, 0xB1, 0x20, 0x70, 0x46, 0xC9, 0xD6, 0xCC, 0xE2, 0x1D, 0x75, 0xA2,
     0xD0, 0xAF, 0xC5, 0xBC, 0xAE, 0x12, 0xFC, 0x75
 };
@@ -151,34 +151,39 @@ static void test_SrpSetParams(void)
     AssertIntEQ(0, wc_SrpInit(&srp, SRP_TYPE_SHA, SRP_CLIENT_SIDE));
 
     /* invalid call order */
-    AssertIntEQ(SRP_CALL_ORDER_E, wc_SrpSetParams(&srp, N,    sizeof(N),
-                                                        g,    sizeof(g),
-                                                        salt, sizeof(salt)));
+    AssertIntEQ(SRP_CALL_ORDER_E, wc_SrpSetParams(&srp,
+                                                  srp_N,    sizeof(srp_N),
+                                                  srp_g,    sizeof(srp_g),
+                                                  srp_salt, sizeof(srp_salt)));
 
     /* fix call order */
     AssertIntEQ(0, wc_SrpSetUsername(&srp, username, usernameSz));
 
     /* invalid params */
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetParams(NULL, N,    sizeof(N),
-                                                    g,    sizeof(g),
-                                                    salt, sizeof(salt)));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetParams(&srp, NULL, sizeof(N),
-                                                    g,    sizeof(g),
-                                                    salt, sizeof(salt)));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetParams(&srp, N,    sizeof(N),
-                                                    NULL, sizeof(g),
-                                                    salt, sizeof(salt)));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetParams(&srp, N,    sizeof(N),
-                                                    g,    sizeof(g),
-                                                    NULL, sizeof(salt)));
+    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetParams(NULL,
+                                              srp_N,    sizeof(srp_N),
+                                              srp_g,    sizeof(srp_g),
+                                              srp_salt, sizeof(srp_salt)));
+    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetParams(&srp,
+                                              NULL,     sizeof(srp_N),
+                                              srp_g,    sizeof(srp_g),
+                                              srp_salt, sizeof(srp_salt)));
+    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetParams(&srp,
+                                              srp_N,    sizeof(srp_N),
+                                              NULL,      sizeof(srp_g),
+                                              srp_salt, sizeof(srp_salt)));
+    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetParams(&srp,
+                                              srp_N,    sizeof(srp_N),
+                                              srp_g,    sizeof(srp_g),
+                                              NULL,     sizeof(srp_salt)));
 
     /* success */
-    AssertIntEQ(0, wc_SrpSetParams(&srp, N,    sizeof(N),
-                                         g,    sizeof(g),
-                                         salt, sizeof(salt)));
+    AssertIntEQ(0, wc_SrpSetParams(&srp, srp_N,    sizeof(srp_N),
+                                         srp_g,    sizeof(srp_g),
+                                         srp_salt, sizeof(srp_salt)));
 
-    AssertIntEQ(sizeof(salt), srp.saltSz);
-    AssertIntEQ(0, XMEMCMP(srp.salt, salt, srp.saltSz));
+    AssertIntEQ(sizeof(srp_salt), srp.saltSz);
+    AssertIntEQ(0, XMEMCMP(srp.salt, srp_salt, srp.saltSz));
 
     wc_SrpTerm(&srp);
 }
@@ -199,9 +204,9 @@ static void test_SrpSetPassword(void)
                 wc_SrpGetVerifier(&srp, v, &vSz));
 
     /* fix call order */
-    AssertIntEQ(0, wc_SrpSetParams(&srp, N,    sizeof(N),
-                                         g,    sizeof(g),
-                                         salt, sizeof(salt)));
+    AssertIntEQ(0, wc_SrpSetParams(&srp, srp_N,    sizeof(srp_N),
+                                         srp_g,    sizeof(srp_g),
+                                         srp_salt, sizeof(srp_salt)));
 
     /* invalid params */
     AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetPassword(NULL, password, passwordSz));
@@ -218,8 +223,8 @@ static void test_SrpSetPassword(void)
     /* success */
     vSz = sizeof(v);
     AssertIntEQ(0, wc_SrpGetVerifier(&srp, v, &vSz));
-    AssertIntEQ(vSz, sizeof(verifier));
-    AssertIntEQ(0, XMEMCMP(verifier, v, vSz));
+    AssertIntEQ(vSz, sizeof(srp_verifier));
+    AssertIntEQ(0, XMEMCMP(srp_verifier, v, vSz));
 
     /* invalid params - client side srp */
     AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetVerifier(&srp, v, vSz));
@@ -245,9 +250,9 @@ static void test_SrpGetPublic(void)
 
     AssertIntEQ(0, wc_SrpInit(&srp, SRP_TYPE_SHA, SRP_CLIENT_SIDE));
     AssertIntEQ(0, wc_SrpSetUsername(&srp, username, usernameSz));
-    AssertIntEQ(0, wc_SrpSetParams(&srp, N,    sizeof(N),
-                                         g,    sizeof(g),
-                                         salt, sizeof(salt)));
+    AssertIntEQ(0, wc_SrpSetParams(&srp, srp_N,    sizeof(srp_N),
+                                         srp_g,    sizeof(srp_g),
+                                         srp_salt, sizeof(srp_salt)));
 
     /* invalid call order */
     AssertIntEQ(SRP_CALL_ORDER_E, wc_SrpGetPublic(&srp, pub, &pubSz));
@@ -263,30 +268,30 @@ static void test_SrpGetPublic(void)
 
     /* success */
     pubSz = sizeof(pub);
-    AssertIntEQ(0, wc_SrpSetPrivate(&srp, a, sizeof(a)));
+    AssertIntEQ(0, wc_SrpSetPrivate(&srp, srp_a, sizeof(srp_a)));
     AssertIntEQ(0, wc_SrpGetPublic(&srp, pub, &pubSz));
-    AssertIntEQ(pubSz, sizeof(A));
-    AssertIntEQ(0, XMEMCMP(pub, A, pubSz));
+    AssertIntEQ(pubSz, sizeof(srp_A));
+    AssertIntEQ(0, XMEMCMP(pub, srp_A, pubSz));
 
     wc_SrpTerm(&srp);
 
     AssertIntEQ(0, wc_SrpInit(&srp, SRP_TYPE_SHA, SRP_SERVER_SIDE));
     AssertIntEQ(0, wc_SrpSetUsername(&srp, username, usernameSz));
-    AssertIntEQ(0, wc_SrpSetParams(&srp, N,    sizeof(N),
-                                         g,    sizeof(g),
-                                         salt, sizeof(salt)));
+    AssertIntEQ(0, wc_SrpSetParams(&srp, srp_N,    sizeof(srp_N),
+                                         srp_g,    sizeof(srp_g),
+                                         srp_salt, sizeof(srp_salt)));
 
     /* invalid call order */
     AssertIntEQ(SRP_CALL_ORDER_E, wc_SrpGetPublic(&srp, pub, &pubSz));
 
     /* fix call order */
-    AssertIntEQ(0, wc_SrpSetVerifier(&srp, verifier, sizeof(verifier)));
+    AssertIntEQ(0, wc_SrpSetVerifier(&srp, srp_verifier, sizeof(srp_verifier)));
 
     /* success */
-    AssertIntEQ(0, wc_SrpSetPrivate(&srp, b, sizeof(b)));
+    AssertIntEQ(0, wc_SrpSetPrivate(&srp, srp_b, sizeof(srp_b)));
     AssertIntEQ(0, wc_SrpGetPublic(&srp, pub, &pubSz));
-    AssertIntEQ(pubSz, sizeof(B));
-    AssertIntEQ(0, XMEMCMP(pub, B, pubSz));
+    AssertIntEQ(pubSz, sizeof(srp_B));
+    AssertIntEQ(0, XMEMCMP(pub, srp_B, pubSz));
 
     wc_SrpTerm(&srp);
 }
@@ -311,22 +316,22 @@ static void test_SrpComputeKey(void)
     AssertIntEQ(0, wc_SrpSetUsername(&cli, username, usernameSz));
     AssertIntEQ(0, wc_SrpSetUsername(&srv, username, usernameSz));
 
-    AssertIntEQ(0, wc_SrpSetParams(&cli, N,    sizeof(N),
-                                         g,    sizeof(g),
-                                         salt, sizeof(salt)));
-    AssertIntEQ(0, wc_SrpSetParams(&srv, N,    sizeof(N),
-                                         g,    sizeof(g),
-                                         salt, sizeof(salt)));
+    AssertIntEQ(0, wc_SrpSetParams(&cli, srp_N,    sizeof(srp_N),
+                                         srp_g,    sizeof(srp_g),
+                                         srp_salt, sizeof(srp_salt)));
+    AssertIntEQ(0, wc_SrpSetParams(&srv, srp_N,    sizeof(srp_N),
+                                         srp_g,    sizeof(srp_g),
+                                         srp_salt, sizeof(srp_salt)));
 
     AssertIntEQ(0, wc_SrpSetPassword(&cli, password, passwordSz));
-    AssertIntEQ(0, wc_SrpSetVerifier(&srv, verifier, sizeof(verifier)));
+    AssertIntEQ(0, wc_SrpSetVerifier(&srv, srp_verifier, sizeof(srp_verifier)));
 
-    AssertIntEQ(0, wc_SrpSetPrivate(&cli, a, sizeof(a)));
+    AssertIntEQ(0, wc_SrpSetPrivate(&cli, srp_a, sizeof(srp_a)));
     AssertIntEQ(0, wc_SrpGetPublic(&cli, clientPubKey, &clientPubKeySz));
-    AssertIntEQ(0, XMEMCMP(clientPubKey, A, clientPubKeySz));
-    AssertIntEQ(0, wc_SrpSetPrivate(&srv, b, sizeof(b)));
+    AssertIntEQ(0, XMEMCMP(clientPubKey, srp_A, clientPubKeySz));
+    AssertIntEQ(0, wc_SrpSetPrivate(&srv, srp_b, sizeof(srp_b)));
     AssertIntEQ(0, wc_SrpGetPublic(&srv, serverPubKey, &serverPubKeySz));
-    AssertIntEQ(0, XMEMCMP(serverPubKey, B, serverPubKeySz));
+    AssertIntEQ(0, XMEMCMP(serverPubKey, srp_B, serverPubKeySz));
 
     /* invalid params */
     AssertIntEQ(BAD_FUNC_ARG, wc_SrpComputeKey(NULL,
@@ -350,8 +355,8 @@ static void test_SrpComputeKey(void)
                                           serverPubKey, serverPubKeySz));
     AssertIntEQ(0, wc_SrpComputeKey(&srv, clientPubKey, clientPubKeySz,
                                           serverPubKey, serverPubKeySz));
-    AssertIntEQ(0, XMEMCMP(cli.key, key, sizeof(key)));
-    AssertIntEQ(0, XMEMCMP(srv.key, key, sizeof(key)));
+    AssertIntEQ(0, XMEMCMP(cli.key, srp_key, sizeof(srp_key)));
+    AssertIntEQ(0, XMEMCMP(srv.key, srp_key, sizeof(srp_key)));
 
     wc_SrpTerm(&cli);
     wc_SrpTerm(&srv);
@@ -375,31 +380,31 @@ static void test_SrpGetProofAndVerify(void)
     AssertIntEQ(0, wc_SrpSetUsername(&cli, username, usernameSz));
     AssertIntEQ(0, wc_SrpSetUsername(&srv, username, usernameSz));
 
-    AssertIntEQ(0, wc_SrpSetParams(&cli, N,    sizeof(N),
-                                         g,    sizeof(g),
-                                         salt, sizeof(salt)));
-    AssertIntEQ(0, wc_SrpSetParams(&srv, N,    sizeof(N),
-                                         g,    sizeof(g),
-                                         salt, sizeof(salt)));
+    AssertIntEQ(0, wc_SrpSetParams(&cli, srp_N,    sizeof(srp_N),
+                                         srp_g,    sizeof(srp_g),
+                                         srp_salt, sizeof(srp_salt)));
+    AssertIntEQ(0, wc_SrpSetParams(&srv, srp_N,    sizeof(srp_N),
+                                         srp_g,    sizeof(srp_g),
+                                         srp_salt, sizeof(srp_salt)));
 
     AssertIntEQ(0, wc_SrpSetPassword(&cli, password, passwordSz));
-    AssertIntEQ(0, wc_SrpSetVerifier(&srv, verifier, sizeof(verifier)));
+    AssertIntEQ(0, wc_SrpSetVerifier(&srv, srp_verifier, sizeof(srp_verifier)));
 
-    AssertIntEQ(0, wc_SrpSetPrivate(&cli, a, sizeof(a)));
+    AssertIntEQ(0, wc_SrpSetPrivate(&cli, srp_a, sizeof(srp_a)));
     AssertIntEQ(0, wc_SrpGetPublic(&cli, clientPubKey, &clientPubKeySz));
-    AssertIntEQ(0, XMEMCMP(clientPubKey, A, clientPubKeySz));
+    AssertIntEQ(0, XMEMCMP(clientPubKey, srp_A, clientPubKeySz));
 
-    AssertIntEQ(0, wc_SrpSetPrivate(&srv, b, sizeof(b)));
+    AssertIntEQ(0, wc_SrpSetPrivate(&srv, srp_b, sizeof(srp_b)));
     AssertIntEQ(0, wc_SrpGetPublic(&srv, serverPubKey, &serverPubKeySz));
-    AssertIntEQ(0, XMEMCMP(serverPubKey, B, serverPubKeySz));
+    AssertIntEQ(0, XMEMCMP(serverPubKey, srp_B, serverPubKeySz));
 
     AssertIntEQ(0, wc_SrpComputeKey(&cli, clientPubKey, clientPubKeySz,
                                           serverPubKey, serverPubKeySz));
-    AssertIntEQ(0, XMEMCMP(cli.key, key, sizeof(key)));
+    AssertIntEQ(0, XMEMCMP(cli.key, srp_key, sizeof(srp_key)));
 
     AssertIntEQ(0, wc_SrpComputeKey(&srv, clientPubKey, clientPubKeySz,
                                           serverPubKey, serverPubKeySz));
-    AssertIntEQ(0, XMEMCMP(srv.key, key, sizeof(key)));
+    AssertIntEQ(0, XMEMCMP(srv.key, srp_key, sizeof(srp_key)));
 
     /* invalid params */
     serverProofSz = 0;
@@ -418,10 +423,12 @@ static void test_SrpGetProofAndVerify(void)
 
     /* success */
     AssertIntEQ(0, wc_SrpGetProof(&cli, clientProof, &clientProofSz));
-    AssertIntEQ(0, XMEMCMP(clientProof, client_proof, sizeof(client_proof)));
+    AssertIntEQ(0, XMEMCMP(clientProof, srp_client_proof,
+                           sizeof(srp_client_proof)));
     AssertIntEQ(0, wc_SrpVerifyPeersProof(&srv, clientProof, clientProofSz));
     AssertIntEQ(0, wc_SrpGetProof(&srv, serverProof, &serverProofSz));
-    AssertIntEQ(0, XMEMCMP(serverProof, server_proof, sizeof(server_proof)));
+    AssertIntEQ(0, XMEMCMP(serverProof, srp_server_proof,
+                           sizeof(srp_server_proof)));
     AssertIntEQ(0, wc_SrpVerifyPeersProof(&cli, serverProof, serverProofSz));
 
     wc_SrpTerm(&cli);

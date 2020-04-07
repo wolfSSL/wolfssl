@@ -1875,14 +1875,14 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
             }
         }
 
-        if (ret == 0) {
         #ifdef WC_RSA_BLINDING
+        if (ret == 0) {
             ret = wc_RsaSetRNG(&key, session->sslServer->rng);
             if (ret != 0) {
                 SetError(RSA_DECRYPT_STR, error, session, FATAL_ERROR_STATE);
             }
-        #endif
         }
+        #endif
 
         if (ret == 0) {
             session->keySz = length * WOLFSSL_BIT_SIZE;
