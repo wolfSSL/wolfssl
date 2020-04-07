@@ -3049,6 +3049,8 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
         word16 offset = 0;
         word16 size = 0;
 
+        if (length == 0)
+            return 0;
         if (length < ENUM_LEN)
             return BUFFER_ERROR;
 
