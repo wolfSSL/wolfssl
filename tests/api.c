@@ -27439,7 +27439,7 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_DSA(void)
     AssertIntNE(wolfSSL_EVP_PKEY_set1_DSA(set1Pkey, dsa), WOLFSSL_SUCCESS);
 
     /* Initialize set1Pkey */
-    set1Pkey = wolfSSL_PKEY_new();
+    set1Pkey = wolfSSL_EVP_PKEY_new();
 
     /* Should Fail Verify: setDsa not initialized from set1Pkey */
     AssertIntNE(wolfSSL_DSA_do_verify(hash,signature,setDsa,&answer),
@@ -27466,7 +27466,7 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_EC_KEY (void)
     printf(testingFmt,
            "wolfSSL_EVP_PKEY_set1_EC_KEY and wolfSSL_EVP_PKEY_get1_EC_KEY");
     AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
-    AssertNotNull(pkey = wolfSSL_PKEY_new());
+    AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
 
     /* Test wolfSSL_EVP_PKEY_set1_EC_KEY */
     AssertIntEQ(wolfSSL_EVP_PKEY_set1_EC_KEY(NULL, ecKey), WOLFSSL_FAILURE);
@@ -27516,7 +27516,7 @@ static void test_wolfSSL_EVP_PKEY_set1_get1_DH (void)
     AssertIntEQ(code, 0);
     code = -1;
 
-    pkey = wolfSSL_PKEY_new();
+    pkey = wolfSSL_EVP_PKEY_new();
 
     /* Set DH into PKEY */
     AssertIntEQ(wolfSSL_EVP_PKEY_set1_DH(pkey, setDh), WOLFSSL_SUCCESS);
@@ -27768,7 +27768,7 @@ static void test_wolfSSL_EVP_PKEY_assign(void)
     printf(testingFmt, "wolfSSL_EVP_PKEY_assign");
 #ifndef NO_RSA
     type = EVP_PKEY_RSA;
-    AssertNotNull(pkey = wolfSSL_PKEY_new());
+    AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
     AssertNotNull(rsa = wolfSSL_RSA_new());
     AssertIntEQ(wolfSSL_EVP_PKEY_assign(NULL,type,rsa),  WOLFSSL_FAILURE);
     AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,NULL), WOLFSSL_FAILURE);
@@ -27779,7 +27779,7 @@ static void test_wolfSSL_EVP_PKEY_assign(void)
 
 #ifndef NO_DSA
     type = EVP_PKEY_DSA;
-    AssertNotNull(pkey = wolfSSL_PKEY_new());
+    AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
     AssertNotNull(dsa = wolfSSL_DSA_new());
     AssertIntEQ(wolfSSL_EVP_PKEY_assign(NULL,type,dsa),  WOLFSSL_FAILURE);
     AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,NULL), WOLFSSL_FAILURE);
@@ -27790,7 +27790,7 @@ static void test_wolfSSL_EVP_PKEY_assign(void)
 
 #ifdef HAVE_ECC
     type = EVP_PKEY_EC;
-    AssertNotNull(pkey = wolfSSL_PKEY_new());
+    AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
     AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
     AssertIntEQ(wolfSSL_EVP_PKEY_assign(NULL,type,ecKey), WOLFSSL_FAILURE);
     AssertIntEQ(wolfSSL_EVP_PKEY_assign(pkey,type,NULL),  WOLFSSL_FAILURE);
@@ -28940,7 +28940,7 @@ static void test_wolfSSL_EVP_PKEY_encrypt(void)
     XMEMSET(outDec, 0, rsaKeySz);
 
     AssertNotNull(rsa = RSA_generate_key(2048, 3, NULL, NULL));
-    AssertNotNull(pkey = wolfSSL_PKEY_new());
+    AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
     AssertIntEQ(EVP_PKEY_assign_RSA(pkey, rsa), WOLFSSL_SUCCESS);
     AssertNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
     AssertIntEQ(EVP_PKEY_encrypt_init(ctx), WOLFSSL_SUCCESS);
@@ -29023,7 +29023,7 @@ static void test_wolfSSL_EVP_PKEY_sign(void)
     SHA256_Final(hash, &c);
 
     AssertNotNull(rsa = RSA_generate_key(2048, 3, NULL, NULL));
-    AssertNotNull(pkey = wolfSSL_PKEY_new());
+    AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
     AssertIntEQ(EVP_PKEY_assign_RSA(pkey, rsa), WOLFSSL_SUCCESS);
     AssertNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
     AssertIntEQ(EVP_PKEY_sign_init(ctx), WOLFSSL_SUCCESS);
@@ -29075,7 +29075,7 @@ static void test_EVP_PKEY_rsa(void)
     WOLFSSL_EVP_PKEY* pkey;
 
     AssertNotNull(rsa = wolfSSL_RSA_new());
-    AssertNotNull(pkey = wolfSSL_PKEY_new());
+    AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
     AssertIntEQ(EVP_PKEY_assign_RSA(NULL, rsa), WOLFSSL_FAILURE);
     AssertIntEQ(EVP_PKEY_assign_RSA(pkey, NULL), WOLFSSL_FAILURE);
     AssertIntEQ(EVP_PKEY_assign_RSA(pkey, rsa), WOLFSSL_SUCCESS);
@@ -29094,7 +29094,7 @@ static void test_EVP_PKEY_ec(void)
     WOLFSSL_EVP_PKEY* pkey;
 
     AssertNotNull(ecKey = wolfSSL_EC_KEY_new());
-    AssertNotNull(pkey = wolfSSL_PKEY_new());
+    AssertNotNull(pkey = wolfSSL_EVP_PKEY_new());
     AssertIntEQ(EVP_PKEY_assign_EC_KEY(NULL, ecKey), WOLFSSL_FAILURE);
     AssertIntEQ(EVP_PKEY_assign_EC_KEY(pkey, NULL), WOLFSSL_FAILURE);
     AssertIntEQ(EVP_PKEY_assign_EC_KEY(pkey, ecKey), WOLFSSL_SUCCESS);
