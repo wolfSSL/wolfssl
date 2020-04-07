@@ -1174,6 +1174,12 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     Hmac   hmac;
     byte   myInner[WOLFSSL_TLS_HMAC_INNER_SZ];
     int    ret = 0;
+#ifdef HAVE_TRUNCATED_HMAC
+    word32 hashSz = ssl->truncated_hmac ? (byte)TRUNCATED_HMAC_SZ
+                                        : ssl->specs.hash_size;
+#else
+    word32 hashSz = ssl->specs.hash_size;
+#endif
 
     if (ssl == NULL)
         return BAD_FUNC_ARG;
@@ -1182,8 +1188,8 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     /* Fuzz "in" buffer with sz to be used in HMAC algorithm */
     if (ssl->fuzzerCb) {
         if (verify && padSz >= 0) {
-            ssl->fuzzerCb(ssl, in, sz + ssl->specs.hash_size + padSz + 1,
-                FUZZ_HMAC, ssl->fuzzerCtx);
+            ssl->fuzzerCb(ssl, in, sz + hashSz + padSz + 1, FUZZ_HMAC,
+                          ssl->fuzzerCtx);
         }
         else {
             ssl->fuzzerCb(ssl, in, sz, FUZZ_HMAC, ssl->fuzzerCtx);
@@ -1221,21 +1227,18 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     !defined(HAVE_SELFTEST)
     #ifdef HAVE_BLAKE2
             if (wolfSSL_GetHmacType(ssl) == WC_HASH_TYPE_BLAKE2B) {
-                ret = Hmac_UpdateFinal(&hmac, digest, in, sz +
-                                               ssl->specs.hash_size + padSz + 1,
-                                               myInner);
+                ret = Hmac_UpdateFinal(&hmac, digest, in,
+                                              sz + hashSz + padSz + 1, myInner);
             }
             else
     #endif
             {
-                ret = Hmac_UpdateFinal_CT(&hmac, digest, in, sz +
-                                               ssl->specs.hash_size + padSz + 1,
-                                               myInner);
+                ret = Hmac_UpdateFinal_CT(&hmac, digest, in,
+                                              sz + hashSz + padSz + 1, myInner);
             }
 #else
-            ret = Hmac_UpdateFinal(&hmac, digest, in, sz +
-                                               ssl->specs.hash_size + padSz + 1,
-                                               myInner);
+            ret = Hmac_UpdateFinal(&hmac, digest, in, sz + hashSz + padSz + 1,
+                                                                       myInner);
 #endif
         }
         else {
