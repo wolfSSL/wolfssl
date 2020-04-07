@@ -783,8 +783,16 @@ static int SMTP_Shutdown(WOLFSSL* ssl, int wc_shutdown)
     printf("%s\n", tmpBuf);
 
     ret = wolfSSL_shutdown(ssl);
-    if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE)
-        wolfSSL_shutdown(ssl);    /* bidirectional shutdown */
+    if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE) {
+        if (tcp_select(wolfSSL_get_fd(ssl), DEFAULT_TIMEOUT_SEC) ==
+                TEST_RECV_READY) {
+            ret = wolfSSL_shutdown(ssl);    /* bidirectional shutdown */
+            if (ret == WOLFSSL_SUCCESS)
+                printf("Bidirectional shutdown complete\n");
+        }
+        if (ret != WOLFSSL_SUCCESS)
+            printf("Bidirectional shutdown failed\n");
+    }
 
     return WOLFSSL_SUCCESS;
 }
@@ -3110,8 +3118,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     if (dtlsUDP == 0) {           /* don't send alert after "break" command */
         ret = wolfSSL_shutdown(ssl);
-        if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE)
-            wolfSSL_shutdown(ssl);    /* bidirectional shutdown */
+        if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE) {
+            if (tcp_select(sockfd, DEFAULT_TIMEOUT_SEC) == TEST_RECV_READY) {
+                ret = wolfSSL_shutdown(ssl); /* bidirectional shutdown */
+                if (ret == WOLFSSL_SUCCESS)
+                    printf("Bidirectional shutdown complete\n");
+            }
+            if (ret != WOLFSSL_SUCCESS)
+                printf("Bidirectional shutdown failed\n");
+        }
     }
 #if defined(ATOMIC_USER) && !defined(WOLFSSL_AEAD_ONLY)
     if (atomicUser)

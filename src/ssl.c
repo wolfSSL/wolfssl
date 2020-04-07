@@ -2973,7 +2973,6 @@ WOLFSSL_ABI
 int wolfSSL_shutdown(WOLFSSL* ssl)
 {
     int  ret = WOLFSSL_FATAL_ERROR;
-    byte tmp;
     WOLFSSL_ENTER("SSL_shutdown()");
 
     if (ssl == NULL)
@@ -3012,16 +3011,16 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
 
         /* call wolfSSL_shutdown again for bidirectional shutdown */
         if (ssl->options.sentNotify && !ssl->options.closeNotify) {
-            ret = wolfSSL_read(ssl, &tmp, 0);
-            if (ret < 0) {
+            ret = ProcessReply(ssl);
+            if (ret == ZERO_RETURN) {
+                /* simulate OpenSSL behavior */
+                ssl->error = WOLFSSL_ERROR_SYSCALL;
+                ret = WOLFSSL_SUCCESS;
+            } else if (ssl->error == WOLFSSL_ERROR_NONE) {
+                ret = WOLFSSL_SHUTDOWN_NOT_DONE;
+            } else {
                 WOLFSSL_ERROR(ssl->error);
                 ret = WOLFSSL_FATAL_ERROR;
-            } else if (ssl->options.closeNotify) {
-                ssl->error = WOLFSSL_ERROR_SYSCALL;   /* simulate OpenSSL behavior */
-                ret = WOLFSSL_SUCCESS;
-            } else if ((ssl->error == WOLFSSL_ERROR_NONE) &&
-                       (ret < WOLFSSL_SUCCESS)) {
-                ret = WOLFSSL_SHUTDOWN_NOT_DONE;
             }
         }
     }
