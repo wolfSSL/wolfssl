@@ -2416,7 +2416,9 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         aes->rounds = keylen/4 + 6;
 
         XMEMCPY(aes->key, userKey, keylen);
-
+        #if defined(WOLFSSL_AES_COUNTER)
+            aes->left = 0;
+        #endif
         return wc_AesSetIV(aes, iv);
     }
 
@@ -2905,6 +2907,21 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         }
         #endif /* HAVE_AES_DECRYPT */
 
+    #elif defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
+        !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_AES)
+        
+        /* Allow direct access to one block encrypt */
+        void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
+        {
+            wc_AesEncrypt(aes, in, out);
+        }
+        #ifdef HAVE_AES_DECRYPT
+        /* Allow direct access to one block decrypt */
+        void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
+        {
+            wc_AesDecrypt(aes, in, out);
+        }
+        #endif /* HAVE_AES_DECRYPT */
     #else
         /* Allow direct access to one block encrypt */
         void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
@@ -3875,6 +3892,12 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
     #elif defined(WOLFSSL_DEVCRYPTO_AES)
         /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
+   
+    #elif defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
+        !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_AES)
+        /* esp32 doesn't support CRT mode by hw.     */
+        /* use aes ecnryption plus sw implementation */
+        #define NEED_AES_CTR_SOFT
 
     #else
 
