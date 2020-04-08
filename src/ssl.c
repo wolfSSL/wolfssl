@@ -140,6 +140,11 @@
 #endif
 #endif /* !WOLFCRYPT_ONLY || OPENSSL_EXTRA */
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#define WOLFSSL_EVP_INCLUDED
+#include "wolfcrypt/src/evp.c"
+#endif
+
 #ifdef OPENSSL_EXTRA
 /* Global pointer to constant BN on */
 static WOLFSSL_BIGNUM* bn_one = NULL;
@@ -3830,137 +3835,6 @@ int wolfSSL_CertManagerUnload_trust_peers(WOLFSSL_CERT_MANAGER* cm)
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
 #endif /* NO_CERTS */
-
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(HAVE_WEBSERVER)
-
-#ifndef NO_AES
-    #ifdef HAVE_AES_CBC
-    #ifdef WOLFSSL_AES_128
-        static char *EVP_AES_128_CBC;
-    #endif
-    #ifdef WOLFSSL_AES_192
-        static char *EVP_AES_192_CBC;
-    #endif
-    #ifdef WOLFSSL_AES_256
-        static char *EVP_AES_256_CBC;
-    #endif
-    #endif /* HAVE_AES_CBC */
-
-    #ifdef WOLFSSL_AES_OFB
-    #ifdef WOLFSSL_AES_128
-        static char *EVP_AES_128_OFB;
-    #endif
-    #ifdef WOLFSSL_AES_192
-        static char *EVP_AES_192_OFB;
-    #endif
-    #ifdef WOLFSSL_AES_256
-        static char *EVP_AES_256_OFB;
-    #endif
-    #endif /* WOLFSSL_AES_OFB */
-
-    #ifdef WOLFSSL_AES_XTS
-    #ifdef WOLFSSL_AES_128
-        static char *EVP_AES_128_XTS;
-    #endif
-    #ifdef WOLFSSL_AES_256
-        static char *EVP_AES_256_XTS;
-    #endif
-    #endif /* WOLFSSL_AES_XTS */
-
-    #ifdef WOLFSSL_AES_CFB
-    #ifdef WOLFSSL_AES_128
-        static char *EVP_AES_128_CFB1;
-    #endif
-    #ifdef WOLFSSL_AES_192
-        static char *EVP_AES_192_CFB1;
-    #endif
-    #ifdef WOLFSSL_AES_256
-        static char *EVP_AES_256_CFB1;
-    #endif
-
-    #ifdef WOLFSSL_AES_128
-        static char *EVP_AES_128_CFB8;
-    #endif
-    #ifdef WOLFSSL_AES_192
-        static char *EVP_AES_192_CFB8;
-    #endif
-    #ifdef WOLFSSL_AES_256
-        static char *EVP_AES_256_CFB8;
-    #endif
-
-    #ifdef WOLFSSL_AES_128
-        static char *EVP_AES_128_CFB128;
-    #endif
-    #ifdef WOLFSSL_AES_192
-        static char *EVP_AES_192_CFB128;
-    #endif
-    #ifdef WOLFSSL_AES_256
-        static char *EVP_AES_256_CFB128;
-    #endif
-    #endif /* WOLFSSL_AES_CFB */
-
-    #if defined(OPENSSL_EXTRA)
-#ifdef HAVE_AESGCM
-    #ifdef WOLFSSL_AES_128
-        static char *EVP_AES_128_GCM;
-    #endif
-    #ifdef WOLFSSL_AES_192
-        static char *EVP_AES_192_GCM;
-    #endif
-    #ifdef WOLFSSL_AES_256
-        static char *EVP_AES_256_GCM;
-    #endif
-#endif /* HAVE_AESGCM */
-    #ifdef WOLFSSL_AES_128
-    static char *EVP_AES_128_CTR;
-    #endif
-    #ifdef WOLFSSL_AES_192
-    static char *EVP_AES_192_CTR;
-    #endif
-    #ifdef WOLFSSL_AES_256
-    static char *EVP_AES_256_CTR;
-    #endif
-
-    #ifdef WOLFSSL_AES_128
-    static char *EVP_AES_128_ECB;
-    #endif
-    #ifdef WOLFSSL_AES_192
-    static char *EVP_AES_192_ECB;
-    #endif
-    #ifdef WOLFSSL_AES_256
-    static char *EVP_AES_256_ECB;
-    #endif
-    static const int  EVP_AES_SIZE = 11;
-    #ifdef WOLFSSL_AES_CFB
-    static const int  EVP_AESCFB_SIZE = 14;
-    #endif
-#endif
-#endif
-
-#ifndef NO_DES3
-static char *EVP_DES_CBC;
-static char *EVP_DES_ECB;
-
-static char *EVP_DES_EDE3_CBC;
-static char *EVP_DES_EDE3_ECB;
-
-#ifdef OPENSSL_EXTRA
-static const int  EVP_DES_SIZE = 7;
-static const int  EVP_DES_EDE3_SIZE = 12;
-#endif
-
-#endif
-
-#ifdef HAVE_IDEA
-static char *EVP_IDEA_CBC;
-#if defined(OPENSSL_EXTRA)
-static const int  EVP_IDEA_SIZE = 8;
-#endif
-#endif
-
-#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER */
-
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 
@@ -16032,35 +15906,6 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 #endif /* WOLFSSL_NOSHA3_512 */
 #endif /* WOLFSSL_SHA3 */
 
-#ifndef NO_AES
-    static int   AesSetKey_ex(Aes* aes, const byte* key, word32 len,
-                              const byte* iv, int dir, int direct)
-    {
-        int ret;
-        /* wc_AesSetKey clear aes.reg if iv == NULL.
-           Keep IV for openSSL compatibility */
-        if (iv == NULL)
-            XMEMCPY((byte *)aes->tmp, (byte *)aes->reg, AES_BLOCK_SIZE);
-        if (direct) {
-        #if defined(WOLFSSL_AES_DIRECT)
-            ret = wc_AesSetKeyDirect(aes, key, len, iv, dir);
-        #else
-            ret = NOT_COMPILED_IN;
-        #endif
-        }
-        else {
-            ret = wc_AesSetKey(aes, key, len, iv, dir);
-        }
-        if (iv == NULL)
-            XMEMCPY((byte *)aes->reg, (byte *)aes->tmp, AES_BLOCK_SIZE);
-        return ret;
-    }
-#endif
-
-#define WOLFSSL_EVP_INCLUDED
-#include "wolfcrypt/src/evp.c"
-
-
     /* store for external read of iv, WOLFSSL_SUCCESS on success */
     int  wolfSSL_StoreExternalIV(WOLFSSL_EVP_CIPHER_CTX* ctx)
     {
@@ -19798,9 +19643,6 @@ int wolfSSL_X509_get_signature_type(WOLFSSL_X509* x509)
 }
 
 #if defined(OPENSSL_EXTRA_X509_SMALL)
-#ifdef HAVE_ECC
-    static int SetECKeyExternal(WOLFSSL_EC_KEY* eckey);
-#endif
 
 /* Used to get a string from the WOLFSSL_X509_NAME structure that
  * corresponds with the NID value passed in.
@@ -19893,7 +19735,10 @@ int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name,
     return (textSz - 1); /* do not include null character in size */
 }
 
-
+#if defined(OPENSSL_EXTRA)
+#ifdef HAVE_ECC
+    static int SetECKeyExternal(WOLFSSL_EC_KEY* eckey);
+#endif
 /* Creates a new WOLFSSL_EVP_PKEY structure that has the public key from x509
  *
  * returns a pointer to the created WOLFSSL_EVP_PKEY on success and NULL on fail
@@ -20002,6 +19847,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
     }
     return key;
 }
+#endif /* OPENSSL_EXTRA */
 #endif /* OPENSSL_EXTRA_X509_SMALL */
 #endif /* !NO_CERTS */
 
@@ -30849,7 +30695,7 @@ static int SetECPointInternal(WOLFSSL_EC_POINT *p)
 #endif /* HAVE_ECC */
 #endif /* OPENSSL_EXTRA */
 
-#if defined(HAVE_ECC) && defined(OPENSSL_EXTRA_X509_SMALL)
+#if defined(HAVE_ECC) && defined(OPENSSL_EXTRA)
 
 /* EC_POINT WolfSSL -> OpenSSL */
 static int SetECPointExternal(WOLFSSL_EC_POINT *p)
@@ -46933,3 +46779,5 @@ int wolfSSL_X509_REQ_set_pubkey(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey)
     return wolfSSL_X509_set_pubkey(req, pkey);
 }
 #endif /* OPENSSL_EXTRA && !NO_CERTS && WOLFSSL_CERT_GEN && WOLFSSL_CERT_REQ */
+
+
