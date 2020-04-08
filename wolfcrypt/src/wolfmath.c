@@ -89,6 +89,45 @@ mp_digit get_digit(mp_int* a, int n)
     return (n >= a->used || n < 0) ? 0 : a->dp[n];
 }
 
+/* Conditionally copy a into b. Performed in constant time.
+ *
+ * a     MP integer to copy.
+ * copy  On 1, copy a into b. on 0 leave b unchanged.
+ * b     MP integer to copy into.
+ * returns BAD_FUNC_ARG when a or b is NULL, MEMORY_E when growing b fails and
+ *         MP_OKAY otherwise.
+ */
+int mp_cond_copy(mp_int* a, int copy, mp_int* b)
+{
+    int err = MP_OKAY;
+    int i;
+    mp_digit mask = (mp_digit)0 - copy;
+
+    if (a == NULL || b == NULL)
+        err = BAD_FUNC_ARG;
+
+    /* Ensure b has enough space to copy a into */
+    if (err == MP_OKAY)
+        err = mp_grow(b, a->used + 1);
+    if (err == MP_OKAY) {
+        /* When mask 0, b is unchanged2
+         * When mask all set, b ^ b ^ a = a
+         */
+        /* Conditionaly copy all digits and then number of used diigits.
+         * get_digit() returns 0 when index greater than available digit.
+         */
+        for (i = 0; i < a->used; i++) {
+            b->dp[i] ^= (get_digit(a, i) ^ get_digit(b, i)) & mask;
+        }
+        for (; i < b->used; i++) {
+            b->dp[i] ^= (get_digit(a, i) ^ get_digit(b, i)) & mask;
+        }
+        b->used ^= (a->used ^ b->used) & (int)mask;
+    }
+
+    return err;
+}
+
 #ifndef WC_NO_RNG
 int get_rand_digit(WC_RNG* rng, mp_digit* d)
 {
@@ -337,7 +376,6 @@ int wc_bigint_to_mp(WC_BIGINT* src, mp_int* dst)
 
     return err;
 }
-
 #endif /* HAVE_WOLF_BIGINT */
 
 #endif /* USE_FAST_MATH || !NO_BIG_INT */
