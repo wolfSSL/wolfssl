@@ -12182,7 +12182,13 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         }
         #endif
 
-        if (ssl->buffers.outputBuffer.length > 0) {
+        if (ssl->buffers.outputBuffer.length > 0
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* do not send buffered or advance state if last error was an 
+                async pending operation */
+            && ssl->error != WC_PENDING_E
+        #endif
+        ) {
             if ( (ssl->error = SendBuffered(ssl)) == 0) {
                 /* fragOffset is non-zero when sending fragments. On the last
                  * fragment, fragOffset is zero again, and the state can be
@@ -12580,7 +12586,13 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         }
     #endif
 
-        if (ssl->buffers.outputBuffer.length > 0) {
+        if (ssl->buffers.outputBuffer.length > 0
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* do not send buffered or advance state if last error was an 
+                async pending operation */
+            && ssl->error != WC_PENDING_E
+        #endif
+        ) {
             if ( (ssl->error = SendBuffered(ssl)) == 0) {
                 /* fragOffset is non-zero when sending fragments. On the last
                  * fragment, fragOffset is zero again, and the state can be
