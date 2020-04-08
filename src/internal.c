@@ -24252,7 +24252,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return ret;
 
 #ifdef WOLFSSL_TLS13
-            if (IsAtLeastTLSv1_3(ssl->ctx->method->version)) {
+            if (TLSv1_3_Capable(ssl)) {
                 /* TLS v1.3 capable server downgraded. */
                 XMEMCPY(output + idx + RAN_LEN - (TLS13_DOWNGRADE_SZ + 1),
                         tls13Downgrade, TLS13_DOWNGRADE_SZ);
