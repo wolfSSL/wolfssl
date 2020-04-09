@@ -20052,7 +20052,7 @@ static void test_wc_PemToDer(void)
 
     printf(testingFmt, "wc_PemToDer()");
 
-    memset(&info, 0, sizeof(info));
+    XMEMSET(&info, 0, sizeof(info));
 
     ret = load_file(ca_cert, &cert_buf, &cert_sz);
     if (ret == 0) {
@@ -25686,7 +25686,7 @@ static void test_wolfSSL_RSA(void)
         AssertTrue((f != XBADFILE));
         bytes = (int)XFREAD(buff, 1, sizeof(buff), f);
         XFCLOSE(f);
-        memset(der, 0, sizeof(der));
+        XMEMSET(der, 0, sizeof(der));
         /* test that error value is returned with no password */
         AssertIntLT(wc_KeyPemToDer(buff, bytes, der, (word32)sizeof(der), ""), 0);
     }

@@ -10562,11 +10562,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             }
             /* decrypt the key */
             else {
-                int length;
-                word32 inOutIdx = 0;
-                if ((passwordSz == 0) &&
-                    (GetSequence(der->buffer, &inOutIdx, &length,
-                            der->length) < 0)) {
+                if (passwordSz == 0) {
+                    /* The key is encrypted but does not have a password */
                     ret = ASN_PARSE_E;
                 }
                 else {
