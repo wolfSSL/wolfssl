@@ -1709,91 +1709,47 @@ int wolfSSL_EVP_SignUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t len
 }
 
 static const struct s_ent {
-    const unsigned char macType;
+    const int macType;
+    const int nid;
     const char *name;
 } md_tbl[] = {
 #ifndef NO_MD4
-     {WC_HASH_TYPE_MD4, "MD4"},
+    {WC_HASH_TYPE_MD4, NID_md4, "MD4"},
 #endif /* NO_MD4 */
 
 #ifndef NO_MD5
-    {WC_HASH_TYPE_MD5, "MD5"},
+    {WC_HASH_TYPE_MD5, NID_md5, "MD5"},
 #endif /* NO_MD5 */
 
 #ifndef NO_SHA
-    {WC_HASH_TYPE_SHA, "SHA"},
+    {WC_HASH_TYPE_SHA, NID_sha1, "SHA"},
 #endif /* NO_SHA */
 
 #ifdef WOLFSSL_SHA224
-    {WC_HASH_TYPE_SHA224, "SHA224"},
+    {WC_HASH_TYPE_SHA224, NID_sha224, "SHA224"},
 #endif /* WOLFSSL_SHA224 */
 #ifndef NO_SHA256
-    {WC_HASH_TYPE_SHA256, "SHA256"},
+    {WC_HASH_TYPE_SHA256, NID_sha256, "SHA256"},
 #endif
 
 #ifdef WOLFSSL_SHA384
-    {WC_HASH_TYPE_SHA384, "SHA384"},
+    {WC_HASH_TYPE_SHA384, NID_sha384, "SHA384"},
 #endif /* WOLFSSL_SHA384 */
 #ifdef WOLFSSL_SHA512
-    {WC_HASH_TYPE_SHA512, "SHA512"},
+    {WC_HASH_TYPE_SHA512, NID_sha512, "SHA512"},
 #endif /* WOLFSSL_SHA512 */
 #ifndef WOLFSSL_NOSHA3_224
-    {WC_HASH_TYPE_SHA3_224, "SHA3_224"},
+    {WC_HASH_TYPE_SHA3_224, NID_sha3_224, "SHA3_224"},
 #endif
 #ifndef WOLFSSL_NOSHA3_256
-    {WC_HASH_TYPE_SHA3_256, "SHA3_256"},
+    {WC_HASH_TYPE_SHA3_256, NID_sha3_256, "SHA3_256"},
 #endif
-    {WC_HASH_TYPE_SHA3_384, "SHA3_384"},
+    {WC_HASH_TYPE_SHA3_384, NID_sha3_384, "SHA3_384"},
 #ifndef WOLFSSL_NOSHA3_512
-    {WC_HASH_TYPE_SHA3_512, "SHA3_512"},
+    {WC_HASH_TYPE_SHA3_512, NID_sha3_512, "SHA3_512"},
 #endif
-    {0, NULL}
+    {0, 0, NULL}
 };
-
-static WOLFSSL_EVP_MD *wolfSSL_EVP_get_md(const unsigned char type)
-{
-    const struct s_ent *ent ;
-    WOLFSSL_ENTER("EVP_get_md");
-    for( ent = md_tbl; ent->name != NULL; ent++){
-        if(type == ent->macType) {
-            return (WOLFSSL_EVP_MD *)ent->name;
-        }
-    }
-    return (WOLFSSL_EVP_MD *)"";
-}
-
-/* macro guard because currently only used with RSA */
-#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
-/* Helper function for getting the NID value from md
- *
- * returns the NID value associated with md on success */
-static int md2nid(const unsigned char md)
-{
-    const char * d;
-    d = (const char *)wolfSSL_EVP_get_md(md);
-    if (XSTRNCMP(d, "SHA", 3) == 0) {
-        if (XSTRLEN(d) > 3) {
-            if (XSTRNCMP(d, "SHA256", 6) == 0) {
-                return NID_sha256;
-            }
-            if (XSTRNCMP(d, "SHA384", 6) == 0) {
-                return NID_sha384;
-            }
-            if (XSTRNCMP(d, "SHA512", 6) == 0) {
-                return NID_sha512;
-            }
-            WOLFSSL_MSG("Unknown SHA type");
-            return 0;
-        }
-        else {
-            return NID_sha1;
-        }
-    }
-    if (XSTRNCMP(d, "MD5", 3) == 0)
-        return NID_md5;
-    return 0;
-}
-#endif /* NO_RSA */
 
 /* Finalize structure for signing
  *
@@ -1822,7 +1778,7 @@ int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
     switch (pkey->type) {
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     case EVP_PKEY_RSA: {
-        int nid = md2nid(ctx->macType);
+        int nid = wolfSSL_EVP_MD_type(wolfSSL_EVP_MD_CTX_md(ctx));
         if (nid < 0) break;
         return wolfSSL_RSA_sign(nid, md, mdsize, sigret,
                                 siglen, pkey->rsa);
@@ -1898,7 +1854,7 @@ int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
     switch (pkey->type) {
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     case EVP_PKEY_RSA: {
-        int nid = md2nid(ctx->macType);
+        int nid = wolfSSL_EVP_MD_type(wolfSSL_EVP_MD_CTX_md(ctx));
         if (nid < 0) break;
         return wolfSSL_RSA_verify(nid, md, mdsize, sig,
                 (unsigned int)siglen, pkey->rsa);
@@ -2017,7 +1973,7 @@ static int wolfSSL_evp_digest_pk_init(WOLFSSL_EVP_MD_CTX *ctx,
         if (wc_HmacSetKey(&ctx->hash.hmac, hashType, key, (word32)keySz) != 0)
             return WOLFSSL_FAILURE;
 
-        ctx->macType = NID_hmac & 0xFF;
+        ctx->macType = NID_hmac;
     }
     else {
         int ret;
@@ -2044,7 +2000,7 @@ static int wolfssl_evp_digest_pk_update(WOLFSSL_EVP_MD_CTX *ctx,
                                         const void *d, unsigned int cnt)
 {
     if (ctx->pctx == NULL) {
-        if (ctx->macType != (NID_hmac & 0xFF))
+        if (ctx->macType != NID_hmac)
             return WOLFSSL_FAILURE;
 
         if (wc_HmacUpdate(&ctx->hash.hmac, (const byte *)d, cnt) != 0)
@@ -2068,7 +2024,7 @@ static int wolfssl_evp_digest_pk_final(WOLFSSL_EVP_MD_CTX *ctx,
     if (ctx->pctx == NULL) {
         Hmac hmacCopy;
 
-        if (ctx->macType != (NID_hmac & 0xFF))
+        if (ctx->macType != NID_hmac)
             return WOLFSSL_FAILURE;
 
         if (wolfSSL_HmacCopy(&hmacCopy, &ctx->hash.hmac) != WOLFSSL_SUCCESS)
@@ -2183,7 +2139,7 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
 
     /* Return the maximum size of the signaure when sig is NULL. */
     if (ctx->pctx == NULL) {
-        if (ctx->macType != (NID_hmac & 0xFF))
+        if (ctx->macType != NID_hmac)
             return WOLFSSL_FAILURE;
 
         hashLen = wolfssl_mac_len(ctx->hash.hmac.macType);
@@ -2230,7 +2186,7 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
     #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
         case EVP_PKEY_RSA: {
             unsigned int sigSz;
-            int          nid = md2nid(ctx->macType);
+            int nid = wolfSSL_EVP_MD_type(wolfSSL_EVP_MD_CTX_md(ctx));
             if (nid < 0)
                 break;
             ret = wolfSSL_RSA_sign(nid, digest, hashLen, sig, &sigSz,
@@ -2325,7 +2281,7 @@ int wolfSSL_EVP_DigestVerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
         switch (ctx->pctx->pkey->type) {
     #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
         case EVP_PKEY_RSA: {
-            int nid = md2nid(ctx->macType);
+            int nid = wolfSSL_EVP_MD_type(wolfSSL_EVP_MD_CTX_md(ctx));
             if (nid < 0)
                 return WOLFSSL_FAILURE;
             return wolfSSL_RSA_verify(nid, digest, hashLen, sig,
@@ -3079,7 +3035,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     WOLFSSL_ENTER("EVP_MD_type");
     for( ent = md_tbl; ent->name != NULL; ent++){
         if(XSTRNCMP((const char *)md, ent->name, XSTRLEN(ent->name)+1) == 0) {
-            return ent->macType;
+            return ent->nid;
         }
     }
     return 0;
@@ -3346,10 +3302,16 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
     const WOLFSSL_EVP_MD *wolfSSL_EVP_MD_CTX_md(const WOLFSSL_EVP_MD_CTX *ctx)
     {
+        const struct s_ent *ent;
         if (ctx == NULL)
             return NULL;
         WOLFSSL_ENTER("EVP_MD_CTX_md");
-        return (const WOLFSSL_EVP_MD *)wolfSSL_EVP_get_md(ctx->macType);
+        for(ent = md_tbl; ent->name != NULL; ent++) {
+            if(ctx->macType == ent->macType) {
+                return (const WOLFSSL_EVP_MD *)ent->name;
+            }
+        }
+        return (WOLFSSL_EVP_MD *)NULL;
     }
 
     #ifndef NO_AES
@@ -5156,60 +5118,52 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         (void)sizeof(async_test);
     #endif
 
+        /* Set to 0 if no match */
+        ctx->macType = wolfSSL_EVP_MD_type(type);
         if (XSTRNCMP(type, "SHA256", 6) == 0) {
-             ctx->macType = WC_HASH_TYPE_SHA256;
              ret = wolfSSL_SHA256_Init(&(ctx->hash.digest.sha256));
         }
     #ifdef WOLFSSL_SHA224
         else if (XSTRNCMP(type, "SHA224", 6) == 0) {
-             ctx->macType = WC_HASH_TYPE_SHA224;
              ret = wolfSSL_SHA224_Init(&(ctx->hash.digest.sha224));
         }
     #endif
     #ifdef WOLFSSL_SHA384
         else if (XSTRNCMP(type, "SHA384", 6) == 0) {
-             ctx->macType = WC_HASH_TYPE_SHA384;
              ret = wolfSSL_SHA384_Init(&(ctx->hash.digest.sha384));
         }
     #endif
     #ifdef WOLFSSL_SHA512
         else if (XSTRNCMP(type, "SHA512", 6) == 0) {
-             ctx->macType = WC_HASH_TYPE_SHA512;
              ret = wolfSSL_SHA512_Init(&(ctx->hash.digest.sha512));
         }
     #endif
     #ifndef NO_MD4
         else if (XSTRNCMP(type, "MD4", 3) == 0) {
-            ctx->macType = WC_HASH_TYPE_MD4;
             wolfSSL_MD4_Init(&(ctx->hash.digest.md4));
         }
     #endif
     #ifndef NO_MD5
         else if (XSTRNCMP(type, "MD5", 3) == 0) {
-            ctx->macType = WC_HASH_TYPE_MD5;
             ret = wolfSSL_MD5_Init(&(ctx->hash.digest.md5));
         }
     #endif
 #ifdef WOLFSSL_SHA3
     #ifndef WOLFSSL_NOSHA3_224
         else if (XSTRNCMP(type, "SHA3_224", 8) == 0) {
-             ctx->macType = WC_HASH_TYPE_SHA3_224;
              ret = wolfSSL_SHA3_224_Init(&(ctx->hash.digest.sha3_224));
         }
     #endif
     #ifndef WOLFSSL_NOSHA3_256
         else if (XSTRNCMP(type, "SHA3_256", 8) == 0) {
-             ctx->macType = WC_HASH_TYPE_SHA3_256;
              ret = wolfSSL_SHA3_256_Init(&(ctx->hash.digest.sha3_256));
         }
     #endif
         else if (XSTRNCMP(type, "SHA3_384", 8) == 0) {
-             ctx->macType = WC_HASH_TYPE_SHA3_384;
              ret = wolfSSL_SHA3_384_Init(&(ctx->hash.digest.sha3_384));
         }
     #ifndef WOLFSSL_NOSHA3_512
         else if (XSTRNCMP(type, "SHA3_512", 8) == 0) {
-             ctx->macType = WC_HASH_TYPE_SHA3_512;
              ret = wolfSSL_SHA3_512_Init(&(ctx->hash.digest.sha3_512));
         }
     #endif
@@ -5217,7 +5171,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     #ifndef NO_SHA
         /* has to be last since would pick or 224, 256, 384, or 512 too */
         else if (XSTRNCMP(type, "SHA", 3) == 0) {
-             ctx->macType = WC_HASH_TYPE_SHA;
              ret = wolfSSL_SHA_Init(&(ctx->hash.digest.sha));
         }
     #endif /* NO_SHA */
