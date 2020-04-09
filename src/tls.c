@@ -9001,13 +9001,13 @@ static int TLSX_EarlyData_Parse(WOLFSSL* ssl, byte* input, word16 length,
         return TLSX_EarlyData_Use(ssl, 1);
     }
     if (msgType == session_ticket) {
-        word32 max;
+        word32 maxSz;
 
         if (length != OPAQUE32_LEN)
             return BUFFER_E;
-        ato32(input, &max);
+        ato32(input, &maxSz);
 
-        ssl->session.maxEarlyDataSz = max;
+        ssl->session.maxEarlyDataSz = maxSz;
         return 0;
     }
 

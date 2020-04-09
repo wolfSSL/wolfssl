@@ -1466,6 +1466,100 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     return err;
 }
 
+#if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
+/* RSA private key operation.
+ *
+ * in      Array of bytes representing the number to exponentiate, base.
+ * inLen   Number of bytes in base.
+ * dm      Private exponent.
+ * pm      First prime.
+ * qm      Second prime.
+ * dpm     First prime's CRT exponent.
+ * dqm     Second prime's CRT exponent.
+ * qim     Inverse of second prime mod p.
+ * mm      Modulus.
+ * out     Buffer to hold big-endian bytes of exponentiation result.
+ *         Must be at least 256 bytes long.
+ * outLen  Number of bytes in result.
+ * returns 0 on success, MP_TO_E when the outLen is too small, MP_READ_E when
+ * an array is too long and MEMORY_E when dynamic memory allocation fails.
+ */
+int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
+    mp_int* pm, mp_int* qm, mp_int* dpm, mp_int* dqm, mp_int* qim, mp_int* mm,
+    byte* out, word32* outLen)
+{
+#if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
+    sp_digit a[64], d[32], m[32];
+#else
+    sp_digit* d = NULL;
+    sp_digit* a;
+    sp_digit* m;
+#endif
+    sp_digit* r;
+    int err = MP_OKAY;
+
+    (void)pm;
+    (void)qm;
+    (void)dpm;
+    (void)dqm;
+    (void)qim;
+
+    if (*outLen < 256U) {
+        err = MP_TO_E;
+    }
+    if (err == MP_OKAY) {
+        if (mp_count_bits(dm) > 2048) {
+            err = MP_READ_E;
+        }
+        if (inLen > 256U) {
+            err = MP_READ_E;
+        }
+        if (mp_count_bits(mm) != 2048) {
+            err = MP_READ_E;
+        }
+    }
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 32 * 4, NULL,
+                                                             DYNAMIC_TYPE_RSA);
+        if (d == NULL) {
+            err = MEMORY_E;
+        }
+    }
+#endif
+
+    if (err == MP_OKAY) {
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+        a = d + 32;
+        m = a + 64;
+#endif
+        r = a;
+
+        sp_2048_from_bin(a, 32, in, inLen);
+        sp_2048_from_mp(d, 32, dm);
+        sp_2048_from_mp(m, 32, mm);
+        err = sp_2048_mod_exp_32(r, a, d, 2048, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        sp_2048_to_bin(r, out);
+        *outLen = 256;
+    }
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (d != NULL) {
+        XMEMSET(d, 0, sizeof(sp_digit) * 32);
+        XFREE(d, NULL, DYNAMIC_TYPE_RSA);
+    }
+#else
+    XMEMSET(d, 0, sizeof(sp_digit) * 32);
+#endif
+
+    return err;
+}
+
+#else
 extern sp_digit sp_2048_cond_add_16(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
 extern sp_digit sp_2048_cond_add_avx2_16(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
 /* RSA private key operation.
@@ -1627,6 +1721,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 
     return err;
 }
+#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
                                               !defined(WOLFSSL_RSA_PUBLIC_ONLY))
@@ -3520,6 +3615,100 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     return err;
 }
 
+#if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
+/* RSA private key operation.
+ *
+ * in      Array of bytes representing the number to exponentiate, base.
+ * inLen   Number of bytes in base.
+ * dm      Private exponent.
+ * pm      First prime.
+ * qm      Second prime.
+ * dpm     First prime's CRT exponent.
+ * dqm     Second prime's CRT exponent.
+ * qim     Inverse of second prime mod p.
+ * mm      Modulus.
+ * out     Buffer to hold big-endian bytes of exponentiation result.
+ *         Must be at least 384 bytes long.
+ * outLen  Number of bytes in result.
+ * returns 0 on success, MP_TO_E when the outLen is too small, MP_READ_E when
+ * an array is too long and MEMORY_E when dynamic memory allocation fails.
+ */
+int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
+    mp_int* pm, mp_int* qm, mp_int* dpm, mp_int* dqm, mp_int* qim, mp_int* mm,
+    byte* out, word32* outLen)
+{
+#if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
+    sp_digit a[96], d[48], m[48];
+#else
+    sp_digit* d = NULL;
+    sp_digit* a;
+    sp_digit* m;
+#endif
+    sp_digit* r;
+    int err = MP_OKAY;
+
+    (void)pm;
+    (void)qm;
+    (void)dpm;
+    (void)dqm;
+    (void)qim;
+
+    if (*outLen < 384U) {
+        err = MP_TO_E;
+    }
+    if (err == MP_OKAY) {
+        if (mp_count_bits(dm) > 3072) {
+            err = MP_READ_E;
+        }
+        if (inLen > 384U) {
+            err = MP_READ_E;
+        }
+        if (mp_count_bits(mm) != 3072) {
+            err = MP_READ_E;
+        }
+    }
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 48 * 4, NULL,
+                                                             DYNAMIC_TYPE_RSA);
+        if (d == NULL) {
+            err = MEMORY_E;
+        }
+    }
+#endif
+
+    if (err == MP_OKAY) {
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+        a = d + 48;
+        m = a + 96;
+#endif
+        r = a;
+
+        sp_3072_from_bin(a, 48, in, inLen);
+        sp_3072_from_mp(d, 48, dm);
+        sp_3072_from_mp(m, 48, mm);
+        err = sp_3072_mod_exp_48(r, a, d, 3072, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        sp_3072_to_bin(r, out);
+        *outLen = 384;
+    }
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (d != NULL) {
+        XMEMSET(d, 0, sizeof(sp_digit) * 48);
+        XFREE(d, NULL, DYNAMIC_TYPE_RSA);
+    }
+#else
+    XMEMSET(d, 0, sizeof(sp_digit) * 48);
+#endif
+
+    return err;
+}
+
+#else
 extern sp_digit sp_3072_cond_add_24(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
 extern sp_digit sp_3072_cond_add_avx2_24(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
 /* RSA private key operation.
@@ -3681,6 +3870,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 
     return err;
 }
+#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
                                               !defined(WOLFSSL_RSA_PUBLIC_ONLY))
@@ -5028,6 +5218,100 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     return err;
 }
 
+#if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
+/* RSA private key operation.
+ *
+ * in      Array of bytes representing the number to exponentiate, base.
+ * inLen   Number of bytes in base.
+ * dm      Private exponent.
+ * pm      First prime.
+ * qm      Second prime.
+ * dpm     First prime's CRT exponent.
+ * dqm     Second prime's CRT exponent.
+ * qim     Inverse of second prime mod p.
+ * mm      Modulus.
+ * out     Buffer to hold big-endian bytes of exponentiation result.
+ *         Must be at least 512 bytes long.
+ * outLen  Number of bytes in result.
+ * returns 0 on success, MP_TO_E when the outLen is too small, MP_READ_E when
+ * an array is too long and MEMORY_E when dynamic memory allocation fails.
+ */
+int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
+    mp_int* pm, mp_int* qm, mp_int* dpm, mp_int* dqm, mp_int* qim, mp_int* mm,
+    byte* out, word32* outLen)
+{
+#if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
+    sp_digit a[128], d[64], m[64];
+#else
+    sp_digit* d = NULL;
+    sp_digit* a;
+    sp_digit* m;
+#endif
+    sp_digit* r;
+    int err = MP_OKAY;
+
+    (void)pm;
+    (void)qm;
+    (void)dpm;
+    (void)dqm;
+    (void)qim;
+
+    if (*outLen < 512U) {
+        err = MP_TO_E;
+    }
+    if (err == MP_OKAY) {
+        if (mp_count_bits(dm) > 4096) {
+            err = MP_READ_E;
+        }
+        if (inLen > 512U) {
+            err = MP_READ_E;
+        }
+        if (mp_count_bits(mm) != 4096) {
+            err = MP_READ_E;
+        }
+    }
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 64 * 4, NULL,
+                                                             DYNAMIC_TYPE_RSA);
+        if (d == NULL) {
+            err = MEMORY_E;
+        }
+    }
+#endif
+
+    if (err == MP_OKAY) {
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+        a = d + 64;
+        m = a + 128;
+#endif
+        r = a;
+
+        sp_4096_from_bin(a, 64, in, inLen);
+        sp_4096_from_mp(d, 64, dm);
+        sp_4096_from_mp(m, 64, mm);
+        err = sp_4096_mod_exp_64(r, a, d, 4096, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        sp_4096_to_bin(r, out);
+        *outLen = 512;
+    }
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (d != NULL) {
+        XMEMSET(d, 0, sizeof(sp_digit) * 64);
+        XFREE(d, NULL, DYNAMIC_TYPE_RSA);
+    }
+#else
+    XMEMSET(d, 0, sizeof(sp_digit) * 64);
+#endif
+
+    return err;
+}
+
+#else
 extern sp_digit sp_4096_cond_add_32(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
 extern sp_digit sp_4096_cond_add_avx2_32(sp_digit* r, const sp_digit* a, const sp_digit* b, sp_digit m);
 /* RSA private key operation.
@@ -5189,6 +5473,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
 
     return err;
 }
+#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #if defined(WOLFSSL_HAVE_SP_DH) || (defined(WOLFSSL_HAVE_SP_RSA) && \
                                               !defined(WOLFSSL_RSA_PUBLIC_ONLY))

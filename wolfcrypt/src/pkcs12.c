@@ -715,7 +715,7 @@ int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
     }
 
     /* Create the MAC portion */
-    if ((ret == 0) && (pkcs12->signData != NULL)) {
+    if (pkcs12->signData != NULL) {
         MacData *mac = (MacData*)pkcs12->signData;
         word32 innerSz = 0;
         word32 outerSz = 0;

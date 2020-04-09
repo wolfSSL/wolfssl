@@ -2227,14 +2227,16 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 #ifdef BUILD_ARC4
     if (specs->bulk_cipher_algorithm == wolfssl_rc4) {
         word32 sz = specs->key_size;
-        if (enc && enc->arc4 == NULL)
+        if (enc && enc->arc4 == NULL) {
             enc->arc4 = (Arc4*)XMALLOC(sizeof(Arc4), heap, DYNAMIC_TYPE_CIPHER);
-        if (enc && enc->arc4 == NULL)
-            return MEMORY_E;
-        if (dec && dec->arc4 == NULL)
+            if (enc->arc4 == NULL)
+                 return MEMORY_E;
+        }
+        if (dec && dec->arc4 == NULL) {
             dec->arc4 = (Arc4*)XMALLOC(sizeof(Arc4), heap, DYNAMIC_TYPE_CIPHER);
-        if (dec && dec->arc4 == NULL)
-            return MEMORY_E;
+            if (dec->arc4 == NULL)
+                return MEMORY_E;
+        }
 
         if (enc) {
             if (wc_Arc4Init(enc->arc4, heap, devId) != 0) {
@@ -2903,16 +2905,16 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
             if (enc && enc->hmac == NULL) {
                 enc->hmac = (Hmac*)XMALLOC(sizeof(Hmac), heap,
                                                            DYNAMIC_TYPE_CIPHER);
+                if (enc->hmac == NULL)
+                    return MEMORY_E;
             }
-            if (enc && enc->hmac == NULL)
-                return MEMORY_E;
 
             if (dec && dec->hmac == NULL) {
                 dec->hmac = (Hmac*)XMALLOC(sizeof(Hmac), heap,
                                                            DYNAMIC_TYPE_CIPHER);
+                if (dec->hmac == NULL)
+                    return MEMORY_E;
             }
-            if (dec && dec->hmac == NULL)
-                return MEMORY_E;
 
             if (enc) {
                 if (wc_HmacInit(enc->hmac, heap, devId) != 0) {

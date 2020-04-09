@@ -2507,8 +2507,9 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
  * pkcs7->contentSz: Must be provided as actual sign of raw data
  * return codes: 0=success, negative=error
  */
-int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf, word32 hashSz,
-    byte* outputHead, word32* outputHeadSz, byte* outputFoot, word32* outputFootSz)
+int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
+    word32 hashSz, byte* outputHead, word32* outputHeadSz, byte* outputFoot,
+    word32* outputFootSz)
 {
     int ret;
 #ifdef WOLFSSL_SMALL_STACK
@@ -2691,10 +2692,9 @@ int wc_PKCS7_EncodeSignedFPD(PKCS7* pkcs7, byte* privateKey,
     ret = wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz);
     if (ret <= 0) {
         WOLFSSL_MSG("Error encoding CMS SignedData content type");
-        wc_FreeRng(&rng);
-        return ret;
     }
 
+    pkcs7->rng = NULL;
     wc_FreeRng(&rng);
 
     return ret;
@@ -2802,14 +2802,11 @@ int wc_PKCS7_EncodeSignedEncryptedFPD(PKCS7* pkcs7, byte* encryptKey,
     ret = wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz);
     if (ret <= 0) {
         WOLFSSL_MSG("Error encoding CMS SignedData content type");
-        ForceZero(encrypted, encryptedSz);
-        XFREE(encrypted, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        wc_FreeRng(&rng);
-        return ret;
     }
 
     ForceZero(encrypted, encryptedSz);
     XFREE(encrypted, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    pkcs7->rng = NULL;
     wc_FreeRng(&rng);
 
     return ret;
@@ -2903,14 +2900,11 @@ int wc_PKCS7_EncodeSignedCompressedFPD(PKCS7* pkcs7, byte* privateKey,
     ret = wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz);
     if (ret <= 0) {
         WOLFSSL_MSG("Error encoding CMS SignedData content type");
-        ForceZero(compressed, compressedSz);
-        XFREE(compressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        wc_FreeRng(&rng);
-        return ret;
     }
 
     ForceZero(compressed, compressedSz);
     XFREE(compressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    pkcs7->rng = NULL;
     wc_FreeRng(&rng);
 
     return ret;
@@ -3042,14 +3036,11 @@ int  wc_PKCS7_EncodeSignedEncryptedCompressedFPD(PKCS7* pkcs7, byte* encryptKey,
     ret = wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz);
     if (ret <= 0) {
         WOLFSSL_MSG("Error encoding CMS SignedData content type");
-        ForceZero(encrypted, encryptedSz);
-        XFREE(encrypted, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        wc_FreeRng(&rng);
-        return ret;
     }
 
     ForceZero(encrypted, encryptedSz);
     XFREE(encrypted, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    pkcs7->rng = NULL;
     wc_FreeRng(&rng);
 
     return ret;
@@ -11161,10 +11152,8 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
                 if (GetASNTag(pkiMsg, &localIdx, &tag, pkiMsgSz) == 0 &&
                         tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0))
                     explicitOctet = 1;
-            }
 
-            /* read encryptedContent, cont[0] */
-            if (ret == 0) {
+                /* read encryptedContent, cont[0] */
                 ret = GetASNTag(pkiMsg, &idx, &tag, pkiMsgSz);
             }
 
@@ -12139,10 +12128,8 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
             if (ret == 0) {
                 XMEMCPY(encryptedContent, &pkiMsg[idx], encryptedContentSz);
                 idx += encryptedContentSz;
-            }
 
-            /* decrypt encryptedContent */
-            if (ret == 0) {
+                /* decrypt encryptedContent */
                 ret = wc_PKCS7_DecryptContent(pkcs7, encOID,
                             pkcs7->encryptionKey, pkcs7->encryptionKeySz, tmpIv,
                             expBlockSz, NULL, 0, NULL, 0, encryptedContent,

@@ -212,9 +212,9 @@ int wc_bigint_alloc(WC_BIGINT* a, word32 sz)
         }
         if (a->buf == NULL) {
             a->buf = (byte*)XMALLOC(sz, a->heap, DYNAMIC_TYPE_WOLF_BIGINT);
-        }
-        if (a->buf == NULL) {
-            err = MP_MEM;
+            if (a->buf == NULL) {
+                err = MP_MEM;
+            }
         }
         else {
             XMEMSET(a->buf, 0, sz);

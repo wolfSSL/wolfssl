@@ -242,14 +242,10 @@ void simple_test(func_args* args)
     for (i = 0; i < 3; i++)
         cliArgv[i] = argvc[i];
 
+    strcpy(argvs[0], "SimpleServer");
     svrArgs.argc = 1;
     svrArgs.argv = svrArgv;
     svrArgs.return_code = 0;
-    cliArgs.argc = 1;
-    cliArgs.argv = cliArgv;
-    cliArgs.return_code = 0;
-
-    strcpy(argvs[0], "SimpleServer");
     #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_SNIFFER)  && \
                                      !defined(WOLFSSL_TIRTOS)
         strcpy(argvs[svrArgs.argc++], "-p");
@@ -264,10 +260,14 @@ void simple_test(func_args* args)
 
     /* Setting the actual port number. */
     strcpy(argvc[0], "SimpleClient");
+    cliArgs.argv = cliArgv;
+    cliArgs.return_code = 0;
     #ifndef USE_WINDOWS_API
         cliArgs.argc = NUMARGS;
         strcpy(argvc[1], "-p");
         snprintf(argvc[2], sizeof(argvc[2]), "%d", svrArgs.signal->port);
+    #else
+        cliArgs.argc = 1;
     #endif
 
     client_test(&cliArgs);

@@ -6298,27 +6298,29 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) ||defined(HAVE_CURVE448)
     {
-        int dtype;
+        int dtype = 0;
     #ifdef HAVE_ECC
         dtype = DYNAMIC_TYPE_ECC;
     #endif
     #ifdef HAVE_CURVE25519
+        if (ssl->peerX25519KeyPresent
     #ifdef HAVE_ECC
-        if (ssl->peerX25519KeyPresent ||
-                              ssl->eccTempKeyPresent == DYNAMIC_TYPE_CURVE25519)
+                           || ssl->eccTempKeyPresent == DYNAMIC_TYPE_CURVE25519
     #endif /* HAVE_ECC */
-         {
+           )
+        {
             dtype = DYNAMIC_TYPE_CURVE25519;
-         }
+        }
     #endif /* HAVE_CURVE25519 */
     #ifdef HAVE_CURVE448
+        if (ssl->peerX448KeyPresent
     #ifdef HAVE_ECC
-        if (ssl->peerX448KeyPresent ||
-                                ssl->eccTempKeyPresent == DYNAMIC_TYPE_CURVE448)
+                             || ssl->eccTempKeyPresent == DYNAMIC_TYPE_CURVE448
     #endif /* HAVE_ECC */
-         {
+           )
+        {
             dtype = DYNAMIC_TYPE_CURVE448;
-         }
+        }
     #endif /* HAVE_CURVE448 */
         FreeKey(ssl, dtype, (void**)&ssl->eccTempKey);
         ssl->eccTempKeyPresent = 0;
@@ -11227,7 +11229,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         }
 
                         if (keyRet != 0 || wc_RsaPublicKeyDecode(
-                                args->dCert->publicKey, &keyIdx, ssl->peerRsaKey,
+                               args->dCert->publicKey, &keyIdx, ssl->peerRsaKey,
                                                 args->dCert->pubKeySize) != 0) {
                             ret = PEER_KEY_ERROR;
                         }
@@ -11240,10 +11242,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 ssl->peerTsipEncRsaKeyIndex = (byte*)XMALLOC(
                                     TSIP_TLS_ENCPUBKEY_SZ_BY_CERTVRFY,
                                     ssl->heap, DYNAMIC_TYPE_RSA);
-                            }
-                            if (!ssl->peerTsipEncRsaKeyIndex) {
-                                args->lastErr = MEMORY_E;
-                                goto exit_ppc;
+                                if (!ssl->peerTsipEncRsaKeyIndex) {
+                                    args->lastErr = MEMORY_E;
+                                    goto exit_ppc;
+                                }
                             }
 
                             XMEMCPY(ssl->peerTsipEncRsaKeyIndex,
@@ -19828,7 +19830,7 @@ exit_dpk:
         }
 #endif
 
-        if ((*inOutIdx - begin) + OPAQUE16_LEN + OPAQUE8_LEN > size)
+        if (OPAQUE16_LEN + OPAQUE8_LEN > size)
             return BUFFER_ERROR;
 
         XMEMCPY(&pv, input + *inOutIdx, OPAQUE16_LEN);
@@ -20373,7 +20375,7 @@ exit_dpk:
                 AddLateName("CertificateRequest", &ssl->timeoutInfo);
         #endif
 
-        if ((*inOutIdx - begin) + OPAQUE8_LEN > size)
+        if (OPAQUE8_LEN > size)
             return BUFFER_ERROR;
 
         len = input[(*inOutIdx)++];
@@ -24024,7 +24026,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return SESSION_TICKET_EXPECT_E;
     }
 
-    if ((*inOutIdx - begin) + OPAQUE32_LEN > size)
+    if (OPAQUE32_LEN > size)
         return BUFFER_ERROR;
 
     ato32(input + *inOutIdx, &lifetime);
@@ -26538,7 +26540,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ssl->toInfoOn) AddLateName("ClientHello", &ssl->timeoutInfo);
 #endif
         /* protocol version, random and session id length check */
-        if ((i - begin) + OPAQUE16_LEN + RAN_LEN + OPAQUE8_LEN > helloSz)
+        if (OPAQUE16_LEN + RAN_LEN + OPAQUE8_LEN > helloSz)
             return BUFFER_ERROR;
 
         /* protocol version */
@@ -29082,7 +29084,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         ret = args->lastErr;
                         args->lastErr = 0; /* reset */
                         /* On error 'ret' will be negative - top bit set */
-                        mask = (ret >> ((sizeof(ret) * 8) - 1)) - 1;
+                        mask = ((unsigned int)ret >>
+                                                   ((sizeof(ret) * 8) - 1)) - 1;
 
                         /* build PreMasterSecret */
                         ssl->arrays->preMasterSecret[0] = ssl->chVersion.major;

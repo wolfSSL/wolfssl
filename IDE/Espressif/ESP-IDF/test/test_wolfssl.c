@@ -171,7 +171,7 @@ static void tskAes256_Test(void *pvParam)
 }
 #endif
 
-#if !defined(NO_RSA) || defined(HAVE_ECC)
+#if (!defined(NO_RSA) || defined(HAVE_ECC)) && !defined(WC_NO_RNG)
 
 int mp_performance_check(int mul, int mulmod, int exptmod)
 {
@@ -636,7 +636,7 @@ TEST_CASE("wolfssl mp mul performance test"   , "[wolfssl]")
 
     TEST_ASSERT_EQUAL(0, mp_performance_check(mul, mulmod, exptmod));
 }
-#endif/* !NO_RSA || HAVE_ECC */
+#endif/* (!NO_RSA || HAVE_ECC) && !WC_NO_RNG */
 
 TEST_CASE("wolfssl aes test"  , "[wolfssl]")
 {

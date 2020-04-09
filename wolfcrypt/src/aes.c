@@ -2178,18 +2178,19 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
             const byte* iv, int dir)
     {
-        word32 *rk = aes->key;
+        word32 *rk;
 
         (void)dir;
 
-        if (keylen != 16 &&
+        if (aes == NULL || (keylen != 16 &&
         #ifdef WOLFSSL_AES_192
             keylen != 24 &&
         #endif
-            keylen != 32) {
+            keylen != 32)) {
             return BAD_FUNC_ARG;
         }
 
+        rk = aes->key;
         aes->keylen = keylen;
         aes->rounds = keylen/4 + 6;
         XMEMCPY(rk, userKey, keylen);
@@ -2305,7 +2306,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         const byte* iv, int dir)
     {
         int ret;
-        byte* rk = (byte*)aes->key;
+        byte* rk;
         byte* tmpKey = (byte*)userKey;
         int tmpKeyDynamic = 0;
         word32 alignOffset = 0;
@@ -2314,7 +2315,10 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
         if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
             return BAD_FUNC_ARG;
+        if (aes == NULL)
+            return BAD_FUNC_ARG;
 
+        rk = (byte*)aes->key;
         if (rk == NULL)
             return BAD_FUNC_ARG;
 
@@ -2379,7 +2383,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         (void)dir;
         (void)iv;
 
-        if (keylen != 16)
+        if (aes == NULL || keylen != 16)
             return BAD_FUNC_ARG;
 
         aes->keylen = keylen;
@@ -2408,7 +2412,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         (void)dir;
         (void)iv;
 
-        if ( aes == NULL || (keylen != 16 && keylen != 24 && keylen != 32)) {
+        if (aes == NULL || (keylen != 16 && keylen != 24 && keylen != 32)) {
             return BAD_FUNC_ARG;
         }
 

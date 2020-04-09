@@ -4328,6 +4328,8 @@ int fp_isprime_ex(fp_int *a, int t, int* result)
 int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
 {
     int ret = FP_YES;
+    fp_digit d;
+    int i;
 
     if (a == NULL || result == NULL || rng == NULL)
         return FP_VAL;
@@ -4337,35 +4339,30 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
         return FP_OKAY;
     }
 
-    if (ret == FP_YES) {
-        fp_digit d;
-        int r;
+    /* check against primes table */
+    for (i = 0; i < FP_PRIME_SIZE; i++) {
+        if (fp_cmp_d(a, primes[i]) == FP_EQ) {
+            *result = FP_YES;
+            return FP_OKAY;
+        }
+    }
 
-        /* check against primes table */
-        for (r = 0; r < FP_PRIME_SIZE; r++) {
-            if (fp_cmp_d(a, primes[r]) == FP_EQ) {
-                *result = FP_YES;
+    /* do trial division */
+    for (i = 0; i < FP_PRIME_SIZE; i++) {
+        if (fp_mod_d(a, primes[i], &d) == MP_OKAY) {
+            if (d == 0) {
+                *result = FP_NO;
                 return FP_OKAY;
             }
         }
-
-        /* do trial division */
-        for (r = 0; r < FP_PRIME_SIZE; r++) {
-            if (fp_mod_d(a, primes[r], &d) == MP_OKAY) {
-                if (d == 0) {
-                    *result = FP_NO;
-                    return FP_OKAY;
-                }
-            }
-            else
-                return FP_VAL;
-        }
+        else
+            return FP_VAL;
     }
 
 #ifndef WC_NO_RNG
     /* now do a miller rabin with up to t random numbers, this should
      * give a (1/4)^t chance of a false prime. */
-    if (ret == FP_YES) {
+    {
     #ifndef WOLFSSL_SMALL_STACK
         fp_int b[1], c[1], n1[1], y[1], r[1];
         byte   base[FP_MAX_PRIME_SIZE];

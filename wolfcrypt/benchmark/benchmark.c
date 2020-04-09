@@ -718,7 +718,7 @@ static const char* bench_desc_words[][9] = {
                         || defined(HAVE_CURVE25519) || defined(HAVE_ED25519) \
                         || defined(HAVE_CURVE448) || defined(HAVE_ED448)
     #define HAVE_LOCAL_RNG
-    static THREAD_LS_T WC_RNG rng;
+    static THREAD_LS_T WC_RNG gRng;
 #endif
 
 #if defined(HAVE_ED25519) || defined(HAVE_CURVE25519) || \
@@ -1371,9 +1371,9 @@ static void* benchmarks_do(void* args)
         int rngRet;
 
 #ifndef HAVE_FIPS
-        rngRet = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+        rngRet = wc_InitRng_ex(&gRng, HEAP_HINT, devId);
 #else
-        rngRet = wc_InitRng(&rng);
+        rngRet = wc_InitRng(&gRng);
 #endif
         if (rngRet < 0) {
             printf("InitRNG failed\n");
@@ -1891,7 +1891,7 @@ exit:
 #endif
 
 #if defined(HAVE_LOCAL_RNG)
-    wc_FreeRng(&rng);
+    wc_FreeRng(&gRng);
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -4308,7 +4308,7 @@ static void bench_rsaKeyGen_helper(int doAsync, int keySz)
                         goto exit;
                     }
 
-                    ret = wc_MakeRsaKey(&genKey[i], keySz, rsa_e_val, &rng);
+                    ret = wc_MakeRsaKey(&genKey[i], keySz, rsa_e_val, &gRng);
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 0, &times, &pending)) {
                         goto exit;
                     }
@@ -4472,12 +4472,11 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
     DECLARE_VAR_INIT(message, byte, len, messageStr, HEAP_HINT);
 #endif
     #if !defined(WOLFSSL_MDK5_COMPLv5)
-      /* MDK5 compiler regard this as a executable statement, and does not allow declarations after the line. */
-        DECLARE_ARRAY_DYNAMIC_DEC(enc, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
-      #else
-          byte* enc[BENCH_MAX_PENDING];
-          int idxenc;
-      #endif
+    /* MDK5 compiler regard this as a executable statement, and does not allow declarations after the line. */
+    DECLARE_ARRAY_DYNAMIC_DEC(enc, byte, BENCH_MAX_PENDING, rsaKeySz, HEAP_HINT);
+    #else
+        byte* enc[BENCH_MAX_PENDING];
+    #endif
     #if !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
                     !defined(WOLFSSL_RSA_PUBLIC_ONLY)
         #if !defined(WOLFSSL_MDK5_COMPLv5)
@@ -4511,7 +4510,7 @@ static void bench_rsa_helper(int doAsync, RsaKey rsaKey[BENCH_MAX_PENDING],
                                                  1, &times, ntimes, &pending)) {
                         ret = wc_RsaPublicEncrypt(message, (word32)len, enc[i],
                                                   rsaKeySz/8, &rsaKey[i],
-                                                  &rng);
+                                                  &gRng);
                         if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(
                                             &rsaKey[i]), 1, &times, &pending)) {
                             goto exit_rsa_pub;
@@ -4574,7 +4573,7 @@ exit:
                     if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&rsaKey[i]),
                                                  1, &times, ntimes, &pending)) {
                         ret = wc_RsaSSL_Sign(message, len, enc[i],
-                                                rsaKeySz/8, &rsaKey[i], &rng);
+                                                rsaKeySz/8, &rsaKey[i], &gRng);
                         if (!bench_async_handle(&ret,
                                                 BENCH_ASYNC_GET_DEV(&rsaKey[i]),
                                                 1, &times, &pending)) {
@@ -4691,7 +4690,7 @@ void bench_rsa(int doAsync)
 
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
     #ifdef WC_RSA_BLINDING
-        ret = wc_RsaSetRNG(&rsaKey[i], &rng);
+        ret = wc_RsaSetRNG(&rsaKey[i], &gRng);
         if (ret != 0)
             goto exit_bench_rsa;
     #endif
@@ -4763,14 +4762,14 @@ void bench_rsa_key(int doAsync, int rsaKeySz)
                 }
 
             #ifdef WC_RSA_BLINDING
-                ret = wc_RsaSetRNG(&rsaKey[i], &rng);
+                ret = wc_RsaSetRNG(&rsaKey[i], &gRng);
                 if (ret != 0)
                     goto exit_bench_rsa_key;
             #endif
             }
 
             /* create the RSA key */
-            ret = wc_MakeRsaKey(&rsaKey[i], rsaKeySz, exp, &rng);
+            ret = wc_MakeRsaKey(&rsaKey[i], rsaKeySz, exp, &gRng);
             if (ret == WC_PENDING_E) {
                 isPending[i] = 1;
                 pending      = 1;
@@ -4920,7 +4919,7 @@ void bench_dh(int doAsync)
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&dhKey[i]), 0, &times, genTimes, &pending)) {
                     privSz[i] = 0;
-                    ret = wc_DhGenerateKeyPair(&dhKey[i], &rng, priv[i], &privSz[i],
+                    ret = wc_DhGenerateKeyPair(&dhKey[i], &gRng, priv[i], &privSz[i],
                         pub[i], &pubSz[i]);
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&dhKey[i]), 0, &times, &pending)) {
                         goto exit_dh_gen;
@@ -4938,7 +4937,7 @@ exit_dh_gen:
     }
 
     /* Generate key to use as other public */
-    ret = wc_DhGenerateKeyPair(&dhKey[0], &rng, priv2, &privSz2, pub2, &pubSz2);
+    ret = wc_DhGenerateKeyPair(&dhKey[0], &gRng, priv2, &privSz2, pub2, &pubSz2);
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wc_AsyncWait(ret, &dhKey[0].asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -4990,7 +4989,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         return 0;
 
     if (cmd == GET_BYTE_OF_ENTROPY)
-        return (wc_RNG_GenerateBlock(&rng, out, 1) == 0) ? 1 : 0;
+        return (wc_RNG_GenerateBlock(&gRng, out, 1) == 0) ? 1 : 0;
 
     if (cmd == GET_NUM_BYTES_PER_BYTE_OF_ENTROPY) {
         *out = 1;
@@ -5232,7 +5231,7 @@ void bench_eccMakeKey(int doAsync)
                         goto exit;
                     }
 
-                    ret = wc_ecc_make_key(&rng, keySize, &genKey[i]);
+                    ret = wc_ecc_make_key(&gRng, keySize, &genKey[i]);
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 0, &times, &pending)) {
                         goto exit;
                     }
@@ -5288,7 +5287,7 @@ void bench_ecc(int doAsync)
                                     doAsync ? devId : INVALID_DEVID)) < 0) {
             goto exit;
         }
-        ret = wc_ecc_make_key(&rng, keySize, &genKey[i]);
+        ret = wc_ecc_make_key(&gRng, keySize, &genKey[i]);
     #ifdef WOLFSSL_ASYNC_CRYPT
         ret = wc_AsyncWait(ret, &genKey[i].asyncDev, WC_ASYNC_FLAG_NONE);
     #endif
@@ -5300,7 +5299,7 @@ void bench_ecc(int doAsync)
         if ((ret = wc_ecc_init_ex(&genKey2[i], HEAP_HINT, INVALID_DEVID)) < 0) {
             goto exit;
         }
-        if ((ret = wc_ecc_make_key(&rng, keySize, &genKey2[i])) > 0) {
+        if ((ret = wc_ecc_make_key(&gRng, keySize, &genKey2[i])) > 0) {
             goto exit;
         }
     #endif
@@ -5356,7 +5355,7 @@ exit_ecdhe:
                     if (genKey[i].state == 0)
                         x[i] = ECC_MAX_SIG_SIZE;
                     ret = wc_ecc_sign_hash(digest[i], (word32)keySize, sig[i], &x[i],
-                                                            &rng, &genKey[i]);
+                                                            &gRng, &genKey[i]);
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 1, &times, &pending)) {
                         goto exit_ecdsa_sign;
                     }
@@ -5446,13 +5445,13 @@ void bench_eccEncrypt(void)
         return;
     }
 
-    ret = wc_ecc_make_key(&rng, keySize, &userA);
+    ret = wc_ecc_make_key(&gRng, keySize, &userA);
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         goto exit;
-    ret = wc_ecc_make_key(&rng, keySize, &userB);
+    ret = wc_ecc_make_key(&gRng, keySize, &userB);
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wc_AsyncWait(ret, &userB.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -5513,7 +5512,7 @@ void bench_curve25519KeyGen(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < genTimes; i++) {
-            ret = wc_curve25519_make_key(&rng, 32, &genKey);
+            ret = wc_curve25519_make_key(&gRng, 32, &genKey);
             wc_curve25519_free(&genKey);
             if (ret != 0) {
                 printf("wc_curve25519_make_key failed: %d\n", ret);
@@ -5538,12 +5537,12 @@ void bench_curve25519KeyAgree(void)
     wc_curve25519_init(&genKey);
     wc_curve25519_init(&genKey2);
 
-    ret = wc_curve25519_make_key(&rng, 32, &genKey);
+    ret = wc_curve25519_make_key(&gRng, 32, &genKey);
     if (ret != 0) {
         printf("curve25519_make_key failed\n");
         return;
     }
-    ret = wc_curve25519_make_key(&rng, 32, &genKey2);
+    ret = wc_curve25519_make_key(&gRng, 32, &genKey2);
     if (ret != 0) {
         printf("curve25519_make_key failed: %d\n", ret);
         wc_curve25519_free(&genKey);
@@ -5585,7 +5584,7 @@ void bench_ed25519KeyGen(void)
     do {
         for (i = 0; i < genTimes; i++) {
             wc_ed25519_init(&genKey);
-            (void)wc_ed25519_make_key(&rng, 32, &genKey);
+            (void)wc_ed25519_make_key(&gRng, 32, &genKey);
             wc_ed25519_free(&genKey);
         }
         count += i;
@@ -5609,7 +5608,7 @@ void bench_ed25519KeySign(void)
 
     wc_ed25519_init(&genKey);
 
-    ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &genKey);
+    ret = wc_ed25519_make_key(&gRng, ED25519_KEY_SIZE, &genKey);
     if (ret != 0) {
         printf("ed25519_make_key failed\n");
         return;
@@ -5670,7 +5669,7 @@ void bench_curve448KeyGen(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < genTimes; i++) {
-            ret = wc_curve448_make_key(&rng, 56, &genKey);
+            ret = wc_curve448_make_key(&gRng, 56, &genKey);
             wc_curve448_free(&genKey);
             if (ret != 0) {
                 printf("wc_curve448_make_key failed: %d\n", ret);
@@ -5695,12 +5694,12 @@ void bench_curve448KeyAgree(void)
     wc_curve448_init(&genKey);
     wc_curve448_init(&genKey2);
 
-    ret = wc_curve448_make_key(&rng, 56, &genKey);
+    ret = wc_curve448_make_key(&gRng, 56, &genKey);
     if (ret != 0) {
         printf("curve448_make_key failed\n");
         return;
     }
-    ret = wc_curve448_make_key(&rng, 56, &genKey2);
+    ret = wc_curve448_make_key(&gRng, 56, &genKey2);
     if (ret != 0) {
         printf("curve448_make_key failed: %d\n", ret);
         wc_curve448_free(&genKey);
@@ -5742,7 +5741,7 @@ void bench_ed448KeyGen(void)
     do {
         for (i = 0; i < genTimes; i++) {
             wc_ed448_init(&genKey);
-            (void)wc_ed448_make_key(&rng, ED448_KEY_SIZE, &genKey);
+            (void)wc_ed448_make_key(&gRng, ED448_KEY_SIZE, &genKey);
             wc_ed448_free(&genKey);
         }
         count += i;
@@ -5766,7 +5765,7 @@ void bench_ed448KeySign(void)
 
     wc_ed448_init(&genKey);
 
-    ret = wc_ed448_make_key(&rng, ED448_KEY_SIZE, &genKey);
+    ret = wc_ed448_make_key(&gRng, ED448_KEY_SIZE, &genKey);
     if (ret != 0) {
         printf("ed448_make_key failed\n");
         return;

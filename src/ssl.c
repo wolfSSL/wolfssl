@@ -1152,10 +1152,9 @@ int wolfSSL_CTX_mcast_set_member_id(WOLFSSL_CTX* ctx, word16 id)
 #ifndef WOLFSSL_USER_IO
         ctx->CBIORecv = EmbedReceiveFromMcast;
 #endif /* WOLFSSL_USER_IO */
-    }
 
-    if (ret == 0)
         ret = WOLFSSL_SUCCESS;
+    }
     WOLFSSL_LEAVE("wolfSSL_CTX_mcast_set_member_id()", ret);
     return ret;
 }
@@ -6383,9 +6382,8 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         ret = ProcessBuffer(ctx, buff + used, sz - used, format, type, ssl,
                             &consumed, 0, verify);
 
-#ifdef WOLFSSL_WPAS
-#ifdef HAVE_CRL
         if (ret < 0) {
+#if defined(WOLFSSL_WPAS) && defined(HAVE_CRL)
             DerBuffer*    der = NULL;
             EncryptedInfo info;
 
@@ -6394,15 +6392,13 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                                                                    NULL) == 0) {
                 WOLFSSL_MSG("   Processed a CRL");
                 wolfSSL_CertManagerLoadCRLBuffer(ctx->cm, der->buffer,
-                                                der->length, WOLFSSL_FILETYPE_ASN1);
+                                            der->length, WOLFSSL_FILETYPE_ASN1);
                 FreeDer(&der);
                 used += info.consumed;
                 continue;
             }
-        }
 #endif
-#endif
-        if (ret < 0) {
+
             if (consumed > 0) { /* Made progress in file */
                 WOLFSSL_ERROR(ret);
                 WOLFSSL_MSG("CA Parse failed, with progress in file.");
@@ -13482,9 +13478,7 @@ int AddSession(WOLFSSL* ssl)
             session->ticket = session->staticTicket;
             session->isDynamic = 0;
         }
-    }
 
-    if (error == 0) {
         session->ticketLen = (word16)ticLen;
         XMEMCPY(session->ticket, ssl->session.ticket, ticLen);
     } else { /* cleanup, reset state */
@@ -39339,8 +39333,6 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     #ifdef WOLFSSL_CERT_EXT
         cName->busCat[0] = '\0';
         cName->busCatEnc = CTC_UTF8;
-        cName->serialDev[0] = '\0';
-        cName->serialDevEnc = CTC_PRINTABLE;
         cName->joiC[0] = '\0';
         cName->joiCEnc = CTC_PRINTABLE;
         cName->joiSt[0] = '\0';
@@ -40272,10 +40264,8 @@ err:
         if (ret == WOLFSSL_SUCCESS) {
             XSTRNCPY(nameStr, pem + PEM_BEGIN_SZ, nameLen);
             nameStr[nameLen] = '\0';
-        }
 
-        /* Get header of PEM - encryption header. */
-        if (ret == WOLFSSL_SUCCESS) {
+            /* Get header of PEM - encryption header. */
             headerLen = 0;
             while ((pemLen = wolfSSL_BIO_gets(bio, pem, sizeof(pem) - 1)) > 0) {
                 while (pemLen > 0 && (pem[pemLen - 1] == '\r' ||
@@ -43707,7 +43697,9 @@ long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
 
 long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
 {
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     long ctrl_opt;
+#endif
     long ret = WOLFSSL_SUCCESS;
 
     WOLFSSL_ENTER("wolfSSL_CTX_ctrl");

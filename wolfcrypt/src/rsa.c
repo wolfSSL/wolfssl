@@ -1728,7 +1728,7 @@ static int wc_RsaFunctionXil(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
     int    ret = 0;
-    word32 keyLen, len;
+    word32 keyLen;
     (void)rng;
 
     keyLen = wc_RsaEncryptSize(key);

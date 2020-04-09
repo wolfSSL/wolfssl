@@ -13728,8 +13728,7 @@ static int test_wc_DsaPublicPrivateKeyDecode (void)
                 priv = WOLFSSL_FATAL_ERROR;
             }
         }
-    } /* END Private Key  */
-    if (ret == 0) {
+
         wc_FreeDsaKey(&key);
         ret = wc_InitDsaKey(&key);
     }
@@ -27085,11 +27084,12 @@ static void test_wolfSSL_sk_CIPHER_description(void)
         }
 
         /* Search cipher description string for "unknown" descriptor */
-        for (j=0; j < (int)XSTRLEN(buf); j++) {
-            k=0;
-            while ((buf[j] == badStr[k]) && (k < (int)XSTRLEN(badStr))) {
+        for (j = 0; j < (int)XSTRLEN(buf); j++) {
+            k = 0;
+            while ((k < (int)XSTRLEN(badStr)) && (buf[j] == badStr[k])) {
                 test_str[k] = badStr[k];
-                j++,k++;
+                j++;
+                k++;
             }
         }
         /* Fail if test_str == badStr == "unknown" */
@@ -28782,11 +28782,13 @@ static void test_wc_ecc_get_curve_id_from_name(void)
 static void test_wc_ecc_get_curve_id_from_dp_params(void)
 {
     int id;
+#if !defined(NO_ECC256) && !defined(NO_ECC_SECP)
     int curve_id;
-    int ret = 0;
-    WOLFSSL_EC_KEY *ecKey;
     ecc_key* key;
     const ecc_set_type* params;
+    int ret;
+#endif
+    WOLFSSL_EC_KEY *ecKey = NULL;
 
     printf(testingFmt, "wc_ecc_get_curve_id_from_dp_params");
 

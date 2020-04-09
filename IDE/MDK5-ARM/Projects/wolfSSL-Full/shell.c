@@ -630,7 +630,9 @@ void shell_main(void *arg) {
     int i ;
     func_args args ;
     int bf_flg ;
+#if defined(WOLFSSL_CMSIS_RTOS)
     osThreadId 	 cmd ;
+#endif
     i = BackGround ;
         /* Dummy for avoiding warning: BackGround is defined but not used. */
 

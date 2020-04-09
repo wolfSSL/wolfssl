@@ -5913,6 +5913,11 @@ EVP_TEST_END:
     #endif
         int  ret = 0;
 
+        (void)enc;
+    #ifdef HAVE_AES_DECRYPT
+        (void)dec;
+    #endif
+
 #ifdef WOLFSSL_AES_128
         /* 128 key size test */
     #ifdef OPENSSL_EXTRA
@@ -13568,7 +13573,9 @@ int rsa_test(void)
     #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
         XFILE       caFile;
     #endif
+    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         XFILE       ntruPrivFile;
+    #endif
         int         certSz;
         word32      idx3 = 0;
     #ifdef WOLFSSL_TEST_CERT
@@ -18423,7 +18430,9 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
 {
     int    ret = 0;
     int    derSz;
+#ifdef HAVE_PKCS8
     word32 pkcs8Sz;
+#endif
     byte*  der;
     byte*  pem;
     ecc_key userA;
@@ -18538,6 +18547,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 
     (void)testVerifyCount;
     (void)dp;
+    (void)x;
 
     XMEMSET(&userA, 0, sizeof(ecc_key));
     XMEMSET(&userB, 0, sizeof(ecc_key));
@@ -21839,14 +21849,14 @@ static int curve448_check_public_test(void)
     }
 
     /* Little-endian fail cases */
-    for (i = 0; i < (int)(sizeof(fail_le) / sizeof(fail_le)); i++) {
+    for (i = 0; i < (int)(sizeof(fail_le) / sizeof(*fail_le)); i++) {
         if (wc_curve448_check_public(fail_le[i], CURVE448_KEY_SIZE,
                                                     EC448_LITTLE_ENDIAN) == 0) {
             return -10924 - i;
         }
     }
     /* Big-endian fail cases */
-    for (i = 0; i < (int)(sizeof(fail_be) / sizeof(fail_be)); i++) {
+    for (i = 0; i < (int)(sizeof(fail_be) / sizeof(*fail_be)); i++) {
         if (wc_curve448_check_public(fail_be[i], CURVE448_KEY_SIZE,
                                                        EC448_BIG_ENDIAN) == 0) {
             return -10934 - i;
@@ -21882,6 +21892,8 @@ int curve448_test(void)
 #endif
     word32  x;
     curve448_key userA, userB, pubKey;
+
+    (void)x;
 
 #if defined(HAVE_CURVE448_SHARED_SECRET) && \
                                              defined(HAVE_CURVE448_KEY_IMPORT)
@@ -25306,14 +25318,14 @@ int pkcs7authenveloped_test(void)
 
 #endif /* HAVE_AESGCM || HAVE_AESCCM */
 #ifndef NO_AES
-static const byte defKey[] = {
+static const byte p7DefKey[] = {
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
 };
 
-static const byte altKey[] = {
+static const byte p7AltKey[] = {
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
     0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
 };
@@ -25342,7 +25354,7 @@ static int myCEKwrapFunc(PKCS7* pkcs7, byte* cek, word32 cekSz, byte* keyId,
 
     switch (keyWrapAlgo) {
         case AES256_WRAP:
-            ret = wc_AesKeyUnWrap(defKey, sizeof(defKey), cek, cekSz,
+            ret = wc_AesKeyUnWrap(p7DefKey, sizeof(p7DefKey), cek, cekSz,
                                       out, outSz, NULL);
             if (ret <= 0)
                 return ret;
@@ -25431,8 +25443,8 @@ static int envelopedData_encrypt(byte* in, word32 inSz, byte* out,
     pkcs7->ukmSz       = 0;
 
     /* add recipient (KEKRI type) */
-    ret = wc_PKCS7_AddRecipient_KEKRI(pkcs7, AES256_WRAP, (byte*)defKey,
-                                      sizeof(defKey), (byte*)keyId,
+    ret = wc_PKCS7_AddRecipient_KEKRI(pkcs7, AES256_WRAP, (byte*)p7DefKey,
+                                      sizeof(p7DefKey), (byte*)keyId,
                                       sizeof(keyId), NULL, NULL, 0, NULL, 0, 0);
     if (ret < 0) {
         printf("wc_PKCS7_AddRecipient_KEKRI() failed, ret = %d\n", ret);
@@ -25495,7 +25507,7 @@ static int generateBundle(byte* out, word32 *outSz, const byte* encryptKey,
 
     /* If using keyHint 0 then create a bundle with fwWrappedFirmwareKey */
     if (keyHint == 0) {
-        ret = envelopedData_encrypt((byte*)defKey, sizeof(defKey), env,
+        ret = envelopedData_encrypt((byte*)p7DefKey, sizeof(p7DefKey), env,
                 sizeof(env));
         if (ret <= 0) {
             return ret;
@@ -25667,7 +25679,7 @@ int pkcs7callback_test(byte* cert, word32 certSz, byte* key, word32 keySz)
     word32 derSz = FOURK_BUF/2;
 
     /* Doing default generation and verify */
-    ret = generateBundle(derBuf, &derSz, defKey, sizeof(defKey), 0, cert,
+    ret = generateBundle(derBuf, &derSz, p7DefKey, sizeof(p7DefKey), 0, cert,
             certSz, key, keySz);
     if (ret <= 0) {
         return -11915;
@@ -25680,7 +25692,7 @@ int pkcs7callback_test(byte* cert, word32 certSz, byte* key, word32 keySz)
 
     /* test choosing other key with keyID */
     derSz = FOURK_BUF/2;
-    ret = generateBundle(derBuf, &derSz, altKey, sizeof(altKey), 1,
+    ret = generateBundle(derBuf, &derSz, p7AltKey, sizeof(p7AltKey), 1,
             cert, certSz, key, keySz);
     if (ret <= 0) {
         return -11917;
@@ -25693,7 +25705,7 @@ int pkcs7callback_test(byte* cert, word32 certSz, byte* key, word32 keySz)
 
     /* test fail case with wrong keyID */
     derSz = FOURK_BUF/2;
-    ret = generateBundle(derBuf, &derSz, defKey, sizeof(defKey), 1,
+    ret = generateBundle(derBuf, &derSz, p7DefKey, sizeof(p7DefKey), 1,
             cert, certSz, key, keySz);
     if (ret <= 0) {
         return -11919;
@@ -28439,9 +28451,8 @@ int cryptocb_test(void)
 #endif
 #ifndef NO_PWDBASED
     #if defined(HAVE_PBKDF2) && !defined(NO_SHA256)
-       ret = pbkdf2_test();
-       if (ret != 0)
-          return ret;
+    if (ret == 0)
+        ret = pbkdf2_test();
     #endif
 #endif
 

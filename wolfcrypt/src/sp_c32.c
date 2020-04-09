@@ -3420,7 +3420,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     }
     if (err == MP_OKAY) {
         a = d + 90;
-        m = a + 90;
+        m = a + 180;
         r = a;
 
         sp_2048_from_bin(a, 90, in, inLen);
@@ -7257,7 +7257,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     }
     if (err == MP_OKAY) {
         a = d + 134;
-        m = a + 134;
+        m = a + 268;
         r = a;
 
         sp_3072_from_bin(a, 134, in, inLen);
@@ -11258,7 +11258,7 @@ int sp_RsaPrivate_4096(const byte* in, word32 inLen, mp_int* dm,
     }
     if (err == MP_OKAY) {
         a = d + 196;
-        m = a + 196;
+        m = a + 392;
         r = a;
 
         sp_4096_from_bin(a, 196, in, inLen);

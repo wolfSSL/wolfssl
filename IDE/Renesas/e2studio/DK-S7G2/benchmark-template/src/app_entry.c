@@ -58,7 +58,9 @@ static void benchmark_TLS(int version, char* suites, int group)
     int i;
     NX_TCP_SOCKET sockfd;
     int ret;
+#ifdef WOLFSSL_TLS13
     int groups[1];
+#endif
     double start;
     WOLFSSL_METHOD* method = NULL;
 

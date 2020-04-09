@@ -11387,11 +11387,7 @@ static
 void wc_SetCert_Free(Cert* cert)
 {
     if (cert != NULL) {
-
-        if (cert->der != NULL) {
-            cert->der = NULL;
-        }
-
+        cert->der = NULL;
         if (cert->decodedCert) {
             FreeDecodedCert((DecodedCert*)cert->decodedCert);
 
@@ -17086,8 +17082,8 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
         return ret;
     }
 
-    if (*idx != end)  /* skip extensions */
-        *idx = end;
+    /* skip extensions */
+    *idx = end;
 
     return 0;
 }
@@ -17458,7 +17454,6 @@ int wc_ParseCertPIV(wc_CertPIV* piv, const byte* buf, word32 totalSz)
         if (GetASNHeader(buf, ASN_PIV_SIGNED_NONCE, &idx, &length, totalSz) >= 0) {
             piv->signedNonce =   &buf[idx];
             piv->signedNonceSz = length;
-            idx += length;
         }
 
         idx = 0;

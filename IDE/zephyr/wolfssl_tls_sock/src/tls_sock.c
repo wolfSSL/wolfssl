@@ -100,9 +100,7 @@ static int wolfssl_client_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
     if (ret == 0) {
         /* make wolfSSL object nonblocking */
         wolfSSL_set_using_nonblock(client_ssl, 1);
-    }
 
-    if (ret == 0) {
         /* Return newly created wolfSSL context and object */
         *ctx = client_ctx;
         *ssl = client_ssl;
@@ -178,9 +176,7 @@ static int wolfssl_server_new(WOLFSSL_CTX** ctx, WOLFSSL** ssl)
     if (ret == 0) {
         /* make wolfSSL object nonblocking */
         wolfSSL_set_using_nonblock(server_ssl, 1);
-    }
 
-    if (ret == 0) {
         /* Return newly created wolfSSL context and object */
         *ctx = server_ctx;
         *ssl = server_ssl;
@@ -355,9 +351,9 @@ void server_thread(void* arg1, void* arg2, void* arg3)
         printf("unable to load static memory");
         ret = -1;
     }
-#endif
 
     if (ret == 0)
+#endif
         ret = wolfssl_server_new(&server_ctx, &server_ssl);
 
     if (ret == 0)
@@ -415,8 +411,7 @@ int wolfssl_client_connect_tcp(WOLFSSL* ssl, SOCKET_T* fd)
     if (ret == 0) {
         *fd = sockfd;
         tcp_set_nonblocking(&sockfd);
-    }
-    if (ret == 0) {
+
         printf("Client Connect\n");
         if (connect(sockfd, res->ai_addr, res->ai_addrlen) != 0)
             ret = -1;
@@ -446,11 +441,13 @@ void client_thread()
         printf("unable to load static memory");
         ret = -1;
     }
-#endif
 
-    /* Client connection */
     if (ret == 0)
+#endif
+    {
+        /* Client connection */
         ret = wolfssl_client_new(&client_ctx, &client_ssl);
+    }
 
     if (ret == 0)
         ret = wolfssl_client_connect_tcp(client_ssl, &sockfd);
@@ -462,12 +459,12 @@ void client_thread()
             break;
     }
 
-    if (ret == 0)
+    if (ret == 0) {
         printf("Handshake complete\n");
 
-    /* Send HTTP request */
-    if (ret == 0)
+        /* Send HTTP request */
         ret = wolfssl_send(client_ssl, msgHTTPGet);
+    }
     /* Receive HTTP response */
     while (ret == 0) {
         k_sleep(10);
