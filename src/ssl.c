@@ -140,10 +140,8 @@
 #endif
 #endif /* !WOLFCRYPT_ONLY || OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #define WOLFSSL_EVP_INCLUDED
 #include "wolfcrypt/src/evp.c"
-#endif
 
 #ifdef OPENSSL_EXTRA
 /* Global pointer to constant BN on */
@@ -9558,7 +9556,7 @@ WOLFSSL_ASN1_STRING* wolfSSL_X509_EXTENSION_get_data(WOLFSSL_X509_EXTENSION* ext
     return &ext->value;
 }
 
-
+#if !defined(NO_PWDBASED)
 int wolfSSL_X509_digest(const WOLFSSL_X509* x509, const WOLFSSL_EVP_MD* digest,
         unsigned char* buf, unsigned int* len)
 {
@@ -9581,7 +9579,7 @@ int wolfSSL_X509_digest(const WOLFSSL_X509* x509, const WOLFSSL_EVP_MD* digest,
     WOLFSSL_LEAVE("wolfSSL_X509_digest", ret);
     return ret;
 }
-
+#endif
 
 int wolfSSL_use_PrivateKey(WOLFSSL* ssl, WOLFSSL_EVP_PKEY* pkey)
 {
@@ -42209,7 +42207,7 @@ int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *name,
     if (name == NULL || type == NULL)
         return WOLFSSL_FAILURE;
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_PWDBASED)
     return wolfSSL_EVP_Digest((unsigned char*)name->fullName.fullName,
                               name->fullName.fullNameLen, md, len, type, NULL);
 #else

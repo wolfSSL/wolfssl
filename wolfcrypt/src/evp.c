@@ -26,7 +26,8 @@
 #elif defined(WOLFCRYPT_ONLY)
 #else
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+#if defined(OPENSSL_EXTRA)
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -35,9 +36,6 @@
 
 #include <wolfssl/openssl/ecdsa.h>
 #include <wolfssl/openssl/evp.h>
-
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(HAVE_WEBSERVER)
 
 #ifndef NO_AES
     #ifdef HAVE_AES_CBC
@@ -105,7 +103,6 @@
     #endif
     #endif /* WOLFSSL_AES_CFB */
 
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     #ifdef HAVE_AESGCM
         #ifdef WOLFSSL_AES_128
             static char *EVP_AES_128_GCM = NULL;
@@ -140,7 +137,6 @@
     #ifdef WOLFSSL_AES_CFB
         #define      EVP_AESCFB_SIZE 14
     #endif
-    #endif
 #endif
 
 #ifndef NO_DES3
@@ -150,20 +146,14 @@
     static char *EVP_DES_EDE3_CBC = NULL;
     static char *EVP_DES_EDE3_ECB = NULL;
 
-    #ifdef OPENSSL_EXTRA
-        #define EVP_DES_SIZE 7
-        #define EVP_DES_EDE3_SIZE 12
-    #endif
+    #define EVP_DES_SIZE 7
+    #define EVP_DES_EDE3_SIZE 12
 #endif
 
 #ifdef HAVE_IDEA
     static char *EVP_IDEA_CBC;
-    #if defined(OPENSSL_EXTRA)
-        #define EVP_IDEA_SIZE 8
-    #endif
+    #define EVP_IDEA_SIZE 8
 #endif
-
-#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER */
 
 static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher);
 
@@ -1679,8 +1669,6 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EV
     return ret;
 }
 
-#ifdef OPENSSL_EXTRA
-
 /* Initialize structure for signing
  *
  * ctx  WOLFSSL_EVP_MD_CTX structure to initialize
@@ -2441,7 +2429,7 @@ int wolfSSL_EVP_read_pw_string(char* buf, int bufSz, const char* banner, int v)
 }
 #endif /* WOLFSSL_APACHE_HTTPD */
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_PWDBASED) && !defined(NO_SHA)
+#if !defined(NO_PWDBASED) && !defined(NO_SHA)
 int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char *pass, int passlen,
                                                const unsigned char *salt,
                                                int saltlen, int iter,
@@ -2465,9 +2453,9 @@ int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char *pass, int passlen,
     else
         return WOLFSSL_FAILURE;
 }
-#endif /* OPENSSL_EXTRA && !NO_PWDBASED !NO_SHA*/
+#endif /* !NO_PWDBASED !NO_SHA*/
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_PWDBASED)
+#if !defined(NO_PWDBASED)
 WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
                                            const unsigned char *salt,
                                            int saltlen, int iter,
@@ -2491,10 +2479,7 @@ WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
     else
         return WOLFSSL_FAILURE;
 }
-#endif /* OPENSSL_EXTRA && !NO_PWDBASED */
-
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(HAVE_WEBSERVER)
+#endif /* !NO_PWDBASED */
 
 static const struct cipher{
         unsigned char type;
@@ -2560,7 +2545,6 @@ static const struct cipher{
     {AES_256_XTS_TYPE, "AES-256-XTS", NID_aes_256_xts},
     #endif
 
-#if defined(OPENSSL_EXTRA)
     #ifdef WOLFSSL_AES_128
     {AES_128_GCM_TYPE, "AES-128-GCM", NID_aes_128_gcm},
     #endif
@@ -2589,7 +2573,6 @@ static const struct cipher{
     #ifdef WOLFSSL_AES_256
         {AES_256_ECB_TYPE, "AES-256-ECB", NID_aes_256_ecb},
     #endif
-#endif
 
 #endif
 
@@ -2749,7 +2732,6 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
 
     switch(id) {
 
-#if defined(OPENSSL_EXTRA)
 #ifndef NO_AES
     #ifdef HAVE_AES_CBC
         #ifdef WOLFSSL_AES_128
@@ -2828,7 +2810,6 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
         case NID_idea_cbc:
             return wolfSSL_EVP_idea_cbc();
 #endif
-#endif /*OPENSSL_EXTRA*/
 
         default:
             WOLFSSL_MSG("Bad cipher id value");
@@ -2914,7 +2895,6 @@ void wolfSSL_EVP_init(void)
         #endif
     #endif /* WOLFSSL_AES_XTS */
 
-#if defined(OPENSSL_EXTRA)
     #ifdef HAVE_AESGCM
         #ifdef WOLFSSL_AES_128
         EVP_AES_128_GCM = (char *)EVP_get_cipherbyname("AES-128-GCM");
@@ -2945,7 +2925,6 @@ void wolfSSL_EVP_init(void)
         #ifdef WOLFSSL_AES_256
         EVP_AES_256_ECB = (char *)EVP_get_cipherbyname("AES-256-ECB");
         #endif
-#endif
 #endif /* ifndef NO_AES*/
 
 #ifndef NO_DES3
@@ -2961,11 +2940,7 @@ void wolfSSL_EVP_init(void)
 #endif
 }
 
-#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER */
-
-#if defined(OPENSSL_EXTRA) || !defined(NO_PWDBASED) && \
-    (defined(OPENSSL_EXTRA_X509_SMALL) || defined(HAVE_WEBSERVER))
-
+#if !defined(NO_PWDBASED)
 int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
     int* pHash, int* pHashSz)
 {
@@ -3035,8 +3010,6 @@ int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
     return WOLFSSL_SUCCESS;
 }
 
-#endif
-
 /* this function makes the assumption that out buffer is big enough for digest*/
 int wolfSSL_EVP_Digest(const unsigned char* in, int inSz, unsigned char* out,
                               unsigned int* outSz, const WOLFSSL_EVP_MD* evp,
@@ -3066,6 +3039,7 @@ int wolfSSL_EVP_Digest(const unsigned char* in, int inSz, unsigned char* out,
     (void)eng;
     return WOLFSSL_SUCCESS;
 }
+#endif
 
 const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
 {
@@ -3263,7 +3237,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return(wolfSSL_EVP_MD_block_size(wolfSSL_EVP_MD_CTX_md(ctx)));
     }
 
-#ifdef OPENSSL_EXTRA
     /* Deep copy of EVP_MD hasher
      * return WOLFSSL_SUCCESS on success */
     static int wolfSSL_EVP_MD_Copy_Hasher(WOLFSSL_EVP_MD_CTX* des,
@@ -3363,7 +3336,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         }
         return wolfSSL_EVP_MD_Copy_Hasher(out, (WOLFSSL_EVP_MD_CTX*)in);
     }
-#endif /* OPENSSL_EXTRA */
 
     void wolfSSL_EVP_MD_CTX_init(WOLFSSL_EVP_MD_CTX* ctx)
     {
@@ -3378,8 +3350,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         WOLFSSL_ENTER("EVP_MD_CTX_md");
         return (const WOLFSSL_EVP_MD *)wolfSSL_EVP_get_md(ctx->macType);
     }
-
-#endif /* OPENSSL_EXTRA */
 
     #ifndef NO_AES
 
@@ -3821,7 +3791,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     }
 #endif
 
-#ifdef OPENSSL_EXTRA
     /* This function allows cipher specific parameters to be
     determined and set. */
     int wolfSSL_EVP_CIPHER_CTX_ctrl(WOLFSSL_EVP_CIPHER_CTX *ctx, int type, \
@@ -3949,10 +3918,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     }
     #endif
 
-#endif /* OPENSSL_EXTRA */
-
-#if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED) && \
-    defined(OPENSSL_EXTRA)
+#if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)
 
     int wolfSSL_EVP_BytesToKey(const WOLFSSL_EVP_CIPHER* type,
                        const WOLFSSL_EVP_MD* md, const byte* salt,
@@ -4005,9 +3971,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return ret;
     }
 
-#endif /* WOLFSSL_ENCRYPTED_KEYS && !NO_PWDBASED && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER) */
-
-#ifdef OPENSSL_EXTRA
+#endif /* WOLFSSL_ENCRYPTED_KEYS && !NO_PWDBASED */
 
 #ifndef NO_AES
     static int   AesSetKey_ex(Aes* aes, const byte* key, word32 len,
@@ -5436,12 +5400,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         /* nothing to do here */
     }
 
-#endif /* OPENSSL_EXTRA */
-
-#if defined(OPENSSL_EXTRA_X509_SMALL)
-/* Subset of OPENSSL_EXTRA for PKEY operations PKEY free is needed by the
- * subset of X509 API */
-
 WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new(void){
     return wolfSSL_EVP_PKEY_new_ex(NULL);
 }
@@ -5551,7 +5509,6 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
         }
     }
 }
-#endif /* OPENSSL_EXTRA_X509_SMALL */
 
 const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int id)
 {
@@ -5573,7 +5530,6 @@ const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int id)
     return NULL;
 }
 
-#ifdef OPENSSL_EXTRA
 #ifndef NO_RSA
 WOLFSSL_RSA* wolfSSL_EVP_PKEY_get0_RSA(WOLFSSL_EVP_PKEY *pkey)
 {
@@ -5702,9 +5658,7 @@ int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
     return WOLFSSL_SUCCESS;
 }
 #endif /* !NO_RSA */
-#endif /* OPENSSL_EXTRA */
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || defined(OPENSSL_EXTRA)
 #if !defined (NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)
 /* with set1 functions the pkey struct does not own the DSA structure
  *
@@ -5867,7 +5821,6 @@ WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
     return local;
 }
 #endif /* HAVE_ECC */
-#endif /* OPENSSL_ALL || WOLFSSL_QT || OPENSSL_EXTRA */
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
 #if !defined(NO_DH) && !defined(NO_FILESYSTEM)
@@ -6035,7 +5988,7 @@ int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
 }
 #endif /* WOLFSSL_QT || OPENSSL_ALL */
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
+#if defined(HAVE_ECC)
 /* try and populate public pkey_sz and pkey.ptr */
 static void ECC_populate_EVP_PKEY(EVP_PKEY* pkey, ecc_key* ecc)
 {
@@ -6132,7 +6085,7 @@ int wolfSSL_EVP_PKEY_assign_EC_KEY(EVP_PKEY* pkey, WOLFSSL_EC_KEY* key)
 
     return WOLFSSL_SUCCESS;
 }
-#endif /* OPENSSL_EXTRA || HAVE_ECC */
+#endif /* HAVE_ECC */
 
 #ifndef NO_WOLFSSL_STUB
 const WOLFSSL_EVP_MD* wolfSSL_EVP_ripemd160(void)
@@ -6430,14 +6383,12 @@ int wolfSSL_EVP_PKEY_type(int type)
     WOLFSSL_MSG("wolfSSL_EVP_PKEY_type");
 
     switch (type) {
-    #ifdef OPENSSL_EXTRA
         case EVP_PKEY_RSA:
             return EVP_PKEY_RSA;
         case EVP_PKEY_DSA:
             return EVP_PKEY_DSA;
         case EVP_PKEY_EC:
             return EVP_PKEY_EC;
-    #endif
         default:
             return NID_undef;
     }
@@ -6475,9 +6426,6 @@ int wolfSSL_EVP_PKEY_up_ref(WOLFSSL_EVP_PKEY* pkey)
 
     return 0;
 }
-#endif /* OPENSSL_EXTRA || OPENSSL_ALL */
-
-#ifdef OPENSSL_EXTRA
 
 #ifndef NO_RSA
 int wolfSSL_EVP_PKEY_assign_RSA(EVP_PKEY* pkey, WOLFSSL_RSA* key)

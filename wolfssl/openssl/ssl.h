@@ -1114,11 +1114,6 @@ enum {
 #define PEM_R_BAD_PASSWORD_READ         (-MIN_CODE_E + 3)
 #define PEM_R_BAD_DECRYPT               (-MIN_CODE_E + 4)
 
-#define EVP_R_BAD_DECRYPT               (-MIN_CODE_E + 100 + 1)
-#define EVP_R_BN_DECODE_ERROR           (-MIN_CODE_E + 100 + 2)
-#define EVP_R_DECODE_ERROR              (-MIN_CODE_E + 100 + 3)
-#define EVP_R_PRIVATE_KEY_DECODE_ERROR  (-MIN_CODE_E + 100 + 4)
-
 #define ERR_LIB_PEM             9
 #define ERR_LIB_X509            10
 #define ERR_LIB_EVP             11
@@ -1205,10 +1200,6 @@ enum {
 #define SSL_get0_param                  wolfSSL_get0_param
 
 #define ERR_NUM_ERRORS                  16
-#define EVP_PKEY_NONE                   NID_undef
-#define EVP_PKEY_RSA                    6
-#define EVP_PKEY_RSA2                   19
-#define EVP_PKEY_DH                     28
 #define SN_pkcs9_emailAddress           "Email"
 #define LN_pkcs9_emailAddress           "emailAddress"
 #define NID_pkcs9_emailAddress          48
@@ -1229,19 +1220,12 @@ enum {
 #define TLS1_CK_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256       (0xc02b)
 #define TLS1_CK_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 (0xcca9)
 
-#define EVP_CIPHER_mode                 WOLFSSL_CIPHER_mode
-/* WOLFSSL_EVP_CIPHER is just the string name of the cipher */
-#define EVP_CIPHER_name(x)              x
-#define EVP_MD_CTX_reset                wolfSSL_EVP_MD_CTX_cleanup
-/* WOLFSSL_EVP_MD is just the string name of the digest */
-#define EVP_MD_name(x)                  x
 #define X509_STORE_get0_objects         wolfSSL_X509_STORE_get0_objects
 #define sk_X509_OBJECT_num              wolfSSL_sk_X509_OBJECT_num
 #define sk_X509_OBJECT_value            wolfSSL_sk_X509_OBJECT_value
 #define sk_X509_OBJECT_delete           wolfSSL_sk_X509_OBJECT_delete
 #define X509_OBJECT_free                wolfSSL_X509_OBJECT_free
 #define X509_OBJECT_get_type(x)         0
-#define EVP_CIPHER_nid                  wolfSSL_EVP_CIPHER_nid
 
 #define OpenSSL_version(x)              wolfSSL_lib_version()
 
