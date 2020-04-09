@@ -6296,6 +6296,10 @@ int wc_ecc_import_point_der_ex(byte* in, word32 inLen, const int curve_idx,
     int keysize;
     byte pointType;
 
+#ifndef HAVE_COMP_KEY
+    (void)shortKeySize;
+#endif
+
     if (in == NULL || point == NULL || (curve_idx < 0) ||
         (wc_ecc_is_valid_idx(curve_idx) == 0))
         return ECC_BAD_ARG_E;
@@ -6340,7 +6344,11 @@ int wc_ecc_import_point_der_ex(byte* in, word32 inLen, const int curve_idx,
 
     /* calculate key size based on inLen / 2 if uncompressed or shortKeySize
      * is true */
+#ifdef HAVE_COMP_KEY
     keysize = compressed && !shortKeySize ? inLen : inLen>>1;
+#else
+    keysize = inLen>>1;
+#endif
 
     /* read data */
     if (err == MP_OKAY)

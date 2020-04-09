@@ -28022,19 +28022,6 @@ static void test_wolfSSL_OBJ_sn(void)
     printf(testingFmt, "wolfSSL_OBJ_sn");
 
     AssertIntEQ(wolfSSL_OBJ_sn2nid(NULL), NID_undef);
-
-    #ifdef HAVE_ECC
-    {
-        int nCurves = 27;
-        EC_builtin_curve r[nCurves];
-        EC_get_builtin_curves(r,nCurves);
-
-        for (i = 0; i < nCurves; i++) {
-            AssertIntEQ(wolfSSL_OBJ_sn2nid(r[i].comment), r[i].nid);
-            AssertStrEQ(wolfSSL_OBJ_nid2sn(r[i].nid), r[i].comment);
-        }
-    }
-    #endif
     for (i = 0; i < maxIdx; i++) {
         AssertIntEQ(wolfSSL_OBJ_sn2nid(sn_wolf_set[i]), nid_set[i]);
         AssertStrEQ(wolfSSL_OBJ_nid2sn(nid_set[i]), sn_open_set[i]);
