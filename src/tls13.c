@@ -1658,6 +1658,9 @@ static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
     ret = wc_Chacha_Process(ssl->encrypt.chacha, poly, poly, sizeof(poly));
     if (ret != 0)
         return ret;
+    ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 1);
+    if (ret != 0)
+        return ret;
     /* Encrypt the plain text. */
     ret = wc_Chacha_Process(ssl->encrypt.chacha, output, input, sz);
     if (ret != 0) {
@@ -1939,6 +1942,9 @@ static int ChaCha20Poly1305_Decrypt(WOLFSSL* ssl, byte* output,
         return ret;
     /* Use ChaCha20 keystream to get Poly1305 key for tag. */
     ret = wc_Chacha_Process(ssl->decrypt.chacha, poly, poly, sizeof(poly));
+    if (ret != 0)
+        return ret;
+    ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 1);
     if (ret != 0)
         return ret;
 
