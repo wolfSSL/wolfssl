@@ -7635,6 +7635,13 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
         return ASN_PARSE_E;
     }
 
+    if (length == 0) {
+        /* RFC 5280 4.2.1.6.  Subject Alternative Name
+           If the subjectAltName extension is present, the sequence MUST
+           contain at least one entry. */
+        return ASN_PARSE_E;
+    }
+
     cert->weOwnAltNames = 1;
 
     while (length > 0) {
