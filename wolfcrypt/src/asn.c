@@ -10564,7 +10564,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             else {
                 if (passwordSz == 0) {
                     /* The key is encrypted but does not have a password */
-                    ret = ASN_PARSE_E;
+                    WOLFSSL_MSG("No password for encrypted key");
+                    ret = NO_PASSWORD;
                 }
                 else {
                     ret = wc_BufferKeyDecrypt(info, der->buffer, der->length,
