@@ -34,6 +34,26 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+/* SP Build Options:
+ * WOLFSSL_HAVE_SP_RSA:         Enable SP RSA support
+ * WOLFSSL_HAVE_SP_DH:          Enable SP DH support
+ * WOLFSSL_HAVE_SP_ECC:         Enable SP ECC support
+ * WOLFSSL_SP_MATH:             Use only single precision math and algorithms it supports (no fastmath tfm.c or normal integer.c)
+ * WOLFSSL_SP_SMALL:            Use smaller version of code and avoid large stack variables
+ * WOLFSSL_SP_NO_MALLOC:        Always use stack, no heap XMALLOC/XFREE allowed
+ * WOLFSSL_SP_NO_3072:          Disable RSA/DH 3072-bit support
+ * WOLFSSL_SP_NO_2048:          Disable RSA/DH 2048-bit support
+ * WOLFSSL_SP_4096:             Enable RSA/RH 4096-bit support
+ * WOLFSSL_SP_384               Enable ECC 384-bit SECP384R1 support
+ * WOLFSSL_SP_NO_256            Disable ECC 256-bit SECP256R1 support
+ * WOLFSSL_SP_CACHE_RESISTANT   Enable cache resistantant code 
+ * WOLFSSL_SP_ASM               Enable assembly speedups (detect platform)
+ * WOLFSSL_SP_X86_64_ASM        Enable Intel x86 assembly speedups like AVX/AVX2
+ * WOLFSSL_SP_ARM32_ASM         Enable Aarch32 assembly speedups
+ * WOLFSSL_SP_ARM64_ASM         Enable Aarch64 assembly speedups
+ * WOLFSSL_SP_ARM_CORTEX_M_ASM  Enable Cortex-M assembly speedups
+ * WOLFSSL_SP_ARM_THUMB_ASM     Enable ARM Thumb assembly speedups (used with -mthumb)
+ */
 
 #ifdef WOLFSSL_SP_MATH
 

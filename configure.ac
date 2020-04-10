@@ -4236,6 +4236,7 @@ ENABLED_SP_FF_4096=no
 ENABLED_SP_ECC=no
 ENABLED_SP_EC_256=no
 ENABLED_SP_EC_384=no
+ENABLED_SP_NO_MALLOC=no
 for v in `echo $ENABLED_SP | tr "," " "`
 do
   case $v in
@@ -4354,6 +4355,10 @@ do
     ENABLED_SP_FF_4096=yes
     ;;
 
+  nomalloc)
+    ENABLED_SP_NO_MALLOC=yes
+    ;;
+
   *)
     AC_MSG_ERROR([Invalid choice of Single Precision length in bits [256, 2048, 3072]: $ENABLED_SP.])
     break;;
@@ -4401,6 +4406,10 @@ fi
 if test "$ENABLED_SP_SMALL" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_SMALL"
+fi
+if test "$ENABLED_SP_NO_MALLOC" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_MALLOC"
+    AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_NO_MALLOC"
 fi
 
 
