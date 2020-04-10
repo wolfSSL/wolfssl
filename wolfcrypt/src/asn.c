@@ -10562,20 +10562,26 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             }
             /* decrypt the key */
             else {
-                ret = wc_BufferKeyDecrypt(info, der->buffer, der->length,
-                    (byte*)password, passwordSz, WC_MD5);
+                if (passwordSz == 0) {
+                    /* The key is encrypted but does not have a password */
+                    WOLFSSL_MSG("No password for encrypted key");
+                    ret = NO_PASSWORD;
+                }
+                else {
+                    ret = wc_BufferKeyDecrypt(info, der->buffer, der->length,
+                        (byte*)password, passwordSz, WC_MD5);
 
 #ifndef NO_WOLFSSL_SKIP_TRAILING_PAD
-            #ifndef NO_DES3
-                if (info->cipherType == WC_CIPHER_DES3) {
-                    padVal = der->buffer[der->length-1];
-                    if (padVal <= DES_BLOCK_SIZE) {
-                        der->length -= padVal;
+                #ifndef NO_DES3
+                    if (info->cipherType == WC_CIPHER_DES3) {
+                        padVal = der->buffer[der->length-1];
+                        if (padVal <= DES_BLOCK_SIZE) {
+                            der->length -= padVal;
+                        }
                     }
-                }
-            #endif /* !NO_DES3 */
+                #endif /* !NO_DES3 */
 #endif /* !NO_WOLFSSL_SKIP_TRAILING_PAD */
-
+                }
             }
 #ifdef OPENSSL_EXTRA
             if (ret) {

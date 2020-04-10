@@ -20051,7 +20051,7 @@ static void test_wc_PemToDer(void)
 
     printf(testingFmt, "wc_PemToDer()");
 
-    memset(&info, 0, sizeof(info));
+    XMEMSET(&info, 0, sizeof(info));
 
     ret = load_file(ca_cert, &cert_buf, &cert_sz);
     if (ret == 0) {
@@ -25669,6 +25669,27 @@ static void test_wolfSSL_RSA(void)
     AssertNull(RSA_generate_key(511, 3, NULL, NULL)); /* RSA_MIN_SIZE - 1 */
     AssertNull(RSA_generate_key(4097, 3, NULL, NULL)); /* RSA_MAX_SIZE + 1 */
     AssertNull(RSA_generate_key(2048, 0, NULL, NULL));
+
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_ASN)
+    {
+        byte buff[FOURK_BUF];
+        byte der[FOURK_BUF];
+        const char PrivKeyPemFile[] = "certs/client-keyEnc.pem";
+
+        XFILE f;
+        int bytes;
+
+        /* test loading encrypted RSA private pem w/o password */
+        f = XFOPEN(PrivKeyPemFile, "rb");
+        AssertTrue((f != XBADFILE));
+        bytes = (int)XFREAD(buff, 1, sizeof(buff), f);
+        XFCLOSE(f);
+        XMEMSET(der, 0, sizeof(der));
+        /* test that error value is returned with no password */
+        AssertIntLT(wc_KeyPemToDer(buff, bytes, der, (word32)sizeof(der), ""), 0);
+    }
+#endif
 
     printf(resultFmt, passed);
 #endif
