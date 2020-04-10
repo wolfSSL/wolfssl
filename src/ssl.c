@@ -37317,6 +37317,42 @@ static int CopyX509NameToCertName(WOLFSSL_X509_NAME* n, CertName* cName)
 #endif /* WOLFSSL_CERT_GEN */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 
+    WOLFSSL_X509_NAME *wolfSSL_d2i_X509_NAME(WOLFSSL_X509_NAME **name,
+                                             unsigned char **in, long length)
+    {
+        WOLFSSL_X509_NAME* tmp = NULL;
+        DecodedCert cert;
+
+        WOLFSSL_ENTER("wolfSSL_d2i_X509_NAME");
+
+        if (!in || !*in || length <= 0) {
+            WOLFSSL_MSG("Bad argument");
+            return NULL;
+        }
+
+        InitDecodedCert(&cert, *in, length, NULL);
+
+        if (GetName(&cert, SUBJECT, length) != 0) {
+            WOLFSSL_MSG("WOLFSSL_X509_NAME parse error");
+            return NULL;
+        }
+
+        if (!(tmp = wolfSSL_X509_NAME_new())) {
+            WOLFSSL_MSG("wolfSSL_X509_NAME_new error");
+            return NULL;
+        }
+
+        XSTRNCPY(tmp->staticName, cert.subject, ASN_NAME_MAX);
+        tmp->staticName[ASN_NAME_MAX - 1] = '\0';
+        tmp->sz = (int)XSTRLEN(tmp->staticName) + 1;
+
+        if (name)
+            *name = tmp;
+
+        return tmp;
+    }
+
+
     /* Compares the two X509 names. If the size of x is larger then y then a
      * positive value is returned if x is smaller a negative value is returned.
      * In the case that the sizes are equal a the value of strcmp between the

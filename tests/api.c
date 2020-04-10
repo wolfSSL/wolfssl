@@ -23033,6 +23033,7 @@ static void test_wolfSSL_X509_NAME(void)
     XFILE f;
     const X509_NAME* a;
     const X509_NAME* b;
+    X509_NAME* d2i_name;
     int sz;
     unsigned char* tmp;
     char file[] = "./certs/ca-cert.der";
@@ -23068,6 +23069,9 @@ static void test_wolfSSL_X509_NAME(void)
         abort();
     }
 
+    tmp = buf;
+    AssertNotNull(d2i_name = d2i_X509_NAME(NULL, &tmp, sz));
+
     /* retry but with the function creating a buffer */
     tmp = NULL;
     AssertIntGT((sz = i2d_X509_NAME((X509_NAME*)b, &tmp)), 0);
@@ -23077,6 +23081,7 @@ static void test_wolfSSL_X509_NAME(void)
     AssertNotNull(b = X509_NAME_dup((X509_NAME*)a));
     AssertIntEQ(X509_NAME_cmp(a, b), 0);
     X509_NAME_free((X509_NAME*)b);
+    X509_NAME_free(d2i_name);
 
     X509_free(x509);
 
