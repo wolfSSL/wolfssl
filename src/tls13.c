@@ -5779,7 +5779,9 @@ exit_scv:
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
     /* Final cleanup */
+#ifdef WOLFSSL_ASYNC_CRYPT
     FreeScv13Args(ssl, args);
+#endif
     FreeKeyExchange(ssl);
 
     return ret;
