@@ -10056,6 +10056,7 @@ int random_test(void)
     #define MEM_TEST_SZ 1024
 #endif
 
+#if defined(WOLFSSL_STATIC_MEMORY) || !defined(WOLFSSL_NO_MALLOC)
 static int simple_mem_test(int sz)
 {
     int ret = 0;
@@ -10080,6 +10081,7 @@ static int simple_mem_test(int sz)
     XFREE(b, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
+#endif
 
 int memory_test(void)
 {
@@ -10185,10 +10187,12 @@ int memory_test(void)
     (void)dist; /* avoid static analysis warning of variable not used */
 #endif
 
+#if defined(WOLFSSL_STATIC_MEMORY) || !defined(WOLFSSL_NO_MALLOC)
     /* simple test */
     ret = simple_mem_test(MEM_TEST_SZ);
     if (ret != 0)
         return ret;
+#endif
 
 #ifdef COMPLEX_MEM_TEST
     /* test various size blocks */
@@ -10212,7 +10216,7 @@ int memory_test(void)
     XFREE(b, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
-    return 0;
+    return ret;
 }
 
 
@@ -27889,6 +27893,8 @@ int mutex_test(void)
 }
 
 #if defined(USE_WOLFSSL_MEMORY) && !defined(FREERTOS)
+
+#ifndef WOLFSSL_NO_MALLOC
 static int malloc_cnt = 0;
 static int realloc_cnt = 0;
 static int free_cnt = 0;
@@ -27900,6 +27906,7 @@ static void *my_Malloc_cb(size_t size)
         return malloc(size);
     #else
         WOLFSSL_MSG("No malloc available");
+        (void)size;
         return NULL;
     #endif
 }
@@ -27910,6 +27917,7 @@ static void my_Free_cb(void *ptr)
         free(ptr);
     #else
         WOLFSSL_MSG("No free available");
+        (void)ptr;
     #endif
 }
 static void *my_Realloc_cb(void *ptr, size_t size)
@@ -27919,14 +27927,19 @@ static void *my_Realloc_cb(void *ptr, size_t size)
         return realloc(ptr, size);
     #else
         WOLFSSL_MSG("No realloc available");
+        (void)ptr;
+        (void)size;
         return NULL;
     #endif
 }
+#endif /* !WOLFSSL_NO_MALLOC */
 
 int memcb_test(void)
 {
     int ret = 0;
+#ifndef WOLFSSL_NO_MALLOC
     byte* b = NULL;
+#endif
     wolfSSL_Malloc_cb  mc;
     wolfSSL_Free_cb    fc;
     wolfSSL_Realloc_cb rc;
@@ -27972,7 +27985,7 @@ exit_memcb:
 
     return ret;
 }
-#endif
+#endif /* USE_WOLFSSL_MEMORY && !WOLFSSL_NO_MALLOC */
 
 
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
