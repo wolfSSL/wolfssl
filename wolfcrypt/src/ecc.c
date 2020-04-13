@@ -2534,8 +2534,10 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
    #define WINSIZE  4
    #define M_POINTS 8
    int           first = 1, bitbuf = 0, bitcpy = 0, j;
-#else
+#elif defined(WC_NO_CACHE_RESISTANT)
    #define M_POINTS 4
+#else
+   #define M_POINTS 5
 #endif
 
    ecc_point     *tG, *M[M_POINTS];
@@ -2824,6 +2826,11 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
 #ifdef WC_NO_CACHE_RESISTANT
    if (err == MP_OKAY)
        err = wc_ecc_copy_point(M[0], M[2]);
+#else
+   if (err == MP_OKAY)
+       err = wc_ecc_copy_point(M[0], M[3]);
+   if (err == MP_OKAY)
+       err = wc_ecc_copy_point(M[1], M[4]);
 #endif
 
    /* setup sliding window */
@@ -2867,78 +2874,68 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
                if (err == MP_OKAY)
                    err = ecc_projective_dbl_point(M[i], M[i], a, modulus, mp);
            }
-
-           mode |= i;
 #else
            if (err == MP_OKAY)
-               err = ecc_projective_add_point(M[0], M[1], M[2], a, modulus,
-                                              mp);
+               err = ecc_projective_add_point(M[0], M[1], M[2], a, modulus, mp);
            if (err == MP_OKAY)
-               err = mp_copy(M[2]->x,
-                             (mp_int*)
-                             ( ((size_t)M[0]->x & wc_off_on_addr[mode&(i  )]) +
-                               ((size_t)M[1]->x & wc_off_on_addr[mode&(i^1)]) +
-                               ((size_t)M[2]->x & wc_off_on_addr[mode^1])) );
+               err = mp_cond_copy(M[2]->x, i, M[0]->x);
            if (err == MP_OKAY)
-               err = mp_copy(M[2]->y,
-                             (mp_int*)
-                             ( ((size_t)M[0]->y & wc_off_on_addr[mode&(i  )]) +
-                               ((size_t)M[1]->y & wc_off_on_addr[mode&(i^1)]) +
-                               ((size_t)M[2]->y & wc_off_on_addr[mode^1])) );
+               err = mp_cond_copy(M[2]->y, i, M[0]->y);
            if (err == MP_OKAY)
-               err = mp_copy(M[2]->z,
-                             (mp_int*)
-                             ( ((size_t)M[0]->z & wc_off_on_addr[mode&(i  )]) +
-                               ((size_t)M[1]->z & wc_off_on_addr[mode&(i^1)]) +
-                               ((size_t)M[2]->z & wc_off_on_addr[mode^1])) );
+               err = mp_cond_copy(M[2]->z, i, M[0]->z);
+           if (err == MP_OKAY)
+               err = mp_cond_copy(M[2]->x, i ^ 1, M[1]->x);
+           if (err == MP_OKAY)
+               err = mp_cond_copy(M[2]->y, i ^ 1, M[1]->y);
+           if (err == MP_OKAY)
+               err = mp_cond_copy(M[2]->z, i ^ 1, M[1]->z);
 
-            /* instead of using M[i] for double, which leaks key bit to cache
-             * monitor, use M[2] as temp, make sure address calc is constant,
-             * keep M[0] and M[1] in cache */
            if (err == MP_OKAY)
-               err = mp_copy((mp_int*)
-                             ( ((size_t)M[0]->x & wc_off_on_addr[i^1]) +
-                               ((size_t)M[1]->x & wc_off_on_addr[i])),
-                             M[2]->x);
+               err = mp_cond_copy(M[0]->x, i ^ 1, M[2]->x);
            if (err == MP_OKAY)
-               err = mp_copy((mp_int*)
-                             ( ((size_t)M[0]->y & wc_off_on_addr[i^1]) +
-                               ((size_t)M[1]->y & wc_off_on_addr[i])),
-                             M[2]->y);
+               err = mp_cond_copy(M[0]->y, i ^ 1, M[2]->y);
            if (err == MP_OKAY)
-               err = mp_copy((mp_int*)
-                             ( ((size_t)M[0]->z & wc_off_on_addr[i^1]) +
-                               ((size_t)M[1]->z & wc_off_on_addr[i])),
-                             M[2]->z);
+               err = mp_cond_copy(M[0]->z, i ^ 1, M[2]->z);
            if (err == MP_OKAY)
-               err = ecc_projective_dbl_point(M[2], M[3], a, modulus, mp);
-           /* copy M[2] back to M[i] */
+               err = mp_cond_copy(M[1]->x, i, M[2]->x);
            if (err == MP_OKAY)
-               err = mp_copy((mp_int*)
-                             (((size_t)M[2]->x & wc_off_on_addr[mode^1]) +
-                              ((size_t)M[3]->x & wc_off_on_addr[mode])),
-                             (mp_int*)
-                             ( ((size_t)M[0]->x & wc_off_on_addr[i^1]) +
-                               ((size_t)M[1]->x & wc_off_on_addr[i])) );
+               err = mp_cond_copy(M[1]->y, i, M[2]->y);
            if (err == MP_OKAY)
-               err = mp_copy((mp_int*)
-                             (((size_t)M[2]->y & wc_off_on_addr[mode^1]) +
-                              ((size_t)M[3]->y & wc_off_on_addr[mode])),
-                             (mp_int*)
-                             ( ((size_t)M[0]->y & wc_off_on_addr[i^1]) +
-                               ((size_t)M[1]->y & wc_off_on_addr[i])) );
+               err = mp_cond_copy(M[1]->z, i, M[2]->z);
+
            if (err == MP_OKAY)
-               err = mp_copy((mp_int*)
-                             (((size_t)M[2]->z & wc_off_on_addr[mode^1]) +
-                              ((size_t)M[3]->z & wc_off_on_addr[mode])),
-                             (mp_int*)
-                             ( ((size_t)M[0]->z & wc_off_on_addr[i^1]) +
-                               ((size_t)M[1]->z & wc_off_on_addr[i])) );
+               err = ecc_projective_dbl_point(M[2], M[2], a, modulus, mp);
+           if (err == MP_OKAY)
+               err = mp_cond_copy(M[2]->x, i ^ 1, M[0]->x);
+           if (err == MP_OKAY)
+               err = mp_cond_copy(M[2]->y, i ^ 1, M[0]->y);
+           if (err == MP_OKAY)
+               err = mp_cond_copy(M[2]->z, i ^ 1, M[0]->z);
+           if (err == MP_OKAY)
+               err = mp_cond_copy(M[2]->x, i, M[1]->x);
+           if (err == MP_OKAY)
+               err = mp_cond_copy(M[2]->y, i, M[1]->y);
+           if (err == MP_OKAY)
+               err = mp_cond_copy(M[2]->z, i, M[1]->z);
+
+           if (err == MP_OKAY)
+               err = mp_cond_copy(M[3]->x, (mode ^ 1) & i, M[0]->x);
+           if (err == MP_OKAY)
+               err = mp_cond_copy(M[3]->y, (mode ^ 1) & i, M[0]->y);
+           if (err == MP_OKAY)
+               err = mp_cond_copy(M[3]->z, (mode ^ 1) & i, M[0]->z);
+           if (err == MP_OKAY)
+               err = mp_cond_copy(M[4]->x, (mode ^ 1) & i, M[1]->x);
+           if (err == MP_OKAY)
+               err = mp_cond_copy(M[4]->y, (mode ^ 1) & i, M[1]->y);
+           if (err == MP_OKAY)
+               err = mp_cond_copy(M[4]->z, (mode ^ 1) & i, M[1]->z);
+#endif /* WC_NO_CACHE_RESISTANT */
+
            if (err != MP_OKAY)
                break;
 
            mode |= i;
-#endif /* WC_NO_CACHE_RESISTANT */
        } /* end for */
    }
 
