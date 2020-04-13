@@ -31,6 +31,13 @@
     extern "C" {
 #endif
 
+/* This flag allows wolfSSL to include options.h instead of having client
+ * projects do it themselves. This should *NEVER* be defined when building
+ * wolfSSL as it can cause hard to debug problems. */
+#ifdef EXTERNAL_OPTS_OPENVPN
+#include <wolfssl/options.h>
+#endif
+
 /* Uncomment next line if using IPHONE */
 /* #define IPHONE */
 

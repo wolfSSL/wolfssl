@@ -39,6 +39,12 @@
  *     and ignoring no signer failures for CA's up the chain to root.
  */
 
+
+#ifdef EXTERNAL_OPTS_OPENVPN
+#error EXTERNAL_OPTS_OPENVPN should not be defined\
+    when building wolfSSL
+#endif
+
 #ifndef WOLFCRYPT_ONLY
 
 #include <wolfssl/internal.h>
@@ -6286,6 +6292,8 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     if (ssl->biord != ssl->biowr)        /* only free write if different */
         wolfSSL_BIO_free(ssl->biowr);
     wolfSSL_BIO_free(ssl->biord);        /* always free read bio */
+    ssl->biowr = NULL;
+    ssl->biord = NULL;
 #endif
 #ifdef HAVE_LIBZ
     FreeStreams(ssl);
