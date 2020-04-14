@@ -93,6 +93,7 @@ my @fileList_4096 = (
         [ "./certs/4096/client-key.der", "client_key_der_4096" ],
         [ "./certs/4096/client-keyPub.der", "client_keypub_der_4096" ],
         [ "./certs/4096/client-cert.der", "client_cert_der_4096" ],
+        [ "./certs/dh4096.der", "dh_key_der_4096" ],
         );
 
 # ----------------------------------------------------------------------------

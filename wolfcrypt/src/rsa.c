@@ -1227,6 +1227,7 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
     return ret;
 }
 #endif /* WC_RSA_PSS */
+#endif /* !WC_NO_RNG */
 
 static int RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
                            word32 pkcsBlockLen, byte padValue, WC_RNG* rng)
@@ -1250,7 +1251,7 @@ static int RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
         XMEMSET(&pkcsBlock[1], 0xFF, pkcsBlockLen - inputLen - 2);
     }
     else {
-#ifndef WOLFSSL_RSA_VERIFY_ONLY
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WC_NO_RNG)
         /* pad with non-zero random bytes */
         word32 padLen, i;
         int    ret;
@@ -1281,7 +1282,6 @@ static int RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
 
     return 0;
 }
-#endif /* !WC_NO_RNG */
 
 /* helper function to direct which padding is used */
 static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
@@ -1293,13 +1293,13 @@ static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
 
     switch (padType)
     {
-#ifndef WC_NO_RNG
         case WC_RSA_PKCSV15_PAD:
             /*WOLFSSL_MSG("wolfSSL Using RSA PKCSV15 padding");*/
             ret = RsaPad(input, inputLen, pkcsBlock, pkcsBlockLen,
                                                                  padValue, rng);
             break;
 
+#ifndef WC_NO_RNG
     #ifndef WC_NO_RSA_OAEP
         case WC_RSA_OAEP_PAD:
             WOLFSSL_MSG("wolfSSL Using RSA OAEP padding");
