@@ -22186,7 +22186,7 @@ static void test_wolfSSL_CTX_add_client_CA(void)
 
 static void test_wolfSSL_X509_NID(void)
 {
-    #if defined(OPENSSL_EXTRA) && \
+    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
     !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_ASN)
     int   sigType;
     int   nameSz;

@@ -19733,7 +19733,6 @@ int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name,
     return (textSz - 1); /* do not include null character in size */
 }
 
-#if defined(OPENSSL_EXTRA)
 #ifdef HAVE_ECC
     static int SetECKeyExternal(WOLFSSL_EC_KEY* eckey);
 #endif
@@ -19845,7 +19844,6 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
     }
     return key;
 }
-#endif /* OPENSSL_EXTRA */
 #endif /* OPENSSL_EXTRA_X509_SMALL */
 #endif /* !NO_CERTS */
 
@@ -30693,7 +30691,7 @@ static int SetECPointInternal(WOLFSSL_EC_POINT *p)
 #endif /* HAVE_ECC */
 #endif /* OPENSSL_EXTRA */
 
-#if defined(HAVE_ECC) && defined(OPENSSL_EXTRA)
+#if defined(HAVE_ECC) && defined(OPENSSL_EXTRA_X509_SMALL)
 
 /* EC_POINT WolfSSL -> OpenSSL */
 static int SetECPointExternal(WOLFSSL_EC_POINT *p)
