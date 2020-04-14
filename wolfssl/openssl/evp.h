@@ -185,7 +185,7 @@ struct WOLFSSL_EVP_MD_CTX {
         Hmac hmac;
     #endif
     } hash;
-    unsigned char macType;
+    int macType;
     WOLFSSL_EVP_PKEY_CTX *pctx;
 };
 
@@ -239,6 +239,7 @@ enum {
     NID_sha1          = 64,
     NID_sha224        = 65,
     NID_md2           = 77,
+    NID_md4           = 257,
     NID_md5           =  4,
     NID_hmac          = 855,
     NID_dhKeyAgreement= 28,

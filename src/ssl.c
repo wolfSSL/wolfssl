@@ -16039,7 +16039,6 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return WOLFSSL_SUCCESS;
     }
 
-
     /* set internal IV from external, WOLFSSL_SUCCESS on success */
     int  wolfSSL_SetInternalIV(WOLFSSL_EVP_CIPHER_CTX* ctx)
     {
@@ -29245,7 +29244,7 @@ static void show(const char *title, const unsigned char *out, unsigned int outle
 #define show(a,b,c)
 #endif
 
-/* return SSL_SUCCES on ok, 0 otherwise */
+/* return SSL_SUCCESS on ok, 0 otherwise */
 int wolfSSL_RSA_sign(int type, const unsigned char* m,
                            unsigned int mLen, unsigned char* sigRet,
                            unsigned int* sigLen, WOLFSSL_RSA* rsa)
@@ -29296,6 +29295,18 @@ int wolfSSL_RSA_sign_ex(int type, const unsigned char* m,
     #endif
     #ifdef WOLFSSL_SHA512
         case NID_sha512:    type = SHA512h; break;
+    #endif
+    #ifndef WOLFSSL_NOSHA3_224
+        case NID_sha3_224:  type = SHA3_224h; break;
+    #endif
+    #ifndef WOLFSSL_NOSHA3_256
+        case NID_sha3_256:  type = SHA3_256h; break;
+    #endif
+    #ifndef WOLFSSL_NOSHA3_384
+        case NID_sha3_384:  type = SHA3_384h; break;
+    #endif
+    #ifndef WOLFSSL_NOSHA3_512
+        case NID_sha3_512:  type = SHA3_512h; break;
     #endif
         default:
             WOLFSSL_MSG("This NID (md type) not configured or not implemented");
