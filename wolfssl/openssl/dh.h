@@ -64,7 +64,6 @@ WOLFSSL_API int wolfSSL_DH_size(WOLFSSL_DH*);
 WOLFSSL_API int wolfSSL_DH_generate_key(WOLFSSL_DH*);
 WOLFSSL_API int wolfSSL_DH_compute_key(unsigned char* key, WOLFSSL_BIGNUM* pub,
                                      WOLFSSL_DH*);
-WOLFSSL_API int SetDhExternal(WOLFSSL_DH *dh);
 WOLFSSL_API int wolfSSL_DH_LoadDer(WOLFSSL_DH*, const unsigned char*, int sz);
 WOLFSSL_API int wolfSSL_DH_set0_pqg(WOLFSSL_DH*, WOLFSSL_BIGNUM*,
     WOLFSSL_BIGNUM*, WOLFSSL_BIGNUM*);

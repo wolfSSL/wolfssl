@@ -16758,8 +16758,8 @@ int openssl_pkey0_test(void)
         }
         keySz = (size_t)RSA_size(pubRsa);
 
-        prvPkey = wolfSSL_PKEY_new();
-        pubPkey = wolfSSL_PKEY_new();
+        prvPkey = wolfSSL_EVP_PKEY_new();
+        pubPkey = wolfSSL_EVP_PKEY_new();
         if((prvPkey == NULL) || (pubPkey == NULL)){
             printf("error with PKEY_new\n");
             ret = ERR_BASE_PKEY-13;
@@ -17140,8 +17140,8 @@ int openssl_evpSig_test(void)
       return ERR_BASE_EVPSIG-6;
     }
 
-    prvPkey = wolfSSL_PKEY_new();
-    pubPkey = wolfSSL_PKEY_new();
+    prvPkey = wolfSSL_EVP_PKEY_new();
+    pubPkey = wolfSSL_EVP_PKEY_new();
     if((prvPkey == NULL) || (pubPkey == NULL)){
         XFREE(pubTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
