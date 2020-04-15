@@ -15167,6 +15167,7 @@ int DecodeECC_DSA_Sig(const byte* sig, word32 sigLen, mp_int* r, mp_int* s)
     }
 
     if (GetInt(s, sig, &idx, sigLen) < 0) {
+        mp_clear(r);
         return ASN_ECC_KEY_E;
     }
 
