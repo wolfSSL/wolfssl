@@ -1,15 +1,124 @@
-# wolfSSL Release X.X.X (To Be Determined / Work in Progress)
+# wolfSSL Release 4.4.0 (04/17/2020)
 
-If you have questions about this release, then feel free to contact us on our info@ address.
+If you have questions about this release, then feel free to contact us on our
+info@ address.
 
-Release X.X.X of wolfSSL embedded TLS has bug fixes and new features including:
+Release 4.4.0 of wolfSSL embedded TLS has bug fixes and new features including:
 
-##### New Feature Additions
+## New Feature Additions
 
-##### Fixes
-* Fix for RSA public encrypt / private sign with RSA key sizes over 2048-bit. PR #2755
+* Hexagon support.
+* DSP builds.
+* Certificate Manager callback support.
+* New APIs for running updates to ChaCha20/Poly1305 AEAD.
+* Support for use with Apache.
+* Add support for IBM s390x.
+* PKCS8 support for ED25519.
+* OpenVPN support.
+* Add P384 curve support to SP.
+* Add BIO and EVP API.
+* Add AES-OFB mode.
+* Add AES-CFB mode.
+* Add Curve448, X448, and Ed448.
 
-##### Improvements/Optimizations
+## Fixes
+
+* Fix for RSA public encrypt / private sign with RSA key sizes over 2048-bit.
+* Fixes for DTLS handshake issues.
+* Correct mispellings.
+* Secure renegotiation fix.
+* Fix memory leak when using ATECC and non-SECP256R1 curves for sign, verify,
+  or shared secret.
+* Fix for K64 MMCAU with `WOLFSSL_SMALL_STACK_CACHE`.
+* Fix the RSA verify only build.
+* Fix in SP C implementation for small stack.
+* Fix using the auth key id extension is set, hash might not be present.
+* Fix when flattening certificate structure to include the subject alt names.
+* Fixes for building with ECC sign/verify only.
+* Fix for ECC and no cache resistance.
+* Fix memory leak in DSA.
+* Fix build on minGW.
+* Fix `PemToDer()` call in `ProcessBuffer()` to set more than ECC.
+* Fix for using RSA without SHA-512.
+* Add some close tags to the echoserver HTTP example output.
+* Miscellaneous fixes and updates for static analysis reports.
+* Fixes for time structure support.
+* Fixes for VxWorks support.
+* Fixes for Async crypto support.
+* Fix cache resist compile to work with SP C code.
+* Fixes for Curve25519 x64 asm.
+* Fix for SP x64 div.
+* Fix for DTLS edge case where CCS and Finished come out of order and the
+  retransmit pool gets flushed.
+* Fix for infinite loop in SHA-1 with small inputs. Thanks to Peter W.
+* Fix for FIPS Hmac where `wc_HmacInit()` isn't used. `wc_HmacSetKey()` needs
+  to initialize the Hmac structure. Type is set to NONE, and checked against
+  NONE, not 0.
+* Fixes for SP RSA private operations.
+* Fixes for Xilinx SDK and Zynq UltraScale+ MPSoC
+* Fix leak when building with HAVE_AESGCM and NO_AES_DECRYPT. Thanks G.G.
+* Fixes for building ECC without ASN.
+* Fix for async TLSv1.3 issues.
+* Fix `wc_KeyPemToDer()` with PKCS1 and empty key.
+* Omit `-fomit-frame-pointer` from CFLAGS in configure.ac.
+
+## Improvements/Optimizations
+
+* Qt 5.12 and 5.13 support.
+* Added more digest types to Cryptocell RSA sign/verify.
+* Some memory usage improvements.
+* Speed improvements for mp_rand.
+* Improvements to CRL and OCSP support.
+* Refactor Poly1305 AEAD/MAC to reduce duplicate code.
+* Add blinding to RSA key gen.
+* Improvements to blinding.
+* Improvement and expansion of OpenSSL Compatibility Layer.
+* Improvements to ChaCha20.
+* Improvements to X.509 processing.
+* Improvements to ECC support.
+* Improvements for s7g2 builds.
+* Improvement in detecting 64-bit support.
+* Refactor to combine duplicate ECC parameter parsing code.
+* Improve keyFormat to be set by algId and let later key parsing produce fail.
+* Add test cases for 3072-bit and 4096-bit RSA keys.
+* Improve signature wrapper and DH test cases.
+* Improvements to the configure.ac script.
+* Added constant time RSA q modinv p.
+* Improve performance of SP Intel 64-bit asm.
+* Added a few more functions to the ABI list.
+* Improve TLS bidirectional shutdown behavior.
+* OpenSSH 8.1 support.
+* Improve performance of RSA/DH operations on x64.
+* Add support for PKCS7/CMS Enveloped data with fragmented encrypted content.
+* Example linker description for FIPS builds to enforce object ordering.
+* C# wrapper improvements. ADded TLS client example and TLSv1.3 methods.
+* Allow setting MTU in DTLS.
+* Improve PKCS12 create for outputting encrypted bundles.
+* Constant time EC map to affine for private operations.
+* Improve performance of RSA public key ops with TFM.
+* Smaller table version fo AES encrypt/decrypt.
+* Support IAR with position independent code (ROPI).
+* Improve speed of AArch64 assembly.
+* Support AES-CTR with AES-NI.
+* Support AES-CTR on esp32.
+* Add a no malloc option for small SP math.
+
+## This release of wolfSSL includes a fix for 2 security vulnerabilies.
+
+* For fast math, use a constant time modular inverse when mapping to affine
+  when operation involves a private key - key gen, calc shared secret, sign.
+  Thank you to the Network and Information Security Group (NISEC) at
+  Tampere University for the report.
+
+* Change constant time and cache resistant ECC mulmod. Ensure points being
+  operated on change to make constant time. Thank you to Pietro Borrello at
+  Sapienza University of Rome.
+
+For additional vulnerability information visit the vulnerability page at
+https://www.wolfssl.com/docs/security-vulnerabilities/
+
+See INSTALL file for build instructions.
+More info can be found on-line at https://wolfssl.com/wolfSSL/Docs.html
 
 
 
