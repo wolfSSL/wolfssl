@@ -3404,6 +3404,10 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
         /* place iteration count in buffer */
         ret = SetShortInt(out, &inOutIdx, itt, *outSz);
         if (ret < 0) {
+        #ifdef WOLFSSL_SMALL_STACK
+            if (saltTmp != NULL)
+                XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
             return ret;
         }
         sz += (word32)ret;
@@ -3427,6 +3431,10 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
     /* check key type and get OID if ECC */
     if ((ret = wc_GetKeyOID(key, keySz, &curveOID, &oidSz, &algoID, heap))< 0) {
         WOLFSSL_MSG("Error getting key OID");
+    #ifdef WOLFSSL_SMALL_STACK
+        if (saltTmp != NULL)
+            XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         return ret;
     }
 
@@ -3453,6 +3461,10 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
         /* plus 3 for tags */
         *outSz = tmpSz + MAX_ALGO_SZ + MAX_LENGTH_SZ +MAX_LENGTH_SZ + MAX_SEQ_SZ
             + MAX_LENGTH_SZ + MAX_SEQ_SZ + 3;
+    #ifdef WOLFSSL_SMALL_STACK
+        if (saltTmp != NULL)
+            XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         return LENGTH_ONLY_E;
     }
 
@@ -3486,7 +3498,7 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
     if (cbcIv == NULL) {
         if (saltTmp != NULL)
             XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(salt, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
 #endif
