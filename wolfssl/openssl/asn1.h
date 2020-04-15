@@ -83,7 +83,9 @@ WOLFSSL_API WOLFSSL_ASN1_INTEGER *wolfSSL_BN_to_ASN1_INTEGER(
 WOLFSSL_API void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value);
 
 #ifdef OPENSSL_ALL
-/* IMPLEMENT_ASN1_FUNCTIONS stuff */
+/* IMPLEMENT_ASN1_FUNCTIONS is strictly for external use only. Internally
+ * we don't use this. Some projects use OpenSSL to implement ASN1 types and
+ * this section is only to provide those projects with ASN1 functionality. */
 typedef struct {
     size_t offset;              /* Offset of this field in structure */
     byte type;                  /* The type of the member as defined in

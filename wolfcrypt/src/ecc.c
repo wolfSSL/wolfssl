@@ -6287,7 +6287,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 /* import point from der
  * if shortKeySize != 0 then keysize is always (inLen-1)>>1 */
 int wc_ecc_import_point_der_ex(byte* in, word32 inLen, const int curve_idx,
-                               ecc_point* point, char shortKeySize)
+                               ecc_point* point, int shortKeySize)
 {
     int err = 0;
 #ifdef HAVE_COMP_KEY

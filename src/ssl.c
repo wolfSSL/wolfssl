@@ -28179,6 +28179,16 @@ void wolfSSL_X509_ALGOR_get0(const WOLFSSL_ASN1_OBJECT **paobj, int *pptype,
     }
 }
 
+/**
+ * Populate algor members.
+ *
+ * @param algor The object to be set
+ * @param aobj The value to be set in algor->algorithm
+ * @param ptype The type of algor->parameter
+ * @param pval The value of algor->parameter
+ * @return WOLFSSL_SUCCESS on success
+ *         WOLFSSL_FAILURE on missing parameters or bad malloc
+ */
 int wolfSSL_X509_ALGOR_set0(WOLFSSL_X509_ALGOR *algor, WOLFSSL_ASN1_OBJECT *aobj,
                             int ptype, void *pval)
 {
@@ -28200,6 +28210,13 @@ int wolfSSL_X509_ALGOR_set0(WOLFSSL_X509_ALGOR *algor, WOLFSSL_ASN1_OBJECT *aobj
     return WOLFSSL_SUCCESS;
 }
 
+/**
+ * Set `a` in a smart way.
+ *
+ * @param a Object to set
+ * @param type The type of object in value
+ * @param value Object to set
+ */
 void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value)
 {
     if (!a || !value) {
@@ -28222,6 +28239,11 @@ void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value)
     a->type = type;
 }
 
+/**
+ * Allocate a new WOLFSSL_ASN1_TYPE object.
+ *
+ * @return New zero'ed WOLFSSL_ASN1_TYPE object
+ */
 WOLFSSL_ASN1_TYPE* wolfSSL_ASN1_TYPE_new(void)
 {
     WOLFSSL_ASN1_TYPE* ret = (WOLFSSL_ASN1_TYPE*)XMALLOC(sizeof(WOLFSSL_ASN1_TYPE),
@@ -28232,6 +28254,11 @@ WOLFSSL_ASN1_TYPE* wolfSSL_ASN1_TYPE_new(void)
     return ret;
 }
 
+/**
+ * Free WOLFSSL_ASN1_TYPE and all its members.
+ *
+ * @param at Object to free
+ */
 void wolfSSL_ASN1_TYPE_free(WOLFSSL_ASN1_TYPE* at)
 {
     if (at) {
@@ -28253,6 +28280,11 @@ void wolfSSL_ASN1_TYPE_free(WOLFSSL_ASN1_TYPE* at)
     }
 }
 
+/**
+ * Allocate a new WOLFSSL_X509_PUBKEY object.
+ *
+ * @return New zero'ed WOLFSSL_X509_PUBKEY object
+ */
 WOLFSSL_X509_PUBKEY *wolfSSL_X509_PUBKEY_new(void)
 {
     WOLFSSL_X509_PUBKEY *ret;
@@ -28270,6 +28302,11 @@ WOLFSSL_X509_PUBKEY *wolfSSL_X509_PUBKEY_new(void)
     return ret;
 }
 
+/**
+ * Free WOLFSSL_X509_PUBKEY and all its members.
+ *
+ * @param at Object to free
+ */
 void wolfSSL_X509_PUBKEY_free(WOLFSSL_X509_PUBKEY *x)
 {
     if (x) {
@@ -31614,6 +31651,8 @@ int wolfSSL_ASN1_item_i2d(const void *src, byte **dest,
         *dest = buf;
     }
     else if (dest && *dest && buf) {
+        /* *dest length is not checked because the user is responsible
+         * for providing a long enough buffer */
         XMEMCPY(*dest, buf, len);
     }
 
@@ -42892,13 +42931,15 @@ err:
                 ln++;
                 lnlen--;
             }
-            if (ln[lnlen-1] == '=') {
-                lnlen--;
-            }
-            for (i = 0; i < WOLFSSL_OBJECT_INFO_SZ; i++, obj_info++) {
-                if (lnlen == XSTRLEN(obj_info->lName) &&
-                        XSTRNCMP(ln, obj_info->lName, lnlen) == 0) {
-                    return obj_info->nid;
+            if (lnlen) {
+                if (ln[lnlen-1] == '=') {
+                    lnlen--;
+                }
+                for (i = 0; i < WOLFSSL_OBJECT_INFO_SZ; i++, obj_info++) {
+                    if (lnlen == XSTRLEN(obj_info->lName) &&
+                            XSTRNCMP(ln, obj_info->lName, lnlen) == 0) {
+                        return obj_info->nid;
+                    }
                 }
             }
         }

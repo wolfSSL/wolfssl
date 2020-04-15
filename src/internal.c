@@ -9538,12 +9538,17 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             } else {
                 wolfSSL_ASN1_OBJECT_free(x509->key.algor->algorithm);
             }
-            x509->key.algor->algorithm = wolfSSL_OBJ_nid2obj(dCert->keyOID);
+            if (!(x509->key.algor->algorithm =
+                    wolfSSL_OBJ_nid2obj(dCert->keyOID))) {
+                ret = PUBLIC_KEY_E;
+            }
 
             wolfSSL_EVP_PKEY_free(x509->key.pkey);
-            x509->key.pkey = wolfSSL_d2i_PUBKEY(NULL,
-                                            &dCert->publicKey,
-                                            dCert->pubKeySize);
+            if (!(x509->key.pkey = wolfSSL_d2i_PUBKEY(NULL,
+                                                      &dCert->publicKey,
+                                                      dCert->pubKeySize))) {
+                ret = PUBLIC_KEY_E;
+            }
         }
 #endif
     }
@@ -9562,7 +9567,10 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         }
 #if defined(OPENSSL_ALL)
         wolfSSL_ASN1_OBJECT_free(x509->algor.algorithm);
-        x509->algor.algorithm = wolfSSL_OBJ_nid2obj(dCert->signatureOID);
+        if (!(x509->algor.algorithm =
+                wolfSSL_OBJ_nid2obj(dCert->signatureOID))) {
+            ret = PUBLIC_KEY_E;
+        }
 #endif
     }
 
