@@ -83,7 +83,7 @@ Release 4.4.0 of wolfSSL embedded TLS has bug fixes and new features including:
 ## New Feature Additions
 
 * Hexagon support.
-* DSP builds.
+* DSP builds to offload ECC verify operations.
 * Certificate Manager callback support.
 * New APIs for running updates to ChaCha20/Poly1305 AEAD.
 * Support for use with Apache.
@@ -95,12 +95,13 @@ Release 4.4.0 of wolfSSL embedded TLS has bug fixes and new features including:
 * Add AES-OFB mode.
 * Add AES-CFB mode.
 * Add Curve448, X448, and Ed448.
+* Add Renesas Synergy S7G2 build and hardware acceleration.
 
 ## Fixes
 
 * Fix for RSA public encrypt / private sign with RSA key sizes over 2048-bit.
 * Fixes for DTLS handshake issues.
-* Correct mispellings.
+* Correct misspellings.
 * Secure renegotiation fix.
 * Fix memory leak when using ATECC and non-SECP256R1 curves for sign, verify,
   or shared secret.
@@ -151,7 +152,6 @@ Release 4.4.0 of wolfSSL embedded TLS has bug fixes and new features including:
 * Improvements to ChaCha20.
 * Improvements to X.509 processing.
 * Improvements to ECC support.
-* Improvements for s7g2 builds.
 * Improvement in detecting 64-bit support.
 * Refactor to combine duplicate ECC parameter parsing code.
 * Improve keyFormat to be set by algId and let later key parsing produce fail.
@@ -166,25 +166,25 @@ Release 4.4.0 of wolfSSL embedded TLS has bug fixes and new features including:
 * Improve performance of RSA/DH operations on x64.
 * Add support for PKCS7/CMS Enveloped data with fragmented encrypted content.
 * Example linker description for FIPS builds to enforce object ordering.
-* C# wrapper improvements. ADded TLS client example and TLSv1.3 methods.
+* C# wrapper improvements. Added TLS client example and TLSv1.3 methods.
 * Allow setting MTU in DTLS.
 * Improve PKCS12 create for outputting encrypted bundles.
 * Constant time EC map to affine for private operations.
 * Improve performance of RSA public key ops with TFM.
-* Smaller table version fo AES encrypt/decrypt.
+* Smaller table version of AES encrypt/decrypt.
 * Support IAR with position independent code (ROPI).
 * Improve speed of AArch64 assembly.
 * Support AES-CTR with AES-NI.
 * Support AES-CTR on esp32.
 * Add a no malloc option for small SP math.
 
-## This release of wolfSSL includes a fix for 2 security vulnerabilies.
+## This release of wolfSSL includes fixes for 2 security vulnerabilities.
 
 * For fast math, use a constant time modular inverse when mapping to affine
-  when operation involves a private key - key gen, calc shared secret, sign.
+  when operation involves a private key - keygen, calc shared secret, sign.
   Thank you to the Network and Information Security Group (NISEC) at
   Tampere University for the report.
- 
+
 * Change constant time and cache resistant ECC mulmod. Ensure points being
   operated on change to make constant time. Thank you to Pietro Borrello at
   Sapienza University of Rome.
