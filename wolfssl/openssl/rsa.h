@@ -164,7 +164,6 @@ WOLFSSL_API int wolfSSL_RSA_set_ex_data(WOLFSSL_RSA *rsa, int idx, void *data);
 #define RSA_sign           wolfSSL_RSA_sign
 #define RSA_verify         wolfSSL_RSA_verify
 #define RSA_public_decrypt wolfSSL_RSA_public_decrypt
-#define EVP_PKEY_get0_RSA  wolfSSL_EVP_PKEY_get0_RSA
 
 #define RSA_meth_new            wolfSSL_RSA_meth_new
 #define RSA_meth_free           wolfSSL_RSA_meth_free

@@ -207,8 +207,7 @@ int wolfCrypt_Init(void)
 	WOLFSSL_MSG("Using AF_ALG for crypto acceleration");
     #endif
 
-    #if !defined(WOLFCRYPT_ONLY) && \
-        ( defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) )
+    #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
         wolfSSL_EVP_init();
     #endif
 

@@ -4793,18 +4793,24 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, byte* input,
                 }
             }
             else if (*input == TLS_FINISHED_SZ) {
-                input++; /* get past size */
+                if (length < TLS_FINISHED_SZ + 1) {
+                    WOLFSSL_MSG("SCR malformed buffer");
+                    ret = BUFFER_E;
+                }
+                else {
+                    input++; /* get past size */
 
-                /* validate client verify data */
-                if (XMEMCMP(input,
+                    /* validate client verify data */
+                    if (XMEMCMP(input,
                             ssl->secure_renegotiation->client_verify_data,
                             TLS_FINISHED_SZ) == 0) {
-                    WOLFSSL_MSG("SCR client verify data match");
-                    TLSX_SetResponse(ssl, TLSX_RENEGOTIATION_INFO);
-                    ret = 0;  /* verified */
-                } else {
-                    /* already in error state */
-                    WOLFSSL_MSG("SCR client verify data Failure");
+                        WOLFSSL_MSG("SCR client verify data match");
+                        TLSX_SetResponse(ssl, TLSX_RENEGOTIATION_INFO);
+                        ret = 0;  /* verified */
+                    } else {
+                        /* already in error state */
+                        WOLFSSL_MSG("SCR client verify data Failure");
+                    }
                 }
             }
         #endif

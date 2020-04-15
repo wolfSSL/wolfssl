@@ -10294,6 +10294,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
     #endif /* !NO_RSA && !NO_ASN */
 #endif /* !USE_CERT_BUFFER_* */
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
+    !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096) && \
     !defined(NO_ASN)
     #ifndef NO_DH
         static const char* dhKey = CERT_ROOT "dh2048.der";
@@ -12828,7 +12829,8 @@ int rsa_test(void)
                      || defined(WOLFSSL_PUBLIC_MP)
     word32 idx = 0;
 #endif
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_PUBLIC_MP)
+#if (!defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_PUBLIC_MP)) && \
+                                 !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG)
     const char* inStr = "Everyone gets Friday off.";
     word32      inLen = (word32)XSTRLEN((char*)inStr);
     const word32 outSz   = RSA_TEST_BYTES;
@@ -12850,7 +12852,8 @@ int rsa_test(void)
     DecodedCert cert;
 #endif
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_PUBLIC_MP)
+#if (!defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_PUBLIC_MP)) && \
+                                 !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG)
     DECLARE_VAR_INIT(in, byte, inLen, inStr, HEAP_HINT);
     DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
@@ -13146,7 +13149,7 @@ int rsa_test(void)
 #endif
 
 #ifndef WOLFSSL_RSA_VERIFY_ONLY
-    #ifndef WC_NO_RSA_OAEP
+    #if !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG)
     /* OAEP padding testing */
     #if !defined(HAVE_FAST_RSA) && !defined(HAVE_USER_RSA) && \
         (!defined(HAVE_FIPS) || \
@@ -13452,7 +13455,7 @@ int rsa_test(void)
     TEST_SLEEP();
 #endif /* WOLFSSL_RSA_PUBLIC_ONLY */
     #endif /* !HAVE_FAST_RSA && !HAVE_FIPS */
-    #endif /* WC_NO_RSA_OAEP */
+    #endif /* WC_NO_RSA_OAEP && !WC_NO_RNG */
 #endif /* WOLFSSL_RSA_VERIFY_ONLY */
 
 #if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(NO_ASN) \
@@ -14338,12 +14341,21 @@ int dh_test(void)
     word32 bytes;
     word32 idx = 0, privSz, pubSz, privSz2, pubSz2;
     byte   tmp[1024];
+#if !defined(USE_CERT_BUFFERS_3072) && !defined(USE_CERT_BUFFERS_4096)
     byte   priv[256];
     byte   pub[256];
     byte   priv2[256];
     byte   pub2[256];
     byte   agree[256];
     byte   agree2[256];
+#else
+    byte   priv[512];
+    byte   pub[512];
+    byte   priv2[512];
+    byte   pub2[512];
+    byte   agree[512];
+    byte   agree2[512];
+#endif
     word32 agreeSz = (word32)sizeof(agree);
     word32 agreeSz2 = (word32)sizeof(agree2);
     DhKey  key;
@@ -14357,6 +14369,12 @@ int dh_test(void)
 #elif defined(USE_CERT_BUFFERS_2048)
     XMEMCPY(tmp, dh_key_der_2048, (size_t)sizeof_dh_key_der_2048);
     bytes = (size_t)sizeof_dh_key_der_2048;
+#elif defined(USE_CERT_BUFFERS_3072)
+    XMEMCPY(tmp, dh_key_der_3072, (size_t)sizeof_dh_key_der_3072);
+    bytes = (size_t)sizeof_dh_key_der_3072;
+#elif defined(USE_CERT_BUFFERS_4096)
+    XMEMCPY(tmp, dh_key_der_4096, (size_t)sizeof_dh_key_der_4096);
+    bytes = (size_t)sizeof_dh_key_der_4096;
 #elif defined(NO_ASN)
     /* don't use file, no DER parsing */
 #elif !defined(NO_FILESYSTEM)
@@ -16758,8 +16776,8 @@ int openssl_pkey0_test(void)
         }
         keySz = (size_t)RSA_size(pubRsa);
 
-        prvPkey = wolfSSL_PKEY_new();
-        pubPkey = wolfSSL_PKEY_new();
+        prvPkey = wolfSSL_EVP_PKEY_new();
+        pubPkey = wolfSSL_EVP_PKEY_new();
         if((prvPkey == NULL) || (pubPkey == NULL)){
             printf("error with PKEY_new\n");
             ret = ERR_BASE_PKEY-13;
@@ -17140,8 +17158,8 @@ int openssl_evpSig_test(void)
       return ERR_BASE_EVPSIG-6;
     }
 
-    prvPkey = wolfSSL_PKEY_new();
-    pubPkey = wolfSSL_PKEY_new();
+    prvPkey = wolfSSL_EVP_PKEY_new();
+    pubPkey = wolfSSL_EVP_PKEY_new();
     if((prvPkey == NULL) || (pubPkey == NULL)){
         XFREE(pubTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);

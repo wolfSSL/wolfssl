@@ -50,6 +50,7 @@ EXTRA_DIST += \
 	     certs/ecc-privOnlyKey.pem \
 	     certs/ecc-privOnlyCert.pem \
 	     certs/dh3072.pem \
+	     certs/dh4096.pem \
 	     certs/client-cert-ext.pem
 
 EXTRA_DIST += \
@@ -61,6 +62,7 @@ EXTRA_DIST += \
 	     certs/client-keyPub.der \
 	     certs/dh2048.der \
 	     certs/dh3072.der \
+	     certs/dh4096.der \
 	     certs/rsa2048.der \
 	     certs/rsa-pub-2048.pem \
 	     certs/rsa3072.der \

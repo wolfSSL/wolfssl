@@ -185,7 +185,7 @@ struct WOLFSSL_EVP_MD_CTX {
         Hmac hmac;
     #endif
     } hash;
-    unsigned char macType;
+    int macType;
     WOLFSSL_EVP_PKEY_CTX *pctx;
 };
 
@@ -239,6 +239,7 @@ enum {
     NID_sha1          = 64,
     NID_sha224        = 65,
     NID_md2           = 77,
+    NID_md4           = 257,
     NID_md5           =  4,
     NID_hmac          = 855,
     NID_dhKeyAgreement= 28,
@@ -555,6 +556,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
                      const unsigned char *in, size_t inlen);
 WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx);
 WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_EVP_PKEY_new(void);
+WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_ex(void* heap);
 WOLFSSL_API void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY*);
 WOLFSSL_API int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey);
 WOLFSSL_API int wolfSSL_EVP_PKEY_missing_parameters(WOLFSSL_EVP_PKEY *pkey);
@@ -614,6 +616,10 @@ WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
                                            int saltlen, int iter,
                                            const WOLFSSL_EVP_MD *digest,
                                            int keylen, unsigned char *out);
+
+WOLFSSL_LOCAL int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
+                                           int* pHash, int* pHashSz);
+
 #define EVP_CIPH_STREAM_CIPHER WOLFSSL_EVP_CIPH_STREAM_CIPHER
 #define EVP_CIPH_ECB_MODE WOLFSSL_EVP_CIPH_ECB_MODE
 #define EVP_CIPH_CBC_MODE WOLFSSL_EVP_CIPH_CBC_MODE
@@ -775,6 +781,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_PKEY_assign_EC_KEY         wolfSSL_EVP_PKEY_assign_EC_KEY
 #define EVP_PKEY_get1_DSA              wolfSSL_EVP_PKEY_get1_DSA
 #define EVP_PKEY_set1_DSA              wolfSSL_EVP_PKEY_set1_DSA
+#define EVP_PKEY_get0_RSA              wolfSSL_EVP_PKEY_get0_RSA
 #define EVP_PKEY_get1_RSA              wolfSSL_EVP_PKEY_get1_RSA
 #define EVP_PKEY_set1_RSA              wolfSSL_EVP_PKEY_set1_RSA
 #define EVP_PKEY_set1_EC_KEY           wolfSSL_EVP_PKEY_set1_EC_KEY
@@ -804,7 +811,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_PKEY_decrypt_init          wolfSSL_EVP_PKEY_decrypt_init
 #define EVP_PKEY_encrypt               wolfSSL_EVP_PKEY_encrypt
 #define EVP_PKEY_encrypt_init          wolfSSL_EVP_PKEY_encrypt_init
-#define EVP_PKEY_new                   wolfSSL_PKEY_new
+#define EVP_PKEY_new                   wolfSSL_EVP_PKEY_new
 #define EVP_PKEY_free                  wolfSSL_EVP_PKEY_free
 #define EVP_PKEY_up_ref                wolfSSL_EVP_PKEY_up_ref
 #define EVP_PKEY_size                  wolfSSL_EVP_PKEY_size
@@ -892,6 +899,25 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #ifndef EVP_MAX_IV_LENGTH
     #define EVP_MAX_IV_LENGTH       16
 #endif
+
+
+#define EVP_R_BAD_DECRYPT               (-MIN_CODE_E + 100 + 1)
+#define EVP_R_BN_DECODE_ERROR           (-MIN_CODE_E + 100 + 2)
+#define EVP_R_DECODE_ERROR              (-MIN_CODE_E + 100 + 3)
+#define EVP_R_PRIVATE_KEY_DECODE_ERROR  (-MIN_CODE_E + 100 + 4)
+
+#define EVP_PKEY_NONE                   NID_undef
+#define EVP_PKEY_RSA                    6
+#define EVP_PKEY_RSA2                   19
+#define EVP_PKEY_DH                     28
+#define EVP_CIPHER_mode                 WOLFSSL_CIPHER_mode
+/* WOLFSSL_EVP_CIPHER is just the string name of the cipher */
+#define EVP_CIPHER_name(x)              x
+#define EVP_MD_CTX_reset                wolfSSL_EVP_MD_CTX_cleanup
+/* WOLFSSL_EVP_MD is just the string name of the digest */
+#define EVP_MD_name(x)                  x
+#define EVP_CIPHER_nid                  wolfSSL_EVP_CIPHER_nid
+
 
 WOLFSSL_API void printPKEY(WOLFSSL_EVP_PKEY *k);
 

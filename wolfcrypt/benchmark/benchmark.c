@@ -587,8 +587,8 @@ static const char* bench_result_words1[][4] = {
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE25519_SHARED_SECRET)  || \
     defined(HAVE_ED25519) || defined(HAVE_CURVE448) || \
     defined(HAVE_CURVE448_SHARED_SECRET) || defined(HAVE_ED448)
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP) || \
-                                                                 !defined(NO_DH)
+#if defined(HAVE_ECC) || !defined(WOLFSSL_RSA_PUBLIC_ONLY) || \
+    defined(WOLFSSL_PUBLIC_MP) || !defined(NO_DH)
 
 static const char* bench_desc_words[][9] = {
     /* 0           1          2         3        4        5         6            7            8 */
@@ -729,8 +729,8 @@ static const char* bench_desc_words[][9] = {
 #endif
 
 #if defined(BENCH_ASYM)
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP) || \
-                                                                 !defined(NO_DH)
+#if defined(HAVE_ECC) || !defined(WOLFSSL_RSA_PUBLIC_ONLY) || \
+                                   defined(WOLFSSL_PUBLIC_MP) || !defined(NO_DH)
 static const char* bench_result_words2[][5] = {
     { "ops took", "sec"     , "avg" , "ops/sec", NULL },            /* 0 English  */
 #ifndef NO_MULTIBYTE_PRINT
@@ -1260,8 +1260,8 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
 }
 
 #ifdef BENCH_ASYM
-#if !defined(WOLFSSL_RSA_PUBLIC_ONLY) || defined(WOLFSSL_PUBLIC_MP) || \
-                                                                 !defined(NO_DH)
+#if defined(HAVE_ECC) || !defined(WOLFSSL_RSA_PUBLIC_ONLY) || \
+                                   defined(WOLFSSL_PUBLIC_MP) || !defined(NO_DH)
 static void bench_stats_asym_finish(const char* algo, int strength,
     const char* desc, int doAsync, int count, double start, int ret)
 {
