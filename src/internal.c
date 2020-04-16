@@ -11557,7 +11557,15 @@ exit_ppc:
     }
 #endif /* WOLFSSL_ASYNC_CRYPT || WOLFSSL_NONBLOCK_OCSP */
 
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP) || \
+    defined(WOLFSSL_SMALL_STACK)
+    if (args)
+    {
+        FreeProcPeerCertArgs(ssl, args);
+    }
+#else
     FreeProcPeerCertArgs(ssl, args);
+#endif /* WOLFSSL_ASYNC_CRYPT || WOLFSSL_NONBLOCK_OCSP || WOLFSSL_SMALL_STACK */
 
 #if defined(WOLFSSL_ASYNC_CRYPT)
 #elif defined(WOLFSSL_NONBLOCK_OCSP)
