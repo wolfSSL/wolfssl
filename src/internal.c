@@ -24044,6 +24044,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #endif /* NO_WOLFSSL_CLIENT */
 
+#ifndef NO_CERTS
+
 #ifdef HAVE_PK_CALLBACKS
     int GetPrivateKeySigSize(WOLFSSL* ssl)
     {
@@ -24086,6 +24088,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return sigSz;
     }
 #endif /* HAVE_PK_CALLBACKS */
+
+#endif /* NO_CERTS */
 
 #ifdef HAVE_ECC
     /* returns the WOLFSSL_* version of the curve from the OID sum */
