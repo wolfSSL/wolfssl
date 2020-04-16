@@ -25,7 +25,6 @@ Release 4.4.0 of wolfSSL embedded TLS has bug fixes and new features including:
 ## Fixes
 
 * Fix for RSA public encrypt / private sign with RSA key sizes over 2048-bit.
-* Fixes for DTLS handshake issues.
 * Correct misspellings.
 * Secure renegotiation fix.
 * Fix memory leak when using ATECC and non-SECP256R1 curves for sign, verify,
