@@ -4019,8 +4019,6 @@ struct WOLFSSL {
     DtlsMsg*        dtls_tx_msg_list;
     DtlsMsg*        dtls_tx_msg;
     DtlsMsg*        dtls_rx_msg_list;
-    byte*           dtls_pending_finished;
-    word32          dtls_pending_finished_sz;
     void*           IOCB_CookieCtx;     /* gen cookie ctx */
     word32          dtls_expected_rx;
 #ifdef WOLFSSL_SESSION_EXPORT
