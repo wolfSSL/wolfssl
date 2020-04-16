@@ -11051,6 +11051,16 @@ static int test_wc_AesGcmEncryptDecrypt (void)
                     resultT, sizeof(resultT) - 5, a, sizeof(a));
         }
 
+#if (defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+        (HAVE_FIPS_VERSION == 2)) || defined(HAVE_SELFTEST)
+        /* FIPS does not check the lower bound of ivSz */
+#else
+        if (gcmE == BAD_FUNC_ARG) {
+            gcmE = wc_AesGcmEncrypt(&aes, enc, vector,
+                    sizeof(vector), iv, 0,
+                    resultT, sizeof(resultT), a, sizeof(a));
+        }
+#endif
         if (gcmE == BAD_FUNC_ARG) {
             gcmE = 0;
         } else {
@@ -11111,6 +11121,16 @@ static int test_wc_AesGcmEncryptDecrypt (void)
                                    iv, sizeof(iv)/sizeof(byte), resultT,
                                    sizeof(resultT) + 1, a, sizeof(a));
             }
+        #if (defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && \
+                (HAVE_FIPS_VERSION == 2)) || defined(HAVE_SELFTEST)
+                /* FIPS does not check the lower bound of ivSz */
+        #else
+            if (gcmD == BAD_FUNC_ARG) {
+                gcmD = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(enc)/sizeof(byte),
+                                   iv, 0, resultT,
+                                   sizeof(resultT), a, sizeof(a));
+            }
+        #endif
             if (gcmD == BAD_FUNC_ARG) {
                 gcmD = 0;
             } else {
