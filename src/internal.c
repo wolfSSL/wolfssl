@@ -14755,8 +14755,7 @@ int ProcessReply(WOLFSSL* ssl)
                                        &ssl->curRL, &ssl->curSize);
 #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls && ret == SEQUENCE_ERROR) {
-                if (ssl->keys.curEpoch == ssl->keys.dtls_epoch + 1) {
-                    /* Store if in the next epoch. Probably finished. */
+                if (ssl->keys.curEpoch != 0) {
                     word32 sz = ssl->buffers.inputBuffer.length -
                                 ssl->buffers.inputBuffer.idx +
                                 DTLS_RECORD_HEADER_SZ;
