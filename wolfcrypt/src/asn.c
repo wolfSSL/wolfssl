@@ -13575,6 +13575,8 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
 
 #ifdef HAVE_ECC
     if (cert->keyType == ECC_KEY) {
+        if (eccKey == NULL)
+            return PUBLIC_KEY_E;
         der->publicKeySz = SetEccPublicKey(der->publicKey, eccKey, 1);
     }
 #endif
