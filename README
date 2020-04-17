@@ -181,8 +181,9 @@ Release 4.4.0 of wolfSSL embedded TLS has bug fixes and new features including:
 
 * For fast math, use a constant time modular inverse when mapping to affine
   when operation involves a private key - keygen, calc shared secret, sign.
-  Thank you to the Alejandro Cabrera Aldaya, Cesar Pereida García, and
-  Billy Bob Brumley from Tampere University for the report.
+  Thank you to Alejandro Cabrera Aldaya, Cesar Pereida García and
+  Billy Bob Brumley from the Network and Information Security Group (NISEC)
+  at Tampere University for the report.
 
 * Change constant time and cache resistant ECC mulmod. Ensure points being
   operated on change to make constant time. Thank you to Pietro Borrello at
