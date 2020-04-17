@@ -10311,7 +10311,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         #endif
 #endif
 #if !defined(USE_CERT_BUFFERS_256) && !defined(NO_ASN)
-        #ifdef WOLFSSL_CERT_GEN
+        #if defined(HAVE_ECC) && defined(WOLFSSL_CERT_GEN)
             #ifndef NO_RSA
                 /* eccKeyPubFile is used in a test that requires RSA. */
                 static const char* eccKeyPubFile = CERT_ROOT "ecc-keyPub.der";
@@ -10395,8 +10395,8 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 #endif /* !NO_FILESYSTEM */
 
 
-#if defined(WOLFSSL_CERT_GEN) && (!defined(NO_RSA) && defined(HAVE_ECC) || \
-   defined(WOLFSSL_TEST_CERT) && (defined(HAVE_ED25519) || defined(HAVE_ED448)))
+#if defined(WOLFSSL_CERT_GEN) && (!defined(NO_RSA) || defined(HAVE_ECC)) || \
+  (defined(WOLFSSL_TEST_CERT) && (defined(HAVE_ED25519) || defined(HAVE_ED448)))
 #ifdef WOLFSSL_MULTI_ATTRIB
 static CertName certDefaultName;
 static void initDefaultName(void)
@@ -24803,17 +24803,19 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
         0x72,0x6c,0x64
     };
+    byte senderNonce[PKCS7_NONCE_SZ + 2];
 
-    static byte senderNonceOid[] =
+#ifdef HAVE_ECC
+    byte senderNonceOid[] =
                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
                  0x09, 0x05 };
-    static byte senderNonce[PKCS7_NONCE_SZ + 2];
 
     PKCS7Attrib attribs[] =
     {
         { senderNonceOid, sizeof(senderNonceOid), senderNonce,
                                        sizeof(senderNonce) }
     };
+#endif
 
 #if !defined(NO_AES) && defined(WOLFSSL_AES_256) && defined(HAVE_ECC) && \
     defined(WOLFSSL_SHA512)
