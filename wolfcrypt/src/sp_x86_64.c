@@ -49,7 +49,27 @@
 #ifdef WOLFSSL_SP_X86_64_ASM
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
 #ifndef WOLFSSL_SP_NO_2048
-extern void sp_2048_from_bin(sp_digit* r, int size, const byte* a, int n);
+extern void sp_2048_from_bin_bswap(sp_digit* r, int size, const byte* a, int n);
+extern void sp_2048_from_bin_movbe(sp_digit* r, int size, const byte* a, int n);
+/* Read big endian unsigned byte array into r.
+ *
+ * r  A single precision integer.
+ * size  Maximum number of bytes to convert
+ * a  Byte array.
+ * n  Number of bytes in array to read.
+ */
+static void sp_2048_from_bin(sp_digit* r, int size, const byte* a, int n)
+{
+    word32 cpuid_flags = cpuid_get_flags();
+
+    if (IS_INTEL_MOVBE(cpuid_flags)) {
+        sp_2048_from_bin_movbe(r, size, a, n);
+    }
+    else {
+        sp_2048_from_bin_bswap(r, size, a, n);
+    }
+}
+
 /* Convert an mp_int to an array of sp_digit.
  *
  * r  A single precision integer.
@@ -132,7 +152,26 @@ static void sp_2048_from_mp(sp_digit* r, int size, const mp_int* a)
 #endif
 }
 
-extern void sp_2048_to_bin(sp_digit* r, byte* a);
+extern void sp_2048_to_bin_bswap(sp_digit* r, byte* a);
+extern void sp_2048_to_bin_movbe(sp_digit* r, byte* a);
+/* Write r as big endian to byte array.
+ * Fixed length number of bytes written: 256
+ *
+ * r  A single precision integer.
+ * a  Byte array.
+ */
+static void sp_2048_to_bin(sp_digit* r, byte* a)
+{
+    word32 cpuid_flags = cpuid_get_flags();
+
+    if (IS_INTEL_MOVBE(cpuid_flags)) {
+        sp_2048_to_bin_movbe(r, a);
+    }
+    else {
+        sp_2048_to_bin_bswap(r, a);
+    }
+}
+
 extern void sp_2048_mul_16(sp_digit* r, const sp_digit* a, const sp_digit* b);
 extern void sp_2048_sqr_16(sp_digit* r, const sp_digit* a);
 extern void sp_2048_mul_avx2_16(sp_digit* r, const sp_digit* a, const sp_digit* b);
@@ -2184,7 +2223,27 @@ int sp_ModExp_1024(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
 #endif /* !WOLFSSL_SP_NO_2048 */
 
 #ifndef WOLFSSL_SP_NO_3072
-extern void sp_3072_from_bin(sp_digit* r, int size, const byte* a, int n);
+extern void sp_3072_from_bin_bswap(sp_digit* r, int size, const byte* a, int n);
+extern void sp_3072_from_bin_movbe(sp_digit* r, int size, const byte* a, int n);
+/* Read big endian unsigned byte array into r.
+ *
+ * r  A single precision integer.
+ * size  Maximum number of bytes to convert
+ * a  Byte array.
+ * n  Number of bytes in array to read.
+ */
+static void sp_3072_from_bin(sp_digit* r, int size, const byte* a, int n)
+{
+    word32 cpuid_flags = cpuid_get_flags();
+
+    if (IS_INTEL_MOVBE(cpuid_flags)) {
+        sp_3072_from_bin_movbe(r, size, a, n);
+    }
+    else {
+        sp_3072_from_bin_bswap(r, size, a, n);
+    }
+}
+
 /* Convert an mp_int to an array of sp_digit.
  *
  * r  A single precision integer.
@@ -2267,7 +2326,26 @@ static void sp_3072_from_mp(sp_digit* r, int size, const mp_int* a)
 #endif
 }
 
-extern void sp_3072_to_bin(sp_digit* r, byte* a);
+extern void sp_3072_to_bin_bswap(sp_digit* r, byte* a);
+extern void sp_3072_to_bin_movbe(sp_digit* r, byte* a);
+/* Write r as big endian to byte array.
+ * Fixed length number of bytes written: 384
+ *
+ * r  A single precision integer.
+ * a  Byte array.
+ */
+static void sp_3072_to_bin(sp_digit* r, byte* a)
+{
+    word32 cpuid_flags = cpuid_get_flags();
+
+    if (IS_INTEL_MOVBE(cpuid_flags)) {
+        sp_3072_to_bin_movbe(r, a);
+    }
+    else {
+        sp_3072_to_bin_bswap(r, a);
+    }
+}
+
 extern void sp_3072_mul_12(sp_digit* r, const sp_digit* a, const sp_digit* b);
 extern void sp_3072_sqr_12(sp_digit* r, const sp_digit* a);
 extern void sp_3072_mul_avx2_12(sp_digit* r, const sp_digit* a, const sp_digit* b);
@@ -4333,7 +4411,27 @@ int sp_ModExp_1536(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
 #endif /* !WOLFSSL_SP_NO_3072 */
 
 #ifdef WOLFSSL_SP_4096
-extern void sp_4096_from_bin(sp_digit* r, int size, const byte* a, int n);
+extern void sp_4096_from_bin_bswap(sp_digit* r, int size, const byte* a, int n);
+extern void sp_4096_from_bin_movbe(sp_digit* r, int size, const byte* a, int n);
+/* Read big endian unsigned byte array into r.
+ *
+ * r  A single precision integer.
+ * size  Maximum number of bytes to convert
+ * a  Byte array.
+ * n  Number of bytes in array to read.
+ */
+static void sp_4096_from_bin(sp_digit* r, int size, const byte* a, int n)
+{
+    word32 cpuid_flags = cpuid_get_flags();
+
+    if (IS_INTEL_MOVBE(cpuid_flags)) {
+        sp_4096_from_bin_movbe(r, size, a, n);
+    }
+    else {
+        sp_4096_from_bin_bswap(r, size, a, n);
+    }
+}
+
 /* Convert an mp_int to an array of sp_digit.
  *
  * r  A single precision integer.
@@ -4416,7 +4514,26 @@ static void sp_4096_from_mp(sp_digit* r, int size, const mp_int* a)
 #endif
 }
 
-extern void sp_4096_to_bin(sp_digit* r, byte* a);
+extern void sp_4096_to_bin_bswap(sp_digit* r, byte* a);
+extern void sp_4096_to_bin_movbe(sp_digit* r, byte* a);
+/* Write r as big endian to byte array.
+ * Fixed length number of bytes written: 512
+ *
+ * r  A single precision integer.
+ * a  Byte array.
+ */
+static void sp_4096_to_bin(sp_digit* r, byte* a)
+{
+    word32 cpuid_flags = cpuid_get_flags();
+
+    if (IS_INTEL_MOVBE(cpuid_flags)) {
+        sp_4096_to_bin_movbe(r, a);
+    }
+    else {
+        sp_4096_to_bin_bswap(r, a);
+    }
+}
+
 extern sp_digit sp_4096_sub_in_place_64(sp_digit* a, const sp_digit* b);
 extern sp_digit sp_4096_add_64(sp_digit* r, const sp_digit* a, const sp_digit* b);
 extern void sp_4096_mul_64(sp_digit* r, const sp_digit* a, const sp_digit* b);
@@ -22065,7 +22182,27 @@ static int sp_256_iszero_4(const sp_digit* a)
 
 #endif /* WOLFSSL_VALIDATE_ECC_KEYGEN || HAVE_ECC_SIGN || HAVE_ECC_VERIFY */
 extern void sp_256_add_one_4(sp_digit* a);
-extern void sp_256_from_bin(sp_digit* r, int size, const byte* a, int n);
+extern void sp_256_from_bin_bswap(sp_digit* r, int size, const byte* a, int n);
+extern void sp_256_from_bin_movbe(sp_digit* r, int size, const byte* a, int n);
+/* Read big endian unsigned byte array into r.
+ *
+ * r  A single precision integer.
+ * size  Maximum number of bytes to convert
+ * a  Byte array.
+ * n  Number of bytes in array to read.
+ */
+static void sp_256_from_bin(sp_digit* r, int size, const byte* a, int n)
+{
+    word32 cpuid_flags = cpuid_get_flags();
+
+    if (IS_INTEL_MOVBE(cpuid_flags)) {
+        sp_256_from_bin_movbe(r, size, a, n);
+    }
+    else {
+        sp_256_from_bin_bswap(r, size, a, n);
+    }
+}
+
 /* Generates a scalar that is in the range 1..order-1.
  *
  * rng  Random number generator.
@@ -22192,7 +22329,26 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 }
 
 #ifdef HAVE_ECC_DHE
-extern void sp_256_to_bin(sp_digit* r, byte* a);
+extern void sp_256_to_bin_bswap(sp_digit* r, byte* a);
+extern void sp_256_to_bin_movbe(sp_digit* r, byte* a);
+/* Write r as big endian to byte array.
+ * Fixed length number of bytes written: 32
+ *
+ * r  A single precision integer.
+ * a  Byte array.
+ */
+static void sp_256_to_bin(sp_digit* r, byte* a)
+{
+    word32 cpuid_flags = cpuid_get_flags();
+
+    if (IS_INTEL_MOVBE(cpuid_flags)) {
+        sp_256_to_bin_movbe(r, a);
+    }
+    else {
+        sp_256_to_bin_bswap(r, a);
+    }
+}
+
 /* Multiply the point by the scalar and serialize the X ordinate.
  * The number is 0 padded to maximum size on output.
  *
@@ -27886,7 +28042,27 @@ static int sp_384_iszero_6(const sp_digit* a)
 
 #endif /* WOLFSSL_VALIDATE_ECC_KEYGEN || HAVE_ECC_SIGN || HAVE_ECC_VERIFY */
 extern void sp_384_add_one_6(sp_digit* a);
-extern void sp_384_from_bin(sp_digit* r, int size, const byte* a, int n);
+extern void sp_384_from_bin_bswap(sp_digit* r, int size, const byte* a, int n);
+extern void sp_384_from_bin_movbe(sp_digit* r, int size, const byte* a, int n);
+/* Read big endian unsigned byte array into r.
+ *
+ * r  A single precision integer.
+ * size  Maximum number of bytes to convert
+ * a  Byte array.
+ * n  Number of bytes in array to read.
+ */
+static void sp_384_from_bin(sp_digit* r, int size, const byte* a, int n)
+{
+    word32 cpuid_flags = cpuid_get_flags();
+
+    if (IS_INTEL_MOVBE(cpuid_flags)) {
+        sp_384_from_bin_movbe(r, size, a, n);
+    }
+    else {
+        sp_384_from_bin_bswap(r, size, a, n);
+    }
+}
+
 /* Generates a scalar that is in the range 1..order-1.
  *
  * rng  Random number generator.
@@ -28013,7 +28189,26 @@ int sp_ecc_make_key_384(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 }
 
 #ifdef HAVE_ECC_DHE
-extern void sp_384_to_bin(sp_digit* r, byte* a);
+extern void sp_384_to_bin_bswap(sp_digit* r, byte* a);
+extern void sp_384_to_bin_movbe(sp_digit* r, byte* a);
+/* Write r as big endian to byte array.
+ * Fixed length number of bytes written: 48
+ *
+ * r  A single precision integer.
+ * a  Byte array.
+ */
+static void sp_384_to_bin(sp_digit* r, byte* a)
+{
+    word32 cpuid_flags = cpuid_get_flags();
+
+    if (IS_INTEL_MOVBE(cpuid_flags)) {
+        sp_384_to_bin_movbe(r, a);
+    }
+    else {
+        sp_384_to_bin_bswap(r, a);
+    }
+}
+
 /* Multiply the point by the scalar and serialize the X ordinate.
  * The number is 0 padded to maximum size on output.
  *
