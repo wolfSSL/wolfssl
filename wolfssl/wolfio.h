@@ -126,6 +126,8 @@
         #include <errno.h>
     #elif defined(WOLFSSL_ZEPHYR)
         #include <net/socket.h>
+    #elif defined(MICROCHIP_PIC32)
+        #include <sys/errno.h>
     #elif defined(HAVE_NETX)
         #include "nx_api.h"
         #include "errno.h"
