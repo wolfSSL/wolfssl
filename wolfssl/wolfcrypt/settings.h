@@ -383,6 +383,14 @@
     #endif
 #endif
 
+#ifdef WOLFSSL_ATECC508A
+    /* backwards compatibility */
+    #define WOLFSSL_ATECC_ECDH_ENC
+    #ifdef WOLFSSL_ATECC508A_DEBUG
+        #define WOLFSSL_ATECC_DEBUG
+    #endif
+#endif
+
 #ifdef MBED
     #define WOLFSSL_USER_IO
     #define NO_FILESYSTEM
