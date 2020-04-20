@@ -9157,6 +9157,18 @@ int aesccm_test(void)
         return -6313;
 #endif
 
+    /* test fail on invalid IV sizes */
+    result = wc_AesCcmSetKey(&enc, k, sizeof(k));
+    if (result != 0)
+        return -6314;
+
+    /* AES-CCM encrypt and decrypt both use AES encrypt internally */
+    result = wc_AesCcmEncrypt(&enc, c2, p, sizeof(c2), iv, sizeof(iv),
+            t2, 1, a, sizeof(a));
+    if (result == 0) {
+        return -6315;
+    }
+
     return 0;
 }
 #endif /* HAVE_AESCCM WOLFSSL_AES_128 */

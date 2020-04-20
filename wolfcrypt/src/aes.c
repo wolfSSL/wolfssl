@@ -6996,6 +6996,14 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
             || authTag == NULL || nonceSz < 7 || nonceSz > 13)
         return BAD_FUNC_ARG;
 
+    /* sanity check on tag size */
+    if (authTagSz != 4 && authTagSz != 6 && authTagSz != 8 &&
+            authTagSz != 10 && authTagSz != 12 && authTagSz != 14 &&
+            authTagSz != 16) {
+        WOLFSSL_MSG("Bad auth tag size AES-CCM");
+        return BAD_FUNC_ARG;
+    }
+
     key = (byte*)aes->key;
 
     status = wc_AesGetKeySize(aes, &keySize);
@@ -7184,6 +7192,14 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
             authTagSz > AES_BLOCK_SIZE)
         return BAD_FUNC_ARG;
 
+    /* sanity check on tag size */
+    if (authTagSz != 4 && authTagSz != 6 && authTagSz != 8 &&
+            authTagSz != 10 && authTagSz != 12 && authTagSz != 14 &&
+            authTagSz != 16) {
+        WOLFSSL_MSG("Bad auth tag size AES-CCM");
+        return BAD_FUNC_ARG;
+    }
+
     XMEMSET(A, 0, sizeof(A));
     XMEMCPY(B+1, nonce, nonceSz);
     lenSz = AES_BLOCK_SIZE - 1 - (byte)nonceSz;
@@ -7279,6 +7295,14 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
             || authTag == NULL || nonceSz < 7 || nonceSz > 13 ||
             authTagSz > AES_BLOCK_SIZE)
         return BAD_FUNC_ARG;
+
+    /* sanity check on tag size */
+    if (authTagSz != 4 && authTagSz != 6 && authTagSz != 8 &&
+            authTagSz != 10 && authTagSz != 12 && authTagSz != 14 &&
+            authTagSz != 16) {
+        WOLFSSL_MSG("Bad auth tag size AES-CCM");
+        return BAD_FUNC_ARG;
+    }
 
     o = out;
     oSz = inSz;
