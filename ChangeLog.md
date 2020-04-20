@@ -1,4 +1,4 @@
-# wolfSSL Release 4.4.0 (04/17/2020)
+# wolfSSL Release 4.4.0 (04/20/2020)
 
 If you have questions about this release, then feel free to contact us on our
 info@ address.
