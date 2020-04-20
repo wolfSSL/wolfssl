@@ -3451,11 +3451,13 @@ void FreeX509(WOLFSSL_X509* x509)
             x509->algor.algorithm = NULL;
         }
         if (x509->key.algor) {
-            wolfSSL_ASN1_OBJECT_free(x509->key.algor->algorithm);
-            x509->key.algor->algorithm = NULL;
+            wolfSSL_X509_ALGOR_free(x509->key.algor);
+            x509->key.algor = NULL;
         }
-        XFREE(x509->key.algor, NULL, DYNAMIC_TYPE_OPENSSL);
-        x509->key.algor = NULL;
+        if (x509->key.pkey) {
+            wolfSSL_EVP_PKEY_free(x509->key.pkey);
+            x509->key.pkey = NULL;
+        }
     #endif /* OPENSSL_ALL */
     if (x509->altNames) {
         FreeAltNames(x509->altNames, x509->heap);
@@ -9520,7 +9522,26 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         else
             ret = MEMORY_E;
 #if defined(OPENSSL_ALL)
-        x509->key.pubKeyOID = dCert->keyOID;
+        if (ret == 0) {
+            x509->key.pubKeyOID = dCert->keyOID;
+
+            if (!x509->key.algor) {
+                x509->key.algor = wolfSSL_X509_ALGOR_new();
+            } else {
+                wolfSSL_ASN1_OBJECT_free(x509->key.algor->algorithm);
+            }
+            if (!(x509->key.algor->algorithm =
+                    wolfSSL_OBJ_nid2obj(dCert->keyOID))) {
+                ret = PUBLIC_KEY_E;
+            }
+
+            wolfSSL_EVP_PKEY_free(x509->key.pkey);
+            if (!(x509->key.pkey = wolfSSL_d2i_PUBKEY(NULL,
+                                                      &dCert->publicKey,
+                                                      dCert->pubKeySize))) {
+                ret = PUBLIC_KEY_E;
+            }
+        }
 #endif
     }
 
@@ -9537,8 +9558,10 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             x509->sigOID = dCert->signatureOID;
         }
 #if defined(OPENSSL_ALL)
-        if (x509->algor.algorithm == NULL) {
-            x509->algor.algorithm = wolfSSL_OBJ_nid2obj(dCert->signatureOID);
+        wolfSSL_ASN1_OBJECT_free(x509->algor.algorithm);
+        if (!(x509->algor.algorithm =
+                wolfSSL_OBJ_nid2obj(dCert->signatureOID))) {
+            ret = PUBLIC_KEY_E;
         }
 #endif
     }

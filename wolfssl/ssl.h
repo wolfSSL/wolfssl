@@ -380,6 +380,7 @@ struct WOLFSSL_X509_INFO {
 
 struct WOLFSSL_X509_ALGOR {
     WOLFSSL_ASN1_OBJECT* algorithm;
+    WOLFSSL_ASN1_TYPE* parameter;
 };
 
 struct WOLFSSL_X509_PUBKEY {
@@ -917,6 +918,12 @@ WOLFSSL_API int  wolfSSL_SetServerID(WOLFSSL*, const unsigned char*, int, int);
 WOLFSSL_API int  wolfSSL_BIO_new_bio_pair(WOLFSSL_BIO**, size_t,
                      WOLFSSL_BIO**, size_t);
 
+WOLFSSL_API int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *EM,
+                                                  const unsigned char *mHash,
+                                                  const WOLFSSL_EVP_MD *Hash, int saltLen);
+WOLFSSL_API int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
+                                          const WOLFSSL_EVP_MD *hashAlg,
+                                          const unsigned char *EM, int saltLen);
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO*, WOLFSSL_RSA**);
 WOLFSSL_API int wolfSSL_CTX_use_certificate_ASN1(WOLFSSL_CTX*,
                                            int, const unsigned char*);
@@ -1413,7 +1420,7 @@ WOLFSSL_API WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY_bio(
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY_bio(WOLFSSL_BIO* bio,
                                          WOLFSSL_EVP_PKEY** out);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** key,
-        unsigned char** in, long inSz);
+        const unsigned char** in, long inSz);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type,
         WOLFSSL_EVP_PKEY** out, const unsigned char **in, long inSz);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_EVP(WOLFSSL_EVP_PKEY** key,
@@ -1463,6 +1470,7 @@ WOLFSSL_API WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGE
                                        WOLFSSL_BIGNUM *bn);
 WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME*, time_t,
                                                      int, long);
+WOLFSSL_API WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_new(void);
 WOLFSSL_API void wolfSSL_ASN1_TIME_free(WOLFSSL_ASN1_TIME* t);
 #endif
 
@@ -3238,6 +3246,7 @@ enum {
 /* Object functions */
 WOLFSSL_API const char* wolfSSL_OBJ_nid2sn(int n);
 WOLFSSL_API int wolfSSL_OBJ_obj2nid(const WOLFSSL_ASN1_OBJECT *o);
+WOLFSSL_API int wolfSSL_OBJ_get_type(const WOLFSSL_ASN1_OBJECT *o);
 WOLFSSL_API int wolfSSL_OBJ_sn2nid(const char *sn);
 
 WOLFSSL_API const char* wolfSSL_OBJ_nid2ln(int n);
@@ -3382,7 +3391,7 @@ WOLFSSL_API int wolfSSL_PEM_do_header(EncryptedInfo* cipher,
 struct WOLFSSL_ASN1_BIT_STRING {
     int length;
     int type;
-    char* data;
+    byte* data;
     long flags;
 };
 
@@ -3784,11 +3793,19 @@ WOLFSSL_API size_t SSL_get_peer_finished(const WOLFSSL *s, void *buf, size_t cou
 
 WOLFSSL_API int SSL_SESSION_set1_id(WOLFSSL_SESSION *s, const unsigned char *sid, unsigned int sid_len);
 WOLFSSL_API int SSL_SESSION_set1_id_context(WOLFSSL_SESSION *s, const unsigned char *sid_ctx, unsigned int sid_ctx_len);
+WOLFSSL_API WOLFSSL_X509_ALGOR* wolfSSL_X509_ALGOR_new(void);
+WOLFSSL_API void wolfSSL_X509_ALGOR_free(WOLFSSL_X509_ALGOR *alg);
 WOLFSSL_API const WOLFSSL_X509_ALGOR* wolfSSL_X509_get0_tbs_sigalg(const WOLFSSL_X509 *x);
 WOLFSSL_API void wolfSSL_X509_ALGOR_get0(const WOLFSSL_ASN1_OBJECT **paobj, int *pptype, const void **ppval, const WOLFSSL_X509_ALGOR *algor);
+WOLFSSL_API int wolfSSL_X509_ALGOR_set0(WOLFSSL_X509_ALGOR *algor, WOLFSSL_ASN1_OBJECT *aobj, int ptype, void *pval);
+WOLFSSL_API WOLFSSL_ASN1_TYPE* wolfSSL_ASN1_TYPE_new(void);
+WOLFSSL_API void wolfSSL_ASN1_TYPE_free(WOLFSSL_ASN1_TYPE* at);
+WOLFSSL_API WOLFSSL_X509_PUBKEY *wolfSSL_X509_PUBKEY_new(void);
+WOLFSSL_API void wolfSSL_X509_PUBKEY_free(WOLFSSL_X509_PUBKEY *x);
 WOLFSSL_API WOLFSSL_X509_PUBKEY *wolfSSL_X509_get_X509_PUBKEY(const WOLFSSL_X509* x509);
-WOLFSSL_API int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg, const unsigned char **pk, int *ppklen, void **pa, WOLFSSL_X509_PUBKEY *pub);
+WOLFSSL_API int wolfSSL_X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg, const unsigned char **pk, int *ppklen, WOLFSSL_X509_ALGOR **pa, WOLFSSL_X509_PUBKEY *pub);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_X509_PUBKEY_get(WOLFSSL_X509_PUBKEY* key);
+WOLFSSL_API int wolfSSL_X509_PUBKEY_set(WOLFSSL_X509_PUBKEY **x, WOLFSSL_EVP_PKEY *key);
 WOLFSSL_API int i2t_ASN1_OBJECT(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a);
 WOLFSSL_API int wolfSSL_i2a_ASN1_OBJECT(WOLFSSL_BIO *bp, WOLFSSL_ASN1_OBJECT *a);
 WOLFSSL_API void SSL_CTX_set_tmp_dh_callback(WOLFSSL_CTX *ctx, WOLFSSL_DH *(*dh) (WOLFSSL *ssl, int is_export, int keylength));
