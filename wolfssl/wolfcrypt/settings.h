@@ -62,6 +62,9 @@
 /* Uncomment next line if using Microchip TCP/IP stack, version 6 or later */
 /* #define MICROCHIP_TCPIP */
 
+/* Uncomment next line if using above Microchip TCP/IP defines with BSD API */
+/* #define MICROCHIP_TCPIP_BSD_API */
+
 /* Uncomment next line if using PIC32MZ Crypto Engine */
 /* #define WOLFSSL_MICROCHIP_PIC32MZ */
 
@@ -340,7 +343,9 @@
     /* #define WOLFSSL_MICROCHIP_PIC32MZ */
     #define SIZEOF_LONG_LONG 8
     #define SINGLE_THREADED
-    #define WOLFSSL_USER_IO
+    #ifndef MICROCHIP_TCPIP_BSD_API
+        #define WOLFSSL_USER_IO
+    #endif
     #define NO_WRITEV
     #define NO_DEV_RANDOM
     #define NO_FILESYSTEM
