@@ -36,14 +36,14 @@ typedef struct {
 
 static wolf_result_t _result = {0};
 
-static void myFipsCb(int ok, int err, const char* hash)
+static void myFipsCb(int ok, int err, const char* hash);
 
 static void myFipsCb(int ok, int err, const char* hash)
 {
 
-    FCL_PRINTF("in my Fips callback, ok = %d, err = %d\n", ok, err)
-    FCL_PRINTF("message = %s\n", wc_GetErrorString(err))
-    FCL_PRINTF("hash = %s\n", hash)
+    FCL_PRINTF("in my Fips callback, ok = %d, err = %d\n", ok, err);
+    FCL_PRINTF("message = %s\n", wc_GetErrorString(err));
+    FCL_PRINTF("hash = %s\n", hash);
 
     if (err == IN_CORE_FIPS_E) {
         FCL_PRINTF("In core integrity hash check failure, copy above hash\n");
