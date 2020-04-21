@@ -31,6 +31,10 @@
     extern "C" {
 #endif
 
+#ifdef NO_ATTRIBUTE_CONSTRUCTOR
+    WOLFSSL_API void fipsEntry();
+#endif
+
 /* Known Answer Test string inputs are hex, internal */
 WOLFSSL_LOCAL int DoKnownAnswerTests(char*, int);
 
