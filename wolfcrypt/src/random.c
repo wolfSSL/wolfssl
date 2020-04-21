@@ -1815,6 +1815,22 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         #define USE_TEST_GENSEED
     #endif /* FREESCALE_K70_RNGA */
 
+#elif defined(FUSION_RTOS)
+         /*
+          * fusion_OT_3_5_0\common\clib\stdlib\fclrand.c
+          */
+         int wc_GenerateSeed(OS_Seed os, byte output, word32 sz)
+         {
+             int i;
+             int randInt;
+
+             for (i = 0; i < sz; i++ ) {
+                 output[i] = (byte) fclRand();
+             }
+
+             return 0;
+         }
+
 #elif defined(STM32_RNG)
      /* Generate a RNG seed using the hardware random number generator
       * on the STM32F2/F4/F7/L4. */
