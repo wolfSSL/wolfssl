@@ -414,6 +414,30 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XBADFILE                 -1
     #define XFGETS(b,s,f)            -2 /* Not ported yet */
 
+#elif defined(FUSION_RTOS)
+    #include <fclstdio.h>
+    #include <fclunistd.h>
+    #include <fcldirent.h>
+    #include <sys/fclstat.h>
+    #define XFILE     FCL_FILE*
+    #define XFOPEN    FCL_FOPEN
+    #define XFSEEK    FCL_FSEEK
+    #define XFTELL    FCL_FTELL
+    #define XREWIND   FCL_REWIND
+    #define XFREAD    FCL_FREAD
+    #define XFWRITE   FCL_FWRITE
+    #define XFCLOSE   FCL_FCLOSE
+    #define XSEEK_END FCL_SEEK_END
+    #define XBADFILE  FCL_BADFILE
+    #define XFGETS    FCL_FGETS
+    #define DIR       FCL_DIR
+    #define stat      FCL_STAT
+    #define opendir   FCL_OPENDIR
+    #define closedir  FCL_CLOSEDIR
+    #define readdir   FCL_READDIR
+    #define dirent    fclDirent 
+    #define strncasecmp FCL_STRNCASECMP
+
 #elif defined(WOLFSSL_USER_FILESYSTEM)
     /* To be defined in user_settings.h */
 #else
