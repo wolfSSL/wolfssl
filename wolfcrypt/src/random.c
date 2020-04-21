@@ -1820,7 +1820,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
          /*
           * fusion_OT_3_5_0\common\clib\stdlib\fclrand.c
           */
-         int wc_GenerateSeed(OS_Seed os, byte output, word32 sz)
+         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
          {
              int i;
              int randInt;
