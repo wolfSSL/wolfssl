@@ -31080,7 +31080,7 @@ static void test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS()
     der = NULL;
     AssertIntGT(i2d_DPP_BOOTSTRAPPING_KEY(bootstrap, &der), 0);
 
-    XFREE(der, NULL, DYNAMIC_TYPE_ASN1)
+    XFREE(der, NULL, DYNAMIC_TYPE_ASN1);
     EVP_PKEY_free(key);
     EC_KEY_free(eckey);
     DPP_BOOTSTRAPPING_KEY_free(bootstrap);
