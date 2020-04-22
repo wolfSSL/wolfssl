@@ -89,26 +89,31 @@ int wolf_task_start(void* voidinfo, char* argline)
     fssShellInfo *info = (fssShellInfo*)voidinfo;
     struct wolfArgs args;
 
-    if(_result.isRunning) {
+    if (_result.isRunning) {
         fssShellPuts(info, "previous task still running\r\n");
         return 1;
     }
 
-   _result.isRunning = 1;
+    _result.isRunning = 1;
 
-   if (FCL_STRNCMP(argline, optionA, FCL_STRLEN(optionA)) == 0) {
+    if (FCL_STRNCMP(argline, optionA, FCL_STRLEN(optionA)) == 0) {
          _task = fclThreadCreate(wolfcrypt_test_taskEnter,
                                  &args,
                                  WOLF_TASK_STACK_SIZE,
                                  WOLF_TASK_PRIORITY);
-   } else if (FCL_STRNCMP(argline, optionB, FCL_STRLEN(optionB)) == 0) {
+    } else if (FCL_STRNCMP(argline, optionB, FCL_STRLEN(optionB)) == 0) {
         _task = fclThreadCreate(wolfcrypt_harness_taskEnter,
                                 &args,
                                 WOLF_TASK_STACK_SIZE,
                                 WOLF_TASK_PRIORITY);
-   }
-   FCL_ASSERT(_task != FCL_THREAD_HANDLE_INVALID);
+    } else {
+        printf("Invalid input: %s\n", argline);
+        printf("Please try with either wolfcrypt_test or wolfcrypt_harness\n");
+        return -1;
+    }
 
-   return 0;
+    FCL_ASSERT(_task != FCL_THREAD_HANDLE_INVALID);
+
+    return 0;
 }
 #endif /* FUSION_RTOS */
