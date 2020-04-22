@@ -1045,7 +1045,7 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
     int len = 0;
     char *start, *end;
     int respBufSz = 0;
-    int isChunked = 0, chunkSz = 0;
+    int isChunked = 0, chunkSz = 0, checkShort = 0;
     enum phr_state { phr_init, phr_http_start, phr_have_length, phr_have_type,
                      phr_wait_end, phr_get_chunk_len, phr_get_chunk_data,
                      phr_http_end
@@ -1108,17 +1108,30 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
 
             switch (state) {
                 case phr_init:
-                    if (XSTRLEN(start) < 15) { /* 15 is the length of the two
-                                          constant strings we're about to
-                                          compare against. */
+                    if (XSTRLEN(start) < 15 && XSTRLEN(start) == 12) {
+                                          /* "HTTP/1.1 200 OK" is length 15
+                                           * "HTTP/1.1 200" is length 12 */
+                        checkShort = 1;
+                    } else if (XSTRLEN(start) < 15) {
                         WOLFSSL_MSG("wolfIO_HttpProcessResponse HTTP header too short.");
                         return -1;
                     }
                     if (XSTRNCASECMP(start, "HTTP/1", 6) == 0) {
                         start += 9;
-                        if (XSTRNCASECMP(start, "200 OK", 6) != 0) {
-                            WOLFSSL_MSG("wolfIO_HttpProcessResponse not OK");
-                            return -1;
+                        if (!checkShort) {
+                            if (XSTRNCASECMP(start, "200 OK", 6) != 0) {
+                                WOLFSSL_MSG("Checked long \"200 OK\"");
+                                WOLFSSL_MSG("wolfIO_HttpProcessResponse"
+                                            " not OK");
+                                return -1;
+                            }
+                        } else {
+                            if (XSTRNCASECMP(start, "200", 3) != 0) {
+                                WOLFSSL_MSG("Checked short \"200\"");
+                                WOLFSSL_MSG("wolfIO_HttpProcessResponse"
+                                            " not OK");
+                                return -1;
+                            }
                         }
                         state = phr_http_start;
                     }
