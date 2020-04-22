@@ -466,6 +466,8 @@
             #define XSTRNCASECMP(s1,s2,n) strncmp((s1),(s2),(n))
         #elif defined(USE_WINDOWS_API) || defined(FREERTOS_TCP_WINSIM)
             #define XSTRNCASECMP(s1,s2,n) _strnicmp((s1),(s2),(n))
+        #elif defined(FUSION_RTOS)
+            #define XSTRNCASECMP(s1,s2,n) FCL_STRNCASECMP((s1),(s2),(n))
         #else
             #if defined(HAVE_STRINGS_H) && defined(WOLF_C99) && \
                 !defined(WOLFSSL_SGX)
