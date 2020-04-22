@@ -5747,7 +5747,8 @@ int des3_test(void)
 
 #ifndef NO_AES
 
-#if defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_CFB)
+#if defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_CFB) || \
+    defined(WOLFSSL_AES_XTS)
 #if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 /* pass in the function, key, iv, plain text and expected and this function
  * tests that the encryption and decryption is successful */
@@ -22833,6 +22834,7 @@ int ed448_test(void)
     };
 
     static const byte* sigs[] = {sig1, sig2, sig3, sig4, sig5, sig6};
+    #define SIGSZ sizeof(sig1)
 
     static const byte msg1[]  = { };
     static const byte msg2[]  = { 0x03 };
@@ -23111,7 +23113,7 @@ int ed448_test(void)
                                 NULL, 0) != 0 || verify != 1)
             return -11401 - i;
 
-        if (XMEMCMP(out, sigs[i], sizeof(sigs[i])))
+        if (XMEMCMP(out, sigs[i], SIGSZ))
             return -11411 - i;
 #endif /* HAVE_ED448_VERIFY */
     }
@@ -23143,7 +23145,7 @@ int ed448_test(void)
     if (wc_ed448_sign_msg(msgs[0], msgSz[0], out, &outlen, &key3, NULL, 0) != 0)
         return -11451 - i;
 
-    if (XMEMCMP(out, sigs[0], sizeof(sigs[0])))
+    if (XMEMCMP(out, sigs[0], SIGSZ))
         return -11461 - i;
 
 #if defined(HAVE_ED448_VERIFY)
@@ -23164,7 +23166,7 @@ int ed448_test(void)
     if (wc_ed448_sign_msg(msgs[0], msgSz[0], out, &outlen, &key3, NULL, 0) != 0)
         return -11491 - i;
 
-    if (XMEMCMP(out, sigs[0], sizeof(sigs[0])))
+    if (XMEMCMP(out, sigs[0], SIGSZ))
         return -11501 - i;
 
     wc_ed448_free(&key3);
