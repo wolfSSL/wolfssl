@@ -5826,8 +5826,6 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
     word32 derSz = 0;
     byte* derBuf = NULL;
     DhKey* dhkey = NULL;
-    mp_int pubKey;
-    mp_int privKey;
 
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_DH");
 
@@ -5849,11 +5847,8 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
 
     dhkey = (DhKey*)key->internal;
 
-    pubKey  = dhkey->pub;
-    privKey = dhkey->priv;
-
-    havePublic  = mp_unsigned_bin_size(&pubKey)  > 0;
-    havePrivate = mp_unsigned_bin_size(&privKey) > 0;
+    havePublic  = mp_unsigned_bin_size(&dhkey->pub)  > 0;
+    havePrivate = mp_unsigned_bin_size(&dhkey->priv) > 0;
 
     /* Get size of DER buffer only */
     if (havePublic && !havePrivate) {
@@ -5891,15 +5886,8 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
     }
 
     /* Store DH key into pkey (DER format) */
-    pkey->pkey.ptr = (char*)XMALLOC(derSz, pkey->heap, DYNAMIC_TYPE_DER);
-    if (pkey->pkey.ptr == NULL) {
-        WOLFSSL_MSG("key malloc failed");
-        XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return WOLFSSL_FAILURE;
-    }
+    pkey->pkey.ptr = (char*)derBuf;
     pkey->pkey_sz = derSz;
-    XMEMCPY(pkey->pkey.ptr, derBuf, derSz);
-    XFREE(derBuf, pkey->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return WOLFSSL_SUCCESS;
 }

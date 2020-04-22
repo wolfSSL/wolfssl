@@ -1161,7 +1161,11 @@ int wc_InitShake256(wc_Shake* shake, void* heap, int devId)
  */
 int wc_Shake256_Update(wc_Shake* shake, const byte* data, word32 len)
 {
-    return wc_Sha3Update(shake, data, len, WC_SHA3_256_COUNT);
+    if (shake == NULL || (data == NULL && len > 0)) {
+         return BAD_FUNC_ARG;
+    }
+
+    return Sha3Update(shake, data, len, WC_SHA3_256_COUNT);
 }
 
 /* Calculate the SHAKE256 hash based on all the message data seen.

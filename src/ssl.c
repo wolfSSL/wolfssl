@@ -18539,6 +18539,7 @@ WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh, const unsigned char **pp,
         wolfSSL_DH_free(newDH);
         return NULL;
     }
+    newDH->inSet = 1;
 
     if (SetDhExternal(newDH) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("SetDhExternal failed");
