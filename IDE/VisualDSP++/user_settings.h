@@ -175,8 +175,8 @@ extern "C" {
     #ifdef HAVE_FIPS
         #undef  HAVE_ECC_CDH
         #define HAVE_ECC_CDH
-		
-		#define NO_STRICT_ECDSA_LEN
+        
+        #define NO_STRICT_ECDSA_LEN
     #endif
 
     /* Validate import */
@@ -217,7 +217,7 @@ extern "C" {
         #define WOLFSSL_DH_CONST
         #define HAVE_FFDHE_2048
         #define HAVE_FFDHE_4096
-		#define HAVE_DH_DEFAULT_PARAMS
+        #define HAVE_DH_DEFAULT_PARAMS
         //#define HAVE_FFDHE_6144
         //#define HAVE_FFDHE_8192
     #endif
@@ -234,10 +234,10 @@ extern "C" {
 /* AES */
 #undef NO_AES
 #if 1
-	#undef  HAVE_AES_CBC
-	#define HAVE_AES_CBC
+    #undef  HAVE_AES_CBC
+    #define HAVE_AES_CBC
 
-	#undef  HAVE_AESGCM
+    #undef  HAVE_AESGCM
     #define HAVE_AESGCM
 
     /* GCM Method: GCM_SMALL, GCM_WORD32 or GCM_TABLE */
@@ -337,9 +337,9 @@ extern "C" {
 #undef WOLFSSL_SHA3
 #if 1
     #define WOLFSSL_SHA3
-	#ifdef HAVE_FIPS
-	    #define WOLFSSL_NO_SHAKE256
-	#endif
+    #ifdef HAVE_FIPS
+        #define WOLFSSL_NO_SHAKE256
+    #endif
 #endif
 
 /* MD5 */
@@ -467,11 +467,11 @@ extern "C" {
 
 /* Seed Source */
 /* Size of returned HW RNG value */
-#if 0	
-	#define CUSTOM_RAND_TYPE      unsigned int
-	extern unsigned int my_rng_seed_gen(void);
-	#undef  CUSTOM_RAND_GENERATE
-	#define CUSTOM_RAND_GENERATE  my_rng_seed_gen
+#if 0   
+    #define CUSTOM_RAND_TYPE      unsigned int
+    extern unsigned int my_rng_seed_gen(void);
+    #undef  CUSTOM_RAND_GENERATE
+    #define CUSTOM_RAND_GENERATE  my_rng_seed_gen
 #endif
 
 /* Choose RNG method */
@@ -650,61 +650,51 @@ extern "C" {
 #ifdef BLACKFIN_BUILD
 
     #include <builtins.h>
-	
+
     #undef WOLFSSL_HAVE_MAX
     #define WOLFSSL_HAVE_MAX
-	
-	#undef WOLFSSL_HAVE_MIN
+
+    #undef WOLFSSL_HAVE_MIN
     #define WOLFSSL_HAVE_MIN
 
     #include <fss_telnet_shell.h>
 
-    /* added in wolfcrypt/src/wc_port.c under BLACKFIN_BUILD
-     * Maybe change define to be for FCL_SUPPORT_BUILD or something more
-     * in keeping with the solution. */
-    extern int strncasecmp(const char* s1, const char* s2, unsigned int n);
-    #undef XSTRNCASECMP
-    #define XSTRNCASECMP(a,b,c) strncasecmp((a),(b),(c))
-
     #define XMALLOC_OVERRIDE /* Need to use FCL stdlib instead of stdlib.h */
-	
+
     extern void *          fclMalloc   (unsigned int size);
     extern void            fclFree     (void * memoryPointer);
-	extern void *          fclRealloc  (void * memoryPointer, unsigned int size);
+    extern void *          fclRealloc  (void * memoryPointer, unsigned int size);
     #define XMALLOC(a, b, c) fclMalloc(a)
     #define XFREE(a, b, c) fclFree(a)
-	#define XREALLOC(a, b, c, d) fclRealloc(a, b)
+    #define XREALLOC(a, b, c, d) fclRealloc(a, b)
 
     /*************************************************************
      * wolfSSL testing
      */
-	
+
     typedef struct wolfArgs {
- 	    int argc;
- 	    char** argv;
- 	    int return_code;
- 	    struct fssShellInfo* info;	
+        int argc;
+        char** argv;
+        int return_code;
+        struct fssShellInfo* info;  
     } wolfArgs;
 
-    //extern int fssShellPrintf(struct fssShellInfo* info, const char* fmt, ...);
-    //#define printf(format, ...) fssShellPrintf(wolfInfo, format"\r", ## __VA_ARGS__)
-	#define printf FCL_PRINTF
-	
-	/* CAVP TESTING */
-	#define NO_WOLFCAVP_MAIN_DRIVER
-	#define WOLFSSL_BASE16
-	#define USE_UART_READ_LINE
-	#define USE_NORMAL_PRINTF
-	#define VERIFY_GENERATED_PSS_SIGS
-	//#define NO_CAVP_DSA
-	//#warning "Using NO_ATTRIBUTE_CONSTRUCTOR, needs resolves before op testing"
-	#define NO_ATTRIBUTE_CONSTRUCTOR
-	extern int aes_test_for_fips_hash(void);
-	int wolfcrypt_test_taskEnter(void *args);
-	int wolfcrypt_harness_taskEnter(void *args);
-	int wolf_task_start(void* voidinfo, char* argline);
-	int wolf_task_results(void* voidinfo, char* argline);
-	void wolfFIPS_Module_start(void);
+    #define printf FCL_PRINTF
+
+    /* CAVP TESTING */
+    #define NO_WOLFCAVP_MAIN_DRIVER
+    #define WOLFSSL_BASE16
+    #define USE_UART_READ_LINE
+    #define USE_NORMAL_PRINTF
+    #define VERIFY_GENERATED_PSS_SIGS
+    #define NO_ATTRIBUTE_CONSTRUCTOR
+
+    extern int aes_test_for_fips_hash(void);
+    int wolfcrypt_test_taskEnter(void *args);
+    int wolfcrypt_harness_taskEnter(void *args);
+    int wolf_task_start(void* voidinfo, char* argline);
+    int wolf_task_results(void* voidinfo, char* argline);
+    void wolfFIPS_Module_start(void);
 
 #endif /* BLACKFIN_BUILD */
 
