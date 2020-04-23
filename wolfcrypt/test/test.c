@@ -18441,8 +18441,56 @@ done:
 
     return ret;
 }
-#endif /* HAVE_ECC_KEY_IMPORT */
 
+static int ecc_test_key_decode(WC_RNG* rng, int keySize)
+{
+    int ret;
+    ecc_key eccKey;
+    byte tmpBuf[ECC_BUFSIZE];
+    word32 tmpSz;
+    word32 idx;
+
+    ret = wc_ecc_init(&eccKey);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = wc_ecc_make_key(rng, keySize, &eccKey);
+    if (ret != 0) {
+        wc_ecc_free(&eccKey);
+        return ret;
+    }
+
+    tmpSz = sizeof(tmpBuf);
+    ret = wc_EccKeyToDer(&eccKey, tmpBuf, tmpSz);
+    wc_ecc_free(&eccKey);
+    if (ret < 0) {
+        return ret;
+    }
+    tmpSz = ret;
+
+    ret = wc_ecc_init(&eccKey);
+    if (ret != 0) {
+        return ret;
+    }
+    idx = 0;
+    ret = wc_EccPrivateKeyDecode(tmpBuf, &idx, &eccKey, tmpSz);
+    wc_ecc_free(&eccKey);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = wc_ecc_init(&eccKey);
+    if (ret != 0) {
+        return 0;
+    }
+
+    idx = 0;
+    ret = wc_EccPublicKeyDecode(tmpBuf, &idx, &eccKey, tmpSz);
+    wc_ecc_free(&eccKey);
+
+    return ret;
+}
+#endif /* HAVE_ECC_KEY_IMPORT */
 
 #ifdef WOLFSSL_KEY_GEN
 static int ecc_test_key_gen(WC_RNG* rng, int keySize)
@@ -18912,6 +18960,17 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
 #endif
 
 #ifdef WOLFSSL_KEY_GEN
+    ret = ecc_test_key_decode(rng, keySize);
+    if (ret < 0) {
+        if (ret == ECC_CURVE_OID_E) {
+            /* ignore error for curves not found */
+        }
+        else {
+            printf("ecc_test_key_decode %d failed!: %d\n", keySize, ret);
+            return ret;
+        }
+    }
+
     ret = ecc_test_key_gen(rng, keySize);
     if (ret < 0) {
         if (ret == ECC_CURVE_OID_E) {
