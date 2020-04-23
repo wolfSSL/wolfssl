@@ -15615,16 +15615,12 @@ int openssl_test(void)
     /* test malloc / free , 10 is an arbitrary amount of memory chosen */
     {
         byte* p;
-        p = (byte*)CRYPTO_malloc(10, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        p = (byte*)CRYPTO_malloc(10);
         if (p == NULL) {
             return -8400;
         }
         XMEMSET(p, 0, 10);
-        #ifdef WOLFSSL_QT
-            CRYPTO_free(p);
-        #else
-            CRYPTO_free(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+        CRYPTO_free(p);
     }
 
 #ifndef NO_MD5

@@ -28688,7 +28688,8 @@ static void test_wolfSSL_EC_get_builtin_curves(void)
 
     for (i = 0; i < crv_len; i++)
     {
-        AssertStrEQ(OBJ_nid2sn(curves[i].nid), curves[i].comment);
+        if (curves[i].comment != NULL)
+            AssertStrEQ(OBJ_nid2sn(curves[i].nid), curves[i].comment);
     }
 
     XFREE(curves, NULL, DYNAMIC_TYPE_TMP_BUFFER);

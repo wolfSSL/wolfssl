@@ -15774,7 +15774,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         (void)sizeof(sha_test);
 
         WOLFSSL_ENTER("SHA3_256_Init");
-        ret = wc_InitSha3_256((wc_Sha3*)sha3_256, NULL, 0);
+        ret = wc_InitSha3_256((wc_Sha3*)sha3_256, NULL, INVALID_DEVID);
 
         /* return 1 on success, 0 otherwise */
         if (ret == 0)

@@ -125,17 +125,8 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define CONF_get1_default_config_file   wolfSSL_CONF_get1_default_config_file
 typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 
-#ifdef WOLFSSL_QT
-    #if defined(NO_WOLFSSL_MEMORY)
-        #define CRYPTO_free(xp)         XFREE(xp, NULL, NULL);
-    #else
-        #define CRYPTO_free(xp) { if((xp)) wolfSSL_Free((xp));}
-    #endif
-#else
-  #define CRYPTO_free                     XFREE
-#endif
-
-#define CRYPTO_malloc                   XMALLOC
+#define CRYPTO_free(xp)                 XFREE(xp, NULL, DYNAMIC_TYPE_TMP_BUFFER)
+#define CRYPTO_malloc(sz)               XMALLOC(sz, NULL, DYNAMIC_TYPE_TMP_BUFFER)
 #define CRYPTO_EX_new                   WOLFSSL_CRYPTO_EX_new
 #define CRYPTO_EX_dup                   WOLFSSL_CRYPTO_EX_dup
 #define CRYPTO_EX_free                  WOLFSSL_CRYPTO_EX_free
