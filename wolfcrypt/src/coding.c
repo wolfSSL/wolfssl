@@ -29,6 +29,7 @@
 #ifndef NO_CODING
 
 #include <wolfssl/wolfcrypt/coding.h>
+#include <wolfssl/wolfcrypt/asn.h> /* For PEM_LINE_SZ */
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
@@ -36,7 +37,6 @@
 enum {
     BAD         = 0xFF,  /* invalid encoding */
     PAD         = '=',
-    PEM_LINE_SZ = 64,
     BASE64_MIN  = 0x2B,
     BASE16_MIN  = 0x30,
 };

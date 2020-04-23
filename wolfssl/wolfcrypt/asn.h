@@ -326,6 +326,8 @@ enum Misc_ASN {
                             /* Maximum DER digest size */
     MAX_DER_DIGEST_ASN_SZ = MAX_ENCODED_DIG_ASN_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ,
                             /* Maximum DER digest ASN header size */
+                            /* Max X509 header length indicates the max length + 2 ('\n', '\0') */
+    MAX_X509_HEADER_SZ  = (37 + 2), /* Maximum PEM Header/Footer Size */
 #ifdef WOLFSSL_CERT_GEN
     #ifdef WOLFSSL_CERT_REQ
                           /* Max encoded cert req attributes length */
@@ -377,7 +379,8 @@ enum Misc_ASN {
 
     PKCS5_SALT_SZ       = 8,
 
-    PEM_LINE_LEN       = 80,       /* PEM line max + fudge */
+    PEM_LINE_SZ        = 64,               /* Length of Base64 encoded line, not including new line */
+    PEM_LINE_LEN       = PEM_LINE_SZ + 12, /* PEM line max + fudge */
 };
 
 

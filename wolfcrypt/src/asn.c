@@ -9798,9 +9798,8 @@ void wc_FreeDer(DerBuffer** pDer)
 
 #if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)
 
-/* Max X509 header length indicates the max length + 2 ('\n', '\0') */
-#define MAX_X509_HEADER_SZ  (37 + 2)
-
+/* Note: If items added make sure MAX_X509_HEADER_SZ is 
+    updated to reflect maximum length */
 wcchar BEGIN_CERT           = "-----BEGIN CERTIFICATE-----";
 wcchar END_CERT             = "-----END CERTIFICATE-----";
 #ifdef WOLFSSL_CERT_REQ
