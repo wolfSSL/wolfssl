@@ -23,6 +23,7 @@
 #ifndef WOLFSSL_SP_NO_2048
 #ifndef WOLFSSL_SP_NO_2048
 /* Read big endian unsigned byte array into r.
+ * Uses the bswap instruction.
  *
  * r  A single precision integer.
  * size  Maximum number of bytes to convert
@@ -30,22 +31,114 @@
  * n  Number of bytes in array to read.
  */
 #ifndef __APPLE__
-.globl	sp_2048_from_bin
-.type	sp_2048_from_bin,@function
+.globl	sp_2048_from_bin_bswap
+.type	sp_2048_from_bin_bswap,@function
 .align	16
-sp_2048_from_bin:
+sp_2048_from_bin_bswap:
 #else
-.globl	_sp_2048_from_bin
+.globl	_sp_2048_from_bin_bswap
 .p2align	4
-_sp_2048_from_bin:
+_sp_2048_from_bin_bswap:
 #endif /* __APPLE__ */
         movq	%rdx, %r9
         movq	%rdi, %r10
         addq	%rcx, %r9
         addq	$256, %r10
         xorq	%r11, %r11
-        jmp	L_2048_from_bin_64_end
-L_2048_from_bin_64_start:
+        jmp	L_2048_from_bin_bswap_64_end
+L_2048_from_bin_bswap_64_start:
+        subq	$64, %r9
+        movq	56(%r9), %rax
+        movq	48(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, (%rdi)
+        movq	%r8, 8(%rdi)
+        movq	40(%r9), %rax
+        movq	32(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, 16(%rdi)
+        movq	%r8, 24(%rdi)
+        movq	24(%r9), %rax
+        movq	16(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, 32(%rdi)
+        movq	%r8, 40(%rdi)
+        movq	8(%r9), %rax
+        movq	(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, 48(%rdi)
+        movq	%r8, 56(%rdi)
+        addq	$64, %rdi
+        subq	$64, %rcx
+L_2048_from_bin_bswap_64_end:
+        cmpq	$63, %rcx
+        jg	L_2048_from_bin_bswap_64_start
+        jmp	L_2048_from_bin_bswap_8_end
+L_2048_from_bin_bswap_8_start:
+        subq	$8, %r9
+        movq	(%r9), %rax
+        bswapq	%rax
+        movq	%rax, (%rdi)
+        addq	$8, %rdi
+        subq	$8, %rcx
+L_2048_from_bin_bswap_8_end:
+        cmpq	$7, %rcx
+        jg	L_2048_from_bin_bswap_8_start
+        cmpq	%r11, %rcx
+        je	L_2048_from_bin_bswap_hi_end
+        movq	%r11, %r8
+        movq	%r11, %rax
+L_2048_from_bin_bswap_hi_start:
+        movb	(%rdx), %al
+        shlq	$8, %r8
+        incq	%rdx
+        addq	%rax, %r8
+        decq	%rcx
+        jg	L_2048_from_bin_bswap_hi_start
+        movq	%r8, (%rdi)
+        addq	$8, %rdi
+L_2048_from_bin_bswap_hi_end:
+        cmpq	%r10, %rdi
+        je	L_2048_from_bin_bswap_zero_end
+L_2048_from_bin_bswap_zero_start:
+        movq	%r11, (%rdi)
+        addq	$8, %rdi
+        cmpq	%r10, %rdi
+        jl	L_2048_from_bin_bswap_zero_start
+L_2048_from_bin_bswap_zero_end:
+        repz retq
+#ifndef __APPLE__
+.size	sp_2048_from_bin_bswap,.-sp_2048_from_bin_bswap
+#endif /* __APPLE__ */
+/* Read big endian unsigned byte array into r.
+ * Uses the movbe instruction which is an optional instruction.
+ *
+ * r  A single precision integer.
+ * size  Maximum number of bytes to convert
+ * a  Byte array.
+ * n  Number of bytes in array to read.
+ */
+#ifndef __APPLE__
+.globl	sp_2048_from_bin_movbe
+.type	sp_2048_from_bin_movbe,@function
+.align	16
+sp_2048_from_bin_movbe:
+#else
+.globl	_sp_2048_from_bin_movbe
+.p2align	4
+_sp_2048_from_bin_movbe:
+#endif /* __APPLE__ */
+        movq	%rdx, %r9
+        movq	%rdi, %r10
+        addq	%rcx, %r9
+        addq	$256, %r10
+        xorq	%r11, %r11
+        jmp	L_2048_from_bin_movbe_64_end
+L_2048_from_bin_movbe_64_start:
         subq	$64, %r9
         movbeq	56(%r9), %rax
         movbeq	48(%r9), %r8
@@ -65,60 +158,178 @@ L_2048_from_bin_64_start:
         movq	%r8, 56(%rdi)
         addq	$64, %rdi
         subq	$64, %rcx
-L_2048_from_bin_64_end:
+L_2048_from_bin_movbe_64_end:
         cmpq	$63, %rcx
-        jg	L_2048_from_bin_64_start
-        jmp	L_2048_from_bin_8_end
-L_2048_from_bin_8_start:
+        jg	L_2048_from_bin_movbe_64_start
+        jmp	L_2048_from_bin_movbe_8_end
+L_2048_from_bin_movbe_8_start:
         subq	$8, %r9
         movbeq	(%r9), %rax
         movq	%rax, (%rdi)
         addq	$8, %rdi
         subq	$8, %rcx
-L_2048_from_bin_8_end:
+L_2048_from_bin_movbe_8_end:
         cmpq	$7, %rcx
-        jg	L_2048_from_bin_8_start
+        jg	L_2048_from_bin_movbe_8_start
         cmpq	%r11, %rcx
-        je	L_2048_from_bin_hi_end
+        je	L_2048_from_bin_movbe_hi_end
         movq	%r11, %r8
         movq	%r11, %rax
-L_2048_from_bin_hi_start:
+L_2048_from_bin_movbe_hi_start:
         movb	(%rdx), %al
         shlq	$8, %r8
         incq	%rdx
         addq	%rax, %r8
         decq	%rcx
-        jg	L_2048_from_bin_hi_start
+        jg	L_2048_from_bin_movbe_hi_start
         movq	%r8, (%rdi)
         addq	$8, %rdi
-L_2048_from_bin_hi_end:
+L_2048_from_bin_movbe_hi_end:
         cmpq	%r10, %rdi
-        je	L_2048_from_bin_zero_end
-L_2048_from_bin_zero_start:
+        je	L_2048_from_bin_movbe_zero_end
+L_2048_from_bin_movbe_zero_start:
         movq	%r11, (%rdi)
         addq	$8, %rdi
         cmpq	%r10, %rdi
-        jl	L_2048_from_bin_zero_start
-L_2048_from_bin_zero_end:
+        jl	L_2048_from_bin_movbe_zero_start
+L_2048_from_bin_movbe_zero_end:
         repz retq
 #ifndef __APPLE__
-.size	sp_2048_from_bin,.-sp_2048_from_bin
+.size	sp_2048_from_bin_movbe,.-sp_2048_from_bin_movbe
 #endif /* __APPLE__ */
 /* Write r as big endian to byte array.
  * Fixed length number of bytes written: 256
+ * Uses the bswap instruction.
  *
  * r  A single precision integer.
  * a  Byte array.
  */
 #ifndef __APPLE__
-.globl	sp_2048_to_bin
-.type	sp_2048_to_bin,@function
+.globl	sp_2048_to_bin_bswap
+.type	sp_2048_to_bin_bswap,@function
 .align	16
-sp_2048_to_bin:
+sp_2048_to_bin_bswap:
 #else
-.globl	_sp_2048_to_bin
+.globl	_sp_2048_to_bin_bswap
 .p2align	4
-_sp_2048_to_bin:
+_sp_2048_to_bin_bswap:
+#endif /* __APPLE__ */
+        movq	248(%rdi), %rdx
+        movq	240(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, (%rsi)
+        movq	%rax, 8(%rsi)
+        movq	232(%rdi), %rdx
+        movq	224(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 16(%rsi)
+        movq	%rax, 24(%rsi)
+        movq	216(%rdi), %rdx
+        movq	208(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 32(%rsi)
+        movq	%rax, 40(%rsi)
+        movq	200(%rdi), %rdx
+        movq	192(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 48(%rsi)
+        movq	%rax, 56(%rsi)
+        movq	184(%rdi), %rdx
+        movq	176(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 64(%rsi)
+        movq	%rax, 72(%rsi)
+        movq	168(%rdi), %rdx
+        movq	160(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 80(%rsi)
+        movq	%rax, 88(%rsi)
+        movq	152(%rdi), %rdx
+        movq	144(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 96(%rsi)
+        movq	%rax, 104(%rsi)
+        movq	136(%rdi), %rdx
+        movq	128(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 112(%rsi)
+        movq	%rax, 120(%rsi)
+        movq	120(%rdi), %rdx
+        movq	112(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 128(%rsi)
+        movq	%rax, 136(%rsi)
+        movq	104(%rdi), %rdx
+        movq	96(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 144(%rsi)
+        movq	%rax, 152(%rsi)
+        movq	88(%rdi), %rdx
+        movq	80(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 160(%rsi)
+        movq	%rax, 168(%rsi)
+        movq	72(%rdi), %rdx
+        movq	64(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 176(%rsi)
+        movq	%rax, 184(%rsi)
+        movq	56(%rdi), %rdx
+        movq	48(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 192(%rsi)
+        movq	%rax, 200(%rsi)
+        movq	40(%rdi), %rdx
+        movq	32(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 208(%rsi)
+        movq	%rax, 216(%rsi)
+        movq	24(%rdi), %rdx
+        movq	16(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 224(%rsi)
+        movq	%rax, 232(%rsi)
+        movq	8(%rdi), %rdx
+        movq	(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 240(%rsi)
+        movq	%rax, 248(%rsi)
+        repz retq
+#ifndef __APPLE__
+.size	sp_2048_to_bin_bswap,.-sp_2048_to_bin_bswap
+#endif /* __APPLE__ */
+/* Write r as big endian to byte array.
+ * Fixed length number of bytes written: 256
+ * Uses the movbe instruction which is optional.
+ *
+ * r  A single precision integer.
+ * a  Byte array.
+ */
+#ifndef __APPLE__
+.globl	sp_2048_to_bin_movbe
+.type	sp_2048_to_bin_movbe,@function
+.align	16
+sp_2048_to_bin_movbe:
+#else
+.globl	_sp_2048_to_bin_movbe
+.p2align	4
+_sp_2048_to_bin_movbe:
 #endif /* __APPLE__ */
         movbeq	248(%rdi), %rdx
         movbeq	240(%rdi), %rax
@@ -186,7 +397,7 @@ _sp_2048_to_bin:
         movq	%rax, 248(%rsi)
         repz retq
 #ifndef __APPLE__
-.size	sp_2048_to_bin,.-sp_2048_to_bin
+.size	sp_2048_to_bin_movbe,.-sp_2048_to_bin_movbe
 #endif /* __APPLE__ */
 /* Multiply a and b into r. (r = a * b)
  *
@@ -12288,6 +12499,7 @@ _sp_2048_lshift_32:
 #ifndef WOLFSSL_SP_NO_3072
 #ifndef WOLFSSL_SP_NO_3072
 /* Read big endian unsigned byte array into r.
+ * Uses the bswap instruction.
  *
  * r  A single precision integer.
  * size  Maximum number of bytes to convert
@@ -12295,22 +12507,114 @@ _sp_2048_lshift_32:
  * n  Number of bytes in array to read.
  */
 #ifndef __APPLE__
-.globl	sp_3072_from_bin
-.type	sp_3072_from_bin,@function
+.globl	sp_3072_from_bin_bswap
+.type	sp_3072_from_bin_bswap,@function
 .align	16
-sp_3072_from_bin:
+sp_3072_from_bin_bswap:
 #else
-.globl	_sp_3072_from_bin
+.globl	_sp_3072_from_bin_bswap
 .p2align	4
-_sp_3072_from_bin:
+_sp_3072_from_bin_bswap:
 #endif /* __APPLE__ */
         movq	%rdx, %r9
         movq	%rdi, %r10
         addq	%rcx, %r9
         addq	$384, %r10
         xorq	%r11, %r11
-        jmp	L_3072_from_bin_64_end
-L_3072_from_bin_64_start:
+        jmp	L_3072_from_bin_bswap_64_end
+L_3072_from_bin_bswap_64_start:
+        subq	$64, %r9
+        movq	56(%r9), %rax
+        movq	48(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, (%rdi)
+        movq	%r8, 8(%rdi)
+        movq	40(%r9), %rax
+        movq	32(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, 16(%rdi)
+        movq	%r8, 24(%rdi)
+        movq	24(%r9), %rax
+        movq	16(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, 32(%rdi)
+        movq	%r8, 40(%rdi)
+        movq	8(%r9), %rax
+        movq	(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, 48(%rdi)
+        movq	%r8, 56(%rdi)
+        addq	$64, %rdi
+        subq	$64, %rcx
+L_3072_from_bin_bswap_64_end:
+        cmpq	$63, %rcx
+        jg	L_3072_from_bin_bswap_64_start
+        jmp	L_3072_from_bin_bswap_8_end
+L_3072_from_bin_bswap_8_start:
+        subq	$8, %r9
+        movq	(%r9), %rax
+        bswapq	%rax
+        movq	%rax, (%rdi)
+        addq	$8, %rdi
+        subq	$8, %rcx
+L_3072_from_bin_bswap_8_end:
+        cmpq	$7, %rcx
+        jg	L_3072_from_bin_bswap_8_start
+        cmpq	%r11, %rcx
+        je	L_3072_from_bin_bswap_hi_end
+        movq	%r11, %r8
+        movq	%r11, %rax
+L_3072_from_bin_bswap_hi_start:
+        movb	(%rdx), %al
+        shlq	$8, %r8
+        incq	%rdx
+        addq	%rax, %r8
+        decq	%rcx
+        jg	L_3072_from_bin_bswap_hi_start
+        movq	%r8, (%rdi)
+        addq	$8, %rdi
+L_3072_from_bin_bswap_hi_end:
+        cmpq	%r10, %rdi
+        je	L_3072_from_bin_bswap_zero_end
+L_3072_from_bin_bswap_zero_start:
+        movq	%r11, (%rdi)
+        addq	$8, %rdi
+        cmpq	%r10, %rdi
+        jl	L_3072_from_bin_bswap_zero_start
+L_3072_from_bin_bswap_zero_end:
+        repz retq
+#ifndef __APPLE__
+.size	sp_3072_from_bin_bswap,.-sp_3072_from_bin_bswap
+#endif /* __APPLE__ */
+/* Read big endian unsigned byte array into r.
+ * Uses the movbe instruction which is an optional instruction.
+ *
+ * r  A single precision integer.
+ * size  Maximum number of bytes to convert
+ * a  Byte array.
+ * n  Number of bytes in array to read.
+ */
+#ifndef __APPLE__
+.globl	sp_3072_from_bin_movbe
+.type	sp_3072_from_bin_movbe,@function
+.align	16
+sp_3072_from_bin_movbe:
+#else
+.globl	_sp_3072_from_bin_movbe
+.p2align	4
+_sp_3072_from_bin_movbe:
+#endif /* __APPLE__ */
+        movq	%rdx, %r9
+        movq	%rdi, %r10
+        addq	%rcx, %r9
+        addq	$384, %r10
+        xorq	%r11, %r11
+        jmp	L_3072_from_bin_movbe_64_end
+L_3072_from_bin_movbe_64_start:
         subq	$64, %r9
         movbeq	56(%r9), %rax
         movbeq	48(%r9), %r8
@@ -12330,60 +12634,226 @@ L_3072_from_bin_64_start:
         movq	%r8, 56(%rdi)
         addq	$64, %rdi
         subq	$64, %rcx
-L_3072_from_bin_64_end:
+L_3072_from_bin_movbe_64_end:
         cmpq	$63, %rcx
-        jg	L_3072_from_bin_64_start
-        jmp	L_3072_from_bin_8_end
-L_3072_from_bin_8_start:
+        jg	L_3072_from_bin_movbe_64_start
+        jmp	L_3072_from_bin_movbe_8_end
+L_3072_from_bin_movbe_8_start:
         subq	$8, %r9
         movbeq	(%r9), %rax
         movq	%rax, (%rdi)
         addq	$8, %rdi
         subq	$8, %rcx
-L_3072_from_bin_8_end:
+L_3072_from_bin_movbe_8_end:
         cmpq	$7, %rcx
-        jg	L_3072_from_bin_8_start
+        jg	L_3072_from_bin_movbe_8_start
         cmpq	%r11, %rcx
-        je	L_3072_from_bin_hi_end
+        je	L_3072_from_bin_movbe_hi_end
         movq	%r11, %r8
         movq	%r11, %rax
-L_3072_from_bin_hi_start:
+L_3072_from_bin_movbe_hi_start:
         movb	(%rdx), %al
         shlq	$8, %r8
         incq	%rdx
         addq	%rax, %r8
         decq	%rcx
-        jg	L_3072_from_bin_hi_start
+        jg	L_3072_from_bin_movbe_hi_start
         movq	%r8, (%rdi)
         addq	$8, %rdi
-L_3072_from_bin_hi_end:
+L_3072_from_bin_movbe_hi_end:
         cmpq	%r10, %rdi
-        je	L_3072_from_bin_zero_end
-L_3072_from_bin_zero_start:
+        je	L_3072_from_bin_movbe_zero_end
+L_3072_from_bin_movbe_zero_start:
         movq	%r11, (%rdi)
         addq	$8, %rdi
         cmpq	%r10, %rdi
-        jl	L_3072_from_bin_zero_start
-L_3072_from_bin_zero_end:
+        jl	L_3072_from_bin_movbe_zero_start
+L_3072_from_bin_movbe_zero_end:
         repz retq
 #ifndef __APPLE__
-.size	sp_3072_from_bin,.-sp_3072_from_bin
+.size	sp_3072_from_bin_movbe,.-sp_3072_from_bin_movbe
 #endif /* __APPLE__ */
 /* Write r as big endian to byte array.
  * Fixed length number of bytes written: 384
+ * Uses the bswap instruction.
  *
  * r  A single precision integer.
  * a  Byte array.
  */
 #ifndef __APPLE__
-.globl	sp_3072_to_bin
-.type	sp_3072_to_bin,@function
+.globl	sp_3072_to_bin_bswap
+.type	sp_3072_to_bin_bswap,@function
 .align	16
-sp_3072_to_bin:
+sp_3072_to_bin_bswap:
 #else
-.globl	_sp_3072_to_bin
+.globl	_sp_3072_to_bin_bswap
 .p2align	4
-_sp_3072_to_bin:
+_sp_3072_to_bin_bswap:
+#endif /* __APPLE__ */
+        movq	376(%rdi), %rdx
+        movq	368(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, (%rsi)
+        movq	%rax, 8(%rsi)
+        movq	360(%rdi), %rdx
+        movq	352(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 16(%rsi)
+        movq	%rax, 24(%rsi)
+        movq	344(%rdi), %rdx
+        movq	336(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 32(%rsi)
+        movq	%rax, 40(%rsi)
+        movq	328(%rdi), %rdx
+        movq	320(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 48(%rsi)
+        movq	%rax, 56(%rsi)
+        movq	312(%rdi), %rdx
+        movq	304(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 64(%rsi)
+        movq	%rax, 72(%rsi)
+        movq	296(%rdi), %rdx
+        movq	288(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 80(%rsi)
+        movq	%rax, 88(%rsi)
+        movq	280(%rdi), %rdx
+        movq	272(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 96(%rsi)
+        movq	%rax, 104(%rsi)
+        movq	264(%rdi), %rdx
+        movq	256(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 112(%rsi)
+        movq	%rax, 120(%rsi)
+        movq	248(%rdi), %rdx
+        movq	240(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 128(%rsi)
+        movq	%rax, 136(%rsi)
+        movq	232(%rdi), %rdx
+        movq	224(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 144(%rsi)
+        movq	%rax, 152(%rsi)
+        movq	216(%rdi), %rdx
+        movq	208(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 160(%rsi)
+        movq	%rax, 168(%rsi)
+        movq	200(%rdi), %rdx
+        movq	192(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 176(%rsi)
+        movq	%rax, 184(%rsi)
+        movq	184(%rdi), %rdx
+        movq	176(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 192(%rsi)
+        movq	%rax, 200(%rsi)
+        movq	168(%rdi), %rdx
+        movq	160(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 208(%rsi)
+        movq	%rax, 216(%rsi)
+        movq	152(%rdi), %rdx
+        movq	144(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 224(%rsi)
+        movq	%rax, 232(%rsi)
+        movq	136(%rdi), %rdx
+        movq	128(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 240(%rsi)
+        movq	%rax, 248(%rsi)
+        movq	120(%rdi), %rdx
+        movq	112(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 256(%rsi)
+        movq	%rax, 264(%rsi)
+        movq	104(%rdi), %rdx
+        movq	96(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 272(%rsi)
+        movq	%rax, 280(%rsi)
+        movq	88(%rdi), %rdx
+        movq	80(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 288(%rsi)
+        movq	%rax, 296(%rsi)
+        movq	72(%rdi), %rdx
+        movq	64(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 304(%rsi)
+        movq	%rax, 312(%rsi)
+        movq	56(%rdi), %rdx
+        movq	48(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 320(%rsi)
+        movq	%rax, 328(%rsi)
+        movq	40(%rdi), %rdx
+        movq	32(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 336(%rsi)
+        movq	%rax, 344(%rsi)
+        movq	24(%rdi), %rdx
+        movq	16(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 352(%rsi)
+        movq	%rax, 360(%rsi)
+        movq	8(%rdi), %rdx
+        movq	(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 368(%rsi)
+        movq	%rax, 376(%rsi)
+        repz retq
+#ifndef __APPLE__
+.size	sp_3072_to_bin_bswap,.-sp_3072_to_bin_bswap
+#endif /* __APPLE__ */
+/* Write r as big endian to byte array.
+ * Fixed length number of bytes written: 384
+ * Uses the movbe instruction which is optional.
+ *
+ * r  A single precision integer.
+ * a  Byte array.
+ */
+#ifndef __APPLE__
+.globl	sp_3072_to_bin_movbe
+.type	sp_3072_to_bin_movbe,@function
+.align	16
+sp_3072_to_bin_movbe:
+#else
+.globl	_sp_3072_to_bin_movbe
+.p2align	4
+_sp_3072_to_bin_movbe:
 #endif /* __APPLE__ */
         movbeq	376(%rdi), %rdx
         movbeq	368(%rdi), %rax
@@ -12483,7 +12953,7 @@ _sp_3072_to_bin:
         movq	%rax, 376(%rsi)
         repz retq
 #ifndef __APPLE__
-.size	sp_3072_to_bin,.-sp_3072_to_bin
+.size	sp_3072_to_bin_movbe,.-sp_3072_to_bin_movbe
 #endif /* __APPLE__ */
 /* Multiply a and b into r. (r = a * b)
  *
@@ -27167,6 +27637,7 @@ _sp_3072_lshift_48:
 #ifdef WOLFSSL_SP_4096
 #ifdef WOLFSSL_SP_4096
 /* Read big endian unsigned byte array into r.
+ * Uses the bswap instruction.
  *
  * r  A single precision integer.
  * size  Maximum number of bytes to convert
@@ -27174,22 +27645,114 @@ _sp_3072_lshift_48:
  * n  Number of bytes in array to read.
  */
 #ifndef __APPLE__
-.globl	sp_4096_from_bin
-.type	sp_4096_from_bin,@function
+.globl	sp_4096_from_bin_bswap
+.type	sp_4096_from_bin_bswap,@function
 .align	16
-sp_4096_from_bin:
+sp_4096_from_bin_bswap:
 #else
-.globl	_sp_4096_from_bin
+.globl	_sp_4096_from_bin_bswap
 .p2align	4
-_sp_4096_from_bin:
+_sp_4096_from_bin_bswap:
 #endif /* __APPLE__ */
         movq	%rdx, %r9
         movq	%rdi, %r10
         addq	%rcx, %r9
         addq	$512, %r10
         xorq	%r11, %r11
-        jmp	L_4096_from_bin_64_end
-L_4096_from_bin_64_start:
+        jmp	L_4096_from_bin_bswap_64_end
+L_4096_from_bin_bswap_64_start:
+        subq	$64, %r9
+        movq	56(%r9), %rax
+        movq	48(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, (%rdi)
+        movq	%r8, 8(%rdi)
+        movq	40(%r9), %rax
+        movq	32(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, 16(%rdi)
+        movq	%r8, 24(%rdi)
+        movq	24(%r9), %rax
+        movq	16(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, 32(%rdi)
+        movq	%r8, 40(%rdi)
+        movq	8(%r9), %rax
+        movq	(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, 48(%rdi)
+        movq	%r8, 56(%rdi)
+        addq	$64, %rdi
+        subq	$64, %rcx
+L_4096_from_bin_bswap_64_end:
+        cmpq	$63, %rcx
+        jg	L_4096_from_bin_bswap_64_start
+        jmp	L_4096_from_bin_bswap_8_end
+L_4096_from_bin_bswap_8_start:
+        subq	$8, %r9
+        movq	(%r9), %rax
+        bswapq	%rax
+        movq	%rax, (%rdi)
+        addq	$8, %rdi
+        subq	$8, %rcx
+L_4096_from_bin_bswap_8_end:
+        cmpq	$7, %rcx
+        jg	L_4096_from_bin_bswap_8_start
+        cmpq	%r11, %rcx
+        je	L_4096_from_bin_bswap_hi_end
+        movq	%r11, %r8
+        movq	%r11, %rax
+L_4096_from_bin_bswap_hi_start:
+        movb	(%rdx), %al
+        shlq	$8, %r8
+        incq	%rdx
+        addq	%rax, %r8
+        decq	%rcx
+        jg	L_4096_from_bin_bswap_hi_start
+        movq	%r8, (%rdi)
+        addq	$8, %rdi
+L_4096_from_bin_bswap_hi_end:
+        cmpq	%r10, %rdi
+        je	L_4096_from_bin_bswap_zero_end
+L_4096_from_bin_bswap_zero_start:
+        movq	%r11, (%rdi)
+        addq	$8, %rdi
+        cmpq	%r10, %rdi
+        jl	L_4096_from_bin_bswap_zero_start
+L_4096_from_bin_bswap_zero_end:
+        repz retq
+#ifndef __APPLE__
+.size	sp_4096_from_bin_bswap,.-sp_4096_from_bin_bswap
+#endif /* __APPLE__ */
+/* Read big endian unsigned byte array into r.
+ * Uses the movbe instruction which is an optional instruction.
+ *
+ * r  A single precision integer.
+ * size  Maximum number of bytes to convert
+ * a  Byte array.
+ * n  Number of bytes in array to read.
+ */
+#ifndef __APPLE__
+.globl	sp_4096_from_bin_movbe
+.type	sp_4096_from_bin_movbe,@function
+.align	16
+sp_4096_from_bin_movbe:
+#else
+.globl	_sp_4096_from_bin_movbe
+.p2align	4
+_sp_4096_from_bin_movbe:
+#endif /* __APPLE__ */
+        movq	%rdx, %r9
+        movq	%rdi, %r10
+        addq	%rcx, %r9
+        addq	$512, %r10
+        xorq	%r11, %r11
+        jmp	L_4096_from_bin_movbe_64_end
+L_4096_from_bin_movbe_64_start:
         subq	$64, %r9
         movbeq	56(%r9), %rax
         movbeq	48(%r9), %r8
@@ -27209,60 +27772,274 @@ L_4096_from_bin_64_start:
         movq	%r8, 56(%rdi)
         addq	$64, %rdi
         subq	$64, %rcx
-L_4096_from_bin_64_end:
+L_4096_from_bin_movbe_64_end:
         cmpq	$63, %rcx
-        jg	L_4096_from_bin_64_start
-        jmp	L_4096_from_bin_8_end
-L_4096_from_bin_8_start:
+        jg	L_4096_from_bin_movbe_64_start
+        jmp	L_4096_from_bin_movbe_8_end
+L_4096_from_bin_movbe_8_start:
         subq	$8, %r9
         movbeq	(%r9), %rax
         movq	%rax, (%rdi)
         addq	$8, %rdi
         subq	$8, %rcx
-L_4096_from_bin_8_end:
+L_4096_from_bin_movbe_8_end:
         cmpq	$7, %rcx
-        jg	L_4096_from_bin_8_start
+        jg	L_4096_from_bin_movbe_8_start
         cmpq	%r11, %rcx
-        je	L_4096_from_bin_hi_end
+        je	L_4096_from_bin_movbe_hi_end
         movq	%r11, %r8
         movq	%r11, %rax
-L_4096_from_bin_hi_start:
+L_4096_from_bin_movbe_hi_start:
         movb	(%rdx), %al
         shlq	$8, %r8
         incq	%rdx
         addq	%rax, %r8
         decq	%rcx
-        jg	L_4096_from_bin_hi_start
+        jg	L_4096_from_bin_movbe_hi_start
         movq	%r8, (%rdi)
         addq	$8, %rdi
-L_4096_from_bin_hi_end:
+L_4096_from_bin_movbe_hi_end:
         cmpq	%r10, %rdi
-        je	L_4096_from_bin_zero_end
-L_4096_from_bin_zero_start:
+        je	L_4096_from_bin_movbe_zero_end
+L_4096_from_bin_movbe_zero_start:
         movq	%r11, (%rdi)
         addq	$8, %rdi
         cmpq	%r10, %rdi
-        jl	L_4096_from_bin_zero_start
-L_4096_from_bin_zero_end:
+        jl	L_4096_from_bin_movbe_zero_start
+L_4096_from_bin_movbe_zero_end:
         repz retq
 #ifndef __APPLE__
-.size	sp_4096_from_bin,.-sp_4096_from_bin
+.size	sp_4096_from_bin_movbe,.-sp_4096_from_bin_movbe
 #endif /* __APPLE__ */
 /* Write r as big endian to byte array.
  * Fixed length number of bytes written: 512
+ * Uses the bswap instruction.
  *
  * r  A single precision integer.
  * a  Byte array.
  */
 #ifndef __APPLE__
-.globl	sp_4096_to_bin
-.type	sp_4096_to_bin,@function
+.globl	sp_4096_to_bin_bswap
+.type	sp_4096_to_bin_bswap,@function
 .align	16
-sp_4096_to_bin:
+sp_4096_to_bin_bswap:
 #else
-.globl	_sp_4096_to_bin
+.globl	_sp_4096_to_bin_bswap
 .p2align	4
-_sp_4096_to_bin:
+_sp_4096_to_bin_bswap:
+#endif /* __APPLE__ */
+        movq	504(%rdi), %rdx
+        movq	496(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, (%rsi)
+        movq	%rax, 8(%rsi)
+        movq	488(%rdi), %rdx
+        movq	480(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 16(%rsi)
+        movq	%rax, 24(%rsi)
+        movq	472(%rdi), %rdx
+        movq	464(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 32(%rsi)
+        movq	%rax, 40(%rsi)
+        movq	456(%rdi), %rdx
+        movq	448(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 48(%rsi)
+        movq	%rax, 56(%rsi)
+        movq	440(%rdi), %rdx
+        movq	432(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 64(%rsi)
+        movq	%rax, 72(%rsi)
+        movq	424(%rdi), %rdx
+        movq	416(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 80(%rsi)
+        movq	%rax, 88(%rsi)
+        movq	408(%rdi), %rdx
+        movq	400(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 96(%rsi)
+        movq	%rax, 104(%rsi)
+        movq	392(%rdi), %rdx
+        movq	384(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 112(%rsi)
+        movq	%rax, 120(%rsi)
+        movq	376(%rdi), %rdx
+        movq	368(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 128(%rsi)
+        movq	%rax, 136(%rsi)
+        movq	360(%rdi), %rdx
+        movq	352(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 144(%rsi)
+        movq	%rax, 152(%rsi)
+        movq	344(%rdi), %rdx
+        movq	336(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 160(%rsi)
+        movq	%rax, 168(%rsi)
+        movq	328(%rdi), %rdx
+        movq	320(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 176(%rsi)
+        movq	%rax, 184(%rsi)
+        movq	312(%rdi), %rdx
+        movq	304(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 192(%rsi)
+        movq	%rax, 200(%rsi)
+        movq	296(%rdi), %rdx
+        movq	288(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 208(%rsi)
+        movq	%rax, 216(%rsi)
+        movq	280(%rdi), %rdx
+        movq	272(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 224(%rsi)
+        movq	%rax, 232(%rsi)
+        movq	264(%rdi), %rdx
+        movq	256(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 240(%rsi)
+        movq	%rax, 248(%rsi)
+        movq	248(%rdi), %rdx
+        movq	240(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 256(%rsi)
+        movq	%rax, 264(%rsi)
+        movq	232(%rdi), %rdx
+        movq	224(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 272(%rsi)
+        movq	%rax, 280(%rsi)
+        movq	216(%rdi), %rdx
+        movq	208(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 288(%rsi)
+        movq	%rax, 296(%rsi)
+        movq	200(%rdi), %rdx
+        movq	192(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 304(%rsi)
+        movq	%rax, 312(%rsi)
+        movq	184(%rdi), %rdx
+        movq	176(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 320(%rsi)
+        movq	%rax, 328(%rsi)
+        movq	168(%rdi), %rdx
+        movq	160(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 336(%rsi)
+        movq	%rax, 344(%rsi)
+        movq	152(%rdi), %rdx
+        movq	144(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 352(%rsi)
+        movq	%rax, 360(%rsi)
+        movq	136(%rdi), %rdx
+        movq	128(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 368(%rsi)
+        movq	%rax, 376(%rsi)
+        movq	120(%rdi), %rdx
+        movq	112(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 384(%rsi)
+        movq	%rax, 392(%rsi)
+        movq	104(%rdi), %rdx
+        movq	96(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 400(%rsi)
+        movq	%rax, 408(%rsi)
+        movq	88(%rdi), %rdx
+        movq	80(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 416(%rsi)
+        movq	%rax, 424(%rsi)
+        movq	72(%rdi), %rdx
+        movq	64(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 432(%rsi)
+        movq	%rax, 440(%rsi)
+        movq	56(%rdi), %rdx
+        movq	48(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 448(%rsi)
+        movq	%rax, 456(%rsi)
+        movq	40(%rdi), %rdx
+        movq	32(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 464(%rsi)
+        movq	%rax, 472(%rsi)
+        movq	24(%rdi), %rdx
+        movq	16(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 480(%rsi)
+        movq	%rax, 488(%rsi)
+        movq	8(%rdi), %rdx
+        movq	(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 496(%rsi)
+        movq	%rax, 504(%rsi)
+        repz retq
+#ifndef __APPLE__
+.size	sp_4096_to_bin_bswap,.-sp_4096_to_bin_bswap
+#endif /* __APPLE__ */
+/* Write r as big endian to byte array.
+ * Fixed length number of bytes written: 512
+ * Uses the movbe instruction which is optional.
+ *
+ * r  A single precision integer.
+ * a  Byte array.
+ */
+#ifndef __APPLE__
+.globl	sp_4096_to_bin_movbe
+.type	sp_4096_to_bin_movbe,@function
+.align	16
+sp_4096_to_bin_movbe:
+#else
+.globl	_sp_4096_to_bin_movbe
+.p2align	4
+_sp_4096_to_bin_movbe:
 #endif /* __APPLE__ */
         movbeq	504(%rdi), %rdx
         movbeq	496(%rdi), %rax
@@ -27394,7 +28171,7 @@ _sp_4096_to_bin:
         movq	%rax, 504(%rsi)
         repz retq
 #ifndef __APPLE__
-.size	sp_4096_to_bin,.-sp_4096_to_bin
+.size	sp_4096_to_bin_movbe,.-sp_4096_to_bin_movbe
 #endif /* __APPLE__ */
 /* Sub b from a into a. (a -= b)
  *
@@ -38579,6 +39356,7 @@ _sp_256_add_one_4:
 .size	sp_256_add_one_4,.-sp_256_add_one_4
 #endif /* __APPLE__ */
 /* Read big endian unsigned byte array into r.
+ * Uses the bswap instruction.
  *
  * r  A single precision integer.
  * size  Maximum number of bytes to convert
@@ -38586,22 +39364,114 @@ _sp_256_add_one_4:
  * n  Number of bytes in array to read.
  */
 #ifndef __APPLE__
-.globl	sp_256_from_bin
-.type	sp_256_from_bin,@function
+.globl	sp_256_from_bin_bswap
+.type	sp_256_from_bin_bswap,@function
 .align	16
-sp_256_from_bin:
+sp_256_from_bin_bswap:
 #else
-.globl	_sp_256_from_bin
+.globl	_sp_256_from_bin_bswap
 .p2align	4
-_sp_256_from_bin:
+_sp_256_from_bin_bswap:
 #endif /* __APPLE__ */
         movq	%rdx, %r9
         movq	%rdi, %r10
         addq	%rcx, %r9
         addq	$32, %r10
         xorq	%r11, %r11
-        jmp	L_256_from_bin_64_end
-L_256_from_bin_64_start:
+        jmp	L_256_from_bin_bswap_64_end
+L_256_from_bin_bswap_64_start:
+        subq	$64, %r9
+        movq	56(%r9), %rax
+        movq	48(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, (%rdi)
+        movq	%r8, 8(%rdi)
+        movq	40(%r9), %rax
+        movq	32(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, 16(%rdi)
+        movq	%r8, 24(%rdi)
+        movq	24(%r9), %rax
+        movq	16(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, 32(%rdi)
+        movq	%r8, 40(%rdi)
+        movq	8(%r9), %rax
+        movq	(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, 48(%rdi)
+        movq	%r8, 56(%rdi)
+        addq	$64, %rdi
+        subq	$64, %rcx
+L_256_from_bin_bswap_64_end:
+        cmpq	$63, %rcx
+        jg	L_256_from_bin_bswap_64_start
+        jmp	L_256_from_bin_bswap_8_end
+L_256_from_bin_bswap_8_start:
+        subq	$8, %r9
+        movq	(%r9), %rax
+        bswapq	%rax
+        movq	%rax, (%rdi)
+        addq	$8, %rdi
+        subq	$8, %rcx
+L_256_from_bin_bswap_8_end:
+        cmpq	$7, %rcx
+        jg	L_256_from_bin_bswap_8_start
+        cmpq	%r11, %rcx
+        je	L_256_from_bin_bswap_hi_end
+        movq	%r11, %r8
+        movq	%r11, %rax
+L_256_from_bin_bswap_hi_start:
+        movb	(%rdx), %al
+        shlq	$8, %r8
+        incq	%rdx
+        addq	%rax, %r8
+        decq	%rcx
+        jg	L_256_from_bin_bswap_hi_start
+        movq	%r8, (%rdi)
+        addq	$8, %rdi
+L_256_from_bin_bswap_hi_end:
+        cmpq	%r10, %rdi
+        je	L_256_from_bin_bswap_zero_end
+L_256_from_bin_bswap_zero_start:
+        movq	%r11, (%rdi)
+        addq	$8, %rdi
+        cmpq	%r10, %rdi
+        jl	L_256_from_bin_bswap_zero_start
+L_256_from_bin_bswap_zero_end:
+        repz retq
+#ifndef __APPLE__
+.size	sp_256_from_bin_bswap,.-sp_256_from_bin_bswap
+#endif /* __APPLE__ */
+/* Read big endian unsigned byte array into r.
+ * Uses the movbe instruction which is an optional instruction.
+ *
+ * r  A single precision integer.
+ * size  Maximum number of bytes to convert
+ * a  Byte array.
+ * n  Number of bytes in array to read.
+ */
+#ifndef __APPLE__
+.globl	sp_256_from_bin_movbe
+.type	sp_256_from_bin_movbe,@function
+.align	16
+sp_256_from_bin_movbe:
+#else
+.globl	_sp_256_from_bin_movbe
+.p2align	4
+_sp_256_from_bin_movbe:
+#endif /* __APPLE__ */
+        movq	%rdx, %r9
+        movq	%rdi, %r10
+        addq	%rcx, %r9
+        addq	$32, %r10
+        xorq	%r11, %r11
+        jmp	L_256_from_bin_movbe_64_end
+L_256_from_bin_movbe_64_start:
         subq	$64, %r9
         movbeq	56(%r9), %rax
         movbeq	48(%r9), %r8
@@ -38621,60 +39491,94 @@ L_256_from_bin_64_start:
         movq	%r8, 56(%rdi)
         addq	$64, %rdi
         subq	$64, %rcx
-L_256_from_bin_64_end:
+L_256_from_bin_movbe_64_end:
         cmpq	$63, %rcx
-        jg	L_256_from_bin_64_start
-        jmp	L_256_from_bin_8_end
-L_256_from_bin_8_start:
+        jg	L_256_from_bin_movbe_64_start
+        jmp	L_256_from_bin_movbe_8_end
+L_256_from_bin_movbe_8_start:
         subq	$8, %r9
         movbeq	(%r9), %rax
         movq	%rax, (%rdi)
         addq	$8, %rdi
         subq	$8, %rcx
-L_256_from_bin_8_end:
+L_256_from_bin_movbe_8_end:
         cmpq	$7, %rcx
-        jg	L_256_from_bin_8_start
+        jg	L_256_from_bin_movbe_8_start
         cmpq	%r11, %rcx
-        je	L_256_from_bin_hi_end
+        je	L_256_from_bin_movbe_hi_end
         movq	%r11, %r8
         movq	%r11, %rax
-L_256_from_bin_hi_start:
+L_256_from_bin_movbe_hi_start:
         movb	(%rdx), %al
         shlq	$8, %r8
         incq	%rdx
         addq	%rax, %r8
         decq	%rcx
-        jg	L_256_from_bin_hi_start
+        jg	L_256_from_bin_movbe_hi_start
         movq	%r8, (%rdi)
         addq	$8, %rdi
-L_256_from_bin_hi_end:
+L_256_from_bin_movbe_hi_end:
         cmpq	%r10, %rdi
-        je	L_256_from_bin_zero_end
-L_256_from_bin_zero_start:
+        je	L_256_from_bin_movbe_zero_end
+L_256_from_bin_movbe_zero_start:
         movq	%r11, (%rdi)
         addq	$8, %rdi
         cmpq	%r10, %rdi
-        jl	L_256_from_bin_zero_start
-L_256_from_bin_zero_end:
+        jl	L_256_from_bin_movbe_zero_start
+L_256_from_bin_movbe_zero_end:
         repz retq
 #ifndef __APPLE__
-.size	sp_256_from_bin,.-sp_256_from_bin
+.size	sp_256_from_bin_movbe,.-sp_256_from_bin_movbe
 #endif /* __APPLE__ */
 /* Write r as big endian to byte array.
  * Fixed length number of bytes written: 32
+ * Uses the bswap instruction.
  *
  * r  A single precision integer.
  * a  Byte array.
  */
 #ifndef __APPLE__
-.globl	sp_256_to_bin
-.type	sp_256_to_bin,@function
+.globl	sp_256_to_bin_bswap
+.type	sp_256_to_bin_bswap,@function
 .align	16
-sp_256_to_bin:
+sp_256_to_bin_bswap:
 #else
-.globl	_sp_256_to_bin
+.globl	_sp_256_to_bin_bswap
 .p2align	4
-_sp_256_to_bin:
+_sp_256_to_bin_bswap:
+#endif /* __APPLE__ */
+        movq	24(%rdi), %rdx
+        movq	16(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, (%rsi)
+        movq	%rax, 8(%rsi)
+        movq	8(%rdi), %rdx
+        movq	(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 16(%rsi)
+        movq	%rax, 24(%rsi)
+        repz retq
+#ifndef __APPLE__
+.size	sp_256_to_bin_bswap,.-sp_256_to_bin_bswap
+#endif /* __APPLE__ */
+/* Write r as big endian to byte array.
+ * Fixed length number of bytes written: 32
+ * Uses the movbe instruction which is optional.
+ *
+ * r  A single precision integer.
+ * a  Byte array.
+ */
+#ifndef __APPLE__
+.globl	sp_256_to_bin_movbe
+.type	sp_256_to_bin_movbe,@function
+.align	16
+sp_256_to_bin_movbe:
+#else
+.globl	_sp_256_to_bin_movbe
+.p2align	4
+_sp_256_to_bin_movbe:
 #endif /* __APPLE__ */
         movbeq	24(%rdi), %rdx
         movbeq	16(%rdi), %rax
@@ -38686,7 +39590,7 @@ _sp_256_to_bin:
         movq	%rax, 24(%rsi)
         repz retq
 #ifndef __APPLE__
-.size	sp_256_to_bin,.-sp_256_to_bin
+.size	sp_256_to_bin_movbe,.-sp_256_to_bin_movbe
 #endif /* __APPLE__ */
 /* Add b to a into r. (r = a + b)
  *
@@ -41500,6 +42404,7 @@ _sp_384_add_one_6:
 .size	sp_384_add_one_6,.-sp_384_add_one_6
 #endif /* __APPLE__ */
 /* Read big endian unsigned byte array into r.
+ * Uses the bswap instruction.
  *
  * r  A single precision integer.
  * size  Maximum number of bytes to convert
@@ -41507,22 +42412,114 @@ _sp_384_add_one_6:
  * n  Number of bytes in array to read.
  */
 #ifndef __APPLE__
-.globl	sp_384_from_bin
-.type	sp_384_from_bin,@function
+.globl	sp_384_from_bin_bswap
+.type	sp_384_from_bin_bswap,@function
 .align	16
-sp_384_from_bin:
+sp_384_from_bin_bswap:
 #else
-.globl	_sp_384_from_bin
+.globl	_sp_384_from_bin_bswap
 .p2align	4
-_sp_384_from_bin:
+_sp_384_from_bin_bswap:
 #endif /* __APPLE__ */
         movq	%rdx, %r9
         movq	%rdi, %r10
         addq	%rcx, %r9
         addq	$48, %r10
         xorq	%r11, %r11
-        jmp	L_384_from_bin_64_end
-L_384_from_bin_64_start:
+        jmp	L_384_from_bin_bswap_64_end
+L_384_from_bin_bswap_64_start:
+        subq	$64, %r9
+        movq	56(%r9), %rax
+        movq	48(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, (%rdi)
+        movq	%r8, 8(%rdi)
+        movq	40(%r9), %rax
+        movq	32(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, 16(%rdi)
+        movq	%r8, 24(%rdi)
+        movq	24(%r9), %rax
+        movq	16(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, 32(%rdi)
+        movq	%r8, 40(%rdi)
+        movq	8(%r9), %rax
+        movq	(%r9), %r8
+        bswapq	%rax
+        bswapq	%r8
+        movq	%rax, 48(%rdi)
+        movq	%r8, 56(%rdi)
+        addq	$64, %rdi
+        subq	$64, %rcx
+L_384_from_bin_bswap_64_end:
+        cmpq	$63, %rcx
+        jg	L_384_from_bin_bswap_64_start
+        jmp	L_384_from_bin_bswap_8_end
+L_384_from_bin_bswap_8_start:
+        subq	$8, %r9
+        movq	(%r9), %rax
+        bswapq	%rax
+        movq	%rax, (%rdi)
+        addq	$8, %rdi
+        subq	$8, %rcx
+L_384_from_bin_bswap_8_end:
+        cmpq	$7, %rcx
+        jg	L_384_from_bin_bswap_8_start
+        cmpq	%r11, %rcx
+        je	L_384_from_bin_bswap_hi_end
+        movq	%r11, %r8
+        movq	%r11, %rax
+L_384_from_bin_bswap_hi_start:
+        movb	(%rdx), %al
+        shlq	$8, %r8
+        incq	%rdx
+        addq	%rax, %r8
+        decq	%rcx
+        jg	L_384_from_bin_bswap_hi_start
+        movq	%r8, (%rdi)
+        addq	$8, %rdi
+L_384_from_bin_bswap_hi_end:
+        cmpq	%r10, %rdi
+        je	L_384_from_bin_bswap_zero_end
+L_384_from_bin_bswap_zero_start:
+        movq	%r11, (%rdi)
+        addq	$8, %rdi
+        cmpq	%r10, %rdi
+        jl	L_384_from_bin_bswap_zero_start
+L_384_from_bin_bswap_zero_end:
+        repz retq
+#ifndef __APPLE__
+.size	sp_384_from_bin_bswap,.-sp_384_from_bin_bswap
+#endif /* __APPLE__ */
+/* Read big endian unsigned byte array into r.
+ * Uses the movbe instruction which is an optional instruction.
+ *
+ * r  A single precision integer.
+ * size  Maximum number of bytes to convert
+ * a  Byte array.
+ * n  Number of bytes in array to read.
+ */
+#ifndef __APPLE__
+.globl	sp_384_from_bin_movbe
+.type	sp_384_from_bin_movbe,@function
+.align	16
+sp_384_from_bin_movbe:
+#else
+.globl	_sp_384_from_bin_movbe
+.p2align	4
+_sp_384_from_bin_movbe:
+#endif /* __APPLE__ */
+        movq	%rdx, %r9
+        movq	%rdi, %r10
+        addq	%rcx, %r9
+        addq	$48, %r10
+        xorq	%r11, %r11
+        jmp	L_384_from_bin_movbe_64_end
+L_384_from_bin_movbe_64_start:
         subq	$64, %r9
         movbeq	56(%r9), %rax
         movbeq	48(%r9), %r8
@@ -41542,60 +42539,100 @@ L_384_from_bin_64_start:
         movq	%r8, 56(%rdi)
         addq	$64, %rdi
         subq	$64, %rcx
-L_384_from_bin_64_end:
+L_384_from_bin_movbe_64_end:
         cmpq	$63, %rcx
-        jg	L_384_from_bin_64_start
-        jmp	L_384_from_bin_8_end
-L_384_from_bin_8_start:
+        jg	L_384_from_bin_movbe_64_start
+        jmp	L_384_from_bin_movbe_8_end
+L_384_from_bin_movbe_8_start:
         subq	$8, %r9
         movbeq	(%r9), %rax
         movq	%rax, (%rdi)
         addq	$8, %rdi
         subq	$8, %rcx
-L_384_from_bin_8_end:
+L_384_from_bin_movbe_8_end:
         cmpq	$7, %rcx
-        jg	L_384_from_bin_8_start
+        jg	L_384_from_bin_movbe_8_start
         cmpq	%r11, %rcx
-        je	L_384_from_bin_hi_end
+        je	L_384_from_bin_movbe_hi_end
         movq	%r11, %r8
         movq	%r11, %rax
-L_384_from_bin_hi_start:
+L_384_from_bin_movbe_hi_start:
         movb	(%rdx), %al
         shlq	$8, %r8
         incq	%rdx
         addq	%rax, %r8
         decq	%rcx
-        jg	L_384_from_bin_hi_start
+        jg	L_384_from_bin_movbe_hi_start
         movq	%r8, (%rdi)
         addq	$8, %rdi
-L_384_from_bin_hi_end:
+L_384_from_bin_movbe_hi_end:
         cmpq	%r10, %rdi
-        je	L_384_from_bin_zero_end
-L_384_from_bin_zero_start:
+        je	L_384_from_bin_movbe_zero_end
+L_384_from_bin_movbe_zero_start:
         movq	%r11, (%rdi)
         addq	$8, %rdi
         cmpq	%r10, %rdi
-        jl	L_384_from_bin_zero_start
-L_384_from_bin_zero_end:
+        jl	L_384_from_bin_movbe_zero_start
+L_384_from_bin_movbe_zero_end:
         repz retq
 #ifndef __APPLE__
-.size	sp_384_from_bin,.-sp_384_from_bin
+.size	sp_384_from_bin_movbe,.-sp_384_from_bin_movbe
 #endif /* __APPLE__ */
 /* Write r as big endian to byte array.
  * Fixed length number of bytes written: 48
+ * Uses the bswap instruction.
  *
  * r  A single precision integer.
  * a  Byte array.
  */
 #ifndef __APPLE__
-.globl	sp_384_to_bin
-.type	sp_384_to_bin,@function
+.globl	sp_384_to_bin_bswap
+.type	sp_384_to_bin_bswap,@function
 .align	16
-sp_384_to_bin:
+sp_384_to_bin_bswap:
 #else
-.globl	_sp_384_to_bin
+.globl	_sp_384_to_bin_bswap
 .p2align	4
-_sp_384_to_bin:
+_sp_384_to_bin_bswap:
+#endif /* __APPLE__ */
+        movq	40(%rdi), %rdx
+        movq	32(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, (%rsi)
+        movq	%rax, 8(%rsi)
+        movq	24(%rdi), %rdx
+        movq	16(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 16(%rsi)
+        movq	%rax, 24(%rsi)
+        movq	8(%rdi), %rdx
+        movq	(%rdi), %rax
+        bswapq	%rdx
+        bswapq	%rax
+        movq	%rdx, 32(%rsi)
+        movq	%rax, 40(%rsi)
+        repz retq
+#ifndef __APPLE__
+.size	sp_384_to_bin_bswap,.-sp_384_to_bin_bswap
+#endif /* __APPLE__ */
+/* Write r as big endian to byte array.
+ * Fixed length number of bytes written: 48
+ * Uses the movbe instruction which is optional.
+ *
+ * r  A single precision integer.
+ * a  Byte array.
+ */
+#ifndef __APPLE__
+.globl	sp_384_to_bin_movbe
+.type	sp_384_to_bin_movbe,@function
+.align	16
+sp_384_to_bin_movbe:
+#else
+.globl	_sp_384_to_bin_movbe
+.p2align	4
+_sp_384_to_bin_movbe:
 #endif /* __APPLE__ */
         movbeq	40(%rdi), %rdx
         movbeq	32(%rdi), %rax
@@ -41611,7 +42648,7 @@ _sp_384_to_bin:
         movq	%rax, 40(%rsi)
         repz retq
 #ifndef __APPLE__
-.size	sp_384_to_bin,.-sp_384_to_bin
+.size	sp_384_to_bin_movbe,.-sp_384_to_bin_movbe
 #endif /* __APPLE__ */
 /* Sub b from a into a. (a -= b)
  *
