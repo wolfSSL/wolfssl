@@ -560,9 +560,16 @@ static int wc_Pic32HashFinal(hashUpdCache* cache, byte* stdBuf,
 
 #ifdef WOLFSSL_PIC32MZ_LARGE_HASH
     if (cache->finalLen) {
-        start_engine(&gLHDesc);
-        wait_engine(&gLHDesc, (char*)digest, digestSz);
-        XMEMCPY(hash, digest, digestSz);
+        /* Only submit to hardware if update data provided matches expected */
+        if (cache->bufLen == cache->finalLen) {
+            start_engine();
+            wait_engine((char*)digest, digestSz);
+            XMEMCPY(hash, digest, digestSz);
+        }
+        else {
+            wolfSSL_CryptHwMutexUnLock();
+            ret = BUFFER_E;
+        }
         cache->finalLen = 0;
     }
     else
