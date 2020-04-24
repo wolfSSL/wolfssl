@@ -10837,6 +10837,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                     /* Do verify callback */
                     ret = DoVerifyCallback(ssl->ctx->cm, ssl, ret, args);
+                    if (ssl->options.verifyNone &&
+                              (ret == CRL_MISSING || ret == CRL_CERT_REVOKED)) {
+                        WOLFSSL_MSG("Ignoring CRL problem based on verify setting");
+                        ret = ssl->error = 0;
+                    }
 
                 #ifdef WOLFSSL_ALT_CERT_CHAINS
                     /* For alternate cert chain, its okay for a CA cert to fail
