@@ -15573,10 +15573,9 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
 
         /* get curve id */
         if ((ret = CheckCurve(oidSum)) < 0)
-            ret = ECC_CURVE_OID_E;
+            return ECC_CURVE_OID_E;
         else {
             curve_id = ret;
-            ret = 0;
         }
     }
 
