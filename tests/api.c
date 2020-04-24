@@ -31014,7 +31014,7 @@ static void test_wolfSSL_ASN1_INTEGER_set()
 }
 
 /* Testing code used in dpp.c in hostap */
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) && defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
 typedef struct {
     /* AlgorithmIdentifier ecPublicKey with optional parameters present
      * as an OID identifying the curve */
@@ -31029,7 +31029,7 @@ ASN1_SEQUENCE(DPP_BOOTSTRAPPING_KEY) = {
 } ASN1_SEQUENCE_END(DPP_BOOTSTRAPPING_KEY);
 
 IMPLEMENT_ASN1_FUNCTIONS(DPP_BOOTSTRAPPING_KEY);
-#endif /* WOLFSSL_WPAS */
+#endif
 
 static void test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS()
 {

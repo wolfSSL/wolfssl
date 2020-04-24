@@ -185,8 +185,11 @@ struct WOLFSSL_EVP_MD_CTX {
         Hmac hmac;
     #endif
     } hash;
-    int macType;
+    enum wc_HashType macType;
     WOLFSSL_EVP_PKEY_CTX *pctx;
+#ifndef NO_HMAC
+    unsigned int isHMAC;
+#endif
 };
 
 

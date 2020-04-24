@@ -34996,7 +34996,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *EM,
         goto cleanup;
     }
 
-    hashType = (enum wc_HashType)wolfSSL_EVP_md2macType(hashAlg);
+    hashType = wolfSSL_EVP_md2macType(hashAlg);
     if (hashType < WC_HASH_TYPE_NONE || hashType > WC_HASH_TYPE_MAX) {
         WOLFSSL_MSG("wolfSSL_EVP_md2macType error");
         goto cleanup;
@@ -35103,7 +35103,7 @@ int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
         return WOLFSSL_FAILURE;
     }
 
-    hashType = (enum wc_HashType)wolfSSL_EVP_md2macType(hashAlg);
+    hashType = wolfSSL_EVP_md2macType(hashAlg);
     if (hashType < WC_HASH_TYPE_NONE || hashType > WC_HASH_TYPE_MAX) {
         WOLFSSL_MSG("wolfSSL_EVP_md2macType error");
         return WOLFSSL_FAILURE;
