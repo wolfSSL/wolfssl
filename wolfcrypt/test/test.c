@@ -1350,9 +1350,12 @@ static int _SaveDerAndPem(const byte* der, int derSz,
 #endif /* WOLFSSL_DER_TO_PEM */
 
     /* suppress unused variable warnings */
+    (void)der;
+    (void)derSz;
     (void)filePem;
     (void)fileDer;
     (void)pemType;
+    (void)errBase;
 
     return 0;
 }
