@@ -15277,6 +15277,7 @@ static int test_wc_curve25519_export_key_raw (void)
     
     return ret;
 } /* end of test_wc_curve25519_export_key_raw */
+
 /*
  * Testing test_wc_curve25519_export_key_raw_ex().
  */
