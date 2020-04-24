@@ -3300,12 +3300,17 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     }
 
     /* returns the NID of message digest used by the ctx */
-    int wolfSSL_EVP_MD_CTX_type(const WOLFSSL_EVP_MD_CTX *ctx) {
+    int wolfSSL_EVP_MD_CTX_type(const WOLFSSL_EVP_MD_CTX *ctx)
+    {
         const struct s_ent *ent;
 
         WOLFSSL_ENTER("EVP_MD_CTX_type");
 
         if (ctx) {
+            if (ctx->isHMAC) {
+                return NID_hmac;
+            }
+
             for(ent = md_tbl; ent->name != NULL; ent++) {
                 if (ctx->macType == ent->macType) {
                     return ent->nid;
@@ -3447,6 +3452,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         if (ctx == NULL)
             return NULL;
         WOLFSSL_ENTER("EVP_MD_CTX_md");
+        if (ctx->isHMAC) {
+            return "HMAC";
+        }
         for(ent = md_tbl; ent->name != NULL; ent++) {
             if(ctx->macType == ent->macType) {
                 return (const WOLFSSL_EVP_MD *)ent->name;
@@ -3803,7 +3811,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         if (ctx->pctx != NULL)
             wolfSSL_EVP_PKEY_CTX_free(ctx->pctx);
 
-        if (ctx->isHMAC == NID_hmac) {
+        if (ctx->isHMAC) {
             wc_HmacFree(&ctx->hash.hmac);
             ret = 0;
         }
