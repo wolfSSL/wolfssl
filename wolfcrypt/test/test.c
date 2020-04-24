@@ -1282,8 +1282,8 @@ initDefaultName();
 #endif /* NO_MAIN_DRIVER */
 
 /* helper to save DER, convert to PEM and save PEM */
-#if !defined(NO_ASN) && \
-    ((!defined(NO_RSA) && defined(WOLFSSL_CERT_GEN)) || defined(HAVE_ECC))
+#if !defined(NO_ASN) && (defined(HAVE_ECC) || \
+    (!defined(NO_RSA) && (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN))))
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
 #define SaveDerAndPem(d, dSz, fD, fP, pT, eB) _SaveDerAndPem(d, dSz, fD, fP, pT, eB)
