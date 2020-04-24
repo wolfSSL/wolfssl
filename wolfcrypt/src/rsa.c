@@ -1284,7 +1284,7 @@ static int RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
 }
 
 /* helper function to direct which padding is used */
-static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
+int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
     word32 pkcsBlockLen, byte padValue, WC_RNG* rng, int padType,
     enum wc_HashType hType, int mgf, byte* optLabel, word32 labelLen,
     int saltLen, int bits, void* heap)
@@ -1652,10 +1652,10 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
  *
  * bits is the key modulus size in bits
  */
-static int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
-                          byte padValue, int padType, enum wc_HashType hType,
-                          int mgf, byte* optLabel, word32 labelLen, int saltLen,
-                          int bits, void* heap)
+int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
+                   byte padValue, int padType, enum wc_HashType hType,
+                   int mgf, byte* optLabel, word32 labelLen, int saltLen,
+                   int bits, void* heap)
 {
     int ret;
 
@@ -3131,6 +3131,12 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
                                                                  RsaKey* key)
 {
+    return wc_RsaSSL_Verify_ex(in, inLen, out, outLen, key , WC_RSA_PKCSV15_PAD);
+}
+
+int  wc_RsaSSL_Verify_ex(const byte* in, word32 inLen, byte* out, word32 outLen,
+                         RsaKey* key, int pad_type)
+{
     WC_RNG* rng;
 
     if (key == NULL) {
@@ -3144,7 +3150,7 @@ int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
 #endif
 
     return RsaPrivateDecryptEx((byte*)in, inLen, out, outLen, NULL, key,
-        RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PKCSV15_PAD,
+        RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, pad_type,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, 0, rng);
 }
 #endif

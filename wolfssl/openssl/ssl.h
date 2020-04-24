@@ -125,17 +125,8 @@ typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 #define CONF_get1_default_config_file   wolfSSL_CONF_get1_default_config_file
 typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 
-#ifdef WOLFSSL_QT
-    #if defined(NO_WOLFSSL_MEMORY)
-        #define CRYPTO_free(xp)         XFREE(xp, NULL, NULL);
-    #else
-        #define CRYPTO_free(xp) { if((xp)) wolfSSL_Free((xp));}
-    #endif
-#else
-  #define CRYPTO_free                     XFREE
-#endif
-
-#define CRYPTO_malloc                   XMALLOC
+#define CRYPTO_free(xp)                 XFREE(xp, NULL, DYNAMIC_TYPE_TMP_BUFFER)
+#define CRYPTO_malloc(sz)               XMALLOC(sz, NULL, DYNAMIC_TYPE_TMP_BUFFER)
 #define CRYPTO_EX_new                   WOLFSSL_CRYPTO_EX_new
 #define CRYPTO_EX_dup                   WOLFSSL_CRYPTO_EX_dup
 #define CRYPTO_EX_free                  WOLFSSL_CRYPTO_EX_free
@@ -564,7 +555,14 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_get0_tbs_sigalg            wolfSSL_X509_get0_tbs_sigalg
 #define X509_PUBKEY_get0_param          wolfSSL_X509_PUBKEY_get0_param
 #define X509_PUBKEY_get                 wolfSSL_X509_PUBKEY_get
+#define X509_PUBKEY_set                 wolfSSL_X509_PUBKEY_set
 #define X509_ALGOR_get0                 wolfSSL_X509_ALGOR_get0
+#define X509_ALGOR_set0                 wolfSSL_X509_ALGOR_set0
+
+#define X509_ALGOR_new                  wolfSSL_X509_ALGOR_new
+#define X509_ALGOR_free                 wolfSSL_X509_ALGOR_free
+#define X509_PUBKEY_new                 wolfSSL_X509_PUBKEY_new
+#define X509_PUBKEY_free                wolfSSL_X509_PUBKEY_free
 
 #define sk_X509_REVOKED_num             wolfSSL_sk_X509_REVOKED_num
 #define sk_X509_REVOKED_value           wolfSSL_sk_X509_REVOKED_value
@@ -708,6 +706,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define RSA_print                       wolfSSL_RSA_print
 #define RSA_bits                        wolfSSL_RSA_size
 #define RSA_up_ref                      wolfSSL_RSA_up_ref
+#define RSA_padding_add_PKCS1_PSS       wolfSSL_RSA_padding_add_PKCS1_PSS
+#define RSA_verify_PKCS1_PSS            wolfSSL_RSA_verify_PKCS1_PSS
 
 #define PEM_def_callback                wolfSSL_PEM_def_callback
 

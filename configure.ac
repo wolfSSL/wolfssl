@@ -7,7 +7,7 @@
 #
 AC_COPYRIGHT([Copyright (C) 2006-2020 wolfSSL Inc.])
 AC_PREREQ([2.63])
-AC_INIT([wolfssl],[4.3.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
+AC_INIT([wolfssl],[4.4.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
 
 # The following sets CFLAGS to empty if unset on command line.  We do not
@@ -34,7 +34,7 @@ LT_PREREQ([2.2])
 LT_INIT([disable-static win32-dll])
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=24:0:0
+WOLFSSL_LIBRARY_VERSION=25:0:1
 #                        | | |
 #                 +------+ | +---+
 #                 |        |     |
@@ -491,6 +491,18 @@ AC_ARG_ENABLE([wpas],
     [ ENABLED_WPAS=no ]
     )
 
+# wpa_supplicant support
+AC_ARG_ENABLE([wpas-dpp],
+    [AS_HELP_STRING([--enable-wpas-dpp],[Enable wpa_supplicant support with dpp (default: disabled)])],
+    [ ENABLED_WPAS_DPP=$enableval ],
+    [ ENABLED_WPAS_DPP=no ]
+    )
+
+if test "$ENABLED_WPAS_DPP" = "yes"
+then
+    ENABLED_WPAS="yes"
+fi
+
 # Fortress build
 AC_ARG_ENABLE([fortress],
     [AS_HELP_STRING([--enable-fortress],[Enable SSL fortress build (default: disabled)])],
@@ -565,14 +577,14 @@ AC_ARG_ENABLE([opensslall],
 [ ENABLED_OPENSSLALL=$enableval ],
 [ ENABLED_OPENSSLALL=no ]
 )
-if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes"
+if test "$ENABLED_LIBWEBSOCKETS" = "yes" || test "$ENABLED_OPENVPN" = "yes" || test "$ENABLED_WPAS_DPP" = "yes"
 then
     ENABLED_OPENSSLALL="yes"
 fi
 
 if test "$ENABLED_OPENSSLALL" = "yes"
 then
-AM_CFLAGS="-DOPENSSL_ALL -DWOLFSSL_EITHER_SIDE $AM_CFLAGS"
+AM_CFLAGS="-DOPENSSL_ALL -DWOLFSSL_EITHER_SIDE -DWC_RSA_NO_PADDING -DWC_RSA_PSS $AM_CFLAGS"
 fi
 
 # OPENSSL Extra Compatibility

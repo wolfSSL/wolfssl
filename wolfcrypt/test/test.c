@@ -5747,7 +5747,8 @@ int des3_test(void)
 
 #ifndef NO_AES
 
-#if defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_CFB)
+#if defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_CFB) || \
+    defined(WOLFSSL_AES_XTS)
 #if defined(OPENSSL_EXTRA) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 /* pass in the function, key, iv, plain text and expected and this function
  * tests that the encryption and decryption is successful */
@@ -10311,7 +10312,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         #endif
 #endif
 #if !defined(USE_CERT_BUFFERS_256) && !defined(NO_ASN)
-        #ifdef WOLFSSL_CERT_GEN
+        #if defined(HAVE_ECC) && defined(WOLFSSL_CERT_GEN)
             #ifndef NO_RSA
                 /* eccKeyPubFile is used in a test that requires RSA. */
                 static const char* eccKeyPubFile = CERT_ROOT "ecc-keyPub.der";
@@ -10395,8 +10396,8 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 #endif /* !NO_FILESYSTEM */
 
 
-#if defined(WOLFSSL_CERT_GEN) && (!defined(NO_RSA) && defined(HAVE_ECC) || \
-   defined(WOLFSSL_TEST_CERT) && (defined(HAVE_ED25519) || defined(HAVE_ED448)))
+#if defined(WOLFSSL_CERT_GEN) && (!defined(NO_RSA) || defined(HAVE_ECC)) || \
+  (defined(WOLFSSL_TEST_CERT) && (defined(HAVE_ED25519) || defined(HAVE_ED448)))
 #ifdef WOLFSSL_MULTI_ATTRIB
 static CertName certDefaultName;
 static void initDefaultName(void)
@@ -15614,16 +15615,12 @@ int openssl_test(void)
     /* test malloc / free , 10 is an arbitrary amount of memory chosen */
     {
         byte* p;
-        p = (byte*)CRYPTO_malloc(10, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        p = (byte*)CRYPTO_malloc(10);
         if (p == NULL) {
             return -8400;
         }
         XMEMSET(p, 0, 10);
-        #ifdef WOLFSSL_QT
-            CRYPTO_free(p);
-        #else
-            CRYPTO_free(p, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
+        CRYPTO_free(p);
     }
 
 #ifndef NO_MD5
@@ -19124,15 +19121,39 @@ static int ecc_point_test(void)
     }
 
 #ifdef HAVE_COMP_KEY
-    ret = wc_ecc_import_point_der(derComp0, sizeof(der), curve_idx, point3);
+    ret = wc_ecc_import_point_der(derComp0, sizeof(derComp0)*2-1, curve_idx, point3);
     if (ret != 0) {
         ret = -9726;
         goto done;
     }
 
-    ret = wc_ecc_import_point_der(derComp1, sizeof(der), curve_idx, point4);
+    ret = wc_ecc_import_point_der_ex(derComp0, sizeof(derComp0), curve_idx, point4, 0);
     if (ret != 0) {
         ret = -9727;
+        goto done;
+    }
+
+    ret = wc_ecc_cmp_point(point3, point4);
+    if (ret != MP_EQ) {
+        ret = -9728;
+        goto done;
+    }
+
+    ret = wc_ecc_import_point_der(derComp1, sizeof(derComp1)*2-1, curve_idx, point3);
+    if (ret != 0) {
+        ret = -9729;
+        goto done;
+    }
+
+    ret = wc_ecc_import_point_der_ex(derComp1, sizeof(derComp1), curve_idx, point4, 0);
+    if (ret != 0) {
+        ret = -9730;
+        goto done;
+    }
+
+    ret = wc_ecc_cmp_point(point3, point4);
+    if (ret != MP_EQ) {
+        ret = -9731;
         goto done;
     }
 #endif
@@ -22809,6 +22830,7 @@ int ed448_test(void)
     };
 
     static const byte* sigs[] = {sig1, sig2, sig3, sig4, sig5, sig6};
+    #define SIGSZ sizeof(sig1)
 
     static const byte msg1[]  = { };
     static const byte msg2[]  = { 0x03 };
@@ -23087,7 +23109,7 @@ int ed448_test(void)
                                 NULL, 0) != 0 || verify != 1)
             return -11401 - i;
 
-        if (XMEMCMP(out, sigs[i], sizeof(sigs[i])))
+        if (XMEMCMP(out, sigs[i], SIGSZ))
             return -11411 - i;
 #endif /* HAVE_ED448_VERIFY */
     }
@@ -23119,7 +23141,7 @@ int ed448_test(void)
     if (wc_ed448_sign_msg(msgs[0], msgSz[0], out, &outlen, &key3, NULL, 0) != 0)
         return -11451 - i;
 
-    if (XMEMCMP(out, sigs[0], sizeof(sigs[0])))
+    if (XMEMCMP(out, sigs[0], SIGSZ))
         return -11461 - i;
 
 #if defined(HAVE_ED448_VERIFY)
@@ -23140,7 +23162,7 @@ int ed448_test(void)
     if (wc_ed448_sign_msg(msgs[0], msgSz[0], out, &outlen, &key3, NULL, 0) != 0)
         return -11491 - i;
 
-    if (XMEMCMP(out, sigs[0], sizeof(sigs[0])))
+    if (XMEMCMP(out, sigs[0], SIGSZ))
         return -11501 - i;
 
     wc_ed448_free(&key3);
@@ -24779,17 +24801,19 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
         0x72,0x6c,0x64
     };
+    byte senderNonce[PKCS7_NONCE_SZ + 2];
 
-    static byte senderNonceOid[] =
+#ifdef HAVE_ECC
+    byte senderNonceOid[] =
                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
                  0x09, 0x05 };
-    static byte senderNonce[PKCS7_NONCE_SZ + 2];
 
     PKCS7Attrib attribs[] =
     {
         { senderNonceOid, sizeof(senderNonceOid), senderNonce,
                                        sizeof(senderNonce) }
     };
+#endif
 
 #if !defined(NO_AES) && defined(WOLFSSL_AES_256) && defined(HAVE_ECC) && \
     defined(WOLFSSL_SHA512)

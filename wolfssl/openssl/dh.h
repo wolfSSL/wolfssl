@@ -57,7 +57,7 @@ WOLFSSL_API WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh,
                                          const unsigned char **pp, long length);
 WOLFSSL_API int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out);
 WOLFSSL_API WOLFSSL_DH* wolfSSL_DH_new(void);
-WOLFSSL_API void       wolfSSL_DH_free(WOLFSSL_DH*);
+WOLFSSL_API void        wolfSSL_DH_free(WOLFSSL_DH*);
 
 WOLFSSL_API int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes);
 WOLFSSL_API int wolfSSL_DH_size(WOLFSSL_DH*);

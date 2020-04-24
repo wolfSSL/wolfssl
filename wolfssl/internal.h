@@ -3690,7 +3690,7 @@ struct WOLFSSL_X509 {
 #endif
     WOLFSSL_X509_NAME issuer;
     WOLFSSL_X509_NAME subject;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_WPAS)
     WOLFSSL_X509_ALGOR algor;
     WOLFSSL_X509_PUBKEY key;
 #endif
@@ -4365,6 +4365,14 @@ WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
 
 WOLFSSL_LOCAL int SetTicket(WOLFSSL*, const byte*, word32);
 WOLFSSL_LOCAL int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment);
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
+WOLFSSL_LOCAL int SetECKeyInternal(WOLFSSL_EC_KEY* eckey);
+WOLFSSL_LOCAL int SetECKeyExternal(WOLFSSL_EC_KEY* eckey);
+#endif
+
+WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
+                                         int *initTmpRng);
 
 #ifndef NO_CERTS
     #ifndef NO_RSA
