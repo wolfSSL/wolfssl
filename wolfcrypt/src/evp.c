@@ -417,47 +417,6 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
                 ret = wc_AesCbcDecrypt(&ctx->cipher.aes, out, in, inl);
             break;
     #endif
-    #if defined(HAVE_AESGCM)
-        case AES_128_GCM_TYPE:
-        case AES_192_GCM_TYPE:
-        case AES_256_GCM_TYPE:
-            if (ctx->enc) {
-                if (out){
-                    /* encrypt confidential data*/
-                    ret = wc_AesGcmEncrypt(&ctx->cipher.aes, out, in, inl,
-                              ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
-                              NULL, 0);
-                }
-                else {
-                    /* authenticated, non-confidential data */
-                    ret = wc_AesGcmEncrypt(&ctx->cipher.aes, NULL, NULL, 0,
-                              ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
-                              in, inl);
-                    /* Reset partial authTag error for AAD*/
-                    if (ret == AES_GCM_AUTH_E)
-                        ret = 0;
-                }
-            }
-            else {
-                if (out){
-                    /* decrypt confidential data*/
-                    ret = wc_AesGcmDecrypt(&ctx->cipher.aes, out, in, inl,
-                              ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
-                              NULL, 0);
-                }
-                else {
-                    /* authenticated, non-confidential data*/
-                    ret = wc_AesGcmDecrypt(&ctx->cipher.aes, NULL, NULL, 0,
-                              ctx->iv, ctx->ivSz,
-                              ctx->authTag, ctx->authTagSz,
-                              in, inl);
-                    /* Reset partial authTag error for AAD*/
-                    if (ret == AES_GCM_AUTH_E)
-                        ret = 0;
-                }
-            }
-            break;
-    #endif
     #if defined(WOLFSSL_AES_COUNTER)
         case AES_128_CTR_TYPE:
         case AES_192_CTR_TYPE:
@@ -575,10 +534,60 @@ static int wolfSSL_EVP_CipherUpdate_GCM(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl,
                                    const unsigned char *in, int inl)
 {
-    /* process blocks */
-    if (evpCipherBlock(ctx, out, in, inl) == 0)
-        return WOLFSSL_FAILURE;
+    int ret = 0;
+
     *outl = inl;
+    if (ctx->enc) {
+        if (out) {
+            /* encrypt confidential data*/
+            ret = wc_AesGcmEncrypt(&ctx->cipher.aes, out, in, inl,
+                      ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
+                      NULL, 0);
+        }
+        else {
+            /* authenticated, non-confidential data */
+            XMEMSET(ctx->authTag, 0, ctx->authTagSz);
+            ret = wc_AesGcmEncrypt(&ctx->cipher.aes, NULL, NULL, 0,
+                      ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
+                      in, inl);
+            /* Reset partial authTag error for AAD*/
+            if (ret == AES_GCM_AUTH_E)
+                ret = 0;
+        }
+    }
+    else {
+        if (out) {
+            byte* tmp;
+            tmp = (byte*)XREALLOC(ctx->gcmDecryptBuffer,
+                    ctx->gcmDecryptBufferLen + inl, NULL,
+                    DYNAMIC_TYPE_OPENSSL);
+            if (tmp) {
+                XMEMCPY(tmp + ctx->gcmDecryptBufferLen, in, inl);
+                ctx->gcmDecryptBufferLen += inl;
+                ctx->gcmDecryptBuffer = tmp;
+                *outl = 0;
+            }
+            else {
+                ret = WOLFSSL_FAILURE;
+            }
+        }
+        else {
+            /* authenticated, non-confidential data*/
+            ret = wc_AesGcmDecrypt(&ctx->cipher.aes, NULL, NULL, 0,
+                      ctx->iv, ctx->ivSz,
+                      ctx->authTag, ctx->authTagSz,
+                      in, inl);
+            /* Reset partial authTag error for AAD*/
+            if (ret == AES_GCM_AUTH_E)
+                ret = 0;
+        }
+    }
+
+    if (ret != 0) {
+        *outl = 0;
+        return WOLFSSL_FAILURE;
+    }
+
     return WOLFSSL_SUCCESS;
 }
 #endif
@@ -739,76 +748,95 @@ int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
         return WOLFSSL_FAILURE;
 
     WOLFSSL_ENTER("wolfSSL_EVP_CipherFinal");
-
+    switch (ctx->cipherType) {
 #if !defined(NO_AES) && defined(HAVE_AESGCM)
-        switch (ctx->cipherType) {
-            case AES_128_GCM_TYPE:
-            case AES_192_GCM_TYPE:
-            case AES_256_GCM_TYPE:
-                *outl = 0;
-                /* Clear IV, since IV reuse is not recommended for AES GCM. */
-                XMEMSET(ctx->iv, 0, AES_BLOCK_SIZE);
-                return WOLFSSL_SUCCESS;
-            default:
-                /* fall-through */
-                break;
-        }
-#endif /* !NO_AES && HAVE_AESGCM */
+        case AES_128_GCM_TYPE:
+        case AES_192_GCM_TYPE:
+        case AES_256_GCM_TYPE:
+            if (!ctx->enc && ctx->gcmDecryptBuffer && ctx->gcmDecryptBufferLen > 0) {
+                /* decrypt confidential data*/
+                ret = wc_AesGcmDecrypt(&ctx->cipher.aes, out,
+                        ctx->gcmDecryptBuffer, ctx->gcmDecryptBufferLen,
+                        ctx->iv, ctx->ivSz, ctx->authTag, ctx->authTagSz,
+                        NULL, 0);
+                if (ret == 0) {
+                    ret = WOLFSSL_SUCCESS;
+                    *outl = ctx->gcmDecryptBufferLen;
+                }
+                else {
+                    ret = WOLFSSL_FAILURE;
+                    *outl = 0;
+                }
 
-    if (!out)
-        return WOLFSSL_FAILURE;
-
-    if (ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING) {
-        if (ctx->bufUsed != 0) return WOLFSSL_FAILURE;
-        *outl = 0;
-    }
-    else if (ctx->enc) {
-        if (ctx->block_size == 1) {
-            *outl = 0;
-        }
-        else if ((ctx->bufUsed >= 0) && (ctx->block_size != 1)) {
-            padBlock(ctx);
-            PRINT_BUF(ctx->buf, ctx->block_size);
-            if (evpCipherBlock(ctx, out, ctx->buf, ctx->block_size) == 0) {
-                WOLFSSL_MSG("Final Cipher Block failed");
-                ret = WOLFSSL_FAILURE;
+                XFREE(ctx->gcmDecryptBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+                ctx->gcmDecryptBuffer = NULL;
+                ctx->gcmDecryptBufferLen = 0;
             }
             else {
-                PRINT_BUF(out, ctx->block_size);
-                *outl = ctx->block_size;
+                *outl = 0;
             }
-        }
-    }
-    else {
-        if (ctx->block_size == 1) {
-            *outl = 0;
-        }
-        else if ((ctx->bufUsed % ctx->block_size) != 0) {
-            *outl = 0;
-            /* not enough padding for decrypt */
-            WOLFSSL_MSG("Final Cipher Block not enough padding");
-            ret = WOLFSSL_FAILURE;
-        }
-        else if (ctx->lastUsed) {
-            PRINT_BUF(ctx->lastBlock, ctx->block_size);
-            if ((fl = checkPad(ctx, ctx->lastBlock)) >= 0) {
-                XMEMCPY(out, ctx->lastBlock, fl);
-                *outl = fl;
-                if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
-                    /* return error in cases where the block length is incorrect */
-                    WOLFSSL_MSG("Final Cipher Block bad length");
-                    ret = WOLFSSL_FAILURE;
+            /* Clear IV, since IV reuse is not recommended for AES GCM. */
+            XMEMSET(ctx->iv, 0, AES_BLOCK_SIZE);
+            break;
+#endif /* !NO_AES && HAVE_AESGCM */
+        default:
+            if (!out)
+                return WOLFSSL_FAILURE;
+
+            if (ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING) {
+                if (ctx->bufUsed != 0) return WOLFSSL_FAILURE;
+                *outl = 0;
+            }
+            else if (ctx->enc) {
+                if (ctx->block_size == 1) {
+                    *outl = 0;
+                }
+                else if ((ctx->bufUsed >= 0) && (ctx->block_size != 1)) {
+                    padBlock(ctx);
+                    PRINT_BUF(ctx->buf, ctx->block_size);
+                    if (evpCipherBlock(ctx, out, ctx->buf, ctx->block_size) == 0) {
+                        WOLFSSL_MSG("Final Cipher Block failed");
+                        ret = WOLFSSL_FAILURE;
+                    }
+                    else {
+                        PRINT_BUF(out, ctx->block_size);
+                        *outl = ctx->block_size;
+                    }
                 }
             }
             else {
-                ret = WOLFSSL_FAILURE;
+                if (ctx->block_size == 1) {
+                    *outl = 0;
+                }
+                else if ((ctx->bufUsed % ctx->block_size) != 0) {
+                    *outl = 0;
+                    /* not enough padding for decrypt */
+                    WOLFSSL_MSG("Final Cipher Block not enough padding");
+                    ret = WOLFSSL_FAILURE;
+                }
+                else if (ctx->lastUsed) {
+                    PRINT_BUF(ctx->lastBlock, ctx->block_size);
+                    if ((fl = checkPad(ctx, ctx->lastBlock)) >= 0) {
+                        XMEMCPY(out, ctx->lastBlock, fl);
+                        *outl = fl;
+                        if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
+                            /* return error in cases where the block length is incorrect */
+                            WOLFSSL_MSG("Final Cipher Block bad length");
+                            ret = WOLFSSL_FAILURE;
+                        }
+                    }
+                    else {
+                        ret = WOLFSSL_FAILURE;
+                    }
+                }
+                else if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
+                    /* return error in cases where the block length is incorrect */
+                    ret = WOLFSSL_FAILURE;
+                }
             }
-        }
-        else if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
-            /* return error in cases where the block length is incorrect */
-            ret = WOLFSSL_FAILURE;
-        }
+            break;
     }
+
     if (ret == WOLFSSL_SUCCESS) {
         /* reset cipher state after final */
         wolfSSL_EVP_CipherInit(ctx, NULL, NULL, NULL, -1);
@@ -4010,6 +4038,13 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         if (ctx) {
             ctx->cipherType = WOLFSSL_EVP_CIPH_TYPE_INIT;  /* not yet initialized  */
             ctx->keyLen     = 0;
+#ifdef HAVE_AESGCM
+            if (ctx->gcmDecryptBuffer) {
+                XFREE(ctx->gcmDecryptBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+                ctx->gcmDecryptBuffer = NULL;
+            }
+            ctx->gcmDecryptBufferLen = 0;
+#endif
         }
 
         return WOLFSSL_SUCCESS;
@@ -4236,7 +4271,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->authTagSz  = AES_BLOCK_SIZE;
             ctx->ivSz       = GCM_NONCE_MID_SZ;
 
-            XMEMSET(ctx->authTag, 0, ctx->authTagSz);
             if (key && wc_AesGcmSetKey(&ctx->cipher.aes, key, ctx->keyLen)) {
                 WOLFSSL_MSG("wc_AesGcmSetKey() failed");
                 return WOLFSSL_FAILURE;
@@ -4261,7 +4295,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->authTagSz  = AES_BLOCK_SIZE;
             ctx->ivSz       = GCM_NONCE_MID_SZ;
 
-            XMEMSET(ctx->authTag, 0, ctx->authTagSz);
             if (key && wc_AesGcmSetKey(&ctx->cipher.aes, key, ctx->keyLen)) {
                 WOLFSSL_MSG("wc_AesGcmSetKey() failed");
                 return WOLFSSL_FAILURE;
@@ -4286,7 +4319,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->authTagSz  = AES_BLOCK_SIZE;
             ctx->ivSz       = GCM_NONCE_MID_SZ;
 
-            XMEMSET(ctx->authTag, 0, ctx->authTagSz);
             if (key && wc_AesGcmSetKey(&ctx->cipher.aes, key, ctx->keyLen)) {
                 WOLFSSL_MSG("wc_AesGcmSetKey() failed");
                 return WOLFSSL_FAILURE;

@@ -440,7 +440,7 @@ AC_ARG_ENABLE([mcast],
 
 # List of open source project defines using our openssl compatibility layer:
 # openssh (--enable-openssh) WOLFSSL_OPENSSH
-# openvpn (--enable-openvpn)
+# openvpn (--enable-openvpn) WOLFSSL_OPENVPN
 # nginix (--enable-nginx) WOLFSSL_NGINX
 # haproxy (--enable-haproxy) WOLFSSL_HAPROXY
 # wpa_supplicant (--enable-wpas) WOLFSSL_WPAS
@@ -3543,7 +3543,7 @@ fi
 
 if test "$ENABLED_OPENVPN" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB -DHAVE_EX_DATA -DWOLFSSL_KEY_GEN"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DES_ECB -DHAVE_EX_DATA -DWOLFSSL_KEY_GEN -DWOLFSSL_OPENVPN"
 fi
 
 
