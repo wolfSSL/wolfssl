@@ -9157,6 +9157,7 @@ int aesccm_test(void)
         return -6313;
 #endif
 
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
     /* test fail on invalid IV sizes */
     result = wc_AesCcmSetKey(&enc, k, sizeof(k));
     if (result != 0)
@@ -9168,6 +9169,7 @@ int aesccm_test(void)
     if (result == 0) {
         return -6315;
     }
+#endif
 
     return 0;
 }
