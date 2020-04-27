@@ -831,8 +831,8 @@ static void ClientWrite(WOLFSSL* ssl, char* msg, int msgSz, const char* str)
     }
 }
 
-static void ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
-                       const char* str)
+static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
+                      const char* str, int exitWithRet)
 {
     int ret, err;
     char buffer[WOLFSSL_MAX_ERROR_SZ];
@@ -853,7 +853,12 @@ static void ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
             if (err != WOLFSSL_ERROR_WANT_READ) {
                 printf("SSL_read reply error %d, %s\n", err,
                                          wolfSSL_ERR_error_string(err, buffer));
-                err_sys("SSL_read failed");
+                if (!exitWithRet) {
+                    err_sys("SSL_read failed");
+                }
+                else {
+                    break;
+                }
             }
         }
 
@@ -874,6 +879,8 @@ static void ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
         reply[ret] = 0;
         printf("%s%s\n", str, reply);
     }
+
+    return err;
 }
 
 
@@ -3095,14 +3102,18 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     ClientWrite(ssl, msg, msgSz, "");
 
-    ClientRead(ssl, reply, sizeof(reply)-1, 1, "");
+    err = ClientRead(ssl, reply, sizeof(reply)-1, 1, "", exitWithRet);
+    if (exitWithRet && (err != 0)) {
+        ((func_args*)args)->return_code = err;
+        goto exit;
+    }
 
 #if defined(WOLFSSL_TLS13)
     if (updateKeysIVs || postHandAuth)
         ClientWrite(ssl, msg, msgSz, "");
 #endif
     if (sendGET) {  /* get html */
-        ClientRead(ssl, reply, sizeof(reply)-1, 0, "");
+        (void)ClientRead(ssl, reply, sizeof(reply)-1, 0, "", 0);
     }
 
 #ifndef NO_SESSION_CACHE
@@ -3353,8 +3364,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
         ClientWrite(sslResume, resumeMsg, resumeSz, " resume");
 
-        ClientRead(sslResume, reply, sizeof(reply)-1, sendGET,
-                   "Server resume: ");
+        (void)ClientRead(sslResume, reply, sizeof(reply)-1, sendGET,
+                         "Server resume: ", 0);
         /* try to send session break */
         ClientWrite(sslResume, msg, msgSz, " resume 2");
 
