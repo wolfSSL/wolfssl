@@ -1322,7 +1322,7 @@ static int _SaveDerAndPem(const byte* der, int derSz,
         if (pemSz < 0) {
             return pemSz;
         }
-        pem = XMALLOC(pemSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        pem = (byte*)XMALLOC(pemSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
             return MEMORY_E;
         }
