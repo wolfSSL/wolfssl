@@ -4699,6 +4699,19 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
     return err;
 }
 #endif /* WOLFSSL_ATECC508A || PLUTON_CRYPTO_ECC || WOLFSSL_CRYPTOCELL */
+#if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
+    mp_int* r, mp_int* s, byte* out, word32 *outlen, WC_RNG* rng,
+    ecc_key* key)
+{
+    (void)out;
+    (void)outlen;
+    (void)rng;
+
+    return wc_RA6_EccGenerateSign(key, in, inlen, r, s);
+}
+#endif /* WOLFSSL_SCE && WOLFSSL_RENESAS_RA6M3G */
+
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
 static int wc_ecc_sign_hash_async(const byte* in, word32 inlen, byte* out,
@@ -4840,10 +4853,10 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     }
 
 /* hardware crypto */
-#if defined(WOLFSSL_ATECC508A) || defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL)
+#if defined(WOLFSSL_ATECC508A) || defined(PLUTON_CRYPTO_ECC) || \
+    defined(WOLFSSL_CRYPTOCELL) || \
+    (defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G))
     err = wc_ecc_sign_hash_hw(in, inlen, r, s, out, outlen, rng, key);
-#elif defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
-    err = wc_RA6_EccGenerateSign(key, in, inlen, r, s);
 #else
     err = wc_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
 #endif

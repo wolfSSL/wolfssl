@@ -55,7 +55,8 @@
    return  FSP_SUCCESS:     HW initialized successfully
                      *:     Error
 */
-int wc_RA6_SCE_init(void) {
+int wc_RA6_SCE_init(void)
+{
     fsp_err_t ret;
 
     HW_SCE_PowerOn();
@@ -85,7 +86,8 @@ int wc_RA6_SCE_init(void) {
            BAD_FUNC_ARG:    Invalid Argument
            WC_HW_E:         Hardware could not generate seed.
 */
-int wc_RA6_GenerateSeed(byte* output, word32 sz) {
+int wc_RA6_GenerateSeed(byte* output, word32 sz)
+{
     int ret = FSP_SUCCESS;
     uint32_t tmpOut[4] = {0};
 
@@ -129,7 +131,8 @@ int wc_RA6_GenerateSeed(byte* output, word32 sz) {
            BAD_FUNC_ARG:    Invalid Argument
            WC_HW_E:         Hardware could not hash message
 */
-int wc_RA6_Sha256Transform(wc_Sha256* sha256, const byte* data) {
+int wc_RA6_Sha256Transform(wc_Sha256* sha256, const byte* data)
+{
     int ret = 0;
     (void) data;
 
@@ -168,7 +171,7 @@ int wc_RA6_Sha256Transform(wc_Sha256* sha256, const byte* data) {
            BAD_FUNC_ARG:    Invalid Argument
            WC_HW_E:         Hardware could not encrypt message.
 */
-int wc_RA6_AesCbc(Aes* aes, byte* out, const byte* in, word32 sz, int op)
+static int wc_RA6_AesCbc(Aes* aes, byte* out, const byte* in, word32 sz, int op)
 {
     word32 keySize = 0;
     uint32_t num_words = 0;
@@ -226,6 +229,19 @@ int wc_RA6_AesCbc(Aes* aes, byte* out, const byte* in, word32 sz, int op)
     }
     return ret;
 }
+
+
+int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz) {
+    return wc_RA6_AesCbc(aes, out, in, sz, AES_SCE_ENCRYPT);
+}
+
+
+#ifdef HAVE_AES_DECRYPT
+int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz) {
+    return wc_RA6_AesCbc(aes, out, in, sz, AES_SCE_DECRYPT);
+}
+#endif /* HAVE_AES_DECRYPT */
+
 
 /*
    AES-ECB Encrypt/Decrypt with Renesas RA Hardware
@@ -311,7 +327,8 @@ int wc_RA6_AesEcb(Aes* aes, byte* out, const byte* in, word32 sz, int op)
            BAD_FUNC_ARG:    Invalid Argument
            WC_HW_E:         Hardware could not encrypt message.
 */
-int wc_RA6_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz) {
+int wc_RA6_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
     word32 keySize = 0;
     int ret = 0;
     const byte* tmp;
@@ -392,6 +409,12 @@ int wc_RA6_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz) {
     }
     return ret;
 }
+
+
+int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz) {
+    return wc_RA6_AesCtrEncrypt(aes, out, in, sz);
+}
+
 
 #if defined(HAVE_ECC) && !defined(NO_RSA)
 /*
@@ -954,47 +977,6 @@ int wc_RA6_RsaGenerateKey(RsaKey* rsa, long e, int size)
     return ret;
 }
 
-/*
-   RSA Functionality Interface for Renesas RA Hardware
-   Supported Key Sizes: 1024 and 2048
-
-   Serves as a replacement for wc_RsaFunction()
-
-   Inputs:
-      in        plain/cipher text padded to key size (if not already key size)
-      inLen     Must be multiples of key size (bytes)
-      key       Contains public/private RSA key
-      rng       Only used in software fallback (wc_RsaFunction)
-      rsa_type  RSA_PUBLIC_ENCRYPT or RSA_PRIVATE_DECRYPT
-      pad_value RSA_BLOCK_TYPE1 or RSA_BLOCK_TYPE2 depending on rsa_type
-   Outputs:
-      out       cipher/plain text
-      outLen    The amount of bytes encrypted/decrypted.
-
-   return  MP_OKAY:         HW completed successfully
-           BAD_FUNC_ARG:    Invalid Argument
-           WC_HW_E:         Hardware could not complete operation
-*/
-
-int wc_RA6_RsaFunction(const byte* in, word32 inLen, byte* out, word32* outLen,
-                           int rsa_type, RsaKey* key, WC_RNG* rng, byte pad_value)
-{
-    int ret;
-    (void) pad_value; /* unused in wc_RsaFunction */
-    (void) rng;       /* used only in wc_RsaFunction */
-    if (rsa_type == RSA_PUBLIC_ENCRYPT && pad_value == RSA_BLOCK_TYPE_2) {
-        ret = wc_RA6_RsaPublicEncrypt(in, inLen, out, outLen, key);
-    } else if (rsa_type == RSA_PRIVATE_DECRYPT && pad_value == RSA_BLOCK_TYPE_2) {
-    #if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
-        ret = wc_RA6_RsaPrivateCrtDecrypt(in, inLen, out, outLen, key);
-    #else
-        ret = wc_RA6_RsaPrivateDecrypt(in, inLen, out, outLen, key);
-    #endif
-    } else { /* Resort to software */
-        ret = wc_RsaFunction(out, inLen, out, outLen, rsa_type, key, rng);
-    }
-    return ret;
-}
 
 /*
    RSA Public Encrypt using Renesas RA Hardware
@@ -1012,7 +994,7 @@ int wc_RA6_RsaFunction(const byte* in, word32 inLen, byte* out, word32* outLen,
            BAD_FUNC_ARG:    Invalid Argument
            WC_HW_E:         Hardware could not complete operation
 */
-int wc_RA6_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
+static int wc_RA6_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
                                 word32* outLen, RsaKey* key)
 {
     word32 i, keySz;
@@ -1077,6 +1059,7 @@ int wc_RA6_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
     return ret;
 }
 
+
 /*
    RSA Private Decrypt using Renesas RA Hardware
    Supported Key Sizes: 1024 and 2048
@@ -1093,7 +1076,7 @@ int wc_RA6_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
            BAD_FUNC_ARG:    Invalid Argument
            WC_HW_E:         Hardware could not complete operation
 */
-int wc_RA6_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
+static int wc_RA6_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
                                  word32* outLen, RsaKey* key)
 {
     word32 i, keySz;
@@ -1156,6 +1139,8 @@ int wc_RA6_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
     }
     return ret;
 }
+
+
 /*
    RSA Private Decrypt w/ Chinese Remainder Theorem
    using Renesas RA Hardware
@@ -1174,7 +1159,7 @@ int wc_RA6_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
            WC_HW_E:         Hardware could not complete operation
 */
 #if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
-int wc_RA6_RsaPrivateCrtDecrypt(const byte* in, word32 inLen, byte* out,
+static int wc_RA6_RsaPrivateCrtDecrypt(const byte* in, word32 inLen, byte* out,
                                     word32* outLen, RsaKey* key)
 {
     word32 i, keySz;
@@ -1242,5 +1227,48 @@ int wc_RA6_RsaPrivateCrtDecrypt(const byte* in, word32 inLen, byte* out,
     }
     return ret;
 }
-#endif /* HAVE_ECC && !NO_RSA */
-#endif /* !No_RSA */
+#endif /* WOLFSSL_KEY_GEN || OPENSSL_EXTRA || !RSA_LOW_MEM */
+
+
+/*
+   RSA Functionality Interface for Renesas RA Hardware
+   Supported Key Sizes: 1024 and 2048
+
+   Serves as a replacement for wc_RsaFunction()
+
+   Inputs:
+      in        plain/cipher text padded to key size (if not already key size)
+      inLen     Must be multiples of key size (bytes)
+      key       Contains public/private RSA key
+      rng       Only used in software fallback (wc_RsaFunction)
+      rsa_type  RSA_PUBLIC_ENCRYPT or RSA_PRIVATE_DECRYPT
+      pad_value RSA_BLOCK_TYPE1 or RSA_BLOCK_TYPE2 depending on rsa_type
+   Outputs:
+      out       cipher/plain text
+      outLen    The amount of bytes encrypted/decrypted.
+
+   return  MP_OKAY:         HW completed successfully
+           BAD_FUNC_ARG:    Invalid Argument
+           WC_HW_E:         Hardware could not complete operation
+*/
+
+int wc_RA6_RsaFunction(const byte* in, word32 inLen, byte* out, word32* outLen,
+                           int rsa_type, RsaKey* key, WC_RNG* rng, byte pad_value)
+{
+    int ret;
+    (void) pad_value; /* unused in wc_RsaFunction */
+    (void) rng;       /* used only in wc_RsaFunction */
+    if (rsa_type == RSA_PUBLIC_ENCRYPT && pad_value == RSA_BLOCK_TYPE_2) {
+        ret = wc_RA6_RsaPublicEncrypt(in, inLen, out, outLen, key);
+    } else if (rsa_type == RSA_PRIVATE_DECRYPT && pad_value == RSA_BLOCK_TYPE_2) {
+    #if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
+        ret = wc_RA6_RsaPrivateCrtDecrypt(in, inLen, out, outLen, key);
+    #else
+        ret = wc_RA6_RsaPrivateDecrypt(in, inLen, out, outLen, key);
+    #endif
+    } else { /* Resort to software */
+        ret = wc_RsaFunction(out, inLen, out, outLen, rsa_type, key, rng);
+    }
+    return ret;
+}
+#endif /* !NO_RSA */

@@ -3568,16 +3568,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
 #elif defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G) && \
       !defined(WOLFSSL_SCE_NO_AES)
-
-    int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz) {
-        return wc_RA6_AesCbc(aes, out, in, sz, AES_SCE_ENCRYPT);
-    }
-
-    #ifdef HAVE_AES_DECRYPT
-    int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz) {
-        return wc_RA6_AesCbc(aes, out, in, sz, AES_SCE_DECRYPT);
-    }
-    #endif /* HAVE_AES_DECRYPT */
+    /* implemented in wolfcrypt/src/port/Renesas/renesas_sce_ra6m3g.c */
 
 #else
 
@@ -3954,12 +3945,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         /* use aes ecnryption plus sw implementation */
         #define NEED_AES_CTR_SOFT
 
-#elif defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G) && \
+    #elif defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G) && \
       !defined(WOLFSSL_SCE_NO_AES)
-
-    int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz) {
-        return wc_RA6_AesCtrEncrypt(aes, out, in, sz);
-    }
+        /* implemented in wolfcrypt/src/port/Renesas/renesas_sce_ra6m3g.c */
 
     #else
 
