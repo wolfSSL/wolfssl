@@ -30844,10 +30844,10 @@ static void test_wolfssl_EVP_aes_gcm(void)
 
         }
         AssertIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, aad, aadSz));
-        AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_GCM_SET_TAG, AES_BLOCK_SIZE, tag));
         AssertIntEQ(1, EVP_DecryptUpdate(&de[i], decryptedtxt, &len, ciphertxt, ciphertxtSz));
         decryptedtxtSz = len;
-        AssertIntGT(EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len), 0);
+        AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_GCM_SET_TAG, AES_BLOCK_SIZE, tag));
+        AssertIntEQ(1, EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len));
         decryptedtxtSz += len;
         AssertIntEQ(ciphertxtSz, decryptedtxtSz);
         AssertIntEQ(0, XMEMCMP(plaintxt, decryptedtxt, decryptedtxtSz));
@@ -30857,7 +30857,8 @@ static void test_wolfssl_EVP_aes_gcm(void)
         AssertIntEQ(1, EVP_DecryptUpdate(&de[i], NULL, &len, aad, aadSz));
         AssertIntEQ(1, EVP_CIPHER_CTX_ctrl(&de[i], EVP_CTRL_GCM_SET_TAG, AES_BLOCK_SIZE, tag));
         /* fail due to wrong tag */
-        AssertIntEQ(0, EVP_DecryptUpdate(&de[i], decryptedtxt, &len, ciphertxt, ciphertxtSz));
+        AssertIntEQ(1, EVP_DecryptUpdate(&de[i], decryptedtxt, &len, ciphertxt, ciphertxtSz));
+        AssertIntEQ(0, EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len));
         AssertIntEQ(0, len);
     }
     printf(resultFmt, passed);
