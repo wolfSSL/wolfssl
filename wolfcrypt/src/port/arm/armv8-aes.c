@@ -4438,6 +4438,10 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
             || authTag == NULL || nonceSz < 7 || nonceSz > 13)
         return BAD_FUNC_ARG;
 
+    if (wc_AesCcmCheckTagSize(authTagSz) != 0) {
+        return BAD_FUNC_ARG;
+    }
+
     XMEMCPY(B+1, nonce, nonceSz);
     lenSz = AES_BLOCK_SIZE - 1 - (byte)nonceSz;
     B[0] = (authInSz > 0 ? 64 : 0)

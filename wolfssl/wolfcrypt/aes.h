@@ -369,6 +369,7 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
                                word32 cSz, byte* s, word32 sSz);
 #endif /* HAVE_AESGCM */
 #ifdef HAVE_AESCCM
+ WOLFSSL_LOCAL int wc_AesCcmCheckTagSize(int sz);
  WOLFSSL_API int  wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz);
  WOLFSSL_API int  wc_AesCcmEncrypt(Aes* aes, byte* out,
                                    const byte* in, word32 inSz,

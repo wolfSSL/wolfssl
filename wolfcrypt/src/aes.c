@@ -6970,6 +6970,21 @@ int wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
     return wc_AesSetKey(aes, key, keySz, NULL, AES_ENCRYPTION);
 }
 
+
+/* Checks if the tag size is an accepted value based on RFC 3610 section 2
+ * returns 0 if tag size is ok
+ */
+int wc_AesCcmCheckTagSize(int sz)
+{
+    /* values here are from RFC 3610 section 2 */
+    if (sz != 4 && sz != 6 && sz != 8 && sz != 10 && sz != 12 && sz != 14
+            && sz != 16) {
+        WOLFSSL_MSG("Bad auth tag size AES-CCM");
+        return BAD_FUNC_ARG;
+    }
+    return 0;
+}
+
 #ifdef WOLFSSL_ARMASM
     /* implementation located in wolfcrypt/src/port/arm/armv8-aes.c */
 
@@ -6996,11 +7011,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
             || authTag == NULL || nonceSz < 7 || nonceSz > 13)
         return BAD_FUNC_ARG;
 
-    /* sanity check on tag size */
-    if (authTagSz != 4 && authTagSz != 6 && authTagSz != 8 &&
-            authTagSz != 10 && authTagSz != 12 && authTagSz != 14 &&
-            authTagSz != 16) {
-        WOLFSSL_MSG("Bad auth tag size AES-CCM");
+    if (wc_AesCcmCheckTagSize(authTagSz) != 0) {
         return BAD_FUNC_ARG;
     }
 
@@ -7193,10 +7204,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
 
     /* sanity check on tag size */
-    if (authTagSz != 4 && authTagSz != 6 && authTagSz != 8 &&
-            authTagSz != 10 && authTagSz != 12 && authTagSz != 14 &&
-            authTagSz != 16) {
-        WOLFSSL_MSG("Bad auth tag size AES-CCM");
+    if (wc_AesCcmCheckTagSize(authTagSz) != 0) {
         return BAD_FUNC_ARG;
     }
 
