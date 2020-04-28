@@ -753,7 +753,8 @@ int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
         case AES_128_GCM_TYPE:
         case AES_192_GCM_TYPE:
         case AES_256_GCM_TYPE:
-            if (!ctx->enc && ctx->gcmDecryptBuffer && ctx->gcmDecryptBufferLen > 0) {
+            if (!ctx->enc && ctx->gcmDecryptBuffer &&
+                    ctx->gcmDecryptBufferLen > 0) {
                 /* decrypt confidential data*/
                 ret = wc_AesGcmDecrypt(&ctx->cipher.aes, out,
                         ctx->gcmDecryptBuffer, ctx->gcmDecryptBufferLen,
@@ -820,7 +821,8 @@ int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                         XMEMCPY(out, ctx->lastBlock, fl);
                         *outl = fl;
                         if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
-                            /* return error in cases where the block length is incorrect */
+                            /* return error in cases where the block length is
+                             * incorrect */
                             WOLFSSL_MSG("Final Cipher Block bad length");
                             ret = WOLFSSL_FAILURE;
                         }
@@ -830,7 +832,8 @@ int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                     }
                 }
                 else if (ctx->lastUsed == 0 && ctx->bufUsed == 0) {
-                    /* return error in cases where the block length is incorrect */
+                    /* return error in cases where the block length is
+                     * incorrect */
                     ret = WOLFSSL_FAILURE;
                 }
             }
