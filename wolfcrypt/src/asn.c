@@ -9798,9 +9798,8 @@ void wc_FreeDer(DerBuffer** pDer)
 
 #if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)
 
-/* Max X509 header length indicates the max length + 2 ('\n', '\0') */
-#define MAX_X509_HEADER_SZ  (37 + 2)
-
+/* Note: If items added make sure MAX_X509_HEADER_SZ is 
+    updated to reflect maximum length */
 wcchar BEGIN_CERT           = "-----BEGIN CERTIFICATE-----";
 wcchar END_CERT             = "-----END CERTIFICATE-----";
 #ifdef WOLFSSL_CERT_REQ
@@ -15369,11 +15368,11 @@ static int EccKeyParamCopy(char** dst, char* src)
 int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                           ecc_key* key, word32 inSz)
 {
-    int    length;
     int    ret;
+    int    version, length;
     int    curve_id = ECC_CURVE_DEF;
     word32 oidSum, localIdx;
-    byte   tag;
+    byte   tag, isPrivFormat = 0;
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
         return BAD_FUNC_ARG;
@@ -15381,12 +15380,44 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
-        return ASN_PARSE_E;
+    /* Check if ECC private key is being used and skip private portion */
+    if (GetMyVersion(input, inOutIdx, &version, inSz) >= 0) {
+        isPrivFormat = 1;
 
-    ret = SkipObjectId(input, inOutIdx, inSz);
-    if (ret != 0)
-        return ret;
+        /* Type private key */
+        if (*inOutIdx >= inSz)
+            return ASN_PARSE_E;
+        tag = input[*inOutIdx];
+        *inOutIdx += 1;
+        if (tag != 4 && tag != 6 && tag != 7)
+            return ASN_PARSE_E;
+
+        /* Skip Private Key */
+        if (GetLength(input, inOutIdx, &length, inSz) < 0)
+            return ASN_PARSE_E;
+        if (length > ECC_MAXSIZE)
+            return BUFFER_E;
+        *inOutIdx += length;
+
+        /* Private Curve Header */
+        if (*inOutIdx >= inSz)
+            return ASN_PARSE_E;
+        tag = input[*inOutIdx];
+        *inOutIdx += 1;
+        if (tag != ECC_PREFIX_0)
+            return ASN_ECC_KEY_E;
+        if (GetLength(input, inOutIdx, &length, inSz) <= 0)
+            return ASN_PARSE_E;
+    }
+    /* Standard ECC public key */
+    else {
+        if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+            return ASN_PARSE_E;
+
+        ret = SkipObjectId(input, inOutIdx, inSz);
+        if (ret != 0)
+            return ret;
+    }
 
     if (*inOutIdx >= inSz) {
         return BUFFER_E;
@@ -15541,9 +15572,23 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             return ret;
 
         /* get curve id */
-        curve_id = wc_ecc_get_oid(oidSum, NULL, 0);
-        if (curve_id < 0)
+        if ((ret = CheckCurve(oidSum)) < 0)
             return ECC_CURVE_OID_E;
+        else {
+            curve_id = ret;
+        }
+    }
+
+    if (isPrivFormat) {
+        /* Public Curve Header - skip */
+        if (*inOutIdx >= inSz)
+            return ASN_PARSE_E;
+        tag = input[*inOutIdx];
+        *inOutIdx += 1;
+        if (tag != ECC_PREFIX_1)
+            return ASN_ECC_KEY_E;
+        if (GetLength(input, inOutIdx, &length, inSz) <= 0)
+            return ASN_PARSE_E;
     }
 
     /* key header */
