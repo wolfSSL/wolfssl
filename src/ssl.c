@@ -24965,13 +24965,13 @@ void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value)
     }
     switch (type) {
         case V_ASN1_OBJECT:
-            a->value.object = value;
+            a->value.object = (WOLFSSL_ASN1_OBJECT*)value;
             break;
         case V_ASN1_UTCTIME:
-            a->value.utctime = value;
+            a->value.utctime = (WOLFSSL_ASN1_TIME*)value;
             break;
         case V_ASN1_GENERALIZEDTIME:
-            a->value.generalizedtime = value;
+            a->value.generalizedtime = (WOLFSSL_ASN1_TIME*)value;
             break;
         default:
             WOLFSSL_MSG("Unknown or unsupported ASN1_TYPE");
@@ -28202,20 +28202,20 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_BN_to_ASN1_INTEGER(const WOLFSSL_BIGNUM *bn, WOLFS
 }
 
 #ifdef OPENSSL_ALL
-void *wolfSSL_ASN1_item_new(const WOLFSSL_ASN1_ITEM *template)
+void *wolfSSL_ASN1_item_new(const WOLFSSL_ASN1_ITEM *tpl)
 {
     void *ret = NULL;
     const WOLFSSL_ASN1_TEMPLATE *member = NULL;
     size_t i;
     WOLFSSL_ENTER("wolfSSL_ASN1_item_new");
-    if (!template) {
+    if (!tpl) {
         return NULL;
     }
-    if (!(ret = XMALLOC(template->size, NULL, DYNAMIC_TYPE_OPENSSL))) {
+    if (!(ret = XMALLOC(tpl->size, NULL, DYNAMIC_TYPE_OPENSSL))) {
         return NULL;
     }
-    XMEMSET(ret, 0, template->size);
-    for (member = template->members, i = 0; i < template->mcount;
+    XMEMSET(ret, 0, tpl->size);
+    for (member = tpl->members, i = 0; i < tpl->mcount;
             member++, i++) {
         switch (member->type) {
             case WOLFSSL_X509_ALGOR_ASN1:
@@ -28243,17 +28243,17 @@ void *wolfSSL_ASN1_item_new(const WOLFSSL_ASN1_ITEM *template)
     }
     return ret;
 error:
-    wolfSSL_ASN1_item_free(ret, template);
+    wolfSSL_ASN1_item_free(ret, tpl);
     return NULL;
 }
 
-void wolfSSL_ASN1_item_free(void *val, const WOLFSSL_ASN1_ITEM *template)
+void wolfSSL_ASN1_item_free(void *val, const WOLFSSL_ASN1_ITEM *tpl)
 {
     const WOLFSSL_ASN1_TEMPLATE *member = NULL;
     size_t i;
     WOLFSSL_ENTER("wolfSSL_ASN1_item_free");
     if (val) {
-        for (member = template->members, i = 0; i < template->mcount;
+        for (member = tpl->members, i = 0; i < tpl->mcount;
                 member++, i++) {
             switch (member->type) {
                 case WOLFSSL_X509_ALGOR_ASN1:
@@ -28341,20 +28341,20 @@ static int i2dProcessMembers(const void *src, byte *buf,
 }
 
 int wolfSSL_ASN1_item_i2d(const void *src, byte **dest,
-                          const WOLFSSL_ASN1_ITEM *template)
+                          const WOLFSSL_ASN1_ITEM *tpl)
 {
     int len = 0;
     byte *buf = NULL;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_item_i2d");
 
-    if (!src || !template) {
+    if (!src || !tpl) {
         WOLFSSL_LEAVE("wolfSSL_ASN1_item_i2d", WOLFSSL_FAILURE);
         return WOLFSSL_FAILURE;
     }
 
     if (dest && !*dest) {
-        len = wolfSSL_ASN1_item_i2d(src, NULL, template);
+        len = wolfSSL_ASN1_item_i2d(src, NULL, tpl);
         if (!len) {
             goto error;
         }
@@ -28365,18 +28365,18 @@ int wolfSSL_ASN1_item_i2d(const void *src, byte **dest,
         len = 0;
     }
 
-    switch (template->type) {
+    switch (tpl->type) {
         case ASN_SEQUENCE:
         {
-            int seq_len = i2dProcessMembers(src, NULL, template->members,
-                                         template->mcount);
+            int seq_len = i2dProcessMembers(src, NULL, tpl->members,
+                                         tpl->mcount);
             if (!seq_len) {
                 goto error;
             }
             len += SetSequence(seq_len, bufLenOrNull(buf, len));
             if (buf &&
-                    i2dProcessMembers(src, bufLenOrNull(buf, len), template->members,
-                                   template->mcount) != seq_len) {
+                    i2dProcessMembers(src, bufLenOrNull(buf, len), tpl->members,
+                                   tpl->mcount) != seq_len) {
                 WOLFSSL_MSG("Inconsistent sequence length");
                 goto error;
             }
@@ -35034,9 +35034,9 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *EM,
             }
     }
 
-    if (wc_RsaPad_ex(mHash, wolfSSL_EVP_MD_size(hashAlg), EM, emLen,
+    if (wc_RsaPad_ex(mHash, hashLen, EM, emLen,
                      RSA_BLOCK_TYPE_1, rng, WC_RSA_PSS_PAD,
-                     wolfSSL_EVP_md2macType(hashAlg), mgf, NULL, 0, saltLen,
+                     hashType, mgf, NULL, 0, saltLen,
                      wolfSSL_BN_num_bits(rsa->n), NULL) != MP_OKAY) {
         WOLFSSL_MSG("wc_RsaPad_ex error");
         goto cleanup;

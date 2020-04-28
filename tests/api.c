@@ -28619,7 +28619,7 @@ static void test_wolfSSL_EVP_PKEY_derive(void)
     AssertIntEQ(EVP_PKEY_derive_init(ctx), 1);
     AssertIntEQ(EVP_PKEY_derive_set_peer(ctx, peerkey), 1);
     AssertIntEQ(EVP_PKEY_derive(ctx, NULL, &skeylen), 1);
-    AssertNotNull(skey = XMALLOC(skeylen, NULL, DYNAMIC_TYPE_OPENSSL));
+    AssertNotNull(skey = (unsigned char*)XMALLOC(skeylen, NULL, DYNAMIC_TYPE_OPENSSL));
     AssertIntEQ(EVP_PKEY_derive(ctx, skey, &skeylen), 1);
 
     EVP_PKEY_CTX_free(ctx);
@@ -28639,7 +28639,7 @@ static void test_wolfSSL_EVP_PKEY_derive(void)
     AssertIntEQ(EVP_PKEY_derive_init(ctx), 1);
     AssertIntEQ(EVP_PKEY_derive_set_peer(ctx, peerkey), 1);
     AssertIntEQ(EVP_PKEY_derive(ctx, NULL, &skeylen), 1);
-    AssertNotNull(skey = XMALLOC(skeylen, NULL, DYNAMIC_TYPE_OPENSSL));
+    AssertNotNull(skey = (unsigned char*)XMALLOC(skeylen, NULL, DYNAMIC_TYPE_OPENSSL));
     AssertIntEQ(EVP_PKEY_derive(ctx, skey, &skeylen), 1);
 
     EVP_PKEY_CTX_free(ctx);
@@ -31015,7 +31015,7 @@ static void test_wolfSSL_ASN1_INTEGER_set()
 }
 
 /* Testing code used in dpp.c in hostap */
-#ifdef OPENSSL_ALL
+#if defined(OPENSSL_ALL) && defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
 typedef struct {
     /* AlgorithmIdentifier ecPublicKey with optional parameters present
      * as an OID identifying the curve */
@@ -31030,7 +31030,7 @@ ASN1_SEQUENCE(DPP_BOOTSTRAPPING_KEY) = {
 } ASN1_SEQUENCE_END(DPP_BOOTSTRAPPING_KEY);
 
 IMPLEMENT_ASN1_FUNCTIONS(DPP_BOOTSTRAPPING_KEY);
-#endif /* WOLFSSL_WPAS */
+#endif
 
 static void test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS()
 {
@@ -31064,7 +31064,7 @@ static void test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS()
     AssertIntGT((len = EC_POINT_point2oct(group, point, POINT_CONVERSION_UNCOMPRESSED,
                                           NULL, 0, NULL)), 0);
 #endif
-    AssertNotNull(der = XMALLOC(len, NULL, DYNAMIC_TYPE_ASN1));
+    AssertNotNull(der = (unsigned char*)XMALLOC(len, NULL, DYNAMIC_TYPE_ASN1));
 #ifdef HAVE_COMP_KEY
     AssertIntEQ(EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED,
                                    der, len, NULL), len);
