@@ -19527,6 +19527,30 @@ exit_dpk:
 
 #endif /* WOLFSSL_TLS13 || !NO_WOLFSSL_CLIENT */
 
+#ifdef WOLFSSL_TLS13
+    /* returns 1 if able to do TLS 1.3 otherwise 0 */
+    static int TLSv1_3_Capable(WOLFSSL* ssl)
+    {
+    #ifndef WOLFSSL_TLS13
+        return 0;
+    #else
+        int ret = 0;
+
+        if (IsAtLeastTLSv1_3(ssl->ctx->method->version)) {
+            ret = 1;
+        }
+
+        #ifdef OPENSSL_EXTRA
+        if ((wolfSSL_get_options(ssl) & SSL_OP_NO_TLSv1_3)) {
+            /* option set at run time to disable TLS 1.3 */
+            ret = 0;
+        }
+        #endif
+        return ret;
+    #endif
+    }
+#endif /* WOLFSSL_TLS13 */
+
 /* client only parts */
 #ifndef NO_WOLFSSL_CLIENT
 
@@ -20190,30 +20214,6 @@ exit_dpk:
 
         return ret;
     }
-
-#ifdef WOLFSSL_TLS13
-    /* returns 1 if able to do TLS 1.3 otherwise 0 */
-    static int TLSv1_3_Capable(WOLFSSL* ssl)
-    {
-    #ifndef WOLFSSL_TLS13
-        return 0;
-    #else
-        int ret = 0;
-
-        if (IsAtLeastTLSv1_3(ssl->ctx->method->version)) {
-            ret = 1;
-        }
-
-        #ifdef OPENSSL_EXTRA
-        if ((wolfSSL_get_options(ssl) & SSL_OP_NO_TLSv1_3)) {
-            /* option set at run time to disable TLS 1.3 */
-            ret = 0;
-        }
-        #endif
-        return ret;
-    #endif
-    }
-#endif /* WOLFSSL_TLS13 */
 
     int CompleteServerHello(WOLFSSL* ssl)
     {
