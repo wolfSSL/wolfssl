@@ -12824,7 +12824,7 @@ int rsa_test(void)
     word32 idx = 0;
 #endif
 #if (!defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_PUBLIC_MP)) && \
-                                 !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG)
+                                 !defined(WC_NO_RNG)
     const char* inStr = "Everyone gets Friday off.";
     word32      inLen = (word32)XSTRLEN((char*)inStr);
     const word32 outSz   = RSA_TEST_BYTES;
@@ -12847,7 +12847,7 @@ int rsa_test(void)
 #endif
 
 #if (!defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_PUBLIC_MP)) && \
-                                 !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG)
+                                 !defined(WC_NO_RNG)
     DECLARE_VAR_INIT(in, byte, inLen, inStr, HEAP_HINT);
     DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
