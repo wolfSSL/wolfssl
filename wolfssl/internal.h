@@ -1149,7 +1149,7 @@ enum {
 /* set maximum DH key size allowed */
 #ifndef WOLFSSL_MAX_DHKEY_BITS
     #if (defined(USE_FAST_MATH) && defined(FP_MAX_BITS) && FP_MAX_BITS >= 16384)
-        #define WOLFSSL_MAX_DHKEY_BITS 8192
+        #define WOLFSSL_MAX_DHKEY_BITS (FP_MAX_BITS / 2)
     #else
         #define WOLFSSL_MAX_DHKEY_BITS 4096
     #endif
@@ -1174,6 +1174,17 @@ enum {
 #ifndef MAX_EARLY_DATA_SZ
     /* maximum early data size */
     #define MAX_EARLY_DATA_SZ  4096
+#endif
+
+#ifndef WOLFSSL_MAX_RSA_BITS
+    #if (defined(USE_FAST_MATH) && defined(FP_MAX_BITS) && FP_MAX_BITS >= 16384)
+        #define WOLFSSL_MAX_RSA_BITS (FP_MAX_BITS / 2)
+    #else
+        #define WOLFSSL_MAX_RSA_BITS 4096
+    #endif
+#endif
+#if (WOLFSSL_MAX_RSA_BITS % 8)
+    #error RSA maximum bit size must be multiple of 8
 #endif
 
 enum Misc {
@@ -1218,9 +1229,9 @@ enum Misc {
     SECRET_LEN      = WOLFSSL_MAX_MASTER_KEY_LENGTH,
                                 /* pre RSA and all master */
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) || \
-    (defined(USE_FAST_MATH) && defined(FP_MAX_BITS) && FP_MAX_BITS > 8192)
+    (defined(USE_FAST_MATH) && defined(FP_MAX_BITS) && FP_MAX_BITS >= 16384)
 #ifndef NO_PSK
-    ENCRYPT_LEN     = 1024 + MAX_PSK_ID_LEN + 2,   /* 8192 bit static buffer */
+    ENCRYPT_LEN     = (FP_MAX_BITS / 2 / 8) + MAX_PSK_ID_LEN + 2,
 #else
     ENCRYPT_LEN     = 1024,     /* allow 8192 bit static buffer */
 #endif
@@ -1418,7 +1429,7 @@ enum Misc {
     MIN_RSA_SHA384_PSS_BITS = 384 * 2 + 8 * 8, /* Min key size */
 
 #ifndef NO_RSA
-    MAX_CERT_VERIFY_SZ = 4096 / 8, /* max RSA - default 4096-bits */
+    MAX_CERT_VERIFY_SZ = WOLFSSL_MAX_RSA_BITS / 8, /* max RSA bytes */
 #elif defined(HAVE_ECC)
     MAX_CERT_VERIFY_SZ = ECC_MAX_SIG_SIZE, /* max ECC  */
 #elif defined(HAVE_ED448)
