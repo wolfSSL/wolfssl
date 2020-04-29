@@ -580,6 +580,10 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out,
         authTagSz > AES_BLOCK_SIZE)
         return BAD_FUNC_ARG;
 
+    if (wc_AesCcmCheckTagSize(authTagSz) != 0) {
+        return BAD_FUNC_ARG;
+    }
+
     if (wc_AesGetKeySize(aes, &keySz) != 0) {
          return BAD_FUNC_ARG;
     }

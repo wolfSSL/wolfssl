@@ -7305,10 +7305,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
 
     /* sanity check on tag size */
-    if (authTagSz != 4 && authTagSz != 6 && authTagSz != 8 &&
-            authTagSz != 10 && authTagSz != 12 && authTagSz != 14 &&
-            authTagSz != 16) {
-        WOLFSSL_MSG("Bad auth tag size AES-CCM");
+    if (wc_AesCcmCheckTagSize(authTagSz) != 0) {
         return BAD_FUNC_ARG;
     }
 
