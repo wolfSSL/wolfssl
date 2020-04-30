@@ -1374,6 +1374,43 @@ static int TLSX_Push(TLSX** list, TLSX_Type type, void* data, void* heap)
     return 0;
 }
 
+#ifdef WOLFSSL_TLS13
+
+/**
+ * Creates a new extension and prepend it to the provided list.
+ * Checks for duplicate extensions, keeps the newest.
+ */
+static int TLSX_Prepend(TLSX** list, TLSX_Type type, void* data, void* heap)
+{
+    TLSX* extension = TLSX_New(type, data, heap);
+    TLSX* curr = *list;
+
+    if (extension == NULL)
+        return MEMORY_E;
+
+    /* remove duplicate extensions, there should be only one of each type. */
+    while (curr && curr->next) {
+        if (curr->next->type == type) {
+            TLSX *next = curr->next;
+
+            curr->next = next->next;
+            next->next = NULL;
+
+            TLSX_FreeAll(next, heap);
+        }
+        curr = curr->next;
+    }
+
+    if (curr)
+        curr->next = extension;
+    else
+        *list = extension;
+
+    return 0;
+}
+
+#endif /* WOLFSSL_TLS13 */
+
 #ifndef NO_WOLFSSL_CLIENT
 
 int TLSX_CheckUnsupportedExtension(WOLFSSL* ssl, TLSX_Type type);
@@ -5997,6 +6034,7 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, byte* input,
     byte major, minor;
     int newMinor = 0;
     int set = 0;
+    int ret;
 
     if (msgType == client_hello) {
         /* Must contain a length and at least one version. */
@@ -6049,8 +6087,11 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, byte* input,
             if (minor >= TLSv1_3_MINOR) {
                 if (!ssl->options.tls1_3) {
                     ssl->options.tls1_3 = 1;
-                    TLSX_Push(&ssl->extensions, TLSX_SUPPORTED_VERSIONS, ssl,
-                              ssl->heap);
+                    ret = TLSX_Prepend(&ssl->extensions,
+                              TLSX_SUPPORTED_VERSIONS, ssl, ssl->heap);
+                    if (ret != 0) {
+                        return ret;
+                    }
 #ifndef WOLFSSL_TLS13_DRAFT_18
                     TLSX_SetResponse(ssl, TLSX_SUPPORTED_VERSIONS);
 #endif
