@@ -20195,6 +20195,28 @@ static void test_wc_PemToDer(void)
 
     if (cert_buf)
         free(cert_buf);
+
+#ifdef HAVE_ECC
+    {
+        const char* ecc_private_key = "./certs/ecc-privOnlyKey.pem";
+        byte key_buf[256] = {0};
+
+        /* Test fail of loading a key with cert type */
+        AssertIntEQ(load_file(ecc_private_key, &cert_buf, &cert_sz), 0);
+        key_buf[0] = '\n';
+        XMEMCPY(key_buf + 1, cert_buf, cert_sz);
+        AssertIntNE((ret = wc_PemToDer(key_buf, cert_sz + 1, CERT_TYPE,
+            &pDer, NULL, &info, &eccKey)), 0);
+
+    #ifdef OPENSSL_EXTRA
+        AssertIntEQ((ret = wc_PemToDer(key_buf, cert_sz + 1, PRIVATEKEY_TYPE,
+            &pDer, NULL, &info, &eccKey)), 0);
+    #endif
+        wc_FreeDer(&pDer);
+        if (cert_buf)
+            free(cert_buf);
+    }
+#endif
     printf(resultFmt, passed);
 #endif
 }
