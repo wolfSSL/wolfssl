@@ -1739,7 +1739,7 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
   if (M == NULL) {
      return FP_MEM;
   }
-  res = &M[1 << winsize];
+  res = &M[(word32)(1 << winsize)];
 
   /* init M array */
   for(x = 0; x < (1 << winsize); x++)
@@ -1769,10 +1769,10 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
 
   /* compute the value at M[1<<(winsize-1)] by
    * squaring M[1] (winsize-1) times */
-  fp_copy (&M[1], &M[1 << (winsize - 1)]);
+  fp_copy (&M[1], &M[(word32)(1 << (winsize - 1))]);
   for (x = 0; x < (winsize - 1); x++) {
-    fp_sqr (&M[1 << (winsize - 1)], &M[1 << (winsize - 1)]);
-    err = fp_montgomery_reduce (&M[1 << (winsize - 1)], P, mp);
+    fp_sqr (&M[(word32)(1 << (winsize - 1))], &M[(word32)(1 << (winsize - 1))]);
+    err = fp_montgomery_reduce (&M[(word32)(1 << (winsize - 1))], P, mp);
     if (err != FP_OKAY) {
       XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
       return err;
