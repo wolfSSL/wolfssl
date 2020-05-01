@@ -303,8 +303,14 @@
 
 #ifdef USE_WINDOWS_API
     typedef unsigned int SOCKET_T;
+    #ifndef SOCKET_INVALID
+        #define SOCKET_INVALID INVALID_SOCKET
+    #endif
 #else
     typedef int SOCKET_T;
+    #ifndef SOCKET_INVALID
+        #define SOCKET_INVALID -1
+    #endif
 #endif
 
 #ifndef WOLFSSL_NO_SOCK
