@@ -13841,7 +13841,7 @@ static int sp_256_ecc_mulmod_5(sp_point_256* r, const sp_point_256* g, const sp_
     (void)heap;
 
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    t = (sp_point*)XMALLOC(sizeof(*t) * 3, heap, DYNAMIC_TYPE_ECC);
+    t = (sp_point_256*)XMALLOC(sizeof(*t) * 3, heap, DYNAMIC_TYPE_ECC);
     if (t == NULL)
         err = MEMORY_E;
     tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 5 * 5, heap,
@@ -19027,7 +19027,7 @@ static int sp_384_ecc_mulmod_7(sp_point_384* r, const sp_point_384* g, const sp_
     (void)heap;
 
 #if (defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)) && !defined(WOLFSSL_SP_NO_MALLOC)
-    t = (sp_point*)XMALLOC(sizeof(*t) * 3, heap, DYNAMIC_TYPE_ECC);
+    t = (sp_point_384*)XMALLOC(sizeof(*t) * 3, heap, DYNAMIC_TYPE_ECC);
     if (t == NULL)
         err = MEMORY_E;
     tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 7 * 6, heap,

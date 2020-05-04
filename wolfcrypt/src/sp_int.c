@@ -53,6 +53,7 @@
  * WOLFSSL_SP_ARM64_ASM         Enable Aarch64 assembly speedups
  * WOLFSSL_SP_ARM_CORTEX_M_ASM  Enable Cortex-M assembly speedups
  * WOLFSSL_SP_ARM_THUMB_ASM     Enable ARM Thumb assembly speedups (used with -mthumb)
+ * SP_WORD_SIZE                 Force 32 or 64 bit mode
  */
 
 #ifdef WOLFSSL_SP_MATH
