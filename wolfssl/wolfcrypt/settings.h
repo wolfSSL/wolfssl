@@ -933,6 +933,15 @@ extern void uITRON4_free(void *p) ;
         #define XFREE(p, h, t)      {void* xp = (p); if ((xp)) _mem_free((xp));}
         /* Note: MQX has no realloc, using fastmath above */
     #endif
+    #ifdef USE_FAST_MATH
+        /* Undef first to avoid re-definition if user_settings.h defines */
+        #undef TFM_TIMING_RESISTANT
+        #define TFM_TIMING_RESISTANT
+        #undef ECC_TIMING_RESISTANT
+        #define ECC_TIMING_RESISTANT
+        #undef WC_RSA_BLINDING
+        #define WC_RSA_BLINDING
+    #endif
 #endif
 
 #ifdef FREESCALE_KSDK_MQX
