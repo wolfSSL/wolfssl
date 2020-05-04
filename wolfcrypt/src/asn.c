@@ -10383,48 +10383,65 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
     if (!headerEnd) {
 #ifdef OPENSSL_EXTRA
-        char* beginEnd;
-        int endLen;
-        /* see if there is a -----BEGIN * PRIVATE KEY----- header */
-        headerEnd = XSTRNSTR((char*)buff, PRIV_KEY_SUFFIX, sz);
-        if (headerEnd) {
-            beginEnd = headerEnd + XSTR_SIZEOF(PRIV_KEY_SUFFIX);
-            /* back up to BEGIN_PRIV_KEY_PREFIX */
-            headerEnd -= XSTR_SIZEOF(BEGIN_PRIV_KEY_PREFIX);
-            while (headerEnd > (char*)buff &&
-                    XSTRNCMP(headerEnd, BEGIN_PRIV_KEY_PREFIX,
-                            XSTR_SIZEOF(BEGIN_PRIV_KEY_PREFIX)) != 0) {
-                headerEnd--;
-            }
-            if (headerEnd <= (char*)buff ||
-                    XSTRNCMP(headerEnd, BEGIN_PRIV_KEY_PREFIX,
-                    XSTR_SIZEOF(BEGIN_PRIV_KEY_PREFIX)) != 0 ||
-                    beginEnd - headerEnd > PEM_LINE_LEN) {
-                WOLFSSL_MSG("Couldn't find PEM header");
-                return ASN_NO_PEM_HEADER;
-            }
-            /* headerEnd now points to beginning of header */
-            XMEMCPY(beginBuf, headerEnd, beginEnd - headerEnd);
-            beginBuf[beginEnd - headerEnd] = '\0';
-            /* look for matching footer */
-            footer = XSTRNSTR(beginEnd,
-                            beginBuf + XSTR_SIZEOF(BEGIN_PRIV_KEY_PREFIX),
-                            (unsigned int)((char*)buff + sz - beginEnd));
-            if (!footer) {
-                WOLFSSL_MSG("Couldn't find PEM footer");
-                return ASN_NO_PEM_HEADER;
-            }
-            footer -= XSTR_SIZEOF(END_PRIV_KEY_PREFIX);
-            endLen = (unsigned int)(beginEnd - headerEnd -
-                        (XSTR_SIZEOF(BEGIN_PRIV_KEY_PREFIX) -
-                                XSTR_SIZEOF(END_PRIV_KEY_PREFIX)));
-            XMEMCPY(endBuf, footer, endLen);
-            endBuf[endLen] = '\0';
+        if (type == PRIVATEKEY_TYPE) {
+            char* beginEnd;
+            int endLen;
+            /* see if there is a -----BEGIN * PRIVATE KEY----- header */
+            headerEnd = XSTRNSTR((char*)buff, PRIV_KEY_SUFFIX, sz);
+            if (headerEnd) {
+                beginEnd = headerEnd + XSTR_SIZEOF(PRIV_KEY_SUFFIX);
+                if (beginEnd >= (char*)buff + sz) {
+                    return BUFFER_E;
+                }
 
-            header = beginBuf;
-            footer = endBuf;
-            headerEnd = beginEnd;
-        } else {
+                /* back up to BEGIN_PRIV_KEY_PREFIX */
+                while (headerEnd > (char*)buff &&
+                        XSTRNCMP(headerEnd, BEGIN_PRIV_KEY_PREFIX,
+                                XSTR_SIZEOF(BEGIN_PRIV_KEY_PREFIX)) != 0 &&
+                        *headerEnd != '\n') {
+                    headerEnd--;
+                }
+                if (headerEnd <= (char*)buff ||
+                        XSTRNCMP(headerEnd, BEGIN_PRIV_KEY_PREFIX,
+                        XSTR_SIZEOF(BEGIN_PRIV_KEY_PREFIX)) != 0 ||
+                        beginEnd - headerEnd > PEM_LINE_LEN) {
+                    WOLFSSL_MSG("Couldn't find PEM header");
+                    return ASN_NO_PEM_HEADER;
+                }
+
+                /* headerEnd now points to beginning of header */
+                XMEMCPY(beginBuf, headerEnd, beginEnd - headerEnd);
+                beginBuf[beginEnd - headerEnd] = '\0';
+                /* look for matching footer */
+                footer = XSTRNSTR(beginEnd,
+                                beginBuf + XSTR_SIZEOF(BEGIN_PRIV_KEY_PREFIX),
+                                (unsigned int)((char*)buff + sz - beginEnd));
+                if (!footer) {
+                    WOLFSSL_MSG("Couldn't find PEM footer");
+                    return ASN_NO_PEM_HEADER;
+                }
+
+                footer -= XSTR_SIZEOF(END_PRIV_KEY_PREFIX);
+                if (footer > (char*)buff + sz - XSTR_SIZEOF(END_PRIV_KEY_PREFIX)
+                        || XSTRNCMP(footer, END_PRIV_KEY_PREFIX,
+                            XSTR_SIZEOF(END_PRIV_KEY_PREFIX)) != 0) {
+                    WOLFSSL_MSG("Unexpected footer for PEM");
+                    return BUFFER_E;
+                }
+
+                endLen = (unsigned int)(beginEnd - headerEnd -
+                            (XSTR_SIZEOF(BEGIN_PRIV_KEY_PREFIX) -
+                                    XSTR_SIZEOF(END_PRIV_KEY_PREFIX)));
+                XMEMCPY(endBuf, footer, endLen);
+                endBuf[endLen] = '\0';
+
+                header = beginBuf;
+                footer = endBuf;
+                headerEnd = beginEnd;
+            }
+        }
+
+        if (!headerEnd) {
             WOLFSSL_MSG("Couldn't find PEM header");
             return ASN_NO_PEM_HEADER;
         }
