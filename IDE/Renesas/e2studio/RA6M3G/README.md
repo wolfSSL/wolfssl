@@ -20,24 +20,25 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 `Board:   EK-RA6M3G`\
 `Device:  R7FA6M3AH3CFC`\
 `Toolchain:   GCC ARM Embedded`\
-`FSP Version:   0.8.0`
+`FSP Version:   0.10.0`
 
 ##### Selected software components
 
-`Board Support Package Common Files   v0.8.0`\
 `Arm CMSIS Version 5 - Core (M)   v5.5.1`\
-`Amazon FreeRTOS   v0.8.0`\
-`RA6M3G-EK Board Support Files   v0.8.0`\
-`Board support package for R7FA6M3AH3CFC   v0.8.0`\
-`Board support package for RA6M3   v0.8.0`\
-`Board support package for RA6M3   v0.8.0`\
-`Amazon FreeRTOS - Memory Management - Heap 4   v0.8.0`\
-`r_ether to FreeRTOS+TCP Wrapper   v0.8.0`\
-`Ethernet       v0.8.0`\
-`Ethernet PHY   v0.8.0`\
-`FreeRTOS+TCP   v0.8.0`\
-`Amazon FreeRTOS - Buffer Allocation 2   v0.8.0`
-
+`Board support package for R7FA6M3AH3CFC   v0.10.0`\
+`Board support package for RA6M3   v0.10.0`\
+`Board support package for RA6M3 - FSP Data   v0.10.0`\
+`Board Support Package Common Files   v0.10.0`\
+`Ethernet PHY   v0.10.0`\
+`Ethernet   v0.10.0`\
+`I/O Port   v0.10.0`\
+`Secure Cryptography Engine on RA6   v0.10.0`\
+`r_ether to FreeRTOS+TCP Wrapper   v0.10.0`\
+`Amazon FreeRTOS   v0.10.0`\
+`Amazon FreeRTOS - Buffer Allocation 2   v0.10.0`\
+`Amazon FreeRTOS - Memory Management - Heap 4   v0.10.0`\
+`FreeRTOS+TCP   v0.10.0`\
+`RA6M3G-EK Board Support Files   v0.10.0`
 
 ## Setup Steps
 

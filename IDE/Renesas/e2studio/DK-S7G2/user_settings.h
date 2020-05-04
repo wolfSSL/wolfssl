@@ -2,6 +2,8 @@
 #ifndef USER_SETTINGS_H
 #define USER_SETTINGS_H
 
+#define WOLFSSL_RENESAS_S7G2
+
 //#define DEBUG_WOLFSSL
 
 #define NO_MAIN_DRIVER

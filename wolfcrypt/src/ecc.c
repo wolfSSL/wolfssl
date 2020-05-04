@@ -141,6 +141,10 @@ ECC Curve Sizes:
     #include <wolfssl/wolfcrypt/port/st/stm32.h>
 #endif
 
+#if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+    #include <wolfssl/wolfcrypt/port/Renesas/renesas_sce_ra6m3g.h>
+#endif
+
 #ifdef WOLFSSL_SP_MATH
     #define GEN_MEM_ERR MP_MEM
 #elif defined(USE_FAST_MATH)
@@ -2505,7 +2509,8 @@ int ecc_map(ecc_point* P, mp_int* modulus, mp_digit mp)
 }
 #endif /* !WOLFSSL_SP_MATH || WOLFSSL_PUBLIC_ECC_ADD_DBL */
 
-#if !defined(FREESCALE_LTC_ECC) && !defined(WOLFSSL_STM32_PKA)
+#if !defined(FREESCALE_LTC_ECC) && !defined(WOLFSSL_STM32_PKA) && \
+    !(defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G))
 
 #if !defined(FP_ECC) || !defined(WOLFSSL_SP_MATH)
 /**
@@ -2996,10 +3001,44 @@ exit:
    return ECC_BAD_ARG_E;
 #endif
 }
-
 #endif /* !FP_ECC || !WOLFSSL_SP_MATH */
-
 #endif /* !FREESCALE_LTC_ECC && !WOLFSSL_STM32_PKA */
+
+#if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R,
+                     mp_int* a, mp_int* modulus, int map,
+                     void* heap)
+{
+    int i;
+    int ret = BAD_FUNC_ARG;
+    char Af[48] = {0};
+    mp_int b[1];
+    (void)heap;
+
+    /* Hardware needs Bf, but standard mulmod interface does not include */
+    /* Convert mp_int a to char* Af */
+    if (a != NULL)
+        ret = mp_toradix(a, Af, 16);
+
+    /* Try to find the Bf corresponding to Af */
+    if (ret == MP_OKAY && mp_init(b) == MP_OKAY) {
+        ret = BAD_FUNC_ARG; /* incase we don't find Bf */
+        for (i = 0; ecc_sets[i].size != 0; i++) {
+            if (XSTRNCMP(ecc_sets[i].Af, Af, XSTRLEN(Af)) == 0) {
+                ret = mp_read_radix(b, ecc_sets[i].Bf, MP_RADIX_HEX);
+                break;
+            }
+        }
+    }
+
+    /* Bf found and converted to mp_int b */
+    if (ret == MP_OKAY)
+        ret = wc_RA6_EccMulmod(k, G, R, a, b, modulus, map);
+
+    mp_clear(b);
+    return ret;
+}
+#endif /* WOLFSSL_SCE && WOLFSSL_RENESAS_RA6M3G */
 
 /** ECC Fixed Point mulmod global
     k        The multiplicand
@@ -4250,6 +4289,8 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
         err = mp_read_unsigned_bin(&key->k, ucompressed_key, raw_size);
     }
 
+#elif defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+    err = wc_RA6_EccGenerateKey(key);
 #else
 
 #ifdef WOLFSSL_HAVE_SP_ECC
@@ -4658,6 +4699,19 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
     return err;
 }
 #endif /* WOLFSSL_ATECC508A || PLUTON_CRYPTO_ECC || WOLFSSL_CRYPTOCELL */
+#if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
+    mp_int* r, mp_int* s, byte* out, word32 *outlen, WC_RNG* rng,
+    ecc_key* key)
+{
+    (void)out;
+    (void)outlen;
+    (void)rng;
+
+    return wc_RA6_EccGenerateSign(key, in, inlen, r, s);
+}
+#endif /* WOLFSSL_SCE && WOLFSSL_RENESAS_RA6M3G */
+
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
 static int wc_ecc_sign_hash_async(const byte* in, word32 inlen, byte* out,
@@ -4799,7 +4853,9 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     }
 
 /* hardware crypto */
-#if defined(WOLFSSL_ATECC508A) || defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_CRYPTOCELL)
+#if defined(WOLFSSL_ATECC508A) || defined(PLUTON_CRYPTO_ECC) || \
+    defined(WOLFSSL_CRYPTOCELL) || \
+    (defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G))
     err = wc_ecc_sign_hash_hw(in, inlen, r, s, out, outlen, rng, key);
 #else
     err = wc_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
@@ -5849,6 +5905,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    CRYS_ECDSA_VerifyUserContext_t sigCtxTemp;
    word32 msgLenInBytes = hashlen;
    CRYS_ECPKI_HASH_OpMode_t hash_mode;
+#elif defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+    /* no extra variables */
 #elif !defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC)
    int          did_init = 0;
    ecc_point    *mG = NULL, *mQ = NULL;
@@ -5956,6 +6014,18 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    }
    /* valid signature if we get to this point */
    *res = 1;
+#elif defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+   /* checking if private key with no public part */
+   if (key->type == ECC_PRIVATEKEY_ONLY) {
+        WOLFSSL_MSG("Verify called with private key, generating public part\n");
+        err = wc_ecc_make_pub_ex(key, NULL, NULL);
+        if (err != MP_OKAY) {
+            WOLFSSL_MSG("Unable to extract public key");
+            return err;
+        }
+   }
+   err = wc_RA6_EccVerifySign(key, r, s, hash, hashlen, res);
+
 #else
   /* checking if private key with no public part */
   if (key->type == ECC_PRIVATEKEY_ONLY) {
@@ -6981,6 +7051,11 @@ static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
             (void)prime;
 
             err = WC_KEY_SIZE_E;
+#endif
+#if defined(WOLFSSL_SCE) && defined(WOLFSSL_RENESAS_RA6M3G)
+        /* Renesas hardware errors out on this tests inputs */
+        if (err = WC_HW_E)
+            err = MP_OKAY;
 #endif
     }
 

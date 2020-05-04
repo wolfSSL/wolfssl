@@ -558,7 +558,7 @@ int wolfcrypt_test(void* args)
     }
 
 #if defined(USE_FAST_MATH) && \
-	(!defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC))
+    (!defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC))
     if (CheckFastMathSettings() != 1)
         return err_sys("Build vs runtime fastmath FP_MAX_BITS mismatch\n",
                        -1001);
@@ -2345,7 +2345,7 @@ int sha256_test(void)
             (word32)test_sha[i].inLen);
         if (ret != 0) {
             ERROR_OUT(-2302 - i, exit);
-	}
+    }
         ret = wc_Sha256GetHash(&sha, hashcopy);
         if (ret != 0)
             ERROR_OUT(-2303 - i, exit);
@@ -3294,14 +3294,14 @@ int hash_test(void)
             return -3277 - i;
         if (exp_ret == 0) {
             ret = wc_Hash(typesGood[i], data, sizeof(data), hashOut,
-                                                                  digestSz - 1);
+                                                        (word32)(digestSz - 1));
             if (ret != BUFFER_E)
                 return -3287 - i;
         }
-        ret = wc_Hash(typesGood[i], data, sizeof(data), hashOut, digestSz);
+        ret = wc_Hash(typesGood[i],data,sizeof(data),hashOut,(word32)digestSz);
         if (ret != exp_ret)
             return -3297 - i;
-        if (exp_ret == 0 && XMEMCMP(out, hashOut, digestSz) != 0)
+        if (exp_ret == 0 && XMEMCMP(out, hashOut, (word32) digestSz) != 0)
             return -3307 -i;
 
         ret = wc_HashGetBlockSize(typesGood[i]);
@@ -5017,7 +5017,7 @@ int poly1305_test(void)
 
     /* Check fail of TLS MAC function if altering additional data */
     XMEMSET(tag, 0, sizeof(tag));
-	additional[0]++;
+    additional[0]++;
     ret = wc_Poly1305_MAC(&enc, additional, sizeof(additional),
                                    (byte*)msg4, sizeof(msg4), tag, sizeof(tag));
     if (ret != 0)
@@ -8244,8 +8244,8 @@ int aes256_test(void)
 #ifdef HAVE_AESGCM
 
 static int aesgcm_default_test_helper(byte* key, int keySz, byte* iv, int ivSz,
-		byte* plain, int plainSz, byte* cipher, int cipherSz,
-		byte* aad, int aadSz, byte* tag, int tagSz)
+        byte* plain, int plainSz, byte* cipher, int cipherSz,
+        byte* aad, int aadSz, byte* tag, int tagSz)
 {
     Aes enc;
     Aes dec;
@@ -8392,26 +8392,26 @@ int aesgcm_default_test(void)
     };
 
     int ret;
-	ret = aesgcm_default_test_helper(key1, sizeof(key1), iv1, sizeof(iv1),
-		plain1, sizeof(plain1), cipher1, sizeof(cipher1),
-		aad1, sizeof(aad1), tag1, sizeof(tag1));
-	if (ret != 0) {
-		return ret;
-	}
-	ret = aesgcm_default_test_helper(key2, sizeof(key2), iv2, sizeof(iv2),
-		plain2, sizeof(plain2), cipher2, sizeof(cipher2),
-		NULL, 0, tag2, sizeof(tag2));
-	if (ret != 0) {
-		return ret;
-	}
-	ret = aesgcm_default_test_helper(key3, sizeof(key3), iv3, sizeof(iv3),
-		NULL, 0, NULL, 0,
-		NULL, 0, tag3, sizeof(tag3));
-	if (ret != 0) {
-		return ret;
-	}
+    ret = aesgcm_default_test_helper(key1, sizeof(key1), iv1, sizeof(iv1),
+        plain1, sizeof(plain1), cipher1, sizeof(cipher1),
+        aad1, sizeof(aad1), tag1, sizeof(tag1));
+    if (ret != 0) {
+        return ret;
+    }
+    ret = aesgcm_default_test_helper(key2, sizeof(key2), iv2, sizeof(iv2),
+        plain2, sizeof(plain2), cipher2, sizeof(cipher2),
+        NULL, 0, tag2, sizeof(tag2));
+    if (ret != 0) {
+        return ret;
+    }
+    ret = aesgcm_default_test_helper(key3, sizeof(key3), iv3, sizeof(iv3),
+        NULL, 0, NULL, 0,
+        NULL, 0, tag3, sizeof(tag3));
+    if (ret != 0) {
+        return ret;
+    }
 
-	return 0;
+    return 0;
 }
 
 int aesgcm_test(void)
@@ -10091,10 +10091,12 @@ int random_test(void)
 static int simple_mem_test(int sz)
 {
     int ret = 0;
-    byte* b;
+    byte* b = NULL;
     int i;
 
-    b = (byte*)XMALLOC(sz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (sz > 0) {
+        b = (byte*)XMALLOC((word32)sz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
     if (b == NULL) {
         return -6900;
     }
@@ -12836,7 +12838,7 @@ int rsa_test(void)
     word32 idx = 0;
 #endif
 #if (!defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_PUBLIC_MP)) && \
-                                 !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG)
+                                 !defined(WC_NO_RNG)
     const char* inStr = "Everyone gets Friday off.";
     word32      inLen = (word32)XSTRLEN((char*)inStr);
     const word32 outSz   = RSA_TEST_BYTES;
@@ -12859,7 +12861,7 @@ int rsa_test(void)
 #endif
 
 #if (!defined(WOLFSSL_RSA_VERIFY_ONLY) || defined(WOLFSSL_PUBLIC_MP)) && \
-                                 !defined(WC_NO_RSA_OAEP) && !defined(WC_NO_RNG)
+                                 !defined(WC_NO_RNG)
     DECLARE_VAR_INIT(in, byte, inLen, inStr, HEAP_HINT);
     DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
@@ -17919,7 +17921,7 @@ static int ecc_test_vector(int keySize)
                 "\x6b\x63\xde\x52\xa4\xf4\x31\xea\xca\x59\xb0\x5d\x2e\xde\xc4\x84"
                 "\x5f\xff\xc0\xee\x15\x03\x94\xd6\x1f\x3d\xfe\xcb\xcd\xbf\x6f\x5a"
                 "\x73\x38\xd0\xbe\x3f\x2a\x77\x34\x51\x98\x3e\xba\xeb\x48\xf6\x73"
-                "\x8f\xc8\x95\xdf\x35\x7e\x1a\x48\xa6\x53\xbb\x35\x5a\x31\xa1\xb4"
+                "\x8f\xc8\x95\xdf\x35\x7e\x1a\x48\xa6\x53\xbb\x35\x5a\x31\xa1\xb4";
             vec.msgLen = 128;
         #endif
         vec.Qx  = "fa2737fb93488d19caef11ae7faf6b7f4bcd67b286e3fc54e8a65c2b74aeccb0";
@@ -17962,7 +17964,7 @@ static int ecc_test_vector(int keySize)
                 "\xc5\xae\x7d\xb1\x49\x68\x75\xb5\xdc\x73\xc3\x09\xf9\x25\xc1\x3d"
                 "\x1c\x01\xab\xda\xaf\xeb\xcd\xac\x2c\xee\x43\x39\x39\xce\x8d\x4a"
                 "\x0a\x5d\x57\xbb\x70\x5f\x3b\xf6\xec\x08\x47\x95\x11\xd4\xb4\xa3"
-                "\x21\x1f\x61\x64\x9a\xd6\x27\x43\x14\xbf\x0d\x43\x8a\x81\xe0\x60"
+                "\x21\x1f\x61\x64\x9a\xd6\x27\x43\x14\xbf\x0d\x43\x8a\x81\xe0\x60";
             vec.msgLen = 128;
         #endif
         vec.Qx  = "e55fee6c49d8d523f5ce7bf9c0425ce4ff650708b7de5cfb095901523979a7f042602db30854735369813b5c3f5ef868";
@@ -18198,7 +18200,14 @@ static int ecc_test_make_pub(WC_RNG* rng)
     ecc_key key;
     byte exportBuf[ECC_BUFSIZE];
     byte tmp[ECC_BUFSIZE];
+#if !defined(WOLFSSL_SCE) && !defined(WOLFSSL_RENESAS_RA6M3G)
     const byte* msg = (const byte*)"test wolfSSL ECC public gen";
+#else /* Hardware Sign/Verify need msg to be size of key */
+    const byte msg[32] = {0x4d, 0x2e, 0xab, 0x99, 0x21, 0x1b, 0x71, 0xd8,
+                          0xf3, 0xc6, 0xcf, 0xc6, 0x77, 0x12, 0xa3, 0x81,
+                          0xfd, 0xf9, 0x30, 0xfd, 0xb7, 0xf3, 0x67, 0xaf,
+                          0x87, 0x17, 0x8d, 0x8f, 0x4b, 0xf7, 0xf6, 0x8b};
+#endif
     word32 x, tmpSz;
     int ret = 0;
     ecc_point* pubPoint = NULL;
@@ -18786,9 +18795,14 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
+#if !defined(WOLFSSL_SCE) && !defined(WOLFSSL_RENESAS_RA6M3G)
         if (ret == 0)
             ret = wc_ecc_sign_hash(digest, ECC_DIGEST_SIZE, sig, &x, rng,
                                                                         &userA);
+#else /* Renesas SCE hardware wants digest size to be the exact ECC key size */
+            ret = wc_ecc_sign_hash(digest, (word32)userA.dp->size, sig, &x, rng,
+                                                                        &userA);
+#endif
     } while (ret == WC_PENDING_E);
     if (ret != 0)
         goto done;
@@ -18824,9 +18838,16 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
-        if (ret == 0)
+        if (ret == 0) {
+
+#if !defined(WOLFSSL_SCE) && !defined(WOLFSSL_RENESAS_RA6M3G)
             ret = wc_ecc_sign_hash(digest, ECC_DIGEST_SIZE, sig, &x, rng,
                                                                         &userA);
+#else
+            ret = wc_ecc_sign_hash(digest, (word32)userA.dp->size, sig, &x, rng,
+                                                                        &userA);
+#endif
+        }
     } while (ret == WC_PENDING_E);
     if (ret != 0)
         ERROR_OUT(-9650, done);
@@ -18839,9 +18860,15 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         #if defined(WOLFSSL_ASYNC_CRYPT)
             ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
         #endif
-            if (ret == 0)
+            if (ret == 0) {
+#if !defined(WOLFSSL_SCE) && !defined(WOLFSSL_RENESAS_RA6M3G)
                 ret = wc_ecc_verify_hash(sig, x, digest, ECC_DIGEST_SIZE,
                                                                &verify, &userA);
+#else
+                ret = wc_ecc_verify_hash(sig, x, digest, (word32)userA.dp->size,
+                                                               &verify, &userA);
+#endif
+            }
         } while (ret == WC_PENDING_E);
         if (ret != 0)
             goto done;
@@ -20283,9 +20310,18 @@ int ecc_test_buffers(void) {
     WC_RNG rng;
     word32 idx = 0;
     int    ret;
+#if !defined(WOLFSSL_SCE) && !defined(WOLFSSL_RENESAS_RA6M3G)
     /* pad our test message to 32 bytes so evenly divisible by AES_BLOCK_SZ */
     byte   in[] = "Everyone gets Friday off. ecc p";
     word32 inLen = (word32)XSTRLEN((char*)in);
+#else
+    byte in[32] = {0x81, 0xad, 0x01, 0x4c, 0x7b, 0x18, 0xd9, 0x8d,
+                   0xac, 0x5b, 0xf0, 0xd2, 0x8b, 0x43, 0xcb, 0x2e,
+                   0xc1, 0x69, 0x36, 0x90, 0xc4, 0xa6, 0x61, 0x3b,
+                   0x26, 0xf2, 0x9c, 0xec, 0xec, 0x3a, 0x08, 0x62};
+    word32 inLen = 32;
+#endif
+
     byte   out[256];
     byte   plain[256];
     int verify = 0;
@@ -20359,9 +20395,15 @@ int ecc_test_buffers(void) {
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &cliKey.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
+    #if !defined(WOLFSSL_SCE) && !defined(WOLFSSL_RENESAS_RA6M3G)
         if (ret == 0)
             ret = wc_ecc_verify_hash(out, x, plain, sizeof(plain), &verify,
-                &cliKey);
+               &cliKey);
+    #else
+        /* Renesas SCE Hardware only supports inputs that are size of the key */
+        /* input hash cannot be all 0's or hardware stalls */
+        ret = wc_ecc_verify_hash(out, x, in, 32, &verify, &cliKey);
+    #endif
     } while (ret == WC_PENDING_E);
     if (ret < 0)
         return -10020;
