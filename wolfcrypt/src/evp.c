@@ -19,6 +19,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
+#include <wolfssl/wolfcrypt/settings.h>
+
 #if !defined(WOLFSSL_EVP_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
         #warning evp.c does not need to be compiled separately from ssl.c
@@ -26,11 +33,6 @@
 #elif defined(WOLFCRYPT_ONLY)
 #else
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
 
 #include <wolfssl/openssl/ecdsa.h>
 #include <wolfssl/openssl/evp.h>
