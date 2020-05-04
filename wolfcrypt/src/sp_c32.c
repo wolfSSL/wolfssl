@@ -1976,11 +1976,11 @@ static int sp_2048_mod_exp_45(sp_digit* r, const sp_digit* a, const sp_digit* e,
     return err;
 #elif defined(WOLFSSL_SP_CACHE_RESISTANT)
 #ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[3][90];
+    sp_digit td[90];
 #else
     sp_digit* td;
-    sp_digit* t[3];
 #endif
+    sp_digit* t[3];
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -1997,11 +1997,9 @@ static int sp_2048_mod_exp_45(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
         t[0] = td;
         t[1] = &td[45 * 2];
         t[2] = &td[2 * 45 * 2];
-#endif
         norm = t[0];
 
         sp_2048_mont_setup(m, &mp);
@@ -2062,11 +2060,11 @@ static int sp_2048_mod_exp_45(sp_digit* r, const sp_digit* a, const sp_digit* e,
     return err;
 #else
 #ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[32][90];
+    sp_digit td[32][90];
 #else
-    sp_digit* t[32];
     sp_digit* td;
 #endif
+    sp_digit* t[32];
     sp_digit* norm;
     sp_digit rt[90];
     sp_digit mp = 1;
@@ -2084,10 +2082,8 @@ static int sp_2048_mod_exp_45(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
         for (i=0; i<32; i++)
             t[i] = td + i * 90;
-#endif
         norm = t[0];
 
         sp_2048_mont_setup(m, &mp);
@@ -2908,11 +2904,11 @@ static int sp_2048_mod_exp_90(sp_digit* r, const sp_digit* a, const sp_digit* e,
     return err;
 #elif defined(WOLFSSL_SP_CACHE_RESISTANT)
 #ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[3][180];
+    sp_digit td[180];
 #else
     sp_digit* td;
-    sp_digit* t[3];
 #endif
+    sp_digit* t[3];
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -2929,11 +2925,9 @@ static int sp_2048_mod_exp_90(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
         t[0] = td;
         t[1] = &td[90 * 2];
         t[2] = &td[2 * 90 * 2];
-#endif
         norm = t[0];
 
         sp_2048_mont_setup(m, &mp);
@@ -2994,11 +2988,11 @@ static int sp_2048_mod_exp_90(sp_digit* r, const sp_digit* a, const sp_digit* e,
     return err;
 #else
 #ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[32][180];
+    sp_digit td[32][180];
 #else
-    sp_digit* t[32];
     sp_digit* td;
 #endif
+    sp_digit* t[32];
     sp_digit* norm;
     sp_digit rt[180];
     sp_digit mp = 1;
@@ -3016,10 +3010,8 @@ static int sp_2048_mod_exp_90(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
         for (i=0; i<32; i++)
             t[i] = td + i * 180;
-#endif
         norm = t[0];
 
         sp_2048_mont_setup(m, &mp);
@@ -5777,11 +5769,11 @@ static int sp_3072_mod_exp_67(sp_digit* r, const sp_digit* a, const sp_digit* e,
     return err;
 #elif defined(WOLFSSL_SP_CACHE_RESISTANT)
 #ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[3][134];
+    sp_digit td[134];
 #else
     sp_digit* td;
-    sp_digit* t[3];
 #endif
+    sp_digit* t[3];
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -5798,11 +5790,9 @@ static int sp_3072_mod_exp_67(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
         t[0] = td;
         t[1] = &td[67 * 2];
         t[2] = &td[2 * 67 * 2];
-#endif
         norm = t[0];
 
         sp_3072_mont_setup(m, &mp);
@@ -5863,11 +5853,11 @@ static int sp_3072_mod_exp_67(sp_digit* r, const sp_digit* a, const sp_digit* e,
     return err;
 #else
 #ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[32][134];
+    sp_digit td[32][134];
 #else
-    sp_digit* t[32];
     sp_digit* td;
 #endif
+    sp_digit* t[32];
     sp_digit* norm;
     sp_digit rt[134];
     sp_digit mp = 1;
@@ -5885,10 +5875,8 @@ static int sp_3072_mod_exp_67(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
         for (i=0; i<32; i++)
             t[i] = td + i * 134;
-#endif
         norm = t[0];
 
         sp_3072_mont_setup(m, &mp);
@@ -6745,11 +6733,11 @@ static int sp_3072_mod_exp_134(sp_digit* r, const sp_digit* a, const sp_digit* e
     return err;
 #elif defined(WOLFSSL_SP_CACHE_RESISTANT)
 #ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[3][268];
+    sp_digit td[268];
 #else
     sp_digit* td;
-    sp_digit* t[3];
 #endif
+    sp_digit* t[3];
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -6766,11 +6754,9 @@ static int sp_3072_mod_exp_134(sp_digit* r, const sp_digit* a, const sp_digit* e
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
         t[0] = td;
         t[1] = &td[134 * 2];
         t[2] = &td[2 * 134 * 2];
-#endif
         norm = t[0];
 
         sp_3072_mont_setup(m, &mp);
@@ -6831,11 +6817,11 @@ static int sp_3072_mod_exp_134(sp_digit* r, const sp_digit* a, const sp_digit* e
     return err;
 #else
 #ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[32][268];
+    sp_digit td[32][268];
 #else
-    sp_digit* t[32];
     sp_digit* td;
 #endif
+    sp_digit* t[32];
     sp_digit* norm;
     sp_digit rt[268];
     sp_digit mp = 1;
@@ -6853,10 +6839,8 @@ static int sp_3072_mod_exp_134(sp_digit* r, const sp_digit* a, const sp_digit* e
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
         for (i=0; i<32; i++)
             t[i] = td + i * 268;
-#endif
         norm = t[0];
 
         sp_3072_mont_setup(m, &mp);
@@ -9801,11 +9785,11 @@ static int sp_4096_mod_exp_98(sp_digit* r, const sp_digit* a, const sp_digit* e,
     return err;
 #elif defined(WOLFSSL_SP_CACHE_RESISTANT)
 #ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[3][196];
+    sp_digit td[196];
 #else
     sp_digit* td;
-    sp_digit* t[3];
 #endif
+    sp_digit* t[3];
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -9822,11 +9806,9 @@ static int sp_4096_mod_exp_98(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
         t[0] = td;
         t[1] = &td[98 * 2];
         t[2] = &td[2 * 98 * 2];
-#endif
         norm = t[0];
 
         sp_4096_mont_setup(m, &mp);
@@ -9887,11 +9869,11 @@ static int sp_4096_mod_exp_98(sp_digit* r, const sp_digit* a, const sp_digit* e,
     return err;
 #else
 #ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[32][196];
+    sp_digit td[32][196];
 #else
-    sp_digit* t[32];
     sp_digit* td;
 #endif
+    sp_digit* t[32];
     sp_digit* norm;
     sp_digit rt[196];
     sp_digit mp = 1;
@@ -9909,10 +9891,8 @@ static int sp_4096_mod_exp_98(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
         for (i=0; i<32; i++)
             t[i] = td + i * 196;
-#endif
         norm = t[0];
 
         sp_4096_mont_setup(m, &mp);
@@ -10746,11 +10726,11 @@ static int sp_4096_mod_exp_196(sp_digit* r, const sp_digit* a, const sp_digit* e
     return err;
 #elif defined(WOLFSSL_SP_CACHE_RESISTANT)
 #ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[3][392];
+    sp_digit td[392];
 #else
     sp_digit* td;
-    sp_digit* t[3];
 #endif
+    sp_digit* t[3];
     sp_digit* norm;
     sp_digit mp = 1;
     sp_digit n;
@@ -10767,11 +10747,9 @@ static int sp_4096_mod_exp_196(sp_digit* r, const sp_digit* a, const sp_digit* e
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
         t[0] = td;
         t[1] = &td[196 * 2];
         t[2] = &td[2 * 196 * 2];
-#endif
         norm = t[0];
 
         sp_4096_mont_setup(m, &mp);
@@ -10832,11 +10810,11 @@ static int sp_4096_mod_exp_196(sp_digit* r, const sp_digit* a, const sp_digit* e
     return err;
 #else
 #ifndef WOLFSSL_SMALL_STACK
-    sp_digit t[32][392];
+    sp_digit td[32][392];
 #else
-    sp_digit* t[32];
     sp_digit* td;
 #endif
+    sp_digit* t[32];
     sp_digit* norm;
     sp_digit rt[392];
     sp_digit mp = 1;
@@ -10854,10 +10832,8 @@ static int sp_4096_mod_exp_196(sp_digit* r, const sp_digit* a, const sp_digit* e
 #endif
 
     if (err == MP_OKAY) {
-#ifdef WOLFSSL_SMALL_STACK
         for (i=0; i<32; i++)
             t[i] = td + i * 392;
-#endif
         norm = t[0];
 
         sp_4096_mont_setup(m, &mp);
