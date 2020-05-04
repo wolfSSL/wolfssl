@@ -19527,7 +19527,7 @@ exit_dpk:
 
 #endif /* WOLFSSL_TLS13 || !NO_WOLFSSL_CLIENT */
 
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_TLS12)
     /* returns 1 if able to do TLS 1.3 otherwise 0 */
     static int TLSv1_3_Capable(WOLFSSL* ssl)
     {
