@@ -2683,6 +2683,9 @@ int ToTraditional_ex(byte* input, word32 sz, word32* algId)
     if (length < 0)
         return length;
 
+    if (length + inOutIdx > sz)
+        return BUFFER_E;
+
     XMEMMOVE(input, input + inOutIdx, length);
 
     return length;
