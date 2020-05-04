@@ -12517,10 +12517,8 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
     copyInto->namedGroup     = copyFrom->namedGroup;
     copyInto->ticketSeen     = copyFrom->ticketSeen;
     copyInto->ticketAdd      = copyFrom->ticketAdd;
-#ifndef WOLFSSL_TLS13_DRAFT_18
     XMEMCPY(&copyInto->ticketNonce, &copyFrom->ticketNonce,
                                                            sizeof(TicketNonce));
-#endif
 #ifdef WOLFSSL_EARLY_DATA
     copyInto->maxEarlyDataSz = copyFrom->maxEarlyDataSz;
 #endif
@@ -12829,10 +12827,8 @@ int AddSession(WOLFSSL* ssl)
     if (error == 0) {
         session->ticketSeen     = ssl->session.ticketSeen;
         session->ticketAdd      = ssl->session.ticketAdd;
-#ifndef WOLFSSL_TLS13_DRAFT_18
         XMEMCPY(&session->ticketNonce, &ssl->session.ticketNonce,
                                                            sizeof(TicketNonce));
-#endif
     #ifdef WOLFSSL_EARLY_DATA
         session->maxEarlyDataSz = ssl->session.maxEarlyDataSz;
     #endif
@@ -19291,21 +19287,7 @@ static const char* wolfSSL_internal_get_version(const ProtocolVersion* version)
             case TLSv1_2_MINOR :
                 return "TLSv1.2";
             case TLSv1_3_MINOR :
-            #ifdef WOLFSSL_TLS13_DRAFT
-                #ifdef WOLFSSL_TLS13_DRAFT_18
-                    return "TLSv1.3 (Draft 18)";
-                #elif defined(WOLFSSL_TLS13_DRAFT_22)
-                    return "TLSv1.3 (Draft 22)";
-                #elif defined(WOLFSSL_TLS13_DRAFT_23)
-                    return "TLSv1.3 (Draft 23)";
-                #elif defined(WOLFSSL_TLS13_DRAFT_26)
-                    return "TLSv1.3 (Draft 26)";
-                #else
-                    return "TLSv1.3 (Draft 28)";
-                #endif
-            #else
                 return "TLSv1.3";
-            #endif
             default:
                 return "unknown";
         }
@@ -27041,10 +27023,8 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 #ifdef WOLFSSL_TLS13
     /* ticketSeen | ticketAdd */
     size += OPAQUE32_LEN + OPAQUE32_LEN;
-#ifndef WOLFSSL_TLS13_DRAFT_18
     /* ticketNonce */
     size += OPAQUE8_LEN + sess->ticketNonce.len;
-#endif
 #endif
 #ifdef WOLFSSL_EARLY_DATA
     size += OPAQUE32_LEN;
@@ -27109,11 +27089,9 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
     idx += OPAQUE32_LEN;
     c32toa(sess->ticketAdd, data + idx);
     idx += OPAQUE32_LEN;
-#ifndef WOLFSSL_TLS13_DRAFT_18
     data[idx++] = sess->ticketNonce.len;
     XMEMCPY(data + idx, sess->ticketNonce.data, sess->ticketNonce.len);
     idx += sess->ticketNonce.len;
-#endif
 #endif
 #ifdef WOLFSSL_EARLY_DATA
         c32toa(sess->maxEarlyDataSz, data + idx);
@@ -27294,7 +27272,6 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     idx += OPAQUE32_LEN;
     ato32(data + idx, &s->ticketAdd);
     idx += OPAQUE32_LEN;
-#ifndef WOLFSSL_TLS13_DRAFT_18
     if (i - idx < OPAQUE8_LEN) {
         ret = BUFFER_ERROR;
         goto end;
@@ -27307,7 +27284,6 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
     }
     XMEMCPY(s->ticketNonce.data, data + idx, s->ticketNonce.len);
     idx += s->ticketNonce.len;
-#endif
 #endif
 #ifdef WOLFSSL_EARLY_DATA
     if (i - idx < OPAQUE32_LEN) {
