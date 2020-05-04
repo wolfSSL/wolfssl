@@ -4487,6 +4487,11 @@ AC_ARG_ENABLE([fast-rsa],
     [ ENABLED_FAST_RSA=no ],
     )
 
+# Fast RSA does not support RSA-PSS
+if test "$ENABLED_RSAPSS" = "yes"; then
+    ENABLED_FAST_RSA=no
+fi
+
 if test "$ENABLED_USER_RSA" = "no" && test "$ENABLED_FIPS" = "no"; then
 
     if test "$ac_cv_sizeof_long" = "4" && test "$ac_cv_sizeof_long_long" = "8"; then
