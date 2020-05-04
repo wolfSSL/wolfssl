@@ -4309,8 +4309,8 @@ enum ProvisionSide {
 };
 
 
-static const byte client[SIZEOF_SENDER] = { 0x43, 0x4C, 0x4E, 0x54 };
-static const byte server[SIZEOF_SENDER] = { 0x53, 0x52, 0x56, 0x52 };
+static const byte client[SIZEOF_SENDER+1] = { 0x43, 0x4C, 0x4E, 0x54, 0x00 }; /* CLNT */
+static const byte server[SIZEOF_SENDER+1] = { 0x53, 0x52, 0x56, 0x52, 0x00 }; /* SRVR */
 
 static const byte tls_client[FINISHED_LABEL_SZ + 1] = "client finished";
 static const byte tls_server[FINISHED_LABEL_SZ + 1] = "server finished";
