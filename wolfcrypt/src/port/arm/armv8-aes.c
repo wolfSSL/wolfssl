@@ -2534,8 +2534,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (aes == NULL || (iv == NULL && ivSz > 0) ||
                        (authTag == NULL) ||
                        (authIn == NULL && authInSz > 0) ||
-                       (in == NULL && sz > 0) ||
-                       (out == NULL && sz > 0)) {
+                       (ivSz == 0)) {
         WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
         return BAD_FUNC_ARG;
     }
@@ -2599,11 +2598,9 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     ctr = counter ;
 
     /* sanity checks */
-    if (aes == NULL || (iv == NULL && ivSz > 0) ||
-                       (authTag == NULL) ||
-                       (authIn == NULL && authInSz > 0) ||
-                       (in  == NULL && sz > 0) ||
-                       (out == NULL && sz > 0)) {
+    if (aes == NULL || iv == NULL || (sz != 0 && (in == NULL || out == NULL)) ||
+        authTag == NULL || authTagSz > AES_BLOCK_SIZE || authTagSz == 0 ||
+        ivSz == 0) {
         WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
         return BAD_FUNC_ARG;
     }
@@ -4199,8 +4196,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (aes == NULL || (iv == NULL && ivSz > 0) ||
                        (authTag == NULL) ||
                        (authIn == NULL && authInSz > 0) ||
-                       (in == NULL && sz > 0) ||
-                       (out == NULL && sz > 0)) {
+                       (ivSz == 0)) {
         WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
         return BAD_FUNC_ARG;
     }
@@ -4280,11 +4276,9 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     ctr = counter ;
 
     /* sanity checks */
-    if (aes == NULL || (iv == NULL && ivSz > 0) ||
-                       (authTag == NULL) ||
-                       (authIn == NULL && authInSz > 0) ||
-                       (in  == NULL && sz > 0) ||
-                       (out == NULL && sz > 0)) {
+    if (aes == NULL || iv == NULL || (sz != 0 && (in == NULL || out == NULL)) ||
+        authTag == NULL || authTagSz > AES_BLOCK_SIZE || authTagSz == 0 ||
+        ivSz == 0) {
         WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
         return BAD_FUNC_ARG;
     }
