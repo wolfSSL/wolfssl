@@ -41,8 +41,9 @@
  * WOLFSSL_SP_MATH:             Use only single precision math and algorithms it supports (no fastmath tfm.c or normal integer.c)
  * WOLFSSL_SP_SMALL:            Use smaller version of code and avoid large stack variables
  * WOLFSSL_SP_NO_MALLOC:        Always use stack, no heap XMALLOC/XFREE allowed
- * WOLFSSL_SP_NO_3072:          Disable RSA/DH 3072-bit support
  * WOLFSSL_SP_NO_2048:          Disable RSA/DH 2048-bit support
+ * WOLFSSL_SP_NO_3072:          Disable RSA/DH 3072-bit support
+ * WOLFSSL_SP_NO_4096:          Disable RSA/DH 4096-bit support
  * WOLFSSL_SP_4096:             Enable RSA/RH 4096-bit support
  * WOLFSSL_SP_384               Enable ECC 384-bit SECP384R1 support
  * WOLFSSL_SP_NO_256            Disable ECC 256-bit SECP256R1 support
@@ -53,6 +54,7 @@
  * WOLFSSL_SP_ARM64_ASM         Enable Aarch64 assembly speedups
  * WOLFSSL_SP_ARM_CORTEX_M_ASM  Enable Cortex-M assembly speedups
  * WOLFSSL_SP_ARM_THUMB_ASM     Enable ARM Thumb assembly speedups (used with -mthumb)
+ * SP_WORD_SIZE                 Force 32 or 64 bit mode
  */
 
 #ifdef WOLFSSL_SP_MATH
