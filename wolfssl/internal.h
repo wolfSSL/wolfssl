@@ -72,6 +72,9 @@
 #ifndef NO_SHA256
     #include <wolfssl/wolfcrypt/sha256.h>
 #endif
+#if defined(WOLFSSL_SHA384)
+    #include <wolfssl/wolfcrypt/sha512.h>
+#endif
 #ifdef HAVE_OCSP
     #include <wolfssl/ocsp.h>
 #endif
@@ -1355,7 +1358,17 @@ enum Misc {
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
     MAX_SYM_KEY_SIZE    = AES_256_KEY_SIZE,
 #else
-    MAX_SYM_KEY_SIZE    = WC_MAX_SYM_KEY_SIZE,
+    #if defined(HAVE_NULL_CIPHER) && defined(WOLFSSL_TLS13)
+        #if defined(WOLFSSL_SHA384) && WC_MAX_SYM_KEY_SIZE < 48
+            MAX_SYM_KEY_SIZE    = WC_SHA384_DIGEST_SIZE,
+        #elif !defined(NO_SHA256) && WC_MAX_SYM_KEY_SIZE < 32
+            MAX_SYM_KEY_SIZE    = WC_SHA256_DIGEST_SIZE,
+        #else
+            MAX_SYM_KEY_SIZE    = WC_MAX_SYM_KEY_SIZE,
+        #endif
+    #else
+        MAX_SYM_KEY_SIZE    = WC_MAX_SYM_KEY_SIZE,
+    #endif
 #endif
 
 #ifdef HAVE_SELFTEST
