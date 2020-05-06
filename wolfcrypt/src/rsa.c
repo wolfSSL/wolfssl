@@ -2038,12 +2038,16 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                 return MISSING_RNG_E;
     #endif
     #ifndef RSA_LOW_MEM
-            return sp_RsaPrivate_2048(in, inLen, &key->d, &key->p, &key->q,
-                                      &key->dP, &key->dQ, &key->u, &key->n,
-                                      out, outLen);
+            if ((mp_count_bits(&key->p) == 1024) &&
+                                             (mp_count_bits(&key->q) == 1024)) {
+                return sp_RsaPrivate_2048(in, inLen, &key->d, &key->p, &key->q,
+                                          &key->dP, &key->dQ, &key->u, &key->n,
+                                          out, outLen);
+            }
+            break;
     #else
-            return sp_RsaPrivate_2048(in, inLen, &key->d, &key->p, &key->q,
-                                      NULL, NULL, NULL, &key->n, out, outLen);
+            return sp_RsaPrivate_2048(in, inLen, &key->d, NULL, NULL, NULL,
+                                      NULL, NULL, &key->n, out, outLen);
     #endif
 #endif
         case RSA_PUBLIC_ENCRYPT:
@@ -2063,12 +2067,16 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                 return MISSING_RNG_E;
     #endif
     #ifndef RSA_LOW_MEM
-            return sp_RsaPrivate_3072(in, inLen, &key->d, &key->p, &key->q,
-                                      &key->dP, &key->dQ, &key->u, &key->n,
-                                      out, outLen);
+            if ((mp_count_bits(&key->p) == 1536) &&
+                                             (mp_count_bits(&key->q) == 1536)) {
+                return sp_RsaPrivate_3072(in, inLen, &key->d, &key->p, &key->q,
+                                          &key->dP, &key->dQ, &key->u, &key->n,
+                                          out, outLen);
+            }
+            break;
     #else
-            return sp_RsaPrivate_3072(in, inLen, &key->d, &key->p, &key->q,
-                                      NULL, NULL, NULL, &key->n, out, outLen);
+            return sp_RsaPrivate_3072(in, inLen, &key->d, NULL, NULL, NULL,
+                                      NULL, NULL, &key->n, out, outLen);
     #endif
 #endif
         case RSA_PUBLIC_ENCRYPT:
@@ -2088,12 +2096,16 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                 return MISSING_RNG_E;
     #endif
     #ifndef RSA_LOW_MEM
-            return sp_RsaPrivate_4096(in, inLen, &key->d, &key->p, &key->q,
-                                      &key->dP, &key->dQ, &key->u, &key->n,
-                                      out, outLen);
+            if ((mp_count_bits(&key->p) == 2048) &&
+                                             (mp_count_bits(&key->q) == 2048)) {
+                return sp_RsaPrivate_4096(in, inLen, &key->d, &key->p, &key->q,
+                                          &key->dP, &key->dQ, &key->u, &key->n,
+                                          out, outLen);
+            }
+            break;
     #else
-            return sp_RsaPrivate_4096(in, inLen, &key->d, &key->p, &key->q,
-                                      NULL, NULL, NULL, &key->n, out, outLen);
+            return sp_RsaPrivate_4096(in, inLen, &key->d, NULL, NULL, NULL,
+                                      NULL, NULL, &key->n, out, outLen);
     #endif
 #endif
         case RSA_PUBLIC_ENCRYPT:
