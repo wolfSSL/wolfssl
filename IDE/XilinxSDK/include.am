@@ -13,3 +13,4 @@ EXTRA_DIST+= IDE/XilinxSDK/2019_2/wolfCrypt_example/.project
 EXTRA_DIST+= IDE/XilinxSDK/2019_2/wolfCrypt_example/src/lscript.ld
 EXTRA_DIST+= IDE/XilinxSDK/2019_2/wolfCrypt_example_system/.cproject
 EXTRA_DIST+= IDE/XilinxSDK/2019_2/wolfCrypt_example_system/.project
+EXTRA_DIST+= IDE/XilinxSDK/2019_2/wolfCrypt_example_system/wolfCrypt_example_system.sprj
