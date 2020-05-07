@@ -1215,12 +1215,12 @@ int wolfSSL_GetHmacMaxSize(void)
         word32 outIdx = 0;
         word32 hashSz = wc_HmacSizeByType(type);
         byte   n = 0x1;
-        word32 N = 0;  /* rf5869: N = ceil(L/HashLen)*/
 
-        N = (outSz/hashSz) + ((outSz % hashSz) != 0);
+        /* RFC 5869 states that the length of output keying material in
+           octets must be L <= 255*HashLen or N = ceil(L/HashLen) */
 
-        if (out == NULL || N > 255)
-        	return BAD_FUNC_ARG;
+        if (out == NULL || ((outSz/hashSz) + ((outSz % hashSz) != 0)) > 255)
+            return BAD_FUNC_ARG;
 
         ret = wc_HmacInit(&myHmac, NULL, INVALID_DEVID);
         if (ret != 0)
