@@ -2088,6 +2088,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfSSL_Cleanup(void);
 
 /* which library version do we have */
 WOLFSSL_API const char* wolfSSL_lib_version(void);
+WOLFSSL_API const char* wolfSSL_OpenSSL_version(void);
 /* which library version do we have in hex */
 WOLFSSL_API word32 wolfSSL_lib_version_hex(void);
 

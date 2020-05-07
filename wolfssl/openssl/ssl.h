@@ -340,8 +340,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 
 #define DSA_dup_DH                      wolfSSL_DSA_dup_DH
 /* wolfSSL does not support DSA as the cert public key */
-#define EVP_PKEY_get0_DSA(...)          NULL
-#define DSA_bits(...)                   0
+#define EVP_PKEY_get0_DSA               wolfSSL_EVP_PKEY_get0_DSA
+#define DSA_bits                        wolfSSL_DSA_bits
 
 #define i2d_X509_bio                    wolfSSL_i2d_X509_bio
 #define d2i_X509_bio                    wolfSSL_d2i_X509_bio
@@ -381,7 +381,9 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_get_pubkey                 wolfSSL_X509_get_pubkey
 #define X509_get0_pubkey                wolfSSL_X509_get_pubkey
 #define X509_get_notBefore              wolfSSL_X509_get_notBefore
+#define X509_get0_notBefore             wolfSSL_X509_get_notBefore
 #define X509_get_notAfter               wolfSSL_X509_get_notAfter
+#define X509_get0_notAfter              wolfSSL_X509_get_notAfter
 #define X509_get_serialNumber           wolfSSL_X509_get_serialNumber
 #define X509_get0_pubkey_bitstr         wolfSSL_X509_get0_pubkey_bitstr
 #define X509_get_ex_new_index           wolfSSL_X509_get_ex_new_index
@@ -1227,7 +1229,7 @@ enum {
 #define X509_OBJECT_free                wolfSSL_X509_OBJECT_free
 #define X509_OBJECT_get_type(x)         0
 
-#define OpenSSL_version(x)              wolfSSL_lib_version()
+#define OpenSSL_version(x)              wolfSSL_OpenSSL_version()
 
 #ifdef __cplusplus
     } /* extern "C" */

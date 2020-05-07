@@ -19268,21 +19268,14 @@ static const char* wolfSSL_internal_get_version(ProtocolVersion* version)
 
     if (version->major == SSLv3_MAJOR) {
         switch (version->minor) {
-        #ifndef NO_OLD_TLS
-            #ifdef WOLFSSL_ALLOW_SSLV3
             case SSLv3_MINOR :
                 return "SSLv3";
-            #endif
-            #ifdef WOLFSSL_ALLOW_TLSV10
             case TLSv1_MINOR :
                 return "TLSv1";
-            #endif
             case TLSv1_1_MINOR :
                 return "TLSv1.1";
-        #endif
             case TLSv1_2_MINOR :
                 return "TLSv1.2";
-        #ifdef WOLFSSL_TLS13
             case TLSv1_3_MINOR :
             #ifdef WOLFSSL_TLS13_DRAFT
                 #ifdef WOLFSSL_TLS13_DRAFT_18
@@ -19299,7 +19292,6 @@ static const char* wolfSSL_internal_get_version(ProtocolVersion* version)
             #else
                 return "TLSv1.3";
             #endif
-        #endif
             default:
                 return "unknown";
         }
@@ -19336,6 +19328,13 @@ const char* wolfSSL_lib_version(void)
 {
     return LIBWOLFSSL_VERSION_STRING;
 }
+
+#ifdef OPENSSL_EXTRA
+const char* wolfSSL_OpenSSL_version(void)
+{
+    return "wolfSSL " LIBWOLFSSL_VERSION_STRING;
+}
+#endif
 
 
 /* current library version in hex */
@@ -29954,6 +29953,16 @@ int wolfSSL_DSA_do_verify(const unsigned char* d, unsigned char* sig,
     return WOLFSSL_SUCCESS;
 }
 
+
+int wolfSSL_DSA_bits(const WOLFSSL_DSA *d)
+{
+    if (!d)
+        return WOLFSSL_FAILURE;
+    if (!d->exSet && SetDsaExternal((WOLFSSL_DSA*)d) != WOLFSSL_SUCCESS)
+        return WOLFSSL_FAILURE;
+    return wolfSSL_BN_num_bits(d->p);
+}
+
 #if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
 int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest_len,
                              WOLFSSL_DSA_SIG* sig, WOLFSSL_DSA* dsa)
@@ -33232,7 +33241,7 @@ size_t wolfSSL_EC_get_builtin_curves(WOLFSSL_EC_BUILTIN_CURVE *r, size_t nitems)
         r[i].comment = wolfSSL_OBJ_nid2sn(r[i].nid);
     }
 
-    return ecc_sets_count;
+    return min_nitems;
 }
 
 /* Start ECDSA_SIG */
