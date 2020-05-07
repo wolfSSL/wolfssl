@@ -124,7 +124,7 @@ authorityKeyIdentifier=keyid,issuer
 subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid:always,issuer:always
 basicConstraints=CA:true
-subjectAltName=DNS:example.com
+subjectAltName=DNS:example.com, IP:127.0.0.1
 
 #wolfssl extensions for intermediate CAs
 [wolfssl_opts_ICA]
