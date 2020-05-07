@@ -528,6 +528,18 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_OPENSSH -DHAVE_EX_DATA -DWOLFSSL_BASE16"
 fi
 
+#IP alternative name Support
+AC_ARG_ENABLE([ip-alt-name],
+    [AS_HELP_STRING([--enable-ip-alt-name],[Enable IP subject alternative name (default: disabled)])],
+    [ ENABLE_IP_ALT_NAME=$enableval ],
+    [ ENABLE_IP_ALT_NAME=no ]
+    )
+
+if test "$ENABLE_IP_ALT_NAME" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_IP_ALT_NAME"
+fi
+
 #Qt Support
 AC_ARG_ENABLE([qt],
     [AS_HELP_STRING([--enable-qt],[Enable qt (default: disabled)])],
