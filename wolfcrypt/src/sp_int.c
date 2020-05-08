@@ -498,7 +498,7 @@ void sp_clamp(sp_int* a)
     a->used = i + 1;
 }
 
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || (!defined(NO_DH) || defined(HAVE_ECC))
+#if defined(WOLFSSL_RSA_VERIFY_ONLY) || (!defined(NO_DH) || defined(HAVE_ECC))
 /* Grow big number to be able to hold l digits.
  * This function does nothing as the number of digits is fixed.
  *
@@ -516,7 +516,9 @@ int sp_grow(sp_int* a, int l)
 
     return err;
 }
+#endif
 
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) || (!defined(NO_DH) || defined(HAVE_ECC))
 /* Sub a one digit number from the big number.
  *
  * a  SP integer.
