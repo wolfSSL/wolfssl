@@ -3022,7 +3022,7 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
         }
     }
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     /* reset WOLFSSL structure state for possible re-use */
     if (ret == WOLFSSL_SUCCESS) {
         if (wolfSSL_clear(ssl) != WOLFSSL_SUCCESS) {
@@ -9003,6 +9003,11 @@ int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509* x509, int nid, int lastPos)
 
 #endif /* OPENSSL_ALL */
 
+#endif /* !NO_CERTS */
+#endif /* OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+
 WOLFSSL_ASN1_BIT_STRING* wolfSSL_ASN1_BIT_STRING_new(void)
 {
     WOLFSSL_ASN1_BIT_STRING* str;
@@ -9455,8 +9460,10 @@ err:
     }
     return NULL;
 }
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
-
+#ifdef OPENSSL_EXTRA
+#ifndef NO_CERTS
 int wolfSSL_X509_add_altname(WOLFSSL_X509* x509, const char* name, int type)
 {
     DNS_entry* newAltName = NULL;
@@ -13998,7 +14005,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     void wolfSSL_CTX_set_quiet_shutdown(WOLFSSL_CTX* ctx, int mode)
     {
         WOLFSSL_ENTER("wolfSSL_CTX_set_quiet_shutdown");
@@ -14013,7 +14020,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (mode)
             ssl->options.quietShutdown = 1;
     }
-#endif
+#endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 #ifdef OPENSSL_EXTRA
     void wolfSSL_set_bio(WOLFSSL* ssl, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr)
@@ -14456,6 +14463,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                     ssl->specs.hash_size);
     }
 
+#endif /* OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 
     /* store keys returns WOLFSSL_SUCCESS or -1 on error */
     int wolfSSL_get_keys(WOLFSSL* ssl, unsigned char** ms, unsigned int* msLen,
@@ -14476,9 +14486,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return WOLFSSL_SUCCESS;
     }
 
-#endif /* OPENSSL_EXTRA */
-
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
     void wolfSSL_set_accept_state(WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("wolfSSL_set_accept_state");
@@ -14514,7 +14521,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
     }
 
-#endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA */
+#endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
     /* return true if connection established */
     int wolfSSL_is_init_finished(WOLFSSL* ssl)
@@ -14611,9 +14618,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         return WOLFSSL_SUCCESS;
     }
+#endif /* OPENSSL_EXTRA */
 
-#ifndef NO_CERTS
-
+#if !defined(NO_CERTS) && (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
     WOLFSSL_X509_STORE* wolfSSL_CTX_get_cert_store(WOLFSSL_CTX* ctx)
     {
         if (ctx == NULL) {
@@ -14673,7 +14680,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return ctx->error_depth;
         return WOLFSSL_FATAL_ERROR;
     }
+#endif /* !NO_CERTS && (OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL) */
 
+#ifdef OPENSSL_EXTRA
+#ifndef NO_CERTS
     void wolfSSL_X509_STORE_CTX_set_verify_cb(WOLFSSL_X509_STORE_CTX *ctx,
                                   WOLFSSL_X509_STORE_CTX_verify_cb verify_cb)
     {
@@ -14692,9 +14702,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             st->verify_cb = verify_cb;
         }
     }
-#endif
-
-
+#endif /* WOLFSSL_QT || OPENSSL_ALL */
 #endif /* !NO_CERTS */
 
     WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_md(void)
@@ -15171,8 +15179,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
 #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
 
-#ifdef OPENSSL_EXTRA
-
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 #if !defined(NO_WOLFSSL_SERVER)
 size_t wolfSSL_get_server_random(const WOLFSSL *ssl, unsigned char *out,
                                                                    size_t outSz)
@@ -15203,8 +15210,11 @@ size_t wolfSSL_get_server_random(const WOLFSSL *ssl, unsigned char *out,
     XMEMCPY(out, ssl->arrays->serverRandom, size);
     return size;
 }
+#endif /* !NO_WOLFSSL_SERVER */
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
-
+#ifdef OPENSSL_EXTRA
+#if !defined(NO_WOLFSSL_SERVER)
 /* Used to get the peer ephemeral public key sent during the connection
  * NOTE: currently wolfSSL_KeepHandshakeResources(WOLFSSL* ssl) must be called
  *       before the ephemeral key is stored.
@@ -15323,7 +15333,9 @@ int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int ver)
     return WOLFSSL_SUCCESS;
 }
 
+#endif /* OPENSSL_EXTRA */
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 #if !defined(NO_WOLFSSL_CLIENT)
 /* Return the amount of random bytes copied over or error case.
  * ssl : ssl struct after handshake
@@ -15362,8 +15374,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     return size;
 }
 #endif /* !NO_WOLFSSL_CLIENT */
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
-
+#ifdef OPENSSL_EXTRA
     unsigned long wolfSSLeay(void)
     {
         return SSLEAY_VERSION_NUMBER;
@@ -16508,6 +16521,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         /* nothing to do here */
     }
 
+#endif /* OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     int wolfSSL_clear(WOLFSSL* ssl)
     {
         if (ssl == NULL) {
@@ -16602,7 +16618,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return WOLFSSL_SUCCESS;
     }
 
-#endif
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     long wolfSSL_CTX_set_mode(WOLFSSL_CTX* ctx, long mode)
@@ -17752,7 +17768,9 @@ void* wolfSSL_sk_X509_OBJECT_value(WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* sk, int x
 }
 #endif
 
+#endif /* !NO_CERTS && OPENSSL_EXTRA */
 
+#if !defined(NO_CERTS) && (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
 /* Free's all nodes in X509 stack. This is different then wolfSSL_sk_X509_free
  * in that it allows for choosing the function to use when freeing an X509s.
  *
@@ -17803,7 +17821,7 @@ void wolfSSL_sk_X509_free(WOLF_STACK_OF(WOLFSSL_X509)* sk)
     wolfSSL_sk_X509_pop_free(sk, NULL);
 }
 
-#endif /* NO_CERTS && OPENSSL_EXTRA */
+#endif /* !NO_CERTS && (OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL) */
 
 #if defined(OPENSSL_ALL) || defined (WOLFSSL_QT)
 /* return 1 on success 0 on fail */
@@ -18000,7 +18018,9 @@ int wolfSSL_sk_push(WOLFSSL_STACK* sk, const void *data)
 
     return ret;
 }
+#endif /* OPENSSL_EXTRA */
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 /* Creates and returns new GENERAL_NAME structure */
 WOLFSSL_GENERAL_NAME* wolfSSL_GENERAL_NAME_new(void)
 {
@@ -18061,6 +18081,10 @@ int wolfSSL_sk_GENERAL_NAME_push(WOLF_STACK_OF(WOLFSSL_GENERAL_NAME)* sk,
     return WOLFSSL_SUCCESS;
 }
 
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+
+#ifdef OPENSSL_EXTRA
+
 /* Returns the general name at index i from the stack
  *
  * sk  stack to get general name from
@@ -18099,6 +18123,10 @@ int wolfSSL_sk_GENERAL_NAME_num(WOLFSSL_STACK* sk)
 
     return (int)sk->num;
 }
+
+#endif /* OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 
 /* Frees all nodes in a GENERAL NAME stack
  *
@@ -18145,8 +18173,9 @@ void wolfSSL_sk_GENERAL_NAME_free(WOLFSSL_STACK* sk)
     WOLFSSL_ENTER("sk_GENERAL_NAME_free");
     wolfSSL_sk_GENERAL_NAME_pop_free(sk, NULL);
 }
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
-
+#ifdef OPENSSL_EXTRA
 /* returns the number of nodes in stack on success and WOLFSSL_FATAL_ERROR
  * on fail */
 int wolfSSL_sk_ACCESS_DESCRIPTION_num(WOLFSSL_STACK* sk)
@@ -18202,7 +18231,9 @@ WOLFSSL_ACCESS_DESCRIPTION* wolfSSL_sk_ACCESS_DESCRIPTION_value(
     }
     return NULL;
 }
+#endif /* OPENSSL_EXTRA */
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 /* Frees GENERAL_NAME objects.
 */
 void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name)
@@ -18232,7 +18263,9 @@ void wolfSSL_GENERAL_NAME_free(WOLFSSL_GENERAL_NAME* name)
         XFREE(name, NULL, DYNAMIC_TYPE_OPENSSL);
     }
 }
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
+#ifdef OPENSSL_EXTRA
 void wolfSSL_GENERAL_NAMES_free(WOLFSSL_GENERAL_NAMES *gens)
 {
     WOLFSSL_STACK* node;
@@ -18855,7 +18888,7 @@ void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj)
 #endif /* NO_ASN */
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 #ifndef NO_ASN
 WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void)
 {
@@ -19014,6 +19047,12 @@ void wolfSSL_sk_ASN1_OBJECT_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
     XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
 }
 
+#endif /* !NO_ASN */
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+
+#ifdef OPENSSL_EXTRA
+#ifndef NO_ASN
+
 int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, WOLFSSL_ASN1_STRING *in)
 {
     /*
@@ -19088,7 +19127,9 @@ char* wolfSSL_i2s_ASN1_STRING(WOLFSSL_v3_ext_method *method,
     return tmp;
 }
 #endif /* NO_ASN */
+#endif /* OPENSSL_EXTRA */
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 void wolfSSL_set_connect_state(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_set_connect_state");
@@ -19115,7 +19156,7 @@ void wolfSSL_set_connect_state(WOLFSSL* ssl)
         WOLFSSL_MSG("Error initializing client side");
     }
 }
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 
 int wolfSSL_get_shutdown(const WOLFSSL* ssl)
@@ -19630,7 +19671,7 @@ unsigned long wolfSSL_X509_subject_name_hash(const WOLFSSL_X509* x509)
 
     return (unsigned long)ret;
 }
-#endif
+#endif /* OPENSSL_EXTRA && !NO_SHA */
 
 WOLFSSL_ABI
 WOLFSSL_X509_NAME* wolfSSL_X509_get_issuer_name(WOLFSSL_X509* cert)
@@ -19860,7 +19901,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
 
 /* End of smaller subset of X509 compatibility functions. Avoid increasing the
  * size of this subset and its memory usage */
-#endif /* OPENSSL_EXTRA_X509_SMALL */
+#endif /* OPENSSL_EXTRA_X509_SMALL || KEEP_PEER_CERT || SESSION_CERTS */
 
 #if defined(OPENSSL_ALL)
 /* Takes two WOLFSSL_X509* certificates and performs a Sha hash of each, if the
@@ -19931,10 +19972,9 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
             return WOLFSSL_FATAL_ERROR;
         }
     }
-#endif
+#endif /* OPENSSL_ALL */
 
-#if defined(OPENSSL_EXTRA)
-#if !defined(NO_CERTS)
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
     int wolfSSL_X509_ext_isSet_by_NID(WOLFSSL_X509* x509, int nid)
     {
         int isSet = 0;
@@ -20105,8 +20145,9 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
         WOLFSSL_LEAVE("wolfSSL_X509_NAME_entry_count", count);
         return count;
     }
+#endif /* !NO_CERTS && OPENSSL_EXTRA */
 
-
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 
     int wolfSSL_X509_NAME_get_index_by_NID(WOLFSSL_X509_NAME* name,
                                           int nid, int pos)
@@ -20181,7 +20222,9 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
             XFREE(asn1, NULL, DYNAMIC_TYPE_OPENSSL);
         }
     }
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
+#if !defined(NO_CERTS) && defined(OPENSSL_EXTRA)
 
     /* Creates a new WOLFSSL_ASN1_STRING structure given the input type.
      *
@@ -20223,6 +20266,9 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
         return asn1->type;
     }
 
+#endif /* !NO_CERTS && OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     /* if dataSz is negative then use XSTRLEN to find length of data
      * return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure */
     /* `data` can be NULL and only buffer will be allocated */
@@ -20275,7 +20321,10 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
         return WOLFSSL_SUCCESS;
     }
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
+#ifdef OPENSSL_EXTRA
+#ifndef NO_CERTS
 
     unsigned char* wolfSSL_ASN1_STRING_data(WOLFSSL_ASN1_STRING* asn)
     {
@@ -21004,7 +21053,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
 #endif /* XSNPRINTF */
 
-#endif /* NO_CERTS */
+#endif /* !NO_CERTS */
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
 /* Creates cipher->description based on cipher->offset
@@ -21125,7 +21174,7 @@ int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
 
     return WOLFSSL_SUCCESS;
 }
-#endif
+#endif /* OPENSSL_ALL || WOLFSSL_QT */
 
 char* wolfSSL_CIPHER_description(const WOLFSSL_CIPHER* cipher, char* in,
                                  int len)
@@ -21525,15 +21574,15 @@ void wolfSSL_BIO_clear_flags(WOLFSSL_BIO *bio, int flags)
 int wolfSSL_BIO_set_ex_data(WOLFSSL_BIO *bio, int idx, void *data)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_set_ex_data");
-    #ifdef HAVE_EX_DATA
+#ifdef HAVE_EX_DATA
     if (bio != NULL && idx < MAX_EX_DATA) {
         return wolfSSL_CRYPTO_set_ex_data(&bio->ex_data, idx, data);
     }
-    #else
+#else
     (void)bio;
     (void)idx;
     (void)data;
-    #endif
+#endif
     return WOLFSSL_FAILURE;
 }
 
@@ -21547,14 +21596,14 @@ int wolfSSL_BIO_set_ex_data(WOLFSSL_BIO *bio, int idx, void *data)
 void *wolfSSL_BIO_get_ex_data(WOLFSSL_BIO *bio, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_get_ex_data");
-    #ifdef HAVE_EX_DATA
+#ifdef HAVE_EX_DATA
     if (bio != NULL && idx < MAX_EX_DATA && idx >= 0) {
         return wolfSSL_CRYPTO_get_ex_data(&bio->ex_data, idx);
     }
-    #else
+#else
     (void)bio;
     (void)idx;
-    #endif
+#endif
     return NULL;
 }
 
@@ -21631,12 +21680,16 @@ void wolfSSL_set_dynlock_destroy_callback(
 }
 #endif
 
+#endif /* OPENSSL_EXTRA */
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 const char* wolfSSL_X509_verify_cert_error_string(long err)
 {
     return wolfSSL_ERR_reason_error_string(err);
 }
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
+#ifdef OPENSSL_EXTRA
 
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_X509_LOOKUP_add_dir(WOLFSSL_X509_LOOKUP* lookup, const char* dir,
@@ -22390,7 +22443,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
 
     return WOLFSSL_SUCCESS;
 }
-#endif /* !defined(NO_ASN) && !defined(NO_PWDBASED) */
+#endif /* !NO_ASN && !NO_PWDBASED */
 
 
 /* no-op function. Was initially used for adding encryption algorithms available
@@ -22590,7 +22643,10 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
 
     return result;
 }
+#endif /* !NO_CERTS */
+#endif /* OPENSSL_EXTRA */
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
 {
     WOLFSSL_X509_STORE* store = NULL;
@@ -22615,11 +22671,12 @@ WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
         goto err_exit;
 #endif
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     if ((store->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
                            sizeof(WOLFSSL_X509_VERIFY_PARAM),
-                           NULL,DYNAMIC_TYPE_OPENSSL)) == NULL)
+                           NULL, DYNAMIC_TYPE_OPENSSL)) == NULL) {
         goto err_exit;
+    }
 
 #endif
 
@@ -22634,7 +22691,6 @@ err_exit:
     return NULL;
 }
 
-
 void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
 {
     if (store != NULL && store->isDynamic) {
@@ -22644,7 +22700,7 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
         if (store->crl != NULL)
             wolfSSL_X509_CRL_free(store->crl);
 #endif
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
         if (store->param != NULL)
             XFREE(store->param, NULL, DYNAMIC_TYPE_OPENSSL);
 #endif
@@ -22652,7 +22708,10 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
     }
 }
 
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
+#ifdef OPENSSL_EXTRA
+#ifndef NO_CERTS
 int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store, unsigned long flag)
 {
     int ret = WOLFSSL_SUCCESS;
@@ -22822,7 +22881,7 @@ static int GetX509Error(int e)
             return e;
     }
 }
-#endif
+#endif /* OPENSSL_ALL || WOLFSSL_QT */
 
 /* Verifies certificate chain using WOLFSSL_X509_STORE_CTX
  * returns 0 on success or < 0 on failure.
@@ -22933,7 +22992,7 @@ int wolfSSL_X509_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey)
     }
     return WOLFSSL_FAILURE;
 }
-#endif /* NO_CERTS */
+#endif /* !NO_CERTS */
 
 #if !defined(NO_FILESYSTEM)
 static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
@@ -23079,7 +23138,10 @@ WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl,
 
     return newcrl;
 }
+#endif /* HAVE_CRL */
+#endif /* OPENSSL_EXTRA */
 
+#if defined(HAVE_CRL) && (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
 void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl)
 {
     WOLFSSL_ENTER("wolfSSL_X509_CRL_free");
@@ -23087,8 +23149,9 @@ void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl)
     FreeCRL(crl, 1);
     return;
 }
-#endif /* HAVE_CRL */
+#endif /* HAVE_CRL && (OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL) */
 
+#ifdef OPENSSL_EXTRA
 #ifndef NO_WOLFSSL_STUB
 WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_lastUpdate(WOLFSSL_X509_CRL* crl)
 {
@@ -23667,21 +23730,26 @@ long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* i)
 }
 #endif
 
+#endif /* OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 /* get X509_STORE_CTX ex_data, max idx is MAX_EX_DATA */
 void* wolfSSL_X509_STORE_CTX_get_ex_data(WOLFSSL_X509_STORE_CTX* ctx, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get_ex_data");
-    #if defined(HAVE_EX_DATA) || defined(FORTRESS)
+#if defined(HAVE_EX_DATA) || defined(FORTRESS)
     if (ctx != NULL) {
         return wolfSSL_CRYPTO_get_ex_data(&ctx->ex_data, idx);
     }
-    #else
+#else
     (void)ctx;
     (void)idx;
-    #endif
+#endif
     return NULL;
 }
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
+#ifdef OPENSSL_EXTRA
 
 /* set X509_STORE_CTX ex_data, max idx is MAX_EX_DATA. Return WOLFSSL_SUCCESS
  * on success, WOLFSSL_FAILURE on error. */
@@ -23689,16 +23757,16 @@ int wolfSSL_X509_STORE_CTX_set_ex_data(WOLFSSL_X509_STORE_CTX* ctx, int idx,
                                        void *data)
 {
     WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_set_ex_data");
-    #if defined(HAVE_EX_DATA) || defined(FORTRESS)
+#if defined(HAVE_EX_DATA) || defined(FORTRESS)
     if (ctx != NULL)
     {
         return wolfSSL_CRYPTO_set_ex_data(&ctx->ex_data, idx, data);
     }
-    #else
+#else
     (void)ctx;
     (void)idx;
     (void)data;
-    #endif
+#endif
     return WOLFSSL_FAILURE;
 }
 
@@ -23732,7 +23800,9 @@ WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get0_current_issuer(
     return NULL;
 }
 
+#endif /* OPENSSL_EXTRA */
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 /* Gets an index to store SSL structure at.
  *
  * Returns positive index on success and negative values on failure
@@ -23744,8 +23814,9 @@ int wolfSSL_get_ex_data_X509_STORE_CTX_idx(void)
     /* store SSL at index 0 */
     return 0;
 }
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
-
+#ifdef OPENSSL_EXTRA
 /* Set an error stat in the X509 STORE CTX
  *
  */
@@ -24522,7 +24593,7 @@ int wolfSSL_PEM_def_callback(char* name, int num, int w, void* key)
 
 #endif /* OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
 static long wolf_set_options(long old_op, long op)
 {
     /* if SSL_OP_ALL then turn all bug workarounds on */
@@ -24575,9 +24646,9 @@ static long wolf_set_options(long old_op, long op)
 
     return old_op | op;
 }
-#endif
+#endif /* OPENSSL_EXTRA || HAVE_WEBSERVER || WOLFSSL_WPAS_SMALL */
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 long wolfSSL_set_options(WOLFSSL* ssl, long op)
 {
     word16 haveRSA = 1;
@@ -24647,6 +24718,10 @@ long wolfSSL_get_options(const WOLFSSL* ssl)
         return WOLFSSL_FAILURE;
     return ssl->options.mask;
 }
+
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+
+#ifdef OPENSSL_EXTRA
 
 long wolfSSL_clear_options(WOLFSSL* ssl, long opt)
 {
@@ -26376,7 +26451,7 @@ int wolfSSL_BIO_printf(WOLFSSL_BIO* bio, const char* format, ...)
     return ret;
 }
 
-#endif /* !defined(NO_FILESYSTEM) && defined (OPENSSL_EXTRA) */
+#endif /* !NO_FILESYSTEM && OPENSSL_EXTRA */
 
 #if !defined(NO_FILESYSTEM) && defined(__clang__)
 #pragma clang diagnostic pop
@@ -26535,6 +26610,9 @@ void wolfSSL_ASN1_GENERALIZEDTIME_free(WOLFSSL_ASN1_TIME* asn1Time)
     XMEMSET(asn1Time->data, 0, sizeof(asn1Time->data));
 }
 
+#endif /* OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 int wolfSSL_sk_num(WOLFSSL_STACK* sk)
 {
     WOLFSSL_ENTER("wolfSSL_sk_num");
@@ -26625,6 +26703,7 @@ void wolfSSL_sk_free(WOLFSSL_STACK* sk)
             wolfSSL_sk_GENERIC_free(sk);
     }
 }
+
 /* Frees each node in the stack and frees the stack.
  * Does not free any internal members of the stack nodes.
  */
@@ -26693,7 +26772,9 @@ void wolfSSL_sk_GENERIC_free(WOLFSSL_STACK* sk)
 {
     wolfSSL_sk_GENERIC_pop_free(sk, NULL);
 }
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
+#ifdef OPENSSL_EXTRA
 
 /* Free all nodes in a stack */
 void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
@@ -26772,8 +26853,10 @@ void wolfSSL_sk_CONF_VALUE_free(WOLF_STACK_OF(WOLFSSL_CONF_VALUE)* sk)
     /* free head of stack */
     XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
 }
-#endif
+#endif /* OPENSSL_ALL */
+#endif /* OPENSSL_EXTRA */
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 /* Creates and returns a new null stack. */
 WOLFSSL_STACK* wolfSSL_sk_new_null(void)
 {
@@ -26792,6 +26875,9 @@ WOLFSSL_STACK* wolfSSL_sk_new_null(void)
 
     return sk;
 }
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+
+#ifdef OPENSSL_EXTRA
 
 /* frees the wolfSSL_BASIC_CONSTRAINTS object */
 void wolfSSL_BASIC_CONSTRAINTS_free(WOLFSSL_BASIC_CONSTRAINTS *bc)
@@ -26868,6 +26954,9 @@ void wolfSSL_CTX_sess_set_new_cb(WOLFSSL_CTX* ctx,
 #endif
 }
 
+#endif /* OPENSSL_EXTRA || HAVE_EXT_CACHE */
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 void wolfSSL_CTX_sess_set_remove_cb(WOLFSSL_CTX* ctx, void (*f)(WOLFSSL_CTX*,
                                                         WOLFSSL_SESSION*))
 {
@@ -26880,7 +26969,7 @@ void wolfSSL_CTX_sess_set_remove_cb(WOLFSSL_CTX* ctx, void (*f)(WOLFSSL_CTX*,
     (void)f;
 #endif
 }
-#endif /* OPENSSL_EXTRA || HAVE_EXT_CACHE */
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 #ifdef OPENSSL_EXTRA
 
@@ -38560,7 +38649,7 @@ err:
              return (unsigned char*)dig;
          }
      }
-#endif /* defined(WOLFSSL_SHA512)  */
+#endif /* WOLFSSL_SHA512 */
 #endif /* OPENSSL_EXTRA */
 
 #ifndef WOLFCRYPT_ONLY
@@ -38915,11 +39004,7 @@ err:
 
     void wolfSSL_set_verify_depth(WOLFSSL *ssl, int depth)
     {
-    #if !defined(OPENSSL_EXTRA) && !defined(NO_WOLFSSL_STUB)
-        (void)ssl;
-        (void)depth;
-        WOLFSSL_STUB("wolfSSL_set_verify_depth");
-    #else
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         WOLFSSL_ENTER("wolfSSL_set_verify_depth");
         ssl->options.verifyDepth = (byte)depth;
     #endif
@@ -38936,6 +39021,11 @@ err:
         return NULL;
     }
 
+
+#endif /* OPENSSL_ALL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE ||
+    HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 
     /* looks up the DN given the location "loc". "loc" is the number indicating
      * the order that the DN was parsed as, 0 is first DN parsed.
@@ -39095,8 +39185,11 @@ err:
         }
         return &name->cnEntry;
     }
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
-    #ifndef NO_WOLFSSL_STUB
+#ifdef OPENSSL_EXTRA
+
+#ifndef NO_WOLFSSL_STUB
     int wolfSSL_X509_check_private_key(WOLFSSL_X509 *x509, WOLFSSL_EVP_PKEY *key)
     {
         (void) x509;
@@ -39116,16 +39209,7 @@ err:
 
         return NULL;
     }
-
-    #endif
-
-#endif /* OPENSSL_ALL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE ||
-    HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
-#endif /* OPENSSL_EXTRA */
-
-#ifndef WOLFCRYPT_ONLY
-
-#ifdef OPENSSL_EXTRA
+#endif
 
 /* wolfSSL uses negative values for error states. This function returns an
  * unsigned type so the value returned is the absolute value of the error.
@@ -39178,19 +39262,21 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
 }
 #endif /* !NO_CERTS */
 
+#endif /* OPENSSL_EXTRA */
 
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
+#if (defined(OPENSSL_EXTRA) && defined(HAVE_EX_DATA)) || defined(FORTRESS) || \
+    defined(WOLFSSL_WPAS_SMALL)
 void* wolfSSL_CTX_get_ex_data(const WOLFSSL_CTX* ctx, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_get_ex_data");
-    #ifdef HAVE_EX_DATA
+#ifdef HAVE_EX_DATA
     if(ctx != NULL) {
         return wolfSSL_CRYPTO_get_ex_data(&ctx->ex_data, idx);
     }
-    #else
+#else
     (void)ctx;
     (void)idx;
-    #endif
+#endif
     return NULL;
 }
 
@@ -39246,8 +39332,10 @@ int wolfSSL_CTX_set_ex_data(WOLFSSL_CTX* ctx, int idx, void* data)
     #endif
     return WOLFSSL_FAILURE;
 }
-#endif
 
+#endif /* (OPENSSL_EXTRA && HAVE_EX_DATA) || FORTRESS || WOLFSSL_WPAS_SMALL */
+
+#ifdef OPENSSL_EXTRA
 
 /* Returns char* to app data stored in ex[0].
  *
@@ -39275,6 +39363,9 @@ int wolfSSL_set_app_data(WOLFSSL *ssl, void* arg) {
     return wolfSSL_set_ex_data(ssl, 0, arg);
 }
 
+#endif /* OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 
 int wolfSSL_set_ex_data(WOLFSSL* ssl, int idx, void* data)
 {
@@ -39293,8 +39384,6 @@ int wolfSSL_set_ex_data(WOLFSSL* ssl, int idx, void* data)
     return WOLFSSL_FAILURE;
 }
 
-
-
 void* wolfSSL_get_ex_data(const WOLFSSL* ssl, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_get_ex_data");
@@ -39309,6 +39398,10 @@ void* wolfSSL_get_ex_data(const WOLFSSL* ssl, int idx)
 #endif
     return 0;
 }
+
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+
+#ifdef OPENSSL_EXTRA
 
 #ifndef NO_DSA
 WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp, WOLFSSL_DSA **x,
@@ -40814,8 +40907,13 @@ void wolfSSL_print_all_errors_fp(XFILE fp)
 {
     (void)fp;
 }
-#endif
+#endif /* !NO_FILESYSTEM */
 
+#endif /* OPENSSL_ALL || OPENSSL_EXTRA || HAVE_STUNNEL || WOLFSSL_NGINX || 
+    HAVE_LIGHTY || WOLFSSL_HAPROXY || WOLFSSL_OPENSSH */
+
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || defined(FORTRESS)
 int wolfSSL_SESSION_set_ex_data(WOLFSSL_SESSION* session, int idx, void* data)
 {
     WOLFSSL_ENTER("wolfSSL_SESSION_set_ex_data");
@@ -40830,6 +40928,25 @@ int wolfSSL_SESSION_set_ex_data(WOLFSSL_SESSION* session, int idx, void* data)
 #endif
     return WOLFSSL_FAILURE;
 }
+
+void* wolfSSL_SESSION_get_ex_data(const WOLFSSL_SESSION* session, int idx)
+{
+    WOLFSSL_ENTER("wolfSSL_SESSION_get_ex_data");
+#ifdef HAVE_EX_DATA
+    if (session != NULL) {
+        return wolfSSL_CRYPTO_get_ex_data(&session->ex_data, idx);
+    }
+#else
+    (void)session;
+    (void)idx;
+#endif
+    return NULL;
+}
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL || FORTRESS */
+
+#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || \
+                             defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY) || \
+                             defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_OPENSSH)))
 
 
 int wolfSSL_SESSION_get_ex_new_index(long idx, void* data, void* cb1,
@@ -40847,21 +40964,6 @@ int wolfSSL_SESSION_get_ex_new_index(long idx, void* data, void* cb1,
         return 1;
     }
     return WOLFSSL_FAILURE;
-}
-
-
-void* wolfSSL_SESSION_get_ex_data(const WOLFSSL_SESSION* session, int idx)
-{
-    WOLFSSL_ENTER("wolfSSL_SESSION_get_ex_data");
-#ifdef HAVE_EX_DATA
-    if (session != NULL) {
-        return wolfSSL_CRYPTO_get_ex_data(&session->ex_data, idx);
-    }
-#else
-    (void)session;
-    (void)idx;
-#endif
-    return NULL;
 }
 
 #ifndef NO_WOLFSSL_STUB
@@ -42876,6 +42978,7 @@ void wolfSSL_OPENSSL_config(char *config_name)
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
     || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
+
 int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a, void *b, void *c)
 {
     static int x509_idx = 0;
@@ -42889,7 +42992,9 @@ int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a, void *b, void *c)
 
     return x509_idx++;
 }
+#endif
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 #if defined(HAVE_EX_DATA) || defined(FORTRESS)
 void* wolfSSL_CRYPTO_get_ex_data(const WOLFSSL_CRYPTO_EX_DATA* ex_data, int idx)
 {
@@ -42920,37 +43025,41 @@ int wolfSSL_CRYPTO_set_ex_data(WOLFSSL_CRYPTO_EX_DATA* ex_data, int idx, void *d
 #endif
     return WOLFSSL_FAILURE;
 }
-#endif /* defined(HAVE_EX_DATA) || defined(FORTRESS) */
+#endif /* HAVE_EX_DATA || FORTRESS */
 
 void *wolfSSL_X509_get_ex_data(X509 *x509, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_X509_get_ex_data");
-    #ifdef HAVE_EX_DATA
+#ifdef HAVE_EX_DATA
     if (x509 != NULL) {
         return wolfSSL_CRYPTO_get_ex_data(&x509->ex_data, idx);
     }
-    #else
+#else
     (void)x509;
     (void)idx;
-    #endif
+#endif
     return NULL;
 }
 
 int wolfSSL_X509_set_ex_data(X509 *x509, int idx, void *data)
 {
     WOLFSSL_ENTER("wolfSSL_X509_set_ex_data");
-    #ifdef HAVE_EX_DATA
+#ifdef HAVE_EX_DATA
     if (x509 != NULL)
     {
         return wolfSSL_CRYPTO_set_ex_data(&x509->ex_data, idx, data);
     }
-    #else
+#else
     (void)x509;
     (void)idx;
     (void)data;
-    #endif
+#endif
     return WOLFSSL_FAILURE;
 }
+#endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
+    || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
 
 int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *name,
         const WOLFSSL_EVP_MD *type, unsigned char *md, unsigned int *len)
