@@ -12360,7 +12360,7 @@ static int rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, byte* tmp)
     FreeDecodedCert(&decode);
 #endif
 
-    ret = SaveDerAndPem(der, certSz, certDerFile, certPemFile, 
+    ret = SaveDerAndPem(der, certSz, certDerFile, certPemFile,
         CERT_TYPE, -5578);
     if (ret != 0) {
         goto exit_rsa;
@@ -12523,7 +12523,7 @@ static int rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, byte* tmp)
     FreeDecodedCert(&decode);
 #endif
 
-    ret = SaveDerAndPem(der, certSz, otherCertDerFile, otherCertPemFile, 
+    ret = SaveDerAndPem(der, certSz, otherCertDerFile, otherCertPemFile,
         CERT_TYPE, -5598);
     if (ret != 0) {
         goto exit_rsa;
@@ -12714,7 +12714,7 @@ static int rsa_ecc_certgen_test(WC_RNG* rng, byte* tmp)
     FreeDecodedCert(&decode);
 #endif
 
-    ret = SaveDerAndPem(der, certSz, certEccRsaDerFile, certEccRsaPemFile, 
+    ret = SaveDerAndPem(der, certSz, certEccRsaDerFile, certEccRsaPemFile,
         CERT_TYPE, -5616);
     if (ret != 0) {
         goto exit_rsa;
@@ -12786,7 +12786,7 @@ static int rsa_keygen_test(WC_RNG* rng)
         ERROR_OUT(-7667, exit_rsa);
     }
 
-    ret = SaveDerAndPem(der, derSz, keyDerFile, keyPemFile, 
+    ret = SaveDerAndPem(der, derSz, keyDerFile, keyPemFile,
         PRIVATEKEY_TYPE, -5555);
     if (ret != 0) {
         goto exit_rsa;
@@ -13736,7 +13736,7 @@ int rsa_test(void)
         FreeDecodedCert(&decode);
     #endif
 
-        ret = SaveDerAndPem(der, certSz, "./ntru-cert.der", "./ntru-cert.pem", 
+        ret = SaveDerAndPem(der, certSz, "./ntru-cert.der", "./ntru-cert.pem",
             CERT_TYPE, -5637);
         if (ret != 0) {
             goto exit_rsa;
@@ -13841,7 +13841,7 @@ int rsa_test(void)
         }
         derSz = ret;
 
-        ret = SaveDerAndPem(der, derSz, certReqDerFile, certReqPemFile, 
+        ret = SaveDerAndPem(der, derSz, certReqDerFile, certReqPemFile,
             CERTREQ_TYPE, -5650);
         if (ret != 0) {
             goto exit_rsa;
@@ -14629,7 +14629,7 @@ int dsa_test(void)
         return -8013;
     }
 
-    ret = SaveDerAndPem(der, derSz, keyDerFile, keyPemFile, 
+    ret = SaveDerAndPem(der, derSz, keyDerFile, keyPemFile,
         DSA_PRIVATEKEY_TYPE, -5814);
     if (ret != 0) {
         XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -18487,7 +18487,7 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
         ERROR_OUT(derSz, done);
     }
 
-    ret = SaveDerAndPem(der, derSz, eccCaKeyTempFile, eccCaKeyPemFile, 
+    ret = SaveDerAndPem(der, derSz, eccCaKeyTempFile, eccCaKeyPemFile,
         ECC_PRIVATEKEY_TYPE, -8347);
     if (ret != 0) {
         goto done;
@@ -19924,7 +19924,7 @@ static int ecc_test_cert_gen(WC_RNG* rng)
     FreeDecodedCert(&decode);
 #endif
 
-    ret = SaveDerAndPem(der, certSz, certEccDerFile, certEccPemFile, 
+    ret = SaveDerAndPem(der, certSz, certEccDerFile, certEccPemFile,
         CERT_TYPE, -6735);
     if (ret != 0) {
         goto exit;
@@ -27921,13 +27921,15 @@ int mutex_test(void)
         return -12701;
     if (wc_LockMutex(&m) != 0)
         return -12702;
+#if !defined(WOLFSSL_SOLARIS)
     if (wc_FreeMutex(&m) != BAD_MUTEX_E)
         return -12703;
+#endif
     if (wc_UnLockMutex(&m) != 0)
         return -12704;
     if (wc_FreeMutex(&m) != 0)
         return -12705;
-#ifndef WOLFSSL_NO_MUTEXLOCK_AFTER_FREE
+#if !defined(WOLFSSL_NO_MUTEXLOCK_AFTER_FREE)
     if (wc_LockMutex(&m) != BAD_MUTEX_E)
         return -12706;
     if (wc_UnLockMutex(&m) != BAD_MUTEX_E)

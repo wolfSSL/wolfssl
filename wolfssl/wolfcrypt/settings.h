@@ -209,6 +209,9 @@
 /* Uncomment next line if using RENESAS RX64N */
 /* #define WOLFSSL_RENESAS_RX65N */
 
+/* Uncomment next line if using Solaris OS*/
+/* #define WOLFSSL_SOLARIS */
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -703,7 +706,7 @@ extern void uITRON4_free(void *p) ;
         https://github.com/wolfSSL/wolfssl-freertos/pull/3/files */
     #if !defined(USE_FAST_MATH) || defined(HAVE_ED25519) || defined(HAVE_ED448)
         #if defined(WOLFSSL_ESPIDF)
-            /*In IDF, realloc(p, n) is equivalent to 
+            /*In IDF, realloc(p, n) is equivalent to
             heap_caps_realloc(p, s, MALLOC_CAP_8BIT) */
             #define XREALLOC(p, n, h, t) realloc((p), (n))
         #else
@@ -1399,6 +1402,23 @@ extern void uITRON4_free(void *p) ;
         #define LITTLE_ENDIAN_ORDER
     #endif
 #endif /* MICRIUM */
+
+#if defined(sun) || defined(__sun)
+# if defined(__SVR4) || defined(__svr4__)
+    /* Solaris */
+    #ifndef WOLFSSL_SOLARIS
+        #define WOLFSSL_SOLARIS
+    #endif
+# else
+    /* SunOS */
+# endif
+#endif
+
+#ifdef WOLFSSL_SOLARIS
+    #define WOLFSSL_NO_MUTEXLOCK_AFTER_FREE
+    /* Avoid naming clash with fp_zero from math.h > ieefp.h */
+    #define WOLFSSL_DH_CONST
+#endif
 
 #ifdef WOLFSSL_MCF5441X
     #define BIG_ENDIAN_ORDER
