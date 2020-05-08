@@ -7798,7 +7798,7 @@ static int DecodeAltNames(const byte* input, int sz, DecodedCert* cert)
             length -= strLen;
             idx    += strLen;
         }
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
         else if (b == (ASN_CONTEXT_SPECIFIC | ASN_IP_TYPE)) {
             DNS_entry* ipAddr;
             int strLen;

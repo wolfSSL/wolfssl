@@ -25725,8 +25725,8 @@ int pkcs7callback_test(byte* cert, word32 certSz, byte* key, word32 keySz)
 {
 
     int ret = 0;
-    byte derBuf[FOURK_BUF/2];
-    word32 derSz = FOURK_BUF/2;
+    byte derBuf[FOURK_BUF];
+    word32 derSz = sizeof(derBuf);
 
     /* Doing default generation and verify */
     ret = generateBundle(derBuf, &derSz, p7DefKey, sizeof(p7DefKey), 0, cert,
@@ -25741,7 +25741,7 @@ int pkcs7callback_test(byte* cert, word32 certSz, byte* key, word32 keySz)
     }
 
     /* test choosing other key with keyID */
-    derSz = FOURK_BUF/2;
+    derSz = sizeof(derBuf);
     ret = generateBundle(derBuf, &derSz, p7AltKey, sizeof(p7AltKey), 1,
             cert, certSz, key, keySz);
     if (ret <= 0) {
@@ -25754,7 +25754,7 @@ int pkcs7callback_test(byte* cert, word32 certSz, byte* key, word32 keySz)
     }
 
     /* test fail case with wrong keyID */
-    derSz = FOURK_BUF/2;
+    derSz = sizeof(derBuf);
     ret = generateBundle(derBuf, &derSz, p7DefKey, sizeof(p7DefKey), 1,
             cert, certSz, key, keySz);
     if (ret <= 0) {

@@ -8588,6 +8588,9 @@ const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
         case NID_subject_key_identifier:
             method.i2s = (X509V3_EXT_I2S)wolfSSL_i2s_ASN1_STRING;
             break;
+        case NID_subject_alt_name:
+            WOLFSSL_MSG("i2v function not yet implemented for Subject Alternative Name");
+            break;
         case NID_key_usage:
             WOLFSSL_MSG("i2v function not yet implemented for Key Usage");
             break;

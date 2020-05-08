@@ -4577,7 +4577,7 @@ static void test_wolfSSL_PKCS12(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_DES3) && !defined(NO_FILESYSTEM) && \
     !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA) && \
     !defined(NO_SHA)
-    byte buffer[5300];
+    byte buffer[6000];
     char file[] = "./certs/test-servercert.p12";
     char order[] = "./certs/ecc-rsa-server.p12";
     char pass[] = "a password";
@@ -5269,7 +5269,7 @@ static void test_wolfSSL_TBS(void)
     AssertNull(tbs = wolfSSL_X509_get_tbs(NULL, &tbsSz));
     AssertNull(tbs = wolfSSL_X509_get_tbs(x509, NULL));
     AssertNotNull(tbs = wolfSSL_X509_get_tbs(x509, &tbsSz));
-    AssertIntEQ(tbsSz, 918);
+    AssertIntEQ(tbsSz, 972);
 
     wolfSSL_FreeX509(x509);
 
@@ -20521,7 +20521,7 @@ static void test_wolfSSL_ASN1_TIME_print(void)
                 sizeof_client_cert_der_2048, WOLFSSL_FILETYPE_ASN1));
     AssertIntEQ(ASN1_TIME_print(bio, X509_get_notBefore(x509)), 1);
     AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 24);
-    AssertIntEQ(XMEMCMP(buf, "Apr 13 15:23:09 2018 GMT", sizeof(buf) - 1), 0);
+    AssertIntEQ(XMEMCMP(buf, "May  7 07:39:03 2020 GMT", sizeof(buf) - 1), 0);
 
     /* create a bad time and test results */
     AssertNotNull(t = X509_get_notAfter(x509));
@@ -21314,7 +21314,7 @@ static void test_wolfSSL_tmp_dh(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
     !defined(NO_DSA) && !defined(NO_RSA) && !defined(NO_DH)
-    byte buffer[5300];
+    byte buffer[6000];
     char file[] = "./certs/dsaparams.pem";
     XFILE f;
     int  bytes;
@@ -21369,7 +21369,7 @@ static void test_wolfSSL_tmp_dh(void)
 static void test_wolfSSL_ctrl(void)
 {
 #if defined (OPENSSL_EXTRA)
-    byte buff[5300];
+    byte buff[6000];
     BIO* bio;
     int  bytes;
     BUF_MEM* ptr = NULL;
@@ -23171,7 +23171,7 @@ static void test_wolfSSL_PEM_read_bio(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
        !defined(NO_FILESYSTEM) && !defined(NO_RSA)
-    byte buff[5300];
+    byte buff[6000];
     XFILE f;
     int  bytes;
     X509* x509;
@@ -23738,7 +23738,7 @@ static void test_wolfSSL_X509_get_ext_count(void)
 
     AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
                                                              SSL_FILETYPE_PEM));
-    AssertIntEQ(X509_get_ext_count(x509), 3);
+    AssertIntEQ(X509_get_ext_count(x509), 4);
     wolfSSL_X509_free(x509);
 
     AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(ocspRootCaFile,
@@ -23751,8 +23751,8 @@ static void test_wolfSSL_X509_get_ext_count(void)
     fclose(f);
 
     printf(testingFmt, "wolfSSL_X509_get_ext_count() valid input");
-    AssertIntEQ((ret = wolfSSL_X509_get_ext_count(x509)), 3);
-    printf(resultFmt, ret == 3 ? passed : failed);
+    AssertIntEQ((ret = wolfSSL_X509_get_ext_count(x509)), 4);
+    printf(resultFmt, ret == 4 ? passed : failed);
 
     printf(testingFmt, "wolfSSL_X509_get_ext_count() NULL argument");
     AssertIntEQ((ret = wolfSSL_X509_get_ext_count(NULL)), WOLFSSL_FAILURE);
@@ -27733,7 +27733,7 @@ static void test_wolfSSL_CTX_ctrl(void)
     SSL_CTX* ctx;
     X509* x509 = NULL;
 #if !defined(NO_DH) && !defined(NO_DSA)
-    byte buf[5300];
+    byte buf[6000];
     char file[] = "./certs/dsaparams.pem";
     XFILE f;
     int  bytes;
@@ -27876,7 +27876,7 @@ static void test_wolfSSL_CTX_ctrl(void)
 static void test_wolfSSL_DH_check(void)
 {
 #if !defined(NO_DH) && !defined(NO_DSA)
-    byte buf[5300];
+    byte buf[6000];
     char file[] = "./certs/dsaparams.pem";
     XFILE f;
     int  bytes;
@@ -28089,7 +28089,7 @@ static void test_wolfSSL_X509V3_EXT_get(void) {
     fclose(f);
 
     printf(testingFmt, "wolfSSL_X509V3_EXT_get() return struct and nid test");
-    AssertIntEQ((numOfExt = wolfSSL_X509_get_ext_count(x509)), 3);
+    AssertIntEQ((numOfExt = wolfSSL_X509_get_ext_count(x509)), 4);
     for (i = 0; i < numOfExt; i++) {
         AssertNotNull(ext = wolfSSL_X509_get_ext(x509, i));
         AssertNotNull(extNid = ext->obj->nid);
@@ -28240,7 +28240,7 @@ static void test_wolfSSL_X509_get_ext(void){
     AssertNotNull(f = fopen("./certs/server-cert.pem", "rb"));
     AssertNotNull(x509 = wolfSSL_PEM_read_X509(f, NULL, NULL, NULL));
     fclose(f);
-    AssertIntEQ((ret = wolfSSL_X509_get_ext_count(x509)), 3);
+    AssertIntEQ((ret = wolfSSL_X509_get_ext_count(x509)), 4);
 
     printf(testingFmt, "wolfSSL_X509_get_ext() valid input");
     AssertNotNull(foundExtension = wolfSSL_X509_get_ext(x509, 0));
