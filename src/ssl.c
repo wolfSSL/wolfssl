@@ -13600,6 +13600,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                                          word32 flags)
     {
         int verify;
+        int ret = WOLFSSL_FAILURE;
 
         WOLFSSL_ENTER("wolfSSL_CTX_load_verify_buffer_ex");
 
@@ -13608,11 +13609,13 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             verify = VERIFY_SKIP_DATE;
 
         if (format == WOLFSSL_FILETYPE_PEM)
-            return ProcessChainBuffer(ctx, in, sz, format, CA_TYPE, NULL,
+            ret = ProcessChainBuffer(ctx, in, sz, format, CA_TYPE, NULL,
                                       verify);
         else
-            return ProcessBuffer(ctx, in, sz, format, CA_TYPE, NULL, NULL,
+            ret = ProcessBuffer(ctx, in, sz, format, CA_TYPE, NULL, NULL,
                                  userChain, verify);
+        WOLFSSL_LEAVE("wolfSSL_CTX_load_verify_buffer_ex", ret);
+        return ret;
     }
 
     /* wolfSSL extension allows DER files to be loaded from buffers as well */
@@ -13658,18 +13661,26 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     int wolfSSL_CTX_use_certificate_buffer(WOLFSSL_CTX* ctx,
                                  const unsigned char* in, long sz, int format)
     {
+        int ret = WOLFSSL_FAILURE;
+
         WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_buffer");
-        return ProcessBuffer(ctx, in, sz, format, CERT_TYPE, NULL, NULL, 0,
+        ret = ProcessBuffer(ctx, in, sz, format, CERT_TYPE, NULL, NULL, 0,
                              GET_VERIFY_SETTING_CTX(ctx));
+        WOLFSSL_LEAVE("wolfSSL_CTX_use_certificate_buffer", ret);
+        return ret;
     }
 
 
     int wolfSSL_CTX_use_PrivateKey_buffer(WOLFSSL_CTX* ctx,
                                  const unsigned char* in, long sz, int format)
     {
+        int ret = WOLFSSL_FAILURE;
+
         WOLFSSL_ENTER("wolfSSL_CTX_use_PrivateKey_buffer");
-        return ProcessBuffer(ctx, in, sz, format, PRIVATEKEY_TYPE, NULL, NULL,
+        ret = ProcessBuffer(ctx, in, sz, format, PRIVATEKEY_TYPE, NULL, NULL,
                              0, GET_VERIFY_SETTING_CTX(ctx));
+        WOLFSSL_LEAVE("wolfSSL_CTX_use_PrivateKey_buffer", ret);
+        return ret;
     }
 
 #ifdef HAVE_PKCS11
