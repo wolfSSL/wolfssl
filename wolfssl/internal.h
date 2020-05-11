@@ -2710,7 +2710,7 @@ struct WOLFSSL_CTX {
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     short       minEccKeySz;      /* minimum ECC key size */
 #endif
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
     unsigned long     mask;             /* store SSL_OP_ flags */
 #endif
 #ifdef OPENSSL_EXTRA
@@ -2771,7 +2771,7 @@ struct WOLFSSL_CTX {
     pem_password_cb* passwd_cb;
     void*            passwd_userdata;
 #endif
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
     WOLFSSL_X509_STORE x509_store; /* points to ctx->cm */
     WOLFSSL_X509_STORE* x509_store_pt; /* take ownership of external store */
     byte            readAhead;
@@ -3347,7 +3347,7 @@ typedef struct Options {
     wc_psk_server_tls13_callback server_psk_tls13_cb;  /* server callback */
 #endif
 #endif /* NO_PSK */
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL)
     unsigned long     mask; /* store SSL_OP_ flags */
 #endif
 

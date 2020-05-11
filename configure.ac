@@ -678,6 +678,14 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WPAS"
 fi
 
+if test "$ENABLED_WPAS" = "small"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_VERIFY_CB"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_EX_DATA"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_EITHER_SIDE"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WPAS_SMALL"
+fi
 
 if test "$ENABLED_FORTRESS" = "yes"
 then
@@ -3177,7 +3185,7 @@ AC_ARG_ENABLE([session-ticket],
     [ ENABLED_SESSION_TICKET=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes" || test "$ENABLED_WPAS" = "yes" || test "x$ENABLED_HAPROXY" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "$ENABLED_WPAS" != "no" || test "x$ENABLED_HAPROXY" = "xyes"
 then
     ENABLED_SESSION_TICKET=yes
 fi
@@ -3848,7 +3856,7 @@ AC_ARG_ENABLE([enckeys],
     [ ENABLED_ENCKEYS=no ]
     )
 
-if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_WEBSERVER" = "yes"
+if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_WEBSERVER" = "yes" || test "$ENABLED_WPAS" != "no"
 then
     ENABLED_ENCKEYS=yes
 fi

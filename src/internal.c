@@ -5267,8 +5267,10 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->pkCurveOID = ctx->pkCurveOID;
 #endif
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
     ssl->options.mask = ctx->mask;
+#endif
+#ifdef OPENSSL_EXTRA
     ssl->CBIS         = ctx->CBIS;
 #endif
     ssl->timeout = ctx->timeout;
