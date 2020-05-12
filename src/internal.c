@@ -20252,7 +20252,7 @@ exit_dpk:
         return SetCipherSpecs(ssl);
     }
 
-#endif /* WOLFSSL_NO_TLS12 */
+#endif /* !WOLFSSL_NO_TLS12 */
 
 
     /* Make sure client setup is valid for this suite, true on success */
