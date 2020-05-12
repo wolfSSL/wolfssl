@@ -1789,7 +1789,7 @@ static int test_wolfSSL_SetMinVersion(void)
 # if defined(OPENSSL_EXTRA)
 static void test_wolfSSL_EC(void)
 {
-#if defined(HAVE_ECC) && defined(ECC_SHAMIR)
+#if defined(HAVE_ECC)
     BN_CTX *ctx;
     EC_GROUP *group;
     EC_POINT *Gxy, *new_point, *set_point;
@@ -1853,14 +1853,23 @@ static void test_wolfSSL_EC(void)
 #ifndef HAVE_SELFTEST
     /* perform point multiplication */
     AssertIntEQ(EC_POINT_mul(group, new_point, Gx, Gxy, k, ctx), WOLFSSL_SUCCESS);
+    AssertIntEQ(BN_is_zero(new_point->X), 0);
+    AssertIntEQ(BN_is_zero(new_point->Y), 0);
+    AssertIntEQ(BN_is_zero(new_point->Z), 0);
     AssertIntEQ(EC_POINT_mul(group, new_point, NULL, Gxy, k, ctx), WOLFSSL_SUCCESS);
+    AssertIntEQ(BN_is_zero(new_point->X), 0);
+    AssertIntEQ(BN_is_zero(new_point->Y), 0);
+    AssertIntEQ(BN_is_zero(new_point->Z), 0);
     AssertIntEQ(EC_POINT_mul(group, new_point, Gx, NULL, NULL, ctx), WOLFSSL_SUCCESS);
+    AssertIntEQ(BN_is_zero(new_point->X), 0);
+    AssertIntEQ(BN_is_zero(new_point->Y), 0);
+    AssertIntEQ(BN_is_zero(new_point->Z), 0);
 #else
     AssertIntEQ(EC_POINT_set_affine_coordinates_GFp(group, new_point, Gx, Gy, ctx), WOLFSSL_SUCCESS);
-#endif
-
-    /* check if point X coordinate is zero */
     AssertIntEQ(BN_is_zero(new_point->X), 0);
+    AssertIntEQ(BN_is_zero(new_point->Y), 0);
+    AssertIntEQ(BN_is_zero(new_point->Z), 0);
+#endif
 
     /* Force non-affine coordinates */
     AssertIntEQ(BN_add(new_point->Z, (WOLFSSL_BIGNUM*)BN_value_one(),
