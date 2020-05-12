@@ -4679,7 +4679,7 @@ static int CreateECCEncodedSig(byte* sigData, int sigDataSz, int hashAlgo)
 }
 #endif /* HAVE_ECC */
 
-#ifndef NO_RSA
+#if !defined(NO_RSA) && defined(WC_RSA_PSS)
 /* Check that the decrypted signature matches the encoded signature
  * based on the digest of the signature data.
  *
@@ -4722,7 +4722,7 @@ static int CheckRSASignature(WOLFSSL* ssl, int sigAlgo, int hashAlgo,
 
     return ret;
 }
-#endif /* !NO_RSA */
+#endif /* !NO_RSA && WC_RSA_PSS */
 #endif /* !NO_RSA || HAVE_ECC */
 
 /* Get the next certificate from the list for writing into the TLS v1.3
@@ -5759,7 +5759,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
 
         case TLS_ASYNC_VERIFY:
         {
-        #ifndef NO_RSA
+        #if !defined(NO_RSA) && defined(WC_RSA_PSS)
             if (ssl->peerRsaKey != NULL && ssl->peerRsaKeyPresent != 0) {
                 ret = CheckRSASignature(ssl, args->sigAlgo, args->hashAlgo,
                                         args->output, args->sendSz);
@@ -5769,7 +5769,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 FreeKey(ssl, DYNAMIC_TYPE_RSA, (void**)&ssl->peerRsaKey);
                 ssl->peerRsaKeyPresent = 0;
             }
-        #endif /* !NO_RSA */
+        #endif /* !NO_RSA && WC_RSA_PSS */
 
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_FINALIZE;

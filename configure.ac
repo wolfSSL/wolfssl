@@ -96,6 +96,32 @@ AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CFLAGS="$AM_CFLAGS -DNDEBUG"])
 
 
+
+# FIPS
+AC_ARG_ENABLE([fips],
+    [AS_HELP_STRING([--enable-fips],[Enable FIPS 140-2, Will NOT work w/o FIPS license (default: disabled)])],
+    [ENABLED_FIPS=$enableval],
+    [ENABLED_FIPS="no"])
+
+AS_CASE([$ENABLED_FIPS],
+    ["v2"],[
+        # FIPS v2
+        ENABLED_FIPS="yes"
+        FIPS_VERSION="v2"
+    ],
+    ["rand"],[
+        # FIPS Rand
+        ENABLED_FIPS="yes"
+        FIPS_VERSION="rand"
+    ],
+    ["no"],[FIPS_VERSION="none"],
+    [
+        # FIPS v1
+        ENABLED_FIPS="yes"
+        FIPS_VERSION="v1"
+    ])
+    
+
 # Distro build feature subset (Debian, Ubuntu, etc.)
 AC_ARG_ENABLE([distro],
     [AS_HELP_STRING([--enable-distro],[Enable wolfSSL distro build (default: disabled)])],
@@ -119,7 +145,11 @@ AC_ARG_ENABLE([all],
 if test "$ENABLED_ALL" = "yes"
 then
     enable_dtls=yes
-    enable_tls13=yes
+    if test "x$FIPS_VERSION" != "xv1"
+    then
+        enable_tls13=yes
+        enable_rsapss=yes
+    fi
     enable_openssh=yes
     enable_opensslextra=yes
     enable_opensslall=yes
@@ -293,7 +323,10 @@ AC_ARG_ENABLE([tls13],
     [ ENABLED_TLS13=$enableval ],
     [ ENABLED_TLS13=yes ]
     )
-
+if test "x$FIPS_VERSION" = "xv1"
+then
+    ENABLED_TLS13="no"
+fi
 if test "$ENABLED_TLS13" = "yes"
 then
     AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS -DHAVE_SUPPORTED_CURVES $AM_CFLAGS"
@@ -2429,14 +2462,8 @@ fi
 
 
 # FIPS
-AC_ARG_ENABLE([fips],
-    [AS_HELP_STRING([--enable-fips],[Enable FIPS 140-2, Will NOT work w/o FIPS license (default: disabled)])],
-    [ENABLED_FIPS=$enableval],
-    [ENABLED_FIPS="no"])
-
-AS_CASE([$ENABLED_FIPS],
-    ["v2"],[FIPS_VERSION="v2"
-        ENABLED_FIPS=yes
+AS_CASE([$FIPS_VERSION],
+    ["v2"],[
         AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DHAVE_FIPS_VERSION=2 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q"
         ENABLED_KEYGEN="yes"
         ENABLED_SHA224="yes"
@@ -2467,14 +2494,9 @@ AS_CASE([$ENABLED_FIPS],
               [AM_CFLAGS="$AM_CFLAGS -DFORCE_FAILURE_RDSEED"])
     ],
     ["rand"],[
-        ENABLED_FIPS="yes"
-        FIPS_VERSION="rand"
         AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_FIPS_RAND -DHAVE_FIPS -DHAVE_FIPS_VERSION=2"
     ],
-    ["no"],[FIPS_VERSION="none"],
-    [
-        ENABLED_FIPS="yes"
-        FIPS_VERSION="v1"
+    ["v1"],[
         AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
     ])
 
