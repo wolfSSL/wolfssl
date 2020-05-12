@@ -7584,7 +7584,6 @@ static int EdDSA_Update(WOLFSSL* ssl, const byte* data, int sz)
 }
 #endif /* (HAVE_ED25519 || HAVE_ED448) && !WOLFSSL_NO_CLIENT_AUTH */
 
-#ifndef NO_CERTS
 int HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz)
 {
     int ret = 0;
@@ -7635,8 +7634,6 @@ int HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz)
 
     return ret;
 }
-#endif /* NO_CERTS */
-
 
 /* add output to md5 and sha handshake hashes, exclude record header */
 int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
@@ -15603,9 +15600,6 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 }
 #endif /* !NO_OLD_TLS && !WOLFSSL_AEAD_ONLY */
 
-
-#ifndef NO_CERTS
-
 #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
 static int BuildMD5_CertVerify(WOLFSSL* ssl, byte* digest)
 {
@@ -15747,8 +15741,6 @@ int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 
     return ret;
 }
-
-#endif /* !NO_CERTS */
 
 #ifndef WOLFSSL_NO_TLS12
 /* Persistable BuildMessage arguments */

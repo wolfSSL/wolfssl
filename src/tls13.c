@@ -3102,6 +3102,7 @@ static int DoTls13EncryptedExtensions(WOLFSSL* ssl, const byte* input,
     return ret;
 }
 
+#ifndef NO_CERTS
 /* handle processing TLS v1.3 certificate_request (13) */
 /* Handle a TLS v1.3 CertificateRequest message.
  * This message is always encrypted.
@@ -3203,7 +3204,7 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
 
     return ret;
 }
-
+#endif /* !NO_CERTS */
 #endif /* !NO_WOLFSSL_CLIENT */
 
 #ifndef NO_WOLFSSL_SERVER
@@ -5823,6 +5824,7 @@ exit_dcv:
     return ret;
 }
 #endif /* !NO_RSA || HAVE_ECC */
+#endif /* !NO_CERTS */
 
 /* Parse and handle a TLS v1.3 Finished message.
  *
@@ -5930,7 +5932,6 @@ static int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     return 0;
 }
-#endif /* NO_CERTS */
 
 /* Send the TLS v1.3 Finished message.
  *
