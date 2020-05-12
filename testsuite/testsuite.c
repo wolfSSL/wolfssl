@@ -152,7 +152,7 @@ int testsuite_test(int argc, char** argv)
             return EXIT_FAILURE;
         }
 
-        strcpy(arg[0], "echoclient");
+        strcpy(arg[0], "testsuite");
         strcpy(arg[1], "input");
         strcpy(arg[2], outputName);
 

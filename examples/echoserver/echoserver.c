@@ -227,8 +227,11 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #endif
 
 #if defined(CYASSL_SNIFFER)
-    /* don't use EDH, can't sniff tmp keys */
-    CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA");
+    /* Only set if not running testsuite */
+    if (XSTRNCMP(argv[0], "testsuite", XSTRLEN("testsuite")) != 0) {
+        /* don't use EDH, can't sniff tmp keys */
+        CyaSSL_CTX_set_cipher_list(ctx, "AES256-SHA");
+    }
 #endif
 
     if (doPSK) {
