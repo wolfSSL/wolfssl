@@ -2266,11 +2266,12 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
 
 static const byte* OidFromId_conflict(const byte *checkOid, const byte *actualOid)
 {
+    int check_digit;
     /* extExtKeyUsageClientAuthOid could be conflilcted 
                           with extExtKeyUsageIpsecIkeIntermed */
     if(checkOid == extExtKeyUsageClientAuthOid) {
-         if(XMEMCMP(actualOid, extExtKeyUsageIpsecIkeIntermed,
-             sizeof(extExtKeyUsageIpsecIkeIntermed)) == 0)
+        check_digit = sizeof(extExtKeyUsageIpsecIkeIntermed) - 2;
+         if(actualOid[check_digit] == extExtKeyUsageIpsecIkeIntermed[check_digit])
              return extExtKeyUsageIpsecIkeIntermed;
     }
     return checkOid;
