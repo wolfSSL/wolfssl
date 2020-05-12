@@ -317,6 +317,13 @@ then
 fi
 
 
+# TLS v1.3 Draft 18 (Note: only final TLS v1.3 supported, here for backwards build compatibility)
+AC_ARG_ENABLE([tls13-draft18],
+    [AS_HELP_STRING([--enable-tls13-draft18],[Enable wolfSSL TLS v1.3 Draft 18 (default: disabled)])],
+    [ ENABLED_TLS13_DRAFT18=$enableval ],
+    [ ENABLED_TLS13_DRAFT18=no ]
+    )
+
 # TLS v1.3
 AC_ARG_ENABLE([tls13],
     [AS_HELP_STRING([--enable-tls13],[Enable wolfSSL TLS v1.3 (default: disabled)])],
@@ -327,7 +334,7 @@ if test "x$FIPS_VERSION" = "xv1"
 then
     ENABLED_TLS13="no"
 fi
-if test "$ENABLED_TLS13" = "yes"
+if test "$ENABLED_TLS13" = "yes" || test "$ENABLED_TLS13_DRAFT18" = "yes"
 then
     AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS -DHAVE_SUPPORTED_CURVES $AM_CFLAGS"
 fi
