@@ -1633,9 +1633,7 @@ static const byte extExtKeyUsageEmailProtectOid[] = {43, 6, 1, 5, 5, 7, 3, 4};
 static const byte extExtKeyUsageTimestampOid[]    = {43, 6, 1, 5, 5, 7, 3, 8};
 static const byte extExtKeyUsageOcspSignOid[]     = {43, 6, 1, 5, 5, 7, 3, 9};
 
-#ifdef WOLFSSL_OID_IPSEC_IKE
 static const byte extExtKeyUsageIpsecIkeIntermed[]= {43, 6, 1, 5, 5, 8, 2, 2};
-#endif
 
 /* kdfType */
 static const byte pbkdf2Oid[] = {42, 134, 72, 134, 247, 13, 1, 5, 12};
@@ -2266,7 +2264,6 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
     return oid;
 }
 
-#ifdef WOLFSSL_OID_IPSEC_IKE
 static const byte* OidFromId_conflict(const byte *checkOid, const byte *actualOid)
 {
     /* extExtKeyUsageClientAuthOid could be conflilcted 
@@ -2278,7 +2275,6 @@ static const byte* OidFromId_conflict(const byte *checkOid, const byte *actualOi
     }
     return checkOid;
 }
-#endif
 
 #ifdef HAVE_OID_ENCODING
 int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
@@ -2487,9 +2483,7 @@ int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
     #endif
         if (oidType != oidIgnoreType) {
             checkOid = OidFromId(*oid, oidType, &checkOidSz);
-            #ifdef WOLFSSL_OID_IPSEC_IKE
             checkOid = OidFromId_conflict(checkOid, actualOid);
-            #endif
     
         #ifdef ASN_DUMP_OID
             /* support for dumping OID information */
