@@ -20240,7 +20240,11 @@ exit_dpk:
             else
     #endif
             if (ssl->ctx->method->version.major == SSLv3_MAJOR &&
-                             ssl->ctx->method->version.minor == TLSv1_2_MINOR) {
+                                ssl->ctx->method->version.minor == TLSv1_2_MINOR
+#ifdef OPENSSL_EXTRA
+                          && (wolfSSL_get_options(ssl) & SSL_OP_NO_TLSv1_2) == 0
+#endif
+            ) {
                 /* TLS v1.2 capable client not allowed to downgrade when
                  * connecting to TLS v1.2 capable server.
                  */
@@ -24232,6 +24236,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
             if (ssl->ctx->method->version.major == SSLv3_MAJOR &&
                           ssl->ctx->method->version.minor == TLSv1_2_MINOR &&
+#ifdef OPENSSL_EXTRA
+                          (wolfSSL_get_options(ssl) & SSL_OP_NO_TLSv1_2) == 0 &&
+#endif
                                                        !IsAtLeastTLSv1_2(ssl)) {
                 /* TLS v1.2 capable server downgraded. */
                 XMEMCPY(output + idx + RAN_LEN - (TLS13_DOWNGRADE_SZ + 1),
