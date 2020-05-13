@@ -9385,10 +9385,6 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
        return err;
 
 #ifndef HAVE_THREAD_LS
-   if (initMutex == 0) {
-        wc_InitMutex(&ecc_fp_lock);
-        initMutex = 1;
-   }
    if (wc_LockMutex(&ecc_fp_lock) != 0)
       return BAD_MUTEX_E;
 #endif /* HAVE_THREAD_LS */
@@ -9512,11 +9508,6 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
        return MP_INIT_E;
 
 #ifndef HAVE_THREAD_LS
-   if (initMutex == 0) {
-        wc_InitMutex(&ecc_fp_lock);
-        initMutex = 1;
-   }
-
    if (wc_LockMutex(&ecc_fp_lock) != 0)
       return BAD_MUTEX_E;
 #endif /* HAVE_THREAD_LS */
@@ -9616,8 +9607,9 @@ static void wc_ecc_fp_free_cache(void)
 }
 #endif
 
-/** Free the Fixed Point cache */
-void wc_ecc_fp_free(void)
+
+/** Init the Fixed Point cache */
+void wc_ecc_fp_init(void)
 {
 #ifndef WOLFSSL_SP_MATH
 #ifndef HAVE_THREAD_LS
@@ -9625,7 +9617,16 @@ void wc_ecc_fp_free(void)
         wc_InitMutex(&ecc_fp_lock);
         initMutex = 1;
    }
+#endif
+#endif
+}
 
+
+/** Free the Fixed Point cache */
+void wc_ecc_fp_free(void)
+{
+#ifndef WOLFSSL_SP_MATH
+#ifndef HAVE_THREAD_LS
    if (wc_LockMutex(&ecc_fp_lock) == 0) {
 #endif /* HAVE_THREAD_LS */
 

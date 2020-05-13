@@ -219,6 +219,9 @@ int wolfCrypt_Init(void)
     #endif
 
 #ifdef HAVE_ECC
+    #ifdef FP_ECC
+        wc_ecc_fp_init();
+    #endif
     #ifdef ECC_CACHE_CURVE
         if ((ret = wc_ecc_curve_cache_init()) != 0) {
             WOLFSSL_MSG("Error creating curve cache");
