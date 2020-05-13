@@ -1990,7 +1990,7 @@ static int sp_2048_mod_exp_45(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td;
 #else
-    sp_digit td[3 * 90];
+    sp_digit td[90];
 #endif
     sp_digit* t[3];
     sp_digit* norm;
@@ -2014,7 +2014,7 @@ static int sp_2048_mod_exp_45(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + (i * 45 * 2);
 #else
-            t[i] = &td[i * 45 * 2];
+            t[i] = &td[i * 45 * 2)];
 #endif
         }
 
@@ -2943,7 +2943,7 @@ static int sp_2048_mod_exp_90(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td;
 #else
-    sp_digit td[3 * 180];
+    sp_digit td[180];
 #endif
     sp_digit* t[3];
     sp_digit* norm;
@@ -2967,7 +2967,7 @@ static int sp_2048_mod_exp_90(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + (i * 90 * 2);
 #else
-            t[i] = &td[i * 90 * 2];
+            t[i] = &td[i * 90 * 2)];
 #endif
         }
 
@@ -5831,7 +5831,7 @@ static int sp_3072_mod_exp_67(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td;
 #else
-    sp_digit td[3 * 134];
+    sp_digit td[134];
 #endif
     sp_digit* t[3];
     sp_digit* norm;
@@ -5855,7 +5855,7 @@ static int sp_3072_mod_exp_67(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + (i * 67 * 2);
 #else
-            t[i] = &td[i * 67 * 2];
+            t[i] = &td[i * 67 * 2)];
 #endif
         }
 
@@ -6820,7 +6820,7 @@ static int sp_3072_mod_exp_134(sp_digit* r, const sp_digit* a, const sp_digit* e
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td;
 #else
-    sp_digit td[3 * 268];
+    sp_digit td[268];
 #endif
     sp_digit* t[3];
     sp_digit* norm;
@@ -6844,7 +6844,7 @@ static int sp_3072_mod_exp_134(sp_digit* r, const sp_digit* a, const sp_digit* e
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + (i * 134 * 2);
 #else
-            t[i] = &td[i * 134 * 2];
+            t[i] = &td[i * 134 * 2)];
 #endif
         }
 
@@ -9895,7 +9895,7 @@ static int sp_4096_mod_exp_98(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td;
 #else
-    sp_digit td[3 * 196];
+    sp_digit td[196];
 #endif
     sp_digit* t[3];
     sp_digit* norm;
@@ -9919,7 +9919,7 @@ static int sp_4096_mod_exp_98(sp_digit* r, const sp_digit* a, const sp_digit* e,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + (i * 98 * 2);
 #else
-            t[i] = &td[i * 98 * 2];
+            t[i] = &td[i * 98 * 2)];
 #endif
         }
 
@@ -10861,7 +10861,7 @@ static int sp_4096_mod_exp_196(sp_digit* r, const sp_digit* a, const sp_digit* e
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
     sp_digit* td;
 #else
-    sp_digit td[3 * 392];
+    sp_digit td[392];
 #endif
     sp_digit* t[3];
     sp_digit* norm;
@@ -10885,7 +10885,7 @@ static int sp_4096_mod_exp_196(sp_digit* r, const sp_digit* a, const sp_digit* e
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
             t[i] = td + (i * 196 * 2);
 #else
-            t[i] = &td[i * 196 * 2];
+            t[i] = &td[i * 196 * 2)];
 #endif
         }
 
