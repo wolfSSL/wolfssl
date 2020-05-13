@@ -2,12 +2,16 @@
 
 #openssl.test
 
+if test -n "$WOLFSSL_OPENSSL_TEST"; then
+    echo "WOLFSSL_OPENSSL_TEST set, running test..."
+else
+    echo "WOLFSSL_OPENSSL_TEST NOT set, won't run"
+    exit 0
+fi
+
 # need a unique port since may run the same time as testsuite
 generate_port() {
-    port=`LC_CTYPE=C tr -cd 0-9 </dev/urandom | head -c 7`
-    port=$((`LC_CTYPE=C tr -cd 1-9 </dev/urandom | head -c 1`$port))
-    port=$(($port % (65535-49512)))
-    port=$(($port + 49512))
+    port=$(($(od -An -N2 /dev/random) % (65535-49512) + 49512))
 }
 
 
@@ -67,13 +71,6 @@ do_trap() {
 }
 
 trap do_trap INT TERM
-
-if test -n "$WOLFSSL_OPENSSL_TEST"; then
-    echo "WOLFSSL_OPENSSL_TEST set, running test..."
-else
-    echo "WOLFSSL_OPENSSL_TEST NOT set, won't run"
-    exit 0
-fi
 
 echo -e "\nTesting existence of openssl command...\n"
 command -v $OPENSSL >/dev/null 2>&1 || { echo >&2 "Requires openssl command, but it's not installed.  Ending."; exit 0; }

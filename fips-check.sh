@@ -346,8 +346,9 @@ if [ "x$CAVP_SELFTEST_ONLY" == "xno" ];
 then
     NEWHASH=$(./wolfcrypt/test/testwolfcrypt | sed -n 's/hash = \(.*\)/\1/p')
     if [ -n "$NEWHASH" ]; then
-        sed -i.bak "s/^\".*\";/\"${NEWHASH}\";/" $CRYPT_SRC_PATH/fips_test.c
-        $MAKE clean
+        cp $CRYPT_SRC_PATH/fips_test.c $CRYPT_SRC_PATH/fips_test.c.bak
+        sed "s/^\".*\";/\"${NEWHASH}\";/" $CRYPT_SRC_PATH/fips_test.c.bak >$CRYPT_SRC_PATH/fips_test.c
+        make clean
     fi
 fi
 
