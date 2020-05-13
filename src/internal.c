@@ -17521,7 +17521,7 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
     /* only send encrypted alert if handshake actually complete, otherwise
        other side may not be able to handle it */
     if (IsEncryptionOn(ssl, 1) && (IsAtLeastTLSv1_3(ssl->version) ||
-                                                  ssl->options.handShakeDone)) {
+                                                         ssl->encrypt.setup)) {
         sendSz = BuildMessage(ssl, output, outputSz, input, ALERT_SIZE, alert,
                                                                        0, 0, 0);
     }
