@@ -12409,7 +12409,7 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         expectedIdx += MacSize(ssl);
 #endif
 
-#if !defined(WOLFSSL_NO_SERVER) && \
+#if !defined(NO_WOLFSSL_SERVER) && \
     defined(HAVE_SECURE_RENEGOTIATION) && \
     defined(HAVE_SERVER_RENEGOTIATION_INFO)
     if (ssl->options.handShakeDone && type == client_hello &&
