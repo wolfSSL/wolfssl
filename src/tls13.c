@@ -112,7 +112,11 @@
 #endif
 
 #ifndef HAVE_HKDF
-    #error The build option HAVE_HKDF is required for TLS 1.3
+    #ifndef _MSC_VER
+        #error "The build option HAVE_HKDF is required for TLS 1.3"
+    #else
+        #pragma message("error: The build option HAVE_HKDF is required for TLS 1.3")
+    #endif
 #endif
 
 #ifndef HAVE_TLS_EXTENSIONS
@@ -5155,8 +5159,10 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             /* Add signature algorithm. */
             if (ssl->hsType == DYNAMIC_TYPE_RSA)
                 args->sigAlgo = rsa_pss_sa_algo;
+        #ifdef HAVE_ECC
             else if (ssl->hsType == DYNAMIC_TYPE_ECC)
                 args->sigAlgo = ecc_dsa_sa_algo;
+        #endif
         #ifdef HAVE_ED25519
             else if (ssl->hsType == DYNAMIC_TYPE_ED25519)
                 args->sigAlgo = ed25519_sa_algo;
@@ -5165,6 +5171,9 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             else if (ssl->hsType == DYNAMIC_TYPE_ED448)
                 args->sigAlgo = ed448_sa_algo;
         #endif
+            else {
+                ERROR_OUT(ALGO_ID_E, exit_scv);
+            }
             EncodeSigAlg(ssl->suites->hashAlgo, args->sigAlgo, args->verify);
 
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
