@@ -9432,7 +9432,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
       }
 
       if (err == MP_OKAY) {
-        /* if it's >=2 build the LUT, if it's higher just use the LUT */
+        /* if it's >= 2 AND the LUT is not set build the LUT */
         if (idx1 >= 0 && fp_cache[idx1].lru_count >= 2 && !fp_cache[idx1].LUT_set) {
            /* compute mp */
            err = mp_montgomery_setup(modulus, &mp);
@@ -9449,7 +9449,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
       }
 
       if (err == MP_OKAY) {
-        /* if it's >=2 build the LUT, if it's higher just use the LUT */
+        /* if it's >= 2 AND the LUT is not set build the LUT */
         if (idx2 >= 0 && fp_cache[idx2].lru_count >= 2 && !fp_cache[idx2].LUT_set) {
            if (mpInit == 0) {
                 /* compute mp */
