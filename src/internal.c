@@ -10665,7 +10665,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             args->count = args->totalCerts;
             args->certIdx = 0; /* select peer cert (first one) */
 
-            if (args->count == 0 && ssl->options.mutualAuth &&
+            if (args->count == 0 && (ssl->options.mutualAuth ||
+                 (ssl->options.failNoCert && IsAtLeastTLSv1_3(ssl->version))) &&
                                       ssl->options.side == WOLFSSL_SERVER_END) {
                 ret = NO_PEER_CERT;
                 DoCertFatalAlert(ssl, ret);
