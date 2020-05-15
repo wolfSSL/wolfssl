@@ -243,12 +243,18 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         #ifdef HAVE_NULL_CIPHER
             defaultCipherList = "PSK-NULL-SHA256";
         #elif defined(HAVE_AESGCM) && !defined(NO_DH)
+            #ifdef WOLFSSL_TLS13
+            defaultCipherList = "TLS13-AES128-GCM-SHA256:"
+                                "DHE-PSK-AES128-GCM-SHA256";
+            #else
             defaultCipherList = "DHE-PSK-AES128-GCM-SHA256";
+            #endif
         #else
             defaultCipherList = "PSK-AES128-CBC-SHA256";
         #endif
         if (CyaSSL_CTX_set_cipher_list(ctx, defaultCipherList) != WOLFSSL_SUCCESS)
             err_sys("server can't set cipher list 2");
+        wolfSSL_CTX_set_psk_callback_ctx(ctx, (void*)defaultCipherList);
 #endif
     }
 

@@ -2305,16 +2305,17 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     if (usePsk) {
 #ifndef NO_PSK
+        const char *defaultCipherList = cipherList;
+
         wolfSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
     #ifdef WOLFSSL_TLS13
         wolfSSL_CTX_set_psk_client_tls13_callback(ctx, my_psk_client_tls13_cb);
     #endif
-        if (cipherList == NULL) {
-            const char *defaultCipherList;
+        if (defaultCipherList == NULL) {
         #if defined(HAVE_AESGCM) && !defined(NO_DH)
             #ifdef WOLFSSL_TLS13
-                defaultCipherList = "DHE-PSK-AES128-GCM-SHA256:"
-                                    "TLS13-AES128-GCM-SHA256";
+                defaultCipherList = "TLS13-AES128-GCM-SHA256:"
+                                    "DHE-PSK-AES128-GCM-SHA256:";
             #else
                 defaultCipherList = "DHE-PSK-AES128-GCM-SHA256";
             #endif
@@ -2323,12 +2324,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         #else
                 defaultCipherList = "PSK-AES128-CBC-SHA256";
         #endif
-            if (wolfSSL_CTX_set_cipher_list(ctx,defaultCipherList)
+            if (wolfSSL_CTX_set_cipher_list(ctx, defaultCipherList)
                                                             !=WOLFSSL_SUCCESS) {
                 wolfSSL_CTX_free(ctx); ctx = NULL;
                 err_sys("client can't set cipher list 2");
             }
         }
+        wolfSSL_CTX_set_psk_callback_ctx(ctx, (void*)defaultCipherList);
 #endif
         if (useClientCert) {
             useClientCert = 0;
