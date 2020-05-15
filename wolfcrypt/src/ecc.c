@@ -8092,6 +8092,7 @@ int wc_ecc_sig_size(ecc_key* key)
 typedef struct {
    ecc_point* g;               /* cached COPY of base point */
    ecc_point* LUT[1U<<FP_LUT]; /* fixed point lookup */
+   int        LUT_set;         /* flag to determine if the LUT has been computed */
    mp_int     mu;              /* copy of the montgomery constant */
    int        lru_count;       /* amount of times this entry has been used */
    int        lock;            /* flag to indicate cache eviction */
@@ -8665,6 +8666,7 @@ static int find_hole(void)
          wc_ecc_del_point(fp_cache[z].LUT[x]);
          fp_cache[z].LUT[x] = NULL;
       }
+      fp_cache[z].LUT_set = 0;
       fp_cache[z].lru_count = 0;
    }
    return z;
@@ -8722,6 +8724,7 @@ static int add_entry(int idx, ecc_point *g)
       }
    }
 
+   fp_cache[idx].LUT_set   = 0;
    fp_cache[idx].lru_count = 0;
 
    return MP_OKAY;
@@ -8853,8 +8856,10 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
 
    mp_clear(&tmp);
 
-   if (err == MP_OKAY)
-     return MP_OKAY;
+   if (err == MP_OKAY) {
+       fp_cache[idx].LUT_set = 1;
+       return MP_OKAY;
+   }
 
    /* err cleanup */
    for (y = 0; y < (1U<<FP_LUT); y++) {
@@ -8863,6 +8868,7 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
    }
    wc_ecc_del_point(fp_cache[idx].g);
    fp_cache[idx].g         = NULL;
+   fp_cache[idx].LUT_set   = 0;
    fp_cache[idx].lru_count = 0;
    mp_clear(&fp_cache[idx].mu);
 
@@ -9426,8 +9432,8 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
       }
 
       if (err == MP_OKAY) {
-        /* if it's 2 build the LUT, if it's higher just use the LUT */
-        if (idx1 >= 0 && fp_cache[idx1].lru_count == 2) {
+        /* if it's >= 2 AND the LUT is not set build the LUT */
+        if (idx1 >= 0 && fp_cache[idx1].lru_count >= 2 && !fp_cache[idx1].LUT_set) {
            /* compute mp */
            err = mp_montgomery_setup(modulus, &mp);
 
@@ -9443,8 +9449,8 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
       }
 
       if (err == MP_OKAY) {
-        /* if it's 2 build the LUT, if it's higher just use the LUT */
-        if (idx2 >= 0 && fp_cache[idx2].lru_count == 2) {
+        /* if it's >= 2 AND the LUT is not set build the LUT */
+        if (idx2 >= 0 && fp_cache[idx2].lru_count >= 2 && !fp_cache[idx2].LUT_set) {
            if (mpInit == 0) {
                 /* compute mp */
                 err = mp_montgomery_setup(modulus, &mp);
@@ -9462,8 +9468,8 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 
 
       if (err == MP_OKAY) {
-        if (idx1 >=0 && idx2 >= 0 && fp_cache[idx1].lru_count >= 2 &&
-                                     fp_cache[idx2].lru_count >= 2) {
+        if (idx1 >=0 && idx2 >= 0 && fp_cache[idx1].LUT_set &&
+                                     fp_cache[idx2].LUT_set) {
            if (mpInit == 0) {
               /* compute mp */
               err = mp_montgomery_setup(modulus, &mp);
@@ -9540,7 +9546,7 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 
       if (err == MP_OKAY) {
         /* if it's 2 build the LUT, if it's higher just use the LUT */
-        if (idx >= 0 && fp_cache[idx].lru_count == 2) {
+        if (idx >= 0 && fp_cache[idx].lru_count >= 2 && !fp_cache[idx].LUT_set) {
            /* compute mp */
            err = mp_montgomery_setup(modulus, &mp);
 
@@ -9557,7 +9563,7 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
       }
 
       if (err == MP_OKAY) {
-        if (idx >= 0 && fp_cache[idx].lru_count >= 2) {
+        if (idx >= 0 && fp_cache[idx].LUT_set) {
            if (mpSetup == 0) {
               /* compute mp */
               err = mp_montgomery_setup(modulus, &mp);
@@ -9609,6 +9615,7 @@ static void wc_ecc_fp_free_cache(void)
          wc_ecc_del_point(fp_cache[x].g);
          fp_cache[x].g         = NULL;
          mp_clear(&fp_cache[x].mu);
+         fp_cache[x].LUT_set   = 0;
          fp_cache[x].lru_count = 0;
          fp_cache[x].lock = 0;
       }
