@@ -13458,7 +13458,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         ctx->client_psk_cb = cb;
     }
 
-
     void wolfSSL_set_psk_client_callback(WOLFSSL* ssl,wc_psk_client_callback cb)
     {
         byte haveRSA = 1;
@@ -13484,7 +13483,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                    ssl->options.haveStaticECC, ssl->options.side);
     }
 
-
     void wolfSSL_CTX_set_psk_server_callback(WOLFSSL_CTX* ctx,
                                          wc_psk_server_callback cb)
     {
@@ -13494,7 +13492,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         ctx->havePSK = 1;
         ctx->server_psk_cb = cb;
     }
-
 
     void wolfSSL_set_psk_server_callback(WOLFSSL* ssl,wc_psk_server_callback cb)
     {
@@ -13520,7 +13517,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                    ssl->options.haveStaticECC, ssl->options.side);
     }
 
-
     const char* wolfSSL_get_psk_identity_hint(const WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("SSL_get_psk_identity_hint");
@@ -13542,7 +13538,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return ssl->arrays->client_identity;
     }
 
-
     int wolfSSL_CTX_use_psk_identity_hint(WOLFSSL_CTX* ctx, const char* hint)
     {
         WOLFSSL_ENTER("SSL_CTX_use_psk_identity_hint");
@@ -13558,7 +13553,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
         return WOLFSSL_SUCCESS;
     }
-
 
     int wolfSSL_use_psk_identity_hint(WOLFSSL* ssl, const char* hint)
     {
@@ -13577,6 +13571,28 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return WOLFSSL_SUCCESS;
     }
 
+    void* wolfSSL_get_psk_callback_ctx(WOLFSSL* ssl)
+    {
+        return ssl ? ssl->options.psk_ctx : NULL;
+    }
+    void* wolfSSL_CTX_get_psk_callback_ctx(WOLFSSL_CTX* ctx)
+    {
+        return ctx ? ctx->psk_ctx : NULL;
+    }
+    int wolfSSL_set_psk_callback_ctx(WOLFSSL* ssl, void* psk_ctx)
+    {
+        if (ssl == NULL)
+            return WOLFSSL_FAILURE;
+        ssl->options.psk_ctx = psk_ctx;
+        return WOLFSSL_SUCCESS;
+    }
+    int wolfSSL_CTX_set_psk_callback_ctx(WOLFSSL_CTX* ctx, void* psk_ctx)
+    {
+        if (ctx == NULL)
+            return WOLFSSL_FAILURE;
+        ctx->psk_ctx = psk_ctx;
+        return WOLFSSL_SUCCESS;
+    }
 #endif /* NO_PSK */
 
 

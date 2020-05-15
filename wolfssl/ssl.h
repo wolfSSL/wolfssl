@@ -1950,6 +1950,11 @@ enum { /* ssl Constants */
     WOLFSSL_API void wolfSSL_set_psk_server_tls13_callback(WOLFSSL*,
                                                   wc_psk_server_tls13_callback);
 #endif
+    WOLFSSL_API void* wolfSSL_get_psk_callback_ctx(WOLFSSL*);
+    WOLFSSL_API int   wolfSSL_set_psk_callback_ctx(WOLFSSL*, void*);
+
+    WOLFSSL_API void* wolfSSL_CTX_get_psk_callback_ctx(WOLFSSL_CTX*);
+    WOLFSSL_API int   wolfSSL_CTX_set_psk_callback_ctx(WOLFSSL_CTX*, void*);
 
     #define PSK_TYPES_DEFINED
 #endif /* NO_PSK */

@@ -5279,9 +5279,10 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.haveStaticECC = ctx->haveStaticECC;
 
 #ifndef NO_PSK
-    ssl->options.havePSK   = ctx->havePSK;
+    ssl->options.havePSK       = ctx->havePSK;
     ssl->options.client_psk_cb = ctx->client_psk_cb;
     ssl->options.server_psk_cb = ctx->server_psk_cb;
+    ssl->options.psk_ctx       = ctx->psk_ctx;
 #ifdef WOLFSSL_TLS13
     ssl->options.client_psk_tls13_cb = ctx->client_psk_tls13_cb;
     ssl->options.server_psk_tls13_cb = ctx->server_psk_tls13_cb;
