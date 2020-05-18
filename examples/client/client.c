@@ -2080,7 +2080,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
         #ifndef NO_PSK
         if (usePsk) {
-            done += 1; /* don't perform exernal tests if PSK is enabled */
+            done += 1; /* don't perform external tests if PSK is enabled */
         }
         #endif
 

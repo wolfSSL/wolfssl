@@ -18723,7 +18723,15 @@ int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
 {
     int           ret = BAD_FUNC_ARG;
     int           i;
-    unsigned long len = (unsigned long)XSTRLEN(name);
+    unsigned long len;
+    const char*   nameDelim;
+    
+    /* Support trailing : */
+    nameDelim = XSTRSTR(name, ":");
+    if (nameDelim)
+        len = (unsigned long)(nameDelim - name);
+    else
+        len = (unsigned long)XSTRLEN(name);
 
     for (i = 0; i < GetCipherNamesSize(); i++) {
         if (XSTRNCMP(name, cipher_names[i].name, len) == 0) {
