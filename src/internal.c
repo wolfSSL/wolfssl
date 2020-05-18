@@ -10954,7 +10954,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 ssl->options.usingAltCertChain = 1;
                             }
 
-                            ret = 0; /* clear error and continue */
+                            ret = 0; /* clear errors and continue */
+                            args->verifyErr = 0;
                         }
 
                         /* do not add to certificate manager */
