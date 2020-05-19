@@ -1647,7 +1647,7 @@ int wolfSSL_GetOutputSize(WOLFSSL* ssl, int inSz)
     if (inSz > maxSize)
         return INPUT_SIZE_E;
 
-    return BuildMessage(ssl, NULL, 0, NULL, inSz, application_data, 0, 1, 0);
+    return BuildMessage(ssl, NULL, 0, NULL, inSz, application_data, 0, 1, 0, CUR_ORDER);
 }
 
 
@@ -3227,6 +3227,72 @@ int wolfSSL_UseClientSuites(WOLFSSL* ssl)
 
     return 0;
 }
+
+#ifdef WOLFSSL_DTLS
+const byte* wolfSSL_GetDtlsMacSecret(WOLFSSL* ssl, int verify, int epochOrder)
+{
+#ifndef WOLFSSL_AEAD_ONLY
+    Keys* keys = NULL;
+
+    (void)epochOrder;
+
+    if (ssl == NULL)
+        return NULL;
+
+#ifdef HAVE_SECURE_RENEGOTIATION
+    switch (epochOrder) {
+    case PEER_ORDER:
+        if (ssl->secure_renegotiation &&
+            ssl->secure_renegotiation->tmp_keys.dtls_epoch != 0 &&
+            ssl->keys.curEpoch ==
+                    ssl->secure_renegotiation->tmp_keys.dtls_epoch)
+            keys = &ssl->secure_renegotiation->tmp_keys;
+        else
+            keys = &ssl->keys;
+        break;
+    case PREV_ORDER:
+        if (ssl->keys.dtls_epoch > 1 ||
+            (ssl->secure_renegotiation &&
+             ssl->secure_renegotiation->tmp_keys.dtls_epoch != 0))
+            keys = &ssl->keys;
+        else {
+            WOLFSSL_MSG("No previous cipher epoch");
+            return NULL;
+        }
+        break;
+    case CUR_ORDER:
+        if (ssl->secure_renegotiation &&
+                ssl->secure_renegotiation->tmp_keys.dtls_epoch != 0 &&
+                ssl->secure_renegotiation->tmp_keys.dtls_epoch ==
+                        ssl->keys.dtls_epoch)
+            /* new keys are in scr and are only current when the
+             * ssl->keys.dtls_epoch matches */
+            keys = &ssl->secure_renegotiation->tmp_keys;
+        else
+            keys = &ssl->keys;
+        break;
+    default:
+        WOLFSSL_MSG("Unknown epoch order");
+        return NULL;
+    }
+#else
+    keys = &ssl->keys;
+#endif
+
+    if ( (ssl->options.side == WOLFSSL_CLIENT_END && !verify) ||
+         (ssl->options.side == WOLFSSL_SERVER_END &&  verify) )
+        return keys->client_write_MAC_secret;
+    else
+        return keys->server_write_MAC_secret;
+#else
+    (void)ssl;
+    (void)verify;
+    (void)epochOrder;
+
+    return NULL;
+#endif
+}
+#endif /* WOLFSSL_DTLS */
 
 const byte* wolfSSL_GetMacSecret(WOLFSSL* ssl, int verify)
 {

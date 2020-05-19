@@ -667,6 +667,14 @@ static WC_INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
 #ifdef WOLFSSL_DTLS
 static WC_INLINE void DtlsGetSEQ(WOLFSSL* ssl, int order, word32 seq[2])
 {
+#ifdef HAVE_SECURE_RENEGOTIATION
+    /* if ssl->secure_renegotiation->tmp_keys.dtls_epoch > ssl->keys.dtls_epoch then PREV_ORDER
+     * refers to the current epoch */
+    if (order == PREV_ORDER && ssl->secure_renegotiation &&
+            ssl->secure_renegotiation->tmp_keys.dtls_epoch > ssl->keys.dtls_epoch) {
+        order = CUR_ORDER;
+    }
+#endif
     if (order == PREV_ORDER) {
         /* Previous epoch case */
         seq[0] = (((word32)ssl->keys.dtls_epoch - 1) << 16) |
@@ -1169,11 +1177,12 @@ static int Hmac_UpdateFinal(Hmac* hmac, byte* digest, const byte* in,
 #endif
 
 int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
-             int content, int verify)
+             int content, int verify, int epochOrder)
 {
     Hmac   hmac;
     byte   myInner[WOLFSSL_TLS_HMAC_INNER_SZ];
     int    ret = 0;
+    const byte* macSecret = NULL;
     word32 hashSz = 0;
 
     if (ssl == NULL)
@@ -1199,7 +1208,7 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     }
 #endif
 
-    wolfSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
+    wolfSSL_SetTlsHmacInner(ssl, myInner, sz, content, epochOrder);
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
     if (tsip_useable(ssl)) {
@@ -1219,9 +1228,19 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     if (ret != 0)
         return ret;
 
+
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls)
+        macSecret = wolfSSL_GetDtlsMacSecret(ssl, verify, epochOrder);
+    else
+        macSecret = wolfSSL_GetMacSecret(ssl, verify);
+#else
+    macSecret = wolfSSL_GetMacSecret(ssl, verify);
+#endif
     ret = wc_HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
-                                              wolfSSL_GetMacSecret(ssl, verify),
+                                              macSecret,
                                               ssl->specs.hash_size);
+
     if (ret == 0) {
         /* Constant time verification required. */
         if (verify && padSz >= 0) {
