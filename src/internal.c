@@ -10563,7 +10563,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         #endif
 
             /* allocate buffer for certs */
-        #ifdef OPENSSL_EXTRA
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
             args->certs = (buffer*)XMALLOC(sizeof(buffer) *
                     (ssl->verifyDepth + 1), ssl->heap, DYNAMIC_TYPE_DER);
             if (args->certs == NULL) {
