@@ -8131,13 +8131,17 @@ int TLSX_KeyShare_Establish(WOLFSSL *ssl)
         if (!TLSX_SupportedGroups_Find(ssl, clientKSE->group))
             return BAD_KEY_SHARE_DATA;
 
-    #ifdef OPENSSL_EXTRA
         if ((clientKSE->group & NAMED_DH_MASK) == 0) {
-            /* Check if server supports group. */
-            if (ssl->ctx->disabledCurves & (1 << clientKSE->group))
+            /* Check max value supported. */
+            if (clientKSE->group > WOLFSSL_ECC_MAX) {
                 continue;
+            }
+        #ifdef OPENSSL_EXTRA
+            /* Check if server supports group. */
+            if (ssl->ctx->disabledCurves & ((word32)1 << clientKSE->group))
+                continue;
+        #endif
         }
-    #endif
         if (!TLSX_KeyShare_IsSupported(clientKSE->group))
             continue;
 
