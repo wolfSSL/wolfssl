@@ -5927,11 +5927,15 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
     word32 keyCopy[AES_256_KEY_SIZE/sizeof(word32)];
 #endif
     word32 keySize;
+#ifdef WOLFSSL_STM32_CUBEMX
     int status = HAL_OK;
     word32 blocks = sz / AES_BLOCK_SIZE;
+    word32 partialBlock[AES_BLOCK_SIZE/sizeof(word32)];
+#else
+    int status = SUCCESS;
+#endif
     word32 partial = sz % AES_BLOCK_SIZE;
     word32 tag[AES_BLOCK_SIZE/sizeof(word32)];
-    word32 partialBlock[AES_BLOCK_SIZE/sizeof(word32)];
     word32 ctr[AES_BLOCK_SIZE/sizeof(word32)];
     byte* authInPadded = NULL;
     int authPadSz;
@@ -6065,7 +6069,7 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
                          (uint8_t*)keyCopy,      keySize * 8,
                          (uint8_t*)in,           sz,
                          (uint8_t*)authInPadded, authInSz,
-                         (uint8_t*)out,          tag);
+                         (uint8_t*)out,          (uint8_t*)tag);
     if (status != SUCCESS)
         ret = AES_GCM_AUTH_E;
 #endif /* WOLFSSL_STM32_CUBEMX */
@@ -6360,13 +6364,14 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
 {
     int ret;
 #ifdef WOLFSSL_STM32_CUBEMX
+    int status = HAL_OK;
     CRYP_HandleTypeDef hcryp;
+    word32 blocks = sz / AES_BLOCK_SIZE;
 #else
+    int status = SUCCESS;
     word32 keyCopy[AES_256_KEY_SIZE/sizeof(word32)];
 #endif
     word32 keySize;
-    int status = HAL_OK;
-    word32 blocks = sz / AES_BLOCK_SIZE;
     word32 partial = sz % AES_BLOCK_SIZE;
     word32 tag[AES_BLOCK_SIZE/sizeof(word32)];
     word32 partialBlock[AES_BLOCK_SIZE/sizeof(word32)];
@@ -6508,7 +6513,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
                          (uint8_t*)keyCopy,      keySize * 8,
                          (uint8_t*)in,           sz,
                          (uint8_t*)authInPadded, authInSz,
-                         (uint8_t*)out,          tag);
+                         (uint8_t*)out,          (uint8_t*)tag);
     if (status != SUCCESS)
         ret = AES_GCM_AUTH_E;
 #endif /* WOLFSSL_STM32_CUBEMX */
