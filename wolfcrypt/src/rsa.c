@@ -1851,6 +1851,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                     ret = BAD_STATE_E;
                 }
             }
+            XFREE(d, key->heap, DYNAMIC_TYPE_PRIVATE_KEY);
         }
     #endif
         break;
