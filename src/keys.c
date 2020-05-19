@@ -3241,7 +3241,7 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
             ssl->secure_renegotiation->cache_status == SCR_CACHE_NEEDED) {
         keys = &ssl->secure_renegotiation->tmp_keys;
 #ifdef WOLFSSL_DTLS
-        /* epoch is incremented after StoreKeys call */
+        /* epoch is incremented after StoreKeys is called */
         ssl->secure_renegotiation->tmp_keys.dtls_epoch = ssl->keys.dtls_epoch + 1;
         /* we only need to copy keys on second and future renegotiations */
         if (ssl->keys.dtls_epoch > 1)

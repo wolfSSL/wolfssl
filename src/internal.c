@@ -6904,6 +6904,9 @@ void DtlsMsgListDelete(DtlsMsg* head, void* heap)
     }
 }
 
+/**
+ * Drop messages when they are no longer going to be retransmitted
+ */
 void DtlsTxMsgListClean(WOLFSSL* ssl)
 {
     DtlsMsg* head = ssl->dtls_tx_msg_list;
@@ -7149,8 +7152,13 @@ DtlsMsg* DtlsMsgInsert(DtlsMsg* head, DtlsMsg* item)
 }
 
 
-/* DtlsMsgPoolSave() adds the message to the end of the stored transmit list. */
-int DtlsMsgPoolSave(WOLFSSL* ssl, const byte* data, word32 dataSz, enum HandShakeType type)
+/**
+ * DtlsMsgPoolSave() adds the message to the end of the stored transmit
+ * list. Must be called BEFORE BuildMessage or DtlsSEQIncrement or
+ * anything else that increments ssl->keys.dtls_handshake_number.
+ */
+int DtlsMsgPoolSave(WOLFSSL* ssl, const byte* data, word32 dataSz,
+                    enum HandShakeType type)
 {
     DtlsMsg* item;
     int ret = 0;
@@ -7170,8 +7178,7 @@ int DtlsMsgPoolSave(WOLFSSL* ssl, const byte* data, word32 dataSz, enum HandShak
         XMEMCPY(item->buf, data, dataSz);
         item->sz = dataSz;
         item->epoch = ssl->keys.dtls_epoch;
-        /* save is called after something incremented this var */
-        item->seq = ssl->keys.dtls_handshake_number - 1;
+        item->seq = ssl->keys.dtls_handshake_number;
         item->type = type;
 
         if (cur == NULL)
@@ -7251,7 +7258,9 @@ int VerifyForTxDtlsMsgDelete(WOLFSSL* ssl, DtlsMsg* item)
     case WOLFSSL_SERVER_END:
         if (ssl->options.clientState >= CLIENT_FINISHED_COMPLETE &&
                 item->type <= server_hello_done)
-            return 1;
+            return 1; /* server can forget everything up to ServerHelloDone if
+                       * a client finished message has been received and
+                       * successfully processed */
         else
             return 0;
     default:
@@ -7324,7 +7333,6 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
                 sendSz = inputSz + MAX_MSG_EXTRA;
 
 #ifdef HAVE_SECURE_RENEGOTIATION
-
                 /*
                  * CUR_ORDER will use ssl->secure_renegotiation from epoch 2+.
                  * ssl->keys otherwise
@@ -13132,7 +13140,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     if (type == finished && ssl->keys.dtls_peer_handshake_number >=
                             ssl->keys.dtls_expected_peer_handshake_number &&
                             ssl->keys.curEpoch == ssl->keys.dtls_epoch) {
-        /* finished msg should be ignore if it is in the current epoch
+        /* finished msg should be ignore from the current epoch
          * if it comes from a previous handshake */
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
             ignoreFinished = ssl->options.connectState < FINISHED_DONE;
@@ -13153,7 +13161,10 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
      */
     if (ssl->keys.dtls_peer_handshake_number >
             ssl->keys.dtls_expected_peer_handshake_number &&
-            (type == client_hello || ssl->options.handShakeState != HANDSHAKE_DONE) &&
+            /* Only client_hello shouldn't be ignored if the handshake
+             * num is greater */
+            (type == client_hello ||
+                    ssl->options.handShakeState != HANDSHAKE_DONE) &&
             !ignoreFinished) {
         /* Current message is out of order. It will get stored in the list.
          * Storing also takes care of defragmentation. If the messages is a
@@ -13201,6 +13212,8 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     }
     else if (ssl->keys.dtls_peer_handshake_number <
                 ssl->keys.dtls_expected_peer_handshake_number ||
+            /* ignore all handshake messages if we are done with the
+             * handshake */
             (ssl->keys.dtls_peer_handshake_number >
                 ssl->keys.dtls_expected_peer_handshake_number &&
                 ssl->options.handShakeState == HANDSHAKE_DONE) ||
@@ -14060,17 +14073,19 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
         #if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
             if (ssl->options.dtls && ssl->secure_renegotiation &&
                     ssl->secure_renegotiation->tmp_keys.dtls_epoch != 0) {
-                if (ssl->keys.curEpoch == ssl->secure_renegotiation->tmp_keys.dtls_epoch)
-                    XMEMCPY(ssl->decrypt.nonce, ssl->secure_renegotiation->tmp_keys.aead_dec_imp_IV,
-                                                                    AESGCM_IMP_IV_SZ);
+                if (ssl->keys.curEpoch ==
+                        ssl->secure_renegotiation->tmp_keys.dtls_epoch)
+                    XMEMCPY(ssl->decrypt.nonce,
+                            ssl->secure_renegotiation->tmp_keys.aead_dec_imp_IV,
+                            AESGCM_IMP_IV_SZ);
                 else
                     XMEMCPY(ssl->decrypt.nonce, ssl->keys.aead_dec_imp_IV,
-                                                                    AESGCM_IMP_IV_SZ);
+                            AESGCM_IMP_IV_SZ);
             }
             else
         #endif
                 XMEMCPY(ssl->decrypt.nonce, ssl->keys.aead_dec_imp_IV,
-                                                                AESGCM_IMP_IV_SZ);
+                        AESGCM_IMP_IV_SZ);
             XMEMCPY(ssl->decrypt.nonce + AESGCM_IMP_IV_SZ, input,
                                                             AESGCM_EXP_IV_SZ);
             if ((ret = aes_auth_fn(ssl->decrypt.aes,
@@ -14197,17 +14212,22 @@ static WC_INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
         #if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
             if (ssl->options.dtls && ssl->secure_renegotiation &&
                     ssl->secure_renegotiation->tmp_keys.dtls_epoch != 0) {
-                if (ssl->keys.curEpoch == ssl->secure_renegotiation->tmp_keys.dtls_epoch) {
+                /* For epochs >1 the current cipher parameters are located in
+                 * ssl->secure_renegotiation->tmp_keys. Previous cipher
+                 * parameters and for epoch 1 use ssl->keys */
+                if (ssl->keys.curEpoch ==
+                        ssl->secure_renegotiation->tmp_keys.dtls_epoch) {
                     if (ssl->decrypt.src != SCR) {
-                        ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
+                        ssl->secure_renegotiation->cache_status =
+                                SCR_CACHE_NEEDED;
                         if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0)
                             break;
                     }
-                        WOLFSSL_BUFFER(ssl->secure_renegotiation->tmp_keys.client_write_key, MAX_SYM_KEY_SIZE);
                 }
                 else {
                     if (ssl->decrypt.src != KEYS) {
-                        ssl->secure_renegotiation->cache_status = SCR_CACHE_NULL;
+                        ssl->secure_renegotiation->cache_status =
+                                SCR_CACHE_NULL;
                         if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0)
                             break;
                     }
@@ -15685,9 +15705,9 @@ int SendChangeCipher(WOLFSSL* ssl)
     #ifdef WOLFSSL_DTLS
     else {
         if (IsDtlsNotSctpMode(ssl)) {
-            DtlsSEQIncrement(ssl, CUR_ORDER);
             if ((ret = DtlsMsgPoolSave(ssl, output, sendSz, change_cipher_hs)) != 0)
                 return ret;
+            DtlsSEQIncrement(ssl, CUR_ORDER);
         }
     }
     #endif
@@ -16087,35 +16107,42 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         #if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
             if (ssl->options.dtls && ssl->secure_renegotiation &&
                     ssl->secure_renegotiation->tmp_keys.dtls_epoch != 0) {
+                /* For epochs >1 the current cipher parameters are located in
+                 * ssl->secure_renegotiation->tmp_keys. Previous cipher
+                 * parameters and for epoch 1 use ssl->keys */
                 switch (epochOrder) {
                 case PREV_ORDER:
                     if (ssl->encrypt.src != KEYS) {
-                        ssl->secure_renegotiation->cache_status = SCR_CACHE_NULL;
+                        ssl->secure_renegotiation->cache_status =
+                                SCR_CACHE_NULL;
                         if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
                             ERROR_OUT(ret, exit_buildmsg);
-                        WOLFSSL_BUFFER(ssl->keys.client_write_key, MAX_SYM_KEY_SIZE);
                     }
                     break;
                 case CUR_ORDER:
-                    if (ssl->keys.dtls_epoch == ssl->secure_renegotiation->tmp_keys.dtls_epoch) {
+                    if (ssl->keys.dtls_epoch ==
+                            ssl->secure_renegotiation->tmp_keys.dtls_epoch) {
                         if (ssl->encrypt.src != SCR) {
-                            ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
-                            if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
+                            ssl->secure_renegotiation->cache_status =
+                                    SCR_CACHE_NEEDED;
+                            if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY))
+                                    != 0)
                                 ERROR_OUT(ret, exit_buildmsg);
-                            WOLFSSL_BUFFER(ssl->secure_renegotiation->tmp_keys.client_write_key, MAX_SYM_KEY_SIZE);
                         }
                     }
                     else {
                         if (ssl->encrypt.src != KEYS) {
-                            ssl->secure_renegotiation->cache_status = SCR_CACHE_NULL;
-                            if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
+                            ssl->secure_renegotiation->cache_status =
+                                    SCR_CACHE_NULL;
+                            if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY))
+                                    != 0)
                                 ERROR_OUT(ret, exit_buildmsg);
-                            WOLFSSL_BUFFER(ssl->keys.client_write_key, MAX_SYM_KEY_SIZE);
                         }
                     }
                     break;
                 default:
-                    WOLFSSL_MSG("BuildMessage only supports PREV_ORDER and CUR_ORDER");
+                    WOLFSSL_MSG("BuildMessage only supports PREV_ORDER and "
+                                "CUR_ORDER");
                     ERROR_OUT(BAD_FUNC_ARG, exit_buildmsg);
                 }
             }
@@ -16326,8 +16353,8 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         case BUILD_MSG_ENCRYPT:
         {
     #if defined(HAVE_SECURE_RENEGOTIATION) && defined(WOLFSSL_DTLS)
-            /* Modify CUR_ORDER sequence number for all encryption algos
-             * that use it for encryption parameters */
+            /* If we want the PREV_ORDER then modify CUR_ORDER sequence number
+             * for all encryption algos that use it for encryption parameters */
             word16 dtls_epoch;
             word16 dtls_sequence_number_hi;
             word32 dtls_sequence_number_lo;
@@ -16341,8 +16368,10 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 dtls_sequence_number_hi = ssl->keys.dtls_sequence_number_hi;
                 dtls_sequence_number_lo = ssl->keys.dtls_sequence_number_lo;
                 ssl->keys.dtls_epoch--;
-                ssl->keys.dtls_sequence_number_hi = ssl->keys.dtls_prev_sequence_number_hi;
-                ssl->keys.dtls_sequence_number_lo = ssl->keys.dtls_prev_sequence_number_lo;
+                ssl->keys.dtls_sequence_number_hi =
+                        ssl->keys.dtls_prev_sequence_number_hi;
+                ssl->keys.dtls_sequence_number_lo =
+                        ssl->keys.dtls_prev_sequence_number_lo;
             }
     #endif
     #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
@@ -17145,12 +17174,12 @@ int SendCertificateRequest(WOLFSSL* ssl)
         } else {
             sendSz = i;
             #ifdef WOLFSSL_DTLS
-                if (ssl->options.dtls)
-                    DtlsSEQIncrement(ssl, CUR_ORDER);
                 if (IsDtlsNotSctpMode(ssl)) {
                     if ((ret = DtlsMsgPoolSave(ssl, output, sendSz, certificate_request)) != 0)
                         return ret;
                 }
+                if (ssl->options.dtls)
+                    DtlsSEQIncrement(ssl, CUR_ORDER);
             #endif
             ret = HashOutput(ssl, output, sendSz, 0);
             if (ret != 0)
@@ -17244,8 +17273,10 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
                 return MEMORY_E;
 
             XMEMCPY(input, output + recordHeaderSz, inputSz);
-            sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
-                                                           handshake, 1, 0, 0, CUR_ORDER);
+            ret = DtlsMsgPoolSave(ssl, input, inputSz, certificate_status);
+            if (ret == 0)
+                sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
+                                      handshake, 1, 0, 0, CUR_ORDER);
             XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
 
             if (sendSz < 0)
@@ -17253,16 +17284,13 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
         }
         else {
             #ifdef WOLFSSL_DTLS
-                if (ssl->options.dtls)
+                if (ret == 0 && IsDtlsNotSctpMode(ssl))
+                    ret = DtlsMsgPoolSave(ssl, output, sendSz, certificate_status);
+                if (ret == 0 && ssl->options.dtls)
                     DtlsSEQIncrement(ssl, CUR_ORDER);
             #endif
             ret = HashOutput(ssl, output, sendSz, 0);
         }
-
-    #ifdef WOLFSSL_DTLS
-        if (ret == 0 && IsDtlsNotSctpMode(ssl))
-            ret = DtlsMsgPoolSave(ssl, output, sendSz, certificate_status);
-    #endif
 
     #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ret == 0 && ssl->hsInfoOn)
@@ -17614,7 +17642,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         else {
 #ifdef WOLFSSL_TLS13
             sendSz = BuildTls13Message(ssl, out, outputSz, sendBuffer, buffSz,
-                                       application_data, 0, 0, 1, CUR_ORDER);
+                                       application_data, 0, 0, 1);
 #else
             sendSz = BUFFER_ERROR;
 #endif

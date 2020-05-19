@@ -3050,7 +3050,8 @@ typedef struct Ciphers {
     byte    state;
     byte    setup;       /* have we set it up flag for detection */
 #if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
-    enum CipherSrc src;
+    enum CipherSrc src;  /* DTLS uses this to determine which keys
+                          * are currently loaded */
 #endif
 } Ciphers;
 

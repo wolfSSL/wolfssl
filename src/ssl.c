@@ -3240,6 +3240,9 @@ const byte* wolfSSL_GetDtlsMacSecret(WOLFSSL* ssl, int verify, int epochOrder)
         return NULL;
 
 #ifdef HAVE_SECURE_RENEGOTIATION
+    /* ssl->keys contains the current cipher parameters only for epoch 1. For
+     * epochs >1 ssl->secure_renegotiation->tmp_keys contains the current
+     * cipher parameters */
     switch (epochOrder) {
     case PEER_ORDER:
         if (ssl->secure_renegotiation &&
