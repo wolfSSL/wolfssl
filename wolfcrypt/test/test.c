@@ -8573,7 +8573,7 @@ int aesgcm_test(void)
     byte resultT[sizeof(t1)];
     byte resultP[sizeof(p) + AES_BLOCK_SIZE];
     byte resultC[sizeof(p) + AES_BLOCK_SIZE];
-    int  result;
+    int  result = 0;
 #ifdef WOLFSSL_AES_256
     int  alen;
     #if !defined(WOLFSSL_AFALG_XILINX_AES) && !defined(WOLFSSL_XILINX_CRYPT)
@@ -18542,7 +18542,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
 #ifdef HAVE_ECC_KEY_EXPORT
     byte    exportBuf[MAX_ECC_BYTES * 2 + 32];
 #endif
-    word32  x;
+    word32  x = 0;
 #if defined(HAVE_ECC_DHE) || defined(HAVE_ECC_CDH)
     word32  y;
 #endif
@@ -20664,7 +20664,7 @@ int curve25519_test(void)
 #ifdef HAVE_CURVE25519_KEY_EXPORT
     byte    exportBuf[32];
 #endif
-    word32  x;
+    word32  x = 0;
     curve25519_key userA, userB, pubKey;
 
 #if defined(HAVE_CURVE25519_SHARED_SECRET) && \
