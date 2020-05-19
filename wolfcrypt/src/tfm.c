@@ -878,6 +878,31 @@ void fp_div_2(fp_int * a, fp_int * b)
   fp_clamp (b);
 }
 
+/* c = a / 2 (mod b) - constant time (a < b and positive) */
+int fp_div_2_mod_ct(fp_int *a, fp_int *b, fp_int *c)
+{
+  fp_word  w = 0;
+  fp_digit mask;
+  int i;
+
+  mask = 0 - (a->dp[0] & 1);
+  for (i = 0; i < b->used; i++) {
+      fp_digit mask_a = 0 - (i < a->used);
+
+      w         += b->dp[i] & mask;
+      w         += a->dp[i] & mask_a;
+      c->dp[i]   = (fp_digit)w;
+      w        >>= DIGIT_BIT;
+  }
+  c->dp[i] = (fp_digit)w;
+  c->used = i + 1;
+  c->sign = FP_ZPOS;
+  fp_clamp(c);
+  fp_div_2(c, c);
+
+  return FP_OKAY;
+}
+
 /* c = a / 2**b */
 void fp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d)
 {
@@ -1544,6 +1569,54 @@ int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
   return err;
+}
+
+/* d = a - b (mod c) - constant time (a < c and b < c and positive) */
+int fp_submod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
+{
+  fp_word  w = 0;
+  fp_digit mask;
+  int i;
+
+  mask = 0 - (fp_cmp_mag(a, b) == FP_LT);
+  for (i = 0; i < c->used; i++) {
+      fp_digit mask_a = 0 - (i < a->used);
+
+      w         += c->dp[i] & mask;
+      w         += a->dp[i] & mask_a;
+      d->dp[i]   = (fp_digit)w;
+      w        >>= DIGIT_BIT;
+  }
+  d->dp[i] = (fp_digit)w;
+  d->used = i + 1;
+  d->sign = FP_ZPOS;
+  fp_clamp(d);
+  fp_sub(d, b, d);
+
+  return FP_OKAY;
+}
+
+/* d = a + b (mod c) - constant time (|a| < c and |b| < c and positive) */
+int fp_addmod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
+{
+  fp_word  w = 0;
+  fp_digit mask;
+  int i;
+
+  fp_add(a, b, d);
+  mask = 0 - (fp_cmp_mag(d, c) != FP_LT);
+  for (i = 0; i < c->used; i++) {
+      w        += c->dp[i] & mask;
+      w         = d->dp[i] - w;
+      d->dp[i]  = (fp_digit)w;
+      w         = (w >> DIGIT_BIT)&1;
+  }
+  d->dp[i] = 0;
+  d->used = i;
+  d->sign = a->sign;
+  fp_clamp(d);
+
+  return FP_OKAY;
 }
 
 #ifdef TFM_TIMING_RESISTANT
@@ -4007,6 +4080,18 @@ int mp_addmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
   return fp_addmod(a, b, c, d);
 }
 
+/* d = a - b (mod c) - constant time (a < c and b < c) */
+int mp_submod_ct(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
+{
+  return fp_submod_ct(a, b, c, d);
+}
+
+/* d = a + b (mod c) - constant time (a < c and b < c) */
+int mp_addmod_ct(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
+{
+  return fp_addmod_ct(a, b, c, d);
+}
+
 /* c = a mod b, 0 <= c < b */
 #if defined(FREESCALE_LTC_TFM)
 int wolfcrypt_mp_mod (mp_int * a, mp_int * b, mp_int * c)
@@ -5232,6 +5317,12 @@ int mp_div_2(fp_int * a, fp_int * b)
 {
     fp_div_2(a, b);
     return MP_OKAY;
+}
+
+/* c = a / 2 (mod b) - constant time (a < b and positive) */
+int mp_div_2_mod_ct(mp_int *a, mp_int *b, mp_int *c)
+{
+  return fp_div_2_mod_ct(a, b, c);
 }
 
 

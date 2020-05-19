@@ -1728,46 +1728,22 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
 
    /* Y = Y - T1 */
    if (err == MP_OKAY)
-       err = mp_sub(y, t1, y);
-   if (err == MP_OKAY) {
-       if (mp_isneg(y))
-           err = mp_add(y, modulus, y);
-   }
+       err = mp_submod_ct(y, t1, modulus, y);
    /* T1 = 2T1 */
    if (err == MP_OKAY)
-       err = mp_add(t1, t1, t1);
-   if (err == MP_OKAY) {
-       if (mp_cmp(t1, modulus) != MP_LT)
-           err = mp_sub(t1, modulus, t1);
-   }
+       err = mp_addmod_ct(t1, t1, modulus, t1);
    /* T1 = Y + T1 */
    if (err == MP_OKAY)
-       err = mp_add(t1, y, t1);
-   if (err == MP_OKAY) {
-       if (mp_cmp(t1, modulus) != MP_LT)
-           err = mp_sub(t1, modulus, t1);
-   }
+       err = mp_addmod_ct(t1, y, modulus, t1);
    /* X = X - T2 */
    if (err == MP_OKAY)
-       err = mp_sub(x, t2, x);
-   if (err == MP_OKAY) {
-       if (mp_isneg(x))
-           err = mp_add(x, modulus, x);
-   }
+       err = mp_submod_ct(x, t2, modulus, x);
    /* T2 = 2T2 */
    if (err == MP_OKAY)
-       err = mp_add(t2, t2, t2);
-   if (err == MP_OKAY) {
-       if (mp_cmp(t2, modulus) != MP_LT)
-           err = mp_sub(t2, modulus, t2);
-   }
+       err = mp_addmod_ct(t2, t2, modulus, t2);
    /* T2 = X + T2 */
    if (err == MP_OKAY)
-       err = mp_add(t2, x, t2);
-   if (err == MP_OKAY) {
-       if (mp_cmp(t2, modulus) != MP_LT)
-           err = mp_sub(t2, modulus, t2);
-   }
+       err = mp_addmod_ct(t2, x, modulus, t2);
 
    if (err == MP_OKAY) {
        if (!mp_iszero(Q->z)) {
@@ -1816,25 +1792,13 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
 
    /* X = X - T2 */
    if (err == MP_OKAY)
-       err = mp_sub(x, t2, x);
-   if (err == MP_OKAY) {
-       if (mp_isneg(x))
-           err = mp_add(x, modulus, x);
-   }
+       err = mp_submod_ct(x, t2, modulus, x);
    /* T2 = T2 - X */
    if (err == MP_OKAY)
-       err = mp_sub(t2, x, t2);
-   if (err == MP_OKAY) {
-       if (mp_isneg(t2))
-           err = mp_add(t2, modulus, t2);
-   }
+       err = mp_submod_ct(t2, x, modulus, t2);
    /* T2 = T2 - X */
    if (err == MP_OKAY)
-       err = mp_sub(t2, x, t2);
-   if (err == MP_OKAY) {
-       if (mp_isneg(t2))
-           err = mp_add(t2, modulus, t2);
-   }
+       err = mp_submod_ct(t2, x, modulus, t2);
    /* T2 = T2 * Y */
    if (err == MP_OKAY)
        err = mp_mul(t2, y, t2);
@@ -1843,18 +1807,10 @@ int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
 
    /* Y = T2 - T1 */
    if (err == MP_OKAY)
-       err = mp_sub(t2, t1, y);
-   if (err == MP_OKAY) {
-       if (mp_isneg(y))
-           err = mp_add(y, modulus, y);
-   }
+       err = mp_submod_ct(t2, t1, modulus, y);
    /* Y = Y/2 */
-   if (err == MP_OKAY) {
-       if (mp_isodd(y) == MP_YES)
-           err = mp_add(y, modulus, y);
-   }
    if (err == MP_OKAY)
-       err = mp_div_2(y, y);
+       err = mp_div_2_mod_ct(y, modulus, y);
 
 #ifdef ALT_ECC_SIZE
    if (err == MP_OKAY)
@@ -2071,11 +2027,7 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
 
    /* Z = 2Z */
    if (err == MP_OKAY)
-       err = mp_add(z, z, z);
-   if (err == MP_OKAY) {
-       if (mp_cmp(z, modulus) != MP_LT)
-           err = mp_sub(z, modulus, z);
-   }
+       err = mp_addmod_ct(z, z, modulus, z);
 
    /* Determine if curve "a" should be used in calc */
 #ifdef WOLFSSL_CUSTOM_CURVES
@@ -2101,25 +2053,13 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
           err = mp_montgomery_reduce(t2, modulus, mp);
       /* T1 = T2 + T1 */
       if (err == MP_OKAY)
-          err = mp_add(t1, t2, t1);
-      if (err == MP_OKAY) {
-         if (mp_cmp(t1, modulus) != MP_LT)
-            err = mp_sub(t1, modulus, t1);
-      }
+          err = mp_addmod_ct(t1, t2, modulus, t1);
       /* T1 = T2 + T1 */
       if (err == MP_OKAY)
-          err = mp_add(t1, t2, t1);
-      if (err == MP_OKAY) {
-          if (mp_cmp(t1, modulus) != MP_LT)
-              err = mp_sub(t1, modulus, t1);
-      }
+          err = mp_addmod_ct(t1, t2, modulus, t1);
       /* T1 = T2 + T1 */
       if (err == MP_OKAY)
-          err = mp_add(t1, t2, t1);
-      if (err == MP_OKAY) {
-         if (mp_cmp(t1, modulus) != MP_LT)
-            err = mp_sub(t1, modulus, t1);
-      }
+          err = mp_addmod_ct(t1, t2, modulus, t1);
    }
    else
 #endif /* WOLFSSL_CUSTOM_CURVES */
@@ -2129,18 +2069,10 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
 
       /* T2 = X - T1 */
       if (err == MP_OKAY)
-          err = mp_sub(x, t1, t2);
-      if (err == MP_OKAY) {
-          if (mp_isneg(t2))
-              err = mp_add(t2, modulus, t2);
-      }
+          err = mp_submod_ct(x, t1, modulus, t2);
       /* T1 = X + T1 */
       if (err == MP_OKAY)
-          err = mp_add(t1, x, t1);
-      if (err == MP_OKAY) {
-          if (mp_cmp(t1, modulus) != MP_LT)
-              err = mp_sub(t1, modulus, t1);
-      }
+          err = mp_addmod_ct(t1, x, modulus, t1);
       /* T2 = T1 * T2 */
       if (err == MP_OKAY)
           err = mp_mul(t1, t2, t2);
@@ -2149,27 +2081,15 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
 
       /* T1 = 2T2 */
       if (err == MP_OKAY)
-          err = mp_add(t2, t2, t1);
-      if (err == MP_OKAY) {
-          if (mp_cmp(t1, modulus) != MP_LT)
-              err = mp_sub(t1, modulus, t1);
-      }
+          err = mp_addmod_ct(t2, t2, modulus, t1);
       /* T1 = T1 + T2 */
       if (err == MP_OKAY)
-          err = mp_add(t1, t2, t1);
-      if (err == MP_OKAY) {
-          if (mp_cmp(t1, modulus) != MP_LT)
-              err = mp_sub(t1, modulus, t1);
-      }
+          err = mp_addmod_ct(t1, t2, modulus, t1);
    }
 
    /* Y = 2Y */
    if (err == MP_OKAY)
-       err = mp_add(y, y, y);
-   if (err == MP_OKAY) {
-       if (mp_cmp(y, modulus) != MP_LT)
-           err = mp_sub(y, modulus, y);
-   }
+       err = mp_addmod_ct(y, y, modulus, y);
    /* Y = Y * Y */
    if (err == MP_OKAY)
        err = mp_sqr(y, y);
@@ -2183,12 +2103,8 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
        err = mp_montgomery_reduce(t2, modulus, mp);
 
    /* T2 = T2/2 */
-   if (err == MP_OKAY) {
-       if (mp_isodd(t2) == MP_YES)
-           err = mp_add(t2, modulus, t2);
-   }
    if (err == MP_OKAY)
-       err = mp_div_2(t2, t2);
+       err = mp_div_2_mod_ct(t2, modulus, t2);
 
    /* Y = Y * X */
    if (err == MP_OKAY)
@@ -2204,26 +2120,14 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
 
    /* X = X - Y */
    if (err == MP_OKAY)
-       err = mp_sub(x, y, x);
-   if (err == MP_OKAY) {
-       if (mp_isneg(x))
-           err = mp_add(x, modulus, x);
-   }
+       err = mp_submod_ct(x, y, modulus, x);
    /* X = X - Y */
    if (err == MP_OKAY)
-       err = mp_sub(x, y, x);
-   if (err == MP_OKAY) {
-       if (mp_isneg(x))
-           err = mp_add(x, modulus, x);
-   }
+       err = mp_submod_ct(x, y, modulus, x);
 
    /* Y = Y - X */
    if (err == MP_OKAY)
-       err = mp_sub(y, x, y);
-   if (err == MP_OKAY) {
-       if (mp_isneg(y))
-           err = mp_add(y, modulus, y);
-   }
+       err = mp_submod_ct(y, x, modulus, y);
    /* Y = Y * T1 */
    if (err == MP_OKAY)
        err = mp_mul(y, t1, y);
@@ -2232,11 +2136,7 @@ int ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
 
    /* Y = Y - T2 */
    if (err == MP_OKAY)
-       err = mp_sub(y, t2, y);
-   if (err == MP_OKAY) {
-       if (mp_isneg(y))
-           err = mp_add(y, modulus, y);
-   }
+       err = mp_submod_ct(y, t2, modulus, y);
 
 #ifdef ALT_ECC_SIZE
    if (err == MP_OKAY)
