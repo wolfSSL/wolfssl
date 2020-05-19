@@ -2340,11 +2340,13 @@ exit:
 
 void bench_aesgcm(int doAsync)
 {
-#if defined(WOLFSSL_AES_128) && !defined(WOLFSSL_AFALG_XILINX_AES)
+#if defined(WOLFSSL_AES_128) && !defined(WOLFSSL_AFALG_XILINX_AES) \
+	&& !defined(WOLFSSL_XILINX_CRYPT)
     bench_aesgcm_internal(doAsync, bench_key, 16, bench_iv, 12,
                           "AES-128-GCM-enc", "AES-128-GCM-dec");
 #endif
-#if defined(WOLFSSL_AES_192) && !defined(WOLFSSL_AFALG_XILINX_AES)
+#if defined(WOLFSSL_AES_192) && !defined(WOLFSSL_AFALG_XILINX_AES) \
+	&& !defined(WOLFSSL_XILINX_CRYPT)
     bench_aesgcm_internal(doAsync, bench_key, 24, bench_iv, 12,
                           "AES-192-GCM-enc", "AES-192-GCM-dec");
 #endif

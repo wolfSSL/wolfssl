@@ -7513,10 +7513,10 @@ static int aes_cbc_test(void)
 
 int aes_test(void)
 {
-#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER)
+#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_DIRECT)
     Aes enc;
     byte cipher[AES_BLOCK_SIZE * 4];
-#if defined(HAVE_AES_DECRYPT) || defined(WOLFSSL_AES_COUNTER)
+#if defined(HAVE_AES_DECRYPT) || defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_DIRECT)
     Aes dec;
     byte plain [AES_BLOCK_SIZE * 4];
 #endif
