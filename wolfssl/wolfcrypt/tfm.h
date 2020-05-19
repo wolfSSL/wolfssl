@@ -474,6 +474,9 @@ int  fp_mul_2d(fp_int *a, int b, fp_int *c);
 void fp_2expt (fp_int *a, int b);
 int  fp_mul_2(fp_int *a, fp_int *c);
 void fp_div_2(fp_int *a, fp_int *c);
+/* c = a / 2 (mod b) - constant time (a < b and positive) */
+int fp_div_2_mod_ct(fp_int *a, fp_int *b, fp_int *c);
+
 
 /* Counts the number of lsbs which are zero before the first zero bit */
 int fp_cnt_lsb(fp_int *a);
@@ -529,6 +532,12 @@ int fp_submod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
 
 /* d = a + b (mod c) */
 int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
+
+/* d = a - b (mod c) - constant time (a < c and b < c) */
+int fp_submod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
+
+/* d = a + b (mod c) - constant time (a < c and b < c) */
+int fp_addmod_ct(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
 
 /* c = a * a (mod b) */
 int fp_sqrmod(fp_int *a, fp_int *b, fp_int *c);
@@ -743,6 +752,8 @@ MP_API int  mp_mul_d (mp_int * a, mp_digit b, mp_int * c);
 MP_API int  mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d);
 MP_API int  mp_submod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
 MP_API int  mp_addmod (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
+MP_API int  mp_submod_ct (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
+MP_API int  mp_addmod_ct (mp_int* a, mp_int* b, mp_int* c, mp_int* d);
 MP_API int  mp_mod(mp_int *a, mp_int *b, mp_int *c);
 MP_API int  mp_invmod(mp_int *a, mp_int *b, mp_int *c);
 MP_API int  mp_invmod_mont_ct(mp_int *a, mp_int *b, mp_int *c, fp_digit mp);
@@ -793,6 +804,7 @@ MP_API int mp_radix_size (mp_int * a, int radix, int *size);
     MP_API int mp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
     MP_API int mp_montgomery_setup(fp_int *a, fp_digit *rho);
     MP_API int mp_div_2(fp_int * a, fp_int * b);
+    MP_API int mp_div_2_mod_ct(mp_int *a, mp_int *b, mp_int *c);
     MP_API int mp_init_copy(fp_int * a, fp_int * b);
 #endif
 
