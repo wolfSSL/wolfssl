@@ -31691,6 +31691,9 @@ static void test_wolfSSL_dtls_set_mtu(void)
 
 #if !defined(NO_RSA) && !defined(NO_SHA) && !defined(NO_FILESYSTEM) && \
     !defined(NO_CERTS)
+
+#define EXPECTED_ERROR_CODE -9
+
 static int load_ca_into_cm(WOLFSSL_CERT_MANAGER* cm, char* certA)
 {
     int ret;
@@ -31711,29 +31714,33 @@ static int verify_cert_with_cm(WOLFSSL_CERT_MANAGER* cm, char* certA)
                                                          != WOLFSSL_SUCCESS) {
         printf("could not verify the cert: %s\n", certA);
         printf("Error: (%d): %s\n", ret, wolfSSL_ERR_reason_error_string(ret));
-        return -1;
+        return ret;
     } else {
         printf("successfully verified: %s\n", certA);
     }
 
     return 0;
 }
-#define LOAD_ONE_CA(a, b, c, d)                         \
-                    do {                                \
-                        a = load_ca_into_cm(c, d);      \
-                        if (a != 0)                     \
-                            return b;                   \
-                        else                            \
-                            b--;                        \
+#define LOAD_ONE_CA(a, b, c, d)                                 \
+                    do {                                        \
+                        a = load_ca_into_cm(c, d);              \
+                        if (a != 0) {                           \
+                            AssertIntEQ(a, ASN_PATHLEN_INV_E);  \
+                            return b;                           \
+                        }                                       \
+                        else                                    \
+                            b--;                                \
                     } while(0)
 
-#define VERIFY_ONE_CERT(a, b, c, d)                     \
-                    do {                                \
-                        a = verify_cert_with_cm(c, d);  \
-                        if (a != 0)                     \
-                            return b;                   \
-                        else                            \
-                            b--;                        \
+#define VERIFY_ONE_CERT(a, b, c, d)                             \
+                    do {                                        \
+                        a = verify_cert_with_cm(c, d);          \
+                        if (a != 0) {                           \
+                            AssertIntEQ(a, ASN_PATHLEN_INV_E);  \
+                            return b;                           \
+                        }                                       \
+                        else                                    \
+                            b--;                                \
                     } while(0)
 
 static int test_chainG(WOLFSSL_CERT_MANAGER* cm)
@@ -31890,7 +31897,7 @@ static int test_various_pathlen_chains(void)
         printf("cert manager new failed\n");
         return -1;
     }
-    AssertIntLT(test_chainH(cm), 0);
+    AssertIntEQ(test_chainH(cm), EXPECTED_ERROR_CODE);
 
     wolfSSL_CertManagerUnloadCAs(cm);
     wolfSSL_CertManagerFree(cm);
@@ -31931,7 +31938,7 @@ static int test_various_pathlen_chains(void)
         printf("cert manager new failed\n");
         return -1;
     }
-    AssertIntLT(test_chainJ(cm), 0);
+    AssertIntEQ(test_chainJ(cm), EXPECTED_ERROR_CODE);
 
     wolfSSL_CertManagerUnloadCAs(cm);
     wolfSSL_CertManagerFree(cm);
