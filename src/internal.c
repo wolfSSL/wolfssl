@@ -15445,7 +15445,7 @@ int ProcessReply(WOLFSSL* ssl)
 
                     if (IsEncryptionOn(ssl, 0) && ssl->options.handShakeDone) {
                         ssl->buffers.inputBuffer.idx += ssl->keys.padSz;
-                        ssl->curSize -= ssl->keys.padSz;
+                        ssl->curSize -= (word16)ssl->keys.padSz;
 #ifdef HAVE_AEAD
                         if (ssl->specs.cipher_type == aead &&
                             ssl->specs.bulk_cipher_algorithm != wolfssl_chacha)
@@ -17273,7 +17273,9 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
                 return MEMORY_E;
 
             XMEMCPY(input, output + recordHeaderSz, inputSz);
-            ret = DtlsMsgPoolSave(ssl, input, inputSz, certificate_status);
+            #ifdef WOLFSSL_DTLS
+                ret = DtlsMsgPoolSave(ssl, input, inputSz, certificate_status);
+            #endif
             if (ret == 0)
                 sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
                                       handshake, 1, 0, 0, CUR_ORDER);
@@ -24250,10 +24252,11 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 if (IsDtlsNotSctpMode(ssl)) {
                     ret = DtlsMsgPoolSave(ssl, args->output, args->sendSz, certificate_verify);
                 }
-                if (ssl->options.dtls)
+                if (ret == 0 && ssl->options.dtls)
                     DtlsSEQIncrement(ssl, CUR_ORDER);
             #endif
-                ret = HashOutput(ssl, args->output, args->sendSz, 0);
+                if (ret == 0)
+                    ret = HashOutput(ssl, args->output, args->sendSz, 0);
             }
 
             if (ret != 0) {
