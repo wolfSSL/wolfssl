@@ -392,7 +392,7 @@
             return ret;
 
     #ifdef STM32_CRYPTO_AES_ONLY
-        hcryp.Init.OperatingMode = CRYP_ALGOMODE_DECRYPT;
+        hcryp.Init.OperatingMode = CRYP_ALGOMODE_KEYDERIVATION_DECRYPT;
         hcryp.Init.ChainingMode  = CRYP_CHAINMODE_AES_ECB;
         hcryp.Init.KeyWriteFlag  = CRYP_KEY_WRITE_ENABLE;
     #elif defined(STM32_HAL_V2)
