@@ -521,6 +521,8 @@ WOLFSSL_API
 int wc_ecc_set_flags(ecc_key* key, word32 flags);
 WOLFSSL_API
 void wc_ecc_fp_free(void);
+WOLFSSL_LOCAL
+void wc_ecc_fp_init(void);
 
 WOLFSSL_API
 int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id);
