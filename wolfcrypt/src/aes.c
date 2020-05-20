@@ -5987,10 +5987,10 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
 #ifdef WOLFSSL_STM32_CUBEMX
     hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)ctr;
     hcryp.Init.Header = (STM_CRYPT_TYPE*)authInPadded;
-    hcryp.Init.HeaderSize = authPadSz/sizeof(word32);
 
 #ifdef STM32_CRYPTO_AES_ONLY
     /* Set the CRYP parameters */
+    hcryp.Init.HeaderSize = authPadSz;
     hcryp.Init.ChainingMode  = CRYP_CHAINMODE_AES_GCM_GMAC;
     hcryp.Init.OperatingMode = CRYP_ALGOMODE_ENCRYPT;
     hcryp.Init.GCMCMACPhase  = CRYP_INIT_PHASE;
@@ -6011,21 +6011,22 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
                 (blocks * AES_BLOCK_SIZE), out, STM32_HAL_TIMEOUT);
         }
     }
-    if (status == HAL_OK && (partial != 0 || blocks == 0)) {
+    if (status == HAL_OK && (partial != 0 || (sz > 0 && blocks == 0))) {
         /* GCM payload phase - partial remainder */
         XMEMSET(partialBlock, 0, sizeof(partialBlock));
         XMEMCPY(partialBlock, in + (blocks * AES_BLOCK_SIZE), partial);
-        status = HAL_CRYPEx_AES_Auth(&hcryp, partialBlock, partial,
-            partialBlock, STM32_HAL_TIMEOUT);
+        status = HAL_CRYPEx_AES_Auth(&hcryp, (uint8_t*)partialBlock, partial,
+        		(uint8_t*)partialBlock, STM32_HAL_TIMEOUT);
         XMEMCPY(out + (blocks * AES_BLOCK_SIZE), partialBlock, partial);
     }
     if (status == HAL_OK) {
         /* GCM final phase */
         hcryp.Init.GCMCMACPhase  = CRYP_FINAL_PHASE;
-        status = HAL_CRYPEx_AES_Auth(&hcryp, NULL, sz, tag, STM32_HAL_TIMEOUT);
+        status = HAL_CRYPEx_AES_Auth(&hcryp, NULL, sz, (uint8_t*)tag, STM32_HAL_TIMEOUT);
     }
 #elif defined(STM32_HAL_V2)
     hcryp.Init.Algorithm  = CRYP_AES_GCM;
+    hcryp.Init.HeaderSize = authPadSz/sizeof(word32);
     ByteReverseWords(partialBlock, ctr, AES_BLOCK_SIZE);
     hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)partialBlock;
     HAL_CRYP_Init(&hcryp);
@@ -6039,6 +6040,7 @@ static int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in, word32 sz
             STM32_HAL_TIMEOUT);
     }
 #else
+    hcryp.Init.HeaderSize = authPadSz;
     HAL_CRYP_Init(&hcryp);
     if (blocks) {
         /* GCM payload phase - blocks */
@@ -6426,10 +6428,10 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
 #ifdef WOLFSSL_STM32_CUBEMX
     hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)ctr;
     hcryp.Init.Header = (STM_CRYPT_TYPE*)authInPadded;
-    hcryp.Init.HeaderSize = authPadSz/sizeof(word32);
 
 #ifdef STM32_CRYPTO_AES_ONLY
     /* Set the CRYP parameters */
+    hcryp.Init.HeaderSize = authPadSz;
     hcryp.Init.ChainingMode  = CRYP_CHAINMODE_AES_GCM_GMAC;
     hcryp.Init.OperatingMode = CRYP_ALGOMODE_DECRYPT;
     hcryp.Init.GCMCMACPhase  = CRYP_INIT_PHASE;
@@ -6450,7 +6452,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
                 (blocks * AES_BLOCK_SIZE), out, STM32_HAL_TIMEOUT);
         }
     }
-    if (status == HAL_OK && (partial != 0 || blocks == 0)) {
+    if (status == HAL_OK && (partial != 0 || (sz > 0 && blocks == 0))) {
         /* GCM payload phase - partial remainder */
         XMEMSET(partialBlock, 0, sizeof(partialBlock));
         XMEMCPY(partialBlock, in + (blocks * AES_BLOCK_SIZE), partial);
@@ -6464,6 +6466,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
         status = HAL_CRYPEx_AES_Auth(&hcryp, NULL, sz, (byte*)tag, STM32_HAL_TIMEOUT);
     }
 #elif defined(STM32_HAL_V2)
+    hcryp.Init.HeaderSize = authPadSz/sizeof(word32);
     hcryp.Init.Algorithm = CRYP_AES_GCM;
     ByteReverseWords(partialBlock, ctr, AES_BLOCK_SIZE);
     hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)partialBlock;
@@ -6478,6 +6481,7 @@ static int wc_AesGcmDecrypt_STM32(Aes* aes, byte* out,
             STM32_HAL_TIMEOUT);
     }
 #else
+    hcryp.Init.HeaderSize = authPadSz;
     HAL_CRYP_Init(&hcryp);
     if (blocks) {
         /* GCM payload phase - blocks */
