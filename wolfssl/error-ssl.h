@@ -132,7 +132,8 @@ enum wolfSSL_ErrorCodes {
     DH_KEY_SIZE_E                = -401,   /* DH Key too small */
     SNI_ABSENT_ERROR             = -402,   /* No SNI request. */
     RSA_SIGN_FAULT               = -403,   /* RSA Sign fault */
-    HANDSHAKE_SIZE_ERROR         = -404,   /* Handshake message too large */
+    HANDSHAKE_SIZE_ERROR         = -404,   /* Handshake message too large or
+                                            * MAX_CHAIN_DEPTH too low */
     UNKNOWN_ALPN_PROTOCOL_NAME_E = -405,   /* Unrecognized protocol name Error*/
     BAD_CERTIFICATE_STATUS_ERROR = -406,   /* Bad certificate status message */
     OCSP_INVALID_STATUS          = -407,   /* Invalid OCSP Status */

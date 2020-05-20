@@ -12628,6 +12628,7 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
          * nine 2048-bit RSA certificates in the chain. */
         if (size > MAX_HANDSHAKE_SZ) {
             WOLFSSL_MSG("Handshake message too large");
+            WOLFSSL_MSG("MAX_CHAIN_DEPTH set below chain length will trigger");
             return HANDSHAKE_SIZE_ERROR;
         }
 
@@ -17887,7 +17888,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "RSA Signature Fault Error";
 
     case HANDSHAKE_SIZE_ERROR:
-        return "Handshake message too large Error";
+        return "Handshake message too large or MAX_CHAIN_DEPTH too low Error";
 
     case UNKNOWN_ALPN_PROTOCOL_NAME_E:
         return "Unrecognized protocol name Error";
