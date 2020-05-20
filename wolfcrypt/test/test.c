@@ -7513,10 +7513,10 @@ static int aes_cbc_test(void)
 
 int aes_test(void)
 {
-#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER)
+#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_DIRECT)
     Aes enc;
     byte cipher[AES_BLOCK_SIZE * 4];
-#if defined(HAVE_AES_DECRYPT) || defined(WOLFSSL_AES_COUNTER)
+#if defined(HAVE_AES_DECRYPT) || defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_DIRECT)
     Aes dec;
     byte plain [AES_BLOCK_SIZE * 4];
 #endif
@@ -11251,7 +11251,7 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
      *     -101 = USER_CRYPTO_ERROR
      */
     if (ret == 0)
-#elif defined(WOLFSSL_AFALG_XILINX_RSA)
+#elif defined(WOLFSSL_AFALG_XILINX_RSA) || defined(WOLFSSL_XILINX_CRYPT)
     /* blinding / rng handled with hardware acceleration */
     if (ret != 0)
 #elif defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_CB)
