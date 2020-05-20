@@ -24983,10 +24983,9 @@ static void test_wolfSSL_BIO_gets(void)
 
     /* try with bad args */
     AssertNull(bio = BIO_new_mem_buf(NULL, sizeof(msg)));
-    AssertNull(bio = BIO_new_mem_buf((void*)msg, -1));
 
     /* try with real msg */
-    AssertNotNull(bio = BIO_new_mem_buf((void*)msg, sizeof(msg)));
+    AssertNotNull(bio = BIO_new_mem_buf((void*)msg, -1));
     XMEMSET(bio_buffer, 0, bufferSz);
     AssertNotNull(BIO_push(bio, BIO_new(BIO_s_bio())));
     AssertNull(bio2 = BIO_find_type(bio, BIO_TYPE_FILE));
