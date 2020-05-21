@@ -19261,7 +19261,7 @@ void wolfSSL_SESSION_free(WOLFSSL_SESSION* session)
 
 
 /* helper function that takes in a protocol version struct and returns string */
-static const char* wolfSSL_internal_get_version(ProtocolVersion* version)
+static const char* wolfSSL_internal_get_version(const ProtocolVersion* version)
 {
     WOLFSSL_ENTER("wolfSSL_get_version");
 
@@ -19315,7 +19315,7 @@ static const char* wolfSSL_internal_get_version(ProtocolVersion* version)
 }
 
 
-const char* wolfSSL_get_version(WOLFSSL* ssl)
+const char* wolfSSL_get_version(const WOLFSSL* ssl)
 {
     if (ssl == NULL) {
         WOLFSSL_MSG("Bad argument");
@@ -21092,6 +21092,8 @@ int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
     cipher_names = GetCipherNames();
 
     offset = cipher->offset;
+    if (offset >= (unsigned long)GetCipherNamesSize())
+        return WOLFSSL_FAILURE;
     pv.major = cipher_names[offset].major;
     pv.minor = cipher_names[offset].minor;
     protocol = wolfSSL_internal_get_version(&pv);
@@ -26628,9 +26630,6 @@ int wolfSSL_sk_num(WOLFSSL_STACK* sk)
 
 void* wolfSSL_sk_value(WOLFSSL_STACK* sk, int i)
 {
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-    int offset = i;
-#endif
     WOLFSSL_ENTER("wolfSSL_sk_value");
 
     for (; sk != NULL && i > 0; i--)
@@ -26642,9 +26641,6 @@ void* wolfSSL_sk_value(WOLFSSL_STACK* sk, int i)
         case STACK_TYPE_X509:
             return (void*)sk->data.x509;
         case STACK_TYPE_CIPHER:
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-            sk->data.cipher.offset = offset;
-        #endif
             return (void*)&sk->data.cipher;
         case STACK_TYPE_GEN_NAME:
             return (void*)sk->data.gn;
@@ -42940,6 +42936,8 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
 {
     WOLF_STACK_OF(WOLFSSL_CIPHER)* ret = NULL;
     Suites* suites;
+    const CipherSuiteInfo* cipher_names = GetCipherNames();
+    int cipherSz = GetCipherNamesSize();
 
     WOLFSSL_ENTER("wolfSSL_get_ciphers_compat");
     if (ssl == NULL || (ssl->suites == NULL && ssl->ctx->suites == NULL)) {
@@ -42956,15 +42954,30 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
     /* check if stack needs populated */
     if (suites->stack == NULL) {
         int i;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        int j;
+#endif
         for (i = 0; i < suites->suiteSz; i+=2) {
             WOLFSSL_STACK* add = wolfSSL_sk_new_node(ssl->heap);
             if (add != NULL) {
                 add->type = STACK_TYPE_CIPHER;
                 add->data.cipher.cipherSuite0 = suites->suites[i];
                 add->data.cipher.cipherSuite  = suites->suites[i+1];
+                add->data.cipher.ssl          = ssl;
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+                for (j = 0; j < cipherSz; j++) {
+                    if (cipher_names[j].cipherSuite0 ==
+                            add->data.cipher.cipherSuite0 &&
+                            cipher_names[j].cipherSuite ==
+                                    add->data.cipher.cipherSuite) {
+                        add->data.cipher.offset = j;
+                        break;
+                    }
+                }
+#endif
                 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
                 /* in_stack is checked in wolfSSL_CIPHER_description */
-                add->data.cipher.in_stack = 1;
+                add->data.cipher.in_stack     = 1;
                 #endif
 
                 add->next = ret;
