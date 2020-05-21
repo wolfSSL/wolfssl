@@ -3236,18 +3236,19 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
 #endif
 
 #ifdef HAVE_SECURE_RENEGOTIATION
-    if (ssl->options.dtls &&
-            ssl->secure_renegotiation &&
+    if (ssl->secure_renegotiation &&
             ssl->secure_renegotiation->cache_status == SCR_CACHE_NEEDED) {
         keys = &ssl->secure_renegotiation->tmp_keys;
 #ifdef WOLFSSL_DTLS
-        /* epoch is incremented after StoreKeys is called */
-        ssl->secure_renegotiation->tmp_keys.dtls_epoch = ssl->keys.dtls_epoch + 1;
-        /* we only need to copy keys on second and future renegotiations */
-        if (ssl->keys.dtls_epoch > 1)
-            scr_copy = 1;
-        ssl->encrypt.src = KEYS_NOT_SET;
-        ssl->decrypt.src = KEYS_NOT_SET;
+        if (ssl->options.dtls) {
+            /* epoch is incremented after StoreKeys is called */
+            ssl->secure_renegotiation->tmp_keys.dtls_epoch = ssl->keys.dtls_epoch + 1;
+            /* we only need to copy keys on second and future renegotiations */
+            if (ssl->keys.dtls_epoch > 1)
+                scr_copy = 1;
+            ssl->encrypt.src = KEYS_NOT_SET;
+            ssl->decrypt.src = KEYS_NOT_SET;
+        }
 #endif
         CacheStatusPP(ssl->secure_renegotiation);
     }
