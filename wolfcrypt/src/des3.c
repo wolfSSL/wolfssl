@@ -345,7 +345,7 @@
         return 0;
     }
 
-    static void Des3Crypt(Des3* des, byte* out, const byte* in, word32 sz,
+    static int Des3Crypt(Des3* des, byte* out, const byte* in, word32 sz,
                    int dir)
     {
         if (des == NULL || out == NULL || in == NULL)
@@ -460,18 +460,17 @@
             CRYP_Cmd(DISABLE);
         }
     #endif /* WOLFSSL_STM32_CUBEMX */
+        return 0;
     }
 
     int wc_Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
-        Des3Crypt(des, out, in, sz, DES_ENCRYPTION);
-        return 0;
+        return Des3Crypt(des, out, in, sz, DES_ENCRYPTION);
     }
 
     int wc_Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
-        Des3Crypt(des, out, in, sz, DES_DECRYPTION);
-        return 0;
+        return Des3Crypt(des, out, in, sz, DES_DECRYPTION);
     }
 
 #elif defined(HAVE_COLDFIRE_SEC)
