@@ -14923,7 +14923,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
 
         if (len < 0) {
-            len = XSTRLEN(buf);
+            len = (int)XSTRLEN((const char*)buf);
         }
         bio->num = bio->wrSz = len;
         bio->ptr = (byte*)XMALLOC(len, 0, DYNAMIC_TYPE_OPENSSL);

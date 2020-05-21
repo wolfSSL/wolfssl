@@ -28034,7 +28034,7 @@ static void test_wolfSSL_OBJ_ln(void)
             "jurisdictionStateOrProvinceName",
             "emailAddress",
     };
-    int i = 0, maxIdx = sizeof(ln_set)/sizeof(char*);
+    size_t i = 0, maxIdx = sizeof(ln_set)/sizeof(char*);
 
     printf(testingFmt, "wolfSSL_OBJ_ln");
 
@@ -28042,7 +28042,7 @@ static void test_wolfSSL_OBJ_ln(void)
 
 #ifdef HAVE_ECC
     {
-        int nCurves = 27;
+        size_t nCurves = 27;
         EC_builtin_curve r[nCurves];
         nCurves = EC_get_builtin_curves(r,nCurves);
 
