@@ -26404,7 +26404,7 @@ int wolfSSL_BIO_vprintf(WOLFSSL_BIO* bio, const char* format, va_list args)
             break;
 
         case WOLFSSL_BIO_MEMORY:
-    #if defined(OPENSSL_EXTRA) && !defined(_WIN32)
+    #if defined(OPENSSL_EXTRA) && (!defined(_WIN32) || defined(HAVE_VA_COPY))
         case WOLFSSL_BIO_SSL:
             {
                 int count;
