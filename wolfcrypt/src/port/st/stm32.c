@@ -299,7 +299,7 @@ int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp)
     return 0;
 }
 
-#else /* STD_PERI_LIB */
+#else /* Standard Peripheral Library */
 
 int wc_Stm32_Aes_Init(Aes* aes, CRYP_InitTypeDef* cryptInit,
     CRYP_KeyInitTypeDef* keyInit)
