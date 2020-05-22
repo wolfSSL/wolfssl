@@ -6798,7 +6798,7 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
 
     WOLFSSL_ENTER("wolfSSL_CTX_check_private_key");
 
-    if (ctx == NULL) {
+    if (ctx == NULL || ctx->certificate == NULL) {
         return WOLFSSL_FAILURE;
     }
 

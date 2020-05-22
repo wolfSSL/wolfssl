@@ -20637,8 +20637,12 @@ static void test_wolfSSL_private_keys(void)
     #else
     AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_client_method()));
     #endif
-    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, WOLFSSL_FILETYPE_PEM));
     AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM));
+    /* Have to load a cert before you can check the private key against that
+     * certificates public key! */
+    AssertIntEQ(wolfSSL_CTX_check_private_key(ctx), WOLFSSL_FAILURE);
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, WOLFSSL_FILETYPE_PEM));
+    AssertIntEQ(wolfSSL_CTX_check_private_key(ctx), WOLFSSL_SUCCESS);
     AssertNotNull(ssl = SSL_new(ctx));
 
     AssertIntEQ(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
