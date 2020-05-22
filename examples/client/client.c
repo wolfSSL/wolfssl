@@ -802,7 +802,8 @@ static int SMTP_Shutdown(WOLFSSL* ssl, int wc_shutdown)
     return WOLFSSL_SUCCESS;
 }
 
-static void ClientWrite(WOLFSSL* ssl, char* msg, int msgSz, const char* str)
+static int ClientWrite(WOLFSSL* ssl, char* msg, int msgSz, const char* str, 
+    int exitWithRet)
 {
     int ret, err;
     char buffer[WOLFSSL_MAX_ERROR_SZ];
@@ -827,8 +828,12 @@ static void ClientWrite(WOLFSSL* ssl, char* msg, int msgSz, const char* str)
     if (ret != msgSz) {
         printf("SSL_write%s msg error %d, %s\n", str, err,
                                         wolfSSL_ERR_error_string(err, buffer));
-        err_sys("SSL_write failed");
+        if (!exitWithRet) {
+            err_sys("SSL_write failed");
+        }
     }
+
+    return err;
 }
 
 static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
@@ -3102,7 +3107,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_update_keys(ssl);
 #endif
 
-    ClientWrite(ssl, msg, msgSz, "");
+    err = ClientWrite(ssl, msg, msgSz, "", exitWithRet);
+    if (exitWithRet && (err != 0)) {
+        ((func_args*)args)->return_code = err;
+        goto exit;
+    }
 
     err = ClientRead(ssl, reply, sizeof(reply)-1, 1, "", exitWithRet);
     if (exitWithRet && (err != 0)) {
@@ -3112,7 +3121,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #if defined(WOLFSSL_TLS13)
     if (updateKeysIVs || postHandAuth)
-        ClientWrite(ssl, msg, msgSz, "");
+        (void)ClientWrite(ssl, msg, msgSz, "", 0);
 #endif
     if (sendGET) {  /* get html */
         (void)ClientRead(ssl, reply, sizeof(reply)-1, 0, "", 0);
@@ -3364,12 +3373,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
 
-        ClientWrite(sslResume, resumeMsg, resumeSz, " resume");
+        (void)ClientWrite(sslResume, resumeMsg, resumeSz, " resume", 0);
 
         (void)ClientRead(sslResume, reply, sizeof(reply)-1, sendGET,
                          "Server resume: ", 0);
         /* try to send session break */
-        ClientWrite(sslResume, msg, msgSz, " resume 2");
+        (void)ClientWrite(sslResume, msg, msgSz, " resume 2", 0);
 
         ret = wolfSSL_shutdown(sslResume);
         if (wc_shutdown && ret == WOLFSSL_SHUTDOWN_NOT_DONE)
